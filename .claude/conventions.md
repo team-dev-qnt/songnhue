@@ -9,7 +9,7 @@
 
 ### 1.1. Backend (Java / Spring Boot)
 
-**Cấu trúc package trong mỗi module** (core, content, operations, hr):
+**Cấu trúc package trong mỗi module** (core, content, operations, hydro, hr):
 
 ```
 com.songnhue.<module>/
@@ -34,7 +34,7 @@ Quy tắc:
 - Cột chuẩn mọi bảng nghiệp vụ (BaseEntity): `created_at timestamptz`, `created_by`, `updated_at`, `updated_by`, `deleted_at` (soft delete), `version int` (optimistic lock).
 - FK: `<bảng_số_ít>_id` (`org_unit_id`); index: `ix_<bảng>_<cột>`; unique: `uq_<bảng>_<cột>`; check: `ck_<bảng>_<rule>`.
 - Enum nghiệp vụ: lưu `VARCHAR` + CHECK constraint (không dùng Postgres enum type — khó migrate).
-- Migration Flyway: `V<yyyyMMddHHmm>__<module>_<mô_tả>.sql` (VD `V202607201030__ops_create_constructions.sql`). Cấm sửa migration đã merge — chỉ thêm mới.
+- Migration Flyway: `V<yyyyMMddHHmm>__<module>_<mô_tả>.sql` (VD `V202607201030__ops_create_constructions.sql`). Cấm sửa migration đã merge — chỉ thêm mới. Prefix `<module>`: `core`/`cms`/`ops`/`hyd`/`hr`.
 
 ### 1.3. REST API
 
@@ -109,7 +109,7 @@ AppException (abstract — mang ErrorCode, args cho message template)
 
 ### 2.3. Error code catalog
 
-Format: `<PREFIX>-<4 số>` — prefix theo module: `SYS` (hệ thống), `AUTH`, `CMS`, `OPS`, `HR`, `ADM`. Dải số: 0xxx hệ thống/chung, 1xxx not-found/conflict, 2xxx business rule, 3xxx permission/scope.
+Format: `<PREFIX>-<4 số>` — prefix theo module: `SYS` (hệ thống), `AUTH`, `CMS`, `OPS` (vận hành công trình), `HYD` (thủy văn — MOD-03), `HR`, `ADM`. Dải số: 0xxx hệ thống/chung, 1xxx not-found/conflict, 2xxx business rule, 3xxx permission/scope.
 
 | Code | HTTP | Message (vi) |
 |---|---|---|
@@ -120,8 +120,10 @@ Format: `<PREFIX>-<4 số>` — prefix theo module: `SYS` (hệ thống), `AUTH`
 | AUTH-0003 | 423 | Tài khoản tạm khóa do đăng nhập sai nhiều lần |
 | AUTH-3001 | 403 | Không có quyền thực hiện thao tác này |
 | AUTH-3002 | 403 | Dữ liệu không thuộc phạm vi đơn vị của bạn |
-| OPS-2001 | 422 | Chỉ được nhập bù tối đa 3 ngày trước |
-| OPS-2003 | 422 | Lưu lượng vượt 120% thiết kế — cần xác nhận |
+| OPS-2001 | 422 | Chỉ được nhập bù tối đa 3 ngày trước 🔷 |
+| OPS-2003 | 422 | Lưu lượng vượt 120% thiết kế — cần xác nhận 🔷 |
+| HYD-1001 | 404 | Điểm đo chưa ánh xạ nguồn API bên thứ 3 |
+| HYD-2001 | 422 | Giá trị đo ngoài khoảng vật lý cho phép |
 | CMS-2001 | 422 | Slug đã tồn tại |
 | HR-2001 | 422 | Số ngày đăng ký vượt số phép còn lại |
 

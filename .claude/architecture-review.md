@@ -150,3 +150,35 @@ Vì 1 node, DB là điểm chịu rủi ro lớn nhất — backup phải chắc
 - **Kiểm thử phục hồi định kỳ** (restore thử ra môi trường staging) — backup không test coi như không có.
 - WAL/dump lưu **khác đĩa/khác máy** với DB chính; key mã hóa `employee_sensitive` lưu tách, không nằm trong cùng bản backup.
 - Runbook PITR: khôi phục về thời điểm bất kỳ; RTO mục tiêu ghi rõ khi chốt SRS.
+
+---
+
+## 7. ĐỒNG BỘ THEO SRS v1.0 — TÁI CẤU TRÚC MODULE & RESTORE UI (2026-08-06)
+
+> Đối chiếu `function-spec.md` với **SRS_QuanTriDieuHanh_TLSN ver 06.8.2026 (SRS v1.0)**. 3 quyết định dưới đây **thắng** các bản mô tả module cũ trong function-spec/implement. function-spec đã lên **v2.0**.
+
+### 7.1. Tái cấu trúc 5 module theo SRS
+| Hạng mục | Cũ (nội bộ v1) | Chốt theo SRS | Lý do |
+|---|---|---|---|
+| Thủy văn | Gộp trong MOD-02 (vận hành) | **Tách thành MOD-03 riêng** | SRS §3.3 tách "Quản lý dữ liệu thủy văn" thành module độc lập (pipeline API + điểm đo + cảnh báo + báo cáo). Khớp bản chất kỹ thuật: data pipeline chạy nền, vòng đời/scale khác nghiệp vụ công trình. Trùng với ranh giới code đã dự kiến (`operations/hydro` — nay nâng thành module `hydro`) |
+| Tích hợp văn bản | MOD-04 riêng | **Gộp vào MOD-01 (CN-01.7)** | SRS xếp M1.8 "tích hợp văn bản điều hành" trong Module 1 (E-Portal). Bản chất = hiển thị/đồng bộ lên cổng, không có DB nghiệp vụ riêng → thuộc nhóm Content |
+| HRM | MOD-03 | **MOD-04** | Đổi số theo thứ tự SRS |
+| Quản trị | MOD-05 | **MOD-05** (giữ số, +chức năng) | SRS Module 5 bổ sung: health-check, thông báo hệ thống, quản lý phiên + đăng xuất từ xa, cảnh báo đăng nhập bất thường, xuất/nhập cấu hình, ma trận quyền theo màn hình |
+
+**Hệ quả kỹ thuật**: module code backend nay là `core / content / operations / hydro / hr` (thêm `hydro`). Ranh giới ArchUnit: `content` (widget) và `operations` (GIS marker, dashboard) gọi `hydro` **chỉ qua service interface `spi/`**, không import repository. `hydro_latest` là điểm tích hợp chính giữa `hydro` → widget/GIS/dashboard.
+
+### 7.2. Giữ phần mở rộng 🔷 ngoài SRS
+Nhật ký vận hành, phiếu sự cố, báo cáo vận hành BC-01..08 **không có trong SRS v1.0**. Giữ trong function-spec (từ tài liệu gốc "Đặc tả hệ thống Website") nhưng đánh dấu 🔷 và **chờ khách xác nhận scope** (business-open-questions F1). Code phần này đặt trong module `operations` (nhóm C3), có thể bật/tắt theo scope chốt.
+
+### 7.3. Restore qua UI (SRS M5.11) — ĐẢO quyết định E1 cũ + biện pháp bảo vệ
+SRS M5.11/UC5.6 yêu cầu Admin chọn bản backup và **khôi phục qua UI**. Trước đây (business-open-questions E1) đề xuất restore chỉ qua runbook ops vì rủi ro cao. Nay **làm nút restore UI** nhưng bắt buộc kèm chốt chặn:
+
+- **Chỉ Super Admin + 2FA (TOTP)** mới thấy/gọi được chức năng.
+- **Xác nhận nhiều bước**: gõ đúng tên hệ thống + lý do restore; cảnh báo "ghi đè toàn bộ dữ liệu hiện tại".
+- **Chạy async có tiến độ**, **đặt hệ thống vào maintenance mode** trong lúc restore (chặn ghi); ghi **security event** + audit.
+- **Khuyến nghị restore ra Staging trước** để đối chiếu; production restore là thao tác có phê duyệt.
+- **Runbook PITR giữ song song**: UI chỉ khôi phục từ bản backup logic (pg_dump) đã chọn; khôi phục về **thời điểm bất kỳ** (WAL/PITR, RPO ≤ 15') vẫn là quy trình ops có runbook — UI không thay thế được. UI hiển thị trạng thái backup gần nhất + link tới runbook PITR.
+- Nguyên tắc §6.5 (backup là ưu tiên vận hành số 1, test restore định kỳ) **không đổi**.
+
+### 7.4. Điểm khác cần theo dõi (đã ghi business-open-questions mục F)
+Trạng thái bản ghi thủy văn 3 mức (Hợp lệ/Nghi ngờ/Loại bỏ — F2); lưu vực/khu tưới tiêu (F3); công cụ GIS đo/xuất bản đồ (F4); chức năng MOD-05 mới (F5); Shapefile (F7); NFR lệch nhẹ uptime 99% vs 99.5%, 200 vs 100–300 user, 2FA (F8). Các mục này không đảo quyết định kiến trúc đã chốt — chỉ bổ sung phạm vi.
