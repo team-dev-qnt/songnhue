@@ -1,6 +1,6 @@
 # PHASE 0 — CORE PLATFORM · BẢNG THEO DÕI TIẾN ĐỘ
 
-> **Cập nhật lần cuối**: 2026-08-13 · **Tiến độ: 0/107 task (0%)** · **DoD: 0/21** · Trạng thái: ⬜ Chưa bắt đầu
+> **Cập nhật lần cuối**: 2026-08-13 · **Tiến độ: 6/107 task (6%)** · **DoD: 0/21** · Trạng thái: 🟡 Đang làm (xong WS-1)
 > Nguồn ràng buộc: `conventions.md` (coding/security) · `architecture-review.md` §6, §9 (kiến trúc đã chốt) · `function-spec.md` (nghiệp vụ MOD-05)
 > **Cách dùng**: làm xong task nào tick `[x]` task đó; xong 1 WS thì chạy mục "Kiểm chứng" của WS rồi cập nhật bảng tổng + dòng "Cập nhật lần cuối" ở trên.
 
@@ -10,7 +10,7 @@
 
 | WS | Hạng mục | Task | Xong | Trạng thái | Phụ thuộc | Ước tính |
 |---|---|:-:|:-:|---|---|:-:|
-| **WS-1** | Repo & quy ước nền | 6 | 0 | ⬜ Chưa bắt đầu | — | 2 pd |
+| **WS-1** | Repo & quy ước nền | 6 | **6** | ✅ **Xong** (13/8) | — | 2 pd |
 | **WS-2** | DB & Migration | 10 | 0 | ⬜ Chưa bắt đầu | WS-1 | 8 pd |
 | **WS-3** | Docker & môi trường chạy local | 7 | 0 | ⬜ Chưa bắt đầu | WS-1 | 5 pd |
 | **WS-4** | BE — Common Platform | 10 | 0 | ⬜ Chưa bắt đầu | WS-2 | 10 pd |
@@ -21,7 +21,7 @@
 | **WS-9** | FE — public-web | 5 | 0 | ⬜ Chưa bắt đầu | WS-1 | 5 pd |
 | **WS-10** | Test & CI | 7 | 0 | ⬜ Chưa bắt đầu | WS-4 | 10 pd |
 | **WS-11** | Deploy Staging & Production | 10 | 0 | ⬜ Chưa bắt đầu | WS-3, 7, 10 | 10 pd |
-| | **TỔNG** | **107** | **0** | | | **114 pd** |
+| | **TỔNG** | **107** | **6** | | | **114 pd** |
 
 *(107 task triển khai + 21 mục Definition of Done ở cuối file.)*
 
@@ -50,18 +50,33 @@ WS-1 ─► WS-2 ─► WS-3          [nền — bắt buộc trước mọi th�
 
 ---
 
-## WS-1 — Repo & quy ước nền · 2 pd
+## WS-1 — Repo & quy ước nền · 2 pd — ✅ **XONG 13/8/2026**
 
 **Tiên quyết**: không có. **Đầu ra**: repo build được, lint chạy được, `make` có đủ lệnh.
 
-- [ ] **T1.1** Tạo cấu trúc monorepo + `.gitignore`, `.editorconfig`, `.gitattributes` — *layout: `conventions.md` §1.7*
-- [ ] **T1.2** Maven parent `backend/pom.xml`: Java 21, Spring Boot 3.x BOM, 6 module con (`core/content/operations/hydro/hr/app`), `spring-boot-maven-plugin` ở `app/` — *§1.1*
-- [ ] **T1.3** Spotless + Checkstyle (BE), ESLint + Prettier (FE) — chạy được ở local và CI — *§1.5*
-- [ ] **T1.4** `.env.example` cho từng môi trường, liệt kê **đủ key**, không giá trị thật — *§1.6, cấm commit `.env`*
-- [ ] **T1.5** `Makefile`: `dev-infra`, `dev-native`, `dev-docker`, `migrate`, `test`, `backup`, `restore` — *§1.7*
-- [ ] **T1.6** Commit convention (Conventional Commits) + PR template gắn **Definition of Done** — *§1.5, §5*
+- [x] **T1.1** Tạo cấu trúc monorepo + `.gitignore`, `.editorconfig`, `.gitattributes` — *layout: `conventions.md` §1.7*
+- [x] **T1.2** Maven parent `backend/pom.xml`: Java 21, **Spring Boot 3.5.3**, 6 module con (`core/content/operations/hydro/hr/app`), `spring-boot-maven-plugin` ở `app/` — *§1.1*
+- [x] **T1.3** Spotless + Checkstyle (BE), ESLint + Prettier (FE) — chạy được ở local và CI — *§1.5*
+- [x] **T1.4** `.env.example` cho `local`/`staging`/`prod`, liệt kê **đủ key**, không giá trị thật — *§1.6, cấm commit `.env`*
+- [x] **T1.5** `Makefile` 21 lệnh: `dev-infra`, `dev-native`, `dev-docker`, `migrate`, `test`, `backup`, `restore`… — *§1.7*
+- [x] **T1.6** Commit convention (hook `commit-msg`) + PR template gắn **Definition of Done** — *§1.5, §5*
 
-**Kiểm chứng**: `./mvnw clean verify` xanh trên repo rỗng · `make` liệt kê đủ lệnh · lint chạy không lỗi cấu hình.
+**Kiểm chứng — đã chạy**:
+- ✅ `./mvnw clean verify` → **BUILD SUCCESS**, 7/7 module, 0 Checkstyle violation
+- ✅ `make` → liệt kê **21 lệnh**; lệnh phụ thuộc WS-3 báo lỗi có hướng dẫn thay vì chết câm
+- ✅ `make lint` → Spotless + Checkstyle + ESLint + Prettier đều xanh
+- ✅ **Checkstyle bắt lỗi thật**: file thử vi phạm `System.out` / `new Date()` / `catch(Throwable)` / empty catch → 4 violation, build đỏ
+- ✅ **Hook commit-msg**: message sai → chặn (exit 1); đúng Conventional Commits → qua
+- ✅ **`.gitignore` chặn secret**: tạo `deploy/env/local.env` thật → không xuất hiện trong `git status`
+
+**Quyết định phát sinh khi làm** (khác/bổ sung so với kế hoạch):
+| Việc | Xử lý |
+|---|---|
+| Máy chưa có Maven | Sinh `mvnw` wrapper (Maven 3.9.9, loại `only-script`) bằng Docker — không bắt dev cài Maven |
+| `${maven.multiModuleProjectDirectory}` trỏ vào `backend/`, không phải gốc repo | Chuyển checkstyle config về `backend/config/checkstyle/` thay vì hack `../` |
+| Spotless `sortPom` mặc định indent 2, lệch `.editorconfig` (xml = 4) | Ép `nrOfIndentSpace=4` — nếu không, IDE và Spotless sẽ liên tục sửa ngược nhau |
+| Formatter Java | **Palantir Java Format** (4 space, 120 cột) — khớp `.editorconfig`, khác google-java-format (2 space) |
+| ESLint chặn kiến trúc FE | Thêm `no-restricted-imports` (axios, moment) + `no-restricted-globals` (fetch) → ép mọi request đi qua `shared/apiClient`; miễn trừ cho chính `shared/apiClient` |
 
 ---
 
@@ -295,4 +310,5 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 0 hoàn thành:
 
 | Ngày | Nội dung |
 |---|---|
+| 2026-08-13 | **WS-1 xong**. Chốt Spring Boot **3.5.3**, formatter **Palantir Java Format** (4 space/120 cột), checkstyle config đặt ở `backend/config/checkstyle/`. Wrapper Maven 3.9.9 sinh qua Docker. |
 | 2026-08-13 | Lập kế hoạch Phase 0. Chốt Maven multi-module · monorepo · deploy compose 3 VM · secrets env+GitHub Secrets · migration service riêng · DB roles tách quyền. **Backup hạ xuống bản tối giản** (RPO 24h, RTO 4h, không PITR/replica) — đồng bộ ngược vào `function-spec.md`, `architecture-review.md` §6.5/§9, `conventions.md` §1.2/§1.7. |
