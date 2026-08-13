@@ -1,0 +1,131 @@
+<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC
+        "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+        "https://checkstyle.org/dtds/configuration_1_3.dtd">
+
+<!--
+  Checkstyle cho songnhue-backend.
+
+  PHẠM VI: chỉ bắt những gì conventions.md quy định mà formatter (Spotless/Palantir)
+  không lo được. Cố ý KHÔNG kiểm tra style trình bày (indent, ngoặc, khoảng trắng) —
+  Spotless đã chuẩn hóa rồi, đặt trùng chỉ gây xung đột.
+
+  KHÔNG đặt ở đây (do ArchUnit lo — WS-10 / T10.2):
+    · module chỉ được import spi/ của module khác
+    · cấm float/double cho số đo và tiền
+    · @Transactional chỉ ở tầng application
+    · entity không ra khỏi tầng application
+-->
+<module name="Checker">
+    <property name="severity" value="warning"/>
+    <property name="fileExtensions" value="java"/>
+
+    <!-- Mã nguồn luôn UTF-8, luôn LF (khớp .gitattributes) -->
+    <module name="NewlineAtEndOfFile">
+        <property name="lineSeparator" value="lf"/>
+    </module>
+    <module name="FileTabCharacter">
+        <property name="eachLine" value="true"/>
+    </module>
+    <module name="UniqueProperties"/>
+
+    <!-- ================= CẤM THEO conventions.md §1.1 ================= -->
+    <module name="RegexpSingleline">
+        <property name="format" value="System\.(out|err)\.print"/>
+        <property name="message"
+                  value="Cấm System.out/System.err — dùng SLF4J logger (conventions.md §1.1)."/>
+    </module>
+    <module name="RegexpSingleline">
+        <property name="format" value="new\s+java\.util\.Date\s*\(|(?&lt;![\w.])new\s+Date\s*\("/>
+        <property name="message"
+                  value="Cấm new Date() — dùng Instant/OffsetDateTime, lưu timestamptz UTC (conventions.md §1.1, CLAUDE.md quy tắc 1)."/>
+    </module>
+    <module name="RegexpSingleline">
+        <property name="format" value="printStackTrace\s*\(\s*\)"/>
+        <property name="message"
+                  value="Cấm printStackTrace() — ném AppException hoặc log kèm traceId (conventions.md §2.2)."/>
+    </module>
+    <module name="RegexpSingleline">
+        <property name="format" value="^\s*//\s*(TODO|FIXME|XXX)(?!\s*\()"/>
+        <property name="message"
+                  value="TODO/FIXME phải ghi kèm người chịu trách nhiệm hoặc mã task, VD: // TODO(T4.6): ..."/>
+        <property name="severity" value="info"/>
+    </module>
+
+    <module name="TreeWalker">
+
+        <!-- ================= Import ================= -->
+        <module name="UnusedImports">
+            <property name="processJavadoc" value="true"/>
+        </module>
+        <module name="RedundantImport"/>
+        <module name="AvoidStarImport"/>
+        <module name="IllegalImport">
+            <!-- sun.* nội bộ JDK; junit.framework là JUnit 3 -->
+            <property name="illegalPkgs" value="sun,junit.framework"/>
+        </module>
+
+        <!-- ================= Đặt tên (conventions.md §1.1) ================= -->
+        <module name="PackageName">
+            <property name="format" value="^[a-z]+(\.[a-z][a-z0-9]*)*$"/>
+        </module>
+        <module name="TypeName"/>
+        <module name="MethodName"/>
+        <module name="ParameterName"/>
+        <module name="LocalVariableName"/>
+        <module name="MemberName"/>
+        <module name="StaticVariableName"/>
+        <module name="ConstantName"/>
+        <module name="RecordComponentName"/>
+        <module name="RecordTypeParameterName"/>
+
+        <!-- ================= Bẫy lỗi thực sự ================= -->
+        <module name="EqualsHashCode"/>
+        <module name="CovariantEquals"/>
+        <module name="StringLiteralEquality"/>
+        <module name="SimplifyBooleanExpression"/>
+        <module name="SimplifyBooleanReturn"/>
+        <module name="EmptyStatement"/>
+        <module name="FallThrough"/>
+        <module name="MissingSwitchDefault"/>
+        <module name="DefaultComesLast"/>
+        <module name="NoFinalizer"/>
+        <module name="EqualsAvoidNull"/>
+        <module name="OneStatementPerLine"/>
+        <module name="UnnecessarySemicolonInEnumeration"/>
+        <module name="UnnecessarySemicolonAfterTypeMemberDeclaration"/>
+        <module name="ModifierOrder"/>
+        <module name="MultipleVariableDeclarations"/>
+
+        <!-- Nuốt exception — conventions.md §1.1 -->
+        <module name="IllegalCatch">
+            <property name="illegalClassNames" value="java.lang.Throwable,java.lang.Error"/>
+        </module>
+        <module name="EmptyCatchBlock">
+            <!-- Cho phép khi đặt tên biến là `ignored`/`expected` để thể hiện chủ ý -->
+            <property name="exceptionVariableName" value="ignored|expected"/>
+        </module>
+
+        <!-- Module nghiệp vụ chỉ được ném AppException hoặc subclass — conventions.md §2.2 -->
+        <module name="IllegalThrows">
+            <property name="illegalClassNames"
+                      value="java.lang.RuntimeException,java.lang.Throwable,java.lang.Error"/>
+        </module>
+
+        <!-- ================= Độ phức tạp (ngưỡng rộng, chỉ chặn trường hợp thật sự xấu) ================= -->
+        <module name="MethodLength">
+            <property name="max" value="120"/>
+        </module>
+        <module name="ParameterNumber">
+            <property name="max" value="8"/>
+            <property name="ignoreOverriddenMethods" value="true"/>
+        </module>
+
+        <!-- Cho phép tắt kiểm tra cục bộ khi có lý do chính đáng, phải ghi rõ lý do -->
+        <module name="SuppressionCommentFilter">
+            <property name="offCommentFormat" value="CHECKSTYLE.OFF\: ([\w\|]+) \- (.+)"/>
+            <property name="onCommentFormat" value="CHECKSTYLE.ON\: ([\w\|]+)"/>
+            <property name="checkFormat" value="$1"/>
+        </module>
+    </module>
+</module>

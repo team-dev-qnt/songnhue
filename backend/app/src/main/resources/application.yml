@@ -1,0 +1,57 @@
+# =============================================================================
+# CẤU HÌNH ỨNG DỤNG — chỉ chứa placeholder ${ENV_VAR}, KHÔNG chứa giá trị thật.
+# conventions.md §1.6: mọi connection/setup đọc từ env; thiếu env bắt buộc →
+# fail-fast lúc startup, không chạy với default ngầm.
+# Giá trị thật: deploy/env/<môi trường>.env  (không commit — xem .gitignore)
+# =============================================================================
+spring:
+  application:
+    name: songnhue
+  profiles:
+    default: local
+  jackson:
+    default-property-inclusion: non_null
+    # Timestamp luôn là UTC ở tầng lưu trữ/API; convert UTC+7 chỉ ở tầng hiển thị
+    # (CLAUDE.md quy tắc 1)
+    time-zone: UTC
+    serialization:
+      write-dates-as-timestamps: false
+
+server:
+  port: ${APP_PORT:8080}
+  shutdown: graceful
+  error:
+    # Không bao giờ lộ stacktrace ra ngoài — conventions.md §2.2
+    include-stacktrace: never
+    include-message: never
+  forward-headers-strategy: framework
+
+# Cấu hình nghiệp vụ của hệ thống.
+# LƯU Ý: tham số nghiệp vụ (giờ hành chính, retention, ngưỡng, chu kỳ polling…)
+# KHÔNG nằm ở đây mà nằm trong bảng `settings` có UI sửa — CLAUDE.md quy tắc 12.
+# Chỗ này chỉ giữ tham số hạ tầng/triển khai.
+app:
+  # Bật khi lên ≥2 node — architecture-review.md §6.4
+  shedlock-enabled: ${SHEDLOCK_ENABLED:false}
+  worker-enabled: ${WORKER_ENABLED:true}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+
+logging:
+  level:
+    root: INFO
+    com.songnhue: ${LOG_LEVEL_APP:INFO}

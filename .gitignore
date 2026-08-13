@@ -1,0 +1,65 @@
+# ============================================================
+# BẮT BUỘC — conventions.md §1.5: cấm commit secrets, .env,
+# file cấu hình môi trường thật. Chỉ commit *.env.example.
+# ============================================================
+.env
+.env.*
+!.env.example
+!*.env.example
+deploy/env/*.env
+!deploy/env/*.env.example
+secrets/
+*.pem
+*.p12
+*.jks
+*.key
+!**/src/**/*.key
+
+# --- Java / Maven ---
+target/
+!.mvn/wrapper/maven-wrapper.jar
+build/
+*.class
+*.jar
+!.mvn/wrapper/*.jar
+*.war
+*.ear
+hs_err_pid*
+replay_pid*
+
+# --- Node / Frontend ---
+node_modules/
+dist/
+.next/
+out/
+*.tsbuildinfo
+.eslintcache
+coverage/
+.turbo/
+
+# --- IDE ---
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.shared.json
+.settings/
+.project
+.classpath
+.factorypath
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Runtime / dữ liệu local ---
+logs/
+*.log
+tmp/
+data/
+backup/*.dump
+backup/*.gz
+backup/*.sha256

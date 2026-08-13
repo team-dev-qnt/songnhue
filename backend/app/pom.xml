@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.songnhue</groupId>
+        <artifactId>songnhue-backend</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>songnhue-app</artifactId>
+    <name>Songnhue App</name>
+    <description>Bootstrap của Modular Monolith: gom 5 module thành 1 process, giữ application*.yml và Dockerfile.
+        Module này KHÔNG chứa logic nghiệp vụ.</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.songnhue</groupId>
+            <artifactId>songnhue-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.songnhue</groupId>
+            <artifactId>songnhue-content</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.songnhue</groupId>
+            <artifactId>songnhue-operations</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.songnhue</groupId>
+            <artifactId>songnhue-hydro</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.songnhue</groupId>
+            <artifactId>songnhue-hr</artifactId>
+        </dependency>
+
+        <!-- Health-check + metrics (CN-05.6 / M5.12) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>songnhue-app</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>com.songnhue.app.SongnhueApplication</mainClass>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
