@@ -1,8 +1,8 @@
 > Cập nhật **2026-08-12** (bản 2 — sau confirm đợt 2).
 > ✅ **ĐỢT 1 (mục A–F) ĐÃ ĐÓNG** — Công ty trả lời đầy đủ ngày 12/8/2026 (`docs_origin/Trả lời Business Open Questions 12.8.2026.docx.md`), đã đồng bộ vào `function-spec.md`, `implement.md`, `architecture-review.md` §8.
-> ✅ **ĐỢT 2 — ĐÃ ĐÓNG 8/12 mục**: **G1, G2, G3 (phần lớn), G4, G7, G9, G11, G12** → xem **Phần I-B**, đã đồng bộ vào `function-spec.md` v2.2.
-> ⬜ **CÒN MỞ 5 mục**: **G3-a** (lượng mưa) · **G5** (mã số hệ thống văn bản) · **G6** (mẫu 2C-BNV) · **G8 + G8b** (danh sách điểm đo + **bảng ánh xạ mã API**) · **G10** (duyệt format báo cáo) → xem **Phần II**.
-> 🔴 **Chỉ còn 1 mục chặn nghiệm thu: G8b.** Không mục nào chặn Phase 0 / Phase 1.
+> ✅ **ĐỢT 2 — ĐÃ ĐÓNG 9/12 mục**: **G1, G2, G3 (phần lớn), G4, G7, G8b, G9, G11, G12** → xem **Phần I-B**, đã đồng bộ vào `function-spec.md` v2.2.
+> ⬜ **CÒN MỞ 4 mục**: **G3-a** (lượng mưa) · **G5** (mã số hệ thống văn bản) · **G6** (mẫu 2C-BNV) · **G8** (tuyến sông/lý trình/tọa độ + danh mục công trình) · **G9-a** (bộ mức ngưỡng) · **G10** (duyệt format báo cáo) → xem **Phần II**.
+> ✅ **KHÔNG CÒN MỤC NÀO CHẶN.** G8b — mục chặn cuối cùng của MOD-03 — đã đóng ngày 12/8/2026.
 > Ký hiệu: 🔴 chặn thiết kế/code · 🟡 cần trước khi làm module liên quan · ⚪ chốt sau được.
 
 ---
@@ -61,13 +61,14 @@
 | **G7** | Retention audit log | **Confirm** đề xuất | Giữ **5 năm** (`audit.retention-years`, cấu hình được); quá hạn → **kết xuất file lưu trữ có checksum SHA-256** lên MinIO rồi mới xóa khỏi bảng nóng; hash chain nối tiếp qua ranh giới kết xuất; kết xuất lỗi → không xóa dòng nào — CN-05.4 |
 | **G9** | Ngưỡng cảnh báo thực tế | **Admin sẽ tự config ngưỡng** | Bàn giao **màn hình cấu hình ngưỡng đầy đủ** (điểm đo × chỉ số × mức, có lịch sử + audit) là hạng mục nghiệm thu; điểm đo chưa cấu hình → nhãn "chưa cấu hình ngưỡng" + **không phát cảnh báo**; có danh sách "Điểm đo chưa cấu hình ngưỡng". *(Bộ mức ngưỡng cụ thể: xem G9 phần còn mở)* |
 | **G11** | Người nhận cảnh báo | **Confirm** đề xuất | Hợp của: (a) nhóm cố định **"Ban điều hành"** do Admin cấu hình; (b) **tự động** người phụ trách đơn vị quản lý công trình liên kết điểm đo (`station_constructions → constructions.org_unit → org_units`). Khử trùng lặp; loại tài khoản khóa/nghỉ việc — CN-03.6 |
+| **G8b** 🔴→✅ | Bảng ánh xạ mã API ↔ tên điểm đo | **Cung cấp đủ 19/19 mã** kèm vai trò TL/HL/Bể hút/**MN sông** | **Gỡ bỏ mục chặn cuối cùng của MOD-03.** Bảng seed đưa vào `function-spec.md` CN-03.1; bổ sung vai trò **`MN_SONG`** vào enum; chốt quy tắc `stations.position_role` vs `station_constructions.role`; **cấm validate "TL > HL"** (2/5 cặp đảo hợp lệ); seed/join **dùng mã, cấm dùng tên** (2 công trình cùng tên "Yên Nghĩa"); biểu tổng hợp phải chịu được ô trống (9/19 điểm không thành cặp) |
 | **G12** | Con số nghiệm thu NFR | **Confirm** | Uptime **≥ 99%** · **200 CCU** · trang chủ **< 3s** · báo cáo tháng **< 60s** · **2FA bắt buộc Admin + Admin HR** → §7 NFR ghi rõ "con số nghiệm thu chính thức" + bổ sung tiêu chí đo (load test 200 CCU; 7 ngày không bỏ sót khung 10') |
 
 ---
 
 ## PHẦN II — CÒN MỞ: CẦN CÔNG TY CUNG CẤP
 
-> 5 mục dưới đây **không chặn Phase 0 và Phase 1**. Chỉ **G8b** chặn nghiệm thu MOD-03.
+> Các mục dưới đây **không chặn Phase 0, Phase 1 và không chặn việc code MOD-03**. Ảnh hưởng chủ yếu tới **dữ liệu khởi tạo** và **nghiệm thu**.
 
 ### G3-a. 🟡 Lượng mưa — chốt cách xử lý ở v1
 
@@ -119,29 +120,26 @@ Danh sách trích từ hệ thống nguồn ngày 12/8/2026 — **cần Công ty
 
 **Công trình có điểm đo mưa**: Cống Liên Mạc · TB Cầu Giát · Cống Hà Đông · TB Yên Nghĩa · TB Đại Áng · TB Xém · Cống Đồng Quan · Cống Hòa Mỹ · Cống Vân Đình · TB Ngoại Độ · Cống Nhật Tựu · Cống Lương Cổ · Cống Điệp Sơn · TB Thụy Phú II · TB Hồng Vân.
 
-**Cần confirm**:
+✅ **Đã có (G8b)**: bảng ánh xạ 19 mã API ↔ tên điểm đo + vai trò → `function-spec.md` CN-03.1.
+⬜ **Còn thiếu để nhập liệu ban đầu — 4 việc**:
 
-1. Danh sách trên đã đủ/đúng chưa? Có điểm đo/công trình nào ngoài danh sách này cần quản lý không?
-2. **Tổng số công trình Công ty quản lý** (kể cả công trình không có điểm đo) là bao nhiêu? Có sẵn file Excel danh mục không?
-3. **Tọa độ GPS** của các công trình/điểm đo — Công ty có sẵn không, hay cần số hóa bằng cách chọn điểm trên bản đồ?
+**1. Bổ sung 3 cột còn thiếu cho đúng 19 điểm đo đã ánh xạ**: `Tuyến sông | Lý trình (K..+..) | Tọa độ GPS`. Không có tọa độ thì điểm đo **không lên được bản đồ GIS** (M2.8/M3.17).
 
-### G8b. 🔴 **BẢNG ÁNH XẠ MÃ API ↔ TÊN ĐIỂM ĐO — chặn toàn bộ MOD-03**
+**2. Đối chiếu khoảng trống giữa API và biểu tổng hợp.** API chỉ phủ **19 điểm**, ít hơn danh sách trên biểu tổng hợp. Cụ thể:
 
-API trả về **mã số, không trả tên điểm đo**. Không có bảng ánh xạ thì hệ thống không biết `F01771` là điểm nào, không gắn được ngưỡng cảnh báo, không lên được bản đồ, không ra được báo cáo.
+| | Nội dung |
+|---|---|
+| **Có trên biểu tổng hợp nhưng KHÔNG có trong API** | Cống Phủ Lý · Điệp Sơn · TB Thụy Phú II · Cống Tắc Giang · Cửa sông La Khê · Cửa sông Duy Tiên · ĐTHL Liên Mạc (K1+085) |
+| **Có trong API nhưng KHÔNG có trong danh sách cũ** | TV Hà Nội · An Cảnh · Liên Mạc 2 · Cống tiêu tự chảy Yên Nghĩa |
 
-19 mã nhận được ngày 12/8/2026 lúc 21:50 (giá trị đơn vị **cm**):
+👉 Các điểm nhóm trên **có được quan trắc tự động không**, hay số liệu nhập tay / đọc thủ công? Nếu không có telemetry thì hệ thống mới sẽ **không có dữ liệu** cho các điểm đó — cần biết trước để không hứa nhầm khi nghiệm thu.
 
-| Mã API | Giá trị | Mã API | Giá trị | Mã API | Giá trị | Mã API | Giá trị |
-| ------ | ------- | ------ | ------- | ------ | ------- | ------ | ------- |
-| F01519 | 189     | F01652 | 351     | F01732 | 375     | F01905 | 181     |
-| F01527 | 179     | F01657 | 182     | F01771 | 447     | F01965 | 294     |
-| F01532 | 256     | F01672 | 294     | F01794 | 249     | F02030 | 190     |
-| F01559 | 436     | F01705 | 218     | F01812 | 342     | F02031 | 190     |
-| F01707 | 203     | F01820 | 203     | F02039 | 180     |        |         |
+**3. Xác nhận 3 cặp mã đang trả giá trị trùng khít** (quan sát 21:50 ngày 12/8): `F02030`≡`F02031` (Nhật Tựu TL/HL, 1.90 m) · `F01707`≡`F01820` (bể hút TB Yên Nghĩa ≡ TL cống tiêu tự chảy Yên Nghĩa, 2.03 m) · `F01672`≡`F01965` (HL Cống Liên Mạc ≡ HL Liên Mạc 2, 2.94 m).
+👉 Đây là **2 cảm biến độc lập cùng vực nước**, hay **1 cảm biến được cấp 2 mã** (hoặc giá trị nội suy)? Khác nhau ở chỗ có nên gắn 2 bộ ngưỡng riêng hay không. *(Phía phát triển sẽ theo dõi vài ngày để tự đối chiếu, nhưng cần Công ty xác nhận chính thức.)*
 
-**Cần Công ty cung cấp bảng**: `Mã API | Tên điểm đo | Tuyến sông | Lý trình | Công trình liên quan | Vai trò (TL/HL/Bể hút) | Loại chỉ số | Đơn vị`.
+**4. Danh mục công trình tổng thể**: tổng số công trình Công ty quản lý (kể cả công trình **không** có điểm đo) — có sẵn file Excel không? Kèm loại, cấp quản lý, đơn vị phụ trách, năm xây dựng, tọa độ.
 
-_(Đối chiếu sơ bộ với biểu tổng hợp lúc 21h20 chỉ khớp chắc chắn được vài mã — VD F01771=447 ↔ Liên Mạc TL (K0+390), F01652=351 ↔ Yên Nghĩa (K38+000) sông Đáy, F01532=256 ↔ Ba Thá (K46+500), F01705=218 ↔ Cống Phủ Lý (K109+754). **Phần còn lại không suy đoán** — ánh xạ sai thì toàn bộ cảnh báo và báo cáo sai theo.)_
+> ℹ **Lưu ý phân biệt tên**: có **2 công trình khác nhau cùng mang tên "Yên Nghĩa"** (`TB Yên Nghĩa` và `Cống tiêu tự chảy Yên Nghĩa`) và cụm Liên Mạc có `Cống Liên Mạc` + `Liên Mạc 2`. Khi gửi danh mục đề nghị **kèm mã công trình**, tránh trùng tên gây nhầm khi nhập liệu.
 
 ### G9-a. ⚪ Bộ mức ngưỡng cảnh báo — cần chốt danh sách mức
 
@@ -168,13 +166,12 @@ _(Đối chiếu sơ bộ với biểu tổng hợp lúc 21h20 chỉ khớp ch�
 
 | # | Mục | Việc cần làm | Hạn cần có |
 |---|---|---|---|
-| 1 | 🔴 **G8b** | Điền **bảng ánh xạ 19 mã `F#####` ↔ tên điểm đo / tuyến sông / lý trình / vai trò TL-HL** | Trước nghiệm thu MOD-03 — **chặn** |
-| 2 | 🟡 **G8** | Xác nhận danh sách điểm đo + **danh mục toàn bộ công trình (Excel)** + tọa độ GPS | Trước khi nhập liệu ban đầu |
-| 3 | 🟡 **G10** | Duyệt `report-templates-proposal.md` + gửi **file mẫu thật** của BC-11, BC-09, BC-05, BCNS-07 | Trước Phase báo cáo |
-| 4 | 🟡 **G6** | File mẫu **2C-BNV** Công ty đang dùng (gửi kèm G10) | Trước Phase HRM |
-| 5 | 🟡 **G5** | Mã số hệ thống văn bản: **riêng từng người hay chung**? + đề nghị bên `bhh40.net` cấp **token/SSO** thay vì lưu mã số + kế hoạch bật **HTTPS** | Trước Phase MOD-01 |
-| 6 | 🟡 **G3-a** | Chốt cách xử lý **lượng mưa** ở v1 (PA A/B/C) | Trước Phase MOD-03 |
-| 7 | ⚪ **G9-a** | Xác nhận **bộ mức ngưỡng** cảnh báo (3 mức đề xuất hay cấp I/II/III) | Trước khi cấu hình ngưỡng thật |
+| 1 | 🟡 **G8** | (a) **Tuyến sông + lý trình + tọa độ GPS** cho 19 điểm đo đã ánh xạ · (b) trả lời **khoảng trống API vs biểu tổng hợp** (7 điểm có trên biểu nhưng không có telemetry) · (c) xác nhận **3 cặp mã trùng giá trị** · (d) **danh mục toàn bộ công trình (Excel)** kèm mã | Trước khi nhập liệu ban đầu & nghiệm thu MOD-03 |
+| 2 | 🟡 **G10** | Duyệt `report-templates-proposal.md` + gửi **file mẫu thật** của BC-11, BC-09, BC-05, BCNS-07 | Trước Phase báo cáo |
+| 3 | 🟡 **G6** | File mẫu **2C-BNV** Công ty đang dùng (gửi kèm G10) | Trước Phase HRM |
+| 4 | 🟡 **G5** | Mã số hệ thống văn bản: **riêng từng người hay chung**? + đề nghị bên `bhh40.net` cấp **token/SSO** thay vì lưu mã số + kế hoạch bật **HTTPS** | Trước Phase MOD-01 |
+| 5 | 🟡 **G3-a** | Chốt cách xử lý **lượng mưa** ở v1 (PA A/B/C) | Trước Phase MOD-03 |
+| 6 | ⚪ **G9-a** | Xác nhận **bộ mức ngưỡng** cảnh báo (3 mức đề xuất hay cấp I/II/III) | Trước khi cấu hình ngưỡng thật |
 
 Trả lời theo mã mục, ví dụ: `G3-a: chọn PA B · G5: mã số riêng từng người, user tự nhập · G9-a: dùng cấp I/II/III`.
 

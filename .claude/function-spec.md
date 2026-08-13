@@ -386,12 +386,49 @@ Người dùng: Hệ thống tự động (Job/Scheduler), Admin, Cán bộ kỹ
 | Trạng thái | Enum | ✔ | Hoạt động / Offline / Ngừng |
 | **Tuyến sông** | Text/FK | ✘ | Nhuệ / Đáy / Hồng / La Khê / Vân Đình / Duy Tiên… *(mới 12/8/2026)* |
 | **Lý trình** | Text | ✘ | Dạng `K<km>+<m>` — VD `K0+390`, `K18+100` *(mới 12/8/2026)* |
-| **Vị trí tương đối** | Enum | ✘ | Thượng lưu (TL) / Hạ lưu (HL) / Bể hút / Điểm mưa — khớp cách trình bày của hệ thống nguồn |
+| **Vị trí tương đối** | Enum | ✔ | `THUONG_LUU` / `HA_LUU` / `BE_HUT` / **`MN_SONG`** / `MUA` — khớp cách trình bày của hệ thống nguồn. ⭐ **`MN_SONG` (mực nước sông) bổ sung theo bảng ánh xạ G8b** — 4/19 điểm đo thực tế mang vai trò này |
 | **Giá trị nội suy** | Boolean | ✘ | Nguồn đánh dấu một số điểm là "giá trị nội suy" (không đo trực tiếp) → phải giữ cờ này, không trộn lẫn với số đo thật |
 
-- ✅ **Quan hệ Điểm đo ↔ Công trình — CONFIRMED (A2b, 12/8/2026)**: dùng bảng `station_constructions` **n–n có vai trò** (`role` = THUONG_LUU / HA_LUU / BE_HUT / MUA).
-  - Thực tế đối chiếu hệ thống nguồn của Công ty: mỗi cống/trạm bơm được theo dõi theo **cặp TL/HL** (VD Liên Mạc K0+390: TL 447, HL 294) → 1 công trình thường có **2 điểm đo mực nước** + tuỳ chọn 1 điểm mưa.
+- ✅ **Quan hệ Điểm đo ↔ Công trình — CONFIRMED (A2b, 12/8/2026)**: dùng bảng `station_constructions` **n–n có vai trò** (`role` = THUONG_LUU / HA_LUU / BE_HUT / MN_SONG / MUA).
+  - Thực tế đối chiếu hệ thống nguồn của Công ty: một số cống/trạm bơm được theo dõi theo **cặp TL/HL** (VD Cống Liên Mạc: TL 4.47 m, HL 2.94 m) → công trình đó có **2 điểm đo mực nước** + tuỳ chọn 1 điểm mưa.
+  - **Quan hệ 2 trường vai trò** (tránh lệch dữ liệu): `stations.position_role` là vai trò **hiển thị/chính thức**, bắt buộc, dùng cho biểu tổng hợp và nhãn trên GIS. `station_constructions.role` chỉ dùng khi điểm đo **có liên kết công trình**, và tồn tại vì 1 điểm đo có thể là HL của công trình này đồng thời là TL của công trình kế tiếp. **Ràng buộc**: nếu có bản ghi liên kết thì `role` của bản ghi *chính* (`is_primary = true`) phải trùng `stations.position_role`; validate ở service, test bắt buộc.
+  - Điểm đo vai trò **`MN_SONG` có thể không liên kết công trình nào** (trạm thủy văn tham chiếu như TV Hà Nội, TV Ba Thá) — hợp lệ, không được coi là dữ liệu thiếu. Cảnh báo của những điểm này chỉ gửi nhóm "Ban điều hành" (xem CN-03.6/G11).
   - Ngưỡng cảnh báo gắn theo **điểm đo × loại chỉ số** (SRS); trạng thái công trình suy ra từ cảnh báo của các điểm đo liên kết theo vai trò.
+
+#### ⭐ Bảng ánh xạ mã API ↔ điểm đo — **CHỐT G8b (12/8/2026)**
+
+Công ty cung cấp đầy đủ **19/19 mã**; đã đối chiếu: không mã nào thừa, không mã nào thiếu so với response thật. Đây là **seed data bắt buộc** của MOD-03 — không được sinh điểm đo bằng suy đoán từ giá trị đo.
+
+| Mã API | Điểm đo / Công trình | Vai trò | Mã nội bộ đề xuất | Giá trị mẫu 21:50 12/8 |
+|---|---|---|---|---|
+| F01771 | Cống Liên Mạc | Thượng lưu | `DO-LMAC-TL` | 4.47 m |
+| F01672 | Cống Liên Mạc | Hạ lưu | `DO-LMAC-HL` | 2.94 m |
+| F01965 | Liên Mạc 2 | Hạ lưu | `DO-LMAC2-HL` | 2.94 m |
+| F01794 | Hà Đông | Thượng lưu | `DO-HDONG-TL` | 2.49 m |
+| F01905 | Đồng Quan | Thượng lưu | `DO-DQUAN-TL` | 1.81 m |
+| F01527 | Đồng Quan | Hạ lưu | `DO-DQUAN-HL` | 1.79 m |
+| F02031 | Nhật Tựu | Thượng lưu | `DO-NTUU-TL` | 1.90 m |
+| F02030 | Nhật Tựu | Hạ lưu | `DO-NTUU-HL` | 1.90 m |
+| F01519 | Lương Cổ | Thượng lưu | `DO-LCO-TL` | 1.89 m |
+| F01657 | Vân Đình | Thượng lưu | `DO-VDINH-TL` | 1.82 m |
+| F01705 | Vân Đình | Hạ lưu | `DO-VDINH-HL` | 2.18 m |
+| F02039 | Hòa Mỹ | Hạ lưu | `DO-HMY-HL` | 1.80 m |
+| F01820 | Cống tiêu tự chảy Yên Nghĩa | Thượng lưu | `DO-CTTC-YNGHIA-TL` | 2.03 m |
+| F01652 | Cống tiêu tự chảy Yên Nghĩa | Hạ lưu | `DO-CTTC-YNGHIA-HL` | 3.51 m |
+| F01707 | TB Yên Nghĩa | Bể hút | `DO-TB-YNGHIA-BH` | 2.03 m |
+| F01732 | TB Hồng Vân | MN sông | `DO-TB-HVAN-MN` | 3.75 m |
+| F01559 | TV Hà Nội | MN sông | `DO-TV-HNOI-MN` | 4.36 m |
+| F01812 | An Cảnh | MN sông | `DO-ANCANH-MN` | 3.42 m |
+| F01532 | TV Ba Thá | MN sông | `DO-TV-BATHA-MN` | 2.56 m |
+
+*Toàn bộ 19 điểm: loại chỉ số = **Mực nước**, đơn vị nguồn **cm** → chuẩn hóa **m scale 3**. Mã nội bộ là đề xuất, Công ty có thể đổi; **mã API là bất biến**, không được sửa tay sau khi seed.*
+
+⚠ **4 lưu ý bắt buộc rút ra từ bảng này** — bỏ qua là sinh bug số liệu:
+
+1. **CẤM đặt validate "TL phải cao hơn HL"**. Số liệu thật có **2/5 cặp bị đảo**: Vân Đình (TL 1.82 < HL 2.18, chênh −0.36 m) và Cống tiêu tự chảy Yên Nghĩa (TL 2.03 < HL 3.51, chênh −1.48 m — đúng bản chất cống *tiêu tự chảy* khi sông ngoài đang cao, cống phải đóng). Đây là trạng thái vận hành hợp lệ, không phải lỗi dữ liệu.
+2. **Hai công trình khác nhau cùng tên "Yên Nghĩa"** (`TB Yên Nghĩa` và `Cống tiêu tự chảy Yên Nghĩa`), và cụm Liên Mạc có `Cống Liên Mạc` + `Liên Mạc 2`. → Seed và mọi join **phải dùng mã, cấm dùng tên**; UI hiển thị tên phải kèm mã hoặc lý trình để trực ban không nhầm.
+3. **9/19 điểm đo không thành cặp TL–HL** (Lương Cổ, Hòa Mỹ, Hà Đông, Liên Mạc 2 chỉ có 1 vế; 4 điểm MN sông; 1 bể hút). → Biểu tổng hợp và báo cáo **phải chịu được ô trống**, không được giả định mọi công trình đều có đủ 2 vế.
+4. **3 cặp mã đang trả giá trị trùng khít** tại mốc quan sát: `F02030`=`F02031` (1.90 m), `F01707`=`F01820` (2.03 m), `F01672`=`F01965` (2.94 m). Hai cặp sau là các công trình cùng cụm dùng chung vực nước nên hợp lý, nhưng **cần theo dõi vài ngày ở giai đoạn nghiệm thu dữ liệu**: nếu 2 mã **luôn** bằng nhau tuyệt đối ở mọi mốc thì nhiều khả năng là **một cảm biến được đăng ký 2 mã** (hoặc giá trị nội suy) → phải hỏi lại Công ty trước khi gắn 2 bộ ngưỡng độc lập.
 
 ### CN-03.2. Kết nối API & Đồng bộ Dữ liệu (Cao) — *SRS M3.3–M3.5, M3.15, M3.16, UC3.2, UC3.5*
 
@@ -478,7 +515,8 @@ F01527;12/08/2026;21:50;value=179;<br>F01519;12/08/2026;21:50;value=189;<br>…<
 - Trường **tình hình vận hành cống** (`MT`, `ĐK`, `ĐTTL+1.70m`, `ĐTHL+1.70m`) — ✅ **chốt G4: KHÔNG có trong API**, nhập tay hoàn toàn qua **CN-02.11**. Adapter thủy văn **không** đụng tới dữ liệu này.
 - Mốc thời gian dạng `21h20; ngày 12 tháng 8 năm 2026` → parse về `timestamptz` UTC.
 - Quy mô thực tế (đo 12/8/2026): API trả **19 điểm đo mực nước**; biểu tổng hợp có thêm cột lượng mưa cho **~15 công trình** nhưng **lượng mưa không có trong API**.
-- ⚠ **Chưa ánh xạ được mã ↔ tên điểm đo**: đối chiếu 19 mã `F#####` với biểu tổng hợp chỉ khớp chắc chắn khoảng một nửa (VD `F01771`=447 ↔ Liên Mạc TL K0+390; `F01652`=351 ↔ Yên Nghĩa K38+000 sông Đáy; `F01532`=256 ↔ Ba Thá; `F01705`=218 ↔ Cống Phủ Lý). Phần còn lại **không được suy đoán** — sai ánh xạ = sai toàn bộ cảnh báo và báo cáo. **Bắt buộc xin bảng ánh xạ chính thức từ Công ty (G8b)**.
+- ✅ **Ánh xạ mã ↔ điểm đo: ĐÃ CÓ BẢNG CHÍNH THỨC (G8b, 12/8/2026)** — xem CN-03.1. Đối chiếu khớp 19/19 mã.
+  > 📌 Bài học giữ lại: bản suy đoán trước đó từ biểu tổng hợp **sai 1/4 mã** (`F01705` đoán là Cống Phủ Lý, thực tế là **Vân Đình hạ lưu**). Tuyệt đối **không seed điểm đo bằng cách dò giá trị** — chỉ dùng bảng ánh xạ do Công ty cấp.
 
 **Bảo mật bắt buộc**: mã số/`key` là credential → lưu **mã hóa AES-256-GCM** trong `api_sources`, đọc từ env, **không log, không hiển thị plaintext, không commit**. Endpoint là **HTTP (không TLS)** → chấp nhận rủi ro ở v1 nhưng phải ghi nhận: gọi từ server nội bộ, không gọi từ trình duyệt người dùng; đề nghị Công ty bật HTTPS phía nguồn.
 
@@ -488,6 +526,7 @@ F01527;12/08/2026;21:50;value=179;<br>F01519;12/08/2026;21:50;value=189;<br>…<
 
 **Validate (M3.5)** — ⭐ **chốt lại theo F2 (12/8/2026)**: chỉ còn **2 trạng thái bản ghi: `HOP_LE` / `NGHI_NGO`** (bỏ mức "Loại bỏ").
 - Kiểm tra: khoảng giá trị vật lý cho phép; chống trùng thời điểm đo trên cùng điểm đo; sai lệch bất thường so với bản ghi liền trước (delta/giờ vượt ngưỡng cấu hình).
+- ⛔ **CẤM validate liên điểm đo kiểu "TL phải cao hơn HL"** — số liệu thật có cặp bị đảo hợp lệ (xem CN-03.1, lưu ý 1). Validate **chỉ xét từng điểm đo độc lập theo thời gian**, không so sánh chéo giữa 2 điểm đo.
 - **Bản ghi Nghi ngờ vẫn được GHI vào bảng chính** (`hydro_readings`, cờ `quality = NGHI_NGO`) — khác thiết kế cũ.
 - Đồng thời **phát thông báo cho Quản trị** → màn hình "Dữ liệu nghi ngờ" cho phép **Duyệt** (chuyển `HOP_LE`) hoặc **Xóa** (soft delete + audit ai xóa, lý do).
 - Bản ghi `NGHI_NGO` **không dùng** cho cảnh báo ngưỡng và **loại khỏi** báo cáo/biểu đồ mặc định (có toggle "hiển thị cả dữ liệu nghi ngờ").

@@ -70,7 +70,10 @@ Gồm: MOD-05 + toàn bộ shared services rút ra từ P1–P6.
 - Là dependency của Widget CMS, Dashboard, và layer GIS.
 
 **C2. Data pipeline thủy văn — module `hydro` (MOD-03, tách riêng theo SRS)**:
-- `measurement_types` (loại chỉ số + đơn vị), `stations` (điểm đo + **mã ánh xạ API bên thứ 3**, 1–1, + `river_name`/`chainage`/`position_role`/`is_interpolated`), `station_constructions` (n–n vai trò TL/HL/Bể hút/Mưa — ✅ confirmed A2b).
+- `measurement_types` (loại chỉ số + đơn vị), `stations` (điểm đo + **mã ánh xạ API bên thứ 3**, 1–1, + `river_name`/`chainage`/`position_role`/`is_interpolated`), `station_constructions` (n–n vai trò **TL/HL/Bể hút/MN sông/Mưa** — ✅ confirmed A2b + G8b).
+- ⭐ **Seed 19 điểm đo từ bảng ánh xạ G8b** (`function-spec.md` CN-03.1) ngay ở migration đầu của `hydro` — **cấm sinh điểm đo tự động từ response**. Enum `position_role` phải có **`MN_SONG`**; điểm `MN_SONG` được phép **không có dòng `station_constructions` nào** (trạm thủy văn tham chiếu) — viết test cho nhánh này, đừng để `NOT NULL`/inner join làm rớt.
+- ⛔ **Cấm rule "TL > HL"** ở mọi tầng (validate ingest, cảnh báo, báo cáo): dữ liệu thật có cặp đảo hợp lệ. Validate chỉ theo **từng điểm đo × trục thời gian**.
+- 📋 **Task nghiệm thu dữ liệu (Phase 2)**: theo dõi 3 cặp mã đang trùng giá trị (`F02030`/`F02031`, `F01707`/`F01820`, `F01672`/`F01965`) trong ≥3 ngày. Luôn bằng nhau tuyệt đối ⇒ nghi **1 cảm biến 2 mã** → hỏi lại Công ty trước khi gắn 2 bộ ngưỡng độc lập (G8 mục 3).
 - `api_sources` (credential AES-256-GCM), Polling worker (Job/Scheduler Core, retry/backoff, cấu hình được), `hydro_raw_logs` (raw append-only), `hydro_readings` (time-series, partition tháng, retention 5 năm **config được**, **`quality` chỉ 2 mức HOP_LE/NGHI_NGO** — F2), `hydro_latest` (1 dòng/điểm đo, UPSERT — thay cache Redis cho widget/GIS/dashboard, graceful degradation), `sync_logs` (nhật ký đồng bộ M3.16).
 - ⭐ **Adapter nguồn thật `Bhh40Adapter`** (đã đấu nối thử OK 12/8/2026): `GET getmn.aspx?key=<mã số>;` (**dấu `;` cuối key là bắt buộc**) → body text, bản ghi phân tách bằng `<br>`, mỗi bản ghi `<mã F#####>;dd/MM/yyyy;HH:mm;value=<cm>;`, đuôi response có 1 trang HTML rỗng phải cắt bỏ. Chuỗi `not.working` = lỗi xác thực. Đơn vị **cm → chia 100 ra m (BigDecimal, scale 3)**; giờ VN → UTC. Đặc tả 10 quy tắc parse ở `function-spec.md` CN-03.2 — **viết unit test cho từng quy tắc, gồm cả response lỗi và dòng rác**.
 - Giữ interface `TelemetryAdapter` + `MockAdapter` (chọn qua config) để test/CI không phụ thuộc mạng.
@@ -124,9 +127,9 @@ Phase 4  ─ hardening, test NFR, security, deploy ─────────�
 - ✅ **Quan hệ `station_constructions`** (điểm đo↔công trình) đã chốt A2b — vai trò TL/HL/Bể hút/Mưa.
 - **Workflow engine chốt trong Phase 0** — tránh nhiều bản copy state machine (nay dùng cho bài viết, nghỉ phép, duyệt dữ liệu nghi ngờ, trạng thái xử lý sự cố).
 - Báo cáo (C3) đọc từ bảng agg — cron tổng hợp phải xong trước UI báo cáo.
-- ⚠ **Rủi ro tiến độ #1: chưa có bảng ánh xạ mã API `F#####` ↔ tên điểm đo** (G8b). API chỉ trả mã, không trả tên → không gắn được ngưỡng cảnh báo, bản đồ, báo cáo. Code pipeline vẫn chạy được với dữ liệu thật, nhưng **không nghiệm thu được MOD-03** cho tới khi có bảng này. **Đây là mục chặn duy nhất còn lại.**
-- ⚠ **Rủi ro #2: mất dữ liệu do poller chết.** Công ty đã chấp nhận "không có API lịch sử, hệ thống tự ghi" (G3) ⇒ trách nhiệm giữ dữ liệu chuyển hoàn toàn sang hệ thống mới, **không có đường backfill**. Monitoring poller phải xong **trong Phase 0**, không để tới Phase 4.
-- ⚠ **Rủi ro #3: NFR nay là cam kết nghiệm thu** (G12) → **load test 200 CCU phải nằm trong kế hoạch từ Phase 2**, không dồn vào Phase 4; 2FA Admin/Admin HR làm ngay Phase 0.
+- ✅ **Đã gỡ mục chặn MOD-03**: bảng ánh xạ 19 mã API ↔ điểm đo đã có (G8b) → seed data ở `function-spec.md` CN-03.1. Còn thiếu **tuyến sông / lý trình / tọa độ** (G8) — chỉ chặn phần **hiển thị GIS**, không chặn pipeline.
+- ⚠ **Rủi ro #1: mất dữ liệu do poller chết.** Công ty đã chấp nhận "không có API lịch sử, hệ thống tự ghi" (G3) ⇒ trách nhiệm giữ dữ liệu chuyển hoàn toàn sang hệ thống mới, **không có đường backfill**. Monitoring poller phải xong **trong Phase 0**, không để tới Phase 4.
+- ⚠ **Rủi ro #2: NFR nay là cam kết nghiệm thu** (G12) → **load test 200 CCU phải nằm trong kế hoạch từ Phase 2**, không dồn vào Phase 4; 2FA Admin/Admin HR làm ngay Phase 0.
 - ⬜ **Lượng mưa (G3-a)**: nếu Công ty chọn "nhập tay" thì phát sinh thêm form + phân quyền + báo cáo ở Phase 2 (~3–5 ngày công). Chưa chốt → không code trước.
 - **CN-01.7 auto-login** cần `CryptoService` của Core (Phase 0) — không có dependency ngoài, làm được ngay ở Phase 1.
 
@@ -189,7 +192,7 @@ Quy tắc ràng buộc giữa module (giữ đúng Modular Monolith):
 11. ✅ **Tích hợp hệ thống văn bản: CONFIRMED** — không SSO/API/CSDL; lưu credential người dùng + auto-login (CN-01.7). ⬜ Còn chi tiết: mã số riêng hay chung, ai nhập — G5.
 12. ⬜ **Mẫu báo cáo**: đã soạn đề xuất format (`report-templates-proposal.md`), chờ Công ty duyệt + gửi 4 file mẫu trọng yếu — G10.
 13. ✅ **Quan hệ điểm đo↔công trình: CONFIRMED** (A2b). ✅ **Kế hoạch vụ mùa: BỎ** (A1).
-14. ⬜ **Dữ liệu khởi tạo**: danh sách điểm đo/công trình chuẩn + tọa độ (G8) và 🔴 **bảng ánh xạ mã API ↔ điểm đo (G8b)** — cần trước khi nghiệm thu MOD-03.
+14. ✅ **Bảng ánh xạ mã API ↔ điểm đo: CONFIRMED (G8b)** — đủ 19/19 mã, đã thành seed data ở `function-spec.md` CN-03.1. ⬜ Còn thiếu **tuyến sông / lý trình / tọa độ GPS** + danh mục công trình tổng thể (G8) — chặn hiển thị GIS, không chặn pipeline.
 15. ✅ **Tình hình vận hành cống: CONFIRMED (G4)** — **không** có trong API, nhập tay qua CN-02.11; danh mục mã **CRUD** + màu + ánh xạ trạng thái, seed 4 mã.
 16. ✅ **Ngưỡng cảnh báo: CONFIRMED (G9)** — Admin tự cấu hình; hệ thống phải bàn giao **màn hình cấu hình ngưỡng** + chạy được với ngưỡng mặc định; điểm đo chưa cấu hình thì không phát cảnh báo. ⬜ Bộ mức ngưỡng cụ thể — G9-a.
 17. ✅ **Số liệu vận hành (giờ chạy/kWh/m³): BỎ VĨNH VIỄN (G2)** — không mở lại màn hình nhập nào.

@@ -228,7 +228,10 @@ Endpoint được cấp: `http://songnhue.bhh40.net/api/getmn.aspx?key=<mã số
 - Nhịp 2' làm **tăng mật độ ghi `hydro_raw_logs`** (≈720 response/ngày kể cả trùng) → raw log phải có **partition theo tháng + retention riêng ngắn hơn readings** (raw chỉ phục vụ tái xử lý/đối soát). Cần chốt ở thiết kế DB Phase 1.
 - Trạng thái **trạm mất tín hiệu** phải suy ra ở phía hệ thống mới (nguồn không có cờ trạng thái): không có bản ghi mới quá N khung → `MẤT_TÍN_HIỆU` → GIS xám, loại khỏi đánh giá ngưỡng.
 
-**🔴 Chặn tiến độ MOD-03**: API **không trả tên điểm đo**, chỉ trả mã `F#####`. Chưa có bảng ánh xạ mã ↔ điểm đo thì không gắn được ngưỡng, bản đồ, báo cáo → **G8b**. Đây thay thế "API không chạy" ở vị trí rủi ro số 1.
+**✅ Đã gỡ mục chặn MOD-03 (G8b, 12/8/2026)**: Công ty cấp bảng ánh xạ đủ **19/19 mã** ↔ tên điểm đo + vai trò → seed data ở `function-spec.md` CN-03.1. Ba hệ quả thiết kế:
+- Enum vai trò phải thêm **`MN_SONG`** (mực nước sông) — 4/19 điểm; điểm loại này **có thể không gắn công trình nào** (trạm thủy văn tham chiếu), không được coi là dữ liệu thiếu.
+- **Cấm mọi validate liên điểm đo kiểu "TL > HL"**: số liệu thật có 2/5 cặp bị đảo hợp lệ (cống tiêu tự chảy khi sông ngoài cao). Validate chỉ xét từng điểm đo theo trục thời gian.
+- Nguồn phủ **19 điểm, ít hơn** danh sách trên biểu tổng hợp → phạm vi dữ liệu tự động của hệ thống mới **hẹp hơn biểu giấy hiện hành**; phải làm rõ khi nghiệm thu để không bị hiểu là thiếu chức năng (**G8**).
 
 **Đặc điểm dữ liệu (quan sát từ biểu tổng hợp công khai `bieusov01.aspx`)** — căn cứ thiết kế adapter:
 - Mực nước theo **cặp TL/HL** cho từng cống/trạm bơm, định vị bằng **tuyến sông + lý trình `K..+..`** → bổ sung `river_name`, `chainage`, `position_role` vào `stations`/`constructions`.
