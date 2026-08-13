@@ -66,7 +66,9 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 - ⛔ **Giới hạn nguồn**: **không có API lịch sử** (đã chấp nhận — poller là nơi bắt dữ liệu duy nhất, mất là mất vĩnh viễn, giám sát như backup) · **không có API lượng mưa** (v1 hiển thị `-`) · **không trả tên điểm đo, chỉ trả mã**.
 - ✅ **G8b ĐÃ ĐÓNG (12/8/2026)** — Công ty cấp đủ **19/19 mã API ↔ tên điểm đo + vai trò**; bảng seed ở `function-spec.md` CN-03.1. **Không còn mục nào chặn.** 3 hệ quả: thêm vai trò **`MN_SONG`** (điểm loại này có thể không gắn công trình nào) · **cấm validate "TL > HL"** (2/5 cặp đảo hợp lệ) · seed/join **dùng mã, cấm dùng tên** (có 2 công trình cùng tên "Yên Nghĩa").
 - ⬜ **Còn mở 6 mục, chỉ ảnh hưởng dữ liệu khởi tạo & nghiệm thu**: **G8** tuyến sông/lý trình/tọa độ + khoảng trống API-vs-biểu tổng hợp + 3 cặp mã trùng giá trị + danh mục công trình · **G3-a** lượng mưa · **G5** mã số hệ thống văn bản (+ xin SSO) · **G6** mẫu 2C-BNV · **G9-a** bộ mức ngưỡng · **G10** duyệt format báo cáo.
-- ➡️ **Bước tiếp theo**: gửi 5 mục còn mở + `report-templates-proposal.md` cho Công ty; bắt đầu **Phase 0 (Core Platform)** — trong đó **2FA Admin và giám sát poller phải nằm trong Phase 0**, load test 200 CCU đưa vào kế hoạch từ Phase 2.
+- ✅ **Đã verify sẵn sàng code (2026-08-13)**: Phase 0/1/2 **bắt đầu được ngay**; chỉ **CN-01.7 (lưu mã số) bị chặn bởi G5** → tách task riêng. Môi trường máy dev đủ (JDK 21 · Node 22 · Docker+Compose · psql 17); chưa cài Maven/Gradle nhưng dùng wrapper là được. Repo chưa có dòng code nào → greenfield. Chi tiết: `implement.md` §7.
+- 📋 **Bảng truy vết "chức năng nào còn chứa điểm chưa chốt"**: `business-open-questions.md` **Phần III** — dev đọc trước khi bắt tay vào 1 chức năng.
+- ➡️ **Bước tiếp theo**: gửi 6 mục còn mở + `report-templates-proposal.md` cho Công ty; bắt đầu **Phase 0 (Core Platform)** — trong đó **2FA Admin và giám sát poller phải nằm trong Phase 0**, load test 200 CCU đưa vào kế hoạch từ Phase 2.
 
 ## Quy ước làm việc với user
 

@@ -199,3 +199,48 @@ Quy tắc ràng buộc giữa module (giữ đúng Modular Monolith):
 18. ✅ **Audit retention: CONFIRMED 5 năm (G7)** — kết xuất lưu trữ có checksum trước khi xóa, hash chain nối tiếp.
 19. ✅ **Người nhận cảnh báo: CONFIRMED (G11)** — nhóm "Ban điều hành" cấu hình được ∪ người phụ trách công trình liên quan.
 20. ✅ **Con số NFR nghiệm thu: CONFIRMED (G12)** — 99% uptime · 200 CCU · 3s · 60s · 2FA Admin/Admin HR → **có load test trong kế hoạch kiểm thử**.
+
+---
+
+## 7. ĐÁNH GIÁ MỨC ĐỘ SẴN SÀNG CODE (2026-08-13)
+
+### 7.1. Môi trường máy dev — đã kiểm tra thực tế
+
+| Thành phần | Yêu cầu | Hiện có | |
+|---|---|---|:-:|
+| JDK | 21 | **21.0.7 LTS** | ✅ |
+| Node.js | ≥ 18 (Next.js/Vite) | **22.16.0** + npm 11.17 | ✅ |
+| Docker + Compose | PG16+PostGIS, MinIO | **29.4.0** + Compose v5.1.1 | ✅ |
+| psql client | tra cứu/migration thủ công | **17.6** | ✅ |
+| Git | | 2.49.0 | ✅ |
+| **Maven / Gradle** | build backend | ❌ **chưa cài** | ⚠ |
+
+⚠ **Chưa có Maven/Gradle trên máy** — không chặn: project sinh từ `start.spring.io` kèm sẵn `mvnw`/`gradlew` (wrapper tự tải). Chỉ cần cài nếu muốn chạy lệnh `mvn` trần.
+📌 **Repo hiện chỉ có tài liệu** (11 file tracked, 0 file mã nguồn) → Phase 0 là **greenfield**, không có nợ kỹ thuật hay migration cũ phải gánh.
+
+### 7.2. Kết luận theo từng Phase
+
+| Phase | Nội dung | Sẵn sàng? | Ghi chú |
+|---|---|:-:|---|
+| **Phase 0** — Nhóm A Core | auth/RBAC/orgunit/attachment/workflow/notification/jobs/audit/settings/backup-restore | ✅ **Bắt đầu ngay được** | **Không chứa bất kỳ điểm mở nào.** Đây là 100% khối lượng lớn nhất và mọi thứ khác phụ thuộc vào nó |
+| **Phase 1** — B (CMS) + C1 (master data công trình) | article/category/media/siteconfig · `constructions`, `maintenance_logs`, `operation_status_codes` | ✅ **Bắt đầu ngay được** | Ngoại lệ duy nhất: **CN-01.7 (lưu mã số) chặn bởi G5** → tách thành 1 task riêng, làm sau; phần còn lại của MOD-01 không ảnh hưởng |
+| **Phase 2** — C2 (`hydro`) | điểm đo, adapter, polling, rate-limit, lưu trữ, alert engine | ✅ **Bắt đầu ngay được** | Ánh xạ 19 mã đã có (G8b) → code + test với **dữ liệu thật**. Chừa khe cho G3-a (mưa) và G9-a (số mức ngưỡng) |
+| **Phase 3** — C3 (GIS/dashboard/báo cáo) + D (HRM) | | 🟨 **Code được, chốt layout sau** | Trường dữ liệu báo cáo đã chốt; **layout in ấn** chờ G10, **BCNS-07** chờ G6. Hiển thị GIS cần tọa độ (G8) |
+| **Phase 4** — hardening/NFR/go-live | | ✅ | Con số nghiệm thu đã chốt (G12) |
+
+### 7.3. Ba ràng buộc phải cài từ Phase 0 để hấp thụ các câu trả lời còn lại
+
+Đây là lý do có thể bắt đầu code dù còn 6 mục mở — thiết kế phải **chịu được cả hai nhánh trả lời**:
+
+1. **`settings` key-value có type + UI + validate** — mọi tham số chưa chốt (mức ngưỡng, bật/tắt lượng mưa, nhóm người nhận, URL tích hợp) đổ vào đây, **không cần migration** khi Công ty trả lời.
+2. **Danh mục hóa thay vì enum cứng** — mức ngưỡng (G9-a), mã tình hình vận hành (G4), loại chỉ số đo (G3-a) đều là **bảng có CRUD**. Enum trong code = phải deploy lại mỗi lần khách đổi ý.
+3. **`TelemetryAdapter` đa nguồn** — không hard-code "1 nguồn = 1 endpoint mực nước", để cắm thêm nguồn lượng mưa (G3-a) mà không sửa pipeline.
+
+### 7.4. Thứ tự khởi động đề xuất (Phase 0, tuần 1)
+
+1. Khởi tạo monorepo + `docker-compose` (PG16+PostGIS, MinIO) + Flyway baseline + CI skeleton.
+2. **ArchUnit test ranh giới module ngay từ commit đầu** — cài sau khi đã có code là gỡ rất đau.
+3. Common Platform theo `conventions.md` §2: envelope response, exception hierarchy, error catalog, middleware chain, `CryptoService`.
+4. Auth + RBAC 3 tầng + **2FA Admin/Admin HR** (G12 đưa vào Phase 0, không để cuối).
+5. `settings` + audit log (append-only + hash chain) + Job/Scheduler.
+6. **Monitoring poller** — dựng khung cảnh báo "không có bản ghi mới quá N phút" ngay Phase 0, vì mất dữ liệu thủy văn là **không backfill được**.

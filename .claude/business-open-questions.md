@@ -176,3 +176,29 @@ Danh sách trích từ hệ thống nguồn ngày 12/8/2026 — **cần Công ty
 Trả lời theo mã mục, ví dụ: `G3-a: chọn PA B · G5: mã số riêng từng người, user tự nhập · G9-a: dùng cấp I/II/III`.
 
 Sau khi nhận confirm → cập nhật `function-spec.md`, `implement.md` và đóng mục tương ứng tại đây.
+
+---
+
+## PHẦN III — TRUY VẾT: CHỨC NĂNG NÀO CÒN CHỨA ĐIỂM CHƯA CHỐT
+
+> Mục đích: dev nhìn 1 bảng là biết chức năng mình sắp code có "vùng chưa chốt" nào, mức độ ảnh hưởng ra sao, và **được phép làm tới đâu**.
+> Ký hiệu mức ảnh hưởng: 🟥 **chặn code** (không viết được nếu chưa có trả lời) · 🟨 **code được nhưng chừa khe** (thiết kế phải hấp thụ được cả 2 nhánh trả lời) · 🟩 **chỉ chặn dữ liệu/nghiệm thu** (code xong hoàn toàn, chỉ thiếu số liệu thật để nhập).
+
+| Chức năng | Mục mở | Mức | Vùng chưa chốt & cách xử lý tạm |
+|---|---|:-:|---|
+| **CN-01.7** Liên kết hệ thống văn bản | **G5** | 🟥 | **Mã số riêng từng người hay chung 1 mã?** Quyết định schema: `external_system_credentials(user_id, …)` **per-user** hay 1 dòng trong `settings` **toàn hệ thống** — 2 hướng khác nhau về cả bảng, UI lẫn phân quyền. Nếu Công ty xin được **token/SSO** thì bỏ hẳn việc lưu credential → đổi bản chất lần 2. **Không code phần lưu mã số trước khi có trả lời**; phần còn lại của MOD-01 làm bình thường |
+| **CN-03.1** Danh mục điểm đo | **G8** | 🟩 | Đã có tên + vai trò (G8b). Thiếu `river_name` / `chainage` / **tọa độ** của 19 điểm → cột đã có sẵn trong bảng, chỉ để `NULL` tới khi Công ty gửi |
+| **CN-03.1** Danh mục loại chỉ số | **G3-a** | 🟨 | Giữ loại chỉ số "Lượng mưa" trong danh mục dù v1 chưa có nguồn — **không xóa khỏi enum/seed**, nếu chọn PA B (nhập tay) thì dùng lại ngay |
+| **CN-03.2** Adapter & polling | **G3-a** | 🟨 | Thiếu endpoint mưa. `TelemetryAdapter` phải để **1 điểm cắm cho nguồn thứ 2**, không hard-code giả định "1 nguồn = 1 endpoint mực nước" |
+| **CN-03.4** Biểu tổng hợp / realtime | **G3-a**, **G8** | 🟨 | Cột lượng mưa render `-`; nhóm theo **tuyến sông** cần `river_name` → tạm nhóm "Chưa phân tuyến" khi `NULL`, không crash |
+| **CN-03.5** Báo cáo thủy văn | **G3-a**, **G10** | 🟨 | BC-05 có cột tổng lượng mưa (v1 `-`); layout chi tiết BC-05/11/12/13 chờ Công ty duyệt mẫu → làm **khung + trường dữ liệu** trước, chốt layout sau |
+| **CN-03.6** Cảnh báo ngưỡng | **G9-a**, **G8** | 🟨 | **Số mức ngưỡng chưa chốt** → bắt buộc thiết kế mức dạng **danh mục có CRUD**, cấm enum cứng 3 mức. Ngoài ra chờ xác nhận **3 cặp mã trùng giá trị** (1 hay 2 bộ ngưỡng) |
+| **CN-03.7** Thủy văn trên GIS | **G8** | 🟩 | Cần **tọa độ** mới hiển thị được. Code xong vẫn chạy — điểm chưa có tọa độ rơi vào danh sách "chưa số hóa vị trí" (đã có sẵn cơ chế ở CN-02.4) |
+| **CN-02.1** Danh mục công trình | **G8** | 🟩 | Chờ danh mục công trình tổng thể (Excel) + tọa độ. Chỉ là nhập liệu |
+| **CN-02.4** Bản đồ GIS công trình | **G8** | 🟩 | Như trên — thiếu tọa độ, không thiếu chức năng |
+| **CN-02.5** Dashboard & wall mode | **G3-a** | 🟨 | Bỏ/ẩn widget lượng mưa ở v1; layout phải chịu được việc thiếu 1 khối |
+| **CN-02.10** Báo cáo công trình | **G10** | 🟨 | BC-06/09/10: trường dữ liệu **đã chốt**, chỉ layout in ấn chờ duyệt |
+| **CN-04.8** Báo cáo nhân sự | **G6**, **G10** | 🟨 | **BCNS-07 mẫu 2C-BNV chưa có file gốc** → làm 7 báo cáo còn lại trước, BCNS-07 để cuối. Đây là mẫu Bộ Nội vụ, **cấm tự chế** |
+| **CN-05.3** Cấu hình hệ thống | **G9-a**, **G5**, **G3-a** | 🟨 | Bảng `settings` phải mở đủ để thêm tham số sau mà **không cần migration** (key-value có type) — đây chính là cách hấp thụ mọi câu trả lời còn lại |
+
+**Chức năng KHÔNG chứa điểm mở nào — code thoải mái**: toàn bộ **Nhóm A / Core** (CN-05.1, 05.2, 05.4, 05.5, 05.6, 05.7) · CN-01.1→01.6, 01.8, 01.9 · CN-02.2 (lịch sử sửa chữa + sự cố) · CN-02.3, 02.6, 02.7, **02.11** (tình hình vận hành) · CN-03.2 phần parser/polling/rate-limit · CN-03.3 (lưu trữ) · CN-04.1→04.7, 04.9.

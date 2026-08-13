@@ -153,6 +153,8 @@ Mọi trạng thái → ĐÃ XÓA (soft delete, terminal, không phục hồi)
 
 ### CN-01.7. Liên kết Hệ thống Văn bản điều hành (Trung bình) — *SRS M1.8, UC1.4* — ⭐ **ĐỔI BẢN CHẤT theo E3 (12/8/2026)**
 
+> 🟥 **CHỨA ĐIỂM CHƯA CHỐT — G5. Không code phần lưu mã số trước khi có trả lời.** Chưa rõ **mã số riêng từng người hay chung 1 mã** → khác nhau hoàn toàn về schema (`external_system_credentials` per-user *vs* 1 dòng `settings` toàn hệ thống), UI và phân quyền. Nếu Công ty xin được **token dùng-một-lần/SSO** thì bỏ hẳn việc lưu credential. Các chức năng khác của MOD-01 **không bị ảnh hưởng**, làm bình thường.
+
 **Quyết định của Công ty**: hệ thống văn bản điều hành là **website độc lập** (`songnhue.bhh40.net` — bao gồm Công văn đến/đi, Lịch làm việc, Thông báo nội bộ, Quản lý công trình, Tài liệu QLKT, Công bố thông tin…). **KHÔNG đồng bộ dữ liệu, KHÔNG API, KHÔNG đọc CSDL**. Thay vào đó: hệ thống mới **lưu thông tin đăng nhập của người dùng vào hệ thống đó** và cung cấp **1 link bấm vào là tự động đăng nhập sang**.
 
 **Hiện trạng kỹ thuật hệ thống nguồn (đã khảo sát 12/8/2026)**:
@@ -364,6 +366,8 @@ Chốt theo B1 + F1: **không xây dựng** chức năng nhật ký vận hành 
 ## 3. MOD-03 — QUẢN LÝ DỮ LIỆU THỦY VĂN
 
 > **Module mới tách riêng theo SRS §3.3.** Trước đây gộp trong MOD-02. Lõi kỹ thuật: kết nối API bên thứ 3, chuẩn hóa, time-series, biểu đồ, báo cáo, cảnh báo ngưỡng.
+>
+> 🟨 **Điểm chưa chốt còn ảnh hưởng module này**: **G3-a** lượng mưa (chưa có nguồn → giữ loại chỉ số + chừa chỗ cắm adapter, cột hiển thị `-`) · **G8** tuyến sông/lý trình/tọa độ 19 điểm + xác nhận 3 cặp mã trùng · **G9-a** bộ mức ngưỡng. **Không mục nào chặn việc code** pipeline/parser/polling/lưu trữ. Bảng truy vết đầy đủ: `business-open-questions.md` Phần III.
 
 Người dùng: Hệ thống tự động (Job/Scheduler), Admin, Cán bộ kỹ thuật, Nội bộ/Quản lý, Ban giám đốc, Trực ban điều hành.
 
@@ -560,6 +564,8 @@ F01527;12/08/2026;21:50;value=179;<br>F01519;12/08/2026;21:50;value=189;<br>…<
 - **Xuất (M3.12)**: Excel/PDF. Dùng Async Job Queue (202 + job_id) như CN-02.10. Validate tham số (ngày kết thúc ≥ bắt đầu).
 
 ### CN-03.6. Cảnh báo Ngưỡng Thủy văn (Cao) — *SRS M3.13, M3.14, UC3.5*
+
+> 🟨 **CHỨA ĐIỂM CHƯA CHỐT — G9-a, G8.** Số mức ngưỡng chưa chốt (3 mức đề xuất *hay* báo động cấp I/II/III) → **bắt buộc thiết kế mức dạng danh mục có CRUD, cấm enum cứng**; đổi số mức khi đó chỉ là dữ liệu. Chờ thêm xác nhận **3 cặp mã trùng giá trị** (G8) — 1 hay 2 bộ ngưỡng độc lập.
 - **Cấu hình theo từng điểm đo × từng loại chỉ số** (không dùng chung 1 ngưỡng toàn hệ thống — SRS quy tắc §3.3.3): mức thấp/cao; mở rộng nội bộ: 3 mức Bình thường/Warning/Critical, loại điều kiện `>`,`<`, ngoài khoảng, tốc độ thay đổi (delta/giờ); delay chống nhiễu (X phút liên tục). Ngưỡng mặc định khi tạo điểm đo mới lấy từ MOD-05 (M5.6).
 - ✅ **Chốt G9 (12/8/2026)**: **Admin tự cấu hình toàn bộ ngưỡng** qua UI — Công ty **không cung cấp bảng ngưỡng thực tế trước khi triển khai**. Hệ quả:
   - Bàn giao phải có **màn hình cấu hình ngưỡng đầy đủ** (thêm/sửa/xóa theo điểm đo × chỉ số × mức, có lịch sử thay đổi + audit) — đây là hạng mục nghiệm thu, không phải seed data.
@@ -639,6 +645,7 @@ Người dùng: Quản trị nhân sự (Admin HR), Ban giám đốc, Quản lý
 - KPI: tổng NV đang làm, tuyển mới + nghỉ việc tháng, tỷ lệ nghỉ việc, **HĐ hết hạn 30 ngày tới**, chứng chỉ hết hiệu lực 90 ngày tới.
 - Chart: NV theo phòng ban/đơn vị (M4.14), theo trình độ/độ tuổi/giới tính (M4.15, tròn), biến động tuyển mới/nghỉ/điều chuyển 12 tháng (M4.16, đường).
 - Báo cáo BCNS-01→08 (trích ngang, theo đơn vị, biến động, HĐ sắp hết hạn, cơ cấu, chứng chỉ sắp hết hạn, lý lịch mẫu 2C-BNV, tổng hợp năm) — Excel/PDF (M4.17).
+> 🟨 **CHỨA ĐIỂM CHƯA CHỐT — G6, G10.** **BCNS-07 (mẫu 2C-BNV/2008 Bộ Nội vụ) chưa có file mẫu gốc của Công ty** → làm 7 báo cáo còn lại trước, để BCNS-07 sau cùng. Đây là biểu mẫu quy định, **cấm tự chế layout**. Layout in ấn các báo cáo khác chờ duyệt (G10) — trường dữ liệu đã chốt nên làm khung trước được.
 
 ### CN-04.9. Quản lý Nghỉ phép (Trung bình) — *SRS M4.10*
 - **Chính sách (Admin HR)** — ⭐ *chốt C1 (12/8/2026): toàn bộ thông số dưới đây là **biến cấu hình**, Admin sửa được trong UI, **cấm hard-code***: phép năm theo thâm niên (mặc định theo Điều 113 BLLĐ 2019: <5 năm=12; 5–10=13; >10=14); phép đặc biệt (thai sản 180, cưới 3, tang 3, khám SK 1); số ngày chuyển sang năm sau (mặc định 5); cách tính pro-rata (mặc định `12 × số tháng / 12`, làm tròn 0.5); mốc tính thâm niên (mặc định = ngày vào làm tại Công ty); ngày lễ (trừ tự động).
