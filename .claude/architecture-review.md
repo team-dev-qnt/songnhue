@@ -59,7 +59,7 @@ Giữ nguyên (đã đúng): **Modular Monolith** (đúng cỡ dự án, đúng 
 - Log JSON có **correlation-id** xuyên suốt request → job → notification (debug luồng async).
 - Health check endpoint riêng cho: app, worker, kết nối telemetry (Nginx + Prometheus dùng chung).
 - Alert vận hành tách khỏi alert nghiệp vụ: Prometheus alert (hạ tầng) ≠ Alert thủy văn (nghiệp vụ) — 2 kênh, 2 đối tượng nhận.
-- Runbook tối thiểu: khôi phục PITR, xoay key mã hóa, xử lý trạm OFFLINE kéo dài, retry job Failed.
+- Runbook tối thiểu: khôi phục PITR, xoay key mã hóa, **xử lý poller chết / trạm mất tín hiệu kéo dài** (ưu tiên cao — không backfill được), retry job Failed.
 
 ### 2.5. Scale tương lai
 
@@ -167,8 +167,9 @@ Vì 1 node, DB là điểm chịu rủi ro lớn nhất — backup phải chắc
 
 **Hệ quả kỹ thuật**: module code backend nay là `core / content / operations / hydro / hr` (thêm `hydro`). Ranh giới ArchUnit: `content` (widget) và `operations` (GIS marker, dashboard) gọi `hydro` **chỉ qua service interface `spi/`**, không import repository. `hydro_latest` là điểm tích hợp chính giữa `hydro` → widget/GIS/dashboard.
 
-### 7.2. Giữ phần mở rộng 🔷 ngoài SRS
-Nhật ký vận hành, phiếu sự cố, báo cáo vận hành BC-01..08 **không có trong SRS v1.0**. Giữ trong function-spec (từ tài liệu gốc "Đặc tả hệ thống Website") nhưng đánh dấu 🔷 và **chờ khách xác nhận scope** (business-open-questions F1). Code phần này đặt trong module `operations` (nhóm C3), có thể bật/tắt theo scope chốt.
+### 7.2. ~~Giữ phần mở rộng 🔷 ngoài SRS~~ — **HẾT HIỆU LỰC**
+
+> ⚠ **Mục này đã bị thay thế hoàn toàn (12/8/2026) — xem §8.** Toàn bộ phần mở rộng ngoài SRS đã được Công ty chốt: nhật ký vận hành ❌ · phiếu sự cố riêng ❌ (gộp vào `maintenance_logs` — G1 PA A) · BC-01/02/03/04/07/08 ❌ · BC-06/09/10 ✅ · tình hình vận hành cống ✅ (CN-02.11 — G4). **Không còn hạng mục 🔷 nào, không còn cờ bật/tắt scope trong module `operations`.**
 
 ### 7.3. Restore qua UI (SRS M5.11) — ĐẢO quyết định E1 cũ + biện pháp bảo vệ
 SRS M5.11/UC5.6 yêu cầu Admin chọn bản backup và **khôi phục qua UI**. Trước đây (business-open-questions E1) đề xuất restore chỉ qua runbook ops vì rủi ro cao. Nay **làm nút restore UI** nhưng bắt buộc kèm chốt chặn:
@@ -180,5 +181,77 @@ SRS M5.11/UC5.6 yêu cầu Admin chọn bản backup và **khôi phục qua UI**
 - **Runbook PITR giữ song song**: UI chỉ khôi phục từ bản backup logic (pg_dump) đã chọn; khôi phục về **thời điểm bất kỳ** (WAL/PITR, RPO ≤ 15') vẫn là quy trình ops có runbook — UI không thay thế được. UI hiển thị trạng thái backup gần nhất + link tới runbook PITR.
 - Nguyên tắc §6.5 (backup là ưu tiên vận hành số 1, test restore định kỳ) **không đổi**.
 
-### 7.4. Điểm khác cần theo dõi (đã ghi business-open-questions mục F)
-Trạng thái bản ghi thủy văn 3 mức (Hợp lệ/Nghi ngờ/Loại bỏ — F2); lưu vực/khu tưới tiêu (F3); công cụ GIS đo/xuất bản đồ (F4); chức năng MOD-05 mới (F5); Shapefile (F7); NFR lệch nhẹ uptime 99% vs 99.5%, 200 vs 100–300 user, 2FA (F8). Các mục này không đảo quyết định kiến trúc đã chốt — chỉ bổ sung phạm vi.
+### 7.4. Điểm khác cần theo dõi (đã ghi business-open-questions mục F — nay đã đóng, xem §8)
+Trạng thái bản ghi thủy văn 3 mức (Hợp lệ/Nghi ngờ/Loại bỏ — F2); lưu vực/khu tưới tiêu (F3); công cụ GIS đo/xuất bản đồ (F4); chức năng MOD-05 mới (F5); Shapefile (F7); NFR lệch nhẹ uptime 99% vs 99.5%, 200 vs 100–300 user, 2FA (F8). Các mục này không đảo quyết định kiến trúc đã chốt — chỉ bổ sung phạm vi. **→ Toàn bộ đã được khách trả lời ngày 12/8/2026, xem §8.**
+
+---
+
+## 8. ÁP DỤNG CÂU TRẢ LỜI BUSINESS OPEN QUESTIONS (2026-08-12)
+
+> Nguồn: `docs_origin/Trả lời Business Open Questions 12.8.2026.docx.md` (đợt 1, mục A–F) + **confirm đợt 2 mục G ngày 12/8/2026** + khảo sát thực tế hệ thống nguồn `songnhue.bhh40.net`. Mục này **thắng** các mô tả cũ. `function-spec.md` đã lên **v2.2**.
+
+### 8.1. Thay đổi phạm vi ảnh hưởng kiến trúc
+
+| # | Quyết định | Hệ quả kiến trúc |
+|---|---|---|
+| 1 | **Bỏ Nhật ký vận hành** (B1/F1), thay bằng **Lịch sử sửa chữa** | Bỏ `operation_logs`, `machine_run_records`; **workflow engine giảm 1 use-case lớn**; bảng agg thu nhỏ còn tổng hợp chi phí/số lượt bảo trì (không còn Σ giờ chạy, Σ m³, Σ kWh) → **áp lực tính đúng batch giảm rõ rệt**, quyết định "1 node, worker in-process" (§6) càng đúng |
+| 2 | **Bỏ kế hoạch vụ mùa** (A1) + **bỏ diện tích tưới tiêu** (B5) | Bỏ nhóm bảng kế hoạch; bỏ BC-04/BC-07; M3.18 chỉ còn so sánh theo kỳ (query trực tiếp trên agg) |
+| 3 | **Lưu vực = trường text** (F3) | Bỏ `irrigation_zones`, bỏ nhu cầu polygon lưu vực trong PostGIS ở v1 |
+| 4 | **Trạng thái bản ghi 2 mức, Nghi ngờ VẪN GHI** (F2) | ⚠ Đảo giả định cũ: `hydro_readings` nay chứa cả bản ghi chưa tin cậy → **mọi truy vấn báo cáo/alert/agg phải lọc `quality = HOP_LE`**. Bổ sung index theo `quality`; thêm luồng duyệt/xóa có audit. Đây là điểm dễ sinh bug số liệu nhất — bắt buộc test |
+| 5 | **Bỏ SMS ở v1** (B7) | Notification chỉ còn In-app + Email → bỏ phụ thuộc nhà cung cấp SMS khỏi đường go-live; `SmsSender` giữ interface, cấu hình tắt |
+| 6 | **CN-01.7 đổi từ đồng bộ dữ liệu → lưu credential + auto-login** (E3) | **Bỏ hẳn 1 job đồng bộ định kỳ + bảng `external_documents`** (giảm rủi ro vận hành). Đổi lại phát sinh **nghĩa vụ bảo mật mới**: lưu credential bên thứ 3 mã hóa 2 chiều → xem §8.3 |
+| 7 | **Màn hình lớn = TV 85" 4K** (B8) | Wall mode thiết kế base 3840×2160; không cần app riêng, vẫn là route `?mode=wall` như §4 |
+| 8 | **Mọi tham số vận hành để config** (C1, D5, F5, E3) | Bảng `settings` trở thành thành phần bắt buộc từ Phase 0, có UI + validate + export/import (M5.17) — không được để giá trị nghiệp vụ nằm trong `application.yml` |
+| 9 | **Gộp sự cố vào Lịch sử sửa chữa** (G1 = PA A) | **Bỏ hẳn bảng `incidents` + workflow 7 trạng thái**. Workflow engine chỉ còn 3 trạng thái trên `maintenance_logs` → tiếp tục giảm tải Core. Trạng thái "Sự cố (đỏ)" của công trình là **giá trị dẫn xuất** (derived) từ bản ghi đang mở, **không phải cột nhập tay** → cần view/service tính trạng thái, cấm UPDATE trực tiếp |
+| 10 | **Tình hình vận hành cống nhập tay + danh mục mã CRUD** (G4) | Thêm 2 bảng MOD-02: `operation_status_codes` (danh mục, có `color`, `mapped_construction_status`) + `construction_operation_status` (**append, có lịch sử**, không ghi đè). Màu và ánh xạ trạng thái là **dữ liệu**, không phải enum trong code — tránh phải deploy khi Công ty thêm mã |
+| 11 | **Audit giữ 5 năm rồi kết xuất lưu trữ** (G7) | Job kết xuất định kỳ: xuất CSV/Parquet nén + **checksum SHA-256** lên MinIO bucket riêng (versioning, khác bucket media), xong mới xóa khỏi bảng nóng. **Hash chain phải nối tiếp qua ranh giới kết xuất** (lưu hash cuối lô làm điểm neo) — nếu không, chuỗi toàn vẹn đứt và audit mất giá trị chứng minh. Kết xuất lỗi → không xóa dòng nào |
+| 12 | **Con số NFR đã chốt nghiệm thu** (G12) | 200 CCU + trang chủ < 3s + báo cáo tháng < 60s là **cam kết hợp đồng**, không còn là mục tiêu nội bộ → phải có **load test trong kế hoạch kiểm thử**, không chỉ test chức năng. 2FA bắt buộc Admin/Admin HR đưa vào Phase 0 (không để cuối) |
+
+### 8.2. Nguồn dữ liệu thủy văn thật — đánh giá kỹ thuật
+
+Endpoint được cấp: `http://songnhue.bhh40.net/api/getmn.aspx?key=<mã số>` (ASP.NET WebForms/IIS 8.5).
+
+**Kết quả kiểm thử 12/8/2026**: ✅ **đấu nối thành công** — endpoint yêu cầu **dấu `;` ở cuối key** (`?key=<mã số>;`), thiếu thì trả chuỗi `not.working`. Trả về **19 bản ghi mực nước** dạng text phân tách bằng `<br>`, mỗi bản ghi `<mã>;dd/MM/yyyy;HH:mm;value=<cm>;`, kèm một trang HTML rỗng ở cuối. Đặc tả parser đầy đủ ở `function-spec.md` CN-03.2.
+
+**⛔ Hai giới hạn của nguồn có ảnh hưởng kiến trúc**:
+
+1. **Không có API lịch sử** — mọi tham số (`date`, `from`/`to`) bị bỏ qua, chỉ trả snapshot hiện tại. → Hệ thống mới là **nơi lưu lịch sử duy nhất**, và **poller là điểm bắt dữ liệu một-lần-duy-nhất, không backfill được**. Hệ quả bắt buộc:
+   - `hydro_raw_logs` append-only **ghi nguyên văn response trước khi parse** — đây là bản sao duy nhất tồn tại.
+   - **Giám sát poller là hạng mục ưu tiên cao**, ngang backup DB: alert khi không có bản ghi mới quá N phút (Prometheus + email Admin), không đợi người dùng phát hiện.
+   - Downtime của app = **mất dữ liệu vĩnh viễn**, không chỉ là gián đoạn dịch vụ → xem lại NFR-01: cửa sổ bảo trì phải ngắn, và nên tách poller thành tiến trình có thể chạy độc lập khi app bảo trì (giữ Spring profile `worker` như §6.2 đã dự phòng — nay có lý do nghiệp vụ rõ ràng để dùng).
+   - ✅ **Công ty đã chấp nhận rủi ro này (confirm G3, 12/8/2026)**: *"không có API quét lịch sử, hệ thống tự fetch và ghi lịch sử"* → 3 ràng buộc trên trở thành **yêu cầu bắt buộc của thiết kế**, không còn là đề xuất.
+2. **Không có API lượng mưa** (chỉ tồn tại `getmn.aspx`) trong khi biểu nghiệp vụ có cột lượng mưa. Công ty trả lời *"tạm thời chưa có"* → v1 **không có nguồn lượng mưa**; giữ loại chỉ số + chỗ cắm adapter, cột hiển thị `-`. Cách xử lý cuối cùng chờ **G3-a** (chờ endpoint / nhập tay / bỏ hẳn).
+
+**⭐ Nhịp polling — chốt G3 (ảnh hưởng thiết kế scheduler)**: nguồn làm việc theo **khung 10 phút**, dữ liệu mới chỉ lên API trong cửa sổ **`x1:30 → x8:30`**, phần còn lại máy chủ nhận dữ liệu từ máy đo. Công ty chốt **gọi 2 phút/lần vào các phút lẻ** + yêu cầu **rate-limit để không gọi khi response không đổi**. Hệ quả kiến trúc:
+- Cron mặc định `45 1/2 * * * *` — **giây 45**, không phải giây 0: gọi đúng đầu phút lẻ đầu tiên là gọi *trước* mốc `01:30`. Là tham số cấu hình.
+- **Rate-limit ở tầng ứng dụng, trước khi mở HTTP**: nếu toàn bộ điểm đo hoạt động đã có bản ghi thuộc khung 10' hiện tại → bỏ qua lượt gọi (`sync_logs = SKIPPED_UP_TO_DATE`). Điều kiện dừng phải là **đủ toàn bộ trạm**, không phải "đã có bản ghi đầu tiên" — vì nguồn trả rải rác trong 7 phút. Kỳ vọng 1–3 lần gọi thật/khung thay vì 5.
+- Nhịp 2' làm **tăng mật độ ghi `hydro_raw_logs`** (≈720 response/ngày kể cả trùng) → raw log phải có **partition theo tháng + retention riêng ngắn hơn readings** (raw chỉ phục vụ tái xử lý/đối soát). Cần chốt ở thiết kế DB Phase 1.
+- Trạng thái **trạm mất tín hiệu** phải suy ra ở phía hệ thống mới (nguồn không có cờ trạng thái): không có bản ghi mới quá N khung → `MẤT_TÍN_HIỆU` → GIS xám, loại khỏi đánh giá ngưỡng.
+
+**🔴 Chặn tiến độ MOD-03**: API **không trả tên điểm đo**, chỉ trả mã `F#####`. Chưa có bảng ánh xạ mã ↔ điểm đo thì không gắn được ngưỡng, bản đồ, báo cáo → **G8b**. Đây thay thế "API không chạy" ở vị trí rủi ro số 1.
+
+**Đặc điểm dữ liệu (quan sát từ biểu tổng hợp công khai `bieusov01.aspx`)** — căn cứ thiết kế adapter:
+- Mực nước theo **cặp TL/HL** cho từng cống/trạm bơm, định vị bằng **tuyến sông + lý trình `K..+..`** → bổ sung `river_name`, `chainage`, `position_role` vào `stations`/`constructions`.
+- **Đơn vị nguồn = cm** → adapter chia 100 về **m scale 3**. Sai chỗ này là sai toàn bộ ngưỡng cảnh báo → **unit test bắt buộc cho adapter**.
+- Có cờ **"giá trị nội suy"** → không được trộn với số đo trực tiếp.
+- **Lượng mưa tích lũy theo ca Đêm/Ngày** (không phải reading tức thời) → nếu có nguồn thì lưu kèm khoảng thời gian tích lũy; **không** đối xử như time-series điểm.
+- **Tình hình vận hành cống** (MT/ĐK/ĐTTL/ĐTHL) — ✅ **chốt G4: KHÔNG có trong API**, là dữ liệu **nhập tay** thuộc MOD-02 (CN-02.11), không đi qua adapter thủy văn. Danh mục mã là **bảng CRUD có cột màu + ánh xạ trạng thái**, không phải enum trong code.
+
+**Quyết định kiến trúc**: giữ nguyên hướng đã chốt — `TelemetryAdapter` là interface, `Bhh40Adapter` + `MockAdapter` là 2 implementation, chọn qua config. Nay nguồn đã thông nên `Bhh40Adapter` phát triển được với dữ liệu thật ngay từ Phase 1; `MockAdapter` vẫn giữ để test tự động không phụ thuộc mạng/nguồn.
+
+### 8.3. Lưu credential hệ thống ngoài — rủi ro & biện pháp (mới)
+
+Công ty chốt: lưu thông tin đăng nhập hệ thống văn bản điều hành của người dùng để auto-login. Khảo sát cho thấy hệ thống nguồn dùng **1 "mã số" duy nhất** (không có cặp user/pass), truyền qua **HTTP**.
+
+| Rủi ro | Biện pháp bắt buộc |
+|---|---|
+| Credential phải mã hóa **2 chiều** (giải mã được) — lộ key = lộ tất cả | AES-256-GCM, key ngoài DB (env/Vault), tách khỏi backup DB, có key rotation; xem `conventions.md` §4.7 |
+| Admin/dev có thể tò mò xem credential người khác | Không endpoint nào trả credential; UI mask; không log; loại khỏi export cấu hình (M5.17); mọi truy cập ghi security event |
+| Hệ thống nguồn chạy HTTP → nghe lén được | Chỉ gọi từ backend; đề nghị Công ty bật HTTPS; ghi nhận rủi ro tồn dư trong hồ sơ bàn giao |
+| Mã số hết hiệu lực | Bắt lỗi, báo "mã số không còn hiệu lực", không lộ chi tiết kỹ thuật |
+
+**Khuyến nghị đã gửi Công ty (G5)**: xin bên quản trị nguồn cấp **link đăng nhập kèm token dùng-một-lần** hoặc SSO → khi đó **không cần lưu credential**, xóa hẳn nhóm rủi ro này. Nếu Công ty chấp nhận, thiết kế đơn giản hơn và an toàn hơn hẳn.
+
+### 8.4. Không đổi
+
+Toàn bộ quyết định §1–§7 giữ nguyên: PostgreSQL 16 + PostGIS, Modular Monolith 1 node, không Redis, DB-backed queue + ShedLock, worker in-process, MinIO, timestamptz UTC, BigDecimal, backup pg_dump + PITR, restore UI có 2FA. Các thay đổi 12/8/2026 **chỉ thu hẹp phạm vi và bổ sung nghĩa vụ bảo mật**, không đảo hướng kiến trúc.

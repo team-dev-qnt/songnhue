@@ -1,9 +1,13 @@
 # FUNCTION SPECIFICATION — HỆ THỐNG QUẢN TRỊ & ĐIỀU HÀNH THỦY LỢI SÔNG NHUỆ
 
 > Tài liệu đặc tả chức năng cô đọng cho team dev. Tổng hợp từ "Tổng quan HT PM Quản lý điều hành TLSN", "Đặc tả hệ thống Website Thủy Lợi Sông Nhuệ" và **SRS_QuanTriDieuHanh_TLSN ver 06.8.2026** (SRS v1.0, 23/07/2026).
-> Phiên bản: 2.0 — Cập nhật: 2026-08-06 (tái cấu trúc module theo SRS)
+> Phiên bản: **2.2** — Cập nhật: 2026-08-12 (áp dụng confirm **đợt 2 — mục G**: G1, G2, G3 (một phần), G4, G7, G9, G11, G12)
 >
-> ⚠ **Thay đổi lớn v2.0**: cấu trúc 5 module đồng bộ theo SRS — **tách "Quản lý dữ liệu thủy văn" thành MOD-03 riêng**; **gộp tích hợp văn bản điều hành vào MOD-01 (Cổng TTĐT)**; HRM chuyển thành MOD-04; Quản trị hệ thống thành MOD-05 (bổ sung chức năng theo SRS). Các nghiệp vụ **nhật ký vận hành, phiếu sự cố, báo cáo vận hành BC-01..08** KHÔNG có trong SRS v1.0 → giữ lại như **phần mở rộng (ngoài SRS)**, đánh dấu 🔷 và cần khách xác nhận nằm trong scope hợp đồng.
+> ⚠ **Thay đổi v2.2** (theo confirm đợt 2 của Công ty): **G1 = PA A** — bỏ phiếu sự cố riêng, **gộp sự cố vào Lịch sử sửa chữa** (CN-02.2) · **G2** — Công ty **không cần** chỉ tiêu giờ chạy máy/điện năng/m³ bơm → đóng vĩnh viễn, không mở lại màn hình nhập · **G3** — chấp nhận không có API lịch sử (hệ thống tự fetch & lưu), **chu kỳ polling chốt: 2 phút/lần vào các phút lẻ**, có **rate-limit theo khung cập nhật**; trạm trục trặc → **GIS màu xám** · **G4** — tình hình vận hành cống **không có trong API**, nhập tay qua màn hình Admin, **danh mục mã có CRUD** + ánh xạ trạng thái + màu (CN-02.11 mới) · **G7** — audit log giữ **5 năm** rồi kết xuất lưu trữ · **G9** — Admin tự cấu hình ngưỡng, hệ thống chạy với ngưỡng mặc định tới khi có số liệu thật · **G11** — người nhận cảnh báo = nhóm "Ban điều hành" + auto người phụ trách công trình liên quan · **G12** — chốt con số NFR nghiệm thu. Chi tiết ở `business-open-questions.md` Phần I-B.
+>
+> ⚠ **Thay đổi lớn v2.1** (theo `docs_origin/Trả lời Business Open Questions 12.8.2026.docx.md`): **BỎ Nhật ký vận hành** (CN-02.8) — thay bằng **Lịch sử sửa chữa** (CN-02.2) do Admin/người được phân quyền nhập · **BỎ Kế hoạch tưới tiêu/vụ mùa** (kéo theo BC-04, BC-07) · **BỎ diện tích tưới tiêu** và **trạng thái tổ máy realtime** · Lưu vực = **trường tham chiếu văn bản** · Trạng thái bản ghi thủy văn còn **2 mức** (Hợp lệ/Nghi ngờ) · **Bỏ SMS ở v1** — thông báo qua website + email · **CN-01.7 đổi bản chất**: không đồng bộ danh sách văn bản mà **lưu mã số truy cập + auto-login** sang hệ thống nguồn · **Đã có endpoint API thủy văn thật** (CN-03.2) · Mọi tham số vận hành đưa vào **biến cấu hình**. Đối chiếu chi tiết ở `business-open-questions.md` Phần I-A.
+>
+> ⚠ **Thay đổi lớn v2.0**: cấu trúc 5 module đồng bộ theo SRS — **tách "Quản lý dữ liệu thủy văn" thành MOD-03 riêng**; **gộp tích hợp văn bản điều hành vào MOD-01 (Cổng TTĐT)**; HRM chuyển thành MOD-04; Quản trị hệ thống thành MOD-05 (bổ sung chức năng theo SRS). Các nghiệp vụ **nhật ký vận hành, phiếu sự cố, báo cáo vận hành BC-01..08** KHÔNG có trong SRS v1.0 → khi đó giữ lại như phần mở rộng đánh dấu 🔷 chờ khách xác nhận. *(→ **Đã đóng ở v2.2**: khách chốt loại bỏ nhật ký vận hành + phiếu sự cố riêng + BC-01/02/03/08. **Không còn hạng mục 🔷 nào**.)*
 
 ---
 
@@ -43,8 +47,8 @@ Hợp nhất từ nhóm vai trò tổng quát của SRS §2.2 và các actor chi
 | Biên tập viên | Soạn thảo bài viết, media (MOD-01) — không tự xuất bản |
 | Quản trị nội dung | Duyệt/xuất bản bài viết, danh mục, banner, liên hệ, phản hồi (MOD-01) |
 | Cán bộ văn thư | Đánh dấu văn bản điều hành công khai phía hệ thống nguồn (MOD-01 tích hợp) |
-| Cán bộ kỹ thuật | Hồ sơ công trình, số hóa GIS, điểm đo thủy văn, cấu hình ngưỡng, xử lý sự cố 🔷 |
-| Operator (vận hành viên) 🔷 | Nhập nhật ký vận hành, tạo phiếu sự cố — chỉ trong Xí nghiệp mình (phần mở rộng ngoài SRS) |
+| Cán bộ kỹ thuật | Hồ sơ công trình, số hóa GIS, điểm đo thủy văn, cấu hình ngưỡng, ghi nhận & khắc phục sự cố (CN-02.2), cập nhật tình hình vận hành cống (CN-02.11) |
+| Cán bộ vận hành (Xí nghiệp) | Xem công trình + dữ liệu thủy văn thuộc XN mình; ghi nhận sự cố (CN-02.2) và cập nhật tình hình vận hành cống khi được phân quyền. *(Vai trò "Operator nhập nhật ký vận hành" đã bị loại khỏi scope 12/8/2026)* |
 | Quản lý công trình / Quản lý XN | Duyệt hồ sơ/nhật ký, đóng cảnh báo/sự cố, báo cáo XN mình |
 | Trực ban điều hành | Nhận cảnh báo ngưỡng thủy văn, theo dõi dashboard màn hình lớn |
 | Ban giám đốc / Điều hành | Xem dashboard điều hành, báo cáo tổng hợp đa chiều |
@@ -56,7 +60,7 @@ Hợp nhất từ nhóm vai trò tổng quát của SRS §2.2 và các actor chi
 | Mã | Module (SRS) | Nội dung chính |
 |---|---|---|
 | MOD-01 | Cổng thông tin điện tử (E-Portal) | Bài viết, danh mục, media, banner, liên hệ, phản hồi, cấu hình giao diện, tìm kiếm, **tích hợp hệ thống văn bản điều hành** (M1.8) |
-| MOD-02 | Quản lý & vận hành công trình thủy lợi (GIS) | Danh mục công trình, thông số kỹ thuật, lịch sử bảo trì, tài liệu, bản đồ GIS nhiều lớp, dashboard điều hành, thống kê, nhật ký thay đổi hồ sơ. **Mở rộng 🔷: nhật ký vận hành, phiếu sự cố, báo cáo vận hành** |
+| MOD-02 | Quản lý & vận hành công trình thủy lợi (GIS) | Danh mục công trình, thông số kỹ thuật, tài liệu, bản đồ GIS nhiều lớp, dashboard điều hành, thống kê, nhật ký thay đổi hồ sơ, **lịch sử sửa chữa/bảo trì — bao gồm cả ghi nhận & khắc phục sự cố** (thay thế nhật ký vận hành đã bỏ; chốt G1 = PA A), **tình hình vận hành cống** (CN-02.11, nhập tay) |
 | MOD-03 | Quản lý dữ liệu thủy văn | Danh mục điểm đo & loại chỉ số, kết nối API bên thứ 3 (polling), bóc tách/chuẩn hóa/validate, lưu time-series, giám sát realtime, biểu đồ, báo cáo thủy văn, cảnh báo ngưỡng, hiển thị lên GIS |
 | MOD-04 | Quản lý nhân sự (HRM) | Sơ đồ tổ chức, hồ sơ CBNV, lý lịch, lịch sử công tác, tài liệu, danh bạ, thống kê, nghỉ phép |
 | MOD-05 | Quản trị hệ thống, tài khoản & phân quyền | Tài khoản, RBAC chi tiết theo màn hình, cấu hình hệ thống, audit log, backup/**restore**, giám sát health-check, thông báo hệ thống, quản lý phiên, cảnh báo đăng nhập bất thường, xuất/nhập cấu hình |
@@ -143,15 +147,37 @@ Mọi trạng thái → ĐÃ XÓA (soft delete, terminal, không phục hồi)
 
 ### CN-01.6. Quản lý Phản hồi/Đánh giá người dùng (Thấp) — *SRS M1.7*
 - Thu thập đánh giá/khảo sát mức độ hài lòng hoặc góp ý về nội dung/dịch vụ trên cổng; tổng hợp phục vụ báo cáo.
-- Nếu bật bình luận: mọi bình luận mới = 'Chờ duyệt', chỉ hiện sau duyệt; Duyệt / Từ chối / Xóa / Spam; lọc spam (Akismet hoặc tương đương); email notify.
-- *(Xem `business-open-questions.md` D1 — đề xuất phase 1 tắt bình luận công khai.)*
+- ✅ **Chốt D1 (12/8/2026)**: phase 1 **TẮT bình luận công khai tự do**; chỉ làm khảo sát/góp ý **kiểm duyệt 100%** (mọi mục gửi lên = 'Chờ duyệt', chỉ hiện sau khi Quản trị nội dung duyệt). Nếu sau này bật bình luận: bắt buộc họ tên + email + reCAPTCHA + lọc spam.
+- ✅ **Chốt D3**: **chỉ tiếng Việt** — không làm đa ngôn ngữ, không i18n nội dung.
+- ✅ **Chốt D4**: **không migrate** bài viết/tài liệu từ website cũ — Công ty tự nhập lại thủ công. → Không có hạng mục migration trong kế hoạch go-live.
 
-### CN-01.7. Tích hợp Hệ thống Văn bản điều hành (Cao) — *SRS M1.8, UC1.4* — **gộp từ MOD-04 cũ**
-- Công ty **đã có** hệ thống quản lý văn bản điều hành. Không xây mới — chỉ **hiển thị/đồng bộ** danh sách văn bản đã ban hành, được phép công khai lên cổng thông tin.
-- **Luồng**: Cán bộ văn thư đánh dấu văn bản "cho phép công khai" ở hệ thống nguồn → hệ thống này (theo lịch đồng bộ định kỳ hoặc theo sự kiện) lấy danh sách văn bản mới → hiển thị lên mục Văn bản trên cổng (số hiệu, ngày ban hành, loại văn bản, tệp đính kèm) → Quản trị nội dung có thể ẩn/hiện.
-- **Quy tắc**: hệ thống KHÔNG tự thay đổi trạng thái công khai của văn bản gốc; chỉ hiển thị văn bản đã đánh dấu công khai từ nguồn.
-- **Lỗi kết nối**: ghi log, giữ nguyên dữ liệu đồng bộ lần gần nhất (graceful degradation).
-- **Phương án tích hợp** (SSO / API / CSDL / định dạng trao đổi) — ⬜ **chưa chốt**, cần khảo sát thông tin kỹ thuật từ Công ty (xem `business-open-questions.md` E3 và SRS §8).
+### CN-01.7. Liên kết Hệ thống Văn bản điều hành (Trung bình) — *SRS M1.8, UC1.4* — ⭐ **ĐỔI BẢN CHẤT theo E3 (12/8/2026)**
+
+**Quyết định của Công ty**: hệ thống văn bản điều hành là **website độc lập** (`songnhue.bhh40.net` — bao gồm Công văn đến/đi, Lịch làm việc, Thông báo nội bộ, Quản lý công trình, Tài liệu QLKT, Công bố thông tin…). **KHÔNG đồng bộ dữ liệu, KHÔNG API, KHÔNG đọc CSDL**. Thay vào đó: hệ thống mới **lưu thông tin đăng nhập của người dùng vào hệ thống đó** và cung cấp **1 link bấm vào là tự động đăng nhập sang**.
+
+**Hiện trạng kỹ thuật hệ thống nguồn (đã khảo sát 12/8/2026)**:
+- Đăng nhập bằng **duy nhất 1 "mã số"** (form field `textlogin`, POST `default.aspx`, ASP.NET WebForms có `__VIEWSTATE`) — **không có cặp username/password**. Mã số do Ban quản trị hệ thống nguồn cấp cho từng tổ chức/cá nhân.
+- Chạy **HTTP (không TLS)**.
+- Một phần nội dung (biểu tổng hợp quan trắc) truy cập được **không cần mã số** qua link `?user=@tonghopdh`.
+
+**Thiết kế chốt**:
+
+| Hạng mục | Chốt |
+|---|---|
+| Lưu trữ | Bảng `external_system_credentials` (`user_id`, `system_code`, `credential` mã hóa **AES-256-GCM**, `updated_at`) — 1 bản ghi/người dùng/hệ thống ngoài |
+| Ai nhập | **Chính người dùng tự nhập mã số của mình** trong trang "Tài khoản cá nhân" (khuyến nghị) — Admin không nhập hộ, không xem được |
+| Hiển thị | Sau khi lưu chỉ hiện dạng mask `nan****826`; có nút "Cập nhật"/"Xóa liên kết". **Không endpoint nào trả credential ra ngoài** |
+| Auto-login | Nút/menu "Hệ thống văn bản điều hành" → BE sinh **form HTML tự submit** (POST `textlogin` + `__VIEWSTATE` lấy tại thời điểm bấm) mở tab mới sang hệ thống nguồn. Credential **giải mã tại BE ngay thời điểm bấm**, không trả về FE dưới dạng đọc được, không ghi log |
+| Cấu hình | URL hệ thống nguồn, tên field, có bật tích hợp hay không → **đọc từ env/`settings`**, không hardcode |
+| Không làm | ❌ Bỏ bảng cache `external_documents`; ❌ bỏ job đồng bộ định kỳ; ❌ không hiển thị danh sách văn bản trên cổng công khai |
+
+**⚠ Rủi ro phải ghi nhận với Công ty** (đã chấp nhận về mặt nghiệp vụ, cần biết để giảm thiểu):
+1. Credential buộc phải **mã hóa 2 chiều** (giải mã được) — không hash được như mật khẩu người dùng nội bộ. Lộ key = lộ toàn bộ mã số. → Key AES nằm **ngoài DB** (env/Vault), tách khỏi bản backup DB, có quy trình xoay key.
+2. Hệ thống nguồn chạy **HTTP** → mã số truyền plaintext trên đường truyền. → Đề nghị Công ty bật HTTPS; ghi rõ trong biên bản bàn giao là rủi ro tồn dư.
+3. Mã số bị đổi/thu hồi phía nguồn → auto-login fail. → Bắt lỗi, hiện thông báo "Mã số không còn hiệu lực, vui lòng cập nhật", **không** hiển thị lỗi kỹ thuật.
+4. **Phương án an toàn hơn nên chào Công ty**: đề nghị bên quản trị hệ thống nguồn cấp **link đăng nhập kèm token dùng-một-lần** hoặc bật SSO — nếu được thì bỏ hẳn việc lưu credential. Xem câu hỏi **G5**.
+
+**Mọi thao tác** lưu/cập nhật/xóa credential + mỗi lần bấm auto-login → ghi **security event** (ai, khi nào, IP) trong audit log.
 
 ### CN-01.8. Tìm kiếm & Tra cứu nội dung (Trung bình) — *SRS M1.9*
 - Tìm kiếm bài viết, văn bản, công trình theo từ khóa, danh mục, thời gian đăng.
@@ -164,7 +190,7 @@ Mọi trạng thái → ĐÃ XÓA (soft delete, terminal, không phục hồi)
 
 ## 2. MOD-02 — QUẢN LÝ & VẬN HÀNH CÔNG TRÌNH THỦY LỢI (GIS)
 
-Người dùng: Cán bộ kỹ thuật, Quản lý công trình, Ban giám đốc/Trực ban, Admin. *(Nhật ký vận hành 🔷: Operator, Quản lý XN.)*
+Người dùng: Cán bộ kỹ thuật, Quản lý công trình, Ban giám đốc/Trực ban, Admin. *(Lịch sử sửa chữa CN-02.2: Admin + người được phân quyền.)*
 Công nghệ đặc thù: GIS (GeoJSON/KMZ), thống kê, dashboard màn hình lớn. Dữ liệu thủy văn hiển thị lên bản đồ do **MOD-03** cung cấp (layer điểm đo).
 
 ### CN-02.1. Quản lý Danh mục Công trình (Cao) — *SRS M2.1, M2.2, M2.5, M2.6, UC2.1*
@@ -175,22 +201,59 @@ Công nghệ đặc thù: GIS (GeoJSON/KMZ), thống kê, dashboard màn hình l
 
 **Hồ sơ Trạm bơm** — trường chính:
 - Định danh: Mã CT (unique toàn hệ thống, VD `TB-SN-001`), Tên, Loại (Tưới/Tiêu/Hỗn hợp), Xí nghiệp (FK, bắt buộc), Cụm (FK), Địa chỉ, Tọa độ Lat/Lng Decimal(9,6), Năm XD, Năm sử dụng, Đơn vị thiết kế/thi công, Tổng vốn (triệu VND).
-- Thông số kỹ thuật: Công suất tổng (kW), Số máy bơm + dự phòng, Lưu lượng thiết kế/máy (m³/s), Cột nước (m), **Lưu lượng tổng = SL máy × LL/máy (auto)**, Diện tích tưới tiêu (ha), Nguồn điện, Điện áp (kV), **Ngưỡng MN vận hành min/max**.
+- Thông số kỹ thuật: Công suất tổng (kW), Số máy bơm + dự phòng, Lưu lượng thiết kế/máy (m³/s), Cột nước (m), **Lưu lượng tổng = SL máy × LL/máy (auto)**, Nguồn điện, Điện áp (kV), **Ngưỡng MN vận hành min/max**.
+> ❌ **Bỏ theo B5 (12/8/2026)**: trường "Diện tích tưới tiêu (ha)" và mọi thống kê/công thức dựa trên diện tích tưới tiêu.
 
 **Hồ sơ Cống điều tiết** — trường chính: Mã (`CG-SN-001`), Tên, Loại (Hộp/Tròn/Van phẳng/Clape), XN, Tọa độ, Số khoang, Khẩu độ/khoang (m), Cao trình ngưỡng/đỉnh, Lưu lượng thiết kế (m³/s), Thiết bị đóng mở (Thủ công/Điện/Thủy lực), **Ngưỡng MN thượng lưu cảnh báo/nguy hiểm**.
 
 **Đê điều / Kênh mương** — hồ sơ tối thiểu (mã, tên, cấp, đơn vị, tọa độ/tuyến, thông số đặc thù dạng văn bản/số); chi tiết chốt ở thiết kế DB *(xem `business-open-questions.md` A3)*.
 
-**Liên kết lưu vực / khu tưới tiêu (SRS M2.6)**: công trình gắn với **lưu vực / khu tưới tiêu / hệ thống kênh mương** mà nó phục vụ (FK tham chiếu). Là cơ sở cho thống kê diện tích và kế hoạch vụ mùa *(xem A1)*.
+**Liên kết lưu vực / khu tưới tiêu (SRS M2.6)** — *chốt theo F3 (12/8/2026)*: **chỉ là trường tham chiếu dạng văn bản** trên hồ sơ công trình (VD "Lưu vực sông Nhuệ — khu tưới Hà Đông"), **không** dựng CRUD danh mục lưu vực, **không** bảng `irrigation_zones`, **không** ranh giới GIS riêng. Nếu sau này cần thống kê theo lưu vực → nâng cấp thành danh mục ở phiên bản sau.
+
+**Tuyến sông & lý trình**: công trình/điểm đo nằm trên tuyến sông (Nhuệ, Đáy, Hồng, La Khê, Vân Đình, Duy Tiên...) và được định vị bằng **lý trình `K<km>+<m>`** (VD `K0+390`, `K18+100`) — đây là cách hệ thống nguồn của Công ty đang định danh vị trí. Bổ sung 2 trường `river_name`, `chainage` vào hồ sơ công trình + điểm đo để đối chiếu dữ liệu.
 
 **Trạng thái vận hành công trình** (SRS §3.2.4): **Bình thường (xanh) / Cảnh báo (vàng) / Sự cố (đỏ) / Bảo trì (vàng)** + (nội bộ mở rộng: Ngừng mùa vụ xám / Đã thanh lý đen). Quyết định màu marker GIS; đồng bộ realtime với hồ sơ.
+**Nguồn quyết định trạng thái** (thứ tự ưu tiên, tính ở BE — *chốt G1 + G4*): (1) có bản ghi **Khắc phục sự cố** đang mở (CN-02.2) → **Sự cố**; (2) có bản ghi **Sửa chữa/Bảo trì** đang thực hiện → **Bảo trì**; (3) có cảnh báo ngưỡng đang xảy ra tại điểm đo liên kết (CN-03.6) → **Cảnh báo**; (4) ánh xạ từ **mã tình hình vận hành** hiện hành (CN-02.11) nếu mã đó có cấu hình ánh xạ; (5) mặc định **Bình thường**. Không cho sửa trực tiếp cột trạng thái.
+
+**Tình hình vận hành hiện hành** (MT / ĐK / ĐTTL / ĐTHL…): thông tin **độc lập** với trạng thái ở trên, nhập tay — xem **CN-02.11**.
 
 **Quy tắc**: Mã công trình duy nhất toàn hệ thống; công trình chỉ lên bản đồ GIS khi đã số hóa tọa độ hợp lệ.
 
-### CN-02.2. Lịch sử Sửa chữa / Bảo trì (Cao) — *SRS M2.3, UC2.2* — **mới theo SRS**
-- Ghi nhận mỗi lần sửa chữa/bảo trì/nâng cấp: ngày thực hiện, nội dung, đơn vị thực hiện, **chi phí (nếu có)**, tài liệu/ảnh kèm.
-- Hiển thị dạng timeline trên trang chi tiết công trình; phục vụ lập kế hoạch bảo trì tiếp theo.
-- Số tiền dùng NUMERIC (BigDecimal) — cấm float.
+### CN-02.2. Lịch sử Sửa chữa / Bảo trì / Khắc phục sự cố (Cao) — *SRS M2.3, UC2.2* — ⭐ **THAY THẾ Nhật ký vận hành (B1/F1) + THAY THẾ Phiếu sự cố (chốt G1 = PA A)**
+
+Đây là **chức năng ghi nhận hoạt động duy nhất** của MOD-02 sau khi loại bỏ Nhật ký vận hành và Phiếu sự cố riêng. Một bảng `maintenance_logs` phục vụ cả 2 nghiệp vụ, phân biệt bằng **Loại công việc**.
+
+**Ai nhập**: Admin **hoặc người được phân quyền** (`ops:maintenance:create` — gán cho Kỹ thuật / Quản lý XN / Cán bộ vận hành theo nhu cầu). Không giới hạn theo ca/ngày như nhật ký, không có hạn "nhập bù 3 ngày".
+
+**Trường dữ liệu**:
+
+| Trường | Kiểu | Bắt buộc | Ghi chú |
+|---|---|---|---|
+| Mã bản ghi | Text | auto | `BT-<năm>-xxxx` |
+| Công trình | FK | ✔ | Scope theo đơn vị của người nhập |
+| Loại công việc | Enum | ✔ | Sửa chữa / Bảo trì định kỳ / Nâng cấp / Thay thế thiết bị / **Khắc phục sự cố** |
+| **Mức độ** | Enum | ✔ khi loại = Khắc phục sự cố | Nghiêm trọng / Cao / Trung bình / Thấp — *(chốt G1 PA A)* |
+| **Trạng thái xử lý** | Enum | ✔ | **Mới → Đang xử lý → Đã xử lý** (mặc định "Đã xử lý" với công việc nhập sau khi hoàn thành) |
+| Ngày bắt đầu – Ngày hoàn thành | Date | ✔ / ✘ | Ngày hoàn thành ≥ ngày bắt đầu; bắt buộc khi trạng thái = Đã xử lý |
+| Nội dung công việc | Text | ✔ | Với sự cố: mô tả hiện tượng + nguyên nhân + biện pháp |
+| Hạng mục / thiết bị | Text | ✘ | VD "Tổ máy số 3", "Cánh van khoang 2" |
+| Đơn vị thực hiện | Text / FK | ✔ | Nội bộ (org_unit) hoặc nhà thầu ngoài (text) |
+| Chi phí | NUMERIC | ✘ | BigDecimal, đơn vị VND — **cấm float** |
+| Nguồn vốn | Text | ✘ | |
+| Kết quả / nghiệm thu | Text + Enum | ✘ | Đạt / Chưa đạt / Đang theo dõi |
+| Người phụ trách | FK User | ✔ | Auto = người nhập, cho đổi |
+| **Cảnh báo liên quan** | FK `alert_events` | ✘ | Khi bản ghi được tạo từ một cảnh báo ngưỡng thủy văn (CN-03.6) |
+| Tài liệu, ảnh kèm | File | ✘ | Attachment service; biên bản nghiệm thu, ảnh trước/sau |
+
+**Ghi nhận sự cố — chốt G1 (PA A, 12/8/2026)**: **không** làm phiếu sự cố riêng, **không** mã `SC-yyyy-xxxx`, **không** workflow 7 trạng thái, **không** phân công nhiều người / hạn xử lý / tab nhật ký xử lý. Thay vào đó:
+- Sự cố = 1 bản ghi `maintenance_logs` với `loại = Khắc phục sự cố` + `mức độ` + `trạng thái xử lý`.
+- **Liên kết trạng thái công trình**: tồn tại ≥1 bản ghi sự cố ở trạng thái Mới/Đang xử lý → công trình mang trạng thái **Sự cố (đỏ)**; đóng bản ghi cuối cùng → tự trả về trạng thái trước đó. Đây là **nguồn duy nhất** làm cờ đỏ có hồ sơ truy vết.
+- **Từ cảnh báo sang xử lý**: cảnh báo ngưỡng (CN-03.6) **không tự sinh** bản ghi; trên màn hình cảnh báo có nút **"Tạo bản ghi khắc phục"** → mở form đã điền sẵn công trình + thời điểm + `alert_event_id`. Người dùng quyết định, tránh rác dữ liệu.
+- Đổi `trạng thái xử lý` chỉ qua Workflow engine (Core), ghi audit + thông báo người phụ trách.
+
+**Hiển thị**: timeline trên trang chi tiết công trình (mới nhất trước), lọc theo loại công việc / mức độ / trạng thái xử lý / khoảng thời gian / đơn vị thực hiện; tổng chi phí theo công trình/kỳ; danh sách riêng "Sự cố chưa xử lý" cho dashboard.
+**Phục vụ**: lập kế hoạch bảo trì kỳ tiếp theo; nguồn dữ liệu cho BC-09 và BC-06 (xem CN-02.10).
+**Quy tắc**: sửa/xóa bản ghi đã lưu → ghi audit old/new; soft delete.
 
 ### CN-02.3. Hình ảnh & Tài liệu Công trình (Trung bình) — *SRS M2.4, UC2.2*
 
@@ -209,12 +272,12 @@ Công nghệ đặc thù: GIS (GeoJSON/KMZ), thống kê, dashboard màn hình l
 
 ### CN-02.5. Dashboard Vận hành / Điều hành (Trung bình) — *SRS M2.14, M2.15, UC2.5*
 
-- **KPI cards**: Tổng CT hoạt động/tổng, Đang vận hành, Cảnh báo đang xảy ra, Sự cố chưa xử lý 🔷, Σ m³ bơm hôm nay 🔷, nhật ký hôm nay 🔷.
+- **KPI cards** *(cập nhật 12/8/2026 — bỏ chỉ tiêu dựa trên nhật ký vận hành)*: Tổng công trình đang hoạt động / tổng số; Số công trình theo trạng thái (Bình thường / Cảnh báo / Sự cố / Bảo trì); Cảnh báo thủy văn đang xảy ra (MOD-03); Điểm đo mất tín hiệu (xám); Công việc sửa chữa/bảo trì đang thực hiện (CN-02.2); **Sự cố chưa xử lý** (CN-02.2, loại = Khắc phục sự cố, trạng thái Mới/Đang xử lý).
 - **Bản đồ GIS tổng quan** + lớp thủy văn hiện hành (mực nước, lượng mưa theo điểm đo — MOD-03) + biểu tượng cảnh báo.
-- **Chart & bảng**: cột lưu lượng 7 ngày theo XN 🔷; đường mực nước 24h điểm đo đang cảnh báo (MOD-03); danh sách sự cố mới 🔷; nhật ký chưa duyệt 🔷.
+- **Chart & bảng** *(cập nhật 12/8/2026)*: đường mực nước 24h các điểm đo đang cảnh báo (MOD-03); bảng mực nước TL/HL hiện hành theo tuyến sông kèm **tình hình vận hành cống** (mô phỏng "biểu tổng hợp" Công ty đang dùng — xem CN-03.4 + CN-02.11); danh sách công việc bảo trì đang thực hiện; danh sách sự cố mới. *(Cột lượng mưa: xem ghi chú nguồn dữ liệu ở CN-03.2.)*
 - **Tự động làm mới (M2.15)**: dữ liệu bản đồ + số liệu tự cập nhật theo chu kỳ cấu hình, không thao tác tay.
 - **Chế độ màn hình lớn Phòng điều hành** (route `?mode=wall`): ưu tiên trực quan (biểu đồ/bản đồ/số liệu lớn dễ đọc từ xa) hơn bảng chi tiết; auto-rotate; dark theme. Khi cảnh báo ngưỡng (M3.14) hoặc CT chuyển sự cố → hiển thị nổi bật. Mất kết nối → "Dữ liệu chưa cập nhật" + thời điểm gần nhất.
-- Nội dung/độ phân giải màn hình lớn — ⬜ cần khảo sát Phòng điều hành *(B8, SRS §8)*.
+- ✅ **Thiết bị hiển thị đã chốt (B8, 12/8/2026)**: **TV 85 inch, độ phân giải 4K (3840×2160)**; có thể kèm **máy chiếu 2K hoặc Full HD+**. → Thiết kế wall mode ở base 4K, **kiểm thử fallback 1920×1080/2560×1440** (không vỡ layout, không cắt số liệu); font size tối thiểu đọc được ở khoảng cách 4–6 m; không phụ thuộc thao tác chuột/bàn phím.
 
 ### CN-02.6. Thống kê & Tìm kiếm Công trình (Trung bình) — *SRS M2.16, M2.17, UC2.4*
 - Thống kê số lượng công trình theo loại/khu vực/tình trạng/cấp quản lý; biểu đồ + bảng; xuất Excel/PDF.
@@ -223,37 +286,78 @@ Công nghệ đặc thù: GIS (GeoJSON/KMZ), thống kê, dashboard màn hình l
 ### CN-02.7. Nhật ký Thay đổi Hồ sơ Công trình (Cao) — *SRS M2.18*
 - Ghi lịch sử chỉnh sửa hồ sơ công trình (người sửa, thời gian, nội dung thay đổi — old/new) phục vụ truy vết; liên kết audit log MOD-05.
 
+### CN-02.10. Tổng hợp & Xuất Báo cáo (Trung bình) — **THU GỌN theo 12/8/2026, chốt xong G1/G2**
+
+Danh mục BC-01..08 cũ **không còn khả thi** vì mất nguồn dữ liệu (nhật ký vận hành + kế hoạch vụ mùa). Danh mục còn lại:
+
+| Mã | Báo cáo | Nguồn dữ liệu | Trạng thái |
+|---|---|---|---|
+| ❌ BC-01/02/03 | Vận hành ngày/tuần/tháng | nhật ký vận hành | **Bỏ vĩnh viễn** (mất nguồn + chốt G2 không cần) |
+| ❌ BC-04 | Kết quả vụ tưới/tiêu | kế hoạch vụ mùa | **Bỏ** (A1) |
+| ✅ BC-05 | Thủy văn tháng | `hydro_readings` | **Chuyển sang MOD-03** (CN-03.5) |
+| ✅ BC-06 | **Cảnh báo & sự cố** | `alert_events` + `maintenance_logs` (loại = Khắc phục sự cố) | **Giữ — chốt G1 (PA A)**; không còn bảng `incidents` |
+| ❌ BC-07 | Kế hoạch vs thực hiện | kế hoạch vụ mùa | **Bỏ** (A1) |
+| ❌ BC-08 | Tiêu thụ điện | nhật ký vận hành | **Bỏ vĩnh viễn** (chốt G2) |
+| ⭐ BC-09 | **Tổng hợp sửa chữa/bảo trì** (theo công trình/XN/kỳ, kèm chi phí) | `maintenance_logs` (CN-02.2) | **Mới — thay BC-01..03** |
+| ⭐ BC-10 | **Danh mục & hiện trạng công trình** (theo loại/khu vực/trạng thái) | `constructions` | **Mới** (đã có ở CN-02.6) |
+
+- **Tạo thủ công + Async Job Queue**: POST → HTTP 202 + job_id → queue → Worker → notify + link tải hiệu lực 24h; lịch sử 90 ngày. Xuất PDF + Excel.
+- **Bảng agg**: chỉ còn tổng hợp chi phí/số lượt bảo trì theo kỳ — nhẹ hơn nhiều so với thiết kế cũ.
+- **Mẫu báo cáo**: Công ty yêu cầu **phía phát triển đề xuất format trước** để Công ty xây dựng lại theo mẫu chuẩn → xem `report-templates-proposal.md`.
+
+### CN-02.11. Tình hình Vận hành Công trình (Cao) — ⭐ **MỚI, chốt G4 (12/8/2026)**
+
+**Bối cảnh**: biểu tổng hợp hiện hành của Công ty có dòng "Ghi chú tình hình vận hành" với các mã `MT` (Mở treo), `ĐK` (Đóng kín), `ĐTTL+1.70m` (điều tiết thượng lưu), `ĐTHL+1.70m` (điều tiết hạ lưu).
+✅ **Chốt G4**: thông tin này **KHÔNG có trong API** (`getmn.aspx` chỉ trả mực nước) → **100% nhập tay** qua màn hình quản trị.
+
+**(a) Danh mục Mã tình hình vận hành** — CRUD đầy đủ (Admin), *không hard-code 4 mã hiện tại*:
+
+| Trường | Kiểu | Bắt buộc | Ghi chú |
+|---|---|---|---|
+| Mã | Text | ✔ | Duy nhất — VD `MT`, `ĐK`, `ĐTTL`, `ĐTHL` |
+| Tên đầy đủ | Text | ✔ | "Mở treo", "Đóng kín", "Điều tiết thượng lưu", "Điều tiết hạ lưu" |
+| Có tham số kèm | Boolean + đơn vị | ✘ | `ĐTTL`/`ĐTHL` kèm cao trình (VD `+1.70m`) → khi bật thì form nhập bắt buộc điền giá trị NUMERIC + đơn vị |
+| **Màu hiển thị** | Text (hex) | ✔ | Dùng cho badge trên biểu tổng hợp, popup GIS, wall mode |
+| **Trạng thái công trình ánh xạ** | Enum | ✘ | Bình thường / Cảnh báo / Sự cố / Bảo trì — để trống = **không tác động** tới trạng thái công trình |
+| Thứ tự hiển thị, Hiện/Ẩn | Int / Boolean | ✔ | |
+
+- **Seed 4 mã hiện có** khi khởi tạo hệ thống; Admin thêm/sửa/ẩn về sau không cần sửa code.
+- **Không xóa cứng** mã đã dùng trong lịch sử → chỉ Ẩn (soft delete + audit).
+- Ánh xạ trạng thái áp dụng theo thứ tự ưu tiên ở CN-02.1 (ưu tiên **thấp hơn** sự cố / bảo trì / cảnh báo ngưỡng).
+
+**(b) Cập nhật tình hình vận hành theo công trình**:
+- Bảng `construction_operation_status` **append (lưu lịch sử, không ghi đè)**: Công trình (FK), Mã tình hình (FK), Giá trị tham số (NUMERIC, nullable), Thời điểm hiệu lực (`timestamptz`, mặc định = lúc nhập), Người cập nhật, Ghi chú.
+- "Tình hình hiện hành" = bản ghi mới nhất theo `thời điểm hiệu lực` của công trình đó.
+- **Ai nhập**: Admin + người được phân quyền `ops:opstatus:update` (Kỹ thuật / Quản lý XN / Cán bộ vận hành theo XN mình). **Tần suất**: cập nhật **khi có thay đổi** (không ép nhập theo ca/ngày); màn hình danh sách hiển thị cột "Cập nhật lần cuối" + cảnh báo mềm khi quá N ngày chưa cập nhật (N là tham số cấu hình).
+- **Nhập nhanh hàng loạt**: 1 màn hình dạng bảng liệt kê toàn bộ cống/trạm bơm, chọn mã + nhập giá trị + lưu 1 lần — phục vụ trực ban cập nhật đầu ca.
+- **Hiển thị**: cột "Tình hình vận hành" trên biểu tổng hợp theo tuyến sông (CN-03.4), popup GIS (CN-02.4), dashboard + wall mode (CN-02.5) — dạng badge màu theo cấu hình.
+- Mọi thay đổi ghi audit old/new.
+
 ---
 
-### 🔷 PHẦN MỞ RỘNG MOD-02 (NGOÀI SRS v1.0 — cần khách xác nhận scope)
+### ❌ PHẦN ĐÃ LOẠI KHỎI SCOPE MOD-02 — giữ lại để tránh code nhầm
 
-> Các mục CN-02.8 → CN-02.10 đến từ tài liệu gốc "Đặc tả hệ thống Website" và không xuất hiện trong SRS v1.0. Giữ lại vì là nghiệp vụ lõi vận hành thực tế; đánh dấu 🔷 và chờ Công ty xác nhận nằm trong phạm vi hợp đồng (xem `business-open-questions.md`).
+> Các mục dưới đây đến từ tài liệu gốc "Đặc tả hệ thống Website", **không** có trong SRS v1.0 và **đã được Công ty chốt loại bỏ**. Giữ nguyên phần "hệ quả kỹ thuật" để không ai implement lại theo bản cũ.
 
-### CN-02.8. 🔷 Nhật ký Vận hành (Cao)
+### CN-02.8. ❌ Nhật ký Vận hành — **ĐÃ LOẠI KHỎI SCOPE (12/8/2026)**
 
-**Quy trình**: Operator chọn công trình (chỉ CT thuộc XN mình) → chọn ngày (mặc định hôm nay, **nhập bù tối đa 3 ngày trước**) → check trùng (công trình × ngày × ca) → nhập form → Lưu nháp hoặc Gửi → Quản lý XN duyệt.
+Chốt theo B1 + F1: **không xây dựng** chức năng nhật ký vận hành (form theo ca, tổ máy, duyệt nhật ký). Thay thế bằng **CN-02.2 Lịch sử sửa chữa** do Admin/người được phân quyền nhập.
 
-**Form**:
-- Chung: Công trình, Ngày, Ca (Ngày 6h-18h / Đêm 18h-6h / Cả ngày), Người vận hành, Thời tiết.
-- Mỗi tổ máy: Số máy, Trạng thái (Chạy/Dừng/Bảo trì/Sự cố), Giờ BD–KT (bắt buộc khi Chạy), **Số giờ chạy = auto (KT–BD)**, Lưu lượng thực tế (m³/s), **Lưu lượng bơm = LL × giờ × 3600 (auto, m³)**, Điện năng (kWh), Ghi chú.
-- Thủy văn: MN thượng lưu đầu/cuối ca (bắt buộc), MN hạ lưu đầu/cuối ca, Lượng mưa trong ca.
-- Sự cố trong ca (checkbox): loại, mô tả, mức độ (Nhẹ/Trung bình/Nặng), biện pháp tạm, thời điểm, ảnh (≤5×5MB). **Mức 'Nặng' → auto tạo phiếu sự cố (CN-02.9) + notify Kỹ thuật.**
+**Hệ quả kỹ thuật đã áp dụng**:
+- Bỏ bảng `operation_logs`, `machine_run_records`; bỏ workflow duyệt nhật ký; bỏ quy tắc "nhập bù 3 ngày", "ca Ngày/Đêm", "120% lưu lượng thiết kế".
+- Bỏ error code `OPS-2001`, `OPS-2003` khỏi catalog (`conventions.md` §2.3).
+- Bỏ mọi chỉ tiêu tổng hợp dựa trên nhật ký: Σ giờ chạy máy, Σ lưu lượng bơm (m³), Σ kWh, số ca có sự cố.
+- ✅ **Chốt G2 (12/8/2026)**: Công ty **KHÔNG cần** các chỉ tiêu giờ chạy máy / điện năng / m³ bơm trên hệ thống mới → **đóng vĩnh viễn**, **không** mở màn hình "Số liệu vận hành theo tháng" như phương án dự phòng đã đề xuất. BC-01/02/03/08 bỏ hẳn.
 
-**Validation**: Số giờ chạy 0 < giờ ≤ độ dài ca; Lưu lượng thực tế > 0 và ≤ 120% thiết kế (vượt → xác nhận); Mực nước trong dải [min,max]; Ngày nhập bù hôm nay−3 ≤ ngày ≤ hôm nay; Giờ KT > BD.
+### CN-02.9. ❌ Phiếu Sự cố Công trình riêng — **ĐÃ LOẠI KHỎI SCOPE (chốt G1 = PA A, 12/8/2026)**
 
-**Trạng thái duyệt**: Nháp → Chờ duyệt (khóa sửa) → Đã duyệt (chính thức, sửa cần Admin) / Từ chối (lý do) / Yêu cầu sửa.
+**Không** xây dựng phiếu sự cố như một thực thể riêng. Sự cố được ghi nhận bằng **CN-02.2** với `loại công việc = Khắc phục sự cố`.
 
-### CN-02.9. 🔷 Quản lý Sự cố Công trình (Trung bình)
-- **Nguồn tạo phiếu**: auto từ nhật ký (sự cố Nặng); thủ công; từ màn hình cảnh báo (MOD-03).
-- **Phiếu sự cố**: Mã auto (`SC-2026-0001`), Công trình, Tiêu đề (≤200), Loại (Điện/Cơ khí/Thủy công/Thiên tai/An ninh/Khác), Mức độ (Critical/High/Medium/Low), Mô tả, Thời điểm + Người phát hiện, Ảnh/video, Phân công (multi-user), Hạn xử lý.
-- **Vòng đời**: Mới → Đang xử lý → (Chờ vật tư | Khắc phục tạm) → Chờ nghiệm thu → Đã đóng (Quản lý/Admin) | Hủy (Admin).
-- **Nhật ký xử lý**: tab riêng, cập nhật tiến độ + media; mọi đổi trạng thái auto ghi log + email liên quan.
-
-### CN-02.10. 🔷 Tổng hợp & Xuất Báo cáo Vận hành (Cao)
-- **Danh mục**: BC-01 Vận hành ngày; BC-02 Tuần; BC-03 Tháng; BC-04 Kết quả vụ tưới/tiêu; BC-05 Thủy văn tháng; BC-06 Cảnh báo & sự cố; BC-07 Kế hoạch vs thực hiện; BC-08 Tiêu thụ điện. PDF + Excel.
-- **Tổng hợp tự động (cron)**: ngày 00:05, tuần T2 00:10, tháng ngày 1 00:15. Chỉ tiêu: Σ giờ chạy máy, Σ lưu lượng bơm (m³), Σ kWh, diện tích tưới/tiêu đạt, % hoàn thành kế hoạch, số ca có sự cố.
-- **Tạo thủ công + Async Job Queue**: POST → HTTP 202 + job_id → queue → Worker → notify + link tải hiệu lực 24h; lịch sử 90 ngày. Template chuẩn công ty (.xlsx/.docx→PDF).
-- BC-04/BC-07 phụ thuộc **Kế hoạch vụ mùa** — chức năng còn thiếu, xem A1 (`business-open-questions.md`).
+**Hệ quả kỹ thuật**:
+- **Không** có bảng `incidents`, **không** có mã `SC-yyyy-xxxx`, **không** có vòng đời 7 trạng thái (Chờ vật tư / Khắc phục tạm / Chờ nghiệm thu / Hủy), **không** có phân công multi-user, hạn xử lý, tab nhật ký xử lý riêng.
+- Chỉ còn 3 trạng thái xử lý: **Mới → Đang xử lý → Đã xử lý**.
+- Cảnh báo ngưỡng thủy văn **không auto sinh** bản ghi — chỉ có nút "Tạo bản ghi khắc phục" thủ công (xem CN-02.2).
+- BC-06 lấy nguồn từ `alert_events` + `maintenance_logs`, không phải `incidents`.
 
 ---
 
@@ -280,20 +384,117 @@ Người dùng: Hệ thống tự động (Job/Scheduler), Admin, Cán bộ kỹ
 | Nguồn dữ liệu | FK api_source | ✔ | |
 | Ngưỡng cảnh báo (thấp/cao) | Numeric | ✘ | Theo điểm đo × loại chỉ số (CN-03.6) |
 | Trạng thái | Enum | ✔ | Hoạt động / Offline / Ngừng |
+| **Tuyến sông** | Text/FK | ✘ | Nhuệ / Đáy / Hồng / La Khê / Vân Đình / Duy Tiên… *(mới 12/8/2026)* |
+| **Lý trình** | Text | ✘ | Dạng `K<km>+<m>` — VD `K0+390`, `K18+100` *(mới 12/8/2026)* |
+| **Vị trí tương đối** | Enum | ✘ | Thượng lưu (TL) / Hạ lưu (HL) / Bể hút / Điểm mưa — khớp cách trình bày của hệ thống nguồn |
+| **Giá trị nội suy** | Boolean | ✘ | Nguồn đánh dấu một số điểm là "giá trị nội suy" (không đo trực tiếp) → phải giữ cờ này, không trộn lẫn với số đo thật |
 
-- **Quan hệ Điểm đo ↔ Công trình**: hiện SRS chưa định nghĩa rõ (thượng lưu/hạ lưu). Đề xuất thiết kế **n–n có vai trò** (`station_constructions`: role = thượng lưu / hạ lưu / mưa). ⬜ Cần khách confirm mô hình thực địa — xem `business-open-questions.md` A2b.
+- ✅ **Quan hệ Điểm đo ↔ Công trình — CONFIRMED (A2b, 12/8/2026)**: dùng bảng `station_constructions` **n–n có vai trò** (`role` = THUONG_LUU / HA_LUU / BE_HUT / MUA).
+  - Thực tế đối chiếu hệ thống nguồn của Công ty: mỗi cống/trạm bơm được theo dõi theo **cặp TL/HL** (VD Liên Mạc K0+390: TL 447, HL 294) → 1 công trình thường có **2 điểm đo mực nước** + tuỳ chọn 1 điểm mưa.
+  - Ngưỡng cảnh báo gắn theo **điểm đo × loại chỉ số** (SRS); trạng thái công trình suy ra từ cảnh báo của các điểm đo liên kết theo vai trò.
 
 ### CN-03.2. Kết nối API & Đồng bộ Dữ liệu (Cao) — *SRS M3.3–M3.5, M3.15, M3.16, UC3.2, UC3.5*
 
-**Luồng**: Trạm quan trắc (RTU/DataLogger) → Telemetry Server bên thứ 3 → **MOD-03 polling REST API theo chu kỳ 5–15'** → bóc tách + chuẩn hóa đơn vị → validate → DB time-series → phân phối cho Dashboard, Widget CMS, GIS, Alert.
+**Luồng**: Trạm quan trắc (RTU/DataLogger) → Telemetry Server bên thứ 3 → **MOD-03 polling REST API 2 phút/lần vào các phút lẻ** (chốt G3) → bóc tách + chuẩn hóa đơn vị → validate → DB time-series → phân phối cho Dashboard, Widget CMS, GIS, Alert.
 
-**Cấu hình nguồn API (M3.3, MOD-05 M5.5)** (chỉ Admin): Tên nguồn, URL endpoint, Xác thực (API Key/Bearer/Basic/OAuth2 — **credential mã hóa AES-256-GCM, không hiển thị plaintext**), Chu kỳ polling (min 5', mặc định 15'), Timeout (mặc định 30s), Retry (mặc định 3, exponential backoff 5→10→20'), Điểm đo gắn nguồn, Bật/Tắt. **Chu kỳ + số lần retry phải cấu hình được, không hard-code** (SRS quy tắc §3.3.3).
+#### ⭐ Nguồn dữ liệu thật đã xác định (12/8/2026)
+
+| Hạng mục | Giá trị |
+|---|---|
+| Hệ thống nguồn | `songnhue.bhh40.net` — hệ thống quan trắc + điều hành hiện có của Công ty (ASP.NET WebForms / IIS) |
+| Endpoint mực nước | `http://songnhue.bhh40.net/api/getmn.aspx?key=<MA_SO>;` — ⚠ **bắt buộc có dấu `;` ở cuối**, thiếu là trả `not.working` |
+| Xác thực | Query param `key` = **mã số** do Ban quản trị hệ thống nguồn cấp (1 chuỗi duy nhất, không có username). Lưu ở env `HYDRO_API_KEY` — **dấu `;` là một phần của giá trị env**, đừng để bị trim |
+| Endpoint lượng mưa | ⬜ **KHÔNG TỒN TẠI** — đã thử `getmua`, `getlm`, `getrain`, `getluongmua`, `getmn2` đều HTTP 404. Chỉ có **duy nhất** `getmn.aspx` (mực nước). ✅ **Chốt G3: "tạm thời chưa có"** → v1 **không có nguồn lượng mưa**; mô hình dữ liệu vẫn giữ loại chỉ số "Lượng mưa" và adapter thiết kế sẵn chỗ cắm để bật khi Công ty cấp endpoint. Cột lượng mưa trên biểu tổng hợp/báo cáo hiển thị `-`. *(Cần Công ty xác nhận có nhập tay hay không — xem G3-a còn mở)* |
+| Truy vấn lịch sử | ⛔ **Không có** — mọi tham số phụ (`date`, `from`/`to`, `type`, `loai`) đều **bị bỏ qua**, luôn trả snapshot hiện tại. ✅ **Chốt G3 (12/8/2026): chấp nhận — hệ thống mới tự fetch và tự ghi lịch sử**, không backfill được. Xem hệ quả kiến trúc bắt buộc ở `architecture-review.md` §8.2 |
+| Biểu tổng hợp (tham chiếu nghiệp vụ) | `http://103.9.86.202/bhh40.net.songnhue/tonghop-dh/bieusov01.aspx?user=@tonghopdh&pro=homepage&menuh=indexselect01..10&tivi=yes` — 10 biểu, có sẵn chế độ `tivi=yes` cho màn hình lớn |
+| **Hiện trạng** | ✅ **Đã đấu nối thử thành công 12/8/2026** — trả về 19 bản ghi mực nước |
+
+#### Định dạng response thật (đặc tả parser)
+
+```
+F01527;12/08/2026;21:50;value=179;<br>F01519;12/08/2026;21:50;value=189;<br>…<br>
+<!DOCTYPE html PUBLIC …>   ← trang ASP.NET rỗng, luôn bị nối vào cuối
+```
+
+| Đặc điểm | Chi tiết |
+|---|---|
+| Content-Type | `text/html` (**không phải JSON**) — payload là text thuần đứng **trước** một trang HTML rỗng |
+| Phân tách bản ghi | Thẻ **`<br>`** (không phải xuống dòng) |
+| Cấu trúc 1 bản ghi | `<MÃ_ĐIỂM_ĐO>;<dd/MM/yyyy>;<HH:mm>;value=<số nguyên>;` |
+| Mã điểm đo | Dạng `F` + 5 chữ số (`F01527`) → chính là **"mã ánh xạ API bên thứ 3"** trong bảng `stations` |
+| Đơn vị | **cm** (số nguyên) → chia 100 ra **m** |
+| Thời điểm | Giờ Việt Nam, chung 1 mốc cho toàn bộ bản ghi (snapshot); mốc quan sát rơi vào bội số 10 phút |
+| Không có | tên điểm đo · đơn vị đo · cờ chất lượng · trạng thái trạm · lượng mưa |
+| Chuỗi lỗi | Body chứa **`not.working`** khi key sai/thiếu `;` |
+
+**Quy tắc parse bắt buộc**:
+1. **Ghi nguyên văn response vào `hydro_raw_logs` trước khi parse** (append-only) — đây là bản sao duy nhất, không lấy lại được từ nguồn.
+2. Nếu body chứa `not.working` → ném `UpstreamException`, ghi `sync_logs` FAILED, **không** ghi reading nào; sau 3 lần liên tiếp → đánh dấu nguồn OFFLINE + cảnh báo Admin.
+3. Cắt bỏ từ `<!DOCTYPE` trở đi → split theo `<br>` → bỏ dòng rỗng.
+4. Mỗi dòng khớp regex `^([A-Z]\d+);(\d{2}/\d{2}/\d{4});(\d{2}:\d{2});value=(-?\d+(?:[.,]\d+)?);$`. Dòng không khớp → **bỏ qua + ghi log**, không làm hỏng cả mẻ.
+5. Mã không có trong `stations.api_code` → **bỏ qua + cảnh báo Admin**, tuyệt đối **không tự tạo điểm đo mới**.
+6. `dd/MM/yyyy HH:mm` diễn giải theo `Asia/Ho_Chi_Minh` → convert `Instant` UTC trước khi lưu.
+7. Giá trị: `BigDecimal(cm).divide(100, 3, HALF_UP)` → m. **Cấm** dùng double.
+8. Chống trùng: unique `(station_id, measured_at)` + `ON CONFLICT DO NOTHING` — poll 2' trên nguồn cập nhật 10' **sẽ trả trùng ở phần lớn các lần gọi**, đó là bình thường, không phải lỗi.
+9. Nếu số bản ghi hợp lệ < 50% số điểm đo đang hoạt động → ghi cảnh báo "nguồn trả thiếu dữ liệu" (nguồn có thể lỗi một phần).
+10. Toàn bộ 1 response xử lý trong **1 transaction** + ghi 1 dòng `sync_logs` (thời gian, số bản ghi nhận/ghi/bỏ qua).
+
+#### ⭐ Chu kỳ polling & rate-limit — CHỐT G3 (12/8/2026)
+
+**Nhịp cập nhật thật của nguồn** (Công ty xác nhận): nguồn làm việc theo **khung 10 phút**. Trong mỗi khung:
+
+```
+ mm:01:30 ──────────► mm:08:30        mm:08:30 ──────────► mm+10:01:30
+ dữ liệu mới lên API                  máy chủ nhận dữ liệu từ máy đo (nghỉ)
+```
+
+**Lịch gọi chốt**: **2 phút/lần, vào các phút lẻ** (phút 1, 3, 5, 7, 9 của mỗi khung 10 phút → tương đương *mọi phút lẻ* trong giờ).
+
+| Tham số | Giá trị mặc định | Ghi chú |
+|---|---|---|
+| Cron biểu thức | `45 1/2 * * * *` (Spring 6 trường) | Giây 45 để **vượt qua mốc `01:30`** — gọi vào giây 0 của phút 1 là gọi **trước** khi dữ liệu khung mới lên. Là **tham số cấu hình**, không hard-code |
+| Chu kỳ | 2 phút | Cấu hình được (`hydro.polling.cron`) |
+| Khung cập nhật nguồn | 10 phút | Dùng để tính rate-limit bên dưới |
+
+**Rate-limit theo khung cập nhật** *(yêu cầu trực tiếp của Công ty: "hạn chế call API mà response không đổi")* — kiểm tra **trước khi mở kết nối HTTP**:
+1. Tính khung hiện tại `frame = floor(now / 10 phút)` (theo giờ VN).
+2. Nếu **toàn bộ điểm đo đang hoạt động** đã có bản ghi với `measured_at` thuộc `frame` → **bỏ qua lần gọi này**, không mở HTTP, ghi `sync_logs` trạng thái `SKIPPED_UP_TO_DATE` (mức DEBUG, không tính là lỗi).
+3. Ngược lại → gọi API bình thường.
+   - ⚠ **Không** dừng ngay sau lần đầu nhận được khung mới: nguồn cập nhật **rải từ 01:30 đến 08:30**, có thể một số trạm lên muộn. Điều kiện dừng phải là *đủ toàn bộ trạm*, không phải *có bản ghi đầu tiên*.
+4. Thực tế kỳ vọng: **1–3 lần gọi thật/khung** thay vì 5 → giảm ~50% lưu lượng tới nguồn mà không mất dữ liệu.
+
+**Trạm trục trặc / mất tín hiệu** — ✅ *chốt G3*:
+- **Cách phát hiện** (nguồn không có cờ trạng thái trạm): điểm đo **không có bản ghi mới quá `N` khung** liên tiếp → chuyển `trạng thái = MẤT_TÍN_HIỆU`. `N` là tham số cấu hình, **mặc định 3 khung (≈30 phút)**.
+- **Biểu thị**: marker trên **GIS màu xám**; bảng realtime badge "Mất tín hiệu" + thời điểm bản ghi cuối; biểu tổng hợp hiển thị `-`.
+- **Không** tính cảnh báo ngưỡng cho điểm đo mất tín hiệu (tránh cảnh báo giả do giá trị cũ).
+- Có bản ghi trở lại → tự động về `Hoạt động` + ghi log phục hồi.
+- Phân biệt với **nguồn lỗi toàn phần** (`not.working` / timeout): nguồn lỗi → cảnh báo Admin về nguồn, không đánh dấu từng trạm.
+
+**Đặc điểm dữ liệu quan sát được từ hệ thống nguồn** (căn cứ thiết kế adapter):
+- Mực nước trình bày theo **cặp TL/HL** cho từng cống/trạm bơm, gắn **tuyến sông + lý trình** (`Liên Mạc (K0+390)`).
+- **Đơn vị nguồn = cm** (VD `447` = 4.47 m) → adapter **bắt buộc chia 100** để chuẩn hóa về **m, scale 3** (quy ước B6). Giá trị trống thể hiện bằng `-`.
+- Có khái niệm **"giá trị nội suy"** và **"bể hút"** → giữ cờ riêng, không coi là số đo trực tiếp.
+- **Lượng mưa** thống kê theo **Đêm / Ngày / Tổng lượng mưa** (theo ca, không phải giá trị tức thời) → nếu sau này có nguồn, phải ghi rõ khoảng thời gian tích lũy, không lưu như reading điểm. **v1: chưa có nguồn** (chốt G3).
+- Trường **tình hình vận hành cống** (`MT`, `ĐK`, `ĐTTL+1.70m`, `ĐTHL+1.70m`) — ✅ **chốt G4: KHÔNG có trong API**, nhập tay hoàn toàn qua **CN-02.11**. Adapter thủy văn **không** đụng tới dữ liệu này.
+- Mốc thời gian dạng `21h20; ngày 12 tháng 8 năm 2026` → parse về `timestamptz` UTC.
+- Quy mô thực tế (đo 12/8/2026): API trả **19 điểm đo mực nước**; biểu tổng hợp có thêm cột lượng mưa cho **~15 công trình** nhưng **lượng mưa không có trong API**.
+- ⚠ **Chưa ánh xạ được mã ↔ tên điểm đo**: đối chiếu 19 mã `F#####` với biểu tổng hợp chỉ khớp chắc chắn khoảng một nửa (VD `F01771`=447 ↔ Liên Mạc TL K0+390; `F01652`=351 ↔ Yên Nghĩa K38+000 sông Đáy; `F01532`=256 ↔ Ba Thá; `F01705`=218 ↔ Cống Phủ Lý). Phần còn lại **không được suy đoán** — sai ánh xạ = sai toàn bộ cảnh báo và báo cáo. **Bắt buộc xin bảng ánh xạ chính thức từ Công ty (G8b)**.
+
+**Bảo mật bắt buộc**: mã số/`key` là credential → lưu **mã hóa AES-256-GCM** trong `api_sources`, đọc từ env, **không log, không hiển thị plaintext, không commit**. Endpoint là **HTTP (không TLS)** → chấp nhận rủi ro ở v1 nhưng phải ghi nhận: gọi từ server nội bộ, không gọi từ trình duyệt người dùng; đề nghị Công ty bật HTTPS phía nguồn.
+
+**Cấu hình nguồn API (M3.3, MOD-05 M5.5)** (chỉ Admin): Tên nguồn, URL endpoint, Xác thực (API Key/Bearer/Basic/OAuth2 — **credential mã hóa AES-256-GCM, không hiển thị plaintext**), **Cron polling (mặc định `45 1/2 * * * *` = 2 phút/lần vào phút lẻ — chốt G3)**, **Khung cập nhật nguồn (mặc định 10 phút, dùng cho rate-limit)**, **Ngưỡng mất tín hiệu điểm đo (mặc định 3 khung)**, Timeout (mặc định 30s), Retry (mặc định 3, exponential backoff), Điểm đo gắn nguồn, Bật/Tắt. **Toàn bộ phải cấu hình được, không hard-code** (SRS quy tắc §3.3.3).
 
 **Bóc tách & chuẩn hóa (M3.4)**: chuyển dữ liệu thô sang cấu trúc chuẩn (điểm đo, thời điểm đo, giá trị, đơn vị); adapter chuyển đổi đơn vị nguồn.
 
-**Validate (M3.5)**: khoảng giá trị vật lý cho phép + chống trùng thời điểm đo trên cùng điểm đo. Dữ liệu không hợp lệ → **không ghi vào lịch sử chính thức, vẫn lưu log** để đối soát. **Trạng thái bản ghi**: Hợp lệ / Nghi ngờ / Loại bỏ *(mới theo SRS §3.3.4)*.
+**Validate (M3.5)** — ⭐ **chốt lại theo F2 (12/8/2026)**: chỉ còn **2 trạng thái bản ghi: `HOP_LE` / `NGHI_NGO`** (bỏ mức "Loại bỏ").
+- Kiểm tra: khoảng giá trị vật lý cho phép; chống trùng thời điểm đo trên cùng điểm đo; sai lệch bất thường so với bản ghi liền trước (delta/giờ vượt ngưỡng cấu hình).
+- **Bản ghi Nghi ngờ vẫn được GHI vào bảng chính** (`hydro_readings`, cờ `quality = NGHI_NGO`) — khác thiết kế cũ.
+- Đồng thời **phát thông báo cho Quản trị** → màn hình "Dữ liệu nghi ngờ" cho phép **Duyệt** (chuyển `HOP_LE`) hoặc **Xóa** (soft delete + audit ai xóa, lý do).
+- Bản ghi `NGHI_NGO` **không dùng** cho cảnh báo ngưỡng và **loại khỏi** báo cáo/biểu đồ mặc định (có toggle "hiển thị cả dữ liệu nghi ngờ").
+- Ngưỡng phân loại nghi ngờ là **tham số cấu hình** (MOD-05), không hard-code.
 
-**Xử lý gián đoạn (M3.15, UC3.5)**: sau 3 lần retry thất bại liên tiếp → đánh dấu điểm đo/nguồn OFFLINE + email alert Admin; gián đoạn kéo dài quá ngưỡng → cảnh báo cấp cao hơn; kết nối phục hồi → ghi log phục hồi, tiếp tục đồng bộ.
+**Xử lý gián đoạn (M3.15, UC3.5)**: phân biệt 2 cấp — (a) **nguồn lỗi** (timeout / `not.working`): sau 3 lần retry thất bại liên tiếp → đánh dấu **nguồn OFFLINE** + alert Admin; (b) **trạm lỗi**: điểm đo không có bản ghi mới quá ngưỡng khung cấu hình → **MẤT_TÍN_HIỆU** (GIS xám). Gián đoạn kéo dài quá ngưỡng → nâng mức cảnh báo; kết nối phục hồi → ghi log phục hồi, tiếp tục đồng bộ.
+> ⚠ **Ưu tiên vận hành**: vì nguồn **không có API lịch sử**, mọi phút poller chết là mất dữ liệu vĩnh viễn → giám sát poller xếp **ngang hàng với giám sát backup DB** (`architecture-review.md` §8.2).
 
 **Nhật ký đồng bộ (M3.16)**: mọi lần đồng bộ (thành công/thất bại, thời gian, số bản ghi) ghi log; UI tra cứu phục vụ giám sát vận hành.
 
@@ -302,11 +503,12 @@ Người dùng: Hệ thống tự động (Job/Scheduler), Admin, Cán bộ kỹ
 ### CN-03.3. Lưu trữ Dữ liệu Lịch sử (Cao) — *SRS M3.6, UC3.2*
 - Raw data → `hydro_raw_logs` **append-only** (audit + tái xử lý). Dữ liệu chuẩn hóa → `hydro_readings` time-series, index `(station_id, timestamp)`, **partition theo tháng**.
 - `hydro_latest` (1 dòng/điểm đo, poller UPSERT) — phục vụ Widget/GIS/Dashboard + graceful degradation.
-- Retention: chi tiết 5 năm; tổng hợp ngày vĩnh viễn; >2 năm chuyển Cold Storage (nén) vẫn truy vấn được.
+- **Retention** *(chốt D5, 12/8/2026)*: mặc định **chi tiết 5 năm**, nhưng là **biến cấu hình** (`hydro.retention.detail-years`) để điều chỉnh khi triển khai; tổng hợp ngày vĩnh viễn; >2 năm chuyển Cold Storage (nén) vẫn truy vấn được.
 - Mỗi bản ghi gắn 1 điểm đo + 1 timestamp duy nhất (SRS quy tắc §3.3.3).
 
 ### CN-03.4. Giám sát Realtime & Biểu đồ (Cao) — *SRS M3.7–M3.9, UC3.3*
-- Bảng realtime toàn điểm đo, auto-refresh 5'; màu ô Xanh/Vàng/Đỏ theo ngưỡng; badge OFFLINE nếu bản ghi cuối > 1 giờ; hiển thị thời điểm cập nhật gần nhất.
+- Bảng realtime toàn điểm đo, **auto-refresh 2'** (khớp chu kỳ polling chốt G3); màu ô Xanh/Vàng/Đỏ theo ngưỡng; **badge "Mất tín hiệu" (xám)** khi quá ngưỡng khung cấu hình (mặc định 3 khung ≈ 30'); badge "nghi ngờ" cho bản ghi `NGHI_NGO`; hiển thị thời điểm cập nhật gần nhất.
+- ⭐ **Biểu tổng hợp theo tuyến sông** *(mới 12/8/2026)*: tái hiện đúng cách Công ty đang theo dõi — nhóm theo tuyến sông (Nhuệ / Đáy / Hồng / La Khê / Vân Đình / Duy Tiên), mỗi công trình 1 cột **cặp TL–HL**, kèm lý trình và **cột tình hình vận hành** lấy từ CN-02.11 (badge màu theo cấu hình mã). Đây là màn hình chính của Trực ban và là nội dung chính của wall mode. Bố cục tham chiếu: `bieusov01.aspx` của hệ thống nguồn. **Cột lượng mưa hiển thị `-`** ở v1 (chưa có nguồn — G3).
 - Line chart (ECharts): **multi điểm đo so sánh (M3.9)**, chọn thông số, khoảng thời gian (24h/7d/30d/năm/custom); đường ngưỡng (nét đứt vàng/đỏ); tooltip; export PNG/SVG/CSV.
 - Không có dữ liệu khoảng đã chọn → "Không có dữ liệu" (không vẽ biểu đồ trống).
 - Lọc: đơn vị, điểm đo, thời gian, trạng thái.
@@ -314,25 +516,41 @@ Người dùng: Hệ thống tự động (Job/Scheduler), Admin, Cán bộ kỹ
 ### CN-03.5. Báo cáo Khai thác Dữ liệu Thủy văn (Cao) — *SRS M3.10–M3.12, M3.18, UC3.4*
 - **Định kỳ (M3.10)**: báo cáo ngày/tuần/tháng theo mẫu cố định.
 - **Theo yêu cầu (M3.11)**: người dùng tự đặt tham số (điểm đo, khoảng thời gian, loại chỉ số).
-- **Thống kê mùa vụ (M3.18)**: so sánh dữ liệu giữa các kỳ/mùa vụ (theo năm, theo tháng tương ứng nhiều năm) — phân tích xu hướng.
+- **So sánh theo kỳ (M3.18)** *(điều chỉnh theo A1 — đã bỏ Kế hoạch vụ mùa)*: so sánh dữ liệu giữa các kỳ do người dùng tự chọn (cùng tháng nhiều năm, cùng khoảng ngày nhiều năm) — phân tích xu hướng. **Không** phụ thuộc bảng kế hoạch vụ mùa; không có chỉ tiêu "% hoàn thành kế hoạch".
+- **BC-05 Báo cáo thủy văn tháng** (chuyển từ MOD-02 sang đây): mực nước max/min/trung bình theo điểm đo, tổng lượng mưa, số lần vượt ngưỡng.
 - **Xuất (M3.12)**: Excel/PDF. Dùng Async Job Queue (202 + job_id) như CN-02.10. Validate tham số (ngày kết thúc ≥ bắt đầu).
 
 ### CN-03.6. Cảnh báo Ngưỡng Thủy văn (Cao) — *SRS M3.13, M3.14, UC3.5*
 - **Cấu hình theo từng điểm đo × từng loại chỉ số** (không dùng chung 1 ngưỡng toàn hệ thống — SRS quy tắc §3.3.3): mức thấp/cao; mở rộng nội bộ: 3 mức Bình thường/Warning/Critical, loại điều kiện `>`,`<`, ngoài khoảng, tốc độ thay đổi (delta/giờ); delay chống nhiễu (X phút liên tục). Ngưỡng mặc định khi tạo điểm đo mới lấy từ MOD-05 (M5.6).
+- ✅ **Chốt G9 (12/8/2026)**: **Admin tự cấu hình toàn bộ ngưỡng** qua UI — Công ty **không cung cấp bảng ngưỡng thực tế trước khi triển khai**. Hệ quả:
+  - Bàn giao phải có **màn hình cấu hình ngưỡng đầy đủ** (thêm/sửa/xóa theo điểm đo × chỉ số × mức, có lịch sử thay đổi + audit) — đây là hạng mục nghiệm thu, không phải seed data.
+  - Hệ thống chạy được ngay với **ngưỡng mặc định** từ M5.6; điểm đo chưa cấu hình ngưỡng riêng → hiển thị nhãn **"chưa cấu hình ngưỡng"**, **không** phát cảnh báo (tránh cảnh báo sai hàng loạt).
+  - Màn hình quản trị có danh sách "Điểm đo chưa cấu hình ngưỡng" để Admin hoàn thiện dần.
+  - ⬜ *Còn mở*: bộ mức ngưỡng cụ thể Công ty muốn dùng — xem G9 phần còn lại ở `business-open-questions.md`.
 - **Đánh giá**: ngay sau mỗi lần ghi reading; alert event unique key `(rule_id, thời điểm bắt đầu)` chống trùng; hysteresis lưu DB.
 - **Kênh phát** (Notification service Core):
 
-| Kênh | Mức | Ghi chú |
-|---|---|---|
-| Dashboard banner | Warning + Critical | Xác nhận đã đọc |
-| Email | Warning + Critical | Kèm link màn hình điểm đo/công trình; danh sách nhận theo điểm đo |
-| SMS | Critical only | ESMS/Twilio *(⚪ chốt nhà cung cấp — B7)* |
-| Web Push in-app | Warning + Critical | Cần cấp quyền browser |
+⭐ **Chốt theo B7 (12/8/2026)**: **v1 KHÔNG dùng SMS**. Thông báo phát **qua website (in-app)** tới **tài khoản Ban điều hành** + **người trực tiếp quản lý công trình liên quan**. SMS Gateway giữ ở dạng **adapter + cấu hình bật/tắt**, triển khai giai đoạn sau — không code cứng vào luồng alert.
+
+✅ **Cách xác định người nhận — chốt G11 (12/8/2026)**: hợp của 2 tập, tính ở BE mỗi lần phát cảnh báo:
+1. **Nhóm cố định "Ban điều hành"** — nhóm người nhận do Admin cấu hình trong MOD-05 (thêm/bớt tài khoản bất kỳ lúc nào, không cần sửa code). Ai muốn nhận thêm → Admin gán vào nhóm.
+2. **Tự động**: người phụ trách của **đơn vị quản lý công trình** liên kết với điểm đo phát cảnh báo — suy ra theo chuỗi `station → station_constructions → constructions.org_unit → org_units.người đứng đầu/phó phụ trách`.
+- Khử trùng lặp trước khi gửi; người đã nghỉ việc/khóa tài khoản bị loại tự động.
+- Điểm đo **không liên kết công trình nào** → chỉ nhóm cố định nhận (và ghi log để Admin bổ sung liên kết).
+
+| Kênh | Mức | Trạng thái v1 | Ghi chú |
+|---|---|---|---|
+| In-app (chuông + banner dashboard) | Warning + Critical | ✅ **Kênh chính** | Xác nhận đã đọc; người nhận = Ban điều hành + người quản lý công trình liên quan (suy từ `station_constructions` → đơn vị phụ trách) |
+| Email | Warning + Critical | ✅ Có | Kèm link màn hình điểm đo/công trình; danh sách nhận theo điểm đo |
+| Web Push trình duyệt | Warning + Critical | ⚪ Tùy chọn | Cần cấp quyền browser |
+| SMS | Critical only | ⏸ **Hoãn sang phase sau** | Giữ interface `SmsSender` + cấu hình nhà cung cấp; mặc định tắt |
 
 - **Lịch sử cảnh báo**: điểm đo, thông số, giá trị, mức, thời gian bắt đầu/kết thúc, người xác nhận, ghi chú xử lý; lọc; phân loại Đang xảy ra / Đã xử lý / False Alarm.
 
 ### CN-03.7. Hiển thị Thủy văn trên Bản đồ GIS (Trung bình) — *SRS M3.17, UC3.6*
 - Lớp "Điểm đo thủy văn" trên bản đồ GIS (MOD-02): vị trí điểm đo + giá trị đo mới nhất (từ `hydro_latest`).
+- **Màu marker điểm đo**: Xanh = trong ngưỡng · Vàng = cảnh báo · Đỏ = nguy hiểm · **Xám = mất tín hiệu / trạm trục trặc** *(chốt G3, 12/8/2026)* · viền nét đứt = bản ghi mới nhất đang `NGHI_NGO`.
+- Popup điểm đo xám hiển thị **giá trị cuối cùng + thời điểm** kèm nhãn "Dữ liệu chưa cập nhật", không hiển thị như số liệu hiện hành.
 - Click điểm đo → xem nhanh biểu đồ diễn biến gần nhất.
 - Điểm đo cần đã số hóa tọa độ + có dữ liệu đồng bộ.
 
@@ -384,11 +602,14 @@ Người dùng: Quản trị nhân sự (Admin HR), Ban giám đốc, Quản lý
 - Báo cáo BCNS-01→08 (trích ngang, theo đơn vị, biến động, HĐ sắp hết hạn, cơ cấu, chứng chỉ sắp hết hạn, lý lịch mẫu 2C-BNV, tổng hợp năm) — Excel/PDF (M4.17).
 
 ### CN-04.9. Quản lý Nghỉ phép (Trung bình) — *SRS M4.10*
-- **Chính sách (Admin HR)**: phép năm theo thâm niên (Điều 113 BLLĐ 2019: <5 năm=12; 5–10=13; >10=14); phép đặc biệt (thai sản 180, cưới 3, tang 3, khám SK 1); chuyển tối đa N ngày (mặc định 5); ngày lễ (trừ tự động).
+- **Chính sách (Admin HR)** — ⭐ *chốt C1 (12/8/2026): toàn bộ thông số dưới đây là **biến cấu hình**, Admin sửa được trong UI, **cấm hard-code***: phép năm theo thâm niên (mặc định theo Điều 113 BLLĐ 2019: <5 năm=12; 5–10=13; >10=14); phép đặc biệt (thai sản 180, cưới 3, tang 3, khám SK 1); số ngày chuyển sang năm sau (mặc định 5); cách tính pro-rata (mặc định `12 × số tháng / 12`, làm tròn 0.5); mốc tính thâm niên (mặc định = ngày vào làm tại Công ty); ngày lễ (trừ tự động).
 - **Quy trình**: NV đăng ký → tự tính số ngày (trừ cuối tuần + lễ) + hiển thị số dư → cảnh báo vượt phép → gửi đơn → Quản lý duyệt/từ chối (email) → tự trừ số dư.
 - **Số dư**: Được hưởng = thâm niên + chuyển năm trước; Còn lại = Được hưởng − Đã nghỉ − Đang chờ duyệt (tính lại từ đơn, không cộng trừ tay).
 - **Lịch đơn vị**: Calendar; cảnh báo trùng lịch khi > ngưỡng % quân số nghỉ cùng lúc.
-- *(Chi tiết pro-rata, luồng duyệt nhiều cấp, phạm vi tài khoản — xem `business-open-questions.md` C1–C3.)*
+- ✅ **Chốt C2**: mặc định duyệt **1 cấp** (trưởng đơn vị); có cấu hình "≥ N ngày cần thêm cấp duyệt 2" (mặc định tắt).
+- ✅ **Chốt C3**: **cấp tài khoản cho toàn bộ CBNV**; nhân viên không dùng máy tính → quản lý đơn vị tạo đơn hộ (lưu trường "người tạo hộ", ghi audit).
+- ✅ **Chốt B3**: có chức năng **ủy quyền duyệt có thời hạn** (từ–đến, người được ủy quyền cùng đơn vị hoặc cấp trên); audit ghi "duyệt theo ủy quyền của X".
+- ✅ **Chốt C4**: chỉ **lưu trữ** mức lương/hệ số (mã hóa 🔒) — **không** có module tính lương, **không** chấm công.
 
 ---
 
@@ -409,12 +630,37 @@ Người dùng: Admin (Super Admin), Hệ thống tự động.
 - **Chu kỳ đồng bộ thủy văn (M5.5)**: chu kỳ, timeout, số lần retry cho polling API bên thứ 3 (MOD-03).
 - **Ngưỡng cảnh báo mặc định (M5.6)**: áp dụng khi tạo điểm đo mới.
 - Template báo cáo; tham số vận hành chung. Giá trị không hợp lệ (VD chu kỳ âm) → báo lỗi, giữ cấu hình cũ.
+
+**⭐ Danh mục tham số cấu hình bắt buộc** (chốt 12/8/2026 — nguyên tắc: *cái gì khách nói "để config" thì phải nằm trong bảng `settings`, có UI sửa, có validate, cấm hard-code*):
+
+| Nhóm | Tham số | Mặc định | Nguồn chốt |
+|---|---|---|---|
+| Bảo mật | **Khung giờ hành chính** (dùng cho cảnh báo đăng nhập bất thường M5.16) | **08:00–17:00** | F5 |
+| Bảo mật | Độ phức tạp + hạn đổi mật khẩu, số lần sai bị khóa | 10 ký tự / 5 lần / khóa 15' | M5.15 |
+| Thủy văn | **Cron polling** | **`45 1/2 * * * *`** (2'/lần, phút lẻ) | **G3** |
+| Thủy văn | **Khung cập nhật nguồn** (dùng cho rate-limit) | **10 phút** | **G3** |
+| Thủy văn | **Ngưỡng mất tín hiệu điểm đo** (số khung không có dữ liệu → xám) | **3 khung (≈30')** | **G3** |
+| Thủy văn | Timeout, số lần retry | 30s / 3 | M5.5 |
+| Thủy văn | Ngưỡng cảnh báo mặc định khi tạo điểm đo mới | — | M5.6 |
+| Thủy văn | Ngưỡng phân loại bản ghi "Nghi ngờ" (delta/giờ, khoảng vật lý) | theo loại chỉ số | F2 |
+| Thủy văn | **Retention dữ liệu chi tiết** | **5 năm** | D5 |
+| Vận hành | Số ngày chưa cập nhật tình hình vận hành → cảnh báo mềm (CN-02.11) | 7 ngày | **G4** |
+| Nhân sự | Toàn bộ thông số phép năm (xem CN-04.9) | theo BLLĐ 2019 | C1 |
+| Nhân sự | Ngưỡng cảnh báo HĐ/chứng chỉ sắp hết hạn | 30 / 90 ngày | M4.9 |
+| Dung lượng | **Số điểm đo / công trình / người dùng tối đa** + giới hạn upload từng loại | không giới hạn cứng | E3 |
+| Thông báo | Bật/tắt kênh SMS, email, web push | SMS **tắt** | B7 |
+| Thông báo | **Nhóm người nhận cảnh báo "Ban điều hành"** (danh sách tài khoản, Admin sửa) + bật/tắt tự thêm người phụ trách công trình | nhóm rỗng + auto **bật** | **G11** |
+| Audit | **Thời gian lưu nhật ký hoạt động** + bật/tắt kết xuất lưu trữ khi quá hạn | **5 năm** / bật | **G7** |
+| Hệ thống | Chu kỳ auto-refresh dashboard & wall mode; thời gian auto-rotate | 5' / 30s | M2.15 |
+| Tích hợp | URL + bật/tắt liên kết hệ thống văn bản điều hành | theo env | E3 |
 - **Xuất/nhập cấu hình (M5.17)** — *mới theo SRS*: export bộ cấu hình ra tệp / import lại — hỗ trợ sao lưu cấu hình hoặc chuyển môi trường staging/production.
 
 ### CN-05.4. Nhật ký Hoạt động — Audit Log (Cao) — *SRS M5.7, M5.8, UC5.4*
 - Ghi mọi thao tác quan trọng: đăng nhập/xuất, thêm/sửa/xóa dữ liệu, thay đổi phân quyền — user, timestamp, action, module, old/new value.
 - UI tra cứu lọc theo user/module/thời gian/loại thao tác; xem chi tiết bản ghi.
 - **Audit log KHÔNG được sửa/xóa bởi bất kỳ vai trò nào, kể cả Admin** (append-only + hash chain — SRS quy tắc §3.5.3; xem `conventions.md` §4.3).
+- ✅ **Lưu trữ — chốt G7 (12/8/2026)**: giữ **5 năm** trong bảng nóng (đồng bộ retention thủy văn D5), là **biến cấu hình** (`audit.retention-years`). Quá hạn → **kết xuất ra file lưu trữ** (CSV/Parquet nén + **checksum SHA-256** kèm theo, đẩy lên MinIO bucket riêng có versioning) rồi mới xóa khỏi bảng nóng — **không xóa trắng**, vì audit là bằng chứng đối soát.
+- Job kết xuất chạy theo lịch, ghi `sync_logs`/security event; thất bại → **không xóa** dòng nào + cảnh báo Admin. Hash chain phải nối tiếp qua ranh giới kết xuất (lưu hash cuối của lô đã kết xuất làm điểm neo).
 
 ### CN-05.5. Backup & Restore (Cao) — *SRS M5.9–M5.11, UC5.6*
 - **Backup tự động theo lịch (M5.9)**: pg_dump hàng ngày + WAL archiving (PITR, RPO ≤ 15'), retention 30 ngày; lưu **tách biệt máy chủ vận hành chính** (SRS quy tắc §3.5.3); ghi log kết quả; thất bại → cảnh báo Admin ngay.
@@ -436,21 +682,26 @@ Người dùng: Admin (Super Admin), Hệ thống tự động.
 
 ## 6. MA TRẬN PHÂN QUYỀN RBAC (MOD-02/03 — tham chiếu chính)
 
-| Chức năng | Admin | Quản lý XN | Kỹ thuật | Operator |
+> Cập nhật 12/8/2026: bỏ cột **Operator** và các dòng nhật ký vận hành; bổ sung lịch sử sửa chữa + duyệt dữ liệu nghi ngờ. **Cập nhật đợt 2**: bỏ dòng phiếu sự cố riêng (G1 = PA A → gộp vào CN-02.2); thêm dòng tình hình vận hành (G4) và nhóm người nhận cảnh báo (G11).
+
+| Chức năng | Admin | Quản lý XN | Kỹ thuật | Cán bộ vận hành |
 |---|:-:|:-:|:-:|:-:|
 | Xem danh mục công trình | ✔ | ✔ | ✔ | ✔ (XN mình) |
 | Thêm/Sửa hồ sơ công trình | ✔ | ✘ | ✔ | ✘ |
-| Ghi lịch sử bảo trì | ✔ | ✔ | ✔ | ✘ |
+| **Ghi lịch sử sửa chữa/bảo trì (CN-02.2)** | ✔ | ✔ | ✔ | ✘ *(cấp được qua quyền `ops:maintenance:create`)* |
+| **Ghi nhận sự cố** (CN-02.2, loại = Khắc phục sự cố) | ✔ | ✔ | ✔ | ✔ (XN mình) |
+| **Đóng bản ghi sự cố** (chuyển "Đã xử lý") | ✔ | ✔ (XN mình) | ✘ | ✘ |
+| Xóa/sửa bản ghi sửa chữa đã lưu | ✔ | ✔ (XN mình) | ✘ | ✘ |
+| **Cập nhật tình hình vận hành cống (CN-02.11)** | ✔ | ✔ | ✔ | ✔ (XN mình) |
+| **Quản lý danh mục mã tình hình vận hành** | ✔ | ✘ | ✘ | ✘ |
 | Upload tài liệu công trình | ✔ | ✔ | ✔ | ✔ (XN mình) |
 | Quản lý điểm đo (MOD-03) | ✔ | ✘ | ✔ | ✘ |
 | Cấu hình API nguồn dữ liệu | ✔ | ✘ | ✘ | ✘ |
-| Cấu hình ngưỡng cảnh báo | ✔ | ✔ | ✔ | ✘ |
+| Cấu hình ngưỡng cảnh báo (G9) | ✔ | ✔ | ✔ | ✘ |
+| **Quản lý nhóm nhận cảnh báo "Ban điều hành" (G11)** | ✔ | ✘ | ✘ | ✘ |
 | Đóng/Xử lý cảnh báo | ✔ | ✔ | ✔ | ✘ |
+| **Duyệt/Xóa bản ghi thủy văn "Nghi ngờ" (F2)** | ✔ | ✘ | ✔ | ✘ |
 | Upload/Quản lý layer GIS | ✔ | ✘ | ✔ | ✘ |
-| Nhập nhật ký vận hành 🔷 | ✔ | ✔ | ✔ | ✔ (XN mình) |
-| Duyệt nhật ký 🔷 | ✔ | ✔ | ✘ | ✘ |
-| Tạo phiếu sự cố 🔷 | ✔ | ✔ | ✔ | ✔ |
-| Đóng phiếu sự cố 🔷 | ✔ | ✔ | ✘ | ✘ |
 | Xem báo cáo | ✔ | ✔ (XN mình) | ✔ | ✔ (XN mình) |
 | Tạo/Xuất báo cáo | ✔ | ✔ | ✔ | ✘ |
 
@@ -462,15 +713,17 @@ Quản trị (MOD-05): chỉ Admin/Super Admin; restore + xuất/nhập cấu h�
 
 ## 7. YÊU CẦU PHI CHỨC NĂNG (NFR)
 
+> ✅ **Chốt G12 (12/8/2026)**: các con số dưới đây là **con số nghiệm thu chính thức** — đưa vào biên bản. Đo trên môi trường Production sau go-live.
+
 | # | Hạng mục | Yêu cầu | Tiêu chí đo |
 |---|---|---|---|
-| NFR-01 | Khả dụng | Uptime ≥ 99% (SRS §4.4; nội bộ mục tiêu 99.5% giờ hành chính), không tính bảo trì đã lên lịch | Alert khi downtime > 15' |
-| NFR-02 | Hiệu năng web | Trang chủ < 3s/mạng bình thường; ≥ 200 users đồng thời không suy giảm đáng kể (SRS §4.1) | P95 dashboard < 3s @ 50 users |
-| NFR-03 | Polling | Đúng chu kỳ cấu hình; đọc/lưu thủy văn realtime không làm chậm chức năng khác | Sai lệch < 10%; retry 3 lần + alert |
-| NFR-04 | Báo cáo | BC 1 tháng/1 XN < 60s (async) | Job completed < 60s |
-| NFR-05 | Bảo mật | HTTPS/TLS, RBAC tối thiểu quyền, hash mật khẩu, log thao tác nhạy cảm; 2FA (mở rộng); API credential AES-256 | Không plaintext trong UI |
-| NFR-06 | Phân quyền dữ liệu | Operator/Quản lý chỉ dữ liệu đơn vị mình; trường 🔒 mã hóa | Unit + integration test 100% pass |
-| NFR-07 | Audit | Log mọi tạo/sửa/xóa + đăng nhập + đổi quyền | user, timestamp, action, old/new value |
+| NFR-01 | Khả dụng | **Uptime ≥ 99%** (nội bộ mục tiêu 99.5% giờ hành chính), không tính bảo trì đã lên lịch | Alert khi downtime > 15' |
+| NFR-02 | Hiệu năng web | **Trang chủ < 3s**/mạng bình thường; **≥ 200 người dùng đồng thời** không suy giảm đáng kể | P95 dashboard < 3s @ 50 users; load test 200 CCU |
+| NFR-03 | Polling | Đúng cron cấu hình (2'/lần, phút lẻ — G3); đọc/lưu thủy văn realtime không làm chậm chức năng khác | Sai lệch < 10%; retry 3 lần + alert; **không bỏ sót khung 10' nào trong 7 ngày quan sát** |
+| NFR-04 | Báo cáo | **Báo cáo tháng < 60s** (1 tháng/1 XN, async) | Job completed < 60s |
+| NFR-05 | Bảo mật | HTTPS/TLS, RBAC tối thiểu quyền, hash mật khẩu, log thao tác nhạy cảm; **2FA bắt buộc cho Admin + Admin HR**; API credential AES-256-GCM | Không plaintext trong UI; đăng nhập Admin không có 2FA phải bị từ chối |
+| NFR-06 | Phân quyền dữ liệu | Cán bộ vận hành/Quản lý XN chỉ thấy dữ liệu đơn vị mình; trường 🔒 mã hóa | Unit + integration test 100% pass |
+| NFR-07 | Audit | Log mọi tạo/sửa/xóa + đăng nhập + đổi quyền; **giữ 5 năm** (G7) | user, timestamp, action, old/new value; kết xuất lưu trữ có checksum |
 | NFR-08 | Lưu trữ | Hydro chi tiết 5 năm; backup hàng ngày retention 30 ngày, lưu tách biệt | Không mất dữ liệu |
 | NFR-09 | Tương thích | Chrome/Firefox/Edge/Safari; mobile; GIS GeoJSON/KMZ (Shapefile chốt sau) | Responsive 360px–2560px |
 | NFR-10 | Pháp lý | NĐ 13/2023/NĐ-CP, BLLĐ 2019, Luật Lưu trữ 2011; quy định công bố thông tin DNNN | Áp dụng cho dữ liệu nhân sự + cổng |
@@ -487,7 +740,8 @@ Quản trị (MOD-05): chỉ Admin/Super Admin; restore + xuất/nhập cấu h�
 - **PostgreSQL 16 + PostGIS (1 node)**: source of truth cho data + queue (SKIP LOCKED) + lock (ShedLock) + `hydro_latest`. **Backup**: pg_dump hàng ngày + WAL archiving (PITR, RPO ≤ 15'), lưu khác đĩa/khác máy, test restore định kỳ.
 - **Không Redis**: session/denylist ở DB; site config Caffeine in-process. **MinIO**: media, tài liệu, file báo cáo.
 - **Monitoring**: Prometheus + Grafana + health-check (MOD-05 M5.12); log JSON rotation 30 ngày.
-- External: Telemetry API (HTTPS, key AES-256), hệ thống văn bản điều hành, SMTP, SMS Gateway, Google Maps (optional).
+- **External** *(cập nhật 12/8/2026)*: **Telemetry API `songnhue.bhh40.net/api/getmn.aspx`** (HTTP, xác thực bằng `key` = mã số — mã hóa AES-256-GCM, đọc từ env); **hệ thống văn bản điều hành** = chính `songnhue.bhh40.net` (liên kết auto-login, không đồng bộ dữ liệu); SMTP; ~~SMS Gateway~~ (hoãn phase sau); Google Maps (optional).
+- **Màn hình lớn Phòng điều hành**: TV 85" 4K (3840×2160) + máy chiếu 2K/Full HD+ — trình duyệt kiosk trỏ vào route `?mode=wall`, không cần máy trạm riêng.
 
 ---
 
@@ -522,21 +776,26 @@ Quản trị (MOD-05): chỉ Admin/Super Admin; restore + xuất/nhập cấu h�
 | M2.14–M2.15 | CN-02.5 | | M4.11 | CN-04.6 |
 | M2.16–M2.17 | CN-02.6 | | M4.12–M4.13 | CN-04.7 |
 | M2.18 | CN-02.7 | | M4.14–M4.17 | CN-04.8 |
-| — (ngoài SRS) | 🔷 CN-02.8/09/10 | | M5.1 | CN-05.1 |
+| — (đã bỏ 12/8) | ❌ CN-02.8 / ❌ CN-02.9 | | M5.1 | CN-05.1 |
+| — (ngoài SRS, đã chốt scope) | ✅ CN-02.10 báo cáo · ✅ CN-02.11 tình hình vận hành (G4) | | | |
 | M5.2–M5.3 | CN-05.2 | | M5.4–M5.6, M5.17 | CN-05.3 |
 | M5.7–M5.8 | CN-05.4 | | M5.9–M5.11 | CN-05.5 |
 | M5.12–M5.13 | CN-05.6 | | M5.14–M5.16 | CN-05.7 |
 
-🔷 = phần mở rộng ngoài SRS v1.0 (nhật ký vận hành, sự cố, báo cáo vận hành) — cần khách xác nhận scope.
+❌ = đã loại khỏi scope 12/8/2026: nhật ký vận hành (CN-02.8), **phiếu sự cố riêng (CN-02.9 — chốt G1 PA A, gộp vào CN-02.2)**, kế hoạch vụ mùa, BC-01/02/03/04/07/08.
+✅ = phần ngoài SRS v1.0 nhưng **đã chốt nằm trong scope**: CN-02.10 (BC-06/09/10) và CN-02.11 (tình hình vận hành cống — G4).
+**Không còn hạng mục 🔷 nào trong MOD-02.**
 
 ---
 
 ## PHỤ LỤC — QUY ƯỚC CHUNG CHO DEV
 
-- **Mã định danh**: Công trình `TB-SN-xxx`/`CG-SN-xxx`; Điểm đo (mã nội bộ + mã ánh xạ API); Sự cố `SC-<năm>-xxxx`; NV `NV-<năm>-xxx`; Đơn vị `PB-xx`/`XN-xx`.
+- **Mã định danh**: Công trình `TB-SN-xxx`/`CG-SN-xxx`/`DE-SN-xxx`/`KM-SN-xxx`; Điểm đo (mã nội bộ + mã ánh xạ API `F#####`); Bảo trì **và sự cố** dùng chung `BT-<năm>-xxxx` *(bỏ mã `SC-` theo G1)*; NV `NV-<năm>-xxx`; Đơn vị `PB-xx`/`XN-xx`.
+- **Đơn vị đo chuẩn nội bộ** (chốt B6): mực nước **m** scale 3 (nguồn trả **cm** → adapter chia 100); lượng mưa **mm** scale 1; lưu lượng **m³/s** scale 3. Mọi quy đổi làm ở adapter lúc ingest, không làm ở tầng hiển thị.
+- **Vị trí**: ngoài tọa độ Lat/Lng, ghi kèm **tuyến sông + lý trình `K<km>+<m>`** theo cách Công ty đang định danh.
 - **Soft delete** cho mọi entity nghiệp vụ; audit log old/new value; audit append-only.
 - **Timestamp**: lưu `timestamptz` UTC; convert UTC+7 chỉ ở tầng hiển thị.
 - **Kiểu số**: NUMERIC/BigDecimal cho mọi số đo (mực nước, lưu lượng, kWh) và tiền (chi phí bảo trì, lương); cấm float/double. Mọi giá trị tính toán tính ở BE — FE chỉ hiển thị.
-- **Màu trạng thái thống nhất**: Xanh = bình thường; Vàng = cảnh báo/bảo trì; Đỏ = nguy hiểm/sự cố; Xám = ngừng; Đen = thanh lý.
+- **Màu trạng thái thống nhất**: Xanh = bình thường; Vàng = cảnh báo/bảo trì; Đỏ = nguy hiểm/sự cố; **Xám = ngừng / mất tín hiệu / trạm trục trặc (chốt G3)**; Đen = thanh lý. Màu của **mã tình hình vận hành** (CN-02.11) do Admin cấu hình riêng, không trộn với bảng màu này.
 - **Upload**: validate định dạng + dung lượng theo bảng từng module; scan malware; lưu MinIO.
 - **API nội bộ**: REST, JWT Bearer; API public widget dùng token riêng; lỗi upstream → graceful degradation ("Không có dữ liệu").

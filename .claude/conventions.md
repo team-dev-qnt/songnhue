@@ -29,7 +29,7 @@ Quy tắc:
 
 ### 1.2. Database (PostgreSQL)
 
-- Tên bảng: `snake_case`, số nhiều (`constructions`, `operation_logs`); bảng nối: `article_categories`.
+- Tên bảng: `snake_case`, số nhiều (`constructions`, `maintenance_logs`); bảng nối: `article_categories`.
 - Cột: `snake_case`; khóa chính `id BIGINT GENERATED ALWAYS AS IDENTITY`; **thêm `public_id UUID` cho mọi entity expose ra API** (chống đoán ID tuần tự — IDOR).
 - Cột chuẩn mọi bảng nghiệp vụ (BaseEntity): `created_at timestamptz`, `created_by`, `updated_at`, `updated_by`, `deleted_at` (soft delete), `version int` (optimistic lock).
 - FK: `<bảng_số_ít>_id` (`org_unit_id`); index: `ix_<bảng>_<cột>`; unique: `uq_<bảng>_<cột>`; check: `ck_<bảng>_<rule>`.
@@ -39,8 +39,8 @@ Quy tắc:
 ### 1.3. REST API
 
 - Base path: `/api/v1/<module>/<resource>` — version ngay từ đầu. VD: `/api/v1/ops/constructions/{publicId}/documents`.
-- Resource danh từ số nhiều, kebab-case: `/operation-logs`, `/leave-requests`.
-- Action ngoài CRUD dùng sub-resource động từ: `POST /operation-logs/{id}/submit`, `/approve`, `/reject` (map vào Workflow engine).
+- Resource danh từ số nhiều, kebab-case: `/maintenance-logs`, `/leave-requests`.
+- Action ngoài CRUD dùng sub-resource động từ: `POST /leave-requests/{id}/submit`, `/approve`, `/reject` (map vào Workflow engine).
 - Query chuẩn: `?page=1&size=20&sort=createdAt,desc&filter[status]=APPROVED` — sort field **whitelist** (mục 4.4).
 - HTTP status: 200/201/204 thành công; 202 cho async job (trả `jobId`); lỗi theo bảng mục 2.3.
 
@@ -84,7 +84,7 @@ Nằm trong `core/` (BE) và `shared/` (FE). **Mọi module bắt buộc dùng, 
 { "success": true, "data": { ... }, "meta": { "page": 1, "size": 20, "totalElements": 134, "totalPages": 7 }, "traceId": "a1b2c3" }
 
 // Lỗi
-{ "success": false, "error": { "code": "OPS-2003", "message": "Lưu lượng vượt 120% thiết kế", "details": [ { "field": "actualFlow", "rule": "MAX_120_PERCENT_DESIGN", "rejectedValue": "9.99" } ] }, "traceId": "a1b2c3" }
+{ "success": false, "error": { "code": "OPS-2001", "message": "Ngày hoàn thành phải ≥ ngày bắt đầu", "details": [ { "field": "completedDate", "rule": "AFTER_OR_EQUAL_START_DATE", "rejectedValue": "2026-08-01" } ] }, "traceId": "a1b2c3" }
 ```
 
 - `traceId` = correlation-id, luôn có — user báo lỗi chỉ cần đọc traceId là dev tra được log.
@@ -120,12 +120,27 @@ Format: `<PREFIX>-<4 số>` — prefix theo module: `SYS` (hệ thống), `AUTH`
 | AUTH-0003 | 423 | Tài khoản tạm khóa do đăng nhập sai nhiều lần |
 | AUTH-3001 | 403 | Không có quyền thực hiện thao tác này |
 | AUTH-3002 | 403 | Dữ liệu không thuộc phạm vi đơn vị của bạn |
-| OPS-2001 | 422 | Chỉ được nhập bù tối đa 3 ngày trước 🔷 |
-| OPS-2003 | 422 | Lưu lượng vượt 120% thiết kế — cần xác nhận 🔷 |
+| CMS-2001 | 422 | Slug đã tồn tại |
+| CMS-2002 | 422 | Chưa liên kết mã số hệ thống văn bản điều hành |
+| CMS-5001 | 502 | Không đăng nhập được sang hệ thống văn bản điều hành — mã số có thể đã hết hiệu lực |
+| OPS-2001 | 422 | Ngày hoàn thành phải ≥ ngày bắt đầu |
+| OPS-2002 | 422 | Công trình đã bị xóa/thanh lý — không ghi nhận được công việc mới |
+| OPS-2003 | 422 | Bản ghi loại "Khắc phục sự cố" bắt buộc có mức độ |
+| OPS-2004 | 422 | Không chuyển được sang "Đã xử lý" khi chưa có ngày hoàn thành |
+| OPS-2005 | 409 | Mã tình hình vận hành đã tồn tại |
+| OPS-2006 | 422 | Mã tình hình vận hành này yêu cầu nhập giá trị kèm theo (VD `+1.70m`) |
+| OPS-2007 | 422 | Mã tình hình vận hành đã được sử dụng — chỉ được ẩn, không được xóa |
+| OPS-3001 | 403 | Không được sửa trực tiếp trạng thái công trình — trạng thái được tính tự động |
 | HYD-1001 | 404 | Điểm đo chưa ánh xạ nguồn API bên thứ 3 |
 | HYD-2001 | 422 | Giá trị đo ngoài khoảng vật lý cho phép |
-| CMS-2001 | 422 | Slug đã tồn tại |
+| HYD-2002 | 422 | Bản ghi đang ở trạng thái Nghi ngờ — cần duyệt trước khi sử dụng |
+| HYD-2003 | 422 | Điểm đo chưa cấu hình ngưỡng cảnh báo |
+| HYD-2004 | 422 | Điểm đo đang mất tín hiệu — không dùng giá trị cũ để đánh giá ngưỡng |
 | HR-2001 | 422 | Số ngày đăng ký vượt số phép còn lại |
+| ADM-2001 | 422 | Kết xuất lưu trữ nhật ký thất bại — không xóa bản ghi nào |
+
+> ⚠ **Đã gỡ (12/8/2026)**: `OPS-2001` cũ ("nhập bù tối đa 3 ngày") và `OPS-2003` cũ ("lưu lượng vượt 120% thiết kế") — thuộc nhật ký vận hành đã bỏ khỏi scope. Hai mã này **đã được tái sử dụng** cho rule mới ở bảng trên; khi đọc code/log cũ phải chú ý.
+> ℹ **Không phải lỗi**: lượt polling bị bỏ qua do rate-limit (`sync_logs = SKIPPED_UP_TO_DATE`, chốt G3) **không** sinh error code, không alert — chỉ ghi log DEBUG.
 
 - Message tiếng Việt tập trung 1 file `error-messages_vi.properties` (BE) — FE có bản mirror `shared/error-map.ts` (fallback dùng message từ API). Thêm code mới = thêm vào catalog, có review; cấm hardcode message trong controller/service.
 - Workflow engine trả lỗi transition không hợp lệ bằng code chung `<MOD>-2xxx` + details `{from, action, allowedActions}`.
@@ -188,7 +203,7 @@ FE mirror (`shared/`): `apiClient` (axios instance duy nhất: gắn CSRF header
 
 ```
 Tầng 1 — FE route/UI guard (usePermission)      → chỉ để UX, KHÔNG phải bảo mật
-Tầng 2 — Controller @RequirePermission("ops:log:approve") → chặn action
+Tầng 2 — Controller @RequirePermission("ops:maintenance:create") → chặn action
 Tầng 3 — Repository scope filter (org_unit)     → chặn dữ liệu (IDOR)
 ```
 
@@ -198,11 +213,13 @@ Tầng 3 — Repository scope filter (org_unit)     → chặn dữ liệu (IDOR
 
 ### 4.3. Chống giả mạo dữ liệu (integrity)
 
-- **Không tin bất kỳ giá trị tính toán nào từ client**: BE nhận input thô (giờ bắt đầu/kết thúc, lưu lượng đo) và tự tính; field tính toán trong request bị ignore.
+- **Không tin bất kỳ giá trị tính toán nào từ client**: BE nhận input thô và tự tính; field tính toán trong request bị ignore. **Trạng thái công trình là giá trị dẫn xuất** (từ sự cố đang mở / bảo trì / cảnh báo / mã tình hình vận hành) — client gửi lên bị ignore, sửa trực tiếp trả `OPS-3001`.
 - Optimistic locking (`version`) trên mọi entity — 2 người sửa cùng lúc → 409, không silent overwrite.
-- Trạng thái chỉ đổi qua Workflow engine: kiểm tra `(from, action, role)` hợp lệ trong DB transaction — không thể ép trạng thái bằng cách gọi API update thường.
+- Trạng thái chỉ đổi qua Workflow engine: kiểm tra `(from, action, role)` hợp lệ trong DB transaction — không thể ép trạng thái bằng cách gọi API update thường. Áp dụng cả cho `maintenance_logs.handling_status` (Mới → Đang xử lý → Đã xử lý).
 - **Audit log append-only + hash chain**: mỗi bản ghi audit chứa `hash = SHA-256(record + prev_hash)` — sửa/xóa lén audit sẽ phát hiện được khi verify chain; bảng audit không cấp quyền UPDATE/DELETE cho app user (GRANT chỉ INSERT/SELECT).
-- `hydro_raw_logs`: app DB user chỉ có INSERT/SELECT (enforce ở tầng DB, không chỉ ở code).
+- **Kết xuất lưu trữ audit quá 5 năm (G7)**: chỉ được xóa khỏi bảng nóng **sau khi** file kết xuất đã ghi thành công lên MinIO **và** checksum SHA-256 verify khớp; lưu `hash` cuối của lô đã kết xuất làm **điểm neo** để chain tiếp tục liền mạch. Thất bại → không xóa dòng nào (`ADM-2001`) + alert Admin. Thao tác xóa này chạy bằng **DB role riêng có DELETE**, không dùng app user.
+- `hydro_raw_logs`: app DB user chỉ có INSERT/SELECT (enforce ở tầng DB, không chỉ ở code). Là **bản sao duy nhất** của dữ liệu nguồn (không có API lịch sử) → ghi nguyên văn response **trước khi** parse.
+- `construction_operation_status` **append-only theo nghiệp vụ**: cập nhật tình hình vận hành = thêm dòng mới có `effective_at`, không UPDATE dòng cũ — giữ được lịch sử đối soát.
 - Link tải báo cáo / file: MinIO **presigned URL TTL ngắn** (15'–24h theo loại) + gắn userId trong path — không có URL công khai vĩnh viễn.
 
 ### 4.4. Input & injection
@@ -234,6 +251,24 @@ Tầng 3 — Repository scope filter (org_unit)     → chặn dữ liệu (IDOR
 | A08 Integrity Failures | 4.3 (hash chain audit, optimistic lock, signed URL) |
 | A09 Logging Failures | 4.5 security events + traceId + mask |
 | A10 SSRF | URL fetch duy nhất là telemetry adapter — endpoint từ config Admin, validate scheme/host, không nhận URL từ user |
+
+### 4.7. Credential hệ thống bên ngoài (bổ sung 12/8/2026)
+
+Hệ thống lưu 2 loại credential của bên thứ 3 — **bắt buộc theo cùng 1 chuẩn**:
+
+| Loại | Bảng | Dùng cho |
+|---|---|---|
+| Khóa API thủy văn (`key` của `bhh40.net`) | `api_sources.credential` | Poller MOD-03 gọi `getmn.aspx` |
+| Mã số đăng nhập hệ thống văn bản điều hành (theo từng người dùng) | `external_system_credentials.credential` | Auto-login CN-01.7 |
+
+Quy tắc chung (áp dụng cả hai):
+- Mã hóa **AES-256-GCM** qua `CryptoService`; **key nằm ngoài DB** (env/Vault), tách khỏi bản backup DB, có `key_id` để xoay key.
+- **Không** có endpoint nào trả credential ra ngoài — kể cả cho Admin. UI chỉ hiện dạng mask (`MaskUtils`).
+- **Không** ghi vào log, không đưa vào audit `old_value`/`new_value` (chỉ ghi "đã thay đổi credential"), không đưa vào response lỗi, không đưa vào bản export cấu hình (M5.17 phải loại trường này ra).
+- Giải mã **chỉ tại thời điểm sử dụng**, trong bộ nhớ, không cache ra ngoài request.
+- Mọi thao tác tạo/sửa/xóa/sử dụng → **security event** (ai, khi nào, IP).
+- Người dùng tự quản mã số của mình; Admin không xem, không nhập hộ (trừ khi Công ty chốt dùng mã số chung — chờ G5).
+- Hệ thống nguồn chạy **HTTP** → chỉ gọi từ backend, **cấm** để trình duyệt người dùng gọi trực tiếp; ghi nhận là rủi ro tồn dư trong hồ sơ bàn giao.
 
 ---
 
