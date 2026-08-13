@@ -15,7 +15,7 @@
 | 4 | Auth | JWT TTL 8h | **Access token 30' + Refresh token rotation, httpOnly cookie** | JWT 8h không thu hồi được khi lộ token/khóa tài khoản; token trong localStorage dính XSS. Refresh rotation + denylist (bảng DB, xem §6) giải quyết cả hai |
 | 5 | Timestamp | "UTC+7, lưu Unix timestamp" | **Lưu `timestamptz` UTC, hiển thị UTC+7** | Lưu theo múi giờ địa phương là nguồn bug kinh điển (DST không có ở VN nhưng so sánh/tổng hợp kỳ vẫn dễ sai). Convert chỉ ở tầng hiển thị |
 | 6 | Kiểu số liệu | Không quy định | **NUMERIC/BigDecimal cho mọi số đo + tiền; cấm float/double** | Lưu lượng, mực nước, lương, tổng hợp kỳ — sai số float tích lũy qua Σ là không chấp nhận được với ưu tiên chính xác |
-| 7 | Backup | Dump hàng ngày, retention 30 ngày | **+ WAL archiving (PITR), RPO ≤ 15'** | Dump ngày = mất tối đa 24h dữ liệu quan trắc + nhật ký. PITR khôi phục về bất kỳ thời điểm nào |
+| 7 | Backup | Dump hàng ngày, retention 30 ngày | **Giữ dump hàng đêm; RPO ≤ 24h, RTO ≤ 4h** ⚠ *(đảo lại 13/8/2026)* | Bản chốt 2026-07-20 từng thêm WAL/PITR (RPO 15'). Rà lại quy mô thật (200 CCU nội bộ, giờ hành chính, vài nghìn bản ghi/ngày) → **PITR là over-engineer**, đã gỡ. Chi tiết + rủi ro chấp nhận: §6.5 |
 | 8 | Chart | "ECharts hoặc Highcharts" | **ECharts** | Highcharts tính phí license thương mại; ECharts đủ tính năng (zoom, threshold line, export) |
 | 9 | Base map | "Google Maps / OSM" | **OSM (default) + Google Maps optional** | Google Maps JS API tính phí theo usage; OSM tile miễn phí đủ cho bài toán marker + layer nội bộ. Để config switch được |
 | 10 | Admin UI | Không quy định | **Ant Design 5 + design tokens** | Hệ nặng Table/Form/Tree/Dashboard — AntD mạnh nhất mảng này, giảm lượng component tự viết |
@@ -59,14 +59,14 @@ Giữ nguyên (đã đúng): **Modular Monolith** (đúng cỡ dự án, đúng 
 - Log JSON có **correlation-id** xuyên suốt request → job → notification (debug luồng async).
 - Health check endpoint riêng cho: app, worker, kết nối telemetry (Nginx + Prometheus dùng chung).
 - Alert vận hành tách khỏi alert nghiệp vụ: Prometheus alert (hạ tầng) ≠ Alert thủy văn (nghiệp vụ) — 2 kênh, 2 đối tượng nhận.
-- Runbook tối thiểu: khôi phục PITR, xoay key mã hóa, **xử lý poller chết / trạm mất tín hiệu kéo dài** (ưu tiên cao — không backfill được), retry job Failed.
+- Runbook tối thiểu: **restore từ bản dump đêm**, xoay key mã hóa, **xử lý poller chết / trạm mất tín hiệu kéo dài** (ưu tiên cao — không backfill được), retry job Failed.
 
 ### 2.5. Scale tương lai
 
 - Modular Monolith với ràng buộc "chỉ gọi qua service interface" (đã có trong implement.md) → module nào nóng (khả năng cao là `operations/hydro`) tách ra service riêng sau này mà không đập cấu trúc.
 - App stateless (session/denylist ở DB, file ở MinIO) → thêm node App Server chỉ là dựng thêm instance + sửa config Nginx + bật ShedLock.
 - Worker tách process ngay từ đầu → scale số worker độc lập với web.
-- DB: bắt đầu 1 node PostgreSQL + PITR; thêm read-replica khi báo cáo/analytics nặng (không cần ngay — bảng agg đã giảm tải); partition đã sẵn cho data 5 năm.
+- DB: bắt đầu 1 node PostgreSQL + backup dump hàng đêm; thêm read-replica khi báo cáo/analytics nặng (không cần ngay — bảng agg đã giảm tải); partition đã sẵn cho data 5 năm.
 - Điểm cần giữ kỷ luật nhất để scale được: **không cho module import repository của nhau** — đề xuất chặn bằng ArchUnit test trong CI.
 
 ---
@@ -87,7 +87,7 @@ Giữ nguyên (đã đúng): **Modular Monolith** (đúng cỡ dự án, đúng 
 | Worker | **In-process (v1)** — cùng process app, bounded thread pool; giữ Spring profile `worker` để tách process về sau. Xem §6 |
 | GIS | Leaflet/MapLibre + OSM tiles (Google Maps optional qua config); GeoJSON/KMZ |
 | Monitoring | Prometheus + Grafana + Micrometer; log JSON + correlation-id, rotation 30 ngày |
-| Backup | pg_dump hàng ngày + WAL archiving (PITR, RPO ≤ 15'), retention 30 ngày |
+| Backup | **`pg_dump` hàng đêm**, retention 30 ngày, lưu khác máy — **RPO ≤ 24h, RTO ≤ 4h** (bản tối giản, §6.5) |
 | CI/CD | Pipeline test (unit + integration Testcontainers + ArchUnit) → build → rolling/blue-green |
 | Bảo mật | HTTPS/TLS 1.3, CSP, rate limiting, malware scan upload, AES-256-GCM (key ngoài DB) |
 
@@ -122,7 +122,7 @@ Theo đúng thứ tự ưu tiên (chính xác → nghiệp vụ → tối ưu �
 ### 6.2. Chốt
 | Hạng mục | Trước | V1 chốt | Lý do |
 |---|---|---|---|
-| Số node app | 2 (Active-Passive) | **1 node** | Hệ nội bộ, giờ hành chính; NFR-01 cho phép downtime ~15'/lần. Backup + PITR đủ để khôi phục. Không nuôi HA khi chưa cần |
+| Số node app | 2 (Active-Passive) | **1 node** | Hệ nội bộ, giờ hành chính; NFR-01 cho phép downtime ~15'/lần. Backup dump hàng đêm đủ để khôi phục trong RTO 4h. Không nuôi HA khi chưa cần |
 | Redis | Cache + session + denylist | **Bỏ** | `hydro_latest` (Postgres, poller UPSERT) phục vụ "reading mới nhất" + graceful degradation, lại transactional; site config → Caffeine in-process; denylist refresh token → bảng DB. Xóa nguyên 1 service phải vận hành/backup/bảo mật |
 | Worker | Process riêng, 2 worker | **In-process** (bounded pool) | Job nhẹ (poll vài chục trạm, báo cáo tháng < 60s, tần suất thấp). Chạy chung process cho gọn; giữ Spring profile `worker` để tách sau khi đo thấy nặng |
 | ShedLock | Bắt buộc (2 node) | **Giữ trong code, mặc định tắt** | 1 node thì cron không đè nhau; nhưng chỉ là 1 bảng DB, bật lại khi lên ≥2 node là xong |
@@ -144,12 +144,37 @@ Chiến lược lock cho batch (đủ, không cần hơn): **ShedLock** cho sche
 - Cấu hình hoá: `app.nodes`, `worker.enabled`, `shedlock.enabled` đọc từ env → thêm node = dựng thêm 1 instance + bật Nginx upstream + bật ShedLock, **không sửa code**.
 - Giữ ranh giới module (ArchUnit) để sau tách `operations/hydro` hoặc `worker` ra process/service riêng khi đo thấy nóng.
 
-### 6.5. Ưu tiên vận hành số 1: BACKUP DATABASE
-Vì 1 node, DB là điểm chịu rủi ro lớn nhất — backup phải chắc:
-- **pg_dump hàng ngày** (logical, retention 30 ngày) **+ WAL archiving liên tục (PITR)**, RPO ≤ 15'.
-- **Kiểm thử phục hồi định kỳ** (restore thử ra môi trường staging) — backup không test coi như không có.
-- WAL/dump lưu **khác đĩa/khác máy** với DB chính; key mã hóa `employee_sensitive` lưu tách, không nằm trong cùng bản backup.
-- Runbook PITR: khôi phục về thời điểm bất kỳ; RTO mục tiêu ghi rõ khi chốt SRS.
+### 6.5. BACKUP DATABASE — bản tối giản ⚠ **SỬA LẠI 2026-08-13**
+
+> Bản 2026-07-21 quy định pg_dump + **WAL archiving (PITR), RPO ≤ 15'**. Rà lại đúng quy mô thật — **200 CCU nội bộ, chỉ chạy giờ hành chính, ghi vài nghìn bản ghi/ngày, không phải hệ giao dịch liên tục** — thì PITR là over-engineer. **Gỡ PITR, làm vừa đủ, chấp nhận rủi ro có kiểm soát.** Đúng nguyên tắc §6.1: *mỗi thành phần hạ tầng phải tự chứng minh nó đáng nuôi*.
+
+**Cơ chế duy nhất**:
+
+| Hạng mục | Chốt |
+|---|---|
+| Cơ chế | **`pg_dump -Fc` hàng đêm ~02:00** → nén → checksum SHA-256 → copy sang **VM-3 (khác máy với DB)** |
+| **RPO** | **≤ 24 giờ** |
+| **RTO** | **≤ 4 giờ** — *đóng mục "RTO ghi rõ khi chốt SRS"*; thực tế 30–60' với DB <20GB |
+| Retention | 30 ngày |
+| Giám sát | **1 alert duy nhất**: bản backup gần nhất quá 26 giờ |
+| Kiểm chứng | Diễn tập restore **1 lần trước go-live** (ghi con số RTO thật vào runbook), sau đó theo quý |
+| Key mã hóa | AES + JWT signing key **lưu tách, KHÔNG nằm trong bản backup** |
+
+❌ **Không làm ở v1**: WAL archiving · PITR · `pg_basebackup` · streaming replica · diễn tập restore tự động.
+
+**Rủi ro chấp nhận** (ghi rõ để về sau có căn cứ, không phải quyết định cảm tính):
+
+| # | Rủi ro | Hệ quả xấu nhất | Vì sao chấp nhận |
+|---|---|---|---|
+| 1 | Mất tối đa **1 ngày dữ liệu nhập tay** | Phải nhập lại số liệu sửa chữa/bài viết/hồ sơ NS trong ngày | Giờ hành chính, khối lượng nhập nhỏ |
+| 2 | Mất tối đa **1 ngày dữ liệu thủy văn — vĩnh viễn** | ~2.700 bản ghi mực nước không lấy lại được (nguồn không có API lịch sử) | Công ty đã vận hành không có hệ thống này; biểu giấy vẫn còn. **Giảm nhẹ ở Phase 2** bằng `DurableSpool` + đẩy bản thô lên MinIO |
+| 3 | **Không lùi được về thời điểm bất kỳ** | Migration hỏng/xóa nhầm giữa ngày → chỉ về được bản đêm trước | Bù bằng **`pg_dump` tự động ngay trước mỗi lần deploy** — đúng lúc rủi ro cao nhất |
+| 4 | **Không HA** — DB chết là dừng dịch vụ | Ngừng 30–60' | NFR-01 (99% ≈ 7.2h/tháng) thừa biên |
+
+**Vì sao không replica**: replica chống chết máy nhưng **nhân bản trung thành cả migration hỏng, adapter parse sai, xóa nhầm** — vốn là kịch bản dễ xảy ra hơn ở đây. Thêm nữa, nguy cơ mất dữ liệu thật **không nằm ở DB mà ở poller** (nguồn không có API lịch sử) → thứ cứu được là spool đĩa local ở tầng ứng dụng, không phải replica.
+
+**Đường nâng cấp** (chỉ là thêm cấu hình, không sửa code): bật `archive_mode=on` + `archive_timeout` + `pg_basebackup` hàng tuần. Cân nhắc khi dữ liệu thủy văn đã tích lũy nhiều năm và mất 1 ngày trở nên đắt · Công ty nâng cam kết uptime · hoặc lên ≥2 node.
+> 📌 Lưu ý cho lần nâng cấp: **không replay được WAL lên bản `pg_dump`** — PITR bắt buộc phải có `pg_basebackup` (bản vật lý). Bật WAL archiving mà chỉ có dump logic là vô nghĩa.
 
 ---
 
@@ -178,7 +203,7 @@ SRS M5.11/UC5.6 yêu cầu Admin chọn bản backup và **khôi phục qua UI**
 - **Xác nhận nhiều bước**: gõ đúng tên hệ thống + lý do restore; cảnh báo "ghi đè toàn bộ dữ liệu hiện tại".
 - **Chạy async có tiến độ**, **đặt hệ thống vào maintenance mode** trong lúc restore (chặn ghi); ghi **security event** + audit.
 - **Khuyến nghị restore ra Staging trước** để đối chiếu; production restore là thao tác có phê duyệt.
-- **Runbook PITR giữ song song**: UI chỉ khôi phục từ bản backup logic (pg_dump) đã chọn; khôi phục về **thời điểm bất kỳ** (WAL/PITR, RPO ≤ 15') vẫn là quy trình ops có runbook — UI không thay thế được. UI hiển thị trạng thái backup gần nhất + link tới runbook PITR.
+- **Nguồn khôi phục**: UI khôi phục từ **bản `pg_dump` đêm** đã chọn. Không có khôi phục điểm-thời-gian ở v1 (§6.5) → UI là đường phục hồi **duy nhất** bên cạnh runbook thủ công, phải làm chắc. UI hiển thị trạng thái backup gần nhất.
 - Nguyên tắc §6.5 (backup là ưu tiên vận hành số 1, test restore định kỳ) **không đổi**.
 
 ### 7.4. Điểm khác cần theo dõi (đã ghi business-open-questions mục F — nay đã đóng, xem §8)
@@ -257,4 +282,42 @@ Công ty chốt: lưu thông tin đăng nhập hệ thống văn bản điều h
 
 ### 8.4. Không đổi
 
-Toàn bộ quyết định §1–§7 giữ nguyên: PostgreSQL 16 + PostGIS, Modular Monolith 1 node, không Redis, DB-backed queue + ShedLock, worker in-process, MinIO, timestamptz UTC, BigDecimal, backup pg_dump + PITR, restore UI có 2FA. Các thay đổi 12/8/2026 **chỉ thu hẹp phạm vi và bổ sung nghĩa vụ bảo mật**, không đảo hướng kiến trúc.
+Toàn bộ quyết định §1–§7 giữ nguyên: PostgreSQL 16 + PostGIS, Modular Monolith 1 node, không Redis, DB-backed queue + ShedLock, worker in-process, MinIO, timestamptz UTC, BigDecimal, restore UI có 2FA. *(Riêng backup đã sửa lại thành bản tối giản ngày 13/8/2026 — xem §6.5.)* Các thay đổi 12/8/2026 **chỉ thu hẹp phạm vi và bổ sung nghĩa vụ bảo mật**, không đảo hướng kiến trúc.
+
+---
+
+## 9. QUYẾT ĐỊNH NỀN TẢNG PHASE 0 (2026-08-13)
+
+> Các quyết định phát sinh khi lập kế hoạch dựng codebase. Đây là **quyết định nội bộ của phía phát triển** — không đưa vào `business-open-questions.md`. Kế hoạch chi tiết + trạng thái: `phase0-tracking.md`.
+
+### 9.1. Build & tổ chức mã nguồn
+
+| Hạng mục | Chốt | Lý do |
+|---|---|---|
+| Repo | **Monorepo** — `backend/` + `frontend/{admin-app, public-web}` + `deploy/` + `docs/` | 1 team, contract FE↔BE đổi cùng nhịp; tránh đồng bộ version chéo repo |
+| Build backend | **Maven multi-module**: parent + `core/content/operations/hydro/hr` + `app` (bootstrap) | Phổ biến nhất trong hệ Spring, dễ bàn giao cho team vận hành của Công ty — khớp ưu tiên *vận hành/bảo trì > scale*. Dùng `mvnw` wrapper, không bắt cài Maven |
+| Ranh giới module | Mỗi module đúng 5 package `api/application/domain/infra/spi`; **ArchUnit chặn import chéo ngoài `spi/`** | `conventions.md` §1.1 — cài **từ commit đầu**, gỡ sau khi có code rất đau |
+
+### 9.2. Triển khai & môi trường
+
+| Hạng mục | Chốt | Lý do |
+|---|---|---|
+| Mô hình deploy | **docker-compose trên VM** (không Kubernetes) | v1 chỉ 1 node app (§6.2); thêm tầng k8s là nuôi hạ tầng chưa cần — trái §6.1 |
+| Phân bổ **3 VM** | **VM-1** Production (nginx + app + postgres + minio) · **VM-2** Staging (+ đích diễn tập restore) · **VM-3** Backup & Monitoring (kho dump + Prometheus/Grafana) | Backup phải **khác máy** với DB (§6.5); monitoring tách khỏi prod để **còn sống khi prod chết** |
+| Chạy local | 2 chế độ: `compose.infra.yml` (chỉ PG+MinIO+MailHog, app chạy **native** từ IDE) và `compose.local.yml` (**full-stack trong Docker**) | Dev BE cần hot-reload native; FE/QA không phải cài JDK |
+| **Migration** | Chạy ở **service `migrator` riêng** trước app (`depends_on: service_completed_successfully`); app khởi động với `flyway.enabled=false` | Migration hỏng thì app **không lên nửa vời**; rollback rõ ràng |
+| Flyway | `cleanDisabled=true` · `validateOnMigrate=true` · `outOfOrder=false`; `locations` gộp theo module | `cleanDisabled` chặn xóa sạch production do lỡ tay |
+| Rollback | Quay lại image tag trước; nếu migration đã đổi schema → restore từ **bản dump pre-deploy** | Không có PITR (§6.5) nên dump pre-deploy là điểm rollback dữ liệu duy nhất |
+| CI/CD | **GitHub Actions** (remote đã là GitHub) + image lên **GHCR** | |
+
+### 9.3. Bảo mật vận hành
+
+| Hạng mục | Chốt |
+|---|---|
+| Secrets | **GitHub Secrets** cho CI · `/opt/songnhue/.env` (chmod 600) trên VM cho runtime · key AES/JWT ở `/opt/songnhue/keys/` **ngoài bản backup DB**. Không dùng Vault ở v1 |
+| **DB roles tách quyền** | `songnhue_owner` (chỉ migrator) · `songnhue_app` (**không có DELETE** trên `audit_logs`/`hydro_raw_logs`) · `songnhue_archiver` (DELETE audit, chỉ job kết xuất) · `songnhue_readonly`. GRANT trong migration, CREATE ROLE ở init script |
+| Rate limit | In-process (Caffeine) qua interface `RateLimitStore` — **1 node nên chấp nhận được**; lên ≥2 node phải đổi impl sang DB |
+
+### 9.4. Nơi dồn công
+
+Vì cắt bớt ở hạ tầng (không replica/PITR/k8s/Vault), trọng tâm đầu tư dồn vào **bảo mật — authentication — authorization**: JWT RS256 có `kid` xoay được · refresh rotation + **reuse detection** thu hồi cả token family · CSRF double-submit · lockout không tiết lộ user tồn tại · **2FA TOTP bắt buộc Admin/Admin HR** · **RBAC 3 tầng** với `@RequirePermission` + Hibernate scope filter theo `org_unit` · lookup qua `public_id` UUID chống IDOR. Kiểm chứng bằng **2 chốt chặn ở CI**: endpoint thiếu `@RequirePermission` → build đỏ, và ma trận role × resource phải pass 100% (NFR-06).

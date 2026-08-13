@@ -35,6 +35,10 @@ Quy tắc:
 - FK: `<bảng_số_ít>_id` (`org_unit_id`); index: `ix_<bảng>_<cột>`; unique: `uq_<bảng>_<cột>`; check: `ck_<bảng>_<rule>`.
 - Enum nghiệp vụ: lưu `VARCHAR` + CHECK constraint (không dùng Postgres enum type — khó migrate).
 - Migration Flyway: `V<yyyyMMddHHmm>__<module>_<mô_tả>.sql` (VD `V202607201030__ops_create_constructions.sql`). Cấm sửa migration đã merge — chỉ thêm mới. Prefix `<module>`: `core`/`cms`/`ops`/`hyd`/`hr`.
+- **Vị trí migration**: mỗi module tự quản trong `src/main/resources/db/migration/<prefix>/`; module `app` gộp lại qua `spring.flyway.locations=classpath:db/migration/core,…/cms,…/ops,…/hyd,…/hr`. Version là timestamp toàn cục nên thứ tự vẫn đúng khi trộn nhiều module.
+- **Cấu hình Flyway bắt buộc**: `cleanDisabled=true` (chặn `flyway clean` xóa sạch production do lỡ tay) · `validateOnMigrate=true` · `outOfOrder=false`.
+- **Production/Staging chạy migration ở service `migrator` riêng** trước khi app khởi động; app chạy với `flyway.enabled=false` → migration hỏng thì app không lên nửa vời (`architecture-review.md` §9.2).
+- **Phân quyền DB theo role, không chỉ theo code**: `songnhue_owner` (chỉ migrator) · `songnhue_app` (**không có DELETE** trên `audit_logs`, `hydro_raw_logs`) · `songnhue_archiver` (DELETE audit, chỉ job kết xuất) · `songnhue_readonly`. Xem §4.3.
 
 ### 1.3. REST API
 
@@ -70,6 +74,43 @@ admin-app/src/
 - BE: `application.yml` chỉ chứa placeholder `${DB_URL}`, `${REDIS_HOST}`...; giá trị thật nằm ở env theo môi trường (Dev/Staging/Prod). FE: qua `import.meta.env.VITE_*` / `process.env.NEXT_PUBLIC_*`, build-time inject.
 - Mỗi repo có `.env.example` liệt kê đầy đủ key (không giá trị thật) — thêm config mới phải cập nhật file này, thiếu env bắt buộc → app **fail-fast lúc startup** (validate bằng `@ConfigurationProperties` + `@Validated`), không chạy với default ngầm.
 - Cấm tạo connection trực tiếp trong code nghiệp vụ (`new RestTemplate(url)`, `DriverManager.getConnection`...) — mọi client (DB, HTTP, S3) khởi tạo 1 lần qua Spring bean cấu hình từ env, module nghiệp vụ chỉ inject.
+
+### 1.7. Cấu trúc monorepo & cách chạy local
+
+```
+songnhue/
+├── .github/workflows/       ci.yml · deploy-staging.yml · deploy-prod.yml
+├── .claude/                 tài liệu spec + phase0-tracking.md
+├── backend/
+│   ├── pom.xml              parent — Java 21, Spring Boot BOM, dependencyManagement
+│   ├── core/                ← Nhóm A: auth, rbac, orgunit, attachment, workflow,
+│   │                          notification, jobs, audit, settings, backup/restore
+│   ├── content/             MOD-01   operations/  MOD-02
+│   ├── hydro/               MOD-03   hr/          MOD-04
+│   └── app/                 bootstrap: main, application*.yml, Dockerfile
+├── frontend/
+│   ├── admin-app/           Vite + React 18 + AntD 5
+│   └── public-web/          Next.js + Tailwind
+├── deploy/
+│   ├── compose.infra.yml    PG+PostGIS, MinIO, MailHog     (app chạy native)
+│   ├── compose.local.yml    full-stack trong Docker
+│   ├── compose.staging.yml · compose.prod.yml · compose.backup.yml
+│   └── nginx/ · backup/ · env/*.env.example
+├── docs/runbook/            restore từ dump, xoay key, poller chết, retry job
+└── Makefile
+```
+
+**Hai lối chạy local** — cả hai đều phải hoạt động, CI kiểm cả hai:
+
+| Lệnh | Chạy gì | Dùng khi |
+|---|---|---|
+| `make dev-infra` | Chỉ PostgreSQL + MinIO + MailHog trong Docker, **expose port ra host** | Dev BE — sau đó `./mvnw -pl app spring-boot:run` từ IDE để có hot-reload/debug |
+| `make dev-docker` | **Toàn bộ** stack trong Docker (infra + app + admin-app + public-web) | FE/QA không cài JDK; kiểm thử gần giống production |
+| `make migrate` | Chạy service `migrator` | Sau khi thêm migration mới |
+| `make test` | Unit + Testcontainers + ArchUnit | Trước khi push |
+| `make backup` / `make restore` | Dump thủ công / khôi phục | Vận hành, diễn tập |
+
+Quy tắc: **profile Spring (`local`/`docker`/`staging`/`prod`) chỉ khác nhau ở env, không khác code** (§1.6). Build backend luôn qua `mvnw` wrapper — không bắt máy dev cài Maven.
 
 ---
 

@@ -44,7 +44,7 @@ Gồm: MOD-05 + toàn bộ shared services rút ra từ P1–P6.
 | Job & Scheduler (P5) | **DB-backed queue** (SKIP LOCKED, transactional) + worker **in-process** (bounded pool, v1); Pending/Processing/Completed/Failed/Cancelled, retry 3; cron Spring Scheduler + **ShedLock** (giữ sẵn, bật khi ≥2 node) + chống overlapping run | Báo cáo, polling, hẹn giờ, quét hạn, đồng bộ văn bản |
 | Audit log | Interceptor global: user, timestamp, action, old/new JSON; **append-only + hash chain** (M5.7, không sửa/xóa); **retention 5 năm + job kết xuất lưu trữ CSV/Parquet + checksum SHA-256 lên MinIO trước khi xóa khỏi bảng nóng, hash chain nối tiếp qua ranh giới kết xuất** (G7) | Tất cả (NFR-07) |
 | System config | Bảng `settings` key-value có type; UI quản trị; **xuất/nhập cấu hình (M5.17)**; health-check dịch vụ/API tích hợp (M5.12) | Tất cả |
-| Backup/Restore | Backup tự động + theo yêu cầu; **restore qua UI có bảo vệ nhiều lớp (M5.11)** + runbook PITR song song (xem `architecture-review.md` §7) | Vận hành |
+| Backup/Restore | **`pg_dump` hàng đêm** (bản tối giản — RPO ≤ 24h, RTO ≤ 4h, `architecture-review.md` §6.5) + backup theo yêu cầu; **restore qua UI có bảo vệ nhiều lớp (M5.11)** + maintenance mode | Vận hành |
 
 **DB dùng chung của Nhóm A**: `users`, `roles`, `permissions`, `org_units`, `attachments`, `audit_logs`, `notifications`, `jobs`, `settings`, `workflow_transitions`, `sessions`, `token_denylist`.
 
@@ -186,7 +186,7 @@ Quy tắc ràng buộc giữa module (giữ đúng Modular Monolith):
 5. ✅ Base map: **OSM mặc định** (Leaflet/MapLibre), Google Maps optional. ⬜ Shapefile (SRS §4.6) — chốt ở thiết kế chi tiết (F7).
 6. ✅ Database: **PostgreSQL 16 + PostGIS**.
 7. ✅ Admin UI: **Ant Design 5**; Public web: **Next.js + Tailwind**.
-8. ✅ **Quy mô triển khai: CONFIRMED** — v1 1 node, bỏ Redis, worker in-process, ShedLock giữ sẵn. Trọng tâm: backup DB + PITR + test restore. Xem `architecture-review.md` §6.
+8. ✅ **Quy mô triển khai: CONFIRMED** — v1 1 node, bỏ Redis, worker in-process, ShedLock giữ sẵn. **Backup bản tối giản: `pg_dump` hàng đêm, RPO ≤ 24h, RTO ≤ 4h, không PITR/replica** (chốt 13/8/2026). Xem `architecture-review.md` §6.5.
 9. ✅ **Restore UI: CONFIRMED (2026-08-06)** — làm nút restore (M5.11) + bảo vệ nhiều lớp (`architecture-review.md` §7.3).
 10. ✅ **Scope phần mở rộng: ĐÃ ĐÓNG HOÀN TOÀN (12/8/2026)** — **bỏ nhật ký vận hành + phiếu sự cố riêng + BC-01/02/03/04/07/08**, thay bằng **Lịch sử sửa chữa/khắc phục sự cố (CN-02.2)** + BC-06/BC-09/BC-10. **Không còn hạng mục 🔷 nào.**
 11. ✅ **Tích hợp hệ thống văn bản: CONFIRMED** — không SSO/API/CSDL; lưu credential người dùng + auto-login (CN-01.7). ⬜ Còn chi tiết: mã số riêng hay chung, ai nhập — G5.
@@ -236,7 +236,24 @@ Quy tắc ràng buộc giữa module (giữ đúng Modular Monolith):
 2. **Danh mục hóa thay vì enum cứng** — mức ngưỡng (G9-a), mã tình hình vận hành (G4), loại chỉ số đo (G3-a) đều là **bảng có CRUD**. Enum trong code = phải deploy lại mỗi lần khách đổi ý.
 3. **`TelemetryAdapter` đa nguồn** — không hard-code "1 nguồn = 1 endpoint mực nước", để cắm thêm nguồn lượng mưa (G3-a) mà không sửa pipeline.
 
-### 7.4. Thứ tự khởi động đề xuất (Phase 0, tuần 1)
+### 7.4. Kế hoạch chi tiết Phase 0
+
+📋 **Toàn bộ Phase 0 đã được break thành 11 hạng mục (WS-1→WS-11) với 107 task có ID + 21 mục Definition of Done, kèm bảng theo dõi tiến độ: [`phase0-tracking.md`](phase0-tracking.md).**
+
+Mỗi WS tự chứa điều kiện tiên quyết / đầu ra / cách kiểm chứng để **làm độc lập tuần tự từng module**. Quyết định nền tảng (Maven multi-module, monorepo, deploy 3 VM, secrets, migration service riêng, DB roles) ghi ở `architecture-review.md` §9.
+
+Ràng buộc thứ tự thật sự chỉ có 4 chỗ:
+
+```
+WS-1 ─► WS-2 ─► WS-3          [nền — bắt buộc trước mọi thứ]
+   └─► WS-4 ─► WS-5 ─► WS-6   [BE lõi — tuần tự, không đảo được]
+                  └─► WS-7
+   └─► WS-8                    [FE — cần API của WS-4/5/6]
+   └─► WS-9 · WS-10            [độc lập, chen vào lúc nào cũng được]
+                  └─► WS-11    [cần WS-3 + WS-7 + WS-10]
+```
+
+### 7.5. Thứ tự khởi động đề xuất (Phase 0, tuần 1)
 
 1. Khởi tạo monorepo + `docker-compose` (PG16+PostGIS, MinIO) + Flyway baseline + CI skeleton.
 2. **ArchUnit test ranh giới module ngay từ commit đầu** — cài sau khi đã có code là gỡ rất đau.

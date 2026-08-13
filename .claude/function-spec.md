@@ -34,7 +34,7 @@ Xây dựng hệ thống quản trị và điều hành công trình thủy lợ
 | GIS | Leaflet/MapLibre + OSM tiles (Google Maps optional); GeoJSON, KMZ (Shapefile — chốt ở thiết kế chi tiết, xem `business-open-questions.md`) |
 | Chart | Apache ECharts |
 | Monitoring | Prometheus + Grafana + Micrometer; log JSON + correlation-id, rotation 30 ngày |
-| Backup | pg_dump hàng ngày + WAL archiving (PITR, RPO ≤ 15'), retention 30 ngày |
+| Backup | **`pg_dump` hàng đêm**, retention 30 ngày, lưu khác máy — **RPO ≤ 24h, RTO ≤ 4h** (bản tối giản, chốt 2026-08-13; xem `architecture-review.md` §6.5) |
 
 ### 0.3. Vai trò (Actors)
 
@@ -709,9 +709,12 @@ Người dùng: Admin (Super Admin), Hệ thống tự động.
 - Job kết xuất chạy theo lịch, ghi `sync_logs`/security event; thất bại → **không xóa** dòng nào + cảnh báo Admin. Hash chain phải nối tiếp qua ranh giới kết xuất (lưu hash cuối của lô đã kết xuất làm điểm neo).
 
 ### CN-05.5. Backup & Restore (Cao) — *SRS M5.9–M5.11, UC5.6*
-- **Backup tự động theo lịch (M5.9)**: pg_dump hàng ngày + WAL archiving (PITR, RPO ≤ 15'), retention 30 ngày; lưu **tách biệt máy chủ vận hành chính** (SRS quy tắc §3.5.3); ghi log kết quả; thất bại → cảnh báo Admin ngay.
+- **Backup tự động theo lịch (M5.9)** — *bản tối giản, chốt 2026-08-13*: **`pg_dump -Fc` hàng đêm ~02:00** (ngoài giờ hành chính) → nén + checksum SHA-256 → retention 30 ngày; lưu **tách biệt máy chủ vận hành chính** (SRS quy tắc §3.5.3); ghi log kết quả; **thất bại hoặc quá 26 giờ không có bản mới → cảnh báo Admin ngay**.
+  - **RPO ≤ 24 giờ · RTO ≤ 4 giờ** — chấp nhận mất tối đa 1 ngày dữ liệu khi DB hỏng. Lý do và bảng rủi ro chấp nhận: `architecture-review.md` §6.5.
+  - ❌ **Không** WAL archiving / PITR / replica ở v1 — hệ nội bộ giờ hành chính, không phải hệ giao dịch liên tục.
+  - **Key mã hóa (AES, JWT signing) lưu tách, không nằm trong bản backup.**
 - **Backup theo yêu cầu (M5.10)**: Admin chủ động backup trước nâng cấp/thay đổi lớn.
-- **Restore qua UI (M5.11)** — *theo SRS, đảo quyết định E1 cũ*: Admin chọn bản backup → thực hiện khôi phục → thông báo kết quả. **Bảo vệ bắt buộc** (xem `architecture-review.md` §7): xác nhận nhiều bước (gõ tên hệ thống), chỉ Super Admin + 2FA, ghi security event, chạy async có tiến độ, khuyến nghị restore ra môi trường staging trước; runbook PITR vẫn giữ song song cho khôi phục điểm-thời-gian.
+- **Restore qua UI (M5.11)** — *theo SRS, đảo quyết định E1 cũ*: Admin chọn bản backup → thực hiện khôi phục → thông báo kết quả. **Bảo vệ bắt buộc** (xem `architecture-review.md` §7): xác nhận nhiều bước (gõ tên hệ thống), chỉ Super Admin + 2FA, ghi security event, chạy async có tiến độ, **maintenance mode chặn ghi trong lúc restore**, khuyến nghị restore ra môi trường staging trước. Khôi phục **từ bản dump đêm gần nhất** (không có khôi phục điểm-thời-gian — xem M5.9).
 - UI hiển thị trạng thái backup gần nhất.
 
 ### CN-05.6. Giám sát Hệ thống & Thông báo (Trung bình) — *SRS M5.12, M5.13, UC5.3* — **mới theo SRS**
@@ -770,7 +773,7 @@ Quản trị (MOD-05): chỉ Admin/Super Admin; restore + xuất/nhập cấu h�
 | NFR-05 | Bảo mật | HTTPS/TLS, RBAC tối thiểu quyền, hash mật khẩu, log thao tác nhạy cảm; **2FA bắt buộc cho Admin + Admin HR**; API credential AES-256-GCM | Không plaintext trong UI; đăng nhập Admin không có 2FA phải bị từ chối |
 | NFR-06 | Phân quyền dữ liệu | Cán bộ vận hành/Quản lý XN chỉ thấy dữ liệu đơn vị mình; trường 🔒 mã hóa | Unit + integration test 100% pass |
 | NFR-07 | Audit | Log mọi tạo/sửa/xóa + đăng nhập + đổi quyền; **giữ 5 năm** (G7) | user, timestamp, action, old/new value; kết xuất lưu trữ có checksum |
-| NFR-08 | Lưu trữ | Hydro chi tiết 5 năm; backup hàng ngày retention 30 ngày, lưu tách biệt | Không mất dữ liệu |
+| NFR-08 | Lưu trữ & Backup | Hydro chi tiết 5 năm; **`pg_dump` hàng đêm, retention 30 ngày, lưu khác máy**; **RPO ≤ 24 giờ · RTO ≤ 4 giờ** | Có bản backup < 26h; diễn tập restore đo được RTO < 4h |
 | NFR-09 | Tương thích | Chrome/Firefox/Edge/Safari; mobile; GIS GeoJSON/KMZ (Shapefile chốt sau) | Responsive 360px–2560px |
 | NFR-10 | Pháp lý | NĐ 13/2023/NĐ-CP, BLLĐ 2019, Luật Lưu trữ 2011; quy định công bố thông tin DNNN | Áp dụng cho dữ liệu nhân sự + cổng |
 
@@ -783,7 +786,7 @@ Quản trị (MOD-05): chỉ Admin/Super Admin; restore + xuất/nhập cấu h�
 - 3 môi trường: Dev / Staging / Production. CI/CD rolling.
 - **Nginx**: SSL termination + reverse proxy. V1 trỏ 1 App Server; thêm node = bổ sung upstream + bật ShedLock.
 - **App Server ×1 (v1)**: Spring Boot API + Scheduler + Worker **in-process** (bounded pool). App **stateless**. Public web Next.js chạy riêng.
-- **PostgreSQL 16 + PostGIS (1 node)**: source of truth cho data + queue (SKIP LOCKED) + lock (ShedLock) + `hydro_latest`. **Backup**: pg_dump hàng ngày + WAL archiving (PITR, RPO ≤ 15'), lưu khác đĩa/khác máy, test restore định kỳ.
+- **PostgreSQL 16 + PostGIS (1 node)**: source of truth cho data + queue (SKIP LOCKED) + lock (ShedLock) + `hydro_latest`. **Backup**: `pg_dump` hàng đêm, retention 30 ngày, **lưu khác đĩa/khác máy (VM-3)**, diễn tập restore trước go-live rồi theo quý. RPO ≤ 24h, RTO ≤ 4h.
 - **Không Redis**: session/denylist ở DB; site config Caffeine in-process. **MinIO**: media, tài liệu, file báo cáo.
 - **Monitoring**: Prometheus + Grafana + health-check (MOD-05 M5.12); log JSON rotation 30 ngày.
 - **External** *(cập nhật 12/8/2026)*: **Telemetry API `songnhue.bhh40.net/api/getmn.aspx`** (HTTP, xác thực bằng `key` = mã số — mã hóa AES-256-GCM, đọc từ env); **hệ thống văn bản điều hành** = chính `songnhue.bhh40.net` (liên kết auto-login, không đồng bộ dữ liệu); SMTP; ~~SMS Gateway~~ (hoãn phase sau); Google Maps (optional).

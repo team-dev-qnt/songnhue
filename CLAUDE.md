@@ -14,7 +14,8 @@ Hệ thống quản lý điều hành công trình thủy lợi + Cổng thông 
 | `implement.md` | Kế hoạch implement — gom 4 nhóm (A Core / B Content / C Operations / D HR), thứ tự phase, cấu trúc code, checklist quyết định |
 | `architecture-review.md` | Quyết định kiến trúc/tech ĐÃ CHỐT + lý do — khi mâu thuẫn với 2 file trên, file này thắng |
 | `conventions.md` | Convention coding/design/security + đặc tả Common Platform (envelope, exception, error code, middleware, utils, RBAC 3 tầng, chống giả mạo) — chuẩn bắt buộc khi viết code |
-| `business-open-questions.md` | Phần I-A: BOQ đợt 1 **đã đóng**. Phần I-B: **8 mục G đợt 2 đã đóng** (G1, G2, G3, G4, G7, G9, G11, G12). Phần II: **5 mục còn mở** cần khách cung cấp — confirm xong phải cập nhật ngược vào function-spec.md |
+| `business-open-questions.md` | Phần I-A: BOQ đợt 1 **đã đóng**. Phần I-B: **9 mục G đợt 2 đã đóng**. Phần II: **6 mục còn mở** cần khách cung cấp. Phần III: **truy vết chức năng nào còn chứa điểm chưa chốt** — đọc trước khi code 1 chức năng |
+| `phase0-tracking.md` | **Bảng theo dõi tiến độ Phase 0** — 11 hạng mục WS-1→WS-11, **107 task** dạng checkbox, mỗi WS tự chứa điều kiện tiên quyết/đầu ra/cách kiểm chứng. Tick khi làm xong; cuối file là **21 mục Definition of Done** |
 | `report-templates-proposal.md` | Đề xuất format mẫu báo cáo gửi Công ty duyệt (khung 5 khối + danh mục BC/BCNS/BCQT + trường dữ liệu). Layout chi tiết làm sau, khi vào Phase module tương ứng |
 | `docs_origin/Trả lời Business Open Questions 12.8.2026.docx.md` | **Câu trả lời chính thức của khách — đợt 1 (12/8/2026)**. Confirm **đợt 2 (mục G)** nhận qua trao đổi trực tiếp cùng ngày, ghi ở `business-open-questions.md` Phần I-B. Cả hai là nguồn của mọi thay đổi scope trong function-spec v2.2 |
 | `docs_origin/SRS_QuanTriDieuHanh_TLSN ver 06.8.2026.docx.md` | **SRS v1.0 (23/07/2026)** — đặc tả yêu cầu chính thức của khách (dự thảo lấy ý kiến). function-spec.md v2.0 đã đồng bộ cấu trúc module + traceability theo file này |
@@ -68,7 +69,9 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 - ⬜ **Còn mở 6 mục, chỉ ảnh hưởng dữ liệu khởi tạo & nghiệm thu**: **G8** tuyến sông/lý trình/tọa độ + khoảng trống API-vs-biểu tổng hợp + 3 cặp mã trùng giá trị + danh mục công trình · **G3-a** lượng mưa · **G5** mã số hệ thống văn bản (+ xin SSO) · **G6** mẫu 2C-BNV · **G9-a** bộ mức ngưỡng · **G10** duyệt format báo cáo.
 - ✅ **Đã verify sẵn sàng code (2026-08-13)**: Phase 0/1/2 **bắt đầu được ngay**; chỉ **CN-01.7 (lưu mã số) bị chặn bởi G5** → tách task riêng. Môi trường máy dev đủ (JDK 21 · Node 22 · Docker+Compose · psql 17); chưa cài Maven/Gradle nhưng dùng wrapper là được. Repo chưa có dòng code nào → greenfield. Chi tiết: `implement.md` §7.
 - 📋 **Bảng truy vết "chức năng nào còn chứa điểm chưa chốt"**: `business-open-questions.md` **Phần III** — dev đọc trước khi bắt tay vào 1 chức năng.
-- ➡️ **Bước tiếp theo**: gửi 6 mục còn mở + `report-templates-proposal.md` cho Công ty; bắt đầu **Phase 0 (Core Platform)** — trong đó **2FA Admin và giám sát poller phải nằm trong Phase 0**, load test 200 CCU đưa vào kế hoạch từ Phase 2.
+- ✅ **Phase 0 đã có kế hoạch chi tiết (2026-08-13)** — `phase0-tracking.md`: 11 hạng mục, ~113 task, ~114 người-ngày. Quyết định nền tảng ghi ở `architecture-review.md` **§9**: Maven multi-module · monorepo · docker-compose **3 VM** · secrets env + GitHub Secrets · **migration chạy ở service `migrator` riêng** · **DB roles tách quyền**.
+- ⚠ **Backup đã hạ xuống bản tối giản (13/8/2026)**: `pg_dump` hàng đêm, **RPO ≤ 24h · RTO ≤ 4h**, **không PITR/WAL/replica** — chấp nhận mất tối đa 1 ngày dữ liệu. Bảng 4 rủi ro chấp nhận ở `architecture-review.md` §6.5. Đây là quyết định nội bộ, **không hỏi khách**.
+- ➡️ **Bước tiếp theo**: gửi 6 mục còn mở + `report-templates-proposal.md` cho Công ty; bắt đầu **Phase 0** theo `phase0-tracking.md` — trong đó **ArchUnit, 2FA Admin và khung giám sát dữ liệu quá hạn phải nằm trong Phase 0**, load test 200 CCU đưa vào kế hoạch từ Phase 2.
 
 ## Quy ước làm việc với user
 
