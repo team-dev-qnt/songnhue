@@ -1,8 +1,9 @@
 # PHASE 0 — CORE PLATFORM · BẢNG THEO DÕI TIẾN ĐỘ
 
-> **Cập nhật lần cuối**: 2026-08-14 · **Tiến độ: 46/107 task (43%)** · **DoD: 7/21** (mục 7 xong tầng 2, tầng 3 chờ WS-10) · Trạng thái: 🟡 Đang làm (xong WS-1, WS-2, WS-4, WS-5; WS-3 còn T3.4)
+> **Cập nhật lần cuối**: 2026-08-14 · **Tiến độ: 46/107 task (43%)** · **DoD: 8/21** (mục 7 xong tầng 2, tầng 3 chờ WS-10) · Trạng thái: 🟡 Đang làm (xong WS-1, WS-2, WS-4, WS-5; WS-3 còn T3.4)
 > Nguồn ràng buộc: `conventions.md` (coding/security) · `architecture-review.md` §6, §9 (kiến trúc đã chốt) · `function-spec.md` (nghiệp vụ MOD-05)
 > **Cách dùng**: làm xong task nào tick `[x]` task đó; xong 1 WS thì chạy mục "Kiểm chứng" của WS rồi cập nhật bảng tổng + dòng "Cập nhật lần cuối" ở trên.
+> ⚠ **Xong 1 WS còn phải đóng nợ**: xem luật 3 bước ở mục **"Sổ nợ liên WS"** gần cuối file — tick dòng nợ, và **quay lại sửa mô tả đã lỗi thời ở WS đã giao nợ**.
 
 ---
 
@@ -109,7 +110,7 @@ WS-1 ─► WS-2 ─► WS-3          [nền — bắt buộc trước mọi th�
 - ✅ **Trigger chặn UPDATE với cả `songnhue_owner`**, không riêng app user
 - ✅ Định tuyến partition đúng (bản ghi lùi 20 ngày → `audit_logs_p202607`); **`audit_logs_default` rỗng**; gọi lại hàm tạo partition → tạo thêm **0** (idempotent)
 - ✅ `songnhue_readonly` đọc được, **ghi bị từ chối**
-- ⬜ **Chưa kiểm chứng bằng chạy thật**: `clean-disabled=true` — chỉ là cấu hình, không có đường code nào trong app gọi `flyway clean`. Đưa vào test tự động ở WS-10.
+- ⬜ **Chưa kiểm chứng bằng chạy thật**: `clean-disabled=true` — chỉ là cấu hình, không có đường code nào trong app gọi `flyway clean`. Giao cho **WS-10/T10.1** (đã ghi thành gạch đầu dòng trong task đó).
 
 **Quyết định phát sinh khi làm** (khác/bổ sung so với kế hoạch):
 | Việc | Xử lý |
@@ -137,7 +138,7 @@ WS-1 ─► WS-2 ─► WS-3          [nền — bắt buộc trước mọi th�
 - [x] **T3.1** `compose.infra.yml` — `postgres`(+PostGIS), `minio`(+`mc` tạo bucket), `mailpit`; **expose port ra host** để app chạy native từ IDE
 - [x] **T3.2** `compose.local.yml` — `include` infra + `migrator`/`app`/`admin-app`/`public-web`, chọn service bằng **Compose profile**
 - [x] **T3.3** `Dockerfile` backend: multi-stage (maven build → JRE 21 alpine), **non-root**, healthcheck theo `/actuator/health/readiness`
-- [ ] **T3.4** `Dockerfile` admin-app (build → nginx static) và public-web (Next standalone) — ⚠ **file đã viết, CHƯA build được**: `frontend/admin-app` và `frontend/public-web` do WS-8/WS-9 tạo. `make dev-fe`/`dev-docker` chặn sớm kèm thông báo rõ
+- [ ] **T3.4** `Dockerfile` admin-app (build → nginx static) và public-web (Next standalone) — ⚠ **file đã viết, CHƯA build được**: `frontend/admin-app` và `frontend/public-web` do WS-8/WS-9 tạo. `make dev-fe`/`dev-docker` chặn sớm kèm thông báo rõ. **Nơi trả nợ: WS-8/T8.1 và WS-9/T9.5** — xong 2 chỗ đó phải quay lại tick task này + DoD mục 2
 - [x] **T3.5** Script init Postgres: extension + CREATE ROLE — *đã làm ở WS-2 (`deploy/postgres/init/`), WS-3 đấu vào compose*
 - [x] **T3.6** Profile Spring — **chỉ khác env, không khác code** — *§1.6*
 - [x] **T3.7** `make dev-infra` / `dev-be` / `dev-fe` / `dev-docker` / `dev-native` + `make doctor` + 2 tài liệu hướng dẫn
@@ -186,11 +187,13 @@ WS-1 ─► WS-2 ─► WS-3          [nền — bắt buộc trước mọi th�
 - [x] **T4.1** `ApiResponse<T>`, `ApiError`, `ErrorDetail` + `ResponseEnvelopeAdvice` (ResponseBodyAdvice) — controller chỉ return DTO — *§2.1*
 - [x] **T4.2** `AppException` + 8 subclass đúng §2.2; `GlobalExceptionHandler` map toàn bộ; exception lạ → `SYS-0001`, **cấm lộ stacktrace/SQL** — *§2.2*
 - [x] **T4.3** `ErrorCode` enum sinh từ catalog §2.3 (**31 mã**) + `error-messages.properties`; test đảm bảo mọi mã có message — *§2.3*
-- [x] **T4.4** Filter chain **đúng thứ tự** qua hằng `FilterOrder`: `Correlation` → `RequestLogging` → `RateLimit` → *(chừa AuthFilter, ScopeContextFilter cho WS-5)* → `AuditContext` — *§2.4*
-- [x] **T4.5** `RateLimitFilter` qua interface `RateLimitStore` (impl Caffeine in-process) — login 5/15', API 100/phút, export 10/giờ — *§4.5; ≥2 node phải đổi impl sang DB*
+- [x] **T4.4** Filter chain **đúng thứ tự** qua hằng `FilterOrder` — *§2.4*. ✅ **WS-5 đã lắp đủ**, chuỗi hoàn chỉnh nay có **7 filter**: `Correlation`(10) → `RequestLogging`(15) → `RateLimit`(20) → `Csrf`(25) → `Auth`(30) → `ScopeContext`(40) → `AuditContext`(50)
+- [x] **T4.5** `RateLimitFilter` qua interface `RateLimitStore` (impl Caffeine in-process) — **login 30/15'**, API 100/phút, export 10/giờ — *§4.5; ≥2 node phải đổi impl sang DB*
+  - ⚠ **Sửa 5→30 ở WS-5**: để bằng ngưỡng khoá tài khoản (5) thì rate limit luôn chặn trước, `AUTH-0003` không bao giờ chạy được và tham số M5.15 vô nghĩa; thêm nữa 200 người sau một IP NAT dùng chung một bucket. `CaffeineRateLimitStoreTest` chặn ở CI nếu hạ xuống
 - [x] **T4.6** 8 utils: `DateTimeUtils`, `NumericUtils`, `VietnameseUtils`, `CodeGenerator`(DB sequence), `MaskUtils`, `PageUtils`(whitelist sort), `FileValidator`(magic bytes), `CryptoService`(AES-256-GCM + `key_id`) — *§2.5, cấm module viết lại*
 - [x] **T4.7** `BaseEntity` / `ScopedEntity` + JPA auditing + soft delete + `@Version` — *§2.5*
 - [x] **T4.8** `@ConfigurationProperties` + `@Validated` cho mọi nhóm config → **fail-fast lúc startup** khi thiếu env — *§1.6*
+  - ⚠ **Bổ sung 14/8 khi rà soát sau WS-5 — bản WS-4 KHÔNG thực sự fail-fast.** `@Validated` + `@NotBlank` không bắt được biến môi trường bị thiếu: bộ nạp `@ConfigurationProperties` bỏ qua placeholder không giải được, trường nhận nguyên văn `"${MINIO_ENDPOINT}"` → không rỗng → validate qua. Đã thêm **`UnresolvedPlaceholderGuard`** quét mọi bean `@ConfigurationProperties`; chi tiết ở `conventions.md` §1.6
 - [x] **T4.9** Log JSON (cơ chế sẵn có của Boot 3.4+) + `traceId` trong MDC; `RequestLoggingFilter` (method/path/status/duration, **không log body nhạy cảm**) — *§2.4, §4.5*
 - [x] **T4.10** springdoc-openapi: `/api/v1/**`, **6 nhóm theo module** — *§1.3*
 
@@ -225,7 +228,9 @@ WS-1 ─► WS-2 ─► WS-3          [nền — bắt buộc trước mọi th�
 | Ngoại lệ định dạng String | Controller trả `String` được tự serialize thủ công để envelope **không có ngoại lệ nào** (DoD #9) |
 | `FileValidator` | Viết tay bảng magic bytes thay vì kéo Apache Tika (>10MB + cây phụ thuộc) — danh sách định dạng của dự án rất ngắn |
 
-**Còn nợ, đã ghi chỗ cắm sẵn**: `AuditContextFilter` mới lấy được IP (`userId`/`username` chờ **WS-5**) · bộ lọc Hibernate theo `org_unit` mới khai báo `@FilterDef`, bật theo phiên ở **WS-5/T5.11** · `shared/error-map.ts` mirror 31 mã ở **WS-8/T8.4**.
+**Nợ giao cho WS sau** *(cập nhật 14/8 sau khi rà soát — xem "Sổ nợ liên WS" cuối file)*:
+- ✅ **Đã trả ở WS-5**: `AuditContextFilter` điền `userId`/`username` (kiểm chứng bằng `users.updated_by = 1`) · bộ lọc Hibernate `org_unit` đã bật theo phiên qua `ScopeFilterAspect`
+- ⬜ **Còn nợ**: `shared/error-map.ts` mirror **36 mã** (WS-5 thêm 5 mã AUTH — không còn là 31) ở **WS-8/T8.4**
 
 ---
 
@@ -289,7 +294,12 @@ WS-1 ─► WS-2 ─► WS-3          [nền — bắt buộc trước mọi th�
 | `TotpGenerator` tự cài | RFC 6238 có **bộ vector kiểm thử chính thức** → đúng đắn chứng minh bằng test, đổi lại bớt một phụ thuộc phải theo dõi CVE |
 | QR do FE vẽ, máy chủ chỉ trả `otpauth://` | Sinh ảnh ở máy chủ là thêm một chỗ secret đi qua (bộ nhớ đệm, proxy, log truy cập) |
 
-**Còn nợ, đã ghi chỗ cắm**: `shared/error-map.ts` mirror **36 mã** ở WS-8/T8.4 · luật ArchUnit bắt mọi lớp con `ScopedEntity` phải mang `@Filter` ở **WS-10/T10.2** (thiếu nó thì bộ lọc có tồn tại nhưng không áp — dữ liệu mọi đơn vị lộ hết mà không có lỗi nào) · ma trận role × resource ở **WS-10/T10.3** (tầng 3 hiện mới có test đơn vị, chưa có test đầu-cuối vì Phase 0 chưa có entity nào thuộc phạm vi đơn vị) · job dọn token chuyển sang hàng đợi DB + ShedLock ở **WS-6/T6.8**.
+**Nợ giao cho WS sau** — cả 4 mục đã có task nhận tường minh, xem "Sổ nợ liên WS" cuối file:
+- `shared/error-map.ts` mirror **36 mã** → **WS-8/T8.4**
+- ⚠ luật ArchUnit bắt mọi lớp con `ScopedEntity` phải mang `@Filter` → **WS-10/T10.2** (thiếu nó thì bộ lọc có tồn tại nhưng không áp — dữ liệu mọi đơn vị lộ hết mà không có lỗi nào)
+- kiểm chứng tầng 3 `AUTH-3002` đầu-cuối → **WS-10/T10.3** (Phase 0 chưa có entity nào thuộc phạm vi đơn vị nên mới dừng ở test đơn vị) — **đây là thứ đóng DoD mục 7**
+- `TokenMaintenanceJob` từ `@Scheduled` sang hàng đợi DB + ShedLock → **WS-6/T6.8**
+- `AuthorityLoader.invalidate()` phải được màn hình phân quyền gọi → **WS-6/T6.15**
 
 ---
 
@@ -305,6 +315,8 @@ WS-1 ─► WS-2 ─► WS-3          [nền — bắt buộc trước mọi th�
 - [ ] **T6.6** Notification service (P4): `notify(event, targets, channels)`; **v1 bật in-app + email**, `SmsSender` interface mặc định tắt — *B7*
 - [ ] **T6.7** **Recipient resolver theo G11**: nhóm "Ban điều hành" từ `settings` ∪ người đứng đầu/phó `org_units` của công trình liên quan; khử trùng lặp; loại tài khoản khóa — *G11*
 - [ ] **T6.8** Job & Scheduler (P5): `jobs` + **SKIP LOCKED**, worker in-process bounded pool, trạng thái + retry 3, **chống overlapping run** — *§6.3*
+  - [ ] **Nhận nợ WS-5**: `TokenMaintenanceJob` đang chạy tạm bằng `@Scheduled(cron)` → chuyển sang hàng đợi job trong DB (javadoc lớp đó ghi rõ là tạm thời)
+  - [ ] **Nhận nợ WS-2**: job tạo partition `audit_logs` tháng kế tiếp — hiện chỉ có **hàm SQL**, chưa ai gọi định kỳ; hết runway 12 tháng mà quên thì bản ghi rơi vào partition `DEFAULT` (`V202608131005__core_audit_partition_maintenance.sql` dòng 6)
 - [ ] **T6.9** ShedLock cài sẵn, `shedlock.enabled` đọc env, mặc định tắt (1 node) — *§6.2*
 - [ ] **T6.10** Async job API chuẩn: `POST → 202 + jobId`, endpoint tra tiến độ, link tải TTL 24h — *§1.3*
 - [ ] **T6.11** Settings service: key-value **có type** + validate + Caffeine cache + UI API; **export/import cấu hình loại trừ credential** — *CN-05.3, §4.7*
@@ -312,6 +324,7 @@ WS-1 ─► WS-2 ─► WS-3          [nền — bắt buộc trước mọi th�
 - [ ] **T6.13** Job kết xuất audit >5 năm: CSV/Parquet nén → MinIO bucket riêng → **verify checksum** → mới xóa; ghi anchor hash; lỗi → không xóa dòng nào + `ADM-2001` — *G7, §4.3*
 - [ ] **T6.14** Thông báo hệ thống (M5.13): Admin gửi thông báo chung tới toàn bộ/nhóm — *CN-05.6*
 - [ ] **T6.15** **Vertical slice**: CRUD `users` + `roles` đi hết 3 tầng quyền + audit + notification — *nghiệm thu Phase 0*
+  - [ ] **Nhận nợ WS-5**: màn hình đổi phân quyền phải gọi `AuthorityLoader.invalidate(publicId)` — quên thì Admin gỡ quyền xong người kia vẫn dùng được tới hết TTL cache 30s (và với ≥2 node là node khác không hề biết)
 
 **Kiểm chứng**: tạo/sửa/xóa → `audit_logs` có bản ghi, verify chain pass · upload sai magic bytes → từ chối · `POST` job → 202 + `jobId` → worker chạy → notification in-app + email (MailHog).
 
@@ -349,9 +362,10 @@ WS-1 ─► WS-2 ─► WS-3          [nền — bắt buộc trước mọi th�
 **Tiên quyết**: API của WS-4/5/6 (bám dần, không cần chờ xong hết). **Đầu ra**: SPA quản trị chạy được với đủ màn hình MOD-05.
 
 - [ ] **T8.1** Vite + React 18 + TS **strict, cấm `any`** + AntD 5 + TanStack Query + React Router; cấu trúc `shared/ components/ features/ app/` — *§1.4*
+  - [ ] **Trả nợ WS-3/T3.4**: xong T8.1 thì `deploy/docker/Dockerfile.admin-app` (đã viết sẵn, **chưa từng build được**) phải build thật → `make dev-docker` chạy đủ; quay lại tick T3.4 và DoD mục 2
 - [ ] **T8.2** `shared/tokens.ts` — **design tokens 1 nguồn**: màu trạng thái xanh/vàng/đỏ/xám/đen → AntD theme + ECharts theme (+ Tailwind config public-web) — *§3, architecture §4*
 - [ ] **T8.3** `shared/apiClient` — axios instance **duy nhất**: gắn CSRF header, **auto refresh 1 lần rồi logout**, unwrap envelope, error → notification — *§2.5*
-- [ ] **T8.4** `shared/error-map.ts` mirror catalog BE (fallback dùng message từ API) — *§2.3*
+- [ ] **T8.4** `shared/error-map.ts` mirror catalog BE — **36 mã** tính đến hết WS-5 (fallback dùng message từ API) — *§2.3; nợ từ WS-4 + WS-5*
 - [ ] **T8.5** `useAuth`, `usePermission(code)`, route guard — **chỉ để UX, không phải bảo mật** — *§4.2 tầng 1*
 - [ ] **T8.6** Màn hình auth: login, **2FA TOTP** (enroll + verify), đổi mật khẩu bắt buộc lần đầu, quên mật khẩu
 - [ ] **T8.7** Layout + menu render theo permission; trang 403/404/500 hiển thị `traceId`
@@ -372,7 +386,8 @@ WS-1 ─► WS-2 ─► WS-3          [nền — bắt buộc trước mọi th�
 - [ ] **T9.2** Layout công khai + trang chủ tạm + trang 404/500
 - [ ] **T9.3** SEO base: metadata/Open Graph, `sitemap.xml`, `robots.txt`
 - [ ] **T9.4** Scaffold ISR + `revalidate` hook (Phase 1 CMS cắm vào)
-- [ ] **T9.5** Health route + Dockerfile standalone
+- [ ] **T9.5** Health route + bật `output: 'standalone'` trong `next.config` — **Dockerfile đã có sẵn** ở `deploy/docker/Dockerfile.public-web` (WS-3 viết), việc ở đây là làm cho nó build được
+  - [ ] **Trả nợ WS-3/T3.4**: build thật 2 image FE → quay lại tick T3.4 và DoD mục 2
 
 **Kiểm chứng**: `make dev-docker` → public-web render được, Lighthouse SEO không lỗi cấu hình cơ bản.
 
@@ -383,8 +398,11 @@ WS-1 ─► WS-2 ─► WS-3          [nền — bắt buộc trước mọi th�
 **Tiên quyết**: WS-4 (nhưng **T10.2 nên làm ngay sau WS-1**). **Đầu ra**: CI chặn được vi phạm kiến trúc và quyền.
 
 - [ ] **T10.1** Testcontainers **PostgreSQL + PostGIS** làm nền cho integration test — *architecture §5*
+  - [ ] **Nhận nợ WS-2**: test `clean-disabled=true` — gọi `flyway clean` phải bị từ chối (WS-2 mới chỉ đặt cấu hình, chưa chứng minh nó chặn thật)
 - [ ] **T10.2** ⚠ **ArchUnit** — chặn: module chỉ import `spi/` của module khác **hoặc `core.common.*`** (ngoại lệ Common Platform, xem `conventions.md` §1.1) · entity không ra khỏi application · `@Transactional` chỉ ở application · **cấm `float/double`** cho số đo/tiền · cấm `new Date()` · cấm `System.out` — *§1.1, rule 6 CLAUDE.md — **cài từ commit đầu***
+  - [ ] ⚠ **Nhận nợ WS-5 — luật quan trọng nhất của T10.2**: mọi lớp con `ScopedEntity` **phải mang `@Filter`**. Thiếu luật này thì bộ lọc *có tồn tại* nhưng không được áp — dữ liệu mọi Xí nghiệp lộ hết mà **không có lỗi nào báo ra** (`ScopeFilterAspect` javadoc dòng 64)
 - [ ] **T10.3** Harness **ma trận RBAC role × resource** (NFR-06 yêu cầu pass 100%) — *§4.2*
+  - [ ] **Nhận nợ WS-5 — đóng DoD mục 7**: kiểm chứng **tầng 3 `AUTH-3002` đầu-cuối** trên một entity thật thuộc phạm vi đơn vị. Phase 0 chưa có entity nào như vậy nên WS-5 mới dừng ở test đơn vị
 - [ ] **T10.4** Test deny-by-default (T5.10) + test hash chain audit + test `CryptoService` xoay key
 - [ ] **T10.5** Coverage gate domain layer — không merge nếu giảm — *§1.5*
 - [ ] **T10.6** `ci.yml`: build → Spotless/Checkstyle → unit → Testcontainers → ArchUnit → ESLint → **OWASP Dependency-Check + `npm audit`, fail ở CVE high/critical** — *§4.5*
@@ -402,9 +420,11 @@ WS-1 ─► WS-2 ─► WS-3          [nền — bắt buộc trước mọi th�
 - [ ] **T11.1** Build & push image lên **GHCR**, tag theo commit SHA + semver
 - [ ] **T11.2** Dựng 3 VM theo phân bổ trên; `compose.backup.yml` cho VM-3 (kho dump + Prometheus/Grafana)
 - [ ] **T11.3** `compose.staging.yml` / `compose.prod.yml`: `nginx` + `app` + `postgres` + `minio` + `backup-agent`
+  - [ ] ⚠ **Nhận nợ WS-3**: `POSTGRES_INITDB_ARGS` phải **y hệt** `compose.infra.yml` (`--locale-provider=icu --icu-locale=vi-VN`). Quên thì DB production xếp `ORDER BY` tiếng Việt sai, và **đổi sau khi đã có dữ liệu là phải dump + restore toàn bộ**
 - [ ] **T11.4** **Migration là service riêng `migrator`** chạy trước (`depends_on: service_completed_successfully`), app khởi động với `flyway.enabled=false` — *§9.2, migration hỏng thì app không lên nửa vời*
 - [ ] **T11.5** **Tự động `pg_dump` trước mỗi lần deploy** production, giữ riêng khỏi bản đêm — *điểm rollback dữ liệu duy nhất vì không có PITR*
 - [ ] **T11.6** Nginx: TLS 1.3, **HSTS, CSP, `X-Frame-Options: DENY`, `Referrer-Policy`**, ẩn version, rate limit theo IP, giới hạn body size route upload — *§4.5*
+  - [ ] **Nhận nợ WS-4**: chặn `/swagger-ui/**` và `/v3/api-docs/**` ở nginx production — sơ đồ API đầy đủ là thứ giúp người tấn công dựng bản đồ hệ thống rất nhanh (`OpenApiConfig` javadoc + `application.yml` dòng 141 đều trỏ về đây)
 - [ ] **T11.7** Secrets: **GitHub Secrets** cho CI; `/opt/songnhue/.env` (chmod 600) trên VM; key AES/JWT ở `/opt/songnhue/keys/` **ngoài backup DB** — *§9.3*
 - [ ] **T11.8** `deploy-staging.yml` tự động khi merge `master`; `deploy-prod.yml` chạy tay/theo tag, có approval
 - [ ] **T11.9** Quy trình rollback: quay lại image tag trước; migration đã đổi schema → restore từ **bản dump pre-deploy**. Mỗi migration đổi schema phải kèm ghi chú rollback trong PR
@@ -420,7 +440,9 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 0 hoàn thành:
 
 - [x] **1. Chạy native** — `make dev-infra` → `./mvnw -pl app spring-boot:run` → `GET /actuator/health` = UP ✅ *14/8*
 - [ ] **2. Chạy full Docker** — `make dev-docker` → admin-app + public-web + API cùng lúc *(backend đã xong; 2 app FE chờ WS-8/WS-9)*
-- [ ] **3. Fail-fast thiếu env** — xóa 1 biến bắt buộc → app **không khởi động**, log chỉ rõ key thiếu
+- [x] **3. Fail-fast thiếu env** — xóa 1 biến bắt buộc → app **không khởi động**, log chỉ rõ key thiếu ✅ *14/8, sau khi sửa lỗi*
+  - ⚠ **Chạy thử lần đầu thì KHÔNG đạt**: bỏ hẳn `MINIO_ENDPOINT` → app vẫn `Started`, health `UP`. `@Validated` + `@NotBlank` không bắt được vì trường nhận nguyên văn `"${MINIO_ENDPOINT}"`. Bỏ `AES_KEY_V1` thì có chặn, nhưng báo sai nguyên nhân ("khoá AES không phải base64 hợp lệ")
+  - Sau khi thêm `UnresolvedPlaceholderGuard`: cả hai đều chặn, thông báo gọi đúng tên biến + đường dẫn tham số + chỗ sửa. Env đủ → vẫn khởi động bình thường trong ~6 giây
 - [x] **4. Migration sạch từ DB rỗng** — `flyway_schema_history` đủ version, không lỗi ✅ *14/8: 9/9 migration trên volume rỗng, chạy lại lần 2 exit 0*
 - [x] **5. Auth + 2FA** — login Super Admin → enroll TOTP (mã client tự tính khớp máy chủ) → nhận access + refresh cookie; `must_change_password` chặn mọi endpoint khác bằng `AUTH-0007` *(WS-5, 14/8)*
 - [x] **6. Refresh reuse detection** — dùng lại refresh cũ → `AUTH-0008`, thu hồi cả family, `security_events` mức CRITICAL; refresh MỚI của người dùng thật **cũng chết**, access token hết hiệu lực **ngay** *(WS-5, 14/8)*
@@ -442,10 +464,46 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 0 hoàn thành:
 
 ---
 
+## SỔ NỢ LIÊN WS
+
+> **Vì sao có bảng này** (lập 14/8, sau khi rà soát WS-1→WS-5). Nợ được ghi rải rác ở dòng "Còn nợ" cuối mỗi WS, nhưng **WS nhận lại không hề biết mình phải nhận** — rà soát tìm ra 8 mục giao mà không có task nào đứng tên, và 5 chỗ tài liệu vẫn mô tả trạng thái cũ sau khi nợ đã được trả. Bảng này là **chỗ duy nhất** theo dõi bàn giao giữa các WS.
+>
+> **Luật bắt buộc khi đóng một WS** — làm đủ 3 bước, thiếu bước nào coi như WS chưa xong:
+> 1. Tick task đã làm trong WS của mình.
+> 2. **Tick dòng nợ tương ứng trong bảng dưới**, ghi ngày trả.
+> 3. **Quay lại sửa WS đã giao nợ**: dòng "Nợ giao cho WS sau" của nó chuyển sang ✅, và **sửa luôn mọi câu mô tả đã lỗi thời** ở WS đó (con số, danh sách, sơ đồ). Bước 3 là bước hay bị bỏ nhất và cũng là bước gây hại nhất — người đọc sau tin vào mô tả cũ.
+
+| # | Nợ | Phát sinh ở | Task nhận | Trạng thái |
+|:-:|---|---|---|---|
+| 1 | `AuditContextFilter` điền `userId`/`username` | WS-4/T4.9 | WS-5/T5.9 | ✅ Trả 14/8 |
+| 2 | Bật Hibernate `@Filter` theo phiên | WS-4/T4.7 | WS-5/T5.11 | ✅ Trả 14/8 |
+| 3 | Lệnh bootstrap `superadmin` (seed không mật khẩu) | WS-2/T2.9 | WS-5/T5.7 | ✅ Trả 14/8 |
+| 4 | `shared/error-map.ts` mirror **36 mã** | WS-4/T4.3 + WS-5 | WS-8/T8.4 | ⬜ Chờ |
+| 5 | ⚠ ArchUnit: lớp con `ScopedEntity` **phải** mang `@Filter` | WS-5/T5.11 | WS-10/T10.2 | ⬜ Chờ |
+| 6 | ArchUnit: cho phép import chéo `core.common.*` | WS-4 | WS-10/T10.2 | ⬜ Chờ |
+| 7 | ⚠ Kiểm chứng tầng 3 `AUTH-3002` đầu-cuối → **đóng DoD #7** | WS-5/T5.11 | WS-10/T10.3 | ⬜ Chờ |
+| 8 | Test `clean-disabled=true` chặn thật | WS-2/T2.2 | WS-10/T10.1 | ⬜ Chờ |
+| 9 | `TokenMaintenanceJob`: `@Scheduled` → hàng đợi DB | WS-5 | WS-6/T6.8 | ⬜ Chờ |
+| 10 | Job tạo partition `audit_logs` tháng kế tiếp (mới có hàm SQL, chưa ai gọi) | WS-2/T2.6 | WS-6/T6.8 | ⬜ Chờ |
+| 11 | `AuthorityLoader.invalidate()` gọi từ màn hình phân quyền | WS-5 | WS-6/T6.15 | ⬜ Chờ |
+| 12 | MinIO client khởi tạo qua Spring bean | WS-4/T4.6 | WS-6/T6.3 | ⬜ Chờ |
+| 13 | `FileValidator`: ClamAV async + strip EXIF | WS-4/T4.6 | WS-6/T6.4 | ⬜ Chờ |
+| 14 | `SettingService` phần ghi + export/import loại trừ credential | WS-5 | WS-6/T6.11 | ⬜ Chờ |
+| 15 | Build thật 2 image FE (Dockerfile đã viết, chưa chạy) | WS-3/T3.4 | WS-8/T8.1 + WS-9/T9.5 | ⬜ Chờ |
+| 16 | ⚠ `POSTGRES_INITDB_ARGS` ICU `vi-VN` cho staging/prod | WS-3 | WS-11/T11.3 | ⬜ Chờ |
+| 17 | Nginx chặn `/swagger-ui/**` + `/v3/api-docs/**` | WS-4/T4.10 | WS-11/T11.6 | ⬜ Chờ |
+| 18 | `security_events` → Grafana + alert | WS-5/T5.14 | WS-7/T7.10 | ⬜ Chờ |
+
+**Mục 5, 7, 16 là loại hỏng âm thầm** — không có lỗi nào báo ra, chỉ phát hiện khi đã muộn (lộ dữ liệu liên đơn vị, hoặc phải dump+restore cả DB production).
+
+---
+
 ## Nhật ký thay đổi kế hoạch
 
 | Ngày | Nội dung |
 |---|---|
+| 2026-08-14 | **Rà soát nợ tồn WS-1→WS-5 trước khi mở WS-6.** Lập **"Sổ nợ liên WS"** (18 dòng) + luật 3 bước khi đóng WS — trước đó nợ ghi ở WS giao nhưng **WS nhận không có task nào đứng tên**: 8 mục thuộc loại này, trong đó 3 mục hỏng âm thầm (ArchUnit `@Filter`, `AUTH-3002` tầng 3, collation ICU cho prod). Sửa 5 chỗ mô tả đã lỗi thời (rate limit `5/15'` → `30/15'` ở cả `conventions.md` §4.5 lẫn T4.5 — §4.5 đang **tự mâu thuẫn với §4.1** của chính nó; filter chain T4.4 nay đủ 7 filter; error-map 31 → **36 mã**; nợ WS-4 đã trả 2/3). **Phát hiện 1 lỗi thật: T4.8 đã tick nhưng fail-fast không hoạt động** — thiếu biến môi trường thì app vẫn khởi động và health `UP`, vì `@ConfigurationProperties` gán nguyên văn `"${MINIO_ENDPOINT}"` nên `@NotBlank` đi qua. Thêm `UnresolvedPlaceholderGuard` (8 test) → **đóng DoD mục 3**. Tổng 138 test xanh. |
+| 2026-08-14 | **WS-5 xong**. JWT RS256 + `kid` · refresh rotation + reuse detection (thu hồi family, access token chết ngay nhờ claim `fid`) · CSRF double-submit · lockout không tiết lộ user tồn tại · 2FA TOTP tự cài (khớp 6/6 vector RFC 6238) · RBAC 3 tầng + 3 annotation bắt buộc · quản lý phiên + đăng xuất từ xa. **36 mã lỗi**. Chốt **không dùng filter chain Spring Security** (`architecture-review.md` §9.5). 5 lỗi chỉ chạy thật mới lộ — đáng kể nhất: **rate limit login 5/15' chặn trước khoá tài khoản** làm `AUTH-0003` không bao giờ chạy được và tham số M5.15 vô nghĩa; nâng lên 30/15' + test chặn ở CI. |
 | 2026-08-14 | **WS-4 xong**. 31 mã lỗi (thêm 6 mã `SYS` chung cho tầng framework) · envelope + traceId phủ 100% endpoint · rate limit 3 nhóm · 8 utils · `BaseEntity`/`ScopedEntity` · fail-fast cấu hình · OpenAPI 6 nhóm. Chốt **`core.common.*` là ngoại lệ import chéo** → T10.2 phải viết rule ArchUnit theo đó. Sửa Checkstyle bắt nhầm chữ trong bình luận. 53 test xanh; 2 lỗi thật do test phát hiện (bọc envelope 2 lần, MessageSource không được tạo do tên file có hậu tố `_vi`). |
 | 2026-08-14 | **WS-3 xong 6/7**. Chốt: chọn service bằng **Compose profile** (4 chế độ chạy) · **build từ mã nguồn local trong container**, KHÔNG bind-mount hot-reload · **cổng Docker sang dải riêng + bind 127.0.0.1** (máy dev có PostgreSQL native gây nối nhầm DB) · **Mailpit** thay MailHog (arm64) · **collation ICU vi-VN** · bỏ profile Spring `docker`. Thêm `make doctor`, `docs/setup-guideline.md`, `docs/run-guideline.md`. T3.4 (2 image FE) chờ WS-8/WS-9. |
 | 2026-08-14 | **WS-2 xong**. Chốt: hash chain audit tính bằng **trigger trong DB** (không ở Java) · `audit_logs` có partition **`DEFAULT`** + 12 tháng runway · Super Admin seed **không mật khẩu**, kích hoạt bằng lệnh bootstrap (thêm việc cho T5.7) · `security_events` cũng append-only · **không dùng `R__`** cho danh mục quyền/settings. Sửa `make migrate-info` (WS-1 trỏ plugin chưa cấu hình), thêm `make migrate-native` + `make db-verify-audit`. Đồng bộ `architecture-review.md` §9.3, `conventions.md` §1.2/§1.7/§4.3. |

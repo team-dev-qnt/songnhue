@@ -78,6 +78,8 @@ admin-app/src/
 - **Mọi connection và setup (DB, MinIO, SMTP, SMS, telemetry API, Google Maps key, base URL...) phải đọc từ biến môi trường / file env — cấm hardcode trong code hoặc `application.yml` commit lên repo.**
 - BE: `application.yml` chỉ chứa placeholder `${DB_URL}`, `${REDIS_HOST}`...; giá trị thật nằm ở env theo môi trường (Dev/Staging/Prod). FE: qua `import.meta.env.VITE_*` / `process.env.NEXT_PUBLIC_*`, build-time inject.
 - Mỗi repo có `.env.example` liệt kê đầy đủ key (không giá trị thật) — thêm config mới phải cập nhật file này, thiếu env bắt buộc → app **fail-fast lúc startup** (validate bằng `@ConfigurationProperties` + `@Validated`), không chạy với default ngầm.
+  - ⚠ **`@Validated` + `@NotBlank` MỘT MÌNH không đủ để bắt biến môi trường bị thiếu.** Bộ nạp của `@ConfigurationProperties` dùng `PropertySourcesPlaceholdersResolver` với `ignoreUnresolvablePlaceholders = true` (khác `@Value`): thiếu env thì placeholder được gán **nguyên văn**, trường nhận đúng chuỗi `"${MINIO_ENDPOINT}"` — không rỗng, nên `@NotBlank` đi qua và app khởi động bình thường. Kiểm chứng bằng chạy thật 14/8: bỏ hẳn `MINIO_ENDPOINT` → `Started SongnhueApplication`, `/actuator/health` = `UP`.
+  - Chốt chặn thật là **`UnresolvedPlaceholderGuard`** (`core.common.config`) — `BeanPostProcessor` quét mọi bean `@ConfigurationProperties` (String, Map, List), giá trị nào còn nguyên dạng `${TÊN_BIẾN}` thì ném lỗi gọi đúng tên biến + đường dẫn tham số. Chạy **sau khi nạp cấu hình, trước `@PostConstruct`** để không bị `@PostConstruct` của lớp cấu hình ném trước với thông báo sai nguyên nhân. Lớp cấu hình mới **không phải làm gì thêm** — cấm quay lại kiểu mỗi lớp tự kiểm, quên một lần là thủng lại mà không có gì báo.
 - Cấm tạo connection trực tiếp trong code nghiệp vụ (`new RestTemplate(url)`, `DriverManager.getConnection`...) — mọi client (DB, HTTP, S3) khởi tạo 1 lần qua Spring bean cấu hình từ env, module nghiệp vụ chỉ inject.
 
 ### 1.7. Cấu trúc monorepo & cách chạy local
@@ -353,7 +355,8 @@ Tầng 3 — Repository scope filter (org_unit)     → chặn dữ liệu (IDOR
 ### 4.5. Hạ tầng & headers
 
 - Nginx: HSTS, CSP (default-src 'self'; script chỉ từ self + GA/GTM đã khai báo), `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`; ẩn version server; giới hạn body size theo route upload.
-- Rate limit 2 lớp: Nginx (thô, theo IP) + app filter (theo user/token, giá trị theo nhóm endpoint: login 5/15', API thường 100/phút, export 10/giờ).
+- Rate limit 2 lớp: Nginx (thô, theo IP) + app filter (theo user/token, giá trị theo nhóm endpoint: **login 30/15'**, API thường 100/phút, export 10/giờ).
+  - ⚠ **`login 30/15'` chứ không phải 5/15'** — con số này phải rộng hơn hẳn ngưỡng khoá tài khoản (5 lần, §4.1). Lý do đầy đủ ở §4.1; tóm tắt: đặt bằng nhau thì rate limit ở filter luôn chặn trước nên `AUTH-0003` không bao giờ kích hoạt được, và cả Công ty ra Internet qua một IP NAT. `CaffeineRateLimitStoreTest` chặn ở CI nếu ai đó hạ xuống bằng ngưỡng khoá.
 - Secrets: env/Vault; khác nhau mỗi môi trường; xoay key AES + JWT signing key có quy trình (key_id versioning); cấm secrets trong log/config commit.
 - Log: mask dữ liệu nhạy cảm (MaskUtils); security event riêng (login fail, refresh reuse, 403 scope, đổi quyền) → dashboard Grafana + alert.
 - Dependency: scan CVE trong CI (OWASP Dependency-Check / `npm audit`) — CI fail với CVE high/critical.

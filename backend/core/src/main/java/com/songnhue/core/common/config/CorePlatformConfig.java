@@ -1,6 +1,7 @@
 package com.songnhue.core.common.config;
 
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -24,4 +25,14 @@ import org.springframework.scheduling.annotation.EnableScheduling;
     StorageProperties.class,
     JwtProperties.class
 })
-public class CorePlatformConfig {}
+public class CorePlatformConfig {
+
+    /**
+     * Phải là {@code static}: một {@code BeanPostProcessor} khai báo bằng phương thức thường sẽ kéo
+     * cả lớp cấu hình này khởi tạo quá sớm, trước khi các post-processor khác kịp đăng ký.
+     */
+    @Bean
+    static UnresolvedPlaceholderGuard unresolvedPlaceholderGuard() {
+        return new UnresolvedPlaceholderGuard();
+    }
+}
