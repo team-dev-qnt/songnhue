@@ -133,4 +133,15 @@ public class Setting {
     public String effectiveValue() {
         return settingValue != null && !settingValue.isBlank() ? settingValue : defaultValue;
     }
+
+    /**
+     * Đặt giá trị mới. Chỉ {@code SettingService} gọi, <b>sau khi</b> đã validate.
+     *
+     * <p>Giá trị rỗng được quy về {@code null} thay vì giữ chuỗi rỗng: hai thứ đó phải cùng nghĩa là
+     * "quay về mặc định", nếu không thì {@link #effectiveValue()} và mọi nơi đọc phải tự nhớ xử lý
+     * cả hai dạng — và sẽ có chỗ quên.
+     */
+    public void changeValue(String newValue) {
+        this.settingValue = newValue == null || newValue.isBlank() ? null : newValue.trim();
+    }
 }

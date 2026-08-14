@@ -58,6 +58,27 @@ spring:
     # -1 = nạp một lần rồi giữ; file chỉ đổi khi deploy bản mới
     cache-duration: -1
 
+  # Máy chủ thư — kênh thông báo thứ hai sau in-app (T6.6, chốt B7 bỏ SMS ở v1).
+  # Local trỏ vào Mailpit: thư không đi ra ngoài, xem ở http://localhost:18025.
+  # Thiếu SMTP_HOST thì bean JavaMailSender không được tạo và job gửi đánh dấu
+  # SKIPPED — hệ thống vẫn chạy, thông báo trên giao diện vẫn tới nơi.
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:1025}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SMTP_AUTH:false}
+          starttls:
+            enable: ${SMTP_STARTTLS:false}
+          # Thư treo không được giữ luồng worker: quá hạn thì tính là thất bại
+          # và hàng đợi lo phần thử lại.
+          connectiontimeout: 5000
+          timeout: 10000
+          writetimeout: 10000
+
   jpa:
     open-in-view: false
     hibernate:
@@ -123,6 +144,11 @@ app:
     # Cờ `Secure` trên cookie. Local chạy http:// nên phải tắt — bật lên thì trình
     # duyệt bỏ luôn cookie và không ai đăng nhập được, mà không có lỗi nào hiện ra.
     secure-cookie: ${SECURE_COOKIE:true}
+
+  notification:
+    # Địa chỉ người gửi thư. Phải là miền mà máy chủ SMTP cho phép gửi thay mặt,
+    # nên thuộc cấu hình môi trường chứ không phải tham số Admin sửa được.
+    from: ${SMTP_FROM}
 
   bootstrap:
     # Chỉ đặt ở lần dựng môi trường ĐẦU TIÊN rồi gỡ đi (WS-5 / T5.7).

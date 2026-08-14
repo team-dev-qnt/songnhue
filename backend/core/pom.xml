@@ -109,5 +109,13 @@
             <artifactId>minio</artifactId>
             <version>${minio.version}</version>
         </dependency>
+        <!--
+          Gửi email — kênh thông báo thứ hai sau in-app (chốt B7: v1 bỏ SMS).
+          Local dùng Mailpit ở cổng 1025, không gửi ra ngoài thật.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
     </dependencies>
 </project>

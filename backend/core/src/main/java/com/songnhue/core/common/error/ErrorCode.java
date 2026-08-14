@@ -88,7 +88,10 @@ public enum ErrorCode {
     /** Chuyển đơn vị vào chính cây con của nó — cắt rời cả nhánh khỏi cây mà dữ liệu vẫn còn. */
     ADM_2003("ADM-2003", HttpStatus.UNPROCESSABLE_ENTITY),
     ADM_2004("ADM-2004", HttpStatus.CONFLICT),
-    ADM_2005("ADM-2005", HttpStatus.UNPROCESSABLE_ENTITY);
+    ADM_2005("ADM-2005", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Tham số {0} không nhận giá trị này — yêu cầu: {1}. */
+    ADM_2006("ADM-2006", HttpStatus.UNPROCESSABLE_ENTITY),
+    ADM_2007("ADM-2007", HttpStatus.FORBIDDEN);
 
     private final String code;
     private final HttpStatus status;

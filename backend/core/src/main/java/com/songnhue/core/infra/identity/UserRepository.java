@@ -1,5 +1,6 @@
 package com.songnhue.core.infra.identity;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -31,4 +32,21 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     /** Chặn xoá đơn vị còn người trực thuộc (T6.1) — người dùng mồ côi đơn vị thì mất luôn phạm vi. */
     boolean existsByOrgUnitIdAndDeletedAtIsNull(Long orgUnitId);
+
+    /**
+     * Lọc ra những tài khoản còn hoạt động trong một tập id (T6.7).
+     *
+     * <p>Gửi cảnh báo cho tài khoản đã khoá là cảnh báo rơi vào khoảng không, mà bảng
+     * {@code notification_recipients} vẫn ghi "đã gửi" — nhìn vào tưởng đã tới nơi.
+     */
+    @Query("SELECT u.id FROM User u WHERE u.id IN :ids AND u.deletedAt IS NULL AND u.status = 'ACTIVE'")
+    List<Long> findActiveIdsIn(@Param("ids") List<Long> ids);
+
+    /** Địa chỉ email của người nhận, bỏ qua tài khoản không có email. */
+    @Query("SELECT u.id, u.email, u.fullName FROM User u WHERE u.id IN :ids AND u.deletedAt IS NULL")
+    List<Object[]> findContactInfo(@Param("ids") List<Long> ids);
+
+    /** Toàn bộ tài khoản đang hoạt động — dùng cho thông báo hệ thống gửi tất cả (M5.13). */
+    @Query("SELECT u.id FROM User u WHERE u.deletedAt IS NULL AND u.status = 'ACTIVE'")
+    List<Long> findAllActiveIds();
 }
