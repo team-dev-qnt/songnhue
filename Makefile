@@ -80,7 +80,27 @@ migrate: ## Chạy Flyway migration (service `migrator` riêng, không qua app)
 
 .PHONY: migrate-info
 migrate-info: ## Xem trạng thái migration đã áp dụng
-	cd $(BACKEND) && ./mvnw -pl app flyway:info
+	@test -f "$(ENV_FILE)" || { echo "  ✗ Chưa có $(ENV_FILE) — chạy: make env"; exit 1; }
+	@set -a; . "$(ENV_FILE)"; set +a; \
+	 PGPASSWORD="$$DB_MIGRATION_PASSWORD" psql -h "$$DB_HOST" -p "$$DB_PORT" \
+	     -U "$$DB_MIGRATION_USER" -d "$$DB_NAME" -P pager=off -c \
+	     "SELECT installed_rank AS \"#\", version, description, success, installed_on \
+	        FROM flyway_schema_history ORDER BY installed_rank;"
+
+.PHONY: migrate-native
+migrate-native: ## Chạy migration từ máy (app chạy native, cần `make dev-infra` trước)
+	@test -f "$(ENV_FILE)" || { echo "  ✗ Chưa có $(ENV_FILE) — chạy: make env"; exit 1; }
+	cd $(BACKEND) && ./mvnw -B -q -pl app -am package -DskipTests
+	@set -a; . "$(ENV_FILE)"; set +a; \
+	 java -jar $(BACKEND)/app/target/songnhue-app.jar --spring.profiles.active=migrate
+
+.PHONY: db-verify-audit
+db-verify-audit: ## Kiểm tra tính toàn vẹn chuỗi hash của audit_logs (rỗng = nguyên vẹn)
+	@test -f "$(ENV_FILE)" || { echo "  ✗ Chưa có $(ENV_FILE) — chạy: make env"; exit 1; }
+	@set -a; . "$(ENV_FILE)"; set +a; \
+	 PGPASSWORD="$$DB_PASSWORD" psql -h "$$DB_HOST" -p "$$DB_PORT" \
+	     -U "$$DB_USER" -d "$$DB_NAME" -P pager=off \
+	     -c "SELECT * FROM core_verify_audit_chain();"
 
 # --- Build & kiểm thử --------------------------------------------------------
 .PHONY: build

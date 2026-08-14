@@ -1,0 +1,29 @@
+# =============================================================================
+# Profile `migrate` — dùng cho service `migrator` ở Staging/Production
+# (architecture-review.md §9.2, conventions.md §1.2).
+#
+#   java -jar songnhue-app.jar --spring.profiles.active=migrate
+#
+# Chạy Flyway rồi THOÁT: không mở cổng HTTP, không giữ luồng nào sống, nên tiến
+# trình kết thúc ngay sau khi migration xong.
+#   • migration thành công → exit 0 → docker-compose cho `app` khởi động
+#   • migration lỗi        → context không lên được → exit ≠ 0 → `app` KHÔNG chạy
+#
+# Đây chính là điều tránh "app lên nửa vời trên schema hỏng".
+# =============================================================================
+spring:
+  main:
+    web-application-type: none
+    banner-mode: "off"
+  flyway:
+    # Ép bật kể cả khi env FLYWAY_ENABLED=false (giá trị dành cho service `app`)
+    enabled: true
+
+# Migrator không phục vụ request → không cần endpoint giám sát nào
+management:
+  endpoints:
+    enabled-by-default: false
+
+logging:
+  level:
+    org.flywaydb: INFO

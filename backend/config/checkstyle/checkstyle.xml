@@ -75,7 +75,14 @@
         <module name="LocalVariableName"/>
         <module name="MemberName"/>
         <module name="StaticVariableName"/>
-        <module name="ConstantName"/>
+        <!--
+          Cho phép `log` bên cạnh HẰNG_SỐ viết hoa: Lombok @Slf4j sinh ra field tên
+          `log`, nên nếu bắt viết hoa thì logger khai báo tay và logger sinh tự động
+          sẽ mang hai tên khác nhau trong cùng codebase.
+        -->
+        <module name="ConstantName">
+            <property name="format" value="^(log|[A-Z][A-Z0-9]*(_[A-Z0-9]+)*)$"/>
+        </module>
         <module name="RecordComponentName"/>
         <module name="RecordTypeParameterName"/>
 

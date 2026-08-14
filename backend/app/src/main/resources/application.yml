@@ -9,6 +9,46 @@ spring:
     name: songnhue
   profiles:
     default: local
+
+  # Kết nối runtime dùng songnhue_app — KHÔNG có DELETE trên audit_logs /
+  # security_events / hydro_raw_logs (architecture-review.md §9.3).
+  # Không đặt giá trị mặc định: thiếu env là app không khởi động, đúng §1.6.
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    hikari:
+      pool-name: songnhue-pool
+      maximum-pool-size: ${DB_POOL_MAX:20}
+      minimum-idle: ${DB_POOL_MIN:5}
+      connection-timeout: 30000
+      # Ngắt kết nối rỗi để không giữ slot của Postgres qua đêm
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  # Migration chạy bằng songnhue_owner, KHÁC tài khoản runtime ở trên.
+  # Staging/Production: FLYWAY_ENABLED=false ở service `app`, migration chạy ở
+  # service `migrator` riêng trước đó (architecture-review.md §9.2) — migration
+  # hỏng thì app không lên nửa vời.
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    user: ${DB_MIGRATION_USER}
+    password: ${DB_MIGRATION_PASSWORD}
+    # Mỗi module tự quản migration của mình; version là timestamp toàn cục nên
+    # trộn 5 nguồn lại thứ tự vẫn đúng (conventions.md §1.2).
+    locations:
+      - classpath:db/migration/core
+      - classpath:db/migration/cms
+      - classpath:db/migration/ops
+      - classpath:db/migration/hyd
+      - classpath:db/migration/hr
+    # `flyway clean` xóa sạch schema — chặn cứng, không để lỡ tay trên production
+    clean-disabled: true
+    validate-on-migrate: true
+    out-of-order: false
+    baseline-on-migrate: false
+
   jackson:
     default-property-inclusion: non_null
     # Timestamp luôn là UTC ở tầng lưu trữ/API; convert UTC+7 chỉ ở tầng hiển thị

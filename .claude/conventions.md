@@ -38,7 +38,11 @@ Quy tắc:
 - **Vị trí migration**: mỗi module tự quản trong `src/main/resources/db/migration/<prefix>/`; module `app` gộp lại qua `spring.flyway.locations=classpath:db/migration/core,…/cms,…/ops,…/hyd,…/hr`. Version là timestamp toàn cục nên thứ tự vẫn đúng khi trộn nhiều module.
 - **Cấu hình Flyway bắt buộc**: `cleanDisabled=true` (chặn `flyway clean` xóa sạch production do lỡ tay) · `validateOnMigrate=true` · `outOfOrder=false`.
 - **Production/Staging chạy migration ở service `migrator` riêng** trước khi app khởi động; app chạy với `flyway.enabled=false` → migration hỏng thì app không lên nửa vời (`architecture-review.md` §9.2).
-- **Phân quyền DB theo role, không chỉ theo code**: `songnhue_owner` (chỉ migrator) · `songnhue_app` (**không có DELETE** trên `audit_logs`, `hydro_raw_logs`) · `songnhue_archiver` (DELETE audit, chỉ job kết xuất) · `songnhue_readonly`. Xem §4.3.
+- **Phân quyền DB theo role, không chỉ theo code**: `songnhue_owner` (chỉ migrator) · `songnhue_app` (**không có DELETE** trên `audit_logs`, `security_events`, `hydro_raw_logs`) · `songnhue_archiver` (DELETE audit, chỉ job kết xuất) · `songnhue_readonly`. Xem §4.3. Role tạo ở `deploy/postgres/init/10-bootstrap.sh` (cần superuser); GRANT ở migration.
+- **Extension** (`postgis`, `unaccent`, `pg_trgm`) tạo ở init script chứ không ở migration — `postgis` không phải *trusted extension* nên `songnhue_owner` không tự tạo được. Migration đầu tiên chỉ **verify** để lỗi hiện ra ngay kèm hướng dẫn.
+- ⚠ **Bảng append-only tạo sau phải tự REVOKE**: default privileges cấp sẵn `UPDATE, DELETE` cho `songnhue_app` trên mọi bảng mới. Migration tạo `hydro_raw_logs` (và mọi bảng bằng-chứng khác) **bắt buộc** revoke lại — nhắc sẵn ở `README.md` trong thư mục migration của từng module.
+- **Không dùng repeatable migration (`R__`)** cho danh mục quyền / tham số cấu hình: `R__` chạy lại mỗi khi file đổi, tức là ghi đè âm thầm — trái với "cấm sửa migration đã merge". Thêm quyền/setting mới = thêm file `V` mới.
+- Tránh đặt tên cột `key`, `value`, `order`, `group` — đều là **từ khóa JPQL/SQL**, phải escape ở mọi truy vấn. Bảng `settings` dùng `setting_key` / `setting_value`.
 
 ### 1.3. REST API
 
@@ -106,7 +110,10 @@ songnhue/
 |---|---|---|
 | `make dev-infra` | Chỉ PostgreSQL + MinIO + MailHog trong Docker, **expose port ra host** | Dev BE — sau đó `./mvnw -pl app spring-boot:run` từ IDE để có hot-reload/debug |
 | `make dev-docker` | **Toàn bộ** stack trong Docker (infra + app + admin-app + public-web) | FE/QA không cài JDK; kiểm thử gần giống production |
-| `make migrate` | Chạy service `migrator` | Sau khi thêm migration mới |
+| `make migrate` | Chạy service `migrator` trong Docker | Sau khi thêm migration mới |
+| `make migrate-native` | Chạy migration từ máy (profile `migrate`) | Dev BE chạy native, đã có `make dev-infra` |
+| `make migrate-info` | Liệt kê migration đã áp dụng | Đối chiếu phiên bản schema |
+| `make db-verify-audit` | Verify chuỗi hash `audit_logs` | Sau restore, sau sự cố, trước nghiệm thu |
 | `make test` | Unit + Testcontainers + ArchUnit | Trước khi push |
 | `make backup` / `make restore` | Dump thủ công / khôi phục | Vận hành, diễn tập |
 
@@ -258,6 +265,9 @@ Tầng 3 — Repository scope filter (org_unit)     → chặn dữ liệu (IDOR
 - Optimistic locking (`version`) trên mọi entity — 2 người sửa cùng lúc → 409, không silent overwrite.
 - Trạng thái chỉ đổi qua Workflow engine: kiểm tra `(from, action, role)` hợp lệ trong DB transaction — không thể ép trạng thái bằng cách gọi API update thường. Áp dụng cả cho `maintenance_logs.handling_status` (Mới → Đang xử lý → Đã xử lý).
 - **Audit log append-only + hash chain**: mỗi bản ghi audit chứa `hash = SHA-256(record + prev_hash)` — sửa/xóa lén audit sẽ phát hiện được khi verify chain; bảng audit không cấp quyền UPDATE/DELETE cho app user (GRANT chỉ INSERT/SELECT).
+  - ⭐ **Hash tính bằng trigger trong DB**, không tính ở Java (chốt WS-2): trigger là `SECURITY DEFINER` nên client gửi `seq`/`hash`/`prev_hash` lên cũng bị ghi đè — app không có quyền `UPDATE` trên `audit_chain_head` để tự nối chuỗi. Nếu tính ở tầng Java thì một bug ở app đủ để phá chuỗi mà không ai biết.
+  - Công thức băm nằm ở **đúng một chỗ**: `core_audit_canonical_payload()` + `core_audit_hash()`. API verify (T6.12) gọi `core_verify_audit_chain(from_seq, to_seq)` — **cấm cài lại công thức bên Java**, hai bản lệch nhau là chuỗi gãy giả.
+  - Thêm một lớp nữa: trigger `BEFORE UPDATE` chặn sửa `audit_logs` với **mọi** role, kể cả `songnhue_owner`.
 - **Kết xuất lưu trữ audit quá 5 năm (G7)**: chỉ được xóa khỏi bảng nóng **sau khi** file kết xuất đã ghi thành công lên MinIO **và** checksum SHA-256 verify khớp; lưu `hash` cuối của lô đã kết xuất làm **điểm neo** để chain tiếp tục liền mạch. Thất bại → không xóa dòng nào (`ADM-2001`) + alert Admin. Thao tác xóa này chạy bằng **DB role riêng có DELETE**, không dùng app user.
 - `hydro_raw_logs`: app DB user chỉ có INSERT/SELECT (enforce ở tầng DB, không chỉ ở code). Là **bản sao duy nhất** của dữ liệu nguồn (không có API lịch sử) → ghi nguyên văn response **trước khi** parse.
 - `construction_operation_status` **append-only theo nghiệp vụ**: cập nhật tình hình vận hành = thêm dòng mới có `effective_at`, không UPDATE dòng cũ — giữ được lịch sử đối soát.

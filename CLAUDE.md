@@ -71,7 +71,9 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 - 📋 **Bảng truy vết "chức năng nào còn chứa điểm chưa chốt"**: `business-open-questions.md` **Phần III** — dev đọc trước khi bắt tay vào 1 chức năng.
 - ✅ **Phase 0 đã có kế hoạch chi tiết (2026-08-13)** — `phase0-tracking.md`: 11 hạng mục, ~113 task, ~114 người-ngày. Quyết định nền tảng ghi ở `architecture-review.md` **§9**: Maven multi-module · monorepo · docker-compose **3 VM** · secrets env + GitHub Secrets · **migration chạy ở service `migrator` riêng** · **DB roles tách quyền**.
 - ⚠ **Backup đã hạ xuống bản tối giản (13/8/2026)**: `pg_dump` hàng đêm, **RPO ≤ 24h · RTO ≤ 4h**, **không PITR/WAL/replica** — chấp nhận mất tối đa 1 ngày dữ liệu. Bảng 4 rủi ro chấp nhận ở `architecture-review.md` §6.5. Đây là quyết định nội bộ, **không hỏi khách**.
-- ➡️ **Bước tiếp theo**: gửi 6 mục còn mở + `report-templates-proposal.md` cho Công ty; bắt đầu **Phase 0** theo `phase0-tracking.md` — trong đó **ArchUnit, 2FA Admin và khung giám sát dữ liệu quá hạn phải nằm trong Phase 0**, load test 200 CCU đưa vào kế hoạch từ Phase 2.
+- ✅ **WS-1 xong (13/8)**: monorepo + Maven multi-module 6 module + Spotless/Checkstyle/ESLint/Prettier + hook commit-msg + Makefile.
+- ✅ **WS-2 xong (14/8)**: 9 migration Flyway đa module · 25 bảng Core + 15 partition audit · 4 DB role tách quyền · 88 permission / 12 vai trò / 334 dòng phân quyền dịch từ ma trận §6 · 55 tham số `settings`. **Hash chain audit tính bằng trigger trong DB** (app không giả được chuỗi); `audit_logs` partition theo tháng. Tài khoản `superadmin` seed **không có mật khẩu** — kích hoạt bằng lệnh bootstrap ở T5.7.
+- ➡️ **Bước tiếp theo**: gửi 6 mục còn mở + `report-templates-proposal.md` cho Công ty; làm tiếp **WS-3 (Docker & môi trường chạy local)** theo `phase0-tracking.md` — trong đó **ArchUnit, 2FA Admin và khung giám sát dữ liệu quá hạn phải nằm trong Phase 0**, load test 200 CCU đưa vào kế hoạch từ Phase 2.
 
 ## Quy ước làm việc với user
 

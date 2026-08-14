@@ -1,6 +1,6 @@
 # PHASE 0 — CORE PLATFORM · BẢNG THEO DÕI TIẾN ĐỘ
 
-> **Cập nhật lần cuối**: 2026-08-13 · **Tiến độ: 6/107 task (6%)** · **DoD: 0/21** · Trạng thái: 🟡 Đang làm (xong WS-1)
+> **Cập nhật lần cuối**: 2026-08-14 · **Tiến độ: 16/107 task (15%)** · **DoD: 2/21** · Trạng thái: 🟡 Đang làm (xong WS-1, WS-2)
 > Nguồn ràng buộc: `conventions.md` (coding/security) · `architecture-review.md` §6, §9 (kiến trúc đã chốt) · `function-spec.md` (nghiệp vụ MOD-05)
 > **Cách dùng**: làm xong task nào tick `[x]` task đó; xong 1 WS thì chạy mục "Kiểm chứng" của WS rồi cập nhật bảng tổng + dòng "Cập nhật lần cuối" ở trên.
 
@@ -11,7 +11,7 @@
 | WS | Hạng mục | Task | Xong | Trạng thái | Phụ thuộc | Ước tính |
 |---|---|:-:|:-:|---|---|:-:|
 | **WS-1** | Repo & quy ước nền | 6 | **6** | ✅ **Xong** (13/8) | — | 2 pd |
-| **WS-2** | DB & Migration | 10 | 0 | ⬜ Chưa bắt đầu | WS-1 | 8 pd |
+| **WS-2** | DB & Migration | 10 | **10** | ✅ **Xong** (14/8) | WS-1 | 8 pd |
 | **WS-3** | Docker & môi trường chạy local | 7 | 0 | ⬜ Chưa bắt đầu | WS-1 | 5 pd |
 | **WS-4** | BE — Common Platform | 10 | 0 | ⬜ Chưa bắt đầu | WS-2 | 10 pd |
 | **WS-5** | BE — Auth & RBAC 3 tầng | 14 | 0 | ⬜ Chưa bắt đầu | WS-4 | 15 pd |
@@ -21,7 +21,7 @@
 | **WS-9** | FE — public-web | 5 | 0 | ⬜ Chưa bắt đầu | WS-1 | 5 pd |
 | **WS-10** | Test & CI | 7 | 0 | ⬜ Chưa bắt đầu | WS-4 | 10 pd |
 | **WS-11** | Deploy Staging & Production | 10 | 0 | ⬜ Chưa bắt đầu | WS-3, 7, 10 | 10 pd |
-| | **TỔNG** | **107** | **6** | | | **114 pd** |
+| | **TỔNG** | **107** | **16** | | | **114 pd** |
 
 *(107 task triển khai + 21 mục Definition of Done ở cuối file.)*
 
@@ -80,22 +80,52 @@ WS-1 ─► WS-2 ─► WS-3          [nền — bắt buộc trước mọi th�
 
 ---
 
-## WS-2 — DB & Migration · 8 pd
+## WS-2 — DB & Migration · 8 pd — ✅ **XONG 14/8/2026**
 
 **Tiên quyết**: WS-1. **Đầu ra**: DB rỗng chạy migration ra đủ schema Core + seed + phân quyền role.
 
-- [ ] **T2.1** Image `postgis/postgis:16-3.4`; bật extension `postgis`, `unaccent`, `pg_trgm` — *architecture §3*
-- [ ] **T2.2** Flyway đa module: mỗi module `resources/db/migration/<prefix>/`, `app` gộp qua `spring.flyway.locations`. Bật `validateOnMigrate=true`, `outOfOrder=false`, **`cleanDisabled=true`** — *§1.2*
-- [ ] **T2.3** Migration `core` — bảng nền: `users`, `roles`, `permissions`, `role_permissions`, `user_roles`, `org_units`, `sessions`, `token_denylist`, `user_totp`
-- [ ] **T2.4** Migration `core` — nền tảng: `attachments`, `settings`, `jobs`, `notifications`, `notification_recipients`, `workflow_definitions`, `workflow_transitions`, `holidays`, `code_sequences`, `shedlock`, `security_events`
-- [ ] **T2.5** Migration `core` — `audit_logs` **partition RANGE theo tháng** + cột `hash`/`prev_hash`; bảng `audit_archive_anchors` giữ điểm neo hash chain — *§4.3 + G7*
-- [ ] **T2.6** Job tạo partition tháng kế tiếp (chạy trước hạn, **idempotent**) — tránh insert lỗi đầu tháng
-- [ ] **T2.7** **DB roles tách quyền**: `songnhue_owner` (migrator) · `songnhue_app` (**không DELETE** trên `audit_logs`/`hydro_raw_logs`) · `songnhue_archiver` · `songnhue_readonly`. GRANT trong migration, CREATE ROLE ở init script — *§1.2, §4.3 "enforce ở tầng DB"*
-- [ ] **T2.8** Cột chuẩn: `id BIGINT IDENTITY`, **`public_id UUID`**, `created_at/by`, `updated_at/by`, `deleted_at`, `version`; enum lưu `VARCHAR` + CHECK — *§1.2*
-- [ ] **T2.9** Seed: org_units gốc, roles + permissions dịch từ ma trận RBAC `function-spec.md` §6, tài khoản Super Admin (bắt đổi mật khẩu + bắt buộc 2FA)
-- [ ] **T2.10** Seed `settings` — các tham số bắt buộc theo `function-spec.md` CN-05.3 (giờ hành chính 08:00–17:00, retention 5 năm, cron polling `45 1/2 * * * *`, khung 10', ngưỡng mất tín hiệu 3 khung…) — *rule 12 CLAUDE.md*
+- [x] **T2.1** Image `postgis/postgis:16-3.4`; bật extension `postgis`, `unaccent`, `pg_trgm` — *architecture §3*
+- [x] **T2.2** Flyway đa module: mỗi module `resources/db/migration/<prefix>/`, `app` gộp qua `spring.flyway.locations`. Bật `validateOnMigrate=true`, `outOfOrder=false`, **`cleanDisabled=true`** — *§1.2*
+- [x] **T2.3** Migration `core` — bảng nền: `users`, `roles`, `permissions`, `role_permissions`, `user_roles`, `org_units`, `sessions`, `token_denylist`, `user_totp`
+- [x] **T2.4** Migration `core` — nền tảng: `attachments`, `settings`, `jobs`, `notifications`, `notification_recipients`, `workflow_definitions`, `workflow_transitions`, `holidays`, `code_sequences`, `shedlock`, `security_events`
+- [x] **T2.5** Migration `core` — `audit_logs` **partition RANGE theo tháng** + cột `hash`/`prev_hash`; bảng `audit_archive_anchors` giữ điểm neo hash chain — *§4.3 + G7*
+- [x] **T2.6** Job tạo partition tháng kế tiếp (chạy trước hạn, **idempotent**) — tránh insert lỗi đầu tháng
+- [x] **T2.7** **DB roles tách quyền**: `songnhue_owner` (migrator) · `songnhue_app` (**không DELETE** trên `audit_logs`/`hydro_raw_logs`) · `songnhue_archiver` · `songnhue_readonly`. GRANT trong migration, CREATE ROLE ở init script — *§1.2, §4.3 "enforce ở tầng DB"*
+- [x] **T2.8** Cột chuẩn: `id BIGINT IDENTITY`, **`public_id UUID`**, `created_at/by`, `updated_at/by`, `deleted_at`, `version`; enum lưu `VARCHAR` + CHECK — *§1.2*
+- [x] **T2.9** Seed: org_units gốc, roles + permissions dịch từ ma trận RBAC `function-spec.md` §6, tài khoản Super Admin (bắt đổi mật khẩu + bắt buộc 2FA)
+- [x] **T2.10** Seed `settings` — các tham số bắt buộc theo `function-spec.md` CN-05.3 (giờ hành chính 08:00–17:00, retention 5 năm, cron polling `45 1/2 * * * *`, khung 10', ngưỡng mất tín hiệu 3 khung…) — *rule 12 CLAUDE.md*
 
-**Kiểm chứng**: DB volume mới → `make migrate` → `flyway_schema_history` đủ version, không lỗi · `songnhue_app` thử `UPDATE audit_logs` → **bị DB từ chối**.
+**Kết quả**: 9 migration · **40 bảng** (25 bảng nghiệp vụ + 15 partition audit) · **88 permission** · **12 vai trò** · **334 dòng phân quyền** · **55 tham số cấu hình**.
+
+**Kiểm chứng — đã chạy trên volume Postgres rỗng hoàn toàn**:
+- ✅ Init script tạo **4 role + 3 extension**; `make migrate-native` → 9/9 migration, không lỗi
+- ✅ Chạy migrator **lần 2 → exit 0**, không áp dụng lại (idempotent, `validateOnMigrate` qua)
+- ✅ `make migrate-info` liệt kê đủ 9 version, `success = t`
+- ✅ **App thường khởi động với `FLYWAY_ENABLED=false`** → health UP, **0 dòng log Flyway** (đúng mô hình migrator riêng)
+- ✅ **`songnhue_app` bị DB từ chối**: `UPDATE`/`DELETE` `audit_logs` (cả qua bảng cha lẫn **thẳng vào partition**), `TRUNCATE` partition, mọi thao tác trên `audit_chain_head`, `DELETE security_events`, ghi `flyway_schema_history`
+- ✅ **Client không giả được chuỗi hash**: INSERT kèm `seq=999999` + `hash=f×64` → trigger ghi đè thành `seq=4` và hash thật
+- ✅ **Phát hiện sửa lén**: tắt trigger bằng superuser rồi `UPDATE` → verify báo *"Nội dung bản ghi không khớp hash"*
+- ✅ **Phát hiện xóa lén**: archiver xóa 1 dòng giữa chuỗi → verify báo *"prev_hash không khớp bản ghi liền trước"*
+- ✅ **Trigger chặn UPDATE với cả `songnhue_owner`**, không riêng app user
+- ✅ Định tuyến partition đúng (bản ghi lùi 20 ngày → `audit_logs_p202607`); **`audit_logs_default` rỗng**; gọi lại hàm tạo partition → tạo thêm **0** (idempotent)
+- ✅ `songnhue_readonly` đọc được, **ghi bị từ chối**
+- ⬜ **Chưa kiểm chứng bằng chạy thật**: `clean-disabled=true` — chỉ là cấu hình, không có đường code nào trong app gọi `flyway clean`. Đưa vào test tự động ở WS-10.
+
+**Quyết định phát sinh khi làm** (khác/bổ sung so với kế hoạch):
+| Việc | Xử lý |
+|---|---|
+| Hash chain tính ở đâu | **Trong DB bằng trigger `SECURITY DEFINER`**, không ở Java — app không có `UPDATE` trên `audit_chain_head` nên không tự nối chuỗi được. Đổi lại insert audit bị tuần tự hóa qua 1 dòng khóa (chấp nhận được ở tải này) |
+| Partition hết runway thì sao | Thêm partition **`DEFAULT`** làm lưới an toàn + tạo sẵn **12 tháng**. Thà ghi chậm còn hơn `INSERT` lỗi làm hỏng giao dịch nghiệp vụ. Runbook gỡ kẹt: `docs/runbook/audit-partition.md` |
+| Mật khẩu Super Admin | Seed `PENDING_ACTIVATION` + `password_hash = '!'` — **không có mật khẩu mặc định trong repo**. Kích hoạt bằng `BOOTSTRAP_ADMIN_PASSWORD` → **thêm việc cho T5.7** |
+| `security_events` | Siết append-only **giống `audit_logs`** (kế hoạch chỉ nêu `audit_logs`/`hydro_raw_logs`) — cũng là bằng chứng điều tra sự cố |
+| Quyền trên partition | Không kế thừa từ bảng cha khi truy vấn thẳng vào partition → hàm tạo partition phải tự `GRANT`/`REVOKE`, nếu không app xóa được bằng `DELETE FROM audit_logs_p202608` |
+| Repeatable migration `R__` | **Không dùng** cho danh mục quyền/settings — `R__` ghi đè âm thầm, trái quy tắc "cấm sửa migration đã merge" |
+| Tên cột `key`/`value` | Đổi thành `setting_key`/`setting_value` — `KEY()`/`VALUE()` là từ khóa JPQL |
+| Checkstyle `ConstantName` | Cho phép thêm tên `log` — Lombok `@Slf4j` sinh field tên `log`, bắt viết hoa thì logger tay và logger sinh tự động lệch tên nhau |
+| `make migrate-info` (từ WS-1) | Trỏ `flyway-maven-plugin` **chưa hề được cấu hình** → viết lại bằng `psql` đọc `flyway_schema_history`. Thêm `make migrate-native`, `make db-verify-audit` |
+| Danh sách Xí nghiệp/phòng ban | **Cố ý không seed** — cơ cấu tổ chức thật nằm ở mục **G8** còn chờ Công ty. Chỉ seed đơn vị gốc `CTY` |
+| Ngày lễ | Chỉ seed lễ **dương lịch cố định** (2026–2027). Tết, Giỗ Tổ, ngày nghỉ bù Quốc khánh đổi theo năm → Admin nhập qua UI |
+| Quyền của `ADMIN` | **Không** có `hr:employee:view-sensitive` — §6 ghi trường 🔒 chỉ Admin HR + chính NV. Chỗ dễ sai nhất nếu hiểu "Admin = toàn quyền" |
 
 ---
 
@@ -145,6 +175,7 @@ WS-1 ─► WS-2 ─► WS-3          [nền — bắt buộc trước mọi th�
 - [ ] **T5.5** CSRF double-submit (`X-CSRF-Token`) cho mọi request thay đổi dữ liệu — *§4.1*
 - [ ] **T5.6** Login lockout 5 lần/15' → `AUTH-0003`; message chung `AUTH-0001` **không tiết lộ user có tồn tại** — *§4.1*
 - [ ] **T5.7** BCrypt cost ≥ 12; policy ≥10 ký tự chữ+số; bắt đổi mật khẩu lần đầu — *§4.1*
+  - ⚠ **Kèm theo (phát sinh từ WS-2)**: lệnh **bootstrap tài khoản `superadmin`** đọc `BOOTSTRAP_ADMIN_PASSWORD` từ env, đặt mật khẩu và chuyển `PENDING_ACTIVATION` → `ACTIVE`. Migration cố ý seed tài khoản **không có mật khẩu** (`password_hash = '!'`) để repo không chứa mật khẩu mặc định → **chưa có lệnh này thì không ai đăng nhập được**
 - [ ] **T5.8** **2FA TOTP bắt buộc Admin + Admin HR** (enroll, QR, verify, recovery code) — *§4.1 + G12*
 - [ ] **T5.9** Tầng 2 — `@RequirePermission("module:resource:action")` + interceptor — *§4.2*
 - [ ] **T5.10** **Deny by default**: test CI quét toàn bộ controller method, thiếu annotation → **CI fail** — *§4.2*
@@ -285,13 +316,13 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 0 hoàn thành:
 - [ ] **1. Chạy native** — `make dev-infra` → `./mvnw -pl app spring-boot:run` → `GET /actuator/health` = UP
 - [ ] **2. Chạy full Docker** — `make dev-docker` → admin-app + public-web + API cùng lúc
 - [ ] **3. Fail-fast thiếu env** — xóa 1 biến bắt buộc → app **không khởi động**, log chỉ rõ key thiếu
-- [ ] **4. Migration sạch từ DB rỗng** — `flyway_schema_history` đủ version, không lỗi
+- [x] **4. Migration sạch từ DB rỗng** — `flyway_schema_history` đủ version, không lỗi ✅ *14/8: 9/9 migration trên volume rỗng, chạy lại lần 2 exit 0*
 - [ ] **5. Auth + 2FA** — login Super Admin → bắt đổi mật khẩu → enroll TOTP → nhận access + refresh cookie
 - [ ] **6. Refresh reuse detection** — dùng lại refresh token cũ → thu hồi family + security event
 - [ ] **7. RBAC 3 tầng** — đúng quyền → 200 · thiếu permission → 403 `AUTH-3001` · ngoài đơn vị → 403 `AUTH-3002`
 - [ ] **8. Deny by default** — endpoint không có `@RequirePermission` → **CI fail**
 - [ ] **9. Envelope + traceId** — mọi response (kể cả lỗi) đúng §2.1, luôn có `traceId`
-- [ ] **10. Audit hash chain** — verify chain pass; `songnhue_app` thử `UPDATE audit_logs` → **bị DB từ chối**
+- [x] **10. Audit hash chain** — verify chain pass; `songnhue_app` thử `UPDATE audit_logs` → **bị DB từ chối** ✅ *14/8: chặn cả qua bảng cha lẫn thẳng vào partition; thử sửa/xóa lén đều bị verify phát hiện*
 - [ ] **11. Attachment** — upload → MinIO; sai magic bytes → từ chối; presigned URL hết hạn đúng TTL
 - [ ] **12. Async job** — `POST` → 202 + `jobId` → worker chạy → notification in-app + email (MailHog)
 - [ ] **13. Backup** — dump + checksum khớp, **nằm trên VM-3, không cùng máy DB**; prune giữ đúng 30 ngày
@@ -310,5 +341,6 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 0 hoàn thành:
 
 | Ngày | Nội dung |
 |---|---|
+| 2026-08-14 | **WS-2 xong**. Chốt: hash chain audit tính bằng **trigger trong DB** (không ở Java) · `audit_logs` có partition **`DEFAULT`** + 12 tháng runway · Super Admin seed **không mật khẩu**, kích hoạt bằng lệnh bootstrap (thêm việc cho T5.7) · `security_events` cũng append-only · **không dùng `R__`** cho danh mục quyền/settings. Sửa `make migrate-info` (WS-1 trỏ plugin chưa cấu hình), thêm `make migrate-native` + `make db-verify-audit`. Đồng bộ `architecture-review.md` §9.3, `conventions.md` §1.2/§1.7/§4.3. |
 | 2026-08-13 | **WS-1 xong**. Chốt Spring Boot **3.5.3**, formatter **Palantir Java Format** (4 space/120 cột), checkstyle config đặt ở `backend/config/checkstyle/`. Wrapper Maven 3.9.9 sinh qua Docker. |
 | 2026-08-13 | Lập kế hoạch Phase 0. Chốt Maven multi-module · monorepo · deploy compose 3 VM · secrets env+GitHub Secrets · migration service riêng · DB roles tách quyền. **Backup hạ xuống bản tối giản** (RPO 24h, RTO 4h, không PITR/replica) — đồng bộ ngược vào `function-spec.md`, `architecture-review.md` §6.5/§9, `conventions.md` §1.2/§1.7. |

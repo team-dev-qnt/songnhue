@@ -315,7 +315,10 @@ Toàn bộ quyết định §1–§7 giữ nguyên: PostgreSQL 16 + PostGIS, Mod
 | Hạng mục | Chốt |
 |---|---|
 | Secrets | **GitHub Secrets** cho CI · `/opt/songnhue/.env` (chmod 600) trên VM cho runtime · key AES/JWT ở `/opt/songnhue/keys/` **ngoài bản backup DB**. Không dùng Vault ở v1 |
-| **DB roles tách quyền** | `songnhue_owner` (chỉ migrator) · `songnhue_app` (**không có DELETE** trên `audit_logs`/`hydro_raw_logs`) · `songnhue_archiver` (DELETE audit, chỉ job kết xuất) · `songnhue_readonly`. GRANT trong migration, CREATE ROLE ở init script |
+| **DB roles tách quyền** | `songnhue_owner` (chỉ migrator) · `songnhue_app` (**không có DELETE** trên `audit_logs`/`security_events`/`hydro_raw_logs`) · `songnhue_archiver` (DELETE audit, chỉ job kết xuất) · `songnhue_readonly`. GRANT trong migration, CREATE ROLE ở init script |
+| **Hash chain audit tính ở DB** (chốt 14/8 khi làm WS-2) | Trigger `SECURITY DEFINER` cấp `seq`/`prev_hash`/`hash`; app chỉ có `INSERT` và **không** có `UPDATE` trên `audit_chain_head` → client không tự nối chuỗi được, gửi hash giả lên cũng bị ghi đè. Đổi lại: insert audit bị tuần tự hóa qua 1 dòng khóa — chấp nhận được với tải vài nghìn bản ghi/ngày. Verify bằng `core_verify_audit_chain()`, **cấm cài lại công thức băm ở Java** |
+| **`audit_logs` partition theo tháng** | Tạo sẵn **12 tháng runway** lúc migrate + job hằng tháng giữ ≥6 tháng. Có **partition `DEFAULT`** làm lưới an toàn: job chết thì bản ghi vẫn vào được, chỉ chậm — thà ghi chậm còn hơn `INSERT` lỗi làm hỏng giao dịch nghiệp vụ. Gỡ kẹt: `docs/runbook/audit-partition.md` |
+| **Tài khoản Super Admin** | Seed ở trạng thái `PENDING_ACTIVATION`, `password_hash = '!'` (không mật khẩu nào khớp). **Không có mật khẩu mặc định trong repo.** Kích hoạt bằng lệnh bootstrap đọc `BOOTSTRAP_ADMIN_PASSWORD` từ env, chạy 1 lần lúc dựng môi trường (WS-5/T5.7) |
 | Rate limit | In-process (Caffeine) qua interface `RateLimitStore` — **1 node nên chấp nhận được**; lên ≥2 node phải đổi impl sang DB |
 
 ### 9.4. Nơi dồn công
