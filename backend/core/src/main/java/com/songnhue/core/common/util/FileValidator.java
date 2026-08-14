@@ -109,6 +109,32 @@ public final class FileValidator {
         return safe.isEmpty() ? UUID.randomUUID().toString() : UUID.randomUUID() + "." + safe;
     }
 
+    /**
+     * Phần mở rộng suy ra từ MIME <b>đã xác thực bằng magic bytes</b>.
+     *
+     * <p>Dùng hàm này làm đầu vào cho {@link #randomStorageName(String)}. Lấy đuôi từ tên gốc do
+     * người dùng đặt là đưa {@code anh.jpg.exe} nguyên đuôi {@code .exe} vào kho lưu trữ — đúng thứ
+     * mà việc đặt tên ngẫu nhiên sinh ra để chặn.
+     */
+    public static String extensionOf(String mimeType) {
+        if (mimeType == null) {
+            return "bin";
+        }
+        return switch (mimeType) {
+            case "image/jpeg" -> "jpg";
+            case "image/png" -> "png";
+            case "image/gif" -> "gif";
+            case "image/webp" -> "webp";
+            case "application/pdf" -> "pdf";
+            case "application/zip" -> "zip";
+            case "application/vnd.openxmlformats-officedocument.wordprocessingml.document" -> "docx";
+            case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" -> "xlsx";
+            case "application/msword" -> "doc";
+            case "application/vnd.ms-excel" -> "xls";
+            default -> "bin";
+        };
+    }
+
     private static boolean isWebp(byte[] content) {
         if (content.length < 12) {
             return false;

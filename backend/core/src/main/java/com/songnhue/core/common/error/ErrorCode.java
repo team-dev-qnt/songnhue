@@ -36,6 +36,8 @@ public enum ErrorCode {
     SYS_0007("SYS-0007", HttpStatus.SERVICE_UNAVAILABLE),
     /** Vi phạm rule nghiệp vụ chưa có mã riêng — mặc định của {@code BusinessRuleException}. */
     SYS_0008("SYS-0008", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Tệp chưa quét virus xong hoặc đã bị cách ly — {0} là trạng thái quét. */
+    SYS_0009("SYS-0009", HttpStatus.CONFLICT),
 
     // ---- Xác thực & phân quyền -------------------------------------------------
     /** Message cố ý mơ hồ: không tiết lộ tài khoản có tồn tại hay không (§4.1). */

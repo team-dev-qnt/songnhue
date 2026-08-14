@@ -17,6 +17,9 @@ public final class JobTypes {
     /** Dọn chính bảng hàng đợi — job đã xong không phải nơi lưu lịch sử. */
     public static final String JOB_PURGE = "JOB_PURGE";
 
+    /** Quét virus tệp vừa tải lên; xong mới cho tệp chuyển sang tải xuống được (T6.4). */
+    public static final String VIRUS_SCAN = "VIRUS_SCAN";
+
     /** Gửi các thông báo đang chờ ở kênh email (T6.6). */
     public static final String NOTIFICATION_DISPATCH = "NOTIFICATION_DISPATCH";
 
