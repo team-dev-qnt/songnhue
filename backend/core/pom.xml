@@ -82,5 +82,32 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-aop</artifactId>
         </dependency>
+        <!--
+          ShedLock — khoá phân tán cho job theo lịch. CÀI SẴN NHƯNG TẮT ở v1 (chạy 1 node):
+          bật bằng SHEDLOCK_ENABLED khi lên ≥2 node, không phải sửa mã (architecture-review.md §6.2).
+          Bảng `shedlock` đã có từ WS-2 theo đúng schema chuẩn của provider jdbc-template.
+          ⚠ ShedLock chỉ dành cho job THEO LỊCH. Hàng đợi `jobs` KHÔNG dùng nó — ở đó việc tranh
+          chấp giải bằng FOR UPDATE SKIP LOCKED, vốn cho nhiều worker chạy song song thay vì
+          chỉ cho một node chạy.
+        -->
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-spring</artifactId>
+            <version>${shedlock.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-provider-jdbc-template</artifactId>
+            <version>${shedlock.version}</version>
+        </dependency>
+        <!--
+          MinIO — nơi duy nhất chứa tệp tin. App stateless tuyệt đối, không ghi file xuống đĩa
+          cục bộ ngay từ v1 (ràng buộc thiết kế #3 của Phase 0).
+        -->
+        <dependency>
+            <groupId>io.minio</groupId>
+            <artifactId>minio</artifactId>
+            <version>${minio.version}</version>
+        </dependency>
     </dependencies>
 </project>

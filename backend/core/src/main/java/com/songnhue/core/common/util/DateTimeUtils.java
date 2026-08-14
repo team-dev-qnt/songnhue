@@ -28,6 +28,14 @@ public final class DateTimeUtils {
     /** Múi giờ hiển thị của toàn hệ thống. */
     public static final ZoneId ZONE_VN = ZoneId.of("Asia/Ho_Chi_Minh");
 
+    /**
+     * Cùng múi giờ trên, dạng chuỗi — {@code @Scheduled(zone = …)} chỉ nhận String.
+     *
+     * <p>Bỏ trống thuộc tính {@code zone} thì cron chạy theo múi giờ của <b>máy chủ</b>: container
+     * chạy UTC nên "03:15" hoá thành 10:15 sáng giờ Việt Nam, tức là giữa giờ làm việc.
+     */
+    public static final String ZONE_VN_ID = "Asia/Ho_Chi_Minh";
+
     /** Định dạng hiển thị chuẩn (conventions.md §3). */
     public static final DateTimeFormatter DISPLAY_DATE_TIME = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 

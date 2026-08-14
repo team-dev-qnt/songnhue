@@ -45,6 +45,13 @@
           Không có phụ thuộc bắc cầu nào.
         -->
         <nimbus-jose-jwt.version>10.9.1</nimbus-jose-jwt.version>
+        <!--
+          Không nằm trong BOM của Spring Boot, phải tự ghim phiên bản.
+          ShedLock: khoá phân tán cho job theo lịch — cài sẵn nhưng TẮT ở v1 (1 node), bật bằng
+          env khi lên ≥2 node (architecture-review.md §6.2). MinIO: client duy nhất cho tệp tin.
+        -->
+        <shedlock.version>6.9.0</shedlock.version>
+        <minio.version>8.5.17</minio.version>
 
         <!--
           `mvn -pl app -am spring-boot:run` kéo cả POM cha và module `core` vào reactor, và goal

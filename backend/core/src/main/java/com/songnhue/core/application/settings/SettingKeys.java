@@ -26,11 +26,20 @@ public final class SettingKeys {
     public static final String OFFICE_HOURS_START = "security.office-hours.start";
     public static final String OFFICE_HOURS_END = "security.office-hours.end";
 
+    // --- Cây tổ chức (T6.1) ---------------------------------------------------
+    public static final String ORG_TREE_MAX_DEPTH = "org.tree.max-depth";
+
     // --- Giá trị dự phòng, khớp đúng seed migration ---------------------------
     public static final int DEFAULT_PASSWORD_MIN_LENGTH = 10;
     public static final int DEFAULT_MAX_FAILED_ATTEMPTS = 5;
     public static final int DEFAULT_FAILED_WINDOW_MINUTES = 15;
     public static final int DEFAULT_LOCKOUT_MINUTES = 15;
+
+    /**
+     * Số cấp tối đa của cây tổ chức. Spec yêu cầu <b>tối thiểu 5 cấp</b> (Công ty → phòng/Xí nghiệp →
+     * tổ đội → …); để 8 là dư biên mà vẫn chặn được vòng lặp sinh cây vô hạn do lỗi lập trình.
+     */
+    public static final int DEFAULT_ORG_TREE_MAX_DEPTH = 8;
 
     private SettingKeys() {}
 }

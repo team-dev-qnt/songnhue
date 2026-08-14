@@ -28,4 +28,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * (conventions.md §4.2 chống IDOR). Cấm dùng {@code findById} với id lấy từ request.
      */
     Optional<User> findByPublicIdAndDeletedAtIsNull(UUID publicId);
+
+    /** Chặn xoá đơn vị còn người trực thuộc (T6.1) — người dùng mồ côi đơn vị thì mất luôn phạm vi. */
+    boolean existsByOrgUnitIdAndDeletedAtIsNull(Long orgUnitId);
 }

@@ -83,7 +83,12 @@ public enum ErrorCode {
     HR_2001("HR-2001", HttpStatus.UNPROCESSABLE_ENTITY),
 
     // ---- MOD-05 Quản trị --------------------------------------------------------
-    ADM_2001("ADM-2001", HttpStatus.UNPROCESSABLE_ENTITY);
+    ADM_2001("ADM-2001", HttpStatus.UNPROCESSABLE_ENTITY),
+    ADM_2002("ADM-2002", HttpStatus.CONFLICT),
+    /** Chuyển đơn vị vào chính cây con của nó — cắt rời cả nhánh khỏi cây mà dữ liệu vẫn còn. */
+    ADM_2003("ADM-2003", HttpStatus.UNPROCESSABLE_ENTITY),
+    ADM_2004("ADM-2004", HttpStatus.CONFLICT),
+    ADM_2005("ADM-2005", HttpStatus.UNPROCESSABLE_ENTITY);
 
     private final String code;
     private final HttpStatus status;
