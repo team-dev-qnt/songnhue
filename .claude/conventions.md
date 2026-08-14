@@ -22,6 +22,7 @@ com.songnhue.<module>/
 
 Quy tắc:
 - Module khác **chỉ được import `spi/`** — ArchUnit test chặn trong CI (đã chốt).
+- ⭐ **Ngoại lệ duy nhất: `com.songnhue.core.common.*`** (Common Platform §2) — envelope, exception, mã lỗi, filter, utils, `BaseEntity`. Đây là hạ tầng dùng chung chứ không phải dịch vụ nghiệp vụ, mọi module import trực tiếp. Rule ArchUnit (T10.2) phải cho phép `<module>.spi.*` **và** `core.common.*`, chặn phần còn lại.
 - Entity không bao giờ ra khỏi tầng application — controller chỉ nhận/trả DTO (Java `record`), map bằng MapStruct.
 - `@Transactional` chỉ đặt ở application service, không ở controller/repository.
 - Naming: `XxxController`, `XxxService` (interface) / `XxxServiceImpl`, `XxxRepository`, DTO: `XxxRequest` / `XxxResponse` / `XxxDto`.
@@ -188,8 +189,14 @@ Format: `<PREFIX>-<4 số>` — prefix theo module: `SYS` (hệ thống), `AUTH`
 
 | Code | HTTP | Message (vi) |
 |---|---|---|
-| SYS-0001 | 500 | Lỗi hệ thống, vui lòng thử lại. Mã: {traceId} |
+| SYS-0001 | 500 | Lỗi hệ thống, vui lòng thử lại. Mã tra cứu: {0} |
 | SYS-0002 | 429 | Thao tác quá nhanh, vui lòng thử lại sau |
+| **SYS-0003** | 400 | Dữ liệu gửi lên không hợp lệ — *mặc định của `ValidationException`* |
+| **SYS-0004** | 404 | Không tìm thấy dữ liệu — *mặc định của `ResourceNotFoundException`* |
+| **SYS-0005** | 409 | Dữ liệu vừa được người khác thay đổi — *optimistic lock, trùng unique* |
+| **SYS-0006** | 502 | Hệ thống bên ngoài không phản hồi — *mặc định của `UpstreamException`* |
+| **SYS-0007** | 503 | Hệ thống đang bảo trì — *maintenance mode lúc khôi phục dữ liệu (M5.11)* |
+| **SYS-0008** | 422 | Thao tác không hợp lệ với trạng thái hiện tại — *mặc định của `BusinessRuleException`* |
 | AUTH-0001 | 401 | Sai tên đăng nhập hoặc mật khẩu |
 | AUTH-0002 | 401 | Phiên đăng nhập hết hạn |
 | AUTH-0003 | 423 | Tài khoản tạm khóa do đăng nhập sai nhiều lần |
@@ -217,19 +224,24 @@ Format: `<PREFIX>-<4 số>` — prefix theo module: `SYS` (hệ thống), `AUTH`
 > ⚠ **Đã gỡ (12/8/2026)**: `OPS-2001` cũ ("nhập bù tối đa 3 ngày") và `OPS-2003` cũ ("lưu lượng vượt 120% thiết kế") — thuộc nhật ký vận hành đã bỏ khỏi scope. Hai mã này **đã được tái sử dụng** cho rule mới ở bảng trên; khi đọc code/log cũ phải chú ý.
 > ℹ **Không phải lỗi**: lượt polling bị bỏ qua do rate-limit (`sync_logs = SKIPPED_UP_TO_DATE`, chốt G3) **không** sinh error code, không alert — chỉ ghi log DEBUG.
 
-- Message tiếng Việt tập trung 1 file `error-messages_vi.properties` (BE) — FE có bản mirror `shared/error-map.ts` (fallback dùng message từ API). Thêm code mới = thêm vào catalog, có review; cấm hardcode message trong controller/service.
+- Message tiếng Việt tập trung 1 file **`error-messages.properties`** (BE) — FE có bản mirror `shared/error-map.ts` (fallback dùng message từ API). Thêm code mới = thêm vào catalog, có review; cấm hardcode message trong controller/service.
+  - ⚠ **Tên file KHÔNG có hậu tố `_vi` — cố ý.** `MessageSourceAutoConfiguration` của Spring Boot chỉ tạo `MessageSource` khi tìm thấy đúng file basename; chỉ có `error-messages_vi.properties` thì **không MessageSource nào được tạo** và mọi lỗi trả ra khoá thô (`OPS-2001`) thay vì câu tiếng Việt. Lỗi này im lặng hoàn toàn, chỉ lộ khi người dùng gặp lỗi thật. `ErrorCatalogTest` chặn ở CI: mọi `ErrorCode` phải có message, và file không được có khoá thừa.
+  - Tham số trong message dùng cú pháp `MessageFormat` (`{0}`, `{1}`), **không phải** `{traceId}`.
 - Workflow engine trả lỗi transition không hợp lệ bằng code chung `<MOD>-2xxx` + details `{from, action, allowedActions}`.
 
 ### 2.4. Middleware / Filter chain (thứ tự cố định)
 
+> Thứ tự khai báo bằng hằng số ở `FilterOrder` (core) — WS-5 chỉ cắm filter vào vị trí đã chừa sẵn, không sửa filter có trước. Ghi log là **filter** chứ không phải `HandlerInterceptor`: interceptor không thấy request bị chặn từ tầng filter và không đo được trọn thời gian xử lý.
+
 ```
 Request → [1] CorrelationFilter (sinh/nhận traceId, MDC cho log)
+        → [1b] RequestLoggingFilter (nằm TRONG correlation, NGOÀI rate limit — để request bị chặn 429 vẫn được ghi log)
         → [2] RateLimitFilter (bucket theo IP + user; login có bucket riêng)
         → [3] AuthFilter (verify access token, check denylist ở bảng DB)
         → [4] ScopeContextFilter (load user → role, permissions, org_unit vào SecurityContext)
         → [5] AuditContextFilter (gắn user/traceId cho audit interceptor)
         → Controller → Service → Repository (scope filter tự áp — mục 5.3)
-Response ← GlobalExceptionHandler / ResponseBodyAdvice (envelope) ← LoggingInterceptor (method, path, status, duration — KHÔNG log body chứa dữ liệu nhạy cảm)
+Response ← GlobalExceptionHandler / ResponseBodyAdvice (envelope) ← RequestLoggingFilter (method, path, status, duration — KHÔNG log body chứa dữ liệu nhạy cảm)
 ```
 
 ### 2.5. Utils dùng chung (Core `common/util` — cấm viết lại trong module)

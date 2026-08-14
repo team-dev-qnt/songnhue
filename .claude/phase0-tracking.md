@@ -1,6 +1,6 @@
 # PHASE 0 — CORE PLATFORM · BẢNG THEO DÕI TIẾN ĐỘ
 
-> **Cập nhật lần cuối**: 2026-08-14 · **Tiến độ: 22/107 task (21%)** · **DoD: 3/21** · Trạng thái: 🟡 Đang làm (xong WS-1, WS-2; WS-3 còn T3.4)
+> **Cập nhật lần cuối**: 2026-08-14 · **Tiến độ: 32/107 task (30%)** · **DoD: 4/21** · Trạng thái: 🟡 Đang làm (xong WS-1, WS-2, WS-4; WS-3 còn T3.4)
 > Nguồn ràng buộc: `conventions.md` (coding/security) · `architecture-review.md` §6, §9 (kiến trúc đã chốt) · `function-spec.md` (nghiệp vụ MOD-05)
 > **Cách dùng**: làm xong task nào tick `[x]` task đó; xong 1 WS thì chạy mục "Kiểm chứng" của WS rồi cập nhật bảng tổng + dòng "Cập nhật lần cuối" ở trên.
 
@@ -13,7 +13,7 @@
 | **WS-1** | Repo & quy ước nền | 6 | **6** | ✅ **Xong** (13/8) | — | 2 pd |
 | **WS-2** | DB & Migration | 10 | **10** | ✅ **Xong** (14/8) | WS-1 | 8 pd |
 | **WS-3** | Docker & môi trường chạy local | 7 | **6** | 🟡 **6/7** (14/8) — T3.4 chờ WS-8/9 | WS-1 | 5 pd |
-| **WS-4** | BE — Common Platform | 10 | 0 | ⬜ Chưa bắt đầu | WS-2 | 10 pd |
+| **WS-4** | BE — Common Platform | 10 | **10** | ✅ **Xong** (14/8) | WS-2 | 10 pd |
 | **WS-5** | BE — Auth & RBAC 3 tầng | 14 | 0 | ⬜ Chưa bắt đầu | WS-4 | 15 pd |
 | **WS-6** | BE — Core services | 15 | 0 | ⬜ Chưa bắt đầu | WS-4, WS-5 | 25 pd |
 | **WS-7** | BE — Backup/Restore & Observability | 12 | 0 | ⬜ Chưa bắt đầu | WS-6 | 9 pd |
@@ -21,7 +21,7 @@
 | **WS-9** | FE — public-web | 5 | 0 | ⬜ Chưa bắt đầu | WS-1 | 5 pd |
 | **WS-10** | Test & CI | 7 | 0 | ⬜ Chưa bắt đầu | WS-4 | 10 pd |
 | **WS-11** | Deploy Staging & Production | 10 | 0 | ⬜ Chưa bắt đầu | WS-3, 7, 10 | 10 pd |
-| | **TỔNG** | **107** | **22** | | | **114 pd** |
+| | **TỔNG** | **107** | **32** | | | **114 pd** |
 
 *(107 task triển khai + 21 mục Definition of Done ở cuối file.)*
 
@@ -178,22 +178,54 @@ WS-1 ─► WS-2 ─► WS-3          [nền — bắt buộc trước mọi th�
 
 ---
 
-## WS-4 — BE Common Platform · 10 pd
+## WS-4 — BE Common Platform · 10 pd — ✅ **XONG 14/8/2026**
 
 **Tiên quyết**: WS-2. **Đầu ra**: nền chung mà mọi module sau bắt buộc dùng, cấm tự chế bản riêng.
+📦 Toàn bộ nằm ở `com.songnhue.core.common.*` — **ngoại lệ duy nhất** của quy tắc "chỉ import `spi/` của module khác".
 
-- [ ] **T4.1** `ApiResponse<T>`, `ApiError`, `ErrorDetail` + `ResponseEnvelopeAdvice` (ResponseBodyAdvice) — controller chỉ return DTO — *§2.1*
-- [ ] **T4.2** `AppException` + 8 subclass đúng §2.2; `GlobalExceptionHandler` map toàn bộ; exception lạ → `SYS-0001`, **cấm lộ stacktrace/SQL** — *§2.2*
-- [ ] **T4.3** `ErrorCode` enum sinh từ catalog §2.3 (26 mã) + `error-messages_vi.properties`; test đảm bảo mọi mã có message — *§2.3*
-- [ ] **T4.4** Filter chain **đúng thứ tự**: `CorrelationFilter` → `RateLimitFilter` → `AuthFilter` → `ScopeContextFilter` → `AuditContextFilter` — *§2.4*
-- [ ] **T4.5** `RateLimitFilter` qua interface `RateLimitStore` (impl Caffeine in-process) — login 5/15', API 100/phút, export 10/giờ — *§4.5; ≥2 node phải đổi impl sang DB*
-- [ ] **T4.6** 8 utils: `DateTimeUtils`, `NumericUtils`, `SlugUtils/VietnameseUtils`, `CodeGenerator`(DB sequence), `MaskUtils`, `PageUtils`(whitelist sort), `FileValidator`(magic bytes), `CryptoService`(AES-256-GCM + `key_id`) — *§2.5, cấm module viết lại*
-- [ ] **T4.7** `BaseEntity` / `ScopedEntity` + JPA auditing + soft delete + `@Version` — *§2.5*
-- [ ] **T4.8** `@ConfigurationProperties` + `@Validated` cho mọi nhóm config → **fail-fast lúc startup** khi thiếu env — *§1.6*
-- [ ] **T4.9** Log JSON + `traceId` trong MDC; `LoggingInterceptor` (method/path/status/duration, **không log body nhạy cảm**) — *§2.4, §4.5*
-- [ ] **T4.10** springdoc-openapi: `/api/v1/**`, group theo module — *§1.3*
+- [x] **T4.1** `ApiResponse<T>`, `ApiError`, `ErrorDetail` + `ResponseEnvelopeAdvice` (ResponseBodyAdvice) — controller chỉ return DTO — *§2.1*
+- [x] **T4.2** `AppException` + 8 subclass đúng §2.2; `GlobalExceptionHandler` map toàn bộ; exception lạ → `SYS-0001`, **cấm lộ stacktrace/SQL** — *§2.2*
+- [x] **T4.3** `ErrorCode` enum sinh từ catalog §2.3 (**31 mã**) + `error-messages.properties`; test đảm bảo mọi mã có message — *§2.3*
+- [x] **T4.4** Filter chain **đúng thứ tự** qua hằng `FilterOrder`: `Correlation` → `RequestLogging` → `RateLimit` → *(chừa AuthFilter, ScopeContextFilter cho WS-5)* → `AuditContext` — *§2.4*
+- [x] **T4.5** `RateLimitFilter` qua interface `RateLimitStore` (impl Caffeine in-process) — login 5/15', API 100/phút, export 10/giờ — *§4.5; ≥2 node phải đổi impl sang DB*
+- [x] **T4.6** 8 utils: `DateTimeUtils`, `NumericUtils`, `VietnameseUtils`, `CodeGenerator`(DB sequence), `MaskUtils`, `PageUtils`(whitelist sort), `FileValidator`(magic bytes), `CryptoService`(AES-256-GCM + `key_id`) — *§2.5, cấm module viết lại*
+- [x] **T4.7** `BaseEntity` / `ScopedEntity` + JPA auditing + soft delete + `@Version` — *§2.5*
+- [x] **T4.8** `@ConfigurationProperties` + `@Validated` cho mọi nhóm config → **fail-fast lúc startup** khi thiếu env — *§1.6*
+- [x] **T4.9** Log JSON (cơ chế sẵn có của Boot 3.4+) + `traceId` trong MDC; `RequestLoggingFilter` (method/path/status/duration, **không log body nhạy cảm**) — *§2.4, §4.5*
+- [x] **T4.10** springdoc-openapi: `/api/v1/**`, **6 nhóm theo module** — *§1.3*
 
-**Kiểm chứng**: mọi response (kể cả lỗi) đúng envelope §2.1 và luôn có `traceId` · xóa 1 env bắt buộc → app **không khởi động**, log chỉ rõ key thiếu.
+**Kiểm chứng — 53 test xanh + chạy thật**:
+- ✅ `ErrorCatalogTest`: 31/31 mã có message · không có khoá thừa · không mã nào lộ chi tiết kỹ thuật · định dạng mã và HTTP status hợp lệ
+- ✅ **Envelope trên request thật**: 404 trả `{"success":false,"error":{"code":"SYS-0004",…},"traceId":"…"}` — trước WS-4 là format mặc định của Spring
+- ✅ **traceId** có trong header `X-Trace-Id`, trong body, và trong **mọi dòng log**; nhận lại traceId phía gọi gửi sang; traceId rác (`x'; DROP TABLE…`) bị loại
+- ✅ **Không rò rỉ**: `IllegalStateException` mang tên bảng/cột → response chỉ có `SYS-0001` + traceId, không có tên class, tên bảng, `com.songnhue`
+- ✅ **Rate limit đăng nhập**: 5 lượt qua, lượt 6 → **429 + `SYS-0002`** + `Retry-After: 899`; bucket API không bị ảnh hưởng
+- ✅ **Fail-fast**: khoá AES sai định dạng → app **không khởi động** (exit 1), thông báo chỉ rõ `openssl rand -base64 32`
+- ✅ **Xoay khoá AES**: bản ghi mã bằng `v1` vẫn giải mã sau khi chuyển sang `v2`; sửa 1 ký tự bản mã → giải mã hỏng ngay (AEAD)
+- ✅ **OpenAPI** 6 nhóm `00-core … 05-adm`; `/actuator/**` và `/v3/api-docs` **không** bị bọc envelope
+- ✅ **Checkstyle vẫn bắt lỗi thật** sau khi đổi cấu hình: file thử vi phạm `System.out` / `new Date()` / `catch(Throwable)` / `printStackTrace()` → 4 violation, build đỏ; chữ trong Javadoc và bình luận **không** bị tính
+
+**Hai lỗi do test phát hiện** (đều sẽ lộ ra ở production nếu không có test):
+| Lỗi | Nguyên nhân |
+|---|---|
+| Response lỗi bị bọc envelope **hai lần** → `success:true` với lỗi nằm trong `data` | `supports()` lọc theo kiểu trả về, mà handler lỗi khai báo `ResponseEntity<ApiResponse<…>>` nên `getParameterType()` ra `ResponseEntity`. Sửa: nhận diện theo **body thật** |
+| **Không message nào tra được**, mọi lỗi trả khoá thô `OPS-2001` | Spring Boot chỉ tạo `MessageSource` khi có file đúng basename. Chỉ có `error-messages_vi.properties` → điều kiện không thoả. Sửa: đổi tên thành `error-messages.properties` |
+
+**Quyết định phát sinh khi làm**:
+| Việc | Xử lý |
+|---|---|
+| Thiếu mã lỗi chung cho 8 subclass exception | Thêm **6 mã `SYS-0003…0008`** (400/404/409/502/503/422) — catalog gốc chỉ có mã theo nghiệp vụ, không có mã mặc định cho tầng framework. Tổng còn **31 mã** |
+| Ranh giới module với `core.common` | `core.common.*` là **ngoại lệ được phép import chéo**. Đã ghi vào `conventions.md` §1.1 — **T10.2 phải viết rule ArchUnit theo đúng điều này** |
+| Hạn mức rate limit để ở đâu | **Hằng số trong mã**, KHÔNG ở bảng `settings` như đa số tham số khác — đây là chốt chặn bảo mật; để Admin sửa được thì tài khoản Admin bị chiếm sẽ tự nới hạn mức trước khi dò mật khẩu |
+| Ghi log truy cập | Cài là **filter** chứ không phải `HandlerInterceptor` như §2.4 viết — interceptor không thấy request bị chặn ở tầng filter (429) và không đo trọn thời gian |
+| Log JSON | Dùng `logging.structured.format` **có sẵn từ Boot 3.4**, không thêm `logstash-logback-encoder` — bớt một phụ thuộc phải theo dõi CVE |
+| Profile `docker` | Đã bỏ ở WS-3; `application-local.yml` là file profile duy nhất |
+| Checkstyle bắt nhầm chữ trong bình luận | Đổi 3 rule sang **`RegexpSinglelineJava` + `ignoreComments`** — bản cũ quét cả Javadoc nên chính câu "cấm new Date()" trong tài liệu bị báo vi phạm |
+| Sinh mã nghiệp vụ | `CodeGenerator` chạy `REQUIRES_NEW` → có thể **nhảy số** khi giao dịch ngoài rollback. Chấp nhận: nhảy số vô hại, mã trùng thì không |
+| Ngoại lệ định dạng String | Controller trả `String` được tự serialize thủ công để envelope **không có ngoại lệ nào** (DoD #9) |
+| `FileValidator` | Viết tay bảng magic bytes thay vì kéo Apache Tika (>10MB + cây phụ thuộc) — danh sách định dạng của dự án rất ngắn |
+
+**Còn nợ, đã ghi chỗ cắm sẵn**: `AuditContextFilter` mới lấy được IP (`userId`/`username` chờ **WS-5**) · bộ lọc Hibernate theo `org_unit` mới khai báo `@FilterDef`, bật theo phiên ở **WS-5/T5.11** · `shared/error-map.ts` mirror 31 mã ở **WS-8/T8.4**.
 
 ---
 
@@ -211,6 +243,7 @@ WS-1 ─► WS-2 ─► WS-3          [nền — bắt buộc trước mọi th�
   - ⚠ **Kèm theo (phát sinh từ WS-2)**: lệnh **bootstrap tài khoản `superadmin`** đọc `BOOTSTRAP_ADMIN_PASSWORD` từ env, đặt mật khẩu và chuyển `PENDING_ACTIVATION` → `ACTIVE`. Migration cố ý seed tài khoản **không có mật khẩu** (`password_hash = '!'`) để repo không chứa mật khẩu mặc định → **chưa có lệnh này thì không ai đăng nhập được**
 - [ ] **T5.8** **2FA TOTP bắt buộc Admin + Admin HR** (enroll, QR, verify, recovery code) — *§4.1 + G12*
 - [ ] **T5.9** Tầng 2 — `@RequirePermission("module:resource:action")` + interceptor — *§4.2*
+  - ⚠ **Kèm theo (từ WS-4)**: điền `userId`/`username` vào `AuditContextFilter` (hiện mới có IP) — thiếu bước này thì `audit_logs.actor_user_id` và `created_by` để trống toàn bộ
 - [ ] **T5.10** **Deny by default**: test CI quét toàn bộ controller method, thiếu annotation → **CI fail** — *§4.2*
 - [ ] **T5.11** Tầng 3 — Hibernate `@Filter` scope `org_unit` (+ cây con) tự áp cho `ScopedEntity`; vi phạm → `AUTH-3002` — *§4.2*
 - [ ] **T5.12** Mọi lookup qua `public_id` UUID, **cấm `findById` trần** cho request người dùng — *§4.2 chống IDOR*
@@ -311,7 +344,7 @@ WS-1 ─► WS-2 ─► WS-3          [nền — bắt buộc trước mọi th�
 **Tiên quyết**: WS-4 (nhưng **T10.2 nên làm ngay sau WS-1**). **Đầu ra**: CI chặn được vi phạm kiến trúc và quyền.
 
 - [ ] **T10.1** Testcontainers **PostgreSQL + PostGIS** làm nền cho integration test — *architecture §5*
-- [ ] **T10.2** ⚠ **ArchUnit** — chặn: module chỉ import `spi/` của module khác · entity không ra khỏi application · `@Transactional` chỉ ở application · **cấm `float/double`** cho số đo/tiền · cấm `new Date()` · cấm `System.out` — *§1.1, rule 6 CLAUDE.md — **cài từ commit đầu***
+- [ ] **T10.2** ⚠ **ArchUnit** — chặn: module chỉ import `spi/` của module khác **hoặc `core.common.*`** (ngoại lệ Common Platform, xem `conventions.md` §1.1) · entity không ra khỏi application · `@Transactional` chỉ ở application · **cấm `float/double`** cho số đo/tiền · cấm `new Date()` · cấm `System.out` — *§1.1, rule 6 CLAUDE.md — **cài từ commit đầu***
 - [ ] **T10.3** Harness **ma trận RBAC role × resource** (NFR-06 yêu cầu pass 100%) — *§4.2*
 - [ ] **T10.4** Test deny-by-default (T5.10) + test hash chain audit + test `CryptoService` xoay key
 - [ ] **T10.5** Coverage gate domain layer — không merge nếu giảm — *§1.5*
@@ -354,7 +387,7 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 0 hoàn thành:
 - [ ] **6. Refresh reuse detection** — dùng lại refresh token cũ → thu hồi family + security event
 - [ ] **7. RBAC 3 tầng** — đúng quyền → 200 · thiếu permission → 403 `AUTH-3001` · ngoài đơn vị → 403 `AUTH-3002`
 - [ ] **8. Deny by default** — endpoint không có `@RequirePermission` → **CI fail**
-- [ ] **9. Envelope + traceId** — mọi response (kể cả lỗi) đúng §2.1, luôn có `traceId`
+- [x] **9. Envelope + traceId** — mọi response (kể cả lỗi) đúng §2.1, luôn có `traceId` ✅ *14/8: kiểm bằng request thật + 8 test lát cắt web*
 - [x] **10. Audit hash chain** — verify chain pass; `songnhue_app` thử `UPDATE audit_logs` → **bị DB từ chối** ✅ *14/8: chặn cả qua bảng cha lẫn thẳng vào partition; thử sửa/xóa lén đều bị verify phát hiện*
 - [ ] **11. Attachment** — upload → MinIO; sai magic bytes → từ chối; presigned URL hết hạn đúng TTL
 - [ ] **12. Async job** — `POST` → 202 + `jobId` → worker chạy → notification in-app + email (MailHog)
@@ -374,6 +407,7 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 0 hoàn thành:
 
 | Ngày | Nội dung |
 |---|---|
+| 2026-08-14 | **WS-4 xong**. 31 mã lỗi (thêm 6 mã `SYS` chung cho tầng framework) · envelope + traceId phủ 100% endpoint · rate limit 3 nhóm · 8 utils · `BaseEntity`/`ScopedEntity` · fail-fast cấu hình · OpenAPI 6 nhóm. Chốt **`core.common.*` là ngoại lệ import chéo** → T10.2 phải viết rule ArchUnit theo đó. Sửa Checkstyle bắt nhầm chữ trong bình luận. 53 test xanh; 2 lỗi thật do test phát hiện (bọc envelope 2 lần, MessageSource không được tạo do tên file có hậu tố `_vi`). |
 | 2026-08-14 | **WS-3 xong 6/7**. Chốt: chọn service bằng **Compose profile** (4 chế độ chạy) · **build từ mã nguồn local trong container**, KHÔNG bind-mount hot-reload · **cổng Docker sang dải riêng + bind 127.0.0.1** (máy dev có PostgreSQL native gây nối nhầm DB) · **Mailpit** thay MailHog (arm64) · **collation ICU vi-VN** · bỏ profile Spring `docker`. Thêm `make doctor`, `docs/setup-guideline.md`, `docs/run-guideline.md`. T3.4 (2 image FE) chờ WS-8/WS-9. |
 | 2026-08-14 | **WS-2 xong**. Chốt: hash chain audit tính bằng **trigger trong DB** (không ở Java) · `audit_logs` có partition **`DEFAULT`** + 12 tháng runway · Super Admin seed **không mật khẩu**, kích hoạt bằng lệnh bootstrap (thêm việc cho T5.7) · `security_events` cũng append-only · **không dùng `R__`** cho danh mục quyền/settings. Sửa `make migrate-info` (WS-1 trỏ plugin chưa cấu hình), thêm `make migrate-native` + `make db-verify-audit`. Đồng bộ `architecture-review.md` §9.3, `conventions.md` §1.2/§1.7/§4.3. |
 | 2026-08-13 | **WS-1 xong**. Chốt Spring Boot **3.5.3**, formatter **Palantir Java Format** (4 space/120 cột), checkstyle config đặt ở `backend/config/checkstyle/`. Wrapper Maven 3.9.9 sinh qua Docker. |

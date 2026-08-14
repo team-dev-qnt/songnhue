@@ -30,21 +30,13 @@
     <module name="UniqueProperties"/>
 
     <!-- ================= CẤM THEO conventions.md §1.1 ================= -->
-    <module name="RegexpSingleline">
-        <property name="format" value="System\.(out|err)\.print"/>
-        <property name="message"
-                  value="Cấm System.out/System.err — dùng SLF4J logger (conventions.md §1.1)."/>
-    </module>
-    <module name="RegexpSingleline">
-        <property name="format" value="new\s+java\.util\.Date\s*\(|(?&lt;![\w.])new\s+Date\s*\("/>
-        <property name="message"
-                  value="Cấm new Date() — dùng Instant/OffsetDateTime, lưu timestamptz UTC (conventions.md §1.1, CLAUDE.md quy tắc 1)."/>
-    </module>
-    <module name="RegexpSingleline">
-        <property name="format" value="printStackTrace\s*\(\s*\)"/>
-        <property name="message"
-                  value="Cấm printStackTrace() — ném AppException hoặc log kèm traceId (conventions.md §2.2)."/>
-    </module>
+    <!--
+      Ba quy tắc dưới đây dùng RegexpSinglelineJava (bên trong TreeWalker) chứ KHÔNG dùng
+      RegexpSingleline: chỉ bản Java-aware mới có ignoreComments. Bản thường quét cả bình luận,
+      nên tài liệu ghi đúng câu "cấm new Date()" lại bị báo là vi phạm — đúng chỗ giải thích luật
+      thì bị luật phạt.
+      (Ba module này được khai báo trong khối TreeWalker phía dưới.)
+    -->
     <module name="RegexpSingleline">
         <property name="format" value="^\s*//\s*(TODO|FIXME|XXX)(?!\s*\()"/>
         <property name="message"
@@ -134,5 +126,26 @@
             <property name="onCommentFormat" value="CHECKSTYLE.ON\: ([\w\|]+)"/>
             <property name="checkFormat" value="$1"/>
         </module>
+
+        <!-- ================= Bẫy lỗi thực sự (Java-aware, bỏ qua bình luận) ================= -->
+        <module name="RegexpSinglelineJava">
+            <property name="format" value="System\.(out|err)\.print"/>
+            <property name="ignoreComments" value="true"/>
+            <property name="message"
+                      value="Cấm System.out/System.err — dùng SLF4J logger (conventions.md §1.1)."/>
+        </module>
+        <module name="RegexpSinglelineJava">
+            <property name="format" value="new\s+java\.util\.Date\s*\(|(?&lt;![\w.])new\s+Date\s*\("/>
+            <property name="ignoreComments" value="true"/>
+            <property name="message"
+                      value="Cấm new Date() — dùng Instant/OffsetDateTime, lưu timestamptz UTC (conventions.md §1.1, CLAUDE.md quy tắc 1)."/>
+        </module>
+        <module name="RegexpSinglelineJava">
+            <property name="format" value="printStackTrace\s*\(\s*\)"/>
+            <property name="ignoreComments" value="true"/>
+            <property name="message"
+                      value="Cấm printStackTrace() — ném AppException hoặc log kèm traceId (conventions.md §2.2)."/>
+        </module>
+
     </module>
 </module>

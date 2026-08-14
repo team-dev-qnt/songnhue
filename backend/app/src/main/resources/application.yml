@@ -49,6 +49,29 @@ spring:
     out-of-order: false
     baseline-on-migrate: false
 
+  # Danh mục message lỗi (conventions.md §2.3). Tra bằng locale vi cố định —
+  # xem ErrorMessageResolver, KHÔNG theo Accept-Language của trình duyệt.
+  messages:
+    basename: error-messages
+    encoding: UTF-8
+    fallback-to-system-locale: false
+    # -1 = nạp một lần rồi giữ; file chỉ đổi khi deploy bản mới
+    cache-duration: -1
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      # Schema do Flyway quản lý. `validate` bắt lệch giữa entity và migration ngay
+      # lúc khởi động, thay vì để lộ ra khi truy vấn. TUYỆT ĐỐI không dùng `update`.
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+
   jackson:
     default-property-inclusion: non_null
     # Timestamp luôn là UTC ở tầng lưu trữ/API; convert UTC+7 chỉ ở tầng hiển thị
@@ -75,6 +98,29 @@ app:
   shedlock-enabled: ${SHEDLOCK_ENABLED:false}
   worker-enabled: ${WORKER_ENABLED:true}
 
+  # Khoá AES-256-GCM. Thiếu hoặc sai độ dài → app KHÔNG khởi động (CryptoProperties):
+  # chạy được với khoá sai thì dữ liệu ghi ra sẽ không giải mã lại được.
+  crypto:
+    active-key-id: ${AES_KEY_ID}
+    keys:
+      v1: ${AES_KEY_V1}
+
+  storage:
+    endpoint: ${MINIO_ENDPOINT}
+    access-key: ${MINIO_ACCESS_KEY}
+    secret-key: ${MINIO_SECRET_KEY}
+    bucket-media: ${MINIO_BUCKET_MEDIA}
+    bucket-report: ${MINIO_BUCKET_REPORT}
+    bucket-audit: ${MINIO_BUCKET_AUDIT}
+
+# Tài liệu API (T4.10). Trên production nginx chặn 2 đường dẫn này (WS-11/T11.6).
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    display-request-duration: true
+
 management:
   endpoints:
     web:
@@ -95,3 +141,12 @@ logging:
   level:
     root: INFO
     com.songnhue: ${LOG_LEVEL_APP:INFO}
+  # Log JSON cho môi trường có thu thập tập trung (T4.9). Để trống = log dạng
+  # người đọc, tiện khi chạy local. Dùng cơ chế sẵn có của Spring Boot 3.4+,
+  # không kéo thêm thư viện.
+  structured:
+    format:
+      console: ${LOG_STRUCTURED_FORMAT:}
+  pattern:
+    # traceId do CorrelationFilter đặt vào MDC — có mặt ở mọi dòng log
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%X{traceId:-}] %logger{36} - %msg%n"

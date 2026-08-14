@@ -37,6 +37,9 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
+        <!-- Thư viện không nằm trong BOM của Spring Boot -->
+        <springdoc.version>2.8.9</springdoc.version>
+
         <!-- Phiên bản plugin — pin cứng để build tái lập được -->
         <spotless.version>2.44.5</spotless.version>
         <palantir-java-format.version>2.68.0</palantir-java-format.version>

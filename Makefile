@@ -251,6 +251,13 @@ doctor: ## Kiểm tra máy đã đủ điều kiện chạy dự án chưa
 	@echo "  Cấu hình"
 	@test -f "$(LOCAL_ENV)" && echo "    ✓ $(LOCAL_ENV)" || echo "    ✗ Chưa có deploy/env/local.env — chạy: make env"
 	@test -f "$(LOCAL_ENV)" && awk -F= '/^(DB_PASSWORD|DB_MIGRATION_PASSWORD|MINIO_SECRET_KEY)=/ && ($$2 == "" || $$2 ~ /^ *#/) {print "    ✗ Chưa điền giá trị: " $$1}' "$(LOCAL_ENV)" || true
+	@test -f "$(LOCAL_ENV)" && grep -q '^AES_KEY_V1=REPLACE_ME' "$(LOCAL_ENV)" \
+		&& { echo "    ✗ AES_KEY_V1 còn là placeholder — app sẽ KHÔNG khởi động."; \
+		     echo "      Sinh khoá:  openssl rand -base64 32"; } \
+		|| test ! -f "$(LOCAL_ENV)" || echo "    ✓ AES_KEY_V1 đã đặt"
+	@test -f "$(LOCAL_ENV)" && { grep -q '^JWT_PRIVATE_KEY_PATH=' "$(LOCAL_ENV)" && \
+		{ test -f "$(DEPLOY)/keys/jwt-private.pem" && echo "    ✓ Khoá JWT đã sinh" \
+		  || echo "    ⬜ Chưa sinh khoá JWT (chỉ cần từ WS-5) — xem docs/setup-guideline.md mục 3"; }; } || true
 	@echo ""
 	@echo "  Cổng Docker publish ra host (trùng cổng = compose báo lỗi khi khởi động)"
 	@set -a; [ -f "$(LOCAL_ENV)" ] && . "$(LOCAL_ENV)"; set +a; \
