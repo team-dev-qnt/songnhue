@@ -6,6 +6,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 
+import com.songnhue.core.common.audit.Audited;
 import com.songnhue.core.common.persistence.BaseEntity;
 import com.songnhue.core.common.tree.MaterializedPath;
 
@@ -22,6 +23,7 @@ import com.songnhue.core.common.tree.MaterializedPath;
  */
 @Entity
 @Table(name = "org_units")
+@Audited(module = "adm", entityType = "Đơn vị")
 public class OrgUnit extends BaseEntity {
 
     @Column(name = "code", nullable = false, length = 50)

@@ -9,6 +9,7 @@ import jakarta.persistence.Table;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import com.songnhue.core.common.audit.Audited;
 import com.songnhue.core.common.persistence.BaseEntity;
 
 /**
@@ -24,6 +25,13 @@ import com.songnhue.core.common.persistence.BaseEntity;
  */
 @Entity
 @Table(name = "users")
+@Audited(
+        module = "adm",
+        entityType = "Tài khoản",
+        // Nhật ký lưu 5 năm và nhiều người xem được hơn bảng gốc. Đưa hash mật khẩu vào đây là mở
+        // rộng phạm vi lộ lọt mà không được gì: "mật khẩu đã đổi" là thông tin cần ghi, còn giá trị
+        // hash thì không ai cần đọc. Trường vẫn hiện tên trong nhật ký, chỉ giá trị bị che.
+        excludeFields = {"passwordHash"})
 public class User extends BaseEntity {
 
     /**
