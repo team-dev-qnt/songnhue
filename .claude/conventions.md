@@ -96,20 +96,39 @@ songnhue/
 │   ├── admin-app/           Vite + React 18 + AntD 5
 │   └── public-web/          Next.js + Tailwind
 ├── deploy/
-│   ├── compose.infra.yml    PG+PostGIS, MinIO, MailHog     (app chạy native)
-│   ├── compose.local.yml    full-stack trong Docker
+│   ├── compose.infra.yml    PG+PostGIS, MinIO, Mailpit  (nền, được include lại)
+│   ├── compose.local.yml    include infra + app/admin/public theo PROFILE
 │   ├── compose.staging.yml · compose.prod.yml · compose.backup.yml
-│   └── nginx/ · backup/ · env/*.env.example
+│   ├── docker/              Dockerfile của backend + 2 app FE
+│   ├── postgres/init/       CREATE ROLE + extension (chạy 1 lần, cần superuser)
+│   └── nginx/ · backup/ · keys/ · env/*.env.example
 ├── docs/runbook/            restore từ dump, xoay key, poller chết, retry job
 └── Makefile
 ```
 
-**Hai lối chạy local** — cả hai đều phải hoạt động, CI kiểm cả hai:
+**Bốn chế độ chạy local** — chọn theo service bạn ĐANG SỬA. Nguyên tắc: *service
+đang sửa thì chạy native, còn lại đẩy vào Docker*. Chi tiết: `docs/run-guideline.md`.
 
 | Lệnh | Chạy gì | Dùng khi |
 |---|---|---|
-| `make dev-infra` | Chỉ PostgreSQL + MinIO + MailHog trong Docker, **expose port ra host** | Dev BE — sau đó `./mvnw -pl app spring-boot:run` từ IDE để có hot-reload/debug |
-| `make dev-docker` | **Toàn bộ** stack trong Docker (infra + app + admin-app + public-web) | FE/QA không cài JDK; kiểm thử gần giống production |
+| `make dev-infra` | Chỉ PostgreSQL + MinIO + Mailpit | Fullstack — BE và FE đều chạy native |
+| `make dev-be` | + **backend** trong Docker | Dev FE — **không cần cài JDK** |
+| `make dev-fe` | + **admin-app, public-web** trong Docker | Dev BE — **không cần cài Node** |
+| `make dev-docker` | **Toàn bộ** stack | QA/demo, kiểm thử gần giống production |
+
+Chọn service bằng **Compose profile** (`backend` / `admin` / `public` / `full`);
+hạ tầng không có profile nên luôn chạy.
+
+**Image luôn build từ mã nguồn local, biên dịch bên trong container** — máy không
+cần JDK/Node để dựng service của người khác. Image **không** tự bám theo file:
+sửa code xong phải thêm `BUILD=1`. Cache lớp dependency giữ thời gian build lại
+ở mức ~7 giây. **Không bind-mount mã nguồn để hot-reload trong Docker** — người
+cần hot-reload thì chạy native, còn bind-mount gây lệch `node_modules` giữa
+macOS và Linux và làm `target/` thuộc quyền root.
+
+**Cổng: Docker publish ra dải riêng, không đụng cổng native** (quy tắc thêm số
+`1` vào đầu: 8080→18080, 5432→15432, 9000→19000…), và bind đúng `127.0.0.1` để
+trùng cổng thì báo lỗi ngay thay vì âm thầm nối nhầm sang dịch vụ khác của máy.
 | `make migrate` | Chạy service `migrator` trong Docker | Sau khi thêm migration mới |
 | `make migrate-native` | Chạy migration từ máy (profile `migrate`) | Dev BE chạy native, đã có `make dev-infra` |
 | `make migrate-info` | Liệt kê migration đã áp dụng | Đối chiếu phiên bản schema |
@@ -117,7 +136,15 @@ songnhue/
 | `make test` | Unit + Testcontainers + ArchUnit | Trước khi push |
 | `make backup` / `make restore` | Dump thủ công / khôi phục | Vận hành, diễn tập |
 
-Quy tắc: **profile Spring (`local`/`docker`/`staging`/`prod`) chỉ khác nhau ở env, không khác code** (§1.6). Build backend luôn qua `mvnw` wrapper — không bắt máy dev cài Maven.
+Quy tắc: **profile Spring chỉ khác nhau ở env, không khác code** (§1.6). Hệ quả:
+chỉ có `application-local.yml`; **không có profile `docker`** (chạy native và chạy
+trong Docker khác nhau đúng ở giá trị env), và chưa tạo `staging`/`prod` cho tới
+khi có nội dung thật. File profile rỗng chỉ tạo chỗ cho hai lối chạy âm thầm lệch
+nhau. Build backend luôn qua `mvnw` wrapper — không bắt máy dev cài Maven.
+
+**Collation DB chốt `ICU vi-VN`** (`POSTGRES_INITDB_ARGS` trong compose): để mặc
+định thì `ORDER BY` xếp "Đăng" sau "Em". Đổi sau khi đã có dữ liệu = dump +
+restore, nên Staging/Production phải dùng đúng tham số này.
 
 ---
 

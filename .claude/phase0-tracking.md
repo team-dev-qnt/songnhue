@@ -1,6 +1,6 @@
 # PHASE 0 — CORE PLATFORM · BẢNG THEO DÕI TIẾN ĐỘ
 
-> **Cập nhật lần cuối**: 2026-08-14 · **Tiến độ: 16/107 task (15%)** · **DoD: 2/21** · Trạng thái: 🟡 Đang làm (xong WS-1, WS-2)
+> **Cập nhật lần cuối**: 2026-08-14 · **Tiến độ: 22/107 task (21%)** · **DoD: 3/21** · Trạng thái: 🟡 Đang làm (xong WS-1, WS-2; WS-3 còn T3.4)
 > Nguồn ràng buộc: `conventions.md` (coding/security) · `architecture-review.md` §6, §9 (kiến trúc đã chốt) · `function-spec.md` (nghiệp vụ MOD-05)
 > **Cách dùng**: làm xong task nào tick `[x]` task đó; xong 1 WS thì chạy mục "Kiểm chứng" của WS rồi cập nhật bảng tổng + dòng "Cập nhật lần cuối" ở trên.
 
@@ -12,7 +12,7 @@
 |---|---|:-:|:-:|---|---|:-:|
 | **WS-1** | Repo & quy ước nền | 6 | **6** | ✅ **Xong** (13/8) | — | 2 pd |
 | **WS-2** | DB & Migration | 10 | **10** | ✅ **Xong** (14/8) | WS-1 | 8 pd |
-| **WS-3** | Docker & môi trường chạy local | 7 | 0 | ⬜ Chưa bắt đầu | WS-1 | 5 pd |
+| **WS-3** | Docker & môi trường chạy local | 7 | **6** | 🟡 **6/7** (14/8) — T3.4 chờ WS-8/9 | WS-1 | 5 pd |
 | **WS-4** | BE — Common Platform | 10 | 0 | ⬜ Chưa bắt đầu | WS-2 | 10 pd |
 | **WS-5** | BE — Auth & RBAC 3 tầng | 14 | 0 | ⬜ Chưa bắt đầu | WS-4 | 15 pd |
 | **WS-6** | BE — Core services | 15 | 0 | ⬜ Chưa bắt đầu | WS-4, WS-5 | 25 pd |
@@ -21,7 +21,7 @@
 | **WS-9** | FE — public-web | 5 | 0 | ⬜ Chưa bắt đầu | WS-1 | 5 pd |
 | **WS-10** | Test & CI | 7 | 0 | ⬜ Chưa bắt đầu | WS-4 | 10 pd |
 | **WS-11** | Deploy Staging & Production | 10 | 0 | ⬜ Chưa bắt đầu | WS-3, 7, 10 | 10 pd |
-| | **TỔNG** | **107** | **16** | | | **114 pd** |
+| | **TỔNG** | **107** | **22** | | | **114 pd** |
 
 *(107 task triển khai + 21 mục Definition of Done ở cuối file.)*
 
@@ -129,19 +129,52 @@ WS-1 ─► WS-2 ─► WS-3          [nền — bắt buộc trước mọi th�
 
 ---
 
-## WS-3 — Docker & môi trường chạy local · 5 pd
+## WS-3 — Docker & môi trường chạy local · 5 pd — 🟡 **6/7 (14/8/2026)**
 
-**Tiên quyết**: WS-1. **Đầu ra**: chạy được **cả 2 lối** — native và full Docker.
+**Tiên quyết**: WS-1. **Đầu ra**: chạy được **cả 4 chế độ** — chọn từng service chạy native hay Docker.
+📘 Tài liệu người dùng: `docs/setup-guideline.md` (dựng máy) · `docs/run-guideline.md` (chạy hằng ngày).
 
-- [ ] **T3.1** `compose.infra.yml` — chỉ `postgres`(+PostGIS), `minio`(+`mc` tạo bucket), `mailhog`; **expose port ra host** để app chạy native từ IDE
-- [ ] **T3.2** `compose.local.yml` — full stack: infra + `app` + `admin-app`(vite dev) + `public-web`(next dev), hot-reload qua bind mount
-- [ ] **T3.3** `Dockerfile` backend: multi-stage (maven build → JRE 21 slim), **non-root user**, healthcheck
-- [ ] **T3.4** `Dockerfile` admin-app (build → nginx static) và public-web (Next standalone output)
-- [ ] **T3.5** Script init Postgres: extension + CREATE ROLE + database — *khớp T2.7*
-- [ ] **T3.6** Profile Spring `local`/`docker`/`staging`/`prod` — **chỉ khác env, không khác code** — *§1.6*
-- [ ] **T3.7** `make dev-infra` / `make dev-native` / `make dev-docker` + README hướng dẫn 2 lối chạy — *§1.7*
+- [x] **T3.1** `compose.infra.yml` — `postgres`(+PostGIS), `minio`(+`mc` tạo bucket), `mailpit`; **expose port ra host** để app chạy native từ IDE
+- [x] **T3.2** `compose.local.yml` — `include` infra + `migrator`/`app`/`admin-app`/`public-web`, chọn service bằng **Compose profile**
+- [x] **T3.3** `Dockerfile` backend: multi-stage (maven build → JRE 21 alpine), **non-root**, healthcheck theo `/actuator/health/readiness`
+- [ ] **T3.4** `Dockerfile` admin-app (build → nginx static) và public-web (Next standalone) — ⚠ **file đã viết, CHƯA build được**: `frontend/admin-app` và `frontend/public-web` do WS-8/WS-9 tạo. `make dev-fe`/`dev-docker` chặn sớm kèm thông báo rõ
+- [x] **T3.5** Script init Postgres: extension + CREATE ROLE — *đã làm ở WS-2 (`deploy/postgres/init/`), WS-3 đấu vào compose*
+- [x] **T3.6** Profile Spring — **chỉ khác env, không khác code** — *§1.6*
+- [x] **T3.7** `make dev-infra` / `dev-be` / `dev-fe` / `dev-docker` / `dev-native` + `make doctor` + 2 tài liệu hướng dẫn
 
-**Kiểm chứng**: `make dev-infra` + `./mvnw -pl app spring-boot:run` → health UP · `make dev-docker` → truy cập được admin-app + public-web + API cùng lúc.
+**Bốn chế độ chạy**:
+| Lệnh | Docker chạy | Native | Cho ai |
+|---|---|---|---|
+| `make dev-infra` | PG · MinIO · Mailpit | BE + FE | Fullstack |
+| `make dev-be` | + backend | FE | **Người làm FE** — không cần JDK |
+| `make dev-fe` | + 2 app FE | BE | **Người làm BE** — không cần Node |
+| `make dev-docker` | tất cả | — | QA / demo |
+
+**Kiểm chứng — đã chạy**:
+- ✅ `make dev-infra` → 4 container healthy; 3 bucket MinIO tạo xong, bucket audit **bật versioning**
+- ✅ `make dev-be` → `migrator` chạy trước và **exit 0**, app khởi động sau, health UP ở cổng 18080
+- ✅ App trong Docker **không tự chạy Flyway** (0 dòng log) — đúng mô hình `migrator` riêng của production
+- ✅ **Build từ mã nguồn local**: lần đầu ~9'38"; **sửa code → build lại 6,9 giây**; `make dev-be BUILD=1` trọn gói **10,7 giây**
+- ✅ Chứng minh trực tiếp: thêm `application-local.yml` → chưa rebuild thì health không đổi; `BUILD=1` xong health hiện đủ components
+- ✅ **Chạy song song backend native (8080) + backend Docker (18080)**, cùng nối PostgreSQL container ở 15432, không xung đột
+- ✅ Image chạy bằng **user thường** (`uid=100 songnhue`), dung lượng 339MB
+- ✅ Collation `ICU vi-VN`: `Anh < Dung < Đăng < Em` (mặc định sẽ xếp "Đăng" sau "Em")
+- ✅ `make doctor` liệt kê công cụ + 8 cổng, phát hiện đúng cổng bị chiếm
+- ✅ `make dev-fe` / `dev-docker` khi thiếu app FE → dừng sớm, chỉ rõ **WS-8 / T8.1**
+- ⬜ **Chưa kiểm chứng**: 2 image FE (T3.4) — không có `frontend/admin-app`, `frontend/public-web` để build
+
+**Quyết định phát sinh khi làm**:
+| Việc | Xử lý |
+|---|---|
+| Chọn service chạy Docker | Dùng **Compose profile** thay vì nhiều file compose — hạ tầng không profile nên luôn chạy, 3 service ứng dụng bật/tắt độc lập |
+| **Hot-reload bind-mount trong Docker** | **Bỏ** (kế hoạch T3.2 có nêu). Người cần hot-reload thì chạy native; bind-mount làm lệch `node_modules` macOS↔Linux, `target/` thành root-owned, và chậm trên macOS. Docker giữ đúng chế độ giống production |
+| ⚠ **Cổng Docker đụng cổng native** | Máy dev có PostgreSQL native ở 5432; Docker bind `*:5432` **không báo lỗi** nhưng `localhost` trên macOS đi vào `::1` → app **lặng lẽ nối nhầm DB của máy**. Sửa: cổng Docker sang **dải riêng** (thêm số `1` vào đầu: 15432/19000/18080…) **và** bind đúng `127.0.0.1` để trùng cổng là báo lỗi ngay |
+| MailHog → **Mailpit** | MailHog không còn bảo trì và **không có image arm64** (Apple Silicon phải giả lập). Mailpit cùng cổng 1025/8025, thay thẳng |
+| **Collation DB** | Chốt **ICU `vi-VN`** ngay từ đầu — đổi sau khi có dữ liệu là dump+restore. Staging/Production phải dùng đúng `POSTGRES_INITDB_ARGS` này |
+| Profile Spring `docker` | **Không tạo**. Native và Docker khác nhau đúng ở env, một file profile rỗng chỉ tạo chỗ cho hai lối chạy âm thầm lệch nhau. `staging`/`prod` cũng chưa tạo cho tới khi có nội dung thật |
+| Nơi để Dockerfile | Gom hết ở `deploy/docker/` (§1.7 cũ vẽ Dockerfile nằm trong `app/`) — một chỗ cho mọi định nghĩa container |
+| Khóa JWT/AES trong container | Mount `deploy/keys` vào `/app/keys` **lúc chạy**, không bake vào image |
+| `make doctor` | Thêm mới — sự cố trùng cổng biểu hiện rất khó đoán, cần một lệnh chỉ thẳng ra nguyên nhân |
 
 ---
 
@@ -313,8 +346,8 @@ WS-1 ─► WS-2 ─► WS-3          [nền — bắt buộc trước mọi th�
 
 Chạy tuần tự, tất cả phải xanh mới coi là Phase 0 hoàn thành:
 
-- [ ] **1. Chạy native** — `make dev-infra` → `./mvnw -pl app spring-boot:run` → `GET /actuator/health` = UP
-- [ ] **2. Chạy full Docker** — `make dev-docker` → admin-app + public-web + API cùng lúc
+- [x] **1. Chạy native** — `make dev-infra` → `./mvnw -pl app spring-boot:run` → `GET /actuator/health` = UP ✅ *14/8*
+- [ ] **2. Chạy full Docker** — `make dev-docker` → admin-app + public-web + API cùng lúc *(backend đã xong; 2 app FE chờ WS-8/WS-9)*
 - [ ] **3. Fail-fast thiếu env** — xóa 1 biến bắt buộc → app **không khởi động**, log chỉ rõ key thiếu
 - [x] **4. Migration sạch từ DB rỗng** — `flyway_schema_history` đủ version, không lỗi ✅ *14/8: 9/9 migration trên volume rỗng, chạy lại lần 2 exit 0*
 - [ ] **5. Auth + 2FA** — login Super Admin → bắt đổi mật khẩu → enroll TOTP → nhận access + refresh cookie
@@ -341,6 +374,7 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 0 hoàn thành:
 
 | Ngày | Nội dung |
 |---|---|
+| 2026-08-14 | **WS-3 xong 6/7**. Chốt: chọn service bằng **Compose profile** (4 chế độ chạy) · **build từ mã nguồn local trong container**, KHÔNG bind-mount hot-reload · **cổng Docker sang dải riêng + bind 127.0.0.1** (máy dev có PostgreSQL native gây nối nhầm DB) · **Mailpit** thay MailHog (arm64) · **collation ICU vi-VN** · bỏ profile Spring `docker`. Thêm `make doctor`, `docs/setup-guideline.md`, `docs/run-guideline.md`. T3.4 (2 image FE) chờ WS-8/WS-9. |
 | 2026-08-14 | **WS-2 xong**. Chốt: hash chain audit tính bằng **trigger trong DB** (không ở Java) · `audit_logs` có partition **`DEFAULT`** + 12 tháng runway · Super Admin seed **không mật khẩu**, kích hoạt bằng lệnh bootstrap (thêm việc cho T5.7) · `security_events` cũng append-only · **không dùng `R__`** cho danh mục quyền/settings. Sửa `make migrate-info` (WS-1 trỏ plugin chưa cấu hình), thêm `make migrate-native` + `make db-verify-audit`. Đồng bộ `architecture-review.md` §9.3, `conventions.md` §1.2/§1.7/§4.3. |
 | 2026-08-13 | **WS-1 xong**. Chốt Spring Boot **3.5.3**, formatter **Palantir Java Format** (4 space/120 cột), checkstyle config đặt ở `backend/config/checkstyle/`. Wrapper Maven 3.9.9 sinh qua Docker. |
 | 2026-08-13 | Lập kế hoạch Phase 0. Chốt Maven multi-module · monorepo · deploy compose 3 VM · secrets env+GitHub Secrets · migration service riêng · DB roles tách quyền. **Backup hạ xuống bản tối giản** (RPO 24h, RTO 4h, không PITR/replica) — đồng bộ ngược vào `function-spec.md`, `architecture-review.md` §6.5/§9, `conventions.md` §1.2/§1.7. |

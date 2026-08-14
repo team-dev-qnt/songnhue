@@ -9,6 +9,8 @@ Tài liệu này chỉ nói **cách làm việc với repo**. Quy tắc kỹ thu
 | Kiến trúc đã chốt + lý do | `.claude/architecture-review.md` |
 | Kế hoạch & tiến độ Phase 0 | `.claude/phase0-tracking.md` |
 | Mục nghiệp vụ còn chờ khách chốt | `.claude/business-open-questions.md` (Phần III) |
+| **Dựng máy lần đầu** | `docs/setup-guideline.md` |
+| **Chạy hằng ngày (native / Docker)** | `docs/run-guideline.md` |
 
 > ⚠ **Trước khi code một chức năng**, xem Phần III của `business-open-questions.md` để biết chức năng đó có "vùng chưa chốt" nào không.
 
@@ -17,13 +19,21 @@ Tài liệu này chỉ nói **cách làm việc với repo**. Quy tắc kỹ thu
 ```bash
 make hooks          # bật hook kiểm tra commit message
 make env            # tạo deploy/env/local.env từ mẫu, rồi sửa giá trị
-make dev-infra      # bật PG + MinIO + MailHog
-make dev-native     # chạy backend từ máy (hoặc: make dev-docker để chạy tất cả trong Docker)
+make doctor         # kiểm tra công cụ + cổng trống
 ```
 
-`make` không tham số sẽ liệt kê toàn bộ lệnh.
+Rồi chọn chế độ theo việc bạn **đang sửa**:
 
-**Yêu cầu máy**: JDK 21 · Node ≥ 20 · Docker + Compose. Không cần cài Maven — repo dùng `mvnw` wrapper.
+| Lệnh | Docker chạy | Bạn chạy native | Dành cho |
+|---|---|---|---|
+| `make dev-infra` | PostgreSQL · MinIO · Mailpit | backend + frontend | Fullstack |
+| `make dev-be` | + backend | frontend | **Người làm FE** |
+| `make dev-fe` | + 2 app FE | backend | **Người làm BE** |
+| `make dev-docker` | tất cả | — | QA, demo |
+
+Thêm `BUILD=1` để build lại image từ code hiện tại. `make` không tham số sẽ liệt kê toàn bộ lệnh.
+
+**Yêu cầu máy**: Docker + Compose (bắt buộc) · JDK 21 *chỉ khi* chạy backend native · Node 22 *chỉ khi* chạy frontend native. Không cần cài Maven — repo dùng `mvnw` wrapper.
 
 ## Nhánh & commit
 

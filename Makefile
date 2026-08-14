@@ -1,10 +1,15 @@
 # =============================================================================
 # songnhue — lệnh dùng chung cho dev và vận hành
 #
-# Hai lối chạy local (conventions.md §1.7):
-#   make dev-infra   → chỉ PG + MinIO + MailHog trong Docker, app chạy NATIVE từ IDE
-#   make dev-docker  → TOÀN BỘ stack trong Docker
+# Bốn chế độ chạy local — chọn theo việc bạn ĐANG SỬA cái gì
+# (chi tiết: docs/run-guideline.md · cài đặt lần đầu: docs/setup-guideline.md):
 #
+#   make dev-infra   BE + FE native   → Docker chỉ chạy PG + MinIO + Mailpit
+#   make dev-be      bạn code FE      → Docker chạy thêm BACKEND
+#   make dev-fe      bạn code BE      → Docker chạy thêm 2 APP FE
+#   make dev-docker  QA / demo        → Docker chạy TẤT CẢ
+#
+# Thêm BUILD=1 để build lại image từ mã nguồn hiện tại.
 # `make` không tham số = hiện danh sách lệnh.
 # =============================================================================
 
@@ -21,6 +26,11 @@ COMPOSE    := docker compose
 ENV        ?= local
 ENV_FILE   := $(DEPLOY)/env/$(ENV).env
 
+LOCAL_ENV  := $(DEPLOY)/env/local.env
+# Mọi lệnh chạy local đều đi qua compose.local.yml (file này `include` compose.infra.yml).
+# Không bật profile nào = chỉ hạ tầng.
+DC_LOCAL   := $(COMPOSE) --env-file $(LOCAL_ENV) -f $(DEPLOY)/compose.local.yml
+
 # Kiểm tra file compose tồn tại — các file này do WS-3/WS-11 tạo
 define need_file
 	@test -f "$(1)" || { \
@@ -32,6 +42,33 @@ define need_file
 		exit 1; \
 	}
 endef
+
+define need_local_env
+	@test -f "$(LOCAL_ENV)" || { \
+		echo ""; \
+		echo "  ✗ Chưa có $(LOCAL_ENV)"; \
+		echo "    Tạo bằng:  make env"; \
+		echo "    Rồi sửa giá trị theo docs/setup-guideline.md"; \
+		echo ""; \
+		exit 1; \
+	}
+endef
+
+define need_fe_app
+	@test -f "$(FRONTEND)/$(1)/package.json" || { \
+		echo ""; \
+		echo "  ✗ Chưa có frontend/$(1)/ — không build được image cho service này."; \
+		echo "    Hạng mục tạo thư mục này: $(2)"; \
+		echo "    Xem tiến độ: .claude/phase0-tracking.md"; \
+		echo ""; \
+		echo "    Trong lúc chờ, dùng: make dev-be   (hạ tầng + backend trong Docker)"; \
+		echo ""; \
+		exit 1; \
+	}
+endef
+
+# BUILD=1 → build lại image từ mã nguồn hiện tại trước khi chạy
+BUILD_FLAG := $(if $(BUILD),--build,)
 
 # -----------------------------------------------------------------------------
 .PHONY: help
@@ -46,37 +83,83 @@ help: ## Hiện danh sách lệnh
 	@echo ""
 
 # --- Môi trường chạy ---------------------------------------------------------
-.PHONY: dev-infra
-dev-infra: ## Bật hạ tầng (PG+PostGIS, MinIO, MailHog) — app chạy native
-	$(call need_file,$(DEPLOY)/compose.infra.yml,WS-3 / T3.1)
-	$(COMPOSE) -f $(DEPLOY)/compose.infra.yml up -d
-	@echo "✓ Hạ tầng đã chạy. Khởi động app: make dev-native"
+# Nguyên tắc: service nào ĐANG SỬA thì chạy native, còn lại đẩy vào Docker.
+# Chi tiết từng vai trò: docs/run-guideline.md
+#
+# Thêm BUILD=1 vào bất kỳ lệnh nào để build lại image từ mã nguồn hiện tại.
 
-.PHONY: dev-native
-dev-native: ## Chạy backend native (cần `make dev-infra` trước)
-	cd $(BACKEND) && ./mvnw -pl app -am spring-boot:run
+.PHONY: dev-infra
+dev-infra: ## [BE+FE native] Chỉ hạ tầng: PostgreSQL, MinIO, Mailpit
+	$(call need_local_env)
+	$(DC_LOCAL) up -d
+	@echo "✓ Hạ tầng đã chạy. Khởi động backend: make dev-native"
+
+.PHONY: dev-be
+dev-be: ## [bạn code FE] Hạ tầng + BACKEND trong Docker
+	$(call need_local_env)
+	$(DC_LOCAL) --profile backend up -d $(BUILD_FLAG)
+	@set -a; . "$(LOCAL_ENV)"; set +a; \
+	 echo "✓ Backend (Docker): http://localhost:$${DOCKER_APP_PORT:-18080}  ·  Log: make logs"; \
+	 echo "  FE native trỏ VITE_API_BASE_URL vào cổng này."
+
+.PHONY: dev-fe
+dev-fe: ## [bạn code BE] Hạ tầng + 2 APP FE trong Docker (FE gọi backend NATIVE)
+	$(call need_local_env)
+	$(call need_fe_app,admin-app,WS-8 / T8.1)
+	$(call need_fe_app,public-web,WS-9 / T9.1)
+	@set -a; . "$(LOCAL_ENV)"; set +a; \
+	 api="http://localhost:$${APP_PORT:-8080}/api/v1"; \
+	 echo "  → FE trong Docker sẽ gọi backend NATIVE tại $$api"; \
+	 VITE_API_BASE_URL="$$api" NEXT_PUBLIC_API_BASE_URL="$$api" \
+	 NEXT_PUBLIC_SITE_URL="http://localhost:$${DOCKER_PUBLIC_WEB_PORT:-13000}" \
+	 $(DC_LOCAL) --profile admin --profile public up -d $(BUILD_FLAG)
+	@set -a; . "$(LOCAL_ENV)"; set +a; \
+	 echo "✓ admin-app: http://localhost:$${DOCKER_ADMIN_APP_PORT:-15173}  ·  public-web: http://localhost:$${DOCKER_PUBLIC_WEB_PORT:-13000}"
+	@echo "  Nhớ khởi động backend native: make dev-native"
 
 .PHONY: dev-docker
-dev-docker: ## Chạy TOÀN BỘ stack trong Docker (infra + app + 2 FE)
-	$(call need_file,$(DEPLOY)/compose.local.yml,WS-3 / T3.2)
-	$(COMPOSE) -f $(DEPLOY)/compose.local.yml up -d --build
-	@echo "✓ Stack đã chạy. Log: make logs"
+dev-docker: ## [QA / demo] TOÀN BỘ stack trong Docker (FE gọi backend DOCKER)
+	$(call need_local_env)
+	$(call need_fe_app,admin-app,WS-8 / T8.1)
+	$(call need_fe_app,public-web,WS-9 / T9.1)
+	$(DC_LOCAL) --profile full up -d $(BUILD_FLAG)
+	@set -a; . "$(LOCAL_ENV)"; set +a; \
+	 echo "✓ backend: http://localhost:$${DOCKER_APP_PORT:-18080}  ·  admin-app: http://localhost:$${DOCKER_ADMIN_APP_PORT:-15173}  ·  public-web: http://localhost:$${DOCKER_PUBLIC_WEB_PORT:-13000}"
+
+.PHONY: dev-native
+dev-native: ## Chạy backend NATIVE từ máy (cần `make dev-infra` trước)
+	cd $(BACKEND) && ./mvnw -pl app -am spring-boot:run
+
+.PHONY: build-images
+build-images: ## Build lại image backend từ mã nguồn local (không chạy)
+	$(call need_local_env)
+	$(DC_LOCAL) --profile backend build
+
+.PHONY: ps
+ps: ## Liệt kê container đang chạy của dự án
+	$(DC_LOCAL) ps
 
 .PHONY: down
-down: ## Dừng mọi container của dự án
-	-@$(COMPOSE) -f $(DEPLOY)/compose.local.yml down 2>/dev/null
-	-@$(COMPOSE) -f $(DEPLOY)/compose.infra.yml down 2>/dev/null
-	@echo "✓ Đã dừng"
+down: ## Dừng mọi container của dự án (GIỮ dữ liệu)
+	@$(DC_LOCAL) --profile full down --remove-orphans
+	@echo "✓ Đã dừng — dữ liệu trong volume vẫn còn"
+
+.PHONY: reset-db
+reset-db: ## ⚠ XÓA SẠCH volume DB + MinIO rồi dựng lại từ đầu
+	@echo "  ⚠ Thao tác này XÓA TOÀN BỘ dữ liệu local (PostgreSQL + MinIO)."
+	@printf "    Gõ 'xoa' để xác nhận: " && read ans && [ "$$ans" = "xoa" ] || { echo "    Đã hủy."; exit 1; }
+	@$(DC_LOCAL) --profile full down -v --remove-orphans
+	@echo "✓ Đã xóa. Dựng lại: make dev-infra (script init sẽ chạy lại)"
 
 .PHONY: logs
 logs: ## Xem log stack local
-	$(COMPOSE) -f $(DEPLOY)/compose.local.yml logs -f --tail=100
+	$(DC_LOCAL) --profile full logs -f --tail=100
 
 # --- Database ----------------------------------------------------------------
 .PHONY: migrate
-migrate: ## Chạy Flyway migration (service `migrator` riêng, không qua app)
-	$(call need_file,$(DEPLOY)/compose.$(ENV).yml,WS-3 / T3.2 · WS-11 / T11.4)
-	$(COMPOSE) -f $(DEPLOY)/compose.$(ENV).yml run --rm migrator
+migrate: ## Chạy Flyway migration trong Docker (service `migrator` riêng)
+	$(call need_file,$(DEPLOY)/compose.$(ENV).yml,WS-11 / T11.3)
+	$(COMPOSE) --env-file $(ENV_FILE) -f $(DEPLOY)/compose.$(ENV).yml run --rm migrator
 
 .PHONY: migrate-info
 migrate-info: ## Xem trạng thái migration đã áp dụng
@@ -154,6 +237,38 @@ env: ## Tạo file env từ mẫu (ENV=local|staging|prod)
 		&& echo "  File $(ENV_FILE) đã tồn tại — không ghi đè." \
 		|| { cp "$(ENV_FILE).example" "$(ENV_FILE)" && chmod 600 "$(ENV_FILE)" \
 		     && echo "✓ Đã tạo $(ENV_FILE) — sửa giá trị trước khi chạy"; }
+
+.PHONY: doctor
+doctor: ## Kiểm tra máy đã đủ điều kiện chạy dự án chưa
+	@echo ""
+	@echo "  Công cụ"
+	@command -v docker  >/dev/null && echo "    ✓ docker   $$(docker --version | cut -d' ' -f3 | tr -d ,)" || echo "    ✗ docker   — BẮT BUỘC"
+	@docker compose version >/dev/null 2>&1 && echo "    ✓ compose  $$(docker compose version --short)" || echo "    ✗ docker compose — BẮT BUỘC"
+	@command -v java >/dev/null && echo "    ✓ java     $$(java -version 2>&1 | head -1 | awk -F'\"' '{print $$2}')  (chỉ cần khi chạy backend native)" || echo "    ⬜ java   — chỉ cần khi chạy backend native"
+	@command -v node >/dev/null && echo "    ✓ node     $$(node --version)  (chỉ cần khi chạy frontend native)" || echo "    ⬜ node   — chỉ cần khi chạy frontend native"
+	@command -v psql >/dev/null && echo "    ✓ psql     $$(psql --version | cut -d' ' -f3)  (cho make migrate-info)" || echo "    ⬜ psql   — cần cho make migrate-info"
+	@echo ""
+	@echo "  Cấu hình"
+	@test -f "$(LOCAL_ENV)" && echo "    ✓ $(LOCAL_ENV)" || echo "    ✗ Chưa có deploy/env/local.env — chạy: make env"
+	@test -f "$(LOCAL_ENV)" && awk -F= '/^(DB_PASSWORD|DB_MIGRATION_PASSWORD|MINIO_SECRET_KEY)=/ && ($$2 == "" || $$2 ~ /^ *#/) {print "    ✗ Chưa điền giá trị: " $$1}' "$(LOCAL_ENV)" || true
+	@echo ""
+	@echo "  Cổng Docker publish ra host (trùng cổng = compose báo lỗi khi khởi động)"
+	@set -a; [ -f "$(LOCAL_ENV)" ] && . "$(LOCAL_ENV)"; set +a; \
+	 for p in "PostgreSQL:$${DOCKER_DB_PORT:-15432}" "MinIO:$${DOCKER_MINIO_PORT:-19000}" \
+	          "MinIO console:$${DOCKER_MINIO_CONSOLE_PORT:-19001}" "SMTP Mailpit:$${DOCKER_SMTP_PORT:-11025}" \
+	          "Mailpit UI:$${DOCKER_MAILPIT_UI_PORT:-18025}" "Backend:$${DOCKER_APP_PORT:-18080}" \
+	          "admin-app:$${DOCKER_ADMIN_APP_PORT:-15173}" "public-web:$${DOCKER_PUBLIC_WEB_PORT:-13000}"; do \
+	     name="$${p%%:*}"; port="$${p##*:}"; \
+	     if lsof -nP -iTCP:$$port -sTCP:LISTEN >/dev/null 2>&1; then \
+	         owner=$$(lsof -nP -iTCP:$$port -sTCP:LISTEN 2>/dev/null | awk 'NR==2 {print $$1}'); \
+	         if docker ps --format '{{.Names}} {{.Ports}}' 2>/dev/null | grep -q ":$$port->"; then \
+	             echo "    ✓ $$port  $$name — đang do container của dự án giữ"; \
+	         else \
+	             echo "    ✗ $$port  $$name — ĐANG BỊ CHIẾM bởi '$$owner'. Đổi cổng trong deploy/env/local.env"; \
+	         fi; \
+	     else echo "    ✓ $$port  $$name — trống"; fi; \
+	 done
+	@echo ""
 
 .PHONY: hooks
 hooks: ## Bật git hook kiểm tra định dạng commit message
