@@ -6,9 +6,10 @@ package com.songnhue.core.common.filter;
  * <pre>
  * [1] CorrelationFilter   sinh/nhận traceId, đưa vào MDC
  * [2] RateLimitFilter     chặn theo IP + user; login có bucket riêng
- * [3] AuthFilter          verify access token, đối chiếu token_denylist   ← WS-5
- * [4] ScopeContextFilter  nạp role, permission, org_unit vào SecurityContext ← WS-5
- * [5] AuditContextFilter  gắn user + traceId cho audit interceptor
+ * [3] CsrfFilter          double-submit token cho request thay đổi dữ liệu     ← WS-5
+ * [4] AuthFilter          verify access token, đối chiếu sessions + denylist   ← WS-5
+ * [5] ScopeContextFilter  nạp role, permission, org_unit vào AuthContext       ← WS-5
+ * [6] AuditContextFilter  gắn user + traceId cho audit interceptor
  * </pre>
  *
  * <p><b>Thứ tự này không phải tùy chọn.</b> Vài hệ quả nếu đảo:
@@ -34,9 +35,19 @@ public final class FilterOrder {
     public static final int REQUEST_LOG = 15;
 
     public static final int RATE_LIMIT = 20;
-    /** Chừa sẵn cho {@code AuthFilter} — WS-5 / T5.1. */
+
+    /**
+     * Kiểm CSRF trước cả xác thực (WS-5 / T5.5).
+     *
+     * <p>Phép kiểm chỉ là so hai chuỗi — rẻ hơn nhiều so với đọc DB và kiểm chữ ký RSA. Request giả
+     * mạo bị loại ở đây thì không tiêu tốn gì thêm của máy chủ.
+     */
+    public static final int CSRF = 25;
+
+    /** Xác thực access token — WS-5 / T5.1. */
     public static final int AUTH = 30;
-    /** Chừa sẵn cho {@code ScopeContextFilter} — WS-5 / T5.11. */
+
+    /** Nạp quyền và phạm vi đơn vị — WS-5 / T5.9, T5.11. */
     public static final int SCOPE_CONTEXT = 40;
 
     public static final int AUDIT_CONTEXT = 50;

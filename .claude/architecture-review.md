@@ -324,3 +324,17 @@ Toàn bộ quyết định §1–§7 giữ nguyên: PostgreSQL 16 + PostGIS, Mod
 ### 9.4. Nơi dồn công
 
 Vì cắt bớt ở hạ tầng (không replica/PITR/k8s/Vault), trọng tâm đầu tư dồn vào **bảo mật — authentication — authorization**: JWT RS256 có `kid` xoay được · refresh rotation + **reuse detection** thu hồi cả token family · CSRF double-submit · lockout không tiết lộ user tồn tại · **2FA TOTP bắt buộc Admin/Admin HR** · **RBAC 3 tầng** với `@RequirePermission` + Hibernate scope filter theo `org_unit` · lookup qua `public_id` UUID chống IDOR. Kiểm chứng bằng **2 chốt chặn ở CI**: endpoint thiếu `@RequirePermission` → build đỏ, và ma trận role × resource phải pass 100% (NFR-06).
+
+### 9.5. Không dùng filter chain của Spring Security (chốt 14/8, khi làm WS-5)
+
+Dự án **chỉ lấy `spring-security-crypto`** (BCrypt) chứ không kéo `spring-boot-starter-security`. Ba lý do cụ thể, không phải sở thích:
+
+| Vấn đề nếu dùng cả framework | Hệ quả |
+|---|---|
+| `FilterChainProxy` mặc định nằm ở order **-100** | Chen vào **trước** `CorrelationFilter` (order 10) → đúng những lỗi sớm nhất lại không có `traceId`, tức là mất khả năng tra cứu ở nhóm lỗi cần tra nhất |
+| 401/403 do `AuthenticationEntryPoint` sinh ra | **Không đi qua** `GlobalExceptionHandler` → phá envelope + `traceId` (DoD #9) đúng ở nhóm lỗi hay gặp nhất |
+| Cơ chế quyền là `@PreAuthorize` | conventions.md §4.2 đã chốt `@RequirePermission` + interceptor + quét deny-by-default ở CI — hai mô hình song song thì có hai nơi để quên |
+
+**Phần khó và dễ sai vẫn dùng thư viện**, không tự cài: BCrypt (`spring-security-crypto`) và JOSE/JWT (`nimbus-jose-jwt` — chính thư viện Spring Security dùng bên trong). Tự viết đúng hai thứ đã cài sẵn: `TotpGenerator` (RFC 6238 có bộ vector kiểm thử chính thức nên chứng minh được bằng test) và `HashUtils` (SHA-256 + so sánh constant-time).
+
+Đánh đổi phải chấp nhận: những gì Spring Security cho sẵn thì mình tự lo — hiện đã có CSRF, rate limit, lockout, denylist; **security headers do nginx đặt** (WS-11/T11.5), không đặt ở tầng ứng dụng.

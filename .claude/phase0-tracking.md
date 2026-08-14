@@ -1,6 +1,6 @@
 # PHASE 0 — CORE PLATFORM · BẢNG THEO DÕI TIẾN ĐỘ
 
-> **Cập nhật lần cuối**: 2026-08-14 · **Tiến độ: 32/107 task (30%)** · **DoD: 4/21** · Trạng thái: 🟡 Đang làm (xong WS-1, WS-2, WS-4; WS-3 còn T3.4)
+> **Cập nhật lần cuối**: 2026-08-14 · **Tiến độ: 46/107 task (43%)** · **DoD: 7/21** (mục 7 xong tầng 2, tầng 3 chờ WS-10) · Trạng thái: 🟡 Đang làm (xong WS-1, WS-2, WS-4, WS-5; WS-3 còn T3.4)
 > Nguồn ràng buộc: `conventions.md` (coding/security) · `architecture-review.md` §6, §9 (kiến trúc đã chốt) · `function-spec.md` (nghiệp vụ MOD-05)
 > **Cách dùng**: làm xong task nào tick `[x]` task đó; xong 1 WS thì chạy mục "Kiểm chứng" của WS rồi cập nhật bảng tổng + dòng "Cập nhật lần cuối" ở trên.
 
@@ -14,14 +14,14 @@
 | **WS-2** | DB & Migration | 10 | **10** | ✅ **Xong** (14/8) | WS-1 | 8 pd |
 | **WS-3** | Docker & môi trường chạy local | 7 | **6** | 🟡 **6/7** (14/8) — T3.4 chờ WS-8/9 | WS-1 | 5 pd |
 | **WS-4** | BE — Common Platform | 10 | **10** | ✅ **Xong** (14/8) | WS-2 | 10 pd |
-| **WS-5** | BE — Auth & RBAC 3 tầng | 14 | 0 | ⬜ Chưa bắt đầu | WS-4 | 15 pd |
+| **WS-5** | BE — Auth & RBAC 3 tầng | 14 | **14** | ✅ **Xong** (14/8) | WS-4 | 15 pd |
 | **WS-6** | BE — Core services | 15 | 0 | ⬜ Chưa bắt đầu | WS-4, WS-5 | 25 pd |
 | **WS-7** | BE — Backup/Restore & Observability | 12 | 0 | ⬜ Chưa bắt đầu | WS-6 | 9 pd |
 | **WS-8** | FE — admin-app | 11 | 0 | ⬜ Chưa bắt đầu | WS-4→6 (API) | 15 pd |
 | **WS-9** | FE — public-web | 5 | 0 | ⬜ Chưa bắt đầu | WS-1 | 5 pd |
 | **WS-10** | Test & CI | 7 | 0 | ⬜ Chưa bắt đầu | WS-4 | 10 pd |
 | **WS-11** | Deploy Staging & Production | 10 | 0 | ⬜ Chưa bắt đầu | WS-3, 7, 10 | 10 pd |
-| | **TỔNG** | **107** | **32** | | | **114 pd** |
+| | **TỔNG** | **107** | **46** | | | **114 pd** |
 
 *(107 task triển khai + 21 mục Definition of Done ở cuối file.)*
 
@@ -229,28 +229,67 @@ WS-1 ─► WS-2 ─► WS-3          [nền — bắt buộc trước mọi th�
 
 ---
 
-## WS-5 — BE Auth & RBAC 3 tầng · 15 pd
+## WS-5 — BE Auth & RBAC 3 tầng · 15 pd — ✅ **XONG 14/8/2026**
 
 **Tiên quyết**: WS-4. **Đầu ra**: xác thực + phân quyền đủ mạnh, có 2 chốt chặn ở CI. **Đây là nơi dồn công của Phase 0** (`architecture-review.md` §9.4).
 
-- [ ] **T5.1** JWT **RS256**, keypair đọc từ file/env, `kid` trong header để xoay key; access token 30' — *§4.1*
-- [ ] **T5.2** Refresh token rotation lưu **httpOnly + Secure + SameSite=Strict cookie**; token family — *§4.1*
-- [ ] **T5.3** **Refresh reuse detection** → thu hồi cả family + force re-login + security event — *§4.1*
-- [ ] **T5.4** `token_denylist` bảng DB; đổi mật khẩu / khóa tài khoản → denylist toàn bộ token đang sống — *§4.1*
-- [ ] **T5.5** CSRF double-submit (`X-CSRF-Token`) cho mọi request thay đổi dữ liệu — *§4.1*
-- [ ] **T5.6** Login lockout 5 lần/15' → `AUTH-0003`; message chung `AUTH-0001` **không tiết lộ user có tồn tại** — *§4.1*
-- [ ] **T5.7** BCrypt cost ≥ 12; policy ≥10 ký tự chữ+số; bắt đổi mật khẩu lần đầu — *§4.1*
-  - ⚠ **Kèm theo (phát sinh từ WS-2)**: lệnh **bootstrap tài khoản `superadmin`** đọc `BOOTSTRAP_ADMIN_PASSWORD` từ env, đặt mật khẩu và chuyển `PENDING_ACTIVATION` → `ACTIVE`. Migration cố ý seed tài khoản **không có mật khẩu** (`password_hash = '!'`) để repo không chứa mật khẩu mặc định → **chưa có lệnh này thì không ai đăng nhập được**
-- [ ] **T5.8** **2FA TOTP bắt buộc Admin + Admin HR** (enroll, QR, verify, recovery code) — *§4.1 + G12*
-- [ ] **T5.9** Tầng 2 — `@RequirePermission("module:resource:action")` + interceptor — *§4.2*
-  - ⚠ **Kèm theo (từ WS-4)**: điền `userId`/`username` vào `AuditContextFilter` (hiện mới có IP) — thiếu bước này thì `audit_logs.actor_user_id` và `created_by` để trống toàn bộ
-- [ ] **T5.10** **Deny by default**: test CI quét toàn bộ controller method, thiếu annotation → **CI fail** — *§4.2*
-- [ ] **T5.11** Tầng 3 — Hibernate `@Filter` scope `org_unit` (+ cây con) tự áp cho `ScopedEntity`; vi phạm → `AUTH-3002` — *§4.2*
-- [ ] **T5.12** Mọi lookup qua `public_id` UUID, **cấm `findById` trần** cho request người dùng — *§4.2 chống IDOR*
-- [ ] **T5.13** Quản lý phiên (M5.14): danh sách phiên + **đăng xuất từ xa** — *CN-05.7*
-- [ ] **T5.14** Cảnh báo đăng nhập bất thường (M5.16): sai nhiều lần, ngoài **giờ hành chính đọc từ `settings`** → near-real-time — *CN-05.7, F5*
+- [x] **T5.1** JWT **RS256**, keypair đọc từ file/env, `kid` trong header để xoay key; access token 30' — *§4.1*
+- [x] **T5.2** Refresh token rotation lưu **httpOnly + Secure + SameSite=Strict cookie**; token family — *§4.1*
+- [x] **T5.3** **Refresh reuse detection** → thu hồi cả family + force re-login + security event — *§4.1*
+- [x] **T5.4** `token_denylist` bảng DB; đổi mật khẩu / khóa tài khoản → denylist toàn bộ token đang sống — *§4.1*
+- [x] **T5.5** CSRF double-submit (`X-CSRF-Token`) cho mọi request thay đổi dữ liệu — *§4.1*
+- [x] **T5.6** Login lockout 5 lần/15' → `AUTH-0003`; message chung `AUTH-0001` **không tiết lộ user có tồn tại** — *§4.1*
+- [x] **T5.7** BCrypt cost ≥ 12; policy ≥10 ký tự chữ+số; bắt đổi mật khẩu lần đầu — *§4.1*
+  - [x] **Kèm theo (phát sinh từ WS-2)**: lệnh bootstrap `superadmin` — `AdminBootstrapRunner`, đọc `BOOTSTRAP_ADMIN_PASSWORD`, **chỉ tác động khi tài khoản còn `PENDING_ACTIVATION`** (chạy lại với biến còn nguyên cũng không đặt lại mật khẩu)
+- [x] **T5.8** **2FA TOTP bắt buộc Super Admin + Admin + Admin HR** (enroll, otpauth URI, verify, 10 mã khôi phục) — *§4.1 + G12*
+- [x] **T5.9** Tầng 2 — `@RequirePermission("module:resource:action")` + `PermissionInterceptor` — *§4.2*
+  - [x] **Kèm theo (từ WS-4)**: `AuditContextFilter` đã điền `userId`/`username` — kiểm chứng bằng `users.updated_by = 1` sau khi đổi mật khẩu
+- [x] **T5.10** **Deny by default**: `DenyByDefaultTest` quét toàn bộ controller, thiếu annotation → **CI đỏ** — *§4.2*
+- [x] **T5.11** Tầng 3 — `ScopeFilterAspect` bật Hibernate `@Filter` theo materialized path `org_unit` — *§4.2*
+- [x] **T5.12** Lookup qua `public_id` UUID (`findByPublicIdAndDeletedAtIsNull`) — *§4.2 chống IDOR*
+- [x] **T5.13** Quản lý phiên (M5.14): danh sách phiên gộp theo family + **đăng xuất từ xa** — *CN-05.7*
+- [x] **T5.14** Cảnh báo đăng nhập bất thường (M5.16): `AbnormalLoginDetector` — ngoài **giờ hành chính đọc từ `settings`** → `security_events` — *CN-05.7, F5*
 
-**Kiểm chứng**: đúng quyền → 200 · thiếu permission → 403 `AUTH-3001` · ngoài đơn vị → 403 `AUTH-3002` · dùng lại refresh token cũ → thu hồi family + security event · thêm endpoint không có `@RequirePermission` → **CI đỏ**.
+**Kiểm chứng — đã chạy thật trên CSDL Docker (14/8)**
+
+| Hạng mục | Kết quả |
+|---|---|
+| Không tiết lộ tài khoản | Sai mật khẩu · tên không tồn tại · tài khoản DISABLED → **cùng `AUTH-0001`**, cùng câu chữ |
+| Khoá tài khoản | Sai lần 5 → `AUTH-0003`; **mật khẩu ĐÚNG trong lúc khoá cũng bị chặn** |
+| Ngưỡng khoá đọc từ `settings` | Đổi `max-failed-attempts` 5→3 trên DB → sau 60s (TTL cache) khoá đúng ở lần 3, **không deploy lại** |
+| 2FA | Mã TOTP do client tự tính (RFC 6238) khớp máy chủ; Super Admin dừng ở `TWO_FACTOR_ENROLL_REQUIRED`, **không có access token** |
+| Cookie | `refresh_token`: `HttpOnly; SameSite=Strict; Path=/api/v1/auth` · `XSRF-TOKEN`: đọc được, `SameSite=Strict` |
+| CSRF | Có cookie + **thiếu header** (đúng hình dạng request giả mạo) → `AUTH-0005` |
+| **Reuse detection** | Dùng lại refresh cũ → `AUTH-0008`; **refresh token mới của người dùng thật cũng chết** (`AUTH-0002`); **access token hết hiệu lực ngay**, không chờ hết 30' |
+| Bắt đổi mật khẩu | `/auth/sessions` → `AUTH-0007`; `/auth/me` vẫn gọi được (không thì người dùng bị kẹt) |
+| Đổi mật khẩu | Yếu → `AUTH-0006` + `details` theo từng luật, **`rejectedValue` rỗng** (mật khẩu không lọt ra response); thành công → thu hồi **cả phiên chưa hề đụng tới** |
+| Quản lý phiên | 2 thiết bị, đánh dấu đúng phiên hiện tại; đăng xuất từ xa → thiết bị kia `AUTH-0002`, phiên của mình vẫn chạy |
+| `security_events` | 8 loại ghi đủ, đúng mức: `REFRESH_REUSE_DETECTED`=CRITICAL, `LOGIN_LOCKED`=DANGER |
+| Deny by default | Thêm 3 endpoint vi phạm → **CI đỏ**, chỉ đích danh cả 3 (thiếu annotation · mã quyền sai định dạng · module không tồn tại) |
+| Kiểm token | 15 test: chặn **alg confusion** (ký HS256 bằng khoá công khai), **alg=none**, sửa nội dung, ký bằng khoá khác, dùng vé 2FA thay access token |
+| Khoá JWT | Sai cặp khoá / thiếu file / đưa nhầm khoá công khai vào ô khoá riêng → **app không khởi động**, thông báo chỉ rõ cách sinh lại |
+
+**5 lỗi chạy thật mới lộ ra** (unit test không bắt được):
+
+| # | Lỗi | Nếu không phát hiện |
+|---|---|---|
+| 1 | `@EntityScan`/`@EnableJpaRepositories` thiếu — `scanBasePackages` **không** áp cho JPA | App chết lúc khởi động với thông báo "required a bean … could not be found", không hề gợi ý nguyên nhân thật |
+| 2 | `@FilterDef` trên `@MappedSuperclass` **chưa có entity con** → Hibernate không đăng ký | `UnknownFilterException` ở **mọi** request có `@Transactional` — toàn bộ API lỗi 500 |
+| 3 | Cột `CHAR(64)`/`inet` thiếu `@JdbcTypeCode` | `ddl-auto: validate` chặn khởi động (đúng vai trò, nhưng phải biết mới sửa nhanh) |
+| 4 | **Rate limit login 5/15' theo IP chặn trước khoá tài khoản** | `AUTH-0003` không bao giờ kích hoạt được, tham số M5.15 vô nghĩa; và 200 người sau một IP NAT dùng chung hạn mức 5 lượt → cả cơ quan không đăng nhập được. Đã nâng lên 30/15', có test chặn ở CI |
+| 5 | `make dev-native` hỏng: `-am` kéo POM cha vào, `spring-boot:run` chạy trên module không có main class | Không ai chạy được backend native bằng lệnh trong tài liệu |
+
+**Quyết định đáng lưu ý**
+
+| Việc | Vì sao |
+|---|---|
+| **Không dùng filter chain Spring Security**, chỉ lấy `spring-security-crypto` | `architecture-review.md` **§9.5** — FilterChainProxy chen trước `CorrelationFilter`, và 401/403 của nó không đi qua `GlobalExceptionHandler` (phá envelope + traceId) |
+| `TransactionTemplate(REQUIRES_NEW)` thay cho `@Transactional(REQUIRES_NEW)` | Lời gọi trong cùng đối tượng **không đi qua proxy** → annotation bị bỏ qua lặng lẽ. Bộ đếm đăng nhập sai và nhật ký bảo mật nằm trên đường rollback, hỏng ở đây là **khoá tài khoản không bao giờ chạy** mà không có triệu chứng |
+| Tách `PasswordChangeService` + `AbnormalLoginDetector` khỏi `AuthService` | Checkstyle báo 10 tham số constructor — sửa bằng cách tách đúng mối quan tâm, không nới luật |
+| `TotpGenerator` tự cài | RFC 6238 có **bộ vector kiểm thử chính thức** → đúng đắn chứng minh bằng test, đổi lại bớt một phụ thuộc phải theo dõi CVE |
+| QR do FE vẽ, máy chủ chỉ trả `otpauth://` | Sinh ảnh ở máy chủ là thêm một chỗ secret đi qua (bộ nhớ đệm, proxy, log truy cập) |
+
+**Còn nợ, đã ghi chỗ cắm**: `shared/error-map.ts` mirror **36 mã** ở WS-8/T8.4 · luật ArchUnit bắt mọi lớp con `ScopedEntity` phải mang `@Filter` ở **WS-10/T10.2** (thiếu nó thì bộ lọc có tồn tại nhưng không áp — dữ liệu mọi đơn vị lộ hết mà không có lỗi nào) · ma trận role × resource ở **WS-10/T10.3** (tầng 3 hiện mới có test đơn vị, chưa có test đầu-cuối vì Phase 0 chưa có entity nào thuộc phạm vi đơn vị) · job dọn token chuyển sang hàng đợi DB + ShedLock ở **WS-6/T6.8**.
 
 ---
 
@@ -383,10 +422,10 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 0 hoàn thành:
 - [ ] **2. Chạy full Docker** — `make dev-docker` → admin-app + public-web + API cùng lúc *(backend đã xong; 2 app FE chờ WS-8/WS-9)*
 - [ ] **3. Fail-fast thiếu env** — xóa 1 biến bắt buộc → app **không khởi động**, log chỉ rõ key thiếu
 - [x] **4. Migration sạch từ DB rỗng** — `flyway_schema_history` đủ version, không lỗi ✅ *14/8: 9/9 migration trên volume rỗng, chạy lại lần 2 exit 0*
-- [ ] **5. Auth + 2FA** — login Super Admin → bắt đổi mật khẩu → enroll TOTP → nhận access + refresh cookie
-- [ ] **6. Refresh reuse detection** — dùng lại refresh token cũ → thu hồi family + security event
-- [ ] **7. RBAC 3 tầng** — đúng quyền → 200 · thiếu permission → 403 `AUTH-3001` · ngoài đơn vị → 403 `AUTH-3002`
-- [ ] **8. Deny by default** — endpoint không có `@RequirePermission` → **CI fail**
+- [x] **5. Auth + 2FA** — login Super Admin → enroll TOTP (mã client tự tính khớp máy chủ) → nhận access + refresh cookie; `must_change_password` chặn mọi endpoint khác bằng `AUTH-0007` *(WS-5, 14/8)*
+- [x] **6. Refresh reuse detection** — dùng lại refresh cũ → `AUTH-0008`, thu hồi cả family, `security_events` mức CRITICAL; refresh MỚI của người dùng thật **cũng chết**, access token hết hiệu lực **ngay** *(WS-5, 14/8)*
+- [~] **7. RBAC 3 tầng** — tầng 2 xong và có test (đúng quyền → 200 · thiếu → `AUTH-3001` · quên khai báo → cấm). ⬜ **Tầng 3 (`AUTH-3002`) chưa kiểm chứng đầu-cuối được**: Phase 0 chưa có entity nào thuộc phạm vi đơn vị → dời sang **WS-10/T10.3** (ma trận role × resource) *(WS-5, 14/8)*
+- [x] **8. Deny by default** — thêm 3 endpoint vi phạm → **CI đỏ**, chỉ đích danh cả 3 (thiếu annotation · mã quyền sai định dạng · module không tồn tại) *(WS-5, 14/8)*
 - [x] **9. Envelope + traceId** — mọi response (kể cả lỗi) đúng §2.1, luôn có `traceId` ✅ *14/8: kiểm bằng request thật + 8 test lát cắt web*
 - [x] **10. Audit hash chain** — verify chain pass; `songnhue_app` thử `UPDATE audit_logs` → **bị DB từ chối** ✅ *14/8: chặn cả qua bảng cha lẫn thẳng vào partition; thử sửa/xóa lén đều bị verify phát hiện*
 - [ ] **11. Attachment** — upload → MinIO; sai magic bytes → từ chối; presigned URL hết hạn đúng TTL

@@ -13,6 +13,11 @@
     <description>Bootstrap của Modular Monolith: gom 5 module thành 1 process, giữ application*.yml và Dockerfile.
         Module này KHÔNG chứa logic nghiệp vụ.</description>
 
+    <properties>
+        <!-- Module DUY NHẤT có main class → bật lại `spring-boot:run` (POM cha đặt skip=true) -->
+        <spring-boot.run.skip>false</spring-boot.run.skip>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>com.songnhue</groupId>
@@ -74,6 +79,14 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
                     <mainClass>com.songnhue.app.SongnhueApplication</mainClass>
+                    <!--
+                      Chạy từ thư mục `backend/` chứ không phải `backend/app/`.
+                      Các đường dẫn tương đối trong file env (khoá JWT ở `../deploy/keys/…`) được
+                      viết theo gốc `backend/`; để mặc định thì cùng một file env cho kết quả khác
+                      nhau tuỳ người chạy `make dev-native` hay chạy từ IDE — và triệu chứng là
+                      "không tìm thấy file khoá" dù file vẫn nằm đúng chỗ.
+                    -->
+                    <workingDirectory>${maven.multiModuleProjectDirectory}</workingDirectory>
                     <excludes>
                         <exclude>
                             <groupId>org.projectlombok</groupId>

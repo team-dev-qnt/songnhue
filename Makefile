@@ -238,6 +238,22 @@ env: ## Tạo file env từ mẫu (ENV=local|staging|prod)
 		|| { cp "$(ENV_FILE).example" "$(ENV_FILE)" && chmod 600 "$(ENV_FILE)" \
 		     && echo "✓ Đã tạo $(ENV_FILE) — sửa giá trị trước khi chạy"; }
 
+.PHONY: gen-keys
+gen-keys: ## Sinh cặp khoá RSA ký access token cho môi trường local (WS-5)
+	@# Khoá là bí mật: .gitignore đã chặn *.pem, và trên máy chủ khoá nằm ở
+	@# /opt/songnhue/keys/ — NGOÀI bản sao lưu CSDL (architecture-review.md §6.5).
+	@test -f "$(DEPLOY)/keys/jwt-private.pem" \
+		&& { echo "  Khoá đã tồn tại — KHÔNG ghi đè."; \
+		     echo "  Ghi đè là mọi access token và phiên đang sống đều mất hiệu lực."; \
+		     echo "  Muốn sinh lại: xoá $(DEPLOY)/keys/jwt-*.pem rồi chạy lại."; } \
+		|| { mkdir -p "$(DEPLOY)/keys" \
+		     && openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 \
+		            -out "$(DEPLOY)/keys/jwt-private.pem" 2>/dev/null \
+		     && openssl rsa -pubout -in "$(DEPLOY)/keys/jwt-private.pem" \
+		            -out "$(DEPLOY)/keys/jwt-public.pem" 2>/dev/null \
+		     && chmod 600 "$(DEPLOY)/keys/jwt-private.pem" \
+		     && echo "✓ Đã sinh $(DEPLOY)/keys/jwt-private.pem (chmod 600) và jwt-public.pem"; }
+
 .PHONY: doctor
 doctor: ## Kiểm tra máy đã đủ điều kiện chạy dự án chưa
 	@echo ""

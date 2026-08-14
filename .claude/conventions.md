@@ -200,6 +200,11 @@ Format: `<PREFIX>-<4 số>` — prefix theo module: `SYS` (hệ thống), `AUTH`
 | AUTH-0001 | 401 | Sai tên đăng nhập hoặc mật khẩu |
 | AUTH-0002 | 401 | Phiên đăng nhập hết hạn |
 | AUTH-0003 | 423 | Tài khoản tạm khóa do đăng nhập sai nhiều lần |
+| **AUTH-0004** | 401 | Mã 2FA không đúng, hết hiệu lực, hoặc **đã dùng rồi** (chống replay) |
+| **AUTH-0005** | 403 | Thiếu/sai `X-CSRF-Token` — double-submit không khớp |
+| **AUTH-0006** | 422 | Mật khẩu mới không đạt chính sách (M5.15) hoặc trùng mật khẩu cũ |
+| **AUTH-0007** | 403 | Đang bắt buộc đổi mật khẩu — chặn mọi thao tác khác cho tới khi đổi xong |
+| **AUTH-0008** | 401 | Phiên bị thu hồi vì **phát hiện dùng lại refresh token** — buộc đăng nhập lại |
 | AUTH-3001 | 403 | Không có quyền thực hiện thao tác này |
 | AUTH-3002 | 403 | Dữ liệu không thuộc phạm vi đơn vị của bạn |
 | CMS-2001 | 422 | Slug đã tồn tại |
@@ -236,13 +241,20 @@ Format: `<PREFIX>-<4 số>` — prefix theo module: `SYS` (hệ thống), `AUTH`
 ```
 Request → [1] CorrelationFilter (sinh/nhận traceId, MDC cho log)
         → [1b] RequestLoggingFilter (nằm TRONG correlation, NGOÀI rate limit — để request bị chặn 429 vẫn được ghi log)
-        → [2] RateLimitFilter (bucket theo IP + user; login có bucket riêng)
-        → [3] AuthFilter (verify access token, check denylist ở bảng DB)
-        → [4] ScopeContextFilter (load user → role, permissions, org_unit vào SecurityContext)
+        → [2] RateLimitFilter (bucket theo IP; login có bucket riêng)
+        → [2b] CsrfFilter (double-submit, chỉ với method thay đổi dữ liệu — WS-5/T5.5)
+        → [3] AuthFilter (verify access token; đối chiếu sessions + token_denylist)
+        → [4] ScopeContextFilter (load user → role, permissions, org_unit path vào AuthContext)
         → [5] AuditContextFilter (gắn user/traceId cho audit interceptor)
-        → Controller → Service → Repository (scope filter tự áp — mục 5.3)
+        → PermissionInterceptor (tầng 2 — @RequirePermission, xem §4.2)
+        → Controller → Service → Repository (scope filter tự áp — §4.2 tầng 3)
 Response ← GlobalExceptionHandler / ResponseBodyAdvice (envelope) ← RequestLoggingFilter (method, path, status, duration — KHÔNG log body chứa dữ liệu nhạy cảm)
 ```
+
+**Hai điểm chốt của WS-5, đừng đảo ngược khi sửa về sau:**
+
+- **`AuthFilter` KHÔNG tự trả 401.** Ở tầng filter chưa biết endpoint sắp gọi có cần đăng nhập hay không (thông tin đó nằm ở annotation trên phương thức controller, Spring chưa phân giải handler). Cụ thể hơn: FE thường gửi kèm access token **đã hết hạn** khi gọi `/auth/refresh` — filter thấy token hỏng mà trả 401 ngay thì luồng làm mới token không bao giờ chạy được. Filter chỉ ghi nhận kết quả; `PermissionInterceptor` mới quyết định.
+- **Phân quyền là `HandlerInterceptor`, không phải filter** — vì nó cần đọc annotation của đúng phương thức controller sắp chạy.
 
 ### 2.5. Utils dùng chung (Core `common/util` — cấm viết lại trong module)
 
@@ -256,8 +268,12 @@ Response ← GlobalExceptionHandler / ResponseBodyAdvice (envelope) ← RequestL
 | `PageUtils` | Chuẩn hóa page/size (size ≤ 100), parse sort + đối chiếu whitelist |
 | `FileValidator` | Check magic bytes (không tin extension), size theo config từng loại, tên file random hóa |
 | `CryptoService` | AES-256-GCM encrypt/decrypt cột nhạy cảm; key từ env/Vault; hỗ trợ key rotation (key_id trong ciphertext) |
+| `HashUtils` *(WS-5)* | SHA-256 hex 64 ký tự (refresh token, mã khôi phục, checksum tệp), sinh chuỗi ngẫu nhiên an toàn, **so sánh constant-time**. ⛔ KHÔNG dùng cho mật khẩu — mật khẩu cần thuật toán *chậm* (BCrypt cost ≥ 12) |
+| `TotpGenerator` *(WS-5)* | Sinh/kiểm mã TOTP theo RFC 6238 (HMAC-SHA1, bước 30s, 6 chữ số, cho lệch ±1 bước). Tự cài thay vì kéo thư viện vì RFC có **bộ vector kiểm thử chính thức** — tính đúng đắn chứng minh bằng test, xem `TotpGeneratorTest` |
 
-Base classes: `BaseEntity` (audit cột chuẩn + soft delete + version), `ScopedEntity extends BaseEntity` (+ `org_unit_id` — mọi entity thuộc phạm vi đơn vị bắt buộc kế thừa).
+Base classes: `BaseEntity` (audit cột chuẩn + soft delete + version), `ScopedEntity extends BaseEntity` (+ `org_unit_id` — mọi entity thuộc phạm vi đơn vị bắt buộc kế thừa; điều kiện SQL của bộ lọc phạm vi viết **đúng một lần** ở hằng `ScopedEntity.ORG_UNIT_FILTER_CONDITION`).
+
+⚠ **Cột `CHAR(n)` và `inet` của Postgres phải khai `@JdbcTypeCode`** (`SqlTypes.CHAR` / `SqlTypes.INET`). Thiếu thì `ddl-auto: validate` chặn ngay lúc khởi động với thông báo "wrong column type encountered" — đúng như thiết kế, nhưng dễ mất thời gian nếu không biết trước.
 
 FE mirror (`shared/`): `apiClient` (axios instance duy nhất: gắn CSRF header, auto refresh token 1 lần rồi logout, unwrap envelope, error → notification theo `error-map`), `useAuth`, `usePermission(code)`, `formatDateTime` (UTC+7), `formatNumber` (hiển thị số đo/tiền thống nhất).
 
@@ -282,9 +298,13 @@ FE mirror (`shared/`): `apiClient` (axios instance duy nhất: gắn CSRF header
 - Access token 30' (JWT ký RS256 — key riêng cho ký, xoay được) + Refresh token rotation lưu **httpOnly + Secure + SameSite=Strict cookie**.
 - **Refresh reuse detection**: refresh token cũ bị dùng lại → thu hồi cả token family, force re-login, ghi security event (dấu hiệu token bị đánh cắp).
 - CSRF: vì auth bằng cookie → double-submit token (`X-CSRF-Token` header) cho mọi request thay đổi dữ liệu.
-- Login: rate limit riêng; sai 5 lần/15' → khóa tạm 15' (AUTH-0003) + ghi security event; không tiết lộ user tồn tại hay không (message chung AUTH-0001).
-- Mật khẩu: BCrypt cost ≥ 12; policy ≥ 10 ký tự có chữ + số; bắt đổi lần đầu; **2FA (TOTP) bắt buộc cho role Admin/Admin HR**.
-- Đổi mật khẩu / bị khóa → denylist toàn bộ token đang sống của user (bảng DB `token_denylist`).
+- Login: sai 5 lần/15' → khóa tạm 15' (AUTH-0003) + ghi security event; không tiết lộ user tồn tại hay không (message chung AUTH-0001) — sai tên, sai mật khẩu và tài khoản bị vô hiệu hoá đều trả **cùng một câu** và tốn **xấp xỉ cùng thời gian** (băm giả một lần khi không tìm thấy tài khoản, nếu không thì đo thời gian phản hồi là dựng được danh sách tài khoản có thật).
+  - ⚠ **Hạn mức đăng nhập theo IP phải RỘNG HƠN ngưỡng khoá tài khoản** — chốt 30/15' theo IP so với 5 lần theo tài khoản (phát hiện khi chạy thử WS-5). Đặt bằng nhau thì rate limit ở filter luôn chặn trước, người dùng nhận `SYS-0002` thay vì `AUTH-0003` và tham số M5.15 Admin chỉnh trên UI **hoàn toàn không có tác dụng**. Thêm nữa, cả Công ty ra Internet qua một IP NAT: hạn mức quá chặt là vài người gõ nhầm mật khẩu buổi sáng làm cả cơ quan không đăng nhập được. `CaffeineRateLimitStoreTest` chặn ở CI nếu ai đó hạ xuống.
+- Mật khẩu: BCrypt cost ≥ 12; policy ≥ 10 ký tự có chữ + số; bắt đổi lần đầu; **2FA (TOTP) bắt buộc cho role Super Admin / Admin / Admin HR**.
+  - 2FA: secret **mã hoá** AES-256-GCM (không băm được — máy chủ phải đọc lại để tính mã); một mã dùng đúng **một lần** (`user_totp.last_used_step`, chống replay); 10 mã khôi phục băm SHA-256, dùng mã khôi phục sinh security event mức DANGER. Máy chủ chỉ trả chuỗi `otpauth://` — **QR do FE vẽ**, không sinh ảnh ở máy chủ (thêm một chỗ secret đi qua).
+- Đổi mật khẩu / bị khóa → denylist toàn bộ token đang sống của user (bảng DB `token_denylist`), đồng thời thu hồi mọi phiên (kể cả phiên đang thao tác).
+- Access token mang `fid` = **token family** của phiên. Thu hồi family (đăng xuất, đăng xuất từ xa, phát hiện reuse) là access token chết **ngay**, không phải chờ hết 30 phút.
+- Access token **không** mang danh sách quyền: nhét quyền vào token thì Admin gỡ quyền xong người kia vẫn dùng được tới 30 phút. Quyền nạp từ DB mỗi request, cache 30 giây, có `AuthorityLoader.invalidate()` để hiệu lực tức thì.
 
 ### 4.2. Authorization — phân cấp, phân quyền 3 tầng
 
@@ -294,8 +314,19 @@ Tầng 2 — Controller @RequirePermission("ops:maintenance:create") → chặn 
 Tầng 3 — Repository scope filter (org_unit)     → chặn dữ liệu (IDOR)
 ```
 
-- Permission dạng `module:resource:action`, gán vào Role (ma trận RBAC trong function-spec §6 dịch thành seed data); **deny by default** — endpoint không khai báo permission → CI fail.
+- Permission dạng `module:resource:action`, gán vào Role (ma trận RBAC trong function-spec §6 dịch thành seed data).
+- **Deny by default — mỗi phương thức controller bắt buộc khai báo ĐÚNG MỘT trong ba annotation:**
+
+  | Annotation | Dùng khi |
+  |---|---|
+  | `@RequirePermission("ops:maintenance:create")` | Cần quyền cụ thể. `mode = ANY` (mặc định) hoặc `ALL` |
+  | `@AuthenticatedEndpoint(reason = "…")` | Chỉ cần đăng nhập — thao tác với **chính mình** (đổi mật khẩu, xem/đăng xuất phiên của mình). Gán mã quyền cho những việc này là sai mô hình |
+  | `@PublicEndpoint(reason = "…")` | Không cần đăng nhập. **Bắt buộc ghi lý do** — danh sách endpoint công khai bị soát lại mỗi lần kiểm thử bảo mật |
+
+  Có annotation riêng cho "chỉ cần đăng nhập" thay vì để trống là để phân biệt được với **quên khai báo**. Hai lớp chặn: `DenyByDefaultTest` làm **CI đỏ** (kèm kiểm định dạng mã quyền và module hợp lệ), và `PermissionInterceptor` **từ chối lúc chạy** endpoint không khai báo gì.
 - Scope: user gắn `org_unit_id`; Hibernate filter tự thêm điều kiện đơn vị (+ cây con) cho mọi query trên `ScopedEntity` — vi phạm trả AUTH-3002. Integration test toàn bộ ma trận role × resource (NFR-06).
+  - Lọc theo **materialized path**, không theo `org_unit_id = ?`: quản lý Xí nghiệp phải thấy cả Tổ đội trực thuộc. Hệ quả gọn: người ở nút gốc có path `/1/`, mà path của mọi đơn vị đều bắt đầu bằng `/1/` → họ tự nhiên thấy toàn bộ dữ liệu, **không cần cờ "bỏ qua phạm vi"** — mà cờ như vậy chính là thứ hay bị bật nhầm rồi không ai để ý.
+  - Bật bằng `ScopeFilterAspect` quanh `@Transactional`, **một chỗ duy nhất** — quy tắc 5 của dự án: không dựa vào việc lập trình viên nhớ thêm `WHERE`.
 - API nhận `public_id` (UUID) — không expose id tuần tự; mọi lookup luôn kèm scope, không bao giờ `findById` trần cho request user.
 
 ### 4.3. Chống giả mạo dữ liệu (integrity)

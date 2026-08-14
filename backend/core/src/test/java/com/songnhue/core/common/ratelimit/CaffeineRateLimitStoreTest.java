@@ -7,7 +7,9 @@ import java.time.Duration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/** Chốt chặn dò mật khẩu — 5 lần/15 phút (conventions.md §4.5). */
+import com.songnhue.core.application.settings.SettingKeys;
+
+/** Chốt chặn dò mật khẩu theo IP (conventions.md §4.5). */
 class CaffeineRateLimitStoreTest {
 
     private final CaffeineRateLimitStore store = new CaffeineRateLimitStore();
@@ -82,11 +84,24 @@ class CaffeineRateLimitStoreTest {
     @Test
     @DisplayName("Hạn mức chốt theo conventions.md §4.5 — không được đổi tuỳ tiện")
     void policyValuesMatchConventions() {
-        assertThat(RateLimitPolicy.LOGIN.limit()).isEqualTo(5);
+        assertThat(RateLimitPolicy.LOGIN.limit()).isEqualTo(30);
         assertThat(RateLimitPolicy.LOGIN.window()).isEqualTo(Duration.ofMinutes(15));
         assertThat(RateLimitPolicy.API.limit()).isEqualTo(100);
         assertThat(RateLimitPolicy.API.window()).isEqualTo(Duration.ofMinutes(1));
         assertThat(RateLimitPolicy.EXPORT.limit()).isEqualTo(10);
         assertThat(RateLimitPolicy.EXPORT.window()).isEqualTo(Duration.ofHours(1));
+    }
+
+    @Test
+    @DisplayName("⚠ Hạn mức đăng nhập theo IP phải RỘNG HƠN ngưỡng khoá tài khoản")
+    void loginBucketMustBeLooserThanAccountLockout() {
+        // Phát hiện khi chạy thử thật: đặt bằng nhau (cùng 5) thì rate limit ở filter luôn chặn
+        // trước, người dùng nhận SYS-0002 thay vì AUTH-0003, và tham số "số lần sai bị khoá" của
+        // M5.15 mà Admin chỉnh trên UI hoàn toàn không có tác dụng.
+        // Kèm theo: cả Công ty ra Internet qua một IP NAT — hạn mức quá chặt là vài người gõ nhầm
+        // mật khẩu buổi sáng làm cả cơ quan không đăng nhập được.
+        assertThat(RateLimitPolicy.LOGIN.limit())
+                .as("phải > security.login.max-failed-attempts (mặc định %d)", SettingKeys.DEFAULT_MAX_FAILED_ATTEMPTS)
+                .isGreaterThan(SettingKeys.DEFAULT_MAX_FAILED_ATTEMPTS);
     }
 }

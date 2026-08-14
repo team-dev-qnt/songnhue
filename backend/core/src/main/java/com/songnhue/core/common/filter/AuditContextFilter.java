@@ -12,14 +12,18 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import com.songnhue.core.common.security.AuthContext;
+import com.songnhue.core.common.security.AuthenticatedUser;
+
 /**
- * Filter [5] — nạp {@link AuditContext} cho request hiện tại (conventions.md §2.4).
+ * Filter [6] — nạp {@link AuditContext} cho request hiện tại (conventions.md §2.4).
  *
- * <p>Đứng SAU AuthFilter và ScopeContextFilter để lúc này đã biết người thao tác là ai.
+ * <p>Đứng SAU {@code AuthFilter} và {@code ScopeContextFilter}, nên lúc này đã biết người thao tác
+ * là ai. Đảo thứ tự là {@code audit_logs.actor_user_id} và {@code created_by} để trống toàn bộ —
+ * nhật ký vẫn ghi đều đặn, chỉ là không ghi được ai làm.
  *
- * <p>⬜ Hiện mới lấy được IP. Phần {@code userId}/{@code username} sẽ do <b>WS-5</b> điền vào khi có
- * SecurityContext — chỗ cắm đã chừa sẵn ở {@link #currentUserId()} và {@link #currentUsername()},
- * không phải sửa lại filter này.
+ * <p>Vẫn chạy cả khi chưa đăng nhập: đăng nhập thất bại và truy cập bị từ chối cũng phải vào được
+ * nhật ký, lúc đó {@code userId} rỗng nhưng IP và traceId thì có.
  */
 @Component
 @Order(FilterOrder.AUDIT_CONTEXT)
@@ -37,14 +41,12 @@ public class AuditContextFilter extends OncePerRequestFilter {
         }
     }
 
-    /** ⬜ WS-5 / T5.9: đọc từ SecurityContext. */
-    private Long currentUserId() {
-        return null;
+    private static Long currentUserId() {
+        return AuthContext.current().map(AuthenticatedUser::userId).orElse(null);
     }
 
-    /** ⬜ WS-5 / T5.9: đọc từ SecurityContext. */
-    private String currentUsername() {
-        return null;
+    private static String currentUsername() {
+        return AuthContext.current().map(AuthenticatedUser::username).orElse(null);
     }
 
     private static String clientIp(HttpServletRequest request) {

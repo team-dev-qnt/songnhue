@@ -39,6 +39,21 @@
 
         <!-- Thư viện không nằm trong BOM của Spring Boot -->
         <springdoc.version>2.8.9</springdoc.version>
+        <!--
+          JOSE/JWT — chính thư viện mà Spring Security dùng bên trong (spring-security-oauth2-jose).
+          Tự pin phiên bản vì BOM của Spring Boot KHÔNG quản artifact này.
+          Không có phụ thuộc bắc cầu nào.
+        -->
+        <nimbus-jose-jwt.version>10.9.1</nimbus-jose-jwt.version>
+
+        <!--
+          `mvn -pl app -am spring-boot:run` kéo cả POM cha và module `core` vào reactor, và goal
+          `run` gọi từ dòng lệnh thì chạy trên MỌI module trong reactor — kể cả những module không
+          có main class, làm cả lệnh đứt ngay ở module đầu tiên.
+          Mặc định bỏ qua ở đây, module `app` bật lại. Nhờ vậy `make dev-native` chạy được mà không
+          cần cài sẵn artifact vào ~/.m2.
+        -->
+        <spring-boot.run.skip>true</spring-boot.run.skip>
 
         <!-- Phiên bản plugin — pin cứng để build tái lập được -->
         <spotless.version>2.44.5</spotless.version>

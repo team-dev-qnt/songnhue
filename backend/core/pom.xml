@@ -42,5 +42,45 @@
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
             <version>${springdoc.version}</version>
         </dependency>
+
+        <!--
+          ===================== WS-5 · Xác thực & phân quyền =====================
+
+          CỐ Ý KHÔNG dùng `spring-boot-starter-security`, chỉ lấy đúng phần băm mật khẩu.
+          Lý do (architecture-review.md §9.4):
+            · conventions.md §2.4 đã chốt một filter chain có thứ tự riêng (correlation →
+              rate limit → auth → scope → audit). FilterChainProxy của Spring Security mặc
+              định chen vào order -100, tức là TRƯỚC cả CorrelationFilter → lỗi sớm nhất lại
+              là lỗi không có traceId.
+            · Spring Security tự sinh response 401/403 qua AuthenticationEntryPoint, KHÔNG đi
+              qua GlobalExceptionHandler → phá envelope + traceId (DoD #9) đúng ở nhóm lỗi
+              hay gặp nhất.
+            · §4.2 chốt cơ chế quyền là `@RequirePermission` + interceptor + quét deny-by-default
+              ở CI, không phải @PreAuthorize.
+          Phần khó và dễ sai thì vẫn dùng thư viện: BCrypt (spring-security-crypto) và
+          JOSE/JWT (nimbus) — không tự cài lại thuật toán.
+        -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-crypto</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.nimbusds</groupId>
+            <artifactId>nimbus-jose-jwt</artifactId>
+            <version>${nimbus-jose-jwt.version}</version>
+        </dependency>
+        <!-- Base32 cho secret TOTP (RFC 4648) — JDK không có sẵn -->
+        <dependency>
+            <groupId>commons-codec</groupId>
+            <artifactId>commons-codec</artifactId>
+        </dependency>
+        <!--
+          AOP — dùng cho ScopeFilterAspect (tầng 3 phân quyền): bật bộ lọc phạm vi đơn vị ở MỘT chỗ
+          thay vì để mỗi repository tự nhớ thêm điều kiện WHERE (quy tắc 5 của dự án).
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
     </dependencies>
 </project>

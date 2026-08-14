@@ -105,6 +105,31 @@ app:
     keys:
       v1: ${AES_KEY_V1}
 
+  # Khoá ký access token (RS256). Thiếu file hoặc hai file không cùng một cặp →
+  # app KHÔNG khởi động (JwtKeyStore). Sinh khoá: make gen-keys
+  jwt:
+    key-id: ${JWT_KEY_ID}
+    private-key-path: ${JWT_PRIVATE_KEY_PATH}
+    public-key-path: ${JWT_PUBLIC_KEY_PATH}
+    # Thời hạn token là tham số AN TOÀN, cố ý KHÔNG để trong bảng `settings`:
+    # nới hạn access token bằng UI là tự kéo dài thời gian một token bị đánh cắp
+    # còn dùng được (conventions.md §4.1).
+    access-token-ttl: 30m
+    refresh-token-ttl: 7d
+    two-factor-challenge-ttl: 5m
+    issuer: songnhue
+
+  security:
+    # Cờ `Secure` trên cookie. Local chạy http:// nên phải tắt — bật lên thì trình
+    # duyệt bỏ luôn cookie và không ai đăng nhập được, mà không có lỗi nào hiện ra.
+    secure-cookie: ${SECURE_COOKIE:true}
+
+  bootstrap:
+    # Chỉ đặt ở lần dựng môi trường ĐẦU TIÊN rồi gỡ đi (WS-5 / T5.7).
+    # Migration seed `superadmin` không có mật khẩu, chưa chạy lệnh này thì không
+    # ai đăng nhập được.
+    admin-password: ${BOOTSTRAP_ADMIN_PASSWORD:}
+
   storage:
     endpoint: ${MINIO_ENDPOINT}
     access-key: ${MINIO_ACCESS_KEY}

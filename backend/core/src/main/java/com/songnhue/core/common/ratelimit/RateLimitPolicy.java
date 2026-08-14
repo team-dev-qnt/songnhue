@@ -16,8 +16,26 @@ import java.time.Duration;
  */
 public enum RateLimitPolicy {
 
-    /** Đăng nhập: 5 lượt / 15 phút — chặn dò mật khẩu. */
-    LOGIN("login", 5, Duration.ofMinutes(15)),
+    /**
+     * Đăng nhập: 30 lượt / 15 phút <b>trên mỗi IP</b>.
+     *
+     * <p>⚠ Con số này <b>phải rộng hơn hẳn</b> ngưỡng khoá tài khoản ở {@code settings} (mặc định 5
+     * lần). Hai lý do, cùng phát hiện khi chạy thử thật:
+     *
+     * <ul>
+     *   <li><b>Đặt bằng nhau thì khoá tài khoản không bao giờ kích hoạt.</b> Rate limit nằm ở filter
+     *       (trước controller) nên luôn chặn trước; người dùng nhận {@code SYS-0002} thay vì
+     *       {@code AUTH-0003}, và tham số "số lần sai bị khoá" (M5.15) mà Admin chỉnh trên UI trở
+     *       thành vô nghĩa — đúng thứ nằm trong hạng mục nghiệm thu.
+     *   <li><b>Cả Công ty đi ra Internet qua một IP NAT.</b> Với 200 người dùng nội bộ, hạn mức 5
+     *       lượt/15 phút cho <i>toàn bộ</i> văn phòng nghĩa là vài người gõ nhầm mật khẩu buổi sáng
+     *       là cả cơ quan không ai đăng nhập được nữa.
+     * </ul>
+     *
+     * <p>Vai trò của lớp này là <b>chặn khối lượng</b> (một máy dò hàng nghìn lượt), còn việc bảo vệ
+     * từng tài khoản là của lockout theo tài khoản — nó đếm đúng người, không đếm nhầm hàng xóm.
+     */
+    LOGIN("login", 30, Duration.ofMinutes(15)),
 
     /** API thường: 100 lượt / phút cho mỗi người dùng hoặc IP. */
     API("api", 100, Duration.ofMinutes(1)),

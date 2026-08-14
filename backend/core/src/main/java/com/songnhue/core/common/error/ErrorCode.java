@@ -42,6 +42,16 @@ public enum ErrorCode {
     AUTH_0001("AUTH-0001", HttpStatus.UNAUTHORIZED),
     AUTH_0002("AUTH-0002", HttpStatus.UNAUTHORIZED),
     AUTH_0003("AUTH-0003", HttpStatus.LOCKED),
+    /** Mã 2FA sai, hết hiệu lực, hoặc đã dùng rồi (chống replay). */
+    AUTH_0004("AUTH-0004", HttpStatus.UNAUTHORIZED),
+    /** Thiếu hoặc sai {@code X-CSRF-Token} — double-submit không khớp (§4.1). */
+    AUTH_0005("AUTH-0005", HttpStatus.FORBIDDEN),
+    /** Mật khẩu mới không đạt chính sách đọc từ bảng {@code settings} (M5.15). */
+    AUTH_0006("AUTH-0006", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Đang bắt buộc đổi mật khẩu — chặn mọi thao tác khác cho tới khi đổi xong. */
+    AUTH_0007("AUTH-0007", HttpStatus.FORBIDDEN),
+    /** Phiên bị thu hồi vì phát hiện dùng lại refresh token cũ — buộc đăng nhập lại (§4.1). */
+    AUTH_0008("AUTH-0008", HttpStatus.UNAUTHORIZED),
     AUTH_3001("AUTH-3001", HttpStatus.FORBIDDEN),
     /** Dữ liệu ngoài phạm vi đơn vị — scope filter tầng 3 chặn (§4.2). */
     AUTH_3002("AUTH-3002", HttpStatus.FORBIDDEN),
