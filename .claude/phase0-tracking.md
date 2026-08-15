@@ -1,6 +1,6 @@
 # PHASE 0 — CORE PLATFORM · BẢNG THEO DÕI TIẾN ĐỘ
 
-> **Cập nhật lần cuối**: 2026-08-15 · **Tiến độ: 61/107 task (57%)** · **DoD: 10/21** (mục 7 xong tầng 2, tầng 3 chờ WS-10) · Trạng thái: 🟡 Đang làm (xong WS-1, WS-2, WS-4, WS-5, WS-6; WS-3 còn T3.4)
+> **Cập nhật lần cuối**: 2026-08-15 · **Tiến độ: 68/107 task (64%)** · **DoD: 14/21** · Trạng thái: 🟡 Đang làm (xong WS-1, WS-2, WS-4, WS-5, WS-6, WS-10; WS-3 còn T3.4)
 > Nguồn ràng buộc: `conventions.md` (coding/security) · `architecture-review.md` §6, §9 (kiến trúc đã chốt) · `function-spec.md` (nghiệp vụ MOD-05)
 > **Cách dùng**: làm xong task nào tick `[x]` task đó; xong 1 WS thì chạy mục "Kiểm chứng" của WS rồi cập nhật bảng tổng + dòng "Cập nhật lần cuối" ở trên.
 > ⚠ **Xong 1 WS còn phải đóng nợ**: xem luật 3 bước ở mục **"Sổ nợ liên WS"** gần cuối file — tick dòng nợ, và **quay lại sửa mô tả đã lỗi thời ở WS đã giao nợ**.
@@ -20,7 +20,7 @@
 | **WS-7** | BE — Backup/Restore & Observability | 12 | 0 | ⬜ Chưa bắt đầu | WS-6 | 9 pd |
 | **WS-8** | FE — admin-app | 11 | 0 | ⬜ Chưa bắt đầu | WS-4→6 (API) | 15 pd |
 | **WS-9** | FE — public-web | 5 | 0 | ⬜ Chưa bắt đầu | WS-1 | 5 pd |
-| **WS-10** | Test & CI | 7 | 0 | ⬜ Chưa bắt đầu | WS-4 | 10 pd |
+| **WS-10** | Test & CI | 7 | **7** | ✅ **Xong** (15/8) — T10.7 chờ quyền admin repo | WS-4 | 10 pd |
 | **WS-11** | Deploy Staging & Production | 10 | 0 | ⬜ Chưa bắt đầu | WS-3, 7, 10 | 10 pd |
 | | **TỔNG** | **107** | **61** | | | **114 pd** |
 
@@ -444,18 +444,48 @@ Ngoài ra 2 lỗi bắt được trước khi chạy: `enqueue` truy vấn tiế
 
 **Tiên quyết**: WS-4 (nhưng **T10.2 nên làm ngay sau WS-1**). **Đầu ra**: CI chặn được vi phạm kiến trúc và quyền.
 
-- [ ] **T10.1** Testcontainers **PostgreSQL + PostGIS** làm nền cho integration test — *architecture §5*
-  - [ ] **Nhận nợ WS-2**: test `clean-disabled=true` — gọi `flyway clean` phải bị từ chối (WS-2 mới chỉ đặt cấu hình, chưa chứng minh nó chặn thật)
-- [ ] **T10.2** ⚠ **ArchUnit** — chặn: module chỉ import `spi/` của module khác **hoặc `core.common.*`** (ngoại lệ Common Platform, xem `conventions.md` §1.1) · entity không ra khỏi application · `@Transactional` chỉ ở application · **cấm `float/double`** cho số đo/tiền · cấm `new Date()` · cấm `System.out` — *§1.1, rule 6 CLAUDE.md — **cài từ commit đầu***
-  - [ ] ⚠ **Nhận nợ WS-5 — luật quan trọng nhất của T10.2**: mọi lớp con `ScopedEntity` **phải mang `@Filter`**. Thiếu luật này thì bộ lọc *có tồn tại* nhưng không được áp — dữ liệu mọi Xí nghiệp lộ hết mà **không có lỗi nào báo ra** (`ScopeFilterAspect` javadoc dòng 64)
-- [ ] **T10.3** Harness **ma trận RBAC role × resource** (NFR-06 yêu cầu pass 100%) — *§4.2*
-  - [ ] **Nhận nợ WS-5 — đóng DoD mục 7**: kiểm chứng **tầng 3 `AUTH-3002` đầu-cuối** trên một entity thật thuộc phạm vi đơn vị. Phase 0 chưa có entity nào như vậy nên WS-5 mới dừng ở test đơn vị
-- [ ] **T10.4** Test deny-by-default (T5.10) + test hash chain audit + test `CryptoService` xoay key
-- [ ] **T10.5** Coverage gate domain layer — không merge nếu giảm — *§1.5*
-- [ ] **T10.6** `ci.yml`: build → Spotless/Checkstyle → unit → Testcontainers → ArchUnit → ESLint → **OWASP Dependency-Check + `npm audit`, fail ở CVE high/critical** — *§4.5*
-- [ ] **T10.7** Branch protection: 1 reviewer + CI xanh mới merge — *§1.5*
+- [x] **T10.1** Testcontainers **PostgreSQL + PostGIS** làm nền cho integration test — *architecture §5*
+  - [x] **Nhận nợ WS-2**: `flyway.clean()` gọi trên đúng bean của ứng dụng bị từ chối, và schema còn nguyên sau đó *(15/8)*
+- [x] **T10.2** ⚠ **ArchUnit** — 14 luật, 4 nhóm: ranh giới module · phân tầng · điều cấm coding · 2 luật hỏng âm thầm — *§1.1, rule 6 CLAUDE.md*
+  - [x] ⚠ **Nhận nợ WS-5**: mọi lớp con `ScopedEntity` **phải mang `@Filter`** kèm đúng hằng điều kiện dùng chung *(15/8)*
+  - [x] ⚠ **Nhận nợ WS-6**: `WorkflowAware.applyState` chỉ được gọi từ `WorkflowEngine` *(15/8)*
+  - [x] **Nhận nợ WS-4**: luật cho phép import chéo `core.common.*` *(15/8)*
+- [x] **T10.3** Harness **ma trận RBAC role × resource** (NFR-06) — *§4.2*
+  - [x] ⚠ **Nhận nợ WS-5 — đóng DoD mục 7**: tầng 3 `AUTH-3002` kiểm chứng đầu-cuối trên entity thật *(15/8)*
+- [x] **T10.4** Test chuỗi hash audit trên DB thật + `CryptoService` xoay khoá (có từ WS-4) + deny-by-default (có từ WS-5)
+- [x] **T10.5** Coverage gate tầng domain — *§1.5*
+- [x] **T10.6** `ci.yml`: lint → unit → Testcontainers → ArchUnit → cổng bao phủ; quét CVE tách job riêng — *§4.5*
+- [x] **T10.7** Branch protection — `docs/branch-protection.md`. ⚠ **Chưa áp dụng**: cần quyền admin repo, không làm được từ mã nguồn
 
-**Kiểm chứng**: cố tình import repository module khác → **test đỏ** · push PR → toàn bộ pipeline xanh.
+**Kiểm chứng**: ✅ 226 test xanh (181 core + 45 app) · ✅ luật kiến trúc thật sự đỏ khi vi phạm (bài tự kiểm chứng) · ✅ cổng bao phủ thật sự chặn (nâng ngưỡng lên 0.999 → build đỏ) · ⬜ pipeline chưa chạy lần nào trên GitHub (chưa push).
+
+### Bốn thứ "xanh mà không chạy" phát hiện khi làm WS-10
+
+Cả bốn đều **báo thành công trong khi không làm gì cả** — đúng loại mà WS này sinh ra để chống:
+
+| # | Thứ tưởng đang canh | Thực tế | Cách phát hiện |
+|:-:|---|---|---|
+| 1 | Bộ luật ArchUnit viết theo lối chính thống (`@AnalyzeClasses` + `@ArchTest`) | Surefire báo `Tests run: 0` cho cả 4 lớp luật, **build xanh**. Bộ máy `archunit` nạp đủ trên classpath nhưng tìm ra 0 bài kiểm | Đặt một luật chắc chắn sai → vẫn xanh |
+| 2 | Cổng bao phủ JaCoCo | `<includes>` đặt trong `<rule>` so với **tên phần tử**; với `element=BUNDLE` tên là tên module nên mẫu theo gói không khớp gì → luật bị bỏ qua | Nâng ngưỡng lên 0.999 → vẫn xanh |
+| 3 | **Tầng 3 phân quyền** (nợ #7) | `ScopeFilterAspect` chạy **ngoài** bộ chặn transaction → bật lọc trên một `Session` bị vứt đi ngay | Entity thật đầu tiên: user Xí nghiệp A đọc được dữ liệu của B |
+| 4 | Luật `ScopedEntity` / `applyState` | Viết đúng, nhưng chạy qua **0 lớp** (Phase 0 chưa có entity nào) → xanh vĩnh viễn kể cả khi viết sai | `SilentFailureRuleSelfCheckTest` chạy luật lên mã cố ý sai, đòi phải đỏ |
+
+**Rút ra**: một bài kiểm xanh chỉ có nghĩa khi biết nó *đã chạy qua cái gì*. Từ nay mỗi cơ chế canh gác phải kèm bằng chứng nó bắt được vi phạm — `ImportedScopeTest` (tập lớp không rỗng), `SilentFailureRuleSelfCheckTest` (luật bắt được lỗi), `matrixIsNotDegenerate` (ma trận không rỗng) đều sinh ra vì lẽ đó.
+
+### Ba lỗi thật trong mã production, do bộ luật T10.2 phát hiện
+
+| Lỗi | Vì sao nguy hiểm | Sửa |
+|---|---|---|
+| `UserAdminController` tiêm thẳng `UserAdminRepository` | Chạy ngoài ranh giới transaction → `ScopeFilterAspect` không bật được lọc phạm vi | Đưa truy vấn xuống `UserAdminService` |
+| `ChainBreak`, `RoleSummary` khai trong repository | Kéo `infra` ra tận `api` | Tách record sang tầng application |
+| `WorkflowAware` nằm ở `application` | Người hiện thực là entity ở `domain` → luật "domain không phụ thuộc application" sẽ đỏ ở entity đầu tiên của Phase 1 | Chuyển xuống `domain/workflow` |
+
+### Hai lỗi cấu hình khác, lộ ra khi dựng test tích hợp
+
+- **`ArchiverDataSourceConfig` chặn cả ứng dụng khởi động khi chưa cấu hình kết xuất nhật ký.** `application.yml` đặt `password: ${DB_ARCHIVER_PASSWORD:}`, nên không set biến môi trường thì thuộc tính vẫn *tồn tại* với giá trị rỗng → `@ConditionalOnProperty` vẫn khớp → Hikari đổ vỡ với *"the password is an empty string"*. Đổi sang `@ConditionalOnExpression` kiểm khác rỗng. Mọi lần chạy thử trước đó đều có sẵn mật khẩu trong file env nên không ai gặp.
+- **Docker Engine 29 đã bỏ mọi API cũ hơn 1.44**, còn docker-java đi kèm Testcontainers 1.21 mặc định thương lượng bản cũ hơn → Testcontainers kết luận *"Could not find a valid Docker environment"* trong khi `docker ps` vẫn chạy bình thường. Ghim `api.version` trong surefire.
+
+**Nợ giao cho WS sau**: nâng ngưỡng bao phủ tầng domain khi Phase 1 đưa logic thật vào (nay 0.18 = mức đo được, không phải mục tiêu) · áp dụng branch protection (cần quyền admin repo) · `docker.api.version=1.44` chỉ đúng với Docker Engine ≥ 25.0, runner cũ hơn phải truyền `-Ddocker.api.version=1.43`.
 
 ---
 
@@ -493,10 +523,10 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 0 hoàn thành:
 - [x] **4. Migration sạch từ DB rỗng** — `flyway_schema_history` đủ version, không lỗi ✅ *14/8: 9/9 migration trên volume rỗng, chạy lại lần 2 exit 0*
 - [x] **5. Auth + 2FA** — login Super Admin → enroll TOTP (mã client tự tính khớp máy chủ) → nhận access + refresh cookie; `must_change_password` chặn mọi endpoint khác bằng `AUTH-0007` *(WS-5, 14/8)*
 - [x] **6. Refresh reuse detection** — dùng lại refresh cũ → `AUTH-0008`, thu hồi cả family, `security_events` mức CRITICAL; refresh MỚI của người dùng thật **cũng chết**, access token hết hiệu lực **ngay** *(WS-5, 14/8)*
-- [~] **7. RBAC 3 tầng** — tầng 2 xong và có test (đúng quyền → 200 · thiếu → `AUTH-3001` · quên khai báo → cấm). ⬜ **Tầng 3 (`AUTH-3002`) chưa kiểm chứng đầu-cuối được**: Phase 0 chưa có entity nào thuộc phạm vi đơn vị → dời sang **WS-10/T10.3** (ma trận role × resource) *(WS-5, 14/8)*
+- [x] **7. RBAC 3 tầng** — tầng 2 có test từ WS-5. **Tầng 3 kiểm chứng đầu-cuối 15/8** trên entity thật thuộc phạm vi đơn vị: danh sách chỉ trả dữ liệu đơn vị mình · cấp trên thấy dữ liệu cấp dưới (lọc theo materialized path) · tra bản ghi đơn vị khác → `AUTH-3002` + `security_events`, không phải 404. ⚠ **Và chính lúc đó phát hiện tầng 3 chưa từng hoạt động** — xem WS-10 mục "xanh mà không chạy" #3 *(WS-10/T10.3)*
 - [x] **8. Deny by default** — thêm 3 endpoint vi phạm → **CI đỏ**, chỉ đích danh cả 3 (thiếu annotation · mã quyền sai định dạng · module không tồn tại) *(WS-5, 14/8)*
 - [x] **9. Envelope + traceId** — mọi response (kể cả lỗi) đúng §2.1, luôn có `traceId` ✅ *14/8: kiểm bằng request thật + 8 test lát cắt web*
-- [x] **10. Audit hash chain** — verify chain pass; `songnhue_app` thử `UPDATE audit_logs` → **bị DB từ chối** ✅ *14/8: chặn cả qua bảng cha lẫn thẳng vào partition; thử sửa/xóa lén đều bị verify phát hiện*
+- [x] **10. Audit hash chain** — verify chain pass; `songnhue_app` thử `UPDATE audit_logs` → **bị DB từ chối** ✅ *14/8*. **15/8 thành test tự động** (`AuditChainTest`): kiểm RIÊNG hai lớp chặn — `has_table_privilege` chứng minh vai trò runtime không có UPDATE/DELETE, trigger append-only chặn kể cả chủ sở hữu bảng; tắt trigger rồi sửa lén → verify chỉ đúng `seq`, trả lại giá trị cũ → chuỗi liền lại
 - [~] **11. Attachment** — cơ chế đã dựng và chạy thật: MinIO nối được, job quét đổi trạng thái đúng, ảnh polyglot bị loại (có test). ⬜ **Chưa kiểm chứng đầu-cuối qua HTTP**: tải tệp multipart thật, từ chối sai magic bytes, và presigned URL hết hạn đúng TTL — cần ClamAV trong compose (nợ #20) *(WS-6, 15/8)*
 - [x] **12. Async job** — worker nhặt việc → chạy → thông báo in-app + **email tới Mailpit** đúng người, kèm đường dẫn ✅ *15/8*. Hình dạng `202 + jobId` (`JobDtos.JobAccepted`) và endpoint tra tiến độ đã có; chức năng đầu tiên dùng nó là kết xuất báo cáo ở Phase 1
 - [ ] **13. Backup** — dump + checksum khớp, **nằm trên VM-3, không cùng máy DB**; prune giữ đúng 30 ngày
@@ -504,8 +534,8 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 0 hoàn thành:
 - [ ] **15. Alert backup hỏng** — dừng job dump quá 26h → alert bắn
 - [ ] **16. Key không nằm trong backup** — giải nén bản backup, `grep` không thấy AES/JWT key
 - [ ] **17. Restore UI** — non-Super-Admin không thấy chức năng; Super Admin phải qua 2FA + gõ tên hệ thống; trong lúc restore mọi request ghi trả 503
-- [ ] **18. ArchUnit** — cố tình import repository module khác → **test đỏ**
-- [ ] **19. CI đầy đủ** — build, lint, unit, Testcontainers, ArchUnit, CVE scan đều xanh
+- [x] **18. ArchUnit** — 14 luật chạy thật (23 bài kiểm ở module `app`). ✅ *15/8*: bộ luật bắt được 3 vi phạm có thật trong mã production ngay lần chạy đầu; `SilentFailureRuleSelfCheckTest` chứng minh 2 luật chưa có lớp nào để soi vẫn bắt được vi phạm
+- [~] **19. CI đầy đủ** — `ci.yml` đã viết đủ 3 job (backend / frontend / quét CVE) và `./mvnw verify` chạy trọn cục bộ ✅ *15/8*. ⬜ **Chưa chạy lần nào trên GitHub** — chưa push (nợ #24)
 - [ ] **20. Deploy Staging** — merge `master` → tự deploy → smoke test pass; `migrator` chạy trước app
 - [ ] **21. Rollback** — quay về image tag trước → hệ thống chạy lại bình thường
 
@@ -525,11 +555,11 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 0 hoàn thành:
 | 1 | `AuditContextFilter` điền `userId`/`username` | WS-4/T4.9 | WS-5/T5.9 | ✅ Trả 14/8 |
 | 2 | Bật Hibernate `@Filter` theo phiên | WS-4/T4.7 | WS-5/T5.11 | ✅ Trả 14/8 |
 | 3 | Lệnh bootstrap `superadmin` (seed không mật khẩu) | WS-2/T2.9 | WS-5/T5.7 | ✅ Trả 14/8 |
-| 4 | `shared/error-map.ts` mirror **36 mã** | WS-4/T4.3 + WS-5 | WS-8/T8.4 | ⬜ Chờ |
-| 5 | ⚠ ArchUnit: lớp con `ScopedEntity` **phải** mang `@Filter` | WS-5/T5.11 | WS-10/T10.2 | ⬜ Chờ |
-| 6 | ArchUnit: cho phép import chéo `core.common.*` | WS-4 | WS-10/T10.2 | ⬜ Chờ |
-| 7 | ⚠ Kiểm chứng tầng 3 `AUTH-3002` đầu-cuối → **đóng DoD #7** | WS-5/T5.11 | WS-10/T10.3 | ⬜ Chờ |
-| 8 | Test `clean-disabled=true` chặn thật | WS-2/T2.2 | WS-10/T10.1 | ⬜ Chờ |
+| 4 | `shared/error-map.ts` mirror **43 mã** | WS-4/T4.3 + WS-5 + WS-6 | WS-8/T8.4 | ⬜ Chờ |
+| 5 | ⚠ ArchUnit: lớp con `ScopedEntity` **phải** mang `@Filter` | WS-5/T5.11 | WS-10/T10.2 | ✅ Trả 15/8 |
+| 6 | ArchUnit: cho phép import chéo `core.common.*` | WS-4 | WS-10/T10.2 | ✅ Trả 15/8 |
+| 7 | ⚠ Kiểm chứng tầng 3 `AUTH-3002` đầu-cuối → **đóng DoD #7** | WS-5/T5.11 | WS-10/T10.3 | ✅ Trả 15/8 — **và phát hiện tầng 3 chưa từng hoạt động** |
+| 8 | Test `clean-disabled=true` chặn thật | WS-2/T2.2 | WS-10/T10.1 | ✅ Trả 15/8 |
 | 9 | `TokenMaintenanceJob`: `@Scheduled` → hàng đợi DB | WS-5 | WS-6/T6.8 | ✅ Trả 15/8 |
 | 10 | Job tạo partition `audit_logs` tháng kế tiếp | WS-2/T2.6 | WS-6/T6.8 | ✅ Trả 15/8 |
 | 11 | `AuthorityLoader.invalidate()` gọi từ màn hình phân quyền | WS-5 | WS-6/T6.15 | ✅ Trả 15/8 |
@@ -540,11 +570,16 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 0 hoàn thành:
 | 16 | ⚠ `POSTGRES_INITDB_ARGS` ICU `vi-VN` cho staging/prod | WS-3 | WS-11/T11.3 | ⬜ Chờ |
 | 17 | Nginx chặn `/swagger-ui/**` + `/v3/api-docs/**` | WS-4/T4.10 | WS-11/T11.6 | ⬜ Chờ |
 | 18 | `security_events` → Grafana + alert | WS-5/T5.14 | WS-7/T7.10 | ⬜ Chờ |
-| 19 | ⚠ ArchUnit: `WorkflowAware.applyState` chỉ được gọi từ `WorkflowEngine` | WS-6/T6.5 | WS-10/T10.2 | ⬜ Chờ |
+| 19 | ⚠ ArchUnit: `WorkflowAware.applyState` chỉ được gọi từ `WorkflowEngine` | WS-6/T6.5 | WS-10/T10.2 | ✅ Trả 15/8 |
 | 20 | Dựng ClamAV trong compose để quét virus chạy thật (nay là `SKIPPED`) | WS-6/T6.4 | WS-11/T11.3 | ⬜ Chờ |
 | 21 | Metric: `data_freshness_seconds` + độ dài hàng đợi job | WS-6/T6.8 | WS-7/T7.9 | ⬜ Chờ |
+| 22 | Nâng ngưỡng bao phủ tầng domain (nay 0.18 = mức đo được) | WS-10/T10.5 | Phase 1 | ⬜ Chờ |
+| 23 | **Áp dụng branch protection** — cần quyền admin repo, không làm được từ mã nguồn | WS-10/T10.7 | Người có quyền admin | ⬜ Chờ |
+| 24 | Chạy thật pipeline CI trên GitHub (chưa push lần nào) | WS-10/T10.6 | Lần push tới | ⬜ Chờ |
 
-**Mục 5, 7, 16, 19 là loại hỏng âm thầm** — không có lỗi nào báo ra, chỉ phát hiện khi đã muộn (lộ dữ liệu liên đơn vị, hoặc phải dump+restore cả DB production).
+**Mục 16 là loại hỏng âm thầm còn lại** — không có lỗi nào báo ra, chỉ phát hiện khi đã muộn (phải dump + restore cả DB production để sửa).
+
+> 📌 **Mục 5, 7, 19 đã trả xong 15/8 — và việc trả nợ chứng minh nỗi lo là có thật.** Mục 7 không chỉ là "viết thêm một bài kiểm": nó phát hiện **tầng 3 phân quyền chưa từng hoạt động** kể từ WS-5. Bài học ghi lại ở đây vì nó áp cho mọi dòng nợ còn treo: một cơ chế *đã viết xong* mà chưa có bài kiểm chạy qua thì chưa được coi là đang chạy.
 
 ---
 
@@ -552,6 +587,7 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 0 hoàn thành:
 
 | Ngày | Nội dung |
 |---|---|
+| 2026-08-15 | **WS-10 xong** (làm trước WS-7 theo yêu cầu rà soát chất lượng). 14 luật ArchUnit · ma trận RBAC đối chiếu 334 dòng phân quyền · chuỗi hash audit trên DB thật · cổng bao phủ JaCoCo · `ci.yml` 3 job. Trả **4 dòng nợ** (#5, #6, #7, #8), mở 3 dòng mới (#22–#24). **226 test xanh.** ⚠ **Phát hiện nặng nhất Phase 0: tầng 3 phân quyền chưa từng hoạt động** — `ScopeFilterAspect` đặt `@Order(LOWEST_PRECEDENCE - 1)` với ý định "nằm trong bộ chặn transaction", nhưng số nhỏ hơn nghĩa là vòng NGOÀI, nên `enableFilter` rơi vào một `Session` bị vứt đi; mọi Xí nghiệp đọc được dữ liệu của nhau, không một dòng lỗi. Kèm theo: **4 cơ chế canh gác "xanh mà không chạy"** (bộ máy ArchUnit tìm ra 0 bài kiểm; luật JaCoCo bị bỏ qua vì lọc sai chỗ; 2 luật chạy qua 0 lớp) và 3 vi phạm phân tầng có thật do bộ luật bắt được. Thêm `ScopeGuard` — trước đó `AUTH-3002` là mã lỗi chết, có trong tiêu chí nghiệm thu mà không dòng mã nào ném ra. |
 | 2026-08-15 | **WS-6 xong** — khối lớn nhất Phase 0. 6 pattern P1–P6 thành shared service; 43 mã lỗi; 184 test. Trả **6 dòng nợ** (#9–#14). Chốt: **ShedLock KHÔNG bọc quanh worker hàng đợi** (hai bài toán ngược nhau) · job bảo trì chỉ *đặt việc*, khoá chống trùng theo ngày làm DB thành điểm đồng bộ · nhật ký ghi ngay tại chỗ thay vì gom lô · kết xuất audit đi qua kết nối riêng vai trò `songnhue_archiver` bọc trong kiểu `ArchiverJdbc`. **6 lỗi chỉ chạy thật mới lộ, cả 6 đều im lặng** — nổi bật: đăng ký Hibernate listener sau khởi động không có tác dụng, và khai bean `DataSource`/`JdbcTemplate` làm Boot ngừng tạo bản chính khiến cả app chạy bằng vai trò archiver. |
 | 2026-08-14 | **Rà soát nợ tồn WS-1→WS-5 trước khi mở WS-6.** Lập **"Sổ nợ liên WS"** (18 dòng) + luật 3 bước khi đóng WS — trước đó nợ ghi ở WS giao nhưng **WS nhận không có task nào đứng tên**: 8 mục thuộc loại này, trong đó 3 mục hỏng âm thầm (ArchUnit `@Filter`, `AUTH-3002` tầng 3, collation ICU cho prod). Sửa 5 chỗ mô tả đã lỗi thời (rate limit `5/15'` → `30/15'` ở cả `conventions.md` §4.5 lẫn T4.5 — §4.5 đang **tự mâu thuẫn với §4.1** của chính nó; filter chain T4.4 nay đủ 7 filter; error-map 31 → **36 mã**; nợ WS-4 đã trả 2/3). **Phát hiện 1 lỗi thật: T4.8 đã tick nhưng fail-fast không hoạt động** — thiếu biến môi trường thì app vẫn khởi động và health `UP`, vì `@ConfigurationProperties` gán nguyên văn `"${MINIO_ENDPOINT}"` nên `@NotBlank` đi qua. Thêm `UnresolvedPlaceholderGuard` (8 test) → **đóng DoD mục 3**. Tổng 138 test xanh. |
 | 2026-08-14 | **WS-5 xong**. JWT RS256 + `kid` · refresh rotation + reuse detection (thu hồi family, access token chết ngay nhờ claim `fid`) · CSRF double-submit · lockout không tiết lộ user tồn tại · 2FA TOTP tự cài (khớp 6/6 vector RFC 6238) · RBAC 3 tầng + 3 annotation bắt buộc · quản lý phiên + đăng xuất từ xa. **36 mã lỗi**. Chốt **không dùng filter chain Spring Security** (`architecture-review.md` §9.5). 5 lỗi chỉ chạy thật mới lộ — đáng kể nhất: **rate limit login 5/15' chặn trước khoá tài khoản** làm `AUTH-0003` không bao giờ chạy được và tham số M5.15 vô nghĩa; nâng lên 30/15' + test chặn ở CI. |

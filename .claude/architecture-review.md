@@ -370,3 +370,57 @@ Ghi lại vì cả ba đều **im lặng**: không lỗi nào biểu hiện ở 
 | `@ConditionalOnBean` trên `@Component` | Spring **chỉ bảo đảm** điều kiện này cho lớp auto-configuration; với bean quét theo `@Component` thì phụ thuộc thứ tự nạp và có thể bỏ qua âm thầm | Đặt điều kiện trên **tham số cấu hình** (`@ConditionalOnProperty`) trong một lớp `@Configuration` |
 
 Bài học chung: **thêm một bean hạ tầng cùng kiểu với thứ Boot tự cấu hình là thay thế nó, không phải bổ sung.** Khi cần một kết nối/khách hàng thứ hai, luôn gói vào kiểu riêng của dự án.
+
+
+### 9.8. Thứ tự aspect quanh transaction — và bốn cơ chế "xanh mà không chạy" (chốt 15/8, khi làm WS-10)
+
+**Bối cảnh.** WS-10 dựng bộ luật kiến trúc và test tích hợp trên DB thật. Nó tìm ra một lỗi nặng hơn
+mọi thứ WS-6 phát hiện, và ba biến thể của cùng một kiểu hỏng.
+
+#### 9.8.1. `ScopeFilterAspect` phải nằm BÊN TRONG bộ chặn transaction
+
+Trong Spring AOP, **số `@Order` nhỏ hơn nghĩa là chạy ở vòng ngoài**. Aspect bật bộ lọc phạm vi đơn
+vị đặt `Ordered.LOWEST_PRECEDENCE - 1` với ý định "vào trong bộ chặn transaction", nhưng
+`Integer.MAX_VALUE - 1 < Integer.MAX_VALUE`, nên nó lại ra **ngoài**. Hệ quả: `enableFilter()` chạy
+khi chưa có transaction, Spring cấp cho nó một `Session` tạm rồi vứt đi, còn truy vấn thật chạy
+trong `Session` khác **không có bộ lọc**.
+
+Triệu chứng: **không có triệu chứng nào**. Mọi Xí nghiệp đọc được dữ liệu của nhau.
+
+Không sửa được bằng cách hạ aspect xuống thấp hơn — `LOWEST_PRECEDENCE` đã là số lớn nhất. Nên chốt:
+**bộ chặn transaction được kéo lên `Ordered.LOWEST_PRECEDENCE - 100`** qua
+`@EnableTransactionManagement(order = …)` ở `CorePlatformConfig`. Khoảng cách 100 để còn chỗ chen
+aspect vào giữa nếu về sau cần.
+
+> Mọi aspect cần một `Session`/`Connection` **đang mở** đều phải nằm trong khoảng đó, và phải đọc
+> `CorePlatformConfig.TRANSACTION_ADVISOR_ORDER` cùng lúc với `@Order` của chính nó.
+
+#### 9.8.2. Bốn cơ chế canh gác báo thành công trong khi không làm gì
+
+| Cơ chế | Vì sao im lặng | Bằng chứng |
+|---|---|---|
+| Bộ luật ArchUnit theo lối `@AnalyzeClasses` + `@ArchTest` | Bộ máy `archunit` nạp đủ trên classpath nhưng Surefire báo `Tests run: 0` cho cả 4 lớp luật, build xanh | Đặt một luật chắc chắn sai → vẫn xanh |
+| Cổng bao phủ JaCoCo | `<includes>` bên trong `<rule>` so với **tên phần tử**; với `element=BUNDLE` tên là tên module nên mẫu theo gói không khớp gì → luật bị bỏ qua | Nâng ngưỡng lên 0.999 → vẫn xanh |
+| Luật `ScopedEntity` phải mang `@Filter` | Đúng, nhưng Phase 0 chưa có lớp nào để soi → xanh vĩnh viễn kể cả khi biểu thức sai | Chạy luật lên mã cố ý sai |
+| Bộ lọc phạm vi đơn vị | Xem 9.8.1 | Entity thật đầu tiên |
+
+**Chốt cách làm**: mỗi cơ chế canh gác phải đi kèm **một bài kiểm chứng minh nó bắt được vi phạm**.
+Không có bằng chứng đó thì "xanh" chỉ nói lên rằng nó không đỏ, không nói lên rằng nó đang canh.
+Cụ thể trong repo: `ImportedScopeTest` (tập lớp đem soi không rỗng) · `SilentFailureRuleSelfCheckTest`
+(luật bắt được lỗi thật) · `RbacMatrixTest#matrixIsNotDegenerate` (ma trận không rỗng).
+
+#### 9.8.3. Chọn ArchUnit lõi, không dùng bộ máy JUnit riêng của nó
+
+Gọi thẳng `rule.check(classes)` trong `@Test` thường. Đổi lại mất tính năng cache tập lớp của
+`@ArchTest` — bù bằng một hằng `JavaClasses` dùng chung. Được lại: số bài kiểm hiện đúng trong log
+CI, tên luật hiện ra khi gãy, và không có bộ máy trung gian nào để hỏng âm thầm.
+
+#### 9.8.4. Phiên bản Docker Engine API cho Testcontainers
+
+Docker Engine 29 **đã bỏ mọi API cũ hơn 1.44**; docker-java đi kèm Testcontainers 1.21 mặc định
+thương lượng bản cũ hơn thế → Testcontainers báo *"Could not find a valid Docker environment"* trong
+khi `docker ps` vẫn chạy bình thường. Ghim `api.version` qua thuộc tính `docker.api.version` (mặc
+định **1.44** = Docker Engine 25.0, 01/2024) trong cấu hình Surefire của module `app`.
+
+⚠ Không có con số nào đúng cho mọi engine: engine < 25.0 chưa có 1.44, engine ≥ 29 không nhận 1.43.
+Runner cũ hơn phải truyền `-Ddocker.api.version=1.43`.

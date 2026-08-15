@@ -71,7 +71,10 @@ admin-app/src/
 
 - Branch: `feat/<module>-<mô-tả>`, `fix/…`, `chore/…`; commit theo Conventional Commits (`feat(ops): thêm alert engine`).
 - PR bắt buộc: 1 reviewer, CI xanh (unit + integration Testcontainers + ArchUnit + lint), không merge khi coverage domain layer giảm.
+  - Thi hành: `.github/workflows/ci.yml` (3 job) + `docs/branch-protection.md`. ⚠ Branch protection là **cấu hình phía GitHub, không nằm trong repo** — tắt đi không để lại dấu vết nào trong mã nguồn, nên trạng thái của nó phải được ghi ra thay vì giả định.
+  - Cổng bao phủ: JaCoCo `check` ở phase `verify`, **chỉ soi gói `domain`**. Ngưỡng hiện tại (`jacoco.domain.line.coverage`) là **mức đo được**, không phải mục tiêu — nâng dần khi Phase 1 đưa logic nghiệp vụ thật vào `domain`, và không bao giờ hạ.
 - Cấm commit: secrets, file config môi trường thật, `.env` (dùng `.env.example`).
+- ⚠ **Mỗi cơ chế canh gác phải có bài kiểm chứng minh nó bắt được vi phạm.** WS-10 tìm ra **4 cơ chế báo xanh trong khi không chạy qua thứ gì** (`architecture-review.md` §9.8.2): bộ máy ArchUnit tìm ra 0 bài kiểm, luật JaCoCo bị bỏ qua vì lọc sai chỗ, và 2 luật chạy qua 0 lớp. "Xanh" chỉ nói lên rằng nó không đỏ, không nói lên rằng nó đang canh.
 
 ### 1.6. Cấu hình & kết nối — bắt buộc qua env
 
@@ -349,6 +352,9 @@ Tầng 3 — Repository scope filter (org_unit)     → chặn dữ liệu (IDOR
 - Scope: user gắn `org_unit_id`; Hibernate filter tự thêm điều kiện đơn vị (+ cây con) cho mọi query trên `ScopedEntity` — vi phạm trả AUTH-3002. Integration test toàn bộ ma trận role × resource (NFR-06).
   - Lọc theo **materialized path**, không theo `org_unit_id = ?`: quản lý Xí nghiệp phải thấy cả Tổ đội trực thuộc. Hệ quả gọn: người ở nút gốc có path `/1/`, mà path của mọi đơn vị đều bắt đầu bằng `/1/` → họ tự nhiên thấy toàn bộ dữ liệu, **không cần cờ "bỏ qua phạm vi"** — mà cờ như vậy chính là thứ hay bị bật nhầm rồi không ai để ý.
   - Bật bằng `ScopeFilterAspect` quanh `@Transactional`, **một chỗ duy nhất** — quy tắc 5 của dự án: không dựa vào việc lập trình viên nhớ thêm `WHERE`.
+  - ⚠ **Aspect phải nằm BÊN TRONG bộ chặn transaction**, nếu không `enableFilter` rơi vào một `Session` tạm bị vứt đi và **mọi Xí nghiệp đọc được dữ liệu của nhau, không một dòng lỗi**. Số `@Order` nhỏ hơn = vòng ngoài, nên bộ chặn transaction được kéo lên `CorePlatformConfig.TRANSACTION_ADVISOR_ORDER`; hai chỗ đó phải đọc cùng nhau (`architecture-review.md` §9.8.1). Đây là lỗi có thật, sống sót từ WS-5 tới khi WS-10 có entity thật để thử.
+  - ⚠ **Lớp con `ScopedEntity` bắt buộc khai `@Filter`** kèm đúng hằng `ORG_UNIT_FILTER_CONDITION` — `@FilterDef` chỉ *định nghĩa* bộ lọc, Hibernate chỉ *áp* nó cho entity có khai. Luật ArchUnit canh điều này.
+  - **Tra theo `public_id` phải đi qua `ScopeGuard.require(...)`**: bản ghi tồn tại mà ngoài phạm vi thì trả `AUTH-3002` + ghi `security_events`, không trả 404. Trả 404 thì đúng là dữ liệu không lọt ra, nhưng người dò `public_id` để tìm hồ sơ đơn vị khác trông y hệt người gõ nhầm đường dẫn — và `AUTH-3002` thành mã lỗi chết.
 - API nhận `public_id` (UUID) — không expose id tuần tự; mọi lookup luôn kèm scope, không bao giờ `findById` trần cho request user.
 
 ### 4.3. Chống giả mạo dữ liệu (integrity)
