@@ -338,3 +338,35 @@ Dự án **chỉ lấy `spring-security-crypto`** (BCrypt) chứ không kéo `sp
 **Phần khó và dễ sai vẫn dùng thư viện**, không tự cài: BCrypt (`spring-security-crypto`) và JOSE/JWT (`nimbus-jose-jwt` — chính thư viện Spring Security dùng bên trong). Tự viết đúng hai thứ đã cài sẵn: `TotpGenerator` (RFC 6238 có bộ vector kiểm thử chính thức nên chứng minh được bằng test) và `HashUtils` (SHA-256 + so sánh constant-time).
 
 Đánh đổi phải chấp nhận: những gì Spring Security cho sẵn thì mình tự lo — hiện đã có CSRF, rate limit, lockout, denylist; **security headers do nginx đặt** (WS-11/T11.5), không đặt ở tầng ứng dụng.
+
+### 9.6. Hàng đợi job và ShedLock là hai thứ khác nhau (chốt 15/8, khi làm WS-6)
+
+Hai cơ chế cùng liên quan tới "chạy nền" nhưng giải hai bài toán **ngược nhau**, nên cài đặt cũng ngược nhau:
+
+| | Hàng đợi `jobs` | Job theo lịch |
+|---|---|---|
+| Câu hỏi | Ai *cũng* nên lấy việc | Ai *duy nhất* được chạy |
+| Cơ chế | `SELECT … FOR UPDATE SKIP LOCKED` | ShedLock (khoá qua bảng `shedlock`) |
+| Thêm node | Nhanh lên tuyến tính | Không nhanh hơn, chỉ an toàn hơn |
+| Hỏng nếu dùng nhầm | Bọc ShedLock quanh worker → mất sạch khả năng mở rộng, quay về một node | Không khoá → bản sao lưu chạy hai lần, thông báo gửi hai lần |
+
+**Hệ quả thực tế**: `JobWorker` **không** mang `@SchedulerLock`, và lên ≥2 node thì lớp đó không cần sửa dòng nào.
+
+**Việc theo lịch thì chỉ *đặt việc*, không tự làm.** `MaintenanceScheduler` dùng `@Scheduled` để đẩy job vào hàng đợi với khoá chống trùng theo ngày (VD `TOKEN_CLEANUP:2026-08-15`), rồi handler mới làm việc thật. Nhờ vậy:
+
+- Dùng lại toàn bộ bộ máy đã có: trạng thái, số lần thử, backoff, màn hình theo dõi, thu hồi job treo. Việc chạy thẳng trong `@Scheduled` hỏng thì **im lặng** — không trạng thái, không thử lại, không ai nhìn thấy.
+- **Không cần ShedLock cho nhóm này**: hai node cùng hẹn giờ thì node thứ hai va chỉ mục duy nhất `uq_jobs_dedup_active` và nhận lại chính job node thứ nhất vừa tạo. **DB đã là điểm đồng bộ** — thêm một cơ chế khoá nữa là hai nguồn sự thật cho cùng một việc.
+
+ShedLock vẫn giữ (cài sẵn, mặc định tắt) cho những việc theo lịch *không* đi qua hàng đợi được — chủ yếu là các tác vụ hạ tầng ở WS-7.
+
+### 9.7. Ba bẫy auto-configuration của Spring Boot đã sập khi làm WS-6
+
+Ghi lại vì cả ba đều **im lặng**: không lỗi nào biểu hiện ở đúng chỗ sai, và cả ba đều chỉ lộ ra khi chạy thật.
+
+| Bẫy | Hệ quả | Cách tránh |
+|---|---|---|
+| Khai bean `DataSource` | `DataSourceAutoConfiguration` mang `@ConditionalOnMissingBean` → Boot **ngừng tạo DataSource chính**; cả app chạy bằng vai trò phụ | Không khai bean thuộc kiểu Boot tự cấu hình; bọc vào **kiểu riêng** |
+| Khai bean `JdbcTemplate` | Y hệt, ở tầng `JdbcTemplateAutoConfiguration` | Như trên — `ArchiverJdbc` là ví dụ |
+| `@ConditionalOnBean` trên `@Component` | Spring **chỉ bảo đảm** điều kiện này cho lớp auto-configuration; với bean quét theo `@Component` thì phụ thuộc thứ tự nạp và có thể bỏ qua âm thầm | Đặt điều kiện trên **tham số cấu hình** (`@ConditionalOnProperty`) trong một lớp `@Configuration` |
+
+Bài học chung: **thêm một bean hạ tầng cùng kiểu với thứ Boot tự cấu hình là thay thế nó, không phải bổ sung.** Khi cần một kết nối/khách hàng thứ hai, luôn gói vào kiểu riêng của dự án.

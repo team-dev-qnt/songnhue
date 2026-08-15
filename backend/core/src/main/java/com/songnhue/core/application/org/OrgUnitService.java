@@ -38,6 +38,9 @@ public class OrgUnitService {
 
     private static final Logger log = LoggerFactory.getLogger(OrgUnitService.class);
 
+    /** Path tạm dùng đúng một nhịp giữa hai lần ghi trong {@link #create} — xem chú thích ở đó. */
+    private static final String PLACEHOLDER_PATH = "/0/";
+
     private final OrgUnitRepository repository;
     private final UserRepository userRepository;
     private final SettingService settings;
@@ -100,7 +103,13 @@ public class OrgUnitService {
         }
 
         OrgUnit unit = new OrgUnit(code, name, type);
+        // `path` và `depth` là NOT NULL, mà path thật lại chứa chính id — thứ chỉ có sau khi ghi.
+        // Nên phải ghi bằng một path tạm rồi sửa ngay trong cùng transaction. Không ai quan sát được
+        // giá trị tạm này: nó bị ghi đè trước khi transaction commit, và hỏng giữa chừng thì rollback
+        // xoá luôn cả dòng.
+        unit.placeAt(PLACEHOLDER_PATH);
         OrgUnit saved = repository.saveAndFlush(unit);
+
         saved.placeAt(
                 parent == null
                         ? MaterializedPath.rootPath(saved.getId())

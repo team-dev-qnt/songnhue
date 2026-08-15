@@ -17,6 +17,9 @@ public final class JobTypes {
     /** Dọn chính bảng hàng đợi — job đã xong không phải nơi lưu lịch sử. */
     public static final String JOB_PURGE = "JOB_PURGE";
 
+    /** Kết xuất nhật ký quá hạn lưu trữ rồi xoá (G7, T6.13). Chạy hằng tháng. */
+    public static final String AUDIT_ARCHIVE = "AUDIT_ARCHIVE";
+
     /** Quét virus tệp vừa tải lên; xong mới cho tệp chuyển sang tải xuống được (T6.4). */
     public static final String VIRUS_SCAN = "VIRUS_SCAN";
 

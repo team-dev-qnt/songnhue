@@ -42,9 +42,23 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("SELECT u.id FROM User u WHERE u.id IN :ids AND u.deletedAt IS NULL AND u.status = 'ACTIVE'")
     List<Long> findActiveIdsIn(@Param("ids") List<Long> ids);
 
+    /**
+     * Lọc ra tài khoản <b>chưa bị xoá</b>, không quan tâm đang hoạt động hay đã khoá.
+     *
+     * <p>Dùng cho người nhận được chỉ định <b>đích danh</b>. Khác với {@link #findActiveIdsIn}: ở đó
+     * người nhận do hệ thống suy ra từ nhóm, nên bỏ tài khoản đã khoá là đúng. Còn khi nơi gọi đã nêu
+     * tên cụ thể thì đó là quyết định của nghiệp vụ — điển hình là thư "tài khoản của bạn vừa bị
+     * khoá", vốn chỉ có nghĩa khi gửi cho đúng người vừa bị khoá.
+     */
+    @Query("SELECT u.id FROM User u WHERE u.id IN :ids AND u.deletedAt IS NULL")
+    List<Long> findNotDeletedIdsIn(@Param("ids") List<Long> ids);
+
     /** Địa chỉ email của người nhận, bỏ qua tài khoản không có email. */
     @Query("SELECT u.id, u.email, u.fullName FROM User u WHERE u.id IN :ids AND u.deletedAt IS NULL")
     List<Object[]> findContactInfo(@Param("ids") List<Long> ids);
+
+    /** Danh sách tài khoản cho màn hình quản trị (T6.15). */
+    List<User> findAllByDeletedAtIsNullOrderByUsernameAsc();
 
     /** Toàn bộ tài khoản đang hoạt động — dùng cho thông báo hệ thống gửi tất cả (M5.13). */
     @Query("SELECT u.id FROM User u WHERE u.deletedAt IS NULL AND u.status = 'ACTIVE'")

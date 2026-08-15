@@ -25,15 +25,21 @@ import com.songnhue.core.infra.org.OrgUnitRepository;
  * hành), nên khử trùng lặp không phải chi tiết kỹ thuật mà là yêu cầu nghiệp vụ: nhận hai email
  * giống hệt nhau cho một sự cố làm người ta bắt đầu bỏ qua cảnh báo.
  *
- * <p><b>Ba luật lọc, theo thứ tự:</b>
+ * <p><b>Hai nguồn người nhận, và chúng KHÔNG lọc giống nhau:</b>
  *
- * <ol>
- *   <li>Nhóm "Ban điều hành" đọc từ {@code settings} — <b>danh sách có CRUD</b>, không phải vai trò
- *       cứng trong mã (quy tắc 16). Khách đổi thành viên Ban điều hành không được đòi deploy.
- *   <li>Người đứng đầu và cấp phó của các đơn vị liên quan, bật/tắt bằng tham số cấu hình.
- *   <li>Loại tài khoản đã khoá hoặc đã xoá — gửi cho tài khoản chết là cảnh báo rơi vào khoảng
- *       không, mà bảng {@code notification_recipients} vẫn ghi "đã gửi".
- * </ol>
+ * <ul>
+ *   <li><b>Suy ra từ nhóm</b> — nhóm "Ban điều hành" đọc từ {@code settings} (danh sách có CRUD,
+ *       không phải vai trò cứng trong mã — quy tắc 16) và người đứng đầu/phó của đơn vị liên quan.
+ *       Nhóm này lọc bỏ tài khoản đã khoá: hệ thống <i>đoán</i> ai nên biết, mà gửi cho tài khoản
+ *       chết là cảnh báo rơi vào khoảng không trong khi bảng vẫn ghi "đã gửi".
+ *   <li><b>Chỉ định đích danh</b> — nơi gọi nêu tên cụ thể (người được giao việc, chủ tài khoản vừa
+ *       bị khoá). Nhóm này chỉ lọc "chưa bị xoá". Đây là quyết định nghiệp vụ của nơi gọi, không
+ *       phải suy đoán của hệ thống, nên không được tự ý bỏ bớt.
+ * </ul>
+ *
+ * <p>⚠ Phân biệt này đến từ một lỗi thật lúc chạy thử WS-6: lọc {@code ACTIVE} cho cả hai nguồn làm
+ * thư "tài khoản của bạn vừa bị khoá" <b>không bao giờ tới nơi</b> — chính thao tác khoá đã loại
+ * người nhận duy nhất ra khỏi danh sách.
  */
 @Component
 public class RecipientResolver {
@@ -68,31 +74,43 @@ public class RecipientResolver {
     public List<Long> resolve(List<Long> relatedOrgUnitIds, List<Long> extraUserIds) {
         // LinkedHashSet: khử trùng lặp mà vẫn giữ thứ tự — thứ tự ổn định làm log dễ đối chiếu và
         // test không phụ thuộc thứ tự ngẫu nhiên của HashSet.
-        Set<Long> candidates = new LinkedHashSet<>();
-
-        if (extraUserIds != null) {
-            candidates.addAll(extraUserIds);
-        }
-        candidates.addAll(executiveBoard());
+        // Hai nguồn, hai luật lọc khác nhau — xem ghi chú ở dưới.
+        Set<Long> named = new LinkedHashSet<>(extraUserIds == null ? List.of() : extraUserIds);
+        Set<Long> derived = new LinkedHashSet<>(executiveBoard());
 
         boolean includeOwner = settings.getBoolean(KEY_AUTO_INCLUDE_OWNER, true);
         if (includeOwner && relatedOrgUnitIds != null && !relatedOrgUnitIds.isEmpty()) {
-            candidates.addAll(orgUnits.findActiveHeadAndDeputyUserIds(relatedOrgUnitIds));
+            derived.addAll(orgUnits.findActiveHeadAndDeputyUserIds(relatedOrgUnitIds));
         }
+        derived.removeAll(named);
 
-        if (candidates.isEmpty()) {
+        if (named.isEmpty() && derived.isEmpty()) {
             // Không phải lỗi kỹ thuật, nhưng là lỗi cấu hình đáng báo: một cảnh báo được sinh ra mà
             // không tới ai cả thì im lặng y như không có cảnh báo.
             log.warn("Không tìm được người nhận nào cho cảnh báo — kiểm tra nhóm '{}'", KEY_EXECUTIVE_BOARD);
             return List.of();
         }
 
-        List<Long> active = users.findActiveIdsIn(new ArrayList<>(candidates));
-        if (active.size() < candidates.size()) {
-            log.info("Bỏ {} người nhận do tài khoản đã khoá hoặc đã xoá", candidates.size() - active.size());
+        // ⚠ Người nhận ĐÍCH DANH chỉ lọc "chưa bị xoá"; người nhận SUY RA TỪ NHÓM lọc thêm "đang
+        // hoạt động". Ban đầu lọc ACTIVE cho cả hai, và thư "tài khoản của bạn vừa bị khoá" không
+        // bao giờ tới nơi — chính thao tác khoá làm người nhận duy nhất bị loại khỏi danh sách.
+        // Nơi gọi nêu tên cụ thể là một quyết định nghiệp vụ, không phải suy đoán của hệ thống.
+        Set<Long> allowed = new LinkedHashSet<>();
+        if (!named.isEmpty()) {
+            allowed.addAll(users.findNotDeletedIdsIn(new ArrayList<>(named)));
         }
-        // Giữ đúng thứ tự đã dựng ở trên thay vì thứ tự DB trả về.
-        return candidates.stream().filter(active::contains).toList();
+        if (!derived.isEmpty()) {
+            List<Long> active = users.findActiveIdsIn(new ArrayList<>(derived));
+            if (active.size() < derived.size()) {
+                log.info("Bỏ {} người nhận suy ra từ nhóm do tài khoản đã khoá", derived.size() - active.size());
+            }
+            allowed.addAll(active);
+        }
+
+        // Giữ đúng thứ tự đã dựng (đích danh trước, nhóm sau) thay vì thứ tự DB trả về.
+        Set<Long> ordered = new LinkedHashSet<>(named);
+        ordered.addAll(derived);
+        return ordered.stream().filter(allowed::contains).toList();
     }
 
     /**

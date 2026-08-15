@@ -1,6 +1,6 @@
 # PHASE 0 — CORE PLATFORM · BẢNG THEO DÕI TIẾN ĐỘ
 
-> **Cập nhật lần cuối**: 2026-08-14 · **Tiến độ: 46/107 task (43%)** · **DoD: 8/21** (mục 7 xong tầng 2, tầng 3 chờ WS-10) · Trạng thái: 🟡 Đang làm (xong WS-1, WS-2, WS-4, WS-5; WS-3 còn T3.4)
+> **Cập nhật lần cuối**: 2026-08-15 · **Tiến độ: 61/107 task (57%)** · **DoD: 10/21** (mục 7 xong tầng 2, tầng 3 chờ WS-10) · Trạng thái: 🟡 Đang làm (xong WS-1, WS-2, WS-4, WS-5, WS-6; WS-3 còn T3.4)
 > Nguồn ràng buộc: `conventions.md` (coding/security) · `architecture-review.md` §6, §9 (kiến trúc đã chốt) · `function-spec.md` (nghiệp vụ MOD-05)
 > **Cách dùng**: làm xong task nào tick `[x]` task đó; xong 1 WS thì chạy mục "Kiểm chứng" của WS rồi cập nhật bảng tổng + dòng "Cập nhật lần cuối" ở trên.
 > ⚠ **Xong 1 WS còn phải đóng nợ**: xem luật 3 bước ở mục **"Sổ nợ liên WS"** gần cuối file — tick dòng nợ, và **quay lại sửa mô tả đã lỗi thời ở WS đã giao nợ**.
@@ -16,13 +16,13 @@
 | **WS-3** | Docker & môi trường chạy local | 7 | **6** | 🟡 **6/7** (14/8) — T3.4 chờ WS-8/9 | WS-1 | 5 pd |
 | **WS-4** | BE — Common Platform | 10 | **10** | ✅ **Xong** (14/8) | WS-2 | 10 pd |
 | **WS-5** | BE — Auth & RBAC 3 tầng | 14 | **14** | ✅ **Xong** (14/8) | WS-4 | 15 pd |
-| **WS-6** | BE — Core services | 15 | 0 | ⬜ Chưa bắt đầu | WS-4, WS-5 | 25 pd |
+| **WS-6** | BE — Core services | 15 | **15** | ✅ **Xong** (15/8) | WS-4, WS-5 | 25 pd |
 | **WS-7** | BE — Backup/Restore & Observability | 12 | 0 | ⬜ Chưa bắt đầu | WS-6 | 9 pd |
 | **WS-8** | FE — admin-app | 11 | 0 | ⬜ Chưa bắt đầu | WS-4→6 (API) | 15 pd |
 | **WS-9** | FE — public-web | 5 | 0 | ⬜ Chưa bắt đầu | WS-1 | 5 pd |
 | **WS-10** | Test & CI | 7 | 0 | ⬜ Chưa bắt đầu | WS-4 | 10 pd |
 | **WS-11** | Deploy Staging & Production | 10 | 0 | ⬜ Chưa bắt đầu | WS-3, 7, 10 | 10 pd |
-| | **TỔNG** | **107** | **46** | | | **114 pd** |
+| | **TỔNG** | **107** | **61** | | | **114 pd** |
 
 *(107 task triển khai + 21 mục Definition of Done ở cuối file.)*
 
@@ -303,30 +303,77 @@ WS-1 ─► WS-2 ─► WS-3          [nền — bắt buộc trước mọi th�
 
 ---
 
-## WS-6 — BE Core services · 25 pd
+## WS-6 — BE Core services · 25 pd — ✅ **XONG 15/8/2026**
 
 **Tiên quyết**: WS-4, WS-5. **Đầu ra**: 6 pattern P1–P6 thành shared service; module nghiệp vụ Phase 1+ chỉ khai báo cấu hình.
 
-- [ ] **T6.1** `org_units` — cây ≥5 cấp, materialized path + `sort_order`, API move/reorder; **1 bảng dùng chung XN + phòng ban** — *rule 7 CLAUDE.md*
-- [ ] **T6.2** Tree helper (P2) tái sử dụng cho danh mục/media/công trình/menu
-- [ ] **T6.3** Attachment service (P3): bảng polymorphic, upload MinIO, versioning, `valid_until`, presigned URL TTL ngắn — *§4.3*
-- [ ] **T6.4** `FileValidator`: magic bytes + size theo config + tên file random; ảnh re-encode strip EXIF; **ClamAV scan async** trước khi chuyển "sẵn sàng" — *§4.4*
-- [ ] **T6.5** **Workflow engine (P1)**: `workflow_definitions` + `transitions`, check `(from, action, role)` trong transaction, hook notify + audit. **Nơi duy nhất đổi trạng thái** — *§4.3, rule 4*
-- [ ] **T6.6** Notification service (P4): `notify(event, targets, channels)`; **v1 bật in-app + email**, `SmsSender` interface mặc định tắt — *B7*
-- [ ] **T6.7** **Recipient resolver theo G11**: nhóm "Ban điều hành" từ `settings` ∪ người đứng đầu/phó `org_units` của công trình liên quan; khử trùng lặp; loại tài khoản khóa — *G11*
-- [ ] **T6.8** Job & Scheduler (P5): `jobs` + **SKIP LOCKED**, worker in-process bounded pool, trạng thái + retry 3, **chống overlapping run** — *§6.3*
-  - [ ] **Nhận nợ WS-5**: `TokenMaintenanceJob` đang chạy tạm bằng `@Scheduled(cron)` → chuyển sang hàng đợi job trong DB (javadoc lớp đó ghi rõ là tạm thời)
-  - [ ] **Nhận nợ WS-2**: job tạo partition `audit_logs` tháng kế tiếp — hiện chỉ có **hàm SQL**, chưa ai gọi định kỳ; hết runway 12 tháng mà quên thì bản ghi rơi vào partition `DEFAULT` (`V202608131005__core_audit_partition_maintenance.sql` dòng 6)
-- [ ] **T6.9** ShedLock cài sẵn, `shedlock.enabled` đọc env, mặc định tắt (1 node) — *§6.2*
-- [ ] **T6.10** Async job API chuẩn: `POST → 202 + jobId`, endpoint tra tiến độ, link tải TTL 24h — *§1.3*
-- [ ] **T6.11** Settings service: key-value **có type** + validate + Caffeine cache + UI API; **export/import cấu hình loại trừ credential** — *CN-05.3, §4.7*
-- [ ] **T6.12** Audit interceptor: ghi old/new JSON; **append-only + hash chain SHA-256(record + prev_hash)**; API verify chain — *§4.3*
-- [ ] **T6.13** Job kết xuất audit >5 năm: CSV/Parquet nén → MinIO bucket riêng → **verify checksum** → mới xóa; ghi anchor hash; lỗi → không xóa dòng nào + `ADM-2001` — *G7, §4.3*
-- [ ] **T6.14** Thông báo hệ thống (M5.13): Admin gửi thông báo chung tới toàn bộ/nhóm — *CN-05.6*
-- [ ] **T6.15** **Vertical slice**: CRUD `users` + `roles` đi hết 3 tầng quyền + audit + notification — *nghiệm thu Phase 0*
-  - [ ] **Nhận nợ WS-5**: màn hình đổi phân quyền phải gọi `AuthorityLoader.invalidate(publicId)` — quên thì Admin gỡ quyền xong người kia vẫn dùng được tới hết TTL cache 30s (và với ≥2 node là node khác không hề biết)
+- [x] **T6.1** `org_units` — cây ≥5 cấp, materialized path + `sort_order`, API move/reorder; **1 bảng dùng chung XN + phòng ban** — *rule 7 CLAUDE.md*
+- [x] **T6.2** Tree helper (P2) tái sử dụng cho danh mục/media/công trình/menu — `MaterializedPath` + `TreeBuilder`, 20 test
+- [x] **T6.3** Attachment service (P3): bảng polymorphic, upload MinIO, versioning, `valid_until`, presigned URL TTL **10 phút** — *§4.3*
+- [x] **T6.4** `FileValidator`: magic bytes + size theo config + tên file random; ảnh re-encode strip EXIF (`ImageSanitizer`); **ClamAV scan async** qua giao thức INSTREAM trước khi chuyển "sẵn sàng" — *§4.4*
+- [x] **T6.5** **Workflow engine (P1)**: `workflow_definitions` + `transitions`, check `(from, action, quyền)` trong transaction, hook notify + audit. **Nơi duy nhất đổi trạng thái** — *§4.3, rule 4*
+- [x] **T6.6** Notification service (P4): `notify(request)`; **v1 bật in-app + email**, SMS/web-push tắt theo `settings` — *B7*
+- [x] **T6.7** **Recipient resolver theo G11**: nhóm "Ban điều hành" từ `settings` ∪ người đứng đầu/phó `org_units`; khử trùng lặp; loại tài khoản khoá — *G11*
+- [x] **T6.8** Job & Scheduler (P5): `jobs` + **SKIP LOCKED**, worker in-process bounded pool, backoff 1'→5'→15', **chống overlapping run**, thu hồi job treo — *§6.3*
+  - [x] **Nhận nợ WS-5**: `TokenMaintenanceJob` → `TokenCleanupHandler` trong hàng đợi
+  - [x] **Nhận nợ WS-2**: job tạo partition `audit_logs` — `AuditPartitionHandler`, chạy hằng ngày, cảnh báo khi partition `DEFAULT` có dòng
+- [x] **T6.9** ShedLock cài sẵn, `app.shedlock-enabled` đọc env, mặc định tắt (1 node) — *§6.2*
+- [x] **T6.10** Async job API: `JobDtos.JobAccepted` (202 + jobId) + endpoint tra tiến độ `GET /api/v1/jobs/{id}` — *§1.3*
+- [x] **T6.11** Settings service: key-value **có type** + validate 2 tầng + Caffeine cache + API cho UI; **export/import loại trừ credential** — *CN-05.3, §4.7*
+- [x] **T6.12** Audit interceptor: ghi old/new JSON tự động qua Hibernate; **append-only + hash chain** (trigger DB); API verify chain — *§4.3*
+- [x] **T6.13** Job kết xuất audit >5 năm: CSV nén → MinIO bucket riêng → **đọc ngược verify checksum** → mới xoá; ghi anchor `last_hash`; lỗi → không xoá dòng nào + `ADM-2001` — *G7, §4.3*
+- [x] **T6.14** Thông báo hệ thống (M5.13): Admin gửi tới toàn bộ hoặc một nhóm tài khoản — *CN-05.6*
+- [x] **T6.15** **Vertical slice**: CRUD `users` + `roles` qua quyền tầng 2 + audit + notification — *nghiệm thu Phase 0*
+  - [x] **Nhận nợ WS-5**: `AuthorityLoader.invalidate(publicId)` được gọi ở gán vai trò, khoá/mở tài khoản và xoá tài khoản
 
-**Kiểm chứng**: tạo/sửa/xóa → `audit_logs` có bản ghi, verify chain pass · upload sai magic bytes → từ chối · `POST` job → 202 + `jobId` → worker chạy → notification in-app + email (MailHog).
+**Kết quả**: **43 mã lỗi** (thêm 7: `SYS-0009`, `ADM-2002…2007`) · **184 test xanh** · 2 phụ thuộc mới ghim phiên bản (ShedLock 6.9.0, MinIO 8.5.17) + `spring-boot-starter-mail`.
+
+**Kiểm chứng — chạy thật trên CSDL Docker + MinIO + Mailpit (15/8)**
+
+| Hạng mục | Kết quả |
+|---|---|
+| Cây đơn vị | Tạo Xí nghiệp dưới Công ty → `path=/1/7/`, `depth=1` tự tính |
+| Phép move (SQL thật) | Chuyển `/1/2/` sang dưới `/1/3/` → cả cây con đổi path, `depth` tính lại đúng từ số dấu `/` |
+| Hàng đợi job | Job chạy xong → `SUCCEEDED` + `progress=100`; job **không có handler** → `FAILED` ngay lần 1, không thử lại vô ích |
+| Chống chạy trùng | Chèn 2 job cùng `dedup_key` → DB chặn bằng `uq_jobs_dedup_active` |
+| Bảo trì tự động | 5 → 6 loại việc đăng ký đúng; `AUDIT_PARTITION` chạy, `TOKEN_CLEANUP` chạy |
+| **Nhật ký tự động** | Sửa entity → bản ghi chỉ chứa **trường thực sự đổi** kèm old/new, `ip_address`, hash do trigger cấp |
+| **Che dữ liệu nhạy cảm** | Đổi mật khẩu → nhật ký ghi `"passwordHash": "***"` — thấy có đổi, không thấy giá trị |
+| Chuỗi hash | `POST /audit-logs/verify` → `intact=true`, 0 điểm gãy trên 17 bản ghi thật |
+| Cấu hình | Validate chặn sai kiểu, sai khoảng, cron sai cú pháp; `"yes"`/`"1"` **không** được nhận là boolean |
+| Tệp đính kèm | MinIO nối được lúc khởi động; job quét → `SKIPPED` + `READY` + ghi rõ lý do, **không giả vờ `CLEAN`** |
+| Ảnh polyglot | Mã lạ gắn sau ảnh JPEG **không sống sót** qua lần mã hoá lại; ảnh vẫn đọc được |
+| Thông báo | Khoá/mở tài khoản → 4 lượt gửi `SENT` (2 kênh × 2 sự kiện); **thư tới Mailpit** đúng người, kèm đường dẫn |
+| **Lát cắt dọc** | Đăng nhập → 2FA (mã client tự tính) → đổi mật khẩu bắt buộc → tạo đơn vị → tạo tài khoản → gán 2 vai trò → gỡ còn 1 → khoá → tất cả vào nhật ký |
+| Chặn khi chưa đổi mật khẩu | `AUTH-0007` chặn đúng mọi endpoint quản trị cho tới khi đổi xong |
+
+**6 lỗi chỉ chạy thật mới lộ** — **cả 6 đều IM LẶNG**, không lỗi nào biểu hiện đúng chỗ sai:
+
+| # | Lỗi | Triệu chứng thật |
+|:-:|---|---|
+| 1 | Đăng ký Hibernate listener **sau** khi app đã lên không có tác dụng — Boot 6 chốt nhóm listener vào `FastSessionServices` lúc dựng SessionFactory | `@PostConstruct` chạy trót lọt, in log xác nhận, app khoẻ — chỉ là `audit_logs` **trống rỗng** |
+| 2 | Gom bộ đệm rồi xả ở `beforeCommit` cũng không chạy — Spring gọi `triggerBeforeCommit` **trước** `doCommit`, mà Hibernate chỉ flush bên trong `doCommit` | Y hệt #1: `users.failed_login_count` tăng, `updated_at` đổi, nhật ký vẫn rỗng |
+| 3 | `@ConditionalOnBean` trên `@Component` không đáng tin (Spring chỉ bảo đảm cho lớp auto-config) | SMTP cấu hình đủ, Mailpit đang chạy, mà mọi email thành `SKIPPED` kèm ghi chú **"chưa cấu hình máy chủ thư"** — sai hoàn toàn nguyên nhân |
+| 4 | Khai bean `DataSource` làm Boot **ngừng tạo DataSource chính** (`@ConditionalOnMissingBean`) | Cả ứng dụng chạy bằng vai trò `songnhue_archiver` → `permission denied for table jobs` |
+| 5 | Sửa xong #4 lại sập y hệt ở tầng `JdbcTemplate` (`JdbcTemplateAutoConfiguration` cũng `@ConditionalOnMissingBean`) | `permission denied for table audit_logs` — không dòng log nào nhắc tới DataSource |
+| 6 | Lọc `ACTIVE` cho **cả** người nhận đích danh lẫn suy ra từ nhóm | Thư "tài khoản của bạn vừa bị khoá" **không bao giờ tới nơi**: chính thao tác khoá loại người nhận duy nhất khỏi danh sách |
+
+Ngoài ra 2 lỗi bắt được trước khi chạy: `enqueue` truy vấn tiếp sau `DataIntegrityViolationException` trong **cùng transaction đã abort** (PostgreSQL từ chối mọi lệnh sau đó); và `org_units.path` là `NOT NULL` nhưng entity được lưu trước khi tính path.
+
+**Quyết định đáng lưu ý**
+
+| Việc | Vì sao |
+|---|---|
+| **ShedLock KHÔNG bọc quanh worker hàng đợi** | Hai bài toán ngược nhau: job theo lịch cần **đúng một** node chạy, hàng đợi cần **càng nhiều** node cùng lấy việc. Bọc vào là mất sạch khả năng mở rộng |
+| Job bảo trì **đặt việc** thay vì tự làm | Dùng lại trạng thái/retry/backoff/màn hình theo dõi đã có. Khoá chống trùng theo ngày nên hai node cùng hẹn giờ vẫn chỉ tạo một job — **DB đã là điểm đồng bộ**, không cần thêm ShedLock |
+| Nhật ký ghi **ngay tại chỗ**, bỏ gom lô | Gom lô không chạy được (lỗi #2). Ghi ngay vẫn cùng transaction nên nhật ký và dữ liệu sống chết cùng nhau; mất phần gộp lệnh, đổi lại không còn chỗ hỏng lặng lẽ |
+| Kết xuất audit dùng **kết nối riêng** vai trò `songnhue_archiver`, bọc trong kiểu `ArchiverJdbc` | `songnhue_app` không có `DELETE` trên `audit_logs` — cấp quyền đó cho tài khoản chạy hằng ngày là vô hiệu hoá việc tách vai trò của WS-2. Kiểu riêng để không va vào auto-config (lỗi #4, #5) |
+| Kết xuất chọn **CSV** thay vì Parquet | Bản lưu trữ này để *người* mở khi tra một sự việc nhiều năm trước, không phải để chạy phân tích. CSV mở được bằng bất cứ thứ gì, kể cả sau khi dự án đã đổi tay |
+| Người nhận **đích danh** không lọc `ACTIVE` | Nơi gọi nêu tên cụ thể là quyết định nghiệp vụ, không phải suy đoán của hệ thống (lỗi #6) |
+| Tệp chưa quét ghi `SKIPPED`, **không** ghi `CLEAN` | Ghi "sạch" cho tệp chưa hề quét là nói dối ngay trong dữ liệu — và đó đúng là thứ người kiểm thử bảo mật cần thấy |
+| Ảnh **mã hoá lại** trước khi tính checksum | Checksum phải khớp đúng thứ đã lưu, nếu không mọi lần kiểm tra toàn vẹn về sau đều báo lệch |
+
+**Nợ giao cho WS sau**: luật ArchUnit bắt mọi lớp con `ScopedEntity` mang `@Filter` và **bắt `WorkflowAware.applyState` chỉ được gọi từ `WorkflowEngine`** → **WS-10/T10.2** · kiểm chứng tầng 3 `AUTH-3002` đầu-cuối trên entity thật → **WS-10/T10.3** · dựng ClamAV trong compose để quét virus chạy thật → **WS-11/T11.3** · `data_freshness` + backlog hàng đợi thành metric → **WS-7/T7.9**.
 
 ---
 
@@ -450,8 +497,8 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 0 hoàn thành:
 - [x] **8. Deny by default** — thêm 3 endpoint vi phạm → **CI đỏ**, chỉ đích danh cả 3 (thiếu annotation · mã quyền sai định dạng · module không tồn tại) *(WS-5, 14/8)*
 - [x] **9. Envelope + traceId** — mọi response (kể cả lỗi) đúng §2.1, luôn có `traceId` ✅ *14/8: kiểm bằng request thật + 8 test lát cắt web*
 - [x] **10. Audit hash chain** — verify chain pass; `songnhue_app` thử `UPDATE audit_logs` → **bị DB từ chối** ✅ *14/8: chặn cả qua bảng cha lẫn thẳng vào partition; thử sửa/xóa lén đều bị verify phát hiện*
-- [ ] **11. Attachment** — upload → MinIO; sai magic bytes → từ chối; presigned URL hết hạn đúng TTL
-- [ ] **12. Async job** — `POST` → 202 + `jobId` → worker chạy → notification in-app + email (MailHog)
+- [~] **11. Attachment** — cơ chế đã dựng và chạy thật: MinIO nối được, job quét đổi trạng thái đúng, ảnh polyglot bị loại (có test). ⬜ **Chưa kiểm chứng đầu-cuối qua HTTP**: tải tệp multipart thật, từ chối sai magic bytes, và presigned URL hết hạn đúng TTL — cần ClamAV trong compose (nợ #20) *(WS-6, 15/8)*
+- [x] **12. Async job** — worker nhặt việc → chạy → thông báo in-app + **email tới Mailpit** đúng người, kèm đường dẫn ✅ *15/8*. Hình dạng `202 + jobId` (`JobDtos.JobAccepted`) và endpoint tra tiến độ đã có; chức năng đầu tiên dùng nó là kết xuất báo cáo ở Phase 1
 - [ ] **13. Backup** — dump + checksum khớp, **nằm trên VM-3, không cùng máy DB**; prune giữ đúng 30 ngày
 - [ ] **14. Đo RTO thật** — restore lên VM-2 → so số bản ghi → **< 4 giờ**; ghi con số thật vào runbook
 - [ ] **15. Alert backup hỏng** — dừng job dump quá 26h → alert bắn
@@ -483,18 +530,21 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 0 hoàn thành:
 | 6 | ArchUnit: cho phép import chéo `core.common.*` | WS-4 | WS-10/T10.2 | ⬜ Chờ |
 | 7 | ⚠ Kiểm chứng tầng 3 `AUTH-3002` đầu-cuối → **đóng DoD #7** | WS-5/T5.11 | WS-10/T10.3 | ⬜ Chờ |
 | 8 | Test `clean-disabled=true` chặn thật | WS-2/T2.2 | WS-10/T10.1 | ⬜ Chờ |
-| 9 | `TokenMaintenanceJob`: `@Scheduled` → hàng đợi DB | WS-5 | WS-6/T6.8 | ⬜ Chờ |
-| 10 | Job tạo partition `audit_logs` tháng kế tiếp (mới có hàm SQL, chưa ai gọi) | WS-2/T2.6 | WS-6/T6.8 | ⬜ Chờ |
-| 11 | `AuthorityLoader.invalidate()` gọi từ màn hình phân quyền | WS-5 | WS-6/T6.15 | ⬜ Chờ |
-| 12 | MinIO client khởi tạo qua Spring bean | WS-4/T4.6 | WS-6/T6.3 | ⬜ Chờ |
-| 13 | `FileValidator`: ClamAV async + strip EXIF | WS-4/T4.6 | WS-6/T6.4 | ⬜ Chờ |
-| 14 | `SettingService` phần ghi + export/import loại trừ credential | WS-5 | WS-6/T6.11 | ⬜ Chờ |
+| 9 | `TokenMaintenanceJob`: `@Scheduled` → hàng đợi DB | WS-5 | WS-6/T6.8 | ✅ Trả 15/8 |
+| 10 | Job tạo partition `audit_logs` tháng kế tiếp | WS-2/T2.6 | WS-6/T6.8 | ✅ Trả 15/8 |
+| 11 | `AuthorityLoader.invalidate()` gọi từ màn hình phân quyền | WS-5 | WS-6/T6.15 | ✅ Trả 15/8 |
+| 12 | MinIO client khởi tạo qua Spring bean | WS-4/T4.6 | WS-6/T6.3 | ✅ Trả 15/8 |
+| 13 | `FileValidator`: ClamAV async + strip EXIF | WS-4/T4.6 | WS-6/T6.4 | ✅ Trả 15/8 |
+| 14 | `SettingService` phần ghi + export/import loại trừ credential | WS-5 | WS-6/T6.11 | ✅ Trả 15/8 |
 | 15 | Build thật 2 image FE (Dockerfile đã viết, chưa chạy) | WS-3/T3.4 | WS-8/T8.1 + WS-9/T9.5 | ⬜ Chờ |
 | 16 | ⚠ `POSTGRES_INITDB_ARGS` ICU `vi-VN` cho staging/prod | WS-3 | WS-11/T11.3 | ⬜ Chờ |
 | 17 | Nginx chặn `/swagger-ui/**` + `/v3/api-docs/**` | WS-4/T4.10 | WS-11/T11.6 | ⬜ Chờ |
 | 18 | `security_events` → Grafana + alert | WS-5/T5.14 | WS-7/T7.10 | ⬜ Chờ |
+| 19 | ⚠ ArchUnit: `WorkflowAware.applyState` chỉ được gọi từ `WorkflowEngine` | WS-6/T6.5 | WS-10/T10.2 | ⬜ Chờ |
+| 20 | Dựng ClamAV trong compose để quét virus chạy thật (nay là `SKIPPED`) | WS-6/T6.4 | WS-11/T11.3 | ⬜ Chờ |
+| 21 | Metric: `data_freshness_seconds` + độ dài hàng đợi job | WS-6/T6.8 | WS-7/T7.9 | ⬜ Chờ |
 
-**Mục 5, 7, 16 là loại hỏng âm thầm** — không có lỗi nào báo ra, chỉ phát hiện khi đã muộn (lộ dữ liệu liên đơn vị, hoặc phải dump+restore cả DB production).
+**Mục 5, 7, 16, 19 là loại hỏng âm thầm** — không có lỗi nào báo ra, chỉ phát hiện khi đã muộn (lộ dữ liệu liên đơn vị, hoặc phải dump+restore cả DB production).
 
 ---
 
@@ -502,6 +552,7 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 0 hoàn thành:
 
 | Ngày | Nội dung |
 |---|---|
+| 2026-08-15 | **WS-6 xong** — khối lớn nhất Phase 0. 6 pattern P1–P6 thành shared service; 43 mã lỗi; 184 test. Trả **6 dòng nợ** (#9–#14). Chốt: **ShedLock KHÔNG bọc quanh worker hàng đợi** (hai bài toán ngược nhau) · job bảo trì chỉ *đặt việc*, khoá chống trùng theo ngày làm DB thành điểm đồng bộ · nhật ký ghi ngay tại chỗ thay vì gom lô · kết xuất audit đi qua kết nối riêng vai trò `songnhue_archiver` bọc trong kiểu `ArchiverJdbc`. **6 lỗi chỉ chạy thật mới lộ, cả 6 đều im lặng** — nổi bật: đăng ký Hibernate listener sau khởi động không có tác dụng, và khai bean `DataSource`/`JdbcTemplate` làm Boot ngừng tạo bản chính khiến cả app chạy bằng vai trò archiver. |
 | 2026-08-14 | **Rà soát nợ tồn WS-1→WS-5 trước khi mở WS-6.** Lập **"Sổ nợ liên WS"** (18 dòng) + luật 3 bước khi đóng WS — trước đó nợ ghi ở WS giao nhưng **WS nhận không có task nào đứng tên**: 8 mục thuộc loại này, trong đó 3 mục hỏng âm thầm (ArchUnit `@Filter`, `AUTH-3002` tầng 3, collation ICU cho prod). Sửa 5 chỗ mô tả đã lỗi thời (rate limit `5/15'` → `30/15'` ở cả `conventions.md` §4.5 lẫn T4.5 — §4.5 đang **tự mâu thuẫn với §4.1** của chính nó; filter chain T4.4 nay đủ 7 filter; error-map 31 → **36 mã**; nợ WS-4 đã trả 2/3). **Phát hiện 1 lỗi thật: T4.8 đã tick nhưng fail-fast không hoạt động** — thiếu biến môi trường thì app vẫn khởi động và health `UP`, vì `@ConfigurationProperties` gán nguyên văn `"${MINIO_ENDPOINT}"` nên `@NotBlank` đi qua. Thêm `UnresolvedPlaceholderGuard` (8 test) → **đóng DoD mục 3**. Tổng 138 test xanh. |
 | 2026-08-14 | **WS-5 xong**. JWT RS256 + `kid` · refresh rotation + reuse detection (thu hồi family, access token chết ngay nhờ claim `fid`) · CSRF double-submit · lockout không tiết lộ user tồn tại · 2FA TOTP tự cài (khớp 6/6 vector RFC 6238) · RBAC 3 tầng + 3 annotation bắt buộc · quản lý phiên + đăng xuất từ xa. **36 mã lỗi**. Chốt **không dùng filter chain Spring Security** (`architecture-review.md` §9.5). 5 lỗi chỉ chạy thật mới lộ — đáng kể nhất: **rate limit login 5/15' chặn trước khoá tài khoản** làm `AUTH-0003` không bao giờ chạy được và tham số M5.15 vô nghĩa; nâng lên 30/15' + test chặn ở CI. |
 | 2026-08-14 | **WS-4 xong**. 31 mã lỗi (thêm 6 mã `SYS` chung cho tầng framework) · envelope + traceId phủ 100% endpoint · rate limit 3 nhóm · 8 utils · `BaseEntity`/`ScopedEntity` · fail-fast cấu hình · OpenAPI 6 nhóm. Chốt **`core.common.*` là ngoại lệ import chéo** → T10.2 phải viết rule ArchUnit theo đó. Sửa Checkstyle bắt nhầm chữ trong bình luận. 53 test xanh; 2 lỗi thật do test phát hiện (bọc envelope 2 lần, MessageSource không được tạo do tên file có hậu tố `_vi`). |

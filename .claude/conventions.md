@@ -271,6 +271,9 @@ Response ← GlobalExceptionHandler / ResponseBodyAdvice (envelope) ← RequestL
 | `FileValidator` | Check magic bytes (không tin extension), size theo config từng loại, tên file random hóa |
 | `CryptoService` | AES-256-GCM encrypt/decrypt cột nhạy cảm; key từ env/Vault; hỗ trợ key rotation (key_id trong ciphertext) |
 | `HashUtils` *(WS-5)* | SHA-256 hex 64 ký tự (refresh token, mã khôi phục, checksum tệp), sinh chuỗi ngẫu nhiên an toàn, **so sánh constant-time**. ⛔ KHÔNG dùng cho mật khẩu — mật khẩu cần thuật toán *chậm* (BCrypt cost ≥ 12) |
+| `MaterializedPath` *(WS-6)* | Phép toán path cây `/1/4/9/` — dựng, so cha con, chuyển cây con, chống tạo vòng. ⚠ Path **bắt buộc** có `/` ở cả hai đầu: thiếu nó thì `LIKE '/1/4%'` khớp nhầm `/1/40/` và bộ lọc phạm vi tầng 3 rò dữ liệu giữa các Xí nghiệp. Chuyển cây con **cấm dùng `replace()`** — path có thể chứa lặp tiền tố, chỉ được cắt phần đầu |
+| `TreeBuilder` *(WS-6)* | Danh sách phẳng → cây lồng nhau, một lượt duyệt (không N+1). Nút có cha nằm ngoài danh sách được coi là gốc — cần cho người chỉ xem được cây con đơn vị mình |
+| `ImageSanitizer` *(WS-6)* | Mã hoá lại ảnh JPEG/PNG để bỏ **EXIF** (ảnh điện thoại mang toạ độ GPS — ảnh hiện trường đăng lên Cổng TTĐT là công khai kèm toạ độ) và **dữ liệu lạ gắn kèm** (polyglot: magic bytes không bắt được vì phần đầu đúng là ảnh thật). ⛔ Không dùng cho SVG — SVG là XML, cần đường sanitize riêng |
 | `TotpGenerator` *(WS-5)* | Sinh/kiểm mã TOTP theo RFC 6238 (HMAC-SHA1, bước 30s, 6 chữ số, cho lệch ±1 bước). Tự cài thay vì kéo thư viện vì RFC có **bộ vector kiểm thử chính thức** — tính đúng đắn chứng minh bằng test, xem `TotpGeneratorTest` |
 
 Base classes: `BaseEntity` (audit cột chuẩn + soft delete + version), `ScopedEntity extends BaseEntity` (+ `org_unit_id` — mọi entity thuộc phạm vi đơn vị bắt buộc kế thừa; điều kiện SQL của bộ lọc phạm vi viết **đúng một lần** ở hằng `ScopedEntity.ORG_UNIT_FILTER_CONDITION`).
@@ -278,6 +281,23 @@ Base classes: `BaseEntity` (audit cột chuẩn + soft delete + version), `Scope
 ⚠ **Cột `CHAR(n)` và `inet` của Postgres phải khai `@JdbcTypeCode`** (`SqlTypes.CHAR` / `SqlTypes.INET`). Thiếu thì `ddl-auto: validate` chặn ngay lúc khởi động với thông báo "wrong column type encountered" — đúng như thiết kế, nhưng dễ mất thời gian nếu không biết trước.
 
 FE mirror (`shared/`): `apiClient` (axios instance duy nhất: gắn CSRF header, auto refresh token 1 lần rồi logout, unwrap envelope, error → notification theo `error-map`), `useAuth`, `usePermission(code)`, `formatDateTime` (UTC+7), `formatNumber` (hiển thị số đo/tiền thống nhất).
+
+---
+
+### 2.6. Sáu pattern dùng chung (WS-6) — module nghiệp vụ chỉ khai báo, không tự cài lại
+
+| Pattern | Cách cắm vào | Bẫy đã biết |
+|---|---|---|
+| **P1 Workflow** | Entity cài `WorkflowAware`; quy trình khai bằng **dữ liệu** trong `workflow_definitions` + `workflow_transitions`. Gọi `WorkflowEngine.execute(entity, action, title)` | ⛔ **Cấm gọi `applyState` trực tiếp** — bỏ qua kiểm quyền, bỏ qua bắn thông báo, bỏ qua nhật ký (quy tắc 4). ArchUnit sẽ chặn ở T10.2. FE lấy nút từ `allowedActions()`, **không tự suy** |
+| **P2 Cây** | `MaterializedPath` + `TreeBuilder` | Path phải có `/` hai đầu; move dùng `substring` chứ không `replace`; chống tạo vòng trước khi ghi |
+| **P3 Tệp đính kèm** | `AttachmentService.upload(...)` với danh sách MIME cho phép của loại tài liệu đó | Tệp **chưa quét xong thì chưa tải xuống được**; đuôi tệp lấy theo MIME phát hiện được, không theo tên gốc |
+| **P4 Thông báo** | `NotificationService.notify(NotificationRequest)` | Ghi trước, gửi sau — **cấm gọi SMTP đồng bộ trong request**. Người nhận đích danh và người nhận suy ra từ nhóm lọc khác nhau — xem javadoc `RecipientResolver` |
+| **P5 Job nền** | Khai một bean cài `JobHandler`; worker tự tìm thấy qua Spring | Handler **phải chạy lại được** (job có thể thử tới `maxAttempts`, và job đang chạy lúc node chết sẽ được trả về hàng đợi). Việc theo lịch thì *đặt việc* vào hàng đợi, đừng tự làm trong `@Scheduled` |
+| **P6 Tham số** | `SettingService.getInt/getBoolean/getTime(...)` với giá trị dự phòng | Tham số nghiệp vụ **cấm** để trong `application.yml` (quy tắc 12). Giá trị dự phòng trong mã phải bằng đúng giá trị seed |
+
+**Nhật ký kiểm toán tự động**: gắn `@Audited(module=…, entityType=…)` lên entity là đủ — `AuditEventListener` bắt mọi tạo/sửa/xoá ở tầng Hibernate. Trường nhạy cảm khai trong `excludeFields` (vẫn thấy *có* thay đổi, không thấy giá trị).
+  - ⚠ **Giới hạn**: câu lệnh `@Modifying` hàng loạt (JPQL/native) **không** đi qua bộ lắng nghe — Hibernate không nạp entity nên không có sự kiện nào để bắt. Thao tác cần dấu vết phải đi qua entity, hoặc tự gọi `AuditService.record(...)`.
+  - ⚠ **Cắm listener bằng `Integrator` lúc dựng SessionFactory**, không đăng ký sau khi app đã lên: Hibernate 6 chốt các nhóm listener vào `FastSessionServices` ngay khi dựng, nên `appendListeners` gọi trong `@PostConstruct` chạy trót lọt mà **không bao giờ được gọi** — nhật ký trống rỗng, không lỗi nào báo ra.
 
 ---
 
@@ -341,6 +361,7 @@ Tầng 3 — Repository scope filter (org_unit)     → chặn dữ liệu (IDOR
   - Công thức băm nằm ở **đúng một chỗ**: `core_audit_canonical_payload()` + `core_audit_hash()`. API verify (T6.12) gọi `core_verify_audit_chain(from_seq, to_seq)` — **cấm cài lại công thức bên Java**, hai bản lệch nhau là chuỗi gãy giả.
   - Thêm một lớp nữa: trigger `BEFORE UPDATE` chặn sửa `audit_logs` với **mọi** role, kể cả `songnhue_owner`.
 - **Kết xuất lưu trữ audit quá 5 năm (G7)**: chỉ được xóa khỏi bảng nóng **sau khi** file kết xuất đã ghi thành công lên MinIO **và** checksum SHA-256 verify khớp; lưu `hash` cuối của lô đã kết xuất làm **điểm neo** để chain tiếp tục liền mạch. Thất bại → không xóa dòng nào (`ADM-2001`) + alert Admin. Thao tác xóa này chạy bằng **DB role riêng có DELETE**, không dùng app user.
+  - ⚠ Kết nối của role đó **không được khai thành bean `DataSource` hay `JdbcTemplate`**: hai kiểu này đều được Spring Boot tự cấu hình kèm `@ConditionalOnMissingBean`, nên khai thêm một bean cùng kiểu làm Boot **ngừng tạo bản chính** — cả ứng dụng lặng lẽ chuyển sang chạy bằng role archiver. Bọc vào một kiểu riêng (`ArchiverJdbc`). Đã sập cả hai lần khi làm WS-6; triệu chứng là `permission denied for table jobs` rồi `permission denied for table audit_logs`, không dòng nào nhắc tới DataSource.
 - `hydro_raw_logs`: app DB user chỉ có INSERT/SELECT (enforce ở tầng DB, không chỉ ở code). Là **bản sao duy nhất** của dữ liệu nguồn (không có API lịch sử) → ghi nguyên văn response **trước khi** parse.
 - `construction_operation_status` **append-only theo nghiệp vụ**: cập nhật tình hình vận hành = thêm dòng mới có `effective_at`, không UPDATE dòng cũ — giữ được lịch sử đối soát.
 - Link tải báo cáo / file: MinIO **presigned URL TTL ngắn** (15'–24h theo loại) + gắn userId trong path — không có URL công khai vĩnh viễn.

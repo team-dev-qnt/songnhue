@@ -145,6 +145,15 @@ app:
     # duyệt bỏ luôn cookie và không ai đăng nhập được, mà không có lỗi nào hiện ra.
     secure-cookie: ${SECURE_COOKIE:true}
 
+  # Kết nối riêng cho job kết xuất nhật ký (T6.13). Vai trò songnhue_archiver là
+  # tài khoản DUY NHẤT có DELETE trên audit_logs — xem architecture-review.md §9.3.
+  # Thiếu mật khẩu thì job báo lỗi cấu hình rõ ràng thay vì thất bại ở bước xoá,
+  # sau khi đã tải tệp lên kho.
+  audit:
+    archiver:
+      username: ${DB_ARCHIVER_USER:songnhue_archiver}
+      password: ${DB_ARCHIVER_PASSWORD:}
+
   notification:
     # Địa chỉ người gửi thư. Phải là miền mà máy chủ SMTP cho phép gửi thay mặt,
     # nên thuộc cấu hình môi trường chứ không phải tham số Admin sửa được.

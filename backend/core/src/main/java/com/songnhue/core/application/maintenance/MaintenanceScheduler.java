@@ -58,6 +58,20 @@ public class MaintenanceScheduler {
         enqueueDaily(JobTypes.JOB_PURGE);
     }
 
+    /**
+     * 04:00 ngày mùng 1 hằng tháng — kết xuất nhật ký quá hạn (G7).
+     *
+     * <p>Hằng tháng chứ không hằng ngày: đây là việc XOÁ dữ liệu không phục hồi được, chạy thưa thì
+     * mỗi lượt đều có dấu vết rõ ràng trong log và dễ soát lại. Khoá chống trùng theo tháng.
+     */
+    @Scheduled(cron = "0 0 4 1 * *", zone = DateTimeUtils.ZONE_VN_ID)
+    public void scheduleAuditArchive() {
+        String dedupKey = JobTypes.AUDIT_ARCHIVE + ":"
+                + LocalDate.now(DateTimeUtils.ZONE_VN).withDayOfMonth(1);
+        jobService.enqueue(JobTypes.AUDIT_ARCHIVE, "{}", dedupKey, (short) 1);
+        log.info("Đã đặt việc kết xuất nhật ký tháng {}", dedupKey);
+    }
+
     private void enqueueDaily(String jobType) {
         String dedupKey = jobType + ":" + LocalDate.now(DateTimeUtils.ZONE_VN);
         jobService.enqueue(jobType, "{}", dedupKey, MAX_ATTEMPTS);
