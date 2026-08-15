@@ -136,9 +136,23 @@ kiểm hai điều:
 
 ## 8. Việc còn phải làm
 
-- [ ] Tạo nhánh `staging` và `production` (nợ #23)
-- [ ] Áp dụng branch protection theo `docs/branch-protection.md` — cần quyền admin (nợ #23)
-- [ ] Tạo GitHub Environment `production` có required reviewer (`branch-protection.md` §4.3)
+- [x] Tạo nhánh `staging` và `production` — xong 15/8/2026
+- [x] Áp dụng branch protection theo `docs/branch-protection.md` — xong 15/8/2026
+- [x] Tạo GitHub Environment `production` có required reviewer — xong 15/8/2026
+- [ ] **Chỉnh 3 mục lộ ra khi kiểm chứng** — `branch-protection.md` §6.2 (`strict` ở hai chặng đề
+      bạt · thiếu context `Vùng nào thay đổi` · số người duyệt khi đội 1 người)
+- [ ] **Đưa mã lên `dev`** — PR `common → dev`; hiện `dev` vẫn trống, chưa có `.github/workflows/`
+      và repo chưa chạy lượt CI nào (`branch-protection.md` §6.3, nợ #24)
 - [ ] Dựng 3 VM + `compose.staging.yml` / `compose.prod.yml` + `backup/pre-deploy-dump.sh` — WS-11
 - [ ] Đặt các secret ở §7 — WS-11/T11.7
-- [ ] Push để pipeline chạy thật lần đầu (nợ #24)
+
+## 9. Hai quy ước merge ngược nhau — dễ nhầm nhất
+
+| PR | Kiểu merge | Vì sao |
+|---|---|---|
+| nhánh feature → `dev` | **Squash** hoặc **Rebase** | `dev` bật `required_linear_history` — merge commit bị chặn |
+| `dev` → `staging` → `production` | **Create a merge commit** | `deploy-staging.yml` tìm image qua `HEAD^2`; squash sinh SHA mới, cắt đứt liên kết với image đã kiểm (§4.1) |
+
+GitHub không giới hạn được kiểu merge theo từng nhánh, nên đây là quy ước người dùng phải nhớ. Bù
+lại, làm sai ở vế thứ hai thì **hỏng to tiếng**: không tìm thấy image → workflow dừng ngay với thông
+báo "commit này chưa từng qua CI của dev", không có bản deploy nửa vời nào.

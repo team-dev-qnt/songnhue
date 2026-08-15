@@ -20,7 +20,7 @@
 | **WS-7** | BE — Backup/Restore & Observability | 12 | 0 | ⬜ Chưa bắt đầu | WS-6 | 9 pd |
 | **WS-8** | FE — admin-app | 11 | 0 | ⬜ Chưa bắt đầu | WS-4→6 (API) | 15 pd |
 | **WS-9** | FE — public-web | 5 | 0 | ⬜ Chưa bắt đầu | WS-1 | 5 pd |
-| **WS-10** | Test & CI | 7 | **7** | ✅ **Xong** (15/8) — T10.7 chờ quyền admin repo | WS-4 | 10 pd |
+| **WS-10** | Test & CI | 7 | **7** | ✅ **Xong** (15/8) — bảo vệ nhánh đã áp dụng, còn nợ #27/#28 | WS-4 | 10 pd |
 | **WS-11** | Deploy Staging & Production | 10 | 0 | ⬜ Chưa bắt đầu | WS-3, 7, 10 | 10 pd |
 | | **TỔNG** | **107** | **61** | | | **114 pd** |
 
@@ -455,7 +455,7 @@ Ngoài ra 2 lỗi bắt được trước khi chạy: `enqueue` truy vấn tiế
 - [x] **T10.4** Test chuỗi hash audit trên DB thật + `CryptoService` xoay khoá (có từ WS-4) + deny-by-default (có từ WS-5)
 - [x] **T10.5** Coverage gate tầng domain — *§1.5*
 - [x] **T10.6** `ci.yml`: lint → unit → Testcontainers → ArchUnit → cổng bao phủ; quét CVE tách job riêng — *§4.5*
-- [x] **T10.7** Branch protection cho **luồng 3 chặng `dev → staging → production`** — `docs/branch-protection.md` + `.github/workflows/promotion-guard.yml`. ⚠ **Chưa áp dụng**: cần quyền admin repo, và chưa có nhánh `staging`/`production`
+- [x] **T10.7** Branch protection cho **luồng 3 chặng `dev → staging → production`** — `docs/branch-protection.md` + `.github/workflows/promotion-guard.yml`. ✅ **Đã áp dụng 15/8**: 2 nhánh mới, bảo vệ cả 3, environment `production` có người duyệt. Kiểm chứng ngược bằng API tìm ra **3 lỗi trong chính tài liệu** (nợ #27) + **`dev` còn trống** (nợ #28)
   - Chốt: mọi kiểm tra nặng chạy **đúng một lần ở `dev`**; hai chặng sau chỉ yêu cầu `Promotion guard` (~5s) xác minh nhánh nguồn đúng chặng trước **và đúng SHA đó đã xanh CI**
   - ⚠ Check bắt buộc mà workflow không trigger cho nhánh đó thì PR **kẹt vĩnh viễn** ở "Expected — Waiting for status to be reported", không có dòng lỗi nào
   - ⚠ `required_linear_history` **chỉ bật ở `dev`**: chặng đề bạt cần merge commit thật để SHA của `dev` nằm nguyên trong `staging`, nếu không thì không kiểm chứng được "commit này đã xanh ở dev"
@@ -488,7 +488,7 @@ Cả bốn đều **báo thành công trong khi không làm gì cả** — đún
 - **`ArchiverDataSourceConfig` chặn cả ứng dụng khởi động khi chưa cấu hình kết xuất nhật ký.** `application.yml` đặt `password: ${DB_ARCHIVER_PASSWORD:}`, nên không set biến môi trường thì thuộc tính vẫn *tồn tại* với giá trị rỗng → `@ConditionalOnProperty` vẫn khớp → Hikari đổ vỡ với *"the password is an empty string"*. Đổi sang `@ConditionalOnExpression` kiểm khác rỗng. Mọi lần chạy thử trước đó đều có sẵn mật khẩu trong file env nên không ai gặp.
 - **Docker Engine 29 đã bỏ mọi API cũ hơn 1.44**, còn docker-java đi kèm Testcontainers 1.21 mặc định thương lượng bản cũ hơn → Testcontainers kết luận *"Could not find a valid Docker environment"* trong khi `docker ps` vẫn chạy bình thường. Ghim `api.version` trong surefire.
 
-**Nợ giao cho WS sau**: nâng ngưỡng bao phủ tầng domain khi Phase 1 đưa logic thật vào (nay 0.18 = mức đo được, không phải mục tiêu) · áp dụng branch protection (cần quyền admin repo) · `docker.api.version=1.44` chỉ đúng với Docker Engine ≥ 25.0, runner cũ hơn phải truyền `-Ddocker.api.version=1.43`.
+**Nợ giao cho WS sau**: nâng ngưỡng bao phủ tầng domain khi Phase 1 đưa logic thật vào (nay 0.18 = mức đo được, không phải mục tiêu) · chỉnh 3 mục bảo vệ nhánh lộ ra khi kiểm chứng (nợ #27) · đưa mã lên `dev` để pipeline chạy lần đầu (nợ #28) · `docker.api.version=1.44` chỉ đúng với Docker Engine ≥ 25.0, runner cũ hơn phải truyền `-Ddocker.api.version=1.43`.
 
 ---
 
@@ -540,7 +540,7 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 0 hoàn thành:
 - [ ] **16. Key không nằm trong backup** — giải nén bản backup, `grep` không thấy AES/JWT key
 - [ ] **17. Restore UI** — non-Super-Admin không thấy chức năng; Super Admin phải qua 2FA + gõ tên hệ thống; trong lúc restore mọi request ghi trả 503
 - [x] **18. ArchUnit** — 14 luật chạy thật (23 bài kiểm ở module `app`). ✅ *15/8*: bộ luật bắt được 3 vi phạm có thật trong mã production ngay lần chạy đầu; `SilentFailureRuleSelfCheckTest` chứng minh 2 luật chưa có lớp nào để soi vẫn bắt được vi phạm
-- [~] **19. CI đầy đủ** — `ci.yml` đã viết đủ 3 job (backend / frontend / quét CVE) và `./mvnw verify` chạy trọn cục bộ ✅ *15/8*. ⬜ **Chưa chạy lần nào trên GitHub** — chưa push (nợ #24)
+- [~] **19. CI đầy đủ** — `ci.yml` đã viết đủ 3 job (backend / frontend / quét CVE) và `./mvnw verify` chạy trọn cục bộ ✅ *15/8*. Bảo vệ nhánh 3 chặng đã áp dụng và kiểm chứng ✅ *15/8*. ⬜ **Vẫn chưa chạy lượt nào trên GitHub** — `ci.yml` chỉ trigger ở `dev`, mà mã còn nằm ở `common` (nợ #28)
 - [ ] **20. Deploy Staging** — merge `master` → tự deploy → smoke test pass; `migrator` chạy trước app
 - [ ] **21. Rollback** — quay về image tag trước → hệ thống chạy lại bình thường
 
@@ -579,10 +579,12 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 0 hoàn thành:
 | 20 | Dựng ClamAV trong compose để quét virus chạy thật (nay là `SKIPPED`) | WS-6/T6.4 | WS-11/T11.3 | ⬜ Chờ |
 | 21 | Metric: `data_freshness_seconds` + độ dài hàng đợi job | WS-6/T6.8 | WS-7/T7.9 | ⬜ Chờ |
 | 22 | Nâng ngưỡng bao phủ tầng domain (nay 0.18 = mức đo được) | WS-10/T10.5 | Phase 1 | ⬜ Chờ |
-| 23 | **Áp dụng branch protection** 3 nhánh + tạo nhánh `staging`/`production` | WS-10/T10.7 | Người có quyền admin | ⬜ Chờ |
+| 23 | **Áp dụng branch protection** 3 nhánh + tạo nhánh `staging`/`production` | WS-10/T10.7 | Người có quyền admin | ✅ Trả 15/8 — đã tạo 2 nhánh, áp bảo vệ cả 3, tạo environment `production`; kiểm chứng từng mục ở `docs/branch-protection.md` §6.1 |
+| 27 | ⚠ **Chỉnh 3 mục lộ ra khi kiểm chứng T10.7** — `strict` phải tắt ở staging/production (nếu không chặng đề bạt tự khoá sau lần đầu) · thiếu context `Vùng nào thay đổi` ở `dev` (job lọc hỏng → 2 job nặng bị skip → **tính là đạt**) · số người duyệt = 1 với đội 1 người là cấm merge, mọi lần đều phải bypass mà bypass thì bỏ qua cả CI. Lệnh sửa: `docs/branch-protection.md` §6.2 | WS-10/T10.7 | Người có quyền admin | ⬜ Chờ |
+| 28 | Đưa mã lên `dev` (PR `common → dev`) — nay `dev` trống, 18 commit/313 tệp nằm ở `common`, `.github/workflows/` chưa có trên `dev` | WS-10/T10.7 | Lần PR tới | ⬜ Chờ |
 | 25 | ⚠ T11.8 mô tả luồng deploy theo mô hình 2 nhánh cũ | WS-10/T10.7 | WS-11/T11.8 | ✅ Trả 15/8 — viết lại theo `docs/cicd.md` |
 | 26 | Dựng VM + `compose.staging.yml`/`compose.prod.yml` + `backup/pre-deploy-dump.sh` để 2 workflow CD chạy thật (nay cảnh báo rồi bỏ qua bước deploy) | WS-10/T10.7 | WS-11/T11.2, T11.3, T11.7 | ⬜ Chờ |
-| 24 | Chạy thật pipeline CI trên GitHub (chưa push lần nào) | WS-10/T10.6 | Lần push tới | ⬜ Chờ |
+| 24 | Chạy thật pipeline CI trên GitHub. ⚠ Mô tả cũ "chưa push lần nào" **đã lỗi thời**: `common` đã đẩy lên origin, nhưng `ci.yml` chỉ trigger ở `dev` mà `dev` chưa có mã → repo vẫn **0 lượt chạy**. Gỡ được bằng nợ #28 | WS-10/T10.6 | PR `common → dev` | ⬜ Chờ |
 
 **Mục 16 là loại hỏng âm thầm còn lại** — không có lỗi nào báo ra, chỉ phát hiện khi đã muộn (phải dump + restore cả DB production để sửa).
 
@@ -594,6 +596,7 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 0 hoàn thành:
 
 | Ngày | Nội dung |
 |---|---|
+| 2026-08-15 | **Áp dụng bảo vệ nhánh + kiểm chứng ngược bằng API** (trả nợ #23). Đã tạo `staging`/`production`, áp bảo vệ cả 3 nhánh, tạo environment `production` có người duyệt — 10 mục kiểm chứng đúng hết (`docs/branch-protection.md` §6.1). Nhưng **kiểm chứng ngược tìm ra 3 lỗi trong chính tài liệu tôi viết** (nợ #27), trong đó 2 cái thuộc đúng loại "xanh mà không chạy": (1) **`strict: true` ở staging/production tự khoá chặng đề bạt sau lần merge đầu** — `staging` sinh merge commit không có trong `dev`, GitHub đòi *Update branch*, mà cả hai chế độ của nút đó đều bị chính bảo vệ của `dev` chặn (merge commit vi phạm linear history, rebase cần force push); (2) **job `Vùng nào thay đổi` không nằm trong `contexts`** — nó hỏng thì 2 job nặng bị skip, mà skip **được tính là đạt**, nên PR merge được trong khi không bài kiểm nào chạy; (3) **1 người mà đòi 1 lượt duyệt là cấm merge** — GitHub cấm tự duyệt PR, nên mọi lần merge phải bấm bypass, mà bypass bỏ qua luôn cả status check. Kèm phát hiện ngoài cấu hình: **`dev` đang trống** — 18 commit/313 tệp nằm ở `common`, repo chưa chạy lượt CI nào (nợ #28). |
 | 2026-08-15 | **WS-10 xong** (làm trước WS-7 theo yêu cầu rà soát chất lượng). 14 luật ArchUnit · ma trận RBAC đối chiếu 334 dòng phân quyền · chuỗi hash audit trên DB thật · cổng bao phủ JaCoCo · `ci.yml` 3 job. Trả **4 dòng nợ** (#5, #6, #7, #8), mở 3 dòng mới (#22–#24). **226 test xanh.** ⚠ **Phát hiện nặng nhất Phase 0: tầng 3 phân quyền chưa từng hoạt động** — `ScopeFilterAspect` đặt `@Order(LOWEST_PRECEDENCE - 1)` với ý định "nằm trong bộ chặn transaction", nhưng số nhỏ hơn nghĩa là vòng NGOÀI, nên `enableFilter` rơi vào một `Session` bị vứt đi; mọi Xí nghiệp đọc được dữ liệu của nhau, không một dòng lỗi. Kèm theo: **4 cơ chế canh gác "xanh mà không chạy"** (bộ máy ArchUnit tìm ra 0 bài kiểm; luật JaCoCo bị bỏ qua vì lọc sai chỗ; 2 luật chạy qua 0 lớp) và 3 vi phạm phân tầng có thật do bộ luật bắt được. Thêm `ScopeGuard` — trước đó `AUTH-3002` là mã lỗi chết, có trong tiêu chí nghiệm thu mà không dòng mã nào ném ra. |
 | 2026-08-15 | **WS-6 xong** — khối lớn nhất Phase 0. 6 pattern P1–P6 thành shared service; 43 mã lỗi; 184 test. Trả **6 dòng nợ** (#9–#14). Chốt: **ShedLock KHÔNG bọc quanh worker hàng đợi** (hai bài toán ngược nhau) · job bảo trì chỉ *đặt việc*, khoá chống trùng theo ngày làm DB thành điểm đồng bộ · nhật ký ghi ngay tại chỗ thay vì gom lô · kết xuất audit đi qua kết nối riêng vai trò `songnhue_archiver` bọc trong kiểu `ArchiverJdbc`. **6 lỗi chỉ chạy thật mới lộ, cả 6 đều im lặng** — nổi bật: đăng ký Hibernate listener sau khởi động không có tác dụng, và khai bean `DataSource`/`JdbcTemplate` làm Boot ngừng tạo bản chính khiến cả app chạy bằng vai trò archiver. |
 | 2026-08-14 | **Rà soát nợ tồn WS-1→WS-5 trước khi mở WS-6.** Lập **"Sổ nợ liên WS"** (18 dòng) + luật 3 bước khi đóng WS — trước đó nợ ghi ở WS giao nhưng **WS nhận không có task nào đứng tên**: 8 mục thuộc loại này, trong đó 3 mục hỏng âm thầm (ArchUnit `@Filter`, `AUTH-3002` tầng 3, collation ICU cho prod). Sửa 5 chỗ mô tả đã lỗi thời (rate limit `5/15'` → `30/15'` ở cả `conventions.md` §4.5 lẫn T4.5 — §4.5 đang **tự mâu thuẫn với §4.1** của chính nó; filter chain T4.4 nay đủ 7 filter; error-map 31 → **36 mã**; nợ WS-4 đã trả 2/3). **Phát hiện 1 lỗi thật: T4.8 đã tick nhưng fail-fast không hoạt động** — thiếu biến môi trường thì app vẫn khởi động và health `UP`, vì `@ConfigurationProperties` gán nguyên văn `"${MINIO_ENDPOINT}"` nên `@NotBlank` đi qua. Thêm `UnresolvedPlaceholderGuard` (8 test) → **đóng DoD mục 3**. Tổng 138 test xanh. |
