@@ -34,13 +34,19 @@ import com.songnhue.core.common.security.AuthContext;
  * cần nhìn toàn bộ dữ liệu. Đây là quyết định có cân nhắc: những đường đó không nhận đầu vào từ
  * người dùng, còn nếu bật lọc thì job sẽ âm thầm bỏ sót dữ liệu của các đơn vị.
  *
- * <p>Chạy với {@code Ordered.LOWEST_PRECEDENCE - 1} để nằm <b>bên trong</b> aspect quản lý
- * transaction của Spring: lúc aspect này chạy thì {@code Session} đã mở, không thì
- * {@code enableFilter} rơi vào một session khác rồi bị vứt đi.
+ * <p>⚠ <b>Thứ tự chạy là phần dễ sai nhất của lớp này.</b> Aspect phải nằm <b>bên trong</b> bộ chặn
+ * transaction, vì chỉ khi đó {@code Session} mới đã mở; chạy ở vòng ngoài thì {@code enableFilter}
+ * rơi vào một {@code Session} tạm bị vứt đi ngay, và truy vấn thật chạy <b>không có bộ lọc</b> — mọi
+ * Xí nghiệp đọc được dữ liệu của nhau, không một dòng lỗi nào.
+ *
+ * <p>Trong Spring AOP, <b>số order nhỏ hơn = vòng ngoài</b>. Bản đầu đặt {@code LOWEST_PRECEDENCE - 1}
+ * với ý định "vào trong", nhưng {@code MAX_VALUE - 1 < MAX_VALUE} nên hoá ra lại ra ngoài. Không đẩy
+ * xuống thấp hơn được nữa, nên cách sửa là <i>kéo bộ chặn transaction lên trên</i>:
+ * {@code CorePlatformConfig.TRANSACTION_ADVISOR_ORDER}. Hai chỗ đó phải đọc cùng nhau.
  */
 @Aspect
 @Component
-@Order(Ordered.LOWEST_PRECEDENCE - 1)
+@Order(Ordered.LOWEST_PRECEDENCE)
 public class ScopeFilterAspect {
 
     private static final Logger log = LoggerFactory.getLogger(ScopeFilterAspect.class);

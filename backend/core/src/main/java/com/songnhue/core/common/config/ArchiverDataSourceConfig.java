@@ -4,7 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -40,9 +40,21 @@ import com.songnhue.core.infra.audit.ArchiverJdbc;
  *
  * <p>Pool cố ý <b>rất nhỏ</b> và không giữ kết nối rỗi: job chạy mỗi tháng một lần, không có lý do
  * gì để chiếm slot kết nối của PostgreSQL suốt thời gian còn lại.
+ *
+ * <p>⚠ <b>Điều kiện bật phải là "mật khẩu KHÁC RỖNG", không phải "có khai mật khẩu".</b>
+ * {@code application.yml} đặt {@code password: ${DB_ARCHIVER_PASSWORD:}} — không set biến môi trường
+ * thì thuộc tính vẫn <i>tồn tại</i> với giá trị rỗng, nên {@code @ConditionalOnProperty} vẫn khớp,
+ * lớp này vẫn dựng pool, và Hikari đổ vỡ ngay lúc khởi động với
+ * <i>"server requested SCRAM-based authentication, but the password is an empty string"</i> — một
+ * thông báo không hề gợi ý rằng nguyên nhân là "chưa cấu hình kết xuất nhật ký". Cả ứng dụng không
+ * lên nổi vì một tính năng chạy mỗi tháng một lần.
+ *
+ * <p>Lỗi này chỉ lộ ra ở test tích hợp T10.1, vì mọi lần chạy thử trước đó đều có sẵn mật khẩu trong
+ * file env. {@code AuditArchiveHandler} vốn đã xử lý đúng trường hợp thiếu bean này (nhận
+ * {@code ObjectProvider} rồi báo lỗi cấu hình rõ ràng), nên điều kiện đúng ở đây là mảnh còn thiếu.
  */
 @Configuration
-@ConditionalOnProperty(name = "app.audit.archiver.password", matchIfMissing = false)
+@ConditionalOnExpression("'${app.audit.archiver.password:}' != ''")
 public class ArchiverDataSourceConfig implements DisposableBean {
 
     private static final Logger log = LoggerFactory.getLogger(ArchiverDataSourceConfig.class);

@@ -16,6 +16,20 @@
     <properties>
         <!-- Module DUY NHẤT có main class → bật lại `spring-boot:run` (POM cha đặt skip=true) -->
         <spring-boot.run.skip>false</spring-boot.run.skip>
+
+        <!--
+          ⚠ Phiên bản Docker Engine API mà docker-java được phép dùng.
+
+          Docker Engine 29 ĐÃ BỎ mọi phiên bản API cũ hơn 1.44: gọi /v1.43/info trả về HTTP 400 kèm
+          một thân JSON rỗng. docker-java đi cùng Testcontainers 1.21 mặc định thương lượng một
+          phiên bản cũ hơn thế, nên Testcontainers kết luận "Could not find a valid Docker
+          environment" — một thông báo chỉ về đúng hướng "máy chưa cài Docker", trong khi Docker vẫn
+          đang chạy bình thường và `docker ps` vẫn ra kết quả.
+
+          1.44 = Docker Engine 25.0 (01/2024), thấp hơn mọi phiên bản đang được hỗ trợ, nên đặt cứng
+          ở đây an toàn cho cả máy dev lẫn runner CI. Cần thì đổi bằng -Ddocker.api.version=…
+        -->
+        <docker.api.version>1.44</docker.api.version>
     </properties>
 
     <dependencies>
@@ -83,6 +97,14 @@
           ai biết (kiểm chứng: đặt một luật chắc chắn sai, build vẫn xanh). Gọi thẳng
           `rule.check(classes)` trong @Test thường thì không có bộ máy nào để hỏng âm thầm.
         -->
+        <!-- Đồ dùng chung cho test (RsaKeyPairFixture…) — xem `test-jar` ở core/pom.xml -->
+        <dependency>
+            <groupId>com.songnhue</groupId>
+            <artifactId>songnhue-core</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>com.tngtech.archunit</groupId>
             <artifactId>archunit</artifactId>
@@ -104,6 +126,16 @@
     <build>
         <finalName>songnhue-app</finalName>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <systemPropertyVariables>
+                        <!-- docker-java đọc thuộc tính hệ thống `api.version` — xem ghi chú ở <properties> -->
+                        <api.version>${docker.api.version}</api.version>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
