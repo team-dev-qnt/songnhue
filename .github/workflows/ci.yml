@@ -12,11 +12,17 @@
 # =============================================================================
 name: CI
 
+# ⚠ CHỈ chạy ở `dev` và ở PR hướng vào `dev`. Đây là chủ ý, không phải thiếu sót:
+# luồng đã chốt là mọi kiểm tra nặng diễn ra đúng một lần ở `dev`, còn hai chặng
+# staging/production chỉ xác minh "thứ đang lên đúng là thứ đã kiểm"
+# (`promotion-guard.yml`). Thêm staging/production vào đây là chạy lại cùng bộ
+# kiểm tra trên cùng một mã nguồn, mỗi lần đề bạt tốn thêm vài phút mà không
+# phát hiện thêm được gì.
 on:
   push:
-    branches: [dev, master]
+    branches: [dev]
   pull_request:
-    branches: [dev, master]
+    branches: [dev]
 
 # Push liên tiếp vào cùng một nhánh: huỷ lượt chạy cũ, chỉ giữ lượt mới nhất.
 concurrency:

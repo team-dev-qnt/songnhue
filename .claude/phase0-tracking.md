@@ -455,7 +455,10 @@ Ngoài ra 2 lỗi bắt được trước khi chạy: `enqueue` truy vấn tiế
 - [x] **T10.4** Test chuỗi hash audit trên DB thật + `CryptoService` xoay khoá (có từ WS-4) + deny-by-default (có từ WS-5)
 - [x] **T10.5** Coverage gate tầng domain — *§1.5*
 - [x] **T10.6** `ci.yml`: lint → unit → Testcontainers → ArchUnit → cổng bao phủ; quét CVE tách job riêng — *§4.5*
-- [x] **T10.7** Branch protection — `docs/branch-protection.md`. ⚠ **Chưa áp dụng**: cần quyền admin repo, không làm được từ mã nguồn
+- [x] **T10.7** Branch protection cho **luồng 3 chặng `dev → staging → production`** — `docs/branch-protection.md` + `.github/workflows/promotion-guard.yml`. ⚠ **Chưa áp dụng**: cần quyền admin repo, và chưa có nhánh `staging`/`production`
+  - Chốt: mọi kiểm tra nặng chạy **đúng một lần ở `dev`**; hai chặng sau chỉ yêu cầu `Promotion guard` (~5s) xác minh nhánh nguồn đúng chặng trước **và đúng SHA đó đã xanh CI**
+  - ⚠ Check bắt buộc mà workflow không trigger cho nhánh đó thì PR **kẹt vĩnh viễn** ở "Expected — Waiting for status to be reported", không có dòng lỗi nào
+  - ⚠ `required_linear_history` **chỉ bật ở `dev`**: chặng đề bạt cần merge commit thật để SHA của `dev` nằm nguyên trong `staging`, nếu không thì không kiểm chứng được "commit này đã xanh ở dev"
 
 **Kiểm chứng**: ✅ 226 test xanh (181 core + 45 app) · ✅ luật kiến trúc thật sự đỏ khi vi phạm (bài tự kiểm chứng) · ✅ cổng bao phủ thật sự chặn (nâng ngưỡng lên 0.999 → build đỏ) · ⬜ pipeline chưa chạy lần nào trên GitHub (chưa push).
 
@@ -503,7 +506,8 @@ Cả bốn đều **báo thành công trong khi không làm gì cả** — đún
 - [ ] **T11.6** Nginx: TLS 1.3, **HSTS, CSP, `X-Frame-Options: DENY`, `Referrer-Policy`**, ẩn version, rate limit theo IP, giới hạn body size route upload — *§4.5*
   - [ ] **Nhận nợ WS-4**: chặn `/swagger-ui/**` và `/v3/api-docs/**` ở nginx production — sơ đồ API đầy đủ là thứ giúp người tấn công dựng bản đồ hệ thống rất nhanh (`OpenApiConfig` javadoc + `application.yml` dòng 141 đều trỏ về đây)
 - [ ] **T11.7** Secrets: **GitHub Secrets** cho CI; `/opt/songnhue/.env` (chmod 600) trên VM; key AES/JWT ở `/opt/songnhue/keys/` **ngoài backup DB** — *§9.3*
-- [ ] **T11.8** `deploy-staging.yml` tự động khi merge `master`; `deploy-prod.yml` chạy tay/theo tag, có approval
+- [ ] **T11.8** `deploy-staging.yml` tự động khi merge vào **`staging`**; `deploy-prod.yml` khi merge vào **`production`**, khai `environment: production` để dừng chờ người duyệt
+  - [ ] ⚠ **Nhận nợ WS-10/T10.7**: mô tả cũ ("merge `master`") viết theo mô hình 2 nhánh, đã lỗi thời từ 15/8 — luồng chốt là `dev → staging → production`, xem `docs/branch-protection.md`
 - [ ] **T11.9** Quy trình rollback: quay lại image tag trước; migration đã đổi schema → restore từ **bản dump pre-deploy**. Mỗi migration đổi schema phải kèm ghi chú rollback trong PR
 - [ ] **T11.10** Smoke test sau deploy: health, login, 1 endpoint có quyền, kiểm tra backup gần nhất. Chốt `app.nodes`/`worker.enabled`/`shedlock.enabled` **đọc từ env** — *§6.4*
 
@@ -574,7 +578,8 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 0 hoàn thành:
 | 20 | Dựng ClamAV trong compose để quét virus chạy thật (nay là `SKIPPED`) | WS-6/T6.4 | WS-11/T11.3 | ⬜ Chờ |
 | 21 | Metric: `data_freshness_seconds` + độ dài hàng đợi job | WS-6/T6.8 | WS-7/T7.9 | ⬜ Chờ |
 | 22 | Nâng ngưỡng bao phủ tầng domain (nay 0.18 = mức đo được) | WS-10/T10.5 | Phase 1 | ⬜ Chờ |
-| 23 | **Áp dụng branch protection** — cần quyền admin repo, không làm được từ mã nguồn | WS-10/T10.7 | Người có quyền admin | ⬜ Chờ |
+| 23 | **Áp dụng branch protection** 3 nhánh + tạo nhánh `staging`/`production` | WS-10/T10.7 | Người có quyền admin | ⬜ Chờ |
+| 25 | ⚠ **T11.8 mô tả luồng deploy theo mô hình 2 nhánh cũ** (`merge master → deploy staging`), mâu thuẫn với luồng 3 chặng đã chốt | WS-10/T10.7 | WS-11/T11.8 | ⬜ Chờ |
 | 24 | Chạy thật pipeline CI trên GitHub (chưa push lần nào) | WS-10/T10.6 | Lần push tới | ⬜ Chờ |
 
 **Mục 16 là loại hỏng âm thầm còn lại** — không có lỗi nào báo ra, chỉ phát hiện khi đã muộn (phải dump + restore cả DB production để sửa).
