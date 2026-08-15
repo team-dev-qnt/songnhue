@@ -74,7 +74,7 @@ public class AuditService {
     @Transactional(readOnly = true)
     public ChainVerification verifyChain(Long fromSeq, Long toSeq) {
         AuditMaintenanceRepository.SeqRange range = maintenance.seqRange();
-        List<AuditMaintenanceRepository.ChainBreak> breaks = maintenance.verifyChain(fromSeq, toSeq);
+        List<ChainBreak> breaks = maintenance.verifyChain(fromSeq, toSeq);
 
         if (breaks.isEmpty()) {
             log.info("Kiểm tra chuỗi nhật ký: nguyên vẹn ({} bản ghi)", range.total());
@@ -92,9 +92,5 @@ public class AuditService {
      * @param breaks các điểm gãy, rỗng khi nguyên vẹn
      */
     public record ChainVerification(
-            boolean intact,
-            long minSeq,
-            long maxSeq,
-            long totalRecords,
-            List<AuditMaintenanceRepository.ChainBreak> breaks) {}
+            boolean intact, long minSeq, long maxSeq, long totalRecords, List<ChainBreak> breaks) {}
 }

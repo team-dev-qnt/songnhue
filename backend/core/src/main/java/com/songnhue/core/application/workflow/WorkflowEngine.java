@@ -17,6 +17,7 @@ import com.songnhue.core.common.security.AuthContext;
 import com.songnhue.core.common.security.AuthenticatedUser;
 import com.songnhue.core.domain.notification.NotificationChannel;
 import com.songnhue.core.domain.notification.NotificationSeverity;
+import com.songnhue.core.domain.workflow.WorkflowAware;
 import com.songnhue.core.domain.workflow.WorkflowDefinition;
 import com.songnhue.core.domain.workflow.WorkflowTransition;
 import com.songnhue.core.infra.workflow.WorkflowDefinitionRepository;

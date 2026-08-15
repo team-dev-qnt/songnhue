@@ -7,6 +7,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import com.songnhue.core.application.identity.RoleSummary;
+
 /**
  * Thao tác trên bảng nối {@code user_roles} — T6.15.
  *
@@ -80,6 +82,4 @@ public class UserAdminRepository {
                 String.class,
                 roleCode);
     }
-
-    public record RoleSummary(String code, String name, String description, int permissionCount) {}
 }

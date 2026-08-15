@@ -20,11 +20,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.songnhue.core.application.identity.RoleSummary;
 import com.songnhue.core.application.identity.UserAdminService;
 import com.songnhue.core.common.security.RequirePermission;
 import com.songnhue.core.domain.identity.User;
 import com.songnhue.core.domain.identity.UserStatus;
-import com.songnhue.core.infra.identity.UserAdminRepository;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -42,11 +42,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class UserAdminController {
 
     private final UserAdminService userAdminService;
-    private final UserAdminRepository roles;
 
-    public UserAdminController(UserAdminService userAdminService, UserAdminRepository roles) {
+    public UserAdminController(UserAdminService userAdminService) {
         this.userAdminService = userAdminService;
-        this.roles = roles;
     }
 
     @GetMapping
@@ -110,15 +108,15 @@ public class UserAdminController {
     @GetMapping("/roles/catalog")
     @Operation(summary = "Danh mục vai trò và số quyền của mỗi vai trò")
     @RequirePermission("adm:role:view")
-    public List<UserAdminRepository.RoleSummary> roleCatalog() {
-        return roles.listRoles();
+    public List<RoleSummary> roleCatalog() {
+        return userAdminService.roleCatalog();
     }
 
     @GetMapping("/roles/{roleCode}/permissions")
     @Operation(summary = "Mã quyền của một vai trò — nguồn dựng ma trận phân quyền")
     @RequirePermission("adm:role:view")
     public List<String> permissionsOfRole(@PathVariable String roleCode) {
-        return roles.permissionsOfRole(roleCode);
+        return userAdminService.permissionsOfRole(roleCode);
     }
 
     @DeleteMapping("/{publicId}")

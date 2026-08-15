@@ -69,6 +69,36 @@
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
+
+        <!--
+          ===================== WS-10 · Test & CI =====================
+
+          ArchUnit và Testcontainers chỉ khai ở `app`, không ở POM cha: đây là module DUY NHẤT có
+          đủ 5 module nghiệp vụ trên classpath (ArchUnit cần soi liên module) và có DataSource +
+          Flyway để dựng một DB thật (Testcontainers).
+
+          ⚠ Lấy `archunit` (lõi) chứ KHÔNG lấy `archunit-junit5`. Bản junit5 kèm một TestEngine riêng
+          của ArchUnit; với Surefire 3.5 + JUnit Platform của Spring Boot 3.5 nó nạp được nhưng
+          **tìm ra 0 bài kiểm**, và build vẫn xanh — cả bộ luật kiến trúc thành đồ trang trí mà không
+          ai biết (kiểm chứng: đặt một luật chắc chắn sai, build vẫn xanh). Gọi thẳng
+          `rule.check(classes)` trong @Test thường thì không có bộ máy nào để hỏng âm thầm.
+        -->
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit</artifactId>
+            <version>${archunit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

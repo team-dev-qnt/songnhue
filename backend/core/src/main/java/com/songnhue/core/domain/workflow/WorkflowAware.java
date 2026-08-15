@@ -1,4 +1,4 @@
-package com.songnhue.core.application.workflow;
+package com.songnhue.core.domain.workflow;
 
 /**
  * Entity có trạng thái do quy trình duyệt điều khiển — pattern P1.
@@ -9,7 +9,14 @@ package com.songnhue.core.application.workflow;
  * quyền, bỏ qua bắn thông báo, và bỏ qua ghi nhật ký.
  *
  * <p>Cách chặn triệt để hơn (đặt {@code applyState} ở phạm vi package của engine) không làm được vì
- * entity nằm ở module nghiệp vụ khác. Chốt chặn thật là luật ArchUnit ở WS-10 — đã ghi vào sổ nợ.
+ * entity nằm ở module nghiệp vụ khác. Chốt chặn thật là luật ArchUnit
+ * {@code WorkflowRuleTest#chi_workflow_engine_duoc_goi_applyState} (T10.2).
+ *
+ * <p><b>Vì sao interface này nằm ở {@code domain} chứ không ở {@code application} cạnh engine.</b>
+ * Người <i>hiện thực</i> nó là entity — mà entity thì ở {@code domain}. Để interface ở
+ * {@code application} nghĩa là mọi entity dùng quy trình duyệt đều phải import ngược lên tầng trên,
+ * và luật ArchUnit "domain không phụ thuộc application/api/infra" sẽ đỏ ngay ở entity đầu tiên của
+ * Phase 1. Engine gọi xuống domain là đúng chiều; domain gọi lên application thì không.
  */
 public interface WorkflowAware {
 

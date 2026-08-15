@@ -1,10 +1,11 @@
 package com.songnhue.core.infra.audit;
 
-import java.time.Instant;
 import java.util.List;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+
+import com.songnhue.core.application.audit.ChainBreak;
 
 /**
  * Gọi các hàm bảo trì nhật ký kiểm toán đã cài trong DB.
@@ -72,7 +73,5 @@ public class AuditMaintenanceRepository {
     }
 
     /** @param reason mô tả bằng tiếng Việt do hàm trong DB sinh ra — hiển thị thẳng cho người dùng */
-    public record ChainBreak(long seq, long id, Instant occurredAt, String reason) {}
-
     public record SeqRange(long minSeq, long maxSeq, long total) {}
 }

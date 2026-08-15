@@ -161,6 +161,18 @@ public class UserAdminService {
         return userAdmin.findRoleCodes(require(publicId).getId());
     }
 
+    /** Danh mục vai trò kèm số quyền — cột trái của màn hình phân quyền. */
+    @Transactional(readOnly = true)
+    public List<RoleSummary> roleCatalog() {
+        return userAdmin.listRoles();
+    }
+
+    /** Mã quyền của một vai trò — nguồn dựng ma trận phân quyền. */
+    @Transactional(readOnly = true)
+    public List<String> permissionsOfRole(String roleCode) {
+        return userAdmin.permissionsOfRole(roleCode);
+    }
+
     @Transactional
     public void delete(UUID publicId) {
         User user = require(publicId);
