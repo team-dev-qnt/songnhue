@@ -3,8 +3,10 @@
 > **Trạng thái**: chưa áp dụng. Cần người có quyền **admin** trên repo `team-dev-qnt/songnhue`
 > chạy các lệnh ở mục 4. Ghi nhận ở `.claude/phase0-tracking.md` (sổ nợ mục 23).
 >
-> **Chưa có nhánh `staging` và `production`** — repo hiện có `common`, `dev`, `master`. Phải quyết
-> định đổi tên `master` hay tạo mới trước khi chạy lệnh.
+> **Chưa có nhánh `staging` và `production`** — phải tạo mới trước khi chạy lệnh:
+> `git switch -c staging dev && git push -u origin staging` (tương tự cho `production`).
+> **`master` nằm ngoài luồng** — nhánh riêng của chủ repo, không workflow nào chạm tới, không đặt
+> bảo vệ.
 
 ## 1. Vì sao đây là mục duy nhất của WS-10 không nằm trong mã nguồn
 
@@ -174,7 +176,5 @@ git push origin dev
 
 ## 7. Việc còn phải làm khớp với luồng này
 
-- `.claude/phase0-tracking.md` **T11.8** đang ghi *"deploy-staging.yml tự động khi merge `master`"* —
-  viết theo mô hình 2 nhánh cũ. Phải sửa thành: merge vào `staging` → deploy Staging; merge vào
-  `production` → deploy Production (có approval).
-- `ci.yml` cố ý chỉ trigger ở `dev` (xem ghi chú đầu file). Đổi điều đó là phá luồng "kiểm một lần".
+- Toàn bộ luồng CI/CD và lý do từng quyết định: **`docs/cicd.md`**.
+- `ci.yml` cố ý chỉ trigger ở `dev`. Đổi điều đó là phá luồng "kiểm một lần".

@@ -1,23 +1,17 @@
 # =============================================================================
-# CI — cổng chất lượng bắt buộc trước khi merge (WS-10 / T10.6)
+# CI — cổng chất lượng DUY NHẤT của cả luồng (WS-10 / T10.6)
+#
+# Chốt 15/8: mọi kiểm tra nặng chạy đúng một lần, ở `dev`. Hai chặng sau
+# (staging, production) chỉ triển khai, không kiểm lại — xem docs/cicd.md.
+# Hệ quả: nếu một thứ không được kiểm ở đây thì nó KHÔNG được kiểm ở đâu cả.
 #
 # Thứ tự các bước xếp theo "cái nào phát hiện lỗi sớm và rẻ nhất thì chạy trước":
 #   format/lint (giây)  →  test đơn vị (giây)  →  test tích hợp có DB (phút)
 # Nhờ vậy một PR sai định dạng biết ngay trong 30 giây thay vì chờ hết 5 phút.
-#
-# Job `security` tách riêng và KHÔNG chặn merge theo mặc định — quét CVE phụ
-# thuộc vào dữ liệu NVD bên ngoài, có ngày nó chậm hoặc lỗi vì lý do chẳng liên
-# quan gì tới thay đổi trong PR. Chặn merge bằng một thứ hay hỏng vì lý do bên
-# ngoài là cách nhanh nhất để cả đội học thói quen bỏ qua CI.
 # =============================================================================
 name: CI
 
-# ⚠ CHỈ chạy ở `dev` và ở PR hướng vào `dev`. Đây là chủ ý, không phải thiếu sót:
-# luồng đã chốt là mọi kiểm tra nặng diễn ra đúng một lần ở `dev`, còn hai chặng
-# staging/production chỉ xác minh "thứ đang lên đúng là thứ đã kiểm"
-# (`promotion-guard.yml`). Thêm staging/production vào đây là chạy lại cùng bộ
-# kiểm tra trên cùng một mã nguồn, mỗi lần đề bạt tốn thêm vài phút mà không
-# phát hiện thêm được gì.
+# ⚠ CHỈ `dev`. Đây là chủ ý, không phải thiếu sót — xem đầu file.
 on:
   push:
     branches: [dev]
@@ -33,8 +27,77 @@ permissions:
   contents: read
 
 jobs:
+  # ---------------------------------------------------------------------------
+  # Lọc theo ĐƯỜNG DẪN, không lọc theo module
+  #
+  # Đổi tài liệu thì không cần chạy 226 bài kiểm; đổi FE thì không cần build
+  # backend. Đó là phần tiết kiệm an toàn, vì hai vùng này không thể làm hỏng
+  # nhau — chúng không dùng chung hệ thống build nào.
+  #
+  # ⚠ CỐ Ý KHÔNG lọc mịn hơn tới từng module backend. Trong Modular Monolith này
+  # `core` chiếm gần như toàn bộ mã nguồn và 4 module còn lại đều phụ thuộc vào
+  # nó, nên "chỉ chạy phần đổi" hầu như luôn quy về "chạy tất cả" — tiết kiệm
+  # gần bằng không. Đổi lại, rủi ro thì rất thật: chính WS-10 cho thấy các lỗi
+  # nặng nhất đều là lỗi LIÊN TẦNG, và chúng bị bắt bởi bài kiểm nằm ở module
+  # `app` chứ không phải ở module vừa sửa (tầng 3 phân quyền, ranh giới ArchUnit,
+  # ma trận RBAC). Bỏ qua `app` vì "lần này chỉ sửa core" là bỏ đúng những bài
+  # kiểm sinh ra để bắt loại lỗi đó.
+  #
+  # ⚠ Lọc ở mức JOB (`if:`), không lọc ở mức workflow (`paths:`). Job bị skip
+  # vẫn báo về một check run và branch protection tính là đạt; còn workflow
+  # không chạy thì check bắt buộc KHÔNG BAO GIỜ xuất hiện và PR kẹt vĩnh viễn ở
+  # "Expected — Waiting for status to be reported".
+  # ---------------------------------------------------------------------------
+  changes:
+    name: Vùng nào thay đổi
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Cần đủ lịch sử để so với commit gốc của PR / commit trước của push
+          fetch-depth: 0
+
+      - name: So sánh đường dẫn thay đổi
+        id: filter
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -euo pipefail
+
+          # Push đầu tiên vào một nhánh mới có `before` = toàn số 0: không có mốc
+          # để so, nên chạy hết. Thà chạy thừa còn hơn bỏ sót ở lần đầu.
+          if [ -z "${BASE_SHA:-}" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            echo "Không xác định được mốc so sánh — chạy toàn bộ."
+            echo "backend=true"  >> "$GITHUB_OUTPUT"
+            echo "frontend=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          changed=$(git diff --name-only "$BASE_SHA" "${{ github.sha }}")
+          echo "Tệp thay đổi:"; echo "$changed" | sed 's/^/  /'
+
+          # `.github/workflows` nằm ở cả hai vế: sửa chính pipeline thì phải chạy
+          # lại pipeline, nếu không thì thay đổi ấy không bao giờ được kiểm.
+          if echo "$changed" | grep -qE '^(backend/|\.github/workflows/)'; then
+            echo "backend=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "backend=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if echo "$changed" | grep -qE '^(frontend/|\.github/workflows/)'; then
+            echo "frontend=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "frontend=false" >> "$GITHUB_OUTPUT"
+          fi
+
   backend:
     name: Backend — build, lint, test
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
@@ -77,6 +140,8 @@ jobs:
 
   frontend:
     name: Frontend — lint
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -117,13 +182,73 @@ jobs:
           npm run lint
           npx tsc --noEmit
 
+  # ---------------------------------------------------------------------------
+  # Đóng gói MỘT LẦN, rồi đề bạt chính image đó qua staging và production.
+  #
+  # Đây là mặt còn lại của nguyên tắc "kiểm một lần ở dev". Nếu mỗi chặng tự
+  # build lại từ mã nguồn thì production chạy một image chưa ai từng thử —
+  # cùng commit vẫn có thể ra image khác nhau (phiên bản base image, thư viện hệ
+  # thống, thời điểm build). Đóng gói một lần thì thứ chạy trên production đúng
+  # là thứ đã qua 226 bài kiểm.
+  #
+  # Chỉ chạy khi PUSH vào dev (đã merge), không chạy cho PR.
+  # ---------------------------------------------------------------------------
+  image:
+    name: Đóng gói image
+    needs: [changes, backend]
+    if: github.event_name == 'push' && needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Đăng nhập GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Tag theo commit SHA là tag DUY NHẤT mà hai chặng sau dùng để tra image.
+      # Tag `dev` chỉ để tiện xem, không được dùng để deploy: nó di động, nên
+      # "deploy tag dev" nghĩa là không biết chắc mình vừa đưa cái gì lên.
+      - name: Build và đẩy lên GHCR
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          file: deploy/docker/backend.Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/app:${{ github.sha }}
+            ghcr.io/${{ github.repository }}/app:dev
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Ghi tóm tắt
+        run: |
+          echo "### Image đã đóng gói" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "ghcr.io/${{ github.repository }}/app:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
   security:
     name: Quét lỗ hổng phụ thuộc
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Không chặn merge: xem ghi chú đầu file. Kết quả vẫn hiện trong PR và vẫn
-    # phải có người đọc — `continue-on-error` là để phân biệt "thư viện có lỗ
-    # hổng" với "dịch vụ NVD đang hỏng", chứ không phải để bỏ qua kết quả.
+    # Không chặn merge: quét CVE phụ thuộc vào dữ liệu NVD bên ngoài, có ngày nó
+    # chậm hoặc lỗi vì lý do chẳng liên quan gì tới thay đổi trong PR. Chặn merge
+    # bằng một thứ hay hỏng vì lý do bên ngoài là cách nhanh nhất để cả đội học
+    # thói quen bỏ qua CI. Kết quả vẫn hiện trong PR và vẫn phải có người đọc —
+    # `continue-on-error` là để phân biệt "thư viện có lỗ hổng" với "NVD đang
+    # hỏng", không phải để bỏ qua kết quả.
     continue-on-error: true
 
     steps:

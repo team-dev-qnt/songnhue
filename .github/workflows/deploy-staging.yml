@@ -1,0 +1,148 @@
+# =============================================================================
+# CD Staging — tự động khi có mã mới vào nhánh `staging` (WS-11 / T11.8)
+#
+# KHÔNG kiểm tra lại gì cả. Mọi bài kiểm đã chạy ở `dev`, và `Promotion guard`
+# đã xác minh đúng commit này xanh CI trước khi cho merge vào đây. Chạy lại là
+# tốn thời gian trên cùng một mã nguồn mà không phát hiện thêm được gì.
+#
+# Cũng KHÔNG build lại image. Image đã đóng gói một lần ở CI của `dev` và được
+# đề bạt nguyên vẹn — xem docs/cicd.md. Build lại nghĩa là staging chạy một
+# image chưa ai thử, dù commit y hệt.
+# =============================================================================
+name: CD Staging
+
+on:
+  push:
+    branches: [staging]
+
+# Hai lượt merge liên tiếp: để lượt sau chờ lượt trước xong. KHÔNG huỷ giữa
+# chừng như bên CI — huỷ một lượt deploy đang chạy có thể để lại môi trường ở
+# trạng thái nửa vời.
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  deploy:
+    name: Triển khai Staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: staging
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ⚠ `github.sha` ở đây là commit MERGE vừa tạo trên `staging`, không phải
+      # commit của `dev` — mà image lại được gắn tag theo commit của `dev`.
+      # Với merge commit, cha thứ hai (HEAD^2) chính là đỉnh của `dev` lúc merge.
+      #
+      # Đây là lý do `required_linear_history` bị TẮT ở staging/production
+      # (docs/branch-protection.md §2.3): squash sẽ sinh SHA mới không có cha
+      # thứ hai, và mối liên hệ với image đã kiểm bị cắt đứt.
+      - name: Xác định image cần triển khai
+        id: image
+        run: |
+          set -euo pipefail
+          registry="ghcr.io/${{ github.repository }}/app"
+
+          if git rev-parse -q --verify HEAD^2 >/dev/null; then
+            candidates="$(git rev-parse HEAD^2) $(git rev-parse HEAD)"
+          else
+            candidates="$(git rev-parse HEAD)"
+          fi
+
+          for sha in $candidates; do
+            if docker manifest inspect "$registry:$sha" >/dev/null 2>&1; then
+              echo "✓ Tìm thấy $registry:$sha"
+              echo "ref=$registry:$sha" >> "$GITHUB_OUTPUT"
+              echo "sha=$sha" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+
+          echo "::error::Không tìm thấy image cho commit nào trong: $candidates"
+          echo "Nghĩa là commit này chưa từng qua CI của \`dev\` — kiểm tra lại Promotion guard."
+          exit 1
+        env:
+          DOCKER_CONFIG: ${{ runner.temp }}/.docker
+
+      - name: Đăng nhập GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Gắn thêm tag `staging` cho image — tiện cho người vận hành nhìn nhanh
+      # "staging đang chạy cái gì". Bản thân việc deploy vẫn dùng tag SHA.
+      - name: Gắn tag `staging`
+        run: |
+          docker buildx imagetools create \
+            --tag "ghcr.io/${{ github.repository }}/app:staging" \
+            "${{ steps.image.outputs.ref }}"
+
+      - name: Kiểm tra đã có cấu hình máy chủ chưa
+        id: target
+        run: |
+          if [ -z "${{ secrets.STAGING_HOST }}" ]; then
+            echo "::warning::Chưa cấu hình secret STAGING_HOST — bỏ qua bước triển khai."
+            echo "Ba VM và compose.staging.yml thuộc WS-11 (T11.2, T11.3); tới đó thì bước này tự chạy."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Migration chạy ở service `migrator` RIÊNG, xong hẳn rồi app mới lên
+      # (architecture-review.md §9.2). Migration hỏng thì app không lên nửa vời.
+      - name: Triển khai lên VM-2
+        if: steps.target.outputs.ready == 'true'
+        env:
+          SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+          HOST: ${{ secrets.STAGING_HOST }}
+          USER: ${{ secrets.STAGING_USER }}
+          IMAGE: ${{ steps.image.outputs.ref }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+          ssh "$USER@$HOST" bash -euo pipefail <<REMOTE
+            cd /opt/songnhue
+            export APP_IMAGE="$IMAGE"
+            docker compose -f compose.staging.yml pull
+            docker compose -f compose.staging.yml run --rm migrator
+            docker compose -f compose.staging.yml up -d app nginx
+          REMOTE
+
+      - name: Smoke test
+        if: steps.target.outputs.ready == 'true'
+        env:
+          BASE_URL: ${{ secrets.STAGING_BASE_URL }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            if curl -fsS "$BASE_URL/actuator/health" | grep -q '"status":"UP"'; then
+              echo "✓ Staging khoẻ sau ${i}0 giây"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::Staging không trả health UP sau 5 phút."
+          exit 1
+
+      - name: Ghi tóm tắt
+        if: always()
+        run: |
+          {
+            echo "### Triển khai Staging"
+            echo "- Image: \`${{ steps.image.outputs.ref }}\`"
+            echo "- Commit gốc ở dev: \`${{ steps.image.outputs.sha }}\`"
+            echo "- Triển khai thật: ${{ steps.target.outputs.ready == 'true' && 'có' || 'CHƯA (thiếu secret, xem WS-11)' }}"
+          } >> "$GITHUB_STEP_SUMMARY"

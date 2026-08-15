@@ -1,0 +1,172 @@
+# =============================================================================
+# CD Production — CHỈ chạy khi có người ra lệnh (WS-11 / T11.8)
+#
+# Cố ý KHÔNG có trigger `push`. Merge vào `production` không tự deploy: đưa lên
+# môi trường thật là một quyết định vận hành, có thời điểm của nó (ngoài giờ
+# hành chính, sau khi đã báo Công ty), chứ không phải hệ quả tự động của một
+# thao tác git.
+#
+# Ba lớp chặn trước khi một byte nào chạm production:
+#   1. `environment: production` — GitHub dừng lại chờ người duyệt bấm nút.
+#   2. Commit yêu cầu phải là tổ tiên của `staging` — tức là đã chạy thật ở đó.
+#   3. `pg_dump` trước khi deploy — điểm quay lui DUY NHẤT về dữ liệu, vì hệ này
+#      không có PITR (architecture-review.md §6.5).
+# =============================================================================
+name: CD Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: 'Commit SHA cần đưa lên (đầy đủ 40 ký tự, lấy từ nhánh staging)'
+        required: true
+        type: string
+      reason:
+        description: 'Lý do / số hiệu yêu cầu — đi vào nhật ký vận hành'
+        required: true
+        type: string
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  deploy:
+    name: Triển khai Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Môi trường có required reviewer — xem docs/branch-protection.md §4.3.
+    # Đây là chỗ lượt chạy dừng lại chờ người bấm duyệt.
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ⚠ Chặn đúng cái sai nguy hiểm nhất của deploy thủ công: gõ nhầm một SHA
+      # chưa bao giờ chạy ở staging. Không có bước này thì "manual deploy" nghĩa
+      # là "ai gõ gì cũng lên được".
+      - name: Commit này đã qua staging chưa
+        run: |
+          set -euo pipefail
+          sha="${{ inputs.commit_sha }}"
+
+          if ! git cat-file -e "$sha^{commit}" 2>/dev/null; then
+            echo "::error::Không tìm thấy commit $sha trong repo."
+            exit 1
+          fi
+
+          git fetch origin staging --depth=0 2>/dev/null || git fetch origin staging
+          if ! git merge-base --is-ancestor "$sha" origin/staging; then
+            echo "::error::Commit $sha KHÔNG nằm trong lịch sử của nhánh staging."
+            echo "Luồng đã chốt: dev → staging → production. Chỉ đưa lên production thứ đã chạy thật ở staging."
+            exit 1
+          fi
+          echo "✓ $sha đã có trong staging"
+
+      - name: Xác định image
+        id: image
+        run: |
+          set -euo pipefail
+          registry="ghcr.io/${{ github.repository }}/app"
+          sha="${{ inputs.commit_sha }}"
+
+          if ! docker manifest inspect "$registry:$sha" >/dev/null 2>&1; then
+            echo "::error::Không có image $registry:$sha — commit này chưa từng qua CI của dev."
+            exit 1
+          fi
+          echo "ref=$registry:$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Đăng nhập GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Kiểm tra đã có cấu hình máy chủ chưa
+        id: target
+        run: |
+          if [ -z "${{ secrets.PROD_HOST }}" ]; then
+            echo "::warning::Chưa cấu hình secret PROD_HOST — bỏ qua bước triển khai."
+            echo "VM-1 và compose.prod.yml thuộc WS-11 (T11.2, T11.3)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ⚠ Điểm quay lui DUY NHẤT về dữ liệu. Hệ này không có PITR — bản dump đêm
+      # trước là thứ gần nhất, và migration hỏng lúc 10h sáng thì mất cả buổi
+      # làm việc. Dump ngay trước khi deploy là chỗ rẻ nhất để bù rủi ro đó
+      # (T11.5, architecture-review.md §6.5 rủi ro #3).
+      - name: pg_dump trước khi triển khai
+        if: steps.target.outputs.ready == 'true'
+        env:
+          SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
+          HOST: ${{ secrets.PROD_HOST }}
+          USER: ${{ secrets.PROD_USER }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+          ssh "$USER@$HOST" bash -euo pipefail <<'REMOTE'
+            cd /opt/songnhue
+            ./backup/pre-deploy-dump.sh
+          REMOTE
+
+      - name: Triển khai lên VM-1
+        if: steps.target.outputs.ready == 'true'
+        env:
+          HOST: ${{ secrets.PROD_HOST }}
+          USER: ${{ secrets.PROD_USER }}
+          IMAGE: ${{ steps.image.outputs.ref }}
+        run: |
+          set -euo pipefail
+          ssh "$USER@$HOST" bash -euo pipefail <<REMOTE
+            cd /opt/songnhue
+            export APP_IMAGE="$IMAGE"
+            docker compose -f compose.prod.yml pull
+            docker compose -f compose.prod.yml run --rm migrator
+            docker compose -f compose.prod.yml up -d app nginx
+          REMOTE
+
+      - name: Smoke test
+        if: steps.target.outputs.ready == 'true'
+        env:
+          BASE_URL: ${{ secrets.PROD_BASE_URL }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            if curl -fsS "$BASE_URL/actuator/health" | grep -q '"status":"UP"'; then
+              echo "✓ Production khoẻ sau ${i}0 giây"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::Production không trả health UP sau 5 phút — cân nhắc quay lui theo docs/runbook."
+          exit 1
+
+      - name: Gắn tag `production`
+        if: steps.target.outputs.ready == 'true'
+        run: |
+          docker buildx imagetools create \
+            --tag "ghcr.io/${{ github.repository }}/app:production" \
+            "${{ steps.image.outputs.ref }}"
+
+      - name: Ghi tóm tắt
+        if: always()
+        run: |
+          {
+            echo "### Triển khai Production"
+            echo "- Commit: \`${{ inputs.commit_sha }}\`"
+            echo "- Lý do: ${{ inputs.reason }}"
+            echo "- Người ra lệnh: @${{ github.actor }}"
+            echo "- Image: \`${{ steps.image.outputs.ref }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

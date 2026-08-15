@@ -497,7 +497,8 @@ Cả bốn đều **báo thành công trong khi không làm gì cả** — đún
 **Tiên quyết**: WS-3, WS-7, WS-10. **Đầu ra**: 2 môi trường deploy tự động, có rollback.
 📌 Phân bổ VM (`architecture-review.md` §9.2): **VM-1** Production · **VM-2** Staging (+ đích diễn tập restore) · **VM-3** Backup & Monitoring.
 
-- [ ] **T11.1** Build & push image lên **GHCR**, tag theo commit SHA + semver
+- [x] **T11.1** Build & push image lên **GHCR**, tag theo commit SHA — làm ở job `image` của `ci.yml` *(15/8)*
+  - Chốt: **đóng gói đúng một lần ở `dev`**, staging/production đề bạt chính image đó. Build lại ở mỗi chặng nghĩa là production chạy một image chưa ai thử, dù commit y hệt — "kiểm một lần rồi build ba lần" là không kiểm gì cả
 - [ ] **T11.2** Dựng 3 VM theo phân bổ trên; `compose.backup.yml` cho VM-3 (kho dump + Prometheus/Grafana)
 - [ ] **T11.3** `compose.staging.yml` / `compose.prod.yml`: `nginx` + `app` + `postgres` + `minio` + `backup-agent`
   - [ ] ⚠ **Nhận nợ WS-3**: `POSTGRES_INITDB_ARGS` phải **y hệt** `compose.infra.yml` (`--locale-provider=icu --icu-locale=vi-VN`). Quên thì DB production xếp `ORDER BY` tiếng Việt sai, và **đổi sau khi đã có dữ liệu là phải dump + restore toàn bộ**
@@ -506,8 +507,8 @@ Cả bốn đều **báo thành công trong khi không làm gì cả** — đún
 - [ ] **T11.6** Nginx: TLS 1.3, **HSTS, CSP, `X-Frame-Options: DENY`, `Referrer-Policy`**, ẩn version, rate limit theo IP, giới hạn body size route upload — *§4.5*
   - [ ] **Nhận nợ WS-4**: chặn `/swagger-ui/**` và `/v3/api-docs/**` ở nginx production — sơ đồ API đầy đủ là thứ giúp người tấn công dựng bản đồ hệ thống rất nhanh (`OpenApiConfig` javadoc + `application.yml` dòng 141 đều trỏ về đây)
 - [ ] **T11.7** Secrets: **GitHub Secrets** cho CI; `/opt/songnhue/.env` (chmod 600) trên VM; key AES/JWT ở `/opt/songnhue/keys/` **ngoài backup DB** — *§9.3*
-- [ ] **T11.8** `deploy-staging.yml` tự động khi merge vào **`staging`**; `deploy-prod.yml` khi merge vào **`production`**, khai `environment: production` để dừng chờ người duyệt
-  - [ ] ⚠ **Nhận nợ WS-10/T10.7**: mô tả cũ ("merge `master`") viết theo mô hình 2 nhánh, đã lỗi thời từ 15/8 — luồng chốt là `dev → staging → production`, xem `docs/branch-protection.md`
+- [~] **T11.8** `deploy-staging.yml` (tự động khi push vào `staging`) và `deploy-prod.yml` (**chỉ `workflow_dispatch`**, có `environment: production` chờ duyệt) — **đã viết xong 15/8**, còn chờ VM + compose + secret của T11.2/T11.3/T11.7
+  - [x] ⚠ **Nhận nợ WS-10/T10.7**: mô tả cũ ("merge `master`") viết theo mô hình 2 nhánh, đã lỗi thời — luồng chốt là `dev → staging → production`, toàn bộ ở **`docs/cicd.md`** *(15/8)*
 - [ ] **T11.9** Quy trình rollback: quay lại image tag trước; migration đã đổi schema → restore từ **bản dump pre-deploy**. Mỗi migration đổi schema phải kèm ghi chú rollback trong PR
 - [ ] **T11.10** Smoke test sau deploy: health, login, 1 endpoint có quyền, kiểm tra backup gần nhất. Chốt `app.nodes`/`worker.enabled`/`shedlock.enabled` **đọc từ env** — *§6.4*
 
@@ -579,7 +580,8 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 0 hoàn thành:
 | 21 | Metric: `data_freshness_seconds` + độ dài hàng đợi job | WS-6/T6.8 | WS-7/T7.9 | ⬜ Chờ |
 | 22 | Nâng ngưỡng bao phủ tầng domain (nay 0.18 = mức đo được) | WS-10/T10.5 | Phase 1 | ⬜ Chờ |
 | 23 | **Áp dụng branch protection** 3 nhánh + tạo nhánh `staging`/`production` | WS-10/T10.7 | Người có quyền admin | ⬜ Chờ |
-| 25 | ⚠ **T11.8 mô tả luồng deploy theo mô hình 2 nhánh cũ** (`merge master → deploy staging`), mâu thuẫn với luồng 3 chặng đã chốt | WS-10/T10.7 | WS-11/T11.8 | ⬜ Chờ |
+| 25 | ⚠ T11.8 mô tả luồng deploy theo mô hình 2 nhánh cũ | WS-10/T10.7 | WS-11/T11.8 | ✅ Trả 15/8 — viết lại theo `docs/cicd.md` |
+| 26 | Dựng VM + `compose.staging.yml`/`compose.prod.yml` + `backup/pre-deploy-dump.sh` để 2 workflow CD chạy thật (nay cảnh báo rồi bỏ qua bước deploy) | WS-10/T10.7 | WS-11/T11.2, T11.3, T11.7 | ⬜ Chờ |
 | 24 | Chạy thật pipeline CI trên GitHub (chưa push lần nào) | WS-10/T10.6 | Lần push tới | ⬜ Chờ |
 
 **Mục 16 là loại hỏng âm thầm còn lại** — không có lỗi nào báo ra, chỉ phát hiện khi đã muộn (phải dump + restore cả DB production để sửa).
