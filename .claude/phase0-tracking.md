@@ -17,7 +17,7 @@
 | **WS-4** | BE — Common Platform | 10 | **10** | ✅ **Xong** (14/8) | WS-2 | 10 pd |
 | **WS-5** | BE — Auth & RBAC 3 tầng | 14 | **14** | ✅ **Xong** (14/8) | WS-4 | 15 pd |
 | **WS-6** | BE — Core services | 15 | **15** | ✅ **Xong** (15/8) | WS-4, WS-5 | 25 pd |
-| **WS-7** | BE — Backup/Restore & Observability | 12 | 0 | ⬜ Chưa bắt đầu | WS-6 | 9 pd |
+| **WS-7** | BE — Backup/Restore & Observability | 12 | **11** | ✅ **Xong** (16/8) — T7.7 chờ VM-2 | WS-6 | 9 pd |
 | **WS-8** | FE — admin-app | 11 | 0 | ⬜ Chưa bắt đầu | WS-4→6 (API) | 15 pd |
 | **WS-9** | FE — public-web | 5 | 0 | ⬜ Chưa bắt đầu | WS-1 | 5 pd |
 | **WS-10** | Test & CI | 7 | **7** | ✅ **Xong** (15/8) — bảo vệ nhánh đã áp dụng, còn nợ #27/#28 | WS-4 | 10 pd |
@@ -384,23 +384,36 @@ Ngoài ra 2 lỗi bắt được trước khi chạy: `enqueue` truy vấn tiế
 
 ### 7a. Backup
 
-- [ ] **T7.1** **`pg_dump -Fc` hàng đêm ~02:00** → nén → **checksum SHA-256** → prune > 30 ngày. *Đây là toàn bộ cơ chế backup*
-- [ ] **T7.2** Copy bản dump sang **VM-3 (khác máy với DB)**; **key AES + JWT signing key lưu tách, KHÔNG nằm trong bản backup** — *§6.5*
-- [ ] **T7.3** **Một alert duy nhất**: `backup_last_success_timestamp` — bắn khi bản gần nhất **quá 26 giờ**
-- [ ] **T7.4** Backup theo yêu cầu (M5.10) + hiển thị trạng thái backup gần nhất trên UI — *CN-05.5*
+- [x] **T7.1** **`pg_dump -Fc` hàng đêm ~02:00** → nén → **checksum SHA-256** → prune > 30 ngày. *Đây là toàn bộ cơ chế backup*
+- [x] **T7.2** Copy bản dump sang **VM-3 (khác máy với DB)**; **key AES + JWT signing key lưu tách, KHÔNG nằm trong bản backup** — *§6.5*
+- [x] **T7.3** **Một alert duy nhất**: `backup_last_success_timestamp` — bắn khi bản gần nhất **quá 26 giờ**
+- [x] **T7.4** Backup theo yêu cầu (M5.10) + hiển thị trạng thái backup gần nhất trên UI — *CN-05.5*
 
 ### 7b. Restore & vận hành
 
-- [ ] **T7.5** **Restore qua UI (M5.11)**: chỉ Super Admin + 2FA, xác nhận nhiều bước (gõ tên hệ thống + lý do), async có tiến độ, security event + audit. Khôi phục từ bản dump đêm — *§7.3*
-- [ ] **T7.6** **Maintenance mode**: flag `settings` + filter chặn ghi (503) trong lúc restore, trừ Super Admin — *§7.3*
-- [ ] **T7.7** **Diễn tập restore 1 lần trước go-live** trên VM-2 + ghi con số RTO thật vào runbook; sau đó theo quý (thủ công, có checklist)
-- [ ] **T7.8** Health-check (M5.12): actuator + indicator cho DB, MinIO, SMTP, **telemetry (stub Phase 2)** — *CN-05.6*
-- [ ] **T7.9** Micrometer → Prometheus + Grafana **đặt trên VM-3** (sống sót khi VM production chết); log JSON rotation 30 ngày — *§2.4*
-- [ ] **T7.10** Security event stream riêng (login fail, refresh reuse, 403 scope, đổi quyền, truy cập credential) → Grafana + alert — *§4.5, §4.7*
-- [ ] **T7.11** ⚠ **Khung cảnh báo "dữ liệu quá hạn"**: gauge `data_freshness_seconds{source}` + alert rule mẫu — Phase 2 đăng ký nguồn hydro — *làm sớm, mất dữ liệu thủy văn là vĩnh viễn*
-- [ ] **T7.12** Runbook `docs/runbook/`: restore từ dump, xoay key AES/JWT, poller chết, retry job Failed — *§2.4*
+- [x] **T7.5** **Restore qua UI (M5.11)**: chỉ Super Admin + 2FA, xác nhận nhiều bước (gõ tên hệ thống + lý do), async có tiến độ, security event + audit. Khôi phục từ bản dump đêm — *§7.3*
+- [x] **T7.6** **Maintenance mode**: flag `settings` + filter chặn ghi (503) trong lúc restore, trừ Super Admin — *§7.3*
+- [~] **T7.7** **Diễn tập restore 1 lần trước go-live** trên VM-2 + ghi con số RTO thật vào runbook; sau đó theo quý (thủ công, có checklist)
+- [x] **T7.8** Health-check (M5.12): actuator + indicator cho DB, MinIO, SMTP, **telemetry (stub Phase 2)** — *CN-05.6*
+- [x] **T7.9** Micrometer → Prometheus + Grafana **đặt trên VM-3** (sống sót khi VM production chết); log JSON rotation 30 ngày — *§2.4*
+- [x] **T7.10** Security event stream riêng (login fail, refresh reuse, 403 scope, đổi quyền, truy cập credential) → Grafana + alert — *§4.5, §4.7*
+- [x] **T7.11** ⚠ **Khung cảnh báo "dữ liệu quá hạn"**: gauge `data_freshness_seconds{source}` + alert rule mẫu — Phase 2 đăng ký nguồn hydro — *làm sớm, mất dữ liệu thủy văn là vĩnh viễn*
+- [x] **T7.12** Runbook `docs/runbook/`: restore từ dump, xoay key AES/JWT, poller chết, retry job Failed — *§2.4*
 
-**Kiểm chứng**: `make backup` → dump + checksum khớp, **nằm trên VM-3** · dừng job dump quá 26h → alert bắn · giải nén backup, `grep` **không** thấy AES/JWT key · restore lên VM-2 đo được RTO **< 4 giờ**.
+**Kiểm chứng**: `make backup` → dump + checksum khớp, **nằm trên VM-3** · dừng job dump quá 26h → alert bắn · giải nén backup, `grep` **không** thấy AES/JWT key (`make backup-verify`) · restore lên VM-2 đo được RTO **< 4 giờ**.
+
+**Quyết định đã chốt** (chi tiết ở `architecture-review.md` §9.9):
+- **Kho sao lưu KÉO về VM-3, không đẩy đi từ VM-1** — VM-1 không giữ khoá ghi vào kho, nên chiếm được VM-1 vẫn không xoá được bản sao lưu. Kéo theo: `prod.env.example` **bỏ** `BACKUP_TARGET_HOST` của bản WS-3.
+- **`pg_dump` chạy bằng `songnhue_readonly`**; **khôi phục là tính năng bật riêng** — `DB_RESTORE_PASSWORD` để trống là hợp lệ, UI báo `ADM-2010`.
+- **Hai alert cho backup, không phải một** như §6.5 ghi: "đã dump" và "đã ra khỏi máy chủ CSDL" hỏng độc lập với nhau.
+- **Ngoại lệ float/double** cho `core.common.observability` (Prometheus là float64), có bài kiểm canh phạm vi ngoại lệ.
+
+**Ba lỗi chỉ chạy thật mới lộ**:
+- ⚠ **`@Transactional` trên phương thức tự gọi trong cùng lớp không có tác dụng** — self-invocation không đi qua proxy. Bản đầu của `BackupService` đặt annotation lên `openRecord/closeSucceeded/closeFailed` rồi gọi từ `runBackup`: dòng `RUNNING` **không được commit trước khi pg_dump chạy**, đúng thứ cơ chế đó sinh ra để giữ. Đổi sang `TransactionTemplate`.
+- ⚠ **`CHAR(64)` trong migration vs `String` trong entity** → `ddl-auto: validate` chặn **toàn bộ** context test tích hợp (18 bài đỏ vì một cột). `CHAR` còn đệm khoảng trắng nên so checksum có thể lệch vì lý do chẳng liên quan.
+- ⚠ **Đọc luồng đầu ra tới EOF trước `waitFor(timeout)` làm hạn chờ vô hiệu** — tiến trình con treo mà không ghi gì thì kẹt vĩnh viễn ở `readLine()`. Phải đọc ở luồng riêng.
+
+**Nợ giao cho WS sau**: dựng VM-3 + đặt cron `pull-from-prod.sh` + `compose.observability.yml` → **WS-11/T11.2, T11.3** · Alertmanager + địa chỉ nhóm "Ban điều hành" (G11) → **WS-11** · nginx chặn `/actuator/**` từ Internet → **WS-11/T11.6** · màn hình M5.10/M5.11 gọi `/api/v1/backups/**` → **WS-8/T8.10** · diễn tập khôi phục đo RTO thật (T7.7) → trước go-live.
 
 ---
 
@@ -412,7 +425,7 @@ Ngoài ra 2 lỗi bắt được trước khi chạy: `enqueue` truy vấn tiế
   - [ ] **Trả nợ WS-3/T3.4**: xong T8.1 thì `deploy/docker/Dockerfile.admin-app` (đã viết sẵn, **chưa từng build được**) phải build thật → `make dev-docker` chạy đủ; quay lại tick T3.4 và DoD mục 2
 - [ ] **T8.2** `shared/tokens.ts` — **design tokens 1 nguồn**: màu trạng thái xanh/vàng/đỏ/xám/đen → AntD theme + ECharts theme (+ Tailwind config public-web) — *§3, architecture §4*
 - [ ] **T8.3** `shared/apiClient` — axios instance **duy nhất**: gắn CSRF header, **auto refresh 1 lần rồi logout**, unwrap envelope, error → notification — *§2.5*
-- [ ] **T8.4** `shared/error-map.ts` mirror catalog BE — **36 mã** tính đến hết WS-5 (fallback dùng message từ API) — *§2.3; nợ từ WS-4 + WS-5*
+- [ ] **T8.4** `shared/error-map.ts` mirror catalog BE — **49 mã** tính đến hết WS-7 (fallback dùng message từ API) — *§2.3; nợ từ WS-4 + WS-5*
 - [ ] **T8.5** `useAuth`, `usePermission(code)`, route guard — **chỉ để UX, không phải bảo mật** — *§4.2 tầng 1*
 - [ ] **T8.6** Màn hình auth: login, **2FA TOTP** (enroll + verify), đổi mật khẩu bắt buộc lần đầu, quên mật khẩu
 - [ ] **T8.7** Layout + menu render theo permission; trang 403/404/500 hiển thị `traceId`
@@ -534,11 +547,11 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 0 hoàn thành:
 - [x] **10. Audit hash chain** — verify chain pass; `songnhue_app` thử `UPDATE audit_logs` → **bị DB từ chối** ✅ *14/8*. **15/8 thành test tự động** (`AuditChainTest`): kiểm RIÊNG hai lớp chặn — `has_table_privilege` chứng minh vai trò runtime không có UPDATE/DELETE, trigger append-only chặn kể cả chủ sở hữu bảng; tắt trigger rồi sửa lén → verify chỉ đúng `seq`, trả lại giá trị cũ → chuỗi liền lại
 - [~] **11. Attachment** — cơ chế đã dựng và chạy thật: MinIO nối được, job quét đổi trạng thái đúng, ảnh polyglot bị loại (có test). ⬜ **Chưa kiểm chứng đầu-cuối qua HTTP**: tải tệp multipart thật, từ chối sai magic bytes, và presigned URL hết hạn đúng TTL — cần ClamAV trong compose (nợ #20) *(WS-6, 15/8)*
 - [x] **12. Async job** — worker nhặt việc → chạy → thông báo in-app + **email tới Mailpit** đúng người, kèm đường dẫn ✅ *15/8*. Hình dạng `202 + jobId` (`JobDtos.JobAccepted`) và endpoint tra tiến độ đã có; chức năng đầu tiên dùng nó là kết xuất báo cáo ở Phase 1
-- [ ] **13. Backup** — dump + checksum khớp, **nằm trên VM-3, không cùng máy DB**; prune giữ đúng 30 ngày
-- [ ] **14. Đo RTO thật** — restore lên VM-2 → so số bản ghi → **< 4 giờ**; ghi con số thật vào runbook
-- [ ] **15. Alert backup hỏng** — dừng job dump quá 26h → alert bắn
-- [ ] **16. Key không nằm trong backup** — giải nén bản backup, `grep` không thấy AES/JWT key
-- [ ] **17. Restore UI** — non-Super-Admin không thấy chức năng; Super Admin phải qua 2FA + gõ tên hệ thống; trong lúc restore mọi request ghi trả 503
+- [~] **13. Backup** — cơ chế đã dựng đủ và có test: `pg_dump -Fc` + checksum đọc lại từ đĩa + prune theo `backup.retention-days`, ghi cả lượt HỎNG vào `system_backups`; hai đường (job trong app và `deploy/backup/backup.sh`) cùng ghi một sổ ✅ *16/8*. ⬜ **Chưa chạy trên VM-3** — máy chưa tồn tại (nợ #29)
+- [ ] **14. Đo RTO thật** — restore lên VM-2 → so số bản ghi → **< 4 giờ**; ghi con số thật vào runbook. Checklist in ra dùng được: `docs/runbook/dien-tap-khoi-phuc.md` (nợ #33) — **cam kết ≤ 4h hiện chưa có con số đo nào chống lưng**
+- [~] **15. Alert backup hỏng** — luật `SaoLuuQuaHan` (+ `SaoLuuChuaRaKhoiMayChu`) viết xong, gauge `songnhue_backup_age_seconds` có test phân biệt "chưa từng sao lưu" (-1) với "vừa sao lưu" (0); health indicator DOWN đúng 3 trường hợp ✅ *16/8*. ⬜ **Chưa bắn thật** — cần Prometheus trên VM-3 (nợ #29) và Alertmanager (nợ #30)
+- [~] **16. Key không nằm trong backup** — `deploy/backup/verify-no-keys.sh` chạy TỰ ĐỘNG cuối mỗi lượt `backup.sh`, quét PEM header và tên biến chứa bí mật; gọi tay bằng `make backup-verify` ✅ *16/8*. ⬜ **Chưa chạy trên bản dump production thật**
+- [~] **17. Restore UI** — API đủ 6 lớp chặn (vai trò SUPER_ADMIN tường minh · **mã TOTP nhập lại ngay lúc thao tác**, không chỉ "đã qua 2FA lúc đăng nhập" · chuỗi xác nhận · lý do ≥10 ký tự · đối chiếu checksum · chụp bản `PRE_RESTORE`); maintenance mode chặn ghi 503 có 8 bài kiểm gồm cả bài chứng minh cơ chế thật sự bắt được ✅ *16/8*. ⬜ **Chưa có màn hình** (nợ #32) và **chưa chạy pg_restore thật** (nợ #33)
 - [x] **18. ArchUnit** — 14 luật chạy thật (23 bài kiểm ở module `app`). ✅ *15/8*: bộ luật bắt được 3 vi phạm có thật trong mã production ngay lần chạy đầu; `SilentFailureRuleSelfCheckTest` chứng minh 2 luật chưa có lớp nào để soi vẫn bắt được vi phạm
 - [~] **19. CI đầy đủ** — `ci.yml` đã viết đủ 3 job (backend / frontend / quét CVE) và `./mvnw verify` chạy trọn cục bộ ✅ *15/8*. Bảo vệ nhánh 3 chặng đã áp dụng và kiểm chứng ✅ *15/8*. ⬜ **Vẫn chưa chạy lượt nào trên GitHub** — `ci.yml` chỉ trigger ở `dev`, mà mã còn nằm ở `common` (nợ #28)
 - [ ] **20. Deploy Staging** — merge `master` → tự deploy → smoke test pass; `migrator` chạy trước app
@@ -574,10 +587,10 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 0 hoàn thành:
 | 15 | Build thật 2 image FE (Dockerfile đã viết, chưa chạy) | WS-3/T3.4 | WS-8/T8.1 + WS-9/T9.5 | ⬜ Chờ |
 | 16 | ⚠ `POSTGRES_INITDB_ARGS` ICU `vi-VN` cho staging/prod | WS-3 | WS-11/T11.3 | ⬜ Chờ |
 | 17 | Nginx chặn `/swagger-ui/**` + `/v3/api-docs/**` | WS-4/T4.10 | WS-11/T11.6 | ⬜ Chờ |
-| 18 | `security_events` → Grafana + alert | WS-5/T5.14 | WS-7/T7.10 | ⬜ Chờ |
+| 18 | `security_events` → Grafana + alert | WS-5/T5.14 | WS-7/T7.10 | ✅ Trả 16/8 — counter `songnhue_security_events_total{type,severity}` + 4 luật cảnh báo |
 | 19 | ⚠ ArchUnit: `WorkflowAware.applyState` chỉ được gọi từ `WorkflowEngine` | WS-6/T6.5 | WS-10/T10.2 | ✅ Trả 15/8 |
 | 20 | Dựng ClamAV trong compose để quét virus chạy thật (nay là `SKIPPED`) | WS-6/T6.4 | WS-11/T11.3 | ⬜ Chờ |
-| 21 | Metric: `data_freshness_seconds` + độ dài hàng đợi job | WS-6/T6.8 | WS-7/T7.9 | ⬜ Chờ |
+| 21 | Metric: `data_freshness_seconds` + độ dài hàng đợi job | WS-6/T6.8 | WS-7/T7.9 | ✅ Trả 16/8 — `PlatformMetrics` + `DataFreshnessRegistry` |
 | 22 | Nâng ngưỡng bao phủ tầng domain (nay 0.18 = mức đo được) | WS-10/T10.5 | Phase 1 | ⬜ Chờ |
 | 23 | **Áp dụng branch protection** 3 nhánh + tạo nhánh `staging`/`production` | WS-10/T10.7 | Người có quyền admin | ✅ Trả 15/8 — đã tạo 2 nhánh, áp bảo vệ cả 3, tạo environment `production`; kiểm chứng từng mục ở `docs/branch-protection.md` §6.1 |
 | 27 | ⚠ **Chỉnh 3 mục lộ ra khi kiểm chứng T10.7** — `strict` phải tắt ở staging/production (nếu không chặng đề bạt tự khoá sau lần đầu) · thiếu context `Vùng nào thay đổi` ở `dev` (job lọc hỏng → 2 job nặng bị skip → **tính là đạt**) · số người duyệt = 1 với đội 1 người là cấm merge, mọi lần đều phải bypass mà bypass thì bỏ qua cả CI. Lệnh sửa: `docs/branch-protection.md` §6.2 | WS-10/T10.7 | Người có quyền admin | ⬜ Chờ |
@@ -585,6 +598,12 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 0 hoàn thành:
 | 25 | ⚠ T11.8 mô tả luồng deploy theo mô hình 2 nhánh cũ | WS-10/T10.7 | WS-11/T11.8 | ✅ Trả 15/8 — viết lại theo `docs/cicd.md` |
 | 26 | Dựng VM + `compose.staging.yml`/`compose.prod.yml` + `backup/pre-deploy-dump.sh` để 2 workflow CD chạy thật (nay cảnh báo rồi bỏ qua bước deploy) | WS-10/T10.7 | WS-11/T11.2, T11.3, T11.7 | ⬜ Chờ |
 | 24 | Chạy thật pipeline CI trên GitHub. ⚠ Mô tả cũ "chưa push lần nào" **đã lỗi thời**: `common` đã đẩy lên origin, nhưng `ci.yml` chỉ trigger ở `dev` mà `dev` chưa có mã → repo vẫn **0 lượt chạy**. Gỡ được bằng nợ #28 | WS-10/T10.6 | PR `common → dev` | ⬜ Chờ |
+| 29 | Dựng VM-3 + cron `pull-from-prod.sh` + `compose.observability.yml` (Prometheus/Grafana) | WS-7/T7.2, T7.9 | WS-11/T11.2, T11.3 | ⬜ Chờ |
+| 30 | Alertmanager + địa chỉ nhóm "Ban điều hành" (G11) — nay cảnh báo TÍNH nhưng không tự gửi đi | WS-7/T7.3 | WS-11 | ⬜ Chờ |
+| 31 | Nginx chặn `/actuator/**` từ Internet (cùng chỗ chặn swagger — nợ #17) | WS-7/T7.8 | WS-11/T11.6 | ⬜ Chờ |
+| 32 | Màn hình M5.10 (sao lưu) + M5.11 (khôi phục) gọi `/api/v1/backups/**` | WS-7/T7.4, T7.5 | WS-8/T8.10 | ⬜ Chờ |
+| 33 | ⚠ **Diễn tập khôi phục đo RTO thật** trên VM-2 (T7.7) — cam kết ≤ 4h chưa ai bấm đồng hồ; checklist ở `docs/runbook/dien-tap-khoi-phuc.md` | WS-7/T7.7 | Trước go-live | ⬜ Chờ |
+| 34 | `shared/error-map.ts` nay phải mirror **49 mã** (43 + 6 mã sao lưu/khôi phục) | WS-7 | WS-8/T8.4 | ⬜ Chờ |
 
 **Mục 16 là loại hỏng âm thầm còn lại** — không có lỗi nào báo ra, chỉ phát hiện khi đã muộn (phải dump + restore cả DB production để sửa).
 
@@ -596,6 +615,7 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 0 hoàn thành:
 
 | Ngày | Nội dung |
 |---|---|
+| 2026-08-16 | **WS-7 xong 11/12** (T7.7 chờ VM-2). Sao lưu `pg_dump -Fc` hằng đêm + theo yêu cầu, sổ đăng ký `system_backups` ghi **cả lượt hỏng** · khôi phục qua UI 6 lớp chặn · maintenance mode · 4 health indicator + `GET /api/v1/system/health` cho M5.12 · 3 gauge + counter sự kiện bảo mật · Prometheus/Grafana + **14 luật cảnh báo** · 4 script vận hành · **7 runbook**. Trả nợ **#18** và **#21**; mở 6 dòng mới (#29–#34). **49 mã lỗi**, **255 test xanh** (209 core + 46 app). Chốt ở `architecture-review.md` §9.9: **kho sao lưu KÉO về VM-3 chứ không đẩy đi** (VM-1 bị chiếm vẫn không xoá được bản sao lưu) · `pg_dump` chạy bằng vai trò **readonly**, khôi phục là tính năng **bật riêng** · chỉ số đo **sự vắng mặt** chứ không đếm lỗi, `-1` ≠ `0` · **hai** alert backup chứ không phải một. ⚠ **Ba lỗi chỉ chạy thật mới lộ**: `@Transactional` trên phương thức tự gọi trong cùng lớp **không có tác dụng** (dòng `RUNNING` không được commit trước khi pg_dump chạy — đúng thứ cơ chế đó sinh ra để giữ) · `CHAR(64)` vs `String` làm `ddl-auto: validate` chặn **toàn bộ** context test tích hợp, 18 bài đỏ vì một cột · đọc luồng đầu ra tới EOF trước `waitFor(timeout)` làm hạn chờ **vô hiệu**. |
 | 2026-08-15 | **Áp dụng bảo vệ nhánh + kiểm chứng ngược bằng API** (trả nợ #23). Đã tạo `staging`/`production`, áp bảo vệ cả 3 nhánh, tạo environment `production` có người duyệt — 10 mục kiểm chứng đúng hết (`docs/branch-protection.md` §6.1). Nhưng **kiểm chứng ngược tìm ra 3 lỗi trong chính tài liệu tôi viết** (nợ #27), trong đó 2 cái thuộc đúng loại "xanh mà không chạy": (1) **`strict: true` ở staging/production tự khoá chặng đề bạt sau lần merge đầu** — `staging` sinh merge commit không có trong `dev`, GitHub đòi *Update branch*, mà cả hai chế độ của nút đó đều bị chính bảo vệ của `dev` chặn (merge commit vi phạm linear history, rebase cần force push); (2) **job `Vùng nào thay đổi` không nằm trong `contexts`** — nó hỏng thì 2 job nặng bị skip, mà skip **được tính là đạt**, nên PR merge được trong khi không bài kiểm nào chạy; (3) **1 người mà đòi 1 lượt duyệt là cấm merge** — GitHub cấm tự duyệt PR, nên mọi lần merge phải bấm bypass, mà bypass bỏ qua luôn cả status check. Kèm phát hiện ngoài cấu hình: **`dev` đang trống** — 18 commit/313 tệp nằm ở `common`, repo chưa chạy lượt CI nào (nợ #28). |
 | 2026-08-15 | **WS-10 xong** (làm trước WS-7 theo yêu cầu rà soát chất lượng). 14 luật ArchUnit · ma trận RBAC đối chiếu 334 dòng phân quyền · chuỗi hash audit trên DB thật · cổng bao phủ JaCoCo · `ci.yml` 3 job. Trả **4 dòng nợ** (#5, #6, #7, #8), mở 3 dòng mới (#22–#24). **226 test xanh.** ⚠ **Phát hiện nặng nhất Phase 0: tầng 3 phân quyền chưa từng hoạt động** — `ScopeFilterAspect` đặt `@Order(LOWEST_PRECEDENCE - 1)` với ý định "nằm trong bộ chặn transaction", nhưng số nhỏ hơn nghĩa là vòng NGOÀI, nên `enableFilter` rơi vào một `Session` bị vứt đi; mọi Xí nghiệp đọc được dữ liệu của nhau, không một dòng lỗi. Kèm theo: **4 cơ chế canh gác "xanh mà không chạy"** (bộ máy ArchUnit tìm ra 0 bài kiểm; luật JaCoCo bị bỏ qua vì lọc sai chỗ; 2 luật chạy qua 0 lớp) và 3 vi phạm phân tầng có thật do bộ luật bắt được. Thêm `ScopeGuard` — trước đó `AUTH-3002` là mã lỗi chết, có trong tiêu chí nghiệm thu mà không dòng mã nào ném ra. |
 | 2026-08-15 | **WS-6 xong** — khối lớn nhất Phase 0. 6 pattern P1–P6 thành shared service; 43 mã lỗi; 184 test. Trả **6 dòng nợ** (#9–#14). Chốt: **ShedLock KHÔNG bọc quanh worker hàng đợi** (hai bài toán ngược nhau) · job bảo trì chỉ *đặt việc*, khoá chống trùng theo ngày làm DB thành điểm đồng bộ · nhật ký ghi ngay tại chỗ thay vì gom lô · kết xuất audit đi qua kết nối riêng vai trò `songnhue_archiver` bọc trong kiểu `ArchiverJdbc`. **6 lỗi chỉ chạy thật mới lộ, cả 6 đều im lặng** — nổi bật: đăng ký Hibernate listener sau khởi động không có tác dụng, và khai bean `DataSource`/`JdbcTemplate` làm Boot ngừng tạo bản chính khiến cả app chạy bằng vai trò archiver. |

@@ -26,5 +26,16 @@ public final class JobTypes {
     /** Gửi các thông báo đang chờ ở kênh email (T6.6). */
     public static final String NOTIFICATION_DISPATCH = "NOTIFICATION_DISPATCH";
 
+    /** Sao lưu CSDL bằng {@code pg_dump} — hằng đêm 02:00 hoặc theo yêu cầu (T7.1, M5.10). */
+    public static final String DB_BACKUP = "DB_BACKUP";
+
+    /**
+     * Khôi phục CSDL từ một bản sao lưu (T7.5, M5.11).
+     *
+     * <p>⚠ Loại việc <b>duy nhất</b> ghi đè toàn bộ dữ liệu. {@code max_attempts = 1}: thử lại một
+     * thao tác khôi phục hỏng dở là chồng thêm một lần ghi đè lên đúng chỗ đang dở dang.
+     */
+    public static final String DB_RESTORE = "DB_RESTORE";
+
     private JobTypes() {}
 }

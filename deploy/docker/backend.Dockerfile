@@ -46,9 +46,24 @@ RUN --mount=type=cache,target=/root/.m2 \
 # --- Tầng chạy ---------------------------------------------------------------
 FROM eclipse-temurin:21-jre-alpine AS runtime
 
+# Công cụ dòng lệnh của PostgreSQL — BẮT BUỘC cho sao lưu/khôi phục (WS-7).
+# Thiếu chúng thì job sao lưu hỏng mỗi đêm với "No such file or directory", và
+# hệ thống chạy không có bản sao lưu nào cho tới khi ai đó đọc log.
+#
+# ⚠ pg_restore KHÔNG đọc được bản dump sinh bởi máy chủ MỚI HƠN nó. Phiên bản
+#   client ở đây phải ≥ phiên bản máy chủ (nay là PostgreSQL 16). Nâng máy chủ
+#   lên 17 mà quên dòng này thì bản sao lưu vẫn tạo được nhưng KHÔNG khôi phục
+#   được — và chuyện đó chỉ lộ ra đúng lúc cần khôi phục.
+RUN apk add --no-cache postgresql16-client || apk add --no-cache postgresql-client
+
 # Chạy bằng người dùng thường, không phải root (conventions.md §4.5)
 RUN addgroup -S songnhue && adduser -S -G songnhue -h /app songnhue
 WORKDIR /app
+
+# Thư mục sao lưu — mount volume vào đây ở staging/prod (WS-11). Tạo sẵn với
+# đúng chủ sở hữu: tiến trình chạy bằng user `songnhue` không tạo được thư mục
+# dưới /var/lib.
+RUN mkdir -p /var/lib/songnhue/backup && chown -R songnhue:songnhue /var/lib/songnhue
 
 COPY --from=build --chown=songnhue:songnhue /build/app/target/songnhue-app.jar app.jar
 

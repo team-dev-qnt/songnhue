@@ -59,6 +59,18 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
+        <!--
+          Định dạng phơi metric cho Prometheus trên VM-3 (WS-7 / T7.9).
+
+          `runtime` là đủ và đúng: không dòng mã nào import lớp của thư viện này — `core` chỉ khai
+          báo qua API trung lập của Micrometer. Đổi sang hệ giám sát khác về sau là đổi đúng một
+          dòng ở đây.
+        -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+            <scope>runtime</scope>
+        </dependency>
 
         <!--
           DataSource + Flyway đặt ở `app` (tầng bootstrap), không ở module nghiệp vụ:

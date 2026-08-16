@@ -41,7 +41,22 @@ public enum SecurityEventType {
 
     // --- Quản trị -------------------------------------------------------------
     /** Kích hoạt tài khoản quản trị tối cao bằng lệnh bootstrap (T5.7). */
-    ADMIN_BOOTSTRAP(Severity.DANGER);
+    ADMIN_BOOTSTRAP(Severity.DANGER),
+
+    // --- Sao lưu & khôi phục (WS-7) -------------------------------------------
+    /** Bật/tắt chế độ bảo trì — cả hệ thống ngừng nhận ghi (T7.6). */
+    MAINTENANCE_MODE_CHANGED(Severity.DANGER),
+    BACKUP_CREATED(Severity.INFO),
+    /**
+     * ⚠ Sao lưu hỏng là sự kiện <b>nghiêm trọng</b>, không phải cảnh báo thường. Không có PITR
+     * (architecture-review.md §6.5) nên bản dump đêm là đường phục hồi duy nhất — mất nó là hệ thống
+     * đang chạy không lưới an toàn, dù mọi thứ khác vẫn xanh.
+     */
+    BACKUP_FAILED(Severity.CRITICAL),
+    /** Bắt đầu ghi đè toàn bộ CSDL bằng một bản dump (M5.11). */
+    DATABASE_RESTORE_STARTED(Severity.CRITICAL),
+    DATABASE_RESTORE_FINISHED(Severity.CRITICAL),
+    DATABASE_RESTORE_FAILED(Severity.CRITICAL);
 
     private final Severity severity;
 

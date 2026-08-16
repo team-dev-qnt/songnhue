@@ -12,6 +12,8 @@ import com.songnhue.core.domain.security.SecurityEvent;
 import com.songnhue.core.domain.security.SecurityEventType;
 import com.songnhue.core.infra.security.SecurityEventRepository;
 
+import io.micrometer.core.instrument.MeterRegistry;
+
 /**
  * Ghi nhật ký sự kiện bảo mật (conventions.md §4.5) — nguồn cho cảnh báo M5.16 và cho điều tra sự cố.
  *
@@ -32,9 +34,14 @@ public class SecurityEventService {
 
     private final SecurityEventRepository repository;
     private final TransactionTemplate requiresNew;
+    private final MeterRegistry meterRegistry;
 
-    public SecurityEventService(SecurityEventRepository repository, PlatformTransactionManager transactionManager) {
+    public SecurityEventService(
+            SecurityEventRepository repository,
+            PlatformTransactionManager transactionManager,
+            MeterRegistry meterRegistry) {
         this.repository = repository;
+        this.meterRegistry = meterRegistry;
         this.requiresNew = new TransactionTemplate(transactionManager);
         this.requiresNew.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
@@ -45,6 +52,7 @@ public class SecurityEventService {
      * @param detail JSON tự do — ⛔ TUYỆT ĐỐI không đưa mật khẩu, token, secret TOTP vào đây
      */
     public void record(SecurityEventType type, String username, Long userId, ClientInfo client, String detail) {
+        countForAlerting(type);
         try {
             requiresNew.executeWithoutResult(status -> {
                 SecurityEvent event = new SecurityEvent(type, username, userId);
@@ -61,5 +69,32 @@ public class SecurityEventService {
 
     public void record(SecurityEventType type, String username, Long userId, ClientInfo client) {
         record(type, username, userId, client, null);
+    }
+
+    /**
+     * Đẩy sự kiện thành chuỗi số cho Prometheus/Grafana (T7.10, trả nợ #18).
+     *
+     * <p><b>Đếm TRƯỚC khi ghi CSDL, và cố ý như vậy.</b> Kiểu sự cố đáng sợ nhất ở đây là CSDL không
+     * ghi được: lúc đó bảng {@code security_events} câm lặng, mà đó lại đúng lúc cần thấy chuyện gì
+     * đang xảy ra. Bộ đếm nằm trong bộ nhớ tiến trình nên vẫn tăng bình thường và Grafana vẫn thấy
+     * dòng sự kiện — cùng với dòng ERROR ở dưới.
+     *
+     * <p>Nhãn chỉ có {@code type} và {@code severity}, <b>không có username hay IP</b>: mỗi tổ hợp
+     * nhãn là một chuỗi thời gian riêng trong Prometheus, gắn nhãn theo người dùng là sinh ra vô hạn
+     * chuỗi và làm sập chính hệ giám sát. Chi tiết từng sự kiện tra ở bảng CSDL.
+     */
+    private void countForAlerting(SecurityEventType type) {
+        try {
+            meterRegistry
+                    .counter(
+                            "songnhue.security.events",
+                            "type",
+                            type.name(),
+                            "severity",
+                            type.severity().name())
+                    .increment();
+        } catch (RuntimeException e) {
+            log.debug("Không tăng được bộ đếm sự kiện bảo mật: {}", e.getMessage());
+        }
     }
 }

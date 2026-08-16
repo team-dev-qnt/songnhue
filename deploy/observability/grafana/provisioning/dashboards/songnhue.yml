@@ -1,0 +1,15 @@
+apiVersion: 1
+
+providers:
+  - name: songnhue
+    orgId: 1
+    folder: Sông Nhuệ
+    type: file
+    disableDeletion: true
+    # Sửa file trong repo → deploy lại là bảng điều khiển cập nhật theo.
+    # Cho phép sửa trên giao diện thì bản trong repo và bản đang chạy lệch nhau,
+    # và không ai biết bản nào đúng.
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import com.songnhue.core.application.backup.BackupService;
 import com.songnhue.core.application.job.JobService;
 import com.songnhue.core.application.job.JobTypes;
 import com.songnhue.core.common.util.DateTimeUtils;
@@ -35,9 +36,33 @@ public class MaintenanceScheduler {
     private static final short MAX_ATTEMPTS = 2;
 
     private final JobService jobService;
+    private final BackupService backupService;
 
-    public MaintenanceScheduler(JobService jobService) {
+    public MaintenanceScheduler(JobService jobService, BackupService backupService) {
         this.jobService = jobService;
+        this.backupService = backupService;
+    }
+
+    /**
+     * 02:00 hằng đêm — sao lưu CSDL (T7.1).
+     *
+     * <p>Đặt sớm hơn các việc dọn dẹp ở 03:15+ có chủ đích: sao lưu phải chụp trạng thái <b>trước</b>
+     * khi job dọn xoá token hết hạn và job đã xong. Chạy sau thì bản sao lưu không còn chứa những
+     * dòng vừa bị dọn — thường vô hại, nhưng khi điều tra sự cố thì đúng những dòng đó là thứ cần.
+     *
+     * <p>Tắt được bằng tham số {@code backup.schedule-enabled} trên UI, và <b>ghi cảnh báo mỗi đêm
+     * khi đang tắt</b>: hệ thống chạy không có bản sao lưu là trạng thái phải nhìn thấy được, không
+     * phải một dòng cấu hình nằm im.
+     */
+    @Scheduled(cron = "0 0 2 * * *", zone = DateTimeUtils.ZONE_VN_ID)
+    public void scheduleBackup() {
+        if (!backupService.isScheduleEnabled()) {
+            log.warn("Sao lưu tự động đang TẮT (backup.schedule-enabled=false) — đêm nay không có bản sao lưu nào");
+            return;
+        }
+        String dedupKey = JobTypes.DB_BACKUP + ":" + LocalDate.now(DateTimeUtils.ZONE_VN);
+        jobService.enqueue(JobTypes.DB_BACKUP, "{\"trigger\":\"SCHEDULED\"}", dedupKey, (short) 1);
+        log.info("Đã đặt việc sao lưu {}", dedupKey);
     }
 
     /** 03:15 hằng ngày — ngoài giờ hành chính và lệch giờ với job sao lưu 02:00 (WS-7). */

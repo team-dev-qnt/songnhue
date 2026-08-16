@@ -1,5 +1,6 @@
 package com.songnhue.app.testsupport;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.SecureRandom;
@@ -85,6 +86,29 @@ public abstract class IntegrationTestBase {
         // Bỏ trống máy chủ thư: bean EmailSender không được tạo và thông báo email đánh dấu
         // SKIPPED. Đúng hành vi đã chốt ở WS-6 khi chưa cấu hình SMTP.
         registry.add("spring.mail.host", () -> "");
+
+        // Sao lưu (WS-7). Thư mục tạm của lượt chạy test — cùng phép fail-fast như production:
+        // thiếu `app.backup.directory` là ứng dụng KHÔNG khởi động, nên phải cấp ở đây.
+        registry.add("app.backup.directory", () -> backupDirectory().toString());
+        registry.add("app.backup.host", postgres::getHost);
+        registry.add("app.backup.port", () -> postgres.getMappedPort(5432));
+        registry.add("app.backup.database", postgres::getDatabaseName);
+        registry.add("app.backup.dump-username", () -> "songnhue_readonly");
+        registry.add("app.backup.dump-password", SongnhuePostgres::password);
+        // ⛔ Cố ý ĐỂ TRỐNG mật khẩu khôi phục: test tích hợp tuyệt đối không được có đường chạy
+        // pg_restore --clean lên chính CSDL nó đang dùng.
+        registry.add("app.backup.restore-password", () -> "");
+    }
+
+    /** Thư mục sao lưu dùng chung cho mọi test tích hợp — dọn khi JVM thoát. */
+    private static Path backupDirectory() {
+        try {
+            Path dir = Files.createTempDirectory("songnhue-backup-test");
+            dir.toFile().deleteOnExit();
+            return dir;
+        } catch (IOException e) {
+            throw new IllegalStateException("Không tạo được thư mục sao lưu tạm cho test", e);
+        }
     }
 
     private static String randomAesKey() {

@@ -29,6 +29,15 @@ public final class SettingKeys {
     // --- Cây tổ chức (T6.1) ---------------------------------------------------
     public static final String ORG_TREE_MAX_DEPTH = "org.tree.max-depth";
 
+    // --- Sao lưu & bảo trì (WS-7) ---------------------------------------------
+    /** Chặn mọi thao tác ghi. Bật tự động trong lúc khôi phục dữ liệu (T7.6, M5.11). */
+    public static final String MAINTENANCE_MODE = "system.maintenance-mode";
+
+    public static final String BACKUP_RETENTION_DAYS = "backup.retention-days";
+    public static final String BACKUP_SCHEDULE_ENABLED = "backup.schedule-enabled";
+    /** Ngưỡng coi bản sao lưu gần nhất là quá cũ — nguồn cho cảnh báo duy nhất của backup (T7.3). */
+    public static final String BACKUP_STALE_HOURS = "backup.stale-hours";
+
     // --- Giá trị dự phòng, khớp đúng seed migration ---------------------------
     public static final int DEFAULT_PASSWORD_MIN_LENGTH = 10;
     public static final int DEFAULT_MAX_FAILED_ATTEMPTS = 5;

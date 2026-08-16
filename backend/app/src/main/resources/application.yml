@@ -165,6 +165,24 @@ app:
     # ai đăng nhập được.
     admin-password: ${BOOTSTRAP_ADMIN_PASSWORD:}
 
+  # Sao lưu & khôi phục (WS-7). Chi tiết vì sao hai vai trò CSDL khác nhau:
+  # javadoc của BackupProperties.
+  backup:
+    # Thư mục PHẢI nằm trên volume gắn ra ngoài container — trong container thì
+    # bản sao lưu biến mất cùng lần deploy kế tiếp.
+    directory: ${BACKUP_DIR}
+    host: ${DB_HOST}
+    port: ${DB_PORT}
+    database: ${DB_NAME}
+    # pg_dump chỉ cần ĐỌC — chạy bằng vai trò readonly, không phải owner.
+    dump-username: ${DB_READONLY_USER:songnhue_readonly}
+    dump-password: ${DB_READONLY_PASSWORD:}
+    # Khôi phục cần quyền chủ sở hữu → là tính năng BẬT RIÊNG. Để trống thì nút
+    # khôi phục trên UI báo "chưa cấu hình" (ADM-2010) thay vì hỏng giữa chừng.
+    restore-username: ${DB_RESTORE_USER:songnhue_owner}
+    restore-password: ${DB_RESTORE_PASSWORD:}
+    timeout: ${BACKUP_TIMEOUT:2h}
+
   storage:
     endpoint: ${MINIO_ENDPOINT}
     access-key: ${MINIO_ACCESS_KEY}
@@ -190,12 +208,31 @@ management:
     health:
       probes:
         enabled: true
+      # ⛔ Giữ `never`. Endpoint này KHÔNG đi qua phân quyền 3 tầng (dự án không
+      # dùng filter chain Spring Security — architecture-review.md §9.5), nên
+      # chi tiết ở đây là chi tiết công khai với bất kỳ ai gọi được cổng.
+      # Màn hình M5.12 lấy chi tiết qua GET /api/v1/system/health, có kiểm quyền.
       show-details: never
   health:
     livenessstate:
       enabled: true
     readinessstate:
       enabled: true
+    # ⚠ `backup` và `telemetry` cố ý NẰM NGOÀI nhóm readiness (mặc định của
+    # Spring Boot khi bật probes: readiness chỉ gồm readinessState).
+    # Bản sao lưu cũ là chuyện phải báo động, nhưng ngừng nhận request vì nó thì
+    # sai hoàn toàn — container sẽ bị khởi động lại vòng quanh mà không sửa được
+    # gì, và mất luôn cả phần đang phục vụ tốt.
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  metrics:
+    tags:
+      # Nhãn chung cho mọi metric — Prometheus trên VM-3 gom số của nhiều môi
+      # trường vào một chỗ, không có nhãn này thì staging và production lẫn nhau.
+      application: songnhue
+      environment: ${APP_ENVIRONMENT:local}
 
 logging:
   level:
@@ -207,6 +244,21 @@ logging:
   structured:
     format:
       console: ${LOG_STRUCTURED_FORMAT:}
+      file: ${LOG_STRUCTURED_FORMAT:}
   pattern:
     # traceId do CorrelationFilter đặt vào MDC — có mặt ở mọi dòng log
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%X{traceId:-}] %logger{36} - %msg%n"
+  # Ghi ra tệp + xoay vòng 30 ngày (T7.9). Để trống LOG_FILE = chỉ log ra console,
+  # đúng cho local và cho môi trường có bộ thu thập log riêng.
+  # ⚠ total-size-cap là chốt chặn cuối: chỉ có max-history thì một ngày sinh log
+  # bất thường vẫn đủ làm đầy đĩa — mà đĩa đầy thì pg_dump hỏng theo, và mất log
+  # kéo theo mất luôn bản sao lưu.
+  file:
+    name: ${LOG_FILE:}
+  logback:
+    rollingpolicy:
+      file-name-pattern: "${LOG_FILE:}.%d{yyyy-MM-dd}.%i.gz"
+      max-history: ${LOG_MAX_HISTORY:30}
+      max-file-size: ${LOG_MAX_FILE_SIZE:100MB}
+      total-size-cap: ${LOG_TOTAL_SIZE_CAP:3GB}
+      clean-history-on-start: true

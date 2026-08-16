@@ -25,7 +25,8 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
     AppProperties.class,
     CryptoProperties.class,
     StorageProperties.class,
-    JwtProperties.class
+    JwtProperties.class,
+    BackupProperties.class
 })
 @EnableTransactionManagement(order = CorePlatformConfig.TRANSACTION_ADVISOR_ORDER)
 public class CorePlatformConfig {

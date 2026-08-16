@@ -42,6 +42,20 @@
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
             <version>${springdoc.version}</version>
         </dependency>
+        <!--
+          Health indicator + metric của nền tảng (WS-7 / T7.8–T7.11).
+
+          Khai ở `core` chứ không chỉ ở `app` vì chính `core` là nơi biết những con số đáng đo:
+          tuổi bản sao lưu, tồn đọng hàng đợi, độ tươi dữ liệu. Để `app` tự đo thì nó phải với
+          xuống tận repository của core — đúng thứ ranh giới ArchUnit cấm.
+
+          Bản cài đặt registry (Prometheus) vẫn nằm ở `app`: core khai báo ĐO CÁI GÌ, tầng lắp
+          ráp chọn ĐẨY ĐI ĐÂU.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
 
         <!--
           ===================== WS-5 · Xác thực & phân quyền =====================

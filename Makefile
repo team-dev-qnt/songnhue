@@ -220,15 +220,42 @@ lint-fe: ## Frontend: ESLint + Prettier check
 	cd $(FRONTEND) && npm run lint && npm run format:check
 
 # --- Backup / Restore (WS-7) -------------------------------------------------
+# ⚠ Đây là ĐƯỜNG THỦ CÔNG, dùng khi ứng dụng không chạy được. Đường bình thường
+#   là job 02:00 hằng đêm và nút trên màn hình M5.10 — cả hai ghi vào cùng một
+#   sổ đăng ký `system_backups`.
+
 .PHONY: backup
-backup: ## Tạo bản backup thủ công (pg_dump + checksum)
+backup: ## Tạo bản backup thủ công (pg_dump + checksum + ghi sổ)
 	$(call need_file,$(DEPLOY)/backup/backup.sh,WS-7 / T7.1)
 	ENV=$(ENV) $(DEPLOY)/backup/backup.sh
 
 .PHONY: restore
-restore: ## Khôi phục từ bản backup — hỏi xác nhận trước khi ghi đè
+restore: ## ⚠ Khôi phục từ bản backup — GHI ĐÈ TOÀN BỘ, hỏi xác nhận trước
 	$(call need_file,$(DEPLOY)/backup/restore.sh,WS-7 / T7.5)
 	ENV=$(ENV) $(DEPLOY)/backup/restore.sh
+
+.PHONY: backup-verify
+backup-verify: ## Kiểm bản backup mới nhất KHÔNG chứa khoá AES/JWT (DoD 13d)
+	@test -f "$(ENV_FILE)" || { echo "  ✗ Chưa có $(ENV_FILE) — chạy: make env"; exit 1; }
+	@set -a; . "$(ENV_FILE)"; set +a; \
+	 latest="$$(find "$$BACKUP_DIR" -maxdepth 1 -name 'songnhue-*.dump' -type f | sort | tail -1)"; \
+	 test -n "$$latest" || { echo "  ✗ Chưa có bản backup nào trong $$BACKUP_DIR — chạy: make backup"; exit 1; }; \
+	 echo "  Kiểm: $$latest"; \
+	 $(DEPLOY)/backup/verify-no-keys.sh "$$latest"
+
+.PHONY: obs-up
+obs-up: ## Dựng Prometheus + Grafana (mô phỏng VM-3 tại máy local)
+	$(call need_file,$(DEPLOY)/compose.observability.yml,WS-7 / T7.9)
+	@set -a; . "$(LOCAL_ENV)"; set +a; \
+	 GRAFANA_ADMIN_PASSWORD="$${GRAFANA_ADMIN_PASSWORD:-changeme_local}" \
+	 PROD_APP_TARGET="$${PROD_APP_TARGET:-host.docker.internal:8080}" \
+	 STAGING_APP_TARGET="$${STAGING_APP_TARGET:-host.docker.internal:8080}" \
+	 $(COMPOSE) -f $(DEPLOY)/compose.observability.yml up -d
+	@echo "✓ Prometheus: http://localhost:19090  ·  Grafana: http://localhost:13001"
+
+.PHONY: obs-down
+obs-down: ## Dừng stack giám sát
+	$(COMPOSE) -f $(DEPLOY)/compose.observability.yml down
 
 # --- Tiện ích ----------------------------------------------------------------
 .PHONY: env

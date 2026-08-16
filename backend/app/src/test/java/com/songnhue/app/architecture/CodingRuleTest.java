@@ -2,6 +2,7 @@ package com.songnhue.app.architecture;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 import java.util.Set;
@@ -17,6 +18,7 @@ import com.tngtech.archunit.core.domain.JavaMethodCall;
 import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.ConditionEvents;
+import com.tngtech.archunit.lang.EvaluationResult;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
 import com.tngtech.archunit.library.GeneralCodingRules;
 
@@ -39,8 +41,25 @@ class CodingRuleTest {
      * sai. Cái bẫy: sai số nhỏ tới mức không ai phát hiện lúc kiểm thử, chỉ lộ khi đối chiếu cuối kỳ.
      *
      * <p>Ưu tiên số 1 của dự án là <b>độ chính xác</b>. Luật này là chỗ nó được thi hành.
+     *
+     * <h2>Một ngoại lệ duy nhất: {@value #GOI_QUAN_SAT}</h2>
+     *
+     * <p>Mô hình dữ liệu của Prometheus <b>là float64</b> — không có kiểu nào khác, và API
+     * {@code Gauge} của Micrometer chỉ nhận {@code double}. Không có cách viết nào tránh được.
+     *
+     * <p>Ngoại lệ này an toàn vì thứ chạy qua đó không phải số nghiệp vụ: tuổi bản sao lưu tính bằng
+     * giây, số việc tồn trong hàng đợi, số giây kể từ dữ liệu mới nhất. Không con số nào trong đó
+     * được cộng dồn thành báo cáo hay đối chiếu với sổ giấy — sai số ở chữ số thứ mười lăm của "cách
+     * đây 93.601 giây" không đổi kết luận nào.
+     *
+     * <p>⚠ <b>Phạm vi ngoại lệ phải giữ nguyên bằng đúng một gói.</b> Nới nó ra là mở lại đúng cái
+     * cửa mà quy tắc 2 sinh ra để đóng — xem {@link #ngoaiLeChiGomGoiQuanSat()}.
      */
+    private static final String GOI_QUAN_SAT = "com.songnhue.core.common.observability";
+
     private static final ArchRule CAM_FLOAT_DOUBLE = classes()
+            .that()
+            .resideOutsideOfPackage(GOI_QUAN_SAT)
             .should(new NoBinaryFloatingPoint())
             .because(
                     """
@@ -89,6 +108,36 @@ class CodingRuleTest {
     @DisplayName("Không có float/double ở bất kỳ đâu — số đo và tiền dùng BigDecimal")
     void noBinaryFloatingPoint() {
         CAM_FLOAT_DOUBLE.check(ProductionClasses.ALL);
+    }
+
+    /**
+     * ⚠ Bài kiểm canh chính cái ngoại lệ ở trên (conventions.md §1.5).
+     *
+     * <p>Ngoại lệ trong một luật kiến trúc là thứ có xu hướng lớn dần: thêm một gói "cho xong lỗi
+     * build" là thao tác một dòng và không ai phải giải thích gì. Bài này chạy luật <b>không có ngoại
+     * lệ</b> lên toàn bộ mã nguồn rồi đòi hỏi: mọi vi phạm tìm được phải nằm trong đúng gói quan sát.
+     *
+     * <p>Bắt được hai hướng sai ngược nhau:
+     *
+     * <ul>
+     *   <li>Ai đó nới ngoại lệ sang gói khác → vi phạm xuất hiện ngoài gói quan sát → đỏ.
+     *   <li>Gói quan sát không còn dùng {@code double} nữa → không còn vi phạm nào → ngoại lệ đã
+     *       thừa, và dòng dưới nhắc gỡ nó đi thay vì để lại một lỗ hổng không ai nhớ vì sao có.
+     * </ul>
+     */
+    @Test
+    @DisplayName("⚠ Ngoại lệ float/double chỉ nằm trong ĐÚNG gói quan sát")
+    void ngoaiLeChiGomGoiQuanSat() {
+        EvaluationResult result = classes().should(new NoBinaryFloatingPoint()).evaluate(ProductionClasses.ALL);
+
+        List<String> viPham = result.getFailureReport().getDetails();
+
+        assertThat(viPham)
+                .as("gói quan sát không còn dùng double → GỠ ngoại lệ ở CAM_FLOAT_DOUBLE đi")
+                .isNotEmpty();
+        assertThat(viPham)
+                .as("ngoại lệ float/double đã bị nới ra ngoài %s — đọc javadoc CAM_FLOAT_DOUBLE", GOI_QUAN_SAT)
+                .allMatch(dong -> dong.contains(GOI_QUAN_SAT) || dong.contains("PlatformMetrics"));
     }
 
     @Test

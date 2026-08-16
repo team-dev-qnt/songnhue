@@ -93,7 +93,21 @@ public enum ErrorCode {
     ADM_2005("ADM-2005", HttpStatus.UNPROCESSABLE_ENTITY),
     /** Tham số {0} không nhận giá trị này — yêu cầu: {1}. */
     ADM_2006("ADM-2006", HttpStatus.UNPROCESSABLE_ENTITY),
-    ADM_2007("ADM-2007", HttpStatus.FORBIDDEN);
+    ADM_2007("ADM-2007", HttpStatus.FORBIDDEN),
+
+    // ---- MOD-05 Sao lưu & khôi phục (WS-7) --------------------------------------
+    /** Sao lưu chưa cấu hình được: thiếu mật khẩu vai trò đọc, hoặc thư mục không ghi được. */
+    ADM_2008("ADM-2008", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Đã có lượt sao lưu đang chạy — hai lượt song song chỉ tổ đọc đĩa gấp đôi. */
+    ADM_2009("ADM-2009", HttpStatus.CONFLICT),
+    /** Khôi phục qua UI chưa được bật (thiếu {@code DB_RESTORE_PASSWORD}) — xem BackupProperties. */
+    ADM_2010("ADM-2010", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Chuỗi xác nhận nhiều bước không khớp (architecture-review.md §7.3). */
+    ADM_2011("ADM-2011", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Bản sao lưu không dùng được: mất tệp, hoặc checksum không khớp lúc ghi. */
+    ADM_2012("ADM-2012", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Khôi phục thất bại — CSDL có thể đang ở trạng thái dở dang, xem runbook. */
+    ADM_2013("ADM-2013", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final String code;
     private final HttpStatus status;

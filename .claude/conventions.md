@@ -230,6 +230,12 @@ Format: `<PREFIX>-<4 số>` — prefix theo module: `SYS` (hệ thống), `AUTH`
 | HYD-2004 | 422 | Điểm đo đang mất tín hiệu — không dùng giá trị cũ để đánh giá ngưỡng |
 | HR-2001 | 422 | Số ngày đăng ký vượt số phép còn lại |
 | ADM-2001 | 422 | Kết xuất lưu trữ nhật ký thất bại — không xóa bản ghi nào |
+| ADM-2008 | 422 | Chưa cấu hình được sao lưu — thư mục lưu hoặc tài khoản đọc CSDL (WS-7) |
+| ADM-2009 | 409 | Đang có một lượt sao lưu chạy |
+| ADM-2010 | 422 | Khôi phục qua giao diện chưa được bật trên môi trường này |
+| ADM-2011 | 422 | Chuỗi xác nhận khôi phục không đúng (M5.11) |
+| ADM-2012 | 422 | Bản sao lưu không dùng được: thiếu tệp hoặc checksum không khớp |
+| ADM-2013 | 500 | Khôi phục thất bại — xem `docs/runbook/khoi-phuc-du-lieu.md` |
 
 > ⚠ **Đã gỡ (12/8/2026)**: `OPS-2001` cũ ("nhập bù tối đa 3 ngày") và `OPS-2003` cũ ("lưu lượng vượt 120% thiết kế") — thuộc nhật ký vận hành đã bỏ khỏi scope. Hai mã này **đã được tái sử dụng** cho rule mới ở bảng trên; khi đọc code/log cũ phải chú ý.
 > ℹ **Không phải lỗi**: lượt polling bị bỏ qua do rate-limit (`sync_logs = SKIPPED_UP_TO_DATE`, chốt G3) **không** sinh error code, không alert — chỉ ghi log DEBUG.

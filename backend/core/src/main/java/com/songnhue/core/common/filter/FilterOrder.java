@@ -50,6 +50,16 @@ public final class FilterOrder {
     /** Nạp quyền và phạm vi đơn vị — WS-5 / T5.9, T5.11. */
     public static final int SCOPE_CONTEXT = 40;
 
+    /**
+     * Chặn ghi khi đang bảo trì — WS-7 / T7.6.
+     *
+     * <p>Phải đứng <b>sau</b> {@link #SCOPE_CONTEXT}: quyết định "cho qua hay không" phụ thuộc người
+     * gọi có phải Super Admin hay không, mà vai trò chỉ có trong {@code AuthContext} sau khi filter
+     * kia chạy xong. Đặt trước nó thì mọi request đều bị chặn, kể cả của chính người đang khôi phục
+     * dữ liệu — tức là bật bảo trì xong thì không ai tắt được nữa.
+     */
+    public static final int MAINTENANCE = 45;
+
     public static final int AUDIT_CONTEXT = 50;
 
     private FilterOrder() {}

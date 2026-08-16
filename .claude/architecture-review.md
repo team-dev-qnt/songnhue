@@ -424,3 +424,60 @@ khi `docker ps` vẫn chạy bình thường. Ghim `api.version` qua thuộc tí
 
 ⚠ Không có con số nào đúng cho mọi engine: engine < 25.0 chưa có 1.44, engine ≥ 29 không nhận 1.43.
 Runner cũ hơn phải truyền `-Ddocker.api.version=1.43`.
+
+---
+
+### 9.9. Sao lưu, khôi phục và giám sát (chốt 16/8, khi làm WS-7)
+
+Bốn quyết định đáng ghi, cả bốn đều là chọn giữa hai phương án đúng-về-mặt-kỹ-thuật.
+
+#### 9.9.1. Kho sao lưu **KÉO** về VM-3, không đẩy đi từ VM-1
+
+`deploy/backup/pull-from-prod.sh` chạy **trên VM-3** và kéo bản dump về; VM-1 không giữ khoá SSH nào.
+
+Mô hình đẩy đòi VM-1 — chính máy phơi ra Internet — phải có quyền **ghi** vào kho sao lưu. Ai chiếm
+được VM-1 cũng chiếm luôn khả năng **xoá mọi bản sao lưu**, và mã hoá tống tiền làm đúng việc đó
+trước tiên. Kéo về thì chiếm được VM-1 vẫn không chạm được vào kho.
+
+Hệ quả cần biết: VM-3 phải có tài khoản chỉ-đọc trên VM-1, và `env/prod.env.example` **đã bỏ**
+`BACKUP_TARGET_HOST` của bản WS-3.
+
+#### 9.9.2. Sao lưu chạy bằng `songnhue_readonly`, khôi phục là tính năng **bật riêng**
+
+`pg_dump` chỉ cần đọc, và nó chạy mỗi đêm — cấp quyền ghi cho việc đó là mở rộng vô cớ phạm vi
+thiệt hại. Cùng nguyên tắc đã áp cho `songnhue_archiver` (§9.3).
+
+Khôi phục thì cần quyền chủ sở hữu. Thay vì mặc nhiên đưa mật khẩu owner vào tiến trình ứng dụng,
+`DB_RESTORE_PASSWORD` để trống là **hợp lệ**: nút khôi phục trên UI báo `ADM-2010` và từ chối ngay,
+còn khôi phục đi bằng runbook. Nơi nào chấp nhận đánh đổi thì điền vào.
+
+⚠ Điểm dễ sai: điều kiện phải là "mật khẩu **khác rỗng**", không phải "có khai mật khẩu" — đúng cái
+bẫy đã sập một lần ở `ArchiverDataSourceConfig` (§9.7).
+
+#### 9.9.3. Chỉ số đo **sự vắng mặt**, không đếm lỗi
+
+Ba gauge của `PlatformMetrics` — tuổi bản sao lưu, tồn đọng hàng đợi, độ tươi dữ liệu — đều trả lời
+"việc lẽ ra phải xảy ra có còn xảy ra không". Những kiểu hỏng đắt nhất của hệ này **không ném
+exception nào**: worker chết, poller ngừng, job sao lưu không được đặt. Đếm số lỗi không bao giờ bắt
+được chúng.
+
+Hai hệ quả cài đặt:
+
+- **`-1` nghĩa là "chưa từng có", không phải `0`.** `0` đọc là "vừa mới xong" — ngược hẳn.
+- **Làm mới theo lịch, không đọc DB trong hàm gauge.** Micrometer gọi hàm đó mỗi lượt Prometheus lấy
+  số; CSDL chết thì lượt lấy số treo theo và kéo sập luôn `/actuator/prometheus` — mất đúng công cụ
+  cần dùng để biết chuyện gì đang xảy ra.
+
+**Sai lệch có chủ đích so với kế hoạch**: §6.5 ghi "một alert duy nhất cho backup", thực tế có
+**hai**. "Đã dump" và "đã đưa ra khỏi máy chủ CSDL" là hai sự thật khác nhau, hỏng độc lập — mà bản
+dump nằm cùng máy với CSDL nó phải cứu thì không cứu được gì.
+
+#### 9.9.4. Một ngoại lệ cho luật cấm `float/double`
+
+Gói `core.common.observability` được miễn. Mô hình dữ liệu của Prometheus **là float64** và API
+`Gauge` của Micrometer chỉ nhận `double` — không có cách viết nào tránh được. An toàn vì thứ đi qua
+đó không phải số nghiệp vụ: tuổi bản sao lưu tính bằng giây, số việc tồn, số giây im lặng.
+
+Ngoại lệ được canh bằng `CodingRuleTest#ngoaiLeChiGomGoiQuanSat`: chạy luật **không có ngoại lệ** lên
+toàn bộ mã nguồn rồi đòi mọi vi phạm phải nằm trong đúng gói đó. Bắt được cả hai hướng — nới ngoại lệ
+ra gói khác, và ngoại lệ đã thừa mà không ai gỡ.
