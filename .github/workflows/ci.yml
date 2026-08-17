@@ -139,6 +139,9 @@ jobs:
           retention-days: 7
 
   frontend:
+    # ⚠ Giữ nguyên tên "Frontend — lint" dù job nay chạy cả typecheck, test và build:
+    # tên job CHÍNH LÀ tên required status check trong bảo vệ nhánh (docs/branch-protection.md
+    # §4.1). Đổi tên là mọi PR đang mở chờ một context không bao giờ tới.
     name: Frontend — lint
     needs: changes
     if: needs.changes.outputs.frontend == 'true'
@@ -165,22 +168,53 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
-      - name: Lint admin-app
+      # ⚠ Chạy ở `frontend/`, KHÔNG phải trong từng app.
+      #
+      # Bản đầu của job này gọi `npm ci` với `working-directory: frontend/admin-app`.
+      # Hai app là npm workspaces nên lockfile chỉ có MỘT, nằm ở `frontend/` — `npm ci`
+      # trong thư mục con không tìm thấy `package-lock.json` và dừng ngay. Lỗi đó không
+      # lộ ra suốt WS-1→WS-7 vì job tự bỏ qua khi chưa có mã nguồn FE, và repo cũng chưa
+      # chạy lượt CI nào (nợ #24).
+      #
+      # Cấu hình ESLint 9 flat cũng chỉ có một, ở `frontend/eslint.config.mjs`, và flat
+      # config KHÔNG gộp cấu hình lồng nhau — chạy từ thư mục con là mất luôn nhóm rule
+      # React mà không báo gì.
+      - name: Cài phụ thuộc
+        if: steps.detect.outputs.exists == 'true'
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint + định dạng
+        if: steps.detect.outputs.exists == 'true'
+        working-directory: frontend
+        run: |
+          npm run lint
+          npm run format:check
+
+      - name: Kiểm kiểu
+        if: steps.detect.outputs.exists == 'true'
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Test
+        if: steps.detect.outputs.exists == 'true'
+        working-directory: frontend
+        run: npm test
+
+      # Build thật, không chỉ kiểm kiểu: `tsc` không bắt được lỗi phân giải đường dẫn
+      # của bundler, mà đó đúng là loại lỗi chỉ nổ lúc đóng gói image ở chặng sau.
+      - name: Build admin-app
         if: steps.detect.outputs.exists == 'true' && hashFiles('frontend/admin-app/package.json') != ''
-        working-directory: frontend/admin-app
-        run: |
-          npm ci
-          npm run lint
-          npx tsc --noEmit
+        working-directory: frontend
+        run: npm run build --workspace admin-app
 
-      - name: Lint public-web
+      - name: Build public-web
         if: steps.detect.outputs.exists == 'true' && hashFiles('frontend/public-web/package.json') != ''
-        working-directory: frontend/public-web
-        run: |
-          npm ci
-          npm run lint
-          npx tsc --noEmit
+        working-directory: frontend
+        run: npm run build --workspace public-web
 
   # ---------------------------------------------------------------------------
   # Đóng gói MỘT LẦN, rồi đề bạt chính image đó qua staging và production.

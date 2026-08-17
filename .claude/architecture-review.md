@@ -481,3 +481,80 @@ Gói `core.common.observability` được miễn. Mô hình dữ liệu của Pr
 Ngoại lệ được canh bằng `CodingRuleTest#ngoaiLeChiGomGoiQuanSat`: chạy luật **không có ngoại lệ** lên
 toàn bộ mã nguồn rồi đòi mọi vi phạm phải nằm trong đúng gói đó. Bắt được cả hai hướng — nới ngoại lệ
 ra gói khác, và ngoại lệ đã thừa mà không ai gỡ.
+
+---
+
+### 9.10. Giao diện quản trị (chốt 17/8, khi làm WS-8)
+
+#### 9.10.1. Access token nằm trong bộ nhớ, và hệ quả bắt buộc phải nhận
+
+Access token **không** vào `localStorage` cũng không vào `sessionStorage` — chỉ là một biến trong
+module `shared/apiClient`. Refresh token thì hoàn toàn ngoài tầm với của JavaScript (cookie
+`httpOnly`). Nghĩa là một lỗ XSS chỉ lấy được cái vé sống 30 phút, không lấy được cái vé sống nhiều
+ngày.
+
+Cái giá phải trả **không được lảng tránh**: F5 là mất token. Nếu để nguyên như vậy, người dùng sẽ
+phải đăng nhập lại sau mỗi lần tải lại trang, và áp lực "sửa cho tiện" sẽ đẩy token xuống
+localStorage — tức là vứt bỏ đúng lớp phòng thủ vừa dựng. Nên `bootstrapSession()` gọi
+`POST /auth/refresh` **một lần lúc khởi động**: có cookie hợp lệ thì đi tiếp, không thì về trang đăng
+nhập. Trạng thái xác thực vì thế có **ba** giá trị (`loading` / `anonymous` / `authenticated`), không
+phải hai — thiếu `loading` thì route guard chạy đúng vào khoảnh khắc chưa biết là ai và chuyển hướng
+thật, mất luôn đường dẫn người dùng đang mở.
+
+Kèm một chi tiết dễ bỏ sót: vé CSRF cũng mất khi F5, nhưng cookie `XSRF-TOKEN` (cố ý **không**
+httpOnly) thì còn. `currentCsrfToken()` rơi về đọc cookie khi bộ nhớ trống — không có bước đó thì
+`/auth/refresh` bị `CsrfFilter` chặn ngay và việc khôi phục phiên không bao giờ chạy được.
+
+#### 9.10.2. Làm mới token đúng một lượt, và không bao giờ cho vòng lặp
+
+Mười request cùng nhận 401 phải dùng chung **một** lời hứa refresh (`refreshInFlight`). Không phải để
+tiết kiệm: refresh **xoay vòng** token, nên hai lượt gọi song song là lượt thứ hai dùng lại token đã
+bị thay — đúng định nghĩa của cơ chế phát hiện dùng lại ở backend, và hậu quả là thu hồi cả family
+rồi đá người dùng ra ngoài. Tự tay kích hoạt cảnh báo bảo mật của chính mình.
+
+Ba chốt chặn đi kèm: cờ `__retried` cho phép gửi lại **đúng một lần**; `AUTH_ENTRY_PATHS`
+(`/auth/login`, `/auth/2fa/`, `/auth/refresh`) không bao giờ kéo theo vòng làm mới vì chính chúng là
+luồng cấp token; và `AUTH-0008` (đã phát hiện dùng lại) **không** thử lại — backend đã thu hồi xong,
+gọi thêm chỉ tạo một sự kiện bảo mật giả.
+
+#### 9.10.3. `error-map.ts` mang *hành động*, không chỉ mang câu chữ
+
+Bản sao 49 mã lỗi ở FE **không** dùng để hiển thị — `messageFor()` luôn ưu tiên câu do API trả về, vì
+đó mới là câu đã điền tham số. Bản sao tồn tại vì hai việc khác: (1) **quyết định hành vi** — cùng là
+HTTP 403 nhưng `AUTH-3001` phải đưa sang trang "không có quyền" còn `AUTH-0005` (CSRF lệch) phải làm
+mới vé rồi thử lại, nhìn status code không phân biệt được; (2) **khi chưa tới được máy chủ**, lúc đó
+không có envelope nào để lấy câu chữ.
+
+Việc đồng bộ hai bên **có bài kiểm canh**: `error-map.test.ts` đọc thẳng
+`backend/core/src/main/resources/error-messages.properties` và làm đỏ khi lệch. Trước đó, nghĩa vụ
+đồng bộ chỉ được nhắc bằng một dòng chú thích trong `ErrorCode.java` — và nó đã trôi qua ba đợt
+(31 → 36 → 43 → 49 mã) mà không ai làm. Bài kiểm cũng tự chứng minh nó bắt được lệch, theo luật ở
+`conventions.md` §1.5.
+
+#### 9.10.4. Quyền ở FE **chỉ** để ẩn/hiện, và chỗ nguy hiểm nhất được tách ra kiểm
+
+Route guard và menu đọc `permissions` từ `GET /auth/me`. Đây là **tầng 1** của §4.2: người dùng gỡ nó
+bằng công cụ dev trong ba giây, nên nó không bảo vệ gì cả — chốt chặn thật là `@RequirePermission`
+(tầng 2) và scope filter theo đơn vị (tầng 3), cả hai đều có bài kiểm ở CI.
+
+Riêng nút **khôi phục dữ liệu** được tách thành hàm thuần `isRestoreVisible(isSuperAdmin, status)` ở
+tệp riêng, có bài kiểm cả bốn nhánh. Lý do: điều kiện của nó có **hai vế độc lập** — vai trò Super
+Admin (kiểm tường minh chứ không qua quyền `adm:backup:restore`, vì quyền thì gán được cho vai trò
+khác bằng vài cú nhấp) và môi trường có bật khôi phục (`DB_RESTORE_PASSWORD` không rỗng). Một điều
+kiện hai vế nằm lẫn trong JSX là thứ dễ bị rút gọn nhầm lúc dọn dẹp, mà hậu quả thì là hiện nút ghi
+đè toàn bộ CSDL cho người không được phép.
+
+#### 9.10.5. Màn hình vai trò chỉ xem — cố ý
+
+Ma trận 12 vai trò × 88 quyền (334 dòng) nạp bằng migration ở WS-2, dịch thẳng từ `function-spec.md`
+§6, và có bài kiểm ở CI đối chiếu từng dòng. Mở cho sửa trên giao diện là để một cú nhấp phá vỡ thứ
+mà cả một bộ kiểm thử đang canh, lại mất luôn dấu vết "vì sao ma trận thành ra thế này". Việc thật sự
+hay làm là **gán vai trò cho người**, và việc đó nằm ở màn hình Tài khoản. Sửa được ma trận là hạng
+mục của Phase 1, khi nghiệp vụ đã ổn định.
+
+#### 9.10.6. Chưa có "quên mật khẩu"
+
+Backend Phase 0 không có endpoint đặt lại mật khẩu, và làm nửa vời (gửi liên kết đặt lại qua email)
+là mở thêm một đường vào hệ thống mà chưa ai rà — trong khi kênh email hiện chỉ là thông báo một
+chiều. Đường chính thức lúc này: quản trị viên cấp lại mật khẩu tạm, người dùng bị bắt đổi ở lần đăng
+nhập kế tiếp. Ghi thành nợ #35 để không trôi thành "quên làm".

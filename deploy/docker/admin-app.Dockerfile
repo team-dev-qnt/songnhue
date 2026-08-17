@@ -2,8 +2,6 @@
 # =============================================================================
 # admin-app (Vite + React 18 + AntD 5) — build bundle tĩnh, phục vụ bằng nginx.
 #
-# ⬜ CHƯA BUILD ĐƯỢC cho tới khi WS-8 tạo `frontend/admin-app`.
-#
 # Build context là thư mục `frontend/` (npm workspaces nằm ở đó).
 #
 # ⚠ Vite nhúng biến `VITE_*` vào bundle LÚC BUILD, không đọc lúc chạy. Đổi
@@ -14,11 +12,16 @@
 FROM node:22-alpine AS build
 WORKDIR /build
 
-# Cài dependency trước theo lockfile để tận dụng cache lớp
-COPY package.json package-lock.json ./
+# Cài dependency trước theo lockfile để tận dụng cache lớp.
+#
+# ⚠ CHỈ chép manifest của workspace này, và cài bằng `--workspace admin-app`.
+#   Bản đầu chép luôn `public-web/package.json` và chạy `npm ci` trần — build đổ
+#   ngay ở bước COPY vì WS-9 chưa tạo thư mục đó. Hai image FE build độc lập với
+#   nhau thì thêm/bớt app không kéo image kia hỏng theo, và mỗi image cũng chỉ
+#   tải đúng phần phụ thuộc của mình.
+COPY package.json package-lock.json .npmrc ./
 COPY admin-app/package.json admin-app/
-COPY public-web/package.json public-web/
-RUN npm ci
+RUN npm ci --workspace admin-app --include-workspace-root
 
 COPY . .
 

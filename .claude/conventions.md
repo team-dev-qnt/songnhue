@@ -67,6 +67,15 @@ admin-app/src/
 - Naming: component `PascalCase`, hook `useXxx`, file component `.tsx` trùng tên component.
 - FE **không tính toán nghiệp vụ, không tự quyết quyền** — permission chỉ để ẩn/hiện UI (mục 5.2), giá trị tính toán luôn lấy từ API.
 
+**Bổ sung sau WS-8 (17/8)** — những điều chỉ lộ ra khi dựng thật:
+
+- **Một tệp cấu hình ESLint duy nhất** ở `frontend/eslint.config.mjs`, áp cho cả hai app. ESLint 9 flat config **không gộp cấu hình lồng nhau** như `.eslintrc` ngày trước: nó chỉ đọc một file tính từ thư mục chạy lệnh. Đặt `eslint.config.mjs` riêng trong từng app thì file đó bị **bỏ qua im lặng** — lint vẫn xanh mà nhóm rule React chưa từng chạy. Lệnh lint và `npm ci` đều chạy ở `frontend/` (workspaces chỉ có **một** lockfile).
+- **Mỗi module chỉ xuất component, hoặc chỉ xuất dữ liệu/hook — không lẫn.** Bảng từ vựng trạng thái, hook phân trang, hàm thuần đều nằm ở tệp riêng (`statusVocabulary.ts`, `usePagination.ts`, `restoreAccess.ts`). Luật `react-refresh/only-export-components` canh chỗ này; nó chạy ở mức lỗi vì `--max-warnings=0`.
+- **Đường dẫn route tiếng Việt không dấu** (`/quan-tri/sao-luu`): hệ thống chỉ phục vụ tiếng Việt, và URL đọc được qua điện thoại thì không phải dịch. Không dấu để chép đi chép lại không bị mã hoá phần trăm.
+- **Màn hình quản trị tải theo nhu cầu** (`React.lazy`), màn hình xác thực nạp thẳng. Nhóm quản trị kéo theo bảng/cây/biểu đồ — phần nặng nhất của bó mã; người mở trang lần đầu chỉ cần đăng nhập (NFR-03: tải trang ≤ 3 giây).
+- **Điều kiện hiện/ẩn nhiều vế phải tách thành hàm thuần có bài kiểm**, không nằm lẫn trong JSX — xem `architecture-review.md` §9.10.4.
+- **Bản sao danh mục mã lỗi phải có bài kiểm đọc thẳng file của backend** (`error-map.test.ts`). Nghĩa vụ đồng bộ ghi bằng chú thích đã trôi qua ba đợt mà không ai làm.
+
 ### 1.5. Git & CI
 
 - Branch: `feat/<module>-<mô-tả>`, `fix/…`, `chore/…`; commit theo Conventional Commits (`feat(ops): thêm alert engine`).
