@@ -2,24 +2,27 @@
 # =============================================================================
 # public-web (Next.js + Tailwind) — chế độ standalone.
 #
-# ⬜ CHƯA BUILD ĐƯỢC cho tới khi WS-9 tạo `frontend/public-web`.
-#
 # Build context là thư mục `frontend/`.
 #
 # ⚠ Cần `output: 'standalone'` trong next.config — nếu không thì thư mục
-#   `.next/standalone` không tồn tại và tầng runtime chép hụt. WS-9 phải bật.
+#   `.next/standalone` không tồn tại và tầng runtime chép hụt.
 #
 # ⚠ Biến `NEXT_PUBLIC_*` nhúng vào bundle lúc build (giống Vite) → đổi là phải
-#   build lại image.
+#   build lại image. `REVALIDATE_SECRET` thì ngược lại: đọc lúc chạy, truyền qua
+#   `environment` của compose, KHÔNG phải build arg (build arg nằm lại trong lịch
+#   sử layer của image).
 # =============================================================================
 
 FROM node:22-alpine AS build
 WORKDIR /build
 
-COPY package.json package-lock.json ./
-COPY admin-app/package.json admin-app/
+# Chỉ chép manifest của workspace này + gói dùng chung, rồi cài đúng phần cần.
+# Chép cả `admin-app/package.json` như bản cũ thì hai image FE ràng buộc lẫn nhau
+# vô cớ — thêm/bớt một app là app kia hỏng build theo.
+COPY package.json package-lock.json .npmrc ./
+COPY design-tokens/package.json design-tokens/
 COPY public-web/package.json public-web/
-RUN npm ci
+RUN npm ci --workspace public-web --include-workspace-root
 
 COPY . .
 

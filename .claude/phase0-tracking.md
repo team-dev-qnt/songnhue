@@ -1,6 +1,6 @@
 # PHASE 0 — CORE PLATFORM · BẢNG THEO DÕI TIẾN ĐỘ
 
-> **Cập nhật lần cuối**: 2026-08-17 · **Tiến độ: 90/107 task (84%)** · **DoD: 16/21** · Trạng thái: 🟡 Đang làm (xong WS-1, WS-2, WS-4, WS-5, WS-6, WS-8, WS-10; WS-7 còn T7.7, WS-3 còn T3.4 nửa sau)
+> **Cập nhật lần cuối**: 2026-08-17 · **Tiến độ: 96/107 task (90%)** · **DoD: 17/21** · Trạng thái: 🟡 Đang làm (xong WS-1→WS-6, WS-8, WS-9, WS-10; WS-7 còn T7.7; **chỉ còn WS-11**)
 > Nguồn ràng buộc: `conventions.md` (coding/security) · `architecture-review.md` §6, §9 (kiến trúc đã chốt) · `function-spec.md` (nghiệp vụ MOD-05)
 > **Cách dùng**: làm xong task nào tick `[x]` task đó; xong 1 WS thì chạy mục "Kiểm chứng" của WS rồi cập nhật bảng tổng + dòng "Cập nhật lần cuối" ở trên.
 > ⚠ **Xong 1 WS còn phải đóng nợ**: xem luật 3 bước ở mục **"Sổ nợ liên WS"** gần cuối file — tick dòng nợ, và **quay lại sửa mô tả đã lỗi thời ở WS đã giao nợ**.
@@ -13,16 +13,16 @@
 |---|---|:-:|:-:|---|---|:-:|
 | **WS-1** | Repo & quy ước nền | 6 | **6** | ✅ **Xong** (13/8) | — | 2 pd |
 | **WS-2** | DB & Migration | 10 | **10** | ✅ **Xong** (14/8) | WS-1 | 8 pd |
-| **WS-3** | Docker & môi trường chạy local | 7 | **6** | 🟡 **6/7** (14/8) — T3.4 nay xong nửa admin-app (17/8), nửa public-web chờ WS-9 | WS-1 | 5 pd |
+| **WS-3** | Docker & môi trường chạy local | 7 | **7** | ✅ **Xong** (17/8) — T3.4 đóng: cả 2 image FE build và chạy thật | WS-1 | 5 pd |
 | **WS-4** | BE — Common Platform | 10 | **10** | ✅ **Xong** (14/8) | WS-2 | 10 pd |
 | **WS-5** | BE — Auth & RBAC 3 tầng | 14 | **14** | ✅ **Xong** (14/8) | WS-4 | 15 pd |
 | **WS-6** | BE — Core services | 15 | **15** | ✅ **Xong** (15/8) | WS-4, WS-5 | 25 pd |
 | **WS-7** | BE — Backup/Restore & Observability | 12 | **11** | ✅ **Xong** (16/8) — T7.7 chờ VM-2 | WS-6 | 9 pd |
 | **WS-8** | FE — admin-app | 11 | **11** | ✅ **Xong** (17/8) | WS-4→6 (API) | 15 pd |
-| **WS-9** | FE — public-web | 5 | 0 | ⬜ Chưa bắt đầu | WS-1 | 5 pd |
+| **WS-9** | FE — public-web | 5 | **5** | ✅ **Xong** (17/8) | WS-1 | 5 pd |
 | **WS-10** | Test & CI | 7 | **7** | ✅ **Xong** (15/8) — bảo vệ nhánh đã áp dụng, còn nợ #27/#28 | WS-4 | 10 pd |
 | **WS-11** | Deploy Staging & Production | 10 | 0 | ⬜ Chưa bắt đầu | WS-3, 7, 10 | 10 pd |
-| | **TỔNG** | **107** | **90** | | | **114 pd** |
+| | **TỔNG** | **107** | **96** | | | **114 pd** |
 
 *(107 task triển khai + 21 mục Definition of Done ở cuối file.)*
 
@@ -138,7 +138,7 @@ WS-1 ─► WS-2 ─► WS-3          [nền — bắt buộc trước mọi th�
 - [x] **T3.1** `compose.infra.yml` — `postgres`(+PostGIS), `minio`(+`mc` tạo bucket), `mailpit`; **expose port ra host** để app chạy native từ IDE
 - [x] **T3.2** `compose.local.yml` — `include` infra + `migrator`/`app`/`admin-app`/`public-web`, chọn service bằng **Compose profile**
 - [x] **T3.3** `Dockerfile` backend: multi-stage (maven build → JRE 21 alpine), **non-root**, healthcheck theo `/actuator/health/readiness`
-- [ ] **T3.4** `Dockerfile` admin-app (build → nginx static) và public-web (Next standalone) — ⚠ **file đã viết, CHƯA build được**: `frontend/admin-app` và `frontend/public-web` do WS-8/WS-9 tạo. `make dev-fe`/`dev-docker` chặn sớm kèm thông báo rõ. **Nơi trả nợ: WS-8/T8.1 và WS-9/T9.5** — xong 2 chỗ đó phải quay lại tick task này + DoD mục 2
+- [x] **T3.4** `Dockerfile` admin-app (build → nginx static) và public-web (Next standalone) — ✅ **17/8: cả hai build thật và chạy**. Mỗi Dockerfile chép manifest của **workspace mình + `design-tokens`** rồi `npm ci --workspace <app>`; bản WS-3 chép chéo manifest của app kia nên app nào chưa tồn tại là image kia đổ theo
 - [x] **T3.5** Script init Postgres: extension + CREATE ROLE — *đã làm ở WS-2 (`deploy/postgres/init/`), WS-3 đấu vào compose*
 - [x] **T3.6** Profile Spring — **chỉ khác env, không khác code** — *§1.6*
 - [x] **T3.7** `make dev-infra` / `dev-be` / `dev-fe` / `dev-docker` / `dev-native` + `make doctor` + 2 tài liệu hướng dẫn
@@ -162,7 +162,7 @@ WS-1 ─► WS-2 ─► WS-3          [nền — bắt buộc trước mọi th�
 - ✅ Collation `ICU vi-VN`: `Anh < Dung < Đăng < Em` (mặc định sẽ xếp "Đăng" sau "Em")
 - ✅ `make doctor` liệt kê công cụ + 8 cổng, phát hiện đúng cổng bị chiếm
 - ✅ `make dev-fe` / `dev-docker` khi thiếu app FE → dừng sớm, chỉ rõ **WS-8 / T8.1**
-- ⬜ **Chưa kiểm chứng**: 2 image FE (T3.4) — không có `frontend/admin-app`, `frontend/public-web` để build
+- ✅ **Đã kiểm chứng 17/8**: cả 2 image FE build thật và chạy (`make dev-docker` → 6 container healthy)
 
 **Quyết định phát sinh khi làm**:
 | Việc | Xử lý |
@@ -422,7 +422,7 @@ Ngoài ra 2 lỗi bắt được trước khi chạy: `enqueue` truy vấn tiế
 **Tiên quyết**: API của WS-4/5/6. **Đầu ra**: SPA quản trị chạy được với đủ màn hình MOD-05. ✅ **Xong 17/8** — 56 tệp nguồn, **24 test xanh**, image Docker build + chạy thật.
 
 - [x] **T8.1** Vite 8 + React 18 + TS **strict, cấm `any`** + AntD 5 + TanStack Query 5 + React Router 7; cấu trúc `shared/ components/ features/ app/` — *§1.4*
-  - [x] **Trả nợ WS-3/T3.4 (nửa admin-app)**: `deploy/docker/admin-app.Dockerfile` **build thật** → image chạy, `/healthz` trả `ok`, SPA fallback 200 ở đường dẫn sâu, healthcheck `healthy`. ⚠ Phải sửa Dockerfile: bản cũ chép cả `public-web/package.json` và chạy `npm ci` trần nên **đổ ngay** khi WS-9 chưa tạo thư mục đó → nay `npm ci --workspace admin-app --include-workspace-root`. **Nửa public-web vẫn chờ WS-9/T9.5**, nên T3.4 và DoD mục 2 chưa đóng
+  - [x] **Trả nợ WS-3/T3.4 (nửa admin-app)**: `deploy/docker/admin-app.Dockerfile` **build thật** → image chạy, `/healthz` trả `ok`, SPA fallback 200 ở đường dẫn sâu, healthcheck `healthy`. ⚠ Phải sửa Dockerfile: bản cũ chép cả `public-web/package.json` và chạy `npm ci` trần nên **đổ ngay** khi WS-9 chưa tạo thư mục đó → nay `npm ci --workspace admin-app --include-workspace-root`. *(WS-9 đóng nốt nửa public-web ngày 17/8 → T3.4 và DoD mục 2 đã đóng.)*
 - [x] **T8.2** `shared/tokens.ts` — 5 màu trạng thái + màu thương hiệu + `sizing`, dựng ra `antdTheme.ts` và `echartsTheme` (object thuần, **không** import `echarts` — Phase 0 chưa có biểu đồ nào) — *§3*
 - [x] **T8.3** `shared/apiClient` — axios instance duy nhất: token trong bộ nhớ, CSRF double-submit có rơi về cookie, **làm mới token một lượt** (`refreshInFlight`) + gửi lại đúng một lần, bóc envelope, chuẩn hoá lỗi thành `ApiClientError` — *§2.5; `architecture-review.md` §9.10.1–9.10.2*
 - [x] **T8.4** `shared/error-map.ts` mirror **49 mã** — mỗi mã mang `handling` (hành động FE) chứ không chỉ câu chữ; **`error-map.test.ts` đọc thẳng `error-messages.properties` của backend** và đỏ khi lệch — *trả nợ #4 và #34*
@@ -446,16 +446,23 @@ Ngoài ra 2 lỗi bắt được trước khi chạy: `enqueue` truy vấn tiế
 
 ## WS-9 — FE public-web · 5 pd
 
-**Tiên quyết**: WS-1. **Đầu ra**: khung Next.js sẵn cho Phase 1 cắm CMS vào.
+**Tiên quyết**: WS-1. **Đầu ra**: khung Next.js sẵn cho Phase 1 cắm CMS vào. ✅ **Xong 17/8**.
 
-- [ ] **T9.1** Next.js + Tailwind + TS strict; import **tokens dùng chung** với admin-app
-- [ ] **T9.2** Layout công khai + trang chủ tạm + trang 404/500
-- [ ] **T9.3** SEO base: metadata/Open Graph, `sitemap.xml`, `robots.txt`
-- [ ] **T9.4** Scaffold ISR + `revalidate` hook (Phase 1 CMS cắm vào)
-- [ ] **T9.5** Health route + bật `output: 'standalone'` trong `next.config` — **Dockerfile đã có sẵn** ở `deploy/docker/Dockerfile.public-web` (WS-3 viết), việc ở đây là làm cho nó build được
-  - [ ] **Trả nợ WS-3/T3.4**: build thật 2 image FE → quay lại tick T3.4 và DoD mục 2
+- [x] **T9.1** Next.js 16 + Tailwind 4 + TS strict; **tokens dùng chung** qua workspace thứ ba `frontend/design-tokens` (admin-app import lại từ đó) — *`architecture-review.md` §9.11.1*
+- [x] **T9.2** Layout công khai (đầu trang + điều hướng + chân trang, có liên kết "bỏ qua tới nội dung" cho bàn phím) + trang chủ tạm + 404 + 500
+- [x] **T9.3** SEO base: `metadataBase` + Open Graph + template tiêu đề · `sitemap.ts` · `robots.ts` **tự chặn lập chỉ mục ở staging/local** (cùng mã nguồn, khác `NEXT_PUBLIC_SITE_URL`)
+- [x] **T9.4** ISR: `revalidate = 300` ở trang chủ làm mẫu + `POST /api/revalidate` (bí mật **không** mang tiền tố `NEXT_PUBLIC_`, so sánh chuỗi thời gian không đổi, chưa cấu hình thì **đóng** chứ không mở)
+- [x] **T9.5** `GET /api/health` + `output: 'standalone'`; image build thật và chạy — health `UP`, trang chủ 200, 404 đúng, `robots.txt` + `sitemap.xml` phát ra đúng
+  - [x] **Trả nợ WS-3/T3.4**: cả 2 image FE build thật → **T3.4 đóng, DoD mục 2 đóng**
 
-**Kiểm chứng**: `make dev-docker` → public-web render được, Lighthouse SEO không lỗi cấu hình cơ bản.
+**Kiểm chứng** *(17/8)*: `make dev-docker` → **6 container healthy**, admin-app (15173) + public-web (13000) + API (18080) trả lời cùng lúc; `POST /api/v1/auth/login` trả `AUTH-0001` đúng envelope kèm `traceId`.
+
+⚠ **Ba lỗi hạ tầng lộ ra khi chạy thật lần đầu — không cái nào thuộc WS-9, cả ba đều im lặng:**
+- **Image backend cũ 3 ngày vẫn được dùng lại.** `make dev-*` chỉ build lại khi gõ `BUILD=1`, nên `songnhue-app:local` còn nguyên bản dựng WS-3 — **trước khi có controller nào**. Container `healthy`, `/actuator/health` xanh, mà **mọi `/api/v1/**` trả 404** suốt WS-4→WS-8. Đổi mặc định thành **luôn build** (`NOBUILD=1` để bỏ qua) — đo thật: build lại khi mã không đổi tốn **~10 giây**.
+- **Migrator không bao giờ thoát.** Migration chạy xong, in "✓ Migration hoàn tất", rồi treo vĩnh viễn vì `@EnableScheduling` + worker hàng đợi giữ luồng không-daemon → `app` kẹt ở `Created`. Đây là cơ chế mà cả T11.4 dựa vào. Sửa bằng `SchedulingConfig` mang `@Profile("!migrate")` + `worker-enabled: false` + `lazy-initialization: true`; canh bằng **`MigrateProfileTest`** (4 bài, gồm bài **cấm `@EnableScheduling` xuất hiện ở lớp khác**).
+- **Migrator đòi khoá ký JWT** dù việc duy nhất của nó là chạy DDL — hệ quả của việc dựng cả context. Khởi tạo lười cắt đứt chuỗi đó; ở production nghĩa là không phải giao khoá ký cho tiến trình migration.
+
+Kèm hai chỗ lệch nhỏ: `deploy/env/local.env` trên máy dev thiếu **9 biến WS-7 thêm vào** (file example thì đủ) — đã bù; và `BACKUP_DIR` là **đường dẫn trong container** nên phải ghi đè ở compose giống `JWT_*_KEY_PATH`, không thể lấy từ `local.env`.
 
 ---
 
@@ -540,7 +547,7 @@ Cả bốn đều **báo thành công trong khi không làm gì cả** — đún
 Chạy tuần tự, tất cả phải xanh mới coi là Phase 0 hoàn thành:
 
 - [x] **1. Chạy native** — `make dev-infra` → `./mvnw -pl app spring-boot:run` → `GET /actuator/health` = UP ✅ *14/8*
-- [~] **2. Chạy full Docker** — `make dev-docker` → admin-app + public-web + API cùng lúc. ✅ *17/8*: image `admin-app` build thật từ `deploy/docker/admin-app.Dockerfile`, chạy lên, `/healthz` = `ok`, đường dẫn sâu trả `index.html` (SPA fallback), header `Server` đã ẩn phiên bản, healthcheck `healthy`. ⬜ **`public-web` chờ WS-9/T9.5** nên `make dev-docker` vẫn dừng sớm
+- [x] **2. Chạy full Docker** — `make dev-docker` → **6 container healthy**, admin-app (15173) + public-web (13000) + API (18080) trả lời cùng lúc ✅ *17/8*. ⚠ Đóng được mục này **cũng chính là lúc phát hiện** image backend đang là bản dựng WS-3 (không controller nào) và migrator treo vĩnh viễn — xem `architecture-review.md` §9.11.5–9.11.6
 - [x] **3. Fail-fast thiếu env** — xóa 1 biến bắt buộc → app **không khởi động**, log chỉ rõ key thiếu ✅ *14/8, sau khi sửa lỗi*
   - ⚠ **Chạy thử lần đầu thì KHÔNG đạt**: bỏ hẳn `MINIO_ENDPOINT` → app vẫn `Started`, health `UP`. `@Validated` + `@NotBlank` không bắt được vì trường nhận nguyên văn `"${MINIO_ENDPOINT}"`. Bỏ `AES_KEY_V1` thì có chặn, nhưng báo sai nguyên nhân ("khoá AES không phải base64 hợp lệ")
   - Sau khi thêm `UnresolvedPlaceholderGuard`: cả hai đều chặn, thông báo gọi đúng tên biến + đường dẫn tham số + chỗ sửa. Env đủ → vẫn khởi động bình thường trong ~6 giây
@@ -590,7 +597,7 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 0 hoàn thành:
 | 12 | MinIO client khởi tạo qua Spring bean | WS-4/T4.6 | WS-6/T6.3 | ✅ Trả 15/8 |
 | 13 | `FileValidator`: ClamAV async + strip EXIF | WS-4/T4.6 | WS-6/T6.4 | ✅ Trả 15/8 |
 | 14 | `SettingService` phần ghi + export/import loại trừ credential | WS-5 | WS-6/T6.11 | ✅ Trả 15/8 |
-| 15 | Build thật 2 image FE (Dockerfile đã viết, chưa chạy) | WS-3/T3.4 | WS-8/T8.1 + WS-9/T9.5 | 🟡 **Trả nửa 17/8** — `admin-app` build + chạy thật (đã phải sửa Dockerfile: `npm ci --workspace`); `public-web` chờ WS-9 |
+| 15 | Build thật 2 image FE (Dockerfile đã viết, chưa chạy) | WS-3/T3.4 | WS-8/T8.1 + WS-9/T9.5 | ✅ **Trả 17/8** — cả hai build + chạy thật. Cả hai Dockerfile đều phải sửa: chép manifest của **workspace mình + `design-tokens`** rồi `npm ci --workspace <app>`, thay vì chép chéo manifest của app kia |
 | 16 | ⚠ `POSTGRES_INITDB_ARGS` ICU `vi-VN` cho staging/prod | WS-3 | WS-11/T11.3 | ⬜ Chờ |
 | 17 | Nginx chặn `/swagger-ui/**` + `/v3/api-docs/**` | WS-4/T4.10 | WS-11/T11.6 | ⬜ Chờ |
 | 18 | `security_events` → Grafana + alert | WS-5/T5.14 | WS-7/T7.10 | ✅ Trả 16/8 — counter `songnhue_security_events_total{type,severity}` + 4 luật cảnh báo |
@@ -623,6 +630,7 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 0 hoàn thành:
 
 | Ngày | Nội dung |
 |---|---|
+| 2026-08-17 | **WS-9 xong + T3.4 đóng.** public-web: Next 16 + Tailwind 4 + TS strict, layout công khai, SEO base (`sitemap.ts`, `robots.ts` tự chặn lập chỉ mục ở staging/local), ISR + `POST /api/revalidate` cho luồng duyệt bài Phase 1, `GET /api/health`, `output: standalone`. Tách **workspace thứ ba `design-tokens`** để hai app FE ngang hàng cùng phụ thuộc (admin-app import lại từ đó). **`make dev-docker` → 6 container healthy, ba mặt trả lời cùng lúc → đóng DoD mục 2 và nợ #15.** ⚠ **Ba lỗi hạ tầng lộ ra đúng lúc chạy thật lần đầu, cả ba im lặng, không cái nào thuộc WS-9**: (1) **image backend là bản dựng WS-3, không có controller nào** — `make dev-*` chỉ build lại khi gõ `BUILD=1`, nên suốt WS-4→WS-8 container `healthy` mà **mọi `/api/v1/**` trả 404**; đổi mặc định thành luôn build (`NOBUILD=1` để bỏ), đo thật ~10 giây khi mã không đổi. (2) **migrator không bao giờ thoát** — migration xong, in "✓ Migration hoàn tất", rồi treo vì `@EnableScheduling` + worker giữ luồng không-daemon, `app` kẹt ở `Created`; đây đúng là cơ chế T11.4 dựa vào. (3) **migrator đòi khoá ký JWT** dù chỉ chạy DDL. Sửa bằng `SchedulingConfig` `@Profile("!migrate")` + `worker-enabled: false` + `lazy-initialization: true`, canh bằng **`MigrateProfileTest`** (4 bài, có bài cấm `@EnableScheduling` ở lớp khác). Chốt ở `architecture-review.md` §9.11. **259 test BE xanh** (209 core + 50 app) + **24 test FE**. |
 | 2026-08-17 | **WS-8 xong** — admin-app. 56 tệp nguồn, **24 test xanh**, lint/format/typecheck/build sạch. `apiClient` là HTTP client duy nhất: **access token chỉ nằm trong bộ nhớ** (F5 khôi phục phiên bằng `bootstrapSession`), CSRF double-submit có rơi về cookie, **làm mới token đúng một lượt**. `error-map.ts` mirror **49 mã** kèm *hành động* cho từng mã, và **có bài kiểm đọc thẳng `error-messages.properties` của backend** — trả nợ #4 + #34, đồng thời biến nghĩa vụ đồng bộ (đã trôi 3 đợt: 31→36→43→49) thành thứ CI bắt được. 8 màn hình quản trị + 2 màn hình cá nhân, gồm M5.10/M5.11 (trả nợ #32). Trả nửa nợ #15 (image `admin-app` build + chạy thật). Chốt ở `architecture-review.md` §9.10. ⚠ **Ba lỗi chỉ chạy thật mới lộ**: `tsc -b --noEmit false` **đẻ 49 tệp `.js` ngay trong `src/`** (lint, typecheck, build đều xanh — chỉ `prettier --check` bắt được một tệp lọt ra ngoài `src/`) · **`ci.yml` chạy `npm ci` sai thư mục** ở cả hai job FE, workspaces chỉ có một lockfile ở `frontend/` (nợ #36) · **ESLint 9 flat config không gộp cấu hình lồng nhau** — file con bị bỏ qua **im lặng**, rule React không chạy mà lint vẫn xanh. Mở nợ #35 (chưa có "quên mật khẩu") và #36. |
 | 2026-08-16 | **WS-7 xong 11/12** (T7.7 chờ VM-2). Sao lưu `pg_dump -Fc` hằng đêm + theo yêu cầu, sổ đăng ký `system_backups` ghi **cả lượt hỏng** · khôi phục qua UI 6 lớp chặn · maintenance mode · 4 health indicator + `GET /api/v1/system/health` cho M5.12 · 3 gauge + counter sự kiện bảo mật · Prometheus/Grafana + **14 luật cảnh báo** · 4 script vận hành · **7 runbook**. Trả nợ **#18** và **#21**; mở 6 dòng mới (#29–#34). **49 mã lỗi**, **255 test xanh** (209 core + 46 app). Chốt ở `architecture-review.md` §9.9: **kho sao lưu KÉO về VM-3 chứ không đẩy đi** (VM-1 bị chiếm vẫn không xoá được bản sao lưu) · `pg_dump` chạy bằng vai trò **readonly**, khôi phục là tính năng **bật riêng** · chỉ số đo **sự vắng mặt** chứ không đếm lỗi, `-1` ≠ `0` · **hai** alert backup chứ không phải một. ⚠ **Ba lỗi chỉ chạy thật mới lộ**: `@Transactional` trên phương thức tự gọi trong cùng lớp **không có tác dụng** (dòng `RUNNING` không được commit trước khi pg_dump chạy — đúng thứ cơ chế đó sinh ra để giữ) · `CHAR(64)` vs `String` làm `ddl-auto: validate` chặn **toàn bộ** context test tích hợp, 18 bài đỏ vì một cột · đọc luồng đầu ra tới EOF trước `waitFor(timeout)` làm hạn chờ **vô hiệu**. |
 | 2026-08-15 | **Áp dụng bảo vệ nhánh + kiểm chứng ngược bằng API** (trả nợ #23). Đã tạo `staging`/`production`, áp bảo vệ cả 3 nhánh, tạo environment `production` có người duyệt — 10 mục kiểm chứng đúng hết (`docs/branch-protection.md` §6.1). Nhưng **kiểm chứng ngược tìm ra 3 lỗi trong chính tài liệu tôi viết** (nợ #27), trong đó 2 cái thuộc đúng loại "xanh mà không chạy": (1) **`strict: true` ở staging/production tự khoá chặng đề bạt sau lần merge đầu** — `staging` sinh merge commit không có trong `dev`, GitHub đòi *Update branch*, mà cả hai chế độ của nút đó đều bị chính bảo vệ của `dev` chặn (merge commit vi phạm linear history, rebase cần force push); (2) **job `Vùng nào thay đổi` không nằm trong `contexts`** — nó hỏng thì 2 job nặng bị skip, mà skip **được tính là đạt**, nên PR merge được trong khi không bài kiểm nào chạy; (3) **1 người mà đòi 1 lượt duyệt là cấm merge** — GitHub cấm tự duyệt PR, nên mọi lần merge phải bấm bypass, mà bypass bỏ qua luôn cả status check. Kèm phát hiện ngoài cấu hình: **`dev` đang trống** — 18 commit/313 tệp nằm ở `common`, repo chưa chạy lượt CI nào (nợ #28). |

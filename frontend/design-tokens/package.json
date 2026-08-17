@@ -1,0 +1,11 @@
+{
+  "name": "design-tokens",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Design tokens dùng chung — admin-app (AntD + ECharts) và public-web (Tailwind)",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "types": "./src/index.ts"
+}

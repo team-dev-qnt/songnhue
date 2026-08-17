@@ -558,3 +558,83 @@ Backend Phase 0 không có endpoint đặt lại mật khẩu, và làm nửa v�
 là mở thêm một đường vào hệ thống mà chưa ai rà — trong khi kênh email hiện chỉ là thông báo một
 chiều. Đường chính thức lúc này: quản trị viên cấp lại mật khẩu tạm, người dùng bị bắt đổi ở lần đăng
 nhập kế tiếp. Ghi thành nợ #35 để không trôi thành "quên làm".
+
+---
+
+### 9.11. Cổng thông tin công khai và tệp chung của hai app FE (chốt 17/8, khi làm WS-9)
+
+#### 9.11.1. `design-tokens` là workspace thứ ba, không nằm trong admin-app
+
+Hai ứng dụng FE **ngang hàng**. Để bảng màu trong `admin-app` thì cổng thông tin công khai phải phụ
+thuộc vào ứng dụng quản trị nội bộ chỉ để lấy màu — quan hệ ngược chiều, và kéo cả mã nguồn
+admin-app vào bối cảnh build của public-web. Một gói nhỏ mà cả hai cùng phụ thuộc thì quan hệ đúng
+chiều, và mỗi image chỉ tải phần nó cần (`npm ci --workspace <app>`).
+
+Gói này **không có bước biên dịch**: `exports` trỏ thẳng vào `.ts`, Vite transpile sẵn, Next khai
+`transpilePackages`. Thêm một bước build chỉ để phát ra vài hằng số là thêm một chỗ quên chạy lại.
+
+Tailwind 4 khai theme bằng CSS (`@theme`), nhưng vẫn nhận cấu hình TS qua chỉ thị `@config` — dùng
+đường đó là có chủ ý: khai lại năm màu trạng thái bằng CSS custom property nghĩa là **hai bản sao**,
+mà năm màu đó mang nghĩa nghiệp vụ chứ không phải thẩm mỹ.
+
+#### 9.11.2. Cổng thông tin dựng tĩnh, không render động mỗi lượt
+
+Trang công khai chịu lượt xem không kiểm soát được (một bài viết được chia sẻ rộng là đủ), trong khi
+backend cùng lúc phục vụ hệ điều hành nội bộ **trên cùng một máy chủ VM-1**. HTML tĩnh + ISR giữ cho
+lượt đọc của công chúng không chạm tới CSDL.
+
+Kèm đường dựng lại **tức thì**: `POST /api/revalidate` cho những thứ không chờ được chu kỳ 5 phút —
+thông báo xả lũ, cảnh báo mực nước, đính chính bài đã đăng sai. `REVALIDATE_SECRET` **không** có
+tiền tố `NEXT_PUBLIC_`: biến mang tiền tố đó bị nhúng vào bundle gửi xuống trình duyệt, và khi đó
+endpoint này thành nút bất kỳ ai cũng bấm được để ép máy chủ dựng lại trang liên tục.
+
+#### 9.11.3. Health của public-web cố ý **không** hỏi sang backend
+
+Gọi sang API Core để kiểm tra thì backend hỏng sẽ làm container này bị đánh dấu unhealthy và khởi
+động lại — trong khi phần lớn cổng thông tin là HTML tĩnh, vẫn phục vụ người đọc bình thường. Một
+thành phần hỏng không nên làm hỏng lây thành phần còn chạy được. Tình trạng backend đã có chỗ riêng:
+`GET /api/v1/system/health` (M5.12).
+
+#### 9.11.4. Trang 500 công khai **không** hiện thông điệp lỗi
+
+Khác trang 500 của admin-app (hiện `traceId` cho cán bộ đọc lại cho quản trị viên): đây là trang ai
+cũng vào được. Next đã thay thông điệp lỗi thật bằng chuỗi rỗng kèm `digest` trước khi gửi xuống
+trình duyệt, và ta giữ nguyên cách đó — chỉ hiện `digest`, tra trong log máy chủ ra đúng lỗi.
+
+#### 9.11.5. ⚠ Migrator **phải thoát được** — và nó đã không thoát suốt từ WS-6
+
+Cả luồng deploy dựa vào một điều: `migrator` chạy Flyway rồi kết thúc mã 0, và
+`depends_on: service_completed_successfully` mới cho `app` khởi động (§9.2, T11.4). Đó là cơ chế duy
+nhất ngăn app lên trên schema hỏng.
+
+Thực tế đo được ngày 17/8: migration chạy xong, log in "✓ Migration hoàn tất", rồi tiến trình **không
+bao giờ thoát**. Container đứng `Up` vô hạn, `app` kẹt ở `Created`, **không một dòng lỗi nào**. Ba
+nguyên nhân chồng lên nhau, và tắt hai trong ba vẫn treo y như cũ:
+
+1. **`@EnableScheduling`** dựng `ThreadPoolTaskScheduler` với luồng **không phải daemon** — luồng đó
+   giữ JVM sống mãi. `spring.main.web-application-type: none` không cứu được: nó chỉ tắt cổng HTTP.
+   Khởi tạo lười cũng không, vì Spring Boot cố ý loại bean mang `@Scheduled` ra khỏi cơ chế đó. →
+   tách thành `SchedulingConfig` mang `@Profile("!migrate")`.
+2. **Worker hàng đợi** mở luồng riêng chạy vòng lặp vô hạn. → `app.worker-enabled: false` trong
+   profile `migrate`.
+3. **Không có khởi tạo lười**, context dựng cả chuỗi `AuthController → AuthService → TokenService →
+   JwtKeyStore`, và **đòi khoá ký JWT** dù việc duy nhất của tiến trình là chạy DDL. Ở production,
+   chiều theo đòi hỏi đó nghĩa là đưa khoá ký cho một tiến trình không có lý do gì để cầm. →
+   `spring.main.lazy-initialization: true`.
+
+Canh bằng `MigrateProfileTest`: kiểm cả ba công tắc, và **cấm `@EnableScheduling` xuất hiện ở lớp nào
+khác** — đó mới là đường quay lại của lỗi này.
+
+#### 9.11.6. ⚠ Image Docker mặc định **luôn build lại**
+
+`make dev-*` trước đây chỉ build lại khi gõ `BUILD=1`. Hệ quả đo được: image `songnhue-app:local` nằm
+nguyên từ WS-3 — bản dựng **trước khi có controller nào**. Container lên, healthcheck
+`/actuator/health` xanh, mà **mọi endpoint `/api/v1/**` trả 404**. Nhìn từ ngoài là "hệ thống chạy
+tốt"; không ai phát hiện suốt WS-4 → WS-8.
+
+Đo thật: build lại khi mã nguồn không đổi tốn **~10 giây**. Đổi mặc định thành luôn build, `NOBUILD=1`
+để bỏ qua.
+
+Cùng loại với những gì đã gặp ở §9.8: cơ chế canh gác báo xanh trong khi thứ nó phải canh chưa hề
+chạy. Ở đây thủ phạm là **healthcheck trỏ vào endpoint không đại diện cho thứ đang kiểm** —
+`/actuator/health` sống được kể cả khi không còn controller nào.

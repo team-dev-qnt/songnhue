@@ -6,7 +6,7 @@ import { usePagination } from '@/components/usePagination';
 import { type InboxEntry } from '@/shared/api-types';
 import { ApiClientError, api } from '@/shared/apiClient';
 import { formatDateTime } from '@/shared/format';
-import { severityColorKey, statusColors } from '@/shared/tokens';
+import { severityColorKey, statusColors } from 'design-tokens';
 
 /** Hộp thư trong ứng dụng — kênh thông báo v1 (SMS đã bỏ khỏi phạm vi, chốt BOQ đợt 1). */
 export function InboxPage() {

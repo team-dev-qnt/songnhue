@@ -9,7 +9,7 @@
 #   make dev-fe      bạn code BE      → Docker chạy thêm 2 APP FE
 #   make dev-docker  QA / demo        → Docker chạy TẤT CẢ
 #
-# Thêm BUILD=1 để build lại image từ mã nguồn hiện tại.
+# Image LUÔN được build lại từ mã nguồn hiện tại; thêm NOBUILD=1 để bỏ qua.
 # `make` không tham số = hiện danh sách lệnh.
 # =============================================================================
 
@@ -67,8 +67,17 @@ define need_fe_app
 	}
 endef
 
-# BUILD=1 → build lại image từ mã nguồn hiện tại trước khi chạy
-BUILD_FLAG := $(if $(BUILD),--build,)
+# Build lại image từ mã nguồn hiện tại — MẶC ĐỊNH BẬT. `NOBUILD=1` để bỏ qua.
+#
+# ⚠ Trước 17/8 mặc định là NGƯỢC LẠI (phải gõ BUILD=1 mới build lại), và nó đã gây ra
+#   đúng kiểu hỏng im lặng mà dự án này gặp nhiều lần: image `songnhue-app:local` nằm
+#   nguyên từ WS-3, tức là bản dựng TRƯỚC khi có controller nào. Container lên, healthcheck
+#   `/actuator/health` xanh, mà MỌI endpoint `/api/v1/**` trả 404 — nhìn từ ngoài thì "hệ
+#   thống chạy tốt". Không ai phát hiện suốt WS-4→WS-8.
+#
+#   Đo thật: build lại khi mã nguồn KHÔNG đổi tốn ~10 giây (Docker dùng lại toàn bộ lớp
+#   cache). Đó là cái giá quá rẻ so với việc chạy thử trên một bản dựng cũ ba ngày.
+BUILD_FLAG := $(if $(NOBUILD),,--build)
 
 # -----------------------------------------------------------------------------
 .PHONY: help
@@ -86,7 +95,8 @@ help: ## Hiện danh sách lệnh
 # Nguyên tắc: service nào ĐANG SỬA thì chạy native, còn lại đẩy vào Docker.
 # Chi tiết từng vai trò: docs/run-guideline.md
 #
-# Thêm BUILD=1 vào bất kỳ lệnh nào để build lại image từ mã nguồn hiện tại.
+# Mọi lệnh dev-* đều build lại image trước khi chạy (~10s khi mã không đổi).
+# Thêm NOBUILD=1 nếu chắc chắn image đang khớp mã nguồn.
 
 .PHONY: dev-infra
 dev-infra: ## [BE+FE native] Chỉ hạ tầng: PostgreSQL, MinIO, Mailpit

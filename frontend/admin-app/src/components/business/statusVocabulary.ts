@@ -1,4 +1,4 @@
-import { type StatusColorKey } from '@/shared/tokens';
+import { type StatusColorKey } from 'design-tokens';
 
 /**
  * Bộ từ vựng trạng thái — **một nơi duy nhất** dịch enum của backend sang nhãn + màu.

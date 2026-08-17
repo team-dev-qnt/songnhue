@@ -18,7 +18,7 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/app/auth/useAuth';
 import { MENU, findMenuKey, visibleMenu, type MenuNode } from '@/app/menu';
 import { api } from '@/shared/apiClient';
-import { neutralColors, sizing } from '@/shared/tokens';
+import { neutralColors, sizing } from 'design-tokens';
 
 const { Header, Sider, Content } = Layout;
 

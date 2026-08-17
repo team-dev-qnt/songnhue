@@ -76,6 +76,13 @@ admin-app/src/
 - **Điều kiện hiện/ẩn nhiều vế phải tách thành hàm thuần có bài kiểm**, không nằm lẫn trong JSX — xem `architecture-review.md` §9.10.4.
 - **Bản sao danh mục mã lỗi phải có bài kiểm đọc thẳng file của backend** (`error-map.test.ts`). Nghĩa vụ đồng bộ ghi bằng chú thích đã trôi qua ba đợt mà không ai làm.
 
+**Bổ sung sau WS-9 (17/8)**:
+
+- **Thứ dùng chung giữa hai app FE nằm ở workspace riêng** (`frontend/design-tokens`), không nằm trong app này rồi app kia import sang — hai app ngang hàng, để lẫn là tạo quan hệ phụ thuộc ngược và kéo mã nguồn app kia vào bối cảnh build. Gói dùng chung xuất thẳng `.ts`, không có bước biên dịch riêng.
+- **Mỗi Dockerfile FE chỉ chép manifest của workspace mình + gói dùng chung**, rồi `npm ci --workspace <app> --include-workspace-root`. Chép chéo manifest của app kia làm hai image ràng buộc lẫn nhau vô cớ.
+- **Bí mật phía máy chủ của Next tuyệt đối không mang tiền tố `NEXT_PUBLIC_`** — biến mang tiền tố đó bị nhúng vào bundle gửi xuống trình duyệt.
+- **`robots.ts` phải tự chặn lập chỉ mục khi không phải production.** Staging dùng chung mã nguồn với production; cho lập chỉ mục là Google có hai bản của cùng nội dung.
+
 ### 1.5. Git & CI
 
 - Branch: `feat/<module>-<mô-tả>`, `fix/…`, `chore/…`; commit theo Conventional Commits (`feat(ops): thêm alert engine`).
@@ -107,7 +114,8 @@ songnhue/
 │   ├── content/             MOD-01   operations/  MOD-02
 │   ├── hydro/               MOD-03   hr/          MOD-04
 │   └── app/                 bootstrap: main, application*.yml, Dockerfile
-├── frontend/
+├── frontend/                npm workspaces — MỘT lockfile, MỘT eslint.config.mjs
+│   ├── design-tokens/       màu + kích thước dùng chung, xuất thẳng .ts (không build)
 │   ├── admin-app/           Vite + React 18 + AntD 5
 │   └── public-web/          Next.js + Tailwind
 ├── deploy/

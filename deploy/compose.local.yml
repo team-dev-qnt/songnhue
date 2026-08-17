@@ -45,6 +45,11 @@ services:
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
+      # Migrator chỉ chạy DDL, nhưng context Spring vẫn dựng vài bean có `@Scheduled`
+      # (Spring Boot cố ý loại chúng khỏi khởi tạo lười, nếu không tác vụ định kỳ
+      # không bao giờ chạy) — và chúng kéo theo `BackupProperties`. Cấp một đường dẫn
+      # hợp lệ là đủ; đây không phải bí mật.
+      BACKUP_DIR: /var/lib/songnhue/backup
     command: ["--spring.profiles.active=migrate"]
     healthcheck:
       disable: true
@@ -84,6 +89,10 @@ services:
       # Khóa nằm ngoài image — mount vào lúc chạy, không bao giờ bake vào layer
       JWT_PRIVATE_KEY_PATH: /app/keys/jwt-private.pem
       JWT_PUBLIC_KEY_PATH: /app/keys/jwt-public.pem
+      # Đường dẫn TRONG container. Giá trị ở local.env là đường dẫn tương đối của máy
+      # dev (`./.backup`), trong container nó thành `/app/./.backup` — sai chỗ, và
+      # Dockerfile đã chuẩn bị sẵn /var/lib/songnhue/backup đúng chủ sở hữu cho việc này.
+      BACKUP_DIR: /var/lib/songnhue/backup
     volumes:
       - ./keys:/app/keys:ro
     ports:

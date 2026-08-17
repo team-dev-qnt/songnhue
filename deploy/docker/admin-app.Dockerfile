@@ -20,6 +20,7 @@ WORKDIR /build
 #   nhau thì thêm/bớt app không kéo image kia hỏng theo, và mỗi image cũng chỉ
 #   tải đúng phần phụ thuộc của mình.
 COPY package.json package-lock.json .npmrc ./
+COPY design-tokens/package.json design-tokens/
 COPY admin-app/package.json admin-app/
 RUN npm ci --workspace admin-app --include-workspace-root
 

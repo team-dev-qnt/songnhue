@@ -1,13 +1,24 @@
 /**
  * Design tokens — **nguồn duy nhất** của màu sắc và khoảng cách (conventions.md §3).
  *
- * Ba nơi tiêu thụ file này: theme AntD (admin-app), theme ECharts (biểu đồ Phase 2),
- * và Tailwind config của public-web (WS-9 import lại đúng file này).
+ * Ba nơi tiêu thụ: theme AntD (admin-app), theme ECharts (biểu đồ Phase 2), và Tailwind
+ * config của public-web.
+ *
+ * <h3>Vì sao là một workspace riêng, không nằm trong admin-app</h3>
+ *
+ * Hai ứng dụng FE **ngang hàng nhau**. Nếu tokens ở trong admin-app thì cổng thông tin
+ * công khai phải phụ thuộc vào ứng dụng quản trị nội bộ để lấy màu — quan hệ ngược, và
+ * kéo theo cả mã nguồn admin-app vào bối cảnh build của public-web. Một gói nhỏ mà cả
+ * hai cùng phụ thuộc thì quan hệ đúng chiều và mỗi image chỉ tải phần nó cần.
  *
  * ⛔ **Cấm khai màu tại chỗ trong page/component.** Không phải vì "cho gọn" — mà vì
  * năm màu trạng thái dưới đây mang **nghĩa nghiệp vụ**: đỏ = sự cố đang mở, vàng = cảnh
  * báo ngưỡng, xám = trạm mất tín hiệu (chốt G3). Một màn hình tự chọn sắc đỏ khác là
  * người trực đọc sai mức nghiêm trọng, chứ không phải lệch thẩm mỹ.
+ *
+ * Gói này **không có bước biên dịch**: `exports` trỏ thẳng vào `.ts` và mỗi app tự
+ * transpile (Vite làm sẵn; Next cần khai `transpilePackages`). Thêm một bước build chỉ
+ * để phát ra vài hằng số là thêm một chỗ quên chạy lại.
  */
 
 /** Năm màu trạng thái hệ thống — conventions.md §3, `function-spec.md` §4 (GIS + dashboard). */

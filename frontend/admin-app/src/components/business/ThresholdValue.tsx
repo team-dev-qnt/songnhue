@@ -1,7 +1,7 @@
 import { Tooltip } from 'antd';
 
 import { formatNumber } from '@/shared/format';
-import { statusColors, type StatusColorKey } from '@/shared/tokens';
+import { statusColors, type StatusColorKey } from 'design-tokens';
 
 /**
  * Số đo tự đổi màu theo ngưỡng (conventions.md §3).

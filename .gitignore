@@ -31,6 +31,8 @@ replay_pid*
 node_modules/
 dist/
 .next/
+# Next sinh lại mỗi lần build; commit vào là gây xung đột vô nghĩa
+next-env.d.ts
 out/
 *.tsbuildinfo
 .eslintcache

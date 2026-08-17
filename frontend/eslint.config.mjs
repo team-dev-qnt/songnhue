@@ -100,7 +100,6 @@ export default tseslint.config(
     plugins: {
       react,
       'react-hooks': reactHooks,
-      'react-refresh': reactRefresh,
     },
     languageOptions: {
       parserOptions: { ecmaFeatures: { jsx: true } },
@@ -114,10 +113,30 @@ export default tseslint.config(
       // conventions.md §4.4. Nội dung bài viết CMS đến từ trình soạn thảo, tức là đúng
       // đường một payload XSS đi vào nếu chỗ nào đó lỡ tay.
       'react/no-danger': 'error',
+    },
+  },
 
-      // Hot-reload của Vite chỉ giữ được state khi mỗi module chỉ xuất component.
-      // Cảnh báo thôi vì `--max-warnings=0` đã biến nó thành lỗi ở CI.
+  // Chỉ admin-app: hot-reload của Vite chỉ giữ được state khi mỗi module chỉ xuất
+  // component. Không áp cho public-web — App Router của Next BẮT BUỘC trang xuất kèm
+  // `metadata`, `revalidate`, `dynamic` cạnh component, và Next có cơ chế Fast Refresh
+  // riêng không dựa vào luật này.
+  {
+    files: ['admin-app/src/**/*.{ts,tsx}'],
+    plugins: { 'react-refresh': reactRefresh },
+    rules: {
+      // Cảnh báo thôi, nhưng `--max-warnings=0` đã biến nó thành lỗi ở CI.
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+    },
+  },
+
+  // public-web gọi `fetch` phía máy chủ — đó là API dữ liệu của Next, và cũng là chỗ
+  // Next gắn cơ chế cache/ISR vào. Lệnh cấm `fetch` ở trên viết cho admin-app, nơi mọi
+  // request phải đi qua `shared/apiClient` để có CSRF và làm mới token; cổng thông tin
+  // công khai thì không có phiên nào để bảo vệ.
+  {
+    files: ['public-web/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-globals': 'off',
     },
   },
 

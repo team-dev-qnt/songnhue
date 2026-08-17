@@ -1,6 +1,6 @@
 import { Tag, Tooltip } from 'antd';
 
-import { statusColors } from '@/shared/tokens';
+import { statusColors } from 'design-tokens';
 
 import { type StatusVocabulary } from './statusVocabulary';
 

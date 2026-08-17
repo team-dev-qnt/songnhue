@@ -1,0 +1,21 @@
+@import 'tailwindcss';
+
+/* Nạp cấu hình TS để lấy màu từ `design-tokens` — xem `tailwind.config.ts` giải thích. */
+@config "../../tailwind.config.ts";
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-white text-surface-textBase antialiased;
+}
+
+/*
+  Vòng viền khi điều hướng bằng bàn phím: giữ rõ ràng, không tắt.
+  Cổng thông tin của cơ quan nhà nước phải dùng được bằng bàn phím và trình đọc màn hình.
+*/
+:focus-visible {
+  outline: 2px solid theme(--color-brand-primary);
+  outline-offset: 2px;
+}

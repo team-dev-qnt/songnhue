@@ -169,7 +169,7 @@ khi có script init. Chạy `make reset-db`.
 **Đổi mật khẩu trong `local.env` mà không ăn** → xem cảnh báo ở mục 4.
 
 **Sửa code mà container vẫn chạy code cũ** → image không tự bám theo file trên
-máy, phải build lại: thêm `BUILD=1` (`make dev-be BUILD=1`). Xem
+máy, image sẽ tự build lại (mặc định từ 17/8) — chỉ khi bạn tự thêm `NOBUILD=1` thì mới bỏ qua. Xem
 [`run-guideline.md`](run-guideline.md) mục "Docker có biên dịch theo code local
 không".
 

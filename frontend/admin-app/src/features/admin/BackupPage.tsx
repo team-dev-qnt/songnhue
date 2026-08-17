@@ -26,7 +26,7 @@ import { BACKUP_STATUS, BACKUP_TRIGGER } from '@/components/business/statusVocab
 import { type BackupStatusView, type BackupView } from '@/shared/api-types';
 import { ApiClientError, api } from '@/shared/apiClient';
 import { formatAge, formatBytes, formatDateTime, formatDuration } from '@/shared/format';
-import { statusColors } from '@/shared/tokens';
+import { statusColors } from 'design-tokens';
 
 import { isRestoreVisible } from './restoreAccess';
 

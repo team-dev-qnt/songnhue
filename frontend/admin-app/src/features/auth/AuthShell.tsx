@@ -1,7 +1,7 @@
 import { Card, Typography } from 'antd';
 import { type ReactNode } from 'react';
 
-import { neutralColors } from '@/shared/tokens';
+import { neutralColors } from 'design-tokens';
 
 /** Khung chung của các màn hình chưa đăng nhập — một chỗ để không lệch bố cục giữa 4 bước. */
 export function AuthShell({

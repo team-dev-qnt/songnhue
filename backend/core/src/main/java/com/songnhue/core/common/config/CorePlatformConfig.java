@@ -5,7 +5,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
-import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 /**
@@ -14,12 +13,10 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
  * <p>{@code @EnableJpaAuditing} làm cho {@code created_at/by} và {@code updated_at/by} của
  * {@code BaseEntity} tự điền — không lập trình viên nào phải nhớ set tay, và cũng không ai set sai.
  *
- * <p>{@code @EnableScheduling} phục vụ job dọn token hết hạn (WS-5). WS-6 chuyển các tác vụ định kỳ
- * sang hàng đợi job trong DB + ShedLock; annotation này vẫn giữ vì vài việc dọn dẹp hạ tầng không
- * cần tới bộ máy đó.
+ * <p>Bộ lập lịch <b>không</b> bật ở đây mà ở {@link SchedulingConfig} — nó phải tắt được riêng cho
+ * vai trò migrator, vì luồng lập lịch giữ JVM sống và migrator thì bắt buộc phải thoát.
  */
 @Configuration
-@EnableScheduling
 @EnableJpaAuditing(auditorAwareRef = "auditorAware")
 @EnableConfigurationProperties({
     AppProperties.class,

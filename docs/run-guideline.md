@@ -23,7 +23,12 @@ cho phần việc của người khác.
 | `make dev-fe` | + **admin-app, public-web** | backend | **Người làm BE** — không cần cài Node |
 | `make dev-docker` | **tất cả** | không | QA, demo, kiểm thử gần giống production |
 
-Thêm `BUILD=1` vào bất kỳ lệnh nào để build lại image từ mã nguồn hiện tại.
+Mọi lệnh `dev-*` **luôn build lại image** từ mã nguồn hiện tại trước khi chạy — khi mã không đổi
+chỉ tốn ~10 giây vì Docker dùng lại lớp cache. Thêm `NOBUILD=1` nếu muốn bỏ qua bước đó.
+
+> ⚠ Mặc định này đổi ngày 17/8. Trước đó phải gõ `BUILD=1` mới build lại, và hệ quả là image
+> backend nằm nguyên từ WS-3: container lên, `/actuator/health` xanh, mà **mọi endpoint
+> `/api/v1/**` trả 404** vì bản dựng đó chưa có controller nào.
 
 Lệnh phụ trợ: `make ps` · `make logs` · `make down` · `make reset-db` ·
 `make doctor`.
@@ -44,7 +49,7 @@ dịch diễn ra **bên trong container** (Dockerfile đa tầng). Nên:
 
 ```bash
 make dev-be            # dùng image đã build sẵn — KHÔNG build lại
-make dev-be BUILD=1    # build lại từ code hiện tại rồi chạy
+make dev-be            # luôn build lại từ code hiện tại rồi chạy
 make build-images      # chỉ build, không chạy
 ```
 
@@ -54,7 +59,7 @@ make build-images      # chỉ build, không chạy
 |---|---|---|
 | Đầu tiên | ~9–10 phút | Tải toàn bộ dependency Maven |
 | Sau khi sửa code | **~7 giây** | Lớp dependency được cache, chỉ biên dịch lại mã nguồn |
-| `make dev-be BUILD=1` trọn gói | **~11 giây** | Gồm cả build + khởi động lại container |
+| `make dev-be` trọn gói | **~11 giây** | Gồm cả build + khởi động lại container |
 
 Dockerfile chép `pom.xml` trước rồi mới chép mã nguồn, nên **sửa code mà không
 đụng `pom.xml`** thì cache dependency vẫn dùng lại được. Đổi `pom.xml` thì lần
@@ -88,7 +93,7 @@ cd frontend/admin-app && npm run dev
 - Backend ở `http://localhost:18080` → đặt
   `VITE_API_BASE_URL=http://localhost:18080/api/v1` (đây là giá trị mặc định
   trong `local.env.example`).
-- Backend đổi code (do người khác push)? `git pull` rồi `make dev-be BUILD=1`.
+- Backend đổi code (do người khác push)? `git pull` rồi `make dev-be` — image tự build lại.
 - **Không cần cài JDK.**
 
 ### Bạn làm backend
@@ -117,7 +122,7 @@ Hot-reload cả hai phía, Docker chỉ giữ PostgreSQL/MinIO/Mailpit.
 
 ```bash
 git pull
-make dev-docker BUILD=1
+make dev-docker
 ```
 
 Toàn bộ stack từ code của nhánh hiện tại, chạy ở chế độ giống production.
@@ -156,14 +161,14 @@ make migrate-native    # chạy migration rồi thoát (không khởi động we
 make db-verify-audit   # kiểm tra chuỗi hash audit — 0 dòng = nguyên vẹn
 ```
 
-Thêm migration mới thì phải build lại image backend (`BUILD=1`) — file `.sql`
+Thêm migration mới thì image backend phải được build lại (mặc định đã làm) — file `.sql`
 nằm trong jar.
 
 ---
 
 ## Sự cố hay gặp
 
-**Sửa code mà không thấy đổi** → thiếu `BUILD=1`.
+**Sửa code mà không thấy đổi** → có đang chạy với `NOBUILD=1` không? Bỏ nó đi.
 
 **`✗ Chưa có frontend/admin-app/`** → app FE do WS-8/WS-9 tạo, chưa có. Dùng
 `make dev-be`.
