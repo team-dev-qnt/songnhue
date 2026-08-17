@@ -91,6 +91,8 @@ admin-app/src/
   - Cổng bao phủ: JaCoCo `check` ở phase `verify`, **chỉ soi gói `domain`**. Ngưỡng hiện tại (`jacoco.domain.line.coverage`) là **mức đo được**, không phải mục tiêu — nâng dần khi Phase 1 đưa logic nghiệp vụ thật vào `domain`, và không bao giờ hạ.
 - Cấm commit: secrets, file config môi trường thật, `.env` (dùng `.env.example`).
 - ⚠ **Mỗi cơ chế canh gác phải có bài kiểm chứng minh nó bắt được vi phạm.** WS-10 tìm ra **4 cơ chế báo xanh trong khi không chạy qua thứ gì** (`architecture-review.md` §9.8.2): bộ máy ArchUnit tìm ra 0 bài kiểm, luật JaCoCo bị bỏ qua vì lọc sai chỗ, và 2 luật chạy qua 0 lớp. "Xanh" chỉ nói lên rằng nó không đỏ, không nói lên rằng nó đang canh.
+- ⚠⚠ **Mock đặt đúng chỗ mã chạm ra ngoài = chưa kiểm gì cả.** Chạm ra ngoài nghĩa là tiến trình con, CSDL, hệ tệp, mạng — nơi *môi trường* mới là thứ hay hỏng, chứ không phải logic. Rà soát 17/8 (`architecture-review.md` §9.12.1): `BackupServiceTest` mock `PostgresToolRunner` nên xanh trọn vẹn trong khi `pg_dump` **chưa từng chạy được một lần nào** vì thiếu một quyền trên CSDL — mất trắng cơ chế sao lưu suốt 3 work stream. Bài kiểm mock chứng minh phần điều phối, và phải đi kèm **một** bài chạy thật qua đúng ranh giới đó.
+- ⚠ **Script shell cũng là cơ chế canh gác, và hỏng còn im lặng hơn.** `verify-no-keys.sh` in `✓` suốt từ WS-7 vì mẫu tìm khoá PEM bắt đầu bằng `-` nên `grep` đọc thành tuỳ chọn rồi chết, mà lời gọi nằm trong `if` nên lỗi bị nuốt (§9.12.2). Luật: mẫu luôn truyền qua `-e`/`--`, và script canh gác phải **tự kiểm mỗi lượt** — cho một mẫu vi phạm giả đi qua đúng hàm đó và bắt nó phải kêu.
 
 ### 1.6. Cấu hình & kết nối — bắt buộc qua env
 

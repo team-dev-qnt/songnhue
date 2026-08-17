@@ -136,4 +136,19 @@ class MigrationTest extends IntegrationTestBase {
 
         assertThat(extensions).contains("postgis", "unaccent", "pg_trgm");
     }
+
+    @Test
+    @DisplayName("⚠ CSDL test KHÔNG có extension nào ngoài danh sách của production")
+    void noExtraExtensionsBeyondProduction() {
+        // Kiểm chiều ngược của bài trên, và nó khó thấy hơn hẳn: thừa extension thì mọi bài kiểm
+        // vẫn xanh, chỉ production mới hỏng. Đã xảy ra thật (17/8) — image `postgis/postgis` mang
+        // sẵn script tạo `postgis_topology` + `postgis_tiger_geocoder`, ở production bị bind-mount
+        // của compose che mất, còn trong test thì vẫn chạy. Hệ quả đo được: `pg_dump` bằng vai trò
+        // readonly đỏ vì schema `tiger` — một schema không tồn tại ở production.
+        List<String> extensions = jdbc.queryForList("SELECT extname FROM pg_extension ORDER BY 1", String.class);
+
+        assertThat(extensions)
+                .as("khớp đúng `deploy/postgres/init/10-bootstrap.sh` — thừa ở đây là test và thật đã lệch nhau")
+                .containsExactlyInAnyOrder("plpgsql", "postgis", "unaccent", "pg_trgm");
+    }
 }

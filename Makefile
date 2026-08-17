@@ -169,7 +169,11 @@ logs: ## Xem log stack local
 .PHONY: migrate
 migrate: ## Chạy Flyway migration trong Docker (service `migrator` riêng)
 	$(call need_file,$(DEPLOY)/compose.$(ENV).yml,WS-11 / T11.3)
-	$(COMPOSE) --env-file $(ENV_FILE) -f $(DEPLOY)/compose.$(ENV).yml run --rm migrator
+	@# ⚠ `--build` cũng bắt buộc ở đây, cùng lý do với BUILD_FLAG ở trên và nặng hơn một bậc:
+	@#   migration nằm trong jar, nên image cũ nghĩa là chạy Flyway của bản mã CŨ. Đã xảy ra
+	@#   thật (17/8): thêm một migration rồi `make migrate` báo "✓ Migration hoàn tất" với đúng
+	@#   số bản cũ — thành công theo mọi dấu hiệu nhìn thấy được, mà migration mới thì không chạy.
+	$(COMPOSE) --env-file $(ENV_FILE) -f $(DEPLOY)/compose.$(ENV).yml run --rm --build migrator
 
 .PHONY: migrate-info
 migrate-info: ## Xem trạng thái migration đã áp dụng

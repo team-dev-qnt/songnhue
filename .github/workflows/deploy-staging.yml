@@ -127,8 +127,11 @@ jobs:
           BASE_URL: ${{ secrets.STAGING_BASE_URL }}
         run: |
           set -euo pipefail
+          # ⚠ Readiness chứ không phải bản tổng — xem chú thích cùng chỗ ở
+          #   deploy-prod.yml: bản tổng gộp chỉ số sao lưu, mà môi trường mới
+          #   dựng thì chưa từng có bản sao lưu nào nên nó DOWN một cách đúng đắn.
           for i in $(seq 1 30); do
-            if curl -fsS "$BASE_URL/actuator/health" | grep -q '"status":"UP"'; then
+            if curl -fsS "$BASE_URL/actuator/health/readiness" | grep -q '"status":"UP"'; then
               echo "✓ Staging khoẻ sau ${i}0 giây"
               exit 0
             fi

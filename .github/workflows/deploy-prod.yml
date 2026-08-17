@@ -143,8 +143,15 @@ jobs:
           BASE_URL: ${{ secrets.PROD_BASE_URL }}
         run: |
           set -euo pipefail
+          # ⚠ Hỏi `/actuator/health/readiness`, KHÔNG phải `/actuator/health`.
+          #   Bản tổng gộp cả chỉ số sao lưu, mà chỉ số đó cố ý báo DOWN khi chưa
+          #   từng có bản sao lưu thành công (BackupHealthIndicator). Trên môi
+          #   trường mới dựng — tức đúng lần deploy đầu tiên — chưa có bản nào,
+          #   nên bản tổng trả 503 và smoke test này sẽ đỏ suốt 5 phút vì một
+          #   chuyện hoàn toàn bình thường. Readiness trả lời đúng câu đang hỏi:
+          #   ứng dụng đã phục vụ được request chưa.
           for i in $(seq 1 30); do
-            if curl -fsS "$BASE_URL/actuator/health" | grep -q '"status":"UP"'; then
+            if curl -fsS "$BASE_URL/actuator/health/readiness" | grep -q '"status":"UP"'; then
               echo "✓ Production khoẻ sau ${i}0 giây"
               exit 0
             fi

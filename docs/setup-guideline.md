@@ -117,10 +117,15 @@ lỗi ngay lúc khởi động thay vì để ứng dụng lặng lẽ nối nh�
 
 ```bash
 make dev-be                 # hạ tầng + backend trong Docker
-curl http://localhost:18080/actuator/health
+curl http://localhost:18080/actuator/health/readiness
 ```
 
-Kỳ vọng `{"status":"UP", ...}`.
+Kỳ vọng `{"status":"UP"}`.
+
+> ⚠ **`/actuator/health` (bản tổng) trả `DOWN` trên máy mới dựng — và đó là đúng.** Bản tổng gộp cả
+> chỉ số sao lưu, mà máy vừa dựng thì chưa chạy `make backup` lần nào nên chỉ số đó báo *"Chưa từng
+> có bản sao lưu thành công nào"*. Câu hỏi "backend đã phục vụ được chưa" là `readiness`; bản tổng
+> trả lời một câu khác — "hệ thống có đang thiếu lưới an toàn nào không".
 
 | Truy cập | Địa chỉ |
 |---|---|

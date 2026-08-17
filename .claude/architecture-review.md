@@ -638,3 +638,94 @@ tốt"; không ai phát hiện suốt WS-4 → WS-8.
 Cùng loại với những gì đã gặp ở §9.8: cơ chế canh gác báo xanh trong khi thứ nó phải canh chưa hề
 chạy. Ở đây thủ phạm là **healthcheck trỏ vào endpoint không đại diện cho thứ đang kiểm** —
 `/actuator/health` sống được kể cả khi không còn controller nào.
+
+---
+
+### 9.12. Rà soát nợ và kiểm chứng lại các WS đã đóng (17/8)
+
+Rà soát này **không** thêm chức năng nào. Việc của nó là chạy lại bằng tay những thứ đã đánh dấu
+xong, và nó tìm ra **bốn lỗi thật**, trong đó ba nằm ở đúng cơ chế mà cả hệ thống dựa vào.
+
+#### 9.12.1. ⚠⚠ Sao lưu **không sinh ra tệp nào** — hai nguyên nhân chồng lên nhau
+
+`make backup` trên hệ đang chạy dừng ở:
+
+```
+pg_dump: error: query failed: ERROR: permission denied for sequence system_backups_id_seq
+```
+
+`V202608131006` §3 khai quyền mặc định cho bảng tạo sau, nhưng chỉ có dòng `TABLES` cho
+`songnhue_readonly`, **thiếu dòng `SEQUENCES`**. `GRANT … ON ALL SEQUENCES` ở cùng migration chỉ áp
+cho sequence *đang tồn tại lúc nó chạy*. Bảng đầu tiên tạo sau nó là `system_backups` — **chính bảng
+sổ đăng ký sao lưu** — nên cơ chế sao lưu tự chặn mình bằng cái bảng nó vừa tạo ra.
+
+Sửa ở tầng quyền mặc định (`V202608171011`), không phải bằng một `GRANT` lẻ: mọi bảng của Phase 1+
+(công trình, thuỷ văn, hồ sơ nhân sự) đều sẽ làm hỏng lại đúng như vậy, mỗi lần đều im lặng cho tới
+lần sao lưu kế tiếp.
+
+**Vì sao 255 bài kiểm của WS-7 không bắt được**: `BackupServiceTest` **mock `PostgresToolRunner`**.
+Nó chứng minh phần điều phối — checksum đọc lại từ đĩa, ghi `FAILED` khi hỏng, mật khẩu đi qua
+`PGPASSWORD` — nhưng **chưa một lần gọi `pg_dump`**. Nay có `BackupRoleTest` chạy `pg_dump` thật bằng
+đúng vai trò và đúng tham số của production, **bên trong container** để phiên bản luôn khớp máy chủ.
+
+Đây là lỗi đắt nhất trong nhóm: hệ này **không có PITR, không có replica** (§6.5), nên bản dump đêm
+là lưới an toàn *duy nhất*. Suốt WS-7 → WS-9 nó không tồn tại.
+
+#### 9.12.2. ⚠ Phép kiểm bảo mật báo ĐẠT mà chưa từng quét
+
+`verify-no-keys.sh` (T7.2 · DoD 13d) tìm khoá PEM bằng mẫu `-----BEGIN … PRIVATE KEY-----`. Mẫu bắt
+đầu bằng `-` nên `grep -qiE "$pattern"` đọc nó thành **tham số dòng lệnh**:
+
+```
+grep: unrecognized option `-----BEGIN [A-Z ]*PRIVATE KEY-----'
+```
+
+grep chết, lời gọi nằm trong `if` nên lỗi bị nuốt, và script in `✓ Bản sao lưu không chứa khoá`. Một
+phép kiểm bảo mật báo đạt **trong khi nó chưa soi một dòng nào**.
+
+Sửa bằng `-e`, và thêm **phép tự kiểm chạy mỗi lượt**: cho khoá giả đi qua đúng hàm đó và bắt nó
+phải kêu, cho dữ liệu sạch đi qua và bắt nó phải im. Đã kiểm chứng ngược bằng cách cắm một khoá PEM
+giả vào CSDL: sao lưu bị chặn với `⛔`. Trước bản vá, cùng phép thử đó cho ra `✓`.
+
+Kèm một chỗ nữa cùng loại: bản dump **không đọc được** cũng cho ra `✓` (không tìm thấy gì vì không
+đọc được gì) → nay chặn bằng `pg_restore --list` trước khi soi.
+
+#### 9.12.3. ⚠ `make migrate` chạy **image cũ** — migration mới không hề chạy
+
+WS-9 đã đổi `make dev-*` thành luôn build lại, nhưng **bỏ sót `make migrate`**. Triệu chứng đo được:
+thêm một migration, gõ `make migrate`, log in `✓ Migration hoàn tất — tổng số migration đã áp dụng:
+10` — thành công theo mọi dấu hiệu nhìn thấy được, mà bản mới thì không chạy. Nguy hiểm hơn `dev-*`
+một bậc vì migration nằm trong jar: image cũ nghĩa là chạy Flyway của bản mã cũ, đúng trên CSDL thật.
+
+#### 9.12.4. ⚠ CSDL test có schema mà production không có
+
+`SongnhuePostgres` chép `deploy/postgres/init` vào `/docker-entrypoint-initdb.d` để "dùng chung
+script khởi tạo với production, không chép lại". Nhưng `withCopyFileToContainer` **chép vào thư
+mục**, không đè cả thư mục — nên `10_postgis.sh` có sẵn trong image vẫn chạy và tạo thêm
+`postgis_topology` + `postgis_tiger_geocoder` (kéo theo schema `topology`, `tiger`). Ở production,
+bind-mount của compose **che cả thư mục**, script đó không bao giờ chạy.
+
+Sai lệch này nguy hiểm theo cả hai chiều: bài kiểm đỏ vì thứ không tồn tại thật (đúng cách nó lộ ra —
+`pg_dump` báo `permission denied for schema tiger`), và mã dùng hàm của `topology` sẽ xanh ở đây rồi
+hỏng khi chạy thật. Vô hiệu hoá script của image trong test; canh bằng bài kiểm khẳng định danh sách
+extension **đúng bằng** danh sách của production, không phải "có chứa".
+
+#### 9.12.5. `/actuator/health` **cố ý** DOWN khi chưa có bản sao lưu — nên smoke test phải hỏi `readiness`
+
+`BackupHealthIndicator` báo DOWN khi chưa từng sao lưu thành công, và đó là quyết định đúng đã ghi ở
+§9.9. Nhưng hệ quả chưa được tính hết: **smoke test của cả hai workflow deploy** đọc
+`/actuator/health` và tìm `"status":"UP"`. Môi trường mới dựng thì chưa có bản sao lưu nào — tức là
+**đúng lần deploy đầu tiên**, smoke test đỏ suốt 5 phút vì một chuyện hoàn toàn bình thường, rồi
+deploy bị coi là hỏng. Ở production còn tệ hơn: `show-details: never` nên phản hồi chỉ có
+`{"status":"DOWN"}`, không nói vì sao.
+
+Chốt: **câu hỏi "ứng dụng phục vụ được chưa" là `readiness`**; bản tổng trả lời một câu khác — "hệ
+thống có đang thiếu lưới an toàn nào không". Smoke test, healthcheck container và tài liệu dựng máy
+đều hỏi `readiness`; bản tổng dành cho giám sát và cho màn hình M5.12.
+
+#### 9.12.6. Ba con số trong tài liệu không khớp thực tế
+
+Đối chiếu bằng truy vấn trên CSDL thật và bằng API GitHub: `settings` **58** tham số chứ không phải
+55 · `docs/runbook/` có **8** runbook chứ không phải 7 · nhánh `common` đi trước `dev` **22 commit /
+431 tệp** chứ không phải 18/313, và `dev` **không trống** — nó có 12 tệp tài liệu, nhưng không có mã
+nguồn và không có `.github/`, nên kết luận "repo chưa chạy lượt CI nào" vẫn đúng.

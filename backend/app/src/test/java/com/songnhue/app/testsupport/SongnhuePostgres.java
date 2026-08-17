@@ -58,7 +58,14 @@ public final class SongnhuePostgres {
             .withEnv("DB_PASSWORD", TEST_PASSWORD)
             .withEnv("DB_ARCHIVER_PASSWORD", TEST_PASSWORD)
             .withEnv("DB_READONLY_PASSWORD", TEST_PASSWORD)
-            .withCopyFileToContainer(MountableFile.forHostPath(initScriptDirectory()), "/docker-entrypoint-initdb.d");
+            .withCopyFileToContainer(MountableFile.forHostPath(initScriptDirectory()), "/docker-entrypoint-initdb.d")
+            // ⚠ Phải chép SAU thư mục trên. `withCopyFileToContainer` chép VÀO thư mục chứ không
+            // đè cả thư mục, nên `10_postgis.sh` có sẵn trong image vẫn còn và vẫn chạy — trong khi
+            // ở môi trường thật nó bị bind-mount của compose che mất hoàn toàn. Không vô hiệu hoá
+            // thì CSDL test có thêm schema `topology` và `tiger` mà production không có.
+            .withCopyFileToContainer(
+                    MountableFile.forClasspathResource("testcontainers/10_postgis.sh", 0755),
+                    "/docker-entrypoint-initdb.d/10_postgis.sh");
 
     static {
         INSTANCE.start();
