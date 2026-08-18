@@ -113,21 +113,25 @@ tắc "kiểm một lần ở `dev`" bị vô hiệu hoá bởi một lỗi hạ
 → Thêm **`Vùng nào thay đổi`** vào `contexts` của `dev`. Job này quyết định mọi job khác có chạy
 hay không, nên nó phải là thứ bắt buộc phải xanh.
 
-### 2.6. ⚠ Một người thì `required_approving_review_count: 1` là cấm merge
+### 2.6. ~~Một người thì `required_approving_review_count: 1` là cấm merge~~ — ĐÃ HẾT HIỆU LỰC (18/8)
 
-GitHub **không cho tác giả tự duyệt PR của mình**. Repo hiện có đúng một collaborator
-(`Toclac18`, admin). Nên mọi PR đều thiếu vĩnh viễn một lượt duyệt, và cách duy nhất để merge là nút
-**"Merge without waiting for requirements to be met"** — nút đó dành cho admin vì
-`enforce_admins: false`.
+> **Bản 15/8 nhận định sai vì đếm thiếu collaborator.** Lúc đó tôi đọc ra đúng một tài khoản
+> (`Toclac18`) và kết luận phải hạ `required_approving_review_count` xuống 0. Thực tế repo có
+> **hai** collaborator quyền admin — `Toclac18` và `quannt18` — và **PR #1 đã merge bình thường
+> với `reviews: 1`**: `Toclac18` mở, `quannt18` duyệt, không phải bấm bypass lần nào.
+>
+> → **Giữ nguyên `required_approving_review_count: 1` ở cả ba nhánh.** Không cần sửa gì.
 
-Vấn đề không phải là bất tiện, mà là **nút ấy bỏ qua tất cả, gồm cả status check**. Biến "1 người
-duyệt" thành thứ trang trí đã đành; nặng hơn là nó tập cho người dùng thói quen bấm bypass ở *mọi*
-lần merge — đúng thói quen mà `docs/cicd.md` §3.2 cố tránh khi để job quét CVE ra ngoài danh sách
-bắt buộc.
+Lập luận gốc vẫn đúng và vẫn đáng giữ, chỉ là tiền đề không còn: nếu số lượt duyệt bắt buộc lớn hơn
+số người duyệt được, thì đường merge duy nhất là nút **"Merge without waiting for requirements to be
+met"** — và **nút ấy bỏ qua tất cả, gồm cả status check**. Biến "1 người duyệt" thành thứ trang trí
+đã đành; nặng hơn là nó tập thói quen bấm bypass ở *mọi* lần merge. Nên luật chung là: **số lượt
+duyệt bắt buộc không bao giờ được vượt số người có thể duyệt**, chứ không phải "càng chặt càng tốt".
 
-→ Khi đội còn **1 người**: đặt `required_approving_review_count: 0`. PR vẫn bắt buộc, CI vẫn bắt
-buộc và **thật sự được thi hành** vì không cần bypass nữa. Khi đội **≥ 2 người**: bật lại cả cụm ở
-§3.1.
+⚠ Một điều cần nói thẳng để không tự huyễn hoặc: hai tài khoản này thuộc **cùng một người**. Luật
+duyệt vì thế đang là **thủ tục**, không phải một cặp mắt thứ hai — nó buộc PR đi qua giao diện review
+chứ không bảo đảm có người khác thật sự đọc mã. Giá trị thật của nó chỉ xuất hiện khi đội có người
+thứ hai.
 
 ## 3. Ba hồ sơ
 
@@ -142,16 +146,15 @@ buộc và **thật sự được thi hành** vì không cần bypass nữa. Khi
 | Force push / xoá nhánh | cấm | cấm | cấm |
 | `enforce_admins` | false | false | **bật khi đội ≥ 2 người** |
 
-### 3.1. Bốn mục đang nới vì đội có 1 người — bật cùng lúc khi có người thứ hai
+### 3.1. Các mục đang nới vì đội thực chất là 1 người — bật cùng lúc khi có người thứ hai
 
-Bốn mục dưới đây **không phải sơ suất**. Đội một người mà bật hết thì hoặc là tự nhốt mình ngoài
-cửa, hoặc là phải bypass mọi lần — mà bypass thì bỏ qua luôn cả CI, tức là mất nhiều hơn được. Ghi
-thành một chỗ để khi có người thứ hai thì bật một lượt, không phải đi tìm.
+Những mục dưới đây **không phải sơ suất**. Ghi thành một chỗ để khi có người thứ hai thì bật một
+lượt, không phải đi tìm.
 
-| Mục | Đang | Đổi thành | Vì sao giờ phải nới |
+| Mục | Đang | Đổi thành | Vì sao đang nới |
 |---|---|---|---|
-| `required_approving_review_count` (cả 3 nhánh) | 0 | 1 | Không tự duyệt PR của mình được — §2.6 |
-| `require_last_push_approval` | false | true | Vô nghĩa khi không có người duyệt nào |
+| ~~`required_approving_review_count`~~ | **1** | — | ✅ **Không còn trong danh sách này (18/8)** — hai tài khoản admin nên `1` chạy được thật, xem §2.6 |
+| `require_last_push_approval` | false | true | Cùng một người vừa đẩy vừa duyệt thì luật này chỉ tạo thêm bước bấm |
 | `dismiss_stale_reviews` | false | true | Như trên |
 | `enforce_admins` (`production`) | false | true | Một người thì khoá cả admin là mất đường xử lý sự cố |
 | `prevent_self_review` (environment `production`) | false | true | Người bấm deploy cũng là người duy nhất duyệt được |
@@ -252,12 +255,12 @@ chạy đầu vì nó không có luật bảo vệ nào.
 | `strict: true` **chỉ ở `dev`** | PR phải cập nhật với base mới merge được. Không có nó thì hai PR đều xanh riêng lẻ vẫn hợp lại thành nhánh đỏ — kiểu hỏng chỉ lộ ra sau khi đã merge. ⚠ Ở staging/production thì ngược lại: nó tự khoá chặng đề bạt, xem §2.4 |
 | `contexts` | Đúng **tên job** trong workflow, khớp từng ký tự (kể cả dấu `—`). ⚠ Đổi tên job mà quên sửa ở đây thì rơi vào bẫy §2.1, hoặc tệ hơn: không còn check bắt buộc nào và mọi PR merge được ngay |
 | `Vùng nào thay đổi` trong `contexts` | Job này quyết định hai job nặng có chạy hay không. Nó hỏng mà không bắt buộc phải xanh thì cả hai bị skip và được **tính là đạt** — §2.5 |
-| `required_approving_review_count: 0` (tạm) | `conventions.md` §1.5 yêu cầu 1 người duyệt, nhưng đội đang có 1 người và GitHub cấm tự duyệt — §2.6. Bật lại theo §3.1 |
+| `required_approving_review_count: 1` (cả 3 nhánh) | Đúng `conventions.md` §1.5. Chạy được thật vì repo có **hai** collaborator admin — PR #1 merge 18/8 không cần bypass. Luật kèm theo: **số lượt duyệt bắt buộc không được vượt số người duyệt được**, nếu không thì đường merge duy nhất là bypass, mà bypass bỏ qua cả CI — §2.6 |
 | `dismiss_stale_reviews` / `require_last_push_approval` | Đẩy thêm commit sau khi được duyệt thì phải duyệt lại, và người đẩy commit cuối không tự tính là người duyệt. Cả hai chỉ có nghĩa khi số người duyệt ≥ 1 — tắt cùng cụm §3.1 |
 | `required_linear_history` (chỉ `dev`) | Lịch sử thẳng để `git bisect` dùng được. Với hệ có nhiều loại lỗi âm thầm (xem sổ nợ), khả năng tìm ra commit gây lỗi là thứ đáng giữ |
 | `allow_force_pushes: false` | Force push vào nhánh chính xoá lịch sử của người khác |
 | `required_conversation_resolution` | Nhận xét trong review phải được xử lý, không trôi qua khi merge |
-| `enforce_admins: false` | Có chủ đích. Đội hiện có một người; khoá cả admin là tự nhốt mình ngoài cửa khi cần xử lý sự cố gấp. **Bật cho `production` khi đội ≥ 2 người** |
+| `enforce_admins: false` | Có chủ đích. Hai tài khoản admin nhưng **cùng một người**; khoá cả admin là tự nhốt mình ngoài cửa khi cần xử lý sự cố gấp. **Bật cho `production` khi có người thứ hai thật** |
 
 ## 6. Kiểm chứng — kết quả thật ngày 15/8/2026
 
@@ -295,8 +298,8 @@ gh api repos/team-dev-qnt/songnhue/rulesets                     # phải [] — 
 
 ### 6.2. Còn phải chỉnh — lệnh sửa
 
-Ba mục dưới đây do **lỗi bản đầu của tài liệu**, không phải do chạy sai. Chạy lại §4.1 và §4.2 là
-xong cả ba; hoặc chỉnh riêng:
+Hai mục dưới đây do **lỗi bản đầu của tài liệu**, không phải do chạy sai. *(Bản 15/8 ghi ba mục;
+mục thứ ba — hạ số người duyệt xuống 0 — đã bỏ ngày 18/8 vì tiền đề "đội một người" sai, xem §2.6.)*
 
 ```bash
 # 1) Thêm context còn thiếu ở dev (§2.5)
@@ -321,10 +324,17 @@ for b in dev staging production; do
 done
 ```
 
-### 6.3. ⚠ Mã nguồn chưa có trên `dev`
+> ⛔ **Đã bỏ — mục 3 của bản 15/8**: `required_approving_review_count=0`. Repo có hai collaborator
+> admin nên `1` chạy được thật; PR #1 (18/8) merge không cần bypass. Đừng chạy lại đoạn đó.
 
-Kiểm chứng lộ ra một chuyện nằm ngoài cấu hình: **`dev` đang trống**. Toàn bộ Phase 0 — 18 commit,
-313 tệp — nằm ở nhánh `common`, còn `dev`, `staging`, `production` cùng đứng ở `3c29f0c`
+### 6.3. ~~⚠ Mã nguồn chưa có trên `dev`~~ — ĐÃ XONG 18/8
+
+> ✅ **Đóng 18/8/2026** — PR #1 (`common → dev`) đã merge bằng **Squash**, `dev` ở `f5c5ac4`.
+> Kiểm chứng: `git diff origin/dev origin/common` **rỗng** — 443 tệp, có `.github/`. Giữ lại mục
+> này vì phần "hai điều bắt buộc" bên dưới còn áp cho mọi PR feature → `dev` về sau.
+
+Kiểm chứng 15/8 lộ ra một chuyện nằm ngoài cấu hình: **`dev` đang trống**. Toàn bộ Phase 0 — 22
+commit, 431 tệp — nằm ở nhánh `common`, còn `dev`, `staging`, `production` cùng đứng ở `3c29f0c`
 ("Build the phase plan"), tức là chỉ có tài liệu.
 
 Nghĩa là bảo vệ nhánh đang canh một nhánh rỗng, `.github/workflows/` chưa tồn tại trên `dev`, và số
@@ -353,13 +363,16 @@ git push origin dev            # phải bị từ chối
 # Mở PR từ một nhánh feature thẳng vào production → Promotion guard phải đỏ
 ```
 
-Ngoài ra ở lượt chạy đầu cần nhìn hai chỗ:
+Ngoài ra ở lượt chạy đầu cần nhìn hai chỗ — **kết quả thật 18/8, lượt push vào `dev` sau khi merge
+PR #1** (`gh run view 32145220919`):
 
-- **Job `Đóng gói image` có đẩy được lên GHCR không.** Repo đang đặt
-  `default_workflow_permissions: read`; job đã khai `permissions: packages: write` tường minh nên
-  ghi đè được, nhưng đây là lần đầu nên phải xem kết quả thật.
-- **Job `Frontend — lint` bị skip** vì chưa có mã FE — và bị skip thì tính là đạt. Đúng thiết kế,
-  nhưng nhớ rằng nó chỉ thật sự kiểm từ WS-8/WS-9 trở đi.
+| Job | Kết quả | Ghi chú |
+|---|---|---|
+| `Vùng nào thay đổi` | ✅ 6s | |
+| `Backend — build, lint, test` | ✅ 1'49" | |
+| `Frontend — lint` | ✅ 43s | Không còn skip — mã FE đã có từ WS-8/WS-9 |
+| `Đóng gói image` | ✅ 1'48" | **Đẩy được lên GHCR** dù repo đặt `default_workflow_permissions: read` — `permissions: packages: write` khai ở job ghi đè được, đúng như dự đoán |
+| `Soi phụ thuộc PR thêm vào` | ⏭ skipped | Đúng thiết kế: chỉ chạy ở `pull_request` |
 
 ## 7. Việc còn phải làm khớp với luồng này
 

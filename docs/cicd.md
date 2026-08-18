@@ -185,21 +185,34 @@ kiểm hai điều:
 |---|---|---|
 | `STAGING_HOST` / `STAGING_USER` / `STAGING_SSH_KEY` / `STAGING_BASE_URL` | CD Staging | Thiếu → workflow **cảnh báo và bỏ qua bước deploy**, không báo đỏ giả |
 | `PROD_HOST` / `PROD_USER` / `PROD_SSH_KEY` / `PROD_BASE_URL` | CD Production | Như trên |
-| `NVD_API_KEY` | `security-scan.yml` | **Thiếu thì bỏ qua hẳn phép quét OWASP** (có cảnh báo trong Job Summary). Xin miễn phí ~2 phút: <https://nvd.nist.gov/developers/request-an-api-key> |
+| `NVD_API_KEY` | `security-scan.yml` | ✅ **Đã đặt 18/8** ở **cấp repo**. **Thiếu thì bỏ qua hẳn phép quét OWASP** (có cảnh báo trong Job Summary). Xin miễn phí ~2 phút: <https://nvd.nist.gov/developers/request-an-api-key> |
 
-`GITHUB_TOKEN` có sẵn, dùng để đẩy/kéo image trên GHCR.
+> ⚠ **Đặt đúng cấp, không chỉ đúng tên.** Lần đầu `NVD_API_KEY` được đặt vào **environment
+> `staging`** và phép quét vẫn bị bỏ qua: environment secret chỉ đến được job có khai
+> `environment:`, mà `security-scan.yml` không khai — `secrets.NVD_API_KEY` giải ra chuỗi rỗng,
+> **không có lỗi nào**, chỉ là bước "Kiểm khoá NVD" báo thiếu. Quy tắc: **khoá của công cụ CI đặt ở
+> cấp repo; chỉ khoá gắn với một môi trường triển khai mới đặt ở environment**. Đặt nhầm vào
+> environment có luật chờ duyệt còn tệ hơn — lượt quét đêm sẽ nằm chờ người bấm.
+
+`GITHUB_TOKEN` có sẵn, dùng để đẩy/kéo image trên GHCR. ✅ **Kiểm chứng 18/8**: job `Đóng gói image`
+đẩy được lên GHCR ở lượt push đầu tiên vào `dev`, dù repo đặt `default_workflow_permissions: read` —
+`permissions: packages: write` khai tường minh ở job ghi đè được mặc định đó.
 
 ## 8. Việc còn phải làm
 
 - [x] Tạo nhánh `staging` và `production` — xong 15/8/2026
 - [x] Áp dụng branch protection theo `docs/branch-protection.md` — xong 15/8/2026
 - [x] Tạo GitHub Environment `production` có required reviewer — xong 15/8/2026
-- [ ] **Chỉnh 3 mục lộ ra khi kiểm chứng** — `branch-protection.md` §6.2 (`strict` ở hai chặng đề
-      bạt · thiếu context `Vùng nào thay đổi` · số người duyệt khi đội 1 người)
-- [ ] **Đưa mã lên `dev`** — PR `common → dev`; hiện `dev` vẫn trống, chưa có `.github/workflows/`
-      và repo chưa chạy lượt CI nào (`branch-protection.md` §6.3, nợ #24)
+- [ ] **Chỉnh 2 mục lộ ra khi kiểm chứng** — `branch-protection.md` §6.2 (`strict` ở hai chặng đề
+      bạt · thiếu context `Vùng nào thay đổi`). *Mục thứ 3 của bản 15/8 — hạ số người duyệt — đã bỏ
+      ngày 18/8: repo có hai collaborator admin nên `reviews: 1` chạy được thật.*
+- [x] **Đưa mã lên `dev`** — PR #1 `common → dev` merge (Squash) 18/8/2026; lượt push sau đó chạy
+      trọn 5/5 job, `git diff origin/dev origin/common` rỗng
+- [x] Đặt `NVD_API_KEY` **ở cấp repo** — 18/8/2026 (§7)
+- [ ] **Bật Dependency graph** (Settings → Code security) — không bật thì job `Soi phụ thuộc PR thêm
+      vào` tự bỏ qua, tức là phép kiểm phụ thuộc ở PR chưa chạy lần nào
 - [ ] Dựng 3 VM + `compose.staging.yml` / `compose.prod.yml` + `backup/pre-deploy-dump.sh` — WS-11
-- [ ] Đặt các secret ở §7 — WS-11/T11.7
+- [ ] Đặt các secret còn lại ở §7 — WS-11/T11.7
 
 ## 9. Hai quy ước merge ngược nhau — dễ nhầm nhất
 
