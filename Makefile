@@ -335,10 +335,18 @@ doctor: ## Kiểm tra máy đã đủ điều kiện chạy dự án chưa
 	@echo ""
 
 .PHONY: hooks
-hooks: ## Bật git hook kiểm tra định dạng commit message
+hooks: ## Bật git hook: định dạng commit message + chặn nhánh lỗi thời sau squash
 	git config core.hooksPath .githooks
 	@chmod +x .githooks/* 2>/dev/null || true
-	@echo "✓ Đã bật .githooks"
+	@echo "✓ Đã bật .githooks (commit-msg + pre-push)"
+
+.PHONY: branch-check
+branch-check: ## Nhánh hiện tại có lỗi thời sau squash merge không (pre-push tự chạy)
+	@./.githooks/check-branch-freshness.sh
+
+.PHONY: branch-check-selftest
+branch-check-selftest: ## Chứng minh phép canh nhánh BẮT ĐƯỢC vi phạm (conventions.md §1.5)
+	@./.githooks/check-branch-freshness.sh --self-test
 
 .PHONY: clean
 clean: ## Xóa artifact build

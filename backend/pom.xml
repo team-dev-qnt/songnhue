@@ -58,13 +58,29 @@
           BOM sẽ dùng giá trị này cho mọi artifact `tomcat-embed-*`.
         -->
         <tomcat.version>10.1.57</tomcat.version>
+        <!--
+          Đè log4j của BOM Boot: 3.5.16 ghim **2.24.3**, dính CVE-2026-34479
+          (CVSS v3 **7.5**) — `Log4j1XmlLayout` không escape ký tự XML 1.0 cấm, làm
+          hệ xử lý log phía sau bỏ hoặc hỏng bản ghi. Phạm vi 2.7 → <2.25.4.
+
+          Ta dùng Logback, `log4j-api` chỉ vào đây qua cầu `log4j-to-slf4j`, và lớp
+          `Log4j1XmlLayout` nằm ở `log4j-1.2-api` — thứ dự án KHÔNG có. Tức là đủ cơ
+          sở để suppress. Nhưng bản vá có sẵn và chỉ là một dòng, nên **nâng**:
+          `conventions.md` §4.5 luật 1 — nâng cấp được thì đừng suppress.
+        -->
+        <log4j2.version>2.25.5</log4j2.version>
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
         <!-- Thư viện không nằm trong BOM của Spring Boot -->
-        <!-- 2.8.9 → 2.8.17: cùng dòng 2.8.x, kèm swagger-ui mới (bản cũ gói DOMPurify 3.2.4 dính CVE-2026-65898) -->
+        <!-- 2.8.9 → 2.8.17: cùng dòng 2.8.x -->
         <springdoc.version>2.8.17</springdoc.version>
+        <!--
+          Phải ghim RIÊNG, không đi theo springdoc: 2.8.17 vẫn kéo swagger-ui 5.32.2
+          đóng gói DOMPurify 3.3.2 dính CVE-2026-65898. Xem `dependencyManagement`.
+        -->
+        <swagger-ui.version>5.32.13</swagger-ui.version>
         <!--
           JOSE/JWT — chính thư viện mà Spring Security dùng bên trong (spring-security-oauth2-jose).
           Tự pin phiên bản vì BOM của Spring Boot KHÔNG quản artifact này.
@@ -179,6 +195,27 @@
                 <groupId>com.songnhue</groupId>
                 <artifactId>songnhue-hr</artifactId>
                 <version>${project.version}</version>
+            </dependency>
+            <!--
+              Đè phiên bản swagger-ui mà springdoc kéo vào.
+
+              springdoc 2.8.17 gắn với `org.webjars:swagger-ui` **5.32.2**, bản này
+              đóng gói sẵn **DOMPurify 3.3.2** dính CVE-2026-65898 (CVSS v3 **7.2**):
+              `setConfig()` kèm hook `uponSanitizeAttribute` làm hỏng vĩnh viễn
+              allowlist dùng chung → mở đường stored XSS.
+
+              Không đặt được bằng thuộc tính `swagger-ui.version` vì springdoc không
+              phải POM cha của ta — thuộc tính đó chỉ có hiệu lực trong build của
+              chính springdoc. Phải khai ở `dependencyManagement`.
+
+              5.32.13 đóng gói **DOMPurify 3.4.13** ≥ 3.4.11 (bản vá) — đã kiểm bằng
+              cách giải nén webjar và đọc `DOMPurify.version` trong
+              `swagger-ui-bundle.js`, không suy đoán theo số hiệu.
+            -->
+            <dependency>
+                <groupId>org.webjars</groupId>
+                <artifactId>swagger-ui</artifactId>
+                <version>${swagger-ui.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
