@@ -1,0 +1,365 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.5.3</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.songnhue</groupId>
+    <artifactId>songnhue-backend</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>Songnhue Backend</name>
+    <description>Hệ thống quản trị và điều hành công trình thủy lợi Sông Nhuệ — Modular Monolith</description>
+
+    <!--
+      Ranh giới module (conventions.md §1.1): mỗi module chỉ được import spi/ của module khác.
+      Ràng buộc này do ArchUnit test enforce trong CI (WS-10 / T10.2), không phải bằng Maven scope —
+      vì các module vẫn cùng classpath khi chạy trong 1 process (Modular Monolith).
+    -->
+    <modules>
+        <module>core</module>
+        <module>content</module>
+        <module>operations</module>
+        <module>hydro</module>
+        <module>hr</module>
+        <module>app</module>
+    </modules>
+
+    <properties>
+        <java.version>21</java.version>
+        <maven.compiler.release>21</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+        <!-- Thư viện không nằm trong BOM của Spring Boot -->
+        <springdoc.version>2.8.9</springdoc.version>
+        <!--
+          JOSE/JWT — chính thư viện mà Spring Security dùng bên trong (spring-security-oauth2-jose).
+          Tự pin phiên bản vì BOM của Spring Boot KHÔNG quản artifact này.
+          Không có phụ thuộc bắc cầu nào.
+        -->
+        <nimbus-jose-jwt.version>10.9.1</nimbus-jose-jwt.version>
+        <!--
+          Không nằm trong BOM của Spring Boot, phải tự ghim phiên bản.
+          ShedLock: khoá phân tán cho job theo lịch — cài sẵn nhưng TẮT ở v1 (1 node), bật bằng
+          env khi lên ≥2 node (architecture-review.md §6.2). MinIO: client duy nhất cho tệp tin.
+        -->
+        <shedlock.version>6.9.0</shedlock.version>
+        <minio.version>8.5.17</minio.version>
+        <!--
+          ArchUnit — canh ranh giới kiến trúc trong CI (T10.2). Đặt ở module `app` vì chỉ ở đó cả 5
+          module nghiệp vụ mới cùng nằm trên classpath để soi lẫn nhau.
+        -->
+        <archunit.version>1.4.1</archunit.version>
+
+        <!--
+          `mvn -pl app -am spring-boot:run` kéo cả POM cha và module `core` vào reactor, và goal
+          `run` gọi từ dòng lệnh thì chạy trên MỌI module trong reactor — kể cả những module không
+          có main class, làm cả lệnh đứt ngay ở module đầu tiên.
+          Mặc định bỏ qua ở đây, module `app` bật lại. Nhờ vậy `make dev-native` chạy được mà không
+          cần cài sẵn artifact vào ~/.m2.
+        -->
+        <spring-boot.run.skip>true</spring-boot.run.skip>
+
+        <!-- Phiên bản plugin — pin cứng để build tái lập được -->
+        <spotless.version>2.44.5</spotless.version>
+        <palantir-java-format.version>2.68.0</palantir-java-format.version>
+        <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
+        <checkstyle.version>10.26.1</checkstyle.version>
+        <jacoco.version>0.8.13</jacoco.version>
+        <dependency-check.version>12.1.0</dependency-check.version>
+        <!-- Thư mục CSDL NVD — CI ghi đè để cache riêng, xem profile `security` bên dưới -->
+        <dependency-check.data>${user.home}/.dependency-check-data</dependency-check.data>
+
+        <!--
+          Ngưỡng bao phủ TỐI THIỂU cho tầng domain (T10.5, conventions.md §1.5).
+
+          CHỈ tầng domain, không phải cả dự án. Đây là nơi chứa quy tắc nghiệp vụ thuần — thứ kiểm
+          thử được bằng test đơn vị mà không cần DB, và cũng là nơi một lỗi âm thầm gây thiệt hại
+          lớn nhất (tính sai số dư phép, sai path cây đơn vị). Đặt ngưỡng cho cả dự án thì con số
+          bị pha loãng bởi controller và cấu hình, và người ta viết test cho những chỗ dễ để kéo tỷ
+          lệ lên thay vì cho những chỗ đáng.
+
+          ⚠ 0.18 là CON SỐ ĐO ĐƯỢC HÔM NAY, không phải mục tiêu. Đây là cái chặn không cho tụt
+          (conventions.md §1.5: "không merge nếu giảm"), chứ chưa phải một mức bao phủ đáng tự hào.
+          Lý do con số thấp: tầng domain của Phase 0 gần như chỉ có entity JPA và enum — getter,
+          setter, hằng số. Phần logic thật (materialized path, tổng hợp kỳ) hiện nằm ở
+          `common/tree` và được kiểm rất kỹ, nhưng không thuộc gói `domain`.
+
+          Phase 1 đưa quy tắc nghiệp vụ thật vào `domain` thì NÂNG số này lên theo — nâng dần và
+          không bao giờ hạ. Đặt sẵn 0.70 ngay bây giờ chỉ dẫn tới việc ai đó tắt cổng khi nó cản
+          đường, và một cổng bị tắt còn tệ hơn một cổng đặt thấp.
+        -->
+        <jacoco.domain.line.coverage>0.18</jacoco.domain.line.coverage>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.songnhue</groupId>
+                <artifactId>songnhue-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.songnhue</groupId>
+                <artifactId>songnhue-content</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.songnhue</groupId>
+                <artifactId>songnhue-operations</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.songnhue</groupId>
+                <artifactId>songnhue-hydro</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.songnhue</groupId>
+                <artifactId>songnhue-hr</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!-- Test stack dùng chung cho mọi module -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>com.diffplug.spotless</groupId>
+                    <artifactId>spotless-maven-plugin</artifactId>
+                    <version>${spotless.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-checkstyle-plugin</artifactId>
+                    <version>${maven-checkstyle-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <version>${jacoco.version}</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+
+        <plugins>
+            <!--
+              Spotless — định dạng mã. Palantir Java Format: 4 space, 120 cột (khớp .editorconfig).
+              `check` chạy ở phase validate → build đỏ nếu format sai.
+              Dev sửa bằng: ./mvnw spotless:apply   (hoặc `make format`)
+            -->
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <configuration>
+                    <java>
+                        <includes>
+                            <include>src/main/java/**/*.java</include>
+                            <include>src/test/java/**/*.java</include>
+                        </includes>
+                        <palantirJavaFormat>
+                            <version>${palantir-java-format.version}</version>
+                        </palantirJavaFormat>
+                        <removeUnusedImports/>
+                        <importOrder>
+                            <order>java,javax,jakarta,org,com,com.songnhue,</order>
+                        </importOrder>
+                        <trimTrailingWhitespace/>
+                        <endWithNewline/>
+                    </java>
+                    <pom>
+                        <sortPom>
+                            <!-- 4 space cho khớp .editorconfig — nếu để mặc định (2) thì IDE và Spotless đá nhau -->
+                            <nrOfIndentSpace>4</nrOfIndentSpace>
+                            <expandEmptyElements>false</expandEmptyElements>
+                            <keepBlankLines>true</keepBlankLines>
+                        </sortPom>
+                    </pom>
+                    <upToDateChecking>
+                        <enabled>true</enabled>
+                    </upToDateChecking>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>spotless-check</id>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <phase>validate</phase>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!--
+              Checkstyle — bắt các quy tắc conventions.md không thể hiện được qua formatter:
+              cấm System.out, cấm new Date(), naming, unused imports…
+              Quy tắc kiến trúc (import chéo module, cấm float/double cho số đo) do ArchUnit lo — T10.2.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <configuration>
+                    <configLocation>${maven.multiModuleProjectDirectory}/config/checkstyle/checkstyle.xml</configLocation>
+                    <includeTestSourceDirectory>true</includeTestSourceDirectory>
+                    <consoleOutput>true</consoleOutput>
+                    <failsOnError>true</failsOnError>
+                    <violationSeverity>warning</violationSeverity>
+                    <linkXRef>false</linkXRef>
+                </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>com.puppycrawl.tools</groupId>
+                        <artifactId>checkstyle</artifactId>
+                        <version>${checkstyle.version}</version>
+                    </dependency>
+                </dependencies>
+                <executions>
+                    <execution>
+                        <id>checkstyle-validate</id>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <phase>validate</phase>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!--
+              JaCoCo — cổng bao phủ cho tầng domain (T10.5).
+
+              `check` gắn vào phase `verify`, nên `mvn test` vẫn nhanh còn `mvn verify` mới chặn.
+              Luật chỉ soi `**/domain/**`: xem ghi chú ở thuộc tính jacoco.domain.line.coverage.
+              Module nào chưa có lớp domain nào thì luật tự bỏ qua, không cần cấu hình riêng.
+            -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>jacoco-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>jacoco-report</id>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                        <phase>verify</phase>
+                    </execution>
+                    <execution>
+                        <id>jacoco-domain-gate</id>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <phase>verify</phase>
+                        <configuration>
+                            <haltOnFailure>true</haltOnFailure>
+                            <!--
+                              ⚠ Lọc ở đây (mức configuration, theo đường dẫn .class) chứ KHÔNG phải
+                              bằng <includes> bên trong <rule>. Trong <rule>, <includes> so với TÊN
+                              PHẦN TỬ: với element=BUNDLE tên phần tử là tên module ("Songnhue
+                              Core"), nên mẫu theo tên gói không khớp gì cả — luật bị bỏ qua trong
+                              im lặng và cổng bao phủ trở thành đồ trang trí. Bản đầu đã sập đúng
+                              bẫy này; kiểm chứng bằng cách tạm nâng ngưỡng lên 0.999 mà build vẫn
+                              xanh.
+                            -->
+                            <includes>
+                                <include>com/songnhue/*/domain/**/*.class</include>
+                            </includes>
+                            <rules>
+                                <rule>
+                                    <element>BUNDLE</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>${jacoco.domain.line.coverage}</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!--
+          Quét lỗ hổng phụ thuộc — CHỈ chạy khi gọi tường minh `-P security` (T10.6).
+
+          Cố ý không gắn vào build thường: lượt quét đầu tiên tải toàn bộ cơ sở dữ liệu NVD, và
+          một bước mất hàng chục phút nằm trong `mvn verify` hằng ngày sẽ khiến người ta bắt đầu
+          dùng `-DskipTests` cho mọi thứ.
+
+          `failBuildOnCVSS=7` = ngưỡng HIGH trở lên theo CVSS v3, đúng yêu cầu conventions.md §4.5.
+        -->
+        <profile>
+            <id>security</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.owasp</groupId>
+                        <artifactId>dependency-check-maven</artifactId>
+                        <version>${dependency-check.version}</version>
+                        <configuration>
+                            <failBuildOnCVSS>7</failBuildOnCVSS>
+                            <formats>
+                                <format>HTML</format>
+                                <format>JSON</format>
+                            </formats>
+                            <!--
+                              Thiếu khoá thì NVD giới hạn tốc độ tới mức lượt quét đầu tiên mất
+                              hàng chục phút — đã đo thật ở lượt CI đầu tiên 18/8: 30 phút rồi bị
+                              timeout huỷ. Xin miễn phí tại
+                              https://nvd.nist.gov/developers/request-an-api-key
+                            -->
+                            <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
+                            <!--
+                              Đặt thư mục CSDL NVD ra chỗ CÓ THỂ CACHE ĐƯỢC.
+
+                              Mặc định plugin để trong `~/.m2/repository/org/owasp/…`, nằm lẫn với
+                              bộ nhớ đệm Maven vốn đánh khoá theo hash của pom — nghĩa là đổi một
+                              dependency là mất luôn CSDL NVD vài GB và phải tải lại từ đầu. Hai
+                              thứ này có nhịp thay đổi khác hẳn nhau nên phải cache riêng.
+                              `.github/workflows/security-scan.yml` trỏ vào đây.
+                            -->
+                            <dataDirectory>${dependency-check.data}</dataDirectory>
+                            <!-- Phân tích .NET/Node/Python không liên quan tới dự án Java thuần này -->
+                            <assemblyAnalyzerEnabled>false</assemblyAnalyzerEnabled>
+                            <nodeAnalyzerEnabled>false</nodeAnalyzerEnabled>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>check</goal>
+                                </goals>
+                                <phase>verify</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

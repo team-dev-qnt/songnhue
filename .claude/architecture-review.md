@@ -315,9 +315,485 @@ Toàn bộ quyết định §1–§7 giữ nguyên: PostgreSQL 16 + PostGIS, Mod
 | Hạng mục | Chốt |
 |---|---|
 | Secrets | **GitHub Secrets** cho CI · `/opt/songnhue/.env` (chmod 600) trên VM cho runtime · key AES/JWT ở `/opt/songnhue/keys/` **ngoài bản backup DB**. Không dùng Vault ở v1 |
-| **DB roles tách quyền** | `songnhue_owner` (chỉ migrator) · `songnhue_app` (**không có DELETE** trên `audit_logs`/`hydro_raw_logs`) · `songnhue_archiver` (DELETE audit, chỉ job kết xuất) · `songnhue_readonly`. GRANT trong migration, CREATE ROLE ở init script |
+| **DB roles tách quyền** | `songnhue_owner` (chỉ migrator) · `songnhue_app` (**không có DELETE** trên `audit_logs`/`security_events`/`hydro_raw_logs`) · `songnhue_archiver` (DELETE audit, chỉ job kết xuất) · `songnhue_readonly`. GRANT trong migration, CREATE ROLE ở init script |
+| **Hash chain audit tính ở DB** (chốt 14/8 khi làm WS-2) | Trigger `SECURITY DEFINER` cấp `seq`/`prev_hash`/`hash`; app chỉ có `INSERT` và **không** có `UPDATE` trên `audit_chain_head` → client không tự nối chuỗi được, gửi hash giả lên cũng bị ghi đè. Đổi lại: insert audit bị tuần tự hóa qua 1 dòng khóa — chấp nhận được với tải vài nghìn bản ghi/ngày. Verify bằng `core_verify_audit_chain()`, **cấm cài lại công thức băm ở Java** |
+| **`audit_logs` partition theo tháng** | Tạo sẵn **12 tháng runway** lúc migrate + job hằng tháng giữ ≥6 tháng. Có **partition `DEFAULT`** làm lưới an toàn: job chết thì bản ghi vẫn vào được, chỉ chậm — thà ghi chậm còn hơn `INSERT` lỗi làm hỏng giao dịch nghiệp vụ. Gỡ kẹt: `docs/runbook/audit-partition.md` |
+| **Tài khoản Super Admin** | Seed ở trạng thái `PENDING_ACTIVATION`, `password_hash = '!'` (không mật khẩu nào khớp). **Không có mật khẩu mặc định trong repo.** Kích hoạt bằng lệnh bootstrap đọc `BOOTSTRAP_ADMIN_PASSWORD` từ env, chạy 1 lần lúc dựng môi trường (WS-5/T5.7) |
 | Rate limit | In-process (Caffeine) qua interface `RateLimitStore` — **1 node nên chấp nhận được**; lên ≥2 node phải đổi impl sang DB |
 
 ### 9.4. Nơi dồn công
 
 Vì cắt bớt ở hạ tầng (không replica/PITR/k8s/Vault), trọng tâm đầu tư dồn vào **bảo mật — authentication — authorization**: JWT RS256 có `kid` xoay được · refresh rotation + **reuse detection** thu hồi cả token family · CSRF double-submit · lockout không tiết lộ user tồn tại · **2FA TOTP bắt buộc Admin/Admin HR** · **RBAC 3 tầng** với `@RequirePermission` + Hibernate scope filter theo `org_unit` · lookup qua `public_id` UUID chống IDOR. Kiểm chứng bằng **2 chốt chặn ở CI**: endpoint thiếu `@RequirePermission` → build đỏ, và ma trận role × resource phải pass 100% (NFR-06).
+
+### 9.5. Không dùng filter chain của Spring Security (chốt 14/8, khi làm WS-5)
+
+Dự án **chỉ lấy `spring-security-crypto`** (BCrypt) chứ không kéo `spring-boot-starter-security`. Ba lý do cụ thể, không phải sở thích:
+
+| Vấn đề nếu dùng cả framework | Hệ quả |
+|---|---|
+| `FilterChainProxy` mặc định nằm ở order **-100** | Chen vào **trước** `CorrelationFilter` (order 10) → đúng những lỗi sớm nhất lại không có `traceId`, tức là mất khả năng tra cứu ở nhóm lỗi cần tra nhất |
+| 401/403 do `AuthenticationEntryPoint` sinh ra | **Không đi qua** `GlobalExceptionHandler` → phá envelope + `traceId` (DoD #9) đúng ở nhóm lỗi hay gặp nhất |
+| Cơ chế quyền là `@PreAuthorize` | conventions.md §4.2 đã chốt `@RequirePermission` + interceptor + quét deny-by-default ở CI — hai mô hình song song thì có hai nơi để quên |
+
+**Phần khó và dễ sai vẫn dùng thư viện**, không tự cài: BCrypt (`spring-security-crypto`) và JOSE/JWT (`nimbus-jose-jwt` — chính thư viện Spring Security dùng bên trong). Tự viết đúng hai thứ đã cài sẵn: `TotpGenerator` (RFC 6238 có bộ vector kiểm thử chính thức nên chứng minh được bằng test) và `HashUtils` (SHA-256 + so sánh constant-time).
+
+Đánh đổi phải chấp nhận: những gì Spring Security cho sẵn thì mình tự lo — hiện đã có CSRF, rate limit, lockout, denylist; **security headers do nginx đặt** (WS-11/T11.5), không đặt ở tầng ứng dụng.
+
+### 9.6. Hàng đợi job và ShedLock là hai thứ khác nhau (chốt 15/8, khi làm WS-6)
+
+Hai cơ chế cùng liên quan tới "chạy nền" nhưng giải hai bài toán **ngược nhau**, nên cài đặt cũng ngược nhau:
+
+| | Hàng đợi `jobs` | Job theo lịch |
+|---|---|---|
+| Câu hỏi | Ai *cũng* nên lấy việc | Ai *duy nhất* được chạy |
+| Cơ chế | `SELECT … FOR UPDATE SKIP LOCKED` | ShedLock (khoá qua bảng `shedlock`) |
+| Thêm node | Nhanh lên tuyến tính | Không nhanh hơn, chỉ an toàn hơn |
+| Hỏng nếu dùng nhầm | Bọc ShedLock quanh worker → mất sạch khả năng mở rộng, quay về một node | Không khoá → bản sao lưu chạy hai lần, thông báo gửi hai lần |
+
+**Hệ quả thực tế**: `JobWorker` **không** mang `@SchedulerLock`, và lên ≥2 node thì lớp đó không cần sửa dòng nào.
+
+**Việc theo lịch thì chỉ *đặt việc*, không tự làm.** `MaintenanceScheduler` dùng `@Scheduled` để đẩy job vào hàng đợi với khoá chống trùng theo ngày (VD `TOKEN_CLEANUP:2026-08-15`), rồi handler mới làm việc thật. Nhờ vậy:
+
+- Dùng lại toàn bộ bộ máy đã có: trạng thái, số lần thử, backoff, màn hình theo dõi, thu hồi job treo. Việc chạy thẳng trong `@Scheduled` hỏng thì **im lặng** — không trạng thái, không thử lại, không ai nhìn thấy.
+- **Không cần ShedLock cho nhóm này**: hai node cùng hẹn giờ thì node thứ hai va chỉ mục duy nhất `uq_jobs_dedup_active` và nhận lại chính job node thứ nhất vừa tạo. **DB đã là điểm đồng bộ** — thêm một cơ chế khoá nữa là hai nguồn sự thật cho cùng một việc.
+
+ShedLock vẫn giữ (cài sẵn, mặc định tắt) cho những việc theo lịch *không* đi qua hàng đợi được — chủ yếu là các tác vụ hạ tầng ở WS-7.
+
+### 9.7. Ba bẫy auto-configuration của Spring Boot đã sập khi làm WS-6
+
+Ghi lại vì cả ba đều **im lặng**: không lỗi nào biểu hiện ở đúng chỗ sai, và cả ba đều chỉ lộ ra khi chạy thật.
+
+| Bẫy | Hệ quả | Cách tránh |
+|---|---|---|
+| Khai bean `DataSource` | `DataSourceAutoConfiguration` mang `@ConditionalOnMissingBean` → Boot **ngừng tạo DataSource chính**; cả app chạy bằng vai trò phụ | Không khai bean thuộc kiểu Boot tự cấu hình; bọc vào **kiểu riêng** |
+| Khai bean `JdbcTemplate` | Y hệt, ở tầng `JdbcTemplateAutoConfiguration` | Như trên — `ArchiverJdbc` là ví dụ |
+| `@ConditionalOnBean` trên `@Component` | Spring **chỉ bảo đảm** điều kiện này cho lớp auto-configuration; với bean quét theo `@Component` thì phụ thuộc thứ tự nạp và có thể bỏ qua âm thầm | Đặt điều kiện trên **tham số cấu hình** (`@ConditionalOnProperty`) trong một lớp `@Configuration` |
+
+Bài học chung: **thêm một bean hạ tầng cùng kiểu với thứ Boot tự cấu hình là thay thế nó, không phải bổ sung.** Khi cần một kết nối/khách hàng thứ hai, luôn gói vào kiểu riêng của dự án.
+
+
+### 9.8. Thứ tự aspect quanh transaction — và bốn cơ chế "xanh mà không chạy" (chốt 15/8, khi làm WS-10)
+
+**Bối cảnh.** WS-10 dựng bộ luật kiến trúc và test tích hợp trên DB thật. Nó tìm ra một lỗi nặng hơn
+mọi thứ WS-6 phát hiện, và ba biến thể của cùng một kiểu hỏng.
+
+#### 9.8.1. `ScopeFilterAspect` phải nằm BÊN TRONG bộ chặn transaction
+
+Trong Spring AOP, **số `@Order` nhỏ hơn nghĩa là chạy ở vòng ngoài**. Aspect bật bộ lọc phạm vi đơn
+vị đặt `Ordered.LOWEST_PRECEDENCE - 1` với ý định "vào trong bộ chặn transaction", nhưng
+`Integer.MAX_VALUE - 1 < Integer.MAX_VALUE`, nên nó lại ra **ngoài**. Hệ quả: `enableFilter()` chạy
+khi chưa có transaction, Spring cấp cho nó một `Session` tạm rồi vứt đi, còn truy vấn thật chạy
+trong `Session` khác **không có bộ lọc**.
+
+Triệu chứng: **không có triệu chứng nào**. Mọi Xí nghiệp đọc được dữ liệu của nhau.
+
+Không sửa được bằng cách hạ aspect xuống thấp hơn — `LOWEST_PRECEDENCE` đã là số lớn nhất. Nên chốt:
+**bộ chặn transaction được kéo lên `Ordered.LOWEST_PRECEDENCE - 100`** qua
+`@EnableTransactionManagement(order = …)` ở `CorePlatformConfig`. Khoảng cách 100 để còn chỗ chen
+aspect vào giữa nếu về sau cần.
+
+> Mọi aspect cần một `Session`/`Connection` **đang mở** đều phải nằm trong khoảng đó, và phải đọc
+> `CorePlatformConfig.TRANSACTION_ADVISOR_ORDER` cùng lúc với `@Order` của chính nó.
+
+#### 9.8.2. Bốn cơ chế canh gác báo thành công trong khi không làm gì
+
+| Cơ chế | Vì sao im lặng | Bằng chứng |
+|---|---|---|
+| Bộ luật ArchUnit theo lối `@AnalyzeClasses` + `@ArchTest` | Bộ máy `archunit` nạp đủ trên classpath nhưng Surefire báo `Tests run: 0` cho cả 4 lớp luật, build xanh | Đặt một luật chắc chắn sai → vẫn xanh |
+| Cổng bao phủ JaCoCo | `<includes>` bên trong `<rule>` so với **tên phần tử**; với `element=BUNDLE` tên là tên module nên mẫu theo gói không khớp gì → luật bị bỏ qua | Nâng ngưỡng lên 0.999 → vẫn xanh |
+| Luật `ScopedEntity` phải mang `@Filter` | Đúng, nhưng Phase 0 chưa có lớp nào để soi → xanh vĩnh viễn kể cả khi biểu thức sai | Chạy luật lên mã cố ý sai |
+| Bộ lọc phạm vi đơn vị | Xem 9.8.1 | Entity thật đầu tiên |
+
+**Chốt cách làm**: mỗi cơ chế canh gác phải đi kèm **một bài kiểm chứng minh nó bắt được vi phạm**.
+Không có bằng chứng đó thì "xanh" chỉ nói lên rằng nó không đỏ, không nói lên rằng nó đang canh.
+Cụ thể trong repo: `ImportedScopeTest` (tập lớp đem soi không rỗng) · `SilentFailureRuleSelfCheckTest`
+(luật bắt được lỗi thật) · `RbacMatrixTest#matrixIsNotDegenerate` (ma trận không rỗng).
+
+#### 9.8.3. Chọn ArchUnit lõi, không dùng bộ máy JUnit riêng của nó
+
+Gọi thẳng `rule.check(classes)` trong `@Test` thường. Đổi lại mất tính năng cache tập lớp của
+`@ArchTest` — bù bằng một hằng `JavaClasses` dùng chung. Được lại: số bài kiểm hiện đúng trong log
+CI, tên luật hiện ra khi gãy, và không có bộ máy trung gian nào để hỏng âm thầm.
+
+#### 9.8.4. Phiên bản Docker Engine API cho Testcontainers
+
+Docker Engine 29 **đã bỏ mọi API cũ hơn 1.44**; docker-java đi kèm Testcontainers 1.21 mặc định
+thương lượng bản cũ hơn thế → Testcontainers báo *"Could not find a valid Docker environment"* trong
+khi `docker ps` vẫn chạy bình thường. Ghim `api.version` qua thuộc tính `docker.api.version` (mặc
+định **1.44** = Docker Engine 25.0, 01/2024) trong cấu hình Surefire của module `app`.
+
+⚠ Không có con số nào đúng cho mọi engine: engine < 25.0 chưa có 1.44, engine ≥ 29 không nhận 1.43.
+Runner cũ hơn phải truyền `-Ddocker.api.version=1.43`.
+
+---
+
+### 9.9. Sao lưu, khôi phục và giám sát (chốt 16/8, khi làm WS-7)
+
+Bốn quyết định đáng ghi, cả bốn đều là chọn giữa hai phương án đúng-về-mặt-kỹ-thuật.
+
+#### 9.9.1. Kho sao lưu **KÉO** về VM-3, không đẩy đi từ VM-1
+
+`deploy/backup/pull-from-prod.sh` chạy **trên VM-3** và kéo bản dump về; VM-1 không giữ khoá SSH nào.
+
+Mô hình đẩy đòi VM-1 — chính máy phơi ra Internet — phải có quyền **ghi** vào kho sao lưu. Ai chiếm
+được VM-1 cũng chiếm luôn khả năng **xoá mọi bản sao lưu**, và mã hoá tống tiền làm đúng việc đó
+trước tiên. Kéo về thì chiếm được VM-1 vẫn không chạm được vào kho.
+
+Hệ quả cần biết: VM-3 phải có tài khoản chỉ-đọc trên VM-1, và `env/prod.env.example` **đã bỏ**
+`BACKUP_TARGET_HOST` của bản WS-3.
+
+#### 9.9.2. Sao lưu chạy bằng `songnhue_readonly`, khôi phục là tính năng **bật riêng**
+
+`pg_dump` chỉ cần đọc, và nó chạy mỗi đêm — cấp quyền ghi cho việc đó là mở rộng vô cớ phạm vi
+thiệt hại. Cùng nguyên tắc đã áp cho `songnhue_archiver` (§9.3).
+
+Khôi phục thì cần quyền chủ sở hữu. Thay vì mặc nhiên đưa mật khẩu owner vào tiến trình ứng dụng,
+`DB_RESTORE_PASSWORD` để trống là **hợp lệ**: nút khôi phục trên UI báo `ADM-2010` và từ chối ngay,
+còn khôi phục đi bằng runbook. Nơi nào chấp nhận đánh đổi thì điền vào.
+
+⚠ Điểm dễ sai: điều kiện phải là "mật khẩu **khác rỗng**", không phải "có khai mật khẩu" — đúng cái
+bẫy đã sập một lần ở `ArchiverDataSourceConfig` (§9.7).
+
+#### 9.9.3. Chỉ số đo **sự vắng mặt**, không đếm lỗi
+
+Ba gauge của `PlatformMetrics` — tuổi bản sao lưu, tồn đọng hàng đợi, độ tươi dữ liệu — đều trả lời
+"việc lẽ ra phải xảy ra có còn xảy ra không". Những kiểu hỏng đắt nhất của hệ này **không ném
+exception nào**: worker chết, poller ngừng, job sao lưu không được đặt. Đếm số lỗi không bao giờ bắt
+được chúng.
+
+Hai hệ quả cài đặt:
+
+- **`-1` nghĩa là "chưa từng có", không phải `0`.** `0` đọc là "vừa mới xong" — ngược hẳn.
+- **Làm mới theo lịch, không đọc DB trong hàm gauge.** Micrometer gọi hàm đó mỗi lượt Prometheus lấy
+  số; CSDL chết thì lượt lấy số treo theo và kéo sập luôn `/actuator/prometheus` — mất đúng công cụ
+  cần dùng để biết chuyện gì đang xảy ra.
+
+**Sai lệch có chủ đích so với kế hoạch**: §6.5 ghi "một alert duy nhất cho backup", thực tế có
+**hai**. "Đã dump" và "đã đưa ra khỏi máy chủ CSDL" là hai sự thật khác nhau, hỏng độc lập — mà bản
+dump nằm cùng máy với CSDL nó phải cứu thì không cứu được gì.
+
+#### 9.9.4. Một ngoại lệ cho luật cấm `float/double`
+
+Gói `core.common.observability` được miễn. Mô hình dữ liệu của Prometheus **là float64** và API
+`Gauge` của Micrometer chỉ nhận `double` — không có cách viết nào tránh được. An toàn vì thứ đi qua
+đó không phải số nghiệp vụ: tuổi bản sao lưu tính bằng giây, số việc tồn, số giây im lặng.
+
+Ngoại lệ được canh bằng `CodingRuleTest#ngoaiLeChiGomGoiQuanSat`: chạy luật **không có ngoại lệ** lên
+toàn bộ mã nguồn rồi đòi mọi vi phạm phải nằm trong đúng gói đó. Bắt được cả hai hướng — nới ngoại lệ
+ra gói khác, và ngoại lệ đã thừa mà không ai gỡ.
+
+---
+
+### 9.10. Giao diện quản trị (chốt 17/8, khi làm WS-8)
+
+#### 9.10.1. Access token nằm trong bộ nhớ, và hệ quả bắt buộc phải nhận
+
+Access token **không** vào `localStorage` cũng không vào `sessionStorage` — chỉ là một biến trong
+module `shared/apiClient`. Refresh token thì hoàn toàn ngoài tầm với của JavaScript (cookie
+`httpOnly`). Nghĩa là một lỗ XSS chỉ lấy được cái vé sống 30 phút, không lấy được cái vé sống nhiều
+ngày.
+
+Cái giá phải trả **không được lảng tránh**: F5 là mất token. Nếu để nguyên như vậy, người dùng sẽ
+phải đăng nhập lại sau mỗi lần tải lại trang, và áp lực "sửa cho tiện" sẽ đẩy token xuống
+localStorage — tức là vứt bỏ đúng lớp phòng thủ vừa dựng. Nên `bootstrapSession()` gọi
+`POST /auth/refresh` **một lần lúc khởi động**: có cookie hợp lệ thì đi tiếp, không thì về trang đăng
+nhập. Trạng thái xác thực vì thế có **ba** giá trị (`loading` / `anonymous` / `authenticated`), không
+phải hai — thiếu `loading` thì route guard chạy đúng vào khoảnh khắc chưa biết là ai và chuyển hướng
+thật, mất luôn đường dẫn người dùng đang mở.
+
+Kèm một chi tiết dễ bỏ sót: vé CSRF cũng mất khi F5, nhưng cookie `XSRF-TOKEN` (cố ý **không**
+httpOnly) thì còn. `currentCsrfToken()` rơi về đọc cookie khi bộ nhớ trống — không có bước đó thì
+`/auth/refresh` bị `CsrfFilter` chặn ngay và việc khôi phục phiên không bao giờ chạy được.
+
+#### 9.10.2. Làm mới token đúng một lượt, và không bao giờ cho vòng lặp
+
+Mười request cùng nhận 401 phải dùng chung **một** lời hứa refresh (`refreshInFlight`). Không phải để
+tiết kiệm: refresh **xoay vòng** token, nên hai lượt gọi song song là lượt thứ hai dùng lại token đã
+bị thay — đúng định nghĩa của cơ chế phát hiện dùng lại ở backend, và hậu quả là thu hồi cả family
+rồi đá người dùng ra ngoài. Tự tay kích hoạt cảnh báo bảo mật của chính mình.
+
+Ba chốt chặn đi kèm: cờ `__retried` cho phép gửi lại **đúng một lần**; `AUTH_ENTRY_PATHS`
+(`/auth/login`, `/auth/2fa/`, `/auth/refresh`) không bao giờ kéo theo vòng làm mới vì chính chúng là
+luồng cấp token; và `AUTH-0008` (đã phát hiện dùng lại) **không** thử lại — backend đã thu hồi xong,
+gọi thêm chỉ tạo một sự kiện bảo mật giả.
+
+#### 9.10.3. `error-map.ts` mang *hành động*, không chỉ mang câu chữ
+
+Bản sao 49 mã lỗi ở FE **không** dùng để hiển thị — `messageFor()` luôn ưu tiên câu do API trả về, vì
+đó mới là câu đã điền tham số. Bản sao tồn tại vì hai việc khác: (1) **quyết định hành vi** — cùng là
+HTTP 403 nhưng `AUTH-3001` phải đưa sang trang "không có quyền" còn `AUTH-0005` (CSRF lệch) phải làm
+mới vé rồi thử lại, nhìn status code không phân biệt được; (2) **khi chưa tới được máy chủ**, lúc đó
+không có envelope nào để lấy câu chữ.
+
+Việc đồng bộ hai bên **có bài kiểm canh**: `error-map.test.ts` đọc thẳng
+`backend/core/src/main/resources/error-messages.properties` và làm đỏ khi lệch. Trước đó, nghĩa vụ
+đồng bộ chỉ được nhắc bằng một dòng chú thích trong `ErrorCode.java` — và nó đã trôi qua ba đợt
+(31 → 36 → 43 → 49 mã) mà không ai làm. Bài kiểm cũng tự chứng minh nó bắt được lệch, theo luật ở
+`conventions.md` §1.5.
+
+#### 9.10.4. Quyền ở FE **chỉ** để ẩn/hiện, và chỗ nguy hiểm nhất được tách ra kiểm
+
+Route guard và menu đọc `permissions` từ `GET /auth/me`. Đây là **tầng 1** của §4.2: người dùng gỡ nó
+bằng công cụ dev trong ba giây, nên nó không bảo vệ gì cả — chốt chặn thật là `@RequirePermission`
+(tầng 2) và scope filter theo đơn vị (tầng 3), cả hai đều có bài kiểm ở CI.
+
+Riêng nút **khôi phục dữ liệu** được tách thành hàm thuần `isRestoreVisible(isSuperAdmin, status)` ở
+tệp riêng, có bài kiểm cả bốn nhánh. Lý do: điều kiện của nó có **hai vế độc lập** — vai trò Super
+Admin (kiểm tường minh chứ không qua quyền `adm:backup:restore`, vì quyền thì gán được cho vai trò
+khác bằng vài cú nhấp) và môi trường có bật khôi phục (`DB_RESTORE_PASSWORD` không rỗng). Một điều
+kiện hai vế nằm lẫn trong JSX là thứ dễ bị rút gọn nhầm lúc dọn dẹp, mà hậu quả thì là hiện nút ghi
+đè toàn bộ CSDL cho người không được phép.
+
+#### 9.10.5. Màn hình vai trò chỉ xem — cố ý
+
+Ma trận 12 vai trò × 88 quyền (334 dòng) nạp bằng migration ở WS-2, dịch thẳng từ `function-spec.md`
+§6, và có bài kiểm ở CI đối chiếu từng dòng. Mở cho sửa trên giao diện là để một cú nhấp phá vỡ thứ
+mà cả một bộ kiểm thử đang canh, lại mất luôn dấu vết "vì sao ma trận thành ra thế này". Việc thật sự
+hay làm là **gán vai trò cho người**, và việc đó nằm ở màn hình Tài khoản. Sửa được ma trận là hạng
+mục của Phase 1, khi nghiệp vụ đã ổn định.
+
+#### 9.10.6. Chưa có "quên mật khẩu"
+
+Backend Phase 0 không có endpoint đặt lại mật khẩu, và làm nửa vời (gửi liên kết đặt lại qua email)
+là mở thêm một đường vào hệ thống mà chưa ai rà — trong khi kênh email hiện chỉ là thông báo một
+chiều. Đường chính thức lúc này: quản trị viên cấp lại mật khẩu tạm, người dùng bị bắt đổi ở lần đăng
+nhập kế tiếp. Ghi thành nợ #35 để không trôi thành "quên làm".
+
+---
+
+### 9.11. Cổng thông tin công khai và tệp chung của hai app FE (chốt 17/8, khi làm WS-9)
+
+#### 9.11.1. `design-tokens` là workspace thứ ba, không nằm trong admin-app
+
+Hai ứng dụng FE **ngang hàng**. Để bảng màu trong `admin-app` thì cổng thông tin công khai phải phụ
+thuộc vào ứng dụng quản trị nội bộ chỉ để lấy màu — quan hệ ngược chiều, và kéo cả mã nguồn
+admin-app vào bối cảnh build của public-web. Một gói nhỏ mà cả hai cùng phụ thuộc thì quan hệ đúng
+chiều, và mỗi image chỉ tải phần nó cần (`npm ci --workspace <app>`).
+
+Gói này **không có bước biên dịch**: `exports` trỏ thẳng vào `.ts`, Vite transpile sẵn, Next khai
+`transpilePackages`. Thêm một bước build chỉ để phát ra vài hằng số là thêm một chỗ quên chạy lại.
+
+Tailwind 4 khai theme bằng CSS (`@theme`), nhưng vẫn nhận cấu hình TS qua chỉ thị `@config` — dùng
+đường đó là có chủ ý: khai lại năm màu trạng thái bằng CSS custom property nghĩa là **hai bản sao**,
+mà năm màu đó mang nghĩa nghiệp vụ chứ không phải thẩm mỹ.
+
+#### 9.11.2. Cổng thông tin dựng tĩnh, không render động mỗi lượt
+
+Trang công khai chịu lượt xem không kiểm soát được (một bài viết được chia sẻ rộng là đủ), trong khi
+backend cùng lúc phục vụ hệ điều hành nội bộ **trên cùng một máy chủ VM-1**. HTML tĩnh + ISR giữ cho
+lượt đọc của công chúng không chạm tới CSDL.
+
+Kèm đường dựng lại **tức thì**: `POST /api/revalidate` cho những thứ không chờ được chu kỳ 5 phút —
+thông báo xả lũ, cảnh báo mực nước, đính chính bài đã đăng sai. `REVALIDATE_SECRET` **không** có
+tiền tố `NEXT_PUBLIC_`: biến mang tiền tố đó bị nhúng vào bundle gửi xuống trình duyệt, và khi đó
+endpoint này thành nút bất kỳ ai cũng bấm được để ép máy chủ dựng lại trang liên tục.
+
+#### 9.11.3. Health của public-web cố ý **không** hỏi sang backend
+
+Gọi sang API Core để kiểm tra thì backend hỏng sẽ làm container này bị đánh dấu unhealthy và khởi
+động lại — trong khi phần lớn cổng thông tin là HTML tĩnh, vẫn phục vụ người đọc bình thường. Một
+thành phần hỏng không nên làm hỏng lây thành phần còn chạy được. Tình trạng backend đã có chỗ riêng:
+`GET /api/v1/system/health` (M5.12).
+
+#### 9.11.4. Trang 500 công khai **không** hiện thông điệp lỗi
+
+Khác trang 500 của admin-app (hiện `traceId` cho cán bộ đọc lại cho quản trị viên): đây là trang ai
+cũng vào được. Next đã thay thông điệp lỗi thật bằng chuỗi rỗng kèm `digest` trước khi gửi xuống
+trình duyệt, và ta giữ nguyên cách đó — chỉ hiện `digest`, tra trong log máy chủ ra đúng lỗi.
+
+#### 9.11.5. ⚠ Migrator **phải thoát được** — và nó đã không thoát suốt từ WS-6
+
+Cả luồng deploy dựa vào một điều: `migrator` chạy Flyway rồi kết thúc mã 0, và
+`depends_on: service_completed_successfully` mới cho `app` khởi động (§9.2, T11.4). Đó là cơ chế duy
+nhất ngăn app lên trên schema hỏng.
+
+Thực tế đo được ngày 17/8: migration chạy xong, log in "✓ Migration hoàn tất", rồi tiến trình **không
+bao giờ thoát**. Container đứng `Up` vô hạn, `app` kẹt ở `Created`, **không một dòng lỗi nào**. Ba
+nguyên nhân chồng lên nhau, và tắt hai trong ba vẫn treo y như cũ:
+
+1. **`@EnableScheduling`** dựng `ThreadPoolTaskScheduler` với luồng **không phải daemon** — luồng đó
+   giữ JVM sống mãi. `spring.main.web-application-type: none` không cứu được: nó chỉ tắt cổng HTTP.
+   Khởi tạo lười cũng không, vì Spring Boot cố ý loại bean mang `@Scheduled` ra khỏi cơ chế đó. →
+   tách thành `SchedulingConfig` mang `@Profile("!migrate")`.
+2. **Worker hàng đợi** mở luồng riêng chạy vòng lặp vô hạn. → `app.worker-enabled: false` trong
+   profile `migrate`.
+3. **Không có khởi tạo lười**, context dựng cả chuỗi `AuthController → AuthService → TokenService →
+   JwtKeyStore`, và **đòi khoá ký JWT** dù việc duy nhất của tiến trình là chạy DDL. Ở production,
+   chiều theo đòi hỏi đó nghĩa là đưa khoá ký cho một tiến trình không có lý do gì để cầm. →
+   `spring.main.lazy-initialization: true`.
+
+Canh bằng `MigrateProfileTest`: kiểm cả ba công tắc, và **cấm `@EnableScheduling` xuất hiện ở lớp nào
+khác** — đó mới là đường quay lại của lỗi này.
+
+#### 9.11.6. ⚠ Image Docker mặc định **luôn build lại**
+
+`make dev-*` trước đây chỉ build lại khi gõ `BUILD=1`. Hệ quả đo được: image `songnhue-app:local` nằm
+nguyên từ WS-3 — bản dựng **trước khi có controller nào**. Container lên, healthcheck
+`/actuator/health` xanh, mà **mọi endpoint `/api/v1/**` trả 404**. Nhìn từ ngoài là "hệ thống chạy
+tốt"; không ai phát hiện suốt WS-4 → WS-8.
+
+Đo thật: build lại khi mã nguồn không đổi tốn **~10 giây**. Đổi mặc định thành luôn build, `NOBUILD=1`
+để bỏ qua.
+
+Cùng loại với những gì đã gặp ở §9.8: cơ chế canh gác báo xanh trong khi thứ nó phải canh chưa hề
+chạy. Ở đây thủ phạm là **healthcheck trỏ vào endpoint không đại diện cho thứ đang kiểm** —
+`/actuator/health` sống được kể cả khi không còn controller nào.
+
+---
+
+### 9.12. Rà soát nợ và kiểm chứng lại các WS đã đóng (17/8)
+
+Rà soát này **không** thêm chức năng nào. Việc của nó là chạy lại bằng tay những thứ đã đánh dấu
+xong, và nó tìm ra **bốn lỗi thật**, trong đó ba nằm ở đúng cơ chế mà cả hệ thống dựa vào.
+
+#### 9.12.1. ⚠⚠ Sao lưu **không sinh ra tệp nào** — hai nguyên nhân chồng lên nhau
+
+`make backup` trên hệ đang chạy dừng ở:
+
+```
+pg_dump: error: query failed: ERROR: permission denied for sequence system_backups_id_seq
+```
+
+`V202608131006` §3 khai quyền mặc định cho bảng tạo sau, nhưng chỉ có dòng `TABLES` cho
+`songnhue_readonly`, **thiếu dòng `SEQUENCES`**. `GRANT … ON ALL SEQUENCES` ở cùng migration chỉ áp
+cho sequence *đang tồn tại lúc nó chạy*. Bảng đầu tiên tạo sau nó là `system_backups` — **chính bảng
+sổ đăng ký sao lưu** — nên cơ chế sao lưu tự chặn mình bằng cái bảng nó vừa tạo ra.
+
+Sửa ở tầng quyền mặc định (`V202608171011`), không phải bằng một `GRANT` lẻ: mọi bảng của Phase 1+
+(công trình, thuỷ văn, hồ sơ nhân sự) đều sẽ làm hỏng lại đúng như vậy, mỗi lần đều im lặng cho tới
+lần sao lưu kế tiếp.
+
+**Vì sao 255 bài kiểm của WS-7 không bắt được**: `BackupServiceTest` **mock `PostgresToolRunner`**.
+Nó chứng minh phần điều phối — checksum đọc lại từ đĩa, ghi `FAILED` khi hỏng, mật khẩu đi qua
+`PGPASSWORD` — nhưng **chưa một lần gọi `pg_dump`**. Nay có `BackupRoleTest` chạy `pg_dump` thật bằng
+đúng vai trò và đúng tham số của production, **bên trong container** để phiên bản luôn khớp máy chủ.
+
+Đây là lỗi đắt nhất trong nhóm: hệ này **không có PITR, không có replica** (§6.5), nên bản dump đêm
+là lưới an toàn *duy nhất*. Suốt WS-7 → WS-9 nó không tồn tại.
+
+#### 9.12.2. ⚠ Phép kiểm bảo mật báo ĐẠT mà chưa từng quét
+
+`verify-no-keys.sh` (T7.2 · DoD 13d) tìm khoá PEM bằng mẫu `-----BEGIN … PRIVATE KEY-----`. Mẫu bắt
+đầu bằng `-` nên `grep -qiE "$pattern"` đọc nó thành **tham số dòng lệnh**:
+
+```
+grep: unrecognized option `-----BEGIN [A-Z ]*PRIVATE KEY-----'
+```
+
+grep chết, lời gọi nằm trong `if` nên lỗi bị nuốt, và script in `✓ Bản sao lưu không chứa khoá`. Một
+phép kiểm bảo mật báo đạt **trong khi nó chưa soi một dòng nào**.
+
+Sửa bằng `-e`, và thêm **phép tự kiểm chạy mỗi lượt**: cho khoá giả đi qua đúng hàm đó và bắt nó
+phải kêu, cho dữ liệu sạch đi qua và bắt nó phải im. Đã kiểm chứng ngược bằng cách cắm một khoá PEM
+giả vào CSDL: sao lưu bị chặn với `⛔`. Trước bản vá, cùng phép thử đó cho ra `✓`.
+
+Kèm một chỗ nữa cùng loại: bản dump **không đọc được** cũng cho ra `✓` (không tìm thấy gì vì không
+đọc được gì) → nay chặn bằng `pg_restore --list` trước khi soi.
+
+#### 9.12.3. ⚠ `make migrate` chạy **image cũ** — migration mới không hề chạy
+
+WS-9 đã đổi `make dev-*` thành luôn build lại, nhưng **bỏ sót `make migrate`**. Triệu chứng đo được:
+thêm một migration, gõ `make migrate`, log in `✓ Migration hoàn tất — tổng số migration đã áp dụng:
+10` — thành công theo mọi dấu hiệu nhìn thấy được, mà bản mới thì không chạy. Nguy hiểm hơn `dev-*`
+một bậc vì migration nằm trong jar: image cũ nghĩa là chạy Flyway của bản mã cũ, đúng trên CSDL thật.
+
+#### 9.12.4. ⚠ CSDL test có schema mà production không có
+
+`SongnhuePostgres` chép `deploy/postgres/init` vào `/docker-entrypoint-initdb.d` để "dùng chung
+script khởi tạo với production, không chép lại". Nhưng `withCopyFileToContainer` **chép vào thư
+mục**, không đè cả thư mục — nên `10_postgis.sh` có sẵn trong image vẫn chạy và tạo thêm
+`postgis_topology` + `postgis_tiger_geocoder` (kéo theo schema `topology`, `tiger`). Ở production,
+bind-mount của compose **che cả thư mục**, script đó không bao giờ chạy.
+
+Sai lệch này nguy hiểm theo cả hai chiều: bài kiểm đỏ vì thứ không tồn tại thật (đúng cách nó lộ ra —
+`pg_dump` báo `permission denied for schema tiger`), và mã dùng hàm của `topology` sẽ xanh ở đây rồi
+hỏng khi chạy thật. Vô hiệu hoá script của image trong test; canh bằng bài kiểm khẳng định danh sách
+extension **đúng bằng** danh sách của production, không phải "có chứa".
+
+#### 9.12.5. `/actuator/health` **cố ý** DOWN khi chưa có bản sao lưu — nên smoke test phải hỏi `readiness`
+
+`BackupHealthIndicator` báo DOWN khi chưa từng sao lưu thành công, và đó là quyết định đúng đã ghi ở
+§9.9. Nhưng hệ quả chưa được tính hết: **smoke test của cả hai workflow deploy** đọc
+`/actuator/health` và tìm `"status":"UP"`. Môi trường mới dựng thì chưa có bản sao lưu nào — tức là
+**đúng lần deploy đầu tiên**, smoke test đỏ suốt 5 phút vì một chuyện hoàn toàn bình thường, rồi
+deploy bị coi là hỏng. Ở production còn tệ hơn: `show-details: never` nên phản hồi chỉ có
+`{"status":"DOWN"}`, không nói vì sao.
+
+Chốt: **câu hỏi "ứng dụng phục vụ được chưa" là `readiness`**; bản tổng trả lời một câu khác — "hệ
+thống có đang thiếu lưới an toàn nào không". Smoke test, healthcheck container và tài liệu dựng máy
+đều hỏi `readiness`; bản tổng dành cho giám sát và cho màn hình M5.12.
+
+#### 9.12.6. Ba con số trong tài liệu không khớp thực tế
+
+Đối chiếu bằng truy vấn trên CSDL thật và bằng API GitHub: `settings` **58** tham số chứ không phải
+55 · `docs/runbook/` có **8** runbook chứ không phải 7 · nhánh `common` đi trước `dev` **22 commit /
+431 tệp** chứ không phải 18/313, và `dev` **không trống** — nó có 12 tệp tài liệu, nhưng không có mã
+nguồn và không có `.github/`, nên kết luận "repo chưa chạy lượt CI nào" vẫn đúng.
+
+---
+
+### 9.13. Vòng đời mật khẩu và luồng quên mật khẩu (chốt 18/8, đóng nợ #35)
+
+Đặc tả nghiệp vụ đầy đủ ở `function-spec.md` **M5.15-a**. Mục này ghi *vì sao* chọn như vậy.
+
+#### 9.13.1. Hai đồng hồ 3 tháng, và chúng đo hai thứ khác nhau
+
+Dễ đọc nhầm thành mâu thuẫn: mật khẩu **phải đổi trong** 90 ngày, mà luồng tự đặt lại **phải cách
+nhau** 90 ngày. Chúng không đè lên nhau vì áp cho hai hành động khác nhau:
+
+- **Đổi chủ động** (biết mật khẩu cũ) — *không* có giãn cách. Đây là điều kiện bắt buộc về an toàn:
+  người nghi mật khẩu bị lộ phải đổi được ngay, không đợi hết quý.
+- **Tự đặt lại** (quên, xác thực bằng email) — có giãn cách 90 ngày. Quên tiếp trong kỳ thì đi đường
+  quản trị viên.
+
+Cách đọc này bị ép bởi chính quy tắc "sau khi quản trị viên cấp mật khẩu tạm, người dùng đổi được
+ngay": nếu giãn cách áp cho mọi lần đổi thì đường cấp mật khẩu tạm tự nó bế tắc.
+
+Hai đồng hồ **tự đồng bộ** sau mỗi lần tự đặt lại: đặt lại ngày X thì mật khẩu hết hạn ngày X+90 và
+giãn cách cũng hết ngày X+90. Không có khoảng nào người dùng vừa bị buộc đổi vừa bị chặn đổi.
+
+#### 9.13.2. ⛔ Email tự phục vụ gửi **liên kết**, không gửi mật khẩu
+
+Gửi thẳng mật khẩu mới theo một yêu cầu **chưa xác thực** biến chức năng quên mật khẩu thành công cụ
+tấn công: bất kỳ ai biết tên đăng nhập đều làm mật khẩu của người khác ngừng hoạt động, và nạn nhân
+mù cho tới khi mở hộp thư. Với đơn vị này, tên đăng nhập gần như đoán được từ tên cán bộ.
+
+Liên kết một lần (TTL 30') không có tính chất đó: **mật khẩu cũ vẫn dùng được** cho tới khi người
+dùng thật sự đặt mật khẩu mới. Yêu cầu giả chỉ tạo ra một email thừa.
+
+Mật khẩu tạm **vẫn giữ**, nhưng chỉ ở đường quản trị viên cấp — nơi đã có một con người chịu trách
+nhiệm và có dấu vết trong nhật ký kiểm toán. Lưu **băm** của mã đặt lại chứ không lưu mã: bảng này
+mà lộ thì kẻ đọc được không đặt lại được mật khẩu của ai.
+
+#### 9.13.3. Mốc thời gian chặn, con số đếm để nhìn
+
+`self_reset_count` **không** dùng để chặn — một con số đếm không diễn tả được "cách nhau 90 ngày".
+Thứ chặn là `last_self_reset_at`. Con số đếm giữ lại vì nó trả lời câu hỏi khác: ai hay quên (cần
+hướng dẫn lại), và tài khoản nào đang bị người ngoài nhắm (nhiều lượt yêu cầu mà không lượt nào hoàn
+tất).
+
+#### 9.13.4. ⚠ Khoá theo hạn áp cho **cả Super Admin** — nên phải có đường thoát ngoài mã
+
+Miễn trừ Super Admin là làm rỗng chính sách ở đúng tài khoản nguy hiểm nhất. Nhưng giữ nguyên quy tắc
+thì gặp bài toán tự nhốt: Super Admin hết hạn → `DISABLED` → người mở khoá lại chính là Super Admin.
+
+Chốt: giữ quy tắc cho mọi tài khoản, đường thoát là **lệnh chạy trên máy chủ** (mở rộng
+`AdminBootstrapRunner` của WS-5), không phải một nhánh ngoại lệ trong mã nghiệp vụ. Lý do: ai đã vào
+được máy chủ thì vốn có quyền cao hơn bất kỳ mật khẩu nào — đặt đường thoát ở đó không hạ thấp gì,
+trong khi một ngoại lệ trong mã thì tồn tại mãi và ai đọc cũng thấy.
+
+#### 9.13.5. Việc theo lịch đi qua hàng đợi job
+
+Quét tài khoản sắp hết hạn (gửi nhắc) và quá hạn (chuyển `DISABLED`) chạy hằng ngày, nhưng **đặt việc
+vào hàng đợi** chứ không xử lý ngay trong bộ lập lịch — đúng mô hình đã chốt ở §9.6. Khoá chống trùng
+theo ngày, nên thêm node thứ hai không sinh ra hai lượt gửi nhắc.
+
+#### 9.13.6. Điều Công ty cần được báo trước
+
+Quy tắc "quá 90 ngày không đổi → khoá tài khoản" là chính sách **người dùng cảm nhận trực tiếp**, và
+nó dồn việc lên quản trị viên: cán bộ đi công tác dài, nghỉ phép dài, hoặc dùng hệ thống thưa (nhiều
+người ở MOD-01/MOD-04 chỉ vào vài lần mỗi quý) sẽ bị khoá đúng lúc cần dùng. Ba mốc nhắc trước hạn là
+để giảm chuyện đó, nhưng không xoá được nó.
+
+Đây **không** phải mục cần Công ty quyết định — đã chốt nội bộ — mà là mục cần **thông báo** khi
+nghiệm thu, kèm ước lượng khối lượng cấp lại mật khẩu tạm cho quản trị viên.

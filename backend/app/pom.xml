@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.songnhue</groupId>
+        <artifactId>songnhue-backend</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>songnhue-app</artifactId>
+    <name>Songnhue App</name>
+    <description>Bootstrap của Modular Monolith: gom 5 module thành 1 process, giữ application*.yml và Dockerfile.
+        Module này KHÔNG chứa logic nghiệp vụ.</description>
+
+    <properties>
+        <!-- Module DUY NHẤT có main class → bật lại `spring-boot:run` (POM cha đặt skip=true) -->
+        <spring-boot.run.skip>false</spring-boot.run.skip>
+
+        <!--
+          ⚠ Phiên bản Docker Engine API mà docker-java được phép dùng.
+
+          Docker Engine 29 ĐÃ BỎ mọi phiên bản API cũ hơn 1.44: gọi /v1.43/info trả về HTTP 400 kèm
+          một thân JSON rỗng. docker-java đi cùng Testcontainers 1.21 mặc định thương lượng một
+          phiên bản cũ hơn thế, nên Testcontainers kết luận "Could not find a valid Docker
+          environment" — một thông báo chỉ về đúng hướng "máy chưa cài Docker", trong khi Docker vẫn
+          đang chạy bình thường và `docker ps` vẫn ra kết quả.
+
+          1.44 = Docker Engine 25.0 (01/2024), thấp hơn mọi phiên bản đang được hỗ trợ, nên đặt cứng
+          ở đây an toàn cho cả máy dev lẫn runner CI. Cần thì đổi bằng -Ddocker.api.version=…
+        -->
+        <docker.api.version>1.44</docker.api.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.songnhue</groupId>
+            <artifactId>songnhue-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.songnhue</groupId>
+            <artifactId>songnhue-content</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.songnhue</groupId>
+            <artifactId>songnhue-operations</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.songnhue</groupId>
+            <artifactId>songnhue-hydro</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.songnhue</groupId>
+            <artifactId>songnhue-hr</artifactId>
+        </dependency>
+
+        <!-- Health-check + metrics (CN-05.6 / M5.12) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <!--
+          Định dạng phơi metric cho Prometheus trên VM-3 (WS-7 / T7.9).
+
+          `runtime` là đủ và đúng: không dòng mã nào import lớp của thư viện này — `core` chỉ khai
+          báo qua API trung lập của Micrometer. Đổi sang hệ giám sát khác về sau là đổi đúng một
+          dòng ở đây.
+        -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!--
+          DataSource + Flyway đặt ở `app` (tầng bootstrap), không ở module nghiệp vụ:
+          kết nối hạ tầng là việc của nơi lắp ráp ứng dụng (conventions.md §1.6).
+          Migration SQL thì nằm trong resources của TỪNG module, gộp lại qua
+          spring.flyway.locations.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jdbc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!--
+          ===================== WS-10 · Test & CI =====================
+
+          ArchUnit và Testcontainers chỉ khai ở `app`, không ở POM cha: đây là module DUY NHẤT có
+          đủ 5 module nghiệp vụ trên classpath (ArchUnit cần soi liên module) và có DataSource +
+          Flyway để dựng một DB thật (Testcontainers).
+
+          ⚠ Lấy `archunit` (lõi) chứ KHÔNG lấy `archunit-junit5`. Bản junit5 kèm một TestEngine riêng
+          của ArchUnit; với Surefire 3.5 + JUnit Platform của Spring Boot 3.5 nó nạp được nhưng
+          **tìm ra 0 bài kiểm**, và build vẫn xanh — cả bộ luật kiến trúc thành đồ trang trí mà không
+          ai biết (kiểm chứng: đặt một luật chắc chắn sai, build vẫn xanh). Gọi thẳng
+          `rule.check(classes)` trong @Test thường thì không có bộ máy nào để hỏng âm thầm.
+        -->
+        <!-- Đồ dùng chung cho test (RsaKeyPairFixture…) — xem `test-jar` ở core/pom.xml -->
+        <dependency>
+            <groupId>com.songnhue</groupId>
+            <artifactId>songnhue-core</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit</artifactId>
+            <version>${archunit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>songnhue-app</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <systemPropertyVariables>
+                        <!-- docker-java đọc thuộc tính hệ thống `api.version` — xem ghi chú ở <properties> -->
+                        <api.version>${docker.api.version}</api.version>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>com.songnhue.app.SongnhueApplication</mainClass>
+                    <!--
+                      Chạy từ thư mục `backend/` chứ không phải `backend/app/`.
+                      Các đường dẫn tương đối trong file env (khoá JWT ở `../deploy/keys/…`) được
+                      viết theo gốc `backend/`; để mặc định thì cùng một file env cho kết quả khác
+                      nhau tuỳ người chạy `make dev-native` hay chạy từ IDE — và triệu chứng là
+                      "không tìm thấy file khoá" dù file vẫn nằm đúng chỗ.
+                    -->
+                    <workingDirectory>${maven.multiModuleProjectDirectory}</workingDirectory>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

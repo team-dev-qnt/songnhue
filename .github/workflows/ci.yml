@@ -1,0 +1,363 @@
+# =============================================================================
+# CI — cổng chất lượng DUY NHẤT của cả luồng (WS-10 / T10.6)
+#
+# Chốt 15/8: mọi kiểm tra nặng chạy đúng một lần, ở `dev`. Hai chặng sau
+# (staging, production) chỉ triển khai, không kiểm lại — xem docs/cicd.md.
+# Hệ quả: nếu một thứ không được kiểm ở đây thì nó KHÔNG được kiểm ở đâu cả.
+#
+# Thứ tự các bước xếp theo "cái nào phát hiện lỗi sớm và rẻ nhất thì chạy trước":
+#   format/lint (giây)  →  test đơn vị (giây)  →  test tích hợp có DB (phút)
+# Nhờ vậy một PR sai định dạng biết ngay trong 30 giây thay vì chờ hết 5 phút.
+# =============================================================================
+name: CI
+
+# ⚠ CHỈ `dev`. Đây là chủ ý, không phải thiếu sót — xem đầu file.
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [dev]
+
+# Push liên tiếp vào cùng một nhánh: huỷ lượt chạy cũ, chỉ giữ lượt mới nhất.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Lọc theo ĐƯỜNG DẪN, không lọc theo module
+  #
+  # Đổi tài liệu thì không cần chạy 226 bài kiểm; đổi FE thì không cần build
+  # backend. Đó là phần tiết kiệm an toàn, vì hai vùng này không thể làm hỏng
+  # nhau — chúng không dùng chung hệ thống build nào.
+  #
+  # ⚠ CỐ Ý KHÔNG lọc mịn hơn tới từng module backend. Trong Modular Monolith này
+  # `core` chiếm gần như toàn bộ mã nguồn và 4 module còn lại đều phụ thuộc vào
+  # nó, nên "chỉ chạy phần đổi" hầu như luôn quy về "chạy tất cả" — tiết kiệm
+  # gần bằng không. Đổi lại, rủi ro thì rất thật: chính WS-10 cho thấy các lỗi
+  # nặng nhất đều là lỗi LIÊN TẦNG, và chúng bị bắt bởi bài kiểm nằm ở module
+  # `app` chứ không phải ở module vừa sửa (tầng 3 phân quyền, ranh giới ArchUnit,
+  # ma trận RBAC). Bỏ qua `app` vì "lần này chỉ sửa core" là bỏ đúng những bài
+  # kiểm sinh ra để bắt loại lỗi đó.
+  #
+  # ⚠ Lọc ở mức JOB (`if:`), không lọc ở mức workflow (`paths:`). Job bị skip
+  # vẫn báo về một check run và branch protection tính là đạt; còn workflow
+  # không chạy thì check bắt buộc KHÔNG BAO GIỜ xuất hiện và PR kẹt vĩnh viễn ở
+  # "Expected — Waiting for status to be reported".
+  # ---------------------------------------------------------------------------
+  changes:
+    name: Vùng nào thay đổi
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Cần đủ lịch sử để so với commit gốc của PR / commit trước của push
+          fetch-depth: 0
+
+      - name: So sánh đường dẫn thay đổi
+        id: filter
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -euo pipefail
+
+          # Push đầu tiên vào một nhánh mới có `before` = toàn số 0: không có mốc
+          # để so, nên chạy hết. Thà chạy thừa còn hơn bỏ sót ở lần đầu.
+          if [ -z "${BASE_SHA:-}" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            echo "Không xác định được mốc so sánh — chạy toàn bộ."
+            echo "backend=true"  >> "$GITHUB_OUTPUT"
+            echo "frontend=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          changed=$(git diff --name-only "$BASE_SHA" "${{ github.sha }}")
+          echo "Tệp thay đổi:"; printf '%s\n' "$changed" | sed 's/^/  /'
+
+          # ⚠⚠ MẶC ĐỊNH LÀ CHẠY. Bộ lọc trục trặc thì phải chạy thừa, tuyệt đối
+          #   không được bỏ qua — vì "bỏ qua" ở đây KHÔNG hiện ra như một lỗi:
+          #   job bị skip, mà GitHub tính **skipped của một required check là
+          #   ĐẠT**, nên PR merge được trong khi bộ kiểm chưa từng chạy.
+          backend=true
+          frontend=true
+
+          # ⚠ Here-string, KHÔNG dùng `echo "$changed" | grep -q`.
+          #
+          #   `grep -q` thoát NGAY khi thấy dòng khớp đầu tiên và đóng đầu đọc
+          #   của ống. `echo` còn dữ liệu chưa ghi hết thì nhận SIGPIPE và thoát
+          #   141; với `set -o pipefail`, trạng thái của cả pipeline thành 141 =
+          #   THẤT BẠI — dù grep đã khớp. Nhánh `else` chạy và job bị bỏ qua.
+          #
+          #   Đây là một CUỘC ĐUA, không phải lỗi tất định: echo kịp ghi hết vào
+          #   bộ đệm ống (64KB) thì không có SIGPIPE và kết quả đúng. Đo thật ở
+          #   PR #1 ngày 18/8 — CÙNG một PR: lượt 12:56 backend chạy bình thường,
+          #   lượt 13:34 backend bị bỏ qua, log để lại đúng một dòng
+          #   "echo: write error: Broken pipe". Here-string không có ống, nên
+          #   không có cuộc đua nào.
+          #
+          # `.github/workflows` nằm ở cả hai vế: sửa chính pipeline thì phải chạy
+          # lại pipeline, nếu không thì thay đổi ấy không bao giờ được kiểm.
+          if [ -n "$changed" ]; then
+            grep -qE '^(backend/|\.github/workflows/)'  <<< "$changed" || backend=false
+            grep -qE '^(frontend/|\.github/workflows/)' <<< "$changed" || frontend=false
+          fi
+
+          echo "backend=$backend"   >> "$GITHUB_OUTPUT"
+          echo "frontend=$frontend" >> "$GITHUB_OUTPUT"
+
+          # In quyết định ra, để đọc được ở mọi lượt chạy thay vì phải suy ngược
+          # từ việc job nào biến mất khỏi danh sách.
+          echo "→ backend=$backend · frontend=$frontend"
+          echo "Vùng chạy lần này: backend=\`$backend\` · frontend=\`$frontend\`" >> "$GITHUB_STEP_SUMMARY"
+
+  backend:
+    name: Backend — build, lint, test
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cài JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+          cache: maven
+
+      # Spotless + Checkstyle gắn ở phase `validate` nên chúng tự chạy trong mọi
+      # lệnh dưới đây. Chạy riêng một lượt trước để lỗi định dạng hiện ra ngay,
+      # không lẫn vào log biên dịch.
+      - name: Định dạng và quy ước mã nguồn
+        working-directory: backend
+        run: ./mvnw -B -ntp spotless:check checkstyle:check
+
+      # `verify` gồm: biên dịch → test đơn vị → test tích hợp (Testcontainers) →
+      # bộ luật ArchUnit → cổng bao phủ JaCoCo cho tầng domain.
+      #
+      # ⚠ Testcontainers cần Docker. Runner của GitHub có sẵn, nhưng phiên bản
+      # API Docker được ghim ở `docker.api.version` trong backend/app/pom.xml —
+      # xem ghi chú ở đó: Docker Engine 29 đã bỏ mọi API cũ hơn 1.44, còn engine
+      # cũ hơn 25.0 lại chưa có 1.44, nên không có con số nào đúng cho cả hai.
+      # Runner nào chạy engine < 25.0 thì truyền -Ddocker.api.version=1.43.
+      - name: Build, test và cổng bao phủ
+        working-directory: backend
+        run: ./mvnw -B -ntp verify
+
+      - name: Giữ lại báo cáo test khi hỏng
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: backend/*/target/surefire-reports/
+          retention-days: 7
+
+  frontend:
+    # ⚠ Giữ nguyên tên "Frontend — lint" dù job nay chạy cả typecheck, test và build:
+    # tên job CHÍNH LÀ tên required status check trong bảo vệ nhánh (docs/branch-protection.md
+    # §4.1). Đổi tên là mọi PR đang mở chờ một context không bao giờ tới.
+    name: Frontend — lint
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      # Hai ứng dụng FE thuộc WS-8 và WS-9, chưa tồn tại ở thời điểm viết job này.
+      # Bỏ qua có điều kiện thay vì chờ tới lúc đó mới thêm job: khi thư mục xuất
+      # hiện, CI tự bắt đầu kiểm nó mà không ai phải nhớ quay lại sửa file này.
+      - name: Có mã nguồn FE chưa?
+        id: detect
+        run: |
+          if [ -f frontend/admin-app/package.json ] || [ -f frontend/public-web/package.json ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Chưa có mã nguồn frontend (WS-8/WS-9) — bỏ qua."
+          fi
+
+      - name: Cài Node 22
+        if: steps.detect.outputs.exists == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # ⚠ Chạy ở `frontend/`, KHÔNG phải trong từng app.
+      #
+      # Bản đầu của job này gọi `npm ci` với `working-directory: frontend/admin-app`.
+      # Hai app là npm workspaces nên lockfile chỉ có MỘT, nằm ở `frontend/` — `npm ci`
+      # trong thư mục con không tìm thấy `package-lock.json` và dừng ngay. Lỗi đó không
+      # lộ ra suốt WS-1→WS-7 vì job tự bỏ qua khi chưa có mã nguồn FE, và repo cũng chưa
+      # chạy lượt CI nào (nợ #24).
+      #
+      # Cấu hình ESLint 9 flat cũng chỉ có một, ở `frontend/eslint.config.mjs`, và flat
+      # config KHÔNG gộp cấu hình lồng nhau — chạy từ thư mục con là mất luôn nhóm rule
+      # React mà không báo gì.
+      - name: Cài phụ thuộc
+        if: steps.detect.outputs.exists == 'true'
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint + định dạng
+        if: steps.detect.outputs.exists == 'true'
+        working-directory: frontend
+        run: |
+          npm run lint
+          npm run format:check
+
+      - name: Kiểm kiểu
+        if: steps.detect.outputs.exists == 'true'
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Test
+        if: steps.detect.outputs.exists == 'true'
+        working-directory: frontend
+        run: npm test
+
+      # Build thật, không chỉ kiểm kiểu: `tsc` không bắt được lỗi phân giải đường dẫn
+      # của bundler, mà đó đúng là loại lỗi chỉ nổ lúc đóng gói image ở chặng sau.
+      - name: Build admin-app
+        if: steps.detect.outputs.exists == 'true' && hashFiles('frontend/admin-app/package.json') != ''
+        working-directory: frontend
+        run: npm run build --workspace admin-app
+
+      - name: Build public-web
+        if: steps.detect.outputs.exists == 'true' && hashFiles('frontend/public-web/package.json') != ''
+        working-directory: frontend
+        run: npm run build --workspace public-web
+
+  # ---------------------------------------------------------------------------
+  # Đóng gói MỘT LẦN, rồi đề bạt chính image đó qua staging và production.
+  #
+  # Đây là mặt còn lại của nguyên tắc "kiểm một lần ở dev". Nếu mỗi chặng tự
+  # build lại từ mã nguồn thì production chạy một image chưa ai từng thử —
+  # cùng commit vẫn có thể ra image khác nhau (phiên bản base image, thư viện hệ
+  # thống, thời điểm build). Đóng gói một lần thì thứ chạy trên production đúng
+  # là thứ đã qua 226 bài kiểm.
+  #
+  # Chỉ chạy khi PUSH vào dev (đã merge), không chạy cho PR.
+  # ---------------------------------------------------------------------------
+  image:
+    name: Đóng gói image
+    needs: [changes, backend]
+    if: github.event_name == 'push' && needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Đăng nhập GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Tag theo commit SHA là tag DUY NHẤT mà hai chặng sau dùng để tra image.
+      # Tag `dev` chỉ để tiện xem, không được dùng để deploy: nó di động, nên
+      # "deploy tag dev" nghĩa là không biết chắc mình vừa đưa cái gì lên.
+      - name: Build và đẩy lên GHCR
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          file: deploy/docker/backend.Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/app:${{ github.sha }}
+            ghcr.io/${{ github.repository }}/app:dev
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Ghi tóm tắt
+        run: |
+          echo "### Image đã đóng gói" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "ghcr.io/${{ github.repository }}/app:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------------
+  # Kiểm phụ thuộc Ở MỨC PR — nhanh, chỉ soi phần PR THÊM VÀO
+  #
+  # ⚠ Bản trước đặt cả OWASP Dependency-Check vào đây và nó hỏng đúng kiểu đã
+  #   lường trước nhưng chặn sai chỗ: lượt CI đầu tiên của repo (18/8) job này
+  #   chạy **30 phút rồi bị timeout huỷ**, vì không có `NVD_API_KEY` thì NVD
+  #   giới hạn tốc độ rất nặng và phải tải 378.798 bản ghi.
+  #
+  #   `continue-on-error: true` KHÔNG cứu được: nó áp cho job *thất bại*, còn
+  #   job bị **huỷ vì timeout** thì thoát khỏi nó và nhuộm "cancelled" lên cả
+  #   lượt chạy. Tức là cái van an toàn viết ra để "quét CVE không bao giờ chặn
+  #   đường" đã không hoạt động ngay lần đầu cần tới nó.
+  #
+  #   Chốt: quét toàn bộ kho phụ thuộc là việc CHẠY THEO LỊCH, không phải việc
+  #   của mỗi PR — xem `.github/workflows/security-scan.yml`. Phụ thuộc của
+  #   ngày hôm nay không an toàn hơn vì có ai đó mở PR; nó kém an toàn đi vì
+  #   thế giới công bố thêm CVE, và đó là nhịp của cái đồng hồ, không phải nhịp
+  #   của đội.
+  #
+  # Ở PR chỉ giữ phép kiểm trả lời đúng câu hỏi của PR: "PR này có KÉO THÊM
+  # thư viện dính lỗ hổng nào vào không". Nó đọc Advisory Database của GitHub,
+  # chạy vài giây, không đụng NVD.
+  # ---------------------------------------------------------------------------
+  dependency-review:
+    name: Soi phụ thuộc PR thêm vào
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ⚠ Repo public KHÔNG tự nghĩa là dùng được: `dependency-review` cần
+      #   **Dependency graph** đang bật, mà ở repo này nó đang TẮT — lượt chạy
+      #   18/8 đỏ với "Dependency review is not supported on this repository".
+      #
+      #   Hỏi thẳng đúng endpoint mà action sẽ gọi, thay vì suy theo visibility.
+      #   Thiếu thì bỏ qua và nói to, không nhuộm đỏ lượt chạy vì một công tắc
+      #   cấu hình — đỏ vì lý do không liên quan tới mã là cách nhanh nhất để
+      #   người ta thôi đọc CI.
+      - name: Dependency graph có bật không
+        id: depgraph
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if gh api "repos/${{ github.repository }}/dependency-graph/compare/${BASE}...${{ github.sha }}" >/dev/null 2>&1; then
+            echo "bat=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "bat=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "### ⚠ Dependency graph đang TẮT — bỏ qua phép soi phụ thuộc"
+              echo ""
+              echo "Bật ở **Settings → Code security → Dependency graph** (miễn phí"
+              echo "với repo public), rồi chạy lại lượt này."
+              echo ""
+              echo "⛔ Đây là **bỏ qua một phép kiểm bảo mật**, không phải 'không sao'."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - uses: actions/dependency-review-action@v4
+        if: steps.depgraph.outputs.bat == 'true'
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure

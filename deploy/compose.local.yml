@@ -1,0 +1,138 @@
+# =============================================================================
+# STACK LOCAL — chọn TỪNG service chạy trong Docker bằng profile
+#
+# Hạ tầng (postgres, minio, mailpit) KHÔNG có profile → luôn chạy.
+# Ba service ứng dụng nằm sau profile, bật cái nào thì chạy cái đó:
+#
+#   (không profile)              → chỉ hạ tầng        · make dev-infra
+#   --profile backend            → + backend          · make dev-be   (bạn code FE)
+#   --profile admin --profile public → + 2 app FE     · make dev-fe   (bạn code BE)
+#   --profile full               → tất cả             · make dev-docker
+#
+# ⭐ MỌI image đều BUILD TỪ MÃ NGUỒN LOCAL (`build:` trỏ vào backend/ và
+#    frontend/). Không kéo image dựng sẵn từ registry ở chế độ local.
+#    • `up -d`         → dùng image đã build, KHÔNG build lại
+#    • `up -d --build` → build lại từ code hiện tại  (= `make dev-* BUILD=1`)
+#    Sửa code xong PHẢI build lại — image không tự bám theo file trên máy.
+#    Đổi lại: build lại chỉ ~7 giây nhờ cache lớp dependency.
+#
+# ⚠ Service nào ĐANG SỬA thì chạy native, đừng chạy trong Docker — Docker ở đây
+#   là để dựng NHỮNG THỨ CÒN LẠI. Xem docs/run-guideline.md.
+# =============================================================================
+name: songnhue
+
+include:
+  - compose.infra.yml
+
+services:
+  # ---------------------------------------------------------------------------
+  # migrator — chạy Flyway rồi thoát, ĐÚNG mô hình Staging/Production
+  # (architecture-review.md §9.2). Nhờ vậy đường deploy được diễn tập ngay ở local.
+  # ---------------------------------------------------------------------------
+  migrator:
+    profiles: ["backend", "full"]
+    image: songnhue-app:local
+    build:
+      context: ../backend
+      dockerfile: ../deploy/docker/backend.Dockerfile
+    container_name: songnhue-migrator
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - ./env/local.env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      # Migrator chỉ chạy DDL, nhưng context Spring vẫn dựng vài bean có `@Scheduled`
+      # (Spring Boot cố ý loại chúng khỏi khởi tạo lười, nếu không tác vụ định kỳ
+      # không bao giờ chạy) — và chúng kéo theo `BackupProperties`. Cấp một đường dẫn
+      # hợp lệ là đủ; đây không phải bí mật.
+      BACKUP_DIR: /var/lib/songnhue/backup
+    command: ["--spring.profiles.active=migrate"]
+    healthcheck:
+      disable: true
+
+  # ---------------------------------------------------------------------------
+  # app — backend. Migration KHÔNG chạy ở đây (FLYWAY_ENABLED=false), giống
+  # production: migration hỏng thì app không lên nửa vời.
+  # ---------------------------------------------------------------------------
+  app:
+    profiles: ["backend", "full"]
+    image: songnhue-app:local
+    build:
+      context: ../backend
+      dockerfile: ../deploy/docker/backend.Dockerfile
+    container_name: songnhue-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+    env_file:
+      - ./env/local.env
+    environment:
+      # Ghi đè các giá trị trỏ ra host: trong mạng Docker phải gọi theo tên service
+      DB_HOST: postgres
+      DB_PORT: 5432
+      MINIO_ENDPOINT: http://minio:9000
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      # Cổng bên trong container luôn 8080; đổi cổng thì đổi ở phần ports bên dưới
+      APP_PORT: 8080
+      FLYWAY_ENABLED: "false"
+      SPRING_PROFILES_ACTIVE: local
+      # Khóa nằm ngoài image — mount vào lúc chạy, không bao giờ bake vào layer
+      JWT_PRIVATE_KEY_PATH: /app/keys/jwt-private.pem
+      JWT_PUBLIC_KEY_PATH: /app/keys/jwt-public.pem
+      # Đường dẫn TRONG container. Giá trị ở local.env là đường dẫn tương đối của máy
+      # dev (`./.backup`), trong container nó thành `/app/./.backup` — sai chỗ, và
+      # Dockerfile đã chuẩn bị sẵn /var/lib/songnhue/backup đúng chủ sở hữu cho việc này.
+      BACKUP_DIR: /var/lib/songnhue/backup
+    volumes:
+      - ./keys:/app/keys:ro
+    ports:
+      - "127.0.0.1:${DOCKER_APP_PORT:-18080}:8080"
+
+  # ---------------------------------------------------------------------------
+  # admin-app (Vite + React + AntD) — bundle tĩnh, phục vụ bằng nginx
+  # ⬜ CHƯA DÙNG ĐƯỢC: thư mục frontend/admin-app do WS-8 tạo.
+  # ---------------------------------------------------------------------------
+  admin-app:
+    profiles: ["admin", "full"]
+    image: songnhue-admin-app:local
+    build:
+      context: ../frontend
+      dockerfile: ../deploy/docker/admin-app.Dockerfile
+      args:
+        # Vite nhúng biến vào bundle LÚC BUILD — đổi URL API phải build lại image
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:18080/api/v1}
+    container_name: songnhue-admin-app
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${DOCKER_ADMIN_APP_PORT:-15173}:80"
+
+  # ---------------------------------------------------------------------------
+  # public-web (Next.js) — chế độ standalone
+  # ⬜ CHƯA DÙNG ĐƯỢC: thư mục frontend/public-web do WS-9 tạo.
+  # ---------------------------------------------------------------------------
+  public-web:
+    profiles: ["public", "full"]
+    image: songnhue-public-web:local
+    build:
+      context: ../frontend
+      dockerfile: ../deploy/docker/public-web.Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:18080/api/v1}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:13000}
+    container_name: songnhue-public-web
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      HOSTNAME: "0.0.0.0"
+    ports:
+      - "127.0.0.1:${DOCKER_PUBLIC_WEB_PORT:-13000}:3000"

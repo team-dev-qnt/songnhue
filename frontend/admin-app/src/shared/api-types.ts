@@ -1,0 +1,395 @@
+/**
+ * Bản sao kiểu dữ liệu của API Core (`com.songnhue.core.api.**`).
+ *
+ * Viết tay chứ không sinh từ OpenAPI: bộ sinh sẽ đổ ra cả trăm kiểu cho những endpoint
+ * admin-app không đụng tới, và mỗi lần backend thêm module là một lượt diff khổng lồ.
+ * Chép tay đúng phần đang dùng thì nhỏ, đọc được, và khi backend đổi hình dạng thì
+ * TypeScript chỉ đúng chỗ hỏng.
+ *
+ * ⚠ Mọi mốc thời gian là **chuỗi ISO-8601 UTC** do backend trả (`Instant`). Hiển thị
+ * phải đi qua `formatDateTime` để đổi sang UTC+7 — xem `format.ts`.
+ */
+
+// =============================================================================
+// Envelope (conventions.md §2.1)
+// =============================================================================
+
+export interface PageMeta {
+  /** Đếm từ **1** — backend đã +1 so với `Page.getNumber()` của Spring (§1.3). */
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+export interface ErrorDetail {
+  field: string;
+  rule: string;
+  rejectedValue: unknown;
+}
+
+export interface ApiErrorBody {
+  code: string;
+  message: string;
+  details?: ErrorDetail[];
+}
+
+export interface ApiEnvelope<T> {
+  success: boolean;
+  data?: T;
+  meta?: PageMeta;
+  error?: ApiErrorBody;
+  /** Luôn có mặt, kể cả khi thành công — người dùng báo lỗi chỉ cần đọc mã này. */
+  traceId: string;
+}
+
+/** Kết quả một truy vấn phân trang sau khi bóc envelope. */
+export interface PageResult<T> {
+  items: T[];
+  meta: PageMeta;
+}
+
+// =============================================================================
+// Xác thực — /api/v1/auth
+// =============================================================================
+
+/**
+ * Bước tiếp theo của luồng đăng nhập, do backend quyết định.
+ *
+ * FE **không tự suy** ("tài khoản này là Admin nên chắc phải 2FA") — quy tắc bắt buộc
+ * 2FA nằm ở backend và có thể đổi qua cấu hình.
+ */
+export type LoginStage = 'AUTHENTICATED' | 'TWO_FACTOR_REQUIRED' | 'TWO_FACTOR_ENROLL_REQUIRED';
+
+export interface LoginResponse {
+  stage: LoginStage;
+  /** Chỉ có ở `AUTHENTICATED`. Giữ trong bộ nhớ, **không** localStorage. */
+  accessToken: string | null;
+  accessTokenExpiresAt: string | null;
+  csrfToken: string | null;
+  /** Vé đi tiếp hai bước 2FA; chỉ có ở hai nhánh còn lại. */
+  challengeToken: string | null;
+  mustChangePassword: boolean;
+}
+
+export interface EnrollResponse {
+  /** ⛔ Chỉ hiện đúng một lần, backend không trả lại lần thứ hai. */
+  secret: string;
+  otpauthUri: string;
+  recoveryCodes: string[];
+}
+
+export interface MeResponse {
+  id: string;
+  username: string;
+  fullName: string;
+  orgUnitId: number | null;
+  roles: string[];
+  permissions: string[];
+  mustChangePassword: boolean;
+  twoFactorEnrolled: boolean;
+}
+
+export interface SessionView {
+  id: string;
+  deviceLabel: string | null;
+  ipAddress: string | null;
+  issuedAt: string;
+  lastUsedAt: string | null;
+  expiresAt: string;
+  /** Phiên đang dùng để gọi API — tô khác để người dùng khỏi tự đăng xuất mình. */
+  current: boolean;
+}
+
+// =============================================================================
+// Tài khoản & vai trò — /api/v1/admin/users
+// =============================================================================
+
+/** `PENDING_ACTIVATION` = đã tạo nhưng chưa đăng nhập lần nào (còn mật khẩu tạm). */
+export type UserStatus = 'PENDING_ACTIVATION' | 'ACTIVE' | 'LOCKED';
+
+export interface UserView {
+  publicId: string;
+  username: string;
+  fullName: string;
+  email: string | null;
+  phone: string | null;
+  status: string;
+  mustChangePassword: boolean;
+  twoFactorRequired: boolean;
+  lastLoginAt: string | null;
+}
+
+export interface CreateUserRequest {
+  username: string;
+  fullName: string;
+  email?: string;
+  orgUnitPublicId: string;
+  temporaryPassword: string;
+}
+
+export interface UpdateUserRequest {
+  fullName: string;
+  email?: string;
+  phone?: string;
+}
+
+export interface RoleSummary {
+  code: string;
+  name: string;
+  description: string | null;
+  permissionCount: number;
+}
+
+// =============================================================================
+// Sơ đồ tổ chức — /api/v1/org-units
+// =============================================================================
+
+/** Một bảng `org_units` dùng chung cho Xí nghiệp (MOD-02) và phòng ban (MOD-04) — CLAUDE.md quy tắc 7. */
+export type OrgUnitType = 'CONG_TY' | 'PHONG_BAN' | 'XI_NGHIEP' | 'TO_DOI';
+
+export interface OrgUnitNode {
+  publicId: string;
+  code: string;
+  name: string;
+  shortName: string | null;
+  unitType: OrgUnitType;
+  path: string;
+  depth: number;
+  sortOrder: number;
+  active: boolean;
+  children: OrgUnitNode[];
+}
+
+export interface OrgUnitSummary {
+  publicId: string;
+  code: string;
+  name: string;
+  shortName: string | null;
+  unitType: OrgUnitType;
+  path: string;
+  depth: number;
+  active: boolean;
+}
+
+export interface CreateOrgUnitRequest {
+  code: string;
+  name: string;
+  shortName?: string;
+  unitType: OrgUnitType;
+  /** Bỏ trống = nút gốc; toàn hệ thống chỉ được đúng một nút gốc. */
+  parentPublicId?: string;
+}
+
+// =============================================================================
+// Cấu hình — /api/v1/settings
+// =============================================================================
+
+export type SettingValueType = 'STRING' | 'INTEGER' | 'DECIMAL' | 'BOOLEAN' | 'JSON' | 'CRON';
+
+export interface SettingView {
+  key: string;
+  value: string | null;
+  /** Giá trị đang có hiệu lực = `value` nếu có, không thì `defaultValue`. */
+  effectiveValue: string | null;
+  valueType: string;
+  defaultValue: string | null;
+  groupCode: string;
+  label: string;
+  description: string | null;
+  /** Chuỗi kiểu `min=7;max=365` — FE dựng ô nhập theo đó, backend vẫn là nơi chốt. */
+  validation: string | null;
+  editable: boolean;
+  exportable: boolean;
+}
+
+export interface SettingImportResult {
+  changed: number;
+  skippedKeys: string[];
+}
+
+// =============================================================================
+// Nhật ký kiểm toán — /api/v1/audit-logs
+// =============================================================================
+
+export type AuditAction =
+  | 'CREATE'
+  | 'UPDATE'
+  | 'DELETE'
+  | 'RESTORE'
+  | 'LOGIN'
+  | 'LOGOUT'
+  | 'LOGIN_FAILED'
+  | 'PERMISSION_CHANGE'
+  | 'EXPORT'
+  | 'IMPORT'
+  | 'APPROVE'
+  | 'REJECT'
+  | 'PUBLISH'
+  | 'BACKUP'
+  | 'DB_RESTORE';
+
+export interface AuditLogView {
+  seq: number;
+  occurredAt: string;
+  actorUserId: number | null;
+  actorUsername: string | null;
+  module: string | null;
+  entityType: string | null;
+  entityId: number | null;
+  entityPublicId: string | null;
+  action: AuditAction;
+  oldValue: string | null;
+  newValue: string | null;
+  ipAddress: string | null;
+  traceId: string | null;
+}
+
+export interface ChainBreak {
+  seq: number;
+  occurredAt: string;
+  /** Câu tiếng Việt do hàm trong CSDL sinh — hiển thị thẳng. */
+  reason: string;
+}
+
+export interface ChainVerification {
+  intact: boolean;
+  minSeq: number;
+  maxSeq: number;
+  totalRecords: number;
+  breaks: ChainBreak[];
+}
+
+// =============================================================================
+// Sao lưu & khôi phục — /api/v1/backups (M5.10, M5.11)
+// =============================================================================
+
+export type BackupStatus = 'RUNNING' | 'SUCCEEDED' | 'FAILED';
+export type BackupTrigger = 'SCHEDULED' | 'MANUAL' | 'PRE_RESTORE';
+
+export interface BackupView {
+  id: string;
+  fileName: string;
+  sizeBytes: number | null;
+  checksumSha256: string | null;
+  status: BackupStatus;
+  trigger: BackupTrigger;
+  startedAt: string;
+  finishedAt: string | null;
+  durationMs: number | null;
+  /** Chỉ có ở lượt THẤT BẠI — và đó là dòng đáng đọc nhất màn hình này. */
+  errorMessage: string | null;
+}
+
+export interface BackupStatusView {
+  lastSuccess: BackupView | null;
+  ageSeconds: number | null;
+  staleThresholdHours: number;
+  /** Chưa từng sao lưu cũng tính là quá hạn — xem BackupController. */
+  stale: boolean;
+  scheduleEnabled: boolean;
+  /** Môi trường này có bật khôi phục qua giao diện không (`DB_RESTORE_PASSWORD`). */
+  restoreAvailable: boolean;
+}
+
+export interface RestoreRequest {
+  confirmation: string;
+  reason: string;
+  totpCode: string;
+}
+
+// =============================================================================
+// Việc chạy nền — /api/v1/jobs (conventions.md §1.3)
+// =============================================================================
+
+export type JobStatus = 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED';
+
+export interface JobAccepted {
+  jobId: string;
+  statusUrl: string;
+}
+
+export interface JobStatusView {
+  jobId: string;
+  jobType: string;
+  status: JobStatus;
+  progress: number;
+  attempts: number;
+  maxAttempts: number;
+  createdAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  result: string | null;
+  lastError: string | null;
+}
+
+// =============================================================================
+// Thông báo — /api/v1/notifications
+// =============================================================================
+
+export type NotificationSeverity = 'INFO' | 'WARNING' | 'DANGER';
+
+export interface InboxEntry {
+  recipientId: number;
+  title: string;
+  body: string | null;
+  linkUrl: string | null;
+  severity: NotificationSeverity;
+  eventType: string;
+  broadcast: boolean;
+  createdAt: string;
+  readAt: string | null;
+}
+
+export interface BroadcastRequest {
+  title: string;
+  body: string;
+  severity?: NotificationSeverity;
+  linkUrl?: string;
+  /** Bỏ trống = gửi toàn bộ tài khoản đang hoạt động. */
+  userIds?: number[];
+}
+
+// =============================================================================
+// Tình trạng hệ thống — /api/v1/system/health (M5.12)
+// =============================================================================
+
+export type HealthStatus = 'UP' | 'DOWN' | 'OUT_OF_SERVICE' | 'UNKNOWN';
+
+export interface HealthComponentView {
+  status: HealthStatus;
+  details: Record<string, unknown>;
+}
+
+export interface HealthView {
+  status: HealthStatus;
+  /** Khoá: `db`, `storage`, `mail`, `backup`, `telemetry`. */
+  components: Record<string, HealthComponentView>;
+}
+
+// =============================================================================
+// Tệp đính kèm — /api/v1/attachments
+// =============================================================================
+
+export type ScanStatus = 'PENDING' | 'CLEAN' | 'INFECTED' | 'SKIPPED';
+export type AttachmentStatus = 'UPLOADING' | 'READY' | 'QUARANTINED';
+
+export interface AttachmentView {
+  publicId: string;
+  originalName: string;
+  contentType: string;
+  sizeBytes: number;
+  fileVersion: number;
+  status: AttachmentStatus;
+  scanStatus: ScanStatus;
+  /** Ngày (không giờ) — chuỗi `yyyy-MM-dd`, không phải Instant. */
+  validFrom: string | null;
+  validUntil: string | null;
+  /** Backend đã tính sẵn: còn hiệu lực + quét sạch. FE **không tự suy lại** (§1.4). */
+  downloadable: boolean;
+}
+
+export interface DownloadUrl {
+  /** Có hạn ngắn và bỏ qua phân quyền — không lưu lại, không chia sẻ. */
+  url: string;
+}

@@ -1,0 +1,131 @@
+# =============================================================================
+# Quét lỗ hổng phụ thuộc — CHẠY THEO LỊCH, không chạy theo PR (WS-10 / T10.6)
+#
+# Vì sao tách khỏi `ci.yml` (chốt 18/8, sau lượt CI đầu tiên của repo):
+#
+#   Lượt đó job quét CVE chạy **30 phút rồi bị timeout huỷ**. Không có
+#   `NVD_API_KEY` thì NVD giới hạn tốc độ rất nặng và lần đầu phải tải về
+#   378.798 bản ghi. `continue-on-error: true` không cứu được vì nó chỉ áp cho
+#   job *thất bại*; job bị **huỷ vì timeout** thoát khỏi nó và nhuộm
+#   "cancelled" lên cả lượt chạy.
+#
+#   Nhưng nguyên nhân sâu hơn timeout: **nhịp của việc này không phải nhịp của
+#   PR**. Kho phụ thuộc hôm nay không an toàn hơn vì có người mở PR, và nó kém
+#   an toàn đi kể cả khi không ai đụng vào mã — vì thế giới công bố thêm CVE.
+#   Gắn nó vào PR vừa làm chậm PR, vừa BỎ SÓT đúng trường hợp đáng lo nhất:
+#   nhánh không ai đụng tới trong hai tuần.
+#
+# Ở PR giữ `dependency-review` (soi phần PR thêm vào, vài giây) — `ci.yml`.
+# =============================================================================
+name: Quét bảo mật phụ thuộc
+
+on:
+  schedule:
+    # 02:15 UTC = 09:15 giờ Việt Nam — có kết quả trước giờ làm việc.
+    - cron: '15 2 * * *'
+  workflow_dispatch:
+  # Đổi khai báo phụ thuộc thì quét lại ngay, không đợi tới đêm.
+  push:
+    branches: [dev]
+    paths:
+      - '**/pom.xml'
+      - 'frontend/package-lock.json'
+
+permissions:
+  contents: read
+
+jobs:
+  owasp:
+    name: OWASP Dependency-Check
+    runs-on: ubuntu-latest
+    # Lần đầu dựng CSDL NVD là lâu thật, kể cả khi có khoá. Các lượt sau đọc
+    # bộ nhớ đệm bên dưới nên chỉ còn vài phút.
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cài JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+          cache: maven
+
+      # ⚠ Bộ nhớ đệm này là thứ quyết định job chạy 5 phút hay 45 phút.
+      #   Khoá xoay theo TUẦN: giữ nguyên mãi thì CSDL cũ dần và quét ra kết
+      #   quả của tuần trước; xoay theo ngày thì gần như ngày nào cũng tải lại.
+      #   `restore-keys` cho phép lấy bản tuần trước rồi cập nhật phần thiếu,
+      #   thay vì tải lại từ đầu.
+      - name: Bộ nhớ đệm CSDL NVD
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.dc-data
+          key: dc-data-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            dc-data-${{ runner.os }}-
+
+      - name: Kiểm khoá NVD
+        id: nvd
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: |
+          if [ -z "${NVD_API_KEY:-}" ]; then
+            echo "co_khoa=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "### ⚠ Chưa có \`NVD_API_KEY\` — BỎ QUA quét OWASP"
+              echo ""
+              echo "Thiếu khoá thì NVD giới hạn tốc độ tới mức lượt quét đầu tiên"
+              echo "mất hàng chục phút rồi bị timeout huỷ — đúng chuyện đã xảy ra"
+              echo "ở lượt CI đầu tiên ngày 18/8."
+              echo ""
+              echo "**Cách gỡ** (miễn phí, ~2 phút):"
+              echo "1. Xin khoá: <https://nvd.nist.gov/developers/request-an-api-key>"
+              echo "2. Settings → Secrets and variables → Actions → New repository secret"
+              echo "3. Tên: \`NVD_API_KEY\`"
+              echo ""
+              echo "⛔ Đây là **bỏ qua một phép kiểm bảo mật**, không phải 'không sao'."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "co_khoa=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Chạy khi có khoá. Bỏ qua sớm và nói rõ vẫn hơn là chạy 30 phút rồi
+      # chết — một job treo lâu thì người ta thôi không đọc nó nữa.
+      - name: OWASP Dependency-Check (fail ở CVSS ≥ 7)
+        if: steps.nvd.outputs.co_khoa == 'true'
+        working-directory: backend
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: |
+          ./mvnw -B -ntp -P security verify -DskipTests \
+            -Ddependency-check.data="${{ github.workspace }}/.dc-data"
+
+      - name: Giữ lại báo cáo CVE
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: backend/**/target/dependency-check-report.*
+          retention-days: 14
+          if-no-files-found: ignore
+
+  npm:
+    name: npm audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # ⚠ Một lockfile duy nhất ở `frontend/` — npm workspaces. Chạy trong
+      #   từng app là lỗi đã mắc một lần rồi (nợ #36).
+      - name: npm audit
+        working-directory: frontend
+        run: npm audit --audit-level=high

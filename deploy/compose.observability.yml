@@ -1,0 +1,81 @@
+# =============================================================================
+# GIÁM SÁT — chạy trên VM-3, TÁCH KHỎI máy chạy ứng dụng (WS-7 / T7.9)
+#
+# VM-3 giữ hai thứ, cùng một lý do: kho bản sao lưu (T7.2) và hệ giám sát. Cả
+# hai đều phải sống sót đúng lúc VM-1 chết — nằm chung máy với thứ mình canh
+# gác thì chết cùng nó, và sự cố lớn nhất lại là sự cố không để lại dấu vết nào.
+#
+#   Dùng (trên VM-3):
+#     docker compose --env-file env/vm3.env -f compose.observability.yml up -d
+#
+# ⚠ Cổng KHÔNG publish ra 0.0.0.0. Grafana và Prometheus không có lớp xác thực
+#   nào trước mặt ở cấu hình này; mở ra Internet là mở toàn bộ chỉ số vận hành.
+#   Truy cập qua SSH tunnel, hoặc đặt sau nginx có TLS + xác thực (WS-11/T11.6).
+# =============================================================================
+name: songnhue-observability
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    container_name: songnhue-prometheus
+    restart: unless-stopped
+    user: "65534:65534"
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      # 90 ngày: đủ đối chiếu xu hướng khi nghiệm thu NFR, không cần hơn
+      - --storage.tsdb.retention.time=90d
+      - --web.enable-lifecycle
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:${OBS_PROMETHEUS_PORT:-19090}:9090"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  # Đọc chỉ số của chính VM-3, và — quan trọng hơn — đọc tệp textfile do
+  # pull-from-prod.sh ghi ra: "bản sao lưu đã ra khỏi máy chủ CSDL chưa".
+  node-exporter:
+    image: prom/node-exporter:v1.9.0
+    container_name: songnhue-node-exporter
+    restart: unless-stopped
+    command:
+      - --path.rootfs=/host
+      - --collector.textfile.directory=/var/lib/node_exporter/textfile
+    volumes:
+      - /:/host:ro,rslave
+      - ${OBS_TEXTFILE_DIR:-/var/lib/node_exporter/textfile}:/var/lib/node_exporter/textfile:ro
+    # Không publish ra host: chỉ Prometheus trong cùng mạng cần đọc
+    expose:
+      - "9100"
+
+  grafana:
+    image: grafana/grafana:11.5.1
+    container_name: songnhue-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      # Thiếu biến này thì Grafana dùng mật khẩu "admin" — fail-fast thay vì để
+      # bảng điều khiển vận hành đứng sau mật khẩu mặc định.
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Thiếu GRAFANA_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:${OBS_GRAFANA_PORT:-13001}:3000"
+    depends_on:
+      prometheus:
+        condition: service_healthy
+
+volumes:
+  prometheus-data:
+  grafana-data:

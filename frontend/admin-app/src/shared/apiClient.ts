@@ -1,0 +1,397 @@
+import axios, {
+  AxiosHeaders,
+  type AxiosError,
+  type AxiosInstance,
+  type InternalAxiosRequestConfig,
+} from 'axios';
+
+import { type ApiEnvelope, type ErrorDetail, type PageResult } from './api-types';
+import { type ErrorHandling, entryFor, messageFor } from './error-map';
+
+/**
+ * HTTP client **duy nhất** của admin-app (conventions.md §2.5).
+ *
+ * ESLint chặn `axios` và `fetch` ở mọi file khác — không phải để cho gọn, mà vì bốn thứ
+ * dưới đây phải đúng ở *mọi* request, và mỗi client tự chế là một chỗ quên:
+ *
+ * 1. **Access token trong bộ nhớ, không localStorage.** Đây là điều kiện để một lỗ XSS
+ *    không lấy được vé. Hệ quả phải chấp nhận: F5 là mất token — nên có {@link bootstrapSession}.
+ * 2. **CSRF double-submit.** Header `X-CSRF-Token` phải khớp cookie `XSRF-TOKEN` ở mọi
+ *    request đổi dữ liệu, kể cả `/auth/refresh` (backend cố ý KHÔNG miễn cho nó).
+ * 3. **Làm mới token đúng một lượt.** Mười request cùng nhận 401 phải dùng chung một lần
+ *    gọi refresh, và refresh xoay vòng token nên gọi song song là tự kích hoạt cơ chế
+ *    phát hiện dùng lại của backend → thu hồi cả family, đá người dùng ra ngoài.
+ * 4. **Bóc envelope + chuẩn hoá lỗi.** Nơi duy nhất biết hình dạng `{success, data, error}`.
+ */
+
+// =============================================================================
+// Trạng thái phiên — cố ý chỉ nằm trong bộ nhớ
+// =============================================================================
+
+let accessToken: string | null = null;
+let csrfToken: string | null = null;
+
+export function setAccessToken(token: string | null): void {
+  accessToken = token;
+}
+
+export function setCsrfToken(token: string | null): void {
+  csrfToken = token;
+}
+
+export function getAccessToken(): string | null {
+  return accessToken;
+}
+
+export function clearTokens(): void {
+  accessToken = null;
+  csrfToken = null;
+}
+
+/**
+ * Vé CSRF đang dùng.
+ *
+ * Rơi về cookie khi bộ nhớ trống — đúng tình huống vừa F5: token trong bộ nhớ mất sạch
+ * nhưng cookie `XSRF-TOKEN` (cố ý **không** httpOnly) vẫn còn, và không có nó thì
+ * `/auth/refresh` bị `CsrfFilter` chặn ngay, người dùng bị đá ra đăng nhập lại sau mỗi
+ * lần tải lại trang.
+ */
+function currentCsrfToken(): string | null {
+  return csrfToken ?? readCookie('XSRF-TOKEN');
+}
+
+function readCookie(name: string): string | null {
+  const prefix = `${name}=`;
+  const found = document.cookie
+    .split(';')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(prefix));
+  return found ? decodeURIComponent(found.slice(prefix.length)) : null;
+}
+
+// =============================================================================
+// Lỗi đã chuẩn hoá
+// =============================================================================
+
+/**
+ * Lỗi mà mọi màn hình nhận được — đã có mã, câu tiếng Việt và `traceId`.
+ *
+ * Màn hình **không bao giờ** phải đụng tới `AxiosError`: hình dạng của nó khác nhau giữa
+ * lỗi mạng, lỗi HTTP và lỗi huỷ request, và đó là nguồn của những nhánh `if` sai lặng lẽ.
+ */
+export class ApiClientError extends Error {
+  constructor(
+    readonly code: string,
+    message: string,
+    readonly handling: ErrorHandling,
+    readonly severity: 'info' | 'warning' | 'error',
+    readonly httpStatus: number | null,
+    /** Mã tra log — hiện trên trang lỗi để người dùng đọc cho quản trị viên. */
+    readonly traceId: string | null,
+    readonly details: ErrorDetail[],
+  ) {
+    super(message);
+    this.name = 'ApiClientError';
+  }
+
+  /**
+   * Lỗi theo trường, dạng AntD `Form.setFields` dùng được ngay.
+   *
+   * Tham số kiểu để khớp với form đã gõ kiểu: `fieldErrors<keyof CreateUserRequest & string>()`.
+   * Phép ép kiểu bên trong là **có chủ ý và có rủi ro thật** — backend trả tên trường theo
+   * DTO của nó, và nếu hai bên lệch tên thì AntD lặng lẽ bỏ qua dòng đó. Đổi lại là mọi
+   * form không phải tự viết vòng lặp ánh xạ. Lệch tên trường lộ ra ngay lần thử đầu tiên.
+   */
+  fieldErrors<TName extends string = string>(): { name: TName; errors: string[] }[] {
+    return this.details.map((detail) => ({ name: detail.field as TName, errors: [this.message] }));
+  }
+}
+
+function toApiClientError(error: unknown): ApiClientError {
+  if (error instanceof ApiClientError) {
+    return error;
+  }
+
+  if (axios.isAxiosError(error)) {
+    const axiosError = error as AxiosError<ApiEnvelope<unknown>>;
+    const body = axiosError.response?.data;
+    const code = body?.error?.code ?? null;
+
+    // Không có response = chưa tới được máy chủ. Đừng bịa mã lỗi nghiệp vụ cho nó:
+    // "Lỗi hệ thống" và "mất mạng" là hai việc người dùng xử lý khác hẳn nhau.
+    if (!axiosError.response) {
+      return new ApiClientError(
+        'NETWORK',
+        'Không kết nối được máy chủ, kiểm tra đường truyền rồi thử lại',
+        'toast',
+        'error',
+        null,
+        null,
+        [],
+      );
+    }
+
+    const entry = entryFor(code);
+    return new ApiClientError(
+      code ?? 'SYS-0001',
+      messageFor(code, body?.error?.message),
+      entry.handling,
+      entry.severity,
+      axiosError.response.status,
+      body?.traceId ?? null,
+      body?.error?.details ?? [],
+    );
+  }
+
+  return new ApiClientError(
+    'SYS-0001',
+    error instanceof Error ? error.message : 'Lỗi không xác định',
+    'toast',
+    'error',
+    null,
+    null,
+    [],
+  );
+}
+
+// =============================================================================
+// Sự kiện phiên — tránh phụ thuộc vòng với AuthProvider
+// =============================================================================
+
+/**
+ * `apiClient` phát sự kiện, `AuthProvider` nghe. Ngược lại (client gọi thẳng provider)
+ * là vòng import: provider cần client để gọi API, client cần provider để đăng xuất.
+ */
+export type SessionEvent =
+  | { type: 'sessionLost'; reason: string }
+  | { type: 'mustChangePassword' }
+  | { type: 'maintenance' };
+
+type SessionListener = (event: SessionEvent) => void;
+
+const listeners = new Set<SessionListener>();
+
+export function onSessionEvent(listener: SessionListener): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+function emit(event: SessionEvent): void {
+  listeners.forEach((listener) => listener(event));
+}
+
+// =============================================================================
+// Instance
+// =============================================================================
+
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
+const MUTATING_METHODS = new Set(['post', 'put', 'patch', 'delete']);
+
+/** Đường dẫn không bao giờ được kéo theo vòng làm mới token — chính chúng là luồng cấp token. */
+const AUTH_ENTRY_PATHS = ['/auth/login', '/auth/2fa/', '/auth/refresh'];
+
+const http: AxiosInstance = axios.create({
+  baseURL: BASE_URL,
+  // Bắt buộc: refresh token và vé CSRF đều đi bằng cookie, mà admin-app chạy khác
+  // origin với API (nginx hai server block, và lúc dev là hai cổng khác nhau).
+  withCredentials: true,
+  timeout: 30_000,
+});
+
+http.interceptors.request.use((config) => {
+  const headers = AxiosHeaders.from(config.headers);
+
+  if (accessToken) {
+    headers.set('Authorization', `Bearer ${accessToken}`);
+  }
+  if (MUTATING_METHODS.has((config.method ?? 'get').toLowerCase())) {
+    const token = currentCsrfToken();
+    if (token) {
+      headers.set('X-CSRF-Token', token);
+    }
+  }
+
+  config.headers = headers;
+  return config;
+});
+
+// =============================================================================
+// Làm mới token — một lượt duy nhất
+// =============================================================================
+
+/** Lượt refresh đang chạy. Request thứ hai trở đi chờ chính lời hứa này. */
+let refreshInFlight: Promise<boolean> | null = null;
+
+interface RetriableConfig extends InternalAxiosRequestConfig {
+  /** Cờ đánh dấu "đã thử lại rồi" — chặn vòng lặp vô hạn khi lượt thử lại cũng 401. */
+  __retried?: boolean;
+}
+
+function isAuthEntryPath(url: string | undefined): boolean {
+  if (!url) {
+    return false;
+  }
+  return AUTH_ENTRY_PATHS.some((path) => url.includes(path));
+}
+
+async function runRefresh(): Promise<boolean> {
+  try {
+    const response =
+      await http.post<ApiEnvelope<{ accessToken: string; csrfToken: string }>>('/auth/refresh');
+    const data = response.data.data;
+    if (!data?.accessToken) {
+      return false;
+    }
+    setAccessToken(data.accessToken);
+    setCsrfToken(data.csrfToken);
+    return true;
+  } catch {
+    clearTokens();
+    return false;
+  }
+}
+
+function refreshOnce(): Promise<boolean> {
+  refreshInFlight ??= runRefresh().finally(() => {
+    refreshInFlight = null;
+  });
+  return refreshInFlight;
+}
+
+/**
+ * Khôi phục phiên sau khi tải lại trang.
+ *
+ * Access token nằm trong bộ nhớ nên F5 là mất; cookie refresh thì còn. Gọi hàm này một
+ * lần lúc khởi động: có cookie hợp lệ thì người dùng đi tiếp, không thì về trang đăng nhập.
+ * Thiếu bước này, giữ token trong bộ nhớ sẽ biến thành "F5 là đăng nhập lại" — và áp lực
+ * sửa cho tiện sẽ đẩy token xuống localStorage, tức là bỏ luôn lớp phòng thủ XSS.
+ */
+export function bootstrapSession(): Promise<boolean> {
+  return refreshOnce();
+}
+
+http.interceptors.response.use(
+  (response) => response,
+  async (error: unknown) => {
+    const apiError = toApiClientError(error);
+    const config = axios.isAxiosError(error)
+      ? (error.config as RetriableConfig | undefined)
+      : undefined;
+
+    if (apiError.handling === 'maintenance') {
+      emit({ type: 'maintenance' });
+    }
+    if (apiError.handling === 'changePassword') {
+      emit({ type: 'mustChangePassword' });
+    }
+
+    const canRetry = config && !config.__retried && !isAuthEntryPath(config.url);
+
+    // 401 hoặc vé CSRF lệch → làm mới một lượt rồi gửi lại đúng một lần.
+    // AUTH-0008 (phát hiện dùng lại refresh token) KHÔNG thử lại: backend đã thu hồi cả
+    // family, gọi refresh nữa chỉ tạo thêm một sự kiện bảo mật giả.
+    const worthRefreshing =
+      apiError.code !== 'AUTH-0008' &&
+      (apiError.httpStatus === 401 || apiError.handling === 'retryCsrf');
+
+    if (canRetry && worthRefreshing) {
+      const ok = await refreshOnce();
+      if (ok) {
+        config.__retried = true;
+        return http.request(config);
+      }
+    }
+
+    // ⚠ Điều kiện `!isAuthEntryPath` áp cho CẢ hai nhánh, không riêng nhánh 401.
+    // Thiếu nó thì lần mở trang đầu tiên — chưa đăng nhập, `bootstrapSession` gọi
+    // `/auth/refresh` và nhận AUTH-0002 — cũng bị coi là "mất phiên" và bắn thông báo
+    // "Phiên đăng nhập hết hạn" vào mặt người chưa từng đăng nhập. Lượt refresh hỏng
+    // được báo bằng giá trị trả về `false`, không bằng sự kiện.
+    const isSessionEndpoint = isAuthEntryPath(config?.url);
+    if (!isSessionEndpoint && (apiError.handling === 'reauth' || apiError.httpStatus === 401)) {
+      clearTokens();
+      emit({ type: 'sessionLost', reason: apiError.message });
+    }
+
+    return Promise.reject(apiError);
+  },
+);
+
+// =============================================================================
+// Bóc envelope
+// =============================================================================
+
+/**
+ * Bóc `data` ra khỏi envelope.
+ *
+ * `success: false` kèm HTTP 2xx là chuyện không được xảy ra theo §2.1, nhưng nếu xảy ra
+ * thì im lặng trả `undefined` còn tệ hơn nhiều — màn hình sẽ hiện bảng rỗng như thể
+ * không có dữ liệu, thay vì báo lỗi.
+ */
+function unwrap<T>(envelope: ApiEnvelope<T>): T {
+  if (!envelope.success) {
+    const code = envelope.error?.code ?? null;
+    const entry = entryFor(code);
+    throw new ApiClientError(
+      code ?? 'SYS-0001',
+      messageFor(code, envelope.error?.message),
+      entry.handling,
+      entry.severity,
+      200,
+      envelope.traceId ?? null,
+      envelope.error?.details ?? [],
+    );
+  }
+  return envelope.data as T;
+}
+
+export const api = {
+  async get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
+    const response = await http.get<ApiEnvelope<T>>(url, { params });
+    return unwrap(response.data);
+  },
+
+  /** Truy vấn phân trang: phần tử ở `data`, thông tin trang ở `meta` (§2.1). */
+  async getPage<T>(url: string, params?: Record<string, unknown>): Promise<PageResult<T>> {
+    const response = await http.get<ApiEnvelope<T[]>>(url, { params });
+    const items = unwrap(response.data);
+    return {
+      items,
+      meta: response.data.meta ?? {
+        page: 1,
+        size: items.length,
+        totalElements: items.length,
+        totalPages: 1,
+      },
+    };
+  },
+
+  async post<T>(url: string, body?: unknown): Promise<T> {
+    const response = await http.post<ApiEnvelope<T>>(url, body);
+    return unwrap(response.data);
+  },
+
+  async put<T>(url: string, body?: unknown): Promise<T> {
+    const response = await http.put<ApiEnvelope<T>>(url, body);
+    return unwrap(response.data);
+  },
+
+  async patch<T>(url: string, body?: unknown): Promise<T> {
+    const response = await http.patch<ApiEnvelope<T>>(url, body);
+    return unwrap(response.data);
+  },
+
+  async delete<T>(url: string): Promise<T> {
+    const response = await http.delete<ApiEnvelope<T>>(url);
+    return unwrap(response.data);
+  },
+
+  /** Tải tệp lên — để axios tự đặt `Content-Type` kèm boundary của multipart. */
+  async upload<T>(url: string, form: FormData): Promise<T> {
+    const response = await http.post<ApiEnvelope<T>>(url, form);
+    return unwrap(response.data);
+  },
+};
+
+/** Chỉ dành cho bài kiểm — màn hình dùng `api.*`. */
+export const __httpForTests = http;
