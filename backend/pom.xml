@@ -448,6 +448,29 @@
                             <!-- Phân tích .NET/Node/Python không liên quan tới dự án Java thuần này -->
                             <assemblyAnalyzerEnabled>false</assemblyAnalyzerEnabled>
                             <nodeAnalyzerEnabled>false</nodeAnalyzerEnabled>
+                            <!--
+                              TẮT Sonatype OSS Index (18/8) — nó chưa từng chạy được lần nào.
+
+                              Đo trên cả 4 lượt quét thật: **130 cảnh báo mỗi lượt**
+                              (`An error occurred while analyzing '<jar>' (Sonatype OSS Index
+                              Analyzer)`), tức hỏng ở gần như mọi artifact. Ba lượt đầu nó hỏng ở
+                              dạng CẢNH BÁO nên trôi qua không ai đọc; lượt thứ tư Sonatype trả
+                              **401 Unauthorized** — chặn truy cập ẩn danh — và DC nâng thành
+                              `AnalysisException`, giết cả build ngay sau khi cổng CVE đã sạch.
+
+                              Nói cách khác: một nguồn dữ liệu **không đóng góp gì suốt 4 lượt**
+                              nhưng vẫn đủ sức chặn đường. Tắt hẳn thì mất đúng bằng 0.
+
+                              ⛔ KHÔNG dùng `failOnError=false` để chữa chuyện này. Nó sẽ nuốt
+                              **mọi** lỗi phân tích, kể cả lỗi của những analyzer đang hoạt động
+                              thật — đúng loại hỏng im lặng mà `conventions.md` §1.5 nói tới.
+                              Tắt đích danh thì mất mát nhìn thấy được và ghi lại được.
+
+                              Muốn dùng lại thì phải có tài khoản Sonatype + `ossIndexServerId`
+                              trong `settings.xml` — ghi ở sổ nợ #49, không phải việc của Phase 0.
+                              Nguồn dữ liệu chính vẫn là NVD, và cổng CVE đang chạy trên đó.
+                            -->
+                            <ossindexAnalyzerEnabled>false</ossindexAnalyzerEnabled>
                         </configuration>
                         <executions>
                             <execution>
