@@ -682,7 +682,11 @@ Người dùng: Admin (Super Admin), Hệ thống tự động.
 | Nhóm | Tham số | Mặc định | Nguồn chốt |
 |---|---|---|---|
 | Bảo mật | **Khung giờ hành chính** (dùng cho cảnh báo đăng nhập bất thường M5.16) | **08:00–17:00** | F5 |
-| Bảo mật | Độ phức tạp + hạn đổi mật khẩu, số lần sai bị khóa | 10 ký tự / 5 lần / khóa 15' | M5.15 |
+| Bảo mật | Độ phức tạp + số lần sai bị khóa | 10 ký tự / 5 lần / khóa 15' | M5.15 |
+| Bảo mật | **Hạn mật khẩu** → quá hạn thì khoá tài khoản | **90 ngày** | **M5.15-a** |
+| Bảo mật | **Giãn cách luồng tự đặt lại** (quên mật khẩu) | **90 ngày** | **M5.15-a** |
+| Bảo mật | **Mốc nhắc đổi mật khẩu** trước ngày hết hạn | **14, 7, 1 ngày** | **M5.15-a** |
+| Bảo mật | **Hạn dùng liên kết đặt lại** | **30 phút** | **M5.15-a** |
 | Thủy văn | **Cron polling** | **`45 1/2 * * * *`** (2'/lần, phút lẻ) | **G3** |
 | Thủy văn | **Khung cập nhật nguồn** (dùng cho rate-limit) | **10 phút** | **G3** |
 | Thủy văn | **Ngưỡng mất tín hiệu điểm đo** (số khung không có dữ liệu → xám) | **3 khung (≈30')** | **G3** |
@@ -725,6 +729,44 @@ Người dùng: Admin (Super Admin), Hệ thống tự động.
 - **Xác thực**: Access token 30' + Refresh rotation (httpOnly cookie), BCrypt; thu hồi qua denylist bảng DB; refresh reuse detection.
 - **Quản lý phiên (M5.14)**: theo dõi phiên đang hoạt động (thời gian, thiết bị/IP), **đăng xuất từ xa** một phiên bất kỳ.
 - **Chính sách mật khẩu (M5.15)**: độ phức tạp, thời hạn đổi định kỳ, khóa tài khoản sau N lần sai — **cấu hình được, không hard-code** (SRS quy tắc §3.5.3).
+
+#### M5.15-a. Vòng đời mật khẩu & luồng quên mật khẩu — *chốt 18/8/2026*
+
+> Trước 18/8 hệ thống **không có** đường tự đặt lại mật khẩu: quên là phải nhờ quản trị viên cấp mật khẩu tạm. Mục này đóng điểm đó.
+
+**Bốn quy tắc.** Mọi con số đều nằm trong `settings`, có UI sửa — không hard-code.
+
+| # | Quy tắc | Tham số | Mặc định |
+|---|---|---|---|
+| 1 | Mật khẩu **hết hạn** sau N ngày kể từ lần đổi gần nhất → tài khoản chuyển `DISABLED` | `security.password.max-age-days` | **90** |
+| 2 | Luồng **tự đặt lại** (quên mật khẩu) chỉ dùng được nếu lần tự đặt lại gần nhất đã cách ≥ N ngày | `security.password.self-reset-cooldown-days` | **90** |
+| 3 | **Nhắc trước hạn** qua email, ở các mốc trước ngày hết hạn | `security.password.reminder-days-before` | **14, 7, 1** |
+| 4 | Liên kết đặt lại sống ngắn, dùng **một lần** | `security.password.reset-link-ttl-minutes` | **30** |
+
+**Ba đường đi tới mật khẩu mới:**
+
+| Đường | Điều kiện | Cách làm |
+|---|---|---|
+| **Đổi chủ động** | Biết mật khẩu hiện tại, tài khoản còn hoạt động | Nhập mật khẩu cũ + mới. **Không có giãn cách** — người nghi mật khẩu bị lộ phải đổi được ngay |
+| **Tự đặt lại** (quên) | Tài khoản còn hoạt động **và** đã qua giãn cách quy tắc 2 | Nhận **liên kết một lần** qua email → tự đặt mật khẩu mới. Mật khẩu cũ **vẫn dùng được** cho tới khi đặt xong |
+| **Quản trị viên cấp** | Chưa qua giãn cách, **hoặc** tài khoản đã bị khoá do hết hạn, **hoặc** người dùng không vào được email | Quản trị viên đặt **mật khẩu tạm** (gửi qua email) + mở khoá. Người dùng đăng nhập rồi **bắt buộc đổi ngay** — đúng cơ chế `must_change_password` đã có |
+
+**⛔ Email của luồng tự phục vụ chứa liên kết, KHÔNG chứa mật khẩu.** Gửi thẳng mật khẩu mới theo một yêu cầu chưa xác thực nghĩa là **bất kỳ ai biết tên đăng nhập đều vô hiệu hoá được mật khẩu của người khác** — nạn nhân không đăng nhập được cho tới khi mở hộp thư. Mật khẩu tạm chỉ xuất hiện ở đường quản trị viên cấp, tức là đã có một con người chịu trách nhiệm và có dấu vết trong nhật ký.
+
+**Trường dữ liệu thêm vào `users`:**
+
+| Cột | Kiểu | Ý nghĩa |
+|---|---|---|
+| `password_changed_at` | `timestamptz` | Mốc tính hạn — quy tắc 1 |
+| `password_expires_at` | `timestamptz` | Ngày hết hạn, dẫn xuất khi đổi mật khẩu. Lưu tường minh để truy vấn "sắp hết hạn" không phải tính trên toàn bảng |
+| `last_self_reset_at` | `timestamptz` | Mốc chặn giãn cách — quy tắc 2. **Một con số đếm không diễn tả được "cách nhau 3 tháng"**, nên mốc thời gian mới là thứ chặn |
+| `self_reset_count` | `INT` | Tổng số lượt tự đặt lại. Không dùng để chặn; dùng để nhìn ra người dùng hay quên và tài khoản đang bị nhắm |
+
+Bảng riêng `password_reset_tokens`: chỉ lưu **băm SHA-256** của mã, `expires_at`, `used_at`, `requested_ip` — mã gốc chỉ tồn tại trong email.
+
+**Việc chạy theo lịch** (đi qua hàng đợi job, không phải `@Scheduled` rời rạc): mỗi ngày quét tài khoản sắp hết hạn → gửi email nhắc theo mốc quy tắc 3; quét tài khoản đã quá hạn → chuyển `DISABLED` + ghi security event.
+
+**Áp cho mọi tài khoản, kể cả Super Admin.** Miễn trừ Super Admin là làm rỗng chính sách. Hệ quả phải xử lý: Super Admin bị khoá thì không còn ai mở khoá được — đường thoát là **lệnh chạy trên máy chủ** (mở rộng `AdminBootstrapRunner`), không phải một ngoại lệ trong mã. Ai vào được máy chủ thì vốn đã có quyền cao hơn mật khẩu.
 - **Cảnh báo đăng nhập bất thường (M5.16)**: nhiều lần sai mật khẩu liên tiếp, đăng nhập ngoài giờ hành chính → cảnh báo Admin **near real-time**, không xử lý theo lô.
 
 ---

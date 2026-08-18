@@ -729,3 +729,71 @@ thống có đang thiếu lưới an toàn nào không". Smoke test, healthcheck
 55 · `docs/runbook/` có **8** runbook chứ không phải 7 · nhánh `common` đi trước `dev` **22 commit /
 431 tệp** chứ không phải 18/313, và `dev` **không trống** — nó có 12 tệp tài liệu, nhưng không có mã
 nguồn và không có `.github/`, nên kết luận "repo chưa chạy lượt CI nào" vẫn đúng.
+
+---
+
+### 9.13. Vòng đời mật khẩu và luồng quên mật khẩu (chốt 18/8, đóng nợ #35)
+
+Đặc tả nghiệp vụ đầy đủ ở `function-spec.md` **M5.15-a**. Mục này ghi *vì sao* chọn như vậy.
+
+#### 9.13.1. Hai đồng hồ 3 tháng, và chúng đo hai thứ khác nhau
+
+Dễ đọc nhầm thành mâu thuẫn: mật khẩu **phải đổi trong** 90 ngày, mà luồng tự đặt lại **phải cách
+nhau** 90 ngày. Chúng không đè lên nhau vì áp cho hai hành động khác nhau:
+
+- **Đổi chủ động** (biết mật khẩu cũ) — *không* có giãn cách. Đây là điều kiện bắt buộc về an toàn:
+  người nghi mật khẩu bị lộ phải đổi được ngay, không đợi hết quý.
+- **Tự đặt lại** (quên, xác thực bằng email) — có giãn cách 90 ngày. Quên tiếp trong kỳ thì đi đường
+  quản trị viên.
+
+Cách đọc này bị ép bởi chính quy tắc "sau khi quản trị viên cấp mật khẩu tạm, người dùng đổi được
+ngay": nếu giãn cách áp cho mọi lần đổi thì đường cấp mật khẩu tạm tự nó bế tắc.
+
+Hai đồng hồ **tự đồng bộ** sau mỗi lần tự đặt lại: đặt lại ngày X thì mật khẩu hết hạn ngày X+90 và
+giãn cách cũng hết ngày X+90. Không có khoảng nào người dùng vừa bị buộc đổi vừa bị chặn đổi.
+
+#### 9.13.2. ⛔ Email tự phục vụ gửi **liên kết**, không gửi mật khẩu
+
+Gửi thẳng mật khẩu mới theo một yêu cầu **chưa xác thực** biến chức năng quên mật khẩu thành công cụ
+tấn công: bất kỳ ai biết tên đăng nhập đều làm mật khẩu của người khác ngừng hoạt động, và nạn nhân
+mù cho tới khi mở hộp thư. Với đơn vị này, tên đăng nhập gần như đoán được từ tên cán bộ.
+
+Liên kết một lần (TTL 30') không có tính chất đó: **mật khẩu cũ vẫn dùng được** cho tới khi người
+dùng thật sự đặt mật khẩu mới. Yêu cầu giả chỉ tạo ra một email thừa.
+
+Mật khẩu tạm **vẫn giữ**, nhưng chỉ ở đường quản trị viên cấp — nơi đã có một con người chịu trách
+nhiệm và có dấu vết trong nhật ký kiểm toán. Lưu **băm** của mã đặt lại chứ không lưu mã: bảng này
+mà lộ thì kẻ đọc được không đặt lại được mật khẩu của ai.
+
+#### 9.13.3. Mốc thời gian chặn, con số đếm để nhìn
+
+`self_reset_count` **không** dùng để chặn — một con số đếm không diễn tả được "cách nhau 90 ngày".
+Thứ chặn là `last_self_reset_at`. Con số đếm giữ lại vì nó trả lời câu hỏi khác: ai hay quên (cần
+hướng dẫn lại), và tài khoản nào đang bị người ngoài nhắm (nhiều lượt yêu cầu mà không lượt nào hoàn
+tất).
+
+#### 9.13.4. ⚠ Khoá theo hạn áp cho **cả Super Admin** — nên phải có đường thoát ngoài mã
+
+Miễn trừ Super Admin là làm rỗng chính sách ở đúng tài khoản nguy hiểm nhất. Nhưng giữ nguyên quy tắc
+thì gặp bài toán tự nhốt: Super Admin hết hạn → `DISABLED` → người mở khoá lại chính là Super Admin.
+
+Chốt: giữ quy tắc cho mọi tài khoản, đường thoát là **lệnh chạy trên máy chủ** (mở rộng
+`AdminBootstrapRunner` của WS-5), không phải một nhánh ngoại lệ trong mã nghiệp vụ. Lý do: ai đã vào
+được máy chủ thì vốn có quyền cao hơn bất kỳ mật khẩu nào — đặt đường thoát ở đó không hạ thấp gì,
+trong khi một ngoại lệ trong mã thì tồn tại mãi và ai đọc cũng thấy.
+
+#### 9.13.5. Việc theo lịch đi qua hàng đợi job
+
+Quét tài khoản sắp hết hạn (gửi nhắc) và quá hạn (chuyển `DISABLED`) chạy hằng ngày, nhưng **đặt việc
+vào hàng đợi** chứ không xử lý ngay trong bộ lập lịch — đúng mô hình đã chốt ở §9.6. Khoá chống trùng
+theo ngày, nên thêm node thứ hai không sinh ra hai lượt gửi nhắc.
+
+#### 9.13.6. Điều Công ty cần được báo trước
+
+Quy tắc "quá 90 ngày không đổi → khoá tài khoản" là chính sách **người dùng cảm nhận trực tiếp**, và
+nó dồn việc lên quản trị viên: cán bộ đi công tác dài, nghỉ phép dài, hoặc dùng hệ thống thưa (nhiều
+người ở MOD-01/MOD-04 chỉ vào vài lần mỗi quý) sẽ bị khoá đúng lúc cần dùng. Ba mốc nhắc trước hạn là
+để giảm chuyện đó, nhưng không xoá được nó.
+
+Đây **không** phải mục cần Công ty quyết định — đã chốt nội bộ — mà là mục cần **thông báo** khi
+nghiệm thu, kèm ước lượng khối lượng cấp lại mật khẩu tạm cho quản trị viên.
