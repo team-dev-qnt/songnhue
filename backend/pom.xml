@@ -47,6 +47,17 @@
 
     <properties>
         <java.version>21</java.version>
+        <!--
+          Đè phiên bản Tomcat của BOM Spring Boot: 3.5.16 ghim **10.1.55**, mà lượt
+          quét 18/8 còn 5 mã ≥ 7 ở đúng bản đó, cả 5 có `versionEndExcluding` là
+          **10.1.57** — tức bản kế tiếp vá hết:
+            CVE-2026-59084 (9.1) · CVE-2026-55276 (9.1) · CVE-2026-53434 (9.1)
+            CVE-2026-59083 (9.1, bypass ràng buộc bảo mật ở rewrite valve)
+            CVE-2026-53404 (7.3, cùng chỗ rewrite valve)
+          Đây là tên thuộc tính Spring Boot công bố cho việc đè, không phải mẹo —
+          BOM sẽ dùng giá trị này cho mọi artifact `tomcat-embed-*`.
+        -->
+        <tomcat.version>10.1.57</tomcat.version>
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
