@@ -5,7 +5,21 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.5.3</version>
+        <!--
+          3.5.3 → 3.5.16 (18/8): lượt quét OWASP thật đầu tiên bắt được 7 CVE ≥ 7
+          ở `spring-boot` (CVE-2026-40974 9.8, CVE-2026-40971 9.1, CVE-2026-22731/22733 8.1),
+          6 ở `spring-core`/`spring-web` (CVE-2026-41855 9.8) và **24 ở
+          `tomcat-embed-core` 10.1.42** (CVE-2026-43512/41293 9.8, CVE-2025-55754 9.6).
+
+          Nâng ở ĐÂY là đủ cho gần hết: BOM của Boot quản luôn spring-framework,
+          tomcat-embed, jackson và spring-security, nên một dòng này kéo theo
+          6.2.8→6.2.19, 10.1.42→10.1.57, 2.19.1→2.19.4, 6.5.1→6.5.11.
+
+          Vẫn ở dòng 3.5.x — bản vá, không phải nhảy major. (Boot 4.1.0 có sẵn
+          nhưng kéo theo Spring Framework 7; việc đó là một hạng mục riêng, không
+          gộp vào một lượt vá bảo mật.)
+        -->
+        <version>3.5.16</version>
         <relativePath/>
     </parent>
 
@@ -38,7 +52,8 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
         <!-- Thư viện không nằm trong BOM của Spring Boot -->
-        <springdoc.version>2.8.9</springdoc.version>
+        <!-- 2.8.9 → 2.8.17: cùng dòng 2.8.x, kèm swagger-ui mới (bản cũ gói DOMPurify 3.2.4 dính CVE-2026-65898) -->
+        <springdoc.version>2.8.17</springdoc.version>
         <!--
           JOSE/JWT — chính thư viện mà Spring Security dùng bên trong (spring-security-oauth2-jose).
           Tự pin phiên bản vì BOM của Spring Boot KHÔNG quản artifact này.
@@ -51,6 +66,26 @@
           env khi lên ≥2 node (architecture-review.md §6.2). MinIO: client duy nhất cho tệp tin.
         -->
         <shedlock.version>6.9.0</shedlock.version>
+        <!--
+          GIỮ 8.5.17 — đã thử 8.6.0 ngày 18/8 rồi trả về, ghi lại để không ai thử lại:
+
+          Lý do định nâng: gỡ CVE-2026-53914 (9.8) ở `kotlin-stdlib 1.9.25`, tới qua
+          minio → okhttp 4.12.0 → kotlin-stdlib. 8.6.0 chuyển sang okhttp 5.1.0.
+
+          Hỏng ở đâu: okhttp 5.x phát hành kiểu Kotlin Multiplatform — artifact
+          `com.squareup.okhttp3:okhttp` chỉ còn là pom trỏ sang `okhttp-jvm`, Maven
+          không giải biến thể KMP nên lớp thật không vào classpath. Biên dịch chết ở
+          `StorageConfig` với `cannot access okhttp3.HttpUrl`: mã ta KHÔNG import
+          okhttp, nhưng `MinioClient.Builder.endpoint()` có nạp chồng nhận `HttpUrl`
+          nên javac vẫn cần lớp đó để chọn phương thức. Gỡ được bằng cách khai thêm
+          `okhttp-jvm`, nhưng —
+
+          Vì sao không đáng: CVE-2026-53914 là **dương tính giả**. Advisory nói lỗ
+          hổng nằm ở *build cache metadata* của Kotlin, tức công cụ build; dự án này
+          là Java thuần dựng bằng Maven, không biên dịch Kotlin dòng nào. Nâng cả
+          tầng HTTP để chữa một mã không áp dụng là đổi rủi ro thật lấy rủi ro giấy.
+          Xử lý bằng suppression có hạn — `dependency-check-suppressions.xml`.
+        -->
         <minio.version>8.5.17</minio.version>
         <!--
           ArchUnit — canh ranh giới kiến trúc trong CI (T10.2). Đặt ở module `app` vì chỉ ở đó cả 5
@@ -73,7 +108,15 @@
         <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
         <checkstyle.version>10.26.1</checkstyle.version>
         <jacoco.version>0.8.13</jacoco.version>
-        <dependency-check.version>12.1.0</dependency-check.version>
+        <!--
+          12.1.0 → 12.1.3 (18/8): lượt quét thật đầu tiên đổ 2 lỗi
+          `DatabaseException: Value too long for column "URL CHARACTER VARYING(1000)"`
+          khi nạp CVE-2026-6785/6786 (URL tham chiếu Bugzilla dài 1585 ký tự).
+          Hai CVE đó bị BỎ QUA khỏi CSDL mà lượt build vẫn đi tiếp — tức là
+          phép quét thiếu dữ liệu một cách im lặng. Lên bản vá mới nhất trước;
+          nếu lượt sau vẫn còn thì phải xử lý riêng, không để nó trôi.
+        -->
+        <dependency-check.version>12.1.3</dependency-check.version>
         <!-- Thư mục CSDL NVD — CI ghi đè để cache riêng, xem profile `security` bên dưới -->
         <dependency-check.data>${user.home}/.dependency-check-data</dependency-check.data>
 
@@ -345,6 +388,15 @@
                               `.github/workflows/security-scan.yml` trỏ vào đây.
                             -->
                             <dataDirectory>${dependency-check.data}</dataDirectory>
+                            <!--
+                              Danh sách CVE đã thẩm định, MỖI MỤC CÓ NGÀY HẾT HẠN — luật ghi
+                              trong chính file đó. `maven.multiModuleProjectDirectory` trỏ tới
+                              `backend/` (nơi có `.mvn/`), nên đường dẫn đúng cho mọi module con
+                              lẫn khi chạy `-pl`.
+                            -->
+                            <suppressionFiles>
+                                <suppressionFile>${maven.multiModuleProjectDirectory}/dependency-check-suppressions.xml</suppressionFile>
+                            </suppressionFiles>
                             <!-- Phân tích .NET/Node/Python không liên quan tới dự án Java thuần này -->
                             <assemblyAnalyzerEnabled>false</assemblyAnalyzerEnabled>
                             <nodeAnalyzerEnabled>false</nodeAnalyzerEnabled>

@@ -53,12 +53,22 @@ jobs:
           cache: maven
 
       # ⚠ Bộ nhớ đệm này là thứ quyết định job chạy 5 phút hay 45 phút.
-      #   Khoá xoay theo TUẦN: giữ nguyên mãi thì CSDL cũ dần và quét ra kết
-      #   quả của tuần trước; xoay theo ngày thì gần như ngày nào cũng tải lại.
-      #   `restore-keys` cho phép lấy bản tuần trước rồi cập nhật phần thiếu,
-      #   thay vì tải lại từ đầu.
-      - name: Bộ nhớ đệm CSDL NVD
-        uses: actions/cache@v4
+      #   `restore-keys` cho phép lấy bản lượt trước rồi cập nhật phần thiếu,
+      #   thay vì tải lại 378.798 bản ghi từ đầu.
+      #
+      # ⚠⚠ PHẢI TÁCH `restore` và `save`, KHÔNG dùng `actions/cache` gộp.
+      #   `actions/cache` đặt `post-if: success()`, nên bước lưu **chỉ chạy khi
+      #   job xanh**. Mà job này được thiết kế để ĐỎ mỗi khi có CVE ≥ 7 — tức
+      #   là đúng trạng thái thường trực của nó. Kết quả ở lượt đầu (18/8):
+      #   CSDL NVD dựng mất **26 phút** rồi **không được lưu**, `gh api
+      #   .../actions/caches` không có mục `dc-data-*` nào. Mọi lượt sau lại
+      #   trả 26 phút đó — bộ nhớ đệm viết ra để tránh đúng chuyện ấy.
+      #
+      #   Đây là một vòng tự triệt tiêu: cơ chế tăng tốc chỉ hoạt động trong
+      #   trường hợp duy nhất mà nó không cần thiết.
+      - name: Nạp bộ nhớ đệm CSDL NVD
+        id: nvd_cache
+        uses: actions/cache/restore@v4
         with:
           path: ${{ github.workspace }}/.dc-data
           key: dc-data-${{ runner.os }}-${{ github.run_id }}
@@ -90,8 +100,35 @@ jobs:
             echo "co_khoa=true" >> "$GITHUB_OUTPUT"
           fi
 
-      # Chạy khi có khoá. Bỏ qua sớm và nói rõ vẫn hơn là chạy 30 phút rồi
-      # chết — một job treo lâu thì người ta thôi không đọc nó nữa.
+      # Tách CẬP NHẬT CSDL khỏi PHÉP QUÉT, và lưu bộ nhớ đệm ở giữa hai bước.
+      # Cập nhật là việc tốn thời gian nhưng gần như luôn thành công; quét là
+      # việc nhanh nhưng đỏ thường xuyên. Gộp chung thì kết quả của cái sau
+      # quyết định cái trước có được giữ lại hay không — vô lý.
+      # `-N` để chỉ chạy một lượt ở pom cha, không lặp cho từng module.
+      - name: Cập nhật CSDL NVD
+        if: steps.nvd.outputs.co_khoa == 'true'
+        working-directory: backend
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: |
+          ./mvnw -B -ntp -P security -N org.owasp:dependency-check-maven:update-only \
+            -Ddependency-check.data="${{ github.workspace }}/.dc-data"
+
+      # `if: always()` là điểm mấu chốt — xem ghi chú ở bước nạp phía trên.
+      # Đặt TRƯỚC bước quét để bản CSDL vừa dựng chắc chắn được giữ, kể cả khi
+      # phép quét đỏ (trạng thái thường trực của job này).
+      - name: Lưu bộ nhớ đệm CSDL NVD
+        if: always() && steps.nvd.outputs.co_khoa == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ github.workspace }}/.dc-data
+          key: dc-data-${{ runner.os }}-${{ github.run_id }}
+
+      # Bỏ qua sớm và nói rõ vẫn hơn là chạy 30 phút rồi chết — một job treo
+      # lâu thì người ta thôi không đọc nó nữa.
+      #
+      # `-o` (offline với NVD): CSDL đã dựng ở bước trên, không để bước này
+      # chạm mạng NVD lần nữa.
       - name: OWASP Dependency-Check (fail ở CVSS ≥ 7)
         if: steps.nvd.outputs.co_khoa == 'true'
         working-directory: backend
@@ -99,7 +136,8 @@ jobs:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: |
           ./mvnw -B -ntp -P security verify -DskipTests \
-            -Ddependency-check.data="${{ github.workspace }}/.dc-data"
+            -Ddependency-check.data="${{ github.workspace }}/.dc-data" \
+            -DautoUpdate=false
 
       - name: Giữ lại báo cáo CVE
         if: always()
