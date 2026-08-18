@@ -78,21 +78,43 @@ jobs:
           fi
 
           changed=$(git diff --name-only "$BASE_SHA" "${{ github.sha }}")
-          echo "Tệp thay đổi:"; echo "$changed" | sed 's/^/  /'
+          echo "Tệp thay đổi:"; printf '%s\n' "$changed" | sed 's/^/  /'
 
+          # ⚠⚠ MẶC ĐỊNH LÀ CHẠY. Bộ lọc trục trặc thì phải chạy thừa, tuyệt đối
+          #   không được bỏ qua — vì "bỏ qua" ở đây KHÔNG hiện ra như một lỗi:
+          #   job bị skip, mà GitHub tính **skipped của một required check là
+          #   ĐẠT**, nên PR merge được trong khi bộ kiểm chưa từng chạy.
+          backend=true
+          frontend=true
+
+          # ⚠ Here-string, KHÔNG dùng `echo "$changed" | grep -q`.
+          #
+          #   `grep -q` thoát NGAY khi thấy dòng khớp đầu tiên và đóng đầu đọc
+          #   của ống. `echo` còn dữ liệu chưa ghi hết thì nhận SIGPIPE và thoát
+          #   141; với `set -o pipefail`, trạng thái của cả pipeline thành 141 =
+          #   THẤT BẠI — dù grep đã khớp. Nhánh `else` chạy và job bị bỏ qua.
+          #
+          #   Đây là một CUỘC ĐUA, không phải lỗi tất định: echo kịp ghi hết vào
+          #   bộ đệm ống (64KB) thì không có SIGPIPE và kết quả đúng. Đo thật ở
+          #   PR #1 ngày 18/8 — CÙNG một PR: lượt 12:56 backend chạy bình thường,
+          #   lượt 13:34 backend bị bỏ qua, log để lại đúng một dòng
+          #   "echo: write error: Broken pipe". Here-string không có ống, nên
+          #   không có cuộc đua nào.
+          #
           # `.github/workflows` nằm ở cả hai vế: sửa chính pipeline thì phải chạy
           # lại pipeline, nếu không thì thay đổi ấy không bao giờ được kiểm.
-          if echo "$changed" | grep -qE '^(backend/|\.github/workflows/)'; then
-            echo "backend=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "backend=false" >> "$GITHUB_OUTPUT"
+          if [ -n "$changed" ]; then
+            grep -qE '^(backend/|\.github/workflows/)'  <<< "$changed" || backend=false
+            grep -qE '^(frontend/|\.github/workflows/)' <<< "$changed" || frontend=false
           fi
 
-          if echo "$changed" | grep -qE '^(frontend/|\.github/workflows/)'; then
-            echo "frontend=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "frontend=false" >> "$GITHUB_OUTPUT"
-          fi
+          echo "backend=$backend"   >> "$GITHUB_OUTPUT"
+          echo "frontend=$frontend" >> "$GITHUB_OUTPUT"
+
+          # In quyết định ra, để đọc được ở mọi lượt chạy thay vì phải suy ngược
+          # từ việc job nào biến mất khỏi danh sách.
+          echo "→ backend=$backend · frontend=$frontend"
+          echo "Vùng chạy lần này: backend=\`$backend\` · frontend=\`$frontend\`" >> "$GITHUB_STEP_SUMMARY"
 
   backend:
     name: Backend — build, lint, test
@@ -306,7 +328,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # ⚠ Repo public KHÔNG tự nghĩa là dùng được: `dependency-review` cần
+      #   **Dependency graph** đang bật, mà ở repo này nó đang TẮT — lượt chạy
+      #   18/8 đỏ với "Dependency review is not supported on this repository".
+      #
+      #   Hỏi thẳng đúng endpoint mà action sẽ gọi, thay vì suy theo visibility.
+      #   Thiếu thì bỏ qua và nói to, không nhuộm đỏ lượt chạy vì một công tắc
+      #   cấu hình — đỏ vì lý do không liên quan tới mã là cách nhanh nhất để
+      #   người ta thôi đọc CI.
+      - name: Dependency graph có bật không
+        id: depgraph
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if gh api "repos/${{ github.repository }}/dependency-graph/compare/${BASE}...${{ github.sha }}" >/dev/null 2>&1; then
+            echo "bat=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "bat=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "### ⚠ Dependency graph đang TẮT — bỏ qua phép soi phụ thuộc"
+              echo ""
+              echo "Bật ở **Settings → Code security → Dependency graph** (miễn phí"
+              echo "với repo public), rồi chạy lại lượt này."
+              echo ""
+              echo "⛔ Đây là **bỏ qua một phép kiểm bảo mật**, không phải 'không sao'."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - uses: actions/dependency-review-action@v4
+        if: steps.depgraph.outputs.bat == 'true'
         with:
           fail-on-severity: high
           comment-summary-in-pr: on-failure

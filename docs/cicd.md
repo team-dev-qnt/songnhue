@@ -82,6 +82,32 @@ Vì cùng lý do đó, job quét phụ thuộc **không** nằm trong danh sách
 ngoài, có ngày hỏng vì lý do chẳng liên quan tới PR. Chặn merge bằng một thứ hay hỏng vì lý do bên
 ngoài là cách nhanh nhất để cả đội học thói quen bỏ qua CI.
 
+### 3.2-b. ⚠⚠ Job bị bỏ qua NGẪU NHIÊN — bẫy `skipped` đã sập thật (18/8)
+
+Mục 3.2 nói skip được tính là đạt. Ngày 18/8 điều đó xảy ra, ở một đường không ai canh: **bộ lọc
+đường dẫn bỏ qua job `Backend — build, lint, test` một cách ngẫu nhiên**.
+
+Thủ phạm là một dòng shell trông vô hại:
+
+```bash
+if echo "$changed" | grep -qE '^(backend/|...)'; then
+```
+
+`grep -q` thoát ngay khi thấy dòng khớp đầu tiên và đóng đầu đọc của ống. `echo` còn dữ liệu chưa ghi
+hết thì nhận SIGPIPE và thoát 141; dưới `set -o pipefail`, trạng thái của **cả pipeline** thành 141 =
+thất bại — **dù grep đã khớp**. Nhánh `else` chạy, `backend=false`, job bị bỏ qua, và required check
+báo `skipped` = đạt.
+
+Là một **cuộc đua**, không phải lỗi tất định: `echo` kịp ghi hết vào bộ đệm ống (64KB) thì không có
+SIGPIPE. Cùng PR #1 — lượt 12:56 backend chạy bình thường, lượt 13:34 bị bỏ qua.
+
+Hai thay đổi, và cái thứ hai quan trọng hơn:
+
+1. **Here-string thay cho ống** — không có ống thì không có cuộc đua.
+2. **Mặc định là `true`.** Bộ lọc chỉ được phép hạ xuống `false` khi nó chạy trót lọt và thật sự
+   không khớp. Trục trặc thì chạy thừa. Một bộ lọc hỏng theo hướng "chạy thừa" tốn vài phút CI; hỏng
+   theo hướng "bỏ qua" thì **không phát ra dấu hiệu nào** và PR merge với bộ kiểm chưa từng chạy.
+
 ### 3.3. ⚠ Quét CVE toàn kho là việc THEO LỊCH, không phải việc của PR (chốt 18/8)
 
 Lượt CI **đầu tiên** của repo cho thấy chỗ này viết sai. Job `Quét lỗ hổng phụ thuộc` chạy **30 phút
