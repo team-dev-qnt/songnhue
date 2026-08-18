@@ -413,7 +413,15 @@ Tầng 3 — Repository scope filter (org_unit)     → chặn dữ liệu (IDOR
   - ⚠ **`login 30/15'` chứ không phải 5/15'** — con số này phải rộng hơn hẳn ngưỡng khoá tài khoản (5 lần, §4.1). Lý do đầy đủ ở §4.1; tóm tắt: đặt bằng nhau thì rate limit ở filter luôn chặn trước nên `AUTH-0003` không bao giờ kích hoạt được, và cả Công ty ra Internet qua một IP NAT. `CaffeineRateLimitStoreTest` chặn ở CI nếu ai đó hạ xuống bằng ngưỡng khoá.
 - Secrets: env/Vault; khác nhau mỗi môi trường; xoay key AES + JWT signing key có quy trình (key_id versioning); cấm secrets trong log/config commit.
 - Log: mask dữ liệu nhạy cảm (MaskUtils); security event riêng (login fail, refresh reuse, 403 scope, đổi quyền) → dashboard Grafana + alert.
-- Dependency: scan CVE trong CI (OWASP Dependency-Check / `npm audit`) — CI fail với CVE high/critical.
+- Dependency: scan CVE **theo lịch** (`security-scan.yml` hằng đêm, không gắn vào PR — lý do ở `docs/cicd.md` §3.3) — fail với CVE CVSS ≥ 7. Ở PR chỉ chạy `dependency-review-action` soi phần PR thêm vào.
+
+**Xử lý kết quả quét CVE — 3 luật, rút từ lượt quét thật 18/8 (50 CVE ≥ 7):**
+
+1. **Nâng cấp trước, suppress sau.** 49/50 mã biến mất chỉ bằng một dòng `spring-boot 3.5.3 → 3.5.16`. Suppression chỉ dành cho phần *không xử lý được bằng phiên bản*.
+2. ⛔ **Tra phiên bản mới nhất bằng `https://repo1.maven.org/maven2/<path>/maven-metadata.xml`, KHÔNG bằng `search.maven.org/solrsearch`.** API tìm kiếm trả kết quả cũ — hôm 18/8 nó báo 3.5.3 (20/6/2025) là bản mới nhất trong khi dòng 3.5.x đã tới 3.5.16, suýt dẫn tới việc lập suppression cho 49 CVE **có bản vá sẵn**. Sai lầm loại này im lặng và trông rất giống làm việc cẩn thận.
+3. **Mọi mục suppression PHẢI có `until`, và lý do phải là "không áp dụng", không phải "chưa có bản vá".** File `backend/dependency-check-suppressions.xml` giữ luật này trong chính header của nó. Suppression không hạn là cách êm ái nhất để một lỗ hổng thật biến mất khỏi tầm mắt; hết hạn thì phép quét tự đỏ lại và buộc nhìn lại. CVE chạm thật tới hệ mà chưa có bản vá thì thuộc **sổ nợ + phương án giảm nhẹ**, không thuộc file này.
+
+> ⚠ Nâng phiên bản để vá bảo mật thì **giữ trong cùng dòng minor** (3.5.x → 3.5.x). Nhảy major là hạng mục riêng, không gộp vào một lượt vá — và không phải nâng nào cũng đi được: `minio 8.6.0` kéo okhttp 5.x phát hành kiểu Kotlin Multiplatform, Maven không giải được biến thể nên vỡ biên dịch (chi tiết ghi tại chỗ trong `pom.xml`).
 
 ### 4.6. Checklist OWASP Top 10 (điều kiện pass security test)
 
