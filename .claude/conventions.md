@@ -86,6 +86,7 @@ admin-app/src/
 ### 1.5. Git & CI
 
 - Branch: `feat/<module>-<mô-tả>`, `fix/…`, `chore/…`; commit theo Conventional Commits (`feat(ops): thêm alert engine`).
+- ⚠⚠ **Squash merge xong thì nhánh nguồn ĐÃ CHẾT — cắt nhánh mới từ `dev`, đừng dùng lại.** Squash tạo commit mới mang nội dung nhưng **không mang lịch sử**, nên git không biết `dev` đã chứa công việc đó; tổ tiên chung đứng nguyên và PR sau sẽ dựng lại toàn bộ khác biệt. Ngày 18/8 sập **hai lần**: lần đầu PR hiện **437 tệp** trong khi nhánh chỉ khác **8**; lần sau commit chồng lên nền chưa reset → **xung đột thật** ở 3 tệp dù nội dung hai bên giống hệt. Muốn dùng lại tên nhánh thì `git reset --hard origin/dev` rồi `cherry-pick` phần thật sự mới. Có cơ chế canh: `.githooks/pre-push` (`make hooks` để bật, `make branch-check` hỏi tay) — đếm số tệp **hiện trong diff ba chấm nhưng nội dung đã giống base**, lớn hơn 0 là lỗi thời. Chi tiết `docs/cicd.md` §9.1.
 - PR bắt buộc: 1 reviewer, CI xanh (unit + integration Testcontainers + ArchUnit + lint), không merge khi coverage domain layer giảm.
   - Thi hành: `.github/workflows/ci.yml` (3 job) + `docs/branch-protection.md`. ⚠ Branch protection là **cấu hình phía GitHub, không nằm trong repo** — tắt đi không để lại dấu vết nào trong mã nguồn, nên trạng thái của nó phải được ghi ra thay vì giả định.
   - Cổng bao phủ: JaCoCo `check` ở phase `verify`, **chỉ soi gói `domain`**. Ngưỡng hiện tại (`jacoco.domain.line.coverage`) là **mức đo được**, không phải mục tiêu — nâng dần khi Phase 1 đưa logic nghiệp vụ thật vào `domain`, và không bao giờ hạ.

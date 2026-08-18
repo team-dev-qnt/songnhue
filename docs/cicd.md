@@ -251,3 +251,47 @@ kiểm hai điều:
 GitHub không giới hạn được kiểu merge theo từng nhánh, nên đây là quy ước người dùng phải nhớ. Bù
 lại, làm sai ở vế thứ hai thì **hỏng to tiếng**: không tìm thấy image → workflow dừng ngay với thông
 báo "commit này chưa từng qua CI của dev", không có bản deploy nửa vời nào.
+
+### 9.1. ⚠⚠ Squash xong thì nhánh nguồn ĐÃ CHẾT — đừng dùng lại (18/8, sập 2 lần trong một ngày)
+
+Vế thứ nhất thì ngược lại: nó **hỏng im lặng**, và đã hỏng hai lần liên tiếp.
+
+Squash tạo một commit **mới** mang nội dung nhánh nguồn nhưng **không mang lịch sử** của nó. Git vì
+thế không có cách nào biết `dev` đã chứa công việc đó. Tổ tiên chung giữa hai nhánh đứng nguyên tại
+chỗ cũ, và GitHub hiển thị PR bằng diff **ba chấm** `merge-base...head` — nên nó dựng lại *toàn bộ*
+khác biệt kể từ điểm đó.
+
+| Lần | Biểu hiện |
+|---|---|
+| 1 | PR hiện **437 tệp** trong khi nhánh chỉ thật sự khác **8** tệp. Merge vẫn được (429 tệp là thao tác rỗng) nhưng không ai review nổi |
+| 2 | Commit chồng lên nền chưa reset → **xung đột thật** ở `backend/pom.xml`, `CLAUDE.md`, `.claude/phase0-tracking.md` — dù nội dung hai bên **giống hệt nhau** |
+
+Lần 2 nặng hơn vì cùng một thay đổi tồn tại hai lần dưới hai danh tính khác nhau (`0bb9461` trên
+nhánh, `4ece60b` là bản squash trên `dev`), git thấy hai bên cùng sửa một vùng văn bản.
+
+**Luật**: sau mỗi lần squash merge, nhánh nguồn coi như đã chết.
+
+```bash
+# Cách đúng — cắt nhánh mới cho hạng mục sau
+git checkout dev && git pull && git checkout -b <hạng-mục-mới>
+
+# Nếu vẫn muốn dùng lại tên nhánh cũ thì PHẢI reset trước khi commit tiếp
+git reset --hard origin/dev
+git cherry-pick <chỉ những commit thật sự mới>
+```
+
+**Và có cơ chế canh, không chỉ có ghi chú.** `.githooks/pre-push` chặn trước khi đẩy — vì cả hai lần
+trên đều không có dấu hiệu nào cho tới lúc mở PR. Cách phát hiện chính xác, không dùng ngưỡng đoán:
+đếm số tệp **xuất hiện trong diff ba chấm nhưng nội dung đã giống hệt trên base** — lớn hơn 0 nghĩa
+là nhánh lỗi thời.
+
+```bash
+make hooks                    # bật (một lần cho mỗi bản sao repo)
+make branch-check             # hỏi tay bất cứ lúc nào
+make branch-check-selftest    # chứng minh phép canh BẮT ĐƯỢC vi phạm
+SKIP_BRANCH_CHECK=1 git push  # bỏ qua khi biết mình đang làm gì
+```
+
+> Phép tự kiểm không phải trang trí: bản đầu của chính script này **báo đạt mà không bắt được gì** —
+> nó dựng repo mô phỏng trong một subshell rồi kiểm ở ngoài, tức soi nhầm repo thật. Đúng loại "xanh
+> mà không chạy" ở `conventions.md` §1.5, và tự kiểm là thứ bắt được.
