@@ -74,6 +74,8 @@
         <checkstyle.version>10.26.1</checkstyle.version>
         <jacoco.version>0.8.13</jacoco.version>
         <dependency-check.version>12.1.0</dependency-check.version>
+        <!-- Thư mục CSDL NVD — CI ghi đè để cache riêng, xem profile `security` bên dưới -->
+        <dependency-check.data>${user.home}/.dependency-check-data</dependency-check.data>
 
         <!--
           Ngưỡng bao phủ TỐI THIỂU cho tầng domain (T10.5, conventions.md §1.5).
@@ -326,8 +328,23 @@
                                 <format>HTML</format>
                                 <format>JSON</format>
                             </formats>
-                            <!-- Thiếu khoá thì NVD giới hạn tốc độ rất nặng — xem .github/workflows/ci.yml -->
+                            <!--
+                              Thiếu khoá thì NVD giới hạn tốc độ tới mức lượt quét đầu tiên mất
+                              hàng chục phút — đã đo thật ở lượt CI đầu tiên 18/8: 30 phút rồi bị
+                              timeout huỷ. Xin miễn phí tại
+                              https://nvd.nist.gov/developers/request-an-api-key
+                            -->
                             <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
+                            <!--
+                              Đặt thư mục CSDL NVD ra chỗ CÓ THỂ CACHE ĐƯỢC.
+
+                              Mặc định plugin để trong `~/.m2/repository/org/owasp/…`, nằm lẫn với
+                              bộ nhớ đệm Maven vốn đánh khoá theo hash của pom — nghĩa là đổi một
+                              dependency là mất luôn CSDL NVD vài GB và phải tải lại từ đầu. Hai
+                              thứ này có nhịp thay đổi khác hẳn nhau nên phải cache riêng.
+                              `.github/workflows/security-scan.yml` trỏ vào đây.
+                            -->
+                            <dataDirectory>${dependency-check.data}</dataDirectory>
                             <!-- Phân tích .NET/Node/Python không liên quan tới dự án Java thuần này -->
                             <assemblyAnalyzerEnabled>false</assemblyAnalyzerEnabled>
                             <nodeAnalyzerEnabled>false</nodeAnalyzerEnabled>

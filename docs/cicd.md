@@ -42,7 +42,9 @@ kiểm gì cả**.
 | `Backend — build, lint, test` | Spotless · Checkstyle · `mvn verify` (test đơn vị + Testcontainers + ArchUnit + cổng bao phủ) | ✅ |
 | `Frontend — lint` | ESLint + `tsc --noEmit` (tự bỏ qua tới khi WS-8/WS-9 có mã) | ✅ |
 | `Đóng gói image` | Build + đẩy `ghcr.io/…/app:<sha>` — chỉ khi **push**, không chạy cho PR | — |
-| `Quét lỗ hổng phụ thuộc` | OWASP Dependency-Check + `npm audit` | ❌ (xem §3.2) |
+| `Soi phụ thuộc PR thêm vào` | `dependency-review-action` — chỉ soi phần PR **thêm vào**, đọc Advisory Database của GitHub, vài giây | ❌ (xem §3.2) |
+
+> ⚠ **OWASP Dependency-Check đã CHUYỂN RA khỏi `ci.yml`** (18/8) sang `security-scan.yml` chạy theo lịch — xem §3.3.
 
 ### 3.1. Lọc theo đường dẫn — tiết kiệm ở đâu, và cố ý KHÔNG tiết kiệm ở đâu
 
@@ -76,9 +78,36 @@ Job bị `if:` bỏ qua vẫn báo về một check run, và branch protection t
 không trigger (do `paths:` ở mức trên cùng) thì check bắt buộc **không bao giờ xuất hiện** và PR kẹt
 vĩnh viễn ở *"Expected — Waiting for status to be reported"* — nút merge xám, không dòng lỗi nào.
 
-Vì cùng lý do đó, job quét CVE **không** nằm trong danh sách bắt buộc: nó phụ thuộc dữ liệu NVD bên
+Vì cùng lý do đó, job quét phụ thuộc **không** nằm trong danh sách bắt buộc: nó dựa vào dữ liệu bên
 ngoài, có ngày hỏng vì lý do chẳng liên quan tới PR. Chặn merge bằng một thứ hay hỏng vì lý do bên
 ngoài là cách nhanh nhất để cả đội học thói quen bỏ qua CI.
+
+### 3.3. ⚠ Quét CVE toàn kho là việc THEO LỊCH, không phải việc của PR (chốt 18/8)
+
+Lượt CI **đầu tiên** của repo cho thấy chỗ này viết sai. Job `Quét lỗ hổng phụ thuộc` chạy **30 phút
+rồi bị timeout huỷ**: không có `NVD_API_KEY` thì NVD giới hạn tốc độ rất nặng, mà lần đầu phải tải
+378.798 bản ghi.
+
+Hai bài học, bài thứ hai mới là bài chính:
+
+1. **`continue-on-error: true` không phải van an toàn vạn năng.** Nó áp cho job *thất bại*; job bị
+   **huỷ vì timeout** thoát khỏi nó và nhuộm `cancelled` lên cả lượt chạy. Cái van viết ra để "quét
+   CVE không bao giờ chặn đường" đã không hoạt động ngay lần đầu cần tới.
+2. **Nhịp của việc này không phải nhịp của PR.** Kho phụ thuộc không an toàn hơn vì có người mở PR,
+   và nó kém an toàn đi kể cả khi không ai đụng vào mã — vì thế giới công bố thêm CVE. Gắn vào PR
+   vừa làm chậm PR vừa **bỏ sót đúng trường hợp đáng lo nhất**: nhánh hai tuần không ai đụng tới.
+
+Chốt: `security-scan.yml` chạy **02:15 UTC hằng đêm** (09:15 giờ Việt Nam, có kết quả trước giờ làm)
++ `workflow_dispatch` + khi `pom.xml`/`package-lock.json` đổi. Ở PR giữ `dependency-review-action` —
+trả lời đúng câu hỏi của PR ("PR này có kéo thêm thư viện dính lỗ hổng nào không") trong vài giây.
+
+Hai thứ khiến nó không lặp lại:
+
+- **CSDL NVD cache riêng**, khoá xoay theo tuần + `restore-keys`. Mặc định plugin để CSDL trong
+  `~/.m2/repository/…`, lẫn với bộ nhớ đệm Maven vốn đánh khoá theo hash pom — đổi một dependency là
+  mất luôn vài GB và tải lại từ đầu. Hai thứ có nhịp thay đổi khác hẳn nhau thì phải cache riêng.
+- **Thiếu `NVD_API_KEY` thì BỎ QUA và nói to** trong Job Summary kèm đường xin khoá, thay vì chạy 30
+  phút rồi chết. Một job treo lâu thì người ta thôi không đọc nó nữa — mà đọc kết quả mới là điểm.
 
 ## 4. Chặng `staging` — tự động
 
@@ -130,7 +159,7 @@ kiểm hai điều:
 |---|---|---|
 | `STAGING_HOST` / `STAGING_USER` / `STAGING_SSH_KEY` / `STAGING_BASE_URL` | CD Staging | Thiếu → workflow **cảnh báo và bỏ qua bước deploy**, không báo đỏ giả |
 | `PROD_HOST` / `PROD_USER` / `PROD_SSH_KEY` / `PROD_BASE_URL` | CD Production | Như trên |
-| `NVD_API_KEY` | Quét CVE | Không bắt buộc; thiếu thì lượt quét đầu mất hàng chục phút |
+| `NVD_API_KEY` | `security-scan.yml` | **Thiếu thì bỏ qua hẳn phép quét OWASP** (có cảnh báo trong Job Summary). Xin miễn phí ~2 phút: <https://nvd.nist.gov/developers/request-an-api-key> |
 
 `GITHUB_TOKEN` có sẵn, dùng để đẩy/kéo image trên GHCR.
 

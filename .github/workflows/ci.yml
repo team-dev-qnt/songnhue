@@ -271,54 +271,42 @@ jobs:
           echo "ghcr.io/${{ github.repository }}/app:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
-  security:
-    name: Quét lỗ hổng phụ thuộc
-    needs: changes
-    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true'
+  # ---------------------------------------------------------------------------
+  # Kiểm phụ thuộc Ở MỨC PR — nhanh, chỉ soi phần PR THÊM VÀO
+  #
+  # ⚠ Bản trước đặt cả OWASP Dependency-Check vào đây và nó hỏng đúng kiểu đã
+  #   lường trước nhưng chặn sai chỗ: lượt CI đầu tiên của repo (18/8) job này
+  #   chạy **30 phút rồi bị timeout huỷ**, vì không có `NVD_API_KEY` thì NVD
+  #   giới hạn tốc độ rất nặng và phải tải 378.798 bản ghi.
+  #
+  #   `continue-on-error: true` KHÔNG cứu được: nó áp cho job *thất bại*, còn
+  #   job bị **huỷ vì timeout** thì thoát khỏi nó và nhuộm "cancelled" lên cả
+  #   lượt chạy. Tức là cái van an toàn viết ra để "quét CVE không bao giờ chặn
+  #   đường" đã không hoạt động ngay lần đầu cần tới nó.
+  #
+  #   Chốt: quét toàn bộ kho phụ thuộc là việc CHẠY THEO LỊCH, không phải việc
+  #   của mỗi PR — xem `.github/workflows/security-scan.yml`. Phụ thuộc của
+  #   ngày hôm nay không an toàn hơn vì có ai đó mở PR; nó kém an toàn đi vì
+  #   thế giới công bố thêm CVE, và đó là nhịp của cái đồng hồ, không phải nhịp
+  #   của đội.
+  #
+  # Ở PR chỉ giữ phép kiểm trả lời đúng câu hỏi của PR: "PR này có KÉO THÊM
+  # thư viện dính lỗ hổng nào vào không". Nó đọc Advisory Database của GitHub,
+  # chạy vài giây, không đụng NVD.
+  # ---------------------------------------------------------------------------
+  dependency-review:
+    name: Soi phụ thuộc PR thêm vào
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    # Không chặn merge: quét CVE phụ thuộc vào dữ liệu NVD bên ngoài, có ngày nó
-    # chậm hoặc lỗi vì lý do chẳng liên quan gì tới thay đổi trong PR. Chặn merge
-    # bằng một thứ hay hỏng vì lý do bên ngoài là cách nhanh nhất để cả đội học
-    # thói quen bỏ qua CI. Kết quả vẫn hiện trong PR và vẫn phải có người đọc —
-    # `continue-on-error` là để phân biệt "thư viện có lỗ hổng" với "NVD đang
-    # hỏng", không phải để bỏ qua kết quả.
-    continue-on-error: true
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cài JDK 21
-        uses: actions/setup-java@v4
+      - uses: actions/dependency-review-action@v4
         with:
-          java-version: '21'
-          distribution: temurin
-          cache: maven
-
-      # NVD_API_KEY không bắt buộc nhưng thiếu nó thì NVD giới hạn tốc độ rất
-      # nặng và lượt quét đầu tiên mất hàng chục phút. Đăng ký miễn phí tại
-      # https://nvd.nist.gov/developers/request-an-api-key rồi đặt vào
-      # Settings → Secrets → Actions.
-      - name: OWASP Dependency-Check (fail ở CVSS ≥ 7)
-        working-directory: backend
-        env:
-          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-        run: ./mvnw -B -ntp -P security verify -DskipTests
-
-      - name: npm audit
-        run: |
-          for app in frontend/admin-app frontend/public-web; do
-            if [ -f "$app/package.json" ]; then
-              echo "→ $app"
-              (cd "$app" && npm audit --audit-level=high)
-            fi
-          done
-
-      - name: Giữ lại báo cáo CVE
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: dependency-check-report
-          path: backend/**/target/dependency-check-report.html
-          retention-days: 14
-          if-no-files-found: ignore
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure
