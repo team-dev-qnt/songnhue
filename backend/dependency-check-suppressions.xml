@@ -66,4 +66,37 @@
         <cve>CVE-2026-53914</cve>
     </suppress>
 
+    <!--
+      CVE-2026-66299 — tomcat-embed-core 10.1.57 — 7.5.
+
+      Thẩm định 18/8/2026:
+
+      • Lỗ hổng nằm ở **ứng dụng ví dụ WebSocket chat** đi kèm bản phân phối
+        Tomcat đầy đủ ("Uncontrolled Resource Consumption vulnerability in
+        Apache Tomcat's WebSocket chat example"). Chính advisory viết: *"Users
+        who have followed the security guidance to remove the examples web
+        application are not affected."*
+
+      • Spring Boot nhúng **`tomcat-embed-core`** — chỉ phần lõi servlet
+        container. Bộ `webapps/examples` không có trong artifact này và không
+        bao giờ được triển khai. Đường tấn công không tồn tại trong hệ.
+
+      • Không phải "chưa có bản vá cho tiện": bản vá là **10.1.58**, và tới
+        18/8/2026 Maven Central mới có tới **10.1.57** (đã kiểm
+        `maven-metadata.xml`). Ta đã ở bản mới nhất hiện có của dòng 10.1.x.
+
+      • Hết hạn 30/11/2026. Xem lại khi 10.1.58 lên Central — lúc đó **xoá mục
+        này và nâng phiên bản**, đừng gia hạn.
+    -->
+    <suppress until="2026-11-30Z">
+        <notes><![CDATA[
+            Lỗ hổng ở ứng dụng ví dụ WebSocket chat của bản phân phối Tomcat đầy đủ.
+            Spring Boot chỉ nhúng tomcat-embed-core, không kèm webapps/examples nên
+            không dính. Bản vá 10.1.58 chưa lên Maven Central (mới tới 10.1.57).
+            Thẩm định 18/8/2026.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.tomcat\.embed/tomcat-embed-.*$</packageUrl>
+        <cve>CVE-2026-66299</cve>
+    </suppress>
+
 </suppressions>
