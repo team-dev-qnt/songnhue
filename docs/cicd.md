@@ -135,6 +135,33 @@ Hai thứ khiến nó không lặp lại:
 - **Thiếu `NVD_API_KEY` thì BỎ QUA và nói to** trong Job Summary kèm đường xin khoá, thay vì chạy 30
   phút rồi chết. Một job treo lâu thì người ta thôi không đọc nó nữa — mà đọc kết quả mới là điểm.
 
+### 3.3-a. ⚠⚠ Bộ nhớ đệm NVD chỉ lưu khi job xanh — mà job này sinh ra để đỏ (sửa 18/8)
+
+Lượt quét thật đầu tiên (`gh run view 32145220978`) phơi ra một lỗi trong chính cách viết ở §3.3.
+CSDL NVD dựng mất **26 phút** rồi **không được lưu**: `gh api repos/.../actions/caches` không có mục
+`dc-data-*` nào.
+
+Nguyên nhân: `actions/cache` khai `post-if: success()`, nên **bước lưu chỉ chạy khi job thành
+công**. Mà job này được thiết kế để **đỏ mỗi khi có CVE ≥ 7** — tức là trạng thái thường trực của
+nó, không phải ngoại lệ.
+
+Vòng tự triệt tiêu: **cơ chế tăng tốc chỉ hoạt động trong đúng trường hợp duy nhất mà nó không cần
+thiết** (không có lỗ hổng nào). Có lỗ hổng — lúc cần chạy lại nhiều nhất — thì mỗi lượt trả đủ 26
+phút.
+
+Cách sửa, và cũng là cách chung cho mọi job "cố ý đỏ":
+
+| Sai | Đúng |
+|---|---|
+| `actions/cache@v4` gộp | `actions/cache/restore@v4` + `actions/cache/save@v4` với **`if: always()`** |
+| Một bước `mvn verify` làm cả cập nhật CSDL lẫn quét | **Tách hai bước**: `dependency-check:update-only` (chậm, gần như luôn xanh) → **lưu cache** → `verify` (nhanh, thường đỏ) |
+
+Bước quét chạy với `-DautoUpdate=false` để không chạm mạng NVD lần thứ hai.
+
+> **Luật rút ra**: bất cứ khi nào một bước *tốn kém nhưng ổn định* nằm chung job với một bước *rẻ
+> nhưng hay đỏ*, phải hỏi kết quả của cái sau có quyết định cái trước được giữ lại hay không. Ở đây
+> câu trả lời là có, và nó vô lý.
+
 ## 4. Chặng `staging` — tự động
 
 `deploy-staging.yml` chạy khi push vào `staging` (tức là ngay sau khi merge PR từ `dev`).
