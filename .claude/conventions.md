@@ -421,6 +421,17 @@ Tầng 3 — Repository scope filter (org_unit)     → chặn dữ liệu (IDOR
 2. ⛔ **Tra phiên bản mới nhất bằng `https://repo1.maven.org/maven2/<path>/maven-metadata.xml`, KHÔNG bằng `search.maven.org/solrsearch`.** API tìm kiếm trả kết quả cũ — hôm 18/8 nó báo 3.5.3 (20/6/2025) là bản mới nhất trong khi dòng 3.5.x đã tới 3.5.16, suýt dẫn tới việc lập suppression cho 49 CVE **có bản vá sẵn**. Sai lầm loại này im lặng và trông rất giống làm việc cẩn thận.
 3. **Mọi mục suppression PHẢI có `until`, và lý do phải là "không áp dụng", không phải "chưa có bản vá".** File `backend/dependency-check-suppressions.xml` giữ luật này trong chính header của nó. Suppression không hạn là cách êm ái nhất để một lỗ hổng thật biến mất khỏi tầm mắt; hết hạn thì phép quét tự đỏ lại và buộc nhìn lại. CVE chạm thật tới hệ mà chưa có bản vá thì thuộc **sổ nợ + phương án giảm nhẹ**, không thuộc file này.
 
+4. ⚠⚠ **Điểm in ra trong thông báo lỗi KHÔNG phải điểm dùng để chặn.** Dependency-Check in điểm **CVSS v4** (thang mới nhất có), nhưng chặn theo **điểm cao nhất trong mọi thang**. Nên hoàn toàn bình thường khi thấy:
+>
+> ```
+> One or more dependencies … CVSS score greater than or equal to '7.0':
+>   log4j-api-2.24.3.jar … CVE-2026-34479(6.9)     ← in ra v4 = 6.9
+> ```
+>
+> Mã đó có **v3 = 7.5**, và đó mới là cái vượt ngưỡng. Trông như cổng chặn hỏng, thực ra nó đúng.
+>
+> Hệ quả cho mọi script đọc `dependency-check-report.json`: **phải lấy `max` của `cvssv2`/`cvssv3`/`cvssv4`**, không lấy cái cuối cùng gặp được. Tôi đã mắc đúng lỗi này ngày 18/8 — vòng lặp `for k in ("cvssv3","cvssv4")` để v4 ghi đè v3, làm **đếm thiếu**: báo cáo "66 → 9 → 3" bị đọc nhầm thành "56 → 6 → 0", tức là tưởng đã sạch trong khi còn 3 mã. Trường `severity` cấp trên cùng cũng lấy theo v4 (`MEDIUM`) nên **không dùng được** để lọc.
+
 > ⚠ Nâng phiên bản để vá bảo mật thì **giữ trong cùng dòng minor** (3.5.x → 3.5.x). Nhảy major là hạng mục riêng, không gộp vào một lượt vá — và không phải nâng nào cũng đi được: `minio 8.6.0` kéo okhttp 5.x phát hành kiểu Kotlin Multiplatform, Maven không giải được biến thể nên vỡ biên dịch (chi tiết ghi tại chỗ trong `pom.xml`).
 
 ### 4.6. Checklist OWASP Top 10 (điều kiện pass security test)
