@@ -122,6 +122,7 @@ Mọi trạng thái → ĐÃ XÓA (soft delete, terminal, không phục hồi)
 ### CN-01.3. Quản lý Thư viện Media (Trung bình) — *SRS M1.3, UC1.2*
 - Thư mục phân cấp tối đa 3 cấp (Ảnh / Video / Tài liệu); tạo, đổi tên, xóa (chỉ khi rỗng), di chuyển; hiển thị dung lượng + số file.
 - Multi-upload kéo-thả, progress bar từng file; auto nén ảnh sang WebP (giữ bản gốc fallback); auto thumbnail 150/400/800px.
+  - ⏸ **Ảnh phái sinh HOÃN sang Phase 2 (chốt 19/8/2026 — nợ #62)**. Phase 1 hiển thị **ảnh gốc**, lưới ảnh bắt buộc `loading="lazy"` + khung CSS cố định. Lý do và 3 điều kiện kích hoạt làm sớm: `architecture-review.md` §10.9 + `phase1-tracking.md` sổ nợ. Phần còn lại của CN-01.3 làm đủ ở Phase 1.
 - Giới hạn: Ảnh (JPG/PNG/GIF/WebP/SVG) 10MB; Video (MP4/WebM) 500MB — khuyến nghị YouTube embed; Tài liệu (PDF/DOC/DOCX/XLS/XLSX/PPT) 50MB; ZIP 100MB.
 - Quản lý: Grid/List view; tìm theo tên, lọc theo loại/thư mục/ngày; chi tiết file + copy URL 1 click; xóa có xác nhận + cảnh báo nếu file đang được bài viết tham chiếu.
 

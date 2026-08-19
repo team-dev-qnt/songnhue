@@ -954,3 +954,43 @@ là xa chỗ gây ra nó.
 
 **Chốt: mọi cột tiền lưu VND, `NUMERIC(18,2)`.** Biểu mẫu nào hiển thị theo triệu thì quy đổi ở tầng
 hiển thị và ghi rõ đơn vị trên nhãn.
+
+---
+
+### §10.9. Ảnh phái sinh: hoãn sang Phase 2, Phase 1 dùng ảnh gốc (19/8/2026)
+
+CN-01.3 yêu cầu *"auto nén ảnh sang WebP (giữ bản gốc fallback); auto thumbnail 150/400/800px"*.
+**Chốt: Phase 1 không dựng, dùng thẳng ảnh gốc.** Đây là mục nghiệm thu bị hoãn — nợ #62, có điều
+kiện kích hoạt ghi ở `phase1-tracking.md`.
+
+**Vì sao không đẩy sang frontend — phương án nghe hợp lý nhất và là phương án đã cân nhắc đầu tiên.**
+Ảnh bài viết và ảnh hiện trạng công trình là nội dung người dùng tải lên **sau khi deploy**, nên
+không thể nằm trong `public/` (thư mục đó bị nướng vào image lúc build). Ảnh thật nằm ở MinIO, phát
+ra bằng presigned URL **sống 10 phút**. Bản nghiêm túc của ý này là `next/image`, và nó vướng ba chỗ,
+cả ba đều thuộc về chính hệ này chứ không phải ý kiến chung chung:
+
+1. **`next/image` đòi `sharp`** (Next 14 đã bỏ squoosh) — thư viện native libvips. Tức là không tránh
+   được việc thêm bộ mã hoá ảnh, chỉ đổi chỗ nó đứng: từ JVM sang Node, và rơi lên đúng node đang
+   phục vụ cổng công khai.
+2. **Presigned URL phá bộ đệm của chính bộ tối ưu.** Next lưu bản đã tối ưu theo khoá là URL nguồn;
+   URL của ta mang chữ ký + hạn dùng nên mỗi lượt gọi là một khoá khác → không bao giờ trúng đệm.
+   Nặng hơn: trang ISR sống vài giờ trong khi URL chết sau 10 phút → **ảnh vỡ trên trang đã dựng**.
+3. **Một nửa số ảnh không đi qua Next.** `admin-app` là Vite dựng ra tệp tĩnh cho nginx, không có bộ
+   tối ưu ảnh nào. Ảnh hiện trạng công trình nằm đúng ở đó, lại thuộc phạm vi đơn vị — đẩy chúng qua
+   `/_next/image` là biến bộ tối ưu thành proxy **đi vòng qua phân quyền tầng 3**.
+
+**Vì sao vẫn hoãn dù backend làm được.** Phần tốn kém duy nhất là **WebP** — JDK không có bộ mã hoá
+WebP, thêm nó là thêm phụ thuộc mới kèm bề mặt CVE. Phần thumbnail thì rẻ (`ImageSanitizer` đã
+`ImageIO.read` → `ImageIO.write` trên mọi ảnh tải lên từ WS-6 để bóc EXIF, đường giải mã/mã hoá đang
+chạy sẵn). Nhưng khối lượng ảnh thật của Phase 1 chưa biết, mà **tối ưu trước khi biết tải trọng là
+đoán mò** — đúng nguyên tắc §6.1: mỗi thành phần phải tự chứng minh nó đáng nuôi.
+
+**⛔ Cố ý KHÔNG seed tham số `settings` cho việc này.** Một công tắc "bật ảnh phái sinh" mà chưa có mã
+nào đọc là **lặp lại đúng lỗi vừa sửa hôm nay** ở WS-12/T12.6: ba tham số `limits.upload.max-mb.*`
+nằm trong giao diện suốt từ WS-6 mà không dòng mã nào đọc, quản trị viên chỉnh xong không có gì đổi.
+Tham số chỉ xuất hiện **cùng lúc** với mã đọc nó.
+
+**Rủi ro nhận về, nói thẳng.** Cán bộ mở một công trình có 30 ảnh chụp điện thoại tải về ~120MB, mà
+người dùng đó thường ngồi ngoài trạm bơm bằng 4G. Giảm nhẹ trong Phase 1 bằng thứ không tốn gì:
+`loading="lazy"` + khung CSS cố định ở mọi lưới ảnh (T14.4, WS-21) — chỉ tải phần đang nhìn. Đây là
+giảm nhẹ, **không phải lời giải**; lời giải là nợ #62.

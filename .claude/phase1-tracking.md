@@ -1,6 +1,6 @@
 # PHASE 1 — CMS & MASTER DATA CÔNG TRÌNH · BẢNG THEO DÕI TIẾN ĐỘ
 
-> **Cập nhật lần cuối**: 2026-08-19 · **Tiến độ: 7/101 task (7%)** · **DoD: 0/17** · Trạng thái: 🟡 Đang làm (WS-12 5/8)
+> **Cập nhật lần cuối**: 2026-08-19 · **Tiến độ: 7/101 task (7%)** · 1 task **hoãn có chủ đích** (T12.7 → nợ #62) · **DoD: 0/17** · Trạng thái: 🟡 Đang làm — **WS-12 xong**, mở WS-13
 > Nguồn ràng buộc: `function-spec.md` CN-01.1→01.5, CN-01.8 · CN-02.1, 02.2, 02.3, 02.6, 02.7, 02.11 · `conventions.md` (luật) · `docs/coding-guide.md` (đường đi) · `architecture-review.md` §10 (quyết định Phase 1)
 > **Cách dùng**: giống Phase 0 — làm xong task nào tick `[x]`; xong 1 WS thì chạy mục "Kiểm chứng" rồi cập nhật bảng tổng + dòng trên cùng.
 > ⚠ **Luật 3 bước khi đóng WS** (thừa kế từ Phase 0): tick task → tick dòng nợ → **quay lại sửa mô tả đã lỗi thời ở WS đã giao nợ**. Bước 3 hay bị bỏ nhất.
@@ -26,7 +26,7 @@ Phase 0 dựng **cơ chế**; Phase 1 là lần đầu có **người dùng th�
 
 | WS | Hạng mục | Task | Xong | Trạng thái | Phụ thuộc | Ước tính |
 |---|---|:-:|:-:|---|---|:-:|
-| **WS-12** | Mở SPI Core + nền cho module nghiệp vụ | 8 | **7** | 🟡 Đang làm (19/8) — còn T12.7 | Phase 0 | 6 pd |
+| **WS-12** | Mở SPI Core + nền cho module nghiệp vụ | 8 | **7** | ✅ **Xong 19/8** — T12.7 hoãn có chủ đích (nợ #62) | Phase 0 | 6 pd |
 | **WS-13** | CMS — Danh mục nội dung & Bài viết | 13 | 0 | ⬜ Chưa bắt đầu | WS-12 | 12 pd |
 | **WS-14** | CMS — Thư viện Media | 6 | 0 | ⬜ Chưa bắt đầu | WS-12 | 6 pd |
 | **WS-15** | CMS — Cấu hình giao diện, Menu, Banner | 7 | 0 | ⬜ Chưa bắt đầu | WS-13 | 6 pd |
@@ -121,7 +121,7 @@ Kế thừa Phase 0 và thêm một điều kiện mới:
 
 ## WS-12 — Mở SPI Core + nền cho module nghiệp vụ · 6 pd
 
-**Tiên quyết**: Phase 0 xong. **Đầu ra**: module nghiệp vụ gọi được cả 6 dịch vụ dùng chung của Core mà ArchUnit vẫn xanh; workflow nhận nhiều trạng thái khởi đầu; đính kèm có hạn mức và ảnh phái sinh.
+**Tiên quyết**: Phase 0 xong. **Đầu ra**: module nghiệp vụ gọi được cả 6 dịch vụ dùng chung của Core mà ArchUnit vẫn xanh; workflow nhận nhiều trạng thái khởi đầu; đính kèm có hạn mức. *(Ảnh phái sinh đã tách khỏi đầu ra của WS-12 — xem T12.7.)*
 
 > ⚠⚠ **Đây là nợ #56 và là việc CHẶN.** `core/spi/` hiện chỉ có `package-info.java`, trong khi cả sáu dịch vụ nằm ở `core.application.*`. Dòng mã Phase 1 đầu tiên gọi `WorkflowEngine` sẽ làm CI đỏ. Quyết định đã ghi ở `architecture-review.md` §9.14: **mở SPI, giữ nguyên luật ArchUnit**.
 >
@@ -131,9 +131,9 @@ Kế thừa Phase 0 và thêm một điều kiện mới:
 - [x] **T12.2** Bộ record truyền dữ liệu ở `core.spi`: `AllowedAction`, `AttachmentRef`, `AttachmentUploadCommand`, `JobRef`, `JobRequest`, `NotifyRequest`, `OrgUnitRef` + 2 enum `NotifySeverity`/`NotifyChannel` ✅ *19/8*
 - [x] **T12.3** ⚠ Chuyển `WorkflowAware` từ `core.domain.workflow` sang `core.common.persistence` — entity của `content`/`operations` **phải implement** nó. Cùng lý do `BaseEntity`/`ScopedEntity` đã nằm ở `core.common`: đây là hợp đồng hạ tầng, không phải mô hình nghiệp vụ. Luật ArchUnit "`applyState` chỉ được gọi từ `WorkflowEngine`" (nợ #19) vẫn nguyên vẹn ✅ *19/8*
 - [x] **T12.4** Service ở `core.application` cài interface tương ứng; bean công khai cho module khác **là interface** ✅ *19/8*
-- [ ] **T12.5** ⚠ Workflow nhiều trạng thái khởi đầu — điểm nghiệp vụ **15**. Thêm `workflow_initial_states` (hoặc cột `is_initial`) + `WorkflowPort.initialStates(entityType)`; engine kiểm trạng thái khởi tạo có hợp lệ không
-- [ ] **T12.6** `AttachmentPort`: hạn mức theo chủ sở hữu (CN-02.3 — 500MB/công trình) + API đếm dung lượng đang dùng; ngưỡng đọc từ `settings`
-- [ ] **T12.7** Ảnh phái sinh chạy bằng job nền: WebP + thumbnail 150/400/800 (CN-01.3), giữ bản gốc làm dự phòng. Dùng chung cho media CMS và ảnh hiện trạng công trình
+- [x] **T12.5** ⚠ Workflow nhiều trạng thái khởi đầu — điểm nghiệp vụ **15**. ~~Thêm `workflow_initial_states` (hoặc cột `is_initial`) + `WorkflowPort.initialStates(entityType)`~~ → **làm khác kế hoạch**: dùng lại `workflow_transitions` với trạng thái-giả `WorkflowPort.CREATION_STATE = '__NEW__'` ở vế `from_state`; 3 phương thức `initialState` / `initialActions` / `resolveInitialState`; 2 ràng buộc CHECK ở CSDL ✅ *19/8*
+- [x] **T12.6** `AttachmentPort`: hạn mức theo chủ sở hữu (CN-02.3 — 500MB/công trình) + `usedBytes(ownerType, ownerId)`; ngưỡng đọc từ `settings`. Kèm **sửa lỗi im lặng `limits.upload.max-mb.*` có từ WS-6** (xem bảng dưới) + mã lỗi `SYS-0010` ✅ *19/8*
+- [ ] **T12.7** ⏸ **HOÃN CÓ CHỦ ĐÍCH — chốt 19/8, thành nợ #62.** Ảnh phái sinh (WebP + thumbnail 150/400/800, CN-01.3). Phase 1 dùng **thẳng ảnh gốc**; dựng phái sinh khi có nhu cầu thật. Lý do đầy đủ: `architecture-review.md` **§10.9**
 - [x] **T12.8** ⭐ **Bài kiểm chứng minh ranh giới bắt được vi phạm** — `conventions.md` §1.5. `ModuleBoundarySelfCheckTest` + `BoundaryFixtures` (gói `com.songnhue.content.boundaryfixture` trong `src/test`) ✅ *19/8*
 
 **Kết quả phần đã làm (19/8)**: 16 tệp ở `core/spi/` · 6 service cài port · 2 migration · **284 test BE xanh** (tăng 21 so với Phase 0).
@@ -188,12 +188,12 @@ Kế thừa Phase 0 và thêm một điều kiện mới:
 
 ## WS-14 — CMS: Thư viện Media · 6 pd
 
-**Tiên quyết**: WS-12 (T12.6, T12.7). **Đầu ra**: tải ảnh/tài liệu lên, có thư mục, có ảnh phái sinh, chèn được vào bài viết.
+**Tiên quyết**: WS-12 (T12.6). **Đầu ra**: tải ảnh/tài liệu lên, có thư mục, chèn được vào bài viết.
 
 - [ ] **T14.1** Migration `media_folders` — cây **tối đa 3 cấp**, chặn ở tầng service chứ không chỉ ở UI
 - [ ] **T14.2** Tệp media = `attachments` với `owner_type='MEDIA_FOLDER'` — điểm nghiệp vụ **8**, không bảng tệp thứ hai
 - [ ] **T14.3** Tải nhiều tệp; giới hạn theo loại đọc từ `settings`: ảnh 10MB · video 500MB · tài liệu 50MB · nén 100MB
-- [ ] **T14.4** Ảnh phái sinh (T12.7) + danh sách Grid/List, lọc theo loại/thư mục/ngày, sao chép URL 1 lần bấm
+- [ ] **T14.4** Danh sách Grid/List, lọc theo loại/thư mục/ngày, sao chép URL 1 lần bấm. ⚠ Ảnh hiển thị là **ảnh gốc** (T12.7 hoãn) → lưới ảnh **bắt buộc** `loading="lazy"` + khung CSS cố định, nếu không thì mở một thư mục 200 ảnh là tải về vài trăm MB
 - [ ] **T14.5** Xoá tệp đang được bài viết tham chiếu → cảnh báo có danh sách bài đang dùng; xoá thư mục **chỉ khi rỗng**
 - [ ] **T14.6** ⚠ SVG — điểm nghiệp vụ **7**: chỉ nhận ở màn hình cấu hình, khử trùng trước khi lưu; test bằng SVG có `onload` và có `<script>`
 
@@ -394,6 +394,18 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 1 hoàn thành:
 | 59 | Nút "Tạo bản ghi khắc phục" từ màn hình cảnh báo | WS-18/T18.10 | Phase 2 | ⬜ Chờ |
 | 60 | Widget thủy văn ở cấu hình giao diện (nay ẩn) | WS-15/T15.5 | Phase 2 | ⬜ Chờ |
 | ~~61~~ | ~~`construction_clusters` — chờ **G15**~~ | WS-17/T17.11 | — | ✅ **Đóng 19/8** — G15 trả lời trong ngày, việc dựng bảng nay nằm thẳng trong T17.11 |
+| **62** | **Ảnh phái sinh (WebP + thumbnail 150/400/800)** — CN-01.3 yêu cầu, Phase 1 dùng ảnh gốc | WS-12/T12.7 | **Phase 2** *(hoặc sớm hơn nếu trúng điều kiện kích hoạt bên dưới)* | ⏸ **Hoãn có chủ đích 19/8** |
+
+⚠ **Nợ #62 — hoãn thì phải nói rõ hoãn cái gì.** CN-01.3 ghi *"auto nén ảnh sang WebP (giữ bản gốc fallback); auto thumbnail 150/400/800px"*, nên đây là **mục nghiệm thu bị hoãn**, không phải việc tự nghĩ ra rồi tự bỏ. Lý do và đường quay lại: `architecture-review.md` §10.9.
+
+**Ba điều kiện kích hoạt — trúng cái nào thì làm ngay, không chờ Phase 2:**
+1. Một thư mục media hoặc một hồ sơ công trình vượt **~30 ảnh máy điện thoại** → lưới ảnh nặng vài trăm MB, `lazy` không cứu nổi khi người dùng cuộn hết.
+2. Công ty nêu đích danh trong biên bản nghiệm thu.
+3. Đo thật thấy trang chủ cổng công khai **quá 3 giây** (NFR-12) vì ảnh.
+
+**Cái phải giữ trong lúc hoãn** — nếu không thì lúc quay lại là sửa rộng chứ không phải sửa một chỗ:
+- Không nơi nào ghi cứng "URL ảnh = ảnh gốc" ở FE. Ảnh lấy qua **một hàm dựng URL duy nhất**, sau này chỉ hàm đó biết có phái sinh hay không.
+- Không thêm cột nào vào `attachments` cho việc này. Đã kiểm: ảnh phái sinh về sau là **đối tượng MinIO nằm cạnh**, khoá suy ra từ `storage_key`, hoặc dòng `attachments` riêng với `purpose` khác — **cả hai đường đều không cần migration đổi bảng**. Đây chính là thứ làm cho việc hoãn rẻ.
 
 ---
 
@@ -413,6 +425,7 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 1 hoàn thành:
 
 | Ngày | Thay đổi |
 |---|---|
+| 2026-08-19 | **WS-12 đóng.** T12.7 (ảnh phái sinh) **hoãn có chủ đích** → nợ #62, lý do ở `architecture-review.md` §10.9: đẩy sang `next/image` không dùng được ở đây (đòi `sharp` native · presigned URL 10' phá đệm của bộ tối ưu và làm vỡ ảnh trên trang ISR · `admin-app` là Vite nên nửa số ảnh không đi qua Next). Phần đắt duy nhất là bộ mã hoá **WebP**; thumbnail thì rẻ vì `ImageSanitizer` đã chạy `ImageIO` sẵn — nhưng chưa biết tải trọng ảnh thật thì làm là đoán mò. **⛔ Cố ý không seed tham số `settings`**: công tắc chưa ai đọc chính là lỗi vừa sửa ở T12.6 |
 | 2026-08-19 | **WS-12 làm 5/8** — mở `core/spi` (trả nợ #56), chuyển `WorkflowAware` sang `core.common.persistence`, 6 service cài port, bài tự kiểm ranh giới + bài canh hai enum. 269 test BE xanh. Còn T12.5 (nhiều trạng thái khởi đầu), T12.6 (hạn mức đính kèm), T12.7 (ảnh phái sinh) |
 | 2026-08-19 | **Chốt 4 mục nghiệp vụ**: sửa bài đã xuất bản = **copy-on-write** · Quản trị nội dung **được** tự duyệt (audit ghi rõ) · **G15 đóng** — cụm chỉ là cách nhóm → bảng riêng, T17.11 đổi từ "không dựng" sang "dựng", nợ #61 đóng · **G14** — seed khung danh mục/menu đề xuất (T13.13, T15.7). Tổng task 99 → **101** |
 | 2026-08-19 | Lập kế hoạch Phase 1: 11 hạng mục WS-12→WS-22, 99 task, ~100 pd. Ba quyết định phạm vi: **gộp public-web vào Phase 1** (vì `POST /api/revalidate` của WS-9 chưa ai đi qua) · **giữ Liên hệ/Phản hồi ở Phase 2** · **dựng đường nhập Excel có chạy khô**. Làm rõ **18 điểm nghiệp vụ**; mở **3 mục mới cần Công ty** (G13, G14, G15) |
