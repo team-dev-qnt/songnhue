@@ -22,6 +22,9 @@ import com.songnhue.core.common.web.RequestContext;
 import com.songnhue.core.domain.job.Job;
 import com.songnhue.core.domain.job.JobStatus;
 import com.songnhue.core.infra.job.JobRepository;
+import com.songnhue.core.spi.JobPort;
+import com.songnhue.core.spi.JobRef;
+import com.songnhue.core.spi.JobRequest;
 
 /**
  * Đặt việc vào hàng đợi và tra tiến độ — mặt tiền của pattern P5.
@@ -31,7 +34,7 @@ import com.songnhue.core.infra.job.JobRepository;
  * vì tưởng treo, và proxy tự cắt ở 60 giây.
  */
 @Service
-public class JobService {
+public class JobService implements JobPort {
 
     private static final Logger log = LoggerFactory.getLogger(JobService.class);
 
@@ -110,14 +113,57 @@ public class JobService {
      */
     @Transactional(readOnly = true)
     public Job getOwn(UUID publicId) {
-        Job job = get(publicId);
+        // Cùng mã lỗi với "không tìm thấy" — trả 403 ở đây là xác nhận job đó có thật.
+        return findOwn(publicId).orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
+    }
+
+    /**
+     * Luật "job của chính mình" nằm ở ĐÂY và chỉ ở đây.
+     *
+     * <p>{@link #getOwn} và {@code findJob} là hai hình dạng trả về của cùng một luật — ném lỗi và
+     * trả {@code Optional}. Viết luật hai lần là để hai bản lệch nhau, mà đây là luật bảo mật.
+     *
+     * <p>Cố ý <b>không</b> gắn {@code @Transactional}: phương thức private gọi từ trong cùng lớp
+     * không đi qua proxy Spring nên annotation ở đây chỉ gây hiểu nhầm. Ranh giới giao dịch do hai
+     * phương thức công khai gọi nó mang.
+     */
+    private Optional<Job> findOwn(UUID publicId) {
         Long currentUserId =
                 AuthContext.current().map(AuthenticatedUser::userId).orElse(null);
-        if (job.getRequestedBy() != null && !job.getRequestedBy().equals(currentUserId)) {
-            // Cùng mã lỗi với "không tìm thấy" — trả 403 ở đây là xác nhận job đó có thật.
-            throw new ResourceNotFoundException(ErrorCode.SYS_0004);
-        }
-        return job;
+        return repository
+                .findByPublicId(publicId)
+                .filter(job ->
+                        job.getRequestedBy() == null || job.getRequestedBy().equals(currentUserId));
+    }
+
+    // ---- Hợp đồng cho module nghiệp vụ (core.spi) -------------------------------
+    //
+    // `enqueue` và `findJob` dưới đây trả `JobRef` thay vì entity `Job`, vì module nghiệp vụ không
+    // được import `core.domain.job` (core/spi/package-info.java).
+    //
+    // ⚠ `findJob` dựa trên `getOwn`, KHÔNG phải `get`: module nghiệp vụ tra tiến độ là tra hộ người
+    // đang đăng nhập, và kết quả job hay chứa đường tải bản kết xuất. Dùng `get` ở đây là mở một
+    // đường vòng qua đúng cái kiểm tra mà `getOwn` sinh ra để làm.
+
+    @Override
+    public JobRef enqueue(JobRequest request) {
+        return toRef(enqueue(request.jobType(), request.payload(), request.dedupKey(), request.maxAttempts()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<JobRef> findJob(UUID publicId) {
+        return findOwn(publicId).map(JobService::toRef);
+    }
+
+    private static JobRef toRef(Job job) {
+        return new JobRef(
+                job.getPublicId(),
+                job.getJobType(),
+                job.getStatus().name(),
+                job.getAttempts() == null ? (short) 0 : job.getAttempts(),
+                job.getCreatedAt(),
+                job.getResult());
     }
 
     @Transactional(readOnly = true)

@@ -24,6 +24,9 @@ import com.songnhue.core.domain.notification.RecipientStatus;
 import com.songnhue.core.infra.identity.UserRepository;
 import com.songnhue.core.infra.notification.NotificationRecipientRepository;
 import com.songnhue.core.infra.notification.NotificationRepository;
+import com.songnhue.core.spi.NotificationPort;
+import com.songnhue.core.spi.NotifyChannel;
+import com.songnhue.core.spi.NotifyRequest;
 
 /**
  * Gửi thông báo — pattern P4, mặt tiền duy nhất cho mọi module (T6.6).
@@ -37,7 +40,7 @@ import com.songnhue.core.infra.notification.NotificationRepository;
  * <p>Kênh {@code IN_APP} là ngoại lệ: nó "đã gửi" ngay khi dòng dữ liệu tồn tại, không cần đi đâu cả.
  */
 @Service
-public class NotificationService {
+public class NotificationService implements NotificationPort {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
 
@@ -136,6 +139,41 @@ public class NotificationService {
     // ---- Hộp thư của người dùng ----------------------------------------------
 
     @Transactional(readOnly = true)
+    // ---- Hợp đồng cho module nghiệp vụ (core.spi) -------------------------------
+    //
+    // Bản dịch từ `NotifyRequest` (kiểu của SPI) sang `NotificationRequest` (kiểu của tầng
+    // application, tham chiếu enum domain). Hai enum trùng khít tên hằng và có
+    // `NotificationEnumParityTest` canh — thêm mức ở một bên mà quên bên kia là CI đỏ, không phải
+    // một lỗi ánh xạ chờ tới lúc chạy mới lộ.
+
+    @Override
+    public void notify(NotifyRequest request) {
+        notify(translate(request));
+    }
+
+    @Override
+    public void broadcast(NotifyRequest request, List<Long> userIds) {
+        broadcast(translate(request), userIds);
+    }
+
+    private static NotificationRequest translate(NotifyRequest request) {
+        return new NotificationRequest(
+                request.eventType(),
+                request.title(),
+                request.body(),
+                NotificationSeverity.valueOf(request.severity().name()),
+                request.linkUrl(),
+                request.refType(),
+                request.refId(),
+                request.relatedOrgUnitIds(),
+                request.extraUserIds(),
+                request.channels().stream().map(NotificationService::translate).toList());
+    }
+
+    private static NotificationChannel translate(NotifyChannel channel) {
+        return NotificationChannel.valueOf(channel.name());
+    }
+
     public Page<InboxEntry> inbox(Long userId, Pageable pageable) {
         return recipients.findInbox(userId, NotificationChannel.IN_APP, pageable);
     }

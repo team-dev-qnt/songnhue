@@ -41,7 +41,11 @@ class ModuleBoundaryTest {
     /** Ngoại lệ được phép import chéo — Common Platform, xem {@code conventions.md} §1.1. */
     private static final String COMMON_PLATFORM = "com.songnhue.core.common";
 
-    private static final ArchRule CHI_IMPORT_SPI_CUA_MODULE_KHAC = classes()
+    /**
+     * Package-private có chủ đích: {@link ModuleBoundarySelfCheckTest} chạy đúng luật này lên mã cố ý
+     * sai để chứng minh nó bắt được vi phạm. Nhân bản luật sang bài tự kiểm là kiểm một bản sao.
+     */
+    static final ArchRule CHI_IMPORT_SPI_CUA_MODULE_KHAC = classes()
             .that()
             .resideInAnyPackage(modulePackages())
             .should(new OnlyCrossModuleThroughSpi())

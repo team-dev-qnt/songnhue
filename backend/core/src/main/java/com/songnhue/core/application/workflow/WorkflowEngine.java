@@ -13,15 +13,17 @@ import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.BusinessRuleException;
 import com.songnhue.core.common.exception.PermissionDeniedException;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
+import com.songnhue.core.common.persistence.WorkflowAware;
 import com.songnhue.core.common.security.AuthContext;
 import com.songnhue.core.common.security.AuthenticatedUser;
 import com.songnhue.core.domain.notification.NotificationChannel;
 import com.songnhue.core.domain.notification.NotificationSeverity;
-import com.songnhue.core.domain.workflow.WorkflowAware;
 import com.songnhue.core.domain.workflow.WorkflowDefinition;
 import com.songnhue.core.domain.workflow.WorkflowTransition;
 import com.songnhue.core.infra.workflow.WorkflowDefinitionRepository;
 import com.songnhue.core.infra.workflow.WorkflowTransitionRepository;
+import com.songnhue.core.spi.AllowedAction;
+import com.songnhue.core.spi.WorkflowPort;
 
 /**
  * Máy trạng thái dùng chung — pattern P1, <b>nơi duy nhất được đổi trạng thái entity</b>
@@ -39,7 +41,7 @@ import com.songnhue.core.infra.workflow.WorkflowTransitionRepository;
  * (conventions.md §3): luật nằm trong DB, mà FE thì không đọc DB — tự suy là chắc chắn có ngày lệch.
  */
 @Service
-public class WorkflowEngine {
+public class WorkflowEngine implements WorkflowPort {
 
     private static final Logger log = LoggerFactory.getLogger(WorkflowEngine.class);
 
@@ -66,6 +68,7 @@ public class WorkflowEngine {
      * @throws BusinessRuleException {@code SYS-0008} khi hành động không hợp lệ ở trạng thái hiện tại
      * @throws PermissionDeniedException {@code AUTH-3001} khi thiếu quyền của bước chuyển
      */
+    @Override
     @Transactional
     public <T extends WorkflowAware> T execute(T entity, String action, String title) {
         WorkflowDefinition definition = definitionOf(entity);
@@ -98,6 +101,7 @@ public class WorkflowEngine {
      * <p>Đã lọc theo quyền, nên FE chỉ việc render — không phải biết luật, và cũng không thể render
      * nhầm một nút mà máy chủ sẽ từ chối.
      */
+    @Override
     @Transactional(readOnly = true)
     public List<AllowedAction> allowedActions(WorkflowAware entity) {
         WorkflowDefinition definition = definitionOf(entity);
@@ -110,6 +114,7 @@ public class WorkflowEngine {
     }
 
     /** Trạng thái khởi tạo của quy trình — dùng lúc tạo mới bản ghi. */
+    @Override
     @Transactional(readOnly = true)
     public String initialState(String entityType) {
         return definitions
@@ -169,7 +174,4 @@ public class WorkflowEngine {
                 List.of(),
                 List.of(NotificationChannel.IN_APP, NotificationChannel.EMAIL)));
     }
-
-    /** @param toState trạng thái sau khi bấm — để giao diện hiện trước hệ quả cho người dùng */
-    public record AllowedAction(String action, String label, String toState) {}
 }

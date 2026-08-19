@@ -1,8 +1,8 @@
-> Cập nhật **2026-08-12** (bản 2 — sau confirm đợt 2).
+> Cập nhật **2026-08-19** (bản 3 — mở 3 mục mới khi lập kế hoạch Phase 1: **G13, G14, G15**).
 > ✅ **ĐỢT 1 (mục A–F) ĐÃ ĐÓNG** — Công ty trả lời đầy đủ ngày 12/8/2026 (`docs_origin/Trả lời Business Open Questions 12.8.2026.docx.md`), đã đồng bộ vào `function-spec.md`, `implement.md`, `architecture-review.md` §8.
 > ✅ **ĐỢT 2 — ĐÃ ĐÓNG 9/12 mục**: **G1, G2, G3 (phần lớn), G4, G7, G8b, G9, G11, G12** → xem **Phần I-B**, đã đồng bộ vào `function-spec.md` v2.2.
-> ⬜ **CÒN MỞ 4 mục**: **G3-a** (lượng mưa) · **G5** (mã số hệ thống văn bản) · **G6** (mẫu 2C-BNV) · **G8** (tuyến sông/lý trình/tọa độ + danh mục công trình) · **G9-a** (bộ mức ngưỡng) · **G10** (duyệt format báo cáo) → xem **Phần II**.
-> ✅ **KHÔNG CÒN MỤC NÀO CHẶN.** G8b — mục chặn cuối cùng của MOD-03 — đã đóng ngày 12/8/2026.
+> ⬜ **CÒN MỞ 9 mục**: **G3-a** (lượng mưa) · **G5** (mã số hệ thống văn bản) · **G6** (mẫu 2C-BNV) · **G8** (tuyến sông/lý trình/tọa độ + danh mục công trình) · **G9-a** (bộ mức ngưỡng) · **G10** (duyệt format báo cáo) · ⭐ **G13** (bộ nhận diện cổng) · ⭐ **G14** (sơ đồ danh mục/menu cổng) · ⭐ **G15** (cụm công trình là gì) → xem **Phần II**.
+> ✅ **KHÔNG CÒN MỤC NÀO CHẶN CODE.** G8b — mục chặn cuối cùng của MOD-03 — đã đóng ngày 12/8/2026. G13/G14 chặn **nghiệm thu** cổng TTĐT, G15 chặn **một quyết định thiết kế** đang được đi vòng bằng phương án tối giản.
 > Ký hiệu: 🔴 chặn thiết kế/code · 🟡 cần trước khi làm module liên quan · ⚪ chốt sau được.
 
 ---
@@ -162,6 +162,55 @@ Danh sách trích từ hệ thống nguồn ngày 12/8/2026 — **cần Công ty
 
 ---
 
+> ⭐ **Ba mục dưới đây mở ngày 19/8/2026**, khi lập kế hoạch Phase 1. Chúng **không chặn việc viết mã** — thiết kế đã chừa chỗ — nhưng **chặn việc nghiệm thu**: một cổng thông tin không có logo, không có danh mục và không có bài nào thì không có gì để Công ty xem.
+
+### G13. 🟡 Bộ nhận diện cổng TTĐT & tài khoản dịch vụ ngoài
+
+CN-01.5 yêu cầu cấu hình logo, favicon, màu chủ đạo, footer, mạng xã hội, mã theo dõi — nhưng **không tài liệu nào nói ai cấp những thứ đó**. Hệ thống đọc tất cả từ `settings` nên không phải sửa mã khi nhận được, song không có thì cổng chạy bằng giá trị mặc định của lập trình viên.
+
+**Cần Công ty gửi**:
+
+| Nhóm | Cụ thể |
+|---|---|
+| Hình ảnh | **Logo** (nên có bản SVG hoặc PNG nền trong, ≥ 512px) · **Favicon** 32×32 · ảnh đại diện mặc định khi bài viết không có ảnh |
+| Màu & chữ | Màu chủ đạo / màu phụ (mã hex nếu đã có bộ nhận diện; nếu chưa, phía phát triển đề xuất) |
+| Thông tin chân trang | Tên đầy đủ, địa chỉ, điện thoại, email, mã số thuế, người chịu trách nhiệm nội dung · **giấy phép trang thông tin điện tử tổng hợp** (nếu có) |
+| Liên kết | Facebook / Zalo / YouTube (nếu có) · vị trí trên bản đồ để nhúng |
+| Dịch vụ ngoài | **Google Analytics Tracking ID** · **GTM Container ID** · **Google reCAPTCHA v3 site key + secret** *(reCAPTCHA dùng cho form Liên hệ ở Phase 2 — xin sớm để khỏi phải quay lại)* |
+
+⚠ **reCAPTCHA secret là bí mật** — gửi riêng, không đưa vào tài liệu chung. Hệ thống lưu ở biến môi trường, không nằm trong bản xuất cấu hình.
+
+### G14. 🟡 Sơ đồ danh mục nội dung, menu cổng và nội dung trang tĩnh
+
+D4 đã chốt **không migrate website cũ**, Công ty tự nhập lại nội dung. Nhưng phần **khung** thì phía phát triển phải dựng và bàn giao sẵn, nếu không thì đến ngày nghiệm thu mới ngồi nghĩ cây danh mục.
+
+**Cần Công ty chốt**:
+
+1. **Cây danh mục nội dung** (tối đa 3 cấp) — ví dụ khung để Công ty sửa: *Giới thiệu* (Lịch sử, Cơ cấu tổ chức, Chức năng nhiệm vụ) · *Tin tức* (Tin hoạt động, Tin chuyên ngành, Thông báo) · *Công trình thuỷ lợi* · *Văn bản* · *Thông tin thuỷ văn* · *Liên hệ*.
+2. **Menu header và menu footer** — có thể khác cây danh mục (menu thường gọn hơn).
+3. **Nội dung các trang tĩnh**: Giới thiệu, Chức năng nhiệm vụ, Cơ cấu tổ chức, Liên hệ. Gửi bản Word cũng được.
+4. **Ai là người đăng bài đầu tiên** và cần bao nhiêu tài khoản Biên tập viên / Quản trị nội dung — để cấp tài khoản khi bàn giao.
+
+👉 Nếu Công ty chưa chốt kịp, phía phát triển sẽ **seed khung đề xuất ở trên** để cổng chạy được, Công ty sửa sau qua giao diện — không phải sửa mã.
+
+### G15. 🟡 "Cụm công trình" là đơn vị tổ chức hay chỉ là cách nhóm?
+
+Tài liệu đang mô tả hai điều khác nhau: CN-02.1 xếp **Cụm** vào *cấp quản lý* (Công ty / Xí nghiệp / Cụm), tức là một tầng trong bộ máy; còn kế hoạch triển khai lại nêu một bảng `construction_clusters` riêng, tức là một cách nhóm công trình.
+
+**Cần Công ty cho biết**: một "Cụm công trình" (VD *Cụm Liên Mạc*, *Cụm Hà Đông*)…
+
+| | Câu hỏi |
+|---|---|
+| a | Có **người phụ trách và nhân sự** thuộc cụm không, hay chỉ là tên gọi để nhóm các công trình gần nhau trên bản đồ? |
+| b | Cụm có nằm trong **sơ đồ tổ chức** của Công ty không (tức là có xuất hiện ở phần Nhân sự MOD-04)? |
+| c | Một công trình có bao giờ **thuộc hai cụm** không? |
+
+**Vì sao hỏi**: nếu cụm là đơn vị tổ chức thì nó dùng chung bảng `org_units` với Xí nghiệp và phòng ban (quy tắc 7), và phân quyền theo đơn vị tự chạy. Nếu chỉ là cách nhóm thì phải có bảng riêng. Làm nhầm hướng thứ nhất sẽ **pha tạp sơ đồ tổ chức bằng những nút không phải đơn vị**, gỡ ra rất đau.
+
+👉 Trong lúc chờ, phía phát triển đi **phương án tối giản**: mỗi công trình gắn **một đơn vị phụ trách** (`org_units`), chưa dựng bảng cụm. Thêm một khoá ngoại về sau là việc nhỏ; gỡ một cây tổ chức đã bị pha tạp thì không.
+
+---
+
 ## TÓM TẮT VIỆC CẦN CÔNG TY LÀM
 
 | # | Mục | Việc cần làm | Hạn cần có |
@@ -172,8 +221,11 @@ Danh sách trích từ hệ thống nguồn ngày 12/8/2026 — **cần Công ty
 | 4 | 🟡 **G5** | Mã số hệ thống văn bản: **riêng từng người hay chung**? + đề nghị bên `bhh40.net` cấp **token/SSO** thay vì lưu mã số + kế hoạch bật **HTTPS** | Trước Phase MOD-01 |
 | 5 | 🟡 **G3-a** | Chốt cách xử lý **lượng mưa** ở v1 (PA A/B/C) | Trước Phase MOD-03 |
 | 6 | ⚪ **G9-a** | Xác nhận **bộ mức ngưỡng** cảnh báo (3 mức đề xuất hay cấp I/II/III) | Trước khi cấu hình ngưỡng thật |
+| 7 | 🟡 **G13** | **Bộ nhận diện cổng**: logo, favicon, màu, thông tin chân trang, liên kết mạng xã hội, GA/GTM, reCAPTCHA key | **Trước nghiệm thu cổng TTĐT (Phase 1)** |
+| 8 | 🟡 **G14** | **Cây danh mục + menu cổng + nội dung 4 trang tĩnh** + số tài khoản biên tập cần cấp | **Trước nghiệm thu cổng TTĐT (Phase 1)** |
+| 9 | 🟡 **G15** | **"Cụm công trình"** là đơn vị tổ chức (có người phụ trách) hay chỉ là cách nhóm? | **Trước khi chốt hồ sơ công trình (Phase 1)** |
 
-Trả lời theo mã mục, ví dụ: `G3-a: chọn PA B · G5: mã số riêng từng người, user tự nhập · G9-a: dùng cấp I/II/III`.
+Trả lời theo mã mục, ví dụ: `G3-a: chọn PA B · G5: mã số riêng từng người, user tự nhập · G15: cụm có tổ trưởng, nằm trong sơ đồ tổ chức`.
 
 Sau khi nhận confirm → cập nhật `function-spec.md`, `implement.md` và đóng mục tương ứng tại đây.
 
@@ -187,6 +239,9 @@ Sau khi nhận confirm → cập nhật `function-spec.md`, `implement.md` và �
 | Chức năng | Mục mở | Mức | Vùng chưa chốt & cách xử lý tạm |
 |---|---|:-:|---|
 | **CN-01.7** Liên kết hệ thống văn bản | **G5** | 🟥 | **Mã số riêng từng người hay chung 1 mã?** Quyết định schema: `external_system_credentials(user_id, …)` **per-user** hay 1 dòng trong `settings` **toàn hệ thống** — 2 hướng khác nhau về cả bảng, UI lẫn phân quyền. Nếu Công ty xin được **token/SSO** thì bỏ hẳn việc lưu credential → đổi bản chất lần 2. **Không code phần lưu mã số trước khi có trả lời**; phần còn lại của MOD-01 làm bình thường |
+| **CN-01.2** Danh mục nội dung | **G14** | 🟩 | Cây danh mục là **dữ liệu**, không phải mã. Chưa có sơ đồ của Công ty thì seed khung đề xuất ở G14, sửa qua giao diện — code xong hoàn toàn |
+| **CN-01.5** Cấu hình giao diện | **G13** | 🟩 | Logo/màu/GA/GTM/mạng xã hội đọc từ `settings`, để trống vẫn chạy. Thiếu thì **cổng nghiệm thu bằng giá trị mặc định của lập trình viên** — không sai chức năng, sai diện mạo |
+| **CN-02.1** Cấp quản lý & Cụm công trình | **G15** | 🟨 | **Chưa dựng `construction_clusters`.** Mỗi công trình gắn 1 đơn vị phụ trách (`org_units`). Nếu Công ty trả lời "cụm là đơn vị có người phụ trách" → thêm nút vào cây tổ chức, không đổi schema công trình; nếu "chỉ là cách nhóm" → thêm 1 bảng + 1 khoá ngoại nullable. Cả hai nhánh đều là migration nhỏ |
 | **CN-03.1** Danh mục điểm đo | **G8** | 🟩 | Đã có tên + vai trò (G8b). Thiếu `river_name` / `chainage` / **tọa độ** của 19 điểm → cột đã có sẵn trong bảng, chỉ để `NULL` tới khi Công ty gửi |
 | **CN-03.1** Danh mục loại chỉ số | **G3-a** | 🟨 | Giữ loại chỉ số "Lượng mưa" trong danh mục dù v1 chưa có nguồn — **không xóa khỏi enum/seed**, nếu chọn PA B (nhập tay) thì dùng lại ngay |
 | **CN-03.2** Adapter & polling | **G3-a** | 🟨 | Thiếu endpoint mưa. `TelemetryAdapter` phải để **1 điểm cắm cho nguồn thứ 2**, không hard-code giả định "1 nguồn = 1 endpoint mực nước" |
@@ -201,4 +256,8 @@ Sau khi nhận confirm → cập nhật `function-spec.md`, `implement.md` và �
 | **CN-04.8** Báo cáo nhân sự | **G6**, **G10** | 🟨 | **BCNS-07 mẫu 2C-BNV chưa có file gốc** → làm 7 báo cáo còn lại trước, BCNS-07 để cuối. Đây là mẫu Bộ Nội vụ, **cấm tự chế** |
 | **CN-05.3** Cấu hình hệ thống | **G9-a**, **G5**, **G3-a** | 🟨 | Bảng `settings` phải mở đủ để thêm tham số sau mà **không cần migration** (key-value có type) — đây chính là cách hấp thụ mọi câu trả lời còn lại |
 
-**Chức năng KHÔNG chứa điểm mở nào — code thoải mái**: toàn bộ **Nhóm A / Core** (CN-05.1, 05.2, 05.4, 05.5, 05.6, 05.7) · CN-01.1→01.6, 01.8, 01.9 · CN-02.2 (lịch sử sửa chữa + sự cố) · CN-02.3, 02.6, 02.7, **02.11** (tình hình vận hành) · CN-03.2 phần parser/polling/rate-limit · CN-03.3 (lưu trữ) · CN-04.1→04.7, 04.9.
+**Chức năng KHÔNG chứa điểm mở nào — code thoải mái**: toàn bộ **Nhóm A / Core** (CN-05.1, 05.2, 05.4, 05.5, 05.6, 05.7) · CN-01.1, 01.3, 01.4, 01.6, 01.8, 01.9 · CN-02.2 (lịch sử sửa chữa + sự cố) · CN-02.3, 02.6, 02.7, **02.11** (tình hình vận hành) · CN-03.2 phần parser/polling/rate-limit · CN-03.3 (lưu trữ) · CN-04.1→04.7, 04.9.
+
+> ⚠ **Đọc bảng này cho đúng.** 🟩 nghĩa là *viết mã được trọn vẹn*, **không** nghĩa là *bàn giao được*. Ba mục 🟩 của Phase 1 (CN-01.2, CN-01.5, CN-02.1) đều chặn **nghiệm thu** vì thiếu dữ liệu khởi tạo — mà nghiệm thu mới là thứ Công ty nhìn thấy. Đừng để tới tuần cuối mới đi xin.
+
+> 📋 **18 điểm nghiệp vụ đã làm rõ cho Phase 1** — những chỗ spec không nói hoặc nói ra hai nghĩa (sửa bài đã xuất bản có phải duyệt lại không, bản ghi sửa chữa nhập sau khi xong thì bắt đầu ở trạng thái nào, tiền lưu VND hay triệu VND…) nằm ở `phase1-tracking.md` mục **"Nghiệp vụ — 18 điểm đã làm rõ trước khi code"**, kèm cột "ai quyết".

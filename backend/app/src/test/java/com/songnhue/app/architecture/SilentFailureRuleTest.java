@@ -18,7 +18,7 @@ import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
 
 import com.songnhue.core.common.persistence.ScopedEntity;
-import com.songnhue.core.domain.workflow.WorkflowAware;
+import com.songnhue.core.common.persistence.WorkflowAware;
 
 /**
  * Hai luật canh <b>loại hỏng không có triệu chứng</b> — sổ nợ liên WS mục 5 và 19.

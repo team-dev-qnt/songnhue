@@ -24,17 +24,28 @@
 Đây là danh sách đầy đủ tính tới 19/8/2026. **Trước khi viết bất cứ thứ gì trong bảng này, dừng
 lại — nó đã có rồi.**
 
-| Cần làm gì | Dùng cái này | Chữ ký thật |
+⛔ **Tiêm vào `interface` ở `com.songnhue.core.spi`, không phải lớp service.** Lớp service nằm ở
+`core.application` — module nghiệp vụ chạm vào đó là ArchUnit đỏ (xem §2).
+
+| Cần làm gì | Tiêm cái này | Chữ ký thật |
 |---|---|---|
-| Đổi trạng thái entity | `WorkflowEngine` | `execute(entity, action, title)` · `allowedActions(entity)` · `initialState(entityType)` |
-| Tệp đính kèm | `AttachmentService` | `upload(...)` · `downloadUrl(publicId)` · `listOf(ownerType, ownerId)` · `delete(publicId)` |
-| Thông báo (in-app + email) | `NotificationService` | `notify(NotificationRequest)` · `broadcast(request, userIds)` · `inbox(userId, pageable)` |
-| Việc chạy nền | `JobService` + bean cài `JobHandler` | `enqueue(jobType, payload, dedupKey, maxAttempts)` |
-| Tham số cấu hình được | `SettingService` | `getInt/getBoolean/getString/getMinutes/getTime(key, fallback)` |
-| Cây đơn vị / danh mục | `OrgUnitService`, `MaterializedPath`, `TreeBuilder` | |
+| Đổi trạng thái entity | `WorkflowPort` | `execute(entity, action, title)` · `allowedActions(entity)` · `initialState(entityType)` |
+| Tệp đính kèm | `AttachmentPort` | `upload(AttachmentUploadCommand)` · `downloadUrl(publicId)` · `findRef(publicId)` · `refsOf(ownerType, ownerId)` · `delete(publicId)` |
+| Thông báo (in-app + email) | `NotificationPort` | `notify(NotifyRequest)` · `broadcast(request, userIds)` |
+| Việc chạy nền | `JobPort` + bean cài `JobHandler` | `enqueue(JobRequest)` · `findJob(publicId)` |
+| Tham số cấu hình được | `SettingPort` | `getInt/getBoolean/getString/getMinutes/getTime(key, fallback)` |
+| Cây đơn vị | `OrgUnitPort` | `findRef(publicId)` · `findRefById(id)` |
+| Cây danh mục của chính module | `MaterializedPath`, `TreeBuilder` (`core.common.tree`) | |
 | Nhật ký kiểm toán | `@Audited` trên entity | tự động, không phải gọi gì |
 | Mã hoá trường nhạy cảm | `CryptoService` (AES-256-GCM + `key_id`) | |
 | Ngày giờ, số, chuỗi tiếng Việt, sinh mã, che dữ liệu, phân trang, kiểm tệp | 8 utils ở `core.common.util` | **cấm module tự viết lại** — `conventions.md` §2.5 |
+
+⚠ **Các cổng này trả `record` chứ không trả entity** (`AttachmentRef`, `JobRef`, `OrgUnitRef`). Đó là
+điều kiện để ranh giới đứng vững: một interface đặt đúng chỗ nhưng *trả về* entity domain thì nơi gọi
+vẫn phải import `core.domain.*`, tức là SPI chỉ dời chỗ vi phạm chứ không xoá nó.
+
+**Thiếu phương thức cần dùng?** SPI cố ý mỏng — chỉ khai những gì đang có người gọi. Thêm vào
+`core.spi` kèm bài kiểm ở chỗ gọi; ⛔ **đừng** vòng qua bằng cách gọi thẳng lớp service.
 
 Ngoài ra mọi entity nghiệp vụ kế thừa một trong hai lớp ở `core.common.persistence`:
 
@@ -46,7 +57,7 @@ Ngoài ra mọi entity nghiệp vụ kế thừa một trong hai lớp ở `core
 
 ---
 
-## 2. ⛔ Ranh giới module — và một việc PHẢI làm trước Phase 1
+## 2. ⛔ Ranh giới module
 
 ArchUnit (`ModuleBoundaryTest`) chỉ cho phép một module import:
 
@@ -57,19 +68,23 @@ com.songnhue.core.common.*           ← Common Platform (hạ tầng dùng chun
 
 Mọi thứ khác — `application/`, `domain/`, `infra/` của module khác — **CI đỏ**.
 
-> ⚠⚠ **Khoảng trống đã biết (19/8/2026): `core/spi/` hiện RỖNG**, chỉ có `package-info.java`.
-> Nhưng sáu dịch vụ ở mục 1 (`WorkflowEngine`, `NotificationService`, `AttachmentService`,
-> `JobService`, `SettingService`, `OrgUnitService`) đều nằm ở `core.application.*`.
->
-> Nghĩa là **dòng mã Phase 1 đầu tiên gọi `WorkflowEngine` sẽ làm ArchUnit đỏ.**
->
-> **Cách xử lý đúng**: thêm interface vào `core/spi/` cho từng dịch vụ cần dùng, rồi để service ở
-> `core.application` cài interface đó. Đây là việc **mở màn Phase 1**, không phải việc phát sinh.
->
-> ⛔ **Cách xử lý sai**: nới luật ArchUnit cho phép import `core.application.*`. Làm thế là xoá
-> ranh giới đã dựng cả Phase 0 để tiết kiệm mười phút — và ranh giới module là thứ giữ cho
-> Modular Monolith không biến thành một khối dính. Nếu thấy mình đang sửa file test kiến trúc để
-> mã của mình chạy được, đó là dấu hiệu đang đi sai đường.
+✅ **`core/spi/` đã mở (19/8/2026, WS-12)** — sáu cổng ở bảng mục 1 dùng được ngay.
+
+Luật bắt **cả hai** dạng vi phạm, đã kiểm chứng ngược trên mã production:
+
+```java
+import com.songnhue.core.application.settings.SettingService;  // ⛔ gọi thẳng service
+import com.songnhue.core.domain.attachment.Attachment;         // ⛔ chỉ NHẬN VỀ entity cũng đỏ
+import com.songnhue.core.spi.SettingPort;                      // ✅
+```
+
+Thông báo lỗi chỉ đích danh từng cạnh phụ thuộc (tham số hàm dựng, kiểu trường, lời gọi phương
+thức), nên tìm chỗ sửa không mất thời gian.
+
+> ⛔ **Cách xử lý sai khi gặp luật này**: nới ArchUnit cho phép import `core.application.*`. Làm thế
+> là xoá ranh giới đã dựng cả Phase 0 để tiết kiệm mười phút — và ranh giới module là thứ giữ cho
+> Modular Monolith không biến thành một khối dính. Nếu thấy mình đang sửa file test kiến trúc để mã
+> của mình chạy được, đó là dấu hiệu đang đi sai đường.
 
 ---
 
@@ -79,7 +94,22 @@ Thứ tự này không tuỳ tiện — mỗi bước tạo ra thứ mà bước
 
 ### 3.1. Migration trước, mã sau
 
-`backend/<module>/src/main/resources/db/migration/<module>/V<yyyyMMdd><nnnn>__<mo_ta>.sql`
+`backend/<module>/src/main/resources/db/migration/<tiền-tố>/V<yyyyMMdd><nnnn>__<mo_ta>.sql`
+
+⚠ **Tiền tố thư mục KHÔNG trùng tên module** — Flyway chỉ quét đúng 5 đường dẫn khai trong
+`app/src/main/resources/application.yml`:
+
+| Module Maven | Thư mục migration |
+|---|---|
+| `core` | `db/migration/core` |
+| `content` | `db/migration/**cms**` |
+| `operations` | `db/migration/**ops**` |
+| `hydro` | `db/migration/**hyd**` |
+| `hr` | `db/migration/hr` |
+
+Đặt nhầm vào `db/migration/content/` thì migration **không chạy và không có lỗi nào** — app lên
+bình thường, bảng không tồn tại, và triệu chứng đầu tiên là một `relation does not exist` ở tầng
+nghiệp vụ. Thêm module mới thì phải thêm dòng vào `locations` trước.
 
 - Cột chuẩn theo `conventions.md` §1.2 — luôn có `public_id UUID`, `version`, `deleted_at`
 - **`VARCHAR`, không bao giờ `CHAR(n)`** — lệch với `String` của entity làm `ddl-auto: validate`

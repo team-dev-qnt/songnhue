@@ -23,6 +23,7 @@ import com.songnhue.core.common.exception.PermissionDeniedException;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
 import com.songnhue.core.domain.settings.Setting;
 import com.songnhue.core.infra.settings.SettingRepository;
+import com.songnhue.core.spi.SettingPort;
 
 /**
  * Đọc tham số nghiệp vụ từ bảng {@code settings} (quy tắc 12 của dự án).
@@ -40,7 +41,7 @@ import com.songnhue.core.infra.settings.SettingRepository;
  * {@code architecture-review.md} §6.4 cùng các thay đổi khác phải làm.
  */
 @Service
-public class SettingService {
+public class SettingService implements SettingPort {
 
     private static final Logger log = LoggerFactory.getLogger(SettingService.class);
 
@@ -62,6 +63,7 @@ public class SettingService {
     }
 
     @Transactional(readOnly = true)
+    @Override
     public Optional<String> getString(String key) {
         return cache.get(
                 key,
@@ -72,19 +74,23 @@ public class SettingService {
      * @param fallback dùng khi thiếu khoá hoặc giá trị sai định dạng — hệ thống vẫn phải đăng nhập
      *     được kể cả khi ai đó lỡ tay xoá một dòng cấu hình
      */
+    @Override
     public int getInt(String key, int fallback) {
         return getString(key).map(value -> parseInt(key, value, fallback)).orElse(fallback);
     }
 
+    @Override
     public boolean getBoolean(String key, boolean fallback) {
         return getString(key).map(Boolean::parseBoolean).orElse(fallback);
     }
 
+    @Override
     public Duration getMinutes(String key, int fallbackMinutes) {
         return Duration.ofMinutes(getInt(key, fallbackMinutes));
     }
 
     /** Giá trị kiểu {@code TIME} trong bảng settings, VD {@code 08:00}. */
+    @Override
     public LocalTime getTime(String key, LocalTime fallback) {
         return getString(key).map(value -> parseTime(key, value, fallback)).orElse(fallback);
     }

@@ -3,6 +3,7 @@ package com.songnhue.core.application.attachment;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -24,6 +25,9 @@ import com.songnhue.core.common.util.ImageSanitizer;
 import com.songnhue.core.domain.attachment.Attachment;
 import com.songnhue.core.infra.attachment.AttachmentRepository;
 import com.songnhue.core.infra.storage.ObjectStorage;
+import com.songnhue.core.spi.AttachmentPort;
+import com.songnhue.core.spi.AttachmentRef;
+import com.songnhue.core.spi.AttachmentUploadCommand;
 
 /**
  * Tải lên và tra cứu tệp đính kèm — pattern P3 (T6.3).
@@ -44,7 +48,7 @@ import com.songnhue.core.infra.storage.ObjectStorage;
  * phát tán — mà đây là hệ có Cổng thông tin điện tử công khai.
  */
 @Service
-public class AttachmentService {
+public class AttachmentService implements AttachmentPort {
 
     private static final Logger log = LoggerFactory.getLogger(AttachmentService.class);
 
@@ -134,6 +138,7 @@ public class AttachmentService {
      *
      * <p>Từ chối tệp chưa {@code READY}: đó là tệp còn đang chờ quét hoặc đã bị cách ly.
      */
+    @Override
     @Transactional(readOnly = true)
     public String downloadUrl(UUID publicId) {
         Attachment attachment = require(publicId);
@@ -154,6 +159,53 @@ public class AttachmentService {
         return repository.findByOwnerTypeAndOwnerIdAndDeletedAtIsNullOrderByFileVersionDesc(ownerType, ownerId);
     }
 
+    // ---- Hợp đồng cho module nghiệp vụ (core.spi) -------------------------------
+    //
+    // Ba phương thức dưới đây là bản dịch của ba phương thức ngay trên, khác đúng một điểm: chúng
+    // trả `AttachmentRef` chứ không trả entity. Đó không phải trùng lặp thừa — module nghiệp vụ
+    // nhận entity `Attachment` về là phải import `core.domain.attachment`, mà luật ranh giới module
+    // cấm đúng điều đó (core/spi/package-info.java).
+    //
+    // `downloadUrl` và `delete` không cần bản dịch: chữ ký của chúng vốn chỉ có UUID và String.
+
+    @Override
+    @Transactional
+    public AttachmentRef upload(AttachmentUploadCommand command) {
+        return toRef(upload(
+                command.ownerType(),
+                command.ownerId(),
+                command.purpose(),
+                command.originalName(),
+                command.content(),
+                command.allowedMimeTypes()));
+    }
+
+    /** Không ném lỗi khi không tìm thấy: nơi gọi thường muốn hiện "tệp đã bị xoá", không phải 404. */
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<AttachmentRef> findRef(UUID publicId) {
+        return repository.findByPublicIdAndDeletedAtIsNull(publicId).map(AttachmentService::toRef);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AttachmentRef> refsOf(String ownerType, Long ownerId) {
+        return listOf(ownerType, ownerId).stream().map(AttachmentService::toRef).toList();
+    }
+
+    private static AttachmentRef toRef(Attachment attachment) {
+        return new AttachmentRef(
+                attachment.getPublicId(),
+                attachment.getOriginalName(),
+                attachment.getContentType(),
+                attachment.getSizeBytes(),
+                attachment.getFileVersion(),
+                attachment.getPurpose(),
+                attachment.isDownloadable(),
+                attachment.getCreatedAt(),
+                attachment.getValidUntil());
+    }
+
     /**
      * Xoá mềm.
      *
@@ -161,6 +213,7 @@ public class AttachmentService {
      * nghiệp vụ vẫn trỏ tới nó, xoá thật là để lại những liên kết chỉ vào khoảng không. Dọn kho là
      * việc của job rà soát riêng, chạy sau thời gian giữ.
      */
+    @Override
     @Transactional
     public void delete(UUID publicId) {
         Attachment attachment = require(publicId);

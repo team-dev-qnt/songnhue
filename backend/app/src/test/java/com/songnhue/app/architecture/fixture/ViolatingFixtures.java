@@ -3,7 +3,7 @@ package com.songnhue.app.architecture.fixture;
 import org.hibernate.annotations.Filter;
 
 import com.songnhue.core.common.persistence.ScopedEntity;
-import com.songnhue.core.domain.workflow.WorkflowAware;
+import com.songnhue.core.common.persistence.WorkflowAware;
 
 /**
  * Mã <b>cố ý sai</b> — nguyên liệu cho {@link com.songnhue.app.architecture.SilentFailureRuleSelfCheckTest}.

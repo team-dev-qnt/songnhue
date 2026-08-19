@@ -831,3 +831,115 @@ nhưng chạy qua một tập rỗng.
 Hệ quả cho các ranh giới còn lại: mỗi khi Phase 1 mở một đường đi mới giữa hai module, phải hỏi
 "luật hiện tại có cho phép đường này không, và nếu không thì đúng ra nên mở ở đâu" — trước khi
 viết mã, không phải sau khi CI đỏ.
+
+---
+
+## §10. QUYẾT ĐỊNH KIẾN TRÚC PHASE 1 (2026-08-19)
+
+> Phase 1 = Nhóm B (CMS) + C1 (master data công trình). Kế hoạch chi tiết: `phase1-tracking.md`
+> (11 hạng mục WS-12→WS-22, 99 task). Mục này chỉ ghi **quyết định và lý do**, không lặp lại task.
+
+### §10.1. Gộp phần hiển thị công khai vào Phase 1
+
+`implement.md` §3 xếp "B hoàn thiện … public" vào Phase 2. **Đổi**: phần hiển thị bài viết trên cổng
+công khai (danh sách · chi tiết · danh mục · SEO · sitemap) làm ngay ở Phase 1.
+
+Lý do không phải là "tiện tay làm luôn":
+
+1. **WS-9 đã dựng `POST /api/revalidate` "cho luồng duyệt bài Phase 1"** và tới nay chưa ai đi qua.
+   Một cơ chế viết sẵn cho một luồng chưa tồn tại là đúng định nghĩa "xanh mà không chạy" — thứ đã
+   sập bốn lần ở Phase 0 (§9.8.2, §9.11.5, §9.12.1, §9.12.2). Để nó nằm im thêm một Phase nữa là
+   tự nguyện nhận lại cùng một rủi ro.
+2. **Luồng duyệt bài chỉ chứng minh được khi đi hết.** Duyệt xong mà không ai thấy bài ở đâu thì
+   không biết ISR có làm mới không, ảnh có phục vụ được không, bài Nháp có rò ra ngoài không.
+3. Đây cũng là **thứ đầu tiên Công ty nhìn thấy được**. Ba tuần Phase 0 không có gì để trình bày;
+   Phase 1 nên kết thúc bằng một cổng chạy thật.
+
+Cái giá: **+8 pd** (WS-16). Đổi lại, Phase 2 bớt đúng phần đó.
+
+⚠ **Hệ quả kỹ thuật phải xử lý ở WS-16**: ảnh trong bài viết **không dùng presigned URL**. Trang
+công khai được ISR cache lại, mà presigned URL có hạn — trang cache sống lâu hơn URL thì ảnh hỏng
+hàng loạt sau vài giờ, và triệu chứng xuất hiện *sau khi* mọi người đã nghiệm thu xong.
+
+### §10.2. Sửa bài đã xuất bản: copy-on-write, không hạ bài xuống
+
+Spec có `article_versions` + diff + rollback nhưng **không nói** sửa bài đang xuất bản thì bài có
+phải rời khỏi cổng để chờ duyệt lại không. Hai hướng:
+
+| Phương án | Đánh giá |
+|---|---|
+| **Copy-on-write** — bản đang xuất bản giữ nguyên trên cổng, bản sửa vào `CHỜ DUYỆT` như một phiên bản mới | ✅ **Chọn.** Sửa một lỗi chính tả không làm bài biến mất khỏi cổng trong lúc chờ duyệt |
+| Sửa là hạ trạng thái về `CHỜ DUYỆT` | ⛔ Mỗi lần sửa là một lần bài rời cổng. Với tin đang được đọc thì đây là lỗi vận hành, không phải lựa chọn thiết kế |
+
+Người có `cms:article:publish` sửa thì đăng thẳng — không bắt họ tự duyệt bản của chính mình qua hai
+bước hình thức.
+
+### §10.3. Trạng thái công trình: vật chất hoá, không tính lúc đọc
+
+CN-02.1 chốt trạng thái là **giá trị dẫn xuất** theo 5 mức ưu tiên, tính ở BE. Spec không nói tính
+lúc nào.
+
+**Chốt: lưu sẵn một cột + tính lại theo sự kiện + job đối soát định kỳ.** Tính lúc đọc thì mỗi lần
+mở bản đồ hay dashboard là vài trăm truy vấn con lồng nhau — mà bản đồ và wall mode 4K (Phase 3)
+chính là nơi trạng thái được đọc nhiều nhất, đọc liên tục cả ngày.
+
+Job đối soát là phần bắt buộc, không phải phần thêm: cột vật chất hoá luôn có nguy cơ lệch khi một
+sự kiện không kích hoạt được đường tính lại. Đối soát định kỳ biến sai lệch âm thầm thành sai lệch
+**đo được**.
+
+⛔ Cột này **không có API sửa**. Client gửi `status` lên → `OPS-3001`.
+
+### §10.4. Không đặt khoá ngoại xuyên module ở tầng CSDL
+
+`maintenance_logs` cần trỏ tới `alert_events` của module `hydro` (CN-02.2 — "Cảnh báo liên quan").
+**Chốt: lưu `alert_event_public_id UUID`, không `REFERENCES`.**
+
+Ranh giới module (§9.14) chặn được lời gọi ở tầng Java, nhưng một khoá ngoại xuyên module trói hai
+module lại ở tầng CSDL — chỗ mà ArchUnit không nhìn tới. Khi tách `hydro` thành service riêng (mốc
+§6.4), khoá ngoại đó là thứ phải gỡ trước, và nó nằm trong một migration đã merge từ lâu.
+
+Cùng nguyên tắc: **mỗi module chỉ đặt khoá ngoại tới bảng của chính nó và của `core`.**
+
+### §10.5. Chưa dựng `construction_clusters` — chờ G15
+
+Tài liệu tự mâu thuẫn: CN-02.1 xếp "Cụm" vào *cấp quản lý* (một tầng trong bộ máy), còn
+`implement.md` nêu bảng `construction_clusters` (một cách nhóm công trình). Đã mở **G15** hỏi Công ty.
+
+Trong lúc chờ, đi **phương án tối giản**: mỗi công trình gắn một đơn vị phụ trách (`org_units`),
+không bảng cụm. Lý do chọn hướng này chứ không phải hướng kia khi cả hai đều chưa chắc:
+
+- Nếu cụm hoá ra **là đơn vị tổ chức** → thêm nút vào cây `org_units` có sẵn, **không đổi schema**.
+- Nếu cụm hoá ra **chỉ là cách nhóm** → thêm một bảng + một khoá ngoại nullable, migration nhỏ.
+- Nếu đoán trước là "đơn vị tổ chức" mà sai → **cây tổ chức đã bị pha tạp bằng những nút không phải
+  đơn vị**, và cây đó dùng chung cho cả phân quyền tầng 3 lẫn sơ đồ nhân sự MOD-04.
+
+Nguyên tắc: **khi chưa biết, chọn hướng mà cái sai rẻ hơn** — không phải hướng có vẻ đúng hơn.
+
+### §10.6. Thư viện media không có bảng tệp riêng
+
+CN-01.3 mô tả thư viện media như một chức năng độc lập. **Chốt: tệp media là `attachments` của Core**
+với `owner_type='MEDIA_FOLDER'`, `owner_id` trỏ bảng `media_folders` của module `content`.
+
+Dựng bảng tệp thứ hai nghĩa là có hai đường tải lên, hai chỗ kiểm magic bytes, hai chỗ quét virus,
+hai chỗ tính hạn mức — và chúng sẽ lệch nhau. P3 (đính kèm) sinh ra đúng để tránh chuyện đó.
+
+### §10.7. Workflow phải nhận nhiều trạng thái khởi đầu
+
+`workflow_definitions` hiện có đúng một cột `initial_state`. Nhưng CN-02.2 nói bản ghi sửa chữa
+**nhập sau khi đã hoàn thành** thì bắt đầu thẳng ở "Đã xử lý", còn bản ghi sự cố đang xảy ra thì bắt
+đầu ở "Mới".
+
+**Chốt: mở rộng engine để một entity type có nhiều trạng thái khởi đầu hợp lệ.**
+
+⛔ **Cấm lách bằng cách tạo ở `MOI` rồi chạy transition cho tới `DA_XU_LY`.** Cách đó làm nhật ký ghi
+lại một chuỗi sự việc **chưa từng xảy ra** — và nhật ký kiểm toán của hệ này có hash chain, tức là
+chúng ta đang ký tên vào một lịch sử bịa. Không đáng để tiết kiệm một cột.
+
+### §10.8. Tiền lưu VND, một đơn vị duy nhất
+
+CN-02.2 ghi chi phí đơn vị **VND**; CN-02.1 ghi tổng vốn đơn vị **triệu VND**. Hai đơn vị trong cùng
+một CSDL là lỗi cộng dồn chờ sẵn — và nó sẽ lộ ra ở báo cáo tổng hợp chi phí (BC-09, Phase 3), tức
+là xa chỗ gây ra nó.
+
+**Chốt: mọi cột tiền lưu VND, `NUMERIC(18,2)`.** Biểu mẫu nào hiển thị theo triệu thì quy đổi ở tầng
+hiển thị và ghi rõ đơn vị trên nhãn.

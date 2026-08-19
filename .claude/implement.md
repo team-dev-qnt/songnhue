@@ -219,7 +219,7 @@ Quy tắc ràng buộc giữa module (giữ đúng Modular Monolith):
 | Phase | Nội dung | Sẵn sàng? | Ghi chú |
 |---|---|:-:|---|
 | **Phase 0** — Nhóm A Core | auth/RBAC/orgunit/attachment/workflow/notification/jobs/audit/settings/backup-restore | ✅ **XONG 19/8/2026** | 12/21 mục Definition of Done đạt, 5 dở dang, **4 mục chưa xong đều phụ thuộc VM** (đo RTO thật · deploy staging · rollback). Không mục nào chặn việc viết nghiệp vụ |
-| **Phase 1** — B (CMS) + C1 (master data công trình) | article/category/media/siteconfig · `constructions`, `maintenance_logs`, `operation_status` | ✅ **Bắt đầu được ngay** | Nền đã có: 6 pattern P1–P6 là shared service, ArchUnit canh ranh giới. ⚠ Chỉ **CN-01.7** bị chặn cứng bởi **G5** — tách task riêng |
+| **Phase 1** — B (CMS) + C1 (master data công trình) | article/category/media/siteconfig **+ hiển thị công khai** · `constructions`, `maintenance_logs`, `operation_status` | 🟡 **Đang làm** — kế hoạch xong 19/8, xem §7.6 | Nền đã có: 6 pattern P1–P6 là shared service, ArchUnit canh ranh giới. ⚠ **WS-12 phải xong trước** (nợ #56 — `core/spi/` rỗng). ⚠ Chỉ **CN-01.7** bị chặn cứng bởi **G5** — đã tách khỏi Phase 1 |
 | **Phase 2** — C2 (`hydro`) | điểm đo, adapter, polling, rate-limit, lưu trữ, alert engine | ✅ **Bắt đầu được ngay** | Ánh xạ 19 mã đã có (G8b). Thiếu toạ độ/tuyến sông (G8) chỉ chặn phần hiển thị GIS, không chặn pipeline |
 | **Phase 3** — C3 (GIS/dashboard/báo cáo) + D (HRM) | | 🟨 **Code được, chốt layout sau** | Trường dữ liệu báo cáo đã chốt; **layout in ấn** chờ Công ty duyệt (G10). BCNS-07 chờ mẫu 2C-BNV (G6) |
 | **Phase 4** — hardening/NFR/go-live | | ✅ | Con số nghiệm thu đã chốt (G12). Gồm nốt phần deploy còn treo của Phase 0 |
@@ -256,3 +256,39 @@ WS-1 ─► WS-2 ─► WS-3          [nền — bắt buộc trước mọi th�
 > sổ nợ liên WS). Giữ hai bản của cùng một thứ là cách chắc chắn để chúng lệch nhau.
 >
 > Thứ tự khởi động **Phase 1** sẽ nằm ở kế hoạch riêng của Phase 1, không viết chồng vào đây.
+
+### 7.6. Kế hoạch chi tiết Phase 1
+
+📋 **Toàn bộ Phase 1 đã được break thành 11 hạng mục (WS-12→WS-22) với 99 task có ID + 17 mục
+Definition of Done: [`phase1-tracking.md`](phase1-tracking.md).** Quyết định kiến trúc kèm lý do:
+`architecture-review.md` **§10**.
+
+Ba thay đổi phạm vi so với §3 của chính file này, chốt ngày 19/8/2026:
+
+| Thay đổi | Lý do |
+|---|---|
+| **Hiển thị công khai bài viết chuyển từ Phase 2 lên Phase 1** (+8 pd) | `POST /api/revalidate` đã dựng ở WS-9 "cho luồng duyệt bài Phase 1" và chưa ai đi qua — `architecture-review.md` §10.1 |
+| **Liên hệ (CN-01.4) + Phản hồi (CN-01.6) giữ nguyên ở Phase 2** | Cùng là pattern "tiếp nhận từ public → hàng đợi nội bộ", phụ thuộc reCAPTCHA key của Công ty (G13); gom một đợt |
+| **Thêm đường nhập danh mục công trình từ Excel/CSV có chạy khô** (+3 pd) | G8 đang xin file Excel của Công ty; có đường nhập thì lúc file về là dùng được ngay, và đó cũng là đường seed dữ liệu thật |
+
+Ràng buộc thứ tự thật sự:
+
+```
+WS-12 ─────────────────────────────────────►  [nền — CHẶN mọi thứ]
+   ├─► WS-13 ─► WS-15 ─► WS-16                [CMS + cổng công khai]
+   │      └────────────► WS-20
+   ├─► WS-14 ──────────► WS-20
+   └─► WS-17 ─► WS-18 ─► WS-19                [công trình — tuần tự]
+          └───────────────► WS-21
+                              └─► WS-22
+```
+
+⚠ **WS-12 (mở `core/spi/`) là việc chặn, không phải việc dọn dẹp.** `core/spi/` rỗng trong khi cả
+sáu dịch vụ dùng chung nằm ở `core.application.*` → dòng mã Phase 1 đầu tiên gọi `WorkflowEngine`
+làm CI đỏ. Và nó lớn hơn "thêm sáu interface": chữ ký hiện tại trả về **entity domain**, mà module
+nghiệp vụ import `core.domain.*` là vi phạm y hệt.
+
+📌 **18 điểm nghiệp vụ chưa rõ trong spec đã được làm rõ** trước khi code (sửa bài đã xuất bản có
+phải duyệt lại không · bản ghi sửa chữa nhập sau khi xong bắt đầu ở trạng thái nào · tiền lưu VND
+hay triệu VND · SVG có được tải lên không…) — bảng đầy đủ kèm cột "ai quyết" ở `phase1-tracking.md`.
+Ba mục phải hỏi Công ty đã mở thành **G13 · G14 · G15**.

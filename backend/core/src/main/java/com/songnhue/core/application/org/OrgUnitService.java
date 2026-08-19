@@ -3,6 +3,7 @@ package com.songnhue.core.application.org;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -22,6 +23,8 @@ import com.songnhue.core.domain.org.OrgUnit;
 import com.songnhue.core.domain.org.OrgUnitType;
 import com.songnhue.core.infra.identity.UserRepository;
 import com.songnhue.core.infra.org.OrgUnitRepository;
+import com.songnhue.core.spi.OrgUnitPort;
+import com.songnhue.core.spi.OrgUnitRef;
 
 /**
  * Cây tổ chức — pattern P2 (implement.md §2), một bảng dùng chung cho Xí nghiệp và phòng ban
@@ -34,7 +37,7 @@ import com.songnhue.core.infra.org.OrgUnitRepository;
  * transaction và đều tính lại path bằng {@link MaterializedPath}, không có đường nào sửa path tay.
  */
 @Service
-public class OrgUnitService {
+public class OrgUnitService implements OrgUnitPort {
 
     private static final Logger log = LoggerFactory.getLogger(OrgUnitService.class);
 
@@ -63,6 +66,39 @@ public class OrgUnitService {
     @Transactional(readOnly = true)
     public List<OrgUnitNode> subtree(UUID publicId) {
         return toTree(repository.findSubtree(require(publicId).getPath()));
+    }
+
+    // ---- Hợp đồng cho module nghiệp vụ (core.spi) -------------------------------
+    //
+    // Chỉ đọc, và chỉ hai phương thức: module nghiệp vụ gán đơn vị phụ trách cho bản ghi của mình
+    // thì cần tra, không cần sửa cây. `findRefById` có vì bản ghi nghiệp vụ lưu `org_unit_id` chứ
+    // không lưu UUID — bộ lọc phạm vi ở tầng 3 làm việc trên khoá số.
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<OrgUnitRef> findRef(UUID publicId) {
+        return repository.findByPublicIdAndDeletedAtIsNull(publicId).map(OrgUnitService::toRef);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<OrgUnitRef> findRefById(Long id) {
+        return repository
+                .findById(id)
+                .filter(unit -> unit.getDeletedAt() == null)
+                .map(OrgUnitService::toRef);
+    }
+
+    private static OrgUnitRef toRef(OrgUnit unit) {
+        return new OrgUnitRef(
+                unit.getId(),
+                unit.getPublicId(),
+                unit.getCode(),
+                unit.getName(),
+                unit.getShortName(),
+                unit.getUnitType().name(),
+                unit.getPath(),
+                unit.getDepth());
     }
 
     @Transactional(readOnly = true)
