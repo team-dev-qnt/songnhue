@@ -1,8 +1,9 @@
-> Cập nhật **2026-08-19** (bản 3 — mở 3 mục mới khi lập kế hoạch Phase 1: **G13, G14, G15**).
+> Cập nhật **2026-08-19** (bản 3 — mở 3 mục mới khi lập kế hoạch Phase 1: **G13, G14, G15**; **G15 đóng ngay trong ngày**).
 > ✅ **ĐỢT 1 (mục A–F) ĐÃ ĐÓNG** — Công ty trả lời đầy đủ ngày 12/8/2026 (`docs_origin/Trả lời Business Open Questions 12.8.2026.docx.md`), đã đồng bộ vào `function-spec.md`, `implement.md`, `architecture-review.md` §8.
 > ✅ **ĐỢT 2 — ĐÃ ĐÓNG 9/12 mục**: **G1, G2, G3 (phần lớn), G4, G7, G8b, G9, G11, G12** → xem **Phần I-B**, đã đồng bộ vào `function-spec.md` v2.2.
-> ⬜ **CÒN MỞ 9 mục**: **G3-a** (lượng mưa) · **G5** (mã số hệ thống văn bản) · **G6** (mẫu 2C-BNV) · **G8** (tuyến sông/lý trình/tọa độ + danh mục công trình) · **G9-a** (bộ mức ngưỡng) · **G10** (duyệt format báo cáo) · ⭐ **G13** (bộ nhận diện cổng) · ⭐ **G14** (sơ đồ danh mục/menu cổng) · ⭐ **G15** (cụm công trình là gì) → xem **Phần II**.
-> ✅ **KHÔNG CÒN MỤC NÀO CHẶN CODE.** G8b — mục chặn cuối cùng của MOD-03 — đã đóng ngày 12/8/2026. G13/G14 chặn **nghiệm thu** cổng TTĐT, G15 chặn **một quyết định thiết kế** đang được đi vòng bằng phương án tối giản.
+> ⬜ **CÒN MỞ 8 mục**: **G3-a** (lượng mưa) · **G5** (mã số hệ thống văn bản) · **G6** (mẫu 2C-BNV) · **G8** (tuyến sông/lý trình/tọa độ + danh mục công trình) · **G9-a** (bộ mức ngưỡng) · **G10** (duyệt format báo cáo) · ⭐ **G13** (bộ nhận diện cổng) · ⭐ **G14** (sơ đồ danh mục/menu cổng) → xem **Phần II**.
+> ✅ **G15 đóng 19/8/2026** — cụm công trình chỉ là cách nhóm, không phải đơn vị tổ chức.
+> ✅ **KHÔNG CÒN MỤC NÀO CHẶN CODE.** G8b — mục chặn cuối cùng của MOD-03 — đã đóng ngày 12/8/2026. G13/G14 chặn **nghiệm thu** cổng TTĐT chứ không chặn code.
 > Ký hiệu: 🔴 chặn thiết kế/code · 🟡 cần trước khi làm module liên quan · ⚪ chốt sau được.
 
 ---
@@ -193,7 +194,15 @@ D4 đã chốt **không migrate website cũ**, Công ty tự nhập lại nội 
 
 👉 Nếu Công ty chưa chốt kịp, phía phát triển sẽ **seed khung đề xuất ở trên** để cổng chạy được, Công ty sửa sau qua giao diện — không phải sửa mã.
 
-### G15. 🟡 "Cụm công trình" là đơn vị tổ chức hay chỉ là cách nhóm?
+### ~~G15~~. ✅ **ĐÃ ĐÓNG 19/8/2026** — "Cụm công trình" chỉ là cách nhóm
+
+> **Trả lời**: cụm **không phải** đơn vị trong sơ đồ tổ chức — không có tổ trưởng, không có nhân sự thuộc cụm. Nó là cách nhóm các công trình gần nhau.
+>
+> **Áp dụng**: dựng bảng `construction_clusters` riêng + khoá ngoại **nullable** `constructions.cluster_id`. ⛔ **Không** thêm loại đơn vị mới vào `org_units` — cây tổ chức giữ nguyên cho Xí nghiệp và phòng ban (quy tắc 7). Đơn vị phụ trách công trình vẫn là `constructions.org_unit_id`, độc lập với cụm; phân quyền tầng 3 vẫn chạy trên `org_units` như cũ.
+>
+> **Hệ quả**: một công trình có thể thuộc **một** cụm hoặc không thuộc cụm nào. Cụm chỉ dùng để nhóm hiển thị và lọc — không mang ý nghĩa phân quyền. Chi tiết: `architecture-review.md` §10.5.
+
+<details><summary>Nội dung câu hỏi gốc (giữ để truy vết)</summary>
 
 Tài liệu đang mô tả hai điều khác nhau: CN-02.1 xếp **Cụm** vào *cấp quản lý* (Công ty / Xí nghiệp / Cụm), tức là một tầng trong bộ máy; còn kế hoạch triển khai lại nêu một bảng `construction_clusters` riêng, tức là một cách nhóm công trình.
 
@@ -209,6 +218,10 @@ Tài liệu đang mô tả hai điều khác nhau: CN-02.1 xếp **Cụm** vào 
 
 👉 Trong lúc chờ, phía phát triển đi **phương án tối giản**: mỗi công trình gắn **một đơn vị phụ trách** (`org_units`), chưa dựng bảng cụm. Thêm một khoá ngoại về sau là việc nhỏ; gỡ một cây tổ chức đã bị pha tạp thì không.
 
+</details>
+
+> ℹ **Ghi nhận về cách hỏi.** Phương án tối giản chọn hôm sáng hoá ra đúng hướng: câu trả lời là "chỉ là cách nhóm", nên việc phải làm thêm chỉ là một bảng và một khoá ngoại nullable — đúng như đã lượng trước. Nếu khi ấy đoán theo hướng "cụm là đơn vị tổ chức" và thêm loại nút vào `org_units` thì bây giờ phải gỡ chúng ra khỏi cây đang gánh cả phân quyền tầng 3 lẫn sơ đồ nhân sự.
+
 ---
 
 ## TÓM TẮT VIỆC CẦN CÔNG TY LÀM
@@ -223,7 +236,7 @@ Tài liệu đang mô tả hai điều khác nhau: CN-02.1 xếp **Cụm** vào 
 | 6 | ⚪ **G9-a** | Xác nhận **bộ mức ngưỡng** cảnh báo (3 mức đề xuất hay cấp I/II/III) | Trước khi cấu hình ngưỡng thật |
 | 7 | 🟡 **G13** | **Bộ nhận diện cổng**: logo, favicon, màu, thông tin chân trang, liên kết mạng xã hội, GA/GTM, reCAPTCHA key | **Trước nghiệm thu cổng TTĐT (Phase 1)** |
 | 8 | 🟡 **G14** | **Cây danh mục + menu cổng + nội dung 4 trang tĩnh** + số tài khoản biên tập cần cấp | **Trước nghiệm thu cổng TTĐT (Phase 1)** |
-| 9 | 🟡 **G15** | **"Cụm công trình"** là đơn vị tổ chức (có người phụ trách) hay chỉ là cách nhóm? | **Trước khi chốt hồ sơ công trình (Phase 1)** |
+| ~~9~~ | ✅ **G15** | ~~"Cụm công trình" là đơn vị tổ chức hay cách nhóm?~~ | **ĐÃ ĐÓNG 19/8** — chỉ là cách nhóm → bảng riêng |
 
 Trả lời theo mã mục, ví dụ: `G3-a: chọn PA B · G5: mã số riêng từng người, user tự nhập · G15: cụm có tổ trưởng, nằm trong sơ đồ tổ chức`.
 
@@ -241,7 +254,7 @@ Sau khi nhận confirm → cập nhật `function-spec.md`, `implement.md` và �
 | **CN-01.7** Liên kết hệ thống văn bản | **G5** | 🟥 | **Mã số riêng từng người hay chung 1 mã?** Quyết định schema: `external_system_credentials(user_id, …)` **per-user** hay 1 dòng trong `settings` **toàn hệ thống** — 2 hướng khác nhau về cả bảng, UI lẫn phân quyền. Nếu Công ty xin được **token/SSO** thì bỏ hẳn việc lưu credential → đổi bản chất lần 2. **Không code phần lưu mã số trước khi có trả lời**; phần còn lại của MOD-01 làm bình thường |
 | **CN-01.2** Danh mục nội dung | **G14** | 🟩 | Cây danh mục là **dữ liệu**, không phải mã. Chưa có sơ đồ của Công ty thì seed khung đề xuất ở G14, sửa qua giao diện — code xong hoàn toàn |
 | **CN-01.5** Cấu hình giao diện | **G13** | 🟩 | Logo/màu/GA/GTM/mạng xã hội đọc từ `settings`, để trống vẫn chạy. Thiếu thì **cổng nghiệm thu bằng giá trị mặc định của lập trình viên** — không sai chức năng, sai diện mạo |
-| **CN-02.1** Cấp quản lý & Cụm công trình | **G15** | 🟨 | **Chưa dựng `construction_clusters`.** Mỗi công trình gắn 1 đơn vị phụ trách (`org_units`). Nếu Công ty trả lời "cụm là đơn vị có người phụ trách" → thêm nút vào cây tổ chức, không đổi schema công trình; nếu "chỉ là cách nhóm" → thêm 1 bảng + 1 khoá ngoại nullable. Cả hai nhánh đều là migration nhỏ |
+| **CN-02.1** Cấp quản lý & Cụm công trình | ~~G15~~ | ✅ | **Đã đóng 19/8**: cụm chỉ là cách nhóm → bảng `construction_clusters` + `constructions.cluster_id` nullable. ⛔ Không thêm loại nút vào `org_units` |
 | **CN-03.1** Danh mục điểm đo | **G8** | 🟩 | Đã có tên + vai trò (G8b). Thiếu `river_name` / `chainage` / **tọa độ** của 19 điểm → cột đã có sẵn trong bảng, chỉ để `NULL` tới khi Công ty gửi |
 | **CN-03.1** Danh mục loại chỉ số | **G3-a** | 🟨 | Giữ loại chỉ số "Lượng mưa" trong danh mục dù v1 chưa có nguồn — **không xóa khỏi enum/seed**, nếu chọn PA B (nhập tay) thì dùng lại ngay |
 | **CN-03.2** Adapter & polling | **G3-a** | 🟨 | Thiếu endpoint mưa. `TelemetryAdapter` phải để **1 điểm cắm cho nguồn thứ 2**, không hard-code giả định "1 nguồn = 1 endpoint mực nước" |

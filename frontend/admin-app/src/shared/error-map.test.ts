@@ -69,9 +69,12 @@ describe('error-map đồng bộ với danh mục của backend', () => {
     expect(drift(backend, frontend)).toEqual({ thieuOFrontend: [], thuaOFrontend: [] });
   });
 
-  it('có đủ 49 mã tính đến hết WS-7', () => {
-    expect(frontend).toHaveLength(49);
-    expect(backend).toHaveLength(49);
+  // Con số này CỐ Ý phải sửa tay mỗi lần thêm mã. Bài kiểm trên đã canh việc hai bên khớp nhau;
+  // bài này canh việc *người viết mã biết mình vừa thêm một mã lỗi* — thêm mã là một quyết định
+  // (nó vào tài liệu bàn giao, vào bảng tra cứu của người vận hành), không phải một chi tiết trôi qua.
+  it('có đủ 50 mã: 49 đến hết Phase 0, + SYS-0010 hạn mức đính kèm (WS-12/T12.6)', () => {
+    expect(frontend).toHaveLength(50);
+    expect(backend).toHaveLength(50);
   });
 
   // conventions.md §1.5 — mỗi cơ chế canh gác phải có bài kiểm chứng minh nó bắt được vi phạm.

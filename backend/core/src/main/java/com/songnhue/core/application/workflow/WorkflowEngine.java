@@ -1,6 +1,7 @@
 package com.songnhue.core.application.workflow;
 
 import java.util.List;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -117,21 +118,80 @@ public class WorkflowEngine implements WorkflowPort {
     @Override
     @Transactional(readOnly = true)
     public String initialState(String entityType) {
-        return definitions
-                .findByEntityTypeAndActiveTrue(entityType)
-                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004))
-                .getInitialState();
+        return definitionOf(entityType).getInitialState();
+    }
+
+    /**
+     * Các đường vào đời của bản ghi — xem {@link WorkflowPort#CREATION_STATE}.
+     *
+     * <p>Trạng thái mặc định của definition luôn đứng đầu danh sách và <b>không đòi quyền riêng</b>:
+     * ai tạo được bản ghi thì tạo được ở trạng thái mặc định. Các đường vào khác khai bằng dòng
+     * {@code workflow_transitions} và có thể gắn quyền riêng.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<AllowedAction> initialActions(String entityType) {
+        WorkflowDefinition definition = definitionOf(entityType);
+
+        List<AllowedAction> extra = transitions
+                .findByDefinitionIdAndFromStateOrderBySortOrderAsc(definition.getId(), WorkflowPort.CREATION_STATE)
+                .stream()
+                .filter(WorkflowEngine::hasPermissionFor)
+                .map(t -> new AllowedAction(t.getAction(), t.getLabel(), t.getToState()))
+                .toList();
+
+        return Stream.concat(
+                        Stream.of(new AllowedAction(
+                                ACTION_CREATE_DEFAULT, definition.getName(), definition.getInitialState())),
+                        extra.stream().filter(action -> !action.toState().equals(definition.getInitialState())))
+                .toList();
+    }
+
+    /**
+     * Chốt chặn thật cho trạng thái khởi tạo do người dùng chọn.
+     *
+     * <p>⚠ Cố ý <b>không</b> dùng lại {@link #initialActions}: hàm kia đã lọc theo quyền, nên một
+     * trạng thái bị thiếu quyền sẽ biến mất khỏi danh sách và ở đây trở thành "không hợp lệ" —
+     * người dùng nhận thông báo sai hướng, và tệ hơn là ta mất khả năng phân biệt hai tình huống
+     * khác hẳn nhau. Tra trực tiếp rồi kiểm quyền sau cho ra đúng mã lỗi cho từng trường hợp, theo
+     * đúng thứ tự đã dùng ở {@link #execute}: hợp lệ về quy trình trước, quyền sau.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public String resolveInitialState(String entityType, String requestedState) {
+        WorkflowDefinition definition = definitionOf(entityType);
+        if (requestedState == null || requestedState.equals(definition.getInitialState())) {
+            return definition.getInitialState();
+        }
+
+        WorkflowTransition entry = transitions
+                .findByDefinitionIdAndFromStateOrderBySortOrderAsc(definition.getId(), WorkflowPort.CREATION_STATE)
+                .stream()
+                .filter(t -> t.getToState().equals(requestedState))
+                .findFirst()
+                .orElseThrow(() ->
+                        new BusinessRuleException(ErrorCode.SYS_0008, requestedState, WorkflowPort.CREATION_STATE));
+
+        requirePermission(entry);
+        return entry.getToState();
     }
 
     // -------------------------------------------------------------------------
 
-    private WorkflowDefinition definitionOf(WorkflowAware entity) {
+    /** Hành động giả cho đường vào mặc định — chỉ để giao diện có khoá phân biệt trong ô chọn. */
+    private static final String ACTION_CREATE_DEFAULT = "CREATE";
+
+    private WorkflowDefinition definitionOf(String entityType) {
         return definitions
-                .findByEntityTypeAndActiveTrue(entity.workflowEntityType())
-                // Entity khai một loại quy trình không tồn tại là lỗi cấu hình, không phải lỗi người
-                // dùng — nhưng vẫn phải chặn, vì bỏ qua nghĩa là entity đó không có quy trình nào và
-                // trạng thái muốn đổi kiểu gì cũng được.
+                .findByEntityTypeAndActiveTrue(entityType)
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
+    }
+
+    // Entity khai một loại quy trình không tồn tại là lỗi cấu hình, không phải lỗi người dùng —
+    // nhưng vẫn phải chặn, vì bỏ qua nghĩa là entity đó không có quy trình nào và trạng thái muốn
+    // đổi kiểu gì cũng được.
+    private WorkflowDefinition definitionOf(WorkflowAware entity) {
+        return definitionOf(entity.workflowEntityType());
     }
 
     private static void requirePermission(WorkflowTransition transition) {

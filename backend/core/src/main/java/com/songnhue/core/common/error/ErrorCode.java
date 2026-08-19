@@ -38,6 +38,8 @@ public enum ErrorCode {
     SYS_0008("SYS-0008", HttpStatus.UNPROCESSABLE_ENTITY),
     /** Tệp chưa quét virus xong hoặc đã bị cách ly — {0} là trạng thái quét. */
     SYS_0009("SYS-0009", HttpStatus.CONFLICT),
+    /** Bản ghi đã dùng hết hạn mức dung lượng tệp đính kèm (CN-02.3: 500MB/công trình). */
+    SYS_0010("SYS-0010", HttpStatus.UNPROCESSABLE_ENTITY),
 
     // ---- Xác thực & phân quyền -------------------------------------------------
     /** Message cố ý mơ hồ: không tiết lộ tài khoản có tồn tại hay không (§4.1). */

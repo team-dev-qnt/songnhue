@@ -900,20 +900,31 @@ module lại ở tầng CSDL — chỗ mà ArchUnit không nhìn tới. Khi tác
 
 Cùng nguyên tắc: **mỗi module chỉ đặt khoá ngoại tới bảng của chính nó và của `core`.**
 
-### §10.5. Chưa dựng `construction_clusters` — chờ G15
+### §10.5. `construction_clusters` là bảng riêng — G15 đã đóng (19/8/2026)
 
-Tài liệu tự mâu thuẫn: CN-02.1 xếp "Cụm" vào *cấp quản lý* (một tầng trong bộ máy), còn
-`implement.md` nêu bảng `construction_clusters` (một cách nhóm công trình). Đã mở **G15** hỏi Công ty.
+Tài liệu từng tự mâu thuẫn: CN-02.1 xếp "Cụm" vào *cấp quản lý* (một tầng trong bộ máy), còn
+`implement.md` nêu bảng `construction_clusters` (một cách nhóm công trình).
 
-Trong lúc chờ, đi **phương án tối giản**: mỗi công trình gắn một đơn vị phụ trách (`org_units`),
-không bảng cụm. Lý do chọn hướng này chứ không phải hướng kia khi cả hai đều chưa chắc:
+**Trả lời của Công ty: cụm chỉ là cách nhóm các công trình gần nhau** — không có tổ trưởng, không có
+nhân sự thuộc cụm.
 
-- Nếu cụm hoá ra **là đơn vị tổ chức** → thêm nút vào cây `org_units` có sẵn, **không đổi schema**.
-- Nếu cụm hoá ra **chỉ là cách nhóm** → thêm một bảng + một khoá ngoại nullable, migration nhỏ.
-- Nếu đoán trước là "đơn vị tổ chức" mà sai → **cây tổ chức đã bị pha tạp bằng những nút không phải
-  đơn vị**, và cây đó dùng chung cho cả phân quyền tầng 3 lẫn sơ đồ nhân sự MOD-04.
+**Chốt**: bảng `construction_clusters` riêng + khoá ngoại **nullable** `constructions.cluster_id`.
+⛔ **Không** thêm loại nút nào vào `org_units`. Đơn vị phụ trách vẫn là `constructions.org_unit_id`,
+độc lập với cụm; phân quyền tầng 3 tiếp tục chạy trên `org_units` và **cụm không mang ý nghĩa phân
+quyền** — nhóm hiển thị và lọc, thế thôi.
 
-Nguyên tắc: **khi chưa biết, chọn hướng mà cái sai rẻ hơn** — không phải hướng có vẻ đúng hơn.
+#### Ghi lại cách quyết định, vì nó sẽ lặp lại
+
+Trước khi có câu trả lời, kế hoạch chọn **phương án tối giản**: chỉ gắn `org_unit_id`, chưa dựng bảng
+cụm. Lý do không phải là "đoán đúng hơn" mà là **cái sai rẻ hơn**:
+
+| Nếu chọn trước… | …và sai thì phải làm gì |
+|---|---|
+| Không dựng gì | Thêm một bảng + một khoá ngoại nullable — migration nhỏ |
+| Thêm loại nút vào `org_units` | **Gỡ những nút không phải đơn vị ra khỏi cây đang gánh cả phân quyền tầng 3 lẫn sơ đồ nhân sự MOD-04** |
+
+Câu trả lời hoá ra là nhánh rẻ, nhưng đó là may — điều đáng giữ là **quy tắc chọn**: khi chưa biết,
+chọn hướng mà cái sai rẻ hơn, không phải hướng có vẻ đúng hơn.
 
 ### §10.6. Thư viện media không có bảng tệp riêng
 

@@ -52,10 +52,31 @@ public class AttachmentService implements AttachmentPort {
 
     private static final Logger log = LoggerFactory.getLogger(AttachmentService.class);
 
-    /** Dung lượng tối đa mỗi tệp, đọc từ {@code settings} (quy tắc 12). */
-    private static final String KEY_MAX_UPLOAD_MB = "limit.upload.max-file-mb";
+    /**
+     * Dung lượng tối đa mỗi tệp, đọc từ {@code settings} theo <b>nhóm định dạng</b> (quy tắc 12).
+     *
+     * <p>⚠⚠ <b>Bản đầu đọc khoá {@code limit.upload.max-file-mb} — một khoá CHƯA TỪNG ĐƯỢC SEED.</b>
+     * Hệ quả im lặng suốt từ WS-6: mọi lượt tải rơi về giá trị dự phòng 20MB cứng trong mã, trong khi
+     * màn hình cấu hình bày ra ba tham số {@code limits.upload.max-mb.*} mà <b>không dòng mã nào
+     * đọc</b>. Quản trị viên sửa "Dung lượng tối đa mỗi tài liệu = 50MB" rồi tải một hồ sơ hoàn công
+     * 30MB vẫn bị từ chối, và không có lỗi nào chỉ ra vì sao.
+     *
+     * <p>Đây là biến thể của bài học lặp lại nhiều lần ở Phase 0: cơ chế còn sống nhưng <i>không nối
+     * vào đâu cả</i>. Tham số cấu hình chỉ có nghĩa khi có bài kiểm chứng minh đổi giá trị thì hành
+     * vi đổi theo — xem {@code AttachmentQuotaTest}.
+     */
+    private static final String KEY_MAX_UPLOAD_MB_PREFIX = "limits.upload.max-mb.";
 
     private static final int DEFAULT_MAX_UPLOAD_MB = 20;
+
+    /**
+     * Hạn mức dung lượng cho MỘT bản ghi, tra theo loại chủ sở hữu (T12.6).
+     *
+     * <p>VD {@code limits.attachment.quota-mb.CONSTRUCTION = 500} — CN-02.3 yêu cầu 500MB/công trình.
+     * Không khai khoá cho một loại nào thì loại đó <b>không giới hạn</b>: hạn mức là ngoại lệ có chủ
+     * đích cho vài loại hồ sơ nặng, không phải luật chung.
+     */
+    private static final String KEY_OWNER_QUOTA_MB_PREFIX = "limits.attachment.quota-mb.";
 
     /**
      * Hạn của đường dẫn tải.
@@ -98,8 +119,11 @@ public class AttachmentService implements AttachmentPort {
             List<String> allowedMimeTypes) {
 
         String mimeType = FileValidator.detectAndValidate(content, originalName, allowedMimeTypes);
-        long maxBytes = settings.getInt(KEY_MAX_UPLOAD_MB, DEFAULT_MAX_UPLOAD_MB) * 1024L * 1024L;
+        long maxBytes = settings.getInt(KEY_MAX_UPLOAD_MB_PREFIX + sizeGroupOf(mimeType), DEFAULT_MAX_UPLOAD_MB)
+                * 1024L
+                * 1024L;
         FileValidator.validateSize(content.length, maxBytes, originalName);
+        requireQuota(ownerType, ownerId, content.length);
 
         // Mã hoá lại TRƯỚC khi tính checksum và ghi lên kho: checksum phải khớp đúng thứ đã lưu,
         // nếu không thì lần kiểm tra toàn vẹn nào cũng báo lệch.
@@ -225,6 +249,58 @@ public class AttachmentService implements AttachmentPort {
         return repository
                 .findByPublicIdAndDeletedAtIsNull(publicId)
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
+    }
+
+    /**
+     * Nhóm định dạng để tra hạn mức dung lượng — khớp ba khoá đã seed ở {@code V202608131009}.
+     *
+     * <p>Định dạng lạ rơi vào nhóm {@code document}: đó là nhóm chặt vừa phải, và quan trọng hơn là
+     * <b>một định dạng chưa phân nhóm không được hưởng hạn mức rộng nhất</b>.
+     */
+    private static String sizeGroupOf(String mimeType) {
+        if (mimeType.startsWith("image/")) {
+            return "image";
+        }
+        if (mimeType.contains("json") || mimeType.contains("kml") || mimeType.contains("zip")) {
+            return "gis";
+        }
+        return "document";
+    }
+
+    /**
+     * Dung lượng một bản ghi đang dùng, tính bằng byte.
+     *
+     * <p>Giao diện hiện "đã dùng 120/500 MB" từ số này — người dùng phải thấy mình sắp chạm trần
+     * <i>trước</i> khi bấm tải, chứ không phải nhận thông báo từ chối sau khi đã chọn xong tệp.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public long usedBytes(String ownerType, Long ownerId) {
+        return repository.sumSizeBytesByOwner(ownerType, ownerId);
+    }
+
+    /**
+     * Chặn khi bản ghi đã hết hạn mức.
+     *
+     * <p>⚠ Đây là kiểm tra <b>đọc rồi ghi</b>, nên hai lượt tải song song vẫn có thể cùng lọt qua và
+     * vượt trần một chút. Chấp nhận có ý thức: cái giá để chặn tuyệt đối là khoá dòng hoặc ràng buộc
+     * ở tầng CSDL cho một con số vốn là <i>chính sách vận hành</i>, không phải bất biến dữ liệu.
+     * Vượt vài MB không hỏng gì; khoá nhầm một lượt tải hợp lệ thì có.
+     */
+    private void requireQuota(String ownerType, Long ownerId, long incomingBytes) {
+        if (ownerId == null) {
+            return;
+        }
+        int quotaMb = settings.getInt(KEY_OWNER_QUOTA_MB_PREFIX + ownerType, 0);
+        if (quotaMb <= 0) {
+            return;
+        }
+
+        long quotaBytes = quotaMb * 1024L * 1024L;
+        long used = repository.sumSizeBytesByOwner(ownerType, ownerId);
+        if (used + incomingBytes > quotaBytes) {
+            throw new BusinessRuleException(ErrorCode.SYS_0010, (used + incomingBytes) / (1024 * 1024), quotaMb);
+        }
     }
 
     /** Phiên bản kế tiếp trong cùng {@code (owner, purpose)} — nền cho lịch sử tài liệu (P3). */

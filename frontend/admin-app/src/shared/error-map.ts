@@ -88,6 +88,11 @@ export const ERROR_CATALOG = {
     handling: 'toast',
     severity: 'warning',
   },
+  'SYS-0010': {
+    message: 'Bản ghi đã hết dung lượng tệp đính kèm — xoá bớt tệp cũ trước khi tải thêm',
+    handling: 'toast',
+    severity: 'warning',
+  },
 
   // --- Xác thực & phân quyền -------------------------------------------------
   'AUTH-0001': {

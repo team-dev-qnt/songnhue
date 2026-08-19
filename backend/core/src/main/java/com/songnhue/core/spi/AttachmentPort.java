@@ -35,4 +35,12 @@ public interface AttachmentPort {
     List<AttachmentRef> refsOf(String ownerType, Long ownerId);
 
     void delete(UUID publicId);
+
+    /**
+     * Dung lượng bản ghi đang dùng (byte) — để giao diện hiện "đã dùng 120/500 MB".
+     *
+     * <p>Hạn mức khai bằng tham số {@code limits.attachment.quota-mb.<LOẠI_CHỦ_SỞ_HỮU>}; không khai
+     * thì loại đó không giới hạn.
+     */
+    long usedBytes(String ownerType, Long ownerId);
 }

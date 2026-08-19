@@ -19,6 +19,16 @@ import com.songnhue.core.common.persistence.WorkflowAware;
 public interface WorkflowPort {
 
     /**
+     * Trạng thái-giả đứng ở vế {@code from_state} để khai một <b>đường vào đời</b> của bản ghi.
+     *
+     * <p>Một dòng {@code workflow_transitions} có {@code from_state = '__NEW__'} không phải bước
+     * chuyển, mà là "được phép tạo mới thẳng ở trạng thái này". CSDL có ràng buộc cấm nó xuất hiện ở
+     * vế {@code to_state} — vào được trạng thái này nghĩa là có bản ghi thật mang nó, và bản ghi ấy
+     * sẽ nhận được cả những bước vốn chỉ dành cho lúc tạo mới.
+     */
+    String CREATION_STATE = "__NEW__";
+
+    /**
      * Thực hiện một hành động trên bản ghi.
      *
      * @param title tiêu đề thông báo; {@code null} thì engine tự dựng từ tên quy trình và nhãn bước
@@ -32,6 +42,30 @@ public interface WorkflowPort {
     /** Các nút giao diện được phép hiện — đã lọc theo quyền của người đang đăng nhập. */
     List<AllowedAction> allowedActions(WorkflowAware entity);
 
-    /** Trạng thái khởi tạo của quy trình — dùng lúc tạo mới bản ghi. */
+    /** Trạng thái khởi tạo <b>mặc định</b> — dùng khi nơi gọi không cho người dùng chọn. */
     String initialState(String entityType);
+
+    /**
+     * Mọi đường vào đời hợp lệ, đã lọc theo quyền của người đang đăng nhập.
+     *
+     * <p>Giao diện dựng ô chọn "Trạng thái ban đầu" từ danh sách này, <b>không tự liệt kê</b> — cùng
+     * lý do với {@link #allowedActions}. Quy trình chỉ có một đường vào thì trả đúng một phần tử.
+     *
+     * @return {@code toState} của mỗi phần tử là trạng thái bản ghi sẽ mang khi được tạo
+     */
+    List<AllowedAction> initialActions(String entityType);
+
+    /**
+     * Kiểm một trạng thái khởi tạo do người dùng chọn, trả về chính nó nếu hợp lệ.
+     *
+     * <p>Đây là chốt chặn thật — {@link #initialActions} chỉ phục vụ hiển thị, mà giao diện thì
+     * không phải nguồn tin cậy. Nơi gọi truyền thẳng kết quả vào hàm dựng entity.
+     *
+     * @param requestedState {@code null} = dùng {@link #initialState(String)}
+     * @throws com.songnhue.core.common.exception.BusinessRuleException {@code SYS-0008} khi trạng
+     *     thái không phải một đường vào hợp lệ của quy trình
+     * @throws com.songnhue.core.common.exception.PermissionDeniedException {@code AUTH-3001} khi
+     *     thiếu quyền tạo mới thẳng ở trạng thái đó
+     */
+    String resolveInitialState(String entityType, String requestedState);
 }

@@ -1,6 +1,6 @@
 # PHASE 1 — CMS & MASTER DATA CÔNG TRÌNH · BẢNG THEO DÕI TIẾN ĐỘ
 
-> **Cập nhật lần cuối**: 2026-08-19 · **Tiến độ: 5/99 task (5%)** · **DoD: 0/17** · Trạng thái: 🟡 Đang làm (WS-12 5/8)
+> **Cập nhật lần cuối**: 2026-08-19 · **Tiến độ: 7/101 task (7%)** · **DoD: 0/17** · Trạng thái: 🟡 Đang làm (WS-12 5/8)
 > Nguồn ràng buộc: `function-spec.md` CN-01.1→01.5, CN-01.8 · CN-02.1, 02.2, 02.3, 02.6, 02.7, 02.11 · `conventions.md` (luật) · `docs/coding-guide.md` (đường đi) · `architecture-review.md` §10 (quyết định Phase 1)
 > **Cách dùng**: giống Phase 0 — làm xong task nào tick `[x]`; xong 1 WS thì chạy mục "Kiểm chứng" rồi cập nhật bảng tổng + dòng trên cùng.
 > ⚠ **Luật 3 bước khi đóng WS** (thừa kế từ Phase 0): tick task → tick dòng nợ → **quay lại sửa mô tả đã lỗi thời ở WS đã giao nợ**. Bước 3 hay bị bỏ nhất.
@@ -26,20 +26,20 @@ Phase 0 dựng **cơ chế**; Phase 1 là lần đầu có **người dùng th�
 
 | WS | Hạng mục | Task | Xong | Trạng thái | Phụ thuộc | Ước tính |
 |---|---|:-:|:-:|---|---|:-:|
-| **WS-12** | Mở SPI Core + nền cho module nghiệp vụ | 8 | **5** | 🟡 Đang làm (19/8) — còn T12.5–T12.7 | Phase 0 | 6 pd |
-| **WS-13** | CMS — Danh mục nội dung & Bài viết | 12 | 0 | ⬜ Chưa bắt đầu | WS-12 | 12 pd |
+| **WS-12** | Mở SPI Core + nền cho module nghiệp vụ | 8 | **7** | 🟡 Đang làm (19/8) — còn T12.7 | Phase 0 | 6 pd |
+| **WS-13** | CMS — Danh mục nội dung & Bài viết | 13 | 0 | ⬜ Chưa bắt đầu | WS-12 | 12 pd |
 | **WS-14** | CMS — Thư viện Media | 6 | 0 | ⬜ Chưa bắt đầu | WS-12 | 6 pd |
-| **WS-15** | CMS — Cấu hình giao diện, Menu, Banner | 6 | 0 | ⬜ Chưa bắt đầu | WS-13 | 6 pd |
+| **WS-15** | CMS — Cấu hình giao diện, Menu, Banner | 7 | 0 | ⬜ Chưa bắt đầu | WS-13 | 6 pd |
 | **WS-16** | Public-web — hiển thị + ISR | 8 | 0 | ⬜ Chưa bắt đầu | WS-13, WS-15 | 8 pd |
-| **WS-17** | Operations — Danh mục công trình | 12 | 0 | ⬜ Chưa bắt đầu | WS-12 | 13 pd |
+| **WS-17** | Operations — Danh mục công trình | 12 | 0 | ⬜ Chưa bắt đầu | WS-12 | 14 pd |
 | **WS-18** | Operations — Lịch sử sửa chữa & sự cố | 11 | 0 | ⬜ Chưa bắt đầu | WS-17 | 10 pd |
 | **WS-19** | Operations — Tình hình vận hành + trạng thái dẫn xuất | 8 | 0 | ⬜ Chưa bắt đầu | WS-17, WS-18 | 7 pd |
 | **WS-20** | FE admin — màn hình CMS | 10 | 0 | ⬜ Chưa bắt đầu | WS-13→15 (API) | 12 pd |
 | **WS-21** | FE admin — màn hình Công trình | 10 | 0 | ⬜ Chưa bắt đầu | WS-17→19 (API) | 12 pd |
 | **WS-22** | Kiểm thử, nghiệm thu Phase 1 & trả nợ | 8 | 0 | ⬜ Chưa bắt đầu | tất cả | 8 pd |
-| | **TỔNG** | **99** | **5** | | | **100 pd** |
+| | **TỔNG** | **101** | **7** | | | **101 pd** |
 
-*(99 task triển khai + 17 mục Definition of Done ở cuối file.)*
+*(101 task triển khai + 17 mục Definition of Done ở cuối file.)*
 
 **Trạng thái**: ⬜ Chưa bắt đầu · 🟡 Đang làm · ✅ Xong · ⏸ Tạm dừng · ❌ Bỏ
 
@@ -101,7 +101,7 @@ Kế thừa Phase 0 và thêm một điều kiện mới:
 
 | # | Điểm chưa rõ trong spec | Chốt | Ai quyết |
 |:-:|---|---|:-:|
-| 12 | **"Cụm công trình" là đơn vị tổ chức hay chỉ là cách nhóm?** `implement.md` nêu bảng `construction_clusters`, còn CN-02.1 lại xếp Cụm vào *cấp quản lý* cạnh Công ty/Xí nghiệp | **Phase 1 KHÔNG dựng `construction_clusters`.** Chỉ có `constructions.org_unit_id` → `org_units`. Lý do: thêm một FK rỗng về sau là migration rẻ; gỡ một cây tổ chức đã bị pha tạp thì không. Chờ G15 rồi quyết | ❓ **G15** |
+| 12 | **"Cụm công trình" là đơn vị tổ chức hay chỉ là cách nhóm?** `implement.md` nêu bảng `construction_clusters`, còn CN-02.1 lại xếp Cụm vào *cấp quản lý* cạnh Công ty/Xí nghiệp | ✅ **G15 đóng 19/8: chỉ là cách nhóm.** Bảng `construction_clusters` riêng + `constructions.cluster_id` **nullable**. ⛔ Không thêm loại nút vào `org_units`; cụm **không mang ý nghĩa phân quyền** | ✅ đã đóng |
 | 13 | **Mã công trình tự sinh hay nhập tay?** | **Nhập tay, có gợi ý tự sinh** `<LOẠI>-<XN>-<số>`. Công ty đã có mã riêng (G8 đang xin file Excel) — ép tự sinh là buộc họ đổi mã đang dùng trên giấy tờ | 🔧 |
 | 14 | **Trạng thái công trình là giá trị dẫn xuất — tính lúc đọc hay lưu sẵn?** Spec chỉ nói "tính ở BE" | **Lưu sẵn một cột + tính lại theo sự kiện + job đối soát định kỳ.** Tính lúc đọc thì mỗi lần mở bản đồ là vài trăm truy vấn con. Cột đó **không có API sửa** — sửa thẳng trả `OPS-3001` | 🔧 |
 | 15 | **Bản ghi sửa chữa nhập sau khi xong thì bắt đầu ở trạng thái nào?** Spec: "mặc định Đã xử lý với công việc nhập sau khi hoàn thành", nhưng workflow engine chỉ có **một** `initial_state` | Workflow phải nhận **nhiều trạng thái khởi đầu** (T12.5). ⛔ Cấm lách bằng cách tạo ở `MOI` rồi chạy transition giả — lịch sử sẽ ghi một sự việc chưa từng xảy ra | 🔧 |
@@ -109,13 +109,13 @@ Kế thừa Phase 0 và thêm một điều kiện mới:
 | 17 | **Đơn vị thực hiện: nội bộ hay nhà thầu ngoài?** Spec ghi "Text / FK" | **Hai cột** `performer_org_unit_id` (FK) và `performer_name` (text) + CHECK **đúng một** cột có giá trị. Một cột lưu cả hai kiểu là bảo đảm sẽ có dữ liệu bẩn | 🔧 |
 | 18 | **Tiền lưu đơn vị nào?** CN-02.2 ghi chi phí "VND", CN-02.1 ghi tổng vốn "triệu VND" | **Mọi cột tiền lưu VND, `NUMERIC(18,2)`.** Form nào hiển thị triệu thì quy đổi ở FE. Hai đơn vị trong cùng một CSDL là lỗi cộng dồn chờ sẵn (quy tắc 2) | 🔧 |
 
-### Ba mục mới cần Công ty — đã ghi vào `business-open-questions.md`
+### Ba mục mới mở cho Công ty — **G15 đã đóng trong ngày**, còn G13/G14
 
 | Mã | Cần gì | Chặn cái gì |
 |---|---|---|
 | **G13** | Bộ nhận diện cổng: logo, favicon, màu chủ đạo, thông tin footer, link mạng xã hội, GA/GTM, (và reCAPTCHA key cho Phase 2) | **Nghiệm thu** WS-15/WS-16 — không chặn code |
 | **G14** | Sơ đồ danh mục nội dung + menu cổng + nội dung trang tĩnh (Giới thiệu, Liên hệ…) | **Nghiệm thu** WS-16 — cổng rỗng thì không có gì để nghiệm thu |
-| **G15** | "Cụm công trình" có phải một đơn vị trong sơ đồ tổ chức (có người phụ trách, có nhân sự) hay chỉ là cách nhóm công trình? | **Thiết kế** — quyết định có `construction_clusters` hay không. Chưa trả lời thì làm theo phương án tối giản ở điểm 12 |
+| ~~**G15**~~ | ~~"Cụm công trình" là đơn vị tổ chức hay cách nhóm?~~ | ✅ **Đóng 19/8 ngay trong ngày mở**: chỉ là cách nhóm → bảng riêng + khoá ngoại nullable, không đụng cây tổ chức |
 
 ---
 
@@ -136,14 +136,16 @@ Kế thừa Phase 0 và thêm một điều kiện mới:
 - [ ] **T12.7** Ảnh phái sinh chạy bằng job nền: WebP + thumbnail 150/400/800 (CN-01.3), giữ bản gốc làm dự phòng. Dùng chung cho media CMS và ảnh hiện trạng công trình
 - [x] **T12.8** ⭐ **Bài kiểm chứng minh ranh giới bắt được vi phạm** — `conventions.md` §1.5. `ModuleBoundarySelfCheckTest` + `BoundaryFixtures` (gói `com.songnhue.content.boundaryfixture` trong `src/test`) ✅ *19/8*
 
-**Kết quả phần đã làm (19/8)**: 16 tệp ở `core/spi/` · 6 service cài port · **269 test BE xanh** (211 core + 58 app, tăng 6).
+**Kết quả phần đã làm (19/8)**: 16 tệp ở `core/spi/` · 6 service cài port · 2 migration · **284 test BE xanh** (tăng 21 so với Phase 0).
 
 **Kiểm chứng — đã chạy**:
 - ✅ `./mvnw verify` → **BUILD SUCCESS**, 7/7 module
 - ✅ **Kiểm chứng ngược trên mã production, không chỉ fixture**: đặt một lớp thật ở `content.application` nhận `SettingService` → `ModuleBoundaryTest` **đỏ**, chỉ đích danh cả 3 cạnh phụ thuộc (tham số hàm dựng · kiểu trường · lời gọi phương thức). Đổi đúng lớp đó sang `SettingPort` → **xanh**
 - ✅ `ModuleBoundarySelfCheckTest` 4 bài: đường qua `core.spi` **được cho qua** · gọi thẳng `core.application` **bị chặn** · **chỉ nhận về** một entity `core.domain` cũng **bị chặn** · fixture nằm ngoài tập lớp production
 - ✅ `NotificationEnumParityTest` — và nó **bắt lỗi ngay lượt chạy đầu**, xem bên dưới
-- ⬜ Chưa chạy: kiểm chứng trạng thái khởi đầu thứ hai (thuộc T12.5)
+- ✅ `WorkflowInitialStateTest` 8 bài trên CSDL thật: đường vào mặc định · đường vào thứ hai khi có quyền · **thiếu quyền → `AUTH-3001` chứ không phải "trạng thái không hợp lệ"** · trạng thái có thật nhưng không phải đường vào → `SYS-0008` · ô chọn lọc theo quyền · **`__NEW__` không lọt vào danh sách nút của bản ghi đang sống** · 2 ràng buộc CHECK ở CSDL
+- ✅ `AttachmentQuotaTest` 7 bài — gồm bài chứng minh **đổi trần dung lượng thì lượt tải đổi kết quả theo**, và bài chứng minh ảnh/tài liệu tra hai tham số khác nhau
+- ⬜ Chưa chạy: lượt tải đi tới kho **thật** — MinIO ở môi trường kiểm thử là địa chỉ giả (Definition of Done mục 7, cần nợ #20)
 
 **Quyết định phát sinh khi làm** (khác/bổ sung so với kế hoạch):
 | Việc | Xử lý |
@@ -153,6 +155,11 @@ Kế thừa Phase 0 và thêm một điều kiện mới:
 | ⚠⚠ **Và bản sao đó trôi lệch ngay lập tức** | Tôi chép thiếu `DANGER` và `WEB_PUSH`. `valueOf(name())` nghĩa là lỗi này **biên dịch trót lọt, test đơn vị vẫn xanh, rồi ném lỗi lúc chạy** đúng lúc có người bấm gửi thông báo. `NotificationEnumParityTest` bắt được ở lượt chạy đầu tiên — bài canh viết ra 10 phút thì thu hồi vốn ngay trong 10 phút |
 | `JobService.getOwn` và `findJob` cùng mang một luật bảo mật | Rút luật vào private `findOwn(...)`; hai phương thức công khai chỉ là hai hình dạng trả về. Viết luật hai lần là để hai bản lệch nhau |
 | Fixture đặt gói nào? | `com.songnhue.content.boundaryfixture` — luật phân loại module **theo tên gói**, đặt ở `com.songnhue.app..` thì nó bỏ qua sạch và bài tự kiểm thành trang trí |
+| Nhiều trạng thái khởi đầu: bảng mới hay dùng lại `workflow_transitions`? | **Dùng lại**, với trạng thái-giả `__NEW__`. Được luôn `required_permission`/`label`/`sort_order`, và chỉ có một cơ chế để đọc hiểu thay vì hai bảng gần giống nhau. Chặn `__NEW__` ở vế `to_state` bằng **CHECK ở CSDL** vì đây là dữ liệu seed bằng migration — sai thì sai lúc triển khai, không phải lúc chạy test |
+| ⚠⚠ **Lỗi im lặng có từ WS-6, phát hiện khi seed hạn mức** | `AttachmentService` đọc khoá `limit.upload.max-file-mb` — **khoá này chưa từng được seed**. Mọi lượt tải rơi về **20MB cứng trong mã**, trong khi màn hình cấu hình bày ra ba tham số `limits.upload.max-mb.*` mà **không dòng mã nào đọc**. Triệu chứng: quản trị viên sửa "tối đa mỗi tài liệu = 50MB", tải hồ sơ hoàn công 30MB, **vẫn bị từ chối, không lời giải thích**. Đã nối đúng khoá + tra theo nhóm định dạng (ảnh/tài liệu/GIS) |
+| Bài kiểm hạn mức hỏi câu gì | **Không** hỏi "mã có đọc được tham số không" — mã nào chẳng đọc được một con số. Hỏi "**đổi tham số thì hành vi có đổi theo không**". Một bài kiểm kiểu cũ sẽ xanh trọn vẹn suốt thời gian lỗi trên tồn tại |
+| Kiểm tra hạn mức là "đọc rồi ghi" | Hai lượt tải song song vẫn có thể cùng lọt và vượt trần một chút. **Chấp nhận có ý thức**: hạn mức là *chính sách vận hành*, không phải bất biến dữ liệu. Vượt vài MB không hỏng gì; khoá nhầm một lượt tải hợp lệ thì có |
+| ⚠ Bài kiểm đỏ ngắt quãng | `AttachmentQuotaTest` chạy riêng thì xanh, chạy cả lớp thì đỏ: `@AfterEach` xoá dòng tham số nhưng **quên dọn bộ nhớ đệm Caffeine**, nên bài sau thấy hạn mức của bài trước. Cùng loại bẫy mà `SettingService.invalidate` sinh ra để tránh |
 
 **Nợ giao cho WS sau**: ⬜ T12.9 → WS-17/T17.2 (kiểm chứng tầng 3 trên entity nghiệp vụ thật) · ⬜ ClamAV chạy thật vẫn treo ở nợ #20
 
@@ -204,6 +211,7 @@ Kế thừa Phase 0 và thêm một điều kiện mới:
 - [ ] **T15.4** Trang đặc biệt: chọn khối hiển thị trang chủ; trang 404 tuỳ biến
 - [ ] **T15.5** ⛔ **Widget thủy văn: chỉ giữ chỗ cấu hình, ẩn khỏi UI ở v1** — cần MOD-03 (Phase 2). Ghi rõ trong màn hình để không ai tưởng là lỗi
 - [ ] **T15.6** Cache cấu hình bằng Caffeine + vô hiệu hoá ngay khi sửa (cổng công khai đọc rất nhiều, đổi rất ít)
+- [ ] **T15.7** ⭐ Seed **menu header/footer đề xuất** + 4 trang tĩnh rỗng có sẵn slug (Giới thiệu · Chức năng nhiệm vụ · Cơ cấu tổ chức · Liên hệ) — G14. Cổng có ruột để nghiệm thu ngay cả khi nội dung thật về muộn
 
 **Kiểm chứng**: sửa một tham số ở admin → API công khai trả giá trị mới **trong cùng phiên**, không phải chờ hết hạn cache.
 
@@ -242,7 +250,7 @@ Kế thừa Phase 0 và thêm một điều kiện mới:
 - [ ] **T17.8** Nhật ký thay đổi hồ sơ (CN-02.7) = **API đọc `audit_logs`** lọc theo `entity_type='CONSTRUCTION'` — ⛔ không dựng bảng lịch sử thứ hai; `@Audited` đã ghi đủ old/new
 - [ ] **T17.9** Nhập từ Excel/CSV: **chạy khô trước** (xem trước + báo lỗi từng dòng + đếm sẽ thêm/sửa bao nhiêu), có lỗi chặn thì **không nhập dòng nào**. Đây cũng là đường seed dữ liệu thật khi G8 về
 - [ ] **T17.10** Thống kê & tìm kiếm (CN-02.6): đếm theo loại / đơn vị / trạng thái / cấp quản lý; lọc trên danh sách. Biểu đồ để Phase 3
-- [ ] **T17.11** ⚠ **Không dựng `construction_clusters`** — điểm nghiệp vụ **12**, chờ G15. Nhóm hiển thị theo `org_units`
+- [ ] **T17.11** `construction_clusters` (mã, tên, đơn vị quản lý, thứ tự) + `constructions.cluster_id` **nullable** + CRUD danh mục cụm — điểm nghiệp vụ **12**, G15 đã đóng. ⚠ Cụm **chỉ để nhóm hiển thị và lọc**: cấm dùng `cluster_id` trong bất kỳ truy vấn phân quyền nào, phạm vi vẫn đi bằng `org_unit_id`
 - [ ] **T17.12** Test: tầng 3 đủ 3 nhánh (đơn vị mình · cấp trên thấy cấp dưới · đơn vị khác → `AUTH-3002` + `security_events`) + mã lỗi mới
 
 **Kiểm chứng**: hai tài khoản thuộc hai Xí nghiệp khác nhau — mỗi người chỉ thấy công trình đơn vị mình; tài khoản cấp Công ty thấy cả hai. **Đây là lần đầu tiên điều đó được chứng minh trên dữ liệu nghiệp vụ thật.**
@@ -385,7 +393,7 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 1 hoàn thành:
 | 58 | `HydroAlertPort` mới có phần khai, chưa có phần cài | WS-19/T19.5 | Phase 2 (`hydro`) | ⬜ Chờ |
 | 59 | Nút "Tạo bản ghi khắc phục" từ màn hình cảnh báo | WS-18/T18.10 | Phase 2 | ⬜ Chờ |
 | 60 | Widget thủy văn ở cấu hình giao diện (nay ẩn) | WS-15/T15.5 | Phase 2 | ⬜ Chờ |
-| 61 | `construction_clusters` — chờ **G15** | WS-17/T17.11 | Sau khi Công ty trả lời | ⬜ Chờ |
+| ~~61~~ | ~~`construction_clusters` — chờ **G15**~~ | WS-17/T17.11 | — | ✅ **Đóng 19/8** — G15 trả lời trong ngày, việc dựng bảng nay nằm thẳng trong T17.11 |
 
 ---
 
@@ -394,8 +402,8 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 1 hoàn thành:
 | Mã | Cần gì | Chặn | Hạn nên có |
 |---|---|---|---|
 | **G13** | Bộ nhận diện cổng + tài khoản dịch vụ ngoài | Nghiệm thu WS-15/16 | Trước khi đóng WS-16 |
-| **G14** | Sơ đồ danh mục/menu + nội dung trang tĩnh | Nghiệm thu WS-16 | Trước khi đóng WS-16 |
-| **G15** | "Cụm công trình" là đơn vị tổ chức hay cách nhóm? | Thiết kế WS-17 (đang đi đường tối giản) | Trước khi đóng WS-17 |
+| **G14** | Sơ đồ danh mục/menu + nội dung trang tĩnh | Nghiệm thu WS-16 | Trước khi đóng WS-16 — ⭐ **chốt 19/8: seed khung đề xuất trước** (T13.13, T15.7), Công ty sửa qua giao diện |
+| ~~G15~~ | ~~"Cụm công trình" là gì~~ | — | ✅ **Đã đóng 19/8**: chỉ là cách nhóm |
 | **G8** | Danh mục công trình (Excel) + toạ độ | **Dữ liệu khởi tạo**, không chặn code — T17.9 đã dựng sẵn đường nhập | Trước nghiệm thu Phase 1 |
 | **G5** | Mã số hệ thống văn bản riêng hay chung | **CN-01.7 — đã tách khỏi Phase 1** | Trước Phase 2 |
 
@@ -406,4 +414,5 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 1 hoàn thành:
 | Ngày | Thay đổi |
 |---|---|
 | 2026-08-19 | **WS-12 làm 5/8** — mở `core/spi` (trả nợ #56), chuyển `WorkflowAware` sang `core.common.persistence`, 6 service cài port, bài tự kiểm ranh giới + bài canh hai enum. 269 test BE xanh. Còn T12.5 (nhiều trạng thái khởi đầu), T12.6 (hạn mức đính kèm), T12.7 (ảnh phái sinh) |
+| 2026-08-19 | **Chốt 4 mục nghiệp vụ**: sửa bài đã xuất bản = **copy-on-write** · Quản trị nội dung **được** tự duyệt (audit ghi rõ) · **G15 đóng** — cụm chỉ là cách nhóm → bảng riêng, T17.11 đổi từ "không dựng" sang "dựng", nợ #61 đóng · **G14** — seed khung danh mục/menu đề xuất (T13.13, T15.7). Tổng task 99 → **101** |
 | 2026-08-19 | Lập kế hoạch Phase 1: 11 hạng mục WS-12→WS-22, 99 task, ~100 pd. Ba quyết định phạm vi: **gộp public-web vào Phase 1** (vì `POST /api/revalidate` của WS-9 chưa ai đi qua) · **giữ Liên hệ/Phản hồi ở Phase 2** · **dựng đường nhập Excel có chạy khô**. Làm rõ **18 điểm nghiệp vụ**; mở **3 mục mới cần Công ty** (G13, G14, G15) |
