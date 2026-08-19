@@ -89,9 +89,21 @@ PR cần **1 reviewer** và **CI xanh**. Template PR đã gắn sẵn Definition
 Backend là **Modular Monolith**: `core · content · operations · hydro · hr`, mỗi module có 5 tầng
 `api / application / domain / infra / spi`.
 
-**Module chỉ được import `spi/` của module khác.** Import `domain/`, `infra/`, `application/` chéo module
-sẽ làm **ArchUnit test đỏ** trong CI. Đây là ràng buộc giữ cho module tách ra service riêng được về sau —
+**Module chỉ được import `spi/` của module khác**, cộng ngoại lệ duy nhất `core.common.*` (Common
+Platform — hạ tầng dùng chung). Import `domain/`, `infra/`, `application/` chéo module sẽ làm
+**ArchUnit test đỏ** trong CI. Đây là ràng buộc giữ cho module tách ra service riêng được về sau —
 đừng lách bằng cách nới rule.
+
+> ⚠⚠ **`core/spi/` hiện RỖNG.** Sáu dịch vụ dùng chung (`WorkflowEngine`, `NotificationService`,
+> `AttachmentService`, `JobService`, `SettingService`, `OrgUnitService`) nằm ở `core.application.*`,
+> nên **dòng mã Phase 1 đầu tiên gọi tới chúng sẽ làm ArchUnit đỏ**. Việc mở màn Phase 1 là thêm
+> interface vào `core/spi/`, **không phải** nới luật. Chi tiết: `docs/coding-guide.md` §2.
+
+## Viết một chức năng mới
+
+`docs/coding-guide.md` — công thức theo thứ tự (migration → entity → workflow → service →
+controller → seed quyền → mã lỗi → test), kèm bảng kê **những gì Core đã cho sẵn** để không ai
+dựng lại, và các bẫy đã trả giá. `conventions.md` là **luật**; file kia là **đường đi**.
 
 ## Ba điều cấm hay bị quên
 
