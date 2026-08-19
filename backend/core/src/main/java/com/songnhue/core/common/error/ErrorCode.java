@@ -73,6 +73,10 @@ public enum ErrorCode {
     CMS_2006("CMS-2006", HttpStatus.UNPROCESSABLE_ENTITY),
     /** Sửa nội dung khi bài đang chờ duyệt — CN-01.1 khoá chỉnh sửa ở trạng thái này. */
     CMS_2007("CMS-2007", HttpStatus.CONFLICT),
+    /** Xoá thư mục media còn tệp bên trong. */
+    CMS_2008("CMS-2008", HttpStatus.CONFLICT),
+    /** Xoá tệp media đang được bài viết tham chiếu. */
+    CMS_2009("CMS-2009", HttpStatus.CONFLICT),
     CMS_5001("CMS-5001", HttpStatus.BAD_GATEWAY),
 
     // ---- MOD-02 Vận hành công trình --------------------------------------------

@@ -261,6 +261,9 @@ public class AttachmentService implements AttachmentPort {
         if (mimeType.startsWith("image/")) {
             return "image";
         }
+        if (mimeType.startsWith("video/")) {
+            return "video";
+        }
         if (mimeType.contains("json") || mimeType.contains("kml") || mimeType.contains("zip")) {
             return "gis";
         }

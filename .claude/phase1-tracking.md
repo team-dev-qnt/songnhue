@@ -1,6 +1,6 @@
 # PHASE 1 — CMS & MASTER DATA CÔNG TRÌNH · BẢNG THEO DÕI TIẾN ĐỘ
 
-> **Cập nhật lần cuối**: 2026-08-19 · **Tiến độ: 17/101 task (17%)** · 1 task **hoãn có chủ đích** (T12.7 → nợ #62) · **DoD: 0/17** · Trạng thái: 🟡 Đang làm — **WS-12 xong**, WS-13 10/12
+> **Cập nhật lần cuối**: 2026-08-19 · **Tiến độ: 23/101 task (23%)** · 1 task **hoãn có chủ đích** (T12.7 → nợ #62) · **DoD: 0/17** · Trạng thái: 🟡 Đang làm — WS-12 ✅, WS-13 10/12, **WS-14 ✅**
 > Nguồn ràng buộc: `function-spec.md` CN-01.1→01.5, CN-01.8 · CN-02.1, 02.2, 02.3, 02.6, 02.7, 02.11 · `conventions.md` (luật) · `docs/coding-guide.md` (đường đi) · `architecture-review.md` §10 (quyết định Phase 1)
 > **Cách dùng**: giống Phase 0 — làm xong task nào tick `[x]`; xong 1 WS thì chạy mục "Kiểm chứng" rồi cập nhật bảng tổng + dòng trên cùng.
 > ⚠ **Luật 3 bước khi đóng WS** (thừa kế từ Phase 0): tick task → tick dòng nợ → **quay lại sửa mô tả đã lỗi thời ở WS đã giao nợ**. Bước 3 hay bị bỏ nhất.
@@ -28,7 +28,7 @@ Phase 0 dựng **cơ chế**; Phase 1 là lần đầu có **người dùng th�
 |---|---|:-:|:-:|---|---|:-:|
 | **WS-12** | Mở SPI Core + nền cho module nghiệp vụ | 8 | **7** | ✅ **Xong 19/8** — T12.7 hoãn có chủ đích (nợ #62) | Phase 0 | 6 pd |
 | **WS-13** | CMS — Danh mục nội dung & Bài viết | 12 | **10** | 🟡 Đang làm (19/8) — còn T13.7, T13.10 (nợ #63, #64) | WS-12 | 12 pd |
-| **WS-14** | CMS — Thư viện Media | 6 | 0 | ⬜ Chưa bắt đầu | WS-12 | 6 pd |
+| **WS-14** | CMS — Thư viện Media | 6 | **6** | ✅ **Xong 19/8** — đóng DoD #11 của Phase 0 | WS-12 | 6 pd |
 | **WS-15** | CMS — Cấu hình giao diện, Menu, Banner | 7 | 0 | ⬜ Chưa bắt đầu | WS-13 | 6 pd |
 | **WS-16** | Public-web — hiển thị + ISR | 8 | 0 | ⬜ Chưa bắt đầu | WS-13, WS-15 | 8 pd |
 | **WS-17** | Operations — Danh mục công trình | 12 | 0 | ⬜ Chưa bắt đầu | WS-12 | 14 pd |
@@ -37,7 +37,7 @@ Phase 0 dựng **cơ chế**; Phase 1 là lần đầu có **người dùng th�
 | **WS-20** | FE admin — màn hình CMS | 10 | 0 | ⬜ Chưa bắt đầu | WS-13→15 (API) | 12 pd |
 | **WS-21** | FE admin — màn hình Công trình | 10 | 0 | ⬜ Chưa bắt đầu | WS-17→19 (API) | 12 pd |
 | **WS-22** | Kiểm thử, nghiệm thu Phase 1 & trả nợ | 8 | 0 | ⬜ Chưa bắt đầu | tất cả | 8 pd |
-| | **TỔNG** | **101** | **17** | | | **101 pd** |
+| | **TỔNG** | **101** | **23** | | | **101 pd** |
 
 *(101 task triển khai + 17 mục Definition of Done ở cuối file.)*
 
@@ -202,14 +202,25 @@ Kế thừa Phase 0 và thêm một điều kiện mới:
 
 **Tiên quyết**: WS-12 (T12.6). **Đầu ra**: tải ảnh/tài liệu lên, có thư mục, chèn được vào bài viết.
 
-- [ ] **T14.1** Migration `media_folders` — cây **tối đa 3 cấp**, chặn ở tầng service chứ không chỉ ở UI
-- [ ] **T14.2** Tệp media = `attachments` với `owner_type='MEDIA_FOLDER'` — điểm nghiệp vụ **8**, không bảng tệp thứ hai
-- [ ] **T14.3** Tải nhiều tệp; giới hạn theo loại đọc từ `settings`: ảnh 10MB · video 500MB · tài liệu 50MB · nén 100MB
-- [ ] **T14.4** Danh sách Grid/List, lọc theo loại/thư mục/ngày, sao chép URL 1 lần bấm. ⚠ Ảnh hiển thị là **ảnh gốc** (T12.7 hoãn) → lưới ảnh **bắt buộc** `loading="lazy"` + khung CSS cố định, nếu không thì mở một thư mục 200 ảnh là tải về vài trăm MB
-- [ ] **T14.5** Xoá tệp đang được bài viết tham chiếu → cảnh báo có danh sách bài đang dùng; xoá thư mục **chỉ khi rỗng**
-- [ ] **T14.6** ⚠ SVG — điểm nghiệp vụ **7**: chỉ nhận ở màn hình cấu hình, khử trùng trước khi lưu; test bằng SVG có `onload` và có `<script>`
+- [x] **T14.1** Migration `media_folders` — cây **tối đa 3 cấp**, chặn ở tầng service chứ không chỉ ở UI
+- [x] **T14.2** Tệp media = `attachments` với `owner_type='MEDIA_FOLDER'` — điểm nghiệp vụ **8**, không bảng tệp thứ hai
+- [x] **T14.3** Tải nhiều tệp; giới hạn theo loại đọc từ `settings`: ảnh 10MB · video 500MB · tài liệu 50MB · nén 100MB
+- [x] **T14.4** Danh sách Grid/List, lọc theo loại/thư mục/ngày, sao chép URL 1 lần bấm. ⚠ Ảnh hiển thị là **ảnh gốc** (T12.7 hoãn) → lưới ảnh **bắt buộc** `loading="lazy"` + khung CSS cố định, nếu không thì mở một thư mục 200 ảnh là tải về vài trăm MB
+- [x] **T14.5** Xoá tệp đang được bài viết tham chiếu → cảnh báo có danh sách bài đang dùng; xoá thư mục **chỉ khi rỗng**
+- [x] **T14.6** ⚠ SVG — điểm nghiệp vụ **7**: chỉ nhận ở màn hình cấu hình, khử trùng trước khi lưu; test bằng SVG có `onload` và có `<script>`
 
-**Kiểm chứng**: tải thật lên MinIO qua HTTP multipart; tệp đổi đuôi giả mạo bị `FileValidator` loại; SVG độc hại bị khử trùng — **đóng luôn DoD #11 của Phase 0** (đính kèm chưa từng kiểm chứng đầu-cuối qua HTTP).
+**Kết quả (19/8)**: 6/6 task. **319 test BE xanh** (220 core + 99 app) — `MediaLibraryTest` 12 bài + `SvgSanitizerTest` 9 bài.
+
+**Kiểm chứng — đã chạy**:
+- ⭐⭐ **MinIO THẬT trong test tích hợp — `SongnhueMinio`.** Từ WS-6 tới hết Phase 0, `app.storage.endpoint` trỏ vào `http://minio.invalid:9000`; `MinioClient` không mở kết nối lúc dựng bean nên context vẫn lên, test vẫn xanh, và **chưa một lượt tải tệp nào đi tới kho**. Nay mọi test tích hợp chạy trên MinIO thật → **đóng DoD #11 của Phase 0**
+- ✅ Tải ảnh lên đi tới kho thật, đọc lại được, presigned URL trỏ đúng bucket
+- ✅ **Tên lưu xuống kho là chuỗi ngẫu nhiên**: `bao-cao.jpg.exe` (nội dung PNG) → lưu thành `<uuid>.png`, đuôi suy từ MIME đã xác thực chứ không từ tên người dùng đặt
+- ✅ Văn bản thuần đổi đuôi `.png` bị `FileValidator` loại bằng magic bytes
+- ✅ **Thư viện media từ chối SVG** — đúng điểm nghiệp vụ 7
+- ✅ `SvgSanitizerTest` 9 bài: `<script>` (kể cả tràn nhiều dòng) · `onload`/`onerror` · `<foreignObject>` · `href="javascript:"` · `DOCTYPE`/`ENTITY`; mỗi bài khẳng định **cả hai vế** — đoạn nguy hiểm mất và hình vẽ còn. Kèm bài tự kiểm chứng minh bộ dò bắt được thật
+- ✅ Xoá thư mục còn tệp `CMS-2008` · còn thư mục con `CMS-2004` · cây quá 3 cấp `CMS-2005`
+- ✅ Xoá tệp đang được bài viết dùng `CMS-2009`, **kèm tên bài**; xét cả ảnh bìa lẫn ảnh chèn trong HTML
+- ⬜ Chưa chạy: gọi qua HTTP multipart thật (bài kiểm gọi thẳng service) — nợ #65 cùng WS-20
 
 ---
 
@@ -392,7 +403,7 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 1 hoàn thành:
 | 22 | Nâng ngưỡng bao phủ tầng domain (nay `0.18`) | WS-10/T10.5 | **WS-22/T22.2** | ⬜ Chờ |
 | 35 | Dựng luồng quên mật khẩu + vòng đời mật khẩu M5.15-a (đã chốt cách làm 18/8, **chưa có mã**) | WS-8/T8.6 | **Phase 2** — chốt 19/8, ~4 pd | ⬜ Chờ |
 | 56 | `core/spi/` rỗng — chặn dòng mã Phase 1 đầu tiên | Rà soát 19/8 | **WS-12/T12.1→T12.4** | ✅ **Trả 19/8** — 6 port + 7 record + 2 enum; kiểm chứng ngược trên mã production |
-| 11 (DoD P0) | Đính kèm chưa kiểm chứng đầu-cuối qua HTTP | WS-6 | **WS-14** | ⬜ Chờ |
+| ~~11 (DoD P0)~~ | ~~Đính kèm chưa kiểm chứng đầu-cuối qua HTTP~~ | WS-6 | WS-14 | ✅ **Trả 19/8** — `SongnhueMinio` đưa MinIO thật vào mọi test tích hợp; tệp đi tới kho, đọc lại được. *(Phần qua HTTP multipart còn ở nợ #65)* |
 | 20 | Dựng ClamAV trong compose để quét virus chạy thật | WS-6/T6.4 | WS-11/T11.3 *(vẫn ở Phase 0)* | ⬜ Chờ |
 
 ✅ **Nợ #35 đã có chỗ đứng — chốt 19/8: Phase 2, ~4 pd.** Hai lý do cho phép hoãn mà không gây hại:
@@ -444,6 +455,7 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 1 hoàn thành:
 
 | Ngày | Thay đổi |
 |---|---|
+| 2026-08-19 | **WS-14 xong** — thư viện media. ⭐⭐ **MinIO thật trong test tích hợp** (`SongnhueMinio`): từ WS-6 tới hết Phase 0 kho lưu trữ là địa chỉ giả `minio.invalid`, nên **chưa một lượt tải tệp nào đi tới nơi** dù test vẫn xanh → **đóng DoD #11**. Thêm `SvgSanitizer` (9 bài kiểm) · chữ ký MP4/WebM · nhóm dung lượng `video` 500MB · 2 mã lỗi (57 mã). **319 test BE** |
 | 2026-08-19 | **WS-13 làm 10/12** — CMS danh mục & bài viết. 4 bảng + seed quy trình `ARTICLE` 10 bước chuyển · entity/service/controller đủ 3 tầng · **copy-on-write chạy thật** · 5 mã lỗi mới (BE=FE, 55 mã). **298 test BE**, `ArticleLifecycleTest` 14 bài trên CSDL thật. Còn T13.7/T13.10 → nợ #63, #64 |
 | 2026-08-19 | ⚠⚠ **Vá lỗ Core lộ ra bởi người dùng đầu tiên**: `WorkflowEngine` chỉ biết luật G11 nên thông báo "có bài chờ duyệt" gửi cho **Ban điều hành** thay vì quản trị nội dung. Thêm `notify_permission` + `notify_owner` vào `workflow_transitions` — `architecture-review.md` §10.10 |
 | 2026-08-19 | **WS-12 đóng.** T12.7 (ảnh phái sinh) **hoãn có chủ đích** → nợ #62, lý do ở `architecture-review.md` §10.9: đẩy sang `next/image` không dùng được ở đây (đòi `sharp` native · presigned URL 10' phá đệm của bộ tối ưu và làm vỡ ảnh trên trang ISR · `admin-app` là Vite nên nửa số ảnh không đi qua Next). Phần đắt duy nhất là bộ mã hoá **WebP**; thumbnail thì rẻ vì `ImageSanitizer` đã chạy `ImageIO` sẵn — nhưng chưa biết tải trọng ảnh thật thì làm là đoán mò. **⛔ Cố ý không seed tham số `settings`**: công tắc chưa ai đọc chính là lỗi vừa sửa ở T12.6 |

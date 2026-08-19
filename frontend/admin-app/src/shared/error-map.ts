@@ -1,5 +1,5 @@
 /**
- * Bản sao danh mục mã lỗi của backend (conventions.md §2.3) — **55 mã**, tính đến hết WS-13.
+ * Bản sao danh mục mã lỗi của backend (conventions.md §2.3) — **57 mã**, tính đến hết WS-14.
  *
  * <h3>Vì sao FE cần bản sao, khi API đã trả sẵn câu tiếng Việt</h3>
  *
@@ -175,6 +175,16 @@ export const ERROR_CATALOG = {
   },
   'CMS-2007': {
     message: 'Bài đang chờ duyệt nên không sửa được',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'CMS-2008': {
+    message: 'Thư mục còn tệp bên trong — chuyển hoặc xoá các tệp trước',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'CMS-2009': {
+    message: 'Tệp đang được bài viết sử dụng',
     handling: 'toast',
     severity: 'warning',
   },

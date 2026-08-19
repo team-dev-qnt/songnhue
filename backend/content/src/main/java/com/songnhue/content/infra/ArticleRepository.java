@@ -84,4 +84,39 @@ public interface ArticleRepository extends JpaRepository<Article, Long> {
     @Modifying
     @Query("UPDATE Article a SET a.viewCount = a.viewCount + :them WHERE a.id = :id")
     int addViews(@Param("id") Long id, @Param("them") long them);
+
+    /**
+     * Bài viết đang dùng một tệp media — nguồn cho cảnh báo trước khi xoá (T14.5).
+     *
+     * <p>Hai chỗ một tệp có thể bị tham chiếu, và <b>phải xét cả hai</b>:
+     *
+     * <ol>
+     *   <li>Ảnh đại diện — cột {@code cover_attachment_public_id}.
+     *   <li>Ảnh chèn giữa bài — nằm trong chuỗi HTML của {@code content}, dưới dạng đường dẫn có mã
+     *       tệp. Không có cách nào ngoài dò chuỗi: nội dung là RichText do người dùng soạn, không
+     *       phải quan hệ có khoá ngoại.
+     * </ol>
+     *
+     * <p>⚠ Dò chuỗi thì có thể sót — ai đó sao chép đường dẫn theo dạng khác thì không bắt được. Đây
+     * là <b>lưới cảnh báo, không phải ràng buộc toàn vẹn</b>; nó ngăn phần lớn tai nạn thường gặp
+     * (xoá nhầm ảnh đang chạy trên cổng) chứ không bảo đảm tuyệt đối. Xoá là xoá mềm nên vẫn khôi
+     * phục được, và đó là lý do mức bảo đảm này chấp nhận được.
+     *
+     * <p>Cũng xét cả bản chụp đang phục vụ công khai: bài đã xuất bản dùng ảnh trong
+     * {@code article_versions}, mà cột nội dung của {@code articles} có thể đã đổi.
+     */
+    @Query(
+            value =
+                    """
+                    SELECT DISTINCT a.title
+                    FROM articles a
+                             LEFT JOIN article_versions v ON v.id = a.published_version_id
+                    WHERE a.deleted_at IS NULL
+                      AND (a.cover_attachment_public_id = CAST(:maTep AS uuid)
+                           OR v.cover_attachment_public_id = CAST(:maTep AS uuid)
+                           OR a.content LIKE CONCAT('%', :maTep, '%')
+                           OR v.content LIKE CONCAT('%', :maTep, '%'))
+                    """,
+            nativeQuery = true)
+    List<String> findTitlesReferencing(@Param("maTep") String attachmentPublicId);
 }

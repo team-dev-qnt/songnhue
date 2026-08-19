@@ -30,7 +30,8 @@ public final class FileValidator {
     public enum Category {
         IMAGE,
         DOCUMENT,
-        GIS
+        GIS,
+        VIDEO
     }
 
     /**
@@ -49,7 +50,11 @@ public final class FileValidator {
             new Signature("application/zip", "504b0304", 0),
             new Signature("application/zip", "504b0506", 0),
             // Định dạng Office cũ (doc/xls) — cấu trúc OLE2
-            new Signature("application/x-ole-storage", "d0cf11e0a1b11ae1", 0));
+            new Signature("application/x-ole-storage", "d0cf11e0a1b11ae1", 0),
+            // Video (WS-14, CN-01.3). MP4 mang "ftyp" ở byte 4 chứ không ở byte 0 — đó là lý do
+            // Signature có trường offset. WebM là vùng chứa Matroska, nhận ra bằng EBML header.
+            new Signature("video/mp4", "66747970", 4),
+            new Signature("video/webm", "1a45dfa3", 0));
 
     /**
      * Kiểm tra nội dung tệp khớp với một định dạng được phép.
@@ -131,6 +136,8 @@ public final class FileValidator {
             case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" -> "xlsx";
             case "application/msword" -> "doc";
             case "application/vnd.ms-excel" -> "xls";
+            case "video/mp4" -> "mp4";
+            case "video/webm" -> "webm";
             default -> "bin";
         };
     }
