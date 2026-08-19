@@ -188,6 +188,31 @@ export const ERROR_CATALOG = {
     handling: 'toast',
     severity: 'warning',
   },
+  'CMS-2010': {
+    message: 'Menu chỉ được sâu tối đa 3 cấp',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'CMS-2011': {
+    message: 'Mục menu còn mục con — xoá các mục con trước',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'CMS-2012': {
+    message: 'Đích của mục menu không tồn tại hoặc đã bị xoá',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'CMS-2013': {
+    message: 'Mục con phải nằm cùng menu với mục cha',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'CMS-2014': {
+    message: 'Ngày kết thúc hiển thị phải sau ngày bắt đầu',
+    handling: 'form',
+    severity: 'warning',
+  },
   'CMS-5001': {
     message: 'Không đăng nhập được sang hệ thống văn bản điều hành',
     handling: 'toast',

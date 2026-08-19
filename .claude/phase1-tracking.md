@@ -1,6 +1,6 @@
 # PHASE 1 — CMS & MASTER DATA CÔNG TRÌNH · BẢNG THEO DÕI TIẾN ĐỘ
 
-> **Cập nhật lần cuối**: 2026-08-19 · **Tiến độ: 23/101 task (23%)** · 1 task **hoãn có chủ đích** (T12.7 → nợ #62) · **DoD: 0/17** · Trạng thái: 🟡 Đang làm — WS-12 ✅, WS-13 10/12, **WS-14 ✅**
+> **Cập nhật lần cuối**: 2026-08-19 · **Tiến độ: 31/102 task (30%)** · 1 task **hoãn có chủ đích** (T12.7 → nợ #62) · **DoD: 0/17** · Trạng thái: 🟡 Đang làm — WS-12 ✅, WS-13 11/13, WS-14 ✅, **WS-15 ✅**
 > Nguồn ràng buộc: `function-spec.md` CN-01.1→01.5, CN-01.8 · CN-02.1, 02.2, 02.3, 02.6, 02.7, 02.11 · `conventions.md` (luật) · `docs/coding-guide.md` (đường đi) · `architecture-review.md` §10 (quyết định Phase 1)
 > **Cách dùng**: giống Phase 0 — làm xong task nào tick `[x]`; xong 1 WS thì chạy mục "Kiểm chứng" rồi cập nhật bảng tổng + dòng trên cùng.
 > ⚠ **Luật 3 bước khi đóng WS** (thừa kế từ Phase 0): tick task → tick dòng nợ → **quay lại sửa mô tả đã lỗi thời ở WS đã giao nợ**. Bước 3 hay bị bỏ nhất.
@@ -27,9 +27,9 @@ Phase 0 dựng **cơ chế**; Phase 1 là lần đầu có **người dùng th�
 | WS | Hạng mục | Task | Xong | Trạng thái | Phụ thuộc | Ước tính |
 |---|---|:-:|:-:|---|---|:-:|
 | **WS-12** | Mở SPI Core + nền cho module nghiệp vụ | 8 | **7** | ✅ **Xong 19/8** — T12.7 hoãn có chủ đích (nợ #62) | Phase 0 | 6 pd |
-| **WS-13** | CMS — Danh mục nội dung & Bài viết | 12 | **10** | 🟡 Đang làm (19/8) — còn T13.7, T13.10 (nợ #63, #64) | WS-12 | 12 pd |
+| **WS-13** | CMS — Danh mục nội dung & Bài viết | 13 | **11** | 🟡 Đang làm (19/8) — còn T13.7, T13.10 (nợ #63, #64) | WS-12 | 12 pd |
 | **WS-14** | CMS — Thư viện Media | 6 | **6** | ✅ **Xong 19/8** — đóng DoD #11 của Phase 0 | WS-12 | 6 pd |
-| **WS-15** | CMS — Cấu hình giao diện, Menu, Banner | 7 | 0 | ⬜ Chưa bắt đầu | WS-13 | 6 pd |
+| **WS-15** | CMS — Cấu hình giao diện, Menu, Banner | 7 | **7** | ✅ **Xong 19/8** — SVG lần đầu đi qua đường thật | WS-13 | 6 pd |
 | **WS-16** | Public-web — hiển thị + ISR | 8 | 0 | ⬜ Chưa bắt đầu | WS-13, WS-15 | 8 pd |
 | **WS-17** | Operations — Danh mục công trình | 12 | 0 | ⬜ Chưa bắt đầu | WS-12 | 14 pd |
 | **WS-18** | Operations — Lịch sử sửa chữa & sự cố | 11 | 0 | ⬜ Chưa bắt đầu | WS-17 | 10 pd |
@@ -37,7 +37,7 @@ Phase 0 dựng **cơ chế**; Phase 1 là lần đầu có **người dùng th�
 | **WS-20** | FE admin — màn hình CMS | 10 | 0 | ⬜ Chưa bắt đầu | WS-13→15 (API) | 12 pd |
 | **WS-21** | FE admin — màn hình Công trình | 10 | 0 | ⬜ Chưa bắt đầu | WS-17→19 (API) | 12 pd |
 | **WS-22** | Kiểm thử, nghiệm thu Phase 1 & trả nợ | 8 | 0 | ⬜ Chưa bắt đầu | tất cả | 8 pd |
-| | **TỔNG** | **101** | **23** | | | **101 pd** |
+| | **TỔNG** | **102** | **31** | | | **101 pd** |
 
 *(101 task triển khai + 17 mục Definition of Done ở cuối file.)*
 
@@ -181,8 +181,9 @@ Kế thừa Phase 0 và thêm một điều kiện mới:
 - [ ] **T13.10** Đếm lượt xem theo lô — điểm nghiệp vụ **6**
 - [x] **T13.11** Mã lỗi mới → `ErrorCode` (BE) **và** `frontend/admin-app/src/shared/error-map.ts` — có bài kiểm canh sự đồng bộ, đừng để nó đỏ ở CI
 - [x] **T13.12** Test: Biên tập viên gọi `APPROVE` → 403 · workflow đủ nhánh · slug trùng · phiên bản + phục hồi · hẹn giờ
+- [x] **T13.13** ⭐ Seed **khung danh mục đề xuất** (Tin tức + 2 danh mục con · Thông báo · Giới thiệu) — G14 ✅ *19/8, làm cùng T15.7 vì menu phải trỏ vào danh mục đã có*
 
-**Kết quả (19/8)**: 10/12 task. Còn **T13.7** (job hẹn giờ đăng) và **T13.10** (đếm lượt xem theo lô) — tham số `settings` của cả hai đã seed, phần job chưa dựng. **298 test BE xanh** (211 core + 87 app), trong đó `ArticleLifecycleTest` **14 bài trên CSDL thật**.
+**Kết quả (19/8)**: 11/13 task. Còn **T13.7** (job hẹn giờ đăng) và **T13.10** (đếm lượt xem theo lô) — tham số `settings` của cả hai đã seed, phần job chưa dựng. **298 test BE xanh** (211 core + 87 app), trong đó `ArticleLifecycleTest` **14 bài trên CSDL thật**.
 
 **Kiểm chứng — đã chạy**:
 - ✅ **Lần đầu tiên một entity nghiệp vụ đi qua workflow engine.** Suốt Phase 0 engine chỉ chạy trên bản ghi dựng riêng cho test
@@ -228,15 +229,26 @@ Kế thừa Phase 0 và thêm một điều kiện mới:
 
 **Tiên quyết**: WS-13. **Đầu ra**: cổng công khai lấy được toàn bộ cấu hình hiển thị từ API.
 
-- [ ] **T15.1** Migration `banners`, `menus` (cây lồng nhau, hai vị trí header/footer độc lập)
-- [ ] **T15.2** Cấu hình chung website → **nhóm `site` trong `settings`**, không bảng mới: tên site, slogan, logo, favicon, màu chủ đạo/phụ, GA Tracking ID, GTM Container ID, Maintenance Mode
-- [ ] **T15.3** Footer: khối thông tin công ty, bản đồ nhúng, liên kết nhanh, mạng xã hội, copyright
-- [ ] **T15.4** Trang đặc biệt: chọn khối hiển thị trang chủ; trang 404 tuỳ biến
-- [ ] **T15.5** ⛔ **Widget thủy văn: chỉ giữ chỗ cấu hình, ẩn khỏi UI ở v1** — cần MOD-03 (Phase 2). Ghi rõ trong màn hình để không ai tưởng là lỗi
-- [ ] **T15.6** Cache cấu hình bằng Caffeine + vô hiệu hoá ngay khi sửa (cổng công khai đọc rất nhiều, đổi rất ít)
-- [ ] **T15.7** ⭐ Seed **menu header/footer đề xuất** + 4 trang tĩnh rỗng có sẵn slug (Giới thiệu · Chức năng nhiệm vụ · Cơ cấu tổ chức · Liên hệ) — G14. Cổng có ruột để nghiệm thu ngay cả khi nội dung thật về muộn
+- [x] **T15.1** Migration `banners`, `menu_items` (cây lồng nhau, hai vị trí header/footer độc lập) ✅ *19/8*
+- [x] **T15.2** Cấu hình chung website → **nhóm `SITE` trong `settings`**, không bảng mới: tên site, slogan, logo, favicon, màu chủ đạo/phụ, GA Tracking ID, GTM Container ID ✅ *19/8* — ⛔ **Maintenance Mode KHÔNG thêm khoá mới**: `system.maintenance-mode` đã có từ WS-7 và đang được `MaintenanceFilter` đọc thật; hai công tắc cho một bóng đèn thì người vận hành gạt cái đang nhìn, hệ thống nghe cái kia
+- [x] **T15.3** Footer: khối thông tin công ty, bản đồ nhúng, mạng xã hội, copyright ✅ *19/8* — "Liên kết nhanh" **chính là menu vị trí FOOTER**, không phải tham số riêng: hai nơi khai cùng một danh sách thì chúng lệch nhau
+- [x] **T15.4** Trang đặc biệt: `site.home.blocks` (JSON — thứ tự phần tử là thứ tự khối) + trang 404 tuỳ biến ✅ *19/8*
+- [x] **T15.5** ⛔ **Widget thuỷ văn: KHÔNG seed tham số nào** ✅ *19/8* — T15.5 ghi "giữ chỗ cấu hình", nhưng widget cần MOD-03 (Phase 2) nên không dòng mã nào đọc được khoá đó. Bày ra một tham số như vậy là lặp lại đúng lỗi vừa sửa ở WS-12. **Chỗ giữ là một khối bị khoá trên giao diện (WS-20)**, không phải một dòng trong CSDL. Có bài kiểm canh việc này
+- [x] **T15.6** Cache Caffeine + **dọn bằng sự kiện `SettingChangedEvent`** ✅ *19/8* — không phải tự dọn: cùng một dòng `settings` sửa được từ **hai** màn hình (`architecture-review.md` §10.13)
+- [x] **T15.7** ⭐ Seed **menu header/footer đề xuất** + 4 trang tĩnh (Giới thiệu chung · Chức năng nhiệm vụ · Cơ cấu tổ chức · Liên hệ) — G14 ✅ *19/8*, đặt thẳng ở **Xuất bản** để menu không trỏ vào 404
 
-**Kiểm chứng**: sửa một tham số ở admin → API công khai trả giá trị mới **trong cùng phiên**, không phải chờ hết hạn cache.
+**Kết quả (19/8)**: 7/7 task. **5 mã lỗi mới** (CMS-2010→2014, tổng **62**, BE=FE). **340 test BE xanh** (220 core + 120 app) + 24 FE, trong đó `SiteLayoutTest` **21 bài trên CSDL + MinIO thật**.
+
+**Kiểm chứng — đã chạy**:
+- ✅ **`make dev-docker`, migration chạy thật trong jar**: `flyway_schema_history` có đủ V…1019/1020/1021, `menu_items` ra đúng 6+3 mục Header và 4 mục Footer, 4 trang tĩnh `XUAT_BAN` **và có `published_version_id`**
+- ✅ 12 endpoint mới có mặt trong OpenAPI và trả **401** (không phải 404) khi chưa đăng nhập — nghĩa là image đang chạy là bản vừa dựng, không phải bản cũ
+- ✅ **Sửa tham số ở màn hình cấu hình HỆ THỐNG → cổng thấy ngay**, không chờ hết TTL. Đây là câu hỏi mà bài kiểm phải hỏi; hỏi "sửa ở màn hình CMS có thấy không" thì một bản cài sai vẫn xanh
+- ✅ ⭐⭐ **SVG lần đầu đi qua đường tải lên thật**: logo có `<script>` + `onload` → đọc lại **từ MinIO** thấy phần chạy được đã mất, hình vẽ còn nguyên
+- ✅ Đường CMS gọi `security.login.max-failed-attempts` → **SYS-0004**, giá trị không đổi — chốt chặn nằm dưới annotation phân quyền
+- ✅ **CSDL từ chối** mục con khác vị trí với cha (chèn thẳng bằng SQL) — không chỉ tầng service chặn
+- ✅ Menu quá 3 cấp `CMS-2010` · xoá mục còn con `CMS-2011` · đích đã xoá mềm `CMS-2012` · lệch vị trí `CMS-2013` · lịch banner ngược `CMS-2014`
+- ✅ Banner: chưa tới / đang chạy / đã hết → chỉ mục đang trong khung lên cổng; tắt thì rời cổng ngay mà không mất dữ liệu
+- ⬜ Chưa chạy: gọi qua HTTP thật với token (bài kiểm gọi thẳng service) — nợ #65 cùng WS-20
 
 ---
 
@@ -419,12 +431,14 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 1 hoàn thành:
 | 57 | Kiểm chứng tầng 3 trên entity nghiệp vụ thật | WS-12 | WS-17/T17.2 | ⬜ Chờ |
 | 58 | `HydroAlertPort` mới có phần khai, chưa có phần cài | WS-19/T19.5 | Phase 2 (`hydro`) | ⬜ Chờ |
 | 59 | Nút "Tạo bản ghi khắc phục" từ màn hình cảnh báo | WS-18/T18.10 | Phase 2 | ⬜ Chờ |
-| 60 | Widget thủy văn ở cấu hình giao diện (nay ẩn) | WS-15/T15.5 | Phase 2 | ⬜ Chờ |
+| 60 | Widget thuỷ văn ở cấu hình giao diện. ⚠ **Chốt 19/8: KHÔNG seed tham số nào bây giờ** — công tắc chưa ai đọc là lỗi vừa sửa ở WS-12. Phase 2 dựng cả tham số lẫn phần đọc **cùng lúc** | WS-15/T15.5 | Phase 2 | ⬜ Chờ |
 | ~~61~~ | ~~`construction_clusters` — chờ **G15**~~ | WS-17/T17.11 | — | ✅ **Đóng 19/8** — G15 trả lời trong ngày, việc dựng bảng nay nằm thẳng trong T17.11 |
 | **62** | **Ảnh phái sinh (WebP + thumbnail 150/400/800)** — CN-01.3 yêu cầu, Phase 1 dùng ảnh gốc | WS-12/T12.7 | **Phase 2** *(hoặc sớm hơn nếu trúng điều kiện kích hoạt bên dưới)* | ⏸ **Hoãn có chủ đích 19/8** |
 | **63** | Job hẹn giờ đăng bắn revalidate ISR (T13.7) — tham số `settings` đã seed, job chưa dựng. ⚠ **Không chặn nghiệp vụ**: bài tới hạn vẫn tự hiện vì truy vấn công khai lọc `published_at <= now()`; job chỉ để cổng tĩnh cập nhật đúng lúc | WS-13/T13.7 | **WS-16** (cùng chỗ đấu nối ISR thật) | ⬜ Chờ |
 | **64** | Đếm lượt xem theo lô (T13.10) — `ArticleRepository.addViews` đã có, thiếu endpoint công khai + job đẩy. Cần cùng lúc với trang chi tiết bài ở cổng | WS-13/T13.10 | **WS-16** | ⬜ Chờ |
-| **65** | `ArticleLifecycleTest` gọi thẳng service, **chưa đi qua HTTP** — chưa kiểm envelope, `@RequirePermission` tầng 2, và ràng buộc "phải nêu lý do khi trả bài" nằm ở controller | WS-13/T13.12 | **WS-20** (cùng lúc dựng màn hình) | ⬜ Chờ |
+| **65** | `ArticleLifecycleTest` / `MediaLibraryTest` / `SiteLayoutTest` gọi thẳng service, **chưa đi qua HTTP** — chưa kiểm envelope, `@RequirePermission` tầng 2, và ràng buộc "phải nêu lý do khi trả bài" nằm ở controller | WS-13/T13.12 | **WS-20** (cùng lúc dựng màn hình) | ⬜ Chờ |
+
+| **66** | ⚠ **`AuditorAwareImpl` đọc `AuditContext` (do filter đặt), còn test tích hợp chỉ đặt `AuthContext`** → mọi dòng do test tạo đều có `created_by = NULL`, và `audit_logs` của chúng không ghi được người thao tác. Nghĩa là **cột `created_by`/`updated_by` chưa từng được kiểm chứng** | WS-15 (lộ ra khi dựng `CmsFixtures`) | **WS-20** — đặt `AuditContext` trong bộ trợ giúp đăng nhập của test, rồi thêm bài kiểm cho `created_by` | ⬜ Chờ |
 
 ⚠ **Nợ #62 — hoãn thì phải nói rõ hoãn cái gì.** CN-01.3 ghi *"auto nén ảnh sang WebP (giữ bản gốc fallback); auto thumbnail 150/400/800px"*, nên đây là **mục nghiệm thu bị hoãn**, không phải việc tự nghĩ ra rồi tự bỏ. Lý do và đường quay lại: `architecture-review.md` §10.9.
 
@@ -455,6 +469,8 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 1 hoàn thành:
 
 | Ngày | Thay đổi |
 |---|---|
+| 2026-08-19 | **WS-15 xong** — cấu hình giao diện, menu, banner. ⭐⭐ **SVG lần đầu đi qua đường tải lên thật**: `FileValidator.detect()` trả `null` cho mọi SVG (không có magic bytes) nên `SvgSanitizer` dựng ở WS-14 **chưa bao giờ được gọi** — nay có phép đoán SVG + nhánh khử trùng đặt ở tầng đính kèm. Cấu hình để ở `settings` nhóm `SITE` (không bảng riêng) + `SettingAdminPort` **ghi theo nhóm** · bộ nhớ đệm dọn bằng **sự kiện** để phủ cả hai màn hình sửa · khoá ngoại ghép `(parent_id, position)` bắt cây menu đúng ở CSDL · seed khung danh mục/menu/4 trang tĩnh (G14). 5 mã lỗi mới (**62 mã**). **340 test BE** + 24 FE |
+| 2026-08-19 | ⚠ **Hai lỗi của chính bộ kiểm thử, lộ ra khi có dữ liệu seed**: (1) `DELETE FROM categories` của các bài kiểm cũ vi phạm khoá ngoại từ `menu_items`; (2) mốc "dòng do bài kiểm tạo" đặt theo `created_by IS NOT NULL` **không chạy** vì `AuditorAwareImpl` đọc `AuditContext` chứ không đọc `AuthContext` — test chỉ đặt cái thứ hai, nên mọi dòng đều `created_by = NULL` và phép dọn không xoá gì. Gom về `CmsFixtures`, phân biệt bằng **mốc id**. Lỗi (2) mở nợ **#66** |
 | 2026-08-19 | **WS-14 xong** — thư viện media. ⭐⭐ **MinIO thật trong test tích hợp** (`SongnhueMinio`): từ WS-6 tới hết Phase 0 kho lưu trữ là địa chỉ giả `minio.invalid`, nên **chưa một lượt tải tệp nào đi tới nơi** dù test vẫn xanh → **đóng DoD #11**. Thêm `SvgSanitizer` (9 bài kiểm) · chữ ký MP4/WebM · nhóm dung lượng `video` 500MB · 2 mã lỗi (57 mã). **319 test BE** |
 | 2026-08-19 | **WS-13 làm 10/12** — CMS danh mục & bài viết. 4 bảng + seed quy trình `ARTICLE` 10 bước chuyển · entity/service/controller đủ 3 tầng · **copy-on-write chạy thật** · 5 mã lỗi mới (BE=FE, 55 mã). **298 test BE**, `ArticleLifecycleTest` 14 bài trên CSDL thật. Còn T13.7/T13.10 → nợ #63, #64 |
 | 2026-08-19 | ⚠⚠ **Vá lỗ Core lộ ra bởi người dùng đầu tiên**: `WorkflowEngine` chỉ biết luật G11 nên thông báo "có bài chờ duyệt" gửi cho **Ban điều hành** thay vì quản trị nội dung. Thêm `notify_permission` + `notify_owner` vào `workflow_transitions` — `architecture-review.md` §10.10 |

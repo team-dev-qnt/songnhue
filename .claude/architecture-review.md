@@ -1059,3 +1059,90 @@ thông báo hiện ra dưới dạng "không tạo được bean", rất dễ đ
 
 ⚠ **Flyway sắp thứ tự theo số hiệu trên TOÀN BỘ các thư mục**, nên `cms` bắt đầu từ 1016 là có chủ ý
 — không phải khoảng trống bỏ quên.
+
+---
+
+### §10.12. Cấu hình cổng nằm ở `settings`, và Core mở một port ghi **theo nhóm** (19/8/2026)
+
+Toàn bộ cấu hình giao diện cổng — tên site, logo, màu, chân trang, khối trang chủ, tuỳ chọn trình
+chiếu — nằm ở bảng `settings` nhóm `SITE`. **Không có bảng `site_config`.** Ranh giới:
+
+> Có nhiều dòng, người dùng thêm/bớt/sắp xếp → **bảng**. Đúng một giá trị cho cả hệ thống → **`settings`**.
+
+Một bảng một dòng là tự nhận thêm một màn hình cấu hình thứ hai, một cơ chế xuất/nhập thứ hai và một
+bộ nhớ đệm thứ hai — trong khi `settings` đã có đủ cả ba từ WS-6.
+
+**Nhưng dữ liệu chung không có nghĩa là quyền chung.** API cấu hình hệ thống của MOD-05 gác bằng
+`adm:setting:update`; Quản trị nội dung không có mã đó và **không nên có** — bắt họ cầm quyền sửa
+chính sách bảo mật chỉ để đổi dòng bản quyền ở chân trang là mở quá tay. Vì vậy Core mở port thứ hai:
+
+```java
+SettingAdminPort.listGroup(String groupCode)
+SettingAdminPort.updateInGroup(String groupCode, String key, String value)
+```
+
+⛔ **Mọi hàm đều mang `groupCode`, và đó là phần quan trọng nhất.** Một port ghi tự do dạng
+`update(key, value)` thì chốt chặn duy nhất là annotation `@RequirePermission` trên controller — *một
+dòng người ta có thể quên*. Buộc khai nhóm và từ chối khoá ngoài nhóm biến giới hạn thành thứ máy
+kiểm tra được: `content` khai `"site"` nên nó **không có đường nào** chạm tới nhóm `SECURITY`.
+
+### §10.13. Bộ nhớ đệm cấu hình dọn bằng **sự kiện**, không bằng sự tự giác (19/8/2026)
+
+Cổng công khai đọc cả *cụm* cấu hình ở mọi lượt dựng trang, nên module nghiệp vụ phải có bộ nhớ đệm
+riêng ở tầng cụm — bộ nhớ đệm của `SettingService` chỉ ở tầng từng khoá.
+
+Hai bộ nhớ đệm thì phải có đường nối, và đường nối đó **không được đi qua sự tự giác**: cùng một dòng
+`settings` sửa được từ **hai** màn hình. Nếu `SiteConfigService` chỉ tự dọn trong hàm `update` của
+chính nó thì Quản trị viên hệ thống đổi tên cổng ở màn hình kia, giao diện báo thành công, và cổng
+vẫn hiện tên cũ tới hết TTL — không lỗi, không dấu vết.
+
+**Chốt: `SettingService.update` — nơi duy nhất ghi bảng — phát `SettingChangedEvent`; người quan tâm
+nghe bằng `@TransactionalEventListener(AFTER_COMMIT)`.**
+
+⚠ `AFTER_COMMIT` là **bắt buộc**, không phải cẩn thận thừa: dọn trước khi commit thì lượt đọc kế tiếp
+nạp lại đúng giá trị **cũ** (giao dịch chưa nhìn thấy được), rồi giao dịch rollback — bộ nhớ đệm vừa
+được làm mới bằng dữ liệu sai và không còn ai dọn nó lần nữa.
+
+### §10.14. SVG: lớp khử trùng dựng ở WS-14 **không có đường nào chạm tới** (19/8/2026)
+
+`FileValidator.detect()` trả `null` cho mọi tệp SVG — SVG là XML thuần, **không có magic bytes** — nên
+`detectAndValidate` từ chối chúng ở *mọi* đường tải lên, kể cả đường mà chốt của dự án cho phép. Hệ
+quả: `SvgSanitizer` có 9 bài kiểm riêng, xanh trọn vẹn, và **chưa bao giờ nằm trên một đường chạy
+thật**. Lại đúng dạng lỗi đã trả giá nhiều lần: cơ chế có mặt, xanh, chưa ai đi qua.
+
+Ba việc sửa:
+
+1. `detect()` **đoán** SVG bằng cách đọc phần mở đầu: bỏ BOM, cắt khoảng trắng, bắt buộc mở đầu bằng
+   `<` rồi mới tìm `<svg`. Đây là đoán chứ không phải xác thực — chấp nhận được vì thứ quyết định cuối
+   cùng vẫn là **danh sách cho phép của nơi gọi**: chỉ màn hình cấu hình nhận diện khai
+   `image/svg+xml`, mọi đường khác vẫn từ chối y như trước.
+2. `AttachmentService.upload` cho SVG đi nhánh `SvgSanitizer` thay vì `ImageSanitizer`. ⭐ Nhánh này
+   đặt **ở tầng đính kèm, không ở nơi gọi**: chọn được định dạng nào là việc của `allowedMimeTypes`,
+   còn khử trùng thì không nơi gọi nào được phép quên.
+3. `extensionOf("image/svg+xml") → "svg"`.
+
+**Bài kiểm chứng minh:** tải một logo SVG có `<script>` và `onload` qua đúng đường production, rồi đọc
+lại **từ MinIO** — nội dung đã lưu không còn phần chạy được, và vẫn còn hình vẽ.
+
+### §10.15. Vì sao seed khung danh mục/menu, trong khi V…1008 cố ý **không** seed cơ cấu tổ chức (19/8/2026)
+
+Nhìn qua thì mâu thuẫn. Thực ra hai loại dữ liệu chịu hậu quả khác hẳn nhau khi đoán sai:
+
+| | `org_units` (V…1008 — **không** seed) | Danh mục · menu · trang tĩnh (V…1021 — **có** seed) |
+|---|---|---|
+| Vai trò | Dữ liệu **chịu tải** — phân quyền tầng 3, hồ sơ công trình, hồ sơ nhân sự đều neo vào id | Dữ liệu **trình bày** |
+| Sửa sai tốn gì | Phải di chuyển dữ liệu đã bám vào | Đổi tên, kéo thả, xoá — vài phút |
+| Để trống tốn gì | Không gì cả, chờ G8 | **Cổng rỗng thì không có gì để Công ty xem lúc nghiệm thu** — G14 quay lại chặn đúng lúc muộn nhất |
+
+Bốn trang tĩnh đặt thẳng ở trạng thái **Xuất bản**, không đi qua quy trình duyệt. Cố ý, và chỉ đúng
+cho dữ liệu khởi tạo: **không có bước chuyển giả nào được ghi vào lịch sử**, `created_by` để `NULL`
+(= hệ thống) nên nhật ký không hề nói rằng có người nào đó đã duyệt. Để ở Nháp thì menu trỏ vào bốn
+địa chỉ trả 404 — đúng thứ mà việc seed này sinh ra để tránh.
+
+⛔ **Không seed tham số bật/tắt widget thuỷ văn**, dù T15.5 ghi "giữ chỗ cấu hình": widget cần MOD-03
+(Phase 2) nên chưa dòng mã nào đọc được khoá đó, và một công tắc chưa ai đọc chính là lỗi vừa sửa ở
+WS-12 (§10.9). Chỗ giữ là một khối bị khoá trên giao diện, không phải một dòng trong CSDL.
+
+Tương tự, **không** thêm `site.maintenance-mode`: khoá `system.maintenance-mode` đã có từ WS-7 và
+đang được `MaintenanceFilter` đọc thật. Hai công tắc cho một bóng đèn thì người vận hành gạt cái đang
+nhìn thấy, hệ thống nghe cái kia.

@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import com.songnhue.app.testsupport.CmsFixtures;
 import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.content.application.ArticleDraft;
 import com.songnhue.content.application.ArticleService;
@@ -216,7 +217,7 @@ class MediaLibraryTest extends IntegrationTestBase {
     @DisplayName("⭐ Xoá tệp đang được bài viết dùng bị chặn, kèm tên bài — CMS-2009")
     void xoaTepDangDungBiChan() {
         AttachmentRef tep = media.upload(thuMuc, "tram-bom.png", anhPng(20, 20));
-        UUID danhMuc = categories.create("Tin hoạt động", null, null).getPublicId();
+        UUID danhMuc = categories.create("Chuyên mục kiểm thử", null, null).getPublicId();
 
         // Ảnh chèn giữa bài: nằm trong chuỗi HTML, không có khoá ngoại nào bắt được.
         Article bai = articles.create(new ArticleDraft(
@@ -275,7 +276,7 @@ class MediaLibraryTest extends IntegrationTestBase {
     @DisplayName("Ảnh đại diện của bài cũng tính là đang dùng")
     void anhDaiDienCungTinhLaDangDung() {
         AttachmentRef tep = media.upload(thuMuc, "bia.png", anhPng(16, 9));
-        UUID danhMuc = categories.create("Tin hoạt động", null, null).getPublicId();
+        UUID danhMuc = categories.create("Chuyên mục kiểm thử", null, null).getPublicId();
 
         articles.create(new ArticleDraft(
                 "Bài có ảnh bìa",
@@ -326,12 +327,6 @@ class MediaLibraryTest extends IntegrationTestBase {
     }
 
     private void donDep() {
-        jdbc.update("UPDATE articles SET published_version_id = NULL");
-        jdbc.update("DELETE FROM article_versions");
-        jdbc.update("DELETE FROM article_categories");
-        jdbc.update("DELETE FROM articles");
-        jdbc.update("DELETE FROM categories");
-        jdbc.update("DELETE FROM attachments WHERE owner_type = 'MEDIA_FOLDER'");
-        jdbc.update("DELETE FROM media_folders");
+        CmsFixtures.donDep(jdbc);
     }
 }

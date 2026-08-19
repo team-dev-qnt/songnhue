@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import com.songnhue.app.testsupport.CmsFixtures;
 import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.content.application.ArticleDraft;
 import com.songnhue.content.application.ArticleService;
@@ -72,7 +73,9 @@ class ArticleLifecycleTest extends IntegrationTestBase {
 
         // Quyền quản lý danh mục thuộc vai trò khác, nên mượn tạm để dựng dữ liệu nền…
         dangNhap(1L, QUYEN_DANH_MUC);
-        danhMuc = categories.create("Tin hoạt động", null, null).getPublicId();
+        // ⚠ Tên phải khác danh mục do migration V…1021 seed: "Tin hoạt động" đã có slug từ WS-15,
+        // và trùng slug là CMS-2001 — bài kiểm đỏ vì dữ liệu nền chứ không vì thứ nó kiểm.
+        danhMuc = categories.create("Chuyên mục kiểm thử", null, null).getPublicId();
 
         // …rồi PHẢI đổi lại. Thiếu dòng này thì mọi bài kiểm chạy dưới danh tính chỉ có quyền danh
         // mục, và `SUBMIT` trả AUTH-3001 — trông y hệt như quy trình duyệt bị hỏng.
@@ -398,18 +401,12 @@ class ArticleLifecycleTest extends IntegrationTestBase {
         return jdbc.queryForObject("SELECT status FROM articles WHERE public_id = ?", String.class, publicId);
     }
 
+    /**
+     * ⚠ Thứ tự bắt buộc và luật "giữ lại dòng seed" nằm ở {@link CmsFixtures} — từ WS-15 có menu trỏ
+     * tới cả danh mục lẫn bài viết, nên xoá sạch hai bảng đó là vi phạm khoá ngoại.
+     */
     private void donDepDuLieuCms() {
-        jdbc.update("DELETE FROM notification_recipients WHERE notification_id IN "
-                + "(SELECT id FROM notifications WHERE event_type LIKE 'ARTICLE_%')");
-        jdbc.update("DELETE FROM notifications WHERE event_type LIKE 'ARTICLE_%'");
-        // ⚠ Thứ tự bắt buộc: articles.published_version_id trỏ SANG article_versions, nên phải
-        //   gỡ con trỏ trước rồi mới xoá bản chụp. Đảo lại là vi phạm khoá ngoại.
-        jdbc.update("UPDATE articles SET published_version_id = NULL");
-        jdbc.update("DELETE FROM article_versions");
-        jdbc.update("DELETE FROM article_categories");
-        jdbc.update("DELETE FROM article_tags");
-        jdbc.update("DELETE FROM articles");
-        jdbc.update("DELETE FROM categories");
+        CmsFixtures.donDep(jdbc);
         jdbc.update("DELETE FROM user_roles WHERE role_id IN (SELECT id FROM roles WHERE code = 'PROBE_APPROVER')");
         jdbc.update("DELETE FROM users WHERE username LIKE 'qtnd-probe%'");
     }

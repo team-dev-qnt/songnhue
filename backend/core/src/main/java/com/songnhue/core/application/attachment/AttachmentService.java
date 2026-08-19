@@ -22,6 +22,7 @@ import com.songnhue.core.common.security.AuthContext;
 import com.songnhue.core.common.util.FileValidator;
 import com.songnhue.core.common.util.HashUtils;
 import com.songnhue.core.common.util.ImageSanitizer;
+import com.songnhue.core.common.util.SvgSanitizer;
 import com.songnhue.core.domain.attachment.Attachment;
 import com.songnhue.core.infra.attachment.AttachmentRepository;
 import com.songnhue.core.infra.storage.ObjectStorage;
@@ -125,9 +126,17 @@ public class AttachmentService implements AttachmentPort {
         FileValidator.validateSize(content.length, maxBytes, originalName);
         requireQuota(ownerType, ownerId, content.length);
 
-        // Mã hoá lại TRƯỚC khi tính checksum và ghi lên kho: checksum phải khớp đúng thứ đã lưu,
-        // nếu không thì lần kiểm tra toàn vẹn nào cũng báo lệch.
-        byte[] stored = ImageSanitizer.stripMetadata(content, mimeType);
+        // Khử trùng TRƯỚC khi tính checksum và ghi lên kho: checksum phải khớp đúng thứ đã lưu, nếu
+        // không thì lần kiểm tra toàn vẹn nào cũng báo lệch.
+        //
+        // ⚠ SVG đi đường riêng vì nó KHÔNG phải ảnh raster: `javax.imageio` không đọc được nên
+        // ImageSanitizer trả nguyên bản về — tức là tệp duy nhất trong nhóm ảnh có thể chạy
+        // JavaScript lại là tệp duy nhất không được bóc gì. Đặt nhánh này ở đây, chứ không ở nơi
+        // gọi, để mọi đường tải lên đều đi qua: chọn được định dạng nào là việc của
+        // `allowedMimeTypes`, còn khử trùng thì không ai được phép quên.
+        byte[] stored = SvgSanitizer.MIME.equals(mimeType)
+                ? SvgSanitizer.sanitize(content, originalName)
+                : ImageSanitizer.stripMetadata(content, mimeType);
 
         // Đuôi lấy theo MIME đã xác thực, KHÔNG theo tên gốc — nếu không thì `anh.jpg.exe` giữ
         // nguyên đuôi `.exe` trong kho, đúng thứ mà việc đổi tên ngẫu nhiên sinh ra để chặn.

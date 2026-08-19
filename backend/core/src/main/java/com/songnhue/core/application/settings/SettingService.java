@@ -12,6 +12,7 @@ import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +24,9 @@ import com.songnhue.core.common.exception.PermissionDeniedException;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
 import com.songnhue.core.domain.settings.Setting;
 import com.songnhue.core.infra.settings.SettingRepository;
+import com.songnhue.core.spi.SettingAdminPort;
+import com.songnhue.core.spi.SettingChangedEvent;
+import com.songnhue.core.spi.SettingItem;
 import com.songnhue.core.spi.SettingPort;
 
 /**
@@ -41,7 +45,7 @@ import com.songnhue.core.spi.SettingPort;
  * {@code architecture-review.md} §6.4 cùng các thay đổi khác phải làm.
  */
 @Service
-public class SettingService implements SettingPort {
+public class SettingService implements SettingPort, SettingAdminPort {
 
     private static final Logger log = LoggerFactory.getLogger(SettingService.class);
 
@@ -50,6 +54,7 @@ public class SettingService implements SettingPort {
 
     private final SettingRepository repository;
     private final SettingValidator validator;
+    private final ApplicationEventPublisher events;
 
     /** Giữ cả giá trị rỗng để khoá không tồn tại cũng không phải hỏi DB lại mỗi lần. */
     private final Cache<String, Optional<String>> cache = Caffeine.newBuilder()
@@ -57,9 +62,10 @@ public class SettingService implements SettingPort {
             .expireAfterWrite(CACHE_TTL)
             .build();
 
-    public SettingService(SettingRepository repository, SettingValidator validator) {
+    public SettingService(SettingRepository repository, SettingValidator validator, ApplicationEventPublisher events) {
         this.repository = repository;
         this.validator = validator;
+        this.events = events;
     }
 
     @Transactional(readOnly = true)
@@ -137,9 +143,61 @@ public class SettingService implements SettingPort {
         setting.changeValue(newValue);
         Setting saved = repository.save(setting);
         invalidate(key);
+        // Đây là nơi DUY NHẤT ghi bảng settings, nên cũng là nơi duy nhất phát được sự kiện cho mọi
+        // đường sửa — cả màn hình cấu hình hệ thống lẫn màn hình cấu hình giao diện của CMS.
+        events.publishEvent(new SettingChangedEvent(key, saved.getGroupCode()));
 
         log.info("Đổi tham số '{}': '{}' → '{}'", key, previous, saved.getSettingValue());
         return saved;
+    }
+
+    // ---- SettingAdminPort: ghi trong phạm vi một nhóm (WS-15) -----------------
+
+    @Transactional(readOnly = true)
+    @Override
+    public List<SettingItem> listGroup(String groupCode) {
+        return listByGroup(groupCode).stream().map(SettingService::toItem).toList();
+    }
+
+    /**
+     * ⛔ Chốt chặn của {@link SettingAdminPort}: khoá phải <b>thuộc đúng nhóm đã khai</b>.
+     *
+     * <p>Không có dòng kiểm tra này thì port trở thành đường ghi tự do vào toàn bộ bảng
+     * {@code settings}, và giới hạn "CMS chỉ sửa được nhóm site" tụt xuống thành một quy ước người ta
+     * nhớ hoặc quên.
+     */
+    @Transactional
+    @Override
+    public SettingItem updateInGroup(String groupCode, String key, String value) {
+        Setting setting =
+                repository.findBySettingKey(key).orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
+        if (!setting.getGroupCode().equals(groupCode)) {
+            log.warn(
+                    "Từ chối sửa '{}' qua nhóm '{}' — khoá này thuộc nhóm '{}'",
+                    key,
+                    groupCode,
+                    setting.getGroupCode());
+            throw new ResourceNotFoundException(ErrorCode.SYS_0004);
+        }
+        // Tự gọi trong cùng lớp nên KHÔNG đi qua proxy Spring — ở đây vô hại vì phương thức này đã
+        // mở sẵn giao dịch và update() chỉ cần REQUIRED. Ghi ra để lần sau ai đổi update() sang
+        // REQUIRES_NEW thì thấy ngay là đường này sẽ lặng lẽ không có hiệu lực (bẫy đã trả giá ở
+        // BackupService, WS-7).
+        return toItem(update(key, value));
+    }
+
+    private static SettingItem toItem(Setting setting) {
+        return new SettingItem(
+                setting.getSettingKey(),
+                setting.getSettingValue(),
+                setting.effectiveValue(),
+                setting.getValueType(),
+                setting.getDefaultValue(),
+                setting.getGroupCode(),
+                setting.getLabel(),
+                setting.getDescription(),
+                setting.getValidation(),
+                setting.isEditable());
     }
 
     /**

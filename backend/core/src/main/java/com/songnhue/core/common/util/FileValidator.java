@@ -1,5 +1,6 @@
 package com.songnhue.core.common.util;
 
+import java.nio.charset.StandardCharsets;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
@@ -56,6 +57,9 @@ public final class FileValidator {
             new Signature("video/mp4", "66747970", 4),
             new Signature("video/webm", "1a45dfa3", 0));
 
+    /** Đủ để thấy phần mở đầu tài liệu XML, kể cả khi có khai báo {@code <?xml …?>} và chú thích. */
+    private static final int SVG_SNIFF_BYTES = 1024;
+
     /**
      * Kiểm tra nội dung tệp khớp với một định dạng được phép.
      *
@@ -92,7 +96,32 @@ public final class FileValidator {
                 return signature.mimeType();
             }
         }
-        return null;
+        return looksLikeSvg(content) ? SvgSanitizer.MIME : null;
+    }
+
+    /**
+     * SVG — <b>trường hợp duy nhất không có magic bytes</b> (WS-15).
+     *
+     * <p>⚠⚠ Trước WS-15 hàm {@link #detect} trả {@code null} cho mọi tệp SVG, nên
+     * {@link #detectAndValidate} từ chối chúng ở mọi đường tải lên — kể cả đường mà chốt của dự án
+     * <i>cho phép</i> SVG. Hệ quả: {@link SvgSanitizer} dựng ở WS-14 <b>không có đường nào chạm
+     * tới</b>. Đúng dạng lỗi đã lặp lại nhiều lần: cơ chế có mặt, có bài kiểm riêng, xanh, và chưa
+     * bao giờ nằm trên một đường chạy thật.
+     *
+     * <p>SVG là XML thuần nên đây là <i>đoán</i> chứ không phải xác thực. Chấp nhận được vì thứ quyết
+     * định cuối cùng vẫn là danh sách cho phép của nơi gọi: chỉ màn hình cấu hình giao diện khai
+     * {@code image/svg+xml}, mọi đường khác vẫn từ chối y như trước. Và một tệp HTML có chứa
+     * {@code <svg>} lọt được vào đây thì cũng đã đi qua {@link SvgSanitizer} — nơi bắt buộc phải còn
+     * thẻ {@code <svg>} sau khi bóc hết phần chạy được.
+     */
+    private static boolean looksLikeSvg(byte[] content) {
+        int soLuong = Math.min(content.length, SVG_SNIFF_BYTES);
+        String dau = new String(content, 0, soLuong, StandardCharsets.UTF_8)
+                // BOM của UTF-8 nằm trước cả '<' — không bỏ thì mọi tệp do Windows lưu đều trượt
+                .replace("﻿", "")
+                .stripLeading();
+        // Bắt buộc mở đầu bằng một thẻ: chặn "tệp văn bản bất kỳ có nhắc tới <svg ở giữa"
+        return dau.startsWith("<") && dau.toLowerCase(Locale.ROOT).contains("<svg");
     }
 
     public static void validateSize(long sizeBytes, long maxBytes, String originalName) {
@@ -130,6 +159,7 @@ public final class FileValidator {
             case "image/png" -> "png";
             case "image/gif" -> "gif";
             case "image/webp" -> "webp";
+            case SvgSanitizer.MIME -> "svg";
             case "application/pdf" -> "pdf";
             case "application/zip" -> "zip";
             case "application/vnd.openxmlformats-officedocument.wordprocessingml.document" -> "docx";

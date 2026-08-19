@@ -77,6 +77,16 @@ public enum ErrorCode {
     CMS_2008("CMS-2008", HttpStatus.CONFLICT),
     /** Xoá tệp media đang được bài viết tham chiếu. */
     CMS_2009("CMS-2009", HttpStatus.CONFLICT),
+    /** Cây menu vượt quá 3 cấp. */
+    CMS_2010("CMS-2010", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Xoá mục menu còn mục con. */
+    CMS_2011("CMS-2011", HttpStatus.CONFLICT),
+    /** Đích của mục menu không tồn tại hoặc đã bị xoá. */
+    CMS_2012("CMS-2012", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Mục con phải cùng vị trí (Header/Footer) với mục cha. */
+    CMS_2013("CMS-2013", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Lịch hiển thị banner có ngày kết thúc không sau ngày bắt đầu. */
+    CMS_2014("CMS-2014", HttpStatus.UNPROCESSABLE_ENTITY),
     CMS_5001("CMS-5001", HttpStatus.BAD_GATEWAY),
 
     // ---- MOD-02 Vận hành công trình --------------------------------------------
