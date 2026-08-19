@@ -45,6 +45,23 @@ jobs:
       # Đây là lý do `required_linear_history` bị TẮT ở staging/production
       # (docs/branch-protection.md §2.3): squash sẽ sinh SHA mới không có cha
       # thứ hai, và mối liên hệ với image đã kiểm bị cắt đứt.
+      # ⚠⚠ PHẢI đăng nhập TRƯỚC khi tra image (sửa 19/8).
+      #
+      #   Bản đầu để bước này SAU bước tra `docker manifest inspect`. Gói GHCR
+      #   mặc định là **riêng tư** kể cả khi repo công khai — kiểm chứng ngày
+      #   19/8: `GET ghcr.io/v2/.../manifests/<sha>` ẩn danh trả **403**.
+      #
+      #   Hậu quả không phải là "lỗi đăng nhập" mà tệ hơn: vòng lặp tra sẽ
+      #   trượt MỌI ứng viên rồi thoát với thông báo *"commit này chưa từng qua
+      #   CI của dev — kiểm tra lại Promotion guard"*. Tức lần deploy đầu tiên
+      #   sẽ cử người đi lục lịch sử CI để tìm một lỗi không tồn tại.
+      - name: Đăng nhập GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Xác định image cần triển khai
         id: image
         run: |
@@ -52,32 +69,43 @@ jobs:
           registry="ghcr.io/${{ github.repository }}/app"
 
           if git rev-parse -q --verify HEAD^2 >/dev/null; then
-            candidates="$(git rev-parse HEAD^2) $(git rev-parse HEAD)"
+            dev_tip="$(git rev-parse HEAD^2)"
           else
-            candidates="$(git rev-parse HEAD)"
+            dev_tip="$(git rev-parse HEAD)"
           fi
 
-          for sha in $candidates; do
-            if docker manifest inspect "$registry:$sha" >/dev/null 2>&1; then
-              echo "✓ Tìm thấy $registry:$sha"
-              echo "ref=$registry:$sha" >> "$GITHUB_OUTPUT"
-              echo "sha=$sha" >> "$GITHUB_OUTPUT"
-              exit 0
+          # ⚠ Không phải commit nào trên `dev` cũng có image: job `Đóng gói
+          #   image` chỉ chạy khi vùng `backend/` đổi. Một lượt đề bạt mà đỉnh
+          #   `dev` là commit chỉ sửa tài liệu thì KHÔNG có image mang SHA đó —
+          #   và điều đó hoàn toàn hợp lệ, vì backend không đổi thì image của
+          #   commit backend gần nhất chính là bản đúng.
+          #
+          #   Nên lùi theo cha thứ nhất để tìm image gần nhất, thay vì báo lỗi.
+          #   Giới hạn 50 bước để hỏng thì hỏng nhanh.
+          sha=""
+          for candidate in $(git rev-list --first-parent -n 50 "$dev_tip"); do
+            if docker manifest inspect "$registry:$candidate" >/dev/null 2>&1; then
+              sha="$candidate"
+              break
             fi
           done
 
-          echo "::error::Không tìm thấy image cho commit nào trong: $candidates"
-          echo "Nghĩa là commit này chưa từng qua CI của \`dev\` — kiểm tra lại Promotion guard."
-          exit 1
+          if [ -z "$sha" ]; then
+            echo "::error::Không tìm thấy image nào trong 50 commit gần nhất tính từ $dev_tip"
+            echo "Kiểm tra theo thứ tự: (1) job 'Đóng gói image' ở dev có chạy và đẩy được không;"
+            echo "(2) gói GHCR có tồn tại không; (3) bước đăng nhập GHCR phía trên có xanh không."
+            exit 1
+          fi
+
+          if [ "$sha" != "$dev_tip" ]; then
+            echo "ℹ Đỉnh dev ($dev_tip) không có image — dùng image backend gần nhất: $sha"
+            echo "  (bình thường khi lượt đề bạt chỉ chứa thay đổi tài liệu hoặc frontend)"
+          fi
+          echo "✓ Dùng $registry:$sha"
+          echo "ref=$registry:$sha" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
         env:
           DOCKER_CONFIG: ${{ runner.temp }}/.docker
-
-      - name: Đăng nhập GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
 
       # Gắn thêm tag `staging` cho image — tiện cho người vận hành nhìn nhanh
       # "staging đang chạy cái gì". Bản thân việc deploy vẫn dùng tag SHA.
@@ -130,11 +158,15 @@ jobs:
           # ⚠ Readiness chứ không phải bản tổng — xem chú thích cùng chỗ ở
           #   deploy-prod.yml: bản tổng gộp chỉ số sao lưu, mà môi trường mới
           #   dựng thì chưa từng có bản sao lưu nào nên nó DOWN một cách đúng đắn.
+          # ⚠ Hứng ra biến thay vì `curl … | grep -q` — lý do ghi ở cùng chỗ
+          #   trong deploy-prod.yml (SIGPIPE + pipefail).
           for i in $(seq 1 30); do
-            if curl -fsS "$BASE_URL/actuator/health/readiness" | grep -q '"status":"UP"'; then
-              echo "✓ Staging khoẻ sau ${i}0 giây"
-              exit 0
-            fi
+            body=$(curl -fsS "$BASE_URL/actuator/health/readiness" || true)
+            case "$body" in
+              *'"status":"UP"'*)
+                echo "✓ Staging khoẻ sau ${i}0 giây"
+                exit 0 ;;
+            esac
             sleep 10
           done
           echo "::error::Staging không trả health UP sau 5 phút."
