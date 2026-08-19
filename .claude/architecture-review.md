@@ -797,3 +797,37 @@ người ở MOD-01/MOD-04 chỉ vào vài lần mỗi quý) sẽ bị khoá đ�
 
 Đây **không** phải mục cần Công ty quyết định — đã chốt nội bộ — mà là mục cần **thông báo** khi
 nghiệm thu, kèm ước lượng khối lượng cấp lại mật khẩu tạm cho quản trị viên.
+
+---
+
+### 9.14. Ranh giới module vs sáu dịch vụ dùng chung — SPI, không phải nới luật (chốt 19/8, khi rà soát tài liệu trước Phase 1)
+
+**Vấn đề phát hiện khi viết `docs/coding-guide.md`**, không phải khi chạy test: `ModuleBoundaryTest`
+chỉ cho một module import `com.songnhue.<module>.spi.*` và `com.songnhue.core.common.*`. Nhưng sáu
+dịch vụ mà mọi module nghiệp vụ đều phải dùng — `WorkflowEngine`, `NotificationService`,
+`AttachmentService`, `JobService`, `SettingService`, `OrgUnitService` — nằm ở `core.application.*`.
+
+`core/spi/` hiện chỉ có `package-info.java`. Nghĩa là **dòng mã Phase 1 đầu tiên gọi `WorkflowEngine`
+sẽ làm CI đỏ**.
+
+Phase 0 không lộ ra chuyện này vì bốn module nghiệp vụ còn là khung rỗng và chưa import gì từ `core`
+— luật đúng, mã đúng, nhưng chưa có ai đi qua chỗ giao nhau.
+
+#### Chốt: mở SPI, giữ nguyên luật
+
+| Phương án | Đánh giá |
+|---|---|
+| **Thêm interface vào `core/spi/`**, service ở `core.application` cài interface đó | ✅ **Chọn.** Đúng ý định thiết kế đã ghi trong `spi/package-info.java`; giữ được khả năng tách module thành service riêng về sau; chi phí là vài interface mỏng |
+| Nới `ModuleBoundaryTest` cho phép `core.application.*` | ⛔ Xoá ranh giới đã dựng cả Phase 0. `core.common.*` là ngoại lệ **hạ tầng** (envelope, mã lỗi, utils) — mở tiếp cho *dịch vụ nghiệp vụ* thì luật không còn nghĩa gì |
+| Chuyển sáu dịch vụ sang `core.common` | ⛔ Sai phân tầng: chúng có logic nghiệp vụ và ranh giới giao dịch, không phải hạ tầng dùng chung |
+
+#### Nguyên tắc rút ra
+
+**Một ranh giới chưa ai đi qua thì chưa biết nó đúng hay sai.** ArchUnit xanh suốt Phase 0 không
+chứng minh luật khả thi — nó chỉ chứng minh chưa có ai thử. Đây là biến thể của bài học §9.8.2
+("xanh mà không chạy"), lần này ở tầng thiết kế chứ không phải tầng công cụ: phép kiểm chạy đúng,
+nhưng chạy qua một tập rỗng.
+
+Hệ quả cho các ranh giới còn lại: mỗi khi Phase 1 mở một đường đi mới giữa hai module, phải hỏi
+"luật hiện tại có cho phép đường này không, và nếu không thì đúng ra nên mở ở đâu" — trước khi
+viết mã, không phải sau khi CI đỏ.

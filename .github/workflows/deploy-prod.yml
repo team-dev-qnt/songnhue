@@ -69,6 +69,17 @@ jobs:
           fi
           echo "✓ $sha đã có trong staging"
 
+      # ⚠⚠ PHẢI đăng nhập TRƯỚC khi tra image (sửa 19/8) — cùng lỗi với
+      #   `deploy-staging.yml`. Gói GHCR riêng tư kể cả khi repo công khai
+      #   (kiểm chứng: manifest ẩn danh trả **403**), nên tra trước khi đăng
+      #   nhập thì luôn trượt, rồi báo sai hẳn nguyên nhân là "chưa qua CI".
+      - name: Đăng nhập GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Xác định image
         id: image
         run: |
@@ -77,17 +88,13 @@ jobs:
           sha="${{ inputs.commit_sha }}"
 
           if ! docker manifest inspect "$registry:$sha" >/dev/null 2>&1; then
-            echo "::error::Không có image $registry:$sha — commit này chưa từng qua CI của dev."
+            echo "::error::Không có image $registry:$sha"
+            echo "Kiểm tra theo thứ tự: (1) SHA nhập vào có đúng là commit ĐÃ qua CI của dev không"
+            echo "— commit chỉ sửa tài liệu thì không có image riêng, phải lấy SHA của commit backend"
+            echo "gần nhất (xem tóm tắt của lượt CD Staging tương ứng); (2) gói GHCR còn image đó không."
             exit 1
           fi
           echo "ref=$registry:$sha" >> "$GITHUB_OUTPUT"
-
-      - name: Đăng nhập GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Kiểm tra đã có cấu hình máy chủ chưa
         id: target
@@ -150,11 +157,19 @@ jobs:
           #   nên bản tổng trả 503 và smoke test này sẽ đỏ suốt 5 phút vì một
           #   chuyện hoàn toàn bình thường. Readiness trả lời đúng câu đang hỏi:
           #   ứng dụng đã phục vụ được request chưa.
+          # ⚠ Không viết `curl … | grep -q` dưới `pipefail`: grep thoát ngay khi
+          #   khớp, curl nhận SIGPIPE (141) và pipefail biến cả pipeline thành
+          #   thất bại DÙ ĐÃ KHỚP. Ở đây payload chỉ ~16 byte nên lọt trọn bộ
+          #   đệm ống và trên thực tế không sập — nhưng đây đúng là hình dạng đã
+          #   gây lỗi "bỏ qua job backend ngẫu nhiên" (docs/cicd.md §3.2-b), nên
+          #   không để lại. Hứng ra biến rồi mới so.
           for i in $(seq 1 30); do
-            if curl -fsS "$BASE_URL/actuator/health/readiness" | grep -q '"status":"UP"'; then
-              echo "✓ Production khoẻ sau ${i}0 giây"
-              exit 0
-            fi
+            body=$(curl -fsS "$BASE_URL/actuator/health/readiness" || true)
+            case "$body" in
+              *'"status":"UP"'*)
+                echo "✓ Production khoẻ sau ${i}0 giây"
+                exit 0 ;;
+            esac
             sleep 10
           done
           echo "::error::Production không trả health UP sau 5 phút — cân nhắc quay lui theo docs/runbook."

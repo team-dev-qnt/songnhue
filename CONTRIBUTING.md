@@ -17,7 +17,7 @@ Tài liệu này chỉ nói **cách làm việc với repo**. Quy tắc kỹ thu
 ## Bắt đầu
 
 ```bash
-make hooks          # bật hook kiểm tra commit message
+make hooks          # bật git hook — LÀM NGAY sau khi clone, xem chú ý bên dưới
 make env            # tạo deploy/env/local.env từ mẫu, rồi sửa giá trị
 make doctor         # kiểm tra công cụ + cổng trống
 ```
@@ -52,6 +52,28 @@ Ví dụ: `feat(core): thêm envelope response và global exception handler`
 
 Hook `commit-msg` chặn commit sai định dạng — bật bằng `make hooks`.
 
+### ⚠ `make hooks` phải chạy lại ở MỖI bản sao repo
+
+`core.hooksPath` là cấu hình **cục bộ của từng bản clone**, không nằm trong repo. Clone mới mà quên
+`make hooks` thì cả hai hook im lặng không tồn tại — không có cảnh báo nào.
+
+Hai hook đang có:
+
+| Hook | Chặn gì |
+|---|---|
+| `commit-msg` | commit message không theo Conventional Commits |
+| `pre-push` | **nhánh đã lỗi thời sau squash merge** — xem `docs/cicd.md` §9.1 |
+
+Cái thứ hai đáng chú ý: squash merge tạo commit mới không mang lịch sử nhánh nguồn, nên dùng lại
+nhánh sau khi merge sẽ làm PR sau phình ra hàng trăm tệp, rồi thành xung đột giả. Đã xảy ra **hai
+lần trong một ngày** trước khi có hook này.
+
+```bash
+make branch-check             # hỏi tay bất cứ lúc nào
+make branch-check-selftest    # chứng minh phép canh bắt được vi phạm
+SKIP_BRANCH_CHECK=1 git push  # bỏ qua khi cố ý
+```
+
 ## Trước khi mở PR
 
 ```bash
@@ -67,9 +89,21 @@ PR cần **1 reviewer** và **CI xanh**. Template PR đã gắn sẵn Definition
 Backend là **Modular Monolith**: `core · content · operations · hydro · hr`, mỗi module có 5 tầng
 `api / application / domain / infra / spi`.
 
-**Module chỉ được import `spi/` của module khác.** Import `domain/`, `infra/`, `application/` chéo module
-sẽ làm **ArchUnit test đỏ** trong CI. Đây là ràng buộc giữ cho module tách ra service riêng được về sau —
+**Module chỉ được import `spi/` của module khác**, cộng ngoại lệ duy nhất `core.common.*` (Common
+Platform — hạ tầng dùng chung). Import `domain/`, `infra/`, `application/` chéo module sẽ làm
+**ArchUnit test đỏ** trong CI. Đây là ràng buộc giữ cho module tách ra service riêng được về sau —
 đừng lách bằng cách nới rule.
+
+> ⚠⚠ **`core/spi/` hiện RỖNG.** Sáu dịch vụ dùng chung (`WorkflowEngine`, `NotificationService`,
+> `AttachmentService`, `JobService`, `SettingService`, `OrgUnitService`) nằm ở `core.application.*`,
+> nên **dòng mã Phase 1 đầu tiên gọi tới chúng sẽ làm ArchUnit đỏ**. Việc mở màn Phase 1 là thêm
+> interface vào `core/spi/`, **không phải** nới luật. Chi tiết: `docs/coding-guide.md` §2.
+
+## Viết một chức năng mới
+
+`docs/coding-guide.md` — công thức theo thứ tự (migration → entity → workflow → service →
+controller → seed quyền → mã lỗi → test), kèm bảng kê **những gì Core đã cho sẵn** để không ai
+dựng lại, và các bẫy đã trả giá. `conventions.md` là **luật**; file kia là **đường đi**.
 
 ## Ba điều cấm hay bị quên
 

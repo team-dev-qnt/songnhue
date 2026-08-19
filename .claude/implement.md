@@ -204,29 +204,25 @@ Quy tắc ràng buộc giữa module (giữ đúng Modular Monolith):
 
 ## 7. ĐÁNH GIÁ MỨC ĐỘ SẴN SÀNG CODE (2026-08-13)
 
-### 7.1. Môi trường máy dev — đã kiểm tra thực tế
+### 7.1. ~~Môi trường máy dev~~ — ĐÃ XOÁ 19/8/2026
 
-| Thành phần | Yêu cầu | Hiện có | |
-|---|---|---|:-:|
-| JDK | 21 | **21.0.7 LTS** | ✅ |
-| Node.js | ≥ 18 (Next.js/Vite) | **22.16.0** + npm 11.17 | ✅ |
-| Docker + Compose | PG16+PostGIS, MinIO | **29.4.0** + Compose v5.1.1 | ✅ |
-| psql client | tra cứu/migration thủ công | **17.6** | ✅ |
-| Git | | 2.49.0 | ✅ |
-| **Maven / Gradle** | build backend | ❌ **chưa cài** | ⚠ |
-
-⚠ **Chưa có Maven/Gradle trên máy** — không chặn: project sinh từ `start.spring.io` kèm sẵn `mvnw`/`gradlew` (wrapper tự tải). Chỉ cần cài nếu muốn chạy lệnh `mvn` trần.
-📌 **Repo hiện chỉ có tài liệu** (11 file tracked, 0 file mã nguồn) → Phase 0 là **greenfield**, không có nợ kỹ thuật hay migration cũ phải gánh.
+> Mục này từng liệt kê phiên bản JDK/Node/Docker trên máy dev và kết luận *"repo hiện chỉ có tài
+> liệu, 0 file mã nguồn → greenfield"*. **Cả hai điều đó nay đều sai**: Phase 0 đã dựng xong, repo
+> có 443 tệp, Maven chạy bằng wrapper `./mvnw`.
+>
+> Xoá thay vì sửa, vì một bảng phiên bản chụp tại một thời điểm thì luôn lỗi thời — điều kiện môi
+> trường thật sự nằm ở `make doctor` (kiểm công cụ + cổng trống) và `docs/setup-guideline.md`.
+> Một tài liệu tự già đi mà không ai hay là thứ nguy hiểm hơn không có tài liệu.
 
 ### 7.2. Kết luận theo từng Phase
 
 | Phase | Nội dung | Sẵn sàng? | Ghi chú |
 |---|---|:-:|---|
-| **Phase 0** — Nhóm A Core | auth/RBAC/orgunit/attachment/workflow/notification/jobs/audit/settings/backup-restore | ✅ **Bắt đầu ngay được** | **Không chứa bất kỳ điểm mở nào.** Đây là 100% khối lượng lớn nhất và mọi thứ khác phụ thuộc vào nó |
-| **Phase 1** — B (CMS) + C1 (master data công trình) | article/category/media/siteconfig · `constructions`, `maintenance_logs`, `operation_status_codes` | ✅ **Bắt đầu ngay được** | Ngoại lệ duy nhất: **CN-01.7 (lưu mã số) chặn bởi G5** → tách thành 1 task riêng, làm sau; phần còn lại của MOD-01 không ảnh hưởng |
-| **Phase 2** — C2 (`hydro`) | điểm đo, adapter, polling, rate-limit, lưu trữ, alert engine | ✅ **Bắt đầu ngay được** | Ánh xạ 19 mã đã có (G8b) → code + test với **dữ liệu thật**. Chừa khe cho G3-a (mưa) và G9-a (số mức ngưỡng) |
-| **Phase 3** — C3 (GIS/dashboard/báo cáo) + D (HRM) | | 🟨 **Code được, chốt layout sau** | Trường dữ liệu báo cáo đã chốt; **layout in ấn** chờ G10, **BCNS-07** chờ G6. Hiển thị GIS cần tọa độ (G8) |
-| **Phase 4** — hardening/NFR/go-live | | ✅ | Con số nghiệm thu đã chốt (G12) |
+| **Phase 0** — Nhóm A Core | auth/RBAC/orgunit/attachment/workflow/notification/jobs/audit/settings/backup-restore | ✅ **XONG 19/8/2026** | 12/21 mục Definition of Done đạt, 5 dở dang, **4 mục chưa xong đều phụ thuộc VM** (đo RTO thật · deploy staging · rollback). Không mục nào chặn việc viết nghiệp vụ |
+| **Phase 1** — B (CMS) + C1 (master data công trình) | article/category/media/siteconfig · `constructions`, `maintenance_logs`, `operation_status` | ✅ **Bắt đầu được ngay** | Nền đã có: 6 pattern P1–P6 là shared service, ArchUnit canh ranh giới. ⚠ Chỉ **CN-01.7** bị chặn cứng bởi **G5** — tách task riêng |
+| **Phase 2** — C2 (`hydro`) | điểm đo, adapter, polling, rate-limit, lưu trữ, alert engine | ✅ **Bắt đầu được ngay** | Ánh xạ 19 mã đã có (G8b). Thiếu toạ độ/tuyến sông (G8) chỉ chặn phần hiển thị GIS, không chặn pipeline |
+| **Phase 3** — C3 (GIS/dashboard/báo cáo) + D (HRM) | | 🟨 **Code được, chốt layout sau** | Trường dữ liệu báo cáo đã chốt; **layout in ấn** chờ Công ty duyệt (G10). BCNS-07 chờ mẫu 2C-BNV (G6) |
+| **Phase 4** — hardening/NFR/go-live | | ✅ | Con số nghiệm thu đã chốt (G12). Gồm nốt phần deploy còn treo của Phase 0 |
 
 ### 7.3. Ba ràng buộc phải cài từ Phase 0 để hấp thụ các câu trả lời còn lại
 
@@ -253,11 +249,10 @@ WS-1 ─► WS-2 ─► WS-3          [nền — bắt buộc trước mọi th�
                   └─► WS-11    [cần WS-3 + WS-7 + WS-10]
 ```
 
-### 7.5. Thứ tự khởi động đề xuất (Phase 0, tuần 1)
+### 7.5. ~~Thứ tự khởi động Phase 0~~ — ĐÃ XOÁ 19/8/2026
 
-1. Khởi tạo monorepo + `docker-compose` (PG16+PostGIS, MinIO) + Flyway baseline + CI skeleton.
-2. **ArchUnit test ranh giới module ngay từ commit đầu** — cài sau khi đã có code là gỡ rất đau.
-3. Common Platform theo `conventions.md` §2: envelope response, exception hierarchy, error catalog, middleware chain, `CryptoService`.
-4. Auth + RBAC 3 tầng + **2FA Admin/Admin HR** (G12 đưa vào Phase 0, không để cuối).
-5. `settings` + audit log (append-only + hash chain) + Job/Scheduler.
-6. **Monitoring poller** — dựng khung cảnh báo "không có bản ghi mới quá N phút" ngay Phase 0, vì mất dữ liệu thủy văn là **không backfill được**.
+> Mục này liệt kê 6 bước khởi động tuần 1 của Phase 0. **Phase 0 đã xong**, nên nó chỉ còn giá trị
+> lịch sử — và lịch sử ấy đã nằm đầy đủ ở `phase0-tracking.md` (11 hạng mục, nhật ký theo ngày,
+> sổ nợ liên WS). Giữ hai bản của cùng một thứ là cách chắc chắn để chúng lệch nhau.
+>
+> Thứ tự khởi động **Phase 1** sẽ nằm ở kế hoạch riêng của Phase 1, không viết chồng vào đây.

@@ -65,8 +65,12 @@ jobs:
         run: |
           echo "Kiểm tra check-runs của $SHA"
 
+          # Soi CẢ hai phép kiểm bắt buộc của `dev`, không riêng Backend. Bản
+          # đầu chỉ lọc `startswith("Backend")`, nên một lượt `Frontend — lint`
+          # hỏng vẫn đi qua được cổng này.
           runs=$(gh api "repos/$REPO/commits/$SHA/check-runs" --jq \
-            '.check_runs[] | select(.name | startswith("Backend")) | .conclusion')
+            '.check_runs[] | select(.name | startswith("Backend") or startswith("Frontend"))
+             | "\(.name)=\(.conclusion)"')
 
           if [ -z "$runs" ]; then
             echo "::error::Không tìm thấy kết quả CI nào cho commit $SHA."
@@ -74,10 +78,35 @@ jobs:
             exit 1
           fi
 
-          for conclusion in $runs; do
-            if [ "$conclusion" != "success" ]; then
-              echo "::error::CI của commit $SHA kết thúc với '$conclusion', không phải 'success'."
-              exit 1
-            fi
-          done
-          echo "✓ Commit $SHA đã xanh CI ở chặng trước"
+          # ⚠ `skipped` là ĐẠT, không phải hỏng (sửa 19/8).
+          #
+          #   `ci.yml` chỉ chạy job nặng khi vùng tương ứng đổi, và job bị bỏ
+          #   qua VẪN tạo check-run — với `conclusion: "skipped"` (đã kiểm bằng
+          #   API). Bản đầu so `!= "success"` nên một lượt đề bạt chỉ chứa thay
+          #   đổi tài liệu sẽ bị chặn với thông báo sai hẳn: *"CI kết thúc với
+          #   'skipped'"*, trong khi thực tế là không có gì cần kiểm.
+          #
+          #   Cổng này hỏi "có phép kiểm nào HỎNG ở dev không", không phải "có
+          #   chạy đủ mọi phép kiểm không" — điều kiện đủ ấy do bảo vệ nhánh
+          #   `dev` quyết định, không phải chỗ này.
+          # ⚠ PHẢI đọc theo DÒNG, không `for muc in $runs`. Tên job có dấu cách
+          #   ("Backend — build, lint, test"), mà bash tách từ theo IFS gồm cả
+          #   khoảng trắng — vòng lặp sẽ vỡ tên job thành 5 mảnh và cổng này
+          #   LUÔN đỏ. Đã tái hiện bằng dữ liệu thật: `for` cho ra [Frontend]
+          #   [—] [lint=success] [Backend] [—] [build,] [lint,] [test=success].
+          #   (Thử ở máy local dùng zsh sẽ KHÔNG thấy lỗi — zsh không tách từ
+          #   mặc định. Runner chạy bash.)
+          loi=0
+          while IFS= read -r muc; do
+            [ -n "$muc" ] || continue
+            ten="${muc%=*}"; ket="${muc##*=}"
+            case "$ket" in
+              success|skipped|neutral)
+                echo "  ✓ $ten = $ket" ;;
+              *)
+                echo "::error::$ten của commit $SHA kết thúc với '$ket'."
+                loi=1 ;;
+            esac
+          done <<< "$runs"
+          [ "$loi" -eq 0 ] || exit 1
+          echo "✓ Commit $SHA không có phép kiểm nào hỏng ở chặng trước"
