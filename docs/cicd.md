@@ -135,7 +135,76 @@ Hai thứ khiến nó không lặp lại:
 - **Thiếu `NVD_API_KEY` thì BỎ QUA và nói to** trong Job Summary kèm đường xin khoá, thay vì chạy 30
   phút rồi chết. Một job treo lâu thì người ta thôi không đọc nó nữa — mà đọc kết quả mới là điểm.
 
-### 3.3-a. ⚠⚠ Bộ nhớ đệm NVD chỉ lưu khi job xanh — mà job này sinh ra để đỏ (sửa 18/8)
+### 3.3-0. Job OWASP làm gì — đọc mục này trước khi sửa nó
+
+Nhiệm vụ đúng một câu: **đối chiếu mọi thư viện mà backend kéo vào với cơ sở dữ liệu lỗ hổng công
+khai, và chặn nếu có mã CVSS ≥ 7.**
+
+Nó **không** đọc mã nguồn của dự án, không tìm lỗi logic, không kiểm cấu hình. Chỉ nhìn danh sách
+phụ thuộc — kể cả phụ thuộc bắc cầu — rồi hỏi "phiên bản này có nằm trong dải bị ảnh hưởng của CVE
+nào không".
+
+| Bước | Việc | Ghi chú |
+|---|---|---|
+| Nạp bộ nhớ đệm CSDL NVD | lấy CSDL lỗ hổng của lượt trước | quyết định job chạy 20 giây hay 25 phút — §3.3-a |
+| Kiểm khoá NVD | thiếu `NVD_API_KEY` thì **bỏ qua và nói to** | thiếu khoá → NVD giới hạn tốc độ tới mức không dùng được |
+| Cập nhật CSDL NVD | tải phần mới từ NVD | ~378.000 bản ghi cho lần dựng đầu |
+| Lưu bộ nhớ đệm | `if: always()` | vì bước sau **được thiết kế để đỏ** — §3.3-a |
+| Dựng jar mọi module | `package -DskipTests` | `aggregate` cần jar liên module để giải phụ thuộc |
+| **Dependency-Check `aggregate`** | quét + áp ngưỡng CVSS ≥ 7 | §3.3-b |
+| Giữ lại báo cáo CVE | tải lên artifact | thứ **duy nhất** đọc được sau khi job đỏ |
+
+Hai nguồn dữ liệu, và chỉ một cái còn dùng:
+
+- **NVD** (`nvd.nist.gov`) — nguồn chính, cần `NVD_API_KEY` (miễn phí).
+- ~~Sonatype OSS Index~~ — **đã tắt 18/8**. Nó hỏng ở gần như mọi artifact suốt 4 lượt (130 cảnh báo
+  mỗi lượt) mà chưa đóng góp dữ liệu nào; tới khi Sonatype chặn truy cập ẩn danh (401) thì nó nâng
+  thành `AnalysisException` và giết cả build. Muốn dùng lại phải có tài khoản Sonatype (nợ #49).
+
+Khi job đỏ, có **ba** kiểu hỏng khác hẳn nhau — đọc nhầm kiểu là sửa nhầm chỗ:
+
+| Dấu hiệu trong log | Nghĩa là gì | Làm gì |
+|---|---|---|
+| `One or more dependencies were identified with vulnerabilities…` | **Đúng việc của nó** — có lỗ hổng thật | Nâng phiên bản; không nâng được thì thẩm định rồi suppress có hạn (`conventions.md` §4.5) |
+| `One or more exceptions occurred during dependency-check analysis` | Hạ tầng quét hỏng (mạng, nguồn dữ liệu, xác thực) | Sửa hạ tầng. ⛔ **Không** dùng `failOnError=false` |
+| `NoDataException: … database does not exist` | Chưa dựng CSDL NVD | Bộ nhớ đệm trượt hoặc bước cập nhật bị bỏ |
+
+> ⚠ **Điểm in ra trong thông báo không phải điểm dùng để chặn.** DC in **CVSS v4**, chặn theo **điểm
+> cao nhất mọi thang**. Nên `CVE-2026-34479(6.9)` nằm dưới tiêu đề "≥ 7.0" là đúng — mã đó có v3 =
+> 7.5. Chi tiết `conventions.md` §4.5 mục 4.
+
+### 3.3-b. ⚠⚠ `check` chỉ soi ĐƯỢC MỘT MODULE rồi dừng — đổi sang `aggregate` (18/8)
+
+Bản đầu gắn goal `check` vào phase `verify`. `check` chạy **riêng từng module**, mà Maven dừng
+reactor ở module đầu tiên hỏng. Với `failBuildOnCVSS=7`, module đầu tiên có lỗ hổng sẽ chặn năm
+module còn lại — chúng in `SKIPPED`, tức **chưa từng được quét**.
+
+Đọc thẳng từ `Reactor Summary` của các lượt thật:
+
+```
+Vòng 1–4   Core FAILURE · Content SKIPPED · Operations SKIPPED · Hydro SKIPPED · HR SKIPPED · App SKIPPED
+Vòng 5     Core SUCCESS · Content ✓ · Operations ✓ · Hydro ✓ · HR ✓ · App FAILURE ← CVE-2026-54291
+```
+
+Bốn lượt quét liên tiếp chỉ soi đúng **một** module. Mỗi lần dọn sạch `core` thì reactor đi thêm một
+bước và lộ ra module kế — người sửa tưởng mình đang đập chuột chũi, còn sự thật là **chưa bao giờ
+nhìn thấy toàn cảnh**. Nguy hiểm hơn cả sự phiền toái: nếu `core` tình cờ sạch từ đầu, ta đã tưởng
+cả dự án sạch trong khi năm module chưa ai quét.
+
+Thay bằng `aggregate` — soi dependency của gốc **và mọi module con** trong một lượt, áp ngưỡng một
+lần, ra **một** danh sách đầy đủ và **một** báo cáo:
+
+```bash
+./mvnw -P security package -DskipTests          # aggregate cần jar liên module
+./mvnw -P security dependency-check:aggregate
+```
+
+Plugin khai `inherited=false` để module con không tự chạy lại. Kiểm chứng: log chỉ có **một** dòng
+`--- dependency-check:12.1.3:aggregate (default-cli) @ songnhue-backend ---`.
+
+> Bài học chung, không riêng gì OWASP: **một phép kiểm dừng ở lỗi đầu tiên thì số lượt lặp bằng số
+> lỗi, và mỗi lượt lại giấu đi phần còn lại.** Với phép kiểm chạy 20 phút và có người ngồi đợi, đó là
+> khác biệt giữa "sửa một lần" và "sửa năm lần mà vẫn không biết còn bao nhiêu".
 
 Lượt quét thật đầu tiên (`gh run view 32145220978`) phơi ra một lỗi trong chính cách viết ở §3.3.
 CSDL NVD dựng mất **26 phút** rồi **không được lưu**: `gh api repos/.../actions/caches` không có mục
