@@ -1,6 +1,6 @@
 # PHASE 1 — CMS & MASTER DATA CÔNG TRÌNH · BẢNG THEO DÕI TIẾN ĐỘ
 
-> **Cập nhật lần cuối**: 2026-08-19 · **Tiến độ: 7/101 task (7%)** · 1 task **hoãn có chủ đích** (T12.7 → nợ #62) · **DoD: 0/17** · Trạng thái: 🟡 Đang làm — **WS-12 xong**, mở WS-13
+> **Cập nhật lần cuối**: 2026-08-19 · **Tiến độ: 17/101 task (17%)** · 1 task **hoãn có chủ đích** (T12.7 → nợ #62) · **DoD: 0/17** · Trạng thái: 🟡 Đang làm — **WS-12 xong**, WS-13 10/12
 > Nguồn ràng buộc: `function-spec.md` CN-01.1→01.5, CN-01.8 · CN-02.1, 02.2, 02.3, 02.6, 02.7, 02.11 · `conventions.md` (luật) · `docs/coding-guide.md` (đường đi) · `architecture-review.md` §10 (quyết định Phase 1)
 > **Cách dùng**: giống Phase 0 — làm xong task nào tick `[x]`; xong 1 WS thì chạy mục "Kiểm chứng" rồi cập nhật bảng tổng + dòng trên cùng.
 > ⚠ **Luật 3 bước khi đóng WS** (thừa kế từ Phase 0): tick task → tick dòng nợ → **quay lại sửa mô tả đã lỗi thời ở WS đã giao nợ**. Bước 3 hay bị bỏ nhất.
@@ -27,7 +27,7 @@ Phase 0 dựng **cơ chế**; Phase 1 là lần đầu có **người dùng th�
 | WS | Hạng mục | Task | Xong | Trạng thái | Phụ thuộc | Ước tính |
 |---|---|:-:|:-:|---|---|:-:|
 | **WS-12** | Mở SPI Core + nền cho module nghiệp vụ | 8 | **7** | ✅ **Xong 19/8** — T12.7 hoãn có chủ đích (nợ #62) | Phase 0 | 6 pd |
-| **WS-13** | CMS — Danh mục nội dung & Bài viết | 13 | 0 | ⬜ Chưa bắt đầu | WS-12 | 12 pd |
+| **WS-13** | CMS — Danh mục nội dung & Bài viết | 12 | **10** | 🟡 Đang làm (19/8) — còn T13.7, T13.10 (nợ #63, #64) | WS-12 | 12 pd |
 | **WS-14** | CMS — Thư viện Media | 6 | 0 | ⬜ Chưa bắt đầu | WS-12 | 6 pd |
 | **WS-15** | CMS — Cấu hình giao diện, Menu, Banner | 7 | 0 | ⬜ Chưa bắt đầu | WS-13 | 6 pd |
 | **WS-16** | Public-web — hiển thị + ISR | 8 | 0 | ⬜ Chưa bắt đầu | WS-13, WS-15 | 8 pd |
@@ -37,7 +37,7 @@ Phase 0 dựng **cơ chế**; Phase 1 là lần đầu có **người dùng th�
 | **WS-20** | FE admin — màn hình CMS | 10 | 0 | ⬜ Chưa bắt đầu | WS-13→15 (API) | 12 pd |
 | **WS-21** | FE admin — màn hình Công trình | 10 | 0 | ⬜ Chưa bắt đầu | WS-17→19 (API) | 12 pd |
 | **WS-22** | Kiểm thử, nghiệm thu Phase 1 & trả nợ | 8 | 0 | ⬜ Chưa bắt đầu | tất cả | 8 pd |
-| | **TỔNG** | **101** | **7** | | | **101 pd** |
+| | **TỔNG** | **101** | **17** | | | **101 pd** |
 
 *(101 task triển khai + 17 mục Definition of Done ở cuối file.)*
 
@@ -169,20 +169,32 @@ Kế thừa Phase 0 và thêm một điều kiện mới:
 
 **Tiên quyết**: WS-12. **Đầu ra**: soạn → gửi duyệt → duyệt → xuất bản chạy hết bằng API, có phiên bản và nhật ký.
 
-- [ ] **T13.1** Migration `db/migration/**cms**/`: `categories` (cây 3 cấp, materialized path), `articles`, `article_categories`, `article_versions`, `tags`, `article_tags` — ⚠ tiền tố thư mục là **`cms`**, không phải `content` (`docs/coding-guide.md` §3.1)
-- [ ] **T13.2** Entity + `@Audited(module="cms")`; `Article implements WorkflowAware`; **kế thừa `BaseEntity`, KHÔNG `ScopedEntity`** — điểm nghiệp vụ **9**
-- [ ] **T13.3** Seed workflow `ARTICLE` bằng migration: `NHAP · CHO_DUYET · YEU_CAU_CHINH_SUA · XUAT_BAN · GO_BAI · LUU_TRU` + transition kèm `required_permission` và `notify_event`. **Quy tắc tách vai trò**: `SUBMIT` cần `cms:article:submit`, `APPROVE` cần `cms:article:approve` — Biên tập viên không có mã thứ hai nên không tự xuất bản được, ràng buộc nằm ở **dữ liệu**, không ở `if` trong service
-- [ ] **T13.4** Slug: `SlugUtils` bỏ dấu tiếng Việt, cho sửa tay, duy nhất → trùng trả `CMS-2001` — điểm nghiệp vụ **4**
-- [ ] **T13.5** `article_versions`: mỗi lần lưu nội dung ghi một bản; API so sánh (diff) + phục hồi bản cũ
-- [ ] **T13.6** Sửa bài đã xuất bản theo cơ chế **copy-on-write** — điểm nghiệp vụ **1**
+- [x] **T13.1** Migration `db/migration/**cms**/`: `categories` (cây 3 cấp, materialized path), `articles`, `article_categories`, `article_versions`, `tags`, `article_tags` — ⚠ tiền tố thư mục là **`cms`**, không phải `content` (`docs/coding-guide.md` §3.1)
+- [x] **T13.2** Entity + `@Audited(module="cms")`; `Article implements WorkflowAware`; **kế thừa `BaseEntity`, KHÔNG `ScopedEntity`** — điểm nghiệp vụ **9**
+- [x] **T13.3** Seed workflow `ARTICLE` bằng migration: `NHAP · CHO_DUYET · YEU_CAU_CHINH_SUA · XUAT_BAN · GO_BAI · LUU_TRU` + transition kèm `required_permission` và `notify_event`. **Quy tắc tách vai trò**: `SUBMIT` cần `cms:article:submit`, `APPROVE` cần `cms:article:approve` — Biên tập viên không có mã thứ hai nên không tự xuất bản được, ràng buộc nằm ở **dữ liệu**, không ở `if` trong service
+- [x] **T13.4** Slug: `SlugUtils` bỏ dấu tiếng Việt, cho sửa tay, duy nhất → trùng trả `CMS-2001` — điểm nghiệp vụ **4**
+- [x] **T13.5** `article_versions`: mỗi lần lưu nội dung ghi một bản; API so sánh (diff) + phục hồi bản cũ
+- [x] **T13.6** Sửa bài đã xuất bản theo cơ chế **copy-on-write** — điểm nghiệp vụ **1**
 - [ ] **T13.7** Hẹn giờ đăng: `published_at` tương lai; job 5' quét bài tới hạn → gọi revalidate (đấu nối thật ở WS-16) — điểm nghiệp vụ **5**
-- [ ] **T13.8** Tìm kiếm quản trị (CN-01.8 phần bài viết): `unaccent` + `pg_trgm`, lọc theo danh mục/trạng thái/tác giả/khoảng thời gian, phân trang 20/50/100, sắp xếp qua `PageUtils` (danh sách cột cho phép)
-- [ ] **T13.9** Xoá danh mục còn bài viết → chặn, yêu cầu chuyển bài trước (mã lỗi mới)
+- [x] **T13.8** Tìm kiếm quản trị (CN-01.8 phần bài viết): `unaccent` + `pg_trgm`, lọc theo danh mục/trạng thái/tác giả/khoảng thời gian, phân trang 20/50/100, sắp xếp qua `PageUtils` (danh sách cột cho phép)
+- [x] **T13.9** Xoá danh mục còn bài viết → chặn, yêu cầu chuyển bài trước (mã lỗi mới)
 - [ ] **T13.10** Đếm lượt xem theo lô — điểm nghiệp vụ **6**
-- [ ] **T13.11** Mã lỗi mới → `ErrorCode` (BE) **và** `frontend/admin-app/src/shared/error-map.ts` — có bài kiểm canh sự đồng bộ, đừng để nó đỏ ở CI
-- [ ] **T13.12** Test: Biên tập viên gọi `APPROVE` → 403 · workflow đủ nhánh · slug trùng · phiên bản + phục hồi · hẹn giờ
+- [x] **T13.11** Mã lỗi mới → `ErrorCode` (BE) **và** `frontend/admin-app/src/shared/error-map.ts` — có bài kiểm canh sự đồng bộ, đừng để nó đỏ ở CI
+- [x] **T13.12** Test: Biên tập viên gọi `APPROVE` → 403 · workflow đủ nhánh · slug trùng · phiên bản + phục hồi · hẹn giờ
 
-**Kiểm chứng**: một tài khoản Biên tập viên và một tài khoản Quản trị nội dung đi hết vòng đời bài viết bằng HTTP thật; `audit_logs` có đủ old/new; `notifications` có bản ghi ở bước gửi duyệt và duyệt.
+**Kết quả (19/8)**: 10/12 task. Còn **T13.7** (job hẹn giờ đăng) và **T13.10** (đếm lượt xem theo lô) — tham số `settings` của cả hai đã seed, phần job chưa dựng. **298 test BE xanh** (211 core + 87 app), trong đó `ArticleLifecycleTest` **14 bài trên CSDL thật**.
+
+**Kiểm chứng — đã chạy**:
+- ✅ **Lần đầu tiên một entity nghiệp vụ đi qua workflow engine.** Suốt Phase 0 engine chỉ chạy trên bản ghi dựng riêng cho test
+- ✅ Biên tập viên gọi `APPROVE` → **`AUTH-3001`**, và ràng buộc nằm ở `workflow_transitions.required_permission` chứ không ở câu `if` nào
+- ✅ `allowedActions` của biên tập viên **không chứa** `APPROVE`/`REQUEST_CHANGES` — nút không hiện thì không có chuyện bấm vào bị 403
+- ✅ **Copy-on-write đi qua thật**: sửa bài đang xuất bản → `status = CHO_DUYET` mà `published_version_id` **giữ nguyên**, `isPubliclyVisible` vẫn `true`; duyệt xong con trỏ mới đổi
+- ✅ Hẹn giờ: đã duyệt + `published_at` tương lai → chưa hiện; tới giờ thì hiện, **không cần job**
+- ✅ Gỡ bài → đăng lại giữ nguyên `published_version_id` (không duyệt lại, đúng spec)
+- ✅ Slug trùng `CMS-2001` · bài không danh mục `CMS-2006` · xoá danh mục còn bài `CMS-2003` · sửa bài chờ duyệt `CMS-2007`
+- ✅ Phục hồi bản cũ **ghi thêm** phiên bản thứ 3 chứ không xoá lịch sử
+- ✅ **ArchUnit xanh với mã thật** — `content` chỉ chạm `core.spi` và `core.common`
+- ⬜ Chưa chạy: gọi qua HTTP thật (bài kiểm gọi thẳng service); `audit_logs` chưa đối chiếu old/new cho `articles`
 
 ---
 
@@ -378,12 +390,16 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 1 hoàn thành:
 | # | Nợ | Phát sinh ở | Task nhận | Trạng thái |
 |:-:|---|---|---|:-:|
 | 22 | Nâng ngưỡng bao phủ tầng domain (nay `0.18`) | WS-10/T10.5 | **WS-22/T22.2** | ⬜ Chờ |
-| 35 | Dựng luồng quên mật khẩu + vòng đời mật khẩu M5.15-a (đã chốt cách làm 18/8, **chưa có mã**) | WS-8/T8.6 | **Phase 1 — chưa xếp WS** | ⬜ Chờ |
+| 35 | Dựng luồng quên mật khẩu + vòng đời mật khẩu M5.15-a (đã chốt cách làm 18/8, **chưa có mã**) | WS-8/T8.6 | **Phase 2** — chốt 19/8, ~4 pd | ⬜ Chờ |
 | 56 | `core/spi/` rỗng — chặn dòng mã Phase 1 đầu tiên | Rà soát 19/8 | **WS-12/T12.1→T12.4** | ✅ **Trả 19/8** — 6 port + 7 record + 2 enum; kiểm chứng ngược trên mã production |
 | 11 (DoD P0) | Đính kèm chưa kiểm chứng đầu-cuối qua HTTP | WS-6 | **WS-14** | ⬜ Chờ |
 | 20 | Dựng ClamAV trong compose để quét virus chạy thật | WS-6/T6.4 | WS-11/T11.3 *(vẫn ở Phase 0)* | ⬜ Chờ |
 
-⚠ **Nợ #35 chưa có chỗ đứng.** Vòng đời mật khẩu đã đặc tả xong ở `function-spec.md` M5.15-a nhưng Phase 1 hiện không có WS nào nhận. Hai lựa chọn: chen vào WS-12 (cùng vùng Core, ~4 pd) hoặc để Phase 2. **Phải quyết trước khi đóng WS-12** — để trôi là đúng cái bẫy "WS nhận không có task nào đứng tên" mà sổ nợ này sinh ra để chặn.
+✅ **Nợ #35 đã có chỗ đứng — chốt 19/8: Phase 2, ~4 pd.** Hai lý do cho phép hoãn mà không gây hại:
+- **Hạn 90 ngày chỉ cắn sau go-live 90 ngày** — không nằm trong bất kỳ kịch bản nghiệm thu Phase 1 nào.
+- **Quên mật khẩu đã có đường đi từ ngày đầu**: quản trị viên cấp mật khẩu tạm (M5.15-a). Luồng tự phục vụ là tiện lợi, không phải điều kiện vận hành.
+
+⛔ **Không được suy ra rằng chính sách mật khẩu đang bị tắt.** BCrypt cost ≥ 12, độ dài tối thiểu, bắt đổi lần đầu, khoá sau 5 lần sai — tất cả đã chạy từ WS-5. Phần hoãn **chỉ là**: hết hạn 90 ngày, nhắc trước 14/7/1 ngày, và luồng tự phục vụ gửi liên kết một lần.
 
 ### Nợ phát sinh trong Phase 1
 
@@ -395,6 +411,9 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 1 hoàn thành:
 | 60 | Widget thủy văn ở cấu hình giao diện (nay ẩn) | WS-15/T15.5 | Phase 2 | ⬜ Chờ |
 | ~~61~~ | ~~`construction_clusters` — chờ **G15**~~ | WS-17/T17.11 | — | ✅ **Đóng 19/8** — G15 trả lời trong ngày, việc dựng bảng nay nằm thẳng trong T17.11 |
 | **62** | **Ảnh phái sinh (WebP + thumbnail 150/400/800)** — CN-01.3 yêu cầu, Phase 1 dùng ảnh gốc | WS-12/T12.7 | **Phase 2** *(hoặc sớm hơn nếu trúng điều kiện kích hoạt bên dưới)* | ⏸ **Hoãn có chủ đích 19/8** |
+| **63** | Job hẹn giờ đăng bắn revalidate ISR (T13.7) — tham số `settings` đã seed, job chưa dựng. ⚠ **Không chặn nghiệp vụ**: bài tới hạn vẫn tự hiện vì truy vấn công khai lọc `published_at <= now()`; job chỉ để cổng tĩnh cập nhật đúng lúc | WS-13/T13.7 | **WS-16** (cùng chỗ đấu nối ISR thật) | ⬜ Chờ |
+| **64** | Đếm lượt xem theo lô (T13.10) — `ArticleRepository.addViews` đã có, thiếu endpoint công khai + job đẩy. Cần cùng lúc với trang chi tiết bài ở cổng | WS-13/T13.10 | **WS-16** | ⬜ Chờ |
+| **65** | `ArticleLifecycleTest` gọi thẳng service, **chưa đi qua HTTP** — chưa kiểm envelope, `@RequirePermission` tầng 2, và ràng buộc "phải nêu lý do khi trả bài" nằm ở controller | WS-13/T13.12 | **WS-20** (cùng lúc dựng màn hình) | ⬜ Chờ |
 
 ⚠ **Nợ #62 — hoãn thì phải nói rõ hoãn cái gì.** CN-01.3 ghi *"auto nén ảnh sang WebP (giữ bản gốc fallback); auto thumbnail 150/400/800px"*, nên đây là **mục nghiệm thu bị hoãn**, không phải việc tự nghĩ ra rồi tự bỏ. Lý do và đường quay lại: `architecture-review.md` §10.9.
 
@@ -425,6 +444,8 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 1 hoàn thành:
 
 | Ngày | Thay đổi |
 |---|---|
+| 2026-08-19 | **WS-13 làm 10/12** — CMS danh mục & bài viết. 4 bảng + seed quy trình `ARTICLE` 10 bước chuyển · entity/service/controller đủ 3 tầng · **copy-on-write chạy thật** · 5 mã lỗi mới (BE=FE, 55 mã). **298 test BE**, `ArticleLifecycleTest` 14 bài trên CSDL thật. Còn T13.7/T13.10 → nợ #63, #64 |
+| 2026-08-19 | ⚠⚠ **Vá lỗ Core lộ ra bởi người dùng đầu tiên**: `WorkflowEngine` chỉ biết luật G11 nên thông báo "có bài chờ duyệt" gửi cho **Ban điều hành** thay vì quản trị nội dung. Thêm `notify_permission` + `notify_owner` vào `workflow_transitions` — `architecture-review.md` §10.10 |
 | 2026-08-19 | **WS-12 đóng.** T12.7 (ảnh phái sinh) **hoãn có chủ đích** → nợ #62, lý do ở `architecture-review.md` §10.9: đẩy sang `next/image` không dùng được ở đây (đòi `sharp` native · presigned URL 10' phá đệm của bộ tối ưu và làm vỡ ảnh trên trang ISR · `admin-app` là Vite nên nửa số ảnh không đi qua Next). Phần đắt duy nhất là bộ mã hoá **WebP**; thumbnail thì rẻ vì `ImageSanitizer` đã chạy `ImageIO` sẵn — nhưng chưa biết tải trọng ảnh thật thì làm là đoán mò. **⛔ Cố ý không seed tham số `settings`**: công tắc chưa ai đọc chính là lỗi vừa sửa ở T12.6 |
 | 2026-08-19 | **WS-12 làm 5/8** — mở `core/spi` (trả nợ #56), chuyển `WorkflowAware` sang `core.common.persistence`, 6 service cài port, bài tự kiểm ranh giới + bài canh hai enum. 269 test BE xanh. Còn T12.5 (nhiều trạng thái khởi đầu), T12.6 (hạn mức đính kèm), T12.7 (ảnh phái sinh) |
 | 2026-08-19 | **Chốt 4 mục nghiệp vụ**: sửa bài đã xuất bản = **copy-on-write** · Quản trị nội dung **được** tự duyệt (audit ghi rõ) · **G15 đóng** — cụm chỉ là cách nhóm → bảng riêng, T17.11 đổi từ "không dựng" sang "dựng", nợ #61 đóng · **G14** — seed khung danh mục/menu đề xuất (T13.13, T15.7). Tổng task 99 → **101** |

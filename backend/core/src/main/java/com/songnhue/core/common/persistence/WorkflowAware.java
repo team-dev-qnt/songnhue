@@ -40,4 +40,19 @@ public interface WorkflowAware {
     default Long orgUnitId() {
         return null;
     }
+
+    /**
+     * Chủ bản ghi — tác giả bài viết, người lập phiếu. Có thể null.
+     *
+     * <p>Đây là người nhận của <b>chiều phản hồi</b>: duyệt xong hay trả về sửa thì người cần biết
+     * là người đã gửi lên. Bước chuyển nào cần báo cho chủ bản ghi thì bật cột
+     * {@code workflow_transitions.notify_owner}.
+     *
+     * <p>⚠ Không dùng {@code createdBy} thay cho hàm này: người tạo bản ghi và người chịu trách
+     * nhiệm về nó không phải lúc nào cũng là một. Bài viết cho đổi tác giả ngay trên biểu mẫu
+     * (CN-01.1), và khi đó thư "bài của bạn bị trả về" phải tới tác giả mới.
+     */
+    default Long ownerUserId() {
+        return null;
+    }
 }

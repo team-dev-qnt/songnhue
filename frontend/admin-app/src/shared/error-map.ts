@@ -1,5 +1,5 @@
 /**
- * Bản sao danh mục mã lỗi của backend (conventions.md §2.3) — **49 mã**, tính đến hết WS-7.
+ * Bản sao danh mục mã lỗi của backend (conventions.md §2.3) — **55 mã**, tính đến hết WS-13.
  *
  * <h3>Vì sao FE cần bản sao, khi API đã trả sẵn câu tiếng Việt</h3>
  *
@@ -150,6 +150,31 @@ export const ERROR_CATALOG = {
   'CMS-2001': { message: 'Slug đã tồn tại', handling: 'form', severity: 'warning' },
   'CMS-2002': {
     message: 'Chưa liên kết mã số hệ thống văn bản điều hành',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'CMS-2003': {
+    message: 'Danh mục còn bài viết — chuyển bài sang danh mục khác trước khi xoá',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'CMS-2004': {
+    message: 'Danh mục còn danh mục con — xoá hoặc chuyển các danh mục con trước',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'CMS-2005': {
+    message: 'Cây danh mục chỉ được sâu tối đa 3 cấp',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'CMS-2006': {
+    message: 'Bài viết phải thuộc ít nhất một danh mục',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'CMS-2007': {
+    message: 'Bài đang chờ duyệt nên không sửa được',
     handling: 'toast',
     severity: 'warning',
   },

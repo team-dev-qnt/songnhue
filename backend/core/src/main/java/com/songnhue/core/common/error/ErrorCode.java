@@ -63,6 +63,16 @@ public enum ErrorCode {
     // ---- MOD-01 Cổng thông tin điện tử -----------------------------------------
     CMS_2001("CMS-2001", HttpStatus.UNPROCESSABLE_ENTITY),
     CMS_2002("CMS-2002", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Xoá danh mục còn bài viết — CN-01.2 bắt chuyển bài đi trước. */
+    CMS_2003("CMS-2003", HttpStatus.CONFLICT),
+    /** Xoá danh mục còn danh mục con. */
+    CMS_2004("CMS-2004", HttpStatus.CONFLICT),
+    /** Cây danh mục vượt quá 3 cấp. */
+    CMS_2005("CMS-2005", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Bài viết phải thuộc ít nhất một danh mục. */
+    CMS_2006("CMS-2006", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Sửa nội dung khi bài đang chờ duyệt — CN-01.1 khoá chỉnh sửa ở trạng thái này. */
+    CMS_2007("CMS-2007", HttpStatus.CONFLICT),
     CMS_5001("CMS-5001", HttpStatus.BAD_GATEWAY),
 
     // ---- MOD-02 Vận hành công trình --------------------------------------------

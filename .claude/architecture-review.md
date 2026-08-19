@@ -994,3 +994,68 @@ Tham số chỉ xuất hiện **cùng lúc** với mã đọc nó.
 người dùng đó thường ngồi ngoài trạm bơm bằng 4G. Giảm nhẹ trong Phase 1 bằng thứ không tốn gì:
 `loading="lazy"` + khung CSS cố định ở mọi lưới ảnh (T14.4, WS-21) — chỉ tải phần đang nhìn. Đây là
 giảm nhẹ, **không phải lời giải**; lời giải là nợ #62.
+
+---
+
+### §10.10. Người nhận thông báo của quy trình duyệt khai bằng dữ liệu (19/8/2026)
+
+**Phát hiện khi bài viết trở thành entity đầu tiên đi qua workflow engine.** `WorkflowEngine`
+(WS-6) truyền `entity.orgUnitId()` cho `RecipientResolver`, mà resolver đó **luôn cộng thêm nhóm
+"Ban điều hành"** — đúng luật chốt G11, vì nó sinh ra cho **cảnh báo vận hành công trình**.
+
+Áp lên bài viết thì sai cả hai đầu: `articles` không thuộc phạm vi đơn vị (điểm nghiệp vụ 9) nên
+`orgUnitId()` trả `null`; và người nhận còn lại hoá ra là ban lãnh đạo Công ty, trong khi CN-01.1
+ghi rõ phải báo cho **Quản trị nội dung**. Nghĩa là cơ chế `notify_event` của WS-6 **chưa từng dùng
+được cho một quy trình duyệt nào** — nó xanh suốt Phase 0 vì chưa có quy trình duyệt nào tồn tại.
+
+**Chốt: thêm hai cột vào `workflow_transitions`**, giữ nguyên triết lý "quy trình khai bằng dữ liệu":
+
+| Cột | Nghĩa |
+|---|---|
+| `required_permission` | *(đã có)* ai **được bấm** |
+| `notify_permission` | ai **cần biết** — mọi tài khoản đang hoạt động có quyền này |
+| `notify_owner` | báo cho **chủ bản ghi** (`WorkflowAware.ownerUserId()`) |
+
+Hai khái niệm đầu rời hẳn nhau ở bước gửi duyệt: người bấm là biên tập viên, người cần biết là quản
+trị nội dung.
+
+**⚠ Khi có `notify_permission`, nhóm Ban điều hành bị THAY THẾ chứ không cộng dồn.** Đây là điểm dễ
+làm sai nhất. Hai bài toán ngược nhau:
+
+- **Cảnh báo vận hành** — hệ thống *đoán* ai nên biết; không ai "sở hữu" một mực nước vượt ngưỡng.
+- **Quy trình duyệt** — nơi gọi *biết chính xác*: người có quyền duyệt, và người đã gửi lên.
+
+Cộng thêm Ban điều hành vào nhánh thứ hai nghĩa là mỗi lần biên tập viên bấm "Gửi duyệt" thì cả ban
+lãnh đạo nhận một email. Vài tuần sau là không ai đọc thông báo nữa — **và lúc đó cảnh báo sự cố
+thật chết theo**. Đó mới là thiệt hại, không phải chuyện hộp thư đầy.
+
+⛔ **`ownerUserId()` không được lấy từ `createdBy`.** Biểu mẫu bài viết cho đổi tác giả (CN-01.1), và
+khi đó thư "bài của bạn bị trả về" phải tới tác giả hiện tại, không tới người bấm Tạo mới từ tháng
+trước.
+
+Ràng buộc CHECK ở CSDL chặn khai `notify_permission`/`notify_owner` mà quên `notify_event` — engine
+kiểm `notify_event` trước tiên, nên thiếu nó là thông báo **không bao giờ được sinh ra**, im lặng.
+
+---
+
+### §10.11. Hàm bỏ dấu tiếng Việt đặt ở Core, và phải khai kiểu cho Hibernate (19/8/2026)
+
+Tìm kiếm không dấu ("de dieu" ra "đê điều") cần một hàm SQL trong biểu thức chỉ mục. Hai cái bẫy đi
+liền nhau, cả hai đều chỉ lộ ra lúc chạy thật:
+
+1. **`unaccent(text)` một tham số KHÔNG phải IMMUTABLE** — nó tra từ điển lúc chạy, nên Postgres từ
+   chối đưa vào chỉ mục. Phải bọc bản hai tham số `unaccent(regdictionary, text)`.
+2. **HQL không đoán được kiểu trả về của hàm tự định nghĩa** — Hibernate 6 coi kết quả là `Object`
+   và câu nào so sánh chuỗi sẽ chết với *"Operand of 'like' is of type 'java.lang.Object'"*. Phải
+   khai qua `FunctionContributor` (`CoreFunctionContributor`), nạp bằng `ServiceLoader`.
+
+Điểm đáng mừng: lỗi (2) nổ **lúc dựng bean** chứ không lúc chạy truy vấn, vì Spring Data biên dịch
+mọi `@Query` khi tạo repository. Không bản build nào lên được với câu truy vấn hỏng. Cái giá là
+thông báo hiện ra dưới dạng "không tạo được bean", rất dễ đọc nhầm thành lỗi cấu hình Spring.
+
+**Chốt: hàm tên `sn_khong_dau`, tạo ở migration của `core`, số hiệu nhỏ hơn mọi migration dùng nó.**
+Đặt ở `core` vì tìm kiếm bỏ dấu là nhu cầu của mọi module, và vì `CoreFunctionContributor` không
+được phụ thuộc vào migration của module con.
+
+⚠ **Flyway sắp thứ tự theo số hiệu trên TOÀN BỘ các thư mục**, nên `cms` bắt đầu từ 1016 là có chủ ý
+— không phải khoảng trống bỏ quên.

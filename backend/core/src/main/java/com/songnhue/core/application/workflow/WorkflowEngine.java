@@ -221,6 +221,13 @@ public class WorkflowEngine implements WorkflowPort {
     private void notifyAfterTransition(
             WorkflowAware entity, WorkflowDefinition definition, WorkflowTransition transition, String title) {
 
+        // ⚠ Người nhận khai bằng DỮ LIỆU, cùng chỗ với luật chuyển trạng thái. Ba nguồn, và chúng
+        //   loại trừ nhau chứ không cộng dồn tuỳ tiện — xem RecipientResolver.
+        //   Bỏ trống cả hai cột notify_* thì rơi về luật G11 cũ (cảnh báo vận hành công trình).
+        List<Long> owner = transition.isNotifyOwner() && entity.ownerUserId() != null
+                ? List.of(entity.ownerUserId())
+                : List.<Long>of();
+
         notifications.notify(new NotificationRequest(
                 transition.getNotifyEvent(),
                 title != null ? title : definition.getName() + " — " + transition.getLabel(),
@@ -231,7 +238,8 @@ public class WorkflowEngine implements WorkflowPort {
                 definition.getEntityType(),
                 entity.entityId(),
                 entity.orgUnitId() == null ? List.of() : List.of(entity.orgUnitId()),
-                List.of(),
+                owner,
+                transition.getNotifyPermission(),
                 List.of(NotificationChannel.IN_APP, NotificationChannel.EMAIL)));
     }
 }
