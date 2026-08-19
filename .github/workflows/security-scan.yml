@@ -124,18 +124,33 @@ jobs:
           path: ${{ github.workspace }}/.dc-data
           key: dc-data-${{ runner.os }}-${{ github.run_id }}
 
-      # Bỏ qua sớm và nói rõ vẫn hơn là chạy 30 phút rồi chết — một job treo
-      # lâu thì người ta thôi không đọc nó nữa.
+      # `aggregate` cần jar của các module anh em để giải phụ thuộc liên module,
+      # nên phải dựng trước. Bỏ test vì test đã chạy ở `ci.yml`.
+      - name: Dựng jar mọi module
+        if: steps.nvd.outputs.co_khoa == 'true'
+        working-directory: backend
+        run: ./mvnw -B -ntp -P security package -DskipTests
+
+      # ⚠⚠ `aggregate`, KHÔNG phải `check` (đổi 18/8).
       #
-      # `-o` (offline với NVD): CSDL đã dựng ở bước trên, không để bước này
-      # chạm mạng NVD lần nữa.
-      - name: OWASP Dependency-Check (fail ở CVSS ≥ 7)
+      #   `check` chạy riêng từng module và Maven dừng reactor ở module đầu tiên
+      #   hỏng — năm module còn lại in `SKIPPED`, tức **chưa từng được quét**.
+      #   Bốn lượt quét liên tiếp chỉ soi đúng module `core`; `app` mãi tới lượt
+      #   thứ năm mới lộ ra CVE-2026-54291. Người sửa tưởng đang đập chuột chũi,
+      #   thực chất chưa bao giờ nhìn thấy toàn cảnh.
+      #
+      #   `aggregate` soi gốc + mọi module con trong MỘT lượt rồi áp ngưỡng một
+      #   lần → một danh sách đầy đủ, một báo cáo, và số lần lặp = số lần thật sự
+      #   cần sửa.
+      #
+      # `-DautoUpdate=false`: CSDL đã dựng ở bước trên, không chạm mạng NVD lần nữa.
+      - name: OWASP Dependency-Check — toàn bộ module (fail ở CVSS ≥ 7)
         if: steps.nvd.outputs.co_khoa == 'true'
         working-directory: backend
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: |
-          ./mvnw -B -ntp -P security verify -DskipTests \
+          ./mvnw -B -ntp -P security dependency-check:aggregate \
             -Ddependency-check.data="${{ github.workspace }}/.dc-data" \
             -DautoUpdate=false
 
@@ -144,9 +159,17 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dependency-check-report
-          path: backend/**/target/dependency-check-report.*
+          # `aggregate` ghi MỘT báo cáo ở `backend/target/`, khác `check` (mỗi
+          # module một báo cáo ở `backend/<module>/target/`). Khai cả hai đường
+          # dẫn tường minh thay vì trông vào việc `**` có khớp zero thư mục hay
+          # không — báo cáo CVE là thứ duy nhất đọc được sau khi job đỏ.
+          path: |
+            backend/target/dependency-check-report.*
+            backend/*/target/dependency-check-report.*
           retention-days: 14
-          if-no-files-found: ignore
+          # ⚠ `ignore` là sai chỗ này: glob trượt thì artifact lặng lẽ không có,
+          # và người ta chỉ phát hiện lúc cần đọc báo cáo nhất. `warn` để nó nói.
+          if-no-files-found: warn
 
   npm:
     name: npm audit
