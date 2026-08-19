@@ -1,6 +1,6 @@
 # PHASE 1 — CMS & MASTER DATA CÔNG TRÌNH · BẢNG THEO DÕI TIẾN ĐỘ
 
-> **Cập nhật lần cuối**: 2026-08-19 · **Tiến độ: 31/102 task (30%)** · 1 task **hoãn có chủ đích** (T12.7 → nợ #62) · **DoD: 0/17** · Trạng thái: 🟡 Đang làm — WS-12 ✅, WS-13 11/13, WS-14 ✅, **WS-15 ✅**
+> **Cập nhật lần cuối**: 2026-08-19 · **Tiến độ: 31/101 task (31%)** · 1 task **hoãn có chủ đích** (T12.7 → nợ #62) · **DoD: 0/17** · Trạng thái: 🟡 Đang làm — WS-12 ✅, WS-13 11/13, WS-14 ✅, **WS-15 ✅**
 > Nguồn ràng buộc: `function-spec.md` CN-01.1→01.5, CN-01.8 · CN-02.1, 02.2, 02.3, 02.6, 02.7, 02.11 · `conventions.md` (luật) · `docs/coding-guide.md` (đường đi) · `architecture-review.md` §10 (quyết định Phase 1)
 > **Cách dùng**: giống Phase 0 — làm xong task nào tick `[x]`; xong 1 WS thì chạy mục "Kiểm chứng" rồi cập nhật bảng tổng + dòng trên cùng.
 > ⚠ **Luật 3 bước khi đóng WS** (thừa kế từ Phase 0): tick task → tick dòng nợ → **quay lại sửa mô tả đã lỗi thời ở WS đã giao nợ**. Bước 3 hay bị bỏ nhất.
@@ -37,7 +37,7 @@ Phase 0 dựng **cơ chế**; Phase 1 là lần đầu có **người dùng th�
 | **WS-20** | FE admin — màn hình CMS | 10 | 0 | ⬜ Chưa bắt đầu | WS-13→15 (API) | 12 pd |
 | **WS-21** | FE admin — màn hình Công trình | 10 | 0 | ⬜ Chưa bắt đầu | WS-17→19 (API) | 12 pd |
 | **WS-22** | Kiểm thử, nghiệm thu Phase 1 & trả nợ | 8 | 0 | ⬜ Chưa bắt đầu | tất cả | 8 pd |
-| | **TỔNG** | **102** | **31** | | | **101 pd** |
+| | **TỔNG** | **101** | **31** | | | **101 pd** |
 
 *(101 task triển khai + 17 mục Definition of Done ở cuối file.)*
 
@@ -469,6 +469,7 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 1 hoàn thành:
 
 | Ngày | Thay đổi |
 |---|---|
+| 2026-08-19 | ⚠ **Sửa một sai số của chính bảng này**: header ghi 101 task trong khi chỉ liệt kê **100** — T13.13 được chốt ngày lập kế hoạch nhưng không ai viết nó vào danh sách WS-13. Nay có mặt, tổng khớp lại **101** |
 | 2026-08-19 | **WS-15 xong** — cấu hình giao diện, menu, banner. ⭐⭐ **SVG lần đầu đi qua đường tải lên thật**: `FileValidator.detect()` trả `null` cho mọi SVG (không có magic bytes) nên `SvgSanitizer` dựng ở WS-14 **chưa bao giờ được gọi** — nay có phép đoán SVG + nhánh khử trùng đặt ở tầng đính kèm. Cấu hình để ở `settings` nhóm `SITE` (không bảng riêng) + `SettingAdminPort` **ghi theo nhóm** · bộ nhớ đệm dọn bằng **sự kiện** để phủ cả hai màn hình sửa · khoá ngoại ghép `(parent_id, position)` bắt cây menu đúng ở CSDL · seed khung danh mục/menu/4 trang tĩnh (G14). 5 mã lỗi mới (**62 mã**). **340 test BE** + 24 FE |
 | 2026-08-19 | ⚠ **Hai lỗi của chính bộ kiểm thử, lộ ra khi có dữ liệu seed**: (1) `DELETE FROM categories` của các bài kiểm cũ vi phạm khoá ngoại từ `menu_items`; (2) mốc "dòng do bài kiểm tạo" đặt theo `created_by IS NOT NULL` **không chạy** vì `AuditorAwareImpl` đọc `AuditContext` chứ không đọc `AuthContext` — test chỉ đặt cái thứ hai, nên mọi dòng đều `created_by = NULL` và phép dọn không xoá gì. Gom về `CmsFixtures`, phân biệt bằng **mốc id**. Lỗi (2) mở nợ **#66** |
 | 2026-08-19 | **WS-14 xong** — thư viện media. ⭐⭐ **MinIO thật trong test tích hợp** (`SongnhueMinio`): từ WS-6 tới hết Phase 0 kho lưu trữ là địa chỉ giả `minio.invalid`, nên **chưa một lượt tải tệp nào đi tới nơi** dù test vẫn xanh → **đóng DoD #11**. Thêm `SvgSanitizer` (9 bài kiểm) · chữ ký MP4/WebM · nhóm dung lượng `video` 500MB · 2 mã lỗi (57 mã). **319 test BE** |
