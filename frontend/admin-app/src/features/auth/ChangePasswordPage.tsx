@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useAuth } from '@/app/auth/useAuth';
-import { ApiClientError, api, clearTokens } from '@/shared/apiClient';
+import { ApiClientError, api } from '@/shared/apiClient';
 
 import { AuthShell } from './AuthShell';
 
@@ -27,7 +27,7 @@ interface ChangePasswordForm {
  * là mỗi lần Công ty siết chính sách lại phải phát hành bản FE mới.
  */
 export function ChangePasswordPage() {
-  const { user } = useAuth();
+  const { user, endSession } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -42,13 +42,23 @@ export function ChangePasswordPage() {
         currentPassword: values.currentPassword,
         newPassword: values.newPassword,
       });
-      clearTokens();
+      // ⚠⚠ Phải là `endSession()`, KHÔNG phải `clearTokens()`. Bản đầu gọi `clearTokens()`
+      // — chỉ xoá token trong `apiClient`, còn `status` vẫn `authenticated` và
+      // `user.mustChangePassword` vẫn `true`. Guard đọc đúng hai giá trị đó, nên lượt
+      // `navigate('/dang-nhap')` ngay bên dưới bị `RequireAnonymous` đẩy **ngược về đây**.
+      //
+      // Người dùng thấy biểu mẫu hiện lại y nguyên → tưởng thất bại → bấm gửi lần nữa →
+      // lần này backend trả **403 AUTH-0005**, vì đổi mật khẩu đã thu hồi phiên và xoá
+      // cookie CSRF. Nhật ký máy chủ ghi rõ trình tự: `change-password → 204` rồi hai lượt
+      // `change-password → 403`. Việc đã xong ngay từ lượt đầu; thứ hỏng chỉ là đường ra.
+      endSession();
       navigate('/dang-nhap', {
         replace: true,
         state: { notice: 'Đã đổi mật khẩu. Vui lòng đăng nhập lại.' },
       });
-      // Tải lại để dọn sạch mọi trạng thái đang giữ trong bộ nhớ của phiên vừa bị thu hồi.
-      navigate(0);
+      // ⛔ Cố ý KHÔNG gọi `navigate(0)` để tải lại trang. Nó là thứ che mất lỗi trên: khi
+      // hoạt động thì nó dọn hộ trạng thái, khi không thì không ai biết vì sao. `endSession()`
+      // đã dọn tường minh, và một lượt điều hướng tất định thì đọc ra được là đúng hay sai.
     } catch (caught) {
       setError(caught instanceof ApiClientError ? caught.message : 'Không đổi được mật khẩu');
     } finally {

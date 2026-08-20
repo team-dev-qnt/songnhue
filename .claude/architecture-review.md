@@ -1629,3 +1629,86 @@ thứ đã bị cấm sau vụ `articleContentCss.test.ts`. Nay bỏ dòng chú 
 `POST /public/articles/1/views` → **204** · `GET /public/categories` → **200** · 3 container
 `healthy`, `RestartCount 0` · và đường **khác** origin cũ (`OPTIONS` thẳng vào `:18080`) vẫn trả
 **403** — tức là bức tường CORS vẫn đứng nguyên, ta chỉ thôi tự đâm vào nó.
+
+---
+
+### §10.30. ⚠⚠ "Đổi mật khẩu bị 403" — việc đã xong từ lượt đầu, hỏng là đường ra (20/8/2026)
+
+Anh Quân thử luồng 2FA và báo `POST /auth/change-password` trả **403**. Nhật ký máy chủ kể đủ:
+
+```
+POST /auth/login            → 200
+POST /auth/2fa/enroll       → 200
+POST /auth/2fa/confirm      → 200
+GET  /auth/me               → 200
+POST /auth/change-password  → 204   ← thành công
+POST /auth/change-password  → 403   ← "header có, cookie thiếu"
+POST /auth/refresh          → 403
+POST /auth/change-password  → 403   ← "header thiếu, cookie thiếu"
+```
+
+CSDL xác nhận lượt đầu đã ăn: `must_change_password = false`, `password_changed_at` đúng giây của
+dòng 204, TOTP đã xác nhận. **Backend không hỏng một chỗ nào** — đổi mật khẩu thu hồi mọi phiên và
+xoá cookie CSRF là hành vi đã chốt ở §4.1.
+
+> ⭐ **Đọc log theo trình tự, đừng đọc theo mã lỗi.** Đi tìm nguyên nhân của "403 ở
+> change-password" là đi tìm một lỗi phân quyền không tồn tại. Dòng đáng chú ý nhất trong cả
+> đoạn là dòng **204**, và nó nằm *trước* thứ được báo là lỗi.
+
+**Lỗi thật ở giao diện, và nó nằm giữa hai tệp chứ không nằm trong tệp nào.** `ChangePasswordPage`
+gọi `clearTokens()` — hàm này chỉ xoá token trong `apiClient`. Còn `status` và `user` nằm ở
+`AuthProvider`, và **guard đọc đúng hai giá trị đó**. Nên lượt `navigate('/dang-nhap')` ngay sau đó
+bị `RequireAnonymous` thấy `status === 'authenticated'` + `mustChangePassword === true` và đẩy
+**ngược về đúng biểu mẫu vừa gửi**. Người dùng thấy form hiện lại y nguyên, kết luận là thất bại,
+bấm gửi lần nữa — và lần này phiên đã chết nên nhận 403.
+
+Đọc riêng `ChangePasswordPage` thì hợp lý; đọc riêng `guards.tsx` cũng hợp lý. Sai nằm ở **chỗ hai
+bên gặp nhau**, nên bài kiểm cũng phải cho chúng gặp nhau thật.
+
+**Ba bản sửa:**
+
+1. **`endSession()` ở `AuthProvider`**, dùng chung cho `logout` và đổi mật khẩu — dọn cả ba thứ ở
+   *một* chỗ. Trước đó `logout` làm đúng còn đổi mật khẩu làm thiếu, tức là hai nơi phải cùng nhớ
+   một thủ tục ba bước. Đây là biến thể của luật *"chỗ nào con người phải nhớ hai nơi thì chỗ đó
+   cần một phép kiểm nhớ hộ"* (§10.9-b) — lần này giải bằng cách **bỏ hẳn cái phải nhớ**.
+2. **Bỏ `navigate(0)`.** Nó tải lại trang để "dọn sạch bộ nhớ", tức là *che* đúng lỗi trên: lúc
+   chạy được thì nó dọn hộ, lúc không thì không ai biết vì sao. Điều hướng tất định đọc ra được là
+   đúng hay sai.
+3. **Vé CSRF chỉ còn MỘT nguồn: cookie.**
+
+**⚠⚠ Về bản sửa thứ ba, bản đầu của tôi sai và bài kiểm bắt được.** `currentCsrfToken()` viết
+`csrfToken ?? readCookie(...)` — bộ nhớ thắng cookie. Tôi sửa thành `readCookie(...) ?? csrfToken`,
+tưởng là xong. Bài kiểm đỏ ngay: **đảo thứ tự chỉ chữa lúc hai bên cùng có mà lệch nhau**; lúc máy
+chủ **xoá** cookie thì vẫn rơi về bộ nhớ và vẫn gửi một vé đã chết. Lập luận quyết định:
+
+> Máy chủ đối chiếu header với **cookie**. Cookie vắng mặt thì **không giá trị nào** gửi lên đi qua
+> được. Bản sao trong bộ nhớ không cứu được lượt gọi nào — nó chỉ đổi thông báo từ *"thiếu vé"*
+> thành *"vé không khớp"*, và đẩy người đọc log đi tìm một lỗi đối chiếu không tồn tại.
+
+Nên bỏ hẳn biến `csrfToken` và hàm `setCsrfToken`. Bản sao đó cũng không giải quyết vấn đề nào có
+thật: cookie `XSRF-TOKEN` cố ý **không** httpOnly, `Path=/`, cùng origin — luôn đọc được bằng JS;
+phản hồi đăng nhập vừa đặt cookie vừa trả vé trong thân, và trình duyệt xử lý `Set-Cookie` xong mới
+giải lời hứa. **Giữ hai nguồn cho một sự thật chỉ tạo cơ hội để chúng lệch nhau.**
+
+**Ba bài kiểm mới, cả ba kiểm chứng ngược đều đỏ đúng chỗ:**
+
+| Bài | Ở đâu | Chứng minh gì |
+|---|---|---|
+| `changePasswordFlow.test.tsx` | admin-app | dựng `AuthProvider` + guard + router **thật**; đổi xong phải tới trang đăng nhập **và** biểu mẫu không hiện lại |
+| `csrfToken.test.ts` | admin-app | cookie là nguồn duy nhất; cookie bị xoá thì không gửi vé nào |
+| `ChangePasswordHttpTest` | app | qua HTTP thật: 204 · xoá cả hai cookie · access token đang cầm **chết ngay** · mật khẩu mới dùng được |
+
+⭐ `changePasswordFlow.test.tsx` là **bài kiểm component đầu tiên** của admin-app —
+`@testing-library/react` nằm trong `package.json` từ WS-8 mà chưa lần nào được dùng. Thêm một cơ
+chế "dựng ra mà chưa ai đi qua" nay đã có người đi.
+
+⚠ `ChangePasswordHttpTest` đi qua HTTP chứ không gọi `PasswordChangeService`: **hai trong ba cam
+kết không tồn tại ở tầng service** (cookie nằm ở controller, token chết nằm ở chuỗi filter). Gọi
+thẳng service là kiểm đúng phần không hỏng — đây là phần trả trước của nợ **#65**.
+
+⚠ Hai chi tiết nhỏ, cả hai đều là "công cụ im lặng": `@testing-library/react` **chỉ tự dọn DOM khi
+vitest bật `globals`**, mà admin-app thì không — thiếu `afterEach(cleanup)` là bài sau đỏ với
+*"Found multiple elements"*, một lời báo lỗi chẳng liên quan gì tới thứ đang kiểm. Và luật ESLint
+cấm import `axios` ngoài `apiClient` **không phân biệt import kiểu** — giữ nguyên luật, khai kiểu
+tại chỗ, vì nới ra cho "chỉ là kiểu thôi" là mở đúng cái khe lần sau có người dựng instance riêng
+chui qua.
