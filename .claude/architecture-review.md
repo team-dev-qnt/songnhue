@@ -1329,3 +1329,109 @@ Ba cách đếm cho ba kết quả khác nhau với chữ "Đề" dán từ Word
 Bản đầu dùng `Array.from` kèm một dòng tài liệu khẳng định như vậy là đủ. Hậu quả: ô đếm báo
 vượt ngưỡng trong khi mắt thấy chưa vượt, và người soạn sẽ cắt bớt một tiêu đề hoàn toàn hợp
 lệ. Bài kiểm bắt được vì nó khẳng định **cả ba con số**, không chỉ con số cuối.
+
+### §10.25. Nội dung bài lưu **HTML**, không lưu cây JSON — và ba cạnh của hợp đồng (20/8/2026)
+
+Câu hỏi đặt ra khi rà soát phần chèn ảnh: có nên bỏ HTML, lưu thẳng cây JSON của TipTap vào một
+cột `jsonb`, để không phải phân tích lại chuỗi HTML mỗi lần mở bài? **Chốt: giữ HTML.**
+
+**Nỗi lo gốc đã được đo, và nó không thành hiện thực.** jsoup không trả lại đúng chuỗi ta đưa
+vào — nó dựng lại tài liệu rồi in ra có thụt lề. Đo trên jsoup 1.23.1 với bảy mẫu:
+
+| Mẫu | Kết quả |
+|---|---|
+| `<pre><code>` có thụt lề | **giữ nguyên** — jsoup biết khoảng trắng trong `pre` là nội dung |
+| thẻ inline sát chữ (`Cống<strong>Yên Nghĩa</strong>đóng`) | **giữ nguyên** |
+| câu dài có `<strong>`/`<em>` ở giữa | **giữ nguyên** |
+| `<table>`, `<ul>`, `<figure>`, nhiều `<p>` liền nhau | thêm `\n` + thụt lề **giữa các thẻ khối** |
+
+Ba mẫu đầu mới là chỗ dễ hỏng (thêm khoảng trắng giữa chữ và thẻ inline là **đổi nội dung câu**),
+và jsoup không đụng vào. Phần thụt lề giữa thẻ khối là vô hại — `editorRoundTrip.test.ts` khẳng
+định điều đó bằng cách phân tích cả bản gọn lẫn bản có thụt lề rồi so **cây nút**, chứ không so
+chuỗi.
+
+**Cái giá nếu đổi sang `jsonb`** — bốn khoản, khoản đầu là khoản chặn:
+
+1. **Mất `HtmlSanitizer`.** Lớp khử trùng đang chạy ở backend bằng jsoup (danh sách CHO PHÉP, thư
+   viện có tuổi đời, đã bị soi nhiều năm). Với cây JSON thì backend phải tự duyệt cây bằng Java —
+   tức là **viết lại bộ khử trùng**, đúng thứ mà `core/pom.xml` đã ghi lý do không tự viết. Bộ mới
+   sẽ chưa từng có ai thử tấn công.
+2. **Cổng công khai hết dựng được HTML** nếu không mang cả schema TipTap sang phía máy chủ. Làm
+   được, nhưng khi đó admin-app và public-web phải **luôn cùng phiên bản schema** — lệch một bản là
+   bài cũ hiển thị sai.
+3. **Vỡ ba thứ đang chạy**: so sánh phiên bản (`diff.ts` dựng trên DOM), tìm kiếm toàn văn
+   (`sn_khong_dau` chạy trên chữ), và chế độ soạn HTML (người soạn nội dung cơ quan dán từ Word —
+   dùng thật, không phải tính năng cho vui).
+4. Lưu **cả hai** thì có hai nguồn sự thật cho cùng một nội dung — loại lỗi dự án này đã trả giá
+   nhiều lần.
+
+**Phần đúng trong đề xuất đã lấy hết**: nút ảnh là node TipTap tự viết, chèn bằng `insertContent`
+để giữ đúng vị trí con trỏ; kéo-thả viết bằng `handleDrop` thường, lấy vị trí bằng `posAtCoords`
+rồi `insertContentAt` — **thả đâu ảnh nằm đó**, không nhảy về chỗ con trỏ cũ; ô giữ chỗ lạc quan
+hiện ngay bằng `blob:` rồi thay `src` thật khi tải xong.
+
+**⛔ Không dùng presigned URL cho đường TẢI LÊN.** Cho trình duyệt `PUT` thẳng vào MinIO thì bỏ
+qua toàn bộ chuỗi kiểm: `FileValidator` (magic bytes — đuôi tệp nói dối được), `ImageSanitizer`
+(bóc EXIF, mà EXIF ảnh chụp bằng điện thoại mang **toạ độ GPS** — đăng lên cổng công khai là công
+bố vị trí công trình thuỷ lợi), `SvgSanitizer`, ClamAV, hạn mức đọc từ `settings`. Ta cũng không
+có bộ bắt sự kiện MinIO nào để quét bù về sau. Đường **đọc** thì đã chốt ở §10.19 là không presign.
+
+**Hợp đồng có BA cạnh, không phải hai.** Bộ từ vựng chuyển từ `admin-app` sang
+`design-tokens/editor-schema.ts` vì nó là thoả thuận giữa *soạn thảo* (admin-app sinh ra thẻ) ·
+*khử trùng* (backend giữ lại) · *hiển thị* (public-web dựng CSS). Mỗi cạnh có một phép canh:
+
+| Cạnh | Phép canh | Nơi |
+|---|---|---|
+| soạn thảo → khử trùng | `EditorVocabularyTest` (Java đọc mã nguồn TS) | `core` |
+| khử trùng → soạn thảo | `editorRoundTrip.test.ts` | admin-app |
+| khử trùng → hiển thị | `articleContentCss.test.ts` | public-web |
+
+Cạnh thứ ba **chưa từng tồn tại**, và đó là chỗ hỏng nặng nhất tìm được — xem §10.26.
+
+### §10.26. Bốn lỗi im lặng ở đường chèn ảnh, và lỗi nặng nhất không nằm ở trình soạn thảo (20/8/2026)
+
+Rà soát bắt đầu từ một câu hỏi hẹp — *chèn ảnh vào đúng vị trí có chạy không* — và tìm ra bốn lỗi.
+Cả bốn đều không sinh ra dòng lỗi nào, và **cả bốn đều được phát hiện bằng cách chạy máy, không
+phải bằng cách đọc mã**.
+
+**1. ⚠⚠ Căn lề ảnh chưa bao giờ hoạt động.** `AlignClass` khai áp dụng cho `'image'` và `'figure'`.
+Không tên nào tồn tại: nút ảnh do `FigureImage` đăng ký mang tên `figureImage`. Hỏng hai tầng, cả
+hai đều im:
+
+- TipTap **bỏ qua lặng lẽ** `addGlobalAttributes` trỏ vào type không có thật → nút ảnh không hề có
+  thuộc tính `align` (đo bằng `getSchema`: `figureImage attrs: ['src','alt','caption']`);
+- lệnh trả `NHOM_AP_DUNG.some(t => commands.updateAttributes(t, …))`, mà `.some` **dừng ở phần tử
+  đầu tiên trả `true`** và `'paragraph'` luôn trả `true` → lệnh báo thành công, nút sáng lên, ảnh
+  đứng yên.
+
+**2. ⚠⚠ Cổng công khai không có CSS nào cho nội dung bài.** Thân bài mang class `prose`, mà gói
+`@tailwindcss/typography` **chưa từng được cài** — `prose` là class rỗng. Cộng với preflight của
+Tailwind xoá hình dạng mặc định của trình duyệt: danh sách mất dấu đầu dòng và thụt lề, `<h3>`/`<h4>`
+đúng bằng cỡ chữ đoạn văn, bảng không viền, `<figcaption>` không phân biệt được với một câu trong
+bài, `sn-align-*` không định nghĩa ở đâu.
+
+Điều đáng sợ nhất của lỗi này: **màn hình xem trước trong admin-app vẫn đúng**, vì nó dùng CSS của
+trình soạn thảo. Biên tập viên định dạng kỹ, xem trước thấy đẹp, xuất bản, và không bao giờ mở lại
+trang công khai để đối chiếu. Tài liệu của `AlignClass` thậm chí đã viết sẵn điều kiện *"với điều
+kiện cổng công khai có định nghĩa ba class đó trong CSS"* — **điều kiện được ghi ra và không ai
+thực hiện**.
+
+**3. Chú thích ảnh không có đường nào tạo ra được.** `FigureImage` khai thuộc tính `caption`,
+`HtmlSanitizer` cho `figcaption` qua, `EDITOR_SAMPLE_HTML` có nó, `EditorVocabularyTest` xanh — mà
+`RichTextEditor` truyền cứng `caption: null` và không có ô nhập nào. CN-01.1 yêu cầu *"ảnh inline
+(căn lề, caption)"*: hai vế, cả hai đều hỏng.
+
+**4. Kéo một tệp ảnh vào bài làm mất bài đang soạn.** Không có `handleDrop` thì trình duyệt xử lý
+theo mặc định của nó: **điều hướng cả tab sang tệp vừa thả**. Đây là lỗi nặng hơn "thiếu tính năng"
+— nó phá công việc đang dở.
+
+**Điều đáng ghi nhất: bài canh cho lỗi (2) ban đầu XANH trong khi không kiểm được gì.** Bản đầu hỏi
+`CSS.includes('.sn-align-center')`. Kiểm chứng ngược bằng cách xoá hẳn quy tắc `text-align: center`
+→ **vẫn xanh**, vì chuỗi đó còn xuất hiện ở một quy tắc khác trong cùng tệp
+(`figure.sn-align-center`). Bài canh chống lỗi im lặng lại chính là một lỗi im lặng. Nay nó tách
+tệp thành từng quy tắc và hỏi **thuộc tính có thật sự được khai không**; kiểm chứng ngược ở mức
+thuộc tính bắt đủ ba lượt phá hoại.
+
+⛔ **Luật rút ra, bổ sung cho `conventions.md` §1.5**: phép canh dựa trên *sự có mặt của một chuỗi*
+gần như luôn yếu hơn ta tưởng, vì cùng một chuỗi thường xuất hiện ở nhiều chỗ với ý nghĩa khác
+nhau. Canh **cấu trúc** (quy tắc nào, thuộc tính nào) chứ đừng canh **văn bản**.

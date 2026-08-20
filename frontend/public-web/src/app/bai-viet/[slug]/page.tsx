@@ -112,8 +112,13 @@ export default async function ArticlePage({ params }: PageProps) {
         Quy trình duyệt KHÔNG phải lớp bảo vệ ở đây: người duyệt nhìn nội dung hiển thị, không
         nhìn mã nguồn HTML.
       */}
+      {/*
+        ⚠ `sn-article` chứ không phải `prose`: class `prose` ở bản trước là **class rỗng** —
+        gói `@tailwindcss/typography` chưa từng được cài, nên bài lên cổng mất hết dấu đầu
+        dòng, viền bảng, cỡ chữ tiêu đề và cả căn lề. Xem `article-content.css`.
+      */}
       <div
-        className="prose mt-6 max-w-none [&_a]:text-brand-primary [&_h2]:mt-6 [&_h2]:text-xl [&_h2]:font-semibold [&_img]:rounded [&_p]:mt-4"
+        className="sn-article mt-6 max-w-none"
         // eslint-disable-next-line react/no-danger -- HtmlSanitizer (BE) đã lọc lúc GHI
         dangerouslySetInnerHTML={{ __html: article.content }}
       />

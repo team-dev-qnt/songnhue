@@ -93,11 +93,28 @@ function ArticleForm({ article: data }: { article?: ArticleDetail }) {
   const [historyOpen, setHistoryOpen] = useState(false);
   /** Bài đã có slug thì thôi gợi ý; bài mới thì gợi ý cho tới khi người dùng tự sửa. */
   const [slugDaSuaTay, setSlugDaSuaTay] = useState(!laBaiMoi);
+  /** Ảnh kéo-thả đang tải dở — xem `khoaLuu` bên dưới. */
+  const [anhDangTai, setAnhDangTai] = useState(0);
 
   const categories = useQuery({
     queryKey: cmsKeys.categories(),
     queryFn: () => cmsApi.categories(),
   });
+
+  const folders = useQuery({
+    queryKey: cmsKeys.folders(),
+    queryFn: () => cmsApi.folders(),
+  });
+
+  /**
+   * Ảnh kéo thẳng vào bài đi vào thư mục media nào.
+   *
+   * Lấy thư mục gốc đầu tiên — cùng quy tắc mà `MediaBrowser` đã dùng để chọn thư mục mặc
+   * định, nên hai màn hình không nói ngược nhau. Chưa có thư mục nào thì `onUploadImage`
+   * **không được truyền xuống**, và trình soạn thảo nói thẳng là chưa bật đường tải ảnh thay
+   * vì nuốt tệp im lặng.
+   */
+  const thuMucAnh = folders.data?.[0]?.publicId ?? null;
 
   const initialValues: FormValues = {
     title: data?.title ?? '',
@@ -175,6 +192,16 @@ function ArticleForm({ article: data }: { article?: ArticleDetail }) {
   // người dùng không gõ xong cả bài rồi mới bị từ chối.
   const khoaSua = data?.status === 'CHO_DUYET';
 
+  /**
+   * ⚠ Khoá Lưu khi còn ảnh đang tải, và đây **không** phải chuyện tiện dụng.
+   *
+   * Ảnh chưa tải xong thì `src` của nó là `blob:` — địa chỉ chỉ sống trong tab đang mở. Lưu
+   * lúc đó thì `HtmlSanitizer` gỡ thuộc tính `src` (giao thức không nằm trong danh sách cho
+   * phép) và bài viết còn lại một thẻ ảnh rỗng: người soạn thấy "Đã lưu", mở lại thì đúng
+   * tấm ảnh vừa kéo vào đã biến mất, không lỗi nào.
+   */
+  const khoaLuu = khoaSua || anhDangTai > 0;
+
   return (
     <>
       <Card
@@ -199,7 +226,8 @@ function ArticleForm({ article: data }: { article?: ArticleDetail }) {
             <Button
               type="primary"
               loading={save.isPending}
-              disabled={khoaSua}
+              disabled={khoaLuu}
+              title={anhDangTai > 0 ? `Đang tải ${anhDangTai} ảnh lên` : undefined}
               onClick={() => void submit()}
             >
               Lưu
@@ -272,10 +300,24 @@ function ArticleForm({ article: data }: { article?: ArticleDetail }) {
                   value={content}
                   onChange={setContent}
                   disabled={khoaSua}
+                  onPendingUploadsChange={setAnhDangTai}
                   onPickImage={async () => {
                     const file = await chonAnh();
                     return file ? { publicId: file.publicId, alt: file.originalName } : null;
                   }}
+                  onUploadImage={
+                    thuMucAnh
+                      ? async (file) => {
+                          const uploaded = await cmsApi.uploadFile(thuMucAnh, file);
+                          // Thư viện media vừa có thêm tệp — làm mới để hộp chọn ảnh nhìn
+                          // thấy nó ngay, thay vì người dùng phải bấm nút tải lại.
+                          await queryClient.invalidateQueries({
+                            queryKey: cmsKeys.files(thuMucAnh),
+                          });
+                          return { publicId: uploaded.publicId };
+                        }
+                      : undefined
+                  }
                 />
               </Form.Item>
 

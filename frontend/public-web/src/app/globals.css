@@ -3,6 +3,13 @@
 /* Nạp cấu hình TS để lấy màu từ `design-tokens` — xem `tailwind.config.ts` giải thích. */
 @config "../../tailwind.config.ts";
 
+/*
+  Hình dạng nội dung bài viết. Nạp ở đây chứ không nạp trong trang bài viết, vì cùng bộ quy
+  tắc này phục vụ mọi chỗ dựng HTML do người soạn nhập: trang bài, bốn trang tĩnh (G14), và
+  khối giới thiệu ở chân trang.
+*/
+@import './article-content.css';
+
 :root {
   color-scheme: light;
 }

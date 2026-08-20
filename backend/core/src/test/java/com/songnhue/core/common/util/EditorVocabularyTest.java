@@ -38,7 +38,12 @@ import org.junit.jupiter.api.Test;
  */
 class EditorVocabularyTest {
 
-    private static final String RELATIVE_PATH = "frontend/admin-app/src/components/business/editorSchema.ts";
+    /**
+     * ⚠ Tệp này đã chuyển từ {@code admin-app} sang {@code design-tokens} — nó là hợp đồng của <b>ba</b>
+     * bên (soạn thảo · khử trùng · hiển thị), không phải tài sản riêng của ứng dụng quản trị. Lý do đầy
+     * đủ nằm ngay trong tệp đó.
+     */
+    private static final String RELATIVE_PATH = "frontend/design-tokens/src/editor-schema.ts";
 
     @Test
     @DisplayName("⭐⭐ Mọi thẻ trình soạn thảo sinh ra đều sống sót qua HtmlSanitizer")
@@ -88,19 +93,22 @@ class EditorVocabularyTest {
     }
 
     @Test
-    @DisplayName("Class căn lề còn nguyên — nếu không thì căn giữa một ảnh là mất tác dụng lúc lưu")
-    void classCanLeSongSot() {
-        List<String> classCanLe = docDanhSachChuoi("ALIGN_CLASSES");
-        assertThat(classCanLe).isNotEmpty();
+    @DisplayName("Class trình bày còn nguyên — nếu không thì căn giữa một ảnh là mất tác dụng lúc lưu")
+    void classTrinhBaySongSot() {
+        List<String> classTrinhBay = new ArrayList<>(docDanhSachChuoi("ALIGN_CLASSES"));
+        classTrinhBay.addAll(docDanhSachChuoi("IMAGE_WIDTH_CLASSES"));
+        assertThat(classTrinhBay).hasSizeGreaterThanOrEqualTo(6);
 
-        String html = classCanLe.stream()
-                .map(c -> "<p class=\"%s\">Đoạn</p>".formatted(c))
+        // Đặt trên `figure` chứ không trên `p`: đây là thẻ thật sự mang cả hai nhóm class, và là thẻ
+        // duy nhất mà cả căn lề lẫn bề ngang cùng có nghĩa.
+        String html = classTrinhBay.stream()
+                .map(c -> "<figure class=\"%s\"><img src=\"/api/v1/public/files/x\" alt=\"\"></figure>".formatted(c))
                 .reduce("", String::concat);
 
         String sach = HtmlSanitizer.clean(html);
-        for (String c : classCanLe) {
+        for (String c : classTrinhBay) {
             assertThat(sach)
-                    .as("class căn lề `%s` phải đi qua được — `style` bị cấm nên đây là đường duy nhất", c)
+                    .as("class trình bày `%s` phải đi qua được — `style` bị cấm nên đây là đường duy nhất", c)
                     .contains(c);
         }
     }

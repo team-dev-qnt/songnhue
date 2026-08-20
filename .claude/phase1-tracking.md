@@ -34,7 +34,7 @@ Phase 0 dựng **cơ chế**; Phase 1 là lần đầu có **người dùng th�
 | **WS-17** | Operations — Danh mục công trình | 12 | 0 | ⬜ Chưa bắt đầu | WS-12 | 14 pd |
 | **WS-18** | Operations — Lịch sử sửa chữa & sự cố | 11 | 0 | ⬜ Chưa bắt đầu | WS-17 | 10 pd |
 | **WS-19** | Operations — Tình hình vận hành + trạng thái dẫn xuất | 8 | 0 | ⬜ Chưa bắt đầu | WS-17, WS-18 | 7 pd |
-| **WS-20** | FE admin — màn hình CMS | 10 | **10** | ✅ **Xong 20/8** — kéo lên trước WS-17 | WS-13→15 (API) | 12 pd |
+| **WS-20** | FE admin — màn hình CMS | 13 | **13** | ✅ **Xong 20/8** — kéo lên trước WS-17 | WS-13→15 (API) | 12 pd |
 | **WS-21** | FE admin — màn hình Công trình | 10 | 0 | ⬜ Chưa bắt đầu | WS-17→19 (API) | 12 pd |
 | **WS-23** | ⭐ Nền biểu đồ + Dashboard điều hành (CN-02.5, CN-02.6) | 11 | 0 | ⬜ Chưa bắt đầu | WS-17 | 11 pd |
 | **WS-22** | Kiểm thử, nghiệm thu Phase 1 & trả nợ | 8 | 0 | ⬜ Chưa bắt đầu | tất cả | 8 pd |
@@ -407,6 +407,9 @@ Cả bốn đều **xanh trọn vẹn trong bộ kiểm thử**. Chi tiết ở 
 - [x] **T20.8** Cấu hình giao diện: banner (đổi thứ tự bằng nút, không kéo thả — dòng ảnh cao thì kéo phải vừa cuộn vừa giữ chuột), menu lồng nhau hai cây tách biệt, nhận diện + thông tin cổng
 - [x] **T20.9** Không phát sinh mã lỗi mới ở WS-20 — `error-map.ts` giữ nguyên **62 mã**, bài kiểm đồng bộ vẫn xanh
 - [x] **T20.10** Test FE cho các hàm thuần: **43 bài mới** (SEO 11 · diff 13 · cây 10 · chuẩn hoá URL video 9)
+- [x] **T20.11** ⭐⭐ **Chèn ảnh đúng vị trí — rà soát theo yêu cầu của anh Quân (20/8)**: kéo-thả từ máy (chèn tại **chỗ thả**, lấy bằng `posAtCoords`) · dán ảnh chụp màn hình · ô giữ chỗ lạc quan hiện ngay bằng `blob:` rồi thay `src` thật · chú thích + `alt` + bề ngang ảnh + căn lề trên thanh công cụ theo ngữ cảnh. **Bốn lỗi im lặng tìm được — xem khối bên dưới**
+- [x] **T20.12** Bộ từ vựng chuyển sang **`design-tokens/src/editor-schema.ts`** — nó là hợp đồng của **ba** bên (soạn thảo · khử trùng · **hiển thị**), không phải tài sản riêng của admin-app. Cạnh thứ ba chưa từng có phép canh nào
+- [x] **T20.13** Gỡ `@tiptap/extension-image` và `@tiptap/extension-text-align` — hai gói khai trong `package.json` mà **chưa dòng mã nào import** (đã tự viết `FigureImage`/`AlignClass` thay). Mỗi phụ thuộc là một dòng nữa phải theo dõi CVE
 
 ### ⭐⭐ Bộ từ vựng của trình soạn thảo phải khớp danh sách cho phép của bộ lọc
 
@@ -414,7 +417,7 @@ Cả bốn đều **xanh trọn vẹn trong bộ kiểm thử**. Chi tiết ở 
 
 `HtmlSanitizer` chạy lúc **ghi**: thẻ ngoài danh sách bị gỡ, im lặng, bài vẫn lưu thành công. Nên một nút trên thanh công cụ tạo ra thẻ ngoài danh sách cho ra đúng kịch bản: biên tập viên chèn bảng, bấm Lưu, hệ thống báo *"Đã lưu"*, mở lại thì bảng biến mất — không lỗi, không cảnh báo, và người dùng nghĩ mình thao tác sai.
 
-Hai danh sách này nằm ở hai ngôn ngữ và hai thư mục, trình biên dịch không bắt lệch được. Nên có **`EditorVocabularyTest`** (Java đọc `editorSchema.ts` của FE, chạy mẫu HTML qua `HtmlSanitizer` thật, đòi mọi thẻ sống sót). Cùng cách mà `error-map.test.ts` đang canh danh mục mã lỗi, chỉ ngược chiều.
+Hai danh sách này nằm ở hai ngôn ngữ và hai thư mục, trình biên dịch không bắt lệch được. Nên có **`EditorVocabularyTest`** (Java đọc bản khai của FE, chạy mẫu HTML qua `HtmlSanitizer` thật, đòi mọi thẻ sống sót). *(20/8: bản khai đã chuyển sang `design-tokens/src/editor-schema.ts` — xem T20.11.)* Cùng cách mà `error-map.test.ts` đang canh danh mục mã lỗi, chỉ ngược chiều.
 
 **Bốn phát hiện, cả bốn đều là lỗi im lặng:**
 
@@ -428,7 +431,28 @@ Hai danh sách này nằm ở hai ngôn ngữ và hai thư mục, trình biên d
 - ⚠ **`Array.from` không gộp dấu tổ hợp.** Bộ đếm ký tự SEO bản đầu dùng `Array.from` kèm một dòng tài liệu khẳng định như vậy là đếm được ký tự hiển thị. Không đúng: `Array.from` tách theo *điểm mã*, mà chữ dán từ Word thường ở dạng NFD nên `Đề` đếm ra **4**. Người soạn sẽ cắt bớt một tiêu đề hoàn toàn hợp lệ. Chuyển sang `Intl.Segmenter`.
 - ⚠ **`useEffect` đổ dữ liệu vào biểu mẫu** (ESLint `react-hooks/set-state-in-effect`). Lý do sâu hơn tên luật: màn hình vẽ một lượt với ô trống rồi vẽ lại — người dùng thấy nhấp nháy, và nếu kịp gõ vào khoảng giữa thì cú gõ đó bị ghi đè. Tách hai lớp: vỏ ngoài nạp dữ liệu, lớp trong dựng biểu mẫu với `initialValues` + `key`.
 
-**Kiểm chứng (`make dev-docker`, 20/8)**: 4 route CMS trả 200 · bó mã `ArticleEditorPage` tách riêng, chỉ tải khi mở trang soạn (493 kB / 157 kB nén) · API CMS chưa đăng nhập trả **401** (không phải 404 — nghĩa là endpoint có thật và tầng xác thực đang chạy). **391 test BE** (239 core + 152 app) + **90 FE** (67 admin + 23 public).
+### ⭐⭐ Rà soát đường chèn ảnh (T20.11) — bốn lỗi im lặng, lỗi nặng nhất không nằm ở trình soạn thảo
+
+Câu hỏi khởi đầu rất hẹp: *"chèn ảnh vào đúng vị trí có chạy không?"*. Trả lời: **chèn tại con trỏ thì chạy** (`insertContent` giữ đúng vùng chọn từ đầu), nhưng quanh nó là bốn lỗi, và **cả bốn đều tìm ra bằng cách chạy máy chứ không bằng đọc mã**.
+
+1. ⚠⚠ **Căn lề ảnh chưa bao giờ hoạt động.** `AlignClass` khai áp dụng cho `'image'` và `'figure'` — **không tên nào tồn tại**, nút ảnh đăng ký tên `figureImage`. Đo bằng `getSchema`: `figureImage attrs: ['src','alt','caption']`, **không có `align`**. Hỏng hai tầng, cả hai im: TipTap bỏ qua lặng lẽ `addGlobalAttributes` trỏ vào type không có thật; và lệnh trả `NHOM_AP_DUNG.some(...)` mà `.some` **dừng ở phần tử đầu tiên trả `true`** — `'paragraph'` luôn trả `true`, nên nút sáng lên như đã làm xong việc trong khi ảnh đứng yên.
+2. ⚠⚠ **Cổng công khai không có CSS nào cho nội dung bài.** Thân bài mang class `prose`, mà **`@tailwindcss/typography` chưa từng được cài** → `prose` là class rỗng. Cộng với preflight của Tailwind xoá hình dạng mặc định: danh sách mất dấu đầu dòng, `h3`/`h4` bằng cỡ chữ đoạn văn, bảng không viền, `figcaption` không phân biệt được với một câu trong bài, `sn-align-*` không định nghĩa ở đâu. **Màn hình xem trước trong admin-app vẫn đúng** (nó dùng CSS của trình soạn thảo) — nên biên tập viên không có cách nào biết. Tài liệu của `AlignClass` đã viết sẵn điều kiện *"với điều kiện cổng công khai có định nghĩa ba class đó"* — điều kiện được ghi ra và không ai thực hiện.
+3. ⚠ **Chú thích ảnh không có đường nào tạo ra được.** `caption` khai trong node, `figcaption` trong safelist, có trong mẫu kiểm, `EditorVocabularyTest` xanh — mà `RichTextEditor` truyền cứng `caption: null` và không có ô nhập nào. CN-01.1 yêu cầu *"ảnh inline (căn lề, caption)"*: hai vế, cả hai hỏng.
+4. ⚠ **Kéo một tệp ảnh vào bài làm mất bài đang soạn.** Không chặn `drop` thì trình duyệt **điều hướng cả tab sang tệp vừa thả**. Nặng hơn "thiếu tính năng" — nó phá công việc đang dở. Nay `handleDrop` trả `true` **kể cả khi không chèn được gì**.
+
+**⚠⚠ Và bài canh cho lỗi (2) ban đầu XANH trong khi không kiểm được gì.** Bản đầu hỏi `CSS.includes('.sn-align-center')`; kiểm chứng ngược bằng cách xoá hẳn `text-align: center` → **vẫn xanh**, vì chuỗi đó còn nằm trong một quy tắc khác cùng tệp (`figure.sn-align-center`). Bài canh chống lỗi im lặng lại chính là một lỗi im lặng. Nay nó tách tệp thành từng quy tắc và hỏi **thuộc tính có được khai không**; kiểm chứng ngược ở mức thuộc tính bắt đủ ba lượt phá hoại. ⛔ **Luật: canh cấu trúc, đừng canh văn bản** — cùng một chuỗi thường xuất hiện nhiều chỗ với ý nghĩa khác nhau.
+
+**Ba cạnh, ba phép canh** (`architecture-review.md` §10.25):
+
+| Cạnh | Phép canh | Nơi |
+|---|---|---|
+| soạn thảo → khử trùng | `EditorVocabularyTest` (Java đọc mã TS) | `core` |
+| khử trùng → soạn thảo | `editorRoundTrip.test.ts` | admin-app |
+| khử trùng → **hiển thị** | `articleContentCss.test.ts` | public-web |
+
+**Về đề xuất lưu `jsonb` thay HTML — đã cân nhắc và giữ HTML** (§10.25). Nỗi lo "parse ra DOM bị lỗi" đã **đo thật** trên jsoup 1.23.1 với 7 mẫu: thẻ inline sát chữ, câu dài có inline ở giữa, và khối mã có thụt lề — **cả ba giữ nguyên**; jsoup chỉ thêm thụt lề *giữa các thẻ khối*, và `editorRoundTrip.test.ts` chứng minh việc đó không làm đổi cây nút. Đổi sang `jsonb` thì mất `HtmlSanitizer`, cổng hết dựng được HTML nếu không mang schema TipTap sang máy chủ, và vỡ ba thứ đang chạy (so sánh phiên bản · tìm kiếm toàn văn · chế độ soạn HTML). ⛔ **Không presign đường tải lên**: bỏ qua `FileValidator` · `ImageSanitizer` (EXIF mang **toạ độ GPS** của công trình) · `SvgSanitizer` · ClamAV · hạn mức.
+
+**Kiểm chứng (`make dev-docker`, 20/8)**: 4 route CMS trả 200 · bó mã `ArticleEditorPage` tách riêng, chỉ tải khi mở trang soạn (493 kB / 157 kB nén) · API CMS chưa đăng nhập trả **401** (không phải 404 — nghĩa là endpoint có thật và tầng xác thực đang chạy). **391 test BE** (239 core + 152 app) + **112 FE** (79 admin + 33 public).
 
 ---
 
