@@ -114,8 +114,14 @@ services:
       context: ../frontend
       dockerfile: ../deploy/docker/admin-app.Dockerfile
       args:
-        # Vite nhúng biến vào bundle LÚC BUILD — đổi URL API phải build lại image
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:18080/api/v1}
+        # ⚠⚠ Để TRỐNG là có chủ ý — `apiClient` khi đó dùng đường dẫn TƯƠNG ĐỐI
+        # `/api/v1`, và nginx của chính image này chuyển tiếp sang backend.
+        #
+        # Bản đầu đặt `http://localhost:18080/api/v1`: trình duyệt ở cổng 15173
+        # gọi sang cổng 18080 là khác origin → preflight bị trả `403 Invalid CORS
+        # request` → **không một lượt gọi nào chạy được**, bắt đầu từ ô đăng nhập.
+        # Lỗi không lộ ra ở lượt kiểm bằng `curl` vì curl không làm preflight.
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
     container_name: songnhue-admin-app
     restart: unless-stopped
     ports:
@@ -131,7 +137,11 @@ services:
       context: ../frontend
       dockerfile: ../deploy/docker/public-web.Dockerfile
       args:
-        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:18080/api/v1}
+        # ⚠⚠ Để TRỐNG là có chủ ý — trình duyệt khi đó gọi đường dẫn TƯƠNG ĐỐI `/api/v1`, và
+        # Next chuyển tiếp sang backend bằng `rewrites()`. Bản đầu đặt `http://localhost:18080`
+        # là khác origin, mà backend không cấu hình CORS → preflight `403 Invalid CORS request`
+        # → bộ đếm lượt xem chưa từng chạy được từ trình duyệt thật.
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-}
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:13000}
     container_name: songnhue-public-web
     restart: unless-stopped

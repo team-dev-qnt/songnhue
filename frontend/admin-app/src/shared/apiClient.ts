@@ -184,7 +184,22 @@ function emit(event: SessionEvent): void {
 // Instance
 // =============================================================================
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
+/**
+ * Gốc của mọi lượt gọi API.
+ *
+ * ⚠⚠ Mặc định là đường dẫn **tương đối** — tức là **cùng origin** với trang. Đó là hình dạng
+ * mà production dùng (nginx đứng trước cả hệ, T11.5), và cũng là hình dạng của `make dev-docker`
+ * (nginx của image admin-app chuyển tiếp `/api/`) lẫn `make dev-native` (Vite proxy `/api`).
+ *
+ * Trỏ sang một origin khác thì mọi lượt gọi phải qua CORS, mà backend **không cấu hình CORS**
+ * — preflight trả thẳng `403 Invalid CORS request`, và giao diện chết từ ô đăng nhập.
+ *
+ * ⚠ Dùng `||` chứ **không** dùng `??`: khi tệp compose truyền `VITE_API_BASE_URL:` để trống,
+ * Vite nhúng vào bundle một **chuỗi rỗng**, mà chuỗi rỗng không phải `null`/`undefined` nên `??`
+ * giữ nguyên nó. Hậu quả: `baseURL = ''`, lượt gọi rơi về `/auth/login` — mất hẳn tiền tố
+ * `/api/v1`, nginx trả `index.html`, và axios báo lỗi phân tích JSON ở một chỗ chẳng liên quan.
+ */
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 const MUTATING_METHODS = new Set(['post', 'put', 'patch', 'delete']);
 
 /** Đường dẫn không bao giờ được kéo theo vòng làm mới token — chính chúng là luồng cấp token. */
@@ -192,8 +207,8 @@ const AUTH_ENTRY_PATHS = ['/auth/login', '/auth/2fa/', '/auth/refresh'];
 
 const http: AxiosInstance = axios.create({
   baseURL: BASE_URL,
-  // Bắt buộc: refresh token và vé CSRF đều đi bằng cookie, mà admin-app chạy khác
-  // origin với API (nginx hai server block, và lúc dev là hai cổng khác nhau).
+  // Refresh token và vé CSRF đều đi bằng cookie. Với `BASE_URL` tương đối thì cùng origin
+  // nên cookie tự đi kèm; giữ cờ này để cấu hình trỏ sang origin khác vẫn hoạt động.
   withCredentials: true,
   timeout: 30_000,
 });

@@ -26,6 +26,22 @@ const nextConfig: NextConfig = {
     remotePatterns: [],
   },
 
+  /*
+    ⚠⚠ KHÔNG dùng `rewrites()` để chuyển tiếp API — đã thử và hỏng.
+
+    Với `output: 'standalone'`, Next **gọi `rewrites()` lúc BUILD** rồi ghi kết quả đã giải
+    sẵn vào `.next/required-server-files.json`. Nên `process.env.API_INTERNAL_BASE_URL` đọc
+    được ở đó là giá trị lúc build — mà lúc build trong Docker biến đó chưa tồn tại, nên nó
+    rơi về `http://localhost:8080` và **bị nướng cứng vào image**.
+
+    Triệu chứng đo được: container có đúng `API_INTERNAL_BASE_URL=http://app:8080/api/v1`
+    (kiểm bằng `printenv`), mà log vẫn `Error: connect ECONNREFUSED 127.0.0.1:8080`.
+
+    Việc chuyển tiếp nay nằm ở `src/app/api/v1/[...path]/route.ts` — một Route Handler chạy
+    ở mỗi request, nên đọc env **lúc chạy** và một image dùng được cho mọi môi trường (đúng
+    nguyên tắc "đóng gói một lần, đề bạt cùng image" của `docs/cicd.md`).
+  */
+
   async headers() {
     return [
       {

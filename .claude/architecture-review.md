@@ -1501,3 +1501,66 @@ hiện ra y hệt**, chỉ khác nơi tải về. Ba lý do, lý do đầu là l
 `fonts.googleapis.com`/`fonts.gstatic.com` trong `admin-app/dist` lẫn `public-web/.next`.
 ⚠ Chỉ khai **6 trọng số dùng tới** (400/500/600/700 + nghiêng 400/500) — gói có 144 tệp `woff2`,
 nhập cả gói là bắt người đọc tải thứ không bao giờ hiện ra.
+
+### §10.29. ⚠⚠ Trình duyệt chưa từng gọi được API — CORS chặn toàn bộ giao diện (20/8/2026)
+
+Phát hiện khi anh Quân mở `http://localhost:15173/dang-nhap` và nhận *"Không kết nối được máy
+chủ"* kèm lỗi CORS ở tab Network. Truy ra: **cả giao diện quản trị chưa bao giờ dùng được trên
+trình duyệt**, suốt từ WS-8 tới WS-20.
+
+Backend **không cấu hình CORS** — và đó là lựa chọn đúng, vì ở production nginx đứng trước cả hệ
+(T11.5) nên admin-app và API vốn cùng origin. Nhưng `compose.local.yml` lại build bundle với
+`VITE_API_BASE_URL=http://localhost:18080/api/v1`, trong khi giao diện phục vụ ở cổng 15173. Khác
+cổng là **khác origin**, nên trình duyệt gửi lượt kiểm trước và nhận `403 Invalid CORS request`.
+
+**⚠⚠ Vì sao mọi lượt kiểm trước đây đều xanh.** Chúng gọi bằng `curl` thẳng vào cổng backend:
+
+| Lượt kiểm | Đã chứng minh | KHÔNG chứng minh |
+|---|---|---|
+| WS-20: *"4 route CMS trả 200, API trả 401"* | backend chạy | trình duyệt gọi được |
+| WS-16: *"bộ đếm lượt xem lên đúng 7/7"* | endpoint chạy | trình duyệt gọi được |
+
+`curl` không phải trình duyệt: không có origin, không có chính sách cùng nguồn, **không làm
+preflight** — nên nó đi lọt qua đúng bức tường chặn người dùng thật. Đây là biến thể mới của bài
+học cũ *"kiểm bằng một đường khác đường production đi thì chưa kiểm gì cả"*, cùng họ với
+`BackupServiceTest` mock `PostgresToolRunner` (§9.12) và `ViewCountService` gọi thẳng `day()` thay
+vì qua proxy (§10.20).
+
+**Chốt: trình duyệt luôn gọi CÙNG origin**, việc chuyển tiếp do tầng phục vụ lo — đúng hình dạng
+production, nên không sinh ra một đường đi mà production không có.
+
+| Nơi | Cách chuyển tiếp |
+|---|---|
+| `make dev-docker` — admin-app | nginx của chính image: `location /api/` → `${API_UPSTREAM}` |
+| `make dev-docker` — public-web | Route Handler `src/app/api/v1/[...path]/route.ts` |
+| `make dev-native` | `server.proxy` của Vite |
+| staging/production | nginx chung (T11.5) |
+
+Mã FE mặc định về đường dẫn tương đối `/api/v1`. ⚠ Phải dùng `||` chứ **không** `??`: compose
+truyền biến để trống thì Vite/Next nhúng vào bundle một **chuỗi rỗng**, mà chuỗi rỗng không phải
+nullish nên `??` giữ nguyên nó → `baseURL = ''` → lượt gọi mất hẳn tiền tố `/api/v1`.
+
+**Ba lỗi phụ, cả ba chỉ lộ ra khi chạy thật:**
+
+1. ⚠⚠ **`rewrites()` của Next bị nướng vào lúc BUILD.** Với `output: 'standalone'`, Next gọi
+   `rewrites()` lúc build rồi ghi kết quả đã giải sẵn vào `.next/required-server-files.json`. Biến
+   `API_INTERNAL_BASE_URL` chưa tồn tại lúc build nên rơi về `localhost:8080` và **cứng luôn** —
+   container có đúng biến môi trường (kiểm bằng `printenv`) mà log vẫn `ECONNREFUSED 127.0.0.1:8080`.
+   Chú thích tôi vừa viết khẳng định ngược lại, và bản chạy thật bác bỏ nó. Chuyển sang **Route
+   Handler** — chạy mỗi request, đọc env lúc chạy, một image dùng cho mọi môi trường (đúng nguyên
+   tắc *"đóng gói một lần, đề bạt cùng image"*).
+2. ⚠⚠ **`proxy_pass http://app:8080` làm nginx phân giải DNS lúc nạp cấu hình.** Backend chưa lên
+   là `[emerg] host not found in upstream "app"` và container quay vòng khởi động lại — **một sự cố
+   của backend kéo theo cả trang trắng**, thay vì chỉ hỏng lượt gọi API. Sửa bằng `resolver` + biến
+   trong `proxy_pass` để hoãn phân giải tới lúc có request. Đo lại: `RestartCount 0`.
+3. ⚠ **`resolver ${NGINX_LOCAL_RESOLVERS}` không được thay.** Script `15-local-resolvers.envsh` của
+   image mở đầu bằng `[ "${NGINX_ENTRYPOINT_LOCAL_RESOLVERS:-}" ] || return 0` — là tính năng **phải
+   chủ động bật**. Thiếu biến đó thì nginx đọc nguyên văn chuỗi `${NGINX_LOCAL_RESOLVERS}` và chết
+   với `host not found in resolver`.
+
+**Kiểm chứng trên bản chạy thật**, gọi kèm `Origin` như trình duyệt: đăng nhập qua cổng 15173 →
+`success: true`, bundle còn **0** tham chiếu tới `:18080`; cổng công khai `GET /public/categories`
+→ **200**, `POST .../views` → **204** (trước là 403).
+
+⛔ **Luật bổ sung cho `conventions.md` §1.5**: một endpoint mà **trình duyệt** phải gọi thì lượt
+kiểm chứng phải mang `Origin` — `curl` trần đi qua được đúng bức tường chặn người dùng thật.

@@ -12,8 +12,21 @@ export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:30
  * Địa chỉ API mà **TRÌNH DUYỆT** gọi — nhúng vào bundle lúc build.
  *
  * Dùng cho những thứ người xem tải về: ảnh (`<img src>`), và lượt ping đếm view.
+ *
+ * ⚠⚠ Mặc định là đường dẫn **tương đối**, tức là cùng origin với trang; Next chuyển tiếp
+ * sang backend bằng `rewrites()` trong `next.config.ts`. Bản đầu để mặc định là một origin
+ * khác (`http://localhost:8080/api/v1`, và compose còn đặt `http://localhost:18080/api/v1`)
+ * — trình duyệt khi đó gọi khác origin, mà backend **không cấu hình CORS**: preflight trả
+ * thẳng `403 Invalid CORS request`.
+ *
+ * Hậu quả cụ thể: **bộ đếm lượt xem chưa từng chạy được từ trình duyệt thật**. Lượt kiểm ở
+ * WS-16 gọi endpoint bằng `curl` nên đi qua — curl không làm preflight. Ảnh trong bài thì
+ * vẫn hiện, vì thẻ `<img>` không chịu ràng buộc CORS; nên lỗi càng khó thấy.
+ *
+ * ⚠ Dùng `||` chứ **không** `??`: tệp compose truyền biến để trống sẽ nhúng vào bundle một
+ * chuỗi rỗng, mà chuỗi rỗng không phải nullish nên `??` giữ nguyên nó.
  */
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8080/api/v1';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '/api/v1';
 
 /**
  * Địa chỉ API mà **MÁY CHỦ NEXT** gọi khi dựng trang — đọc lúc chạy, không nhúng vào bundle.
@@ -26,8 +39,13 @@ export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://loca
  *
  * Không có tiền tố `NEXT_PUBLIC_` là cố ý: địa chỉ nội bộ không cần và không nên đi xuống
  * trình duyệt.
+ *
+ * ⚠⚠ Mặc định phải là một địa chỉ **tuyệt đối**, và cố ý **không** rơi về `API_BASE_URL` nữa:
+ * biến kia nay là đường dẫn tương đối, mà `fetch('/api/v1/...')` ở phía máy chủ Next thì không
+ * có gốc để nối — lượt gọi hỏng ngay, và trang dựng ra rỗng.
  */
-export const API_INTERNAL_BASE_URL = process.env.API_INTERNAL_BASE_URL || API_BASE_URL;
+export const API_INTERNAL_BASE_URL =
+  process.env.API_INTERNAL_BASE_URL || 'http://localhost:8080/api/v1';
 
 export const SITE = {
   name: 'Công ty TNHH MTV Đầu tư Phát triển Thủy lợi Sông Nhuệ',

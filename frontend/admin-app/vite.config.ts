@@ -24,6 +24,24 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+    /**
+     * ⚠⚠ Chuyển tiếp `/api` sang backend chạy native — **cùng origin** với trang.
+     *
+     * Không có khối này thì `apiClient` gọi `/api/v1/...` vào chính máy chủ dev của Vite,
+     * Vite không biết đường đó nên trả `index.html`, và axios báo lỗi phân tích JSON ở một
+     * chỗ chẳng liên quan gì tới nguyên nhân.
+     *
+     * Đường vòng "trỏ thẳng sang `http://localhost:8080`" thì gặp tường CORS: backend
+     * **không cấu hình CORS**, preflight trả `403 Invalid CORS request`. Và kể cả có mở CORS
+     * thì local vẫn đi một đường khác production (nơi nginx gộp chung origin — T11.5), tức là
+     * tự nhận lại đúng loại chênh lệch native-vs-Docker mà dự án đã trả giá.
+     */
+    proxy: {
+      '/api': {
+        target: process.env.VITE_DEV_API_TARGET || 'http://localhost:8080',
+        changeOrigin: false,
+      },
+    },
   },
   build: {
     outDir: 'dist',
