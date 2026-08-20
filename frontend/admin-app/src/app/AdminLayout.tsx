@@ -48,6 +48,10 @@ export function AdminLayout() {
         trigger={null}
         width={sizing.siderWidth}
         collapsedWidth={sizing.siderCollapsedWidth}
+        style={{
+          boxShadow: '2px 0 8px 0 rgba(0, 0, 0, 0.1)',
+          zIndex: 10,
+        }}
       >
         <div
           style={{
@@ -58,6 +62,8 @@ export function AdminLayout() {
             color: '#fff',
             fontWeight: 700,
             letterSpacing: 0.5,
+            background: 'linear-gradient(180deg, rgba(255,255,255,0.08) 0%, transparent 100%)',
+            borderBottom: '1px solid rgba(255,255,255,0.06)',
           }}
         >
           {collapsed ? 'SN' : 'SÔNG NHUỆ'}
@@ -79,7 +85,8 @@ export function AdminLayout() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            borderBottom: `1px solid ${neutralColors.border}`,
+            boxShadow: '0 1px 4px 0 rgba(0, 0, 0, 0.06)',
+            zIndex: 9,
           }}
         >
           <Button
@@ -121,22 +128,30 @@ export function AdminLayout() {
           </Space>
         </Header>
 
-        <Content style={{ margin: 16 }}>
+        <Content style={{ margin: 20, marginTop: 16 }}>
           {maintenance && (
             <Alert
               type="warning"
               showIcon
               banner
-              style={{ marginBottom: 16 }}
+              style={{ marginBottom: 16, borderRadius: 8 }}
               message="Hệ thống đang bảo trì"
               description="Đang khôi phục dữ liệu — mọi thao tác thay đổi dữ liệu tạm thời bị chặn. Xem lại sau khi có thông báo hoàn tất."
             />
           )}
-          <Outlet />
+          <div className="sn-page-enter">
+            <Outlet />
+          </div>
         </Content>
 
-        <Layout.Footer style={{ textAlign: 'center', paddingBlock: 12 }}>
-          <Typography.Text type="secondary">
+        <Layout.Footer
+          style={{
+            textAlign: 'center',
+            paddingBlock: 12,
+            background: 'transparent',
+          }}
+        >
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             Công ty TNHH MTV Đầu tư Phát triển Thủy lợi Sông Nhuệ
           </Typography.Text>
         </Layout.Footer>

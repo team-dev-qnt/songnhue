@@ -1,4 +1,4 @@
-import { brandColors, neutralColors, sizing, statusColors } from 'design-tokens';
+import { brandColors, neutralColors, shadow, sizing, statusColors } from 'design-tokens';
 import type { Config } from 'tailwindcss';
 
 /**
@@ -26,8 +26,31 @@ const config: Config = {
       borderRadius: {
         DEFAULT: `${sizing.borderRadius}px`,
       },
+      boxShadow: {
+        sm: shadow.sm,
+        md: shadow.md,
+        lg: shadow.lg,
+      },
+      keyframes: {
+        'sn-fade-in': {
+          from: { opacity: '0', transform: 'translateY(8px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+        'sn-slide-up': {
+          from: { opacity: '0', transform: 'translateY(16px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+      },
+      animation: {
+        'fade-in': 'sn-fade-in 0.5s cubic-bezier(0.4, 0, 0.2, 1) both',
+        'slide-up': 'sn-slide-up 0.5s cubic-bezier(0.4, 0, 0.2, 1) both',
+      },
+      transitionTimingFunction: {
+        smooth: 'cubic-bezier(0.4, 0, 0.2, 1)',
+      },
     },
   },
 };
 
 export default config;
+

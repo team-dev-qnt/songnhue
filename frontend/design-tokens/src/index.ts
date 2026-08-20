@@ -43,6 +43,12 @@ export const brandColors = {
   primaryHover: '#1677ff',
   link: '#0958d9',
   info: '#1677ff',
+  /** Nền nhẹ brand — dùng cho hover state trên card, row highlight */
+  primaryLight: '#e6f4ff',
+  /** Gradient from (đậm hơn primary một chút) — login bg, hero section */
+  primaryGradientFrom: '#003eb3',
+  /** Gradient to (nhạt hơn primary) */
+  primaryGradientTo: '#1677ff',
 } as const;
 
 export const neutralColors = {
@@ -53,23 +59,56 @@ export const neutralColors = {
   bgContainer: '#ffffff',
   /** Nền thanh bên — tối để phân tách vùng điều hướng khỏi vùng nội dung */
   bgSider: '#001529',
+  /** Nền hover nhẹ — danh sách, table row */
+  bgHover: '#fafafa',
+  /** Màu bóng đổ — dùng trong box-shadow */
+  shadowColor: 'rgba(0, 0, 0, 0.08)',
 } as const;
 
 /**
  * Kích thước dùng chung.
  *
- * `fontFamily` đặt tường minh và có `system-ui` đứng đầu: chuỗi mặc định của AntD
- * không phủ hết dấu tiếng Việt trên vài máy Windows đời cũ, chữ bị rơi về font
- * thay thế và cao thấp lộn xộn giữa các dòng có dấu.
+ * `fontFamily` đặt tường minh và có `Noto Sans` đứng đầu: font Google hỗ trợ đầy đủ
+ * dấu tiếng Việt, trọng lượng đa dạng, và hiển thị nhất quán trên mọi nền tảng.
+ * `system-ui` đứng sau làm lưới an toàn khi CDN không gọi được.
  */
 export const sizing = {
   fontFamily:
-    "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif",
+    "'Noto Sans', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
   fontSize: 14,
   borderRadius: 6,
   headerHeight: 56,
   siderWidth: 248,
   siderCollapsedWidth: 64,
+} as const;
+
+/**
+ * Shadow — ba cấp độ nổi. Giá trị lấy từ Material Design elevation nhưng nhẹ hơn —
+ * hệ thống quản trị cần depth vừa phải, không phải floating card.
+ */
+export const shadow = {
+  /** Card mặc định, input */
+  sm: '0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.06)',
+  /** Card hover, dropdown */
+  md: '0 4px 12px 0 rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06)',
+  /** Modal, drawer, sticky header */
+  lg: '0 8px 24px 0 rgba(0, 0, 0, 0.12), 0 4px 8px -4px rgba(0, 0, 0, 0.08)',
+} as const;
+
+/**
+ * Transition — tốc độ và easing chuẩn. Xem `docs/ui-styles.md` §5.2.
+ */
+export const transition = {
+  /** Đổi màu, opacity */
+  fast: '150ms cubic-bezier(0.4, 0, 0.2, 1)',
+  /** Hover state, focus ring */
+  normal: '200ms cubic-bezier(0.4, 0, 0.2, 1)',
+  /** Card lift, dropdown, menu mở */
+  smooth: '300ms cubic-bezier(0.4, 0, 0.2, 1)',
+  /** Page fade-in, modal enter */
+  slow: '500ms cubic-bezier(0.4, 0, 0.2, 1)',
+  /** Easing mặc định */
+  easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
 } as const;
 
 /**
@@ -115,3 +154,4 @@ export const echartsTheme = {
     splitLine: { lineStyle: { color: neutralColors.border, type: 'dashed' } },
   },
 } as const;
+

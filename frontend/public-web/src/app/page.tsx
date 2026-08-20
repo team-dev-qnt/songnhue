@@ -38,7 +38,7 @@ export default async function HomePage() {
   const blocks = docKhoi(config?.['site.home.blocks']);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
+    <div className="mx-auto max-w-6xl animate-fade-in px-4 py-10">
       {blocks.includes('SLIDER') && banners && banners.length > 0 ? (
         <section aria-label="Ảnh nổi bật" className="mb-10">
           {/*
@@ -54,13 +54,13 @@ export default async function HomePage() {
       {blocks.includes('FEATURED') || blocks.includes('NEWS') ? (
         <section>
           <div className="flex items-baseline justify-between">
-            <h2 className="text-lg font-semibold text-surface-textBase">Tin mới</h2>
+            <h2 className="text-xl font-bold text-surface-textBase">Tin mới</h2>
             <Link href={ROUTES.search} className="text-sm text-brand-primary hover:underline">
               Xem tất cả
             </Link>
           </div>
           {latest && latest.content.length > 0 ? (
-            <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-5 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {latest.content.map((article) => (
                 <ArticleCard key={article.slug} article={article} />
               ))}
@@ -73,15 +73,15 @@ export default async function HomePage() {
 
       {blocks.includes('NOTICE') && categories && categories.length > 0 ? (
         <section className="mt-10">
-          <h2 className="text-lg font-semibold text-surface-textBase">Chuyên mục</h2>
-          <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <h2 className="text-xl font-bold text-surface-textBase">Chuyên mục</h2>
+          <ul className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {categories
               .filter((c) => c.depth === 0)
               .map((c) => (
                 <li key={c.slug}>
                   <Link
                     href={ROUTES.category(c.slug)}
-                    className="block rounded border border-surface-border p-4 transition-colors hover:border-brand-primary"
+                    className="block rounded-lg border border-surface-border bg-white p-5 shadow-sm transition-all duration-300 ease-smooth hover:-translate-y-0.5 hover:border-brand-primary hover:shadow-md"
                   >
                     <span className="font-medium text-surface-textBase">{c.name}</span>
                     {c.description ? (
@@ -106,13 +106,19 @@ function BannerHero({
 }) {
   const image = fileUrl(banner.imageId);
   const content = (
-    <div className="relative overflow-hidden rounded">
+    <div className="group relative overflow-hidden rounded-xl shadow-md">
       {image ? (
-        <img src={image} alt={banner.title} className="h-64 w-full object-cover sm:h-80" />
+        <img
+          src={image}
+          alt={banner.title}
+          className="h-64 w-full object-cover transition-transform duration-700 ease-smooth group-hover:scale-105 sm:h-80 lg:h-96"
+        />
       ) : null}
-      <div className="absolute inset-x-0 bottom-0 bg-black/50 p-4 text-white">
-        <p className="text-lg font-semibold">{banner.title}</p>
-        {banner.description ? <p className="mt-1 text-sm">{banner.description}</p> : null}
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent p-6 text-white">
+        <p className="text-xl font-bold drop-shadow-md sm:text-2xl">{banner.title}</p>
+        {banner.description ? (
+          <p className="mt-2 text-sm drop-shadow-sm sm:text-base">{banner.description}</p>
+        ) : null}
       </div>
     </div>
   );

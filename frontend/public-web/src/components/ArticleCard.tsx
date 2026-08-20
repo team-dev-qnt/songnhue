@@ -16,21 +16,23 @@ export function ArticleCard({ article }: { article: ArticleRow }) {
   const cover = fileUrl(article.coverAttachmentPublicId);
 
   return (
-    <article className="flex flex-col overflow-hidden rounded border border-surface-border bg-white transition-colors hover:border-brand-primary">
+    <article className="group flex flex-col overflow-hidden rounded-lg border border-surface-border bg-white shadow-sm transition-all duration-300 ease-smooth hover:-translate-y-1 hover:shadow-md hover:border-brand-primary">
       <Link href={ROUTES.article(article.slug)} className="flex flex-1 flex-col">
-        <div className="aspect-[16/9] w-full bg-surface-bgLayout">
+        <div className="aspect-[16/9] w-full overflow-hidden bg-surface-bgLayout">
           {cover ? (
             <img
               src={cover}
               alt=""
               loading="lazy"
               decoding="async"
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover transition-transform duration-500 ease-smooth group-hover:scale-105"
             />
           ) : null}
         </div>
         <div className="flex flex-1 flex-col p-4">
-          <h3 className="line-clamp-2 font-semibold text-surface-textBase">{article.title}</h3>
+          <h3 className="line-clamp-2 font-semibold text-surface-textBase transition-colors duration-200 group-hover:text-brand-primary">
+            {article.title}
+          </h3>
           {article.summary ? (
             <p className="mt-2 line-clamp-3 text-sm text-surface-textSecondary">
               {article.summary}

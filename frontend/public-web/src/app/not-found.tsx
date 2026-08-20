@@ -18,20 +18,22 @@ export default async function NotFound() {
     'Trang bạn tìm không còn tồn tại hoặc đã được chuyển sang địa chỉ khác.';
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-20 text-center">
-      <p className="text-5xl font-bold text-brand-primary">404</p>
+    <div className="mx-auto max-w-2xl animate-fade-in px-4 py-20 text-center">
+      <p className="bg-gradient-to-r from-brand-primaryGradientFrom to-brand-primaryGradientTo bg-clip-text text-6xl font-black text-transparent">
+        404
+      </p>
       <h1 className="mt-4 text-2xl font-bold text-surface-textBase">{title}</h1>
       <p className="mt-3 text-surface-textSecondary">{message}</p>
       <div className="mt-8 flex justify-center gap-3">
         <Link
           href={ROUTES.home}
-          className="rounded bg-brand-primary px-4 py-2 text-white hover:opacity-90"
+          className="rounded-lg bg-brand-primary px-5 py-2.5 font-medium text-white shadow-sm transition-all duration-200 ease-smooth hover:-translate-y-0.5 hover:shadow-md"
         >
           Về trang chủ
         </Link>
         <Link
           href={ROUTES.search}
-          className="rounded border border-surface-border px-4 py-2 hover:border-brand-primary"
+          className="rounded-lg border border-surface-border px-5 py-2.5 font-medium transition-all duration-200 ease-smooth hover:-translate-y-0.5 hover:border-brand-primary hover:shadow-sm"
         >
           Tìm kiếm
         </Link>
