@@ -1,6 +1,6 @@
 # PHASE 1 — CMS & MASTER DATA CÔNG TRÌNH · BẢNG THEO DÕI TIẾN ĐỘ
 
-> **Cập nhật lần cuối**: 2026-08-20 · **Tiến độ: 41/101 task (41%)** · 1 task **hoãn có chủ đích** (T12.7 → nợ #62) · **DoD: 0/17** · Trạng thái: 🟡 Đang làm — WS-12 ✅, **WS-13 ✅**, WS-14 ✅, WS-15 ✅, **WS-16 ✅**
+> **Cập nhật lần cuối**: 2026-08-20 · **Tiến độ: 51/112 task (46%)** · 1 task **hoãn có chủ đích** (T12.7 → nợ #62) · **DoD: 0/17** · Trạng thái: 🟡 Đang làm — WS-12 ✅, **WS-13 ✅**, WS-14 ✅, WS-15 ✅, **WS-16 ✅**
 > Nguồn ràng buộc: `function-spec.md` CN-01.1→01.5, CN-01.8 · CN-02.1, 02.2, 02.3, 02.6, 02.7, 02.11 · `conventions.md` (luật) · `docs/coding-guide.md` (đường đi) · `architecture-review.md` §10 (quyết định Phase 1)
 > **Cách dùng**: giống Phase 0 — làm xong task nào tick `[x]`; xong 1 WS thì chạy mục "Kiểm chứng" rồi cập nhật bảng tổng + dòng trên cùng.
 > ⚠ **Luật 3 bước khi đóng WS** (thừa kế từ Phase 0): tick task → tick dòng nợ → **quay lại sửa mô tả đã lỗi thời ở WS đã giao nợ**. Bước 3 hay bị bỏ nhất.
@@ -34,20 +34,44 @@ Phase 0 dựng **cơ chế**; Phase 1 là lần đầu có **người dùng th�
 | **WS-17** | Operations — Danh mục công trình | 12 | 0 | ⬜ Chưa bắt đầu | WS-12 | 14 pd |
 | **WS-18** | Operations — Lịch sử sửa chữa & sự cố | 11 | 0 | ⬜ Chưa bắt đầu | WS-17 | 10 pd |
 | **WS-19** | Operations — Tình hình vận hành + trạng thái dẫn xuất | 8 | 0 | ⬜ Chưa bắt đầu | WS-17, WS-18 | 7 pd |
-| **WS-20** | FE admin — màn hình CMS | 10 | 0 | ⬜ Chưa bắt đầu | WS-13→15 (API) | 12 pd |
+| **WS-20** | FE admin — màn hình CMS | 10 | **10** | ✅ **Xong 20/8** — kéo lên trước WS-17 | WS-13→15 (API) | 12 pd |
 | **WS-21** | FE admin — màn hình Công trình | 10 | 0 | ⬜ Chưa bắt đầu | WS-17→19 (API) | 12 pd |
+| **WS-23** | ⭐ Nền biểu đồ + Dashboard điều hành (CN-02.5, CN-02.6) | 11 | 0 | ⬜ Chưa bắt đầu | WS-17 | 11 pd |
 | **WS-22** | Kiểm thử, nghiệm thu Phase 1 & trả nợ | 8 | 0 | ⬜ Chưa bắt đầu | tất cả | 8 pd |
-| | **TỔNG** | **101** | **41** | | | **101 pd** |
+| | **TỔNG** | **112** | **51** | | | **112 pd** |
 
-*(101 task triển khai + 17 mục Definition of Done ở cuối file.)*
+*(112 task triển khai + 17 mục Definition of Done ở cuối file.)*
 
 **Trạng thái**: ⬜ Chưa bắt đầu · 🟡 Đang làm · ✅ Xong · ⏸ Tạm dừng · ❌ Bỏ
+
+---
+
+## ⭐ Đổi thứ tự thực hiện — chốt 20/8/2026
+
+**Thứ tự mới**: `WS-20` (màn hình CMS) → `WS-17` (danh mục công trình) → `WS-23` (nền biểu đồ + dashboard) → `WS-18`, `WS-19`, `WS-21` → `WS-22`.
+
+| Vì sao | |
+|---|---|
+| **WS-20 lên trước WS-17→19** | Đóng nợ **#65** (ba bài kiểm CMS chưa đi qua HTTP) và nợ **#66** (`created_by` chưa từng được kiểm chứng) lúc API CMS còn ổn định. Sửa API sau khi đã có màn hình dùng nó thì mỗi lần sửa là hai chỗ. Và Công ty có màn hình để nghiệm thu **G13/G14** — hai mục đang chặn nghiệm thu chứ không chặn code |
+| **WS-17 lên trước dashboard** | Dashboard CN-02.5 lấy số liệu từ công trình. Dựng dashboard trước rồi cắm dữ liệu mẫu vào là **demo nói dối**, và toàn bộ phần đấu nối phải viết lại khi WS-17 về. Kéo WS-17 lên thì KPI công trình, biểu đồ thống kê và marker GIS đều là **số thật** ngay từ lần demo đầu |
+| **WS-23 là hạng mục mới** | `implement.md` xếp dashboard vào Phase 3. Nay tách thành WS riêng và làm trong Phase 1 để có màn hình demo. Phần thuỷ văn của CN-02.5 **vẫn chờ Phase 2** — chỗ đó hiện khối *"Dữ liệu chưa cập nhật"*, đúng như spec yêu cầu khi mất kết nối, chứ không phải số giả |
+
+⛔ **Cấm seed dữ liệu công trình/thuỷ văn "để cho đẹp demo".** Số liệu giả trong hệ thật là thứ không ai nhớ xoá, và một lần Công ty nhìn thấy con số sai trên màn hình điều hành là mất niềm tin vào mọi con số còn lại. Ô nào chưa có nguồn thì nói thẳng là chưa có.
+
+### Wall mode: base 4K nhưng **phải co giãn**, không phải hai bản layout
+
+Chốt 20/8 (mở rộng so với B8): route `?mode=wall` thiết kế ở base 4K cho TV 85", nhưng **cùng một layout phải chạy được trên laptop 13" và monitor rời 1080p/1440p** — người vận hành thử bố cục ở máy mình trước khi đẩy lên TV, và lúc demo thì màn hình sẵn có là cái laptop.
+
+Hệ quả kỹ thuật, ghi trước để không ai dựng nhầm:
+- Cỡ chữ và khoảng cách theo **đơn vị tương đối bám viewport** (`clamp()` + `vw`), không phải hai bộ CSS theo `@media`. Hai bộ thì bộ ít dùng hơn sẽ hỏng mà không ai biết.
+- Số lượng ô hiển thị **tự rút gọn theo bề rộng** — không cắt chữ, không thanh cuộn ngang.
+- Có bài kiểm ở **ba bề rộng**: 3840, 1920, 1366. Bài kiểm phải khẳng định *cả hai vế*: không tràn ngang, và không mất khối nào.
 
 ### Sơ đồ phụ thuộc
 
 ```
 WS-12 ─────────────────────────────────────► [nền — CHẶN mọi thứ, làm trước]
-   ├─► WS-13 ─► WS-15 ─► WS-16               [nhánh CMS + cổng công khai]
+   ├─► WS-13 ─► WS-15 ─► WS-16 ─► **WS-20**   [nhánh CMS + cổng công khai + màn hình CMS]
    │      └────────────► WS-20               [FE bám API vừa xong]
    ├─► WS-14 ──────────► WS-20
    └─► WS-17 ─► WS-18 ─► WS-19               [nhánh Công trình — tuần tự, không đảo được]
@@ -373,16 +397,38 @@ Cả bốn đều **xanh trọn vẹn trong bộ kiểm thử**. Chi tiết ở 
 
 **Tiên quyết**: WS-13→15 có API. **Đầu ra**: đội nội dung làm việc được hoàn toàn trên giao diện.
 
-- [ ] **T20.1** Trình soạn thảo (CKEditor 5 hoặc TinyMCE) — ⛔ **bản tự host, không CDN**: CSP của trang chặn mọi tài nguyên ngoài
-- [ ] **T20.2** Danh sách bài + bộ lọc + thao tác hàng loạt + phân trang phía máy chủ
-- [ ] **T20.3** Biểu mẫu bài viết: SEO đếm ký tự có cảnh báo vượt ngưỡng, ảnh đại diện, tệp đính kèm, hẹn giờ đăng
-- [ ] **T20.4** ⭐ Nút duyệt render từ `allowedActions` của API — ⛔ **không tự suy từ trạng thái** (`conventions.md` §3)
-- [ ] **T20.5** So sánh phiên bản (diff) + phục hồi bản cũ
-- [ ] **T20.6** Cây danh mục kéo thả (`OrgUnitTreeSelect` đã có, dùng lại cho cây danh mục)
-- [ ] **T20.7** Thư viện media: kéo-thả nhiều tệp có thanh tiến trình từng tệp, Grid/List, hộp chọn ảnh cho bài viết
-- [ ] **T20.8** Cấu hình giao diện: banner kéo thả, menu lồng nhau, footer, cấu hình chung
-- [ ] **T20.9** Mã lỗi mới vào `error-map.ts` — bài kiểm đọc thẳng file `ErrorCode.java` của backend nên **lệch là CI đỏ**
-- [ ] **T20.10** Test FE cho các hàm thuần: quy tắc hiện/ẩn nút, đếm ký tự SEO, dựng cây danh mục
+- [x] **T20.1** Trình soạn thảo — ⛔ **bản tự host, không CDN**: CSP của trang chặn mọi tài nguyên ngoài. ⚠⚠ **Đổi lựa chọn: TipTap (MIT) thay cho CKEditor 5 / TinyMCE.** Tới 8/2026 **cả hai đều đã chuyển sang GPL** (CKEditor từ v44, TinyMCE từ v7) — dùng chúng là admin-app trở thành tác phẩm phái sinh của thư viện GPL và phải phát hành theo GPL khi bàn giao. Đó là quyết định pháp lý của chủ đầu tư, không phải của người viết mã
+- [x] **T20.2** Danh sách bài + bộ lọc + thao tác hàng loạt + phân trang phía máy chủ. ⚠ Xoá hàng loạt chạy **tuần tự**: hỏng giữa chừng thì biết chính xác đã xong tới đâu, và không bắn hai chục giao dịch song song vào hệ 200 người dùng
+- [x] **T20.3** Biểu mẫu bài viết: SEO đếm ký tự có cảnh báo vượt ngưỡng, ảnh đại diện, hẹn giờ đăng
+- [x] **T20.4** ⭐ Nút duyệt render từ `allowedActions` của API — ⛔ **không tự suy từ trạng thái** (`conventions.md` §3)
+- [x] **T20.5** So sánh phiên bản (diff) + phục hồi bản cũ. So theo **khối văn bản** chứ không theo từ trên chuỗi HTML — diff trên HTML thô cho ra một biển thay đổi mà người biên tập không đọc được. ⛔ Không kéo thư viện diff: LCS ~40 dòng, một phụ thuộc nữa là một dòng nữa phải theo dõi CVE
+- [x] **T20.6** Cây danh mục kéo thả, chặn kéo vào chính nhánh con **trước khi gửi lên** — backend cũng chặn, nhưng để người dùng kéo tới nơi rồi mới báo lỗi là bắt họ làm lại
+- [x] **T20.7** Thư viện media: tải nhiều tệp có thanh tiến trình từng tệp, hộp chọn ảnh cho bài viết. ⚠ Xoá tệp thì **hỏi backend xem bài nào đang dùng** trước — không hỏi thì ảnh trong bài đã xuất bản vỡ và người xoá không biết
+- [x] **T20.8** Cấu hình giao diện: banner (đổi thứ tự bằng nút, không kéo thả — dòng ảnh cao thì kéo phải vừa cuộn vừa giữ chuột), menu lồng nhau hai cây tách biệt, nhận diện + thông tin cổng
+- [x] **T20.9** Không phát sinh mã lỗi mới ở WS-20 — `error-map.ts` giữ nguyên **62 mã**, bài kiểm đồng bộ vẫn xanh
+- [x] **T20.10** Test FE cho các hàm thuần: **43 bài mới** (SEO 11 · diff 13 · cây 10 · chuẩn hoá URL video 9)
+
+### ⭐⭐ Bộ từ vựng của trình soạn thảo phải khớp danh sách cho phép của bộ lọc
+
+Đây là phần đáng kể nhất của WS-20, và nó **không nằm trong kế hoạch ban đầu**.
+
+`HtmlSanitizer` chạy lúc **ghi**: thẻ ngoài danh sách bị gỡ, im lặng, bài vẫn lưu thành công. Nên một nút trên thanh công cụ tạo ra thẻ ngoài danh sách cho ra đúng kịch bản: biên tập viên chèn bảng, bấm Lưu, hệ thống báo *"Đã lưu"*, mở lại thì bảng biến mất — không lỗi, không cảnh báo, và người dùng nghĩ mình thao tác sai.
+
+Hai danh sách này nằm ở hai ngôn ngữ và hai thư mục, trình biên dịch không bắt lệch được. Nên có **`EditorVocabularyTest`** (Java đọc `editorSchema.ts` của FE, chạy mẫu HTML qua `HtmlSanitizer` thật, đòi mọi thẻ sống sót). Cùng cách mà `error-map.test.ts` đang canh danh mục mã lỗi, chỉ ngược chiều.
+
+**Bốn phát hiện, cả bốn đều là lỗi im lặng:**
+
+1. ⚠⚠ **`<s>` bị gỡ** — `Safelist.relaxed()` của jsoup chỉ có `strike`, thẻ đã bị HTML5 loại bỏ; mọi trình soạn thảo hiện đại phát ra `<s>`. Nút "gạch ngang" bấm được, lưu xong định dạng biến mất. Bài kiểm bắt được ở **lượt chạy đầu tiên**.
+2. ⚠⚠ **Nhúng video YouTube/Vimeo bị gỡ sạch** — CN-01.1 yêu cầu chức năng này, mà `clean()` gỡ mọi `<iframe>`. Thêm danh sách tên miền video, tách hẳn khỏi danh sách tên miền bản đồ (có bài kiểm chứng minh **hai danh sách không lẫn vào nhau**). Chuẩn hoá sang `youtube-nocookie.com` ngay lúc dán: bản thường đặt cookie theo dõi ngay khi trang tải, kể cả khi người đọc không bấm phát.
+3. ⚠ **Căn lề phải đi bằng `class`, không bằng `style`** — `HtmlSanitizer` cấm `style` (đúng: `style` mở đường cho `position:fixed` phủ kín trang, hoặc chữ trắng trên nền trắng để giấu nội dung trong một bài đã duyệt). Bản gốc của `@tiptap/extension-text-align` phát ra `style`, nên phải viết extension riêng.
+4. ⚠ **Bài kiểm bản đầu gộp hai nguyên nhân làm một** — "thẻ không có trong kết quả" có thể vì bộ lọc gỡ nó (lỗi thật) **hoặc** vì mẫu HTML chưa từng có nó (lỗi của chính bài kiểm). Lượt đỏ đầu tiên chỉ đường sai và tôi suýt thêm bốn thẻ vào safelist trong khi chúng chưa bao giờ bị gỡ. Nay là **hai phép khẳng định riêng**.
+
+### Hai lỗi khác, do lint và do bài kiểm bắt
+
+- ⚠ **`Array.from` không gộp dấu tổ hợp.** Bộ đếm ký tự SEO bản đầu dùng `Array.from` kèm một dòng tài liệu khẳng định như vậy là đếm được ký tự hiển thị. Không đúng: `Array.from` tách theo *điểm mã*, mà chữ dán từ Word thường ở dạng NFD nên `Đề` đếm ra **4**. Người soạn sẽ cắt bớt một tiêu đề hoàn toàn hợp lệ. Chuyển sang `Intl.Segmenter`.
+- ⚠ **`useEffect` đổ dữ liệu vào biểu mẫu** (ESLint `react-hooks/set-state-in-effect`). Lý do sâu hơn tên luật: màn hình vẽ một lượt với ô trống rồi vẽ lại — người dùng thấy nhấp nháy, và nếu kịp gõ vào khoảng giữa thì cú gõ đó bị ghi đè. Tách hai lớp: vỏ ngoài nạp dữ liệu, lớp trong dựng biểu mẫu với `initialValues` + `key`.
+
+**Kiểm chứng (`make dev-docker`, 20/8)**: 4 route CMS trả 200 · bó mã `ArticleEditorPage` tách riêng, chỉ tải khi mở trang soạn (493 kB / 157 kB nén) · API CMS chưa đăng nhập trả **401** (không phải 404 — nghĩa là endpoint có thật và tầng xác thực đang chạy). **391 test BE** (239 core + 152 app) + **90 FE** (67 admin + 23 public).
 
 ---
 
@@ -400,6 +446,33 @@ Cả bốn đều **xanh trọn vẹn trong bộ kiểm thử**. Chi tiết ở 
 - [ ] **T21.8** Nhật ký thay đổi hồ sơ (đọc `audit_logs`, hiển thị old/new)
 - [ ] **T21.9** Nhập Excel: tải lên → **xem trước kết quả chạy khô** → xác nhận
 - [ ] **T21.10** Test FE cho các hàm thuần: chọn biểu mẫu theo loại, kiểm tra định dạng lý trình `K..+..`, quy đổi hiển thị tiền
+
+---
+
+## WS-23 — ⭐ Nền biểu đồ + Dashboard điều hành · 11 pd
+
+**Tiên quyết**: WS-17 (dashboard lấy số liệu từ công trình). **Đầu ra**: một màn hình điều hành **demo được cho Công ty**, mọi con số trên đó là số thật.
+
+> ⭐ Hạng mục **thêm ở Phase 1** (20/8), `implement.md` vốn xếp dashboard vào Phase 3. Lý do ở khối "Đổi thứ tự thực hiện" đầu file. Nguồn ràng buộc: `function-spec.md` **CN-02.5** (dashboard + wall mode) và **CN-02.6** (thống kê công trình).
+
+### Nền dùng chung (cần cho mọi biểu đồ về sau, kể cả thuỷ văn Phase 2)
+
+- [ ] **T23.1** Theme ECharts sinh **từ `design-tokens`** — cùng một nguồn màu với AntD. ⛔ Không khai bảng màu thứ hai trong mã biểu đồ: hai bảng màu thì badge trạng thái trên bảng và cột trên biểu đồ sẽ lệch nhau, và không ai coi đó là lỗi để đi sửa
+- [ ] **T23.2** Bộ component biểu đồ dùng chung (`LineChart`, `BarChart`, `PieChart`, `GaugeChart`) — tự co theo khung chứa, có trạng thái **rỗng** và **đang tải** riêng. ⛔ Không dữ liệu thì hiện "Không có dữ liệu", **không vẽ biểu đồ trống** (CN-03.4 nói rõ điều này cho thuỷ văn; áp cho tất cả)
+- [ ] **T23.3** Nạp ECharts theo **kiểu chọn lọc** (chỉ import loại biểu đồ dùng tới) — nạp trọn gói làm bundle admin phình gấp nhiều lần vì một màn hình
+- [ ] **T23.4** `KpiCard` + `ChartCard` + khung lưới dashboard tự xếp lại theo bề rộng
+- [ ] **T23.5** Móc tự làm mới theo chu kỳ đọc từ `settings` (M2.15, mặc định 5') — ⚠ đọc lúc chạy, không chốt lúc dựng component, nếu không thì tham số sửa trên giao diện là công tắc chết (bài học WS-12)
+
+### Dashboard điều hành (CN-02.5)
+
+- [ ] **T23.6** API tổng hợp `GET /api/v1/ops/dashboard` — **tính ở BE**, FE chỉ hiển thị (quy tắc 3). Một lượt gọi trả đủ KPI, không để FE gọi bảy endpoint rồi tự cộng
+- [ ] **T23.7** KPI card: tổng công trình đang hoạt động/tổng · số công trình theo trạng thái. ⛔ Ô nào chưa có nguồn (cảnh báo thuỷ văn → Phase 2; sự cố chưa xử lý → WS-18) hiện **"Chưa có dữ liệu" kèm lý do**, không hiện số 0 — số 0 nghĩa là "đã đo và bằng không", khác hẳn "chưa đo"
+- [ ] **T23.8** Biểu đồ thống kê công trình (CN-02.6): theo loại · theo đơn vị · theo cấp quản lý; bấm vào một cột thì mở danh sách đã lọc sẵn
+- [ ] **T23.9** Bản đồ GIS tổng quan: marker theo toạ độ thật, màu theo trạng thái, popup theo M2.10. Công trình **chưa có toạ độ** đưa vào một danh sách riêng thay vì bỏ im
+- [ ] **T23.10** ⭐ **Wall mode `?mode=wall`** — base 4K, dark theme, auto-rotate; **co giãn thật** xuống 1440p/1080p/laptop bằng `clamp()` + `vw`, không phải hai bộ layout. Mất kết nối → "Dữ liệu chưa cập nhật" + thời điểm gần nhất
+- [ ] **T23.11** Test: hàm gom số liệu ở BE (đủ nhánh "chưa có nguồn") · bố cục wall ở **ba bề rộng 3840/1920/1366**, khẳng định cả hai vế: không tràn ngang **và** không mất khối
+
+**Kiểm chứng**: mở dashboard trên laptop rồi trên màn hình 4K — cùng một route, cùng một layout, không vỡ. Mọi con số đối chiếu được với danh sách công trình. P95 < 3s (NFR-02).
 
 ---
 

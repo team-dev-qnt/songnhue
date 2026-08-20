@@ -1266,3 +1266,66 @@ giới đó là thứ Phase 1 vừa dựng ra ở WS-12 để module nghiệp v�
 **Luật rút ra**: khi chèn một khối mới vào giữa lớp, kiểm lại chú thích ở mép trên của chỗ chèn.
 Không có cách nào để mắt người thấy điều này — `@Transactional` cách hàm nhận nó **tám dòng chú
 giải**. Thứ bắt được là một phép kiểm máy chạy.
+
+### §10.22. Trình soạn thảo: TipTap (MIT), vì CKEditor và TinyMCE đều đã chuyển sang GPL (20/8/2026)
+
+`phase1-tracking.md` viết "CKEditor 5 hoặc TinyMCE, bản tự host". Tới thời điểm dựng, **cả
+hai đều là GPL**: CKEditor 5 từ v44, TinyMCE từ v7. Nhúng một thư viện GPL vào `admin-app`
+làm ứng dụng trở thành tác phẩm phái sinh và phải phát hành theo GPL khi bàn giao cho Công
+ty. Đó là **quyết định pháp lý của chủ đầu tư**, không phải của người viết mã — nên không
+chọn thay được, và cũng không nên âm thầm chọn rồi để lộ ra lúc bàn giao.
+
+TipTap là **MIT**, và nó giải thêm một vấn đề mà bộ soạn thảo trọn gói không giải: ở đây ta
+khai **chính xác** những nút nào tồn tại. Bộ trọn gói có hàng chục nút mà phần lớn tạo ra thẻ
+`HtmlSanitizer` sẽ gỡ — xem §10.23.
+
+Cái giá: phải tự viết ba extension nhỏ (`AlignClass`, `FigureImage`, `VideoEmbed`), tổng ~200
+dòng. Đổi lại là bộ từ vựng HTML khép kín và kiểm được bằng máy.
+
+### §10.23. Bộ từ vựng của trình soạn thảo phải khớp danh sách cho phép của bộ lọc (20/8/2026)
+
+`HtmlSanitizer` chạy lúc **ghi**. Thẻ ngoài danh sách bị gỡ, im lặng, và bài **vẫn lưu thành
+công**. Nên một nút trên thanh công cụ tạo ra thẻ ngoài danh sách cho ra đúng kịch bản này:
+
+> Biên tập viên chèn bảng, bấm Lưu, hệ thống báo *"Đã lưu"*, mở lại thì bảng biến mất. Không
+> lỗi, không cảnh báo, và người dùng sẽ nghĩ mình thao tác sai.
+
+Đây là biến thể của lỗi đã trả giá nhiều lần trong dự án — một cơ chế chạy đúng ở **một nửa
+đường**. Lần này nạn nhân là người dùng cuối chứ không phải lập trình viên, và họ không có
+cách nào tự chẩn đoán.
+
+Hai danh sách nằm ở hai ngôn ngữ và hai thư mục, trình biên dịch không bắt lệch được. Nên
+`EditorVocabularyTest` (Java) đọc `editorSchema.ts` (TypeScript), chạy mẫu HTML qua
+`HtmlSanitizer` **thật**, và đòi mọi thẻ sống sót. Cùng cách `error-map.test.ts` canh danh
+mục mã lỗi, chỉ ngược chiều — bắt buộc phải ngược, vì logic khử trùng là Java.
+
+**Bốn phát hiện ở lượt chạy đầu:**
+
+| # | Phát hiện | Vì sao im lặng |
+|---|---|---|
+| 1 | **`<s>` bị gỡ** | `Safelist.relaxed()` của jsoup chỉ có `strike` (thẻ HTML5 đã loại bỏ); mọi trình soạn thảo hiện đại phát ra `<s>`. Nút bấm được, lưu xong định dạng biến mất |
+| 2 | **Nhúng video bị gỡ sạch** | CN-01.1 yêu cầu embed YouTube/Vimeo, mà `clean()` gỡ mọi `<iframe>`. Chức năng nằm trong đặc tả và **chưa bao giờ chạy được** |
+| 3 | **Căn lề phải đi bằng `class`** | `HtmlSanitizer` cấm `style` — đúng, vì `style` mở đường cho `position:fixed` phủ kín trang hoặc chữ trắng trên nền trắng giấu nội dung trong một bài **đã được duyệt**. Bản gốc `@tiptap/extension-text-align` phát ra `style` |
+| 4 | **Chính bài kiểm gộp hai nguyên nhân** | "Thẻ không có trong kết quả" = bộ lọc gỡ nó (lỗi thật) **hoặc** mẫu chưa từng có nó (lỗi bài kiểm). Lượt đỏ đầu tiên chỉ đường sai; suýt thêm 4 thẻ vào safelist trong khi chúng chưa bao giờ bị gỡ |
+
+⚠ Danh sách tên miền video **tách hẳn** khỏi danh sách tên miền bản đồ, và có bài kiểm chứng
+minh hai danh sách không lẫn vào nhau: khối bản đồ ở chân trang không phải chỗ nhúng video, và
+nội dung bài không phải chỗ nhúng bản đồ. Gộp làm một danh sách là nới cả hai cùng lúc.
+
+Đường nhúng YouTube chuẩn hoá sang `youtube-nocookie.com` **ngay lúc dán**: bản thường đặt
+cookie theo dõi ngay khi trang tải, kể cả khi người đọc không bấm phát — với cổng thông tin
+của cơ quan nhà nước thì đó là chuyện không nên có, và người đọc không có cách nào từ chối.
+
+### §10.24. Đếm ký tự SEO bằng `Intl.Segmenter`, không bằng `Array.from` (20/8/2026)
+
+Ba cách đếm cho ba kết quả khác nhau với chữ "Đề" dán từ Word (dạng NFD):
+
+| Cách | Kết quả | |
+|---|:-:|---|
+| `String.length` | 4 | đơn vị mã UTF-16 |
+| `Array.from(...).length` | 4 | điểm mã — **mỗi dấu tổ hợp là một điểm mã riêng** |
+| `Intl.Segmenter` | 2 | cụm hiển thị ✔ |
+
+Bản đầu dùng `Array.from` kèm một dòng tài liệu khẳng định như vậy là đủ. Hậu quả: ô đếm báo
+vượt ngưỡng trong khi mắt thấy chưa vượt, và người soạn sẽ cắt bớt một tiêu đề hoàn toàn hợp
+lệ. Bài kiểm bắt được vì nó khẳng định **cả ba con số**, không chỉ con số cuối.

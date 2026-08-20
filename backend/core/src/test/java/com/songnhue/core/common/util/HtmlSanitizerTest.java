@@ -142,4 +142,49 @@ class HtmlSanitizerTest {
         assertThat(HtmlSanitizer.toPlainText("<p>Thông báo <strong>khẩn</strong></p>"))
                 .isEqualTo("Thông báo khẩn");
     }
+
+    // ---- Video nhúng — CN-01.1 ----------------------------------------------
+
+    @Test
+    @DisplayName("⭐ Video YouTube/Vimeo nhúng được — CN-01.1 yêu cầu, trước WS-20 thì bị gỡ im lặng")
+    void nhanVideoTuMienDaBiet() {
+        String sach = HtmlSanitizer.clean("<p>Xem clip:</p>"
+                + "<iframe src=\"https://www.youtube-nocookie.com/embed/abc123\" allowfullscreen></iframe>"
+                + "<iframe src=\"https://player.vimeo.com/video/987\"></iframe>");
+
+        assertThat(sach).contains("youtube-nocookie.com/embed/abc123");
+        assertThat(sach).contains("player.vimeo.com/video/987");
+        assertThat(sach).as("phần chữ quanh video phải còn").contains("Xem clip");
+    }
+
+    @Test
+    @DisplayName("⛔ Iframe trỏ ra máy chủ lạ bị gỡ, dù đúng giao thức https")
+    void goIframeMienLa() {
+        String sach = HtmlSanitizer.clean(
+                "<p>Trước</p><iframe src=\"https://ke-tan-cong.example/dang-nhap-gia\"></iframe><p>Sau</p>");
+
+        assertThat(sach).doesNotContain("ke-tan-cong.example");
+        assertThat(sach).doesNotContain("<iframe");
+        assertThat(sach).contains("Trước").contains("Sau");
+    }
+
+    @Test
+    @DisplayName("⛔ Tên miền giả dạng hậu tố không lọt — `evilyoutube.com` khác `youtube.com`")
+    void goMienGiaDang() {
+        assertThat(HtmlSanitizer.clean("<iframe src=\"https://evilyoutube.com/embed/x\"></iframe>"))
+                .doesNotContain("evilyoutube");
+        assertThat(HtmlSanitizer.clean("<iframe src=\"https://player.vimeo.com.kegian.net/x\"></iframe>"))
+                .doesNotContain("kegian");
+    }
+
+    @Test
+    @DisplayName("Nhúng bản đồ vẫn chỉ nhận máy chủ bản đồ — hai danh sách không lẫn vào nhau")
+    void haiDanhSachMienKhongLanNhau() {
+        assertThat(HtmlSanitizer.cleanMapEmbed("<iframe src=\"https://www.youtube.com/embed/x\"></iframe>"))
+                .as("khối bản đồ ở chân trang không phải chỗ để nhúng video")
+                .doesNotContain("youtube");
+        assertThat(HtmlSanitizer.clean("<iframe src=\"https://maps.google.com/maps?q=1\"></iframe>"))
+                .as("và ngược lại — nội dung bài không phải chỗ nhúng bản đồ")
+                .doesNotContain("maps.google.com");
+    }
 }

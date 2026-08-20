@@ -87,6 +87,32 @@ export const router = createBrowserRouter([
             path: '/phien-dang-nhap',
             element: lazyPage(() => import('@/features/account/SessionsPage'), 'SessionsPage'),
           },
+          // ---- Nội dung (MOD-01) ----
+          adminRoute(
+            '/noi-dung/bai-viet',
+            'cms:article:view',
+            lazyPage(() => import('@/features/cms/ArticleListPage'), 'ArticleListPage'),
+          ),
+          adminRoute(
+            '/noi-dung/bai-viet/:publicId',
+            'cms:article:view',
+            lazyPage(() => import('@/features/cms/ArticleEditorPage'), 'ArticleEditorPage'),
+          ),
+          adminRoute(
+            '/noi-dung/danh-muc',
+            'cms:category:manage',
+            lazyPage(() => import('@/features/cms/CategoriesPage'), 'CategoriesPage'),
+          ),
+          adminRoute(
+            '/noi-dung/thu-vien',
+            'cms:media:manage',
+            lazyPage(() => import('@/features/cms/MediaPage'), 'MediaPage'),
+          ),
+          adminRoute(
+            '/noi-dung/giao-dien',
+            'cms:layout:manage',
+            lazyPage(() => import('@/features/cms/SiteLayoutPage'), 'SiteLayoutPage'),
+          ),
           adminRoute(
             '/quan-tri/tai-khoan',
             'adm:user:view',

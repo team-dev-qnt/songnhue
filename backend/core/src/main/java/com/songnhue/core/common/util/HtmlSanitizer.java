@@ -42,6 +42,21 @@ public final class HtmlSanitizer {
             List.of("google.com", "www.google.com", "maps.google.com", "goo.gl", "maps.app.goo.gl");
 
     /**
+     * Máy chủ nhúng video được chấp nhận trong nội dung bài — CN-01.1 yêu cầu embed YouTube/Vimeo.
+     *
+     * <p>⚠ Chỉ tên miền <b>nhúng</b>, không phải tên miền xem. {@code youtube.com/watch?v=…} là trang
+     * xem đầy đủ; nhúng nó vào một khung là đưa cả thanh điều hướng và phần gợi ý video của YouTube
+     * vào giữa bài của cơ quan nhà nước. Đường nhúng đúng là {@code youtube-nocookie.com/embed/…}
+     * hoặc {@code player.vimeo.com/video/…}.
+     *
+     * <p>Ưu tiên {@code youtube-nocookie.com}: bản thường đặt cookie theo dõi ngay khi trang tải, kể
+     * cả khi người đọc không bấm phát — với cổng thông tin của cơ quan nhà nước thì đó là chuyện
+     * không nên có. Vẫn nhận {@code youtube.com} vì nội dung cũ và đường dán tay đều dùng nó.
+     */
+    private static final List<String> MIEN_NHUNG_VIDEO = List.of(
+            "youtube.com", "www.youtube.com", "youtube-nocookie.com", "www.youtube-nocookie.com", "player.vimeo.com");
+
+    /**
      * Nội dung bài viết và các khối văn bản có định dạng.
      *
      * <p>{@code relaxed()} của jsoup đã gồm tiêu đề, danh sách, bảng, liên kết và ảnh. Thêm vào ba
@@ -52,7 +67,11 @@ public final class HtmlSanitizer {
      * {@code on*} nằm ngoài danh sách nên bị gỡ — đó là toàn bộ mục đích.
      */
     private static final Safelist NOI_DUNG = Safelist.relaxed()
-            .addTags("figure", "figcaption", "hr", "span")
+            // ⚠ `s` không nằm trong `relaxed()` — jsoup chỉ có `strike`, thẻ đã bị HTML5 loại bỏ.
+            // Mọi trình soạn thảo hiện đại phát ra `<s>`, nên thiếu dòng này thì nút "gạch ngang"
+            // bấm được, lưu xong báo thành công, và định dạng biến mất khi mở lại. Bài kiểm liên
+            // ngôn ngữ `EditorVocabularyTest` bắt được đúng chỗ này ở lượt chạy đầu tiên.
+            .addTags("figure", "figcaption", "hr", "span", "s")
             .addAttributes(":all", "class")
             .addAttributes("img", "loading", "width", "height")
             // `rel=noopener` để liên kết mở tab mới không trao quyền điều khiển tab gốc cho trang đích
@@ -66,7 +85,12 @@ public final class HtmlSanitizer {
             //
             // Giữ đường dẫn tương đối KHÔNG mở lại lỗ `javascript:`: chuỗi đó mang giao thức nên vẫn
             // bị đối chiếu với danh sách http/https và vẫn bị gỡ. Có bài kiểm riêng cho đúng điểm này.
-            .preserveRelativeLinks(true);
+            .preserveRelativeLinks(true)
+            // Khung nhúng video — CN-01.1. Safelist chỉ cho thẻ đi qua; TÊN MIỀN được lọc riêng ở
+            // `clean()`, vì safelist của jsoup chỉ biết giao thức chứ không biết máy chủ.
+            .addTags("iframe")
+            .addAttributes("iframe", "src", "width", "height", "title", "allow", "allowfullscreen", "loading")
+            .addProtocols("iframe", "src", "https");
 
     /**
      * Khối nhúng bản đồ — <b>chỉ</b> một {@code <iframe>} trỏ tới máy chủ bản đồ đã biết.
@@ -89,7 +113,7 @@ public final class HtmlSanitizer {
         if (html == null || html.isBlank()) {
             return html;
         }
-        return Jsoup.clean(html, "", NOI_DUNG);
+        return locIframeTheoMien(Jsoup.clean(html, "", NOI_DUNG), MIEN_NHUNG_VIDEO);
     }
 
     /**
@@ -106,9 +130,25 @@ public final class HtmlSanitizer {
         if (html == null || html.isBlank()) {
             return html;
         }
-        Document document = Jsoup.parseBodyFragment(Jsoup.clean(html, "", NHUNG_BAN_DO));
+        return locIframeTheoMien(Jsoup.clean(html, "", NHUNG_BAN_DO), MIEN_NHUNG_BAN_DO);
+    }
+
+    /**
+     * Gỡ mọi {@code <iframe>} trỏ ra ngoài danh sách tên miền.
+     *
+     * <p>Bước bắt buộc thứ hai sau safelist, và <b>không thay thế được bằng safelist</b>: safelist
+     * của jsoup chỉ biết giao thức, nên nó cho qua một iframe https trỏ tới máy chủ bất kỳ. Trang bên
+     * trong iframe không đọc được nội dung trang cha, nhưng nó vẽ được một biểu mẫu đăng nhập giả ở
+     * giữa bài của cơ quan nhà nước — và người dùng không có cách nào phân biệt.
+     */
+    private static String locIframeTheoMien(String daLamSach, List<String> mienChoPhep) {
+        if (!daLamSach.contains("<iframe")) {
+            // Đường đi thường gặp: bài viết không nhúng gì. Bỏ qua một lượt phân tích DOM.
+            return daLamSach;
+        }
+        Document document = Jsoup.parseBodyFragment(daLamSach);
         document.select("iframe").forEach(iframe -> {
-            if (!mienDuocPhep(iframe.attr("src"))) {
+            if (!mienDuocPhep(iframe.attr("src"), mienChoPhep)) {
                 iframe.remove();
             }
         });
@@ -126,7 +166,7 @@ public final class HtmlSanitizer {
                 || thuong.matches("(?s).*\\son[a-z]+\\s*=.*");
     }
 
-    private static boolean mienDuocPhep(String src) {
+    private static boolean mienDuocPhep(String src, List<String> mienChoPhep) {
         if (src == null || src.isBlank()) {
             return false;
         }
@@ -138,7 +178,7 @@ public final class HtmlSanitizer {
             String thuong = host.toLowerCase(Locale.ROOT);
             // So khớp cả tên miền con: `maps.google.com` khớp `google.com`. Dùng hậu tố có dấu chấm
             // để `evilgoogle.com` KHÔNG khớp — đây là bẫy kinh điển của phép so khớp tên miền.
-            return MIEN_NHUNG_BAN_DO.stream().anyMatch(m -> thuong.equals(m) || thuong.endsWith("." + m));
+            return mienChoPhep.stream().anyMatch(m -> thuong.equals(m) || thuong.endsWith("." + m));
         } catch (IllegalArgumentException e) {
             return false;
         }

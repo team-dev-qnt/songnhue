@@ -1,0 +1,125 @@
+/*
+ * Kiểu hiển thị của trình soạn thảo — T20.1.
+ *
+ * ⚠ Ba class căn lề dưới đây phải có bản SONG SINH ở public-web. Nội dung lưu class chứ
+ * không lưu `style` (xem `AlignClass.ts`), nên nếu cổng công khai không định nghĩa chúng
+ * thì bài lên cổng mất căn lề — trong khi màn hình quản trị vẫn hiển thị đúng, và người
+ * soạn không có cách nào biết.
+ */
+
+.sn-editor {
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.sn-editor__toolbar {
+  padding: 6px 8px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+.sn-editor__body {
+  padding: 12px 16px;
+  overflow-y: auto;
+}
+
+.sn-editor__body:focus-visible,
+.sn-editor__body .ProseMirror:focus-visible {
+  outline: 2px solid #1677ff;
+  outline-offset: -2px;
+}
+
+.sn-editor__body .ProseMirror {
+  outline: none;
+  min-height: inherit;
+}
+
+/* Nội dung rỗng cần một dòng gợi ý, nếu không thì ô trắng trông như đang hỏng. */
+.sn-editor__body .ProseMirror p.is-editor-empty:first-child::before {
+  content: 'Nhập nội dung bài viết…';
+  color: #bfbfbf;
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.sn-editor__body img {
+  max-width: 100%;
+  height: auto;
+}
+
+.sn-editor__body figure {
+  margin: 16px 0;
+}
+
+.sn-editor__body figcaption {
+  font-size: 13px;
+  color: #595959;
+  text-align: center;
+  margin-top: 4px;
+}
+
+.sn-editor__body table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 12px 0;
+}
+
+.sn-editor__body th,
+.sn-editor__body td {
+  border: 1px solid #d9d9d9;
+  padding: 6px 10px;
+}
+
+.sn-editor__body th {
+  background: #fafafa;
+  font-weight: 600;
+}
+
+.sn-editor__body blockquote {
+  border-left: 3px solid #d9d9d9;
+  margin: 12px 0;
+  padding-left: 12px;
+  color: #595959;
+}
+
+.sn-editor__body pre {
+  background: #f5f5f5;
+  border-radius: 4px;
+  padding: 10px 12px;
+  overflow-x: auto;
+}
+
+.sn-editor__body iframe {
+  max-width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+}
+
+/* ---- Ba class căn lề — phải khớp ALIGN_CLASSES của editorSchema.ts ---- */
+
+.sn-align-left {
+  text-align: left;
+}
+
+.sn-align-center {
+  text-align: center;
+}
+
+.sn-align-right {
+  text-align: right;
+}
+
+/* Ảnh căn lề: `text-align` không tác dụng lên chính thẻ figure, phải đổi lề ngoài. */
+figure.sn-align-center {
+  margin-left: auto;
+  margin-right: auto;
+  width: fit-content;
+}
+
+figure.sn-align-right {
+  margin-left: auto;
+  margin-right: 0;
+  width: fit-content;
+}
