@@ -70,13 +70,40 @@
 
 ### 3.1. Font chữ: Noto Sans
 
-Toàn bộ dự án (`admin-app` và `public-web`) thống nhất sử dụng **Noto Sans** (Google Fonts) để đảm bảo hiển thị tiếng Việt hoàn hảo, dấu thanh rõ ràng, không bị lỗi font hệ thống:
+Toàn bộ dự án (`admin-app` và `public-web`) thống nhất sử dụng **Noto Sans** để đảm bảo hiển thị tiếng Việt hoàn hảo, dấu thanh rõ ràng, không bị lỗi font hệ thống:
 
 ```css
 font-family: 'Noto Sans', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 ```
 
-- **Quy tắc import trong CSS**: Trong `globals.css`, thẻ `@import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap');` **bắt buộc phải đặt ở dòng đầu tiên** của file (trước `@import 'tailwindcss'`) theo đúng chuẩn CSS spec.
+> [!IMPORTANT]
+> ⛔ **TỰ HOST, không lấy từ CDN Google.** Bản đầu của quy chuẩn này ghi
+> `@import url('https://fonts.googleapis.com/…')`. Đổi sang gói `@fontsource/noto-sans` — **cùng
+> bộ chữ, cùng trọng số, hình hiện ra y hệt**, chỉ khác nơi tải về. Ba lý do, lý do đầu là lý do chặn:
+>
+> 1. `conventions.md` §4.5 đã chốt CSP `default-src 'self'`. Khi WS-11 dựng nginx thì
+>    `fonts.googleapis.com` và `fonts.gstatic.com` **bị chặn** — trang vẫn hiện, chỉ rơi về font hệ
+>    thống, **không lỗi nào**. Loại hỏng im lặng chỉ lộ ra sau khi đã lên production.
+> 2. Cổng của doanh nghiệp nhà nước gửi địa chỉ IP của **mọi người dân tra cứu** sang máy chủ Google
+>    ở mỗi lượt tải trang. Cùng lý do đã chọn `youtube-nocookie.com` cho khối nhúng video: người đọc
+>    không có cách nào từ chối.
+> 3. `@import url(...)` ra mạng ngoài **chặn lượt vẽ đầu tiên**; NFR-02 chỉ cho 3 giây. Mạng nội bộ
+>    Công ty chặn ra ngoài thì font không tải được mà không ai biết vì sao.
+
+- **Quy tắc import trong CSS**: đặt ở **đầu tệp** (trước `@import 'tailwindcss'`) theo đúng chuẩn CSS spec — `@import` phải đứng trước mọi quy tắc khác:
+
+  ```css
+  @import '@fontsource/noto-sans/400.css';
+  @import '@fontsource/noto-sans/500.css';
+  @import '@fontsource/noto-sans/600.css';
+  @import '@fontsource/noto-sans/700.css';
+  @import '@fontsource/noto-sans/400-italic.css';
+  @import '@fontsource/noto-sans/500-italic.css';
+  ```
+
+  ⚠ Khai **đúng những trọng số dùng tới**. Gói này có 144 tệp `woff2`; nhập cả gói là bắt người đọc tải về thứ không bao giờ hiện ra.
+
+- ⛔ **Không khai font ở `index.html`.** Bản đầu nạp cùng một bộ chữ ở **hai** nơi (thẻ `<link>` trong `index.html` *và* `@import` trong CSS) — hai lượt tải cho một kết quả.
 - **Trọng số font (Weight)**:
   - `400` (Regular): Nội dung đoạn văn, mô tả.
   - `500` (Medium): Nhãn trường, link menu, text quan trọng.
@@ -194,7 +221,7 @@ Chân trang được thiết kế đồng bộ **Full Brand Blue Gradient** (`#0
 - [ ] **Màu sắc**: Tất cả mã màu đều xuất phát từ `design-tokens`, không có hardcoded hex lạ.
 - [ ] **Đồng bộ Header - Footer**: Header và Footer có tone màu xanh thương hiệu gradient đồng nhất.
 - [ ] **Fallback**: Menu Header và Footer có giá trị fallback dự phòng, không bị trắng khi mất kết nối backend.
-- [ ] **Typography**: Sử dụng Noto Sans, font import ở dòng đầu tiên của CSS file.
+- [ ] **Typography**: Sử dụng Noto Sans **tự host** (`@fontsource/noto-sans`), import ở đầu tệp CSS. ⛔ Không `@import url(...)` ra CDN — CSP `default-src 'self'` sẽ chặn, và trang rơi về font hệ thống mà không báo lỗi.
 - [ ] **Contrast**: Độ tương phản chữ đạt chuẩn WCAG AA trên cả nền xanh lẫn nền sáng.
 - [ ] **Motion**: Đã kiểm tra `prefers-reduced-motion` không gây lỗi layout.
 - [ ] **Mobile Responsive**: Header, Footer và Card co giãn mượt mà trên màn hình nhỏ (< 640px).

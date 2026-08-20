@@ -154,4 +154,3 @@ export const echartsTheme = {
     splitLine: { lineStyle: { color: neutralColors.border, type: 'dashed' } },
   },
 } as const;
-

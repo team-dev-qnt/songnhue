@@ -1,5 +1,27 @@
-/* ───── Noto Sans từ Google Fonts ───── */
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap');
+/*
+  ───── Noto Sans — TỰ HOST, không lấy từ CDN Google ─────
+
+  Cùng bộ chữ, cùng các trọng số như bản CDN; chỉ khác nơi tải về. Ba lý do, lý do đầu là lý
+  do chặn:
+
+  1. ⛔ `conventions.md` §4.5 đã chốt CSP `default-src 'self'`. Khi WS-11 dựng nginx thì
+     `fonts.googleapis.com` và `fonts.gstatic.com` **bị chặn** — trang vẫn hiện, chỉ rơi về
+     font hệ thống, không lỗi nào. Loại hỏng im lặng chỉ lộ ra sau khi lên production.
+  2. Cổng của doanh nghiệp nhà nước gửi địa chỉ IP của **mọi người dân tra cứu** sang máy chủ
+     Google ở mỗi lượt tải trang. Cùng lý do đã chọn `youtube-nocookie.com` cho khối video:
+     người đọc không có cách nào từ chối.
+  3. `@import url(...)` ra mạng ngoài **chặn lượt vẽ đầu tiên** và phải chờ xong mới vẽ —
+     NFR-02 chỉ cho 3 giây.
+
+  `@fontsource/noto-sans` đóng gói chính bộ chữ đó (giấy phép SIL OFL) kèm `woff2`, phục vụ
+  từ cùng máy chủ với trang.
+*/
+@import '@fontsource/noto-sans/400.css';
+@import '@fontsource/noto-sans/500.css';
+@import '@fontsource/noto-sans/600.css';
+@import '@fontsource/noto-sans/700.css';
+@import '@fontsource/noto-sans/400-italic.css';
+@import '@fontsource/noto-sans/500-italic.css';
 
 @import 'tailwindcss';
 
@@ -84,4 +106,3 @@ button {
     scroll-behavior: auto !important;
   }
 }
-

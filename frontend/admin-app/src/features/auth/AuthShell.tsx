@@ -29,10 +29,7 @@ export function AuthShell({
         padding: 16,
       }}
     >
-      <div
-        className="sn-page-enter"
-        style={{ width: '100%', maxWidth: 420 }}
-      >
+      <div className="sn-page-enter" style={{ width: '100%', maxWidth: 420 }}>
         <Card
           style={{
             boxShadow: shadow.lg,
@@ -67,4 +64,3 @@ export function AuthShell({
     </div>
   );
 }
-

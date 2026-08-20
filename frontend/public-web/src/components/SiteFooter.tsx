@@ -18,7 +18,8 @@ export async function SiteFooter() {
   const siteName = config?.['site.name'] ?? SITE.name;
   const companyInfo = config?.['site.footer.company-info'] ?? '';
   const mapEmbed = config?.['site.footer.map-embed'] ?? '';
-  const copyright = config?.['site.footer.copyright'] || `© ${new Date().getFullYear()} ${siteName}`;
+  const copyright =
+    config?.['site.footer.copyright'] || `© ${new Date().getFullYear()} ${siteName}`;
 
   const social = [
     {
@@ -57,7 +58,9 @@ export async function SiteFooter() {
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-4 sm:flex-row">
           <div className="flex items-center gap-2">
             <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="font-semibold text-white">Đường dây nóng phòng chống thiên tai & TKCN:</span>
+            <span className="font-semibold text-white">
+              Đường dây nóng phòng chống thiên tai & TKCN:
+            </span>
             <span className="font-bold text-amber-300 drop-shadow-xs">(024) 3382 4586</span>
             <span className="hidden text-white/70 md:inline">(Trực ban 24/7)</span>
           </div>
@@ -91,7 +94,9 @@ export async function SiteFooter() {
               <span className="font-bold uppercase tracking-tight text-white drop-shadow-xs">
                 {siteName}
               </span>
-              <span className="text-xs font-semibold text-sky-200">Doanh nghiệp 100% vốn Nhà nước</span>
+              <span className="text-xs font-semibold text-sky-200">
+                Doanh nghiệp 100% vốn Nhà nước
+              </span>
             </div>
           </div>
 
@@ -130,27 +135,44 @@ export async function SiteFooter() {
           </p>
           <ul className="mt-3.5 space-y-2 text-xs text-white/85">
             <li>
-              <Link href="/danh-muc/tin-tuc" className="transition-colors hover:text-white hover:underline">
+              <Link
+                href="/danh-muc/tin-tuc"
+                className="transition-colors hover:text-white hover:underline"
+              >
                 Vận hành cống & điều tiết nước
               </Link>
             </li>
             <li>
-              <Link href="/danh-muc/thong-bao" className="transition-colors hover:text-white hover:underline">
+              <Link
+                href="/danh-muc/thong-bao"
+                className="transition-colors hover:text-white hover:underline"
+              >
                 Thông báo cảnh báo xả lũ
               </Link>
             </li>
             <li>
-              <Link href="/bai-viet/chuc-nang-nhiem-vu" className="transition-colors hover:text-white hover:underline">
+              <Link
+                href="/bai-viet/chuc-nang-nhiem-vu"
+                className="transition-colors hover:text-white hover:underline"
+              >
                 Quản lý công trình & hồ đập
               </Link>
             </li>
             <li>
-              <Link href="/bai-viet/co-cau-to-chuc" className="transition-colors hover:text-white hover:underline">
+              <Link
+                href="/bai-viet/co-cau-to-chuc"
+                className="transition-colors hover:text-white hover:underline"
+              >
                 Cơ cấu các Xí nghiệp thủy lợi
               </Link>
             </li>
             <li>
-              <Link href="http://songnhue.bhh40.net" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-semibold text-sky-200 hover:text-white hover:underline">
+              <Link
+                href="http://songnhue.bhh40.net"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 font-semibold text-sky-200 hover:text-white hover:underline"
+              >
                 Hệ thống văn bản điều hành ↗
               </Link>
             </li>
@@ -163,46 +185,55 @@ export async function SiteFooter() {
             Liên kết nhanh
           </p>
           <ul className="mt-3.5 space-y-2 text-xs text-white/85">
-            {menu && menu.length > 0
-              ? menu.map((item) => {
-                  const href = menuHref(item);
-                  return href ? (
-                    <li key={item.label}>
-                      <Link
-                        href={href}
-                        target={item.openNewTab ? '_blank' : undefined}
-                        rel={isExternal(item) ? 'noopener noreferrer' : undefined}
-                        className="transition-colors hover:text-white hover:underline"
-                      >
-                        {item.label}
-                      </Link>
-                    </li>
-                  ) : null;
-                })
-              : (
-                <>
-                  <li>
-                    <Link href="/" className="transition-colors hover:text-white hover:underline">
-                      Trang chủ
+            {menu && menu.length > 0 ? (
+              menu.map((item) => {
+                const href = menuHref(item);
+                return href ? (
+                  <li key={item.label}>
+                    <Link
+                      href={href}
+                      target={item.openNewTab ? '_blank' : undefined}
+                      rel={isExternal(item) ? 'noopener noreferrer' : undefined}
+                      className="transition-colors hover:text-white hover:underline"
+                    >
+                      {item.label}
                     </Link>
                   </li>
-                  <li>
-                    <Link href="/bai-viet/gioi-thieu-chung" className="transition-colors hover:text-white hover:underline">
-                      Giới thiệu chung
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="/danh-muc/tin-tuc" className="transition-colors hover:text-white hover:underline">
-                      Tin tức & Sự kiện
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="/bai-viet/lien-he" className="transition-colors hover:text-white hover:underline">
-                      Thông tin liên hệ
-                    </Link>
-                  </li>
-                </>
-              )}
+                ) : null;
+              })
+            ) : (
+              <>
+                <li>
+                  <Link href="/" className="transition-colors hover:text-white hover:underline">
+                    Trang chủ
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/bai-viet/gioi-thieu-chung"
+                    className="transition-colors hover:text-white hover:underline"
+                  >
+                    Giới thiệu chung
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/danh-muc/tin-tuc"
+                    className="transition-colors hover:text-white hover:underline"
+                  >
+                    Tin tức & Sự kiện
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/bai-viet/lien-he"
+                    className="transition-colors hover:text-white hover:underline"
+                  >
+                    Thông tin liên hệ
+                  </Link>
+                </li>
+              </>
+            )}
           </ul>
         </div>
 
@@ -245,7 +276,8 @@ export async function SiteFooter() {
           <div>
             <p className="font-medium text-white">{copyright}</p>
             <p className="mt-0.5 text-[11px] text-white/60">
-              Ghi rõ nguồn &ldquo;Cổng thông tin Thủy lợi Sông Nhuệ&rdquo; khi phát hành lại thông tin từ website này.
+              Ghi rõ nguồn &ldquo;Cổng thông tin Thủy lợi Sông Nhuệ&rdquo; khi phát hành lại thông
+              tin từ website này.
             </p>
           </div>
           <div className="flex items-center gap-4 text-[11px] text-white/70">
@@ -264,5 +296,3 @@ export async function SiteFooter() {
     </footer>
   );
 }
-
-

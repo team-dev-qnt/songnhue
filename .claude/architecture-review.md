@@ -1435,3 +1435,69 @@ thuộc tính bắt đủ ba lượt phá hoại.
 ⛔ **Luật rút ra, bổ sung cho `conventions.md` §1.5**: phép canh dựa trên *sự có mặt của một chuỗi*
 gần như luôn yếu hơn ta tưởng, vì cùng một chuỗi thường xuất hiện ở nhiều chỗ với ý nghĩa khác
 nhau. Canh **cấu trúc** (quy tắc nào, thuộc tính nào) chứ đừng canh **văn bản**.
+
+### §10.27. ⚠⚠ Biến môi trường "để trống" **không hề trống** — lỗi bảo mật im lặng từ WS-3 (20/8/2026)
+
+Phát hiện khi dựng tài khoản quản trị để kiểm thử trên trình duyệt. Docker Compose đọc `env_file`
+theo luật riêng, **không phải luật của shell**: với dòng
+
+```
+BOOTSTRAP_ADMIN_PASSWORD=           # [T] chỉ dùng 1 lần
+```
+
+nó **không** cắt phần chú thích, mà cắt khoảng trắng đầu rồi lấy toàn bộ phần còn lại làm giá trị.
+Kiểm chứng bằng ví dụ tối giản (alpine + compose):
+
+```
+RONG=           # chú thích     →  RONG=[# chú thích]      ⛔
+CO_GIATRI=abc   # chú thích     →  CO_GIATRI=[abc]         ✔
+```
+
+**Chỉ trường hợp giá trị rỗng mới hỏng** — mà đó đúng là những biến dùng quy ước *"để trống = tắt
+tính năng"*, nên hậu quả rơi vào chỗ đắt nhất:
+
+| Biến | "Rỗng" nghĩa là | Thực tế |
+|---|---|---|
+| `BOOTSTRAP_ADMIN_PASSWORD` | không kích hoạt tài khoản quản trị | ⚠⚠ `AdminBootstrapRunner` chạy ở **mọi** lượt khởi động, đặt mật khẩu `superadmin` thành **chính đoạn chú thích** — chuỗi nằm trong tệp `.example` **đã commit lên repo** |
+| `DB_RESTORE_PASSWORD` | tắt khôi phục qua UI (`ADM-2010`) | thao tác phá huỷ nhất trong hệ tưởng như đã được cấu hình |
+| `SMTP_USERNAME` / `SMTP_PASSWORD` | máy chủ thư không cần xác thực | client thử `AUTH` với chuỗi rác → hỏng toàn bộ đường gửi thư |
+| `GOOGLE_MAPS_API_KEY` | chỉ dùng OSM | đi đường Google Maps với khoá rác |
+| `LOG_FILE` | không ghi log ra tệp | mở tệp tên `# [T]` |
+
+**37 dòng** dính, trải cả ba tệp `local/staging/prod.env.example`. Đây là lý do `superadmin` ở máy
+dev đang ACTIVE với một mật khẩu **không ai cố ý đặt**.
+
+**Vì sao `UnresolvedPlaceholderGuard` (WS-4/T4.8) không bắt được.** Bộ canh đó tìm giá trị còn
+nguyên dạng `"${TÊN_BIẾN}"` — dấu hiệu placeholder không giải được. Ở đây giá trị **giải ra bình
+thường**, chỉ là giải ra sai; và nó **không rỗng** nên `@NotBlank` cũng đi qua. Cùng một họ lỗi,
+khác một bậc: lần trước là *"thiếu biến mà tưởng có"*, lần này là *"có biến mà tưởng thiếu"*.
+
+⚠ **Lỗi chỉ tồn tại ở đường Docker.** Chạy native thì `make` nạp tệp bằng shell, mà shell cắt chú
+thích đúng — nên **hai lối chạy cho ra hai hành vi khác nhau từ cùng một tệp cấu hình**. Đó là lý
+do nó sống sót qua mọi lượt chạy tay từ WS-3 tới nay.
+
+**Sửa**: chú thích lên dòng riêng, để lại `TÊN_BIẾN=` trống thật. Canh bằng `EnvFileCommentTest`
+(có kiểm chứng ngược: cắm lại đúng dòng cũ → đỏ, chỉ đích danh tên biến và số dòng).
+
+### §10.28. Font Noto Sans **tự host**, không lấy từ CDN Google (20/8/2026)
+
+`docs/ui-styles.md` bản đầu quy định `@import url('https://fonts.googleapis.com/…')` ở dòng đầu
+`globals.css`, và `admin-app/index.html` còn nạp thêm một lượt nữa bằng thẻ `<link>` — **cùng một
+bộ chữ tải hai lần**. Đổi sang gói `@fontsource/noto-sans`: **cùng bộ chữ, cùng trọng số, hình
+hiện ra y hệt**, chỉ khác nơi tải về. Ba lý do, lý do đầu là lý do chặn:
+
+1. ⛔ **`conventions.md` §4.5 đã chốt CSP `default-src 'self'`.** Khi WS-11 dựng nginx thì
+   `fonts.googleapis.com` (biểu định kiểu) và `fonts.gstatic.com` (tệp chữ) đều bị chặn — trang vẫn
+   hiện, chỉ rơi về font hệ thống, **không lỗi nào**. Loại hỏng im lặng chỉ lộ ra sau khi lên
+   production, và `phase1-tracking.md` T20.1 đã ghi sẵn luật *"bản tự host, không CDN"* cho trình
+   soạn thảo vì đúng lý do này.
+2. **Quyền riêng tư.** Cổng của doanh nghiệp nhà nước gửi địa chỉ IP của **mọi người dân tra cứu**
+   sang máy chủ Google ở mỗi lượt tải trang. Cùng lập luận đã dùng để chọn `youtube-nocookie.com`
+   cho khối nhúng video (§10.23): người đọc không có cách nào từ chối.
+3. **Tốc độ và mạng nội bộ.** `@import url(...)` ra mạng ngoài chặn lượt vẽ đầu tiên (NFR-02 cho
+   3 giây); mạng Công ty chặn ra ngoài thì font không tải được mà không ai biết vì sao.
+
+Đo sau khi đổi: **48 tệp `woff2`** nằm trong bản dựng của mỗi app, **0 tham chiếu** tới
+`fonts.googleapis.com`/`fonts.gstatic.com` trong `admin-app/dist` lẫn `public-web/.next`.
+⚠ Chỉ khai **6 trọng số dùng tới** (400/500/600/700 + nghiêng 400/500) — gói có 144 tệp `woff2`,
+nhập cả gói là bắt người đọc tải thứ không bao giờ hiện ra.

@@ -8,8 +8,30 @@
   được AntD ConfigProvider tạo ra, hoặc bằng hằng số trùng với tokens.
 */
 
-/* ───── Noto Sans từ Google Fonts ───── */
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap');
+/*
+  ───── Noto Sans — TỰ HOST, không lấy từ CDN Google ─────
+
+  Cùng bộ chữ, cùng các trọng số như bản CDN; chỉ khác nơi tải về. Ba lý do, lý do đầu là
+  lý do chặn:
+
+  1. ⛔ `conventions.md` §4.5 đã chốt CSP `default-src 'self'`. Khi WS-11 dựng nginx thì
+     `fonts.googleapis.com` (biểu định kiểu) và `fonts.gstatic.com` (tệp chữ) đều **bị chặn**
+     — trang vẫn hiện, chỉ là rơi về font hệ thống, không lỗi nào. Đúng loại hỏng im lặng mà
+     dự án này đã trả giá nhiều lần, và nó chỉ lộ ra sau khi lên production.
+  2. Cổng thông tin của doanh nghiệp nhà nước gửi địa chỉ IP của **mọi người dân tra cứu**
+     sang máy chủ Google ở mỗi lượt tải trang. Cùng lý do đã chọn `youtube-nocookie.com` cho
+     khối nhúng video: người đọc không có cách nào từ chối.
+  3. Mạng nội bộ Công ty chặn ra ngoài là font không tải được, mà không ai biết vì sao.
+
+  `@fontsource/noto-sans` đóng gói chính bộ chữ đó (giấy phép SIL OFL) kèm tệp `woff2`, phục
+  vụ từ cùng máy chủ với ứng dụng.
+*/
+@import '@fontsource/noto-sans/400.css';
+@import '@fontsource/noto-sans/500.css';
+@import '@fontsource/noto-sans/600.css';
+@import '@fontsource/noto-sans/700.css';
+@import '@fontsource/noto-sans/400-italic.css';
+@import '@fontsource/noto-sans/500-italic.css';
 
 /* ───── Smooth scroll ───── */
 html {
@@ -54,13 +76,16 @@ html {
   để hover lift mượt mà. Chỉ thẻ có `.sn-card-hoverable` mới nhấc lên (opt-in).
 */
 .ant-card {
-  transition: box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-              transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition:
+    box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .sn-card-hoverable:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+  box-shadow:
+    0 4px 12px 0 rgba(0, 0, 0, 0.1),
+    0 2px 4px -2px rgba(0, 0, 0, 0.06);
 }
 
 /* ───── Table row hover mượt ───── */
@@ -71,8 +96,9 @@ html {
 /* ───── Menu transition mượt ───── */
 .ant-menu-item,
 .ant-menu-submenu-title {
-  transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-              color 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition:
+    background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    color 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 /* ───── Page content fade-in ───── */

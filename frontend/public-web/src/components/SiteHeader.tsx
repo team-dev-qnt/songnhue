@@ -13,12 +13,66 @@ import { SITE } from '@/lib/site';
  * 2. Thanh điều hướng chính (Main Navbar): Xanh thương hiệu gradient, sticky top, menu đa cấp dropdown, tìm kiếm
  */
 const DEFAULT_HEADER_MENU: MenuLink[] = [
-  { label: 'Trang chủ', linkType: 'URL', url: '/', categorySlug: null, articleSlug: null, openNewTab: false, depth: 0, parentLabel: null },
-  { label: 'Giới thiệu', linkType: 'CATEGORY', url: null, categorySlug: 'gioi-thieu', articleSlug: null, openNewTab: false, depth: 0, parentLabel: null },
-  { label: 'Tin tức', linkType: 'CATEGORY', url: null, categorySlug: 'tin-tuc', articleSlug: null, openNewTab: false, depth: 0, parentLabel: null },
-  { label: 'Thông báo', linkType: 'CATEGORY', url: null, categorySlug: 'thong-bao', articleSlug: null, openNewTab: false, depth: 0, parentLabel: null },
-  { label: 'Văn bản điều hành', linkType: 'URL', url: 'http://songnhue.bhh40.net', categorySlug: null, articleSlug: null, openNewTab: true, depth: 0, parentLabel: null },
-  { label: 'Liên hệ', linkType: 'ARTICLE', url: null, categorySlug: null, articleSlug: 'lien-he', openNewTab: false, depth: 0, parentLabel: null },
+  {
+    label: 'Trang chủ',
+    linkType: 'URL',
+    url: '/',
+    categorySlug: null,
+    articleSlug: null,
+    openNewTab: false,
+    depth: 0,
+    parentLabel: null,
+  },
+  {
+    label: 'Giới thiệu',
+    linkType: 'CATEGORY',
+    url: null,
+    categorySlug: 'gioi-thieu',
+    articleSlug: null,
+    openNewTab: false,
+    depth: 0,
+    parentLabel: null,
+  },
+  {
+    label: 'Tin tức',
+    linkType: 'CATEGORY',
+    url: null,
+    categorySlug: 'tin-tuc',
+    articleSlug: null,
+    openNewTab: false,
+    depth: 0,
+    parentLabel: null,
+  },
+  {
+    label: 'Thông báo',
+    linkType: 'CATEGORY',
+    url: null,
+    categorySlug: 'thong-bao',
+    articleSlug: null,
+    openNewTab: false,
+    depth: 0,
+    parentLabel: null,
+  },
+  {
+    label: 'Văn bản điều hành',
+    linkType: 'URL',
+    url: 'http://songnhue.bhh40.net',
+    categorySlug: null,
+    articleSlug: null,
+    openNewTab: true,
+    depth: 0,
+    parentLabel: null,
+  },
+  {
+    label: 'Liên hệ',
+    linkType: 'ARTICLE',
+    url: null,
+    categorySlug: null,
+    articleSlug: 'lien-he',
+    openNewTab: false,
+    depth: 0,
+    parentLabel: null,
+  },
 ];
 
 export async function SiteHeader() {
@@ -52,19 +106,29 @@ export async function SiteHeader() {
               <span className="text-sm font-bold uppercase tracking-tight text-white drop-shadow-xs transition-colors duration-200 sm:text-base md:text-lg">
                 {siteName}
               </span>
-              <span className="text-xs font-medium text-white/80 sm:text-xs">
-                {shortName}
-              </span>
+              <span className="text-xs font-medium text-white/80 sm:text-xs">{shortName}</span>
             </div>
           </Link>
 
           {/* Hotline / Thông tin nhanh bên phải (ẩn trên màn hình nhỏ) */}
           <div className="hidden items-center gap-4 text-xs text-white md:flex">
             <div className="flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 backdrop-blur-xs">
-              <svg className="h-3.5 w-3.5 text-amber-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+              <svg
+                className="h-3.5 w-3.5 text-amber-300"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                />
               </svg>
-              <span>Hotline: <strong className="font-bold text-amber-300">(024) 3382 4586</strong></span>
+              <span>
+                Hotline: <strong className="font-bold text-amber-300">(024) 3382 4586</strong>
+              </span>
             </div>
           </div>
         </div>
@@ -92,8 +156,18 @@ export async function SiteHeader() {
                     >
                       <span>{item.label}</span>
                       {hasSubmenu && (
-                        <svg className="h-3 w-3 opacity-80 transition-transform duration-200 group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                        <svg
+                          className="h-3 w-3 opacity-80 transition-transform duration-200 group-hover:rotate-180"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2.5}
+                            d="M19 9l-7 7-7-7"
+                          />
                         </svg>
                       )}
                     </Link>
@@ -104,8 +178,18 @@ export async function SiteHeader() {
                     >
                       <span>{item.label}</span>
                       {hasSubmenu && (
-                        <svg className="h-3 w-3 opacity-80 transition-transform duration-200 group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                        <svg
+                          className="h-3 w-3 opacity-80 transition-transform duration-200 group-hover:rotate-180"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2.5}
+                            d="M19 9l-7 7-7-7"
+                          />
                         </svg>
                       )}
                     </button>
@@ -143,7 +227,12 @@ export async function SiteHeader() {
             aria-label="Tìm kiếm"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
             </svg>
             <span className="hidden sm:inline">Tìm kiếm</span>
           </Link>
@@ -152,4 +241,3 @@ export async function SiteHeader() {
     </>
   );
 }
-
