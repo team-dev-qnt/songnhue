@@ -5,10 +5,10 @@ import org.springframework.stereotype.Component;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import com.songnhue.core.application.job.JobContext;
-import com.songnhue.core.application.job.JobHandler;
 import com.songnhue.core.application.job.JobTypes;
 import com.songnhue.core.domain.backup.BackupTrigger;
+import com.songnhue.core.spi.JobContext;
+import com.songnhue.core.spi.JobHandler;
 
 /**
  * Chạy một lượt sao lưu trong hàng đợi (T7.1, T7.4).

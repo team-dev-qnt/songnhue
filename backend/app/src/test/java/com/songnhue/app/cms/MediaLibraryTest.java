@@ -27,11 +27,11 @@ import com.songnhue.content.application.MediaService;
 import com.songnhue.content.domain.Article;
 import com.songnhue.content.domain.MediaFolder;
 import com.songnhue.core.application.attachment.VirusScanHandler;
-import com.songnhue.core.application.job.JobContext;
 import com.songnhue.core.common.exception.BusinessRuleException;
 import com.songnhue.core.common.security.AuthContext;
 import com.songnhue.core.common.security.AuthenticatedUser;
 import com.songnhue.core.spi.AttachmentRef;
+import com.songnhue.core.spi.JobContext;
 
 /**
  * Thư viện media trên CSDL thật <b>và MinIO thật</b> — WS-14.

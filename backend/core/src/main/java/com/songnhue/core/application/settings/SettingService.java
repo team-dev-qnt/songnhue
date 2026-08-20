@@ -68,7 +68,18 @@ public class SettingService implements SettingPort, SettingAdminPort {
         this.events = events;
     }
 
-    @Transactional(readOnly = true)
+    /**
+     * ⚠ Cố ý <b>không</b> {@code @Transactional}. Ba lý do, và cái thứ ba mới là cái quyết định:
+     *
+     * <ol>
+     *   <li>Phần lớn lượt gọi dừng ở bộ nhớ đệm, không chạm CSDL.
+     *   <li>Lúc trượt đệm thì chỉ có đúng một câu truy vấn — Spring Data tự mở giao dịch của nó.
+     *   <li>{@link #getInt}, {@link #getBoolean}, {@link #getTime} gọi hàm này bằng {@code this}, nên
+     *       chú thích ở đây <b>không có tác dụng</b> với chúng. Giữ lại là ghi một bảo đảm không tồn
+     *       tại — và tham số cấu hình bị đọc từ filter, bộ hẹn giờ, worker, những nơi vốn không có
+     *       giao dịch nào để tham gia.
+     * </ol>
+     */
     @Override
     public Optional<String> getString(String key) {
         return cache.get(

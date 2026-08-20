@@ -1146,3 +1146,123 @@ WS-12 (§10.9). Chỗ giữ là một khối bị khoá trên giao diện, khôn
 Tương tự, **không** thêm `site.maintenance-mode`: khoá `system.maintenance-mode` đã có từ WS-7 và
 đang được `MaintenanceFilter` đọc thật. Hai công tắc cho một bóng đèn thì người vận hành gạt cái đang
 nhìn thấy, hệ thống nghe cái kia.
+
+### §10.16. Cổng công khai đọc bằng địa chỉ **nội bộ**, trình duyệt đọc bằng địa chỉ ngoài (20/8/2026)
+
+`public-web` gọi backend ở hai vai trò khác nhau và chúng **không thể** dùng chung một địa chỉ:
+
+| Ai gọi | Biến | Giá trị ở Docker |
+|---|---|---|
+| Server Component / route handler (trong container) | `API_INTERNAL_BASE_URL` | `http://app:8080/api/v1` |
+| Trình duyệt của khách (ảnh, đếm lượt xem) | `NEXT_PUBLIC_API_BASE_URL` | `http://localhost:18080/api/v1` |
+
+Bản đầu chỉ có biến thứ hai. Triệu chứng: cổng **dựng ra trang trắng** — mọi lượt gọi phía máy chủ
+trỏ vào `localhost` của chính container `public-web`, nơi không có backend nào. Không có lỗi HTTP
+nào nổi lên vì `apiGet` cố ý nuốt lỗi để một sự cố backend không làm trắng cả trang; log có, nhưng
+phải đi tìm.
+
+`NEXT_PUBLIC_*` bị **nướng vào bundle lúc build**, nên nó không thể là địa chỉ nội bộ: người dùng
+cuối không phân giải được tên `app`.
+
+### §10.17. Hâm nóng ISR phải gửi **đường dẫn**, không gửi nhãn (20/8/2026)
+
+Ảnh Docker của cổng dựng ở CI, lúc đó không có backend nào chạy — Next vẫn dựng sẵn trang chủ và
+`sitemap.xml` thành HTML tĩnh, với nội dung rỗng.
+
+Phần không hiển nhiên, và **đo thật mới biết**: lượt `fetch` hỏng thì **không có mục cache nào mang
+nhãn được tạo ra**, nên `revalidateTag` về sau không có gì để lần ngược tới tuyến đường đó. Đo ở
+WS-16: gửi nhãn hai lần, cả hai trả `{"revalidated":true}`, trang **vẫn rỗng**; gửi
+`{"path":"/"}` → trang có nội dung ngay. Chỉ `revalidatePath` mới trỏ thẳng vào bộ nhớ đệm của
+tuyến đường.
+
+Vì vậy `PortalCache.warmUp()` đặt hai việc **theo đường dẫn** (`/` và `/sitemap.xml`) vào hàng đợi
+khi backend sẵn sàng. Đi qua hàng đợi chứ không gọi thẳng: lúc backend lên thì cổng thường *chưa*
+(compose để `public-web` chờ `app` khoẻ), nên lượt thử lại của hàng đợi lo phần đó.
+
+⚠ Sitemap nằm trong danh sách là có lý do riêng: một sitemap chỉ có mỗi trang chủ thì công cụ tìm
+kiếm không thấy bài nào của cổng — hỏng âm thầm, và hỏng ở đúng thứ cổng TTĐT sinh ra để làm. Đo
+thật: trước khi thêm, `sitemap.xml` có **1** `<url>`; sau khi thêm, **10**.
+
+### §10.18. `HttpClient` của JDK phải ép **HTTP/1.1** khi gọi Next (20/8/2026)
+
+Việc hâm nóng hỏng ba lượt liên tiếp với `IllegalStateException: HTTP/1.1 header parser received no
+bytes`, trong khi `curl` cùng URL trả 200. Nguyên nhân: `HttpClient` mặc định **HTTP/2**, và trên
+HTTP thuần nó gửi kèm `Connection: Upgrade, HTTP2-Settings` để thử nâng cấp (h2c). Máy chủ Node của
+Next không hiểu và **đóng kết nối**, nên phía Java không đọc được byte nào.
+
+Chốt `.version(HttpClient.Version.HTTP_1_1)`. Đây là chỗ mà "thử bằng `curl` thấy chạy" gây hiểu
+nhầm hẳn về phía sai: hai công cụ nói hai giao thức khác nhau.
+
+### §10.19. CSRF **không áp** cho `/api/v1/public/**` (20/8/2026)
+
+CSRF là tấn công **mượn phiên** của nạn nhân: kẻ tấn công dụ trình duyệt gửi request kèm cookie mà
+chủ nhân không biết. Endpoint công khai không đọc phiên nào, nên **không có gì để mượn**.
+
+Ngược lại, chặn ở đó thì trình duyệt của khách vãng lai không có cookie CSRF để gửi kèm, và
+`POST /api/v1/public/articles/{slug}/views` trả **403** — bộ đếm lượt xem *không bao giờ* chạy được.
+Đo thật trước khi sửa: 403; sau khi sửa: 204, và `view_count` lên đúng số lượt gọi.
+
+`PublicHttpTest` giữ **cả hai vế**: đường công khai không bị 403, và đường quản trị **vẫn** bị chặn
+khi thiếu token. Chỉ kiểm vế đầu thì một lượt tắt CSRF toàn cục cũng xanh.
+
+### §10.20. Luật ArchUnit thứ ba: cấm **tự gọi hàm `@Transactional`** (20/8/2026)
+
+Spring cài giao dịch bằng proxy, nên chú thích chỉ có tác dụng khi lời gọi **đi từ ngoài vào**. Một
+hàm gọi sang hàm `@Transactional` của cùng lớp bằng `this` thì giao dịch **không mở** — mã biên dịch
+trót lọt, bài kiểm gọi thẳng hàm bên trong vẫn xanh, chỉ production hỏng.
+
+Lỗi này đã sập **hai lần**: `BackupService` (WS-7, dòng `RUNNING` không được commit trước khi
+`pg_dump` chạy) và `ViewCountService` (WS-16, ném `TransactionRequiredException` mỗi phút trong log
+của bộ hẹn giờ — **chưa từng ghi được một lượt xem nào**). Hai lần là đủ để nó thành luật.
+
+Luật chạy lần đầu tìm ra **8 vi phạm trong mã production**, và chúng chia làm ba mức:
+
+| Mức | Chỗ | Hệ quả thật |
+|---|---|---|
+| ⚠⚠ Lỗi thật | `NotificationService.notify(NotifyRequest)` | Xem §10.21 — nặng nhất, và tìm ra một cách gián tiếp |
+| ⚠ Lỗi tiềm ẩn | `CodeGenerator.next(seqType, padding)` | Nạp chồng tiện dụng gọi bản `REQUIRES_NEW` bằng `this` → bộ đếm mã **rơi vào chính giao dịch nghiệp vụ mà nó phải đứng ngoài**. Lượt ghi hỏng thì bộ đếm lùi theo và bản ghi kế tiếp mang **lại đúng mã đó** — đúng thứ lớp này sinh ra để chống |
+| Chú thích sai sự thật | `BackupService.pruneExpired`, `JobService.findActiveByDedupKey`, `SettingService.getString` | Hành vi không đổi (chỉ đọc, hoặc chỉ xoá tệp), nhưng chú thích ghi một bảo đảm không tồn tại |
+
+Cách chữa thống nhất với phần còn lại của dự án: mở giao dịch bằng `TransactionTemplate`
+(`JobService`, `SecurityEventService`, `BackupService` đã làm vậy từ WS-6/WS-7), để việc "có giao
+dịch hay không" không phụ thuộc vào ai gọi từ đâu.
+
+⚠ Luật cố ý **không** báo khi người gọi cũng `@Transactional` và hàm đích dùng propagation mặc định
+— lúc đó giao dịch đã mở từ lượt gọi ngoài vào, đây là cách viết hợp lệ. Báo cả trường hợp đó là
+luật bị nới ra trong vòng một tuần. `SilentFailureRuleSelfCheckTest` có bài chứng minh **cả hai
+chiều**: bắt được vi phạm, và không báo nhầm cặp hợp lệ.
+
+### §10.21. Chú thích Java bám vào **khai báo kế tiếp**, không bám vào đoạn chú giải (20/8/2026)
+
+Lỗi nặng nhất của WS-16, và nó không nằm trong WS-16 — luật §10.20 lôi nó ra một cách gián tiếp.
+
+Ở `NotificationService`, khối SPI thêm tại WS-12 được chèn vào **giữa** một
+`@Transactional(readOnly = true)` và hàm nó thuộc về:
+
+```java
+// ---- Hộp thư của người dùng ----
+@Transactional(readOnly = true)
+// ---- Hợp đồng cho module nghiệp vụ (core.spi) ----   ← khối chèn vào ở WS-12
+@Override
+public void notify(NotifyRequest request) { … }          ← nhận nhầm chú thích
+…
+public Page<InboxEntry> inbox(…) { … }                   ← mất chú thích của chính nó
+```
+
+Trình biên dịch gắn chú thích cho khai báo kế tiếp; đoạn chú giải ở giữa không cản gì cả. Hệ quả:
+**cửa vào mà mọi module nghiệp vụ dùng để gửi thông báo chạy trong giao dịch chỉ đọc**, còn `inbox()`
+thì mất chú thích của chính nó.
+
+**Đo thật, không suy đoán** — cắm lại đúng lỗi cũ rồi chạy bài kiểm mới: PostgreSQL từ chối thẳng với
+`ERROR: cannot execute INSERT in a read-only transaction`. Nói cho chính xác: đây **không** phải hỏng
+im lặng lúc chạy — module nghiệp vụ đầu tiên gọi `NotificationPort.notify(...)` sẽ nhận lỗi 500 ngay
+lần đầu. Cái im lặng là ở **thời điểm phát hiện**: lỗi nằm im từ WS-12 tới WS-16 qua bốn WS và hơn
+370 bài kiểm, vì `WorkflowEngine` ở trong `core` nên nó gọi thẳng `notify(NotificationRequest)` và
+**không ai đi qua cửa SPI**. Người đi đầu tiên sẽ là WS-17.
+
+Lại đúng dạng *một ranh giới chưa ai đi qua thì chưa biết nó đúng hay sai* (§9.14) — và lần này ranh
+giới đó là thứ Phase 1 vừa dựng ra ở WS-12 để module nghiệp vụ dùng.
+
+**Luật rút ra**: khi chèn một khối mới vào giữa lớp, kiểm lại chú thích ở mép trên của chỗ chèn.
+Không có cách nào để mắt người thấy điều này — `@Transactional` cách hàm nhận nó **tám dòng chú
+giải**. Thứ bắt được là một phép kiểm máy chạy.

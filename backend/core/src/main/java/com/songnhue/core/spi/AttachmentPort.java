@@ -31,6 +31,30 @@ public interface AttachmentPort {
 
     Optional<AttachmentRef> findRef(UUID publicId);
 
+    /**
+     * Đọc nội dung tệp để phục vụ <b>người xem chưa đăng nhập</b> — WS-16/T16.6.
+     *
+     * <p>⛔ <b>Vì sao không dùng presigned URL cho ảnh trang công khai.</b> Presigned URL sống 10
+     * phút, còn trang ISR sống hàng giờ: trang dựng lúc 9h vẫn nằm trong bộ đệm lúc 11h, và mọi ảnh
+     * trong đó đã chết. Triệu chứng là ảnh hỏng hàng loạt vào một thời điểm không ai đụng gì tới hệ
+     * thống ({@code architecture-review.md} §10.1).
+     *
+     * <p>⛔⛔ <b>Vì sao bắt khai {@code allowedOwnerTypes}, và vì sao lọc ở đây chứ không ở nơi
+     * gọi.</b> Một endpoint công khai nhận {@code publicId} rồi trả bất kỳ tệp nào là <i>toàn bộ kho
+     * tài liệu</i> — gồm hồ sơ nhân sự và hợp đồng — nằm sau một UUID đoán được bằng cách thử. Chốt
+     * chặn phải nằm cùng chỗ với việc đọc, không nằm ở nơi gọi: nơi gọi có thể quên, và cái quên đó
+     * không có triệu chứng nào cho tới khi có người thử.
+     *
+     * <p>Tệp chưa quét xong hoặc đã bị cách ly cũng không trả — cổng công khai là nơi cuối cùng được
+     * phép phát tán một tệp chưa kiểm.
+     *
+     * @param allowedOwnerTypes các loại chủ sở hữu được coi là nội dung công khai, VD
+     *     {@code MEDIA_FOLDER}, {@code BANNER}, {@code SITE_CONFIG}
+     * @return rỗng khi không tồn tại, <b>hoặc</b> khi thuộc loại không công khai — cố ý không phân
+     *     biệt, vì phân biệt được là nói cho người hỏi biết UUID nào có thật
+     */
+    Optional<AttachmentContent> readForPublic(UUID publicId, List<String> allowedOwnerTypes);
+
     /** Danh sách tệp của một bản ghi, mới nhất trước. */
     List<AttachmentRef> refsOf(String ownerType, Long ownerId);
 

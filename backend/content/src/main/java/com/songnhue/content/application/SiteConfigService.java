@@ -16,6 +16,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 
+import com.songnhue.core.common.util.HtmlSanitizer;
 import com.songnhue.core.spi.AttachmentPort;
 import com.songnhue.core.spi.AttachmentRef;
 import com.songnhue.core.spi.AttachmentUploadCommand;
@@ -56,6 +57,11 @@ public class SiteConfigService {
 
     public static final String KEY_LOGO = "site.logo.attachment-id";
     public static final String KEY_FAVICON = "site.favicon.attachment-id";
+
+    /** Hai khoá chứa HTML người dùng soạn — phải khử trùng, và mỗi khoá có luật riêng. */
+    public static final String KEY_FOOTER_INFO = "site.footer.company-info";
+
+    public static final String KEY_FOOTER_MAP = "site.footer.map-embed";
 
     /** Khớp {@code attachments.owner_type}. Cấu hình chỉ có một bản nên chủ sở hữu là hằng số. */
     private static final String OWNER_TYPE = "SITE_CONFIG";
@@ -113,9 +119,23 @@ public class SiteConfigService {
         });
     }
 
+    /**
+     * Sửa một tham số.
+     *
+     * <p>⛔ Hai khoá HTML đi qua {@link HtmlSanitizer} <b>trước khi lưu</b>. Khối thông tin Công ty
+     * là văn bản có định dạng; khối bản đồ là ngoại lệ {@code <iframe>} duy nhất của hệ thống và bị
+     * giới hạn theo tên miền — một iframe trỏ tuỳ ý vẽ được biểu mẫu đăng nhập giả ngay giữa chân
+     * trang của cơ quan nhà nước, và người dùng không có cách nào phân biệt.
+     */
     @Transactional
     public SettingItem update(String key, String value) {
-        return settings.updateInGroup(GROUP, key, value);
+        String sach =
+                switch (key) {
+                    case KEY_FOOTER_INFO -> HtmlSanitizer.clean(value);
+                    case KEY_FOOTER_MAP -> HtmlSanitizer.cleanMapEmbed(value);
+                    default -> value;
+                };
+        return settings.updateInGroup(GROUP, key, sach);
     }
 
     /**

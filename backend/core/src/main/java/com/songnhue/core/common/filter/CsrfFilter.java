@@ -47,6 +47,20 @@ public class CsrfFilter extends OncePerRequestFilter {
     private static final Set<String> EXEMPT_PATHS = Set.of(
             "/api/v1/auth/login", "/api/v1/auth/2fa/verify", "/api/v1/auth/2fa/enroll", "/api/v1/auth/2fa/confirm");
 
+    /**
+     * Nhóm công khai của cổng thông tin — WS-16.
+     *
+     * <p>⚠ Bỏ qua CSRF ở đây <b>không</b> nới lỏng gì cả, vì không có gì để nới. CSRF là tấn công
+     * mượn phiên đăng nhập của nạn nhân: trình duyệt tự gửi kèm cookie, nên yêu cầu do trang khác
+     * kích hoạt vẫn chạy dưới danh nghĩa nạn nhân. Endpoint công khai <b>không đọc phiên nào</b> và
+     * không thao tác thay mặt ai — kẻ tấn công tự gọi thẳng cũng ra kết quả y hệt.
+     *
+     * <p>Ngược lại, <b>không</b> bỏ qua thì bộ đếm lượt xem không bao giờ chạy được: trình duyệt của
+     * khách vãng lai không có cookie CSRF để mà gửi kèm, và mọi lượt ping trả 403. Đây là lỗi đã xảy
+     * ra thật ở lượt chạy thử đầu tiên của WS-16 — bài kiểm gọi thẳng service nên không bắt được.
+     */
+    private static final String PUBLIC_PREFIX = "/api/v1/public/";
+
     private final HandlerExceptionResolver exceptionResolver;
 
     public CsrfFilter(@Qualifier("handlerExceptionResolver") HandlerExceptionResolver exceptionResolver) {
@@ -57,6 +71,7 @@ public class CsrfFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         return !request.getRequestURI().startsWith(API_PREFIX)
                 || SAFE_METHODS.contains(request.getMethod())
+                || request.getRequestURI().startsWith(PUBLIC_PREFIX)
                 || EXEMPT_PATHS.contains(request.getRequestURI());
     }
 

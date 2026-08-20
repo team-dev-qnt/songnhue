@@ -10,8 +10,11 @@ import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Filters;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.tngtech.archunit.core.domain.JavaClass;
+import com.tngtech.archunit.core.domain.JavaCodeUnit;
+import com.tngtech.archunit.core.domain.JavaMethod;
 import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.ConditionEvents;
@@ -89,6 +92,39 @@ class SilentFailureRuleTest {
                     trạng thái vẫn đổi đúng nên không ai phát hiện, tới lúc cần tra ai đã duyệt thì nhật ký \
                     trống. Gọi WorkflowEngine.execute(entity, action, title).""");
 
+    /**
+     * ⚠⚠ Luật thứ ba, thêm ở WS-16 sau khi <b>chính lỗi này sập lần thứ hai</b>.
+     *
+     * <p>Spring cài giao dịch bằng proxy: chú thích {@code @Transactional} chỉ có tác dụng khi lời gọi
+     * <i>đi từ ngoài vào</i> qua proxy. Một phương thức của cùng lớp gọi sang phương thức
+     * {@code @Transactional} bằng {@code this} thì lời gọi đó không chạm proxy, và giao dịch
+     * <b>không mở</b>.
+     *
+     * <p>Triệu chứng thì tuỳ chỗ, nhưng luôn ở xa nơi gây ra:
+     *
+     * <ul>
+     *   <li>{@code BackupService} (WS-7): dòng {@code RUNNING} không được commit trước khi
+     *       {@code pg_dump} chạy — tức là mất đúng thứ cơ chế đó sinh ra để giữ.
+     *   <li>{@code ViewCountService} (WS-16): bộ đếm lượt xem ném
+     *       {@code TransactionRequiredException} mỗi phút một lần trong log của bộ hẹn giờ, và
+     *       <b>chưa từng ghi được một lượt xem nào</b> — trong khi bài kiểm xanh, vì bài kiểm gọi
+     *       thẳng hàm bên trong qua proxy, tức là đi một đường khác với đường production đi.
+     * </ul>
+     *
+     * <p>Đây là luật rẻ nhất trong nhóm này: nó không cần biết nghiệp vụ, chỉ cần biết Spring hoạt
+     * động thế nào. Cách chữa cũng đã có sẵn trong dự án — mở giao dịch bằng {@code TransactionTemplate}
+     * ({@code JobService}, {@code SecurityEventService}, {@code BackupService}) để việc "có giao dịch
+     * hay không" không phụ thuộc vào ai gọi từ đâu.
+     */
+    static final ArchRule KHONG_TU_GOI_HAM_TRANSACTIONAL = noClasses()
+            .should(new SelfInvokesTransactionalMethod())
+            .because(
+                    """
+                    Spring cài @Transactional bằng proxy, nên gọi bằng `this` sang một hàm @Transactional của \
+                    CÙNG lớp thì giao dịch không mở — mã vẫn biên dịch, bài kiểm gọi thẳng hàm đó vẫn xanh, và \
+                    chỉ production hỏng. Dùng TransactionTemplate cho hàm được gọi, hoặc tách nó sang một bean \
+                    khác.""");
+
     @Test
     @DisplayName("⚠ Mọi lớp con ScopedEntity đều mang @Filter với điều kiện dùng chung")
     void everyScopedEntityCarriesTheFilter() {
@@ -99,6 +135,12 @@ class SilentFailureRuleTest {
     @DisplayName("⚠ Chỉ WorkflowEngine được gọi applyState()")
     void onlyTheEngineChangesState() {
         CHI_ENGINE_DUOC_GOI_APPLY_STATE.check(ProductionClasses.ALL);
+    }
+
+    @Test
+    @DisplayName("⚠⚠ Không hàm nào tự gọi hàm @Transactional của chính lớp mình")
+    void noSelfInvocationOfTransactionalMethods() {
+        KHONG_TU_GOI_HAM_TRANSACTIONAL.check(ProductionClasses.ALL);
     }
 
     // -------------------------------------------------------------------------
@@ -144,6 +186,57 @@ class SilentFailureRuleTest {
                     .flatMap(filters -> Arrays.stream(filters.value()))
                     .filter(f -> ScopedEntity.ORG_UNIT_FILTER.equals(f.name()))
                     .findFirst();
+        }
+    }
+
+    static final class SelfInvokesTransactionalMethod extends ArchCondition<JavaClass> {
+
+        SelfInvokesTransactionalMethod() {
+            super("tự gọi một hàm @Transactional của chính lớp mình (proxy Spring không chạm tới)");
+        }
+
+        @Override
+        public void check(JavaClass item, ConditionEvents events) {
+            item.getMethodCallsFromSelf().stream()
+                    // Cùng lớp = cùng đối tượng gốc = không đi qua proxy. Gọi trên một *thể hiện khác*
+                    // của cùng lớp cũng vậy, nên không cần phân biệt `this.` với biến cục bộ.
+                    .filter(call -> call.getTargetOwner().equals(item))
+                    .forEach(call -> call.getTarget().resolveMember().ifPresent(target -> {
+                        if (!laTransactional(target)) {
+                            return;
+                        }
+                        // Người gọi cũng @Transactional (hoặc cả lớp là @Transactional) thì giao dịch
+                        // đã mở sẵn từ lượt gọi ngoài vào — trừ khi hàm được gọi đòi một giao dịch
+                        // RIÊNG, thứ mà tự gọi chắc chắn không tạo ra được.
+                        if (laTransactional(call.getOrigin()) && !doiGiaoDichRieng(target)) {
+                            return;
+                        }
+                        events.add(SimpleConditionEvent.satisfied(
+                                item,
+                                "%s.%s() gọi thẳng %s() — %s tại %s"
+                                        .formatted(
+                                                item.getSimpleName(),
+                                                call.getOrigin().getName(),
+                                                target.getName(),
+                                                doiGiaoDichRieng(target)
+                                                        ? "hàm đích đòi giao dịch riêng, tự gọi thì không mở được"
+                                                        : "hàm đích là @Transactional, tự gọi thì giao dịch KHÔNG mở",
+                                                call.getSourceCodeLocation())));
+                    }));
+        }
+
+        /** Chú thích đặt trên lớp thì áp cho mọi hàm của lớp — bỏ qua vế này là luật báo nhầm hàng loạt. */
+        private static boolean laTransactional(JavaCodeUnit unit) {
+            return unit.isAnnotatedWith(Transactional.class) || unit.getOwner().isAnnotatedWith(Transactional.class);
+        }
+
+        private static boolean doiGiaoDichRieng(JavaMethod method) {
+            return method.tryGetAnnotationOfType(Transactional.class)
+                    .map(t -> switch (t.propagation()) {
+                        case REQUIRES_NEW, NOT_SUPPORTED, NEVER, NESTED -> true;
+                        default -> false;
+                    })
+                    .orElse(false);
         }
     }
 

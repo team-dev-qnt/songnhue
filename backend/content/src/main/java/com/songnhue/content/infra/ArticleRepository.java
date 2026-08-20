@@ -12,6 +12,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import com.songnhue.content.application.PublicArticleRow;
 import com.songnhue.content.domain.Article;
 
 /** Truy vấn bài viết — CN-01.1, CN-01.8. */
@@ -33,13 +34,20 @@ public interface ArticleRepository extends JpaRepository<Article, Long> {
      *
      * <p>⚠ Sắp xếp đi qua {@code Pageable}, mà cột sắp xếp phải lọc bằng {@code PageUtils} ở tầng
      * service — cho người dùng truyền tên cột tự do là mở đường đọc dữ liệu ngoài ý muốn.
+     *
+     * <p>⚠⚠ {@code CAST(:tuKhoa AS String)} <b>không phải trang trí</b>. Hàm {@code sn_khong_dau} do
+     * dự án tự khai, nên Hibernate không biết kiểu tham số của nó; truyền {@code null} thì nó gửi
+     * xuống dưới dạng {@code bytea} và PostgreSQL trả *"function sn_khong_dau(bytea) does not
+     * exist"*. Tức là <b>mọi lượt tìm kiếm để trống ô từ khoá đều hỏng</b> — lỗi có từ WS-13, chỉ
+     * chưa bài kiểm nào gọi search với từ khoá rỗng nên nó nằm im tới khi cổng công khai đi qua.
      */
     @Query(
             """
             SELECT DISTINCT a FROM Article a
             LEFT JOIN a.categories c
             WHERE a.deletedAt IS NULL
-              AND (:tuKhoa IS NULL OR sn_khong_dau(a.title) LIKE sn_khong_dau(:tuKhoa))
+              AND (CAST(:tuKhoa AS String) IS NULL
+                   OR sn_khong_dau(a.title) LIKE sn_khong_dau(CAST(:tuKhoa AS String)))
               AND (:trangThai IS NULL OR a.status = :trangThai)
               AND (:tacGia IS NULL OR a.authorUserId = :tacGia)
               AND (:danhMucId IS NULL OR c.id = :danhMucId)
@@ -54,6 +62,67 @@ public interface ArticleRepository extends JpaRepository<Article, Long> {
             @Param("tuNgay") Instant tuNgay,
             @Param("denNgay") Instant denNgay,
             Pageable pageable);
+
+    /**
+     * Danh sách bài của <b>cổng công khai</b> — T16.1.
+     *
+     * <p>⛔ Ba điều kiện đi liền nhau, thiếu một là lộ nội dung chưa được phép hiện:
+     *
+     * <ol>
+     *   <li>{@code status = 'XUAT_BAN'} — Nháp, Chờ duyệt, Gỡ bài, Lưu trữ đều không nằm trong danh
+     *       sách.
+     *   <li>{@code publishedVersionId IS NOT NULL} — và câu lệnh <b>JOIN</b> vào bản đó, nên nội dung
+     *       trả ra là bản đã duyệt chứ không phải bản biên tập viên đang gõ dở.
+     *   <li>{@code publishedAt <= :now} — bài hẹn giờ chưa tới hạn thì chưa hiện. Đây là lý do không
+     *       cần một trạng thái "Đã lên lịch" thứ bảy.
+     * </ol>
+     *
+     * <p>Lọc danh mục bằng {@code EXISTS} chứ không {@code JOIN}: bài thuộc nhiều danh mục, mà join
+     * thì nó xuất hiện nhiều lần và {@code Page.totalElements} đếm sai.
+     */
+    @Query(
+            """
+            SELECT new com.songnhue.content.application.PublicArticleRow(
+                       a.slug, v.title, v.summary, v.coverAttachmentPublicId, a.publishedAt, a.viewCount)
+            FROM Article a JOIN ArticleVersion v ON v.id = a.publishedVersionId
+            WHERE a.deletedAt IS NULL
+              AND a.status = 'XUAT_BAN'
+              AND a.publishedAt <= :now
+              AND (CAST(:tuKhoa AS String) IS NULL
+                   OR sn_khong_dau(v.title) LIKE sn_khong_dau(CAST(:tuKhoa AS String)))
+              AND (:danhMucId IS NULL
+                   OR EXISTS (SELECT 1 FROM Article a2 JOIN a2.categories c
+                               WHERE a2.id = a.id AND c.id = :danhMucId))
+            ORDER BY a.publishedAt DESC
+            """)
+    Page<PublicArticleRow> findPublic(
+            @Param("tuKhoa") String tuKhoa,
+            @Param("danhMucId") Long danhMucId,
+            @Param("now") Instant now,
+            Pageable pageable);
+
+    /**
+     * Một bài trên cổng, tra theo slug.
+     *
+     * <p>Khác danh sách ở đúng một điểm: <b>nhận cả {@code LUU_TRU}</b>. Bài lưu trữ rút khỏi luồng
+     * tin nhưng địa chỉ cũ vẫn phải sống — người ta đã chia sẻ liên kết đó, và trả 404 cho một bài
+     * còn nguyên dữ liệu là tự làm hỏng liên kết của chính mình (T16.7).
+     *
+     * <p>{@code GO_BAI} thì <b>không</b> nằm ở đây: gỡ bài là quyết định rút nội dung khỏi công khai.
+     */
+    @Query(
+            """
+            SELECT a, v FROM Article a JOIN ArticleVersion v ON v.id = a.publishedVersionId
+            WHERE a.deletedAt IS NULL
+              AND a.slug = :slug
+              AND a.status IN ('XUAT_BAN', 'LUU_TRU')
+              AND a.publishedAt <= :now
+            """)
+    List<Object[]> findPublicBySlug(@Param("slug") String slug, @Param("now") Instant now);
+
+    /** Id nội bộ của một bài công khai — để cộng lượt xem mà không phải tải cả entity. */
+    @Query("SELECT a.id FROM Article a WHERE a.slug = :slug AND a.deletedAt IS NULL")
+    Optional<Long> findIdBySlug(@Param("slug") String slug);
 
     /**
      * Bài đã duyệt vừa tới giờ đăng — nguồn cho job bắn revalidate ISR (T13.7).

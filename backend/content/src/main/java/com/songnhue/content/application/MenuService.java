@@ -69,14 +69,25 @@ public class MenuService {
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
     }
 
-    /** Một mục menu ở dạng giao diện dùng được — không khoá chạy số nào lọt ra ngoài (§4.2). */
+    /**
+     * Một mục menu ở dạng giao diện dùng được — không khoá chạy số nào lọt ra ngoài (§4.2).
+     *
+     * <p>Đích trả ra ở <b>hai dạng</b>, phục vụ hai người dùng khác nhau: màn hình quản trị cần
+     * {@code publicId} để nạp lại ô chọn, còn cổng công khai cần {@code slug} để dựng đường dẫn. Tra
+     * hai lần ở hai nơi thì có hai đường phân giải, và chúng lệch nhau lúc ai đó sửa một bên.
+     *
+     * <p>⛔ Cố ý <b>không</b> trả sẵn {@code href}. Sơ đồ đường dẫn của cổng là việc của giao diện;
+     * chốt nó ở backend là mỗi lần đổi cấu trúc URL phải đi sửa Java.
+     */
     public record MenuNode(
             UUID publicId,
             String label,
             MenuLinkType linkType,
             UUID parentPublicId,
             UUID categoryPublicId,
+            String categorySlug,
             UUID articlePublicId,
+            String articleSlug,
             String url,
             boolean openNewTab,
             Short depth,
@@ -219,23 +230,23 @@ public class MenuService {
     private List<MenuNode> toNodes(List<MenuItem> all) {
         Map<Long, UUID> theoMuc = all.stream().collect(Collectors.toMap(MenuItem::getId, MenuItem::getPublicId));
 
-        Map<Long, UUID> theoDanhMuc =
+        Map<Long, Category> danhMuc =
                 categories
                         .findAllById(all.stream()
                                 .map(MenuItem::getCategoryId)
                                 .filter(Objects::nonNull)
                                 .toList())
                         .stream()
-                        .collect(Collectors.toMap(Category::getId, Category::getPublicId));
+                        .collect(Collectors.toMap(Category::getId, c -> c));
 
-        Map<Long, UUID> theoBaiViet =
+        Map<Long, Article> baiViet =
                 articles
                         .findAllById(all.stream()
                                 .map(MenuItem::getArticleId)
                                 .filter(Objects::nonNull)
                                 .toList())
                         .stream()
-                        .collect(Collectors.toMap(Article::getId, Article::getPublicId));
+                        .collect(Collectors.toMap(Article::getId, a -> a));
 
         return all.stream()
                 .map(item -> new MenuNode(
@@ -243,8 +254,12 @@ public class MenuService {
                         item.getLabel(),
                         item.getLinkType(),
                         item.getParentId() == null ? null : theoMuc.get(item.getParentId()),
-                        item.getCategoryId() == null ? null : theoDanhMuc.get(item.getCategoryId()),
-                        item.getArticleId() == null ? null : theoBaiViet.get(item.getArticleId()),
+                        item.getCategoryId() == null
+                                ? null
+                                : truong(danhMuc, item.getCategoryId(), Category::getPublicId),
+                        item.getCategoryId() == null ? null : truong(danhMuc, item.getCategoryId(), Category::getSlug),
+                        item.getArticleId() == null ? null : truong(baiViet, item.getArticleId(), Article::getPublicId),
+                        item.getArticleId() == null ? null : truong(baiViet, item.getArticleId(), Article::getSlug),
                         item.getUrl(),
                         item.isOpenNewTab(),
                         item.getDepth(),
@@ -253,24 +268,28 @@ public class MenuService {
                 .toList();
     }
 
+    private static <T, R> R truong(Map<Long, T> nguon, Long id, java.util.function.Function<T, R> lay) {
+        T found = nguon.get(id);
+        return found == null ? null : lay.apply(found);
+    }
+
     /** Bản một-mục, dùng sau khi tạo hoặc sửa — cha đã biết nên không phải dựng lại cả cây. */
     private MenuNode toNode(MenuItem item, UUID parentPublicId) {
+        Category danhMuc = item.getCategoryId() == null
+                ? null
+                : categories.findById(item.getCategoryId()).orElse(null);
+        Article baiViet = item.getArticleId() == null
+                ? null
+                : articles.findById(item.getArticleId()).orElse(null);
         return new MenuNode(
                 item.getPublicId(),
                 item.getLabel(),
                 item.getLinkType(),
                 parentPublicId,
-                item.getCategoryId() == null
-                        ? null
-                        : categories
-                                .findById(item.getCategoryId())
-                                .map(Category::getPublicId)
-                                .orElse(null),
-                item.getArticleId() == null
-                        ? null
-                        : articles.findById(item.getArticleId())
-                                .map(Article::getPublicId)
-                                .orElse(null),
+                danhMuc == null ? null : danhMuc.getPublicId(),
+                danhMuc == null ? null : danhMuc.getSlug(),
+                baiViet == null ? null : baiViet.getPublicId(),
+                baiViet == null ? null : baiViet.getSlug(),
                 item.getUrl(),
                 item.isOpenNewTab(),
                 item.getDepth(),

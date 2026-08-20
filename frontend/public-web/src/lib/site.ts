@@ -8,8 +8,26 @@
  */
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
 
-/** Địa chỉ API Core, đã gồm `/api/v1` (Phase 1 dùng để lấy bài viết, thủy văn). */
+/**
+ * Địa chỉ API mà **TRÌNH DUYỆT** gọi — nhúng vào bundle lúc build.
+ *
+ * Dùng cho những thứ người xem tải về: ảnh (`<img src>`), và lượt ping đếm view.
+ */
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8080/api/v1';
+
+/**
+ * Địa chỉ API mà **MÁY CHỦ NEXT** gọi khi dựng trang — đọc lúc chạy, không nhúng vào bundle.
+ *
+ * ⚠⚠ Hai địa chỉ này khác nhau trong Docker, và nhầm chúng là một lỗi im lặng đắt tiền:
+ * trình duyệt thấy backend ở `http://localhost:18080`, còn tiến trình Next nằm *trong* mạng
+ * Docker và phải gọi `http://app:8080`. Dùng địa chỉ của trình duyệt cho lượt gọi phía máy
+ * chủ thì Next gọi vào chính container của nó, mọi lượt gọi hỏng, và cổng dựng ra **một
+ * trang trắng hoàn toàn hợp lệ** — không lỗi 500, không dấu vết, chỉ là không có nội dung.
+ *
+ * Không có tiền tố `NEXT_PUBLIC_` là cố ý: địa chỉ nội bộ không cần và không nên đi xuống
+ * trình duyệt.
+ */
+export const API_INTERNAL_BASE_URL = process.env.API_INTERNAL_BASE_URL || API_BASE_URL;
 
 export const SITE = {
   name: 'Công ty TNHH MTV Đầu tư Phát triển Thủy lợi Sông Nhuệ',

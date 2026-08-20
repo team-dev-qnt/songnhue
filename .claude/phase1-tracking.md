@@ -1,6 +1,6 @@
 # PHASE 1 — CMS & MASTER DATA CÔNG TRÌNH · BẢNG THEO DÕI TIẾN ĐỘ
 
-> **Cập nhật lần cuối**: 2026-08-19 · **Tiến độ: 31/101 task (31%)** · 1 task **hoãn có chủ đích** (T12.7 → nợ #62) · **DoD: 0/17** · Trạng thái: 🟡 Đang làm — WS-12 ✅, WS-13 11/13, WS-14 ✅, **WS-15 ✅**
+> **Cập nhật lần cuối**: 2026-08-20 · **Tiến độ: 41/101 task (41%)** · 1 task **hoãn có chủ đích** (T12.7 → nợ #62) · **DoD: 0/17** · Trạng thái: 🟡 Đang làm — WS-12 ✅, **WS-13 ✅**, WS-14 ✅, WS-15 ✅, **WS-16 ✅**
 > Nguồn ràng buộc: `function-spec.md` CN-01.1→01.5, CN-01.8 · CN-02.1, 02.2, 02.3, 02.6, 02.7, 02.11 · `conventions.md` (luật) · `docs/coding-guide.md` (đường đi) · `architecture-review.md` §10 (quyết định Phase 1)
 > **Cách dùng**: giống Phase 0 — làm xong task nào tick `[x]`; xong 1 WS thì chạy mục "Kiểm chứng" rồi cập nhật bảng tổng + dòng trên cùng.
 > ⚠ **Luật 3 bước khi đóng WS** (thừa kế từ Phase 0): tick task → tick dòng nợ → **quay lại sửa mô tả đã lỗi thời ở WS đã giao nợ**. Bước 3 hay bị bỏ nhất.
@@ -16,7 +16,7 @@ Phase 0 dựng **cơ chế**; Phase 1 là lần đầu có **người dùng th�
 |---|---|---|
 | Ranh giới module (ArchUnit) | WS-10 | ❌ Chưa — 4 module nghiệp vụ còn rỗng, luật chạy qua **tập rỗng** |
 | Phân quyền tầng 3 (lọc theo đơn vị) | WS-5, WS-10 | ❌ Chỉ trên `ScopedRecord` **dựng riêng cho test**; app thật in *"Chưa có entity nào thuộc phạm vi đơn vị"* |
-| `POST /api/revalidate` (ISR) | WS-9 | ❌ Chưa — viết sẵn "cho luồng duyệt bài Phase 1" |
+| `POST /api/revalidate` (ISR) | WS-9 | ✅ **Đã đi qua 20/8 (WS-16)** — đo thật: cổng đổi nội dung sau **114 ms** kể từ lúc gọi. Lộ ra một tính chất không hiển nhiên của Next: tuyến đường có lượt `fetch` hỏng lúc build thì **không mang nhãn nào**, nên `revalidateTag` vĩnh viễn không chạm tới được — chỉ `revalidatePath` chữa được (`architecture-review.md` §10.17) |
 
 Đây không phải ghi chú lịch sử. Nó quyết định thứ tự làm: **WS-12 phải xong trước mọi thứ**, và ba mục trên nằm trong Definition of Done chứ không phải "kiểm sau".
 
@@ -27,17 +27,17 @@ Phase 0 dựng **cơ chế**; Phase 1 là lần đầu có **người dùng th�
 | WS | Hạng mục | Task | Xong | Trạng thái | Phụ thuộc | Ước tính |
 |---|---|:-:|:-:|---|---|:-:|
 | **WS-12** | Mở SPI Core + nền cho module nghiệp vụ | 8 | **7** | ✅ **Xong 19/8** — T12.7 hoãn có chủ đích (nợ #62) | Phase 0 | 6 pd |
-| **WS-13** | CMS — Danh mục nội dung & Bài viết | 13 | **11** | 🟡 Đang làm (19/8) — còn T13.7, T13.10 (nợ #63, #64) | WS-12 | 12 pd |
+| **WS-13** | CMS — Danh mục nội dung & Bài viết | 13 | **13** | ✅ **Xong 20/8** — T13.7/T13.10 đóng cùng WS-16 (nợ #63, #64) | WS-12 | 12 pd |
 | **WS-14** | CMS — Thư viện Media | 6 | **6** | ✅ **Xong 19/8** — đóng DoD #11 của Phase 0 | WS-12 | 6 pd |
 | **WS-15** | CMS — Cấu hình giao diện, Menu, Banner | 7 | **7** | ✅ **Xong 19/8** — SVG lần đầu đi qua đường thật | WS-13 | 6 pd |
-| **WS-16** | Public-web — hiển thị + ISR | 8 | 0 | ⬜ Chưa bắt đầu | WS-13, WS-15 | 8 pd |
+| **WS-16** | Public-web — hiển thị + ISR | 8 | **8** | ✅ **Xong 20/8** — ISR lần đầu có người đi qua | WS-13, WS-15 | 8 pd |
 | **WS-17** | Operations — Danh mục công trình | 12 | 0 | ⬜ Chưa bắt đầu | WS-12 | 14 pd |
 | **WS-18** | Operations — Lịch sử sửa chữa & sự cố | 11 | 0 | ⬜ Chưa bắt đầu | WS-17 | 10 pd |
 | **WS-19** | Operations — Tình hình vận hành + trạng thái dẫn xuất | 8 | 0 | ⬜ Chưa bắt đầu | WS-17, WS-18 | 7 pd |
 | **WS-20** | FE admin — màn hình CMS | 10 | 0 | ⬜ Chưa bắt đầu | WS-13→15 (API) | 12 pd |
 | **WS-21** | FE admin — màn hình Công trình | 10 | 0 | ⬜ Chưa bắt đầu | WS-17→19 (API) | 12 pd |
 | **WS-22** | Kiểm thử, nghiệm thu Phase 1 & trả nợ | 8 | 0 | ⬜ Chưa bắt đầu | tất cả | 8 pd |
-| | **TỔNG** | **101** | **31** | | | **101 pd** |
+| | **TỔNG** | **101** | **41** | | | **101 pd** |
 
 *(101 task triển khai + 17 mục Definition of Done ở cuối file.)*
 
@@ -175,15 +175,17 @@ Kế thừa Phase 0 và thêm một điều kiện mới:
 - [x] **T13.4** Slug: `SlugUtils` bỏ dấu tiếng Việt, cho sửa tay, duy nhất → trùng trả `CMS-2001` — điểm nghiệp vụ **4**
 - [x] **T13.5** `article_versions`: mỗi lần lưu nội dung ghi một bản; API so sánh (diff) + phục hồi bản cũ
 - [x] **T13.6** Sửa bài đã xuất bản theo cơ chế **copy-on-write** — điểm nghiệp vụ **1**
-- [ ] **T13.7** Hẹn giờ đăng: `published_at` tương lai; job 5' quét bài tới hạn → gọi revalidate (đấu nối thật ở WS-16) — điểm nghiệp vụ **5**
+- [x] **T13.7** Hẹn giờ đăng: `published_at` tương lai; job 5' quét bài tới hạn → gọi revalidate (đấu nối thật ở WS-16) — điểm nghiệp vụ **5**. ✅ Đóng ở WS-16 (`ScheduledPublishScanner`). ⚠ Quét theo **cửa sổ hai đầu** `(tu, den]`, không phải `published_at <= now()`: vế sau quét lại toàn bộ bài đã đăng từ trước tới nay và bắn revalidate cho tất cả, mỗi 5 phút
 - [x] **T13.8** Tìm kiếm quản trị (CN-01.8 phần bài viết): `unaccent` + `pg_trgm`, lọc theo danh mục/trạng thái/tác giả/khoảng thời gian, phân trang 20/50/100, sắp xếp qua `PageUtils` (danh sách cột cho phép)
 - [x] **T13.9** Xoá danh mục còn bài viết → chặn, yêu cầu chuyển bài trước (mã lỗi mới)
-- [ ] **T13.10** Đếm lượt xem theo lô — điểm nghiệp vụ **6**
+- [x] **T13.10** Đếm lượt xem theo lô — điểm nghiệp vụ **6**. ✅ Đóng ở WS-16 (`ViewCountService`, gom `LongAdder` → đẩy mỗi phút). ⚠ Bản đầu **chưa từng ghi được gì** vì tự gọi hàm `@Transactional` — xem phần WS-16
 - [x] **T13.11** Mã lỗi mới → `ErrorCode` (BE) **và** `frontend/admin-app/src/shared/error-map.ts` — có bài kiểm canh sự đồng bộ, đừng để nó đỏ ở CI
 - [x] **T13.12** Test: Biên tập viên gọi `APPROVE` → 403 · workflow đủ nhánh · slug trùng · phiên bản + phục hồi · hẹn giờ
 - [x] **T13.13** ⭐ Seed **khung danh mục đề xuất** (Tin tức + 2 danh mục con · Thông báo · Giới thiệu) — G14 ✅ *19/8, làm cùng T15.7 vì menu phải trỏ vào danh mục đã có*
 
 **Kết quả (19/8)**: 11/13 task. Còn **T13.7** (job hẹn giờ đăng) và **T13.10** (đếm lượt xem theo lô) — tham số `settings` của cả hai đã seed, phần job chưa dựng. **298 test BE xanh** (211 core + 87 app), trong đó `ArticleLifecycleTest` **14 bài trên CSDL thật**.
+
+**Cập nhật 20/8**: T13.7 và T13.10 đã đóng cùng WS-16 — cả hai cần cổng công khai thật để đấu nối, nên tách ra làm sau là đúng chứ không phải nợ kỹ thuật. **WS-13 xong 13/13.**
 
 **Kiểm chứng — đã chạy**:
 - ✅ **Lần đầu tiên một entity nghiệp vụ đi qua workflow engine.** Suốt Phase 0 engine chỉ chạy trên bản ghi dựng riêng cho test
@@ -258,16 +260,52 @@ Kế thừa Phase 0 và thêm một điều kiện mới:
 
 > ⭐ WS này bổ sung so với `implement.md` §3 (vốn xếp phần public vào Phase 2). Lý do ở `architecture-review.md` §10.1: `POST /api/revalidate` đã được dựng ở WS-9 **cho đúng luồng này** và tới giờ chưa ai đi qua.
 
-- [ ] **T16.1** Nhóm API công khai `@PublicEndpoint`: danh sách bài, chi tiết theo slug, theo danh mục, menu, banner, cấu hình site. ⛔ **Chỉ trả bài `XUAT_BAN` và `published_at <= now()`** — có bài kiểm cố tình hỏi bài Nháp bằng slug đúng và phải nhận 404
-- [ ] **T16.2** Giới hạn tần suất riêng cho nhóm công khai + cache; không đụng bucket của API quản trị
-- [ ] **T16.3** Trang Next: danh sách, chi tiết, theo danh mục, tìm kiếm; dùng ISR
-- [ ] **T16.4** SEO: metadata + Open Graph theo từng bài; `sitemap.ts` **đọc từ DB** thay vì danh sách tĩnh; giữ nguyên cơ chế tự chặn lập chỉ mục ở staging/local
-- [ ] **T16.5** ⭐ `POST /api/revalidate` đấu nối thật vào bước xuất bản và bước hẹn giờ tới hạn; có bí mật chia sẻ, có ghi log lượt gọi
-- [ ] **T16.6** Ảnh trong bài: quyết định đường phục vụ tệp công khai từ MinIO (bucket công khai riêng hay proxy qua BE) — **không** dùng presigned URL cho ảnh trang công khai, vì URL hết hạn thì trang tĩnh đã cache sẽ hỏng ảnh
-- [ ] **T16.7** Trang 404/500; bài `GO_BAI` trả 404 nhưng **giữ nguyên dữ liệu**; bài `LUU_TRU` không lên danh sách nhưng vẫn vào được bằng URL trực tiếp
-- [ ] **T16.8** Kiểm chứng đầu-cuối: soạn → gửi duyệt → duyệt → xuất bản → cổng hiện bài, **đo thời gian thật** từ lúc bấm tới lúc trang đổi
+- [x] **T16.1** Nhóm API công khai `@PublicEndpoint`: danh sách bài, chi tiết theo slug, theo danh mục, menu, banner, cấu hình site. ⛔ **Chỉ trả bài `XUAT_BAN` và `published_at <= now()`** — có bài kiểm cố tình hỏi bài Nháp bằng slug đúng và phải nhận 404
+- [x] **T16.2** Giới hạn tần suất riêng cho nhóm công khai + cache; không đụng bucket của API quản trị — `RateLimitPolicy.PUBLIC` 300/phút theo IP. ⚠ Rộng hơn nhóm quản trị là **có chủ ý**: cả Công ty ra Internet qua **một IP NAT**, siết chặt ở đây là cả cơ quan không đọc được cổng của chính mình (cùng lý do đã nâng hạn mức đăng nhập 5 → 30 ở WS-5)
+- [x] **T16.3** Trang Next: danh sách, chi tiết, theo danh mục, tìm kiếm; dùng ISR
+- [x] **T16.4** SEO: metadata + Open Graph theo từng bài; `sitemap.ts` **đọc từ DB** thay vì danh sách tĩnh; giữ nguyên cơ chế tự chặn lập chỉ mục ở staging/local
+- [x] **T16.5** ⭐ `POST /api/revalidate` đấu nối thật vào bước xuất bản và bước hẹn giờ tới hạn; có bí mật chia sẻ, có ghi log lượt gọi. Đi qua **hàng đợi job** (`CMS_PORTAL_REVALIDATE`) chứ không gọi thẳng — cổng khởi động sau backend nên lượt gọi thẳng đầu tiên chắc chắn hỏng, và lượt thử lại đúng là việc hàng đợi sinh ra để làm
+- [x] **T16.6** Ảnh trong bài: quyết định đường phục vụ tệp công khai từ MinIO (bucket công khai riêng hay proxy qua BE) — **không** dùng presigned URL cho ảnh trang công khai, vì URL hết hạn thì trang tĩnh đã cache sẽ hỏng ảnh. Chốt: **proxy qua BE** `GET /api/v1/public/files/{publicId}`, chặn theo **danh sách loại chủ sở hữu công khai** ở tầng đính kèm (không ở controller) + bắt buộc `isDownloadable()` — tệp chưa quét virus không ra khỏi hệ thống bằng đường này
+- [x] **T16.7** Trang 404/500; bài `GO_BAI` trả 404 nhưng **giữ nguyên dữ liệu**; bài `LUU_TRU` không lên danh sách nhưng vẫn vào được bằng URL trực tiếp (kèm `noindex`)
+- [x] **T16.8** Kiểm chứng đầu-cuối: soạn → gửi duyệt → duyệt → xuất bản → cổng hiện bài, **đo thời gian thật** từ lúc bấm tới lúc trang đổi
 
 **Kiểm chứng**: chạy `make dev-docker`, đi trọn luồng trên trình duyệt. Trang chủ đo được **< 3s** (NFR-02).
+
+### Đo thật trên `make dev-docker` (20/8/2026)
+
+| Phép đo | Kết quả |
+|---|---|
+| Trang chủ | HTTP 200 · **0,265 s** (NFR-02 cho phép 3 s) |
+| Chi tiết bài · danh mục · tìm kiếm | HTTP 200 · 0,046 / 0,023 / 0,026 s |
+| Slug không tồn tại | HTTP 404 |
+| `sitemap.xml` | **10** `<url>` (trang chủ + 5 danh mục + 4 trang tĩnh) |
+| T16.8 — sửa nội dung rồi gọi revalidate | cổng đổi nội dung sau **114 ms** |
+| Việc hâm nóng cổng | 7/7 `SUCCEEDED` |
+| Đếm lượt xem | `POST …/views` → **204**, `view_count` lên đúng **7/7** lượt gọi sau ~15 s |
+| `POST` đường quản trị thiếu token CSRF | vẫn **403** |
+
+### Bốn lỗi chỉ lộ ra khi chạy thật
+
+Cả bốn đều **xanh trọn vẹn trong bộ kiểm thử**. Chi tiết ở `architecture-review.md` §10.16–§10.19.
+
+1. ⚠⚠ **Cổng dựng ra trang trắng trong Docker** — `NEXT_PUBLIC_API_BASE_URL` là địa chỉ của *trình duyệt*, còn lượt gọi phía máy chủ nằm trong container. Thêm `API_INTERNAL_BASE_URL` (§10.16).
+2. ⚠⚠ **`revalidateTag` không chữa được trang dựng hỏng lúc build** — không có lượt `fetch` thành công thì không có mục cache mang nhãn. Phải `revalidatePath`, và phải hâm nóng sau khi khởi động (§10.17).
+3. ⚠ **Việc hâm nóng hỏng 3 lượt** vì `HttpClient` của JDK mặc định HTTP/2 và gửi kèm yêu cầu nâng cấp h2c; máy chủ Node đóng kết nối. `curl` chạy được nên suýt truy sai hướng (§10.18).
+4. ⚠⚠ **Bộ đếm lượt xem trả 403** — `CsrfFilter` chặn đường công khai, tức là nó **không bao giờ chạy được** ở production. CSRF bảo vệ phiên, mà khách vãng lai không có phiên nào để mượn (§10.19).
+
+### Lỗi thứ năm, và một luật ArchUnit mới
+
+⚠⚠ **`ViewCountService` chưa từng ghi được một lượt xem nào.** `dayXuongDinhKy()` (bộ hẹn giờ gọi) tự gọi `day()` bằng `this` → không qua proxy → `@Transactional` vô hiệu → `TransactionRequiredException` **mỗi phút một lần**, trong log của bộ hẹn giờ chứ không của request nào. Bài kiểm xanh vì nó gọi thẳng `day()` — **đi một đường khác với đường production đi**.
+
+Đây là **lần thứ hai** (`BackupService`, WS-7), nên nó thành luật: `SilentFailureRuleTest.KHONG_TU_GOI_HAM_TRANSACTIONAL`. Luật chạy lần đầu tìm ra **8 vi phạm trong mã production**, trong đó:
+
+- ⚠⚠ **`NotificationService.notify(NotifyRequest)` — cửa vào SPI của mọi module nghiệp vụ — đang chạy trong giao dịch `readOnly`.** Khối SPI thêm ở WS-12 được chèn vào **giữa** một `@Transactional(readOnly = true)` và hàm nó thuộc về (`inbox()`), nên chú thích rơi nhầm sang `notify`. Kiểm chứng ngược (cắm lại lỗi, chạy bài kiểm mới): PostgreSQL từ chối thẳng — `cannot execute INSERT in a read-only transaction`. Tức là **module nghiệp vụ đầu tiên gọi `NotificationPort.notify(...)` sẽ nhận 500 ngay lần đầu**; cái im lặng nằm ở *thời điểm phát hiện*, vì lỗi đi qua 4 WS và hơn 370 bài kiểm mà không ai chạm tới cửa SPI — `WorkflowEngine` ở trong `core` nên nó gọi thẳng bản kia. Người đi đầu tiên sẽ là **WS-17** (`architecture-review.md` §10.21).
+- ⚠ **`CodeGenerator`**: nạp chồng tiện dụng làm mất `REQUIRES_NEW` → bộ đếm mã lùi theo lượt ghi hỏng và bản ghi kế tiếp **mang lại đúng mã đó**, đúng thứ cả lớp sinh ra để chống.
+- 3 chỗ còn lại là chú thích ghi một bảo đảm không tồn tại (`BackupService.pruneExpired`, `JobService.findActiveByDedupKey`, `SettingService.getString`) — gỡ, và ghi rõ vì sao cố ý không có.
+
+⭐ **Và bản sửa phải có người đi qua, ngay chứ không phải ở WS-17.** Một bản sửa đúng theo suy luận nhưng không ai chạm tới thì đứng đúng chỗ bản lỗi vừa đứng — đó là bài học lặp lại của cả Phase 0. `NotificationPortTest` tiêm **interface** `NotificationPort` (tiêm lớp cài đặt là gọi đúng hàm mà production *không* gọi) và kiểm chứng ngược đã chạy: cắm lại lỗi cũ → đỏ đúng một bài, đúng bài nhắm vào `notify`. Đây cũng là **bài kiểm tích hợp đầu tiên** của cơ chế thông báo — dựng từ WS-6, tới nay chưa có bài nào.
+
+⚠ Một cái bẫy của chính lượt kiểm chứng đó, ghi lại để khỏi mắc lần nữa: `./mvnw -pl app test` **không** dựng lại `core`, nên lượt chạy đầu đo nhầm jar cũ trong `~/.m2`. Phải có `-am`. CI luôn dựng cả reactor nên không dính, nhưng ở máy dev thì kết quả "đỏ" và "xanh" đều có thể là của mã khác.
 
 ---
 
@@ -434,11 +472,13 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 1 hoàn thành:
 | 60 | Widget thuỷ văn ở cấu hình giao diện. ⚠ **Chốt 19/8: KHÔNG seed tham số nào bây giờ** — công tắc chưa ai đọc là lỗi vừa sửa ở WS-12. Phase 2 dựng cả tham số lẫn phần đọc **cùng lúc** | WS-15/T15.5 | Phase 2 | ⬜ Chờ |
 | ~~61~~ | ~~`construction_clusters` — chờ **G15**~~ | WS-17/T17.11 | — | ✅ **Đóng 19/8** — G15 trả lời trong ngày, việc dựng bảng nay nằm thẳng trong T17.11 |
 | **62** | **Ảnh phái sinh (WebP + thumbnail 150/400/800)** — CN-01.3 yêu cầu, Phase 1 dùng ảnh gốc | WS-12/T12.7 | **Phase 2** *(hoặc sớm hơn nếu trúng điều kiện kích hoạt bên dưới)* | ⏸ **Hoãn có chủ đích 19/8** |
-| **63** | Job hẹn giờ đăng bắn revalidate ISR (T13.7) — tham số `settings` đã seed, job chưa dựng. ⚠ **Không chặn nghiệp vụ**: bài tới hạn vẫn tự hiện vì truy vấn công khai lọc `published_at <= now()`; job chỉ để cổng tĩnh cập nhật đúng lúc | WS-13/T13.7 | **WS-16** (cùng chỗ đấu nối ISR thật) | ⬜ Chờ |
-| **64** | Đếm lượt xem theo lô (T13.10) — `ArticleRepository.addViews` đã có, thiếu endpoint công khai + job đẩy. Cần cùng lúc với trang chi tiết bài ở cổng | WS-13/T13.10 | **WS-16** | ⬜ Chờ |
+| **63** | Job hẹn giờ đăng bắn revalidate ISR (T13.7) — tham số `settings` đã seed, job chưa dựng. ⚠ **Không chặn nghiệp vụ**: bài tới hạn vẫn tự hiện vì truy vấn công khai lọc `published_at <= now()`; job chỉ để cổng tĩnh cập nhật đúng lúc | WS-13/T13.7 | **WS-16** (cùng chỗ đấu nối ISR thật) | ✅ **Trả 20/8** — `ScheduledPublishScanner`, quét cửa sổ hai đầu |
+| **64** | Đếm lượt xem theo lô (T13.10) — `ArticleRepository.addViews` đã có, thiếu endpoint công khai + job đẩy. Cần cùng lúc với trang chi tiết bài ở cổng | WS-13/T13.10 | **WS-16** | ✅ **Trả 20/8** — và lộ ra 2 lỗi: CSRF chặn đường công khai, tự gọi hàm `@Transactional` |
 | **65** | `ArticleLifecycleTest` / `MediaLibraryTest` / `SiteLayoutTest` gọi thẳng service, **chưa đi qua HTTP** — chưa kiểm envelope, `@RequirePermission` tầng 2, và ràng buộc "phải nêu lý do khi trả bài" nằm ở controller | WS-13/T13.12 | **WS-20** (cùng lúc dựng màn hình) | ⬜ Chờ |
 
 | **66** | ⚠ **`AuditorAwareImpl` đọc `AuditContext` (do filter đặt), còn test tích hợp chỉ đặt `AuthContext`** → mọi dòng do test tạo đều có `created_by = NULL`, và `audit_logs` của chúng không ghi được người thao tác. Nghĩa là **cột `created_by`/`updated_by` chưa từng được kiểm chứng** | WS-15 (lộ ra khi dựng `CmsFixtures`) | **WS-20** — đặt `AuditContext` trong bộ trợ giúp đăng nhập của test, rồi thêm bài kiểm cho `created_by` | ⬜ Chờ |
+| ~~67~~ | ~~Cửa vào SPI thông báo vừa được gỡ khỏi giao dịch `readOnly` nhưng chưa có ai đi qua~~ | WS-16 (luật §10.20 lôi ra) | — | ✅ **Đóng ngay trong WS-16** — `NotificationPortTest` tiêm **interface** `NotificationPort` (tiêm lớp cài đặt là gọi đúng hàm production *không* gọi). ⭐ Cơ chế thông báo dựng từ WS-6 tới giờ **chưa có một bài kiểm tích hợp nào**; đây là bài đầu tiên |
+| **68** | `HtmlSanitizer` chạy lúc **ghi**, nên bài viết seed và bài tạo trước WS-16 chưa đi qua nó. Không phải lỗ hổng (nội dung đó do ta soạn), nhưng dữ liệu thật của Công ty nhập trước khi có bộ lọc thì không được rà lại | WS-16 | **WS-22** — lệnh rà một lượt toàn bộ `article_versions`, in ra bài nào bị đổi trước khi ghi | ⬜ Chờ |
 
 ⚠ **Nợ #62 — hoãn thì phải nói rõ hoãn cái gì.** CN-01.3 ghi *"auto nén ảnh sang WebP (giữ bản gốc fallback); auto thumbnail 150/400/800px"*, nên đây là **mục nghiệm thu bị hoãn**, không phải việc tự nghĩ ra rồi tự bỏ. Lý do và đường quay lại: `architecture-review.md` §10.9.
 
@@ -469,6 +509,10 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 1 hoàn thành:
 
 | Ngày | Thay đổi |
 |---|---|
+| 2026-08-20 | **WS-16 xong — cổng công khai chạy thật, và WS-13 đóng nốt (nợ #63, #64).** 7 lớp `content` + 8 trang/thư viện Next · `HtmlSanitizer` (jsoup, danh sách cho phép) · `RateLimitPolicy.PUBLIC` · phục vụ tệp công khai qua BE. Đo trên `make dev-docker`: trang chủ **0,265 s**, revalidate → cổng đổi nội dung sau **114 ms**, sitemap **10** url. **384 test BE** (232 core + 152 app) + **47 FE** |
+| 2026-08-20 | ⚠⚠ **Bốn lỗi chỉ lộ khi chạy thật, cả bốn xanh trong bộ kiểm thử** (`architecture-review.md` §10.16–§10.19): cổng dựng ra **trang trắng** trong Docker vì `NEXT_PUBLIC_*` là địa chỉ của *trình duyệt* · **`revalidateTag` không chữa được** tuyến đường có lượt `fetch` hỏng lúc build (không có mục cache mang nhãn) → phải `revalidatePath` + hâm nóng sau khởi động · `HttpClient` của JDK mặc định **HTTP/2** nên Next đóng kết nối, mà `curl` lại chạy được nên suýt truy sai hướng · **`CsrfFilter` chặn đường công khai** → bộ đếm lượt xem không bao giờ chạy được |
+| 2026-08-20 | ⚠⚠ **Luật ArchUnit thứ ba: cấm tự gọi hàm `@Transactional`** — sau khi lỗi này sập **lần thứ hai** (`BackupService` WS-7, `ViewCountService` WS-16: ném `TransactionRequiredException` mỗi phút, **chưa từng ghi được một lượt xem nào**, trong khi bài kiểm xanh vì nó gọi một *đường khác*). Luật chạy lần đầu tìm ra **8 vi phạm trong mã production**: 1 lỗi thật (§10.21), 1 lỗi tiềm ẩn (`CodeGenerator` mất `REQUIRES_NEW` → **mã nghiệp vụ trùng** sau một lượt ghi hỏng), 6 chú thích ghi bảo đảm không tồn tại |
+| 2026-08-20 | ⚠⚠ **Chú thích Java bám vào khai báo kế tiếp, không bám vào đoạn chú giải** (§10.21). Khối SPI thêm ở WS-12 chèn vào **giữa** `@Transactional(readOnly = true)` và hàm nó thuộc về → chú thích rơi sang `notify(NotifyRequest)`, **cửa vào SPI của mọi module nghiệp vụ**. Kiểm chứng ngược: PostgreSQL từ chối thẳng `cannot execute INSERT in a read-only transaction`. Sống được 4 WS và hơn 370 bài kiểm vì **chưa ai đi qua cửa đó**. Đóng ngay bằng `NotificationPortTest` — bài kiểm tích hợp **đầu tiên** của cơ chế thông báo dựng từ WS-6 |
 | 2026-08-19 | ⚠ **Sửa một sai số của chính bảng này**: header ghi 101 task trong khi chỉ liệt kê **100** — T13.13 được chốt ngày lập kế hoạch nhưng không ai viết nó vào danh sách WS-13. Nay có mặt, tổng khớp lại **101** |
 | 2026-08-19 | **WS-15 xong** — cấu hình giao diện, menu, banner. ⭐⭐ **SVG lần đầu đi qua đường tải lên thật**: `FileValidator.detect()` trả `null` cho mọi SVG (không có magic bytes) nên `SvgSanitizer` dựng ở WS-14 **chưa bao giờ được gọi** — nay có phép đoán SVG + nhánh khử trùng đặt ở tầng đính kèm. Cấu hình để ở `settings` nhóm `SITE` (không bảng riêng) + `SettingAdminPort` **ghi theo nhóm** · bộ nhớ đệm dọn bằng **sự kiện** để phủ cả hai màn hình sửa · khoá ngoại ghép `(parent_id, position)` bắt cây menu đúng ở CSDL · seed khung danh mục/menu/4 trang tĩnh (G14). 5 mã lỗi mới (**62 mã**). **340 test BE** + 24 FE |
 | 2026-08-19 | ⚠ **Hai lỗi của chính bộ kiểm thử, lộ ra khi có dữ liệu seed**: (1) `DELETE FROM categories` của các bài kiểm cũ vi phạm khoá ngoại từ `menu_items`; (2) mốc "dòng do bài kiểm tạo" đặt theo `created_by IS NOT NULL` **không chạy** vì `AuditorAwareImpl` đọc `AuditContext` chứ không đọc `AuthContext` — test chỉ đặt cái thứ hai, nên mọi dòng đều `created_by = NULL` và phép dọn không xoá gì. Gom về `CmsFixtures`, phân biệt bằng **mốc id**. Lỗi (2) mở nợ **#66** |

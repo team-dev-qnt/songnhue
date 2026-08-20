@@ -15,6 +15,22 @@
         Mọi module nghiệp vụ bắt buộc dùng, cấm tự chế bản riêng (conventions.md §2).</description>
 
     <dependencies>
+        <!--
+          Khử trùng HTML do biên tập viên soạn (WS-16). Vì sao đáng thêm một phụ thuộc:
+          nội dung bài viết là HTML tự do và cổng công khai render nó cho mọi người dân, nên
+          nó chạy được JavaScript dễ hơn nhiều so với SVG — thứ mà dự án đã dựng hẳn
+          `SvgSanitizer` ở WS-14 để chặn. Không khử trùng ở đây là bảo vệ cửa sổ rồi bỏ ngỏ
+          cửa chính.
+
+          jsoup thay vì tự viết: danh sách chặn bằng regex cho HTML là bài toán đã có quá
+          nhiều biến thể (thực thể HTML, thuộc tính không dấu nháy, `<svg onload>` lồng
+          nhau). Đây đúng chỗ mà "tự viết cho nhẹ" là sai.
+        -->
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>1.23.1</version>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>

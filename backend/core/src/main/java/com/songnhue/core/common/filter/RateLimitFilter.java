@@ -41,6 +41,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final String LOGIN_PATH = "/api/v1/auth/login";
     private static final String EXPORT_MARKER = "/export";
     private static final String API_PREFIX = "/api/v1";
+    private static final String PUBLIC_PREFIX = "/api/v1/public";
 
     private final RateLimitStore store;
     private final HandlerExceptionResolver exceptionResolver;
@@ -94,6 +95,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
         if (path.contains(EXPORT_MARKER)) {
             return RateLimitPolicy.EXPORT;
+        }
+        // Cổng công khai đếm riêng: gộp chung với API quản trị thì một con bọ tìm kiếm quét cổng sẽ
+        // khoá luôn người đang soạn bài — cả hai bucket đều đếm theo IP, mà cả Công ty ra Internet
+        // qua một IP NAT.
+        if (path.startsWith(PUBLIC_PREFIX)) {
+            return RateLimitPolicy.PUBLIC;
         }
         return RateLimitPolicy.API;
     }

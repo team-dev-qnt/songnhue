@@ -69,3 +69,8 @@ backup/*.sha256
 # TOÀN BỘ dữ liệu, gồm cả bảng nhân sự — lọt vào repo là rò rỉ dữ liệu cá nhân
 # theo NĐ 13/2023, và git thì không quên.
 .backup/
+
+# Danh sách cho phép chạy lệnh của Claude Code — riêng từng máy dev, không phải cấu hình dự án.
+# Tài liệu đặc tả trong `.claude/*.md` thì vẫn theo repo.
+.claude/settings.json
+.claude/settings.local.json

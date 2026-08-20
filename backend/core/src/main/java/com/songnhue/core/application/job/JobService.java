@@ -166,7 +166,12 @@ public class JobService implements JobPort {
                 job.getResult());
     }
 
-    @Transactional(readOnly = true)
+    /**
+     * ⚠ Cố ý <b>không</b> {@code @Transactional}, dù đây là một lượt đọc. {@link #enqueue} — người
+     * gọi chính — cố ý chạy ngoài giao dịch (xem tài liệu của nó), nên nó gọi hàm này bằng
+     * {@code this} và chú thích không có tác dụng. Một câu truy vấn đơn thì Spring Data tự mở giao
+     * dịch của riêng nó, nên hành vi không đổi; giữ chú thích lại chỉ để nói một điều không đúng.
+     */
     public Optional<Job> findActiveByDedupKey(String dedupKey) {
         if (dedupKey == null) {
             return Optional.empty();

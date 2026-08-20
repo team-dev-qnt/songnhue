@@ -24,6 +24,7 @@ import com.songnhue.core.common.exception.BusinessRuleException;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
 import com.songnhue.core.common.security.AuthContext;
 import com.songnhue.core.common.security.AuthenticatedUser;
+import com.songnhue.core.common.util.HtmlSanitizer;
 import com.songnhue.core.common.util.VietnameseUtils;
 import com.songnhue.core.spi.AllowedAction;
 import com.songnhue.core.spi.WorkflowPort;
@@ -57,16 +58,19 @@ public class ArticleService {
     private final ArticleVersionRepository versions;
     private final CategoryRepository categories;
     private final WorkflowPort workflow;
+    private final PortalCache portalCache;
 
     public ArticleService(
             ArticleRepository articles,
             ArticleVersionRepository versions,
             CategoryRepository categories,
-            WorkflowPort workflow) {
+            WorkflowPort workflow,
+            PortalCache portalCache) {
         this.articles = articles;
         this.versions = versions;
         this.categories = categories;
         this.workflow = workflow;
+        this.portalCache = portalCache;
     }
 
     // ---- Đọc -----------------------------------------------------------------
@@ -128,7 +132,10 @@ public class ArticleService {
 
         Long author = draft.authorUserId() != null ? draft.authorUserId() : currentUserId();
         Article article = new Article(
-                draft.title(), requireUniqueSlug(draft.slug(), draft.title(), null), draft.content(), author);
+                draft.title(),
+                requireUniqueSlug(draft.slug(), draft.title(), null),
+                HtmlSanitizer.clean(draft.content()),
+                author);
         applyEditableFields(article, draft);
 
         Article saved = articles.saveAndFlush(article);
@@ -155,8 +162,11 @@ public class ArticleService {
         requireCategories(draft.categoryPublicIds());
 
         article.setTitle(draft.title());
-        article.setSlug(requireUniqueSlug(draft.slug(), draft.title(), article.getId()));
-        article.setContent(draft.content());
+        article.setSlug(slugKhiSua(article, draft));
+        // ⛔ Khử trùng lúc GHI, không lúc đọc. Ghi sạch một lần thì mọi nơi đọc đều an toàn —
+        // cổng công khai, màn hình xem trước của admin-app, bản chụp phiên bản, và cả bản
+        // xuất dữ liệu về sau. Khử trùng lúc đọc là phải nhớ làm ở từng nơi đọc.
+        article.setContent(HtmlSanitizer.clean(draft.content()));
         applyEditableFields(article, draft);
         if (draft.authorUserId() != null) {
             article.setAuthorUserId(draft.authorUserId());
@@ -169,8 +179,31 @@ public class ArticleService {
         // Người có quyền xuất bản sửa một bài đang chạy → bản mới lên cổng ngay, không vòng qua duyệt.
         if (ArticleState.XUAT_BAN.equals(article.getStatus()) && hasPermission("cms:article:publish")) {
             serveLatestVersion(article);
+            // Đường này KHÔNG đi qua execute() nên phải tự bắn — bỏ sót ở đây thì người có quyền
+            // xuất bản sửa bài xong, cổng vẫn hiện nội dung cũ tới lượt dựng lại theo chu kỳ.
+            portalCache.articleChanged(article.getSlug());
         }
         return article;
+    }
+
+    /**
+     * Đường dẫn công khai của bài <b>đã từng xuất bản thì đóng băng</b> — lỗ do WS-16 làm lộ ra.
+     *
+     * <p>Bản trước suy lại slug từ tiêu đề ở mọi lượt sửa. Nghĩa là biên tập viên sửa một lỗi chính
+     * tả trong tiêu đề của bài đang chạy trên cổng thì <b>địa chỉ công khai đổi ngay lập tức</b> —
+     * trước khi có ai duyệt. Mọi liên kết đã chia sẻ và mọi kết quả tìm kiếm của Google trỏ vào bài
+     * đó chết theo, và đó đúng là thứ copy-on-write sinh ra để tránh: sửa bài không được phép thay
+     * đổi cái gì ở phía công khai cho tới lúc duyệt.
+     *
+     * <p>Phase 1 không có bảng chuyển hướng, nên gõ tay một slug mới vẫn làm mất địa chỉ cũ. Khác
+     * biệt là ở chỗ đó là <b>một hành động cố ý</b> chứ không phải hệ quả phụ của việc sửa tiêu đề.
+     */
+    private String slugKhiSua(Article article, ArticleDraft draft) {
+        boolean tuSuyRa = draft.slug() == null || draft.slug().isBlank();
+        if (tuSuyRa && article.getPublishedVersionId() != null) {
+            return article.getSlug();
+        }
+        return requireUniqueSlug(draft.slug(), draft.title(), article.getId());
     }
 
     /**
@@ -199,6 +232,14 @@ public class ArticleService {
             // Gỡ bài không cần duyệt lại.
             default -> {}
         }
+
+        // ⭐ Bắn yêu cầu dựng lại cổng cho MỌI hành động, không riêng APPROVE — T16.5.
+        //
+        // Gỡ bài và lưu trữ cũng phải làm cổng đổi theo: gỡ một bài đăng nhầm mà trang tĩnh vẫn
+        // phục vụ nó thêm vài phút là đúng thứ người ta bấm Gỡ để tránh. `SUBMIT` và
+        // `REQUEST_CHANGES` không đổi gì ở phía công khai, nhưng một việc thừa trong hàng đợi rẻ
+        // hơn nhiều so với một danh sách hành động phải nhớ cập nhật mỗi lần thêm bước chuyển.
+        portalCache.articleChanged(article.getSlug());
         return article;
     }
 

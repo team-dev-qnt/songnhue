@@ -26,6 +26,7 @@ import com.songnhue.core.common.util.SvgSanitizer;
 import com.songnhue.core.domain.attachment.Attachment;
 import com.songnhue.core.infra.attachment.AttachmentRepository;
 import com.songnhue.core.infra.storage.ObjectStorage;
+import com.songnhue.core.spi.AttachmentContent;
 import com.songnhue.core.spi.AttachmentPort;
 import com.songnhue.core.spi.AttachmentRef;
 import com.songnhue.core.spi.AttachmentUploadCommand;
@@ -180,6 +181,41 @@ public class AttachmentService implements AttachmentPort {
                     ErrorCode.SYS_0009, attachment.getScanStatus().name());
         }
         return storage.presignedGetUrl(attachment.getStorageBucket(), attachment.getStorageKey(), DOWNLOAD_URL_TTL);
+    }
+
+    /**
+     * Đọc nội dung tệp cho cổng công khai — WS-16/T16.6.
+     *
+     * <p>Ba điều kiện phải đúng <b>cùng lúc</b>, và cả ba được kiểm ở đây chứ không ở nơi gọi: tệp
+     * còn sống, thuộc loại chủ sở hữu công khai, và đã qua bước quét. Lý do đặt chốt chặn ở đây nằm
+     * trong javadoc của {@link AttachmentPort#readForPublic}.
+     *
+     * <p>Trả {@link Optional#empty()} cho mọi trường hợp từ chối — không phân biệt "không có" với
+     * "có nhưng không công khai". Phân biệt được là biến endpoint này thành máy dò xem UUID nào tồn
+     * tại trong kho.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<AttachmentContent> readForPublic(UUID publicId, List<String> allowedOwnerTypes) {
+        Optional<Attachment> found = repository.findByPublicIdAndDeletedAtIsNull(publicId);
+        if (found.isEmpty()) {
+            return Optional.empty();
+        }
+        Attachment attachment = found.get();
+        if (!allowedOwnerTypes.contains(attachment.getOwnerType())) {
+            // WARN chứ không DEBUG: hoặc là có người đang dò, hoặc là một đường dẫn công khai đang
+            // trỏ nhầm vào tệp nội bộ. Cả hai đều đáng nhìn.
+            log.warn(
+                    "Từ chối phục vụ công khai tệp {} — loại chủ sở hữu '{}' không nằm trong danh sách cho phép",
+                    publicId,
+                    attachment.getOwnerType());
+            return Optional.empty();
+        }
+        if (!attachment.isDownloadable()) {
+            return Optional.empty();
+        }
+        byte[] content = storage.get(attachment.getStorageBucket(), attachment.getStorageKey());
+        return Optional.of(new AttachmentContent(content, attachment.getContentType(), attachment.getOriginalName()));
     }
 
     @Transactional(readOnly = true)

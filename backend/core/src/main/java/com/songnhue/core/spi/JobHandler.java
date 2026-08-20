@@ -1,10 +1,17 @@
-package com.songnhue.core.application.job;
+package com.songnhue.core.spi;
 
 /**
  * Cách cắm một loại việc nền vào hàng đợi — pattern P5.
  *
- * <p>Module nghiệp vụ chỉ cần khai một bean cài giao diện này; {@link JobWorker} tự tìm thấy qua
+ * <p>Module nghiệp vụ chỉ cần khai một bean cài giao diện này; {@code JobWorker} tự tìm thấy qua
  * Spring, không phải đăng ký ở đâu cả. Đó là điều kiện để Phase 1+ "chỉ khai báo cấu hình".
+ *
+ * <p>⚠ <b>Chuyển từ {@code core.application.job} sang đây ở WS-16</b>, cùng lý do đã mở {@code spi}
+ * ở WS-12 ({@code architecture-review.md} §9.14): đây là <i>điểm mở rộng cho module nghiệp vụ</i>,
+ * mà ArchUnit chỉ cho module import {@code core.spi} và {@code core.common}. Để ở
+ * {@code core.application} thì việc nền đầu tiên của một module nghiệp vụ làm CI đỏ — Phase 0 không
+ * lộ ra vì mọi handler đều nằm trong chính {@code core}. Lại đúng dạng "một ranh giới chưa ai đi qua
+ * thì chưa biết nó đúng hay sai".
  *
  * <p><b>Hợp đồng:</b>
  *

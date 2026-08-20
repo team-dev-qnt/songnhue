@@ -3,6 +3,8 @@ import type { ReactNode } from 'react';
 
 import { SiteFooter } from '@/components/SiteFooter';
 import { SiteHeader } from '@/components/SiteHeader';
+import { getSiteConfig } from '@/lib/api';
+import { fileUrl } from '@/lib/routes';
 import { SITE, SITE_URL } from '@/lib/site';
 
 import './globals.css';
@@ -14,27 +16,38 @@ import './globals.css';
  * đối**. Thiếu nó, Next phát ra đường dẫn tương đối, và Facebook/Zalo không lấy được ảnh
  * xem trước — lỗi chỉ lộ ra khi ai đó chia sẻ liên kết, tức là sau khi đã lên production.
  */
-export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
-  title: {
-    default: SITE.name,
-    // Phase 1 đặt `title` riêng cho từng bài viết; hậu tố gắn tự động.
-    template: `%s · ${SITE.shortName}`,
-  },
-  description: SITE.description,
-  applicationName: SITE.shortName,
-  alternates: { canonical: '/' },
-  openGraph: {
-    type: 'website',
-    locale: SITE.locale,
-    url: SITE_URL,
-    siteName: SITE.name,
-    title: SITE.name,
-    description: SITE.description,
-  },
-  twitter: { card: 'summary_large_image' },
-  robots: { index: true, follow: true },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  // Tên cổng, khẩu hiệu và favicon do Công ty đặt trên màn hình cấu hình giao diện (T15.2).
+  // Hằng số trong `site.ts` chỉ còn là lưới an toàn khi backend chưa gọi được — cổng thông
+  // tin hiện sai tên vì API hắt hơi thì tệ hơn nhiều so với hiện tên mặc định.
+  const config = await getSiteConfig();
+
+  const name = config?.['site.name'] || SITE.name;
+  const description = config?.['site.slogan'] || SITE.description;
+  const favicon = fileUrl(config?.['site.favicon.attachment-id']);
+
+  return {
+    metadataBase: new URL(SITE_URL),
+    title: {
+      default: name,
+      template: `%s · ${SITE.shortName}`,
+    },
+    description,
+    applicationName: SITE.shortName,
+    alternates: { canonical: '/' },
+    icons: favicon ? { icon: favicon } : undefined,
+    openGraph: {
+      type: 'website',
+      locale: SITE.locale,
+      url: SITE_URL,
+      siteName: name,
+      title: name,
+      description,
+    },
+    twitter: { card: 'summary_large_image' },
+    robots: { index: true, follow: true },
+  };
+}
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   // `lang="vi"` không phải chi tiết trang trí: trình đọc màn hình chọn giọng theo nó, và
