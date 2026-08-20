@@ -121,9 +121,24 @@ services:
         # gọi sang cổng 18080 là khác origin → preflight bị trả `403 Invalid CORS
         # request` → **không một lượt gọi nào chạy được**, bắt đầu từ ô đăng nhập.
         # Lỗi không lộ ra ở lượt kiểm bằng `curl` vì curl không làm preflight.
+        #
+        # ⚠⚠ Dòng `:-` này KHÔNG phải nơi quyết định. Makefile gọi compose với
+        # `--env-file env/local.env`, mà `--env-file` nuôi luôn phép thế biến, nên
+        # giá trị ở tệp env THẮNG mặc định ở đây. Lần sửa trước chỉ đổi chỗ này và
+        # để nguyên dòng `VITE_API_BASE_URL=http://localhost:18080/api/v1` bên kia
+        # → lỗi vẫn sống nguyên. `FrontendSameOriginTest` nay soi cả hai nơi.
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
     container_name: songnhue-admin-app
     restart: unless-stopped
+    environment:
+      # Đích chuyển tiếp của nginx — đọc LÚC CHẠY qua cơ chế template của image
+      # nginx, nên `make dev-fe` (backend chạy native trên máy chủ) chỉ cần đổi
+      # biến này, không phải dựng lại image.
+      API_UPSTREAM: ${API_UPSTREAM:-http://app:8080}
+    # Cần cho `make dev-fe`: trỏ ra backend native trên máy chủ. Docker Desktop
+    # có sẵn tên này, Linux thì không — khai tường minh để hai nền giống nhau.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "127.0.0.1:${DOCKER_ADMIN_APP_PORT:-15173}:80"
 
@@ -138,9 +153,11 @@ services:
       dockerfile: ../deploy/docker/public-web.Dockerfile
       args:
         # ⚠⚠ Để TRỐNG là có chủ ý — trình duyệt khi đó gọi đường dẫn TƯƠNG ĐỐI `/api/v1`, và
-        # Next chuyển tiếp sang backend bằng `rewrites()`. Bản đầu đặt `http://localhost:18080`
-        # là khác origin, mà backend không cấu hình CORS → preflight `403 Invalid CORS request`
-        # → bộ đếm lượt xem chưa từng chạy được từ trình duyệt thật.
+        # Next chuyển tiếp sang backend bằng Route Handler `src/app/api/v1/[...path]/route.ts`
+        # (KHÔNG phải `rewrites()` — với `output: standalone` thì nó bị nướng vào lúc build).
+        # Bản đầu đặt `http://localhost:18080` là khác origin, mà backend không cấu hình CORS
+        # → preflight `403 Invalid CORS request` → bộ đếm lượt xem chưa từng chạy được từ
+        # trình duyệt thật. Giá trị thật đến từ `env/local.env`, xem ghi chú ở service trên.
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-}
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:13000}
     container_name: songnhue-public-web
@@ -152,10 +169,13 @@ services:
       # `POST /api/revalidate`; để trống thì endpoint tự đóng (503) — mặc định an toàn.
       REVALIDATE_SECRET: ${REVALIDATE_SECRET:-doi-bi-mat-nay-o-moi-truong-that}
       # ⚠⚠ KHÁC với NEXT_PUBLIC_API_BASE_URL, và sự khác biệt đó là bắt buộc. Biến kia là
-      # địa chỉ TRÌNH DUYỆT gọi (localhost:18080). Biến này là địa chỉ TIẾN TRÌNH NEXT gọi
-      # khi dựng trang — nó nằm trong mạng Docker nên phải gọi theo tên service. Dùng nhầm
-      # thì Next gọi vào chính nó và cổng dựng ra một trang trắng hoàn toàn hợp lệ.
+      # đường dẫn TƯƠNG ĐỐI mà trình duyệt gọi. Biến này là địa chỉ TIẾN TRÌNH NEXT gọi —
+      # cả khi dựng trang lẫn khi chuyển tiếp — nên phải TUYỆT ĐỐI và gọi theo tên service
+      # trong mạng Docker. Dùng nhầm thì Next gọi vào chính nó và cổng dựng ra một trang
+      # trắng hoàn toàn hợp lệ. `make dev-fe` ghi đè sang `host.docker.internal`.
       API_INTERNAL_BASE_URL: ${API_INTERNAL_BASE_URL:-http://app:8080/api/v1}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       app:
         condition: service_healthy

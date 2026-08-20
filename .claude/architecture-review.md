@@ -1564,3 +1564,68 @@ nullish nên `??` giữ nguyên nó → `baseURL = ''` → lượt gọi mất h
 
 ⛔ **Luật bổ sung cho `conventions.md` §1.5**: một endpoint mà **trình duyệt** phải gọi thì lượt
 kiểm chứng phải mang `Origin` — `curl` trần đi qua được đúng bức tường chặn người dùng thật.
+
+---
+
+### §10.29-a. ⚠⚠ Bản sửa §10.29 sửa vào chỗ không ai đọc — lỗi sống nguyên sau khi "đã sửa" (20/8/2026)
+
+Anh Quân dựng lại image rồi báo **vẫn CORS**. Bản sửa hôm trước đổi `compose.local.yml` thành
+`VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}` — mặc định rỗng, đúng ý định. Nhưng `:-` **chỉ có tác
+dụng khi biến vắng mặt**, mà Makefile chạy compose với `--env-file env/local.env`, và `--env-file`
+nuôi luôn phép thế biến. Tệp env vẫn giữ nguyên dòng:
+
+```
+VITE_API_BASE_URL=http://localhost:18080/api/v1      # [B] admin-app
+```
+
+Giá trị đó **thắng** mặc định trong compose. Đo lại bằng chính docker:
+
+```
+$ docker compose --env-file env/local.env -f compose.local.yml --profile full config | grep VITE
+        VITE_API_BASE_URL: http://localhost:18080/api/v1
+```
+
+Nghĩa là mọi lượt dựng lại đều nướng đúng địa chỉ khác origin vào bundle, y như trước.
+
+**⚠⚠ Và bài canh viết ra để chặn đúng lỗi này thì xanh trọn vẹn.** `FrontendSameOriginTest` khẳng
+định *"biến build của FE không được trỏ sang origin khác"* — nhưng nó soi **`compose.local.yml`**,
+tức là soi **giá trị mặc định**, trong khi nơi quyết định là tệp env. Nó chứng minh một điều đúng
+về một tệp không ai đọc tới.
+
+> ⛔ **Luật: canh giá trị ĐÃ GIẢI, đừng canh giá trị MẶC ĐỊNH.** Mặc định chỉ là thứ dùng đến khi
+> không ai ghi đè — mà ở đây luôn có người ghi đè. Cùng họ với §9.8.2 "xanh mà không chạy", nhưng
+> tinh vi hơn: phép kiểm chạy thật, khẳng định đúng, chỉ là **về sai đối tượng**.
+
+**Lỗi ở ba nơi, không phải một** — chữa một chỗ là lần sau lại sập ở chỗ khác:
+
+| Nơi | Sai gì | Sửa |
+|---|---|---|
+| `deploy/env/*.env*` (4 tệp) | gán địa chỉ tuyệt đối — **nơi quyết định** | để rỗng, chú thích ở dòng riêng (bẫy §10.27) |
+| `deploy/compose.local.yml` | mặc định đúng nhưng bị ghi đè | giữ nguyên, ghi rõ nó không phải nơi quyết định |
+| `Makefile` mục `dev-fe` | tiêm `VITE_API_BASE_URL=http://localhost:8080/api/v1` lúc build | đổi **đích chuyển tiếp** (`API_UPSTREAM`, `API_INTERNAL_BASE_URL`) — đọc lúc chạy |
+
+`staging/prod.env.example` cũng gán tuyệt đối. Ở đó nó *tình cờ* trùng origin thật nên chưa hỏng,
+nhưng biến một hằng số hạ tầng thành thứ phải build lại mỗi lần đổi tên miền, và sai một ký tự là
+cả giao diện chết. Nay để rỗng ở cả hai.
+
+**`make dev-fe` (FE trong Docker, backend native) là chế độ dễ tái phát nhất** — nó thật sự cần
+một địa chỉ khác `dev-docker`. Nhưng thứ khác là **đích chuyển tiếp**, không phải origin của
+trình duyệt: `API_UPSTREAM=http://host.docker.internal:8080` cho nginx và
+`API_INTERNAL_BASE_URL=…/api/v1` cho Next, cả hai đọc lúc chạy nên không phải dựng lại image.
+Thêm `extra_hosts: host.docker.internal:host-gateway` để Linux giống Docker Desktop.
+
+**Bài canh mới** (`tepEnvKhongGanDiaChiTuyetDoi`) quét **mọi** tệp trong `deploy/env/`, gồm cả
+`local.env` không commit — ở CI nó không tồn tại nên chỉ soi các bản mẫu, ở máy lập trình viên nó
+soi đúng tệp đang nuôi `docker compose`. Kiểm chứng ngược 3 phép phá hoại, **cả 3 đỏ**: trả lại
+dòng cũ · để trống kèm chú thích cùng dòng (bẫy §10.27) · `dev-fe` tiêm lại biến build.
+
+⚠ **Và bản đầu của chính bài canh đó đỏ oan**: nó khớp trúng một **chú thích trong Makefile mô tả
+lại lỗi cũ**, chứa nguyên văn `VITE_API_BASE_URL=http://localhost:8080/api/v1`. Một phép canh
+trượt trên tài liệu giải thích chính nó là phép canh **soi văn bản thay vì soi cấu trúc** — đúng
+thứ đã bị cấm sau vụ `articleContentCss.test.ts`. Nay bỏ dòng chú thích trước khi khớp.
+
+**Kiểm chứng trên bản chạy thật sau khi sửa**: bundle admin-app và public-web đều **0** tham chiếu
+`:18080` · đăng nhập qua cổng 15173 kèm `Origin` → **200 `TWO_FACTOR_ENROLL_REQUIRED`** ·
+`POST /public/articles/1/views` → **204** · `GET /public/categories` → **200** · 3 container
+`healthy`, `RestartCount 0` · và đường **khác** origin cũ (`OPTIONS` thẳng vào `:18080`) vẫn trả
+**403** — tức là bức tường CORS vẫn đứng nguyên, ta chỉ thôi tự đâm vào nó.

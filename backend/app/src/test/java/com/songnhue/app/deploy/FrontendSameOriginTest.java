@@ -8,7 +8,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -124,14 +127,64 @@ class FrontendSameOriginTest {
                 .containsPattern(Pattern.compile("proxy:\\s*\\{[^}]*'/api'", Pattern.DOTALL));
     }
 
+    /** Hai biến build quyết định trình duyệt gọi API ở origin nào. Cả hai phải RỖNG ở mọi nơi. */
+    private static final String[] BIEN_BUILD_FE = {"VITE_API_BASE_URL", "NEXT_PUBLIC_API_BASE_URL"};
+
     @Test
-    @DisplayName("⛔ Biến build của FE không được trỏ sang origin khác")
+    @DisplayName("⛔⛔ Tệp env — nơi QUYẾT ĐỊNH — không được gán địa chỉ tuyệt đối cho biến build FE")
+    void tepEnvKhongGanDiaChiTuyetDoi() throws IOException {
+        // ⚠⚠ Đây là bài kiểm sinh ra vì bản trước của chính lớp này XANH trong lúc lỗi còn sống.
+        //
+        // Bản trước chỉ soi `compose.local.yml` và thấy `${VITE_API_BASE_URL:-}` — mặc định rỗng,
+        // đúng như mong muốn. Nhưng `:-` chỉ có tác dụng khi biến VẮNG MẶT, mà Makefile chạy
+        // compose với `--env-file env/local.env`, và `--env-file` nuôi luôn phép thế biến. Tệp
+        // env vẫn ghi `VITE_API_BASE_URL=http://localhost:18080/api/v1` → giá trị đó thắng →
+        // bundle vẫn gọi khác origin → preflight vẫn 403 → giao diện vẫn chết.
+        //
+        // Đo lại bằng chính docker:
+        //   docker compose --env-file env/local.env -f compose.local.yml --profile full config
+        //   → VITE_API_BASE_URL: http://localhost:18080/api/v1
+        //
+        // Bài học: **canh giá trị đã giải, đừng canh giá trị mặc định.** Mặc định chỉ là thứ
+        // dùng đến khi không ai ghi đè, mà ở đây luôn có người ghi đè.
+        for (Path tep : timTatCaTepEnv()) {
+            String noiDung = Files.readString(tep, StandardCharsets.UTF_8);
+            for (String bien : BIEN_BUILD_FE) {
+                var khop = Pattern.compile("^\\s*" + bien + "=(.*)$", Pattern.MULTILINE)
+                        .matcher(noiDung);
+                while (khop.find()) {
+                    assertThat(khop.group(1).trim())
+                            .as(
+                                    """
+                                    %s: `%s` phải để RỖNG.
+
+                                    Có giá trị ở đây nghĩa là bundle FE gọi API ở một origin khác trang. \
+                                    Backend cố ý không cấu hình CORS (production có nginx gộp chung \
+                                    origin — T11.5), nên preflight trả `403 Invalid CORS request` và \
+                                    KHÔNG một lượt gọi nào chạy được, bắt đầu từ ô đăng nhập.
+
+                                    Để trống thì mã FE rơi về đường dẫn tương đối `/api/v1`, và tầng \
+                                    phục vụ lo chuyển tiếp: nginx của image admin-app (`API_UPSTREAM`), \
+                                    Route Handler của public-web (`API_INTERNAL_BASE_URL`), \
+                                    `server.proxy` của Vite khi chạy native.
+
+                                    ⚠ Giá trị bắt được: <%s>. Nếu nó trông như một chú thích thì đó là \
+                                    bẫy §10.27 — Compose không cắt chú thích khi giá trị rỗng, phải \
+                                    đưa chú thích xuống dòng riêng.""",
+                                    tep.getFileName(), bien, khop.group(1))
+                            .isEmpty();
+                }
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("⛔ Mặc định của compose và Makefile cũng không được trỏ sang origin khác")
     void bienBuildKhongTroSangOriginKhac() {
         String compose = doc("deploy/compose.local.yml");
 
         // Bắt đúng dạng đã hỏng: `VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://...}`.
-        // Mặc định phải rỗng để mã FE rơi về đường dẫn tương đối.
-        for (String bien : new String[] {"VITE_API_BASE_URL", "NEXT_PUBLIC_API_BASE_URL"}) {
+        for (String bien : BIEN_BUILD_FE) {
             assertThat(compose)
                     .as(
                             """
@@ -140,6 +193,25 @@ class FrontendSameOriginTest {
                             Để mặc định RỖNG để mã FE dùng đường dẫn tương đối `/api/v1`.""",
                             bien)
                     .doesNotContainPattern(Pattern.compile(bien + ":\\s*\\$\\{" + bien + ":-\\s*https?://"));
+        }
+
+        // `make dev-fe` (FE trong Docker, backend native) từng tiêm thẳng địa chỉ cổng 8080 vào
+        // lúc build — cùng một lỗi, ở một chỗ thứ ba. Chế độ đó chỉ được đổi ĐÍCH CHUYỂN TIẾP.
+        //
+        // ⚠ Phải bỏ dòng chú thích trước khi khớp. Bản đầu của chính phép kiểm này ĐỎ OAN: trong
+        // Makefile có một chú thích *mô tả lại lỗi cũ*, chứa nguyên văn
+        // `VITE_API_BASE_URL=http://localhost:8080/api/v1`. Một phép canh trượt trên tài liệu
+        // giải thích chính nó là phép canh soi VĂN BẢN thay vì soi CẤU TRÚC — đúng thứ đã bị cấm
+        // sau vụ `articleContentCss.test.ts`.
+        String makefile = boChuThichMakefile(doc("Makefile"));
+        for (String bien : BIEN_BUILD_FE) {
+            assertThat(makefile)
+                    .as(
+                            "`make dev-fe` không được gán địa chỉ tuyệt đối cho `%s`; hãy đổi "
+                                    + "`API_UPSTREAM` / `API_INTERNAL_BASE_URL` thay vì biến build",
+                            bien)
+                    .doesNotContainPattern(Pattern.compile(bien + "=\"?\\$?\\{?\\$?https?://"))
+                    .doesNotContainPattern(Pattern.compile(bien + "=\"\\$\\$api\""));
         }
     }
 
@@ -168,6 +240,34 @@ class FrontendSameOriginTest {
     }
 
     // -------------------------------------------------------------------------
+
+    /** Bỏ mọi dòng chú thích của Makefile, kể cả dạng {@code @#} nằm trong thân recipe. */
+    private static String boChuThichMakefile(String noiDung) {
+        return noiDung.lines()
+                .filter(dong -> !dong.stripLeading().replaceFirst("^@", "").startsWith("#"))
+                .collect(Collectors.joining("\n"));
+    }
+
+    /**
+     * Mọi tệp env trong {@code deploy/env/} — cả bản {@code .example} có trong repo lẫn bản
+     * {@code local.env} thật của từng máy (không commit).
+     *
+     * <p>Cố ý quét cả bản không commit: ở CI nó không tồn tại nên bài kiểm chỉ soi các bản mẫu,
+     * còn ở máy lập trình viên nó bắt được đúng tệp đang thật sự nuôi {@code docker compose}.
+     * Chính tệp đó là nơi lỗi CORS sống sót qua lần sửa trước.
+     */
+    private static List<Path> timTatCaTepEnv() throws IOException {
+        Path thuMuc = timTuGocKho("deploy/env");
+        try (Stream<Path> luot = Files.list(thuMuc)) {
+            List<Path> ketQua = luot.filter(p -> p.getFileName().toString().contains(".env"))
+                    .sorted()
+                    .toList();
+            assertThat(ketQua)
+                    .as("không thấy tệp env nào trong %s — bài kiểm sẽ soi tập rỗng", thuMuc)
+                    .isNotEmpty();
+            return ketQua;
+        }
+    }
 
     private static String doc(String duongDanTuongDoi) {
         Path duongDan = timTuGocKho(duongDanTuongDoi);
