@@ -255,6 +255,51 @@ export const ERROR_CATALOG = {
     handling: 'toast',
     severity: 'warning',
   },
+  'OPS-2008': {
+    message: 'Mã công trình đã tồn tại — mã phải là duy nhất trong toàn hệ thống',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'OPS-2009': {
+    message: 'Thông số kỹ thuật không thuộc loại công trình đang lập hồ sơ',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'OPS-2010': {
+    message: 'Toạ độ phải nhập đủ cả vĩ độ và kinh độ',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'OPS-2011': {
+    message: 'Lý trình phải theo định dạng K<km>+<m>, ví dụ K0+390',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'OPS-2012': {
+    message: 'Cụm công trình còn công trình bên trong — chuyển hết đi rồi mới xoá được',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'OPS-2013': {
+    message: 'Cấp quản lý "Cụm" bắt buộc phải chọn cụm công trình',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'OPS-2014': {
+    message: 'Mã cụm công trình đã tồn tại',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'OPS-2015': {
+    message: 'Không đọc được tệp nhập, hoặc tệp thiếu cột bắt buộc',
+    handling: 'toast',
+    severity: 'error',
+  },
+  'OPS-2016': {
+    message: 'Tệp nhập còn dòng lỗi — sửa hết lỗi rồi nhập lại, không dòng nào được ghi',
+    handling: 'toast',
+    severity: 'warning',
+  },
   'OPS-3001': {
     message: 'Không được sửa trực tiếp trạng thái công trình — trạng thái được tính tự động',
     handling: 'toast',

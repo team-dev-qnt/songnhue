@@ -30,11 +30,12 @@ lại — nó đã có rồi.**
 | Cần làm gì | Tiêm cái này | Chữ ký thật |
 |---|---|---|
 | Đổi trạng thái entity | `WorkflowPort` | `execute(entity, action, title)` · `allowedActions(entity)` · `initialState(entityType)` |
-| Tệp đính kèm | `AttachmentPort` | `upload(AttachmentUploadCommand)` · `downloadUrl(publicId)` · `findRef(publicId)` · `refsOf(ownerType, ownerId)` · `delete(publicId)` |
+| Tệp đính kèm | `AttachmentPort` | `upload(AttachmentUploadCommand)` · `downloadUrl(publicId)` · `findRef(publicId)` · `refsOf(ownerType, ownerId)` · `usedBytes(ownerType, ownerId)` · `setValidity(publicId, từNgày, đếnNgày)` · `readForPublic(publicId, loạiChoPhép)` · `delete(publicId)` |
 | Thông báo (in-app + email) | `NotificationPort` | `notify(NotifyRequest)` · `broadcast(request, userIds)` |
 | Việc chạy nền | `JobPort` + bean cài `JobHandler` | `enqueue(JobRequest)` · `findJob(publicId)` |
 | Tham số cấu hình được | `SettingPort` | `getInt/getBoolean/getString/getMinutes/getTime(key, fallback)` |
-| Cây đơn vị | `OrgUnitPort` | `findRef(publicId)` · `findRefById(id)` |
+| Cây đơn vị | `OrgUnitPort` | `findRef(publicId)` · `findRefById(id)` · `findRefByCode(code)` — bản theo mã dành cho đường **nhập dữ liệu hàng loạt**, nơi tệp nguồn ghi mã đơn vị chứ không ghi định danh của hệ thống |
+| Nhật ký thay đổi của **một** bản ghi | `AuditQueryPort` | `historyOf(module, entityType, entityId, từ, đến, limit)` — ⛔ **module nghiệp vụ không dựng bảng lịch sử riêng**; `audit_logs` đã ghi đủ old/new ở tầng Hibernate và có chuỗi băm chống sửa. ⚠ Bắt buộc truyền khoảng thời gian vì bảng phân mảnh theo tháng; cận dưới **phải lùi về đầu tháng** chứa `createdAt`, không lấy đúng `createdAt` — xem `architecture-review.md` §10.32 |
 | Cây danh mục của chính module | `MaterializedPath`, `TreeBuilder` (`core.common.tree`) | |
 | Nhật ký kiểm toán | `@Audited` trên entity | tự động, không phải gọi gì |
 | Mã hoá trường nhạy cảm | `CryptoService` (AES-256-GCM + `key_id`) | |

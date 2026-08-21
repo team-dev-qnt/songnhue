@@ -18,4 +18,10 @@ public interface OrgUnitPort {
     Optional<OrgUnitRef> findRef(UUID publicId);
 
     Optional<OrgUnitRef> findRefById(Long id);
+
+    /**
+     * Tra theo mã đơn vị — dành cho đường nhập dữ liệu hàng loạt, nơi tệp nguồn ghi mã chứ không ghi
+     * định danh của hệ thống.
+     */
+    Optional<OrgUnitRef> findRefByCode(String code);
 }

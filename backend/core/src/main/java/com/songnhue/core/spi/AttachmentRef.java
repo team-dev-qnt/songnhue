@@ -10,6 +10,9 @@ import java.util.UUID;
  *
  * @param downloadable {@code false} khi tệp còn đang chờ quét virus hoặc đã bị cách ly. Module
  *     nghiệp vụ phải hiện đúng trạng thái đó thay vì đưa ra một đường tải sẽ bị từ chối
+ * @param validFrom ngày lập tài liệu (CN-02.3) — khác {@code createdAt} là ngày tải tệp lên. Hồ sơ
+ *     hoàn công lập năm 2018 vẫn có thể được số hoá vào hôm nay, và báo cáo hỏi ngày lập chứ không
+ *     hỏi ngày ai đó bấm nút tải
  * @param validUntil hạn hiệu lực tài liệu (giấy phép, chứng chỉ) — {@code null} nghĩa là không hạn
  */
 public record AttachmentRef(
@@ -21,4 +24,5 @@ public record AttachmentRef(
         String purpose,
         boolean downloadable,
         Instant createdAt,
+        java.time.LocalDate validFrom,
         java.time.LocalDate validUntil) {}

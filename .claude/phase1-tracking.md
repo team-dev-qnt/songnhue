@@ -1,6 +1,6 @@
 # PHASE 1 — CMS & MASTER DATA CÔNG TRÌNH · BẢNG THEO DÕI TIẾN ĐỘ
 
-> **Cập nhật lần cuối**: 2026-08-20 · **Tiến độ: 51/112 task (46%)** · 1 task **hoãn có chủ đích** (T12.7 → nợ #62) · **DoD: 0/17** · Trạng thái: 🟡 Đang làm — WS-12 ✅, **WS-13 ✅**, WS-14 ✅, WS-15 ✅, **WS-16 ✅**
+> **Cập nhật lần cuối**: 2026-08-21 · **Tiến độ: 63/112 task (56%)** · 1 task **hoãn có chủ đích** (T12.7 → nợ #62) · **DoD: 0/17** · Trạng thái: 🟡 Đang làm — WS-12 ✅, WS-13 ✅, WS-14 ✅, WS-15 ✅, WS-16 ✅, WS-20 ✅, **WS-17 ✅**
 > Nguồn ràng buộc: `function-spec.md` CN-01.1→01.5, CN-01.8 · CN-02.1, 02.2, 02.3, 02.6, 02.7, 02.11 · `conventions.md` (luật) · `docs/coding-guide.md` (đường đi) · `architecture-review.md` §10 (quyết định Phase 1)
 > **Cách dùng**: giống Phase 0 — làm xong task nào tick `[x]`; xong 1 WS thì chạy mục "Kiểm chứng" rồi cập nhật bảng tổng + dòng trên cùng.
 > ⚠ **Luật 3 bước khi đóng WS** (thừa kế từ Phase 0): tick task → tick dòng nợ → **quay lại sửa mô tả đã lỗi thời ở WS đã giao nợ**. Bước 3 hay bị bỏ nhất.
@@ -31,14 +31,14 @@ Phase 0 dựng **cơ chế**; Phase 1 là lần đầu có **người dùng th�
 | **WS-14** | CMS — Thư viện Media | 6 | **6** | ✅ **Xong 19/8** — đóng DoD #11 của Phase 0 | WS-12 | 6 pd |
 | **WS-15** | CMS — Cấu hình giao diện, Menu, Banner | 7 | **7** | ✅ **Xong 19/8** — SVG lần đầu đi qua đường thật | WS-13 | 6 pd |
 | **WS-16** | Public-web — hiển thị + ISR | 8 | **8** | ✅ **Xong 20/8** — ISR lần đầu có người đi qua | WS-13, WS-15 | 8 pd |
-| **WS-17** | Operations — Danh mục công trình | 12 | 0 | ⬜ Chưa bắt đầu | WS-12 | 14 pd |
+| **WS-17** | Operations — Danh mục công trình | 12 | **12** | ✅ **Xong 21/8** — tầng 3 lần đầu chạy trên entity thật (trả nợ #57) | WS-12 | 14 pd |
 | **WS-18** | Operations — Lịch sử sửa chữa & sự cố | 11 | 0 | ⬜ Chưa bắt đầu | WS-17 | 10 pd |
 | **WS-19** | Operations — Tình hình vận hành + trạng thái dẫn xuất | 8 | 0 | ⬜ Chưa bắt đầu | WS-17, WS-18 | 7 pd |
 | **WS-20** | FE admin — màn hình CMS | 13 | **13** | ✅ **Xong 20/8** — kéo lên trước WS-17 | WS-13→15 (API) | 12 pd |
 | **WS-21** | FE admin — màn hình Công trình | 10 | 0 | ⬜ Chưa bắt đầu | WS-17→19 (API) | 12 pd |
 | **WS-23** | ⭐ Nền biểu đồ + Dashboard điều hành (CN-02.5, CN-02.6) | 11 | 0 | ⬜ Chưa bắt đầu | WS-17 | 11 pd |
 | **WS-22** | Kiểm thử, nghiệm thu Phase 1 & trả nợ | 8 | 0 | ⬜ Chưa bắt đầu | tất cả | 8 pd |
-| | **TỔNG** | **112** | **51** | | | **112 pd** |
+| | **TỔNG** | **112** | **63** | | | **112 pd** |
 
 *(112 task triển khai + 17 mục Definition of Done ở cuối file.)*
 
@@ -337,20 +337,33 @@ Cả bốn đều **xanh trọn vẹn trong bộ kiểm thử**. Chi tiết ở 
 
 **Tiên quyết**: WS-12. **Đầu ra**: hồ sơ công trình đủ 4 loại, có toạ độ, có tài liệu, có nhật ký thay đổi, và **phân quyền tầng 3 chạy trên entity thật**.
 
-- [ ] **T17.1** Migration `db/migration/**ops**/`: `constructions` + `pump_station_specs` + `sluice_specs` + hồ sơ tối thiểu cho đê/kênh. Mọi số đo `NUMERIC`, tiền `NUMERIC(18,2)` VND — điểm nghiệp vụ **18**
-- [ ] **T17.2** ⭐ `Construction extends ScopedEntity` — **entity nghiệp vụ đầu tiên thuộc phạm vi đơn vị**. Trả nợ T12.9: chạy lại kiểm chứng tầng 3 trên bảng thật, thay cho `ScopedRecord` dựng riêng cho test ở Phase 0. Dòng log *"Chưa có entity nào thuộc phạm vi đơn vị"* phải **biến mất**
-- [ ] **T17.3** Mã công trình duy nhất toàn hệ thống; gợi ý tự sinh nhưng cho sửa — điểm nghiệp vụ **13**
-- [ ] **T17.4** Toạ độ `Decimal(9,6)` + cột PostGIS; `river_name`, `chainage` (`K<km>+<m>`); danh sách "Công trình chưa có vị trí GIS"
-- [ ] **T17.5** Lưu vực / khu tưới tiêu = **trường văn bản** (chốt F3) — ⛔ không bảng danh mục, không polygon riêng
-- [ ] **T17.6** Trạng thái vận hành là **cột dẫn xuất** (tính ở WS-19); API nhận `status` từ client → `OPS-3001`
-- [ ] **T17.7** Tài liệu công trình (CN-02.3) qua `AttachmentPort`: hạn mức 500MB/công trình, nhãn loại tài liệu, ngày lập + ngày hết hiệu lực, phiên bản
-- [ ] **T17.8** Nhật ký thay đổi hồ sơ (CN-02.7) = **API đọc `audit_logs`** lọc theo `entity_type='CONSTRUCTION'` — ⛔ không dựng bảng lịch sử thứ hai; `@Audited` đã ghi đủ old/new
-- [ ] **T17.9** Nhập từ Excel/CSV: **chạy khô trước** (xem trước + báo lỗi từng dòng + đếm sẽ thêm/sửa bao nhiêu), có lỗi chặn thì **không nhập dòng nào**. Đây cũng là đường seed dữ liệu thật khi G8 về
-- [ ] **T17.10** Thống kê & tìm kiếm (CN-02.6): đếm theo loại / đơn vị / trạng thái / cấp quản lý; lọc trên danh sách. Biểu đồ để Phase 3
-- [ ] **T17.11** `construction_clusters` (mã, tên, đơn vị quản lý, thứ tự) + `constructions.cluster_id` **nullable** + CRUD danh mục cụm — điểm nghiệp vụ **12**, G15 đã đóng. ⚠ Cụm **chỉ để nhóm hiển thị và lọc**: cấm dùng `cluster_id` trong bất kỳ truy vấn phân quyền nào, phạm vi vẫn đi bằng `org_unit_id`
-- [ ] **T17.12** Test: tầng 3 đủ 3 nhánh (đơn vị mình · cấp trên thấy cấp dưới · đơn vị khác → `AUTH-3002` + `security_events`) + mã lỗi mới
+- [x] **T17.1** Migration `db/migration/**ops**/`: `constructions` + `pump_station_specs` + `sluice_specs` + hồ sơ tối thiểu cho đê/kênh. Mọi số đo `NUMERIC`, tiền `NUMERIC(18,2)` VND — điểm nghiệp vụ **18**
+- [x] **T17.2** ⭐ `Construction extends ScopedEntity` — **entity nghiệp vụ đầu tiên thuộc phạm vi đơn vị**. Trả nợ T12.9: chạy lại kiểm chứng tầng 3 trên bảng thật, thay cho `ScopedRecord` dựng riêng cho test ở Phase 0. Dòng log *"Chưa có entity nào thuộc phạm vi đơn vị"* phải **biến mất**
+- [x] **T17.3** Mã công trình duy nhất toàn hệ thống; gợi ý tự sinh nhưng cho sửa — điểm nghiệp vụ **13**
+- [x] **T17.4** Toạ độ `Decimal(9,6)` + cột PostGIS; `river_name`, `chainage` (`K<km>+<m>`); danh sách "Công trình chưa có vị trí GIS"
+- [x] **T17.5** Lưu vực / khu tưới tiêu = **trường văn bản** (chốt F3) — ⛔ không bảng danh mục, không polygon riêng
+- [x] **T17.6** Trạng thái vận hành là **cột dẫn xuất** (tính ở WS-19); API nhận `status` từ client → `OPS-3001`
+- [x] **T17.7** Tài liệu công trình (CN-02.3) qua `AttachmentPort`: hạn mức 500MB/công trình, nhãn loại tài liệu, ngày lập + ngày hết hiệu lực, phiên bản
+- [x] **T17.8** Nhật ký thay đổi hồ sơ (CN-02.7) = **API đọc `audit_logs`** lọc theo `entity_type='CONSTRUCTION'` — ⛔ không dựng bảng lịch sử thứ hai; `@Audited` đã ghi đủ old/new
+- [x] **T17.9** Nhập từ Excel/CSV: **chạy khô trước** (xem trước + báo lỗi từng dòng + đếm sẽ thêm/sửa bao nhiêu), có lỗi chặn thì **không nhập dòng nào**. Đây cũng là đường seed dữ liệu thật khi G8 về
+- [x] **T17.10** Thống kê & tìm kiếm (CN-02.6): đếm theo loại / đơn vị / trạng thái / cấp quản lý; lọc trên danh sách. Biểu đồ để Phase 3
+- [x] **T17.11** `construction_clusters` (mã, tên, đơn vị quản lý, thứ tự) + `constructions.cluster_id` **nullable** + CRUD danh mục cụm — điểm nghiệp vụ **12**, G15 đã đóng. ⚠ Cụm **chỉ để nhóm hiển thị và lọc**: cấm dùng `cluster_id` trong bất kỳ truy vấn phân quyền nào, phạm vi vẫn đi bằng `org_unit_id`
+- [x] **T17.12** Test: tầng 3 đủ 3 nhánh (đơn vị mình · cấp trên thấy cấp dưới · đơn vị khác → `AUTH-3002` + `security_events`) + mã lỗi mới
 
 **Kiểm chứng**: hai tài khoản thuộc hai Xí nghiệp khác nhau — mỗi người chỉ thấy công trình đơn vị mình; tài khoản cấp Công ty thấy cả hai. **Đây là lần đầu tiên điều đó được chứng minh trên dữ liệu nghiệp vụ thật.**
+
+✅ **Đã chạy (21/8)** — quyết định và bài học ghi ở `architecture-review.md` **§10.32**:
+
+- **Tầng 3 sống thật**: log khởi động đổi từ *"Chưa có entity nào thuộc phạm vi đơn vị"* sang *"Bộ lọc phạm vi đơn vị đã sẵn sàng"* (đo trên `make dev-docker`). `ConstructionScopeTest` phủ 3 nhánh bắt buộc **cộng** nhánh mà `ScopedRecord` không có: **sửa / đổi vòng đời / xoá** hồ sơ ngoài phạm vi cũng bị chặn — bộ lọc và `ScopeGuard` là hai cơ chế khác nhau, quên `ScopeGuard` ở đường ghi là sửa được hồ sơ của Xí nghiệp khác.
+- ⭐ **Kiểm chứng ngược**: gỡ `@Filter` khỏi `Construction` → **6/8 bài đỏ** + luật ArchUnit `everyScopedEntityCarriesTheFilter` đỏ, chỉ đích danh lớp thiếu annotation.
+- ⭐ **Cửa SPI thông báo lần đầu có người đi qua** — `NotificationPort.notify(...)` được gọi ở lượt bàn giao đơn vị và lượt thanh lý. Đây là cửa mà lỗi giao dịch `readOnly` từng nằm im sau 4 WS (§10.21).
+- ⚠⚠ **Lỗi bài kiểm qua HTTP bắt được ngay lượt chạy đầu**: nhật ký thay đổi trả **rỗng** cho hồ sơ vừa tạo. `audit_logs.occurred_at` mặc định `now()` = **thời điểm bắt đầu giao dịch**, còn `createdAt` do Spring gán lúc flush → dòng nhật ký của chính lượt tạo nằm dưới mốc và bị loại. Chữa bằng cách lùi mốc về **đầu tháng** (không quét thêm partition nào).
+- ⚠ **Hai cột `valid_from` / `valid_until` của `attachments` đã chết từ WS-2** — có trong lược đồ, entity có setter, không dòng mã nào gọi. CN-02.3 đòi *ngày lập + ngày hết hiệu lực*, nên WS-17 mở `AttachmentPort.setValidity(...)`.
+- ⛔ **Nhập tệp không thêm Apache POI** — XLSX đọc bằng `java.util.zip` + StAX của JDK. Giới hạn ghi thẳng trong mã (chỉ sheet 1 · không tính lại công thức · không đổi số sê-ri ngày). ⚠⚠ Bẫy nặng nhất: **dấu chấm** — `21.023456` là toạ độ thập phân còn `1.500.000` là hàng nghìn; "bỏ hết dấu chấm" biến vĩ độ thành một điểm giữa đại dương mà CHECK của CSDL không bắt được nếu sai số nhỏ.
+- **3 cột sinh ở CSDL**, không có đường ghi nên không thể lệch: `geom` (PostGIS, đo thật `POINT(105.78 20.98)` SRID 4326) · `chainage_m` (`K18+100` → 18100) · `total_flow_m3s` (3 × 1,5 = 4.500, đo qua HTTP).
+- **9 mã lỗi mới** (OPS-2008→2016) → **71 mã**, BE = FE. **451 test BE** (239 core + 212 app) + **128 FE**.
+
+**Nợ giao cho WS sau**: ⬜ chuỗi suy ra trạng thái mới có mắt xích cuối (vòng đời) — 4 mắt xích trên thuộc **WS-18** (sự cố, bảo trì), **WS-19** (mã tình hình vận hành) và **Phase 2** (cảnh báo ngưỡng); tất cả thêm vào **đúng `ConstructionStatusService`**, không mở đường ghi mới.
 
 ---
 
@@ -563,7 +576,7 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 1 hoàn thành:
 
 | # | Nợ | Phát sinh ở | Task nhận | Trạng thái |
 |:-:|---|---|---|:-:|
-| 57 | Kiểm chứng tầng 3 trên entity nghiệp vụ thật | WS-12 | WS-17/T17.2 | ⬜ Chờ |
+| ~~57~~ | ~~Kiểm chứng tầng 3 trên entity nghiệp vụ thật~~ | WS-12 | WS-17/T17.2 | ✅ **Đóng 21/8** — `ConstructionScopeTest` 8 bài trên bảng `constructions` thật; log khởi động đổi sang *"Bộ lọc phạm vi đơn vị đã sẵn sàng"*. Kiểm chứng ngược: gỡ `@Filter` → 6/8 bài đỏ + luật ArchUnit đỏ |
 | 58 | `HydroAlertPort` mới có phần khai, chưa có phần cài | WS-19/T19.5 | Phase 2 (`hydro`) | ⬜ Chờ |
 | 59 | Nút "Tạo bản ghi khắc phục" từ màn hình cảnh báo | WS-18/T18.10 | Phase 2 | ⬜ Chờ |
 | 60 | Widget thuỷ văn ở cấu hình giao diện. ⚠ **Chốt 19/8: KHÔNG seed tham số nào bây giờ** — công tắc chưa ai đọc là lỗi vừa sửa ở WS-12. Phase 2 dựng cả tham số lẫn phần đọc **cùng lúc** | WS-15/T15.5 | Phase 2 | ⬜ Chờ |

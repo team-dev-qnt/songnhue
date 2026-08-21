@@ -58,6 +58,15 @@ public interface AttachmentPort {
     /** Danh sách tệp của một bản ghi, mới nhất trước. */
     List<AttachmentRef> refsOf(String ownerType, Long ownerId);
 
+    /**
+     * Đặt ngày lập / ngày hết hiệu lực của tài liệu — CN-02.3.
+     *
+     * <p>Tách khỏi {@link #upload} vì đây là siêu dữ liệu nghiệp vụ: sửa được sau khi tệp đã vào kho,
+     * còn nội dung tệp thì không. Một hồ sơ hoàn công lập năm 2018 vẫn được số hoá hôm nay, nên
+     * "ngày lập" không suy ra được từ ngày tải lên.
+     */
+    AttachmentRef setValidity(UUID publicId, java.time.LocalDate validFrom, java.time.LocalDate validUntil);
+
     void delete(UUID publicId);
 
     /**

@@ -72,9 +72,9 @@ describe('error-map đồng bộ với danh mục của backend', () => {
   // Con số này CỐ Ý phải sửa tay mỗi lần thêm mã. Bài kiểm trên đã canh việc hai bên khớp nhau;
   // bài này canh việc *người viết mã biết mình vừa thêm một mã lỗi* — thêm mã là một quyết định
   // (nó vào tài liệu bàn giao, vào bảng tra cứu của người vận hành), không phải một chi tiết trôi qua.
-  it('có đủ 62 mã: 57 đến hết WS-14, + 5 mã CMS của WS-15 (menu và banner)', () => {
-    expect(frontend).toHaveLength(62);
-    expect(backend).toHaveLength(62);
+  it('có đủ 71 mã: 62 đến hết WS-15, + 9 mã OPS của WS-17 (danh mục công trình)', () => {
+    expect(frontend).toHaveLength(71);
+    expect(backend).toHaveLength(71);
   });
 
   // conventions.md §1.5 — mỗi cơ chế canh gác phải có bài kiểm chứng minh nó bắt được vi phạm.

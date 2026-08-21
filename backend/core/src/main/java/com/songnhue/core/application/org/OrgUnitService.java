@@ -89,6 +89,21 @@ public class OrgUnitService implements OrgUnitPort {
                 .map(OrgUnitService::toRef);
     }
 
+    /**
+     * Tra đơn vị theo <b>mã</b> — dành cho đường nhập dữ liệu hàng loạt (T17.9).
+     *
+     * <p>Tệp Excel do Công ty gửi ghi mã đơn vị ("XN1", "XNTL-HD"), không ghi UUID. Bắt người nhập
+     * dịch sang UUID trước khi nhập là đòi họ làm việc mà hệ thống làm được — và mỗi lần dịch tay là
+     * một cơ hội gán nhầm hồ sơ sang Xí nghiệp khác, tức là gán nhầm cả phạm vi xem dữ liệu.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<OrgUnitRef> findRefByCode(String code) {
+        return code == null
+                ? Optional.empty()
+                : repository.findByCodeAndDeletedAtIsNull(code.trim()).map(OrgUnitService::toRef);
+    }
+
     private static OrgUnitRef toRef(OrgUnit unit) {
         return new OrgUnitRef(
                 unit.getId(),

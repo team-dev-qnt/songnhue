@@ -97,6 +97,24 @@ public enum ErrorCode {
     OPS_2005("OPS-2005", HttpStatus.CONFLICT),
     OPS_2006("OPS-2006", HttpStatus.UNPROCESSABLE_ENTITY),
     OPS_2007("OPS-2007", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Mã công trình đã tồn tại — mã là duy nhất toàn hệ thống (CN-02.1). */
+    OPS_2008("OPS-2008", HttpStatus.CONFLICT),
+    /** Nhập thông số kỹ thuật không thuộc loại công trình đang lập hồ sơ. */
+    OPS_2009("OPS-2009", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Toạ độ phải đủ cả vĩ độ và kinh độ — một nửa toạ độ là một điểm sai trên bản đồ. */
+    OPS_2010("OPS-2010", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Lý trình sai định dạng {@code K<km>+<m>}, VD {@code K0+390}. */
+    OPS_2011("OPS-2011", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Cụm công trình còn công trình bên trong — chuyển hết đi rồi mới xoá được. */
+    OPS_2012("OPS-2012", HttpStatus.CONFLICT),
+    /** Cấp quản lý "Cụm" bắt buộc chọn cụm. */
+    OPS_2013("OPS-2013", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Mã cụm công trình đã tồn tại. */
+    OPS_2014("OPS-2014", HttpStatus.CONFLICT),
+    /** Tệp nhập không đọc được, hoặc thiếu cột bắt buộc. */
+    OPS_2015("OPS-2015", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Tệp nhập còn dòng lỗi — chạy khô báo lỗi thì không dòng nào được ghi. */
+    OPS_2016("OPS-2016", HttpStatus.UNPROCESSABLE_ENTITY),
     /** Trạng thái công trình là giá trị dẫn xuất — client sửa trực tiếp là từ chối. */
     OPS_3001("OPS-3001", HttpStatus.FORBIDDEN),
 

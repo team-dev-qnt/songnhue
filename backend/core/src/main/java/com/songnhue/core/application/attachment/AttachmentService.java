@@ -2,6 +2,7 @@ package com.songnhue.core.application.attachment;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -18,6 +19,7 @@ import com.songnhue.core.common.config.StorageProperties;
 import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.BusinessRuleException;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
+import com.songnhue.core.common.exception.ValidationException;
 import com.songnhue.core.common.security.AuthContext;
 import com.songnhue.core.common.util.FileValidator;
 import com.songnhue.core.common.util.HashUtils;
@@ -272,7 +274,35 @@ public class AttachmentService implements AttachmentPort {
                 attachment.getPurpose(),
                 attachment.isDownloadable(),
                 attachment.getCreatedAt(),
+                attachment.getValidFrom(),
                 attachment.getValidUntil());
+    }
+
+    /**
+     * Đặt hiệu lực tài liệu — CN-02.3.
+     *
+     * <p>⚠ Hai cột {@code valid_from} / {@code valid_until} có trong lược đồ từ WS-2 và <b>chưa từng
+     * có đường ghi nào</b>: {@code AttachmentUploadCommand} không mang chúng, entity có setter nhưng
+     * không ai gọi. Tức là chúng đã nằm hai tuần trong nhóm "cột chết" — cùng họ với
+     * {@code limits.upload.max-mb.*} ở WS-12 và {@code company.*} ở lượt rà soát 21/8. Ghi nhận ở
+     * đây để lần sau không ai kết luận "đã có sẵn nên chắc là chạy".
+     *
+     * <p>Tách khỏi {@code upload} chứ không nhét thêm vào lệnh tải lên: ngày lập và ngày hết hiệu lực
+     * là <i>siêu dữ liệu nghiệp vụ</i>, sửa được sau khi tệp đã nằm trong kho, còn nội dung tệp thì
+     * không.
+     */
+    @Override
+    @Transactional
+    public AttachmentRef setValidity(UUID publicId, LocalDate validFrom, LocalDate validUntil) {
+        Attachment attachment = repository
+                .findByPublicIdAndDeletedAtIsNull(publicId)
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
+        if (validFrom != null && validUntil != null && validUntil.isBefore(validFrom)) {
+            throw new ValidationException(ErrorCode.SYS_0003);
+        }
+        attachment.setValidFrom(validFrom);
+        attachment.setValidUntil(validUntil);
+        return toRef(repository.save(attachment));
     }
 
     /**

@@ -1859,3 +1859,124 @@ trong CSDL.
 ⛔ **Luật bổ sung, cùng họ với "canh giá trị đã giải" (§10.29-a): khi một bảo đảm phải đúng ở nhiều
 đường vào, hãy đặt nó ở chỗ *dữ liệu đi qua*, đừng đặt ở *nơi gọi* — và nếu không đặt được thì phải
 có một phép kiểm đếm đủ các đường vào.**
+
+---
+
+### §10.32. WS-17 — bảng nghiệp vụ đầu tiên thuộc phạm vi đơn vị (21/8/2026)
+
+Danh mục công trình (CN-02.1) là nơi **ba cơ chế của Phase 0 lần đầu chạy trên dữ liệu thật**: phân
+quyền tầng 3, cửa SPI thông báo, và bộ ghi nhật ký kiểm toán trên một entity nghiệp vụ có thông số
+kỹ thuật tách bảng.
+
+#### Bằng chứng tầng 3 đã sống — trả nợ #57
+
+Dòng log lúc khởi động đổi từ *"Chưa có entity nào thuộc phạm vi đơn vị — bỏ qua lọc tầng 3 (Phase 0)"*
+thành *"Bộ lọc phạm vi đơn vị đã sẵn sàng"*. Đo trên `make dev-docker` sau khi migration 1026 chạy.
+
+`ConstructionScopeTest` kiểm đủ ba nhánh mà mục "Kiểm chứng" của WS-17 đòi, cộng hai nhánh nữa mà
+`ScopeFilterEndToEndTest` không có vì `ScopedRecord` không có đường ghi: **sửa, đổi vòng đời và xoá
+một hồ sơ ngoài phạm vi cũng bị chặn**. Bộ lọc và `ScopeGuard` là hai cơ chế khác nhau — bộ lọc làm
+bản ghi "không có trong kết quả", còn việc hàm ghi có tra qua `ScopeGuard` hay không là lựa chọn của
+người viết service. Quên một chỗ là sửa được hồ sơ của Xí nghiệp khác.
+
+⭐ **Kiểm chứng ngược đã chạy**: gỡ `@Filter` khỏi `Construction` → **6/8 bài đỏ** cộng luật ArchUnit
+`everyScopedEntityCarriesTheFilter` đỏ, chỉ đích danh lớp thiếu annotation. Khôi phục → xanh lại.
+
+#### Thông số kỹ thuật là **bảng phụ**, không phải entity riêng
+
+Trạm bơm có 9 thông số, cống có 8, kênh/đê có 7 — ba tập không giao nhau. Nhồi chung vào
+`constructions` thì mỗi hồ sơ mang hơn hai chục cột rỗng và không gì ngăn được một cái cống có "số
+máy bơm". Nhưng tách thành **entity** riêng thì mỗi lần sửa thông số là một dòng nhật ký mang loại
+đối tượng khác, và "nhật ký thay đổi hồ sơ công trình" (CN-02.7) **bỏ sót đúng phần kỹ thuật** —
+thứ đáng theo dõi nhất.
+
+`@SecondaryTable` + `@SecondaryRow(optional = true)` giữ được cả hai: dữ liệu tách bảng, nhưng với
+Hibernate và với bộ ghi nhật ký thì đây vẫn là *một* hồ sơ. Đổi loại công trình thì service **xoá
+sạch thông số của loại cũ** — bỏ bước đó thì `pump_station_specs` còn một dòng mồ côi, biểu mẫu
+không hiện nữa nhưng báo cáo "tổng công suất trạm bơm" vẫn cộng vào.
+
+#### Giá trị dẫn xuất đặt ở CSDL khi có thể
+
+Ba cột sinh, cả ba **không có đường ghi nào** nên không thể lệch khỏi dữ liệu sinh ra chúng:
+
+| Cột | Công thức | Vì sao không tính ở Java |
+|---|---|---|
+| `geom` | `ST_SetSRID(ST_MakePoint(lng, lat), 4326)` | Lưu song song với lat/lng là hẹn trước một lần lệch; marker sai vị trí không có triệu chứng nào |
+| `chainage_m` | tách từ `K<km>+<m>` | Dùng để sắp xếp dọc tuyến sông; viết tay hai giá trị cho một sự thật thì sớm muộn chúng khác nhau |
+| `total_flow_m3s` | `pump_count × flow_per_pump` | CN-02.1 ghi "auto". Quy tắc 3 nói tính ở BE — ở đây còn chặt hơn, FE không có đường nào tính ra số khác |
+
+Đo trên CSDL thật: `POINT(105.78 20.98)` SRID 4326 · `chainage_m = 18100` cho `K18+100` ·
+`totalFlowM3s = 4.500` cho 3 máy × 1,5 m³/s (qua HTTP).
+
+Riêng **trạng thái vận hành** không đặt được ở CSDL vì chuỗi suy ra của nó cần dữ liệu của WS-18 và
+Phase 2. Thay vào đó: `ConstructionStatusService` là **nơi duy nhất** ghi, entity **không có setter
+công khai** cho cột đó (có bài kiểm soi cấu trúc lớp), và endpoint trả `OPS-3001` khi client gửi
+kèm. WS-18/WS-19 thêm luật vào *đúng hàm ấy*, không mở đường ghi mới.
+
+⚠ **Vòng đời tách khỏi trạng thái vận hành.** `lifecycle_state` do con người quyết (đang hoạt động /
+ngừng mùa vụ / đã thanh lý), `operational_status` do máy suy ra. Gộp làm một thì hoặc một sự cố vừa
+đóng sẽ "hồi sinh" một công trình đã thanh lý, hoặc người dùng phải sửa tay một cột lẽ ra do máy
+tính. Đổi vòng đời đi bằng endpoint riêng **có lý do bắt buộc** — không lẫn vào một lượt sửa địa chỉ.
+
+#### ⚠⚠ `now()` của PostgreSQL là thời điểm **bắt đầu giao dịch** — nhật ký thay đổi trả về rỗng
+
+Bài kiểm qua HTTP bắt lỗi này ở lượt chạy đầu. `ConstructionChangeLogService` lấy `createdAt` của
+công trình làm cận dưới cho truy vấn `audit_logs` (đúng ý đồ: bảng phân mảnh theo tháng, không có
+cận dưới thì quét cả 60 partition). Nhưng `audit_logs.occurred_at` mặc định là `now()`, mà `now()`
+trả **transaction timestamp**, còn `createdAt` do Spring gán lúc flush — sau đó vài mili giây. Kết
+quả: dòng nhật ký của chính lượt tạo nằm ngay *dưới* mốc và bị loại. Triệu chứng phía người dùng là
+tab "Nhật ký thay đổi" **trống trơn, không lỗi nào**, và người ta sẽ đi tìm nguyên nhân ở bộ ghi
+nhật ký chứ không ở câu truy vấn.
+
+Chữa bằng cách lùi mốc về **đầu tháng** chứa `createdAt`: vì partition chia theo tháng nên **không
+quét thêm partition nào**, mà xoá hẳn cả lớp lỗi do lệch đồng hồ giữa tiến trình ứng dụng và CSDL.
+
+#### ⚠ Hai cột `valid_from` / `valid_until` đã "chết" từ WS-2
+
+CN-02.3 đòi tài liệu công trình có *ngày lập* và *ngày hết hiệu lực*. Hai cột ấy có trong lược đồ từ
+WS-2, entity có setter — và **không dòng mã nào gọi**: `AttachmentUploadCommand` không mang chúng,
+`AttachmentRef` chỉ lộ `validUntil`. Cùng họ với `limits.upload.max-mb.*` (WS-12) và `company.*`
+(rà soát 21/8): cột có sẵn nên ai đọc lược đồ cũng tưởng nó đang chạy.
+
+Mở `AttachmentPort.setValidity(...)` thay vì nhét thêm tham số vào lệnh tải lên — ngày lập là **siêu
+dữ liệu nghiệp vụ**, sửa được sau khi tệp đã vào kho, còn nội dung tệp thì không. (Một hồ sơ hoàn
+công lập năm 2018 vẫn được số hoá hôm nay, nên "ngày lập" không suy ra được từ ngày tải lên.)
+
+#### ⛔ Nhập tệp: không thêm Apache POI
+
+Tệp nhập danh mục là một **bảng phẳng toàn chữ và số** — không công thức, không ô ngày, không định
+dạng. Đọc được chừng đó thì XLSX chỉ là ZIP chứa XML, và JDK có sẵn cả `java.util.zip` lẫn StAX.
+POI kéo theo `xmlbeans`, `commons-compress`, `commons-io` và là một trong những nguồn CVE Java
+thường xuyên nhất — mà dự án đã tự đặt luật *"mỗi thành phần phải tự chứng minh nó đáng nuôi"* và đã
+**trả lại** một phiên bản MinIO cùng một module Testcontainers vì đúng lý do đó. Khi nào cần **xuất**
+Excel có định dạng (CN-02.10, Phase 3) thì POI mới đáng.
+
+Giới hạn đã ghi thẳng trong mã: chỉ sheet đầu tiên · đọc giá trị đã lưu của ô công thức, không tính
+lại · **không** đổi số sê-ri ngày của Excel (bảng nhập công trình không có cột ngày nào; cột ngày
+đầu tiên xuất hiện thì phải xử lý ở đó, đừng để nơi gọi tự đoán).
+
+⚠⚠ **Dấu chấm là chỗ nguy hiểm nhất của cả lượt nhập.** Tiếng Việt dùng "." ngăn hàng nghìn, còn toạ
+độ GPS viết `21.023456` với "." là dấu thập phân. Quy tắc "bỏ hết dấu chấm" biến vĩ độ 21,023456
+thành **21023456** — một điểm giữa đại dương. CHECK của CSDL bắt được khi vượt [-90, 90], nhưng
+**không bắt được sai số nhỏ hơn**, và một công trình lệch vài trăm mét trên bản đồ điều hành thì
+không ai phát hiện bằng mắt. Nên phân biệt bằng *hình dạng chuỗi*, không đoán theo ngôn ngữ.
+
+⭐ **Chạy khô và chạy thật đi CÙNG một đường** (`lapKeHoach`). Viết hai bộ luật thì bản xem trước sẽ
+dần khác bản chạy thật, người dùng nhận "0 lỗi" rồi vẫn hỏng ở lượt nhập — mất niềm tin không gỡ lại
+được. Và **một dòng lỗi thì không dòng nào được ghi**: nhập một nửa rồi dừng là trạng thái tệ nhất,
+người dùng không biết đã vào tới đâu, sửa tệp rồi nhập lại thì phần đầu vào hai lần.
+
+⚠ Thêm một chốt nhỏ nhưng đáng: tệp nhị phân (có byte `0x00`) bị từ chối bằng `OPS-2015` ngay. Không
+có bước đó thì một tệp `.doc` tải nhầm vẫn được "đọc" thành một dòng ký tự rác và người dùng nhận
+thông báo *"tệp thiếu cột bắt buộc"* — câu đó dẫn họ đi sửa tiêu đề của một tệp không hề là bảng tính.
+
+#### Cụm công trình chỉ là **cách nhóm** (G15)
+
+⛔ `cluster_id` không được xuất hiện trong bất kỳ truy vấn phân quyền nào. Phạm vi đi bằng
+`org_unit_id`, và chỉ bằng nó. Nếu một ngày cụm cần mang ý nghĩa phân quyền thì đường đúng là thêm
+một cấp vào `org_units` — vì có hai nguồn phạm vi thì sớm muộn chúng lệch nhau, và **bên lỏng hơn sẽ
+thắng mà không ai biết**.
+
+Cụm dùng lại quyền `ops:construction:*` thay vì thêm quyền mới: ma trận §6 đã được Công ty duyệt và
+có 334 dòng đang được `RbacMatrixTest` đối chiếu trên CSDL thật. Thêm một quyền ngoài ma trận sẽ tạo
+ra một ô mà **không vai trò nào được gán** — tức một chức năng không ai dùng được.
