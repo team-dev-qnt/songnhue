@@ -50,6 +50,48 @@ ENV API_UPSTREAM=http://app:8080
 #   Docker): cùng image chạy được cả ngoài Docker mà không phải sửa gì.
 ENV NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1
 
+# =============================================================================
+# Header bảo mật — conventions.md §4.5
+# =============================================================================
+#
+# ⚠⚠ Trước bản này image KHÔNG đặt một header bảo mật nào. Đo thật:
+# `curl -I http://localhost:15173/` trả về đúng `Server`, `Date`, `Content-Type`,
+# `ETag`, `Cache-Control` — không có `X-Frame-Options`, không `CSP`, không
+# `X-Content-Type-Options`. Trong khi đó public-web đặt sẵn ba cái đầu, nên hai
+# tầng phục vụ của cùng một hệ thống có hai mức bảo vệ khác hẳn nhau.
+#
+# ⚠⚠ VÌ SAO PHẢI ĐỂ RIÊNG MỘT TỆP RỒI `include`, chứ không đặt một lần ở khối
+#    `server`: trong nginx, chỉ thị `add_header` **không cộng dồn** — một khối
+#    `location` có `add_header` riêng sẽ **vứt bỏ toàn bộ** `add_header` kế thừa
+#    từ cấp trên. Cấu hình này có `add_header Cache-Control` ở cả `/assets/` lẫn
+#    `/`, tức là đúng hai khối phục vụ mọi thứ người dùng tải về. Đặt header bảo
+#    mật ở cấp `server` rồi kiểm bằng `curl /` sẽ thấy chúng **biến mất**, và rất
+#    dễ kết luận nhầm là "đã cấu hình rồi mà không chạy".
+#
+# CSP — hai lựa chọn có chủ đích, cả hai đều đã đo:
+#
+#   * `style-src` PHẢI có `'unsafe-inline'`. AntD 5 dùng cssinjs: nó tạo thẻ
+#     `<style data-css-hash=…>` **lúc chạy** (đã kiểm trong bundle đã dựng). Với
+#     `style-src 'self'` thì trình duyệt chặn sạch và giao diện quản trị hiện ra
+#     không còn định dạng nào. Đường thoát duy nhất là `StyleProvider` + nonce
+#     theo từng request, mà bundle Vite là tĩnh do nginx phục vụ nên không có
+#     chỗ sinh nonce. Đây là cái giá của việc chọn AntD, ghi ra để không ai
+#     tưởng là sơ suất.
+#   * `script-src 'self'` thì AN TOÀN, và đó mới là vế quan trọng: đã kiểm
+#     `index.html` của bản dựng — đúng **một** thẻ script và nó có `src`, không
+#     có script nội tuyến nào. Đây là lớp chặn thật sự chống XSS.
+#
+# HSTS cố ý KHÔNG đặt ở đây: nó thuộc về nơi kết thúc TLS (nginx chung ở
+# production, T11.5). Đặt ở tầng này thì local chạy HTTP nên trình duyệt bỏ qua,
+# và nó tạo cảm giác đã có lớp bảo vệ mà thật ra chưa.
+COPY <<'EOF' /etc/nginx/snippets/security-headers.conf
+add_header X-Content-Type-Options "nosniff" always;
+add_header X-Frame-Options "DENY" always;
+add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
+add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-src 'self' https://www.google.com https://www.youtube-nocookie.com https://player.vimeo.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'" always;
+EOF
+
 # SPA: mọi đường dẫn không khớp file tĩnh đều trả index.html, để React Router
 # xử lý; thiếu dòng này thì F5 giữa chừng là 404.
 COPY <<'EOF' /etc/nginx/templates/default.conf.template
@@ -61,6 +103,9 @@ server {
 
     # Ẩn phiên bản nginx (conventions.md §4.5)
     server_tokens off;
+
+    # Mặc định cho các khối KHÔNG có `add_header` riêng (VD /api/).
+    include /etc/nginx/snippets/security-headers.conf;
 
     location /healthz {
         access_log off;
@@ -126,11 +171,15 @@ server {
     location /assets/ {
         expires 1y;
         add_header Cache-Control "public, immutable";
+        # BẮT BUỘC lặp lại: `add_header` ở trên đã cắt đứt kế thừa từ cấp server.
+        include /etc/nginx/snippets/security-headers.conf;
         try_files $uri =404;
     }
 
     location / {
         add_header Cache-Control "no-cache";
+        # BẮT BUỘC lặp lại — xem ghi chú ở phần khai snippet trong Dockerfile.
+        include /etc/nginx/snippets/security-headers.conf;
         try_files $uri $uri/ /index.html;
     }
 }

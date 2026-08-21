@@ -16,6 +16,15 @@ export async function SiteFooter() {
   const [config, menu] = await Promise.all([getSiteConfig(), getMenu('FOOTER')]);
 
   const siteName = config?.['site.name'] ?? SITE.name;
+  // ⚠ Nhóm `company.*` là nhận diện pháp nhân, sửa được trên màn hình cấu hình hệ thống.
+  // Trước đây địa chỉ, điện thoại, fax, email và số đường dây nóng ghi cứng ngay trong tệp này —
+  // đổi số điện thoại của một doanh nghiệp nhà nước phải sửa mã nguồn và dựng lại image.
+  const diaChi = config?.['company.address'] ?? '';
+  const dienThoai = config?.['company.phone'] ?? '';
+  const fax = config?.['company.fax'] ?? '';
+  const email = config?.['company.email'] ?? '';
+  const hotline = config?.['company.hotline'] ?? '';
+  const gioLamViec = config?.['company.working-hours'] ?? '';
   const companyInfo = config?.['site.footer.company-info'] ?? '';
   const mapEmbed = config?.['site.footer.map-embed'] ?? '';
   const copyright =
@@ -56,14 +65,18 @@ export async function SiteFooter() {
       {/* ───── 1. Dải tiếp nhận thông tin trực ban / Hotline bão lũ ───── */}
       <div className="border-b border-white/10 bg-[#002875]/80 py-3 text-xs text-white sm:text-sm">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-4 sm:flex-row">
-          <div className="flex items-center gap-2">
-            <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="font-semibold text-white">
-              Đường dây nóng phòng chống thiên tai & TKCN:
-            </span>
-            <span className="font-bold text-amber-300 drop-shadow-xs">(024) 3382 4586</span>
-            <span className="hidden text-white/70 md:inline">(Trực ban 24/7)</span>
-          </div>
+          {hotline ? (
+            <div className="flex items-center gap-2">
+              <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="font-semibold text-white">
+                Đường dây nóng phòng chống thiên tai & TKCN:
+              </span>
+              <span className="font-bold text-amber-300 drop-shadow-xs">{hotline}</span>
+              <span className="hidden text-white/70 md:inline">(Trực ban 24/7)</span>
+            </div>
+          ) : (
+            <span />
+          )}
           <div className="flex items-center gap-4 text-xs font-medium text-white/90">
             <Link
               href={ROUTES.search}
@@ -110,19 +123,22 @@ export async function SiteFooter() {
             <div className="space-y-2 text-xs text-white/85">
               <p className="flex items-start gap-2">
                 <span className="shrink-0 font-semibold text-white">Trụ sở:</span>
-                <span>Số 14 đường Thanh Bình, phường Mộ Lao, quận Hà Đông, TP. Hà Nội</span>
+                <span>{diaChi}</span>
               </p>
               <p className="flex items-center gap-2">
                 <span className="shrink-0 font-semibold text-white">Điện thoại:</span>
-                <span>(024) 3382 4586 — Fax: (024) 3382 4587</span>
+                <span>
+                  {dienThoai}
+                  {fax ? ` — Fax: ${fax}` : ''}
+                </span>
               </p>
               <p className="flex items-center gap-2">
                 <span className="shrink-0 font-semibold text-white">Email:</span>
-                <span className="font-medium text-sky-200">vanphong@thuyloisongnhue.vn</span>
+                <span className="font-medium text-sky-200">{email}</span>
               </p>
               <p className="flex items-center gap-2">
                 <span className="shrink-0 font-semibold text-white">Giờ làm việc:</span>
-                <span>8:00 - 17:00 (Thứ 2 đến Thứ 6)</span>
+                <span>{gioLamViec}</span>
               </p>
             </div>
           )}

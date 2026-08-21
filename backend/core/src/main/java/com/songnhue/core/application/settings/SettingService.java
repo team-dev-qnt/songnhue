@@ -22,6 +22,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.PermissionDeniedException;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
+import com.songnhue.core.common.util.HtmlSanitizer;
 import com.songnhue.core.domain.settings.Setting;
 import com.songnhue.core.infra.settings.SettingRepository;
 import com.songnhue.core.spi.SettingAdminPort;
@@ -132,14 +133,7 @@ public class SettingService implements SettingPort, SettingAdminPort {
     /**
      * Sửa một tham số.
      *
-     * <p>Hai chốt chặn trước khi ghi:
-     *
-     * <ul>
-     *   <li>{@code editable = false} → từ chối. Có những tham số chỉ đổi được bằng migration vì đổi
-     *       sai là hỏng dữ liệu đã có (VD định dạng mã nghiệp vụ đang dùng dở).
-     *   <li>{@link SettingValidator} → sai kiểu hoặc vi phạm luật thì báo ngay. Không chặn ở đây thì
-     *       giá trị rác chỉ lộ ra lúc đọc, mà nơi đọc lại lặng lẽ dùng giá trị dự phòng.
-     * </ul>
+     * <p>Ba chốt chặn trước khi ghi — xem {@link #apDung(Setting, String)}.
      */
     @Transactional
     public Setting update(String key, String newValue) {
@@ -148,18 +142,63 @@ public class SettingService implements SettingPort, SettingAdminPort {
         if (!setting.isEditable()) {
             throw new PermissionDeniedException(ErrorCode.ADM_2007);
         }
+        return apDung(setting, newValue);
+    }
+
+    /**
+     * Ghi một giá trị đã qua đủ ba chốt chặn. <b>Mọi đường ghi vào bảng {@code settings} phải đi qua
+     * đây</b> — đó là lý do nó tồn tại.
+     *
+     * <ol>
+     *   <li>{@link SettingValidator} → sai kiểu hoặc vi phạm luật thì báo ngay. Không chặn ở đây thì
+     *       giá trị rác chỉ lộ ra lúc đọc, mà nơi đọc lại lặng lẽ dùng giá trị dự phòng.
+     *   <li><b>Khử trùng theo {@code value_type}</b> — xem {@link #khuTrung}.
+     *   <li>Dọn bộ nhớ đệm <i>và</i> phát {@link SettingChangedEvent}. Hai việc khác nhau:
+     *       {@link #invalidate} chỉ dọn đệm của chính lớp này, còn sự kiện là thứ đánh thức đệm
+     *       riêng của các module khác ({@code SiteConfigService} giữ đệm 10 phút).
+     * </ol>
+     *
+     * <p>⚠ Trước bản này, {@code update()} làm cả ba việc còn {@link #importConfiguration} <b>không
+     * làm việc nào trong hai việc sau</b>: nhập cấu hình ghi thẳng HTML thô và không đánh thức đệm
+     * của cổng, nên cổng còn hiện giá trị cũ tới hết TTL. Chú thích cũ ngay tại chỗ đó ghi "đây là
+     * nơi DUY NHẤT ghi bảng settings" — đúng ở mức <i>lớp</i>, sai ở mức <i>phương thức</i>, và cái
+     * sai đó không có bài kiểm nào chạm tới.
+     */
+    private Setting apDung(Setting setting, String newValue) {
         validator.validate(setting, newValue);
 
+        String key = setting.getSettingKey();
         String previous = setting.getSettingValue();
-        setting.changeValue(newValue);
+        setting.changeValue(khuTrung(setting, newValue));
         Setting saved = repository.save(setting);
         invalidate(key);
-        // Đây là nơi DUY NHẤT ghi bảng settings, nên cũng là nơi duy nhất phát được sự kiện cho mọi
-        // đường sửa — cả màn hình cấu hình hệ thống lẫn màn hình cấu hình giao diện của CMS.
         events.publishEvent(new SettingChangedEvent(key, saved.getGroupCode()));
 
         log.info("Đổi tham số '{}': '{}' → '{}'", key, previous, saved.getSettingValue());
         return saved;
+    }
+
+    /**
+     * Khử trùng theo <b>kiểu giá trị</b>, không theo danh sách khoá.
+     *
+     * <p>Hai kiểu {@code HTML} và {@code HTML_EMBED} đánh dấu những tham số mà nơi hiển thị dựng
+     * bằng {@code dangerouslySetInnerHTML} (hiện là khối thông tin Công ty và khối bản đồ ở chân
+     * trang cổng công khai). Chúng là dữ liệu do người dùng soạn và được phục vụ cho <b>người dân
+     * vào tra cứu</b>, nên một đoạn mã lọt vào đây chạy trong trình duyệt của tất cả họ.
+     *
+     * <p>⛔ Vì sao phân loại bằng cột chứ không bằng {@code switch (key)} ở nơi gọi: đã từng làm thế
+     * và nó chỉ đúng ở một trong ba đường ghi. Đo thật trước khi sửa — gửi
+     * {@code <img src=x onerror=…><script>…</script>} qua {@code PUT /api/v1/settings/{key}} và qua
+     * {@code POST /api/v1/settings/import}: cả hai trả 200, CSDL lưu nguyên văn, và
+     * {@code GET /api/v1/public/site-config} trả lại nguyên văn. Đặt luật vào <i>dữ liệu</i> thì
+     * đường ghi viết sau này cũng bị ràng buộc mà không ai phải nhớ.
+     */
+    private static String khuTrung(Setting setting, String value) {
+        return switch (setting.getValueType()) {
+            case "HTML" -> HtmlSanitizer.clean(value);
+            case "HTML_EMBED" -> HtmlSanitizer.cleanMapEmbed(value);
+            default -> value;
+        };
     }
 
     // ---- SettingAdminPort: ghi trong phạm vi một nhóm (WS-15) -----------------
@@ -262,9 +301,9 @@ public class SettingService implements SettingPort, SettingAdminPort {
         for (Setting setting : toApply) {
             String value = incoming.get(setting.getSettingKey());
             if (!Objects.equals(setting.getSettingValue(), value)) {
-                setting.changeValue(value);
-                repository.save(setting);
-                invalidate(setting.getSettingKey());
+                // Đi qua apDung() chứ không tự ghi: khử trùng HTML và đánh thức đệm của các module
+                // khác đều nằm trong đó. Bản trước tự ghi ở đây và mất cả hai.
+                apDung(setting, value);
                 changed++;
             }
         }

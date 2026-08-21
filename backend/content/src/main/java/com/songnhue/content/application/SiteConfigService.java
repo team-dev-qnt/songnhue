@@ -16,7 +16,6 @@ import org.springframework.transaction.event.TransactionalEventListener;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 
-import com.songnhue.core.common.util.HtmlSanitizer;
 import com.songnhue.core.spi.AttachmentPort;
 import com.songnhue.core.spi.AttachmentRef;
 import com.songnhue.core.spi.AttachmentUploadCommand;
@@ -52,13 +51,28 @@ public class SiteConfigService {
 
     private static final Logger log = LoggerFactory.getLogger(SiteConfigService.class);
 
-    /** Nhóm tham số duy nhất lớp này chạm tới. */
+    /** Nhóm tham số duy nhất lớp này được phép <b>ghi</b>. */
     public static final String GROUP = "SITE";
+
+    /**
+     * Nhóm nhận diện Công ty — lớp này chỉ <b>đọc</b>, để cổng công khai dựng chân trang.
+     *
+     * <p>Cố ý không cho ghi: tên pháp nhân, địa chỉ trụ sở và số đường dây nóng không phải lựa chọn
+     * trình bày, và người có quyền sửa giao diện cổng không đương nhiên có quyền sửa chúng.
+     */
+    public static final String GROUP_COMPANY = "COMPANY";
 
     public static final String KEY_LOGO = "site.logo.attachment-id";
     public static final String KEY_FAVICON = "site.favicon.attachment-id";
 
-    /** Hai khoá chứa HTML người dùng soạn — phải khử trùng, và mỗi khoá có luật riêng. */
+    /**
+     * Hai khoá duy nhất mà cổng công khai dựng bằng {@code dangerouslySetInnerHTML}.
+     *
+     * <p>Việc khử trùng <b>không</b> nằm ở lớp này (xem {@link #update}); chúng có mặt ở đây để
+     * {@code SiteConfigHtmlTypeTest} khẳng định hai dòng {@code settings} tương ứng vẫn mang
+     * {@code value_type} là {@code HTML} / {@code HTML_EMBED}. Đổi kiểu về {@code TEXT} là bộ lọc
+     * lặng lẽ ngừng chạy mà không lỗi nào — nên phải có bài kiểm giữ hộ.
+     */
     public static final String KEY_FOOTER_INFO = "site.footer.company-info";
 
     public static final String KEY_FOOTER_MAP = "site.footer.map-embed";
@@ -104,16 +118,33 @@ public class SiteConfigService {
      *
      * <p>Trả {@code effectiveValue} chứ không phải {@code value}: nơi hiển thị không cần biết giá trị
      * đang là mặc định hay đã đặt tay, nó chỉ cần thứ sẽ hiện ra.
+     *
+     * <p><b>Gộp hai nhóm</b>, và chúng khác vai trò chứ không phải chia cho gọn:
+     *
+     * <ul>
+     *   <li>{@code SITE} — cách cổng <i>trình bày</i>: màu, tiêu đề, slider, trang lỗi. Sửa được từ
+     *       màn hình cấu hình giao diện của CMS.
+     *   <li>{@code COMPANY} — <i>nhận diện</i> của Công ty: tên, địa chỉ, điện thoại, email, đường
+     *       dây nóng. Chỉ sửa được từ màn hình cấu hình hệ thống (MOD-05), vì đây là dữ liệu pháp
+     *       nhân chứ không phải lựa chọn thẩm mỹ.
+     * </ul>
+     *
+     * <p>⚠ Trước bản này chỉ trả nhóm {@code SITE}, nên chân trang cổng <b>ghi cứng</b> địa chỉ trụ
+     * sở, điện thoại, fax, email và số đường dây nóng — đổi số điện thoại của một doanh nghiệp nhà
+     * nước phải sửa mã nguồn và dựng lại image, trong khi năm khoá {@code company.*} vẫn nằm đó
+     * không ai đọc.
      */
     @Transactional(readOnly = true)
     public Map<String, String> effectiveValues() {
         return cache.get(CACHE_KEY, k -> {
             Map<String, String> values = new LinkedHashMap<>();
-            for (SettingItem item : settings.listGroup(GROUP)) {
-                // Quy null về chuỗi rỗng: một tham số chưa đặt và chưa có mặc định không được phép
-                // làm hỏng cả cụm (Map.copyOf từ chối giá trị null), và nơi hiển thị coi hai thứ đó
-                // như nhau — "chưa có gì để hiện".
-                values.put(item.key(), item.effectiveValue() == null ? "" : item.effectiveValue());
+            for (String nhom : List.of(GROUP, GROUP_COMPANY)) {
+                for (SettingItem item : settings.listGroup(nhom)) {
+                    // Quy null về chuỗi rỗng: một tham số chưa đặt và chưa có mặc định không được
+                    // phép làm hỏng cả cụm (Map.copyOf từ chối giá trị null), và nơi hiển thị coi
+                    // hai thứ đó như nhau — "chưa có gì để hiện".
+                    values.put(item.key(), item.effectiveValue() == null ? "" : item.effectiveValue());
+                }
             }
             return Map.copyOf(values);
         });
@@ -122,20 +153,20 @@ public class SiteConfigService {
     /**
      * Sửa một tham số.
      *
-     * <p>⛔ Hai khoá HTML đi qua {@link HtmlSanitizer} <b>trước khi lưu</b>. Khối thông tin Công ty
-     * là văn bản có định dạng; khối bản đồ là ngoại lệ {@code <iframe>} duy nhất của hệ thống và bị
-     * giới hạn theo tên miền — một iframe trỏ tuỳ ý vẽ được biểu mẫu đăng nhập giả ngay giữa chân
-     * trang của cơ quan nhà nước, và người dùng không có cách nào phân biệt.
+     * <p>⛔ <b>Không còn khử trùng ở đây.</b> Hai khoá HTML nay mang {@code value_type} là
+     * {@code HTML} / {@code HTML_EMBED}, và {@code SettingService} khử trùng theo kiểu đó ở mọi
+     * đường ghi.
+     *
+     * <p>Bản trước đặt một {@code switch (key)} ngay tại chỗ này, và nó chỉ đúng cho đường đi qua
+     * màn hình cấu hình giao diện. Cùng hai dòng {@code settings} ấy còn sửa được bằng
+     * {@code PUT /api/v1/settings/{key}} và {@code POST /api/v1/settings/import} — hai đường không
+     * biết gì về danh sách khoá ở đây, nên ghi thẳng HTML thô ra cổng công khai. Bài học lặp lại:
+     * <i>khử trùng phải nằm ở nơi dữ liệu đi qua, không nằm ở nơi gọi</i> — giống hệt lý do
+     * {@code AttachmentService} tự đưa SVG qua {@code SvgSanitizer} thay vì tin nơi gọi nhớ làm.
      */
     @Transactional
     public SettingItem update(String key, String value) {
-        String sach =
-                switch (key) {
-                    case KEY_FOOTER_INFO -> HtmlSanitizer.clean(value);
-                    case KEY_FOOTER_MAP -> HtmlSanitizer.cleanMapEmbed(value);
-                    default -> value;
-                };
-        return settings.updateInGroup(GROUP, key, sach);
+        return settings.updateInGroup(GROUP, key, value);
     }
 
     /**
@@ -172,7 +203,10 @@ public class SiteConfigService {
      */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onSettingChanged(SettingChangedEvent event) {
-        if (GROUP.equals(event.groupCode())) {
+        // ⚠ Phải phủ ĐÚNG những nhóm mà effectiveValues() gộp vào. Nghe thiếu một nhóm thì quản trị
+        // viên đổi số đường dây nóng, giao diện báo thành công, và cổng vẫn hiện số cũ tới hết TTL
+        // 10 phút — không lỗi nào, không dấu vết nào.
+        if (GROUP.equals(event.groupCode()) || GROUP_COMPANY.equals(event.groupCode())) {
             cache.invalidateAll();
         }
     }

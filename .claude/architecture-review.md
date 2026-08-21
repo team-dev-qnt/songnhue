@@ -1712,3 +1712,150 @@ vitest bật `globals`**, mà admin-app thì không — thiếu `afterEach(clean
 cấm import `axios` ngoài `apiClient` **không phân biệt import kiểu** — giữ nguyên luật, khai kiểu
 tại chỗ, vì nới ra cho "chỉ là kiểu thôi" là mở đúng cái khe lần sau có người dựng instance riêng
 chui qua.
+
+---
+
+### §10.31. ⚠⚠ Rà soát toàn tuyến sau khi trình duyệt chạy ổn định — 4 lỗi thật, 2 nghiêm trọng (21/8/2026)
+
+Anh Quân xác nhận giao diện đã chạy trên trình duyệt và yêu cầu **rà lại toàn bộ luồng đã dựng**,
+bảo đảm không còn lỗi cùng họ. Đây là bản ghi kết quả.
+
+**Cách rà, và vì sao chọn cách đó.** Ba bài học gần nhất (§10.29, §10.29-a, §10.30) đều cùng một
+hình: *cơ chế xanh mà chưa ai đi qua đúng đường production đi*. Nên lần này không đọc mã để đoán, mà
+**gọi thật 99 endpoint qua cổng 15173 — tức qua nginx của admin-app, kèm header `Origin`** — đúng
+cách trình duyệt gọi, bốn lượt:
+
+| Lượt | Tư cách | Kỳ vọng |
+|---|---|---|
+| S1 | không token | mọi endpoint không công khai chặn lại |
+| S2 | token **không có quyền nào** | mọi `@RequirePermission` trả 403 `AUTH-3001` |
+| S3 | token đủ quyền + vé CSRF | đường đi phải thông |
+| S4 | token đủ quyền, **thiếu header CSRF** | mọi lượt ghi bị chặn |
+
+Kèm một phép đối chiếu tĩnh: **99 endpoint backend ↔ mọi lượt gọi API trong mã FE**.
+
+#### Kết quả phần lành
+
+- **99/99 endpoint đều có khai báo bảo mật tường minh** — 75 `@RequirePermission`, 14
+  `@PublicEndpoint`, 10 `@AuthenticatedEndpoint`. Deny-by-default (T5.10) đứng vững.
+- **FE ↔ BE khớp tuyệt đối**: không lượt gọi nào của FE trỏ vào endpoint không tồn tại, và ngược lại.
+- **CSRF phủ đúng**: S4 chặn toàn bộ lượt ghi, ngoại lệ duy nhất là `POST /public/articles/{slug}/views`
+  — đúng §10.19.
+- **Cookie đúng cờ**: `refresh_token` `HttpOnly` + `SameSite=Strict` + `Path=/api/v1/auth`;
+  `XSRF-TOKEN` cố ý không `HttpOnly` (double-submit cần JS đọc được).
+- Cổng công khai trả 200 ở trang chủ, danh mục, tìm kiếm, sitemap, health.
+
+> ⚠ Một chi tiết của **bộ quét**, không phải của hệ: lượt S2 gọi trúng `POST /auth/logout` giữa
+> chừng nên các endpoint sau đó nhận 401 thay vì 403. Kiểm lại riêng thì tầng 2 trả đúng
+> `AUTH-3001`. Ghi ra vì nó cũng là một bài học: **bộ quét tuần tự mà chứa một lời gọi làm đổi trạng
+> thái phiên thì mọi kết quả sau đó không còn đọc được** — và rất dễ báo động giả.
+
+#### Lỗi 1 ⛔⛔ — XSS lưu trữ trên cổng công khai, qua **hai** đường ghi cấu hình
+
+`site.footer.company-info` và `site.footer.map-embed` là hai giá trị duy nhất mà cổng dựng bằng
+`dangerouslySetInnerHTML`. Việc khử trùng đặt ở `SiteConfigService.update()` — tức ở **một** trong
+**ba** đường ghi vào bảng `settings`. Hai đường còn lại (`PUT /api/v1/settings/{key}` của màn hình
+cấu hình hệ thống, và `POST /api/v1/settings/import`) ghi thẳng chuỗi thô.
+
+Đo thật trên hệ đang chạy: gửi `<img src=x onerror="alert(document.cookie)"><script>…</script>` qua
+cả hai đường → **cả hai trả 200**, CSDL lưu **nguyên văn**, `GET /api/v1/public/site-config` trả lại
+**nguyên văn**. Đoạn mã đó chạy trong trình duyệt của **mọi người dân vào tra cứu**.
+
+**Chốt: luật khử trùng chuyển từ *nơi gọi* sang *dữ liệu*.** Cột `value_type` nhận thêm `HTML` và
+`HTML_EMBED`; `SettingService` khử trùng theo kiểu tại một điểm ghi chung mà cả ba đường đều đi qua.
+Đường ghi viết sau này cũng bị ràng buộc mà không ai phải nhớ — đúng cách `AttachmentService` tự đưa
+SVG qua `SvgSanitizer` thay vì tin nơi gọi (§10.14).
+
+⚠ **Lỗi thứ hai lộ ra ngay cạnh**: `importConfiguration` cũng **không phát `SettingChangedEvent`**,
+nên nhập cấu hình xong thì cổng còn hiện giá trị cũ tới hết TTL 10 phút — đúng thứ §10.13 dựng ra để
+chống, vẫn sống trên đường thứ ba. Chú thích tại chỗ ghi *"đây là nơi DUY NHẤT ghi bảng settings"*:
+đúng ở mức **lớp**, sai ở mức **phương thức**, và cái sai đó không có bài kiểm nào chạm tới.
+
+#### Lỗi 2 ⛔⛔ — Toàn bộ màn hình quản trị nội dung trả 500, từ WS-13 tới nay
+
+`GET /api/v1/cms/articles` và `GET /api/v1/cms/articles/{id}` trả **500 `SYS-0001` cho mọi lượt
+gọi**. Tức là **danh sách bài viết và màn hình sửa bài** — trọng tâm của Phase 1 — chưa từng dùng
+được. Nguyên nhân: `ArticleController` ánh xạ entity sang DTO **trong controller**, sau khi phương
+thức `@Transactional` đã kết thúc và `Session` đã đóng (`open-in-view: false`), còn
+`ArticleSummary.of`/`ArticleDetail.of` đọc `getCategories()` — quan hệ lười →
+`LazyInitializationException`.
+
+Không có lượt gọi nào thoát: `categoryPublicIds` mang `@NotEmpty`, nên **mọi** bài viết đều có danh
+mục.
+
+⚠⚠ **Vì sao 391 bài kiểm xanh không thấy gì**: `ArticleLifecycleTest` gọi thẳng service, nên phép
+khẳng định chạy *bên trong* giao dịch — nơi nạp lười vẫn hoạt động bình thường. **Nợ #65 ("bài kiểm
+CMS chưa đi qua HTTP") không phải mục cho đẹp hồ sơ — nó đang che một sự cố toàn phần.** Đây là lần
+thứ hai trong dự án một dòng nợ hoá ra là nắp đậy, không phải việc để dành.
+
+Sửa: `ArticleService` nạp sẵn quan hệ trước khi entity rời khỏi giao dịch, `@BatchSize(50)` giữ cho
+lượt nạp của cả trang gom về một truy vấn. Bài canh là `ArticleHttpTest` — **đi qua HTTP, vì đó là
+đường duy nhất tái hiện được**.
+
+#### Lỗi 3 ⚠ — Image admin-app không đặt **một** header bảo mật nào
+
+`curl -I http://localhost:15173/` trả về đúng `Server`, `Date`, `Content-Type`, `ETag`,
+`Cache-Control`. Không `X-Frame-Options`, không CSP, không `X-Content-Type-Options` — trong khi
+public-web đặt sẵn ba cái. Hai tầng phục vụ của cùng một hệ thống có hai mức bảo vệ khác hẳn nhau mà
+không ai chọn điều đó.
+
+⚠⚠ **Cái bẫy nằm ở chính cách sửa**: trong nginx, `add_header` **không cộng dồn qua các cấp** — khối
+`location` có `add_header` riêng sẽ vứt bỏ *toàn bộ* header kế thừa từ khối `server`. Cấu hình này
+có `add_header Cache-Control` ở cả `/assets/` lẫn `/`, đúng hai khối phục vụ mọi thứ người dùng tải
+về. Khai một lần ở cấp `server` rồi kiểm bằng `curl /` sẽ thấy header **biến mất**, và rất dễ kết
+luận nhầm là "cấu hình rồi mà không chạy". Nên header để riêng một tệp và `include` lại ở từng khối;
+`NginxSecurityHeadersTest` **soi cấu trúc khối `location`**, không tìm chuỗi trong tệp.
+
+**CSP — hai lựa chọn có chủ đích, cả hai đã đo:**
+
+- `style-src` **phải** có `'unsafe-inline'`. AntD 5 dùng cssinjs, chèn `<style data-css-hash=…>` lúc
+  chạy (đã kiểm trong bundle đã dựng). Với `style-src 'self'` thì giao diện quản trị hiện ra **không
+  còn định dạng nào**. Đường thoát duy nhất là `StyleProvider` + nonce theo từng request, mà bundle
+  Vite là tĩnh do nginx phục vụ nên không có chỗ sinh nonce. Đây là **cái giá của việc chọn AntD**,
+  ghi ra để WS-11 không siết rồi mới phát hiện lúc đã lên staging.
+- `script-src 'self'` thì **an toàn** — `index.html` của bản dựng có đúng một thẻ script và nó mang
+  `src`, không có script nội tuyến. Đây mới là lớp chặn XSS thật sự, và bài kiểm khẳng định
+  `'unsafe-inline'` không được lọt sang đó.
+
+HSTS cố ý **không** đặt ở tầng này: nó thuộc về nơi kết thúc TLS (nginx chung, T11.5). Đặt ở đây thì
+local chạy HTTP nên trình duyệt bỏ qua, và nó tạo cảm giác đã có lớp bảo vệ mà thật ra chưa.
+
+⛔ **Chưa làm, và nói rõ là chưa**: public-web **không** có CSP. Next chèn script nội tuyến để
+hydrate (`self.__next_f`), nên CSP ở đó cần nonce qua middleware — một việc riêng, ghi thành nợ chứ
+không vá vội bằng `'unsafe-inline'` (vá thế thì có CSP mà không có tác dụng).
+
+#### Lỗi 4 ⚠ — Công tắc chết và giá trị ghi cứng, hai đầu của cùng một chuyện
+
+Đối chiếu **85 tham số `settings`** với mã nguồn (Java lẫn TypeScript, tính cả khoá ghép từ tiền tố):
+
+- **3 khoá nhóm CMS** bày trên giao diện mà không nơi nào đọc. Hai khoá đầu **không phải sơ suất** —
+  `ViewCountService` và `ScheduledPublishScanner` cố ý ghi cứng chu kỳ, và tài liệu của chúng nói rõ
+  vì sao (`@Scheduled` chốt chu kỳ lúc dựng bean). Quyết định ở tầng mã là đúng; thứ thiếu là **bước
+  gỡ dòng dữ liệu tương ứng**. Khoá thứ ba nặng hơn: `cms.article.view-count-window-minutes` mô tả
+  một tính năng **không tồn tại** — không có phép khử trùng lặp lượt xem nào. → gỡ cả ba.
+- **5 khoá `company.*`** không ai đọc, ba trong năm để trống — trong khi `SiteFooter.tsx` **ghi
+  cứng** địa chỉ trụ sở, điện thoại, fax, email và số đường dây nóng (số hotline xuất hiện *hai
+  lần*). Đây là cổng của một doanh nghiệp nhà nước, và đó là số người dân gọi khi có sự cố công
+  trình: đổi nó lẽ ra là một ô nhập, không phải sửa mã rồi dựng lại image. → nối chân trang vào
+  `company.*`, thêm `company.fax` / `company.hotline` / `company.working-hours`, điền giá trị đúng
+  bằng chuỗi đang ghi cứng nên **cổng hiển thị không đổi gì**.
+
+⚠ `company.hotline` tách riêng khỏi `company.phone`: một bên là tổng đài giờ hành chính, một bên là
+trực ban 24/7 phòng chống thiên tai. Gộp làm một thì tới mùa lũ sẽ có người sửa số này và vô tình
+đổi luôn số kia.
+
+**Ranh giới quyền giữ nguyên**: `SiteConfigService` **đọc** nhóm `COMPANY` nhưng chỉ **ghi** được
+nhóm `SITE`. Tên pháp nhân và số đường dây nóng không phải lựa chọn trình bày, và người có quyền sửa
+giao diện cổng không đương nhiên có quyền sửa chúng.
+
+#### Điều rút ra
+
+Cả bốn lỗi đều **không** thuộc loại "viết sai logic". Chúng là cùng một hình dạng, lặp lại lần thứ
+tư trong dự án: **một bảo đảm được phát biểu ở một chỗ, trong khi đường chạy thật đi qua chỗ khác.**
+Khử trùng nằm ở một trong ba đường ghi; ánh xạ DTO nằm ngoài giao dịch mà bài kiểm lại nằm trong;
+header khai ở cấp `server` mà request đi qua `location`; giá trị thật nằm trong mã còn công tắc nằm
+trong CSDL.
+
+⛔ **Luật bổ sung, cùng họ với "canh giá trị đã giải" (§10.29-a): khi một bảo đảm phải đúng ở nhiều
+đường vào, hãy đặt nó ở chỗ *dữ liệu đi qua*, đừng đặt ở *nơi gọi* — và nếu không đặt được thì phải
+có một phép kiểm đếm đủ các đường vào.**

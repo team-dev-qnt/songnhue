@@ -13,6 +13,8 @@ import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
 
+import org.hibernate.annotations.BatchSize;
+
 import com.songnhue.core.common.audit.Audited;
 import com.songnhue.core.common.persistence.BaseEntity;
 import com.songnhue.core.common.persistence.WorkflowAware;
@@ -103,7 +105,15 @@ public class Article extends BaseEntity implements WorkflowAware {
     @Column(name = "view_count", nullable = false)
     private Long viewCount = 0L;
 
+    /**
+     * ⚠ {@code @BatchSize} là thứ giữ cho màn hình danh sách không hoá thành N+1.
+     *
+     * <p>{@code ArticleService} nạp sẵn quan hệ này trước khi entity rời khỏi giao dịch (xem
+     * {@code napQuanHe}); thiếu {@code @BatchSize} thì việc nạp sẵn đó là một truy vấn cho mỗi bài
+     * trên trang — 20 bài là 21 lượt xuống CSDL. Với {@code @BatchSize} Hibernate gom lại còn hai.
+     */
     @ManyToMany(fetch = FetchType.LAZY)
+    @BatchSize(size = 50)
     @JoinTable(
             name = "article_categories",
             joinColumns = @JoinColumn(name = "article_id"),

@@ -75,10 +75,43 @@ public class ArticleService {
 
     // ---- Đọc -----------------------------------------------------------------
 
+    /**
+     * Nạp sẵn quan hệ lười trước khi entity <b>rời khỏi giao dịch</b>.
+     *
+     * <h2>Lỗi đã xảy ra thật — hai màn hình CMS trả 500</h2>
+     *
+     * {@code ArticleController} ánh xạ entity sang DTO <i>trong controller</i>, tức là sau khi
+     * phương thức {@code @Transactional} ở đây đã kết thúc và {@code Session} đã đóng
+     * ({@code spring.jpa.open-in-view: false}). {@code ArticleSummary.of} và {@code ArticleDetail.of}
+     * đều đọc {@code getCategories()} — một {@code PersistentSet} chưa nạp — nên ném
+     * {@code LazyInitializationException}, và {@code GlobalExceptionHandler} biến nó thành
+     * {@code SYS-0001}. Đo thật: {@code GET /api/v1/cms/articles} và
+     * {@code GET /api/v1/cms/articles/&#123;id&#125;} trả <b>500 cho mọi lượt gọi</b> — danh sách bài
+     * viết và màn hình sửa bài, tức là toàn bộ phần quản trị nội dung, không dùng được.
+     *
+     * <p>⚠⚠ Vì sao <b>391 bài kiểm xanh</b> vẫn không thấy: {@code ArticleLifecycleTest} gọi thẳng
+     * service, nên phép khẳng định chạy <i>bên trong</i> giao dịch — nơi nạp lười vẫn hoạt động
+     * bình thường. Đây đúng là nợ #65 ("bài kiểm CMS chưa đi qua HTTP") hiện nguyên hình: nó không
+     * phải mục cho đẹp hồ sơ, nó đang che một sự cố toàn phần. Bài kiểm giữ chỗ này là
+     * {@code ArticleHttpTest} — đi qua HTTP thật, vì đó là đường duy nhất tái hiện được.
+     *
+     * <p>Gọi {@code size()} là cách rẻ nhất buộc Hibernate nạp; {@code @BatchSize} trên chính quan
+     * hệ đó giữ cho lượt nạp của cả trang gom về một truy vấn.
+     */
+    private static Article napQuanHe(Article bai) {
+        bai.getCategories().size();
+        return bai;
+    }
+
+    private static Page<Article> napQuanHe(Page<Article> trang) {
+        trang.getContent().forEach(ArticleService::napQuanHe);
+        return trang;
+    }
+
     @Transactional(readOnly = true)
     public Article get(UUID publicId) {
-        return articles.findByPublicIdAndDeletedAtIsNull(publicId)
-                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
+        return napQuanHe(articles.findByPublicIdAndDeletedAtIsNull(publicId)
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004)));
     }
 
     @Transactional(readOnly = true)
@@ -96,7 +129,7 @@ public class ArticleService {
         // LIKE là chuyện của tầng truy vấn. Chuẩn hoá luôn để "Đê Điều" khớp "de dieu".
         String mau = tuKhoa == null || tuKhoa.isBlank() ? null : "%" + VietnameseUtils.normalizeForSearch(tuKhoa) + "%";
 
-        return articles.search(mau, trangThai, tacGia, danhMucId, tuNgay, denNgay, p);
+        return napQuanHe(articles.search(mau, trangThai, tacGia, danhMucId, tuNgay, denNgay, p));
     }
 
     @Transactional(readOnly = true)
@@ -141,7 +174,7 @@ public class ArticleService {
         Article saved = articles.saveAndFlush(article);
         saved.getCategories().addAll(resolveCategories(draft.categoryPublicIds()));
         snapshot(saved, "Tạo mới");
-        return saved;
+        return napQuanHe(saved);
     }
 
     /**

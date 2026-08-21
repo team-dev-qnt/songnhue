@@ -81,6 +81,8 @@ export async function SiteHeader() {
   const siteName = config?.['site.name'] ?? SITE.name;
   const shortName = config?.['site.slogan'] || SITE.shortName;
   const logo = fileUrl(config?.['site.logo.attachment-id']);
+  // Số trực ban 24/7 — lấy từ nhóm `company.*`, xem ghi chú ở SiteFooter.
+  const hotline = config?.['company.hotline'] ?? '';
   const activeMenu = menu && menu.length > 0 ? menu : DEFAULT_HEADER_MENU;
   const tree = buildMenuTree(activeMenu);
 
@@ -111,7 +113,9 @@ export async function SiteHeader() {
           </Link>
 
           {/* Hotline / Thông tin nhanh bên phải (ẩn trên màn hình nhỏ) */}
-          <div className="hidden items-center gap-4 text-xs text-white md:flex">
+          <div
+            className={`${hotline ? 'hidden md:flex' : 'hidden'} items-center gap-4 text-xs text-white`}
+          >
             <div className="flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 backdrop-blur-xs">
               <svg
                 className="h-3.5 w-3.5 text-amber-300"
@@ -127,7 +131,7 @@ export async function SiteHeader() {
                 />
               </svg>
               <span>
-                Hotline: <strong className="font-bold text-amber-300">(024) 3382 4586</strong>
+                Hotline: <strong className="font-bold text-amber-300">{hotline}</strong>
               </span>
             </div>
           </div>

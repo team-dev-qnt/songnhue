@@ -61,7 +61,12 @@ public class SettingValidator {
                 case "JSON" -> objectMapper.readTree(value);
                 case "CRON" -> requireCron(value);
                 default -> {
-                    // STRING, TEXT — không có ràng buộc kiểu
+                    // STRING, TEXT, HTML, HTML_EMBED — không có ràng buộc kiểu ở đây.
+                    // ⚠ Hai kiểu HTML KHÔNG được kiểm ở tầng này một cách cố ý: chúng không "sai
+                    // định dạng", chúng chỉ chứa thứ không được phép chạy. Việc đó là của
+                    // SettingService.khuTrung() — lọc rồi lưu phần sạch, chứ không từ chối cả lượt
+                    // sửa. Từ chối thì người soạn dán một khối HTML lấy từ nơi khác về là gặp lỗi
+                    // mà không biết bỏ thẻ nào, và họ sẽ đi tìm đường khác để lưu.
                 }
             }
         } catch (ValidationException e) {
