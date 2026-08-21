@@ -20,3 +20,45 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: () => false,
   }),
 });
+
+/**
+ * `ResizeObserver` cũng không có trong jsdom.
+ *
+ * ⚠ Bản giả này **cố ý không bắn lượt đo nào**: jsdom không dựng bố cục nên mọi kích
+ * thước đều bằng 0, và một lượt bắn giả với `contentRect` bịa ra sẽ làm bài kiểm khẳng
+ * định trên một con số không có thật. Nơi dùng lấy bề rộng bằng
+ * `getBoundingClientRect()`, và bài kiểm nào cần một bề rộng cụ thể thì tự đặt bằng
+ * {@link datBeRongCua} — tường minh hơn hẳn việc phụ thuộc vào bản giả.
+ */
+class ResizeObserverGia {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+}
+if (!('ResizeObserver' in window)) {
+  Object.defineProperty(window, 'ResizeObserver', { writable: true, value: ResizeObserverGia });
+}
+
+/**
+ * Ép bề rộng mà `getBoundingClientRect()` trả về, cho mọi phần tử.
+ *
+ * Dùng để kiểm bố cục ở ba bề rộng thiết bị (3840 / 1920 / 1366) — jsdom luôn trả 0 nên
+ * không có cách nào khác để bài kiểm chạm tới đường mã tính số cột.
+ */
+export function datBeRongCua(beRong: number): void {
+  Object.defineProperty(HTMLElement.prototype, 'getBoundingClientRect', {
+    configurable: true,
+    writable: true,
+    value: () => ({
+      width: beRong,
+      height: 800,
+      top: 0,
+      left: 0,
+      right: beRong,
+      bottom: 800,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    }),
+  });
+}

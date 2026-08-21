@@ -155,7 +155,7 @@ public class ConstructionController {
     @RequirePermission("ops:construction:view")
     public List<ConstructionDtos.MapPoint> mapPoints(@RequestParam(required = false) ConstructionType type) {
         return constructions.mapPoints(type).stream()
-                .map(ConstructionDtos.MapPoint::of)
+                .map(c -> ConstructionDtos.MapPoint.of(c, tenDonVi(c.getOrgUnitId())))
                 .toList();
     }
 

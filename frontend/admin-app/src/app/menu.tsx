@@ -8,6 +8,7 @@ import {
   HeartOutlined,
   InboxOutlined,
   FileTextOutlined,
+  FundProjectionScreenOutlined,
   LaptopOutlined,
   LayoutOutlined,
   PictureOutlined,
@@ -43,6 +44,20 @@ export const MENU: readonly MenuNode[] = [
     label: 'Tổng quan',
     icon: <DashboardOutlined />,
     path: '/',
+  },
+  {
+    key: 'van-hanh',
+    label: 'Vận hành công trình',
+    icon: <FundProjectionScreenOutlined />,
+    children: [
+      {
+        key: 'dieu-hanh',
+        label: 'Dashboard điều hành',
+        icon: <DashboardOutlined />,
+        path: '/van-hanh/dieu-hanh',
+        permissions: ['ops:dashboard:view'],
+      },
+    ],
   },
   {
     key: 'noi-dung',

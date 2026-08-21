@@ -113,6 +113,55 @@ class NginxSecurityHeadersTest {
                 .doesNotContain("script-src 'self' 'unsafe-inline'");
     }
 
+    /**
+     * ⚠⚠ Nguồn ảnh bản đồ phải nằm trong {@code img-src}, nếu không bản đồ hiện xám trơn.
+     *
+     * <p>Hai nơi phải khớp nhau và nằm ở hai kho khác hẳn: URL tile seed trong migration
+     * {@code V…1027__ops_dashboard_map_settings.sql} (CSDL) và chỉ thị {@code img-src} trong
+     * Dockerfile của admin-app (hạ tầng). Không có bài kiểm này thì việc "khớp" hoàn toàn dựa vào
+     * trí nhớ của người sửa — và triệu chứng khi lệch là <b>không có lỗi nào</b>: trình duyệt chặn
+     * từng ô ảnh trong im lặng, marker vẫn vẽ đúng chỗ, nên màn hình trông như một bản đồ chưa tải
+     * xong chứ không như một lỗi cấu hình.
+     *
+     * <p>Đây đúng dạng "hai nơi con người phải nhớ" mà dự án đã chốt là phải có một phép kiểm nhớ
+     * hộ (bài học {@code NotificationEnumParityTest}, WS-12).
+     */
+    @Test
+    @DisplayName("⚠⚠ Host tile bản đồ trong settings phải nằm trong img-src của CSP")
+    void hostTileBanDoNamTrongCsp() throws IOException {
+        String imgSrc = chiThi(dongCsp(docSnippet()), "img-src");
+        String hostTile = hostCuaTileUrlSeed();
+
+        assertThat(imgSrc)
+                .as(
+                        "URL tile seed trong migration trỏ tới '%s' nhưng img-src không cho phép host "
+                                + "đó — trình duyệt sẽ chặn mọi ô ảnh và bản đồ điều hành hiện xám trơn, "
+                                + "không một lỗi nào ở tầng ứng dụng",
+                        hostTile)
+                .contains(hostTile);
+
+        // Nới bằng `https:` trần thì bài khẳng định trên vẫn xanh trong khi CSP đã mất tác dụng —
+        // canh cấu trúc, đừng canh sự có mặt của một chuỗi.
+        assertThat(imgSrc)
+                .as("⛔ img-src không được nới thành `https:` trần — mọi tên miền trở thành nguồn ảnh hợp lệ")
+                .doesNotContain("https: ")
+                .doesNotEndWith("https:");
+    }
+
+    /** Đọc {@code ops.map.tile-url} từ chính migration, không chép lại hằng số. */
+    private static String hostCuaTileUrlSeed() throws IOException {
+        Path migration = timTuGocKho(
+                "backend/operations/src/main/resources/db/migration/ops/V202608211027__ops_dashboard_map_settings.sql");
+        String sql = Files.readString(migration, StandardCharsets.UTF_8);
+
+        Matcher m =
+                Pattern.compile("'ops\\.map\\.tile-url',\\s*'(https://[^/']+)").matcher(sql);
+        assertThat(m.find())
+                .as("không đọc được giá trị seed của ops.map.tile-url — bài kiểm đang soi nhầm tệp")
+                .isTrue();
+        return m.group(1);
+    }
+
     // -------------------------------------------------------------------------
 
     private record KhoiLocation(String duong, String than) {}

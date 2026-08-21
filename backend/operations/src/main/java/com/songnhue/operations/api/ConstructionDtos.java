@@ -252,22 +252,36 @@ public final class ConstructionDtos {
     public record LifecycleRequest(@NotNull LifecycleState state, @NotBlank @Size(max = 500) String reason) {}
 
     /** Điểm trên bản đồ GIS — chỉ những gì popup cần, không kéo cả hồ sơ (M2.10). */
+    /**
+     * Một marker trên bản đồ — nội dung popup theo M2.10.
+     *
+     * <p>M2.10 đòi popup có <b>tên, mã, loại, Xí nghiệp, trạng thái</b>. {@code orgUnitName} nằm ở
+     * đây chứ không để giao diện tự tra: trên bản đồ tổng quan có hàng trăm marker, và mỗi lượt mở
+     * popup mà phải gọi thêm một lượt API là độ trễ đúng vào lúc người dùng đang chờ xem.
+     *
+     * <p>⛔ Cố ý <b>chưa</b> có số liệu thuỷ văn mới nhất (cũng thuộc M2.10): MOD-03 là Phase 2. Để
+     * sẵn một trường luôn rỗng ở đây thì giao diện sẽ hiện một dòng trống mà không ai giải thích
+     * được — chỗ giữ đúng đắn là dòng chữ "Chưa đấu nối dữ liệu thuỷ văn" trên popup, không phải
+     * một trường {@code null} trong DTO.
+     */
     public record MapPoint(
             UUID publicId,
             String code,
             String name,
             ConstructionType constructionType,
             OperationalStatus operationalStatus,
+            String orgUnitName,
             BigDecimal latitude,
             BigDecimal longitude) {
 
-        public static MapPoint of(Construction c) {
+        public static MapPoint of(Construction c, String orgUnitName) {
             return new MapPoint(
                     c.getPublicId(),
                     c.getCode(),
                     c.getName(),
                     c.getConstructionType(),
                     c.getOperationalStatus(),
+                    orgUnitName,
                     c.getLatitude(),
                     c.getLongitude());
         }

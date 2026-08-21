@@ -1980,3 +1980,94 @@ thắng mà không ai biết**.
 Cụm dùng lại quyền `ops:construction:*` thay vì thêm quyền mới: ma trận §6 đã được Công ty duyệt và
 có 334 dòng đang được `RbacMatrixTest` đối chiếu trên CSDL thật. Thêm một quyền ngoài ma trận sẽ tạo
 ra một ô mà **không vai trò nào được gán** — tức một chức năng không ai dùng được.
+
+---
+
+### §10.33. WS-23 — nền biểu đồ và dashboard điều hành (21/8/2026)
+
+Hạng mục **thêm vào Phase 1** (chốt 20/8): `implement.md` vốn xếp dashboard vào Phase 3, nhưng WS-17 vừa làm cho số liệu công trình thành **số thật**, nên đây là lúc dựng được một màn hình demo mà không phải bịa một con số nào.
+
+#### 1. ⛔ Ô chưa có nguồn nói thẳng là chưa có — ép ở tầng kiểu, không ở lời dặn
+
+CN-02.5 liệt kê sáu nhóm KPI, **bốn nhóm chưa có dữ liệu**: cảnh báo thuỷ văn và điểm đo mất tín hiệu thuộc MOD-03 (Phase 2), công việc bảo trì và sự cố chưa xử lý thuộc WS-18.
+
+Cách làm sai mà dễ rơi vào nhất là trả `0`. **Số 0 là một câu khẳng định** — "đã đo và bằng không". Trên màn hình treo tường phòng trực, ô *"Sự cố chưa xử lý: 0"* nói rằng không có sự cố nào, và người trực ca sẽ tin nó, trong khi hệ thống chưa hề biết gì.
+
+Nên `DashboardService.Kpi` trả `value = null` kèm **lý do** và **mốc sẽ có** (`"WS-18 (CN-02.2)"`). Ràng buộc nằm ở **hàm dựng của record**:
+
+```java
+public Kpi {
+    if (value == null && (unavailableReason == null || unavailableReason.isBlank())) {
+        throw new IllegalArgumentException("KPI '%s' không có số thì bắt buộc phải nói lý do…");
+    }
+}
+```
+
+Đặt ở đây chứ không ở bài kiểm, vì bài kiểm chỉ phủ những ô **đã tồn tại lúc viết nó** — ô KPI thứ mười một mà WS-18 thêm vào cũng phải đi qua đúng ràng buộc đó mà không cần ai nhớ.
+
+⚠⚠ **`@JsonInclude(ALWAYS)` trên record này là bắt buộc, và nó đè cấu hình `NON_NULL` chung.** Bỏ hẳn khoá `value` khỏi JSON thì phía nhận đọc ra `undefined` — không phân biệt được với "API đổi tên trường" hay "bản cũ chưa có trường này". Cả thiết kế dựa trên việc **nói rõ** rằng không có số; để nó im lặng biến mất là mâu thuẫn với chính điều đang cố diễn đạt. Đây là ngoại lệ duy nhất trong dự án.
+
+#### 2. Một bảng màu, không phải hai — và cách canh điều đó
+
+T23.1 đòi theme ECharts sinh từ `design-tokens`. Lý do không phải "cho gọn": năm màu trạng thái **mang nghĩa nghiệp vụ** (đỏ = sự cố đang mở, xám = mất tín hiệu). Hai bảng màu thì badge trên bảng và lát bánh trên biểu đồ lệch nhau, và **không ai coi đó là lỗi để đi sửa** — nhìn riêng từng màn hình thì cả hai đều "trông ổn".
+
+Phép canh thật nằm ở `chartOptions.test.ts`: lát *"Sự cố"* phải đúng bằng `statusColors.danger` mà `StatusBadge` dùng. Kiểm chứng ngược bằng cách viết một mã màu tại chỗ → đỏ.
+
+⛔ **Mã lạ không rơi về màu `normal`.** `mauCua` trả `undefined` để ECharts dùng dãy màu của theme. Rơi về `normal` nghĩa là một trạng thái hệ thống chưa biết sẽ hiện màu xanh — một khẳng định "ổn" về thứ chưa ai xác nhận.
+
+#### 3. ⚠⚠ Bố cục co giãn tính bằng JS, vì CSS `auto-fit` không kiểm được
+
+`repeat(auto-fit, minmax(300px, 1fr))` làm đúng việc và không bao giờ tràn — nhưng nó chỉ được tính bởi **bộ dựng bố cục của trình duyệt**, mà jsdom không có bộ dựng bố cục. Yêu cầu T23.11 (*"ba bề rộng 3840/1920/1366, khẳng định cả hai vế: không tràn ngang và không mất khối"*) sẽ không có cách nào kiểm ở CI: một bài kiểm `render()` rồi đọc `style` chỉ chứng minh chuỗi CSS được viết ra.
+
+Đưa quyết định về hàm thuần `soCot(beRong, rongToiThieu, tranCot)` thì bài kiểm chạy **đúng đoạn mã production chạy**, và quét được cả dải 320→4096 px chứ không chỉ ba điểm — lỗi bố cục hay nằm ở khe hẹp ngay dưới một điểm ngắt.
+
+**Có trần số cột, kể cả ở 4K**, và không phải để tiết kiệm chỗ: màn hình 85" được đọc từ **4–6 m**, mười hai ô một hàng thì mỗi ô hẹp tới mức chữ không còn đọc được ở khoảng cách đó — thêm cột lại làm **mất** thông tin.
+
+#### 4. ⚠⚠ Lỗi thật do bài kiểm bắt: lưới luôn một cột vì ref gắn sau khi effect đã chạy
+
+Bản đầu của `useElementWidth` dùng `useRef` + `useEffect([])`. Bài kiểm bố cục ở bốn bề rộng bắt được: lưới luôn ra `repeat(1, …)`.
+
+Nguyên nhân: trang hiện khung xương trong lúc chờ dữ liệu, nên ở lượt render đầu — **đúng lượt mà effect chạy** — thẻ mang ref chưa có trong cây DOM, `ref.current` là `null`, effect thoát sớm. Khi dữ liệu về và thẻ được gắn vào thì không có gì gọi lại effect: danh sách phụ thuộc rỗng nghĩa là "chạy đúng một lần", và lần đó đã trôi qua.
+
+Hậu quả thật, không chỉ trong bài kiểm: **dashboard hiện một cột trên mọi màn hình** cho tới khi người dùng đổi kích thước cửa sổ — mà trên TV treo tường thì không bao giờ có ai đổi kích thước cả. Chữa bằng **ref dạng hàm**: React gọi nó đúng vào lúc nút gắn vào và gỡ ra, thay vì một thời điểm mà ta *đoán* là nút đã có ở đó.
+
+⭐ Đáng chú ý là **bản đầu của bài kiểm cũng không bắt được**: nó khớp `repeat([1-5], …)` bằng biểu thức chính quy nên `repeat(1, …)` vẫn xanh. Siết lại thành con số chính xác cho từng bề rộng mới lộ ra. Cùng họ với bài học `articleContentCss.test.ts` — **canh cấu trúc, và canh cho chặt**.
+
+Bộ bề rộng cũng phải chọn có chủ ý: ở 3840/1920/1366 thì **trần cột luôn là thứ quyết định** (cả ba đều ra 5/3), nên thêm **900 px** — bề rộng duy nhất trong bộ mà con số phụ thuộc thật vào phép đo.
+
+#### 5. Bản đồ: URL tile ở `settings`, nhưng CSP không tự đi theo
+
+`architecture-review.md` §3 mục 9 chốt "OSM mặc định, Google Maps optional, để config switch được" → 6 khoá `ops.map.*` nhóm `OPERATION` (migration `V…1027`), đọc lúc chạy.
+
+⚠⚠ **Nhưng chỉ thị `img-src` nằm ở nginx của ảnh admin-app.** Host tile không nằm trong danh sách đó thì trình duyệt chặn **từng ô ảnh**, và triệu chứng là **bản đồ xám trơn có marker nổi lên trên** — không một lỗi nào ở tầng ứng dụng, chỉ vài dòng trong console mà không ai mở. `NginxSecurityHeadersTest.hostTileBanDoNamTrongCsp` đọc URL seed từ chính migration và đối chiếu với CSP trong Dockerfile; kiểm chứng ngược bằng cách gỡ host khỏi CSP → đỏ đúng chỗ.
+
+⛔ **Không nới `img-src` thành `https:` trần** — nới thế thì mọi tên miền trở thành nguồn ảnh hợp lệ, và một thẻ `<img>` chèn được vào nội dung sẽ gửi thông tin ra ngoài bằng chính đường dẫn ảnh. Bài kiểm khẳng định cả vế này.
+
+⛔ **Marker vẽ bằng `divIcon` (CSS), không dùng ảnh biểu tượng mặc định của Leaflet**: ảnh PNG mặc định nạp theo đường dẫn tương đối tính từ tệp CSS nên vỡ trong bản dựng có băm tên tệp (marker biến mất mà bản đồ vẫn chạy); màu marker phải theo trạng thái mà PNG thì không đổi màu được; và vẽ bằng CSS thì **không cần tới `img-src` chút nào**.
+
+#### 6. Wall mode: một cây component, chỉ đổi theme và cỡ chữ
+
+Thiết bị đã chốt (B8) là TV 85" 4K, kèm khả năng có máy chiếu 2K/Full-HD. Cách làm sai là thiết kế riêng cho 3840×2160 rồi thêm một bản "cho laptop": hai bộ bố cục thì mọi thay đổi phải nhớ làm hai lần, và **bản bị quên luôn là bản không ai mở hằng ngày** — tức là bản treo trên tường phòng trực.
+
+Nên `?mode=wall` chỉ đổi theme (`echartsWallTheme` **sinh từ** `echartsTheme`, không chép lại) và cỡ chữ (`clamp()` + `vw`). Số cột vẫn do `boCucTheoBeRong` quyết. Bài kiểm khẳng định wall dựng **đúng chừng ấy khối** như chế độ thường.
+
+**Năm màu trạng thái giữ nguyên ở chế độ tối** — chỉ nền và chữ đảo. Đổi sắc độ theo nền là tạo ra hai bảng nghĩa cho cùng một hệ thống, và người trực đọc màn hình tường rồi mở máy tính tra tiếp sẽ thấy hai màu khác nhau cho cùng một công trình.
+
+**Auto-rotate là cuộn, không phải đổi trang.** Thay hẳn nội dung theo chu kỳ nghĩa là **có những phút không nhìn thấy được số sự cố** — trong khi đó chính là con số người ta treo màn hình lên để nhìn. Khối KPI luôn nằm trên, chỉ phần dưới cuộn.
+
+#### 7. ⚠⚠ Hạn mức đăng nhập là ngân sách **dùng chung** giữa mọi lớp kiểm thử HTTP
+
+`DashboardHttpTest` xanh khi chạy riêng và **8/10 bài đỏ khi chạy cả bộ**, với `SYS-0002 · 429`. Nguyên nhân không nằm ở dashboard: hạn mức đăng nhập là **30 lượt / 15 phút theo IP**, mọi bài kiểm HTTP đi từ `127.0.0.1`, và bộ đếm là Caffeine trong tiến trình nên nó dùng chung cho **toàn bộ lượt chạy**.
+
+⛔ Cách chữa **sai** là nới hạn mức ở hồ sơ kiểm thử — làm thế thì một cơ chế bảo mật thật không còn được chạy qua ở CI. Cách đúng là dùng ít vé hơn: đăng nhập ở `@BeforeAll` (`@TestInstance(PER_CLASS)`), 20 lượt còn 2.
+
+📌 **Luật cho lớp kiểm thử HTTP thêm sau**: đăng nhập một lần cho cả lớp. Không thì nó làm đỏ một lớp *khác*, và người đọc log sẽ đi tìm lỗi ở đúng chỗ không có lỗi nào.
+
+#### 8. Hai thứ cố ý **chưa** làm, ghi ra thay vì giấu
+
+- **Bấm vào cột để mở danh sách đã lọc (T23.8)** — màn hình danh sách công trình thuộc **WS-21**, chưa dựng. Nối sẵn một liên kết trỏ tới route không tồn tại thì người bấm nhận trang 404: **một bên là chức năng chưa có, bên kia trông như chức năng có mà hỏng**. Cùng lý do, popup marker chưa có nút "Xem chi tiết" (M2.10 có yêu cầu). → nợ #71, nhận ở WS-21.
+- **`optionDuong` (biểu đồ đường) chưa có nơi gọi** — chuỗi thời gian đầu tiên của hệ thống là mực nước 24 giờ (Phase 2). Giữ lại vì nó là hàm thuần có bài kiểm riêng, còn phần rủi ro thật (dựng thực thể ECharts, đổi kích thước, huỷ) nằm ở `BaseChart` và đã có ba loại biểu đồ khác đi qua. ⛔ Phase 2 đến mà vẫn không ai gọi thì **xoá**, không phải giữ.
+
+#### 9. Số đo thật
+
+Bó mã của route dashboard: **727 kB (239 kB nén gzip)** — tách chunk riêng nhờ nạp theo nhu cầu, nên trang đăng nhập không gánh. Nạp ECharts **chọn lọc** (`echarts/core` + 4 loại biểu đồ + 5 component + bộ vẽ Canvas); nạp trọn gói thì phần này lớn hơn nhiều lần. Bộ vẽ **Canvas chứ không SVG**: wall mode 4K vẽ lại mỗi chu kỳ và chạy liên tục nhiều giờ, Canvas giữ số nút DOM không đổi.

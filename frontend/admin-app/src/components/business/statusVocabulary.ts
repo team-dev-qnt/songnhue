@@ -60,6 +60,58 @@ export const HEALTH_STATUS: StatusVocabulary = {
   UNKNOWN: { label: 'Không xác định', color: 'unknown' },
 };
 
+/**
+ * Trạng thái vận hành công trình (MOD-02) — ⛔ **giá trị dẫn xuất**, không ai sửa tay được.
+ *
+ * Thứ tự ưu tiên khi backend tính: sự cố → bảo trì → cảnh báo ngưỡng → mã tình hình vận
+ * hành → bình thường; vòng đời hồ sơ (`LifecycleState`) đứng trên tất cả.
+ *
+ * ⚠ Đây là **cùng một bảng** mà biểu đồ tròn "theo trạng thái" và marker trên bản đồ dùng
+ * để lấy màu. Một màn hình tự chọn sắc đỏ khác là người trực đọc sai mức nghiêm trọng.
+ */
+export const CONSTRUCTION_STATUS: StatusVocabulary = {
+  BINH_THUONG: { label: 'Bình thường', color: 'normal' },
+  CANH_BAO: {
+    label: 'Cảnh báo',
+    color: 'warning',
+    hint: 'Có cảnh báo ngưỡng thuỷ văn đang xảy ra (Phase 2)',
+  },
+  SU_CO: { label: 'Sự cố', color: 'danger', hint: 'Có bản ghi khắc phục sự cố đang mở' },
+  BAO_TRI: { label: 'Đang bảo trì', color: 'warning' },
+  NGUNG_MUA_VU: { label: 'Ngừng mùa vụ', color: 'unknown' },
+  DA_THANH_LY: { label: 'Đã thanh lý', color: 'inactive' },
+};
+
+/**
+ * Loại công trình.
+ *
+ * Màu ở đây **không mang nghĩa mức nghiêm trọng** — chúng chỉ để phân biệt cột trên biểu
+ * đồ. Nên tất cả đều `normal`: dùng đỏ cho "đê điều" thì người đọc lướt qua sẽ hiểu là
+ * đê đang có vấn đề.
+ */
+export const CONSTRUCTION_TYPE: StatusVocabulary = {
+  TRAM_BOM: { label: 'Trạm bơm', color: 'normal' },
+  CONG: { label: 'Cống', color: 'normal' },
+  KENH_MUONG: { label: 'Kênh mương', color: 'normal' },
+  DE_DIEU: { label: 'Đê điều', color: 'normal' },
+  KHAC: { label: 'Khác', color: 'normal' },
+};
+
+/** Cấp quản lý — thông tin hành chính, ⛔ không quyết định phạm vi dữ liệu. */
+export const MANAGEMENT_LEVEL: StatusVocabulary = {
+  CONG_TY: { label: 'Công ty', color: 'normal' },
+  XI_NGHIEP: { label: 'Xí nghiệp', color: 'normal' },
+  CUM: { label: 'Cụm', color: 'normal' },
+};
+
+/** Sắc thái một ô KPI trên dashboard — backend gửi xuống, FE chỉ dịch sang màu. */
+export const KPI_TONE: StatusVocabulary = {
+  NORMAL: { label: 'Bình thường', color: 'normal' },
+  WARNING: { label: 'Cảnh báo', color: 'warning' },
+  DANGER: { label: 'Nguy cấp', color: 'danger' },
+  UNKNOWN: { label: 'Chưa xác định', color: 'unknown' },
+};
+
 export const SCAN_STATUS: StatusVocabulary = {
   PENDING: { label: 'Đang quét', color: 'warning' },
   CLEAN: { label: 'Đã quét sạch', color: 'normal' },

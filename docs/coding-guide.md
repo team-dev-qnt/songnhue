@@ -204,8 +204,12 @@ Không cần đọc thuộc — chỉ cần biết chúng tồn tại để lúc
 | Thứ tự aspect quanh transaction | Bộ lọc phạm vi rơi vào `Session` tạm bị vứt đi → **mọi đơn vị đọc được dữ liệu của nhau**, không một dòng lỗi |
 | Khai bean `DataSource`/`JdbcTemplate` | Spring Boot **ngừng** tạo bản chính; cả app chạy bằng vai trò CSDL sai |
 | `data.quality = NGHI_NGO` | Mọi truy vấn báo cáo/alert/tổng hợp **phải lọc `HOP_LE`** — bẫy sai số liệu dễ mắc nhất (quy tắc 14) |
+| `useRef` + `useEffect([])` để đo phần tử | Trang hiện khung xương trước thì thẻ **chưa vào DOM** lúc effect chạy, và deps rỗng nghĩa là không bao giờ chạy lại → bố cục kẹt ở giá trị mặc định. Dùng **ref dạng hàm** |
+| Trả `0` cho ô số liệu **chưa có nguồn** | `0` là câu khẳng định "đã đo và bằng không". Phải trả rỗng kèm lý do, và ép ràng buộc đó ở **hàm dựng** chứ không ở lời dặn |
+| Nguồn ngoài (tile bản đồ, font, ảnh) | CSP `default-src 'self'` chặn **im lặng** — không lỗi ở tầng ứng dụng. Đổi host trong `settings` thì phải mở CSP ở nginx, và phải có bài kiểm đối chiếu hai nơi |
+| Lớp kiểm thử HTTP đăng nhập ở `@BeforeEach` | Hạn mức 30 lượt/15' theo IP là **ngân sách dùng chung** cho cả lượt chạy → làm đỏ một lớp *khác*. Đăng nhập ở `@BeforeAll` |
 
-Chi tiết nguyên nhân: `architecture-review.md` §9.7, §9.8, §9.12.
+Chi tiết nguyên nhân: `architecture-review.md` §9.7, §9.8, §9.12, §10.33.
 
 ---
 

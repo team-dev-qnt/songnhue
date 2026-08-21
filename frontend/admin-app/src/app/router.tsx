@@ -87,6 +87,15 @@ export const router = createBrowserRouter([
             path: '/phien-dang-nhap',
             element: lazyPage(() => import('@/features/account/SessionsPage'), 'SessionsPage'),
           },
+          // ---- Vận hành công trình (MOD-02) ----
+          adminRoute(
+            '/van-hanh/dieu-hanh',
+            'ops:dashboard:view',
+            lazyPage(
+              () => import('@/features/dashboard/OperationsDashboardPage'),
+              'OperationsDashboardPage',
+            ),
+          ),
           // ---- Nội dung (MOD-01) ----
           adminRoute(
             '/noi-dung/bai-viet',

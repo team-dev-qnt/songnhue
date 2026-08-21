@@ -393,3 +393,81 @@ export interface DownloadUrl {
   /** Có hạn ngắn và bỏ qua phân quyền — không lưu lại, không chia sẻ. */
   url: string;
 }
+
+// =============================================================================
+// Dashboard điều hành — /api/v1/ops/dashboard (CN-02.5, CN-02.6)
+// =============================================================================
+
+export type KpiTone = 'NORMAL' | 'WARNING' | 'DANGER' | 'UNKNOWN';
+
+/**
+ * Một ô KPI.
+ *
+ * ⛔ `value === null` nghĩa là **chưa có nguồn dữ liệu**, khác hẳn `0` (đã đo và bằng
+ * không). Backend cố ý gửi `"value": null` tường minh thay vì bỏ khoá — bỏ khoá thì phía
+ * này đọc ra `undefined`, không phân biệt được với "API đổi tên trường".
+ */
+export interface KpiView {
+  key: string;
+  label: string;
+  value: number | null;
+  /** Mẫu số khi ô là một tỉ lệ ("32 / 40"). */
+  total: number | null;
+  tone: KpiTone;
+  /** Luôn có khi `value` rỗng — backend ép ở tầng kiểu. */
+  unavailableReason: string | null;
+  /** Hạng mục sẽ mang dữ liệu về, VD `"WS-18 (CN-02.2)"`. */
+  availableIn: string | null;
+}
+
+export interface BucketView {
+  key: string;
+  label: string;
+  count: number;
+}
+
+export interface ConstructionStatisticsView {
+  total: number;
+  withoutLocation: number;
+  byType: BucketView[];
+  byStatus: BucketView[];
+  byOrgUnit: BucketView[];
+  byManagementLevel: BucketView[];
+}
+
+/** Cấu hình bản đồ nền — đọc từ `settings`, đổi nguồn không phải dựng lại ảnh admin-app. */
+export interface MapConfigView {
+  tileUrl: string;
+  attribution: string;
+  centerLat: number;
+  centerLng: number;
+  defaultZoom: number;
+  maxZoom: number;
+}
+
+export interface DashboardView {
+  generatedAt: string;
+  /** Chu kỳ tự làm mới (M2.15) — do backend đọc từ `settings` mỗi lượt gọi. */
+  autoRefreshSeconds: number;
+  /** Chu kỳ tự chuyển khối ở chế độ màn hình lớn. */
+  wallRotateSeconds: number;
+  kpis: KpiView[];
+  statistics: ConstructionStatisticsView;
+  map: MapConfigView;
+}
+
+export type ConstructionType = 'TRAM_BOM' | 'CONG' | 'KENH_MUONG' | 'DE_DIEU' | 'KHAC';
+export type OperationalStatus =
+  'BINH_THUONG' | 'CANH_BAO' | 'SU_CO' | 'BAO_TRI' | 'NGUNG_MUA_VU' | 'DA_THANH_LY';
+
+/** Marker trên bản đồ — nội dung popup theo M2.10. */
+export interface MapPointView {
+  publicId: string;
+  code: string;
+  name: string;
+  constructionType: ConstructionType;
+  operationalStatus: OperationalStatus;
+  orgUnitName: string | null;
+  latitude: number;
+  longitude: number;
+}

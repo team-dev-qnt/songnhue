@@ -1,6 +1,6 @@
 # PHASE 1 — CMS & MASTER DATA CÔNG TRÌNH · BẢNG THEO DÕI TIẾN ĐỘ
 
-> **Cập nhật lần cuối**: 2026-08-21 · **Tiến độ: 63/112 task (56%)** · 1 task **hoãn có chủ đích** (T12.7 → nợ #62) · **DoD: 0/17** · Trạng thái: 🟡 Đang làm — WS-12 ✅, WS-13 ✅, WS-14 ✅, WS-15 ✅, WS-16 ✅, WS-20 ✅, **WS-17 ✅**
+> **Cập nhật lần cuối**: 2026-08-21 · **Tiến độ: 74/112 task (66%)** · 1 task **hoãn có chủ đích** (T12.7 → nợ #62) · **DoD: 0/17** · Trạng thái: 🟡 Đang làm — WS-12 ✅, WS-13 ✅, WS-14 ✅, WS-15 ✅, WS-16 ✅, WS-20 ✅, WS-17 ✅, **WS-23 ✅**
 > Nguồn ràng buộc: `function-spec.md` CN-01.1→01.5, CN-01.8 · CN-02.1, 02.2, 02.3, 02.6, 02.7, 02.11 · `conventions.md` (luật) · `docs/coding-guide.md` (đường đi) · `architecture-review.md` §10 (quyết định Phase 1)
 > **Cách dùng**: giống Phase 0 — làm xong task nào tick `[x]`; xong 1 WS thì chạy mục "Kiểm chứng" rồi cập nhật bảng tổng + dòng trên cùng.
 > ⚠ **Luật 3 bước khi đóng WS** (thừa kế từ Phase 0): tick task → tick dòng nợ → **quay lại sửa mô tả đã lỗi thời ở WS đã giao nợ**. Bước 3 hay bị bỏ nhất.
@@ -36,9 +36,9 @@ Phase 0 dựng **cơ chế**; Phase 1 là lần đầu có **người dùng th�
 | **WS-19** | Operations — Tình hình vận hành + trạng thái dẫn xuất | 8 | 0 | ⬜ Chưa bắt đầu | WS-17, WS-18 | 7 pd |
 | **WS-20** | FE admin — màn hình CMS | 13 | **13** | ✅ **Xong 20/8** — kéo lên trước WS-17 | WS-13→15 (API) | 12 pd |
 | **WS-21** | FE admin — màn hình Công trình | 10 | 0 | ⬜ Chưa bắt đầu | WS-17→19 (API) | 12 pd |
-| **WS-23** | ⭐ Nền biểu đồ + Dashboard điều hành (CN-02.5, CN-02.6) | 11 | 0 | ⬜ Chưa bắt đầu | WS-17 | 11 pd |
+| **WS-23** | ⭐ Nền biểu đồ + Dashboard điều hành (CN-02.5, CN-02.6) | 11 | **11** | ✅ **Xong 21/8** — mọi con số là số thật; ô chưa có nguồn nói thẳng | WS-17 | 11 pd |
 | **WS-22** | Kiểm thử, nghiệm thu Phase 1 & trả nợ | 8 | 0 | ⬜ Chưa bắt đầu | tất cả | 8 pd |
-| | **TỔNG** | **112** | **63** | | | **112 pd** |
+| | **TỔNG** | **112** | **74** | | | **112 pd** |
 
 *(112 task triển khai + 17 mục Definition of Done ở cuối file.)*
 
@@ -494,22 +494,41 @@ Câu hỏi khởi đầu rất hẹp: *"chèn ảnh vào đúng vị trí có ch
 
 ### Nền dùng chung (cần cho mọi biểu đồ về sau, kể cả thuỷ văn Phase 2)
 
-- [ ] **T23.1** Theme ECharts sinh **từ `design-tokens`** — cùng một nguồn màu với AntD. ⛔ Không khai bảng màu thứ hai trong mã biểu đồ: hai bảng màu thì badge trạng thái trên bảng và cột trên biểu đồ sẽ lệch nhau, và không ai coi đó là lỗi để đi sửa
-- [ ] **T23.2** Bộ component biểu đồ dùng chung (`LineChart`, `BarChart`, `PieChart`, `GaugeChart`) — tự co theo khung chứa, có trạng thái **rỗng** và **đang tải** riêng. ⛔ Không dữ liệu thì hiện "Không có dữ liệu", **không vẽ biểu đồ trống** (CN-03.4 nói rõ điều này cho thuỷ văn; áp cho tất cả)
-- [ ] **T23.3** Nạp ECharts theo **kiểu chọn lọc** (chỉ import loại biểu đồ dùng tới) — nạp trọn gói làm bundle admin phình gấp nhiều lần vì một màn hình
-- [ ] **T23.4** `KpiCard` + `ChartCard` + khung lưới dashboard tự xếp lại theo bề rộng
-- [ ] **T23.5** Móc tự làm mới theo chu kỳ đọc từ `settings` (M2.15, mặc định 5') — ⚠ đọc lúc chạy, không chốt lúc dựng component, nếu không thì tham số sửa trên giao diện là công tắc chết (bài học WS-12)
+- [x] **T23.1** Theme ECharts sinh **từ `design-tokens`** — cùng một nguồn màu với AntD. ⛔ Không khai bảng màu thứ hai trong mã biểu đồ: hai bảng màu thì badge trạng thái trên bảng và cột trên biểu đồ sẽ lệch nhau, và không ai coi đó là lỗi để đi sửa
+- [x] **T23.2** Bộ component biểu đồ dùng chung (`LineChart`, `BarChart`, `PieChart`, `GaugeChart`) — tự co theo khung chứa, có trạng thái **rỗng** và **đang tải** riêng. ⛔ Không dữ liệu thì hiện "Không có dữ liệu", **không vẽ biểu đồ trống** (CN-03.4 nói rõ điều này cho thuỷ văn; áp cho tất cả)
+- [x] **T23.3** Nạp ECharts theo **kiểu chọn lọc** (chỉ import loại biểu đồ dùng tới) — nạp trọn gói làm bundle admin phình gấp nhiều lần vì một màn hình
+- [x] **T23.4** `KpiCard` + `ChartCard` + khung lưới dashboard tự xếp lại theo bề rộng
+- [x] **T23.5** Móc tự làm mới theo chu kỳ đọc từ `settings` (M2.15, mặc định 5') — ⚠ đọc lúc chạy, không chốt lúc dựng component, nếu không thì tham số sửa trên giao diện là công tắc chết (bài học WS-12)
 
 ### Dashboard điều hành (CN-02.5)
 
-- [ ] **T23.6** API tổng hợp `GET /api/v1/ops/dashboard` — **tính ở BE**, FE chỉ hiển thị (quy tắc 3). Một lượt gọi trả đủ KPI, không để FE gọi bảy endpoint rồi tự cộng
-- [ ] **T23.7** KPI card: tổng công trình đang hoạt động/tổng · số công trình theo trạng thái. ⛔ Ô nào chưa có nguồn (cảnh báo thuỷ văn → Phase 2; sự cố chưa xử lý → WS-18) hiện **"Chưa có dữ liệu" kèm lý do**, không hiện số 0 — số 0 nghĩa là "đã đo và bằng không", khác hẳn "chưa đo"
-- [ ] **T23.8** Biểu đồ thống kê công trình (CN-02.6): theo loại · theo đơn vị · theo cấp quản lý; bấm vào một cột thì mở danh sách đã lọc sẵn
-- [ ] **T23.9** Bản đồ GIS tổng quan: marker theo toạ độ thật, màu theo trạng thái, popup theo M2.10. Công trình **chưa có toạ độ** đưa vào một danh sách riêng thay vì bỏ im
-- [ ] **T23.10** ⭐ **Wall mode `?mode=wall`** — base 4K, dark theme, auto-rotate; **co giãn thật** xuống 1440p/1080p/laptop bằng `clamp()` + `vw`, không phải hai bộ layout. Mất kết nối → "Dữ liệu chưa cập nhật" + thời điểm gần nhất
-- [ ] **T23.11** Test: hàm gom số liệu ở BE (đủ nhánh "chưa có nguồn") · bố cục wall ở **ba bề rộng 3840/1920/1366**, khẳng định cả hai vế: không tràn ngang **và** không mất khối
+- [x] **T23.6** API tổng hợp `GET /api/v1/ops/dashboard` — **tính ở BE**, FE chỉ hiển thị (quy tắc 3). Một lượt gọi trả đủ KPI, không để FE gọi bảy endpoint rồi tự cộng
+- [x] **T23.7** KPI card: tổng công trình đang hoạt động/tổng · số công trình theo trạng thái. ⛔ Ô nào chưa có nguồn (cảnh báo thuỷ văn → Phase 2; sự cố chưa xử lý → WS-18) hiện **"Chưa có dữ liệu" kèm lý do**, không hiện số 0 — số 0 nghĩa là "đã đo và bằng không", khác hẳn "chưa đo"
+- [x] **T23.8** Biểu đồ thống kê công trình (CN-02.6): theo loại · theo đơn vị · theo cấp quản lý. ⚠ **Phần "bấm vào cột mở danh sách đã lọc" CHƯA làm → nợ #71**, vì màn hình danh sách công trình thuộc WS-21 và chưa tồn tại: một liên kết trỏ tới route không có thật trông như *chức năng có mà hỏng*, tệ hơn hẳn *chức năng chưa có*
+- [x] **T23.9** Bản đồ GIS tổng quan: marker theo toạ độ thật, màu theo trạng thái, popup theo M2.10. Công trình **chưa có toạ độ** đưa vào một danh sách riêng thay vì bỏ im
+- [x] **T23.10** ⭐ **Wall mode `?mode=wall`** — base 4K, dark theme, auto-rotate; **co giãn thật** xuống 1440p/1080p/laptop bằng `clamp()` + `vw`, không phải hai bộ layout. Mất kết nối → "Dữ liệu chưa cập nhật" + thời điểm gần nhất
+- [x] **T23.11** Test: hàm gom số liệu ở BE (đủ nhánh "chưa có nguồn") · bố cục wall ở **ba bề rộng 3840/1920/1366**, khẳng định cả hai vế: không tràn ngang **và** không mất khối
 
 **Kiểm chứng**: mở dashboard trên laptop rồi trên màn hình 4K — cùng một route, cùng một layout, không vỡ. Mọi con số đối chiếu được với danh sách công trình. P95 < 3s (NFR-02).
+
+### ✅ Đã kiểm chứng (21/8) — chạy thật trên `make dev-docker`
+
+| Việc | Kết quả đo được |
+|---|---|
+| Migration `V…1027` | `now at version v202608211027`, **27 migration**; 6 khoá `ops.map.*` nhóm `OPERATION` có trong CSDL |
+| Gọi qua **đường trình duyệt** (cổng 15173 + header `Origin`) | chưa đăng nhập → `401 AUTH-0002` đúng envelope; đăng nhập TECHNICIAN → `200` |
+| KPI trên **dữ liệu thật** (2 hồ sơ tạo qua API rồi xoá) | `construction.active = 2/2` · `without-location = 0/2` · thống kê 4 chiều khớp |
+| Bốn ô chưa có nguồn | `"value": null` + lý do + `"Phase 2 (MOD-03)"` / `"WS-18 (CN-02.2)"` — **không ô nào ra số 0** |
+| Marker bản đồ | 2 điểm, đúng toạ độ, kèm `orgUnitName` (popup M2.10) |
+| CSP của ảnh admin-app | `img-src 'self' data: blob: https://tile.openstreetmap.org https://*.tile.openstreetmap.org` |
+| Route SPA | `/van-hanh/dieu-hanh` và `?mode=wall` đều `200` |
+| Bó mã | route dashboard tách chunk riêng **727 kB / 239 kB gzip**, trang đăng nhập không gánh |
+
+**Kiểm chứng ngược 4 phép canh — cả 4 đỏ đúng chỗ**: viết một mã màu tại chỗ trong biểu đồ · ép số cột cố định · cho ô chưa có nguồn hiện số 0 · gỡ host tile khỏi CSP.
+
+⚠⚠ **Một lỗi thật do bài kiểm bắt**: lưới luôn ra **một cột** trên mọi màn hình vì `useRef` + `useEffect([])` chạy lúc trang còn đang hiện khung xương (thẻ mang ref chưa vào DOM), và không bao giờ chạy lại. Chi tiết `architecture-review.md` §10.33 mục 4. Bản **đầu** của chính bài kiểm đó cũng không bắt được — nó khớp `repeat([1-5], …)` nên `repeat(1, …)` vẫn xanh.
+
+⚠⚠ **Bài kiểm HTTP dùng chung ngân sách đăng nhập 30 lượt/15' theo IP** — `DashboardHttpTest` xanh khi chạy riêng, 8/10 đỏ khi chạy cả bộ. Lớp kiểm thử HTTP thêm sau **phải** đăng nhập ở `@BeforeAll`.
 
 ---
 
@@ -590,6 +609,8 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 1 hoàn thành:
 | ~~67~~ | ~~Cửa vào SPI thông báo vừa được gỡ khỏi giao dịch `readOnly` nhưng chưa có ai đi qua~~ | WS-16 (luật §10.20 lôi ra) | — | ✅ **Đóng ngay trong WS-16** — `NotificationPortTest` tiêm **interface** `NotificationPort` (tiêm lớp cài đặt là gọi đúng hàm production *không* gọi). ⭐ Cơ chế thông báo dựng từ WS-6 tới giờ **chưa có một bài kiểm tích hợp nào**; đây là bài đầu tiên |
 | **69** | **Cổng công khai chưa có CSP.** Next chèn script nội tuyến để hydrate (`self.__next_f`), nên CSP ở đó cần nonce qua middleware. ⛔ Cố ý **không** vá bằng `'unsafe-inline'` — như thế là có CSP mà không có tác dụng. admin-app đã có CSP đầy đủ từ 21/8 | Rà soát 21/8 (§10.31) | **WS-11** (cùng nginx chung + TLS) | ⬜ Chờ |
 | **70** | **Đếm lượt xem không khử trùng lặp.** `ViewCountService` cộng thẳng mỗi lượt `POST …/views`; tham số `cms.article.view-count-window-minutes` mô tả một tính năng không tồn tại nên đã gỡ khỏi `settings` (21/8). Làm thật thì cần một cách nhận diện người xem (cookie hoặc băm IP) — là quyết định tính năng, không phải việc dọn dẹp | Rà soát 21/8 (§10.31) | **Phase 2** | ⬜ Chờ |
+| **71** | **Bấm vào cột/lát biểu đồ chưa mở được danh sách đã lọc** (T23.8), và popup marker chưa có nút "Xem chi tiết" (M2.10). Cả hai cần màn hình danh sách/hồ sơ công trình. ⛔ Cố ý **không** nối sẵn: liên kết trỏ tới route không tồn tại trông như *chức năng có mà hỏng*, tệ hơn hẳn *chức năng chưa có*. Phần khó (dịch ngược nhãn tiếng Việt → mã enum) đã có sẵn ở `statusVocabulary` | WS-23/T23.8, T23.9 | **WS-21** — chỉ còn thêm một dòng `navigate` | ⬜ Chờ |
+| **72** | **`optionDuong` (biểu đồ đường) chưa có nơi gọi.** Chuỗi thời gian đầu tiên của hệ thống là mực nước 24 giờ. Có bài kiểm riêng và phần rủi ro thật nằm ở `BaseChart` (đã có 3 loại biểu đồ khác đi qua). ⛔ Phase 2 đến mà vẫn không ai gọi thì **xoá**, không phải giữ | WS-23/T23.2 | **Phase 2** (MOD-03) | ⬜ Chờ |
 | **68** | `HtmlSanitizer` chạy lúc **ghi**, nên bài viết seed và bài tạo trước WS-16 chưa đi qua nó. Không phải lỗ hổng (nội dung đó do ta soạn), nhưng dữ liệu thật của Công ty nhập trước khi có bộ lọc thì không được rà lại | WS-16 | **WS-22** — lệnh rà một lượt toàn bộ `article_versions`, in ra bài nào bị đổi trước khi ghi | ⬜ Chờ |
 
 ⚠ **Nợ #62 — hoãn thì phải nói rõ hoãn cái gì.** CN-01.3 ghi *"auto nén ảnh sang WebP (giữ bản gốc fallback); auto thumbnail 150/400/800px"*, nên đây là **mục nghiệm thu bị hoãn**, không phải việc tự nghĩ ra rồi tự bỏ. Lý do và đường quay lại: `architecture-review.md` §10.9.

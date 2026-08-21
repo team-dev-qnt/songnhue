@@ -120,6 +120,19 @@ public interface ConstructionRepository extends JpaRepository<Construction, Long
     @Query("SELECT c.orgUnitId, COUNT(c) FROM Construction c WHERE c.deletedAt IS NULL GROUP BY c.orgUnitId")
     List<Object[]> countByOrgUnit();
 
+    /**
+     * Đếm theo vòng đời — nguồn của KPI "đang hoạt động / tổng số" trên dashboard (CN-02.5).
+     *
+     * <p>⚠ Không dùng {@code countByStatus()} thay cho việc này. Trạng thái vận hành là giá trị
+     * <b>dẫn xuất</b> và sẽ có thêm bốn nguồn nữa từ WS-18 và Phase 2 (sự cố, bảo trì, ngưỡng thuỷ
+     * văn, mã tình hình vận hành); còn "đang hoạt động" là một sự thật hành chính do con người
+     * quyết định. Đếm nhầm cột thì con số vẫn đúng hôm nay và sai lặng lẽ vào ngày bản ghi sự cố
+     * đầu tiên được nhập — công trình đang có sự cố vẫn là công trình đang hoạt động.
+     */
+    @Query("SELECT c.lifecycleState, COUNT(c) FROM Construction c WHERE c.deletedAt IS NULL"
+            + " GROUP BY c.lifecycleState")
+    List<Object[]> countByLifecycle();
+
     @Query("SELECT c.managementLevel, COUNT(c) FROM Construction c WHERE c.deletedAt IS NULL"
             + " GROUP BY c.managementLevel")
     List<Object[]> countByManagementLevel();

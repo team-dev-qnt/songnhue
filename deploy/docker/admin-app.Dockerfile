@@ -80,6 +80,16 @@ ENV NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1
 #   * `script-src 'self'` thì AN TOÀN, và đó mới là vế quan trọng: đã kiểm
 #     `index.html` của bản dựng — đúng **một** thẻ script và nó có `src`, không
 #     có script nội tuyến nào. Đây là lớp chặn thật sự chống XSS.
+#   * `img-src` PHẢI kèm host tile của bản đồ (WS-23). Bản đồ GIS lấy ảnh nền từ
+#     máy chủ tile bên ngoài; thiếu host đó thì trình duyệt chặn **từng ô ảnh**
+#     và triệu chứng là bản đồ xám trơn có marker nổi lên trên — không lỗi nào ở
+#     tầng ứng dụng, chỉ vài dòng trong console mà không ai mở. Host mặc định
+#     phải khớp `ops.map.tile-url` seed ở migration `V…1027`;
+#     `NginxSecurityHeadersTest` đối chiếu hai nơi đó, nên đổi một bên mà quên
+#     bên kia thì CI đỏ chứ không phải người dùng phát hiện.
+#     ⛔ Cố ý KHÔNG dùng `https:` trần cho `img-src`: nới thế thì mọi tên miền
+#     trên Internet trở thành nguồn ảnh hợp lệ, và một thẻ `<img>` chèn được vào
+#     nội dung sẽ gửi thẳng thông tin ra ngoài bằng chính đường dẫn ảnh.
 #
 # HSTS cố ý KHÔNG đặt ở đây: nó thuộc về nơi kết thúc TLS (nginx chung ở
 # production, T11.5). Đặt ở tầng này thì local chạy HTTP nên trình duyệt bỏ qua,
@@ -89,7 +99,7 @@ add_header X-Content-Type-Options "nosniff" always;
 add_header X-Frame-Options "DENY" always;
 add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
-add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-src 'self' https://www.google.com https://www.youtube-nocookie.com https://player.vimeo.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'" always;
+add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://tile.openstreetmap.org https://*.tile.openstreetmap.org; font-src 'self'; connect-src 'self'; frame-src 'self' https://www.google.com https://www.youtube-nocookie.com https://player.vimeo.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'" always;
 EOF
 
 # SPA: mọi đường dẫn không khớp file tĩnh đều trả index.html, để React Router
