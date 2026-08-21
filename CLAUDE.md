@@ -63,7 +63,7 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 
 **Phase "Tài liệu hệ thống"** ✅ xong 12/8/2026 — BOQ đợt 1 (A–F) + đợt 2 (G) đã đóng và đồng bộ vào `function-spec.md` **v2.2**.
 **Phase 0 — Core Platform** ✅ xong 10/11 hạng mục. Còn **WS-11 (Deploy Staging/Production, 10 pd)** treo để khép sổ.
-**Phase 1 — CMS & master data công trình** 🟡 **85/112 task (76%)** — xong WS-12→WS-18, WS-20, WS-23.
+**Phase 1 — CMS & master data công trình** 🟡 **85/116 task (73%)** — xong WS-12→WS-18, WS-20, WS-23.
 
 ➡️ **Thứ tự còn lại**: **WS-19** (tình hình vận hành — chỉ còn mắt xích (4) của chuỗi suy ra trạng thái + job đối soát; (1) sự cố và (2) bảo trì đã chạy từ WS-18) → **WS-21** (màn hình Công trình + màn hình lịch sử sửa chữa, nhận nợ #71) → **WS-22** (nghiệm thu + trả nợ).
 

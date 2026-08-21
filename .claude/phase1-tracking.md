@@ -1,6 +1,6 @@
 # PHASE 1 — CMS & MASTER DATA CÔNG TRÌNH · BẢNG THEO DÕI TIẾN ĐỘ
 
-> **Cập nhật lần cuối**: 2026-08-21 · **Tiến độ: 85/112 task (76%)** · 1 task **hoãn có chủ đích** (T12.7 → nợ #62) · **DoD: 0/17** · Trạng thái: 🟡 Đang làm — WS-12 ✅, WS-13 ✅, WS-14 ✅, WS-15 ✅, WS-16 ✅, WS-20 ✅, WS-17 ✅, WS-23 ✅, **WS-18 ✅**
+> **Cập nhật lần cuối**: 2026-08-21 · **Tiến độ: 85/116 task (73%)** · 1 task **hoãn có chủ đích** (T12.7 → nợ #62) · **DoD: 0/17** · Trạng thái: 🟡 Đang làm — WS-12 ✅, WS-13 ✅, WS-14 ✅, WS-15 ✅, WS-16 ✅, WS-20 ✅, WS-17 ✅, WS-23 ✅, **WS-18 ✅**
 > Nguồn ràng buộc: `function-spec.md` CN-01.1→01.5, CN-01.8 · CN-02.1, 02.2, 02.3, 02.6, 02.7, 02.11 · `conventions.md` (luật) · `docs/coding-guide.md` (đường đi) · `architecture-review.md` §10 (quyết định Phase 1)
 > **Cách dùng**: giống Phase 0 — làm xong task nào tick `[x]`; xong 1 WS thì chạy mục "Kiểm chứng" rồi cập nhật bảng tổng + dòng trên cùng.
 > ⚠ **Luật 3 bước khi đóng WS** (thừa kế từ Phase 0): tick task → tick dòng nợ → **quay lại sửa mô tả đã lỗi thời ở WS đã giao nợ**. Bước 3 hay bị bỏ nhất.
@@ -33,14 +33,14 @@ Phase 0 dựng **cơ chế**; Phase 1 là lần đầu có **người dùng th�
 | **WS-16** | Public-web — hiển thị + ISR | 8 | **8** | ✅ **Xong 20/8** — ISR lần đầu có người đi qua | WS-13, WS-15 | 8 pd |
 | **WS-17** | Operations — Danh mục công trình | 12 | **12** | ✅ **Xong 21/8** — tầng 3 lần đầu chạy trên entity thật (trả nợ #57) | WS-12 | 14 pd |
 | **WS-18** | Operations — Lịch sử sửa chữa & sự cố | 11 | **11** | ✅ **Xong 21/8** — chuỗi suy ra trạng thái có hai mắt xích đầu; trả nợ 2 ô KPI của WS-23 | WS-17 | 10 pd |
-| **WS-19** | Operations — Tình hình vận hành + trạng thái dẫn xuất | 8 | 0 | ⬜ Chưa bắt đầu | WS-17, WS-18 | 7 pd |
+| **WS-19** | Operations — Tình hình vận hành + trạng thái dẫn xuất | 9 | 0 | ⬜ Chưa bắt đầu — **kế tiếp**; đã có định hướng + tech stack chi tiết | WS-17 ✅, WS-18 ✅ | 7 pd |
 | **WS-20** | FE admin — màn hình CMS | 13 | **13** | ✅ **Xong 20/8** — kéo lên trước WS-17 | WS-13→15 (API) | 12 pd |
-| **WS-21** | FE admin — màn hình Công trình | 10 | 0 | ⬜ Chưa bắt đầu | WS-17→19 (API) | 12 pd |
+| **WS-21** | FE admin — màn hình Công trình | 11 | 0 | ⬜ Chưa bắt đầu — nhận nợ #71 | WS-17 ✅, WS-18 ✅, WS-19 | 12 pd |
 | **WS-23** | ⭐ Nền biểu đồ + Dashboard điều hành (CN-02.5, CN-02.6) | 11 | **11** | ✅ **Xong 21/8** — mọi con số là số thật; ô chưa có nguồn nói thẳng | WS-17 | 11 pd |
-| **WS-22** | Kiểm thử, nghiệm thu Phase 1 & trả nợ | 8 | 0 | ⬜ Chưa bắt đầu | tất cả | 8 pd |
-| | **TỔNG** | **112** | **85** | | | **112 pd** |
+| **WS-22** | Kiểm thử, nghiệm thu Phase 1 & trả nợ | 10 | 0 | ⬜ Chưa bắt đầu | tất cả | 8 pd |
+| | **TỔNG** | **116** | **85** | | | **112 pd** |
 
-*(112 task triển khai + 17 mục Definition of Done ở cuối file.)*
+*(116 task triển khai + 17 mục Definition of Done ở cuối file. Số task nhích lên 112 → 116 ngày 21/8 khi viết định hướng chi tiết cho WS-19/21/22 — **tách task ra, không thêm phạm vi**: T19.4-b job đối soát, T21.10 trả nợ #71, T21.11 test FE, T22.9 kiểm kê ngoại lệ phạm vi, T22.10 rà Phần III của BOQ.)*
 
 **Trạng thái**: ⬜ Chưa bắt đầu · 🟡 Đang làm · ✅ Xong · ⏸ Tạm dừng · ❌ Bỏ
 
@@ -48,7 +48,17 @@ Phase 0 dựng **cơ chế**; Phase 1 là lần đầu có **người dùng th�
 
 ## ⭐ Đổi thứ tự thực hiện — chốt 20/8/2026
 
-**Thứ tự mới**: `WS-20` (màn hình CMS) → `WS-17` (danh mục công trình) → `WS-23` (nền biểu đồ + dashboard) → `WS-18`, `WS-19`, `WS-21` → `WS-22`.
+**Thứ tự mới**: `WS-20` (màn hình CMS) → `WS-17` (danh mục công trình) → `WS-23` (nền biểu đồ + dashboard) → `WS-18` ✅ → **`WS-19` → `WS-21` → `WS-22`**.
+
+### 🎯 Ba WS còn lại — định hướng một dòng mỗi cái *(viết chi tiết 21/8)*
+
+| WS | Bản chất của việc | Rủi ro lớn nhất | Đầu ra để biết là xong |
+|---|---|---|---|
+| **WS-19** · 7 pd | **Backend, ít mã, nhiều ràng buộc.** Một danh mục có CRUD + một bảng append-only + **một nhánh** chèn vào chuỗi suy ra trạng thái đã chạy sẵn | Đặt nhánh sai chỗ trong chuỗi ưu tiên → mã "Đóng kín" **che mất cờ đỏ** của sự cố đang mở, và cả hai giá trị đều "hợp lệ" nên không ai đi sửa | Thêm một mã mới **qua giao diện** → badge màu mới hiện trên bản đồ, **không build lại gì** (điều G4 đòi) |
+| **WS-21** · 12 pd | **Toàn bộ là FE, 0 phụ thuộc mới.** Ghép các mảnh đã dựng sẵn: `DataTable`, `AttachmentPanel`, `ApprovalActions`, `BaseChart`, Leaflet | Dựng lại thứ Core/WS-23 đã cho — bảng màu thứ hai, axios instance thứ hai, thư viện bảng thứ hai | Cán bộ kỹ thuật và trực ban làm hết việc trên giao diện, không phải gọi API bằng công cụ |
+| **WS-22** · 8 pd | **Đi tìm lỗi, không phải tick nốt.** Rà soát kiểu này ở Phase 0 tìm ra 4 lỗi thật, cả 4 đều im lặng | Coi nó là việc dọn dẹp cuối kỳ rồi làm cho xong | 17 mục DoD xanh **có số liệu ghi lại**, và mỗi dòng nợ hoặc đã đóng hoặc có *task nhận* đích danh |
+
+⚠ **WS-19 chặn WS-21** ở đúng hai màn hình (nhập nhanh tình hình vận hành, danh mục mã). Chín task còn lại của WS-21 chỉ cần API của WS-17/WS-18 — **đã có đủ**, nên hai WS này chồng lấn được nếu chạy hai người.
 
 | Vì sao | |
 |---|---|
@@ -417,18 +427,54 @@ Chữa hai tầng: (1) `ArticleHttpTest` + `ConstructionHttpTest` chuyển đăn
 
 ## WS-19 — Operations: Tình hình vận hành + trạng thái dẫn xuất · 7 pd
 
-**Tiên quyết**: WS-17, WS-18. **Đầu ra**: danh mục mã do Công ty tự vận hành; trạng thái công trình tính đúng theo 5 mức ưu tiên.
+**Tiên quyết**: WS-17, WS-18 *(cả hai ✅)*. **Đầu ra**: danh mục mã do Công ty tự vận hành; trạng thái công trình tính đúng cả **5** mức ưu tiên. **Nguồn ràng buộc**: `function-spec.md` **CN-02.11** (a)+(b) · CN-02.1 khối "Nguồn quyết định trạng thái" · chốt **G4**.
 
-- [ ] **T19.1** Migration `operation_status_codes` — CRUD đầy đủ: mã, tên, có tham số kèm + đơn vị, **màu hex**, **trạng thái công trình ánh xạ** (để trống = không tác động), thứ tự, hiện/ẩn. **Seed 4 mã** `MT` / `ĐK` / `ĐTTL` / `ĐTHL` — quy tắc 16: cấm hard-code enum
-- [ ] **T19.2** `construction_operation_status` **append, không ghi đè**; "tình hình hiện hành" = bản ghi mới nhất theo `effective_at`
-- [ ] **T19.3** Quy tắc, mã lỗi **đã có sẵn**: trùng mã → `OPS-2005` · mã có tham số mà không nhập giá trị → `OPS-2006` · xoá mã đã dùng → `OPS-2007` (chỉ được ẩn)
-- [ ] **T19.4** ⭐ Dịch vụ tính trạng thái dẫn xuất đúng **thứ tự ưu tiên CN-02.1**. ⚠ *Cập nhật 21/8*: (1) sự cố đang mở, (2) bảo trì đang thực hiện và (5) mặc định **đã chạy từ WS-18** — WS-19 chỉ thêm **mắt xích (4)** ánh xạ từ mã tình hình vận hành, vào **đúng `ConstructionStatusService.tinh()`**, không mở đường ghi mới. Phần còn thiếu thật sự của task này là **job đối soát định kỳ** (tính lại theo sự kiện đã có) — điểm nghiệp vụ **14**
-- [ ] **T19.5** `HydroAlertPort` ở `hydro/spi/` **trả rỗng ở Phase 1** — mức ưu tiên (3) có chỗ cắm sẵn, Phase 2 chỉ điền phần cài đặt. ⚠ Có bài kiểm cho nhánh "không có cảnh báo nào" để Phase 2 không phá vỡ nó
-- [ ] **T19.6** Nhập nhanh hàng loạt: một bảng liệt kê toàn bộ cống/trạm bơm, chọn mã + nhập giá trị + lưu một lần (màn hình trực ban đầu ca)
-- [ ] **T19.7** Cảnh báo mềm "quá N ngày chưa cập nhật" — N đọc từ `settings`
-- [ ] **T19.8** Test: **đủ 5 nhánh ưu tiên**, kể cả trường hợp hai nguồn cùng đòi đổi trạng thái · append giữ đúng lịch sử · thêm mã mới không cần deploy
+### Tech stack — không thêm phụ thuộc nào
+
+| Việc | Dùng cái đã có | Ghi chú |
+|---|---|---|
+| Bảng + seed | Flyway, thư mục `db/migration/**ops**/` | tệp kế tiếp `V202608xx1029__ops_operation_status.sql` — ⚠ tiền tố thư mục **không** trùng tên module (`coding-guide.md` §3.1) |
+| Danh mục có CRUD | JPA + `BaseEntity` | **không** `ScopedEntity`: danh mục mã là của toàn Công ty, giống `articles` (điểm nghiệp vụ 9) |
+| Bản ghi theo công trình | JPA + **`ScopedEntity`** + `@Filter` | sao chép `org_unit_id` từ công trình lúc ghi, **đúng như T18.2** |
+| Việc chạy nền (đối soát) | `JobPort` + bean cài `JobHandler` (P5) | ⛔ không tự dựng `@Scheduled` riêng — Core đã có hàng đợi + chống chạy chồng + retry |
+| Tham số N ngày | `SettingPort` | đọc **lúc chạy**, không chốt lúc dựng bean |
+| Nhật ký thay đổi | `@Audited(module="ops", …)` | tự động, không gọi tay |
+
+### Cấu trúc tệp dự kiến
+
+```
+operations/domain/       OperationStatusCode · ConstructionOperationStatus
+operations/infra/        OperationStatusCodeRepository · ConstructionOperationStatusRepository
+operations/application/  OperationStatusCodeService · OperationStatusService · StatusReconcileJob
+operations/api/          OperationStatusController · OperationStatusDtos
+```
+
+### Task
+
+- [ ] **T19.1** Migration `operation_status_codes` — CRUD đầy đủ: `code`, `name`, `has_parameter` + `parameter_unit`, **`color_hex`**, **`mapped_status`** (để trống = không tác động), `sort_order`, `active`. **Seed 4 mã** `MT` / `ĐK` / `ĐTTL` / `ĐTHL` — quy tắc 16: cấm hard-code enum.
+      ⚠ `color_hex` phải có **CHECK ở CSDL** (`~ '^#[0-9A-Fa-f]{6}$'`): màu này đi thẳng vào thuộc tính `style` của badge, một chuỗi tự do ở đó là một đường chèn CSS.
+      ⚠ `mapped_status` chỉ nhận đúng tập của `OperationalStatus` — CHECK ở CSDL **và** bài kiểm đối chiếu hai nơi, giống `MaintenanceState` ↔ `ck_maintenance_logs_status` đã làm ở WS-18
+- [ ] **T19.2** `construction_operation_status` **append, không ghi đè**. ⚠⚠ "Tình hình hiện hành" = bản ghi mới nhất theo **`effective_at`**, KHÔNG phải `created_at`: trực ban được nhập bù cho một thời điểm đã qua, và hai cột đó sẽ khác nhau đúng vào lúc đó. Chỉ mục `(construction_id, effective_at DESC)`
+- [ ] **T19.3** Quy tắc, mã lỗi **đã có sẵn**: trùng mã → `OPS-2005` · mã có tham số mà không nhập giá trị → `OPS-2006` · xoá mã đã dùng → `OPS-2007` (chỉ được ẩn).
+      ⚠ Chiều ngược lại cũng phải chặn: mã **không** có tham số mà client gửi giá trị kèm → cũng `OPS-2006`. Đây đúng bài học `severity` ↔ `work_type` của WS-18: ràng buộc một chiều để lại dữ liệu bẩn mà CSDL vẫn coi là hợp lệ
+- [ ] **T19.4** ⭐ Mắt xích **(4)** vào **đúng `ConstructionStatusService.tinh()`**, đặt **sau** sự cố/bảo trì và **trước** `BINH_THUONG`. ⚠ *Cập nhật 21/8*: (1) sự cố, (2) bảo trì và (5) mặc định **đã chạy từ WS-18** — WS-19 **không** viết lại chuỗi, chỉ chèn một nhánh.
+      ⛔ Thứ tự sai thì một cống mang mã "Đóng kín" sẽ **che mất cờ đỏ** của một sự cố đang mở — và không ai coi đó là lỗi để đi sửa, vì cả hai giá trị đều "hợp lệ"
+- [ ] **T19.4-b** ⭐⭐ **Job đối soát** (`JobHandler`, chu kỳ đọc từ `settings`) — trả **nợ #74**. Quét mọi công trình đang hoạt động, tính lại, ghi lại chỗ lệch kèm log WARN.
+      Ba đường làm cột `operational_status` lệch mà **sự kiện không bắt được**: (a) sửa dữ liệu thẳng bằng SQL · (b) khôi phục sao lưu · (c) **Admin đổi `mapped_status` hoặc ẩn một mã** đang gắn cho hàng chục công trình. Riêng (c) là chuyện nghiệp vụ bình thường, sẽ xảy ra — nên ngoài job, `OperationStatusCodeService` khi sửa ánh xạ phải **tính lại ngay** cho các công trình đang mang mã đó
+- [ ] **T19.5** `HydroAlertPort` ở `hydro/spi/` **trả rỗng ở Phase 1** — mức ưu tiên (3) có chỗ cắm sẵn, Phase 2 chỉ điền phần cài đặt.
+      ⚠ Phải có bài kiểm cho nhánh "không có cảnh báo nào", nếu không thì đây là **một cơ chế chưa ai đi qua** — luật 7 của `CLAUDE.md`. ⛔ Và chỉ khai đúng một phương thức đang có người gọi: SPI cố ý mỏng (`coding-guide.md` §1)
+- [ ] **T19.6** Nhập nhanh hàng loạt (API): một lượt `POST` nhận N dòng, **một giao dịch**. ⚠ Còn dòng lỗi thì **không dòng nào được ghi** + trả lỗi theo từng dòng — dùng lại đúng hình dạng phản hồi của `ConstructionImportService.ImportReport` (T17.9), đừng phát minh kiểu thứ hai
+- [ ] **T19.7** Cảnh báo mềm "quá N ngày chưa cập nhật" — `ops.operation-status.stale-after-days`, đọc **lúc chạy**.
+      ⛔ Chỉ seed khoá này **cùng lúc** với phần mã đọc nó (luật 12). "Mềm" nghĩa là một cột/nhãn trên danh sách, **không** bắn thông báo: cống ít thay đổi tình hình hằng tuần là chuyện thường, biến nó thành cảnh báo là dạy người dùng bỏ qua cảnh báo
+- [ ] **T19.8** Test: **đủ 5 nhánh ưu tiên**, kể cả trường hợp hai nguồn cùng đòi đổi trạng thái · `effective_at` lùi về quá khứ không làm đổi "hiện hành" · đổi ánh xạ của một mã → trạng thái công trình đổi theo · thêm mã mới **không cần deploy** · nhập hàng loạt hỏng một dòng → không dòng nào ghi
 
 **Kiểm chứng**: thêm một mã tình hình vận hành mới qua UI, gán cho một công trình → badge màu mới hiện ra, **không build lại gì**. Đây chính là điều G4 yêu cầu.
+
+### ⚠ Ba điểm dễ làm sai, ghi trước khi code
+
+1. **Danh mục mã KHÔNG thuộc phạm vi đơn vị, bản ghi theo công trình THÌ CÓ.** Gắn phạm vi cho danh mục là Xí nghiệp A không thấy mã của Xí nghiệp B trên cùng một biểu tổng hợp — đúng lỗi mà điểm nghiệp vụ 9 đã tránh cho `articles`.
+2. **Màu badge lấy từ API, cấm thêm vào `statusVocabulary.ts`.** Bảng màu trạng thái *công trình* nằm ở `design-tokens` (5 màu cố định, có ý nghĩa hệ thống); màu *mã vận hành* là **dữ liệu do Công ty nhập**. Trộn hai thứ là dựng bảng màu thứ hai — đúng thứ T23.1 đã cấm.
+3. **Không thêm đường ghi thứ hai vào `operational_status`.** `ConstructionStatusService` vẫn là nơi duy nhất; `OperationStatusService` ghi bản ghi tình hình rồi **gọi lại** `recomputeFor(...)`, y như `MaintenanceLogService` đang làm.
 
 ---
 
@@ -497,18 +543,72 @@ Câu hỏi khởi đầu rất hẹp: *"chèn ảnh vào đúng vị trí có ch
 
 ## WS-21 — FE admin: màn hình Công trình · 12 pd
 
-**Tiên quyết**: WS-17→19 có API.
+**Tiên quyết**: WS-17 ✅, WS-18 ✅, WS-19 (API tình hình vận hành). **Đầu ra**: Cán bộ kỹ thuật và trực ban làm việc được hoàn toàn trên giao diện, không phải gọi API bằng công cụ.
 
-- [ ] **T21.1** Danh sách công trình + bộ lọc + khối thống kê (CN-02.6)
-- [ ] **T21.2** Biểu mẫu hồ sơ **đổi theo loại công trình** (trạm bơm / cống / kênh / đê) — trường kỹ thuật khác nhau, không nhồi chung một form
-- [ ] **T21.3** Chọn toạ độ trên bản đồ (Leaflet + OSM) — **phần bản đồ tối thiểu**; GIS nhiều lớp là Phase 3
-- [ ] **T21.4** Tab tài liệu — dùng lại `AttachmentPanel`, thêm hiển thị hạn mức đã dùng
-- [ ] **T21.5** Timeline sửa chữa + biểu mẫu ghi nhận + nút chuyển trạng thái xử lý (render từ `allowedActions`)
-- [ ] **T21.6** Màn hình nhập nhanh tình hình vận hành dạng bảng — tối ưu cho thao tác bàn phím của trực ban
-- [ ] **T21.7** Danh mục mã tình hình vận hành: CRUD + chọn màu + xem trước badge
-- [ ] **T21.8** Nhật ký thay đổi hồ sơ (đọc `audit_logs`, hiển thị old/new)
-- [ ] **T21.9** Nhập Excel: tải lên → **xem trước kết quả chạy khô** → xác nhận
-- [ ] **T21.10** Test FE cho các hàm thuần: chọn biểu mẫu theo loại, kiểm tra định dạng lý trình `K..+..`, quy đổi hiển thị tiền
+**Nguồn ràng buộc**: `function-spec.md` CN-02.1, 02.2, 02.3, 02.6, 02.7, 02.11 · **`docs/ui-styles.md`** (bảng màu, typography, animation, responsive) · `conventions.md` §3 (FE) + §1.4.
+
+### Tech stack — dùng lại toàn bộ, thêm **0** phụ thuộc
+
+| Việc | Dùng cái đã có | Đường dẫn |
+|---|---|---|
+| Khung trang, route lười | `lazyPage` + `adminRoute(path, permission, …)` | `app/router.tsx` — route mới dưới `/van-hanh/…` |
+| Gọi API, envelope, refresh | `apiClient` **duy nhất** | `shared/apiClient.ts` — ⛔ không tạo instance axios thứ hai |
+| Trạng thái máy chủ | TanStack Query 5 | đã có ở `features/dashboard/useDashboard.ts` làm mẫu |
+| Bảng + phân trang máy chủ | `DataTable` + `usePagination` | `components/` |
+| Badge trạng thái | `StatusBadge` + `statusVocabulary` | `components/business/` |
+| Nút quy trình | **`ApprovalActions`** render từ `allowedActions` | ⛔ không tự suy từ trạng thái (`conventions.md` §3) |
+| Tệp đính kèm | `AttachmentPanel` | `components/business/` |
+| Chọn đơn vị | `OrgUnitTreeSelect` | `components/business/` |
+| Lọc theo kỳ | `DateRangeFilter` | `components/business/` |
+| Biểu đồ thống kê | `BaseChart` + `chartOptions` | `components/charts/` — nền WS-23 |
+| Bản đồ | **Leaflet 1.9 thuần** (đã cài), marker `divIcon` | mẫu ở `components/dashboard/ConstructionMap.tsx` — ⛔ **không** thêm `react-leaflet` |
+| Ngày giờ | `dayjs` + `formatDateTime` UTC+7 | `shared/format.ts` |
+
+⛔ **Không thêm thư viện bảng/biểu mẫu/lịch nào nữa.** AntD 5 đã có `Table`, `Form`, `DatePicker`, `ColorPicker`. Mỗi phụ thuộc là một dòng nữa phải theo dõi CVE — luật đã áp ở T20.13.
+
+### Task
+
+- [ ] **T21.1** Danh sách công trình + bộ lọc + khối thống kê (CN-02.6). Phân trang **phía máy chủ** (`PageUtils` đã có bảng trắng sắp xếp); ô lọc khớp đúng tham số của `GET /ops/constructions`. ⚠ Không thêm ô lọc "đơn vị của tôi" — tầng 3 áp tự động, một ô như vậy chỉ tạo ảo giác điều khiển được phạm vi
+- [ ] **T21.2** Biểu mẫu hồ sơ **đổi theo loại công trình** (trạm bơm / cống / kênh–đê) — ba khối thông số rời, gửi lên đúng một khối. ⚠ Đổi loại giữa chừng phải **xoá khối cũ khỏi payload**, nếu không BE trả `OPS-2009`.
+      ⚠ `totalInvestment` lưu **VND** (điểm nghiệp vụ 18); form nào hiện "triệu" thì quy đổi **ở FE**, và phải có bài kiểm cho hàm quy đổi đó.
+      ⛔ `operationalStatus` **không có trong form** — gửi lên là `OPS-3001`
+- [ ] **T21.3** Chọn toạ độ trên bản đồ (Leaflet + OSM) — nhập tay **hoặc** bấm trên bản đồ, hai chiều đồng bộ. **Phần bản đồ tối thiểu**; GIS nhiều lớp là Phase 3.
+      ⚠ Toạ độ đi **theo cặp** (`OPS-2010`): xoá một ô thì xoá cả hai. ⚠ Đổi host tile thì phải mở CSP ở `deploy/docker/admin-app.Dockerfile` — đã có bài đối chiếu hai nơi
+- [ ] **T21.4** Tab tài liệu — dùng lại `AttachmentPanel`, thêm **hạn mức đã dùng** (`usedBytes` / 500MB, CN-02.3) và ngày lập / ngày hết hiệu lực. Hiện con số ngay từ đầu chứ không đợi lượt tải thất bại
+- [ ] **T21.5** Tab lịch sử sửa chữa: timeline + biểu mẫu ghi nhận + nút chuyển trạng thái từ `allowedActions` + **tổng chi phí kỳ lấy từ `/cost-summary`**.
+      ⛔ **FE không cộng chi phí của các dòng đang hiển thị** (quy tắc 3): tổng của một *trang* khác tổng của một *kỳ*, và hai màn hình sẽ đưa ra hai con số cùng tên gọi.
+      ⚠ `total: null` hiện **"Chưa có số liệu"**, không hiện `0 ₫`.
+      ⚠ Hai nút tạo khác nhau theo quyền: *Ghi nhận sự cố* (`report-incident`) và *Thêm công việc* (`create`) — dùng `usePermission` để ẩn nút, nhưng nhớ đó **chỉ là UX** (tầng 1)
+- [ ] **T21.6** Màn hình nhập nhanh tình hình vận hành dạng bảng — tối ưu thao tác bàn phím của trực ban: Tab chạy ngang, Enter xuống dòng, một nút Lưu cho cả bảng.
+      ⚠ Ô "giá trị kèm" chỉ bật khi mã đang chọn có `hasParameter` — lấy từ API, không đoán theo tên mã.
+      ⚠ Lưu hỏng một dòng thì **không dòng nào ghi**: hiện lỗi ngay tại dòng đó, giữ nguyên những gì đã gõ
+- [ ] **T21.7** Danh mục mã tình hình vận hành: CRUD + `ColorPicker` của AntD + **xem trước badge ngay cạnh ô màu**. ⚠ Mã đã dùng chỉ **ẩn** được (`OPS-2007`) — nút Xoá phải đổi thành "Ẩn" chứ không phải bấm rồi nhận lỗi
+- [ ] **T21.8** Nhật ký thay đổi hồ sơ (CN-02.7) — đọc `audit_logs` qua `/change-log`, hiển thị old/new. ⚠ Endpoint **bắt buộc** truyền khoảng thời gian (bảng phân mảnh theo tháng) và cận dưới phải lùi về **đầu tháng** — xem `architecture-review.md` §10.32
+- [ ] **T21.9** Nhập Excel: tải lên → **xem trước kết quả chạy khô** → xác nhận. Hai nút tách bạch; ⛔ không gộp thành một nút "Nhập" tự chạy khô rồi tự áp — người dùng phải nhìn thấy sẽ thêm/sửa bao nhiêu dòng trước khi đồng ý
+- [ ] **T21.10** ⭐ **Trả nợ #71**: bấm cột/lát biểu đồ trên dashboard → mở danh sách đã lọc; popup marker có nút "Xem chi tiết" (M2.10). Phần khó (dịch ngược nhãn tiếng Việt → mã enum) đã có ở `statusVocabulary`; còn đúng một dòng `navigate`
+- [ ] **T21.11** Test FE cho các **hàm thuần**: chọn khối thông số theo loại · kiểm định dạng lý trình `K<km>+<m>` · quy đổi VND ↔ triệu · dựng payload nhập hàng loạt.
+      ⚠ Không viết bài kiểm dựng cả trang chỉ để khẳng định một nhãn — Phase 1 đã có 108 bài FE và giá trị của chúng nằm ở các hàm thuần
+
+### ⚠ Bốn cái bẫy đã trả giá ở WS-20, áp thẳng vào đây
+
+1. **`useEffect` đổ dữ liệu vào biểu mẫu** → màn hình vẽ hai lượt, người dùng gõ vào khoảng giữa thì mất chữ. Tách vỏ ngoài nạp dữ liệu / lớp trong dựng form với `initialValues` + `key`.
+2. **`useRef` + `useEffect([])` để đo phần tử** → thẻ chưa vào DOM lúc effect chạy và deps rỗng nghĩa là không bao giờ chạy lại. Dùng **ref dạng hàm** (`gridLayout` đã sửa ở T23.11).
+3. **Xoá hàng loạt chạy tuần tự**, không bắn hai chục giao dịch song song.
+4. **Số 0 và "chưa có" là hai câu khác nhau** — ô nào chưa có nguồn thì nói thẳng, đúng ràng buộc đã ép ở hàm dựng `Kpi`.
+
+### Định hướng route
+
+```
+/van-hanh/cong-trinh              danh sách + thống kê      ops:construction:view
+/van-hanh/cong-trinh/:id          hồ sơ (tab: thông tin · tài liệu · sửa chữa · nhật ký)
+/van-hanh/tinh-hinh-van-hanh      nhập nhanh dạng bảng      ops:operation-status:update
+/van-hanh/ma-tinh-hinh            danh mục mã               ops:operation-status-code:manage
+/van-hanh/dieu-hanh               dashboard (đã có, WS-23)
+```
+
+⚠ **Chú ý đúng tên mã quyền**: quản lý *danh mục mã* là `ops:operation-status-code:manage` (tài nguyên **`operation-status-code`**), khác hẳn `ops:operation-status:update` là *cập nhật tình hình của một công trình*. Cả hai **đã seed từ WS-2** và cấp đúng theo ma trận §6: `manage` chỉ SUPER_ADMIN + ADMIN; `update` cấp cho cả Kỹ thuật, Quản lý XN và Cán bộ vận hành.
+
+⛔ Dùng nhầm `update` cho màn hình danh mục là **cấp quyền quản trị cho trực ban** — và triệu chứng duy nhất là một ngày nào đó bảng mã bị sửa mà không ai biết ai sửa. WS-19 không phải thêm quyền mới; việc của nó là **gắn đúng mã đã có** vào `@RequirePermission`.
 
 ---
 
@@ -562,14 +662,42 @@ Câu hỏi khởi đầu rất hẹp: *"chèn ảnh vào đúng vị trí có ch
 
 **Tiên quyết**: tất cả. **Đầu ra**: Phase 1 đóng được, tài liệu khớp thực tế, nợ đã trả hoặc đã ghi rõ ai nhận.
 
-- [ ] **T22.1** Cập nhật `RbacMatrixTest` nếu Phase 1 thêm mã quyền (đối chiếu trên DB thật với `function-spec.md` §6)
-- [ ] **T22.2** ⭐ **Nâng cổng bao phủ tầng domain** — trả nợ #22. Ngưỡng `0.18` của Phase 0 là "mức đo được khi domain gần như rỗng"; nay có quy tắc nghiệp vụ thật thì phải nâng
-- [ ] **T22.3** Luật ArchUnit áp cho module nghiệp vụ: entity không ra khỏi `application` · `@Transactional` chỉ ở `application` · controller không gọi repository. **Kèm bài chứng minh từng luật bắt được vi phạm**
-- [ ] **T22.4** Test tích hợp đầu-cuối hai luồng: bài viết (soạn→cổng) và sửa chữa (ghi sự cố→trạng thái công trình đổi→đóng)
-- [ ] **T22.5** Đo hiệu năng: danh sách công trình có phân trang, trang chủ cổng (**< 3s**, NFR-02)
-- [ ] **T22.6** Bổ sung `docs/coding-guide.md` bằng bẫy mới gặp trong Phase 1
-- [ ] **T22.7** Rà soát nợ + đồng bộ tài liệu (`function-spec.md`, `implement.md`, `conventions.md`, `CLAUDE.md`)
-- [ ] **T22.8** ⭐ **Chạy tay lại mọi thứ đã tick.** Bài học đắt nhất Phase 0: rà soát kiểu này tìm ra 4 lỗi thật, cả 4 đều im lặng, trong đó có cơ chế sao lưu chưa từng sinh ra một tệp nào
+> ⚠⚠ **Đây không phải WS "dọn dẹp cuối kỳ".** Phase 0 kết thúc với **5 cơ chế xanh mà không chạy** và một lưới an toàn chưa từng sinh ra tệp nào — tất cả đều lộ ra ở đúng lượt rà soát kiểu này. Ngân sách 8 pd là để **tìm lỗi**, không phải để tick nốt.
+
+### Task
+
+- [ ] **T22.1** `RbacMatrixTest` đối chiếu trên CSDL thật với `function-spec.md` §6. ⚠ Phase 1 **không** thêm mã quyền nào — 88 mã của WS-2 đủ dùng cho cả CMS lẫn Operations. Việc cần rà là **mã nào vẫn chưa có người đọc**: tới hết WS-18 thì `ops:operation-status-code:manage`, `ops:gis-layer:manage`, `ops:report:export` còn nằm trong nhóm đó. Quyền chưa ai đọc cũng là công tắc chết, chỉ khác là nó nằm ở bảng phân quyền
+- [ ] **T22.2** ⭐ **Nâng cổng bao phủ tầng domain** — trả **nợ #22**. Ngưỡng `0.18` của Phase 0 là "mức đo được khi domain gần như rỗng"; nay `operations.domain` có `Construction`, `MaintenanceLog`, `MaintenanceState`, `OperationStatusCode` với quy tắc nghiệp vụ thật.
+      ⚠ Nâng tới mức **đo được rồi mới chốt**, không đặt một con số cho đẹp: một ngưỡng không ai đạt được sẽ bị hạ xuống ở PR kế tiếp, và từ đó nó là số trang trí
+- [ ] **T22.3** Luật ArchUnit cho module nghiệp vụ: entity không ra khỏi `application` · `@Transactional` chỉ ở `application` · controller không gọi repository · **cấm `float/double`** cho số đo và tiền.
+      ⛔ **Mỗi luật phải kèm bài chứng minh nó bắt được vi phạm** (`conventions.md` §1.5). Suốt Phase 0, bộ máy JUnit của ArchUnit tìm ra **0 bài kiểm** mà vẫn xanh
+- [ ] **T22.4** Test tích hợp đầu-cuối **ba** luồng, đều **qua HTTP**:
+      (a) bài viết: soạn → gửi duyệt → duyệt → hiện trên cổng;
+      (b) sửa chữa: ghi sự cố → công trình đỏ → đóng → về Bình thường *(đã có ở `MaintenanceLogHttpTest`, WS-22 chỉ nối thêm vế cổng/dashboard)*;
+      (c) tình hình vận hành: thêm mã mới → gán → badge đổi màu → đổi ánh xạ → trạng thái công trình đổi theo
+- [ ] **T22.5** Đo hiệu năng **có số liệu ghi lại**: danh sách công trình phân trang · trang chủ cổng (**< 3s**, NFR-02) · dashboard (P95 < 3s, NFR-02).
+      ⚠ Đo trên `make dev-docker` với **dữ liệu có khối lượng**, không phải trên 2 bản ghi kiểm thử. ⛔ Nhưng vẫn **cấm seed dữ liệu công trình "cho đẹp"** — sinh dữ liệu đo bằng script chạy lúc đo rồi xoá, không đưa vào migration
+- [ ] **T22.6** Bổ sung `docs/coding-guide.md` bằng bẫy mới gặp trong Phase 1 *(WS-18 đã thêm 4 dòng — tiếp tục)*
+- [ ] **T22.7** Rà soát nợ + đồng bộ tài liệu (`function-spec.md`, `implement.md`, `conventions.md`, `CLAUDE.md`). ⚠ **Luật 3 bước**: tick task → tick dòng nợ → **quay lại sửa mô tả đã lỗi thời ở WS đã giao nợ**. Bước 3 hay bị bỏ nhất
+- [ ] **T22.8** ⭐⭐ **Chạy tay lại mọi thứ đã tick**, theo bốn câu hỏi cố định:
+      1. Cơ chế canh gác nào tôi vừa thêm — đã có bài chứng minh nó *bắt được* vi phạm chưa, hay chỉ chứng minh nó không đỏ?
+      2. Chỗ nào mock đúng ranh giới chạm ra ngoài — đã có một bài đi qua thật chưa?
+      3. Công tắc / cột / tham số nào **chưa ai đọc**?
+      4. Ô số liệu nào đang trả `0` trong khi thật ra là **chưa có nguồn**?
+- [ ] **T22.9** ⭐ **Quét lại toàn bộ đường ghi có thể lách phạm vi đơn vị.** Phase 1 mở **ba** câu native cố ý bỏ qua bộ lọc (`codesStartingWith`, `demBanGhiDangMo`, `briefsByIds`) và một `findById` (`recomputeFor`). Cả bốn đều có lý do ghi rõ — nhưng bốn ngoại lệ là ngưỡng bắt đầu cần một bản kiểm kê, không phải bốn chú thích rải rác
+- [ ] **T22.10** Rà **`business-open-questions.md` Phần III**: chức năng nào của Phase 1 còn chứa điểm chưa chốt thì ghi rõ nghiệm thu tới đâu. G13/G14 chặn **nghiệm thu** WS-15/WS-16 — không có bộ nhận diện và cây danh mục thì cổng rỗng, và một cổng rỗng thì không nghiệm thu được dù mã đúng hết
+
+### ⚠ Danh sách nợ WS-22 phải đóng hoặc chuyển tiếp có tên
+
+| Nợ | Nội dung | Kỳ vọng ở WS-22 |
+|:-:|---|---|
+| **#22** | Ngưỡng bao phủ domain `0.18` | **Đóng** — T22.2 |
+| **#65** | `MediaLibraryTest` / `SiteLayoutTest` chưa đi qua HTTP | **Đóng** — phần bài viết đã trả 21/8, còn hai lớp |
+| **#68** | Bài viết tạo trước WS-16 chưa qua `HtmlSanitizer` | **Đóng** — lệnh rà một lượt `article_versions`, in ra bài nào bị đổi |
+| **#71** | Bấm biểu đồ → danh sách; popup marker → chi tiết | **Đóng ở WS-21/T21.10**, WS-22 chỉ xác nhận |
+| **#74** | Job đối soát trạng thái dẫn xuất | **Đóng ở WS-19/T19.4-b**, WS-22 chỉ xác nhận |
+| #20 · #69 | ClamAV trong compose · CSP cổng công khai | ⏭ **Chuyển WS-11** (Phase 0, cùng nginx + TLS) — ghi rõ, không để mồ côi |
+| #35 · #60 · #62 · #70 · #72 · #58 · #59 | quên mật khẩu · widget thuỷ văn · ảnh phái sinh · khử trùng lượt xem · `optionDuong` · `HydroAlertPort` · nút từ cảnh báo | ⏭ **Phase 2** — mỗi dòng phải có *task nhận*, không chỉ có chữ "Phase 2" |
 
 ---
 
@@ -625,6 +753,7 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 1 hoàn thành:
 | 58 | `HydroAlertPort` mới có phần khai, chưa có phần cài | WS-19/T19.5 | Phase 2 (`hydro`) | ⬜ Chờ |
 | 59 | Nút "Tạo bản ghi khắc phục" từ màn hình cảnh báo. ✅ *21/8*: cột `alert_event_public_id` và đường điền qua API **đã có**; còn thiếu đúng phần giao diện bên MOD-03 | WS-18/T18.10 | Phase 2 | ⬜ Chờ |
 | ~~73~~ | ~~Hai ô KPI `incident.open` + `maintenance.in-progress` trả rỗng kèm hẹn "WS-18 (CN-02.2)"~~ | WS-23/T23.7 | WS-18 | ✅ **Trả 21/8** — có nguồn thật; `DashboardHttpTest` tách thành hai bài: hai ô thuỷ văn vẫn phải rỗng-kèm-lý-do, hai ô này phải là **số** |
+| **75** | **Ba mã quyền chưa có người đọc**: `ops:operation-status-code:manage` (WS-19 sẽ dùng) · `ops:gis-layer:manage` (GIS nhiều lớp — Phase 3) · `ops:report:export` (kết xuất báo cáo — Phase 3). Quyền chưa ai đọc cũng là công tắc chết, chỉ khác là nó nằm ở bảng phân quyền: `RbacMatrixTest` xanh vì nó đối chiếu *seed ↔ spec*, không hỏi *có ai gọi tới không* | Rà soát 21/8 | **WS-22/T22.1** — ghi rõ mã nào chờ WS nào, mã nào nên xoá | ⬜ Chờ |
 | **74** | **Job đối soát trạng thái dẫn xuất** chưa có. Hiện trạng thái tính lại **theo sự kiện** ở mọi đường ghi bản ghi sửa chữa và mọi đường ghi hồ sơ công trình — đủ đúng, nhưng một lượt ghi thẳng CSDL (nhập liệu tay, khôi phục sao lưu) sẽ để cột lệch mà không ai biết | WS-18 | **WS-19/T19.4** | ⬜ Chờ |
 | 60 | Widget thuỷ văn ở cấu hình giao diện. ⚠ **Chốt 19/8: KHÔNG seed tham số nào bây giờ** — công tắc chưa ai đọc là lỗi vừa sửa ở WS-12. Phase 2 dựng cả tham số lẫn phần đọc **cùng lúc** | WS-15/T15.5 | Phase 2 | ⬜ Chờ |
 | ~~61~~ | ~~`construction_clusters` — chờ **G15**~~ | WS-17/T17.11 | — | ✅ **Đóng 19/8** — G15 trả lời trong ngày, việc dựng bảng nay nằm thẳng trong T17.11 |
