@@ -1,4 +1,5 @@
-> Cập nhật **2026-08-19** (bản 3 — mở 3 mục mới khi lập kế hoạch Phase 1: **G13, G14, G15**; **G15 đóng ngay trong ngày**).
+> Cập nhật **2026-08-21** (bản 4 — **nén Phần I-A**; xem lý do ngay đầu phần đó. Bản 3 ngày 19/8 mở 3 mục mới khi lập kế hoạch Phase 1: **G13, G14, G15**; **G15 đóng ngay trong ngày**).
+> ⛔ **Phần I-B KHÔNG nén và không được nén**: câu trả lời đợt 2 nhận **qua trao đổi trực tiếp**, không có văn bản gốc — đây là **bản ghi duy nhất** của những gì Công ty đã chốt.
 > ✅ **ĐỢT 1 (mục A–F) ĐÃ ĐÓNG** — Công ty trả lời đầy đủ ngày 12/8/2026 (`docs_origin/Trả lời Business Open Questions 12.8.2026.docx.md`), đã đồng bộ vào `function-spec.md`, `implement.md`, `architecture-review.md` §8.
 > ✅ **ĐỢT 2 — ĐÃ ĐÓNG 9/12 mục**: **G1, G2, G3 (phần lớn), G4, G7, G8b, G9, G11, G12** → xem **Phần I-B**, đã đồng bộ vào `function-spec.md` v2.2.
 > ⬜ **CÒN MỞ 8 mục**: **G3-a** (lượng mưa) · **G5** (mã số hệ thống văn bản) · **G6** (mẫu 2C-BNV) · **G8** (tuyến sông/lý trình/tọa độ + danh mục công trình) · **G9-a** (bộ mức ngưỡng) · **G10** (duyệt format báo cáo) · ⭐ **G13** (bộ nhận diện cổng) · ⭐ **G14** (sơ đồ danh mục/menu cổng) → xem **Phần II**.
@@ -8,43 +9,45 @@
 
 ---
 
-## PHẦN I-A — ĐỢT 1: KẾT QUẢ ĐÃ CHỐT (đóng)
+## PHẦN I-A — ĐỢT 1 (A–F): ĐÃ ĐÓNG 12/8/2026
 
-| Mã  | Nội dung hỏi                                   | Công ty trả lời                                                                                                        | Tác động đã áp dụng                                                                                                                              |
-| --- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| A1  | Quản lý kế hoạch tưới tiêu / vụ mùa            | **Tạm bỏ nghiệp vụ này**                                                                                               | Bỏ CN-02.11 dự kiến; bỏ BC-04, BC-07; M3.18 chuyển thành "so sánh theo kỳ" không cần bảng kế hoạch                                               |
-| A2b | Quan hệ điểm đo ↔ công trình                   | Đồng ý đề xuất                                                                                                         | `station_constructions` n–n có vai trò (TL/HL/Bể hút/Mưa) — CN-03.1                                                                              |
-| A3  | Hồ sơ kênh mương / đê điều                     | Đồng ý đề xuất                                                                                                         | Hồ sơ tối thiểu + layer GIS LineString; bảng `canal_specs`/`dyke_specs` chỉ khi cần                                                              |
-| B1  | Nhật ký vận hành theo ngày hay ca              | **Bỏ nhật ký vận hành**                                                                                                | ❌ Xóa CN-02.8; bỏ `operation_logs`, `machine_run_records`, workflow duyệt nhật ký, error code OPS-2001/2003                                     |
-| B2  | Nhập bù quá 3 ngày                             | Đồng ý đề xuất                                                                                                         | Không còn ý nghĩa sau B1                                                                                                                         |
-| B3  | Ủy quyền duyệt khi quản lý vắng                | Đồng ý đề xuất                                                                                                         | Ủy quyền có thời hạn + audit "duyệt theo ủy quyền của X" — áp dụng cho nghỉ phép (CN-04.9)                                                       |
-| B4  | Trạng thái tổ máy realtime                     | **Tạm bỏ**                                                                                                             | Không hứa realtime tổ máy; GIS popup/KPI dùng trạng thái công trình cập nhật thủ công + nhãn thời điểm                                           |
-| B5  | Diện tích tưới tiêu                            | **Bỏ chức năng liên quan**                                                                                             | Bỏ trường "Diện tích tưới tiêu (ha)"; bỏ mọi thống kê/công thức theo diện tích                                                                   |
-| B6  | Chuẩn hóa đơn vị đo                            | Đồng ý đề xuất                                                                                                         | m (scale 3) / mm (1) / m³/s (3); adapter quy đổi lúc ingest — **nguồn trả cm → chia 100**                                                        |
-| B7  | SMS Gateway                                    | **Trước mắt thông báo qua Website** tới Ban điều hành + người quản lý công trình trực tiếp; SMS cấu hình giai đoạn sau | Kênh chính = in-app + email; `SmsSender` giữ dạng interface, mặc định tắt                                                                        |
-| B8  | Màn hình lớn Phòng điều hành                   | **TV 85" 4K**, có thể kèm máy chiếu 2K / Full HD+                                                                      | Wall mode base 3840×2160, test fallback 1920×1080 & 2560×1440                                                                                    |
-| C1  | Phép năm: pro-rata, mốc thâm niên              | Đồng ý, **nhưng để ở biến cấu hình**, Admin điều chỉnh                                                                 | Toàn bộ thông số phép năm vào `settings` + UI                                                                                                    |
-| C2  | Luồng duyệt phép mấy cấp                       | Đồng ý đề xuất                                                                                                         | 1 cấp mặc định; cấu hình thêm cấp 2 theo ngưỡng ngày (mặc định tắt)                                                                              |
-| C3  | Phạm vi tài khoản CBNV                         | Đồng ý đề xuất                                                                                                         | Cấp tài khoản toàn bộ; có "người tạo hộ"                                                                                                         |
-| C4  | Lương — có tính lương không                    | Đồng ý đề xuất                                                                                                         | Chỉ lưu trữ (mã hóa 🔒), không tính lương, không chấm công                                                                                       |
-| D1  | Bình luận công khai                            | Đồng ý đề xuất                                                                                                         | Phase 1 tắt bình luận tự do; chỉ khảo sát/góp ý kiểm duyệt 100%                                                                                  |
-| D2  | Số cấp vai trò biên tập                        | Đồng ý đề xuất                                                                                                         | 2 vai trò: Biên tập viên + Quản trị nội dung                                                                                                     |
-| D3  | Đa ngôn ngữ                                    | **Chỉ tiếng Việt**                                                                                                     | Không i18n nội dung                                                                                                                              |
-| D4  | Migrate website cũ                             | **Không migrate, làm thủ công**                                                                                        | Bỏ hạng mục migration khỏi kế hoạch go-live                                                                                                      |
-| D5  | Retention dữ liệu                              | Mặc định **5 năm**, đưa vào **biến config**                                                                            | `hydro.retention.detail-years`                                                                                                                   |
-| E1  | Backup/Restore qua UI                          | Đã chốt trước đó                                                                                                       | Có nút restore + bảo vệ nhiều lớp                                                                                                                |
-| E3  | Tích hợp hệ thống văn bản                      | **Hệ thống độc lập** — lưu account/password của user, cho **1 link tự động đăng nhập**                                 | ⭐ CN-01.7 đổi bản chất: bỏ đồng bộ danh sách văn bản + bảng `external_documents`; thêm `external_system_credentials` (AES-256-GCM) + auto-login |
-| E3  | Mẫu báo cáo                                    | **Đề xuất format để Công ty xây dựng**                                                                                 | → `report-templates-proposal.md` (đã soạn, chờ duyệt — G10)                                                                                      |
-| E3  | Tài liệu API telemetry                         | **ĐÃ CÓ** (API mực nước, lượng mưa)                                                                                    | ✅ Đã đấu nối thành công: `http://songnhue.bhh40.net/api/getmn.aspx?key=<MÃ_SỐ>;` (**dấu `;` bắt buộc**). Chi tiết nhịp gọi + giới hạn nguồn: **Phần I-B (G3)** |
-| E3  | Số lượng điểm đo/công trình/user               | Đưa vào **biến config**                                                                                                | Không giới hạn cứng trong code; giới hạn qua `settings`                                                                                          |
-| F1  | Scope nhật ký/sự cố/báo cáo vận hành           | **Bỏ nhật ký vận hành**, thay bằng **Lịch sử các lần sửa chữa** do Admin/người được phân quyền nhập                    | CN-02.2 nâng thành chức năng ghi nhận chính; BC-01/02/03/08 bỏ, thêm BC-09/BC-10. Phần sự cố **đã chốt ở G1** (Phần I-B) — gộp vào CN-02.2       |
-| F2  | Trạng thái bản ghi thủy văn                    | Chỉ **2 mức: Hợp lệ / Nghi ngờ**. Nghi ngờ **vẫn ghi data** + thông báo để quản trị **duyệt/xóa**                      | CN-03.2 sửa lại; thêm màn hình "Dữ liệu nghi ngờ"                                                                                                |
-| F3  | Lưu vực / khu tưới tiêu                        | **Trường tham chiếu văn bản**                                                                                          | Bỏ CRUD danh mục + bảng `irrigation_zones` + polygon GIS riêng                                                                                   |
-| F4  | Công cụ GIS đo & xuất bản đồ                   | Đồng ý                                                                                                                 | Giữ M2.12, M2.13                                                                                                                                 |
-| F5  | Giờ hành chính (cảnh báo đăng nhập bất thường) | **Biến config, mặc định 8h–17h**                                                                                       | Vào danh mục cấu hình CN-05.3                                                                                                                    |
-| F6  | Restore UI + 2FA                               | Đồng ý, chấp nhận ràng buộc                                                                                            | Giữ nguyên thiết kế `architecture-review.md` §7.3                                                                                                |
-| F7  | Shapefile                                      | Đồng ý đề xuất                                                                                                         | v1 nhận GeoJSON/KMZ; import Shapefile → convert GeoJSON                                                                                          |
-| F8  | NFR lệch giữa SRS và nội bộ                    | Đồng ý đề xuất                                                                                                         | Lấy mức chặt hơn làm mục tiêu nội bộ                                                                                                             |
+> 📌 **Bản này đã nén ngày 21/8/2026.** Bảng đầy đủ 33 dòng trước đây có hai cột, cả hai đều có nguồn khác giữ nguyên vẹn nên không cần lưu hai lần:
+> **Công ty trả lời** → nguyên văn ở `docs_origin/Trả lời Business Open Questions 12.8.2026.docx.md` · **Tác động đã áp dụng** → đã ngấm vào `function-spec.md` v2.2, mỗi chức năng bị bỏ đều có bia mộ tại chỗ (CN-02.8, CN-02.9, `operation_logs`, `irrigation_zones`…).
+> Giữ lại ở đây phần **không suy ra được từ hai nguồn kia**: quyết định nào **cắt bỏ phạm vi** — vì đó là câu hỏi sẽ được hỏi lại lúc nghiệm thu ("vì sao hệ thống không có chức năng X?").
+
+### Đã CẮT khỏi phạm vi — nêu rõ để trả lời được lúc nghiệm thu
+
+| Mã | Công ty quyết | Hệ quả trong hệ thống |
+|---|---|---|
+| **A1** | Tạm bỏ quản lý kế hoạch tưới tiêu / vụ mùa | Bỏ BC-04, BC-07; M3.18 thành "so sánh theo kỳ", không có bảng kế hoạch |
+| **B1 · F1** | **Bỏ nhật ký vận hành**, thay bằng **Lịch sử các lần sửa chữa** do Admin/người được phân quyền nhập | ❌ CN-02.8; bỏ `operation_logs`, `machine_run_records`, workflow duyệt nhật ký, mã lỗi OPS-2001/2003. CN-02.2 nâng thành chức năng ghi nhận chính; bỏ BC-01/02/03/08, thêm BC-09/BC-10 |
+| **B4** | Tạm bỏ trạng thái tổ máy realtime | Không hứa realtime; GIS popup/KPI dùng trạng thái công trình + nhãn thời điểm |
+| **B5** | Bỏ chức năng liên quan diện tích tưới tiêu | Bỏ trường "Diện tích tưới tiêu (ha)" và mọi thống kê/công thức theo diện tích |
+| **B7** | Trước mắt **thông báo qua Website** tới Ban điều hành + người quản lý công trình trực tiếp; SMS để giai đoạn sau | Kênh chính = in-app + email; `SmsSender` giữ dạng interface, mặc định tắt |
+| **D1** | — | Phase 1 tắt bình luận tự do; chỉ khảo sát/góp ý kiểm duyệt 100% |
+| **D3** | **Chỉ tiếng Việt** | Không i18n nội dung |
+| **D4** | **Không migrate website cũ**, làm thủ công | Bỏ hạng mục migration khỏi kế hoạch go-live |
+| **F3** | Lưu vực / khu tưới tiêu = **trường tham chiếu văn bản** | Bỏ CRUD danh mục, bảng `irrigation_zones`, polygon GIS riêng |
+| **C4** | Chỉ lưu trữ thông tin lương (mã hoá 🔒) | **Không** tính lương, **không** chấm công |
+
+### Đã ĐỔI bản chất
+
+| Mã | Công ty quyết | Hệ quả |
+|---|---|---|
+| **E3** | Hệ thống văn bản điều hành là **hệ thống độc lập** — lưu account/password của user, cho **1 link tự động đăng nhập** | ⭐ CN-01.7 đổi bản chất: bỏ đồng bộ danh sách văn bản + bảng `external_documents`; thêm `external_system_credentials` (AES-256-GCM) + auto-login. *(Chi tiết cách đăng nhập còn mở — **G5**)* |
+| **F2** | Bản ghi thuỷ văn chỉ **2 mức: Hợp lệ / Nghi ngờ**; Nghi ngờ **vẫn ghi data** + báo để quản trị duyệt/xoá | CN-03.2 sửa lại; thêm màn hình "Dữ liệu nghi ngờ". ⚠ Kéo theo quy tắc 14 ở `CLAUDE.md`: mọi truy vấn báo cáo/alert **phải lọc `HOP_LE`** |
+| **B8** | Màn hình lớn = **TV 85" 4K**, có thể kèm máy chiếu 2K / Full HD+ | Wall mode base 3840×2160, kiểm fallback 1920×1080 và 2560×1440 |
+| **E3** | Mẫu báo cáo: **đề xuất format để Công ty xây dựng** | → `report-templates-proposal.md`, chờ duyệt (**G10**) |
+| **E3** | Tài liệu API telemetry: **đã có** | ✅ Đã đấu nối. Nhịp gọi + giới hạn nguồn: **Phần I-B (G3)** |
+
+### Đưa vào biến cấu hình thay vì chốt cứng
+
+**C1** thông số phép năm · **D5** retention mặc định 5 năm (`hydro.retention.detail-years`) · **E3** số lượng điểm đo/công trình/user · **F5** giờ hành chính mặc định 8h–17h.
+→ Tất cả nằm ở bảng `settings` có UI sửa (quy tắc 12 ở `CLAUDE.md`).
+
+### Đồng ý theo đề xuất, không đổi gì so với thiết kế đã trình
+
+**A2b** quan hệ điểm đo ↔ công trình n–n có vai trò (CN-03.1) · **A3** hồ sơ kênh mương/đê điều + layer GIS LineString · **B2** nhập bù (không còn ý nghĩa sau B1) · **B3** uỷ quyền duyệt có thời hạn + audit (CN-04.9) · **B6** chuẩn hoá đơn vị đo — m(3)/mm(1)/m³/s(3), **nguồn trả cm → chia 100** · **C2** duyệt phép 1 cấp, cấp 2 theo ngưỡng ngày mặc định tắt · **C3** cấp tài khoản toàn bộ CBNV, có "người tạo hộ" · **D2** 2 vai trò biên tập · **E1 · F6** Restore qua UI + 2FA + xác nhận nhiều bước (`architecture-review.md` §7.3) · **F4** giữ M2.12, M2.13 · **F7** v1 nhận GeoJSON/KMZ, Shapefile → convert · **F8** NFR lấy mức chặt hơn làm mục tiêu nội bộ.
 
 ---
 

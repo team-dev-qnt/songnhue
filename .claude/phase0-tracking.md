@@ -1,6 +1,6 @@
 # PHASE 0 — CORE PLATFORM · BẢNG THEO DÕI TIẾN ĐỘ
 
-> **Cập nhật lần cuối**: 2026-08-17 · **Tiến độ: 96/107 task (90%)** · **DoD: 17/21** · Trạng thái: 🟡 Đang làm (xong WS-1→WS-6, WS-8, WS-9, WS-10; WS-7 còn T7.7; **chỉ còn WS-11**)
+> **Cập nhật lần cuối**: 2026-08-21 · **Tiến độ: 97/107 task (91%)** · **DoD: 17/21** · Trạng thái: 🟡 Đang làm (xong WS-1→WS-6, WS-8, WS-9, WS-10; WS-7 còn T7.7; **chỉ còn WS-11**, trong đó T11.1 đã xong)
 > Nguồn ràng buộc: `conventions.md` (coding/security) · `architecture-review.md` §6, §9 (kiến trúc đã chốt) · `function-spec.md` (nghiệp vụ MOD-05)
 > **Cách dùng**: làm xong task nào tick `[x]` task đó; xong 1 WS thì chạy mục "Kiểm chứng" của WS rồi cập nhật bảng tổng + dòng "Cập nhật lần cuối" ở trên.
 > ⚠ **Xong 1 WS còn phải đóng nợ**: xem luật 3 bước ở mục **"Sổ nợ liên WS"** gần cuối file — tick dòng nợ, và **quay lại sửa mô tả đã lỗi thời ở WS đã giao nợ**.
@@ -22,8 +22,8 @@
 | **WS-8** | FE — admin-app | 11 | **11** | ✅ **Xong** (17/8) | WS-4→6 (API) | 15 pd |
 | **WS-9** | FE — public-web | 5 | **5** | ✅ **Xong** (17/8) | WS-1 | 5 pd |
 | **WS-10** | Test & CI | 7 | **7** | ✅ **Xong** (15/8) — bảo vệ nhánh đã áp dụng, còn nợ #27/#28 | WS-4 | 10 pd |
-| **WS-11** | Deploy Staging & Production | 10 | 0 | ⬜ Chưa bắt đầu | WS-3, 7, 10 | 10 pd |
-| | **TỔNG** | **107** | **96** | | | **114 pd** |
+| **WS-11** | Deploy Staging & Production | 10 | **1** | 🟡 Đang làm — **T11.1 xong** (đóng gói image ở job `image` của `ci.yml`, 15/8); T11.8 đã viết xong 2 workflow nhưng **chưa chạy thật** (nợ #41) | WS-3, 7, 10 | 10 pd |
+| | **TỔNG** | **107** | **97** | | | **114 pd** |
 
 *(107 task triển khai + 21 mục Definition of Done ở cuối file.)*
 
@@ -539,7 +539,9 @@ Cả bốn đều **báo thành công trong khi không làm gì cả** — đún
 - [ ] **T11.9** Quy trình rollback: quay lại image tag trước; migration đã đổi schema → restore từ **bản dump pre-deploy**. Mỗi migration đổi schema phải kèm ghi chú rollback trong PR
 - [ ] **T11.10** Smoke test sau deploy: health, login, 1 endpoint có quyền, kiểm tra backup gần nhất. Chốt `app.nodes`/`worker.enabled`/`shedlock.enabled` **đọc từ env** — *§6.4*
 
-**Kiểm chứng**: merge `master` → tự deploy staging → smoke test pass · quay về image tag trước → hệ thống chạy lại bình thường.
+**Kiểm chứng**: push vào `staging` → `deploy-staging.yml` tự chạy → smoke test (`readiness`, không phải `/actuator/health` bản tổng — xem nợ #41) pass · `deploy-prod.yml` chạy tay có `environment: production` chờ duyệt · quay về image tag trước → hệ thống chạy lại bình thường.
+
+> ⚠ Dòng trên **đã sửa 21/8/2026**. Bản cũ ghi *"merge `master` → tự deploy staging"* — viết theo mô hình 2 nhánh đã bỏ từ 15/8. Đúng bước 3 của luật đóng WS mà chính file này dặn: sub-bullet của T11.8 đã ghi *"mô tả cũ đã lỗi thời"*, nhưng **dòng kiểm chứng ngay bên dưới thì không ai quay lại sửa**. Luồng chốt là `dev → staging → production` (`docs/cicd.md`).
 
 ---
 

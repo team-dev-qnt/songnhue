@@ -232,22 +232,11 @@ Quy tắc ràng buộc giữa module (giữ đúng Modular Monolith):
 2. **Danh mục hóa thay vì enum cứng** — mức ngưỡng (G9-a), mã tình hình vận hành (G4), loại chỉ số đo (G3-a) đều là **bảng có CRUD**. Enum trong code = phải deploy lại mỗi lần khách đổi ý.
 3. **`TelemetryAdapter` đa nguồn** — không hard-code "1 nguồn = 1 endpoint mực nước", để cắm thêm nguồn lượng mưa (G3-a) mà không sửa pipeline.
 
-### 7.4. Kế hoạch chi tiết Phase 0
+### 7.4. Kế hoạch chi tiết Phase 0 → `phase0-tracking.md`
 
-📋 **Toàn bộ Phase 0 đã được break thành 11 hạng mục (WS-1→WS-11) với 107 task có ID + 21 mục Definition of Done, kèm bảng theo dõi tiến độ: [`phase0-tracking.md`](phase0-tracking.md).**
+📋 **11 hạng mục WS-1→WS-11, 107 task có ID, 21 mục Definition of Done, sổ nợ liên WS: [`phase0-tracking.md`](phase0-tracking.md).** Mỗi WS tự chứa điều kiện tiên quyết / đầu ra / cách kiểm chứng để làm độc lập tuần tự. Quyết định nền tảng (Maven multi-module, monorepo, deploy 3 VM, secrets, migration service riêng, DB roles) ở `architecture-review.md` §9.
 
-Mỗi WS tự chứa điều kiện tiên quyết / đầu ra / cách kiểm chứng để **làm độc lập tuần tự từng module**. Quyết định nền tảng (Maven multi-module, monorepo, deploy 3 VM, secrets, migration service riêng, DB roles) ghi ở `architecture-review.md` §9.
-
-Ràng buộc thứ tự thật sự chỉ có 4 chỗ:
-
-```
-WS-1 ─► WS-2 ─► WS-3          [nền — bắt buộc trước mọi thứ]
-   └─► WS-4 ─► WS-5 ─► WS-6   [BE lõi — tuần tự, không đảo được]
-                  └─► WS-7
-   └─► WS-8                    [FE — cần API của WS-4/5/6]
-   └─► WS-9 · WS-10            [độc lập, chen vào lúc nào cũng được]
-                  └─► WS-11    [cần WS-3 + WS-7 + WS-10]
-```
+> 📌 **Sơ đồ phụ thuộc giữa các WS đã gỡ khỏi đây (21/8/2026)** — nó là bản sao nguyên xi của mục *"Sơ đồ phụ thuộc — làm tuần tự từng module"* ở đầu `phase0-tracking.md`, mà bản kia còn kèm cảnh báo "hai việc nên làm ngay tuần 1". **Giữ hai bản của cùng một thứ là cách chắc chắn để chúng lệch nhau** — cùng lý do đã xoá §7.5.
 
 ### 7.5. ~~Thứ tự khởi động Phase 0~~ — ĐÃ XOÁ 19/8/2026
 

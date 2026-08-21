@@ -208,6 +208,7 @@ Không cần đọc thuộc — chỉ cần biết chúng tồn tại để lúc
 | Trả `0` cho ô số liệu **chưa có nguồn** | `0` là câu khẳng định "đã đo và bằng không". Phải trả rỗng kèm lý do, và ép ràng buộc đó ở **hàm dựng** chứ không ở lời dặn |
 | Nguồn ngoài (tile bản đồ, font, ảnh) | CSP `default-src 'self'` chặn **im lặng** — không lỗi ở tầng ứng dụng. Đổi host trong `settings` thì phải mở CSP ở nginx, và phải có bài kiểm đối chiếu hai nơi |
 | Lớp kiểm thử HTTP đăng nhập ở `@BeforeEach` | Hạn mức 30 lượt/15' theo IP là **ngân sách dùng chung** cho cả lượt chạy → làm đỏ một lớp *khác*. Đăng nhập ở `@BeforeAll` |
+| **Đổi tên một tệp migration** | Maven copy tài nguyên **tăng dần**, không xoá tệp đã biến mất khỏi `target/classes` → Flyway thấy **hai** migration cùng số hiệu và chết lúc khởi động. Bắt buộc `./mvnw clean` sau mỗi lần đổi tên hoặc đổi số hiệu migration |
 
 Chi tiết nguyên nhân: `architecture-review.md` §9.7, §9.8, §9.12, §10.33.
 

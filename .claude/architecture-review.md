@@ -103,12 +103,12 @@ Giữ nguyên (đã đúng): **Modular Monolith** (đúng cỡ dự án, đúng 
 
 ---
 
-## 5. VIỆC CẦN LÀM THEO REVIEW (đã phản ánh vào spec)
+## 5. ~~VIỆC CẦN LÀM THEO REVIEW~~ — **ĐÃ LÀM XONG, XOÁ 21/8/2026**
 
-1. ✅ `function-spec.md` §0.2 — thay bảng tech stack; sửa quy ước timestamp (Phụ lục).
-2. ✅ `implement.md` — checklist quyết định: đóng các mục 3, 4, 5 (queue, chart, map); bổ sung ShedLock + ArchUnit vào Nhóm A.
-3. ⬜ Khi bắt đầu Phase 0: setup Testcontainers (PostgreSQL + PostGIS) cho integration test; viết bộ test ma trận RBAC trước khi code nghiệp vụ.
-4. ⬜ Còn mở (ngoài phạm vi tech): contract API Telemetry thật (mục 6.1 implement.md) và khả năng tích hợp hệ thống văn bản (6.2) — cần khảo sát với bên thứ 3, quyết trong giai đoạn SRS.
+> Mục này là checklist 4 việc phải làm sau đợt review đầu (2026-07). Cả 4 đã đóng, nên giữ lại chỉ khiến người đọc tưởng còn việc:
+> **(1)** bảng tech stack + quy ước timestamp — đã vào `function-spec.md` §0.2 và Phụ lục · **(2)** checklist quyết định queue/chart/map + ShedLock + ArchUnit — đã vào `implement.md` · **(3)** Testcontainers PostgreSQL+PostGIS và bộ kiểm ma trận RBAC — dựng ở **WS-10** (`RbacMatrixTest` đối chiếu 334 dòng phân quyền trên CSDL thật) · **(4)** contract API telemetry — đóng bằng **G3 + G8b** ngày 12/8; phần tích hợp hệ thống văn bản là mục **G5**, đang theo dõi ở `business-open-questions.md` Phần II chứ không phải ở đây.
+>
+> ⛔ Không xoá lặng lẽ mà để lại bia mộ: một mục biến mất không dấu vết thì lần review sau sẽ có người hỏi "checklist đó đi đâu rồi".
 
 ---
 
