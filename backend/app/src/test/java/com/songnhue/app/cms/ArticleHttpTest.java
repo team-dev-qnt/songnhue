@@ -2,8 +2,10 @@ package com.songnhue.app.cms;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpMethod;
@@ -44,6 +46,8 @@ import com.songnhue.core.infra.identity.UserRepository;
  *       {@code created_by = NULL} và cột này <b>chưa từng được kiểm chứng</b> (nợ #66).
  * </ul>
  */
+// PER_CLASS để @BeforeAll không phải static — nó cần các bean được tiêm vào thực thể.
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ArticleHttpTest extends IntegrationTestBase {
 
     private static final String DUONG = "/api/v1/cms/articles";
@@ -60,12 +64,29 @@ class ArticleHttpTest extends IntegrationTestBase {
     @Autowired
     private JdbcTemplate jdbc;
 
-    private PhienHttp phienHttp() {
-        return new PhienHttp(http);
-    }
+    private PhienHttp phien;
+    private PhienHttp.Phien bienTapVien;
+    private PhienHttp.Phien quanTriNoiDung;
+    private PhienHttp.Phien khongQuyen;
 
-    private PhienHttp.Phien bienTapVien(String hau) {
-        return phienHttp().dangNhap(PhienHttp.taoNguoiDung(users, passwords, jdbc, hau, "CONTENT_EDITOR"));
+    /**
+     * ⚠⚠ Đăng nhập <b>một lần cho cả lớp</b> — ba tài khoản, không phải ba × số bài kiểm.
+     *
+     * <p>Chuyển từ {@code @BeforeEach} sang đây ở WS-18. Hạn mức đăng nhập là 30 lượt / 15 phút
+     * <b>theo IP</b>, và bộ đếm Caffeine dùng chung cho <i>toàn bộ</i> lượt chạy — riêng lớp này
+     * trước đó xin 20 vé. Khi WS-18 thêm một lớp HTTP nữa thì trần vỡ, và <b>lớp bị đỏ lại là lớp
+     * khác</b>: người đọc log sẽ đi tìm lỗi ở đúng chỗ không có lỗi nào.
+     *
+     * <p>📌 Ngân sách này là tài nguyên dùng chung giữa mọi lớp kiểm thử HTTP — xem
+     * {@code docs/coding-guide.md} §4.
+     */
+    @BeforeAll
+    void dangNhapMotLanChoCaLop() {
+        phien = new PhienHttp(http);
+        bienTapVien = phien.dangNhap(PhienHttp.taoNguoiDung(users, passwords, jdbc, "bt_vien", "CONTENT_EDITOR"));
+        quanTriNoiDung =
+                phien.dangNhap(PhienHttp.taoNguoiDung(users, passwords, jdbc, "bt_quantri", "CONTENT_MANAGER"));
+        khongQuyen = phien.dangNhap(PhienHttp.taoNguoiDung(users, passwords, jdbc, "bt_khongquyen"));
     }
 
     /**
@@ -89,8 +110,7 @@ class ArticleHttpTest extends IntegrationTestBase {
     @Test
     @DisplayName("⭐⭐ Danh sách và chi tiết bài viết trả 200 — chính hai endpoint từng trả 500")
     void danhSachVaChiTietKhongCon500() {
-        PhienHttp phien = phienHttp();
-        PhienHttp.Phien vien = bienTapVien("bt_danhsach");
+        PhienHttp.Phien vien = bienTapVien;
 
         String tao = phien.goi(vien, HttpMethod.POST, DUONG, thanBaiViet("Bài kiểm đường HTTP", "bai-kiem-duong-http"))
                 .getBody();
@@ -119,9 +139,8 @@ class ArticleHttpTest extends IntegrationTestBase {
     @Test
     @DisplayName("⭐ Bài viết tạo qua HTTP phải có created_by — cột này chưa từng được kiểm (nợ #66)")
     void createdByDuocDienKhiDiQuaHttp() {
-        PhienHttp phien = phienHttp();
-        String username = PhienHttp.taoNguoiDung(users, passwords, jdbc, "bt_createdby", "CONTENT_EDITOR");
-        PhienHttp.Phien vien = phien.dangNhap(username);
+        String username = "kiemtra_bt_vien";
+        PhienHttp.Phien vien = bienTapVien;
 
         String tao = phien.goi(
                         vien,
@@ -144,10 +163,7 @@ class ArticleHttpTest extends IntegrationTestBase {
     @Test
     @DisplayName("⛔ Thiếu quyền cms:article:view → 403 AUTH-3001, chặn ở interceptor chứ không ở service")
     void thieuQuyenBiChanTang2() {
-        PhienHttp phien = phienHttp();
-        // Không vai trò nào: tài khoản đăng nhập được nhưng không có một quyền CMS nào.
-        PhienHttp.Phien khongQuyen = phien.dangNhap(PhienHttp.taoNguoiDung(users, passwords, jdbc, "bt_khongquyen"));
-
+        // Tài khoản không vai trò nào: đăng nhập được nhưng không có một quyền CMS nào.
         ResponseEntity<String> res = phien.get(khongQuyen, DUONG);
 
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
@@ -159,9 +175,7 @@ class ArticleHttpTest extends IntegrationTestBase {
     @Test
     @DisplayName("⛔ Trả bài mà không nêu lý do → 400; luật này nằm ở controller, service không biết")
     void traBaiPhaiNeuLyDo() {
-        PhienHttp phien = phienHttp();
-        PhienHttp.Phien quanTri =
-                phien.dangNhap(PhienHttp.taoNguoiDung(users, passwords, jdbc, "bt_traabai", "CONTENT_MANAGER"));
+        PhienHttp.Phien quanTri = quanTriNoiDung;
 
         String tao = phien.goi(quanTri, HttpMethod.POST, DUONG, thanBaiViet("Bài chờ duyệt", "bai-cho-duyet-http"))
                 .getBody();
@@ -201,8 +215,7 @@ class ArticleHttpTest extends IntegrationTestBase {
     @Test
     @DisplayName("Envelope + traceId phủ cả lượt thành công lẫn lượt lỗi")
     void envelopePhuCaHaiHuong() {
-        PhienHttp phien = phienHttp();
-        PhienHttp.Phien vien = bienTapVien("bt_envelope");
+        PhienHttp.Phien vien = bienTapVien;
 
         assertThat(phien.get(vien, DUONG).getBody())
                 .contains("\"success\":true")

@@ -2071,3 +2071,65 @@ Nên `?mode=wall` chỉ đổi theme (`echartsWallTheme` **sinh từ** `echartsT
 #### 9. Số đo thật
 
 Bó mã của route dashboard: **727 kB (239 kB nén gzip)** — tách chunk riêng nhờ nạp theo nhu cầu, nên trang đăng nhập không gánh. Nạp ECharts **chọn lọc** (`echarts/core` + 4 loại biểu đồ + 5 component + bộ vẽ Canvas); nạp trọn gói thì phần này lớn hơn nhiều lần. Bộ vẽ **Canvas chứ không SVG**: wall mode 4K vẽ lại mỗi chu kỳ và chạy liên tục nhiều giờ, Canvas giữ số nút DOM không đổi.
+
+---
+
+### §10.34. WS-18 — lịch sử sửa chữa và sự cố; chuỗi suy ra trạng thái có đầu vào đầu tiên (21/8/2026)
+
+#### 1. ⭐ **Hai** quy trình workflow trên **một** bảng — vì ma trận phân quyền đòi thế
+
+Ma trận §6 tách hai dòng khác nhau ở đúng cột "Kỹ thuật":
+
+| Chức năng | Admin | QL XN | Kỹ thuật | Vận hành |
+|---|:-:|:-:|:-:|:-:|
+| Ghi lịch sử sửa chữa/bảo trì | ✔ | ✔ | ✔ | ✘ |
+| **Đóng bản ghi sự cố** ("Đã xử lý") | ✔ | ✔ | **✘** | ✘ |
+
+Tức là *"chuyển sang Đã xử lý"* đòi quyền **khác nhau tuỳ bản ghi là sự cố hay không**. Mà `workflow_transitions.required_permission` gắn theo `(from_state, action)` chứ không theo loại công việc — một quy trình duy nhất thì luật đó chỉ diễn đạt được bằng một câu `if` trong service, đúng thứ mà cả cơ chế workflow sinh ra để tránh.
+
+Chốt: seed **`MAINTENANCE_LOG`** và **`MAINTENANCE_INCIDENT`**, `MaintenanceLog.workflowEntityType()` trả tên quy trình theo `work_type`. Cùng một bảng, cùng một entity, cùng ba trạng thái — khác nhau ở ai được bấm nút nào, và khác biệt đó nằm ở **dữ liệu**.
+
+⚠ Đây **không** phải lách quy tắc 15 ("sự cố không phải entity riêng"). Vẫn một bảng `maintenance_logs`, không mã `SC-`, không vòng đời bảy trạng thái. Thứ tách đôi là *quy trình duyệt*, không phải *bản ghi*.
+
+📌 Hệ quả phụ đáng giá: `ops:maintenance:close-incident` seed từ WS-2 nay **có người đọc**. Không dùng tới thì nó là một quyền chưa ai đọc — đúng loại lỗi đã trả giá ba lần (`limits.upload.max-mb.*`, `company.*`, `attachments.valid_from`).
+
+#### 2. ⚠⚠ Trạng thái công trình là sự thật về **công trình**, không phải về **người đang nhìn**
+
+T18.2 chốt bản ghi giữ `org_unit_id` lúc *phát sinh*, không đi theo công trình khi công trình được bàn giao — đúng cho hồ sơ lịch sử, vì chi phí sửa chữa năm ngoái thuộc về Xí nghiệp đã bỏ tiền ra.
+
+Nhưng nó tạo ra một khoảng thời gian mà **bản ghi và công trình thuộc hai đơn vị khác nhau**. Nếu phép đếm *"còn sự cố nào đang mở không"* đi qua bộ lọc phạm vi thì trong khoảng đó nó trả 0, **cờ đỏ tắt, và không một dòng lỗi nào**. Tệ hơn: cột `operational_status` được *lưu sẵn*, nên giá trị sai đó bị ghi xuống và ở lại — công trình rồi sẽ mang trạng thái của lượt tính gần nhất, tức là của người mở màn hình gần nhất.
+
+Chốt: `MaintenanceLogRepository.demBanGhiDangMo` là câu **native** (bộ lọc Hibernate không áp cho native query), và `ConstructionStatusService.recomputeFor(Long)` tra bằng `findById`. Cả hai đều là ngoại lệ có chủ đích của `conventions.md` §4.2, đều chỉ phục vụ việc tính một giá trị dẫn xuất, và đều không trả gì ra API. Bài kiểm `MaintenanceScopeTest.statusSurvivesAConstructionHandover` dựng đúng kịch bản bàn giao.
+
+Cùng lý do, `ConstructionRepository.briefsByIds` cũng là native: sau bàn giao, người của đơn vị cũ vẫn đọc được **bản ghi** cũ mà không còn đọc được **hồ sơ công trình**, nên câu có lọc phạm vi sẽ trả về đúng những dòng đó với tên công trình để trống — một lỗi trông như lỗi dữ liệu.
+
+#### 3. ⚠⚠ Kiểm quy tắc **sau** `workflow.execute(...)` không bao giờ chạy tới
+
+Bản đầu kiểm "đóng bản ghi mà chưa có ngày hoàn thành" *sau* khi engine chuyển trạng thái, với lập luận: engine sở hữu máy trạng thái, hỏi nó "bước này dẫn tới đâu" là chép lại một nửa máy trạng thái ra chỗ khác; ném ngoại lệ sau thì giao dịch quay lui hết.
+
+Lập luận đó sai ở một chỗ: **lượt kiểm sau không bao giờ chạy tới**. `WorkflowEngine.execute` ghi một dòng thông báo, lượt ghi đó **flush** cả entity đang bẩn, và ràng buộc `ck_maintenance_logs_completed_when_done` bắn trước — người dùng nhận một lỗi ràng buộc thô thay vì `OPS-2004`.
+
+Chốt: kiểm **trước**, và tra đích đến bằng chính `WorkflowPort.allowedActions()` — dữ liệu của engine, không phải bản sao. Hành động không có trong danh sách thì để `execute` trả về đúng mã lỗi của nó.
+
+#### 4. Ba lỗi im lặng khác, bài kiểm bắt được ngay lượt chạy đầu
+
+- **`updatedAt == null` không bao giờ đúng.** Bộ ghi nhật ký của Spring Data đặt `@LastModifiedDate` ngay ở lượt **chèn**, nên điều kiện "chưa ai động vào" của cửa sổ tự sửa (T18.9) luôn sai → công tắc bật lên mà **không mở cho ai**. Dùng `version == 0`.
+- **`SUM(cost)` trả `null` biến mất khỏi JSON** vì cấu hình `NON_NULL` chung. "Chưa ai điền chi phí" và "đã làm mà không tốn tiền" là hai câu khác nhau; trên một bảng quyết toán, chọn nhầm câu là đưa ra một con số không có thật. Phải đè `@JsonInclude(ALWAYS)` — cùng lý do với ô KPI ở §10.33.
+- **Thân JSON của bài kiểm dựng bằng `replace`** chồng lên bản mặc định để lại **hai khoá cùng tên**; Jackson lấy khoá sau, và bài kiểm nhận `OPS-2004` thay vì thứ nó định kiểm.
+
+#### 5. ⛔ Ngân sách hạn mức tần suất của bộ kiểm thử đã vỡ — mở rộng §10.33 mục 7
+
+Thêm hai lớp HTTP là vượt **cả hai** hạn mức đếm theo IP: đăng nhập 30 lượt/15' **và API thường 100 lượt/phút**. Triệu chứng là `ConstructionHttpTest` + `DashboardHttpTest` đỏ hàng loạt với `SYS-0002` — hai lớp không liên quan gì tới WS-18.
+
+Chữa hai tầng:
+
+1. `ArticleHttpTest` và `ConstructionHttpTest` chuyển đăng nhập sang `@BeforeAll` (20 + 18 → 2 + 2 vé) — đúng luật §10.33 mục 7 đã ghi mà hai lớp cũ chưa áp.
+2. `PhienHttp` gắn `X-Forwarded-For` **riêng cho mỗi thực thể**: mỗi lớp kiểm thử là một máy khách. Filter vẫn chạy, vẫn đếm, vẫn chặn; `CaffeineRateLimitStoreTest` vẫn là nơi chứng minh nó chặn được thật.
+
+⛔ Cách chữa **sai** vẫn là nới hạn mức ở hồ sơ kiểm thử. Ở production nginx **ghi đè** `X-Forwarded-For`, nên không có đường nào để client thật tự cấp cho mình một IP.
+
+#### 6. Số đo thật
+
+**493 test BE** (239 core + 254 app, +42) + 151 FE · **72 mã lỗi** (thêm `OPS-2017`, BE = FE) · 2 quy trình workflow mới · 1 tham số `settings` có người đọc và có bài kiểm cho **cả hai phía** 0 / khác 0.
+
+Hai ô KPI `incident.open` và `maintenance.in-progress` của §10.33 nay có nguồn thật — `DashboardHttpTest` tách thành hai bài: hai ô thuỷ văn vẫn phải rỗng-kèm-lý-do, hai ô này phải là **số**.

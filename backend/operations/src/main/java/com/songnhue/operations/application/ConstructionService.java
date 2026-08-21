@@ -2,7 +2,10 @@ package com.songnhue.operations.application;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -146,6 +149,30 @@ public class ConstructionService {
     public List<String> rivers() {
         return constructions.distinctRivers();
     }
+
+    /**
+     * Mã + tên của một nhúm công trình theo khoá nội bộ — để dựng danh sách lịch sử sửa chữa.
+     *
+     * <p>Trả {@code record} chứ không trả entity: entity không ra khỏi tầng này
+     * ({@code conventions.md} §1.1), và ở đây điều đó còn ngăn được việc vô tình bày cả hồ sơ kỹ
+     * thuật ra một màn hình chỉ cần hai chữ. Vì sao câu truy vấn phía dưới là native: xem
+     * {@code ConstructionRepository.briefsByIds}.
+     */
+    @Transactional(readOnly = true)
+    public Map<Long, ConstructionBrief> briefsByIds(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, ConstructionBrief> ket = new HashMap<>();
+        for (Object[] dong : constructions.briefsByIds(ids)) {
+            Long id = ((Number) dong[0]).longValue();
+            ket.put(id, new ConstructionBrief(id, (UUID) dong[1], (String) dong[2], (String) dong[3]));
+        }
+        return ket;
+    }
+
+    /** Mẩu thông tin đủ để nhận ra một công trình trên danh sách của module khác trong cùng MOD-02. */
+    public record ConstructionBrief(Long id, UUID publicId, String code, String name) {}
 
     public static Set<String> allowedSortFields() {
         return SAP_XEP_CHO_PHEP;

@@ -231,7 +231,8 @@ export const ERROR_CATALOG = {
     severity: 'warning',
   },
   'OPS-2003': {
-    message: 'Bản ghi loại "Khắc phục sự cố" bắt buộc có mức độ',
+    message:
+      'Mức độ chỉ dùng cho bản ghi "Khắc phục sự cố" — loại này bắt buộc có, loại khác phải để trống',
     handling: 'form',
     severity: 'warning',
   },
@@ -298,6 +299,11 @@ export const ERROR_CATALOG = {
   'OPS-2016': {
     message: 'Tệp nhập còn dòng lỗi — sửa hết lỗi rồi nhập lại, không dòng nào được ghi',
     handling: 'toast',
+    severity: 'warning',
+  },
+  'OPS-2017': {
+    message: 'Đơn vị thực hiện: chọn đơn vị nội bộ HOẶC nhập tên nhà thầu ngoài, đúng một trong hai',
+    handling: 'form',
     severity: 'warning',
   },
   'OPS-3001': {

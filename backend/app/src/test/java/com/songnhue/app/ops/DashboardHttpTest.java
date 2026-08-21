@@ -169,13 +169,14 @@ class DashboardHttpTest extends IntegrationTestBase {
     // === 2. Ô chưa có nguồn ===================================================
 
     @Test
-    @DisplayName("⛔ Bốn ô chưa có nguồn trả rỗng kèm lý do — KHÔNG phải số 0")
+    @DisplayName("⛔ Hai ô thuỷ văn chưa có nguồn trả rỗng kèm lý do — KHÔNG phải số 0")
     void unavailableKpisSayWhyInsteadOfShowingZero() {
         String than = phienHttp.get(duQuyen, DUONG_DAN).getBody();
 
-        for (String khoa : new String[] {
-            "hydro.active-alerts", "hydro.stations-offline", "maintenance.in-progress", "incident.open"
-        }) {
+        // ⚠ Danh sách này rút từ bốn xuống hai ở WS-18: hai ô sửa chữa / sự cố nay có nguồn thật, và
+        //   từ đó số 0 của CHÚNG là một câu khẳng định đúng ("đã đếm, không có bản ghi nào đang mở").
+        //   Hai ô còn lại thuộc MOD-03, chưa có gì để đếm.
+        for (String khoa : new String[] {"hydro.active-alerts", "hydro.stations-offline"}) {
             String o = oKpi(than, khoa);
             assertThat(o)
                     .as("ô %s: số 0 nghĩa là 'đã đo và bằng không', khác hẳn 'chưa đo'", khoa)
@@ -185,6 +186,19 @@ class DashboardHttpTest extends IntegrationTestBase {
                     .as("ô %s phải nói vì sao trống và bao giờ có số", khoa)
                     .contains("\"unavailableReason\":\"")
                     .contains("\"availableIn\":\"");
+        }
+    }
+
+    @Test
+    @DisplayName("⭐ Hai ô của WS-18 nay có số thật, và không còn hẹn 'sẽ có ở WS-18' nữa")
+    void theTwoMaintenanceKpisNowHaveARealSource() {
+        String than = phienHttp.get(duQuyen, DUONG_DAN).getBody();
+
+        for (String khoa : new String[] {"maintenance.in-progress", "incident.open"}) {
+            assertThat(oKpi(than, khoa))
+                    .as("ô %s: một lời hẹn không bao giờ tới hạn là một ô không ai còn nhìn", khoa)
+                    .containsPattern("\"value\":\\d+")
+                    .doesNotContain("\"availableIn\":\"WS-18");
         }
     }
 

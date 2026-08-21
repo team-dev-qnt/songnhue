@@ -64,14 +64,17 @@ const DASHBOARD: DashboardView = {
       unavailableReason: null,
       availableIn: null,
     },
+    // ⚠ Ô "chưa có nguồn" thứ hai lấy từ MOD-03, KHÔNG lấy từ WS-18 nữa: WS-18 đã trả nợ hai ô
+    //   sửa chữa / sự cố, và một dữ liệu mẫu hẹn "sẽ có ở WS-18" là một lời hẹn đã tới hạn — nó làm
+    //   bài kiểm mô tả sai hiện trạng, dù vẫn xanh.
     {
-      key: 'incident.open',
-      label: 'Sự cố chưa xử lý',
+      key: 'hydro.stations-offline',
+      label: 'Điểm đo mất tín hiệu',
       value: null,
       total: null,
       tone: 'UNKNOWN',
-      unavailableReason: 'Chưa có chức năng ghi nhận sửa chữa / sự cố',
-      availableIn: 'WS-18 (CN-02.2)',
+      unavailableReason: 'Chưa đấu nối dữ liệu thuỷ văn',
+      availableIn: 'Phase 2 (MOD-03)',
     },
     {
       key: 'hydro.active-alerts',
@@ -124,12 +127,11 @@ describe('ô KPI chưa có nguồn', () => {
   it('⛔ hiện "Chưa có dữ liệu" kèm mốc sẽ có — KHÔNG hiện số 0', async () => {
     dung();
 
-    await waitFor(() => expect(screen.getByText('Sự cố chưa xử lý')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Điểm đo mất tín hiệu')).toBeInTheDocument());
 
     // Hai ô "chưa có nguồn" đều phải nói ra điều đó...
     expect(screen.getAllByText('Chưa có dữ liệu')).toHaveLength(2);
-    expect(screen.getByText('WS-18 (CN-02.2)')).toBeInTheDocument();
-    expect(screen.getByText('Phase 2 (MOD-03)')).toBeInTheDocument();
+    expect(screen.getAllByText('Phase 2 (MOD-03)')).toHaveLength(2);
 
     // ...và ô "Sự cố" (đã đo, bằng 0) vẫn phải hiện đúng số 0. Đây là vế thứ hai, và
     // thiếu nó thì một bản sửa biến mọi số 0 thành dấu gạch cũng sẽ xanh — tức là giấu

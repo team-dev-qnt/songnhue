@@ -45,6 +45,33 @@ public final class PhienHttp {
 
     private final TestRestTemplate http;
 
+    /**
+     * ⚠⚠ IP giả lập riêng cho mỗi thực thể — <b>một lớp kiểm thử = một client</b>.
+     *
+     * <h2>Vì sao cần</h2>
+     *
+     * {@code RateLimitFilter} đếm theo IP, và mọi lượt gọi trong bộ kiểm thử đều đi từ
+     * {@code 127.0.0.1}. Hai hạn mức đều là ngân sách <b>dùng chung cho toàn bộ lượt chạy</b>: đăng
+     * nhập 30 lượt / 15 phút, API thường 100 lượt / <b>phút</b>. Bộ kiểm thử HTTP vượt cả hai từ
+     * WS-18, và triệu chứng là <b>một lớp khác</b> đỏ với {@code SYS-0002} — người đọc log sẽ đi tìm
+     * lỗi ở đúng chỗ không có lỗi nào.
+     *
+     * <h2>⛔ Vì sao KHÔNG nới hạn mức ở hồ sơ kiểm thử</h2>
+     *
+     * Nới hạn mức là tắt một cơ chế bảo mật thật trong CI — sau đó không lượt chạy nào còn đi qua nó
+     * nữa. Ở đây filter vẫn chạy, vẫn đếm, vẫn chặn; chỉ là mỗi lớp kiểm thử được coi là một máy
+     * khách khác nhau, đúng như thực tế nó mô phỏng nhiều người dùng khác nhau.
+     * {@code CaffeineRateLimitStoreTest} vẫn là nơi chứng minh cơ chế chặn được thật.
+     *
+     * <p>Filter đọc {@code X-Forwarded-For} và chỉ tin nó khi đứng sau nginx của mình — ở production
+     * nginx <b>ghi đè</b> header này, nên không có đường nào để client thật tự cấp cho mình một IP.
+     */
+    private final String ipGiaLap = "10.%d.%d.%d"
+            .formatted(SO_THU_TU.incrementAndGet() % 250, (int) (Math.random() * 250), (int) (Math.random() * 250));
+
+    private static final java.util.concurrent.atomic.AtomicInteger SO_THU_TU =
+            new java.util.concurrent.atomic.AtomicInteger();
+
     public PhienHttp(TestRestTemplate http) {
         this.http = http;
     }
@@ -91,6 +118,8 @@ public final class PhienHttp {
     public Phien dangNhap(String username) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        // Cùng IP giả lập với mọi lượt gọi khác của lớp này — bucket đăng nhập cũng đếm theo IP.
+        headers.set("X-Forwarded-For", ipGiaLap);
 
         ResponseEntity<String> response = http.exchange(
                 "/api/v1/auth/login",
@@ -118,6 +147,7 @@ public final class PhienHttp {
         headers.setBearerAuth(phien.accessToken());
         headers.set("X-CSRF-Token", phien.csrfToken());
         headers.set(HttpHeaders.COOKIE, phien.cookie());
+        headers.set("X-Forwarded-For", ipGiaLap);
         return headers;
     }
 

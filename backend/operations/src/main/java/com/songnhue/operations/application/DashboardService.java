@@ -15,15 +15,16 @@ import com.songnhue.core.spi.SettingPort;
 import com.songnhue.operations.domain.LifecycleState;
 import com.songnhue.operations.domain.OperationalStatus;
 import com.songnhue.operations.infra.ConstructionRepository;
+import com.songnhue.operations.infra.MaintenanceLogRepository;
 
 /**
  * Dashboard điều hành — CN-02.5 / T23.6, T23.7.
  *
  * <h2>⛔ Ô nào chưa có nguồn thì nói thẳng là chưa có</h2>
  *
- * CN-02.5 liệt kê sáu nhóm KPI, trong đó bốn nhóm lấy dữ liệu từ những phần chưa dựng: cảnh báo
- * thuỷ văn và điểm đo mất tín hiệu thuộc MOD-03 (Phase 2), công việc bảo trì và sự cố chưa xử lý
- * thuộc WS-18. Bốn ô đó trả {@code value = null} kèm <b>lý do</b> và <b>mốc thời gian sẽ có</b>.
+ * CN-02.5 liệt kê sáu nhóm KPI. Ở WS-23 có bốn nhóm chưa có nguồn; WS-18 đã trả hai trong số đó
+ * (công việc bảo trì và sự cố chưa xử lý). Còn <b>hai</b> ô thuộc MOD-03 — cảnh báo thuỷ văn và
+ * điểm đo mất tín hiệu — trả {@code value = null} kèm <b>lý do</b> và <b>mốc thời gian sẽ có</b>.
  *
  * <p>⚠⚠ <b>Không được trả số 0.</b> Số 0 nghĩa là "đã đo và bằng không" — trên một dashboard điều
  * hành công trình thuỷ lợi, ô "Sự cố chưa xử lý: 0" là câu khẳng định rằng không có sự cố nào, và
@@ -109,19 +110,21 @@ public class DashboardService {
     public static final String KEY_WALL_ROTATE = "system.wall.auto-rotate-seconds";
 
     private static final String LY_DO_THUY_VAN = "Chưa đấu nối dữ liệu thuỷ văn";
-    private static final String LY_DO_BAO_TRI = "Chưa có chức năng ghi nhận sửa chữa / sự cố";
 
     private final ConstructionRepository constructions;
+    private final MaintenanceLogRepository maintenanceLogs;
     private final ConstructionStatisticsService statistics;
     private final MapConfigService mapConfig;
     private final SettingPort settings;
 
     public DashboardService(
             ConstructionRepository constructions,
+            MaintenanceLogRepository maintenanceLogs,
             ConstructionStatisticsService statistics,
             MapConfigService mapConfig,
             SettingPort settings) {
         this.constructions = constructions;
+        this.maintenanceLogs = maintenanceLogs;
         this.statistics = statistics;
         this.mapConfig = mapConfig;
         this.settings = settings;
@@ -175,13 +178,27 @@ public class DashboardService {
                 tong,
                 chuaSoHoa == 0 ? Tone.NORMAL : Tone.WARNING));
 
-        // === Bốn ô chưa có nguồn — CN-02.5 đòi, dữ liệu chưa tồn tại =========
+        // === Hai ô chưa có nguồn — CN-02.5 đòi, dữ liệu chưa tồn tại =========
         kpis.add(
                 Kpi.chuaCo("hydro.active-alerts", "Cảnh báo thuỷ văn đang xảy ra", LY_DO_THUY_VAN, "Phase 2 (MOD-03)"));
         kpis.add(Kpi.chuaCo("hydro.stations-offline", "Điểm đo mất tín hiệu", LY_DO_THUY_VAN, "Phase 2 (MOD-03)"));
-        kpis.add(Kpi.chuaCo(
-                "maintenance.in-progress", "Công việc bảo trì đang thực hiện", LY_DO_BAO_TRI, "WS-18 (CN-02.2)"));
-        kpis.add(Kpi.chuaCo("incident.open", "Sự cố chưa xử lý", LY_DO_BAO_TRI, "WS-18 (CN-02.2)"));
+
+        // === Hai ô WS-18 vừa trả nợ — nay có nguồn thật ======================
+        //
+        // ⚠ Từ đây trở đi số 0 ở hai ô này là một câu KHẲNG ĐỊNH: "đã đếm, và không có bản ghi nào
+        //   đang mở". Đó là điều đúng, và cũng là lý do chúng không được trả 0 trước khi WS-18 tồn
+        //   tại — một ô "Sự cố chưa xử lý: 0" trên màn hình trực ban là thứ người ta tin.
+        long suCoDangMo = maintenanceLogs.countOpenIncidents();
+        kpis.add(Kpi.co(
+                "incident.open", "Sự cố chưa xử lý", suCoDangMo, null, suCoDangMo == 0 ? Tone.NORMAL : Tone.DANGER));
+
+        long baoTriDangLam = maintenanceLogs.countOpenWork();
+        kpis.add(Kpi.co(
+                "maintenance.in-progress",
+                "Công việc bảo trì đang thực hiện",
+                baoTriDangLam,
+                null,
+                baoTriDangLam == 0 ? Tone.NORMAL : Tone.WARNING));
 
         return new Dashboard(
                 Instant.now(),

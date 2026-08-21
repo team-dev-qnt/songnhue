@@ -1,6 +1,6 @@
 # PHASE 1 — CMS & MASTER DATA CÔNG TRÌNH · BẢNG THEO DÕI TIẾN ĐỘ
 
-> **Cập nhật lần cuối**: 2026-08-21 · **Tiến độ: 74/112 task (66%)** · 1 task **hoãn có chủ đích** (T12.7 → nợ #62) · **DoD: 0/17** · Trạng thái: 🟡 Đang làm — WS-12 ✅, WS-13 ✅, WS-14 ✅, WS-15 ✅, WS-16 ✅, WS-20 ✅, WS-17 ✅, **WS-23 ✅**
+> **Cập nhật lần cuối**: 2026-08-21 · **Tiến độ: 85/112 task (76%)** · 1 task **hoãn có chủ đích** (T12.7 → nợ #62) · **DoD: 0/17** · Trạng thái: 🟡 Đang làm — WS-12 ✅, WS-13 ✅, WS-14 ✅, WS-15 ✅, WS-16 ✅, WS-20 ✅, WS-17 ✅, WS-23 ✅, **WS-18 ✅**
 > Nguồn ràng buộc: `function-spec.md` CN-01.1→01.5, CN-01.8 · CN-02.1, 02.2, 02.3, 02.6, 02.7, 02.11 · `conventions.md` (luật) · `docs/coding-guide.md` (đường đi) · `architecture-review.md` §10 (quyết định Phase 1)
 > **Cách dùng**: giống Phase 0 — làm xong task nào tick `[x]`; xong 1 WS thì chạy mục "Kiểm chứng" rồi cập nhật bảng tổng + dòng trên cùng.
 > ⚠ **Luật 3 bước khi đóng WS** (thừa kế từ Phase 0): tick task → tick dòng nợ → **quay lại sửa mô tả đã lỗi thời ở WS đã giao nợ**. Bước 3 hay bị bỏ nhất.
@@ -32,13 +32,13 @@ Phase 0 dựng **cơ chế**; Phase 1 là lần đầu có **người dùng th�
 | **WS-15** | CMS — Cấu hình giao diện, Menu, Banner | 7 | **7** | ✅ **Xong 19/8** — SVG lần đầu đi qua đường thật | WS-13 | 6 pd |
 | **WS-16** | Public-web — hiển thị + ISR | 8 | **8** | ✅ **Xong 20/8** — ISR lần đầu có người đi qua | WS-13, WS-15 | 8 pd |
 | **WS-17** | Operations — Danh mục công trình | 12 | **12** | ✅ **Xong 21/8** — tầng 3 lần đầu chạy trên entity thật (trả nợ #57) | WS-12 | 14 pd |
-| **WS-18** | Operations — Lịch sử sửa chữa & sự cố | 11 | 0 | ⬜ Chưa bắt đầu | WS-17 | 10 pd |
+| **WS-18** | Operations — Lịch sử sửa chữa & sự cố | 11 | **11** | ✅ **Xong 21/8** — chuỗi suy ra trạng thái có hai mắt xích đầu; trả nợ 2 ô KPI của WS-23 | WS-17 | 10 pd |
 | **WS-19** | Operations — Tình hình vận hành + trạng thái dẫn xuất | 8 | 0 | ⬜ Chưa bắt đầu | WS-17, WS-18 | 7 pd |
 | **WS-20** | FE admin — màn hình CMS | 13 | **13** | ✅ **Xong 20/8** — kéo lên trước WS-17 | WS-13→15 (API) | 12 pd |
 | **WS-21** | FE admin — màn hình Công trình | 10 | 0 | ⬜ Chưa bắt đầu | WS-17→19 (API) | 12 pd |
 | **WS-23** | ⭐ Nền biểu đồ + Dashboard điều hành (CN-02.5, CN-02.6) | 11 | **11** | ✅ **Xong 21/8** — mọi con số là số thật; ô chưa có nguồn nói thẳng | WS-17 | 11 pd |
 | **WS-22** | Kiểm thử, nghiệm thu Phase 1 & trả nợ | 8 | 0 | ⬜ Chưa bắt đầu | tất cả | 8 pd |
-| | **TỔNG** | **112** | **74** | | | **112 pd** |
+| | **TỔNG** | **112** | **85** | | | **112 pd** |
 
 *(112 task triển khai + 17 mục Definition of Done ở cuối file.)*
 
@@ -363,7 +363,7 @@ Cả bốn đều **xanh trọn vẹn trong bộ kiểm thử**. Chi tiết ở 
 - **3 cột sinh ở CSDL**, không có đường ghi nên không thể lệch: `geom` (PostGIS, đo thật `POINT(105.78 20.98)` SRID 4326) · `chainage_m` (`K18+100` → 18100) · `total_flow_m3s` (3 × 1,5 = 4.500, đo qua HTTP).
 - **9 mã lỗi mới** (OPS-2008→2016) → **71 mã**, BE = FE. **451 test BE** (239 core + 212 app) + **128 FE**.
 
-**Nợ giao cho WS sau**: ⬜ chuỗi suy ra trạng thái mới có mắt xích cuối (vòng đời) — 4 mắt xích trên thuộc **WS-18** (sự cố, bảo trì), **WS-19** (mã tình hình vận hành) và **Phase 2** (cảnh báo ngưỡng); tất cả thêm vào **đúng `ConstructionStatusService`**, không mở đường ghi mới.
+**Nợ giao cho WS sau** *(cập nhật 21/8 khi đóng WS-18)*: ✅ mắt xích (1) sự cố và (2) bảo trì **đã cắm ở WS-18**, đúng vào `ConstructionStatusService` như đã hẹn. ⬜ Còn (3) cảnh báo ngưỡng → **Phase 2** và (4) mã tình hình vận hành → **WS-19**; cả hai thêm vào **đúng hàm `tinh()`**, không mở đường ghi mới.
 
 ---
 
@@ -373,19 +373,45 @@ Cả bốn đều **xanh trọn vẹn trong bộ kiểm thử**. Chi tiết ở 
 
 > Nhắc lại quy tắc 15: **sự cố không phải entity riêng.** Không bảng `incidents`, không mã `SC-`, không vòng đời 7 trạng thái.
 
-- [ ] **T18.1** Migration `maintenance_logs`: `NUMERIC(18,2)` VND; `performer_org_unit_id` **hoặc** `performer_name` + CHECK đúng một — điểm nghiệp vụ **17**
-- [ ] **T18.2** Phạm vi đơn vị: sao chép `org_unit_id` từ công trình lúc tạo. ⚠ Ghi rõ hệ quả: công trình đổi đơn vị phụ trách thì bản ghi cũ **giữ nguyên** đơn vị lúc phát sinh — đó là điều đúng cho hồ sơ lịch sử, nhưng phải nói ra để không bị coi là lỗi
-- [ ] **T18.3** Seed workflow `MAINTENANCE_LOG`: `MOI → DANG_XU_LY → DA_XU_LY`, **hai trạng thái khởi đầu** (T12.5) — điểm nghiệp vụ **15**
-- [ ] **T18.4** Quy tắc nghiệp vụ, mã lỗi **đã có sẵn trong catalog**: sự cố thiếu mức độ → `OPS-2003` · ngày hoàn thành < ngày bắt đầu → `OPS-2001` · chuyển `DA_XU_LY` khi chưa có ngày hoàn thành → `OPS-2004` · công trình đã thanh lý → `OPS-2002`
-- [ ] **T18.5** Mã bản ghi `BT-<năm>-xxxx` qua `code_sequences` của Core
-- [ ] **T18.6** Tệp đính kèm: biên bản nghiệm thu, ảnh trước/sau
-- [ ] **T18.7** Timeline theo công trình + bộ lọc; **tổng chi phí theo kỳ tính ở BE** (quy tắc 3) — FE không cộng
-- [ ] **T18.8** Danh sách "Sự cố chưa xử lý" (phục vụ dashboard Phase 3 và trạng thái dẫn xuất WS-19)
-- [ ] **T18.9** Quyền sửa/xoá sau khi lưu theo `function-spec.md` §6 + **cửa sổ tác giả tự sửa** đọc từ `settings`, **mặc định tắt** (đúng ma trận hiện tại, bật được nếu Công ty đổi ý)
-- [ ] **T18.10** `alert_event_public_id UUID` **không FK** — điểm nghiệp vụ **16**; nút "Tạo bản ghi khắc phục" từ màn hình cảnh báo là việc của Phase 2, ở đây chỉ chừa cột và đường điền sẵn
-- [ ] **T18.11** Test: đủ 3 trạng thái qua engine · chi phí `BigDecimal` không sai số qua Σ · phạm vi đơn vị · đóng bản ghi sự cố cuối cùng → trạng thái công trình đổi (đấu nối ở WS-19)
+- [x] **T18.1** Migration `maintenance_logs`: `NUMERIC(18,2)` VND; `performer_org_unit_id` **hoặc** `performer_name` + CHECK đúng một — điểm nghiệp vụ **17** ✅ *21/8*
+- [x] **T18.2** Phạm vi đơn vị: sao chép `org_unit_id` từ công trình lúc tạo. ⚠ Ghi rõ hệ quả: công trình đổi đơn vị phụ trách thì bản ghi cũ **giữ nguyên** đơn vị lúc phát sinh ✅ *21/8*
+- [x] **T18.3** Seed workflow: `MOI → DANG_XU_LY → DA_XU_LY`, **hai trạng thái khởi đầu** (T12.5) — điểm nghiệp vụ **15**. ⭐ **Làm khác kế hoạch**: seed **HAI** định nghĩa trên cùng một bảng (`MAINTENANCE_LOG` + `MAINTENANCE_INCIDENT`), `MaintenanceLog.workflowEntityType()` chọn theo `work_type` — lý do ở dưới ✅ *21/8*
+- [x] **T18.4** Quy tắc nghiệp vụ, mã lỗi **đã có sẵn trong catalog**: `OPS-2003` · `OPS-2001` · `OPS-2004` · `OPS-2002`. **Thêm `OPS-2017`** (đơn vị thực hiện đúng một trong hai) → **72 mã**, BE = FE ✅ *21/8*
+- [x] **T18.5** Mã bản ghi `BT-<năm>-xxxx` qua `code_sequences` của Core ✅ *21/8*
+- [x] **T18.6** Tệp đính kèm: biên bản nghiệm thu, ảnh trước/sau — `attachments` với `owner_type='MAINTENANCE_LOG'`, `owner_id` trỏ **bản ghi** chứ không trỏ công trình ✅ *21/8*
+- [x] **T18.7** Timeline theo công trình + bộ lọc; **tổng chi phí theo kỳ tính ở BE** (quy tắc 3) — endpoint riêng `/cost-summary`, kỳ rỗng trả `null` chứ không trả 0 ✅ *21/8*
+- [x] **T18.8** Danh sách "Sự cố chưa xử lý" — sắp theo mức độ rồi tới ngày ghi nhận ✅ *21/8*
+- [x] **T18.9** Quyền sửa/xoá sau khi lưu theo `function-spec.md` §6 + **cửa sổ tác giả tự sửa** đọc từ `settings`, **mặc định tắt** ✅ *21/8*
+- [x] **T18.10** `alert_event_public_id UUID` **không FK** — điểm nghiệp vụ **16**; Phase 1 chỉ chừa cột + đường điền qua API ✅ *21/8*
+- [x] **T18.11** Test: 22 bài qua HTTP + 8 bài phạm vi/cấu trúc ✅ *21/8*
 
-**Kiểm chứng**: ghi một sự cố → công trình chuyển **Sự cố (đỏ)**; đóng bản ghi → tự trả về trạng thái trước đó. Không có dòng nào `UPDATE` thẳng cột trạng thái.
+**Kiểm chứng** ✅ *21/8*: ghi một sự cố → công trình chuyển **Sự cố (đỏ)**; đóng bản ghi → tự trả về trạng thái trước đó. Không dòng nào `UPDATE` thẳng cột trạng thái.
+
+### ⭐ Vì sao HAI quy trình chứ không phải một
+
+Ma trận §6 tách hai dòng khác nhau ở đúng cột "Kỹ thuật": *ghi lịch sử sửa chữa* ✔ nhưng *đóng bản ghi sự cố* ✘. Tức là "chuyển sang Đã xử lý" đòi quyền **khác nhau tuỳ bản ghi là sự cố hay không** — mà `workflow_transitions.required_permission` gắn theo `(from_state, action)` chứ không theo loại công việc. Một quy trình duy nhất thì luật đó chỉ diễn đạt được bằng một câu `if` trong service.
+
+Và `ops:maintenance:close-incident` **đã được seed từ WS-2**. Không dùng tới thì nó là một quyền chưa ai đọc — đúng loại lỗi dự án đã trả giá ba lần (`limits.upload.max-mb.*`, `company.*`, `attachments.valid_from`).
+
+### Bốn lỗi chỉ lộ ra khi chạy thật
+
+- ⚠⚠ **Kiểm "đóng bản ghi mà thiếu ngày hoàn thành" đặt SAU `workflow.execute` không bao giờ chạy tới.** Engine ghi một dòng thông báo, lượt ghi đó **flush** entity đang bẩn, và CHECK `ck_maintenance_logs_completed_when_done` bắn trước — người dùng nhận lỗi ràng buộc thô thay vì `OPS-2004`. Chuyển sang kiểm trước, tra đích đến bằng chính `allowedActions()` của engine (dữ liệu của nó, không phải bản sao).
+- ⚠⚠ **`updatedAt == null` không bao giờ đúng.** Bộ ghi nhật ký của Spring Data đặt `lastModifiedDate` ngay ở lượt **chèn**, nên điều kiện "chưa ai động vào" của cửa sổ tự sửa luôn sai → công tắc bật lên mà không mở cho ai. Dùng `version == 0`.
+- ⚠ **`SUM(cost)` trả `null` biến mất khỏi JSON** vì cấu hình `NON_NULL` chung — phải đè `@JsonInclude(ALWAYS)`, đúng lý do ô KPI của WS-23 đã phải làm.
+- ⚠ **Thân JSON dựng bằng `replace` chồng lên bản mặc định** để lại **hai** khoá cùng tên; Jackson lấy khoá sau, và bài kiểm nhận `OPS-2004` thay vì thứ nó định kiểm.
+
+### ⛔ Ngân sách hạn mức tần suất của bộ kiểm thử đã vỡ — và nó làm đỏ lớp khác
+
+Thêm 2 lớp HTTP là vượt **cả hai** hạn mức đếm theo IP: đăng nhập 30 lượt/15' và **API thường 100 lượt/phút**. Triệu chứng là `ConstructionHttpTest` và `DashboardHttpTest` đỏ hàng loạt với `SYS-0002` — hai lớp không liên quan gì tới WS-18.
+
+Chữa hai tầng: (1) `ArticleHttpTest` + `ConstructionHttpTest` chuyển đăng nhập sang `@BeforeAll` (20+18 → 2+2 vé); (2) `PhienHttp` gắn `X-Forwarded-For` **riêng cho mỗi thực thể**, tức mỗi lớp kiểm thử là một máy khách. ⛔ Cách chữa **sai** là nới hạn mức ở hồ sơ kiểm thử — làm thế thì cơ chế bảo mật đó không còn lượt chạy nào đi qua ở CI.
+
+### Số liệu
+
+**9 tệp mã mới** (1 migration · 5 domain · 1 infra · 4 application · 2 api) · **493 test BE** (239 core + **254** app, +42) + **151 FE** · **72 mã lỗi** (BE = FE) · 2 quy trình workflow mới · 1 tham số `settings` **có người đọc thật và có bài kiểm cho cả hai phía 0 / khác 0**.
+
+**Nợ trả**: ⬜→✅ hai ô KPI `incident.open` và `maintenance.in-progress` của WS-23 nay có nguồn thật (`DashboardHttpTest` đổi từ "bốn ô chưa có nguồn" xuống **hai**).
+**Nợ giao cho WS sau**: mắt xích (3) cảnh báo ngưỡng → **Phase 2**; mắt xích (4) mã tình hình vận hành → **WS-19**; **job đối soát** trạng thái dẫn xuất → **WS-19/T19.4**; nút "Tạo bản ghi khắc phục" từ màn hình cảnh báo → **Phase 2** (nợ #59).
 
 ---
 
@@ -396,7 +422,7 @@ Cả bốn đều **xanh trọn vẹn trong bộ kiểm thử**. Chi tiết ở 
 - [ ] **T19.1** Migration `operation_status_codes` — CRUD đầy đủ: mã, tên, có tham số kèm + đơn vị, **màu hex**, **trạng thái công trình ánh xạ** (để trống = không tác động), thứ tự, hiện/ẩn. **Seed 4 mã** `MT` / `ĐK` / `ĐTTL` / `ĐTHL` — quy tắc 16: cấm hard-code enum
 - [ ] **T19.2** `construction_operation_status` **append, không ghi đè**; "tình hình hiện hành" = bản ghi mới nhất theo `effective_at`
 - [ ] **T19.3** Quy tắc, mã lỗi **đã có sẵn**: trùng mã → `OPS-2005` · mã có tham số mà không nhập giá trị → `OPS-2006` · xoá mã đã dùng → `OPS-2007` (chỉ được ẩn)
-- [ ] **T19.4** ⭐ Dịch vụ tính trạng thái dẫn xuất đúng **thứ tự ưu tiên CN-02.1**: (1) sự cố đang mở → (2) bảo trì đang thực hiện → (3) cảnh báo ngưỡng → (4) ánh xạ từ mã tình hình vận hành → (5) Bình thường. **Lưu sẵn + tính lại theo sự kiện + job đối soát** — điểm nghiệp vụ **14**
+- [ ] **T19.4** ⭐ Dịch vụ tính trạng thái dẫn xuất đúng **thứ tự ưu tiên CN-02.1**. ⚠ *Cập nhật 21/8*: (1) sự cố đang mở, (2) bảo trì đang thực hiện và (5) mặc định **đã chạy từ WS-18** — WS-19 chỉ thêm **mắt xích (4)** ánh xạ từ mã tình hình vận hành, vào **đúng `ConstructionStatusService.tinh()`**, không mở đường ghi mới. Phần còn thiếu thật sự của task này là **job đối soát định kỳ** (tính lại theo sự kiện đã có) — điểm nghiệp vụ **14**
 - [ ] **T19.5** `HydroAlertPort` ở `hydro/spi/` **trả rỗng ở Phase 1** — mức ưu tiên (3) có chỗ cắm sẵn, Phase 2 chỉ điền phần cài đặt. ⚠ Có bài kiểm cho nhánh "không có cảnh báo nào" để Phase 2 không phá vỡ nó
 - [ ] **T19.6** Nhập nhanh hàng loạt: một bảng liệt kê toàn bộ cống/trạm bơm, chọn mã + nhập giá trị + lưu một lần (màn hình trực ban đầu ca)
 - [ ] **T19.7** Cảnh báo mềm "quá N ngày chưa cập nhật" — N đọc từ `settings`
@@ -597,7 +623,9 @@ Chạy tuần tự, tất cả phải xanh mới coi là Phase 1 hoàn thành:
 |:-:|---|---|---|:-:|
 | ~~57~~ | ~~Kiểm chứng tầng 3 trên entity nghiệp vụ thật~~ | WS-12 | WS-17/T17.2 | ✅ **Đóng 21/8** — `ConstructionScopeTest` 8 bài trên bảng `constructions` thật; log khởi động đổi sang *"Bộ lọc phạm vi đơn vị đã sẵn sàng"*. Kiểm chứng ngược: gỡ `@Filter` → 6/8 bài đỏ + luật ArchUnit đỏ |
 | 58 | `HydroAlertPort` mới có phần khai, chưa có phần cài | WS-19/T19.5 | Phase 2 (`hydro`) | ⬜ Chờ |
-| 59 | Nút "Tạo bản ghi khắc phục" từ màn hình cảnh báo | WS-18/T18.10 | Phase 2 | ⬜ Chờ |
+| 59 | Nút "Tạo bản ghi khắc phục" từ màn hình cảnh báo. ✅ *21/8*: cột `alert_event_public_id` và đường điền qua API **đã có**; còn thiếu đúng phần giao diện bên MOD-03 | WS-18/T18.10 | Phase 2 | ⬜ Chờ |
+| ~~73~~ | ~~Hai ô KPI `incident.open` + `maintenance.in-progress` trả rỗng kèm hẹn "WS-18 (CN-02.2)"~~ | WS-23/T23.7 | WS-18 | ✅ **Trả 21/8** — có nguồn thật; `DashboardHttpTest` tách thành hai bài: hai ô thuỷ văn vẫn phải rỗng-kèm-lý-do, hai ô này phải là **số** |
+| **74** | **Job đối soát trạng thái dẫn xuất** chưa có. Hiện trạng thái tính lại **theo sự kiện** ở mọi đường ghi bản ghi sửa chữa và mọi đường ghi hồ sơ công trình — đủ đúng, nhưng một lượt ghi thẳng CSDL (nhập liệu tay, khôi phục sao lưu) sẽ để cột lệch mà không ai biết | WS-18 | **WS-19/T19.4** | ⬜ Chờ |
 | 60 | Widget thuỷ văn ở cấu hình giao diện. ⚠ **Chốt 19/8: KHÔNG seed tham số nào bây giờ** — công tắc chưa ai đọc là lỗi vừa sửa ở WS-12. Phase 2 dựng cả tham số lẫn phần đọc **cùng lúc** | WS-15/T15.5 | Phase 2 | ⬜ Chờ |
 | ~~61~~ | ~~`construction_clusters` — chờ **G15**~~ | WS-17/T17.11 | — | ✅ **Đóng 19/8** — G15 trả lời trong ngày, việc dựng bảng nay nằm thẳng trong T17.11 |
 | **62** | **Ảnh phái sinh (WebP + thumbnail 150/400/800)** — CN-01.3 yêu cầu, Phase 1 dùng ảnh gốc | WS-12/T12.7 | **Phase 2** *(hoặc sớm hơn nếu trúng điều kiện kích hoạt bên dưới)* | ⏸ **Hoãn có chủ đích 19/8** |

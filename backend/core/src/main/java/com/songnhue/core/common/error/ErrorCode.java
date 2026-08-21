@@ -115,6 +115,8 @@ public enum ErrorCode {
     OPS_2015("OPS-2015", HttpStatus.UNPROCESSABLE_ENTITY),
     /** Tệp nhập còn dòng lỗi — chạy khô báo lỗi thì không dòng nào được ghi. */
     OPS_2016("OPS-2016", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Đơn vị thực hiện: đúng MỘT trong hai cột nội bộ / nhà thầu ngoài (điểm nghiệp vụ 17). */
+    OPS_2017("OPS-2017", HttpStatus.UNPROCESSABLE_ENTITY),
     /** Trạng thái công trình là giá trị dẫn xuất — client sửa trực tiếp là từ chối. */
     OPS_3001("OPS-3001", HttpStatus.FORBIDDEN),
 

@@ -5,9 +5,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.UUID;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpMethod;
@@ -34,6 +36,8 @@ import com.songnhue.core.infra.identity.UserRepository;
  * <p>Ba nhóm khẳng định: <b>quyền</b> (tầng 2 chặn đúng), <b>envelope + traceId</b>, và <b>trạng thái
  * dẫn xuất</b> ({@code OPS-3001}).
  */
+// PER_CLASS để @BeforeAll không phải static — nó cần các bean được tiêm vào thực thể.
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ConstructionHttpTest extends IntegrationTestBase {
 
     @Autowired
@@ -53,8 +57,16 @@ class ConstructionHttpTest extends IntegrationTestBase {
     private PhienHttp.Phien khongQuyen;
     private UUID donViGoc;
 
-    @BeforeEach
-    void setUp() {
+    /**
+     * ⚠⚠ Đăng nhập <b>một lần cho cả lớp</b> — chuyển từ {@code @BeforeEach} sang đây ở WS-18.
+     *
+     * <p>Hạn mức đăng nhập là 30 lượt / 15 phút <b>theo IP</b>, bộ đếm Caffeine dùng chung cho toàn
+     * bộ lượt chạy. Lớp này trước đó xin 18 vé (9 bài × 2 tài khoản); khi WS-18 thêm một lớp HTTP
+     * nữa thì trần vỡ và <b>chính lớp này</b> đỏ vì lỗi của lớp khác. Ngân sách là tài nguyên dùng
+     * chung — xem {@code docs/coding-guide.md} §4.
+     */
+    @BeforeAll
+    void dangNhapMotLanChoCaLop() {
         phienHttp = new PhienHttp(http);
         donViGoc = jdbc.queryForObject("SELECT public_id FROM org_units WHERE code = 'CTY'", UUID.class);
 
@@ -68,6 +80,10 @@ class ConstructionHttpTest extends IntegrationTestBase {
 
         duQuyen = phienHttp.dangNhap(coQuyen);
         khongQuyen = phienHttp.dangNhap(traiTay);
+    }
+
+    @BeforeEach
+    void setUp() {
         donDep();
     }
 

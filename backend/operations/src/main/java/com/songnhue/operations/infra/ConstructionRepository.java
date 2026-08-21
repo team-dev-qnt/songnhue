@@ -161,6 +161,22 @@ public interface ConstructionRepository extends JpaRepository<Construction, Long
             nativeQuery = true)
     List<String> codesStartingWith(@Param("tienTo") String tienTo);
 
+    /**
+     * Mã + tên của một nhúm công trình, để dựng danh sách lịch sử sửa chữa (WS-18).
+     *
+     * <p>⚠ <b>Câu native, và đó là chủ ý</b> — ngoại lệ thứ hai trong repository này, cùng loại với
+     * {@link #codesStartingWith}. Lý do nằm ở T18.2: bản ghi sửa chữa giữ đơn vị lúc <i>phát sinh</i>,
+     * nên ngay sau một lượt bàn giao công trình, người của đơn vị cũ vẫn đọc được bản ghi cũ mà
+     * <b>không</b> còn đọc được hồ sơ công trình. Tra bằng câu có lọc phạm vi thì đúng những dòng đó
+     * hiện lên với tên công trình để trống — một lỗi trông như lỗi dữ liệu, sẽ tốn thời gian truy.
+     *
+     * <p>Chỉ trả về <b>mã và tên</b> của những công trình mà người gọi <i>đã</i> đọc được bản ghi
+     * thuộc về chúng. Không phải một đường vòng qua phạm vi: không thông số kỹ thuật, không toạ độ,
+     * không chi phí đầu tư, và người gọi không chọn được tập id.
+     */
+    @Query(value = "SELECT id, public_id, code, name FROM constructions WHERE id IN (:ids)", nativeQuery = true)
+    List<Object[]> briefsByIds(@Param("ids") java.util.Collection<Long> ids);
+
     /** Tuyến sông đang có công trình — nguồn cho ô lọc, thay vì bắt người dùng gõ tay. */
     @Query("SELECT DISTINCT c.riverName FROM Construction c WHERE c.deletedAt IS NULL"
             + " AND c.riverName IS NOT NULL ORDER BY c.riverName")
