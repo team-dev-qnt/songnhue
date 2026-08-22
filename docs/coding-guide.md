@@ -238,3 +238,9 @@ Rồi tự hỏi ba câu:
    đang đi sai đường — dừng lại và hỏi.
 
 Định nghĩa Hoàn thành đầy đủ cho mỗi PR: `conventions.md` §5.
+
+## 10. Task Tracking (SSoT)
+
+- Mọi thao tác cập nhật tiến độ, đánh dấu hoàn thành `[x]`, hoặc thêm take note đều CHỈ ĐƯỢC PHÉP thực hiện tại file `.claude/master-tracking.md`.
+- Tuyệt đối tuân thủ quy tắc tổng hợp: xóa bỏ mọi icon, markdown thừa; mô tả vắn tắt đúng trọng tâm hành động; giới hạn ghi chú.
+- Các file phase cũ (phase0, phase1...) chỉ là tài liệu lưu trữ, cấm sửa đổi.
