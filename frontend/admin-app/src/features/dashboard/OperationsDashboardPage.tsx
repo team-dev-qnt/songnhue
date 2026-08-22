@@ -1,7 +1,7 @@
 import { Alert, Skeleton, Space, Typography } from 'antd';
 import { statusColors } from 'design-tokens';
 import { useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 
 import {
   CONSTRUCTION_STATUS,
@@ -43,6 +43,7 @@ import { useDashboard, useMapPoints } from './useDashboard';
  */
 export function OperationsDashboardPage() {
   const [thamSo] = useSearchParams();
+  const navigate = useNavigate();
   const wall = useWallMode(thamSo);
 
   const { data, isLoading, isError, dataUpdatedAt } = useDashboard();
@@ -118,6 +119,11 @@ export function OperationsDashboardPage() {
               height={wall ? 340 : 260}
               empty={!thongKe || thongKe.byStatus.length === 0}
               option={optionTron(thongKe?.byStatus ?? [], CONSTRUCTION_STATUS)}
+              onClick={(p) => {
+                if (p?.data?.bucketKey) {
+                  navigate(`/van-hanh/cong-trinh?status=${p.data.bucketKey}`);
+                }
+              }}
             />
             <BaseChart
               wall={wall}
@@ -144,6 +150,11 @@ export function OperationsDashboardPage() {
               height={wall ? 300 : 240}
               empty={!thongKe || thongKe.byType.length === 0}
               option={optionCotDoc(thongKe?.byType ?? [], CONSTRUCTION_TYPE)}
+              onClick={(p) => {
+                if (p?.data?.bucketKey) {
+                  navigate(`/van-hanh/cong-trinh?type=${p.data.bucketKey}`);
+                }
+              }}
             />
           </ChartCard>
 
@@ -166,6 +177,11 @@ export function OperationsDashboardPage() {
               height={wall ? 300 : 240}
               empty={!thongKe || thongKe.byManagementLevel.length === 0}
               option={optionCotDoc(thongKe?.byManagementLevel ?? [], MANAGEMENT_LEVEL)}
+              onClick={(p) => {
+                if (p?.data?.bucketKey) {
+                  navigate(`/van-hanh/cong-trinh?level=${p.data.bucketKey}`);
+                }
+              }}
             />
           </ChartCard>
         </div>

@@ -50,3 +50,30 @@ describe('formatBytes / formatDuration / formatAge', () => {
     expect(formatAge(31 * 3600)).toBe('31 giờ trước');
   });
 });
+
+import { formatInvestment } from './format';
+
+describe('formatInvestment', () => {
+  it('không lỗi khi truyền null/undefined', () => {
+    expect(formatInvestment(null)).toBeNull();
+    expect(formatInvestment(undefined)).toBeNull();
+  });
+
+  it('định dạng VNĐ cho số dưới 1 triệu', () => {
+    expect(formatInvestment(500_000)).toBe('500.000 VNĐ');
+    expect(formatInvestment(999_999)).toBe('999.999 VNĐ');
+  });
+
+  it('đổi sang triệu VNĐ (giữ tối đa 2 chữ số thập phân)', () => {
+    expect(formatInvestment(1_000_000)).toBe('~ 1 triệu VNĐ');
+    expect(formatInvestment(1_500_000)).toBe('~ 1,5 triệu VNĐ');
+    expect(formatInvestment(1_555_000)).toBe('~ 1,56 triệu VNĐ');
+    expect(formatInvestment(999_999_999)).toBe('~ 1.000 triệu VNĐ');
+  });
+
+  it('đổi sang tỷ VNĐ (giữ tối đa 2 chữ số thập phân)', () => {
+    expect(formatInvestment(1_000_000_000)).toBe('~ 1 tỷ VNĐ');
+    expect(formatInvestment(1_500_000_000)).toBe('~ 1,5 tỷ VNĐ');
+    expect(formatInvestment(1_555_000_000)).toBe('~ 1,56 tỷ VNĐ');
+  });
+});

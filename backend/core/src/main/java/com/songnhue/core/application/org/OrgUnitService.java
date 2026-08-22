@@ -104,6 +104,17 @@ public class OrgUnitService implements OrgUnitPort {
                 : repository.findByCodeAndDeletedAtIsNull(code.trim()).map(OrgUnitService::toRef);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.Map<Long, OrgUnitRef> findRefsByIds(java.util.Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return java.util.Collections.emptyMap();
+        }
+        return repository.findAllById(ids).stream()
+                .filter(unit -> unit.getDeletedAt() == null)
+                .collect(java.util.stream.Collectors.toMap(OrgUnit::getId, OrgUnitService::toRef));
+    }
+
     private static OrgUnitRef toRef(OrgUnit unit) {
         return new OrgUnitRef(
                 unit.getId(),

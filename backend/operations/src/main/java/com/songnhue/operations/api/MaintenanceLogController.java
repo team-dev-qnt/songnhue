@@ -279,31 +279,69 @@ public class MaintenanceLogController {
     }
 
     private Page<MaintenanceDtos.MaintenanceRow> trang(Page<MaintenanceLog> page) {
-        Map<Long, ConstructionService.ConstructionBrief> danhMuc = briefs(page.getContent());
-        return page.map(m -> toRow(m, danhMuc));
+        List<MaintenanceLog> content = page.getContent();
+        Map<Long, ConstructionService.ConstructionBrief> danhMuc = briefs(content);
+
+        List<Long> orgUnitIds = content.stream()
+                .map(MaintenanceLog::getPerformerOrgUnitId)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .toList();
+        Map<Long, com.songnhue.core.spi.OrgUnitRef> orgUnitRefs = orgUnits.findRefsByIds(orgUnitIds);
+
+        List<Long> userIds = content.stream()
+                .map(MaintenanceLog::getAssigneeUserId)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .toList();
+        Map<Long, UUID> userPublicIds = users.publicIdsOf(userIds);
+
+        return page.map(m -> toRow(m, danhMuc, orgUnitRefs, userPublicIds));
     }
 
     private MaintenanceDtos.MaintenanceRow toRow(
             MaintenanceLog m, Map<Long, ConstructionService.ConstructionBrief> danhMuc) {
+        String performer = m.getPerformerOrgUnitId() == null
+                ? m.getPerformerName()
+                : orgUnits.findRefById(m.getPerformerOrgUnitId())
+                        .map(ref -> ref.name())
+                        .orElse(null);
+
         ConstructionService.ConstructionBrief ct = danhMuc.get(m.getConstructionId());
         return MaintenanceDtos.MaintenanceRow.of(
                 m,
                 ct == null ? null : ct.code(),
                 ct == null ? null : ct.name(),
                 ct == null ? null : ct.publicId(),
-                donViThucHien(m),
-                users.publicIdOf(m.getAssigneeUserId()).orElse(null));
+                performer,
+                m.getAssigneeUserId() == null
+                        ? null
+                        : users.publicIdOf(m.getAssigneeUserId()).orElse(null));
     }
 
-    /** Gộp hai cột thành một tên để hiển thị — xem chú thích ở {@code MaintenanceRow.performer}. */
-    private String donViThucHien(MaintenanceLog m) {
-        if (m.getPerformerOrgUnitId() == null) {
-            return m.getPerformerName();
-        }
-        return orgUnits.findRefById(m.getPerformerOrgUnitId())
-                .map(ref -> ref.name())
-                .orElse(null);
+    private MaintenanceDtos.MaintenanceRow toRow(
+            MaintenanceLog m,
+            Map<Long, ConstructionService.ConstructionBrief> danhMuc,
+            Map<Long, com.songnhue.core.spi.OrgUnitRef> orgUnitRefs,
+            Map<Long, UUID> userPublicIds) {
+        ConstructionService.ConstructionBrief ct = danhMuc.get(m.getConstructionId());
+
+        String performer = m.getPerformerOrgUnitId() == null
+                ? m.getPerformerName()
+                : orgUnitRefs.getOrDefault(m.getPerformerOrgUnitId(), null) == null
+                        ? null
+                        : orgUnitRefs.get(m.getPerformerOrgUnitId()).name();
+
+        return MaintenanceDtos.MaintenanceRow.of(
+                m,
+                ct == null ? null : ct.code(),
+                ct == null ? null : ct.name(),
+                ct == null ? null : ct.publicId(),
+                performer,
+                m.getAssigneeUserId() == null ? null : userPublicIds.get(m.getAssigneeUserId()));
     }
+
+    // Method donViThucHien has been removed.
 
     private static MaintenanceDtos.AttachmentView toView(AttachmentRef ref) {
         return new MaintenanceDtos.AttachmentView(

@@ -5,9 +5,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.songnhue.core.spi.HydroAlertPort;
 import com.songnhue.operations.domain.Construction;
 import com.songnhue.operations.domain.LifecycleState;
 import com.songnhue.operations.domain.OperationalStatus;
+import com.songnhue.operations.infra.ConstructionOperationStatusRepository;
 import com.songnhue.operations.infra.ConstructionRepository;
 import com.songnhue.operations.infra.MaintenanceLogRepository;
 
@@ -55,10 +57,18 @@ public class ConstructionStatusService {
 
     private final ConstructionRepository constructions;
     private final MaintenanceLogRepository maintenanceLogs;
+    private final ConstructionOperationStatusRepository operationStatuses;
+    private final HydroAlertPort hydroAlertPort;
 
-    public ConstructionStatusService(ConstructionRepository constructions, MaintenanceLogRepository maintenanceLogs) {
+    public ConstructionStatusService(
+            ConstructionRepository constructions,
+            MaintenanceLogRepository maintenanceLogs,
+            ConstructionOperationStatusRepository operationStatuses,
+            HydroAlertPort hydroAlertPort) {
         this.constructions = constructions;
         this.maintenanceLogs = maintenanceLogs;
+        this.operationStatuses = operationStatuses;
+        this.hydroAlertPort = hydroAlertPort;
     }
 
     /**
@@ -133,8 +143,22 @@ public class ConstructionStatusService {
             return OperationalStatus.BAO_TRI;
         }
 
-        // Mắt xích 3 (cảnh báo ngưỡng — Phase 2) và mắt xích 4 (mã tình hình vận hành — WS-19)
-        // thêm vào ĐÂY, không thêm đường ghi khác vào cột operational_status.
+        // Mắt xích 3 (cảnh báo ngưỡng — Phase 2)
+        if (hydroAlertPort.hasActiveAlert(id)) {
+            return OperationalStatus.CANH_BAO;
+        }
+
+        // Mắt xích 4 (mã tình hình vận hành — WS-19)
+        var latestOperationStatus = operationStatuses.findFirstByConstructionIdOrderByEffectiveAtDesc(id);
+        if (latestOperationStatus.isPresent()) {
+            OperationalStatus mappedStatus =
+                    latestOperationStatus.get().getOperationCode().getMappedStatus();
+            if (mappedStatus != null) {
+                return mappedStatus;
+            }
+        }
+
+        // Mắt xích 5: Mặc định
         return OperationalStatus.BINH_THUONG;
     }
 }

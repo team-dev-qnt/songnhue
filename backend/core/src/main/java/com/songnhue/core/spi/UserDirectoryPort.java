@@ -26,4 +26,7 @@ public interface UserDirectoryPort {
 
     /** Chiều ngược lại — dựng phản hồi API từ khoá ngoại đang lưu. */
     Optional<UUID> publicIdOf(Long internalId);
+
+    /** Tải hàng loạt ID công khai từ ID nội bộ — chống N+1 query. */
+    java.util.Map<Long, UUID> publicIdsOf(java.util.Collection<Long> internalIds);
 }

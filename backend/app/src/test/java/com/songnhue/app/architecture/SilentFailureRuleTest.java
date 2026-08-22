@@ -227,7 +227,12 @@ class SilentFailureRuleTest {
 
         /** Chú thích đặt trên lớp thì áp cho mọi hàm của lớp — bỏ qua vế này là luật báo nhầm hàng loạt. */
         private static boolean laTransactional(JavaCodeUnit unit) {
-            return unit.isAnnotatedWith(Transactional.class) || unit.getOwner().isAnnotatedWith(Transactional.class);
+            return trucTiepMangTransactional(unit) || trucTiepMangTransactional(unit.getOwner());
+        }
+
+        private static boolean trucTiepMangTransactional(
+                com.tngtech.archunit.core.domain.properties.HasAnnotations<?> entity) {
+            return entity.getAnnotations().stream().anyMatch(a -> a.getRawType().isEquivalentTo(Transactional.class));
         }
 
         private static boolean doiGiaoDichRieng(JavaMethod method) {

@@ -57,6 +57,20 @@ export const MENU: readonly MenuNode[] = [
         path: '/van-hanh/dieu-hanh',
         permissions: ['ops:dashboard:view'],
       },
+      {
+        key: 'cong-trinh',
+        label: 'Hồ sơ công trình',
+        icon: <AppstoreOutlined />,
+        path: '/van-hanh/cong-trinh',
+        permissions: ['ops:construction:view'],
+      },
+      {
+        key: 'danh-muc-tinh-hinh',
+        label: 'Danh mục tình trạng vận hành',
+        icon: <AppstoreOutlined />,
+        path: '/van-hanh/danh-muc-tinh-hinh',
+        permissions: ['ops:operation-status-code:manage'],
+      },
     ],
   },
   {

@@ -24,4 +24,9 @@ public interface OrgUnitPort {
      * định danh của hệ thống.
      */
     Optional<OrgUnitRef> findRefByCode(String code);
+
+    /**
+     * Tải hàng loạt đơn vị theo ID — chống N+1 query trên màn hình danh sách.
+     */
+    java.util.Map<Long, OrgUnitRef> findRefsByIds(java.util.Collection<Long> ids);
 }

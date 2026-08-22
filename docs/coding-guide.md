@@ -213,6 +213,9 @@ Không cần đọc thuộc — chỉ cần biết chúng tồn tại để lúc
 | Trả `null` trong một `record` DTO | Cấu hình `NON_NULL` chung **xoá hẳn khoá** khỏi JSON; phía nhận đọc ra `undefined`, không phân biệt được với "API đổi tên trường". Ô nào cố ý rỗng phải đè `@JsonInclude(ALWAYS)` |
 | Dựng thân JSON của bài kiểm bằng `replace` chồng lên bản mặc định | Để lại **hai khoá cùng tên**; Jackson lấy khoá sau, tức là giá trị mặc định. Bài kiểm nhận một mã lỗi khác và ta đi tìm lỗi ở chỗ không có lỗi. Dựng bằng tham số |
 | **Đổi tên một tệp migration** | Maven copy tài nguyên **tăng dần**, không xoá tệp đã biến mất khỏi `target/classes` → Flyway thấy **hai** migration cùng số hiệu và chết lúc khởi động. Bắt buộc `./mvnw clean` sau mỗi lần đổi tên hoặc đổi số hiệu migration |
+| `@Generated` thiếu `insertable = false, updatable = false` | Bản ghi trả về sau khi tạo mới bị **rỗng** ở cột đó dù CSDL đã tính xong (do Hibernate không nhả để tự đọc lại). Giao diện hiển thị ô trống, người dùng F5 thì có — loại lỗi mất thời gian truy vết nhất |
+| Migration thiếu cột chuẩn của `BaseEntity`/`ScopedEntity` | Bảng mới kế thừa `BaseEntity` nhưng migration chỉ có `created_at`, `created_by` mà **thiếu `public_id`, `deleted_at`, `updated_at`, `updated_by`, `version`**. Hibernate schema-validation phát hiện ở CI nhưng **lỗi nằm ở tên cột**, không ở entity → truy vết sai hướng. Khi tạo bảng mới, đối chiếu migration với **tất cả** cột của lớp cha (`BaseEntity`: 7 cột, `ScopedEntity`: 8 cột) |
+| Controller trả entity JPA thay vì record DTO | ArchUnit (`endpointsExposeDtosOnly`) bắt nhưng nếu chưa có luật thì **lộ field nội bộ** (`passwordHash`, quan hệ lazy bung ngoài transaction). Mỗi cột mới thêm vào bảng lặng lẽ trở thành một phần hợp đồng API. Luôn trả `record` DTO, dùng factory method `from(Entity)` |
 
 Chi tiết nguyên nhân: `architecture-review.md` §9.7, §9.8, §9.12, §10.33.
 

@@ -13,6 +13,7 @@ export interface BaseChartProps {
   /** Chế độ màn hình lớn — đổi theme, không đổi ý nghĩa màu. */
   wall?: boolean;
   emptyText?: string;
+  onClick?: (params: any) => void;
 }
 
 /**
@@ -43,9 +44,15 @@ export function BaseChart({
   height = 280,
   wall = false,
   emptyText = 'Không có dữ liệu',
+  onClick,
 }: BaseChartProps) {
   const khungRef = useRef<HTMLDivElement>(null);
   const bieuDoRef = useRef<echarts.ECharts | null>(null);
+  const onClickRef = useRef(onClick);
+
+  useEffect(() => {
+    onClickRef.current = onClick;
+  }, [onClick]);
 
   const anBieuDo = loading || empty;
 
@@ -63,6 +70,12 @@ export function BaseChart({
     // không đổi kích thước — và biểu đồ sẽ tràn ra ngoài thẻ chứa nó.
     const theoDoi = new ResizeObserver(() => bieuDo.resize());
     theoDoi.observe(khungRef.current);
+
+    bieuDo.on('click', (params) => {
+      if (onClickRef.current) {
+        onClickRef.current(params);
+      }
+    });
 
     return () => {
       theoDoi.disconnect();

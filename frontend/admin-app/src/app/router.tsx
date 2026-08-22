@@ -96,6 +96,38 @@ export const router = createBrowserRouter([
               'OperationsDashboardPage',
             ),
           ),
+          adminRoute(
+            '/van-hanh/cong-trinh',
+            'ops:construction:view',
+            lazyPage(
+              () => import('@/features/operations/ConstructionsPage'),
+              'ConstructionsPage',
+            ),
+          ),
+          adminRoute(
+            '/van-hanh/danh-muc-tinh-hinh',
+            'ops:operation-status-code:manage',
+            lazyPage(
+              () => import('@/features/operations/OperationStatusCodesPage'),
+              'OperationStatusCodesPage',
+            ),
+          ),
+          adminRoute(
+            '/van-hanh/cong-trinh/tao-moi',
+            'ops:construction:create',
+            lazyPage(
+              () => import('@/features/operations/ConstructionFormPage'),
+              'ConstructionFormPage',
+            ),
+          ),
+          adminRoute(
+            '/van-hanh/cong-trinh/:publicId',
+            'ops:construction:update',
+            lazyPage(
+              () => import('@/features/operations/ConstructionFormPage'),
+              'ConstructionFormPage',
+            ),
+          ),
           // ---- Nội dung (MOD-01) ----
           adminRoute(
             '/noi-dung/bai-viet',

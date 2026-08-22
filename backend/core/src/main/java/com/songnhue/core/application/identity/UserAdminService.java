@@ -215,6 +215,20 @@ public class UserAdminService implements UserDirectoryPort {
     @Override
     @Transactional(readOnly = true)
     public Optional<UUID> publicIdOf(Long internalId) {
+        if (internalId == null) {
+            return Optional.empty();
+        }
         return users.findById(internalId).filter(u -> !u.isDeleted()).map(User::getPublicId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.Map<Long, UUID> publicIdsOf(java.util.Collection<Long> internalIds) {
+        if (internalIds == null || internalIds.isEmpty()) {
+            return java.util.Collections.emptyMap();
+        }
+        return users.findAllById(internalIds).stream()
+                .filter(u -> !u.isDeleted())
+                .collect(java.util.stream.Collectors.toMap(User::getId, User::getPublicId));
     }
 }

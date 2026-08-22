@@ -249,7 +249,7 @@ public class Construction extends ScopedEntity {
     @Column(table = "linear_specs", name = "spec_note")
     private String specNote;
 
-    protected Construction() {}
+    public Construction() {}
 
     public Construction(String code, String name, ConstructionType constructionType, Long orgUnitId) {
         this.code = code;

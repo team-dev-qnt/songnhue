@@ -47,7 +47,7 @@ public class CodeGenerator {
      * @param year năm đưa vào mã
      * @param padding số chữ số của phần chạy số, VD 4 → {@code 0001}
      */
-    public String next(String seqType, int year, int padding) {
+    public String generate(String seqType, int year, int padding) {
         Long value = giaoDichRieng.execute(status -> jdbcClient
                 .sql(
                         """
@@ -68,7 +68,7 @@ public class CodeGenerator {
 
     /** Sinh mã cho năm hiện tại theo lịch Việt Nam. */
     public String next(String seqType, int padding) {
-        return next(seqType, LocalDate.now(DateTimeUtils.ZONE_VN).getYear(), padding);
+        return generate(seqType, LocalDate.now(DateTimeUtils.ZONE_VN).getYear(), padding);
     }
 
     /**

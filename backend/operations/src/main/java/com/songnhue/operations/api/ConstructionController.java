@@ -96,7 +96,24 @@ public class ConstructionController {
         // Nạp danh mục cụm MỘT LẦN cho cả trang. Tra từng dòng thì một trang 100 công trình thành
         // 100 lượt truy vấn — kiểu N+1 không gây lỗi nào, chỉ làm màn hình chậm dần theo dữ liệu.
         Map<Long, ConstructionCluster> danhMucCum = cumTheoId();
-        return constructions.search(filter, pageable).map(c -> toRow(c, danhMucCum));
+        Page<Construction> pageResult = constructions.search(filter, pageable);
+
+        List<Long> orgUnitIds = pageResult.stream()
+                .map(Construction::getOrgUnitId)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .toList();
+        Map<Long, com.songnhue.core.spi.OrgUnitRef> orgUnitRefs = orgUnits.findRefsByIds(orgUnitIds);
+
+        return pageResult.map(c -> {
+            ConstructionCluster cum = c.getClusterId() == null ? null : danhMucCum.get(c.getClusterId());
+            String orgUnitName = c.getOrgUnitId() == null
+                    ? null
+                    : orgUnitRefs.getOrDefault(c.getOrgUnitId(), null) == null
+                            ? null
+                            : orgUnitRefs.get(c.getOrgUnitId()).name();
+            return ConstructionDtos.ConstructionRow.of(c, orgUnitName, cum == null ? null : cum.getName());
+        });
     }
     // CHECKSTYLE.ON: ParameterNumber
 
