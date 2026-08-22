@@ -14,6 +14,8 @@ import com.songnhue.core.domain.notification.NotificationSeverity;
  * @param eventType mã sự kiện nghiệp vụ, VD {@code HYDRO_THRESHOLD_EXCEEDED}
  * @param relatedOrgUnitIds đơn vị liên quan — nguồn tìm người phụ trách theo G11
  * @param extraUserIds người nhận chỉ định thêm (VD người được giao việc)
+ * @param targetPermission gửi cho mọi tài khoản đang hoạt động có quyền này; khai giá trị thì nhóm
+ *     "Ban điều hành" <b>không</b> được cộng thêm (xem {@code RecipientResolver})
  * @param channels kênh muốn dùng; kênh đang tắt theo cấu hình sẽ bị bỏ qua, không phải lỗi
  */
 public record NotificationRequest(
@@ -26,6 +28,7 @@ public record NotificationRequest(
         Long refId,
         List<Long> relatedOrgUnitIds,
         List<Long> extraUserIds,
+        String targetPermission,
         List<NotificationChannel> channels) {
 
     /** Mặc định hay dùng nhất: cảnh báo nghiệp vụ, gửi cả trên giao diện lẫn email. */
@@ -41,6 +44,7 @@ public record NotificationRequest(
                 null,
                 orgUnitIds,
                 List.of(),
+                null,
                 List.of(NotificationChannel.IN_APP, NotificationChannel.EMAIL));
     }
 }

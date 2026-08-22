@@ -3,6 +3,7 @@ package com.songnhue.core.application.org;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -22,6 +23,8 @@ import com.songnhue.core.domain.org.OrgUnit;
 import com.songnhue.core.domain.org.OrgUnitType;
 import com.songnhue.core.infra.identity.UserRepository;
 import com.songnhue.core.infra.org.OrgUnitRepository;
+import com.songnhue.core.spi.OrgUnitPort;
+import com.songnhue.core.spi.OrgUnitRef;
 
 /**
  * Cây tổ chức — pattern P2 (implement.md §2), một bảng dùng chung cho Xí nghiệp và phòng ban
@@ -34,7 +37,7 @@ import com.songnhue.core.infra.org.OrgUnitRepository;
  * transaction và đều tính lại path bằng {@link MaterializedPath}, không có đường nào sửa path tay.
  */
 @Service
-public class OrgUnitService {
+public class OrgUnitService implements OrgUnitPort {
 
     private static final Logger log = LoggerFactory.getLogger(OrgUnitService.class);
 
@@ -63,6 +66,65 @@ public class OrgUnitService {
     @Transactional(readOnly = true)
     public List<OrgUnitNode> subtree(UUID publicId) {
         return toTree(repository.findSubtree(require(publicId).getPath()));
+    }
+
+    // ---- Hợp đồng cho module nghiệp vụ (core.spi) -------------------------------
+    //
+    // Chỉ đọc, và chỉ hai phương thức: module nghiệp vụ gán đơn vị phụ trách cho bản ghi của mình
+    // thì cần tra, không cần sửa cây. `findRefById` có vì bản ghi nghiệp vụ lưu `org_unit_id` chứ
+    // không lưu UUID — bộ lọc phạm vi ở tầng 3 làm việc trên khoá số.
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<OrgUnitRef> findRef(UUID publicId) {
+        return repository.findByPublicIdAndDeletedAtIsNull(publicId).map(OrgUnitService::toRef);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<OrgUnitRef> findRefById(Long id) {
+        return repository
+                .findById(id)
+                .filter(unit -> unit.getDeletedAt() == null)
+                .map(OrgUnitService::toRef);
+    }
+
+    /**
+     * Tra đơn vị theo <b>mã</b> — dành cho đường nhập dữ liệu hàng loạt (T17.9).
+     *
+     * <p>Tệp Excel do Công ty gửi ghi mã đơn vị ("XN1", "XNTL-HD"), không ghi UUID. Bắt người nhập
+     * dịch sang UUID trước khi nhập là đòi họ làm việc mà hệ thống làm được — và mỗi lần dịch tay là
+     * một cơ hội gán nhầm hồ sơ sang Xí nghiệp khác, tức là gán nhầm cả phạm vi xem dữ liệu.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<OrgUnitRef> findRefByCode(String code) {
+        return code == null
+                ? Optional.empty()
+                : repository.findByCodeAndDeletedAtIsNull(code.trim()).map(OrgUnitService::toRef);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.Map<Long, OrgUnitRef> findRefsByIds(java.util.Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return java.util.Collections.emptyMap();
+        }
+        return repository.findAllById(ids).stream()
+                .filter(unit -> unit.getDeletedAt() == null)
+                .collect(java.util.stream.Collectors.toMap(OrgUnit::getId, OrgUnitService::toRef));
+    }
+
+    private static OrgUnitRef toRef(OrgUnit unit) {
+        return new OrgUnitRef(
+                unit.getId(),
+                unit.getPublicId(),
+                unit.getCode(),
+                unit.getName(),
+                unit.getShortName(),
+                unit.getUnitType().name(),
+                unit.getPath(),
+                unit.getDepth());
     }
 
     @Transactional(readOnly = true)

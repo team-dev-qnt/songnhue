@@ -1,24 +1,62 @@
 import type { MetadataRoute } from 'next';
 
-import { NAV_ITEMS, SITE_URL } from '@/lib/site';
+import { getArticles, getCategories } from '@/lib/api';
+import { ROUTES } from '@/lib/routes';
+import { SITE_URL } from '@/lib/site';
 
 /**
- * `sitemap.xml` (T9.3).
+ * `sitemap.xml` — đọc từ CSDL (T16.4).
  *
- * Phase 0 chỉ liệt kê các trang tĩnh đã có. **Phase 1 nối thêm bài viết và văn bản** bằng
- * cách gọi API danh sách rồi `concat` vào mảng dưới đây — hàm là `async` sẵn cho việc đó.
+ * <h3>⛔ Chỉ liệt kê thứ đã xuất bản</h3>
  *
- * ⚠ Sitemap **không** được liệt kê trang chưa xuất bản. Bài viết ở trạng thái chờ duyệt
- * mà lọt vào đây là công bố nội dung trước khi nó được duyệt — một lỗi quy trình, không
- * phải lỗi kỹ thuật, nên khi Phase 1 nối API vào thì phải lọc theo trạng thái đã xuất bản.
+ * Điều đó được bảo đảm ở tầng dưới, không phải ở đây: `GET /public/articles` đã lọc theo
+ * `status = 'XUAT_BAN'` và `published_at <= now()`. Sitemap chỉ việc dùng đúng nguồn ấy —
+ * lấy từ một truy vấn khác là mở đường cho bài chưa duyệt lọt vào một tệp mà Google đọc.
+ *
+ * <h3>Vì sao chỉ lấy 500 bài</h3>
+ *
+ * Chuẩn sitemap cho tối đa 50.000 URL mỗi tệp, nhưng cổng này sẽ có vài trăm bài trong nhiều
+ * năm. Đặt trần để một lỗi phân trang không biến sitemap thành một lượt tải cả CSDL; khi
+ * chạm trần thật thì việc phải làm là tách sitemap theo chỉ mục, không phải nâng số.
  */
+const TRAN_BAI = 500;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
 
-  return NAV_ITEMS.map((item) => ({
-    url: `${SITE_URL}${item.href === '/' ? '' : item.href}`,
-    lastModified: now,
-    changeFrequency: item.href === '/' ? ('daily' as const) : ('weekly' as const),
-    priority: item.href === '/' ? 1 : 0.7,
-  }));
+  const [articles, categories] = await Promise.all([
+    getArticles({ size: 50, page: 0 }),
+    getCategories(),
+  ]);
+
+  const entries: MetadataRoute.Sitemap = [
+    { url: SITE_URL, lastModified: now, changeFrequency: 'daily', priority: 1 },
+  ];
+
+  for (const category of categories ?? []) {
+    entries.push({
+      url: `${SITE_URL}${ROUTES.category(category.slug)}`,
+      lastModified: now,
+      changeFrequency: 'weekly',
+      priority: 0.7,
+    });
+  }
+
+  // Lấy hết các trang bài viết, dừng ở trần.
+  let page = articles;
+  let index = 0;
+  while (page && entries.length < TRAN_BAI) {
+    for (const article of page.content) {
+      entries.push({
+        url: `${SITE_URL}${ROUTES.article(article.slug)}`,
+        lastModified: article.publishedAt ? new Date(article.publishedAt) : now,
+        changeFrequency: 'monthly',
+        priority: 0.6,
+      });
+    }
+    index += 1;
+    page = index < page.totalPages ? await getArticles({ size: 50, page: index }) : null;
+  }
+
+  return entries;
 }

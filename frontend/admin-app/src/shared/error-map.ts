@@ -1,5 +1,5 @@
 /**
- * Bản sao danh mục mã lỗi của backend (conventions.md §2.3) — **49 mã**, tính đến hết WS-7.
+ * Bản sao danh mục mã lỗi của backend (conventions.md §2.3) — **57 mã**, tính đến hết WS-14.
  *
  * <h3>Vì sao FE cần bản sao, khi API đã trả sẵn câu tiếng Việt</h3>
  *
@@ -88,6 +88,11 @@ export const ERROR_CATALOG = {
     handling: 'toast',
     severity: 'warning',
   },
+  'SYS-0010': {
+    message: 'Bản ghi đã hết dung lượng tệp đính kèm — xoá bớt tệp cũ trước khi tải thêm',
+    handling: 'toast',
+    severity: 'warning',
+  },
 
   // --- Xác thực & phân quyền -------------------------------------------------
   'AUTH-0001': {
@@ -148,6 +153,66 @@ export const ERROR_CATALOG = {
     handling: 'toast',
     severity: 'warning',
   },
+  'CMS-2003': {
+    message: 'Danh mục còn bài viết — chuyển bài sang danh mục khác trước khi xoá',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'CMS-2004': {
+    message: 'Danh mục còn danh mục con — xoá hoặc chuyển các danh mục con trước',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'CMS-2005': {
+    message: 'Cây danh mục chỉ được sâu tối đa 3 cấp',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'CMS-2006': {
+    message: 'Bài viết phải thuộc ít nhất một danh mục',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'CMS-2007': {
+    message: 'Bài đang chờ duyệt nên không sửa được',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'CMS-2008': {
+    message: 'Thư mục còn tệp bên trong — chuyển hoặc xoá các tệp trước',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'CMS-2009': {
+    message: 'Tệp đang được bài viết sử dụng',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'CMS-2010': {
+    message: 'Menu chỉ được sâu tối đa 3 cấp',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'CMS-2011': {
+    message: 'Mục menu còn mục con — xoá các mục con trước',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'CMS-2012': {
+    message: 'Đích của mục menu không tồn tại hoặc đã bị xoá',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'CMS-2013': {
+    message: 'Mục con phải nằm cùng menu với mục cha',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'CMS-2014': {
+    message: 'Ngày kết thúc hiển thị phải sau ngày bắt đầu',
+    handling: 'form',
+    severity: 'warning',
+  },
   'CMS-5001': {
     message: 'Không đăng nhập được sang hệ thống văn bản điều hành',
     handling: 'toast',
@@ -166,7 +231,8 @@ export const ERROR_CATALOG = {
     severity: 'warning',
   },
   'OPS-2003': {
-    message: 'Bản ghi loại "Khắc phục sự cố" bắt buộc có mức độ',
+    message:
+      'Mức độ chỉ dùng cho bản ghi "Khắc phục sự cố" — loại này bắt buộc có, loại khác phải để trống',
     handling: 'form',
     severity: 'warning',
   },
@@ -188,6 +254,57 @@ export const ERROR_CATALOG = {
   'OPS-2007': {
     message: 'Mã tình hình vận hành đã được sử dụng — chỉ được ẩn, không được xóa',
     handling: 'toast',
+    severity: 'warning',
+  },
+  'OPS-2008': {
+    message: 'Mã công trình đã tồn tại — mã phải là duy nhất trong toàn hệ thống',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'OPS-2009': {
+    message: 'Thông số kỹ thuật không thuộc loại công trình đang lập hồ sơ',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'OPS-2010': {
+    message: 'Toạ độ phải nhập đủ cả vĩ độ và kinh độ',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'OPS-2011': {
+    message: 'Lý trình phải theo định dạng K<km>+<m>, ví dụ K0+390',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'OPS-2012': {
+    message: 'Cụm công trình còn công trình bên trong — chuyển hết đi rồi mới xoá được',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'OPS-2013': {
+    message: 'Cấp quản lý "Cụm" bắt buộc phải chọn cụm công trình',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'OPS-2014': {
+    message: 'Mã cụm công trình đã tồn tại',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'OPS-2015': {
+    message: 'Không đọc được tệp nhập, hoặc tệp thiếu cột bắt buộc',
+    handling: 'toast',
+    severity: 'error',
+  },
+  'OPS-2016': {
+    message: 'Tệp nhập còn dòng lỗi — sửa hết lỗi rồi nhập lại, không dòng nào được ghi',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'OPS-2017': {
+    message:
+      'Đơn vị thực hiện: chọn đơn vị nội bộ HOẶC nhập tên nhà thầu ngoài, đúng một trong hai',
+    handling: 'form',
     severity: 'warning',
   },
   'OPS-3001': {

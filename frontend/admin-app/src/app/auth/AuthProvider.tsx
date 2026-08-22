@@ -8,7 +8,6 @@ import {
   clearTokens,
   onSessionEvent,
   setAccessToken,
-  setCsrfToken,
 } from '@/shared/apiClient';
 
 import { AuthContext, type AuthContextValue, type AuthStatus } from './AuthContext';
@@ -38,8 +37,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.stage !== 'AUTHENTICATED' || !response.accessToken) {
         return response;
       }
+      // Vé CSRF không chép vào bộ nhớ: nó đã nằm ở cookie `XSRF-TOKEN` do chính phản hồi
+      // này đặt, và cookie là vế mà backend đối chiếu (xem `currentCsrfToken`).
       setAccessToken(response.accessToken);
-      setCsrfToken(response.csrfToken);
       await loadProfile();
       return response;
     },
@@ -121,17 +121,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [applyTokens],
   );
 
+  /**
+   * Đưa giao diện về trạng thái chưa đăng nhập.
+   *
+   * ⚠⚠ Phải dọn **cả ba** thứ, và đó là lý do hàm này tồn tại thay vì để mỗi nơi tự nhớ.
+   * `clearTokens()` chỉ xoá token trong `apiClient`; `user` và `status` nằm ở React và
+   * **guard đọc chúng**. Bỏ sót hai cái sau thì `RequireAnonymous` vẫn thấy
+   * `status === 'authenticated'` và đẩy người dùng ngược về màn hình cũ.
+   *
+   * Đã xảy ra thật: đổi mật khẩu thành công (backend trả 204, mật khẩu đã đổi trong CSDL)
+   * nhưng `ChangePasswordPage` chỉ gọi `clearTokens()`, nên `user.mustChangePassword` còn
+   * `true` → guard bật lại đúng biểu mẫu vừa gửi → người dùng tưởng thất bại, bấm gửi lần
+   * nữa, và lần này backend trả **403 AUTH-0005** vì phiên đã bị thu hồi cùng vé CSRF.
+   * Triệu chứng người dùng thấy là "đổi mật khẩu bị 403", trong khi việc đã xong từ đầu.
+   */
+  const endSession = useCallback(() => {
+    clearTokens();
+    setUser(null);
+    setStatus('anonymous');
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await api.post<void>('/auth/logout');
     } finally {
       // Dọn phía FE dù backend có trả lỗi gì: người dùng đã bấm đăng xuất thì màn hình
       // phải rời khỏi trạng thái đăng nhập, không thể "đăng xuất hỏng nên vẫn ở trong".
-      clearTokens();
-      setUser(null);
-      setStatus('anonymous');
+      endSession();
     }
-  }, []);
+  }, [endSession]);
 
   const value = useMemo<AuthContextValue>(() => {
     const permissions = new Set(user?.permissions ?? []);
@@ -143,12 +161,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       verifyTwoFactor,
       confirmEnrollment,
       logout,
+      endSession,
       reloadProfile: loadProfile,
       hasPermission: (code) => permissions.has(code),
       hasRole: (code) => roles.has(code),
       maintenance,
     };
-  }, [status, user, login, verifyTwoFactor, confirmEnrollment, logout, loadProfile, maintenance]);
+  }, [
+    status,
+    user,
+    login,
+    verifyTwoFactor,
+    confirmEnrollment,
+    logout,
+    endSession,
+    loadProfile,
+    maintenance,
+  ]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

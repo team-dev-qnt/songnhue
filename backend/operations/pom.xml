@@ -12,6 +12,10 @@
     <name>Songnhue Operations</name>
     <description>MOD-02 — Quản lý và vận hành công trình thủy lợi: danh mục công trình, lịch sử sửa chữa/sự cố, tình hình vận hành, GIS, dashboard, báo cáo.</description>
 
+    <properties>
+        <jacoco.domain.line.coverage>0.70</jacoco.domain.line.coverage>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>com.songnhue</groupId>

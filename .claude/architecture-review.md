@@ -103,12 +103,12 @@ Giữ nguyên (đã đúng): **Modular Monolith** (đúng cỡ dự án, đúng 
 
 ---
 
-## 5. VIỆC CẦN LÀM THEO REVIEW (đã phản ánh vào spec)
+## 5. ~~VIỆC CẦN LÀM THEO REVIEW~~ — **ĐÃ LÀM XONG, XOÁ 21/8/2026**
 
-1. ✅ `function-spec.md` §0.2 — thay bảng tech stack; sửa quy ước timestamp (Phụ lục).
-2. ✅ `implement.md` — checklist quyết định: đóng các mục 3, 4, 5 (queue, chart, map); bổ sung ShedLock + ArchUnit vào Nhóm A.
-3. ⬜ Khi bắt đầu Phase 0: setup Testcontainers (PostgreSQL + PostGIS) cho integration test; viết bộ test ma trận RBAC trước khi code nghiệp vụ.
-4. ⬜ Còn mở (ngoài phạm vi tech): contract API Telemetry thật (mục 6.1 implement.md) và khả năng tích hợp hệ thống văn bản (6.2) — cần khảo sát với bên thứ 3, quyết trong giai đoạn SRS.
+> Mục này là checklist 4 việc phải làm sau đợt review đầu (2026-07). Cả 4 đã đóng, nên giữ lại chỉ khiến người đọc tưởng còn việc:
+> **(1)** bảng tech stack + quy ước timestamp — đã vào `function-spec.md` §0.2 và Phụ lục · **(2)** checklist quyết định queue/chart/map + ShedLock + ArchUnit — đã vào `implement.md` · **(3)** Testcontainers PostgreSQL+PostGIS và bộ kiểm ma trận RBAC — dựng ở **WS-10** (`RbacMatrixTest` đối chiếu 334 dòng phân quyền trên CSDL thật) · **(4)** contract API telemetry — đóng bằng **G3 + G8b** ngày 12/8; phần tích hợp hệ thống văn bản là mục **G5**, đang theo dõi ở `business-open-questions.md` Phần II chứ không phải ở đây.
+>
+> ⛔ Không xoá lặng lẽ mà để lại bia mộ: một mục biến mất không dấu vết thì lần review sau sẽ có người hỏi "checklist đó đi đâu rồi".
 
 ---
 
@@ -831,3 +831,1305 @@ nhưng chạy qua một tập rỗng.
 Hệ quả cho các ranh giới còn lại: mỗi khi Phase 1 mở một đường đi mới giữa hai module, phải hỏi
 "luật hiện tại có cho phép đường này không, và nếu không thì đúng ra nên mở ở đâu" — trước khi
 viết mã, không phải sau khi CI đỏ.
+
+---
+
+## §10. QUYẾT ĐỊNH KIẾN TRÚC PHASE 1 (2026-08-19)
+
+> Phase 1 = Nhóm B (CMS) + C1 (master data công trình). Kế hoạch chi tiết: `phase1-tracking.md`
+> (11 hạng mục WS-12→WS-22, 99 task). Mục này chỉ ghi **quyết định và lý do**, không lặp lại task.
+
+### §10.1. Gộp phần hiển thị công khai vào Phase 1
+
+`implement.md` §3 xếp "B hoàn thiện … public" vào Phase 2. **Đổi**: phần hiển thị bài viết trên cổng
+công khai (danh sách · chi tiết · danh mục · SEO · sitemap) làm ngay ở Phase 1.
+
+Lý do không phải là "tiện tay làm luôn":
+
+1. **WS-9 đã dựng `POST /api/revalidate` "cho luồng duyệt bài Phase 1"** và tới nay chưa ai đi qua.
+   Một cơ chế viết sẵn cho một luồng chưa tồn tại là đúng định nghĩa "xanh mà không chạy" — thứ đã
+   sập bốn lần ở Phase 0 (§9.8.2, §9.11.5, §9.12.1, §9.12.2). Để nó nằm im thêm một Phase nữa là
+   tự nguyện nhận lại cùng một rủi ro.
+2. **Luồng duyệt bài chỉ chứng minh được khi đi hết.** Duyệt xong mà không ai thấy bài ở đâu thì
+   không biết ISR có làm mới không, ảnh có phục vụ được không, bài Nháp có rò ra ngoài không.
+3. Đây cũng là **thứ đầu tiên Công ty nhìn thấy được**. Ba tuần Phase 0 không có gì để trình bày;
+   Phase 1 nên kết thúc bằng một cổng chạy thật.
+
+Cái giá: **+8 pd** (WS-16). Đổi lại, Phase 2 bớt đúng phần đó.
+
+⚠ **Hệ quả kỹ thuật phải xử lý ở WS-16**: ảnh trong bài viết **không dùng presigned URL**. Trang
+công khai được ISR cache lại, mà presigned URL có hạn — trang cache sống lâu hơn URL thì ảnh hỏng
+hàng loạt sau vài giờ, và triệu chứng xuất hiện *sau khi* mọi người đã nghiệm thu xong.
+
+### §10.2. Sửa bài đã xuất bản: copy-on-write, không hạ bài xuống
+
+Spec có `article_versions` + diff + rollback nhưng **không nói** sửa bài đang xuất bản thì bài có
+phải rời khỏi cổng để chờ duyệt lại không. Hai hướng:
+
+| Phương án | Đánh giá |
+|---|---|
+| **Copy-on-write** — bản đang xuất bản giữ nguyên trên cổng, bản sửa vào `CHỜ DUYỆT` như một phiên bản mới | ✅ **Chọn.** Sửa một lỗi chính tả không làm bài biến mất khỏi cổng trong lúc chờ duyệt |
+| Sửa là hạ trạng thái về `CHỜ DUYỆT` | ⛔ Mỗi lần sửa là một lần bài rời cổng. Với tin đang được đọc thì đây là lỗi vận hành, không phải lựa chọn thiết kế |
+
+Người có `cms:article:publish` sửa thì đăng thẳng — không bắt họ tự duyệt bản của chính mình qua hai
+bước hình thức.
+
+### §10.3. Trạng thái công trình: vật chất hoá, không tính lúc đọc
+
+CN-02.1 chốt trạng thái là **giá trị dẫn xuất** theo 5 mức ưu tiên, tính ở BE. Spec không nói tính
+lúc nào.
+
+**Chốt: lưu sẵn một cột + tính lại theo sự kiện + job đối soát định kỳ.** Tính lúc đọc thì mỗi lần
+mở bản đồ hay dashboard là vài trăm truy vấn con lồng nhau — mà bản đồ và wall mode 4K (Phase 3)
+chính là nơi trạng thái được đọc nhiều nhất, đọc liên tục cả ngày.
+
+Job đối soát là phần bắt buộc, không phải phần thêm: cột vật chất hoá luôn có nguy cơ lệch khi một
+sự kiện không kích hoạt được đường tính lại. Đối soát định kỳ biến sai lệch âm thầm thành sai lệch
+**đo được**.
+
+⛔ Cột này **không có API sửa**. Client gửi `status` lên → `OPS-3001`.
+
+### §10.4. Không đặt khoá ngoại xuyên module ở tầng CSDL
+
+`maintenance_logs` cần trỏ tới `alert_events` của module `hydro` (CN-02.2 — "Cảnh báo liên quan").
+**Chốt: lưu `alert_event_public_id UUID`, không `REFERENCES`.**
+
+Ranh giới module (§9.14) chặn được lời gọi ở tầng Java, nhưng một khoá ngoại xuyên module trói hai
+module lại ở tầng CSDL — chỗ mà ArchUnit không nhìn tới. Khi tách `hydro` thành service riêng (mốc
+§6.4), khoá ngoại đó là thứ phải gỡ trước, và nó nằm trong một migration đã merge từ lâu.
+
+Cùng nguyên tắc: **mỗi module chỉ đặt khoá ngoại tới bảng của chính nó và của `core`.**
+
+### §10.5. `construction_clusters` là bảng riêng — G15 đã đóng (19/8/2026)
+
+Tài liệu từng tự mâu thuẫn: CN-02.1 xếp "Cụm" vào *cấp quản lý* (một tầng trong bộ máy), còn
+`implement.md` nêu bảng `construction_clusters` (một cách nhóm công trình).
+
+**Trả lời của Công ty: cụm chỉ là cách nhóm các công trình gần nhau** — không có tổ trưởng, không có
+nhân sự thuộc cụm.
+
+**Chốt**: bảng `construction_clusters` riêng + khoá ngoại **nullable** `constructions.cluster_id`.
+⛔ **Không** thêm loại nút nào vào `org_units`. Đơn vị phụ trách vẫn là `constructions.org_unit_id`,
+độc lập với cụm; phân quyền tầng 3 tiếp tục chạy trên `org_units` và **cụm không mang ý nghĩa phân
+quyền** — nhóm hiển thị và lọc, thế thôi.
+
+#### Ghi lại cách quyết định, vì nó sẽ lặp lại
+
+Trước khi có câu trả lời, kế hoạch chọn **phương án tối giản**: chỉ gắn `org_unit_id`, chưa dựng bảng
+cụm. Lý do không phải là "đoán đúng hơn" mà là **cái sai rẻ hơn**:
+
+| Nếu chọn trước… | …và sai thì phải làm gì |
+|---|---|
+| Không dựng gì | Thêm một bảng + một khoá ngoại nullable — migration nhỏ |
+| Thêm loại nút vào `org_units` | **Gỡ những nút không phải đơn vị ra khỏi cây đang gánh cả phân quyền tầng 3 lẫn sơ đồ nhân sự MOD-04** |
+
+Câu trả lời hoá ra là nhánh rẻ, nhưng đó là may — điều đáng giữ là **quy tắc chọn**: khi chưa biết,
+chọn hướng mà cái sai rẻ hơn, không phải hướng có vẻ đúng hơn.
+
+### §10.6. Thư viện media không có bảng tệp riêng
+
+CN-01.3 mô tả thư viện media như một chức năng độc lập. **Chốt: tệp media là `attachments` của Core**
+với `owner_type='MEDIA_FOLDER'`, `owner_id` trỏ bảng `media_folders` của module `content`.
+
+Dựng bảng tệp thứ hai nghĩa là có hai đường tải lên, hai chỗ kiểm magic bytes, hai chỗ quét virus,
+hai chỗ tính hạn mức — và chúng sẽ lệch nhau. P3 (đính kèm) sinh ra đúng để tránh chuyện đó.
+
+### §10.7. Workflow phải nhận nhiều trạng thái khởi đầu
+
+`workflow_definitions` hiện có đúng một cột `initial_state`. Nhưng CN-02.2 nói bản ghi sửa chữa
+**nhập sau khi đã hoàn thành** thì bắt đầu thẳng ở "Đã xử lý", còn bản ghi sự cố đang xảy ra thì bắt
+đầu ở "Mới".
+
+**Chốt: mở rộng engine để một entity type có nhiều trạng thái khởi đầu hợp lệ.**
+
+⛔ **Cấm lách bằng cách tạo ở `MOI` rồi chạy transition cho tới `DA_XU_LY`.** Cách đó làm nhật ký ghi
+lại một chuỗi sự việc **chưa từng xảy ra** — và nhật ký kiểm toán của hệ này có hash chain, tức là
+chúng ta đang ký tên vào một lịch sử bịa. Không đáng để tiết kiệm một cột.
+
+### §10.8. Tiền lưu VND, một đơn vị duy nhất
+
+CN-02.2 ghi chi phí đơn vị **VND**; CN-02.1 ghi tổng vốn đơn vị **triệu VND**. Hai đơn vị trong cùng
+một CSDL là lỗi cộng dồn chờ sẵn — và nó sẽ lộ ra ở báo cáo tổng hợp chi phí (BC-09, Phase 3), tức
+là xa chỗ gây ra nó.
+
+**Chốt: mọi cột tiền lưu VND, `NUMERIC(18,2)`.** Biểu mẫu nào hiển thị theo triệu thì quy đổi ở tầng
+hiển thị và ghi rõ đơn vị trên nhãn.
+
+---
+
+### §10.9. Ảnh phái sinh: hoãn sang Phase 2, Phase 1 dùng ảnh gốc (19/8/2026)
+
+CN-01.3 yêu cầu *"auto nén ảnh sang WebP (giữ bản gốc fallback); auto thumbnail 150/400/800px"*.
+**Chốt: Phase 1 không dựng, dùng thẳng ảnh gốc.** Đây là mục nghiệm thu bị hoãn — nợ #62, có điều
+kiện kích hoạt ghi ở `phase1-tracking.md`.
+
+**Vì sao không đẩy sang frontend — phương án nghe hợp lý nhất và là phương án đã cân nhắc đầu tiên.**
+Ảnh bài viết và ảnh hiện trạng công trình là nội dung người dùng tải lên **sau khi deploy**, nên
+không thể nằm trong `public/` (thư mục đó bị nướng vào image lúc build). Ảnh thật nằm ở MinIO, phát
+ra bằng presigned URL **sống 10 phút**. Bản nghiêm túc của ý này là `next/image`, và nó vướng ba chỗ,
+cả ba đều thuộc về chính hệ này chứ không phải ý kiến chung chung:
+
+1. **`next/image` đòi `sharp`** (Next 14 đã bỏ squoosh) — thư viện native libvips. Tức là không tránh
+   được việc thêm bộ mã hoá ảnh, chỉ đổi chỗ nó đứng: từ JVM sang Node, và rơi lên đúng node đang
+   phục vụ cổng công khai.
+2. **Presigned URL phá bộ đệm của chính bộ tối ưu.** Next lưu bản đã tối ưu theo khoá là URL nguồn;
+   URL của ta mang chữ ký + hạn dùng nên mỗi lượt gọi là một khoá khác → không bao giờ trúng đệm.
+   Nặng hơn: trang ISR sống vài giờ trong khi URL chết sau 10 phút → **ảnh vỡ trên trang đã dựng**.
+3. **Một nửa số ảnh không đi qua Next.** `admin-app` là Vite dựng ra tệp tĩnh cho nginx, không có bộ
+   tối ưu ảnh nào. Ảnh hiện trạng công trình nằm đúng ở đó, lại thuộc phạm vi đơn vị — đẩy chúng qua
+   `/_next/image` là biến bộ tối ưu thành proxy **đi vòng qua phân quyền tầng 3**.
+
+**Vì sao vẫn hoãn dù backend làm được.** Phần tốn kém duy nhất là **WebP** — JDK không có bộ mã hoá
+WebP, thêm nó là thêm phụ thuộc mới kèm bề mặt CVE. Phần thumbnail thì rẻ (`ImageSanitizer` đã
+`ImageIO.read` → `ImageIO.write` trên mọi ảnh tải lên từ WS-6 để bóc EXIF, đường giải mã/mã hoá đang
+chạy sẵn). Nhưng khối lượng ảnh thật của Phase 1 chưa biết, mà **tối ưu trước khi biết tải trọng là
+đoán mò** — đúng nguyên tắc §6.1: mỗi thành phần phải tự chứng minh nó đáng nuôi.
+
+**⛔ Cố ý KHÔNG seed tham số `settings` cho việc này.** Một công tắc "bật ảnh phái sinh" mà chưa có mã
+nào đọc là **lặp lại đúng lỗi vừa sửa hôm nay** ở WS-12/T12.6: ba tham số `limits.upload.max-mb.*`
+nằm trong giao diện suốt từ WS-6 mà không dòng mã nào đọc, quản trị viên chỉnh xong không có gì đổi.
+Tham số chỉ xuất hiện **cùng lúc** với mã đọc nó.
+
+**Rủi ro nhận về, nói thẳng.** Cán bộ mở một công trình có 30 ảnh chụp điện thoại tải về ~120MB, mà
+người dùng đó thường ngồi ngoài trạm bơm bằng 4G. Giảm nhẹ trong Phase 1 bằng thứ không tốn gì:
+`loading="lazy"` + khung CSS cố định ở mọi lưới ảnh (T14.4, WS-21) — chỉ tải phần đang nhìn. Đây là
+giảm nhẹ, **không phải lời giải**; lời giải là nợ #62.
+
+---
+
+### §10.10. Người nhận thông báo của quy trình duyệt khai bằng dữ liệu (19/8/2026)
+
+**Phát hiện khi bài viết trở thành entity đầu tiên đi qua workflow engine.** `WorkflowEngine`
+(WS-6) truyền `entity.orgUnitId()` cho `RecipientResolver`, mà resolver đó **luôn cộng thêm nhóm
+"Ban điều hành"** — đúng luật chốt G11, vì nó sinh ra cho **cảnh báo vận hành công trình**.
+
+Áp lên bài viết thì sai cả hai đầu: `articles` không thuộc phạm vi đơn vị (điểm nghiệp vụ 9) nên
+`orgUnitId()` trả `null`; và người nhận còn lại hoá ra là ban lãnh đạo Công ty, trong khi CN-01.1
+ghi rõ phải báo cho **Quản trị nội dung**. Nghĩa là cơ chế `notify_event` của WS-6 **chưa từng dùng
+được cho một quy trình duyệt nào** — nó xanh suốt Phase 0 vì chưa có quy trình duyệt nào tồn tại.
+
+**Chốt: thêm hai cột vào `workflow_transitions`**, giữ nguyên triết lý "quy trình khai bằng dữ liệu":
+
+| Cột | Nghĩa |
+|---|---|
+| `required_permission` | *(đã có)* ai **được bấm** |
+| `notify_permission` | ai **cần biết** — mọi tài khoản đang hoạt động có quyền này |
+| `notify_owner` | báo cho **chủ bản ghi** (`WorkflowAware.ownerUserId()`) |
+
+Hai khái niệm đầu rời hẳn nhau ở bước gửi duyệt: người bấm là biên tập viên, người cần biết là quản
+trị nội dung.
+
+**⚠ Khi có `notify_permission`, nhóm Ban điều hành bị THAY THẾ chứ không cộng dồn.** Đây là điểm dễ
+làm sai nhất. Hai bài toán ngược nhau:
+
+- **Cảnh báo vận hành** — hệ thống *đoán* ai nên biết; không ai "sở hữu" một mực nước vượt ngưỡng.
+- **Quy trình duyệt** — nơi gọi *biết chính xác*: người có quyền duyệt, và người đã gửi lên.
+
+Cộng thêm Ban điều hành vào nhánh thứ hai nghĩa là mỗi lần biên tập viên bấm "Gửi duyệt" thì cả ban
+lãnh đạo nhận một email. Vài tuần sau là không ai đọc thông báo nữa — **và lúc đó cảnh báo sự cố
+thật chết theo**. Đó mới là thiệt hại, không phải chuyện hộp thư đầy.
+
+⛔ **`ownerUserId()` không được lấy từ `createdBy`.** Biểu mẫu bài viết cho đổi tác giả (CN-01.1), và
+khi đó thư "bài của bạn bị trả về" phải tới tác giả hiện tại, không tới người bấm Tạo mới từ tháng
+trước.
+
+Ràng buộc CHECK ở CSDL chặn khai `notify_permission`/`notify_owner` mà quên `notify_event` — engine
+kiểm `notify_event` trước tiên, nên thiếu nó là thông báo **không bao giờ được sinh ra**, im lặng.
+
+---
+
+### §10.11. Hàm bỏ dấu tiếng Việt đặt ở Core, và phải khai kiểu cho Hibernate (19/8/2026)
+
+Tìm kiếm không dấu ("de dieu" ra "đê điều") cần một hàm SQL trong biểu thức chỉ mục. Hai cái bẫy đi
+liền nhau, cả hai đều chỉ lộ ra lúc chạy thật:
+
+1. **`unaccent(text)` một tham số KHÔNG phải IMMUTABLE** — nó tra từ điển lúc chạy, nên Postgres từ
+   chối đưa vào chỉ mục. Phải bọc bản hai tham số `unaccent(regdictionary, text)`.
+2. **HQL không đoán được kiểu trả về của hàm tự định nghĩa** — Hibernate 6 coi kết quả là `Object`
+   và câu nào so sánh chuỗi sẽ chết với *"Operand of 'like' is of type 'java.lang.Object'"*. Phải
+   khai qua `FunctionContributor` (`CoreFunctionContributor`), nạp bằng `ServiceLoader`.
+
+Điểm đáng mừng: lỗi (2) nổ **lúc dựng bean** chứ không lúc chạy truy vấn, vì Spring Data biên dịch
+mọi `@Query` khi tạo repository. Không bản build nào lên được với câu truy vấn hỏng. Cái giá là
+thông báo hiện ra dưới dạng "không tạo được bean", rất dễ đọc nhầm thành lỗi cấu hình Spring.
+
+**Chốt: hàm tên `sn_khong_dau`, tạo ở migration của `core`, số hiệu nhỏ hơn mọi migration dùng nó.**
+Đặt ở `core` vì tìm kiếm bỏ dấu là nhu cầu của mọi module, và vì `CoreFunctionContributor` không
+được phụ thuộc vào migration của module con.
+
+⚠ **Flyway sắp thứ tự theo số hiệu trên TOÀN BỘ các thư mục**, nên `cms` bắt đầu từ 1016 là có chủ ý
+— không phải khoảng trống bỏ quên.
+
+---
+
+### §10.12. Cấu hình cổng nằm ở `settings`, và Core mở một port ghi **theo nhóm** (19/8/2026)
+
+Toàn bộ cấu hình giao diện cổng — tên site, logo, màu, chân trang, khối trang chủ, tuỳ chọn trình
+chiếu — nằm ở bảng `settings` nhóm `SITE`. **Không có bảng `site_config`.** Ranh giới:
+
+> Có nhiều dòng, người dùng thêm/bớt/sắp xếp → **bảng**. Đúng một giá trị cho cả hệ thống → **`settings`**.
+
+Một bảng một dòng là tự nhận thêm một màn hình cấu hình thứ hai, một cơ chế xuất/nhập thứ hai và một
+bộ nhớ đệm thứ hai — trong khi `settings` đã có đủ cả ba từ WS-6.
+
+**Nhưng dữ liệu chung không có nghĩa là quyền chung.** API cấu hình hệ thống của MOD-05 gác bằng
+`adm:setting:update`; Quản trị nội dung không có mã đó và **không nên có** — bắt họ cầm quyền sửa
+chính sách bảo mật chỉ để đổi dòng bản quyền ở chân trang là mở quá tay. Vì vậy Core mở port thứ hai:
+
+```java
+SettingAdminPort.listGroup(String groupCode)
+SettingAdminPort.updateInGroup(String groupCode, String key, String value)
+```
+
+⛔ **Mọi hàm đều mang `groupCode`, và đó là phần quan trọng nhất.** Một port ghi tự do dạng
+`update(key, value)` thì chốt chặn duy nhất là annotation `@RequirePermission` trên controller — *một
+dòng người ta có thể quên*. Buộc khai nhóm và từ chối khoá ngoài nhóm biến giới hạn thành thứ máy
+kiểm tra được: `content` khai `"site"` nên nó **không có đường nào** chạm tới nhóm `SECURITY`.
+
+### §10.13. Bộ nhớ đệm cấu hình dọn bằng **sự kiện**, không bằng sự tự giác (19/8/2026)
+
+Cổng công khai đọc cả *cụm* cấu hình ở mọi lượt dựng trang, nên module nghiệp vụ phải có bộ nhớ đệm
+riêng ở tầng cụm — bộ nhớ đệm của `SettingService` chỉ ở tầng từng khoá.
+
+Hai bộ nhớ đệm thì phải có đường nối, và đường nối đó **không được đi qua sự tự giác**: cùng một dòng
+`settings` sửa được từ **hai** màn hình. Nếu `SiteConfigService` chỉ tự dọn trong hàm `update` của
+chính nó thì Quản trị viên hệ thống đổi tên cổng ở màn hình kia, giao diện báo thành công, và cổng
+vẫn hiện tên cũ tới hết TTL — không lỗi, không dấu vết.
+
+**Chốt: `SettingService.update` — nơi duy nhất ghi bảng — phát `SettingChangedEvent`; người quan tâm
+nghe bằng `@TransactionalEventListener(AFTER_COMMIT)`.**
+
+⚠ `AFTER_COMMIT` là **bắt buộc**, không phải cẩn thận thừa: dọn trước khi commit thì lượt đọc kế tiếp
+nạp lại đúng giá trị **cũ** (giao dịch chưa nhìn thấy được), rồi giao dịch rollback — bộ nhớ đệm vừa
+được làm mới bằng dữ liệu sai và không còn ai dọn nó lần nữa.
+
+### §10.14. SVG: lớp khử trùng dựng ở WS-14 **không có đường nào chạm tới** (19/8/2026)
+
+`FileValidator.detect()` trả `null` cho mọi tệp SVG — SVG là XML thuần, **không có magic bytes** — nên
+`detectAndValidate` từ chối chúng ở *mọi* đường tải lên, kể cả đường mà chốt của dự án cho phép. Hệ
+quả: `SvgSanitizer` có 9 bài kiểm riêng, xanh trọn vẹn, và **chưa bao giờ nằm trên một đường chạy
+thật**. Lại đúng dạng lỗi đã trả giá nhiều lần: cơ chế có mặt, xanh, chưa ai đi qua.
+
+Ba việc sửa:
+
+1. `detect()` **đoán** SVG bằng cách đọc phần mở đầu: bỏ BOM, cắt khoảng trắng, bắt buộc mở đầu bằng
+   `<` rồi mới tìm `<svg`. Đây là đoán chứ không phải xác thực — chấp nhận được vì thứ quyết định cuối
+   cùng vẫn là **danh sách cho phép của nơi gọi**: chỉ màn hình cấu hình nhận diện khai
+   `image/svg+xml`, mọi đường khác vẫn từ chối y như trước.
+2. `AttachmentService.upload` cho SVG đi nhánh `SvgSanitizer` thay vì `ImageSanitizer`. ⭐ Nhánh này
+   đặt **ở tầng đính kèm, không ở nơi gọi**: chọn được định dạng nào là việc của `allowedMimeTypes`,
+   còn khử trùng thì không nơi gọi nào được phép quên.
+3. `extensionOf("image/svg+xml") → "svg"`.
+
+**Bài kiểm chứng minh:** tải một logo SVG có `<script>` và `onload` qua đúng đường production, rồi đọc
+lại **từ MinIO** — nội dung đã lưu không còn phần chạy được, và vẫn còn hình vẽ.
+
+### §10.15. Vì sao seed khung danh mục/menu, trong khi V…1008 cố ý **không** seed cơ cấu tổ chức (19/8/2026)
+
+Nhìn qua thì mâu thuẫn. Thực ra hai loại dữ liệu chịu hậu quả khác hẳn nhau khi đoán sai:
+
+| | `org_units` (V…1008 — **không** seed) | Danh mục · menu · trang tĩnh (V…1021 — **có** seed) |
+|---|---|---|
+| Vai trò | Dữ liệu **chịu tải** — phân quyền tầng 3, hồ sơ công trình, hồ sơ nhân sự đều neo vào id | Dữ liệu **trình bày** |
+| Sửa sai tốn gì | Phải di chuyển dữ liệu đã bám vào | Đổi tên, kéo thả, xoá — vài phút |
+| Để trống tốn gì | Không gì cả, chờ G8 | **Cổng rỗng thì không có gì để Công ty xem lúc nghiệm thu** — G14 quay lại chặn đúng lúc muộn nhất |
+
+Bốn trang tĩnh đặt thẳng ở trạng thái **Xuất bản**, không đi qua quy trình duyệt. Cố ý, và chỉ đúng
+cho dữ liệu khởi tạo: **không có bước chuyển giả nào được ghi vào lịch sử**, `created_by` để `NULL`
+(= hệ thống) nên nhật ký không hề nói rằng có người nào đó đã duyệt. Để ở Nháp thì menu trỏ vào bốn
+địa chỉ trả 404 — đúng thứ mà việc seed này sinh ra để tránh.
+
+⛔ **Không seed tham số bật/tắt widget thuỷ văn**, dù T15.5 ghi "giữ chỗ cấu hình": widget cần MOD-03
+(Phase 2) nên chưa dòng mã nào đọc được khoá đó, và một công tắc chưa ai đọc chính là lỗi vừa sửa ở
+WS-12 (§10.9). Chỗ giữ là một khối bị khoá trên giao diện, không phải một dòng trong CSDL.
+
+Tương tự, **không** thêm `site.maintenance-mode`: khoá `system.maintenance-mode` đã có từ WS-7 và
+đang được `MaintenanceFilter` đọc thật. Hai công tắc cho một bóng đèn thì người vận hành gạt cái đang
+nhìn thấy, hệ thống nghe cái kia.
+
+### §10.16. Cổng công khai đọc bằng địa chỉ **nội bộ**, trình duyệt đọc bằng địa chỉ ngoài (20/8/2026)
+
+`public-web` gọi backend ở hai vai trò khác nhau và chúng **không thể** dùng chung một địa chỉ:
+
+| Ai gọi | Biến | Giá trị ở Docker |
+|---|---|---|
+| Server Component / route handler (trong container) | `API_INTERNAL_BASE_URL` | `http://app:8080/api/v1` |
+| Trình duyệt của khách (ảnh, đếm lượt xem) | `NEXT_PUBLIC_API_BASE_URL` | `http://localhost:18080/api/v1` |
+
+Bản đầu chỉ có biến thứ hai. Triệu chứng: cổng **dựng ra trang trắng** — mọi lượt gọi phía máy chủ
+trỏ vào `localhost` của chính container `public-web`, nơi không có backend nào. Không có lỗi HTTP
+nào nổi lên vì `apiGet` cố ý nuốt lỗi để một sự cố backend không làm trắng cả trang; log có, nhưng
+phải đi tìm.
+
+`NEXT_PUBLIC_*` bị **nướng vào bundle lúc build**, nên nó không thể là địa chỉ nội bộ: người dùng
+cuối không phân giải được tên `app`.
+
+### §10.17. Hâm nóng ISR phải gửi **đường dẫn**, không gửi nhãn (20/8/2026)
+
+Ảnh Docker của cổng dựng ở CI, lúc đó không có backend nào chạy — Next vẫn dựng sẵn trang chủ và
+`sitemap.xml` thành HTML tĩnh, với nội dung rỗng.
+
+Phần không hiển nhiên, và **đo thật mới biết**: lượt `fetch` hỏng thì **không có mục cache nào mang
+nhãn được tạo ra**, nên `revalidateTag` về sau không có gì để lần ngược tới tuyến đường đó. Đo ở
+WS-16: gửi nhãn hai lần, cả hai trả `{"revalidated":true}`, trang **vẫn rỗng**; gửi
+`{"path":"/"}` → trang có nội dung ngay. Chỉ `revalidatePath` mới trỏ thẳng vào bộ nhớ đệm của
+tuyến đường.
+
+Vì vậy `PortalCache.warmUp()` đặt hai việc **theo đường dẫn** (`/` và `/sitemap.xml`) vào hàng đợi
+khi backend sẵn sàng. Đi qua hàng đợi chứ không gọi thẳng: lúc backend lên thì cổng thường *chưa*
+(compose để `public-web` chờ `app` khoẻ), nên lượt thử lại của hàng đợi lo phần đó.
+
+⚠ Sitemap nằm trong danh sách là có lý do riêng: một sitemap chỉ có mỗi trang chủ thì công cụ tìm
+kiếm không thấy bài nào của cổng — hỏng âm thầm, và hỏng ở đúng thứ cổng TTĐT sinh ra để làm. Đo
+thật: trước khi thêm, `sitemap.xml` có **1** `<url>`; sau khi thêm, **10**.
+
+### §10.18. `HttpClient` của JDK phải ép **HTTP/1.1** khi gọi Next (20/8/2026)
+
+Việc hâm nóng hỏng ba lượt liên tiếp với `IllegalStateException: HTTP/1.1 header parser received no
+bytes`, trong khi `curl` cùng URL trả 200. Nguyên nhân: `HttpClient` mặc định **HTTP/2**, và trên
+HTTP thuần nó gửi kèm `Connection: Upgrade, HTTP2-Settings` để thử nâng cấp (h2c). Máy chủ Node của
+Next không hiểu và **đóng kết nối**, nên phía Java không đọc được byte nào.
+
+Chốt `.version(HttpClient.Version.HTTP_1_1)`. Đây là chỗ mà "thử bằng `curl` thấy chạy" gây hiểu
+nhầm hẳn về phía sai: hai công cụ nói hai giao thức khác nhau.
+
+### §10.19. CSRF **không áp** cho `/api/v1/public/**` (20/8/2026)
+
+CSRF là tấn công **mượn phiên** của nạn nhân: kẻ tấn công dụ trình duyệt gửi request kèm cookie mà
+chủ nhân không biết. Endpoint công khai không đọc phiên nào, nên **không có gì để mượn**.
+
+Ngược lại, chặn ở đó thì trình duyệt của khách vãng lai không có cookie CSRF để gửi kèm, và
+`POST /api/v1/public/articles/{slug}/views` trả **403** — bộ đếm lượt xem *không bao giờ* chạy được.
+Đo thật trước khi sửa: 403; sau khi sửa: 204, và `view_count` lên đúng số lượt gọi.
+
+`PublicHttpTest` giữ **cả hai vế**: đường công khai không bị 403, và đường quản trị **vẫn** bị chặn
+khi thiếu token. Chỉ kiểm vế đầu thì một lượt tắt CSRF toàn cục cũng xanh.
+
+### §10.20. Luật ArchUnit thứ ba: cấm **tự gọi hàm `@Transactional`** (20/8/2026)
+
+Spring cài giao dịch bằng proxy, nên chú thích chỉ có tác dụng khi lời gọi **đi từ ngoài vào**. Một
+hàm gọi sang hàm `@Transactional` của cùng lớp bằng `this` thì giao dịch **không mở** — mã biên dịch
+trót lọt, bài kiểm gọi thẳng hàm bên trong vẫn xanh, chỉ production hỏng.
+
+Lỗi này đã sập **hai lần**: `BackupService` (WS-7, dòng `RUNNING` không được commit trước khi
+`pg_dump` chạy) và `ViewCountService` (WS-16, ném `TransactionRequiredException` mỗi phút trong log
+của bộ hẹn giờ — **chưa từng ghi được một lượt xem nào**). Hai lần là đủ để nó thành luật.
+
+Luật chạy lần đầu tìm ra **8 vi phạm trong mã production**, và chúng chia làm ba mức:
+
+| Mức | Chỗ | Hệ quả thật |
+|---|---|---|
+| ⚠⚠ Lỗi thật | `NotificationService.notify(NotifyRequest)` | Xem §10.21 — nặng nhất, và tìm ra một cách gián tiếp |
+| ⚠ Lỗi tiềm ẩn | `CodeGenerator.next(seqType, padding)` | Nạp chồng tiện dụng gọi bản `REQUIRES_NEW` bằng `this` → bộ đếm mã **rơi vào chính giao dịch nghiệp vụ mà nó phải đứng ngoài**. Lượt ghi hỏng thì bộ đếm lùi theo và bản ghi kế tiếp mang **lại đúng mã đó** — đúng thứ lớp này sinh ra để chống |
+| Chú thích sai sự thật | `BackupService.pruneExpired`, `JobService.findActiveByDedupKey`, `SettingService.getString` | Hành vi không đổi (chỉ đọc, hoặc chỉ xoá tệp), nhưng chú thích ghi một bảo đảm không tồn tại |
+
+Cách chữa thống nhất với phần còn lại của dự án: mở giao dịch bằng `TransactionTemplate`
+(`JobService`, `SecurityEventService`, `BackupService` đã làm vậy từ WS-6/WS-7), để việc "có giao
+dịch hay không" không phụ thuộc vào ai gọi từ đâu.
+
+⚠ Luật cố ý **không** báo khi người gọi cũng `@Transactional` và hàm đích dùng propagation mặc định
+— lúc đó giao dịch đã mở từ lượt gọi ngoài vào, đây là cách viết hợp lệ. Báo cả trường hợp đó là
+luật bị nới ra trong vòng một tuần. `SilentFailureRuleSelfCheckTest` có bài chứng minh **cả hai
+chiều**: bắt được vi phạm, và không báo nhầm cặp hợp lệ.
+
+### §10.21. Chú thích Java bám vào **khai báo kế tiếp**, không bám vào đoạn chú giải (20/8/2026)
+
+Lỗi nặng nhất của WS-16, và nó không nằm trong WS-16 — luật §10.20 lôi nó ra một cách gián tiếp.
+
+Ở `NotificationService`, khối SPI thêm tại WS-12 được chèn vào **giữa** một
+`@Transactional(readOnly = true)` và hàm nó thuộc về:
+
+```java
+// ---- Hộp thư của người dùng ----
+@Transactional(readOnly = true)
+// ---- Hợp đồng cho module nghiệp vụ (core.spi) ----   ← khối chèn vào ở WS-12
+@Override
+public void notify(NotifyRequest request) { … }          ← nhận nhầm chú thích
+…
+public Page<InboxEntry> inbox(…) { … }                   ← mất chú thích của chính nó
+```
+
+Trình biên dịch gắn chú thích cho khai báo kế tiếp; đoạn chú giải ở giữa không cản gì cả. Hệ quả:
+**cửa vào mà mọi module nghiệp vụ dùng để gửi thông báo chạy trong giao dịch chỉ đọc**, còn `inbox()`
+thì mất chú thích của chính nó.
+
+**Đo thật, không suy đoán** — cắm lại đúng lỗi cũ rồi chạy bài kiểm mới: PostgreSQL từ chối thẳng với
+`ERROR: cannot execute INSERT in a read-only transaction`. Nói cho chính xác: đây **không** phải hỏng
+im lặng lúc chạy — module nghiệp vụ đầu tiên gọi `NotificationPort.notify(...)` sẽ nhận lỗi 500 ngay
+lần đầu. Cái im lặng là ở **thời điểm phát hiện**: lỗi nằm im từ WS-12 tới WS-16 qua bốn WS và hơn
+370 bài kiểm, vì `WorkflowEngine` ở trong `core` nên nó gọi thẳng `notify(NotificationRequest)` và
+**không ai đi qua cửa SPI**. Người đi đầu tiên sẽ là WS-17.
+
+Lại đúng dạng *một ranh giới chưa ai đi qua thì chưa biết nó đúng hay sai* (§9.14) — và lần này ranh
+giới đó là thứ Phase 1 vừa dựng ra ở WS-12 để module nghiệp vụ dùng.
+
+**Luật rút ra**: khi chèn một khối mới vào giữa lớp, kiểm lại chú thích ở mép trên của chỗ chèn.
+Không có cách nào để mắt người thấy điều này — `@Transactional` cách hàm nhận nó **tám dòng chú
+giải**. Thứ bắt được là một phép kiểm máy chạy.
+
+### §10.22. Trình soạn thảo: TipTap (MIT), vì CKEditor và TinyMCE đều đã chuyển sang GPL (20/8/2026)
+
+`phase1-tracking.md` viết "CKEditor 5 hoặc TinyMCE, bản tự host". Tới thời điểm dựng, **cả
+hai đều là GPL**: CKEditor 5 từ v44, TinyMCE từ v7. Nhúng một thư viện GPL vào `admin-app`
+làm ứng dụng trở thành tác phẩm phái sinh và phải phát hành theo GPL khi bàn giao cho Công
+ty. Đó là **quyết định pháp lý của chủ đầu tư**, không phải của người viết mã — nên không
+chọn thay được, và cũng không nên âm thầm chọn rồi để lộ ra lúc bàn giao.
+
+TipTap là **MIT**, và nó giải thêm một vấn đề mà bộ soạn thảo trọn gói không giải: ở đây ta
+khai **chính xác** những nút nào tồn tại. Bộ trọn gói có hàng chục nút mà phần lớn tạo ra thẻ
+`HtmlSanitizer` sẽ gỡ — xem §10.23.
+
+Cái giá: phải tự viết ba extension nhỏ (`AlignClass`, `FigureImage`, `VideoEmbed`), tổng ~200
+dòng. Đổi lại là bộ từ vựng HTML khép kín và kiểm được bằng máy.
+
+### §10.23. Bộ từ vựng của trình soạn thảo phải khớp danh sách cho phép của bộ lọc (20/8/2026)
+
+`HtmlSanitizer` chạy lúc **ghi**. Thẻ ngoài danh sách bị gỡ, im lặng, và bài **vẫn lưu thành
+công**. Nên một nút trên thanh công cụ tạo ra thẻ ngoài danh sách cho ra đúng kịch bản này:
+
+> Biên tập viên chèn bảng, bấm Lưu, hệ thống báo *"Đã lưu"*, mở lại thì bảng biến mất. Không
+> lỗi, không cảnh báo, và người dùng sẽ nghĩ mình thao tác sai.
+
+Đây là biến thể của lỗi đã trả giá nhiều lần trong dự án — một cơ chế chạy đúng ở **một nửa
+đường**. Lần này nạn nhân là người dùng cuối chứ không phải lập trình viên, và họ không có
+cách nào tự chẩn đoán.
+
+Hai danh sách nằm ở hai ngôn ngữ và hai thư mục, trình biên dịch không bắt lệch được. Nên
+`EditorVocabularyTest` (Java) đọc `editorSchema.ts` (TypeScript), chạy mẫu HTML qua
+`HtmlSanitizer` **thật**, và đòi mọi thẻ sống sót. Cùng cách `error-map.test.ts` canh danh
+mục mã lỗi, chỉ ngược chiều — bắt buộc phải ngược, vì logic khử trùng là Java.
+
+**Bốn phát hiện ở lượt chạy đầu:**
+
+| # | Phát hiện | Vì sao im lặng |
+|---|---|---|
+| 1 | **`<s>` bị gỡ** | `Safelist.relaxed()` của jsoup chỉ có `strike` (thẻ HTML5 đã loại bỏ); mọi trình soạn thảo hiện đại phát ra `<s>`. Nút bấm được, lưu xong định dạng biến mất |
+| 2 | **Nhúng video bị gỡ sạch** | CN-01.1 yêu cầu embed YouTube/Vimeo, mà `clean()` gỡ mọi `<iframe>`. Chức năng nằm trong đặc tả và **chưa bao giờ chạy được** |
+| 3 | **Căn lề phải đi bằng `class`** | `HtmlSanitizer` cấm `style` — đúng, vì `style` mở đường cho `position:fixed` phủ kín trang hoặc chữ trắng trên nền trắng giấu nội dung trong một bài **đã được duyệt**. Bản gốc `@tiptap/extension-text-align` phát ra `style` |
+| 4 | **Chính bài kiểm gộp hai nguyên nhân** | "Thẻ không có trong kết quả" = bộ lọc gỡ nó (lỗi thật) **hoặc** mẫu chưa từng có nó (lỗi bài kiểm). Lượt đỏ đầu tiên chỉ đường sai; suýt thêm 4 thẻ vào safelist trong khi chúng chưa bao giờ bị gỡ |
+
+⚠ Danh sách tên miền video **tách hẳn** khỏi danh sách tên miền bản đồ, và có bài kiểm chứng
+minh hai danh sách không lẫn vào nhau: khối bản đồ ở chân trang không phải chỗ nhúng video, và
+nội dung bài không phải chỗ nhúng bản đồ. Gộp làm một danh sách là nới cả hai cùng lúc.
+
+Đường nhúng YouTube chuẩn hoá sang `youtube-nocookie.com` **ngay lúc dán**: bản thường đặt
+cookie theo dõi ngay khi trang tải, kể cả khi người đọc không bấm phát — với cổng thông tin
+của cơ quan nhà nước thì đó là chuyện không nên có, và người đọc không có cách nào từ chối.
+
+### §10.24. Đếm ký tự SEO bằng `Intl.Segmenter`, không bằng `Array.from` (20/8/2026)
+
+Ba cách đếm cho ba kết quả khác nhau với chữ "Đề" dán từ Word (dạng NFD):
+
+| Cách | Kết quả | |
+|---|:-:|---|
+| `String.length` | 4 | đơn vị mã UTF-16 |
+| `Array.from(...).length` | 4 | điểm mã — **mỗi dấu tổ hợp là một điểm mã riêng** |
+| `Intl.Segmenter` | 2 | cụm hiển thị ✔ |
+
+Bản đầu dùng `Array.from` kèm một dòng tài liệu khẳng định như vậy là đủ. Hậu quả: ô đếm báo
+vượt ngưỡng trong khi mắt thấy chưa vượt, và người soạn sẽ cắt bớt một tiêu đề hoàn toàn hợp
+lệ. Bài kiểm bắt được vì nó khẳng định **cả ba con số**, không chỉ con số cuối.
+
+### §10.25. Nội dung bài lưu **HTML**, không lưu cây JSON — và ba cạnh của hợp đồng (20/8/2026)
+
+Câu hỏi đặt ra khi rà soát phần chèn ảnh: có nên bỏ HTML, lưu thẳng cây JSON của TipTap vào một
+cột `jsonb`, để không phải phân tích lại chuỗi HTML mỗi lần mở bài? **Chốt: giữ HTML.**
+
+**Nỗi lo gốc đã được đo, và nó không thành hiện thực.** jsoup không trả lại đúng chuỗi ta đưa
+vào — nó dựng lại tài liệu rồi in ra có thụt lề. Đo trên jsoup 1.23.1 với bảy mẫu:
+
+| Mẫu | Kết quả |
+|---|---|
+| `<pre><code>` có thụt lề | **giữ nguyên** — jsoup biết khoảng trắng trong `pre` là nội dung |
+| thẻ inline sát chữ (`Cống<strong>Yên Nghĩa</strong>đóng`) | **giữ nguyên** |
+| câu dài có `<strong>`/`<em>` ở giữa | **giữ nguyên** |
+| `<table>`, `<ul>`, `<figure>`, nhiều `<p>` liền nhau | thêm `\n` + thụt lề **giữa các thẻ khối** |
+
+Ba mẫu đầu mới là chỗ dễ hỏng (thêm khoảng trắng giữa chữ và thẻ inline là **đổi nội dung câu**),
+và jsoup không đụng vào. Phần thụt lề giữa thẻ khối là vô hại — `editorRoundTrip.test.ts` khẳng
+định điều đó bằng cách phân tích cả bản gọn lẫn bản có thụt lề rồi so **cây nút**, chứ không so
+chuỗi.
+
+**Cái giá nếu đổi sang `jsonb`** — bốn khoản, khoản đầu là khoản chặn:
+
+1. **Mất `HtmlSanitizer`.** Lớp khử trùng đang chạy ở backend bằng jsoup (danh sách CHO PHÉP, thư
+   viện có tuổi đời, đã bị soi nhiều năm). Với cây JSON thì backend phải tự duyệt cây bằng Java —
+   tức là **viết lại bộ khử trùng**, đúng thứ mà `core/pom.xml` đã ghi lý do không tự viết. Bộ mới
+   sẽ chưa từng có ai thử tấn công.
+2. **Cổng công khai hết dựng được HTML** nếu không mang cả schema TipTap sang phía máy chủ. Làm
+   được, nhưng khi đó admin-app và public-web phải **luôn cùng phiên bản schema** — lệch một bản là
+   bài cũ hiển thị sai.
+3. **Vỡ ba thứ đang chạy**: so sánh phiên bản (`diff.ts` dựng trên DOM), tìm kiếm toàn văn
+   (`sn_khong_dau` chạy trên chữ), và chế độ soạn HTML (người soạn nội dung cơ quan dán từ Word —
+   dùng thật, không phải tính năng cho vui).
+4. Lưu **cả hai** thì có hai nguồn sự thật cho cùng một nội dung — loại lỗi dự án này đã trả giá
+   nhiều lần.
+
+**Phần đúng trong đề xuất đã lấy hết**: nút ảnh là node TipTap tự viết, chèn bằng `insertContent`
+để giữ đúng vị trí con trỏ; kéo-thả viết bằng `handleDrop` thường, lấy vị trí bằng `posAtCoords`
+rồi `insertContentAt` — **thả đâu ảnh nằm đó**, không nhảy về chỗ con trỏ cũ; ô giữ chỗ lạc quan
+hiện ngay bằng `blob:` rồi thay `src` thật khi tải xong.
+
+**⛔ Không dùng presigned URL cho đường TẢI LÊN.** Cho trình duyệt `PUT` thẳng vào MinIO thì bỏ
+qua toàn bộ chuỗi kiểm: `FileValidator` (magic bytes — đuôi tệp nói dối được), `ImageSanitizer`
+(bóc EXIF, mà EXIF ảnh chụp bằng điện thoại mang **toạ độ GPS** — đăng lên cổng công khai là công
+bố vị trí công trình thuỷ lợi), `SvgSanitizer`, ClamAV, hạn mức đọc từ `settings`. Ta cũng không
+có bộ bắt sự kiện MinIO nào để quét bù về sau. Đường **đọc** thì đã chốt ở §10.19 là không presign.
+
+**Hợp đồng có BA cạnh, không phải hai.** Bộ từ vựng chuyển từ `admin-app` sang
+`design-tokens/editor-schema.ts` vì nó là thoả thuận giữa *soạn thảo* (admin-app sinh ra thẻ) ·
+*khử trùng* (backend giữ lại) · *hiển thị* (public-web dựng CSS). Mỗi cạnh có một phép canh:
+
+| Cạnh | Phép canh | Nơi |
+|---|---|---|
+| soạn thảo → khử trùng | `EditorVocabularyTest` (Java đọc mã nguồn TS) | `core` |
+| khử trùng → soạn thảo | `editorRoundTrip.test.ts` | admin-app |
+| khử trùng → hiển thị | `articleContentCss.test.ts` | public-web |
+
+Cạnh thứ ba **chưa từng tồn tại**, và đó là chỗ hỏng nặng nhất tìm được — xem §10.26.
+
+### §10.26. Bốn lỗi im lặng ở đường chèn ảnh, và lỗi nặng nhất không nằm ở trình soạn thảo (20/8/2026)
+
+Rà soát bắt đầu từ một câu hỏi hẹp — *chèn ảnh vào đúng vị trí có chạy không* — và tìm ra bốn lỗi.
+Cả bốn đều không sinh ra dòng lỗi nào, và **cả bốn đều được phát hiện bằng cách chạy máy, không
+phải bằng cách đọc mã**.
+
+**1. ⚠⚠ Căn lề ảnh chưa bao giờ hoạt động.** `AlignClass` khai áp dụng cho `'image'` và `'figure'`.
+Không tên nào tồn tại: nút ảnh do `FigureImage` đăng ký mang tên `figureImage`. Hỏng hai tầng, cả
+hai đều im:
+
+- TipTap **bỏ qua lặng lẽ** `addGlobalAttributes` trỏ vào type không có thật → nút ảnh không hề có
+  thuộc tính `align` (đo bằng `getSchema`: `figureImage attrs: ['src','alt','caption']`);
+- lệnh trả `NHOM_AP_DUNG.some(t => commands.updateAttributes(t, …))`, mà `.some` **dừng ở phần tử
+  đầu tiên trả `true`** và `'paragraph'` luôn trả `true` → lệnh báo thành công, nút sáng lên, ảnh
+  đứng yên.
+
+**2. ⚠⚠ Cổng công khai không có CSS nào cho nội dung bài.** Thân bài mang class `prose`, mà gói
+`@tailwindcss/typography` **chưa từng được cài** — `prose` là class rỗng. Cộng với preflight của
+Tailwind xoá hình dạng mặc định của trình duyệt: danh sách mất dấu đầu dòng và thụt lề, `<h3>`/`<h4>`
+đúng bằng cỡ chữ đoạn văn, bảng không viền, `<figcaption>` không phân biệt được với một câu trong
+bài, `sn-align-*` không định nghĩa ở đâu.
+
+Điều đáng sợ nhất của lỗi này: **màn hình xem trước trong admin-app vẫn đúng**, vì nó dùng CSS của
+trình soạn thảo. Biên tập viên định dạng kỹ, xem trước thấy đẹp, xuất bản, và không bao giờ mở lại
+trang công khai để đối chiếu. Tài liệu của `AlignClass` thậm chí đã viết sẵn điều kiện *"với điều
+kiện cổng công khai có định nghĩa ba class đó trong CSS"* — **điều kiện được ghi ra và không ai
+thực hiện**.
+
+**3. Chú thích ảnh không có đường nào tạo ra được.** `FigureImage` khai thuộc tính `caption`,
+`HtmlSanitizer` cho `figcaption` qua, `EDITOR_SAMPLE_HTML` có nó, `EditorVocabularyTest` xanh — mà
+`RichTextEditor` truyền cứng `caption: null` và không có ô nhập nào. CN-01.1 yêu cầu *"ảnh inline
+(căn lề, caption)"*: hai vế, cả hai đều hỏng.
+
+**4. Kéo một tệp ảnh vào bài làm mất bài đang soạn.** Không có `handleDrop` thì trình duyệt xử lý
+theo mặc định của nó: **điều hướng cả tab sang tệp vừa thả**. Đây là lỗi nặng hơn "thiếu tính năng"
+— nó phá công việc đang dở.
+
+**Điều đáng ghi nhất: bài canh cho lỗi (2) ban đầu XANH trong khi không kiểm được gì.** Bản đầu hỏi
+`CSS.includes('.sn-align-center')`. Kiểm chứng ngược bằng cách xoá hẳn quy tắc `text-align: center`
+→ **vẫn xanh**, vì chuỗi đó còn xuất hiện ở một quy tắc khác trong cùng tệp
+(`figure.sn-align-center`). Bài canh chống lỗi im lặng lại chính là một lỗi im lặng. Nay nó tách
+tệp thành từng quy tắc và hỏi **thuộc tính có thật sự được khai không**; kiểm chứng ngược ở mức
+thuộc tính bắt đủ ba lượt phá hoại.
+
+⛔ **Luật rút ra, bổ sung cho `conventions.md` §1.5**: phép canh dựa trên *sự có mặt của một chuỗi*
+gần như luôn yếu hơn ta tưởng, vì cùng một chuỗi thường xuất hiện ở nhiều chỗ với ý nghĩa khác
+nhau. Canh **cấu trúc** (quy tắc nào, thuộc tính nào) chứ đừng canh **văn bản**.
+
+### §10.27. ⚠⚠ Biến môi trường "để trống" **không hề trống** — lỗi bảo mật im lặng từ WS-3 (20/8/2026)
+
+Phát hiện khi dựng tài khoản quản trị để kiểm thử trên trình duyệt. Docker Compose đọc `env_file`
+theo luật riêng, **không phải luật của shell**: với dòng
+
+```
+BOOTSTRAP_ADMIN_PASSWORD=           # [T] chỉ dùng 1 lần
+```
+
+nó **không** cắt phần chú thích, mà cắt khoảng trắng đầu rồi lấy toàn bộ phần còn lại làm giá trị.
+Kiểm chứng bằng ví dụ tối giản (alpine + compose):
+
+```
+RONG=           # chú thích     →  RONG=[# chú thích]      ⛔
+CO_GIATRI=abc   # chú thích     →  CO_GIATRI=[abc]         ✔
+```
+
+**Chỉ trường hợp giá trị rỗng mới hỏng** — mà đó đúng là những biến dùng quy ước *"để trống = tắt
+tính năng"*, nên hậu quả rơi vào chỗ đắt nhất:
+
+| Biến | "Rỗng" nghĩa là | Thực tế |
+|---|---|---|
+| `BOOTSTRAP_ADMIN_PASSWORD` | không kích hoạt tài khoản quản trị | ⚠⚠ `AdminBootstrapRunner` chạy ở **mọi** lượt khởi động, đặt mật khẩu `superadmin` thành **chính đoạn chú thích** — chuỗi nằm trong tệp `.example` **đã commit lên repo** |
+| `DB_RESTORE_PASSWORD` | tắt khôi phục qua UI (`ADM-2010`) | thao tác phá huỷ nhất trong hệ tưởng như đã được cấu hình |
+| `SMTP_USERNAME` / `SMTP_PASSWORD` | máy chủ thư không cần xác thực | client thử `AUTH` với chuỗi rác → hỏng toàn bộ đường gửi thư |
+| `GOOGLE_MAPS_API_KEY` | chỉ dùng OSM | đi đường Google Maps với khoá rác |
+| `LOG_FILE` | không ghi log ra tệp | mở tệp tên `# [T]` |
+
+**37 dòng** dính, trải cả ba tệp `local/staging/prod.env.example`. Đây là lý do `superadmin` ở máy
+dev đang ACTIVE với một mật khẩu **không ai cố ý đặt**.
+
+**Vì sao `UnresolvedPlaceholderGuard` (WS-4/T4.8) không bắt được.** Bộ canh đó tìm giá trị còn
+nguyên dạng `"${TÊN_BIẾN}"` — dấu hiệu placeholder không giải được. Ở đây giá trị **giải ra bình
+thường**, chỉ là giải ra sai; và nó **không rỗng** nên `@NotBlank` cũng đi qua. Cùng một họ lỗi,
+khác một bậc: lần trước là *"thiếu biến mà tưởng có"*, lần này là *"có biến mà tưởng thiếu"*.
+
+⚠ **Lỗi chỉ tồn tại ở đường Docker.** Chạy native thì `make` nạp tệp bằng shell, mà shell cắt chú
+thích đúng — nên **hai lối chạy cho ra hai hành vi khác nhau từ cùng một tệp cấu hình**. Đó là lý
+do nó sống sót qua mọi lượt chạy tay từ WS-3 tới nay.
+
+**Sửa**: chú thích lên dòng riêng, để lại `TÊN_BIẾN=` trống thật. Canh bằng `EnvFileCommentTest`
+(có kiểm chứng ngược: cắm lại đúng dòng cũ → đỏ, chỉ đích danh tên biến và số dòng).
+
+### §10.28. Font Noto Sans **tự host**, không lấy từ CDN Google (20/8/2026)
+
+`docs/ui-styles.md` bản đầu quy định `@import url('https://fonts.googleapis.com/…')` ở dòng đầu
+`globals.css`, và `admin-app/index.html` còn nạp thêm một lượt nữa bằng thẻ `<link>` — **cùng một
+bộ chữ tải hai lần**. Đổi sang gói `@fontsource/noto-sans`: **cùng bộ chữ, cùng trọng số, hình
+hiện ra y hệt**, chỉ khác nơi tải về. Ba lý do, lý do đầu là lý do chặn:
+
+1. ⛔ **`conventions.md` §4.5 đã chốt CSP `default-src 'self'`.** Khi WS-11 dựng nginx thì
+   `fonts.googleapis.com` (biểu định kiểu) và `fonts.gstatic.com` (tệp chữ) đều bị chặn — trang vẫn
+   hiện, chỉ rơi về font hệ thống, **không lỗi nào**. Loại hỏng im lặng chỉ lộ ra sau khi lên
+   production, và `phase1-tracking.md` T20.1 đã ghi sẵn luật *"bản tự host, không CDN"* cho trình
+   soạn thảo vì đúng lý do này.
+2. **Quyền riêng tư.** Cổng của doanh nghiệp nhà nước gửi địa chỉ IP của **mọi người dân tra cứu**
+   sang máy chủ Google ở mỗi lượt tải trang. Cùng lập luận đã dùng để chọn `youtube-nocookie.com`
+   cho khối nhúng video (§10.23): người đọc không có cách nào từ chối.
+3. **Tốc độ và mạng nội bộ.** `@import url(...)` ra mạng ngoài chặn lượt vẽ đầu tiên (NFR-02 cho
+   3 giây); mạng Công ty chặn ra ngoài thì font không tải được mà không ai biết vì sao.
+
+Đo sau khi đổi: **48 tệp `woff2`** nằm trong bản dựng của mỗi app, **0 tham chiếu** tới
+`fonts.googleapis.com`/`fonts.gstatic.com` trong `admin-app/dist` lẫn `public-web/.next`.
+⚠ Chỉ khai **6 trọng số dùng tới** (400/500/600/700 + nghiêng 400/500) — gói có 144 tệp `woff2`,
+nhập cả gói là bắt người đọc tải thứ không bao giờ hiện ra.
+
+### §10.29. ⚠⚠ Trình duyệt chưa từng gọi được API — CORS chặn toàn bộ giao diện (20/8/2026)
+
+Phát hiện khi anh Quân mở `http://localhost:15173/dang-nhap` và nhận *"Không kết nối được máy
+chủ"* kèm lỗi CORS ở tab Network. Truy ra: **cả giao diện quản trị chưa bao giờ dùng được trên
+trình duyệt**, suốt từ WS-8 tới WS-20.
+
+Backend **không cấu hình CORS** — và đó là lựa chọn đúng, vì ở production nginx đứng trước cả hệ
+(T11.5) nên admin-app và API vốn cùng origin. Nhưng `compose.local.yml` lại build bundle với
+`VITE_API_BASE_URL=http://localhost:18080/api/v1`, trong khi giao diện phục vụ ở cổng 15173. Khác
+cổng là **khác origin**, nên trình duyệt gửi lượt kiểm trước và nhận `403 Invalid CORS request`.
+
+**⚠⚠ Vì sao mọi lượt kiểm trước đây đều xanh.** Chúng gọi bằng `curl` thẳng vào cổng backend:
+
+| Lượt kiểm | Đã chứng minh | KHÔNG chứng minh |
+|---|---|---|
+| WS-20: *"4 route CMS trả 200, API trả 401"* | backend chạy | trình duyệt gọi được |
+| WS-16: *"bộ đếm lượt xem lên đúng 7/7"* | endpoint chạy | trình duyệt gọi được |
+
+`curl` không phải trình duyệt: không có origin, không có chính sách cùng nguồn, **không làm
+preflight** — nên nó đi lọt qua đúng bức tường chặn người dùng thật. Đây là biến thể mới của bài
+học cũ *"kiểm bằng một đường khác đường production đi thì chưa kiểm gì cả"*, cùng họ với
+`BackupServiceTest` mock `PostgresToolRunner` (§9.12) và `ViewCountService` gọi thẳng `day()` thay
+vì qua proxy (§10.20).
+
+**Chốt: trình duyệt luôn gọi CÙNG origin**, việc chuyển tiếp do tầng phục vụ lo — đúng hình dạng
+production, nên không sinh ra một đường đi mà production không có.
+
+| Nơi | Cách chuyển tiếp |
+|---|---|
+| `make dev-docker` — admin-app | nginx của chính image: `location /api/` → `${API_UPSTREAM}` |
+| `make dev-docker` — public-web | Route Handler `src/app/api/v1/[...path]/route.ts` |
+| `make dev-native` | `server.proxy` của Vite |
+| staging/production | nginx chung (T11.5) |
+
+Mã FE mặc định về đường dẫn tương đối `/api/v1`. ⚠ Phải dùng `||` chứ **không** `??`: compose
+truyền biến để trống thì Vite/Next nhúng vào bundle một **chuỗi rỗng**, mà chuỗi rỗng không phải
+nullish nên `??` giữ nguyên nó → `baseURL = ''` → lượt gọi mất hẳn tiền tố `/api/v1`.
+
+**Ba lỗi phụ, cả ba chỉ lộ ra khi chạy thật:**
+
+1. ⚠⚠ **`rewrites()` của Next bị nướng vào lúc BUILD.** Với `output: 'standalone'`, Next gọi
+   `rewrites()` lúc build rồi ghi kết quả đã giải sẵn vào `.next/required-server-files.json`. Biến
+   `API_INTERNAL_BASE_URL` chưa tồn tại lúc build nên rơi về `localhost:8080` và **cứng luôn** —
+   container có đúng biến môi trường (kiểm bằng `printenv`) mà log vẫn `ECONNREFUSED 127.0.0.1:8080`.
+   Chú thích tôi vừa viết khẳng định ngược lại, và bản chạy thật bác bỏ nó. Chuyển sang **Route
+   Handler** — chạy mỗi request, đọc env lúc chạy, một image dùng cho mọi môi trường (đúng nguyên
+   tắc *"đóng gói một lần, đề bạt cùng image"*).
+2. ⚠⚠ **`proxy_pass http://app:8080` làm nginx phân giải DNS lúc nạp cấu hình.** Backend chưa lên
+   là `[emerg] host not found in upstream "app"` và container quay vòng khởi động lại — **một sự cố
+   của backend kéo theo cả trang trắng**, thay vì chỉ hỏng lượt gọi API. Sửa bằng `resolver` + biến
+   trong `proxy_pass` để hoãn phân giải tới lúc có request. Đo lại: `RestartCount 0`.
+3. ⚠ **`resolver ${NGINX_LOCAL_RESOLVERS}` không được thay.** Script `15-local-resolvers.envsh` của
+   image mở đầu bằng `[ "${NGINX_ENTRYPOINT_LOCAL_RESOLVERS:-}" ] || return 0` — là tính năng **phải
+   chủ động bật**. Thiếu biến đó thì nginx đọc nguyên văn chuỗi `${NGINX_LOCAL_RESOLVERS}` và chết
+   với `host not found in resolver`.
+
+**Kiểm chứng trên bản chạy thật**, gọi kèm `Origin` như trình duyệt: đăng nhập qua cổng 15173 →
+`success: true`, bundle còn **0** tham chiếu tới `:18080`; cổng công khai `GET /public/categories`
+→ **200**, `POST .../views` → **204** (trước là 403).
+
+⛔ **Luật bổ sung cho `conventions.md` §1.5**: một endpoint mà **trình duyệt** phải gọi thì lượt
+kiểm chứng phải mang `Origin` — `curl` trần đi qua được đúng bức tường chặn người dùng thật.
+
+---
+
+### §10.29-a. ⚠⚠ Bản sửa §10.29 sửa vào chỗ không ai đọc — lỗi sống nguyên sau khi "đã sửa" (20/8/2026)
+
+Anh Quân dựng lại image rồi báo **vẫn CORS**. Bản sửa hôm trước đổi `compose.local.yml` thành
+`VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}` — mặc định rỗng, đúng ý định. Nhưng `:-` **chỉ có tác
+dụng khi biến vắng mặt**, mà Makefile chạy compose với `--env-file env/local.env`, và `--env-file`
+nuôi luôn phép thế biến. Tệp env vẫn giữ nguyên dòng:
+
+```
+VITE_API_BASE_URL=http://localhost:18080/api/v1      # [B] admin-app
+```
+
+Giá trị đó **thắng** mặc định trong compose. Đo lại bằng chính docker:
+
+```
+$ docker compose --env-file env/local.env -f compose.local.yml --profile full config | grep VITE
+        VITE_API_BASE_URL: http://localhost:18080/api/v1
+```
+
+Nghĩa là mọi lượt dựng lại đều nướng đúng địa chỉ khác origin vào bundle, y như trước.
+
+**⚠⚠ Và bài canh viết ra để chặn đúng lỗi này thì xanh trọn vẹn.** `FrontendSameOriginTest` khẳng
+định *"biến build của FE không được trỏ sang origin khác"* — nhưng nó soi **`compose.local.yml`**,
+tức là soi **giá trị mặc định**, trong khi nơi quyết định là tệp env. Nó chứng minh một điều đúng
+về một tệp không ai đọc tới.
+
+> ⛔ **Luật: canh giá trị ĐÃ GIẢI, đừng canh giá trị MẶC ĐỊNH.** Mặc định chỉ là thứ dùng đến khi
+> không ai ghi đè — mà ở đây luôn có người ghi đè. Cùng họ với §9.8.2 "xanh mà không chạy", nhưng
+> tinh vi hơn: phép kiểm chạy thật, khẳng định đúng, chỉ là **về sai đối tượng**.
+
+**Lỗi ở ba nơi, không phải một** — chữa một chỗ là lần sau lại sập ở chỗ khác:
+
+| Nơi | Sai gì | Sửa |
+|---|---|---|
+| `deploy/env/*.env*` (4 tệp) | gán địa chỉ tuyệt đối — **nơi quyết định** | để rỗng, chú thích ở dòng riêng (bẫy §10.27) |
+| `deploy/compose.local.yml` | mặc định đúng nhưng bị ghi đè | giữ nguyên, ghi rõ nó không phải nơi quyết định |
+| `Makefile` mục `dev-fe` | tiêm `VITE_API_BASE_URL=http://localhost:8080/api/v1` lúc build | đổi **đích chuyển tiếp** (`API_UPSTREAM`, `API_INTERNAL_BASE_URL`) — đọc lúc chạy |
+
+`staging/prod.env.example` cũng gán tuyệt đối. Ở đó nó *tình cờ* trùng origin thật nên chưa hỏng,
+nhưng biến một hằng số hạ tầng thành thứ phải build lại mỗi lần đổi tên miền, và sai một ký tự là
+cả giao diện chết. Nay để rỗng ở cả hai.
+
+**`make dev-fe` (FE trong Docker, backend native) là chế độ dễ tái phát nhất** — nó thật sự cần
+một địa chỉ khác `dev-docker`. Nhưng thứ khác là **đích chuyển tiếp**, không phải origin của
+trình duyệt: `API_UPSTREAM=http://host.docker.internal:8080` cho nginx và
+`API_INTERNAL_BASE_URL=…/api/v1` cho Next, cả hai đọc lúc chạy nên không phải dựng lại image.
+Thêm `extra_hosts: host.docker.internal:host-gateway` để Linux giống Docker Desktop.
+
+**Bài canh mới** (`tepEnvKhongGanDiaChiTuyetDoi`) quét **mọi** tệp trong `deploy/env/`, gồm cả
+`local.env` không commit — ở CI nó không tồn tại nên chỉ soi các bản mẫu, ở máy lập trình viên nó
+soi đúng tệp đang nuôi `docker compose`. Kiểm chứng ngược 3 phép phá hoại, **cả 3 đỏ**: trả lại
+dòng cũ · để trống kèm chú thích cùng dòng (bẫy §10.27) · `dev-fe` tiêm lại biến build.
+
+⚠ **Và bản đầu của chính bài canh đó đỏ oan**: nó khớp trúng một **chú thích trong Makefile mô tả
+lại lỗi cũ**, chứa nguyên văn `VITE_API_BASE_URL=http://localhost:8080/api/v1`. Một phép canh
+trượt trên tài liệu giải thích chính nó là phép canh **soi văn bản thay vì soi cấu trúc** — đúng
+thứ đã bị cấm sau vụ `articleContentCss.test.ts`. Nay bỏ dòng chú thích trước khi khớp.
+
+**Kiểm chứng trên bản chạy thật sau khi sửa**: bundle admin-app và public-web đều **0** tham chiếu
+`:18080` · đăng nhập qua cổng 15173 kèm `Origin` → **200 `TWO_FACTOR_ENROLL_REQUIRED`** ·
+`POST /public/articles/1/views` → **204** · `GET /public/categories` → **200** · 3 container
+`healthy`, `RestartCount 0` · và đường **khác** origin cũ (`OPTIONS` thẳng vào `:18080`) vẫn trả
+**403** — tức là bức tường CORS vẫn đứng nguyên, ta chỉ thôi tự đâm vào nó.
+
+---
+
+### §10.30. ⚠⚠ "Đổi mật khẩu bị 403" — việc đã xong từ lượt đầu, hỏng là đường ra (20/8/2026)
+
+Anh Quân thử luồng 2FA và báo `POST /auth/change-password` trả **403**. Nhật ký máy chủ kể đủ:
+
+```
+POST /auth/login            → 200
+POST /auth/2fa/enroll       → 200
+POST /auth/2fa/confirm      → 200
+GET  /auth/me               → 200
+POST /auth/change-password  → 204   ← thành công
+POST /auth/change-password  → 403   ← "header có, cookie thiếu"
+POST /auth/refresh          → 403
+POST /auth/change-password  → 403   ← "header thiếu, cookie thiếu"
+```
+
+CSDL xác nhận lượt đầu đã ăn: `must_change_password = false`, `password_changed_at` đúng giây của
+dòng 204, TOTP đã xác nhận. **Backend không hỏng một chỗ nào** — đổi mật khẩu thu hồi mọi phiên và
+xoá cookie CSRF là hành vi đã chốt ở §4.1.
+
+> ⭐ **Đọc log theo trình tự, đừng đọc theo mã lỗi.** Đi tìm nguyên nhân của "403 ở
+> change-password" là đi tìm một lỗi phân quyền không tồn tại. Dòng đáng chú ý nhất trong cả
+> đoạn là dòng **204**, và nó nằm *trước* thứ được báo là lỗi.
+
+**Lỗi thật ở giao diện, và nó nằm giữa hai tệp chứ không nằm trong tệp nào.** `ChangePasswordPage`
+gọi `clearTokens()` — hàm này chỉ xoá token trong `apiClient`. Còn `status` và `user` nằm ở
+`AuthProvider`, và **guard đọc đúng hai giá trị đó**. Nên lượt `navigate('/dang-nhap')` ngay sau đó
+bị `RequireAnonymous` thấy `status === 'authenticated'` + `mustChangePassword === true` và đẩy
+**ngược về đúng biểu mẫu vừa gửi**. Người dùng thấy form hiện lại y nguyên, kết luận là thất bại,
+bấm gửi lần nữa — và lần này phiên đã chết nên nhận 403.
+
+Đọc riêng `ChangePasswordPage` thì hợp lý; đọc riêng `guards.tsx` cũng hợp lý. Sai nằm ở **chỗ hai
+bên gặp nhau**, nên bài kiểm cũng phải cho chúng gặp nhau thật.
+
+**Ba bản sửa:**
+
+1. **`endSession()` ở `AuthProvider`**, dùng chung cho `logout` và đổi mật khẩu — dọn cả ba thứ ở
+   *một* chỗ. Trước đó `logout` làm đúng còn đổi mật khẩu làm thiếu, tức là hai nơi phải cùng nhớ
+   một thủ tục ba bước. Đây là biến thể của luật *"chỗ nào con người phải nhớ hai nơi thì chỗ đó
+   cần một phép kiểm nhớ hộ"* (§10.9-b) — lần này giải bằng cách **bỏ hẳn cái phải nhớ**.
+2. **Bỏ `navigate(0)`.** Nó tải lại trang để "dọn sạch bộ nhớ", tức là *che* đúng lỗi trên: lúc
+   chạy được thì nó dọn hộ, lúc không thì không ai biết vì sao. Điều hướng tất định đọc ra được là
+   đúng hay sai.
+3. **Vé CSRF chỉ còn MỘT nguồn: cookie.**
+
+**⚠⚠ Về bản sửa thứ ba, bản đầu của tôi sai và bài kiểm bắt được.** `currentCsrfToken()` viết
+`csrfToken ?? readCookie(...)` — bộ nhớ thắng cookie. Tôi sửa thành `readCookie(...) ?? csrfToken`,
+tưởng là xong. Bài kiểm đỏ ngay: **đảo thứ tự chỉ chữa lúc hai bên cùng có mà lệch nhau**; lúc máy
+chủ **xoá** cookie thì vẫn rơi về bộ nhớ và vẫn gửi một vé đã chết. Lập luận quyết định:
+
+> Máy chủ đối chiếu header với **cookie**. Cookie vắng mặt thì **không giá trị nào** gửi lên đi qua
+> được. Bản sao trong bộ nhớ không cứu được lượt gọi nào — nó chỉ đổi thông báo từ *"thiếu vé"*
+> thành *"vé không khớp"*, và đẩy người đọc log đi tìm một lỗi đối chiếu không tồn tại.
+
+Nên bỏ hẳn biến `csrfToken` và hàm `setCsrfToken`. Bản sao đó cũng không giải quyết vấn đề nào có
+thật: cookie `XSRF-TOKEN` cố ý **không** httpOnly, `Path=/`, cùng origin — luôn đọc được bằng JS;
+phản hồi đăng nhập vừa đặt cookie vừa trả vé trong thân, và trình duyệt xử lý `Set-Cookie` xong mới
+giải lời hứa. **Giữ hai nguồn cho một sự thật chỉ tạo cơ hội để chúng lệch nhau.**
+
+**Ba bài kiểm mới, cả ba kiểm chứng ngược đều đỏ đúng chỗ:**
+
+| Bài | Ở đâu | Chứng minh gì |
+|---|---|---|
+| `changePasswordFlow.test.tsx` | admin-app | dựng `AuthProvider` + guard + router **thật**; đổi xong phải tới trang đăng nhập **và** biểu mẫu không hiện lại |
+| `csrfToken.test.ts` | admin-app | cookie là nguồn duy nhất; cookie bị xoá thì không gửi vé nào |
+| `ChangePasswordHttpTest` | app | qua HTTP thật: 204 · xoá cả hai cookie · access token đang cầm **chết ngay** · mật khẩu mới dùng được |
+
+⭐ `changePasswordFlow.test.tsx` là **bài kiểm component đầu tiên** của admin-app —
+`@testing-library/react` nằm trong `package.json` từ WS-8 mà chưa lần nào được dùng. Thêm một cơ
+chế "dựng ra mà chưa ai đi qua" nay đã có người đi.
+
+⚠ `ChangePasswordHttpTest` đi qua HTTP chứ không gọi `PasswordChangeService`: **hai trong ba cam
+kết không tồn tại ở tầng service** (cookie nằm ở controller, token chết nằm ở chuỗi filter). Gọi
+thẳng service là kiểm đúng phần không hỏng — đây là phần trả trước của nợ **#65**.
+
+⚠ Hai chi tiết nhỏ, cả hai đều là "công cụ im lặng": `@testing-library/react` **chỉ tự dọn DOM khi
+vitest bật `globals`**, mà admin-app thì không — thiếu `afterEach(cleanup)` là bài sau đỏ với
+*"Found multiple elements"*, một lời báo lỗi chẳng liên quan gì tới thứ đang kiểm. Và luật ESLint
+cấm import `axios` ngoài `apiClient` **không phân biệt import kiểu** — giữ nguyên luật, khai kiểu
+tại chỗ, vì nới ra cho "chỉ là kiểu thôi" là mở đúng cái khe lần sau có người dựng instance riêng
+chui qua.
+
+---
+
+### §10.31. ⚠⚠ Rà soát toàn tuyến sau khi trình duyệt chạy ổn định — 4 lỗi thật, 2 nghiêm trọng (21/8/2026)
+
+Anh Quân xác nhận giao diện đã chạy trên trình duyệt và yêu cầu **rà lại toàn bộ luồng đã dựng**,
+bảo đảm không còn lỗi cùng họ. Đây là bản ghi kết quả.
+
+**Cách rà, và vì sao chọn cách đó.** Ba bài học gần nhất (§10.29, §10.29-a, §10.30) đều cùng một
+hình: *cơ chế xanh mà chưa ai đi qua đúng đường production đi*. Nên lần này không đọc mã để đoán, mà
+**gọi thật 99 endpoint qua cổng 15173 — tức qua nginx của admin-app, kèm header `Origin`** — đúng
+cách trình duyệt gọi, bốn lượt:
+
+| Lượt | Tư cách | Kỳ vọng |
+|---|---|---|
+| S1 | không token | mọi endpoint không công khai chặn lại |
+| S2 | token **không có quyền nào** | mọi `@RequirePermission` trả 403 `AUTH-3001` |
+| S3 | token đủ quyền + vé CSRF | đường đi phải thông |
+| S4 | token đủ quyền, **thiếu header CSRF** | mọi lượt ghi bị chặn |
+
+Kèm một phép đối chiếu tĩnh: **99 endpoint backend ↔ mọi lượt gọi API trong mã FE**.
+
+#### Kết quả phần lành
+
+- **99/99 endpoint đều có khai báo bảo mật tường minh** — 75 `@RequirePermission`, 14
+  `@PublicEndpoint`, 10 `@AuthenticatedEndpoint`. Deny-by-default (T5.10) đứng vững.
+- **FE ↔ BE khớp tuyệt đối**: không lượt gọi nào của FE trỏ vào endpoint không tồn tại, và ngược lại.
+- **CSRF phủ đúng**: S4 chặn toàn bộ lượt ghi, ngoại lệ duy nhất là `POST /public/articles/{slug}/views`
+  — đúng §10.19.
+- **Cookie đúng cờ**: `refresh_token` `HttpOnly` + `SameSite=Strict` + `Path=/api/v1/auth`;
+  `XSRF-TOKEN` cố ý không `HttpOnly` (double-submit cần JS đọc được).
+- Cổng công khai trả 200 ở trang chủ, danh mục, tìm kiếm, sitemap, health.
+
+> ⚠ Một chi tiết của **bộ quét**, không phải của hệ: lượt S2 gọi trúng `POST /auth/logout` giữa
+> chừng nên các endpoint sau đó nhận 401 thay vì 403. Kiểm lại riêng thì tầng 2 trả đúng
+> `AUTH-3001`. Ghi ra vì nó cũng là một bài học: **bộ quét tuần tự mà chứa một lời gọi làm đổi trạng
+> thái phiên thì mọi kết quả sau đó không còn đọc được** — và rất dễ báo động giả.
+
+#### Lỗi 1 ⛔⛔ — XSS lưu trữ trên cổng công khai, qua **hai** đường ghi cấu hình
+
+`site.footer.company-info` và `site.footer.map-embed` là hai giá trị duy nhất mà cổng dựng bằng
+`dangerouslySetInnerHTML`. Việc khử trùng đặt ở `SiteConfigService.update()` — tức ở **một** trong
+**ba** đường ghi vào bảng `settings`. Hai đường còn lại (`PUT /api/v1/settings/{key}` của màn hình
+cấu hình hệ thống, và `POST /api/v1/settings/import`) ghi thẳng chuỗi thô.
+
+Đo thật trên hệ đang chạy: gửi `<img src=x onerror="alert(document.cookie)"><script>…</script>` qua
+cả hai đường → **cả hai trả 200**, CSDL lưu **nguyên văn**, `GET /api/v1/public/site-config` trả lại
+**nguyên văn**. Đoạn mã đó chạy trong trình duyệt của **mọi người dân vào tra cứu**.
+
+**Chốt: luật khử trùng chuyển từ *nơi gọi* sang *dữ liệu*.** Cột `value_type` nhận thêm `HTML` và
+`HTML_EMBED`; `SettingService` khử trùng theo kiểu tại một điểm ghi chung mà cả ba đường đều đi qua.
+Đường ghi viết sau này cũng bị ràng buộc mà không ai phải nhớ — đúng cách `AttachmentService` tự đưa
+SVG qua `SvgSanitizer` thay vì tin nơi gọi (§10.14).
+
+⚠ **Lỗi thứ hai lộ ra ngay cạnh**: `importConfiguration` cũng **không phát `SettingChangedEvent`**,
+nên nhập cấu hình xong thì cổng còn hiện giá trị cũ tới hết TTL 10 phút — đúng thứ §10.13 dựng ra để
+chống, vẫn sống trên đường thứ ba. Chú thích tại chỗ ghi *"đây là nơi DUY NHẤT ghi bảng settings"*:
+đúng ở mức **lớp**, sai ở mức **phương thức**, và cái sai đó không có bài kiểm nào chạm tới.
+
+#### Lỗi 2 ⛔⛔ — Toàn bộ màn hình quản trị nội dung trả 500, từ WS-13 tới nay
+
+`GET /api/v1/cms/articles` và `GET /api/v1/cms/articles/{id}` trả **500 `SYS-0001` cho mọi lượt
+gọi**. Tức là **danh sách bài viết và màn hình sửa bài** — trọng tâm của Phase 1 — chưa từng dùng
+được. Nguyên nhân: `ArticleController` ánh xạ entity sang DTO **trong controller**, sau khi phương
+thức `@Transactional` đã kết thúc và `Session` đã đóng (`open-in-view: false`), còn
+`ArticleSummary.of`/`ArticleDetail.of` đọc `getCategories()` — quan hệ lười →
+`LazyInitializationException`.
+
+Không có lượt gọi nào thoát: `categoryPublicIds` mang `@NotEmpty`, nên **mọi** bài viết đều có danh
+mục.
+
+⚠⚠ **Vì sao 391 bài kiểm xanh không thấy gì**: `ArticleLifecycleTest` gọi thẳng service, nên phép
+khẳng định chạy *bên trong* giao dịch — nơi nạp lười vẫn hoạt động bình thường. **Nợ #65 ("bài kiểm
+CMS chưa đi qua HTTP") không phải mục cho đẹp hồ sơ — nó đang che một sự cố toàn phần.** Đây là lần
+thứ hai trong dự án một dòng nợ hoá ra là nắp đậy, không phải việc để dành.
+
+Sửa: `ArticleService` nạp sẵn quan hệ trước khi entity rời khỏi giao dịch, `@BatchSize(50)` giữ cho
+lượt nạp của cả trang gom về một truy vấn. Bài canh là `ArticleHttpTest` — **đi qua HTTP, vì đó là
+đường duy nhất tái hiện được**.
+
+#### Lỗi 3 ⚠ — Image admin-app không đặt **một** header bảo mật nào
+
+`curl -I http://localhost:15173/` trả về đúng `Server`, `Date`, `Content-Type`, `ETag`,
+`Cache-Control`. Không `X-Frame-Options`, không CSP, không `X-Content-Type-Options` — trong khi
+public-web đặt sẵn ba cái. Hai tầng phục vụ của cùng một hệ thống có hai mức bảo vệ khác hẳn nhau mà
+không ai chọn điều đó.
+
+⚠⚠ **Cái bẫy nằm ở chính cách sửa**: trong nginx, `add_header` **không cộng dồn qua các cấp** — khối
+`location` có `add_header` riêng sẽ vứt bỏ *toàn bộ* header kế thừa từ khối `server`. Cấu hình này
+có `add_header Cache-Control` ở cả `/assets/` lẫn `/`, đúng hai khối phục vụ mọi thứ người dùng tải
+về. Khai một lần ở cấp `server` rồi kiểm bằng `curl /` sẽ thấy header **biến mất**, và rất dễ kết
+luận nhầm là "cấu hình rồi mà không chạy". Nên header để riêng một tệp và `include` lại ở từng khối;
+`NginxSecurityHeadersTest` **soi cấu trúc khối `location`**, không tìm chuỗi trong tệp.
+
+**CSP — hai lựa chọn có chủ đích, cả hai đã đo:**
+
+- `style-src` **phải** có `'unsafe-inline'`. AntD 5 dùng cssinjs, chèn `<style data-css-hash=…>` lúc
+  chạy (đã kiểm trong bundle đã dựng). Với `style-src 'self'` thì giao diện quản trị hiện ra **không
+  còn định dạng nào**. Đường thoát duy nhất là `StyleProvider` + nonce theo từng request, mà bundle
+  Vite là tĩnh do nginx phục vụ nên không có chỗ sinh nonce. Đây là **cái giá của việc chọn AntD**,
+  ghi ra để WS-11 không siết rồi mới phát hiện lúc đã lên staging.
+- `script-src 'self'` thì **an toàn** — `index.html` của bản dựng có đúng một thẻ script và nó mang
+  `src`, không có script nội tuyến. Đây mới là lớp chặn XSS thật sự, và bài kiểm khẳng định
+  `'unsafe-inline'` không được lọt sang đó.
+
+HSTS cố ý **không** đặt ở tầng này: nó thuộc về nơi kết thúc TLS (nginx chung, T11.5). Đặt ở đây thì
+local chạy HTTP nên trình duyệt bỏ qua, và nó tạo cảm giác đã có lớp bảo vệ mà thật ra chưa.
+
+⛔ **Chưa làm, và nói rõ là chưa**: public-web **không** có CSP. Next chèn script nội tuyến để
+hydrate (`self.__next_f`), nên CSP ở đó cần nonce qua middleware — một việc riêng, ghi thành nợ chứ
+không vá vội bằng `'unsafe-inline'` (vá thế thì có CSP mà không có tác dụng).
+
+#### Lỗi 4 ⚠ — Công tắc chết và giá trị ghi cứng, hai đầu của cùng một chuyện
+
+Đối chiếu **85 tham số `settings`** với mã nguồn (Java lẫn TypeScript, tính cả khoá ghép từ tiền tố):
+
+- **3 khoá nhóm CMS** bày trên giao diện mà không nơi nào đọc. Hai khoá đầu **không phải sơ suất** —
+  `ViewCountService` và `ScheduledPublishScanner` cố ý ghi cứng chu kỳ, và tài liệu của chúng nói rõ
+  vì sao (`@Scheduled` chốt chu kỳ lúc dựng bean). Quyết định ở tầng mã là đúng; thứ thiếu là **bước
+  gỡ dòng dữ liệu tương ứng**. Khoá thứ ba nặng hơn: `cms.article.view-count-window-minutes` mô tả
+  một tính năng **không tồn tại** — không có phép khử trùng lặp lượt xem nào. → gỡ cả ba.
+- **5 khoá `company.*`** không ai đọc, ba trong năm để trống — trong khi `SiteFooter.tsx` **ghi
+  cứng** địa chỉ trụ sở, điện thoại, fax, email và số đường dây nóng (số hotline xuất hiện *hai
+  lần*). Đây là cổng của một doanh nghiệp nhà nước, và đó là số người dân gọi khi có sự cố công
+  trình: đổi nó lẽ ra là một ô nhập, không phải sửa mã rồi dựng lại image. → nối chân trang vào
+  `company.*`, thêm `company.fax` / `company.hotline` / `company.working-hours`, điền giá trị đúng
+  bằng chuỗi đang ghi cứng nên **cổng hiển thị không đổi gì**.
+
+⚠ `company.hotline` tách riêng khỏi `company.phone`: một bên là tổng đài giờ hành chính, một bên là
+trực ban 24/7 phòng chống thiên tai. Gộp làm một thì tới mùa lũ sẽ có người sửa số này và vô tình
+đổi luôn số kia.
+
+**Ranh giới quyền giữ nguyên**: `SiteConfigService` **đọc** nhóm `COMPANY` nhưng chỉ **ghi** được
+nhóm `SITE`. Tên pháp nhân và số đường dây nóng không phải lựa chọn trình bày, và người có quyền sửa
+giao diện cổng không đương nhiên có quyền sửa chúng.
+
+#### Điều rút ra
+
+Cả bốn lỗi đều **không** thuộc loại "viết sai logic". Chúng là cùng một hình dạng, lặp lại lần thứ
+tư trong dự án: **một bảo đảm được phát biểu ở một chỗ, trong khi đường chạy thật đi qua chỗ khác.**
+Khử trùng nằm ở một trong ba đường ghi; ánh xạ DTO nằm ngoài giao dịch mà bài kiểm lại nằm trong;
+header khai ở cấp `server` mà request đi qua `location`; giá trị thật nằm trong mã còn công tắc nằm
+trong CSDL.
+
+⛔ **Luật bổ sung, cùng họ với "canh giá trị đã giải" (§10.29-a): khi một bảo đảm phải đúng ở nhiều
+đường vào, hãy đặt nó ở chỗ *dữ liệu đi qua*, đừng đặt ở *nơi gọi* — và nếu không đặt được thì phải
+có một phép kiểm đếm đủ các đường vào.**
+
+---
+
+### §10.32. WS-17 — bảng nghiệp vụ đầu tiên thuộc phạm vi đơn vị (21/8/2026)
+
+Danh mục công trình (CN-02.1) là nơi **ba cơ chế của Phase 0 lần đầu chạy trên dữ liệu thật**: phân
+quyền tầng 3, cửa SPI thông báo, và bộ ghi nhật ký kiểm toán trên một entity nghiệp vụ có thông số
+kỹ thuật tách bảng.
+
+#### Bằng chứng tầng 3 đã sống — trả nợ #57
+
+Dòng log lúc khởi động đổi từ *"Chưa có entity nào thuộc phạm vi đơn vị — bỏ qua lọc tầng 3 (Phase 0)"*
+thành *"Bộ lọc phạm vi đơn vị đã sẵn sàng"*. Đo trên `make dev-docker` sau khi migration 1026 chạy.
+
+`ConstructionScopeTest` kiểm đủ ba nhánh mà mục "Kiểm chứng" của WS-17 đòi, cộng hai nhánh nữa mà
+`ScopeFilterEndToEndTest` không có vì `ScopedRecord` không có đường ghi: **sửa, đổi vòng đời và xoá
+một hồ sơ ngoài phạm vi cũng bị chặn**. Bộ lọc và `ScopeGuard` là hai cơ chế khác nhau — bộ lọc làm
+bản ghi "không có trong kết quả", còn việc hàm ghi có tra qua `ScopeGuard` hay không là lựa chọn của
+người viết service. Quên một chỗ là sửa được hồ sơ của Xí nghiệp khác.
+
+⭐ **Kiểm chứng ngược đã chạy**: gỡ `@Filter` khỏi `Construction` → **6/8 bài đỏ** cộng luật ArchUnit
+`everyScopedEntityCarriesTheFilter` đỏ, chỉ đích danh lớp thiếu annotation. Khôi phục → xanh lại.
+
+#### Thông số kỹ thuật là **bảng phụ**, không phải entity riêng
+
+Trạm bơm có 9 thông số, cống có 8, kênh/đê có 7 — ba tập không giao nhau. Nhồi chung vào
+`constructions` thì mỗi hồ sơ mang hơn hai chục cột rỗng và không gì ngăn được một cái cống có "số
+máy bơm". Nhưng tách thành **entity** riêng thì mỗi lần sửa thông số là một dòng nhật ký mang loại
+đối tượng khác, và "nhật ký thay đổi hồ sơ công trình" (CN-02.7) **bỏ sót đúng phần kỹ thuật** —
+thứ đáng theo dõi nhất.
+
+`@SecondaryTable` + `@SecondaryRow(optional = true)` giữ được cả hai: dữ liệu tách bảng, nhưng với
+Hibernate và với bộ ghi nhật ký thì đây vẫn là *một* hồ sơ. Đổi loại công trình thì service **xoá
+sạch thông số của loại cũ** — bỏ bước đó thì `pump_station_specs` còn một dòng mồ côi, biểu mẫu
+không hiện nữa nhưng báo cáo "tổng công suất trạm bơm" vẫn cộng vào.
+
+#### Giá trị dẫn xuất đặt ở CSDL khi có thể
+
+Ba cột sinh, cả ba **không có đường ghi nào** nên không thể lệch khỏi dữ liệu sinh ra chúng:
+
+| Cột | Công thức | Vì sao không tính ở Java |
+|---|---|---|
+| `geom` | `ST_SetSRID(ST_MakePoint(lng, lat), 4326)` | Lưu song song với lat/lng là hẹn trước một lần lệch; marker sai vị trí không có triệu chứng nào |
+| `chainage_m` | tách từ `K<km>+<m>` | Dùng để sắp xếp dọc tuyến sông; viết tay hai giá trị cho một sự thật thì sớm muộn chúng khác nhau |
+| `total_flow_m3s` | `pump_count × flow_per_pump` | CN-02.1 ghi "auto". Quy tắc 3 nói tính ở BE — ở đây còn chặt hơn, FE không có đường nào tính ra số khác |
+
+Đo trên CSDL thật: `POINT(105.78 20.98)` SRID 4326 · `chainage_m = 18100` cho `K18+100` ·
+`totalFlowM3s = 4.500` cho 3 máy × 1,5 m³/s (qua HTTP).
+
+Riêng **trạng thái vận hành** không đặt được ở CSDL vì chuỗi suy ra của nó cần dữ liệu của WS-18 và
+Phase 2. Thay vào đó: `ConstructionStatusService` là **nơi duy nhất** ghi, entity **không có setter
+công khai** cho cột đó (có bài kiểm soi cấu trúc lớp), và endpoint trả `OPS-3001` khi client gửi
+kèm. WS-18/WS-19 thêm luật vào *đúng hàm ấy*, không mở đường ghi mới.
+
+⚠ **Vòng đời tách khỏi trạng thái vận hành.** `lifecycle_state` do con người quyết (đang hoạt động /
+ngừng mùa vụ / đã thanh lý), `operational_status` do máy suy ra. Gộp làm một thì hoặc một sự cố vừa
+đóng sẽ "hồi sinh" một công trình đã thanh lý, hoặc người dùng phải sửa tay một cột lẽ ra do máy
+tính. Đổi vòng đời đi bằng endpoint riêng **có lý do bắt buộc** — không lẫn vào một lượt sửa địa chỉ.
+
+#### ⚠⚠ `now()` của PostgreSQL là thời điểm **bắt đầu giao dịch** — nhật ký thay đổi trả về rỗng
+
+Bài kiểm qua HTTP bắt lỗi này ở lượt chạy đầu. `ConstructionChangeLogService` lấy `createdAt` của
+công trình làm cận dưới cho truy vấn `audit_logs` (đúng ý đồ: bảng phân mảnh theo tháng, không có
+cận dưới thì quét cả 60 partition). Nhưng `audit_logs.occurred_at` mặc định là `now()`, mà `now()`
+trả **transaction timestamp**, còn `createdAt` do Spring gán lúc flush — sau đó vài mili giây. Kết
+quả: dòng nhật ký của chính lượt tạo nằm ngay *dưới* mốc và bị loại. Triệu chứng phía người dùng là
+tab "Nhật ký thay đổi" **trống trơn, không lỗi nào**, và người ta sẽ đi tìm nguyên nhân ở bộ ghi
+nhật ký chứ không ở câu truy vấn.
+
+Chữa bằng cách lùi mốc về **đầu tháng** chứa `createdAt`: vì partition chia theo tháng nên **không
+quét thêm partition nào**, mà xoá hẳn cả lớp lỗi do lệch đồng hồ giữa tiến trình ứng dụng và CSDL.
+
+#### ⚠ Hai cột `valid_from` / `valid_until` đã "chết" từ WS-2
+
+CN-02.3 đòi tài liệu công trình có *ngày lập* và *ngày hết hiệu lực*. Hai cột ấy có trong lược đồ từ
+WS-2, entity có setter — và **không dòng mã nào gọi**: `AttachmentUploadCommand` không mang chúng,
+`AttachmentRef` chỉ lộ `validUntil`. Cùng họ với `limits.upload.max-mb.*` (WS-12) và `company.*`
+(rà soát 21/8): cột có sẵn nên ai đọc lược đồ cũng tưởng nó đang chạy.
+
+Mở `AttachmentPort.setValidity(...)` thay vì nhét thêm tham số vào lệnh tải lên — ngày lập là **siêu
+dữ liệu nghiệp vụ**, sửa được sau khi tệp đã vào kho, còn nội dung tệp thì không. (Một hồ sơ hoàn
+công lập năm 2018 vẫn được số hoá hôm nay, nên "ngày lập" không suy ra được từ ngày tải lên.)
+
+#### ⛔ Nhập tệp: không thêm Apache POI
+
+Tệp nhập danh mục là một **bảng phẳng toàn chữ và số** — không công thức, không ô ngày, không định
+dạng. Đọc được chừng đó thì XLSX chỉ là ZIP chứa XML, và JDK có sẵn cả `java.util.zip` lẫn StAX.
+POI kéo theo `xmlbeans`, `commons-compress`, `commons-io` và là một trong những nguồn CVE Java
+thường xuyên nhất — mà dự án đã tự đặt luật *"mỗi thành phần phải tự chứng minh nó đáng nuôi"* và đã
+**trả lại** một phiên bản MinIO cùng một module Testcontainers vì đúng lý do đó. Khi nào cần **xuất**
+Excel có định dạng (CN-02.10, Phase 3) thì POI mới đáng.
+
+Giới hạn đã ghi thẳng trong mã: chỉ sheet đầu tiên · đọc giá trị đã lưu của ô công thức, không tính
+lại · **không** đổi số sê-ri ngày của Excel (bảng nhập công trình không có cột ngày nào; cột ngày
+đầu tiên xuất hiện thì phải xử lý ở đó, đừng để nơi gọi tự đoán).
+
+⚠⚠ **Dấu chấm là chỗ nguy hiểm nhất của cả lượt nhập.** Tiếng Việt dùng "." ngăn hàng nghìn, còn toạ
+độ GPS viết `21.023456` với "." là dấu thập phân. Quy tắc "bỏ hết dấu chấm" biến vĩ độ 21,023456
+thành **21023456** — một điểm giữa đại dương. CHECK của CSDL bắt được khi vượt [-90, 90], nhưng
+**không bắt được sai số nhỏ hơn**, và một công trình lệch vài trăm mét trên bản đồ điều hành thì
+không ai phát hiện bằng mắt. Nên phân biệt bằng *hình dạng chuỗi*, không đoán theo ngôn ngữ.
+
+⭐ **Chạy khô và chạy thật đi CÙNG một đường** (`lapKeHoach`). Viết hai bộ luật thì bản xem trước sẽ
+dần khác bản chạy thật, người dùng nhận "0 lỗi" rồi vẫn hỏng ở lượt nhập — mất niềm tin không gỡ lại
+được. Và **một dòng lỗi thì không dòng nào được ghi**: nhập một nửa rồi dừng là trạng thái tệ nhất,
+người dùng không biết đã vào tới đâu, sửa tệp rồi nhập lại thì phần đầu vào hai lần.
+
+⚠ Thêm một chốt nhỏ nhưng đáng: tệp nhị phân (có byte `0x00`) bị từ chối bằng `OPS-2015` ngay. Không
+có bước đó thì một tệp `.doc` tải nhầm vẫn được "đọc" thành một dòng ký tự rác và người dùng nhận
+thông báo *"tệp thiếu cột bắt buộc"* — câu đó dẫn họ đi sửa tiêu đề của một tệp không hề là bảng tính.
+
+#### Cụm công trình chỉ là **cách nhóm** (G15)
+
+⛔ `cluster_id` không được xuất hiện trong bất kỳ truy vấn phân quyền nào. Phạm vi đi bằng
+`org_unit_id`, và chỉ bằng nó. Nếu một ngày cụm cần mang ý nghĩa phân quyền thì đường đúng là thêm
+một cấp vào `org_units` — vì có hai nguồn phạm vi thì sớm muộn chúng lệch nhau, và **bên lỏng hơn sẽ
+thắng mà không ai biết**.
+
+Cụm dùng lại quyền `ops:construction:*` thay vì thêm quyền mới: ma trận §6 đã được Công ty duyệt và
+có 334 dòng đang được `RbacMatrixTest` đối chiếu trên CSDL thật. Thêm một quyền ngoài ma trận sẽ tạo
+ra một ô mà **không vai trò nào được gán** — tức một chức năng không ai dùng được.
+
+---
+
+### §10.33. WS-23 — nền biểu đồ và dashboard điều hành (21/8/2026)
+
+Hạng mục **thêm vào Phase 1** (chốt 20/8): `implement.md` vốn xếp dashboard vào Phase 3, nhưng WS-17 vừa làm cho số liệu công trình thành **số thật**, nên đây là lúc dựng được một màn hình demo mà không phải bịa một con số nào.
+
+#### 1. ⛔ Ô chưa có nguồn nói thẳng là chưa có — ép ở tầng kiểu, không ở lời dặn
+
+CN-02.5 liệt kê sáu nhóm KPI, **bốn nhóm chưa có dữ liệu**: cảnh báo thuỷ văn và điểm đo mất tín hiệu thuộc MOD-03 (Phase 2), công việc bảo trì và sự cố chưa xử lý thuộc WS-18.
+
+Cách làm sai mà dễ rơi vào nhất là trả `0`. **Số 0 là một câu khẳng định** — "đã đo và bằng không". Trên màn hình treo tường phòng trực, ô *"Sự cố chưa xử lý: 0"* nói rằng không có sự cố nào, và người trực ca sẽ tin nó, trong khi hệ thống chưa hề biết gì.
+
+Nên `DashboardService.Kpi` trả `value = null` kèm **lý do** và **mốc sẽ có** (`"WS-18 (CN-02.2)"`). Ràng buộc nằm ở **hàm dựng của record**:
+
+```java
+public Kpi {
+    if (value == null && (unavailableReason == null || unavailableReason.isBlank())) {
+        throw new IllegalArgumentException("KPI '%s' không có số thì bắt buộc phải nói lý do…");
+    }
+}
+```
+
+Đặt ở đây chứ không ở bài kiểm, vì bài kiểm chỉ phủ những ô **đã tồn tại lúc viết nó** — ô KPI thứ mười một mà WS-18 thêm vào cũng phải đi qua đúng ràng buộc đó mà không cần ai nhớ.
+
+⚠⚠ **`@JsonInclude(ALWAYS)` trên record này là bắt buộc, và nó đè cấu hình `NON_NULL` chung.** Bỏ hẳn khoá `value` khỏi JSON thì phía nhận đọc ra `undefined` — không phân biệt được với "API đổi tên trường" hay "bản cũ chưa có trường này". Cả thiết kế dựa trên việc **nói rõ** rằng không có số; để nó im lặng biến mất là mâu thuẫn với chính điều đang cố diễn đạt. Đây là ngoại lệ duy nhất trong dự án.
+
+#### 2. Một bảng màu, không phải hai — và cách canh điều đó
+
+T23.1 đòi theme ECharts sinh từ `design-tokens`. Lý do không phải "cho gọn": năm màu trạng thái **mang nghĩa nghiệp vụ** (đỏ = sự cố đang mở, xám = mất tín hiệu). Hai bảng màu thì badge trên bảng và lát bánh trên biểu đồ lệch nhau, và **không ai coi đó là lỗi để đi sửa** — nhìn riêng từng màn hình thì cả hai đều "trông ổn".
+
+Phép canh thật nằm ở `chartOptions.test.ts`: lát *"Sự cố"* phải đúng bằng `statusColors.danger` mà `StatusBadge` dùng. Kiểm chứng ngược bằng cách viết một mã màu tại chỗ → đỏ.
+
+⛔ **Mã lạ không rơi về màu `normal`.** `mauCua` trả `undefined` để ECharts dùng dãy màu của theme. Rơi về `normal` nghĩa là một trạng thái hệ thống chưa biết sẽ hiện màu xanh — một khẳng định "ổn" về thứ chưa ai xác nhận.
+
+#### 3. ⚠⚠ Bố cục co giãn tính bằng JS, vì CSS `auto-fit` không kiểm được
+
+`repeat(auto-fit, minmax(300px, 1fr))` làm đúng việc và không bao giờ tràn — nhưng nó chỉ được tính bởi **bộ dựng bố cục của trình duyệt**, mà jsdom không có bộ dựng bố cục. Yêu cầu T23.11 (*"ba bề rộng 3840/1920/1366, khẳng định cả hai vế: không tràn ngang và không mất khối"*) sẽ không có cách nào kiểm ở CI: một bài kiểm `render()` rồi đọc `style` chỉ chứng minh chuỗi CSS được viết ra.
+
+Đưa quyết định về hàm thuần `soCot(beRong, rongToiThieu, tranCot)` thì bài kiểm chạy **đúng đoạn mã production chạy**, và quét được cả dải 320→4096 px chứ không chỉ ba điểm — lỗi bố cục hay nằm ở khe hẹp ngay dưới một điểm ngắt.
+
+**Có trần số cột, kể cả ở 4K**, và không phải để tiết kiệm chỗ: màn hình 85" được đọc từ **4–6 m**, mười hai ô một hàng thì mỗi ô hẹp tới mức chữ không còn đọc được ở khoảng cách đó — thêm cột lại làm **mất** thông tin.
+
+#### 4. ⚠⚠ Lỗi thật do bài kiểm bắt: lưới luôn một cột vì ref gắn sau khi effect đã chạy
+
+Bản đầu của `useElementWidth` dùng `useRef` + `useEffect([])`. Bài kiểm bố cục ở bốn bề rộng bắt được: lưới luôn ra `repeat(1, …)`.
+
+Nguyên nhân: trang hiện khung xương trong lúc chờ dữ liệu, nên ở lượt render đầu — **đúng lượt mà effect chạy** — thẻ mang ref chưa có trong cây DOM, `ref.current` là `null`, effect thoát sớm. Khi dữ liệu về và thẻ được gắn vào thì không có gì gọi lại effect: danh sách phụ thuộc rỗng nghĩa là "chạy đúng một lần", và lần đó đã trôi qua.
+
+Hậu quả thật, không chỉ trong bài kiểm: **dashboard hiện một cột trên mọi màn hình** cho tới khi người dùng đổi kích thước cửa sổ — mà trên TV treo tường thì không bao giờ có ai đổi kích thước cả. Chữa bằng **ref dạng hàm**: React gọi nó đúng vào lúc nút gắn vào và gỡ ra, thay vì một thời điểm mà ta *đoán* là nút đã có ở đó.
+
+⭐ Đáng chú ý là **bản đầu của bài kiểm cũng không bắt được**: nó khớp `repeat([1-5], …)` bằng biểu thức chính quy nên `repeat(1, …)` vẫn xanh. Siết lại thành con số chính xác cho từng bề rộng mới lộ ra. Cùng họ với bài học `articleContentCss.test.ts` — **canh cấu trúc, và canh cho chặt**.
+
+Bộ bề rộng cũng phải chọn có chủ ý: ở 3840/1920/1366 thì **trần cột luôn là thứ quyết định** (cả ba đều ra 5/3), nên thêm **900 px** — bề rộng duy nhất trong bộ mà con số phụ thuộc thật vào phép đo.
+
+#### 5. Bản đồ: URL tile ở `settings`, nhưng CSP không tự đi theo
+
+`architecture-review.md` §3 mục 9 chốt "OSM mặc định, Google Maps optional, để config switch được" → 6 khoá `ops.map.*` nhóm `OPERATION` (migration `V…1027`), đọc lúc chạy.
+
+⚠⚠ **Nhưng chỉ thị `img-src` nằm ở nginx của ảnh admin-app.** Host tile không nằm trong danh sách đó thì trình duyệt chặn **từng ô ảnh**, và triệu chứng là **bản đồ xám trơn có marker nổi lên trên** — không một lỗi nào ở tầng ứng dụng, chỉ vài dòng trong console mà không ai mở. `NginxSecurityHeadersTest.hostTileBanDoNamTrongCsp` đọc URL seed từ chính migration và đối chiếu với CSP trong Dockerfile; kiểm chứng ngược bằng cách gỡ host khỏi CSP → đỏ đúng chỗ.
+
+⛔ **Không nới `img-src` thành `https:` trần** — nới thế thì mọi tên miền trở thành nguồn ảnh hợp lệ, và một thẻ `<img>` chèn được vào nội dung sẽ gửi thông tin ra ngoài bằng chính đường dẫn ảnh. Bài kiểm khẳng định cả vế này.
+
+⛔ **Marker vẽ bằng `divIcon` (CSS), không dùng ảnh biểu tượng mặc định của Leaflet**: ảnh PNG mặc định nạp theo đường dẫn tương đối tính từ tệp CSS nên vỡ trong bản dựng có băm tên tệp (marker biến mất mà bản đồ vẫn chạy); màu marker phải theo trạng thái mà PNG thì không đổi màu được; và vẽ bằng CSS thì **không cần tới `img-src` chút nào**.
+
+#### 6. Wall mode: một cây component, chỉ đổi theme và cỡ chữ
+
+Thiết bị đã chốt (B8) là TV 85" 4K, kèm khả năng có máy chiếu 2K/Full-HD. Cách làm sai là thiết kế riêng cho 3840×2160 rồi thêm một bản "cho laptop": hai bộ bố cục thì mọi thay đổi phải nhớ làm hai lần, và **bản bị quên luôn là bản không ai mở hằng ngày** — tức là bản treo trên tường phòng trực.
+
+Nên `?mode=wall` chỉ đổi theme (`echartsWallTheme` **sinh từ** `echartsTheme`, không chép lại) và cỡ chữ (`clamp()` + `vw`). Số cột vẫn do `boCucTheoBeRong` quyết. Bài kiểm khẳng định wall dựng **đúng chừng ấy khối** như chế độ thường.
+
+**Năm màu trạng thái giữ nguyên ở chế độ tối** — chỉ nền và chữ đảo. Đổi sắc độ theo nền là tạo ra hai bảng nghĩa cho cùng một hệ thống, và người trực đọc màn hình tường rồi mở máy tính tra tiếp sẽ thấy hai màu khác nhau cho cùng một công trình.
+
+**Auto-rotate là cuộn, không phải đổi trang.** Thay hẳn nội dung theo chu kỳ nghĩa là **có những phút không nhìn thấy được số sự cố** — trong khi đó chính là con số người ta treo màn hình lên để nhìn. Khối KPI luôn nằm trên, chỉ phần dưới cuộn.
+
+#### 7. ⚠⚠ Hạn mức đăng nhập là ngân sách **dùng chung** giữa mọi lớp kiểm thử HTTP
+
+`DashboardHttpTest` xanh khi chạy riêng và **8/10 bài đỏ khi chạy cả bộ**, với `SYS-0002 · 429`. Nguyên nhân không nằm ở dashboard: hạn mức đăng nhập là **30 lượt / 15 phút theo IP**, mọi bài kiểm HTTP đi từ `127.0.0.1`, và bộ đếm là Caffeine trong tiến trình nên nó dùng chung cho **toàn bộ lượt chạy**.
+
+⛔ Cách chữa **sai** là nới hạn mức ở hồ sơ kiểm thử — làm thế thì một cơ chế bảo mật thật không còn được chạy qua ở CI. Cách đúng là dùng ít vé hơn: đăng nhập ở `@BeforeAll` (`@TestInstance(PER_CLASS)`), 20 lượt còn 2.
+
+📌 **Luật cho lớp kiểm thử HTTP thêm sau**: đăng nhập một lần cho cả lớp. Không thì nó làm đỏ một lớp *khác*, và người đọc log sẽ đi tìm lỗi ở đúng chỗ không có lỗi nào.
+
+#### 8. Hai thứ cố ý **chưa** làm, ghi ra thay vì giấu
+
+- **Bấm vào cột để mở danh sách đã lọc (T23.8)** — màn hình danh sách công trình thuộc **WS-21**, chưa dựng. Nối sẵn một liên kết trỏ tới route không tồn tại thì người bấm nhận trang 404: **một bên là chức năng chưa có, bên kia trông như chức năng có mà hỏng**. Cùng lý do, popup marker chưa có nút "Xem chi tiết" (M2.10 có yêu cầu). → nợ #71, nhận ở WS-21.
+- **`optionDuong` (biểu đồ đường) chưa có nơi gọi** — chuỗi thời gian đầu tiên của hệ thống là mực nước 24 giờ (Phase 2). Giữ lại vì nó là hàm thuần có bài kiểm riêng, còn phần rủi ro thật (dựng thực thể ECharts, đổi kích thước, huỷ) nằm ở `BaseChart` và đã có ba loại biểu đồ khác đi qua. ⛔ Phase 2 đến mà vẫn không ai gọi thì **xoá**, không phải giữ.
+
+#### 9. Số đo thật
+
+Bó mã của route dashboard: **727 kB (239 kB nén gzip)** — tách chunk riêng nhờ nạp theo nhu cầu, nên trang đăng nhập không gánh. Nạp ECharts **chọn lọc** (`echarts/core` + 4 loại biểu đồ + 5 component + bộ vẽ Canvas); nạp trọn gói thì phần này lớn hơn nhiều lần. Bộ vẽ **Canvas chứ không SVG**: wall mode 4K vẽ lại mỗi chu kỳ và chạy liên tục nhiều giờ, Canvas giữ số nút DOM không đổi.
+
+---
+
+### §10.34. WS-18 — lịch sử sửa chữa và sự cố; chuỗi suy ra trạng thái có đầu vào đầu tiên (21/8/2026)
+
+#### 1. ⭐ **Hai** quy trình workflow trên **một** bảng — vì ma trận phân quyền đòi thế
+
+Ma trận §6 tách hai dòng khác nhau ở đúng cột "Kỹ thuật":
+
+| Chức năng | Admin | QL XN | Kỹ thuật | Vận hành |
+|---|:-:|:-:|:-:|:-:|
+| Ghi lịch sử sửa chữa/bảo trì | ✔ | ✔ | ✔ | ✘ |
+| **Đóng bản ghi sự cố** ("Đã xử lý") | ✔ | ✔ | **✘** | ✘ |
+
+Tức là *"chuyển sang Đã xử lý"* đòi quyền **khác nhau tuỳ bản ghi là sự cố hay không**. Mà `workflow_transitions.required_permission` gắn theo `(from_state, action)` chứ không theo loại công việc — một quy trình duy nhất thì luật đó chỉ diễn đạt được bằng một câu `if` trong service, đúng thứ mà cả cơ chế workflow sinh ra để tránh.
+
+Chốt: seed **`MAINTENANCE_LOG`** và **`MAINTENANCE_INCIDENT`**, `MaintenanceLog.workflowEntityType()` trả tên quy trình theo `work_type`. Cùng một bảng, cùng một entity, cùng ba trạng thái — khác nhau ở ai được bấm nút nào, và khác biệt đó nằm ở **dữ liệu**.
+
+⚠ Đây **không** phải lách quy tắc 15 ("sự cố không phải entity riêng"). Vẫn một bảng `maintenance_logs`, không mã `SC-`, không vòng đời bảy trạng thái. Thứ tách đôi là *quy trình duyệt*, không phải *bản ghi*.
+
+📌 Hệ quả phụ đáng giá: `ops:maintenance:close-incident` seed từ WS-2 nay **có người đọc**. Không dùng tới thì nó là một quyền chưa ai đọc — đúng loại lỗi đã trả giá ba lần (`limits.upload.max-mb.*`, `company.*`, `attachments.valid_from`).
+
+#### 2. ⚠⚠ Trạng thái công trình là sự thật về **công trình**, không phải về **người đang nhìn**
+
+T18.2 chốt bản ghi giữ `org_unit_id` lúc *phát sinh*, không đi theo công trình khi công trình được bàn giao — đúng cho hồ sơ lịch sử, vì chi phí sửa chữa năm ngoái thuộc về Xí nghiệp đã bỏ tiền ra.
+
+Nhưng nó tạo ra một khoảng thời gian mà **bản ghi và công trình thuộc hai đơn vị khác nhau**. Nếu phép đếm *"còn sự cố nào đang mở không"* đi qua bộ lọc phạm vi thì trong khoảng đó nó trả 0, **cờ đỏ tắt, và không một dòng lỗi nào**. Tệ hơn: cột `operational_status` được *lưu sẵn*, nên giá trị sai đó bị ghi xuống và ở lại — công trình rồi sẽ mang trạng thái của lượt tính gần nhất, tức là của người mở màn hình gần nhất.
+
+Chốt: `MaintenanceLogRepository.demBanGhiDangMo` là câu **native** (bộ lọc Hibernate không áp cho native query), và `ConstructionStatusService.recomputeFor(Long)` tra bằng `findById`. Cả hai đều là ngoại lệ có chủ đích của `conventions.md` §4.2, đều chỉ phục vụ việc tính một giá trị dẫn xuất, và đều không trả gì ra API. Bài kiểm `MaintenanceScopeTest.statusSurvivesAConstructionHandover` dựng đúng kịch bản bàn giao.
+
+Cùng lý do, `ConstructionRepository.briefsByIds` cũng là native: sau bàn giao, người của đơn vị cũ vẫn đọc được **bản ghi** cũ mà không còn đọc được **hồ sơ công trình**, nên câu có lọc phạm vi sẽ trả về đúng những dòng đó với tên công trình để trống — một lỗi trông như lỗi dữ liệu.
+
+#### 3. ⚠⚠ Kiểm quy tắc **sau** `workflow.execute(...)` không bao giờ chạy tới
+
+Bản đầu kiểm "đóng bản ghi mà chưa có ngày hoàn thành" *sau* khi engine chuyển trạng thái, với lập luận: engine sở hữu máy trạng thái, hỏi nó "bước này dẫn tới đâu" là chép lại một nửa máy trạng thái ra chỗ khác; ném ngoại lệ sau thì giao dịch quay lui hết.
+
+Lập luận đó sai ở một chỗ: **lượt kiểm sau không bao giờ chạy tới**. `WorkflowEngine.execute` ghi một dòng thông báo, lượt ghi đó **flush** cả entity đang bẩn, và ràng buộc `ck_maintenance_logs_completed_when_done` bắn trước — người dùng nhận một lỗi ràng buộc thô thay vì `OPS-2004`.
+
+Chốt: kiểm **trước**, và tra đích đến bằng chính `WorkflowPort.allowedActions()` — dữ liệu của engine, không phải bản sao. Hành động không có trong danh sách thì để `execute` trả về đúng mã lỗi của nó.
+
+#### 4. Ba lỗi im lặng khác, bài kiểm bắt được ngay lượt chạy đầu
+
+- **`updatedAt == null` không bao giờ đúng.** Bộ ghi nhật ký của Spring Data đặt `@LastModifiedDate` ngay ở lượt **chèn**, nên điều kiện "chưa ai động vào" của cửa sổ tự sửa (T18.9) luôn sai → công tắc bật lên mà **không mở cho ai**. Dùng `version == 0`.
+- **`SUM(cost)` trả `null` biến mất khỏi JSON** vì cấu hình `NON_NULL` chung. "Chưa ai điền chi phí" và "đã làm mà không tốn tiền" là hai câu khác nhau; trên một bảng quyết toán, chọn nhầm câu là đưa ra một con số không có thật. Phải đè `@JsonInclude(ALWAYS)` — cùng lý do với ô KPI ở §10.33.
+- **Thân JSON của bài kiểm dựng bằng `replace`** chồng lên bản mặc định để lại **hai khoá cùng tên**; Jackson lấy khoá sau, và bài kiểm nhận `OPS-2004` thay vì thứ nó định kiểm.
+
+#### 5. ⛔ Ngân sách hạn mức tần suất của bộ kiểm thử đã vỡ — mở rộng §10.33 mục 7
+
+Thêm hai lớp HTTP là vượt **cả hai** hạn mức đếm theo IP: đăng nhập 30 lượt/15' **và API thường 100 lượt/phút**. Triệu chứng là `ConstructionHttpTest` + `DashboardHttpTest` đỏ hàng loạt với `SYS-0002` — hai lớp không liên quan gì tới WS-18.
+
+Chữa hai tầng:
+
+1. `ArticleHttpTest` và `ConstructionHttpTest` chuyển đăng nhập sang `@BeforeAll` (20 + 18 → 2 + 2 vé) — đúng luật §10.33 mục 7 đã ghi mà hai lớp cũ chưa áp.
+2. `PhienHttp` gắn `X-Forwarded-For` **riêng cho mỗi thực thể**: mỗi lớp kiểm thử là một máy khách. Filter vẫn chạy, vẫn đếm, vẫn chặn; `CaffeineRateLimitStoreTest` vẫn là nơi chứng minh nó chặn được thật.
+
+⛔ Cách chữa **sai** vẫn là nới hạn mức ở hồ sơ kiểm thử. Ở production nginx **ghi đè** `X-Forwarded-For`, nên không có đường nào để client thật tự cấp cho mình một IP.
+
+#### 6. Số đo thật
+
+**493 test BE** (239 core + 254 app, +42) + 151 FE · **72 mã lỗi** (thêm `OPS-2017`, BE = FE) · 2 quy trình workflow mới · 1 tham số `settings` có người đọc và có bài kiểm cho **cả hai phía** 0 / khác 0.
+
+Hai ô KPI `incident.open` và `maintenance.in-progress` của §10.33 nay có nguồn thật — `DashboardHttpTest` tách thành hai bài: hai ô thuỷ văn vẫn phải rỗng-kèm-lý-do, hai ô này phải là **số**.

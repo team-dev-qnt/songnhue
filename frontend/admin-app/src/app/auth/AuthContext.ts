@@ -24,6 +24,15 @@ export interface AuthContextValue {
   ) => Promise<LoginResponse>;
   confirmEnrollment: (challengeToken: string, code: string) => Promise<LoginResponse>;
   logout: () => Promise<void>;
+
+  /**
+   * Đưa giao diện về trạng thái chưa đăng nhập **mà không gọi backend** — dùng khi phiên đã
+   * bị chính backend thu hồi (đổi mật khẩu thành công).
+   *
+   * ⚠ Không dùng `clearTokens()` của `apiClient` cho việc này: nó chỉ xoá token, còn `user`
+   * và `status` thì guard đọc. Bỏ sót là màn hình bị đẩy ngược về chỗ vừa rời đi.
+   */
+  endSession: () => void;
   reloadProfile: () => Promise<void>;
 
   /** Đúng/sai theo danh sách quyền backend trả về. **Chỉ để ẩn/hiện UI** (§4.2 tầng 1). */

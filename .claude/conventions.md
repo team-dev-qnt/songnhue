@@ -484,3 +484,10 @@ Quy tắc chung (áp dụng cả hai):
 4. Unit test rule nghiệp vụ ở domain layer; integration test quyền nếu thêm endpoint.
 5. Message lỗi mới vào catalog (BE + FE error-map).
 6. Không vi phạm ArchUnit; lint + CVE scan xanh.
+
+## 10. Task Tracking (SSoT)
+
+- Mọi thao tác cập nhật tiến độ, đánh dấu hoàn thành `[x]`, hoặc thêm take note đều CHỈ ĐƯỢC PHÉP thực hiện tại file `.claude/master-tracking.md`.
+- Tuyệt đối tuân thủ quy tắc tổng hợp: xóa bỏ mọi icon, markdown thừa; mô tả vắn tắt đúng trọng tâm hành động.
+- Cú pháp quy ước: `- [x] T1.1: Tên task | Date: DD/MM/YYYY | Note: ghi chú ngắn gọn` (phần Date và Note là tuỳ chọn).
+- Các file phase cũ (phase0, phase1...) chỉ là tài liệu lưu trữ, cấm sửa đổi.

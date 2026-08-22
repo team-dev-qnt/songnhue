@@ -1,9 +1,11 @@
 package com.songnhue.app.architecture.fixture;
 
 import org.hibernate.annotations.Filter;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.songnhue.core.common.persistence.ScopedEntity;
-import com.songnhue.core.domain.workflow.WorkflowAware;
+import com.songnhue.core.common.persistence.WorkflowAware;
 
 /**
  * Mã <b>cố ý sai</b> — nguyên liệu cho {@link com.songnhue.app.architecture.SilentFailureRuleSelfCheckTest}.
@@ -67,6 +69,60 @@ public final class ViolatingFixtures {
 
         public void approve(ApprovableDocument document) {
             document.applyState("DA_DUYET");
+        }
+    }
+
+    /**
+     * Tự gọi hàm {@code @Transactional} của chính lớp mình — đúng lỗi đã sập hai lần
+     * ({@code BackupService} WS-7, {@code ViewCountService} WS-16).
+     *
+     * <p>Dựng lại nguyên hình dạng của lỗi thật: một cửa vào không mang chú thích giao dịch (ngoài
+     * đời là {@code @Scheduled} hoặc {@code @PreDestroy}) gọi sang hàm làm việc có chú thích. Mã biên
+     * dịch trót lọt, bài kiểm gọi thẳng {@code day()} vẫn xanh, chỉ production hỏng.
+     */
+    public static class SelfInvokesTransactional {
+
+        public void moiPhut() {
+            day();
+        }
+
+        @Transactional
+        public void day() {
+            // Ngoài đời là một lượt ghi CSDL; ở đây chỉ cần lời gọi tồn tại để luật soi được.
+        }
+    }
+
+    /**
+     * Người gọi cũng {@code @Transactional} nhưng hàm đích đòi <b>giao dịch riêng</b>.
+     *
+     * <p>Tinh vi hơn trường hợp trên và cũng im lặng hơn: giao dịch có mở, nên không có ngoại lệ nào.
+     * Chỉ là nó là <i>giao dịch của người gọi</i> — hàm đích tưởng mình được commit độc lập thì thực
+     * ra cùng sống chết với lượt ghi bao ngoài.
+     */
+    public static class SelfInvokesRequiresNew {
+
+        @Transactional
+        public void xuLy() {
+            ghiNhatKy();
+        }
+
+        @Transactional(propagation = Propagation.REQUIRES_NEW)
+        public void ghiNhatKy() {
+            // Ngoài đời: ghi dấu vết phải sống sót kể cả khi lượt ghi chính rollback.
+        }
+    }
+
+    /** Hai hàm cùng {@code @Transactional} mặc định — hợp lệ, dùng để chứng minh luật không báo nhầm. */
+    public static class CompliantTransactionalPair {
+
+        @Transactional
+        public void xuLy() {
+            buocPhu();
+        }
+
+        @Transactional
+        public void buocPhu() {
+            // Giao dịch đã mở từ lượt gọi ngoài vào; hàm này chỉ tham gia tiếp.
         }
     }
 }

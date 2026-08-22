@@ -12,8 +12,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.songnhue.core.application.job.JobContext;
-import com.songnhue.core.application.job.JobHandler;
 import com.songnhue.core.application.job.JobTypes;
 import com.songnhue.core.domain.notification.Notification;
 import com.songnhue.core.domain.notification.NotificationChannel;
@@ -21,6 +19,8 @@ import com.songnhue.core.domain.notification.NotificationRecipient;
 import com.songnhue.core.infra.identity.UserRepository;
 import com.songnhue.core.infra.notification.NotificationRecipientRepository;
 import com.songnhue.core.infra.notification.NotificationRepository;
+import com.songnhue.core.spi.JobContext;
+import com.songnhue.core.spi.JobHandler;
 
 /**
  * Gửi các thông báo đang chờ ở kênh email — chạy trong hàng đợi job (T6.6).

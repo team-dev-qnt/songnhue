@@ -7,6 +7,11 @@
     <meta name="robots" content="noindex, nofollow" />
     <!-- Không gửi đường dẫn quản trị sang site khác khi người dùng bấm liên kết ngoài. -->
     <meta name="referrer" content="same-origin" />
+    <!--
+      Noto Sans nạp từ `admin-global.css` (gói `@fontsource/noto-sans`, TỰ HOST) — không khai
+      ở đây nữa. Bản cũ nạp cùng một bộ chữ ở HAI nơi (thẻ <link> này và `@import` trong CSS),
+      và cả hai đều trỏ ra CDN Google mà CSP `default-src 'self'` sẽ chặn (conventions.md §4.5).
+    -->
     <title>Quản trị điều hành — Thủy lợi Sông Nhuệ</title>
   </head>
   <body>

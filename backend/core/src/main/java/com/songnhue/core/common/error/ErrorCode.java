@@ -38,6 +38,8 @@ public enum ErrorCode {
     SYS_0008("SYS-0008", HttpStatus.UNPROCESSABLE_ENTITY),
     /** Tệp chưa quét virus xong hoặc đã bị cách ly — {0} là trạng thái quét. */
     SYS_0009("SYS-0009", HttpStatus.CONFLICT),
+    /** Bản ghi đã dùng hết hạn mức dung lượng tệp đính kèm (CN-02.3: 500MB/công trình). */
+    SYS_0010("SYS-0010", HttpStatus.UNPROCESSABLE_ENTITY),
 
     // ---- Xác thực & phân quyền -------------------------------------------------
     /** Message cố ý mơ hồ: không tiết lộ tài khoản có tồn tại hay không (§4.1). */
@@ -61,6 +63,30 @@ public enum ErrorCode {
     // ---- MOD-01 Cổng thông tin điện tử -----------------------------------------
     CMS_2001("CMS-2001", HttpStatus.UNPROCESSABLE_ENTITY),
     CMS_2002("CMS-2002", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Xoá danh mục còn bài viết — CN-01.2 bắt chuyển bài đi trước. */
+    CMS_2003("CMS-2003", HttpStatus.CONFLICT),
+    /** Xoá danh mục còn danh mục con. */
+    CMS_2004("CMS-2004", HttpStatus.CONFLICT),
+    /** Cây danh mục vượt quá 3 cấp. */
+    CMS_2005("CMS-2005", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Bài viết phải thuộc ít nhất một danh mục. */
+    CMS_2006("CMS-2006", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Sửa nội dung khi bài đang chờ duyệt — CN-01.1 khoá chỉnh sửa ở trạng thái này. */
+    CMS_2007("CMS-2007", HttpStatus.CONFLICT),
+    /** Xoá thư mục media còn tệp bên trong. */
+    CMS_2008("CMS-2008", HttpStatus.CONFLICT),
+    /** Xoá tệp media đang được bài viết tham chiếu. */
+    CMS_2009("CMS-2009", HttpStatus.CONFLICT),
+    /** Cây menu vượt quá 3 cấp. */
+    CMS_2010("CMS-2010", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Xoá mục menu còn mục con. */
+    CMS_2011("CMS-2011", HttpStatus.CONFLICT),
+    /** Đích của mục menu không tồn tại hoặc đã bị xoá. */
+    CMS_2012("CMS-2012", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Mục con phải cùng vị trí (Header/Footer) với mục cha. */
+    CMS_2013("CMS-2013", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Lịch hiển thị banner có ngày kết thúc không sau ngày bắt đầu. */
+    CMS_2014("CMS-2014", HttpStatus.UNPROCESSABLE_ENTITY),
     CMS_5001("CMS-5001", HttpStatus.BAD_GATEWAY),
 
     // ---- MOD-02 Vận hành công trình --------------------------------------------
@@ -71,6 +97,26 @@ public enum ErrorCode {
     OPS_2005("OPS-2005", HttpStatus.CONFLICT),
     OPS_2006("OPS-2006", HttpStatus.UNPROCESSABLE_ENTITY),
     OPS_2007("OPS-2007", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Mã công trình đã tồn tại — mã là duy nhất toàn hệ thống (CN-02.1). */
+    OPS_2008("OPS-2008", HttpStatus.CONFLICT),
+    /** Nhập thông số kỹ thuật không thuộc loại công trình đang lập hồ sơ. */
+    OPS_2009("OPS-2009", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Toạ độ phải đủ cả vĩ độ và kinh độ — một nửa toạ độ là một điểm sai trên bản đồ. */
+    OPS_2010("OPS-2010", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Lý trình sai định dạng {@code K<km>+<m>}, VD {@code K0+390}. */
+    OPS_2011("OPS-2011", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Cụm công trình còn công trình bên trong — chuyển hết đi rồi mới xoá được. */
+    OPS_2012("OPS-2012", HttpStatus.CONFLICT),
+    /** Cấp quản lý "Cụm" bắt buộc chọn cụm. */
+    OPS_2013("OPS-2013", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Mã cụm công trình đã tồn tại. */
+    OPS_2014("OPS-2014", HttpStatus.CONFLICT),
+    /** Tệp nhập không đọc được, hoặc thiếu cột bắt buộc. */
+    OPS_2015("OPS-2015", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Tệp nhập còn dòng lỗi — chạy khô báo lỗi thì không dòng nào được ghi. */
+    OPS_2016("OPS-2016", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Đơn vị thực hiện: đúng MỘT trong hai cột nội bộ / nhà thầu ngoài (điểm nghiệp vụ 17). */
+    OPS_2017("OPS-2017", HttpStatus.UNPROCESSABLE_ENTITY),
     /** Trạng thái công trình là giá trị dẫn xuất — client sửa trực tiếp là từ chối. */
     OPS_3001("OPS-3001", HttpStatus.FORBIDDEN),
 

@@ -12,6 +12,8 @@ import { queryClient } from '@/app/queryClient';
 import { router } from '@/app/router';
 import { antdTheme } from '@/shared/antdTheme';
 
+import './admin-global.css';
+
 /**
  * Điểm vào.
  *

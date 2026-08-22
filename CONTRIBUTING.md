@@ -8,6 +8,7 @@ Tài liệu này chỉ nói **cách làm việc với repo**. Quy tắc kỹ thu
 | Coding / design / security convention | `.claude/conventions.md` |
 | Kiến trúc đã chốt + lý do | `.claude/architecture-review.md` |
 | Kế hoạch & tiến độ Phase 0 | `.claude/phase0-tracking.md` |
+| **Kế hoạch & tiến độ Phase 1** (đang làm) | `.claude/phase1-tracking.md` |
 | Mục nghiệp vụ còn chờ khách chốt | `.claude/business-open-questions.md` (Phần III) |
 | **Dựng máy lần đầu** | `docs/setup-guideline.md` |
 | **Chạy hằng ngày (native / Docker)** | `docs/run-guideline.md` |
@@ -94,10 +95,9 @@ Platform — hạ tầng dùng chung). Import `domain/`, `infra/`, `application/
 **ArchUnit test đỏ** trong CI. Đây là ràng buộc giữ cho module tách ra service riêng được về sau —
 đừng lách bằng cách nới rule.
 
-> ⚠⚠ **`core/spi/` hiện RỖNG.** Sáu dịch vụ dùng chung (`WorkflowEngine`, `NotificationService`,
-> `AttachmentService`, `JobService`, `SettingService`, `OrgUnitService`) nằm ở `core.application.*`,
-> nên **dòng mã Phase 1 đầu tiên gọi tới chúng sẽ làm ArchUnit đỏ**. Việc mở màn Phase 1 là thêm
-> interface vào `core/spi/`, **không phải** nới luật. Chi tiết: `docs/coding-guide.md` §2.
+> ✅ **`core/spi/` đã mở (19/8/2026)** — tiêm `WorkflowPort` · `AttachmentPort` · `NotificationPort` ·
+> `JobPort` · `SettingPort` · `OrgUnitPort`, **không phải** lớp service ở `core.application`. Luật bắt
+> cả dạng tinh vi: chỉ *nhận về* một entity `core.domain.*` cũng đỏ. Chi tiết: `docs/coding-guide.md` §2.
 
 ## Viết một chức năng mới
 

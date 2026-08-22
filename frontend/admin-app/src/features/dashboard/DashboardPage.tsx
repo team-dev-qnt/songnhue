@@ -25,7 +25,12 @@ export function DashboardPage() {
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-      <Card>
+      <Card
+        style={{
+          background: 'linear-gradient(135deg, #e6f4ff 0%, #f0f2f5 100%)',
+          border: 'none',
+        }}
+      >
         <Typography.Title level={4} style={{ marginBottom: 4 }}>
           Xin chào, {user?.fullName ?? user?.username}
         </Typography.Title>

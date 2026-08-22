@@ -73,6 +73,35 @@ class SilentFailureRuleSelfCheckTest {
                 .hasMessageContaining("applyState");
     }
 
+    @Test
+    @DisplayName("⚠⚠ Luật giao dịch bắt được hàm không-@Transactional tự gọi hàm @Transactional")
+    void catchesSelfInvokedTransactionalMethod() {
+        assertThatThrownBy(() -> transactionRule().check(FIXTURES))
+                .isInstanceOf(AssertionError.class)
+                .hasMessageContaining(ViolatingFixtures.SelfInvokesTransactional.class.getSimpleName())
+                .hasMessageContaining("giao dịch KHÔNG mở");
+    }
+
+    @Test
+    @DisplayName("Luật giao dịch bắt được cả lời gọi tự thân sang hàm đòi giao dịch riêng")
+    void catchesSelfInvokedRequiresNew() {
+        assertThatThrownBy(() -> transactionRule().check(FIXTURES))
+                .isInstanceOf(AssertionError.class)
+                .hasMessageContaining(ViolatingFixtures.SelfInvokesRequiresNew.class.getSimpleName())
+                .hasMessageContaining("giao dịch riêng");
+    }
+
+    @Test
+    @DisplayName("Luật giao dịch không báo nhầm hai hàm cùng @Transactional mặc định")
+    void acceptsCompliantTransactionalPair() {
+        EvaluationResult result = transactionRule().evaluate(FIXTURES);
+
+        assertThat(result.getFailureReport().getDetails())
+                .as("giao dịch đã mở từ lượt gọi ngoài vào — đây là cách viết hợp lệ, luật báo là luật vô dụng")
+                .noneMatch(
+                        detail -> detail.contains(ViolatingFixtures.CompliantTransactionalPair.class.getSimpleName()));
+    }
+
     // -------------------------------------------------------------------------
     // Dựng lại cùng biểu thức luật với SilentFailureRuleTest. Cố ý không tái sử dụng trực tiếp hai
     // hằng @ArchTest ở đó: hằng của lớp @AnalyzeClasses đã bị bộ máy ArchUnit gắn vào tập lớp
@@ -93,5 +122,9 @@ class SilentFailureRuleSelfCheckTest {
                 .that()
                 .resideOutsideOfPackage(SilentFailureRuleTest.ENGINE_PACKAGE)
                 .should(new SilentFailureRuleTest.CallsApplyState());
+    }
+
+    private static ArchRule transactionRule() {
+        return noClasses().should(new SilentFailureRuleTest.SelfInvokesTransactionalMethod());
     }
 }

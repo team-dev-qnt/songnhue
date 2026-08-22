@@ -18,8 +18,8 @@ export default function Error({
   reset: () => void;
 }) {
   return (
-    <div className="mx-auto max-w-3xl px-4 py-20 text-center">
-      <p className="text-5xl font-bold text-status-danger">500</p>
+    <div className="mx-auto max-w-3xl animate-fade-in px-4 py-20 text-center">
+      <p className="text-6xl font-black text-status-danger">500</p>
       <h1 className="mt-4 text-xl font-semibold text-surface-textBase">
         Trang đang gặp sự cố kỹ thuật
       </h1>
@@ -32,7 +32,7 @@ export default function Error({
       <button
         type="button"
         onClick={reset}
-        className="mt-6 rounded bg-brand-primary px-5 py-2 text-white hover:bg-brand-primaryHover"
+        className="mt-6 rounded-lg bg-brand-primary px-6 py-2.5 font-medium text-white shadow-sm transition-all duration-200 ease-smooth hover:-translate-y-0.5 hover:bg-brand-primaryHover hover:shadow-md"
       >
         Tải lại
       </button>

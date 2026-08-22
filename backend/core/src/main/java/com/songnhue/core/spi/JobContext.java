@@ -1,4 +1,4 @@
-package com.songnhue.core.application.job;
+package com.songnhue.core.spi;
 
 import java.util.UUID;
 import java.util.function.IntConsumer;

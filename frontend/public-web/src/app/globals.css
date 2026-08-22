@@ -1,14 +1,89 @@
+/*
+  ───── Noto Sans — TỰ HOST, không lấy từ CDN Google ─────
+
+  Cùng bộ chữ, cùng các trọng số như bản CDN; chỉ khác nơi tải về. Ba lý do, lý do đầu là lý
+  do chặn:
+
+  1. ⛔ `conventions.md` §4.5 đã chốt CSP `default-src 'self'`. Khi WS-11 dựng nginx thì
+     `fonts.googleapis.com` và `fonts.gstatic.com` **bị chặn** — trang vẫn hiện, chỉ rơi về
+     font hệ thống, không lỗi nào. Loại hỏng im lặng chỉ lộ ra sau khi lên production.
+  2. Cổng của doanh nghiệp nhà nước gửi địa chỉ IP của **mọi người dân tra cứu** sang máy chủ
+     Google ở mỗi lượt tải trang. Cùng lý do đã chọn `youtube-nocookie.com` cho khối video:
+     người đọc không có cách nào từ chối.
+  3. `@import url(...)` ra mạng ngoài **chặn lượt vẽ đầu tiên** và phải chờ xong mới vẽ —
+     NFR-02 chỉ cho 3 giây.
+
+  `@fontsource/noto-sans` đóng gói chính bộ chữ đó (giấy phép SIL OFL) kèm `woff2`, phục vụ
+  từ cùng máy chủ với trang.
+*/
+@import '@fontsource/noto-sans/400.css';
+@import '@fontsource/noto-sans/500.css';
+@import '@fontsource/noto-sans/600.css';
+@import '@fontsource/noto-sans/700.css';
+@import '@fontsource/noto-sans/400-italic.css';
+@import '@fontsource/noto-sans/500-italic.css';
+
 @import 'tailwindcss';
 
 /* Nạp cấu hình TS để lấy màu từ `design-tokens` — xem `tailwind.config.ts` giải thích. */
 @config "../../tailwind.config.ts";
 
+/*
+  Hình dạng nội dung bài viết. Nạp ở đây chứ không nạp trong trang bài viết, vì cùng bộ quy
+  tắc này phục vụ mọi chỗ dựng HTML do người soạn nhập: trang bài, bốn trang tĩnh (G14), và
+  khối giới thiệu ở chân trang.
+*/
+@import './article-content.css';
+
 :root {
   color-scheme: light;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   @apply bg-white text-surface-textBase antialiased;
+}
+
+/* ───── Selection ───── */
+::selection {
+  background: theme(--color-brand-primaryLight);
+  color: theme(--color-brand-primary);
+}
+
+/* ───── Scrollbar — mỏng, nhẹ ───── */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: theme(--color-surface-border);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #8c8c8c;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #d9d9d9 transparent;
+}
+
+/* ───── Link/Button base transition ───── */
+a {
+  transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+button {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /*
@@ -18,4 +93,16 @@ body {
 :focus-visible {
   outline: 2px solid theme(--color-brand-primary);
   outline-offset: 2px;
+}
+
+/* ───── Accessibility: tôn trọng người dùng yêu cầu giảm chuyển động ───── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

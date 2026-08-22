@@ -8,11 +8,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.songnhue.core.application.job.JobContext;
-import com.songnhue.core.application.job.JobHandler;
 import com.songnhue.core.application.job.JobTypes;
 import com.songnhue.core.infra.identity.TokenDenylistRepository;
 import com.songnhue.core.infra.identity.UserSessionRepository;
+import com.songnhue.core.spi.JobContext;
+import com.songnhue.core.spi.JobHandler;
 
 /**
  * Dọn token trong denylist và phiên quá hạn lưu trữ.

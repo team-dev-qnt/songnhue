@@ -117,10 +117,19 @@ dev-fe: ## [bạn code BE] Hạ tầng + 2 APP FE trong Docker (FE gọi backend
 	$(call need_local_env)
 	$(call need_fe_app,admin-app,WS-8 / T8.1)
 	$(call need_fe_app,public-web,WS-9 / T9.1)
+	@# ⚠⚠ Ghi đè ĐÍCH CHUYỂN TIẾP, tuyệt đối không ghi đè `VITE_API_BASE_URL`.
+	@#
+	@# Bản trước tiêm `VITE_API_BASE_URL=http://localhost:8080/api/v1` vào lúc build,
+	@# tức là bảo trình duyệt gọi thẳng sang cổng 8080 trong khi trang nằm ở cổng
+	@# 15173 — khác origin, backend không cấu hình CORS, preflight trả 403 và cả
+	@# giao diện chết. Ở chế độ này FE vẫn gọi `/api/v1` cùng origin; thứ duy nhất
+	@# khác `dev-docker` là nginx/Next phải trỏ ra backend NATIVE trên máy chủ chứ
+	@# không phải service `app` trong mạng Docker. Cả hai biến dưới đọc LÚC CHẠY.
 	@set -a; . "$(LOCAL_ENV)"; set +a; \
-	 api="http://localhost:$${APP_PORT:-8080}/api/v1"; \
-	 echo "  → FE trong Docker sẽ gọi backend NATIVE tại $$api"; \
-	 VITE_API_BASE_URL="$$api" NEXT_PUBLIC_API_BASE_URL="$$api" \
+	 host="http://host.docker.internal:$${APP_PORT:-8080}"; \
+	 echo "  → FE trong Docker sẽ chuyển tiếp /api sang backend NATIVE tại $$host"; \
+	 API_UPSTREAM="$$host" API_INTERNAL_BASE_URL="$$host/api/v1" \
+	 VITE_API_BASE_URL= NEXT_PUBLIC_API_BASE_URL= \
 	 NEXT_PUBLIC_SITE_URL="http://localhost:$${DOCKER_PUBLIC_WEB_PORT:-13000}" \
 	 $(DC_LOCAL) --profile admin --profile public up -d $(BUILD_FLAG)
 	@set -a; . "$(LOCAL_ENV)"; set +a; \
@@ -344,9 +353,9 @@ hooks: ## Bật git hook: định dạng commit message + chặn nhánh lỗi th
 branch-check: ## Nhánh hiện tại có lỗi thời sau squash merge không (pre-push tự chạy)
 	@./.githooks/check-branch-freshness.sh
 
-.PHONY: branch-check-selftest
-branch-check-selftest: ## Chứng minh phép canh nhánh BẮT ĐƯỢC vi phạm (conventions.md §1.5)
-	@./.githooks/check-branch-freshness.sh --self-test
+.PHONY: seed-portal
+seed-portal: ## Seed dữ liệu mẫu cho Cổng thông tin qua REST API và verify luồng E2E
+	@npx tsx tools/seeder/seed-portal-data.ts
 
 .PHONY: clean
 clean: ## Xóa artifact build

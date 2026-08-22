@@ -1,0 +1,236 @@
+package com.songnhue.content.api;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import org.springframework.data.domain.Page;
+import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.songnhue.content.application.MenuService;
+import com.songnhue.content.application.PublicArticleDetail;
+import com.songnhue.content.application.PublicArticleRow;
+import com.songnhue.content.application.PublicPortalService;
+import com.songnhue.content.domain.MenuPosition;
+import com.songnhue.core.common.error.ErrorCode;
+import com.songnhue.core.common.exception.ResourceNotFoundException;
+import com.songnhue.core.common.security.PublicEndpoint;
+import com.songnhue.core.spi.AttachmentContent;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+/**
+ * Nội dung cho cổng thông tin điện tử — {@code /api/v1/public/**} (T16.1).
+ *
+ * <h2>⛔ Toàn bộ nhóm này không cần đăng nhập</h2>
+ *
+ * Đó là mục đích của nó: {@code public-web} dựng trang tĩnh phía máy chủ và không có tài khoản nào
+ * để đăng nhập. Hai hệ quả phải nhớ mỗi lần thêm endpoint vào đây:
+ *
+ * <ol>
+ *   <li><b>Không có tầng phân quyền nào phía sau.</b> Mọi phép lọc "được xem cái gì" phải nằm trong
+ *       truy vấn của {@code PublicPortalService}, và phải có bài kiểm cố tình hỏi thứ không được
+ *       phép xem.
+ *   <li><b>Hạn mức tần suất tính bằng bucket riêng</b> ({@code RateLimitPolicy.PUBLIC}) — gộp với
+ *       API quản trị thì một con bọ tìm kiếm quét cổng sẽ khoá người đang soạn bài, vì cả Công ty
+ *       ra Internet qua một IP NAT.
+ * </ol>
+ *
+ * <p>Đường dẫn tách hẳn tiền tố {@code /api/v1/public} chứ không nằm lẫn trong {@code /api/v1/cms}:
+ * nginx và bộ lọc tần suất phân biệt được bằng tiền tố, và người rà soát an ninh đọc một danh sách
+ * thay vì đi tìm annotation trong từng lớp.
+ */
+@RestController
+@RequestMapping("/api/v1/public")
+@Tag(name = "06-public · Cổng thông tin", description = "Nội dung công khai — không cần đăng nhập")
+public class PublicPortalController {
+
+    /**
+     * Bao lâu trình duyệt và proxy được giữ lại một tệp.
+     *
+     * <p>Dài được vì tên tệp trong kho là chuỗi ngẫu nhiên: đổi ảnh là sinh một {@code publicId}
+     * mới, nên không có chuyện phục vụ nhầm phiên bản cũ dưới cùng một địa chỉ.
+     */
+    private static final long CACHE_TEP_GIAY = 86_400L;
+
+    private final PublicPortalService portal;
+
+    public PublicPortalController(PublicPortalService portal) {
+        this.portal = portal;
+    }
+
+    public record MenuLink(
+            String label,
+            String linkType,
+            String categorySlug,
+            String articleSlug,
+            String url,
+            boolean openNewTab,
+            Short depth,
+            String parentLabel) {}
+
+    public record BannerView(
+            String title, String description, UUID imageId, String linkUrl, boolean openNewTab, Integer sortOrder) {}
+
+    public record CategoryNode(String slug, String name, String description, Short depth, Integer sortOrder) {}
+
+    // ---- Khung cổng ----------------------------------------------------------
+
+    @GetMapping("/site-config")
+    @Operation(summary = "Tên cổng, logo, màu, chân trang, khối trang chủ")
+    @PublicEndpoint(reason = "Cổng thông tin điện tử hiển thị cho mọi người dân — CN-01.5")
+    public Map<String, String> siteConfig() {
+        return portal.siteConfig();
+    }
+
+    @GetMapping("/menus/{position}")
+    @Operation(summary = "Menu điều hướng — chỉ mục đang bật")
+    @PublicEndpoint(reason = "Điều hướng của cổng công khai — CN-01.5")
+    public List<MenuLink> menu(@PathVariable MenuPosition position) {
+        List<MenuService.MenuNode> nodes = portal.menu(position);
+        return nodes.stream()
+                .map(node -> new MenuLink(
+                        node.label(),
+                        node.linkType().name(),
+                        node.categorySlug(),
+                        node.articleSlug(),
+                        node.url(),
+                        node.openNewTab(),
+                        node.depth(),
+                        nodes.stream()
+                                .filter(x -> x.publicId().equals(node.parentPublicId()))
+                                .map(MenuService.MenuNode::label)
+                                .findFirst()
+                                .orElse(null)))
+                .toList();
+    }
+
+    @GetMapping("/banners")
+    @Operation(summary = "Banner đang trong khung lịch hiển thị")
+    @PublicEndpoint(reason = "Ảnh carousel trang chủ — CN-01.5")
+    public List<BannerView> banners() {
+        return portal.banners().stream()
+                .map(b -> new BannerView(
+                        b.getTitle(),
+                        b.getDescription(),
+                        b.getImageAttachmentPublicId(),
+                        b.getLinkUrl(),
+                        b.isOpenNewTab(),
+                        b.getSortOrder()))
+                .toList();
+    }
+
+    @GetMapping("/categories")
+    @Operation(summary = "Danh mục đang hiện")
+    @PublicEndpoint(reason = "Điều hướng theo chuyên mục của cổng — CN-01.2")
+    public List<CategoryNode> categories() {
+        return portal.categories().stream()
+                .map(c ->
+                        new CategoryNode(c.getSlug(), c.getName(), c.getDescription(), c.getDepth(), c.getSortOrder()))
+                .toList();
+    }
+
+    // ---- Bài viết ------------------------------------------------------------
+
+    @GetMapping("/articles")
+    @Operation(summary = "Danh sách bài đã xuất bản, mới nhất trước")
+    @PublicEndpoint(reason = "Danh sách tin bài của cổng — CN-01.1")
+    public Page<PublicArticleRow> articles(
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String q,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size) {
+        return portal.articles(category, q, page, size);
+    }
+
+    /**
+     * Chi tiết một bài.
+     *
+     * <p>Bài Nháp, Chờ duyệt, Gỡ bài và bài hẹn giờ chưa tới hạn đều trả <b>404</b> — cùng một câu
+     * trả lời với slug không tồn tại. Trả 403 hay một thông báo riêng là xác nhận rằng cổng đang có
+     * một bài chưa công bố mang tên đó.
+     */
+    @GetMapping("/articles/{slug}")
+    @Operation(summary = "Chi tiết bài viết theo slug")
+    @PublicEndpoint(reason = "Trang chi tiết tin bài của cổng — CN-01.1")
+    public PublicArticleDetail article(@PathVariable String slug) {
+        return portal.article(slug).orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
+    }
+
+    /**
+     * Ghi nhận một lượt xem — T13.10.
+     *
+     * <p>{@code 204} và không thân phản hồi: người xem không cần biết kết quả, và trả về con số hiện
+     * tại là mời gọi việc gọi liên tục để theo dõi.
+     */
+    @PostMapping("/articles/{slug}/views")
+    @ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)
+    @Operation(summary = "Ghi nhận một lượt xem — gom lô, không ghi ngay xuống CSDL")
+    @PublicEndpoint(reason = "Đếm lượt xem bài trên cổng — CN-01.1")
+    public void recordView(@PathVariable String slug) {
+        portal.recordView(slug);
+    }
+
+    // ---- Tệp -----------------------------------------------------------------
+
+    /**
+     * Phục vụ một tệp công khai — T16.6.
+     *
+     * <p>⛔ Chỉ tệp thuộc <b>ba loại chủ sở hữu công khai</b>; danh sách nằm ở
+     * {@code PublicPortalService} và được kiểm ở tầng đính kèm của Core, không ở đây. Tệp thuộc loại
+     * khác trả 404 y hệt tệp không tồn tại.
+     *
+     * <p>Trả thẳng {@code ResponseEntity} nên <b>không</b> bị bọc trong envelope — đúng ý: đây là
+     * byte của một tấm ảnh, không phải một tài nguyên JSON.
+     */
+    @GetMapping("/files/{publicId}")
+    @Operation(summary = "Ảnh và tệp công khai — phục vụ trực tiếp, không qua presigned URL")
+    @PublicEndpoint(reason = "Ảnh trong bài viết, banner và logo của cổng — CN-01.3, CN-01.5")
+    public ResponseEntity<byte[]> file(@PathVariable UUID publicId) {
+        AttachmentContent tep =
+                portal.file(publicId).orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(tep.contentType()))
+                .cacheControl(CacheControl.maxAge(java.time.Duration.ofSeconds(CACHE_TEP_GIAY))
+                        .cachePublic()
+                        .immutable())
+                // `inline` để ảnh hiện trong trang thay vì bật hộp thoại tải về. Tên gốc chỉ để
+                // người dùng thấy tên có nghĩa khi họ chủ động lưu tệp.
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + tenAnToan(tep.originalName()) + "\"")
+                .body(tep.content());
+    }
+
+    /**
+     * Bỏ mọi ký tự có thể phá cấu trúc header.
+     *
+     * <p>Tên gốc do người tải lên đặt. Một tên chứa xuống dòng là chèn được header tuỳ ý vào phản
+     * hồi (HTTP response splitting) — cũ nhưng vẫn sống ở chỗ nào ghép chuỗi vào header.
+     */
+    private static String tenAnToan(String originalName) {
+        if (originalName == null || originalName.isBlank()) {
+            return "tep";
+        }
+        return originalName.replaceAll("[\\r\\n\"\\\\]", "_");
+    }
+
+    /** Thời điểm máy chủ trả lời — cổng dùng để hiện "cập nhật lúc" mà không phụ thuộc giờ máy khách. */
+    @GetMapping("/now")
+    @Operation(summary = "Giờ máy chủ (UTC)")
+    @PublicEndpoint(reason = "Cổng hiển thị mốc thời gian cập nhật theo giờ máy chủ")
+    public Instant now() {
+        return Instant.now();
+    }
+}

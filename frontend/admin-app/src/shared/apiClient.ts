@@ -29,14 +29,17 @@ import { type ErrorHandling, entryFor, messageFor } from './error-map';
 // =============================================================================
 
 let accessToken: string | null = null;
-let csrfToken: string | null = null;
+
+/**
+ * Tên cookie CSRF — theo quy ước Angular/axios, khớp `CsrfTokens.COOKIE` phía backend.
+ *
+ * ⛔ Cố ý **không** có biến `csrfToken` song song: vé CSRF chỉ có một nguồn là cookie.
+ * Xem giải thích ở {@link currentCsrfToken}.
+ */
+const CSRF_COOKIE = 'XSRF-TOKEN';
 
 export function setAccessToken(token: string | null): void {
   accessToken = token;
-}
-
-export function setCsrfToken(token: string | null): void {
-  csrfToken = token;
 }
 
 export function getAccessToken(): string | null {
@@ -45,19 +48,33 @@ export function getAccessToken(): string | null {
 
 export function clearTokens(): void {
   accessToken = null;
-  csrfToken = null;
 }
 
 /**
- * Vé CSRF đang dùng.
+ * Vé CSRF đang dùng — **đọc thẳng từ cookie, không giữ bản sao nào.**
  *
- * Rơi về cookie khi bộ nhớ trống — đúng tình huống vừa F5: token trong bộ nhớ mất sạch
- * nhưng cookie `XSRF-TOKEN` (cố ý **không** httpOnly) vẫn còn, và không có nó thì
- * `/auth/refresh` bị `CsrfFilter` chặn ngay, người dùng bị đá ra đăng nhập lại sau mỗi
- * lần tải lại trang.
+ * ⚠⚠ Bản đầu giữ thêm một bản trong bộ nhớ và cho nó thắng cookie
+ * (`csrfToken ?? readCookie(...)`). Đó là lỗi, và nó tự lộ ra ngay khi có bài kiểm: đổi mật
+ * khẩu thành công thì máy chủ thu hồi phiên và **xoá cookie**, nhưng bản trong RAM vẫn còn,
+ * nên FE tiếp tục gửi một vé mà trình duyệt không còn giữ. Máy chủ ghi đúng triệu chứng đó:
+ *
+ * ```
+ * Từ chối CSRF: POST /api/v1/auth/change-password — header có, cookie thiếu
+ * ```
+ *
+ * ⭐ **Vì sao bỏ hẳn bản sao chứ không chỉ đảo thứ tự ưu tiên.** Máy chủ đối chiếu header
+ * với **cookie**. Nên khi cookie vắng mặt thì *không giá trị nào* gửi lên có thể đi qua —
+ * bản sao trong bộ nhớ không cứu được lượt gọi nào, nó chỉ đổi thông báo lỗi từ "thiếu vé"
+ * thành "vé không khớp" và đẩy người đọc log đi tìm một lỗi đối chiếu không tồn tại.
+ *
+ * Bản sao đó cũng không giải quyết vấn đề nào có thật: cookie `XSRF-TOKEN` cố ý **không**
+ * httpOnly, `Path=/`, cùng origin — luôn đọc được bằng JS. Phản hồi đăng nhập vừa đặt
+ * cookie vừa trả vé trong thân; trình duyệt xử lý `Set-Cookie` xong mới giải lời hứa, nên
+ * không có khe hở nào giữa hai thứ. Giữ hai nguồn cho **một** sự thật chỉ tạo ra cơ hội để
+ * chúng lệch nhau.
  */
 function currentCsrfToken(): string | null {
-  return csrfToken ?? readCookie('XSRF-TOKEN');
+  return readCookie(CSRF_COOKIE);
 }
 
 function readCookie(name: string): string | null {
@@ -184,7 +201,22 @@ function emit(event: SessionEvent): void {
 // Instance
 // =============================================================================
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
+/**
+ * Gốc của mọi lượt gọi API.
+ *
+ * ⚠⚠ Mặc định là đường dẫn **tương đối** — tức là **cùng origin** với trang. Đó là hình dạng
+ * mà production dùng (nginx đứng trước cả hệ, T11.5), và cũng là hình dạng của `make dev-docker`
+ * (nginx của image admin-app chuyển tiếp `/api/`) lẫn `make dev-native` (Vite proxy `/api`).
+ *
+ * Trỏ sang một origin khác thì mọi lượt gọi phải qua CORS, mà backend **không cấu hình CORS**
+ * — preflight trả thẳng `403 Invalid CORS request`, và giao diện chết từ ô đăng nhập.
+ *
+ * ⚠ Dùng `||` chứ **không** dùng `??`: khi tệp compose truyền `VITE_API_BASE_URL:` để trống,
+ * Vite nhúng vào bundle một **chuỗi rỗng**, mà chuỗi rỗng không phải `null`/`undefined` nên `??`
+ * giữ nguyên nó. Hậu quả: `baseURL = ''`, lượt gọi rơi về `/auth/login` — mất hẳn tiền tố
+ * `/api/v1`, nginx trả `index.html`, và axios báo lỗi phân tích JSON ở một chỗ chẳng liên quan.
+ */
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 const MUTATING_METHODS = new Set(['post', 'put', 'patch', 'delete']);
 
 /** Đường dẫn không bao giờ được kéo theo vòng làm mới token — chính chúng là luồng cấp token. */
@@ -192,8 +224,8 @@ const AUTH_ENTRY_PATHS = ['/auth/login', '/auth/2fa/', '/auth/refresh'];
 
 const http: AxiosInstance = axios.create({
   baseURL: BASE_URL,
-  // Bắt buộc: refresh token và vé CSRF đều đi bằng cookie, mà admin-app chạy khác
-  // origin với API (nginx hai server block, và lúc dev là hai cổng khác nhau).
+  // Refresh token và vé CSRF đều đi bằng cookie. Với `BASE_URL` tương đối thì cùng origin
+  // nên cookie tự đi kèm; giữ cờ này để cấu hình trỏ sang origin khác vẫn hoạt động.
   withCredentials: true,
   timeout: 30_000,
 });
@@ -242,8 +274,8 @@ async function runRefresh(): Promise<boolean> {
     if (!data?.accessToken) {
       return false;
     }
+    // Vé CSRF mới đi kèm phản hồi này bằng `Set-Cookie`; không chép lại vào bộ nhớ.
     setAccessToken(data.accessToken);
-    setCsrfToken(data.csrfToken);
     return true;
   } catch {
     clearTokens();

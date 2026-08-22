@@ -2,7 +2,9 @@ package com.songnhue.core.application.attachment;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -17,13 +19,19 @@ import com.songnhue.core.common.config.StorageProperties;
 import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.BusinessRuleException;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
+import com.songnhue.core.common.exception.ValidationException;
 import com.songnhue.core.common.security.AuthContext;
 import com.songnhue.core.common.util.FileValidator;
 import com.songnhue.core.common.util.HashUtils;
 import com.songnhue.core.common.util.ImageSanitizer;
+import com.songnhue.core.common.util.SvgSanitizer;
 import com.songnhue.core.domain.attachment.Attachment;
 import com.songnhue.core.infra.attachment.AttachmentRepository;
 import com.songnhue.core.infra.storage.ObjectStorage;
+import com.songnhue.core.spi.AttachmentContent;
+import com.songnhue.core.spi.AttachmentPort;
+import com.songnhue.core.spi.AttachmentRef;
+import com.songnhue.core.spi.AttachmentUploadCommand;
 
 /**
  * Tải lên và tra cứu tệp đính kèm — pattern P3 (T6.3).
@@ -44,14 +52,35 @@ import com.songnhue.core.infra.storage.ObjectStorage;
  * phát tán — mà đây là hệ có Cổng thông tin điện tử công khai.
  */
 @Service
-public class AttachmentService {
+public class AttachmentService implements AttachmentPort {
 
     private static final Logger log = LoggerFactory.getLogger(AttachmentService.class);
 
-    /** Dung lượng tối đa mỗi tệp, đọc từ {@code settings} (quy tắc 12). */
-    private static final String KEY_MAX_UPLOAD_MB = "limit.upload.max-file-mb";
+    /**
+     * Dung lượng tối đa mỗi tệp, đọc từ {@code settings} theo <b>nhóm định dạng</b> (quy tắc 12).
+     *
+     * <p>⚠⚠ <b>Bản đầu đọc khoá {@code limit.upload.max-file-mb} — một khoá CHƯA TỪNG ĐƯỢC SEED.</b>
+     * Hệ quả im lặng suốt từ WS-6: mọi lượt tải rơi về giá trị dự phòng 20MB cứng trong mã, trong khi
+     * màn hình cấu hình bày ra ba tham số {@code limits.upload.max-mb.*} mà <b>không dòng mã nào
+     * đọc</b>. Quản trị viên sửa "Dung lượng tối đa mỗi tài liệu = 50MB" rồi tải một hồ sơ hoàn công
+     * 30MB vẫn bị từ chối, và không có lỗi nào chỉ ra vì sao.
+     *
+     * <p>Đây là biến thể của bài học lặp lại nhiều lần ở Phase 0: cơ chế còn sống nhưng <i>không nối
+     * vào đâu cả</i>. Tham số cấu hình chỉ có nghĩa khi có bài kiểm chứng minh đổi giá trị thì hành
+     * vi đổi theo — xem {@code AttachmentQuotaTest}.
+     */
+    private static final String KEY_MAX_UPLOAD_MB_PREFIX = "limits.upload.max-mb.";
 
     private static final int DEFAULT_MAX_UPLOAD_MB = 20;
+
+    /**
+     * Hạn mức dung lượng cho MỘT bản ghi, tra theo loại chủ sở hữu (T12.6).
+     *
+     * <p>VD {@code limits.attachment.quota-mb.CONSTRUCTION = 500} — CN-02.3 yêu cầu 500MB/công trình.
+     * Không khai khoá cho một loại nào thì loại đó <b>không giới hạn</b>: hạn mức là ngoại lệ có chủ
+     * đích cho vài loại hồ sơ nặng, không phải luật chung.
+     */
+    private static final String KEY_OWNER_QUOTA_MB_PREFIX = "limits.attachment.quota-mb.";
 
     /**
      * Hạn của đường dẫn tải.
@@ -94,12 +123,23 @@ public class AttachmentService {
             List<String> allowedMimeTypes) {
 
         String mimeType = FileValidator.detectAndValidate(content, originalName, allowedMimeTypes);
-        long maxBytes = settings.getInt(KEY_MAX_UPLOAD_MB, DEFAULT_MAX_UPLOAD_MB) * 1024L * 1024L;
+        long maxBytes = settings.getInt(KEY_MAX_UPLOAD_MB_PREFIX + sizeGroupOf(mimeType), DEFAULT_MAX_UPLOAD_MB)
+                * 1024L
+                * 1024L;
         FileValidator.validateSize(content.length, maxBytes, originalName);
+        requireQuota(ownerType, ownerId, content.length);
 
-        // Mã hoá lại TRƯỚC khi tính checksum và ghi lên kho: checksum phải khớp đúng thứ đã lưu,
-        // nếu không thì lần kiểm tra toàn vẹn nào cũng báo lệch.
-        byte[] stored = ImageSanitizer.stripMetadata(content, mimeType);
+        // Khử trùng TRƯỚC khi tính checksum và ghi lên kho: checksum phải khớp đúng thứ đã lưu, nếu
+        // không thì lần kiểm tra toàn vẹn nào cũng báo lệch.
+        //
+        // ⚠ SVG đi đường riêng vì nó KHÔNG phải ảnh raster: `javax.imageio` không đọc được nên
+        // ImageSanitizer trả nguyên bản về — tức là tệp duy nhất trong nhóm ảnh có thể chạy
+        // JavaScript lại là tệp duy nhất không được bóc gì. Đặt nhánh này ở đây, chứ không ở nơi
+        // gọi, để mọi đường tải lên đều đi qua: chọn được định dạng nào là việc của
+        // `allowedMimeTypes`, còn khử trùng thì không ai được phép quên.
+        byte[] stored = SvgSanitizer.MIME.equals(mimeType)
+                ? SvgSanitizer.sanitize(content, originalName)
+                : ImageSanitizer.stripMetadata(content, mimeType);
 
         // Đuôi lấy theo MIME đã xác thực, KHÔNG theo tên gốc — nếu không thì `anh.jpg.exe` giữ
         // nguyên đuôi `.exe` trong kho, đúng thứ mà việc đổi tên ngẫu nhiên sinh ra để chặn.
@@ -134,6 +174,7 @@ public class AttachmentService {
      *
      * <p>Từ chối tệp chưa {@code READY}: đó là tệp còn đang chờ quét hoặc đã bị cách ly.
      */
+    @Override
     @Transactional(readOnly = true)
     public String downloadUrl(UUID publicId) {
         Attachment attachment = require(publicId);
@@ -142,6 +183,41 @@ public class AttachmentService {
                     ErrorCode.SYS_0009, attachment.getScanStatus().name());
         }
         return storage.presignedGetUrl(attachment.getStorageBucket(), attachment.getStorageKey(), DOWNLOAD_URL_TTL);
+    }
+
+    /**
+     * Đọc nội dung tệp cho cổng công khai — WS-16/T16.6.
+     *
+     * <p>Ba điều kiện phải đúng <b>cùng lúc</b>, và cả ba được kiểm ở đây chứ không ở nơi gọi: tệp
+     * còn sống, thuộc loại chủ sở hữu công khai, và đã qua bước quét. Lý do đặt chốt chặn ở đây nằm
+     * trong javadoc của {@link AttachmentPort#readForPublic}.
+     *
+     * <p>Trả {@link Optional#empty()} cho mọi trường hợp từ chối — không phân biệt "không có" với
+     * "có nhưng không công khai". Phân biệt được là biến endpoint này thành máy dò xem UUID nào tồn
+     * tại trong kho.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<AttachmentContent> readForPublic(UUID publicId, List<String> allowedOwnerTypes) {
+        Optional<Attachment> found = repository.findByPublicIdAndDeletedAtIsNull(publicId);
+        if (found.isEmpty()) {
+            return Optional.empty();
+        }
+        Attachment attachment = found.get();
+        if (!allowedOwnerTypes.contains(attachment.getOwnerType())) {
+            // WARN chứ không DEBUG: hoặc là có người đang dò, hoặc là một đường dẫn công khai đang
+            // trỏ nhầm vào tệp nội bộ. Cả hai đều đáng nhìn.
+            log.warn(
+                    "Từ chối phục vụ công khai tệp {} — loại chủ sở hữu '{}' không nằm trong danh sách cho phép",
+                    publicId,
+                    attachment.getOwnerType());
+            return Optional.empty();
+        }
+        if (!attachment.isDownloadable()) {
+            return Optional.empty();
+        }
+        byte[] content = storage.get(attachment.getStorageBucket(), attachment.getStorageKey());
+        return Optional.of(new AttachmentContent(content, attachment.getContentType(), attachment.getOriginalName()));
     }
 
     @Transactional(readOnly = true)
@@ -154,6 +230,81 @@ public class AttachmentService {
         return repository.findByOwnerTypeAndOwnerIdAndDeletedAtIsNullOrderByFileVersionDesc(ownerType, ownerId);
     }
 
+    // ---- Hợp đồng cho module nghiệp vụ (core.spi) -------------------------------
+    //
+    // Ba phương thức dưới đây là bản dịch của ba phương thức ngay trên, khác đúng một điểm: chúng
+    // trả `AttachmentRef` chứ không trả entity. Đó không phải trùng lặp thừa — module nghiệp vụ
+    // nhận entity `Attachment` về là phải import `core.domain.attachment`, mà luật ranh giới module
+    // cấm đúng điều đó (core/spi/package-info.java).
+    //
+    // `downloadUrl` và `delete` không cần bản dịch: chữ ký của chúng vốn chỉ có UUID và String.
+
+    @Override
+    @Transactional
+    public AttachmentRef upload(AttachmentUploadCommand command) {
+        return toRef(upload(
+                command.ownerType(),
+                command.ownerId(),
+                command.purpose(),
+                command.originalName(),
+                command.content(),
+                command.allowedMimeTypes()));
+    }
+
+    /** Không ném lỗi khi không tìm thấy: nơi gọi thường muốn hiện "tệp đã bị xoá", không phải 404. */
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<AttachmentRef> findRef(UUID publicId) {
+        return repository.findByPublicIdAndDeletedAtIsNull(publicId).map(AttachmentService::toRef);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AttachmentRef> refsOf(String ownerType, Long ownerId) {
+        return listOf(ownerType, ownerId).stream().map(AttachmentService::toRef).toList();
+    }
+
+    private static AttachmentRef toRef(Attachment attachment) {
+        return new AttachmentRef(
+                attachment.getPublicId(),
+                attachment.getOriginalName(),
+                attachment.getContentType(),
+                attachment.getSizeBytes(),
+                attachment.getFileVersion(),
+                attachment.getPurpose(),
+                attachment.isDownloadable(),
+                attachment.getCreatedAt(),
+                attachment.getValidFrom(),
+                attachment.getValidUntil());
+    }
+
+    /**
+     * Đặt hiệu lực tài liệu — CN-02.3.
+     *
+     * <p>⚠ Hai cột {@code valid_from} / {@code valid_until} có trong lược đồ từ WS-2 và <b>chưa từng
+     * có đường ghi nào</b>: {@code AttachmentUploadCommand} không mang chúng, entity có setter nhưng
+     * không ai gọi. Tức là chúng đã nằm hai tuần trong nhóm "cột chết" — cùng họ với
+     * {@code limits.upload.max-mb.*} ở WS-12 và {@code company.*} ở lượt rà soát 21/8. Ghi nhận ở
+     * đây để lần sau không ai kết luận "đã có sẵn nên chắc là chạy".
+     *
+     * <p>Tách khỏi {@code upload} chứ không nhét thêm vào lệnh tải lên: ngày lập và ngày hết hiệu lực
+     * là <i>siêu dữ liệu nghiệp vụ</i>, sửa được sau khi tệp đã nằm trong kho, còn nội dung tệp thì
+     * không.
+     */
+    @Override
+    @Transactional
+    public AttachmentRef setValidity(UUID publicId, LocalDate validFrom, LocalDate validUntil) {
+        Attachment attachment = repository
+                .findByPublicIdAndDeletedAtIsNull(publicId)
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
+        if (validFrom != null && validUntil != null && validUntil.isBefore(validFrom)) {
+            throw new ValidationException(ErrorCode.SYS_0003);
+        }
+        attachment.setValidFrom(validFrom);
+        attachment.setValidUntil(validUntil);
+        return toRef(repository.save(attachment));
+    }
+
     /**
      * Xoá mềm.
      *
@@ -161,6 +312,7 @@ public class AttachmentService {
      * nghiệp vụ vẫn trỏ tới nó, xoá thật là để lại những liên kết chỉ vào khoảng không. Dọn kho là
      * việc của job rà soát riêng, chạy sau thời gian giữ.
      */
+    @Override
     @Transactional
     public void delete(UUID publicId) {
         Attachment attachment = require(publicId);
@@ -172,6 +324,61 @@ public class AttachmentService {
         return repository
                 .findByPublicIdAndDeletedAtIsNull(publicId)
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
+    }
+
+    /**
+     * Nhóm định dạng để tra hạn mức dung lượng — khớp ba khoá đã seed ở {@code V202608131009}.
+     *
+     * <p>Định dạng lạ rơi vào nhóm {@code document}: đó là nhóm chặt vừa phải, và quan trọng hơn là
+     * <b>một định dạng chưa phân nhóm không được hưởng hạn mức rộng nhất</b>.
+     */
+    private static String sizeGroupOf(String mimeType) {
+        if (mimeType.startsWith("image/")) {
+            return "image";
+        }
+        if (mimeType.startsWith("video/")) {
+            return "video";
+        }
+        if (mimeType.contains("json") || mimeType.contains("kml") || mimeType.contains("zip")) {
+            return "gis";
+        }
+        return "document";
+    }
+
+    /**
+     * Dung lượng một bản ghi đang dùng, tính bằng byte.
+     *
+     * <p>Giao diện hiện "đã dùng 120/500 MB" từ số này — người dùng phải thấy mình sắp chạm trần
+     * <i>trước</i> khi bấm tải, chứ không phải nhận thông báo từ chối sau khi đã chọn xong tệp.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public long usedBytes(String ownerType, Long ownerId) {
+        return repository.sumSizeBytesByOwner(ownerType, ownerId);
+    }
+
+    /**
+     * Chặn khi bản ghi đã hết hạn mức.
+     *
+     * <p>⚠ Đây là kiểm tra <b>đọc rồi ghi</b>, nên hai lượt tải song song vẫn có thể cùng lọt qua và
+     * vượt trần một chút. Chấp nhận có ý thức: cái giá để chặn tuyệt đối là khoá dòng hoặc ràng buộc
+     * ở tầng CSDL cho một con số vốn là <i>chính sách vận hành</i>, không phải bất biến dữ liệu.
+     * Vượt vài MB không hỏng gì; khoá nhầm một lượt tải hợp lệ thì có.
+     */
+    private void requireQuota(String ownerType, Long ownerId, long incomingBytes) {
+        if (ownerId == null) {
+            return;
+        }
+        int quotaMb = settings.getInt(KEY_OWNER_QUOTA_MB_PREFIX + ownerType, 0);
+        if (quotaMb <= 0) {
+            return;
+        }
+
+        long quotaBytes = quotaMb * 1024L * 1024L;
+        long used = repository.sumSizeBytesByOwner(ownerType, ownerId);
+        if (used + incomingBytes > quotaBytes) {
+            throw new BusinessRuleException(ErrorCode.SYS_0010, (used + incomingBytes) / (1024 * 1024), quotaMb);
+        }
     }
 
     /** Phiên bản kế tiếp trong cùng {@code (owner, purpose)} — nền cho lịch sử tài liệu (P3). */

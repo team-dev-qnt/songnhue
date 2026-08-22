@@ -24,6 +24,8 @@ import com.songnhue.core.common.config.AppProperties;
 import com.songnhue.core.common.web.RequestContext;
 import com.songnhue.core.domain.job.Job;
 import com.songnhue.core.infra.job.JobRepository;
+import com.songnhue.core.spi.JobContext;
+import com.songnhue.core.spi.JobHandler;
 
 /**
  * Worker trong tiến trình — vòng lặp nhặt và chạy job (architecture-review.md §6.3).

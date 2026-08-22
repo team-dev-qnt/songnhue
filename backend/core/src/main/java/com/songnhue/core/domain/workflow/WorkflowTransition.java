@@ -42,6 +42,20 @@ public class WorkflowTransition {
     @Column(name = "notify_event", length = 60)
     private String notifyEvent;
 
+    /**
+     * Báo cho mọi tài khoản đang hoạt động có quyền này.
+     *
+     * <p>⚠ Đừng nhầm với {@link #requiredPermission}: một bên là <b>ai được bấm</b>, một bên là
+     * <b>ai cần biết</b>. Ở bước gửi duyệt bài viết, hai tập này rời hẳn nhau — người bấm là biên
+     * tập viên, người cần biết là quản trị nội dung.
+     */
+    @Column(name = "notify_permission", length = 100)
+    private String notifyPermission;
+
+    /** Báo cho chủ bản ghi — xem {@code WorkflowAware.ownerUserId()}. */
+    @Column(name = "notify_owner", nullable = false)
+    private boolean notifyOwner;
+
     /** Nhãn nút trên giao diện — FE render từ đây, không tự đặt tên hành động. */
     @Column(name = "label", nullable = false, length = 100)
     private String label;
@@ -77,6 +91,14 @@ public class WorkflowTransition {
 
     public String getNotifyEvent() {
         return notifyEvent;
+    }
+
+    public String getNotifyPermission() {
+        return notifyPermission;
+    }
+
+    public boolean isNotifyOwner() {
+        return notifyOwner;
     }
 
     public String getLabel() {

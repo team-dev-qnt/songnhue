@@ -38,6 +38,9 @@ public final class SettingKeys {
     /** Ngưỡng coi bản sao lưu gần nhất là quá cũ — nguồn cho cảnh báo duy nhất của backup (T7.3). */
     public static final String BACKUP_STALE_HOURS = "backup.stale-hours";
 
+    // --- Cảnh báo tình hình vận hành (CN-02.11) -------------------------------
+    public static final String OPS_OPERATION_STATUS_STALE_DAYS = "ops.operation-status.stale-days";
+
     // --- Giá trị dự phòng, khớp đúng seed migration ---------------------------
     public static final int DEFAULT_PASSWORD_MIN_LENGTH = 10;
     public static final int DEFAULT_MAX_FAILED_ATTEMPTS = 5;
