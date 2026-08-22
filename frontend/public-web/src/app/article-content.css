@@ -1,0 +1,286 @@
+/*
+  Hình dạng của nội dung bài viết trên cổng công khai.
+
+  ══════════════════════════════════════════════════════════════════════════════
+  ⚠⚠ VÌ SAO TỆP NÀY TỒN TẠI — nó vá một lỗi im lặng đã có thật
+  ══════════════════════════════════════════════════════════════════════════════
+
+  Trước tệp này, phần thân bài trên cổng chỉ mang class `prose` của Tailwind Typography —
+  **mà gói đó chưa từng được cài**. Nên `prose` là một class rỗng, không sinh ra quy tắc nào.
+
+  Cộng với việc preflight của Tailwind xoá sạch hình dạng mặc định của trình duyệt, kết quả
+  trên trang thật là:
+
+    • `<ul>`/`<ol>` mất hết dấu đầu dòng và số thứ tự — danh sách trông như các dòng rời
+    • `<h3>`, `<h4>` có đúng cỡ chữ của đoạn văn — bài mất toàn bộ cấu trúc phân cấp
+    • `<table>` không còn đường viền nào
+    • `<figcaption>` trông y hệt một đoạn văn, không ai biết đó là chú thích ảnh
+    • `sn-align-*` không được định nghĩa ở đâu → **căn lề bị bỏ qua hoàn toàn**
+
+  Không có lỗi nào, không có cảnh báo nào. Biên tập viên định dạng bài rất kỹ trong trình
+  soạn thảo, xem trước thấy đúng (màn hình xem trước dùng CSS của admin-app), bấm xuất bản,
+  và bài lên cổng ở dạng chữ trơn.
+
+  Tài liệu của `AlignClass` thậm chí đã viết sẵn điều kiện *"với điều kiện cổng công khai có
+  định nghĩa ba class đó trong CSS"* — điều kiện được ghi ra và không ai thực hiện. Đây đúng
+  là loại lỗi mà `conventions.md` §1.5 nói tới: **một cơ chế chạy đúng ở một nửa đường**.
+
+  ══════════════════════════════════════════════════════════════════════════════
+  Vì sao viết tay chứ không cài `@tailwindcss/typography`
+  ══════════════════════════════════════════════════════════════════════════════
+
+  Gói đó tạo kiểu cho hàng chục thẻ, phần lớn nằm ngoài `EDITOR_TAGS` — tức là ta nuôi một
+  phụ thuộc (và một bề mặt CVE nữa, xem chuỗi WS về OWASP) để dùng chừng hai phần ba của nó,
+  rồi vẫn phải đè lại phần căn lề và bề ngang ảnh vì đó là quy ước riêng của hệ này.
+
+  Viết tay thì bộ quy tắc **khớp đúng** bộ từ vựng đã khai ở `design-tokens/editor-schema.ts`,
+  và `articleContentCss.test.ts` đối chiếu được hai bên với nhau. Thẻ nào trình soạn thảo tạo
+  ra được mà ở đây quên khai thì **CI đỏ** — không chờ tới lúc có người xuất bản bài mới lộ.
+
+  ⛔ Mã màu lấy từ `design-tokens` qua `@apply`, không khai tại chỗ (conventions.md §3).
+*/
+
+.sn-article {
+  @apply text-surface-textBase;
+  line-height: 1.75;
+  overflow-wrap: break-word;
+}
+
+/* ---- Tiêu đề trong bài: h2–h4, vì h1 là tiêu đề bài do trang đặt ---- */
+
+.sn-article h2 {
+  @apply text-surface-textBase;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.sn-article h3 {
+  @apply text-surface-textBase;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.sn-article h4 {
+  @apply text-surface-textBase;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  font-size: 1.075rem;
+  font-weight: 600;
+}
+
+/* ---- Chữ ---- */
+
+.sn-article p {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+.sn-article a {
+  @apply text-brand-primary;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.sn-article a:hover {
+  text-decoration-thickness: 2px;
+}
+
+/*
+  Danh sách: preflight đặt `list-style: none` và bỏ thụt lề, nên hai dòng này là thứ **duy
+  nhất** giữ cho danh sách còn là danh sách.
+*/
+.sn-article ul,
+.sn-article ol {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  padding-inline-start: 1.5rem;
+}
+
+.sn-article ul {
+  list-style: disc;
+}
+
+.sn-article ol {
+  list-style: decimal;
+}
+
+.sn-article li {
+  margin-top: 0.375rem;
+  margin-bottom: 0.375rem;
+}
+
+/* Danh sách lồng nhau: đổi dấu để phân biệt được cấp. */
+.sn-article li > ul {
+  list-style: circle;
+}
+
+.sn-article blockquote {
+  @apply border-surface-border text-surface-textSecondary;
+  margin: 1.25rem 0;
+  border-inline-start-width: 3px;
+  border-inline-start-style: solid;
+  padding-inline-start: 1rem;
+  font-style: italic;
+}
+
+/* ---- Mã ---- */
+
+.sn-article pre {
+  margin: 1.25rem 0;
+  border-radius: 6px;
+  background: #f5f5f5;
+  padding: 0.75rem 1rem;
+  overflow-x: auto;
+  font-size: 0.9em;
+}
+
+.sn-article code {
+  border-radius: 4px;
+  background: #f5f5f5;
+  padding: 0.1em 0.35em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+}
+
+/* Trong khối mã thì bỏ nền riêng của `code`, nếu không là hai lớp nền chồng nhau. */
+.sn-article pre code {
+  background: transparent;
+  padding: 0;
+  font-size: inherit;
+}
+
+/* ---- Bảng ---- */
+
+/*
+  ⚠ `display: block` + cuộn ngang là bắt buộc cho điện thoại: bảng số liệu thuỷ lợi thường
+  sáu, bảy cột, và không có nó thì bảng đẩy toàn bộ trang rộng ra — người đọc phải cuộn ngang
+  cả bài, kể cả những đoạn chữ.
+*/
+.sn-article table {
+  display: block;
+  margin: 1.25rem 0;
+  border-collapse: collapse;
+  width: 100%;
+  overflow-x: auto;
+  font-size: 0.95em;
+}
+
+.sn-article th,
+.sn-article td {
+  @apply border-surface-border;
+  border-width: 1px;
+  border-style: solid;
+  padding: 0.5rem 0.75rem;
+  text-align: start;
+  vertical-align: top;
+}
+
+.sn-article th {
+  background: #fafafa;
+  font-weight: 600;
+}
+
+/* ---- Ảnh và khối nhúng ---- */
+
+.sn-article figure {
+  margin: 1.5rem 0;
+}
+
+.sn-article img {
+  border-radius: 6px;
+  max-width: 100%;
+  height: auto;
+}
+
+.sn-article figcaption {
+  @apply text-surface-textSecondary;
+  margin-top: 0.5rem;
+  text-align: center;
+  font-size: 0.875rem;
+  font-style: italic;
+}
+
+.sn-article iframe {
+  margin: 1.5rem 0;
+  border: 0;
+  border-radius: 6px;
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 16 / 9;
+}
+
+.sn-article hr {
+  @apply border-surface-border;
+  margin: 2rem 0;
+  border-top-width: 1px;
+  border-top-style: solid;
+}
+
+/*
+  ══════════════════════════════════════════════════════════════════════════════
+  Căn lề và bề ngang ảnh — phải khớp ALIGN_CLASSES và IMAGE_WIDTH_CLASSES
+  ở `design-tokens/editor-schema.ts`
+  ══════════════════════════════════════════════════════════════════════════════
+
+  Không đặt trong `.sn-article` cho riêng thẻ nào, vì cùng ba class này dùng được trên đoạn
+  văn, tiêu đề, ảnh và khối nhúng — đúng danh sách `NHOM_AP_DUNG` của `AlignClass`.
+*/
+
+.sn-article .sn-align-left {
+  text-align: left;
+}
+
+.sn-article .sn-align-center {
+  text-align: center;
+}
+
+.sn-article .sn-align-right {
+  text-align: right;
+}
+
+/*
+  ⚠ `text-align` **không** đẩy được chính thẻ `figure` sang bên — nó chỉ căn phần nội dung
+  bên trong. Với một khối có bề ngang nhỏ hơn khung bài thì phải đổi lề ngoài.
+*/
+.sn-article figure.sn-align-center {
+  margin-inline: auto;
+}
+
+.sn-article figure.sn-align-right {
+  margin-inline-start: auto;
+  margin-inline-end: 0;
+}
+
+.sn-article .sn-w-full {
+  width: 100%;
+}
+
+.sn-article .sn-w-1-2 {
+  width: 50%;
+}
+
+.sn-article .sn-w-1-3 {
+  width: 33.333%;
+}
+
+/* Ảnh đã chọn bề ngang thì lấp đầy khung đó, không giữ kích thước gốc nữa. */
+.sn-article figure[class*='sn-w-'] img {
+  width: 100%;
+}
+
+/*
+  Điện thoại: một tấm ảnh rộng 1/3 màn hình 360px chỉ còn 120px — nhỏ tới mức không nhìn
+  được gì. Dưới ngưỡng này thì bỏ hết lựa chọn bề ngang, mọi ảnh chiếm trọn chiều ngang.
+*/
+@media (max-width: 640px) {
+  .sn-article .sn-w-1-2,
+  .sn-article .sn-w-1-3 {
+    width: 100%;
+  }
+}

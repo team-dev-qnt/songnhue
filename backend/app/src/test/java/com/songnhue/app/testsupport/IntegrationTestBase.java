@@ -75,12 +75,16 @@ public abstract class IntegrationTestBase {
         registry.add("app.crypto.active-key-id", () -> "v1");
         registry.add("app.crypto.keys.v1", IntegrationTestBase::randomAesKey);
 
-        registry.add("app.storage.endpoint", () -> "http://minio.invalid:9000");
-        registry.add("app.storage.access-key", () -> "test");
-        registry.add("app.storage.secret-key", () -> "test");
-        registry.add("app.storage.bucket-media", () -> "test-media");
-        registry.add("app.storage.bucket-report", () -> "test-report");
-        registry.add("app.storage.bucket-audit", () -> "test-audit");
+        // ⭐ MinIO THẬT từ WS-14 — trước đó là `http://minio.invalid:9000`, một địa chỉ không tồn
+        //   tại. MinioClient không mở kết nối lúc dựng bean nên context vẫn lên và mọi bài kiểm vẫn
+        //   xanh, trong khi CHƯA MỘT LƯỢT TẢI TỆP NÀO đi tới kho. Xem `SongnhueMinio`.
+        SongnhueMinio.start();
+        registry.add("app.storage.endpoint", SongnhueMinio::endpoint);
+        registry.add("app.storage.access-key", SongnhueMinio::accessKey);
+        registry.add("app.storage.secret-key", SongnhueMinio::secretKey);
+        registry.add("app.storage.bucket-media", () -> SongnhueMinio.BUCKET_MEDIA);
+        registry.add("app.storage.bucket-report", () -> SongnhueMinio.BUCKET_REPORT);
+        registry.add("app.storage.bucket-audit", () -> SongnhueMinio.BUCKET_AUDIT);
 
         registry.add("app.notification.from", () -> "no-reply@songnhue.test");
         // Bỏ trống máy chủ thư: bean EmailSender không được tạo và thông báo email đánh dấu

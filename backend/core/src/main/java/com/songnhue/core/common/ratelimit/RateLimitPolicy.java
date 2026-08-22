@@ -40,6 +40,21 @@ public enum RateLimitPolicy {
     /** API thường: 100 lượt / phút cho mỗi người dùng hoặc IP. */
     API("api", 100, Duration.ofMinutes(1)),
 
+    /**
+     * Cổng công khai: 300 lượt / phút trên mỗi IP — <b>bucket riêng, không dùng chung với {@link
+     * #API}</b>.
+     *
+     * <p>Đây không phải chuyện nới tay cho khách vãng lai. Cả hai bucket đều đếm theo IP, mà <b>cả
+     * Công ty đi ra Internet qua một IP NAT</b>: gộp chung thì một con bọ tìm kiếm quét cổng thông
+     * tin sẽ tiêu hết hạn mức, và người đang soạn bài trong màn hình quản trị nhận {@code SYS-0002}
+     * — một sự cố ở phần công khai lan sang phần nội bộ, không dấu vết nào chỉ ra vì sao.
+     *
+     * <p>Hạn mức cao hơn vì một lượt xem trang gọi nhiều endpoint (cấu hình, menu, banner, danh
+     * sách bài), và Next dựng trang phía máy chủ nên các lượt gọi đó dồn vào <i>một</i> IP: chính
+     * máy chủ cổng. Đặt bằng {@link #API} là tự khoá trang chủ của mình lúc có vài chục người xem.
+     */
+    PUBLIC("public", 300, Duration.ofMinutes(1)),
+
     /** Kết xuất báo cáo: 10 lượt / giờ — mỗi lượt tốn nhiều tài nguyên. */
     EXPORT("export", 10, Duration.ofHours(1));
 

@@ -221,8 +221,12 @@ public class BackupService {
      * Xoá file của những bản quá hạn giữ. <b>Dòng ghi nhận trong CSDL được giữ lại</b> — lịch sử
      * "đêm nào sao lưu hỏng, đêm nào chạy được" là bằng chứng khi điều tra mất dữ liệu, mà nó chỉ
      * chiếm vài chục byte một dòng.
+     *
+     * <p>⚠ Cố ý <b>không</b> {@code @Transactional}: hàm này đọc CSDL và xoá <i>tệp</i>, không ghi
+     * một dòng nào. Bản đầu có chú thích đó và {@link #runBackup} gọi nó bằng {@code this} — không
+     * qua proxy nên chú thích vô hiệu. Giữ lại một chú thích đã vô hiệu thì lần đọc mã sau tưởng có
+     * bảo đảm nguyên tử ở đây, mà xoá tệp thì không có giao dịch nào lùi lại được.
      */
-    @Transactional
     public int pruneExpired() {
         int retentionDays = settings.getInt(SettingKeys.BACKUP_RETENTION_DAYS, 30);
         Instant cutoff = Instant.now().minus(Duration.ofDays(retentionDays));

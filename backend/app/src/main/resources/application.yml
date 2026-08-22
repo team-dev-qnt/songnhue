@@ -183,6 +183,15 @@ app:
     restore-password: ${DB_RESTORE_PASSWORD:}
     timeout: ${BACKUP_TIMEOUT:2h}
 
+  # Cổng công khai (WS-16). Để trống là TẮT việc gọi dựng lại trang — khi đó trang
+  # tự làm mới theo chu kỳ ISR. Bắt buộc phải có thì mọi môi trường dev không chạy
+  # public-web sẽ không khởi động được.
+  # ⚠ REVALIDATE_SECRET là bí mật: không log, không trả ra API, không nằm trong bản
+  # xuất cấu hình. Phải KHỚP với biến cùng tên của public-web.
+  portal:
+    base-url: ${PORTAL_BASE_URL:}
+    revalidate-secret: ${REVALIDATE_SECRET:}
+
   storage:
     endpoint: ${MINIO_ENDPOINT}
     access-key: ${MINIO_ACCESS_KEY}

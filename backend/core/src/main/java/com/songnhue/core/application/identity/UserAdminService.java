@@ -2,6 +2,7 @@ package com.songnhue.core.application.identity;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -23,6 +24,7 @@ import com.songnhue.core.domain.notification.NotificationSeverity;
 import com.songnhue.core.infra.identity.UserAdminRepository;
 import com.songnhue.core.infra.identity.UserRepository;
 import com.songnhue.core.infra.org.OrgUnitRepository;
+import com.songnhue.core.spi.UserDirectoryPort;
 
 /**
  * Quản trị tài khoản (CN-05.1) — <b>lát cắt dọc nghiệm thu Phase 0</b> (T6.15).
@@ -43,7 +45,7 @@ import com.songnhue.core.infra.org.OrgUnitRepository;
  * tiết như MOD-05, "gỡ quyền rồi mà vẫn làm được" là một lỗi nghiệm thu.
  */
 @Service
-public class UserAdminService {
+public class UserAdminService implements UserDirectoryPort {
 
     private static final Logger log = LoggerFactory.getLogger(UserAdminService.class);
 
@@ -198,6 +200,35 @@ public class UserAdminService {
                 user.getId(),
                 List.of(),
                 List.of(user.getId()),
+                null,
                 List.of(NotificationChannel.IN_APP, NotificationChannel.EMAIL)));
+    }
+
+    // ---- Hợp đồng cho module nghiệp vụ (core.spi) ----------------------------
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Long> internalIdOf(UUID publicId) {
+        return users.findByPublicIdAndDeletedAtIsNull(publicId).map(User::getId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<UUID> publicIdOf(Long internalId) {
+        if (internalId == null) {
+            return Optional.empty();
+        }
+        return users.findById(internalId).filter(u -> !u.isDeleted()).map(User::getPublicId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.Map<Long, UUID> publicIdsOf(java.util.Collection<Long> internalIds) {
+        if (internalIds == null || internalIds.isEmpty()) {
+            return java.util.Collections.emptyMap();
+        }
+        return users.findAllById(internalIds).stream()
+                .filter(u -> !u.isDeleted())
+                .collect(java.util.stream.Collectors.toMap(User::getId, User::getPublicId));
     }
 }

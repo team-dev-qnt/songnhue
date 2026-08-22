@@ -92,6 +92,72 @@ class RbacMatrixTest extends IntegrationTestBase {
     }
 
     @Test
+    @DisplayName("⚠ Mọi mã quyền trong danh mục phải có ít nhất một endpoint sử dụng (trừ ngoại lệ có chủ đích)")
+    void everyCatalogPermissionIsDeclared() {
+        Set<String> declared = declaredPermissionCodes();
+        Set<String> catalog = Set.copyOf(jdbc.queryForList("SELECT code FROM permissions", String.class));
+
+        // Các quyền được dựng sẵn cho Phase 2/3 nhưng chưa có API nào ở Phase 1
+        Set<String> futurePermissions = Set.of(
+                "ops:gis-layer:manage", // Tầng GIS — Phase 3
+                "ops:gis-layer:view", // Xem tầng GIS — Phase 3
+                "ops:report:export", // Kết xuất báo cáo — Phase 3
+                "ops:report:view", // Xem báo cáo — Phase 3
+                "ops:operation-status:view", // Xem tình hình vận hành — Phase 2
+                "ops:maintenance:update", // Cập nhật bảo trì — Phase 2
+                "ops:maintenance:close-incident", // Đóng sự cố — Phase 2
+                "hyd:alert:view", // Cảnh báo thủy văn — Phase 2
+                "hyd:alert:handle", // Xử lý cảnh báo — Phase 2
+                "hyd:alert-group:manage", // Nhóm cảnh báo — Phase 2
+                "hyd:api-source:manage", // Nguồn API thủy văn — Phase 2
+                "hyd:measurement:view", // Xem số liệu đo — Phase 2
+                "hyd:measurement:review", // Duyệt số liệu — Phase 2
+                "hyd:report:view", // Báo cáo thủy văn — Phase 2
+                "hyd:report:export", // Xuất báo cáo thủy văn — Phase 2
+                "hyd:station:view", // Xem trạm đo — Phase 2
+                "hyd:station:manage", // Quản lý trạm — Phase 2
+                "hyd:threshold:view", // Xem ngưỡng — Phase 2
+                "hyd:threshold:manage", // Quản lý ngưỡng — Phase 2
+                "hr:employee:create", // Nhân sự — Phase 2
+                "hr:employee:view", // Nhân sự — Phase 2
+                "hr:employee:view-sensitive", // Nhân sự — Phase 2
+                "hr:employee:update", // Nhân sự — Phase 2
+                "hr:employee:delete", // Nhân sự — Phase 2
+                "hr:contract:manage", // Hợp đồng — Phase 2
+                "hr:leave:request", // Phép — Phase 2
+                "hr:leave:approve", // Duyệt phép — Phase 2
+                "hr:leave:view-all", // Xem phép — Phase 2
+                "hr:org-chart:view", // Sơ đồ tổ chức — Phase 2
+                "hr:directory:view", // Danh bạ — Phase 2
+                "hr:report:view", // Báo cáo HR — Phase 2
+                "hr:report:export", // Xuất báo cáo HR — Phase 2
+                "cms:article:publish", // CMS — Phase 2
+                "cms:article:unpublish", // CMS — Phase 2
+                "cms:article:approve", // CMS — Phase 2
+                "cms:article:submit", // CMS — Phase 2
+                "cms:contact:manage", // CMS — Phase 2
+                "cms:feedback:manage", // CMS — Phase 2
+                "cms:external-doc:view", // CMS — Phase 2
+                "cms:external-doc:link", // CMS — Phase 2
+                "cms:external-doc:manage-flag", // CMS — Phase 2
+                "adm:user:reset-password", // Admin — Phase 2
+                "adm:session:view", // Admin — Phase 2
+                "adm:session:revoke", // Admin — Phase 2
+                "adm:security-event:view", // Admin — Phase 2
+                "adm:role:manage" // Admin — Phase 2
+                );
+
+        Set<String> unused = new LinkedHashSet<>(catalog);
+        unused.removeAll(declared);
+        unused.removeAll(futurePermissions);
+
+        assertThat(unused)
+                .as("quyền có trong DB nhưng không có endpoint nào dùng @RequirePermission đòi hỏi "
+                        + "tức là công tắc chết — chức năng đó chưa có hoặc đã bị xoá mà quên dọn danh mục")
+                .isEmpty();
+    }
+
+    @Test
     @DisplayName("Mọi quyền đều được gán cho ít nhất một vai trò")
     void noPermissionIsOrphaned() {
         List<String> orphans = jdbc.queryForList(

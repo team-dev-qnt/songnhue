@@ -393,3 +393,206 @@ export interface DownloadUrl {
   /** Có hạn ngắn và bỏ qua phân quyền — không lưu lại, không chia sẻ. */
   url: string;
 }
+
+// =============================================================================
+// Dashboard điều hành — /api/v1/ops/dashboard (CN-02.5, CN-02.6)
+// =============================================================================
+
+export type KpiTone = 'NORMAL' | 'WARNING' | 'DANGER' | 'UNKNOWN';
+
+/**
+ * Một ô KPI.
+ *
+ * ⛔ `value === null` nghĩa là **chưa có nguồn dữ liệu**, khác hẳn `0` (đã đo và bằng
+ * không). Backend cố ý gửi `"value": null` tường minh thay vì bỏ khoá — bỏ khoá thì phía
+ * này đọc ra `undefined`, không phân biệt được với "API đổi tên trường".
+ */
+export interface KpiView {
+  key: string;
+  label: string;
+  value: number | null;
+  /** Mẫu số khi ô là một tỉ lệ ("32 / 40"). */
+  total: number | null;
+  tone: KpiTone;
+  /** Luôn có khi `value` rỗng — backend ép ở tầng kiểu. */
+  unavailableReason: string | null;
+  /** Hạng mục sẽ mang dữ liệu về, VD `"WS-18 (CN-02.2)"`. */
+  availableIn: string | null;
+}
+
+export interface BucketView {
+  key: string;
+  label: string;
+  count: number;
+}
+
+export interface ConstructionStatisticsView {
+  total: number;
+  withoutLocation: number;
+  byType: BucketView[];
+  byStatus: BucketView[];
+  byOrgUnit: BucketView[];
+  byManagementLevel: BucketView[];
+}
+
+/** Cấu hình bản đồ nền — đọc từ `settings`, đổi nguồn không phải dựng lại ảnh admin-app. */
+export interface MapConfigView {
+  tileUrl: string;
+  attribution: string;
+  centerLat: number;
+  centerLng: number;
+  defaultZoom: number;
+  maxZoom: number;
+}
+
+export interface DashboardView {
+  generatedAt: string;
+  /** Chu kỳ tự làm mới (M2.15) — do backend đọc từ `settings` mỗi lượt gọi. */
+  autoRefreshSeconds: number;
+  /** Chu kỳ tự chuyển khối ở chế độ màn hình lớn. */
+  wallRotateSeconds: number;
+  kpis: KpiView[];
+  statistics: ConstructionStatisticsView;
+  map: MapConfigView;
+}
+
+export type ConstructionType = 'TRAM_BOM' | 'CONG' | 'KENH_MUONG' | 'DE_DIEU' | 'KHAC';
+export type OperationalStatus =
+  'BINH_THUONG' | 'CANH_BAO' | 'SU_CO' | 'BAO_TRI' | 'NGUNG_MUA_VU' | 'DA_THANH_LY';
+export type LifecycleState = 'DANG_HOAT_DONG' | 'NGUNG_MUA_VU' | 'DA_THANH_LY';
+export type ManagementLevel = 'CONG_TY' | 'XI_NGHIEP' | 'CUM';
+export type ConstructionPurpose = 'TUOI' | 'TIEU' | 'TUOI_TIEU_KET_HOP' | 'KHAC';
+
+/** Một dòng trên danh sách — cố ý gọn, không kéo theo thông số kỹ thuật. */
+export interface ConstructionRow {
+  publicId: string;
+  code: string;
+  name: string;
+  constructionType: ConstructionType;
+  managementLevel: ManagementLevel | null;
+  orgUnitName: string | null;
+  clusterName: string | null;
+  riverName: string | null;
+  chainage: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  located: boolean;
+  lifecycleState: LifecycleState;
+  operationalStatus: OperationalStatus;
+  updatedAt: string;
+}
+
+export interface PumpSpecView {
+  totalPowerKw: number | null;
+  pumpCount: number | null;
+  standbyPumpCount: number | null;
+  flowPerPumpM3s: number | null;
+  totalFlowM3s: number | null;
+  headM: number | null;
+  powerSource: string | null;
+  voltageKv: number | null;
+  operatingLevelMinM: number | null;
+  operatingLevelMaxM: number | null;
+}
+
+export interface SluiceSpecView {
+  sluiceType: string | null;
+  bayCount: number | null;
+  bayWidthM: number | null;
+  sillElevationM: number | null;
+  crestElevationM: number | null;
+  designFlowM3s: number | null;
+  gateOperation: string | null;
+  upstreamWarningLevelM: number | null;
+  upstreamDangerLevelM: number | null;
+}
+
+export interface LinearSpecView {
+  lengthKm: number | null;
+  startChainage: string | null;
+  endChainage: string | null;
+  designFlowM3s: number | null;
+  crestElevationM: number | null;
+  technicalGrade: string | null;
+  crossSection: string | null;
+  specNote: string | null;
+}
+
+/** Hồ sơ đầy đủ — kèm đúng khối thông số của loại công trình đó, ba khối kia là null. */
+export interface ConstructionDetail {
+  summary: ConstructionRow;
+  orgUnitId: string | null;
+  clusterId: string | null;
+  purpose: ConstructionPurpose | null;
+  address: string | null;
+  chainageM: number | null;
+  basinNote: string | null;
+  builtYear: number | null;
+  commissionedYear: number | null;
+  designer: string | null;
+  contractor: string | null;
+  totalInvestment: number | null;
+  description: string | null;
+  pump: PumpSpecView | null;
+  sluice: SluiceSpecView | null;
+  linear: LinearSpecView | null;
+}
+
+/** Marker trên bản đồ — nội dung popup theo M2.10. */
+export interface MapPointView {
+  publicId: string;
+  code: string;
+  name: string;
+  constructionType: ConstructionType;
+  operationalStatus: OperationalStatus;
+  orgUnitName: string | null;
+  latitude: number;
+  longitude: number;
+}
+
+// =============================================================================
+// Danh mục Tình trạng Vận hành (Mã màu & Cấu hình)
+// =============================================================================
+
+export interface OperationStatusCode {
+  id: number;
+  code: string;
+  name: string;
+  hasParameter: boolean;
+  parameterUnit: string | null;
+  colorHex: string;
+  mappedStatus: OperationalStatus | null;
+  sortOrder: number;
+  active: boolean;
+}
+
+export interface OperationStatusCodeCreateRequest {
+  code: string;
+  name: string;
+  hasParameter: boolean;
+  parameterUnit?: string;
+  colorHex: string;
+  mappedStatus?: OperationalStatus;
+  sortOrder: number;
+  active: boolean;
+}
+
+export type OperationStatusCodeUpdateRequest = OperationStatusCodeCreateRequest;
+
+// =============================================================================
+// Nhập danh mục (T17.9)
+// =============================================================================
+
+export interface RowError {
+  rowNumber: number;
+  column: string | null;
+  message: string;
+}
+
+export interface ImportReport {
+  applied: boolean;
+  totalRows: number;
+  toCreate: number;
+  toUpdate: number;
+  errors: RowError[];
+}

@@ -68,6 +68,18 @@ public class OpenApiConfig {
         return group("05-adm", "/api/v1/adm/**");
     }
 
+    /**
+     * Nhóm công khai — tách riêng có chủ đích (WS-16).
+     *
+     * <p>Đây là danh sách <b>mọi cánh cửa mở</b> của hệ thống. Để chúng lẫn trong nhóm của module thì
+     * người rà soát an ninh phải đọc từng lớp đi tìm {@code @PublicEndpoint}; tách ra thì một trang
+     * tài liệu là đủ.
+     */
+    @Bean
+    public GroupedOpenApi publicApi() {
+        return group("06-public", "/api/v1/public/**");
+    }
+
     private static GroupedOpenApi group(String name, String... paths) {
         return GroupedOpenApi.builder().group(name).pathsToMatch(paths).build();
     }

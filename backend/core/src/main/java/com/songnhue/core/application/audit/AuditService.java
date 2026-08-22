@@ -16,6 +16,8 @@ import com.songnhue.core.domain.audit.AuditEntry;
 import com.songnhue.core.domain.audit.AuditLog;
 import com.songnhue.core.infra.audit.AuditLogRepository;
 import com.songnhue.core.infra.audit.AuditMaintenanceRepository;
+import com.songnhue.core.spi.AuditEntryView;
+import com.songnhue.core.spi.AuditQueryPort;
 
 /**
  * Tra cứu nhật ký kiểm toán và kiểm tra tính toàn vẹn (M5.8, CN-05.4).
@@ -26,7 +28,7 @@ import com.songnhue.core.infra.audit.AuditMaintenanceRepository;
  * để lại dấu vết.
  */
 @Service
-public class AuditService {
+public class AuditService implements AuditQueryPort {
 
     private static final Logger log = LoggerFactory.getLogger(AuditService.class);
 
@@ -62,6 +64,31 @@ public class AuditService {
             Long actorUserId,
             Pageable pageable) {
         return repository.search(from, to, module, entityType, entityId, actorUserId, pageable);
+    }
+
+    /**
+     * Lịch sử thay đổi của một bản ghi nghiệp vụ — cửa SPI cho module khác (CN-02.7).
+     *
+     * <p>Đây là <b>cùng một nguồn</b> với màn hình tra cứu nhật ký của MOD-05, chỉ khác ở chỗ đã
+     * khoá sẵn theo một bản ghi. Không có bảng lịch sử thứ hai nào được dựng — xem
+     * {@link AuditQueryPort}.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<AuditEntryView> historyOf(
+            String module, String entityType, Long entityId, Instant from, Instant to, int limit) {
+        int soDong = Math.max(1, Math.min(limit, AuditQueryPort.MAX_ENTRIES));
+        return repository
+                .search(from, to, module, entityType, entityId, null, Pageable.ofSize(soDong))
+                .map(row -> new AuditEntryView(
+                        row.getOccurredAt(),
+                        row.getActorUsername(),
+                        row.getActorUserId(),
+                        row.getAction() == null ? null : row.getAction().name(),
+                        row.getOldValue(),
+                        row.getNewValue(),
+                        row.getTraceId()))
+                .getContent();
     }
 
     /**

@@ -5,10 +5,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.songnhue.core.application.job.JobContext;
-import com.songnhue.core.application.job.JobHandler;
 import com.songnhue.core.application.job.JobTypes;
 import com.songnhue.core.infra.audit.AuditMaintenanceRepository;
+import com.songnhue.core.spi.JobContext;
+import com.songnhue.core.spi.JobHandler;
 
 /**
  * Giữ runway partition cho {@code audit_logs} — nợ WS-2/T2.6, trả ở T6.8.

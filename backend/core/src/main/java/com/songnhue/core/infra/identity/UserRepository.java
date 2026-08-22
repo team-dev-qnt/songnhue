@@ -63,4 +63,30 @@ public interface UserRepository extends JpaRepository<User, Long> {
     /** Toàn bộ tài khoản đang hoạt động — dùng cho thông báo hệ thống gửi tất cả (M5.13). */
     @Query("SELECT u.id FROM User u WHERE u.deletedAt IS NULL AND u.status = 'ACTIVE'")
     List<Long> findAllActiveIds();
+
+    /**
+     * Tài khoản đang hoạt động <b>có một quyền cụ thể</b> — người nhận của bước duyệt.
+     *
+     * <p>Truy vấn thẳng SQL vì {@code roles}/{@code permissions} chưa có entity JPA: RBAC nạp bằng
+     * truy vấn riêng lúc đăng nhập, không map thành đồ thị đối tượng. Dựng entity chỉ để phục vụ
+     * câu này là thêm một mô hình thứ hai cho cùng một thứ.
+     *
+     * <p>Lọc {@code active} ở cả người dùng lẫn vai trò: vai trò bị vô hiệu hoá mà vẫn gửi thông báo
+     * cho người mang nó là báo cho người không còn quyền xử lý.
+     */
+    @Query(
+            value =
+                    """
+                    SELECT DISTINCT u.id
+                    FROM users u
+                             JOIN user_roles ur ON ur.user_id = u.id
+                             JOIN roles r ON r.id = ur.role_id AND r.active AND r.deleted_at IS NULL
+                             JOIN role_permissions rp ON rp.role_id = r.id
+                             JOIN permissions p ON p.id = rp.permission_id
+                    WHERE u.deleted_at IS NULL
+                      AND u.status = 'ACTIVE'
+                      AND p.code = :permissionCode
+                    """,
+            nativeQuery = true)
+    List<Long> findActiveIdsByPermission(@Param("permissionCode") String permissionCode);
 }

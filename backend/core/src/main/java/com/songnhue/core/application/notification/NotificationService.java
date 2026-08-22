@@ -24,6 +24,9 @@ import com.songnhue.core.domain.notification.RecipientStatus;
 import com.songnhue.core.infra.identity.UserRepository;
 import com.songnhue.core.infra.notification.NotificationRecipientRepository;
 import com.songnhue.core.infra.notification.NotificationRepository;
+import com.songnhue.core.spi.NotificationPort;
+import com.songnhue.core.spi.NotifyChannel;
+import com.songnhue.core.spi.NotifyRequest;
 
 /**
  * Gửi thông báo — pattern P4, mặt tiền duy nhất cho mọi module (T6.6).
@@ -37,7 +40,7 @@ import com.songnhue.core.infra.notification.NotificationRepository;
  * <p>Kênh {@code IN_APP} là ngoại lệ: nó "đã gửi" ngay khi dòng dữ liệu tồn tại, không cần đi đâu cả.
  */
 @Service
-public class NotificationService {
+public class NotificationService implements NotificationPort {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
 
@@ -73,7 +76,8 @@ public class NotificationService {
      */
     @Transactional
     public Notification notify(NotificationRequest request) {
-        List<Long> userIds = resolver.resolve(request.relatedOrgUnitIds(), request.extraUserIds());
+        List<Long> userIds =
+                resolver.resolve(request.relatedOrgUnitIds(), request.extraUserIds(), request.targetPermission());
         return dispatch(request, userIds, false);
     }
 
@@ -133,8 +137,61 @@ public class NotificationService {
         return saved;
     }
 
+    // ---- Hợp đồng cho module nghiệp vụ (core.spi) -------------------------------
+    //
+    // Bản dịch từ `NotifyRequest` (kiểu của SPI) sang `NotificationRequest` (kiểu của tầng
+    // application, tham chiếu enum domain). Hai enum trùng khít tên hằng và có
+    // `NotificationEnumParityTest` canh — thêm mức ở một bên mà quên bên kia là CI đỏ, không phải
+    // một lỗi ánh xạ chờ tới lúc chạy mới lộ.
+    //
+    // ⚠⚠ Hai hàm này BẮT BUỘC mang @Transactional, và lý do không hiển nhiên. Chúng gọi sang bản
+    // @Transactional cùng lớp bằng `this`, tức là không đi qua proxy Spring, nên chú thích của hàm
+    // được gọi KHÔNG có tác dụng. Giao dịch phải mở ở đây — nơi module nghiệp vụ đi vào — nếu không
+    // thì một lượt gửi thông báo ghi ba bảng bằng ba giao dịch rời rạc và hỏng giữa chừng để lại
+    // thông báo không người nhận. `SilentFailureRuleTest.KHONG_TU_GOI_HAM_TRANSACTIONAL` canh đúng
+    // chỗ này.
+
+    @Transactional
+    @Override
+    public void notify(NotifyRequest request) {
+        notify(translate(request));
+    }
+
+    @Transactional
+    @Override
+    public void broadcast(NotifyRequest request, List<Long> userIds) {
+        broadcast(translate(request), userIds);
+    }
+
+    private static NotificationRequest translate(NotifyRequest request) {
+        return new NotificationRequest(
+                request.eventType(),
+                request.title(),
+                request.body(),
+                NotificationSeverity.valueOf(request.severity().name()),
+                request.linkUrl(),
+                request.refType(),
+                request.refId(),
+                request.relatedOrgUnitIds(),
+                request.extraUserIds(),
+                request.targetPermission(),
+                request.channels().stream().map(NotificationService::translate).toList());
+    }
+
+    private static NotificationChannel translate(NotifyChannel channel) {
+        return NotificationChannel.valueOf(channel.name());
+    }
+
     // ---- Hộp thư của người dùng ----------------------------------------------
 
+    /**
+     * ⚠ Chú thích {@code readOnly} này từng <b>lạc chỗ</b>: khối SPI ở trên được chèn vào giữa nó và
+     * hàm nó thuộc về, nên trình biên dịch gắn nó cho {@code notify(NotifyRequest)} — cửa vào mà mọi
+     * module nghiệp vụ dùng để gửi thông báo. Hệ quả là toàn bộ lượt ghi của một thông báo chạy trong
+     * giao dịch <i>chỉ đọc</i>: Hibernate chuyển sang flush thủ công và các dòng vừa tạo <b>biến mất
+     * không một lời báo</b>. Chú thích Java bám vào khai báo kế tiếp, không bám vào đoạn chú giải —
+     * chèn tài liệu vào giữa là đủ để đổi ý nghĩa của mã.
+     */
     @Transactional(readOnly = true)
     public Page<InboxEntry> inbox(Long userId, Pageable pageable) {
         return recipients.findInbox(userId, NotificationChannel.IN_APP, pageable);

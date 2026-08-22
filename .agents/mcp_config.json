@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "google_sheets_sync": {
+      "command": "/Users/quannt18/Documents/QuanNT18/Personal_Project/songnhue/.agents/mcp/google_sheets_sync/venv/bin/python",
+      "args": [
+        "/Users/quannt18/Documents/QuanNT18/Personal_Project/songnhue/.agents/mcp/google_sheets_sync/server.py"
+      ]
+    }
+  }
+}

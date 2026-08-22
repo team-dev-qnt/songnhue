@@ -87,6 +87,73 @@ export const router = createBrowserRouter([
             path: '/phien-dang-nhap',
             element: lazyPage(() => import('@/features/account/SessionsPage'), 'SessionsPage'),
           },
+          // ---- Vận hành công trình (MOD-02) ----
+          adminRoute(
+            '/van-hanh/dieu-hanh',
+            'ops:dashboard:view',
+            lazyPage(
+              () => import('@/features/dashboard/OperationsDashboardPage'),
+              'OperationsDashboardPage',
+            ),
+          ),
+          adminRoute(
+            '/van-hanh/cong-trinh',
+            'ops:construction:view',
+            lazyPage(
+              () => import('@/features/operations/ConstructionsPage'),
+              'ConstructionsPage',
+            ),
+          ),
+          adminRoute(
+            '/van-hanh/danh-muc-tinh-hinh',
+            'ops:operation-status-code:manage',
+            lazyPage(
+              () => import('@/features/operations/OperationStatusCodesPage'),
+              'OperationStatusCodesPage',
+            ),
+          ),
+          adminRoute(
+            '/van-hanh/cong-trinh/tao-moi',
+            'ops:construction:create',
+            lazyPage(
+              () => import('@/features/operations/ConstructionFormPage'),
+              'ConstructionFormPage',
+            ),
+          ),
+          adminRoute(
+            '/van-hanh/cong-trinh/:publicId',
+            'ops:construction:update',
+            lazyPage(
+              () => import('@/features/operations/ConstructionFormPage'),
+              'ConstructionFormPage',
+            ),
+          ),
+          // ---- Nội dung (MOD-01) ----
+          adminRoute(
+            '/noi-dung/bai-viet',
+            'cms:article:view',
+            lazyPage(() => import('@/features/cms/ArticleListPage'), 'ArticleListPage'),
+          ),
+          adminRoute(
+            '/noi-dung/bai-viet/:publicId',
+            'cms:article:view',
+            lazyPage(() => import('@/features/cms/ArticleEditorPage'), 'ArticleEditorPage'),
+          ),
+          adminRoute(
+            '/noi-dung/danh-muc',
+            'cms:category:manage',
+            lazyPage(() => import('@/features/cms/CategoriesPage'), 'CategoriesPage'),
+          ),
+          adminRoute(
+            '/noi-dung/thu-vien',
+            'cms:media:manage',
+            lazyPage(() => import('@/features/cms/MediaPage'), 'MediaPage'),
+          ),
+          adminRoute(
+            '/noi-dung/giao-dien',
+            'cms:layout:manage',
+            lazyPage(() => import('@/features/cms/SiteLayoutPage'), 'SiteLayoutPage'),
+          ),
           adminRoute(
             '/quan-tri/tai-khoan',
             'adm:user:view',

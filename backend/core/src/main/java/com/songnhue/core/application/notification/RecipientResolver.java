@@ -72,13 +72,42 @@ public class RecipientResolver {
      */
     @Transactional(readOnly = true)
     public List<Long> resolve(List<Long> relatedOrgUnitIds, List<Long> extraUserIds) {
+        return resolve(relatedOrgUnitIds, extraUserIds, null);
+    }
+
+    /**
+     * Bản có <b>nhắm đích theo quyền</b> — thêm ở WS-13 khi bài viết là bản ghi đầu tiên đi qua một
+     * quy trình duyệt thật.
+     *
+     * <p>⚠⚠ <b>Đây là chỗ luật G11 KHÔNG áp dụng được, và biết điều đó là quan trọng.</b> Hai chữ ký
+     * trên trông gần giống nhau nhưng phục vụ hai bài toán ngược nhau:
+     *
+     * <ul>
+     *   <li><b>Cảnh báo vận hành</b> (G11) — hệ thống <i>đoán</i> ai nên biết: Ban điều hành ∪ người
+     *       phụ trách công trình. Không ai "sở hữu" một mực nước vượt ngưỡng.
+     *   <li><b>Quy trình duyệt</b> — nơi gọi <i>biết chính xác</i> ai cần biết: người có quyền duyệt,
+     *       và người đã gửi lên. Cộng thêm Ban điều hành vào đây nghĩa là mỗi lần một biên tập viên
+     *       bấm "Gửi duyệt" thì toàn bộ ban lãnh đạo Công ty nhận một email. Vài tuần sau là không
+     *       ai đọc thông báo nữa — và lúc đó cảnh báo sự cố thật cũng chết theo.
+     * </ul>
+     *
+     * <p>Nên khi có {@code targetPermission}, nhóm suy ra <b>thay thế</b> Ban điều hành chứ không
+     * cộng dồn.
+     *
+     * @param targetPermission mã quyền; {@code null} = giữ nguyên luật G11
+     */
+    @Transactional(readOnly = true)
+    public List<Long> resolve(List<Long> relatedOrgUnitIds, List<Long> extraUserIds, String targetPermission) {
+        boolean nhamDich = targetPermission != null && !targetPermission.isBlank();
+
         // LinkedHashSet: khử trùng lặp mà vẫn giữ thứ tự — thứ tự ổn định làm log dễ đối chiếu và
         // test không phụ thuộc thứ tự ngẫu nhiên của HashSet.
         // Hai nguồn, hai luật lọc khác nhau — xem ghi chú ở dưới.
         Set<Long> named = new LinkedHashSet<>(extraUserIds == null ? List.of() : extraUserIds);
-        Set<Long> derived = new LinkedHashSet<>(executiveBoard());
+        Set<Long> derived =
+                new LinkedHashSet<>(nhamDich ? users.findActiveIdsByPermission(targetPermission) : executiveBoard());
 
-        boolean includeOwner = settings.getBoolean(KEY_AUTO_INCLUDE_OWNER, true);
+        boolean includeOwner = !nhamDich && settings.getBoolean(KEY_AUTO_INCLUDE_OWNER, true);
         if (includeOwner && relatedOrgUnitIds != null && !relatedOrgUnitIds.isEmpty()) {
             derived.addAll(orgUnits.findActiveHeadAndDeputyUserIds(relatedOrgUnitIds));
         }
@@ -87,7 +116,11 @@ public class RecipientResolver {
         if (named.isEmpty() && derived.isEmpty()) {
             // Không phải lỗi kỹ thuật, nhưng là lỗi cấu hình đáng báo: một cảnh báo được sinh ra mà
             // không tới ai cả thì im lặng y như không có cảnh báo.
-            log.warn("Không tìm được người nhận nào cho cảnh báo — kiểm tra nhóm '{}'", KEY_EXECUTIVE_BOARD);
+            if (nhamDich) {
+                log.warn("Không tài khoản nào đang hoạt động có quyền '{}' — thông báo không tới ai", targetPermission);
+            } else {
+                log.warn("Không tìm được người nhận nào cho cảnh báo — kiểm tra nhóm '{}'", KEY_EXECUTIVE_BOARD);
+            }
             return List.of();
         }
 

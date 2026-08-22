@@ -1,6 +1,6 @@
 import { theme, type ThemeConfig } from 'antd';
 
-import { brandColors, neutralColors, sizing, statusColors } from 'design-tokens';
+import { brandColors, neutralColors, shadow, sizing, statusColors } from 'design-tokens';
 
 /**
  * Theme AntD dựng **từ** `tokens.ts` — không có màu nào tự khai ở đây.
@@ -26,6 +26,14 @@ export const antdTheme: ThemeConfig = {
     fontSize: sizing.fontSize,
     borderRadius: sizing.borderRadius,
     wireframe: false,
+    /* Motion — AntD dùng `motionDurationMid` cho phần lớn hiệu ứng component */
+    motionDurationFast: '0.15s',
+    motionDurationMid: '0.2s',
+    motionDurationSlow: '0.3s',
+    /* Box-shadow cho card, dropdown — thay thế shadow mặc định quá nhạt của AntD */
+    boxShadow: shadow.sm,
+    boxShadowSecondary: shadow.md,
+    boxShadowTertiary: shadow.lg,
   },
   components: {
     Layout: {
@@ -38,10 +46,35 @@ export const antdTheme: ThemeConfig = {
       darkItemBg: neutralColors.bgSider,
       darkSubMenuItemBg: neutralColors.bgSider,
     },
+    Card: {
+      borderRadiusLG: 8,
+    },
+    Button: {
+      borderRadius: sizing.borderRadius,
+      controlHeight: 36,
+      controlHeightLG: 42,
+    },
+    Input: {
+      controlHeight: 36,
+      controlHeightLG: 42,
+    },
     Table: {
       headerBg: neutralColors.bgLayout,
+      rowHoverBg: brandColors.primaryLight,
       // Bảng quản trị nào cũng nhiều cột; giảm đệm để bớt phải cuộn ngang.
       cellPaddingBlock: 10,
+    },
+    Modal: {
+      borderRadiusLG: 12,
+    },
+    Tag: {
+      borderRadiusSM: 12,
+    },
+    Notification: {
+      borderRadiusLG: 8,
+    },
+    Message: {
+      borderRadiusLG: 8,
     },
   },
 };

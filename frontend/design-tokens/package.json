@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Design tokens dùng chung — admin-app (AntD + ECharts) và public-web (Tailwind)",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./editor-schema": "./src/editor-schema.ts"
   },
   "types": "./src/index.ts"
 }

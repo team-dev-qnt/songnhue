@@ -97,6 +97,7 @@ public class NotificationController {
                 null,
                 List.of(),
                 List.of(),
+                null,
                 List.of(NotificationChannel.IN_APP, NotificationChannel.EMAIL));
 
         return new NotificationDtos.BroadcastResult(

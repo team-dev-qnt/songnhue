@@ -16,8 +16,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
-import com.songnhue.core.application.job.JobContext;
-import com.songnhue.core.application.job.JobHandler;
 import com.songnhue.core.application.job.JobTypes;
 import com.songnhue.core.application.settings.SettingService;
 import com.songnhue.core.common.config.StorageProperties;
@@ -26,6 +24,8 @@ import com.songnhue.core.common.exception.BusinessRuleException;
 import com.songnhue.core.common.util.HashUtils;
 import com.songnhue.core.infra.audit.ArchiverJdbc;
 import com.songnhue.core.infra.storage.ObjectStorage;
+import com.songnhue.core.spi.JobContext;
+import com.songnhue.core.spi.JobHandler;
 
 /**
  * Kết xuất nhật ký kiểm toán quá hạn lưu trữ rồi mới xoá — T6.13 (chốt G7).
