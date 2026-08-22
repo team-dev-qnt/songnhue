@@ -5,7 +5,7 @@ import {
   MANAGEMENT_LEVEL,
 } from '@/components/business/statusVocabulary';
 
-export function StepBasicInfo({ form }: { form: FormInstance }) {
+export function StepBasicInfo({ form: _form }: { form: FormInstance }) {
   return (
     <>
       <Row gutter={16}>

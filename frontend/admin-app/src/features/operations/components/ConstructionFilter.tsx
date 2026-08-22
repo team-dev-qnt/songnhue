@@ -4,7 +4,6 @@ import {
   CONSTRUCTION_TYPE,
   MANAGEMENT_LEVEL,
 } from '@/components/business/statusVocabulary';
-import { OrgUnitTreeSelect } from '@/components/business/OrgUnitTreeSelect';
 
 export interface ConstructionFilterValues {
   q?: string;

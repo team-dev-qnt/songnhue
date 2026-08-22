@@ -86,7 +86,11 @@ export function OperationStatusCodesPage() {
   const openEditModal = (record: OperationStatusCode) => {
     setEditingId(record.id);
     form.resetFields();
-    form.setFieldsValue(record);
+    form.setFieldsValue({
+      ...record,
+      parameterUnit: record.parameterUnit ?? undefined,
+      mappedStatus: record.mappedStatus ?? undefined,
+    });
     setModalVisible(true);
   };
 
@@ -104,7 +108,7 @@ export function OperationStatusCodesPage() {
       } else {
         createMutation.mutate(values);
       }
-    } catch (e) {
+    } catch {
       // Validate failed
     }
   };
@@ -156,7 +160,7 @@ export function OperationStatusCodesPage() {
       dataIndex: 'mappedStatus',
       width: 160,
       render: (val: string | null) =>
-        val ? CONSTRUCTION_STATUS.find((s) => s.value === val)?.label || val : '-',
+        val ? CONSTRUCTION_STATUS[val]?.label || val : '-',
     },
     {
       title: 'Sử dụng',
@@ -249,7 +253,7 @@ export function OperationStatusCodesPage() {
           </Form.Item>
 
           <Form.Item name="mappedStatus" label="Map trạng thái hệ thống (Tuỳ chọn)">
-            <Select allowClear options={CONSTRUCTION_STATUS} placeholder="Trạng thái công trình khi ở tình trạng này" />
+            <Select allowClear options={Object.entries(CONSTRUCTION_STATUS).map(([key, val]) => ({ value: key, label: val.label }))} placeholder="Trạng thái công trình khi ở tình trạng này" />
           </Form.Item>
 
           <Space size="large" align="start">

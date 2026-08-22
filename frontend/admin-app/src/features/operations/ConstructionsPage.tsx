@@ -166,7 +166,7 @@ export function ConstructionsPage() {
               setSize(s);
             },
           }}
-          onChange={(pagination, filters, sorter) => {
+          onChange={(_pagination, _filters, sorter) => {
             if (!Array.isArray(sorter) && sorter.field) {
               const field = String(sorter.field);
               const order = sorter.order === 'ascend' ? 'asc' : 'desc';

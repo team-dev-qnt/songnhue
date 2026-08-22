@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { App, Button, DatePicker, Form, Input, Modal, Select, Space, Table } from 'antd';
+import { App, DatePicker, Input, Modal, Select, Space, Table } from 'antd';
 import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
 
-import { useAuth } from '@/app/auth/useAuth';
+
 import { CONSTRUCTION_STATUS } from '@/components/business/statusVocabulary';
 import { type ConstructionRow, type PageResult } from '@/shared/api-types';
 import { api } from '@/shared/apiClient';
@@ -52,6 +52,7 @@ export function StatusBatchUpdateModal({
 
   useEffect(() => {
     if (constructions?.items && items.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setItems(
         constructions.items.map((c) => ({
           constructionId: c.publicId,
@@ -64,7 +65,7 @@ export function StatusBatchUpdateModal({
     }
   }, [constructions, items.length]);
 
-  const updateItem = (index: number, field: keyof BatchUpdateRow, value: any) => {
+  const updateItem = (index: number, field: keyof BatchUpdateRow, value: string) => {
     const newItems = [...items];
     newItems[index] = { ...newItems[index], [field]: value };
     setItems(newItems);
@@ -105,7 +106,7 @@ export function StatusBatchUpdateModal({
       title: 'Tình hình vận hành',
       dataIndex: 'statusCode',
       width: 200,
-      render: (text: string, record: BatchUpdateRow, index: number) => (
+      render: (text: string, _record: BatchUpdateRow, index: number) => (
         <Select
           style={{ width: '100%' }}
           value={text}
@@ -120,12 +121,12 @@ export function StatusBatchUpdateModal({
     {
       title: 'Ghi chú',
       dataIndex: 'remarks',
-      render: (text: string, record: BatchUpdateRow, index: number) => (
+      render: (text: string, _record: BatchUpdateRow, index: number) => (
         <Input
           value={text}
           onChange={(e) => updateItem(index, 'remarks', e.target.value)}
           placeholder="Nhập ghi chú (nếu có)"
-          onKeyDown={(e) => {
+          onKeyDown={(_e) => {
             // "Enter, Tab" experience -> moving between fields
           }}
         />

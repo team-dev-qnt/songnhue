@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { App, Button, Modal, Space, Table, Typography, Upload, Alert, Tag } from 'antd';
 import { type ColumnsType } from 'antd/es/table';
 import { useState } from 'react';
-import { type RcFile } from 'antd/es/upload';
+import { type RcFile, type UploadChangeParam } from 'antd/es/upload';
 
 import { type ImportReport, type RowError } from '@/shared/api-types';
 import { ApiClientError, api } from '@/shared/apiClient';
@@ -61,7 +61,7 @@ export function ConstructionImportModal({ open, onClose }: Props) {
     onClose();
   };
 
-  const handleFileChange = (info: any) => {
+  const handleFileChange = (info: UploadChangeParam) => {
     // Only intercept the latest file
     let selectedFile: RcFile | null = null;
     if (info.fileList.length > 0) {

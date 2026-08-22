@@ -120,8 +120,9 @@ export function OperationsDashboardPage() {
               empty={!thongKe || thongKe.byStatus.length === 0}
               option={optionTron(thongKe?.byStatus ?? [], CONSTRUCTION_STATUS)}
               onClick={(p) => {
-                if (p?.data?.bucketKey) {
-                  navigate(`/van-hanh/cong-trinh?status=${p.data.bucketKey}`);
+                const data = p?.data as Record<string, unknown> | undefined;
+                if (data?.bucketKey) {
+                  navigate(`/van-hanh/cong-trinh?status=${data.bucketKey}`);
                 }
               }}
             />
@@ -151,8 +152,9 @@ export function OperationsDashboardPage() {
               empty={!thongKe || thongKe.byType.length === 0}
               option={optionCotDoc(thongKe?.byType ?? [], CONSTRUCTION_TYPE)}
               onClick={(p) => {
-                if (p?.data?.bucketKey) {
-                  navigate(`/van-hanh/cong-trinh?type=${p.data.bucketKey}`);
+                const data = p?.data as Record<string, unknown> | undefined;
+                if (data?.bucketKey) {
+                  navigate(`/van-hanh/cong-trinh?type=${data.bucketKey}`);
                 }
               }}
             />
@@ -178,8 +180,9 @@ export function OperationsDashboardPage() {
               empty={!thongKe || thongKe.byManagementLevel.length === 0}
               option={optionCotDoc(thongKe?.byManagementLevel ?? [], MANAGEMENT_LEVEL)}
               onClick={(p) => {
-                if (p?.data?.bucketKey) {
-                  navigate(`/van-hanh/cong-trinh?level=${p.data.bucketKey}`);
+                const data = p?.data as Record<string, unknown> | undefined;
+                if (data?.bucketKey) {
+                  navigate(`/van-hanh/cong-trinh?level=${data.bucketKey}`);
                 }
               }}
             />

@@ -6,7 +6,7 @@
 
 ## WS-1
 
-- [x] T1.1: Tạo cấu trúc monorepo + `.gitignore`, `.editorconfig`, `.gitattributes`
+- [x] T1.1: Tạo cấu trúc monorepo + `.gitignore`, `.editorconfig`, `.gitattributes` | Date: 23/08/2026
 - [x] T1.2: Maven parent `backend/pom.xml`: Java 21, Spring Boot 3.5.3, 6 module con (`core/content/operations/hydro/hr/app`), `spring-boot-maven-plugin` ở `app/`
 - [x] T1.3: Spotless + Checkstyle (BE), ESLint + Prettier (FE)
 - [x] T1.4: `.env.example` cho `local`/`staging`/`prod`, liệt kê đủ key, không giá trị thật

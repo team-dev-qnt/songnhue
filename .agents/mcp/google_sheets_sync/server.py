@@ -74,7 +74,27 @@ def parse_markdown_to_data(input_path):
                 elif '🟡' in content:
                     status = 'In Progress'
                 
-                tasks.append([current_ws, task_id, content.strip(' -*'), status, ''])
+                # Extract Date and Note if present
+                desc = content
+                date_str = ""
+                note_str = ""
+                
+                if '|' in content:
+                    parts = [p.strip() for p in content.split('|')]
+                    desc = parts[0].strip(' -*')
+                    for p in parts[1:]:
+                        if p.lower().startswith('date:'):
+                            date_str = p[5:].strip()
+                        elif p.lower().startswith('note:'):
+                            note_str = p[5:].strip()
+                        elif not date_str and re.match(r'^\d{1,2}/\d{1,2}/\d{4}$', p):
+                            date_str = p
+                        elif not note_str:
+                            note_str = p
+                else:
+                    desc = content.strip(' -*')
+                
+                tasks.append([current_ws, task_id, desc, status, date_str, note_str])
                 continue
                 
             table_match = table_row_pattern.match(line)
@@ -100,18 +120,30 @@ def parse_markdown_to_data(input_path):
                     elif '⏸' in status_col:
                         status = 'Paused'
                             
-                    tasks.append([current_ws, id_col, desc_col, status, note_col])
+                    tasks.append([current_ws, id_col, desc_col, status, '', note_col])
 
     return tasks
 
 @mcp.tool()
 def sync_markdown_to_sheets() -> str:
     """
-    Parses phase0-tracking.md, phase1-tracking.md, and phase1-execution-tracking.md
-    and syncs the task list directly to the Google Sheet (ID: 1RCaa9ak3q6KcbXTjjgvp7DGFuAb914DYUlnbvTlBpdY).
+    Parses master-tracking.md and syncs the task list directly to the Google Sheet.
     Requires .claude/google-credentials.json to be present.
     """
     logger.info("Starting sync_markdown_to_sheets tool...")
+    
+    # 1. Parse markdown
+    tasks = []
+    md_files = [".claude/master-tracking.md"]
+    for f in md_files:
+        filepath = os.path.join(os.getcwd(), f)
+        tasks.extend(parse_markdown_to_data(filepath))
+    
+    logger.info(f"Parsed {len(tasks)} tasks from markdown files.")
+    
+    # Header row
+    all_data = [["Phase/WS", "Task ID", "Description", "Status", "Date", "Notes"]]
+    all_data.extend(tasks)
     
     # Configuration
     SHEET_ID = "1RCaa9ak3q6KcbXTjjgvp7DGFuAb914DYUlnbvTlBpdY"
@@ -122,18 +154,6 @@ def sync_markdown_to_sheets() -> str:
     if not os.path.exists(CREDENTIALS_PATH):
         return f"Error: Credentials file not found at {CREDENTIALS_PATH}. Please provide it."
 
-    # Parse all three markdown files
-    all_data = [["Phase/WS", "Task ID", "Description", "Status", "Notes"]]
-    
-    md_files = [
-        ".claude/master-tracking.md"
-    ]
-    
-    for f in md_files:
-        filepath = os.path.join(os.getcwd(), f)
-        tasks = parse_markdown_to_data(filepath)
-        all_data.extend(tasks)
-
     logger.info(f"Parsed {len(all_data)-1} tasks from markdown files.")
 
     try:
@@ -143,7 +163,7 @@ def sync_markdown_to_sheets() -> str:
         service = build('sheets', 'v4', credentials=creds)
         
         # 1. Clear the entire sheet first
-        clear_range = "A:E"
+        clear_range = "A:F"
         service.spreadsheets().values().clear(
             spreadsheetId=SHEET_ID,
             range=clear_range,

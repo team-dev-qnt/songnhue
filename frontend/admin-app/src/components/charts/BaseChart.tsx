@@ -13,7 +13,7 @@ export interface BaseChartProps {
   /** Chế độ màn hình lớn — đổi theme, không đổi ý nghĩa màu. */
   wall?: boolean;
   emptyText?: string;
-  onClick?: (params: any) => void;
+  onClick?: (params: Record<string, unknown>) => void;
 }
 
 /**

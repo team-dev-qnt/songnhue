@@ -1,19 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { App, Button, Card, Col, Form, Input, InputNumber, Row, Select, Space, Steps, Tabs } from 'antd';
+import { App, Button, Card, Form, Space, Steps, Tabs } from 'antd';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useAuth } from '@/app/auth/useAuth';
 
 import { AttachmentPanel } from '@/components/business/AttachmentPanel';
-import { OrgUnitTreeSelect } from '@/components/business/OrgUnitTreeSelect';
-import {
-  CONSTRUCTION_TYPE,
-  MANAGEMENT_LEVEL,
-} from '@/components/business/statusVocabulary';
 import {
   type ConstructionDetail,
   type ConstructionPurpose,
   type ConstructionType,
   type ManagementLevel,
+  type PumpSpecView,
+  type SluiceSpecView,
+  type LinearSpecView,
 } from '@/shared/api-types';
 import { ApiClientError, api } from '@/shared/apiClient';
 
@@ -45,9 +44,9 @@ export interface ConstructionFormValues {
   contractor?: string;
   totalInvestment?: number; // In VND, UI handles million conversion
   description?: string;
-  pump?: Record<string, any>;
-  sluice?: Record<string, any>;
-  linear?: Record<string, any>;
+  pump?: PumpSpecView;
+  sluice?: SluiceSpecView;
+  linear?: LinearSpecView;
 }
 
 const steps = [
@@ -61,6 +60,7 @@ export function ConstructionFormPage() {
   const { publicId } = useParams<{ publicId: string }>();
   const isEdit = !!publicId;
   const navigate = useNavigate();
+  const { hasPermission } = useAuth();
   const { message } = App.useApp();
   const queryClient = useQueryClient();
 
@@ -125,7 +125,8 @@ export function ConstructionFormPage() {
     },
     onError: (caught: unknown) => {
       if (caught instanceof ApiClientError && caught.details.length > 0) {
-        form.setFields(caught.fieldErrors());
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        form.setFields(caught.fieldErrors() as any);
         return;
       }
       message.error(caught instanceof ApiClientError ? caught.message : 'Không lưu được hồ sơ');
@@ -138,7 +139,7 @@ export function ConstructionFormPage() {
       // We will rely on simple field validation for now
       await form.validateFields();
       setCurrentStep(currentStep + 1);
-    } catch (e) {
+    } catch {
       // Validation failed, do not proceed
     }
   };
@@ -237,7 +238,7 @@ export function ConstructionFormPage() {
             <Card>
               <AttachmentPanel
                 ownerType="CONSTRUCTION"
-                ownerId={publicId as any} // backend expects UUID for construction? The AttachmentPanel expects number. We pass publicId string
+                ownerId={publicId as unknown as number} // backend expects UUID for construction? The AttachmentPanel expects number. We pass publicId string
                 canUpload={hasPermission('ops:construction:update')}
                 canDelete={hasPermission('ops:construction:update')}
               />
