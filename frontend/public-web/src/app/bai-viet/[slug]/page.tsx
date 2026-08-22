@@ -2,19 +2,13 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
+import { Breadcrumb } from '@/components/Breadcrumb';
+import { PortalSidebar } from '@/components/PortalSidebar';
 import { ViewTracker } from '@/components/ViewTracker';
-import { getArticle } from '@/lib/api';
+import { getArticle, getArticles, getSiteConfig } from '@/lib/api';
 import { fileUrl, formatDate, ROUTES } from '@/lib/routes';
 
-/**
- * Trang chi tiết bài viết — T16.3, T16.4, T16.7.
- *
- * <h3>404 cho mọi thứ chưa được phép xem</h3>
- *
- * Backend trả 404 cho bài Nháp, Chờ duyệt, Gỡ bài và bài hẹn giờ chưa tới hạn — cùng một câu
- * trả lời với slug không tồn tại. Trang này chỉ việc chuyển tiếp: phân biệt ở đây là làm hỏng
- * đúng thứ backend vừa cẩn thận giữ.
- */
+/** Trang chi tiết một bài viết — T16.2. */
 /**
  * ⚠ Số viết thẳng, KHÔNG import hằng số: Next đọc `export const revalidate` bằng phân tích
  * tĩnh và từ chối build nếu giá trị không phải literal ("Invalid segment configuration
@@ -30,22 +24,18 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const article = await getArticle(slug);
-
   if (!article) {
-    return { title: 'Không tìm thấy bài viết' };
+    return { title: 'Bài viết không tồn tại - Thủy lợi Sông Nhuệ' };
   }
 
   const cover = fileUrl(article.coverAttachmentPublicId);
 
   return {
-    title: article.metaTitle || article.title,
+    title: `${article.metaTitle || article.title} - Thủy lợi Sông Nhuệ`,
     description: article.metaDescription || article.summary || undefined,
-    keywords: article.metaKeywords || undefined,
-    alternates: { canonical: ROUTES.article(article.slug) },
-    // ⛔ Bài Lưu trữ đã rút khỏi luồng tin nhưng địa chỉ vẫn sống. Không gắn `noindex` thì
-    // công cụ tìm kiếm giữ nó trong kết quả mãi, và người dân đọc phải một thông báo cũ
-    // tưởng là mới.
+    keywords: article.metaKeywords ? article.metaKeywords.split(',') : undefined,
     robots: article.archived ? { index: false, follow: true } : undefined,
+    alternates: { canonical: ROUTES.article(article.slug) },
     openGraph: {
       type: 'article',
       title: article.metaTitle || article.title,
@@ -58,72 +48,130 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function ArticlePage({ params }: PageProps) {
   const { slug } = await params;
-  const article = await getArticle(slug);
+  const [article, latestNews, config] = await Promise.all([
+    getArticle(slug),
+    getArticles({ size: 6 }),
+    getSiteConfig(),
+  ]);
 
   if (!article) {
     notFound();
   }
 
   const cover = fileUrl(article.coverAttachmentPublicId);
+  const primaryCategory = article.categories.length > 0 ? article.categories[0] : null;
 
   return (
-    <article className="mx-auto max-w-3xl px-4 py-8">
-      {article.categories.length > 0 ? (
-        <nav aria-label="Chuyên mục" className="mb-3 flex flex-wrap gap-2 text-sm">
-          {article.categories.map((c) => (
-            <Link
-              key={c.slug}
-              href={ROUTES.category(c.slug)}
-              className="text-brand-primary hover:underline"
-            >
-              {c.name}
-            </Link>
-          ))}
-        </nav>
-      ) : null}
-
-      <h1 className="text-2xl font-bold text-surface-textBase sm:text-3xl">{article.title}</h1>
-
-      <p className="mt-2 text-sm text-surface-textSecondary">
-        <time dateTime={article.publishedAt ?? undefined}>{formatDate(article.publishedAt)}</time>
-        {article.archived ? (
-          <span className="ml-3 rounded bg-surface-bgLayout px-2 py-0.5 text-xs">
-            Nội dung lưu trữ
-          </span>
-        ) : null}
-      </p>
-
-      {article.summary ? (
-        <p className="mt-4 border-l-4 border-brand-primary pl-4 text-surface-textSecondary">
-          {article.summary}
-        </p>
-      ) : null}
-
-      {cover ? (
-        <img src={cover} alt="" className="mt-6 w-full rounded object-cover" loading="lazy" />
-      ) : null}
-
-      {/*
-        Nội dung là HTML đã được `HtmlSanitizer` của backend lọc **lúc ghi** (danh sách CHO
-        PHÉP, jsoup): script, iframe, thuộc tính `on*` và `javascript:` đều bị gỡ trước khi
-        vào CSDL. Lọc lúc ghi chứ không lúc đọc, nên mọi nơi hiển thị — cổng công khai lẫn
-        màn hình xem trước của admin-app — đều nhận nội dung đã sạch.
-
-        Quy trình duyệt KHÔNG phải lớp bảo vệ ở đây: người duyệt nhìn nội dung hiển thị, không
-        nhìn mã nguồn HTML.
-      */}
-      {/*
-        ⚠ `sn-article` chứ không phải `prose`: class `prose` ở bản trước là **class rỗng** —
-        gói `@tailwindcss/typography` chưa từng được cài, nên bài lên cổng mất hết dấu đầu
-        dòng, viền bảng, cỡ chữ tiêu đề và cả căn lề. Xem `article-content.css`.
-      */}
-      <div
-        className="sn-article mt-6 max-w-none"
-        // eslint-disable-next-line react/no-danger -- HtmlSanitizer (BE) đã lọc lúc GHI
-        dangerouslySetInnerHTML={{ __html: article.content }}
+    <div className="mx-auto max-w-[1240px] px-4 py-6 sm:px-6 sm:py-8 animate-fade-in">
+      {/* ───── Breadcrumbs Điều hướng ───── */}
+      <Breadcrumb
+        items={[
+          ...(primaryCategory
+            ? [{ label: primaryCategory.name, href: ROUTES.category(primaryCategory.slug) }]
+            : [{ label: 'Tin tức', href: ROUTES.search }]),
+          { label: article.title },
+        ]}
       />
 
-      <ViewTracker slug={article.slug} />
-    </article>
+      {/* ───── Bố cục 2 Cột: Nội dung Bài viết (8 Cột) & Sidebar (4 Cột) ───── */}
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-8">
+        {/* Cột chính 8/12 */}
+        <main className="lg:col-span-8">
+          <article className="rounded-xl border border-surface-border bg-white p-5 shadow-xs sm:p-8">
+            {/* Category Tags */}
+            {article.categories.length > 0 ? (
+              <div className="mb-3 flex flex-wrap gap-2">
+                {article.categories.map((c) => (
+                  <Link
+                    key={c.slug}
+                    href={ROUTES.category(c.slug)}
+                    className="rounded bg-brand-primaryLight px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-brand-primary transition-colors hover:bg-brand-primary hover:text-white"
+                  >
+                    {c.name}
+                  </Link>
+                ))}
+              </div>
+            ) : null}
+
+            {/* Tiêu đề Bài viết */}
+            <h1 className="text-xl font-black leading-tight text-surface-textBase sm:text-2xl md:text-3xl">
+              {article.title}
+            </h1>
+
+            {/* Dải Metadata thông tin bài viết */}
+            <div className="mt-3.5 flex flex-wrap items-center justify-between gap-3 border-b border-surface-border/70 pb-3.5 text-xs text-surface-textSecondary">
+              <div className="flex items-center gap-3">
+                <time dateTime={article.publishedAt ?? undefined} className="flex items-center gap-1">
+                  <span>📅</span>
+                  <span>{formatDate(article.publishedAt)}</span>
+                </time>
+                {article.viewCount !== undefined && article.viewCount > 0 ? (
+                  <span className="flex items-center gap-1">
+                    <span>👁</span>
+                    <span>{article.viewCount} lượt xem</span>
+                  </span>
+                ) : null}
+              </div>
+
+              {article.archived ? (
+                <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">
+                  Nội dung lưu trữ
+                </span>
+              ) : null}
+            </div>
+
+            {/* Khối Sapo / Tóm tắt */}
+            {article.summary ? (
+              <div className="mt-5 rounded-r-lg border-l-4 border-brand-primary bg-sky-50/70 p-4 text-sm font-semibold leading-relaxed text-surface-textBase sm:text-base">
+                {article.summary}
+              </div>
+            ) : null}
+
+            {/* Ảnh minh họa bài viết nếu có */}
+            {cover ? (
+              <div className="mt-6 overflow-hidden rounded-xl bg-surface-bgLayout shadow-xs">
+                <img
+                  src={cover}
+                  alt={article.title}
+                  className="w-full object-cover"
+                  loading="eager"
+                  decoding="async"
+                />
+              </div>
+            ) : null}
+
+            {/* Nội dung bài viết chuẩn sn-article đã khử độc HTML */}
+            <div
+              className="sn-article mt-6 max-w-none"
+              // eslint-disable-next-line react/no-danger -- HtmlSanitizer (BE) đã lọc lúc GHI
+              dangerouslySetInnerHTML={{ __html: article.content }}
+            />
+
+            {/* Dải chân bài viết: Chia sẻ & Quay lại */}
+            <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-surface-border/80 pt-4 text-xs">
+              <Link
+                href={primaryCategory ? ROUTES.category(primaryCategory.slug) : ROUTES.home}
+                className="font-bold text-brand-primary hover:underline"
+              >
+                ← Quay lại danh sách
+              </Link>
+              <span className="font-semibold text-surface-textSecondary">
+                Nguồn: Cổng TTĐT Thủy lợi Sông Nhuệ
+              </span>
+            </div>
+
+            <ViewTracker slug={article.slug} />
+          </article>
+        </main>
+
+        {/* Cột Sidebar 4/12 */}
+        <div className="lg:col-span-4">
+          <PortalSidebar
+            latestArticles={latestNews?.content ?? []}
+            hotline={config?.['company.hotline']}
+          />
+        </div>
+      </div>
+    </div>
   );
 }

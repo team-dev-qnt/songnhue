@@ -193,6 +193,24 @@ Toàn bộ bố cục trang chủ tuân thủ mô hình Cổng thông tin Đa t�
 6. **Truyền thông Đa phương tiện & Mạng lưới Liên kết**:
    - Nhúng video an toàn qua `youtube-nocookie.com`, thư viện ảnh công trình tiêu biểu, logo các Xí nghiệp thủy lợi trực thuộc.
 
+### 4.5. Kiến trúc Bố cục Trang con (`Subpages Architecture`)
+
+Tất cả các trang con (`danh-muc/[slug]`, `bai-viet/[slug]`, `tim-kiem`) được chuẩn hóa đồng bộ theo cấu trúc 2 cột hiện đại:
+
+1. **Khung chứa & Breadcrumb Điều hướng (`Breadcrumb.tsx`)**:
+   - Chiều rộng cố định: `max-w-[1240px] mx-auto px-4 sm:px-6 py-6 sm:py-8`.
+   - Vị trí: Đặt ở đầu mọi trang con, dẫn từ `Trang chủ ➔ [Chuyên mục] ➔ [Tên bài viết]`.
+   - Thiết kế: Chữ xám thanh lịch, hover xanh thương hiệu `#165bb6`, icon Home SVG sắc nét.
+2. **Bố cục 2 Cột chuẩn Báo chí & Cổng Chính phủ (Grid 8 : 4)**:
+   - **Cột Trái (8/12 - Main Content Area)**:
+     - **Trang Danh mục (`danh-muc/[slug]`)**: Header chuyên mục có thanh nhấn xanh `h-6 w-1.5 bg-brand-primary`, mô tả danh mục, lưới bài viết 2 cột + Phân trang số trang bo góc.
+     - **Trang Chi tiết Bài viết (`bai-viet/[slug]`)**: Category tag, Tiêu đề H1 font black, dải Metadata (ngày đăng, lượt xem, nhãn lưu trữ), Khối Sapo viền xanh `bg-sky-50/70 border-l-4 border-brand-primary`, ảnh cover bo góc 12px, nội dung `sn-article` đã khử độc, chân bài có nút Quay lại.
+     - **Trang Tìm kiếm (`tim-kiem`)**: Khung tìm kiếm tích hợp icon kính lúp, số lượng kết quả tìm thấy, danh sách bài viết.
+   - **Cột Phải (4/12 - `PortalSidebar.tsx`)**:
+     - Khối Trực ban PCTT 24/7 với đèn đỏ nhấp nháy + số Hotline bấm gọi nhanh.
+     - Khối Tin mới nhận / Dòng thời sự với huy hiệu thứ tự (Top 1 đỏ, Top 2-3 xanh).
+     - Khối Tra cứu nhanh Văn bản điều hành & Dịch vụ công ích.
+
 ---
 
 ## 5. Kiến trúc Layout & Trang quản trị (`admin-app`)

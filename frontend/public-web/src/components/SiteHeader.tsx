@@ -34,6 +34,46 @@ const DEFAULT_HEADER_MENU: MenuLink[] = [
     parentLabel: null,
   },
   {
+    label: 'Tổng quan & Lịch sử hình thành',
+    linkType: 'ARTICLE',
+    url: null,
+    categorySlug: null,
+    articleSlug: 'gioi-thieu-chung',
+    openNewTab: false,
+    depth: 1,
+    parentLabel: 'Giới thiệu',
+  },
+  {
+    label: 'Chức năng & Nhiệm vụ',
+    linkType: 'ARTICLE',
+    url: null,
+    categorySlug: null,
+    articleSlug: 'chuc-nang-nhiem-vu',
+    openNewTab: false,
+    depth: 1,
+    parentLabel: 'Giới thiệu',
+  },
+  {
+    label: 'Cơ cấu tổ chức & Ban Lãnh đạo',
+    linkType: 'ARTICLE',
+    url: null,
+    categorySlug: null,
+    articleSlug: 'co-cau-to-chuc',
+    openNewTab: false,
+    depth: 1,
+    parentLabel: 'Giới thiệu',
+  },
+  {
+    label: 'Hệ thống Công trình Thủy lợi',
+    linkType: 'ARTICLE',
+    url: null,
+    categorySlug: null,
+    articleSlug: 'he-thong-cong-trinh',
+    openNewTab: false,
+    depth: 1,
+    parentLabel: 'Giới thiệu',
+  },
+  {
     label: 'Tin tức',
     linkType: 'CATEGORY',
     url: null,
@@ -44,6 +84,26 @@ const DEFAULT_HEADER_MENU: MenuLink[] = [
     parentLabel: null,
   },
   {
+    label: 'Tin hoạt động Công ty',
+    linkType: 'CATEGORY',
+    url: null,
+    categorySlug: 'tin-tuc',
+    articleSlug: null,
+    openNewTab: false,
+    depth: 1,
+    parentLabel: 'Tin tức',
+  },
+  {
+    label: 'Công tác PCTT & Vận hành bão lũ',
+    linkType: 'CATEGORY',
+    url: null,
+    categorySlug: 'pctt',
+    articleSlug: null,
+    openNewTab: false,
+    depth: 1,
+    parentLabel: 'Tin tức',
+  },
+  {
     label: 'Thông báo',
     linkType: 'CATEGORY',
     url: null,
@@ -52,6 +112,26 @@ const DEFAULT_HEADER_MENU: MenuLink[] = [
     openNewTab: false,
     depth: 0,
     parentLabel: null,
+  },
+  {
+    label: 'Thông báo điều hành xả nước',
+    linkType: 'CATEGORY',
+    url: null,
+    categorySlug: 'thong-bao',
+    articleSlug: null,
+    openNewTab: false,
+    depth: 1,
+    parentLabel: 'Thông báo',
+  },
+  {
+    label: 'Lịch vận hành cống & trạm bơm',
+    linkType: 'CATEGORY',
+    url: null,
+    categorySlug: 'lich-van-hanh',
+    articleSlug: null,
+    openNewTab: false,
+    depth: 1,
+    parentLabel: 'Thông báo',
   },
   {
     label: 'Văn bản điều hành',
@@ -204,7 +284,7 @@ export async function SiteHeader() {
 
                   {/* Dropdown submenu */}
                   {hasSubmenu && (
-                    <ul className="invisible absolute left-0 top-full z-50 min-w-56 translate-y-2 rounded-lg border border-surface-border bg-white py-1.5 opacity-0 shadow-xl transition-all duration-200 ease-smooth group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100">
+                    <ul className="invisible absolute left-0 top-full z-50 min-w-64 translate-y-1 rounded-lg border border-surface-border bg-white py-1.5 opacity-0 shadow-xl transition-all duration-200 ease-smooth before:absolute before:-top-2 before:left-0 before:right-0 before:h-2 group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100 divide-y divide-surface-border/40">
                       {children.map((child) => {
                         const childHref = menuHref(child);
                         return (
@@ -212,7 +292,9 @@ export async function SiteHeader() {
                             {childHref ? (
                               <Link
                                 href={childHref}
-                                className="block px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-surface-textBase transition-colors duration-150 ease-smooth hover:bg-brand-primaryLight hover:text-brand-primary"
+                                target={child.openNewTab ? '_blank' : undefined}
+                                rel={isExternal(child) ? 'noopener noreferrer' : undefined}
+                                className="block px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-surface-textBase transition-all duration-150 ease-smooth hover:bg-brand-primaryLight hover:text-brand-primary hover:pl-5"
                               >
                                 <span className="uppercase">{child.label}</span>
                               </Link>
