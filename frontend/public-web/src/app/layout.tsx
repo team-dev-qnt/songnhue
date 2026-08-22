@@ -35,7 +35,9 @@ export async function generateMetadata(): Promise<Metadata> {
     description,
     applicationName: SITE.shortName,
     alternates: { canonical: '/' },
-    icons: favicon ? { icon: favicon } : undefined,
+    icons: favicon
+      ? { icon: favicon }
+      : { icon: '/logo-song-nhue.png', apple: '/logo-song-nhue.png' },
     openGraph: {
       type: 'website',
       locale: SITE.locale,
@@ -43,8 +45,19 @@ export async function generateMetadata(): Promise<Metadata> {
       siteName: name,
       title: name,
       description,
+      images: [
+        {
+          url: '/thumbnail.png',
+          width: 800,
+          height: 600,
+          alt: name,
+        },
+      ],
     },
-    twitter: { card: 'summary_large_image' },
+    twitter: {
+      card: 'summary_large_image',
+      images: ['/thumbnail.png'],
+    },
     robots: { index: true, follow: true },
   };
 }

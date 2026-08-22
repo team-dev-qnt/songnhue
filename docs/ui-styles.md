@@ -30,11 +30,12 @@
 
 | Nhóm Token | Màu / Giá trị | Ý nghĩa & Khi nào dùng |
 |---|---|---|
-| **`brandColors.primary`** | `#0958d9` (Blue) | Màu thương hiệu chính — Nút bấm, link, icon, thanh điều hướng |
-| **`brandColors.primaryHover`** | `#1677ff` (Blue 5) | Trạng thái hover của nút và link |
-| **`brandColors.primaryLight`** | `#e6f4ff` (Blue 1) | Nền hover bảng, nền submenu, badge nhẹ |
-| **`brandColors.primaryGradientFrom`**| `#003eb3` (Blue 7) | Điểm bắt đầu của dải gradient xanh thương hiệu |
-| **`brandColors.primaryGradientTo`**  | `#1677ff` (Blue 5) | Điểm kết thúc của dải gradient xanh thương hiệu |
+| **`brandColors.primary`** | `#165bb6` (Royal Navy Blue) | Màu thương hiệu chính — Nút bấm, link, icon, thanh điều hướng (sắc xanh sông nước rõ nét) |
+| **`brandColors.primaryHover`** | `#206cd2` (Blue Hover) | Trạng thái hover của nút và link |
+| **`brandColors.gold`** | `#dbc373` (Gold Accent) | Màu vàng kim điểm nhấn từ hoa văn logo — Dùng cho hover menu, active bar, hotline |
+| **`brandColors.primaryLight`** | `#c8def7` (Water Blue Light) | Nền gradient Masthead, nền hover bảng, nền submenu, badge nhẹ |
+| **`brandColors.primaryGradientFrom`**| `#0c366e` (Deep Navy) | Điểm bắt đầu của dải gradient xanh thương hiệu |
+| **`brandColors.primaryGradientTo`**  | `#1b64c0` (Medium Blue) | Điểm kết thúc của dải gradient xanh thương hiệu |
 | **`statusColors.danger`** | `#cf1322` (Red 7) | Trạng thái BÁO ĐỘNG (cấp III), sự cố khẩn cấp |
 | **`statusColors.warning`** | `#d46b08` (Orange 6) | Trạng thái CẢNH BÁO (cấp II), cần chú ý |
 | **`statusColors.caution`** | `#d48806` (Gold 6) | Trạng thái CHÚ Ý (cấp I), chuẩn bị |
@@ -51,10 +52,12 @@
 
 ### 2.3. Quy chuẩn Gradient
 
-- **Full Brand Blue Gradient**: Dùng cho Header Masthead, Navbar và toàn bộ Footer của cổng thông tin:
-  `bg-gradient-to-r from-[#003eb3] via-[#0958d9] to-[#003eb3]` (hoặc `bg-gradient-to-b`).
-- **Auth/Login Banner Gradient**: Nền đăng nhập chuyển nhẹ nhàng từ xanh thương hiệu mờ sang xám nhạt (`#003eb3/10` ➔ `#f0f2f5`).
-- **Card Accent Bar**: Dải màu mảnh 3px trên đầu card quan trọng (`h-1 bg-gradient-to-r from-[#003eb3] to-[#1677ff]`).
+- **Full Brand Blue Gradient**: Dùng cho Navbar và toàn bộ Footer của cổng thông tin:
+  `bg-gradient-to-r from-[#0c366e] via-[#165bb6] to-[#0c366e]` (hoặc `bg-gradient-to-b`).
+- **Masthead Blue Gradient**: Dùng cho tầng nhận diện đầu trang:
+  `bg-gradient-to-r from-[#bfd9f8] via-[#d5e7fb] to-[#b4d3f6]`.
+- **Auth/Login Banner Gradient**: Nền đăng nhập chuyển nhẹ nhàng từ xanh thương hiệu mờ sang xám nhạt (`#0c366e/10` ➔ `#f0f2f5`).
+- **Card Accent Bar**: Dải màu mảnh 3px trên đầu card quan trọng (`h-1 bg-gradient-to-r from-[#0c366e] to-[#1b64c0]`).
 
 ### 2.4. Hệ thống Shadow (Độ nổi)
 
@@ -171,6 +174,24 @@ Chân trang được thiết kế đồng bộ **Full Brand Blue Gradient** (`#0
   - Khi hover: Nhấc nhẹ `-translate-y-1`, tăng bóng `hover:shadow-md`, viền chuyển sang màu thương hiệu `hover:border-brand-primary`.
   - Ảnh cover: Bo góc trong `overflow-hidden`, khi hover card phóng nhẹ `group-hover:scale-105 transition-transform duration-500`.
   - Tiêu đề: Đổi màu mượt sang `group-hover:text-brand-primary`.
+
+### 4.4. Cấu trúc Bố cục Trang chủ (`public-web/src/app/page.tsx`)
+
+Toàn bộ bố cục trang chủ tuân thủ mô hình Cổng thông tin Đa tầng (tham chiếu chi tiết tại `docs/web-refactor.md`):
+
+1. **Khung chứa chính (Main Container)**: `max-w-[1240px] mx-auto px-4 sm:px-6`.
+2. **Khối Hero & Dòng thời sự (Grid 8 : 4)**:
+   - Cột 8: Tin đinh 16:9 với lớp phủ Gradient `from-black/70` + Lưới 3 tin phụ tiêu điểm.
+   - Cột 4: Tab "Tin mới" & "Thông báo" kèm danh sách cuộn thời sự nóng.
+3. **Dải Giám sát Thủy văn & Cảnh báo nhanh**:
+   - Nền xanh dịu `bg-brand-primaryLight/50`, viền `border-brand-primary/20`.
+   - Trạng thái 5 màu nghiệp vụ chuẩn từ `statusColors` (`normal`, `warning`, `danger`, `unknown`).
+4. **Khối Chỉ đạo Điều hành & Văn bản**:
+   - Vạch Accent Bar 3px trên đỉnh thẻ (`bg-gradient-to-r from-brand-primaryGradientFrom to-brand-primaryGradientTo`).
+5. **Lưới Chuyên mục Dịch vụ Công ích**:
+   - 4 Cột card dịch vụ với icon chuyên dụng, hover lift `-translate-y-1`.
+6. **Truyền thông Đa phương tiện & Mạng lưới Liên kết**:
+   - Nhúng video an toàn qua `youtube-nocookie.com`, thư viện ảnh công trình tiêu biểu, logo các Xí nghiệp thủy lợi trực thuộc.
 
 ---
 

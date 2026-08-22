@@ -1,31 +1,32 @@
-import Link from 'next/link';
-
-import { ArticleCard } from '@/components/ArticleCard';
+import { AffiliatedUnitsLinks } from '@/components/home/AffiliatedUnitsLinks';
+import { CategoryServicesGrid } from '@/components/home/CategoryServicesGrid';
+import { DirectiveDocumentsSection } from '@/components/home/DirectiveDocumentsSection';
+import { HomeHeroFeatured } from '@/components/home/HomeHeroFeatured';
+import { HomeLatestNewsFeed } from '@/components/home/HomeLatestNewsFeed';
+import { HomeMediaGallery } from '@/components/home/HomeMediaGallery';
+import { HydrologyQuickWidget } from '@/components/home/HydrologyQuickWidget';
 import { getArticles, getBanners, getCategories, getSiteConfig } from '@/lib/api';
-import { fileUrl, ROUTES } from '@/lib/routes';
 
 /**
- * Trang chủ — T16.3.
+ * Trang chủ Cổng Thông tin Điện tử Thủy lợi Sông Nhuệ — T16.3.
  *
- * <h3>Khối hiển thị lấy từ cấu hình, không cứng trong mã</h3>
- *
- * `site.home.blocks` là một mảng JSON và **thứ tự phần tử là thứ tự khối** (T15.4). Khối lạ
- * bị bỏ qua thay vì làm hỏng trang: Công ty đặt một mã khối chưa được dựng thì trang vẫn
- * chạy, chỉ thiếu khối đó.
- *
- * ⛔ Khối `THUY_VAN` cần MOD-03 (Phase 2) — hiện chưa dựng, nên nó rơi vào nhánh "bỏ qua".
- * Cố ý không hiện một khung rỗng ghi "đang cập nhật": trang chủ của cơ quan nhà nước có một
- * ô trống thường trực trông như hệ thống hỏng.
+ * Cấu trúc Cổng thông tin Đa tầng (Multi-tier Portal) chuẩn Quốc gia:
+ * 1. Khối Tiêu điểm & Dòng thời sự nóng (Bố cục 8 : 4)
+ * 2. Dải Giám sát Thủy văn & Cảnh báo Thiên tai PCTT (Đặc thù nghiệp vụ)
+ * 3. Khối Chỉ đạo Điều hành & Văn bản Quy phạm
+ * 4. Lưới Chuyên mục Dịch vụ Công ích (4 Cột)
+ * 5. Truyền thông Đa phương tiện & Thư viện Ảnh công trình
+ * 6. Danh bạ Đơn vị Trực thuộc & Mạng lưới Liên kết Cơ quan Quản lý
  */
+
 /**
  * ⚠ Số viết thẳng, KHÔNG import hằng số: Next đọc `export const revalidate` bằng phân tích
- * tĩnh và từ chối build nếu giá trị không phải literal ("Invalid segment configuration
- * export"). `REVALIDATE_SECONDS` ở `lib/api.ts` phải bằng đúng con số này —
- * `revalidate-config.test.ts` canh việc đó.
+ * tĩnh và từ chối build nếu giá trị không phải literal. `REVALIDATE_SECONDS` ở `lib/api.ts`
+ * phải bằng đúng con số này.
  */
 export const revalidate = 300;
 
-const SO_BAI_TRANG_CHU = 6;
+const SO_BAI_TRANG_CHU = 12;
 
 export default async function HomePage() {
   const [config, banners, latest, categories] = await Promise.all([
@@ -36,108 +37,59 @@ export default async function HomePage() {
   ]);
 
   const blocks = docKhoi(config?.['site.home.blocks']);
+  const hotline = config?.['company.hotline'];
+  const allArticles = latest?.content ?? [];
+  const noticeArticles = allArticles.filter((a) =>
+    a.title.toLowerCase().includes('thông báo')
+  );
+  const primaryBanner = banners && banners.length > 0 ? banners[0] : null;
 
   return (
-    <div className="mx-auto max-w-6xl animate-fade-in px-4 py-10">
-      {blocks.includes('SLIDER') && banners && banners.length > 0 ? (
-        <section aria-label="Ảnh nổi bật" className="mb-10">
-          {/*
-            Chỉ hiện ảnh đầu tiên. Trình chiếu tự chạy cần JavaScript phía trình duyệt, mà
-            tham số của nó (thời gian dừng, hiệu ứng) đã có sẵn ở `site.slider.*` — dựng
-            phần tương tác là việc của WS-20 khi có màn hình quản trị để đặt tham số. Hiện
-            một ảnh tĩnh còn hơn một trình chiếu chưa ai cấu hình được.
-          */}
-          <BannerHero banner={banners[0]} />
-        </section>
-      ) : null}
-
-      {blocks.includes('FEATURED') || blocks.includes('NEWS') ? (
-        <section>
-          <div className="flex items-baseline justify-between">
-            <h2 className="text-xl font-bold text-surface-textBase">Tin mới</h2>
-            <Link href={ROUTES.search} className="text-sm text-brand-primary hover:underline">
-              Xem tất cả
-            </Link>
-          </div>
-          {latest && latest.content.length > 0 ? (
-            <div className="mt-5 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {latest.content.map((article) => (
-                <ArticleCard key={article.slug} article={article} />
-              ))}
+    <div className="mx-auto max-w-[1240px] px-4 py-6 sm:px-6 sm:py-8 animate-fade-in">
+      {/* ───── PHÂN VÙNG 1: TIÊU ĐIỂM & DÒNG THỜI SỰ (Hero Grid 8 : 4) ───── */}
+      {(blocks.includes('SLIDER') || blocks.includes('FEATURED') || blocks.includes('NEWS')) && (
+        <section aria-label="Tin tức tiêu điểm & Dòng thời sự">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:gap-8">
+            <div className="lg:col-span-8">
+              <HomeHeroFeatured banner={primaryBanner} articles={allArticles} />
             </div>
-          ) : (
-            <p className="mt-4 text-surface-textSecondary">Chưa có bài viết nào được đăng.</p>
-          )}
+            <div className="lg:col-span-4">
+              <HomeLatestNewsFeed latestArticles={allArticles} noticeArticles={noticeArticles} />
+            </div>
+          </div>
         </section>
-      ) : null}
+      )}
 
-      {blocks.includes('NOTICE') && categories && categories.length > 0 ? (
-        <section className="mt-10">
-          <h2 className="text-xl font-bold text-surface-textBase">Chuyên mục</h2>
-          <ul className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {categories
-              .filter((c) => c.depth === 0)
-              .map((c) => (
-                <li key={c.slug}>
-                  <Link
-                    href={ROUTES.category(c.slug)}
-                    className="block rounded-lg border border-surface-border bg-white p-5 shadow-sm transition-all duration-300 ease-smooth hover:-translate-y-0.5 hover:border-brand-primary hover:shadow-md"
-                  >
-                    <span className="font-medium text-surface-textBase">{c.name}</span>
-                    {c.description ? (
-                      <span className="mt-1 block text-sm text-surface-textSecondary">
-                        {c.description}
-                      </span>
-                    ) : null}
-                  </Link>
-                </li>
-              ))}
-          </ul>
-        </section>
-      ) : null}
-    </div>
-  );
-}
-
-function BannerHero({
-  banner,
-}: {
-  banner: { title: string; description: string | null; imageId: string; linkUrl: string | null };
-}) {
-  const image = fileUrl(banner.imageId);
-  const content = (
-    <div className="group relative overflow-hidden rounded-xl shadow-md">
-      {image ? (
-        <img
-          src={image}
-          alt={banner.title}
-          className="h-64 w-full object-cover transition-transform duration-700 ease-smooth group-hover:scale-105 sm:h-80 lg:h-96"
-        />
-      ) : null}
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent p-6 text-white">
-        <p className="text-xl font-bold drop-shadow-md sm:text-2xl">{banner.title}</p>
-        {banner.description ? (
-          <p className="mt-2 text-sm drop-shadow-sm sm:text-base">{banner.description}</p>
-        ) : null}
+      {/* ───── PHÂN VÙNG 2: GIÁM SÁT THỦY VĂN & MỰC NƯỚC (Hydrology Bar) ───── */}
+      <div className="mt-8 sm:mt-10">
+        <HydrologyQuickWidget hotline={hotline} />
       </div>
+
+      {/* ───── PHÂN VÙNG 3: CHỈ ĐẠO ĐIỀU HÀNH & VĂN BẢN QUY PHẠM ───── */}
+      <DirectiveDocumentsSection directiveArticles={allArticles.slice(1, 4)} />
+
+      {/* ───── PHÂN VÙNG 4: LƯỚI CHUYÊN MỤC DỊCH VỤ CÔNG ÍCH ───── */}
+      <CategoryServicesGrid categories={categories ?? []} />
+
+      {/* ───── PHÂN VÙNG 5: TRUYỀN THÔNG ĐA PHƯƠNG TIỆN & THƯ VIỆN ẢNH ───── */}
+      <HomeMediaGallery />
+
+      {/* ───── PHÂN VÙNG 6: ĐƠN VỊ TRỰC THUỘC & MẠNG LƯỚI LIÊN KẾT ───── */}
+      <AffiliatedUnitsLinks />
     </div>
   );
-
-  return banner.linkUrl ? <Link href={banner.linkUrl}>{content}</Link> : content;
 }
 
 /** Mảng JSON từ `settings`; hỏng hoặc thiếu thì rơi về bộ khối mặc định. */
 function docKhoi(raw: string | undefined): string[] {
   if (!raw) {
-    return ['SLIDER', 'FEATURED', 'NEWS', 'NOTICE'];
+    return ['SLIDER', 'FEATURED', 'NEWS', 'NOTICE', 'THUY_VAN'];
   }
   try {
     const parsed: unknown = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string') : [];
   } catch {
-    // Giá trị hỏng không được làm trắng trang chủ. `SettingValidator` đã chặn ở phía ghi,
-    // nên tới được đây nghĩa là có ai đó sửa thẳng CSDL — vẫn phải sống sót.
     console.error('[cổng] site.home.blocks không phải JSON hợp lệ');
-    return ['SLIDER', 'FEATURED', 'NEWS', 'NOTICE'];
+    return ['SLIDER', 'FEATURED', 'NEWS', 'NOTICE', 'THUY_VAN'];
   }
 }

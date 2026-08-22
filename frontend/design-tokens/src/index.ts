@@ -37,18 +37,20 @@ export const statusColors = {
 
 export type StatusColorKey = keyof typeof statusColors;
 
-/** Màu thương hiệu. Xanh nước — công ty thuỷ lợi, giữ trung tính để không đấu với 5 màu trạng thái. */
+/** Màu thương hiệu. Xanh Navy & Vàng Kim đồng bộ từ nhận diện Logo Sông Nhuệ. */
 export const brandColors = {
-  primary: '#0958d9',
-  primaryHover: '#1677ff',
-  link: '#0958d9',
-  info: '#1677ff',
-  /** Nền nhẹ brand — dùng cho hover state trên card, row highlight */
-  primaryLight: '#e6f4ff',
-  /** Gradient from (đậm hơn primary một chút) — login bg, hero section */
-  primaryGradientFrom: '#003eb3',
-  /** Gradient to (nhạt hơn primary) */
-  primaryGradientTo: '#1677ff',
+  primary: '#165bb6',
+  primaryHover: '#206cd2',
+  link: '#165bb6',
+  info: '#206cd2',
+  /** Màu vàng kim nhận diện từ họa tiết bông lúa / ngôi sao trên logo nền trong suốt */
+  gold: '#dbc373',
+  /** Nền nhẹ brand — dùng cho header masthead, hover state trên card, row highlight */
+  primaryLight: '#c8def7',
+  /** Gradient from (xanh biển sâu trang trọng) — navbar, footer */
+  primaryGradientFrom: '#0c366e',
+  /** Gradient to (xanh sông nhuệ tươi sáng hơn) */
+  primaryGradientTo: '#1b64c0',
 } as const;
 
 export const neutralColors = {

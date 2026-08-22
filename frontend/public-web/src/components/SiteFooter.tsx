@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
 import { getMenu, getSiteConfig } from '@/lib/api';
-import { isExternal, menuHref, ROUTES } from '@/lib/routes';
+import { fileUrl, isExternal, menuHref, ROUTES } from '@/lib/routes';
 import { SITE } from '@/lib/site';
 
 /**
@@ -27,6 +27,7 @@ export async function SiteFooter() {
   const gioLamViec = config?.['company.working-hours'] ?? '';
   const companyInfo = config?.['site.footer.company-info'] ?? '';
   const mapEmbed = config?.['site.footer.map-embed'] ?? '';
+  const logo = fileUrl(config?.['site.logo.attachment-id']) || '/logo-song-nhue.png';
   const copyright =
     config?.['site.footer.copyright'] || `© ${new Date().getFullYear()} ${siteName}`;
 
@@ -61,10 +62,10 @@ export async function SiteFooter() {
   ];
 
   return (
-    <footer className="mt-16 w-full border-t border-white/10 bg-gradient-to-b from-[#003eb3] via-[#0958d9] to-[#002f8a] text-white">
+    <footer className="mt-16 w-full border-t border-white/10 bg-gradient-to-b from-[#103d75] via-[#18529d] to-[#0b2e59] text-white">
       {/* ───── 1. Dải tiếp nhận thông tin trực ban / Hotline bão lũ ───── */}
-      <div className="border-b border-white/10 bg-[#002875]/80 py-3 text-xs text-white sm:text-sm">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-4 sm:flex-row">
+      <div className="border-b border-white/10 bg-[#0b2e59]/80 py-3 text-xs text-white sm:text-sm">
+        <div className="mx-auto flex max-w-[1240px] flex-col items-center justify-between gap-2 px-4 sm:flex-row sm:px-6">
           {hotline ? (
             <div className="flex items-center gap-2">
               <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -96,12 +97,16 @@ export async function SiteFooter() {
       </div>
 
       {/* ───── 2. Khối nội dung chính (4 cột trên nền Full Blue Gradient) ───── */}
-      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 text-sm sm:grid-cols-2 lg:grid-cols-12">
+      <div className="mx-auto grid max-w-[1240px] gap-8 px-4 py-10 text-sm sm:grid-cols-2 sm:px-6 lg:grid-cols-12">
         {/* Cột 1: Thông tin cơ quan & Trụ sở (4/12 cột) */}
         <div className="space-y-3.5 lg:col-span-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white font-extrabold text-brand-primary shadow-md">
-              SN
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white p-1 shadow-xs">
+              <img
+                src={logo}
+                alt={siteName}
+                className="h-full w-full object-contain"
+              />
             </div>
             <div className="flex flex-col">
               <span className="font-bold uppercase tracking-tight text-white drop-shadow-xs">
@@ -275,20 +280,41 @@ export async function SiteFooter() {
             ))}
           </div>
 
-          {/* Bản đồ nếu có cấu hình */}
+          {/* Bản đồ nếu có cấu hình hoặc thẻ chỉ đường mặc định */}
           {mapEmbed ? (
             <div
               className="overflow-hidden rounded-lg border border-white/20 shadow-xs [&_iframe]:h-28 [&_iframe]:w-full"
               // eslint-disable-next-line react/no-danger -- HtmlSanitizer.cleanMapEmbed() lúc ghi
               dangerouslySetInnerHTML={{ __html: mapEmbed }}
             />
-          ) : null}
+          ) : (
+            <div className="rounded-lg border border-white/20 bg-white/10 p-3 text-xs text-white/90 backdrop-blur-xs">
+              <div className="flex items-center gap-1.5 font-bold text-white">
+                <span>📍</span>
+                <span>Chỉ đường tới Trụ sở</span>
+              </div>
+              {diaChi ? (
+                <p className="mt-1 text-[11px] text-white/80 line-clamp-1">{diaChi}</p>
+              ) : null}
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                  `${siteName} ${diaChi}`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-sky-200 hover:text-white hover:underline"
+              >
+                <span>Xem trên Google Maps</span>
+                <span>↗</span>
+              </a>
+            </div>
+          )}
         </div>
       </div>
 
       {/* ───── 3. Dải bản quyền đáy trang ───── */}
-      <div className="border-t border-white/10 bg-[#002266] py-3.5 text-xs text-white/70">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-4 text-center sm:flex-row sm:text-left">
+      <div className="border-t border-white/10 bg-[#082242] py-3.5 text-xs text-white/70">
+        <div className="mx-auto flex max-w-[1240px] flex-col items-center justify-between gap-2 px-4 text-center sm:flex-row sm:px-6 sm:text-left">
           <div>
             <p className="font-medium text-white">{copyright}</p>
             <p className="mt-0.5 text-[11px] text-white/60">
