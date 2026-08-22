@@ -302,7 +302,8 @@ export const ERROR_CATALOG = {
     severity: 'warning',
   },
   'OPS-2017': {
-    message: 'Đơn vị thực hiện: chọn đơn vị nội bộ HOẶC nhập tên nhà thầu ngoài, đúng một trong hai',
+    message:
+      'Đơn vị thực hiện: chọn đơn vị nội bộ HOẶC nhập tên nhà thầu ngoài, đúng một trong hai',
     handling: 'form',
     severity: 'warning',
   },

@@ -39,9 +39,7 @@ export default async function HomePage() {
   const blocks = docKhoi(config?.['site.home.blocks']);
   const hotline = config?.['company.hotline'];
   const allArticles = latest?.content ?? [];
-  const noticeArticles = allArticles.filter((a) =>
-    a.title.toLowerCase().includes('thông báo')
-  );
+  const noticeArticles = allArticles.filter((a) => a.title.toLowerCase().includes('thông báo'));
   const primaryBanner = banners && banners.length > 0 ? banners[0] : null;
 
   return (

@@ -38,10 +38,7 @@ export default async function SearchPage({
     <div className="mx-auto max-w-[1240px] px-4 py-6 sm:px-6 sm:py-8 animate-fade-in">
       {/* ───── Breadcrumbs Điều hướng ───── */}
       <Breadcrumb
-        items={[
-          { label: 'Tìm kiếm' },
-          ...(tuKhoa ? [{ label: `Từ khóa: "${tuKhoa}"` }] : []),
-        ]}
+        items={[{ label: 'Tìm kiếm' }, ...(tuKhoa ? [{ label: `Từ khóa: "${tuKhoa}"` }] : [])]}
       />
 
       {/* ───── Bố cục 2 Cột: Main (8 Cột) & Sidebar (4 Cột) ───── */}
@@ -92,7 +89,9 @@ export default async function SearchPage({
             {ketQua ? (
               <div className="mt-3 flex items-center justify-between text-xs text-surface-textSecondary">
                 <span>
-                  Tìm thấy <strong className="text-brand-primary font-bold">{ketQua.totalElements}</strong> kết quả phù hợp
+                  Tìm thấy{' '}
+                  <strong className="text-brand-primary font-bold">{ketQua.totalElements}</strong>{' '}
+                  kết quả phù hợp
                 </span>
               </div>
             ) : null}

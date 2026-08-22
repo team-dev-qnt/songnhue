@@ -10,25 +10,29 @@ const DEFAULT_PHOTOS: PhotoItem[] = [
     id: 'p1',
     title: 'Cụm công trình đầu mối Cống Liên Mạc',
     location: 'Bắc Từ Liêm, Hà Nội',
-    imageUrl: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=600&q=80',
+    imageUrl:
+      'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=600&q=80',
   },
   {
     id: 'p2',
     title: 'Trạm bơm tiêu úng Yên Nghĩa',
     location: 'Hà Đông, Hà Nội',
-    imageUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=600&q=80',
+    imageUrl:
+      'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=600&q=80',
   },
   {
     id: 'p3',
     title: 'Tuyến kênh chính dẫn dòng Sông Nhuệ',
     location: 'Thanh Oai, Hà Nội',
-    imageUrl: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&q=80',
+    imageUrl:
+      'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&q=80',
   },
   {
     id: 'p4',
     title: 'Công tác nạo vét và khơi thông dòng chảy',
     location: 'Ứng Hòa, Hà Nội',
-    imageUrl: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=600&q=80',
+    imageUrl:
+      'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=600&q=80',
   },
 ];
 

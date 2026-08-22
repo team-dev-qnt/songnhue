@@ -58,10 +58,7 @@ const DEFAULT_SIDEBAR_NEWS: ArticleRow[] = [
  * - Khối Trực ban PCTT 24/7.
  * - Khối Liên kết dịch vụ công và văn bản quy phạm.
  */
-export function PortalSidebar({
-  latestArticles = [],
-  hotline = '',
-}: PortalSidebarProps) {
+export function PortalSidebar({ latestArticles = [], hotline = '' }: PortalSidebarProps) {
   const displayNews =
     latestArticles.length >= 5
       ? latestArticles.slice(0, 5)

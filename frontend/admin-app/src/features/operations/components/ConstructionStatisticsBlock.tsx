@@ -2,10 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, Col, Row, Statistic } from 'antd';
 import { statusColors } from 'design-tokens';
 
-import {
-  CONSTRUCTION_STATUS,
-  CONSTRUCTION_TYPE,
-} from '@/components/business/statusVocabulary';
+import { CONSTRUCTION_STATUS, CONSTRUCTION_TYPE } from '@/components/business/statusVocabulary';
 import { type ConstructionStatisticsView } from '@/shared/api-types';
 import { api } from '@/shared/apiClient';
 
@@ -37,18 +34,12 @@ export function ConstructionStatisticsBlock() {
       </Col>
       <Col span={4}>
         <Card size="small">
-          <Statistic
-            title={CONSTRUCTION_TYPE['TRAM_BOM']?.label ?? 'Trạm bơm'}
-            value={pumpCount}
-          />
+          <Statistic title={CONSTRUCTION_TYPE['TRAM_BOM']?.label ?? 'Trạm bơm'} value={pumpCount} />
         </Card>
       </Col>
       <Col span={4}>
         <Card size="small">
-          <Statistic
-            title={CONSTRUCTION_TYPE['CONG']?.label ?? 'Cống'}
-            value={sluiceCount}
-          />
+          <Statistic title={CONSTRUCTION_TYPE['CONG']?.label ?? 'Cống'} value={sluiceCount} />
         </Card>
       </Col>
       <Col span={4}>

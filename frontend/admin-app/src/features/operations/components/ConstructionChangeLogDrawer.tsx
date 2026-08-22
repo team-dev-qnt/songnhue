@@ -66,7 +66,8 @@ export function ConstructionChangeLogDrawer({ publicId, open, onClose }: Props) 
       title: 'Người thực hiện',
       dataIndex: 'actorUsername',
       width: 150,
-      render: (val: string | null) => (val ? <Typography.Text strong>{val}</Typography.Text> : 'Hệ thống'),
+      render: (val: string | null) =>
+        val ? <Typography.Text strong>{val}</Typography.Text> : 'Hệ thống',
     },
     {
       title: 'Thao tác',
@@ -80,7 +81,15 @@ export function ConstructionChangeLogDrawer({ publicId, open, onClose }: Props) 
       title: 'Nội dung cũ',
       dataIndex: 'oldValue',
       render: (val: string | null) => (
-        <div style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={val || ''}>
+        <div
+          style={{
+            maxWidth: 200,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+          title={val || ''}
+        >
           <Typography.Text type="secondary">{val || '-'}</Typography.Text>
         </div>
       ),
@@ -89,7 +98,15 @@ export function ConstructionChangeLogDrawer({ publicId, open, onClose }: Props) 
       title: 'Nội dung mới',
       dataIndex: 'newValue',
       render: (val: string | null) => (
-        <div style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={val || ''}>
+        <div
+          style={{
+            maxWidth: 200,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+          title={val || ''}
+        >
           {val || '-'}
         </div>
       ),

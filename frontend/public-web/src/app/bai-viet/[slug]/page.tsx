@@ -101,7 +101,10 @@ export default async function ArticlePage({ params }: PageProps) {
             {/* Dải Metadata thông tin bài viết */}
             <div className="mt-3.5 flex flex-wrap items-center justify-between gap-3 border-b border-surface-border/70 pb-3.5 text-xs text-surface-textSecondary">
               <div className="flex items-center gap-3">
-                <time dateTime={article.publishedAt ?? undefined} className="flex items-center gap-1">
+                <time
+                  dateTime={article.publishedAt ?? undefined}
+                  className="flex items-center gap-1"
+                >
                   <span>📅</span>
                   <span>{formatDate(article.publishedAt)}</span>
                 </time>

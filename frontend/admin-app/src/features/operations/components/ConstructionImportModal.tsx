@@ -68,7 +68,7 @@ export function ConstructionImportModal({ open, onClose }: Props) {
       selectedFile = info.fileList[info.fileList.length - 1].originFileObj as RcFile;
     }
     setFile(selectedFile);
-    
+
     if (selectedFile) {
       previewMutation.mutate(selectedFile);
     } else {
@@ -127,9 +127,7 @@ export function ConstructionImportModal({ open, onClose }: Props) {
           <p className="ant-upload-hint">Chỉ hỗ trợ tệp định dạng .xlsx, .xls</p>
         </Upload.Dragger>
 
-        {previewMutation.isPending && (
-          <Alert message="Đang kiểm tra tệp..." type="info" showIcon />
-        )}
+        {previewMutation.isPending && <Alert message="Đang kiểm tra tệp..." type="info" showIcon />}
 
         {!previewMutation.isPending && report && (
           <div>

@@ -27,7 +27,7 @@ export function LocationPickerMap({
   });
 
   const config = dashboard?.map;
-  
+
   const khungRef = useRef<HTMLDivElement>(null);
   const banDoRef = useRef<L.Map | null>(null);
   const lopMarkerRef = useRef<L.LayerGroup | null>(null);
@@ -41,12 +41,12 @@ export function LocationPickerMap({
       zoom: latitude && longitude ? 14 : config.defaultZoom,
       attributionControl: true,
     });
-    
+
     L.tileLayer(config.tileUrl, {
       maxZoom: config.maxZoom,
       attribution: config.attribution,
     }).addTo(banDo);
-    
+
     lopMarkerRef.current = L.layerGroup().addTo(banDo);
     banDoRef.current = banDo;
 
@@ -96,6 +96,9 @@ export function LocationPickerMap({
   }
 
   return (
-    <div ref={khungRef} style={{ width: '100%', height, borderRadius: 6, overflow: 'hidden', cursor: 'crosshair' }} />
+    <div
+      ref={khungRef}
+      style={{ width: '100%', height, borderRadius: 6, overflow: 'hidden', cursor: 'crosshair' }}
+    />
   );
 }

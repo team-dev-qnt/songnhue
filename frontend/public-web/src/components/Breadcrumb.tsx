@@ -18,7 +18,10 @@ interface BreadcrumbProps {
  */
 export function Breadcrumb({ items }: BreadcrumbProps) {
   return (
-    <nav aria-label="Đường dẫn trang" className="mb-5 flex items-center text-xs text-surface-textSecondary">
+    <nav
+      aria-label="Đường dẫn trang"
+      className="mb-5 flex items-center text-xs text-surface-textSecondary"
+    >
       <ol className="flex flex-wrap items-center gap-1.5 sm:gap-2">
         <li className="flex items-center">
           <Link

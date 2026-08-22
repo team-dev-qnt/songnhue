@@ -18,7 +18,8 @@ const DEFAULT_DOCUMENTS: DocumentItem[] = [
   {
     id: 'doc-1',
     code: '158/QĐ-SN',
-    title: 'Quyết định về việc ban hành Phương án phòng chống thiên tai và tìm kiếm cứu nạn năm 2026',
+    title:
+      'Quyết định về việc ban hành Phương án phòng chống thiên tai và tìm kiếm cứu nạn năm 2026',
     issuedDate: '15/08/2026',
     signer: 'Chủ tịch Công ty',
     type: 'Quyết định',
@@ -48,7 +49,8 @@ const DEFAULT_DOCUMENTS: DocumentItem[] = [
   {
     id: 'doc-4',
     code: '45/CT-SN',
-    title: 'Chỉ thị về việc tăng cường kỷ luật kỷ cương hành chính và công tác trực ban phòng lụt bão',
+    title:
+      'Chỉ thị về việc tăng cường kỷ luật kỷ cương hành chính và công tác trực ban phòng lụt bão',
     issuedDate: '25/07/2026',
     signer: 'Tổng Giám đốc',
     type: 'Chỉ thị',
@@ -59,7 +61,8 @@ const DEFAULT_DOCUMENTS: DocumentItem[] = [
 
 const DEFAULT_DIRECTIVES: ArticleRow[] = [
   {
-    title: 'Tổng Giám đốc kiểm tra công tác sẵn sàng vận hành hệ thống cống tiêu và trạm bơm mùa lũ',
+    title:
+      'Tổng Giám đốc kiểm tra công tác sẵn sàng vận hành hệ thống cống tiêu và trạm bơm mùa lũ',
     slug: 'tong-giam-doc-kiem-tra-san-sang-van-hanh-mua-lu',
     summary:
       'Yêu cầu các đơn vị trực thuộc duy trì 100% quân số trực ban, kiểm tra thiết bị đóng mở tự động và nguồn điện dự phòng.',
@@ -224,7 +227,9 @@ export function DirectiveDocumentsSection({
                       <span className="rounded bg-brand-primaryLight px-1.5 py-0.5 text-[10px] font-bold text-brand-primary">
                         {doc.code}
                       </span>
-                      <span className="text-[11px] text-surface-textSecondary">{doc.issuedDate}</span>
+                      <span className="text-[11px] text-surface-textSecondary">
+                        {doc.issuedDate}
+                      </span>
                     </div>
                     <h3 className="mt-1 line-clamp-2 text-xs font-medium text-surface-textBase transition-colors duration-200 group-hover:text-brand-primary sm:text-sm">
                       {doc.title}

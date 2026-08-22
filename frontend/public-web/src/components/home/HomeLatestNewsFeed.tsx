@@ -80,15 +80,13 @@ export function HomeLatestNewsFeed({
   noticeArticles = [],
 }: HomeLatestNewsFeedProps) {
   // Lấy các bài viết từ API thật (từ bài thứ 4 trở đi sau Hero hoặc toàn bộ), nếu thiếu thì ghép thêm fallback
-  const rawList =
-    latestArticles.length > 4 ? latestArticles.slice(4, 10) : latestArticles;
+  const rawList = latestArticles.length > 4 ? latestArticles.slice(4, 10) : latestArticles;
   const displayArticles =
     rawList.length >= 6
       ? rawList.slice(0, 6)
       : [...rawList, ...DEFAULT_NEWS_FEED.slice(rawList.length)].slice(0, 6);
 
-  const activeNotice =
-    noticeArticles.length > 0 ? noticeArticles[0] : DEFAULT_NOTICE_ITEM;
+  const activeNotice = noticeArticles.length > 0 ? noticeArticles[0] : DEFAULT_NOTICE_ITEM;
 
   return (
     <aside className="flex flex-col rounded-xl border border-surface-border bg-white p-5 shadow-sm">
@@ -149,8 +147,18 @@ export function HomeLatestNewsFeed({
       {activeNotice ? (
         <div className="mt-4 rounded-lg bg-amber-50 p-3.5 border border-amber-200/70">
           <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
-            <svg className="h-4 w-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <svg
+              className="h-4 w-4 text-amber-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
             Thông báo điều hành
           </div>

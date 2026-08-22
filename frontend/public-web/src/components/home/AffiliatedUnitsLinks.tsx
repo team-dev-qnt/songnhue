@@ -86,9 +86,7 @@ export function AffiliatedUnitsLinks() {
               <span className="text-[11px] font-bold text-brand-primary uppercase tracking-wider">
                 {unit.shortName}
               </span>
-              <h3 className="mt-0.5 text-xs font-semibold text-surface-textBase">
-                {unit.name}
-              </h3>
+              <h3 className="mt-0.5 text-xs font-semibold text-surface-textBase">{unit.name}</h3>
               <p className="mt-1 line-clamp-1 text-[11px] text-surface-textSecondary">
                 📍 {unit.address}
               </p>

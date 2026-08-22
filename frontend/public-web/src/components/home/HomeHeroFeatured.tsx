@@ -5,7 +5,8 @@ import { fileUrl, formatDate, ROUTES } from '@/lib/routes';
 
 const DEFAULT_HERO_ARTICLES: ArticleRow[] = [
   {
-    title: 'Hội nghị Triển khai Công tác Vận hành & Phòng chống Thiên tai năm 2026 Lưu vực Sông Nhuệ',
+    title:
+      'Hội nghị Triển khai Công tác Vận hành & Phòng chống Thiên tai năm 2026 Lưu vực Sông Nhuệ',
     slug: 'trien-khai-cong-tac-van-hanh-pctt-2026',
     summary:
       'Công ty TNHH MTV Đầu tư Phát triển Thủy lợi Sông Nhuệ tổ chức hội nghị tổng kết và giao chỉ tiêu vận hành các cụm công trình đầu mối, bảo đảm an toàn hệ thống đê điều và tưới tiêu phục vụ sản xuất.',
@@ -34,8 +35,7 @@ const DEFAULT_HERO_ARTICLES: ArticleRow[] = [
   {
     title: 'Đẩy mạnh chuyển đổi số trong quan trắc thủy văn và giám sát mực nước tự động',
     slug: 'chuyen-doi-so-quan-trac-thuy-van-song-nhue',
-    summary:
-      'Ứng dụng hệ thống cảm biến SCADA giám sát mực nước và lưu lượng theo thời gian thực.',
+    summary: 'Ứng dụng hệ thống cảm biến SCADA giám sát mực nước và lưu lượng theo thời gian thực.',
     publishedAt: '2026-08-17T16:00:00Z',
     viewCount: 520,
     coverAttachmentPublicId: null,
@@ -56,7 +56,9 @@ interface HomeHeroFeaturedProps {
  */
 export function HomeHeroFeatured({ banner, articles }: HomeHeroFeaturedProps) {
   const mergedArticles =
-    articles.length >= 4 ? articles : [...articles, ...DEFAULT_HERO_ARTICLES.slice(articles.length)];
+    articles.length >= 4
+      ? articles
+      : [...articles, ...DEFAULT_HERO_ARTICLES.slice(articles.length)];
   const leadArticle = mergedArticles[0];
   const subArticles = mergedArticles.slice(1, 4);
 
@@ -81,7 +83,12 @@ export function HomeHeroFeatured({ banner, articles }: HomeHeroFeaturedProps) {
               ) : (
                 <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-brand-primaryGradientFrom to-brand-primary text-white/30">
                   <svg className="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
+                    />
                   </svg>
                 </div>
               )}
@@ -121,7 +128,9 @@ export function HomeHeroFeatured({ banner, articles }: HomeHeroFeaturedProps) {
           ) : null}
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent p-6 text-white">
             <h3 className="text-xl font-bold sm:text-2xl">{banner.title}</h3>
-            {banner.description ? <p className="mt-1 text-sm text-white/90">{banner.description}</p> : null}
+            {banner.description ? (
+              <p className="mt-1 text-sm text-white/90">{banner.description}</p>
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -148,8 +157,18 @@ export function HomeHeroFeatured({ banner, articles }: HomeHeroFeaturedProps) {
                       />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center bg-surface-bgLayout text-surface-textSecondary">
-                        <svg className="h-6 w-6 text-surface-border" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        <svg
+                          className="h-6 w-6 text-surface-border"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={1.5}
+                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                          />
                         </svg>
                       </div>
                     )}

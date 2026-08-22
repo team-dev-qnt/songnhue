@@ -102,11 +102,7 @@ export async function SiteFooter() {
         <div className="space-y-3.5 lg:col-span-4">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white p-1 shadow-xs">
-              <img
-                src={logo}
-                alt={siteName}
-                className="h-full w-full object-contain"
-              />
+              <img src={logo} alt={siteName} className="h-full w-full object-contain" />
             </div>
             <div className="flex flex-col">
               <span className="font-bold uppercase tracking-tight text-white drop-shadow-xs">
@@ -298,7 +294,7 @@ export async function SiteFooter() {
               ) : null}
               <a
                 href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                  `${siteName} ${diaChi}`
+                  `${siteName} ${diaChi}`,
                 )}`}
                 target="_blank"
                 rel="noopener noreferrer"

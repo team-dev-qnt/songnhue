@@ -100,7 +100,12 @@ export function HydrologyQuickWidget({
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-primary text-white shadow-xs">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 10V3L4 14h7v7l9-11h-7z"
+              />
             </svg>
           </div>
           <div>
@@ -124,7 +129,10 @@ export function HydrologyQuickWidget({
           <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50/90 px-3.5 py-1.5 text-xs text-red-900 shadow-2xs">
             <span className="flex h-2 w-2 rounded-full bg-red-600 animate-pulse"></span>
             <span className="font-semibold">Trực ban PCTT 24/7:</span>
-            <a href={`tel:${hotline.replace(/\D/g, '')}`} className="font-bold text-red-700 hover:underline">
+            <a
+              href={`tel:${hotline.replace(/\D/g, '')}`}
+              className="font-bold text-red-700 hover:underline"
+            >
               {hotline}
             </a>
           </div>
@@ -139,7 +147,10 @@ export function HydrologyQuickWidget({
             className={`flex flex-col justify-between rounded-lg border p-2.5 transition-all duration-200 hover:shadow-xs ${getStatusBg(st.status)}`}
           >
             <div className="flex items-center justify-between gap-1">
-              <span className="truncate text-xs font-semibold text-surface-textBase" title={st.name}>
+              <span
+                className="truncate text-xs font-semibold text-surface-textBase"
+                title={st.name}
+              >
                 {st.name}
               </span>
               <span
@@ -148,8 +159,12 @@ export function HydrologyQuickWidget({
               ></span>
             </div>
             <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-sm font-extrabold tracking-tight sm:text-base">{st.waterLevel}</span>
-              <span className="text-[10px] font-medium text-surface-textSecondary">{st.statusText}</span>
+              <span className="text-sm font-extrabold tracking-tight sm:text-base">
+                {st.waterLevel}
+              </span>
+              <span className="text-[10px] font-medium text-surface-textSecondary">
+                {st.statusText}
+              </span>
             </div>
           </div>
         ))}

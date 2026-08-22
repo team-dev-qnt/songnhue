@@ -3,7 +3,6 @@ import { App, DatePicker, Input, Modal, Select, Space, Table } from 'antd';
 import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
 
-
 import { CONSTRUCTION_STATUS } from '@/components/business/statusVocabulary';
 import { type ConstructionRow, type PageResult } from '@/shared/api-types';
 import { api } from '@/shared/apiClient';
@@ -25,13 +24,7 @@ interface BatchUpdatePayload {
   }[];
 }
 
-export function StatusBatchUpdateModal({
-  open,
-  onClose,
-}: {
-  open: boolean;
-  onClose: () => void;
-}) {
+export function StatusBatchUpdateModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { message } = App.useApp();
   const queryClient = useQueryClient();
 
@@ -60,7 +53,7 @@ export function StatusBatchUpdateModal({
           name: c.name,
           statusCode: c.operationalStatus, // default to current status
           remarks: '',
-        }))
+        })),
       );
     }
   }, [constructions, items.length]);

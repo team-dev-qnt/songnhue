@@ -99,10 +99,7 @@ export const router = createBrowserRouter([
           adminRoute(
             '/van-hanh/cong-trinh',
             'ops:construction:view',
-            lazyPage(
-              () => import('@/features/operations/ConstructionsPage'),
-              'ConstructionsPage',
-            ),
+            lazyPage(() => import('@/features/operations/ConstructionsPage'), 'ConstructionsPage'),
           ),
           adminRoute(
             '/van-hanh/danh-muc-tinh-hinh',

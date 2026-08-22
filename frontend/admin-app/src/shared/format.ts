@@ -146,7 +146,7 @@ export function formatAge(seconds: number | null | undefined): string {
   return `${Math.floor(hours / 24)} ngày trước`;
 }
 
-/** 
+/**
  * Đổi số tiền (VNĐ) sang định dạng đọc được (tỷ/triệu VNĐ).
  */
 export function formatInvestment(val: number | null | undefined): string | null {

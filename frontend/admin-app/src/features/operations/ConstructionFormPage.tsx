@@ -163,59 +163,53 @@ export function ConstructionFormPage() {
       <Card
         title={isEdit ? 'Sửa hồ sơ công trình' : 'Thêm hồ sơ công trình'}
         extra={
-          isEdit && (
-            <Button onClick={() => setHistoryDrawerOpen(true)}>
-              Lịch sử thay đổi
-            </Button>
-          )
+          isEdit && <Button onClick={() => setHistoryDrawerOpen(true)}>Lịch sử thay đổi</Button>
         }
       >
         <Steps current={currentStep} items={steps} style={{ marginBottom: 32 }} />
 
-      <Form<ConstructionFormValues>
-        form={form}
-        layout="vertical"
-        onFinish={onFinish}
-        initialValues={{ constructionType: 'TRAM_BOM' }}
-      >
-        <div style={{ display: currentStep === 0 ? 'block' : 'none' }}>
-          <StepBasicInfo form={form} />
-        </div>
-        <div style={{ display: currentStep === 1 ? 'block' : 'none' }}>
-          <StepLocation />
-        </div>
-        <div style={{ display: currentStep === 2 ? 'block' : 'none' }}>
-          <StepTechnical type={type} />
-        </div>
-        <div style={{ display: currentStep === 3 ? 'block' : 'none' }}>
-          <StepFinance />
-        </div>
+        <Form<ConstructionFormValues>
+          form={form}
+          layout="vertical"
+          onFinish={onFinish}
+          initialValues={{ constructionType: 'TRAM_BOM' }}
+        >
+          <div style={{ display: currentStep === 0 ? 'block' : 'none' }}>
+            <StepBasicInfo form={form} />
+          </div>
+          <div style={{ display: currentStep === 1 ? 'block' : 'none' }}>
+            <StepLocation />
+          </div>
+          <div style={{ display: currentStep === 2 ? 'block' : 'none' }}>
+            <StepTechnical type={type} />
+          </div>
+          <div style={{ display: currentStep === 3 ? 'block' : 'none' }}>
+            <StepFinance />
+          </div>
 
-        <div style={{ marginTop: 24, textAlign: 'right' }}>
-          <Space>
-            {currentStep > 0 && (
-              <Button onClick={() => prev()}>Quay lại</Button>
-            )}
-            {currentStep < steps.length - 1 && (
-              <Button type="primary" onClick={() => next()}>
-                Tiếp theo
-              </Button>
-            )}
-            {currentStep === steps.length - 1 && (
-              <Button type="primary" htmlType="submit" loading={save.isPending}>
-                Lưu hồ sơ
-              </Button>
-            )}
-          </Space>
-        </div>
-      </Form>
-    </Card>
-    
-    <ConstructionChangeLogDrawer
-      publicId={publicId ?? null}
-      open={historyDrawerOpen}
-      onClose={() => setHistoryDrawerOpen(false)}
-    />
+          <div style={{ marginTop: 24, textAlign: 'right' }}>
+            <Space>
+              {currentStep > 0 && <Button onClick={() => prev()}>Quay lại</Button>}
+              {currentStep < steps.length - 1 && (
+                <Button type="primary" onClick={() => next()}>
+                  Tiếp theo
+                </Button>
+              )}
+              {currentStep === steps.length - 1 && (
+                <Button type="primary" htmlType="submit" loading={save.isPending}>
+                  Lưu hồ sơ
+                </Button>
+              )}
+            </Space>
+          </div>
+        </Form>
+      </Card>
+
+      <ConstructionChangeLogDrawer
+        publicId={publicId ?? null}
+        open={historyDrawerOpen}
+        onClose={() => setHistoryDrawerOpen(false)}
+      />
     </>
   );
 

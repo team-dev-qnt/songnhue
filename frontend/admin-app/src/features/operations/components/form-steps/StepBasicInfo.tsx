@@ -1,21 +1,26 @@
 import { Col, Form, Input, Row, Select, type FormInstance } from 'antd';
 import { OrgUnitTreeSelect } from '@/components/business/OrgUnitTreeSelect';
-import {
-  CONSTRUCTION_TYPE,
-  MANAGEMENT_LEVEL,
-} from '@/components/business/statusVocabulary';
+import { CONSTRUCTION_TYPE, MANAGEMENT_LEVEL } from '@/components/business/statusVocabulary';
 
 export function StepBasicInfo({ form: _form }: { form: FormInstance }) {
   return (
     <>
       <Row gutter={16}>
         <Col span={8}>
-          <Form.Item name="code" label="Mã công trình" rules={[{ required: true, message: 'Bắt buộc' }]}>
+          <Form.Item
+            name="code"
+            label="Mã công trình"
+            rules={[{ required: true, message: 'Bắt buộc' }]}
+          >
             <Input />
           </Form.Item>
         </Col>
         <Col span={16}>
-          <Form.Item name="name" label="Tên công trình" rules={[{ required: true, message: 'Bắt buộc' }]}>
+          <Form.Item
+            name="name"
+            label="Tên công trình"
+            rules={[{ required: true, message: 'Bắt buộc' }]}
+          >
             <Input />
           </Form.Item>
         </Col>
@@ -58,7 +63,11 @@ export function StepBasicInfo({ form: _form }: { form: FormInstance }) {
       </Row>
       <Row gutter={16}>
         <Col span={12}>
-          <Form.Item name="orgUnitId" label="Đơn vị quản lý" rules={[{ required: true, message: 'Bắt buộc' }]}>
+          <Form.Item
+            name="orgUnitId"
+            label="Đơn vị quản lý"
+            rules={[{ required: true, message: 'Bắt buộc' }]}
+          >
             <OrgUnitTreeSelect />
           </Form.Item>
         </Col>

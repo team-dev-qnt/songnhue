@@ -30,7 +30,7 @@ export function ConstructionsPage() {
   const [size, setSize] = useState(20);
   const [sort, setSort] = useState('updatedAt,desc');
   const [filters, setFilters] = useState<ConstructionFilterValues>({});
-  
+
   const [batchModalOpen, setBatchModalOpen] = useState(false);
   const [historyDrawerId, setHistoryDrawerId] = useState<string | null>(null);
   const [importModalOpen, setImportModalOpen] = useState(false);
@@ -112,13 +112,13 @@ export function ConstructionsPage() {
       <ConstructionStatisticsBlock />
 
       <Card>
-        <ConstructionFilter 
-          initialValues={filters} 
+        <ConstructionFilter
+          initialValues={filters}
           onFilter={(f) => {
             setFilters(f);
             setPage(1); // Reset page on filter
           }}
-          rivers={rivers.data ?? []} 
+          rivers={rivers.data ?? []}
         />
       </Card>
 
@@ -131,10 +131,7 @@ export function ConstructionsPage() {
               </Button>
             )}
             {hasPermission('ops:construction:create') && (
-              <Button
-                icon={<PlusOutlined />}
-                onClick={() => setImportModalOpen(true)}
-              >
+              <Button icon={<PlusOutlined />} onClick={() => setImportModalOpen(true)}>
                 Nhập danh mục
               </Button>
             )}
@@ -176,10 +173,7 @@ export function ConstructionsPage() {
         />
       </Card>
 
-      <StatusBatchUpdateModal
-        open={batchModalOpen}
-        onClose={() => setBatchModalOpen(false)}
-      />
+      <StatusBatchUpdateModal open={batchModalOpen} onClose={() => setBatchModalOpen(false)} />
 
       <ConstructionChangeLogDrawer
         publicId={historyDrawerId}
@@ -187,10 +181,7 @@ export function ConstructionsPage() {
         onClose={() => setHistoryDrawerId(null)}
       />
 
-      <ConstructionImportModal
-        open={importModalOpen}
-        onClose={() => setImportModalOpen(false)}
-      />
+      <ConstructionImportModal open={importModalOpen} onClose={() => setImportModalOpen(false)} />
     </Space>
   );
 }

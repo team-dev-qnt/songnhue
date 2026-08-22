@@ -3,7 +3,11 @@ import { type ConstructionType } from '@/shared/api-types';
 
 export function StepTechnical({ type }: { type?: ConstructionType }) {
   if (!type || type === 'KHAC') {
-    return <div style={{ color: '#595959', padding: '24px 0' }}>Không có thông số kỹ thuật đặc thù cho loại công trình này.</div>;
+    return (
+      <div style={{ color: '#595959', padding: '24px 0' }}>
+        Không có thông số kỹ thuật đặc thù cho loại công trình này.
+      </div>
+    );
   }
 
   if (type === 'TRAM_BOM') {

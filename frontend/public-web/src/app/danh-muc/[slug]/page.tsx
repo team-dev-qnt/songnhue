@@ -48,12 +48,7 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
   return (
     <div className="mx-auto max-w-[1240px] px-4 py-6 sm:px-6 sm:py-8 animate-fade-in">
       {/* ───── Breadcrumbs Điều hướng ───── */}
-      <Breadcrumb
-        items={[
-          { label: 'Chuyên mục', href: ROUTES.home },
-          { label: categoryName },
-        ]}
-      />
+      <Breadcrumb items={[{ label: 'Chuyên mục', href: ROUTES.home }, { label: categoryName }]} />
 
       {/* ───── Bố cục 2 Cột: Main (8 Cột) & Sidebar (4 Cột) ───── */}
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-8">

@@ -159,15 +159,15 @@ export function OperationStatusCodesPage() {
       title: 'Map trạng thái HT',
       dataIndex: 'mappedStatus',
       width: 160,
-      render: (val: string | null) =>
-        val ? CONSTRUCTION_STATUS[val]?.label || val : '-',
+      render: (val: string | null) => (val ? CONSTRUCTION_STATUS[val]?.label || val : '-'),
     },
     {
       title: 'Sử dụng',
       dataIndex: 'active',
       width: 100,
       align: 'center',
-      render: (val: boolean) => (val ? <Tag color="success">Có</Tag> : <Tag color="default">Không</Tag>),
+      render: (val: boolean) =>
+        val ? <Tag color="success">Có</Tag> : <Tag color="default">Không</Tag>,
     },
     {
       title: 'Thao tác',
@@ -234,7 +234,7 @@ export function OperationStatusCodesPage() {
           >
             <Input placeholder="Ví dụ: BOM_CHAY_1, BAO_TRI..." disabled={!!editingId} />
           </Form.Item>
-          
+
           <Form.Item
             name="name"
             label="Tên hiển thị"
@@ -253,7 +253,14 @@ export function OperationStatusCodesPage() {
           </Form.Item>
 
           <Form.Item name="mappedStatus" label="Map trạng thái hệ thống (Tuỳ chọn)">
-            <Select allowClear options={Object.entries(CONSTRUCTION_STATUS).map(([key, val]) => ({ value: key, label: val.label }))} placeholder="Trạng thái công trình khi ở tình trạng này" />
+            <Select
+              allowClear
+              options={Object.entries(CONSTRUCTION_STATUS).map(([key, val]) => ({
+                value: key,
+                label: val.label,
+              }))}
+              placeholder="Trạng thái công trình khi ở tình trạng này"
+            />
           </Form.Item>
 
           <Space size="large" align="start">
