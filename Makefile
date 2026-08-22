@@ -353,9 +353,9 @@ hooks: ## Bật git hook: định dạng commit message + chặn nhánh lỗi th
 branch-check: ## Nhánh hiện tại có lỗi thời sau squash merge không (pre-push tự chạy)
 	@./.githooks/check-branch-freshness.sh
 
-.PHONY: branch-check-selftest
-branch-check-selftest: ## Chứng minh phép canh nhánh BẮT ĐƯỢC vi phạm (conventions.md §1.5)
-	@./.githooks/check-branch-freshness.sh --self-test
+.PHONY: seed-portal
+seed-portal: ## Seed dữ liệu mẫu cho Cổng thông tin qua REST API và verify luồng E2E
+	@npx tsx tools/seeder/seed-portal-data.ts
 
 .PHONY: clean
 clean: ## Xóa artifact build
