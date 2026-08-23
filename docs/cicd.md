@@ -1,7 +1,21 @@
-# Luồng CI/CD — chốt 2026-08-15
+# Luồng CI/CD — chốt 2026-08-15, xác nhận lại 2026-08-23
 
 > Đi kèm: `docs/branch-protection.md` (cấu hình phía GitHub) ·
-> `.github/workflows/` (ci · promotion-guard · deploy-staging · deploy-prod)
+> `docs/deploy-guideline.md` (dựng máy chủ từ đầu, từng bước) ·
+> `.github/workflows/` (ci · promotion-guard · security-scan · deploy-staging · deploy-prod)
+
+> ### Ghi chú 23/8 — một vòng đi lạc, và vì sao quay lại
+>
+> Có một bản chỉnh sửa chuyển toàn bộ luồng này sang PaaS (Vercel + Railway): xoá hai workflow
+> triển khai, xoá job đóng gói image, bỏ ba lớp chặn của production. Bản đó **đã hoàn nguyên**.
+>
+> Không phải vì PaaS tệ, mà vì với repo **này** nó đòi tháo năm bảo đảm đã dựng có chủ đích:
+> thêm CORS vào backend · hạ cookie refresh từ `SameSite=Strict` xuống `None` · bỏ service
+> `migrator` riêng · bỏ bốn vai trò CSDL tách quyền (mất tính chỉ-ghi-thêm của `audit_logs` ở
+> tầng CSDL) · chuyển toàn bộ header bảo mật ra khỏi nơi đang có bài kiểm canh chúng.
+>
+> Ghi lại ở đây để lần sau ai đó cân nhắc PaaS thì bắt đầu từ danh sách này, chứ không bắt đầu lại
+> từ đầu.
 
 ## 1. Hình dạng
 
@@ -31,6 +45,32 @@ phiên bản — và production chạy một thứ chưa ai từng thử. Kiểm
 kiểm gì cả**.
 
 > Hệ quả cần nhớ: **nếu một thứ không được kiểm ở `dev` thì nó không được kiểm ở đâu cả.**
+
+### 2.1. ⚠⚠ "Một lần" nghĩa là BA image, không phải một (sửa 23/8)
+
+Nguyên tắc trên viết từ 15/8, nhưng CI chỉ thực hiện được **một phần ba** của nó: job `Đóng gói
+image` đóng gói `app`, và hai giao diện thì không ai đóng gói. Hai workflow triển khai vì thế chỉ
+`up -d app nginx`.
+
+Hậu quả nếu để nguyên: **backend mới chạy dưới giao diện cũ**, ở cả staging lẫn production, và
+không một bước nào báo sai. Lượt deploy xanh, health-check xanh, smoke test xanh. Mã lỗi mới,
+trường mới, quyền mới đều có ở API mà màn hình không biết tới — triệu chứng là vài ô trống và vài
+nút không phản hồi, thứ rất khó truy về nguyên nhân "chưa ai đóng gói frontend".
+
+Đây đúng khuôn *"công tắc chưa ai đọc là một lỗi, không phải việc để dành"* (`CLAUDE.md` §12): cam
+kết viết ra ở §2 mà không có đường thực thi nào.
+
+Nay có ba gói trên GHCR, cùng quy tắc gắn thẻ:
+
+| Gói | Sinh ra bởi | Chạy khi |
+|---|---|---|
+| `…/app` | job `Đóng gói image` | vùng `backend/` đổi |
+| `…/admin-app` | job `Đóng gói image frontend` (ma trận) | vùng `frontend/` đổi |
+| `…/public-web` | job `Đóng gói image frontend` (ma trận) | vùng `frontend/` đổi |
+
+**Ba SHA có thể khác nhau, và đó là đúng.** Một lượt chỉ sửa frontend thì `admin-app` mang SHA
+đỉnh còn `app` giữ SHA cũ. Ép cả ba dùng chung một SHA là ép đóng gói lại phần không đổi — tức là
+tạo ra một image chưa ai thử, đúng thứ nguyên tắc này sinh ra để tránh.
 
 ## 3. Chặng `dev` — nơi mọi thứ được kiểm
 
@@ -235,8 +275,8 @@ Bước quét chạy với `-DautoUpdate=false` để không chạm mạng NVD l
 
 `deploy-staging.yml` chạy khi push vào `staging` (tức là ngay sau khi merge PR từ `dev`).
 
-Không kiểm lại, không build lại. Chỉ làm bốn việc: tra image theo SHA → gắn thêm tag `staging` →
-`pull` + chạy `migrator` + `up -d` → smoke test `/actuator/health`.
+Không kiểm lại, không build lại. Chỉ làm bốn việc: tra **ba** image theo SHA → gắn thêm tag
+`staging` → `pull` + chạy `migrator` + `up -d` → smoke test `/actuator/health/readiness`.
 
 ### 4.1. ⚠ SHA nào mới là SHA có image
 
@@ -247,6 +287,30 @@ workflow thử `HEAD^2` trước rồi mới tới `HEAD`.
 Đây cũng là lý do `required_linear_history` bị **tắt** ở staging/production
 (`branch-protection.md` §2.3): squash sinh SHA mới không có cha thứ hai, và mối liên hệ với image đã
 kiểm bị cắt đứt.
+
+Từ đỉnh `dev` đó, mỗi image **lùi độc lập** theo cha thứ nhất tối đa 50 bước để tìm bản gần nhất
+có mặt trên GHCR. Không phải commit nào cũng có image — một lượt chỉ sửa tài liệu thì không sinh
+image nào, và đó hoàn toàn hợp lệ.
+
+### 4.2. ⚠⚠ Một image chạy hai môi trường — chỗ nguyên tắc §2 va vào Next.js
+
+Next nướng mọi biến `NEXT_PUBLIC_*` vào bundle **lúc build**. `NEXT_PUBLIC_SITE_URL` là gốc của
+`sitemap.xml`, `robots.txt`, thẻ canonical và ảnh Open Graph — mà staging và production có địa chỉ
+khác nhau. Hai đòi hỏi không thể cùng đúng:
+
+* *đóng gói một lần rồi đề bạt* → hai môi trường chạy **cùng** một image;
+* *mỗi môi trường có URL riêng* → phải build **hai** image khác nhau.
+
+Chốt: **giữ nguyên tắc §2**, build một image mang URL production, và chặn hậu quả ở chỗ nó thật sự
+gây hại. Hậu quả duy nhất đáng lo là Google bò vào staging, thấy một bản sao toàn bộ nội dung tự
+khai canonical trỏ về production — đúng hình dạng nội dung trùng lặp, và cổng thật là bên chịu
+thiệt. Nginx biên của staging vì thế trả `X-Robots-Tag: noindex, nofollow` (biến `ROBOTS_TAG`
+trong `.env`), chặn ngay trước khi trang nào kịp được đọc.
+
+Đây là cách chữa **triệu chứng**, và ghi ra như vậy để không ai tưởng đã xong. Cách chữa gốc là cho
+`SITE_URL` đọc lúc chạy thay vì lúc build — `frontend/public-web/src/lib/site.ts` chỉ được các tệp
+phía máy chủ dùng (`layout.tsx`, `sitemap.ts`, `robots.ts`), nên đổi được mà không chạm bundle của
+trình duyệt. Xem `docs/deploy-guideline.md` §9.3.
 
 ## 5. Chặng `production` — chỉ khi có lệnh
 
@@ -277,11 +341,21 @@ kiểm hai điều:
 
 ## 7. Secret cần đặt (WS-11)
 
-| Secret | Dùng ở | Ghi chú |
+| Secret | Đặt ở | Dùng ở | Ghi chú |
+|---|---|---|---|
+| `STAGING_HOST` · `STAGING_USER` · `STAGING_SSH_KEY` · `STAGING_BASE_URL` | environment `staging` | CD Staging | Thiếu → workflow **cảnh báo và bỏ qua bước deploy**, không báo đỏ giả |
+| `PROD_HOST` · `PROD_USER` · `PROD_SSH_KEY` · `PROD_BASE_URL` | environment `production` | CD Production | Như trên |
+| `NVD_API_KEY` | **repo** | `security-scan.yml` | ✅ **Đã đặt 18/8**. **Thiếu thì bỏ qua hẳn phép quét OWASP** (có cảnh báo trong Job Summary). Xin miễn phí ~2 phút: <https://nvd.nist.gov/developers/request-an-api-key> |
+
+**Biến (Variables, không phải Secret) — đặt ở cấp repo:**
+
+| Biến | Dùng ở | Ghi chú |
 |---|---|---|
-| `STAGING_HOST` / `STAGING_USER` / `STAGING_SSH_KEY` / `STAGING_BASE_URL` | CD Staging | Thiếu → workflow **cảnh báo và bỏ qua bước deploy**, không báo đỏ giả |
-| `PROD_HOST` / `PROD_USER` / `PROD_SSH_KEY` / `PROD_BASE_URL` | CD Production | Như trên |
-| `NVD_API_KEY` | `security-scan.yml` | ✅ **Đã đặt 18/8** ở **cấp repo**. **Thiếu thì bỏ qua hẳn phép quét OWASP** (có cảnh báo trong Job Summary). Xin miễn phí ~2 phút: <https://nvd.nist.gov/developers/request-an-api-key> |
+| `PUBLIC_SITE_URL` | job `Đóng gói image frontend` | Địa chỉ **production** của cổng công khai, ví dụ `https://songnhue.vn`. Nướng vào bundle lúc build — xem §4.2. Thiếu thì sitemap/canonical trỏ về `localhost`, và Job Summary nói to điều đó |
+
+> ⚠ Đây là **biến**, không phải bí mật: nó đi vào bundle mà cả thế giới tải về được. Để nhầm vào
+> Secrets thì vẫn chạy, nhưng nó sẽ bị che trong log — và che một giá trị công khai chỉ làm việc
+> gỡ lỗi khó hơn mà không thêm an toàn nào.
 
 > ⚠ **Đặt đúng cấp, không chỉ đúng tên.** Lần đầu `NVD_API_KEY` được đặt vào **environment
 > `staging`** và phép quét vẫn bị bỏ qua: environment secret chỉ đến được job có khai
@@ -307,8 +381,17 @@ kiểm hai điều:
 - [x] Đặt `NVD_API_KEY` **ở cấp repo** — 18/8/2026 (§7)
 - [ ] **Bật Dependency graph** (Settings → Code security) — không bật thì job `Soi phụ thuộc PR thêm
       vào` tự bỏ qua, tức là phép kiểm phụ thuộc ở PR chưa chạy lần nào
-- [ ] Dựng 3 VM + `compose.staging.yml` / `compose.prod.yml` + `backup/pre-deploy-dump.sh` — WS-11
-- [ ] Đặt các secret còn lại ở §7 — WS-11/T11.7
+- [x] **Đóng gói image frontend** — job ma trận `admin-app` + `public-web`, xong 23/8 (§2.1)
+- [x] **`compose.prod.yml` / `compose.staging.yml`** — xong 23/8. `compose.staging.yml` `include`
+      nguyên văn bản prod và chỉ ghi đè hạn mức bộ nhớ, nên hai môi trường không trôi khỏi nhau
+- [x] **`deploy/nginx/`** — nginx biên: TLS, HSTS, định tuyến ba tên miền, hạn mức. Kiểm bằng
+      `nginx -t` thật (xem `docs/deploy-guideline.md` §4.4)
+- [x] **`backup/pre-deploy-dump.sh`** — xong 23/8. `deploy-prod.yml` đã gọi tệp này từ 15/8 mà
+      **tệp chưa từng tồn tại**: lượt deploy production đầu tiên sẽ dừng ngay ở bước đó
+- [ ] **Dựng 2 VPS** theo `docs/deploy-guideline.md` — VPS-1 production, VPS-2 staging kiêm kho sao
+      lưu và giám sát. *(Kế hoạch cũ ghi 3 VM; VM-3 đã gộp vào VPS-2 — xem `hosting_recommendations.md`)*
+- [ ] Đặt các secret và biến ở §7 — WS-11/T11.7
+- [ ] **Diễn tập khôi phục một lần trước go-live**, ghi con số RTO thật vào runbook (T7.7)
 
 ## 9. Hai quy ước merge ngược nhau — dễ nhầm nhất
 

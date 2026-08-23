@@ -62,58 +62,77 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # ⚠⚠ BA image, không phải một. `app` là backend; `admin-app` và
+      #   `public-web` là hai giao diện. Bản đầu của workflow này chỉ tra `app`
+      #   và chỉ `up -d app nginx` — nghĩa là môi trường chạy backend mới bên
+      #   dưới giao diện cũ, âm thầm, không bước nào báo sai.
       - name: Xác định image cần triển khai
         id: image
         run: |
           set -euo pipefail
-          registry="ghcr.io/${{ github.repository }}/app"
 
           if git rev-parse -q --verify HEAD^2 >/dev/null; then
             dev_tip="$(git rev-parse HEAD^2)"
           else
             dev_tip="$(git rev-parse HEAD)"
           fi
+          echo "Đỉnh dev đang đề bạt: $dev_tip"
 
-          # ⚠ Không phải commit nào trên `dev` cũng có image: job `Đóng gói
-          #   image` chỉ chạy khi vùng `backend/` đổi. Một lượt đề bạt mà đỉnh
-          #   `dev` là commit chỉ sửa tài liệu thì KHÔNG có image mang SHA đó —
-          #   và điều đó hoàn toàn hợp lệ, vì backend không đổi thì image của
-          #   commit backend gần nhất chính là bản đúng.
+          # Danh sách ứng viên tính MỘT lần rồi dùng cho cả ba image — gọi
+          # `git rev-list` ba lần trên cùng một commit chỉ tốn thêm thời gian.
+          candidates="$(git rev-list --first-parent -n 50 "$dev_tip")"
+
+          # ⚠ Không phải commit nào trên `dev` cũng có image: job đóng gói chỉ
+          #   chạy khi đúng vùng của nó đổi. Một lượt đề bạt chỉ sửa tài liệu thì
+          #   KHÔNG có image nào mang SHA đó — và điều đó hoàn toàn hợp lệ, vì
+          #   mã không đổi thì image của commit gần nhất chính là bản đúng.
+          #   Nên lùi theo cha thứ nhất, thay vì báo lỗi. Giới hạn 50 bước để
+          #   hỏng thì hỏng nhanh.
           #
-          #   Nên lùi theo cha thứ nhất để tìm image gần nhất, thay vì báo lỗi.
-          #   Giới hạn 50 bước để hỏng thì hỏng nhanh.
-          sha=""
-          for candidate in $(git rev-list --first-parent -n 50 "$dev_tip"); do
-            if docker manifest inspect "$registry:$candidate" >/dev/null 2>&1; then
-              sha="$candidate"
-              break
+          # ⚠ Ba image lùi ĐỘC LẬP với nhau: một lượt chỉ sửa frontend thì
+          #   `admin-app` khớp ngay đỉnh còn `app` phải lùi vài bước. Ép chúng
+          #   dùng chung một SHA là ép đóng gói lại phần không đổi.
+          for target in app admin-app public-web; do
+            registry="ghcr.io/${{ github.repository }}/$target"
+            sha=""
+            for candidate in $candidates; do
+              if docker manifest inspect "$registry:$candidate" >/dev/null 2>&1; then
+                sha="$candidate"
+                break
+              fi
+            done
+
+            if [ -z "$sha" ]; then
+              echo "::error::Không tìm thấy image '$target' trong 50 commit gần nhất tính từ $dev_tip"
+              echo "Kiểm tra theo thứ tự: (1) job đóng gói tương ứng ở dev có chạy và đẩy được không"
+              echo "('Đóng gói image' cho app · 'Đóng gói image frontend' cho hai cái còn lại);"
+              echo "(2) gói GHCR có tồn tại không; (3) bước đăng nhập GHCR phía trên có xanh không."
+              exit 1
             fi
+
+            [ "$sha" != "$dev_tip" ] && echo "ℹ $target: đỉnh dev không có image — dùng bản gần nhất $sha"
+            echo "✓ $registry:$sha"
+            # app → app_image · admin-app → admin_app_image · public-web → public_web_image
+            # (tên output của GitHub Actions không nhận dấu gạch ngang)
+            echo "$(echo "$target" | tr '-' '_')_image=$registry:$sha" >> "$GITHUB_OUTPUT"
           done
-
-          if [ -z "$sha" ]; then
-            echo "::error::Không tìm thấy image nào trong 50 commit gần nhất tính từ $dev_tip"
-            echo "Kiểm tra theo thứ tự: (1) job 'Đóng gói image' ở dev có chạy và đẩy được không;"
-            echo "(2) gói GHCR có tồn tại không; (3) bước đăng nhập GHCR phía trên có xanh không."
-            exit 1
-          fi
-
-          if [ "$sha" != "$dev_tip" ]; then
-            echo "ℹ Đỉnh dev ($dev_tip) không có image — dùng image backend gần nhất: $sha"
-            echo "  (bình thường khi lượt đề bạt chỉ chứa thay đổi tài liệu hoặc frontend)"
-          fi
-          echo "✓ Dùng $registry:$sha"
-          echo "ref=$registry:$sha" >> "$GITHUB_OUTPUT"
-          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "dev_tip=$dev_tip" >> "$GITHUB_OUTPUT"
         env:
           DOCKER_CONFIG: ${{ runner.temp }}/.docker
 
-      # Gắn thêm tag `staging` cho image — tiện cho người vận hành nhìn nhanh
-      # "staging đang chạy cái gì". Bản thân việc deploy vẫn dùng tag SHA.
+      # Gắn thêm tag `staging` — tiện cho người vận hành nhìn nhanh "staging
+      # đang chạy cái gì". Bản thân việc deploy vẫn dùng tag SHA.
       - name: Gắn tag `staging`
         run: |
-          docker buildx imagetools create \
-            --tag "ghcr.io/${{ github.repository }}/app:staging" \
-            "${{ steps.image.outputs.ref }}"
+          set -euo pipefail
+          for pair in \
+            "app:${{ steps.image.outputs.app_image }}" \
+            "admin-app:${{ steps.image.outputs.admin_app_image }}" \
+            "public-web:${{ steps.image.outputs.public_web_image }}"; do
+            name="${pair%%:*}"; ref="${pair#*:}"
+            docker buildx imagetools create \
+              --tag "ghcr.io/${{ github.repository }}/$name:staging" "$ref"
+          done
 
       - name: Kiểm tra đã có cấu hình máy chủ chưa
         id: target
@@ -128,25 +147,68 @@ jobs:
 
       # Migration chạy ở service `migrator` RIÊNG, xong hẳn rồi app mới lên
       # (architecture-review.md §9.2). Migration hỏng thì app không lên nửa vời.
-      - name: Triển khai lên VM-2
+      # ⚠⚠ ĐỒNG BỘ CẤU HÌNH TRƯỚC KHI TRIỂN KHAI — bước này ngăn một kiểu trôi
+      #    hoàn toàn câm.
+      #
+      #    `compose.*.yml`, cấu hình nginx, script sao lưu đều nằm trong repo,
+      #    nhưng chúng CHẠY từ đĩa của máy chủ. Không có bước này thì sửa CSP,
+      #    sửa hạn mức, thêm một service — tất cả nằm yên trong repo còn máy chủ
+      #    vẫn chạy bản chép tay từ ngày dựng. Không lệnh nào báo sai, vì đứng
+      #    riêng thì cả hai bên đều "đúng".
+      #
+      # ⛔ CỐ Ý KHÔNG chép `.env` và `keys/`. Chúng chỉ tồn tại trên máy chủ,
+      #    không có trong repo, và không được đi qua runner của GitHub.
+      - name: Đồng bộ cấu hình lên máy chủ
         if: steps.target.outputs.ready == 'true'
         env:
           SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
           HOST: ${{ secrets.STAGING_HOST }}
           USER: ${{ secrets.STAGING_USER }}
-          IMAGE: ${{ steps.image.outputs.ref }}
         run: |
           set -euo pipefail
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
+          rsync -az --delete \
+            --exclude '.env' --exclude 'env/' --exclude 'keys/' \
+            --exclude 'compose.local.yml' --exclude 'compose.infra.yml' \
+            deploy/ "$USER@$HOST:/opt/songnhue/"
+          ssh "$USER@$HOST" 'chmod +x /opt/songnhue/backup/*.sh'
+
+      - name: Triển khai lên VPS-2
+        if: steps.target.outputs.ready == 'true'
+        env:
+          HOST: ${{ secrets.STAGING_HOST }}
+          USER: ${{ secrets.STAGING_USER }}
+          APP_IMAGE: ${{ steps.image.outputs.app_image }}
+          ADMIN_IMAGE: ${{ steps.image.outputs.admin_app_image }}
+          PUBLIC_IMAGE: ${{ steps.image.outputs.public_web_image }}
+        run: |
+          set -euo pipefail
+          # ⚠ Heredoc KHÔNG trích dẫn (`<<REMOTE`) là cố ý: ba biến ảnh phải được
+          #   runner thay TRƯỚC khi chuỗi lệnh đi qua SSH — máy chủ không biết
+          #   chúng. Đổi thành `<<'REMOTE'` là compose bên kia thấy biến rỗng và
+          #   dừng với "Thiếu APP_IMAGE".
           ssh "$USER@$HOST" bash -euo pipefail <<REMOTE
             cd /opt/songnhue
-            export APP_IMAGE="$IMAGE"
-            docker compose -f compose.staging.yml pull
-            docker compose -f compose.staging.yml run --rm migrator
-            docker compose -f compose.staging.yml up -d app nginx
+            export APP_IMAGE="$APP_IMAGE"
+            export ADMIN_IMAGE="$ADMIN_IMAGE"
+            export PUBLIC_IMAGE="$PUBLIC_IMAGE"
+
+            docker compose --env-file .env -f compose.staging.yml pull
+
+            # Migration chạy ở service RIÊNG và phải xong hẳn trước. \`run --rm\`
+            # chạy đồng bộ và trả mã thoát, nên migration hỏng là lượt deploy
+            # dừng NGAY — app cũ vẫn đang chạy, chưa có gì bị thay.
+            docker compose --env-file .env -f compose.staging.yml run --rm migrator
+
+            docker compose --env-file .env -f compose.staging.yml up -d \
+                app admin-app public-web nginx
+
+            # Dọn image cũ để đĩa không đầy dần sau vài chục lượt deploy. Đĩa đầy
+            # làm pg_dump hỏng theo, và mất sao lưu là mất lưới an toàn duy nhất.
+            docker image prune -f --filter "until=168h" || true
           REMOTE
 
       - name: Smoke test
@@ -177,7 +239,12 @@ jobs:
         run: |
           {
             echo "### Triển khai Staging"
-            echo "- Image: \`${{ steps.image.outputs.ref }}\`"
-            echo "- Commit gốc ở dev: \`${{ steps.image.outputs.sha }}\`"
+            echo "- Commit gốc ở dev: \`${{ steps.image.outputs.dev_tip }}\`"
+            echo "- backend: \`${{ steps.image.outputs.app_image }}\`"
+            echo "- admin-app: \`${{ steps.image.outputs.admin_app_image }}\`"
+            echo "- public-web: \`${{ steps.image.outputs.public_web_image }}\`"
             echo "- Triển khai thật: ${{ steps.target.outputs.ready == 'true' && 'có' || 'CHƯA (thiếu secret, xem WS-11)' }}"
+            echo ""
+            echo "> Ba SHA có thể KHÁC nhau — đó là bình thường: image nào không"
+            echo "> đổi thì giữ nguyên bản đã kiểm, không đóng gói lại."
           } >> "$GITHUB_STEP_SUMMARY"

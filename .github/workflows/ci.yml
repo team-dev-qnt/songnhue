@@ -294,6 +294,91 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
   # ---------------------------------------------------------------------------
+  # Đóng gói image FRONTEND
+  #
+  # ⚠⚠ Vì sao job này phải tồn tại, và vì sao thiếu nó là một lỗ hổng câm:
+  #     Trước bản này CI chỉ đóng gói `app`. Hai workflow triển khai vì thế chỉ
+  #     `docker compose up -d app nginx` — nghĩa là production sẽ chạy backend
+  #     mới bên dưới GIAO DIỆN CŨ, và không có bước nào báo sai. Mã lỗi mới,
+  #     trường mới, quyền mới đều có ở API mà màn hình không biết tới; triệu
+  #     chứng là vài ô trống và vài nút không phản hồi, rất khó truy về nguyên
+  #     nhân "chưa ai đóng gói frontend".
+  #
+  # ⚠ Tách khỏi job `image` chứ không gộp thành ma trận: `image` phụ thuộc job
+  #   `backend`, job này phụ thuộc job `frontend`. Gộp lại thì một lượt PR chỉ
+  #   sửa frontend sẽ có job `backend` bị bỏ qua, và cả job đóng gói bị bỏ qua
+  #   theo — tức là đúng lượt cần image FE lại là lượt không sinh ra nó.
+  #
+  # ⚠ Đối số build cố ý ĐỂ TRỐNG (`VITE_API_BASE_URL`, `NEXT_PUBLIC_API_BASE_URL`).
+  #   Trống nghĩa là bundle gọi đường dẫn TƯƠNG ĐỐI `/api/v1`, và mỗi image FE
+  #   tự chuyển tiếp sang backend dưới chính tên miền của nó → cùng origin →
+  #   không cần CORS, và cookie refresh giữ được `SameSite=Strict`. Điền địa chỉ
+  #   tuyệt đối vào đây là dựng lại đúng cấu hình đã chặn toàn bộ giao diện quản
+  #   trị suốt WS-8→WS-20.
+  # ---------------------------------------------------------------------------
+  image-frontend:
+    name: Đóng gói image frontend
+    needs: [changes, frontend]
+    if: github.event_name == 'push' && needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      # Một image hỏng thì vẫn muốn biết cái kia thế nào — cùng lý do đã đổi
+      # OWASP từ `check` sang `aggregate` (docs/cicd.md §3.3-b).
+      fail-fast: false
+      matrix:
+        include:
+          - name: admin-app
+            dockerfile: deploy/docker/admin-app.Dockerfile
+          - name: public-web
+            dockerfile: deploy/docker/public-web.Dockerfile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Đăng nhập GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build và đẩy lên GHCR
+        uses: docker/build-push-action@v6
+        with:
+          # Bối cảnh là `frontend/` — nơi npm workspaces nằm. Hai Dockerfile đều
+          # `npm ci --workspace <app> --include-workspace-root` nên chỉ tải phần
+          # phụ thuộc của chính chúng.
+          context: frontend
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/${{ matrix.name }}:${{ github.sha }}
+            ghcr.io/${{ github.repository }}/${{ matrix.name }}:dev
+          build-args: |
+            VITE_API_BASE_URL=
+            NEXT_PUBLIC_API_BASE_URL=
+            NEXT_PUBLIC_SITE_URL=${{ vars.PUBLIC_SITE_URL }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+      - name: Ghi tóm tắt
+        run: |
+          echo "### Image frontend: ${{ matrix.name }}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "ghcr.io/${{ github.repository }}/${{ matrix.name }}:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          if [ -z "${{ vars.PUBLIC_SITE_URL }}" ]; then
+            echo "⚠ Chưa đặt biến repo \`PUBLIC_SITE_URL\` — sitemap/canonical sẽ trỏ về \`localhost\`." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # ---------------------------------------------------------------------------
   # Kiểm phụ thuộc Ở MỨC PR — nhanh, chỉ soi phần PR THÊM VÀO
   #
   # ⚠ Bản trước đặt cả OWASP Dependency-Check vào đây và nó hỏng đúng kiểu đã
