@@ -63,20 +63,22 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 
 **Phase "Tài liệu hệ thống"** ✅ xong 12/8/2026 — BOQ đợt 1 (A–F) + đợt 2 (G) đã đóng và đồng bộ vào `function-spec.md` **v2.2**.
 **Phase 0 — Core Platform** ✅ xong 10/11 hạng mục. Còn **WS-11 (Deploy Staging/Production, 10 pd)** treo để khép sổ.
-**Phase 1 — CMS & master data công trình** 🟡 **85/116 task (73%)** — xong WS-12→WS-18, WS-20, WS-23.
+**Phase 1 — CMS & master data công trình** ✅ **xong 23/8/2026** — WS-12→WS-23 đóng đủ, **16/17 mục DoD** có phép kiểm đứng sau.
 
-➡️ **Thứ tự còn lại**: **WS-19** (tình hình vận hành — chỉ còn mắt xích (4) của chuỗi suy ra trạng thái + job đối soát; (1) sự cố và (2) bảo trì đã chạy từ WS-18) → **WS-21** (màn hình Công trình + màn hình lịch sử sửa chữa, nhận nợ #71) → **WS-22** (nghiệm thu + trả nợ).
+⬜ **Mục DoD duy nhất còn treo**: **DOD1.17** trang chủ cổng < 3s (NFR-02) — chỉ đo được trên môi trường gần thật, nằm trong checklist nghiệm thu của `docs/deploy-guideline.md`. Không chặn code, chặn nghiệm thu cùng WS-11.
+
+⚠ **Bản ghi "đã xong" ngày 22/8 đã bị bác bỏ.** Nghiệm thu lại ngày 23/8 tìm ra **4/11 mục WS-21 chưa làm hoặc hỏng hẳn** (hai mục là placeholder văn bản; tab tài liệu 400 ở mọi lượt mở; thư mục test không có tệp nào) và **4/17 cam kết DoD không có phép kiểm nào**. Nguyên nhân gốc + toàn bộ danh sách: `architecture-review.md` **§10.36**.
 
 ⛔ **Cấm seed dữ liệu công trình/thuỷ văn "cho đẹp demo"** — ô nào chưa có nguồn thì nói thẳng là chưa có.
 
-**Codebase đo ngày 21/8**: 493 test BE (239 core + 254 app) + 151 test FE (108 admin + 43 public) · 72 mã lỗi (BE = FE) · 88 quyền / 12 vai trò / 334 dòng phân quyền · 23 bài ArchUnit · 0 CVE ≥ 7.
+**Codebase đo ngày 23/8**: **555 test BE** (239 core + 20 content + 24 operations + 272 app) + **174 test FE** (131 admin + 43 public) · **74 mã lỗi** (BE = FE) · 88 quyền / 12 vai trò / 334 dòng phân quyền · 28 bài ArchUnit · 6 phép kiểm bộ đọc tracking · mọi cổng bao phủ **chạy thật** (content 18.2% — trước đó bị bỏ qua) · 0 CVE ≥ 7.
 
 ### Tra ở đâu
 
 | Cần gì | Đọc ở đâu |
 |---|---|
-| Nợ đang treo, task còn lại | `phase0-tracking.md` **Sổ nợ liên WS** · `phase1-tracking.md` sổ nợ Phase 1 — **nguồn duy nhất**, không chép sang đây |
-| **Lý do** một quyết định, **nguyên nhân gốc** một lỗi đã sửa | `architecture-review.md` **§9** (Phase 0, 14 mục) · **§10** (Phase 1, 33 mục) |
+| Nợ đang treo, task còn lại | **`.claude/master-tracking.md`** — nguồn DUY NHẤT (conventions.md §6). `phase0-tracking.md` / `phase1-tracking.md` chỉ là lưu trữ, cấm sửa |
+| **Lý do** một quyết định, **nguyên nhân gốc** một lỗi đã sửa | `architecture-review.md` **§9** (Phase 0, 14 mục) · **§10** (Phase 1, 36 mục — §10.35 đợt vá sau WS-22, §10.36 nghiệm thu lại WS-21 + DoD) |
 | Cách viết một chức năng + bảng bẫy tra nhanh | `docs/coding-guide.md` |
 | Luật bắt buộc khi viết code | `conventions.md` |
 | Nghiệp vụ | `function-spec.md`; điểm chưa chốt → `business-open-questions.md` Phần III |
@@ -107,23 +109,27 @@ Rút ra sau khi **cùng một hình dạng lỗi lặp lại nhiều lần**. Ng
 6. **Endpoint mà trình duyệt phải gọi thì lượt kiểm phải mang `Origin`** — `curl` không có origin, không preflight, nên đi lọt qua đúng bức tường chặn người dùng thật (CORS chặn toàn bộ giao diện quản trị suốt WS-8→WS-20).
 7. **Một cơ chế chưa ai đi qua thì chưa biết nó đúng hay sai** — phép kiểm chạy qua *tập rỗng* vẫn xanh trọn vẹn (ArchUnit suốt Phase 0, tầng 3 phân quyền, ISR revalidate).
 8. **Healthcheck trỏ vào endpoint không đại diện chỉ chứng minh tiến trình còn sống** — sập 3 lần, nặng nhất là image backend chạy suốt 4 WS mà mọi `/api/v1/**` trả 404.
-9. **Phép kiểm chạy lâu phải ưu tiên báo cáo trọn vẹn hơn dừng sớm** — reactor dừng ở module đầu làm 4 vòng quét CVE chỉ soi được **một** module; nếu module đầu tình cờ sạch thì ta tưởng cả dự án sạch.
+9. **Một khẳng định không phân biệt được hai trạng thái thì không khẳng định gì** — bài canh "đi bằng HTTP/1.1" khẳng định `exchange.getProtocol()`, và xanh cả khi đã gỡ `.version(HTTP_1_1)`: máy chủ JDK chỉ nói HTTP/1.1 nên client tự hạ cấp. Phải **đo** cái gì thật sự khác giữa hai cấu hình (ở đây là header `Upgrade`/`HTTP2-Settings`), đừng khẳng định cái nghe có vẻ đúng.
+10. **Làm hỏng có chủ đích để kiểm chứng thì phải xác nhận bản hỏng ĐÃ được nạp** — lượt kiểm chứng bản vá IDOR ngày 23/8 báo 6/6 xanh sau khi đã gỡ lớp bảo vệ; hoá ra `install` bị Checkstyle chặn, output đã bị `>/dev/null` nuốt, và bài kiểm chạy trên jar cũ *còn nguyên bản vá*. Chính bước chứng minh cũng là một xanh giả.
+11. **Phép kiểm chạy lâu phải ưu tiên báo cáo trọn vẹn hơn dừng sớm** — reactor dừng ở module đầu làm 4 vòng quét CVE chỉ soi được **một** module; nếu module đầu tình cờ sạch thì ta tưởng cả dự án sạch.
 
 **Về chỗ đặt một bảo đảm**
 
-10. **Khi một bảo đảm phải đúng ở nhiều đường vào, đặt nó ở chỗ *dữ liệu đi qua*, đừng đặt ở *nơi gọi*** — không đặt được thì phải có phép kiểm đếm đủ các đường vào. (XSS lưu trữ lọt qua 2/3 đường ghi `settings`; `SvgSanitizer` có 9 bài kiểm mà không nằm trên đường chạy nào.)
-11. **Chỗ nào con người phải nhớ hai nơi thì chỗ đó cần một phép kiểm nhớ hộ** — enum SPI ↔ enum domain · từ vựng trình soạn thảo ↔ danh sách cho phép của bộ lọc ↔ CSS cổng công khai · mã lỗi BE ↔ FE · URL tile ↔ CSP.
-12. **Công tắc / cột / tham số chưa ai đọc là một lỗi, không phải việc để dành** — `limits.upload.max-mb.*`, `company.*`, `attachments.valid_from` đều bày ra ở giao diện hoặc lược đồ mà không dòng mã nào đọc. ⛔ Hệ quả: **không seed tham số `settings` cho tính năng chưa dựng**.
-13. **Số 0 là một câu khẳng định** — ô số liệu chưa có nguồn phải trả rỗng kèm lý do, và ràng buộc đó ép ở **hàm dựng** chứ không ở lời dặn.
-14. **Đổi trạng thái chỉ qua Workflow engine, và cấm lách bằng transition giả** — hash chain đang ký tên vào lịch sử, bịa một bước chuyển là bịa một chữ ký.
+12. **Khi một bảo đảm phải đúng ở nhiều đường vào, đặt nó ở chỗ *dữ liệu đi qua*, đừng đặt ở *nơi gọi*** — không đặt được thì phải có phép kiểm đếm đủ các đường vào. (XSS lưu trữ lọt qua 2/3 đường ghi `settings`; `SvgSanitizer` có 9 bài kiểm mà không nằm trên đường chạy nào.)
+13. **Một cột dẫn xuất trộn hai nguồn khác chiều lọc thì kết quả phụ thuộc *ai bấm F5 sau cùng*** — `ConstructionStatusService.tinh()` đếm sự cố bằng câu native (không lọc) nhưng tra mã tình hình vận hành bằng câu derived (có lọc); người ngoài đơn vị mở màn hình là trạng thái bị hạ xuống "Bình thường" **cho tất cả mọi người**, vì đó là cột được ghi xuống CSDL.
+14. **Chỗ nào con người phải nhớ hai nơi thì chỗ đó cần một phép kiểm nhớ hộ** — enum SPI ↔ enum domain · từ vựng trình soạn thảo ↔ danh sách cho phép của bộ lọc ↔ CSS cổng công khai · mã lỗi BE ↔ FE · URL tile ↔ CSP.
+15. **Công tắc / cột / tham số chưa ai đọc là một lỗi, không phải việc để dành** — `limits.upload.max-mb.*`, `company.*`, `attachments.valid_from` đều bày ra ở giao diện hoặc lược đồ mà không dòng mã nào đọc. ⛔ Hệ quả: **không seed tham số `settings` cho tính năng chưa dựng**.
+16. **Số 0 là một câu khẳng định** — ô số liệu chưa có nguồn phải trả rỗng kèm lý do, và ràng buộc đó ép ở **hàm dựng** chứ không ở lời dặn.
+17. **Đổi trạng thái chỉ qua Workflow engine, và cấm lách bằng transition giả** — hash chain đang ký tên vào lịch sử, bịa một bước chuyển là bịa một chữ ký.
 
+18. **Việc làm xong nửa đường trông y hệt việc làm xong** — nghiệm thu WS-21 tìm ra một placeholder văn bản, một component gọi sai kiểu, một `navigate` mà đầu nhận không đọc; cả ba đều đã được tích ✅. Nghiệm thu phải đối chiếu với **mã thật**, không đối chiếu với bản ghi tiến độ.
 **Về công cụ và quy trình**
 
-15. **Script của workflow phải kiểm bằng `bash -c`** — zsh không tách từ mặc định, thử ở máy local không lộ ra mà runner chạy bash.
-16. **Nâng cấp trước, suppress sau; tra phiên bản bằng `maven-metadata.xml`, không bằng API tìm kiếm** — API `solrsearch` trả kết quả cũ, suýt lập suppression cho 49 CVE **đã có bản vá**.
-17. **Squash xong thì nhánh nguồn đã chết — cắt nhánh mới từ `dev`** (`.githooks/pre-push` canh; `make hooks` để bật, và nó là cấu hình **cục bộ từng bản clone**).
-18. **Đọc log theo trình tự, đừng đọc theo mã lỗi** — dòng đáng chú ý nhất thường nằm *trước* thứ được báo là lỗi.
-19. **`skipped` của một required check được GitHub tính là ĐẠT** — bộ lọc đường dẫn trục trặc thì phải mặc định **chạy thừa**, không bỏ sót.
+19. **Script của workflow phải kiểm bằng `bash -c`** — zsh không tách từ mặc định, thử ở máy local không lộ ra mà runner chạy bash.
+20. **Nâng cấp trước, suppress sau; tra phiên bản bằng `maven-metadata.xml`, không bằng API tìm kiếm** — API `solrsearch` trả kết quả cũ, suýt lập suppression cho 49 CVE **đã có bản vá**.
+21. **Squash xong thì nhánh nguồn đã chết — cắt nhánh mới từ `dev`** (`.githooks/pre-push` canh; `make hooks` để bật, và nó là cấu hình **cục bộ từng bản clone**).
+22. **Đọc log theo trình tự, đừng đọc theo mã lỗi** — dòng đáng chú ý nhất thường nằm *trước* thứ được báo là lỗi.
+23. **`skipped` của một required check được GitHub tính là ĐẠT** — bộ lọc đường dẫn trục trặc thì phải mặc định **chạy thừa**, không bỏ sót.
 
 ## Quy ước làm việc với user
 

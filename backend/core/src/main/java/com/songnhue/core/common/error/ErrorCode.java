@@ -117,6 +117,10 @@ public enum ErrorCode {
     OPS_2016("OPS-2016", HttpStatus.UNPROCESSABLE_ENTITY),
     /** Đơn vị thực hiện: đúng MỘT trong hai cột nội bộ / nhà thầu ngoài (điểm nghiệp vụ 17). */
     OPS_2017("OPS-2017", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Mã tình hình vận hành đã ẩn — {@code OPS-2007} chỉ cho ẩn, nên ẩn rồi phải hết ghi được. */
+    OPS_2018("OPS-2018", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Lô nhập nhanh còn dòng lỗi — báo đủ theo từng dòng, và không dòng nào được ghi. */
+    OPS_2019("OPS-2019", HttpStatus.UNPROCESSABLE_ENTITY),
     /** Trạng thái công trình là giá trị dẫn xuất — client sửa trực tiếp là từ chối. */
     OPS_3001("OPS-3001", HttpStatus.FORBIDDEN),
 

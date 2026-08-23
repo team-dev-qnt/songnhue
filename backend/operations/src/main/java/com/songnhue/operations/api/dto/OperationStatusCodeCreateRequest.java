@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Pattern;
 
 import com.songnhue.operations.domain.OperationalStatus;
 
-public class OperationStatusCodeCreateRequest {
+public class OperationStatusCodeCreateRequest implements OperationStatusCodeFields {
 
     @NotBlank
     private String code;

@@ -32,8 +32,11 @@ export function OrgUnitTreeSelect({
   onlyTypes?: readonly OrgUnitNode['unitType'][];
 }) {
   const { data, isLoading } = useQuery({
-    queryKey: ['org-units', 'tree'],
-    queryFn: () => api.get<OrgUnitNode[]>('/org-units/tree'),
+    // ⚠ `/selectable` chứ không phải `/tree`: đường `/tree` đứng sau `adm:org-unit:view`, quyền mà
+    // TECHNICIAN — vai trò DUY NHẤT tạo được công trình — không có. Component này có mặt trong biểu
+    // mẫu của nhiều module, nên gate nó bằng quyền quản trị là khoá đúng người cần dùng nó.
+    queryKey: ['org-units', 'selectable'],
+    queryFn: () => api.get<OrgUnitNode[]>('/org-units/selectable'),
     staleTime: 10 * 60 * 1000,
   });
 

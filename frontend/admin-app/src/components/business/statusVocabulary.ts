@@ -104,6 +104,35 @@ export const MANAGEMENT_LEVEL: StatusVocabulary = {
   CUM: { label: 'Cụm', color: 'normal' },
 };
 
+/**
+ * Loại công việc trong lịch sử sửa chữa — CN-02.2.
+ *
+ * ⛔ `KHAC_PHUC_SU_CO` KHÔNG phải một entity riêng (quy tắc 15): sự cố là một dòng
+ * `maintenance_logs` mang loại này. Không có mã `SC-`, không có bảng `incidents`.
+ */
+export const MAINTENANCE_TYPE: StatusVocabulary = {
+  SUA_CHUA: { label: 'Sửa chữa', color: 'normal' },
+  BAO_TRI_DINH_KY: { label: 'Bảo trì định kỳ', color: 'normal' },
+  NANG_CAP: { label: 'Nâng cấp', color: 'normal' },
+  THAY_THE_THIET_BI: { label: 'Thay thế thiết bị', color: 'normal' },
+  KHAC_PHUC_SU_CO: { label: 'Khắc phục sự cố', color: 'danger' },
+};
+
+/** Trạng thái xử lý — khớp `MaintenanceState.TAT_CA` và ràng buộc CHECK của CSDL. */
+export const MAINTENANCE_STATUS: StatusVocabulary = {
+  MOI: { label: 'Mới', color: 'warning' },
+  DANG_XU_LY: { label: 'Đang xử lý', color: 'warning' },
+  DA_XU_LY: { label: 'Đã xử lý', color: 'success' },
+};
+
+/** Mức độ sự cố — chỉ có ở bản ghi loại "Khắc phục sự cố" (OPS-2003). */
+export const INCIDENT_SEVERITY: StatusVocabulary = {
+  NGHIEM_TRONG: { label: 'Nghiêm trọng', color: 'danger' },
+  CAO: { label: 'Cao', color: 'danger' },
+  TRUNG_BINH: { label: 'Trung bình', color: 'warning' },
+  THAP: { label: 'Thấp', color: 'normal' },
+};
+
 /** Sắc thái một ô KPI trên dashboard — backend gửi xuống, FE chỉ dịch sang màu. */
 export const KPI_TONE: StatusVocabulary = {
   NORMAL: { label: 'Bình thường', color: 'normal' },

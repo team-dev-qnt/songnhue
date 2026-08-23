@@ -73,6 +73,56 @@ class RbacMatrixTest extends IntegrationTestBase {
     /** Vai trò chỉ được xem — đối chiếu {@code function-spec.md} §6. */
     private static final Set<String> READ_ONLY_ROLES = Set.of("VIEWER");
 
+    /**
+     * Quyền đã seed cho Phase 2/3 nhưng chưa chức năng nào dùng.
+     *
+     * <p>⚠ Mỗi dòng ở đây là một quyền <b>được miễn kiểm</b>. Danh sách phình lên là chuyện dễ xảy
+     * ra — thêm một dòng cho hết đỏ là thao tác một dòng — nên
+     * {@link #ngoaiLeQuyenPhaseSauVanConDung()} canh chiều ngược lại: quyền nào đã có người dùng thì
+     * phải bị gỡ khỏi đây, không được nằm lại.
+     */
+    private static final Set<String> QUYEN_PHASE_SAU = Set.of(
+            "ops:gis-layer:manage", // Tầng GIS — Phase 3
+            "ops:gis-layer:view", // Xem tầng GIS — Phase 3
+            "ops:report:export", // Kết xuất báo cáo — Phase 3
+            "ops:report:view", // Xem báo cáo — Phase 3
+            "hyd:alert:view", // Cảnh báo thủy văn — Phase 2
+            "hyd:alert:handle", // Xử lý cảnh báo — Phase 2
+            "hyd:alert-group:manage", // Nhóm cảnh báo — Phase 2
+            "hyd:api-source:manage", // Nguồn API thủy văn — Phase 2
+            "hyd:measurement:view", // Xem số liệu đo — Phase 2
+            "hyd:measurement:review", // Duyệt số liệu — Phase 2
+            "hyd:report:view", // Báo cáo thủy văn — Phase 2
+            "hyd:report:export", // Xuất báo cáo thủy văn — Phase 2
+            "hyd:station:view", // Xem trạm đo — Phase 2
+            "hyd:station:manage", // Quản lý trạm — Phase 2
+            "hyd:threshold:view", // Xem ngưỡng — Phase 2
+            "hyd:threshold:manage", // Quản lý ngưỡng — Phase 2
+            "hr:employee:create", // Nhân sự — Phase 2
+            "hr:employee:view", // Nhân sự — Phase 2
+            "hr:employee:view-sensitive", // Nhân sự — Phase 2
+            "hr:employee:update", // Nhân sự — Phase 2
+            "hr:employee:delete", // Nhân sự — Phase 2
+            "hr:contract:manage", // Hợp đồng — Phase 2
+            "hr:leave:request", // Phép — Phase 2
+            "hr:leave:approve", // Duyệt phép — Phase 2
+            "hr:leave:view-all", // Xem phép — Phase 2
+            "hr:org-chart:view", // Sơ đồ tổ chức — Phase 2
+            "hr:directory:view", // Danh bạ — Phase 2
+            "hr:report:view", // Báo cáo HR — Phase 2
+            "hr:report:export", // Xuất báo cáo HR — Phase 2
+            "cms:contact:manage", // CMS — Phase 2
+            "cms:feedback:manage", // CMS — Phase 2
+            "cms:external-doc:view", // CMS — Phase 2
+            "cms:external-doc:link", // CMS — Phase 2
+            "cms:external-doc:manage-flag", // CMS — Phase 2
+            "adm:user:reset-password", // Admin — Phase 2
+            "adm:session:view", // Admin — Phase 2
+            "adm:session:revoke", // Admin — Phase 2
+            "adm:security-event:view", // Admin — Phase 2
+            "adm:role:manage" // Admin — Phase 2
+            );
+
     @Autowired
     private JdbcTemplate jdbc;
 
@@ -94,58 +144,10 @@ class RbacMatrixTest extends IntegrationTestBase {
     @Test
     @DisplayName("⚠ Mọi mã quyền trong danh mục phải có ít nhất một endpoint sử dụng (trừ ngoại lệ có chủ đích)")
     void everyCatalogPermissionIsDeclared() {
-        Set<String> declared = declaredPermissionCodes();
+        Set<String> declared = usedPermissionCodes();
         Set<String> catalog = Set.copyOf(jdbc.queryForList("SELECT code FROM permissions", String.class));
 
-        // Các quyền được dựng sẵn cho Phase 2/3 nhưng chưa có API nào ở Phase 1
-        Set<String> futurePermissions = Set.of(
-                "ops:gis-layer:manage", // Tầng GIS — Phase 3
-                "ops:gis-layer:view", // Xem tầng GIS — Phase 3
-                "ops:report:export", // Kết xuất báo cáo — Phase 3
-                "ops:report:view", // Xem báo cáo — Phase 3
-                "ops:operation-status:view", // Xem tình hình vận hành — Phase 2
-                "ops:maintenance:update", // Cập nhật bảo trì — Phase 2
-                "ops:maintenance:close-incident", // Đóng sự cố — Phase 2
-                "hyd:alert:view", // Cảnh báo thủy văn — Phase 2
-                "hyd:alert:handle", // Xử lý cảnh báo — Phase 2
-                "hyd:alert-group:manage", // Nhóm cảnh báo — Phase 2
-                "hyd:api-source:manage", // Nguồn API thủy văn — Phase 2
-                "hyd:measurement:view", // Xem số liệu đo — Phase 2
-                "hyd:measurement:review", // Duyệt số liệu — Phase 2
-                "hyd:report:view", // Báo cáo thủy văn — Phase 2
-                "hyd:report:export", // Xuất báo cáo thủy văn — Phase 2
-                "hyd:station:view", // Xem trạm đo — Phase 2
-                "hyd:station:manage", // Quản lý trạm — Phase 2
-                "hyd:threshold:view", // Xem ngưỡng — Phase 2
-                "hyd:threshold:manage", // Quản lý ngưỡng — Phase 2
-                "hr:employee:create", // Nhân sự — Phase 2
-                "hr:employee:view", // Nhân sự — Phase 2
-                "hr:employee:view-sensitive", // Nhân sự — Phase 2
-                "hr:employee:update", // Nhân sự — Phase 2
-                "hr:employee:delete", // Nhân sự — Phase 2
-                "hr:contract:manage", // Hợp đồng — Phase 2
-                "hr:leave:request", // Phép — Phase 2
-                "hr:leave:approve", // Duyệt phép — Phase 2
-                "hr:leave:view-all", // Xem phép — Phase 2
-                "hr:org-chart:view", // Sơ đồ tổ chức — Phase 2
-                "hr:directory:view", // Danh bạ — Phase 2
-                "hr:report:view", // Báo cáo HR — Phase 2
-                "hr:report:export", // Xuất báo cáo HR — Phase 2
-                "cms:article:publish", // CMS — Phase 2
-                "cms:article:unpublish", // CMS — Phase 2
-                "cms:article:approve", // CMS — Phase 2
-                "cms:article:submit", // CMS — Phase 2
-                "cms:contact:manage", // CMS — Phase 2
-                "cms:feedback:manage", // CMS — Phase 2
-                "cms:external-doc:view", // CMS — Phase 2
-                "cms:external-doc:link", // CMS — Phase 2
-                "cms:external-doc:manage-flag", // CMS — Phase 2
-                "adm:user:reset-password", // Admin — Phase 2
-                "adm:session:view", // Admin — Phase 2
-                "adm:session:revoke", // Admin — Phase 2
-                "adm:security-event:view", // Admin — Phase 2
-                "adm:role:manage" // Admin — Phase 2
-                );
+        Set<String> futurePermissions = QUYEN_PHASE_SAU;
 
         Set<String> unused = new LinkedHashSet<>(catalog);
         unused.removeAll(declared);
@@ -154,6 +156,22 @@ class RbacMatrixTest extends IntegrationTestBase {
         assertThat(unused)
                 .as("quyền có trong DB nhưng không có endpoint nào dùng @RequirePermission đòi hỏi "
                         + "tức là công tắc chết — chức năng đó chưa có hoặc đã bị xoá mà quên dọn danh mục")
+                .isEmpty();
+    }
+
+    @Test
+    @DisplayName("⚠⚠ Danh sách quyền 'Phase sau' không được chứa quyền ĐANG dùng")
+    void ngoaiLeQuyenPhaseSauVanConDung() {
+        Set<String> dangDung = usedPermissionCodes();
+
+        Set<String> nhamLan = new LinkedHashSet<>(QUYEN_PHASE_SAU);
+        nhamLan.retainAll(dangDung);
+
+        assertThat(nhamLan)
+                .as("⛔ Những quyền này ĐANG được dùng thật mà vẫn nằm trong danh sách miễn kiểm. Bản "
+                        + "trước có 6 dòng như vậy — bốn bước duyệt bài viết và hai bước xử lý sự cố — vì "
+                        + "phép quét chỉ nhìn @RequirePermission mà bỏ qua workflow_transitions. Gỡ chúng "
+                        + "khỏi QUYEN_PHASE_SAU.")
                 .isEmpty();
     }
 
@@ -276,6 +294,27 @@ class RbacMatrixTest extends IntegrationTestBase {
     }
 
     /** Mọi mã quyền mà mã nguồn thật sự đòi hỏi — nguồn là annotation, không phải danh sách chép tay. */
+    /**
+     * Tập quyền <b>đang thực sự được dùng</b> — hợp của hai kênh khai báo, không phải một.
+     *
+     * <p>⚠⚠ Bản trước chỉ quét {@code @RequirePermission}, và đó là lý do danh sách "quyền của Phase
+     * sau" phình tới 46 dòng trong đó <b>ít nhất 6 dòng sai</b>: {@code cms:article:submit},
+     * {@code approve}, {@code publish}, {@code unpublish}, {@code ops:maintenance:update},
+     * {@code ops:maintenance:close-incident} — tất cả đều đang chạy thật, chỉ là chúng được khai ở
+     * {@code workflow_transitions.required_permission} chứ không ở annotation.
+     *
+     * <p>Hậu quả không phải một dòng thừa: một quyền nằm trong danh sách ngoại lệ là một quyền
+     * <b>được miễn kiểm</b>. Xoá nhầm nó khỏi bảng {@code permissions}, hoặc gõ sai nó trong một bước
+     * chuyển workflow, đều không còn ai bắt.
+     */
+    private Set<String> usedPermissionCodes() {
+        Set<String> codes = new LinkedHashSet<>(declaredPermissionCodes());
+        codes.addAll(jdbc.queryForList(
+                "SELECT DISTINCT required_permission FROM workflow_transitions WHERE required_permission IS NOT NULL",
+                String.class));
+        return codes;
+    }
+
     private static Set<String> declaredPermissionCodes() {
         Set<String> codes = new LinkedHashSet<>();
         ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);

@@ -35,7 +35,7 @@ export function OperationStatusCodesPage() {
   const [form] = Form.useForm<OperationStatusCodeCreateRequest>();
 
   const [modalVisible, setModalVisible] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingPublicId, setEditingPublicId] = useState<string | null>(null);
   const hasParameter = Form.useWatch('hasParameter', form);
 
   const query = useQuery({
@@ -54,8 +54,8 @@ export function OperationStatusCodesPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: (data: { id: number; payload: OperationStatusCodeUpdateRequest }) =>
-      api.put<OperationStatusCode>(`/ops/operation-status-codes/${data.id}`, data.payload),
+    mutationFn: (data: { publicId: string; payload: OperationStatusCodeUpdateRequest }) =>
+      api.put<OperationStatusCode>(`/ops/operation-status-codes/${data.publicId}`, data.payload),
     onSuccess: () => {
       message.success('Cập nhật thành công');
       setModalVisible(false);
@@ -64,7 +64,7 @@ export function OperationStatusCodesPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => api.delete(`/ops/operation-status-codes/${id}`),
+    mutationFn: (publicId: string) => api.delete(`/ops/operation-status-codes/${publicId}`),
     onSuccess: () => {
       message.success('Xoá thành công');
       queryClient.invalidateQueries({ queryKey: ['ops', 'operation-status-codes'] });
@@ -72,7 +72,7 @@ export function OperationStatusCodesPage() {
   });
 
   const openCreateModal = () => {
-    setEditingId(null);
+    setEditingPublicId(null);
     form.resetFields();
     form.setFieldsValue({
       colorHex: '#1890ff',
@@ -84,7 +84,7 @@ export function OperationStatusCodesPage() {
   };
 
   const openEditModal = (record: OperationStatusCode) => {
-    setEditingId(record.id);
+    setEditingPublicId(record.publicId);
     form.resetFields();
     form.setFieldsValue({
       ...record,
@@ -103,8 +103,8 @@ export function OperationStatusCodesPage() {
         values.colorHex = values.colorHex.toHexString();
       }
 
-      if (editingId) {
-        updateMutation.mutate({ id: editingId, payload: values });
+      if (editingPublicId) {
+        updateMutation.mutate({ publicId: editingPublicId, payload: values });
       } else {
         createMutation.mutate(values);
       }
@@ -182,7 +182,7 @@ export function OperationStatusCodesPage() {
               <Popconfirm
                 title="Xác nhận xoá?"
                 description="Bạn có chắc chắn muốn xoá mã này không?"
-                onConfirm={() => deleteMutation.mutate(record.id)}
+                onConfirm={() => deleteMutation.mutate(record.publicId)}
               >
                 <Button type="text" danger icon={<DeleteOutlined />} />
               </Popconfirm>
@@ -211,7 +211,7 @@ export function OperationStatusCodesPage() {
         <Table<OperationStatusCode>
           columns={columns}
           dataSource={query.data ?? []}
-          rowKey="id"
+          rowKey="publicId"
           loading={query.isLoading}
           pagination={false}
           scroll={{ x: 1000 }}
@@ -219,7 +219,7 @@ export function OperationStatusCodesPage() {
       </Card>
 
       <Modal
-        title={editingId ? 'Sửa Tình trạng Vận hành' : 'Thêm Tình trạng Vận hành'}
+        title={editingPublicId ? 'Sửa Tình trạng Vận hành' : 'Thêm Tình trạng Vận hành'}
         open={modalVisible}
         onCancel={() => setModalVisible(false)}
         onOk={handleSubmit}
@@ -232,7 +232,7 @@ export function OperationStatusCodesPage() {
             label="Mã tình trạng"
             rules={[{ required: true, message: 'Bắt buộc nhập' }]}
           >
-            <Input placeholder="Ví dụ: BOM_CHAY_1, BAO_TRI..." disabled={!!editingId} />
+            <Input placeholder="Ví dụ: MT, ĐK, ĐTTL..." disabled={!!editingPublicId} />
           </Form.Item>
 
           <Form.Item

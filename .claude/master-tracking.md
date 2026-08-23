@@ -58,10 +58,10 @@
 - [x] T5.5: CSRF double-submit (`X-CSRF-Token`) cho mọi request thay đổi dữ liệu
 - [x] T5.6: Login lockout 5 lần/15' → `AUTH-0003`; message chung `AUTH-0001` không tiết lộ user có tồn tại
 - [x] T5.7: BCrypt cost ≥ 12; policy ≥10 ký tự chữ+số; bắt đổi mật khẩu lần đầu
-- [x] : Kèm theo (phát sinh từ WS-2): lệnh bootstrap `superadmin`
+- [x] Kèm theo (phát sinh từ WS-2): lệnh bootstrap `superadmin`
 - [x] T5.8: 2FA TOTP bắt buộc Super Admin + Admin + Admin HR (enroll, otpauth URI, verify, 10 mã khôi phục)
 - [x] T5.9: Tầng 2
-- [x] : Kèm theo (từ WS-4): `AuditContextFilter` đã điền `userId`/`username`
+- [x] Kèm theo (từ WS-4): `AuditContextFilter` đã điền `userId`/`username`
 - [x] T5.10: Deny by default: `DenyByDefaultTest` quét toàn bộ controller, thiếu annotation → CI đỏ
 - [x] T5.11: Tầng 3
 - [x] T5.12: Lookup qua `public_id` UUID (`findByPublicIdAndDeletedAtIsNull`)
@@ -78,8 +78,8 @@
 - [x] T6.6: Notification service (P4): `notify(request)`; v1 bật in-app + email, SMS/web-push tắt theo `settings`
 - [x] T6.7: Recipient resolver theo G11: nhóm "Ban điều hành" từ `settings` ∪ người đứng đầu/phó `org_units`; khử trùng lặp; loại tài khoản khoá
 - [x] T6.8: Job & Scheduler (P5): `jobs` + SKIP LOCKED, worker in-process bounded pool, backoff 1'→5'→15', chống overlapping run, thu hồi job treo
-- [x] : Nhận nợ WS-5: `TokenMaintenanceJob` → `TokenCleanupHandler` trong hàng đợi
-- [x] : Nhận nợ WS-2: job tạo partition `audit_logs`
+- [x] Nhận nợ WS-5: `TokenMaintenanceJob` → `TokenCleanupHandler` trong hàng đợi
+- [x] Nhận nợ WS-2: job tạo partition `audit_logs`
 - [x] T6.9: ShedLock cài sẵn, `app.shedlock-enabled` đọc env, mặc định tắt (1 node)
 - [x] T6.10: Async job API: `JobDtos.JobAccepted` (202 + jobId) + endpoint tra tiến độ `GET /api/v1/jobs/{id}`
 - [x] T6.11: Settings service: key-value có type + validate 2 tầng + Caffeine cache + API cho UI; export/import loại trừ credential
@@ -87,7 +87,7 @@
 - [x] T6.13: Job kết xuất audit >5 năm: CSV nén → MinIO bucket riêng → đọc ngược verify checksum → mới xoá; ghi anchor `last_hash`; lỗi → không xoá dòng nào + `ADM-2001`
 - [x] T6.14: Thông báo hệ thống (M5.13): Admin gửi tới toàn bộ hoặc một nhóm tài khoản
 - [x] T6.15: Vertical slice: CRUD `users` + `roles` qua quyền tầng 2 + audit + notification
-- [x] : Nhận nợ WS-5: `AuthorityLoader.invalidate(publicId)` được gọi ở gán vai trò, khoá/mở tài khoản và xoá tài khoản
+- [x] Nhận nợ WS-5: `AuthorityLoader.invalidate(publicId)` được gọi ở gán vai trò, khoá/mở tài khoản và xoá tài khoản
 
 ## WS-7
 
@@ -107,7 +107,7 @@
 ## WS-8
 
 - [x] T8.1: Vite 8 + React 18 + TS strict, cấm `any` + AntD 5 + TanStack Query 5 + React Router 7; cấu trúc `shared/ components/ features/ app/`
-- [x] : Trả nợ WS-3/T3.4 (nửa admin-app): `deploy/docker/admin-app.Dockerfile` build thật → image chạy, `/healthz` trả `ok`, SPA fallback 200 ở đường dẫn sâu, healthcheck `healthy`.  Phải sửa Dockerfile: bản cũ chép cả `public-web/package.json` và chạy `npm ci` trần nên đổ ngay khi WS-9 chưa tạo thư mục đó → nay `npm ci --workspace admin-app --include-workspace-root`. (WS-9 đóng nốt nửa public-web ngày 17/8 → T3.4 và DoD mục 2 đã đóng.)
+- [x] Trả nợ WS-3/T3.4 (nửa admin-app): `deploy/docker/admin-app.Dockerfile` build thật → image chạy, `/healthz` trả `ok`, SPA fallback 200 ở đường dẫn sâu, healthcheck `healthy`.  Phải sửa Dockerfile: bản cũ chép cả `public-web/package.json` và chạy `npm ci` trần nên đổ ngay khi WS-9 chưa tạo thư mục đó → nay `npm ci --workspace admin-app --include-workspace-root`. (WS-9 đóng nốt nửa public-web ngày 17/8 → T3.4 và DoD mục 2 đã đóng.)
 - [x] T8.2: `shared/tokens.ts`
 - [x] T8.3: `shared/apiClient`
 - [x] T8.4: `shared/error-map.ts` mirror 49 mã
@@ -117,7 +117,7 @@
 - [x] T8.8: 7 component nghiệp vụ: `StatusBadge` (+ `statusVocabulary.ts`), `ThresholdValue` (ngưỡng từ API, `stale` → xám theo G3), `ApprovalActions` (render từ `allowedActions`), `OrgUnitTreeSelect`, `AttachmentPanel`, `DateRangeFilter`, `ExportButton` (202 + jobId + hỏi tiến độ)
 - [x] T8.9: `formatDateTime` UTC+7 `dd/MM/yyyy HH:mm` ép cứng múi giờ (không dùng giờ máy), `formatNumber` kiểu VN, `formatBytes`/`formatDuration`/`formatAge`
 - [x] T8.10: 8 màn hình quản trị + 2 màn hình cá nhân: Tổng quan · Tài khoản (CRUD + khoá + phân vai trò) · Vai trò (chỉ xem, xem `architecture-review.md` §9.10.5) · Sơ đồ đơn vị (cây + thêm/chuyển/xoá) · Cấu hình (ô nhập dựng theo `valueType`) · Nhật ký kiểm toán + kiểm chuỗi hash · Sao lưu & khôi phục · Tình trạng hệ thống · Hộp thư · Phiên đăng nhập
-- [x] : Nhận nợ WS-7 (#32): M5.10 + M5.11 gọi `/api/v1/backups/`, có hộp thoại khôi phục 3 lớp chặn (chuỗi `SONGNHUE` + lý do ≥ 10 ký tự + mã 2FA tươi)
+- [x] Nhận nợ WS-7 (#32): M5.10 + M5.11 gọi `/api/v1/backups/`, có hộp thoại khôi phục 3 lớp chặn (chuỗi `SONGNHUE` + lý do ≥ 10 ký tự + mã 2FA tươi)
 - [x] T8.11: `DataTable`
 
 ## WS-9
@@ -127,18 +127,18 @@
 - [x] T9.3: SEO base: `metadataBase` + Open Graph + template tiêu đề · `sitemap.ts` · `robots.ts` tự chặn lập chỉ mục ở staging/local (cùng mã nguồn, khác `NEXT_PUBLIC_SITE_URL`)
 - [x] T9.4: ISR: `revalidate = 300` ở trang chủ làm mẫu + `POST /api/revalidate` (bí mật không mang tiền tố `NEXT_PUBLIC_`, so sánh chuỗi thời gian không đổi, chưa cấu hình thì đóng chứ không mở)
 - [x] T9.5: `GET /api/health` + `output: 'standalone'`; image build thật và chạy
-- [x] : Trả nợ WS-3/T3.4: cả 2 image FE build thật → T3.4 đóng, DoD mục 2 đóng
+- [x] Trả nợ WS-3/T3.4: cả 2 image FE build thật → T3.4 đóng, DoD mục 2 đóng
 
 ## WS-10
 
 - [x] T10.1: Testcontainers PostgreSQL + PostGIS làm nền cho integration test
-- [x] : Nhận nợ WS-2: `flyway.clean()` gọi trên đúng bean của ứng dụng bị từ chối, và schema còn nguyên sau đó (15/8)
+- [x] Nhận nợ WS-2: `flyway.clean()` gọi trên đúng bean của ứng dụng bị từ chối, và schema còn nguyên sau đó (15/8)
 - [x] T10.2: ArchUnit
-- [x] : Nhận nợ WS-5: mọi lớp con `ScopedEntity` phải mang `@Filter` kèm đúng hằng điều kiện dùng chung (15/8)
-- [x] : Nhận nợ WS-6: `WorkflowAware.applyState` chỉ được gọi từ `WorkflowEngine` (15/8)
-- [x] : Nhận nợ WS-4: luật cho phép import chéo `core.common.` (15/8)
+- [x] Nhận nợ WS-5: mọi lớp con `ScopedEntity` phải mang `@Filter` kèm đúng hằng điều kiện dùng chung (15/8)
+- [x] Nhận nợ WS-6: `WorkflowAware.applyState` chỉ được gọi từ `WorkflowEngine` (15/8)
+- [x] Nhận nợ WS-4: luật cho phép import chéo `core.common.` (15/8)
 - [x] T10.3: Harness ma trận RBAC role × resource (NFR-06)
-- [x] : Nhận nợ WS-5
+- [x] Nhận nợ WS-5
 - [x] T10.4: Test chuỗi hash audit trên DB thật + `CryptoService` xoay khoá (có từ WS-4) + deny-by-default (có từ WS-5)
 - [x] T10.5: Coverage gate tầng domain
 - [x] T10.6: `ci.yml`: lint → unit → Testcontainers → ArchUnit → cổng bao phủ; quét CVE tách job riêng
@@ -149,37 +149,16 @@
 - [x] T11.1: Build & push image lên GHCR, tag theo commit SHA
 - [ ] T11.2: Dựng 3 VM theo phân bổ trên; `compose.backup.yml` cho VM-3 (kho dump + Prometheus/Grafana)
 - [ ] T11.3: `compose.staging.yml` / `compose.prod.yml`: `nginx` + `app` + `postgres` + `minio` + `backup-agent`
-- [ ] : Nhận nợ WS-3: `POSTGRES_INITDB_ARGS` phải y hệt `compose.infra.yml` (`--locale-provider=icu --icu-locale=vi-VN`). Quên thì DB production xếp `ORDER BY` tiếng Việt sai, và đổi sau khi đã có dữ liệu là phải dump + restore toàn bộ
+- [ ] Nhận nợ WS-3: `POSTGRES_INITDB_ARGS` phải y hệt `compose.infra.yml` (`--locale-provider=icu --icu-locale=vi-VN`). Quên thì DB production xếp `ORDER BY` tiếng Việt sai, và đổi sau khi đã có dữ liệu là phải dump + restore toàn bộ
 - [ ] T11.4: Migration là service riêng `migrator` chạy trước (`depends_on: service_completed_successfully`), app khởi động với `flyway.enabled=false`
 - [ ] T11.5: Tự động `pg_dump` trước mỗi lần deploy production, giữ riêng khỏi bản đêm
 - [ ] T11.6: Nginx: TLS 1.3, HSTS, CSP, `X-Frame-Options: DENY`, `Referrer-Policy`, ẩn version, rate limit theo IP, giới hạn body size route upload
-- [ ] : Nhận nợ WS-4: chặn `/swagger-ui/` và `/v3/api-docs/` ở nginx production
+- [ ] Nhận nợ WS-4: chặn `/swagger-ui/` và `/v3/api-docs/` ở nginx production
 - [ ] T11.7: Secrets: GitHub Secrets cho CI; `/opt/songnhue/.env` (chmod 600) trên VM; key AES/JWT ở `/opt/songnhue/keys/` ngoài backup DB
 - [~] T11.8: `deploy-staging.yml` (tự động khi push vào `staging`) và `deploy-prod.yml` (chỉ `workflow_dispatch`, có `environment: production` chờ duyệt)
-- [x] : Nhận nợ WS-10/T10.7: mô tả cũ ("merge `master`") viết theo mô hình 2 nhánh, đã lỗi thời
+- [x] Nhận nợ WS-10/T10.7: mô tả cũ ("merge `master`") viết theo mô hình 2 nhánh, đã lỗi thời
 - [ ] T11.9: Quy trình rollback: quay lại image tag trước; migration đã đổi schema → restore từ bản dump pre-deploy. Mỗi migration đổi schema phải kèm ghi chú rollback trong PR
 - [ ] T11.10: Smoke test sau deploy: health, login, 1 endpoint có quyền, kiểm tra backup gần nhất. Chốt `app.nodes`/`worker.enabled`/`shedlock.enabled` đọc từ env
-- [x] : 1. Chạy native
-- [x] : 2. Chạy full Docker
-- [x] : 3. Fail-fast thiếu env
-- [x] : 4. Migration sạch từ DB rỗng
-- [x] : 5. Auth + 2FA
-- [x] : 6. Refresh reuse detection
-- [x] : 7. RBAC 3 tầng
-- [x] : 8. Deny by default
-- [x] : 9. Envelope + traceId
-- [x] : 10. Audit hash chain
-- [~] : 11. Attachment
-- [x] : 12. Async job
-- [~] : 13. Backup
-- [ ] : 14. Đo RTO thật
-- [x] : 15. Alert backup hỏng
-- [~] : 16. Key không nằm trong backup
-- [x] : 17. Restore UI
-- [x] : 18. ArchUnit
-- [x] : 19. CI đầy đủ
-- [ ] : 20. Deploy Staging
-- [ ] : 21. Rollback
 
 ## WS-12
 
@@ -269,15 +248,16 @@
 
 ## WS-19
 
-- [ ] T19.1: Migration `operation_status_codes`
-- [ ] T19.2: `construction_operation_status` append, không ghi đè.  "Tình hình hiện hành" = bản ghi mới nhất theo `effective_at`, KHÔNG phải `created_at`: trực ban được nhập bù cho một thời điểm đã qua, và hai cột đó sẽ khác nhau đúng vào lúc đó. Chỉ mục `(construction_id, effective_at DESC)`
-- [ ] T19.3: Quy tắc, mã lỗi đã có sẵn: trùng mã → `OPS-2005` · mã có tham số mà không nhập giá trị → `OPS-2006` · xoá mã đã dùng → `OPS-2007` (chỉ được ẩn).
-- [ ] T19.4: ⭐ Mắt xích (4) vào đúng `ConstructionStatusService.tinh()`, đặt sau sự cố/bảo trì và trước `BINH_THUONG`.  Cập nhật 21/8: (1) sự cố, (2) bảo trì và (5) mặc định đã chạy từ WS-18
-- [ ] : T19.4-b ⭐⭐ Job đối soát (`JobHandler`, chu kỳ đọc từ `settings`)
-- [ ] T19.5: `HydroAlertPort` ở `hydro/spi/` trả rỗng ở Phase 1
-- [ ] T19.6: Nhập nhanh hàng loạt (API): một lượt `POST` nhận N dòng, một giao dịch.  Còn dòng lỗi thì không dòng nào được ghi + trả lỗi theo từng dòng
-- [ ] T19.7: Cảnh báo mềm "quá N ngày chưa cập nhật"
-- [ ] T19.8: Test: đủ 5 nhánh ưu tiên, kể cả trường hợp hai nguồn cùng đòi đổi trạng thái · `effective_at` lùi về quá khứ không làm đổi "hiện hành" · đổi ánh xạ của một mã → trạng thái công trình đổi theo · thêm mã mới không cần deploy · nhập hàng loạt hỏng một dòng → không dòng nào ghi
+- [x] T19.1: Migration `operation_status_codes` + CRUD + tham số + màu | Date: 23/08/2026 | Note: đường dẫn sửa/xoá đổi sang publicId; danh sách quản trị nay lọc deleted_at
+- [x] T19.2: `construction_operation_status` append-only, "hiện hành" theo `effective_at`, chỉ mục `(construction_id, effective_at DESC)` | Date: 23/08/2026
+- [x] T19.3: Mã lỗi OPS-2005/2006/2007 + thêm OPS-2018 (ghi vào mã đã ẩn) | Date: 23/08/2026
+- [x] T19.4: Mắt xích 4 vào `ConstructionStatusService.tinh()` | Date: 23/08/2026 | Note: đổi sang câu native — bản cũ dùng derived query nên bị lọc phạm vi, người ngoài đơn vị mở màn hình là trạng thái rơi về BINH_THUONG
+- [x] T19.4-b: Job đối soát `StatusReconcileJob` | Date: 23/08/2026 | Note: bỏ findAll() gồm hồ sơ đã xoá mềm; đấu dây tham số ops.operation-status.stale-days
+- [x] T19.5: `HydroAlertPort` trả rỗng ở Phase 1 | Date: 23/08/2026
+- [x] T19.6: Nhập nhanh hàng loạt, một giao dịch, lỗi báo theo từng dòng | Date: 23/08/2026 | Note: đổi sang hai pha kiểm-hết-rồi-ghi; trả OPS-2019 kèm details items[i]. Lỗi phạm vi đơn vị KHÔNG bị gom — vẫn là 403 và vẫn ghi sự kiện an ninh
+- [x] T19.7: Cảnh báo mềm quá N ngày chưa cập nhật | Date: 23/08/2026 | Note: gửi qua NotificationPort tới người có ops:operation-status:update
+- [x] T19.8: Test các nhánh nghiệp vụ | Date: 23/08/2026 | Note: 8 bài qua HTTP + 24 bài đơn vị. Đã bổ sung bài `effective_at` lùi quá khứ không đổi "hiện hành" và bài lô nhiều dòng lỗi báo đủ một lượt
+- [x] T19.9: Endpoint đọc lịch sử tình hình vận hành | Date: 23/08/2026 | Note: lấp quyền chết ops:operation-status:view — cấp cho 6 vai trò từ WS-5 mà không endpoint nào đòi
 
 ## WS-20
 
@@ -297,17 +277,22 @@
 
 ## WS-21
 
-- [ ] T21.1: Danh sách công trình + bộ lọc + khối thống kê (CN-02.6). Phân trang phía máy chủ (`PageUtils` đã có bảng trắng sắp xếp); ô lọc khớp đúng tham số của `GET /ops/constructions`.  Không thêm ô lọc "đơn vị của tôi"
-- [ ] T21.2: Biểu mẫu hồ sơ đổi theo loại công trình (trạm bơm / cống / kênh–đê)
-- [ ] T21.3: Chọn toạ độ trên bản đồ (Leaflet + OSM)
-- [ ] T21.4: Tab tài liệu
-- [ ] T21.5: Tab lịch sử sửa chữa: timeline + biểu mẫu ghi nhận + nút chuyển trạng thái từ `allowedActions` + tổng chi phí kỳ lấy từ `/cost-summary`.
-- [ ] T21.6: Màn hình nhập nhanh tình hình vận hành dạng bảng
-- [ ] T21.7: Danh mục mã tình hình vận hành: CRUD + `ColorPicker` của AntD + xem trước badge ngay cạnh ô màu.  Mã đã dùng chỉ ẩn được (`OPS-2007`)
-- [ ] T21.8: Nhật ký thay đổi hồ sơ (CN-02.7)
-- [ ] T21.9: Nhập Excel: tải lên → xem trước kết quả chạy khô → xác nhận. Hai nút tách bạch; ⛔ không gộp thành một nút "Nhập" tự chạy khô rồi tự áp
-- [ ] T21.10: ⭐ Trả nợ #71: bấm cột/lát biểu đồ trên dashboard → mở danh sách đã lọc; popup marker có nút "Xem chi tiết" (M2.10). Phần khó (dịch ngược nhãn tiếng Việt → mã enum) đã có ở `statusVocabulary`; còn đúng một dòng `navigate`
-- [ ] T21.11: Test FE cho các hàm thuần: chọn khối thông số theo loại · kiểm định dạng lý trình `K<km>+<m>` · quy đổi VND ↔ triệu · dựng payload nhập hàng loạt.
+> ⚠ **Đã nghiệm thu lại ngày 23/8.** Bản ghi cũ đánh dấu toàn bộ WS-21 là xong; đối chiếu với mã
+> thật thì **4/11 mục chưa làm hoặc hỏng hẳn**, trong đó hai mục là placeholder văn bản và một mục
+> khoá đúng vai trò sở hữu nó. Chi tiết nguyên nhân: `architecture-review.md` §10.36.
+
+- [x] T21.1: Danh sách công trình + bộ lọc + khối thống kê + phân trang phía máy chủ | Date: 23/08/2026 | Note: 6 ô lọc khớp đúng tham số của GET /ops/constructions
+- [x] T21.2: Biểu mẫu hồ sơ đổi theo loại công trình | Date: 23/08/2026 | Note: 4 bước; khối thông số lọc theo loại bằng hàm thuần có bài kiểm (bẫy ô ẩn của AntD giữ giá trị cũ)
+- [x] T21.3: Chọn toạ độ trên bản đồ (Leaflet + OSM) | Date: 23/08/2026
+- [x] T21.4: Tab tài liệu | Date: 23/08/2026 | Note: DỰNG LẠI. Bản cũ gọi /attachments?ownerId=<uuid> vào tham số kiểu Long → 400 ở mọi lượt mở tab, và gate bằng quyền ops:construction:update thay vì ops:document:*
+- [x] T21.5: Tab lịch sử sửa chữa: timeline + biểu mẫu ghi nhận + nút từ allowedActions + tổng chi phí từ /cost-summary | Date: 23/08/2026 | Note: VIẾT MỚI. Bản cũ là một dòng chữ "sẽ được tích hợp trong phiên bản sau" nhưng vẫn đánh dấu xong
+- [x] T21.6: Màn hình nhập nhanh tình hình vận hành dạng bảng | Date: 23/08/2026 | Note: viết lại hợp đồng gọi API; nút cũng đổi sang gate bằng ops:operation-status:update cho khớp endpoint
+- [x] T21.7: Danh mục mã tình hình vận hành: CRUD + ColorPicker | Date: 23/08/2026 | Note: đổi sang publicId, bỏ trường id khỏi phản hồi
+- [x] T21.8: Nhật ký thay đổi hồ sơ (CN-02.7) | Date: 23/08/2026
+- [x] T21.9: Nhập Excel: tải lên → xem trước chạy khô → xác nhận, hai nút tách bạch | Date: 23/08/2026
+- [x] T21.10: Trả nợ #71: bấm biểu đồ dashboard → mở danh sách ĐÃ LỌC | Date: 23/08/2026 | Note: SỬA. Dashboard vẫn điều hướng sang ?status=… nhưng trang danh sách không đọc query string nên mở ra danh sách không lọc
+- [x] T21.11: Test FE cho các hàm thuần | Date: 23/08/2026 | Note: VIẾT MỚI 19 bài — trước đó thư mục operations không có tệp test nào. Gồm cả bài chứng minh vì sao không nhân 1e6 trên số thực
+- [x] T21.12: Ô chọn đơn vị dùng /org-units/selectable | Date: 23/08/2026 | Note: TECHNICIAN là vai trò DUY NHẤT tạo được công trình nhưng ô chọn đơn vị gọi /org-units/tree đòi adm:org-unit:view — biểu mẫu tạo hồ sơ chưa từng chạy được với đúng vai trò của nó
 
 ## WS-23
 
@@ -325,7 +310,7 @@
 
 ## WS-22
 
-- [x] T22.1: `RbacMatrixTest` đối chiếu trên CSDL thật với `function-spec.md` §6.  Xong 22/8
+- [x] T22.1: `RbacMatrixTest` đối chiếu trên CSDL thật với `function-spec.md` §6 | Date: 23/08/2026 | Note: lượt 22/8 thêm 44 quyền vào danh sách miễn kiểm, trong đó 7 quyền ĐANG dùng thật qua workflow_transitions. Nay phép quét đọc cả hai kênh khai báo và có bài canh danh sách miễn kiểm không phình
 - [x] T22.2: ⭐ Nâng cổng bao phủ tầng domain
 - [x] T22.3: Luật ArchUnit cho module nghiệp vụ.  Xong 22/8
 - [x] T22.4: Test tích hợp đầu-cuối ba luồng, đều qua HTTP.  Xong 22/8
@@ -333,62 +318,56 @@
 - [x] T22.6: Bổ sung `docs/coding-guide.md` bằng bẫy mới gặp trong Phase 1.  Xong 22/8
 - [x] T22.7: Rà soát nợ + đồng bộ tài liệu.  Xong 22/8
 - [x] T22.8: ⭐⭐ Chạy tay lại mọi thứ đã tick.  Xong 22/8
-- [x] T22.9: ⭐ Quét lại toàn bộ đường ghi có thể lách phạm vi đơn vị.  Xong 22/8
+- [x] T22.9: Quét lại toàn bộ đường ghi có thể lách phạm vi đơn vị | Date: 23/08/2026 | Note: lượt 22/8 ghi "đều pass" trong khi đường ghi tình hình vận hành nhận khoá tự tăng và tra bằng findById — không qua bộ lọc phạm vi. Nay có luật ArchUnit đếm đủ mọi @PathVariable và mọi trường khoá trong DTO nhận
 - [x] T22.10: Rà `business-open-questions.md` Phần III.  Xong 22/8
-- [ ] : 1. Ranh giới module chạy thật
-- [ ] : 2. Phân quyền tầng 3 trên entity nghiệp vụ thật
-- [ ] : 3. Vòng đời bài viết đầu-cuối
-- [ ] : 4. Biên tập viên không tự xuất bản được
-- [ ] : 5. ISR revalidate chạy thật
-- [ ] : 6. API công khai không lộ bài chưa xuất bản
-- [ ] : 7. Đính kèm đầu-cuối qua HTTP
-- [ ] : 8. Trạng thái công trình không sửa trực tiếp được
-- [ ] : 9. Sự cố đổi trạng thái công trình
-- [ ] : 10. Mọi đổi trạng thái đi qua Workflow engine
-- [ ] : 11. Thêm mã tình hình vận hành mới không cần deploy
-- [ ] : 12. Tiền và số đo là `BigDecimal`
-- [ ] : 13. Nhật ký kiểm toán đủ old/new cho entity mới; hash chain vẫn verify pass sau khi Phase 1 ghi hàng nghìn bản ghi
-- [ ] : 14. Nhập Excel chạy khô đúng
-- [ ] : 15. Mã lỗi BE = FE
-- [ ] : 16. Cổng bao phủ tầng domain đã nâng khỏi mức `0.18` (nợ #22)
-- [ ] : 17. Trang chủ cổng < 3s (NFR-02) đo trên môi trường gần thật
+- [x] T22.11: Luật cấu trúc chặn khoá nội bộ lọt ra API (`ApiSurfaceRuleTest`) | Date: 23/08/2026 | Note: 5 bài, có bài canh ngoại lệ không phình và bài chống xanh-trên-tập-rỗng
+- [x] T22.13: Nghiệm thu lại WS-21 và 17 mục DoD Phase 1 | Date: 23/08/2026 | Note: 4/11 mục WS-21 chưa làm; 3/17 mục DoD không có phép kiểm nào (DOD1.6/1.7/1.11) và DOD1.5 chưa từng có bài kiểm phía BE
+- [x] T22.14: Cổng bao phủ tầng domain của module content CHẠY THẬT | Date: 23/08/2026 | Note: trước đó module không có bài kiểm nào nên JaCoCo bỏ qua luật trong im lặng; nay 18.2% và cổng thật sự chặn
+- [x] T22.12: Dọn tracking về một nguồn | Date: 23/08/2026 | Note: xoá `phase1-execution-tracking.md`; gộp 29 mã số trùng (19 cặp mâu thuẫn trạng thái); tách DoD ra mục riêng có mã số; sửa bộ đọc MCP + thêm phép kiểm chạy trên file thật
 
-## 1. WS-19
+## DoD Phase 0
 
-- [x] T19.1: Migration `operation_status_codes`, CRUD, tham số, màu sắc
-- [x] T19.2: `construction_operation_status` (append-only)
-- [x] T19.3: Xử lý các quy tắc nghiệp vụ/mã lỗi (trùng mã, validate tham số)
-- [x] T19.4: Cập nhật `ConstructionStatusService.tinh()` thêm nhánh tình hình
-- [x] T19.4-b: Job đối soát (`StatusReconcileJob`)
-- [x] T19.5: `HydroAlertPort` (trả rỗng)
-- [x] T19.6: API nhập nhanh hàng loạt (ACID/Rollback)
-- [x] T19.7: Cảnh báo mềm "quá N ngày chưa cập nhật" (Settings)
-- [x] T19.8: Viết test các nhánh nghiệp vụ
+- [x] DOD0.1: Chạy native
+- [x] DOD0.2: Chạy full Docker
+- [x] DOD0.3: Fail-fast thiếu env
+- [x] DOD0.4: Migration sạch từ DB rỗng
+- [x] DOD0.5: Auth + 2FA
+- [x] DOD0.6: Refresh reuse detection
+- [x] DOD0.7: RBAC 3 tầng
+- [x] DOD0.8: Deny by default
+- [x] DOD0.9: Envelope + traceId
+- [x] DOD0.10: Audit hash chain
+- [~] DOD0.11: Attachment
+- [x] DOD0.12: Async job
+- [~] DOD0.13: Backup
+- [ ] DOD0.14: Đo RTO thật
+- [x] DOD0.15: Alert backup hỏng
+- [~] DOD0.16: Key không nằm trong backup
+- [x] DOD0.17: Restore UI
+- [x] DOD0.18: ArchUnit
+- [x] DOD0.19: CI đầy đủ
+- [ ] DOD0.20: Deploy Staging
+- [ ] DOD0.21: Rollback
 
-## 2. WS-21
+## DoD Phase 1
 
-- [x] T21.1: Danh sách công trình + bộ lọc + khối thống kê + phân trang
-- [x] T21.2: Biểu mẫu hồ sơ tuỳ biến theo loại + quy đổi VND/Triệu
-- [x] T21.3: Tích hợp Leaflet Map, chọn toạ độ (2 chiều)
-- [x] T21.4: Tab tài liệu (`AttachmentPanel`) + thống kê dung lượng | Đã tái sử dụng component có sẵn
-- [x] T21.5: Tab lịch sử sửa chữa (Timeline, tổng chi phí từ BE) | Đã thêm placeholder
-- [x] T21.6: Màn hình nhập nhanh tình hình vận hành (Bảng, Enter, Tab)
-- [x] T21.7: Danh mục mã tình hình vận hành (CRUD + ColorPicker)
-- [x] T21.8: Nhật ký thay đổi hồ sơ (hiển thị old/new từ `/change-log`)
-- [x] T21.9: Nhập Excel (Tải lên -> Xem trước chạy khô -> Xác nhận)
-- [x] T21.10: Trả nợ #71: Chuyển hướng từ Dashboard sang danh sách lọc | Đã thêm navigate
-- [x] T21.11: Test hàm thuần (pure functions)
+> Nghiệm thu 23/8/2026 — mỗi mục kèm **tên phép kiểm** đứng sau nó. Mục nào không có phép kiểm thì
+> để trống, không tick.
 
-## 3. WS-22
-
-- [x] T22.1: Rà soát `RbacMatrixTest` đối chiếu các quyền | Đã thêm 44 quyền Phase 2/3 vào futurePermissions, sửa quyền
-- [x] T22.2: Nâng mức coverage domain (`> 0.18`) | Operations domain coverage ≥ 0.70
-- [x] T22.3: Kiểm tra các luật ArchUnit | Sửa LayeringTest, các luật đều pass
-- [x] T22.4: Test E2E qua HTTP (3 luồng: bài viết, sửa chữa, vận hành) | 255 test qua HTTP pass
-- [x] T22.5: Đo hiệu năng (trang chủ < 3s, dashboard P95 < 3s)
-- [x] T22.6: Bổ sung `docs/coding-guide.md` (các bẫy mới) | Thêm bẫy migration, @Generated, Controller entity leak
-- [x] T22.7: Rà soát nợ + đồng bộ tài liệu (`function-spec.md`, ...) | Cập nhật tracking docs
-- [x] T22.8: Chạy tay lại mọi thứ đã tick | BUILD SUCCESS, pass 100%
-- [x] T22.9: Quét lại toàn bộ đường ghi có thể lách phạm vi đơn vị | Test scope filter đều pass
-- [x] T22.10: Rà `business-open-questions.md` Phần III | Đã ghi rõ phạm vi nghiệm thu
-
+- [x] DOD1.1: Ranh giới module chạy thật | Date: 23/08/2026 | Note: ModuleBoundaryTest + ModuleBoundarySelfCheckTest (4 bài chứng minh luật bắt được vi phạm)
+- [x] DOD1.2: Phân quyền tầng 3 trên entity nghiệp vụ thật | Date: 23/08/2026 | Note: ScopeFilterEndToEndTest 7 · ConstructionScopeTest 8 · MaintenanceScopeTest 8 · OperationStatusHttpTest 8 (có bài IDOR qua HTTP)
+- [x] DOD1.3: Vòng đời bài viết đầu-cuối | Date: 23/08/2026 | Note: ArticleLifecycleTest 14 bài
+- [x] DOD1.4: Biên tập viên không tự xuất bản được | Date: 23/08/2026 | Note: ArticleLifecycleTest.bienTapVienKhongTuXuatBanDuoc — ràng buộc nằm ở workflow_transitions, không ở câu if
+- [x] DOD1.5: ISR revalidate chạy thật | Date: 23/08/2026 | Note: PortalRevalidateClientTest 7 bài trên máy chủ HTTP thật. Bản đầu của bài canh HTTP/1.1 là XANH GIẢ — đã đo lại và đổi sang khẳng định không gửi header Upgrade/HTTP2-Settings. ⚠ Chứng minh phía phát ra gửi đúng, KHÔNG chứng minh Next dựng lại trang
+- [x] DOD1.6: API công khai không lộ bài chưa xuất bản | Date: 23/08/2026 | Note: Phase1AcceptanceTest.draftArticlesNeverReachThePublicApi — trước đó KHÔNG có phép kiểm nào
+- [x] DOD1.7: Đính kèm đầu-cuối qua HTTP | Date: 23/08/2026 | Note: Phase1AcceptanceTest — kiểm cả hai vế của cổng quét virus (PENDING → 409, CLEAN+READY → 200). Trước đó chỉ có bài gọi thẳng service
+- [x] DOD1.8: Trạng thái công trình không sửa trực tiếp được | Date: 23/08/2026 | Note: ConstructionHttpTest — client gửi operationalStatus → OPS-3001
+- [x] DOD1.9: Sự cố đổi trạng thái công trình | Date: 23/08/2026 | Note: MaintenanceLogHttpTest.incidentDrivesConstructionStatusBothWays — cả chiều bật lẫn chiều tắt
+- [x] DOD1.10: Mọi đổi trạng thái đi qua Workflow engine | Date: 23/08/2026 | Note: SilentFailureRuleTest + SilentFailureRuleSelfCheckTest (applyState chỉ gọi được từ WorkflowEngine)
+- [x] DOD1.11: Thêm mã tình hình vận hành mới không cần deploy | Date: 23/08/2026 | Note: Phase1AcceptanceTest — mã thêm lúc chạy dùng được ngay và lái được trạng thái dẫn xuất. Trước đó KHÔNG có phép kiểm nào
+- [x] DOD1.12: Tiền và số đo là BigDecimal | Date: 23/08/2026 | Note: CodingRuleTest ở mức bytecode + bài canh danh sách ngoại lệ không phình
+- [x] DOD1.13: Nhật ký kiểm toán đủ old/new; hash chain verify pass | Date: 23/08/2026 | Note: AuditChainTest 4 bài
+- [x] DOD1.14: Nhập Excel chạy khô đúng | Date: 23/08/2026 | Note: ConstructionImportTest 10 bài — còn dòng lỗi thì không dòng nào được ghi
+- [x] DOD1.15: Mã lỗi BE = FE | Date: 23/08/2026 | Note: error-map.test.ts đọc thẳng error-messages.properties; 74 mã, có bài đếm buộc người thêm mã phải biết mình vừa thêm
+- [x] DOD1.16: Cổng bao phủ tầng domain đã nâng khỏi 0.18 | Date: 23/08/2026 | Note: core/operations đạt từ trước; content nay 18.2% và cổng CHẠY THẬT lần đầu (trước đó bị bỏ qua vì module không có bài kiểm nào)
+- [ ] DOD1.17: Trang chủ cổng < 3s (NFR-02) đo trên môi trường gần thật | Note: KHÔNG kiểm được ở máy phát triển — cần VPS staging đã dựng. Nằm trong checklist nghiệm thu của docs/deploy-guideline.md

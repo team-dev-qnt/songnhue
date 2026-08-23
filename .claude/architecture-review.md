@@ -2133,3 +2133,160 @@ Chữa hai tầng:
 **493 test BE** (239 core + 254 app, +42) + 151 FE · **72 mã lỗi** (thêm `OPS-2017`, BE = FE) · 2 quy trình workflow mới · 1 tham số `settings` có người đọc và có bài kiểm cho **cả hai phía** 0 / khác 0.
 
 Hai ô KPI `incident.open` và `maintenance.in-progress` của §10.33 nay có nguồn thật — `DashboardHttpTest` tách thành hai bài: hai ô thuỷ văn vẫn phải rỗng-kèm-lý-do, hai ô này phải là **số**.
+
+### §10.35. ⚠⚠ Đợt vá sau nghiệm thu WS-22 — một lỗ IDOR, một cột dẫn xuất trộn hai chiều lọc, và ba cơ chế canh gác tự khai mình đã chạy (23/8/2026)
+
+WS-22 đóng ngày 22/8 với T22.8 *"Chạy tay lại mọi thứ đã tick"* và T22.9 *"Quét lại toàn bộ đường
+ghi có thể lách phạm vi đơn vị — test scope filter đều pass"*. Lượt rà soát độc lập ngày 23/8 tìm
+ra **bốn lỗi thật**, trong đó lỗi nặng nhất nằm đúng trong phạm vi mà T22.9 tuyên bố đã quét.
+
+#### Lỗi 1 — IDOR ở đường ghi tình hình vận hành
+
+`ConstructionOperationStatusService.createSingle` nhận `Long constructionId` thẳng từ payload rồi
+tra bằng `constructionRepository.findById`. Ba thứ hỏng cùng lúc:
+
+- Khoá tự tăng **đoán được** — gõ 1, 2, 3 là quét hết bảng công trình.
+- ⭐ **`findById` không đi qua `@Filter` của Hibernate.** Bộ lọc áp cho truy vấn và collection,
+  *không* áp cho lượt tra thẳng theo khoá chính. Đây là chi tiết quyết định: mọi đường ghi khác của
+  MOD-02 đi qua `ConstructionService.get(publicId)` → `ScopeGuard.require`, còn đường này đi thẳng
+  xuống repository nên tầng 3 vắng mặt hoàn toàn.
+- Bản ghi sinh ra **chép `org_unit_id` của nạn nhân**, nên nó nằm gọn trong phạm vi của họ và lật
+  luôn trạng thái dẫn xuất công trình của họ — người bị ảnh hưởng không có cách nào lần ra nguồn.
+
+Bản vá không thêm một phép kiểm mới mà đi lại đúng con đường chung. Gọi `scopeGuard.require` tại chỗ
+cũng chặn được, nhưng khi đó lớp này phải tự nhớ ba điều kiện (`public_id`, `deleted_at IS NULL`,
+bọc `ScopeGuard`) — đúng kiểu "người viết phải nhớ" mà quy tắc 5 cấm.
+
+#### Lỗi 2 — cột dẫn xuất trộn hai chiều lọc
+
+`ConstructionStatusService.tinh()` xếp 5 mắt xích. Mắt xích 1–2 đi bằng câu **native** (không lọc
+phạm vi, có chủ ý, đã ghi ở §10.34). Mắt xích 4 lại đi bằng câu **derived** nên *có* lọc. Hậu quả
+không phải chặn nhầm mà là **ghi sai**: người ngoài đơn vị mở màn hình → mắt xích 4 tra ra rỗng →
+trạng thái bị hạ xuống `BINH_THUONG` **cho tất cả mọi người**, vì đây là cột được ghi xuống CSDL.
+
+> **Luật rút ra:** một cột dẫn xuất trộn hai nguồn khác chiều lọc thì kết quả phụ thuộc *ai bấm F5
+> sau cùng*. Đã đưa thành javadoc của `ConstructionOperationStatusRepository`, nơi cả hai loại câu
+> cùng tồn tại và khác biệt được nêu thành hai gạch đầu dòng.
+
+#### Lỗi 3 — màn hình nhập nhanh chưa từng ghi được một dòng nào
+
+Giao diện gọi `/ops/operation-status/batch` (số ít), backend phục vụ `/ops/operation-statuses`
+(số nhiều) → **404 ở mọi lượt bấm Lưu**. Và nếu đường dẫn có đúng thì vẫn hỏng tiếp ở bốn tầng:
+tên trường lệch hết (`statusCode`/`remarks`/`reportedAt` ↔ `operationCode`/`note`/`effectiveAt`);
+khoá công trình gửi UUID trong khi backend đọc số; ô chọn lấy từ `CONSTRUCTION_STATUS` — tức
+**trạng thái dẫn xuất**, thứ quy tắc 4 cấm người dùng đặt tay; và mỗi lượt Lưu gửi *toàn bộ* danh
+sách công trình kèm trạng thái hiện tại.
+
+Chức năng này được đánh dấu ✅ trong bản ghi tiến độ. Không bài kiểm nào thấy vì phía BE được kiểm
+bằng lời gọi service trực tiếp — đúng bài học 391-bài-xanh-mà-mọi-màn-hình-500 của WS-20.
+
+#### Lỗi 4 — ba cơ chế canh gác tự khai mình đã chạy
+
+| Cơ chế | Tự khai | Sự thật |
+|---|---|---|
+| `RbacMatrixTest` "mọi quyền đều có endpoint dùng" | xanh | Chỉ quét `@RequirePermission`, bỏ qua `workflow_transitions.required_permission` — kênh khai báo thứ hai. Lượt 22/8 đẩy **44 quyền** vào danh sách miễn kiểm, trong đó **7 quyền đang chạy thật** |
+| `ops:operation-status:view` | cấp cho 6 vai trò từ WS-5 | Không endpoint nào đòi nó — dữ liệu chỉ có đường ghi vào, không có đường đọc ra |
+| `ops.operation-status.stale-days` | seed + bày ra giao diện cấu hình | Không dòng mã nào đọc. Người quản trị chỉnh 7 → 3 và không có gì xảy ra |
+
+#### Ba luật đặt thêm, mỗi luật kèm bài kiểm chứng minh nó bắt được vi phạm
+
+1. **`ApiSurfaceRuleTest`** — không `@PathVariable` nào mang kiểu số, không DTO nhận nào có trường
+   khoá kiểu số. Mỗi luật có bài canh danh sách ngoại lệ *không phình* và một bài chống xanh-trên-
+   tập-rỗng (đếm được > 20 controller mới tính).
+2. **`RbacMatrixTest.usedPermissionCodes()`** — hợp của **hai** kênh khai báo, kèm bài đỏ khi một
+   quyền đang dùng còn nằm trong danh sách miễn kiểm.
+3. **`OperationStatusHttpTest`** — 6 bài đi qua HTTP thật, gồm cả bài khẳng định đường dẫn số ít
+   **không tồn tại** (canh việc hai phía khớp nhau, không canh một lỗi).
+
+> ⚠⚠ **Lượt kiểm chứng đầu tiên của chính bản vá cũng là một xanh giả.** Để chứng minh bài kiểm bắt
+> được vi phạm, tôi cố ý gỡ lớp bảo vệ rồi chạy lại — **6/6 vẫn xanh**. Nguyên nhân: lệnh `install`
+> bị Checkstyle chặn (tên hàm cố ý xấu), và output đã bị `>/dev/null` nuốt, nên bài kiểm chạy trên
+> **jar cũ còn nguyên bản vá**. Đổi tên hàm cho hợp lệ rồi chạy lại thì đỏ đúng 2 bài. Bài học: khi
+> làm hỏng có chủ đích để kiểm chứng, **phải xác nhận bản hỏng đã thực sự được nạp**.
+
+#### Dọn nguồn theo dõi tiến độ
+
+`conventions.md` §10 (nay đánh số lại thành **§6** — mục liền trước là §5, không có §6–§9) tự đặt
+luật "chỉ sửa `master-tracking.md`" rồi **file tracking thứ tư ra đời ngay sau đó**. Đo trên file
+thật: **310/310 dòng mất mã số** (bộ đọc đòi khoảng trắng, cú pháp quy ước dùng dấu hai chấm) ·
+khoá nhóm tách làm `WS-19` và `1. WS-19` · **29 mã số trùng, 19 cặp mâu thuẫn trạng thái**. Công cụ
+đồng bộ còn `clear()` trước `update()` — một lượt parse rỗng **xoá sạch bảng rồi báo `Success!``.
+
+Nay: một nguồn duy nhất, DoD tách thành mục riêng có mã số, và `test_parse.py` chạy trên **chính**
+file thật (không trên chuỗi mẫu tự soạn — người soạn mẫu chép lại đúng giả định sai của mình).
+
+### §10.36. ⚠⚠ Nghiệm thu lại WS-21 và 17 mục DoD — 4/11 màn hình chưa làm, 4/17 cam kết không có phép kiểm nào (23/8/2026)
+
+Sau §10.35, WS-21 và WS-22 được giữ ở `[~]` vì bản ghi "đã xong" ngày 22/8 đã tự chứng minh là không
+dùng được. Lượt nghiệm thu lại đối chiếu **từng task với mã thật** thay vì với bản ghi.
+
+#### WS-21 — bốn mục hỏng, mỗi mục một kiểu
+
+| Mục | Bản ghi cũ | Sự thật |
+|---|---|---|
+| **T21.5** Tab lịch sử sửa chữa | ✅ *"Đã thêm placeholder"* | Một dòng chữ: *"Lịch sử sửa chữa sẽ được tích hợp trong phiên bản sau."* Placeholder **là** nội dung của tab |
+| **T21.4** Tab tài liệu | ✅ *"Đã tái sử dụng component có sẵn"* | Gọi `/attachments?ownerId=<uuid>` vào `@RequestParam Long ownerId` → **400 ở mọi lượt mở tab**. Mã nguồn còn nguyên chú thích tự hỏi *"backend expects UUID for construction?"* cạnh một lượt ép kiểu `as unknown as number` |
+| **T21.10** Nợ #71 | ✅ *"Đã thêm navigate"* | Dashboard *có* điều hướng sang `?status=SU_CO`, nhưng trang danh sách **không đọc query string** → mở ra danh sách không lọc. Đúng nửa việc, và nửa thiếu không có triệu chứng |
+| **T21.11** Test hàm thuần | ✅ *"Test hàm thuần (pure functions)"* | Thư mục `features/operations` **không có một tệp test nào** |
+
+> ⭐ Ba trong bốn mục trên đều thuộc một khuôn: **việc có được làm, nhưng không được nối vào đường
+> chạy thật.** Một placeholder được viết ra, một component có sẵn được gọi sai kiểu, một `navigate`
+> được thêm mà đầu nhận không đọc. Không cái nào là "quên làm"; cả ba là "làm xong nửa đường rồi
+> tích".
+
+#### Một lỗ phân quyền chưa ai chạm tới
+
+`TECHNICIAN` là vai trò **duy nhất** có `ops:construction:create`. Biểu mẫu tạo hồ sơ bắt buộc chọn
+đơn vị quản lý, ô chọn gọi `/org-units/tree`, đường đó đứng sau `adm:org-unit:view` — quyền mà
+TECHNICIAN không có. **Biểu mẫu tạo công trình chưa từng dùng được bởi đúng vai trò sở hữu nó.**
+
+Điều đáng chú ý: javadoc của `OrgUnitController` từ WS-6 đã ghi đúng chủ ý — *"xem thì gần như ai
+cũng cần (chọn đơn vị trong biểu mẫu), còn sửa cấu trúc là việc của quản trị"*. Tài liệu đúng, mã
+sai, và không có gì bắt hai bên đối chiếu. Vá bằng `/org-units/selectable` dưới
+`@AuthenticatedEndpoint` — cùng hình dạng với `/ops/operation-status-codes/active` ở §10.35.
+
+#### DoD — bốn cam kết không có phép kiểm nào đứng sau
+
+`DOD1.6` (cổng công khai không lộ bài chưa xuất bản) · `DOD1.7` (đính kèm đầu-cuối qua HTTP) ·
+`DOD1.11` (thêm mã mới không cần deploy) chưa từng được kiểm. `DOD1.5` (ISR revalidate) có bài kiểm
+cấu hình phía Next nhưng **phía phát ra chưa ai gọi thử** — trong khi chính javadoc của
+`PortalRevalidateClient` ghi *"không bài kiểm đơn vị nào bắt được chỗ này"* về bẫy HTTP/2.
+
+> ⚠⚠ **Và bài kiểm đầu tiên tôi viết cho DOD1.5 cũng là một xanh giả.** Nó khẳng định
+> `exchange.getProtocol()` bằng `"HTTP/1.1"` — và vẫn xanh sau khi đã gỡ `.version(HTTP_1_1)`, vì
+> `com.sun.net.httpserver` chỉ nói HTTP/1.1 nên client tự hạ cấp; giao thức quan sát được **giống
+> hệt nhau ở cả hai cấu hình**. Đo lại bằng cách chạy cả hai cấu hình lên cùng một máy chủ mới ra
+> điểm khác thật: `HTTP_2 → upgrade=true, http2-settings=true` · `HTTP_1_1 → cả hai false`. Đổi sang
+> khẳng định trên hai header đó thì bản cố ý hỏng đỏ đúng một bài.
+>
+> Đây là **lần thứ hai trong hai ngày** một lượt kiểm chứng của chính tôi hoá ra không kiểm gì (lần
+> đầu ở §10.35: `install` bị Checkstyle chặn, bài kiểm chạy trên jar cũ). Cùng một bài học: *một
+> khẳng định không phân biệt được hai trạng thái thì không khẳng định gì* — và cách duy nhất biết
+> được là **chạy thử bản hỏng**.
+
+#### Cổng bao phủ của module `content` chưa từng chạy
+
+Thêm bài kiểm đầu tiên vào `content` làm build **đỏ**: `lines covered ratio is 0.00, but expected
+minimum is 0.18`. Trước đó module không có bài kiểm nào nên JaCoCo báo *"Skipping … due to missing
+execution data file"* và luật bị bỏ qua trong im lặng — đúng khuôn luật 7, và cùng họ với bẫy
+`<includes>` đã ghi ở luật 1.
+
+⛔ **Không nới ngưỡng và không dời bài kiểm sang module khác** — cả hai đều là khôi phục lại trạng
+thái im lặng. Thay vào đó viết hai lớp kiểm domain có giá trị thật (`Article.isPubliclyVisible` với
+đủ từng điều kiện; `MenuItem.pointTo` với bất biến dọn hai cột kia), đủ đưa lên **18.2%**.
+
+📌 Trong lúc viết, bài kiểm còn ghi lại một hành vi ngoài dự đoán: `LUU_TRU` **không** nằm trong danh
+sách loại trừ của `isPubliclyVisible`, nên bài đã lưu trữ mà còn bản duyệt vẫn hiện ngoài cổng. Đã
+ghi đúng hành vi thật vào bài kiểm kèm ghi chú — nếu đó không phải ý muốn thì sửa hàm, không sửa bài
+kiểm.
+
+#### Ba lỗi nhỏ hơn, cùng một họ "thông điệp nói sai chỗ"
+
+- `SYS-0009` in ra *"trạng thái quét: CLEAN"* trong khi điều kiện chặn là cột `status`, không phải
+  `scan_status`. Câu đó tự mâu thuẫn và dẫn người đọc đi tra nhầm chỗ. Đã đổi sang báo `status`.
+- Nút "Nhập nhanh" gate bằng `ops:construction:update` trong khi endpoint đòi
+  `ops:operation-status:update`.
+- Nhập lô dừng ở dòng lỗi **đầu tiên**; với màn hình nhập vài chục cống thì đó là sửa một dòng, gửi
+  lại, lại hỏng ở dòng khác. Đổi sang hai pha *kiểm hết rồi ghi*, trả `OPS-2019` kèm `items[i]`. ⚠
+  Lỗi phạm vi đơn vị **không** bị gom vào danh sách đó — gom một tín hiệu an ninh vào một lời nhắc
+  nhập liệu là làm mất cả mã 403 lẫn sự kiện `security_events`.

@@ -104,8 +104,7 @@ class ConstructionStatusServiceTest {
         ConstructionOperationStatus cos = new ConstructionOperationStatus();
         cos.setOperationCode(code);
 
-        when(operationStatuses.findFirstByConstructionIdOrderByEffectiveAtDesc(100L))
-                .thenReturn(Optional.of(cos));
+        when(operationStatuses.banGhiMoiNhat(100L)).thenReturn(Optional.of(cos));
 
         OperationalStatus result = service.recompute(construction);
 
@@ -116,8 +115,7 @@ class ConstructionStatusServiceTest {
     void tinhKhongCoGiMacDinhBinhThuong() {
         when(maintenanceLogs.demBanGhiDangMo(eq(100L), anyBoolean())).thenReturn(0L);
         when(hydroAlertPort.hasActiveAlert(100L)).thenReturn(false);
-        when(operationStatuses.findFirstByConstructionIdOrderByEffectiveAtDesc(100L))
-                .thenReturn(Optional.empty());
+        when(operationStatuses.banGhiMoiNhat(100L)).thenReturn(Optional.empty());
 
         OperationalStatus result = service.recompute(construction);
 

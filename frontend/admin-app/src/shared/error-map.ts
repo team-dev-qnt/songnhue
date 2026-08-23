@@ -307,6 +307,16 @@ export const ERROR_CATALOG = {
     handling: 'form',
     severity: 'warning',
   },
+  'OPS-2018': {
+    message: 'Mã tình hình vận hành đã ẩn — chọn mã khác hoặc bật lại mã này ở danh mục',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'OPS-2019': {
+    message: 'Lô nhập còn dòng lỗi — sửa hết rồi gửi lại, không dòng nào được ghi',
+    handling: 'form',
+    severity: 'warning',
+  },
   'OPS-3001': {
     message: 'Không được sửa trực tiếp trạng thái công trình — trạng thái được tính tự động',
     handling: 'toast',

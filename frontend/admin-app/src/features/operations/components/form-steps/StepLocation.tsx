@@ -1,4 +1,6 @@
 import { Col, Form, Input, InputNumber, Row } from 'antd';
+
+import { hopLeLyTrinh } from '../../constructionRules';
 import { LocationPickerMap } from '../LocationPickerMap';
 
 export function StepLocation() {
@@ -20,7 +22,19 @@ export function StepLocation() {
           </Form.Item>
         </Col>
         <Col span={6}>
-          <Form.Item name="chainage" label="Lý trình (K)">
+          <Form.Item
+            name="chainage"
+            label="Lý trình (K)"
+            rules={[
+              {
+                // Cùng luật với OPS-2011 ở backend; ở đây chỉ để người dùng thấy lỗi ngay tại ô.
+                validator: (_, value: string) =>
+                  hopLeLyTrinh(value)
+                    ? Promise.resolve()
+                    : Promise.reject(new Error('Lý trình phải theo dạng K<km>+<m>, ví dụ K0+390')),
+              },
+            ]}
+          >
             <Input />
           </Form.Item>
         </Col>
