@@ -240,8 +240,10 @@ Không cần đọc thuộc — chỉ cần biết chúng tồn tại để lúc
 | `@Generated` thiếu `insertable = false, updatable = false` | Bản ghi trả về sau khi tạo mới bị **rỗng** ở cột đó dù CSDL đã tính xong (do Hibernate không nhả để tự đọc lại). Giao diện hiển thị ô trống, người dùng F5 thì có — loại lỗi mất thời gian truy vết nhất |
 | Migration thiếu cột chuẩn của `BaseEntity`/`ScopedEntity` | Bảng mới kế thừa `BaseEntity` nhưng migration chỉ có `created_at`, `created_by` mà **thiếu `public_id`, `deleted_at`, `updated_at`, `updated_by`, `version`**. Hibernate schema-validation phát hiện ở CI nhưng **lỗi nằm ở tên cột**, không ở entity → truy vết sai hướng. Khi tạo bảng mới, đối chiếu migration với **tất cả** cột của lớp cha (`BaseEntity`: 7 cột, `ScopedEntity`: 8 cột) |
 | Controller trả entity JPA thay vì record DTO | ArchUnit (`endpointsExposeDtosOnly`) bắt nhưng nếu chưa có luật thì **lộ field nội bộ** (`passwordHash`, quan hệ lazy bung ngoài transaction). Mỗi cột mới thêm vào bảng lặng lẽ trở thành một phần hợp đồng API. Luôn trả `record` DTO, dùng factory method `from(Entity)` |
+| `process.env.X ?? 'mặc định'` ở frontend | **"Rỗng" khác "chưa đặt"**. Docker `ARG` không truyền vẫn khiến `ENV` gán **chuỗi rỗng**, mà chuỗi rỗng không nullish → mặc định không bao giờ chạm tới. Đã giết một lượt `next build` bằng `new URL('')`. Dùng `||` cho **mọi** hằng số đọc từ env, và kiểm bằng cách nạp lại module với biến rỗng — đừng grep toán tử |
+| Tin `make ci-local` xanh là CI sẽ xanh | Lượt build ở máy **luôn nạp `.env.local`**, runner thì không. Biến môi trường rỗng là trạng thái chỉ tồn tại trên runner. Đụng `Dockerfile`, `ci.yml` hay hằng số đọc env thì chạy thêm `make ci-image` |
 
-Chi tiết nguyên nhân: `architecture-review.md` §9.7, §9.8, §9.12, §10.33.
+Chi tiết nguyên nhân: `architecture-review.md` §9.7, §9.8, §9.12, §10.33, §10.38.
 
 ---
 

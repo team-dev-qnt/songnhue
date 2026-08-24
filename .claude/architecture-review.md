@@ -2400,3 +2400,59 @@ dạng chấm và địa chỉ viết hoa → cả ba bài canh liên hệ đỏ
 theo tên, 22 khớp theo hình dạng, 4 xác minh tay (`ApiEnvelope` ↔ `ApiResponse<T>`, hai DTO của ops
 khai bằng `class` chứ không `record`, `PageResult` là kiểu thuần FE). **Lệch thật duy nhất trên cả bề
 mặt là `AllowedAction`.**
+
+---
+
+### §10.38. Job đóng gói image frontend chạy lần đầu và bắt ngay một lỗi đã nằm sẵn từ Phase 1 (24/8/2026)
+
+Merge `feat-CICD` vào `dev` (PR #10) → CI đỏ ở **đúng một job**: `Đóng gói image frontend (public-web)`.
+Bảy job còn lại xanh, kể cả `Frontend — lint` vốn đã chạy build cả hai app.
+
+**Nguyên nhân.** Chuỗi ba mắt xích, mỗi mắt xích tự nó đều hợp lý:
+
+| Mắt xích | Nội dung |
+|---|---|
+| `ci.yml` | `NEXT_PUBLIC_SITE_URL=${{ vars.PUBLIC_SITE_URL }}` — biến kho **chưa đặt** (chưa có tên miền, WS-11 chưa chạy) → build-arg là chuỗi rỗng |
+| `public-web.Dockerfile` | `ARG NEXT_PUBLIC_SITE_URL` không giá trị mặc định + `ENV NEXT_PUBLIC_SITE_URL=$…` → biến **được đặt bằng chuỗi rỗng**, không phải "chưa đặt" |
+| `site.ts` | `process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'` — chuỗi rỗng **không nullish**, mặc định không chạm tới |
+
+Kết quả: `new URL('')` trong `generateMetadata` của `layout.tsx` ném `ERR_INVALID_URL` giữa lúc
+prerender `/_not-found` → `next build` thoát mã 1.
+
+⚠⚠ **Chính lượt CI hỏng ấy có một bước in ra cảnh báo** *"Chưa đặt biến repo `PUBLIC_SITE_URL` —
+sitemap/canonical sẽ trỏ về `localhost`"*. Tức là pipeline **tự khai** rằng nó tin có một giá trị mặc
+định đang đỡ phía dưới. Mặc định ấy chưa bao giờ được dùng tới. Đây là luật 3 (*canh giá trị ĐÃ GIẢI,
+đừng canh giá trị MẶC ĐỊNH*) tái phát ở một mặt phẳng khác: lần trước là `--env-file` thắng
+`${VAR:-}`, lần này là Docker `ARG` rỗng thắng `??`.
+
+📌 Cùng file `site.ts` đã ghi sẵn cảnh báo *"dùng `||` chứ không `??`"* cho `API_BASE_URL` ngay bên
+dưới — bài học đã trả giá một lần, ghi lại đúng chỗ, mà **dòng kế bên vẫn dùng `??`**. Ghi chú không
+phải cơ chế; chỉ phép kiểm mới là cơ chế.
+
+**Vì sao 559 test BE + 180 test FE + `make ci-local` đều không thấy.** Không phải vì thiếu bài kiểm mà
+vì **mọi lượt build local đều nạp `.env.local`** (có `NEXT_PUBLIC_SITE_URL=http://localhost:3000`),
+còn CI checkout sạch nên không có tệp ấy. Biến rỗng là một trạng thái **chỉ tồn tại trong Docker
+build**, và trước PR này **chưa từng có job nào build image public-web** — job đóng gói frontend do
+chính PR này thêm vào. Nó bắt lỗi ngay lần chạy đầu tiên, đúng thứ nó sinh ra để bắt: trước đó hai
+workflow triển khai chỉ `up -d app nginx`, tức là production sẽ chạy backend mới dưới giao diện cũ.
+
+**Đã sửa.** `??` → `||` ở `SITE_URL` (đặt ở *đường dữ liệu đi qua*, không ở `Dockerfile` — luật 12: ba
+lối vào khác nhau đều rơi về hằng số ấy). Thêm `src/lib/site.test.ts` — **11 bài**, kiểm *hành vi* chứ
+không grep toán tử (luật 2): nạp lại module với biến ở **cả hai trạng thái rỗng và chưa đặt**, rồi
+khẳng định đúng bất biến nơi gọi cần — `new URL(SITE_URL)` không ném, `API_INTERNAL_BASE_URL` tuyệt
+đối, `API_BASE_URL` khác rỗng. Kèm một bài **liệt kê**: mọi `process.env.*` mà `site.ts` đọc phải nằm
+trong danh sách được phủ, nên thêm biến thứ tư mà quên kiểm là đỏ ngay (luật 14).
+
+**Kiểm chứng bằng cách làm hỏng có chủ đích** (luật 10 — xác nhận bản hỏng đã được nạp trước khi đọc
+kết quả): trả `??` về `site.ts`, `grep` xác nhận dòng 18 đúng là bản hỏng, chạy lại → **2 bài đỏ với
+đúng `TypeError: Invalid URL`**. Sau đó `next build` với `NEXT_PUBLIC_SITE_URL=` rỗng: trước vá thoát
+mã 1, sau vá sinh đủ 10 route.
+
+📌 Lỗi `ECONNREFUSED` in ra dày đặc trong cùng log **không phải nguyên nhân** — `getSiteConfig` bắt và
+rơi về hằng số, build vẫn qua. Đọc log theo trình tự thay vì theo mức nghiêm trọng mới thấy dòng
+`Invalid URL` mới là dòng giết build (luật 22).
+
+⬜ **Nợ để lại, không tự sửa được**: `PUBLIC_SITE_URL` vẫn chưa đặt, nên image đóng ra hiện tại có
+`sitemap.xml`/canonical/Open Graph trỏ về `http://localhost:3000`. Cần tên miền thật → **chốt cùng
+WS-11**, đã ghi vào sổ nợ. Trang vẫn chạy đúng; chỉ công cụ tìm kiếm và trình xem trước liên kết đọc
+ra địa chỉ sai.
