@@ -167,8 +167,8 @@ export async function SiteHeader() {
 
   return (
     <>
-      {/* ───── Tầng 1: Dải nhận diện thương hiệu (Nền Gradient Xanh Sông Nước Rõ Nét, Logo Nổi Bật) ───── */}
-      <div className="w-full border-b border-[#165bb6]/25 bg-gradient-to-r from-[#bfd9f8] via-[#d5e7fb] to-[#b4d3f6] shadow-xs">
+      {/* ───── Tầng 1: Dải nhận diện thương hiệu (Đồng bộ background với Navigator) ───── */}
+      <div className="w-full border-b border-white/10 bg-gradient-to-r from-[#061b37] via-[#0b2d5b] to-[#061b37] shadow-xs">
         <div className="mx-auto flex max-w-[1240px] items-center justify-between px-4 py-3 sm:px-6 sm:py-3.5">
           {/* Logo & Tên cơ quan */}
           <Link href={ROUTES.home} className="group flex items-center gap-3.5 sm:gap-4">
@@ -177,7 +177,7 @@ export async function SiteHeader() {
               alt={siteName}
               className="h-14 w-auto object-contain transition-transform duration-300 ease-smooth group-hover:scale-105 sm:h-16"
             />
-            <span className="text-sm font-black uppercase tracking-tight text-[#06244f] drop-shadow-2xs transition-colors duration-200 sm:text-base md:text-lg">
+            <span className="text-sm font-black uppercase tracking-tight text-white drop-shadow-2xs transition-colors duration-200 sm:text-base md:text-lg">
               {siteName}
             </span>
           </Link>
