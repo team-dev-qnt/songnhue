@@ -94,6 +94,25 @@ class ChangePasswordHttpTest extends IntegrationTestBase {
 
         assertThat(doi.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
 
+        // Cam kết 0 — 204 KHÔNG có thân, và không có envelope. Ghim lại vì giao diện dựa vào
+        // đúng điều này.
+        //
+        // ⚠⚠ `conventions.md` §2.1 hứa "envelope thống nhất 100% endpoint", nhưng 204 là ngoại lệ
+        //    KHÔNG TRÁNH ĐƯỢC: `ResponseEnvelopeAdvice` là một `ResponseBodyAdvice`, mà Spring
+        //    không gọi advice khi handler trả `void` — không thân thì không converter nào chạy.
+        //    Hiện có 24 endpoint như vậy.
+        //
+        //    Lời hứa sai đó đã trả giá: `apiClient.unwrap` được viết theo nó nên không kiểm mã
+        //    trạng thái, và axios đặt `data = ''` cho thân rỗng → `''.success` là `undefined` →
+        //    hàm ném `SYS-0001 "Thao tác không thành công"` **sau khi máy chủ đã commit**. Người
+        //    dùng thấy báo lỗi, bấm gửi lại, và nhận đúng 403 AUTH-0005 ở bài kiểm dưới đây.
+        //
+        //    Bài kiểm ở phía kia: `admin-app/src/shared/apiClientNoContent.test.ts`. Đổi cam kết
+        //    này (cho 204 mang envelope chẳng hạn) thì phải sửa cả hai nơi.
+        assertThat(doi.getBody())
+                .as("204 phải có thân RỖNG — giao diện coi 'không có thân' là thành công")
+                .isNull();
+
         // Cam kết 1 — xoá cookie CSRF. Giao diện dựa vào đây: còn cookie thì trình duyệt còn gửi
         // kèm một vé của phiên đã chết, và lỗi hiện ra thành "vé không khớp" thay vì "hết phiên".
         assertThat(cookieBiXoa(doi.getHeaders(), "XSRF-TOKEN"))

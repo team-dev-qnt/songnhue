@@ -2,6 +2,7 @@ import axios, {
   AxiosHeaders,
   type AxiosError,
   type AxiosInstance,
+  type AxiosResponse,
   type InternalAxiosRequestConfig,
 } from 'axios';
 
@@ -359,8 +360,36 @@ http.interceptors.response.use(
  * `success: false` kèm HTTP 2xx là chuyện không được xảy ra theo §2.1, nhưng nếu xảy ra
  * thì im lặng trả `undefined` còn tệ hơn nhiều — màn hình sẽ hiện bảng rỗng như thể
  * không có dữ liệu, thay vì báo lỗi.
+ *
+ * ⚠⚠ **204 No Content không có thân, và thân rỗng là THÀNH CÔNG — không phải envelope hỏng.**
+ *
+ * Đây là lỗi đã biến việc ĐÃ XONG thành lỗi hiện lên màn hình, trên **24 endpoint** cùng lúc:
+ * xoá, sắp xếp lại, đánh dấu đã đọc, gỡ đăng, khoá tài khoản… và đổi mật khẩu.
+ *
+ * Cơ chế: `ResponseEnvelopeAdvice` là một `ResponseBodyAdvice`, mà Spring **không gọi advice
+ * khi handler trả `void`** — không có thân thì không converter nào chạy. Nên 24 endpoint ấy
+ * trả 204 trần, không envelope. Phía này, axios đặt `response.data = ''` cho thân rỗng;
+ * `''.success` là `undefined`, `!undefined` là `true`, và hàm ném `SYS-0001 "Thao tác không
+ * thành công"` — **sau khi máy chủ đã commit xong**.
+ *
+ * Hậu quả nặng nhất đo được ở luồng đổi mật khẩu: `api.post` ném trước khi tới `endSession()`,
+ * nên phiên không được dọn, người dùng thấy báo lỗi và bấm gửi lại — lần này backend trả
+ * **403 AUTH-0005** vì phiên đã bị thu hồi cùng vé CSRF ngay ở lượt đầu. Nhật ký máy chủ đọc ra
+ * `change-password → 204` rồi hai lượt `403`. Việc xong từ lượt đầu; chỉ đường ra là hỏng.
+ *
+ * ⚠ Lượt sửa trước đã chữa **triệu chứng thứ hai** của cùng chuỗi này (guard đẩy ngược về biểu
+ * mẫu — xem `ChangePasswordPage`), mà không tìm ra mắt xích đầu tiên nằm ở đây. Đó là lý do phải
+ * đặt phép kiểm ở chính hàm này chứ không ở màn hình: 24 đường vào cùng đi qua đây.
  */
-function unwrap<T>(envelope: ApiEnvelope<T>): T {
+function unwrap<T>(response: AxiosResponse<ApiEnvelope<T>>): T {
+  const envelope = response.data;
+
+  // Kiểm cả ba: mã trạng thái (nguồn sự thật), thân rỗng do axios đặt, và `null` phòng khi
+  // một `transformResponse` khác đi qua. Chỉ kiểm một trong ba là để hở đúng chỗ vừa hỏng.
+  if (response.status === 204 || envelope == null || (envelope as unknown) === '') {
+    return undefined as T;
+  }
+
   if (!envelope.success) {
     const code = envelope.error?.code ?? null;
     const entry = entryFor(code);
@@ -380,16 +409,19 @@ function unwrap<T>(envelope: ApiEnvelope<T>): T {
 export const api = {
   async get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
     const response = await http.get<ApiEnvelope<T>>(url, { params });
-    return unwrap(response.data);
+    return unwrap(response);
   },
 
   /** Truy vấn phân trang: phần tử ở `data`, thông tin trang ở `meta` (§2.1). */
   async getPage<T>(url: string, params?: Record<string, unknown>): Promise<PageResult<T>> {
     const response = await http.get<ApiEnvelope<T[]>>(url, { params });
-    const items = unwrap(response.data);
+    // `?? []` không phải cho chắc: `unwrap` trả `undefined` khi thân rỗng, và bốn dòng dưới
+    // đọc `items.length`. Một truy vấn phân trang không nên trả 204, nhưng "không nên" và
+    // "không thể" là hai chuyện khác nhau — và chỗ này hỏng thì hỏng bằng màn hình trắng.
+    const items = unwrap(response) ?? ([] as T[]);
     return {
       items,
-      meta: response.data.meta ?? {
+      meta: response.data?.meta ?? {
         page: 1,
         size: items.length,
         totalElements: items.length,
@@ -400,28 +432,28 @@ export const api = {
 
   async post<T>(url: string, body?: unknown): Promise<T> {
     const response = await http.post<ApiEnvelope<T>>(url, body);
-    return unwrap(response.data);
+    return unwrap(response);
   },
 
   async put<T>(url: string, body?: unknown): Promise<T> {
     const response = await http.put<ApiEnvelope<T>>(url, body);
-    return unwrap(response.data);
+    return unwrap(response);
   },
 
   async patch<T>(url: string, body?: unknown): Promise<T> {
     const response = await http.patch<ApiEnvelope<T>>(url, body);
-    return unwrap(response.data);
+    return unwrap(response);
   },
 
   async delete<T>(url: string): Promise<T> {
     const response = await http.delete<ApiEnvelope<T>>(url);
-    return unwrap(response.data);
+    return unwrap(response);
   },
 
   /** Tải tệp lên — để axios tự đặt `Content-Type` kèm boundary của multipart. */
   async upload<T>(url: string, form: FormData): Promise<T> {
     const response = await http.post<ApiEnvelope<T>>(url, form);
-    return unwrap(response.data);
+    return unwrap(response);
   },
 };
 

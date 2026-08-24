@@ -193,6 +193,17 @@ Nằm trong `core/` (BE) và `shared/` (FE). **Mọi module bắt buộc dùng, 
 - `traceId` = correlation-id, luôn có — user báo lỗi chỉ cần đọc traceId là dev tra được log.
 - `meta` chỉ xuất hiện với response phân trang. Envelope build tự động qua `ResponseBodyAdvice` — controller chỉ return DTO.
 
+⚠⚠ **Ngoại lệ duy nhất, và nó KHÔNG tránh được: `204 No Content` không có envelope** *(ghi ra 25/8, sau khi lời hứa "100%" ở tiêu đề mục này gây ra một lỗi thật)*.
+
+`ResponseEnvelopeAdvice` là một `ResponseBodyAdvice`, mà Spring **không gọi advice khi handler trả `void`** — không có thân thì không converter nào chạy. Hiện có **24 endpoint** như vậy: xoá, sắp xếp lại, đánh dấu đã đọc, gỡ đăng, khoá tài khoản, đăng xuất, đổi mật khẩu.
+
+**Hệ quả bắt buộc phía client:** `apiClient` phải coi **"không có thân" là THÀNH CÔNG**, và phải kiểm bằng **mã trạng thái**, không bằng hình dạng thân. Bản đầu viết theo đúng lời hứa "100%" nên chỉ đọc `envelope.success`; axios đặt `data = ''` cho thân rỗng, `''.success` là `undefined`, và client ném `SYS-0001 "Thao tác không thành công"` **sau khi máy chủ đã commit xong** — trên cả 24 endpoint cùng lúc.
+
+📌 Ranh giới phải là *"không có thân"*, không phải *"thân không đọc được"*. Nới thành cái sau là nuốt luôn `success:false` kèm 200 — đúng thứ dòng trên đang canh.
+
+Hai đầu của cam kết này, sửa một là phải sửa cả hai *(luật 14)*:
+`ChangePasswordHttpTest` "Cam kết 0" ↔ `admin-app/src/shared/apiClientNoContent.test.ts`.
+
 ### 2.2. Exception hierarchy (Core)
 
 ```
