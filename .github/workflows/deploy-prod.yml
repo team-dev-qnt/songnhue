@@ -32,7 +32,12 @@ concurrency:
 
 permissions:
   contents: read
-  packages: read
+  # ⚠ `write`, KHÔNG phải `read`. Workflow này ĐỌC image theo tag SHA, nhưng bước
+  #   "Gắn tag `production`" GHI một tag mới lên gói GHCR. Khai `packages: read` thì
+  #   lượt tra đi lọt, rồi hỏng ở đúng bước ghi với `403 denied: installation not
+  #   allowed to Write organization package` — một thông báo không nhắc gì tới
+  #   khối `permissions:` cách đó 180 dòng (§10.44).
+  packages: write
 
 jobs:
   deploy:

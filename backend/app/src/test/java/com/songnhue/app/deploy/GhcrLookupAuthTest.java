@@ -56,6 +56,13 @@ class GhcrLookupAuthTest {
             Pattern.compile("^[ \\t]*DOCKER_CONFIG[ \\t]*:", Pattern.MULTILINE);
 
     private static final String TRA_IMAGE = "docker manifest inspect";
+
+    /** Lệnh GHI tag mới lên gói GHCR — khác hẳn lượt tra, và cần quyền khác hẳn. */
+    private static final String GHI_TAG = "docker buildx imagetools create";
+
+    /** Một mục trong khối {@code permissions:} — {@code   packages: write}. */
+    private static final Pattern MUC_QUYEN = Pattern.compile("^\\s+([a-z-]+)\\s*:\\s*(\\S+)\\s*$");
+
     private static final String DANG_NHAP = "docker/login-action";
 
     private static final List<String> WORKFLOW =
@@ -118,6 +125,32 @@ class GhcrLookupAuthTest {
     }
 
     @Test
+    @DisplayName("⭐⭐ Workflow GHI tag lên GHCR phải khai `packages: write`")
+    void ghiTagThiPhaiKhaiQuyenGhi() {
+        for (String duongDan : WORKFLOW) {
+            String noiDung = boChuThich(doc(duongDan));
+
+            assertThat(noiDung)
+                    .as("`%s` không còn bước ghi tag nào — bài kiểm này sẽ xanh trên tập rỗng", duongDan)
+                    .contains(GHI_TAG);
+
+            assertThat(quyenKhaiBao(noiDung).get("packages"))
+                    .as(
+                            """
+                            `%s` chạy `%s` (GHI một tag mới lên gói GHCR) nhưng khối `permissions:` \
+                            ở đầu tệp không khai `packages: write`.
+
+                            Workflow triển khai chủ yếu ĐỌC image theo tag SHA, nên `packages: read` \
+                            trông vừa đủ và lượt tra đi lọt hoàn toàn. Nó chỉ hỏng ở bước cuối, với \
+                            `403 denied: installation not allowed to Write organization package` — \
+                            một thông báo không nhắc gì tới khối `permissions:` cách đó 180 dòng \
+                            (§10.44).""",
+                            duongDan, GHI_TAG)
+                    .isEqualTo("write");
+        }
+    }
+
+    @Test
     @DisplayName("Lượt tra hỏng về QUYỀN phải có đường báo riêng, không lẫn với thiếu image")
     void coDuongBaoRiengChoLoiQuyen() {
         String noiDung = doc(".github/workflows/deploy-staging.yml");
@@ -131,6 +164,40 @@ class GhcrLookupAuthTest {
                         Thiếu nó thì 403 và 404 lại cho ra cùng một thông báo, và lần sau vẫn mất \
                         hàng giờ đi tìm một image vốn nằm sẵn ở đó.""")
                 .contains("đây là lỗi QUYỀN, không phải thiếu image");
+    }
+
+    /**
+     * Đọc khối {@code permissions:} ở CẤP CAO NHẤT thành map {@code khoá → giá trị}.
+     *
+     * <p>⚠ Bản đầu của bài kiểm bên trên chỉ hỏi {@code noiDung.contains("packages: write")} — và
+     * lượt kiểm chứng ngược cho thấy nó <b>không bắt được</b> khi hạ quyền xuống {@code read}: cùng
+     * tệp ấy có một dòng {@code echo "quyền 'packages: write' của workflow…"} nằm trong khối
+     * {@code run:}, tức là văn bản thường chứ không phải chú thích, nên {@code contains} vẫn khớp.
+     * Đúng CLAUDE.md luật 2 — canh cấu trúc, đừng canh văn bản; và luật 24 — bộ canh theo hình dạng
+     * phải được thử với dữ liệu THẬT đang dùng.
+     */
+    private static java.util.Map<String, String> quyenKhaiBao(String noiDungDaBoChuThich) {
+        java.util.Map<String, String> ket = new java.util.LinkedHashMap<>();
+        boolean trongKhoi = false;
+        for (String dong : noiDungDaBoChuThich.split("\n", -1)) {
+            if (dong.startsWith("permissions:")) {
+                trongKhoi = true;
+                continue;
+            }
+            if (trongKhoi) {
+                if (dong.isBlank()) {
+                    continue;
+                }
+                if (!Character.isWhitespace(dong.charAt(0))) {
+                    break; // hết khối — sang khoá cấp cao nhất kế tiếp
+                }
+                Matcher m = MUC_QUYEN.matcher(dong);
+                if (m.matches()) {
+                    ket.put(m.group(1), m.group(2));
+                }
+            }
+        }
+        return ket;
     }
 
     /** Bỏ mọi dòng chú thích (YAML và shell đều dùng {@code #}) để đo CẤU TRÚC, không đo văn bản. */
