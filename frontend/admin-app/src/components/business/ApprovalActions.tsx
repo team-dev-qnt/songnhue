@@ -15,15 +15,25 @@ import { useState } from 'react';
  * Component này cố tình **không biết** workflow nào cả: nó chỉ vẽ những gì backend nói
  * là làm được lúc này.
  */
+/**
+ * ⚠ Kiểu này **chính là** hợp đồng dây — xem `AllowedActionView` trong `shared/api-types.ts`.
+ * Khai lại ở đây để component không kéo theo `shared/`, nhưng hai bên phải khớp: có
+ * `apiTypeParity.test.ts` đối chiếu, lệch một trường là bài kiểm đỏ.
+ *
+ * ⛔ Đừng thêm trường trình bày vào đây. Bản trước có `primary?: boolean` và `danger?: boolean`
+ * mà **không nơi nào điền** — backend chỉ gửi `(action, label, toState, requiresReason)`. Hệ quả:
+ * mọi nút render y hệt nhau, kể cả "Gỡ bài". Một trường chỉ có người đọc mà không có người ghi là
+ * một lỗi, không phải việc để dành (CLAUDE.md luật 15). Muốn nhấn mạnh nút thì nguồn phải là dữ
+ * liệu backend gửi, không phải một cờ tuỳ chọn không ai đặt.
+ */
 export interface AllowedAction {
-  /** Mã hành động backend hiểu, VD `SUBMIT`, `APPROVE`, `REJECT`. */
+  /** Mã hành động backend hiểu, VD `SUBMIT`, `APPROVE`, `REQUEST_CHANGES`. */
   action: string;
   label: string;
-  /** Nút chính của màn hình (thường là duyệt). */
-  primary?: boolean;
-  danger?: boolean;
-  /** Backend yêu cầu kèm lý do — điển hình là từ chối; lý do đi vào nhật ký. */
-  requiresReason?: boolean;
+  /** Trạng thái sau khi bấm. */
+  toState: string;
+  /** Bắt buộc kèm lý do — engine từ chối nếu thiếu, nên phải hỏi trước khi gửi. */
+  requiresReason: boolean;
 }
 
 export function ApprovalActions({
@@ -59,11 +69,20 @@ export function ApprovalActions({
   return (
     <>
       <Space wrap>
-        {actions.map((action) => (
+        {actions.map((action, viTri) => (
           <Button
             key={action.action}
-            type={action.primary ? 'primary' : 'default'}
-            danger={action.danger}
+            // Nút đầu danh sách là nút chính. Đây KHÔNG phải giao diện tự đoán nghiệp vụ: backend
+            // trả danh sách đã sắp theo `workflow_transitions.sort_order`, tức là thứ tự do người
+            // khai quy trình quyết định. Ở bước "Chờ duyệt" thì `APPROVE` đứng trước
+            // `REQUEST_CHANGES`, và nút chính đúng là Duyệt.
+            //
+            // ⛔ KHÔNG có nút nào được tô đỏ: `workflow_transitions` không có cột nào nói bước nào
+            //    là nguy hiểm. Bản trước đọc `action.danger` — một cờ không ai điền — nên thực tế
+            //    cũng chưa từng có nút đỏ nào. Ghi ra đây thay vì bịa một danh sách tên hành động
+            //    "nguy hiểm" ở phía giao diện; cần thì thêm cột và seed, như đã làm với
+            //    `requires_reason`.
+            type={viTri === 0 ? 'primary' : 'default'}
             disabled={disabled || busy}
             onClick={() => {
               if (action.requiresReason) {

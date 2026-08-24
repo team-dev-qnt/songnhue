@@ -40,7 +40,10 @@ import com.songnhue.core.infra.identity.UserRepository;
  *   <li><b>Envelope</b> {@code {success, data, traceId}} — controller trả DTO trần, lớp bọc là của
  *       {@code ResponseEnvelopeAdvice}.
  *   <li><b>{@code @RequirePermission} tầng 2</b> — interceptor, không phải mã trong service.
- *   <li><b>Ràng buộc "phải nêu lý do khi trả bài"</b> — nằm ở controller, service không biết.
+ *   <li><b>Ràng buộc "phải nêu lý do khi trả bài"</b> — nay nằm ở {@code WorkflowEngine}, khai bằng
+ *       {@code workflow_transitions.requires_reason}. Trước 24/8 nó khai cứng trong
+ *       {@code ArticleController}, còn giao diện đọc một cờ <i>không ai điền</i>: hai bản sao của
+ *       một luật, và thao tác trả bài về sửa hỏng hẳn vì không có ô nào để nhập lý do.
  *   <li><b>{@code created_by}</b> — {@code AuditorAwareImpl} đọc {@code AuditContext} do <i>filter</i>
  *       đặt. Test gọi thẳng service chỉ đặt {@code AuthContext}, nên mọi dòng chúng tạo đều có
  *       {@code created_by = NULL} và cột này <b>chưa từng được kiểm chứng</b> (nợ #66).
@@ -173,7 +176,42 @@ class ArticleHttpTest extends IntegrationTestBase {
     }
 
     @Test
-    @DisplayName("⛔ Trả bài mà không nêu lý do → 400; luật này nằm ở controller, service không biết")
+    @DisplayName("⭐⭐ `allowedActions` NÓI RA bước nào đòi lý do — thiếu cờ này là giao diện tắc hẳn")
+    void allowedActionsNoiRaBuocDoiLyDo() {
+        // ⛔ ĐÂY là vế đã hỏng, và nó hỏng độc lập với vế ép buộc bên dưới.
+        //
+        //    `ApprovalActions` mở ô nhập lý do khi `action.requiresReason` bật. Record
+        //    `AllowedAction` trước đây là `(action, label, toState)` — không có cờ đó, không ai
+        //    điền — nên người duyệt bấm "Yêu cầu chỉnh sửa" là gửi thẳng, thiếu `reason`, và nhận
+        //    đúng lỗi "phải nêu lý do" mà **màn hình không có ô nào để nhập**. Thao tác trả bài về
+        //    sửa không dùng được, trong khi bài kiểm vế ép buộc (`traBaiPhaiNeuLyDo`) vẫn xanh
+        //    trọn vẹn: nó gọi bằng JSON dựng tay nên không bao giờ chạm vào chỗ hỏng.
+        //
+        //    Kiểm qua HTTP chứ không gọi thẳng engine: cờ phải đi hết đường tuần tự hoá ra tới dây.
+        PhienHttp.Phien quanTri = quanTriNoiDung;
+        String tao = phien.goi(quanTri, HttpMethod.POST, DUONG, thanBaiViet("Bài đòi lý do", "bai-doi-ly-do"))
+                .getBody();
+        String publicId = PhienHttp.giaTriJson(tao, "publicId");
+        phien.goi(
+                quanTri,
+                HttpMethod.POST,
+                DUONG + "/" + publicId + "/transitions",
+                """
+                {"action":"SUBMIT"}""");
+
+        String chiTiet = phien.get(quanTri, DUONG + "/" + publicId).getBody();
+
+        assertThat(chiTiet)
+                .as("bước trả bài phải mang requiresReason=true, nếu không giao diện không biết phải hỏi")
+                .containsPattern("\"action\"\\s*:\\s*\"REQUEST_CHANGES\"[^}]*\"requiresReason\"\\s*:\\s*true");
+        assertThat(chiTiet)
+                .as("và Duyệt thì KHÔNG đòi lý do — một bản dựng bật cờ cho mọi bước cũng qua được "
+                        + "khẳng định trên, nên phải chốt cả vế ngược")
+                .containsPattern("\"action\"\\s*:\\s*\"APPROVE\"[^}]*\"requiresReason\"\\s*:\\s*false");
+    }
+
+    @Test
+    @DisplayName("⛔ Trả bài mà không nêu lý do → 400; luật nằm ở Workflow engine, mọi module dùng chung")
     void traBaiPhaiNeuLyDo() {
         PhienHttp.Phien quanTri = quanTriNoiDung;
 

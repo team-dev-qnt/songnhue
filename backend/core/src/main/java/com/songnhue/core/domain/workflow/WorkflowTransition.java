@@ -56,6 +56,18 @@ public class WorkflowTransition {
     @Column(name = "notify_owner", nullable = false)
     private boolean notifyOwner;
 
+    /**
+     * Bước chuyển này bắt buộc kèm lý do.
+     *
+     * <p>⚠ Một dòng dữ liệu, <b>hai người đọc</b>: {@code WorkflowEngine.allowedActions()} trả cờ
+     * ra cho giao diện để nó mở ô nhập, và {@code WorkflowEngine.execute()} ép buộc lúc chuyển.
+     * Chính vì cùng đọc một dòng nên hai bên không thể lệch nhau — trước đây luật này khai cứng
+     * trong {@code ArticleController} còn giao diện đọc một cờ không ai điền, và kết quả là thao
+     * tác trả bài về sửa <b>không dùng được</b>.
+     */
+    @Column(name = "requires_reason", nullable = false)
+    private boolean requiresReason;
+
     /** Nhãn nút trên giao diện — FE render từ đây, không tự đặt tên hành động. */
     @Column(name = "label", nullable = false, length = 100)
     private String label;
@@ -99,6 +111,10 @@ public class WorkflowTransition {
 
     public boolean isNotifyOwner() {
         return notifyOwner;
+    }
+
+    public boolean isRequiresReason() {
+        return requiresReason;
     }
 
     public String getLabel() {

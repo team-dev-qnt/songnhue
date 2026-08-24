@@ -616,6 +616,16 @@ export interface AllowedActionView {
   label: string;
   /** Trạng thái sau khi bấm — để nói trước hệ quả cho người dùng. */
   toState: string;
+  /**
+   * Bước này bắt buộc kèm lý do → mở ô nhập trước khi gửi.
+   *
+   * ⚠⚠ Đọc từ `workflow_transitions.requires_reason`, **cùng một dòng** mà
+   * `WorkflowEngine.execute` dùng để ép buộc. Trước đây cờ này chỉ tồn tại ở kiểu phía giao
+   * diện và không nơi nào điền, nên nó luôn `undefined`: hộp thoại nhập lý do không bao giờ
+   * mở, người duyệt bấm "Yêu cầu chỉnh sửa" thì backend trả `SYS-0003` đòi lý do mà màn hình
+   * không có ô nào để nhập. Thao tác trả bài về sửa hỏng hẳn theo đúng cách đó.
+   */
+  requiresReason: boolean;
 }
 
 export interface MaintenanceDetail {

@@ -14,6 +14,7 @@ import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.BusinessRuleException;
 import com.songnhue.core.common.exception.PermissionDeniedException;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
+import com.songnhue.core.common.exception.ValidationException;
 import com.songnhue.core.common.persistence.WorkflowAware;
 import com.songnhue.core.common.security.AuthContext;
 import com.songnhue.core.common.security.AuthenticatedUser;
@@ -71,13 +72,14 @@ public class WorkflowEngine implements WorkflowPort {
      */
     @Override
     @Transactional
-    public <T extends WorkflowAware> T execute(T entity, String action, String title) {
+    public <T extends WorkflowAware> T execute(T entity, String action, String title, String reason) {
         WorkflowDefinition definition = definitionOf(entity);
         WorkflowTransition transition = transitions
                 .findByDefinitionIdAndFromStateAndAction(definition.getId(), entity.currentState(), action)
                 .orElseThrow(() -> new BusinessRuleException(ErrorCode.SYS_0008, action, entity.currentState()));
 
         requirePermission(transition);
+        requireReason(transition, reason);
 
         String previous = entity.currentState();
         entity.applyState(transition.getToState());
@@ -110,7 +112,7 @@ public class WorkflowEngine implements WorkflowPort {
                 .findByDefinitionIdAndFromStateOrderBySortOrderAsc(definition.getId(), entity.currentState())
                 .stream()
                 .filter(WorkflowEngine::hasPermissionFor)
-                .map(t -> new AllowedAction(t.getAction(), t.getLabel(), t.getToState()))
+                .map(WorkflowEngine::toAllowedAction)
                 .toList();
     }
 
@@ -137,12 +139,14 @@ public class WorkflowEngine implements WorkflowPort {
                 .findByDefinitionIdAndFromStateOrderBySortOrderAsc(definition.getId(), WorkflowPort.CREATION_STATE)
                 .stream()
                 .filter(WorkflowEngine::hasPermissionFor)
-                .map(t -> new AllowedAction(t.getAction(), t.getLabel(), t.getToState()))
+                .map(WorkflowEngine::toAllowedAction)
                 .toList();
 
         return Stream.concat(
+                        // Đường vào mặc định không phải một dòng `workflow_transitions` nên không có
+                        // cờ nào để đọc — tạo mới thì chưa có gì để giải thích, `false` là đúng nghĩa.
                         Stream.of(new AllowedAction(
-                                ACTION_CREATE_DEFAULT, definition.getName(), definition.getInitialState())),
+                                ACTION_CREATE_DEFAULT, definition.getName(), definition.getInitialState(), false)),
                         extra.stream().filter(action -> !action.toState().equals(definition.getInitialState())))
                 .toList();
     }
@@ -194,9 +198,36 @@ public class WorkflowEngine implements WorkflowPort {
         return definitionOf(entity.workflowEntityType());
     }
 
+    /**
+     * Một chỗ dựng {@link AllowedAction} cho cả hai đường ra.
+     *
+     * <p>Gộp lại vì đây là nơi cờ {@code requiresReason} rời DB đi ra giao diện; hai bản sao của
+     * cùng phép ánh xạ là hai cơ hội để thêm một trường vào record mà quên điền ở một bên.
+     */
+    private static AllowedAction toAllowedAction(WorkflowTransition t) {
+        return new AllowedAction(t.getAction(), t.getLabel(), t.getToState(), t.isRequiresReason());
+    }
+
     private static void requirePermission(WorkflowTransition transition) {
         if (!hasPermissionFor(transition)) {
             throw new PermissionDeniedException(ErrorCode.AUTH_3001);
+        }
+    }
+
+    /**
+     * Chốt chặn "phải nêu lý do".
+     *
+     * <p>⚠ Đặt SAU {@code requirePermission} là có chủ ý: người không có quyền bấm nút này thì
+     * không nên biết là nó đòi thêm gì. Cùng lý lẽ với thứ tự "hợp lệ về quy trình trước, quyền
+     * sau" ở {@link #execute}.
+     */
+    private static void requireReason(WorkflowTransition transition, String reason) {
+        if (transition.isRequiresReason() && (reason == null || reason.isBlank())) {
+            // ⚠ `withDetail`, KHÔNG phải messageArgs. `SYS-0003` là "Dữ liệu gửi lên không hợp lệ"
+            //   và không có chỗ thế `{0}` nào, nên chuỗi truyền vào messageArgs rơi vào hư không —
+            //   đúng cái bẫy dòng cũ ở `ArticleController` đã mắc. Giao diện đọc `details[].field`
+            //   để tô đúng ô nhập.
+            throw new ValidationException(ErrorCode.SYS_0003).withDetail("reason", "REASON_REQUIRED", null);
         }
     }
 

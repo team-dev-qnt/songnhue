@@ -29,7 +29,12 @@ public interface WorkflowPort {
     String CREATION_STATE = "__NEW__";
 
     /**
-     * Thực hiện một hành động trên bản ghi.
+     * Thực hiện một hành động trên bản ghi, <b>không kèm lý do</b>.
+     *
+     * <p>⚠ Bước chuyển nào có {@code requires_reason = TRUE} thì đường này <b>ném</b>
+     * {@code SYS-0003} — hỏng đóng, cố ý. Đây không phải cửa lách: quên truyền lý do là lỗi hiện
+     * ra ngay ở lượt gọi đầu tiên, chứ không phải một bản ghi lặng lẽ đổi trạng thái mà người nhận
+     * không biết vì sao.
      *
      * @param title tiêu đề thông báo; {@code null} thì engine tự dựng từ tên quy trình và nhãn bước
      * @throws com.songnhue.core.common.exception.BusinessRuleException {@code SYS-0008} khi hành
@@ -37,7 +42,24 @@ public interface WorkflowPort {
      * @throws com.songnhue.core.common.exception.PermissionDeniedException {@code AUTH-3001} khi
      *     thiếu quyền của bước chuyển
      */
-    <T extends WorkflowAware> T execute(T entity, String action, String title);
+    default <T extends WorkflowAware> T execute(T entity, String action, String title) {
+        return execute(entity, action, title, null);
+    }
+
+    /**
+     * Thực hiện một hành động, kèm lý do người dùng nhập.
+     *
+     * <p>⭐ Đây là <b>nơi duy nhất</b> ép buộc "phải nêu lý do", và nó nằm ở engine chứ không ở
+     * controller là có chủ ý (CLAUDE.md luật 12): mọi bước chuyển của mọi module đều đi qua đây,
+     * nên không đường vào nào bỏ sót được. Trước đây luật khai cứng trong
+     * {@code ArticleController} còn giao diện đọc một cờ không ai điền — hai bản sao lệch nhau, và
+     * thao tác trả bài về sửa <b>không dùng được</b>.
+     *
+     * @param reason lý do; bắt buộc khi {@code workflow_transitions.requires_reason = TRUE}
+     * @throws com.songnhue.core.common.exception.ValidationException {@code SYS-0003} khi bước
+     *     chuyển đòi lý do mà {@code reason} rỗng
+     */
+    <T extends WorkflowAware> T execute(T entity, String action, String title, String reason);
 
     /** Các nút giao diện được phép hiện — đã lọc theo quyền của người đang đăng nhập. */
     List<AllowedAction> allowedActions(WorkflowAware entity);
