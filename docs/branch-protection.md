@@ -58,6 +58,16 @@ không bịt được.
 2. **Đúng commit đang đề bạt** đã xanh CI ở chặng trước — hỏi API check-runs của chính SHA đó, chứ
    không phải "nhánh dev nói chung đang xanh". `dev` hoàn toàn có thể vừa nhận một commit đỏ.
 
+### 2.3. ⚠ `required_linear_history` chỉ bật ở `dev`
+
+Nghe ngược đời, nhưng: chặng đề bạt cần **merge commit thật** để SHA của `dev` nằm nguyên trong
+`staging`, nhờ đó câu "commit này đã xanh ở dev" mới kiểm chứng được. Squash sinh SHA mới và cắt đứt
+liên kết ấy. Mà `required_linear_history: true` lại **cấm merge commit** — hai thứ không đi cùng
+nhau được.
+
+Nên: `dev` giữ lịch sử thẳng (nhánh feature rebase/squash vào); `staging`/`production` cho phép
+merge commit.
+
 ### 2.3-b. ⛔⛔ Merge vào `staging`/`production` PHẢI chọn **Create a merge commit**
 
 `required_linear_history` tắt ở hai nhánh này **cho phép** merge commit, nhưng không **ép** ai chọn
@@ -74,16 +84,6 @@ Workflow nay có đường cứu bằng cách đối chiếu **cây tệp**, nh�
 ⚠ GitHub **không** cho đặt phương thức merge theo từng nhánh đích. `dev` bật
 `required_linear_history` nên repo buộc phải cho phép squash — tức là không thể tắt squash ở cấp
 repo để chặn. Đây là chỗ chỉ con người nhớ được, nên nó nằm ở đây và ở đầu `deploy-staging.yml`.
-
-### 2.3. ⚠ `required_linear_history` chỉ bật ở `dev`
-
-Nghe ngược đời, nhưng: chặng đề bạt cần **merge commit thật** để SHA của `dev` nằm nguyên trong
-`staging`, nhờ đó câu "commit này đã xanh ở dev" mới kiểm chứng được. Squash sinh SHA mới và cắt đứt
-liên kết ấy. Mà `required_linear_history: true` lại **cấm merge commit** — hai thứ không đi cùng
-nhau được.
-
-Nên: `dev` giữ lịch sử thẳng (nhánh feature rebase/squash vào); `staging`/`production` cho phép
-merge commit.
 
 ### 2.4. ⚠ `strict` phải TẮT ở staging/production — nếu không, chặng đề bạt tự khoá sau lần đầu
 

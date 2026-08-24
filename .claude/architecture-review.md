@@ -2636,3 +2636,72 @@ Thêm `PostgresInitEnvTest`: đối chiếu `require_env` của script với kh�
 📌 Bản thân bài kiểm cũng vấp một lượt: `Pattern.compile("^\\s+…")` **thiếu `MULTILINE`**, nên `^`
 chỉ khớp đầu cả chuỗi, hàm trả tập rỗng và bài kiểm đỏ với *cả bốn* biến — báo sai chỗ. Một bộ canh
 đọc sai vẫn là một bộ canh đỏ; chỉ có đọc kỹ thông báo mới phân biệt được.
+
+---
+
+### §10.42. CD Staging đỏ vì PR bị squash — và thông báo lỗi trỏ vào ba chỗ đều đang tốt (25/8/2026)
+
+Lượt CD Staging **đầu tiên** thất bại:
+
+```
+Đỉnh dev đang đề bạt: dbb67e674afcd63aab1ce755eb2e33d00de9093c
+Error: Không tìm thấy image 'app' trong 50 commit gần nhất tính từ dbb67e6…
+Kiểm tra theo thứ tự: (1) job đóng gói ở dev có chạy và đẩy được không …
+```
+
+Ba bước chẩn đoán ấy **đều là ngõ cụt**. Đo lại: lượt CI trên `dev` (`32770330801`, push `a0b6bfc`)
+xanh cả 7 job, log ghi rõ `pushing manifest for …/public-web:a0b6bfc…`, `…/app:a0b6bfc…` — **cả ba
+image đã lên GHCR**.
+
+#### Nguyên nhân
+
+PR #14 được **squash** vào `staging` thay vì tạo merge commit. `dbb67e6` chỉ có **một cha**:
+
+| Bước | Điều đã xảy ra |
+|---|---|
+| `git rev-parse -q --verify HEAD^2` | thất bại — squash không có cha thứ hai |
+| Nhánh `else` | rơi về `git rev-parse HEAD` = `dbb67e6`, **SHA chưa bao giờ tồn tại trên `dev`** |
+| `git rev-list --first-parent -n 50` | lùi theo lịch sử **của `staging`** — `3c29f0c`, `35bc927`, `2f1fe5e`… |
+| Kết quả | không commit nào có image, báo *"không tìm thấy image"* |
+
+⚠ `staging` có **gốc lịch sử khác hẳn** `dev` — nó tách ra từ thời còn là kho tài liệu và chưa từng
+nhận mã. Nên lượt lùi 50 bước không chỉ trượt, nó đi vào một nhánh không liên quan.
+
+#### Cái sai thật nằm ở chỗ khác: bản dự phòng làm hỏng SAI CHỖ
+
+`else dev_tip="$(git rev-parse HEAD)"` không sai vì nó dừng lượt deploy — dừng là đúng. Nó sai vì
+**mô tả sai nguyên nhân**: người trực bị cử đi kiểm ba thứ đang hoạt động hoàn hảo, trong khi việc
+cần làm là chọn lại phương thức merge.
+
+Cùng họ với luật 22 (*đọc log theo trình tự, đừng đọc theo mã lỗi*) nhưng ở phía người viết công cụ:
+**một thông báo lỗi tự tin mà sai hướng còn tốn thời gian hơn không có thông báo nào.**
+
+#### Đã sửa — đối chiếu bằng CÂY TỆP
+
+Khi không có cha thứ hai, tìm trong 200 commit gần nhất của `origin/dev` một commit có **cây tệp
+trùng khít** với `HEAD`. Cây giống nhau là bằng chứng **mạnh hơn** quan hệ cha–con cho đúng câu đang
+hỏi — *"mã trên staging có đúng là mã đã dựng ra image này không"* — vì nó so **nội dung thật**, chứ
+không so mối liên kết. Không khớp cái nào thì thoát 1 và **nêu đích danh squash**.
+
+Đo trên kho thật: cây của `origin/staging` trùng khít `dev@a0b6bfc` từng byte.
+
+Kiểm bằng `bash` (luật 19), **ba kịch bản, mỗi kịch bản một nhánh mã khác nhau**:
+
+| Kịch bản | Kết quả |
+|---|---|
+| squash + cây khớp (đúng hiện trạng) | cảnh báo + giải ra `a0b6bfc` |
+| merge commit thật | lấy `HEAD^2`, **không** in cảnh báo |
+| một cha + cây không khớp | **thoát 1**, nêu đích danh squash |
+
+📌 Hai lượt kiểm đầu của tôi **không thật sự chạy**: `git checkout` bị chặn vì có thay đổi chưa
+commit, nên cả ba kịch bản chạy trên cùng một `HEAD` và in ra ba kết quả giống hệt nhau. Chỉ đọc kỹ
+mới thấy `HEAD^2 = KHÔNG_CÓ` ở kịch bản đáng lẽ phải có. Phải commit rồi dựng `git worktree` riêng
+mới tách được ba trạng thái. **Luật 10 ở phía ngược lại**: không chỉ phải xác nhận bản *hỏng* đã
+được nạp, mà cả bản *đúng* cũng vậy.
+
+#### Chỗ không bịt được bằng cấu hình
+
+GitHub **không** cho đặt phương thức merge theo từng nhánh đích, và `dev` bật
+`required_linear_history` nên repo buộc phải cho phép squash. Không thể tắt squash ở cấp repo để
+chặn. Đây là chỗ chỉ con người nhớ được — nên nó nằm ở `docs/branch-protection.md` §2.3-b và ở đầu
+`deploy-staging.yml`, cộng với lưới an toàn đối chiếu cây tệp ở trên.
