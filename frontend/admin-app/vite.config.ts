@@ -48,7 +48,22 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    /**
+     * ⛔ TẮT ở bản dựng thật. Bật `sourcemap: true` không rào theo môi trường thì image
+     * nginx phục vụ luôn tệp `.map` ra ngoài — đo ngày 24/8 trên `songnhue-admin-app:local`:
+     * 68 tệp `.map`, và `GET /assets/ApprovalActions-*.js.map` trả **200**. Mỗi tệp mang
+     * nguyên văn mã TypeScript gốc kèm chú thích nội bộ: mã quyền, hình dạng endpoint, và
+     * chính những đoạn ghi lại chỗ đã từng hở. Đó là bản đồ dò đường tặng kèm cho màn hình
+     * quản trị.
+     *
+     * Dev vẫn có sourcemap: `vite dev` sinh riêng, không đi qua nhánh `build` này.
+     * Cần lần vết lỗi ở production thì đường đúng là đẩy map lên trình thu lỗi, không phải
+     * để nó nằm cạnh bundle.
+     *
+     * Có `src/shared/buildConfig.test.ts` canh — nó **nạp chính tệp này** và đọc giá trị đã
+     * giải, không grep chuỗi. Đã kiểm chứng bằng cách bật lại `true`: bài kiểm đỏ.
+     */
+    sourcemap: false,
   },
   test: {
     environment: 'jsdom',

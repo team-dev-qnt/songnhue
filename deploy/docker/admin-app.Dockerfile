@@ -176,6 +176,24 @@ server {
         proxy_request_buffering off;
     }
 
+    # ⛔ Sourcemap: chặn ở tầng máy chủ, KHÔNG phục vụ dù tệp có nằm trong ảnh.
+    #
+    # Nguyên nhân gốc nằm ở `vite.config.ts` (`sourcemap: false`), và đó mới là chỗ
+    # chữa. Khối này là lớp thứ hai, đặt ở tầng khác hẳn: bản dựng có thể mang .map
+    # trở lại qua một plugin, một biến môi trường, hay một tệp cấu hình thứ hai mà
+    # không ai sửa dòng `sourcemap` nào — luật 12, đặt bảo đảm ở chỗ dữ liệu ĐI QUA.
+    #
+    # Đo ngày 24/8 trước khi có khối này: 68 tệp .map trong image, và
+    # `GET /assets/ApprovalActions-*.js.map` trả 200 kèm 4.799 byte mã nguồn gốc —
+    # `location /assets/` có `try_files $uri =404` nên tệp tồn tại là nó phục vụ.
+    #
+    # ⚠ Vị trí regex là CÓ CHỦ Ý: nginx xét `location` regex TRƯỚC mọi prefix
+    #   (trừ `^~`), nên khối này thắng `/assets/` dù `/assets/` dài hơn.
+    location ~ \.map$ {
+        access_log off;
+        return 404;
+    }
+
     # File có hash trong tên → cache dài. index.html thì không, để deploy mới
     # là trình duyệt thấy ngay.
     location /assets/ {
