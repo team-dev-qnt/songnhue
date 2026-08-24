@@ -52,7 +52,15 @@ describe('Cổng lấy thông tin liên hệ của Công ty từ cấu hình', (
   ])('⛔ %s không còn số điện thoại nào ghi cứng', (_ten, doc) => {
     // Bắt theo HÌNH DẠNG số điện thoại Việt Nam có mã vùng trong ngoặc, không bắt theo một chuỗi
     // cụ thể: khoá theo đúng số đang dùng thì người sau đổi sang số khác vẫn ghi cứng mà vẫn xanh.
-    const soDienThoai = /\(\d{3,4}\)\s*\d{3,4}\s*\d{3,4}/g;
+    //
+    // ⚠⚠ Bản đầu viết `\(\d{3,4}\)\s*\d{3,4}\s*\d{3,4}` — CHỈ chấp nhận khoảng trắng giữa các
+    //    nhóm số, nên nó **bỏ lọt đúng định dạng Công ty đang dùng**: `(024) 33.546.247` có dấu
+    //    chấm. Đo thật ngày 24/8: một bản vá giao diện đặt lại số điện thoại, fax và hotline vào
+    //    mã nguồn, và bài kiểm này **xanh trọn vẹn** — chỉ bài canh email bắt được. Một bộ canh
+    //    không nhận ra dạng dữ liệu thật thì nó canh cho ai?
+    //
+    //    Nay chấp nhận dấu chấm, gạch ngang hoặc khoảng trắng làm dấu phân nhóm.
+    const soDienThoai = /\(\d{3,4}\)[\s.-]*\d{2,4}[\s.-]*\d{3,4}[\s.-]*\d{3,4}/g;
     expect(doc().match(soDienThoai) ?? []).toEqual([]);
   });
 
@@ -65,6 +73,26 @@ describe('Cổng lấy thông tin liên hệ của Công ty từ cấu hình', (
   });
 
   it('⛔ không còn địa chỉ trụ sở ghi cứng trong mã', () => {
-    expect(NGUON).not.toMatch(/Thanh Bình|Mộ Lao|Hà Đông/);
+    // ⚠⚠ Bản đầu phân biệt hoa thường, và địa chỉ mới của Công ty viết HOA toàn bộ
+    //    (`… QUẬN HÀ ĐÔNG - THÀNH PHỐ HÀ NỘI.`) nên nó đi lọt — cùng một lượt vá giao diện, cùng
+    //    một kiểu bỏ sót với bộ canh số điện thoại ở trên. Thêm cờ `i`, và thêm những mốc địa danh
+    //    của địa chỉ mới chứ không chỉ giữ mốc của địa chỉ cũ.
+    expect(NGUON).not.toMatch(/thanh bình|mộ lao|hà đông|xala|new house/i);
+  });
+
+  it('⛔ không dòng nào của chân trang dùng chuỗi cứng làm giá trị dự phòng cho `company.*`', () => {
+    // Bài canh ở tầng CẤU TRÚC, phủ cả sáu khoá cùng lúc — ba bài trên bắt theo hình dạng từng
+    // loại dữ liệu (điện thoại, email, địa chỉ) nên luôn có loại thứ tư lọt qua: giờ làm việc,
+    // tên viết tắt, số fax nước ngoài… Ở đây khẳng định trực tiếp điều thật sự cần đúng: mọi khoá
+    // `company.*` phải rơi về chuỗi RỖNG, không rơi về một giá trị bịa sẵn.
+    const duPhongCung = [...NGUON.matchAll(/\['(company\.[\w.-]+)'\]\s*\?\?\s*(.+)/g)]
+      .filter(([, , duPhong]) => !duPhong.trimStart().startsWith("''"))
+      .map(([, khoa]) => khoa);
+
+    expect(
+      duPhongCung,
+      `những khoá này có giá trị dự phòng ghi cứng: ${duPhongCung.join(', ')} — dữ liệu đã seed ở ` +
+        'V202608241255, nên dự phòng phải là chuỗi rỗng',
+    ).toEqual([]);
   });
 });

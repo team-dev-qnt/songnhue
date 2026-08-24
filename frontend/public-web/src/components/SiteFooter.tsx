@@ -18,12 +18,22 @@ export async function SiteFooter() {
   // ⚠ Nhóm `company.*` là nhận diện pháp nhân, sửa được trên màn hình cấu hình hệ thống.
   // Trước đây địa chỉ, điện thoại, fax, email và số đường dây nóng ghi cứng ngay trong tệp này —
   // đổi số điện thoại của một doanh nghiệp nhà nước phải sửa mã nguồn và dựng lại image.
-  const diaChi = config?.['company.address'] ?? 'TẦNG 4-5 TÒA NHÀ NEW HOUSE XALA - KHU ĐÔ THỊ XALA - QUẬN HÀ ĐÔNG - THÀNH PHỐ HÀ NỘI.';
-  const dienThoai = config?.['company.phone'] ?? '(024) 33.546.247';
-  const fax = config?.['company.fax'] ?? '(024) 33.540.794';
-  const email = config?.['company.email'] ?? 'songnhue2015@gmail.com';
-  const hotline = config?.['company.hotline'] ?? '(024) 33.546.247';
-  const gioLamViec = config?.['company.working-hours'] ?? 'Thứ Hai – Thứ Sáu: 08:00 – 17:00 (Trực ban PCTT 24/24h)';
+  //
+  // ⛔⛔ RỖNG là giá trị dự phòng ĐÚNG, không phải chỗ bỏ trống vì lười. Ngày 24/8 một bản vá giao
+  //     diện đã đặt lại đúng bộ giá trị thật vào đây làm `??` dự phòng, và nó khôi phục nguyên
+  //     trạng lỗi cũ theo một hình dạng khó thấy hơn: màn hình vẫn đúng, nên không ai biết rằng số
+  //     điện thoại người dân gọi khi có sự cố lại đang nằm trong mã nguồn. Sáu khoá dưới đây đã
+  //     được seed đủ ở `V202608241255`, nên rỗng ở đây KHÔNG làm mất nội dung — nó chỉ bắt buộc
+  //     nội dung phải đi ra từ `settings`.
+  //
+  //     Và khi cấu hình thật sự chưa có, ô rỗng mới là câu trả lời trung thực (luật 16): một số
+  //     điện thoại cũ hiện ra như thể còn hiệu lực nguy hiểm hơn hẳn một ô trống.
+  const diaChi = config?.['company.address'] ?? '';
+  const dienThoai = config?.['company.phone'] ?? '';
+  const fax = config?.['company.fax'] ?? '';
+  const email = config?.['company.email'] ?? '';
+  const hotline = config?.['company.hotline'] ?? '';
+  const gioLamViec = config?.['company.working-hours'] ?? '';
   const companyInfo = config?.['site.footer.company-info'] ?? '';
   const mapEmbed = config?.['site.footer.map-embed'] ?? '';
   const logo = fileUrl(config?.['site.logo.attachment-id']) || '/logo-song-nhue.png';

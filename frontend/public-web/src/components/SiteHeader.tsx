@@ -160,8 +160,12 @@ export async function SiteHeader() {
 
   const siteName = config?.['site.name'] ?? SITE.name;
   const logo = fileUrl(config?.['site.logo.attachment-id']) || '/logo-song-nhue.png';
-  // Số trực ban 24/7 — đọc từ nhóm `company.*` trong bảng settings
-  const hotline = config?.['company.hotline'] ?? '(024) 33.546.247';
+  // Số trực ban 24/7 — đọc từ nhóm `company.*` trong bảng settings.
+  //
+  // ⛔ Dự phòng phải RỖNG. Cùng số này còn hiện ở chân trang; ghi cứng ở hai tệp thì sửa số trên
+  //    giao diện chỉ đổi được một nơi, và hai con số khác nhau trên cùng một trang tệ hơn hẳn một
+  //    con số cũ. Khoá `company.hotline` đã seed ở `V202608241255`.
+  const hotline = config?.['company.hotline'] ?? '';
   const activeMenu = menu && menu.length > 0 ? menu : DEFAULT_HEADER_MENU;
   const tree = buildMenuTree(activeMenu);
 
