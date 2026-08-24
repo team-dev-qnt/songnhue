@@ -34,7 +34,16 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       # Bốn vai trò tách quyền do script khởi tạo tạo ra (T2.7). Chỉ chạy ở lần
       # dựng volume ĐẦU TIÊN — volume đã có dữ liệu thì Postgres bỏ qua initdb.
-      DB_APP_PASSWORD: ${DB_PASSWORD}
+      # ⚠⚠ Tên phải là `DB_PASSWORD`. Bản trước ghi `DB_APP_PASSWORD`, mà
+      #    `10-bootstrap.sh` gọi `require_env DB_PASSWORD` — nên biến kia KHÔNG ai
+      #    đọc, còn biến script cần thì KHÔNG được truyền. Postgres của staging vì
+      #    thế quay vòng khởi động lại, rồi `songnhue_app` không đăng nhập được.
+      #
+      #    Lỗi sống sót lâu vì `compose.infra.yml` (đường chạy local) khai ĐÚNG cả
+      #    bốn tên — nên mọi lượt thử ở máy đều xanh. Cùng hình dạng với luật 3:
+      #    hai đường vào cùng một script, chỉ một đường được đi thử.
+      #    `PostgresInitEnvTest` nay đối chiếu hai bên.
+      DB_PASSWORD: ${DB_PASSWORD}
       DB_MIGRATION_PASSWORD: ${DB_MIGRATION_PASSWORD}
       DB_ARCHIVER_PASSWORD: ${DB_ARCHIVER_PASSWORD}
       DB_READONLY_PASSWORD: ${DB_READONLY_PASSWORD}
