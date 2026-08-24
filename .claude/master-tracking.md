@@ -310,6 +310,11 @@
 
 ## WS-22
 
+> ⚠ **Nghiệm thu lần ba ngày 24/8** (T22.15→T22.20). Lượt này xuất phát từ một việc nhỏ — chạy
+> `make dev-docker` rồi soi image — và tìm ra **một lỗi chặn nghiệp vụ nằm trong phạm vi Phase 1**
+> đã được tick từ 23/8, cộng một lỗ lộ mã nguồn và một lỗ ở bộ lọc CI. Nguyên nhân gốc:
+> `architecture-review.md` §10.37.
+
 - [x] T22.1: `RbacMatrixTest` đối chiếu trên CSDL thật với `function-spec.md` §6 | Date: 23/08/2026 | Note: lượt 22/8 thêm 44 quyền vào danh sách miễn kiểm, trong đó 7 quyền ĐANG dùng thật qua workflow_transitions. Nay phép quét đọc cả hai kênh khai báo và có bài canh danh sách miễn kiểm không phình
 - [x] T22.2: ⭐ Nâng cổng bao phủ tầng domain
 - [x] T22.3: Luật ArchUnit cho module nghiệp vụ.  Xong 22/8
@@ -324,6 +329,12 @@
 - [x] T22.13: Nghiệm thu lại WS-21 và 17 mục DoD Phase 1 | Date: 23/08/2026 | Note: 4/11 mục WS-21 chưa làm; 3/17 mục DoD không có phép kiểm nào (DOD1.6/1.7/1.11) và DOD1.5 chưa từng có bài kiểm phía BE
 - [x] T22.14: Cổng bao phủ tầng domain của module content CHẠY THẬT | Date: 23/08/2026 | Note: trước đó module không có bài kiểm nào nên JaCoCo bỏ qua luật trong im lặng; nay 18.2% và cổng thật sự chặn
 - [x] T22.12: Dọn tracking về một nguồn | Date: 23/08/2026 | Note: xoá `phase1-execution-tracking.md`; gộp 29 mã số trùng (19 cặp mâu thuẫn trạng thái); tách DoD ra mục riêng có mã số; sửa bộ đọc MCP + thêm phép kiểm chạy trên file thật
+- [x] T22.15: Nghiệm thu image `make dev-docker` | Date: 24/08/2026 | Note: bản dựng ĐỎ ở nhánh đã push — 4 lỗi TypeScript từ commit 40685c8. CI có bước typecheck bắt được cả 4 nhưng chỉ kích hoạt trên `dev`, nên nhánh tính năng chưa mở PR đi qua không cổng kiểm nào. Sau khi vá: image dựng lại, 6/6 container healthy, `/api/v1/**` trả 401/200 đúng, FE gọi cùng origin 200
+- [x] T22.16: ⛔ Lỗi CHẶN — trả bài về sửa không dùng được | Date: 24/08/2026 | Note: `ArticleController` ép buộc lý do bằng dòng khai cứng, còn FE mở ô nhập theo cờ `requiresReason` mà record `AllowedAction` KHÔNG có và không ai điền → bấm "Yêu cầu chỉnh sửa" là tắc hoàn toàn. `ArticleHttpTest.traBaiPhaiNeuLyDo` kiểm cả hai vế ràng buộc và vẫn xanh vì gửi JSON dựng tay. Chữa: cột `workflow_transitions.requires_reason` (V202608241256), engine tự ép buộc thay controller, `primary`/`danger` gỡ hẳn vì không ai ghi
+- [x] T22.17: Image admin-app phát nguyên mã nguồn ra ngoài | Date: 24/08/2026 | Note: `sourcemap: true` không rào môi trường → 68 tệp `.map` trong image, GET trả 200 kèm 4.799 byte TypeScript gốc. Chữa ở hai tầng: `sourcemap: false` + `location ~ \.map$ { return 404; }`. Đo lại sau khi dựng: 0 tệp, lượt tải 404
+- [x] T22.18: Bộ lọc CI bỏ qua đúng job canh những tệp vừa đổi | Date: 24/08/2026 | Note: job `backend` lọc `^(backend/|.github/workflows/)` trong khi **7 lớp kiểm BE đọc tệp ngoài `backend/`** (FrontendSameOriginTest, NginxSecurityHeadersTest, EnvFileCommentTest, UnresolvedPlaceholderGuardTest, EditorVocabularyTest, AllowedActionParityTest, SongnhuePostgres). PR chỉ đụng `frontend/` hoặc `deploy/` là bỏ qua sạch — mà `skipped` được tính là ĐẠT. Đã thêm `frontend/` + `deploy/`; kiểm logic bằng `bash -c` với 7 kịch bản
+- [x] T22.19: Hợp nhất nhánh `fix-public-web-ui` | Date: 24/08/2026 | Note: merge KHÔNG đụng độ nhưng bộ test FE trên cây đã merge ĐỎ — bản vá giao diện đặt lại liên hệ Công ty vào mã nguồn làm dự phòng `??`. ⚠ Chỉ 1/3 bộ canh bắt được: regex điện thoại đòi khoảng trắng (dữ liệu thật dùng dấu chấm), regex địa chỉ phân biệt hoa thường (địa chỉ mới viết HOA). Đã vá cả hai + thêm bài canh cấu trúc phủ 6 khoá `company.*`
+- [x] T22.20: Rà mapping toàn bộ bề mặt API | Date: 24/08/2026 | Note: 68 kiểu TypeScript ↔ 141 record/DTO Java — 42 khớp theo tên, 22 khớp theo hình dạng, 4 xác minh tay. **Lệch thật duy nhất là `AllowedAction`** (T22.16). Có `AllowedActionParityTest` canh tiếp, đặt ở bộ BE vì nguồn sự thật là record Java
 
 ## DoD Phase 0
 
@@ -356,7 +367,7 @@
 
 - [x] DOD1.1: Ranh giới module chạy thật | Date: 23/08/2026 | Note: ModuleBoundaryTest + ModuleBoundarySelfCheckTest (4 bài chứng minh luật bắt được vi phạm)
 - [x] DOD1.2: Phân quyền tầng 3 trên entity nghiệp vụ thật | Date: 23/08/2026 | Note: ScopeFilterEndToEndTest 7 · ConstructionScopeTest 8 · MaintenanceScopeTest 8 · OperationStatusHttpTest 8 (có bài IDOR qua HTTP)
-- [x] DOD1.3: Vòng đời bài viết đầu-cuối | Date: 23/08/2026 | Note: ArticleLifecycleTest 14 bài
+- [x] DOD1.3: Vòng đời bài viết đầu-cuối | Date: 24/08/2026 | Note: ArticleLifecycleTest 14 bài. ⚠ Mục này tick từ 23/8 nhưng **một nhánh của vòng đời không dùng được**: trả bài về sửa tắc hoàn toàn (T22.16). Cả 14 bài đều xanh vì gửi JSON dựng tay, không đi qua `allowedActions` — vế backend ép buộc đúng, vế backend QUẢNG CÁO cho giao diện thì hỏng. Nay thêm `ArticleHttpTest.allowedActionsNoiRaBuocDoiLyDo` khẳng định cờ đi hết đường tuần tự hoá ra tới dây, và chốt cả vế ngược (APPROVE phải là false)
 - [x] DOD1.4: Biên tập viên không tự xuất bản được | Date: 23/08/2026 | Note: ArticleLifecycleTest.bienTapVienKhongTuXuatBanDuoc — ràng buộc nằm ở workflow_transitions, không ở câu if
 - [x] DOD1.5: ISR revalidate chạy thật | Date: 23/08/2026 | Note: PortalRevalidateClientTest 7 bài trên máy chủ HTTP thật. Bản đầu của bài canh HTTP/1.1 là XANH GIẢ — đã đo lại và đổi sang khẳng định không gửi header Upgrade/HTTP2-Settings. ⚠ Chứng minh phía phát ra gửi đúng, KHÔNG chứng minh Next dựng lại trang
 - [x] DOD1.6: API công khai không lộ bài chưa xuất bản | Date: 23/08/2026 | Note: Phase1AcceptanceTest.draftArticlesNeverReachThePublicApi — trước đó KHÔNG có phép kiểm nào

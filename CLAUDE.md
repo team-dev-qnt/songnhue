@@ -63,15 +63,23 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 
 **Phase "Tài liệu hệ thống"** ✅ xong 12/8/2026 — BOQ đợt 1 (A–F) + đợt 2 (G) đã đóng và đồng bộ vào `function-spec.md` **v2.2**.
 **Phase 0 — Core Platform** ✅ xong 10/11 hạng mục. Còn **WS-11 (Deploy Staging/Production, 10 pd)** treo để khép sổ.
-**Phase 1 — CMS & master data công trình** ✅ **xong 23/8/2026** — WS-12→WS-23 đóng đủ, **16/17 mục DoD** có phép kiểm đứng sau.
+**Phase 1 — CMS & master data công trình** ✅ **xong 24/8/2026** — WS-12→WS-23 đóng đủ, **16/17 mục DoD** có phép kiểm đứng sau. Nhánh `fix-public-web-ui` đã hợp nhất về `feat-CICD`.
 
 ⬜ **Mục DoD duy nhất còn treo**: **DOD1.17** trang chủ cổng < 3s (NFR-02) — chỉ đo được trên môi trường gần thật, nằm trong checklist nghiệm thu của `docs/deploy-guideline.md`. Không chặn code, chặn nghiệm thu cùng WS-11.
 
-⚠ **Bản ghi "đã xong" ngày 22/8 đã bị bác bỏ.** Nghiệm thu lại ngày 23/8 tìm ra **4/11 mục WS-21 chưa làm hoặc hỏng hẳn** (hai mục là placeholder văn bản; tab tài liệu 400 ở mọi lượt mở; thư mục test không có tệp nào) và **4/17 cam kết DoD không có phép kiểm nào**. Nguyên nhân gốc + toàn bộ danh sách: `architecture-review.md` **§10.36**.
+⚠⚠ **Ba lần liên tiếp một bản ghi "đã xong" bị lượt rà sau bác bỏ** — đây là hình dạng rủi ro đặc trưng của dự án này, không phải sự cố lẻ:
+
+| Ngày | Lượt rà tìm ra |
+|---|---|
+| 22/8 | bản ghi "đã xong" bị bác bỏ toàn phần |
+| 23/8 | **4/11 mục WS-21** chưa làm hoặc hỏng hẳn · **4/17 cam kết DoD** không có phép kiểm nào — §10.36 |
+| 24/8 | **1 lỗi CHẶN nghiệp vụ** trong phạm vi đã tick (trả bài về sửa tắc hoàn toàn) · image quản trị phát mã nguồn · bộ lọc CI bỏ qua đúng job nó cần · hotfix làm tái phát lỗi ghi cứng — §10.37 |
+
+⛔ Hệ quả rút ra: **"đã tick" không phải bằng chứng.** Trước khi mở một giai đoạn mới, đối chiếu với mã thật và chạy đường mà người dùng thật đi.
 
 ⛔ **Cấm seed dữ liệu công trình/thuỷ văn "cho đẹp demo"** — ô nào chưa có nguồn thì nói thẳng là chưa có.
 
-**Codebase đo ngày 23/8**: **555 test BE** (239 core + 20 content + 24 operations + 272 app) + **174 test FE** (131 admin + 43 public) · **74 mã lỗi** (BE = FE) · 88 quyền / 12 vai trò / 334 dòng phân quyền · 28 bài ArchUnit · 6 phép kiểm bộ đọc tracking · mọi cổng bao phủ **chạy thật** (content 18.2% — trước đó bị bỏ qua) · 0 CVE ≥ 7.
+**Codebase đo ngày 24/8**: **559 test BE** (239 core + 20 content + 24 operations + 276 app) + **180 test FE** (136 admin + 44 public) · **74 mã lỗi** (BE = FE) · 88 quyền / 12 vai trò / 334 dòng phân quyền · **32 bài ArchUnit** (7 lớp, gồm 11 bài tự-kiểm chứng minh luật bắt được vi phạm) · 7 phép kiểm bộ đọc tracking · mọi cổng bao phủ **chạy thật** (content 18.2%) · 0 CVE ≥ 7.
 
 ### Tra ở đâu
 
@@ -129,7 +137,11 @@ Rút ra sau khi **cùng một hình dạng lỗi lặp lại nhiều lần**. Ng
 20. **Nâng cấp trước, suppress sau; tra phiên bản bằng `maven-metadata.xml`, không bằng API tìm kiếm** — API `solrsearch` trả kết quả cũ, suýt lập suppression cho 49 CVE **đã có bản vá**.
 21. **Squash xong thì nhánh nguồn đã chết — cắt nhánh mới từ `dev`** (`.githooks/pre-push` canh; `make hooks` để bật, và nó là cấu hình **cục bộ từng bản clone**).
 22. **Đọc log theo trình tự, đừng đọc theo mã lỗi** — dòng đáng chú ý nhất thường nằm *trước* thứ được báo là lỗi.
-23. **`skipped` của một required check được GitHub tính là ĐẠT** — bộ lọc đường dẫn trục trặc thì phải mặc định **chạy thừa**, không bỏ sót.
+23. **`skipped` của một required check được GitHub tính là ĐẠT** — bộ lọc đường dẫn trục trặc thì phải mặc định **chạy thừa**, không bỏ sót. ⚠ Và bộ lọc phải bao **những tệp mà bài kiểm ĐỌC**, không chỉ những tệp nó nằm cùng thư mục: 7 lớp kiểm của bộ BE đọc `frontend/` và `deploy/`, nên bộ lọc cũ bỏ qua job canh chúng **đúng lúc chúng thay đổi**.
+
+24. **Một bộ canh theo hình dạng phải được thử với dữ liệu THẬT đang dùng** *(cùng họ với nhóm phép kiểm ở trên)* — ba bộ canh "không ghi cứng liên hệ Công ty", chỉ **một** bắt được khi lỗi tái phát: regex điện thoại đòi khoảng trắng giữa các nhóm số trong khi số thật dùng dấu chấm; regex địa chỉ phân biệt hoa thường trong khi địa chỉ mới viết HOA. Bắt theo hình dạng là đúng hướng, nhưng hình dạng phải đối chiếu với dữ liệu đang chạy — nếu không thì nó chỉ canh được cái đã chết. Bổ trợ bằng một bài ở tầng **cấu trúc** (mọi khoá `company.*` phải rơi về rỗng): bắt theo từng loại dữ liệu thì luôn có loại thứ tư lọt qua.
+
+25. **Merge không đụng độ ≠ merge không vỡ** — `git merge-tree` sạch, typecheck sạch, phân tích tệp cho thấy không đụng file nào của backend; vậy mà bộ test FE trên cây đã merge vẫn đỏ, vì nhánh kia khôi phục một lỗi mà nhánh này có bài canh. **Xung đột văn bản và xung đột ngữ nghĩa là hai chuyện khác nhau** — phải chạy bộ kiểm trên chính cây đã hợp nhất, không suy ra từ việc mỗi nhánh riêng lẻ đều xanh.
 
 ## Quy ước làm việc với user
 

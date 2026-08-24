@@ -29,7 +29,7 @@ lại — nó đã có rồi.**
 
 | Cần làm gì | Tiêm cái này | Chữ ký thật |
 |---|---|---|
-| Đổi trạng thái entity | `WorkflowPort` | `execute(entity, action, title)` · `allowedActions(entity)` · `initialState(entityType)` |
+| Đổi trạng thái entity | `WorkflowPort` | `execute(entity, action, title)` · `execute(entity, action, title, reason)` — bản 4 tham số bắt buộc khi bước chuyển khai `requires_reason` · `allowedActions(entity)` · `initialState(entityType)` |
 | Tệp đính kèm | `AttachmentPort` | `upload(AttachmentUploadCommand)` · `downloadUrl(publicId)` · `findRef(publicId)` · `refsOf(ownerType, ownerId)` · `usedBytes(ownerType, ownerId)` · `setValidity(publicId, từNgày, đếnNgày)` · `readForPublic(publicId, loạiChoPhép)` · `delete(publicId)` |
 | Thông báo (in-app + email) | `NotificationPort` | `notify(NotifyRequest)` · `broadcast(request, userIds)` |
 | Việc chạy nền | `JobPort` + bean cài `JobHandler` | `enqueue(JobRequest)` · `findJob(publicId)` |
@@ -138,12 +138,34 @@ migration), không phải `switch/case` trong service.
 
 ```java
 article = workflowEngine.execute(article, "SUBMIT", "Gửi duyệt bài viết");
+
+// Bước nào khai `requires_reason = TRUE` thì phải truyền lý do người dùng nhập.
+article = workflowEngine.execute(article, "REQUEST_CHANGES", null, lyDo);
 ```
 
 ⛔ **Cấm gọi `applyState` hay `setStatus` trực tiếp.** Đi đường tắt là bỏ qua kiểm quyền, bỏ qua
 bắn thông báo, bỏ qua ghi nhật ký — cả ba đều im lặng (quy tắc 4 của `CLAUDE.md`).
 
 FE lấy danh sách nút từ `allowedActions()`, **không tự suy ra từ trạng thái**.
+
+#### Bước chuyển đòi lý do — khai bằng cột, đừng khai bằng `if`
+
+`workflow_transitions.requires_reason` là **một dòng dữ liệu, hai người đọc**: engine trả cờ ra cho
+giao diện trong `AllowedAction` để nó mở ô nhập, và `execute()` ép buộc khi chuyển. Cùng đọc một
+dòng nên hai bên không lệch nhau được.
+
+⚠⚠ **Bẫy đã trả giá (24/8, §10.37).** Luật này từng khai cứng trong `ArticleController`
+(`"REQUEST_CHANGES".equals(action) && blank(reason)`), còn giao diện đọc một cờ `requiresReason` mà
+record `AllowedAction` **không có và không nơi nào điền**. Vế ép buộc đúng, vế quảng cáo hỏng, và
+người duyệt bấm *"Yêu cầu chỉnh sửa"* thì **không có ô nào để nhập lý do, cũng không có đường đi
+tiếp**. Bài kiểm HTTP có sẵn vẫn xanh vì nó gửi JSON dựng tay, không bao giờ chạm `allowedActions`.
+
+- Thêm một bước đòi lý do = **một dòng `UPDATE`**, không phải sửa mã rồi deploy.
+- Bản `execute` 3 tham số uỷ quyền với `reason = null` → bước đòi lý do mà quên truyền thì **ném
+  `SYS-0003` ngay lượt gọi đầu**. Hỏng đóng, cố ý — không phải cửa lách.
+- ⛔ Đừng thêm trường **trình bày** vào `AllowedAction` (màu nút, nút chính). Backend không biết gì
+  về thẩm mỹ, và một trường chỉ có người đọc mà không có người ghi là một lỗi (quy tắc 15). Kiểu
+  phía FE từng mang `primary`/`danger` như vậy — chưa nút nào từng đổi hình dạng.
 
 ### 3.4. Service ở `application/`
 
@@ -209,6 +231,8 @@ Không cần đọc thuộc — chỉ cần biết chúng tồn tại để lúc
 | Nguồn ngoài (tile bản đồ, font, ảnh) | CSP `default-src 'self'` chặn **im lặng** — không lỗi ở tầng ứng dụng. Đổi host trong `settings` thì phải mở CSP ở nginx, và phải có bài kiểm đối chiếu hai nơi |
 | Lớp kiểm thử HTTP đăng nhập ở `@BeforeEach` | Hạn mức **theo IP** là ngân sách dùng chung cho cả lượt chạy — đăng nhập 30 lượt/15' **và API thường 100 lượt/phút**. Vượt trần thì đỏ ở một lớp *khác*, với `SYS-0002`. Hai việc phải làm: đăng nhập ở `@BeforeAll`, và `PhienHttp` gắn `X-Forwarded-For` riêng cho mỗi thực thể (mỗi lớp = một máy khách). ⛔ **Đừng nới hạn mức ở hồ sơ kiểm thử** — làm thế thì cơ chế đó không còn lượt chạy nào đi qua ở CI |
 | Kiểm quy tắc nghiệp vụ **sau** `workflowEngine.execute(...)` | Không bao giờ chạy tới. Engine ghi một dòng thông báo, lượt ghi đó **flush** entity đang bẩn, và CHECK của CSDL bắn trước → người dùng nhận lỗi ràng buộc thô thay vì mã lỗi nghiệp vụ. Kiểm **trước**, tra đích đến bằng chính `allowedActions()` của engine |
+| Backend **ép buộc** một điều kiện mà không **nói ra** cho giao diện | Hai vế của cùng một luật, và chúng hỏng độc lập. Bài kiểm chỉ đi vế ép buộc vẫn xanh trọn vẹn trong khi màn hình tắc hoàn toàn — đúng chuyện đã xảy ra với `requires_reason`: server đòi lý do, giao diện không có ô nào để nhập. Điều kiện nào chặn được người dùng thì phải có mặt trong payload mô tả hành động, **và có bài kiểm đi qua payload đó** |
+| Khai một trường ở kiểu FE mà backend không gửi | TypeScript im lặng nếu trường đó `optional`, và nơi đọc nhận `undefined` **vĩnh viễn** — nhánh mã phụ thuộc vào nó không bao giờ chạy. Kiểu mô tả payload phải khớp record BE từng trường một; có `AllowedActionParityTest` canh cho `AllowedAction`, còn kiểu mới thì đối chiếu tay lúc chép |
 | `updatedAt == null` để hỏi "chưa ai sửa" | Bộ ghi nhật ký của Spring Data đặt `@LastModifiedDate` ngay ở lượt **chèn** → điều kiện luôn sai, và công tắc dựa vào nó không mở cho ai. Dùng `version == 0` |
 | Trả `null` trong một `record` DTO | Cấu hình `NON_NULL` chung **xoá hẳn khoá** khỏi JSON; phía nhận đọc ra `undefined`, không phân biệt được với "API đổi tên trường". Ô nào cố ý rỗng phải đè `@JsonInclude(ALWAYS)` |
 | Dựng thân JSON của bài kiểm bằng `replace` chồng lên bản mặc định | Để lại **hai khoá cùng tên**; Jackson lấy khoá sau, tức là giá trị mặc định. Bài kiểm nhận một mã lỗi khác và ta đi tìm lỗi ở chỗ không có lỗi. Dựng bằng tham số |
