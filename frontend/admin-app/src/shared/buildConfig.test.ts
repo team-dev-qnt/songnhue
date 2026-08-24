@@ -54,9 +54,10 @@ describe('cấu hình bản dựng admin-app', () => {
       return;
     }
     const maps = readdirSync(dist).filter((f) => f.endsWith('.map'));
-    expect(maps, `dist/assets có ${maps.length} tệp sourcemap: ${maps.slice(0, 3).join(', ')}`).toHaveLength(
-      0,
-    );
+    expect(
+      maps,
+      `dist/assets có ${maps.length} tệp sourcemap: ${maps.slice(0, 3).join(', ')}`,
+    ).toHaveLength(0);
   });
 
   it('⭐ nginx của image chặn hẳn .map — lớp phòng thủ thứ hai, ở tầng khác', () => {

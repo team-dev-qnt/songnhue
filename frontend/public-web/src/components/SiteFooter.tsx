@@ -14,7 +14,8 @@ import { fileUrl, isExternal, menuHref, ROUTES } from '@/lib/routes';
 export async function SiteFooter() {
   const [config, menu] = await Promise.all([getSiteConfig(), getMenu('FOOTER')]);
 
-  const siteName = config?.['site.name'] ?? 'CÔNG TY TNHH MỘT THÀNH VIÊN ĐẦU TƯ PHÁT TRIỂN THỦY LỢI SÔNG NHUỆ';
+  const siteName =
+    config?.['site.name'] ?? 'CÔNG TY TNHH MỘT THÀNH VIÊN ĐẦU TƯ PHÁT TRIỂN THỦY LỢI SÔNG NHUỆ';
   // ⚠ Nhóm `company.*` là nhận diện pháp nhân, sửa được trên màn hình cấu hình hệ thống.
   // Trước đây địa chỉ, điện thoại, fax, email và số đường dây nóng ghi cứng ngay trong tệp này —
   // đổi số điện thoại của một doanh nghiệp nhà nước phải sửa mã nguồn và dựng lại image.
