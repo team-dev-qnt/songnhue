@@ -242,6 +242,45 @@ lint-be: ## Backend: Spotless check + Checkstyle
 lint-fe: ## Frontend: ESLint + Prettier check
 	cd $(FRONTEND) && npm run lint && npm run format:check
 
+# --- Chạy y hệt CI ở máy -----------------------------------------------------
+#
+# ⚠⚠ VÌ SAO CẦN MỘT LỆNH RIÊNG thay vì "nhớ chạy make lint và make test".
+#
+#   Ngày 24/8 một PR bị CI chặn ở `format:check` sau khi đã báo "lint sạch" —
+#   vì `npm run lint` CHỈ chạy ESLint, còn Prettier là script thứ hai. Chạy một
+#   nửa cổng kiểm rồi kết luận đã qua là đúng hình dạng lỗi mà dự án này gặp
+#   nhiều lần: cơ chế có mặt, nhưng lượt kiểm không đi qua nó.
+#
+#   Thứ tự dưới đây khớp `.github/workflows/ci.yml`, và cố ý xếp theo "cái nào
+#   phát hiện lỗi rẻ nhất thì chạy trước": định dạng (giây) → kiểu → test →
+#   build. Sai định dạng thì biết sau 30 giây thay vì chờ hết Testcontainers.
+#
+#   ⛔ KHÔNG thay được lượt chạy CI thật: quét CVE và đóng gói image lên GHCR
+#      chỉ chạy trên runner. Lệnh này bao phủ 2 job `backend` + `frontend`.
+.PHONY: ci-local
+ci-local: ## Chạy đúng trình tự cổng kiểm của CI (trừ CVE scan + đóng gói image)
+	@echo ""
+	@echo "  [1/8] Backend — Spotless + Checkstyle"
+	@cd $(BACKEND) && ./mvnw -B -ntp spotless:check checkstyle:check -q
+	@echo "  [2/8] Frontend — ESLint"
+	@cd $(FRONTEND) && npm run lint --silent
+	@echo "  [3/8] Frontend — Prettier"
+	@cd $(FRONTEND) && npm run format:check --silent
+	@echo "  [4/8] Frontend — kiểm kiểu"
+	@cd $(FRONTEND) && npm run typecheck --silent
+	@echo "  [5/8] Frontend — test"
+	@cd $(FRONTEND) && npm test --silent
+	@echo "  [6/8] Frontend — build admin-app"
+	@cd $(FRONTEND) && npm run build --workspace admin-app --silent
+	@echo "  [7/8] Frontend — build public-web"
+	@cd $(FRONTEND) && npm run build --workspace public-web --silent
+	@echo "  [8/8] Backend — verify (test + ArchUnit + cổng bao phủ)"
+	@cd $(BACKEND) && ./mvnw -B -ntp verify
+	@echo ""
+	@echo "  ✓ Mọi cổng kiểm CI chạy ở máy đều xanh."
+	@echo "    Còn lại chỉ chạy trên runner: quét CVE, đóng gói image GHCR."
+	@echo ""
+
 # --- Backup / Restore (WS-7) -------------------------------------------------
 # ⚠ Đây là ĐƯỜNG THỦ CÔNG, dùng khi ứng dụng không chạy được. Đường bình thường
 #   là job 02:00 hằng đêm và nút trên màn hình M5.10 — cả hai ghi vào cùng một
