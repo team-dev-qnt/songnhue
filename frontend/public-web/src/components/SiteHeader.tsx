@@ -159,7 +159,6 @@ export async function SiteHeader() {
   const [config, menu] = await Promise.all([getSiteConfig(), getMenu('HEADER')]);
 
   const siteName = config?.['site.name'] ?? SITE.name;
-  const shortName = config?.['site.slogan'] || SITE.shortName;
   const logo = fileUrl(config?.['site.logo.attachment-id']) || '/logo-song-nhue.png';
   // Số trực ban 24/7 — đọc từ nhóm `company.*` trong bảng settings
   const hotline = config?.['company.hotline'] ?? '';

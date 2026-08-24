@@ -2,7 +2,6 @@ import Link from 'next/link';
 
 import { getMenu, getSiteConfig } from '@/lib/api';
 import { fileUrl, isExternal, menuHref, ROUTES } from '@/lib/routes';
-import { SITE } from '@/lib/site';
 
 /**
  * Chân trang cổng thông tin điện tử — CN-01.5 (T15.3).
