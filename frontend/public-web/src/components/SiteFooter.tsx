@@ -97,11 +97,10 @@ export async function SiteFooter() {
 
       {/* ───── 2. Khối nội dung chính (4 cột trên nền Full Blue Gradient) ───── */}
       <div className="mx-auto grid max-w-[1240px] gap-8 px-4 py-10 text-sm sm:grid-cols-2 sm:px-6 lg:grid-cols-12">
-        {/* Cột 1: Thông tin cơ quan & Trụ sở (4/12 cột) */}
         <div className="space-y-3.5 lg:col-span-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white p-1 shadow-xs">
-              <img src={logo} alt={siteName} className="h-full w-full object-contain" />
+            <div className="flex h-12 shrink-0 items-center justify-center">
+              <img src={logo} alt={siteName} className="h-full w-auto object-contain" />
             </div>
             <div className="flex flex-col">
               <span className="font-bold uppercase tracking-tight text-white drop-shadow-xs">
