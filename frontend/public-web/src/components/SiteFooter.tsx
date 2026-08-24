@@ -136,7 +136,7 @@ export async function SiteFooter() {
                 <span className="shrink-0 font-semibold text-white">EMAIL:</span>
                 <span className="font-medium text-sky-200">{email}</span>
               </p>
-              <p className="flex items-center gap-2">
+              <p className="flex items-start gap-2">
                 <span className="shrink-0 font-semibold text-white">Giờ làm việc:</span>
                 <span>{gioLamViec}</span>
               </p>
