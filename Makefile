@@ -279,6 +279,36 @@ ci-local: ## Chạy đúng trình tự cổng kiểm của CI (trừ CVE scan + 
 	@echo ""
 	@echo "  ✓ Mọi cổng kiểm CI chạy ở máy đều xanh."
 	@echo "    Còn lại chỉ chạy trên runner: quét CVE, đóng gói image GHCR."
+	@echo "    ⚠ Bước [6] và [7] KHÔNG thay được 'make ci-image' — xem lý do ở đó."
+	@echo ""
+
+# ⚠⚠ Vì sao target này phải tồn tại riêng, không gộp vào `ci-local` (§10.38):
+#
+#   `npm run build` ở máy **luôn nạp `frontend/public-web/.env.local`**, còn runner
+#   checkout sạch nên không có tệp ấy. Biến `NEXT_PUBLIC_SITE_URL` rỗng vì thế là
+#   một trạng thái mà bước [7] của `ci-local` VỀ NGUYÊN TẮC không dựng lại được.
+#
+#   Đúng trạng thái ấy đã giết lượt CI đầu tiên sau khi merge vào `dev`: `ci.yml`
+#   truyền `NEXT_PUBLIC_SITE_URL=$${{ vars.PUBLIC_SITE_URL }}` mà biến kho chưa
+#   đặt → `ARG` không mặc định → `ENV` gán **chuỗi rỗng** → `new URL('')` ném
+#   `ERR_INVALID_URL` giữa lúc prerender.
+#
+#   Đối số dưới đây phải giữ **y hệt** khối `build-args` trong `ci.yml`; để trống
+#   là CỐ Ý, không phải thiếu sót.
+.PHONY: ci-image
+ci-image: ## Dựng image FE đúng đối số build của CI (bắt lỗi biến môi trường rỗng)
+	@echo ""
+	@echo "  [1/2] admin-app"
+	@docker build -f $(DEPLOY)/docker/admin-app.Dockerfile \
+	   --build-arg VITE_API_BASE_URL= \
+	   -t songnhue-admin-app:ci-local $(FRONTEND)
+	@echo "  [2/2] public-web"
+	@docker build -f $(DEPLOY)/docker/public-web.Dockerfile \
+	   --build-arg NEXT_PUBLIC_API_BASE_URL= \
+	   --build-arg NEXT_PUBLIC_SITE_URL= \
+	   -t songnhue-public-web:ci-local $(FRONTEND)
+	@echo ""
+	@echo "  ✓ Hai image FE dựng được với biến môi trường để trống."
 	@echo ""
 
 # --- Backup / Restore (WS-7) -------------------------------------------------
