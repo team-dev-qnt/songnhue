@@ -68,6 +68,23 @@ nhau được.
 Nên: `dev` giữ lịch sử thẳng (nhánh feature rebase/squash vào); `staging`/`production` cho phép
 merge commit.
 
+### 2.3-b. ⛔⛔ Merge vào `staging`/`production` PHẢI chọn **Create a merge commit**
+
+`required_linear_history` tắt ở hai nhánh này **cho phép** merge commit, nhưng không **ép** ai chọn
+nó — hộp thoại merge của GitHub vẫn có đủ ba nút, và bấm nhầm là một cú click.
+
+Bấm nhầm rồi thì hỏng thế nào: `deploy-staging.yml` lấy đỉnh `dev` bằng `HEAD^2`. Squash sinh commit
+**một cha**, nên mối liên hệ với commit `dev` đã dựng image bị cắt đứt, và lượt deploy không biết
+phải kéo image nào.
+
+📌 **Đã xảy ra ở lượt CD Staging đầu tiên (25/8)** — nguyên nhân gốc `architecture-review.md` §10.42.
+Workflow nay có đường cứu bằng cách đối chiếu **cây tệp**, nhưng đó là lưới an toàn, không phải
+đường đi: nó chỉ hoạt động khi `staging` chưa bị sửa gì thêm sau lượt squash.
+
+⚠ GitHub **không** cho đặt phương thức merge theo từng nhánh đích. `dev` bật
+`required_linear_history` nên repo buộc phải cho phép squash — tức là không thể tắt squash ở cấp
+repo để chặn. Đây là chỗ chỉ con người nhớ được, nên nó nằm ở đây và ở đầu `deploy-staging.yml`.
+
 ### 2.4. ⚠ `strict` phải TẮT ở staging/production — nếu không, chặng đề bạt tự khoá sau lần đầu
 
 Đây là **lỗi trong bản đầu của tài liệu này**, phát hiện khi kiểm chứng lại cấu hình đã áp.

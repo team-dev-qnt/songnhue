@@ -38,6 +38,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      # `fetch-depth: 0` lấy đủ lịch sử của NHÁNH ĐANG CHECKOUT, không lấy nhánh khác.
+      # Bước dưới cần `origin/dev` để đối chiếu cây tệp khi PR bị squash.
+      - name: Nạp thêm nhánh dev để đối chiếu
+        run: git fetch --no-tags origin +refs/heads/dev:refs/remotes/origin/dev
+
       # ⚠ `github.sha` ở đây là commit MERGE vừa tạo trên `staging`, không phải
       # commit của `dev` — mà image lại được gắn tag theo commit của `dev`.
       # Với merge commit, cha thứ hai (HEAD^2) chính là đỉnh của `dev` lúc merge.
@@ -71,12 +76,61 @@ jobs:
         run: |
           set -euo pipefail
 
-          if git rev-parse -q --verify HEAD^2 >/dev/null; then
-            dev_tip="$(git rev-parse HEAD^2)"
-          else
-            dev_tip="$(git rev-parse HEAD)"
+          # ═══════════════════════════════════════════════════════════════════
+          # Câu đang hỏi: **commit nào trên `dev` đã dựng ra đúng mã đang nằm trên
+          # `staging`?** Trả lời bằng CÂY TỆP, không bằng quan hệ cha–con.
+          #
+          # ⚠⚠ Vì sao không dùng `HEAD^2` — hai bản trước đều vấp ở đây:
+          #
+          #   Bản 1 tin `HEAD^2` vô điều kiện, rơi về `HEAD` khi thiếu. PR #14 bị
+          #   **squash** → commit một cha → rơi về SHA của chính staging, một SHA chưa
+          #   bao giờ có trên `dev`. Lượt lùi đi vào lịch sử riêng của `staging` (nhánh
+          #   này tách ra từ thời còn là kho tài liệu) rồi báo *"không tìm thấy image"*
+          #   kèm ba bước chẩn đoán trỏ vào job đóng gói, gói GHCR và bước đăng nhập —
+          #   **cả ba đều là ngõ cụt**: image đủ, job xanh, đăng nhập xanh (§10.42).
+          #
+          #   Bản 2 thử "lấy cha nào nằm trên dev". Cũng sai, và sai êm hơn: cha thứ
+          #   nhất của một commit squash là **tổ tiên chung cổ lỗ** (`3c29f0c`), mà nó
+          #   *đúng là* nằm trên `dev` — nên luật ấy chọn một commit từ thời chưa có mã.
+          #
+          # Cây tệp trả lời thẳng câu đang hỏi, và không phụ thuộc vào việc ai bấm nút
+          # merge nào. `merge-base` chỉ là phỏng đoán nhanh cho đường thiết kế; phỏng
+          # đoán ấy vẫn phải qua đúng phép kiểm cây như mọi ứng viên khác.
+          # ═══════════════════════════════════════════════════════════════════
+          cay_staging="$(git rev-parse 'HEAD^{tree}')"
+          dev_tip=""
+
+          # Đường nhanh: commit `dev` mới nhất mà `staging` với tới được.
+          base="$(git merge-base HEAD origin/dev 2>/dev/null || true)"
+          if [ -n "$base" ] && [ "$(git rev-parse "$base^{tree}")" = "$cay_staging" ]; then
+            dev_tip="$base"
+            echo "Đỉnh dev đang đề bạt: $dev_tip  (merge-base, cây tệp trùng khít)"
           fi
-          echo "Đỉnh dev đang đề bạt: $dev_tip"
+
+          # Đường chung: quét ngược `dev` tìm commit có cây trùng khít.
+          if [ -z "$dev_tip" ]; then
+            dev_tip="$(git rev-list -n 200 origin/dev | while read -r c; do
+                if [ "$(git rev-parse "$c^{tree}")" = "$cay_staging" ]; then echo "$c"; break; fi
+              done)"
+            if [ -n "$dev_tip" ]; then
+              echo "::warning::Không nối được staging với dev qua merge-base — PR nhiều khả năng đã bị squash/rebase."
+              echo "Đối chiếu theo cây tệp: nội dung staging trùng khít dev@$dev_tip nên dùng image của commit đó."
+              echo "⚠ Lần sau chọn 'Create a merge commit' khi merge vào staging (docs/branch-protection.md §2.3-b)."
+              echo "Đỉnh dev đang đề bạt: $dev_tip  (khớp theo cây tệp)"
+            fi
+          fi
+
+          if [ -z "$dev_tip" ]; then
+            echo "::error::Cây tệp của staging không khớp commit nào trong 200 commit gần nhất của dev."
+            echo ""
+            echo "Nghĩa là staging đang mang mã KHÁC với mọi thứ đã dựng image trên dev — có thể vì"
+            echo "PR bị squash/rebase rồi staging còn bị sửa thêm, hoặc có người đẩy thẳng vào staging."
+            echo ""
+            echo "⛔ Không đoán tiếp. Deploy một image không tương ứng với mã đang chạy là cách chắc"
+            echo "   chắn nhất để có một môi trường không ai giải thích được."
+            echo "Cách chữa: mở lại PR dev → staging và chọn **Create a merge commit**."
+            exit 1
+          fi
 
           # Danh sách ứng viên tính MỘT lần rồi dùng cho cả ba image — gọi
           # `git rev-list` ba lần trên cùng một commit chỉ tốn thêm thời gian.
