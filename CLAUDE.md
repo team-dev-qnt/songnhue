@@ -74,19 +74,22 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 | 22/8 | bản ghi "đã xong" bị bác bỏ toàn phần |
 | 23/8 | **4/11 mục WS-21** chưa làm hoặc hỏng hẳn · **4/17 cam kết DoD** không có phép kiểm nào — §10.36 |
 | 24/8 | **1 lỗi CHẶN nghiệp vụ** trong phạm vi đã tick (trả bài về sửa tắc hoàn toàn) · image quản trị phát mã nguồn · bộ lọc CI bỏ qua đúng job nó cần · hotfix làm tái phát lỗi ghi cứng — §10.37 |
+| 24/8 (merge `dev`) | CI đỏ ở job đóng gói image `public-web` **dù 8 cổng kiểm ở máy đều xanh** — biến build rỗng, `??` không đỡ, `new URL('')` giết `next build` — §10.38 |
 
 ⛔ Hệ quả rút ra: **"đã tick" không phải bằng chứng.** Trước khi mở một giai đoạn mới, đối chiếu với mã thật và chạy đường mà người dùng thật đi.
 
+⛔ Và **"xanh ở máy" cũng không phải bằng chứng**: hai job chỉ sống trên runner (quét CVE · đóng gói image) chạy trên **cây checkout sạch, không có `.env.local`**. Mọi lượt build ở máy đều nạp tệp ấy — nên một biến môi trường rỗng là trạng thái mà `make ci-local` **về nguyên tắc không dựng lại được**. Muốn kiểm trước thì phải `docker build` đúng đối số của `ci.yml`.
+
 ⛔ **Cấm seed dữ liệu công trình/thuỷ văn "cho đẹp demo"** — ô nào chưa có nguồn thì nói thẳng là chưa có.
 
-**Codebase đo ngày 24/8**: **559 test BE** (239 core + 20 content + 24 operations + 276 app) + **180 test FE** (136 admin + 44 public) · **74 mã lỗi** (BE = FE) · 88 quyền / 12 vai trò / 334 dòng phân quyền · **32 bài ArchUnit** (7 lớp, gồm 11 bài tự-kiểm chứng minh luật bắt được vi phạm) · 7 phép kiểm bộ đọc tracking · mọi cổng bao phủ **chạy thật** (content 18.2%) · 0 CVE ≥ 7.
+**Codebase đo ngày 24/8**: **559 test BE** (239 core + 20 content + 24 operations + 276 app) + **191 test FE** (136 admin + 55 public) · **74 mã lỗi** (BE = FE) · 88 quyền / 12 vai trò / 334 dòng phân quyền · **32 bài ArchUnit** (7 lớp, gồm 11 bài tự-kiểm chứng minh luật bắt được vi phạm) · 7 phép kiểm bộ đọc tracking · mọi cổng bao phủ **chạy thật** (content 18.2%) · 0 CVE ≥ 7.
 
 ### Tra ở đâu
 
 | Cần gì | Đọc ở đâu |
 |---|---|
 | Nợ đang treo, task còn lại | **`.claude/master-tracking.md`** — nguồn DUY NHẤT (conventions.md §6). `phase0-tracking.md` / `phase1-tracking.md` chỉ là lưu trữ, cấm sửa |
-| **Lý do** một quyết định, **nguyên nhân gốc** một lỗi đã sửa | `architecture-review.md` **§9** (Phase 0, 14 mục) · **§10** (Phase 1, 36 mục — §10.35 đợt vá sau WS-22, §10.36 nghiệm thu lại WS-21 + DoD) |
+| **Lý do** một quyết định, **nguyên nhân gốc** một lỗi đã sửa | `architecture-review.md` **§9** (Phase 0, 14 mục) · **§10** (Phase 1, 38 mục — §10.35 đợt vá sau WS-22, §10.36 nghiệm thu lại WS-21 + DoD, §10.37 nghiệm thu image, §10.38 CI đỏ sau merge `dev`) |
 | Cách viết một chức năng + bảng bẫy tra nhanh | `docs/coding-guide.md` |
 | Luật bắt buộc khi viết code | `conventions.md` |
 | Nghiệp vụ | `function-spec.md`; điểm chưa chốt → `business-open-questions.md` Phần III |
@@ -99,9 +102,11 @@ Không mục nào **chặn code**, chỉ chặn **dữ liệu khởi tạo và n
 
 Gửi kèm `report-templates-proposal.md`. Chi tiết từng mục: `business-open-questions.md` Phần II.
 
-### Hai việc bấm ở GitHub còn treo
+### Ba việc bấm ở GitHub còn treo
 
-**Nợ #45** bật Dependency graph (không bật thì job *Soi phụ thuộc PR thêm vào* tự bỏ qua — phép kiểm chưa chạy lần nào) · **nợ #27** chỉnh 2 mục bảo vệ nhánh (`docs/branch-protection.md` §6.2).
+**Nợ #45** bật Dependency graph (không bật thì job *Soi phụ thuộc PR thêm vào* tự bỏ qua — phép kiểm chưa chạy lần nào) · **nợ #27** chỉnh 2 mục bảo vệ nhánh (`docs/branch-protection.md` §6.2) · **nợ #46** thêm 3 context đóng gói image vào `required_status_checks` của `dev` — hai job ấy nay chạy ở PR nhưng chưa bắt buộc thì chỉ *hiện* lỗi chứ không *chặn* merge (§10.38).
+
+📌 Cả ba đều là cùng một hình dạng: **một cổng kiểm tồn tại trong mã nhưng chưa có hiệu lực ở nơi nó phải chặn.**
 
 ## Luật đã trả giá — áp cho mọi phiên làm việc
 
@@ -111,7 +116,7 @@ Rút ra sau khi **cùng một hình dạng lỗi lặp lại nhiều lần**. Ng
 
 1. **Mỗi cơ chế canh gác phải có bài kiểm chứng minh nó bắt được vi phạm** (`conventions.md` §1.5). Đã có 5 cơ chế *xanh mà không chạy*: bộ máy JUnit của ArchUnit tìm ra 0 bài kiểm · luật JaCoCo bị bỏ qua vì `<includes>` sai chỗ · `verify-no-keys.sh` chưa từng quét khoá PEM · `FrontendSameOriginTest` soi sai đối tượng · bài canh CSS khớp trúng chuỗi ở quy tắc khác.
 2. **Canh cấu trúc, đừng canh văn bản** — `includes('.sn-align-center')` vẫn xanh sau khi thuộc tính đã bị xoá hẳn.
-3. **Canh giá trị ĐÃ GIẢI, đừng canh giá trị MẶC ĐỊNH** — mặc định chỉ dùng đến khi không ai ghi đè, mà thường thì luôn có người ghi đè (`--env-file` thắng `${VAR:-}`).
+3. **Canh giá trị ĐÃ GIẢI, đừng canh giá trị MẶC ĐỊNH** — mặc định chỉ dùng đến khi không ai ghi đè, mà thường thì luôn có người ghi đè (`--env-file` thắng `${VAR:-}`). ⚠ Và **"rỗng" khác "chưa đặt"**: Docker `ARG` không truyền vẫn gán chuỗi rỗng, nên `??` giữ nguyên nó còn `||` mới đỡ. Đây là chỗ mọi mặc định của FE nằm — dùng `||` cho mọi hằng số đọc từ env (§10.38).
 4. **Mock đặt đúng chỗ mã chạm ra ngoài là chưa kiểm gì cả** — `BackupServiceTest` mock `PostgresToolRunner`, và sao lưu (lưới an toàn *duy nhất* của hệ) chưa từng sinh ra một tệp nào suốt 4 ngày.
 5. **Bài kiểm gọi thẳng service không đi cùng đường với production** — 391 bài xanh trong khi mọi màn hình quản trị nội dung trả 500. Cam kết nằm ở controller/filter thì phải kiểm **qua HTTP**.
 6. **Endpoint mà trình duyệt phải gọi thì lượt kiểm phải mang `Origin`** — `curl` không có origin, không preflight, nên đi lọt qua đúng bức tường chặn người dùng thật (CORS chặn toàn bộ giao diện quản trị suốt WS-8→WS-20).

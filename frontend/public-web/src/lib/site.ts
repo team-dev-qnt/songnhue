@@ -5,8 +5,17 @@
  * `sitemap.xml`, `robots.txt`, thẻ canonical, ảnh Open Graph. Đặt sai thì trang vẫn chạy
  * bình thường — chỉ có công cụ tìm kiếm và trình chia sẻ liên kết đọc ra địa chỉ sai, và
  * không ai phát hiện cho tới khi thấy kết quả tìm kiếm trỏ về `localhost`.
+ *
+ * ⚠⚠ Dùng `||` chứ **không** `??` — xem giải thích ở `API_BASE_URL` bên dưới. Bản đầu dùng
+ * `??` và đã làm hỏng build: `Dockerfile` khai `ARG NEXT_PUBLIC_SITE_URL` không giá trị mặc
+ * định, nên khi CI không truyền build-arg (biến kho `PUBLIC_SITE_URL` chưa đặt) thì `ENV`
+ * gán vào một **chuỗi rỗng** — không phải "chưa đặt". `??` giữ nguyên chuỗi rỗng, và
+ * `new URL('')` trong `layout.tsx` ném `ERR_INVALID_URL` giữa lúc prerender, giết cả lượt
+ * `next build`. Chính lượt CI ấy còn in ra cảnh báo "chưa đặt PUBLIC_SITE_URL → sitemap sẽ
+ * trỏ về localhost", tức là nó tin có một giá trị mặc định đang đỡ — mặc định chưa bao giờ
+ * chạm tới.
  */
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
 /**
  * Địa chỉ API mà **TRÌNH DUYỆT** gọi — nhúng vào bundle lúc build.

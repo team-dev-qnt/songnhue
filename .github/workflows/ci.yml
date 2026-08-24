@@ -270,12 +270,25 @@ jobs:
   # thống, thời điểm build). Đóng gói một lần thì thứ chạy trên production đúng
   # là thứ đã qua 226 bài kiểm.
   #
-  # Chỉ chạy khi PUSH vào dev (đã merge), không chạy cho PR.
+  # ⚠⚠ DỰNG ở cả PR, chỉ ĐẨY khi push vào dev (đổi 24/8, §10.38).
+  #
+  #   Bản trước bỏ qua hẳn job này ở PR. Hệ quả: lượt dựng image đầu tiên của
+  #   một thay đổi diễn ra SAU KHI đã merge — nên chỗ duy nhất nó có thể đỏ là
+  #   `dev`. Đúng chuyện đã xảy ra với PR #10: mọi cổng kiểm ở PR xanh, merge
+  #   xong thì `dev` đỏ ngay ở bước dựng image `public-web`.
+  #
+  #   Và đây không phải lỗi hiếm gặp: image là chỗ DUY NHẤT thấy được những gì
+  #   chỉ tồn tại lúc build container — biến `ARG` để trống, tệp `.env.local`
+  #   vắng mặt, tầng runtime chép hụt. Không thứ nào trong đó có mặt ở
+  #   `npm run build` hay `mvn verify`.
+  #
+  #   `push: false` ở PR là bắt buộc: đẩy lên GHCR từ một nhánh chưa duyệt thì
+  #   tag `dev` trỏ vào mã chưa ai xem.
   # ---------------------------------------------------------------------------
   image:
     name: Đóng gói image
     needs: [changes, backend]
-    if: github.event_name == 'push' && needs.changes.outputs.backend == 'true'
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -288,6 +301,7 @@ jobs:
       - uses: docker/setup-buildx-action@v3
 
       - name: Đăng nhập GHCR
+        if: github.event_name == 'push'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -302,7 +316,7 @@ jobs:
         with:
           context: backend
           file: deploy/docker/backend.Dockerfile
-          push: true
+          push: ${{ github.event_name == 'push' }}
           tags: |
             ghcr.io/${{ github.repository }}/app:${{ github.sha }}
             ghcr.io/${{ github.repository }}/app:dev
@@ -311,10 +325,14 @@ jobs:
 
       - name: Ghi tóm tắt
         run: |
-          echo "### Image đã đóng gói" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          echo "ghcr.io/${{ github.repository }}/app:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "### Image đã đóng gói" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            echo "ghcr.io/${{ github.repository }}/app:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### Image dựng thử — **chưa đẩy** lên GHCR (lượt PR)" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   # ---------------------------------------------------------------------------
   # Đóng gói image FRONTEND
@@ -339,10 +357,13 @@ jobs:
   #   tuyệt đối vào đây là dựng lại đúng cấu hình đã chặn toàn bộ giao diện quản
   #   trị suốt WS-8→WS-20.
   # ---------------------------------------------------------------------------
+  # ⚠⚠ Cũng DỰNG ở PR, chỉ ĐẨY khi push vào dev — xem lý do đầy đủ ở job `image`.
+  #    Job này là chỗ duy nhất `NEXT_PUBLIC_*` được giải trên một cây checkout
+  #    SẠCH (không có `.env.local`), nên nó là chỗ duy nhất bắt được biến rỗng.
   image-frontend:
     name: Đóng gói image frontend
     needs: [changes, frontend]
-    if: github.event_name == 'push' && needs.changes.outputs.frontend == 'true'
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -366,6 +387,7 @@ jobs:
       - uses: docker/setup-buildx-action@v3
 
       - name: Đăng nhập GHCR
+        if: github.event_name == 'push'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -380,7 +402,7 @@ jobs:
           # phụ thuộc của chính chúng.
           context: frontend
           file: ${{ matrix.dockerfile }}
-          push: true
+          push: ${{ github.event_name == 'push' }}
           tags: |
             ghcr.io/${{ github.repository }}/${{ matrix.name }}:${{ github.sha }}
             ghcr.io/${{ github.repository }}/${{ matrix.name }}:dev
@@ -393,12 +415,20 @@ jobs:
 
       - name: Ghi tóm tắt
         run: |
-          echo "### Image frontend: ${{ matrix.name }}" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          echo "ghcr.io/${{ github.repository }}/${{ matrix.name }}:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          if [ -z "${{ vars.PUBLIC_SITE_URL }}" ]; then
-            echo "⚠ Chưa đặt biến repo \`PUBLIC_SITE_URL\` — sitemap/canonical sẽ trỏ về \`localhost\`." >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "### Image frontend: ${{ matrix.name }}" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            echo "ghcr.io/${{ github.repository }}/${{ matrix.name }}:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### Image frontend \`${{ matrix.name }}\` dựng thử — **chưa đẩy** lên GHCR (lượt PR)" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          # ⚠ Cảnh báo này từng mô tả sai thực tế: nó nói "sẽ trỏ về localhost", ngụ ý có
+          #   một giá trị mặc định đang đỡ. Không có — biến rỗng đi thẳng vào `new URL('')`
+          #   và giết build, cho tới khi `site.ts` đổi `??` thành `||` (§10.38).
+          if [ -z "${{ vars.PUBLIC_SITE_URL }}" ] && [ "${{ matrix.name }}" = "public-web" ]; then
+            echo "⚠ Chưa đặt biến kho \`PUBLIC_SITE_URL\` — image này rơi về \`http://localhost:3000\`," >> "$GITHUB_STEP_SUMMARY"
+            echo "  nên \`sitemap.xml\`, thẻ canonical và Open Graph đều trỏ sai. Chốt cùng WS-11." >> "$GITHUB_STEP_SUMMARY"
           fi
 
   # ---------------------------------------------------------------------------
