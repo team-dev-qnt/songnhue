@@ -2475,3 +2475,86 @@ và YAML parse lại để xác nhận điều kiện đã đúng chứ không c
 
 📌 Nợ #46 cùng hình dạng với #45 (Dependency graph) và #27 (bảo vệ nhánh): **một cổng kiểm tồn tại
 trong mã nhưng chưa có hiệu lực ở nơi nó phải chặn.** Ba lần rồi.
+
+---
+
+### §10.39. Rà đường triển khai staging bằng mã thật — bốn lỗi chặn, cả bốn đều im lặng (24/8/2026)
+
+Trước khi viết kế hoạch thực thi staging (`docs/deploy-staging.md`), rà lại toàn bộ đường triển khai
+bằng **mã thật** thay vì bằng tài liệu. Bốn chỗ mà làm theo bản cũ sẽ hỏng.
+
+#### 1. ⛔ Smoke test của CD đo một đường không đi tới đâu
+
+Cả `deploy-staging.yml` và `deploy-prod.yml` hỏi `$BASE_URL/actuator/health/readiness`. nginx biên
+chỉ định tuyến `/api/` và `/` sang hai image giao diện; **không khối `location` nào chuyển `/actuator`
+sang `app`**, và không FE nào chuyển tiếp nó (`next.config.ts` có `headers()` cho `/:path*` chứ không
+có `rewrites()`).
+
+Đo thật trên image đã dựng:
+
+| Qua image | Kết quả |
+|---|---|
+| `public-web` | **404** |
+| `admin-app` | **200 — kèm trang HTML của SPA** |
+
+Trường hợp thứ hai nguy hiểm hơn: `curl -f` đi qua, chỉ có phép so chuỗi `"status":"UP"` cứu. Hậu quả
+là **lượt deploy đầu tiên đỏ sau đúng 5 phút chờ**, vì một endpoint chưa từng phục vụ được ai — và
+người trực sẽ đi tìm lỗi ở stack vừa dựng.
+
+Đổi đích sang `GET /api/v1/public/site-config` (`PublicHttpTest` đã canh nó truy cập được không cần
+đăng nhập). Đích mới **đo được nhiều hơn hẳn**: nginx biên → public-web → Route Handler
+`/api/v1/[...path]` → app → postgres. Readiness của actuator, kể cả khi định tuyến được, cũng chỉ
+chứng minh tiến trình còn sống — không chứng minh một byte nào đi hết chặng người dùng thật đi
+(luật 8). Kiểm bằng `bash` với **cả hai nhánh**: máy chủ trả envelope → thoát 0; đích chết → thoát 1
+kèm ba bước chẩn đoán.
+
+#### 2. ⛔ Sáu biến compose ĐÒI mà không tệp env mẫu nào có
+
+`PUBLIC_DOMAIN` · `ADMIN_DOMAIN` · `FILES_DOMAIN` · `ROBOTS_TAG` · `MINIO_ROOT_USER` ·
+`MINIO_ROOT_PASSWORD` · `REVALIDATE_SECRET` — bảy biến, `deploy-guideline.md` §3.2 liệt kê tay **sáu**
+và bỏ sót `REVALIDATE_SECRET`. Không cái nào có trong `staging.env.example` hay `prod.env.example`, dù
+chính tài liệu chỉ hai tệp ấy là *"danh sách biến đầy đủ"*.
+
+Và chúng viết ở dạng `${TÊN}` **không có `:?`**, nên thiếu **không phải lỗi khởi động** — Compose thay
+bằng chuỗi rỗng rồi chạy tiếp:
+
+| Thiếu | Triệu chứng |
+|---|---|
+| `PUBLIC_DOMAIN`/`ADMIN_DOMAIN` | `server_name` rỗng → mọi tên miền rơi vào server block mặc định và bị `ssl_reject_handshake` từ chối. "Không vào được", không log ứng dụng nào |
+| `FILES_DOMAIN` | `MINIO_ENDPOINT` thành `https://` → **mọi nút Tải về hỏng**, tải LÊN vẫn chạy |
+| `MINIO_ROOT_*` | MinIO khởi động bằng tài khoản mặc định |
+| `REVALIDATE_SECRET` | `/api/revalidate` trả 503; cổng **đứng yên ở nội dung cũ** sau mỗi lần duyệt bài |
+
+⚠ `EnvFileCommentTest` và `UnresolvedPlaceholderGuard` không bắt được vì **cả hai soi giá trị của
+những biến đã có mặt**. Không bài nào hỏi *"còn biến nào compose cần mà tệp mẫu chưa có"*. Đã thêm
+`ComposeEnvCompletenessTest` (3 bài, có bài chống xanh-trên-tập-rỗng và bài kiểm chứng ngược), và
+**kiểm chứng bằng cách làm hỏng**: bỏ `REVALIDATE_SECRET` khỏi mẫu → đỏ đúng tên biến đó.
+
+#### 3. `GRAFANA_ADMIN_PASSWORD` viết `${…:?}` nhưng không được nhắc ở đâu
+
+`docker compose -f compose.observability.yml up -d` — đúng lệnh `deploy-guideline.md` §10 bảo chạy —
+**dừng ngay**, không container nào lên. Biến không có trong tệp mẫu nào, không có trong tài liệu nào.
+Đã thêm khối giám sát vào `staging.env.example` (5 biến).
+
+📌 Cùng mục đó còn một chỉ dẫn sai: §2.2 bảo `ufw allow ... port 3000` để xem Grafana, trong khi
+`compose.observability.yml` publish ra `127.0.0.1:13001`. Mở cổng tường lửa không có tác dụng, và cổng
+cũng sai. Vào bằng SSH tunnel.
+
+#### 4. Ba service giám sát không có `mem_limit` nào — và ngân sách bộ nhớ VPS-2 không vừa
+
+`hosting_recommendations.md` chốt VPS-2 = **4 GB**, con số có từ lúc gộp VM-3 (sao lưu + giám sát) vào
+VPS-2 để tiết kiệm. **Ngân sách bộ nhớ không được tính lại sau khi gộp.** Cộng đúng những gì compose
+khai: stack staging **3.968 MB** + giám sát **928 MB** + hệ điều hành ~500 MB ≈ **5,4 GB**.
+
+Hết bộ nhớ thì OOM-killer chọn tiến trình có RSS lớn nhất — `app` hoặc `postgres`. `app` có
+`-XX:+ExitOnOutOfMemoryError` nên JVM thoát, `restart: unless-stopped` dựng lại, và triệu chứng bên
+ngoài là **"staging chập chờn"** chứ không phải một lỗi đọc được. Nguy hiểm hơn: VPS-2 **cũng giữ bản
+sao lưu**; một lượt OOM lúc 03:00 làm hỏng lượt kéo về mà không ai biết.
+
+Đã đặt trần cho cả ba service giám sát, và ghi con số + ba phương án chọn máy vào
+`docs/deploy-staging.md` §1. **Khuyến nghị: VPS-2 lên 8 GB.** Phương án giữ 4 GB bằng cách chuyển giám
+sát sang VPS-1 bị bác — nó phá đúng lý do dựng ra nó.
+
+📌 Có một cách tiết kiệm nghe hợp lý mà **không dùng được**: "chỉ bật staging khi cần test". Lúc test
+chính là lúc cả hai stack cùng chạy — đúng lúc thiếu bộ nhớ. Tắt lúc rảnh tiết kiệm điện, không tiết
+kiệm RAM phải mua.

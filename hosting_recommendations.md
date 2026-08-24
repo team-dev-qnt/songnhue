@@ -7,11 +7,19 @@
 | | Máy | Cấu hình | Chạy gì |
 |---|---|---|---|
 | **VPS-1** | Production | 4 vCPU · 8 GB · 160 GB SSD · Ubuntu 24.04 | nginx · app · postgres · minio · admin-app · public-web |
-| **VPS-2** | Staging | 2 vCPU · 4 GB · 80 GB | cùng stack (nhỏ hơn) **+ kho sao lưu + Prometheus/Grafana** |
+| **VPS-2** | Staging | **2 vCPU · 8 GB · 80 GB** | cùng stack (nhỏ hơn) **+ kho sao lưu + Prometheus/Grafana** |
 | — | Kho ngoài | B2 / R2, **nhà cung cấp khác** | bản sao lưu đã mã hoá |
 
 Nhà cung cấp: lấy báo giá Viettel IDC · VNPT · FPT · BizFly · VNG. Chênh nhau nhiều và hay có giá
 trả trước theo năm — hỏi thẳng, đừng lấy giá niêm yết.
+
+> ⚠ **VPS-2 đã sửa 4 GB → 8 GB (24/8).** Bản đầu ghi 4 GB, và con số đó có từ lúc gộp VM-3 vào
+> VPS-2 mà **không tính lại ngân sách bộ nhớ**: stack staging 3.968 MB + giám sát 928 MB + hệ điều
+> hành ~500 MB ≈ **5,4 GB**. Phép cộng đầy đủ và hai phương án bị loại ở `docs/deploy-staging.md` §1.
+
+📌 **Tên miền**: chỉ mua **một**, cho cả hai môi trường — sáu địa chỉ của hệ thống là 1 tên miền gốc
++ 5 tên miền phụ miễn phí. Chọn nhà đăng ký, hồ sơ chủ thể là Công ty, và cái bẫy "nhà đăng ký đứng
+tên hộ": `docs/deploy-staging.md` §2.
 
 **Ba máy rút còn hai.** Kế hoạch cũ (`.claude/phase0-tracking.md` T11.2) có VM-3 riêng cho sao lưu
 và giám sát. VM-3 gộp vào VPS-2 vì tính chất cần giữ là *"nằm ngoài máy production"*, không phải
