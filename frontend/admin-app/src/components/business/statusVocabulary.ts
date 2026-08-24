@@ -122,7 +122,11 @@ export const MAINTENANCE_TYPE: StatusVocabulary = {
 export const MAINTENANCE_STATUS: StatusVocabulary = {
   MOI: { label: 'Mới', color: 'warning' },
   DANG_XU_LY: { label: 'Đang xử lý', color: 'warning' },
-  DA_XU_LY: { label: 'Đã xử lý', color: 'success' },
+  // `normal` chứ không phải `success`: bảng màu chỉ có năm khoá mang nghĩa nghiệp vụ
+  // (design-tokens `statusColors`), và `normal` là khoá dành cho "bình thường / đã duyệt /
+  // hoạt động". Không thêm khoá thứ sáu cho riêng một bộ từ vựng — năm màu này còn dùng
+  // chung với lớp GIS và dashboard điều hành.
+  DA_XU_LY: { label: 'Đã xử lý', color: 'normal' },
 };
 
 /** Mức độ sự cố — chỉ có ở bản ghi loại "Khắc phục sự cố" (OPS-2003). */

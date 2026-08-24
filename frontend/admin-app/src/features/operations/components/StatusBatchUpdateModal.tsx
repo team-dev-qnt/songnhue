@@ -155,10 +155,12 @@ export function StatusBatchUpdateModal({ open, onClose }: { open: boolean; onClo
         return (
           <InputNumber
             style={{ width: '100%' }}
-            min={0}
             // Chuỗi, không phải number: cột NUMERIC(10,2) ở CSDL, và số thực JS làm tròn sai
-            // ở phần thập phân — quy tắc 2 cấm float cho mọi số đo.
+            // ở phần thập phân — quy tắc 2 cấm float cho mọi số đo. `stringMode` kéo theo
+            // `min`/`max` cũng phải là chuỗi; viết `min={0}` là ép TS suy ra InputNumber<number>
+            // và cả ô nhập quay về đường số thực.
             stringMode
+            min="0"
             value={draft[row.publicId]?.value}
             onChange={(val) =>
               capNhat(row.publicId, 'value', val == null ? undefined : String(val))

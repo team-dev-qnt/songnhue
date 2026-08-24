@@ -603,9 +603,24 @@ export interface MaintenanceRow {
   createdAt: string;
 }
 
+/**
+ * Một bước chuyển được phép bấm LÚC NÀY — khớp `com.songnhue.core.spi.AllowedAction`,
+ * do `WorkflowEngine.allowedActions()` lọc theo `workflow_transitions` + quyền của người
+ * đang đăng nhập.
+ *
+ * ⚠ Khai ở đây chứ không mượn kiểu của `ApprovalActions.tsx`: `shared/` không được phụ
+ * thuộc ngược vào `components/` — cả codebase đang đi một chiều `components → shared`.
+ */
+export interface AllowedActionView {
+  action: string;
+  label: string;
+  /** Trạng thái sau khi bấm — để nói trước hệ quả cho người dùng. */
+  toState: string;
+}
+
 export interface MaintenanceDetail {
   record: MaintenanceRow;
-  actions: AllowedAction[];
+  actions: AllowedActionView[];
 }
 
 /** Tổng chi phí kỳ — tính ở BE (quy tắc 3), FE chỉ hiển thị. Khớp `MaintenanceLogService.CostSummary`. */

@@ -5,7 +5,7 @@ import dayjs from 'dayjs';
 import { useState } from 'react';
 
 import { useAuth } from '@/app/auth/useAuth';
-import { type AllowedAction, ApprovalActions } from '@/components/business/ApprovalActions';
+import { ApprovalActions } from '@/components/business/ApprovalActions';
 import { StatusBadge } from '@/components/business/StatusBadge';
 import { MAINTENANCE_STATUS, MAINTENANCE_TYPE } from '@/components/business/statusVocabulary';
 import {
@@ -152,8 +152,8 @@ export function ConstructionMaintenancePanel({
                   {dangChon === row.id && chiTiet && (
                     <div style={{ marginTop: 8 }} onClick={(e) => e.stopPropagation()}>
                       <ApprovalActions
-                        actions={chiTiet.actions as AllowedAction[]}
-                        loading={bamNut.isPending}
+                        actions={chiTiet.actions}
+                        disabled={bamNut.isPending}
                         onAction={async (action) => {
                           await bamNut.mutateAsync({ publicId: row.id, action });
                         }}
