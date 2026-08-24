@@ -48,8 +48,8 @@
 | # | Việc | Ghi chú |
 |---|---|---|
 | 1.1 | **VPS-1**: 4 vCPU / 8 GB RAM / 160 GB SSD, Ubuntu 24.04 LTS, đặt tại Việt Nam | Lấy báo giá vài nơi — Viettel IDC, VNPT, FPT, BizFly, VNG. Chênh nhau nhiều, hay có giá trả trước theo năm |
-| 1.2 | **VPS-2**: 2 vCPU / 4 GB / 80 GB, cùng nhà cung cấp cũng được | Nhỏ hơn vì chỉ chạy staging và kéo sao lưu |
-| 1.3 | **Tên miền `.vn`**, đăng ký **chủ thể là Công ty**, không phải cá nhân | Bây giờ gần như miễn phí; đổi chủ thể `.vn` sau này là thủ tục thật |
+| 1.2 | **VPS-2**: 2 vCPU / **8 GB** / 80 GB, cùng nhà cung cấp cũng được | ⚠ **Sửa 24/8: 4 GB → 8 GB.** VPS-2 chạy staging **và** giám sát **và** giữ kho sao lưu — cộng lại ≈ 5,4 GB. Phép cộng đầy đủ ở `docs/deploy-staging.md` §1 |
+| 1.3 | **Một** tên miền `.vn`, đăng ký **chủ thể là Công ty**, không phải cá nhân | Sáu địa chỉ của hệ thống = 1 tên miền mua + 5 tên miền phụ **miễn phí**. Chọn nhà đăng ký, hồ sơ chủ thể, và cái bẫy "nhà đăng ký đứng tên hộ": **`docs/deploy-staging.md` §2**. ⚠ Đổi chủ thể `.vn` về sau là thủ tục hành chính thật, cần hồ sơ từ cả hai bên |
 | 1.4 | **Email trung tính** (`it@songnhue.vn`…) để mở mọi tài khoản | ⛔ Không dùng Gmail cá nhân. Thẻ cá nhân hết hạn = production tắt và không ai ngoài anh xử lý được |
 | 1.5 | **Tài khoản SMTP** gửi thư thật | Nhà cung cấp trong nước, hoặc Amazon SES / Postmark |
 | 1.6 | **Kho lưu trữ ngoài** — Backblaze B2 hoặc Cloudflare R2 | Phải **khác nhà cung cấp** với hai VPS. Vài chục nghìn đồng/tháng |
@@ -111,11 +111,17 @@ ufw --force enable
 ⛔ **Không mở 5432, 9000, 9001.** Postgres và MinIO không có một cổng nào chạm host — chúng chỉ tồn
 tại trong mạng nội bộ của compose. Cần `psql` thì đi qua `docker compose exec`.
 
-Trên **VPS-2** mở thêm cho chính mình xem Grafana, và chỉ từ IP của anh:
+⛔ **Và trên VPS-2 cũng KHÔNG mở thêm cổng nào cho Grafana.** Bản trước của mục này bảo
+`ufw allow from <IP> to any port 3000` — sai hai lần: `compose.observability.yml` publish Grafana ra
+`127.0.0.1:13001`, nên (a) cổng không phải 3000, và (b) đã bind vào loopback thì mở tường lửa không
+có tác dụng gì. Vào bằng SSH tunnel, không mở cổng:
 
 ```bash
-ufw allow from <IP-cua-anh> to any port 3000 proto tcp   # Grafana
+ssh -N -L 13001:127.0.0.1:13001 songnhue@<VPS-2>    # rồi mở http://localhost:13001
 ```
+
+Đây là cách đúng hơn hẳn: Grafana và Prometheus **không có lớp xác thực nào trước mặt** ở cấu hình
+này, nên mở chúng ra mạng là mở toàn bộ chỉ số vận hành.
 
 ### 2.3. Docker
 
@@ -174,22 +180,29 @@ openssl rand -base64 32          # ← chép giá trị này vào AES_KEY_V1
 
 ### 3.2. Điền `.env`
 
-Chép `deploy/env/prod.env.example` thành `/opt/songnhue/.env`, điền hết. Ngoài 53 biến trong mẫu,
-bản triển khai này cần thêm **6 biến** cho nginx biên và MinIO:
+Chép tệp mẫu **của đúng môi trường** thành `/opt/songnhue/.env`, điền hết:
 
-```bash
-# --- Tên miền (nginx biên) ---
-PUBLIC_DOMAIN=songnhue.vn
-ADMIN_DOMAIN=admin.songnhue.vn
-FILES_DOMAIN=files.songnhue.vn
+| Môi trường | Chép từ |
+|---|---|
+| Staging (VPS-2) | `deploy/env/staging.env.example` |
+| Production (VPS-1) | `deploy/env/prod.env.example` |
 
-# production → all   ·   staging → "noindex, nofollow"    (docs/cicd.md §4.2)
-ROBOTS_TAG=all
+> ✅ **Sửa 24/8**: sáu biến `PUBLIC_DOMAIN` · `ADMIN_DOMAIN` · `FILES_DOMAIN` · `ROBOTS_TAG` ·
+> `MINIO_ROOT_USER` · `MINIO_ROOT_PASSWORD` · `REVALIDATE_SECRET` trước đây **không có trong tệp
+> mẫu nào** — mục này liệt kê tay 6/7 và bỏ sót `REVALIDATE_SECRET`. Nay cả bảy đã nằm trong cả hai
+> tệp mẫu, và `ComposeEnvCompletenessTest` canh cho việc "compose thêm biến mà mẫu quên".
+>
+> ⚠ Vì sao chuyện đó im lặng được: compose viết chúng ở dạng `${TÊN}` **không có `:?`**, nên thiếu
+> không phải là lỗi khởi động — nó thay bằng **chuỗi rỗng** rồi chạy tiếp. `server_name` rỗng, MinIO
+> chạy tài khoản mặc định, `/api/revalidate` trả 503. Không dòng log nào nói ra.
 
-# --- MinIO: tài khoản CHỦ, khác với tài khoản ứng dụng dùng ---
-MINIO_ROOT_USER=<đặt tên>
-MINIO_ROOT_PASSWORD=<mật khẩu dài>
-```
+⛔⛔ **Ba biến dễ điền sai nhất, mỗi cái hỏng theo một kiểu im lặng:**
+
+| Biến | Sai thế nào | Triệu chứng |
+|---|---|---|
+| `ROBOTS_TAG` ở staging | quên → compose lấy mặc định **`all`** | **Google đánh chỉ mục staging.** Và vì hai môi trường chạy cùng image, sitemap staging còn mang địa chỉ production. Staging phải là `noindex, nofollow` |
+| `REVALIDATE_SECRET` | lệch giữa `app` và `public-web` | `/api/revalidate` trả 401, cổng **đứng yên ở nội dung cũ** sau mỗi lần duyệt bài. Compose lấy cùng một giá trị từ `.env` nên chỉ cần điền một chỗ |
+| `MINIO_ROOT_*` | để trống | MinIO khởi động bằng tài khoản mặc định — kho tệp nhân sự mở bằng mật khẩu ai cũng biết |
 
 ```bash
 chmod 600 /opt/songnhue/.env
@@ -332,8 +345,13 @@ docker compose --env-file .env -f compose.staging.yml up -d app admin-app public
 ### ✅ Kiểm chứng mục 5 — sáu phép, làm đủ
 
 ```bash
-# 1. Ứng dụng sẵn sàng
-curl -fsS https://staging.songnhue.vn/api/v1/../actuator/health/readiness
+# 1. Đi hết chặng nginx → public-web → app → postgres
+#    ⚠ Sửa 24/8: bản cũ hỏi `/actuator/health/readiness` qua tên miền công khai —
+#    đường đó KHÔNG đi tới đâu. nginx biên chỉ định tuyến `/api/` và `/` sang hai
+#    image giao diện, không khối location nào chuyển `/actuator` sang `app`.
+#    Đo thật: public-web trả 404, admin-app trả 200 kèm trang HTML của SPA.
+curl -fsS https://staging.songnhue.vn/api/v1/public/site-config | head -c 120
+#    → phải thấy '"success":true'
 
 # 2. ⚠ PHẢI có Origin. curl trần không preflight nên nó đi lọt qua đúng bức tường
 #    chặn người dùng thật — CORS đã chặn cả giao diện quản trị suốt WS-8→WS-20.

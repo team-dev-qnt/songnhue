@@ -40,6 +40,12 @@ services:
 
   # Đọc chỉ số của chính VM-3, và — quan trọng hơn — đọc tệp textfile do
   # pull-from-prod.sh ghi ra: "bản sao lưu đã ra khỏi máy chủ CSDL chưa".
+    # ⚠ VPS-2 chỉ có 4 GB và còn chạy CẢ stack staging (~3,9 GB nếu giữ nguyên
+    #   mem_limit). Ba service giám sát trước đây KHÔNG có trần nào — Prometheus
+    #   với 90 ngày dữ liệu sẽ lớn dần cho tới khi OOM-killer chọn tiến trình có
+    #   RSS lớn nhất, tức là `app` hoặc `postgres` của chính staging.
+    mem_limit: 512m
+
   node-exporter:
     image: prom/node-exporter:v1.9.0
     container_name: songnhue-node-exporter
@@ -53,6 +59,7 @@ services:
     # Không publish ra host: chỉ Prometheus trong cùng mạng cần đọc
     expose:
       - "9100"
+    mem_limit: 96m
 
   grafana:
     image: grafana/grafana:11.5.1
@@ -75,6 +82,7 @@ services:
     depends_on:
       prometheus:
         condition: service_healthy
+    mem_limit: 320m
 
 volumes:
   prometheus-data:

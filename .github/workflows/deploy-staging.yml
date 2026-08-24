@@ -217,21 +217,26 @@ jobs:
           BASE_URL: ${{ secrets.STAGING_BASE_URL }}
         run: |
           set -euo pipefail
-          # ⚠ Readiness chứ không phải bản tổng — xem chú thích cùng chỗ ở
-          #   deploy-prod.yml: bản tổng gộp chỉ số sao lưu, mà môi trường mới
-          #   dựng thì chưa từng có bản sao lưu nào nên nó DOWN một cách đúng đắn.
+          # ⚠⚠ ĐÍCH ĐO ĐỔI 24/8 — lý do đầy đủ ở cùng chỗ trong deploy-prod.yml.
+          #    Tóm tắt: `$BASE_URL/actuator/**` KHÔNG đi tới đâu từ bên ngoài,
+          #    nginx biên không định tuyến `/actuator` sang `app`. Đo thật:
+          #    public-web trả 404, admin-app trả 200 kèm TRANG HTML của SPA.
+          #    Endpoint dưới đây là đường công khai thật, và nó đi hết chặng
+          #    nginx → public-web → Route Handler → app → postgres.
           # ⚠ Hứng ra biến thay vì `curl … | grep -q` — lý do ghi ở cùng chỗ
           #   trong deploy-prod.yml (SIGPIPE + pipefail).
           for i in $(seq 1 30); do
-            body=$(curl -fsS "$BASE_URL/actuator/health/readiness" || true)
+            body=$(curl -fsS "$BASE_URL/api/v1/public/site-config" || true)
             case "$body" in
-              *'"status":"UP"'*)
-                echo "✓ Staging khoẻ sau ${i}0 giây"
+              *'"success":true'*)
+                echo "✓ Staging đi hết chặng nginx → public-web → app → postgres sau ${i}0 giây"
                 exit 0 ;;
             esac
             sleep 10
           done
-          echo "::error::Staging không trả health UP sau 5 phút."
+          echo "::error::Staging không trả envelope thành công sau 5 phút."
+          echo "Chẩn đoán theo thứ tự: (1) \`curl -sI \$BASE_URL/healthz\` — nginx sống chưa;"
+          echo "(2) \`docker compose logs app\` — ứng dụng có lên không; (3) \`docker compose ps\`."
           exit 1
 
       - name: Ghi tóm tắt
