@@ -2798,3 +2798,51 @@ Kiểm chứng bằng cách làm hỏng có chủ đích — mỗi bài bắt đ
 | khôi phục | 3 xanh |
 
 📌 Bản đầu của bài kiểm **đỏ ngay lần chạy đầu** — vì nó đo `indexOf("docker manifest inspect")` trên **nguyên văn**, mà đầu tệp có một chú thích nhắc đúng tên lệnh đó. Đúng luật 2: *canh cấu trúc, đừng canh văn bản*. Đã sửa thành bỏ mọi dòng chú thích trước khi đo.
+
+---
+
+### §10.44. `packages: read` cho một workflow có GHI — và bài kiểm đầu tiên của tôi không bắt được (25/8/2026)
+
+Sau §10.43 lượt tra image chạy đúng: log cho thấy nó tìm ra `94fe2e9` và bắt đầu sao chép layer. Hỏng ở **bước kế tiếp**:
+
+```
+pushing sha256:5ec47a… to ghcr.io/…/app:staging
+403 Forbidden
+denied: installation not allowed to Write organization package
+```
+
+#### Nguyên nhân
+
+Cả hai workflow triển khai khai:
+
+```yaml
+permissions:
+  contents: read
+  packages: read
+```
+
+Chúng **chủ yếu đọc** — tra image theo tag SHA — nên `read` trông vừa đủ. Nhưng bước cuối *"Gắn tag `staging`"* chạy `docker buildx imagetools create --tag …:staging`, tức **GHI một tag mới** lên gói GHCR. `ci.yml` khai `packages: write` ở hai job đóng gói; hai workflow triển khai thì không.
+
+📌 Hình dạng đáng nhớ: **một workflow gần như chỉ đọc, có đúng một bước ghi ở cuối** — và khối `permissions:` nằm cách đó 180 dòng. Thông báo 403 của GHCR không nhắc gì tới `permissions:`, nên nó không tự dẫn về nguyên nhân.
+
+#### Bài kiểm đầu tiên của tôi **không bắt được** — và lượt kiểm chứng ngược đã chỉ ra
+
+Bản đầu hỏi `noiDung.contains("packages: write")`. Hạ quyền xuống `read` mà bài vẫn **xanh**: chính tệp ấy có dòng
+
+```yaml
+echo "quyền 'packages: write' của workflow, và đừng đặt DOCKER_CONFIG ở bước này"
+```
+
+nằm trong khối `run:` — **văn bản thường, không phải chú thích**, nên lượt bỏ chú thích không đụng tới và `contains` vẫn khớp. Trớ trêu: dòng làm bài kiểm mù chính là dòng chẩn đoán tôi thêm ở §10.43.
+
+Đã đổi sang **đọc cấu trúc**: gom khối `permissions:` cấp cao nhất thành map rồi khẳng định `packages == "write"`.
+
+| Làm hỏng có chủ đích | Bản `contains` | Bản đọc cấu trúc |
+|---|---|---|
+| hạ `deploy-staging` về `read` | **xanh — lọt** | 1 đỏ |
+| hạ `deploy-prod` về `read` | 1 đỏ | 1 đỏ |
+| xoá hẳn dòng `packages` | — | 1 đỏ |
+| đổi bước ghi tag thành lệnh chỉ đọc | — | 1 đỏ |
+| khôi phục | 4 xanh | 4 xanh |
+
+⛔ Bài học lặp lại nguyên vẹn hai luật đã trả giá: **canh cấu trúc, đừng canh văn bản** (luật 2) và **bộ canh theo hình dạng phải được thử với dữ liệu THẬT đang dùng** (luật 24). Nếu bỏ qua lượt kiểm chứng ngược thì hôm nay đã có thêm một cơ chế xanh mà không canh gì.
