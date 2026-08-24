@@ -103,9 +103,32 @@ jobs:
           #
           # `.github/workflows` nằm ở cả hai vế: sửa chính pipeline thì phải chạy
           # lại pipeline, nếu không thì thay đổi ấy không bao giờ được kiểm.
+          #
+          # ⚠⚠ `frontend/` và `deploy/` CŨNG nằm ở vế backend, và đó không phải chạy
+          #    thừa cho chắc — **7 lớp kiểm của bộ BE đọc tệp nằm ngoài `backend/`**:
+          #
+          #      FrontendSameOriginTest       → frontend/{admin-app,public-web}, deploy/docker
+          #      NginxSecurityHeadersTest     → deploy/docker      (CSP ↔ URL tile bản đồ)
+          #      EnvFileCommentTest           → deploy/env
+          #      UnresolvedPlaceholderGuardTest → deploy/env
+          #      EditorVocabularyTest         → frontend/design-tokens
+          #      AllowedActionParityTest      → frontend/admin-app  (record Java ↔ kiểu TS)
+          #      SongnhuePostgres             → deploy/postgres
+          #
+          #    Với bộ lọc cũ, một PR chỉ đụng `frontend/` hoặc `deploy/` làm job
+          #    `backend` bị bỏ qua — tức là **đúng lúc những tệp ấy thay đổi thì bộ
+          #    canh chúng không chạy**. Và bỏ qua ở đây không hiện ra như một lỗi:
+          #    GitHub tính `skipped` của một required check là ĐẠT.
+          #
+          #    Cụ thể cái đã suýt mất: `FrontendSameOriginTest` canh đúng lỗi CORS đã
+          #    làm cả giao diện quản trị không dùng được suốt WS-8 → WS-20, mà lỗi ấy
+          #    lại nằm trong một tệp `frontend/` hoặc `deploy/`.
+          #
+          # `deploy/` cũng nằm ở vế frontend: `buildConfig.test.ts` đọc
+          # `deploy/docker/admin-app.Dockerfile` để canh khối chặn sourcemap.
           if [ -n "$changed" ]; then
-            grep -qE '^(backend/|\.github/workflows/)'  <<< "$changed" || backend=false
-            grep -qE '^(frontend/|\.github/workflows/)' <<< "$changed" || frontend=false
+            grep -qE '^(backend/|frontend/|deploy/|\.github/workflows/)'  <<< "$changed" || backend=false
+            grep -qE '^(frontend/|deploy/|\.github/workflows/)' <<< "$changed" || frontend=false
           fi
 
           echo "backend=$backend"   >> "$GITHUB_OUTPUT"
