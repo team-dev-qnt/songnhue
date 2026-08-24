@@ -2699,6 +2699,41 @@ mới thấy `HEAD^2 = KHÔNG_CÓ` ở kịch bản đáng lẽ phải có. Ph�
 mới tách được ba trạng thái. **Luật 10 ở phía ngược lại**: không chỉ phải xác nhận bản *hỏng* đã
 được nạp, mà cả bản *đúng* cũng vậy.
 
+#### Bản vá đầu tiên CŨNG sai, và sai êm hơn (25/8, cùng ngày)
+
+Bản vá 1 giữ `HEAD^2` làm đường chính, chỉ thêm đường cứu bằng cây tệp khi *thiếu* cha thứ hai. Dựng
+xong nhánh giải xung đột cho PR #16 mới lộ ra lỗ: **thứ tự cha có thể đảo**.
+
+`dev` bật `required_linear_history` nên không đặt được merge commit lên `dev` — tức là cách duy nhất
+giải xung đột là cắt nhánh **từ `dev`** rồi merge `staging` vào. Khi đó `HEAD^1` là `dev`, còn
+**`HEAD^2` là đỉnh `staging` cũ**. Cha thứ hai *có tồn tại* nên đường cứu không kích hoạt, và lượt
+lùi lại đi vào lịch sử riêng của `staging` — hỏng đúng kiểu cũ, chỉ khác lối vào.
+
+Bản vá 2 thử luật *"lấy cha nào nằm trên `dev`"*. **Cũng sai, và sai êm hơn nữa**: cha thứ nhất của
+một commit squash là **tổ tiên chung cổ lỗ** `3c29f0c` — mà nó *đúng là* nằm trên `dev`. Luật ấy vì
+thế chọn một commit từ thời kho này còn chưa có mã, và chọn **im lặng**, không cảnh báo gì. Bộ kịch
+bản kiểm bắt được ngay: kịch bản 1 và 3 trả về `3c29f0c` thay vì `a0b6bfc`.
+
+**Chốt lại thành một luật duy nhất:** *commit nào trên `dev` có **cây tệp** trùng khít mã đang nằm
+trên `staging`.* `merge-base` chỉ là phỏng đoán nhanh, và phỏng đoán ấy **vẫn phải qua đúng phép
+kiểm cây** như mọi ứng viên khác. Không còn nhánh nào tin vào quan hệ cha–con nữa.
+
+Bốn kịch bản, mỗi kịch bản một hình dạng lịch sử riêng:
+
+| Hình dạng | Cha | Kết quả |
+|---|---|---|
+| merge chuẩn `staging ← dev` | (staging, dev) | `merge-base` + cây khớp → đỉnh dev |
+| **thứ tự cha đảo** `dev ← staging` | (dev, staging) | `merge-base` + cây khớp → đỉnh dev |
+| squash | (tổ tiên chung) | quét cây → đúng commit dev |
+| cây không khớp gì | — | **thoát 1**, không đoán tiếp |
+
+📌 **Bộ kịch bản kiểm của tôi chạy giả ba lượt liên tiếp** trước khi cho ra số liệu dùng được: lượt
+đầu `git checkout` bị chặn vì có thay đổi chưa commit; hai lượt sau `git merge` để lại xung đột nên
+index kẹt và mọi checkout tiếp theo hỏng — cả bốn kịch bản chạy trên cùng một `HEAD` và in ra bốn
+kết quả giống hệt nhau. Chỉ sau khi in `HEAD`, danh sách cha và **hash cây** *trước* mỗi lượt đọc kết
+quả thì mới thấy. Luật 10 áp cho cả bản đúng lẫn bản hỏng: **chưa xác nhận trạng thái đã được dựng
+thì con số đọc ra không nói gì cả.**
+
 #### Chỗ không bịt được bằng cấu hình
 
 GitHub **không** cho đặt phương thức merge theo từng nhánh đích, và `dev` bật
