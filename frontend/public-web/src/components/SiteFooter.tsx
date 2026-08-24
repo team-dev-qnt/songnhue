@@ -15,14 +15,14 @@ import { SITE } from '@/lib/site';
 export async function SiteFooter() {
   const [config, menu] = await Promise.all([getSiteConfig(), getMenu('FOOTER')]);
 
-  const siteName = config?.['site.name'] ?? SITE.name;
+  const siteName = config?.['site.name'] ?? 'CÔNG TY TNHH MỘT THÀNH VIÊN ĐẦU TƯ PHÁT TRIỂN THỦY LỢI SÔNG NHUỆ';
   // ⚠ Nhóm `company.*` là nhận diện pháp nhân, sửa được trên màn hình cấu hình hệ thống.
   // Trước đây địa chỉ, điện thoại, fax, email và số đường dây nóng ghi cứng ngay trong tệp này —
   // đổi số điện thoại của một doanh nghiệp nhà nước phải sửa mã nguồn và dựng lại image.
-  const diaChi = config?.['company.address'] ?? '';
-  const dienThoai = config?.['company.phone'] ?? '';
-  const fax = config?.['company.fax'] ?? '';
-  const email = config?.['company.email'] ?? '';
+  const diaChi = config?.['company.address'] ?? 'TẦNG 4-5 TÒA NHÀ NEW HOUSE XALA - KHU ĐÔ THỊ XALA - QUẬN HÀ ĐÔNG - THÀNH PHỐ HÀ NỘI.';
+  const dienThoai = config?.['company.phone'] ?? '(024) 33.546.247';
+  const fax = config?.['company.fax'] ?? '(024) 33.540.794';
+  const email = config?.['company.email'] ?? 'songnhue2015@gmail.com';
   const hotline = config?.['company.hotline'] ?? '';
   const gioLamViec = config?.['company.working-hours'] ?? '';
   const companyInfo = config?.['site.footer.company-info'] ?? '';
@@ -62,7 +62,7 @@ export async function SiteFooter() {
   ];
 
   return (
-    <footer className="mt-16 w-full border-t border-white/10 bg-gradient-to-b from-[#103d75] via-[#18529d] to-[#0b2e59] text-white">
+    <footer className="mt-16 w-full border-t border-white/10 bg-gradient-to-b from-[#081e3a] via-[#0c294e] to-[#05172c] text-white">
       {/* ───── 1. Dải tiếp nhận thông tin trực ban / Hotline bão lũ ───── */}
       <div className="border-b border-white/10 bg-[#0b2e59]/80 py-3 text-xs text-white sm:text-sm">
         <div className="mx-auto flex max-w-[1240px] flex-col items-center justify-between gap-2 px-4 sm:flex-row sm:px-6">
@@ -124,17 +124,17 @@ export async function SiteFooter() {
             <div className="space-y-2 text-xs text-white/85">
               <p className="flex items-start gap-2">
                 <span className="shrink-0 font-semibold text-white">Trụ sở:</span>
-                <span>{diaChi}</span>
+                <span className="uppercase">{diaChi}</span>
               </p>
               <p className="flex items-center gap-2">
-                <span className="shrink-0 font-semibold text-white">Điện thoại:</span>
+                <span className="shrink-0 font-semibold text-white">LIÊN HỆ:</span>
                 <span>
                   {dienThoai}
-                  {fax ? ` — Fax: ${fax}` : ''}
+                  {fax ? ` FAX: ${fax}` : ''}
                 </span>
               </p>
               <p className="flex items-center gap-2">
-                <span className="shrink-0 font-semibold text-white">Email:</span>
+                <span className="shrink-0 font-semibold text-white">EMAIL:</span>
                 <span className="font-medium text-sky-200">{email}</span>
               </p>
               <p className="flex items-center gap-2">

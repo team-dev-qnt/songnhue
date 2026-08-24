@@ -182,9 +182,6 @@ export async function SiteHeader() {
               <span className="text-sm font-black uppercase tracking-tight text-[#06244f] drop-shadow-2xs transition-colors duration-200 sm:text-base md:text-lg">
                 {siteName}
               </span>
-              <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#12498f] sm:text-xs">
-                {shortName}
-              </span>
             </div>
           </Link>
 
@@ -224,7 +221,7 @@ export async function SiteHeader() {
       {/* ───── Tầng 2: Thanh điều hướng chính (Sticky Navigation Bar - Capslock) ───── */}
       <nav
         aria-label="Điều hướng chính"
-        className="sticky top-0 z-40 w-full border-b border-black/20 bg-gradient-to-r from-[#0c366e] via-[#165bb6] to-[#0c366e] text-white shadow-md backdrop-blur-md"
+        className="sticky top-0 z-40 w-full border-b border-black/20 bg-gradient-to-r from-[#061b37] via-[#0b2d5b] to-[#061b37] text-white shadow-md backdrop-blur-md"
       >
         <div className="mx-auto flex max-w-[1240px] items-center justify-between px-4 sm:px-6">
           <ul className="flex flex-wrap items-center gap-1 text-xs font-bold uppercase tracking-wider sm:text-[13px]">
