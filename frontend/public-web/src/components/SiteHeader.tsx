@@ -177,11 +177,9 @@ export async function SiteHeader() {
               alt={siteName}
               className="h-14 w-auto object-contain transition-transform duration-300 ease-smooth group-hover:scale-105 sm:h-16"
             />
-            <div className="flex flex-col">
-              <span className="text-sm font-black uppercase tracking-tight text-[#06244f] drop-shadow-2xs transition-colors duration-200 sm:text-base md:text-lg">
-                {siteName}
-              </span>
-            </div>
+            <span className="text-sm font-black uppercase tracking-tight text-[#06244f] drop-shadow-2xs transition-colors duration-200 sm:text-base md:text-lg">
+              {siteName}
+            </span>
           </Link>
 
           {/* Hotline / Thông tin nhanh bên phải */}
