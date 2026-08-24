@@ -260,11 +260,13 @@ async function stage1_siteConfig() {
   };
 
   const generalSettings: Record<string, string> = {
-    'company.hotline': '(024) 3382 4586',
-    'company.address': 'Số 164 đường Tô Hiệu, Phường Quang Trung, Quận Hà Đông, TP. Hà Nội',
-    'company.email': 'banbientap@songnhue.com.vn',
+    'company.hotline': '(024) 33.546.247',
+    'company.phone': '(024) 33.546.247',
+    'company.fax': '(024) 33.540.794',
+    'company.address': 'TẦNG 4-5 TÒA NHÀ NEW HOUSE XALA - KHU ĐÔ THỊ XALA - QUẬN HÀ ĐÔNG - THÀNH PHỐ HÀ NỘI',
+    'company.email': 'songnhue2015@gmail.com',
     'company.working-hours': 'Thứ Hai – Thứ Sáu: 08:00 – 17:00 (Trực ban PCTT 24/24h)',
-    'company.copyright': '© 2026 CÔNG TY TNHH MTV ĐẦU TƯ PHÁT TRIỂN THỦY LỢI SÔNG NHUỆ',
+    'company.copyright': '© 2026 CÔNG TY TNHH MỘT THÀNH VIÊN ĐẦU TƯ PHÁT TRIỂN THỦY LỢI SÔNG NHUỆ',
   };
 
   // Cấu hình giao diện cổng
