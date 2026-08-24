@@ -2290,3 +2290,113 @@ kiểm.
   lại, lại hỏng ở dòng khác. Đổi sang hai pha *kiểm hết rồi ghi*, trả `OPS-2019` kèm `items[i]`. ⚠
   Lỗi phạm vi đơn vị **không** bị gom vào danh sách đó — gom một tín hiệu an ninh vào một lời nhắc
   nhập liệu là làm mất cả mã 403 lẫn sự kiện `security_events`.
+
+---
+
+### §10.37. ⚠⚠ Nghiệm thu image `make dev-docker` — một lỗi chặn, một lỗ lộ mã nguồn, và bộ lọc CI bỏ qua đúng thứ nó canh (24/8/2026)
+
+Điểm xuất phát chỉ là *"chạy `make dev-docker` rồi nghiệm thu image"*. Nó ra năm chuyện, và phần lớn
+thuộc họ **"cơ chế có mặt nhưng chưa ai đi qua"**.
+
+#### 1. Bản dựng trên nhánh đang đỏ, mà không cổng kiểm nào biết
+
+`make dev-docker` hỏng ngay ở bước biên dịch `admin-app`: **4 lỗi TypeScript**, cả bốn đến từ commit
+`40685c8` **đã đẩy lên `origin/feat-CICD`**. CI có bước `npm run typecheck` bắt được cả bốn, nhưng CI
+chỉ kích hoạt trên `dev` (push + PR) nên nhánh tính năng chưa mở PR thì không có cổng kiểm nào.
+
+Một lỗi đáng chú ý hơn ba lỗi kia: `api-types.ts` dùng `AllowedAction` mà không import. Chữa bằng
+cách import từ `components/` là **đảo chiều phụ thuộc** — cả codebase đi một chiều
+`components → shared`. Đã khai `AllowedActionView` ngay trong `api-types.ts`, và chính lúc khai mới
+lộ ra lỗi ở mục 2.
+
+#### 2. ⛔ Trả bài về sửa là thao tác KHÔNG DÙNG ĐƯỢC — hai bản sao của một luật, đặt ở hai nơi
+
+`ArticleController.transition` ép buộc lý do bằng một dòng khai cứng
+`"REQUEST_CHANGES".equals(action) && blank(reason)`. Còn `ApprovalActions` mở ô nhập lý do khi
+`action.requiresReason` bật — mà record `AllowedAction` của backend là `(action, label, toState)`,
+**không có cờ đó và không nơi nào điền**. Kiểu phía giao diện lại khai thừa ba cờ
+`primary`/`danger`/`requiresReason`, tất cả `optional`, nên TypeScript im lặng.
+
+Chuỗi hậu quả đo được: người duyệt bấm *"Yêu cầu chỉnh sửa"* → không có ô nào để nhập → gửi lên
+thiếu `reason` → backend trả `SYS-0003` → **không có đường nào đi tiếp**. Hai cờ còn lại cũng chưa
+từng có giá trị: không nút nào từng là nút chính, không nút nào từng tô đỏ.
+
+**Vì sao 555 bài kiểm không thấy.** `ArticleHttpTest.traBaiPhaiNeuLyDo` kiểm *cả hai vế* của ràng
+buộc và xanh trọn vẹn — vì nó gửi JSON dựng tay, không bao giờ chạm vào `allowedActions`. Vế **ép
+buộc** đúng; vế **quảng cáo** hỏng; không bài nào kiểm vế thứ hai.
+
+**Cách chữa — bỏ bản sao, đưa luật về dữ liệu.** Thêm cột `workflow_transitions.requires_reason`
+(`V202608241256`), record mang thêm `requiresReason`, và **`WorkflowEngine.execute` tự ép buộc** thay
+vì controller. Engine là nơi *duy nhất* đổi trạng thái nên không đường vào nào bỏ sót (luật 12); bản
+`execute` 3 tham số giữ lại và uỷ quyền với `reason = null`, tức là **hỏng đóng**. Thêm một bước đòi
+lý do về sau là một dòng `UPDATE`, không phải một lượt deploy.
+
+📌 `primary`/`danger` đã **gỡ hẳn**. Nút chính nay lấy theo *vị trí đầu danh sách* — backend đã sắp
+theo `sort_order`, tức là thứ tự do người khai quy trình quyết định. Không nút nào tô đỏ, vì **không
+có cột dữ liệu nào nói bước nào nguy hiểm**; ghi ra đây thay vì bịa một danh sách tên hành động ở
+phía giao diện.
+
+#### 3. Image quản trị phát nguyên mã nguồn ra ngoài
+
+`vite.config.ts` đặt `sourcemap: true` không rào theo môi trường. Đo trên
+`songnhue-admin-app:local`: **68 tệp `.map`**, và `GET /assets/ApprovalActions-*.js.map` trả **200**
+kèm 4.799 byte TypeScript gốc — đủ cả chú thích nội bộ về mã quyền và hình dạng endpoint.
+`location /assets/` có `try_files $uri =404` nên tệp tồn tại là nginx phục vụ.
+
+Chữa ở **hai tầng khác nhau**: `sourcemap: false`, và khối `location ~ \.map$ { return 404; }`. Đo
+lại sau khi dựng: **0 tệp `.map` trong image**, và lượt tải trả **404**. public-web không dính — Next
+mặc định tắt `productionBrowserSourceMaps`.
+
+#### 4. ⚠⚠ Bộ lọc CI bỏ qua đúng job canh những tệp vừa đổi
+
+Job `backend` lọc `^(backend/|\.github/workflows/)`. Nhưng **7 lớp kiểm của bộ BE đọc tệp nằm ngoài
+`backend/`**: `FrontendSameOriginTest` (frontend + deploy), `NginxSecurityHeadersTest`,
+`EnvFileCommentTest`, `UnresolvedPlaceholderGuardTest`, `EditorVocabularyTest`,
+`AllowedActionParityTest`, `SongnhuePostgres`.
+
+Nghĩa là **PR chỉ đụng `frontend/` hoặc `deploy/` thì job canh chúng bị bỏ qua** — và bỏ qua không
+hiện ra như lỗi, vì GitHub tính `skipped` của required check là **ĐẠT** (luật 23). Cụ thể cái suýt
+mất: `FrontendSameOriginTest` canh đúng lỗi CORS đã làm giao diện quản trị chết suốt WS-8→WS-20, mà
+lỗi ấy sống trong một tệp `frontend/`. Đã thêm `frontend/` + `deploy/` vào vế backend, `deploy/` vào
+vế frontend; logic mới kiểm bằng `bash -c` với 7 kịch bản (luật 19).
+
+#### 5. Hợp nhất nhánh hotfix — merge sạch mà vẫn vỡ một bài kiểm
+
+`fix-public-web-ui` (9 commit) merge về `feat-CICD` **không đụng độ**, chỉ mang sang 9 tệp và **không
+một tệp Java hay admin-app nào** — 30 tệp backend trùng nhau đã khớp nội dung nhờ cherry-pick
+`4a413f7`. Nhưng kết luận "an toàn" dựa trên typecheck + phân tích tệp là **chưa đủ**: chạy bộ test
+FE trên cây đã merge thì `siteContactConfig.test.ts` đỏ.
+
+Nguyên nhân: bản vá giao diện đặt lại địa chỉ, điện thoại, fax, email, hotline và giờ làm việc vào
+`SiteFooter.tsx`/`SiteHeader.tsx` làm giá trị dự phòng `??`. Đây là **đúng lỗi cũ quay lại theo hình
+dạng khó thấy hơn** — màn hình vẫn hiện đúng, nên không dấu hiệu nào cho thấy số điện thoại người dân
+gọi khi có sự cố lại đang nằm trong mã nguồn (vi phạm quy tắc 12).
+
+⚠⚠ **Chỉ 1 trong 3 bộ canh bắt được.** Hai bộ kia xanh giả cho đúng dữ liệu đang có:
+
+| Bộ canh | Vì sao lọt |
+|---|---|
+| số điện thoại | regex đòi khoảng trắng giữa các nhóm số, `(024) 33.546.247` có **dấu chấm** |
+| địa chỉ | regex phân biệt hoa thường, địa chỉ mới viết **HOA toàn bộ** |
+| email | bắt được — bộ duy nhất |
+
+Đã trả dự phòng về `''`, vá hai regex, và thêm một bài canh ở tầng **cấu trúc** phủ cả sáu khoá cùng
+lúc: mọi `config?.['company.*'] ?? …` phải rơi về chuỗi rỗng. Ba bài bắt theo *hình dạng từng loại dữ
+liệu* thì luôn có loại thứ tư lọt qua.
+
+📌 Bỏ giá trị cứng **không mất nội dung**, vì `V202608241255` đã seed đủ sáu khoá. Đã đo trên cổng
+đang chạy: cả năm chuỗi (điện thoại, fax, email, địa chỉ, giờ trực ban) **vẫn hiện trên trang chủ**,
+và không tệp nguồn nào còn chứa chúng.
+
+#### Đã kiểm chứng bằng cách làm hỏng có chủ đích
+
+Mọi cơ chế mới đều qua một lượt đột biến, **và mỗi lượt đều xác nhận bản hỏng đã được nạp** trước khi
+đọc kết quả (luật 10): bật lại `sourcemap: true` → đỏ · gỡ khối `location ~ \.map$` → đỏ · thêm một
+trường thừa vào `AllowedActionView` → `AllowedActionParityTest` đỏ và in ra cả hai bộ trường · ép
+`toAllowedAction` trả `false` → bài HTTP đỏ và in nguyên văn payload trên dây · đặt lại số điện thoại
+dạng chấm và địa chỉ viết hoa → cả ba bài canh liên hệ đỏ.
+
+📌 **Rà mapping toàn bộ bề mặt API**: 68 kiểu TypeScript đối chiếu với 141 record/DTO Java — 42 khớp
+theo tên, 22 khớp theo hình dạng, 4 xác minh tay (`ApiEnvelope` ↔ `ApiResponse<T>`, hai DTO của ops
+khai bằng `class` chứ không `record`, `PageResult` là kiểu thuần FE). **Lệch thật duy nhất trên cả bề
+mặt là `AllowedAction`.**
