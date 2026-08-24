@@ -22,7 +22,7 @@ export async function SiteFooter() {
   const dienThoai = config?.['company.phone'] ?? '(024) 33.546.247';
   const fax = config?.['company.fax'] ?? '(024) 33.540.794';
   const email = config?.['company.email'] ?? 'songnhue2015@gmail.com';
-  const hotline = config?.['company.hotline'] ?? '';
+  const hotline = config?.['company.hotline'] ?? '(024) 33.546.247';
   const gioLamViec = config?.['company.working-hours'] ?? 'Thứ Hai – Thứ Sáu: 08:00 – 17:00 (Trực ban PCTT 24/24h)';
   const companyInfo = config?.['site.footer.company-info'] ?? '';
   const mapEmbed = config?.['site.footer.map-embed'] ?? '';

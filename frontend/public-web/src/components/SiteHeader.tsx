@@ -161,7 +161,7 @@ export async function SiteHeader() {
   const siteName = config?.['site.name'] ?? SITE.name;
   const logo = fileUrl(config?.['site.logo.attachment-id']) || '/logo-song-nhue.png';
   // Số trực ban 24/7 — đọc từ nhóm `company.*` trong bảng settings
-  const hotline = config?.['company.hotline'] ?? '';
+  const hotline = config?.['company.hotline'] ?? '(024) 33.546.247';
   const activeMenu = menu && menu.length > 0 ? menu : DEFAULT_HEADER_MENU;
   const tree = buildMenuTree(activeMenu);
 
