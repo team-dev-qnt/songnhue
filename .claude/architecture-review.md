@@ -2452,7 +2452,26 @@ mã 1, sau vá sinh đủ 10 route.
 rơi về hằng số, build vẫn qua. Đọc log theo trình tự thay vì theo mức nghiêm trọng mới thấy dòng
 `Invalid URL` mới là dòng giết build (luật 22).
 
-⬜ **Nợ để lại, không tự sửa được**: `PUBLIC_SITE_URL` vẫn chưa đặt, nên image đóng ra hiện tại có
-`sitemap.xml`/canonical/Open Graph trỏ về `http://localhost:3000`. Cần tên miền thật → **chốt cùng
-WS-11**, đã ghi vào sổ nợ. Trang vẫn chạy đúng; chỉ công cụ tìm kiếm và trình xem trước liên kết đọc
-ra địa chỉ sai.
+**Chỗ đặt cổng kiểm cũng sai, và đó mới là phần đáng sửa.** Hai job đóng gói image có
+`if: github.event_name == 'push'` — nghĩa là lượt dựng image đầu tiên của bất kỳ thay đổi nào diễn ra
+**sau khi đã merge**. Chỗ duy nhất chúng có thể đỏ là `dev`. Đó không phải một cổng kiểm, đó là một
+cái chuông báo cháy đặt ngoài toà nhà.
+
+Và image là nơi **duy nhất** thấy được những gì chỉ tồn tại lúc build container: `ARG` để trống,
+`.env.local` vắng mặt, tầng runtime chép hụt. Không thứ nào trong đó có mặt ở `npm run build` hay
+`mvn verify`, kể cả khi chạy trên đúng commit ấy — nên "PR xanh" chưa bao giờ nói được gì về image.
+
+Đã đổi cả hai job sang **dựng ở PR, chỉ đẩy GHCR khi push vào `dev`** (`push: ${{ github.event_name
+== 'push' }}`, bước đăng nhập GHCR cũng gác theo). Đẩy từ nhánh chưa duyệt thì tag `dev` trỏ vào mã
+chưa ai xem. Khối shell ghi tóm tắt kiểm bằng `bash -c` với **cả 4 tổ hợp** event × matrix (luật 19),
+và YAML parse lại để xác nhận điều kiện đã đúng chứ không chỉ đọc bằng mắt.
+
+⬜ **Hai nợ để lại, đều là việc bấm ở GitHub**:
+
+| Nợ | Nội dung | Hệ quả nếu để nguyên |
+|---|---|---|
+| — | `PUBLIC_SITE_URL` chưa đặt (chưa có tên miền) → image hiện tại có `sitemap.xml`/canonical/Open Graph trỏ về `http://localhost:3000`. **Chốt cùng WS-11** | Trang chạy đúng; chỉ công cụ tìm kiếm và trình xem trước liên kết đọc ra địa chỉ sai |
+| **#46** | Thêm 3 context đóng gói image vào `required_status_checks` của `dev` | Hai job ấy *hiện* lỗi ở PR nhưng **không chặn** merge — vẫn merge được một PR có image hỏng |
+
+📌 Nợ #46 cùng hình dạng với #45 (Dependency graph) và #27 (bảo vệ nhánh): **một cổng kiểm tồn tại
+trong mã nhưng chưa có hiệu lực ở nơi nó phải chặn.** Ba lần rồi.

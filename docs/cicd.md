@@ -81,10 +81,24 @@ tạo ra một image chưa ai thử, đúng thứ nguyên tắc này sinh ra đ�
 | `Vùng nào thay đổi` | So đường dẫn thay đổi, quyết định chạy job nào | — |
 | `Backend — build, lint, test` | Spotless · Checkstyle · `mvn verify` (test đơn vị + Testcontainers + ArchUnit + cổng bao phủ) | ✅ |
 | `Frontend — lint` | ESLint + `tsc --noEmit` (tự bỏ qua tới khi WS-8/WS-9 có mã) | ✅ |
-| `Đóng gói image` | Build + đẩy `ghcr.io/…/app:<sha>` — chỉ khi **push**, không chạy cho PR | — |
+| `Đóng gói image` | Build backend. **Dựng ở cả PR, chỉ ĐẨY** `ghcr.io/…/app:<sha>` khi push vào `dev` | ⬜ nên bật |
+| `Đóng gói image frontend` | Ma trận `admin-app` + `public-web`. Cùng luật: dựng ở PR, đẩy khi push | ⬜ nên bật |
 | `Soi phụ thuộc PR thêm vào` | `dependency-review-action` — chỉ soi phần PR **thêm vào**, đọc Advisory Database của GitHub, vài giây | ❌ (xem §3.2) |
 
 > ⚠ **OWASP Dependency-Check đã CHUYỂN RA khỏi `ci.yml`** (18/8) sang `security-scan.yml` chạy theo lịch — xem §3.3.
+
+> ⚠⚠ **Hai job đóng gói image nay chạy ở cả PR** (24/8, `architecture-review.md` §10.38). Trước đó
+> chúng có `if: github.event_name == 'push'`, nên lượt dựng image đầu tiên của một thay đổi diễn ra
+> **sau khi đã merge** — chỗ duy nhất chúng có thể đỏ là `dev`. Đúng chuyện đã xảy ra với PR #10:
+> mọi cổng kiểm ở PR xanh, merge xong `dev` đỏ ngay ở bước dựng `public-web`.
+>
+> Image là chỗ **duy nhất** thấy được những gì chỉ tồn tại lúc build container — `ARG` để trống,
+> `.env.local` vắng mặt, tầng runtime chép hụt. Không thứ nào có mặt ở `npm run build` hay
+> `mvn verify`, kể cả khi chạy trên cùng commit.
+>
+> ⬜ **Còn phải bấm ở GitHub**: thêm `Đóng gói image` và `Đóng gói image frontend` vào
+> `required_status_checks` của nhánh `dev` (§ script ở `docs/branch-protection.md`). Chưa bật thì
+> chúng chỉ *hiện* lỗi ở PR chứ không *chặn* merge.
 
 ### 3.1. Lọc theo đường dẫn — tiết kiệm ở đâu, và cố ý KHÔNG tiết kiệm ở đâu
 

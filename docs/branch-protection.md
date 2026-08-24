@@ -177,6 +177,14 @@ Yêu cầu: `gh` đã đăng nhập bằng tài khoản có quyền admin trên 
 > Đây là **bản đã sửa** (§2.4, §2.5, §2.6). Cấu hình đang chạy trên repo áp theo bản cũ — chạy lại
 > hai khối này là khớp.
 
+> ⚠⚠ **Ba context mới thêm 24/8** (`architecture-review.md` §10.38): hai job đóng gói image nay
+> chạy ở cả PR, nhưng chưa nằm trong danh sách bắt buộc thì chúng chỉ *hiện* lỗi chứ không *chặn*
+> merge — mà chính lỗ ấy đã để PR #10 merge vào rồi mới làm `dev` đỏ.
+>
+> ⚠ Tên context của một job **ma trận** bao gồm cả giá trị ma trận trong ngoặc, đúng từng ký tự.
+> Chép sai một dấu phẩy thì GitHub coi đó là một check **không bao giờ xuất hiện** và PR treo mãi ở
+> "Expected". Tra tên thật bằng: `gh run view <run-id> --json jobs --jq '.jobs[].name'`.
+
 ### 4.1. `dev` — nơi mọi thứ được kiểm
 
 ```bash
@@ -184,7 +192,7 @@ gh api -X PUT repos/team-dev-qnt/songnhue/branches/dev/protection --input - <<'J
 {
   "required_status_checks": {
     "strict": true,
-    "contexts": ["Vùng nào thay đổi", "Backend — build, lint, test", "Frontend — lint"]
+    "contexts": ["Vùng nào thay đổi", "Backend — build, lint, test", "Frontend — lint", "Đóng gói image", "Đóng gói image frontend (admin-app, deploy/docker/admin-app.Dockerfile)", "Đóng gói image frontend (public-web, deploy/docker/public-web.Dockerfile)"]
   },
   "enforce_admins": false,
   "required_pull_request_reviews": {

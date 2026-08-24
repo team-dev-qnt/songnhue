@@ -102,9 +102,11 @@ Không mục nào **chặn code**, chỉ chặn **dữ liệu khởi tạo và n
 
 Gửi kèm `report-templates-proposal.md`. Chi tiết từng mục: `business-open-questions.md` Phần II.
 
-### Hai việc bấm ở GitHub còn treo
+### Ba việc bấm ở GitHub còn treo
 
-**Nợ #45** bật Dependency graph (không bật thì job *Soi phụ thuộc PR thêm vào* tự bỏ qua — phép kiểm chưa chạy lần nào) · **nợ #27** chỉnh 2 mục bảo vệ nhánh (`docs/branch-protection.md` §6.2).
+**Nợ #45** bật Dependency graph (không bật thì job *Soi phụ thuộc PR thêm vào* tự bỏ qua — phép kiểm chưa chạy lần nào) · **nợ #27** chỉnh 2 mục bảo vệ nhánh (`docs/branch-protection.md` §6.2) · **nợ #46** thêm 3 context đóng gói image vào `required_status_checks` của `dev` — hai job ấy nay chạy ở PR nhưng chưa bắt buộc thì chỉ *hiện* lỗi chứ không *chặn* merge (§10.38).
+
+📌 Cả ba đều là cùng một hình dạng: **một cổng kiểm tồn tại trong mã nhưng chưa có hiệu lực ở nơi nó phải chặn.**
 
 ## Luật đã trả giá — áp cho mọi phiên làm việc
 
