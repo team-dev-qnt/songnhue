@@ -51,6 +51,15 @@ export function ChangePasswordPage() {
       // lần này backend trả **403 AUTH-0005**, vì đổi mật khẩu đã thu hồi phiên và xoá
       // cookie CSRF. Nhật ký máy chủ ghi rõ trình tự: `change-password → 204` rồi hai lượt
       // `change-password → 403`. Việc đã xong ngay từ lượt đầu; thứ hỏng chỉ là đường ra.
+      //
+      // ⚠⚠ Bổ sung 25/8 — lượt sửa trên chữa TRIỆU CHỨNG THỨ HAI. Mắt xích đầu tiên nằm
+      // xa hơn về phía trước: `api.post` ở trên **ném ngay trên 204**, nên `endSession()`
+      // chưa từng chạy. `unwrap` không kiểm mã trạng thái, mà axios đặt `data = ''` cho
+      // thân rỗng → `''.success` là `undefined` → ném `SYS-0001`. Cùng lỗi ấy áp cho cả
+      // 24 endpoint trả 204, không riêng màn hình này — nên bản vá và bài kiểm đặt ở
+      // `shared/apiClient.ts`, chỗ cả 24 đường vào cùng đi qua (luật 12).
+      //
+      // 📌 Bài học giữ lại: sửa ở màn hình thì 23 màn hình còn lại vẫn hỏng trong im lặng.
       endSession();
       navigate('/dang-nhap', {
         replace: true,

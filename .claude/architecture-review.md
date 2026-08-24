@@ -2558,3 +2558,81 @@ sát sang VPS-1 bị bác — nó phá đúng lý do dựng ra nó.
 📌 Có một cách tiết kiệm nghe hợp lý mà **không dùng được**: "chỉ bật staging khi cần test". Lúc test
 chính là lúc cả hai stack cùng chạy — đúng lúc thiếu bộ nhớ. Tắt lúc rảnh tiết kiệm điện, không tiết
 kiệm RAM phải mua.
+
+---
+
+### §10.40. 204 No Content bị giao diện biến thành lỗi — trên 24 endpoint, suốt từ WS-8 (25/8/2026)
+
+Báo cáo từ vận hành: *"đổi mật khẩu API báo lỗi nhưng thực tế đã đổi thành công và đăng nhập được
+bằng mật khẩu mới"*. Truy ra thì nó không phải lỗi của luồng đổi mật khẩu, và không chỉ một endpoint.
+
+#### Cơ chế
+
+| Mắt xích | Nội dung |
+|---|---|
+| Spring | `ResponseEnvelopeAdvice` là `ResponseBodyAdvice`, mà **advice không được gọi khi handler trả `void`** — không thân thì không converter nào chạy. **24 endpoint** vì thế trả 204 **trần, không envelope** |
+| `conventions.md` §2.1 | Tiêu đề hứa *"thống nhất 100% endpoint"*, **không ghi ngoại lệ nào** |
+| axios | Thân rỗng → `response.data = ''` |
+| `apiClient.unwrap` | Viết theo đúng lời hứa "100%" nên **chỉ đọc `envelope.success`**, không đọc mã trạng thái. `''.success` là `undefined`, `!undefined` là `true` → ném `SYS-0001 "Thao tác không thành công"` |
+
+**Máy chủ đã commit xong rồi mới ném.** Phủ toàn bộ nhóm 204: xoá, sắp xếp lại, đánh dấu đã đọc, gỡ
+đăng, khoá tài khoản, đăng xuất, đổi mật khẩu.
+
+#### Vì sao đổi mật khẩu là chỗ nó lộ ra nặng nhất
+
+`api.post` ném **trước** khi tới `endSession()`, nên phiên phía giao diện không được dọn. Người dùng
+thấy báo lỗi → bấm gửi lại → lần này backend trả **403 AUTH-0005**, vì lượt đầu đã thu hồi phiên và
+xoá vé CSRF. Nhật ký máy chủ đọc ra `change-password → 204` rồi hai lượt `403`.
+
+⚠⚠ **Lượt sửa ngày 22/8 đã chữa TRIỆU CHỨNG THỨ HAI của đúng chuỗi này** — guard `RequireAnonymous`
+đẩy người dùng ngược về biểu mẫu — và ghi lại rất kỹ trong `ChangePasswordPage` lẫn `AuthProvider`.
+Nhưng mắt xích đầu tiên nằm xa hơn về phía trước, ở `unwrap`, nên bản vá ấy **không bao giờ chạy
+tới**. Hai vòng chữa cùng một triệu chứng mà không ai hỏi *"lượt gọi API có trả về được không"*.
+
+📌 `ChangePasswordHttpTest` đã dựng lại được cả cảnh 403 và vẫn xanh trọn vẹn — vì bài kiểm BE không
+đi qua `unwrap`. Luật 5 ở một hình dạng mới: không phải "gọi thẳng service", mà là **kiểm đúng một
+đầu của một hợp đồng có hai đầu**.
+
+#### Đã sửa
+
+Vá ở `apiClient.unwrap` — chỗ **cả 24 đường vào cùng đi qua** (luật 12). Sửa ở màn hình đổi mật khẩu
+thì 23 màn hình còn lại vẫn hỏng trong im lặng, và đó đúng là chuyện vừa xảy ra.
+
+Ranh giới cố ý đặt ở **"không có thân"**, không phải "thân không đọc được": nới thành cái sau là
+nuốt luôn `success:false` kèm 200 — có một bài canh riêng cho ranh giới ấy.
+
+Ghi lại ngoại lệ vào `conventions.md` §2.1 (lời hứa "100%" chính là thứ khiến FE viết sai), và ghim
+hai đầu hợp đồng: `ChangePasswordHttpTest` "Cam kết 0" khẳng định 204 có thân **rỗng** ↔
+`apiClientNoContent.test.ts` khẳng định client coi thân rỗng là **thành công**.
+
+**Kiểm chứng ngược** (luật 10 — xác nhận bản hỏng đã nạp trước khi đọc kết quả): gỡ bản vá → **5 bài
+đỏ với đúng chuỗi `"Thao tác không thành công"`**, còn bài canh ranh giới **giữ xanh**.
+
+---
+
+### §10.41. `DB_APP_PASSWORD` — một biến không ai đọc che mất một biến thật sự thiếu (25/8/2026)
+
+Lượt dựng staging đầu tiên: container `postgres` quay vòng khởi động lại, rồi `songnhue_app` báo
+`password authentication failed`.
+
+`compose.prod.yml` truyền `DB_APP_PASSWORD`, còn `10-bootstrap.sh` gọi `require_env DB_PASSWORD`.
+Hai cái tên khác nhau, nên **biến được truyền thì không ai đọc, biến script cần thì không được
+truyền** — luật 15 và một biến thiếu, cùng một dòng.
+
+⚠ **Vì sao nó sống sót tới tận hôm dựng máy thật:** `compose.infra.yml` — đường chạy local — khai
+**đúng** cả bốn tên. Mọi lượt thử ở máy vì thế đều xanh, và cái sai chỉ tồn tại trên đường mà chưa
+ai đi. Cùng hình dạng với luật 3: hai đường vào cùng một script, chỉ một đường được đi thử.
+
+Bản vá tại chỗ lúc deploy là **thêm** `DB_PASSWORD` bên cạnh `DB_APP_PASSWORD` — chạy được, nhưng để
+lại đúng cái dòng chết đã gây ra chuyện. Nay xoá hẳn, giữ đúng một tên.
+
+Thêm `PostgresInitEnvTest`: đối chiếu `require_env` của script với khối `environment` của service
+`postgres` ở **cả hai** tệp compose, và bắt **cả hai chiều** — thiếu biến script cần, *và* thừa biến
+`DB_*` không ai đọc.
+
+**Kiểm chứng ngược**: trả `DB_APP_PASSWORD` về → hai bài đỏ, một báo *thiếu* `DB_PASSWORD`, một báo
+*thừa* `DB_APP_PASSWORD`.
+
+📌 Bản thân bài kiểm cũng vấp một lượt: `Pattern.compile("^\\s+…")` **thiếu `MULTILINE`**, nên `^`
+chỉ khớp đầu cả chuỗi, hàm trả tập rỗng và bài kiểm đỏ với *cả bốn* biến — báo sai chỗ. Một bộ canh
+đọc sai vẫn là một bộ canh đỏ; chỉ có đọc kỹ thông báo mới phân biệt được.

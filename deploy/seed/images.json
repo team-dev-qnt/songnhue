@@ -1,0 +1,34 @@
+[
+  {
+    "file": "17ab5afa-cd46-438a-b828-453bb00ac266.jpeg",
+    "public_id": "15509c57-8e04-57e6-8d36-6a9cd1c68334",
+    "storage_key": "seed/portal/15509c57-8e04-57e6-8d36-6a9cd1c68334.jpeg",
+    "content_type": "image/jpeg",
+    "size": 113720,
+    "sha256": "05f88ed5980fe1915fec0d16c702b4a86e3a32870db944d84e1d034558deab2d"
+  },
+  {
+    "file": "43a6383e-f199-412b-a7f9-cd2260e96a74.jpeg",
+    "public_id": "144a2a14-487d-5972-953d-d4008ba1f555",
+    "storage_key": "seed/portal/144a2a14-487d-5972-953d-d4008ba1f555.jpeg",
+    "content_type": "image/jpeg",
+    "size": 84676,
+    "sha256": "b81c39e2ec84288f8a66d650836b155642a9a536c5d1bdf244ccb0250d3f7767"
+  },
+  {
+    "file": "78639110-9bdf-445d-b48a-a777b6717a4c.jpeg",
+    "public_id": "97b3154f-42c3-5386-95b5-adb11922337e",
+    "storage_key": "seed/portal/97b3154f-42c3-5386-95b5-adb11922337e.jpeg",
+    "content_type": "image/jpeg",
+    "size": 107118,
+    "sha256": "017bf1e8cc84207eea3e2ca353405465d487535b6f7d3d1cbd34bea911cfa789"
+  },
+  {
+    "file": "89ba87e1-f0ba-49f9-9711-915ddd3956c5.jpeg",
+    "public_id": "9d3d1319-1397-5215-b187-c925c35623cc",
+    "storage_key": "seed/portal/9d3d1319-1397-5215-b187-c925c35623cc.jpeg",
+    "content_type": "image/jpeg",
+    "size": 39774,
+    "sha256": "0a3b8fa85c7c919490ceb0fbe994c2f5081461a41b8a5f82060c4d3da7c186da"
+  }
+]

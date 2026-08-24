@@ -76,6 +76,7 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 | 23/8 | **4/11 mục WS-21** chưa làm hoặc hỏng hẳn · **4/17 cam kết DoD** không có phép kiểm nào — §10.36 |
 | 24/8 | **1 lỗi CHẶN nghiệp vụ** trong phạm vi đã tick (trả bài về sửa tắc hoàn toàn) · image quản trị phát mã nguồn · bộ lọc CI bỏ qua đúng job nó cần · hotfix làm tái phát lỗi ghi cứng — §10.37 |
 | 24/8 (merge `dev`) | CI đỏ ở job đóng gói image `public-web` **dù 8 cổng kiểm ở máy đều xanh** — biến build rỗng, `??` không đỡ, `new URL('')` giết `next build` — §10.38 |
+| 25/8 (sau deploy staging) | **204 No Content bị giao diện biến thành lỗi trên 24 endpoint** — việc đã commit xong mà người dùng thấy báo lỗi. Lượt sửa 22/8 đã chữa *triệu chứng thứ hai* của đúng chuỗi này — §10.40 · `DB_APP_PASSWORD` không ai đọc che mất biến thật sự thiếu — §10.41 |
 
 ⛔ Hệ quả rút ra: **"đã tick" không phải bằng chứng.** Trước khi mở một giai đoạn mới, đối chiếu với mã thật và chạy đường mà người dùng thật đi.
 
@@ -83,14 +84,14 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 
 ⛔ **Cấm seed dữ liệu công trình/thuỷ văn "cho đẹp demo"** — ô nào chưa có nguồn thì nói thẳng là chưa có.
 
-**Codebase đo ngày 24/8**: **559 test BE** (239 core + 20 content + 24 operations + 276 app) + **191 test FE** (136 admin + 55 public) · **74 mã lỗi** (BE = FE) · 88 quyền / 12 vai trò / 334 dòng phân quyền · **32 bài ArchUnit** (7 lớp, gồm 11 bài tự-kiểm chứng minh luật bắt được vi phạm) · 7 phép kiểm bộ đọc tracking · mọi cổng bao phủ **chạy thật** (content 18.2%) · 0 CVE ≥ 7.
+**Codebase đo ngày 25/8**: **565 test BE** (239 core + 20 content + 24 operations + 282 app) + **197 test FE** (142 admin + 55 public) · **74 mã lỗi** (BE = FE) · 88 quyền / 12 vai trò / 334 dòng phân quyền · **32 bài ArchUnit** (7 lớp, gồm 11 bài tự-kiểm chứng minh luật bắt được vi phạm) · 7 phép kiểm bộ đọc tracking · mọi cổng bao phủ **chạy thật** (content 18.2%) · 0 CVE ≥ 7.
 
 ### Tra ở đâu
 
 | Cần gì | Đọc ở đâu |
 |---|---|
 | Nợ đang treo, task còn lại | **`.claude/master-tracking.md`** — nguồn DUY NHẤT (conventions.md §6). `phase0-tracking.md` / `phase1-tracking.md` chỉ là lưu trữ, cấm sửa |
-| **Lý do** một quyết định, **nguyên nhân gốc** một lỗi đã sửa | `architecture-review.md` **§9** (Phase 0, 14 mục) · **§10** (Phase 1, 38 mục — §10.35 đợt vá sau WS-22, §10.36 nghiệm thu lại WS-21 + DoD, §10.37 nghiệm thu image, §10.38 CI đỏ sau merge `dev`) |
+| **Lý do** một quyết định, **nguyên nhân gốc** một lỗi đã sửa | `architecture-review.md` **§9** (Phase 0, 14 mục) · **§10** (Phase 1, 41 mục — §10.35 đợt vá sau WS-22, §10.36 nghiệm thu lại WS-21 + DoD, §10.37 nghiệm thu image, §10.38 CI đỏ sau merge `dev`, §10.40 lỗi 204, §10.41 biến CSDL không ai đọc) |
 | Cách viết một chức năng + bảng bẫy tra nhanh | `docs/coding-guide.md` |
 | Luật bắt buộc khi viết code | `conventions.md` |
 | Nghiệp vụ | `function-spec.md`; điểm chưa chốt → `business-open-questions.md` Phần III |
