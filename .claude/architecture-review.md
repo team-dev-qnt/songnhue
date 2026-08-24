@@ -2740,3 +2740,61 @@ GitHub **không** cho đặt phương thức merge theo từng nhánh đích, v�
 `required_linear_history` nên repo buộc phải cho phép squash. Không thể tắt squash ở cấp repo để
 chặn. Đây là chỗ chỉ con người nhớ được — nên nó nằm ở `docs/branch-protection.md` §2.3-b và ở đầu
 `deploy-staging.yml`, cộng với lưới an toàn đối chiếu cây tệp ở trên.
+
+---
+
+### §10.43. ⚠⚠ CD Staging vẫn đỏ sau khi đã sửa lịch sử — lượt tra image đi ẩn danh vì một dòng `env` cách đó 100 dòng (25/8/2026)
+
+Sau §10.42, lượt giải đỉnh `dev` đã chạy đúng:
+
+```
+Đỉnh dev đang đề bạt: 9765581  (merge-base, cây tệp trùng khít)
+Error: Không tìm thấy image 'app' trong 50 commit gần nhất tính từ 9765581
+```
+
+Lịch sử đúng, image vẫn "không tìm thấy". Và đây là lần thứ **hai liên tiếp** cùng một thông báo lỗi trỏ vào ba chỗ **đều đang tốt**.
+
+#### Đo trước, đoán sau
+
+| Câu hỏi | Đo bằng gì | Kết quả |
+|---|---|---|
+| Job đóng gói ở `dev` có chạy không | `gh run view` 5 lượt gần nhất | **cả 3 job xanh ở cả 5 commit** |
+| Tag image có đúng dạng workflow tra không | đọc `ci.yml` | `ghcr.io/<repo>/app:<sha>` — **khớp chính xác** |
+| Bước đăng nhập có xanh không | log lượt chạy thật | `Login Succeeded!` |
+| Gói GHCR đọc được ẩn danh không | `GET ghcr.io/token` + `GET .../manifests/<sha>` | token **rỗng**, manifest **403** |
+
+Bốn dòng ấy khoanh ngay vào một khả năng: lượt tra chạy **không mang thông tin đăng nhập**.
+
+#### Nguyên nhân
+
+Bước *Xác định image cần triển khai* mang:
+
+```yaml
+        env:
+          DOCKER_CONFIG: ${{ runner.temp }}/.docker
+```
+
+`docker/login-action` ghi vào `$HOME/.docker`. **Hai thư mục khác nhau** — nên `Login Succeeded!` là thật, mà mọi lệnh `docker` ở bước sau đọc một thư mục rỗng và đi ẩn danh. Gói GHCR **mặc định riêng tư kể cả khi kho mã công khai**, thế là cả 50 ứng viên trượt sạch.
+
+Dòng `env` ấy có từ **PR #1**. Nó sống được bốn tháng vì `deploy-staging.yml` chưa từng chạy thật lần nào — đúng luật 7: *một cơ chế chưa ai đi qua thì chưa biết nó đúng hay sai*. Đáng chú ý là `deploy-prod.yml` **không** có dòng này; sự bất đối xứng giữa hai tệp mới là dấu vết dẫn tới nó.
+
+#### Vì sao lại mất hàng giờ mới thấy
+
+`docker manifest inspect ... 2>/dev/null` làm **403 (không có quyền)** và **404 (chưa dựng)** trông y hệt nhau — luật 9: *một khẳng định không phân biệt được hai trạng thái thì không khẳng định gì*. Thông báo lỗi kèm ba bước chẩn đoán, cả ba trỏ vào chỗ đang tốt, nên nó **chủ động dẫn người đọc đi sai đường**.
+
+#### Bản vá — ba phần
+
+1. **Gỡ `DOCKER_CONFIG`** khỏi bước tra (`deploy-prod.yml` vốn đã đúng).
+2. **Một lượt tra thử để nguyên stderr** trên tag `app:dev` trước vòng lặp: hỏng ở đó là hỏng về **quyền**, và nó tự nói ra như vậy.
+3. **`GhcrLookupAuthTest`** (3 bài) canh: không workflow triển khai nào đặt khoá `DOCKER_CONFIG:` · bước đăng nhập phải đứng **trước** lượt tra đầu tiên · lượt tra thử báo lỗi quyền còn nguyên.
+
+Kiểm chứng bằng cách làm hỏng có chủ đích — mỗi bài bắt đúng vi phạm của nó, khôi phục thì xanh lại:
+
+| Làm hỏng | Kết quả |
+|---|---|
+| đặt lại `DOCKER_CONFIG` | 1 đỏ |
+| chuyển bước đăng nhập xuống sau lượt tra | 1 đỏ |
+| gỡ lượt tra thử báo lỗi quyền | 1 đỏ |
+| khôi phục | 3 xanh |
+
+📌 Bản đầu của bài kiểm **đỏ ngay lần chạy đầu** — vì nó đo `indexOf("docker manifest inspect")` trên **nguyên văn**, mà đầu tệp có một chú thích nhắc đúng tên lệnh đó. Đúng luật 2: *canh cấu trúc, đừng canh văn bản*. Đã sửa thành bỏ mọi dòng chú thích trước khi đo.

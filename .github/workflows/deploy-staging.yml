@@ -146,6 +146,27 @@ jobs:
           # ⚠ Ba image lùi ĐỘC LẬP với nhau: một lượt chỉ sửa frontend thì
           #   `admin-app` khớp ngay đỉnh còn `app` phải lùi vài bước. Ép chúng
           #   dùng chung một SHA là ép đóng gói lại phần không đổi.
+          # ── Phân biệt "không có image" với "không đọc được image" ─────────
+          # `docker manifest inspect ... 2>/dev/null` nuốt sạch lý do thất bại,
+          # nên 403 (chưa xác thực) và 404 (chưa dựng) cho ra CÙNG một thông báo
+          # *"không tìm thấy image"* — và ba bước chẩn đoán bên dưới đều dẫn vào
+          # ngõ cụt. Đúng lỗi đã trả giá ngày 24/8: bước tra bị ép
+          # `DOCKER_CONFIG` sang một thư mục RỖNG, nên `Login Succeeded!` ở bước
+          # trên là thật mà lượt tra vẫn đi ẩn danh; gói GHCR là **riêng tư**
+          # (kiểm chứng: token ẩn danh rỗng, manifest trả 403), thế là cả 50 ứng
+          # viên đều trượt.
+          #
+          # Vì vậy: tra thử ĐÚNG MỘT lần, để nguyên stderr, trên một tag chắc
+          # chắn tồn tại nếu quyền đọc còn sống. Hỏng ở đây là hỏng về QUYỀN.
+          if ! docker manifest inspect \
+                 "ghcr.io/${{ github.repository }}/app:dev" >/dev/null; then
+            echo "::error::Không đọc được gói GHCR — đây là lỗi QUYỀN, không phải thiếu image."
+            echo "Gói GHCR mặc định RIÊNG TƯ. Kiểm tra: bước 'Đăng nhập GHCR' ở trên,"
+            echo "quyền 'packages: read' của workflow, và đừng đặt DOCKER_CONFIG ở bước này"
+            echo "— đặt là tra ẩn danh, vì bước đăng nhập ghi thông tin vào \$HOME/.docker."
+            exit 1
+          fi
+
           for target in app admin-app public-web; do
             registry="ghcr.io/${{ github.repository }}/$target"
             sha=""
@@ -171,8 +192,6 @@ jobs:
             echo "$(echo "$target" | tr '-' '_')_image=$registry:$sha" >> "$GITHUB_OUTPUT"
           done
           echo "dev_tip=$dev_tip" >> "$GITHUB_OUTPUT"
-        env:
-          DOCKER_CONFIG: ${{ runner.temp }}/.docker
 
       # Gắn thêm tag `staging` — tiện cho người vận hành nhìn nhanh "staging
       # đang chạy cái gì". Bản thân việc deploy vẫn dùng tag SHA.
