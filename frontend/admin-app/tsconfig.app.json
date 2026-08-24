@@ -1,0 +1,37 @@
+{
+  // conventions.md §1.4 — TypeScript strict, cấm `any`.
+  //
+  // `strict` bật cả nhóm; ba cờ thêm bên dưới bắt đúng những lỗi hay lọt ở SPA
+  // quản trị: biến thừa sau khi sửa màn hình, nhánh switch quên `break`, và
+  // import không dùng tới. Không bật `exactOptionalPropertyTypes` — AntD 5 khai
+  // rất nhiều prop `?: T` rồi truyền thẳng `undefined`, bật lên chỉ tổ phải
+  // rải ép kiểu quanh thư viện chứ không bắt được lỗi nào của mình.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "useDefineForClassFields": true,
+
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "verbatimModuleSyntax": true,
+
+    "allowImportingTsExtensions": false,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    },
+
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo"
+  },
+  "include": ["src"]
+}

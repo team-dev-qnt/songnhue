@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.songnhue</groupId>
+        <artifactId>songnhue-backend</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>songnhue-core</artifactId>
+    <name>Songnhue Core</name>
+    <description>Nhóm A — Common Platform: envelope, exception, error code, filter chain, utils,
+        auth/RBAC, org_units, attachment, workflow engine, notification, jobs, audit, settings.
+        Mọi module nghiệp vụ bắt buộc dùng, cấm tự chế bản riêng (conventions.md §2).</description>
+
+    <dependencies>
+        <!--
+          Khử trùng HTML do biên tập viên soạn (WS-16). Vì sao đáng thêm một phụ thuộc:
+          nội dung bài viết là HTML tự do và cổng công khai render nó cho mọi người dân, nên
+          nó chạy được JavaScript dễ hơn nhiều so với SVG — thứ mà dự án đã dựng hẳn
+          `SvgSanitizer` ở WS-14 để chặn. Không khử trùng ở đây là bảo vệ cửa sổ rồi bỏ ngỏ
+          cửa chính.
+
+          jsoup thay vì tự viết: danh sách chặn bằng regex cho HTML là bài toán đã có quá
+          nhiều biến thể (thực thể HTML, thuộc tính không dấu nháy, `<svg onload>` lồng
+          nhau). Đây đúng chỗ mà "tự viết cho nhẹ" là sai.
+        -->
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>1.23.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <!-- BaseEntity/ScopedEntity + JPA auditing (T4.7) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <!--
+          Cache in-process thay cho Redis ở v1 (architecture-review.md §3).
+          Dùng cho rate limit và cache bảng `settings`.
+        -->
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+        </dependency>
+        <!-- Sinh tài liệu OpenAPI cho /api/v1/** (T4.10) -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>${springdoc.version}</version>
+        </dependency>
+        <!--
+          Health indicator + metric của nền tảng (WS-7 / T7.8–T7.11).
+
+          Khai ở `core` chứ không chỉ ở `app` vì chính `core` là nơi biết những con số đáng đo:
+          tuổi bản sao lưu, tồn đọng hàng đợi, độ tươi dữ liệu. Để `app` tự đo thì nó phải với
+          xuống tận repository của core — đúng thứ ranh giới ArchUnit cấm.
+
+          Bản cài đặt registry (Prometheus) vẫn nằm ở `app`: core khai báo ĐO CÁI GÌ, tầng lắp
+          ráp chọn ĐẨY ĐI ĐÂU.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!--
+          ===================== WS-5 · Xác thực & phân quyền =====================
+
+          CỐ Ý KHÔNG dùng `spring-boot-starter-security`, chỉ lấy đúng phần băm mật khẩu.
+          Lý do (architecture-review.md §9.4):
+            · conventions.md §2.4 đã chốt một filter chain có thứ tự riêng (correlation →
+              rate limit → auth → scope → audit). FilterChainProxy của Spring Security mặc
+              định chen vào order -100, tức là TRƯỚC cả CorrelationFilter → lỗi sớm nhất lại
+              là lỗi không có traceId.
+            · Spring Security tự sinh response 401/403 qua AuthenticationEntryPoint, KHÔNG đi
+              qua GlobalExceptionHandler → phá envelope + traceId (DoD #9) đúng ở nhóm lỗi
+              hay gặp nhất.
+            · §4.2 chốt cơ chế quyền là `@RequirePermission` + interceptor + quét deny-by-default
+              ở CI, không phải @PreAuthorize.
+          Phần khó và dễ sai thì vẫn dùng thư viện: BCrypt (spring-security-crypto) và
+          JOSE/JWT (nimbus) — không tự cài lại thuật toán.
+        -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-crypto</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.nimbusds</groupId>
+            <artifactId>nimbus-jose-jwt</artifactId>
+            <version>${nimbus-jose-jwt.version}</version>
+        </dependency>
+        <!-- Base32 cho secret TOTP (RFC 4648) — JDK không có sẵn -->
+        <dependency>
+            <groupId>commons-codec</groupId>
+            <artifactId>commons-codec</artifactId>
+        </dependency>
+        <!--
+          AOP — dùng cho ScopeFilterAspect (tầng 3 phân quyền): bật bộ lọc phạm vi đơn vị ở MỘT chỗ
+          thay vì để mỗi repository tự nhớ thêm điều kiện WHERE (quy tắc 5 của dự án).
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+        <!--
+          ShedLock — khoá phân tán cho job theo lịch. CÀI SẴN NHƯNG TẮT ở v1 (chạy 1 node):
+          bật bằng SHEDLOCK_ENABLED khi lên ≥2 node, không phải sửa mã (architecture-review.md §6.2).
+          Bảng `shedlock` đã có từ WS-2 theo đúng schema chuẩn của provider jdbc-template.
+          ⚠ ShedLock chỉ dành cho job THEO LỊCH. Hàng đợi `jobs` KHÔNG dùng nó — ở đó việc tranh
+          chấp giải bằng FOR UPDATE SKIP LOCKED, vốn cho nhiều worker chạy song song thay vì
+          chỉ cho một node chạy.
+        -->
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-spring</artifactId>
+            <version>${shedlock.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-provider-jdbc-template</artifactId>
+            <version>${shedlock.version}</version>
+        </dependency>
+        <!--
+          MinIO — nơi duy nhất chứa tệp tin. App stateless tuyệt đối, không ghi file xuống đĩa
+          cục bộ ngay từ v1 (ràng buộc thiết kế #3 của Phase 0).
+        -->
+        <dependency>
+            <groupId>io.minio</groupId>
+            <artifactId>minio</artifactId>
+            <version>${minio.version}</version>
+        </dependency>
+        <!--
+          Gửi email — kênh thông báo thứ hai sau in-app (chốt B7: v1 bỏ SMS).
+          Local dùng Mailpit ở cổng 1025, không gửi ra ngoài thật.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!--
+              Đóng gói cả lớp test thành `test-jar` để module `app` dùng lại đồ dùng chung
+              (RsaKeyPairFixture sinh cặp khoá RSA…). Không chép sang app: hai bản sinh khoá khác
+              nhau thì test tích hợp có thể xanh trong khi ứng dụng thật không đọc nổi file PEM.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>test-jar</id>
+                        <goals>
+                            <goal>test-jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

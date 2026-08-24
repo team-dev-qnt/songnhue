@@ -1,0 +1,15 @@
+# node_modules TUYỆT ĐỐI không được gửi vào image: gói native cài trên macOS
+# (darwin-arm64) không chạy được trong container Linux. Trong image luôn chạy
+# `npm ci` lại từ package-lock.json.
+node_modules/
+*/node_modules/
+*/dist/
+*/.next/
+*/out/
+
+.git
+.gitignore
+.idea/
+.vscode/
+.DS_Store
+*.log

@@ -1,0 +1,273 @@
+# =============================================================================
+# CẤU HÌNH ỨNG DỤNG — chỉ chứa placeholder ${ENV_VAR}, KHÔNG chứa giá trị thật.
+# conventions.md §1.6: mọi connection/setup đọc từ env; thiếu env bắt buộc →
+# fail-fast lúc startup, không chạy với default ngầm.
+# Giá trị thật: deploy/env/<môi trường>.env  (không commit — xem .gitignore)
+# =============================================================================
+spring:
+  application:
+    name: songnhue
+  profiles:
+    default: local
+
+  # Kết nối runtime dùng songnhue_app — KHÔNG có DELETE trên audit_logs /
+  # security_events / hydro_raw_logs (architecture-review.md §9.3).
+  # Không đặt giá trị mặc định: thiếu env là app không khởi động, đúng §1.6.
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    hikari:
+      pool-name: songnhue-pool
+      maximum-pool-size: ${DB_POOL_MAX:20}
+      minimum-idle: ${DB_POOL_MIN:5}
+      connection-timeout: 30000
+      # Ngắt kết nối rỗi để không giữ slot của Postgres qua đêm
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  # Migration chạy bằng songnhue_owner, KHÁC tài khoản runtime ở trên.
+  # Staging/Production: FLYWAY_ENABLED=false ở service `app`, migration chạy ở
+  # service `migrator` riêng trước đó (architecture-review.md §9.2) — migration
+  # hỏng thì app không lên nửa vời.
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    user: ${DB_MIGRATION_USER}
+    password: ${DB_MIGRATION_PASSWORD}
+    # Mỗi module tự quản migration của mình; version là timestamp toàn cục nên
+    # trộn 5 nguồn lại thứ tự vẫn đúng (conventions.md §1.2).
+    locations:
+      - classpath:db/migration/core
+      - classpath:db/migration/cms
+      - classpath:db/migration/ops
+      - classpath:db/migration/hyd
+      - classpath:db/migration/hr
+    # `flyway clean` xóa sạch schema — chặn cứng, không để lỡ tay trên production
+    clean-disabled: true
+    validate-on-migrate: true
+    out-of-order: false
+    baseline-on-migrate: false
+
+  # Danh mục message lỗi (conventions.md §2.3). Tra bằng locale vi cố định —
+  # xem ErrorMessageResolver, KHÔNG theo Accept-Language của trình duyệt.
+  messages:
+    basename: error-messages
+    encoding: UTF-8
+    fallback-to-system-locale: false
+    # -1 = nạp một lần rồi giữ; file chỉ đổi khi deploy bản mới
+    cache-duration: -1
+
+  # Máy chủ thư — kênh thông báo thứ hai sau in-app (T6.6, chốt B7 bỏ SMS ở v1).
+  # Local trỏ vào Mailpit: thư không đi ra ngoài, xem ở http://localhost:18025.
+  # Thiếu SMTP_HOST thì bean JavaMailSender không được tạo và job gửi đánh dấu
+  # SKIPPED — hệ thống vẫn chạy, thông báo trên giao diện vẫn tới nơi.
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:1025}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SMTP_AUTH:false}
+          starttls:
+            enable: ${SMTP_STARTTLS:false}
+          # Thư treo không được giữ luồng worker: quá hạn thì tính là thất bại
+          # và hàng đợi lo phần thử lại.
+          connectiontimeout: 5000
+          timeout: 10000
+          writetimeout: 10000
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      # Schema do Flyway quản lý. `validate` bắt lệch giữa entity và migration ngay
+      # lúc khởi động, thay vì để lộ ra khi truy vấn. TUYỆT ĐỐI không dùng `update`.
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+
+  jackson:
+    default-property-inclusion: non_null
+    # Timestamp luôn là UTC ở tầng lưu trữ/API; convert UTC+7 chỉ ở tầng hiển thị
+    # (CLAUDE.md quy tắc 1)
+    time-zone: UTC
+    serialization:
+      write-dates-as-timestamps: false
+
+server:
+  port: ${APP_PORT:8080}
+  shutdown: graceful
+  error:
+    # Không bao giờ lộ stacktrace ra ngoài — conventions.md §2.2
+    include-stacktrace: never
+    include-message: never
+  forward-headers-strategy: framework
+
+# Cấu hình nghiệp vụ của hệ thống.
+# LƯU Ý: tham số nghiệp vụ (giờ hành chính, retention, ngưỡng, chu kỳ polling…)
+# KHÔNG nằm ở đây mà nằm trong bảng `settings` có UI sửa — CLAUDE.md quy tắc 12.
+# Chỗ này chỉ giữ tham số hạ tầng/triển khai.
+app:
+  # Bật khi lên ≥2 node — architecture-review.md §6.4
+  shedlock-enabled: ${SHEDLOCK_ENABLED:false}
+  worker-enabled: ${WORKER_ENABLED:true}
+
+  # Khoá AES-256-GCM. Thiếu hoặc sai độ dài → app KHÔNG khởi động (CryptoProperties):
+  # chạy được với khoá sai thì dữ liệu ghi ra sẽ không giải mã lại được.
+  crypto:
+    active-key-id: ${AES_KEY_ID}
+    keys:
+      v1: ${AES_KEY_V1}
+
+  # Khoá ký access token (RS256). Thiếu file hoặc hai file không cùng một cặp →
+  # app KHÔNG khởi động (JwtKeyStore). Sinh khoá: make gen-keys
+  jwt:
+    key-id: ${JWT_KEY_ID}
+    private-key-path: ${JWT_PRIVATE_KEY_PATH}
+    public-key-path: ${JWT_PUBLIC_KEY_PATH}
+    # Thời hạn token là tham số AN TOÀN, cố ý KHÔNG để trong bảng `settings`:
+    # nới hạn access token bằng UI là tự kéo dài thời gian một token bị đánh cắp
+    # còn dùng được (conventions.md §4.1).
+    access-token-ttl: 30m
+    refresh-token-ttl: 7d
+    two-factor-challenge-ttl: 5m
+    issuer: songnhue
+
+  security:
+    # Cờ `Secure` trên cookie. Local chạy http:// nên phải tắt — bật lên thì trình
+    # duyệt bỏ luôn cookie và không ai đăng nhập được, mà không có lỗi nào hiện ra.
+    secure-cookie: ${SECURE_COOKIE:true}
+
+  # Kết nối riêng cho job kết xuất nhật ký (T6.13). Vai trò songnhue_archiver là
+  # tài khoản DUY NHẤT có DELETE trên audit_logs — xem architecture-review.md §9.3.
+  # Thiếu mật khẩu thì job báo lỗi cấu hình rõ ràng thay vì thất bại ở bước xoá,
+  # sau khi đã tải tệp lên kho.
+  audit:
+    archiver:
+      username: ${DB_ARCHIVER_USER:songnhue_archiver}
+      password: ${DB_ARCHIVER_PASSWORD:}
+
+  notification:
+    # Địa chỉ người gửi thư. Phải là miền mà máy chủ SMTP cho phép gửi thay mặt,
+    # nên thuộc cấu hình môi trường chứ không phải tham số Admin sửa được.
+    from: ${SMTP_FROM}
+
+  bootstrap:
+    # Chỉ đặt ở lần dựng môi trường ĐẦU TIÊN rồi gỡ đi (WS-5 / T5.7).
+    # Migration seed `superadmin` không có mật khẩu, chưa chạy lệnh này thì không
+    # ai đăng nhập được.
+    admin-password: ${BOOTSTRAP_ADMIN_PASSWORD:}
+
+  # Sao lưu & khôi phục (WS-7). Chi tiết vì sao hai vai trò CSDL khác nhau:
+  # javadoc của BackupProperties.
+  backup:
+    # Thư mục PHẢI nằm trên volume gắn ra ngoài container — trong container thì
+    # bản sao lưu biến mất cùng lần deploy kế tiếp.
+    directory: ${BACKUP_DIR}
+    host: ${DB_HOST}
+    port: ${DB_PORT}
+    database: ${DB_NAME}
+    # pg_dump chỉ cần ĐỌC — chạy bằng vai trò readonly, không phải owner.
+    dump-username: ${DB_READONLY_USER:songnhue_readonly}
+    dump-password: ${DB_READONLY_PASSWORD:}
+    # Khôi phục cần quyền chủ sở hữu → là tính năng BẬT RIÊNG. Để trống thì nút
+    # khôi phục trên UI báo "chưa cấu hình" (ADM-2010) thay vì hỏng giữa chừng.
+    restore-username: ${DB_RESTORE_USER:songnhue_owner}
+    restore-password: ${DB_RESTORE_PASSWORD:}
+    timeout: ${BACKUP_TIMEOUT:2h}
+
+  # Cổng công khai (WS-16). Để trống là TẮT việc gọi dựng lại trang — khi đó trang
+  # tự làm mới theo chu kỳ ISR. Bắt buộc phải có thì mọi môi trường dev không chạy
+  # public-web sẽ không khởi động được.
+  # ⚠ REVALIDATE_SECRET là bí mật: không log, không trả ra API, không nằm trong bản
+  # xuất cấu hình. Phải KHỚP với biến cùng tên của public-web.
+  portal:
+    base-url: ${PORTAL_BASE_URL:}
+    revalidate-secret: ${REVALIDATE_SECRET:}
+
+  storage:
+    endpoint: ${MINIO_ENDPOINT}
+    access-key: ${MINIO_ACCESS_KEY}
+    secret-key: ${MINIO_SECRET_KEY}
+    bucket-media: ${MINIO_BUCKET_MEDIA}
+    bucket-report: ${MINIO_BUCKET_REPORT}
+    bucket-audit: ${MINIO_BUCKET_AUDIT}
+
+# Tài liệu API (T4.10). Trên production nginx chặn 2 đường dẫn này (WS-11/T11.6).
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    display-request-duration: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      # ⛔ Giữ `never`. Endpoint này KHÔNG đi qua phân quyền 3 tầng (dự án không
+      # dùng filter chain Spring Security — architecture-review.md §9.5), nên
+      # chi tiết ở đây là chi tiết công khai với bất kỳ ai gọi được cổng.
+      # Màn hình M5.12 lấy chi tiết qua GET /api/v1/system/health, có kiểm quyền.
+      show-details: never
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+    # ⚠ `backup` và `telemetry` cố ý NẰM NGOÀI nhóm readiness (mặc định của
+    # Spring Boot khi bật probes: readiness chỉ gồm readinessState).
+    # Bản sao lưu cũ là chuyện phải báo động, nhưng ngừng nhận request vì nó thì
+    # sai hoàn toàn — container sẽ bị khởi động lại vòng quanh mà không sửa được
+    # gì, và mất luôn cả phần đang phục vụ tốt.
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  metrics:
+    tags:
+      # Nhãn chung cho mọi metric — Prometheus trên VM-3 gom số của nhiều môi
+      # trường vào một chỗ, không có nhãn này thì staging và production lẫn nhau.
+      application: songnhue
+      environment: ${APP_ENVIRONMENT:local}
+
+logging:
+  level:
+    root: INFO
+    com.songnhue: ${LOG_LEVEL_APP:INFO}
+  # Log JSON cho môi trường có thu thập tập trung (T4.9). Để trống = log dạng
+  # người đọc, tiện khi chạy local. Dùng cơ chế sẵn có của Spring Boot 3.4+,
+  # không kéo thêm thư viện.
+  structured:
+    format:
+      console: ${LOG_STRUCTURED_FORMAT:}
+      file: ${LOG_STRUCTURED_FORMAT:}
+  pattern:
+    # traceId do CorrelationFilter đặt vào MDC — có mặt ở mọi dòng log
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%X{traceId:-}] %logger{36} - %msg%n"
+  # Ghi ra tệp + xoay vòng 30 ngày (T7.9). Để trống LOG_FILE = chỉ log ra console,
+  # đúng cho local và cho môi trường có bộ thu thập log riêng.
+  # ⚠ total-size-cap là chốt chặn cuối: chỉ có max-history thì một ngày sinh log
+  # bất thường vẫn đủ làm đầy đĩa — mà đĩa đầy thì pg_dump hỏng theo, và mất log
+  # kéo theo mất luôn bản sao lưu.
+  file:
+    name: ${LOG_FILE:}
+  logback:
+    rollingpolicy:
+      file-name-pattern: "${LOG_FILE:}.%d{yyyy-MM-dd}.%i.gz"
+      max-history: ${LOG_MAX_HISTORY:30}
+      max-file-size: ${LOG_MAX_FILE_SIZE:100MB}
+      total-size-cap: ${LOG_TOTAL_SIZE_CAP:3GB}
+      clean-history-on-start: true

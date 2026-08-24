@@ -1,0 +1,112 @@
+# =============================================================================
+# Cổng đề bạt — dev → staging → production (WS-10 / T10.7)
+#
+# Luồng làm việc đã chốt: MỌI kiểm tra nặng chạy đúng một lần ở `dev`. Hai chặng
+# sau không kiểm lại — chúng chỉ xác minh rằng thứ đang được đẩy lên đúng là thứ
+# đã được kiểm.
+#
+# Job này cố ý CỰC NHẸ (vài giây) vì nó là check bắt buộc duy nhất của
+# staging/production. Nó bịt đúng cái lỗ mà branch protection của GitHub không
+# bịt được: **không có tuỳ chọn "chỉ nhận PR từ nhánh X"**. Thiếu nó, ai cũng mở
+# được PR từ một nhánh feature thẳng vào production và không check nặng nào chặn
+# lại, vì ta đã cố ý không yêu cầu chúng ở đó.
+#
+# ⚠ Đừng đổi tên job này mà quên sửa `contexts` trong branch protection: GitHub
+# sẽ chờ một check không bao giờ tới, và mọi PR đề bạt kẹt ở "Expected — Waiting
+# for status to be reported" mà không có dòng lỗi nào.
+# =============================================================================
+name: Promotion guard
+
+on:
+  pull_request:
+    branches: [staging, production]
+
+permissions:
+  contents: read
+  checks: read
+  actions: read
+
+jobs:
+  guard:
+    name: Promotion guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Nhánh nguồn phải đúng chặng trước
+        run: |
+          target="${{ github.base_ref }}"
+          source="${{ github.head_ref }}"
+
+          case "$target" in
+            staging)    expected="dev" ;;
+            production) expected="staging" ;;
+            *)
+              echo "::error::Nhánh đích '$target' không nằm trong luồng đề bạt."
+              exit 1
+              ;;
+          esac
+
+          if [ "$source" != "$expected" ]; then
+            echo "::error::PR vào '$target' chỉ được mở từ '$expected', đang mở từ '$source'."
+            echo "Luồng đã chốt: dev → staging → production. Mọi kiểm tra nặng chạy ở dev;"
+            echo "đi tắt vào đây là đưa lên môi trường thật một thay đổi chưa qua kiểm tra nào."
+            exit 1
+          fi
+          echo "✓ $source → $target"
+
+      # Nhánh nguồn đúng vẫn chưa đủ: `dev` có thể vừa nhận một commit đang đỏ.
+      # Vì vậy kiểm đúng SHA sắp được đề bạt, không kiểm "nhánh dev nói chung".
+      - name: Commit này đã xanh CI ở chặng trước chưa
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          echo "Kiểm tra check-runs của $SHA"
+
+          # Soi CẢ hai phép kiểm bắt buộc của `dev`, không riêng Backend. Bản
+          # đầu chỉ lọc `startswith("Backend")`, nên một lượt `Frontend — lint`
+          # hỏng vẫn đi qua được cổng này.
+          runs=$(gh api "repos/$REPO/commits/$SHA/check-runs" --jq \
+            '.check_runs[] | select(.name | startswith("Backend") or startswith("Frontend"))
+             | "\(.name)=\(.conclusion)"')
+
+          if [ -z "$runs" ]; then
+            echo "::error::Không tìm thấy kết quả CI nào cho commit $SHA."
+            echo "Nhiều khả năng commit này chưa từng chạy qua pipeline ở dev."
+            exit 1
+          fi
+
+          # ⚠ `skipped` là ĐẠT, không phải hỏng (sửa 19/8).
+          #
+          #   `ci.yml` chỉ chạy job nặng khi vùng tương ứng đổi, và job bị bỏ
+          #   qua VẪN tạo check-run — với `conclusion: "skipped"` (đã kiểm bằng
+          #   API). Bản đầu so `!= "success"` nên một lượt đề bạt chỉ chứa thay
+          #   đổi tài liệu sẽ bị chặn với thông báo sai hẳn: *"CI kết thúc với
+          #   'skipped'"*, trong khi thực tế là không có gì cần kiểm.
+          #
+          #   Cổng này hỏi "có phép kiểm nào HỎNG ở dev không", không phải "có
+          #   chạy đủ mọi phép kiểm không" — điều kiện đủ ấy do bảo vệ nhánh
+          #   `dev` quyết định, không phải chỗ này.
+          # ⚠ PHẢI đọc theo DÒNG, không `for muc in $runs`. Tên job có dấu cách
+          #   ("Backend — build, lint, test"), mà bash tách từ theo IFS gồm cả
+          #   khoảng trắng — vòng lặp sẽ vỡ tên job thành 5 mảnh và cổng này
+          #   LUÔN đỏ. Đã tái hiện bằng dữ liệu thật: `for` cho ra [Frontend]
+          #   [—] [lint=success] [Backend] [—] [build,] [lint,] [test=success].
+          #   (Thử ở máy local dùng zsh sẽ KHÔNG thấy lỗi — zsh không tách từ
+          #   mặc định. Runner chạy bash.)
+          loi=0
+          while IFS= read -r muc; do
+            [ -n "$muc" ] || continue
+            ten="${muc%=*}"; ket="${muc##*=}"
+            case "$ket" in
+              success|skipped|neutral)
+                echo "  ✓ $ten = $ket" ;;
+              *)
+                echo "::error::$ten của commit $SHA kết thúc với '$ket'."
+                loi=1 ;;
+            esac
+          done <<< "$runs"
+          [ "$loi" -eq 0 ] || exit 1
+          echo "✓ Commit $SHA không có phép kiểm nào hỏng ở chặng trước"

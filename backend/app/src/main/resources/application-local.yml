@@ -1,0 +1,26 @@
+# =============================================================================
+# Profile `local` — máy dev (chạy native HOẶC trong Docker, cùng một profile)
+#
+# ⭐ QUYẾT ĐỊNH (WS-3): KHÔNG có profile `docker` riêng.
+#    Giữa "chạy native" và "chạy trong Docker" không có gì khác ngoài giá trị
+#    env (DB_HOST=localhost vs postgres…), mà env thì không thuộc về profile.
+#    Một file `application-docker.yml` rỗng chỉ tạo chỗ cho hai lối chạy âm thầm
+#    lệch nhau về sau — đúng thứ conventions.md §1.6 muốn tránh.
+#
+# ⭐ Cũng KHÔNG có `application-staging.yml` / `application-prod.yml`: hiện chưa
+#    có khác biệt nào ngoài env. Khi nào có nội dung thật (WS-5 cookie Secure,
+#    WS-7 xuất metrics) thì mới tạo — không dựng file rỗng chờ sẵn.
+# =============================================================================
+management:
+  endpoint:
+    health:
+      # Local hiện chi tiết từng thành phần (DB, MinIO, SMTP…) để dev biết cái
+      # nào chết. Staging/Production giữ `never` như cấu hình gốc — chi tiết
+      # health là thông tin dò quét hạ tầng.
+      show-details: always
+      show-components: always
+
+logging:
+  level:
+    # Thấy được câu lệnh migration khi schema chưa như mong đợi
+    org.flywaydb: INFO

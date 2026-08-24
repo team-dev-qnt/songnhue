@@ -1,0 +1,720 @@
+/**
+ * Bản sao kiểu dữ liệu của API Core (`com.songnhue.core.api.**`).
+ *
+ * Viết tay chứ không sinh từ OpenAPI: bộ sinh sẽ đổ ra cả trăm kiểu cho những endpoint
+ * admin-app không đụng tới, và mỗi lần backend thêm module là một lượt diff khổng lồ.
+ * Chép tay đúng phần đang dùng thì nhỏ, đọc được, và khi backend đổi hình dạng thì
+ * TypeScript chỉ đúng chỗ hỏng.
+ *
+ * ⚠ Mọi mốc thời gian là **chuỗi ISO-8601 UTC** do backend trả (`Instant`). Hiển thị
+ * phải đi qua `formatDateTime` để đổi sang UTC+7 — xem `format.ts`.
+ */
+
+// =============================================================================
+// Envelope (conventions.md §2.1)
+// =============================================================================
+
+export interface PageMeta {
+  /** Đếm từ **1** — backend đã +1 so với `Page.getNumber()` của Spring (§1.3). */
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+export interface ErrorDetail {
+  field: string;
+  rule: string;
+  rejectedValue: unknown;
+}
+
+export interface ApiErrorBody {
+  code: string;
+  message: string;
+  details?: ErrorDetail[];
+}
+
+export interface ApiEnvelope<T> {
+  success: boolean;
+  data?: T;
+  meta?: PageMeta;
+  error?: ApiErrorBody;
+  /** Luôn có mặt, kể cả khi thành công — người dùng báo lỗi chỉ cần đọc mã này. */
+  traceId: string;
+}
+
+/** Kết quả một truy vấn phân trang sau khi bóc envelope. */
+export interface PageResult<T> {
+  items: T[];
+  meta: PageMeta;
+}
+
+// =============================================================================
+// Xác thực — /api/v1/auth
+// =============================================================================
+
+/**
+ * Bước tiếp theo của luồng đăng nhập, do backend quyết định.
+ *
+ * FE **không tự suy** ("tài khoản này là Admin nên chắc phải 2FA") — quy tắc bắt buộc
+ * 2FA nằm ở backend và có thể đổi qua cấu hình.
+ */
+export type LoginStage = 'AUTHENTICATED' | 'TWO_FACTOR_REQUIRED' | 'TWO_FACTOR_ENROLL_REQUIRED';
+
+export interface LoginResponse {
+  stage: LoginStage;
+  /** Chỉ có ở `AUTHENTICATED`. Giữ trong bộ nhớ, **không** localStorage. */
+  accessToken: string | null;
+  accessTokenExpiresAt: string | null;
+  csrfToken: string | null;
+  /** Vé đi tiếp hai bước 2FA; chỉ có ở hai nhánh còn lại. */
+  challengeToken: string | null;
+  mustChangePassword: boolean;
+}
+
+export interface EnrollResponse {
+  /** ⛔ Chỉ hiện đúng một lần, backend không trả lại lần thứ hai. */
+  secret: string;
+  otpauthUri: string;
+  recoveryCodes: string[];
+}
+
+export interface MeResponse {
+  id: string;
+  username: string;
+  fullName: string;
+  orgUnitId: number | null;
+  roles: string[];
+  permissions: string[];
+  mustChangePassword: boolean;
+  twoFactorEnrolled: boolean;
+}
+
+export interface SessionView {
+  id: string;
+  deviceLabel: string | null;
+  ipAddress: string | null;
+  issuedAt: string;
+  lastUsedAt: string | null;
+  expiresAt: string;
+  /** Phiên đang dùng để gọi API — tô khác để người dùng khỏi tự đăng xuất mình. */
+  current: boolean;
+}
+
+// =============================================================================
+// Tài khoản & vai trò — /api/v1/admin/users
+// =============================================================================
+
+/** `PENDING_ACTIVATION` = đã tạo nhưng chưa đăng nhập lần nào (còn mật khẩu tạm). */
+export type UserStatus = 'PENDING_ACTIVATION' | 'ACTIVE' | 'LOCKED';
+
+export interface UserView {
+  publicId: string;
+  username: string;
+  fullName: string;
+  email: string | null;
+  phone: string | null;
+  status: string;
+  mustChangePassword: boolean;
+  twoFactorRequired: boolean;
+  lastLoginAt: string | null;
+}
+
+export interface CreateUserRequest {
+  username: string;
+  fullName: string;
+  email?: string;
+  orgUnitPublicId: string;
+  temporaryPassword: string;
+}
+
+export interface UpdateUserRequest {
+  fullName: string;
+  email?: string;
+  phone?: string;
+}
+
+export interface RoleSummary {
+  code: string;
+  name: string;
+  description: string | null;
+  permissionCount: number;
+}
+
+// =============================================================================
+// Sơ đồ tổ chức — /api/v1/org-units
+// =============================================================================
+
+/** Một bảng `org_units` dùng chung cho Xí nghiệp (MOD-02) và phòng ban (MOD-04) — CLAUDE.md quy tắc 7. */
+export type OrgUnitType = 'CONG_TY' | 'PHONG_BAN' | 'XI_NGHIEP' | 'TO_DOI';
+
+export interface OrgUnitNode {
+  publicId: string;
+  code: string;
+  name: string;
+  shortName: string | null;
+  unitType: OrgUnitType;
+  path: string;
+  depth: number;
+  sortOrder: number;
+  active: boolean;
+  children: OrgUnitNode[];
+}
+
+export interface OrgUnitSummary {
+  publicId: string;
+  code: string;
+  name: string;
+  shortName: string | null;
+  unitType: OrgUnitType;
+  path: string;
+  depth: number;
+  active: boolean;
+}
+
+export interface CreateOrgUnitRequest {
+  code: string;
+  name: string;
+  shortName?: string;
+  unitType: OrgUnitType;
+  /** Bỏ trống = nút gốc; toàn hệ thống chỉ được đúng một nút gốc. */
+  parentPublicId?: string;
+}
+
+// =============================================================================
+// Cấu hình — /api/v1/settings
+// =============================================================================
+
+export type SettingValueType = 'STRING' | 'INTEGER' | 'DECIMAL' | 'BOOLEAN' | 'JSON' | 'CRON';
+
+export interface SettingView {
+  key: string;
+  value: string | null;
+  /** Giá trị đang có hiệu lực = `value` nếu có, không thì `defaultValue`. */
+  effectiveValue: string | null;
+  valueType: string;
+  defaultValue: string | null;
+  groupCode: string;
+  label: string;
+  description: string | null;
+  /** Chuỗi kiểu `min=7;max=365` — FE dựng ô nhập theo đó, backend vẫn là nơi chốt. */
+  validation: string | null;
+  editable: boolean;
+  exportable: boolean;
+}
+
+export interface SettingImportResult {
+  changed: number;
+  skippedKeys: string[];
+}
+
+// =============================================================================
+// Nhật ký kiểm toán — /api/v1/audit-logs
+// =============================================================================
+
+export type AuditAction =
+  | 'CREATE'
+  | 'UPDATE'
+  | 'DELETE'
+  | 'RESTORE'
+  | 'LOGIN'
+  | 'LOGOUT'
+  | 'LOGIN_FAILED'
+  | 'PERMISSION_CHANGE'
+  | 'EXPORT'
+  | 'IMPORT'
+  | 'APPROVE'
+  | 'REJECT'
+  | 'PUBLISH'
+  | 'BACKUP'
+  | 'DB_RESTORE';
+
+export interface AuditLogView {
+  seq: number;
+  occurredAt: string;
+  actorUserId: number | null;
+  actorUsername: string | null;
+  module: string | null;
+  entityType: string | null;
+  entityId: number | null;
+  entityPublicId: string | null;
+  action: AuditAction;
+  oldValue: string | null;
+  newValue: string | null;
+  ipAddress: string | null;
+  traceId: string | null;
+}
+
+export interface ChainBreak {
+  seq: number;
+  occurredAt: string;
+  /** Câu tiếng Việt do hàm trong CSDL sinh — hiển thị thẳng. */
+  reason: string;
+}
+
+export interface ChainVerification {
+  intact: boolean;
+  minSeq: number;
+  maxSeq: number;
+  totalRecords: number;
+  breaks: ChainBreak[];
+}
+
+// =============================================================================
+// Sao lưu & khôi phục — /api/v1/backups (M5.10, M5.11)
+// =============================================================================
+
+export type BackupStatus = 'RUNNING' | 'SUCCEEDED' | 'FAILED';
+export type BackupTrigger = 'SCHEDULED' | 'MANUAL' | 'PRE_RESTORE';
+
+export interface BackupView {
+  id: string;
+  fileName: string;
+  sizeBytes: number | null;
+  checksumSha256: string | null;
+  status: BackupStatus;
+  trigger: BackupTrigger;
+  startedAt: string;
+  finishedAt: string | null;
+  durationMs: number | null;
+  /** Chỉ có ở lượt THẤT BẠI — và đó là dòng đáng đọc nhất màn hình này. */
+  errorMessage: string | null;
+}
+
+export interface BackupStatusView {
+  lastSuccess: BackupView | null;
+  ageSeconds: number | null;
+  staleThresholdHours: number;
+  /** Chưa từng sao lưu cũng tính là quá hạn — xem BackupController. */
+  stale: boolean;
+  scheduleEnabled: boolean;
+  /** Môi trường này có bật khôi phục qua giao diện không (`DB_RESTORE_PASSWORD`). */
+  restoreAvailable: boolean;
+}
+
+export interface RestoreRequest {
+  confirmation: string;
+  reason: string;
+  totpCode: string;
+}
+
+// =============================================================================
+// Việc chạy nền — /api/v1/jobs (conventions.md §1.3)
+// =============================================================================
+
+export type JobStatus = 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED';
+
+export interface JobAccepted {
+  jobId: string;
+  statusUrl: string;
+}
+
+export interface JobStatusView {
+  jobId: string;
+  jobType: string;
+  status: JobStatus;
+  progress: number;
+  attempts: number;
+  maxAttempts: number;
+  createdAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  result: string | null;
+  lastError: string | null;
+}
+
+// =============================================================================
+// Thông báo — /api/v1/notifications
+// =============================================================================
+
+export type NotificationSeverity = 'INFO' | 'WARNING' | 'DANGER';
+
+export interface InboxEntry {
+  recipientId: number;
+  title: string;
+  body: string | null;
+  linkUrl: string | null;
+  severity: NotificationSeverity;
+  eventType: string;
+  broadcast: boolean;
+  createdAt: string;
+  readAt: string | null;
+}
+
+export interface BroadcastRequest {
+  title: string;
+  body: string;
+  severity?: NotificationSeverity;
+  linkUrl?: string;
+  /** Bỏ trống = gửi toàn bộ tài khoản đang hoạt động. */
+  userIds?: number[];
+}
+
+// =============================================================================
+// Tình trạng hệ thống — /api/v1/system/health (M5.12)
+// =============================================================================
+
+export type HealthStatus = 'UP' | 'DOWN' | 'OUT_OF_SERVICE' | 'UNKNOWN';
+
+export interface HealthComponentView {
+  status: HealthStatus;
+  details: Record<string, unknown>;
+}
+
+export interface HealthView {
+  status: HealthStatus;
+  /** Khoá: `db`, `storage`, `mail`, `backup`, `telemetry`. */
+  components: Record<string, HealthComponentView>;
+}
+
+// =============================================================================
+// Tệp đính kèm — /api/v1/attachments
+// =============================================================================
+
+export type ScanStatus = 'PENDING' | 'CLEAN' | 'INFECTED' | 'SKIPPED';
+export type AttachmentStatus = 'UPLOADING' | 'READY' | 'QUARANTINED';
+
+export interface AttachmentView {
+  publicId: string;
+  originalName: string;
+  contentType: string;
+  sizeBytes: number;
+  fileVersion: number;
+  status: AttachmentStatus;
+  scanStatus: ScanStatus;
+  /** Ngày (không giờ) — chuỗi `yyyy-MM-dd`, không phải Instant. */
+  validFrom: string | null;
+  validUntil: string | null;
+  /** Backend đã tính sẵn: còn hiệu lực + quét sạch. FE **không tự suy lại** (§1.4). */
+  downloadable: boolean;
+}
+
+export interface DownloadUrl {
+  /** Có hạn ngắn và bỏ qua phân quyền — không lưu lại, không chia sẻ. */
+  url: string;
+}
+
+// =============================================================================
+// Dashboard điều hành — /api/v1/ops/dashboard (CN-02.5, CN-02.6)
+// =============================================================================
+
+export type KpiTone = 'NORMAL' | 'WARNING' | 'DANGER' | 'UNKNOWN';
+
+/**
+ * Một ô KPI.
+ *
+ * ⛔ `value === null` nghĩa là **chưa có nguồn dữ liệu**, khác hẳn `0` (đã đo và bằng
+ * không). Backend cố ý gửi `"value": null` tường minh thay vì bỏ khoá — bỏ khoá thì phía
+ * này đọc ra `undefined`, không phân biệt được với "API đổi tên trường".
+ */
+export interface KpiView {
+  key: string;
+  label: string;
+  value: number | null;
+  /** Mẫu số khi ô là một tỉ lệ ("32 / 40"). */
+  total: number | null;
+  tone: KpiTone;
+  /** Luôn có khi `value` rỗng — backend ép ở tầng kiểu. */
+  unavailableReason: string | null;
+  /** Hạng mục sẽ mang dữ liệu về, VD `"WS-18 (CN-02.2)"`. */
+  availableIn: string | null;
+}
+
+export interface BucketView {
+  key: string;
+  label: string;
+  count: number;
+}
+
+export interface ConstructionStatisticsView {
+  total: number;
+  withoutLocation: number;
+  byType: BucketView[];
+  byStatus: BucketView[];
+  byOrgUnit: BucketView[];
+  byManagementLevel: BucketView[];
+}
+
+/** Cấu hình bản đồ nền — đọc từ `settings`, đổi nguồn không phải dựng lại ảnh admin-app. */
+export interface MapConfigView {
+  tileUrl: string;
+  attribution: string;
+  centerLat: number;
+  centerLng: number;
+  defaultZoom: number;
+  maxZoom: number;
+}
+
+export interface DashboardView {
+  generatedAt: string;
+  /** Chu kỳ tự làm mới (M2.15) — do backend đọc từ `settings` mỗi lượt gọi. */
+  autoRefreshSeconds: number;
+  /** Chu kỳ tự chuyển khối ở chế độ màn hình lớn. */
+  wallRotateSeconds: number;
+  kpis: KpiView[];
+  statistics: ConstructionStatisticsView;
+  map: MapConfigView;
+}
+
+export type ConstructionType = 'TRAM_BOM' | 'CONG' | 'KENH_MUONG' | 'DE_DIEU' | 'KHAC';
+export type OperationalStatus =
+  'BINH_THUONG' | 'CANH_BAO' | 'SU_CO' | 'BAO_TRI' | 'NGUNG_MUA_VU' | 'DA_THANH_LY';
+export type LifecycleState = 'DANG_HOAT_DONG' | 'NGUNG_MUA_VU' | 'DA_THANH_LY';
+export type ManagementLevel = 'CONG_TY' | 'XI_NGHIEP' | 'CUM';
+export type ConstructionPurpose = 'TUOI' | 'TIEU' | 'TUOI_TIEU_KET_HOP' | 'KHAC';
+
+/** Một dòng trên danh sách — cố ý gọn, không kéo theo thông số kỹ thuật. */
+export interface ConstructionRow {
+  publicId: string;
+  code: string;
+  name: string;
+  constructionType: ConstructionType;
+  managementLevel: ManagementLevel | null;
+  orgUnitName: string | null;
+  clusterName: string | null;
+  riverName: string | null;
+  chainage: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  located: boolean;
+  lifecycleState: LifecycleState;
+  operationalStatus: OperationalStatus;
+  updatedAt: string;
+}
+
+export interface PumpSpecView {
+  totalPowerKw: number | null;
+  pumpCount: number | null;
+  standbyPumpCount: number | null;
+  flowPerPumpM3s: number | null;
+  totalFlowM3s: number | null;
+  headM: number | null;
+  powerSource: string | null;
+  voltageKv: number | null;
+  operatingLevelMinM: number | null;
+  operatingLevelMaxM: number | null;
+}
+
+export interface SluiceSpecView {
+  sluiceType: string | null;
+  bayCount: number | null;
+  bayWidthM: number | null;
+  sillElevationM: number | null;
+  crestElevationM: number | null;
+  designFlowM3s: number | null;
+  gateOperation: string | null;
+  upstreamWarningLevelM: number | null;
+  upstreamDangerLevelM: number | null;
+}
+
+export interface LinearSpecView {
+  lengthKm: number | null;
+  startChainage: string | null;
+  endChainage: string | null;
+  designFlowM3s: number | null;
+  crestElevationM: number | null;
+  technicalGrade: string | null;
+  crossSection: string | null;
+  specNote: string | null;
+}
+
+/** Hồ sơ đầy đủ — kèm đúng khối thông số của loại công trình đó, ba khối kia là null. */
+export interface ConstructionDetail {
+  summary: ConstructionRow;
+  orgUnitId: string | null;
+  clusterId: string | null;
+  purpose: ConstructionPurpose | null;
+  address: string | null;
+  chainageM: number | null;
+  basinNote: string | null;
+  builtYear: number | null;
+  commissionedYear: number | null;
+  designer: string | null;
+  contractor: string | null;
+  totalInvestment: number | null;
+  description: string | null;
+  pump: PumpSpecView | null;
+  sluice: SluiceSpecView | null;
+  linear: LinearSpecView | null;
+}
+
+/** Marker trên bản đồ — nội dung popup theo M2.10. */
+export interface MapPointView {
+  publicId: string;
+  code: string;
+  name: string;
+  constructionType: ConstructionType;
+  operationalStatus: OperationalStatus;
+  orgUnitName: string | null;
+  latitude: number;
+  longitude: number;
+}
+
+// =============================================================================
+// Danh mục Tình trạng Vận hành (Mã màu & Cấu hình)
+// =============================================================================
+
+/**
+ * Mã tình hình vận hành (CN-02.11).
+ *
+ * ⛔ Không có trường `id`. Khoá nội bộ không đi ra tới trình duyệt — đường dẫn PUT/DELETE dựng từ
+ * `publicId`. Bản trước nhận `id: number` và dùng nó làm `rowKey` lẫn tham số đường dẫn.
+ */
+export interface OperationStatusCode {
+  publicId: string;
+  code: string;
+  name: string;
+  hasParameter: boolean;
+  parameterUnit: string | null;
+  colorHex: string;
+  mappedStatus: OperationalStatus | null;
+  sortOrder: number;
+  active: boolean;
+}
+
+export type MaintenanceType =
+  'SUA_CHUA' | 'BAO_TRI_DINH_KY' | 'NANG_CAP' | 'THAY_THE_THIET_BI' | 'KHAC_PHUC_SU_CO';
+
+export type IncidentSeverity = 'NGHIEM_TRONG' | 'CAO' | 'TRUNG_BINH' | 'THAP';
+
+/** Một dòng lịch sử sửa chữa / bảo trì / khắc phục sự cố — CN-02.2. */
+export interface MaintenanceRow {
+  id: string;
+  code: string;
+  constructionId: string;
+  constructionCode: string | null;
+  constructionName: string | null;
+  workType: MaintenanceType;
+  severity: IncidentSeverity | null;
+  status: string;
+  startedOn: string | null;
+  completedOn: string | null;
+  content: string;
+  itemOrEquipment: string | null;
+  /** Đơn vị nội bộ HOẶC nhà thầu ngoài — backend đã gộp, giao diện không phải biết hai cột. */
+  performer: string | null;
+  performerIsInternal: boolean;
+  cost: string | null;
+  fundingSource: string | null;
+  acceptanceResult: string | null;
+  acceptanceNote: string | null;
+  assigneeUserId: string | null;
+  alertEventId: string | null;
+  createdAt: string;
+}
+
+/**
+ * Một bước chuyển được phép bấm LÚC NÀY — khớp `com.songnhue.core.spi.AllowedAction`,
+ * do `WorkflowEngine.allowedActions()` lọc theo `workflow_transitions` + quyền của người
+ * đang đăng nhập.
+ *
+ * ⚠ Khai ở đây chứ không mượn kiểu của `ApprovalActions.tsx`: `shared/` không được phụ
+ * thuộc ngược vào `components/` — cả codebase đang đi một chiều `components → shared`.
+ */
+export interface AllowedActionView {
+  action: string;
+  label: string;
+  /** Trạng thái sau khi bấm — để nói trước hệ quả cho người dùng. */
+  toState: string;
+  /**
+   * Bước này bắt buộc kèm lý do → mở ô nhập trước khi gửi.
+   *
+   * ⚠⚠ Đọc từ `workflow_transitions.requires_reason`, **cùng một dòng** mà
+   * `WorkflowEngine.execute` dùng để ép buộc. Trước đây cờ này chỉ tồn tại ở kiểu phía giao
+   * diện và không nơi nào điền, nên nó luôn `undefined`: hộp thoại nhập lý do không bao giờ
+   * mở, người duyệt bấm "Yêu cầu chỉnh sửa" thì backend trả `SYS-0003` đòi lý do mà màn hình
+   * không có ô nào để nhập. Thao tác trả bài về sửa hỏng hẳn theo đúng cách đó.
+   */
+  requiresReason: boolean;
+}
+
+export interface MaintenanceDetail {
+  record: MaintenanceRow;
+  actions: AllowedActionView[];
+}
+
+/** Tổng chi phí kỳ — tính ở BE (quy tắc 3), FE chỉ hiển thị. Khớp `MaintenanceLogService.CostSummary`. */
+export interface MaintenanceCostSummary {
+  /** Chuỗi, không phải number: `BigDecimal` phía BE, và `number` của JS làm tròn sai tiền (quy tắc 2). */
+  total: string;
+  recordCount: number;
+  from: string;
+  to: string;
+}
+
+/** Một tài liệu của công trình (CN-02.3). Đi bằng `publicId`, không có khoá nội bộ. */
+export interface ConstructionDocument {
+  publicId: string;
+  originalName: string;
+  docType: string;
+  contentType: string;
+  sizeBytes: number;
+  fileVersion: number;
+  downloadable: boolean;
+  uploadedAt: string;
+  issuedDate: string | null;
+  expiryDate: string | null;
+}
+
+export interface ConstructionDocumentList {
+  usedBytes: number;
+  items: ConstructionDocument[];
+}
+
+/** Một dòng lịch sử tình hình vận hành của công trình. */
+export interface OperationStatusRow {
+  publicId: string;
+  operationCode: string;
+  operationName: string;
+  colorHex: string;
+  parameterValue: string | null;
+  parameterUnit: string | null;
+  note: string | null;
+  effectiveAt: string;
+}
+
+/**
+ * Một dòng nhập nhanh tình hình vận hành.
+ *
+ * ⚠ `operationCode` là mã trong danh mục `operation_status_codes` (MT / ĐK / …), **không phải**
+ * `OperationalStatus`. Trạng thái công trình là giá trị dẫn xuất — quy tắc 4 cấm mọi đường cho người
+ * dùng đặt thẳng nó, và bản trước của màn hình nhập nhanh làm đúng điều bị cấm đó.
+ */
+export interface OperationStatusBatchItem {
+  constructionPublicId: string;
+  operationCode: string;
+  parameterValue?: string;
+  note?: string;
+  effectiveAt: string;
+}
+
+export interface OperationStatusCodeCreateRequest {
+  code: string;
+  name: string;
+  hasParameter: boolean;
+  parameterUnit?: string;
+  colorHex: string;
+  mappedStatus?: OperationalStatus;
+  sortOrder: number;
+  active: boolean;
+}
+
+export type OperationStatusCodeUpdateRequest = OperationStatusCodeCreateRequest;
+
+// =============================================================================
+// Nhập danh mục (T17.9)
+// =============================================================================
+
+export interface RowError {
+  rowNumber: number;
+  column: string | null;
+  message: string;
+}
+
+export interface ImportReport {
+  applied: boolean;
+  totalRows: number;
+  toCreate: number;
+  toUpdate: number;
+  errors: RowError[];
+}

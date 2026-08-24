@@ -1,0 +1,272 @@
+# =============================================================================
+# CD Production — CHỈ chạy khi có người ra lệnh (WS-11 / T11.8)
+#
+# Cố ý KHÔNG có trigger `push`. Merge vào `production` không tự deploy: đưa lên
+# môi trường thật là một quyết định vận hành, có thời điểm của nó (ngoài giờ
+# hành chính, sau khi đã báo Công ty), chứ không phải hệ quả tự động của một
+# thao tác git.
+#
+# Ba lớp chặn trước khi một byte nào chạm production:
+#   1. `environment: production` — GitHub dừng lại chờ người duyệt bấm nút.
+#   2. Commit yêu cầu phải là tổ tiên của `staging` — tức là đã chạy thật ở đó.
+#   3. `pg_dump` trước khi deploy — điểm quay lui DUY NHẤT về dữ liệu, vì hệ này
+#      không có PITR (architecture-review.md §6.5).
+# =============================================================================
+name: CD Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: 'Commit SHA cần đưa lên (đầy đủ 40 ký tự, lấy từ nhánh staging)'
+        required: true
+        type: string
+      reason:
+        description: 'Lý do / số hiệu yêu cầu — đi vào nhật ký vận hành'
+        required: true
+        type: string
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  deploy:
+    name: Triển khai Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Môi trường có required reviewer — xem docs/branch-protection.md §4.3.
+    # Đây là chỗ lượt chạy dừng lại chờ người bấm duyệt.
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ⚠ Chặn đúng cái sai nguy hiểm nhất của deploy thủ công: gõ nhầm một SHA
+      # chưa bao giờ chạy ở staging. Không có bước này thì "manual deploy" nghĩa
+      # là "ai gõ gì cũng lên được".
+      - name: Commit này đã qua staging chưa
+        run: |
+          set -euo pipefail
+          sha="${{ inputs.commit_sha }}"
+
+          if ! git cat-file -e "$sha^{commit}" 2>/dev/null; then
+            echo "::error::Không tìm thấy commit $sha trong repo."
+            exit 1
+          fi
+
+          git fetch origin staging --depth=0 2>/dev/null || git fetch origin staging
+          if ! git merge-base --is-ancestor "$sha" origin/staging; then
+            echo "::error::Commit $sha KHÔNG nằm trong lịch sử của nhánh staging."
+            echo "Luồng đã chốt: dev → staging → production. Chỉ đưa lên production thứ đã chạy thật ở staging."
+            exit 1
+          fi
+          echo "✓ $sha đã có trong staging"
+
+      # ⚠⚠ PHẢI đăng nhập TRƯỚC khi tra image (sửa 19/8) — cùng lỗi với
+      #   `deploy-staging.yml`. Gói GHCR riêng tư kể cả khi repo công khai
+      #   (kiểm chứng: manifest ẩn danh trả **403**), nên tra trước khi đăng
+      #   nhập thì luôn trượt, rồi báo sai hẳn nguyên nhân là "chưa qua CI".
+      - name: Đăng nhập GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ⚠⚠ BA image, không phải một — xem ghi chú cùng chỗ ở deploy-staging.yml.
+      #    Triển khai backend mới dưới giao diện cũ là lỗi câm: API có mã lỗi,
+      #    trường và quyền mới mà màn hình không biết tới.
+      #
+      # ⚠ SHA nhập vào là MỐC ĐỀ BẠT, không nhất thiết là SHA của image.
+      #   Bản đầu tra đúng `app:<sha>` rồi báo lỗi nếu không có, kèm lời dặn
+      #   "phải lấy SHA của commit backend gần nhất". Tức là bắt người vận hành
+      #   đi lục lịch sử CI vào đúng lúc căng thẳng nhất — và đoán sai thì đưa
+      #   nhầm bản lên production. Lùi tự động như bên staging, cùng một quy tắc,
+      #   nên cái chạy ở staging chính là cái lên production.
+      - name: Xác định image
+        id: image
+        run: |
+          set -euo pipefail
+          anchor="${{ inputs.commit_sha }}"
+          candidates="$(git rev-list --first-parent -n 50 "$anchor")"
+
+          for target in app admin-app public-web; do
+            registry="ghcr.io/${{ github.repository }}/$target"
+            sha=""
+            for candidate in $candidates; do
+              if docker manifest inspect "$registry:$candidate" >/dev/null 2>&1; then
+                sha="$candidate"
+                break
+              fi
+            done
+
+            if [ -z "$sha" ]; then
+              echo "::error::Không tìm thấy image '$target' trong 50 commit gần nhất tính từ $anchor"
+              echo "Kiểm tra: (1) gói GHCR còn image đó không (chính sách xoá gói cũ?);"
+              echo "(2) lượt CD Staging tương ứng có xanh không — nếu staging chạy được thì"
+              echo "image phải còn; (3) bước đăng nhập GHCR phía trên có xanh không."
+              exit 1
+            fi
+
+            [ "$sha" != "$anchor" ] && echo "ℹ $target: mốc đề bạt không có image — dùng bản gần nhất $sha"
+            echo "✓ $registry:$sha"
+            echo "$(echo "$target" | tr '-' '_')_image=$registry:$sha" >> "$GITHUB_OUTPUT"
+          done
+
+      - name: Kiểm tra đã có cấu hình máy chủ chưa
+        id: target
+        run: |
+          if [ -z "${{ secrets.PROD_HOST }}" ]; then
+            echo "::warning::Chưa cấu hình secret PROD_HOST — bỏ qua bước triển khai."
+            echo "VM-1 và compose.prod.yml thuộc WS-11 (T11.2, T11.3)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ⚠ Điểm quay lui DUY NHẤT về dữ liệu. Hệ này không có PITR — bản dump đêm
+      # trước là thứ gần nhất, và migration hỏng lúc 10h sáng thì mất cả buổi
+      # làm việc. Dump ngay trước khi deploy là chỗ rẻ nhất để bù rủi ro đó
+      # (T11.5, architecture-review.md §6.5 rủi ro #3).
+      # ⚠⚠ Đồng bộ cấu hình TRƯỚC bước dump — xem ghi chú đầy đủ ở
+      #    deploy-staging.yml. Thứ tự quan trọng: `pre-deploy-dump.sh` là một
+      #    trong những tệp được đồng bộ, và bản trên máy chủ có thể đã cũ.
+      # ⛔ CỐ Ý KHÔNG chép `.env` và `keys/`.
+      - name: Đồng bộ cấu hình lên máy chủ
+        if: steps.target.outputs.ready == 'true'
+        env:
+          SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
+          HOST: ${{ secrets.PROD_HOST }}
+          USER: ${{ secrets.PROD_USER }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+          rsync -az --delete \
+            --exclude '.env' --exclude 'env/' --exclude 'keys/' \
+            --exclude 'compose.local.yml' --exclude 'compose.infra.yml' \
+            deploy/ "$USER@$HOST:/opt/songnhue/"
+          ssh "$USER@$HOST" 'chmod +x /opt/songnhue/backup/*.sh'
+
+      - name: pg_dump trước khi triển khai
+        if: steps.target.outputs.ready == 'true'
+        env:
+          HOST: ${{ secrets.PROD_HOST }}
+          USER: ${{ secrets.PROD_USER }}
+        run: |
+          set -euo pipefail
+          ssh "$USER@$HOST" bash -euo pipefail <<'REMOTE'
+            cd /opt/songnhue
+            ./backup/pre-deploy-dump.sh
+          REMOTE
+
+      - name: Triển khai lên VPS-1
+        if: steps.target.outputs.ready == 'true'
+        env:
+          HOST: ${{ secrets.PROD_HOST }}
+          USER: ${{ secrets.PROD_USER }}
+          APP_IMAGE: ${{ steps.image.outputs.app_image }}
+          ADMIN_IMAGE: ${{ steps.image.outputs.admin_app_image }}
+          PUBLIC_IMAGE: ${{ steps.image.outputs.public_web_image }}
+        run: |
+          set -euo pipefail
+          # ⚠ Heredoc KHÔNG trích dẫn: ba biến ảnh phải được runner thay TRƯỚC
+          #   khi chuỗi lệnh đi qua SSH — máy chủ không biết chúng.
+          ssh "$USER@$HOST" bash -euo pipefail <<REMOTE
+            cd /opt/songnhue
+            export APP_IMAGE="$APP_IMAGE"
+            export ADMIN_IMAGE="$ADMIN_IMAGE"
+            export PUBLIC_IMAGE="$PUBLIC_IMAGE"
+
+            # Kéo TRƯỚC, đổi SAU. Kéo mất vài phút; làm sau khi đã dừng dịch vụ
+            # là kéo dài thời gian gián đoạn vì một việc không cần gián đoạn.
+            docker compose --env-file .env -f compose.prod.yml pull
+
+            docker compose --env-file .env -f compose.prod.yml run --rm migrator
+
+            docker compose --env-file .env -f compose.prod.yml up -d \
+                app admin-app public-web nginx
+
+            docker image prune -f --filter "until=168h" || true
+          REMOTE
+
+      - name: Smoke test
+        if: steps.target.outputs.ready == 'true'
+        env:
+          BASE_URL: ${{ secrets.PROD_BASE_URL }}
+        run: |
+          set -euo pipefail
+          # ⚠⚠ ĐÍCH ĐO ĐỔI 24/8. Bản trước hỏi `$BASE_URL/actuator/health/readiness`
+          #    — một đường dẫn KHÔNG ĐI TỚI ĐÂU từ bên ngoài. nginx biên chỉ định
+          #    tuyến `/api/` và `/` sang hai image giao diện; không khối `location`
+          #    nào chuyển `/actuator` sang `app`. Đo thật trên image đã dựng:
+          #      public-web  → 404
+          #      admin-app   → 200, nhưng là TRANG HTML của SPA
+          #    Trường hợp thứ hai nguy hiểm hơn: `curl -f` đi qua, chỉ có phép so
+          #    chuỗi cứu. Nghĩa là lượt deploy đầu tiên sẽ đỏ sau đúng 5 phút chờ,
+          #    vì một endpoint chưa từng phục vụ được ai.
+          #
+          #    Thay bằng một endpoint CÔNG KHAI THẬT, và nó đo được nhiều hơn hẳn:
+          #    nginx biên → public-web → Route Handler `/api/v1/[...path]` → app →
+          #    postgres (bảng `settings`). Readiness của actuator, kể cả khi định
+          #    tuyến được, cũng chỉ chứng minh tiến trình còn sống — không chứng
+          #    minh một byte nào đi hết chặng người dùng thật đi (CLAUDE.md luật 8).
+          #
+          # ⚠ Không viết `curl … | grep -q` dưới `pipefail`: grep thoát ngay khi
+          #   khớp, curl nhận SIGPIPE (141) và pipefail biến cả pipeline thành
+          #   thất bại DÙ ĐÃ KHỚP. Hứng ra biến rồi mới so.
+          for i in $(seq 1 30); do
+            body=$(curl -fsS "$BASE_URL/api/v1/public/site-config" || true)
+            case "$body" in
+              *'"success":true'*)
+                echo "✓ Production đi hết chặng nginx → public-web → app → postgres sau ${i}0 giây"
+                exit 0 ;;
+            esac
+            sleep 10
+          done
+          echo "::error::Production không trả envelope thành công sau 5 phút — cân nhắc quay lui theo docs/runbook."
+          echo "Chẩn đoán theo thứ tự: (1) \`curl -sI \$BASE_URL/healthz\` — nginx sống chưa;"
+          echo "(2) \`docker compose logs app\` — ứng dụng có lên không; (3) \`docker compose ps\`."
+          exit 1
+
+      # ⚠ Gắn tag SAU khi smoke test xanh. Gắn trước thì tag `production` trỏ vào
+      #   một bản chưa chứng minh được là chạy được, và đó chính là tag người ta
+      #   sẽ nhìn vào lúc hoảng để biết "đang chạy cái gì".
+      - name: Gắn tag `production`
+        if: steps.target.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          for pair in \
+            "app:${{ steps.image.outputs.app_image }}" \
+            "admin-app:${{ steps.image.outputs.admin_app_image }}" \
+            "public-web:${{ steps.image.outputs.public_web_image }}"; do
+            name="${pair%%:*}"; ref="${pair#*:}"
+            docker buildx imagetools create \
+              --tag "ghcr.io/${{ github.repository }}/$name:production" "$ref"
+          done
+
+      - name: Ghi tóm tắt
+        if: always()
+        run: |
+          {
+            echo "### Triển khai Production"
+            echo "- Mốc đề bạt: \`${{ inputs.commit_sha }}\`"
+            echo "- Lý do: ${{ inputs.reason }}"
+            echo "- Người ra lệnh: @${{ github.actor }}"
+            echo "- backend: \`${{ steps.image.outputs.app_image }}\`"
+            echo "- admin-app: \`${{ steps.image.outputs.admin_app_image }}\`"
+            echo "- public-web: \`${{ steps.image.outputs.public_web_image }}\`"
+            echo ""
+            echo "**Quay lui**: chạy lại workflow này với mốc đề bạt của lần trước."
+            echo "Nếu migration đã đổi lược đồ thì phải khôi phục từ bản chụp"
+            echo "\`predeploy-*\` sinh ra ở đầu lượt này — xem \`docs/runbook/khoi-phuc-du-lieu.md\`."
+          } >> "$GITHUB_STEP_SUMMARY"

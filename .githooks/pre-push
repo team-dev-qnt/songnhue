@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Chặn đẩy một nhánh đã lỗi thời sau squash merge — xem
+# `.githooks/check-branch-freshness.sh` để biết vì sao cần.
+# Bật hook: make hooks
+set -euo pipefail
+
+if [ -n "${SKIP_BRANCH_CHECK:-}" ]; then
+    echo "  ⚠ SKIP_BRANCH_CHECK — bỏ qua phép kiểm nhánh lỗi thời" >&2
+    exit 0
+fi
+
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec "$HOOK_DIR/check-branch-freshness.sh"
