@@ -38,6 +38,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      # `fetch-depth: 0` lấy đủ lịch sử của NHÁNH ĐANG CHECKOUT, không lấy nhánh khác.
+      # Bước dưới cần `origin/dev` để đối chiếu cây tệp khi PR bị squash.
+      - name: Nạp thêm nhánh dev để đối chiếu
+        run: git fetch --no-tags origin +refs/heads/dev:refs/remotes/origin/dev
+
       # ⚠ `github.sha` ở đây là commit MERGE vừa tạo trên `staging`, không phải
       # commit của `dev` — mà image lại được gắn tag theo commit của `dev`.
       # Với merge commit, cha thứ hai (HEAD^2) chính là đỉnh của `dev` lúc merge.
@@ -71,12 +76,48 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Đường THIẾT KẾ: merge commit → cha thứ hai chính là đỉnh `dev` lúc merge.
           if git rev-parse -q --verify HEAD^2 >/dev/null; then
             dev_tip="$(git rev-parse HEAD^2)"
+            echo "Đỉnh dev đang đề bạt: $dev_tip  (cha thứ hai của merge commit)"
           else
-            dev_tip="$(git rev-parse HEAD)"
+            # ⚠⚠ KHÔNG có cha thứ hai = PR đã bị **squash** hoặc **rebase**, hoặc ai đó
+            #    đẩy thẳng vào `staging`. Bản trước rơi về `git rev-parse HEAD` — tức là
+            #    SHA của chính commit trên `staging`, một SHA CHƯA BAO GIỜ tồn tại trên
+            #    `dev` và vì thế không có image nào mang nó.
+            #
+            #    Cái giá của bản rơi-về-HEAD ấy không phải là "hỏng", mà là **hỏng ở sai
+            #    chỗ**: vòng lặp bên dưới lùi theo lịch sử của `staging` — một nhánh có
+            #    gốc khác hẳn — rồi báo *"không tìm thấy image trong 50 commit"* kèm ba
+            #    bước chẩn đoán trỏ vào job đóng gói, gói GHCR và bước đăng nhập. Cả ba
+            #    đều là ngõ cụt: image có đủ, job xanh, đăng nhập xanh. Đã xảy ra thật ở
+            #    lượt CD Staging đầu tiên (25/8).
+            #
+            #    Nay đối chiếu bằng **CÂY TỆP** thay vì bằng quan hệ cha–con. Cây giống
+            #    nhau là bằng chứng MẠNH HƠN quan hệ cha con cho đúng câu đang hỏi — "mã
+            #    trên staging có đúng là mã đã dựng ra image này không" — vì nó so nội
+            #    dung thật, không so mối liên kết.
+            cay="$(git rev-parse 'HEAD^{tree}')"
+            dev_tip="$(git rev-list -n 200 origin/dev | while read -r c; do
+                if [ "$(git rev-parse "$c^{tree}")" = "$cay" ]; then echo "$c"; break; fi
+              done)"
+
+            if [ -z "$dev_tip" ]; then
+              echo "::error::Commit trên staging không có cha thứ hai, VÀ cây tệp của nó không khớp commit nào trong 200 commit gần nhất của dev."
+              echo ""
+              echo "Gần như chắc chắn PR vào staging đã được **Squash** hoặc **Rebase** thay vì"
+              echo "**Create a merge commit** — và sau đó staging còn bị sửa thêm."
+              echo ""
+              echo "Luồng đề bạt dựa vào merge commit để nối staging với commit dev đã dựng image."
+              echo "Xem docs/branch-protection.md §2.3: đó là lý do required_linear_history TẮT ở staging."
+              exit 1
+            fi
+
+            echo "::warning::Commit trên staging KHÔNG có cha thứ hai — PR đã bị squash/rebase."
+            echo "Đối chiếu theo cây tệp: nội dung staging trùng khít dev@$dev_tip nên dùng image của commit đó."
+            echo "⚠ Lần sau chọn 'Create a merge commit' khi merge vào staging."
+            echo "Đỉnh dev đang đề bạt: $dev_tip  (khớp theo cây tệp)"
           fi
-          echo "Đỉnh dev đang đề bạt: $dev_tip"
 
           # Danh sách ứng viên tính MỘT lần rồi dùng cho cả ba image — gọi
           # `git rev-list` ba lần trên cùng một commit chỉ tốn thêm thời gian.

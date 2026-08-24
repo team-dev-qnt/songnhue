@@ -58,6 +58,23 @@ không bịt được.
 2. **Đúng commit đang đề bạt** đã xanh CI ở chặng trước — hỏi API check-runs của chính SHA đó, chứ
    không phải "nhánh dev nói chung đang xanh". `dev` hoàn toàn có thể vừa nhận một commit đỏ.
 
+### 2.3-b. ⛔⛔ Merge vào `staging`/`production` PHẢI chọn **Create a merge commit**
+
+`required_linear_history` tắt ở hai nhánh này **cho phép** merge commit, nhưng không **ép** ai chọn
+nó — hộp thoại merge của GitHub vẫn có đủ ba nút, và bấm nhầm là một cú click.
+
+Bấm nhầm rồi thì hỏng thế nào: `deploy-staging.yml` lấy đỉnh `dev` bằng `HEAD^2`. Squash sinh commit
+**một cha**, nên mối liên hệ với commit `dev` đã dựng image bị cắt đứt, và lượt deploy không biết
+phải kéo image nào.
+
+📌 **Đã xảy ra ở lượt CD Staging đầu tiên (25/8)** — nguyên nhân gốc `architecture-review.md` §10.42.
+Workflow nay có đường cứu bằng cách đối chiếu **cây tệp**, nhưng đó là lưới an toàn, không phải
+đường đi: nó chỉ hoạt động khi `staging` chưa bị sửa gì thêm sau lượt squash.
+
+⚠ GitHub **không** cho đặt phương thức merge theo từng nhánh đích. `dev` bật
+`required_linear_history` nên repo buộc phải cho phép squash — tức là không thể tắt squash ở cấp
+repo để chặn. Đây là chỗ chỉ con người nhớ được, nên nó nằm ở đây và ở đầu `deploy-staging.yml`.
+
 ### 2.3. ⚠ `required_linear_history` chỉ bật ở `dev`
 
 Nghe ngược đời, nhưng: chặng đề bạt cần **merge commit thật** để SHA của `dev` nằm nguyên trong
