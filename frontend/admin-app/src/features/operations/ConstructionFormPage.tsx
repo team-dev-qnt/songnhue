@@ -2,9 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App, Button, Card, Form, Space, Steps, Tabs } from 'antd';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useAuth } from '@/app/auth/useAuth';
 
-import { AttachmentPanel } from '@/components/business/AttachmentPanel';
 import {
   type ConstructionDetail,
   type ConstructionPurpose,
@@ -22,7 +20,10 @@ import { StepBasicInfo } from './components/form-steps/StepBasicInfo';
 import { StepLocation } from './components/form-steps/StepLocation';
 import { StepTechnical } from './components/form-steps/StepTechnical';
 import { StepFinance } from './components/form-steps/StepFinance';
+import { locKhoiThongSo } from './constructionRules';
 import { ConstructionChangeLogDrawer } from './components/ConstructionChangeLogDrawer';
+import { ConstructionDocumentsPanel } from './components/ConstructionDocumentsPanel';
+import { ConstructionMaintenancePanel } from './components/ConstructionMaintenancePanel';
 
 export interface ConstructionFormValues {
   code: string;
@@ -60,7 +61,6 @@ export function ConstructionFormPage() {
   const { publicId } = useParams<{ publicId: string }>();
   const isEdit = !!publicId;
   const navigate = useNavigate();
-  const { hasPermission } = useAuth();
   const { message } = App.useApp();
   const queryClient = useQueryClient();
 
@@ -105,13 +105,8 @@ export function ConstructionFormPage() {
 
   const save = useMutation({
     mutationFn: (values: ConstructionFormValues) => {
-      // Ensure only the correct spec block is sent
-      const payload = {
-        ...values,
-        pump: values.constructionType === 'TRAM_BOM' ? values.pump : null,
-        sluice: values.constructionType === 'CONG' ? values.sluice : null,
-        linear: ['KENH_MUONG', 'DE_DIEU'].includes(values.constructionType) ? values.linear : null,
-      };
+      // Xoá khối thông số không thuộc loại đang chọn — xem javadoc `locKhoiThongSo`.
+      const payload = locKhoiThongSo(values);
 
       if (isEdit) {
         return api.put(`/ops/constructions/${publicId}`, payload);
@@ -230,12 +225,7 @@ export function ConstructionFormPage() {
           label: 'Tài liệu đính kèm',
           children: (
             <Card>
-              <AttachmentPanel
-                ownerType="CONSTRUCTION"
-                ownerId={publicId as unknown as number} // backend expects UUID for construction? The AttachmentPanel expects number. We pass publicId string
-                canUpload={hasPermission('ops:construction:update')}
-                canDelete={hasPermission('ops:construction:update')}
-              />
+              <ConstructionDocumentsPanel publicId={publicId as string} />
             </Card>
           ),
         },
@@ -244,9 +234,7 @@ export function ConstructionFormPage() {
           label: 'Lịch sử sửa chữa',
           children: (
             <Card>
-              <div style={{ color: '#595959', padding: '24px 0', textAlign: 'center' }}>
-                Lịch sử sửa chữa sẽ được tích hợp trong phiên bản sau.
-              </div>
+              <ConstructionMaintenancePanel constructionPublicId={publicId as string} />
             </Card>
           ),
         },

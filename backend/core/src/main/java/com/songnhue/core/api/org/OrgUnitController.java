@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.songnhue.core.application.org.OrgUnitNode;
 import com.songnhue.core.application.org.OrgUnitService;
+import com.songnhue.core.common.security.AuthenticatedEndpoint;
 import com.songnhue.core.common.security.RequirePermission;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -40,6 +41,33 @@ public class OrgUnitController {
 
     public OrgUnitController(OrgUnitService service) {
         this.service = service;
+    }
+
+    /**
+     * Cây đơn vị để <b>chọn trong biểu mẫu</b> — chỉ cần đăng nhập.
+     *
+     * <h2>Vì sao phải tách khỏi {@link #tree()}</h2>
+     *
+     * <p>Javadoc của lớp này vẫn ghi đúng chủ ý từ WS-6: *"xem thì gần như ai cũng cần (chọn đơn vị
+     * trong biểu mẫu), còn sửa cấu trúc là việc của quản trị"*. Nhưng cả hai đường đọc đều đứng sau
+     * {@code adm:org-unit:view} — một quyền chỉ nhóm quản trị có.
+     *
+     * <p>Hệ quả đo được: {@code TECHNICIAN} là vai trò <b>duy nhất</b> có
+     * {@code ops:construction:create}, mà biểu mẫu tạo hồ sơ công trình bắt buộc chọn đơn vị quản lý
+     * → ô chọn gọi {@code /tree} → <b>403</b>. Biểu mẫu tạo công trình chưa từng dùng được bởi đúng
+     * vai trò sở hữu nó. Cùng hình dạng với {@code /ops/operation-status-codes/active}: một màn hình
+     * nhập liệu bị buộc phải gọi đường quản trị, và cách "chữa" duy nhất còn lại là cấp quyền quản
+     * trị cho người nhập liệu — tức là nới quyền để giao diện chạy được.
+     *
+     * <p><b>Lộ ra gì.</b> Tên và mã đơn vị, thứ đã in trên mọi văn bản nội bộ và hiện ở chân trang
+     * cổng công khai. Không có số liệu, không có nhân sự, không sửa được gì. Đổi lại,
+     * {@code adm:org-unit:view} giữ nguyên nghĩa "được xem màn hình quản trị sơ đồ tổ chức".
+     */
+    @GetMapping("/selectable")
+    @Operation(summary = "Cây đơn vị cho ô chọn trong biểu mẫu — chỉ cần đăng nhập")
+    @AuthenticatedEndpoint(reason = "Ô chọn đơn vị có mặt ở biểu mẫu của mọi module; chỉ trả mã và tên")
+    public List<OrgUnitNode> selectable() {
+        return service.tree();
     }
 
     @GetMapping("/tree")

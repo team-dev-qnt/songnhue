@@ -5,9 +5,14 @@ import java.util.UUID;
 import com.songnhue.operations.domain.OperationStatusCode;
 import com.songnhue.operations.domain.OperationalStatus;
 
-/** Phản hồi danh mục mã tình hình vận hành — không lộ trường nội bộ. */
+/**
+ * Phản hồi danh mục mã tình hình vận hành.
+ *
+ * <p>⛔ <b>Không có trường {@code id}.</b> Bản trước trả cả khoá nội bộ, và giao diện dùng đúng nó để
+ * dựng đường dẫn {@code PUT/DELETE} — nghĩa là khoá tự tăng đi ra tới trình duyệt rồi quay lại. Đây
+ * là điều {@code BaseEntity} đã ghi cấm ngay ở javadoc trường {@code publicId} từ WS-4.
+ */
 public record OperationStatusCodeResponse(
-        Long id,
         UUID publicId,
         String code,
         String name,
@@ -20,7 +25,6 @@ public record OperationStatusCodeResponse(
 
     public static OperationStatusCodeResponse from(OperationStatusCode entity) {
         return new OperationStatusCodeResponse(
-                entity.getId(),
                 entity.getPublicId(),
                 entity.getCode(),
                 entity.getName(),

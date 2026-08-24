@@ -31,6 +31,14 @@ public interface ConstructionRepository extends JpaRepository<Construction, Long
 
     Optional<Construction> findByPublicIdAndDeletedAtIsNull(UUID publicId);
 
+    /**
+     * Toàn bộ hồ sơ còn sống — dùng cho job đối soát trạng thái.
+     *
+     * <p>Có mặt để thay {@code findAll()}: câu đó gồm cả hồ sơ đã xoá mềm, nên job tính lại trạng
+     * thái cho những bản ghi không màn hình nào đọc và báo ra con số "N lệch" phồng bằng dòng rác.
+     */
+    List<Construction> findByDeletedAtIsNull();
+
     /** Tra theo mã — dùng ở đường nhập hàng loạt để biết dòng nào là thêm mới, dòng nào là cập nhật. */
     Optional<Construction> findByCodeAndDeletedAtIsNull(String code);
 

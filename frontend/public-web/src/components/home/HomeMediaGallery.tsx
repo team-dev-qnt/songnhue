@@ -49,7 +49,7 @@ interface HomeMediaGalleryProps {
  * - Thư viện hình ảnh các công trình thủy lợi tiêu biểu.
  */
 export function HomeMediaGallery({
-  videoId = 'dQw4w9WgXcQ', // Hoặc ID video phóng sự chính thức của Sông Nhuệ
+  videoId = 'Mb70qe84eqU', // Hoặc ID video phóng sự chính thức của Sông Nhuệ
   videoTitle = 'Phóng sự: Nỗ lực đảm bảo nguồn nước phục vụ sản xuất và phòng chống thiên tai lưu vực Sông Nhuệ',
   photos = DEFAULT_PHOTOS,
 }: HomeMediaGalleryProps) {

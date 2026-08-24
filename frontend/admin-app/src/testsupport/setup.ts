@@ -6,20 +6,30 @@ import '@testing-library/jest-dom/vitest';
  * `matchMedia` không tồn tại trong jsdom nhưng AntD gọi nó lúc dựng bố cục đáp ứng —
  * thiếu thì component nào dùng Grid/Layout cũng ném lỗi ngay ở lần render đầu, và thông
  * báo lỗi chẳng liên quan gì tới thứ đang kiểm.
+ *
+ * ⚠ `setupFiles` chạy cho MỌI bài, kể cả bài khai `@vitest-environment node` (VD
+ * `buildConfig.test.ts` phải nạp `vite.config.ts` thật, mà `fileURLToPath` ở đó đòi
+ * `import.meta.url` dạng `file://` — jsdom cho ra `http://localhost/…`). Ở môi trường node
+ * thì không có `window`, và tệp này từng ném `ReferenceError: window is not defined` làm cả
+ * bộ hỏng trước khi chạy bài nào. Những bản giả dưới đây chỉ có nghĩa khi CÓ DOM.
  */
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: (query: string) => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: () => {},
-    removeListener: () => {},
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    dispatchEvent: () => false,
-  }),
-});
+const coDom = typeof window !== 'undefined';
+
+if (coDom) {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }),
+  });
+}
 
 /**
  * `ResizeObserver` cũng không có trong jsdom.
@@ -35,7 +45,7 @@ class ResizeObserverGia {
   unobserve(): void {}
   disconnect(): void {}
 }
-if (!('ResizeObserver' in window)) {
+if (coDom && !('ResizeObserver' in window)) {
   Object.defineProperty(window, 'ResizeObserver', { writable: true, value: ResizeObserverGia });
 }
 

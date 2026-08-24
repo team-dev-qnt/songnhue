@@ -2,7 +2,6 @@ import Link from 'next/link';
 
 import { getMenu, getSiteConfig } from '@/lib/api';
 import { fileUrl, isExternal, menuHref, ROUTES } from '@/lib/routes';
-import { SITE } from '@/lib/site';
 
 /**
  * Chân trang cổng thông tin điện tử — CN-01.5 (T15.3).
@@ -15,10 +14,21 @@ import { SITE } from '@/lib/site';
 export async function SiteFooter() {
   const [config, menu] = await Promise.all([getSiteConfig(), getMenu('FOOTER')]);
 
-  const siteName = config?.['site.name'] ?? SITE.name;
+  const siteName =
+    config?.['site.name'] ?? 'CÔNG TY TNHH MỘT THÀNH VIÊN ĐẦU TƯ PHÁT TRIỂN THỦY LỢI SÔNG NHUỆ';
   // ⚠ Nhóm `company.*` là nhận diện pháp nhân, sửa được trên màn hình cấu hình hệ thống.
   // Trước đây địa chỉ, điện thoại, fax, email và số đường dây nóng ghi cứng ngay trong tệp này —
   // đổi số điện thoại của một doanh nghiệp nhà nước phải sửa mã nguồn và dựng lại image.
+  //
+  // ⛔⛔ RỖNG là giá trị dự phòng ĐÚNG, không phải chỗ bỏ trống vì lười. Ngày 24/8 một bản vá giao
+  //     diện đã đặt lại đúng bộ giá trị thật vào đây làm `??` dự phòng, và nó khôi phục nguyên
+  //     trạng lỗi cũ theo một hình dạng khó thấy hơn: màn hình vẫn đúng, nên không ai biết rằng số
+  //     điện thoại người dân gọi khi có sự cố lại đang nằm trong mã nguồn. Sáu khoá dưới đây đã
+  //     được seed đủ ở `V202608241255`, nên rỗng ở đây KHÔNG làm mất nội dung — nó chỉ bắt buộc
+  //     nội dung phải đi ra từ `settings`.
+  //
+  //     Và khi cấu hình thật sự chưa có, ô rỗng mới là câu trả lời trung thực (luật 16): một số
+  //     điện thoại cũ hiện ra như thể còn hiệu lực nguy hiểm hơn hẳn một ô trống.
   const diaChi = config?.['company.address'] ?? '';
   const dienThoai = config?.['company.phone'] ?? '';
   const fax = config?.['company.fax'] ?? '';
@@ -62,7 +72,7 @@ export async function SiteFooter() {
   ];
 
   return (
-    <footer className="mt-16 w-full border-t border-white/10 bg-gradient-to-b from-[#103d75] via-[#18529d] to-[#0b2e59] text-white">
+    <footer className="mt-16 w-full border-t border-white/10 bg-gradient-to-b from-[#081e3a] via-[#0c294e] to-[#05172c] text-white">
       {/* ───── 1. Dải tiếp nhận thông tin trực ban / Hotline bão lũ ───── */}
       <div className="border-b border-white/10 bg-[#0b2e59]/80 py-3 text-xs text-white sm:text-sm">
         <div className="mx-auto flex max-w-[1240px] flex-col items-center justify-between gap-2 px-4 sm:flex-row sm:px-6">
@@ -98,11 +108,10 @@ export async function SiteFooter() {
 
       {/* ───── 2. Khối nội dung chính (4 cột trên nền Full Blue Gradient) ───── */}
       <div className="mx-auto grid max-w-[1240px] gap-8 px-4 py-10 text-sm sm:grid-cols-2 sm:px-6 lg:grid-cols-12">
-        {/* Cột 1: Thông tin cơ quan & Trụ sở (4/12 cột) */}
         <div className="space-y-3.5 lg:col-span-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white p-1 shadow-xs">
-              <img src={logo} alt={siteName} className="h-full w-full object-contain" />
+            <div className="flex h-12 shrink-0 items-center justify-center">
+              <img src={logo} alt={siteName} className="h-full w-auto object-contain" />
             </div>
             <div className="flex flex-col">
               <span className="font-bold uppercase tracking-tight text-white drop-shadow-xs">
@@ -124,20 +133,20 @@ export async function SiteFooter() {
             <div className="space-y-2 text-xs text-white/85">
               <p className="flex items-start gap-2">
                 <span className="shrink-0 font-semibold text-white">Trụ sở:</span>
-                <span>{diaChi}</span>
+                <span className="uppercase">{diaChi}</span>
               </p>
               <p className="flex items-center gap-2">
-                <span className="shrink-0 font-semibold text-white">Điện thoại:</span>
+                <span className="shrink-0 font-semibold text-white">LIÊN HỆ:</span>
                 <span>
                   {dienThoai}
-                  {fax ? ` — Fax: ${fax}` : ''}
+                  {fax ? ` FAX: ${fax}` : ''}
                 </span>
               </p>
               <p className="flex items-center gap-2">
-                <span className="shrink-0 font-semibold text-white">Email:</span>
+                <span className="shrink-0 font-semibold text-white">EMAIL:</span>
                 <span className="font-medium text-sky-200">{email}</span>
               </p>
-              <p className="flex items-center gap-2">
+              <p className="flex items-start gap-2">
                 <span className="shrink-0 font-semibold text-white">Giờ làm việc:</span>
                 <span>{gioLamViec}</span>
               </p>

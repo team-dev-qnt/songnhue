@@ -485,9 +485,29 @@ Quy tắc chung (áp dụng cả hai):
 5. Message lỗi mới vào catalog (BE + FE error-map).
 6. Không vi phạm ArchUnit; lint + CVE scan xanh.
 
-## 10. Task Tracking (SSoT)
+## 6. Task Tracking (SSoT)
+
+> Đánh số mục này trước đây là **§10** trong khi mục liền trước là §5 — không có §6–§9 nào cả. Mọi
+> chỗ trỏ tới "conventions.md §10" đều nói về mục này.
 
 - Mọi thao tác cập nhật tiến độ, đánh dấu hoàn thành `[x]`, hoặc thêm take note đều CHỈ ĐƯỢC PHÉP thực hiện tại file `.claude/master-tracking.md`.
 - Tuyệt đối tuân thủ quy tắc tổng hợp: xóa bỏ mọi icon, markdown thừa; mô tả vắn tắt đúng trọng tâm hành động.
-- Cú pháp quy ước: `- [x] T1.1: Tên task | Date: DD/MM/YYYY | Note: ghi chú ngắn gọn` (phần Date và Note là tuỳ chọn).
-- Các file phase cũ (phase0, phase1...) chỉ là tài liệu lưu trữ, cấm sửa đổi.
+- Các file phase cũ (`phase0-tracking.md`, `phase1-tracking.md`) chỉ là tài liệu lưu trữ, cấm sửa đổi. ⛔ Cũng cấm **tạo file tracking mới**: đã từng có `phase1-execution-tracking.md` ra đời ngay sau khi luật này được viết, và nó lệch khỏi `master-tracking.md` ở 29 mã số task.
+
+### Ba loại dòng, và chỉ ba loại
+
+| Loại | Cú pháp | Ví dụ |
+|---|---|---|
+| **Công việc** | `- [x] T1.1: Tên task \| Date: DD/MM/YYYY \| Note: …` | `- [x] T19.4: Mắt xích 4 \| Date: 23/08/2026` |
+| **Ghi chú sổ nợ** | `- [x] Nhận nợ WS-5: …` / `Trả nợ …` / `Kèm theo …` | không mang mã số |
+| **Definition of Done** | `- [ ] DOD0.7: …` / `DOD1.15: …`, nằm dưới mục `## DoD Phase n` | |
+
+Trạng thái chỉ dùng `[x]` (Xong) · `[~]` (Đang làm) · `[ ]` (Chưa làm).
+
+### Phép kiểm canh chừng
+
+`.agents/mcp/google_sheets_sync/test_parse.py` chạy trên **chính** file này và đỏ khi: mã số task
+trùng nhau · một dòng công việc mất mã số · khoá nhóm bị tách làm hai (`## WS-19` và `## 1. WS-19`).
+
+Cả ba đều đã xảy ra thật và đều không có triệu chứng nào cho tới lúc có phép kiểm: 310/310 dòng mất
+mã số, 29 mã số trùng trong đó 19 cặp mâu thuẫn trạng thái.

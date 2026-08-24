@@ -80,21 +80,45 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # ⚠⚠ BA image, không phải một — xem ghi chú cùng chỗ ở deploy-staging.yml.
+      #    Triển khai backend mới dưới giao diện cũ là lỗi câm: API có mã lỗi,
+      #    trường và quyền mới mà màn hình không biết tới.
+      #
+      # ⚠ SHA nhập vào là MỐC ĐỀ BẠT, không nhất thiết là SHA của image.
+      #   Bản đầu tra đúng `app:<sha>` rồi báo lỗi nếu không có, kèm lời dặn
+      #   "phải lấy SHA của commit backend gần nhất". Tức là bắt người vận hành
+      #   đi lục lịch sử CI vào đúng lúc căng thẳng nhất — và đoán sai thì đưa
+      #   nhầm bản lên production. Lùi tự động như bên staging, cùng một quy tắc,
+      #   nên cái chạy ở staging chính là cái lên production.
       - name: Xác định image
         id: image
         run: |
           set -euo pipefail
-          registry="ghcr.io/${{ github.repository }}/app"
-          sha="${{ inputs.commit_sha }}"
+          anchor="${{ inputs.commit_sha }}"
+          candidates="$(git rev-list --first-parent -n 50 "$anchor")"
 
-          if ! docker manifest inspect "$registry:$sha" >/dev/null 2>&1; then
-            echo "::error::Không có image $registry:$sha"
-            echo "Kiểm tra theo thứ tự: (1) SHA nhập vào có đúng là commit ĐÃ qua CI của dev không"
-            echo "— commit chỉ sửa tài liệu thì không có image riêng, phải lấy SHA của commit backend"
-            echo "gần nhất (xem tóm tắt của lượt CD Staging tương ứng); (2) gói GHCR còn image đó không."
-            exit 1
-          fi
-          echo "ref=$registry:$sha" >> "$GITHUB_OUTPUT"
+          for target in app admin-app public-web; do
+            registry="ghcr.io/${{ github.repository }}/$target"
+            sha=""
+            for candidate in $candidates; do
+              if docker manifest inspect "$registry:$candidate" >/dev/null 2>&1; then
+                sha="$candidate"
+                break
+              fi
+            done
+
+            if [ -z "$sha" ]; then
+              echo "::error::Không tìm thấy image '$target' trong 50 commit gần nhất tính từ $anchor"
+              echo "Kiểm tra: (1) gói GHCR còn image đó không (chính sách xoá gói cũ?);"
+              echo "(2) lượt CD Staging tương ứng có xanh không — nếu staging chạy được thì"
+              echo "image phải còn; (3) bước đăng nhập GHCR phía trên có xanh không."
+              exit 1
+            fi
+
+            [ "$sha" != "$anchor" ] && echo "ℹ $target: mốc đề bạt không có image — dùng bản gần nhất $sha"
+            echo "✓ $registry:$sha"
+            echo "$(echo "$target" | tr '-' '_')_image=$registry:$sha" >> "$GITHUB_OUTPUT"
+          done
 
       - name: Kiểm tra đã có cấu hình máy chủ chưa
         id: target
@@ -111,7 +135,11 @@ jobs:
       # trước là thứ gần nhất, và migration hỏng lúc 10h sáng thì mất cả buổi
       # làm việc. Dump ngay trước khi deploy là chỗ rẻ nhất để bù rủi ro đó
       # (T11.5, architecture-review.md §6.5 rủi ro #3).
-      - name: pg_dump trước khi triển khai
+      # ⚠⚠ Đồng bộ cấu hình TRƯỚC bước dump — xem ghi chú đầy đủ ở
+      #    deploy-staging.yml. Thứ tự quan trọng: `pre-deploy-dump.sh` là một
+      #    trong những tệp được đồng bộ, và bản trên máy chủ có thể đã cũ.
+      # ⛔ CỐ Ý KHÔNG chép `.env` và `keys/`.
+      - name: Đồng bộ cấu hình lên máy chủ
         if: steps.target.outputs.ready == 'true'
         env:
           SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
@@ -123,25 +151,52 @@ jobs:
           echo "$SSH_KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
+          rsync -az --delete \
+            --exclude '.env' --exclude 'env/' --exclude 'keys/' \
+            --exclude 'compose.local.yml' --exclude 'compose.infra.yml' \
+            deploy/ "$USER@$HOST:/opt/songnhue/"
+          ssh "$USER@$HOST" 'chmod +x /opt/songnhue/backup/*.sh'
+
+      - name: pg_dump trước khi triển khai
+        if: steps.target.outputs.ready == 'true'
+        env:
+          HOST: ${{ secrets.PROD_HOST }}
+          USER: ${{ secrets.PROD_USER }}
+        run: |
+          set -euo pipefail
           ssh "$USER@$HOST" bash -euo pipefail <<'REMOTE'
             cd /opt/songnhue
             ./backup/pre-deploy-dump.sh
           REMOTE
 
-      - name: Triển khai lên VM-1
+      - name: Triển khai lên VPS-1
         if: steps.target.outputs.ready == 'true'
         env:
           HOST: ${{ secrets.PROD_HOST }}
           USER: ${{ secrets.PROD_USER }}
-          IMAGE: ${{ steps.image.outputs.ref }}
+          APP_IMAGE: ${{ steps.image.outputs.app_image }}
+          ADMIN_IMAGE: ${{ steps.image.outputs.admin_app_image }}
+          PUBLIC_IMAGE: ${{ steps.image.outputs.public_web_image }}
         run: |
           set -euo pipefail
+          # ⚠ Heredoc KHÔNG trích dẫn: ba biến ảnh phải được runner thay TRƯỚC
+          #   khi chuỗi lệnh đi qua SSH — máy chủ không biết chúng.
           ssh "$USER@$HOST" bash -euo pipefail <<REMOTE
             cd /opt/songnhue
-            export APP_IMAGE="$IMAGE"
-            docker compose -f compose.prod.yml pull
-            docker compose -f compose.prod.yml run --rm migrator
-            docker compose -f compose.prod.yml up -d app nginx
+            export APP_IMAGE="$APP_IMAGE"
+            export ADMIN_IMAGE="$ADMIN_IMAGE"
+            export PUBLIC_IMAGE="$PUBLIC_IMAGE"
+
+            # Kéo TRƯỚC, đổi SAU. Kéo mất vài phút; làm sau khi đã dừng dịch vụ
+            # là kéo dài thời gian gián đoạn vì một việc không cần gián đoạn.
+            docker compose --env-file .env -f compose.prod.yml pull
+
+            docker compose --env-file .env -f compose.prod.yml run --rm migrator
+
+            docker compose --env-file .env -f compose.prod.yml up -d \
+                app admin-app public-web nginx
+
+            docker image prune -f --filter "until=168h" || true
           REMOTE
 
       - name: Smoke test
@@ -175,20 +230,35 @@ jobs:
           echo "::error::Production không trả health UP sau 5 phút — cân nhắc quay lui theo docs/runbook."
           exit 1
 
+      # ⚠ Gắn tag SAU khi smoke test xanh. Gắn trước thì tag `production` trỏ vào
+      #   một bản chưa chứng minh được là chạy được, và đó chính là tag người ta
+      #   sẽ nhìn vào lúc hoảng để biết "đang chạy cái gì".
       - name: Gắn tag `production`
         if: steps.target.outputs.ready == 'true'
         run: |
-          docker buildx imagetools create \
-            --tag "ghcr.io/${{ github.repository }}/app:production" \
-            "${{ steps.image.outputs.ref }}"
+          set -euo pipefail
+          for pair in \
+            "app:${{ steps.image.outputs.app_image }}" \
+            "admin-app:${{ steps.image.outputs.admin_app_image }}" \
+            "public-web:${{ steps.image.outputs.public_web_image }}"; do
+            name="${pair%%:*}"; ref="${pair#*:}"
+            docker buildx imagetools create \
+              --tag "ghcr.io/${{ github.repository }}/$name:production" "$ref"
+          done
 
       - name: Ghi tóm tắt
         if: always()
         run: |
           {
             echo "### Triển khai Production"
-            echo "- Commit: \`${{ inputs.commit_sha }}\`"
+            echo "- Mốc đề bạt: \`${{ inputs.commit_sha }}\`"
             echo "- Lý do: ${{ inputs.reason }}"
             echo "- Người ra lệnh: @${{ github.actor }}"
-            echo "- Image: \`${{ steps.image.outputs.ref }}\`"
+            echo "- backend: \`${{ steps.image.outputs.app_image }}\`"
+            echo "- admin-app: \`${{ steps.image.outputs.admin_app_image }}\`"
+            echo "- public-web: \`${{ steps.image.outputs.public_web_image }}\`"
+            echo ""
+            echo "**Quay lui**: chạy lại workflow này với mốc đề bạt của lần trước."
+            echo "Nếu migration đã đổi lược đồ thì phải khôi phục từ bản chụp"
+            echo "\`predeploy-*\` sinh ra ở đầu lượt này — xem \`docs/runbook/khoi-phuc-du-lieu.md\`."
           } >> "$GITHUB_STEP_SUMMARY"

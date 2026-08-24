@@ -179,8 +179,12 @@ public class AttachmentService implements AttachmentPort {
     public String downloadUrl(UUID publicId) {
         Attachment attachment = require(publicId);
         if (!attachment.isDownloadable()) {
+            // ⚠ Báo `status`, KHÔNG báo `scanStatus`. Điều kiện chặn là `status == READY`; bản trước
+            // in ra trạng thái quét, nên một tệp đã quét sạch mà chưa READY sẽ báo *"chưa sẵn sàng
+            // để tải xuống (trạng thái quét: CLEAN)"* — câu đó tự mâu thuẫn và dẫn người đọc đi tra
+            // nhầm chỗ. Thông điệp lỗi phải nêu đúng cái đang chặn.
             throw new BusinessRuleException(
-                    ErrorCode.SYS_0009, attachment.getScanStatus().name());
+                    ErrorCode.SYS_0009, attachment.getStatus().name());
         }
         return storage.presignedGetUrl(attachment.getStorageBucket(), attachment.getStorageKey(), DOWNLOAD_URL_TTL);
     }

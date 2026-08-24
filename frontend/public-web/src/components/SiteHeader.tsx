@@ -159,17 +159,20 @@ export async function SiteHeader() {
   const [config, menu] = await Promise.all([getSiteConfig(), getMenu('HEADER')]);
 
   const siteName = config?.['site.name'] ?? SITE.name;
-  const shortName = config?.['site.slogan'] || SITE.shortName;
   const logo = fileUrl(config?.['site.logo.attachment-id']) || '/logo-song-nhue.png';
-  // Số trực ban 24/7 — đọc từ nhóm `company.*` trong bảng settings
+  // Số trực ban 24/7 — đọc từ nhóm `company.*` trong bảng settings.
+  //
+  // ⛔ Dự phòng phải RỖNG. Cùng số này còn hiện ở chân trang; ghi cứng ở hai tệp thì sửa số trên
+  //    giao diện chỉ đổi được một nơi, và hai con số khác nhau trên cùng một trang tệ hơn hẳn một
+  //    con số cũ. Khoá `company.hotline` đã seed ở `V202608241255`.
   const hotline = config?.['company.hotline'] ?? '';
   const activeMenu = menu && menu.length > 0 ? menu : DEFAULT_HEADER_MENU;
   const tree = buildMenuTree(activeMenu);
 
   return (
     <>
-      {/* ───── Tầng 1: Dải nhận diện thương hiệu (Nền Gradient Xanh Sông Nước Rõ Nét, Logo Nổi Bật) ───── */}
-      <div className="w-full border-b border-[#165bb6]/25 bg-gradient-to-r from-[#bfd9f8] via-[#d5e7fb] to-[#b4d3f6] shadow-xs">
+      {/* ───── Tầng 1: Dải nhận diện thương hiệu (Đồng bộ background với Navigator) ───── */}
+      <div className="w-full border-b border-white/10 bg-gradient-to-r from-[#061b37] via-[#0b2d5b] to-[#061b37] shadow-xs">
         <div className="mx-auto flex max-w-[1240px] items-center justify-between px-4 py-3 sm:px-6 sm:py-3.5">
           {/* Logo & Tên cơ quan */}
           <Link href={ROUTES.home} className="group flex items-center gap-3.5 sm:gap-4">
@@ -178,14 +181,9 @@ export async function SiteHeader() {
               alt={siteName}
               className="h-14 w-auto object-contain transition-transform duration-300 ease-smooth group-hover:scale-105 sm:h-16"
             />
-            <div className="flex flex-col">
-              <span className="text-sm font-black uppercase tracking-tight text-[#06244f] drop-shadow-2xs transition-colors duration-200 sm:text-base md:text-lg">
-                {siteName}
-              </span>
-              <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#12498f] sm:text-xs">
-                {shortName}
-              </span>
-            </div>
+            <span className="text-sm font-black uppercase tracking-tight text-white drop-shadow-2xs transition-colors duration-200 sm:text-base md:text-lg">
+              {siteName}
+            </span>
           </Link>
 
           {/* Hotline / Thông tin nhanh bên phải */}
@@ -224,7 +222,7 @@ export async function SiteHeader() {
       {/* ───── Tầng 2: Thanh điều hướng chính (Sticky Navigation Bar - Capslock) ───── */}
       <nav
         aria-label="Điều hướng chính"
-        className="sticky top-0 z-40 w-full border-b border-black/20 bg-gradient-to-r from-[#0c366e] via-[#165bb6] to-[#0c366e] text-white shadow-md backdrop-blur-md"
+        className="sticky top-0 z-40 w-full border-b border-black/20 bg-gradient-to-r from-[#061b37] via-[#0b2d5b] to-[#061b37] text-white shadow-md backdrop-blur-md"
       >
         <div className="mx-auto flex max-w-[1240px] items-center justify-between px-4 sm:px-6">
           <ul className="flex flex-wrap items-center gap-1 text-xs font-bold uppercase tracking-wider sm:text-[13px]">

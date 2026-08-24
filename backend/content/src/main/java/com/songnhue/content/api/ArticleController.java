@@ -26,7 +26,6 @@ import com.songnhue.content.application.ArticleService;
 import com.songnhue.content.domain.Article;
 import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
-import com.songnhue.core.common.exception.ValidationException;
 import com.songnhue.core.common.security.RequirePermission;
 import com.songnhue.core.common.util.PageUtils;
 import com.songnhue.core.spi.UserDirectoryPort;
@@ -144,13 +143,15 @@ public class ArticleController {
     @RequirePermission("cms:article:view")
     public ArticleDtos.ArticleDetail transition(
             @PathVariable UUID publicId, @Valid @RequestBody ArticleDtos.TransitionRequest request) {
-
-        if ("REQUEST_CHANGES".equals(request.action())
-                && (request.reason() == null || request.reason().isBlank())) {
-            // Trả bài mà không nói vì sao thì người viết chỉ biết là "bị từ chối" — vòng lặp sửa/gửi
-            // lại sẽ chạy vài lượt trước khi hai bên hiểu nhau.
-            throw new ValidationException(ErrorCode.SYS_0003, "reason", "Phải nêu lý do khi yêu cầu chỉnh sửa");
-        }
+        // ⛔ Ở đây TỪNG có một dòng khai cứng `"REQUEST_CHANGES".equals(action) && blank(reason)`.
+        //    Nó đúng về nghiệp vụ nhưng sai chỗ: giao diện quyết định mở ô nhập lý do dựa vào cờ
+        //    `requiresReason` trong `AllowedAction`, mà record ấy KHÔNG có cờ đó và không nơi nào
+        //    điền — nên người duyệt bấm "Yêu cầu chỉnh sửa" là gặp tường, không có đường nhập lý
+        //    do và cũng không có đường đi tiếp. Hai bản sao của một luật, đặt ở hai nơi, đã lệch.
+        //
+        //    Nay luật nằm ở `workflow_transitions.requires_reason`; engine vừa quảng cáo cờ cho
+        //    giao diện vừa ép buộc lúc `execute` (luật 12). Controller không còn biết tên hành
+        //    động nào cả — thêm một bước đòi lý do là một dòng UPDATE, không phải sửa mã.
         Article saved = articles.execute(publicId, request.action(), request.reason());
         return ArticleDtos.ArticleDetail.of(saved, articles.allowedActions(publicId), Instant.now());
     }

@@ -1,0 +1,312 @@
+# =============================================================================
+# PRODUCTION — VPS-1 (WS-11 / T11.3)
+#
+# Đặt tại /opt/songnhue/compose.prod.yml. Chạy bằng:
+#   docker compose --env-file .env -f compose.prod.yml up -d
+# Nhưng bình thường KHÔNG gõ tay — `.github/workflows/deploy-prod.yml` gõ hộ.
+#
+# ⭐ KHÁC compose.local.yml ở đúng ba điểm, và cả ba đều có lý do:
+#
+#   1. KHÔNG có `build:` ở đâu cả. Image được đóng gói MỘT LẦN ở CI của `dev`,
+#      gắn thẻ theo commit SHA, rồi đề bạt nguyên vẹn qua staging tới đây.
+#      Build lại trên máy chủ nghĩa là production chạy một image chưa ai thử,
+#      dù commit y hệt — và máy chủ 8GB không phải chỗ để chạy Maven.
+#   2. KHÔNG có `ports:` nào trỏ ra ngoài trừ nginx. Postgres và MinIO không có
+#      một cổng nào chạm host: chúng chỉ tồn tại trong mạng nội bộ của compose.
+#   3. KHÔNG có mailpit. Thư đi bằng SMTP thật.
+# =============================================================================
+name: songnhue
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 16 + PostGIS
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: songnhue-postgres
+    restart: unless-stopped
+    # ⛔ KHÔNG mở `ports`. Cần psql thì đi qua `docker compose exec postgres`
+    #    hoặc mở đường hầm SSH — cả hai đều đòi đã vào được máy. Mở 5432 ra
+    #    Internet là mời máy quét tự động vào dò mật khẩu 24/7.
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Bốn vai trò tách quyền do script khởi tạo tạo ra (T2.7). Chỉ chạy ở lần
+      # dựng volume ĐẦU TIÊN — volume đã có dữ liệu thì Postgres bỏ qua initdb.
+      DB_APP_PASSWORD: ${DB_PASSWORD}
+      DB_MIGRATION_PASSWORD: ${DB_MIGRATION_PASSWORD}
+      DB_ARCHIVER_PASSWORD: ${DB_ARCHIVER_PASSWORD}
+      DB_READONLY_PASSWORD: ${DB_READONLY_PASSWORD}
+      # Giờ trong log của Postgres — để đọc log cùng múi giờ với người vận hành.
+      TZ: Asia/Ho_Chi_Minh
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+      # ⚠ Thư mục sao lưu gắn vào ĐÂY nữa, không chỉ ở service `app`.
+      #   `pre-deploy-dump.sh` chạy pg_dump BÊN TRONG container này, vì hai lý do:
+      #   (1) phiên bản pg_dump khớp tuyệt đối với máy chủ — lệch phiên bản là
+      #       bản dump không nạp lại được, mà chỉ lộ ra đúng lúc đang khôi phục;
+      #   (2) nó phải chạy được CẢ KHI `app` đang hỏng, mà lúc cần dump trước
+      #       deploy thì thường app đúng là đang có vấn đề.
+      #   Ghi thẳng vào thư mục gắn ra host, không đẩy luồng nhị phân qua
+      #   `docker exec` — bớt một chỗ có thể làm hỏng byte.
+      - /var/lib/songnhue/backup:/var/lib/songnhue/backup
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    shm_size: 256mb
+    mem_limit: 2g
+
+  # ---------------------------------------------------------------------------
+  # MinIO — kho tệp
+  # ---------------------------------------------------------------------------
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    container_name: songnhue-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      # ⚠ Trình duyệt lấy tệp đính kèm bằng presigned URL, tức là nó gọi THẲNG
+      #   vào MinIO chứ không qua ứng dụng. Chữ ký của URL đó bao gồm cả tên
+      #   máy, nên tên máy mà ứng dụng dùng để ký PHẢI là tên máy mà trình duyệt
+      #   gọi tới. Xem ghi chú `MINIO_ENDPOINT` ở service `app`.
+      MINIO_BROWSER: "off"
+    volumes:
+      - minio-data:/data
+    # ⛔ KHÔNG mở `ports`. Đường ra Internet duy nhất là qua nginx biên, và chỉ
+    #    cổng 9000 (S3 API) — bảng điều khiển 9001 đã tắt hẳn bằng MINIO_BROWSER.
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    mem_limit: 1g
+
+  # Tạo bucket + tài khoản dịch vụ hạn chế cho ứng dụng. Chạy lại nhiều lần
+  # không sao.
+  minio-init:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    container_name: songnhue-minio-init
+    restart: "no"
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET_MEDIA: ${MINIO_BUCKET_MEDIA}
+      MINIO_BUCKET_REPORT: ${MINIO_BUCKET_REPORT}
+      MINIO_BUCKET_AUDIT: ${MINIO_BUCKET_AUDIT}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
+        for b in "$$MINIO_BUCKET_MEDIA" "$$MINIO_BUCKET_REPORT" "$$MINIO_BUCKET_AUDIT"; do
+            mc mb --ignore-existing "local/$$b"
+        done
+        mc version enable "local/$$MINIO_BUCKET_AUDIT"
+        # ⚠ KHÁC local: ở đây ứng dụng KHÔNG dùng tài khoản chủ. Tài khoản chủ
+        #   xoá được cả bucket audit đã bật versioning; ứng dụng không cần
+        #   quyền đó và không được có nó. Chiếm được tiến trình app thì cùng
+        #   lắm mất tệp, không mất bằng chứng đối soát.
+        mc admin user add local "$$MINIO_ACCESS_KEY" "$$MINIO_SECRET_KEY" || true
+        mc admin policy attach local readwrite --user "$$MINIO_ACCESS_KEY" || true
+        echo "✓ Bucket và tài khoản dịch vụ sẵn sàng"
+
+  # ---------------------------------------------------------------------------
+  # migrator — chạy Flyway rồi THOÁT. Không phải service chạy nền.
+  #
+  # `docker compose run --rm migrator` chạy đồng bộ và trả mã thoát, nên
+  # migration hỏng là lượt deploy dừng NGAY, trước khi app mới được khởi động.
+  # App lên với FLYWAY_ENABLED=false nên không có đường nào lách.
+  # ---------------------------------------------------------------------------
+  migrator:
+    image: ${APP_IMAGE:?Thiếu APP_IMAGE - workflow deploy phải export biến này}
+    container_name: songnhue-migrator
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: [.env]
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      # Migrator chỉ chạy DDL, nhưng context Spring vẫn dựng vài bean `@Scheduled`
+      # và chúng kéo theo BackupProperties. Cấp một đường dẫn hợp lệ là đủ.
+      BACKUP_DIR: /var/lib/songnhue/backup
+    command: ["--spring.profiles.active=migrate"]
+    healthcheck:
+      disable: true
+
+  # ---------------------------------------------------------------------------
+  # app — backend
+  # ---------------------------------------------------------------------------
+  app:
+    image: ${APP_IMAGE:?Thiếu APP_IMAGE}
+    container_name: songnhue-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    env_file: [.env]
+    environment:
+      # Lấy từ `.env` để `compose.staging.yml` — vốn `include` chính tệp này —
+      # không phải nhân bản khối service chỉ vì một chữ.
+      # ⚠ Chưa có `application-prod.yml`/`application-staging.yml`; mọi khác biệt
+      #   giữa hai môi trường nằm ở biến môi trường, đúng chủ trương T3.6
+      #   ("chỉ khác nhau ở env, KHÔNG khác code"). Profile ở đây chỉ để gắn nhãn
+      #   và để sau này có chỗ cắm nếu cần.
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      APP_PORT: 8080
+      # ⚠ PHẢI false — migration là việc của service `migrator` ở trên.
+      FLYWAY_ENABLED: "false"
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      # ⚠⚠ ĐÂY LÀ CHỖ DỄ SAI NHẤT CỦA CẢ TỆP NÀY.
+      #
+      #   Trực giác bảo điền `http://minio:9000` cho nhanh và khỏi ra Internet.
+      #   Làm thế thì tải tệp lên chạy tốt, và MỌI nút Tải về đều hỏng:
+      #   `AttachmentService` trả về *presigned URL* để trình duyệt lấy thẳng từ
+      #   MinIO (ObjectStorage.java — cố ý không cho tệp đi qua ứng dụng, vì
+      #   luồng dữ liệu lớn sẽ chiếm hết pool). Chữ ký AWS SigV4 ký CẢ tên máy,
+      #   nên URL ký bằng `minio:9000` là một tên chỉ có nghĩa bên trong Docker:
+      #   trình duyệt không phân giải nổi, và có phân giải được thì chữ ký cũng
+      #   không khớp.
+      #
+      #   Vì thế phải là tên miền công khai. Để tiến trình app không phải đi
+      #   vòng ra Internet rồi quay lại (hairpin NAT — có VPS không làm được),
+      #   service `nginx` bên dưới khai `aliases: [${FILES_DOMAIN}]`: bên trong
+      #   mạng compose, chính tên miền đó phân giải thẳng vào nginx. Chứng chỉ
+      #   Let's Encrypt cấp cho tên đó nên TLS vẫn hợp lệ.
+      #
+      #   📌 Nợ: cách sạch hơn là tách `app.storage.public-endpoint` khỏi
+      #      endpoint nội bộ và dùng hai MinioClient. Xem docs/deploy-guideline.md
+      #      §9.3. Chừng nào chưa làm thì KHÔNG được đổi dòng này về `minio:9000`.
+      MINIO_ENDPOINT: https://${FILES_DOMAIN}
+      BACKUP_DIR: /var/lib/songnhue/backup
+      LOG_FILE: /var/log/songnhue/app.log
+      JWT_PRIVATE_KEY_PATH: /opt/songnhue/keys/jwt-private.pem
+      JWT_PUBLIC_KEY_PATH: /opt/songnhue/keys/jwt-public.pem
+      # Cổng công khai gọi theo TÊN SERVICE trong mạng Docker — dùng tên miền
+      # thật thì lượt dựng lại trang ISR phải đi vòng ra ngoài không cần thiết.
+      PORTAL_BASE_URL: http://public-web:3000
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=70 -XX:+ExitOnOutOfMemoryError -Duser.timezone=UTC"
+    volumes:
+      # ⛔ Khoá KHÔNG BAO GIỜ nằm trong image và không nằm trong bản backup DB.
+      #    Lộ backup + lộ khoá = lộ toàn bộ employee_sensitive.
+      - /opt/songnhue/keys:/opt/songnhue/keys:ro
+      # Bind mount ra host: VPS-2 kéo bản sao lưu từ ĐÚNG thư mục này qua SSH.
+      - /var/lib/songnhue/backup:/var/lib/songnhue/backup
+      - /var/log/songnhue:/var/log/songnhue
+    mem_limit: 3g
+
+  # ---------------------------------------------------------------------------
+  # admin-app — SPA + nginx nội bộ tự chuyển tiếp /api sang app (cùng origin)
+  # ---------------------------------------------------------------------------
+  admin-app:
+    image: ${ADMIN_IMAGE:?Thiếu ADMIN_IMAGE}
+    container_name: songnhue-admin-app
+    restart: unless-stopped
+    environment:
+      API_UPSTREAM: http://app:8080
+    mem_limit: 256m
+
+  # ---------------------------------------------------------------------------
+  # public-web — Next.js standalone
+  # ---------------------------------------------------------------------------
+  public-web:
+    image: ${PUBLIC_IMAGE:?Thiếu PUBLIC_IMAGE}
+    container_name: songnhue-public-web
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      PORT: 3000
+      HOSTNAME: "0.0.0.0"
+      # Phải KHỚP biến cùng tên của service `app`; lệch nhau thì `/api/revalidate`
+      # trả 401 và cổng công khai đứng yên ở nội dung cũ mà không báo lỗi gì.
+      REVALIDATE_SECRET: ${REVALIDATE_SECRET}
+      # Tiến trình Next gọi backend — tuyệt đối và theo tên service.
+      API_INTERNAL_BASE_URL: http://app:8080/api/v1
+    mem_limit: 512m
+
+  # ---------------------------------------------------------------------------
+  # nginx biên — nơi kết thúc TLS, cửa DUY NHẤT ra Internet
+  # ---------------------------------------------------------------------------
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: songnhue-nginx
+    restart: unless-stopped
+    depends_on: [admin-app, public-web]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN}
+      ADMIN_DOMAIN: ${ADMIN_DOMAIN}
+      FILES_DOMAIN: ${FILES_DOMAIN}
+      PUBLIC_UPSTREAM: http://public-web:3000
+      ADMIN_UPSTREAM: http://admin-app:80
+      FILES_UPSTREAM: http://minio:9000
+      # production → `all` · staging → `noindex, nofollow`. Xem lý do đầy đủ ở
+      # nginx/snippets/edge-headers.conf: hai môi trường chạy CÙNG image nên
+      # sitemap của staging mang địa chỉ production, và chỉ header này chặn được.
+      ROBOTS_TAG: ${ROBOTS_TAG:-all}
+      # Bật cơ chế đọc DNS từ /etc/resolv.conf của chính container. Đây là tính
+      # năng PHẢI CHỦ ĐỘNG MỞ: thiếu biến này thì `${NGINX_LOCAL_RESOLVERS}`
+      # không được thay, nginx đọc nguyên văn chuỗi đó và chết với
+      # `[emerg] host not found in resolver`. Đã sập đúng như vậy một lượt.
+      NGINX_ENTRYPOINT_LOCAL_RESOLVERS: 1
+    volumes:
+      - ./nginx/templates:/etc/nginx/templates:ro
+      - ./nginx/snippets:/etc/nginx/snippets:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - certbot-webroot:/var/www/certbot
+      - /var/log/nginx:/var/log/nginx
+    networks:
+      default:
+        aliases:
+          # ⚠ Xem ghi chú MINIO_ENDPOINT ở service `app`: nhờ bí danh này, tiến
+          #   trình app phân giải tên miền tệp thẳng vào nginx thay vì phải đi
+          #   vòng ra Internet rồi quay đầu (hairpin NAT).
+          - ${FILES_DOMAIN}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/.well-known/acme-challenge/", "--spider"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    mem_limit: 256m
+
+  # ---------------------------------------------------------------------------
+  # certbot — KHÔNG chạy nền. Gọi bằng tay khi cấp chứng chỉ, và bằng cron của
+  # host khi gia hạn (xem docs/deploy-guideline.md §5).
+  # ---------------------------------------------------------------------------
+  certbot:
+    image: certbot/certbot:latest
+    container_name: songnhue-certbot
+    profiles: ["certbot"]
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt
+      - certbot-webroot:/var/www/certbot
+    entrypoint: ["certbot"]
+
+volumes:
+  postgres-data:
+  minio-data:
+  certbot-webroot:

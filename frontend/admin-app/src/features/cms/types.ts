@@ -1,4 +1,8 @@
-import { type AllowedAction } from '@/components/business/ApprovalActions';
+// ⚠ Lấy từ `shared/api-types` chứ không từ component: đây là hình dạng DÂY (backend trả gì), và
+// kiểu ở `ApprovalActions.tsx` là hợp đồng PROP. Trước đây file này mượn kiểu của component —
+// kiểu đó mang thêm `primary`/`danger`/`requiresReason` mà backend không gửi, nên chỗ này mô tả
+// sai payload thật và không ai thấy.
+import { type AllowedActionView } from '@/shared/api-types';
 
 /**
  * Kiểu dữ liệu CMS — bản sao của DTO backend (`content/api/*Dtos.java`).
@@ -46,7 +50,7 @@ export interface ArticleDetail {
   publiclyVisible: boolean;
   categoryPublicIds: string[];
   /** Nút được phép bấm, đã lọc theo quyền và theo `workflow_transitions`. */
-  allowedActions: AllowedAction[];
+  allowedActions: AllowedActionView[];
 }
 
 export interface ArticleSaveRequest {

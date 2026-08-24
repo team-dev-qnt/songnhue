@@ -40,10 +40,16 @@ import com.songnhue.operations.infra.MaintenanceLogRepository;
  *
  * <h2>⚠⚠ Trạng thái là sự thật về CÔNG TRÌNH, không phải về người đang nhìn</h2>
  *
- * Phép đếm bản ghi đang mở đi bằng câu <b>native</b> nên không bị bộ lọc phạm vi đơn vị áp vào — xem
- * {@link MaintenanceLogRepository#demBanGhiDangMo}. Đây là điều kiện để cột này có một giá trị duy
- * nhất: nếu phép đếm phụ thuộc người gọi thì mỗi lượt tính lại sẽ ghi ra một số khác nhau và cột
- * cuối cùng mang giá trị của người mở màn hình gần nhất.
+ * <b>Toàn bộ</b> câu tra trong {@link #tinh} đi bằng native nên không bị bộ lọc phạm vi đơn vị áp
+ * vào — xem {@link MaintenanceLogRepository#demBanGhiDangMo} và
+ * {@link ConstructionOperationStatusRepository#banGhiMoiNhat}. Đây là điều kiện để cột này có một
+ * giá trị duy nhất: nếu phép tra phụ thuộc người gọi thì mỗi lượt tính lại sẽ ghi ra một giá trị
+ * khác nhau và cột cuối cùng mang giá trị của người mở màn hình gần nhất.
+ *
+ * <p>⚠ Bảo đảm đó từng đúng với hai mắt xích đầu và <b>sai với mắt xích 4</b>: nó dùng câu derived
+ * nên có lọc. Hậu quả không phải là chặn nhầm mà là ghi sai — người ngoài đơn vị mở màn hình, mắt
+ * xích 4 tra ra rỗng, và trạng thái bị hạ xuống "Bình thường" cho tất cả mọi người. Một cột dẫn xuất
+ * trộn hai nguồn khác chiều lọc thì kết quả phụ thuộc <i>ai bấm F5 sau cùng</i>.
  *
  * <h2>Vòng đời đứng trên tất cả</h2>
  *
@@ -148,11 +154,16 @@ public class ConstructionStatusService {
             return OperationalStatus.CANH_BAO;
         }
 
-        // Mắt xích 4 (mã tình hình vận hành — WS-19)
-        var latestOperationStatus = operationStatuses.findFirstByConstructionIdOrderByEffectiveAtDesc(id);
-        if (latestOperationStatus.isPresent()) {
+        // Mắt xích 4 — mã tình hình vận hành (WS-19). Câu native, không lọc phạm vi, cùng lý do với
+        // hai mắt xích trên: xem javadoc ConstructionOperationStatusRepository#banGhiMoiNhat.
+        //
+        // Mã có mapped_status để trống thì rơi xuống mắt xích 5, KHÔNG phải "giữ nguyên trạng thái
+        // hiện tại" — một giá trị dẫn xuất không có "hiện tại" để giữ, nó được tính lại từ đầu ở mỗi
+        // lượt. Chú thích ở migration V202608221029 từng ghi ngược lại; đã sửa.
+        var banGhiMoiNhat = operationStatuses.banGhiMoiNhat(id);
+        if (banGhiMoiNhat.isPresent()) {
             OperationalStatus mappedStatus =
-                    latestOperationStatus.get().getOperationCode().getMappedStatus();
+                    banGhiMoiNhat.get().getOperationCode().getMappedStatus();
             if (mappedStatus != null) {
                 return mappedStatus;
             }

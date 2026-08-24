@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Button, Card, Space, Table, Typography, Tooltip } from 'antd';
 import { type ColumnsType } from 'antd/es/table';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { useAuth } from '@/app/auth/useAuth';
 import { StatusBadge } from '@/components/business/StatusBadge';
@@ -16,6 +16,7 @@ import { type ConstructionRow, type PageResult } from '@/shared/api-types';
 import { api } from '@/shared/apiClient';
 import { formatDateTime } from '@/shared/format';
 
+import { locTuDuongDan } from './constructionRules';
 import { ConstructionChangeLogDrawer } from './components/ConstructionChangeLogDrawer';
 import { ConstructionFilter, type ConstructionFilterValues } from './components/ConstructionFilter';
 import { ConstructionImportModal } from './components/ConstructionImportModal';
@@ -29,7 +30,17 @@ export function ConstructionsPage() {
   const [page, setPage] = useState(1);
   const [size, setSize] = useState(20);
   const [sort, setSort] = useState('updatedAt,desc');
-  const [filters, setFilters] = useState<ConstructionFilterValues>({});
+  // ⭐ Nợ #71 — hai nửa của một chức năng, và nửa này từng thiếu.
+  // Dashboard điều hành điều hướng sang `?status=SU_CO` / `?type=CONG` / `?level=XI_NGHIEP`. Trang
+  // này trước đây KHÔNG đọc query string, nên lượt điều hướng mở ra một danh sách KHÔNG lọc — người
+  // dùng bấm vào lát "Sự cố" và nhận về toàn bộ công trình. Không có lỗi nào báo ra, và triệu chứng
+  // (danh sách hơi dài) trông y hệt dữ liệu thật.
+  // Tên tham số cố ý trùng với tên ô lọc và với tham số của `GET /ops/constructions` — ba nơi cùng
+  // một từ vựng thì không có chỗ nào để dịch sai.
+  const [searchParams] = useSearchParams();
+  const [filters, setFilters] = useState<ConstructionFilterValues>(() =>
+    locTuDuongDan(searchParams),
+  );
 
   const [batchModalOpen, setBatchModalOpen] = useState(false);
   const [historyDrawerId, setHistoryDrawerId] = useState<string | null>(null);
@@ -125,7 +136,10 @@ export function ConstructionsPage() {
       <Card
         extra={
           <Space>
-            {hasPermission('ops:construction:update') && (
+            {/* Quyền phải khớp với endpoint mà nút này gọi (`POST /ops/operation-statuses/batch`),
+                không phải quyền sửa hồ sơ công trình. Gate nhầm thì người có quyền sửa hồ sơ nhưng
+                không được ghi tình hình vận hành vẫn thấy nút, bấm vào, và nhận 403. */}
+            {hasPermission('ops:operation-status:update') && (
               <Button icon={<FormOutlined />} onClick={() => setBatchModalOpen(true)}>
                 Nhập nhanh
               </Button>

@@ -268,11 +268,12 @@ Sau khi nhận confirm → cập nhật `function-spec.md`, `implement.md` và �
 | **CN-02.1** Danh mục công trình | **G8** | 🟩 | Chờ danh mục công trình tổng thể (Excel) + tọa độ. Chỉ là nhập liệu |
 | **CN-02.4** Bản đồ GIS công trình | **G8** | 🟩 | Như trên — thiếu tọa độ, không thiếu chức năng |
 | **CN-02.5** Dashboard & wall mode | **G3-a** | 🟨 | Bỏ/ẩn widget lượng mưa ở v1; layout phải chịu được việc thiếu 1 khối |
+| **CN-02.11** Tình hình vận hành — *giá trị seed* | **G4** (đã đóng) | 🟩 | ⚠ **Chức năng đã chốt trọn vẹn ở G4, nhưng 4 giá trị seed thì chưa ai duyệt.** Migration `V202608221029` seed `MT / ĐK / ĐTTL / ĐTHL` kèm cột `mapped_status` do phía phát triển tự đặt — G4 chỉ nói "seed 4 mã", không nói mã nào ánh xạ sang trạng thái nào. Hai chỗ cần Công ty xác nhận trước nghiệm thu: (a) **`ĐK` (Đóng kín) → `NGUNG_MUA_VU`** — đóng cống là ngừng mùa vụ, hay chỉ là một thao tác vận hành bình thường? (b) **`ĐTHL`** đang mang tên *"Đóng xả thuỷ điện"* trong khi chữ viết tắt gợi *"Đóng tiêu hạ lưu"*. Sửa được qua giao diện danh mục, **không cần deploy** |
 | **CN-02.10** Báo cáo công trình | **G10** | 🟨 | BC-06/09/10: trường dữ liệu **đã chốt**, chỉ layout in ấn chờ duyệt |
 | **CN-04.8** Báo cáo nhân sự | **G6**, **G10** | 🟨 | **BCNS-07 mẫu 2C-BNV chưa có file gốc** → làm 7 báo cáo còn lại trước, BCNS-07 để cuối. Đây là mẫu Bộ Nội vụ, **cấm tự chế** |
 | **CN-05.3** Cấu hình hệ thống | **G9-a**, **G5**, **G3-a** | 🟨 | Bảng `settings` phải mở đủ để thêm tham số sau mà **không cần migration** (key-value có type) — đây chính là cách hấp thụ mọi câu trả lời còn lại |
 
-**Chức năng KHÔNG chứa điểm mở nào — code thoải mái**: toàn bộ **Nhóm A / Core** (CN-05.1, 05.2, 05.4, 05.5, 05.6, 05.7) · CN-01.1, 01.3, 01.4, 01.6, 01.8, 01.9 · CN-02.2 (lịch sử sửa chữa + sự cố) · CN-02.3, 02.6, 02.7, **02.11** (tình hình vận hành) · CN-03.2 phần parser/polling/rate-limit · CN-03.3 (lưu trữ) · CN-04.1→04.7, 04.9.
+**Chức năng KHÔNG chứa điểm mở nào — code thoải mái**: toàn bộ **Nhóm A / Core** (CN-05.1, 05.2, 05.4, 05.5, 05.6, 05.7) · CN-01.1, 01.3, 01.4, 01.6, 01.8, 01.9 · CN-02.2 (lịch sử sửa chữa + sự cố) · CN-02.3, 02.6, 02.7, **02.11** (tình hình vận hành — *chức năng* thoải mái; riêng **giá trị seed** của 4 mã cần Công ty duyệt trước nghiệm thu, xem bảng trên) · CN-03.2 phần parser/polling/rate-limit · CN-03.3 (lưu trữ) · CN-04.1→04.7, 04.9.
 
 > ⚠ **Đọc bảng này cho đúng.** 🟩 nghĩa là *viết mã được trọn vẹn*, **không** nghĩa là *bàn giao được*. Ba mục 🟩 của Phase 1 (CN-01.2, CN-01.5, CN-02.1) đều chặn **nghiệm thu** vì thiếu dữ liệu khởi tạo — mà nghiệm thu mới là thứ Công ty nhìn thấy. Đừng để tới tuần cuối mới đi xin.
 

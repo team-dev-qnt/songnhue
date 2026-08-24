@@ -249,7 +249,10 @@ public class ArticleService {
     @Transactional
     public Article execute(UUID publicId, String action, String reason) {
         Article article = get(publicId);
-        workflow.execute(article, action, null);
+        // Truyền `reason` xuống engine, không chỉ để ghi vào `reviewNote`: engine là nơi ép buộc
+        // "bước này phải nêu lý do" (`workflow_transitions.requires_reason`). Bỏ tham số này là
+        // REQUEST_CHANGES ném SYS-0003 — hỏng đóng, đúng ý.
+        workflow.execute(article, action, null, reason);
 
         switch (action) {
             case "APPROVE" -> {

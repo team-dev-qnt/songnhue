@@ -554,8 +554,14 @@ export interface MapPointView {
 // Danh mục Tình trạng Vận hành (Mã màu & Cấu hình)
 // =============================================================================
 
+/**
+ * Mã tình hình vận hành (CN-02.11).
+ *
+ * ⛔ Không có trường `id`. Khoá nội bộ không đi ra tới trình duyệt — đường dẫn PUT/DELETE dựng từ
+ * `publicId`. Bản trước nhận `id: number` và dùng nó làm `rowKey` lẫn tham số đường dẫn.
+ */
 export interface OperationStatusCode {
-  id: number;
+  publicId: string;
   code: string;
   name: string;
   hasParameter: boolean;
@@ -564,6 +570,122 @@ export interface OperationStatusCode {
   mappedStatus: OperationalStatus | null;
   sortOrder: number;
   active: boolean;
+}
+
+export type MaintenanceType =
+  'SUA_CHUA' | 'BAO_TRI_DINH_KY' | 'NANG_CAP' | 'THAY_THE_THIET_BI' | 'KHAC_PHUC_SU_CO';
+
+export type IncidentSeverity = 'NGHIEM_TRONG' | 'CAO' | 'TRUNG_BINH' | 'THAP';
+
+/** Một dòng lịch sử sửa chữa / bảo trì / khắc phục sự cố — CN-02.2. */
+export interface MaintenanceRow {
+  id: string;
+  code: string;
+  constructionId: string;
+  constructionCode: string | null;
+  constructionName: string | null;
+  workType: MaintenanceType;
+  severity: IncidentSeverity | null;
+  status: string;
+  startedOn: string | null;
+  completedOn: string | null;
+  content: string;
+  itemOrEquipment: string | null;
+  /** Đơn vị nội bộ HOẶC nhà thầu ngoài — backend đã gộp, giao diện không phải biết hai cột. */
+  performer: string | null;
+  performerIsInternal: boolean;
+  cost: string | null;
+  fundingSource: string | null;
+  acceptanceResult: string | null;
+  acceptanceNote: string | null;
+  assigneeUserId: string | null;
+  alertEventId: string | null;
+  createdAt: string;
+}
+
+/**
+ * Một bước chuyển được phép bấm LÚC NÀY — khớp `com.songnhue.core.spi.AllowedAction`,
+ * do `WorkflowEngine.allowedActions()` lọc theo `workflow_transitions` + quyền của người
+ * đang đăng nhập.
+ *
+ * ⚠ Khai ở đây chứ không mượn kiểu của `ApprovalActions.tsx`: `shared/` không được phụ
+ * thuộc ngược vào `components/` — cả codebase đang đi một chiều `components → shared`.
+ */
+export interface AllowedActionView {
+  action: string;
+  label: string;
+  /** Trạng thái sau khi bấm — để nói trước hệ quả cho người dùng. */
+  toState: string;
+  /**
+   * Bước này bắt buộc kèm lý do → mở ô nhập trước khi gửi.
+   *
+   * ⚠⚠ Đọc từ `workflow_transitions.requires_reason`, **cùng một dòng** mà
+   * `WorkflowEngine.execute` dùng để ép buộc. Trước đây cờ này chỉ tồn tại ở kiểu phía giao
+   * diện và không nơi nào điền, nên nó luôn `undefined`: hộp thoại nhập lý do không bao giờ
+   * mở, người duyệt bấm "Yêu cầu chỉnh sửa" thì backend trả `SYS-0003` đòi lý do mà màn hình
+   * không có ô nào để nhập. Thao tác trả bài về sửa hỏng hẳn theo đúng cách đó.
+   */
+  requiresReason: boolean;
+}
+
+export interface MaintenanceDetail {
+  record: MaintenanceRow;
+  actions: AllowedActionView[];
+}
+
+/** Tổng chi phí kỳ — tính ở BE (quy tắc 3), FE chỉ hiển thị. Khớp `MaintenanceLogService.CostSummary`. */
+export interface MaintenanceCostSummary {
+  /** Chuỗi, không phải number: `BigDecimal` phía BE, và `number` của JS làm tròn sai tiền (quy tắc 2). */
+  total: string;
+  recordCount: number;
+  from: string;
+  to: string;
+}
+
+/** Một tài liệu của công trình (CN-02.3). Đi bằng `publicId`, không có khoá nội bộ. */
+export interface ConstructionDocument {
+  publicId: string;
+  originalName: string;
+  docType: string;
+  contentType: string;
+  sizeBytes: number;
+  fileVersion: number;
+  downloadable: boolean;
+  uploadedAt: string;
+  issuedDate: string | null;
+  expiryDate: string | null;
+}
+
+export interface ConstructionDocumentList {
+  usedBytes: number;
+  items: ConstructionDocument[];
+}
+
+/** Một dòng lịch sử tình hình vận hành của công trình. */
+export interface OperationStatusRow {
+  publicId: string;
+  operationCode: string;
+  operationName: string;
+  colorHex: string;
+  parameterValue: string | null;
+  parameterUnit: string | null;
+  note: string | null;
+  effectiveAt: string;
+}
+
+/**
+ * Một dòng nhập nhanh tình hình vận hành.
+ *
+ * ⚠ `operationCode` là mã trong danh mục `operation_status_codes` (MT / ĐK / …), **không phải**
+ * `OperationalStatus`. Trạng thái công trình là giá trị dẫn xuất — quy tắc 4 cấm mọi đường cho người
+ * dùng đặt thẳng nó, và bản trước của màn hình nhập nhanh làm đúng điều bị cấm đó.
+ */
+export interface OperationStatusBatchItem {
+  constructionPublicId: string;
+  operationCode: string;
+  parameterValue?: string;
+  note?: string;
+  effectiveAt: string;
 }
 
 export interface OperationStatusCodeCreateRequest {
