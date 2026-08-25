@@ -12,114 +12,80 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * <b>Lượt tra image trên GHCR phải chạy ở trạng thái ĐÃ đăng nhập.</b>
+ * <b>Đụng tới gói GHCR thì phải ĐÃ đăng nhập, và ghi tag thì phải có quyền GHI.</b>
  *
- * <h2>Lỗi này đã xảy ra — và nó chỉ ra sai chỗ</h2>
+ * <h2>Hai lỗi đã xảy ra, cách nhau vài giờ, và cả hai đều chỉ ra sai chỗ</h2>
  *
- * Ngày 24/8, cả ba lượt CD Staging đều hỏng với thông báo <i>"Không tìm thấy image 'app' trong 50
- * commit gần nhất"</i>, kèm ba bước chẩn đoán trỏ vào job đóng gói · gói GHCR · bước đăng nhập.
- * <b>Cả ba đều là ngõ cụt</b>: job đóng gói xanh ở mọi commit của {@code dev}, gói GHCR có đủ tag,
- * và log ghi rõ {@code Login Succeeded!}.
+ * <b>24/8 (§10.43)</b> — CD Staging hỏng với <i>"Không tìm thấy image 'app'"</i> kèm ba bước chẩn
+ * đoán trỏ vào job đóng gói · gói GHCR · bước đăng nhập. Cả ba đều là ngõ cụt: job xanh, gói đủ
+ * tag, log ghi rõ {@code Login Succeeded!}. Nguyên nhân thật: lượt tra đi <b>ẩn danh</b>, mà gói
+ * GHCR mặc định <b>riêng tư</b> kể cả khi kho mã công khai (kiểm chứng: manifest ẩn danh trả 403).
  *
- * <p>Nguyên nhân thật nằm ở một dòng cách đó 100 dòng: bước tra image bị gắn
+ * <p><b>25/8 (§10.44)</b> — sửa xong phần trên, lượt chạy tra được image rồi hỏng ở bước GHI tag
+ * với {@code 403 denied: installation not allowed to Write organization package}. Workflow khai
+ * {@code packages: read}: đủ cho phần ĐỌC chiếm 90% số dòng, thiếu đúng cho một bước ở cuối.
  *
- * <pre>
- *   env:
- *     DOCKER_CONFIG: ${{ runner.temp }}/.docker
- * </pre>
+ * <h2>Bài này còn lại hai khẳng định — và một khẳng định mới của kiểu gọi chung</h2>
  *
- * còn {@code docker/login-action} ghi thông tin đăng nhập vào {@code $HOME/.docker}. Hai thư mục
- * khác nhau, nên lượt tra đi <b>ẩn danh</b>. Gói GHCR mặc định là <b>riêng tư</b> kể cả khi kho mã
- * công khai (kiểm chứng 24/8: token ẩn danh trả về rỗng, {@code GET .../manifests/<sha>} trả
- * <b>403</b>) — thế là cả 50 ứng viên đều trượt, và vòng lặp báo "không có image".
+ * Bộ canh cũ có bốn bài; hai bài đã bỏ cùng với cơ chế chúng canh (vòng quét 50 ứng viên và biến
+ * {@code DOCKER_CONFIG} nay không còn ở workflow nào). Bài học vẫn nằm ở §10.43 — chỗ của nó — và
+ * ở chú thích {@code ⛔} trong {@code deploy.yml}.
  *
- * <h2>Vì sao cần một bài kiểm chứ không phải một lời dặn</h2>
+ * <p>Khẳng định mới: từ 25/8 hai workflow triển khai gọi chung một thân
+ * ({@code .github/workflows/deploy.yml}). Reusable workflow <b>không tự cấp quyền cho mình được</b>
+ * — token nó nhận bị chặn trên bởi quyền của job GỌI. Nên khai {@code packages: write} ở thân chung
+ * là chưa đủ; quên khai ở caller thì lỗi rơi đúng vào bước cuối, y hệt §10.44.
  *
- * Đây đúng dạng CLAUDE.md luật 9: <i>một khẳng định không phân biệt được hai trạng thái thì không
- * khẳng định gì</i>. {@code docker manifest inspect ... 2>/dev/null} làm 403 (không có quyền) và
- * 404 (chưa dựng) trông y hệt nhau. Bản vá gồm hai phần — gỡ {@code DOCKER_CONFIG}, và thêm một
- * lượt tra thử <b>để nguyên stderr</b> để hỏng về quyền tự khai là hỏng về quyền — còn bài này canh
- * phần thứ nhất khỏi bị đặt lại.
- *
- * <p>Và nó là dạng <i>"cơ chế chưa ai đi qua"</i> (luật 7): workflow này viết từ PR #1 nhưng mãi tới
- * 24/8 mới chạy thật lần đầu. Bốn tháng "xanh" chỉ vì chưa ai bấm.
+ * <p>Danh sách tệp <b>tự tìm</b>, không viết cứng: bài kiểm phải theo được khi workflow đổi tên.
  */
 class GhcrLookupAuthTest {
-
-    /** Chỉ khớp DẠNG KHOÁ YAML, không khớp chữ {@code DOCKER_CONFIG} trong chú thích. */
-    private static final Pattern KHOA_DOCKER_CONFIG =
-            Pattern.compile("^[ \\t]*DOCKER_CONFIG[ \\t]*:", Pattern.MULTILINE);
 
     private static final String TRA_IMAGE = "docker manifest inspect";
 
     /** Lệnh GHI tag mới lên gói GHCR — khác hẳn lượt tra, và cần quyền khác hẳn. */
     private static final String GHI_TAG = "docker buildx imagetools create";
 
-    /** Một mục trong khối {@code permissions:} — {@code   packages: write}. */
-    private static final Pattern MUC_QUYEN = Pattern.compile("^\\s+([a-z-]+)\\s*:\\s*(\\S+)\\s*$");
-
     private static final String DANG_NHAP = "docker/login-action";
 
-    private static final List<String> WORKFLOW =
-            List.of(".github/workflows/deploy-staging.yml", ".github/workflows/deploy-prod.yml");
+    private static final String THAN_CHUNG = "./.github/workflows/deploy.yml";
 
-    @Test
-    @DisplayName("⭐⭐ Workflow triển khai không được đổi DOCKER_CONFIG ở bước tra image")
-    void khongDuocDoiDockerConfig() {
-        for (String duongDan : WORKFLOW) {
-            String noiDung = doc(duongDan);
-            Matcher m = KHOA_DOCKER_CONFIG.matcher(noiDung);
-
-            assertThat(m.find())
-                    .as(
-                            """
-                            `%s` đặt khoá `DOCKER_CONFIG:`.
-
-                            `docker/login-action` ghi thông tin đăng nhập vào `$HOME/.docker`. Trỏ \
-                            `DOCKER_CONFIG` sang chỗ khác là ép mọi lệnh docker ở bước đó đi ẩn danh — \
-                            mà gói GHCR RIÊNG TƯ, nên lượt tra sẽ trượt SẠCH rồi báo "không tìm thấy \
-                            image". Thông báo ấy trỏ vào job đóng gói và bước đăng nhập: cả hai đều xanh, \
-                            và người đọc mất hàng giờ ở ngõ cụt (§10.43).
-
-                            Muốn dùng thư mục riêng thì phải đặt CÙNG giá trị đó ở bước đăng nhập — \
-                            và khi ấy hãy sửa luôn bài kiểm này để nó canh đúng ràng buộc mới.""",
-                            duongDan)
-                    .isFalse();
-        }
-    }
+    /** Một mục trong khối {@code permissions:} — {@code   packages: write}. */
+    private static final Pattern MUC_QUYEN = Pattern.compile("^\\s+([a-z-]+)\\s*:\\s*(\\S+)\\s*$");
 
     @Test
     @DisplayName("⭐ Bước đăng nhập GHCR phải đứng TRƯỚC lượt tra image đầu tiên")
     void dangNhapPhaiDungTruocLuotTra() {
-        for (String duongDan : WORKFLOW) {
-            // ⚠ PHẢI bỏ dòng chú thích trước khi đo vị trí. Bản đầu của bài này đo trên nguyên văn
-            //   và đỏ ngay — vì chính `deploy-staging.yml` có một chú thích nhắc tên lệnh
-            //   `docker manifest inspect` ở đầu tệp, đứng trước bước đăng nhập. Đo văn bản thay vì
-            //   đo cấu trúc là đúng lỗi CLAUDE.md luật 2.
-            String noiDung = boChuThich(doc(duongDan));
+        List<Path> tep = workflowChua(TRA_IMAGE);
+        assertThat(tep)
+                .as("không workflow nào còn tra image — bài kiểm này sẽ xanh trên tập rỗng")
+                .isNotEmpty();
 
+        for (Path duongDan : tep) {
+            // ⚠ PHẢI bỏ dòng chú thích trước khi đo vị trí: các tệp này nhắc tên lệnh
+            //   `docker manifest inspect` trong chú thích ở đầu tệp, đứng trước bước đăng nhập. Đo
+            //   văn bản thay vì đo cấu trúc là đúng lỗi CLAUDE.md luật 2.
+            String noiDung = boChuThich(doc(duongDan));
             int viTriTra = noiDung.indexOf(TRA_IMAGE);
             int viTriDangNhap = noiDung.indexOf(DANG_NHAP);
 
-            assertThat(viTriTra)
-                    .as("`%s` không còn lượt tra `%s` nào — bài kiểm này sẽ xanh trên tập rỗng", duongDan, TRA_IMAGE)
-                    .isGreaterThan(-1);
             assertThat(viTriDangNhap)
-                    .as("`%s` tra image mà không có bước `%s` nào", duongDan, DANG_NHAP)
+                    .as("`%s` tra image mà không có bước `%s` nào", duongDan.getFileName(), DANG_NHAP)
                     .isGreaterThan(-1);
             assertThat(viTriDangNhap)
                     .as(
                             """
                             `%s` đặt bước đăng nhập GHCR SAU lượt tra image.
 
-                            Gói GHCR mặc định riêng tư, nên lượt tra ẩn danh trượt hết ứng viên rồi báo \
-                            "không tìm thấy image" — sai hẳn nguyên nhân.""",
-                            duongDan)
+                            Gói GHCR mặc định riêng tư, nên lượt tra ẩn danh trượt rồi báo "không tìm \
+                            thấy image" — sai hẳn nguyên nhân (§10.43).""",
+                            duongDan.getFileName())
                     .isLessThan(viTriTra);
         }
     }
@@ -127,89 +93,113 @@ class GhcrLookupAuthTest {
     @Test
     @DisplayName("⭐⭐ Workflow GHI tag lên GHCR phải khai `packages: write`")
     void ghiTagThiPhaiKhaiQuyenGhi() {
-        for (String duongDan : WORKFLOW) {
+        List<Path> tep = workflowChua(GHI_TAG);
+        assertThat(tep)
+                .as("không workflow nào còn ghi tag — bài kiểm này sẽ xanh trên tập rỗng")
+                .isNotEmpty();
+
+        for (Path duongDan : tep) {
             String noiDung = boChuThich(doc(duongDan));
-
-            assertThat(noiDung)
-                    .as("`%s` không còn bước ghi tag nào — bài kiểm này sẽ xanh trên tập rỗng", duongDan)
-                    .contains(GHI_TAG);
-
-            assertThat(quyenKhaiBao(noiDung).get("packages"))
+            assertThat(quyenGhiGoi(noiDung))
                     .as(
                             """
-                            `%s` chạy `%s` (GHI một tag mới lên gói GHCR) nhưng khối `permissions:` \
-                            ở đầu tệp không khai `packages: write`.
+                            `%s` chạy `%s` (GHI một tag mới lên gói GHCR) nhưng không khối \
+                            `permissions:` nào trong tệp khai `packages: write`.
 
-                            Workflow triển khai chủ yếu ĐỌC image theo tag SHA, nên `packages: read` \
-                            trông vừa đủ và lượt tra đi lọt hoàn toàn. Nó chỉ hỏng ở bước cuối, với \
-                            `403 denied: installation not allowed to Write organization package` — \
-                            một thông báo không nhắc gì tới khối `permissions:` cách đó 180 dòng \
-                            (§10.44).""",
-                            duongDan, GHI_TAG)
-                    .isEqualTo("write");
+                            Phần ĐỌC image chiếm gần hết số dòng nên `packages: read` trông vừa đủ và \
+                            lượt tra đi lọt hoàn toàn. Nó chỉ hỏng ở bước cuối, với `403 denied: \
+                            installation not allowed to Write organization package` — một thông báo \
+                            không nhắc gì tới khối `permissions:` (§10.44).""",
+                            duongDan.getFileName(), GHI_TAG)
+                    .isTrue();
         }
     }
 
     @Test
-    @DisplayName("Lượt tra hỏng về QUYỀN phải có đường báo riêng, không lẫn với thiếu image")
-    void coDuongBaoRiengChoLoiQuyen() {
-        String noiDung = doc(".github/workflows/deploy-staging.yml");
+    @DisplayName("⭐⭐ Job GỌI thân chung phải tự cấp `packages: write` — reusable không tự cấp được")
+    void callerPhaiCapQuyenGhiChoThanChung() {
+        List<Path> caller = workflowChua(THAN_CHUNG);
+        assertThat(caller)
+                .as("không workflow nào gọi `%s` — bài kiểm này sẽ xanh trên tập rỗng", THAN_CHUNG)
+                .hasSize(2);
 
-        // Phép tra thử: KHÔNG có `2>/dev/null` thì stderr của docker mới hiện ra log.
-        assertThat(noiDung)
-                .as(
-                        """
-                        `deploy-staging.yml` không còn lượt tra thử nào báo lỗi QUYỀN riêng.
+        for (Path duongDan : caller) {
+            String khoi = khoiJobGoi(boChuThich(doc(duongDan)));
+            assertThat(khoi)
+                    .as(
+                            """
+                            Job gọi `%s` trong `%s` không khai `packages: write`.
 
-                        Thiếu nó thì 403 và 404 lại cho ra cùng một thông báo, và lần sau vẫn mất \
-                        hàng giờ đi tìm một image vốn nằm sẵn ở đó.""")
-                .contains("đây là lỗi QUYỀN, không phải thiếu image");
+                            Token của một reusable workflow bị chặn TRÊN bởi quyền của job gọi: khai \
+                            `packages: write` ở thân chung là chưa đủ. Quên ở đây thì lượt chạy đi qua \
+                            hết phần đọc rồi hỏng ở bước gắn tag cuối cùng — đúng hình dạng §10.44, chỉ \
+                            khác chỗ đặt.""",
+                            THAN_CHUNG, duongDan.getFileName())
+                    .contains("packages: write");
+        }
     }
 
-    /**
-     * Đọc khối {@code permissions:} ở CẤP CAO NHẤT thành map {@code khoá → giá trị}.
-     *
-     * <p>⚠ Bản đầu của bài kiểm bên trên chỉ hỏi {@code noiDung.contains("packages: write")} — và
-     * lượt kiểm chứng ngược cho thấy nó <b>không bắt được</b> khi hạ quyền xuống {@code read}: cùng
-     * tệp ấy có một dòng {@code echo "quyền 'packages: write' của workflow…"} nằm trong khối
-     * {@code run:}, tức là văn bản thường chứ không phải chú thích, nên {@code contains} vẫn khớp.
-     * Đúng CLAUDE.md luật 2 — canh cấu trúc, đừng canh văn bản; và luật 24 — bộ canh theo hình dạng
-     * phải được thử với dữ liệu THẬT đang dùng.
-     */
-    private static java.util.Map<String, String> quyenKhaiBao(String noiDungDaBoChuThich) {
-        java.util.Map<String, String> ket = new java.util.LinkedHashMap<>();
+    // -------------------------------------------------------------------------
+
+    /** Cắt khối YAML của job có `uses: <thân chung>` — từ tên job tới job kế tiếp cùng mức. */
+    private static String khoiJobGoi(String noiDung) {
+        Matcher khop = Pattern.compile(
+                        "^  [a-z][a-z0-9-]*:$(?:(?!^  [a-z]).)*?" + Pattern.quote(THAN_CHUNG) + "(?:(?!^  [a-z]).)*",
+                        Pattern.MULTILINE | Pattern.DOTALL)
+                .matcher(noiDung);
+        return khop.find() ? khop.group() : fail("Không cắt được khối job gọi `%s`", THAN_CHUNG);
+    }
+
+    /** Có ít nhất một khối {@code permissions:} (bất kỳ mức nào) khai {@code packages: write}. */
+    private static boolean quyenGhiGoi(String noiDungDaBoChuThich) {
         boolean trongKhoi = false;
+        int thut = -1;
         for (String dong : noiDungDaBoChuThich.split("\n", -1)) {
-            if (dong.startsWith("permissions:")) {
+            String cat = dong.stripTrailing();
+            if (cat.stripLeading().equals("permissions:")) {
                 trongKhoi = true;
+                thut = cat.length() - cat.stripLeading().length();
                 continue;
             }
-            if (trongKhoi) {
-                if (dong.isBlank()) {
-                    continue;
-                }
-                if (!Character.isWhitespace(dong.charAt(0))) {
-                    break; // hết khối — sang khoá cấp cao nhất kế tiếp
-                }
-                Matcher m = MUC_QUYEN.matcher(dong);
-                if (m.matches()) {
-                    ket.put(m.group(1), m.group(2));
-                }
+            if (!trongKhoi || cat.isBlank()) {
+                continue;
+            }
+            int thutHienTai = cat.length() - cat.stripLeading().length();
+            if (thutHienTai <= thut) {
+                trongKhoi = false; // hết khối
+                continue;
+            }
+            Matcher m = MUC_QUYEN.matcher(cat);
+            if (m.matches() && "packages".equals(m.group(1)) && "write".equals(m.group(2))) {
+                return true;
             }
         }
-        return ket;
+        return false;
+    }
+
+    /** Mọi workflow có chứa một chuỗi — tìm động, để bài kiểm theo được khi tệp đổi tên. */
+    private static List<Path> workflowChua(String chuoi) {
+        Path thuMuc = timTuGocKho(".github/workflows");
+        try (Stream<Path> duyet = Files.list(thuMuc)) {
+            return duyet.filter(p -> p.getFileName().toString().endsWith(".yml"))
+                    .filter(p -> boChuThich(doc(p)).contains(chuoi))
+                    .sorted()
+                    .toList();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     /** Bỏ mọi dòng chú thích (YAML và shell đều dùng {@code #}) để đo CẤU TRÚC, không đo văn bản. */
     private static String boChuThich(String noiDung) {
         return noiDung.lines()
                 .filter(dong -> !dong.stripLeading().startsWith("#"))
-                .collect(java.util.stream.Collectors.joining("\n"));
+                .collect(Collectors.joining("\n"));
     }
 
-    private static String doc(String duongDanTuongDoi) {
+    private static String doc(Path duongDan) {
         try {
-            return Files.readString(timTuGocKho(duongDanTuongDoi), StandardCharsets.UTF_8);
+            return Files.readString(duongDan, StandardCharsets.UTF_8);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

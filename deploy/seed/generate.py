@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """
-Sinh tệp SQL seed nội dung cổng từ bản xuất của CSDL local.
+Sinh migration seed nội dung cổng từ bản xuất của CSDL local.
 
 Phạm vi: **5 bài sao chép từ báo ngoài** + 4 ảnh của chúng. Không có gì khác — xem README.
 
-⚠ Đây là bộ SINH, không phải bộ chạy. Kết quả (`*.sql`) được commit và review như mã;
-  chạy chúng là việc của `seed.sh`. Tách hai việc vì một tệp SQL đọc được là thứ duy nhất
-  cho phép trả lời câu "seed này đã ghi những gì vào CSDL".
+⚠ Đây là bộ SINH, không phải bộ chạy. Kết quả là MỘT tệp migration được commit và review
+  như mã; chạy nó là việc của Flyway ở service `migrator`, và chỉ khi `SEED_LOCATION` trỏ
+  vào thư mục ấy.
+
+⚠ Byte của ảnh KHÔNG do tệp này lo. Chúng nằm ở `deploy/seed/media/<storage_key>` và lên
+  MinIO qua `minio-init`. Bố cục thư mục CHÍNH LÀ khoá đối tượng — đừng đặt tiền tố
+  `seed/portal/` ở thêm chỗ nào nữa, một tiền tố viết ở hai nơi là một tiền tố sẽ lệch.
 
 Dùng: python3 deploy/seed/generate.py /tmp/seed_db.json
 """
@@ -16,9 +20,100 @@ import re
 import sys
 
 RA = pathlib.Path(__file__).parent
+DICH = RA.parent.parent / "backend/content/src/main/resources/db/seed/portal/V202608251100__seed_portal_content.sql"
 BUCKET = "songnhue-media"
-HEADER = """-- ⚠ TỆP SINH TỰ ĐỘNG — sửa `deploy/seed/generate.py` rồi sinh lại, đừng sửa tay.
--- Idempotent: chạy lại nhiều lần không nhân đôi dữ liệu."""
+
+PRO = """-- ⚠ TỆP SINH TỰ ĐỘNG — sửa `deploy/seed/generate.py` rồi sinh lại, đừng sửa tay.
+-- Idempotent: chạy lại nhiều lần cũng ra cùng một trạng thái.
+
+-- =============================================================================
+-- NỘI DUNG KHỞI TẠO CHO CỔNG — 4 ảnh + 5 bài. CHỈ chạy ở STAGING.
+--
+-- ⛔ TỆP NÀY KHÔNG NẰM TRONG `spring.flyway.locations` MẶC ĐỊNH.
+--
+--    Nó ở `classpath:db/seed/portal`, và chỉ được giải khi biến `SEED_LOCATION`
+--    trỏ vào đó. Mặc định là `classpath:db/seed/none` — một thư mục cố ý không có
+--    migration nào. Production không đặt biến ấy, nên Flyway ở production KHÔNG
+--    BAO GIỜ nhìn thấy tệp này: không phải "chạy rồi không làm gì", mà là không
+--    tồn tại.
+--
+--    Vì sao phải chặn cứng đến thế: khối [1] dưới đây XOÁ BÀI. Chuyện bản quyền
+--    của 5 bài chép lại đã được cân nhắc và bỏ qua; chuyện một migration xoá nội
+--    dung thật của Công ty thì không.
+--
+-- ⚠ Byte của 4 ảnh KHÔNG nằm ở đây — SQL không đẩy được byte. Chúng lên MinIO qua
+--   service `minio-init` (biến `SEED_MEDIA_DIR`), chạy TRƯỚC `migrator` ở mỗi lượt
+--   triển khai. Hai vế phải bật CÙNG NHAU: hàng trong CSDL mà không có byte trong
+--   MinIO là hỏng câm — CSDL vẫn nói tệp tồn tại, còn `GET` trả 404. `SeedGateTest`
+--   canh đúng chỗ đó, vì đây là thứ con người phải nhớ ở hai nơi (luật 14).
+--
+-- ⚠ Seed ghi thẳng `status = 'XUAT_BAN'`, tức KHÔNG đi qua Workflow engine (luật
+--   4). Hệ quả: 5 bài này không có vết audit xuất bản nào. Chấp nhận được vì đây
+--   là dữ liệu để ĐO trên staging, không phải nội dung nghiệp vụ — nhưng đừng lấy
+--   tệp này làm mẫu cho bất kỳ đường ghi nào khác.
+-- =============================================================================
+
+-- -----------------------------------------------------------------------------
+-- [1] Dọn bài cũ
+--
+-- ⚠⚠ KHÔNG phải `DELETE FROM articles`. `menu_items.article_id` tham chiếu
+--    `articles(id)` mà KHÔNG khai `ON DELETE` — tức RESTRICT — nên xoá sạch là
+--    migration dừng giữa chừng vì lỗi khoá ngoại, và dừng SAU khi đã xoá được một
+--    phần.
+--
+--    Vị từ dưới đây canh theo QUAN HỆ, không theo danh sách slug: *xoá mọi bài
+--    không có mục menu nào trỏ tới*. Nó tự bảo vệ 4 trang tĩnh do
+--    `V202608191021__cms_seed_site_structure` sở hữu (gioi-thieu-chung ·
+--    chuc-nang-nhiem-vu · co-cau-to-chuc · lien-he), và vẫn đúng khi sau này có
+--    thêm trang tĩnh thứ năm — một danh sách slug viết cứng thì lần thêm ấy sẽ
+--    làm gãy menu, im lặng.
+--
+-- Xoá CỨNG, không `deleted_at`: đây là dựng lại trạng thái đầu của một môi trường
+-- đo đạc, không phải hành vi xoá bài của người dùng. Bài ẩn mà còn nằm trong bảng
+-- vẫn hiện ở màn hình quản trị và làm sai mọi phép đếm.
+--
+-- `article_versions`, `article_categories`, `article_tags` đều `ON DELETE CASCADE`
+-- nên không cần dọn tay; `articles.published_version_id` là `ON DELETE SET NULL`.
+-- -----------------------------------------------------------------------------
+DELETE FROM articles a
+ WHERE NOT EXISTS (SELECT 1 FROM menu_items m WHERE m.article_id = a.id);
+
+"""
+
+DK = """-- =============================================================================
+-- [2] ĐÍNH KÈM — 4 ảnh của 5 bài seed
+--
+-- ⚠ Hàng ở đây phải khớp TỪNG BYTE với đối tượng `minio-init` đẩy lên MinIO: cùng bucket,
+--   cùng `storage_key`. Lệch một chỗ thì `GET /api/v1/public/files/<id>` trả 404 trong khi
+--   CSDL vẫn nói tệp tồn tại — hỏng câm, đúng loại khó truy nhất.
+--
+-- ⚠ `scan_status = 'SKIPPED'`, KHÔNG phải `'CLEAN'`. ClamAV chưa từng quét mấy tệp này;
+--   ghi `CLEAN` là nói dối sổ sách về một cơ chế bảo mật (CLAUDE.md luật 16).
+--
+-- ⚠ `owner_type = 'MEDIA_FOLDER'` là bắt buộc, không phải tuỳ chọn: `PublicPortalService`
+--   chỉ phục vụ ba loại chủ sở hữu công khai (MEDIA_FOLDER · BANNER · SITE_CONFIG). Loại
+--   khác trả 404 y hệt tệp không tồn tại.
+-- =============================================================================
+
+"""
+
+BV = """-- =============================================================================
+-- [3] 5 BÀI SAO CHÉP NGUYÊN VĂN TỪ BÁO NGOÀI
+--
+-- Cột `source` của từng bài ghi rõ URL gốc (hanoimoi.vn, vneconomy.vn). Đây là toàn văn
+-- bài báo của người khác, kèm ảnh của họ.
+--
+-- Chỉ chạy ở staging — môi trường đóng, `X-Robots-Tag: noindex, nofollow`. Lý do cần bài
+-- DÀI THẬT, ẢNH THẬT: DOD1.17 (trang chủ < 3s) chỉ đo được trên nội dung thật. Cổng chặn
+-- production nằm ở đầu tệp.
+--
+-- ⚠ KHÔNG seed `categories`: cây danh mục do migration `V202608191021__cms_seed_site_structure`
+--   sở hữu và đã có sẵn trên mọi môi trường. Seed lại là dựng một nguồn sự thật thứ hai cho
+--   cùng một dữ liệu.
+-- =============================================================================
+
+
+"""
 
 
 def q(v):
@@ -28,10 +123,21 @@ def q(v):
     return "'" + str(v).replace("'", "''") + "'"
 
 
+def ghep(dinh_kem, bai_viet):
+    """Nối phần văn xuôi (hằng số ở trên) với phần dữ liệu (sinh ra). Tách hàm để
+    `SeedGateTest` có thể đối chiếu tệp đã commit với đúng công thức này."""
+    return PRO + DK + "\n".join(dinh_kem) + "\n\n" + BV + "\n".join(bai_viet) + "\n"
+
+
 def main(nguon):
     d = json.loads(pathlib.Path(nguon).read_text())
     imgs = json.loads((RA / "images.json").read_text())
-    doi = {f"/images/{i['file']}": f"/api/v1/public/files/{i['public_id']}" for i in imgs}
+    doi = {f"/images/{i['original_name']}": f"/api/v1/public/files/{i['public_id']}" for i in imgs}
+
+    for i in imgs:
+        tep = RA / "media" / i["storage_key"]
+        assert tep.is_file(), f"thiếu byte: {tep} — hàng CSDL không có tệp là hỏng câm"
+        assert tep.stat().st_size == i["size"], f"lệch kích thước: {tep}"
 
     def viet_lai(html):
         for cu, moi in doi.items():
@@ -50,51 +156,16 @@ def main(nguon):
     # Chỉ lấy bài có `source` là URL — đó là định nghĩa của "bài sao chép".
     bai = [a for a in d["arts"] if (a["source"] or "").startswith("http")]
 
-    # ---------------- 01 · đính kèm ----------------
-    L = [HEADER, f"""
--- =============================================================================
--- 01 · ĐÍNH KÈM — {len(imgs)} ảnh của {len(bai)} bài seed
---
--- ⚠ Hàng ở đây phải khớp TỪNG BYTE với đối tượng `seed.sh` đẩy lên MinIO: cùng bucket,
---   cùng `storage_key`. Lệch một chỗ thì `GET /api/v1/public/files/<id>` trả 404 trong khi
---   CSDL vẫn nói tệp tồn tại — hỏng câm, đúng loại khó truy nhất.
---
--- ⚠ `scan_status = 'SKIPPED'`, KHÔNG phải `'CLEAN'`. ClamAV chưa từng quét mấy tệp này;
---   ghi `CLEAN` là nói dối sổ sách về một cơ chế bảo mật (CLAUDE.md luật 16).
---
--- ⚠ `owner_type = 'MEDIA_FOLDER'` là bắt buộc, không phải tuỳ chọn: `PublicPortalService`
---   chỉ phục vụ ba loại chủ sở hữu công khai (MEDIA_FOLDER · BANNER · SITE_CONFIG). Loại
---   khác trả 404 y hệt tệp không tồn tại.
--- =============================================================================
-"""]
+    dinh_kem = []
     for i in imgs:
-        L.append(f"""INSERT INTO attachments (public_id, owner_type, purpose, original_name, storage_bucket,
+        dinh_kem.append(f"""INSERT INTO attachments (public_id, owner_type, purpose, original_name, storage_bucket,
         storage_key, content_type, size_bytes, checksum_sha256, status, scan_status, created_by)
-VALUES ({q(i['public_id'])}, 'MEDIA_FOLDER', 'SEED_PORTAL', {q(i['file'])}, {q(BUCKET)},
+VALUES ({q(i['public_id'])}, 'MEDIA_FOLDER', 'SEED_PORTAL', {q(i['original_name'])}, {q(BUCKET)},
         {q(i['storage_key'])}, {q(i['content_type'])}, {i['size']}, {q(i['sha256'])},
         'READY', 'SKIPPED', (SELECT id FROM users WHERE username = 'superadmin'))
 ON CONFLICT (public_id) DO NOTHING;""")
-    (RA / "01-attachments.sql").write_text("\n".join(L) + "\n")
 
-    # ---------------- 02 · bài viết ----------------
-    L = [HEADER, f"""
--- =============================================================================
--- 02 · {len(bai)} BÀI SAO CHÉP NGUYÊN VĂN TỪ BÁO NGOÀI — CHỈ dùng cho STAGING
---
--- Cột `source` của từng bài ghi rõ URL gốc (hanoimoi.vn, vneconomy.vn). Đây là toàn văn
--- bài báo của người khác, kèm ảnh của họ.
---
--- ⛔ ĐỪNG chạy trên PRODUCTION. Cổng thông tin của một doanh nghiệp nhà nước đăng lại
---    nguyên văn bài có bản quyền là vấn đề pháp lý, không phải lựa chọn kỹ thuật.
---
--- Trên staging thì chấp nhận được: môi trường đóng, `X-Robots-Tag: noindex, nofollow`, và
--- cần có bài dài thật để đo bố cục và thời gian tải trang chủ (DOD1.17).
---
--- ⚠ KHÔNG seed `categories`: cây danh mục do migration `V202608191021__cms_seed_site_structure`
---   sở hữu và đã có sẵn trên mọi môi trường. Seed lại là dựng một nguồn sự thật thứ hai cho
---   cùng một dữ liệu.
--- =============================================================================
-"""]
+    bai_viet = []
     for a in bai:
         bans = sorted(ban.get(a["id"], []), key=lambda v: v["version_no"])
         dang = next((v for v in bans if v["id"] == a["published_version_id"]), bans[-1])
@@ -103,7 +174,7 @@ ON CONFLICT (public_id) DO NOTHING;""")
         assert bia, f"bài {a['id']} không có ảnh nào → thumbnail sẽ trống"
         slug = a["slug"]
         dm = [cat_slug[l["category_id"]] for l in d["links"] if l["article_id"] == a["id"]]
-        L.append(f"""
+        khoi = [f"""
 -- ---- {dang['title'][:70]}
 --      nguồn: {a['source']}
 INSERT INTO articles (title, slug, summary, content, source, status, published_at, meta_title,
@@ -129,13 +200,16 @@ FROM articles a WHERE a.slug = {q(slug)}
 -- INNER JOIN không khớp, và cổng dựng ra một trang hợp lệ mà rỗng.
 UPDATE articles a SET published_version_id = v.id
 FROM article_versions v WHERE v.article_id = a.id AND a.slug = {q(slug)}
-  AND a.published_version_id IS NULL;""")
+  AND a.published_version_id IS NULL;"""]
         for c in dm:
-            L.append(f"""INSERT INTO article_categories (article_id, category_id)
+            khoi.append(f"""INSERT INTO article_categories (article_id, category_id)
 SELECT a.id, c.id FROM articles a, categories c WHERE a.slug = {q(slug)} AND c.slug = {q(c)}
 ON CONFLICT DO NOTHING;""")
-    (RA / "02-articles.sql").write_text("\n".join(L) + "\n")
-    print(f"đính kèm {len(imgs)} · bài {len(bai)}")
+        bai_viet.append("\n".join(khoi))
+
+    DICH.parent.mkdir(parents=True, exist_ok=True)
+    DICH.write_text(ghep(dinh_kem, bai_viet))
+    print(f"{DICH} — đính kèm {len(imgs)} · bài {len(bai)}")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,71 @@
+# =============================================================================
+# DIỄN TẬP — chồng lên `compose.staging.yml` để chạy được ở MÁY BẤT KỲ
+#
+# ⭐ Tệp này CỐ Ý ngắn, và mỗi dòng của nó là một điều lượt diễn tập KHÔNG chứng
+#    minh được. Đọc hết trước khi tin vào một lượt diễn tập xanh.
+#
+# Nó đổi đúng ba thứ, không đổi gì khác:
+#
+#   1. `container_name` → tiền tố `rehearse-`. Không đổi thì tên container trùng
+#      với stack local đang chạy (`songnhue-postgres`…) và một trong hai bên bị
+#      chiếm mất tên — `-p` không cứu, vì `container_name` là tên tuyệt đối.
+#
+#   2. Hai bind mount vào đường TUYỆT ĐỐI của máy chủ (`/var/lib/songnhue/backup`,
+#      `/opt/songnhue/keys`) → volume có tên. Hai đường ấy chỉ tồn tại trên VPS;
+#      trên macOS chúng còn nằm ngoài danh sách thư mục Docker Desktop chia sẻ, nên
+#      để nguyên là lượt diễn tập không chạy nổi ở máy nào cả.
+#      ⛔ Hệ quả: diễn tập KHÔNG kiểm được quyền thư mục — đúng mục 3 của
+#         `docs/deploy-staging-issue.md`, thứ đã làm container app crash trên VPS.
+#
+#   3. Không có gì khác. `mem_limit`, biến môi trường, `depends_on`, thứ tự khởi
+#      động, `minio-init`, `migrator` — giữ nguyên như staging, vì chúng chính là
+#      thứ đang được diễn tập.
+#
+# ⛔ NHỮNG GÌ LƯỢT DIỄN TẬP KHÔNG NÓI GÌ VỀ:
+#      · nginx biên, TLS, tên miền, CSP  (không dựng — cần chứng chỉ thật)
+#      · quyền thư mục trên máy chủ       (xem mục 2 ở trên)
+#      · image `admin-app` / `public-web` (không dựng — chỉ diễn tập đường dữ liệu)
+#      · bất cứ thứ gì chỉ sai khi có tải thật
+# =============================================================================
+name: songnhue-rehearse
+
+include:
+  - compose.staging.yml
+
+services:
+  postgres:
+    container_name: rehearse-postgres
+    volumes:
+      # Cùng `target` thì tệp sau thắng — bind vào /var/lib/songnhue/backup bị
+      # thay bằng volume có tên.
+      - rehearse-backup:/var/lib/songnhue/backup
+
+  minio:
+    container_name: rehearse-minio
+
+  minio-init:
+    container_name: rehearse-minio-init
+
+  migrator:
+    container_name: rehearse-migrator
+
+  app:
+    container_name: rehearse-app
+    volumes:
+      - rehearse-keys:/opt/songnhue/keys:ro
+      - rehearse-backup:/var/lib/songnhue/backup
+      - rehearse-log:/var/log/songnhue
+
+  admin-app:
+    container_name: rehearse-admin-app
+
+  public-web:
+    container_name: rehearse-public-web
+
+  nginx:
+    container_name: rehearse-nginx
+
+volumes:
+  rehearse-backup:
+  rehearse-keys:
+  rehearse-log:
