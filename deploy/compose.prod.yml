@@ -169,6 +169,24 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      # ⚠⚠ PHẢI có, và phải là `service_completed_successfully`.
+      #
+      #    `minio-init` tạo ba bucket và tài khoản dịch vụ hạn chế. Trước 25/8 nó
+      #    `depends_on: minio` mà KHÔNG service nào depends_on nó, còn workflow
+      #    triển khai chỉ `up -d app admin-app public-web nginx` — nên nó không
+      #    bao giờ chạy. Staging chạy suốt với MinIO KHÔNG CÓ BUCKET NÀO: mọi lượt
+      #    tải tệp lên, kết xuất báo cáo và kết xuất audit đều hỏng, im lặng, cho
+      #    tới khi một dòng của `mc` nói ra (§10.49).
+      #
+      #    Đặt ràng buộc ở ĐÂY chứ không thêm tên vào dòng `up -d`: thứ cần bucket
+      #    là `app`, nên chính `app` phải là nơi ghi điều đó. Thêm vào `up -d` thì
+      #    service thứ mười một sau này lại mồ côi y như vậy.
+      #
+      #    `service_started` KHÔNG đủ: `minio-init` chạy xong rồi thoát, nên app có
+      #    thể lên trước lúc bucket kịp tạo — lỗi sẽ thành lúc có lúc không, tuỳ máy
+      #    nhanh chậm.
+      minio-init:
+        condition: service_completed_successfully
     env_file: [.env]
     environment:
       # Lấy từ `.env` để `compose.staging.yml` — vốn `include` chính tệp này —

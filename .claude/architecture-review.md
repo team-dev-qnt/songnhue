@@ -3014,3 +3014,64 @@ Kiểm bằng container thật gắn đúng nhãn:
 | khôi phục | 3 xanh |
 
 📌 Kịch bản thứ ba **lọt ở bản đầu**: bài neo đếm mọi `.sh` trong `deploy/`, mà chính tệp **định nghĩa** `container_cua` cũng là một `.sh` ở đó — nó tự đếm mình. Câu đang hỏi là *"có ai DÙNG không"*, không phải *"có ai viết ra nó không"*. Đã loại `deploy/lib/` khỏi phép đếm. Lại thêm một lần lượt kiểm chứng ngược là thứ duy nhất phát hiện ra.
+
+---
+
+### §10.49. ⚠⚠ `minio-init` chưa từng chạy — staging chạy suốt với MinIO không có bucket nào (25/8/2026)
+
+Bản vá §10.48 chạy đúng: lượt seed qua được chỗ tra mạng, kéo được image `mc`, rồi hỏng ở dòng cuối cùng:
+
+```
+mc: <ERROR> Failed to copy … Bucket `songnhue-media` does not exist.
+```
+
+#### Nguyên nhân — một service tồn tại mà không nằm trên đường nào
+
+`compose.prod.yml` **có** service `minio-init`: tạo ba bucket, bật versioning cho bucket audit, tạo tài khoản dịch vụ hạn chế cho ứng dụng. Nó khai `depends_on: minio`.
+
+Nhưng **không service nào depends_on nó**, còn workflow triển khai chỉ gọi:
+
+```
+docker compose … up -d app admin-app public-web nginx
+```
+
+`postgres` và `minio` lên theo `app`. `minio-init` thì không bao giờ chạy. Hỏi thẳng compose bằng `--dry-run` với đúng lệnh ấy:
+
+| | Container compose sẽ tạo |
+|---|---|
+| **trước bản vá** | admin-app · app · minio · nginx · postgres · public-web |
+| **sau bản vá** | admin-app · app · minio · **minio-init** · nginx · postgres · public-web |
+
+#### Phạm vi thật của lỗi rộng hơn bộ seed rất nhiều
+
+Không bucket nào tồn tại, và ứng dụng không có tài khoản dịch vụ. Nghĩa là trên staging:
+
+- **mọi lượt tải tệp lên** từ giao diện quản trị đều hỏng
+- **mọi bản kết xuất báo cáo** hỏng
+- **mọi lượt kết xuất audit** hỏng
+
+Và **không bước nào báo sai**. Smoke test chỉ hỏi `/api/v1/public/site-config` — nó không đi qua MinIO. Lỗi lộ ra lần đầu qua một dòng của `mc`, khi nạp nội dung seed, tức hoàn toàn tình cờ.
+
+#### Bản vá — đặt ràng buộc ở chỗ cần nó
+
+Cách chữa hời hợt là thêm `minio-init` vào dòng `up -d`. Nó vá đúng một service, và service thứ mười một thêm vào sau này lại mồ côi y như thế.
+
+Cách chữa đúng: **`app` `depends_on` `minio-init` với `service_completed_successfully`**. Thứ cần bucket là `app`, nên chính `app` phải là nơi ghi điều đó — luật 12. `service_started` không đủ: `minio-init` chạy xong rồi thoát, nên app có thể lên trước lúc bucket kịp tạo, và lỗi thành lúc có lúc không tuỳ máy nhanh chậm.
+
+#### `NoOrphanServiceTest` — canh đồ thị, không canh danh sách
+
+Bài kiểm hỏi câu tổng quát: *có service nào không nằm trên đường nào không?* Một service được coi là có đường chạy khi: (1) nằm trong `up -d` hoặc tới được từ đó qua `depends_on`; (2) được gọi bằng `run --rm <tên>` (cách `migrator` chạy); (3) có khai `profiles:` (cách `certbot` chạy).
+
+Viết **trước** khi vá, và nó đỏ đúng một phát hiện: `["minio-init"]`.
+
+| Làm hỏng có chủ đích | Kết quả |
+|---|---|
+| gỡ `minio-init` khỏi `depends_on` của app | **2 đỏ** |
+| hạ xuống `service_started` | 1 đỏ |
+| thêm một service mồ côi mới | 1 đỏ |
+| thêm service mồ côi **có `profiles:`** | **0 đỏ** — đúng, không báo oan |
+| khôi phục | 2 xanh |
+
+Kịch bản thứ tư quan trọng ngang ba kịch bản kia: một bộ canh hay báo oan sẽ bị người ta tắt đi.
+
+📌 Cần kiểm lại sau lượt deploy tới: **tải tệp lên từ giao diện quản trị staging** — đó là chức năng chưa từng chạy được, không phải chức năng vừa hỏng.
