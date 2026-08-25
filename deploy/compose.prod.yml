@@ -98,8 +98,15 @@ services:
       start_period: 20s
     mem_limit: 1g
 
-  # Tạo bucket + tài khoản dịch vụ hạn chế cho ứng dụng. Chạy lại nhiều lần
-  # không sao.
+  # Tạo bucket + tài khoản dịch vụ hạn chế cho ứng dụng, và — nếu môi trường bật
+  # — nạp byte của bộ seed nội dung. Chạy lại nhiều lần không sao.
+  #
+  # ⭐ VÌ SAO BYTE SEED ĐI QUA ĐÂY chứ không qua một script riêng: migration seed
+  #    ghi hàng `attachments` trỏ tới `storage_key`, còn byte thì SQL không đẩy
+  #    được. Hai vế nằm ở hai hệ thống khác nhau và lệch nhau là hỏng CÂM — CSDL
+  #    vẫn nói tệp tồn tại, `GET /api/v1/public/files/<id>` trả 404. Đặt vế byte
+  #    vào service đã nằm sẵn trên đường triển khai (và `app` đã `depends_on` nó)
+  #    thì mỗi lượt deploy đều đi qua cả hai; một script bấm tay thì không.
   minio-init:
     image: minio/minio:RELEASE.2025-09-07T16-13-09Z
     container_name: songnhue-minio-init
@@ -115,6 +122,16 @@ services:
       MINIO_BUCKET_MEDIA: ${MINIO_BUCKET_MEDIA}
       MINIO_BUCKET_REPORT: ${MINIO_BUCKET_REPORT}
       MINIO_BUCKET_AUDIT: ${MINIO_BUCKET_AUDIT}
+      # Rỗng = không nạp byte seed. Chỉ staging đặt `/seed-media`, cùng lúc với
+      # `SEED_LOCATION` ở `migrator` — `SeedGateTest` canh hai vế không được lệch.
+      SEED_MEDIA_DIR: ${SEED_MEDIA_DIR:-}
+    volumes:
+      # ⚠ BỐ CỤC THƯ MỤC CHÍNH LÀ KHOÁ ĐỐI TƯỢNG. Tệp nằm ở
+      #   `deploy/seed/media/seed/portal/<public_id>.jpeg` nên `mc cp --recursive`
+      #   sinh ra đúng khoá `seed/portal/<public_id>.jpeg` mà migration ghi vào
+      #   cột `storage_key`. Không có tiền tố nào viết cứng trong lệnh — một tiền
+      #   tố viết ở hai nơi là một tiền tố sẽ lệch.
+      - ./seed/media:/seed-media:ro
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -131,6 +148,17 @@ services:
         mc admin user add local "$$MINIO_ACCESS_KEY" "$$MINIO_SECRET_KEY" || true
         mc admin policy attach local readwrite --user "$$MINIO_ACCESS_KEY" || true
         echo "✓ Bucket và tài khoản dịch vụ sẵn sàng"
+        if [ -n "$$SEED_MEDIA_DIR" ]; then
+            # ⚠ Bật mà thư mục rỗng thì DỪNG, đừng đi tiếp im lặng: đó chính là
+            #   trạng thái "CSDL có hàng, MinIO không có byte" mà cả khối chú
+            #   thích ở trên nói tới. Hỏng ở đây rẻ hơn hỏng ở trình duyệt.
+            if [ -z "$$(ls -A "$$SEED_MEDIA_DIR" 2>/dev/null)" ]; then
+                echo "✗ SEED_MEDIA_DIR=$$SEED_MEDIA_DIR đang bật nhưng không có tệp nào" >&2
+                exit 1
+            fi
+            mc cp --quiet --recursive "$$SEED_MEDIA_DIR/" "local/$$MINIO_BUCKET_MEDIA/"
+            echo "✓ Đã nạp byte seed vào $$MINIO_BUCKET_MEDIA"
+        fi
 
   # ---------------------------------------------------------------------------
   # migrator — chạy Flyway rồi THOÁT. Không phải service chạy nền.
@@ -146,10 +174,22 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      # ⚠⚠ PHẢI có, và phải là `service_completed_successfully`.
+      #
+      #    Migration seed ghi hàng `attachments` KHẲNG ĐỊNH rằng byte đã nằm trong
+      #    MinIO. Ràng buộc ấy thuộc về nơi lời khẳng định được ghi ra, không thuộc
+      #    về thứ tự dòng lệnh trong workflow triển khai (luật 12: đặt bảo đảm ở
+      #    chỗ dữ liệu đi qua, không đặt ở nơi gọi). Nhờ vậy `docker compose run
+      #    --rm migrator` gõ ở đâu cũng ra đúng thứ tự, kể cả gõ tay lúc chữa cháy.
+      minio-init:
+        condition: service_completed_successfully
     env_file: [.env]
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
+      # Cổng chặn bộ seed nội dung — xem `application.yml`. Rỗng/không đặt =
+      # `classpath:db/seed/none` = không seed gì. Chỉ staging đặt khác.
+      SEED_LOCATION: ${SEED_LOCATION:-classpath:db/seed/none}
       # Migrator chỉ chạy DDL, nhưng context Spring vẫn dựng vài bean `@Scheduled`
       # và chúng kéo theo BackupProperties. Cấp một đường dẫn hợp lệ là đủ.
       BACKUP_DIR: /var/lib/songnhue/backup

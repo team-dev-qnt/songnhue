@@ -1,13 +1,9 @@
 # =============================================================================
 # CD Staging — tự động khi có mã mới vào nhánh `staging` (WS-11 / T11.8)
 #
-# KHÔNG kiểm tra lại gì cả. Mọi bài kiểm đã chạy ở `dev`, và `Promotion guard`
-# đã xác minh đúng commit này xanh CI trước khi cho merge vào đây. Chạy lại là
-# tốn thời gian trên cùng một mã nguồn mà không phát hiện thêm được gì.
-#
-# Cũng KHÔNG build lại image. Image đã đóng gói một lần ở CI của `dev` và được
-# đề bạt nguyên vẹn — xem docs/cicd.md. Build lại nghĩa là staging chạy một
-# image chưa ai thử, dù commit y hệt.
+# Tệp này chỉ làm ĐÚNG MỘT việc mà production không phải làm: trả lời câu *commit
+# nào trên `dev` đã dựng ra đúng mã đang nằm trên `staging`?* Rồi giao phần còn
+# lại cho `deploy.yml` — thân chung của cả hai môi trường.
 # =============================================================================
 name: CD Staging
 
@@ -15,28 +11,22 @@ on:
   push:
     branches: [staging]
 
-# Hai lượt merge liên tiếp: để lượt sau chờ lượt trước xong. KHÔNG huỷ giữa
-# chừng như bên CI — huỷ một lượt deploy đang chạy có thể để lại môi trường ở
-# trạng thái nửa vời.
+# Hai lượt merge liên tiếp: để lượt sau chờ lượt trước xong. KHÔNG huỷ giữa chừng
+# như bên CI — huỷ một lượt deploy đang chạy có thể để lại môi trường nửa vời.
 concurrency:
   group: deploy-staging
   cancel-in-progress: false
 
 permissions:
   contents: read
-  # ⚠ `write`, KHÔNG phải `read`. Workflow này ĐỌC image theo tag SHA, nhưng bước
-  #   "Gắn tag `staging`" GHI một tag mới lên gói GHCR. Khai `packages: read` thì
-  #   lượt tra đi lọt, rồi hỏng ở đúng bước ghi với `403 denied: installation not
-  #   allowed to Write organization package` — một thông báo không nhắc gì tới
-  #   khối `permissions:` cách đó 180 dòng (§10.44).
-  packages: write
 
 jobs:
-  deploy:
-    name: Triển khai Staging
+  giai-dinh-dev:
+    name: Đỉnh dev tương ứng
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    environment: staging
+    timeout-minutes: 10
+    outputs:
+      sha: ${{ steps.giai.outputs.dev_tip }}
 
     steps:
       - uses: actions/checkout@v4
@@ -44,72 +34,36 @@ jobs:
           fetch-depth: 0
 
       # `fetch-depth: 0` lấy đủ lịch sử của NHÁNH ĐANG CHECKOUT, không lấy nhánh khác.
-      # Bước dưới cần `origin/dev` để đối chiếu cây tệp khi PR bị squash.
       - name: Nạp thêm nhánh dev để đối chiếu
         run: git fetch --no-tags origin +refs/heads/dev:refs/remotes/origin/dev
 
-      # ⚠ `github.sha` ở đây là commit MERGE vừa tạo trên `staging`, không phải
-      # commit của `dev` — mà image lại được gắn tag theo commit của `dev`.
-      # Với merge commit, cha thứ hai (HEAD^2) chính là đỉnh của `dev` lúc merge.
+      # ═══════════════════════════════════════════════════════════════════════
+      # Trả lời bằng CÂY TỆP, không bằng quan hệ cha–con. Hai bản trước đều vấp:
       #
-      # Đây là lý do `required_linear_history` bị TẮT ở staging/production
-      # (docs/branch-protection.md §2.3): squash sẽ sinh SHA mới không có cha
-      # thứ hai, và mối liên hệ với image đã kiểm bị cắt đứt.
-      # ⚠⚠ PHẢI đăng nhập TRƯỚC khi tra image (sửa 19/8).
+      #   Bản 1 tin `HEAD^2` vô điều kiện. PR bị **squash** → commit một cha → rơi
+      #   về SHA của chính staging, một SHA chưa bao giờ có trên `dev`, rồi báo
+      #   "không tìm thấy image" kèm ba bước chẩn đoán trỏ vào ba chỗ đều đang
+      #   tốt (§10.42).
       #
-      #   Bản đầu để bước này SAU bước tra `docker manifest inspect`. Gói GHCR
-      #   mặc định là **riêng tư** kể cả khi repo công khai — kiểm chứng ngày
-      #   19/8: `GET ghcr.io/v2/.../manifests/<sha>` ẩn danh trả **403**.
+      #   Bản 2 thử "lấy cha nào nằm trên dev". Sai êm hơn: cha thứ nhất của một
+      #   commit squash là tổ tiên chung cổ lỗ, mà nó *đúng là* nằm trên `dev`.
       #
-      #   Hậu quả không phải là "lỗi đăng nhập" mà tệ hơn: vòng lặp tra sẽ
-      #   trượt MỌI ứng viên rồi thoát với thông báo *"commit này chưa từng qua
-      #   CI của dev — kiểm tra lại Promotion guard"*. Tức lần deploy đầu tiên
-      #   sẽ cử người đi lục lịch sử CI để tìm một lỗi không tồn tại.
-      - name: Đăng nhập GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      # ⚠⚠ BA image, không phải một. `app` là backend; `admin-app` và
-      #   `public-web` là hai giao diện. Bản đầu của workflow này chỉ tra `app`
-      #   và chỉ `up -d app nginx` — nghĩa là môi trường chạy backend mới bên
-      #   dưới giao diện cũ, âm thầm, không bước nào báo sai.
-      - name: Xác định image cần triển khai
-        id: image
+      # Cây tệp trả lời thẳng câu đang hỏi và không phụ thuộc vào việc ai bấm nút
+      # merge nào.
+      # ═══════════════════════════════════════════════════════════════════════
+      - name: Giải đỉnh dev theo cây tệp
+        id: giai
         run: |
           set -euo pipefail
-
-          # ═══════════════════════════════════════════════════════════════════
-          # Câu đang hỏi: **commit nào trên `dev` đã dựng ra đúng mã đang nằm trên
-          # `staging`?** Trả lời bằng CÂY TỆP, không bằng quan hệ cha–con.
-          #
-          # ⚠⚠ Vì sao không dùng `HEAD^2` — hai bản trước đều vấp ở đây:
-          #
-          #   Bản 1 tin `HEAD^2` vô điều kiện, rơi về `HEAD` khi thiếu. PR #14 bị
-          #   **squash** → commit một cha → rơi về SHA của chính staging, một SHA chưa
-          #   bao giờ có trên `dev`. Lượt lùi đi vào lịch sử riêng của `staging` (nhánh
-          #   này tách ra từ thời còn là kho tài liệu) rồi báo *"không tìm thấy image"*
-          #   kèm ba bước chẩn đoán trỏ vào job đóng gói, gói GHCR và bước đăng nhập —
-          #   **cả ba đều là ngõ cụt**: image đủ, job xanh, đăng nhập xanh (§10.42).
-          #
-          #   Bản 2 thử "lấy cha nào nằm trên dev". Cũng sai, và sai êm hơn: cha thứ
-          #   nhất của một commit squash là **tổ tiên chung cổ lỗ** (`3c29f0c`), mà nó
-          #   *đúng là* nằm trên `dev` — nên luật ấy chọn một commit từ thời chưa có mã.
-          #
-          # Cây tệp trả lời thẳng câu đang hỏi, và không phụ thuộc vào việc ai bấm nút
-          # merge nào. `merge-base` chỉ là phỏng đoán nhanh cho đường thiết kế; phỏng
-          # đoán ấy vẫn phải qua đúng phép kiểm cây như mọi ứng viên khác.
-          # ═══════════════════════════════════════════════════════════════════
           cay_staging="$(git rev-parse 'HEAD^{tree}')"
           dev_tip=""
 
-          # Đường nhanh: commit `dev` mới nhất mà `staging` với tới được.
+          # Đường nhanh: commit `dev` mới nhất mà `staging` với tới được. Chỉ là
+          # phỏng đoán — nó vẫn phải qua đúng phép kiểm cây như mọi ứng viên khác.
           base="$(git merge-base HEAD origin/dev 2>/dev/null || true)"
           if [ -n "$base" ] && [ "$(git rev-parse "$base^{tree}")" = "$cay_staging" ]; then
             dev_tip="$base"
-            echo "Đỉnh dev đang đề bạt: $dev_tip  (merge-base, cây tệp trùng khít)"
+            echo "Đỉnh dev: $dev_tip  (merge-base, cây tệp trùng khít)"
           fi
 
           # Đường chung: quét ngược `dev` tìm commit có cây trùng khít.
@@ -121,7 +75,6 @@ jobs:
               echo "::warning::Không nối được staging với dev qua merge-base — PR nhiều khả năng đã bị squash/rebase."
               echo "Đối chiếu theo cây tệp: nội dung staging trùng khít dev@$dev_tip nên dùng image của commit đó."
               echo "⚠ Lần sau chọn 'Create a merge commit' khi merge vào staging (docs/branch-protection.md §2.3-b)."
-              echo "Đỉnh dev đang đề bạt: $dev_tip  (khớp theo cây tệp)"
             fi
           fi
 
@@ -137,197 +90,24 @@ jobs:
             exit 1
           fi
 
-          # Danh sách ứng viên tính MỘT lần rồi dùng cho cả ba image — gọi
-          # `git rev-list` ba lần trên cùng một commit chỉ tốn thêm thời gian.
-          candidates="$(git rev-list --first-parent -n 50 "$dev_tip")"
-
-          # ⚠ Không phải commit nào trên `dev` cũng có image: job đóng gói chỉ
-          #   chạy khi đúng vùng của nó đổi. Một lượt đề bạt chỉ sửa tài liệu thì
-          #   KHÔNG có image nào mang SHA đó — và điều đó hoàn toàn hợp lệ, vì
-          #   mã không đổi thì image của commit gần nhất chính là bản đúng.
-          #   Nên lùi theo cha thứ nhất, thay vì báo lỗi. Giới hạn 50 bước để
-          #   hỏng thì hỏng nhanh.
-          #
-          # ⚠ Ba image lùi ĐỘC LẬP với nhau: một lượt chỉ sửa frontend thì
-          #   `admin-app` khớp ngay đỉnh còn `app` phải lùi vài bước. Ép chúng
-          #   dùng chung một SHA là ép đóng gói lại phần không đổi.
-          # ── Phân biệt "không có image" với "không đọc được image" ─────────
-          # `docker manifest inspect ... 2>/dev/null` nuốt sạch lý do thất bại,
-          # nên 403 (chưa xác thực) và 404 (chưa dựng) cho ra CÙNG một thông báo
-          # *"không tìm thấy image"* — và ba bước chẩn đoán bên dưới đều dẫn vào
-          # ngõ cụt. Đúng lỗi đã trả giá ngày 24/8: bước tra bị ép
-          # `DOCKER_CONFIG` sang một thư mục RỖNG, nên `Login Succeeded!` ở bước
-          # trên là thật mà lượt tra vẫn đi ẩn danh; gói GHCR là **riêng tư**
-          # (kiểm chứng: token ẩn danh rỗng, manifest trả 403), thế là cả 50 ứng
-          # viên đều trượt.
-          #
-          # Vì vậy: tra thử ĐÚNG MỘT lần, để nguyên stderr, trên một tag chắc
-          # chắn tồn tại nếu quyền đọc còn sống. Hỏng ở đây là hỏng về QUYỀN.
-          if ! docker manifest inspect \
-                 "ghcr.io/${{ github.repository }}/app:dev" >/dev/null; then
-            echo "::error::Không đọc được gói GHCR — đây là lỗi QUYỀN, không phải thiếu image."
-            echo "Gói GHCR mặc định RIÊNG TƯ. Kiểm tra: bước 'Đăng nhập GHCR' ở trên,"
-            echo "quyền 'packages: write' của workflow, và đừng đặt DOCKER_CONFIG ở bước này"
-            echo "— đặt là tra ẩn danh, vì bước đăng nhập ghi thông tin vào \$HOME/.docker."
-            exit 1
-          fi
-
-          for target in app admin-app public-web; do
-            registry="ghcr.io/${{ github.repository }}/$target"
-            sha=""
-            for candidate in $candidates; do
-              if docker manifest inspect "$registry:$candidate" >/dev/null 2>&1; then
-                sha="$candidate"
-                break
-              fi
-            done
-
-            if [ -z "$sha" ]; then
-              echo "::error::Không tìm thấy image '$target' trong 50 commit gần nhất tính từ $dev_tip"
-              echo "Kiểm tra theo thứ tự: (1) job đóng gói tương ứng ở dev có chạy và đẩy được không"
-              echo "('Đóng gói image' cho app · 'Đóng gói image frontend' cho hai cái còn lại);"
-              echo "(2) gói GHCR có tồn tại không; (3) bước đăng nhập GHCR phía trên có xanh không."
-              exit 1
-            fi
-
-            [ "$sha" != "$dev_tip" ] && echo "ℹ $target: đỉnh dev không có image — dùng bản gần nhất $sha"
-            echo "✓ $registry:$sha"
-            # app → app_image · admin-app → admin_app_image · public-web → public_web_image
-            # (tên output của GitHub Actions không nhận dấu gạch ngang)
-            echo "$(echo "$target" | tr '-' '_')_image=$registry:$sha" >> "$GITHUB_OUTPUT"
-          done
           echo "dev_tip=$dev_tip" >> "$GITHUB_OUTPUT"
+          echo "Đỉnh dev đang đề bạt: \`$dev_tip\`" >> "$GITHUB_STEP_SUMMARY"
 
-      # Gắn thêm tag `staging` — tiện cho người vận hành nhìn nhanh "staging
-      # đang chạy cái gì". Bản thân việc deploy vẫn dùng tag SHA.
-      - name: Gắn tag `staging`
-        run: |
-          set -euo pipefail
-          for pair in \
-            "app:${{ steps.image.outputs.app_image }}" \
-            "admin-app:${{ steps.image.outputs.admin_app_image }}" \
-            "public-web:${{ steps.image.outputs.public_web_image }}"; do
-            name="${pair%%:*}"; ref="${pair#*:}"
-            docker buildx imagetools create \
-              --tag "ghcr.io/${{ github.repository }}/$name:staging" "$ref"
-          done
-
-      - name: Kiểm tra đã có cấu hình máy chủ chưa
-        id: target
-        run: |
-          if [ -z "${{ secrets.STAGING_HOST }}" ]; then
-            echo "::warning::Chưa cấu hình secret STAGING_HOST — bỏ qua bước triển khai."
-            echo "Ba VM và compose.staging.yml thuộc WS-11 (T11.2, T11.3); tới đó thì bước này tự chạy."
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      # Migration chạy ở service `migrator` RIÊNG, xong hẳn rồi app mới lên
-      # (architecture-review.md §9.2). Migration hỏng thì app không lên nửa vời.
-      # ⚠⚠ ĐỒNG BỘ CẤU HÌNH TRƯỚC KHI TRIỂN KHAI — bước này ngăn một kiểu trôi
-      #    hoàn toàn câm.
-      #
-      #    `compose.*.yml`, cấu hình nginx, script sao lưu đều nằm trong repo,
-      #    nhưng chúng CHẠY từ đĩa của máy chủ. Không có bước này thì sửa CSP,
-      #    sửa hạn mức, thêm một service — tất cả nằm yên trong repo còn máy chủ
-      #    vẫn chạy bản chép tay từ ngày dựng. Không lệnh nào báo sai, vì đứng
-      #    riêng thì cả hai bên đều "đúng".
-      #
-      # ⛔ CỐ Ý KHÔNG chép `.env` và `keys/`. Chúng chỉ tồn tại trên máy chủ,
-      #    không có trong repo, và không được đi qua runner của GitHub.
-      - name: Đồng bộ cấu hình lên máy chủ
-        if: steps.target.outputs.ready == 'true'
-        env:
-          SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
-          HOST: ${{ secrets.STAGING_HOST }}
-          USER: ${{ secrets.STAGING_USER }}
-        run: |
-          set -euo pipefail
-          mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          echo "$SSH_KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
-
-          rsync -az --delete \
-            --exclude '.env' --exclude 'env/' --exclude 'keys/' \
-            --exclude 'compose.local.yml' --exclude 'compose.infra.yml' \
-            deploy/ "$USER@$HOST:/opt/songnhue/"
-          ssh "$USER@$HOST" 'chmod +x /opt/songnhue/backup/*.sh'
-
-      - name: Triển khai lên VPS-2
-        if: steps.target.outputs.ready == 'true'
-        env:
-          HOST: ${{ secrets.STAGING_HOST }}
-          USER: ${{ secrets.STAGING_USER }}
-          APP_IMAGE: ${{ steps.image.outputs.app_image }}
-          ADMIN_IMAGE: ${{ steps.image.outputs.admin_app_image }}
-          PUBLIC_IMAGE: ${{ steps.image.outputs.public_web_image }}
-        run: |
-          set -euo pipefail
-          # ⚠ Heredoc KHÔNG trích dẫn (`<<REMOTE`) là cố ý: ba biến ảnh phải được
-          #   runner thay TRƯỚC khi chuỗi lệnh đi qua SSH — máy chủ không biết
-          #   chúng. Đổi thành `<<'REMOTE'` là compose bên kia thấy biến rỗng và
-          #   dừng với "Thiếu APP_IMAGE".
-          ssh "$USER@$HOST" bash -euo pipefail <<REMOTE
-            cd /opt/songnhue
-            export APP_IMAGE="$APP_IMAGE"
-            export ADMIN_IMAGE="$ADMIN_IMAGE"
-            export PUBLIC_IMAGE="$PUBLIC_IMAGE"
-
-            docker compose --env-file .env -f compose.staging.yml pull
-
-            # Migration chạy ở service RIÊNG và phải xong hẳn trước. \`run --rm\`
-            # chạy đồng bộ và trả mã thoát, nên migration hỏng là lượt deploy
-            # dừng NGAY — app cũ vẫn đang chạy, chưa có gì bị thay.
-            docker compose --env-file .env -f compose.staging.yml run --rm migrator
-
-            docker compose --env-file .env -f compose.staging.yml up -d \
-                app admin-app public-web nginx
-
-            # Dọn image cũ để đĩa không đầy dần sau vài chục lượt deploy. Đĩa đầy
-            # làm pg_dump hỏng theo, và mất sao lưu là mất lưới an toàn duy nhất.
-            docker image prune -f --filter "until=168h" || true
-          REMOTE
-
-      - name: Smoke test
-        if: steps.target.outputs.ready == 'true'
-        env:
-          BASE_URL: ${{ secrets.STAGING_BASE_URL }}
-        run: |
-          set -euo pipefail
-          # ⚠⚠ ĐÍCH ĐO ĐỔI 24/8 — lý do đầy đủ ở cùng chỗ trong deploy-prod.yml.
-          #    Tóm tắt: `$BASE_URL/actuator/**` KHÔNG đi tới đâu từ bên ngoài,
-          #    nginx biên không định tuyến `/actuator` sang `app`. Đo thật:
-          #    public-web trả 404, admin-app trả 200 kèm TRANG HTML của SPA.
-          #    Endpoint dưới đây là đường công khai thật, và nó đi hết chặng
-          #    nginx → public-web → Route Handler → app → postgres.
-          # ⚠ Hứng ra biến thay vì `curl … | grep -q` — lý do ghi ở cùng chỗ
-          #   trong deploy-prod.yml (SIGPIPE + pipefail).
-          for i in $(seq 1 30); do
-            body=$(curl -fsS "$BASE_URL/api/v1/public/site-config" || true)
-            case "$body" in
-              *'"success":true'*)
-                echo "✓ Staging đi hết chặng nginx → public-web → app → postgres sau ${i}0 giây"
-                exit 0 ;;
-            esac
-            sleep 10
-          done
-          echo "::error::Staging không trả envelope thành công sau 5 phút."
-          echo "Chẩn đoán theo thứ tự: (1) \`curl -sI \$BASE_URL/healthz\` — nginx sống chưa;"
-          echo "(2) \`docker compose logs app\` — ứng dụng có lên không; (3) \`docker compose ps\`."
-          exit 1
-
-      - name: Ghi tóm tắt
-        if: always()
-        run: |
-          {
-            echo "### Triển khai Staging"
-            echo "- Commit gốc ở dev: \`${{ steps.image.outputs.dev_tip }}\`"
-            echo "- backend: \`${{ steps.image.outputs.app_image }}\`"
-            echo "- admin-app: \`${{ steps.image.outputs.admin_app_image }}\`"
-            echo "- public-web: \`${{ steps.image.outputs.public_web_image }}\`"
-            echo "- Triển khai thật: ${{ steps.target.outputs.ready == 'true' && 'có' || 'CHƯA (thiếu secret, xem WS-11)' }}"
-            echo ""
-            echo "> Ba SHA có thể KHÁC nhau — đó là bình thường: image nào không"
-            echo "> đổi thì giữ nguyên bản đã kiểm, không đóng gói lại."
-          } >> "$GITHUB_STEP_SUMMARY"
+  trien-khai:
+    name: Triển khai
+    needs: giai-dinh-dev
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/deploy.yml
+    with:
+      moi_truong: staging
+      commit_sha: ${{ needs.giai-dinh-dev.outputs.sha }}
+      compose_file: compose.staging.yml
+    # ⛔ Workflow thân chung chỉ thấy đúng bốn secret truyền vào đây. Không có
+    #    đường nào — kể cả gõ nhầm một input — cho nó chạm tới `PROD_*`.
+    secrets:
+      HOST: ${{ secrets.STAGING_HOST }}
+      USER: ${{ secrets.STAGING_USER }}
+      SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+      BASE_URL: ${{ secrets.STAGING_BASE_URL }}

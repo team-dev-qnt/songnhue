@@ -43,6 +43,20 @@ spring:
       - classpath:db/migration/ops
       - classpath:db/migration/hyd
       - classpath:db/migration/hr
+      # ⭐ CỔNG CHẶN của bộ seed nội dung. Mặc định trỏ vào `db/seed/none` — một
+      #   thư mục có thật và cố ý rỗng, nên production KHÔNG BAO GIỜ giải được
+      #   migration seed: nó không tồn tại với Flyway ở đó, chứ không phải "chạy
+      #   rồi không làm gì".
+      #
+      #   Chỉ staging đặt `SEED_LOCATION=classpath:db/seed/portal`. Vì sao phải
+      #   chặn ở mức location thay vì một câu `IF` trong SQL: migration seed có
+      #   lệnh XOÁ BÀI, và một cổng chặn nằm trong chính tệp nó chặn thì chỉ cách
+      #   production đúng một lỗi gõ.
+      #
+      # ⚠ Đã bật ở staging thì phải GIỮ bật: gỡ location sau khi migration đã
+      #   được ghi vào `flyway_schema_history` sẽ làm `validate` đỏ với "applied
+      #   migration not resolved". Muốn thôi seed thì dựng lại CSDL.
+      - ${SEED_LOCATION:classpath:db/seed/none}
     # `flyway clean` xóa sạch schema — chặn cứng, không để lỡ tay trên production
     clean-disabled: true
     validate-on-migrate: true

@@ -3075,3 +3075,84 @@ Viết **trước** khi vá, và nó đỏ đúng một phát hiện: `["minio-i
 Kịch bản thứ tư quan trọng ngang ba kịch bản kia: một bộ canh hay báo oan sẽ bị người ta tắt đi.
 
 📌 Cần kiểm lại sau lượt deploy tới: **tải tệp lên từ giao diện quản trị staging** — đó là chức năng chưa từng chạy được, không phải chức năng vừa hỏng.
+
+---
+
+### §10.50. Dọn đường ống triển khai: bộ seed vào chuỗi migration, hai workflow gộp làm một, bỏ vòng tra image (25/8/2026)
+
+Bảy sự cố liên tiếp (§10.42 → §10.49) đều nằm trên **một** đường: nạp nội dung cho staging. Không bản vá nào sai. Cái sai là **hình dạng**: đường ấy gồm 6 khâu (đọc `.env` → tra container → tra mạng → bucket → khoá → byte) và **chỉ chạy khi có người bấm nút**, nên mỗi lượt bấm chỉ lộ ra đúng khâu kế tiếp. Lượt vá thứ tám sẽ lộ ra khâu thứ tám.
+
+> ⛔ Bài học chung: **một đường chỉ chạy khi được bấm là một đường chưa được kiểm.** Cách chữa không phải vá tiếp mà là đặt nó lên đường mà mỗi lượt triển khai đều đi qua.
+
+#### 1. Bộ seed: script bấm tay → migration Flyway
+
+Quyết định của chủ dự án (25/8): chấp nhận phương án migration; chuyện bản quyền của 5 bài chép lại **không còn là ràng buộc**. Lập luận cũ ("Flyway chạy ở mọi môi trường nên không được đưa seed vào") vì thế mất vế thứ nhất, nhưng **vế thứ hai còn nguyên và nặng hơn**: migration seed mở đầu bằng lệnh **xoá bài**, và chạy trên production nghĩa là xoá nội dung thật của Công ty. Nên cổng chặn không bỏ được, chỉ đổi chỗ.
+
+**Chặn ở LOCATION, không chặn trong tệp SQL.** Tệp seed nằm ở `classpath:db/seed/portal`, ngoài `spring.flyway.locations` mặc định; mặc định là `classpath:db/seed/none` — một thư mục **có thật** và cố ý không có migration nào. Production không đặt `SEED_LOCATION` nên Flyway ở đó **không nhìn thấy** tệp: không phải "chạy rồi không làm gì", mà là không tồn tại.
+
+Vì sao không gate bằng một câu `IF` trong chính tệp SQL: một cổng chặn nằm bên trong thứ nó chặn thì chỉ cách production đúng một lỗi gõ. Vì sao thư mục `none` phải có thật: Flyway trỏ vào location không tồn tại là hành vi **tuỳ phiên bản** (cảnh báo hay dừng), và một cổng chặn chỉ đúng "tuỳ phiên bản" thì không phải cổng chặn.
+
+⚠ Đánh đổi đã biết: staging đã bật thì phải **giữ bật**. Gỡ location sau khi migration vào `flyway_schema_history` làm `validate` đỏ với *"applied migration not resolved"*. Muốn thôi seed thì dựng lại CSDL.
+
+#### 2. Byte của ảnh: `minio-init`, và thứ tự đặt ở compose chứ không ở workflow
+
+SQL không đẩy được byte. Byte đi qua `minio-init` — service đã nằm sẵn trên đường triển khai — bằng `mc cp --recursive` từ `deploy/seed/media/`.
+
+**Bố cục thư mục CHÍNH LÀ khoá đối tượng**: tệp nằm ở `deploy/seed/media/<storage_key>`, nên lệnh copy không viết cứng tiền tố `seed/portal/` ở đâu cả. Một tiền tố viết ở hai nơi là một tiền tố sẽ lệch.
+
+Thứ tự byte-trước-hàng đặt bằng `migrator: depends_on: minio-init (service_completed_successfully)`, **không** bằng thứ tự dòng lệnh trong workflow. Lý do là luật 12: migration ghi hàng `attachments` *khẳng định* byte đã tồn tại, nên ràng buộc thuộc về nơi lời khẳng định được viết ra. Hệ quả thực dụng: `docker compose run --rm migrator` gõ tay lúc chữa cháy vẫn ra đúng thứ tự.
+
+#### 3. Xoá bài: canh theo QUAN HỆ, không theo danh sách slug
+
+`DELETE FROM articles` trần **không chạy được**: `menu_items.article_id` tham chiếu `articles(id)` không khai `ON DELETE` — tức RESTRICT — nên nó dừng giữa chừng vì lỗi khoá ngoại, **sau khi đã xoá được một phần**. Vị từ chốt:
+
+```sql
+DELETE FROM articles a
+ WHERE NOT EXISTS (SELECT 1 FROM menu_items m WHERE m.article_id = a.id);
+```
+
+Nó tự bảo vệ 4 trang tĩnh do `V202608191021` sở hữu, và vẫn đúng khi có trang tĩnh thứ năm — một danh sách slug viết cứng thì lần thêm ấy sẽ làm gãy menu, im lặng.
+
+#### 4. Hai bộ canh, và cả hai đều chạy thật
+
+| Bài kiểm | Canh gì | Kiểm chứng ngược |
+|---|---|---|
+| `SeedGateTest` (9 bài) | seed không nằm trong `db/migration/**` · mặc định là thư mục rỗng có thật · prod để trống cả hai biến · **`SEED_LOCATION` và `SEED_MEDIA_DIR` không được bật lệch** · `size_bytes`/`sha256` trong SQL khớp **byte thật trên đĩa** · không có byte mồ côi · khối xoá có vị từ menu | 3 kịch bản: sai băm → 1 đỏ · sai khoá → đỏ "không có tệp" · sai kích thước → 1 đỏ |
+| `SeedPortalMigrationTest` (2 bài) | chạy **chính tệp SQL** trên **lược đồ thật** bằng vai trò `songnhue_owner`, rồi `ROLLBACK` | dựng sẵn một bài "rác" trước khi chạy — nếu không thì *"xoá đúng"* và *"không xoá gì"* cho ra cùng kết quả (luật 9) |
+
+⚠ `SeedGateTest` đối chiếu SQL với **byte thật**, không với `images.json`: hai tệp cùng sinh ra từ một nguồn thì cả hai cùng sai vẫn xanh.
+
+⚠ Bản đầu của bài canh khối xoá **đỏ oan**: nó quét văn bản và khớp trúng cụm `DELETE FROM articles` nằm trong khối chú thích giải thích *vì sao không được viết thế*. Phải bỏ chú thích trước khi tìm lệnh — luật 2, lần thứ n.
+
+#### 5. Hai workflow triển khai gộp thành một thân chung
+
+`deploy-staging.yml` (333 dòng) và `deploy-prod.yml` (277 dòng) trùng nhau ~85%. Ba lần sửa gần nhất đều phải sửa hai chỗ, và **§10.44 chỉ được sửa ở một chỗ trong bản đầu** — đúng kiểu trôi mà `compose.staging.yml` tránh bằng cách `include` `compose.prod.yml`.
+
+Nay: `deploy.yml` (`workflow_call`) giữ toàn bộ thân; hai tệp kia chỉ còn phần khác nhau thật sự — cổng chặn đầu vào, tệp compose, bộ secret. Secret **truyền vào từ caller**, nên đường staging không chạm nổi `PROD_*` dù gõ nhầm input.
+
+⚠ Ràng buộc mới của kiểu gọi chung: reusable workflow **không tự cấp quyền cho mình được** — token bị chặn trên bởi quyền của job gọi. Khai `packages: write` ở thân chung là chưa đủ. `GhcrLookupAuthTest` nay canh cả vế caller.
+
+#### 6. Bỏ vòng quét 50 ứng viên — bằng cách gắn tag bù ở CI
+
+Job `Gắn tag SHA cho image không đổi` chạy cuối CI: image nào lượt này không dựng lại thì gắn thêm tag `<sha-mới>` lên **đúng digest cũ** (`imagetools create`, không dựng lại một byte nào).
+
+📌 **Không mâu thuẫn với `docs/cicd.md` §2.1.** §2.1 cấm *đóng gói lại* phần không đổi vì thế là tạo ra một image chưa ai thử. Ở đây digest không đổi — chỉ thêm một cái tên.
+
+Đổi lại, bước tra image rút từ `50 commit × 3 image` xuống ba lượt tra thẳng, và **hai bản vá trước đó tự tiêu**: vòng quét nuốt stderr nên 403 và 404 cho ra cùng thông báo (§10.43), nên đã phải thêm một bước tra thử riêng chỉ để phân biệt hai thứ ấy. Bỏ vòng quét là bỏ cả hai.
+
+#### 7. Ba thứ nữa đổi cùng lúc, mỗi thứ bịt một lỗ đã trả giá
+
+* **Smoke test hỏi ba câu** (§10.45): thêm *cổng có ≥ 1 bài* và *`GET /files/<id>` trả `image/*`*. Câu thứ ba là phép kiểm **duy nhất** chứng minh MinIO có byte — điều mà `deploy/seed/README.md` từng ghi là "phải làm bằng trình duyệt". Nay nó chạy ở mỗi lượt deploy.
+* **`pg_dump` trước triển khai chạy ở cả staging**. Trước đó chỉ production có, sai ở hai vế: migration được thử **lần đầu** ở staging; và một đường sao lưu chỉ đi thử đúng lúc production cần là đường **chưa từng được thử**.
+* **`NoOrphanServiceTest` tự tìm workflow** thay vì đọc danh sách viết cứng. Khi hai tệp gộp lại, danh sách cũ trỏ vào hai tệp không còn lệnh compose nào và bài báo *toàn bộ 8 service đều mồ côi*. Lần này đỏ ầm ĩ nên thấy ngay; lần sau có thể là kiểu ngược lại — tập rỗng, xanh trọn vẹn (luật 7).
+
+#### 8. Đã bỏ những gì, và bài học đi đâu
+
+| Bỏ | Dòng | Vì sao |
+|---|---|---|
+| `seed-staging.yml` · `deploy/seed/seed.sh` · `SeedNeverAutomaticTest` | 424 | cơ chế chúng phục vụ không còn |
+| `MavenWrapperCiTest` | 139 | canh **văn bản YAML** cho một lượt hụt mạng; các bước đệm/thử-lại trong workflow vẫn giữ |
+| 2/4 bài của `GhcrLookupAuthTest` | ~110 | canh vòng quét và biến `DOCKER_CONFIG` — nay không workflow nào còn |
+| trùng lặp hai workflow triển khai | ~150 | gộp thành thân chung |
+
+📌 **Bài học không nằm trong chú thích của cơ chế bị xoá** — nó nằm ở §10.42 → §10.49, chỗ của nó. Đó là điều cho phép đường ống co lại mà không mất trí nhớ.

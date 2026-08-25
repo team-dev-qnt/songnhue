@@ -20,6 +20,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -71,8 +72,14 @@ class NoOrphanServiceTest {
     private static final Pattern PHU_THUOC_DANG_DS = Pattern.compile("^      - ([a-z][a-z0-9-]*)\\s*$");
     private static final Pattern GOI_RUN = Pattern.compile("run --rm ([a-z][a-z0-9-]*)");
 
-    private static final List<String> WORKFLOW =
-            List.of(".github/workflows/deploy-staging.yml", ".github/workflows/deploy-prod.yml");
+    /**
+     * ⚠ TỰ TÌM, không viết cứng. Bản trước liệt kê {@code deploy-staging.yml} và
+     * {@code deploy-prod.yml}; khi hai tệp ấy gộp lại thành một thân chung
+     * ({@code deploy.yml}), danh sách cũ trỏ vào hai tệp không còn lệnh compose nào và bài kiểm báo
+     * <b>toàn bộ 8 service đều mồ côi</b> — may là đỏ ầm ĩ, nhưng lần sau có thể là kiểu ngược lại:
+     * một tệp đổi tên thì tập trở nên rỗng và bài xanh mà chưa kiểm gì (luật 7).
+     */
+    private static final String LENH_UP = "up -d";
 
     @Test
     @DisplayName("⭐⭐ Không service nào trong compose.prod.yml bị mồ côi")
@@ -95,8 +102,15 @@ class NoOrphanServiceTest {
         // (2) được gọi thẳng bằng `run --rm <tên>`
         // (1) nằm trong danh sách `up -d`, rồi lan theo depends_on
         Deque<String> hangDoi = new ArrayDeque<>();
-        for (String duongDan : WORKFLOW) {
-            String noiDung = doc(timTuGocKho(duongDan));
+        List<Path> workflow = workflowChuaLenhUp();
+        assertThat(workflow)
+                .as(
+                        "không workflow nào chứa `%s` — bài này sẽ coi MỌI service là mồ côi, hoặc tệ "
+                                + "hơn là xanh trên tập rỗng nếu compose cũng trống",
+                        LENH_UP)
+                .isNotEmpty();
+        for (Path duongDan : workflow) {
+            String noiDung = doc(duongDan);
             GOI_RUN.matcher(noiDung).results().map(r -> r.group(1)).forEach(coDuong::add);
             hangDoi.addAll(serviceTrongLenhUp(noiDung));
         }
@@ -235,6 +249,18 @@ class NoOrphanServiceTest {
             ket.put(ten, new DichVu(coProfile, phuThuoc, dieuKien));
         }
         return ket;
+    }
+
+    /** Mọi workflow có lệnh `up -d` — tìm động để bài kiểm theo được khi workflow đổi tên/gộp lại. */
+    private static List<Path> workflowChuaLenhUp() {
+        try (Stream<Path> duyet = Files.list(timTuGocKho(".github/workflows"))) {
+            return duyet.filter(p -> p.getFileName().toString().endsWith(".yml"))
+                    .filter(p -> doc(p).lines().anyMatch(d -> !d.stripLeading().startsWith("#") && d.contains(LENH_UP)))
+                    .sorted()
+                    .toList();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     /** Bóc tên service khỏi `docker compose … up -d \` và dòng nối tiếp của nó. */

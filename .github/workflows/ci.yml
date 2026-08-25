@@ -463,6 +463,76 @@ jobs:
           fi
 
   # ---------------------------------------------------------------------------
+  # Gắn tag SHA cho image KHÔNG ĐỔI — để mọi commit `dev` có đủ ba tag
+  #
+  # ⭐ VÌ SAO CẦN, và vì sao nó KHÔNG mâu thuẫn với §2.1 của docs/cicd.md:
+  #
+  #    §2.1 nói "ép cả ba image dùng chung một SHA là ép ĐÓNG GÓI LẠI phần không
+  #    đổi — tức tạo ra một image chưa ai thử". Đúng, và job này không làm thế:
+  #    `imagetools create` chỉ **gắn thêm một tên** lên ĐÚNG digest cũ. Không một
+  #    byte nào được dựng lại; `app:<sha-mới>` và `app:<sha-cũ>` trỏ vào cùng một
+  #    manifest.
+  #
+  #    Đổi lại, hai workflow triển khai bỏ được vòng quét ngược 50 commit × 3
+  #    image để tìm "bản gần nhất có image". Chính vòng quét ấy đã đẻ ra §10.43:
+  #    nó nuốt stderr nên 403 (chưa xác thực) và 404 (chưa dựng) cho ra cùng một
+  #    thông báo *"không tìm thấy image"*, và cả 50 ứng viên cùng trượt trong khi
+  #    lỗi thật nằm ở một dòng `env` cách đó 100 dòng.
+  #
+  # ⚠ `!cancelled()` chứ không phải `always()`: `always()` chạy cả khi lượt build
+  #   image ĐỎ, và khi ấy job này sẽ gắn tag của commit mới lên bản `:dev` CŨ —
+  #   biến một lượt build hỏng thành một lượt deploy im lặng chạy mã cũ.
+  # ---------------------------------------------------------------------------
+  gan-tag-sha:
+    name: Gắn tag SHA cho image không đổi
+    needs: [image, image-frontend]
+    if: >-
+      github.event_name == 'push' && !cancelled()
+      && needs.image.result != 'failure'
+      && needs.image-frontend.result != 'failure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Đăng nhập GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Gắn tag
+        run: |
+          set -euo pipefail
+          for name in app admin-app public-web; do
+            kho="ghcr.io/${{ github.repository }}/$name"
+
+            if docker manifest inspect "$kho:${{ github.sha }}" >/dev/null 2>&1; then
+              echo "✓ $name — lượt này đã đóng gói, không cần gắn thêm"
+              continue
+            fi
+
+            # `:dev` là tag DI ĐỘNG, trỏ vào bản dựng gần nhất của image này. Ở đây
+            # dùng nó làm NGUỒN để giải ra digest, rồi ghim digest ấy dưới một tên
+            # BẤT BIẾN. Vẫn giữ nguyên luật "không deploy theo tag di động".
+            if ! docker manifest inspect "$kho:dev" >/dev/null; then
+              echo "::error::$name chưa có tag \`dev\` — không suy được bản không đổi là bản nào."
+              echo "Xảy ra ở commit ĐẦU TIÊN của một gói GHCR mới. Chạy lại CI sau khi job đóng gói"
+              echo "tương ứng đã đẩy được ít nhất một lần."
+              exit 1
+            fi
+
+            docker buildx imagetools create --tag "$kho:${{ github.sha }}" "$kho:dev"
+            echo "ℹ $name không đổi — gắn thêm tag ${{ github.sha }} lên đúng digest cũ"
+          done
+
+          echo "Cả ba image đều có tag \`${{ github.sha }}\` — luồng đề bạt chỉ cần một SHA." \
+            >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------------
   # Kiểm phụ thuộc Ở MỨC PR — nhanh, chỉ soi phần PR THÊM VÀO
   #
   # ⚠ Bản trước đặt cả OWASP Dependency-Check vào đây và nó hỏng đúng kiểu đã
