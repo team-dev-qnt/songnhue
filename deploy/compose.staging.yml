@@ -24,7 +24,10 @@ include:
   - compose.prod.yml
 
 services:
-  # VPS-2 nhỏ hơn VPS-1 (4GB so với 8GB). Chỉ hạ trần bộ nhớ — không đổi image,
+  # VPS-2 (2 vCPU · 8 GB) ít CPU hơn VPS-1 (4 vCPU · 8 GB) và còn gánh thêm kho sao lưu
+  # + Prometheus/Grafana, nên vẫn hạ trần bộ nhớ. ⚠ Con số 4 GB ở bản trước đã SAI từ
+  # 24/8 — xem T11.2-a: ngân sách RAM thật là 5,4 GB nên VPS-2 chốt 8 GB. Chỉ hạ trần bộ
+  # nhớ — không đổi image,
   # không đổi biến, không đổi thứ tự khởi động.
   postgres:
     mem_limit: 1g

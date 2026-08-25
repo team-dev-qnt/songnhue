@@ -7,6 +7,22 @@ deploy/seed/seed.sh --dry-run     # xem sẽ làm gì, không ghi gì
 deploy/seed/seed.sh               # nạp thật
 ```
 
+## Nạp lên staging: bấm tay ở GitHub
+
+CD Staging **không** nạp dữ liệu — và đó là chủ ý (xem mục kế tiếp). Bước *Đồng bộ cấu hình* của
+nó đã rsync cả thư mục này sang `/opt/songnhue/seed/` ở mỗi lượt triển khai, nên bộ seed trên máy
+chủ luôn khớp với nhánh `staging`; chỉ còn thiếu người bấm chạy.
+
+**Actions → `Nạp nội dung Staging` → Run workflow**, chọn `chay-thu` trước để xem nó định ghi gì,
+rồi chạy lại với `nap-that`. Ô xác nhận phải gõ đúng `nap-noi-dung-staging`.
+
+Workflow ấy **chỉ biết bộ secret `STAGING_*`** — không có tham số môi trường, nên không có đường
+nào trỏ nó sang production. `SeedNeverAutomaticTest` canh cả bốn ràng buộc: không workflow tự động
+nào gọi `seed.sh` · workflow seed chỉ có `workflow_dispatch` · không nhắc tới secret production ·
+ô xác nhận còn nguyên.
+
+Chạy thẳng trên máy chủ vẫn được: `cd /opt/songnhue && ./seed/seed.sh --dry-run`.
+
 ## ⛔ Cả 5 bài đều sao chép nguyên văn từ báo ngoài — CHỈ dùng cho staging
 
 Cột `source` của từng bài ghi rõ URL gốc: `hanoimoi.vn` (4 bài) và `vneconomy.vn` (1 bài). Đây là
