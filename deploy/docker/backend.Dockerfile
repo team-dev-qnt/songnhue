@@ -57,7 +57,7 @@ FROM eclipse-temurin:21-jre-alpine AS runtime
 RUN apk add --no-cache postgresql16-client || apk add --no-cache postgresql-client
 
 # Chạy bằng người dùng thường, không phải root (conventions.md §4.5)
-RUN addgroup -S songnhue && adduser -S -G songnhue -h /app songnhue
+RUN addgroup -g 1000 songnhue && adduser -u 1000 -G songnhue -h /app -D songnhue
 WORKDIR /app
 
 # Thư mục sao lưu — mount volume vào đây ở staging/prod (WS-11). Tạo sẵn với

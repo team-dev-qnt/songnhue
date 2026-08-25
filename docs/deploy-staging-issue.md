@@ -78,8 +78,29 @@
 
 ## ⬜ Việc còn phải làm trước production
 
-1. **Quyền thư mục trên máy chủ** (mục 3) — `keys/` và `/var/log/songnhue` phải khớp UID của user
-   trong container. Cách chữa gốc: cố định UID/GID ở Dockerfile rồi `chown` theo, thay vì `chmod 777`.
+1. **Quyền thư mục trên máy chủ** (mục 3) — **nửa image đã xong, nửa host còn nguyên.**
+
+   ✅ `backend.Dockerfile` nay ghim `uid=1000 gid=1000` (`addgroup -g 1000` + `adduser -u 1000 -D`).
+   Trước đó là `adduser -S`, và **id thật là `100:101`** — không phải 1000 như ai cũng tưởng khi đọc
+   lướt. Đo: `docker run --rm --entrypoint id <image>`.
+
+   ⛔ **`chown` trong Dockerfile không có tác dụng với bind mount** — host che hoàn toàn thứ image
+   dựng sẵn. Nên ba đường dẫn dưới đây vẫn phải `chown` trên VPS:
+
+   | Host | Chủ sở hữu cần đặt | Vì sao |
+   |---|---|---|
+   | `/opt/songnhue/keys` | `1000:1000`, dir `700`, tệp `600` | app đọc khoá ký JWT (mount `:ro`) |
+   | `/var/log/songnhue` | `1000:1000`, `755` | app ghi `app.log` |
+   | `/var/lib/songnhue/backup` | **`999:1000`, `2775`** | dùng chung **ba** danh tính |
+
+   ⚠⚠ Ô cuối là chỗ dễ sai nhất: thư mục sao lưu gắn vào **cả `postgres`** (uid 999 —
+   `pre-deploy-dump.sh` chạy `pg_dump` *bên trong* container ấy) **và** `app` (1000), **và** user SSH
+   trên host (dọn bản cũ). `chown -R 1000:1000` sẽ làm bước chụp trước triển khai hỏng — mà bước ấy
+   nay chạy ở **mọi** lượt deploy staging, nên hậu quả là **mọi lượt deploy đều đỏ ngay bước đầu**.
+   `999` làm chủ, group `1000` + `setgid` cho hai bên còn lại ghi được.
+
+   📌 Vẫn là việc gõ tay, tức là một thứ phải nhớ. Gói thành `deploy/host-prepare.sh` thì lượt dựng
+   VPS-1 không phải nhớ lại — chưa làm.
 2. **`docker login` trên VPS** (mục 1) — hoặc chuyển sang để workflow đẩy image qua SSH.
 3. **Healthcheck nginx** (mục 4) — đổi đích sang một đường đại diện cho dịch vụ.
 4. **Nợ #46** — 3 context đóng gói image chưa nằm trong `required_status_checks` của `dev`.
