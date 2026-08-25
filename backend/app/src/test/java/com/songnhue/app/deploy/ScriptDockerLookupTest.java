@@ -73,6 +73,9 @@ class ScriptDockerLookupTest {
                 .isNotEmpty();
 
         for (Path tep : script) {
+            if (tuCapBaBienImage(tep)) {
+                continue;
+            }
             assertThat(boChuThich(doc(tep)))
                     .as(
                             """
@@ -129,6 +132,47 @@ class ScriptDockerLookupTest {
                         Nhắc lại: dạng `:?` khiến compose DỪNG khi thiếu biến, kể cả với lệnh chỉ đọc, \
                         và ba biến này cố ý chỉ tồn tại trong lượt triển khai.""")
                 .isGreaterThanOrEqualTo(4);
+    }
+
+    @Test
+    @DisplayName("⭐ Script được phép gọi compose thì phải TỰ CẤP đủ ba biến, và cấp TRƯỚC lượt gọi")
+    void scriptDuocMienPhaiTuCapDuBien() {
+        List<Path> mien = scriptTrongDeploy().stream()
+                .filter(ScriptDockerLookupTest::tuCapBaBienImage)
+                .toList();
+
+        // Luật không phải "cấm gọi compose" mà là "gọi compose thì phải cấp đủ thứ nó ĐÒI".
+        // `rehearse.sh` sinh ra để LÁI compose, và nó tự dựng image rồi export — nên nó đủ tư cách.
+        // Nếu danh sách này rỗng thì bài trên đã quay về dạng cấm tuyệt đối, và dòng dưới nói ra
+        // điều đó thay vì để luật âm thầm chặt lại.
+        assertThat(mien)
+                .as("không script nào tự cấp ba biến image — nếu `rehearse.sh` bị xoá thì xoá luôn bài này")
+                .isNotEmpty();
+
+        for (Path tep : mien) {
+            String noiDung = boChuThich(doc(tep));
+            int viTriGoi = noiDung.indexOf(GOI_COMPOSE);
+            for (String bien : List.of("APP_IMAGE", "ADMIN_IMAGE", "PUBLIC_IMAGE")) {
+                int viTriExport = noiDung.indexOf("export " + bien);
+                assertThat(viTriExport)
+                        .as(
+                                """
+                                `%s` gọi `%s` nhưng `export %s` nằm SAU lượt gọi đầu tiên (hoặc không có).
+
+                                Compose nội suy toàn bộ tệp trước khi làm bất cứ việc gì, nên biến phải \
+                                có mặt TRƯỚC dòng gọi — đặt sau là hỏng y hệt như không đặt (§10.48).""",
+                                tep.getFileName(), GOI_COMPOSE, bien)
+                        .isBetween(0, viTriGoi);
+            }
+        }
+    }
+
+    /** Script tự `export` cả ba biến image thì nó cấp đủ thứ compose ĐÒI — luật không nhắm vào nó. */
+    private static boolean tuCapBaBienImage(Path tep) {
+        String noiDung = boChuThich(doc(tep));
+        return noiDung.contains("export APP_IMAGE")
+                && noiDung.contains("export ADMIN_IMAGE")
+                && noiDung.contains("export PUBLIC_IMAGE");
     }
 
     private static List<Path> scriptTrongDeploy() {
