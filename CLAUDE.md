@@ -112,11 +112,18 @@ Không mục nào **chặn code**, chỉ chặn **dữ liệu khởi tạo và n
 
 Gửi kèm `report-templates-proposal.md`. Chi tiết từng mục: `business-open-questions.md` Phần II.
 
-### Ba việc bấm ở GitHub còn treo
+### Việc bấm ở GitHub còn treo — rà bằng `gh api` 26/8
 
-**Nợ #45** bật Dependency graph (không bật thì job *Soi phụ thuộc PR thêm vào* tự bỏ qua — phép kiểm chưa chạy lần nào) · **nợ #27** chỉnh 2 mục bảo vệ nhánh (`docs/branch-protection.md` §6.2) · **nợ #46** thêm 3 context đóng gói image vào `required_status_checks` của `dev` — hai job ấy nay chạy ở PR nhưng chưa bắt buộc thì chỉ *hiện* lỗi chứ không *chặn* merge (§10.38).
+| | Trạng thái đo được |
+|---|---|
+| **Nợ #45** Dependency graph | ✅ **đã bật** — job *Soi phụ thuộc* chạy `success` (không `skipped`) ở run #32882796669, và endpoint SBOM trả về. `cicd.md` §8 ghi là còn treo — đã lỗi thời (T11.32) |
+| **Nợ #27** bảo vệ nhánh | ⬜ `staging` + `production` vẫn `strict=true`; `dev` thiếu context *Vùng nào thay đổi* (T11.39) |
+| **Nợ #46** context đóng gói image | ⬜ `dev` mới có **2** context; ba job image đã chạy xanh ở PR nhưng chưa bắt buộc (T22.23) |
+| **Mới** secret scanning | ⬜ secret scanning · push protection · Dependabot security updates **đều `disabled`**, trong khi repo có khoá dịch vụ Google, khoá SSH triển khai, khoá AES/JWT (T11.40) |
+| **Mới** environment `production` | ⛔ **không có secret nào**. Thiếu thì CD Production *cảnh báo rồi bỏ qua* bước triển khai chứ không đỏ — một lượt deploy sẽ trông như đã chạy (T11.7) |
 
-📌 Cả ba đều là cùng một hình dạng: **một cổng kiểm tồn tại trong mã nhưng chưa có hiệu lực ở nơi nó phải chặn.**
+📌 Cùng một hình dạng: **một cổng kiểm tồn tại trong mã nhưng chưa có hiệu lực ở nơi nó phải chặn.**
+Và bản ghi về chúng cũng mục theo thời gian — nợ #45 đã xong từ lúc nào không ai cập nhật.
 
 ## Luật đã trả giá — áp cho mọi phiên làm việc
 
