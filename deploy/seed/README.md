@@ -87,6 +87,7 @@ Smoke test của CD đã hỏi ba câu này rồi (xem `.github/workflows/deploy
 là ba câu ấy đã đạt:
 
 1. `GET /api/v1/public/articles` trả về ≥ 1 bài — phân biệt **cổng có nội dung** với **cổng rỗng**
-2. `GET /api/v1/public/files/15509c57-8e04-57e6-8d36-6a9cd1c68334` → `200` + `image/jpeg` — đây là
-   phép kiểm duy nhất chứng minh **MinIO có byte**, thứ mà mọi câu SQL đều không nói được
+2. `GET /api/v1/public/files/<ảnh bìa lấy từ chính phản hồi ở câu 1>` → `image/*` — phép kiểm duy
+   nhất chứng minh **MinIO có byte**, thứ mà mọi câu SQL đều không nói được. ⚠ Lấy id từ phản hồi
+   chứ không ghi cứng id của bộ seed: id ấy cố ý **không tồn tại ở production**
 3. Trang chủ trả HTML có thumbnail — cột đọc là `article_versions.cover_attachment_public_id`

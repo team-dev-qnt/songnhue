@@ -277,10 +277,11 @@ jobs:
           echo "✓ [1/3] Đi hết chặng nginx → public-web → app → postgres"
 
           # ---- Câu 2: cổng CÓ NỘI DUNG, không phải cổng rỗng hợp lệ ----
-          bai=$(curl -fsS "$BASE_URL/api/v1/public/articles?page=0&size=1" || true)
+          bai=$(curl -fsS "$BASE_URL/api/v1/public/articles?page=0&size=12" || true)
           case "$bai" in
-            *'"totalElements":0'*|'')
-              echo "::error::Cổng trả về DANH SÁCH RỖNG — deploy xanh mà không có nội dung nào (§10.45)."
+            *'"slug":'*) ;;
+            *)
+              echo "::error::Cổng không trả về bài nào — deploy xanh mà cổng rỗng (§10.45)."
               echo "Kiểm: migration seed có chạy không (\`SEED_LOCATION\` trong .env của máy chủ),"
               echo "và log của \`docker compose run --rm migrator\` ở bước Triển khai."
               exit 1 ;;
@@ -288,18 +289,34 @@ jobs:
           echo "✓ [2/3] Cổng có nội dung"
 
           # ---- Câu 3: MinIO CÓ BYTE — thứ không câu SQL nào chứng minh được ----
-          # public_id của một ảnh seed. Hàng trong CSDL nói tệp tồn tại; chỉ lượt
-          # GET này mới nói được byte có thật.
-          kieu=$(curl -fsS -o /dev/null -w '%{content_type}' \
-                   "$BASE_URL/api/v1/public/files/15509c57-8e04-57e6-8d36-6a9cd1c68334" || true)
-          case "$kieu" in
-            image/*) ;;
-            *)
-              echo "::error::Ảnh seed không ra được byte (content-type: '${kieu:-không có}')."
-              echo "Hàng CSDL và byte MinIO đang lệch nhau — kiểm \`SEED_MEDIA_DIR\` và log \`minio-init\`."
-              exit 1 ;;
-          esac
-          echo "✓ [3/3] MinIO trả byte đúng kiểu ($kieu)"
+          #
+          # ⚠⚠ Lấy `public_id` TỪ CHÍNH phản hồi ở trên, KHÔNG ghi cứng id của bộ
+          #    seed. Bản đầu ghi cứng `15509c57-…` — một tệp CỐ Ý không tồn tại ở
+          #    production, nên mọi lượt deploy production sẽ đỏ vì đúng cái mà thiết
+          #    kế yêu cầu phải vắng mặt. Cùng hình dạng với luật 24: bộ canh phải
+          #    đối chiếu với dữ liệu THẬT của môi trường đang chạy.
+          # ⚠ Chấp nhận khoảng trắng sau dấu hai chấm. Jackson mặc định in gọn, nhưng
+          #   một bộ canh khớp CHÍNH XÁC một cách in là bộ canh sẽ im lặng trượt vào
+          #   nhánh "bỏ qua" nếu ai đó bật pretty-print (luật 24).
+          anh=$(printf '%s' "$bai" \
+                | sed -n 's/.*"coverAttachmentPublicId": *"\([0-9a-f-]\{36\}\)".*/\1/p' | head -1)
+
+          if [ -z "$anh" ]; then
+            # ⚠ Đây KHÔNG phải một lượt kiểm đạt, và phải nhìn ra được là khác — một
+            #   dòng ✓ ở đây sẽ nói dối rằng MinIO đã được kiểm.
+            echo "⚠ [3/3] BỎ QUA — không bài nào trong 12 bài đầu có ảnh bìa, nên chưa có gì để kiểm."
+            echo "   Đường ra byte của MinIO lượt này KHÔNG được chứng minh."
+          else
+            kieu=$(curl -fsS -o /dev/null -w '%{content_type}' \
+                     "$BASE_URL/api/v1/public/files/$anh" || true)
+            case "$kieu" in
+              image/*) echo "✓ [3/3] MinIO trả byte đúng kiểu ($kieu) cho $anh" ;;
+              *)
+                echo "::error::Ảnh bìa $anh không ra được byte (content-type: '${kieu:-không có}')."
+                echo "Hàng CSDL nói tệp tồn tại mà kho thì không — kiểm \`SEED_MEDIA_DIR\` và log \`minio-init\`."
+                exit 1 ;;
+            esac
+          fi
 
       # ⚠ Gắn tag SAU khi smoke test xanh. Gắn trước thì tag môi trường trỏ vào một
       #   bản chưa chứng minh được là chạy được — mà đó chính là tag người ta nhìn
