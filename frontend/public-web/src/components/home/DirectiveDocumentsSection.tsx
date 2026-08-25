@@ -2,6 +2,7 @@ import Link from 'next/link';
 
 import type { ArticleRow } from '@/lib/api';
 import { fileUrl, formatDate, ROUTES } from '@/lib/routes';
+import { EmptyBlock } from './EmptyBlock';
 
 interface DocumentItem {
   id: string;
@@ -13,80 +14,6 @@ interface DocumentItem {
   fileType: 'pdf' | 'doc';
   downloadUrl: string;
 }
-
-const DEFAULT_DOCUMENTS: DocumentItem[] = [
-  {
-    id: 'doc-1',
-    code: '158/QĐ-SN',
-    title:
-      'Quyết định về việc ban hành Phương án phòng chống thiên tai và tìm kiếm cứu nạn năm 2026',
-    issuedDate: '15/08/2026',
-    signer: 'Chủ tịch Công ty',
-    type: 'Quyết định',
-    fileType: 'pdf',
-    downloadUrl: 'http://songnhue.bhh40.net',
-  },
-  {
-    id: 'doc-2',
-    code: '89/TB-SN',
-    title: 'Thông báo lịch vận hành điều tiết các cống đầu mối phục vụ lấy nước đổ ải vụ Đông Xuân',
-    issuedDate: '10/08/2026',
-    signer: 'Tổng Giám đốc',
-    type: 'Thông báo',
-    fileType: 'pdf',
-    downloadUrl: 'http://songnhue.bhh40.net',
-  },
-  {
-    id: 'doc-3',
-    code: '214/KH-SN',
-    title: 'Kế hoạch kiểm tra, rà soát an toàn hệ thống đê điều, trạm bơm trước mùa mưa bão',
-    issuedDate: '02/08/2026',
-    signer: 'Phó Tổng Giám đốc',
-    type: 'Kế hoạch',
-    fileType: 'pdf',
-    downloadUrl: 'http://songnhue.bhh40.net',
-  },
-  {
-    id: 'doc-4',
-    code: '45/CT-SN',
-    title:
-      'Chỉ thị về việc tăng cường kỷ luật kỷ cương hành chính và công tác trực ban phòng lụt bão',
-    issuedDate: '25/07/2026',
-    signer: 'Tổng Giám đốc',
-    type: 'Chỉ thị',
-    fileType: 'doc',
-    downloadUrl: 'http://songnhue.bhh40.net',
-  },
-];
-
-const DEFAULT_DIRECTIVES: ArticleRow[] = [
-  {
-    title:
-      'Tổng Giám đốc kiểm tra công tác sẵn sàng vận hành hệ thống cống tiêu và trạm bơm mùa lũ',
-    slug: 'tong-giam-doc-kiem-tra-san-sang-van-hanh-mua-lu',
-    summary:
-      'Yêu cầu các đơn vị trực thuộc duy trì 100% quân số trực ban, kiểm tra thiết bị đóng mở tự động và nguồn điện dự phòng.',
-    publishedAt: '2026-08-20T11:00:00Z',
-    viewCount: 420,
-    coverAttachmentPublicId: null,
-  },
-  {
-    title: 'Chỉ đạo khẩn trương nạo vét lòng kênh và giải tỏa đăng đó, vó bè cản trở dòng chảy',
-    slug: 'chi-dao-nao-vet-giai-toa-dang-do-dong-chay',
-    summary: '',
-    publishedAt: '2026-08-19T14:30:00Z',
-    viewCount: 310,
-    coverAttachmentPublicId: null,
-  },
-  {
-    title: 'Chỉ đạo phối hợp chặt chẽ với các địa phương trong công tác tưới dưỡng lúa vụ Mùa 2026',
-    slug: 'chi-dao-phoi-hop-tuoi-duong-lua-vu-mua',
-    summary: '',
-    publishedAt: '2026-08-18T09:15:00Z',
-    viewCount: 260,
-    coverAttachmentPublicId: null,
-  },
-];
 
 interface DirectiveDocumentsSectionProps {
   directiveArticles?: ArticleRow[];
@@ -101,14 +28,13 @@ interface DirectiveDocumentsSectionProps {
  */
 export function DirectiveDocumentsSection({
   directiveArticles = [],
-  documents = DEFAULT_DOCUMENTS,
+  documents = [],
 }: DirectiveDocumentsSectionProps) {
-  const mergedDirectives =
-    directiveArticles.length >= 3
-      ? directiveArticles
-      : [...directiveArticles, ...DEFAULT_DIRECTIVES.slice(directiveArticles.length)];
-  const leadArticle = mergedDirectives[0];
-  const subArticles = mergedDirectives.slice(1, 3);
+  // ⛔ Bản trước ghép thêm ba bài viết cứng cho đủ 3 ô, và cột văn bản mặc định là bốn văn bản
+  //    viết cứng — CÓ SỐ HIỆU và NGƯỜI KÝ (`158/QĐ-SN`, "Chủ tịch Công ty"). Đây là cổng của
+  //    một doanh nghiệp nhà nước; bịa một quyết định không phải chuyện thẩm mỹ.
+  const leadArticle = directiveArticles[0];
+  const subArticles = directiveArticles.slice(1, 3);
   const cover = leadArticle ? fileUrl(leadArticle.coverAttachmentPublicId) : null;
 
   return (
@@ -211,6 +137,12 @@ export function DirectiveDocumentsSection({
           </div>
 
           <div className="mt-4 flex flex-1 flex-col divide-y divide-surface-border rounded-xl border border-surface-border bg-white p-4 shadow-xs">
+            {documents.length === 0 ? (
+              <EmptyBlock>
+                Chưa có văn bản nào. Hệ thống văn bản điều hành là hệ thống riêng — cổng chỉ
+                liên kết sang, không đồng bộ dữ liệu (CN-01.7).
+              </EmptyBlock>
+            ) : null}
             {documents.map((doc) => (
               <div key={doc.id} className="group py-3 first:pt-0 last:pb-0">
                 <a

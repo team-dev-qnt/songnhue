@@ -1,5 +1,7 @@
 import { statusColors } from 'design-tokens';
 
+import { EmptyBlock } from './EmptyBlock';
+
 interface HydrologyStation {
   name: string;
   waterLevel: string;
@@ -7,44 +9,6 @@ interface HydrologyStation {
   statusText: string;
   trend: 'up' | 'down' | 'stable';
 }
-
-const DEFAULT_STATIONS: HydrologyStation[] = [
-  {
-    name: 'Cống Hà Đông',
-    waterLevel: '+4.20 m',
-    status: 'normal',
-    statusText: 'Bình thường',
-    trend: 'stable',
-  },
-  {
-    name: 'Cống Cầu Cung',
-    waterLevel: '+3.85 m',
-    status: 'normal',
-    statusText: 'Bình thường',
-    trend: 'down',
-  },
-  {
-    name: 'Cống Cổ Nhuế',
-    waterLevel: '+4.65 m',
-    status: 'warning',
-    statusText: 'Cảnh báo BĐ I',
-    trend: 'up',
-  },
-  {
-    name: 'Trạm bơm Vân Đình',
-    waterLevel: '+3.10 m',
-    status: 'normal',
-    statusText: 'Bình thường',
-    trend: 'stable',
-  },
-  {
-    name: 'Cống Đồng Quan',
-    waterLevel: '+3.95 m',
-    status: 'normal',
-    statusText: 'Bình thường',
-    trend: 'stable',
-  },
-];
 
 interface HydrologyQuickWidgetProps {
   hotline?: string;
@@ -60,7 +24,7 @@ interface HydrologyQuickWidgetProps {
  */
 export function HydrologyQuickWidget({
   hotline = '',
-  stations = DEFAULT_STATIONS,
+  stations = [],
 }: HydrologyQuickWidgetProps) {
   const getStatusBg = (status: HydrologyStation['status']) => {
     switch (status) {
@@ -113,13 +77,17 @@ export function HydrologyQuickWidget({
               <h2 className="text-sm font-bold uppercase tracking-tight text-brand-primary sm:text-base">
                 Quan trắc Thủy văn & Mực nước
               </h2>
-              <span className="flex h-2 w-2 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
+              {stations.length > 0 ? (
+                <span className="flex h-2 w-2 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+              ) : null}
             </div>
             <p className="text-xs text-surface-textSecondary">
-              Cập nhật trực tuyến từ các trạm cống & trạm bơm đầu mối
+              {stations.length > 0
+                ? 'Cập nhật trực tuyến từ các trạm cống & trạm bơm đầu mối'
+                : 'Nguồn số liệu quan trắc chưa được đấu nối'}
             </p>
           </div>
         </div>
@@ -140,6 +108,14 @@ export function HydrologyQuickWidget({
       </div>
 
       {/* Lưới các trạm quan trắc */}
+      {stations.length === 0 ? (
+        <div className="mt-4">
+          <EmptyBlock>
+            Chưa có số liệu quan trắc. Mô-đun Quản lý dữ liệu thủy văn (MOD-03) chưa được đấu
+            nối, nên trang này không có mực nước để hiển thị.
+          </EmptyBlock>
+        </div>
+      ) : (
       <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
         {stations.map((st) => (
           <div
@@ -169,6 +145,7 @@ export function HydrologyQuickWidget({
           </div>
         ))}
       </div>
+      )}
     </section>
   );
 }
