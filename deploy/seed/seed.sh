@@ -22,7 +22,6 @@ set -euo pipefail
 
 THU_MUC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="${ENV_FILE:-/opt/songnhue/.env}"
-COMPOSE="${COMPOSE:-compose.staging.yml}"
 THU=false
 
 for tham_so in "$@"; do
@@ -70,9 +69,11 @@ eval "$(doc_env "$ENV_FILE" MINIO_BUCKET_MEDIA MINIO_ROOT_USER MINIO_ROOT_PASSWO
 : "${DB_MIGRATION_USER:?Thiếu DB_MIGRATION_USER}"
 : "${DB_MIGRATION_PASSWORD:?Thiếu DB_MIGRATION_PASSWORD}"
 
-dc() { docker compose --env-file "$ENV_FILE" -f "$COMPOSE" "$@"; }
+. "$THU_MUC/../lib/docker-svc.sh"
+CT_POSTGRES="$(container_cua postgres)"
+MANG_MINIO="$(mang_cua minio)"
 
-echo "  Môi trường : $ENV_FILE  ($COMPOSE)"
+echo "  Môi trường : $ENV_FILE  (dự án compose: $DU_AN)"
 echo "  Bucket     : $MINIO_BUCKET_MEDIA"
 echo "  Nội dung  : 4 ảnh + 5 bài sao chép từ báo ngoài (chỉ staging)"
 $THU && echo "  ⓘ Chạy thử — không ghi gì" && echo
@@ -94,7 +95,7 @@ PY
     echo "     [thử] $tep → s3/$MINIO_BUCKET_MEDIA/$khoa"
     continue
   fi
-  docker run --rm --network "$(dc ps -q minio | head -1 | xargs -r docker inspect -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}')" \
+  docker run --rm --network "$MANG_MINIO" \
     -v "$THU_MUC/images:/seed:ro" --entrypoint sh minio/mc:latest -c "
       mc alias set s3 http://minio:9000 '$MINIO_ROOT_USER' '$MINIO_ROOT_PASSWORD' >/dev/null &&
       mc cp --quiet /seed/'$tep' s3/'$MINIO_BUCKET_MEDIA'/'$khoa'" >/dev/null
@@ -112,7 +113,7 @@ TEP=(01-attachments.sql 02-articles.sql)
 
 for f in "${TEP[@]}"; do
   if $THU; then echo "     [thử] $f"; continue; fi
-  dc exec -T -e PGPASSWORD="$DB_MIGRATION_PASSWORD" postgres \
+  docker exec -i -e PGPASSWORD="$DB_MIGRATION_PASSWORD" "$CT_POSTGRES" \
      psql -v ON_ERROR_STOP=1 -q -U "$DB_MIGRATION_USER" -d "$DB_NAME" < "$THU_MUC/$f"
   echo "     ✓ $f"
 done
@@ -123,7 +124,7 @@ done
 echo "→ [3/3] Đối chiếu"
 $THU && { echo "     [thử] bỏ qua"; exit 0; }
 
-dc exec -T -e PGPASSWORD="$DB_MIGRATION_PASSWORD" postgres \
+docker exec -i -e PGPASSWORD="$DB_MIGRATION_PASSWORD" "$CT_POSTGRES" \
    psql -q -U "$DB_MIGRATION_USER" -d "$DB_NAME" <<'SQL'
 \pset border 2
 SELECT
