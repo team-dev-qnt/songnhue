@@ -2890,3 +2890,80 @@ Không bước nào nạp nội dung, vì **đường ống chưa bao giờ có 
 | khôi phục | 5 xanh |
 
 Bài thứ 5 neo bốn khẳng định **phủ định** kia vào một thứ có thật — xoá `deploy/seed/` đi thì cả bốn xanh trọn vẹn mà không canh gì.
+
+---
+
+### §10.46. ⚠⚠ Tệp `.env` không phải script shell — và bản tóm tắt của tôi khiến lượt hỏng đọc như lượt đạt (25/8/2026)
+
+Lượt "chạy thử" đầu tiên của `seed-staging.yml` **hỏng**, exit 127. Người bấm đọc khối tóm tắt và hiểu là đã ổn.
+
+#### Lỗi thứ nhất — bản tóm tắt không phân biệt được hai trạng thái
+
+Khối *Ghi tóm tắt* tôi đặt `if: always()` và chỉ in chế độ cùng một lời nhắc. Nó hiện ra **y hệt nhau** ở lượt xanh và lượt đỏ. Đây là luật 9 áp vào chính phần giao tiếp với người dùng — và tệ hơn một bản tóm tắt vô dụng, vì nó **trấn an**.
+
+Nay in thẳng `✅ ĐẠT` / `❌ HỎNG (<trạng thái>)` từ `job.status`, và nói rõ chạy thử **không in bảng đối chiếu** — trước đó lời nhắc về bảng ấy xuất hiện cả ở lượt chạy thử vốn không bao giờ có bảng.
+
+#### Lỗi thứ hai — nguyên nhân thật
+
+```
+/opt/songnhue/.env: line 87: nofollow: command not found     (exit 127)
+```
+
+`seed.sh` làm `set -a; . "$ENV_FILE"; set +a`. Dòng thủ phạm **hoàn toàn hợp lệ** với Compose:
+
+```
+ROBOTS_TAG=noindex, nofollow
+```
+
+Compose đọc thành chuỗi `noindex, nofollow`. Shell gán `ROBOTS_TAG=noindex,` rồi **chạy `nofollow` như một lệnh**. Cùng một tệp, hai bộ phân tích khác nhau — và tệp ấy viết cho bộ kia.
+
+#### Vì sao nó không lộ ra sớm hơn
+
+Đo trực tiếp trên hai tệp mẫu đang dùng:
+
+| Tệp | `source` |
+|---|---|
+| `prod.env.example` | **chạy lọt** — không giá trị nào nhiều từ |
+| `staging.env.example` | chết ở dòng 137 |
+
+Chỉ staging mới đặt `ROBOTS_TAG=noindex, nofollow`; production phải cho đánh chỉ mục. Một cái bẫy nằm im cho tới đúng môi trường có dữ liệu kích hoạt nó — **luật 24**.
+
+#### ⚠⚠ Lỗi thứ ba, và là lỗi nặng nhất: ba script sao lưu cũng vậy
+
+Bài kiểm mới đỏ ngay lần chạy đầu và chỉ ra **ba tệp nữa** dùng đúng dòng ấy:
+
+```
+deploy/backup/backup.sh:33
+deploy/backup/restore.sh:24
+deploy/backup/pre-deploy-dump.sh:37
+```
+
+Đó là **toàn bộ đường sao lưu và khôi phục** — lưới an toàn duy nhất của hệ, vì dự án cố ý không có replica và không có PITR (§6.5). Chạy chúng với tệp `.env` thật của staging là cùng một đường mã, cùng một tệp, nên cùng exit 127.
+
+📌 Ghi cho chính xác: tôi **chưa kiểm** cron sao lưu đã cài trên staging hay chưa. Điều khẳng định được là *nếu* nó chạy với tệp ấy thì nó chết theo đúng cách này. Cần kiểm trên máy chủ trước khi coi sao lưu staging là đang hoạt động.
+
+#### Bản vá
+
+Một bộ đọc duy nhất — `deploy/lib/read-env.sh` — dùng chung cho cả bốn script, đọc theo đúng luật compose-go: bỏ dòng trống/chú thích · cho phép `export` · tôn trọng nháy đơn/nháy kép · **chỉ cắt chú thích cuối dòng khi có khoảng trắng trước `#`** (để `MAT_KHAU=abc#def` không bị cắt cụt) · `shlex.quote` ở đầu ra nên `eval` an toàn tuyệt đối.
+
+Chạy thật với tệp env mang cả bốn hình dạng ác ý:
+
+| Giá trị trong tệp | Bản cũ (`source`) | Bộ đọc mới |
+|---|---|---|
+| `ROBOTS_TAG=noindex, nofollow` | **exit 127** | `noindex, nofollow` |
+| `DB_MIGRATION_PASSWORD=abc#def$x y'z"w` | vỡ cú pháp | nguyên văn |
+| `DB_READONLY_PASSWORD='mat khau; touch /tmp/BI_CHAY'` | — | nguyên văn, **lệnh không chạy** |
+| `MINIO_ROOT_USER="quan tri"` | ok | `quan tri` |
+| `DB_NAME=songnhue   # [B]` | ok | `songnhue` |
+
+`set -a` bọc ngoài `eval` giữ nguyên hành vi tự-export của bản cũ — kiểm bằng `env | grep -c ^DB_`.
+
+`EnvFileNotShellTest` (2 bài), kiểm chứng ngược:
+
+| Làm hỏng có chủ đích | Kết quả |
+|---|---|
+| trả `backup.sh` về `source` | 1 đỏ |
+| bỏ giá trị nhiều từ khỏi tệp mẫu | 1 đỏ |
+| khôi phục | 2 xanh |
+
+Bài thứ hai neo bài thứ nhất vào **dữ liệu thật**: nếu ngày nào đó không còn giá trị nhiều từ nào, ta phải biết là mình đang canh một tập rỗng chứ không phải đang an toàn.

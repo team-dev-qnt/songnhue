@@ -30,7 +30,11 @@ if [ ! -f "$ENV_FILE" ]; then
 fi
 
 # shellcheck disable=SC1090
-set -a; . "$ENV_FILE"; set +a
+# ⛔ KHÔNG `source` tệp .env — nó không phải script shell. Compose cho phép giá trị
+#    nhiều từ không nháy (`ROBOTS_TAG=noindex, nofollow`); shell thì gán nửa đầu rồi
+#    CHẠY nửa sau như một lệnh. Đã hỏng đúng vậy, exit 127 (§10.46).
+. "$SCRIPT_DIR/../lib/read-env.sh"
+set -a; eval "$(doc_env "$ENV_FILE")"; set +a
 
 : "${DB_HOST:?Thiếu DB_HOST}"
 : "${DB_PORT:?Thiếu DB_PORT}"
