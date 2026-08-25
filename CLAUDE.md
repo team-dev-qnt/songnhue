@@ -87,14 +87,14 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 
 ⛔ **Cấm seed dữ liệu công trình/thuỷ văn "cho đẹp demo"** — ô nào chưa có nguồn thì nói thẳng là chưa có.
 
-**Codebase đo ngày 25/8**: **565 test BE** (239 core + 20 content + 24 operations + 282 app) + **222 test FE** (142 admin + 80 public) · **74 mã lỗi** (BE = FE) · 88 quyền / 12 vai trò / 334 dòng phân quyền · **32 bài ArchUnit** (7 lớp, gồm 11 bài tự-kiểm chứng minh luật bắt được vi phạm) · 7 phép kiểm bộ đọc tracking · mọi cổng bao phủ **chạy thật** (content 18.2%) · 0 CVE ≥ 7.
+**Codebase đo ngày 25/8**: **566 test BE** (239 core + 20 content + 24 operations + 283 app) + **222 test FE** (142 admin + 80 public) · **74 mã lỗi** (BE = FE) · 88 quyền / 12 vai trò / 334 dòng phân quyền · **32 bài ArchUnit** (7 lớp, gồm 11 bài tự-kiểm chứng minh luật bắt được vi phạm) · 7 phép kiểm bộ đọc tracking · mọi cổng bao phủ **chạy thật** (content 18.2%) · 0 CVE ≥ 7.
 
 ### Tra ở đâu
 
 | Cần gì | Đọc ở đâu |
 |---|---|
 | Nợ đang treo, task còn lại | **`.claude/master-tracking.md`** — nguồn DUY NHẤT (conventions.md §6). `phase0-tracking.md` / `phase1-tracking.md` chỉ là lưu trữ, cấm sửa |
-| **Lý do** một quyết định, **nguyên nhân gốc** một lỗi đã sửa | `architecture-review.md` **§9** (Phase 0, 14 mục) · **§10** (Phase 1, 41 mục — §10.35 đợt vá sau WS-22, §10.36 nghiệm thu lại WS-21 + DoD, §10.37 nghiệm thu image, §10.38 CI đỏ sau merge `dev`, §10.40 lỗi 204, §10.41 biến CSDL không ai đọc, §10.52 envelope bọc `byte[]`, §10.53 container không được thay, §10.54 trang chủ nướng rỗng + dữ liệu bịa che chỗ rỗng) |
+| **Lý do** một quyết định, **nguyên nhân gốc** một lỗi đã sửa | `architecture-review.md` **§9** (Phase 0, 14 mục) · **§10** (Phase 1, 41 mục — §10.35 đợt vá sau WS-22, §10.36 nghiệm thu lại WS-21 + DoD, §10.37 nghiệm thu image, §10.38 CI đỏ sau merge `dev`, §10.40 lỗi 204, §10.41 biến CSDL không ai đọc, §10.52 envelope bọc `byte[]`, §10.53 container không được thay, §10.54 trang chủ nướng rỗng + dữ liệu bịa che chỗ rỗng, §10.55 `minio-init` đo thay vì khai báo + bộ seed một công tắc) |
 | Cách viết một chức năng + bảng bẫy tra nhanh | `docs/coding-guide.md` |
 | Luật bắt buộc khi viết code | `conventions.md` |
 | Nghiệp vụ | `function-spec.md`; điểm chưa chốt → `business-open-questions.md` Phần III |

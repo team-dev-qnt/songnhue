@@ -10,8 +10,9 @@ Chạy **tự động trong mỗi lượt triển khai staging**, không còn n�
 Cả hai bật bằng **một** cặp biến trong `.env`, và phải bật cùng nhau:
 
 ```dotenv
-SEED_LOCATION=classpath:db/seed/portal   # migrator giải thêm location này
-SEED_MEDIA_DIR=/seed-media               # minio-init đẩy byte lên bucket
+SEED_LOCATION=classpath:db/seed/portal   # MỘT biến, hai vế cùng đọc:
+                                         #   migrator   → giải thêm location này
+                                         #   minio-init → đẩy byte từ /seed-media
 ```
 
 `SeedGateTest` canh cặp ấy không lệch, và đối chiếu `size_bytes`/`checksum_sha256` trong SQL với

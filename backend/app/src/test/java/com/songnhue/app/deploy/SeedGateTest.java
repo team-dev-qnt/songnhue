@@ -57,6 +57,9 @@ class SeedGateTest {
     private static final String SEED_SQL =
             "backend/content/src/main/resources/db/seed/portal/V202608251100__seed_portal_content.sql";
     private static final String THU_MUC_BYTE = "deploy/seed/media";
+    /** Tên biến đã bị bỏ ở T11.26 — canh để nó không quay lại. */
+    private static final String BIEN_DA_BO = "SEED_MEDIA" + "_DIR";
+
     private static final String LOCATION_MAC_DINH = "backend/content/src/main/resources/db/seed/none";
 
     /** {@code 'seed/portal/x.jpeg', 'image/jpeg', 113720, '05f8…'} — khoá · kiểu · cỡ · băm. */
@@ -120,13 +123,11 @@ class SeedGateTest {
     }
 
     @Test
-    @DisplayName("⛔ Tệp mẫu production để TRỐNG cả hai công tắc")
+    @DisplayName("⛔ Tệp mẫu production để TRỐNG công tắc seed")
     void productionKhongBatSeed() {
         assertThat(giaTri(doc(tuGocKho("deploy/env/prod.env.example")), "SEED_LOCATION"))
                 .as("`prod.env.example` đặt SEED_LOCATION khác rỗng — tức là bày sẵn đường cho một "
                         + "lượt deploy production xoá nội dung thật của Công ty.")
-                .isEmpty();
-        assertThat(giaTri(doc(tuGocKho("deploy/env/prod.env.example")), "SEED_MEDIA_DIR"))
                 .isEmpty();
     }
 
@@ -135,31 +136,80 @@ class SeedGateTest {
     // =========================================================================
 
     @Test
-    @DisplayName("⭐⭐ SEED_LOCATION và SEED_MEDIA_DIR là MỘT công tắc — bật lệch là hỏng câm")
-    void haiVeKhongDuocLech() {
-        for (String ten : List.of("staging.env.example", "prod.env.example")) {
-            String noiDung = doc(tuGocKho("deploy/env/" + ten));
-            boolean batHang = !giaTri(noiDung, "SEED_LOCATION").isEmpty();
-            boolean batByte = !giaTri(noiDung, "SEED_MEDIA_DIR").isEmpty();
+    @DisplayName("⭐⭐ Bộ seed chỉ có MỘT công tắc — vế thứ hai không thể quay lại")
+    void motCongTacDuyNhat() {
+        // Trước T11.26 có hai biến: một cho hàng CSDL, một cho byte MinIO. Biến thứ hai không
+        // mang thông tin gì — đường dẫn trong container đã bị bind mount ghim ở `/seed-media` —
+        // nên nó chỉ tồn tại để có thể LỆCH với biến thứ nhất, và lệch là hỏng câm:
+        //   • có hàng, không có byte → CSDL nói tệp tồn tại, `GET .../files/<id>` trả 404
+        //   • có byte, không có hàng → 4 tệp nằm trong bucket không ai đọc tới
+        //
+        // Bài canh cũ (`haiVeKhongDuocLech`) soi hai TỆP MẪU TRONG REPO, tức canh được bản mẫu
+        // chứ không canh được `/opt/songnhue/.env` đang chạy trên máy chủ — đúng chỗ luật 12 nói
+        // là đặt bảo đảm sai vị trí. Nay `minio-init` đọc thẳng biến của `migrator`, nên trạng
+        // thái lệch **không biểu diễn được** và không cần ai canh nữa.
+        //
+        // Dòng dưới canh việc đó KHÔNG bị hoàn tác: chừng nào tên biến cũ chưa xuất hiện lại ở
+        // `deploy/` thì hai vế không thể tách ra lần nữa.
+        List<Path> tep = tepTrongDeploy();
+        assertThat(tep)
+                .as("không quét được tệp nào trong deploy/ — bài này sẽ xanh trên tập rỗng")
+                .isNotEmpty();
 
-            assertThat(batHang)
-                    .as(
-                            """
-                        `%s` bật lệch hai vế của bộ seed: SEED_LOCATION=%s · SEED_MEDIA_DIR=%s.
+        List<String> pham = tep.stream()
+                .filter(t -> doc(t).contains(BIEN_DA_BO))
+                .map(t -> t.getFileName().toString())
+                .toList();
+        assertThat(pham)
+                .as(
+                        """
+                        `%s` xuất hiện trở lại ở: %s.
 
-                        Bật MỘT vế là hỏng câm, không phải hỏng nửa vời:
-                          • có hàng, không có byte → CSDL nói tệp tồn tại, `GET .../files/<id>` trả 404
-                          • có byte, không có hàng → 4 tệp nằm trong bucket không ai đọc tới
+                        Bộ seed có ĐÚNG một công tắc. Thêm biến thứ hai là dựng lại đúng trạng thái \
+                        lệch mà T11.26 vừa xoá bỏ — và lần này sẽ không có bài kiểm nào canh, vì bài \
+                        canh cặp đã bị gỡ cùng lúc.""",
+                        BIEN_DA_BO, pham)
+                .isEmpty();
 
-                        Hai biến này là một công tắc; đặt cùng nhau hoặc để trống cùng nhau.""",
-                            ten, batHang, batByte)
-                    .isEqualTo(batByte);
-        }
+        // Và vế byte phải đang đọc ĐÚNG biến của vế hàng — nếu không thì luật trên chỉ là một
+        // khẳng định phủ định, xanh trọn vẹn kể cả khi `minio-init` không còn nạp byte nữa.
+        assertThat(khoiService(doc(tuGocKho("deploy/compose.prod.yml")), "minio-init"))
+                .as("`minio-init` phải nhận `SEED_LOCATION` — cùng biến `migrator` đọc.")
+                .contains("SEED_LOCATION: ${SEED_LOCATION:-}")
+                .contains("if [ -n \"$$SEED_LOCATION\" ]; then");
 
-        // Chặn xanh-trên-tập-rỗng: staging PHẢI đang bật, nếu không thì bài trên chỉ đang khẳng
-        // định "rỗng = rỗng" ở cả hai tệp và không kiểm được gì.
+        // Chặn xanh-trên-tập-rỗng: staging PHẢI đang bật.
         assertThat(giaTri(doc(tuGocKho("deploy/env/staging.env.example")), "SEED_LOCATION"))
                 .isEqualTo("classpath:db/seed/portal");
+    }
+
+    @Test
+    @DisplayName("⭐⭐ `minio-init` ĐO tài khoản dịch vụ, không chỉ khai báo nó")
+    void minioInitDoTaiKhoanDichVu() {
+        String khoi = khoiService(doc(tuGocKho("deploy/compose.prod.yml")), "minio-init");
+
+        // `mc admin user add` hỏng khi tài khoản đã có và `policy attach` hỏng khi policy đã gắn,
+        // nên `|| true` sau chúng là hợp lý cho một lượt deploy lặp. Vấn đề là nó nuốt luôn mọi
+        // lỗi THẬT: đo ngày 25/8 với một secret sai, bản cũ in `✓ Bucket và tài khoản dịch vụ sẵn
+        // sàng` rồi thoát 0, và ứng dụng chết ở lượt tải tệp đầu tiên (T11.25).
+        //
+        // Cách chữa không phải bỏ `|| true` mà là ĐO trạng thái cuối bằng CHÍNH cặp khoá ứng
+        // dụng sẽ dùng — thứ duy nhất phân biệt "đã gọi hai lệnh" với "quyền có hiệu lực"
+        // (luật 9).
+        assertThat(khoi)
+                .as("`minio-init` phải tạo alias bằng cặp khoá của ứng dụng để tự kiểm chứng.")
+                .contains("mc alias set svc http://minio:9000 \"$$MINIO_ACCESS_KEY\" \"$$MINIO_SECRET_KEY\"");
+        assertThat(khoi)
+                .as("phép đo phải GHI, ĐỌC và XOÁ — chỉ ghi được chưa chứng minh ứng dụng đọc lại được.")
+                .contains("mc pipe \"svc/")
+                .contains("mc cat \"svc/")
+                .contains("mc rm \"svc/");
+
+        // ⛔ `mc admin user add` KHÔNG được đứng sau `|| true` nữa: một lỗi thật ở đó (secret sai
+        //    độ dài, MinIO từ chối) phải dừng lượt triển khai ngay, chứ không đợi phép đo bên dưới.
+        assertThat(khoi)
+                .as("`mc admin user add ... || true` đã quay lại — lỗi thật sẽ bị nuốt lần nữa.")
+                .doesNotContain("mc admin user add local \"$$MINIO_ACCESS_KEY\" \"$$MINIO_SECRET_KEY\" || true");
     }
 
     @Test
@@ -171,7 +221,7 @@ class SeedGateTest {
                 .as("`minio-init` phải gắn thư mục byte seed vào. Bố cục thư mục chính là khoá đối "
                         + "tượng, nên không có tiền tố nào được viết cứng trong lệnh `mc`.")
                 .contains("./seed/media:/seed-media:ro")
-                .contains("SEED_MEDIA_DIR");
+                .contains("SEED_LOCATION");
 
         assertThat(khoiService(compose, "migrator"))
                 .as(
@@ -389,6 +439,18 @@ class SeedGateTest {
                         "^  " + ten + ":$(.*?)(?=^  [a-z][a-z0-9-]*:$)", Pattern.MULTILINE | Pattern.DOTALL)
                 .matcher(compose);
         return khop.find() ? khop.group(1) : fail("compose.prod.yml không có service `%s`", ten);
+    }
+
+    /** Mọi tệp văn bản dưới `deploy/` — bộ canh phải soi cả cây, không soi một danh sách viết tay. */
+    private static List<Path> tepTrongDeploy() {
+        try (Stream<Path> duyet = Files.walk(tuGocKho("deploy"))) {
+            return duyet.filter(Files::isRegularFile)
+                    .filter(p -> p.getFileName().toString().matches(".*\\.(yml|yaml|sh|md|example|conf|template)"))
+                    .sorted()
+                    .toList();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     private static List<Path> tepMigration(Path thuMuc) {

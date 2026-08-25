@@ -3472,3 +3472,64 @@ Bộ canh đỏ 2 bài kèm đúng dòng chẩn đoán. ⚠ Lượt gỡ đầu 
 **Một bộ dữ liệu dự phòng "cho giao diện luôn sống động" là một cơ chế biến lỗi thành im lặng.** Nó không làm dịu một sự cố — nó xoá dấu vết của sự cố. Trang chủ này hỏng từ ngày dựng, đi qua một lượt nghiệm thu WS-21 và một lượt deploy staging, và thứ duy nhất tố cáo nó là 14 dòng log prefetch tới những slug không tồn tại — thứ chỉ đọc được vì đang truy một lỗi khác.
 
 Luật 16 đã nói *"ô số liệu chưa có nguồn phải trả rỗng kèm lý do"*. Vụ này bổ sung vế còn thiếu: **ràng buộc ấy phải ép ở component, không ép bằng lời dặn** — và phải có một bộ canh soi **toàn cây**, vì "ở đây thì chưa có nguồn" là câu người viết component nào cũng tự thấy mình là ngoại lệ.
+
+---
+
+### §10.55. `minio-init` đo thay vì khai báo, và bộ seed rút về một công tắc duy nhất (26/8/2026)
+
+Hai nợ mở ra từ §10.52, đóng cùng lượt vì chúng nằm trên **cùng một đoạn 20 dòng** của `minio-init` và cùng một hình dạng: *một câu khẳng định không phân biệt được hai trạng thái*.
+
+#### T11.25 — hai `|| true` nuốt lỗi thật
+
+```sh
+mc admin user add    local "$KEY" "$SECRET"          || true
+mc admin policy attach local readwrite --user "$KEY" || true
+echo "✓ Bucket và tài khoản dịch vụ sẵn sàng"
+```
+
+`|| true` ở đó **có lý do chính đáng**: `add` hỏng khi tài khoản đã tồn tại, `attach` hỏng khi policy đã gắn, mà chạy lại một lượt triển khai là chuyện thường. Nên cách chữa không phải bỏ nó đi — bỏ đi thì lượt deploy thứ hai đỏ.
+
+Cách chữa là **đo trạng thái cuối** bằng chính cặp khoá ứng dụng sẽ dùng:
+
+```sh
+mc alias set svc http://minio:9000 "$KEY" "$SECRET"
+echo ok | mc pipe "svc/$BUCKET/.songnhue-init-probe" >/dev/null
+mc cat  "svc/$BUCKET/.songnhue-init-probe" >/dev/null
+mc rm   "svc/$BUCKET/.songnhue-init-probe" >/dev/null
+```
+
+Mã thoát của `mc admin` chỉ nói *lệnh đã chạy xong*; nó không nói *quyền có hiệu lực*. Ghi → đọc → xoá là thứ duy nhất nói được điều thứ hai. `add` nay tách nhánh bằng `mc admin user info` nên không cần `|| true` và một lỗi thật ở đó dừng lượt triển khai ngay; `attach` vẫn giữ `|| true`, và điều đó **an toàn** vì phép đo bên dưới bắt được hậu quả.
+
+**Đo bằng MinIO thật**, bốn kịch bản trên một container dựng tạm:
+
+| Kịch bản | bản cũ | bản mới |
+|---|---|---|
+| lượt đầu, cặp khoá hợp lệ | — | thoát 0, `✓` |
+| chạy lại, tài khoản đã có | — | thoát 0, `· tài khoản dịch vụ đã tồn tại` |
+| **secret sai độ dài** | **thoát 0**, in `✓ … sẵn sàng` | **thoát 1**, không in `✓` |
+| **policy gắn hụt** (tên policy sai, lỗi bị nuốt) | — | **thoát 1**, `Insufficient permissions to access this path .../.songnhue-init-probe` |
+
+Dòng thứ ba là đúng sự cố T11.25 mô tả. Dòng thứ tư là bài kiểm cho **chính cơ chế mới** — một cơ chế chưa ai đi qua thì chưa biết nó đúng hay sai (luật 7).
+
+⚠ Lượt đo đầu tiên của tôi báo *"bản mới cũng thoát 0"*. Sai ở **dụng cụ đo**: hàm bọc `docker run` qua một ống `| tail -4`, và zsh không có `PIPESTATUS` nên `$?` đọc được là mã thoát của `tail`. Bỏ ống đi thì hai bản tách ra ngay. Một phép đo hỏng trông y hệt một bản vá hỏng.
+
+#### T11.26 — công tắc thứ hai chỉ tồn tại để lệch
+
+Bộ seed có hai vế — hàng trong CSDL (`migrator`) và byte trong MinIO (`minio-init`) — và trước đây mỗi vế một biến môi trường. Biến thứ hai **không mang thông tin gì**: đường dẫn trong container đã bị bind mount ghim ở `/seed-media`. Nó chỉ có một khả năng duy nhất là **lệch** với biến thứ nhất, và lệch là hỏng câm:
+
+- có hàng, không có byte → CSDL nói tệp tồn tại, `GET /api/v1/public/files/<id>` trả 404
+- có byte, không có hàng → tệp nằm trong bucket không ai đọc tới
+
+`SeedGateTest.haiVeKhongDuocLech` canh đúng chỗ đó — nhưng nó soi **hai tệp mẫu trong repo**, không soi `/opt/songnhue/.env` đang chạy trên máy chủ. Tức nó canh được bản mẫu chứ không canh được thứ quyết định hành vi (luật 12).
+
+Nay `minio-init` đọc thẳng `SEED_LOCATION` và dùng `/seed-media` cố định. **Trạng thái lệch trở thành không biểu diễn được**, và bài canh cặp không còn việc gì để làm.
+
+Thay nó bằng một bài khác hẳn: canh việc bản vá **không bị hoàn tác** — quét toàn bộ `deploy/` và khẳng định tên biến cũ không xuất hiện lại ở đâu. Nếu ai đó tách lại hai vế, họ sẽ không có bài canh cặp nào để đỡ, vì bài ấy đã bị gỡ cùng lúc.
+
+📌 Tên biến cũ trong bài kiểm được ghép từ hai mảnh (`"SEED_MEDIA" + "_DIR"`) để chính mã nguồn của bộ canh không khớp phép canh của nó — cùng cái bẫy chú thích đã dính **ba lần** trong đợt này.
+
+#### Kết quả
+
+`SeedGateTest` 9 → **10 bài**; gói `deploy` 48/48 xanh. Kiểm chứng ngược cả hai bài mới: đưa biến cũ trở lại một tệp `deploy/` → đỏ đúng tệp đó; gỡ dòng `mc cat` khỏi phép probe → đỏ với *"phép đo phải GHI, ĐỌC và XOÁ"*.
+
+⛔ **Không cần thao tác tay trên máy chủ.** `/opt/songnhue/.env` của staging đang có cả hai biến; biến bị bỏ đơn giản là không còn ai đọc, còn `SEED_LOCATION` thì `minio-init` nhận qua `${SEED_LOCATION:-}`. Dọn dòng thừa trong `.env` là việc tuỳ, không phải điều kiện.
