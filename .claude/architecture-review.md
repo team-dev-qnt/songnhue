@@ -2846,3 +2846,47 @@ nằm trong khối `run:` — **văn bản thường, không phải chú thích*
 | khôi phục | 4 xanh | 4 xanh |
 
 ⛔ Bài học lặp lại nguyên vẹn hai luật đã trả giá: **canh cấu trúc, đừng canh văn bản** (luật 2) và **bộ canh theo hình dạng phải được thử với dữ liệu THẬT đang dùng** (luật 24). Nếu bỏ qua lượt kiểm chứng ngược thì hôm nay đã có thêm một cơ chế xanh mà không canh gì.
+
+---
+
+### §10.45. Lượt deploy staging xanh trọn vẹn mà cổng không có dữ liệu — vì đường ống chưa từng có bước nạp dữ liệu (25/8/2026)
+
+Lượt CD Staging đầu tiên thành công: **11/11 bước xanh**, kể cả rsync, `migrator`, `up -d`, smoke test. Cổng vẫn không có 5 bài.
+
+#### Không có gì hỏng cả
+
+| Bước | Thực sự đã làm gì |
+|---|---|
+| Đồng bộ cấu hình | rsync `deploy/` → `/opt/songnhue/` — **bộ seed đã nằm sẵn trên máy chủ** |
+| `migrator` | chạy hết Flyway → lược đồ + danh mục + menu + 4 trang tĩnh |
+| `up -d` | ba container lên bằng image mới |
+| Smoke test | `/api/v1/public/site-config` trả `success:true` |
+
+Không bước nào nạp nội dung, vì **đường ống chưa bao giờ có bước ấy** — và điều đó đúng thiết kế: bộ seed là 5 bài **sao chép nguyên văn từ báo ngoài**, cố ý làm script phải gõ tay thay vì migration (`deploy/seed/README.md`). Cái thiếu không phải một bản vá, mà là **một đường chạy tay chưa ai dựng**.
+
+📌 Hình dạng cần nhớ: *"đã chạy xong" và "đã có tác dụng" là hai chuyện khác nhau.* Cả 11 bước đều đúng với việc chúng nhận làm; không bước nào nhận làm việc còn thiếu.
+
+#### Smoke test không phân biệt được cổng có nội dung với cổng rỗng
+
+`/api/v1/public/site-config` chứng minh chặng `nginx → public-web → app → postgres` thông suốt. Nó **không** nói gì về việc có bài nào không — đúng luật 9. Đây là giới hạn đã biết, ghi lại để lần sau không ai đọc "smoke test xanh" thành "cổng đã đủ nội dung".
+
+#### Bản vá
+
+`seed-staging.yml` — **`workflow_dispatch` duy nhất**, hai bước:
+
+- `chay-thu` (mặc định) in ra sẽ ghi gì mà không ghi; `nap-that` mới nạp
+- ô xác nhận phải gõ đúng `nap-noi-dung-staging` — cùng tinh thần Restore UI (§7.3)
+- **không có tham số môi trường**: workflow chỉ biết bộ `STAGING_*`, nên không có đường nào kể cả gõ nhầm trỏ nó sang production. Một danh sách chọn *staging/production* chính là cú nhấp sai đang tránh
+- không chép lại `deploy/seed/` — CD đã rsync rồi; hai đường cho cùng một tệp thì sẽ có ngày lệch
+
+`SeedNeverAutomaticTest` (5 bài) giữ ràng buộc, vì tới giờ nó chỉ sống trong chú thích:
+
+| Làm hỏng có chủ đích | Kết quả |
+|---|---|
+| gắn `seed.sh` vào bước triển khai của CD | 1 đỏ |
+| thêm `push:` cho workflow seed | 1 đỏ |
+| đổi sang secret `PROD_*` | 1 đỏ |
+| gỡ ô xác nhận | 1 đỏ |
+| khôi phục | 5 xanh |
+
+Bài thứ 5 neo bốn khẳng định **phủ định** kia vào một thứ có thật — xoá `deploy/seed/` đi thì cả bốn xanh trọn vẹn mà không canh gì.
