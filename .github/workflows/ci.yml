@@ -156,6 +156,37 @@ jobs:
           distribution: temurin
           cache: maven
 
+      # ⚠ `cache: maven` của setup-java CHỈ đệm `~/.m2/repository`. Bản phân phối
+      #   Maven mà `mvnw` tải về nằm ở `~/.m2/wrapper/dists` và KHÔNG nằm trong
+      #   đó — nên mỗi lượt CI đều tải lại ~9 MB từ repo.maven.apache.org bằng
+      #   `wget`, KHÔNG có thử lại. Một lượt chập mạng là CI đỏ ở DÒNG ĐẦU TIÊN,
+      #   trước khi có gì được biên dịch, với thông báo trỏ vào `spotless:check`
+      #   — một bước hoàn toàn vô can (§10.47).
+      - name: Đệm bản phân phối Maven
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/wrapper
+          key: mvnw-${{ runner.os }}-${{ hashFiles('backend/.mvn/wrapper/maven-wrapper.properties') }}
+
+      # Tách lượt tải ra khỏi lệnh build, và cho nó thử lại. Hai cái lợi riêng
+      # biệt: (1) chập mạng không còn bị báo nhầm thành lỗi của bước sau;
+      # (2) một lượt hỏng nhất thời tự khỏi thay vì bắt người ta bấm chạy lại.
+      - name: Nạp sẵn Maven
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          for lan in 1 2 3; do
+            if ./mvnw -B -ntp -v; then
+              exit 0
+            fi
+            echo "::warning::Lượt $lan tải bản phân phối Maven hỏng — thử lại sau ${lan}0 giây"
+            sleep "${lan}0"
+          done
+          echo "::error::Không tải được bản phân phối Maven sau 3 lượt."
+          echo "Kiểm tra repo.maven.apache.org còn phục vụ URL trong"
+          echo "backend/.mvn/wrapper/maven-wrapper.properties hay không."
+          exit 1
+
       # Spotless + Checkstyle gắn ở phase `validate` nên chúng tự chạy trong mọi
       # lệnh dưới đây. Chạy riêng một lượt trước để lỗi định dạng hiện ra ngay,
       # không lẫn vào log biên dịch.

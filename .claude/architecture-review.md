@@ -2893,77 +2893,49 @@ Bài thứ 5 neo bốn khẳng định **phủ định** kia vào một thứ c�
 
 ---
 
-### §10.46. ⚠⚠ Tệp `.env` không phải script shell — và bản tóm tắt của tôi khiến lượt hỏng đọc như lượt đạt (25/8/2026)
-
-Lượt "chạy thử" đầu tiên của `seed-staging.yml` **hỏng**, exit 127. Người bấm đọc khối tóm tắt và hiểu là đã ổn.
-
-#### Lỗi thứ nhất — bản tóm tắt không phân biệt được hai trạng thái
-
-Khối *Ghi tóm tắt* tôi đặt `if: always()` và chỉ in chế độ cùng một lời nhắc. Nó hiện ra **y hệt nhau** ở lượt xanh và lượt đỏ. Đây là luật 9 áp vào chính phần giao tiếp với người dùng — và tệ hơn một bản tóm tắt vô dụng, vì nó **trấn an**.
-
-Nay in thẳng `✅ ĐẠT` / `❌ HỎNG (<trạng thái>)` từ `job.status`, và nói rõ chạy thử **không in bảng đối chiếu** — trước đó lời nhắc về bảng ấy xuất hiện cả ở lượt chạy thử vốn không bao giờ có bảng.
-
-#### Lỗi thứ hai — nguyên nhân thật
+### §10.47. CI đỏ ở dòng đầu tiên vì tải hụt Maven — và thông báo trỏ vào một bước chưa từng chạy (25/8/2026)
 
 ```
-/opt/songnhue/.env: line 87: nofollow: command not found     (exit 127)
+Run ./mvnw -B -ntp spotless:check checkstyle:check
+wget: Failed to fetch .../apache-maven-3.9.9-bin.zip
+Error: Process completed with exit code 1
 ```
 
-`seed.sh` làm `set -a; . "$ENV_FILE"; set +a`. Dòng thủ phạm **hoàn toàn hợp lệ** với Compose:
+Đo lại URL ngay sau đó: **HTTP 200**, tải một byte đầu trả **206**. Nghĩa là URL vẫn sống — một lượt chập mạng trên runner, không phải lỗi mã.
 
-```
-ROBOTS_TAG=noindex, nofollow
-```
+#### Nhưng nó lộ ra ba chỗ mong manh có thật
 
-Compose đọc thành chuỗi `noindex, nofollow`. Shell gán `ROBOTS_TAG=noindex,` rồi **chạy `nofollow` như một lệnh**. Cùng một tệp, hai bộ phân tích khác nhau — và tệp ấy viết cho bộ kia.
-
-#### Vì sao nó không lộ ra sớm hơn
-
-Đo trực tiếp trên hai tệp mẫu đang dùng:
-
-| Tệp | `source` |
-|---|---|
-| `prod.env.example` | **chạy lọt** — không giá trị nào nhiều từ |
-| `staging.env.example` | chết ở dòng 137 |
-
-Chỉ staging mới đặt `ROBOTS_TAG=noindex, nofollow`; production phải cho đánh chỉ mục. Một cái bẫy nằm im cho tới đúng môi trường có dữ liệu kích hoạt nó — **luật 24**.
-
-#### ⚠⚠ Lỗi thứ ba, và là lỗi nặng nhất: ba script sao lưu cũng vậy
-
-Bài kiểm mới đỏ ngay lần chạy đầu và chỉ ra **ba tệp nữa** dùng đúng dòng ấy:
-
-```
-deploy/backup/backup.sh:33
-deploy/backup/restore.sh:24
-deploy/backup/pre-deploy-dump.sh:37
-```
-
-Đó là **toàn bộ đường sao lưu và khôi phục** — lưới an toàn duy nhất của hệ, vì dự án cố ý không có replica và không có PITR (§6.5). Chạy chúng với tệp `.env` thật của staging là cùng một đường mã, cùng một tệp, nên cùng exit 127.
-
-📌 Ghi cho chính xác: tôi **chưa kiểm** cron sao lưu đã cài trên staging hay chưa. Điều khẳng định được là *nếu* nó chạy với tệp ấy thì nó chết theo đúng cách này. Cần kiểm trên máy chủ trước khi coi sao lưu staging là đang hoạt động.
-
-#### Bản vá
-
-Một bộ đọc duy nhất — `deploy/lib/read-env.sh` — dùng chung cho cả bốn script, đọc theo đúng luật compose-go: bỏ dòng trống/chú thích · cho phép `export` · tôn trọng nháy đơn/nháy kép · **chỉ cắt chú thích cuối dòng khi có khoảng trắng trước `#`** (để `MAT_KHAU=abc#def` không bị cắt cụt) · `shlex.quote` ở đầu ra nên `eval` an toàn tuyệt đối.
-
-Chạy thật với tệp env mang cả bốn hình dạng ác ý:
-
-| Giá trị trong tệp | Bản cũ (`source`) | Bộ đọc mới |
+| # | Chỗ mong manh | Hệ quả |
 |---|---|---|
-| `ROBOTS_TAG=noindex, nofollow` | **exit 127** | `noindex, nofollow` |
-| `DB_MIGRATION_PASSWORD=abc#def$x y'z"w` | vỡ cú pháp | nguyên văn |
-| `DB_READONLY_PASSWORD='mat khau; touch /tmp/BI_CHAY'` | — | nguyên văn, **lệnh không chạy** |
-| `MINIO_ROOT_USER="quan tri"` | ok | `quan tri` |
-| `DB_NAME=songnhue   # [B]` | ok | `songnhue` |
+| 1 | `cache: maven` của `setup-java` **chỉ** đệm `~/.m2/repository` | bản phân phối Maven ở `~/.m2/wrapper/dists` **không** được đệm → mỗi lượt CI tải lại ~9 MB |
+| 2 | `mvnw` tải bằng `wget` **không có thử lại** | một lượt chập là CI đỏ, phải bấm chạy lại tay |
+| 3 | Lượt tải nằm chung bước với lệnh build | thông báo lỗi mang tên `spotless:check` — **một bước chưa từng được chạy** |
 
-`set -a` bọc ngoài `eval` giữ nguyên hành vi tự-export của bản cũ — kiểm bằng `env | grep -c ^DB_`.
+Chỗ thứ ba đáng nhớ nhất: nó là **luật 22** ở dạng thuần túy — *dòng đáng chú ý nhất nằm trước thứ được báo là lỗi*. Ai đọc lướt sẽ đi tìm lỗi định dạng mã nguồn.
 
-`EnvFileNotShellTest` (2 bài), kiểm chứng ngược:
+#### Bản vá — hai thứ độc lập, cố ý không gộp
+
+- **Đệm `~/.m2/wrapper`**, khoá theo hash của `maven-wrapper.properties` → từ lượt thứ hai không tải nữa
+- **Tách lượt tải thành bước riêng, thử lại 3 lần** (10s/20s/30s) → lượt đầu chập thì tự khỏi, và hỏng thật thì hỏng dưới đúng tên của nó
+
+Bộ đệm không thay được vòng thử lại: lượt đầu, và mọi lượt sau khi đổi phiên bản wrapper, vẫn phải tải thật.
+
+Vòng thử lại kiểm bằng `mvnw` giả, cả ba đường:
+
+| Kịch bản | Kết quả |
+|---|---|
+| hỏng cả 3 lượt | 3 cảnh báo → **thoát 1** |
+| hỏng lượt 1, đạt lượt 2 | thoát 0, không thử lượt 3 |
+| đạt ngay | thoát 0, không thử lại lần nào |
+
+`MavenWrapperCiTest` (2 bài) áp cho **mọi** workflow gọi `./mvnw`, kiểm chứng ngược:
 
 | Làm hỏng có chủ đích | Kết quả |
 |---|---|
-| trả `backup.sh` về `source` | 1 đỏ |
-| bỏ giá trị nhiều từ khỏi tệp mẫu | 1 đỏ |
+| gỡ bước đệm ở `ci.yml` | 1 đỏ |
+| gỡ bước đệm ở `security-scan.yml` | 1 đỏ |
+| chuyển bước đệm xuống **sau** lượt gọi đầu tiên | 1 đỏ |
+| gỡ vòng thử lại | 1 đỏ |
 | khôi phục | 2 xanh |
 
-Bài thứ hai neo bài thứ nhất vào **dữ liệu thật**: nếu ngày nào đó không còn giá trị nhiều từ nào, ta phải biết là mình đang canh một tập rỗng chứ không phải đang an toàn.
+Kịch bản thứ ba là chỗ dễ sai nhất: một bước đệm đặt sai vị trí vẫn **có mặt**, vẫn xanh trong mắt phép kiểm ngây thơ, mà đệm khi đã tải xong thì không đệm gì cả.
