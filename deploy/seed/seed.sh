@@ -33,13 +33,42 @@ for tham_so in "$@"; do
 done
 
 [ -f "$ENV_FILE" ] || { echo "✗ Không thấy $ENV_FILE — đặt ENV_FILE nếu nó nằm chỗ khác" >&2; exit 1; }
-set -a; . "$ENV_FILE"; set +a
+
+# ---------------------------------------------------------------------------
+# ⛔ KHÔNG `source` tệp .env — nó KHÔNG phải script shell.
+#
+#    Bản đầu làm `set -a; . "$ENV_FILE"; set +a` và hỏng ngay lượt chạy thử đầu
+#    tiên trên staging:
+#
+#        /opt/songnhue/.env: line 87: nofollow: command not found   (exit 127)
+#
+#    Dòng thủ phạm hoàn toàn HỢP LỆ với Docker Compose:
+#
+#        ROBOTS_TAG=noindex, nofollow
+#
+#    Compose đọc nó thành chuỗi `noindex, nofollow`. Shell thì gán
+#    `ROBOTS_TAG=noindex,` rồi CHẠY `nofollow` như một lệnh. Hai bộ phân tích
+#    khác nhau trên cùng một tệp — và tệp ấy viết cho bộ kia, không phải cho ta.
+#
+#    Nên đọc bằng đúng luật của Compose: bỏ dòng trống và dòng chú thích, cho
+#    phép tiền tố `export`, tôn trọng nháy đơn/nháy kép, và chỉ cắt chú thích
+#    cuối dòng khi có KHOẢNG TRẮNG trước `#` — để mật khẩu chứa `#` không bị
+#    cắt mất đuôi (`MAT_KHAU=abc#def` giữ nguyên).
+#
+#    `shlex.quote` ở đầu ra làm giá trị an toàn tuyệt đối khi đi qua `eval`:
+#    mật khẩu chứa dấu cách, `$`, nháy hay `;` đều về đúng nguyên trạng.
+# ---------------------------------------------------------------------------
+. "$THU_MUC/../lib/read-env.sh"
+
+eval "$(doc_env "$ENV_FILE" MINIO_BUCKET_MEDIA MINIO_ROOT_USER MINIO_ROOT_PASSWORD \
+                DB_NAME DB_MIGRATION_USER DB_MIGRATION_PASSWORD)"
 
 : "${MINIO_BUCKET_MEDIA:?Thiếu MINIO_BUCKET_MEDIA}"
 : "${MINIO_ROOT_USER:?Thiếu MINIO_ROOT_USER}"
 : "${MINIO_ROOT_PASSWORD:?Thiếu MINIO_ROOT_PASSWORD}"
 : "${DB_NAME:?Thiếu DB_NAME}"
 : "${DB_MIGRATION_USER:?Thiếu DB_MIGRATION_USER}"
+: "${DB_MIGRATION_PASSWORD:?Thiếu DB_MIGRATION_PASSWORD}"
 
 dc() { docker compose --env-file "$ENV_FILE" -f "$COMPOSE" "$@"; }
 
