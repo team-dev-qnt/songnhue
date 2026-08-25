@@ -21,7 +21,11 @@ ENV_FILE="${ENV_FILE:-$DEPLOY_DIR/env/$ENV.env}"
 
 [ -f "$ENV_FILE" ] || { echo "✗ Không thấy $ENV_FILE" >&2; exit 1; }
 # shellcheck disable=SC1090
-set -a; . "$ENV_FILE"; set +a
+# ⛔ KHÔNG `source` tệp .env — nó không phải script shell. Compose cho phép giá trị
+#    nhiều từ không nháy (`ROBOTS_TAG=noindex, nofollow`); shell thì gán nửa đầu rồi
+#    CHẠY nửa sau như một lệnh. Đã hỏng đúng vậy, exit 127 (§10.46).
+. "$SCRIPT_DIR/../lib/read-env.sh"
+set -a; eval "$(doc_env "$ENV_FILE")"; set +a
 
 : "${DB_HOST:?}"; : "${DB_PORT:?}"; : "${DB_NAME:?}"; : "${BACKUP_DIR:?}"
 : "${DB_MIGRATION_PASSWORD:?Cần mật khẩu chủ sở hữu để khôi phục}"

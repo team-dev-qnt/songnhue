@@ -88,14 +88,31 @@ jobs:
             ./seed/seed.sh $co
           REMOTE
 
+      # ⚠⚠ PHẢI nói rõ ĐẠT hay HỎNG. Bản đầu chỉ in chế độ và một lời nhắc, dưới
+      #    `if: always()` — nên nó hiện ra Y HỆT nhau ở lượt xanh và lượt đỏ.
+      #    Lượt chạy thử đầu tiên hỏng với exit 127, người bấm đọc đúng khối này
+      #    và hiểu là đã ổn (§10.46). Một bản tóm tắt không phân biệt được hai
+      #    trạng thái thì tệ hơn không có, vì nó trấn an.
       - name: Ghi tóm tắt
         if: always()
         run: |
           {
             echo "### Nạp nội dung Staging"
-            echo "- Chế độ: \`${{ inputs.che_do }}\`"
+            if [ "${{ job.status }}" = "success" ]; then
+              echo "**✅ ĐẠT** — chế độ \`${{ inputs.che_do }}\`"
+            else
+              echo "**❌ HỎNG (\`${{ job.status }}\`)** — chế độ \`${{ inputs.che_do }}\`"
+              echo ""
+              echo "Chưa ghi gì hoặc ghi dở dang. Mở log bước **Nạp** để xem dòng lỗi;"
+              echo "bộ seed idempotent nên chạy lại sau khi sửa là an toàn."
+            fi
             echo ""
-            echo "⚠ Bảng đối chiếu ở log chỉ chứng minh **CSDL có hàng**. Nó KHÔNG chứng minh"
-            echo "MinIO có byte — hai thứ lệch nhau là hỏng câm. Ba phép kiểm cuối phải làm"
-            echo "bằng trình duyệt, xem cuối \`deploy/seed/seed.sh\`."
+            if [ "${{ inputs.che_do }}" = "chay-thu" ]; then
+              echo "ⓘ Chạy thử **không ghi gì và không in bảng đối chiếu** — bảng ấy chỉ có ở"
+              echo "\`nap-that\`. Xanh ở đây nghĩa là kết nối, tệp \`.env\` và bộ seed đều đọc được."
+            else
+              echo "⚠ Bảng đối chiếu ở log chỉ chứng minh **CSDL có hàng**. Nó KHÔNG chứng minh"
+              echo "MinIO có byte — hai thứ lệch nhau là hỏng câm. Ba phép kiểm cuối phải làm"
+              echo "bằng trình duyệt, xem cuối \`deploy/seed/seed.sh\`."
+            fi
           } >> "$GITHUB_STEP_SUMMARY"

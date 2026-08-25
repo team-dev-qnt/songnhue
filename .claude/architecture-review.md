@@ -2890,3 +2890,52 @@ Không bước nào nạp nội dung, vì **đường ống chưa bao giờ có 
 | khôi phục | 5 xanh |
 
 Bài thứ 5 neo bốn khẳng định **phủ định** kia vào một thứ có thật — xoá `deploy/seed/` đi thì cả bốn xanh trọn vẹn mà không canh gì.
+
+---
+
+### §10.47. CI đỏ ở dòng đầu tiên vì tải hụt Maven — và thông báo trỏ vào một bước chưa từng chạy (25/8/2026)
+
+```
+Run ./mvnw -B -ntp spotless:check checkstyle:check
+wget: Failed to fetch .../apache-maven-3.9.9-bin.zip
+Error: Process completed with exit code 1
+```
+
+Đo lại URL ngay sau đó: **HTTP 200**, tải một byte đầu trả **206**. Nghĩa là URL vẫn sống — một lượt chập mạng trên runner, không phải lỗi mã.
+
+#### Nhưng nó lộ ra ba chỗ mong manh có thật
+
+| # | Chỗ mong manh | Hệ quả |
+|---|---|---|
+| 1 | `cache: maven` của `setup-java` **chỉ** đệm `~/.m2/repository` | bản phân phối Maven ở `~/.m2/wrapper/dists` **không** được đệm → mỗi lượt CI tải lại ~9 MB |
+| 2 | `mvnw` tải bằng `wget` **không có thử lại** | một lượt chập là CI đỏ, phải bấm chạy lại tay |
+| 3 | Lượt tải nằm chung bước với lệnh build | thông báo lỗi mang tên `spotless:check` — **một bước chưa từng được chạy** |
+
+Chỗ thứ ba đáng nhớ nhất: nó là **luật 22** ở dạng thuần túy — *dòng đáng chú ý nhất nằm trước thứ được báo là lỗi*. Ai đọc lướt sẽ đi tìm lỗi định dạng mã nguồn.
+
+#### Bản vá — hai thứ độc lập, cố ý không gộp
+
+- **Đệm `~/.m2/wrapper`**, khoá theo hash của `maven-wrapper.properties` → từ lượt thứ hai không tải nữa
+- **Tách lượt tải thành bước riêng, thử lại 3 lần** (10s/20s/30s) → lượt đầu chập thì tự khỏi, và hỏng thật thì hỏng dưới đúng tên của nó
+
+Bộ đệm không thay được vòng thử lại: lượt đầu, và mọi lượt sau khi đổi phiên bản wrapper, vẫn phải tải thật.
+
+Vòng thử lại kiểm bằng `mvnw` giả, cả ba đường:
+
+| Kịch bản | Kết quả |
+|---|---|
+| hỏng cả 3 lượt | 3 cảnh báo → **thoát 1** |
+| hỏng lượt 1, đạt lượt 2 | thoát 0, không thử lượt 3 |
+| đạt ngay | thoát 0, không thử lại lần nào |
+
+`MavenWrapperCiTest` (2 bài) áp cho **mọi** workflow gọi `./mvnw`, kiểm chứng ngược:
+
+| Làm hỏng có chủ đích | Kết quả |
+|---|---|
+| gỡ bước đệm ở `ci.yml` | 1 đỏ |
+| gỡ bước đệm ở `security-scan.yml` | 1 đỏ |
+| chuyển bước đệm xuống **sau** lượt gọi đầu tiên | 1 đỏ |
+| gỡ vòng thử lại | 1 đỏ |
+| khôi phục | 2 xanh |
+
+Kịch bản thứ ba là chỗ dễ sai nhất: một bước đệm đặt sai vị trí vẫn **có mặt**, vẫn xanh trong mắt phép kiểm ngây thơ, mà đệm khi đã tải xong thì không đệm gì cả.
