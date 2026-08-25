@@ -311,6 +311,17 @@ ci-image: ## Dựng image FE đúng đối số build của CI (bắt lỗi bi�
 	@echo "  ✓ Hai image FE dựng được với biến môi trường để trống."
 	@echo ""
 
+# --- Diễn tập triển khai (WS-11) ---------------------------------------------
+# ⭐ Chỗ DUY NHẤT ở máy chạy đúng `compose.staging.yml` và đúng lệnh CD gõ.
+#   `make ci-local` không đụng tới compose, `minio-init` hay thứ tự khởi động —
+#   nên "xanh ở máy" không nói gì về chúng. Bảy sự cố §10.42→§10.49 đều nằm ở đó.
+#   Giới hạn của nó ghi ngay trong `deploy/compose.rehearse.yml`, đọc trước khi tin.
+
+.PHONY: rehearse
+rehearse: ## Diễn tập đường dữ liệu của lượt triển khai staging (compose + minio-init + migrator + seed)
+	$(call need_file,$(DEPLOY)/rehearse.sh,WS-11 / T11.22)
+	@GIU=$(GIU) $(DEPLOY)/rehearse.sh
+
 # --- Backup / Restore (WS-7) -------------------------------------------------
 # ⚠ Đây là ĐƯỜNG THỦ CÔNG, dùng khi ứng dụng không chạy được. Đường bình thường
 #   là job 02:00 hằng đêm và nút trên màn hình M5.10 — cả hai ghi vào cùng một

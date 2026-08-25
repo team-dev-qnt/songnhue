@@ -358,6 +358,41 @@ Nay:
 
 Câu 2 và 3 chỉ có nghĩa vì bộ seed nội dung nay nằm trong chuỗi migration — xem `deploy/seed/README.md`.
 
+### 4.1-c. Triển khai theo DIGEST, và có đường quay lui (25/8)
+
+**Digest, không phải tag.** Bước xác định image giải `:<sha>` thành `@sha256:…` rồi triển khai bằng
+digest. Tag là một cái tên và tên thì gán lại được; giữa lúc workflow tra và lúc máy chủ `pull`, một
+lượt CI khác có thể đã trỏ tag đi nơi khác. Hiếm — nhưng hậu quả là một môi trường chạy thứ không ai
+truy ra được, đúng loại lỗi không điều tra được sau đó.
+
+**Quay lui tự động khi smoke test đỏ.** Trước khi đổi, workflow hỏi máy chủ *cái gì đang chạy*
+(`docker inspect` trên container, không đọc tệp compose) và ghi lại ba digest. Smoke test đỏ →
+dựng lại ba image cũ → hỏi lại câu 1.
+
+⛔ **Đây là quay lui về MÃ NGUỒN, không phải về DỮ LIỆU.** `migrator` đã chạy xong trước đó và
+migration là một chiều: nếu nó đã đổi lược đồ thì mã cũ có thể không chạy nổi trên lược đồ mới, và
+bước quay lui **không cứu được gì**. Đường quay lui về dữ liệu là bản chụp `predeploy-*` sinh ra ở
+đầu lượt — `docs/runbook/khoi-phuc-du-lieu.md`. Giới hạn này ghi ngay trong workflow, ở chỗ người ta
+đọc lúc hoảng, để "đã có rollback tự động" không thành một lời trấn an sai.
+
+⚠ Lượt deploy đầu tiên chưa có container nào → không có đích quay lui. Workflow nói ra điều đó bằng
+một cảnh báo, thay vì dựng lại từ một chuỗi rỗng.
+
+### 4.1-d. `make rehearse` — diễn tập trước khi merge vào `staging`
+
+Bảy sự cố §10.42 → §10.49 đều nằm trên đường triển khai, và **`make ci-local` không đụng tới đường
+ấy**: không compose, không `minio-init`, không thứ tự khởi động. Nên "xanh ở máy" chưa bao giờ nói
+gì về chúng.
+
+`make rehearse` chạy **đúng `compose.staging.yml`** và **đúng lệnh CD gõ** (`run --rm migrator`),
+rồi hỏi ba câu mà chỉ hệ thật trả lời được: bucket có được tạo không · migration seed ghi đủ hàng
+không · **mỗi `storage_key` trong CSDL có byte thật trong MinIO không**. Câu thứ ba không bài kiểm
+JUnit nào trả lời được.
+
+⛔ Nó **không** nói gì về nginx biên · TLS · tên miền · CSP · quyền thư mục trên máy chủ · hai image
+giao diện · hành vi dưới tải. Danh sách đầy đủ kèm lý do nằm trong `deploy/compose.rehearse.yml` —
+đọc trước khi tin vào một lượt diễn tập xanh.
+
 ### 4.2. ⚠⚠ Một image chạy hai môi trường — chỗ nguyên tắc §2 va vào Next.js
 
 Next nướng mọi biến `NEXT_PUBLIC_*` vào bundle **lúc build**. `NEXT_PUBLIC_SITE_URL` là gốc của
