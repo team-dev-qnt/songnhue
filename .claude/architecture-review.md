@@ -2939,3 +2939,78 @@ Vòng thử lại kiểm bằng `mvnw` giả, cả ba đường:
 | khôi phục | 2 xanh |
 
 Kịch bản thứ ba là chỗ dễ sai nhất: một bước đệm đặt sai vị trí vẫn **có mặt**, vẫn xanh trong mắt phép kiểm ngây thơ, mà đệm khi đã tải xong thì không đệm gì cả.
+
+---
+
+### §10.48. ⚠⚠ Script vận hành gọi `docker compose` là hỏng — kể cả lệnh chỉ đọc; và một trong hai chỗ là bản chụp trước triển khai (25/8/2026)
+
+Lượt `nap-that` hỏng ở bước đầu:
+
+```
+→ [1/3] Đẩy ảnh lên MinIO
+error while interpolating services.app.image: required variable APP_IMAGE is missing a value
+docker: no name set for network
+exit 125
+```
+
+#### Vì sao một lệnh chỉ đọc cũng hỏng
+
+`seed.sh` tìm mạng của MinIO bằng `dc ps -q minio`. Compose **nội suy toàn bộ tệp** trước khi trả lời bất cứ câu hỏi nào — kể cả `ps -q`. Mà `compose.prod.yml` khai ba tag image ở dạng bắt buộc:
+
+```yaml
+image: ${APP_IMAGE:?Thiếu APP_IMAGE - workflow deploy phải export biến này}
+```
+
+Ba biến ấy **cố ý không nằm trong `.env`** — workflow triển khai `export` chúng ngay trước khi gọi compose, vì ghim một phiên bản image vào đĩa máy chủ là đúng thứ luồng đề bạt tránh (xem `MIEN_TRU` trong `ComposeEnvCompletenessTest`). Nên **mọi script chạy ngoài lượt triển khai đều thiếu chúng**.
+
+Tái hiện tại chỗ, đúng thông báo của máy chủ:
+
+```
+$ docker compose --env-file /tmp/min.env -f compose.prod.yml ps -q minio
+error while interpolating services.app.image: required variable APP_IMAGE is missing a value
+→ mã thoát 1, kết quả trả về: RỖNG
+```
+
+Chuỗi rỗng ấy đi thẳng vào `--network ""` → `docker: no name set for network`. `set -e` không cứu được: lượt hỏng nằm trong `$( )` làm **đối số**, nên nó chỉ biến thành chuỗi rỗng rồi đi tiếp.
+
+#### ⚠⚠ Chỗ thứ hai nặng hơn nhiều
+
+Bài kiểm mới chỉ ra `pre-deploy-dump.sh` cùng lỗi, và ở đó nó biểu hiện thành:
+
+```
+✗ Postgres không trả lời — DỪNG. Không deploy khi chưa chụp được CSDL.
+```
+
+CSDL **hoàn toàn khoẻ**. Câu lệnh `dc exec -T postgres pg_isready` hỏng vì thiếu ba biến image, và nhánh `if !` diễn giải mọi lượt hỏng thành "CSDL không trả lời".
+
+Đây là **bản chụp trước triển khai** — điểm quay lui *duy nhất* khi migration làm hỏng dữ liệu, vì dự án cố ý không có PITR (§6.5). `deploy-prod.yml` gọi nó qua heredoc **có trích dẫn** (`<<'REMOTE'`), tức không truyền biến image nào. Nghĩa là **lượt deploy production đầu tiên sẽ dừng ngay tại đây**, với một thông báo cử người đi cứu một CSDL không hề ốm.
+
+Production chưa dựng nên chưa ai gặp. Đúng luật 7: *cơ chế chưa ai đi qua thì chưa biết nó đúng hay sai*.
+
+#### Bản vá
+
+`deploy/lib/docker-svc.sh` — hỏi bằng **nhãn `com.docker.compose.*`** mà chính compose gắn lên container lúc tạo. Hỏi thứ đang chạy, không hỏi tệp mô tả nó.
+
+Kiểm bằng container thật gắn đúng nhãn:
+
+| Phép thử | Kết quả |
+|---|---|
+| tìm container `postgres` / `minio` | ✓ ra đúng id |
+| lấy tên mạng của `minio` | ✓ `thu-songnhue` |
+| `docker exec` vào container tra được | ✓ chạy được lệnh |
+| service không tồn tại | **dừng hẳn, thoát 1** — không trả chuỗi rỗng |
+| đường cũ `docker compose ps -q minio` | **thoát 1, trả rỗng** |
+
+Điểm mấu chốt của bản vá không chỉ là "tra được", mà là **hỏng thì dừng hẳn**: chuỗi rỗng đi tiếp chính là cách lỗi cũ ngụy trang.
+
+`ScriptDockerLookupTest` (3 bài), kiểm chứng ngược:
+
+| Làm hỏng có chủ đích | Kết quả |
+|---|---|
+| trả `seed.sh` về `dc()` | 1 đỏ |
+| trả `pre-deploy-dump.sh` về `dc()` | 1 đỏ |
+| không script gọi nào dùng `container_cua` | 1 đỏ *(xem dưới)* |
+| ba biến image thành `${X:-latest}` | 1 đỏ |
+| khôi phục | 3 xanh |
+
+📌 Kịch bản thứ ba **lọt ở bản đầu**: bài neo đếm mọi `.sh` trong `deploy/`, mà chính tệp **định nghĩa** `container_cua` cũng là một `.sh` ở đó — nó tự đếm mình. Câu đang hỏi là *"có ai DÙNG không"*, không phải *"có ai viết ra nó không"*. Đã loại `deploy/lib/` khỏi phép đếm. Lại thêm một lần lượt kiểm chứng ngược là thứ duy nhất phát hiện ra.
