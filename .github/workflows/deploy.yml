@@ -132,9 +132,26 @@ jobs:
               exit 1
             fi
 
-            echo "✓ $ref"
+            # ⭐ TRIỂN KHAI THEO DIGEST, KHÔNG THEO TAG.
+            #
+            #   Tag là một cái tên, và tên thì gán lại được. Giữa lúc bước này tra
+            #   và lúc máy chủ `pull`, một lượt CI khác có thể đã trỏ `:<sha>` sang
+            #   nơi khác — hiếm, nhưng hậu quả là môi trường chạy một thứ không ai
+            #   truy ra được, và đó đúng loại lỗi không có cách nào điều tra sau đó.
+            #   Digest là nội dung: `@sha256:…` chỉ có một nghĩa, mãi mãi.
+            digest="$(docker buildx imagetools inspect "$ref" --format '{{.Manifest.Digest}}' 2>/dev/null || true)"
+            case "$digest" in
+              sha256:*) ;;
+              *)
+                echo "::error::Không giải được digest của $ref (nhận: '${digest:-rỗng}')."
+                echo "Bước này cần buildx ≥ 0.10. Kiểm phiên bản: docker buildx version"
+                exit 1 ;;
+            esac
+
+            kho="ghcr.io/${{ github.repository }}/$target"
+            echo "✓ $ref → $digest"
             # app → app_image · admin-app → admin_app_image (tên output không nhận gạch ngang)
-            echo "$(echo "$target" | tr '-' '_')_image=$ref" >> "$GITHUB_OUTPUT"
+            echo "$(echo "$target" | tr '-' '_')_image=$kho@$digest" >> "$GITHUB_OUTPUT"
           done
 
       - name: Kiểm tra đã có cấu hình máy chủ chưa
@@ -199,6 +216,46 @@ jobs:
             cd /opt/songnhue
             ./backup/pre-deploy-dump.sh
           REMOTE
+
+      # ---------------------------------------------------------------------
+      # Ghi lại bản ĐANG chạy — điểm quay lui về MÃ NGUỒN
+      #
+      # ⚠ Khác hẳn `pg_dump` ở bước trên: bản dump là điểm quay lui về DỮ LIỆU.
+      #   Hai thứ hỏng theo hai kiểu khác nhau và phải quay lui riêng.
+      #
+      # Hỏi bằng `docker inspect` trên container, không hỏi tệp compose: câu đang
+      # hỏi là *cái gì đang chạy*, không phải *cái gì được mô tả*. Lượt deploy đầu
+      # tiên chưa có container nào — khi ấy `co_du=false` và bước quay lui tự bỏ
+      # qua, thay vì dựng lại từ một chuỗi rỗng.
+      # ---------------------------------------------------------------------
+      - name: Ghi lại bản đang chạy
+        id: hien_tai
+        if: steps.target.outputs.ready == 'true'
+        env:
+          HOST: ${{ secrets.HOST }}
+          USER: ${{ secrets.USER }}
+        run: |
+          set -euo pipefail
+          doc() {
+            ssh "$USER@$HOST" "docker inspect -f '{{.Config.Image}}' $1 2>/dev/null || true" | tr -d '\r'
+          }
+          cu_app="$(doc songnhue-app)"
+          cu_admin="$(doc songnhue-admin-app)"
+          cu_public="$(doc songnhue-public-web)"
+
+          {
+            echo "app_image=$cu_app"
+            echo "admin_app_image=$cu_admin"
+            echo "public_web_image=$cu_public"
+          } >> "$GITHUB_OUTPUT"
+
+          if [ -n "$cu_app" ] && [ -n "$cu_admin" ] && [ -n "$cu_public" ]; then
+            echo "co_du=true" >> "$GITHUB_OUTPUT"
+            echo "Bản đang chạy — app: $cu_app · admin: $cu_admin · public: $cu_public"
+          else
+            echo "co_du=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Chưa đủ ba container đang chạy — lượt này KHÔNG có đường quay lui tự động."
+          fi
 
       - name: Triển khai
         if: steps.target.outputs.ready == 'true'
@@ -340,6 +397,63 @@ jobs:
             esac
           fi
 
+      # ---------------------------------------------------------------------
+      # Quay lui — chỉ khi có bản cũ để quay về
+      #
+      # ⚠⚠ ĐÂY LÀ QUAY LUI VỀ MÃ NGUỒN, KHÔNG PHẢI VỀ DỮ LIỆU. `migrator` đã chạy
+      #    xong trước đó và migration là một chiều: nếu nó đã đổi lược đồ thì mã
+      #    cũ có thể không chạy được trên lược đồ mới, và bước này sẽ **không cứu
+      #    được gì**. Đường quay lui về dữ liệu là bản chụp `predeploy-*` sinh ra ở
+      #    đầu lượt này — `docs/runbook/khoi-phuc-du-lieu.md`.
+      #
+      #    Ghi rõ giới hạn ấy ra đây, ở ngay chỗ người ta đọc lúc hoảng, thay vì để
+      #    "đã có rollback tự động" trở thành một lời trấn an sai.
+      #
+      # ⚠ `failure()` chứ không phải `always()`: `always()` chạy cả khi người ta bấm
+      #   huỷ lượt chạy, và khi ấy quay lui giữa chừng còn tệ hơn để nguyên.
+      # ---------------------------------------------------------------------
+      - name: Quay lui bản cũ
+        if: failure() && steps.hien_tai.outputs.co_du == 'true'
+        env:
+          HOST: ${{ secrets.HOST }}
+          USER: ${{ secrets.USER }}
+          COMPOSE: ${{ inputs.compose_file }}
+          APP_IMAGE: ${{ steps.hien_tai.outputs.app_image }}
+          ADMIN_IMAGE: ${{ steps.hien_tai.outputs.admin_app_image }}
+          PUBLIC_IMAGE: ${{ steps.hien_tai.outputs.public_web_image }}
+          BASE_URL: ${{ secrets.BASE_URL }}
+        run: |
+          set -euo pipefail
+          echo "::warning::Lượt triển khai hỏng — đang dựng lại bản trước đó."
+
+          ssh "$USER@$HOST" bash -euo pipefail <<REMOTE
+            cd /opt/songnhue
+            export APP_IMAGE="$APP_IMAGE"
+            export ADMIN_IMAGE="$ADMIN_IMAGE"
+            export PUBLIC_IMAGE="$PUBLIC_IMAGE"
+            docker compose --env-file .env -f $COMPOSE up -d app admin-app public-web nginx
+          REMOTE
+
+          # Hỏi lại đúng câu đầu tiên của smoke test. Không hỏi ba câu: câu 2 và 3
+          # nói về NỘI DUNG, mà nội dung có thể đã bị migration của lượt hỏng đổi —
+          # đỏ ở đó không nói gì về việc bản cũ có sống lại hay không.
+          for i in $(seq 1 18); do
+            body=$(curl -fsS "$BASE_URL/api/v1/public/site-config" || true)
+            case "$body" in
+              *'"success":true'*)
+                echo "::warning::Đã quay lui xong và dịch vụ trả lời bình thường sau ${i}0 giây."
+                echo "⛔ NHƯNG lược đồ CSDL vẫn đang ở trạng thái sau migration của lượt hỏng."
+                echo "   Nếu migration ấy có đổi lược đồ thì phải khôi phục từ bản chụp predeploy-*."
+                exit 0 ;;
+            esac
+            sleep 10
+          done
+
+          echo "::error::Quay lui rồi mà dịch vụ vẫn không trả lời sau 3 phút."
+          echo "Nhiều khả năng migration đã đổi lược đồ và bản cũ không chạy được trên đó."
+          echo "Đi tiếp theo docs/runbook/khoi-phuc-du-lieu.md — khôi phục từ bản chụp predeploy-*."
+          exit 1
+
       # ⚠ Gắn tag SAU khi smoke test xanh. Gắn trước thì tag môi trường trỏ vào một
       #   bản chưa chứng minh được là chạy được — mà đó chính là tag người ta nhìn
       #   vào lúc hoảng để biết "đang chạy cái gì".
@@ -347,10 +461,13 @@ jobs:
         if: steps.target.outputs.ready == 'true'
         run: |
           set -euo pipefail
-          for name in app admin-app public-web; do
+          for pair in \
+            "app:${{ steps.image.outputs.app_image }}" \
+            "admin-app:${{ steps.image.outputs.admin_app_image }}" \
+            "public-web:${{ steps.image.outputs.public_web_image }}"; do
+            name="${pair%%:*}"; ref="${pair#*:}"
             docker buildx imagetools create \
-              --tag "ghcr.io/${{ github.repository }}/$name:${{ inputs.moi_truong }}" \
-              "ghcr.io/${{ github.repository }}/$name:${{ inputs.commit_sha }}"
+              --tag "ghcr.io/${{ github.repository }}/$name:${{ inputs.moi_truong }}" "$ref"
           done
 
       - name: Ghi tóm tắt
@@ -368,7 +485,18 @@ jobs:
             echo "- Compose: \`${{ inputs.compose_file }}\`"
             echo "- Triển khai thật: ${{ steps.target.outputs.ready == 'true' && 'có' || 'CHƯA (thiếu secret)' }}"
             echo ""
-            echo "**Quay lui**: chạy \`CD Production\` với mốc đề bạt của lần trước (staging: merge lại"
-            echo "commit cũ). Nếu migration đã đổi lược đồ thì phải khôi phục từ bản chụp \`predeploy-*\`"
-            echo "sinh ra ở đầu lượt này — xem \`docs/runbook/khoi-phuc-du-lieu.md\`."
+            echo "Image (theo **digest**, không theo tag):"
+            echo "- backend: \`${{ steps.image.outputs.app_image }}\`"
+            echo "- admin-app: \`${{ steps.image.outputs.admin_app_image }}\`"
+            echo "- public-web: \`${{ steps.image.outputs.public_web_image }}\`"
+            echo ""
+            if [ "${{ steps.hien_tai.outputs.co_du }}" = "true" ]; then
+              echo "Bản trước đó (đích quay lui): \`${{ steps.hien_tai.outputs.app_image }}\`"
+            else
+              echo "⚠ Lượt này **không có đường quay lui tự động** — chưa đủ ba container đang chạy."
+            fi
+            echo ""
+            echo "**Quay lui về MÃ NGUỒN** đã tự chạy nếu smoke test đỏ. **Quay lui về DỮ LIỆU** thì"
+            echo "không: migration là một chiều. Nếu lượt này có migration đổi lược đồ thì phải khôi"
+            echo "phục từ bản chụp \`predeploy-*\` sinh ra ở đầu lượt — \`docs/runbook/khoi-phuc-du-lieu.md\`."
           } >> "$GITHUB_STEP_SUMMARY"

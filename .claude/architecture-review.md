@@ -3156,3 +3156,58 @@ Job `Gắn tag SHA cho image không đổi` chạy cuối CI: image nào lượt
 | trùng lặp hai workflow triển khai | ~150 | gộp thành thân chung |
 
 📌 **Bài học không nằm trong chú thích của cơ chế bị xoá** — nó nằm ở §10.42 → §10.49, chỗ của nó. Đó là điều cho phép đường ống co lại mà không mất trí nhớ.
+
+---
+
+### §10.51. Triển khai theo digest, quay lui tự động, và một lượt diễn tập chạy được ở máy (25/8/2026)
+
+Ba thứ đi cùng nhau vì chúng trả lời ba câu khác nhau của cùng một nỗi lo: *lượt triển khai này đưa cái gì lên, và nếu sai thì quay về đâu?*
+
+#### 1. Digest thay cho tag
+
+Bước xác định image giải `:<sha>` thành `@sha256:…` rồi triển khai bằng digest.
+
+Tag là một **cái tên**, và tên thì gán lại được — kể cả bởi chính đường ống này (job `Gắn tag SHA cho image không đổi` gán tag mới lên digest cũ ở mỗi lượt CI). Giữa lúc workflow tra và lúc máy chủ `pull`, một lượt CI khác có thể đã trỏ tag đi nơi khác. Xác suất thấp, nhưng hậu quả là **một môi trường chạy thứ không ai truy ra được** — loại lỗi không điều tra được sau đó, vì bằng chứng đã bị ghi đè.
+
+⚠ Đòi buildx ≥ 0.10 (`--format '{{.Manifest.Digest}}'`). Bước này khẳng định chuỗi nhận về khớp `sha256:…` rồi mới đi tiếp — một giá trị rỗng đi lọt sẽ thành `image@` và hỏng ở chỗ khó đoán.
+
+#### 2. Quay lui tự động — và giới hạn của nó phải ghi ngay tại chỗ
+
+Trước khi đổi, workflow hỏi **máy chủ** *cái gì đang chạy* (`docker inspect` trên container), không đọc tệp compose: câu đang hỏi là về thứ đang chạy, không phải về thứ được mô tả. Smoke test đỏ → dựng lại ba image cũ → hỏi lại câu 1 của smoke test.
+
+⛔ **Đây là quay lui về MÃ NGUỒN, không phải về DỮ LIỆU.** `migrator` chạy trước và migration là một chiều: nếu nó đã đổi lược đồ thì mã cũ có thể không chạy nổi trên lược đồ mới. Câu ấy viết trong chính khối `run:` của bước quay lui, chứ không chỉ trong tài liệu — vì đó là chỗ người ta đọc lúc hoảng, và "đã có rollback tự động" là một lời trấn an rất dễ tin.
+
+Hai chi tiết nhỏ nhưng cố ý:
+
+* `failure()` chứ không `always()` — `always()` chạy cả khi người ta bấm huỷ, mà quay lui giữa chừng còn tệ hơn để nguyên.
+* Lượt deploy đầu tiên chưa có container nào → `co_du=false`, bước tự bỏ qua kèm cảnh báo, thay vì dựng lại từ chuỗi rỗng.
+* Lượt quay lui chỉ hỏi **câu 1** của smoke test. Câu 2 và 3 nói về *nội dung*, mà nội dung có thể đã bị migration của lượt hỏng đổi — đỏ ở đó không nói gì về việc bản cũ có sống lại hay không.
+
+#### 3. `make rehearse` — chỗ đầu tiên đường triển khai được đi thử ngoài VPS
+
+Đây là bản vá cho **nguyên nhân gốc** của cả chuỗi §10.42 → §10.49: đường triển khai chưa bao giờ có cách thử nào ngoài một lượt deploy thật.
+
+`make ci-local` không đụng tới compose, `minio-init`, hay thứ tự khởi động. `compose.local.yml` là **đường build**, khác hẳn đường deploy. Nên "xanh ở máy" chưa bao giờ nói gì về chúng — và bảy sự cố liên tiếp là hệ quả trực tiếp.
+
+`deploy/rehearse.sh` chạy **đúng `compose.staging.yml`** và **đúng lệnh CD gõ** (`run --rm migrator`, không phải `up -d`), rồi hỏi ba câu:
+
+| | Câu hỏi | Bắt được lỗi nào |
+|---|---|---|
+| 1 | Bucket có được tạo không? | §10.49 — `minio-init` mồ côi |
+| 2 | Migration seed ghi đủ hàng không? | §10.50 — cổng chặn location, thứ tự migrator |
+| 3 | **Mỗi `storage_key` trong CSDL có byte thật trong MinIO không?** | chỗ hỏng CÂM — và là câu **không bài kiểm JUnit nào trả lời được** |
+
+`compose.rehearse.yml` đổi đúng **ba** thứ, mỗi thứ là một điều lượt diễn tập không chứng minh được: đổi `container_name` (tránh đụng stack local) và thay hai bind mount vào đường tuyệt đối của máy chủ bằng volume có tên. ⛔ Hệ quả trực tiếp: **diễn tập không kiểm được quyền thư mục** — đúng mục 3 của `docs/deploy-staging-issue.md`, thứ đã làm container app crash trên VPS. Danh sách "không nói gì về" in ra ở cuối mỗi lượt chạy, không giấu trong tài liệu.
+
+#### Đã đo, cả hai chiều
+
+| Lượt | Kết quả |
+|---|---|
+| bản hiện tại | 33 migration áp dụng (tới `202608251100 - seed portal content`) · ✓ bucket · ✓ 5 bài + 4 đính kèm · ✓ 4/4 khoá có byte |
+| **làm hỏng có chủ đích**: `SEED_LOCATION=` (rỗng) | ✗ câu 2 → *0 bài (cần 5)* · thoát 1 · thông báo trỏ đúng biến |
+
+Lượt thứ hai đồng thời là **bằng chứng cổng chặn production hoạt động**: không đặt `SEED_LOCATION` thì migration seed đơn giản là không tồn tại với Flyway.
+
+⚠ Bản đầu của bài kiểm câu 3 in *"0 khoá không ra được byte"* rồi vẫn đỏ — một dòng không phân biệt được *"mọi khoá đều tốt"* với *"không có khoá nào để đối chiếu"* (luật 9). Đã tách thành hai nhánh.
+
+⚠ `ScriptDockerLookupTest` bắt được bản đầu của chính `rehearse.sh`: luật cũ **cấm tuyệt đối** `docker compose` trong script. Luật ấy nay chính xác hơn — *gọi compose thì phải TỰ CẤP đủ ba biến image, và cấp TRƯỚC lượt gọi đầu tiên*. Đúng tinh thần §10.48 (compose nội suy toàn bộ tệp trước khi làm gì), và không phải một danh sách miễn trừ để người ta thêm tên vào.
