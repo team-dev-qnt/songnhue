@@ -51,3 +51,56 @@
 
 ---
 **Tóm lược:** Quá trình deploy staging đã giúp bộc lộ các điểm yếu về **phân quyền hệ thống (Linux permissions)** và **sự đồng bộ cấu hình (Env mapping)**. Xử lý triệt để các vấn đề này sẽ giúp lần deploy Production sắp tới diễn ra mượt mà và tự động hóa 100%.
+
+---
+
+# Phần II — Đã xử lý gì ở lượt dọn 25/8, và cái gì còn nguyên
+
+> Nguyên nhân gốc từng mục: `.claude/architecture-review.md` §10.40 → §10.50.
+
+| # | Sự cố ở Phần I | Trạng thái | Chốt ở đâu |
+|---|---|---|---|
+| 1 | GHCR `unauthorized` | **Còn là việc tay** trên máy chủ | Runner tự đăng nhập bằng `GITHUB_TOKEN`. Trên VPS vẫn cần `docker login ghcr.io` một lần — chưa có bước tự động, xem "còn nguyên" bên dưới |
+| 2 | Thiếu biến khởi tạo Postgres | **Đã bịt bằng phép kiểm** | `PostgresInitEnvTest` đối chiếu `compose.prod.yml` ↔ `compose.infra.yml` ↔ `10-bootstrap.sh` cả hai chiều thiếu/thừa (§10.41) · `ComposeEnvCompletenessTest` bắt biến compose đòi mà tệp mẫu không có |
+| 3 | Quyền hệ thống tệp (`keys/`, `/var/log`) | **Còn nguyên** | Vẫn phải `chmod` tay trước lượt dựng đầu — chưa có bước nào canh |
+| 4 | Nginx "unhealthy" giả | **Còn nguyên** | Healthcheck vẫn ping `acme-challenge`. Không ảnh hưởng dịch vụ, nhưng đúng hình dạng luật 8 |
+| 5 | Quy trình Migrator | **Đã thành ràng buộc** | `migrator` nay còn `depends_on: minio-init (service_completed_successfully)`, nên thứ tự byte→hàng đúng kể cả khi gõ tay |
+
+## Thêm ba thứ Phần I chưa thấy, vì chúng chỉ lộ ra sau đó
+
+* **`minio-init` chưa từng chạy** — staging chạy suốt với MinIO **không có bucket nào**: mọi lượt
+  tải tệp lên, kết xuất báo cáo, kết xuất audit đều hỏng, im lặng. Lộ ra qua một dòng của `mc`
+  (§10.49). `NoOrphanServiceTest` nay canh **đồ thị** service, không canh danh sách.
+* **Deploy xanh mà cổng rỗng** (§10.45) — smoke test cũ không phân biệt được *cổng có nội dung* với
+  *cổng rỗng hợp lệ*. Nay hỏi ba câu, câu thứ ba là phép kiểm duy nhất chứng minh **MinIO có byte**.
+* **Bộ seed là một đường chỉ chạy khi được bấm** — nay nằm trong chuỗi migration, chạy ở mỗi lượt
+  triển khai staging (§10.50).
+
+## ⬜ Việc còn phải làm trước production
+
+1. **Quyền thư mục trên máy chủ** (mục 3) — **nửa image đã xong, nửa host còn nguyên.**
+
+   ✅ `backend.Dockerfile` nay ghim `uid=1000 gid=1000` (`addgroup -g 1000` + `adduser -u 1000 -D`).
+   Trước đó là `adduser -S`, và **id thật là `100:101`** — không phải 1000 như ai cũng tưởng khi đọc
+   lướt. Đo: `docker run --rm --entrypoint id <image>`.
+
+   ⛔ **`chown` trong Dockerfile không có tác dụng với bind mount** — host che hoàn toàn thứ image
+   dựng sẵn. Nên ba đường dẫn dưới đây vẫn phải `chown` trên VPS:
+
+   | Host | Chủ sở hữu cần đặt | Vì sao |
+   |---|---|---|
+   | `/opt/songnhue/keys` | `1000:1000`, dir `700`, tệp `600` | app đọc khoá ký JWT (mount `:ro`) |
+   | `/var/log/songnhue` | `1000:1000`, `755` | app ghi `app.log` |
+   | `/var/lib/songnhue/backup` | **`999:1000`, `2775`** | dùng chung **ba** danh tính |
+
+   ⚠⚠ Ô cuối là chỗ dễ sai nhất: thư mục sao lưu gắn vào **cả `postgres`** (uid 999 —
+   `pre-deploy-dump.sh` chạy `pg_dump` *bên trong* container ấy) **và** `app` (1000), **và** user SSH
+   trên host (dọn bản cũ). `chown -R 1000:1000` sẽ làm bước chụp trước triển khai hỏng — mà bước ấy
+   nay chạy ở **mọi** lượt deploy staging, nên hậu quả là **mọi lượt deploy đều đỏ ngay bước đầu**.
+   `999` làm chủ, group `1000` + `setgid` cho hai bên còn lại ghi được.
+
+   📌 Vẫn là việc gõ tay, tức là một thứ phải nhớ. Gói thành `deploy/host-prepare.sh` thì lượt dựng
+   VPS-1 không phải nhớ lại — chưa làm.
+2. **`docker login` trên VPS** (mục 1) — hoặc chuyển sang để workflow đẩy image qua SSH.
+3. **Healthcheck nginx** (mục 4) — đổi đích sang một đường đại diện cho dịch vụ.
+4. **Nợ #46** — 3 context đóng gói image chưa nằm trong `required_status_checks` của `dev`.

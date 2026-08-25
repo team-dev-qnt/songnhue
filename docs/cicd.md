@@ -68,9 +68,21 @@ Nay có ba gói trên GHCR, cùng quy tắc gắn thẻ:
 | `…/admin-app` | job `Đóng gói image frontend` (ma trận) | vùng `frontend/` đổi |
 | `…/public-web` | job `Đóng gói image frontend` (ma trận) | vùng `frontend/` đổi |
 
-**Ba SHA có thể khác nhau, và đó là đúng.** Một lượt chỉ sửa frontend thì `admin-app` mang SHA
-đỉnh còn `app` giữ SHA cũ. Ép cả ba dùng chung một SHA là ép đóng gói lại phần không đổi — tức là
-tạo ra một image chưa ai thử, đúng thứ nguyên tắc này sinh ra để tránh.
+**Ba image có thể mang ba digest khác nhau, và đó là đúng.** Một lượt chỉ sửa frontend thì
+`admin-app` được dựng lại còn `app` giữ nguyên bản đã kiểm. Ép đóng gói lại phần không đổi là tạo
+ra một image chưa ai thử — đúng thứ nguyên tắc này sinh ra để tránh.
+
+### 2.1-b. Nhưng MỌI commit `dev` đều có đủ ba TAG (25/8)
+
+Khác biệt nằm ở chỗ *digest* và *tag* không phải một thứ. Job `Gắn tag SHA cho image không đổi`
+chạy cuối CI: image nào lượt này không dựng lại thì nó **gắn thêm** tag `<sha-mới>` lên **đúng
+digest cũ** bằng `docker buildx imagetools create`. Không một byte nào được dựng lại; `app:<sha-mới>`
+và `app:<sha-cũ>` trỏ vào cùng một manifest.
+
+Đổi lại, hai chặng sau chỉ cần **một** SHA để định danh cả bản phát hành, và bước tra image rút từ
+`50 commit × 3 image` xuống ba lượt tra thẳng. Chính vòng quét ấy đã đẻ ra §10.43: nó nuốt stderr
+nên 403 (chưa xác thực) và 404 (chưa dựng) cho ra cùng một thông báo *"không tìm thấy image"*, rồi
+phải thêm một bước tra thử riêng chỉ để phân biệt hai thứ đó.
 
 ## 3. Chặng `dev` — nơi mọi thứ được kiểm
 
@@ -83,6 +95,7 @@ tạo ra một image chưa ai thử, đúng thứ nguyên tắc này sinh ra đ�
 | `Frontend — lint` | ESLint + `tsc --noEmit` (tự bỏ qua tới khi WS-8/WS-9 có mã) | ✅ |
 | `Đóng gói image` | Build backend. **Dựng ở cả PR, chỉ ĐẨY** `ghcr.io/…/app:<sha>` khi push vào `dev` | ⬜ nên bật |
 | `Đóng gói image frontend` | Ma trận `admin-app` + `public-web`. Cùng luật: dựng ở PR, đẩy khi push | ⬜ nên bật |
+| `Gắn tag SHA cho image không đổi` | Chỉ khi push `dev`. Gắn thêm tag `<sha>` lên digest cũ của image lượt này không dựng lại — để mọi commit `dev` có đủ ba tag (§2.1-b) | — |
 | `Soi phụ thuộc PR thêm vào` | `dependency-review-action` — chỉ soi phần PR **thêm vào**, đọc Advisory Database của GitHub, vài giây | ❌ (xem §3.2) |
 
 > ⚠ **OWASP Dependency-Check đã CHUYỂN RA khỏi `ci.yml`** (18/8) sang `security-scan.yml` chạy theo lịch — xem §3.3.
@@ -287,24 +300,63 @@ Bước quét chạy với `-DautoUpdate=false` để không chạm mạng NVD l
 
 ## 4. Chặng `staging` — tự động
 
-`deploy-staging.yml` chạy khi push vào `staging` (tức là ngay sau khi merge PR từ `dev`).
+`deploy-staging.yml` chạy khi push vào `staging` (tức ngay sau khi merge PR từ `dev`). Nó chỉ làm
+**một** việc riêng của staging — giải xem commit nào trên `dev` đã dựng ra mã này — rồi gọi
+`deploy.yml`.
 
-Không kiểm lại, không build lại. Chỉ làm bốn việc: tra **ba** image theo SHA → gắn thêm tag
-`staging` → `pull` + chạy `migrator` + `up -d` → smoke test `/actuator/health/readiness`.
+### 4.0. ⭐ Một thân chung cho cả hai môi trường (25/8)
 
-### 4.1. ⚠ SHA nào mới là SHA có image
+`deploy.yml` là `workflow_call`: đăng nhập GHCR → tra ba image → rsync cấu hình → `pg_dump` →
+`pull` + `migrator` + `up -d` → smoke test → gắn tag môi trường → tóm tắt. Hai tệp `deploy-staging`
+và `deploy-prod` chỉ còn phần **khác nhau thật sự**: cổng chặn đầu vào, tệp compose, và bộ secret
+máy chủ.
 
-`github.sha` trên `staging` là **commit merge vừa tạo**, không phải commit của `dev` — mà image lại
-gắn tag theo commit của `dev`. Với merge commit, `HEAD^2` chính là đỉnh `dev` lúc merge, nên
-workflow thử `HEAD^2` trước rồi mới tới `HEAD`.
+Vì sao gộp: staging chỉ có giá trị khi nó **giống** production. Trước khi gộp, hai tệp dài 333 +
+277 dòng và trùng nhau ~85%; ba lần sửa gần nhất đều phải sửa hai chỗ, và §10.44 chỉ được sửa ở
+**một** chỗ trong bản đầu. Cùng lý do `compose.staging.yml` chỉ `include` `compose.prod.yml`.
+
+⛔ Bộ secret **truyền vào từ caller**, không đọc trực tiếp trong thân chung. Nên đường staging không
+chạm nổi secret `PROD_*` dù có gõ nhầm input.
+
+⚠ Reusable workflow **không tự cấp quyền cho mình được** — token của nó bị chặn trên bởi quyền của
+job gọi. Khai `packages: write` ở thân chung là chưa đủ; job `uses:` ở cả hai caller phải khai lại.
+`GhcrLookupAuthTest` canh chỗ này.
+
+### 4.1. ⚠ Commit nào trên `dev` đã dựng ra mã đang nằm trên `staging`
+
+Trả lời bằng **cây tệp**, không bằng quan hệ cha–con. `github.sha` trên `staging` là commit merge
+vừa tạo, không phải commit của `dev`; và với một PR bị **squash** thì không có cha thứ hai nào để
+lần theo — cha thứ nhất lại là tổ tiên chung cổ lỗ, một commit từ thời chưa có mã (§10.42).
+
+Cách làm: so `HEAD^{tree}` của staging với cây của từng commit trên `dev` (thử `merge-base` trước
+cho nhanh, rồi quét ngược tối đa 200 commit). Trùng khít nghĩa là **cùng nội dung**, bất kể ai bấm
+nút merge nào. Không tìm thấy thì **dừng hẳn** — deploy một image không tương ứng với mã đang chạy
+là cách chắc chắn nhất để có một môi trường không ai giải thích được.
 
 Đây cũng là lý do `required_linear_history` bị **tắt** ở staging/production
-(`branch-protection.md` §2.3): squash sinh SHA mới không có cha thứ hai, và mối liên hệ với image đã
-kiểm bị cắt đứt.
+(`branch-protection.md` §2.3).
 
-Từ đỉnh `dev` đó, mỗi image **lùi độc lập** theo cha thứ nhất tối đa 50 bước để tìm bản gần nhất
-có mặt trên GHCR. Không phải commit nào cũng có image — một lượt chỉ sửa tài liệu thì không sinh
-image nào, và đó hoàn toàn hợp lệ.
+### 4.1-b. Smoke test hỏi ba câu, không phải một (25/8)
+
+Lượt deploy 24/8 **xanh trọn vẹn** trong khi cổng không có một bài nào (§10.45): câu hỏi duy nhất
+lúc ấy là `/api/v1/public/site-config`, và nó không phân biệt được cổng có nội dung với cổng rỗng.
+Nay:
+
+1. `/api/v1/public/site-config` trả envelope `success` — đi hết chặng nginx → public-web → Route
+   Handler → app → postgres;
+2. `/api/v1/public/articles` có **ít nhất `so_bai_toi_thieu` bài** — cổng có nội dung. Ngưỡng là
+   một **input của môi trường**, không phải một hằng số: staging đặt **9** (4 trang tĩnh của
+   `V202608191021` + 5 bài seed), production đặt **1**. Với ngưỡng 1 thì quên thêm `SEED_LOCATION`
+   vào `/opt/songnhue/.env` — tệp **không** được rsync — vẫn cho ra một lượt deploy xanh trên một
+   cổng thiếu nội dung, đúng §10.45;
+3. `/api/v1/public/files/<ảnh bìa lấy từ chính phản hồi câu 2>` trả `image/*` — **MinIO có byte**.
+   Đây là phép kiểm duy nhất chứng minh được điều đó: hàng trong CSDL và byte trong kho là hai hệ
+   thống khác nhau, lệch nhau là hỏng câm.
+   ⚠ Lấy id từ phản hồi chứ **không ghi cứng** id của bộ seed — id ấy cố ý không tồn tại ở
+   production, và ghi cứng nó là biến mọi lượt deploy production thành đỏ vì đúng cái mà thiết kế
+   yêu cầu phải vắng mặt. Không bài nào có ảnh bìa thì in **⚠ BỎ QUA**, không in ✓.
+
+Câu 2 và 3 chỉ có nghĩa vì bộ seed nội dung nay nằm trong chuỗi migration — xem `deploy/seed/README.md`.
 
 ### 4.2. ⚠⚠ Một image chạy hai môi trường — chỗ nguyên tắc §2 va vào Next.js
 
@@ -341,6 +393,10 @@ Chạy bằng `workflow_dispatch`, bắt buộc nhập **commit SHA** và **lý 
 3. **`pg_dump` ngay trước khi deploy** — điểm quay lui **duy nhất** về dữ liệu. Hệ này không có
    PITR (`architecture-review.md` §6.5), bản dump đêm trước là thứ gần nhất, nên migration hỏng lúc
    10h sáng là mất cả buổi làm việc.
+
+   ⭐ Từ 25/8 bước này chạy ở **cả staging**. Trước đó chỉ production có, và điều đó sai ở hai vế:
+   migration được thử LẦN ĐẦU ở staging nên staging mới là nơi dễ mất dữ liệu nhất; và một đường sao
+   lưu chỉ được đi thử đúng vào lúc production cần tới nó là một đường **chưa từng được thử**.
 
 ## 6. Cổng đề bạt
 

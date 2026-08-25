@@ -1,0 +1,374 @@
+# =============================================================================
+# Triển khai — thân chung của CẢ HAI môi trường (WS-11 / T11.8)
+#
+# ⭐ VÌ SAO MỘT TỆP CHỨ KHÔNG HAI: staging chỉ có giá trị khi nó GIỐNG production.
+#    Hai workflow song song thì chúng bắt đầu giống nhau và kết thúc khác nhau —
+#    và cái khác biệt trôi vào lúc nào không ai biết chính là thứ làm "chạy tốt ở
+#    staging" mất hết ý nghĩa. Đúng lý do `compose.staging.yml` chỉ `include`
+#    `compose.prod.yml` rồi hạ vài hạn mức bộ nhớ.
+#
+#    Đo được: trước khi gộp, hai tệp dài 333 + 277 dòng và trùng nhau ~85% — cùng
+#    bước đăng nhập, cùng cách tra image, cùng rsync, cùng lệnh compose, cùng
+#    smoke test. Ba lần sửa gần nhất (§10.43 · §10.44 · smoke test 24/8) đều phải
+#    sửa hai chỗ, và §10.44 chỉ được sửa ở MỘT chỗ trong bản đầu.
+#
+# ⭐ KHÁC BIỆT giữa hai môi trường nằm ở THAM SỐ, không nằm ở nhánh `if`:
+#      · môi trường GitHub (production có required reviewer)
+#      · tệp compose
+#      · bộ secret máy chủ (caller truyền vào, nên đường staging KHÔNG chạm nổi
+#        secret của production dù có gõ nhầm)
+#      · tên tag ghi lên GHCR sau khi smoke test xanh
+#
+# KHÔNG kiểm tra lại gì cả và KHÔNG build lại image: mọi bài kiểm đã chạy ở `dev`,
+# image đã đóng gói một lần ở đó và được đề bạt nguyên vẹn — xem docs/cicd.md.
+# =============================================================================
+name: Triển khai (thân chung)
+
+on:
+  workflow_call:
+    inputs:
+      moi_truong:
+        description: 'staging | production — quyết định environment GitHub và tên tag'
+        required: true
+        type: string
+      commit_sha:
+        description: 'Commit trên `dev` đã dựng ra image cần triển khai'
+        required: true
+        type: string
+      compose_file:
+        description: 'Tệp compose trên máy chủ'
+        required: true
+        type: string
+      so_bai_toi_thieu:
+        description: |
+          Cổng phải có ÍT NHẤT bao nhiêu bài sau lượt triển khai.
+
+          ⭐ Đây là chỗ "cổng có nội dung" thôi là một lời nói chung chung và trở thành
+             một con số kiểm được. Với staging, ngưỡng phải CAO HƠN số trang tĩnh —
+             nếu không thì quên bật bộ seed vẫn cho ra một lượt deploy xanh, đúng
+             hình dạng §10.45 mà cả bản vá này sinh ra để diệt.
+        required: false
+        default: 1
+        type: number
+    # ⚠ `required: false` là cố ý. Môi trường chưa dựng xong thì secret còn rỗng, và
+    #   lượt chạy phải đi tới bước "Kiểm tra đã có cấu hình máy chủ chưa" rồi bỏ qua
+    #   phần triển khai kèm cảnh báo — thay vì đổ ở chỗ gọi với một thông báo của
+    #   GitHub không nói được môi trường nào đang thiếu gì.
+    secrets:
+      HOST: { required: false }
+      USER: { required: false }
+      SSH_KEY: { required: false }
+      BASE_URL: { required: false }
+
+permissions:
+  contents: read
+  # ⚠ `write`, KHÔNG phải `read`. Workflow này ĐỌC image theo tag SHA, nhưng bước
+  #   "Gắn tag môi trường" GHI một tag mới lên gói GHCR. Khai `packages: read` thì
+  #   lượt tra đi lọt rồi hỏng ở đúng bước ghi với `403 denied: installation not
+  #   allowed to Write organization package` — một thông báo không nhắc gì tới
+  #   khối `permissions:` (§10.44).
+  packages: write
+
+jobs:
+  deploy:
+    name: Triển khai ${{ inputs.moi_truong }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # production có required reviewer (docs/branch-protection.md §4.3) — lượt chạy
+    # dừng ở đây chờ người bấm duyệt. staging thì đi thẳng.
+    environment: ${{ inputs.moi_truong }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ⚠⚠ PHẢI đăng nhập TRƯỚC khi tra image. Gói GHCR mặc định là RIÊNG TƯ kể cả
+      #    khi repo công khai — kiểm chứng 19/8: manifest ẩn danh trả 403. Tra
+      #    trước khi đăng nhập thì luôn trượt, và thông báo lỗi sẽ đổ cho "chưa
+      #    qua CI" — một ngõ cụt (§10.43).
+      #
+      # ⛔ Và đừng đặt `DOCKER_CONFIG` ở bất kỳ bước nào bên dưới: bước này ghi
+      #    thông tin đăng nhập vào `$HOME/.docker`, trỏ biến ấy đi chỗ khác là mọi
+      #    lượt tra quay về ẩn danh trong khi log vẫn in "Login Succeeded" (§10.43).
+      - name: Đăng nhập GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ---------------------------------------------------------------------
+      # Xác định image
+      #
+      # ⭐ MỘT commit → BA tag, luôn luôn. CI đảm bảo điều đó: image nào không đổi
+      #    thì job `Gắn tag SHA cho image không đổi` gắn thêm SHA mới lên ĐÚNG
+      #    digest cũ (`imagetools create`, không build lại một byte nào).
+      #
+      #    Nhờ vậy bước này chỉ còn ba lượt tra thẳng. Bản trước phải quét ngược
+      #    50 commit × 3 image để tìm "bản gần nhất có image", và chính vòng quét
+      #    ấy đẻ ra hai sự cố: nó nuốt stderr nên 403 (chưa xác thực) và 404 (chưa
+      #    dựng) cho ra cùng một thông báo, rồi phải thêm một bước tra thử riêng
+      #    chỉ để phân biệt hai thứ ấy (§10.43). Bỏ vòng quét là bỏ luôn cả hai.
+      # ---------------------------------------------------------------------
+      - name: Xác định image
+        id: image
+        run: |
+          set -euo pipefail
+          sha="${{ inputs.commit_sha }}"
+
+          for target in app admin-app public-web; do
+            ref="ghcr.io/${{ github.repository }}/$target:$sha"
+
+            # Để nguyên stderr — nó là thứ phân biệt "chưa dựng" với "không đọc được".
+            if ! docker manifest inspect "$ref" >/dev/null; then
+              echo "::error::Không tra được $ref"
+              echo ""
+              echo "Đọc dòng lỗi NGAY TRÊN trước khi làm gì khác:"
+              echo "  · 'denied' / 401 / 403 → lỗi QUYỀN. Gói GHCR mặc định riêng tư."
+              echo "  · 'manifest unknown' / 404 → commit này chưa có image."
+              echo ""
+              echo "Với 404: CI ở \`dev\` gắn đủ ba tag cho MỌI commit kể từ 25/8. Commit cũ hơn"
+              echo "thì chỉ có tag của image thật sự đổi. Gắn bù bằng một lệnh:"
+              echo "  docker buildx imagetools create --tag $ref ghcr.io/${{ github.repository }}/$target:<sha-có-image>"
+              exit 1
+            fi
+
+            echo "✓ $ref"
+            # app → app_image · admin-app → admin_app_image (tên output không nhận gạch ngang)
+            echo "$(echo "$target" | tr '-' '_')_image=$ref" >> "$GITHUB_OUTPUT"
+          done
+
+      - name: Kiểm tra đã có cấu hình máy chủ chưa
+        id: target
+        env:
+          HOST: ${{ secrets.HOST }}
+        run: |
+          if [ -z "${HOST:-}" ]; then
+            echo "::warning::Chưa cấu hình secret máy chủ cho ${{ inputs.moi_truong }} — bỏ qua bước triển khai."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Mở đường SSH
+        if: steps.target.outputs.ready == 'true'
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          HOST: ${{ secrets.HOST }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      # ⚠⚠ ĐỒNG BỘ CẤU HÌNH TRƯỚC KHI TRIỂN KHAI — bước này ngăn một kiểu trôi
+      #    hoàn toàn câm. `compose.*.yml`, cấu hình nginx, script sao lưu, byte của
+      #    bộ seed đều nằm trong repo nhưng CHẠY từ đĩa máy chủ. Không có bước này
+      #    thì sửa CSP, sửa hạn mức, thêm một service — tất cả nằm yên trong repo
+      #    còn máy chủ vẫn chạy bản chép tay từ ngày dựng, và không lệnh nào báo
+      #    sai vì đứng riêng thì cả hai bên đều "đúng".
+      #
+      # ⛔ CỐ Ý KHÔNG chép `.env` và `keys/`: chúng chỉ tồn tại trên máy chủ và
+      #    không được đi qua runner của GitHub.
+      - name: Đồng bộ cấu hình lên máy chủ
+        if: steps.target.outputs.ready == 'true'
+        env:
+          HOST: ${{ secrets.HOST }}
+          USER: ${{ secrets.USER }}
+        run: |
+          set -euo pipefail
+          rsync -az --delete \
+            --exclude '.env' --exclude 'env/' --exclude 'keys/' \
+            --exclude 'compose.local.yml' --exclude 'compose.infra.yml' \
+            deploy/ "$USER@$HOST:/opt/songnhue/"
+          ssh "$USER@$HOST" 'chmod +x /opt/songnhue/backup/*.sh'
+
+      # ⚠ Điểm quay lui DUY NHẤT về dữ liệu — hệ này không có PITR (§6.5).
+      #
+      # ⭐ CHẠY Ở CẢ STAGING (mới từ 25/8). Trước đó chỉ production có, và điều đó
+      #   sai ở hai vế: (1) migration hỏng thì staging cũng mất dữ liệu, mà staging
+      #   chính là nơi migration được thử LẦN ĐẦU; (2) đường sao lưu chỉ được đi
+      #   thử đúng vào lúc production cần nó — tức là chưa từng được thử.
+      - name: pg_dump trước khi triển khai
+        if: steps.target.outputs.ready == 'true'
+        env:
+          HOST: ${{ secrets.HOST }}
+          USER: ${{ secrets.USER }}
+        run: |
+          set -euo pipefail
+          ssh "$USER@$HOST" bash -euo pipefail <<'REMOTE'
+            cd /opt/songnhue
+            ./backup/pre-deploy-dump.sh
+          REMOTE
+
+      - name: Triển khai
+        if: steps.target.outputs.ready == 'true'
+        env:
+          HOST: ${{ secrets.HOST }}
+          USER: ${{ secrets.USER }}
+          COMPOSE: ${{ inputs.compose_file }}
+          APP_IMAGE: ${{ steps.image.outputs.app_image }}
+          ADMIN_IMAGE: ${{ steps.image.outputs.admin_app_image }}
+          PUBLIC_IMAGE: ${{ steps.image.outputs.public_web_image }}
+        run: |
+          set -euo pipefail
+          # ⚠ Heredoc KHÔNG trích dẫn (`<<REMOTE`) là cố ý: các biến phải được
+          #   runner thay TRƯỚC khi chuỗi lệnh đi qua SSH — máy chủ không biết
+          #   chúng. Đổi thành `<<'REMOTE'` là compose bên kia thấy biến rỗng và
+          #   dừng với "Thiếu APP_IMAGE".
+          ssh "$USER@$HOST" bash -euo pipefail <<REMOTE
+            cd /opt/songnhue
+            export APP_IMAGE="$APP_IMAGE"
+            export ADMIN_IMAGE="$ADMIN_IMAGE"
+            export PUBLIC_IMAGE="$PUBLIC_IMAGE"
+            dc="docker compose --env-file .env -f $COMPOSE"
+
+            # Kéo TRƯỚC, đổi SAU. Kéo mất vài phút; làm sau khi đã dừng dịch vụ là
+            # kéo dài thời gian gián đoạn vì một việc không cần gián đoạn.
+            \$dc pull
+
+            # Migration chạy ở service RIÊNG và phải xong hẳn trước. \`run --rm\`
+            # chạy đồng bộ và trả mã thoát, nên migration hỏng là lượt deploy dừng
+            # NGAY — app cũ vẫn đang chạy, chưa có gì bị thay.
+            #
+            # ⚠ \`migrator\` khai \`depends_on: minio-init\`, nên chính lệnh này
+            #   cũng tạo bucket và nạp byte seed (nếu môi trường bật) TRƯỚC khi
+            #   migration ghi hàng khẳng định các byte ấy tồn tại. Thứ tự nằm ở
+            #   compose, không nằm ở đây — gõ tay lúc chữa cháy vẫn đúng.
+            \$dc run --rm migrator
+
+            \$dc up -d app admin-app public-web nginx
+
+            # Dọn image cũ để đĩa không đầy dần sau vài chục lượt deploy. Đĩa đầy
+            # làm pg_dump hỏng theo, và mất sao lưu là mất lưới an toàn duy nhất.
+            docker image prune -f --filter "until=168h" || true
+          REMOTE
+
+      # ---------------------------------------------------------------------
+      # Smoke test — ba câu, và câu nào cũng phân biệt được hai trạng thái
+      #
+      # ⚠⚠ ĐÍCH ĐO ĐỔI 24/8: `$BASE_URL/actuator/**` KHÔNG đi tới đâu từ bên ngoài
+      #    — nginx biên chỉ định tuyến `/api/` và `/`. Đo thật: public-web trả 404,
+      #    admin-app trả 200 kèm TRANG HTML của SPA (nên `curl -f` đi lọt, chỉ phép
+      #    so chuỗi cứu). Ba câu dưới đây đi đúng đường người dùng thật đi.
+      #
+      # ⚠⚠ CÂU 2 VÀ 3 THÊM 25/8, và chúng bịt đúng lỗ đã trả giá: lượt deploy
+      #    24/8 XANH TRỌN VẸN trong khi cổng không có một bài nào (§10.45). Câu 1
+      #    không phân biệt được cổng có nội dung với cổng rỗng — nó chỉ hỏi bảng
+      #    `settings`. Nay bộ seed chạy trong chuỗi migration nên "có nội dung" là
+      #    một khẳng định kiểm được, và câu 3 là phép kiểm DUY NHẤT chứng minh
+      #    MinIO có byte: hàng CSDL và byte là hai hệ thống khác nhau, lệch nhau là
+      #    hỏng câm.
+      #
+      # ⚠ Không viết `curl … | grep -q` dưới `pipefail`: grep thoát ngay khi khớp,
+      #   curl nhận SIGPIPE (141) và pipefail biến cả pipeline thành thất bại DÙ
+      #   ĐÃ KHỚP. Hứng ra biến rồi mới so.
+      # ---------------------------------------------------------------------
+      - name: Smoke test
+        if: steps.target.outputs.ready == 'true'
+        env:
+          BASE_URL: ${{ secrets.BASE_URL }}
+        run: |
+          set -euo pipefail
+
+          # ---- Câu 1: nginx → public-web → Route Handler → app → postgres ----
+          dat=false
+          for i in $(seq 1 30); do
+            body=$(curl -fsS "$BASE_URL/api/v1/public/site-config" || true)
+            case "$body" in
+              *'"success":true'*) dat=true; break ;;
+            esac
+            sleep 10
+          done
+          if [ "$dat" != true ]; then
+            echo "::error::Không trả envelope thành công sau 5 phút."
+            echo "Chẩn đoán theo thứ tự: (1) \`curl -sI \$BASE_URL/healthz\` — nginx sống chưa;"
+            echo "(2) \`docker compose logs app\`; (3) \`docker compose ps\`."
+            exit 1
+          fi
+          echo "✓ [1/3] Đi hết chặng nginx → public-web → app → postgres"
+
+          # ---- Câu 2: cổng CÓ NỘI DUNG, không phải cổng rỗng hợp lệ ----
+          can="${{ inputs.so_bai_toi_thieu }}"
+          bai=$(curl -fsS "$BASE_URL/api/v1/public/articles?page=0&size=100" || true)
+          # Mỗi hàng có đúng một `"slug":`; siêu dữ liệu phân trang không có khoá ấy.
+          #
+          # ⚠⚠ `|| true` KHÔNG phải để cho có. Dưới `set -euo pipefail`, `grep` không
+          #    khớp gì thì thoát 1, pipefail nâng cả pipeline thành thất bại, và bước
+          #    này chết NGAY ở dòng gán — tức là đúng trường hợp "cổng rỗng" lại cho
+          #    ra một exit 1 trần không kèm dòng chẩn đoán nào, còn khối `if` bên dưới
+          #    thì không bao giờ chạy. Đo trực tiếp bằng `bash -c` với thân rỗng.
+          co=$(printf '%s' "$bai" | grep -o '"slug":' | wc -l | tr -d ' ' || true)
+
+          if [ "${co:-0}" -lt "$can" ]; then
+            echo "::error::Cổng chỉ có $co bài, cần ít nhất $can."
+            echo ""
+            echo "Với staging, ngưỡng đặt CAO HƠN số trang tĩnh nên con số này phân biệt được"
+            echo "'bộ seed đã chạy' với 'chỉ còn mấy trang tĩnh của migration cấu trúc'."
+            echo "Kiểm theo thứ tự: (1) \`/opt/songnhue/.env\` có SEED_LOCATION và SEED_MEDIA_DIR chưa"
+            echo "— tệp .env KHÔNG được rsync, phải thêm tay; (2) log \`run --rm migrator\` ở bước trên."
+            exit 1
+          fi
+          echo "✓ [2/3] Cổng có $co bài (cần ≥ $can)"
+
+          # ---- Câu 3: MinIO CÓ BYTE — thứ không câu SQL nào chứng minh được ----
+          #
+          # ⚠⚠ Lấy `public_id` TỪ CHÍNH phản hồi ở trên, KHÔNG ghi cứng id của bộ
+          #    seed. Bản đầu ghi cứng `15509c57-…` — một tệp CỐ Ý không tồn tại ở
+          #    production, nên mọi lượt deploy production sẽ đỏ vì đúng cái mà thiết
+          #    kế yêu cầu phải vắng mặt. Cùng hình dạng với luật 24: bộ canh phải
+          #    đối chiếu với dữ liệu THẬT của môi trường đang chạy.
+          # ⚠ Chấp nhận khoảng trắng sau dấu hai chấm. Jackson mặc định in gọn, nhưng
+          #   một bộ canh khớp CHÍNH XÁC một cách in là bộ canh sẽ im lặng trượt vào
+          #   nhánh "bỏ qua" nếu ai đó bật pretty-print (luật 24).
+          anh=$(printf '%s' "$bai" \
+                | sed -n 's/.*"coverAttachmentPublicId": *"\([0-9a-f-]\{36\}\)".*/\1/p' | head -1)
+
+          if [ -z "$anh" ]; then
+            # ⚠ Đây KHÔNG phải một lượt kiểm đạt, và phải nhìn ra được là khác — một
+            #   dòng ✓ ở đây sẽ nói dối rằng MinIO đã được kiểm.
+            echo "⚠ [3/3] BỎ QUA — không bài nào trong 12 bài đầu có ảnh bìa, nên chưa có gì để kiểm."
+            echo "   Đường ra byte của MinIO lượt này KHÔNG được chứng minh."
+          else
+            kieu=$(curl -fsS -o /dev/null -w '%{content_type}' \
+                     "$BASE_URL/api/v1/public/files/$anh" || true)
+            case "$kieu" in
+              image/*) echo "✓ [3/3] MinIO trả byte đúng kiểu ($kieu) cho $anh" ;;
+              *)
+                echo "::error::Ảnh bìa $anh không ra được byte (content-type: '${kieu:-không có}')."
+                echo "Hàng CSDL nói tệp tồn tại mà kho thì không — kiểm \`SEED_MEDIA_DIR\` và log \`minio-init\`."
+                exit 1 ;;
+            esac
+          fi
+
+      # ⚠ Gắn tag SAU khi smoke test xanh. Gắn trước thì tag môi trường trỏ vào một
+      #   bản chưa chứng minh được là chạy được — mà đó chính là tag người ta nhìn
+      #   vào lúc hoảng để biết "đang chạy cái gì".
+      - name: Gắn tag `${{ inputs.moi_truong }}`
+        if: steps.target.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          for name in app admin-app public-web; do
+            docker buildx imagetools create \
+              --tag "ghcr.io/${{ github.repository }}/$name:${{ inputs.moi_truong }}" \
+              "ghcr.io/${{ github.repository }}/$name:${{ inputs.commit_sha }}"
+          done
+
+      - name: Ghi tóm tắt
+        if: always()
+        run: |
+          {
+            echo "### Triển khai ${{ inputs.moi_truong }}"
+            if [ "${{ job.status }}" = "success" ]; then
+              echo "**✅ ĐẠT**"
+            else
+              echo "**❌ HỎNG (\`${{ job.status }}\`)** — đọc log theo TRÌNH TỰ, đừng nhảy tới dòng đỏ."
+            fi
+            echo ""
+            echo "- Commit: \`${{ inputs.commit_sha }}\`"
+            echo "- Compose: \`${{ inputs.compose_file }}\`"
+            echo "- Triển khai thật: ${{ steps.target.outputs.ready == 'true' && 'có' || 'CHƯA (thiếu secret)' }}"
+            echo ""
+            echo "**Quay lui**: chạy \`CD Production\` với mốc đề bạt của lần trước (staging: merge lại"
+            echo "commit cũ). Nếu migration đã đổi lược đồ thì phải khôi phục từ bản chụp \`predeploy-*\`"
+            echo "sinh ra ở đầu lượt này — xem \`docs/runbook/khoi-phuc-du-lieu.md\`."
+          } >> "$GITHUB_STEP_SUMMARY"

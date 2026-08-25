@@ -1,17 +1,107 @@
 -- ⚠ TỆP SINH TỰ ĐỘNG — sửa `deploy/seed/generate.py` rồi sinh lại, đừng sửa tay.
--- Idempotent: chạy lại nhiều lần không nhân đôi dữ liệu.
+-- Idempotent: chạy lại nhiều lần cũng ra cùng một trạng thái.
 
 -- =============================================================================
--- 02 · 5 BÀI SAO CHÉP NGUYÊN VĂN TỪ BÁO NGOÀI — CHỈ dùng cho STAGING
+-- NỘI DUNG KHỞI TẠO CHO CỔNG — 4 ảnh + 5 bài. CHỈ chạy ở STAGING.
+--
+-- ⛔ TỆP NÀY KHÔNG NẰM TRONG `spring.flyway.locations` MẶC ĐỊNH.
+--
+--    Nó ở `classpath:db/seed/portal`, và chỉ được giải khi biến `SEED_LOCATION`
+--    trỏ vào đó. Mặc định là `classpath:db/seed/none` — một thư mục cố ý không có
+--    migration nào. Production không đặt biến ấy, nên Flyway ở production KHÔNG
+--    BAO GIỜ nhìn thấy tệp này: không phải "chạy rồi không làm gì", mà là không
+--    tồn tại.
+--
+--    Vì sao phải chặn cứng đến thế: khối [1] dưới đây XOÁ BÀI. Chuyện bản quyền
+--    của 5 bài chép lại đã được cân nhắc và bỏ qua; chuyện một migration xoá nội
+--    dung thật của Công ty thì không.
+--
+-- ⚠ Byte của 4 ảnh KHÔNG nằm ở đây — SQL không đẩy được byte. Chúng lên MinIO qua
+--   service `minio-init` (biến `SEED_MEDIA_DIR`), chạy TRƯỚC `migrator` ở mỗi lượt
+--   triển khai. Hai vế phải bật CÙNG NHAU: hàng trong CSDL mà không có byte trong
+--   MinIO là hỏng câm — CSDL vẫn nói tệp tồn tại, còn `GET` trả 404. `SeedGateTest`
+--   canh đúng chỗ đó, vì đây là thứ con người phải nhớ ở hai nơi (luật 14).
+--
+-- ⚠ Seed ghi thẳng `status = 'XUAT_BAN'`, tức KHÔNG đi qua Workflow engine (luật
+--   4). Hệ quả: 5 bài này không có vết audit xuất bản nào. Chấp nhận được vì đây
+--   là dữ liệu để ĐO trên staging, không phải nội dung nghiệp vụ — nhưng đừng lấy
+--   tệp này làm mẫu cho bất kỳ đường ghi nào khác.
+-- =============================================================================
+
+-- -----------------------------------------------------------------------------
+-- [1] Dọn bài cũ
+--
+-- ⚠⚠ KHÔNG phải `DELETE FROM articles`. `menu_items.article_id` tham chiếu
+--    `articles(id)` mà KHÔNG khai `ON DELETE` — tức RESTRICT — nên xoá sạch là
+--    migration dừng giữa chừng vì lỗi khoá ngoại, và dừng SAU khi đã xoá được một
+--    phần.
+--
+--    Vị từ dưới đây canh theo QUAN HỆ, không theo danh sách slug: *xoá mọi bài
+--    không có mục menu nào trỏ tới*. Nó tự bảo vệ 4 trang tĩnh do
+--    `V202608191021__cms_seed_site_structure` sở hữu (gioi-thieu-chung ·
+--    chuc-nang-nhiem-vu · co-cau-to-chuc · lien-he), và vẫn đúng khi sau này có
+--    thêm trang tĩnh thứ năm — một danh sách slug viết cứng thì lần thêm ấy sẽ
+--    làm gãy menu, im lặng.
+--
+-- Xoá CỨNG, không `deleted_at`: đây là dựng lại trạng thái đầu của một môi trường
+-- đo đạc, không phải hành vi xoá bài của người dùng. Bài ẩn mà còn nằm trong bảng
+-- vẫn hiện ở màn hình quản trị và làm sai mọi phép đếm.
+--
+-- `article_versions`, `article_categories`, `article_tags` đều `ON DELETE CASCADE`
+-- nên không cần dọn tay; `articles.published_version_id` là `ON DELETE SET NULL`.
+-- -----------------------------------------------------------------------------
+DELETE FROM articles a
+ WHERE NOT EXISTS (SELECT 1 FROM menu_items m WHERE m.article_id = a.id);
+
+-- =============================================================================
+-- [2] ĐÍNH KÈM — 4 ảnh của 5 bài seed
+--
+-- ⚠ Hàng ở đây phải khớp TỪNG BYTE với đối tượng `minio-init` đẩy lên MinIO: cùng bucket,
+--   cùng `storage_key`. Lệch một chỗ thì `GET /api/v1/public/files/<id>` trả 404 trong khi
+--   CSDL vẫn nói tệp tồn tại — hỏng câm, đúng loại khó truy nhất.
+--
+-- ⚠ `scan_status = 'SKIPPED'`, KHÔNG phải `'CLEAN'`. ClamAV chưa từng quét mấy tệp này;
+--   ghi `CLEAN` là nói dối sổ sách về một cơ chế bảo mật (CLAUDE.md luật 16).
+--
+-- ⚠ `owner_type = 'MEDIA_FOLDER'` là bắt buộc, không phải tuỳ chọn: `PublicPortalService`
+--   chỉ phục vụ ba loại chủ sở hữu công khai (MEDIA_FOLDER · BANNER · SITE_CONFIG). Loại
+--   khác trả 404 y hệt tệp không tồn tại.
+-- =============================================================================
+
+INSERT INTO attachments (public_id, owner_type, purpose, original_name, storage_bucket,
+        storage_key, content_type, size_bytes, checksum_sha256, status, scan_status, created_by)
+VALUES ('15509c57-8e04-57e6-8d36-6a9cd1c68334', 'MEDIA_FOLDER', 'SEED_PORTAL', '17ab5afa-cd46-438a-b828-453bb00ac266.jpeg', 'songnhue-media',
+        'seed/portal/15509c57-8e04-57e6-8d36-6a9cd1c68334.jpeg', 'image/jpeg', 113720, '05f88ed5980fe1915fec0d16c702b4a86e3a32870db944d84e1d034558deab2d',
+        'READY', 'SKIPPED', (SELECT id FROM users WHERE username = 'superadmin'))
+ON CONFLICT (public_id) DO NOTHING;
+INSERT INTO attachments (public_id, owner_type, purpose, original_name, storage_bucket,
+        storage_key, content_type, size_bytes, checksum_sha256, status, scan_status, created_by)
+VALUES ('144a2a14-487d-5972-953d-d4008ba1f555', 'MEDIA_FOLDER', 'SEED_PORTAL', '43a6383e-f199-412b-a7f9-cd2260e96a74.jpeg', 'songnhue-media',
+        'seed/portal/144a2a14-487d-5972-953d-d4008ba1f555.jpeg', 'image/jpeg', 84676, 'b81c39e2ec84288f8a66d650836b155642a9a536c5d1bdf244ccb0250d3f7767',
+        'READY', 'SKIPPED', (SELECT id FROM users WHERE username = 'superadmin'))
+ON CONFLICT (public_id) DO NOTHING;
+INSERT INTO attachments (public_id, owner_type, purpose, original_name, storage_bucket,
+        storage_key, content_type, size_bytes, checksum_sha256, status, scan_status, created_by)
+VALUES ('97b3154f-42c3-5386-95b5-adb11922337e', 'MEDIA_FOLDER', 'SEED_PORTAL', '78639110-9bdf-445d-b48a-a777b6717a4c.jpeg', 'songnhue-media',
+        'seed/portal/97b3154f-42c3-5386-95b5-adb11922337e.jpeg', 'image/jpeg', 107118, '017bf1e8cc84207eea3e2ca353405465d487535b6f7d3d1cbd34bea911cfa789',
+        'READY', 'SKIPPED', (SELECT id FROM users WHERE username = 'superadmin'))
+ON CONFLICT (public_id) DO NOTHING;
+INSERT INTO attachments (public_id, owner_type, purpose, original_name, storage_bucket,
+        storage_key, content_type, size_bytes, checksum_sha256, status, scan_status, created_by)
+VALUES ('9d3d1319-1397-5215-b187-c925c35623cc', 'MEDIA_FOLDER', 'SEED_PORTAL', '89ba87e1-f0ba-49f9-9711-915ddd3956c5.jpeg', 'songnhue-media',
+        'seed/portal/9d3d1319-1397-5215-b187-c925c35623cc.jpeg', 'image/jpeg', 39774, '0a3b8fa85c7c919490ceb0fbe994c2f5081461a41b8a5f82060c4d3da7c186da',
+        'READY', 'SKIPPED', (SELECT id FROM users WHERE username = 'superadmin'))
+ON CONFLICT (public_id) DO NOTHING;
+
+-- =============================================================================
+-- [3] 5 BÀI SAO CHÉP NGUYÊN VĂN TỪ BÁO NGOÀI
 --
 -- Cột `source` của từng bài ghi rõ URL gốc (hanoimoi.vn, vneconomy.vn). Đây là toàn văn
 -- bài báo của người khác, kèm ảnh của họ.
 --
--- ⛔ ĐỪNG chạy trên PRODUCTION. Cổng thông tin của một doanh nghiệp nhà nước đăng lại
---    nguyên văn bài có bản quyền là vấn đề pháp lý, không phải lựa chọn kỹ thuật.
---
--- Trên staging thì chấp nhận được: môi trường đóng, `X-Robots-Tag: noindex, nofollow`, và
--- cần có bài dài thật để đo bố cục và thời gian tải trang chủ (DOD1.17).
+-- Chỉ chạy ở staging — môi trường đóng, `X-Robots-Tag: noindex, nofollow`. Lý do cần bài
+-- DÀI THẬT, ẢNH THẬT: DOD1.17 (trang chủ < 3s) chỉ đo được trên nội dung thật. Cổng chặn
+-- production nằm ở đầu tệp.
 --
 -- ⚠ KHÔNG seed `categories`: cây danh mục do migration `V202608191021__cms_seed_site_structure`
 --   sở hữu và đã có sẵn trên mọi môi trường. Seed lại là dựng một nguồn sự thật thứ hai cho

@@ -1,110 +1,93 @@
-# Nội dung seed cho STAGING
+# Nội dung seed cho cổng — 4 ảnh + 5 bài
 
-**4 ảnh + 5 bài viết.** Ảnh đi vào **MinIO**, không nằm trong bundle giao diện.
+Chạy **tự động trong mỗi lượt triển khai staging**, không còn nút bấm nào. Hai vế:
 
-```bash
-deploy/seed/seed.sh --dry-run     # xem sẽ làm gì, không ghi gì
-deploy/seed/seed.sh               # nạp thật
+| Vế | Đi đường nào | Ai chạy |
+|---|---|---|
+| Hàng CSDL (4 `attachments` + 5 `articles`) | migration Flyway `V202608251100__seed_portal_content.sql` | `migrator` |
+| Byte của ảnh | `deploy/seed/media/**` → bucket media | `minio-init` |
+
+Cả hai bật bằng **một** cặp biến trong `.env`, và phải bật cùng nhau:
+
+```dotenv
+SEED_LOCATION=classpath:db/seed/portal   # migrator giải thêm location này
+SEED_MEDIA_DIR=/seed-media               # minio-init đẩy byte lên bucket
 ```
 
-## Nạp lên staging: bấm tay ở GitHub
+`SeedGateTest` canh cặp ấy không lệch, và đối chiếu `size_bytes`/`checksum_sha256` trong SQL với
+**byte thật của tệp trên đĩa**.
 
-CD Staging **không** nạp dữ liệu — và đó là chủ ý (xem mục kế tiếp). Bước *Đồng bộ cấu hình* của
-nó đã rsync cả thư mục này sang `/opt/songnhue/seed/` ở mỗi lượt triển khai, nên bộ seed trên máy
-chủ luôn khớp với nhánh `staging`; chỉ còn thiếu người bấm chạy.
+## Thứ tự: byte trước, hàng sau
 
-**Actions → `Nạp nội dung Staging` → Run workflow**, chọn `chay-thu` trước để xem nó định ghi gì,
-rồi chạy lại với `nap-that`. Ô xác nhận phải gõ đúng `nap-noi-dung-staging`.
+`migrator` khai `depends_on: minio-init (service_completed_successfully)`. Migration ghi hàng
+`attachments` **khẳng định** byte đã có trong MinIO, nên ràng buộc đặt ở chỗ lời khẳng định được
+viết ra, không đặt ở thứ tự dòng lệnh trong workflow. Gõ tay `docker compose run --rm migrator`
+lúc chữa cháy vẫn ra đúng thứ tự.
 
-Workflow ấy **chỉ biết bộ secret `STAGING_*`** — không có tham số môi trường, nên không có đường
-nào trỏ nó sang production. `SeedNeverAutomaticTest` canh cả bốn ràng buộc: không workflow tự động
-nào gọi `seed.sh` · workflow seed chỉ có `workflow_dispatch` · không nhắc tới secret production ·
-ô xác nhận còn nguyên.
+## ⛔ Production: để trống cả hai biến
 
-Chạy thẳng trên máy chủ vẫn được: `cd /opt/songnhue && ./seed/seed.sh --dry-run`.
+Migration này **mở đầu bằng lệnh xoá bài**. Bật ở production nghĩa là xoá nội dung thật của Công ty
+rồi đăng 5 bài chép lại của báo ngoài — migration chạy một chiều, không có nút xác nhận nào chặn.
 
-## ⛔ Cả 5 bài đều sao chép nguyên văn từ báo ngoài — CHỈ dùng cho staging
+Cổng chặn nằm ở **location**, không nằm trong tệp SQL: tệp seed ở `classpath:db/seed/portal`, ngoài
+`spring.flyway.locations` mặc định (`classpath:db/seed/none` — thư mục có thật và cố ý rỗng). Không
+đặt `SEED_LOCATION` thì Flyway ở production **không nhìn thấy** tệp ấy; không phải "chạy rồi không
+làm gì".
 
-Cột `source` của từng bài ghi rõ URL gốc: `hanoimoi.vn` (4 bài) và `vneconomy.vn` (1 bài). Đây là
-**toàn văn bài báo của người khác, kèm ảnh của họ**.
+⚠ Đã bật ở staging thì **giữ bật**. Gỡ location sau khi migration đã vào `flyway_schema_history` sẽ
+làm `validate` đỏ với *"applied migration not resolved"*. Muốn thôi seed thì dựng lại CSDL.
 
-⛔ **Đừng chạy trên production.** Cổng thông tin của một doanh nghiệp nhà nước đăng lại nguyên văn
-bài có bản quyền là vấn đề pháp lý, không phải lựa chọn kỹ thuật. Muốn đăng thì xin phép, hoặc
-viết lại thành tin dẫn nguồn có trích dẫn.
+## Xoá những bài nào
 
-Trên staging thì chấp nhận được, và có lý do để cần: môi trường đóng, `X-Robots-Tag: noindex,
-nofollow`, và phải có bài **dài thật, ảnh thật** mới đo được bố cục và thời gian tải trang chủ
-(**DOD1.17** — mục DoD Phase 1 duy nhất còn treo).
+```sql
+DELETE FROM articles a
+ WHERE NOT EXISTS (SELECT 1 FROM menu_items m WHERE m.article_id = a.id);
+```
 
-📌 Nội dung thật của cổng sẽ được tạo qua **màn hình quản trị**, không qua tệp này.
+Canh theo **quan hệ**, không theo danh sách slug. `menu_items.article_id` tham chiếu `articles(id)`
+mà không khai `ON DELETE` — tức RESTRICT — nên `DELETE FROM articles` trần sẽ dừng giữa chừng vì lỗi
+khoá ngoại, sau khi đã xoá được một phần. Vị từ trên tự bảo vệ 4 trang tĩnh do
+`V202608191021__cms_seed_site_structure` sở hữu (`gioi-thieu-chung` · `chuc-nang-nhiem-vu` ·
+`co-cau-to-chuc` · `lien-he`), và vẫn đúng khi có trang tĩnh thứ năm.
 
-## Vì sao là script chứ không phải migration
+📌 Hệ quả cần biết: **bài tạo tay trên staging sẽ bị xoá** ở lượt migration này (một lần duy nhất,
+vì đây là migration có phiên bản).
 
-Flyway chạy ở **mọi** môi trường, một chiều, không hỏi ai. Đưa 5 bài sao chép vào chuỗi migration
-nghĩa là production tự đăng lại bài có bản quyền của người khác, im lặng, không ai bấm nút nào.
+## Ảnh: vì sao vào MinIO, và vì sao bố cục thư mục lại là khoá
 
-`CLAUDE.md`: *"⛔ Cấm seed dữ liệu 'cho đẹp demo'"*. Một script phải gõ tay, có `--dry-run`, in ra
-mình ghi gì thì thoả điều đó. Một migration thì không.
+Bản local ghi cứng ảnh vào `frontend/public-web/public/images/`. Chạy được ở cổng công khai nhưng
+**hỏng ở giao diện quản trị**: `admin-app` là container khác, `/images/…` ở đó trả 404. Seed đi đúng
+đường của hệ: `attachments` → MinIO → `GET /api/v1/public/files/{id}`.
 
-## Không seed `categories`
+Tệp nằm ở `deploy/seed/media/<storage_key>`, nên `mc cp --recursive /seed-media/ local/<bucket>/`
+sinh ra **đúng** khoá mà SQL ghi. Không tiền tố nào viết cứng trong lệnh — một tiền tố viết ở hai
+nơi là một tiền tố sẽ lệch.
 
-Cây danh mục do migration `V202608191021__cms_seed_site_structure` sở hữu và **đã có sẵn trên mọi
-môi trường**. Cả 5 bài gắn vào `tin-tuc` bằng cách tra theo `slug`. Seed lại danh mục là dựng một
-nguồn sự thật thứ hai cho cùng một dữ liệu.
+⚠ `scan_status = 'SKIPPED'`, **không phải** `'CLEAN'`: ClamAV chưa từng quét mấy tệp này.
 
-## Ảnh: vì sao phải vào MinIO
+⚠ Seed ghi thẳng `status = 'XUAT_BAN'` → **không đi qua Workflow engine** (luật 4), nên 5 bài này
+không có vết audit xuất bản. Chấp nhận được với dữ liệu để đo trên staging; đừng lấy làm mẫu.
 
-Bản local ghi cứng ảnh vào `frontend/public-web/public/images/`. Điều đó chạy được ở cổng công
-khai — thư mục `public/` nằm trong image — nhưng **hỏng ở giao diện quản trị**: `admin-app` là
-container khác, `/images/…` ở đó rơi vào nginx của nó và trả 404.
+📌 Nội dung thật của cổng sẽ tạo qua **màn hình quản trị**, không qua tệp này.
 
-Seed chuyển sang đúng đường của hệ: `attachments` → MinIO → `GET /api/v1/public/files/{id}`, và
-viết lại mọi `src="/images/x.jpeg"` trong thân bài thành đường dẫn ấy.
+## Sinh lại
 
-📌 **`cover_attachment_public_id` trước đây rỗng ở cả 18 bài local.** Truy vấn danh sách của cổng
-đọc đúng cột đó (`ArticleRepository`, `v.coverAttachmentPublicId`), nên thumbnail không có gì để
-hiện kể cả khi ảnh trong thân bài vẫn ổn. Seed gán ảnh bìa cho cả 5 bài, lấy ảnh đầu tiên trong
-thân. `generate.py` **dừng hẳn** (`assert`) nếu gặp bài không có ảnh nào — thà hỏng lúc sinh còn
-hơn ra một cổng có ô trống.
-
-⚠ `scan_status = 'SKIPPED'`, **không phải** `'CLEAN'`: ClamAV chưa từng quét mấy tệp này. Ghi
-`CLEAN` là nói dối sổ sách về một cơ chế bảo mật.
-
-## Sinh lại tệp SQL
-
-`*.sql` là **tệp sinh tự động** — sửa `generate.py` rồi sinh lại, đừng sửa tay:
+`V202608251100__seed_portal_content.sql` là **tệp sinh tự động** — sửa `generate.py` rồi sinh lại,
+đừng sửa tay:
 
 ```bash
-docker exec songnhue-postgres psql -U songnhue_owner -d songnhue -At -c "SELECT json_build_object(…)" > /tmp/seed_db.json
+docker exec songnhue-postgres psql -U songnhue_owner -d songnhue -At \
+  -c "SELECT json_build_object(…)" > /tmp/seed_db.json
 python3 deploy/seed/generate.py /tmp/seed_db.json
 ```
 
-Tách sinh khỏi chạy vì một tệp SQL đọc được là thứ duy nhất trả lời được câu *"seed này đã ghi
-những gì vào CSDL"*.
+## Kiểm sau khi deploy
 
-## Đã kiểm chứng thế nào (25/8)
+Smoke test của CD đã hỏi ba câu này rồi (xem `.github/workflows/deploy.yml`), nên lượt deploy xanh
+là ba câu ấy đã đạt:
 
-Nạp vào một CSDL nháp nhân bản lược đồ thật, **đã xoá hết bài nhưng GIỮ 9 danh mục** — đúng trạng
-thái staging sau khi migrator chạy xong:
-
-| Phép | Kết quả |
-|---|---|
-| Trước seed | danh mục 9 · bài 0 · đính kèm 0 |
-| Sau seed | **4 ảnh · 5 bài · 5/5 có `published_version_id` · 5/5 có ảnh bìa · 5 liên kết `tin-tuc`** |
-| Còn sót đường dẫn ghi cứng `/images/` | **0** |
-| Chạy lại lần hai | không nhân đôi một hàng nào |
-| Đẩy ảnh lên MinIO | đúng khoá, kích thước khớp `images.json` từng byte |
-
-Hai lỗi chỉ lộ ra khi chạy thật, không đọc lược đồ mà thấy được:
-
-* `ON CONFLICT (slug)` **không khớp** — `uq_articles_slug` là chỉ mục **một phần**
-  (`WHERE deleted_at IS NULL`), phải nhắc lại vị từ ở `ON CONFLICT`.
-* `author_user_id` là `NOT NULL`.
-
-⚠ **Mắt xích cuối chỉ kiểm được trên môi trường thật.** Hàng trong CSDL và byte trong MinIO là hai
-hệ thống khác nhau; lệch khoá là hỏng câm — CSDL vẫn nói tệp tồn tại, còn `GET` trả 404. Sau khi
-chạy trên staging:
-
-```bash
-curl -sI "$BASE_URL/api/v1/public/files/15509c57-8e04-57e6-8d36-6a9cd1c68334"   # → 200 + image/jpeg
-```
+1. `GET /api/v1/public/articles` trả về ≥ 1 bài — phân biệt **cổng có nội dung** với **cổng rỗng**
+2. `GET /api/v1/public/files/<ảnh bìa lấy từ chính phản hồi ở câu 1>` → `image/*` — phép kiểm duy
+   nhất chứng minh **MinIO có byte**, thứ mà mọi câu SQL đều không nói được. ⚠ Lấy id từ phản hồi
+   chứ không ghi cứng id của bộ seed: id ấy cố ý **không tồn tại ở production**
+3. Trang chủ trả HTML có thumbnail — cột đọc là `article_versions.cover_attachment_public_id`
