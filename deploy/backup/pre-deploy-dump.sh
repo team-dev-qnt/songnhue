@@ -28,7 +28,6 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPLOY_DIR="$(dirname "$SCRIPT_DIR")"
-COMPOSE_FILE="${COMPOSE_FILE:-$DEPLOY_DIR/compose.prod.yml}"
 ENV_FILE="${ENV_FILE:-$DEPLOY_DIR/.env}"
 KEEP_COUNT="${PREDEPLOY_KEEP:-10}"
 
@@ -45,7 +44,8 @@ set -a; eval "$(doc_env "$ENV_FILE")"; set +a
 DB_READONLY_USER="${DB_READONLY_USER:-songnhue_readonly}"
 HOST_BACKUP_DIR="${BACKUP_DIR:-/var/lib/songnhue/backup}"
 
-dc() { docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"; }
+. "$SCRIPT_DIR/../lib/docker-svc.sh"
+CT_POSTGRES="$(container_cua postgres)"
 
 # -----------------------------------------------------------------------------
 # ⚠ Kiểm CSDL còn sống TRƯỚC khi làm gì khác.
@@ -53,7 +53,7 @@ dc() { docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"; }
 #   giống hệt lượt hỏng vì "CSDL sắp chết" — mà hai tình huống đó cần hai phản
 #   ứng hoàn toàn khác nhau.
 # -----------------------------------------------------------------------------
-if ! dc exec -T postgres pg_isready -U postgres -d "$DB_NAME" >/dev/null 2>&1; then
+if ! docker exec -i "$CT_POSTGRES" pg_isready -U postgres -d "$DB_NAME" >/dev/null 2>&1; then
     echo "✗ Postgres không trả lời — DỪNG. Không deploy khi chưa chụp được CSDL." >&2
     exit 1
 fi
@@ -67,9 +67,9 @@ echo "→ Chụp CSDL trước triển khai → $ON_HOST"
 
 # -Fc đã nén sẵn bằng zlib. KHÔNG gzip chồng lên — thêm một tầng nén là thêm
 # một chỗ hỏng mà gần như không giảm thêm dung lượng.
-if ! dc exec -T \
+if ! docker exec -i \
         -e PGPASSWORD="$DB_READONLY_PASSWORD" \
-        postgres pg_dump \
+        "$CT_POSTGRES" pg_dump \
             --username="$DB_READONLY_USER" --dbname="$DB_NAME" \
             --format=custom --compress=6 --no-password \
             --no-owner --no-privileges \
@@ -104,7 +104,7 @@ SIZE="$(wc -c < "$ON_HOST" | tr -d ' ')"
 #    dòng, gộp vào lần sửa lược đồ kế tiếp cho đỡ tốn một vòng CI.
 # -----------------------------------------------------------------------------
 if [ -n "${DB_MIGRATION_PASSWORD:-}" ]; then
-    dc exec -T -e PGPASSWORD="$DB_MIGRATION_PASSWORD" postgres psql \
+    docker exec -i -e PGPASSWORD="$DB_MIGRATION_PASSWORD" "$CT_POSTGRES" psql \
         --username="${DB_MIGRATION_USER:-songnhue_owner}" --dbname="$DB_NAME" \
         --quiet --no-password --command \
         "INSERT INTO system_backups
