@@ -293,7 +293,53 @@ jobs:
             #   compose, không nằm ở đây — gõ tay lúc chữa cháy vẫn đúng.
             \$dc run --rm migrator
 
-            \$dc up -d app admin-app public-web nginx
+            # ⚠ \`--force-recreate\`: KHÔNG để compose tự quyết có thay container hay không.
+            #
+            #   Lượt 25/8 pull đúng digest mới về đĩa, rồi compose in
+            #   \`Container songnhue-app Running\` và giữ nguyên container cũ — mã cũ chạy
+            #   tiếp trong khi workflow tổng kết "đã triển khai digest 9c9f18e9". Bản vá nằm
+            #   trong image, image nằm trên đĩa, và không có gì nối hai thứ đó lại (§10.53).
+            #
+            #   Triển khai là lúc ĐẶT image đã khai vào container đang chạy. Đó là một mệnh
+            #   lệnh, không phải một gợi ý để compose cân nhắc.
+            \$dc up -d --force-recreate app admin-app public-web nginx
+
+            # ⭐⭐ ĐO LẠI: container đang chạy có ĐÚNG là image vừa triển khai không.
+            #
+            # ⛔ Không có bước này thì "triển khai theo digest" là một câu KHÔNG KIỂM ĐƯỢC.
+            #    Mọi thứ ở trên chỉ chứng minh digest đã tới đĩa máy chủ: bước tra giải đúng
+            #    digest, \`pull\` in "Pulled", compose in "Running". Ba dòng xanh, và không
+            #    dòng nào nói container đang chạy cái gì.
+            #
+            # ⚠ So bằng ID ảnh (\`docker image inspect\`), KHÔNG so bằng chuỗi tag:
+            #   \`.Config.Image\` giữ nguyên văn ref lúc tạo container, nên hai ref khác nhau
+            #   vẫn có thể là một ảnh, và một ref như \`:dev\` có thể đã trỏ sang ảnh khác.
+            #   ID ảnh là nội dung — nó chỉ có một nghĩa.
+            . lib/docker-svc.sh
+            loi=0
+            for cap in "app:\$APP_IMAGE" "admin-app:\$ADMIN_IMAGE" "public-web:\$PUBLIC_IMAGE"; do
+                dv="\${cap%%:*}"
+                ref="\${cap#*:}"
+                can="\$(docker image inspect --format '{{.Id}}' "\$ref" 2>/dev/null || true)"
+                if [ -z "\$can" ]; then
+                    echo "::error::Không có image \$ref trên máy chủ — lượt pull đã không lấy được nó."
+                    loi=1
+                    continue
+                fi
+                ct="\$(container_cua "\$dv")" || { loi=1; continue; }
+                dang="\$(docker inspect --format '{{.Image}}' "\$ct")"
+                if [ "\$dang" = "\$can" ]; then
+                    echo "✓ \$dv đang chạy đúng image vừa triển khai"
+                else
+                    echo "::error::\$dv KHÔNG chạy image vừa triển khai."
+                    echo "  đã khai : \$ref"
+                    echo "  cần ID  : \$can"
+                    echo "  đang chạy: \$dang"
+                    echo "  Container còn là bản cũ — mọi bản vá trong image này CHƯA được nạp."
+                    loi=1
+                fi
+            done
+            [ "\$loi" -eq 0 ]
 
             # Dọn image cũ để đĩa không đầy dần sau vài chục lượt deploy. Đĩa đầy
             # làm pg_dump hỏng theo, và mất sao lưu là mất lưới an toàn duy nhất.
