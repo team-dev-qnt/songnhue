@@ -1,5 +1,6 @@
 package com.songnhue.core.common.web;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
@@ -23,6 +24,10 @@ import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfigurat
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -81,6 +86,15 @@ class EnvelopeAndErrorHandlingTest {
         }
     }
 
+    /**
+     * Byte "ảnh" của bài kiểm.
+     *
+     * <p>⚠ Cố ý mở đầu bằng 4 byte magic của PNG và chứa một byte {@code 0x00}: nếu có ai đó lỡ
+     * đưa thân phản hồi qua một bộ mã hoá văn bản, byte 0 sẽ chết hoặc bị thay, và phép so sánh
+     * mảng bên dưới bắt được — thay vì im lặng đi qua như một chuỗi UTF-8 hợp lệ.
+     */
+    private static final byte[] ANH = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 0x00, (byte) 0xFF, 0x42};
+
     /** Controller giả lập, chỉ tồn tại trong test. */
     @RestController
     @Validated
@@ -111,6 +125,26 @@ class EnvelopeAndErrorHandlingTest {
         @GetMapping("/api/v1/core/validated")
         Payload validated(@RequestParam @Min(1) int size) {
             return new Payload("ok", size);
+        }
+
+        /**
+         * Ảnh — {@code ResponseEntity<byte[]>}, đúng chữ ký của
+         * {@code PublicPortalController.file()}.
+         *
+         * <p>Spring chọn {@code ByteArrayHttpMessageConverter} theo kiểu trả về này, TRƯỚC khi
+         * advice chạy. Đó là toàn bộ lý do bài kiểm tồn tại.
+         */
+        @GetMapping("/api/v1/core/anh")
+        ResponseEntity<byte[]> anh() {
+            return ResponseEntity.ok().contentType(MediaType.IMAGE_PNG).body(ANH);
+        }
+
+        /** Loại thứ hai đi qua converter không-JSON — chứng minh phép chừa không chỉ đúng cho byte[]. */
+        @GetMapping("/api/v1/core/tai-ve")
+        ResponseEntity<Resource> taiVe() {
+            return ResponseEntity.ok()
+                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                    .body(new ByteArrayResource(ANH));
         }
 
         record Payload(String message, int value) {}
@@ -218,5 +252,66 @@ class EnvelopeAndErrorHandlingTest {
     @DisplayName("Đường dẫn ngoài /api/v1 KHÔNG bị bọc envelope")
     void doesNotWrapNonApiPaths() throws Exception {
         mockMvc().perform(get("/khong-ton-tai")).andExpect(status().is4xxClientError());
+    }
+
+    // ---- Phản hồi nhị phân: envelope PHẢI đứng ngoài ---------------------------
+    //
+    // ⚠⚠ Ba bài dưới đây trả một món nợ đã thành sự cố: `GET /api/v1/public/files/<id>` — đường
+    //    phục vụ ảnh bìa của mọi bài viết trên cổng — trả 500 với
+    //    `ClassCastException: ApiResponse cannot be cast to [B`, sau khi đã đọc xong byte từ MinIO.
+    //
+    //    Endpoint ấy có bài kiểm, nhưng bài kiểm dùng UUID KHÔNG TỒN TẠI nên chỉ đi nhánh 404.
+    //    Nhánh trả byte — nhánh duy nhất hỏng — chưa ai đi qua (luật 7). Ở đây đi qua nó.
+
+    @Test
+    @DisplayName("⭐⭐ Ảnh trả về NGUYÊN BYTE, không bị bọc envelope")
+    void anhKhongBiBocEnvelope() throws Exception {
+        byte[] than = mockMvc()
+                .perform(get("/api/v1/core/anh"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.IMAGE_PNG))
+                .andReturn()
+                .getResponse()
+                .getContentAsByteArray();
+
+        assertThat(than)
+                .as(
+                        """
+                    Thân phản hồi phải là ĐÚNG mảng byte controller trả, không phải JSON bọc quanh nó.
+
+                    Trước bản vá, `ResponseEnvelopeAdvice` bọc cả `byte[]` vào `ApiResponse`, trong
+                    khi Spring đã chọn `ByteArrayHttpMessageConverter` theo kiểu trả về — và
+                    converter ấy ép kiểu thân về `[B` lúc tính Content-Length. Kết quả là 500.""")
+                .isEqualTo(ANH);
+    }
+
+    @Test
+    @DisplayName("⭐ Tệp tải về (Resource) cũng vậy — phép chừa canh CONVERTER, không canh kiểu byte[]")
+    void resourceCungKhongBiBoc() throws Exception {
+        byte[] than = mockMvc()
+                .perform(get("/api/v1/core/tai-ve"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_OCTET_STREAM))
+                .andReturn()
+                .getResponse()
+                .getContentAsByteArray();
+
+        assertThat(than)
+                .as("bắt theo từng kiểu dữ liệu thì luôn có kiểu thứ tư lọt qua — luật 24")
+                .isEqualTo(ANH);
+    }
+
+    @Test
+    @DisplayName("⛔ Kiểm chứng ngược: phép chừa KHÔNG được nới tay tới response JSON")
+    void jsonVanBiBocNhuCu() throws Exception {
+        // Không có bài này thì `return body;` vô điều kiện ở đầu `beforeBodyWrite` cũng làm hai bài
+        // trên xanh — trong khi nó gỡ envelope khỏi TOÀN BỘ hệ thống.
+        mockMvc()
+                .perform(get("/api/v1/core/ping"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.message").value("pong"))
+                .andExpect(jsonPath("$.traceId", notNullValue()));
     }
 }
