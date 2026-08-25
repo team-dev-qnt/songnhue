@@ -78,6 +78,7 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 | 24/8 (merge `dev`) | CI đỏ ở job đóng gói image `public-web` **dù 8 cổng kiểm ở máy đều xanh** — biến build rỗng, `??` không đỡ, `new URL('')` giết `next build` — §10.38 |
 | 25/8 (sau deploy staging) | **204 No Content bị giao diện biến thành lỗi trên 24 endpoint** — việc đã commit xong mà người dùng thấy báo lỗi. Lượt sửa 22/8 đã chữa *triệu chứng thứ hai* của đúng chuỗi này — §10.40 · `DB_APP_PASSWORD` không ai đọc che mất biến thật sự thiếu — §10.41 |
 | 25/8 (smoke test staging) | **Ảnh trên cổng chưa từng trả về được một byte nào** — `ResponseEnvelopeAdvice` bọc cả `byte[]`, `ClassCastException` → 500. Endpoint *có* bài kiểm, nhưng bài kiểm dùng UUID không tồn tại nên chỉ đi nhánh 404 — §10.52 |
+| 25/8 (sau khi merge bản vá) | **Bản vá không bao giờ được nạp** — lượt triển khai giải đúng digest, `pull` đúng digest, rồi compose in `Running` và giữ nguyên container cũ. Không dòng nào đo *container đang chạy cái gì* — §10.53 |
 
 ⛔ Hệ quả rút ra: **"đã tick" không phải bằng chứng.** Trước khi mở một giai đoạn mới, đối chiếu với mã thật và chạy đường mà người dùng thật đi.
 
@@ -92,7 +93,7 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 | Cần gì | Đọc ở đâu |
 |---|---|
 | Nợ đang treo, task còn lại | **`.claude/master-tracking.md`** — nguồn DUY NHẤT (conventions.md §6). `phase0-tracking.md` / `phase1-tracking.md` chỉ là lưu trữ, cấm sửa |
-| **Lý do** một quyết định, **nguyên nhân gốc** một lỗi đã sửa | `architecture-review.md` **§9** (Phase 0, 14 mục) · **§10** (Phase 1, 41 mục — §10.35 đợt vá sau WS-22, §10.36 nghiệm thu lại WS-21 + DoD, §10.37 nghiệm thu image, §10.38 CI đỏ sau merge `dev`, §10.40 lỗi 204, §10.41 biến CSDL không ai đọc, §10.52 envelope bọc `byte[]`) |
+| **Lý do** một quyết định, **nguyên nhân gốc** một lỗi đã sửa | `architecture-review.md` **§9** (Phase 0, 14 mục) · **§10** (Phase 1, 41 mục — §10.35 đợt vá sau WS-22, §10.36 nghiệm thu lại WS-21 + DoD, §10.37 nghiệm thu image, §10.38 CI đỏ sau merge `dev`, §10.40 lỗi 204, §10.41 biến CSDL không ai đọc, §10.52 envelope bọc `byte[]`, §10.53 container không được thay) |
 | Cách viết một chức năng + bảng bẫy tra nhanh | `docs/coding-guide.md` |
 | Luật bắt buộc khi viết code | `conventions.md` |
 | Nghiệp vụ | `function-spec.md`; điểm chưa chốt → `business-open-questions.md` Phần III |
