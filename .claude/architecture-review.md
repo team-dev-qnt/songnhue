@@ -2480,7 +2480,7 @@ trong mã nhưng chưa có hiệu lực ở nơi nó phải chặn.** Ba lần r
 
 ### §10.39. Rà đường triển khai staging bằng mã thật — bốn lỗi chặn, cả bốn đều im lặng (24/8/2026)
 
-Trước khi viết kế hoạch thực thi staging (`docs/deploy-staging.md`), rà lại toàn bộ đường triển khai
+Trước khi viết kế hoạch thực thi staging, rà lại toàn bộ đường triển khai
 bằng **mã thật** thay vì bằng tài liệu. Bốn chỗ mà làm theo bản cũ sẽ hỏng.
 
 #### 1. ⛔ Smoke test của CD đo một đường không đi tới đâu
@@ -2552,7 +2552,7 @@ ngoài là **"staging chập chờn"** chứ không phải một lỗi đọc đ
 sao lưu**; một lượt OOM lúc 03:00 làm hỏng lượt kéo về mà không ai biết.
 
 Đã đặt trần cho cả ba service giám sát, và ghi con số + ba phương án chọn máy vào
-`docs/deploy-staging.md` §1. **Khuyến nghị: VPS-2 lên 8 GB.** Phương án giữ 4 GB bằng cách chuyển giám
+`hosting_recommendations.md` §8. **Khuyến nghị: VPS-2 lên 8 GB.** Phương án giữ 4 GB bằng cách chuyển giám
 sát sang VPS-1 bị bác — nó phá đúng lý do dựng ra nó.
 
 📌 Có một cách tiết kiệm nghe hợp lý mà **không dùng được**: "chỉ bật staging khi cần test". Lúc test
@@ -3197,7 +3197,7 @@ Hai chi tiết nhỏ nhưng cố ý:
 | 2 | Migration seed ghi đủ hàng không? | §10.50 — cổng chặn location, thứ tự migrator |
 | 3 | **Mỗi `storage_key` trong CSDL có byte thật trong MinIO không?** | chỗ hỏng CÂM — và là câu **không bài kiểm JUnit nào trả lời được** |
 
-`compose.rehearse.yml` đổi đúng **ba** thứ, mỗi thứ là một điều lượt diễn tập không chứng minh được: đổi `container_name` (tránh đụng stack local) và thay hai bind mount vào đường tuyệt đối của máy chủ bằng volume có tên. ⛔ Hệ quả trực tiếp: **diễn tập không kiểm được quyền thư mục** — đúng mục 3 của `docs/deploy-staging-issue.md`, thứ đã làm container app crash trên VPS. Danh sách "không nói gì về" in ra ở cuối mỗi lượt chạy, không giấu trong tài liệu.
+`compose.rehearse.yml` đổi đúng **ba** thứ, mỗi thứ là một điều lượt diễn tập không chứng minh được: đổi `container_name` (tránh đụng stack local) và thay hai bind mount vào đường tuyệt đối của máy chủ bằng volume có tên. ⛔ Hệ quả trực tiếp: **diễn tập không kiểm được quyền thư mục** — thứ đã làm container app crash trên VPS (quyền đúng: `deploy-guideline.md` §2.5). Danh sách "không nói gì về" in ra ở cuối mỗi lượt chạy, không giấu trong tài liệu.
 
 #### Đã đo, cả hai chiều
 

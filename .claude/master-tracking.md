@@ -103,6 +103,7 @@
 - [x] T7.10: Security event stream riêng (login fail, refresh reuse, 403 scope, đổi quyền, truy cập credential) → Grafana + alert
 - [x] T7.11: Khung cảnh báo "dữ liệu quá hạn": gauge `data_freshness_seconds{source}` + alert rule mẫu
 - [x] T7.12: Runbook `docs/runbook/`: restore từ dump, xoay key AES/JWT, poller chết, retry job Failed
+- [ ] T7.13: **Diễn tập khôi phục một lần trước go-live** — chạy `docs/runbook/dien-tap-khoi-phuc.md` trên dữ liệu thật rồi ghi con số **RTO đo được** vào runbook. Chưa diễn tập thì RTO trong tài liệu là một con số ước lượng, không phải một cam kết | Note: chuyển từ `cicd.md` §8 (26/8) — nợ này trước chỉ sống trong văn xuôi, không có trong sổ
 
 ## WS-8
 
@@ -166,6 +167,14 @@
 - [ ] T11.10: Chốt `app.nodes` / `worker.enabled` / `shedlock.enabled` cho môi trường thật
 - [ ] T11.28: `http://songnhue.bhh40.net` ghi cứng ở `DirectiveDocumentsSection` + `PortalSidebar` — địa chỉ hệ thống văn bản là **cấu hình của khách**, phải vào `settings` có UI sửa (luật 12). Đổi địa chỉ hiện nay = sửa mã + dựng lại image | Note: §10.54
 - [ ] T11.30: **Phase sau** — endpoint công khai cho thư viện ảnh công trình và cho `org_units`. Chưa có đường nào để cổng lấy hai bộ dữ liệu này | Note: QuanTran chốt 26/8; §10.54
+- [ ] T11.32: Bật **Dependency graph** (Settings → Code security). Không bật thì job *Soi phụ thuộc PR thêm vào* **tự bỏ qua**, và `skipped` được GitHub tính là ĐẠT — tức phép kiểm phụ thuộc ở PR chưa chạy lần nào (luật 23) | Note: nợ #45; chuyển từ `cicd.md` §8 (26/8)
+- [ ] T11.33: `app.storage` chỉ có **một** `endpoint`, dùng chung cho lượt gọi nội bộ lẫn lượt ký presigned URL. Đang chữa tạm bằng bí danh mạng cho `nginx` để app không đi vòng ra Internet. Chữa gốc: tách `app.storage.public-endpoint`, dùng hai `MinioClient` | Note: chuyển từ `deploy-guideline.md` §9.3 (26/8)
+- [ ] T11.34: `system_backups.trigger_type` chưa có giá trị `PRE_DEPLOY` — bản chụp trước deploy đang ghi `MANUAL`, phân biệt bằng tiền tố tên tệp. Chữa gốc: migration bốn dòng, gộp vào lần sửa lược đồ kế tiếp | Note: chuyển từ `deploy-guideline.md` §9.3 (26/8)
+- [ ] T11.35: **Gói quyền thư mục host thành `deploy/host-prepare.sh`** — hiện là việc gõ tay, tức một thứ phải nhớ khi dựng VPS-1. ⛔ `chown` trong Dockerfile KHÔNG có tác dụng với bind mount (host che hoàn toàn thứ image dựng sẵn), nên ba đường dẫn phải `chown` trên máy chủ: `/opt/songnhue/keys` → `1000:1000` dir 700 tệp 600 · `/var/log/songnhue` → `1000:1000` 755 · `/var/lib/songnhue/backup` → **`999:1000` + `2775`**. ⚠⚠ Ô cuối dễ sai nhất: thư mục sao lưu dùng chung BA danh tính (postgres uid 999 chạy `pg_dump` bên trong container · app uid 1000 · user SSH trên host). `chown -R 1000:1000` làm bước chụp trước triển khai hỏng, mà bước ấy nay chạy ở MỌI lượt deploy staging → mọi lượt deploy đỏ ngay bước đầu | Note: chuyển từ `deploy-staging-issue.md` (26/8); nhóm hiện mượn gid 1000 của user `ubuntu`, nên `host-prepare.sh` phải tạo nhóm riêng và đọc uid/gid từ image (`docker run --rm --entrypoint id <image>`) thay vì ghi cứng
+- [ ] T11.36: `docker login ghcr.io` trên VPS đang là thao tác tay bằng PAT — hoặc tự động hoá, hoặc chuyển sang để workflow đẩy image qua SSH. Chưa làm thì lượt dựng VPS-1 sẽ dừng ở `unauthorized` ngay lệnh `compose up` đầu tiên | Note: chuyển từ `deploy-staging-issue.md` (26/8)
+- [ ] T11.37: Healthcheck của `nginx` trỏ vào `acme-challenge` nên báo `unhealthy` GIẢ — nó chứng minh tiến trình còn sống chứ không chứng minh dịch vụ định tuyến được (luật 8). Đổi đích sang một đường đại diện cho dịch vụ | Note: chuyển từ `deploy-staging-issue.md` (26/8)
+- [ ] T11.38: **Hai đường seed cùng tồn tại** — `make seed-portal` + `tools/seeder/seed-portal-data.ts` (gọi REST API) vẫn còn, trong khi T11.21 đã chuyển bộ seed vào chuỗi migration Flyway. Hai cơ chế cho một việc là hai nơi phải nhớ, và đường cũ không có cổng chặn `SEED_LOCATION` nào. Quyết: bỏ hẳn đường cũ, hay giữ cho việc dựng máy dev | Note: lộ ra khi rà tài liệu 26/8
+- [ ] T11.39: Nợ #27 (bấm ở GitHub) — chỉnh 2 mục bảo vệ nhánh lộ ra khi kiểm chứng: `strict` ở hai chặng đề bạt · thiếu context *Vùng nào thay đổi*. Chi tiết: `docs/branch-protection.md` §6.2 | Note: chuyển từ `cicd.md` §8 (26/8)
 
 ### Đã làm — dựng đường ống
 

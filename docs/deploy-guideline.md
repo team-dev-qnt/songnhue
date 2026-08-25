@@ -48,8 +48,8 @@
 | # | Việc | Ghi chú |
 |---|---|---|
 | 1.1 | **VPS-1**: 4 vCPU / 8 GB RAM / 160 GB SSD, Ubuntu 24.04 LTS, đặt tại Việt Nam | Lấy báo giá vài nơi — Viettel IDC, VNPT, FPT, BizFly, VNG. Chênh nhau nhiều, hay có giá trả trước theo năm |
-| 1.2 | **VPS-2**: 2 vCPU / **8 GB** / 80 GB, cùng nhà cung cấp cũng được | ⚠ **Sửa 24/8: 4 GB → 8 GB.** VPS-2 chạy staging **và** giám sát **và** giữ kho sao lưu — cộng lại ≈ 5,4 GB. Phép cộng đầy đủ ở `docs/deploy-staging.md` §1 |
-| 1.3 | **Một** tên miền `.vn`, đăng ký **chủ thể là Công ty**, không phải cá nhân | Sáu địa chỉ của hệ thống = 1 tên miền mua + 5 tên miền phụ **miễn phí**. Chọn nhà đăng ký, hồ sơ chủ thể, và cái bẫy "nhà đăng ký đứng tên hộ": **`docs/deploy-staging.md` §2**. ⚠ Đổi chủ thể `.vn` về sau là thủ tục hành chính thật, cần hồ sơ từ cả hai bên |
+| 1.2 | **VPS-2**: 2 vCPU / **8 GB** / 80 GB, cùng nhà cung cấp cũng được | ⚠ **Sửa 24/8: 4 GB → 8 GB.** VPS-2 chạy staging **và** giám sát **và** giữ kho sao lưu — cộng lại ≈ 5,4 GB. Phép cộng đầy đủ ở `hosting_recommendations.md` §8 |
+| 1.3 | **Một** tên miền `.vn`, đăng ký **chủ thể là Công ty**, không phải cá nhân | Sáu địa chỉ của hệ thống = 1 tên miền mua + 5 tên miền phụ **miễn phí**. Chọn nhà đăng ký, hồ sơ chủ thể, và cái bẫy "nhà đăng ký đứng tên hộ": **`hosting_recommendations.md` §9**. ⚠ Đổi chủ thể `.vn` về sau là thủ tục hành chính thật, cần hồ sơ từ cả hai bên |
 | 1.4 | **Email trung tính** (`it@songnhue.vn`…) để mở mọi tài khoản | ⛔ Không dùng Gmail cá nhân. Thẻ cá nhân hết hạn = production tắt và không ai ngoài anh xử lý được |
 | 1.5 | **Tài khoản SMTP** gửi thư thật | Nhà cung cấp trong nước, hoặc Amazon SES / Postmark |
 | 1.6 | **Kho lưu trữ ngoài** — Backblaze B2 hoặc Cloudflare R2 | Phải **khác nhà cung cấp** với hai VPS. Vài chục nghìn đồng/tháng |
@@ -140,15 +140,57 @@ dpkg-reconfigure -plow unattended-upgrades
 
 Đây là phần lớn cái mà PaaS bán cho anh, lấy về với giá hai dòng lệnh.
 
-### 2.5. Cây thư mục
+### 2.5. Cây thư mục — ⛔ **chủ sở hữu KHÔNG phải user SSH**
+
+⚠⚠ Bản trước của mục này ghi `chown -R songnhue:songnhue …` cho cả ba đường dẫn. **Sai, và sai
+theo kiểu làm mọi lượt deploy đỏ.** Đã trả giá trên staging ngày 25/8; ghi lại ở đây vì đây là tệp
+người dựng VPS-1 sẽ làm theo.
+
+Ba danh tính khác nhau cùng dùng cây thư mục này, và **không cái nào là user SSH**:
+
+| Danh tính | Là ai | Đụng vào gì |
+|---|---|---|
+| `1000` | user trong image `app` (ghim ở `backend.Dockerfile`) | đọc khoá, ghi log |
+| `999` | user `postgres` **bên trong container** | `pre-deploy-dump.sh` chạy `pg_dump` ở đó, ghi thẳng vào thư mục sao lưu |
+| user SSH | người vận hành trên host | sửa `.env`, dọn bản sao lưu cũ |
+
+⛔ **`chown` trong Dockerfile không có tác dụng với bind mount** — host che hoàn toàn thứ image dựng
+sẵn. Nên quyền phải đặt **trên máy chủ**, không đặt trong image.
 
 ```bash
-mkdir -p /opt/songnhue/keys
-mkdir -p /var/lib/songnhue/backup
-mkdir -p /var/log/songnhue /var/log/nginx
-chown -R songnhue:songnhue /opt/songnhue /var/lib/songnhue /var/log/songnhue
-chmod 700 /opt/songnhue/keys
+mkdir -p /opt/songnhue/keys /var/lib/songnhue/backup /var/log/songnhue /var/log/nginx
+
+# ⚠ ĐO uid/gid của image, đừng ghi cứng 1000. Trước khi ghim, id thật là 100:101 —
+#   không phải 1000 như ai cũng tưởng khi đọc lướt `adduser -S`.
+docker run --rm --entrypoint id ghcr.io/<owner>/songnhue/app:dev
+
+APP_UID=1000; APP_GID=1000; PG_UID=999
+getent group "$APP_GID" || groupadd -g "$APP_GID" songnhue-app
+usermod -aG "$APP_GID" "$(id -un)"          # user SSH vào chung nhóm
+
+chown -R "$APP_UID:$APP_GID" /opt/songnhue/keys /var/log/songnhue
+chmod 700 /opt/songnhue/keys && chmod 600 /opt/songnhue/keys/* 2>/dev/null
+chmod 755 /var/log/songnhue
+
+# ⚠⚠ Thư mục sao lưu: chủ là POSTGRES (999), nhóm là app (1000), + setgid.
+#    `chown -R 1000:1000` ở đây làm `pg_dump` hỏng — mà bước chụp trước triển khai
+#    nay chạy ở MỌI lượt deploy, nên hậu quả là mọi lượt deploy đỏ ngay bước đầu.
+chown -R "$PG_UID:$APP_GID" /var/lib/songnhue/backup
+chmod 2775 /var/lib/songnhue/backup
 ```
+
+> 📌 Đây vẫn là việc gõ tay, tức một thứ phải nhớ. Gói thành `deploy/host-prepare.sh` — **T11.35**,
+> chưa làm. Và nhóm hiện đang mượn gid 1000 của user `ubuntu` có sẵn; script phải tạo nhóm riêng
+> rồi **đọc uid/gid từ image** thay vì ghi cứng.
+
+### 2.6. `docker login ghcr.io` — làm trước, không thì `compose up` dừng ngay
+
+```bash
+docker login ghcr.io -u <github-username> -p <PAT có quyền read:packages>
+```
+
+Chưa đăng nhập thì lệnh kéo image đầu tiên trả `unauthorized`, kể cả khi repo là public. Đây đang là
+thao tác tay — **T11.36** đề xuất bỏ nó đi.
 
 ### ✅ Kiểm chứng mục 2
 
@@ -528,6 +570,9 @@ Cộng thêm hai thứ ngoài hệ thống, cả hai đều miễn phí:
 | 15 | `BOOTSTRAP_ADMIN_PASSWORD` đã **xoá** khỏi `.env` | ☐ |
 | 16 | Ping ngoài đã dựng và đã thử bằng cách tắt nginx | ☐ |
 | 17 | Đã quay lui thử một lần ở staging | ☐ |
+| 18 | **Quyền ba thư mục đúng như §2.5** — `stat -c '%u:%g %a' /var/lib/songnhue/backup` phải ra `999:1000 2775`. Sai ô này thì mọi lượt deploy đỏ ở bước chụp trước triển khai | ☐ |
+| 19 | `docker login ghcr.io` đã chạy trên máy chủ (§2.6) | ☐ |
+| 18 | **Quyền ba thư mục đúng như §2.5** —  phải ra . Sai ô này thì mọi lượt deploy đỏ ở bước chụp trước triển khai | ☐ |
 
 > **Mục 10 và 13 là hai mục không được ký khống.** Dự án này đã có 4 ngày sao lưu chạy mà **không
 > sinh ra một tệp nào**, trong khi `BackupServiceTest` vẫn xanh trọn vẹn — vì nó mock đúng chỗ mã

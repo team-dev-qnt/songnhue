@@ -22,9 +22,9 @@ Khi mâu thuẫn: `architecture-review.md` > `function-spec.md` / `implement.md`
 | `.claude/report-templates-proposal.md` | Đề xuất format báo cáo gửi Công ty duyệt |
 | `docs/coding-guide.md` | **Đường đi** — công thức viết một chức năng (migration → entity → workflow → service → controller → quyền → mã lỗi → test) + bẫy đã trả giá |
 | `docs/ui-styles.md` | Quy chuẩn UI — màu qua `design-tokens`, Noto Sans, spacing, animation, a11y. Đọc trước khi sửa styling |
+| `hosting_recommendations.md` | **Mua gì và vì sao** — 2 VPS không PaaS (5 bảo đảm phải tháo), pháp lý DLCN, ngân sách bộ nhớ §8, tên miền §9, cắt chi phí §10 |
 | `docs/cicd.md` | Luồng 3 chặng `dev → staging → production`, cổng đề bạt, secret cần đặt |
 | `docs/deploy-guideline.md` | Dựng máy, khoá, `.env`, DNS/TLS, lượt deploy tay đầu tiên, checklist nghiệm thu |
-| `docs/deploy-staging.md` | Kế hoạch thực thi staging — cấu hình VPS-2, cắt chi phí ở đâu và ba chỗ cấm cắt |
 | `docs/branch-protection.md` | Ba hồ sơ bảo vệ nhánh + lệnh áp dụng |
 | `docs/setup-guideline.md` · `run-guideline.md` | Dựng máy dev; bốn chế độ chạy |
 | `docs_origin/` | Tài liệu gốc của khách — chỉ tham khảo, đã tổng hợp vào `function-spec.md` |

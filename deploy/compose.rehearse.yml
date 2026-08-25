@@ -14,8 +14,9 @@
 #      `/opt/songnhue/keys`) → volume có tên. Hai đường ấy chỉ tồn tại trên VPS;
 #      trên macOS chúng còn nằm ngoài danh sách thư mục Docker Desktop chia sẻ, nên
 #      để nguyên là lượt diễn tập không chạy nổi ở máy nào cả.
-#      ⛔ Hệ quả: diễn tập KHÔNG kiểm được quyền thư mục — đúng mục 3 của
-#         `docs/deploy-staging-issue.md`, thứ đã làm container app crash trên VPS.
+#      ⛔ Hệ quả: diễn tập KHÔNG kiểm được quyền thư mục — thứ đã làm container
+#         app crash trên VPS. Quyền đúng và vì sao: `docs/deploy-guideline.md`
+#         §2.5; mục 18 của checklist go-live §12 là phép đo.
 #
 #   3. Không có gì khác. `mem_limit`, biến môi trường, `depends_on`, thứ tự khởi
 #      động, `minio-init`, `migrator` — giữ nguyên như staging, vì chúng chính là

@@ -32,7 +32,7 @@ nhánh feature ──PR──► dev ──PR──► staging ──PR──►
 
 ## 2. Hai nguyên tắc, và chúng là một
 
-**Kiểm một lần.** Toàn bộ kiểm tra nặng chạy ở `dev`: định dạng, quy ước, 226 bài kiểm, luật kiến
+**Kiểm một lần.** Toàn bộ kiểm tra nặng chạy ở `dev`: định dạng, quy ước, **toàn bộ bộ kiểm BE + FE**, luật kiến
 trúc, ma trận phân quyền, cổng bao phủ. Hai chặng sau không kiểm lại — chạy lại cùng bộ kiểm tra
 trên cùng mã nguồn tốn vài phút mỗi lần đề bạt mà không phát hiện thêm gì.
 
@@ -115,7 +115,7 @@ phải thêm một bước tra thử riêng chỉ để phân biệt hai thứ �
 
 ### 3.1. Lọc theo đường dẫn — tiết kiệm ở đâu, và cố ý KHÔNG tiết kiệm ở đâu
 
-Đổi tài liệu thì không chạy 226 bài kiểm; đổi FE thì không build backend. Hai vùng này không dùng
+Đổi tài liệu thì không chạy bộ kiểm backend; đổi FE thì không build backend. Hai vùng này không dùng
 chung hệ thống build nào nên **không thể làm hỏng nhau** — phần tiết kiệm này gần như không có rủi
 ro, khác hẳn với "chỉ chạy test liên quan tới code vừa đổi".
 
@@ -475,28 +475,14 @@ kiểm hai điều:
 
 ## 8. Việc còn phải làm
 
-- [x] Tạo nhánh `staging` và `production` — xong 15/8/2026
-- [x] Áp dụng branch protection theo `docs/branch-protection.md` — xong 15/8/2026
-- [x] Tạo GitHub Environment `production` có required reviewer — xong 15/8/2026
-- [ ] **Chỉnh 2 mục lộ ra khi kiểm chứng** — `branch-protection.md` §6.2 (`strict` ở hai chặng đề
-      bạt · thiếu context `Vùng nào thay đổi`). *Mục thứ 3 của bản 15/8 — hạ số người duyệt — đã bỏ
-      ngày 18/8: repo có hai collaborator admin nên `reviews: 1` chạy được thật.*
-- [x] **Đưa mã lên `dev`** — PR #1 `common → dev` merge (Squash) 18/8/2026; lượt push sau đó chạy
-      trọn 5/5 job, `git diff origin/dev origin/common` rỗng
-- [x] Đặt `NVD_API_KEY` **ở cấp repo** — 18/8/2026 (§7)
-- [ ] **Bật Dependency graph** (Settings → Code security) — không bật thì job `Soi phụ thuộc PR thêm
-      vào` tự bỏ qua, tức là phép kiểm phụ thuộc ở PR chưa chạy lần nào
-- [x] **Đóng gói image frontend** — job ma trận `admin-app` + `public-web`, xong 23/8 (§2.1)
-- [x] **`compose.prod.yml` / `compose.staging.yml`** — xong 23/8. `compose.staging.yml` `include`
-      nguyên văn bản prod và chỉ ghi đè hạn mức bộ nhớ, nên hai môi trường không trôi khỏi nhau
-- [x] **`deploy/nginx/`** — nginx biên: TLS, HSTS, định tuyến ba tên miền, hạn mức. Kiểm bằng
-      `nginx -t` thật (xem `docs/deploy-guideline.md` §4.4)
-- [x] **`backup/pre-deploy-dump.sh`** — xong 23/8. `deploy-prod.yml` đã gọi tệp này từ 15/8 mà
-      **tệp chưa từng tồn tại**: lượt deploy production đầu tiên sẽ dừng ngay ở bước đó
-- [ ] **Dựng 2 VPS** theo `docs/deploy-guideline.md` — VPS-1 production, VPS-2 staging kiêm kho sao
-      lưu và giám sát. *(Kế hoạch cũ ghi 3 VM; VM-3 đã gộp vào VPS-2 — xem `hosting_recommendations.md`)*
-- [ ] Đặt các secret và biến ở §7 — WS-11/T11.7
-- [ ] **Diễn tập khôi phục một lần trước go-live**, ghi con số RTO thật vào runbook (T7.7)
+⛔ **Không liệt kê ở đây.** `conventions.md` §6 chốt `.claude/master-tracking.md` là **nguồn duy
+nhất** của task và nợ — và bản trước của mục này đã chứng minh vì sao: nó giữ **5 khoản nợ chưa
+từng có trong sổ**, gồm cả *"diễn tập khôi phục trước go-live"* và *"bật Dependency graph"*. Một
+danh sách nợ trong văn xuôi là một danh sách không ai đối soát.
+
+Nợ của WS-11 nay ở `master-tracking.md`: `T11.2` (dựng 2 VPS) · `T11.7` (secret §7) · `T11.32`
+(Dependency graph) · `T11.35`–`T11.39` (quyền thư mục host · `docker login` · healthcheck nginx ·
+hai đường seed · nợ #27) · `T22.23` (nợ #46) · `T7.13` (diễn tập khôi phục, ghi RTO thật).
 
 ## 9. Hai quy ước merge ngược nhau — dễ nhầm nhất
 
