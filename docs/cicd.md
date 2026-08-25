@@ -344,10 +344,17 @@ Nay:
 
 1. `/api/v1/public/site-config` trả envelope `success` — đi hết chặng nginx → public-web → Route
    Handler → app → postgres;
-2. `/api/v1/public/articles` trả **≥ 1 bài** — cổng có nội dung;
-3. `/api/v1/public/files/<public_id ảnh seed>` trả `image/*` — **MinIO có byte**. Đây là phép kiểm
-   duy nhất chứng minh được điều đó: hàng trong CSDL và byte trong kho là hai hệ thống khác nhau,
-   lệch nhau là hỏng câm.
+2. `/api/v1/public/articles` có **ít nhất `so_bai_toi_thieu` bài** — cổng có nội dung. Ngưỡng là
+   một **input của môi trường**, không phải một hằng số: staging đặt **9** (4 trang tĩnh của
+   `V202608191021` + 5 bài seed), production đặt **1**. Với ngưỡng 1 thì quên thêm `SEED_LOCATION`
+   vào `/opt/songnhue/.env` — tệp **không** được rsync — vẫn cho ra một lượt deploy xanh trên một
+   cổng thiếu nội dung, đúng §10.45;
+3. `/api/v1/public/files/<ảnh bìa lấy từ chính phản hồi câu 2>` trả `image/*` — **MinIO có byte**.
+   Đây là phép kiểm duy nhất chứng minh được điều đó: hàng trong CSDL và byte trong kho là hai hệ
+   thống khác nhau, lệch nhau là hỏng câm.
+   ⚠ Lấy id từ phản hồi chứ **không ghi cứng** id của bộ seed — id ấy cố ý không tồn tại ở
+   production, và ghi cứng nó là biến mọi lượt deploy production thành đỏ vì đúng cái mà thiết kế
+   yêu cầu phải vắng mặt. Không bài nào có ảnh bìa thì in **⚠ BỎ QUA**, không in ✓.
 
 Câu 2 và 3 chỉ có nghĩa vì bộ seed nội dung nay nằm trong chuỗi migration — xem `deploy/seed/README.md`.
 

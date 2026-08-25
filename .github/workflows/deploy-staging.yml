@@ -104,6 +104,11 @@ jobs:
       moi_truong: staging
       commit_sha: ${{ needs.giai-dinh-dev.outputs.sha }}
       compose_file: compose.staging.yml
+      # 4 trang tĩnh của `V202608191021` + 5 bài của bộ seed. Ngưỡng đặt ở 9 chứ
+      # không ở 1 là cố ý: quên thêm `SEED_LOCATION` vào `/opt/songnhue/.env` (tệp
+      # ấy KHÔNG được rsync) sẽ để lại đúng 4 bài, và với ngưỡng 1 thì lượt deploy
+      # vẫn xanh còn cổng vẫn thiếu nội dung — đúng §10.45.
+      so_bai_toi_thieu: 9
     # ⛔ Workflow thân chung chỉ thấy đúng bốn secret truyền vào đây. Không có
     #    đường nào — kể cả gõ nhầm một input — cho nó chạm tới `PROD_*`.
     secrets:

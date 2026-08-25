@@ -88,6 +88,10 @@ jobs:
       moi_truong: production
       commit_sha: ${{ needs.kiem-moc.outputs.sha }}
       compose_file: compose.prod.yml
+      # Production KHÔNG chạy bộ seed, và nội dung thật do Công ty tự đăng — nên ở
+      # đây chỉ khẳng định được điều tối thiểu: cổng không rỗng. Khi Công ty đã đăng
+      # đủ nội dung khởi tạo thì nâng số này lên, và nó thành một phép kiểm thật.
+      so_bai_toi_thieu: 1
     secrets:
       HOST: ${{ secrets.PROD_HOST }}
       USER: ${{ secrets.PROD_USER }}

@@ -39,6 +39,17 @@ on:
         description: 'Tệp compose trên máy chủ'
         required: true
         type: string
+      so_bai_toi_thieu:
+        description: |
+          Cổng phải có ÍT NHẤT bao nhiêu bài sau lượt triển khai.
+
+          ⭐ Đây là chỗ "cổng có nội dung" thôi là một lời nói chung chung và trở thành
+             một con số kiểm được. Với staging, ngưỡng phải CAO HƠN số trang tĩnh —
+             nếu không thì quên bật bộ seed vẫn cho ra một lượt deploy xanh, đúng
+             hình dạng §10.45 mà cả bản vá này sinh ra để diệt.
+        required: false
+        default: 1
+        type: number
     # ⚠ `required: false` là cố ý. Môi trường chưa dựng xong thì secret còn rỗng, và
     #   lượt chạy phải đi tới bước "Kiểm tra đã có cấu hình máy chủ chưa" rồi bỏ qua
     #   phần triển khai kèm cảnh báo — thay vì đổ ở chỗ gọi với một thông báo của
@@ -277,16 +288,27 @@ jobs:
           echo "✓ [1/3] Đi hết chặng nginx → public-web → app → postgres"
 
           # ---- Câu 2: cổng CÓ NỘI DUNG, không phải cổng rỗng hợp lệ ----
-          bai=$(curl -fsS "$BASE_URL/api/v1/public/articles?page=0&size=12" || true)
-          case "$bai" in
-            *'"slug":'*) ;;
-            *)
-              echo "::error::Cổng không trả về bài nào — deploy xanh mà cổng rỗng (§10.45)."
-              echo "Kiểm: migration seed có chạy không (\`SEED_LOCATION\` trong .env của máy chủ),"
-              echo "và log của \`docker compose run --rm migrator\` ở bước Triển khai."
-              exit 1 ;;
-          esac
-          echo "✓ [2/3] Cổng có nội dung"
+          can="${{ inputs.so_bai_toi_thieu }}"
+          bai=$(curl -fsS "$BASE_URL/api/v1/public/articles?page=0&size=100" || true)
+          # Mỗi hàng có đúng một `"slug":`; siêu dữ liệu phân trang không có khoá ấy.
+          #
+          # ⚠⚠ `|| true` KHÔNG phải để cho có. Dưới `set -euo pipefail`, `grep` không
+          #    khớp gì thì thoát 1, pipefail nâng cả pipeline thành thất bại, và bước
+          #    này chết NGAY ở dòng gán — tức là đúng trường hợp "cổng rỗng" lại cho
+          #    ra một exit 1 trần không kèm dòng chẩn đoán nào, còn khối `if` bên dưới
+          #    thì không bao giờ chạy. Đo trực tiếp bằng `bash -c` với thân rỗng.
+          co=$(printf '%s' "$bai" | grep -o '"slug":' | wc -l | tr -d ' ' || true)
+
+          if [ "${co:-0}" -lt "$can" ]; then
+            echo "::error::Cổng chỉ có $co bài, cần ít nhất $can."
+            echo ""
+            echo "Với staging, ngưỡng đặt CAO HƠN số trang tĩnh nên con số này phân biệt được"
+            echo "'bộ seed đã chạy' với 'chỉ còn mấy trang tĩnh của migration cấu trúc'."
+            echo "Kiểm theo thứ tự: (1) \`/opt/songnhue/.env\` có SEED_LOCATION và SEED_MEDIA_DIR chưa"
+            echo "— tệp .env KHÔNG được rsync, phải thêm tay; (2) log \`run --rm migrator\` ở bước trên."
+            exit 1
+          fi
+          echo "✓ [2/3] Cổng có $co bài (cần ≥ $can)"
 
           # ---- Câu 3: MinIO CÓ BYTE — thứ không câu SQL nào chứng minh được ----
           #
