@@ -3376,3 +3376,177 @@ Gỡ bộ canh khỏi workflow → 3/5 bài đỏ.
 **Điều cần rút ra cho lần sau.** Khi một bản vá "không hiệu quả", câu hỏi đầu tiên không phải *"vá
 sai chỗ à?"* mà là **"bản vá có thật sự đang chạy không?"** — §10.36 đã ghi đúng bài học này
 (lượt kiểm chứng IDOR chạy trên jar cũ còn nguyên bản vá) và tôi vẫn đi lại đúng đường đó.
+
+---
+
+### §10.54. ⚠⚠ Trang chủ cổng chưa từng hiển thị dữ liệu thật sau một lượt triển khai — 14 bài viết bịa che một trang rỗng (25/8/2026)
+
+**Triệu chứng người dùng báo.** *"Deploy đã thành công, nhưng tại sao nội dung seeding 5 bài viết vẫn chưa xuất hiện?"* — trong khi smoke test câu 2 của chính lượt deploy ấy in `✓ Cổng có 9 bài (cần ≥ 9)`.
+
+Cả hai đều đúng. Đó là chỗ đáng sợ của vụ này.
+
+#### Hai lỗi xếp chồng, và chúng che nhau
+
+| | Lỗi | Hệ quả riêng lẻ |
+|---|---|---|
+| **A** | `next build` dựng sẵn trang chủ và ghi HTML vào image. Lượt build chạy ở CI, **không có backend** → `apiGet` nuốt lỗi, trả `null` → bản nướng KHÔNG CÓ BÀI NÀO | Trang chủ rỗng sau mỗi lượt deploy, cho tới khi ISR dựng lại |
+| **B** | Bảy component của trang chủ có mảng `DEFAULT_*` viết cứng, trộn theo kiểu `articles.length >= 4 ? articles : [...articles, ...BIA]` | Mảng rỗng cho ra một trang **ĐẦY** |
+
+**A** sinh ra trang rỗng. **B** làm trang rỗng trông đầy. Cộng lại: người dùng mở cổng ngay sau lượt deploy thấy một trang chủ hoàn chỉnh, đẹp, và **không có một dòng nội dung thật nào**. Vài phút sau ISR dựng lại, `curl` đo thấy 5/5 bài seed. Hai người nhìn cùng một URL ở hai thời điểm và thấy hai thứ khác nhau — không ai sai, và không có lỗi nào để đọc.
+
+#### Quy mô của B
+
+| Component | Bịa | Mức |
+|---|---|---|
+| `HomeHeroFeatured` · `HomeLatestNewsFeed` · `DirectiveDocumentsSection` · `PortalSidebar` | **19 bài viết** có tiêu đề, ngày đăng, lượt xem, slug | cao |
+| `DirectiveDocumentsSection` | **4 văn bản có SỐ HIỆU và NGƯỜI KÝ** — `158/QĐ-SN`, `89/TB-SN`, "Chủ tịch Công ty", "Tổng Giám đốc" | **rất cao** — bịa văn bản pháp quy của doanh nghiệp nhà nước |
+| `HydrologyQuickWidget` | **5 trạm + mực nước + một mức "Cảnh báo BĐ I"** gắn tên cống có thật (Hà Đông, Cầu Cung, Cổ Nhuế, Vân Đình, Đồng Quan), kèm chấm "live" nhấp nháy và dòng "Cập nhật trực tuyến" | **rất cao** — số liệu thủy văn bịa trên cổng của công ty thủy lợi |
+| `AffiliatedUnitsLinks` | **8 xí nghiệp + địa chỉ + số điện thoại** | **rất cao** |
+| `PortalSidebar` | 1 số **trực ban PCTT** ghi cứng — số người dân gọi khi có sự cố | **rất cao** |
+| `SiteHeader` | menu dự phòng 10 mục, **3 mục trỏ tới chuyên mục không tồn tại** (`he-thong-cong-trinh`, `lich-van-hanh`, `pctt`) | cao — quảng cáo khu vực bấm vào là 404 |
+| `HomeMediaGallery` | 4 ảnh **hotlink từ Unsplash** + 1 video YouTube gắn tiêu đề "Phóng sự … Sông Nhuệ" | cao — rò rỉ sang bên thứ ba, và `images.remotePatterns` đang để rỗng |
+| `SiteFooter` | `site.footer.social.*` rơi về `https://facebook.com` · tên Công ty ghi cứng lần thứ hai | trung bình |
+| `CategoryServicesGrid` | 4 chuyên mục; và khi có đủ 4 chuyên mục thật thì **vẫn mượn phần mô tả bịa** làm giá trị dự phòng | trung bình |
+
+`CLAUDE.md` cấm đích danh chuyện này (*"⛔ Cấm seed dữ liệu công trình/thuỷ văn 'cho đẹp demo'"*), và luật 16 nói *"số 0 là một câu khẳng định"*. Bộ seed 5 bài còn có cổng chặn `SEED_LOCATION` nên production không nhìn thấy được; **19 bài này nằm trong bundle, production sẽ hiện y nguyên**.
+
+#### Vì sao không bộ canh nào bắt được
+
+Ba lớp phòng thủ cùng trượt, mỗi lớp một kiểu:
+
+1. **`vitest.config.mts` cố ý loại component ra**, có ghi lý do: *"kiểm chúng cho tử tế cần cả backend… dựng một tầng mock nửa vời chỉ tạo ra thứ xanh mà không chứng minh gì"*. Lý lẽ đúng cho Server Component gọi API — nhưng `HomeHeroFeatured` là component thuần trình bày, nhận `articles` qua props. Một luật đúng bị áp quá rộng thành một vùng không ai soi.
+2. **`siteContactConfig.test.ts` chỉ đọc HAI tệp** — `SiteFooter.tsx` và `SiteHeader.tsx` — trong khi 9 số điện thoại bịa nằm ở `components/home/` và `PortalSidebar.tsx`. Luật 12: bảo đảm đặt ở *nơi gọi* thay vì *chỗ dữ liệu đi qua*.
+3. **Và ngay cả khi soi đúng tệp thì regex vẫn trượt.** Bản đang dùng đòi **đúng bốn nhóm số** vì được chỉnh cho `(024) 33.546.247`; nó không khớp `(024) 3382 4580` — dạng ba nhóm — tức toàn bộ 8 số của khối xí nghiệp. Đây là **lần thứ ba** cùng một regex phải nới ra vì không khớp dữ liệu thật đang chạy (luật 24, sau lần dấu chấm và lần chữ HOA).
+
+Điểm 3 là điểm đắt nhất: nó chỉ lộ ra vì bản vá lần này bắt mỗi bộ canh phải **tự kiểm chứng với một mẫu vi phạm**. Nếu chỉ nới phạm vi tệp mà không có phép tự kiểm chứng ấy, bộ canh mới vẫn xanh và 8 số vẫn nằm nguyên.
+
+#### Đường điều tra — và ba lượt tôi tự làm mình đi chệch
+
+Tôi hỏi sai câu ba lần, và cả ba đều cùng một hình dạng: **tự đặt ra một phép đo không phân biệt được hai trạng thái** (luật 9).
+
+1. Bảo người dùng đọc `.next/server/app/index.html` **trong container đang chạy**. Tệp đó là chỗ ISR **ghi đè lúc chạy** — nó không phân biệt được "nướng sẵn có nội dung" với "nướng rỗng rồi bị ghi đè". Kết quả trả về `✓ CÓ bài seed`, và suýt nữa đóng hồ sơ sai. Phép đo đúng là đọc **image** (`docker run --rm <img>`) — hoặc, như hoá ra, dựng lại ở máy và đọc `prerender-manifest`, thứ có sẵn trong repo từ đầu.
+2. Đặt `connection()` ở `page.tsx`, rồi kết luận "xong" khi thấy `/` ra `ƒ` — nhưng lượt sửa chuyển nó sang `lib/api.ts` **chưa từng được nạp** (một `cd` hỏng làm `&&` ngắt mạch, python không chạy), nên `ƒ` ấy vẫn là công của bản vá cũ. Cả `✓ typecheck` lẫn bảng route đều xác nhận nhầm. Chính bài kiểm mới bắt được — đúng luật 10, lần thứ hai trong hai ngày.
+3. Hai phép khẳng định của tôi đỏ oan vì **chú thích tôi vừa viết** có nhắc tên hằng số đang bị cấm — cùng cái bẫy `SeedGateTest` từng dính với `DELETE FROM articles` (luật 2). Bộ canh mới vì thế bỏ chú thích trước khi soi, và có một bài kiểm riêng cho chính bộ lọc bỏ chú thích ấy.
+
+#### Bản vá
+
+**Về A — đặt bảo đảm ở chokepoint, không ở từng route.**
+
+`await connection()` đặt ở đầu `apiGetWithMeta` — chỗ **duy nhất** mọi lượt đọc API đi qua. "Đọc API mà vẫn bị dựng sẵn" trở thành điều không biểu diễn được (luật 12).
+
+Bản đầu đặt ở `page.tsx`, và `sitemap.ts` lập tức chứng minh vì sao cách đó sai: nó đọc `getArticles` bằng một đường không ai để ý, nên sitemap trong image chỉ có **đúng một url**, host là `http://localhost:3000`. Chuyển về chokepoint thì `/`, `/_not-found` và `/sitemap.xml` cùng ra `ƒ` trong một lần, và ngoại lệ `force-dynamic` từng phải thêm cho sitemap **tự tiêu**.
+
+⚠ Cố ý **không** dùng `dynamic = 'force-dynamic'`: nó hạ mặc định `fetch` xuống `no-store`, backend sẽ phải trả lời mọi lượt truy cập. Giữ ISR thì phải thêm `fetchCache = 'default-cache'` — hai công tắc phải nhớ cùng lúc (luật 14). `connection()` không đụng tới cache của `fetch`, nên `next.revalidate = 300` giữ nguyên: backend vẫn chỉ bị hỏi 1 lần / 5 phút, chỉ bước dựng React chạy theo request.
+
+📌 Đây đúng là cái bẫy mà `next.config.ts` **đã ghi cho `rewrites()`** — *"Next gọi `rewrites()` lúc BUILD… bị nướng cứng vào image"*. Đã chữa cho `rewrites`, không ai nghĩ tiếp rằng **HTML prerender cũng bị ghim y hệt**; và không ai thấy, vì bộ dữ liệu bịa làm trang trông đầy.
+
+**Về B — xoá sạch, thay bằng `EmptyBlock`.**
+
+Ô nào chưa có nguồn thì nói thẳng là chưa có, kèm lý do (*"Mô-đun Quản lý dữ liệu thủy văn (MOD-03) chưa được đấu nối"*, *"Hệ thống văn bản điều hành là hệ thống riêng — cổng chỉ liên kết sang, không đồng bộ dữ liệu (CN-01.7)"*). Menu dự phòng của đầu trang rút về **một mục duy nhất** — trang chủ, tuyến đường do chính Next định nghĩa. Tên Công ty ở chân trang rơi về `SITE.name` thay vì một bản sao viết tay thứ hai.
+
+#### Phép kiểm — 25 bài mới, mỗi bộ canh tự chứng minh nó bắt được vi phạm
+
+`noFabricatedContent.test.ts` soi **toàn bộ `src/`** (không chỉ hai tệp), ba tầng chồng nhau:
+
+1. **theo tên trường** — `slug` · `publishedAt` · `viewCount` · `waterLevel` · số hiệu văn bản · số điện thoại · email · địa chỉ. Mỗi hình dạng đi kèm **một mẫu vi phạm** và một bài khẳng định regex khớp được mẫu ấy. Chính phép tự kiểm chứng này phát hiện regex điện thoại cũ không nhận dạng ba nhóm.
+2. **theo cấu trúc** — mọi `const X = [...]` có ≥3 object literal, bắt cả loại trường chưa ai nghĩ ra (luật 24). Danh sách cho phép có **đúng một** mục, kèm lý do.
+3. **theo tên miền ngoài** — danh sách cho phép, chặn hotlink quay lại.
+
+`noBuildTimePrerender.test.ts` canh chokepoint: `connection()` phải có, phải nhập từ `next/server`, phải nằm **trước** `fetch`, không route nào của cổng được dùng `force-dynamic`, không route nào khai `generateStaticParams`.
+
+`siteContactConfig.test.ts` nay chỉ giữ hợp đồng "đọc từ cấu hình"; ba phép canh hình dạng đã **chuyển hẳn** sang bài soi toàn cây — xoá chứ không `it.skip`, vì một bài bị bỏ qua đọc như đã có coverage. Phép canh dự phòng cứng nới từ `company.*`/`??` sang mọi khoá `company.*`|`site.*` và cả `||`, và phân biệt **chuỗi viết cứng** với **giá trị tính ra** (`SITE.name`, `` `© ${năm} ${tên}` ``).
+
+**Đo cả hai chiều** — gỡ đúng một dòng `await connection()` khỏi `lib/api.ts`:
+
+| | `/` | `/_not-found` | `/sitemap.xml` |
+|---|---|---|---|
+| gỡ | `○` tĩnh | `○` tĩnh | `○` tĩnh |
+| giữ | `ƒ` | `ƒ` | `ƒ` |
+
+Bộ canh đỏ 2 bài kèm đúng dòng chẩn đoán. ⚠ Lượt gỡ đầu tiên **không** đo được gì: build chết ở `TS6133: 'connection' is declared but its value is never read` trước khi in bảng route — phải gỡ cả dòng `import` mới thấy `○`. Một lần nữa, bản hỏng phải được xác nhận là **đã nạp** thì phép kiểm chứng ngược mới nói lên điều gì (luật 10).
+
+**Kết quả**: 222 test FE (142 admin + **80** cổng, trước là 55) · typecheck · eslint · `next build` đều xanh.
+
+⭐ **Và đo một lần nữa ở đúng chỗ `make ci-local` không với tới được.** Hai job chỉ sống trên
+runner (quét CVE · đóng gói image) chạy trên cây checkout sạch, không có `.env.local`; mọi lượt
+build ở máy đều nạp tệp ấy. Nên bản vá này được kiểm thêm bằng một lượt `docker build` mang
+**đúng đối số của `ci.yml`** (`NEXT_PUBLIC_API_BASE_URL=` và `NEXT_PUBLIC_SITE_URL=` cùng để
+rỗng) — và đo *bên trong image sinh ra*:
+
+```
+┌ ƒ /                 ← trước bản vá: ○, kèm index.html chứa 19 liên kết /bai-viet/ bịa
+├ ƒ /_not-found
+├ ƒ /sitemap.xml
+└ ○ /robots.txt       ← đúng, nó không đọc API
+/app/public-web/.next/server/app/index.html → không tồn tại
+```
+
+Đây là hình dạng đã trả giá ở §10.38: một biến môi trường rỗng là trạng thái chỉ runner mới có.
+Kiểm bản vá bằng `npm run build` ở máy là kiểm một môi trường khác với môi trường sẽ chạy.
+
+#### Điều cần rút ra cho lần sau
+
+**Một bộ dữ liệu dự phòng "cho giao diện luôn sống động" là một cơ chế biến lỗi thành im lặng.** Nó không làm dịu một sự cố — nó xoá dấu vết của sự cố. Trang chủ này hỏng từ ngày dựng, đi qua một lượt nghiệm thu WS-21 và một lượt deploy staging, và thứ duy nhất tố cáo nó là 14 dòng log prefetch tới những slug không tồn tại — thứ chỉ đọc được vì đang truy một lỗi khác.
+
+Luật 16 đã nói *"ô số liệu chưa có nguồn phải trả rỗng kèm lý do"*. Vụ này bổ sung vế còn thiếu: **ràng buộc ấy phải ép ở component, không ép bằng lời dặn** — và phải có một bộ canh soi **toàn cây**, vì "ở đây thì chưa có nguồn" là câu người viết component nào cũng tự thấy mình là ngoại lệ.
+
+---
+
+### §10.55. `minio-init` đo thay vì khai báo, và bộ seed rút về một công tắc duy nhất (26/8/2026)
+
+Hai nợ mở ra từ §10.52, đóng cùng lượt vì chúng nằm trên **cùng một đoạn 20 dòng** của `minio-init` và cùng một hình dạng: *một câu khẳng định không phân biệt được hai trạng thái*.
+
+#### T11.25 — hai `|| true` nuốt lỗi thật
+
+```sh
+mc admin user add    local "$KEY" "$SECRET"          || true
+mc admin policy attach local readwrite --user "$KEY" || true
+echo "✓ Bucket và tài khoản dịch vụ sẵn sàng"
+```
+
+`|| true` ở đó **có lý do chính đáng**: `add` hỏng khi tài khoản đã tồn tại, `attach` hỏng khi policy đã gắn, mà chạy lại một lượt triển khai là chuyện thường. Nên cách chữa không phải bỏ nó đi — bỏ đi thì lượt deploy thứ hai đỏ.
+
+Cách chữa là **đo trạng thái cuối** bằng chính cặp khoá ứng dụng sẽ dùng:
+
+```sh
+mc alias set svc http://minio:9000 "$KEY" "$SECRET"
+echo ok | mc pipe "svc/$BUCKET/.songnhue-init-probe" >/dev/null
+mc cat  "svc/$BUCKET/.songnhue-init-probe" >/dev/null
+mc rm   "svc/$BUCKET/.songnhue-init-probe" >/dev/null
+```
+
+Mã thoát của `mc admin` chỉ nói *lệnh đã chạy xong*; nó không nói *quyền có hiệu lực*. Ghi → đọc → xoá là thứ duy nhất nói được điều thứ hai. `add` nay tách nhánh bằng `mc admin user info` nên không cần `|| true` và một lỗi thật ở đó dừng lượt triển khai ngay; `attach` vẫn giữ `|| true`, và điều đó **an toàn** vì phép đo bên dưới bắt được hậu quả.
+
+**Đo bằng MinIO thật**, bốn kịch bản trên một container dựng tạm:
+
+| Kịch bản | bản cũ | bản mới |
+|---|---|---|
+| lượt đầu, cặp khoá hợp lệ | — | thoát 0, `✓` |
+| chạy lại, tài khoản đã có | — | thoát 0, `· tài khoản dịch vụ đã tồn tại` |
+| **secret sai độ dài** | **thoát 0**, in `✓ … sẵn sàng` | **thoát 1**, không in `✓` |
+| **policy gắn hụt** (tên policy sai, lỗi bị nuốt) | — | **thoát 1**, `Insufficient permissions to access this path .../.songnhue-init-probe` |
+
+Dòng thứ ba là đúng sự cố T11.25 mô tả. Dòng thứ tư là bài kiểm cho **chính cơ chế mới** — một cơ chế chưa ai đi qua thì chưa biết nó đúng hay sai (luật 7).
+
+⚠ Lượt đo đầu tiên của tôi báo *"bản mới cũng thoát 0"*. Sai ở **dụng cụ đo**: hàm bọc `docker run` qua một ống `| tail -4`, và zsh không có `PIPESTATUS` nên `$?` đọc được là mã thoát của `tail`. Bỏ ống đi thì hai bản tách ra ngay. Một phép đo hỏng trông y hệt một bản vá hỏng.
+
+#### T11.26 — công tắc thứ hai chỉ tồn tại để lệch
+
+Bộ seed có hai vế — hàng trong CSDL (`migrator`) và byte trong MinIO (`minio-init`) — và trước đây mỗi vế một biến môi trường. Biến thứ hai **không mang thông tin gì**: đường dẫn trong container đã bị bind mount ghim ở `/seed-media`. Nó chỉ có một khả năng duy nhất là **lệch** với biến thứ nhất, và lệch là hỏng câm:
+
+- có hàng, không có byte → CSDL nói tệp tồn tại, `GET /api/v1/public/files/<id>` trả 404
+- có byte, không có hàng → tệp nằm trong bucket không ai đọc tới
+
+`SeedGateTest.haiVeKhongDuocLech` canh đúng chỗ đó — nhưng nó soi **hai tệp mẫu trong repo**, không soi `/opt/songnhue/.env` đang chạy trên máy chủ. Tức nó canh được bản mẫu chứ không canh được thứ quyết định hành vi (luật 12).
+
+Nay `minio-init` đọc thẳng `SEED_LOCATION` và dùng `/seed-media` cố định. **Trạng thái lệch trở thành không biểu diễn được**, và bài canh cặp không còn việc gì để làm.
+
+Thay nó bằng một bài khác hẳn: canh việc bản vá **không bị hoàn tác** — quét toàn bộ `deploy/` và khẳng định tên biến cũ không xuất hiện lại ở đâu. Nếu ai đó tách lại hai vế, họ sẽ không có bài canh cặp nào để đỡ, vì bài ấy đã bị gỡ cùng lúc.
+
+📌 Tên biến cũ trong bài kiểm được ghép từ hai mảnh (`"SEED_MEDIA" + "_DIR"`) để chính mã nguồn của bộ canh không khớp phép canh của nó — cùng cái bẫy chú thích đã dính **ba lần** trong đợt này.
+
+#### Kết quả
+
+`SeedGateTest` 9 → **10 bài**; gói `deploy` 48/48 xanh. Kiểm chứng ngược cả hai bài mới: đưa biến cũ trở lại một tệp `deploy/` → đỏ đúng tệp đó; gỡ dòng `mc cat` khỏi phép probe → đỏ với *"phép đo phải GHI, ĐỌC và XOÁ"*.
+
+⛔ **Không cần thao tác tay trên máy chủ.** `/opt/songnhue/.env` của staging đang có cả hai biến; biến bị bỏ đơn giản là không còn ai đọc, còn `SEED_LOCATION` thì `minio-init` nhận qua `${SEED_LOCATION:-}`. Dọn dòng thừa trong `.env` là việc tuỳ, không phải điều kiện.

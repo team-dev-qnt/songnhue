@@ -46,38 +46,24 @@ describe('Cổng lấy thông tin liên hệ của Công ty từ cấu hình', (
     expect(NGUON).toContain(`'${khoa}'`);
   });
 
-  it.each([
-    ['SiteFooter.tsx', () => NGUON],
-    ['SiteHeader.tsx', () => NGUON_HEADER],
-  ])('⛔ %s không còn số điện thoại nào ghi cứng', (_ten, doc) => {
-    // Bắt theo HÌNH DẠNG số điện thoại Việt Nam có mã vùng trong ngoặc, không bắt theo một chuỗi
-    // cụ thể: khoá theo đúng số đang dùng thì người sau đổi sang số khác vẫn ghi cứng mà vẫn xanh.
-    //
-    // ⚠⚠ Bản đầu viết `\(\d{3,4}\)\s*\d{3,4}\s*\d{3,4}` — CHỈ chấp nhận khoảng trắng giữa các
-    //    nhóm số, nên nó **bỏ lọt đúng định dạng Công ty đang dùng**: `(024) 33.546.247` có dấu
-    //    chấm. Đo thật ngày 24/8: một bản vá giao diện đặt lại số điện thoại, fax và hotline vào
-    //    mã nguồn, và bài kiểm này **xanh trọn vẹn** — chỉ bài canh email bắt được. Một bộ canh
-    //    không nhận ra dạng dữ liệu thật thì nó canh cho ai?
-    //
-    //    Nay chấp nhận dấu chấm, gạch ngang hoặc khoảng trắng làm dấu phân nhóm.
-    const soDienThoai = /\(\d{3,4}\)[\s.-]*\d{2,4}[\s.-]*\d{3,4}[\s.-]*\d{3,4}/g;
-    expect(doc().match(soDienThoai) ?? []).toEqual([]);
-  });
-
+  /*
+   * ⛔⛔ BA PHÉP CANH HÌNH DẠNG (điện thoại · email · địa chỉ) ĐÃ CHUYỂN SANG
+   *     `noFabricatedContent.test.ts`, nơi chúng soi TOÀN BỘ `src/`.
+   *
+   *     Lý do chuyển, đo được 25/8: chúng chỉ đọc đúng hai tệp — `SiteFooter.tsx` và
+   *     `SiteHeader.tsx` — trong khi `components/home/AffiliatedUnitsLinks.tsx` chứa TÁM số
+   *     điện thoại bịa và `PortalSidebar.tsx` chứa một số trực ban PCTT ghi cứng. Chín con số
+   *     nằm ngoài tầm với suốt thời gian bộ canh này báo xanh.
+   *
+   *     Và ngay cả khi đã soi đúng tệp thì regex cũ vẫn không bắt được: nó đòi ĐÚNG BỐN nhóm
+   *     số vì được chỉnh cho `(024) 33.546.247`, nên `(024) 3382 4580` — dạng ba nhóm — đi
+   *     lọt. Đây là lần thứ ba cùng một regex phải nới ra vì không khớp dữ liệu thật đang
+   *     dùng (luật 24), và là lý do bản mới tự kiểm chứng với CẢ HAI định dạng.
+   *
+   *     Bài này nay chỉ giữ thứ đặc thù cho chân/đầu trang: hợp đồng "đọc từ cấu hình".
+   */
   it('thanh đầu trang đọc số đường dây nóng từ cấu hình', () => {
     expect(NGUON_HEADER).toContain("'company.hotline'");
-  });
-
-  it('⛔ không còn email hay tên miền của Công ty ghi cứng trong mã', () => {
-    expect(NGUON).not.toMatch(/[\w.+-]+@[\w-]+\.[\w.]+/);
-  });
-
-  it('⛔ không còn địa chỉ trụ sở ghi cứng trong mã', () => {
-    // ⚠⚠ Bản đầu phân biệt hoa thường, và địa chỉ mới của Công ty viết HOA toàn bộ
-    //    (`… QUẬN HÀ ĐÔNG - THÀNH PHỐ HÀ NỘI.`) nên nó đi lọt — cùng một lượt vá giao diện, cùng
-    //    một kiểu bỏ sót với bộ canh số điện thoại ở trên. Thêm cờ `i`, và thêm những mốc địa danh
-    //    của địa chỉ mới chứ không chỉ giữ mốc của địa chỉ cũ.
-    expect(NGUON).not.toMatch(/thanh bình|mộ lao|hà đông|xala|new house/i);
   });
 
   it('⛔ không dòng nào của chân trang dùng chuỗi cứng làm giá trị dự phòng cho `company.*`', () => {
@@ -85,8 +71,20 @@ describe('Cổng lấy thông tin liên hệ của Công ty từ cấu hình', (
     // loại dữ liệu (điện thoại, email, địa chỉ) nên luôn có loại thứ tư lọt qua: giờ làm việc,
     // tên viết tắt, số fax nước ngoài… Ở đây khẳng định trực tiếp điều thật sự cần đúng: mọi khoá
     // `company.*` phải rơi về chuỗi RỖNG, không rơi về một giá trị bịa sẵn.
-    const duPhongCung = [...NGUON.matchAll(/\['(company\.[\w.-]+)'\]\s*\?\?\s*(.+)/g)]
-      .filter(([, , duPhong]) => !duPhong.trimStart().startsWith("''"))
+    // ⚠ Bản đầu chỉ soi tiền tố `company.` và chỉ toán tử `??`. Ba khoá
+    //   `site.footer.social.*` rơi về `|| 'https://facebook.com'` — cùng một hình dạng "dự
+    //   phòng bịa", khác tiền tố và khác toán tử, nên đi lọt trọn vẹn (§10.54). Nay phủ mọi
+    //   khoá cấu hình và cả hai toán tử.
+    const duPhongCung = [
+      ...NGUON.matchAll(/\['((?:company|site)\.[\w.-]+)'\]\s*(?:\?\?|\|\|)\s*(.+)/g),
+    ]
+      // Cấm CHUỖI VIẾT CỨNG. Cho phép `''` và cho phép biểu thức không chứa chuỗi nào —
+      // `SITE.name` (hằng số sản phẩm, một nguồn duy nhất) hay `` `© ${năm} ${tên}` `` là giá
+      // trị TÍNH RA, không phải một bản sao dữ liệu sẽ mục đi khi ai đó sửa trên giao diện.
+      .filter(([, , duPhong]) => {
+        const v = duPhong.trimStart();
+        return !v.startsWith("''") && /['"][^'"]{4,}['"]/.test(v);
+      })
       .map(([, khoa]) => khoa);
 
     expect(

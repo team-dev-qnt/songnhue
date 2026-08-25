@@ -1,3 +1,5 @@
+import { connection } from 'next/server';
+
 import { API_INTERNAL_BASE_URL } from '@/lib/site';
 
 /**
@@ -76,6 +78,29 @@ export async function apiGetWithMeta<T>(
   path: string,
   options: FetchOptions = {},
 ): Promise<{ data: T | null; meta?: PageMeta } | null> {
+  // ⛔⛔ KHÔNG cho phép lượt gọi này chạy trong lúc prerender.
+  //
+  //    `next build` dựng sẵn mọi route có `revalidate` và ghi HTML kết quả vào image. Lượt
+  //    build chạy ở CI, nơi backend KHÔNG tồn tại: `fetch` hỏng, khối `catch` bên dưới nuốt
+  //    lỗi và trả `null`, nên thứ được nướng vào image là một trang không có nội dung nào.
+  //    Mỗi container mới phục vụ đúng bản ấy cho tới khi ISR dựng lại xong — tức sau MỖI lượt
+  //    triển khai, và `--force-recreate` (§10.53) bảo đảm điều đó xảy ra mỗi lần.
+  //
+  //    Đo được ngày 25/8 trên chính cây mã đang chạy staging: `prerender-manifest` liệt kê `/`,
+  //    và `.next/server/app/index.html` chứa 19 liên kết `/bai-viet/…` KHÔNG cái nào có thật —
+  //    toàn bộ là dữ liệu bịa của bộ fallback (§10.54).
+  //
+  //    ⭐ Đặt ở ĐÂY chứ không ở từng trang: đây là chỗ DUY NHẤT mọi lượt đọc API đi qua, nên
+  //      "đọc API mà vẫn bị dựng sẵn" trở thành điều không biểu diễn được, thay vì một dòng
+  //      phải nhớ thêm ở mỗi route mới (luật 12). `sitemap.ts` là bằng chứng chuyện đó xảy ra
+  //      thật: nó đọc API bằng một đường không ai để ý. Tài liệu của Next dùng `connection()`
+  //      đúng theo kiểu này cho các driver CSDL đồng bộ.
+  //
+  //    ⚠ KHÔNG dùng `dynamic = 'force-dynamic'`: nó hạ mặc định fetch xuống `no-store`, backend
+  //      sẽ phải trả lời mọi lượt truy cập. `connection()` không đụng tới cache của fetch, nên
+  //      `next.revalidate` bên dưới vẫn giữ nguyên — backend chỉ bị hỏi 1 lần / 5 phút.
+  await connection();
+
   // Địa chỉ NỘI BỘ: hàm này chỉ chạy phía máy chủ (Server Component / route handler).
   const url = `${API_INTERNAL_BASE_URL}/public${path}`;
 

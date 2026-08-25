@@ -79,6 +79,7 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 | 25/8 (sau deploy staging) | **204 No Content bị giao diện biến thành lỗi trên 24 endpoint** — việc đã commit xong mà người dùng thấy báo lỗi. Lượt sửa 22/8 đã chữa *triệu chứng thứ hai* của đúng chuỗi này — §10.40 · `DB_APP_PASSWORD` không ai đọc che mất biến thật sự thiếu — §10.41 |
 | 25/8 (smoke test staging) | **Ảnh trên cổng chưa từng trả về được một byte nào** — `ResponseEnvelopeAdvice` bọc cả `byte[]`, `ClassCastException` → 500. Endpoint *có* bài kiểm, nhưng bài kiểm dùng UUID không tồn tại nên chỉ đi nhánh 404 — §10.52 |
 | 25/8 (sau khi merge bản vá) | **Bản vá không bao giờ được nạp** — lượt triển khai giải đúng digest, `pull` đúng digest, rồi compose in `Running` và giữ nguyên container cũ. Không dòng nào đo *container đang chạy cái gì* — §10.53 |
+| 25/8 (sau khi deploy xanh) | **Trang chủ cổng chưa từng hiện dữ liệu thật sau một lượt triển khai** — `next build` nướng trang rỗng vào image (CI không có backend), và **19 bài viết + 4 văn bản có số hiệu + 5 trạm thuỷ văn + 9 số điện thoại bịa** ghi cứng trong component làm trang rỗng trông đầy. Smoke test xanh, người dùng thấy trang không có nội dung seed — cả hai đều đúng — §10.54 |
 
 ⛔ Hệ quả rút ra: **"đã tick" không phải bằng chứng.** Trước khi mở một giai đoạn mới, đối chiếu với mã thật và chạy đường mà người dùng thật đi.
 
@@ -86,14 +87,14 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 
 ⛔ **Cấm seed dữ liệu công trình/thuỷ văn "cho đẹp demo"** — ô nào chưa có nguồn thì nói thẳng là chưa có.
 
-**Codebase đo ngày 25/8**: **565 test BE** (239 core + 20 content + 24 operations + 282 app) + **197 test FE** (142 admin + 55 public) · **74 mã lỗi** (BE = FE) · 88 quyền / 12 vai trò / 334 dòng phân quyền · **32 bài ArchUnit** (7 lớp, gồm 11 bài tự-kiểm chứng minh luật bắt được vi phạm) · 7 phép kiểm bộ đọc tracking · mọi cổng bao phủ **chạy thật** (content 18.2%) · 0 CVE ≥ 7.
+**Codebase đo ngày 25/8**: **597 test BE** (242 core + 20 content + 24 operations + 311 app) + **222 test FE** (142 admin + 80 public) · **74 mã lỗi** (BE = FE) · 88 quyền / 12 vai trò / 334 dòng phân quyền · **32 bài ArchUnit** (7 lớp, gồm 11 bài tự-kiểm chứng minh luật bắt được vi phạm) · 7 phép kiểm bộ đọc tracking · mọi cổng bao phủ **chạy thật** (content 18.2%) · 0 CVE ≥ 7.
 
 ### Tra ở đâu
 
 | Cần gì | Đọc ở đâu |
 |---|---|
 | Nợ đang treo, task còn lại | **`.claude/master-tracking.md`** — nguồn DUY NHẤT (conventions.md §6). `phase0-tracking.md` / `phase1-tracking.md` chỉ là lưu trữ, cấm sửa |
-| **Lý do** một quyết định, **nguyên nhân gốc** một lỗi đã sửa | `architecture-review.md` **§9** (Phase 0, 14 mục) · **§10** (Phase 1, 41 mục — §10.35 đợt vá sau WS-22, §10.36 nghiệm thu lại WS-21 + DoD, §10.37 nghiệm thu image, §10.38 CI đỏ sau merge `dev`, §10.40 lỗi 204, §10.41 biến CSDL không ai đọc, §10.52 envelope bọc `byte[]`, §10.53 container không được thay) |
+| **Lý do** một quyết định, **nguyên nhân gốc** một lỗi đã sửa | `architecture-review.md` **§9** (Phase 0, 14 mục) · **§10** (Phase 1, 41 mục — §10.35 đợt vá sau WS-22, §10.36 nghiệm thu lại WS-21 + DoD, §10.37 nghiệm thu image, §10.38 CI đỏ sau merge `dev`, §10.40 lỗi 204, §10.41 biến CSDL không ai đọc, §10.52 envelope bọc `byte[]`, §10.53 container không được thay, §10.54 trang chủ nướng rỗng + dữ liệu bịa che chỗ rỗng, §10.55 `minio-init` đo thay vì khai báo + bộ seed một công tắc) |
 | Cách viết một chức năng + bảng bẫy tra nhanh | `docs/coding-guide.md` |
 | Luật bắt buộc khi viết code | `conventions.md` |
 | Nghiệp vụ | `function-spec.md`; điểm chưa chốt → `business-open-questions.md` Phần III |
@@ -137,6 +138,7 @@ Rút ra sau khi **cùng một hình dạng lỗi lặp lại nhiều lần**. Ng
 14. **Chỗ nào con người phải nhớ hai nơi thì chỗ đó cần một phép kiểm nhớ hộ** — enum SPI ↔ enum domain · từ vựng trình soạn thảo ↔ danh sách cho phép của bộ lọc ↔ CSS cổng công khai · mã lỗi BE ↔ FE · URL tile ↔ CSP.
 15. **Công tắc / cột / tham số chưa ai đọc là một lỗi, không phải việc để dành** — `limits.upload.max-mb.*`, `company.*`, `attachments.valid_from` đều bày ra ở giao diện hoặc lược đồ mà không dòng mã nào đọc. ⛔ Hệ quả: **không seed tham số `settings` cho tính năng chưa dựng**.
 16. **Số 0 là một câu khẳng định** — ô số liệu chưa có nguồn phải trả rỗng kèm lý do, và ràng buộc đó ép ở **hàm dựng** chứ không ở lời dặn.
+    ⛔ **Và cấm mọi bộ dữ liệu dự phòng "cho giao diện luôn sống động"** — nó không làm dịu một sự cố, nó xoá dấu vết của sự cố: `articles.length >= 4 ? articles : [...articles, ...BIA]` khiến một mảng RỖNG cho ra một trang chủ ĐẦY. 19 bài viết, 4 văn bản có số hiệu và người ký, 5 trạm thuỷ văn có mực nước, 9 số điện thoại — tất cả đã lên staging. Bộ canh phải soi **toàn cây**, vì "ở đây thì chưa có nguồn" là câu người viết component nào cũng tự thấy mình là ngoại lệ (§10.54).
 17. **Đổi trạng thái chỉ qua Workflow engine, và cấm lách bằng transition giả** — hash chain đang ký tên vào lịch sử, bịa một bước chuyển là bịa một chữ ký.
 
 18. **Việc làm xong nửa đường trông y hệt việc làm xong** — nghiệm thu WS-21 tìm ra một placeholder văn bản, một component gọi sai kiểu, một `navigate` mà đầu nhận không đọc; cả ba đều đã được tích ✅. Nghiệm thu phải đối chiếu với **mã thật**, không đối chiếu với bản ghi tiến độ.

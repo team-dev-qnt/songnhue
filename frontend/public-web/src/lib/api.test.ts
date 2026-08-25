@@ -3,6 +3,19 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getArticle, getArticles } from '@/lib/api';
 
 /**
+ * `apiGetWithMeta` mở đầu bằng `await connection()` — cái chốt chặn `next build` dựng sẵn nội
+ * dung khi backend chưa tồn tại (§10.54, xem `noBuildTimePrerender.test.ts`). Hàm ấy ném khi
+ * gọi ngoài phạm vi một request, mà vitest thì chạy trần.
+ *
+ * ⚠ Giả lập ở đây là ranh giới FRAMEWORK, không phải chỗ mã chạm ra ngoài: thứ những bài dưới
+ *   đây khẳng định là việc bóc envelope và quy đổi phân trang, và `fetch` — chỗ thật sự chạm
+ *   ra ngoài — vẫn được thay bằng bản giả có kiểm soát ở từng bài. Việc `connection()` CÓ nằm
+ *   trên đường chạy được canh bằng một bài riêng ở tầng cấu trúc, không canh bằng bài này
+ *   (luật 4).
+ */
+vi.mock('next/server', () => ({ connection: () => Promise.resolve() }));
+
+/**
  * Bóc envelope và quy đổi phân trang.
  *
  * <h3>Vì sao bài kiểm này tồn tại</h3>

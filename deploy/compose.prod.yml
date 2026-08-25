@@ -122,9 +122,19 @@ services:
       MINIO_BUCKET_MEDIA: ${MINIO_BUCKET_MEDIA}
       MINIO_BUCKET_REPORT: ${MINIO_BUCKET_REPORT}
       MINIO_BUCKET_AUDIT: ${MINIO_BUCKET_AUDIT}
-      # Rỗng = không nạp byte seed. Chỉ staging đặt `/seed-media`, cùng lúc với
-      # `SEED_LOCATION` ở `migrator` — `SeedGateTest` canh hai vế không được lệch.
-      SEED_MEDIA_DIR: ${SEED_MEDIA_DIR:-}
+      # ⭐ MỘT công tắc cho CẢ HAI vế của bộ seed — đúng biến `migrator` đọc.
+      #
+      #   Trước đây có hai biến: một ở `migrator`, một ở đây. Biến thứ hai không
+      #   mang thông tin gì — đường dẫn trong container đã bị bind mount bên dưới
+      #   ghim ở `/seed-media` — nên nó chỉ tồn tại để có thể LỆCH với biến thứ
+      #   nhất. Mà lệch nghĩa là:
+      #     • có hàng, không có byte → CSDL nói tệp tồn tại, `GET` trả 404
+      #     • có byte, không có hàng → tệp nằm trong bucket không ai đọc tới
+      #
+      #   `SeedGateTest` từng canh chỗ đó, nhưng nó soi TỆP MẪU TRONG REPO chứ
+      #   không soi `/opt/songnhue/.env` đang chạy — canh được bản mẫu, không
+      #   canh được máy chủ. Nay lệch là điều **không biểu diễn được** (T11.26).
+      SEED_LOCATION: ${SEED_LOCATION:-}
     volumes:
       # ⚠ BỐ CỤC THƯ MỤC CHÍNH LÀ KHOÁ ĐỐI TƯỢNG. Tệp nằm ở
       #   `deploy/seed/media/seed/portal/<public_id>.jpeg` nên `mc cp --recursive`
@@ -145,18 +155,45 @@ services:
         #   xoá được cả bucket audit đã bật versioning; ứng dụng không cần
         #   quyền đó và không được có nó. Chiếm được tiến trình app thì cùng
         #   lắm mất tệp, không mất bằng chứng đối soát.
-        mc admin user add local "$$MINIO_ACCESS_KEY" "$$MINIO_SECRET_KEY" || true
-        mc admin policy attach local readwrite --user "$$MINIO_ACCESS_KEY" || true
-        echo "✓ Bucket và tài khoản dịch vụ sẵn sàng"
-        if [ -n "$$SEED_MEDIA_DIR" ]; then
+        # ⚠ `add` hỏng khi tài khoản ĐÃ CÓ, `attach` hỏng khi policy ĐÃ GẮN — đó
+        #   là lý do bản trước viết `|| true` sau cả hai. Nhưng `|| true` nuốt
+        #   luôn mọi lỗi THẬT, nên một cặp khoá sai vẫn in `✓ sẵn sàng` rồi để
+        #   ứng dụng chết ở lượt tải tệp đầu tiên (T11.25).
+        #
+        #   Cách chữa không phải bỏ `|| true` — chạy lại lượt triển khai là
+        #   chuyện thường — mà là ĐO trạng thái cuối thay vì tin vào mã thoát.
+        if mc admin user info local "$$MINIO_ACCESS_KEY" >/dev/null 2>&1; then
+            echo "· tài khoản dịch vụ đã tồn tại"
+        else
+            mc admin user add local "$$MINIO_ACCESS_KEY" "$$MINIO_SECRET_KEY"
+        fi
+        mc admin policy attach local readwrite --user "$$MINIO_ACCESS_KEY" >/dev/null 2>&1 || true
+
+        # ⭐⭐ ĐO bằng CHÍNH cặp khoá ứng dụng sẽ dùng: ghi → đọc → xoá một đối
+        #    tượng thử. Đây là thứ duy nhất phân biệt được "đã gọi hai lệnh trên"
+        #    với "ứng dụng thật sự dùng được kho" — mã thoát của `mc admin` chỉ
+        #    nói lệnh chạy xong, không nói quyền có hiệu lực (luật 9).
+        #
+        #    Policy `readwrite` không theo bucket nên một bucket chứng minh được
+        #    cặp khoá; sự tồn tại của ba bucket đã do `mc mb` + `set -e` bảo đảm.
+        mc alias set svc http://minio:9000 "$$MINIO_ACCESS_KEY" "$$MINIO_SECRET_KEY"
+        thu=".songnhue-init-probe"
+        echo ok | mc pipe "svc/$$MINIO_BUCKET_MEDIA/$$thu" >/dev/null
+        mc cat "svc/$$MINIO_BUCKET_MEDIA/$$thu" >/dev/null
+        mc rm "svc/$$MINIO_BUCKET_MEDIA/$$thu" >/dev/null
+        echo "✓ Bucket sẵn sàng; tài khoản dịch vụ ghi-đọc-xoá được trên $$MINIO_BUCKET_MEDIA"
+
+        if [ -n "$$SEED_LOCATION" ]; then
+            # Đường dẫn do bind mount ở trên ghim — KHÔNG phải một biến thứ hai.
+            thu_muc=/seed-media
             # ⚠ Bật mà thư mục rỗng thì DỪNG, đừng đi tiếp im lặng: đó chính là
-            #   trạng thái "CSDL có hàng, MinIO không có byte" mà cả khối chú
-            #   thích ở trên nói tới. Hỏng ở đây rẻ hơn hỏng ở trình duyệt.
-            if [ -z "$$(ls -A "$$SEED_MEDIA_DIR" 2>/dev/null)" ]; then
-                echo "✗ SEED_MEDIA_DIR=$$SEED_MEDIA_DIR đang bật nhưng không có tệp nào" >&2
+            #   trạng thái "CSDL có hàng, MinIO không có byte" mà khối chú thích
+            #   ở trên nói tới. Hỏng ở đây rẻ hơn hỏng ở trình duyệt.
+            if [ -z "$$(ls -A "$$thu_muc" 2>/dev/null)" ]; then
+                echo "✗ SEED_LOCATION=$$SEED_LOCATION bật nhưng $$thu_muc không có tệp nào" >&2
                 exit 1
             fi
-            mc cp --quiet --recursive "$$SEED_MEDIA_DIR/" "local/$$MINIO_BUCKET_MEDIA/"
+            mc cp --quiet --recursive "$$thu_muc/" "local/$$MINIO_BUCKET_MEDIA/"
             echo "✓ Đã nạp byte seed vào $$MINIO_BUCKET_MEDIA"
         fi
 

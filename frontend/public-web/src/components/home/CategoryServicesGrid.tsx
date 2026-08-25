@@ -1,3 +1,8 @@
+import { EmptyBlock } from './EmptyBlock';
+
+/** Bộ biểu tượng xoay vòng — chỉ để trang trí ô chuyên mục. */
+const VONG_BIEU_TUONG = ['dam', 'shield', 'water', 'file'] as const;
+
 import Link from 'next/link';
 
 import type { CategoryNode } from '@/lib/api';
@@ -7,45 +12,21 @@ interface CategoryServicesGridProps {
   categories: CategoryNode[];
 }
 
-const DEFAULT_SERVICES = [
-  {
-    title: 'Quản lý Công trình Thủy lợi',
-    description: 'Vận hành cống, trạm bơm tiêu thoát nước, cụm đầu mối lưu vực sông Nhuệ',
-    slug: 'quan-ly-cong-trinh',
-    iconType: 'dam',
-  },
-  {
-    title: 'Phòng chống Thiên tai & PCTT',
-    description: 'Phương án hộ đê, ứng phó ngập úng mùa mưa bão và xả lũ khẩn cấp',
-    slug: 'phong-chong-thien-tai',
-    iconType: 'shield',
-  },
-  {
-    title: 'Dịch vụ Tưới tiêu Nội đồng',
-    description: 'Cung cấp nước phục vụ sản xuất nông nghiệp, sinh hoạt và cải tạo môi trường',
-    slug: 'dich-vu-thuy-loi',
-    iconType: 'water',
-  },
-  {
-    title: 'Cải cách Hành chính & Pháp chế',
-    description: 'Quy trình thủ tục, công khai minh bạch dịch vụ công và văn bản chính sách',
-    slug: 'cai-cach-hanh-chinh',
-    iconType: 'file',
-  },
-];
-
 export function CategoryServicesGrid({ categories }: CategoryServicesGridProps) {
   // Lấy các category cấp 0 từ backend hoặc fallback sang bộ chuyên mục tiêu chuẩn
-  const rootCategories = categories.filter((c) => c.depth === 0);
-  const items =
-    rootCategories.length >= 4
-      ? rootCategories.slice(0, 4).map((c, i) => ({
-          title: c.name,
-          description: c.description || DEFAULT_SERVICES[i]?.description || '',
-          slug: c.slug,
-          iconType: DEFAULT_SERVICES[i]?.iconType || 'water',
-        }))
-      : DEFAULT_SERVICES;
+  // ⛔ Bản trước: có dưới 4 chuyên mục thì thay TOÀN BỘ bằng bốn chuyên mục viết cứng, và khi
+  //    đủ 4 thì vẫn mượn phần mô tả viết cứng làm giá trị dự phòng — tên thật ghép mô tả bịa.
+  //    Nay hiện đúng những gì CMS có, kể cả khi chỉ có một.
+  const items = categories
+    .filter((c) => c.depth === 0)
+    .slice(0, 4)
+    .map((c, i) => ({
+      title: c.name,
+      description: c.description ?? '',
+      slug: c.slug,
+      // Thuần trang trí, xoay vòng theo vị trí — không mang thông tin nghiệp vụ nào.
+      iconType: VONG_BIEU_TUONG[i % VONG_BIEU_TUONG.length],
+    }));
 
   const renderIcon = (type: string) => {
     switch (type) {
@@ -128,37 +109,45 @@ export function CategoryServicesGrid({ categories }: CategoryServicesGridProps) 
         </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {items.map((item) => (
-          <Link
-            key={item.slug}
-            href={ROUTES.category(item.slug)}
-            className="group relative flex flex-col overflow-hidden rounded-xl border border-surface-border bg-white p-5 shadow-xs transition-all duration-300 ease-smooth hover:-translate-y-1 hover:border-brand-primary hover:shadow-md"
-          >
-            {/* Vạch Accent Bar 3px trên đỉnh */}
-            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand-primaryGradientFrom to-brand-primary opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+      {items.length === 0 ? (
+        <div className="mt-5">
+          <EmptyBlock>Chưa có chuyên mục nào được tạo trong CMS.</EmptyBlock>
+        </div>
+      ) : (
+        <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {items.map((item) => (
+            <Link
+              key={item.slug}
+              href={ROUTES.category(item.slug)}
+              className="group relative flex flex-col overflow-hidden rounded-xl border border-surface-border bg-white p-5 shadow-xs transition-all duration-300 ease-smooth hover:-translate-y-1 hover:border-brand-primary hover:shadow-md"
+            >
+              {/* Vạch Accent Bar 3px trên đỉnh */}
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand-primaryGradientFrom to-brand-primary opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-brand-primaryLight transition-transform duration-300 ease-smooth group-hover:scale-110">
-              {renderIcon(item.iconType)}
-            </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-brand-primaryLight transition-transform duration-300 ease-smooth group-hover:scale-110">
+                {renderIcon(item.iconType)}
+              </div>
 
-            <h3 className="mt-4 text-sm font-bold text-surface-textBase transition-colors duration-200 group-hover:text-brand-primary sm:text-base">
-              {item.title}
-            </h3>
+              <h3 className="mt-4 text-sm font-bold text-surface-textBase transition-colors duration-200 group-hover:text-brand-primary sm:text-base">
+                {item.title}
+              </h3>
 
-            {item.description ? (
-              <p className="mt-2 line-clamp-2 text-xs text-surface-textSecondary">
-                {item.description}
-              </p>
-            ) : null}
+              {item.description ? (
+                <p className="mt-2 line-clamp-2 text-xs text-surface-textSecondary">
+                  {item.description}
+                </p>
+              ) : null}
 
-            <div className="mt-4 flex items-center gap-1 text-xs font-semibold text-brand-primary">
-              <span>Khám phá</span>
-              <span className="transition-transform duration-200 group-hover:translate-x-1">➔</span>
-            </div>
-          </Link>
-        ))}
-      </div>
+              <div className="mt-4 flex items-center gap-1 text-xs font-semibold text-brand-primary">
+                <span>Khám phá</span>
+                <span className="transition-transform duration-200 group-hover:translate-x-1">
+                  ➔
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

@@ -12,143 +12,14 @@ import { SITE } from '@/lib/site';
  * 1. Dải nhận diện thương hiệu (Brand Masthead): Logo + Tên đầy đủ cơ quan + Slogan + Thông tin liên hệ
  * 2. Thanh điều hướng chính (Main Navbar): Xanh thương hiệu gradient, sticky top, menu đa cấp dropdown, tìm kiếm
  */
-const DEFAULT_HEADER_MENU: MenuLink[] = [
+/** Dự phòng khi API menu không trả lời. Chỉ chứa tuyến đường do chính Next định nghĩa. */
+const MENU_TOI_THIEU: MenuLink[] = [
   {
     label: 'Trang chủ',
     linkType: 'URL',
     url: '/',
     categorySlug: null,
     articleSlug: null,
-    openNewTab: false,
-    depth: 0,
-    parentLabel: null,
-  },
-  {
-    label: 'Giới thiệu',
-    linkType: 'CATEGORY',
-    url: null,
-    categorySlug: 'gioi-thieu',
-    articleSlug: null,
-    openNewTab: false,
-    depth: 0,
-    parentLabel: null,
-  },
-  {
-    label: 'Tổng quan & Lịch sử hình thành',
-    linkType: 'ARTICLE',
-    url: null,
-    categorySlug: null,
-    articleSlug: 'gioi-thieu-chung',
-    openNewTab: false,
-    depth: 1,
-    parentLabel: 'Giới thiệu',
-  },
-  {
-    label: 'Chức năng & Nhiệm vụ',
-    linkType: 'ARTICLE',
-    url: null,
-    categorySlug: null,
-    articleSlug: 'chuc-nang-nhiem-vu',
-    openNewTab: false,
-    depth: 1,
-    parentLabel: 'Giới thiệu',
-  },
-  {
-    label: 'Cơ cấu tổ chức & Ban Lãnh đạo',
-    linkType: 'ARTICLE',
-    url: null,
-    categorySlug: null,
-    articleSlug: 'co-cau-to-chuc',
-    openNewTab: false,
-    depth: 1,
-    parentLabel: 'Giới thiệu',
-  },
-  {
-    label: 'Hệ thống Công trình Thủy lợi',
-    linkType: 'ARTICLE',
-    url: null,
-    categorySlug: null,
-    articleSlug: 'he-thong-cong-trinh',
-    openNewTab: false,
-    depth: 1,
-    parentLabel: 'Giới thiệu',
-  },
-  {
-    label: 'Tin tức',
-    linkType: 'CATEGORY',
-    url: null,
-    categorySlug: 'tin-tuc',
-    articleSlug: null,
-    openNewTab: false,
-    depth: 0,
-    parentLabel: null,
-  },
-  {
-    label: 'Tin hoạt động Công ty',
-    linkType: 'CATEGORY',
-    url: null,
-    categorySlug: 'tin-tuc',
-    articleSlug: null,
-    openNewTab: false,
-    depth: 1,
-    parentLabel: 'Tin tức',
-  },
-  {
-    label: 'Công tác PCTT & Vận hành bão lũ',
-    linkType: 'CATEGORY',
-    url: null,
-    categorySlug: 'pctt',
-    articleSlug: null,
-    openNewTab: false,
-    depth: 1,
-    parentLabel: 'Tin tức',
-  },
-  {
-    label: 'Thông báo',
-    linkType: 'CATEGORY',
-    url: null,
-    categorySlug: 'thong-bao',
-    articleSlug: null,
-    openNewTab: false,
-    depth: 0,
-    parentLabel: null,
-  },
-  {
-    label: 'Thông báo điều hành xả nước',
-    linkType: 'CATEGORY',
-    url: null,
-    categorySlug: 'thong-bao',
-    articleSlug: null,
-    openNewTab: false,
-    depth: 1,
-    parentLabel: 'Thông báo',
-  },
-  {
-    label: 'Lịch vận hành cống & trạm bơm',
-    linkType: 'CATEGORY',
-    url: null,
-    categorySlug: 'lich-van-hanh',
-    articleSlug: null,
-    openNewTab: false,
-    depth: 1,
-    parentLabel: 'Thông báo',
-  },
-  {
-    label: 'Văn bản điều hành',
-    linkType: 'URL',
-    url: 'http://songnhue.bhh40.net',
-    categorySlug: null,
-    articleSlug: null,
-    openNewTab: true,
-    depth: 0,
-    parentLabel: null,
-  },
-  {
-    label: 'Liên hệ',
-    linkType: 'ARTICLE',
-    url: null,
-    categorySlug: null,
-    articleSlug: 'lien-he',
     openNewTab: false,
     depth: 0,
     parentLabel: null,
@@ -166,7 +37,11 @@ export async function SiteHeader() {
   //    giao diện chỉ đổi được một nơi, và hai con số khác nhau trên cùng một trang tệ hơn hẳn một
   //    con số cũ. Khoá `company.hotline` đã seed ở `V202608241255`.
   const hotline = config?.['company.hotline'] ?? '';
-  const activeMenu = menu && menu.length > 0 ? menu : DEFAULT_HEADER_MENU;
+  // ⛔ Bản trước rơi về một menu 10 mục viết cứng, trong đó BA mục trỏ tới chuyên mục không hề
+  //    tồn tại (`he-thong-cong-trinh`, `lich-van-hanh`, `pctt`) — cổng quảng cáo những khu vực
+  //    mà bấm vào là 404, và chỉ hiện đúng lúc backend hỏng, tức lúc không ai soi (§10.54).
+  //    Dự phòng nay chỉ còn tuyến đường mà bản thân ứng dụng bảo đảm có: trang chủ.
+  const activeMenu = menu && menu.length > 0 ? menu : MENU_TOI_THIEU;
   const tree = buildMenuTree(activeMenu);
 
   return (
