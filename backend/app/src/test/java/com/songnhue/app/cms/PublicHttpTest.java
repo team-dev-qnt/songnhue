@@ -2,14 +2,31 @@ package com.songnhue.app.cms;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.util.Set;
+import java.util.UUID;
+
+import javax.imageio.ImageIO;
+
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 
+import com.songnhue.app.testsupport.CmsFixtures;
 import com.songnhue.app.testsupport.IntegrationTestBase;
+import com.songnhue.content.application.MediaService;
+import com.songnhue.core.application.attachment.VirusScanHandler;
+import com.songnhue.core.common.security.AuthContext;
+import com.songnhue.core.common.security.AuthenticatedUser;
+import com.songnhue.core.spi.AttachmentRef;
+import com.songnhue.core.spi.JobContext;
 
 /**
  * Nhóm API công khai, gọi <b>qua HTTP thật</b> — WS-16.
@@ -35,6 +52,21 @@ class PublicHttpTest extends IntegrationTestBase {
 
     @Autowired
     private TestRestTemplate http;
+
+    @Autowired
+    private MediaService media;
+
+    @Autowired
+    private VirusScanHandler virusScanHandler;
+
+    @Autowired
+    private JdbcTemplate jdbc;
+
+    @AfterEach
+    void ketThuc() {
+        AuthContext.clear();
+        CmsFixtures.donDep(jdbc);
+    }
 
     @Test
     @DisplayName("⭐ Endpoint công khai vào được mà KHÔNG cần đăng nhập")
@@ -125,5 +157,91 @@ class PublicHttpTest extends IntegrationTestBase {
                 http.getForEntity("/api/v1/public/files/00000000-0000-0000-0000-000000000000", String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    /**
+     * Ảnh công khai trả về <b>nguyên byte</b> — đi hết đường thật: MinIO → service → controller →
+     * chuỗi filter → {@code ResponseEnvelopeAdvice} → HTTP.
+     *
+     * <h2>Vì sao bài này phải tồn tại dù {@code core} đã có bài cho advice</h2>
+     *
+     * Bài ở {@code core} dùng controller giả lập. Bài này đi qua đúng controller đang chạy trên
+     * cổng, đúng chuỗi filter, đúng kho tệp — luật 5: cam kết nằm ở controller/filter thì phải
+     * kiểm qua HTTP.
+     *
+     * <h2>Nó trả món nợ nào</h2>
+     *
+     * Bài kiểm duy nhất của endpoint này trước đây dùng UUID không tồn tại, nên chỉ đi nhánh 404.
+     * Nhánh trả byte chạy lần đầu trên staging và trả <b>500</b>:
+     * {@code ClassCastException: ApiResponse cannot be cast to [B}. Mọi ảnh bìa trên cổng hỏng, mà
+     * 391 bài kiểm vẫn xanh (§10.52).
+     */
+    @Test
+    @DisplayName("⭐⭐ Ảnh công khai trả NGUYÊN BYTE qua HTTP thật — không bọc envelope")
+    void anhCongKhaiTraNguyenByte() {
+        dangNhap("cms:media:manage");
+        byte[] goc = anhPng(24, 18);
+        AttachmentRef tep = media.upload(media.createFolder("Ảnh cổng", null).getPublicId(), "bia.png", goc);
+        chayBuocQuet(tep.publicId());
+        AuthContext.clear();
+
+        // ⚠ Xin byte[] chứ không xin String: xin String thì RestTemplate tự giải mã theo charset và
+        //   một thân JSON sai vẫn "đọc được", nên phép so sánh không phân biệt được hai trạng thái.
+        ResponseEntity<byte[]> response = http.getForEntity("/api/v1/public/files/" + tep.publicId(), byte[].class);
+
+        assertThat(response.getStatusCode())
+                .as("500 ở đây = envelope đang bọc byte[]; 404 = tệp chưa qua bước quét")
+                .isEqualTo(HttpStatus.OK);
+        assertThat(response.getHeaders().getContentType()).isEqualTo(MediaType.IMAGE_PNG);
+        assertThat(response.getBody())
+                .as(
+                        """
+                        Thân phải là ĐÚNG byte đã tải lên. Khẳng định "không rỗng" hay "có magic PNG" \
+                        đều không đủ: cả hai vẫn xanh nếu ai đó trả nhầm một ảnh khác.""")
+                .isEqualTo(goc);
+    }
+
+    // ---- Trợ giúp ------------------------------------------------------------
+
+    /** Ảnh PNG thật — magic bytes thật, không phải mấy byte bịa cho qua bộ kiểm định dạng. */
+    private static byte[] anhPng(int rong, int cao) {
+        try {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            ImageIO.write(new BufferedImage(rong, cao, BufferedImage.TYPE_INT_RGB), "png", out);
+            return out.toByteArray();
+        } catch (Exception e) {
+            throw new IllegalStateException("Không dựng được ảnh cho bài kiểm", e);
+        }
+    }
+
+    /**
+     * Chạy bước quét virus cho tệp vừa tải — worker nền cố ý tắt ở môi trường kiểm thử.
+     *
+     * <p>Không có bước này thì {@code isDownloadable()} false và endpoint trả 404, tức là bài kiểm
+     * lại rơi đúng vào nhánh mà bản cũ đã kiểm rồi.
+     */
+    private void chayBuocQuet(UUID attachmentPublicId) {
+        Long id = jdbc.queryForObject("SELECT id FROM attachments WHERE public_id = ?", Long.class, attachmentPublicId);
+        try {
+            virusScanHandler.handle(new JobContext(
+                    UUID.randomUUID(), "VIRUS_SCAN", "{\"attachmentId\":%d}".formatted(id), null, percent -> {}));
+        } catch (Exception e) {
+            throw new IllegalStateException("Bước quét lỗi", e);
+        }
+    }
+
+    private static void dangNhap(String... quyen) {
+        AuthContext.set(new AuthenticatedUser(
+                1L,
+                UUID.randomUUID(),
+                "public-http-probe",
+                "Người kiểm thử",
+                1L,
+                "/1/",
+                Set.of("PROBE"),
+                Set.of(quyen),
+                false,
+                UUID.randomUUID(),
+                UUID.randomUUID()));
     }
 }

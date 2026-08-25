@@ -3211,3 +3211,92 @@ Lượt thứ hai đồng thời là **bằng chứng cổng chặn production h
 ⚠ Bản đầu của bài kiểm câu 3 in *"0 khoá không ra được byte"* rồi vẫn đỏ — một dòng không phân biệt được *"mọi khoá đều tốt"* với *"không có khoá nào để đối chiếu"* (luật 9). Đã tách thành hai nhánh.
 
 ⚠ `ScriptDockerLookupTest` bắt được bản đầu của chính `rehearse.sh`: luật cũ **cấm tuyệt đối** `docker compose` trong script. Luật ấy nay chính xác hơn — *gọi compose thì phải TỰ CẤP đủ ba biến image, và cấp TRƯỚC lượt gọi đầu tiên*. Đúng tinh thần §10.48 (compose nội suy toàn bộ tệp trước khi làm gì), và không phải một danh sách miễn trừ để người ta thêm tên vào.
+
+### §10.52. ⚠⚠ Ảnh trên cổng chưa từng trả về được một byte nào — envelope bọc cả `byte[]` (25/8/2026)
+
+**Triệu chứng.** Lượt triển khai staging đi qua hết: migrator chạy, 9 bài lên cổng, byte seed vào
+MinIO (337 KiB, `mc` xác nhận). Câu 3 của smoke test đỏ:
+
+```
+curl: (22) The requested URL returned error: 500
+Ảnh bìa 15509c57-… không ra được byte (content-type: 'application/json').
+```
+
+**Ba giả thuyết đầu đều sai, và sai theo cùng một kiểu.** Tôi lần lượt ngờ `SEED_MEDIA_DIR` không
+có trong `.env`, rồi bucket lệch tên, rồi chứng chỉ TLS của `FILES_DOMAIN`. Cả ba đều là giả thuyết
+về **hạ tầng**, vì lượt hỏng nằm trong một lượt triển khai. Cả ba bị bác bỏ bằng một lệnh. Thứ chấm
+dứt việc đoán là dòng log thật:
+
+```
+java.lang.ClassCastException: ApiResponse cannot be cast to class [B
+  at ByteArrayHttpMessageConverter.getContentLength(...:38)
+  at HttpEntityMethodProcessor.handleReturnValue(...)
+```
+
+📌 `/var/log/songnhue` là bind mount ra host, nên log **sống sót qua cả lượt quay lui**. Đó là lý do
+đọc được nguyên nhân sau khi container đã bị thay. Giữ nguyên tính chất này.
+
+**Nguyên nhân gốc.** `ResponseEnvelopeAdvice.beforeBodyWrite` bọc **mọi** thân phản hồi dưới
+`/api/v1` vào `ApiResponse`. Nhưng Spring chọn `HttpMessageConverter` theo **kiểu trả về của
+handler**, trước khi advice chạy. `PublicPortalController.file()` khai `ResponseEntity<byte[]>` nên
+được gán `ByteArrayHttpMessageConverter`; converter ấy ép kiểu thân về `[B` lúc tính
+`Content-Length` → `ClassCastException` → 500, **sau khi** đã đọc xong toàn bộ byte từ MinIO
+(603 ms trong log).
+
+Advice đã từng phải chừa `StringHttpMessageConverter` ra một lần rồi. Đây là **lần thứ hai của đúng
+một hình dạng**, và lần đầu được chữa bằng cách thêm một trường hợp riêng — nên lần thứ hai không
+có gì chặn.
+
+**Vì sao 565 bài kiểm không bắt được.** Endpoint này *có* bài kiểm:
+
+```java
+@DisplayName("⛔ Mã tệp không tồn tại trả 404, không lộ ra kho có gì")
+http.getForEntity("/api/v1/public/files/00000000-0000-0000-0000-000000000000", …)
+```
+
+UUID không tồn tại → chỉ đi nhánh 404. **Nhánh trả byte — nhánh duy nhất hỏng — chưa ai đi qua.**
+Luật 7 ở dạng thuần khiết: một cơ chế chưa ai đi qua thì chưa biết nó đúng hay sai. Và nó nằm ngay
+cạnh một bài kiểm trông rất giống một bài kiểm đầy đủ.
+
+**Bản vá — đổi danh sách cấm thành danh sách cho phép.**
+
+```java
+if (!AbstractJackson2HttpMessageConverter.class.isAssignableFrom(selectedConverterType)) {
+    return body;
+}
+```
+
+⛔ Cố ý **không** viết `if (body instanceof byte[]) return body;`. Đó là bắt theo từng loại dữ liệu,
+và luôn có loại thứ tư lọt qua — `Resource`, `StreamingResponseBody`, SSE, protobuf (luật 24). Hỏi
+"converter này có ghi được `ApiResponse` không" thì mọi loại về sau tự đi đúng đường mà không ai
+phải nhớ.
+
+**Phép kiểm — bốn bài, hai tầng, cả hai tầng đều đã kiểm chứng ngược (luật 10).**
+
+| Bài | Ở đâu | Khẳng định |
+|---|---|---|
+| `anhKhongBiBocEnvelope` | `core` | `ResponseEntity<byte[]>` trả **đúng mảng byte**, không phải JSON |
+| `resourceCungKhongBiBoc` | `core` | `Resource` cũng vậy — chứng minh phép chừa canh **converter**, không canh `byte[]` |
+| `jsonVanBiBocNhuCu` | `core` | kiểm chứng ngược: `return body;` vô điều kiện cũng làm hai bài trên xanh, nhưng gỡ envelope khỏi toàn hệ |
+| `anhCongKhaiTraNguyenByte` | `app` | **đường production**: tải ảnh lên MinIO thật → `GET /api/v1/public/files/{id}` qua HTTP thật → so byte với bản gốc |
+
+Gỡ bản vá ra chạy lại: `core` đỏ 2 bài với đúng `ApiResponse cannot be cast to class [B`, `app` đỏ
+1 bài với đúng `GET /api/v1/public/files/… → 500`. Cùng một dòng chữ với log staging.
+
+⚠ Bài ở `app` xin `byte[].class` chứ không xin `String.class`: xin `String` thì `RestTemplate` tự
+giải mã theo charset và một thân JSON sai vẫn "đọc được" — phép khẳng định sẽ không phân biệt được
+hai trạng thái (luật 9).
+
+**Điều đáng ghi nhận.** Câu 3 của smoke test — thêm ở §10.51 và bị nghi là thừa — là thứ duy nhất
+bắt được lỗi này. Nó bắt vì nó hỏi **một câu mà không tầng nào khác hỏi**: "byte có ra khỏi hệ
+thống được không". Đây là bằng chứng cho luật 5 theo chiều thuận, chứ không phải chiều nghịch.
+
+**Nợ mở ra từ lượt này** (chưa làm, không chặn):
+
+1. `minio-init` nuốt lỗi bằng `mc admin user add … || true` và `mc admin policy attach … || true` —
+   tài khoản dịch vụ hỏng vẫn in `✓ Bucket và tài khoản dịch vụ sẵn sàng`.
+2. `SEED_MEDIA_DIR` không mang thông tin gì: đường dẫn trong container đã bị bind mount ghim ở
+   `/seed-media`. Nó chỉ nhắc lại "seed đang bật", tức là một công tắc thứ hai tồn tại chỉ để lệch
+   với công tắc thứ nhất. Cho `minio-init` đọc thẳng `SEED_LOCATION` thì lệch thành **không biểu
+   diễn được** — thay vì được canh bằng `SeedGateTest.haiVeKhongDuocLech`, bài kiểm soi **tệp mẫu
+   trong repo** chứ không soi `/opt/songnhue/.env` đang chạy (luật 12).
