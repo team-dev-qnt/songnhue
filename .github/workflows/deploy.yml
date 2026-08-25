@@ -407,7 +407,7 @@ jobs:
             echo ""
             echo "Với staging, ngưỡng đặt CAO HƠN số trang tĩnh nên con số này phân biệt được"
             echo "'bộ seed đã chạy' với 'chỉ còn mấy trang tĩnh của migration cấu trúc'."
-            echo "Kiểm theo thứ tự: (1) \`/opt/songnhue/.env\` có SEED_LOCATION và SEED_MEDIA_DIR chưa"
+            echo "Kiểm theo thứ tự: (1) \`/opt/songnhue/.env\` có SEED_LOCATION chưa"
             echo "— tệp .env KHÔNG được rsync, phải thêm tay; (2) log \`run --rm migrator\` ở bước trên."
             exit 1
           fi
@@ -438,7 +438,7 @@ jobs:
               image/*) echo "✓ [3/3] MinIO trả byte đúng kiểu ($kieu) cho $anh" ;;
               *)
                 echo "::error::Ảnh bìa $anh không ra được byte (content-type: '${kieu:-không có}')."
-                echo "Hàng CSDL nói tệp tồn tại mà kho thì không — kiểm \`SEED_MEDIA_DIR\` và log \`minio-init\`."
+                echo "Hàng CSDL nói tệp tồn tại mà kho thì không — kiểm \`SEED_LOCATION\` và log \`minio-init\`."
                 exit 1 ;;
             esac
           fi

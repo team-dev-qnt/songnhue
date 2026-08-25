@@ -1,46 +1,8 @@
 import Link from 'next/link';
 
 import type { ArticleRow, BannerItem } from '@/lib/api';
+import { EmptyBlock } from './EmptyBlock';
 import { fileUrl, formatDate, ROUTES } from '@/lib/routes';
-
-const DEFAULT_HERO_ARTICLES: ArticleRow[] = [
-  {
-    title:
-      'Hội nghị Triển khai Công tác Vận hành & Phòng chống Thiên tai năm 2026 Lưu vực Sông Nhuệ',
-    slug: 'trien-khai-cong-tac-van-hanh-pctt-2026',
-    summary:
-      'Công ty TNHH MTV Đầu tư Phát triển Thủy lợi Sông Nhuệ tổ chức hội nghị tổng kết và giao chỉ tiêu vận hành các cụm công trình đầu mối, bảo đảm an toàn hệ thống đê điều và tưới tiêu phục vụ sản xuất.',
-    publishedAt: '2026-08-20T08:00:00Z',
-    viewCount: 1420,
-    coverAttachmentPublicId: null,
-  },
-  {
-    title: 'Chủ động vận hành Trạm bơm Yên Nghĩa tiêu úng phục vụ sản xuất nông nghiệp vụ Mùa',
-    slug: 'van-hanh-tram-bom-yen-nghia-vu-mua',
-    summary:
-      'Công tác trực ban 24/24h tại các tổ máy bơm Yên Nghĩa bảo đảm tiêu thoát nước nhanh chóng.',
-    publishedAt: '2026-08-19T09:30:00Z',
-    viewCount: 890,
-    coverAttachmentPublicId: null,
-  },
-  {
-    title: 'Kiểm tra an toàn hệ thống cống đầu mối Liên Mạc và Cầu Cung trước mùa mưa bão',
-    slug: 'kiem-tra-an-toan-cong-dau-moi-lien-mac',
-    summary:
-      'Đoàn công tác Ban Lãnh đạo Công ty kiểm tra thực tế hiện trạng các cụm công trình thủy lợi trọng điểm.',
-    publishedAt: '2026-08-18T14:15:00Z',
-    viewCount: 650,
-    coverAttachmentPublicId: null,
-  },
-  {
-    title: 'Đẩy mạnh chuyển đổi số trong quan trắc thủy văn và giám sát mực nước tự động',
-    slug: 'chuyen-doi-so-quan-trac-thuy-van-song-nhue',
-    summary: 'Ứng dụng hệ thống cảm biến SCADA giám sát mực nước và lưu lượng theo thời gian thực.',
-    publishedAt: '2026-08-17T16:00:00Z',
-    viewCount: 520,
-    coverAttachmentPublicId: null,
-  },
-];
 
 interface HomeHeroFeaturedProps {
   banner?: BannerItem | null;
@@ -55,12 +17,10 @@ interface HomeHeroFeaturedProps {
  * - Tự động ưu tiên bài từ API thật, bổ sung fallback khi dữ liệu chưa đủ để giao diện luôn sống động.
  */
 export function HomeHeroFeatured({ banner, articles }: HomeHeroFeaturedProps) {
-  const mergedArticles =
-    articles.length >= 4
-      ? articles
-      : [...articles, ...DEFAULT_HERO_ARTICLES.slice(articles.length)];
-  const leadArticle = mergedArticles[0];
-  const subArticles = mergedArticles.slice(1, 4);
+  // ⛔ KHÔNG lấp chỗ trống. Bản trước ghép thêm bốn bài viết cứng khi có dưới 4 bài, nên một
+  //    mảng rỗng vẫn cho ra khối tiêu điểm đầy đủ — hỏng câm, xem `EmptyBlock`.
+  const leadArticle = articles[0];
+  const subArticles = articles.slice(1, 4);
 
   const leadCover = leadArticle ? fileUrl(leadArticle.coverAttachmentPublicId) : null;
   const bannerImage = banner ? fileUrl(banner.imageId) : null;
@@ -133,7 +93,9 @@ export function HomeHeroFeatured({ banner, articles }: HomeHeroFeaturedProps) {
             ) : null}
           </div>
         </div>
-      ) : null}
+      ) : (
+        <EmptyBlock>Chưa có tin tức nào được xuất bản.</EmptyBlock>
+      )}
 
       {/* ───── 2. Lưới 3 tin tiêu điểm phụ bên dưới ───── */}
       {subArticles.length > 0 ? (

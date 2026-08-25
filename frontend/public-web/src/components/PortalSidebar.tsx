@@ -2,54 +2,12 @@ import Link from 'next/link';
 
 import type { ArticleRow } from '@/lib/api';
 import { formatDate, ROUTES } from '@/lib/routes';
+import { EmptyBlock } from './home/EmptyBlock';
 
 interface PortalSidebarProps {
   latestArticles?: ArticleRow[];
   hotline?: string;
 }
-
-const DEFAULT_SIDEBAR_NEWS: ArticleRow[] = [
-  {
-    title: 'Phát động phong trào thi đua hoàn thành kế hoạch tưới tiêu phục vụ sản xuất',
-    slug: 'phat-dong-thi-dua-hoan-thanh-ke-hoach-tuoi-tieu',
-    summary: '',
-    publishedAt: '2026-08-20T10:00:00Z',
-    viewCount: 320,
-    coverAttachmentPublicId: null,
-  },
-  {
-    title: 'Công tác trực ban 24/24h phòng chống bão số 3 và ngập úng đô thị vùng ven',
-    slug: 'truc-ban-phong-chong-bao-so-3',
-    summary: '',
-    publishedAt: '2026-08-19T15:30:00Z',
-    viewCount: 450,
-    coverAttachmentPublicId: null,
-  },
-  {
-    title: 'Bảo dưỡng định kỳ hệ thống máy đóng mở cống và tổ máy bơm trạm Vân Đình',
-    slug: 'bao-duong-dinh-ky-tram-bom-van-dinh',
-    summary: '',
-    publishedAt: '2026-08-18T08:45:00Z',
-    viewCount: 210,
-    coverAttachmentPublicId: null,
-  },
-  {
-    title: 'Tăng cường tuần tra, xử lý vi phạm hành lang bảo vệ công trình thủy lợi',
-    slug: 'tuan-tra-xu-ly-vi-pham-hanh-lang-thuy-loi',
-    summary: '',
-    publishedAt: '2026-08-17T11:20:00Z',
-    viewCount: 190,
-    coverAttachmentPublicId: null,
-  },
-  {
-    title: 'Tập huấn kỹ thuật vận hành cửa van tự động cho cán bộ kỹ thuật các xí nghiệp',
-    slug: 'tap-huan-ky-thuat-van-hanh-cua-van',
-    summary: '',
-    publishedAt: '2026-08-16T14:10:00Z',
-    viewCount: 165,
-    coverAttachmentPublicId: null,
-  },
-];
 
 /**
  * Sidebar dùng chung cho tất cả các trang con (Danh mục, Bài viết, Tìm kiếm).
@@ -59,10 +17,9 @@ const DEFAULT_SIDEBAR_NEWS: ArticleRow[] = [
  * - Khối Liên kết dịch vụ công và văn bản quy phạm.
  */
 export function PortalSidebar({ latestArticles = [], hotline = '' }: PortalSidebarProps) {
-  const displayNews =
-    latestArticles.length >= 5
-      ? latestArticles.slice(0, 5)
-      : [...latestArticles, ...DEFAULT_SIDEBAR_NEWS.slice(latestArticles.length)].slice(0, 5);
+  // ⛔ Bản trước ghép thêm năm bài viết cứng cho đủ 5 ô — cùng bộ dữ liệu, cùng cái bẫy với
+  //    trang chủ (§10.54). Có bao nhiêu thì hiện bấy nhiêu.
+  const displayNews = latestArticles.slice(0, 5);
 
   return (
     <aside className="flex flex-col gap-6">
@@ -93,7 +50,9 @@ export function PortalSidebar({ latestArticles = [], hotline = '' }: PortalSideb
             <span>{hotline}</span>
           </a>
         ) : (
-          <div className="mt-2 text-xs font-bold text-red-800">Hotline: (024) 3382 4586</div>
+          <div className="mt-2 text-xs text-red-800">
+            Chưa cấu hình số trực ban PCTT (khoá `company.hotline`).
+          </div>
         )}
       </div>
 
@@ -115,6 +74,7 @@ export function PortalSidebar({ latestArticles = [], hotline = '' }: PortalSideb
         </div>
 
         <div className="mt-3 divide-y divide-surface-border">
+          {displayNews.length === 0 ? <EmptyBlock>Chưa có tin nào.</EmptyBlock> : null}
           {displayNews.map((art, idx) => (
             <article key={art.slug} className="group py-3 first:pt-1 last:pb-1">
               <Link href={ROUTES.article(art.slug)} className="flex items-start gap-2.5">

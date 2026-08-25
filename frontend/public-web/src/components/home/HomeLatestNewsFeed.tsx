@@ -3,66 +3,6 @@ import Link from 'next/link';
 import type { ArticleRow } from '@/lib/api';
 import { formatDate, ROUTES } from '@/lib/routes';
 
-const DEFAULT_NEWS_FEED: ArticleRow[] = [
-  {
-    title: 'Phát động phong trào thi đua hoàn thành kế hoạch tưới tiêu phục vụ sản xuất',
-    slug: 'phat-dong-thi-dua-hoan-thanh-ke-hoach-tuoi-tieu',
-    summary: '',
-    publishedAt: '2026-08-20T10:00:00Z',
-    viewCount: 320,
-    coverAttachmentPublicId: null,
-  },
-  {
-    title: 'Công tác trực ban 24/24h phòng chống bão số 3 và ngập úng đô thị vùng ven',
-    slug: 'truc-ban-phong-chong-bao-so-3',
-    summary: '',
-    publishedAt: '2026-08-19T15:30:00Z',
-    viewCount: 450,
-    coverAttachmentPublicId: null,
-  },
-  {
-    title: 'Bảo dưỡng định kỳ hệ thống máy đóng mở cống và tổ máy bơm trạm Vân Đình',
-    slug: 'bao-duong-dinh-ky-tram-bom-van-dinh',
-    summary: '',
-    publishedAt: '2026-08-18T08:45:00Z',
-    viewCount: 210,
-    coverAttachmentPublicId: null,
-  },
-  {
-    title: 'Tăng cường tuần tra, xử lý vi phạm hành lang bảo vệ công trình thủy lợi',
-    slug: 'tuan-tra-xu-ly-vi-pham-hanh-lang-thuy-loi',
-    summary: '',
-    publishedAt: '2026-08-17T11:20:00Z',
-    viewCount: 190,
-    coverAttachmentPublicId: null,
-  },
-  {
-    title: 'Tập huấn kỹ thuật vận hành cửa van tự động cho cán bộ kỹ thuật các xí nghiệp',
-    slug: 'tap-huan-ky-thuat-van-hanh-cua-van',
-    summary: '',
-    publishedAt: '2026-08-16T14:10:00Z',
-    viewCount: 165,
-    coverAttachmentPublicId: null,
-  },
-  {
-    title: 'Kiểm tra chất lượng nguồn nước và các điểm xả thải dọc tuyến kênh chính',
-    slug: 'kiem-tra-chat-luong-nguon-nuoc-song-nhue',
-    summary: '',
-    publishedAt: '2026-08-15T09:00:00Z',
-    viewCount: 280,
-    coverAttachmentPublicId: null,
-  },
-];
-
-const DEFAULT_NOTICE_ITEM: ArticleRow = {
-  title: 'Thông báo lịch vận hành điều tiết xả nước đệm hạ thấp mực nước Sông Nhuệ',
-  slug: 'thong-bao-lich-van-hanh-dieu-tiet-xa-nuoc-dem',
-  summary: '',
-  publishedAt: '2026-08-20T07:00:00Z',
-  viewCount: 880,
-  coverAttachmentPublicId: null,
-};
-
 interface HomeLatestNewsFeedProps {
   latestArticles: ArticleRow[];
   noticeArticles?: ArticleRow[];
@@ -79,14 +19,13 @@ export function HomeLatestNewsFeed({
   latestArticles,
   noticeArticles = [],
 }: HomeLatestNewsFeedProps) {
-  // Lấy các bài viết từ API thật (từ bài thứ 4 trở đi sau Hero hoặc toàn bộ), nếu thiếu thì ghép thêm fallback
+  // Bài 1–4 đã nằm ở khối tiêu điểm; cột này lấy phần còn lại. Có ít hơn thì hiện ít hơn —
+  // ⛔ bản trước ghép thêm sáu bài viết cứng cho đủ 6 ô, nên nhánh "chưa có tin" bên dưới
+  //    chưa từng chạy một lần nào (luật 7).
   const rawList = latestArticles.length > 4 ? latestArticles.slice(4, 10) : latestArticles;
-  const displayArticles =
-    rawList.length >= 6
-      ? rawList.slice(0, 6)
-      : [...rawList, ...DEFAULT_NEWS_FEED.slice(rawList.length)].slice(0, 6);
+  const displayArticles = rawList.slice(0, 6);
 
-  const activeNotice = noticeArticles.length > 0 ? noticeArticles[0] : DEFAULT_NOTICE_ITEM;
+  const activeNotice = noticeArticles.length > 0 ? noticeArticles[0] : null;
 
   return (
     <aside className="flex flex-col rounded-xl border border-surface-border bg-white p-5 shadow-sm">
