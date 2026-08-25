@@ -3300,3 +3300,79 @@ thống được không". Đây là bằng chứng cho luật 5 theo chiều thu
    với công tắc thứ nhất. Cho `minio-init` đọc thẳng `SEED_LOCATION` thì lệch thành **không biểu
    diễn được** — thay vì được canh bằng `SeedGateTest.haiVeKhongDuocLech`, bài kiểm soi **tệp mẫu
    trong repo** chứ không soi `/opt/songnhue/.env` đang chạy (luật 12).
+
+### §10.53. ⚠⚠ Triển khai "theo digest" mà không ai đo lại — compose giữ container cũ, bản vá không bao giờ được nạp (25/8/2026)
+
+**Triệu chứng.** Sau khi #35 vá `ClassCastException` và được merge, lượt triển khai staging **vẫn
+đỏ ở đúng câu 3 với đúng ngoại lệ cũ**. Ba lần đọc log đầu tiên đều dẫn tới kết luận "bản vá không
+hiệu quả" — sai.
+
+**Bằng chứng chấm dứt tranh cãi.**
+
+```
+$ docker inspect songnhue-app --format '{{.Config.Image}} | {{.State.StartedAt}}'
+ghcr.io/team-dev-qnt/songnhue/app:dev  |  2026-08-25T07:19:00Z
+```
+
+Container đang chạy được dựng **07:19 bằng tay**, không phải bởi lượt triển khai 07:25. Và trong log
+runner:
+
+```
+07:25:57  Container ***-app Running     ← không phải "Recreated", không phải "Started"
+07:25:59  Container ***-app Waiting
+07:25:59  Container ***-app Healthy
+```
+
+**Nguyên nhân gốc.** Lượt triển khai làm đúng mọi việc *trừ việc cuối*:
+
+| Bước | Chứng minh được gì |
+|---|---|
+| giải tag SHA → digest | digest tồn tại trên registry |
+| `pull` | digest đã tới **đĩa máy chủ** |
+| `up -d` in `Running` | compose **kết luận** không cần thay |
+| tổng kết "Image (theo digest)" | workflow **tin** kết luận ấy |
+
+Không dòng nào trả lời câu duy nhất quan trọng: **container đang chạy cái gì.** Bản vá nằm trong
+image, image nằm trên đĩa, và không có gì nối hai thứ đó lại.
+
+📌 Đây là luật 9 ở dạng đắt nhất, và là lần thứ hai trong ba ngày: bài canh "đi bằng HTTP/1.1" xanh
+cả khi đã gỡ cấu hình, vì nó khẳng định thứ nghe có vẻ đúng thay vì **đo** thứ thật sự khác nhau
+giữa hai trạng thái.
+
+⚠ Và nó khớp với một hình dạng đã ghi ở §10.38/CLAUDE.md: **"xanh ở máy" và "xanh ở runner" không
+phải bằng chứng** — nay thêm một mục nữa vào danh sách ấy: *"compose nói không cần thay"* cũng
+không phải bằng chứng.
+
+**Bản vá — hai vế trả lời hai câu khác nhau, cần cả hai.**
+
+1. `up -d --force-recreate`. Triển khai là lúc **đặt** image đã khai vào container đang chạy — một
+   mệnh lệnh, không phải gợi ý để compose cân nhắc.
+2. Sau `up -d`, **đọc lại** ID ảnh của từng container đang chạy và so với ID ảnh của ref vừa triển
+   khai; lệch là đỏ, kèm cả ba con số.
+
+⛔ Vế 1 **không** thay được vế 2: nếu ref bị cấp sai — ví dụ `/opt/songnhue/.env` lỡ chứa
+`APP_IMAGE` và `--env-file` thắng biến `export` — thì force cũng chỉ dựng lại đúng cái image sai.
+`ComposeEnvCompletenessTest.MIEN_TRU` cấm ba biến ấy có mặt trong `.env` chính vì lý do này.
+
+⚠ So bằng **ID ảnh**, không so chuỗi tag: `.Config.Image` giữ nguyên văn ref lúc tạo container, nên
+hai ref khác nhau vẫn có thể là một ảnh, và `:dev` có thể đã trỏ sang ảnh khác từ lúc nào.
+
+**Kiểm chứng — hai tầng, cả hai đã chạy ngược.**
+
+*Hành vi*: trích nguyên vòng lặp ra khỏi workflow, chạy `bash -euo pipefail` với một `docker` giả ở
+hai kịch bản. Container đúng image → 3 dòng ✓, exit 0. Container còn bản cũ → `::error::` kèm ref
+đã khai / ID cần / ID đang chạy, exit 1. Vòng lặp **báo cáo trọn vẹn cả ba service** rồi mới thoát,
+không dừng ở lỗi đầu (luật 11).
+
+⚠ Lượt dựng bộ `docker` giả **đầu tiên xanh cả hai kịch bản** — nó đọc nhầm chỉ số đối số nên luôn
+trả cùng một chuỗi cho cả hai vế so sánh. Chính bước chứng minh cũng suýt là một xanh giả, đúng như
+§10.36 đã ghi. Sửa chỉ số rồi mới có hai kết quả khác nhau.
+
+*Cấu trúc*: `DeployImageProofTest` — 5 bài, canh trên thân workflow **đã bỏ chú thích** (khối chú
+thích trích dẫn nguyên văn các lệnh đang canh; tìm trên văn bản thô là xanh sau khi lệnh thật đã bị
+xoá — đúng cách `SeedGateTest` từng khớp trúng một `DELETE FROM articles` trong lời giải thích).
+Gỡ bộ canh khỏi workflow → 3/5 bài đỏ.
+
+**Điều cần rút ra cho lần sau.** Khi một bản vá "không hiệu quả", câu hỏi đầu tiên không phải *"vá
+sai chỗ à?"* mà là **"bản vá có thật sự đang chạy không?"** — §10.36 đã ghi đúng bài học này
+(lượt kiểm chứng IDOR chạy trên jar cũ còn nguyên bản vá) và tôi vẫn đi lại đúng đường đó.
