@@ -3488,6 +3488,17 @@ Kiểm bản vá bằng `npm run build` ở máy là kiểm một môi trường
 
 **Một bộ dữ liệu dự phòng "cho giao diện luôn sống động" là một cơ chế biến lỗi thành im lặng.** Nó không làm dịu một sự cố — nó xoá dấu vết của sự cố. Trang chủ này hỏng từ ngày dựng, đi qua một lượt nghiệm thu WS-21 và một lượt deploy staging, và thứ duy nhất tố cáo nó là 14 dòng log prefetch tới những slug không tồn tại — thứ chỉ đọc được vì đang truy một lỗi khác.
 
+⛔ **Và nguồn của nó là một tài liệu, không phải một lượt code cẩu thả.** `docs/web-refactor.md`
+— bản kế hoạch tái cấu trúc giao diện cổng — kê đích danh những thứ về sau thành dữ liệu bịa:
+*"Lưới thẻ các trạm đầu mối chính (Hà Đông, Cầu Cung, Cổ Nhuế, Vân Đình, Đồng Quan…)"*, *"Số hiệu
+(VD: `158/QĐ-SN`)"*; và Bước 1 của lộ trình ghi thẳng: *"xây dựng các khối với **Mock data dự
+phòng (Fallback an toàn** khi API backend chưa cấp đủ endpoint chuyên biệt)"*.
+
+Người viết component làm **đúng** những gì được giao. Nên vá mã mà để tài liệu nguyên là để nguyên
+cỗ máy sinh ra lỗi: lượt sau đọc nó sẽ dựng lại y hệt. Tài liệu đã bị xoá (kế hoạch đã thực hiện
+xong), điều cấm chuyển vào `docs/ui-styles.md` §4.4 — nơi người sắp dựng một khối trang chủ thật
+sự sẽ đọc.
+
 Luật 16 đã nói *"ô số liệu chưa có nguồn phải trả rỗng kèm lý do"*. Vụ này bổ sung vế còn thiếu: **ràng buộc ấy phải ép ở component, không ép bằng lời dặn** — và phải có một bộ canh soi **toàn cây**, vì "ở đây thì chưa có nguồn" là câu người viết component nào cũng tự thấy mình là ngoại lệ.
 
 ---

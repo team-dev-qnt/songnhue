@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "google_sheets_sync": {
+      "command": ".agents/mcp/google_sheets_sync/venv/bin/python",
+      "args": [".agents/mcp/google_sheets_sync/server.py"],
+      "env": {
+        "GSHEETS_SPREADSHEET_ID": "1RCaa9ak3q6KcbXTjjgvp7DGFuAb914DYUlnbvTlBpdY",
+        "GSHEETS_SHEET_NAME": "Trang tính1",
+        "GSHEETS_CREDENTIALS_PATH": ".claude/google-credentials.json"
+      }
+    }
+  }
+}

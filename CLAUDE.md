@@ -6,24 +6,28 @@ Hệ thống quản lý điều hành công trình thủy lợi + Cổng thông 
 
 **Ưu tiên xuyên suốt** (theo thứ tự): độ chính xác → nghiệp vụ chuẩn → tối ưu → vận hành/bảo trì → khả năng scale.
 
-## Cấu trúc tài liệu (đọc theo thứ tự này)
+## Cấu trúc tài liệu
+
+Khi mâu thuẫn: `architecture-review.md` > `function-spec.md` / `implement.md`.
 
 | File | Vai trò |
 |---|---|
-| `function-spec.md` | **Nguồn sự thật về nghiệp vụ** — đặc tả 5 module, trường dữ liệu, workflow, validation, RBAC, NFR |
-| `implement.md` | Kế hoạch implement — gom 4 nhóm (A Core / B Content / C Operations / D HR), thứ tự phase, cấu trúc code, checklist quyết định |
-| `architecture-review.md` | Quyết định kiến trúc/tech ĐÃ CHỐT + lý do — khi mâu thuẫn với 2 file trên, file này thắng |
-| `conventions.md` | Convention coding/design/security + đặc tả Common Platform (envelope, exception, error code, middleware, utils, RBAC 3 tầng, chống giả mạo) — **luật** bắt buộc khi viết code |
-| `docs/coding-guide.md` | **Cách làm** — công thức viết một chức năng nghiệp vụ theo thứ tự (migration → entity → workflow → service → controller → seed quyền → mã lỗi → test), kê đủ những gì Core cho sẵn để không ai dựng lại, kèm các bẫy đã trả giá. Đọc cùng `conventions.md`: file kia là luật, file này là đường đi |
-| `docs/deploy-staging.md` | **Kế hoạch thực thi staging** — chốt cấu hình VPS-2 (kèm phép cộng bộ nhớ cho thấy 4 GB không đủ), cắt chi phí ở đâu và ba chỗ cấm cắt, 9 bước theo thứ tự có phép kiểm. Dùng chung `deploy-guideline.md` §2–§4 cho phần dựng máy, không chép lại |
-| `docs/ui-styles.md` | **Quy chuẩn UI styles** — triết lý thiết kế, bảng màu (qua `design-tokens`), typography (Noto Sans), spacing, animation (nguyên tắc + danh sách được phép/cấm), component styling, responsive, accessibility. Đọc trước khi sửa CSS/theme/styling ở `admin-app` hoặc `public-web` |
-| `business-open-questions.md` | Phần I-A + I-B: BOQ đợt 1 và đợt 2 **đã đóng** (tóm tắt tại chỗ, nguyên văn ở `docs_origin/`). Phần II: **8 mục còn mở** cần khách cung cấp. Phần III: **truy vết chức năng nào còn chứa điểm chưa chốt** — đọc trước khi code 1 chức năng |
-| `phase0-tracking.md` | **Bảng theo dõi tiến độ Phase 0** — 11 hạng mục WS-1→WS-11, **107 task** dạng checkbox, mỗi WS tự chứa điều kiện tiên quyết/đầu ra/cách kiểm chứng. Tick khi làm xong; cuối file là **21 mục Definition of Done** và **Sổ nợ liên WS — nguồn duy nhất của nợ Phase 0** |
-| `phase1-tracking.md` | **Bảng theo dõi tiến độ Phase 1** (CMS + master data công trình) — 12 hạng mục WS-12→WS-23, **112 task**, 17 mục Definition of Done, sổ nợ riêng. ⭐ Chứa mục **"Nghiệp vụ — 18 điểm đã làm rõ trước khi code"**: những chỗ spec không nói hoặc nói ra hai nghĩa, kèm cột "ai quyết" (nội bộ / phải hỏi Công ty) |
-| `report-templates-proposal.md` | Đề xuất format mẫu báo cáo gửi Công ty duyệt (khung 5 khối + danh mục BC/BCNS/BCQT + trường dữ liệu). Layout chi tiết làm sau, khi vào Phase module tương ứng |
-| `docs_origin/Trả lời Business Open Questions 12.8.2026.docx.md` | **Câu trả lời chính thức của khách — đợt 1 (12/8/2026)**. Confirm **đợt 2 (mục G)** nhận qua trao đổi trực tiếp cùng ngày, ghi ở `business-open-questions.md` Phần I-B. Cả hai là nguồn của mọi thay đổi scope trong function-spec v2.2 |
-| `docs_origin/SRS_QuanTriDieuHanh_TLSN ver 06.8.2026.docx.md` | **SRS v1.0 (23/07/2026)** — đặc tả yêu cầu chính thức của khách (dự thảo lấy ý kiến). function-spec.md v2.0 đã đồng bộ cấu trúc module + traceability theo file này |
-| `docs_origin/Tổng quan HT PM...docx.md`, `docs_origin/Đặc tả hệ thống...docx.md` | Tài liệu gốc từ khách hàng — chỉ tham khảo, đã được tổng hợp vào function-spec.md |
+| `.claude/function-spec.md` | **Nguồn sự thật nghiệp vụ** — 5 module, trường dữ liệu, workflow, validation, RBAC, NFR |
+| `.claude/architecture-review.md` | Quyết định kiến trúc ĐÃ CHỐT + **nguyên nhân gốc từng sự cố** (§9 Phase 0 · §10 Phase 1). Kho lưu, không phải guideline |
+| `.claude/conventions.md` | **Luật** khi viết code + đặc tả Common Platform (envelope, exception, mã lỗi, RBAC 3 tầng, chống giả mạo) |
+| `.claude/master-tracking.md` | **Nguồn DUY NHẤT** của task và nợ (§6). Đồng bộ lên Google Sheet qua MCP `google_sheets_sync` |
+| `.claude/implement.md` | Kế hoạch implement — 4 nhóm A/B/C/D, thứ tự phase, cấu trúc code |
+| `.claude/business-open-questions.md` | BOQ đợt 1+2 đã đóng · **8 mục còn mở** · truy vết chức năng nào còn điểm chưa chốt |
+| `.claude/phase0-tracking.md` · `phase1-tracking.md` | **Lưu trữ, cấm sửa.** Phase 1 có mục "18 điểm nghiệp vụ đã làm rõ trước khi code" |
+| `.claude/report-templates-proposal.md` | Đề xuất format báo cáo gửi Công ty duyệt |
+| `docs/coding-guide.md` | **Đường đi** — công thức viết một chức năng (migration → entity → workflow → service → controller → quyền → mã lỗi → test) + bẫy đã trả giá |
+| `docs/ui-styles.md` | Quy chuẩn UI — màu qua `design-tokens`, Noto Sans, spacing, animation, a11y. Đọc trước khi sửa styling |
+| `docs/cicd.md` | Luồng 3 chặng `dev → staging → production`, cổng đề bạt, secret cần đặt |
+| `docs/deploy-guideline.md` | Dựng máy, khoá, `.env`, DNS/TLS, lượt deploy tay đầu tiên, checklist nghiệm thu |
+| `docs/deploy-staging.md` | Kế hoạch thực thi staging — cấu hình VPS-2, cắt chi phí ở đâu và ba chỗ cấm cắt |
+| `docs/branch-protection.md` | Ba hồ sơ bảo vệ nhánh + lệnh áp dụng |
+| `docs/setup-guideline.md` · `run-guideline.md` | Dựng máy dev; bốn chế độ chạy |
+| `docs_origin/` | Tài liệu gốc của khách — chỉ tham khảo, đã tổng hợp vào `function-spec.md` |
 
 ## Module
 
@@ -63,23 +67,24 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 ## Trạng thái
 
 **Phase "Tài liệu hệ thống"** ✅ xong 12/8/2026 — BOQ đợt 1 (A–F) + đợt 2 (G) đã đóng và đồng bộ vào `function-spec.md` **v2.2**.
-**Phase 0 — Core Platform** ✅ xong 10/11 hạng mục. Còn **WS-11 (Deploy Staging/Production, 10 pd)** treo để khép sổ.
-**Phase 1 — CMS & master data công trình** ✅ **xong 24/8/2026** — WS-12→WS-23 đóng đủ, **16/17 mục DoD** có phép kiểm đứng sau. Nhánh `fix-public-web-ui` đã hợp nhất về `feat-CICD`.
+**Phase 0 — Core Platform** ✅ 10/11 hạng mục. **WS-11 (Deploy)**: staging đã chạy thật, đường ống CD đóng (§10.50→§10.55); còn production + quay lui thật.
+**Phase 1 — CMS & master data công trình** ✅ **xong 24/8/2026** — WS-12→WS-23 đóng đủ, **16/17 mục DoD** có phép kiểm đứng sau. 
 
-⬜ **Mục DoD duy nhất còn treo**: **DOD1.17** trang chủ cổng < 3s (NFR-02) — chỉ đo được trên môi trường gần thật, nằm trong checklist nghiệm thu của `docs/deploy-guideline.md`. Không chặn code, chặn nghiệm thu cùng WS-11.
+⬜ **DoD còn treo**: **DOD1.17** trang chủ < 3s (NFR-02) — nay đo được trên staging có nội dung thật · **DOD0.21** quay lui — chưa lượt deploy nào đi qua đường quay lui thành công.
 
-⚠⚠ **Ba lần liên tiếp một bản ghi "đã xong" bị lượt rà sau bác bỏ** — đây là hình dạng rủi ro đặc trưng của dự án này, không phải sự cố lẻ:
+⚠⚠ **Tám lượt liên tiếp một bản ghi "đã xong" bị lượt rà sau bác bỏ.** Đây là hình dạng rủi ro
+đặc trưng của dự án, không phải sự cố lẻ — nguyên nhân gốc từng vụ ở `architecture-review.md`:
 
-| Ngày | Lượt rà tìm ra |
-|---|---|
-| 22/8 | bản ghi "đã xong" bị bác bỏ toàn phần |
-| 23/8 | **4/11 mục WS-21** chưa làm hoặc hỏng hẳn · **4/17 cam kết DoD** không có phép kiểm nào — §10.36 |
-| 24/8 | **1 lỗi CHẶN nghiệp vụ** trong phạm vi đã tick (trả bài về sửa tắc hoàn toàn) · image quản trị phát mã nguồn · bộ lọc CI bỏ qua đúng job nó cần · hotfix làm tái phát lỗi ghi cứng — §10.37 |
-| 24/8 (merge `dev`) | CI đỏ ở job đóng gói image `public-web` **dù 8 cổng kiểm ở máy đều xanh** — biến build rỗng, `??` không đỡ, `new URL('')` giết `next build` — §10.38 |
-| 25/8 (sau deploy staging) | **204 No Content bị giao diện biến thành lỗi trên 24 endpoint** — việc đã commit xong mà người dùng thấy báo lỗi. Lượt sửa 22/8 đã chữa *triệu chứng thứ hai* của đúng chuỗi này — §10.40 · `DB_APP_PASSWORD` không ai đọc che mất biến thật sự thiếu — §10.41 |
-| 25/8 (smoke test staging) | **Ảnh trên cổng chưa từng trả về được một byte nào** — `ResponseEnvelopeAdvice` bọc cả `byte[]`, `ClassCastException` → 500. Endpoint *có* bài kiểm, nhưng bài kiểm dùng UUID không tồn tại nên chỉ đi nhánh 404 — §10.52 |
-| 25/8 (sau khi merge bản vá) | **Bản vá không bao giờ được nạp** — lượt triển khai giải đúng digest, `pull` đúng digest, rồi compose in `Running` và giữ nguyên container cũ. Không dòng nào đo *container đang chạy cái gì* — §10.53 |
-| 25/8 (sau khi deploy xanh) | **Trang chủ cổng chưa từng hiện dữ liệu thật sau một lượt triển khai** — `next build` nướng trang rỗng vào image (CI không có backend), và **19 bài viết + 4 văn bản có số hiệu + 5 trạm thuỷ văn + 9 số điện thoại bịa** ghi cứng trong component làm trang rỗng trông đầy. Smoke test xanh, người dùng thấy trang không có nội dung seed — cả hai đều đúng — §10.54 |
+| Ngày | Lượt rà tìm ra | § |
+|---|---|---|
+| 22/8 | bản ghi "đã xong" bị bác bỏ toàn phần | — |
+| 23/8 | 4/11 mục WS-21 chưa làm hoặc hỏng; 4/17 cam kết DoD không có phép kiểm nào | §10.36 |
+| 24/8 | 1 lỗi CHẶN nghiệp vụ trong phạm vi đã tick; image quản trị phát mã nguồn; bộ lọc CI bỏ qua đúng job nó cần | §10.37 |
+| 24/8 | CI đỏ ở job đóng gói image **dù 8 cổng kiểm ở máy đều xanh** — biến build rỗng, `??` không đỡ | §10.38 |
+| 25/8 | 204 No Content bị giao diện biến thành lỗi trên 24 endpoint; `DB_APP_PASSWORD` không ai đọc che mất biến thật sự thiếu | §10.40 · §10.41 |
+| 25/8 | ảnh cổng chưa từng ra được một byte — bài kiểm dùng UUID không tồn tại nên chỉ đi nhánh 404 | §10.52 |
+| 25/8 | bản vá không bao giờ được nạp — compose in `Running` và giữ container cũ | §10.53 |
+| 25/8 | trang chủ nướng rỗng vào image, và **19 bài viết + 4 văn bản có số hiệu + 5 trạm thuỷ văn + 9 số điện thoại bịa** làm trang rỗng trông đầy | §10.54 |
 
 ⛔ Hệ quả rút ra: **"đã tick" không phải bằng chứng.** Trước khi mở một giai đoạn mới, đối chiếu với mã thật và chạy đường mà người dùng thật đi.
 
