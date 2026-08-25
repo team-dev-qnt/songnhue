@@ -22,10 +22,7 @@ interface HydrologyQuickWidgetProps {
  * - Tuân thủ 100% mã màu trạng thái nghiệp vụ trong `statusColors` (xanh, vàng, đỏ, xám).
  * - Tích hợp số hotline trực ban phòng chống thiên tai 24/7.
  */
-export function HydrologyQuickWidget({
-  hotline = '',
-  stations = [],
-}: HydrologyQuickWidgetProps) {
+export function HydrologyQuickWidget({ hotline = '', stations = [] }: HydrologyQuickWidgetProps) {
   const getStatusBg = (status: HydrologyStation['status']) => {
     switch (status) {
       case 'normal':
@@ -111,40 +108,40 @@ export function HydrologyQuickWidget({
       {stations.length === 0 ? (
         <div className="mt-4">
           <EmptyBlock>
-            Chưa có số liệu quan trắc. Mô-đun Quản lý dữ liệu thủy văn (MOD-03) chưa được đấu
-            nối, nên trang này không có mực nước để hiển thị.
+            Chưa có số liệu quan trắc. Mô-đun Quản lý dữ liệu thủy văn (MOD-03) chưa được đấu nối,
+            nên trang này không có mực nước để hiển thị.
           </EmptyBlock>
         </div>
       ) : (
-      <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
-        {stations.map((st) => (
-          <div
-            key={st.name}
-            className={`flex flex-col justify-between rounded-lg border p-2.5 transition-all duration-200 hover:shadow-xs ${getStatusBg(st.status)}`}
-          >
-            <div className="flex items-center justify-between gap-1">
-              <span
-                className="truncate text-xs font-semibold text-surface-textBase"
-                title={st.name}
-              >
-                {st.name}
-              </span>
-              <span
-                className="h-2 w-2 shrink-0 rounded-full"
-                style={{ backgroundColor: getStatusDotColor(st.status) }}
-              ></span>
+        <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+          {stations.map((st) => (
+            <div
+              key={st.name}
+              className={`flex flex-col justify-between rounded-lg border p-2.5 transition-all duration-200 hover:shadow-xs ${getStatusBg(st.status)}`}
+            >
+              <div className="flex items-center justify-between gap-1">
+                <span
+                  className="truncate text-xs font-semibold text-surface-textBase"
+                  title={st.name}
+                >
+                  {st.name}
+                </span>
+                <span
+                  className="h-2 w-2 shrink-0 rounded-full"
+                  style={{ backgroundColor: getStatusDotColor(st.status) }}
+                ></span>
+              </div>
+              <div className="mt-2 flex items-baseline justify-between">
+                <span className="text-sm font-extrabold tracking-tight sm:text-base">
+                  {st.waterLevel}
+                </span>
+                <span className="text-[10px] font-medium text-surface-textSecondary">
+                  {st.statusText}
+                </span>
+              </div>
             </div>
-            <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-sm font-extrabold tracking-tight sm:text-base">
-                {st.waterLevel}
-              </span>
-              <span className="text-[10px] font-medium text-surface-textSecondary">
-                {st.statusText}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
       )}
     </section>
   );

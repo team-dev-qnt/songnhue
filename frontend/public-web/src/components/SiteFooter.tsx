@@ -271,18 +271,20 @@ export async function SiteFooter() {
 
           {/* Mạng xã hội */}
           <div className="flex flex-col gap-2">
-            {social.filter((s) => s.url).map((s) => (
-              <a
-                key={s.label}
-                href={s.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2.5 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-medium text-white shadow-xs backdrop-blur-xs transition-all duration-200 hover:-translate-y-0.5 hover:bg-white hover:text-brand-primary"
-              >
-                <span>{s.icon}</span>
-                <span>{s.label}</span>
-              </a>
-            ))}
+            {social
+              .filter((s) => s.url)
+              .map((s) => (
+                <a
+                  key={s.label}
+                  href={s.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2.5 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-medium text-white shadow-xs backdrop-blur-xs transition-all duration-200 hover:-translate-y-0.5 hover:bg-white hover:text-brand-primary"
+                >
+                  <span>{s.icon}</span>
+                  <span>{s.label}</span>
+                </a>
+              ))}
           </div>
 
           {/* Bản đồ nếu có cấu hình hoặc thẻ chỉ đường mặc định */}

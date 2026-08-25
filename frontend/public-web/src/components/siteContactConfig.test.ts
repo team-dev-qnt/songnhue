@@ -75,7 +75,9 @@ describe('Cổng lấy thông tin liên hệ của Công ty từ cấu hình', (
     //   `site.footer.social.*` rơi về `|| 'https://facebook.com'` — cùng một hình dạng "dự
     //   phòng bịa", khác tiền tố và khác toán tử, nên đi lọt trọn vẹn (§10.54). Nay phủ mọi
     //   khoá cấu hình và cả hai toán tử.
-    const duPhongCung = [...NGUON.matchAll(/\['((?:company|site)\.[\w.-]+)'\]\s*(?:\?\?|\|\|)\s*(.+)/g)]
+    const duPhongCung = [
+      ...NGUON.matchAll(/\['((?:company|site)\.[\w.-]+)'\]\s*(?:\?\?|\|\|)\s*(.+)/g),
+    ]
       // Cấm CHUỖI VIẾT CỨNG. Cho phép `''` và cho phép biểu thức không chứa chuỗi nào —
       // `SITE.name` (hằng số sản phẩm, một nguồn duy nhất) hay `` `© ${năm} ${tên}` `` là giá
       // trị TÍNH RA, không phải một bản sao dữ liệu sẽ mục đi khi ai đó sửa trên giao diện.

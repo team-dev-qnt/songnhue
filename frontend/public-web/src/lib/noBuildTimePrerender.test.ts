@@ -96,12 +96,14 @@ describe('Không dựng sẵn thứ gì đọc API', () => {
     //   `next build`, sitemap vẫn ra `ƒ` khi đã gỡ công tắc. Một luật không có trường hợp riêng
     //   là một luật không ai phải nhớ.
     const pham = timRoute(GOC_APP)
-      .filter((duong) => /export const dynamic\s*=\s*'force-dynamic'/.test(boChuThich(readFileSync(duong, 'utf8'))))
+      .filter((duong) =>
+        /export const dynamic\s*=\s*'force-dynamic'/.test(boChuThich(readFileSync(duong, 'utf8'))),
+      )
       .map((duong) => duong.slice(GOC_APP.length + 1))
       // `src/app/api/**` là Route Handler của chính Next (`/api/health`, `/api/revalidate`,
       // proxy `/api/v1/*`). Chúng PHẢI dynamic và không đọc qua `apiGet`; luật này nói về
       // trang của cổng, không nói về chúng.
-      .filter((ten) => !ten.startsWith('api/'))
+      .filter((ten) => !ten.startsWith('api/'));
 
     expect(pham, `những route này dùng force-dynamic: ${pham.join(', ')}`).toEqual([]);
   });

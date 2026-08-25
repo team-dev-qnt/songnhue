@@ -114,37 +114,39 @@ export function CategoryServicesGrid({ categories }: CategoryServicesGridProps) 
           <EmptyBlock>Chưa có chuyên mục nào được tạo trong CMS.</EmptyBlock>
         </div>
       ) : (
-      <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {items.map((item) => (
-          <Link
-            key={item.slug}
-            href={ROUTES.category(item.slug)}
-            className="group relative flex flex-col overflow-hidden rounded-xl border border-surface-border bg-white p-5 shadow-xs transition-all duration-300 ease-smooth hover:-translate-y-1 hover:border-brand-primary hover:shadow-md"
-          >
-            {/* Vạch Accent Bar 3px trên đỉnh */}
-            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand-primaryGradientFrom to-brand-primary opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+        <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {items.map((item) => (
+            <Link
+              key={item.slug}
+              href={ROUTES.category(item.slug)}
+              className="group relative flex flex-col overflow-hidden rounded-xl border border-surface-border bg-white p-5 shadow-xs transition-all duration-300 ease-smooth hover:-translate-y-1 hover:border-brand-primary hover:shadow-md"
+            >
+              {/* Vạch Accent Bar 3px trên đỉnh */}
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand-primaryGradientFrom to-brand-primary opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-brand-primaryLight transition-transform duration-300 ease-smooth group-hover:scale-110">
-              {renderIcon(item.iconType)}
-            </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-brand-primaryLight transition-transform duration-300 ease-smooth group-hover:scale-110">
+                {renderIcon(item.iconType)}
+              </div>
 
-            <h3 className="mt-4 text-sm font-bold text-surface-textBase transition-colors duration-200 group-hover:text-brand-primary sm:text-base">
-              {item.title}
-            </h3>
+              <h3 className="mt-4 text-sm font-bold text-surface-textBase transition-colors duration-200 group-hover:text-brand-primary sm:text-base">
+                {item.title}
+              </h3>
 
-            {item.description ? (
-              <p className="mt-2 line-clamp-2 text-xs text-surface-textSecondary">
-                {item.description}
-              </p>
-            ) : null}
+              {item.description ? (
+                <p className="mt-2 line-clamp-2 text-xs text-surface-textSecondary">
+                  {item.description}
+                </p>
+              ) : null}
 
-            <div className="mt-4 flex items-center gap-1 text-xs font-semibold text-brand-primary">
-              <span>Khám phá</span>
-              <span className="transition-transform duration-200 group-hover:translate-x-1">➔</span>
-            </div>
-          </Link>
-        ))}
-      </div>
+              <div className="mt-4 flex items-center gap-1 text-xs font-semibold text-brand-primary">
+                <span>Khám phá</span>
+                <span className="transition-transform duration-200 group-hover:translate-x-1">
+                  ➔
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
       )}
     </section>
   );

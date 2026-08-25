@@ -139,8 +139,8 @@ export function DirectiveDocumentsSection({
           <div className="mt-4 flex flex-1 flex-col divide-y divide-surface-border rounded-xl border border-surface-border bg-white p-4 shadow-xs">
             {documents.length === 0 ? (
               <EmptyBlock>
-                Chưa có văn bản nào. Hệ thống văn bản điều hành là hệ thống riêng — cổng chỉ
-                liên kết sang, không đồng bộ dữ liệu (CN-01.7).
+                Chưa có văn bản nào. Hệ thống văn bản điều hành là hệ thống riêng — cổng chỉ liên
+                kết sang, không đồng bộ dữ liệu (CN-01.7).
               </EmptyBlock>
             ) : null}
             {documents.map((doc) => (

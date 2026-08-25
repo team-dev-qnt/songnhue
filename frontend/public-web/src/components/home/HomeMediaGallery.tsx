@@ -19,11 +19,7 @@ interface HomeMediaGalleryProps {
  * - Video phóng sự nhúng an toàn qua domain `youtube-nocookie.com` tuân thủ CSP.
  * - Thư viện hình ảnh các công trình thủy lợi tiêu biểu.
  */
-export function HomeMediaGallery({
-  videoId,
-  videoTitle,
-  photos = [],
-}: HomeMediaGalleryProps) {
+export function HomeMediaGallery({ videoId, videoTitle, photos = [] }: HomeMediaGalleryProps) {
   return (
     <section className="mt-10 sm:mt-14">
       <div className="flex items-center justify-between border-b-2 border-brand-primary pb-2.5">
@@ -39,18 +35,18 @@ export function HomeMediaGallery({
         {/* CỘT TRÁI (7 CỘT): VIDEO PHÓNG SỰ */}
         <div className="flex flex-col lg:col-span-7">
           {videoId ? (
-          <div className="group relative overflow-hidden rounded-xl border border-surface-border bg-black shadow-sm">
-            <div className="aspect-[16/9] w-full">
-              <iframe
-                src={`https://www.youtube-nocookie.com/embed/${videoId}?rel=0`}
-                title={videoTitle}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                loading="lazy"
-                className="h-full w-full border-0"
-              />
+            <div className="group relative overflow-hidden rounded-xl border border-surface-border bg-black shadow-sm">
+              <div className="aspect-[16/9] w-full">
+                <iframe
+                  src={`https://www.youtube-nocookie.com/embed/${videoId}?rel=0`}
+                  title={videoTitle}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  loading="lazy"
+                  className="h-full w-full border-0"
+                />
+              </div>
             </div>
-          </div>
           ) : (
             <EmptyBlock>Chưa có video phóng sự nào được đăng.</EmptyBlock>
           )}
@@ -66,31 +62,31 @@ export function HomeMediaGallery({
           {photos.length === 0 ? (
             <EmptyBlock>Thư viện ảnh công trình chưa có ảnh nào.</EmptyBlock>
           ) : (
-          <div className="grid grid-cols-2 gap-3.5">
-          {photos.slice(0, 4).map((p) => (
-            <div
-              key={p.id}
-              className="group relative flex flex-col overflow-hidden rounded-lg border border-surface-border bg-white shadow-2xs"
-            >
-              <div className="aspect-[4/3] w-full overflow-hidden bg-surface-bgLayout">
-                <img
-                  src={p.imageUrl}
-                  alt={p.title}
-                  loading="lazy"
-                  className="h-full w-full object-cover transition-transform duration-500 ease-smooth group-hover:scale-110"
-                />
-              </div>
-              <div className="p-2.5">
-                <h3 className="line-clamp-1 text-xs font-bold text-surface-textBase transition-colors duration-200 group-hover:text-brand-primary">
-                  {p.title}
-                </h3>
-                <span className="mt-0.5 block text-[10px] text-surface-textSecondary">
-                  📍 {p.location}
-                </span>
-              </div>
+            <div className="grid grid-cols-2 gap-3.5">
+              {photos.slice(0, 4).map((p) => (
+                <div
+                  key={p.id}
+                  className="group relative flex flex-col overflow-hidden rounded-lg border border-surface-border bg-white shadow-2xs"
+                >
+                  <div className="aspect-[4/3] w-full overflow-hidden bg-surface-bgLayout">
+                    <img
+                      src={p.imageUrl}
+                      alt={p.title}
+                      loading="lazy"
+                      className="h-full w-full object-cover transition-transform duration-500 ease-smooth group-hover:scale-110"
+                    />
+                  </div>
+                  <div className="p-2.5">
+                    <h3 className="line-clamp-1 text-xs font-bold text-surface-textBase transition-colors duration-200 group-hover:text-brand-primary">
+                      {p.title}
+                    </h3>
+                    <span className="mt-0.5 block text-[10px] text-surface-textSecondary">
+                      📍 {p.location}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-          </div>
           )}
         </div>
       </div>

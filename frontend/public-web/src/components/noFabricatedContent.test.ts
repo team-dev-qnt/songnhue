@@ -98,10 +98,18 @@ const MA = TEP.map((duong) => ({
 /** Từng hình dạng dữ liệu bịa, kèm một mẫu vi phạm để tự kiểm chứng bộ canh. */
 const HINH_DANG: { ten: string; mau: RegExp; viPham: string }[] = [
   { ten: 'slug bài viết viết cứng', mau: /\bslug:\s*['"`]/, viPham: "  slug: 'bao-so-4'," },
-  { ten: 'ngày đăng viết cứng', mau: /\bpublishedAt:\s*['"`]/, viPham: "  publishedAt: '2026-08-20T08:00:00Z'," },
+  {
+    ten: 'ngày đăng viết cứng',
+    mau: /\bpublishedAt:\s*['"`]/,
+    viPham: "  publishedAt: '2026-08-20T08:00:00Z',",
+  },
   { ten: 'lượt xem viết cứng', mau: /\bviewCount:\s*\d/, viPham: '  viewCount: 1420,' },
   { ten: 'mực nước viết cứng', mau: /\bwaterLevel:\s*['"`]/, viPham: "  waterLevel: '+4.20 m'," },
-  { ten: 'số hiệu văn bản viết cứng', mau: /['"`]\s*\d{1,4}\/[A-ZĐ]{2,3}-[A-ZĐ]{2,4}\s*['"`]/, viPham: "  code: '158/QĐ-SN'," },
+  {
+    ten: 'số hiệu văn bản viết cứng',
+    mau: /['"`]\s*\d{1,4}\/[A-ZĐ]{2,3}-[A-ZĐ]{2,4}\s*['"`]/,
+    viPham: "  code: '158/QĐ-SN',",
+  },
   // ⚠⚠ `{1,2}` chứ KHÔNG phải hai nhóm bắt buộc. Bản của `siteContactConfig.test.ts` đòi đúng
   //    BỐN nhóm số vì nó được chỉnh cho `(024) 33.546.247`; nó KHÔNG khớp `(024) 3382 4580`,
   //    dạng ba nhóm — và đó là dạng của tám số bịa ở khối đơn vị trực thuộc. Tức bộ canh cũ
@@ -152,7 +160,10 @@ describe('Component không chứa dữ liệu nghiệp vụ bịa', () => {
     // quát: có ai đang gõ sẵn một bộ bản ghi vào mã không.
     const pham = MA.flatMap(({ ten, nguon }) =>
       [...nguon.matchAll(/const\s+([A-Za-z_$][\w$]*)[^=]*=\s*\[([\s\S]*?)\n\];/g)]
-        .filter(([, mang, than]) => !CHO_PHEP_MANG.has(mang) && (than.match(/\n\s*\{/g) ?? []).length >= 3)
+        .filter(
+          ([, mang, than]) =>
+            !CHO_PHEP_MANG.has(mang) && (than.match(/\n\s*\{/g) ?? []).length >= 3,
+        )
         .map(([, mang]) => `${ten}:${mang}`),
     );
     expect(
@@ -163,10 +174,10 @@ describe('Component không chứa dữ liệu nghiệp vụ bịa', () => {
   });
 
   it('⛔ kiểm chứng ngược: backstop bắt được một fixture mới thêm', () => {
-    const viPham = "const BIA: Row[] = [\n  { a: 1 },\n  { a: 2 },\n  { a: 3 },\n];";
-    const bat = [...viPham.matchAll(/const\s+([A-Za-z_$][\w$]*)[^=]*=\s*\[([\s\S]*?)\n\];/g)].filter(
-      ([, , than]) => (than.match(/\n\s*\{/g) ?? []).length >= 3,
-    );
+    const viPham = 'const BIA: Row[] = [\n  { a: 1 },\n  { a: 2 },\n  { a: 3 },\n];';
+    const bat = [
+      ...viPham.matchAll(/const\s+([A-Za-z_$][\w$]*)[^=]*=\s*\[([\s\S]*?)\n\];/g),
+    ].filter(([, , than]) => (than.match(/\n\s*\{/g) ?? []).length >= 3);
     expect(bat).toHaveLength(1);
   });
 

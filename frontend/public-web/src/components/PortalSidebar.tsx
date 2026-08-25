@@ -74,9 +74,7 @@ export function PortalSidebar({ latestArticles = [], hotline = '' }: PortalSideb
         </div>
 
         <div className="mt-3 divide-y divide-surface-border">
-          {displayNews.length === 0 ? (
-            <EmptyBlock>Chưa có tin nào.</EmptyBlock>
-          ) : null}
+          {displayNews.length === 0 ? <EmptyBlock>Chưa có tin nào.</EmptyBlock> : null}
           {displayNews.map((art, idx) => (
             <article key={art.slug} className="group py-3 first:pt-1 last:pb-1">
               <Link href={ROUTES.article(art.slug)} className="flex items-start gap-2.5">

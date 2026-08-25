@@ -3467,6 +3467,23 @@ Bộ canh đỏ 2 bài kèm đúng dòng chẩn đoán. ⚠ Lượt gỡ đầu 
 
 **Kết quả**: 222 test FE (142 admin + **80** cổng, trước là 55) · typecheck · eslint · `next build` đều xanh.
 
+⭐ **Và đo một lần nữa ở đúng chỗ `make ci-local` không với tới được.** Hai job chỉ sống trên
+runner (quét CVE · đóng gói image) chạy trên cây checkout sạch, không có `.env.local`; mọi lượt
+build ở máy đều nạp tệp ấy. Nên bản vá này được kiểm thêm bằng một lượt `docker build` mang
+**đúng đối số của `ci.yml`** (`NEXT_PUBLIC_API_BASE_URL=` và `NEXT_PUBLIC_SITE_URL=` cùng để
+rỗng) — và đo *bên trong image sinh ra*:
+
+```
+┌ ƒ /                 ← trước bản vá: ○, kèm index.html chứa 19 liên kết /bai-viet/ bịa
+├ ƒ /_not-found
+├ ƒ /sitemap.xml
+└ ○ /robots.txt       ← đúng, nó không đọc API
+/app/public-web/.next/server/app/index.html → không tồn tại
+```
+
+Đây là hình dạng đã trả giá ở §10.38: một biến môi trường rỗng là trạng thái chỉ runner mới có.
+Kiểm bản vá bằng `npm run build` ở máy là kiểm một môi trường khác với môi trường sẽ chạy.
+
 #### Điều cần rút ra cho lần sau
 
 **Một bộ dữ liệu dự phòng "cho giao diện luôn sống động" là một cơ chế biến lỗi thành im lặng.** Nó không làm dịu một sự cố — nó xoá dấu vết của sự cố. Trang chủ này hỏng từ ngày dựng, đi qua một lượt nghiệm thu WS-21 và một lượt deploy staging, và thứ duy nhất tố cáo nó là 14 dòng log prefetch tới những slug không tồn tại — thứ chỉ đọc được vì đang truy một lỗi khác.
