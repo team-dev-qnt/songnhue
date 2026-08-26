@@ -3610,3 +3610,49 @@ Kiểm chứng ngược **5 kịch bản**, mỗi lượt đều xác nhận b�
 Trước đó cùng phiên còn một lượt nữa: một khối kiểm chứng ngược chạy sai thư mục (`cd` vào `backend` còn lưu lại), `sed` không tìm thấy tệp, mà bài kiểm **vẫn in 5/5 xanh** — vì bản hỏng chưa từng tồn tại.
 
 ⛔ Rút ra: luật 10 phải mở rộng — **bản KHÔI PHỤC cũng phải được xác nhận đã nạp**, không chỉ bản hỏng. Cách rẻ nhất: in một con số đo được ở mỗi bước (`grep -c`, `stat`), và `touch` tệp sau khi khôi phục.
+
+---
+
+### §10.57. Cổng secret bỏ qua trong im lặng, và bốn khoản "bấm ở GitHub" treo từ 15/8 (26/8/2026)
+
+#### (a) Một lượt CD Production sẽ trông như đã chạy
+
+Bước *"Kiểm tra đã có cấu hình máy chủ chưa"* hỏi **một** biến (`HOST`); thiếu thì `::warning::` + `ready=false`, và mọi bước sau mang `if: ready == 'true'` nên tự bỏ qua. Lượt chạy kết thúc **xanh trọn vẹn**.
+
+Đo bằng `gh api` ngày 26/8: environment `production` **không có secret nào**. Nghĩa là bấm "CD Production" hôm ấy cho ra một lượt chạy xanh, một dòng tóm tắt "đã triển khai", và không một byte nào chạm máy chủ.
+
+Cùng hình dạng với §10.53 (compose in `Running` mà giữ container cũ): **một câu khẳng định không phân biệt được hai trạng thái**.
+
+**Vá.** Logic ra `.github/scripts/kiem-secret-may-chu.sh`, ba trạng thái:
+
+| tình trạng | staging | production |
+|---|---|---|
+| đủ bốn | đi tiếp | đi tiếp |
+| thiếu **một số** | ⛔ đỏ | ⛔ đỏ |
+| thiếu **cả bốn** | cảnh báo + bỏ qua | ⛔ **đỏ** |
+
+Vì sao lệch: CD Staging chạy **tự động** sau mỗi lượt merge — một môi trường chưa dựng mà nhuộm đỏ dòng CI của mọi người là đổi một lỗi thật lấy một lỗi phiền, rồi người ta tắt bớt cổng kiểm. CD Production chỉ chạy khi **có người bấm**, và với họ im lặng bỏ qua là câu trả lời sai nhất.
+
+Và *"thiếu một số"* đỏ ở cả hai vì **cấu hình dở dang không phải "chưa dựng"** — nó là cấu hình hỏng, và nó sẽ hỏng muộn hơn ở `ssh` với `Permission denied`, một thông báo không nhắc gì tới secret.
+
+**Vì sao tách ra tệp riêng.** Để `SecretGateTest` **chạy thật** script với từng tổ hợp biến (`ProcessBuilder`, môi trường **sạch** — kế thừa môi trường JVM là để một biến `USER` có sẵn trên máy dev quyết định kết quả bài kiểm). Một bài khẳng định *"`deploy.yml` có chứa `exit 1`"* xanh với cả script đúng lẫn script gọi `exit 1` ở nhánh không bao giờ tới (luật 9). 7 bài; kiểm chứng ngược 3 kịch bản: trả về hành vi cũ · chỉ hỏi `HOST` · workflow không gọi script.
+
+#### (b) Bốn khoản "bấm ở GitHub" — áp và đo lại 26/8
+
+Cùng một hình dạng: **cổng kiểm tồn tại trong tài liệu nhưng chưa có hiệu lực ở nơi nó phải chặn.** `branch-protection.md` §6.2 có sẵn lệnh từ 15/8; không ai chạy, và không ai biết là chưa chạy.
+
+| | trước | sau |
+|---|---|---|
+| `dev` — required contexts | 2 | **7** |
+| `staging` / `production` — `strict` | `true` | **`false`** |
+| Secret scanning · push protection · non-provider | `disabled` | ✅ |
+| Dependabot alerts + security updates | `disabled` | ✅ |
+
+Hai chi tiết chỉ lộ ra khi làm thật:
+
+- `Gắn tag SHA cho image không đổi` **không** được đưa vào `contexts` — nó chỉ chạy ở `push`, không ở `pull_request`. Đưa vào là mọi PR đứng vĩnh viễn ở *"Expected — Waiting for status to be reported"* (§2.1). Danh sách context phải đọc từ **một PR thật**, không từ một lượt push.
+- `PUT automated-security-fixes` trả **422 `Vulnerability alerts must be enabled`**. *Alerts* (báo) và *security updates* (PR vá tự động) là hai công tắc, phải bật theo thứ tự.
+
+Đo sau khi bật: `secret-scanning/alerts` → **0 cảnh báo**; `rulesets` → `[]` (không có luật kiểu mới chồng lên).
+
+⬜ **Còn lại**: 4 secret `PROD_*` — chỉ đặt được sau khi có VPS-1. Nay thiếu chúng là lượt CD Production **đỏ**, không phải xanh giả.

@@ -95,14 +95,14 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 
 ⛔ **Cấm seed dữ liệu công trình/thuỷ văn "cho đẹp demo"** — ô nào chưa có nguồn thì nói thẳng là chưa có.
 
-**Codebase đo ngày 26/8**: **602 test BE** (242 core + 20 content + 24 operations + 316 app) + **222 test FE** (142 admin + 80 public) · **74 mã lỗi** (BE = FE) · 88 quyền / 12 vai trò / 334 dòng phân quyền · **32 bài ArchUnit** (7 lớp, gồm 11 bài tự-kiểm chứng minh luật bắt được vi phạm) · 7 phép kiểm bộ đọc tracking · mọi cổng bao phủ **chạy thật** (content 18.2%) · 0 CVE ≥ 7.
+**Codebase đo ngày 26/8**: **613 test BE** (242 core + 20 content + 24 operations + 327 app) + **222 test FE** (142 admin + 80 public) · **74 mã lỗi** (BE = FE) · 88 quyền / 12 vai trò / 334 dòng phân quyền · **32 bài ArchUnit** (7 lớp, gồm 11 bài tự-kiểm chứng minh luật bắt được vi phạm) · 7 phép kiểm bộ đọc tracking · mọi cổng bao phủ **chạy thật** (content 18.2%) · 0 CVE ≥ 7.
 
 ### Tra ở đâu
 
 | Cần gì | Đọc ở đâu |
 |---|---|
 | Nợ đang treo, task còn lại | **`.claude/master-tracking.md`** — nguồn DUY NHẤT (conventions.md §6). `phase0-tracking.md` / `phase1-tracking.md` chỉ là lưu trữ, cấm sửa |
-| **Lý do** một quyết định, **nguyên nhân gốc** một lỗi đã sửa | `architecture-review.md` **§9** (Phase 0, 14 mục) · **§10** (Phase 1, 43 mục — §10.35 đợt vá sau WS-22, §10.36 nghiệm thu lại WS-21 + DoD, §10.37 nghiệm thu image, §10.38 CI đỏ sau merge `dev`, §10.40 lỗi 204, §10.41 biến CSDL không ai đọc, §10.52 envelope bọc `byte[]`, §10.53 container không được thay, §10.54 trang chủ nướng rỗng + dữ liệu bịa che chỗ rỗng, §10.55 `minio-init` đo thay vì khai báo + bộ seed một công tắc, §10.56 collation vắng ở `compose.prod.yml` — tham số chỉ chạy một lần) |
+| **Lý do** một quyết định, **nguyên nhân gốc** một lỗi đã sửa | `architecture-review.md` **§9** (Phase 0, 14 mục) · **§10** (Phase 1, 44 mục — §10.35 đợt vá sau WS-22, §10.36 nghiệm thu lại WS-21 + DoD, §10.37 nghiệm thu image, §10.38 CI đỏ sau merge `dev`, §10.40 lỗi 204, §10.41 biến CSDL không ai đọc, §10.52 envelope bọc `byte[]`, §10.53 container không được thay, §10.54 trang chủ nướng rỗng + dữ liệu bịa che chỗ rỗng, §10.55 `minio-init` đo thay vì khai báo + bộ seed một công tắc, §10.56 collation vắng ở `compose.prod.yml` — tham số chỉ chạy một lần, §10.57 cổng secret bỏ qua trong im lặng + 4 khoản bấm ở GitHub) |
 | Cách viết một chức năng + bảng bẫy tra nhanh | `docs/coding-guide.md` |
 | Luật bắt buộc khi viết code | `conventions.md` |
 | Nghiệp vụ | `function-spec.md`; điểm chưa chốt → `business-open-questions.md` Phần III |
@@ -115,18 +115,21 @@ Không mục nào **chặn code**, chỉ chặn **dữ liệu khởi tạo và n
 
 Gửi kèm `report-templates-proposal.md`. Chi tiết từng mục: `business-open-questions.md` Phần II.
 
-### Việc bấm ở GitHub còn treo — rà bằng `gh api` 26/8
+### Việc bấm ở GitHub — áp và đo lại 26/8
 
 | | Trạng thái đo được |
 |---|---|
-| **Nợ #45** Dependency graph | ✅ **đã bật** — job *Soi phụ thuộc* chạy `success` (không `skipped`) ở run #32882796669, và endpoint SBOM trả về. `cicd.md` §8 ghi là còn treo — đã lỗi thời (T11.32) |
-| **Nợ #27** bảo vệ nhánh | ⬜ `staging` + `production` vẫn `strict=true`; `dev` thiếu context *Vùng nào thay đổi* (T11.39) |
-| **Nợ #46** context đóng gói image | ⬜ `dev` mới có **2** context; ba job image đã chạy xanh ở PR nhưng chưa bắt buộc (T22.23) |
-| **Mới** secret scanning | ⬜ secret scanning · push protection · Dependabot security updates **đều `disabled`**, trong khi repo có khoá dịch vụ Google, khoá SSH triển khai, khoá AES/JWT (T11.40) |
-| **Mới** environment `production` | ⛔ **không có secret nào**. Thiếu thì CD Production *cảnh báo rồi bỏ qua* bước triển khai chứ không đỏ — một lượt deploy sẽ trông như đã chạy (T11.7) |
+| **Nợ #45** Dependency graph | ✅ đã bật từ trước, sổ ghi sai — job *Soi phụ thuộc* chạy `success` (không `skipped`), SBOM trả về (T11.32) |
+| **Nợ #27** bảo vệ nhánh | ✅ `staging` + `production` `strict` → `false`; `dev` thêm *Vùng nào thay đổi* (T11.39) |
+| **Nợ #46** context đóng gói image | ✅ `dev` **2 → 7** context. ⚠ `Gắn tag SHA cho image không đổi` cố ý ngoài danh sách — nó chỉ chạy ở `push`, đưa vào là PR đứng vĩnh viễn ở *Expected* (T22.23) |
+| Bảo mật kho | ✅ secret scanning · push protection · non-provider patterns · Dependabot alerts + security updates — cả 5 `enabled`, `secret-scanning/alerts` trả **0** (T11.40) |
+| Cổng secret của lượt triển khai | ✅ thiếu secret ở production nay **DỪNG ĐỎ**. Trước đó cảnh báo rồi bỏ qua → lượt CD Production xanh trọn vẹn mà không byte nào chạm máy chủ (T11.7-b, §10.57) |
+| Environment `production` | ⬜ vẫn **không có secret nào** — chỉ đặt được sau khi có VPS-1 (T11.7) |
+| Biến kho `PUBLIC_SITE_URL` | ⬜ `actions/variables` vẫn RỖNG → sitemap/canonical của staging trỏ `localhost` (T11.7-a) |
 
 📌 Cùng một hình dạng: **một cổng kiểm tồn tại trong mã nhưng chưa có hiệu lực ở nơi nó phải chặn.**
-Và bản ghi về chúng cũng mục theo thời gian — nợ #45 đã xong từ lúc nào không ai cập nhật.
+Lệnh áp nợ #27 nằm sẵn trong `branch-protection.md` §6.2 **từ 15/8** — không ai chạy, và không ai
+biết là chưa chạy. Bản ghi cũng mục theo thời gian: nợ #45 đã xong từ lúc nào không ai cập nhật.
 
 ## Luật đã trả giá — áp cho mọi phiên làm việc
 

@@ -448,8 +448,8 @@ kiểm hai điều:
 
 | Secret | Đặt ở | Dùng ở | Ghi chú |
 |---|---|---|---|
-| `STAGING_HOST` · `STAGING_USER` · `STAGING_SSH_KEY` · `STAGING_BASE_URL` | environment `staging` | CD Staging | Thiếu → workflow **cảnh báo và bỏ qua bước deploy**, không báo đỏ giả |
-| `PROD_HOST` · `PROD_USER` · `PROD_SSH_KEY` · `PROD_BASE_URL` | environment `production` | CD Production | Như trên |
+| `STAGING_HOST` · `STAGING_USER` · `STAGING_SSH_KEY` · `STAGING_BASE_URL` | environment `staging` | CD Staging | ✅ đủ 4 (đo 26/8). Thiếu **cả bốn** → cảnh báo và bỏ qua bước deploy |
+| `PROD_HOST` · `PROD_USER` · `PROD_SSH_KEY` · `PROD_BASE_URL` | environment `production` | CD Production | ⛔ **chưa có cái nào** (đo 26/8). Thiếu ở production → lượt chạy **DỪNG ĐỎ**, không bỏ qua |
 | `NVD_API_KEY` | **repo** | `security-scan.yml` | ✅ **Đã đặt 18/8**. **Thiếu thì bỏ qua hẳn phép quét OWASP** (có cảnh báo trong Job Summary). Xin miễn phí ~2 phút: <https://nvd.nist.gov/developers/request-an-api-key> |
 
 **Biến (Variables, không phải Secret) — đặt ở cấp repo:**
@@ -469,6 +469,25 @@ kiểm hai điều:
 > cấp repo; chỉ khoá gắn với một môi trường triển khai mới đặt ở environment**. Đặt nhầm vào
 > environment có luật chờ duyệt còn tệ hơn — lượt quét đêm sẽ nằm chờ người bấm.
 
+### 7.1. ⚠ Thiếu secret: staging bỏ qua, production DỪNG ĐỎ
+
+Cùng một cổng (`.github/scripts/kiem-secret-may-chu.sh`), ba trạng thái:
+
+| tình trạng | staging | production |
+|---|---|---|
+| đủ bốn | đi tiếp | đi tiếp |
+| thiếu **một số** | ⛔ đỏ | ⛔ đỏ |
+| thiếu **cả bốn** | cảnh báo + bỏ qua | ⛔ **đỏ** |
+
+Vì sao lệch nhau: CD Staging chạy **tự động** sau mỗi lượt merge, nên một môi trường chưa dựng mà
+nhuộm đỏ cả dòng CI của mọi người là đổi một lỗi thật lấy một lỗi phiền. CD Production chỉ chạy khi
+**có người bấm** — và người ấy đang chờ biết đã deploy được hay chưa; im lặng bỏ qua là câu trả lời
+sai nhất.
+
+⛔ Bản trước chỉ hỏi **một** biến (`HOST`) và luôn bỏ qua trong im lặng. Với environment
+`production` rỗng — đúng trạng thái đo được 26/8 — một lượt CD Production sẽ **xanh trọn vẹn** mà
+không byte nào chạm máy chủ. `SecretGateTest` (7 bài) chạy thật script với từng tổ hợp.
+
 `GITHUB_TOKEN` có sẵn, dùng để đẩy/kéo image trên GHCR. ✅ **Kiểm chứng 18/8**: job `Đóng gói image`
 đẩy được lên GHCR ở lượt push đầu tiên vào `dev`, dù repo đặt `default_workflow_permissions: read` —
 `permissions: packages: write` khai tường minh ở job ghi đè được mặc định đó.
@@ -480,9 +499,14 @@ nhất** của task và nợ — và bản trước của mục này đã chứn
 từng có trong sổ**, gồm cả *"diễn tập khôi phục trước go-live"* và *"bật Dependency graph"*. Một
 danh sách nợ trong văn xuôi là một danh sách không ai đối soát.
 
-Nợ của WS-11 nay ở `master-tracking.md`: `T11.2` (dựng 2 VPS) · `T11.7` (secret §7) · `T11.32`
-(Dependency graph) · `T11.35`–`T11.39` (quyền thư mục host · `docker login` · healthcheck nginx ·
-hai đường seed · nợ #27) · `T22.23` (nợ #46) · `T7.13` (diễn tập khôi phục, ghi RTO thật).
+Nợ của WS-11 nay ở `master-tracking.md`: `T11.2` (dựng 2 VPS) · `T11.3-b` (dựng lại cluster staging
+sai collation) · `T11.7` (secret production §7) · `T11.7-a` (biến `PUBLIC_SITE_URL`) · `T11.35`–`T11.38`
+(quyền thư mục host · `docker login` · healthcheck nginx · hai đường seed) · `T7.13` (diễn tập khôi
+phục, ghi RTO thật).
+
+✅ **Đóng 26/8**: `T11.32` Dependency graph (đã bật từ trước, sổ ghi sai) · `T11.39` nợ #27 (bảo vệ
+nhánh) · `T22.23` nợ #46 (context đóng gói image) · `T11.40` secret scanning + push protection +
+Dependabot.
 
 ## 9. Hai quy ước merge ngược nhau — dễ nhầm nhất
 

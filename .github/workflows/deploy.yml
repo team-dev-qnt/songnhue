@@ -154,17 +154,20 @@ jobs:
             echo "$(echo "$target" | tr '-' '_')_image=$kho@$digest" >> "$GITHUB_OUTPUT"
           done
 
+      # ⚠⚠ Bản trước chỉ hỏi `HOST`, và thiếu thì `::warning::` + bỏ qua — nên một
+      #    lượt CD Production trên environment RỖNG cho ra lượt chạy XANH TRỌN VẸN
+      #    mà không byte nào chạm máy chủ. Đo 26/8: `production` không có secret nào.
+      #    Logic nay nằm ở script riêng để `SecretGateTest` chạy thật từng tổ hợp —
+      #    đọc chữ trong YAML không phân biệt được hai trạng thái (luật 9).
       - name: Kiểm tra đã có cấu hình máy chủ chưa
         id: target
         env:
+          MOI_TRUONG: ${{ inputs.moi_truong }}
           HOST: ${{ secrets.HOST }}
-        run: |
-          if [ -z "${HOST:-}" ]; then
-            echo "::warning::Chưa cấu hình secret máy chủ cho ${{ inputs.moi_truong }} — bỏ qua bước triển khai."
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-          fi
+          USER: ${{ secrets.USER }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          BASE_URL: ${{ secrets.BASE_URL }}
+        run: .github/scripts/kiem-secret-may-chu.sh
 
       - name: Mở đường SSH
         if: steps.target.outputs.ready == 'true'
