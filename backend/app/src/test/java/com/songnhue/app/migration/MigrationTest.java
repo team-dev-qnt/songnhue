@@ -115,8 +115,15 @@ class MigrationTest extends IntegrationTestBase {
      *
      * <p>Đổi collation của một database đang chạy nghĩa là dump toàn bộ rồi restore lại. Vì vậy sai
      * sót phải bị bắt ở đây, chứ không phải lúc có người báo danh sách nhân viên xếp sai thứ tự.
-     * Với collation mặc định (so sánh theo byte) thì "Đăng" xếp <i>sau</i> "Em", vì Đ nằm ngoài bảng
-     * ASCII.
+     *
+     * <p>Sai thì sai theo kiểu nào là tuỳ locale mặc định — đo 26/8 trên chính image
+     * {@code postgis/postgis:16-3.4}: mặc định glibc {@code en_US.utf8} cho ra
+     * Anh &lt; Đăng &lt; Dung &lt; Em ("Đăng" chen lên trước "Dung"), còn locale {@code C} cho ra
+     * Anh &lt; Dung &lt; Em &lt; Đăng. Nên bài kiểm so với thứ tự ĐÚNG, không so với một kiểu sai
+     * cụ thể: cái sai thứ hai sẽ đi lọt.
+     *
+     * <p>Bài này chỉ nói về cluster do Testcontainers dựng. Cluster của staging/production được đo
+     * riêng bằng {@code deploy/postgres/kiem-collation.sh} ở mỗi lượt triển khai.
      */
     @Test
     @DisplayName("⚠ ORDER BY tiếng Việt đúng — Anh < Dung < Đăng < Em (collation ICU vi-VN)")

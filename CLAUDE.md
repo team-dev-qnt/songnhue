@@ -72,7 +72,9 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 
 ⬜ **DoD còn treo**: **DOD1.17** trang chủ < 3s (NFR-02) — nay đo được trên staging có nội dung thật · **DOD0.21** quay lui — chưa lượt deploy nào đi qua đường quay lui thành công.
 
-⚠⚠ **Tám lượt liên tiếp một bản ghi "đã xong" bị lượt rà sau bác bỏ.** Đây là hình dạng rủi ro
+⛔ **Cluster staging đang sai collation** (T11.3-b) — dựng 25/8 trước bản vá §10.56. Từ 26/8 smoke test câu [1/4] sẽ **đỏ mọi lượt deploy staging** cho tới khi dựng lại cluster; đó là cố ý, và lượt dựng lại ấy đóng kèm được DOD0.21 + T7.13.
+
+⚠⚠ **Chín lượt liên tiếp một bản ghi "đã xong" bị lượt rà sau bác bỏ.** Đây là hình dạng rủi ro
 đặc trưng của dự án, không phải sự cố lẻ — nguyên nhân gốc từng vụ ở `architecture-review.md`:
 
 | Ngày | Lượt rà tìm ra | § |
@@ -85,6 +87,7 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 | 25/8 | ảnh cổng chưa từng ra được một byte — bài kiểm dùng UUID không tồn tại nên chỉ đi nhánh 404 | §10.52 |
 | 25/8 | bản vá không bao giờ được nạp — compose in `Running` và giữ container cũ | §10.53 |
 | 25/8 | trang chủ nướng rỗng vào image, và **19 bài viết + 4 văn bản có số hiệu + 5 trạm thuỷ văn + 9 số điện thoại bịa** làm trang rỗng trông đầy | §10.54 |
+| 26/8 | tham số collation **vắng hẳn** ở `compose.prod.yml` 12 ngày — và vá tệp cũng không chữa được cluster đã dựng | §10.56 |
 
 ⛔ Hệ quả rút ra: **"đã tick" không phải bằng chứng.** Trước khi mở một giai đoạn mới, đối chiếu với mã thật và chạy đường mà người dùng thật đi.
 
@@ -92,14 +95,14 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 
 ⛔ **Cấm seed dữ liệu công trình/thuỷ văn "cho đẹp demo"** — ô nào chưa có nguồn thì nói thẳng là chưa có.
 
-**Codebase đo ngày 25/8**: **597 test BE** (242 core + 20 content + 24 operations + 311 app) + **222 test FE** (142 admin + 80 public) · **74 mã lỗi** (BE = FE) · 88 quyền / 12 vai trò / 334 dòng phân quyền · **32 bài ArchUnit** (7 lớp, gồm 11 bài tự-kiểm chứng minh luật bắt được vi phạm) · 7 phép kiểm bộ đọc tracking · mọi cổng bao phủ **chạy thật** (content 18.2%) · 0 CVE ≥ 7.
+**Codebase đo ngày 26/8**: **602 test BE** (242 core + 20 content + 24 operations + 316 app) + **222 test FE** (142 admin + 80 public) · **74 mã lỗi** (BE = FE) · 88 quyền / 12 vai trò / 334 dòng phân quyền · **32 bài ArchUnit** (7 lớp, gồm 11 bài tự-kiểm chứng minh luật bắt được vi phạm) · 7 phép kiểm bộ đọc tracking · mọi cổng bao phủ **chạy thật** (content 18.2%) · 0 CVE ≥ 7.
 
 ### Tra ở đâu
 
 | Cần gì | Đọc ở đâu |
 |---|---|
 | Nợ đang treo, task còn lại | **`.claude/master-tracking.md`** — nguồn DUY NHẤT (conventions.md §6). `phase0-tracking.md` / `phase1-tracking.md` chỉ là lưu trữ, cấm sửa |
-| **Lý do** một quyết định, **nguyên nhân gốc** một lỗi đã sửa | `architecture-review.md` **§9** (Phase 0, 14 mục) · **§10** (Phase 1, 41 mục — §10.35 đợt vá sau WS-22, §10.36 nghiệm thu lại WS-21 + DoD, §10.37 nghiệm thu image, §10.38 CI đỏ sau merge `dev`, §10.40 lỗi 204, §10.41 biến CSDL không ai đọc, §10.52 envelope bọc `byte[]`, §10.53 container không được thay, §10.54 trang chủ nướng rỗng + dữ liệu bịa che chỗ rỗng, §10.55 `minio-init` đo thay vì khai báo + bộ seed một công tắc) |
+| **Lý do** một quyết định, **nguyên nhân gốc** một lỗi đã sửa | `architecture-review.md` **§9** (Phase 0, 14 mục) · **§10** (Phase 1, 43 mục — §10.35 đợt vá sau WS-22, §10.36 nghiệm thu lại WS-21 + DoD, §10.37 nghiệm thu image, §10.38 CI đỏ sau merge `dev`, §10.40 lỗi 204, §10.41 biến CSDL không ai đọc, §10.52 envelope bọc `byte[]`, §10.53 container không được thay, §10.54 trang chủ nướng rỗng + dữ liệu bịa che chỗ rỗng, §10.55 `minio-init` đo thay vì khai báo + bộ seed một công tắc, §10.56 collation vắng ở `compose.prod.yml` — tham số chỉ chạy một lần) |
 | Cách viết một chức năng + bảng bẫy tra nhanh | `docs/coding-guide.md` |
 | Luật bắt buộc khi viết code | `conventions.md` |
 | Nghiệp vụ | `function-spec.md`; điểm chưa chốt → `business-open-questions.md` Phần III |
@@ -140,7 +143,7 @@ Rút ra sau khi **cùng một hình dạng lỗi lặp lại nhiều lần**. Ng
 7. **Một cơ chế chưa ai đi qua thì chưa biết nó đúng hay sai** — phép kiểm chạy qua *tập rỗng* vẫn xanh trọn vẹn (ArchUnit suốt Phase 0, tầng 3 phân quyền, ISR revalidate).
 8. **Healthcheck trỏ vào endpoint không đại diện chỉ chứng minh tiến trình còn sống** — sập 3 lần, nặng nhất là image backend chạy suốt 4 WS mà mọi `/api/v1/**` trả 404.
 9. **Một khẳng định không phân biệt được hai trạng thái thì không khẳng định gì** — bài canh "đi bằng HTTP/1.1" khẳng định `exchange.getProtocol()`, và xanh cả khi đã gỡ `.version(HTTP_1_1)`: máy chủ JDK chỉ nói HTTP/1.1 nên client tự hạ cấp. Phải **đo** cái gì thật sự khác giữa hai cấu hình (ở đây là header `Upgrade`/`HTTP2-Settings`), đừng khẳng định cái nghe có vẻ đúng.
-10. **Làm hỏng có chủ đích để kiểm chứng thì phải xác nhận bản hỏng ĐÃ được nạp** — lượt kiểm chứng bản vá IDOR ngày 23/8 báo 6/6 xanh sau khi đã gỡ lớp bảo vệ; hoá ra `install` bị Checkstyle chặn, output đã bị `>/dev/null` nuốt, và bài kiểm chạy trên jar cũ *còn nguyên bản vá*. Chính bước chứng minh cũng là một xanh giả.
+10. **Làm hỏng có chủ đích để kiểm chứng thì phải xác nhận bản hỏng ĐÃ được nạp — và bản KHÔI PHỤC cũng vậy** — lượt kiểm chứng bản vá IDOR ngày 23/8 báo 6/6 xanh sau khi đã gỡ lớp bảo vệ; hoá ra `install` bị Checkstyle chặn, output đã bị `>/dev/null` nuốt, và bài kiểm chạy trên jar cũ *còn nguyên bản vá*. Chính bước chứng minh cũng là một xanh giả. ⚠ Thêm 26/8, hai lượt nữa trong một phiên: `sed -i.bak` rồi `mv .bak` trả lại **mtime gốc**, nên Maven thấy nguồn cũ hơn `.class` và bỏ qua biên dịch — cả bộ test chạy trên lớp hỏng (169 lỗi, dòng thật nằm cách chỗ báo lỗi hàng nghìn dòng); và một khối kiểm chứng chạy sai thư mục nên `sed` không sửa gì mà bài kiểm **vẫn in 5/5 xanh**. Cách rẻ nhất: in một con số ĐO ĐƯỢC ở mỗi bước (`grep -c`, `stat`), và `touch` tệp sau khi khôi phục (§10.56).
 11. **Phép kiểm chạy lâu phải ưu tiên báo cáo trọn vẹn hơn dừng sớm** — reactor dừng ở module đầu làm 4 vòng quét CVE chỉ soi được **một** module; nếu module đầu tình cờ sạch thì ta tưởng cả dự án sạch.
 
 **Về chỗ đặt một bảo đảm**
@@ -151,20 +154,22 @@ Rút ra sau khi **cùng một hình dạng lỗi lặp lại nhiều lần**. Ng
 15. **Công tắc / cột / tham số chưa ai đọc là một lỗi, không phải việc để dành** — `limits.upload.max-mb.*`, `company.*`, `attachments.valid_from` đều bày ra ở giao diện hoặc lược đồ mà không dòng mã nào đọc. ⛔ Hệ quả: **không seed tham số `settings` cho tính năng chưa dựng**.
 16. **Số 0 là một câu khẳng định** — ô số liệu chưa có nguồn phải trả rỗng kèm lý do, và ràng buộc đó ép ở **hàm dựng** chứ không ở lời dặn.
     ⛔ **Và cấm mọi bộ dữ liệu dự phòng "cho giao diện luôn sống động"** — nó không làm dịu một sự cố, nó xoá dấu vết của sự cố: `articles.length >= 4 ? articles : [...articles, ...BIA]` khiến một mảng RỖNG cho ra một trang chủ ĐẦY. 19 bài viết, 4 văn bản có số hiệu và người ký, 5 trạm thuỷ văn có mực nước, 9 số điện thoại — tất cả đã lên staging. Bộ canh phải soi **toàn cây**, vì "ở đây thì chưa có nguồn" là câu người viết component nào cũng tự thấy mình là ngoại lệ (§10.54).
-17. **Đổi trạng thái chỉ qua Workflow engine, và cấm lách bằng transition giả** — hash chain đang ký tên vào lịch sử, bịa một bước chuyển là bịa một chữ ký.
+17. **Tham số chỉ có hiệu lực MỘT LẦN thì tệp cấu hình không còn là bằng chứng — phải đo thứ ĐÃ được tạo ra.** `POSTGRES_INITDB_ARGS` chỉ chạy lúc `initdb` dựng cluster; sau đó tệp compose và CSDL thật có thể nói hai điều khác nhau **vĩnh viễn** mà không lệnh nào báo sai. Đo 26/8: vá tệp rồi `up -d --force-recreate` vẫn ra collation cũ — bản vá tệp một mình chỉ tạo **cảm giác** đã xong. Cùng họ: quyền thư mục lúc tạo volume, `docker login` trên máy chủ (§10.56).
 
-18. **Việc làm xong nửa đường trông y hệt việc làm xong** — nghiệm thu WS-21 tìm ra một placeholder văn bản, một component gọi sai kiểu, một `navigate` mà đầu nhận không đọc; cả ba đều đã được tích ✅. Nghiệm thu phải đối chiếu với **mã thật**, không đối chiếu với bản ghi tiến độ.
+18. **Đổi trạng thái chỉ qua Workflow engine, và cấm lách bằng transition giả** — hash chain đang ký tên vào lịch sử, bịa một bước chuyển là bịa một chữ ký.
+
+19. **Việc làm xong nửa đường trông y hệt việc làm xong** — nghiệm thu WS-21 tìm ra một placeholder văn bản, một component gọi sai kiểu, một `navigate` mà đầu nhận không đọc; cả ba đều đã được tích ✅. Nghiệm thu phải đối chiếu với **mã thật**, không đối chiếu với bản ghi tiến độ.
 **Về công cụ và quy trình**
 
-19. **Script của workflow phải kiểm bằng `bash -c`** — zsh không tách từ mặc định, thử ở máy local không lộ ra mà runner chạy bash.
-20. **Nâng cấp trước, suppress sau; tra phiên bản bằng `maven-metadata.xml`, không bằng API tìm kiếm** — API `solrsearch` trả kết quả cũ, suýt lập suppression cho 49 CVE **đã có bản vá**.
-21. **Squash xong thì nhánh nguồn đã chết — cắt nhánh mới từ `dev`** (`.githooks/pre-push` canh; `make hooks` để bật, và nó là cấu hình **cục bộ từng bản clone**).
-22. **Đọc log theo trình tự, đừng đọc theo mã lỗi** — dòng đáng chú ý nhất thường nằm *trước* thứ được báo là lỗi.
-23. **`skipped` của một required check được GitHub tính là ĐẠT** — bộ lọc đường dẫn trục trặc thì phải mặc định **chạy thừa**, không bỏ sót. ⚠ Và bộ lọc phải bao **những tệp mà bài kiểm ĐỌC**, không chỉ những tệp nó nằm cùng thư mục: 7 lớp kiểm của bộ BE đọc `frontend/` và `deploy/`, nên bộ lọc cũ bỏ qua job canh chúng **đúng lúc chúng thay đổi**.
+20. **Script của workflow phải kiểm bằng `bash -c`** — zsh không tách từ mặc định, thử ở máy local không lộ ra mà runner chạy bash.
+21. **Nâng cấp trước, suppress sau; tra phiên bản bằng `maven-metadata.xml`, không bằng API tìm kiếm** — API `solrsearch` trả kết quả cũ, suýt lập suppression cho 49 CVE **đã có bản vá**.
+22. **Squash xong thì nhánh nguồn đã chết — cắt nhánh mới từ `dev`** (`.githooks/pre-push` canh; `make hooks` để bật, và nó là cấu hình **cục bộ từng bản clone**).
+23. **Đọc log theo trình tự, đừng đọc theo mã lỗi** — dòng đáng chú ý nhất thường nằm *trước* thứ được báo là lỗi.
+24. **`skipped` của một required check được GitHub tính là ĐẠT** — bộ lọc đường dẫn trục trặc thì phải mặc định **chạy thừa**, không bỏ sót. ⚠ Và bộ lọc phải bao **những tệp mà bài kiểm ĐỌC**, không chỉ những tệp nó nằm cùng thư mục: 7 lớp kiểm của bộ BE đọc `frontend/` và `deploy/`, nên bộ lọc cũ bỏ qua job canh chúng **đúng lúc chúng thay đổi**.
 
-24. **Một bộ canh theo hình dạng phải được thử với dữ liệu THẬT đang dùng** *(cùng họ với nhóm phép kiểm ở trên)* — ba bộ canh "không ghi cứng liên hệ Công ty", chỉ **một** bắt được khi lỗi tái phát: regex điện thoại đòi khoảng trắng giữa các nhóm số trong khi số thật dùng dấu chấm; regex địa chỉ phân biệt hoa thường trong khi địa chỉ mới viết HOA. Bắt theo hình dạng là đúng hướng, nhưng hình dạng phải đối chiếu với dữ liệu đang chạy — nếu không thì nó chỉ canh được cái đã chết. Bổ trợ bằng một bài ở tầng **cấu trúc** (mọi khoá `company.*` phải rơi về rỗng): bắt theo từng loại dữ liệu thì luôn có loại thứ tư lọt qua.
+25. **Một bộ canh theo hình dạng phải được thử với dữ liệu THẬT đang dùng** *(cùng họ với nhóm phép kiểm ở trên)* — ba bộ canh "không ghi cứng liên hệ Công ty", chỉ **một** bắt được khi lỗi tái phát: regex điện thoại đòi khoảng trắng giữa các nhóm số trong khi số thật dùng dấu chấm; regex địa chỉ phân biệt hoa thường trong khi địa chỉ mới viết HOA. Bắt theo hình dạng là đúng hướng, nhưng hình dạng phải đối chiếu với dữ liệu đang chạy — nếu không thì nó chỉ canh được cái đã chết. Bổ trợ bằng một bài ở tầng **cấu trúc** (mọi khoá `company.*` phải rơi về rỗng): bắt theo từng loại dữ liệu thì luôn có loại thứ tư lọt qua.
 
-25. **Merge không đụng độ ≠ merge không vỡ** — `git merge-tree` sạch, typecheck sạch, phân tích tệp cho thấy không đụng file nào của backend; vậy mà bộ test FE trên cây đã merge vẫn đỏ, vì nhánh kia khôi phục một lỗi mà nhánh này có bài canh. **Xung đột văn bản và xung đột ngữ nghĩa là hai chuyện khác nhau** — phải chạy bộ kiểm trên chính cây đã hợp nhất, không suy ra từ việc mỗi nhánh riêng lẻ đều xanh.
+26. **Merge không đụng độ ≠ merge không vỡ** — `git merge-tree` sạch, typecheck sạch, phân tích tệp cho thấy không đụng file nào của backend; vậy mà bộ test FE trên cây đã merge vẫn đỏ, vì nhánh kia khôi phục một lỗi mà nhánh này có bài canh. **Xung đột văn bản và xung đột ngữ nghĩa là hai chuyện khác nhau** — phải chạy bộ kiểm trên chính cây đã hợp nhất, không suy ra từ việc mỗi nhánh riêng lẻ đều xanh.
 
 ## Quy ước làm việc với user
 

@@ -31,10 +31,16 @@ services:
       DB_ARCHIVER_PASSWORD: ${DB_ARCHIVER_PASSWORD}
       DB_READONLY_PASSWORD: ${DB_READONLY_PASSWORD}
       # ⚠ COLLATION — chốt 14/8/2026, KHÔNG đổi sau khi đã có dữ liệu.
-      # ICU vi-VN cho ORDER BY tiếng Việt đúng (Anh < Dung < Đăng < Em).
-      # Để mặc định (byte order) thì "Đăng" xếp sau "Em" — sai rõ trong danh bạ
-      # nhân sự và danh mục công trình. Đổi về sau = dump + restore toàn bộ DB,
-      # nên Staging/Production BẮT BUỘC dùng đúng dòng này.
+      # ICU vi-VN cho ORDER BY tiếng Việt đúng (Anh < Dung < Đăng < Em) — Đ đứng
+      # sau D trong bảng chữ cái tiếng Việt. Bỏ dòng này thì sai theo kiểu nào là
+      # tuỳ locale mặc định; đo 26/8 trên chính image postgis/postgis:16-3.4:
+      #     mặc định của image (glibc en_US.utf8) → Anh < Đăng < Dung < Em
+      #     locale C (so theo byte)               → Anh < Dung < Em < Đăng
+      # Cả hai đều sai rõ trong danh bạ nhân sự và danh mục công trình. Đổi về sau
+      # = dump + xoá volume + restore, nên Staging/Production BẮT BUỘC dùng đúng
+      # dòng này — và cluster ĐANG CHẠY được đo lại ở mỗi lượt triển khai bằng
+      # `deploy/postgres/kiem-collation.sh`, vì tệp cấu hình không chứng minh được
+      # cluster đã dựng ra sao.
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=icu --icu-locale=vi-VN --locale=C.UTF-8"
     volumes:
       - postgres-data:/var/lib/postgresql/data

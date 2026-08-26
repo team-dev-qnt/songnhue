@@ -192,6 +192,64 @@ docker login ghcr.io -u <github-username> -p <PAT có quyền read:packages>
 Chưa đăng nhập thì lệnh kéo image đầu tiên trả `unauthorized`, kể cả khi repo là public. Đây đang là
 thao tác tay — **T11.36** đề xuất bỏ nó đi.
 
+### 2.7. Collation của cluster — ⛔ **chốt được đúng MỘT lần, lúc `initdb` chạy**
+
+`POSTGRES_INITDB_ARGS` trong `compose.prod.yml` chỉ có tác dụng ở lượt dựng volume **đầu tiên**. Sau
+đó image bỏ qua nó vĩnh viễn. Nên tệp cấu hình và cluster thật có thể nói hai điều khác nhau mãi mãi
+mà không lệnh nào báo sai.
+
+Đo ngày 26/8 trên chính `postgis/postgis:16-3.4` — đúng phải là `Anh < Dung < Đăng < Em`:
+
+| cluster dựng với | `ORDER BY` cho ra |
+|---|---|
+| ICU `vi-VN` | `Anh < Dung < Đăng < Em` ✅ |
+| mặc định của image (glibc `en_US.utf8`) | `Anh < Đăng < Dung < Em` |
+| locale `C` (so theo byte) | `Anh < Dung < Em < Đăng` |
+
+**Hỏi cluster đang chạy, đừng đọc tệp compose:**
+
+```bash
+cd /opt/songnhue && ./postgres/kiem-collation.sh
+```
+
+Lệnh này chạy tự động ở smoke test câu **[1/4]** của mọi lượt triển khai. Đạt thì in
+`i | collate=C.UTF-8 | icu=vi-VN`.
+
+#### Sai rồi thì sửa thế nào
+
+⛔ **Không sửa được bằng cách thêm dòng vào compose rồi deploy lại.** Đo được: vá tệp rồi
+`up -d --force-recreate` vẫn cho ra đúng collation cũ. `ALTER DATABASE` cũng không đổi được collation
+của một cluster đã có dữ liệu.
+
+Đường duy nhất — **có gián đoạn**, làm ngoài giờ:
+
+```bash
+cd /opt/songnhue
+dc="docker compose --env-file .env -f compose.prod.yml"
+
+$dc stop app admin-app public-web            # ngừng ghi trước khi chụp
+$dc exec -T postgres pg_dumpall -U postgres > /var/lib/songnhue/backup/truoc-doi-collation.sql
+ls -l /var/lib/songnhue/backup/truoc-doi-collation.sql   # ⚠ 0 byte là DỪNG, đừng đi tiếp
+
+$dc down                                     # KHÔNG `-v`: xoá có chọn lọc ở dòng dưới
+docker volume rm songnhue_postgres-data      # ⛔ điểm không quay lui được
+
+$dc up -d postgres                           # dựng lại — lần này initdb đọc POSTGRES_INITDB_ARGS
+sleep 30
+$dc exec -T postgres psql -U postgres -d postgres -f /dev/stdin \
+    < /var/lib/songnhue/backup/truoc-doi-collation.sql
+
+./postgres/kiem-collation.sh   # phải in ✓ trước khi bật app trở lại
+$dc up -d
+```
+
+Quy trình này đã được **chạy thật** ngày 26/8 trên một cluster sai: dữ liệu giữ nguyên, thứ tự
+`Anh < Đăng < Dung < Em` đổi thành `Anh < Dung < Đăng < Em`.
+
+⚠ **CSDL staging hiện tại đang sai** — nó được dựng ngày 25/8, trước khi `compose.prod.yml` có dòng
+ấy. Nó phải đi qua đúng quy trình trên, và đó cũng là lượt diễn tập cho khoản **DOD0.21** (quay lui)
+lẫn **T7.13** (khôi phục thật).
+
 ### ✅ Kiểm chứng mục 2
 
 ```bash
@@ -572,7 +630,7 @@ Cộng thêm hai thứ ngoài hệ thống, cả hai đều miễn phí:
 | 17 | Đã quay lui thử một lần ở staging | ☐ |
 | 18 | **Quyền ba thư mục đúng như §2.5** — `stat -c '%u:%g %a' /var/lib/songnhue/backup` phải ra `999:1000 2775`. Sai ô này thì mọi lượt deploy đỏ ở bước chụp trước triển khai | ☐ |
 | 19 | `docker login ghcr.io` đã chạy trên máy chủ (§2.6) | ☐ |
-| 18 | **Quyền ba thư mục đúng như §2.5** —  phải ra . Sai ô này thì mọi lượt deploy đỏ ở bước chụp trước triển khai | ☐ |
+| 20 | **`./postgres/kiem-collation.sh` in ✓** (§2.7). ⛔ Ô này chỉ ký được TRƯỚC khi có dữ liệu thật — sau đó sửa là dump + dựng lại cluster | ☐ |
 
 > **Mục 10 và 13 là hai mục không được ký khống.** Dự án này đã có 4 ngày sao lưu chạy mà **không
 > sinh ra một tệp nào**, trong khi `BackupServiceTest` vẫn xanh trọn vẹn — vì nó mock đúng chỗ mã

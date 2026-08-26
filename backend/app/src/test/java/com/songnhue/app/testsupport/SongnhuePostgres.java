@@ -38,8 +38,11 @@ public final class SongnhuePostgres {
             DockerImageName.parse("postgis/postgis:16-3.4").asCompatibleSubstituteFor("postgres");
 
     /**
-     * ⚠ Y hệt {@code compose.infra.yml}. Sai dòng này thì {@code ORDER BY} tiếng Việt xếp
-     * "Đăng" sau "Em" — sai rõ trong danh bạ nhân sự và danh mục công trình.
+     * ⚠ Y hệt {@code compose.infra.yml} <b>và</b> {@code compose.prod.yml} — ba chỗ, và
+     * {@code PostgresCollationParityTest} không cho chúng lệch nhau (CLAUDE.md luật 14).
+     *
+     * <p>Sai dòng này thì {@code ORDER BY} tiếng Việt xếp sai trong danh bạ nhân sự và danh mục
+     * công trình.
      */
     private static final String INITDB_ARGS =
             "--encoding=UTF8 --locale-provider=icu --icu-locale=vi-VN --locale=C.UTF-8";

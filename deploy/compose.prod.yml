@@ -47,6 +47,21 @@ services:
       DB_MIGRATION_PASSWORD: ${DB_MIGRATION_PASSWORD}
       DB_ARCHIVER_PASSWORD: ${DB_ARCHIVER_PASSWORD}
       DB_READONLY_PASSWORD: ${DB_READONLY_PASSWORD}
+      # ⚠⚠ COLLATION — chốt 14/8/2026. Dòng này VẮNG HẲN ở đây cho tới 26/8, trong khi
+      #    `compose.infra.yml` (đường local) và `SongnhuePostgres` (đường test) đều có.
+      #    Hệ quả: mọi lượt thử ở máy xếp `ORDER BY` tiếng Việt ĐÚNG, còn cluster thật
+      #    dựng từ tệp này thì xếp SAI ở danh bạ nhân sự và mọi danh mục. Đo 26/8 trên
+      #    chính image postgis/postgis:16-3.4 — đúng là Anh < Dung < Đăng < Em:
+      #        mặc định của image (glibc en_US.utf8) → Anh < Đăng < Dung < Em
+      #        locale C (so theo byte)               → Anh < Dung < Em < Đăng
+      #    Cùng hình dạng với vụ `DB_APP_PASSWORD` ngay bên trên:
+      #    hai đường vào cùng một image, chỉ một đường được đi thử.
+      #
+      # ⛔ `initdb` chỉ chạy ở lượt dựng volume ĐẦU TIÊN. Thêm dòng này vào một cluster
+      #    đã có dữ liệu KHÔNG đổi được gì — phải dump, xoá volume, dựng lại, nạp lại.
+      #    Vì thế nó được đo lại trên cluster ĐANG CHẠY ở mỗi lượt triển khai:
+      #    `deploy/postgres/kiem-collation.sh`, gọi từ smoke test câu [1/4].
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=icu --icu-locale=vi-VN --locale=C.UTF-8"
       # Giờ trong log của Postgres — để đọc log cùng múi giờ với người vận hành.
       TZ: Asia/Ho_Chi_Minh
     volumes:

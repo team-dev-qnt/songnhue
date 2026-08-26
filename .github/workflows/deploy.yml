@@ -197,7 +197,10 @@ jobs:
             --exclude '.env' --exclude 'env/' --exclude 'keys/' \
             --exclude 'compose.local.yml' --exclude 'compose.infra.yml' \
             deploy/ "$USER@$HOST:/opt/songnhue/"
-          ssh "$USER@$HOST" 'chmod +x /opt/songnhue/backup/*.sh'
+          # ⚠ `find`, không phải `chmod +x backup/*.sh`: mỗi lần thêm một script ở thư
+          #   mục khác là một lượt triển khai đỏ ở đúng dòng gọi nó — và thông báo
+          #   "Permission denied" không nhắc gì tới bước rsync này.
+          ssh "$USER@$HOST" 'find /opt/songnhue -maxdepth 2 -name "*.sh" -exec chmod +x {} +'
 
       # ⚠ Điểm quay lui DUY NHẤT về dữ liệu — hệ này không có PITR (§6.5).
       #
@@ -347,20 +350,27 @@ jobs:
           REMOTE
 
       # ---------------------------------------------------------------------
-      # Smoke test — ba câu, và câu nào cũng phân biệt được hai trạng thái
+      # Smoke test — bốn câu, và câu nào cũng phân biệt được hai trạng thái
       #
       # ⚠⚠ ĐÍCH ĐO ĐỔI 24/8: `$BASE_URL/actuator/**` KHÔNG đi tới đâu từ bên ngoài
       #    — nginx biên chỉ định tuyến `/api/` và `/`. Đo thật: public-web trả 404,
       #    admin-app trả 200 kèm TRANG HTML của SPA (nên `curl -f` đi lọt, chỉ phép
       #    so chuỗi cứu). Ba câu dưới đây đi đúng đường người dùng thật đi.
       #
-      # ⚠⚠ CÂU 2 VÀ 3 THÊM 25/8, và chúng bịt đúng lỗ đã trả giá: lượt deploy
-      #    24/8 XANH TRỌN VẸN trong khi cổng không có một bài nào (§10.45). Câu 1
+      # ⚠⚠ CÂU 3 VÀ 4 THÊM 25/8, và chúng bịt đúng lỗ đã trả giá: lượt deploy
+      #    24/8 XANH TRỌN VẸN trong khi cổng không có một bài nào (§10.45). Câu 2
       #    không phân biệt được cổng có nội dung với cổng rỗng — nó chỉ hỏi bảng
       #    `settings`. Nay bộ seed chạy trong chuỗi migration nên "có nội dung" là
-      #    một khẳng định kiểm được, và câu 3 là phép kiểm DUY NHẤT chứng minh
+      #    một khẳng định kiểm được, và câu 4 là phép kiểm DUY NHẤT chứng minh
       #    MinIO có byte: hàng CSDL và byte là hai hệ thống khác nhau, lệch nhau là
       #    hỏng câm.
+      #
+      # ⚠⚠ CÂU 1 THÊM 26/8. `POSTGRES_INITDB_ARGS` vắng hẳn ở `compose.prod.yml` suốt
+      #    12 ngày, và không có gì trong đường ống phát hiện ra — vì tham số ấy chỉ
+      #    có tác dụng lúc TẠO cluster, nên tệp cấu hình và cluster thật nói hai điều
+      #    khác nhau mà không lệnh nào báo sai. Đo được 26/8: vá tệp compose rồi
+      #    `up -d --force-recreate` KHÔNG đổi được collation của cluster đã dựng.
+      #    Nghĩa là bản vá tệp compose một mình chỉ tạo cảm giác đã xong.
       #
       # ⚠ Không viết `curl … | grep -q` dưới `pipefail`: grep thoát ngay khi khớp,
       #   curl nhận SIGPIPE (141) và pipefail biến cả pipeline thành thất bại DÙ
@@ -370,10 +380,26 @@ jobs:
         if: steps.target.outputs.ready == 'true'
         env:
           BASE_URL: ${{ secrets.BASE_URL }}
+          HOST: ${{ secrets.HOST }}
+          USER: ${{ secrets.USER }}
         run: |
           set -euo pipefail
 
-          # ---- Câu 1: nginx → public-web → Route Handler → app → postgres ----
+          # ---- Câu 1: cluster có ĐÚNG collation ICU vi-VN ----
+          #
+          # Hỏi thẳng CSDL, không đọc tệp compose. Sai thì KHÔNG deploy lại được —
+          # phải dump, xoá volume, dựng lại, restore (deploy-guideline §2.7). Vì thế
+          # nó đứng ĐẦU: mọi câu sau chỉ có nghĩa trên một cluster đúng.
+          # ⚠ Heredoc CÓ trích dẫn (`<<'REMOTE'`): không biến nào của runner cần
+          #   thay vào đây, và script tra container bằng nhãn compose nên nó không
+          #   cần biết tệp compose nào đang dùng.
+          ssh "$USER@$HOST" bash -euo pipefail <<'REMOTE'
+            cd /opt/songnhue
+            ./postgres/kiem-collation.sh
+          REMOTE
+          echo "✓ [1/4] Cluster dùng collation ICU vi-VN"
+
+          # ---- Câu 2: nginx → public-web → Route Handler → app → postgres ----
           dat=false
           for i in $(seq 1 30); do
             body=$(curl -fsS "$BASE_URL/api/v1/public/site-config" || true)
@@ -388,9 +414,9 @@ jobs:
             echo "(2) \`docker compose logs app\`; (3) \`docker compose ps\`."
             exit 1
           fi
-          echo "✓ [1/3] Đi hết chặng nginx → public-web → app → postgres"
+          echo "✓ [2/4] Đi hết chặng nginx → public-web → app → postgres"
 
-          # ---- Câu 2: cổng CÓ NỘI DUNG, không phải cổng rỗng hợp lệ ----
+          # ---- Câu 3: cổng CÓ NỘI DUNG, không phải cổng rỗng hợp lệ ----
           can="${{ inputs.so_bai_toi_thieu }}"
           bai=$(curl -fsS "$BASE_URL/api/v1/public/articles?page=0&size=100" || true)
           # Mỗi hàng có đúng một `"slug":`; siêu dữ liệu phân trang không có khoá ấy.
@@ -411,9 +437,9 @@ jobs:
             echo "— tệp .env KHÔNG được rsync, phải thêm tay; (2) log \`run --rm migrator\` ở bước trên."
             exit 1
           fi
-          echo "✓ [2/3] Cổng có $co bài (cần ≥ $can)"
+          echo "✓ [3/4] Cổng có $co bài (cần ≥ $can)"
 
-          # ---- Câu 3: MinIO CÓ BYTE — thứ không câu SQL nào chứng minh được ----
+          # ---- Câu 4: MinIO CÓ BYTE — thứ không câu SQL nào chứng minh được ----
           #
           # ⚠⚠ Lấy `public_id` TỪ CHÍNH phản hồi ở trên, KHÔNG ghi cứng id của bộ
           #    seed. Bản đầu ghi cứng `15509c57-…` — một tệp CỐ Ý không tồn tại ở
@@ -429,13 +455,13 @@ jobs:
           if [ -z "$anh" ]; then
             # ⚠ Đây KHÔNG phải một lượt kiểm đạt, và phải nhìn ra được là khác — một
             #   dòng ✓ ở đây sẽ nói dối rằng MinIO đã được kiểm.
-            echo "⚠ [3/3] BỎ QUA — không bài nào trong 12 bài đầu có ảnh bìa, nên chưa có gì để kiểm."
+            echo "⚠ [4/4] BỎ QUA — không bài nào trong 12 bài đầu có ảnh bìa, nên chưa có gì để kiểm."
             echo "   Đường ra byte của MinIO lượt này KHÔNG được chứng minh."
           else
             kieu=$(curl -fsS -o /dev/null -w '%{content_type}' \
                      "$BASE_URL/api/v1/public/files/$anh" || true)
             case "$kieu" in
-              image/*) echo "✓ [3/3] MinIO trả byte đúng kiểu ($kieu) cho $anh" ;;
+              image/*) echo "✓ [4/4] MinIO trả byte đúng kiểu ($kieu) cho $anh" ;;
               *)
                 echo "::error::Ảnh bìa $anh không ra được byte (content-type: '${kieu:-không có}')."
                 echo "Hàng CSDL nói tệp tồn tại mà kho thì không — kiểm \`SEED_LOCATION\` và log \`minio-init\`."

@@ -3561,3 +3561,52 @@ Thay nó bằng một bài khác hẳn: canh việc bản vá **không bị hoà
 `SeedGateTest` 9 → **10 bài**; gói `deploy` 48/48 xanh. Kiểm chứng ngược cả hai bài mới: đưa biến cũ trở lại một tệp `deploy/` → đỏ đúng tệp đó; gỡ dòng `mc cat` khỏi phép probe → đỏ với *"phép đo phải GHI, ĐỌC và XOÁ"*.
 
 ⛔ **Không cần thao tác tay trên máy chủ.** `/opt/songnhue/.env` của staging đang có cả hai biến; biến bị bỏ đơn giản là không còn ai đọc, còn `SEED_LOCATION` thì `minio-init` nhận qua `${SEED_LOCATION:-}`. Dọn dòng thừa trong `.env` là việc tuỳ, không phải điều kiện.
+
+---
+
+### §10.56. ⚠⚠ Collation của CSDL — tham số chỉ có hiệu lực một lần, nên tệp cấu hình không còn là bằng chứng (26/8/2026)
+
+#### Cái sai
+
+`POSTGRES_INITDB_ARGS` (ICU `vi-VN`) được chốt 14/8 và ghi vào **hai** chỗ: `compose.infra.yml` (đường local) và `SongnhuePostgres` (đường test). Nó **chưa bao giờ** được ghi vào `compose.prod.yml` — tệp dựng cluster của staging **và** production.
+
+Bản ghi cũ mô tả khoản nợ này là *"phải y hệt `compose.infra.yml`"*. Rà 26/8 bằng mã thật: không phải lệch, mà **vắng hẳn**. Và `deploy/postgres/init/` cũng không đặt locale ở đâu.
+
+Nó sống sót 12 ngày vì mọi đường được đi thử đều đúng — cùng hình dạng với `DB_APP_PASSWORD` (§10.41), chỉ khác chỗ hậu quả không hồi phục được.
+
+#### Vì sao khoản này đắt hơn vẻ ngoài
+
+`initdb` chạy **một lần**, lúc tạo cluster. Sau đó image bỏ qua tham số vĩnh viễn. Hệ quả là **tệp cấu hình và cluster thật có thể nói hai điều khác nhau mãi mãi mà không lệnh nào báo sai** — một trạng thái mà phần lớn cấu hình khác không có.
+
+Đo trực tiếp trên `postgis/postgis:16-3.4`, bốn kịch bản:
+
+| kịch bản | kết quả |
+|---|---|
+| cluster dựng **có** tham số | `Anh < Dung < Đăng < Em` ✅ |
+| cluster dựng **không** có tham số (glibc `en_US.utf8`) | `Anh < Đăng < Dung < Em` |
+| locale `C` (so theo byte) | `Anh < Dung < Em < Đăng` |
+| **vá tệp compose rồi `up -d --force-recreate`** | **vẫn `Anh < Đăng < Dung < Em`** |
+
+⛔ Dòng cuối là dòng đáng giá nhất: **bản vá tệp compose một mình chỉ tạo cảm giác đã xong.** Nếu chỉ thêm dòng vào `compose.prod.yml` rồi tick, staging vẫn sai và không ai biết.
+
+Ghi chú thêm: cách sai *phụ thuộc locale mặc định*, nên một phép kiểm khẳng định "Đăng rơi xuống sau Em" sẽ **xanh** trên cluster `en_US.utf8` — nó chỉ bắt được một trong hai kiểu sai. Phải so với thứ tự **đúng**.
+
+#### Đã vá
+
+1. **`compose.prod.yml`** — thêm dòng y hệt hai chỗ kia.
+2. **`PostgresCollationParityTest`** (5 bài) — quét cả cây mã nguồn tìm chuỗi tham số trong `.yml/.yaml/.java/.sh`, đòi cả ba tệp bắt buộc có mặt, đòi mọi bản giống hệt nhau **và** đúng là ICU `vi-VN` (ba chỗ cùng sai vẫn là sai). Hằng số mốc ghép từ hai mảnh để chính tệp bài kiểm không tự khớp vào mình.
+3. **`deploy/postgres/kiem-collation.sh`** — **ĐO** cluster đang chạy bằng một câu `ORDER BY`, ASCII thuần trên đường truyền (`chr(272)`/`chr(259)` thay vì ký tự tiếng Việt đi qua bốn tầng có thể đổi bảng mã).
+4. **`deploy.yml`** — smoke test 3 câu → **4 câu**, collation đứng **đầu**: mọi câu sau chỉ có nghĩa trên một cluster đúng. Bước rsync đổi `chmod +x backup/*.sh` thành `find -name '*.sh'`, nếu không thì script mới lên máy chủ không có cờ chạy.
+5. **`deploy-guideline.md` §2.7** — quy trình dựng lại cluster, **đã chạy thật**: dữ liệu giữ nguyên, thứ tự đổi từ `Anh<Đăng<Dung<Em` sang `Anh<Dung<Đăng<Em`. Checklist go-live thêm mục 20 (và sửa một dòng hỏng ở mục 18 — `%u:%g %a` từng bị shell nuốt thành `phải ra .`).
+
+Kiểm chứng ngược **5 kịch bản**, mỗi lượt đều xác nhận bản hỏng đã nạp: lệch một ký tự (`vi-VN`→`vi_VN`) · xoá hẳn dòng · cả ba chỗ cùng đổi sang `libc` · workflow không gọi script · script mất cờ chạy. Cả năm đỏ đúng bài; khôi phục thì xanh lại.
+
+#### Hai thứ lượt vá này tự va vào
+
+**(a) `ScriptDockerLookupTest` bắt bản đầu của chính script mới.** Nó gọi `docker compose exec`, mà compose nội suy toàn bộ tệp trước khi trả lời — `compose.prod.yml` đòi `${APP_IMAGE:?}` vốn chỉ tồn tại trong lượt triển khai. Script sẽ hỏng ở production với một thông báo trỏ vào chỗ khác hẳn (§10.48). Bài canh viết sau hai lần trả giá đã chặn được lần thứ ba **trước khi** nó lên máy chủ. Đổi sang `container_cua` (tra bằng nhãn compose).
+
+**(b) Lượt kiểm chứng ngược suýt nói dối — lần thứ ba trong dự án.** `sed -i.bak` rồi `mv .bak` khôi phục **cả mtime gốc**, nên với Maven tệp nguồn *cũ hơn* lớp `.class` vừa biên dịch từ bản hỏng → bỏ qua biên dịch lại → **cả bộ test chạy trên lớp hỏng**: 169 lỗi và dòng thật nằm ở `initdb: error: --icu-locale cannot be specified unless locale provider "icu" is chosen`, cách chỗ báo lỗi hàng nghìn dòng.
+
+Trước đó cùng phiên còn một lượt nữa: một khối kiểm chứng ngược chạy sai thư mục (`cd` vào `backend` còn lưu lại), `sed` không tìm thấy tệp, mà bài kiểm **vẫn in 5/5 xanh** — vì bản hỏng chưa từng tồn tại.
+
+⛔ Rút ra: luật 10 phải mở rộng — **bản KHÔI PHỤC cũng phải được xác nhận đã nạp**, không chỉ bản hỏng. Cách rẻ nhất: in một con số đo được ở mỗi bước (`grep -c`, `stat`), và `touch` tệp sau khi khôi phục.
