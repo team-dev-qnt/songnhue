@@ -3650,7 +3650,7 @@ Cùng một hình dạng: **cổng kiểm tồn tại trong tài liệu nhưng c
 
 Hai chi tiết chỉ lộ ra khi làm thật:
 
-- `Gắn tag SHA cho image không đổi` **không** được đưa vào `contexts` — nó chỉ chạy ở `push`, không ở `pull_request`. Đưa vào là mọi PR đứng vĩnh viễn ở *"Expected — Waiting for status to be reported"* (§2.1). Danh sách context phải đọc từ **một PR thật**, không từ một lượt push.
+- `Gắn tag SHA cho image không đổi` **không** được đưa vào `contexts` — nhưng lý do đầu tiên tôi ghi ra là **sai**, và phép đo bác nó ngay: `gh pr checks 41` cho thấy job ấy **có** báo cáo ở PR, ở trạng thái `skipping`. Một job bị `if` loại vẫn gửi kết luận `skipped` lên commit; §2.1 (*"Expected — Waiting for status"*) chỉ áp cho job **không tồn tại trong lượt chạy**. Lý do thật: `skipped` được tính là ĐẠT, nên một context **luôn** `skipped` ở PR **không bao giờ chặn được gì** — nó chỉ tạo ấn tượng sai rằng việc gắn tag đã được canh.
 - `PUT automated-security-fixes` trả **422 `Vulnerability alerts must be enabled`**. *Alerts* (báo) và *security updates* (PR vá tự động) là hai công tắc, phải bật theo thứ tự.
 
 Đo sau khi bật: `secret-scanning/alerts` → **0 cảnh báo**; `rulesets` → `[]` (không có luật kiểu mới chồng lên).

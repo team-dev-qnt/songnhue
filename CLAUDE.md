@@ -121,7 +121,7 @@ Gửi kèm `report-templates-proposal.md`. Chi tiết từng mục: `business-op
 |---|---|
 | **Nợ #45** Dependency graph | ✅ đã bật từ trước, sổ ghi sai — job *Soi phụ thuộc* chạy `success` (không `skipped`), SBOM trả về (T11.32) |
 | **Nợ #27** bảo vệ nhánh | ✅ `staging` + `production` `strict` → `false`; `dev` thêm *Vùng nào thay đổi* (T11.39) |
-| **Nợ #46** context đóng gói image | ✅ `dev` **2 → 7** context. ⚠ `Gắn tag SHA cho image không đổi` cố ý ngoài danh sách — nó chỉ chạy ở `push`, đưa vào là PR đứng vĩnh viễn ở *Expected* (T22.23) |
+| **Nợ #46** context đóng gói image | ✅ `dev` **2 → 7** context. ⚠ `Gắn tag SHA cho image không đổi` cố ý ngoài danh sách — nó **có** báo cáo ở PR (`skipping`), mà `skipped` được tính ĐẠT, nên nó không chặn được gì (T22.23) |
 | Bảo mật kho | ✅ secret scanning · push protection · non-provider patterns · Dependabot alerts + security updates — cả 5 `enabled`, `secret-scanning/alerts` trả **0** (T11.40) |
 | Cổng secret của lượt triển khai | ✅ thiếu secret ở production nay **DỪNG ĐỎ**. Trước đó cảnh báo rồi bỏ qua → lượt CD Production xanh trọn vẹn mà không byte nào chạm máy chủ (T11.7-b, §10.57) |
 | Environment `production` | ⬜ vẫn **không có secret nào** — chỉ đặt được sau khi có VPS-1 (T11.7) |

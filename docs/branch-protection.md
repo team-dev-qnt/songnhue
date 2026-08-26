@@ -344,10 +344,17 @@ Soi phụ thuộc PR thêm vào
 Đóng gói image frontend (public-web, deploy/docker/public-web.Dockerfile)
 ```
 
-⚠ `Gắn tag SHA cho image không đổi` **cố ý không có trong danh sách** — nó chỉ chạy ở lượt `push`,
-không chạy ở `pull_request`. Đưa vào là mọi PR đứng vĩnh viễn ở *"Expected — Waiting for status to
-be reported"* (§2.1). Kiểm bằng cách đọc danh sách check của một PR thật, không đọc của một lượt
-push.
+⚠ `Gắn tag SHA cho image không đổi` **cố ý không có trong danh sách**, nhưng **không phải** vì lý do
+ở §2.1. Đo trên PR #41: nó **có** báo cáo ở PR, ở trạng thái `skipping` — job mang
+`if: github.event_name == 'push'`, và một job bị `if` loại vẫn gửi kết luận `skipped` lên commit.
+
+Lý do thật: **`skipped` được GitHub tính là ĐẠT**, nên một context *luôn luôn* `skipped` ở PR là một
+context **không bao giờ chặn được gì**. Nó chỉ làm danh sách dài thêm và tạo ấn tượng sai rằng việc
+gắn tag đã được canh. Bảo đảm ấy phải nằm ở chỗ khác — lượt `push` vào `dev`.
+
+⛔ Ghi lại vì bản đầu của mục này (26/8) ghi sai lý do — "PR đứng vĩnh viễn ở *Expected*" — rồi tự
+bác bỏ khi đọc `gh pr checks 41`. §2.1 là một cái bẫy **có thật**, nhưng nó áp cho job **không tồn
+tại trong lượt chạy** (workflow không trigger), không phải job **bị `if` loại**.
 
 ⚠ `Soi phụ thuộc PR thêm vào` mang `if: github.event_name == 'pull_request'` nên **luôn** báo cáo ở
 PR — an toàn để bắt buộc. Ở lượt push nó `skipped`, và required check chỉ áp cho PR.
