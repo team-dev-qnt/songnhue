@@ -96,12 +96,42 @@ server {
         default_type "text/plain";
     }
 
-    # Đích của `healthcheck:` trong compose. Để ở cổng 80 vì lượt kiểm chạy từ
-    # bên trong container, nơi không có chứng chỉ và không cần TLS.
+    # Câu "nginx còn sống không" — `return 200` tĩnh, trả lời được cả khi mọi
+    # upstream đã chết. Để ở cổng 80 vì lượt kiểm chạy từ bên trong container,
+    # nơi không có chứng chỉ và không cần TLS.
     location = /healthz {
         access_log off;
         add_header Content-Type text/plain;
         return 200 "ok\n";
+    }
+
+    # ⭐⭐ ĐÍCH THẬT của `healthcheck:` trong compose — khác `/healthz` ngay trên ở
+    #    chỗ nó CHUYỂN TIẾP.
+    #
+    # Đích cũ là `/.well-known/acme-challenge/`, và nó trả **404** khi không có
+    # lượt xin chứng chỉ nào đang chạy — tức là gần như luôn luôn. Container báo
+    # `unhealthy` suốt 22 giờ liền trong khi cả hệ chạy bình thường (đo trên
+    # staging 26/8). Một cảnh báo luôn bật là một cảnh báo không ai đọc nữa.
+    #
+    # `/healthz` tĩnh thì ngược lại: nó xanh cả khi nginx không định tuyến được
+    # tới đâu — mà định tuyến chính là việc của nginx (CLAUDE.md luật 8).
+    #
+    # Đích này đi qua `$probe_upstream`, một BIẾN, nên nó bắt được cả lỗi phân
+    # giải DNS trong mạng compose — đúng lỗi đã làm nginx chết với
+    # `[emerg] host not found in resolver`.
+    #
+    # ⚠ `/api/health` của public-web cố ý KHÔNG gọi sang backend, nên lượt kiểm
+    #   30 giây một lần này không tạo tải lên CSDL. Đổi sang một đường có gọi
+    #   backend là biến healthcheck thành một nguồn tải định kỳ, và làm backend
+    #   hỏng kéo theo nginx bị đánh dấu hỏng.
+    set $probe_upstream ${PUBLIC_UPSTREAM};
+    location = /healthz/upstream {
+        access_log off;
+        allow 127.0.0.1;
+        allow ::1;
+        deny all;
+        proxy_pass $probe_upstream/api/health;
+        proxy_set_header Host $host;
     }
 
     location / {

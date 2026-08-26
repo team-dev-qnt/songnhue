@@ -321,36 +321,90 @@ gh api repos/team-dev-qnt/songnhue/rulesets                     # phải [] — 
 | Không có ruleset kiểu mới chồng lên | ✅ `[]` |
 | Actions đang bật | ✅ |
 
-### 6.2. Còn phải chỉnh — lệnh sửa
+### 6.2. ~~Còn phải chỉnh~~ — ✅ **ĐÃ ÁP DỤNG 26/8/2026**
 
-Hai mục dưới đây do **lỗi bản đầu của tài liệu**, không phải do chạy sai. *(Bản 15/8 ghi ba mục;
-mục thứ ba — hạ số người duyệt xuống 0 — đã bỏ ngày 18/8 vì tiền đề "đội một người" sai, xem §2.6.)*
+Ba mục dưới đây treo từ 15/8. Áp bằng `gh api` ngày 26/8, và **đo lại ngay sau đó** — không tick
+theo lệnh đã gõ.
+
+| | Trước | Sau |
+|---|---|---|
+| `dev` — `contexts` | 2 (`Backend — build, lint, test`, `Frontend — lint`) | **7** |
+| `staging` — `strict` | `true` | **`false`** |
+| `production` — `strict` | `true` | **`false`** |
+
+**Bảy context của `dev`** — tên khớp từng ký tự với `name:` của job, kể cả dấu `—` và dấu ngoặc:
+
+```
+Vùng nào thay đổi
+Backend — build, lint, test
+Frontend — lint
+Soi phụ thuộc PR thêm vào
+Đóng gói image
+Đóng gói image frontend (admin-app, deploy/docker/admin-app.Dockerfile)
+Đóng gói image frontend (public-web, deploy/docker/public-web.Dockerfile)
+```
+
+⚠ `Gắn tag SHA cho image không đổi` **cố ý không có trong danh sách**, nhưng **không phải** vì lý do
+ở §2.1. Đo trên PR #41: nó **có** báo cáo ở PR, ở trạng thái `skipping` — job mang
+`if: github.event_name == 'push'`, và một job bị `if` loại vẫn gửi kết luận `skipped` lên commit.
+
+Lý do thật: **`skipped` được GitHub tính là ĐẠT**, nên một context *luôn luôn* `skipped` ở PR là một
+context **không bao giờ chặn được gì**. Nó chỉ làm danh sách dài thêm và tạo ấn tượng sai rằng việc
+gắn tag đã được canh. Bảo đảm ấy phải nằm ở chỗ khác — lượt `push` vào `dev`.
+
+⛔ Ghi lại vì bản đầu của mục này (26/8) ghi sai lý do — "PR đứng vĩnh viễn ở *Expected*" — rồi tự
+bác bỏ khi đọc `gh pr checks 41`. §2.1 là một cái bẫy **có thật**, nhưng nó áp cho job **không tồn
+tại trong lượt chạy** (workflow không trigger), không phải job **bị `if` loại**.
+
+⚠ `Soi phụ thuộc PR thêm vào` mang `if: github.event_name == 'pull_request'` nên **luôn** báo cáo ở
+PR — an toàn để bắt buộc. Ở lượt push nó `skipped`, và required check chỉ áp cho PR.
 
 ```bash
-# 1) Thêm context còn thiếu ở dev (§2.5)
+# 1) dev — bảy context (§2.5 + nợ #46)
 gh api -X PATCH repos/team-dev-qnt/songnhue/branches/dev/protection/required_status_checks \
-  -f strict=true \
+  -F strict=true \
   -f 'contexts[]=Vùng nào thay đổi' \
   -f 'contexts[]=Backend — build, lint, test' \
-  -f 'contexts[]=Frontend — lint'
+  -f 'contexts[]=Frontend — lint' \
+  -f 'contexts[]=Soi phụ thuộc PR thêm vào' \
+  -f 'contexts[]=Đóng gói image' \
+  -f 'contexts[]=Đóng gói image frontend (admin-app, deploy/docker/admin-app.Dockerfile)' \
+  -f 'contexts[]=Đóng gói image frontend (public-web, deploy/docker/public-web.Dockerfile)'
 
-# 2) Tắt strict ở hai chặng đề bạt (§2.4)
+# 2) tắt strict ở hai chặng đề bạt (§2.4)
 for b in staging production; do
   gh api -X PATCH "repos/team-dev-qnt/songnhue/branches/$b/protection/required_status_checks" \
     -F strict=false -f 'contexts[]=Promotion guard'
 done
+```
 
-# 3) Hạ số người duyệt xuống 0 khi đội còn 1 người (§2.6)
-for b in dev staging production; do
-  gh api -X PATCH "repos/team-dev-qnt/songnhue/branches/$b/protection/required_pull_request_reviews" \
-    -F required_approving_review_count=0 \
-    -F dismiss_stale_reviews=false \
-    -F require_last_push_approval=false
+> ⛔ **Mục 3 của bản 15/8 đã bỏ**: `required_approving_review_count=0`. Repo có hai collaborator
+> admin nên `1` chạy được thật; PR #1 (18/8) merge không cần bypass. Đừng chạy lại đoạn đó.
+
+### 6.2-b. Bảo mật kho — bật 26/8/2026
+
+Không thuộc branch protection nhưng cùng một hình dạng nợ ("bấm ở giao diện, không nằm trong mã"):
+
+| | Trước 26/8 | Sau |
+|---|---|---|
+| Secret scanning | `disabled` | ✅ `enabled` |
+| Push protection | `disabled` | ✅ `enabled` |
+| Non-provider patterns | `disabled` | ✅ `enabled` |
+| Dependabot alerts + security updates | `disabled` | ✅ `enabled` |
+
+```bash
+gh api -X PUT  repos/team-dev-qnt/songnhue/vulnerability-alerts
+gh api -X PUT  repos/team-dev-qnt/songnhue/automated-security-fixes   # đòi dòng trên chạy trước
+for k in secret_scanning secret_scanning_push_protection secret_scanning_non_provider_patterns; do
+  gh api -X PATCH repos/team-dev-qnt/songnhue -f "security_and_analysis[$k][status]=enabled"
 done
 ```
 
-> ⛔ **Đã bỏ — mục 3 của bản 15/8**: `required_approving_review_count=0`. Repo có hai collaborator
-> admin nên `1` chạy được thật; PR #1 (18/8) merge không cần bypass. Đừng chạy lại đoạn đó.
+⚠ `automated-security-fixes` trả **422 `Vulnerability alerts must be enabled`** nếu chưa bật
+`vulnerability-alerts`. Hai thứ khác nhau: *alerts* là báo, *security updates* là PR vá tự động.
+
+Đo sau khi bật: `gh api repos/team-dev-qnt/songnhue/secret-scanning/alerts` → **0 cảnh báo**. Repo
+public nên mọi tính năng trên đều miễn phí.
 
 ### 6.3. ~~⚠ Mã nguồn chưa có trên `dev`~~ — ĐÃ XONG 18/8
 

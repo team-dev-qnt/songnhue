@@ -91,11 +91,32 @@ close_record() {
 # thêm một chỗ hỏng mà gần như không giảm thêm dung lượng.
 # -----------------------------------------------------------------------------
 echo "→ pg_dump $DB_NAME → $TARGET"
+# ⚠⚠ CÓ `--no-owner` nhưng KHÔNG `--no-privileges` — bỏ `--no-privileges` ngày 26/8
+#    sau lượt diễn tập khôi phục THẬT trên staging (§10.58).
+#
+#    GRANT cấp bảng của dự án này do MIGRATION Flyway cấp, không do `10-bootstrap.sh`.
+#    Khi khôi phục vào một cluster MỚI:
+#      · `flyway_schema_history` được nạp lại → Flyway nói "up to date, no migration
+#        necessary" → migration cấp quyền KHÔNG chạy;
+#      · `--no-privileges` đã tước ACL khỏi bản dump.
+#    Kết quả: CSDL đầy đủ dữ liệu mà `songnhue_app` **không đọc nổi một bảng nào** —
+#    app chết ở `AdminBootstrapRunner` với `ERROR: permission denied for table users`.
+#    Đo trên staging 26/8.
+#
+#    ⛔ Đây là đường quay lui DỮ LIỆU duy nhất của hệ (không có PITR), và nó đã hỏng ở
+#       đúng tình huống nó tồn tại để phục vụ.
+#
+#    `--no-owner` thì GIỮ: chủ sở hữu là vai trò đang chạy pg_restore
+#    (`songnhue_owner`), đúng thứ ta muốn ở mọi máy.
+#
+# ⚠ Chú thích này để NGOÀI lệnh. Chèn nó vào giữa một lệnh nối dòng bằng `\` là cắt
+#   đứt lệnh — và `bash -n` vẫn XANH vì phần còn lại vẫn hợp lệ cú pháp, chỉ là một
+#   lệnh khác. Đã mắc đúng vậy một lượt, lộ ra ở `--format=custom: command not found`.
 if ! PGPASSWORD="$DB_READONLY_PASSWORD" pg_dump \
         --host="$DB_HOST" --port="$DB_PORT" \
         --username="$DB_READONLY_USER" --dbname="$DB_NAME" \
         --format=custom --compress=6 --no-password \
-        --no-owner --no-privileges \
+        --no-owner \
         --file="$TARGET" 2> >(tee /tmp/songnhue-dump-err.$$ >&2); then
     ERR="$(tail -c 2000 /tmp/songnhue-dump-err.$$ 2>/dev/null || echo 'pg_dump thất bại')"
     rm -f "/tmp/songnhue-dump-err.$$"

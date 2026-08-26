@@ -99,10 +99,48 @@ PGPASSWORD="$DB_MIGRATION_PASSWORD" psql \
     "SELECT pg_terminate_backend(pid) FROM pg_stat_activity
       WHERE datname = '$DB_NAME' AND pid <> pg_backend_pid();" >/dev/null
 
+# -----------------------------------------------------------------------------
+# Lọc mục lục — BẮT BUỘC khi khôi phục vào một cluster MỚI (T7.7: diễn tập sang
+# máy khác, và mọi lượt khôi phục thảm hoạ thật).
+#
+# ⚠⚠ Ba nhóm mục sau thuộc về EXTENSION, không thuộc về ta, và `pg_restore` chạy
+#    bằng `songnhue_owner` sẽ ĐỎ ở chúng — đo trên staging 26/8 (§10.58):
+#
+#      COMMENT - EXTENSION pg_trgm     → ERROR: must be owner of extension pg_trgm
+#      TABLE DATA … spatial_ref_sys    → ERROR: permission denied for table spatial_ref_sys
+#      (và ACL của các đối tượng ấy)
+#
+#    Cả ba đều do `CREATE EXTENSION` dựng lại rồi — `spatial_ref_sys` ở cluster mới
+#    đã có đủ 8500 dòng trước khi ta nạp gì. Bỏ chúng KHÔNG mất dữ liệu.
+#
+# Luật lọc: bỏ mục nào có **chủ sở hữu là `postgres`** (tức do superuser tạo qua
+# extension) và mọi `COMMENT - EXTENSION`. Lọc theo chủ sở hữu thay vì liệt kê tên
+# bảng: liệt kê tên là một danh sách sẽ mục ngay khi thêm extension thứ tư.
+# -----------------------------------------------------------------------------
+TOC="$(mktemp)"
+trap 'rm -f "$TOC"' EXIT
+PGPASSWORD="$DB_MIGRATION_PASSWORD" pg_restore --list "$SOURCE" \
+    | grep -v "COMMENT - EXTENSION" \
+    | awk '$NF != "postgres"' > "$TOC"
+
+BO="$(( $(PGPASSWORD="$DB_MIGRATION_PASSWORD" pg_restore --list "$SOURCE" | grep -c .) - $(grep -c . "$TOC") ))"
+echo "→ Mục lục: bỏ $BO mục thuộc extension (do CREATE EXTENSION dựng lại)"
+
+# ⚠ `grep -c .` chứ không `wc -l`: mục lục có dòng chú thích và dòng trống.
+[ "$(grep -c . "$TOC")" -gt 100 ] || {
+    echo "✗ Mục lục sau khi lọc chỉ còn $(grep -c . "$TOC") mục — bộ lọc đã ăn quá tay. DỪNG." >&2
+    exit 1
+}
+
 echo "→ pg_restore"
+# ⚠ KHÔNG `--no-privileges`: GRANT cấp bảng do migration Flyway cấp, mà Flyway
+#   không chạy lại trên một CSDL vừa khôi phục (`flyway_schema_history` nói đã áp
+#   đủ). Tước ACL khỏi bản dump là khôi phục ra một CSDL `songnhue_app` không đọc
+#   nổi — app chết ở `permission denied for table users` (§10.58).
 PGPASSWORD="$DB_MIGRATION_PASSWORD" pg_restore \
     --host="$DB_HOST" --port="$DB_PORT" --username="$OWNER" --dbname="$DB_NAME" \
-    --no-password --clean --if-exists --no-owner --no-privileges \
+    --no-password --clean --if-exists --no-owner \
+    --use-list="$TOC" \
     --exit-on-error --single-transaction \
     "$SOURCE"
 
@@ -113,3 +151,8 @@ echo "   1. Tắt chế độ bảo trì nếu đang bật, rồi KHỞI ĐỘNG
 echo "      (cache Caffeine của bảng settings còn giữ giá trị trước khi ghi đè)."
 echo "   2. Đối chiếu số bản ghi các bảng trọng yếu với kỳ vọng."
 echo "   3. Kiểm chuỗi hash nhật ký:  make db-verify-audit"
+echo "   4. ⚠ ĐỌC THỬ BẰNG VAI TRÒ CỦA ỨNG DỤNG, không chỉ bằng chủ sở hữu:"
+echo "        psql -U songnhue_app -d $DB_NAME -c 'SELECT count(*) FROM users'"
+echo "      Khôi phục vào cluster MỚI mà thiếu GRANT thì mọi bảng đều có dữ liệu"
+echo "      và app vẫn chết ngay lúc khởi động (§10.58). Chủ sở hữu luôn đọc được,"
+echo "      nên hỏi bằng chủ sở hữu KHÔNG phân biệt được hai trạng thái."

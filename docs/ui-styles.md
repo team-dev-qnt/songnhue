@@ -177,7 +177,18 @@ Chân trang được thiết kế đồng bộ **Full Brand Blue Gradient** (`#0
 
 ### 4.4. Cấu trúc Bố cục Trang chủ (`public-web/src/app/page.tsx`)
 
-Toàn bộ bố cục trang chủ tuân thủ mô hình Cổng thông tin Đa tầng (tham chiếu chi tiết tại `docs/web-refactor.md`):
+Toàn bộ bố cục trang chủ tuân thủ mô hình Cổng thông tin Đa tầng.
+
+⛔⛔ **Khối nào chưa có nguồn dữ liệu thì dựng `EmptyBlock` nói rõ lý do — CẤM mọi mảng dữ liệu
+mẫu viết cứng.** Bản kế hoạch cũ (`docs/web-refactor.md`, đã xoá) yêu cầu ngược lại: *"xây dựng
+các khối với Mock data dự phòng (Fallback an toàn khi API backend chưa cấp đủ endpoint)"* — và
+gọi cơ chế ấy là **an toàn**. Nó không an toàn: một mảng RỖNG cho ra một trang chủ ĐẦY, nên đường
+dữ liệu hỏng hoàn toàn trông y hệt đường dữ liệu chạy đúng. 19 bài viết, 4 văn bản có số hiệu và
+người ký, 5 trạm thuỷ văn có mực nước và 9 số điện thoại đã lên staging theo đúng chỉ dẫn đó
+(§10.54). `noFabricatedContent.test.ts` nay canh toàn cây.
+
+Hiện đang là ô rỗng chờ đấu nối: thuỷ văn (MOD-03) · văn bản điều hành (CN-01.7) · thư viện ảnh ·
+đơn vị trực thuộc (`org_units`) — xem T11.29 / T11.30.
 
 1. **Khung chứa chính (Main Container)**: `max-w-[1240px] mx-auto px-4 sm:px-6`.
 2. **Khối Hero & Dòng thời sự (Grid 8 : 4)**:

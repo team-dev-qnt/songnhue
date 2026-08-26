@@ -2480,7 +2480,7 @@ trong mã nhưng chưa có hiệu lực ở nơi nó phải chặn.** Ba lần r
 
 ### §10.39. Rà đường triển khai staging bằng mã thật — bốn lỗi chặn, cả bốn đều im lặng (24/8/2026)
 
-Trước khi viết kế hoạch thực thi staging (`docs/deploy-staging.md`), rà lại toàn bộ đường triển khai
+Trước khi viết kế hoạch thực thi staging, rà lại toàn bộ đường triển khai
 bằng **mã thật** thay vì bằng tài liệu. Bốn chỗ mà làm theo bản cũ sẽ hỏng.
 
 #### 1. ⛔ Smoke test của CD đo một đường không đi tới đâu
@@ -2552,7 +2552,7 @@ ngoài là **"staging chập chờn"** chứ không phải một lỗi đọc đ
 sao lưu**; một lượt OOM lúc 03:00 làm hỏng lượt kéo về mà không ai biết.
 
 Đã đặt trần cho cả ba service giám sát, và ghi con số + ba phương án chọn máy vào
-`docs/deploy-staging.md` §1. **Khuyến nghị: VPS-2 lên 8 GB.** Phương án giữ 4 GB bằng cách chuyển giám
+`hosting_recommendations.md` §8. **Khuyến nghị: VPS-2 lên 8 GB.** Phương án giữ 4 GB bằng cách chuyển giám
 sát sang VPS-1 bị bác — nó phá đúng lý do dựng ra nó.
 
 📌 Có một cách tiết kiệm nghe hợp lý mà **không dùng được**: "chỉ bật staging khi cần test". Lúc test
@@ -3197,7 +3197,7 @@ Hai chi tiết nhỏ nhưng cố ý:
 | 2 | Migration seed ghi đủ hàng không? | §10.50 — cổng chặn location, thứ tự migrator |
 | 3 | **Mỗi `storage_key` trong CSDL có byte thật trong MinIO không?** | chỗ hỏng CÂM — và là câu **không bài kiểm JUnit nào trả lời được** |
 
-`compose.rehearse.yml` đổi đúng **ba** thứ, mỗi thứ là một điều lượt diễn tập không chứng minh được: đổi `container_name` (tránh đụng stack local) và thay hai bind mount vào đường tuyệt đối của máy chủ bằng volume có tên. ⛔ Hệ quả trực tiếp: **diễn tập không kiểm được quyền thư mục** — đúng mục 3 của `docs/deploy-staging-issue.md`, thứ đã làm container app crash trên VPS. Danh sách "không nói gì về" in ra ở cuối mỗi lượt chạy, không giấu trong tài liệu.
+`compose.rehearse.yml` đổi đúng **ba** thứ, mỗi thứ là một điều lượt diễn tập không chứng minh được: đổi `container_name` (tránh đụng stack local) và thay hai bind mount vào đường tuyệt đối của máy chủ bằng volume có tên. ⛔ Hệ quả trực tiếp: **diễn tập không kiểm được quyền thư mục** — thứ đã làm container app crash trên VPS (quyền đúng: `deploy-guideline.md` §2.5). Danh sách "không nói gì về" in ra ở cuối mỗi lượt chạy, không giấu trong tài liệu.
 
 #### Đã đo, cả hai chiều
 
@@ -3488,6 +3488,17 @@ Kiểm bản vá bằng `npm run build` ở máy là kiểm một môi trường
 
 **Một bộ dữ liệu dự phòng "cho giao diện luôn sống động" là một cơ chế biến lỗi thành im lặng.** Nó không làm dịu một sự cố — nó xoá dấu vết của sự cố. Trang chủ này hỏng từ ngày dựng, đi qua một lượt nghiệm thu WS-21 và một lượt deploy staging, và thứ duy nhất tố cáo nó là 14 dòng log prefetch tới những slug không tồn tại — thứ chỉ đọc được vì đang truy một lỗi khác.
 
+⛔ **Và nguồn của nó là một tài liệu, không phải một lượt code cẩu thả.** `docs/web-refactor.md`
+— bản kế hoạch tái cấu trúc giao diện cổng — kê đích danh những thứ về sau thành dữ liệu bịa:
+*"Lưới thẻ các trạm đầu mối chính (Hà Đông, Cầu Cung, Cổ Nhuế, Vân Đình, Đồng Quan…)"*, *"Số hiệu
+(VD: `158/QĐ-SN`)"*; và Bước 1 của lộ trình ghi thẳng: *"xây dựng các khối với **Mock data dự
+phòng (Fallback an toàn** khi API backend chưa cấp đủ endpoint chuyên biệt)"*.
+
+Người viết component làm **đúng** những gì được giao. Nên vá mã mà để tài liệu nguyên là để nguyên
+cỗ máy sinh ra lỗi: lượt sau đọc nó sẽ dựng lại y hệt. Tài liệu đã bị xoá (kế hoạch đã thực hiện
+xong), điều cấm chuyển vào `docs/ui-styles.md` §4.4 — nơi người sắp dựng một khối trang chủ thật
+sự sẽ đọc.
+
 Luật 16 đã nói *"ô số liệu chưa có nguồn phải trả rỗng kèm lý do"*. Vụ này bổ sung vế còn thiếu: **ràng buộc ấy phải ép ở component, không ép bằng lời dặn** — và phải có một bộ canh soi **toàn cây**, vì "ở đây thì chưa có nguồn" là câu người viết component nào cũng tự thấy mình là ngoại lệ.
 
 ---
@@ -3550,3 +3561,168 @@ Thay nó bằng một bài khác hẳn: canh việc bản vá **không bị hoà
 `SeedGateTest` 9 → **10 bài**; gói `deploy` 48/48 xanh. Kiểm chứng ngược cả hai bài mới: đưa biến cũ trở lại một tệp `deploy/` → đỏ đúng tệp đó; gỡ dòng `mc cat` khỏi phép probe → đỏ với *"phép đo phải GHI, ĐỌC và XOÁ"*.
 
 ⛔ **Không cần thao tác tay trên máy chủ.** `/opt/songnhue/.env` của staging đang có cả hai biến; biến bị bỏ đơn giản là không còn ai đọc, còn `SEED_LOCATION` thì `minio-init` nhận qua `${SEED_LOCATION:-}`. Dọn dòng thừa trong `.env` là việc tuỳ, không phải điều kiện.
+
+---
+
+### §10.56. ⚠⚠ Collation của CSDL — tham số chỉ có hiệu lực một lần, nên tệp cấu hình không còn là bằng chứng (26/8/2026)
+
+#### Cái sai
+
+`POSTGRES_INITDB_ARGS` (ICU `vi-VN`) được chốt 14/8 và ghi vào **hai** chỗ: `compose.infra.yml` (đường local) và `SongnhuePostgres` (đường test). Nó **chưa bao giờ** được ghi vào `compose.prod.yml` — tệp dựng cluster của staging **và** production.
+
+Bản ghi cũ mô tả khoản nợ này là *"phải y hệt `compose.infra.yml`"*. Rà 26/8 bằng mã thật: không phải lệch, mà **vắng hẳn**. Và `deploy/postgres/init/` cũng không đặt locale ở đâu.
+
+Nó sống sót 12 ngày vì mọi đường được đi thử đều đúng — cùng hình dạng với `DB_APP_PASSWORD` (§10.41), chỉ khác chỗ hậu quả không hồi phục được.
+
+#### Vì sao khoản này đắt hơn vẻ ngoài
+
+`initdb` chạy **một lần**, lúc tạo cluster. Sau đó image bỏ qua tham số vĩnh viễn. Hệ quả là **tệp cấu hình và cluster thật có thể nói hai điều khác nhau mãi mãi mà không lệnh nào báo sai** — một trạng thái mà phần lớn cấu hình khác không có.
+
+Đo trực tiếp trên `postgis/postgis:16-3.4`, bốn kịch bản:
+
+| kịch bản | kết quả |
+|---|---|
+| cluster dựng **có** tham số | `Anh < Dung < Đăng < Em` ✅ |
+| cluster dựng **không** có tham số (glibc `en_US.utf8`) | `Anh < Đăng < Dung < Em` |
+| locale `C` (so theo byte) | `Anh < Dung < Em < Đăng` |
+| **vá tệp compose rồi `up -d --force-recreate`** | **vẫn `Anh < Đăng < Dung < Em`** |
+
+⛔ Dòng cuối là dòng đáng giá nhất: **bản vá tệp compose một mình chỉ tạo cảm giác đã xong.** Nếu chỉ thêm dòng vào `compose.prod.yml` rồi tick, staging vẫn sai và không ai biết.
+
+Ghi chú thêm: cách sai *phụ thuộc locale mặc định*, nên một phép kiểm khẳng định "Đăng rơi xuống sau Em" sẽ **xanh** trên cluster `en_US.utf8` — nó chỉ bắt được một trong hai kiểu sai. Phải so với thứ tự **đúng**.
+
+#### Đã vá
+
+1. **`compose.prod.yml`** — thêm dòng y hệt hai chỗ kia.
+2. **`PostgresCollationParityTest`** (5 bài) — quét cả cây mã nguồn tìm chuỗi tham số trong `.yml/.yaml/.java/.sh`, đòi cả ba tệp bắt buộc có mặt, đòi mọi bản giống hệt nhau **và** đúng là ICU `vi-VN` (ba chỗ cùng sai vẫn là sai). Hằng số mốc ghép từ hai mảnh để chính tệp bài kiểm không tự khớp vào mình.
+3. **`deploy/postgres/kiem-collation.sh`** — **ĐO** cluster đang chạy bằng một câu `ORDER BY`, ASCII thuần trên đường truyền (`chr(272)`/`chr(259)` thay vì ký tự tiếng Việt đi qua bốn tầng có thể đổi bảng mã).
+4. **`deploy.yml`** — smoke test 3 câu → **4 câu**, collation đứng **đầu**: mọi câu sau chỉ có nghĩa trên một cluster đúng. Bước rsync đổi `chmod +x backup/*.sh` thành `find -name '*.sh'`, nếu không thì script mới lên máy chủ không có cờ chạy.
+5. **`deploy-guideline.md` §2.7** — quy trình dựng lại cluster, **đã chạy thật**: dữ liệu giữ nguyên, thứ tự đổi từ `Anh<Đăng<Dung<Em` sang `Anh<Dung<Đăng<Em`. Checklist go-live thêm mục 20 (và sửa một dòng hỏng ở mục 18 — `%u:%g %a` từng bị shell nuốt thành `phải ra .`).
+
+Kiểm chứng ngược **5 kịch bản**, mỗi lượt đều xác nhận bản hỏng đã nạp: lệch một ký tự (`vi-VN`→`vi_VN`) · xoá hẳn dòng · cả ba chỗ cùng đổi sang `libc` · workflow không gọi script · script mất cờ chạy. Cả năm đỏ đúng bài; khôi phục thì xanh lại.
+
+#### Hai thứ lượt vá này tự va vào
+
+**(a) `ScriptDockerLookupTest` bắt bản đầu của chính script mới.** Nó gọi `docker compose exec`, mà compose nội suy toàn bộ tệp trước khi trả lời — `compose.prod.yml` đòi `${APP_IMAGE:?}` vốn chỉ tồn tại trong lượt triển khai. Script sẽ hỏng ở production với một thông báo trỏ vào chỗ khác hẳn (§10.48). Bài canh viết sau hai lần trả giá đã chặn được lần thứ ba **trước khi** nó lên máy chủ. Đổi sang `container_cua` (tra bằng nhãn compose).
+
+**(b) Lượt kiểm chứng ngược suýt nói dối — lần thứ ba trong dự án.** `sed -i.bak` rồi `mv .bak` khôi phục **cả mtime gốc**, nên với Maven tệp nguồn *cũ hơn* lớp `.class` vừa biên dịch từ bản hỏng → bỏ qua biên dịch lại → **cả bộ test chạy trên lớp hỏng**: 169 lỗi và dòng thật nằm ở `initdb: error: --icu-locale cannot be specified unless locale provider "icu" is chosen`, cách chỗ báo lỗi hàng nghìn dòng.
+
+Trước đó cùng phiên còn một lượt nữa: một khối kiểm chứng ngược chạy sai thư mục (`cd` vào `backend` còn lưu lại), `sed` không tìm thấy tệp, mà bài kiểm **vẫn in 5/5 xanh** — vì bản hỏng chưa từng tồn tại.
+
+⛔ Rút ra: luật 10 phải mở rộng — **bản KHÔI PHỤC cũng phải được xác nhận đã nạp**, không chỉ bản hỏng. Cách rẻ nhất: in một con số đo được ở mỗi bước (`grep -c`, `stat`), và `touch` tệp sau khi khôi phục.
+
+---
+
+### §10.57. Cổng secret bỏ qua trong im lặng, và bốn khoản "bấm ở GitHub" treo từ 15/8 (26/8/2026)
+
+#### (a) Một lượt CD Production sẽ trông như đã chạy
+
+Bước *"Kiểm tra đã có cấu hình máy chủ chưa"* hỏi **một** biến (`HOST`); thiếu thì `::warning::` + `ready=false`, và mọi bước sau mang `if: ready == 'true'` nên tự bỏ qua. Lượt chạy kết thúc **xanh trọn vẹn**.
+
+Đo bằng `gh api` ngày 26/8: environment `production` **không có secret nào**. Nghĩa là bấm "CD Production" hôm ấy cho ra một lượt chạy xanh, một dòng tóm tắt "đã triển khai", và không một byte nào chạm máy chủ.
+
+Cùng hình dạng với §10.53 (compose in `Running` mà giữ container cũ): **một câu khẳng định không phân biệt được hai trạng thái**.
+
+**Vá.** Logic ra `.github/scripts/kiem-secret-may-chu.sh`, ba trạng thái:
+
+| tình trạng | staging | production |
+|---|---|---|
+| đủ bốn | đi tiếp | đi tiếp |
+| thiếu **một số** | ⛔ đỏ | ⛔ đỏ |
+| thiếu **cả bốn** | cảnh báo + bỏ qua | ⛔ **đỏ** |
+
+Vì sao lệch: CD Staging chạy **tự động** sau mỗi lượt merge — một môi trường chưa dựng mà nhuộm đỏ dòng CI của mọi người là đổi một lỗi thật lấy một lỗi phiền, rồi người ta tắt bớt cổng kiểm. CD Production chỉ chạy khi **có người bấm**, và với họ im lặng bỏ qua là câu trả lời sai nhất.
+
+Và *"thiếu một số"* đỏ ở cả hai vì **cấu hình dở dang không phải "chưa dựng"** — nó là cấu hình hỏng, và nó sẽ hỏng muộn hơn ở `ssh` với `Permission denied`, một thông báo không nhắc gì tới secret.
+
+**Vì sao tách ra tệp riêng.** Để `SecretGateTest` **chạy thật** script với từng tổ hợp biến (`ProcessBuilder`, môi trường **sạch** — kế thừa môi trường JVM là để một biến `USER` có sẵn trên máy dev quyết định kết quả bài kiểm). Một bài khẳng định *"`deploy.yml` có chứa `exit 1`"* xanh với cả script đúng lẫn script gọi `exit 1` ở nhánh không bao giờ tới (luật 9). 7 bài; kiểm chứng ngược 3 kịch bản: trả về hành vi cũ · chỉ hỏi `HOST` · workflow không gọi script.
+
+#### (b) Bốn khoản "bấm ở GitHub" — áp và đo lại 26/8
+
+Cùng một hình dạng: **cổng kiểm tồn tại trong tài liệu nhưng chưa có hiệu lực ở nơi nó phải chặn.** `branch-protection.md` §6.2 có sẵn lệnh từ 15/8; không ai chạy, và không ai biết là chưa chạy.
+
+| | trước | sau |
+|---|---|---|
+| `dev` — required contexts | 2 | **7** |
+| `staging` / `production` — `strict` | `true` | **`false`** |
+| Secret scanning · push protection · non-provider | `disabled` | ✅ |
+| Dependabot alerts + security updates | `disabled` | ✅ |
+
+Hai chi tiết chỉ lộ ra khi làm thật:
+
+- `Gắn tag SHA cho image không đổi` **không** được đưa vào `contexts` — nhưng lý do đầu tiên tôi ghi ra là **sai**, và phép đo bác nó ngay: `gh pr checks 41` cho thấy job ấy **có** báo cáo ở PR, ở trạng thái `skipping`. Một job bị `if` loại vẫn gửi kết luận `skipped` lên commit; §2.1 (*"Expected — Waiting for status"*) chỉ áp cho job **không tồn tại trong lượt chạy**. Lý do thật: `skipped` được tính là ĐẠT, nên một context **luôn** `skipped` ở PR **không bao giờ chặn được gì** — nó chỉ tạo ấn tượng sai rằng việc gắn tag đã được canh.
+- `PUT automated-security-fixes` trả **422 `Vulnerability alerts must be enabled`**. *Alerts* (báo) và *security updates* (PR vá tự động) là hai công tắc, phải bật theo thứ tự.
+
+Đo sau khi bật: `secret-scanning/alerts` → **0 cảnh báo**; `rulesets` → `[]` (không có luật kiểu mới chồng lên).
+
+⬜ **Còn lại**: 4 secret `PROD_*` — chỉ đặt được sau khi có VPS-1. Nay thiếu chúng là lượt CD Production **đỏ**, không phải xanh giả.
+
+---
+
+### §10.58. ⚠⚠ Đường quay lui dữ liệu DUY NHẤT khôi phục ra một CSDL ứng dụng không đọc nổi (26/8/2026)
+
+Tìm ra bằng một lượt **khôi phục thật** trên staging, không tìm ra bằng đọc mã. Lượt ấy vốn chỉ nhằm dựng lại cluster cho đúng collation (§10.56 → T11.3-b).
+
+#### Cái sai
+
+`pg_restore` xong, app chết ngay lúc khởi động:
+
+```
+ERROR: permission denied for table users
+  at com.songnhue.core.application.auth.AdminBootstrapRunner.run(AdminBootstrapRunner.java:65)
+```
+
+CSDL có **đủ 61 bảng và đủ từng dòng dữ liệu**, nhưng `songnhue_app` không có quyền trên bảng nào.
+
+**Vì sao.** GRANT cấp bảng của dự án do **migration Flyway** cấp (`V202608131006__core_db_role_grants.sql`), không do `10-bootstrap.sh` — script khởi tạo chỉ tạo role và cấp `CONNECT`/`USAGE`. Khi khôi phục vào một cluster mới, hai điều xảy ra cùng lúc:
+
+1. `flyway_schema_history` được nạp lại **cùng dữ liệu** → Flyway báo *"Schema is up to date. No migration necessary"* → migration cấp quyền **không chạy**;
+2. `--no-privileges` ở `pg_dump` đã **tước ACL** khỏi bản dump.
+
+Không có nguồn nào còn giữ GRANT.
+
+#### Vì sao nó ẩn được lâu đến thế
+
+Khôi phục vào một CSDL **đã migrate** thì `ALTER DEFAULT PRIVILEGES FOR ROLE songnhue_owner` đã có sẵn, nên bảng do `--clean` dựng lại **tự động** có GRANT. Tức là:
+
+| đường | có thử không | kết quả |
+|---|---|---|
+| khôi phục đè lên CSDL đang chạy | hay thử | ✅ chạy |
+| khôi phục vào cluster **mới** | chưa ai đi | ⛔ hỏng |
+
+Mà đường thứ hai chính là **hai công dụng duy nhất** `restore.sh` tự ghi ở đầu tệp: *"ứng dụng không khởi động nổi"* và *"khôi phục sang máy KHÁC (diễn tập trên VM-2 — T7.7)"*. Cùng hình dạng luật 3, và cùng họ với §10.41.
+
+⛔ Hệ này **cố ý không có PITR** (§6.5), nên bản dump là đường quay lui dữ liệu **duy nhất**.
+
+#### Hai thứ nữa cùng lộ ra trong lượt khôi phục
+
+`pg_restore --exit-on-error` chạy bằng `songnhue_owner` **đỏ hai lần** trước khi tới được lỗi trên:
+
+```
+ERROR: must be owner of extension pg_trgm     ← COMMENT ON EXTENSION
+ERROR: permission denied for table spatial_ref_sys  ← TABLE DATA của postgis
+```
+
+Cả hai thuộc về extension, do `CREATE EXTENSION` dựng lại rồi — `spatial_ref_sys` ở cluster mới đã có đủ 8500 dòng **trước khi** nạp gì. Bỏ chúng không mất dữ liệu.
+
+#### Đã vá
+
+- `backup.sh` + `pre-deploy-dump.sh`: bỏ `--no-privileges`, **giữ** `--no-owner`. Đo trên staging: mục ACL trong bản dump **0 → 98**, kích thước 319KB → 356KB.
+- `restore.sh`: lọc mục lục bằng `--use-list`, bỏ `COMMENT - EXTENSION` và **mọi mục có chủ sở hữu `postgres`** (lọc theo chủ sở hữu, không theo danh sách tên — danh sách tên sẽ mục ngay khi có extension thứ tư); thêm chốt *"mục lục sau lọc phải > 100 mục"* để một bộ lọc hỏng không khôi phục ra CSDL rỗng mà vẫn thoát 0; thêm bước nghiệm thu **đọc thử bằng `songnhue_app`** — hỏi bằng chủ sở hữu xanh trong cả hai trạng thái (luật 9).
+- `BackupRestoreFlagsTest` (7 bài) + kiểm chứng ngược 3 kịch bản.
+
+#### Và một lỗi tự gây ra khi vá, `bash -n` không bắt được
+
+Khối chú thích mới bị chèn **vào giữa** một lệnh nối dòng bằng `\`. Bash coi `\` là nối với dòng **kế tiếp**; dòng kế tiếp là `#` thì lệnh đứt tại đó, phần đối số còn lại thành **một lệnh mới**. Chạy thật mới lộ:
+
+```
+./backup/pre-deploy-dump.sh: line 91: --format=custom: command not found
+```
+
+⛔ `bash -n` trên bản hỏng **thoát 0** — cú pháp vẫn hợp lệ, chỉ là lệnh khác. Thêm bài `khongChuThichGiuaLenhNoiDong` quét mọi `.sh` trong `deploy/`; tự kiểm chứng đã đo: bản hỏng → `bash -n` exit 0, bài kiểm ĐỎ.
+
+#### Trạng thái staging sau lượt này
+
+61 bảng · 27 bảng có dữ liệu · vân tay số dòng **khớp từng bảng** với trước khi dựng lại, trừ đúng `system_backups` 7→6 — và chênh lệch ấy tự giải thích: `pre-deploy-dump.sh` chụp CSDL **rồi mới** ghi sổ bản chụp ấy, nên bản dump không chứa chính nó.
+
+Sáu container **healthy**, kể cả `nginx` (trước đó `unhealthy` 22 giờ liền — T11.37). Bốn câu smoke test đều xanh trên site thật, và trang chủ trả **11 liên kết bài viết, tất cả là slug thật trong CSDL, 0 bài bịa** (§10.54 được nghiệm thu ở điều kiện thật).

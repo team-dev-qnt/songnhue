@@ -114,6 +114,11 @@ jobs:
           #      EditorVocabularyTest         → frontend/design-tokens
           #      AllowedActionParityTest      → frontend/admin-app  (record Java ↔ kiểu TS)
           #      SongnhuePostgres             → deploy/postgres
+          #      ScriptDockerLookupTest       → deploy/**/*.sh
+          #      PostgresCollationParityTest  → deploy/, .github/workflows
+          #      SecretGateTest               → .github/scripts   ← vì sao vế backend là
+          #                                                          `.github/` chứ không
+          #                                                          phải `.github/workflows/`
           #
           #    Với bộ lọc cũ, một PR chỉ đụng `frontend/` hoặc `deploy/` làm job
           #    `backend` bị bỏ qua — tức là **đúng lúc những tệp ấy thay đổi thì bộ
@@ -126,8 +131,14 @@ jobs:
           #
           # `deploy/` cũng nằm ở vế frontend: `buildConfig.test.ts` đọc
           # `deploy/docker/admin-app.Dockerfile` để canh khối chặn sourcemap.
+          #
+          # ⚠ Vế backend bao CẢ `.github/` (26/8), không chỉ `.github/workflows/`:
+          #   `SecretGateTest` CHẠY `.github/scripts/kiem-secret-may-chu.sh`. Bộ lọc cũ
+          #   bỏ qua job backend đúng lúc script ấy thay đổi — cùng hình dạng với đoạn
+          #   ngay trên. `CiPathFilterTest` nay đối chiếu biểu thức này với TỪNG đường dẫn
+          #   mà bộ test BE thật sự đọc, nên nó không mục theo thời gian được nữa.
           if [ -n "$changed" ]; then
-            grep -qE '^(backend/|frontend/|deploy/|\.github/workflows/)'  <<< "$changed" || backend=false
+            grep -qE '^(backend/|frontend/|deploy/|\.github/)'  <<< "$changed" || backend=false
             grep -qE '^(frontend/|deploy/|\.github/workflows/)' <<< "$changed" || frontend=false
           fi
 
