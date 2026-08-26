@@ -203,7 +203,14 @@ jobs:
           # ⚠ `find`, không phải `chmod +x backup/*.sh`: mỗi lần thêm một script ở thư
           #   mục khác là một lượt triển khai đỏ ở đúng dòng gọi nó — và thông báo
           #   "Permission denied" không nhắc gì tới bước rsync này.
-          ssh "$USER@$HOST" 'find /opt/songnhue -maxdepth 2 -name "*.sh" -exec chmod +x {} +'
+          #
+          # ⚠⚠ `-prune` cho `keys/` là BẮT BUỘC, không phải cho gọn. Thư mục ấy là
+          #    700 của uid 1000 (deploy-guideline §2.5), còn lượt ssh này chạy dưới
+          #    user triển khai — `find` không đọc được nó, in "Permission denied" và
+          #    **thoát 1**. Dưới `set -euo pipefail` thì cả bước rsync đỏ, với một
+          #    thông báo không liên quan gì tới việc đang làm. Đo trên staging 26/8:
+          #    `find` nguyên bản → exit 1 · có `-prune` → exit 0.
+          ssh "$USER@$HOST" 'find /opt/songnhue -maxdepth 2 \( -name keys -prune \) -o -name "*.sh" -exec chmod +x {} +'
 
       # ⚠ Điểm quay lui DUY NHẤT về dữ liệu — hệ này không có PITR (§6.5).
       #

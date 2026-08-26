@@ -404,12 +404,24 @@ services:
           #   trình app phân giải tên miền tệp thẳng vào nginx thay vì phải đi
           #   vòng ra Internet rồi quay đầu (hairpin NAT).
           - ${FILES_DOMAIN}
+    # ⚠⚠ Đích cũ là `/.well-known/acme-challenge/` — trả **404** khi không có lượt
+    #    xin chứng chỉ nào đang chạy, tức gần như luôn luôn. Đo trên staging 26/8:
+    #    `songnhue-nginx  Up 22 hours (unhealthy)` trong khi cả hệ phục vụ bình
+    #    thường. Một cảnh báo luôn bật là một cảnh báo không ai đọc nữa (T11.37).
+    #
+    #    Đích mới CHUYỂN TIẾP tới `public-web`, nên nó phân biệt được "nginx còn
+    #    sống" với "nginx định tuyến được" — hai chuyện khác nhau, và chỉ chuyện
+    #    thứ hai là việc của nginx (luật 8). Định nghĩa location:
+    #    `nginx/templates/default.conf.template`; `NginxHealthcheckTest` canh hai
+    #    bên không lệch nhau.
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/.well-known/acme-challenge/", "--spider"]
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://127.0.0.1/healthz/upstream"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      # ⚠ 60s chứ không 10s: `depends_on` ở dạng ngắn chỉ chờ container KHỞI ĐỘNG,
+      #   không chờ nó khoẻ. Đích mới cần public-web đã nhận được lưu lượng.
+      start_period: 60s
     mem_limit: 256m
 
   # ---------------------------------------------------------------------------
