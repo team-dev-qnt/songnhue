@@ -3656,3 +3656,73 @@ Hai chi tiết chỉ lộ ra khi làm thật:
 Đo sau khi bật: `secret-scanning/alerts` → **0 cảnh báo**; `rulesets` → `[]` (không có luật kiểu mới chồng lên).
 
 ⬜ **Còn lại**: 4 secret `PROD_*` — chỉ đặt được sau khi có VPS-1. Nay thiếu chúng là lượt CD Production **đỏ**, không phải xanh giả.
+
+---
+
+### §10.58. ⚠⚠ Đường quay lui dữ liệu DUY NHẤT khôi phục ra một CSDL ứng dụng không đọc nổi (26/8/2026)
+
+Tìm ra bằng một lượt **khôi phục thật** trên staging, không tìm ra bằng đọc mã. Lượt ấy vốn chỉ nhằm dựng lại cluster cho đúng collation (§10.56 → T11.3-b).
+
+#### Cái sai
+
+`pg_restore` xong, app chết ngay lúc khởi động:
+
+```
+ERROR: permission denied for table users
+  at com.songnhue.core.application.auth.AdminBootstrapRunner.run(AdminBootstrapRunner.java:65)
+```
+
+CSDL có **đủ 61 bảng và đủ từng dòng dữ liệu**, nhưng `songnhue_app` không có quyền trên bảng nào.
+
+**Vì sao.** GRANT cấp bảng của dự án do **migration Flyway** cấp (`V202608131006__core_db_role_grants.sql`), không do `10-bootstrap.sh` — script khởi tạo chỉ tạo role và cấp `CONNECT`/`USAGE`. Khi khôi phục vào một cluster mới, hai điều xảy ra cùng lúc:
+
+1. `flyway_schema_history` được nạp lại **cùng dữ liệu** → Flyway báo *"Schema is up to date. No migration necessary"* → migration cấp quyền **không chạy**;
+2. `--no-privileges` ở `pg_dump` đã **tước ACL** khỏi bản dump.
+
+Không có nguồn nào còn giữ GRANT.
+
+#### Vì sao nó ẩn được lâu đến thế
+
+Khôi phục vào một CSDL **đã migrate** thì `ALTER DEFAULT PRIVILEGES FOR ROLE songnhue_owner` đã có sẵn, nên bảng do `--clean` dựng lại **tự động** có GRANT. Tức là:
+
+| đường | có thử không | kết quả |
+|---|---|---|
+| khôi phục đè lên CSDL đang chạy | hay thử | ✅ chạy |
+| khôi phục vào cluster **mới** | chưa ai đi | ⛔ hỏng |
+
+Mà đường thứ hai chính là **hai công dụng duy nhất** `restore.sh` tự ghi ở đầu tệp: *"ứng dụng không khởi động nổi"* và *"khôi phục sang máy KHÁC (diễn tập trên VM-2 — T7.7)"*. Cùng hình dạng luật 3, và cùng họ với §10.41.
+
+⛔ Hệ này **cố ý không có PITR** (§6.5), nên bản dump là đường quay lui dữ liệu **duy nhất**.
+
+#### Hai thứ nữa cùng lộ ra trong lượt khôi phục
+
+`pg_restore --exit-on-error` chạy bằng `songnhue_owner` **đỏ hai lần** trước khi tới được lỗi trên:
+
+```
+ERROR: must be owner of extension pg_trgm     ← COMMENT ON EXTENSION
+ERROR: permission denied for table spatial_ref_sys  ← TABLE DATA của postgis
+```
+
+Cả hai thuộc về extension, do `CREATE EXTENSION` dựng lại rồi — `spatial_ref_sys` ở cluster mới đã có đủ 8500 dòng **trước khi** nạp gì. Bỏ chúng không mất dữ liệu.
+
+#### Đã vá
+
+- `backup.sh` + `pre-deploy-dump.sh`: bỏ `--no-privileges`, **giữ** `--no-owner`. Đo trên staging: mục ACL trong bản dump **0 → 98**, kích thước 319KB → 356KB.
+- `restore.sh`: lọc mục lục bằng `--use-list`, bỏ `COMMENT - EXTENSION` và **mọi mục có chủ sở hữu `postgres`** (lọc theo chủ sở hữu, không theo danh sách tên — danh sách tên sẽ mục ngay khi có extension thứ tư); thêm chốt *"mục lục sau lọc phải > 100 mục"* để một bộ lọc hỏng không khôi phục ra CSDL rỗng mà vẫn thoát 0; thêm bước nghiệm thu **đọc thử bằng `songnhue_app`** — hỏi bằng chủ sở hữu xanh trong cả hai trạng thái (luật 9).
+- `BackupRestoreFlagsTest` (7 bài) + kiểm chứng ngược 3 kịch bản.
+
+#### Và một lỗi tự gây ra khi vá, `bash -n` không bắt được
+
+Khối chú thích mới bị chèn **vào giữa** một lệnh nối dòng bằng `\`. Bash coi `\` là nối với dòng **kế tiếp**; dòng kế tiếp là `#` thì lệnh đứt tại đó, phần đối số còn lại thành **một lệnh mới**. Chạy thật mới lộ:
+
+```
+./backup/pre-deploy-dump.sh: line 91: --format=custom: command not found
+```
+
+⛔ `bash -n` trên bản hỏng **thoát 0** — cú pháp vẫn hợp lệ, chỉ là lệnh khác. Thêm bài `khongChuThichGiuaLenhNoiDong` quét mọi `.sh` trong `deploy/`; tự kiểm chứng đã đo: bản hỏng → `bash -n` exit 0, bài kiểm ĐỎ.
+
+#### Trạng thái staging sau lượt này
+
+61 bảng · 27 bảng có dữ liệu · vân tay số dòng **khớp từng bảng** với trước khi dựng lại, trừ đúng `system_backups` 7→6 — và chênh lệch ấy tự giải thích: `pre-deploy-dump.sh` chụp CSDL **rồi mới** ghi sổ bản chụp ấy, nên bản dump không chứa chính nó.
+
+Sáu container **healthy**, kể cả `nginx` (trước đó `unhealthy` 22 giờ liền — T11.37). Bốn câu smoke test đều xanh trên site thật, và trang chủ trả **11 liên kết bài viết, tất cả là slug thật trong CSDL, 0 bài bịa** (§10.54 được nghiệm thu ở điều kiện thật).

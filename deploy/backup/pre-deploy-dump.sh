@@ -67,12 +67,33 @@ echo "→ Chụp CSDL trước triển khai → $ON_HOST"
 
 # -Fc đã nén sẵn bằng zlib. KHÔNG gzip chồng lên — thêm một tầng nén là thêm
 # một chỗ hỏng mà gần như không giảm thêm dung lượng.
+# ⚠⚠ CÓ `--no-owner` nhưng KHÔNG `--no-privileges` — bỏ `--no-privileges` ngày 26/8
+#    sau lượt diễn tập khôi phục THẬT trên staging (§10.58).
+#
+#    GRANT cấp bảng của dự án này do MIGRATION Flyway cấp, không do `10-bootstrap.sh`.
+#    Khi khôi phục vào một cluster MỚI:
+#      · `flyway_schema_history` được nạp lại → Flyway nói "up to date, no migration
+#        necessary" → migration cấp quyền KHÔNG chạy;
+#      · `--no-privileges` đã tước ACL khỏi bản dump.
+#    Kết quả: CSDL đầy đủ dữ liệu mà `songnhue_app` **không đọc nổi một bảng nào** —
+#    app chết ở `AdminBootstrapRunner` với `ERROR: permission denied for table users`.
+#    Đo trên staging 26/8.
+#
+#    ⛔ Đây là đường quay lui DỮ LIỆU duy nhất của hệ (không có PITR), và nó đã hỏng ở
+#       đúng tình huống nó tồn tại để phục vụ.
+#
+#    `--no-owner` thì GIỮ: chủ sở hữu là vai trò đang chạy pg_restore
+#    (`songnhue_owner`), đúng thứ ta muốn ở mọi máy.
+#
+# ⚠ Chú thích này để NGOÀI lệnh. Chèn nó vào giữa một lệnh nối dòng bằng `\` là cắt
+#   đứt lệnh — và `bash -n` vẫn XANH vì phần còn lại vẫn hợp lệ cú pháp, chỉ là một
+#   lệnh khác. Đã mắc đúng vậy một lượt, lộ ra ở `--format=custom: command not found`.
 if ! docker exec -i \
         -e PGPASSWORD="$DB_READONLY_PASSWORD" \
         "$CT_POSTGRES" pg_dump \
             --username="$DB_READONLY_USER" --dbname="$DB_NAME" \
             --format=custom --compress=6 --no-password \
-            --no-owner --no-privileges \
+            --no-owner \
             --file="$IN_CONTAINER"; then
     echo "✗ pg_dump THẤT BẠI — DỪNG lượt triển khai." >&2
     # Bản dump dở dang nguy hiểm hơn không có bản nào: nó trông như bản hợp lệ
