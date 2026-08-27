@@ -3883,3 +3883,416 @@ bước kết thúc 0,4 giây sau lệnh áp chót, trong khi việc còn lại 
 
 ⛔ Và một lần nữa: **cổng kiểm phải phân biệt được hai trạng thái nó khẳng định.** Smoke test hỏi
 "site có sống không"; câu cần hỏi là "site đang chạy image nào".
+
+### §10.61. Đợt chỉnh sửa cổng TTĐT theo văn bản nghiệm thu của Công ty (27/8/2026)
+
+**Bối cảnh.** Công ty ban hành *"YÊU CẦU CHỈNH SỬA WEBSITE" v1.0* (`docs_origin/nghiem_thu_phase1.md`)
+— 43 mã CR, một cây nội dung chuẩn 7 mục cấp 1, một bảng phân quyền, và 10 câu hỏi kỹ thuật. Đây là
+lần đầu Công ty mô tả cổng bằng một tài liệu máy đọc được thay vì bằng ảnh chụp màn hình có chú
+thích, nên nó **đóng mục G14** đã treo từ 19/8.
+
+Mục dưới đây chỉ ghi những quyết định có *nguyên nhân gốc*, không chép lại danh sách việc — danh
+sách nằm ở `master-tracking.md` WS-24.
+
+#### 1. Cùng một hình dạng lỗi cũ: cây nội dung ở hai nơi, không nơi nào biết nơi kia
+
+Menu của cổng nằm ở `menu_items` (CSDL), còn bảy tuyến đường mà menu trỏ tới nằm ở `ROUTES` của
+Next. Một mục menu trỏ vào tuyến đường không tồn tại **không làm đỏ bất cứ thứ gì**: migration chạy
+xanh, `next build` xanh, mọi bộ test xanh. Nó chỉ hiện ra khi một người dùng thật bấm vào và nhận
+404 — đúng hình dạng §10.54, nơi cổng quảng cáo những khu vực bấm vào là không có.
+
+Chữa bằng `PortalTaxonomyTest`, và điểm đáng ghi là nó canh **cả hai chiều**. Chiều "menu → có
+trang" bắt lỗi 404. Chiều ngược lại — "trang → có ai dẫn tới" — bắt một loại lãng phí im lặng hơn:
+một trang được viết, được kiểm, được triển khai mà không lối vào nào. Lượt kiểm chứng ngược làm hỏng
+đúng một URL và **hai bài đỏ, mỗi chiều một bài**.
+
+#### 2. ⚠⚠ Đổi menu làm ba trang tĩnh mất lối vào — và bộ seed sẽ xoá cứng chúng
+
+Menu cũ trỏ vào bốn trang tĩnh bằng `link_type = 'ARTICLE'`. Cây nội dung mới chỉ giữ lại một
+(`tong-quan`); ba trang kia bị thay bằng **trang thật ở đường dẫn khác** — `co-cau-to-chuc` thành
+một trang đọc `org_units`, `lien-he` thành `/lien-he`, còn `chuc-nang-nhiem-vu` gộp vào Tổng quan
+theo CR-23.
+
+Hậu quả nhìn thấy được là ba bài mồ côi. Hậu quả **không** nhìn thấy được nằm ở bộ seed staging
+`V202608251100`: vị từ dọn bài của nó là *"xoá mọi bài không có mục menu nào trỏ tới"*, **xoá CỨNG**.
+Vị từ ấy được viết khi cả bốn trang đều có mục menu, và chính chú thích của nó liệt kê bốn slug như
+một sự bảo đảm. Sau lượt đổi menu, nó sẽ nuốt ba bài — không lỗi, không log, và chỉ lộ ra ở lượt
+dựng lại CSDL kế tiếp.
+
+Điều đáng chú ý: vị từ **theo quan hệ** ấy hoá ra đúng, và đúng vì lý do người viết nó đã lường
+trước — một danh sách slug viết cứng sẽ vẫn "bảo vệ" ba bài đã chết. Cái sai duy nhất là *chú thích*
+của nó mô tả một trạng thái nay đã thay đổi.
+
+Chữa: `V202608271031` **chủ động xoá mềm** ba bài, có điều kiện `created_by IS NULL AND updated_at
+IS NULL` — biên tập viên đã viết nội dung thật vào đó thì bài ở lại, vì nội dung của khách không
+phải thứ một migration được quyền quyết định thay họ. Việc chúng biến mất nay là một quyết định ghi
+trong migration, không phải tác dụng phụ của một bộ seed mà không ai đọc ra.
+
+`SeedPortalMigrationTest` nay canh **cả hai vế**: `tong-quan` phải sống sót, ba bài kia phải bị dọn.
+Không có vế thứ hai thì một vị từ "bảo vệ mọi bài do migration tạo" cũng xanh y hệt — trong khi nó
+để lại ba trang rỗng trên cổng.
+
+#### 3. ⚠⚠ Cổng công khai chưa từng có CSP — hai tệp trỏ vào nhau
+
+`next.config.ts` ghi *"CSP đầy đủ và HSTS đặt ở nginx (WS-11/T11.5) — nơi duy nhất biết đủ mọi
+origin"*. `deploy/nginx/snippets/edge-headers.conf` ghi ngược lại: *"Cố ý KHÔNG đặt lại CSP … Hai
+image FE đã đặt đủ chúng (`admin-app.Dockerfile` · public-web `next.config`)"*, kèm một nguyên tắc
+nghe rất đúng — *mỗi header có ĐÚNG MỘT nơi chịu trách nhiệm*.
+
+Cả hai lập luận đều mạch lạc. Chúng chỉ có một khiếm khuyết: **không nơi nào đặt CSP cho public-web**,
+và đã như vậy từ WS-16. `NginxSecurityHeadersTest` có canh CSP — nhưng nó khai
+`DOCKERFILE = "deploy/docker/admin-app.Dockerfile"`, nên cổng công khai nằm ngoài tầm với suốt thời
+gian bài kiểm ấy báo xanh.
+
+Đây là hình dạng đặc trưng của dự án ở dạng thuần khiết nhất: **một cơ chế canh gác tồn tại trong
+tài liệu nhưng chưa có hiệu lực ở nơi nó phải chặn** — cùng họ với nợ #27 (lệnh bảo vệ nhánh nằm sẵn
+trong `branch-protection.md` từ 15/8, không ai chạy, và không ai biết là chưa chạy). Khác biệt duy
+nhất: ở đây *hai* tài liệu cùng khẳng định việc đã xong, nên đọc tệp nào cũng thấy yên tâm.
+
+Nó lộ ra vì một lý do không liên quan: CR-22 đòi nhúng iframe Google Map, nên phải đi tìm `frame-src`
+để mở — và không tìm thấy chỉ thị nào để mở.
+
+`csp.test.ts` đọc **giá trị đã giải** qua `nextConfig.headers()`, không grep tệp: grep chuỗi
+`Content-Security-Policy` sẽ xanh kể cả khi hằng số được khai mà không ai gắn vào `headers()` (luật 3).
+
+⚠ Ghi lại một đánh đổi để nó là quyết định đọc được thay vì một chỗ ai đó nới ra rồi quên:
+`script-src` của public-web **phải** có `'unsafe-inline'`, khác admin-app. Next App Router chèn
+`<script>` nội tuyến cho hydration; cách chặt hơn là gắn `nonce`, nhưng nonce phải khác nhau mỗi
+request — tức mọi trang thành động và **ISR tắt hẳn**, trong khi DOD1.17 (trang chủ < 3s) đang dựa
+vào ISR.
+
+#### 4. Hai bộ canh cũ đỏ vì canh **hình dạng** thay vì canh **bất biến**
+
+Cả hai đều đỏ oan, và cả hai đều đáng ghi vì lý do đỏ khác nhau:
+
+- `siteContactConfig.test.ts` khẳng định *"`SiteFooter.tsx` phải chứa `'company.email'`"*. CR-40 yêu
+  cầu bỏ email khỏi chân trang, nên bài kiểm đọc một lượt sửa **đúng yêu cầu** thành *"cổng lại ghi
+  cứng thông tin liên hệ"* — đúng ngược sự thật. Bất biến thật không bao giờ là *"tệp X chứa chuỗi
+  Y"* mà là *"thông tin liên hệ phải đến từ `settings`, ở mọi nơi cổng công bố nó"*. Nay danh sách
+  là **các nơi công bố**, mỗi khoá chỉ cần có một nơi đọc — và thêm **vế ngược**: chân trang KHÔNG
+  được đọc lại hai khoá ấy, để lượt sửa giao diện kế tiếp không lặng lẽ đặt chúng về (đúng chuyện đã
+  xảy ra ngày 24/8).
+
+- `SiteLayoutTest.pathCuaMenuSeedDung` khẳng định *"ba mục con của Giới thiệu đều trỏ tới trang
+  tĩnh"* — một mô tả hình dạng của cây menu tháng 8. Nay nó canh bất biến: cha đứng trước con, mọi
+  mục có đích giải được **khớp `linkType`**, và mục `NONE` phải thật sự có con. Hình dạng thì ghim
+  riêng ở `migrationSeedDuKhungCong` bằng danh sách bảy mục §3 — vì đó là *tiêu chí nghiệm thu*, và
+  ghim nó là đúng: đổi tên hay đổi thứ tự một mục là một quyết định, nó **phải** làm đỏ.
+
+Bài học chung: bài kiểm mô tả hình dạng hiện thời sẽ đỏ ở đúng lượt thay đổi hợp lệ, và cái giá
+không phải là mấy phút sửa — mà là người sửa quen dần với việc "bài này đỏ thì cứ chỉnh cho khớp".
+
+#### 5. Ba quyết định mô hình dữ liệu, và vì sao không chọn cách rẻ hơn
+
+- **CR-25/26 → bảng `org_unit_leaders`, không phải hai cột `head_name`/`head_phone`.** Hai cột chỉ
+  chứa được một người, mà CR-25 là một *danh sách* (Chủ tịch, Giám đốc, các Phó Giám đốc). Dựng hai
+  cột cho CR-26 rồi dựng thêm cơ chế khác cho CR-25 là hai nơi trả lời cùng câu hỏi *"ai đứng đầu
+  đơn vị này"*.
+  ⛔ Và nó **không nối `employees`**: toàn bộ nội dung là thông tin Công ty chủ động công bố, nên
+  endpoint công khai đọc nó không có đường nào chạm tới trường nhạy cảm (quy tắc 10, NĐ 13/2023).
+  Một phép lọc là thứ có thể quên; một bảng không chứa dữ liệu nhạy cảm thì không rò được.
+
+- **CR-30 Tiến độ sản xuất → cây danh mục CMS, không phải entity mới.** §5.5 mô tả đúng một luồng
+  (Năm → Vụ → nội dung) nhưng **không nói tiến độ đo bằng chỉ tiêu gì, đơn vị gì, ai nhập, tần suất
+  nào** — chưa đủ để thiết kế một bảng số liệu. Dựng `production_progress` lúc này là đoán hộ Công
+  ty một mô hình nghiệp vụ, rồi phải di chuyển dữ liệu khi đoán sai. Cây danh mục đã có sẵn ba cấp
+  đúng hình dạng cần.
+
+- **CR-28 cột "Vị trí" → dựng từ `latitude`/`longitude`, KHÔNG thêm cột `map_url`.** Hai nguồn toạ
+  độ cùng tồn tại là hai nguồn sẽ lệch — đúng hình dạng đã trả giá ở `ConstructionStatusService`
+  (luật 13).
+
+#### 6. Thứ cố ý **không** làm, và vì sao việc không làm cũng cần lý do ghi lại
+
+CR-14/CR-38 đòi số liệu tuần/tháng chỉ xem được sau khi đăng nhập, và §2 nói rõ *"phân quyền phải xử
+lý ở tầng route/API, không chỉ ẩn/hiện ở giao diện"*. Cổng công khai chưa có tầng xác thực nào.
+
+Hai cách làm cho *trông như đã xong* đều bị loại có chủ đích:
+
+1. **Nút "Đăng nhập" dẫn tới trang chưa tồn tại** — đúng hình dạng §10.54.
+2. **Dựng sẵn bảng tuần/tháng rồi ẩn bằng CSS** — dữ liệu đã nằm trong HTML gửi tới trình duyệt, ai
+   mở DevTools cũng đọc được; và tệ hơn là nó **trông như đã phân quyền**. Đó là ảo giác đắt tiền:
+   nó làm người nghiệm thu tick vào một ô chưa có gì đứng sau — chính là *"việc làm xong nửa đường
+   trông y hệt việc làm xong"* (luật 19).
+
+Cùng lý lẽ cho khối Mực nước và khối Vận hành công trình: dựng đủ khung theo §7 (dòng "Cập nhật
+lúc", nút làm mới, trạng thái dự phòng) nhưng **không** dựng sẵn một lưới 10 cống với dấu gạch —
+một lưới mà không lượt chạy nào từng đổ dữ liệu thật vào là mã chưa được kiểm, đội lốt mã đã xong
+(luật 7), và danh sách 10 cống còn đang chờ Công ty chốt (OI-03).
+
+#### 7. ⚠⚠ Lỗi mà 906 bài kiểm của cả hai phía đều không thấy — chỉ lộ ra khi mở trang thật
+
+Sau khi mọi cổng kiểm ở máy đã xanh (662 test BE · 244 test FE · 8/8 bước `ci-local`), lượt chạy
+`make dev-docker` rồi bấm qua từng mục menu cho ra **17/17 đường dẫn trả 200**. Nhưng mở trang
+"Tiến độ sản xuất" thì bộ chọn **Năm** hiện hai lựa chọn: *"Lịch vận hành cống & trạm bơm"* và
+*"Thông báo xả nước đệm"*.
+
+Không có lỗi nào báo ra. Hai danh mục ấy đều có thật, đều đang hiện, HTTP 200, trang dựng bình
+thường — **chỉ nội dung là vô nghĩa**. Đây là loại sai mà mọi khẳng định kỹ thuật đều đúng.
+
+Nguyên nhân là **hai lỗi độc lập gặp nhau**, và mỗi lỗi tự nó đủ để sinh ra triệu chứng:
+
+1. **Backend lọc `isVisible()` theo từng dòng.** CR-01 ẩn mục "Thông báo", nhưng hai danh mục con
+   của nó vẫn `visible = true` nên vẫn nằm trong danh sách trả về — **mồ côi mà vẫn hiện**.
+2. **Giao diện suy quan hệ cha–con từ vị trí trong mảng phẳng.** Danh sách sắp theo `path` dạng
+   **chuỗi**, nên `'/12/' < '/2/'`: hai đứa con của `thong-bao` (`/2/7/`, `/2/8/`) rơi đúng sau
+   `tien-do-san-xuat` (`/12/`), và phép suy theo vị trí nhận chúng làm con của nó.
+
+Điều đáng ghi nhất là **vì sao không bộ test nào bắt được**: mỗi bên đều đúng với dữ liệu của mình.
+Bài kiểm backend dựng danh mục rồi khẳng định danh mục ẩn không trả về — đúng, nó không kiểm các
+con. Bài kiểm frontend truyền một mảng dựng tay có đủ cha lẫn con liền nhau — đúng, đó là mảng
+"sạch" mà backend chỉ trả về khi không có gì bị lọc. Lỗi nằm ở **chỗ tiếp giáp**, và chỗ tiếp giáp
+chỉ tồn tại khi hai bên thật sự nói chuyện với nhau.
+
+Vá cả hai vế, cố ý không chọn một:
+
+- `PublicPortalService.categories()` loại **cả nhánh** dưới một danh mục ẩn (khớp tiền tố `path`).
+  Áp cùng luật cho `articles(categorySlug)` — nếu không thì một nhánh đã rút khỏi điều hướng vẫn mở
+  được bằng địa chỉ trực tiếp, tức hai câu trả lời cho cùng một câu hỏi.
+- DTO công khai thêm `parentSlug`, và giao diện đối chiếu trường đó thay vì đếm vị trí.
+
+Kiểm chứng ngược có số đo: gỡ bản vá backend (`grep -c noneMatch` = 0) → 1 bài đỏ; khôi phục (= 1)
+→ 0 đỏ.
+
+#### 8. Và lỗ thứ ba lộ ra khi viết bài kiểm cho lỗ thứ hai
+
+Bài kiểm cần ẩn một danh mục để dựng hiện trường — và **không có đường nào để ẩn**. Cột
+{@code categories.visible} có từ `V202608191016`, DTO của màn hình quản trị *trả nó ra*, nhưng
+không endpoint nào ghi được nó. Quản trị viên nhìn thấy trạng thái Hiện/Ẩn của từng danh mục mà
+không có cách nào đổi.
+
+Đó là quy tắc 15 ở **chiều ghi** — bản thân nó đã là một lỗi. Nhưng nó thành chuyện gấp vì migration
+của đợt này chọn *ẩn* mục "Thông báo" thay vì xoá, với lý do ghi thẳng trong tệp: *"ẩn là thao tác
+quay lui được bằng một cú bấm, còn xoá thì không"*. Lý do ấy chỉ đúng khi cú bấm đó tồn tại — và nó
+không tồn tại. Một quyết định đúng dựa trên một tiền đề sai.
+
+`CategoryService.setVisible` + `PUT /cms/categories/{publicId}/visibility` đóng lỗ ở tầng API; nút
+bấm trên màn hình quản trị còn nợ.
+
+#### Bài học
+
+⛔ **"Mọi cổng kiểm xanh" và "chạy đúng" là hai câu khác nhau, và khoảng cách giữa chúng nằm ở chỗ
+tiếp giáp giữa hai hệ thống.** Cả hai bên đều có bài kiểm, cả hai bên đều đúng với dữ liệu *của
+mình*, và cái sai chỉ tồn tại khi chúng nói chuyện với nhau. Không có cách nào tìm ra nó ngoài việc
+mở đúng trang ấy trên hệ đang chạy — đúng điều CLAUDE.md đã ghi và lần này phải trả giá để nhớ:
+*trước khi mở một giai đoạn mới, chạy đường mà người dùng thật đi.*
+
+**Một tài liệu nghiệm thu là dữ liệu, không phải văn xuôi.** Bảy mục cấp 1 của §3 nay là một phép
+khẳng định `containsExactly` chạy ở mỗi lượt CI; bảng phân quyền §6 sẽ là một bộ bài kiểm gọi thẳng
+API khi chưa đăng nhập. Thứ không chuyển được thành phép khẳng định thì cũng không nghiệm thu được —
+và với dự án này, "đã tick" chưa bao giờ là bằng chứng.
+
+---
+
+### §10.62. Đầu trang thân thiện + "mọi thứ hiển thị phải cấu hình từ admin" (28/8/2026)
+
+Hai việc được giao. Việc thứ nhất là một yêu cầu giao diện; việc thứ hai là một **lượt kiểm kê**.
+Cả hai đều tìm ra thứ không ai đang đi tìm, và cả hai thứ ấy đều đã nằm sẵn trong §10 của chính văn
+bản nghiệm thu.
+
+#### 1. Thanh điều hướng tràn khung trên **mọi** màn hình — và `flex-wrap` che nó đi
+
+Cây nội dung §3 mà đợt trước vừa dựng có tám mục cấp 1 với nhãn tiếng Việt dài. Bản cũ vẽ chúng
+bằng `text-[13px] font-bold uppercase tracking-wider` + `px-3.5`. Đo:
+
+```
+menu 1344px + nút Tìm kiếm 110px = 1454px
+khung chứa 1240 − 48             = 1192px      → tràn 22%
+```
+
+Thanh không **vỡ** — nó `flex-wrap`, nên nó **xuống dòng**. Đầu trang cao gấp đôi ở mọi bề rộng, kể
+cả desktop rộng nhất, và trên điện thoại tám mục viết hoa xếp thành một mảng chữ chiếm gần hết màn
+hình đầu tiên. Không lỗi nào báo ra. Không bài kiểm nào đụng tới. `flex-wrap` là một cơ chế **chịu
+lỗi**, và một cơ chế chịu lỗi làm đúng việc của nó thì lỗi không bao giờ nổi lên.
+
+Nặng hơn phần bề rộng: hai mục cấp 1 kiểu `NONE` ("Giới thiệu", "Quản lý, vận hành") được vẽ thành
+`<button>` **không gắn hành vi nào**. Trên máy có chuột thì `group-hover` mở menu con nên không ai
+thấy vấn đề; trên máy tính bảng, chạm vào là chạm một nút không phản hồi và bốn mục con **không có
+cách nào mở ra**. §10 của văn bản nghiệm thu ghi đúng một dòng cho chuyện này: *"Giao diện hiển thị
+đúng trên máy tính, máy tính bảng và điện thoại"*.
+
+#### 2. Sáu cột / khoá / tham số bày ra mà **một nửa cặp đọc–ghi không tồn tại**
+
+Việc thứ hai không tìm ra một lỗi; nó tìm ra một **hình dạng**:
+
+| Thứ bị hỏng | Nửa có | Nửa thiếu | Triệu chứng |
+|---|---|---|---|
+| `org_unit_leaders` | đọc + endpoint công khai | **không controller, không màn hình** | trang Lãnh đạo rỗng vĩnh viễn |
+| `org_units.address/phone/email` | đọc + hiện ở bảng 6 cột | 3 setter **không lời gọi nào** | ba cột trống mãi |
+| `CreateRequest.shortName` | DTO + validate + ô nhập | `create()` không nhận tham số | báo *lưu thành công*, giá trị biến mất |
+| `PUT /org-units/{id}` | endpoint đầy đủ | **không màn hình nào gọi** | tên đơn vị không sửa được sau khi tạo |
+| 2 cột tài liệu công trình | đọc + dựng 2 liên kết CR-28 | setter chỉ có **1 lời gọi, trong một bài kiểm** | hai liên kết không có gì để trỏ tới |
+| `HomeMediaGallery` 3 props | component hoàn chỉnh | trang chủ gọi `<HomeMediaGallery />` **trần** | khối rỗng ở mọi môi trường |
+
+Cộng thêm bốn khoá `settings` (`site.analytics.*`, `site.color.*`) bày trên màn hình cấu hình từ
+19/8 mà **0 nơi đọc** — chiều ngược lại của cùng một hình dạng.
+
+⚠ **Bốn trong sáu mục trên do chính đợt WS-24 tạo ra một ngày trước.** Đợt ấy đếm "đường đọc đã
+dựng xong" rồi tick, và nửa còn lại của mỗi cặp không có ai đếm. Đây là luật 19 (*việc làm xong nửa
+đường trông y hệt việc làm xong*) ở dạng có cấu trúc: không phải một người lười, mà là một **đơn vị
+đếm sai** — ta đếm *tính năng đã dựng*, trong khi thứ người dùng nhận được là *vòng khép kín
+nhập → lưu → hiện*.
+
+#### 3. Hai lượt kiểm chứng ngược thất bại, và cả hai đều lộ ra lỗi thật
+
+Đây là phần đáng giá nhất của lượt này.
+
+**(a) Bộ canh khoá `settings`.** Để chứng minh nó bắt được vi phạm, tôi đặt `--` trước câu `DELETE`
+của migration rồi chờ nó đỏ. Nó **không đỏ**. Nguyên nhân: mẫu bắt câu `DELETE` là biểu thức chính
+quy, và regex **không biết SQL có chú thích** — một câu lệnh đã bị vô hiệu hoá vẫn được tính là đã
+chạy, nên bốn khoá vẫn bị trừ khỏi danh sách phải-có-người-đọc. Bản hỏng *đã* được nạp; bộ canh mù
+trước nó. Nếu lượt kiểm chứng ấy không chạy, lỗ này nằm lại vĩnh viễn và không có triệu chứng nào.
+
+**(b) Bộ canh vị trí menu.** Bài kiểm chứng ngược bản đầu khẳng định mẫu bắt enum trả về
+`("HEADER", "FOOTER")` từ một enum có **ba** hằng — vì mẫu đòi `[,;]` sau tên hằng, mà hằng cuối
+của enum Java không có dấu phẩy. Bài kiểm chứng ngược ấy **chép lại hành vi sai thay vì bắt nó**, và
+nó sẽ xanh mãi mãi. Chỗ lộ ra là một khẳng định khác trong bài chính: *"phải trích được ít nhất 3
+giá trị"* — 2 < 3.
+
+> ⛔ **Một bài kiểm chứng ngược cũng có thể sai theo đúng cách mà thứ nó kiểm chứng đang sai.**
+> Người viết cả hai là cùng một người, mang cùng một giả định. Thứ cứu được ở đây không phải bài
+> kiểm chứng ngược mà là một khẳng định **về số lượng** — `hasSizeGreaterThanOrEqualTo(3)` không
+> chia sẻ giả định nào với mẫu regex. Bổ sung cho luật 10: *làm hỏng có chủ đích thì phải xác nhận
+> bản hỏng đã được nạp* — và **xác nhận rằng bộ canh nhìn thấy nó**, hai chuyện khác nhau.
+
+#### 4. Chạy thật lại tìm ra thứ thứ ba
+
+17/17 đường dẫn trả 200 và mọi bài kiểm xanh, nhưng trang Xí nghiệp vẫn rỗng trong khi API trả đủ
+dữ liệu. Không phải lỗi mã: bộ đệm ISR của Next nằm trên **lớp ghi của container**, và `docker
+restart` giữ nguyên lớp ấy — phải `up -d --force-recreate`. Cùng họ §10.53.
+
+Chính chỗ ấy lộ ra một giới hạn thật, đo được và chưa vá: `PortalCache` (nơi xếp job xoá cache cổng)
+nằm ở module `content`, còn `org_units` ở `core` và `constructions` ở `operations`. Quy tắc 6 không
+cho gọi qua ranh giới module, nên **sửa dữ liệu tổ chức không xoá được cache cổng** — cổng trễ tới
+5 phút. Không mất dữ liệu, có tự lành, nhưng người nhập liệu không thấy đổi ngay sẽ tưởng lưu hỏng.
+Vá tạm: một dòng cảnh báo trên màn hình. Vá thật cần một SPI cache cổng — ghi nợ T25.22.
+
+#### 5. Tài liệu và mã nói hai chuyện về màu, suốt 13 ngày
+
+`ui-styles.md` §2.3 ghi gradient navbar là `#0c366e → #165bb6`. `SiteHeader` vẽ `#061b37 → #0b2d5b`.
+**Một trong hai màu chưa từng chạy**, và đọc tệp nào cũng thấy hợp lý. Cùng hình dạng với §10.61
+(hai tệp trỏ vào nhau về CSP) và với quy tắc 14.
+
+Đã sửa **tài liệu theo mã**, không ngược lại — §2 của văn bản nghiệm thu chốt *"hệ màu GIỮ
+NGUYÊN"*, nên bản đúng là bản người dùng đang nhìn thấy. Bảy sắc navy chép tay gộp còn năm bậc
+`portalChrome`, và `noHardcodedColors.test.ts` nay khẳng định **0 mã hex** trong `public-web`.
+
+⚠ Bộ canh ấy cố ý **chưa phủ `admin-app`** (còn 25 chỗ, 12 tệp) — và javadoc của nó **ghi rõ giới
+hạn ấy**. Im lặng về phạm vi là tái tạo đúng lỗi vừa sửa cùng lượt: `PortalSettingsReadTest` soi
+đúng một tệp migration nên mọi khoá seed trước đó đi lọt, y như `NginxSecurityHeadersTest` chỉ soi
+`admin-app` trong khi cổng công khai chạy không CSP (§10.61).
+
+#### 6. Sổ tiến độ tự nó sai — vì một ký tự trong ghi chú
+
+Bộ đọc `master-tracking.md` quét ghi chú tìm ký hiệu trạng thái để đọc được những dòng bảng không có
+ô tick. Nó quét cả ghi chú của dòng **đã tick**, nên một task hoàn thành mà ghi chú nhắc phần còn
+treo — `"⬜ Nợ: màn hình quản trị chưa có nút"` — bị hạ xuống `Pending` và lên Google Sheet dưới dạng
+*chưa làm*. Đo lúc phát hiện: **T24.25** (tick từ 27/8) và **T25.13**.
+
+Markdown đọc đúng, Sheet đọc sai, hai bên lệch nhau ở một ký tự. Cùng họ **T11.47**. Chữa ở phía nội
+dung chứ không ở bộ đọc — nới lỏng nó sẽ làm hỏng những dòng bảng vốn dựa vào ký hiệu — và thêm phép
+kiểm thứ **8** cho bộ đọc.
+
+#### Bài học
+
+⛔ **Đếm "đã dựng xong bao nhiêu tính năng" là đếm sai đơn vị.** Thứ người dùng nhận được là một
+vòng khép kín *nhập → lưu → hiện*; một nửa vòng ấy chạy hoàn hảo vẫn cho ra số không. Bốn trong sáu
+lỗ của lượt này ra đời **một ngày trước** từ một đợt làm việc cẩn thận, có bài kiểm, có nghiệm thu.
+
+⛔ **Một cơ chế canh gác phải nói ra phạm vi của chính nó.** Ba lần trong hai ngày, cùng một hình
+dạng: bộ canh đúng luật nhưng hẹp hơn nơi nó phải chặn, và cái xanh của nó đọc như một lời bảo đảm.
+Khi không phủ hết được thì **ghi giới hạn vào chính bộ canh** và mở một dòng nợ có số đo.
+
+
+---
+
+### §10.63 — Bảy context bắt buộc khoá chết mọi PR chỉ sửa tài liệu (27/8)
+
+Hai PR mở **cùng lúc**, cùng nhánh đích `dev`, khác đúng **một** biến — một thí nghiệm đối chứng
+tự nhiên mà không ai cố ý dựng ra:
+
+| PR | đụng `frontend/`? | job matrix `Đóng gói image frontend` | kết quả |
+|---|---|---|---|
+| **#48** | có | **CHẠY** → báo hai tên đã bung | `CLEAN` |
+| **#47** | không (`docs/` · `.claude/` · `.agents/`) | **BỎ QUA** → chỉ báo tên gốc | **`BLOCKED`** |
+
+Context bắt buộc so với context thực sự được báo cáo trên #47:
+
+| bắt buộc | báo cáo |
+|---|---|
+| `Đóng gói image frontend (admin-app, deploy/docker/admin-app.Dockerfile)` | — **không có** |
+| `Đóng gói image frontend (public-web, deploy/docker/public-web.Dockerfile)` | — **không có** |
+| | `Đóng gói image frontend` → `skipped` |
+
+Một job matrix khi **chạy** báo tên đã bung; khi **bị bỏ qua** chỉ báo tên gốc chưa bung. Hai
+context bắt buộc kia không bao giờ tới → PR treo mãi ở *"Waiting for status to be reported"*.
+
+⛔ **Không sửa được bằng cách đổi danh sách context**: đòi tên gốc thì hỏng trường hợp *chạy*, đòi
+tên đã bung thì hỏng trường hợp *bỏ qua*. Không có tên nào đúng cho cả hai.
+
+#### Vì sao ẩn được
+
+`branch-protection.md` §2.1 đã cảnh báo đúng cái bẫy này — *"check bắt buộc mà không bao giờ chạy"*
+— và §6.2 còn ngồi phân tích riêng trường hợp `Gắn tag SHA`, rồi kết luận bảy context kia an toàn.
+Phân tích ấy soi trường hợp job **bị `if` loại** (vẫn báo cáo), không soi trường hợp job **matrix
+bị bỏ qua** (báo một cái tên khác). Từ 26/8 tới 27/8 không PR nào chỉ sửa tài liệu, nên cái bẫy nằm
+im đúng một ngày rồi bật ra ở PR ghi lại chính ba sự cố trước đó.
+
+📌 Cùng hình dạng luật 28: *một cơ chế canh gác hẹp hơn nơi nó phải chặn, và cái xanh của nó đọc
+như một lời bảo đảm.* Ở đây còn ngược đời hơn — cái **treo mãi** của nó đọc như *"CI đang chạy"*.
+
+#### Đã vá
+
+Job `Cổng kiểm CI` (`if: always()`, `needs` **mọi** job) thành context bắt buộc **duy nhất**. Nó đỏ
+khi có job `failure`/`cancelled`, bỏ qua `skipped` — bộ lọc đường dẫn bỏ qua một vùng không thay
+đổi là đúng việc của nó — và in bảng kết quả từng job ra tóm tắt.
+
+⚠ Gom về một context nghĩa là **context ấy phải biết hết**. `CiGateCoverageTest` (4 bài) đối chiếu
+`needs` với danh sách job có thật trong `ci.yml` **cả hai chiều**: job đứng ngoài `needs` → đỏ; và
+`needs` trỏ tới job không tồn tại → cũng đỏ. Kiểm chứng ngược: bỏ `tracking` khỏi `needs` → bài đỏ
+và **nêu đích danh** job thiếu.
+
+⚠⚠ Thứ tự áp bắt buộc: job phải có mặt trên `dev` **TRƯỚC** khi đổi danh sách context. Đổi trước
+thì mọi PR treo — kể cả PR mang chính job ấy — và chỉ còn đường bypass bằng quyền admin.
+
+### §10.64 — Chín phép kiểm canh nguồn sự thật, không cổng nào chạy, và có sẵn nhánh thoát-0 (27/8)
+
+Lộ ra khi tự kiểm dòng tracking vừa sửa bằng **chính bộ đọc thật** thay vì bằng một bộ kiểm tự viết
+(bộ tự viết sai spec và báo 233 dòng "lỗi" không có thật — nó không biết dự án dùng `- [~]` và dòng
+nối).
+
+Ba tầng, mỗi tầng đủ để vô hiệu hoá tầng dưới:
+
+1. `test_parse.py` **không nằm trong `ci.yml` lẫn `Makefile`** — chưa cổng nào chạy nó.
+2. Nếu có chạy: nó `import server`, mà `server` kéo theo `fastmcp` + `google-api`, và nhánh
+   `ImportError` gọi **`sys.exit(0)`** — in `BỎ QUA…` rồi **xanh**.
+3. Bên trong bộ đọc: `_status_from_text` quét `✅` trên **toàn dòng kể cả cột Note**, nên một dấu
+   `✅` đánh dấu ý phụ nâng cả task lên `Done`. Đo trên file thật: **đúng 2 dòng sai**, và cả hai là
+   việc còn mở quan trọng nhất — **T11.45** `[ ]` (siết SSH, đang làm đỏ deploy) và **T11.7** `[~]`
+   (secret production) đều hiện **Done** trên bảng Công ty đọc.
+
+#### Hai nửa của cùng một lỗi, tìm ra bởi hai nhánh khác nhau
+
+WS-25 (#48) tìm ra **chiều ngược lại** cùng lớp lỗi: `⬜` trong ghi chú **hạ** một task `[x]` xuống
+`Pending`. Bản ghi ấy kết luận *"chữa ở phía nội dung chứ không ở phía bộ đọc: nới lỏng
+`_status_from_text` sẽ làm hỏng những dòng bảng vốn dựa vào nó"*.
+
+Nỗi lo đúng, nhưng bản vá **không nới lỏng** hàm ấy: dòng bảng vẫn gọi
+`_status_from_text(status_col, status_col)` y nguyên. Chỉ dòng **có ô tick** thôi dùng nó — ở đó dấu
+tích là thứ người viết cố ý đặt, chữ trong ghi chú thì không. Cả hai chiều hết cùng lúc.
+
+#### Đã vá
+
+Tách phần đọc thuần sang `tracking_parser.py` **chỉ dùng thư viện chuẩn** → `test_parse.py` import
+thẳng, **không còn nhánh bỏ qua nào**; `server.py` tái xuất nên MCP không đổi hành vi (đo: 8/8 tên
+còn nguyên, đọc ra 437 dòng). Thêm job `Bộ đọc tracking` vào `ci.yml` **không có bộ lọc đường dẫn**
+và bước `[1/9]` của `make ci-local`.
+
+#### Bài học
+
+⚠⚠ **Bản ĐẦU của bài kiểm cho tầng 3 là xanh giả** — nó tự suy lại trạng thái từ dấu tích rồi so
+với **chính dấu tích ấy**, nên vẫn xanh 8/8 sau khi gỡ bản vá. Chỉ bước kiểm chứng ngược bắt được.
+Đây là lần thứ ba trong dự án một bài kiểm chứng ngược cứu một bộ canh vô nghĩa (§10.62 hai lần).
+
+**Khi tự kiểm một tệp, hãy chạy BỘ ĐỌC THẬT của nó.** Một bộ kiểm tự viết mang đúng giả định của
+người viết — và ở đây nó vừa bỏ sót lỗi có thật, vừa bịa ra 233 lỗi không có.

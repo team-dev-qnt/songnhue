@@ -44,6 +44,9 @@ export interface ConstructionFormValues {
   designer?: string;
   contractor?: string;
   totalInvestment?: number; // In VND, UI handles million conversion
+  /** Hai tài liệu công bố ra cổng — CR-28. Xem `OTaiLieuCongBo` trong `StepFinance`. */
+  operatingProcedureAttachmentId?: string;
+  protectionPlanAttachmentId?: string;
   description?: string;
   pump?: PumpSpecView;
   sluice?: SluiceSpecView;
@@ -95,6 +98,10 @@ export function ConstructionFormPage() {
         designer: construction.designer ?? undefined,
         contractor: construction.contractor ?? undefined,
         totalInvestment: construction.totalInvestment ?? undefined,
+        // ⚠ Phải nạp lại: biểu mẫu nạp thiếu một trường thì mỗi lượt Lưu ghi đè giá trị đang có
+        //   bằng `undefined`, và hai liên kết trên cổng lặng lẽ biến mất sau lần sửa hồ sơ kế tiếp.
+        operatingProcedureAttachmentId: construction.operatingProcedureAttachmentId ?? undefined,
+        protectionPlanAttachmentId: construction.protectionPlanAttachmentId ?? undefined,
         description: construction.description ?? undefined,
         pump: construction.pump ?? undefined,
         sluice: construction.sluice ?? undefined,

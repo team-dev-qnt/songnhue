@@ -26,6 +26,26 @@ import { describe, expect, it } from 'vitest';
 const NGUON = readFileSync(join(process.cwd(), 'src/components/SiteFooter.tsx'), 'utf8');
 
 /**
+ * Trang Liên hệ — nơi thứ hai công bố thông tin liên hệ, dựng ở đợt chỉnh sửa 27/08/2026 (CR-22).
+ *
+ * ⚠⚠ Bài kiểm này TỪNG đỏ oan vì chỉ soi chân trang. CR-40 và CR-41 yêu cầu bỏ **email** và
+ * **giờ làm việc** khỏi chân trang, nên hai khoá ấy rời khỏi `SiteFooter.tsx` — và một bài canh
+ * đóng đinh vào một tệp sẽ đọc chuyện đó thành "cổng lại ghi cứng thông tin liên hệ", tức là
+ * đúng ngược với sự thật.
+ *
+ * Bất biến thật không bao giờ là *"tệp X phải chứa chuỗi Y"* mà là *"thông tin liên hệ của Công
+ * ty phải đến từ `settings`, ở mọi nơi cổng công bố nó"*. Nên danh sách dưới đây là **các nơi
+ * công bố**, và mỗi khoá chỉ cần được đọc ở ít nhất một nơi.
+ */
+const NGUON_LIEN_HE = readFileSync(join(process.cwd(), 'src/app/lien-he/page.tsx'), 'utf8');
+
+/** Mọi nơi cổng công bố thông tin liên hệ. Thêm nơi thứ tư thì thêm vào đây. */
+const NOI_CONG_BO: { ten: string; nguon: string }[] = [
+  { ten: 'SiteFooter.tsx', nguon: NGUON },
+  { ten: 'app/lien-he/page.tsx', nguon: NGUON_LIEN_HE },
+];
+
+/**
  * Thanh đầu trang cũng hiện số đường dây nóng — cùng một số, ghi cứng ở **hai** tệp. Bỏ sót tệp này
  * thì sửa số trên giao diện chỉ đổi được chân trang, còn đầu trang vẫn số cũ; và hai con số khác
  * nhau trên cùng một trang còn tệ hơn một con số cũ.
@@ -42,8 +62,41 @@ const KHOA_BAT_BUOC = [
 ];
 
 describe('Cổng lấy thông tin liên hệ của Công ty từ cấu hình', () => {
-  it.each(KHOA_BAT_BUOC)('đọc khoá %s', (khoa) => {
-    expect(NGUON).toContain(`'${khoa}'`);
+  it.each(KHOA_BAT_BUOC)('đọc khoá %s ở ít nhất một nơi công bố', (khoa) => {
+    const doc = NOI_CONG_BO.filter((n) => n.nguon.includes(`'${khoa}'`)).map((n) => n.ten);
+    expect(
+      doc,
+      `không nơi nào đọc '${khoa}' từ settings — nó đang bị ghi cứng, hoặc đã biến mất khỏi cổng`,
+    ).not.toEqual([]);
+  });
+
+  /*
+    ⛔ CR-40 và CR-41: email và giờ làm việc phải BỎ khỏi chân trang.
+
+    Hai khẳng định dưới đây là vế còn thiếu của bài kiểm trên. Không có chúng thì "đã bỏ khỏi
+    chân trang" chỉ là một dòng trong tài liệu nghiệm thu — và lượt sửa giao diện kế tiếp đặt
+    lại hai dòng ấy sẽ không làm đỏ gì cả. Đây đúng hình dạng đã trả giá ngày 24/8, khi một bản
+    vá giao diện lặng lẽ khôi phục nguyên trạng lỗi cũ vì màn hình vẫn trông đúng.
+
+    ⚠ Canh trên `NGUON` (mã nguồn) chứ không trên DOM: hai khoá vẫn phải TỒN TẠI trong
+    `settings` (OI-04 còn chờ Công ty chốt bỏ hẳn email hay thay bằng email công vụ), nên thứ
+    cần khẳng định là chân trang không ĐỌC chúng nữa.
+  */
+  it.each(['company.email', 'company.working-hours'])(
+    '⛔ chân trang KHÔNG còn đọc %s (CR-40, CR-41)',
+    (khoa) => {
+      expect(
+        NGUON.includes(`'${khoa}'`),
+        `'${khoa}' đã quay lại chân trang — CR-40/CR-41 yêu cầu bỏ khỏi chân trang, ` +
+          'giá trị vẫn nằm trong settings và vẫn hiện ở trang Liên hệ',
+      ).toBe(false);
+    },
+  );
+
+  it('⚠ tìm được tệp để soi — bài kiểm chạy qua tập rỗng thì xanh mà không canh gì (luật 7)', () => {
+    for (const { ten, nguon } of NOI_CONG_BO) {
+      expect(nguon.length, `${ten} rỗng hoặc không đọc được`).toBeGreaterThan(200);
+    }
   });
 
   /*

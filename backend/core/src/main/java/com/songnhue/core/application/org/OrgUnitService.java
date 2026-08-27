@@ -148,7 +148,15 @@ public class OrgUnitService implements OrgUnitPort {
      * materialized path, đổi lại truy vấn cây con chỉ là một {@code LIKE} chạy trên chỉ mục.
      */
     @Transactional
-    public OrgUnit create(String code, String name, OrgUnitType type, UUID parentPublicId) {
+    public OrgUnit create(
+            String code,
+            String name,
+            OrgUnitType type,
+            UUID parentPublicId,
+            String shortName,
+            String address,
+            String phone,
+            String email) {
         if (repository.existsByCodeAndDeletedAtIsNull(code)) {
             throw new ConflictException(ErrorCode.ADM_2002);
         }
@@ -165,6 +173,19 @@ public class OrgUnitService implements OrgUnitPort {
         }
 
         OrgUnit unit = new OrgUnit(code, name, type);
+        // ⚠ `shortName` từng bị BỎ RƠI: `CreateRequest` khai nó, biểu mẫu quản trị có ô "Tên viết
+        //   tắt", `@Size(max = 100)` vẫn validate nó — nhưng `create()` không nhận tham số ấy, nên
+        //   giá trị người dùng gõ bị vứt lặng lẽ và màn hình báo *tạo thành công*. Chỉ `update()`
+        //   ghi được, nên tên tắt chỉ tồn tại nếu ai đó sửa lại đơn vị lần thứ hai.
+        //   Cổng công khai hiện `shortName || name` (thẻ Đơn vị trực thuộc), nên triệu chứng là
+        //   "tên tắt không bao giờ hiện" — không giống một lỗi ghi dữ liệu.
+        unit.setShortName(rongThanhNull(shortName));
+        // Ba ô liên hệ — bảng 6 cột của CR-26 trên cổng công khai đọc đúng ba cột này.
+        // Rỗng thì để `null`, không để chuỗi rỗng: cổng phân biệt "chưa nhập" (không hiện dòng)
+        // với "đã nhập" (hiện), và một chuỗi rỗng sẽ dựng ra một ô có mặt mà không nội dung.
+        unit.setAddress(rongThanhNull(address));
+        unit.setPhone(rongThanhNull(phone));
+        unit.setEmail(rongThanhNull(email));
         // `path` và `depth` là NOT NULL, mà path thật lại chứa chính id — thứ chỉ có sau khi ghi.
         // Nên phải ghi bằng một path tạm rồi sửa ngay trong cùng transaction. Không ai quan sát được
         // giá trị tạm này: nó bị ghi đè trước khi transaction commit, và hỏng giữa chừng thì rollback
@@ -180,12 +201,33 @@ public class OrgUnitService implements OrgUnitPort {
     }
 
     @Transactional
-    public OrgUnit update(UUID publicId, String name, String shortName, OrgUnitType type) {
+    public OrgUnit update(
+            UUID publicId,
+            String name,
+            String shortName,
+            OrgUnitType type,
+            String address,
+            String phone,
+            String email) {
         OrgUnit unit = require(publicId);
         unit.setName(name);
         unit.setShortName(shortName);
         unit.setUnitType(type);
+        unit.setAddress(rongThanhNull(address));
+        unit.setPhone(rongThanhNull(phone));
+        unit.setEmail(rongThanhNull(email));
         return repository.save(unit);
+    }
+
+    /**
+     * Chuỗi chỉ có khoảng trắng → {@code null}.
+     *
+     * <p>Biểu mẫu AntD gửi ô trống lên dưới dạng {@code ""}, không phải {@code null}. Giữ nguyên
+     * chuỗi rỗng thì cổng công khai thấy một giá trị "có" và dựng ra một dòng địa chỉ trống —
+     * luật 16: ô chưa có nguồn phải rỗng, và "rỗng" phải phân biệt được với "đã nhập".
+     */
+    private static String rongThanhNull(String giaTri) {
+        return giaTri == null || giaTri.isBlank() ? null : giaTri.trim();
     }
 
     /**

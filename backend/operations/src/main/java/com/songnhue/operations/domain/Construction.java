@@ -1,6 +1,7 @@
 package com.songnhue.operations.domain;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -143,6 +144,30 @@ public class Construction extends ScopedEntity {
 
     @Column(name = "description")
     private String description;
+
+    // === Hai tài liệu công bố ra cổng — CR-28 ================================
+
+    /**
+     * Quyết định phê duyệt <b>Quy trình vận hành</b> công trình — cột 5 của bảng danh mục công
+     * trình công khai.
+     *
+     * <p>⚠ Kiểu {@code UUID} trỏ {@code attachments.public_id} chứ không phải khoá chạy số: module
+     * {@code operations} không được import entity của {@code core} (quy tắc 6), nên nó cầm định
+     * danh công khai. Cùng khuôn với {@code categories.cover_attachment_public_id}.
+     *
+     * <p>⚠ Vì sao là một cột trỏ thẳng, không phải một mục trong danh sách đính kèm chung: danh
+     * sách ấy không có trường nào nói tệp nào đóng vai gì, mà cột của CR-28 phải trỏ đích danh MỘT
+     * tệp. Quan hệ 1–1 giữ ở lược đồ thì không có chỗ nào để tầng service quên kiểm.
+     *
+     * <p>{@code null} = chưa có. Cổng hiện dấu gạch, <b>không</b> dựng một liên kết trỏ vào hư
+     * không (quy tắc 16).
+     */
+    @Column(name = "operating_procedure_attachment_public_id")
+    private UUID operatingProcedureAttachmentPublicId;
+
+    /** Quyết định phê duyệt <b>Phương án bảo vệ</b> công trình — cột 6 của bảng CR-28. */
+    @Column(name = "protection_plan_attachment_public_id")
+    private UUID protectionPlanAttachmentPublicId;
 
     // === Trạng thái ==========================================================
 
@@ -419,6 +444,22 @@ public class Construction extends ScopedEntity {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public UUID getOperatingProcedureAttachmentPublicId() {
+        return operatingProcedureAttachmentPublicId;
+    }
+
+    public void setOperatingProcedureAttachmentPublicId(UUID operatingProcedureAttachmentPublicId) {
+        this.operatingProcedureAttachmentPublicId = operatingProcedureAttachmentPublicId;
+    }
+
+    public UUID getProtectionPlanAttachmentPublicId() {
+        return protectionPlanAttachmentPublicId;
+    }
+
+    public void setProtectionPlanAttachmentPublicId(UUID protectionPlanAttachmentPublicId) {
+        this.protectionPlanAttachmentPublicId = protectionPlanAttachmentPublicId;
     }
 
     public LifecycleState getLifecycleState() {

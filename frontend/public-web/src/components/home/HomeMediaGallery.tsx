@@ -18,6 +18,19 @@ interface HomeMediaGalleryProps {
  *
  * - Video phóng sự nhúng an toàn qua domain `youtube-nocookie.com` tuân thủ CSP.
  * - Thư viện hình ảnh các công trình thủy lợi tiêu biểu.
+ *
+ * <h2>⚠⚠ Ba props này TỪNG không nơi gọi nào truyền</h2>
+ *
+ * Trang chủ gọi `<HomeMediaGallery />` trần cho tới 28/08/2026, nên `videoId` luôn `undefined` và
+ * khối luôn hiện hai ô rỗng — ở dev, ở staging, ở mọi nơi. Mã hiển thị thì hoàn chỉnh; thứ thiếu
+ * là một ô để Công ty nhập. Quy tắc 15 ở dạng React: một tham số bày ra mà không ai đọc.
+ *
+ * <p>Vế video nay đọc `site.home.video-id` / `site.home.video-title` (`V202608281038`). Vế `photos`
+ * còn chờ endpoint công khai cho thư viện ảnh công trình (nợ T11.30) — mở một thư viện ảnh nội bộ
+ * ra công khai là quyết định về phạm vi công bố, không phải một dòng mã.
+ *
+ * ⛔ Không có video mặc định. Bản trước từng nhúng một video kèm tiêu đề "Phóng sự … Sông Nhuệ"
+ * hoàn toàn bịa và nó đã lên staging (§10.54).
  */
 export function HomeMediaGallery({ videoId, videoTitle, photos = [] }: HomeMediaGalleryProps) {
   return (
@@ -48,7 +61,10 @@ export function HomeMediaGallery({ videoId, videoTitle, photos = [] }: HomeMedia
               </div>
             </div>
           ) : (
-            <EmptyBlock>Chưa có video phóng sự nào được đăng.</EmptyBlock>
+            <EmptyBlock>
+              Chưa có video phóng sự. Dán mã video vào ô &ldquo;Mã video phóng sự trang chủ&rdquo; ở
+              màn hình Cấu hình hệ thống.
+            </EmptyBlock>
           )}
           {videoId && videoTitle ? (
             <p className="mt-2.5 text-xs font-semibold text-surface-textBase sm:text-sm">
@@ -60,7 +76,10 @@ export function HomeMediaGallery({ videoId, videoTitle, photos = [] }: HomeMedia
         {/* CỘT PHẢI (5 CỘT): THƯ VIỆN HÌNH ẢNH CÔNG TRÌNH */}
         <div className="lg:col-span-5">
           {photos.length === 0 ? (
-            <EmptyBlock>Thư viện ảnh công trình chưa có ảnh nào.</EmptyBlock>
+            <EmptyBlock>
+              Thư viện ảnh công trình chưa mở ra cổng công khai — ảnh hiện trạng đang nằm trong hồ
+              sơ từng công trình ở trang quản trị.
+            </EmptyBlock>
           ) : (
             <div className="grid grid-cols-2 gap-3.5">
               {photos.slice(0, 4).map((p) => (

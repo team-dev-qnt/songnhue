@@ -10,6 +10,9 @@ import {
   Modal,
   Popconfirm,
   Space,
+  Switch,
+  Tag,
+  Tooltip,
   Tree,
   Typography,
 } from 'antd';
@@ -88,6 +91,20 @@ export function CategoriesPage() {
     onError: (caught) => baoLoi(caught, 'Không di chuyển được danh mục'),
   });
 
+  const doiHienThi = useMutation({
+    mutationFn: ({ publicId, visible }: { publicId: string; visible: boolean }) =>
+      cmsApi.setCategoryVisibility(publicId, visible),
+    onSuccess: async (_data, bien) => {
+      message.success(
+        bien.visible
+          ? 'Đã hiện danh mục trên cổng'
+          : 'Đã ẩn danh mục — cả nhánh con cũng rút khỏi cổng',
+      );
+      await invalidate();
+    },
+    onError: (caught) => baoLoi(caught, 'Không đổi được trạng thái hiển thị'),
+  });
+
   const remove = useMutation({
     mutationFn: (publicId: string) => cmsApi.deleteCategory(publicId),
     onSuccess: async () => {
@@ -107,8 +124,29 @@ export function CategoriesPage() {
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             /{item.value.slug}
           </Typography.Text>
+          {/* ⛔ Thẻ "Đang ẩn" hiện cho MỌI người xem màn hình, không chỉ người có quyền sửa:
+              một danh mục vắng mặt trên cổng mà màn hình quản trị không nói gì thì người ta đi
+              tìm lỗi ở chỗ khác. */}
+          {!item.value.visible && <Tag color="default">Đang ẩn</Tag>}
           {coQuyen && (
             <>
+              <Tooltip
+                title={
+                  item.value.visible
+                    ? 'Ẩn khỏi cổng công khai — cả nhánh con cũng rút theo'
+                    : 'Hiện lại trên cổng công khai'
+                }
+              >
+                <Switch
+                  size="small"
+                  checked={item.value.visible}
+                  loading={doiHienThi.isPending}
+                  onClick={(_checked, event) => event.stopPropagation()}
+                  onChange={(value) =>
+                    doiHienThi.mutate({ publicId: item.value.publicId, visible: value })
+                  }
+                />
+              </Tooltip>
               <Button
                 type="link"
                 size="small"
@@ -154,7 +192,7 @@ export function CategoriesPage() {
       children: item.children.map(toNode),
     });
     return buildTree(items).map(toNode);
-  }, [items, coQuyen, form, remove]);
+  }, [items, coQuyen, form, remove, doiHienThi]);
 
   return (
     <Card

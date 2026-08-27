@@ -17,7 +17,7 @@ Khi mâu thuẫn: `architecture-review.md` > `function-spec.md` / `implement.md`
 | `.claude/conventions.md` | **Luật** khi viết code + đặc tả Common Platform (envelope, exception, mã lỗi, RBAC 3 tầng, chống giả mạo) |
 | `.claude/master-tracking.md` | **Nguồn DUY NHẤT** của task và nợ (§6). Đồng bộ lên Google Sheet qua MCP `google_sheets_sync` |
 | `.claude/implement.md` | Kế hoạch implement — 4 nhóm A/B/C/D, thứ tự phase, cấu trúc code |
-| `.claude/business-open-questions.md` | BOQ đợt 1+2 đã đóng · **8 mục còn mở** · truy vết chức năng nào còn điểm chưa chốt |
+| `.claude/business-open-questions.md` | BOQ đợt 1+2 đã đóng · **7 mục còn mở** (G14 đóng 27/8 bằng văn bản nghiệm thu) · truy vết chức năng nào còn điểm chưa chốt |
 | `.claude/phase0-tracking.md` · `phase1-tracking.md` | **Lưu trữ, cấm sửa.** Phase 1 có mục "18 điểm nghiệp vụ đã làm rõ trước khi code" |
 | `.claude/report-templates-proposal.md` | Đề xuất format báo cáo gửi Công ty duyệt |
 | `docs/coding-guide.md` | **Đường đi** — công thức viết một chức năng (migration → entity → workflow → service → controller → quyền → mã lỗi → test) + bẫy đã trả giá |
@@ -26,6 +26,7 @@ Khi mâu thuẫn: `architecture-review.md` > `function-spec.md` / `implement.md`
 | `docs/cicd.md` | Luồng 3 chặng `dev → staging → production`, cổng đề bạt, secret cần đặt |
 | `docs/deploy-guideline.md` | Dựng máy, khoá, `.env`, DNS/TLS, lượt deploy tay đầu tiên, checklist nghiệm thu |
 | `docs/branch-protection.md` | Ba hồ sơ bảo vệ nhánh + lệnh áp dụng |
+| `docs/nghiem-thu-cong-ttdt-v1.md` | **Sổ nghiệm thu v1 chốt 28/8** — đối chiếu 43 mã CR ↔ trạng thái, checklist §10, trả lời OI-01→OI-12, danh sách ô sẽ rỗng và vì sao. **Bản đối chiếu, không phải nguồn sự thật** — task và nợ vẫn ở `master-tracking.md` |
 | `docs/setup-guideline.md` · `run-guideline.md` | Dựng máy dev; bốn chế độ chạy |
 | `docs_origin/` | Tài liệu gốc của khách — chỉ tham khảo, đã tổng hợp vào `function-spec.md` |
 
@@ -68,13 +69,16 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 
 **Phase "Tài liệu hệ thống"** ✅ xong 12/8/2026 — BOQ đợt 1 (A–F) + đợt 2 (G) đã đóng và đồng bộ vào `function-spec.md` **v2.2**.
 **Phase 0 — Core Platform** ✅ 10/11 hạng mục. **WS-11 (Deploy)**: staging đã chạy thật, đường ống CD đóng (§10.50→§10.55); còn production + quay lui thật.
-**Phase 1 — CMS & master data công trình** ✅ **xong 24/8/2026** — WS-12→WS-23 đóng đủ, **16/17 mục DoD** có phép kiểm đứng sau. 
+**Phase 1 — CMS & master data công trình** ✅ **xong 24/8/2026** — WS-12→WS-23 đóng đủ, **16/17 mục DoD** có phép kiểm đứng sau.
+**WS-24 — Đợt chỉnh sửa cổng theo nghiệm thu Công ty** (`docs_origin/nghiem_thu_phase1.md`, 27/8): **34/43 mã CR đóng**, 9 mã còn lại chờ đăng nhập trên cổng · nguồn dữ liệu · nhập liệu. Đã **chạy thật trên stack đầy đủ**: 17/17 đường dẫn menu trả 200. Chi tiết `master-tracking.md` WS-24 · nguyên nhân gốc §10.61.
+
+**WS-25 — Đầu trang thân thiện + kiểm kê "cấu hình được từ admin"** ✅ **28/8** (§10.62). Thanh điều hướng **đo được là tràn 1454/1192px trên mọi màn hình** (`flex-wrap` che đi) và mục cấp 1 kiểu `NONE` là nút không hành vi → không mở được menu con trên máy tính bảng — cả hai nằm trong §10 checklist *"Responsive"*. Kiểm kê tìm ra **6 cột/khoá/tham số thiếu một nửa cặp đọc–ghi** (4 trong số đó do WS-24 tạo ra **một ngày trước**) + 4 khoá `settings` không ai đọc. **21/24 task đóng**; 3 nợ có số đo: T25.22 (cache cổng không xoá được từ `core`/`operations` — trễ 5') · T25.23 (25 hex ở admin-app) · T25.24 (thư viện ảnh công trình chưa mở ra cổng).
 
 ⬜ **DoD còn treo**: **DOD1.17** trang chủ < 3s (NFR-02) — nay đo được trên staging có nội dung thật · **DOD0.21** quay lui — chưa lượt deploy nào đi qua đường quay lui thành công.
 
 ✅ **Staging đã dựng lại cluster 26/8** (T11.3-b) — `i | collate=C.UTF-8 | icu=vi-VN`, vân tay số dòng khớp từng bảng, 6/6 container healthy, 4/4 smoke test xanh trên site thật, trang chủ 11 liên kết đều là slug thật. Lượt khôi phục ấy tìm ra **T7.13-a** — đường quay lui dữ liệu duy nhất của hệ vốn khôi phục ra một CSDL ứng dụng không đọc nổi (§10.58).
 
-⚠⚠ **Mười ba lượt liên tiếp một bản ghi "đã xong" bị lượt rà sau bác bỏ.** Đây là hình dạng rủi ro
+⚠⚠ **Mười bảy lượt liên tiếp một bản ghi "đã xong" bị lượt rà sau bác bỏ.** Đây là hình dạng rủi ro
 đặc trưng của dự án, không phải sự cố lẻ — nguyên nhân gốc từng vụ ở `architecture-review.md`:
 
 | Ngày | Lượt rà tìm ra | § |
@@ -92,6 +96,13 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 | 26/8 | **đường quay lui dữ liệu duy nhất** khôi phục ra CSDL mà ứng dụng không đọc nổi | §10.58 |
 | 27/8 | lượt deploy đỏ vì **cổng 22 bị quét** — sshd thả 30% kết nối; không phải lỗi mã | §10.59 |
 | 27/8 | CD Staging **success trọn vẹn mà không container nào được thay** — một lệnh nuốt mất nửa cuối script | §10.60 |
+| 27/8 | **cổng công khai chưa từng có CSP nào** — `next.config` bảo *nginx đặt*, nginx bảo *image FE đặt*; bộ canh chỉ soi `admin-app` | §10.61 |
+| 27/8 | trang **Tiến độ sản xuất** liệt kê hai danh mục của mục đã ẩn làm các **Năm** — 906 bài kiểm hai phía đều xanh, chỉ lộ ra khi mở trang trên stack đang chạy | §10.61 |
+| 28/8 | **6 cột/khoá/tham số thiếu nửa cặp đọc–ghi** — 4 do đợt hôm trước tạo ra; thanh điều hướng tràn khung 22% ở *mọi* bề rộng mà `flex-wrap` che đi | §10.62 |
+| 28/8 | **hai lượt kiểm chứng ngược của chính tôi đều sai** — một cái mù trước SQL đã chú thích, một cái *chép lại* hành vi sai thay vì bắt nó | §10.62 |
+| 27/8 | CD Staging **success trọn vẹn mà không container nào được thay** — một lệnh nuốt mất nửa cuối script | §10.60 |
+| 27/8 | **bảy context bắt buộc khoá chết mọi PR chỉ sửa tài liệu** — job matrix bỏ qua báo một cái tên khác | §10.63 |
+| 27/8 | **9 phép kiểm canh nguồn sự thật, không cổng nào chạy** — và có sẵn nhánh `sys.exit(0)` chờ | §10.64 |
 
 ⛔ Hệ quả rút ra: **"đã tick" không phải bằng chứng.** Trước khi mở một giai đoạn mới, đối chiếu với mã thật và chạy đường mà người dùng thật đi.
 
@@ -99,23 +110,27 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 
 ⛔ **Cấm seed dữ liệu công trình/thuỷ văn "cho đẹp demo"** — ô nào chưa có nguồn thì nói thẳng là chưa có.
 
-**Codebase đo ngày 27/8**: **635 test BE** (242 core + 20 content + 24 operations + 349 app) + **222 test FE** (142 admin + 80 public) · **74 mã lỗi** (BE = FE) · 88 quyền / 12 vai trò / 334 dòng phân quyền · **32 bài ArchUnit** (7 lớp, gồm 11 bài tự-kiểm chứng minh luật bắt được vi phạm) · 7 phép kiểm bộ đọc tracking · mọi cổng bao phủ **chạy thật** (content 18.2%) · 0 CVE ≥ 7.
+**Codebase đo ngày 28/8 (sau WS-25)**: **680 test BE** (249 core + 20 content + 33 operations + 378 app) + **249 test FE** (142 admin + 107 public) · **74 mã lỗi** (BE = FE) · 88 quyền / 12 vai trò / 334 dòng phân quyền · **32 bài ArchUnit** (7 lớp, gồm 11 bài tự-kiểm chứng minh luật bắt được vi phạm) · **9 phép kiểm bộ đọc tracking** (nay CÓ trong `ci.yml` + `make ci-local` bước 1/9) · mọi cổng bao phủ **chạy thật** (content 18.2%) · 0 CVE ≥ 7 · **0 mã màu ghi cứng trong `public-web`** (admin-app còn 25 — nợ T25.23).
 
 ### Tra ở đâu
 
 | Cần gì | Đọc ở đâu |
 |---|---|
 | Nợ đang treo, task còn lại | **`.claude/master-tracking.md`** — nguồn DUY NHẤT (conventions.md §6). `phase0-tracking.md` / `phase1-tracking.md` chỉ là lưu trữ, cấm sửa |
-| **Lý do** một quyết định, **nguyên nhân gốc** một lỗi đã sửa | `architecture-review.md` **§9** (Phase 0, 14 mục) · **§10** (Phase 1, 47 mục — §10.35 đợt vá sau WS-22, §10.36 nghiệm thu lại WS-21 + DoD, §10.37 nghiệm thu image, §10.38 CI đỏ sau merge `dev`, §10.40 lỗi 204, §10.41 biến CSDL không ai đọc, §10.52 envelope bọc `byte[]`, §10.53 container không được thay, §10.54 trang chủ nướng rỗng + dữ liệu bịa che chỗ rỗng, §10.55 `minio-init` đo thay vì khai báo + bộ seed một công tắc, §10.56 collation vắng ở `compose.prod.yml` — tham số chỉ chạy một lần, §10.57 cổng secret bỏ qua trong im lặng + 4 khoản bấm ở GitHub, §10.58 bản dump khôi phục ra CSDL không đọc nổi, §10.59 cổng 22 bị quét làm đỏ deploy, §10.60 một lệnh nuốt stdin làm nửa cuối khối triển khai không chạy mà CD vẫn xanh) |
+| **Lý do** một quyết định, **nguyên nhân gốc** một lỗi đã sửa | `architecture-review.md` **§9** (Phase 0, 14 mục) · **§10** (Phase 1, 49 mục — §10.35 đợt vá sau WS-22, §10.36 nghiệm thu lại WS-21 + DoD, §10.37 nghiệm thu image, §10.38 CI đỏ sau merge `dev`, §10.40 lỗi 204, §10.41 biến CSDL không ai đọc, §10.52 envelope bọc `byte[]`, §10.53 container không được thay, §10.54 trang chủ nướng rỗng + dữ liệu bịa che chỗ rỗng, §10.55 `minio-init` đo thay vì khai báo + bộ seed một công tắc, §10.56 collation vắng ở `compose.prod.yml` — tham số chỉ chạy một lần, §10.57 cổng secret bỏ qua trong im lặng + 4 khoản bấm ở GitHub, §10.58 bản dump khôi phục ra CSDL không đọc nổi, §10.59 cổng 22 bị quét làm đỏ deploy, §10.60 một lệnh nuốt stdin làm nửa cuối khối triển khai không chạy mà CD vẫn xanh, §10.61 đợt chỉnh sửa cổng theo nghiệm thu Công ty — cổng công khai chưa từng có CSP, đổi menu làm ba trang tĩnh mất lối vào, hai bộ canh cũ canh hình dạng thay vì canh bất biến, §10.62 sáu cột/khoá thiếu nửa cặp đọc–ghi + hai lượt kiểm chứng ngược tự sai, **§10.63 bảy context bắt buộc khoá chết mọi PR chỉ sửa tài liệu, §10.64 chín phép kiểm canh nguồn sự thật mà không cổng nào chạy**) |
 | Cách viết một chức năng + bảng bẫy tra nhanh | `docs/coding-guide.md` |
 | Luật bắt buộc khi viết code | `conventions.md` |
 | Nghiệp vụ | `function-spec.md`; điểm chưa chốt → `business-open-questions.md` Phần III |
 
-### Nghiệp vụ còn chờ Công ty — 8 mục
+### Nghiệp vụ còn chờ Công ty — 7 mục BOQ + 10 mục OI
 
 Không mục nào **chặn code**, chỉ chặn **dữ liệu khởi tạo và nghiệm thu**; riêng **G5** chặn đích danh CN-01.7 (lưu mã số hệ thống văn bản) nên task đó tách riêng.
 
-**G3-a** lượng mưa · **G5** mã số hệ thống văn bản (+ xin SSO) · **G6** mẫu 2C-BNV · **G8** tuyến sông/lý trình/toạ độ + danh mục công trình · **G9-a** bộ mức ngưỡng · **G10** duyệt format báo cáo · **G13** bộ nhận diện cổng (logo/màu/GA/GTM/reCAPTCHA) · **G14** cây danh mục + menu + nội dung 4 trang tĩnh.
+**G3-a** lượng mưa · **G5** mã số hệ thống văn bản (+ xin SSO) · **G6** mẫu 2C-BNV · **G8** tuyến sông/lý trình/toạ độ + danh mục công trình · **G9-a** bộ mức ngưỡng · **G10** duyệt format báo cáo · **G13** bộ nhận diện cổng (logo/màu/GA/GTM/reCAPTCHA).
+
+✅ **G14 đóng 27/8** — cây danh mục + menu nhận qua §3 văn bản nghiệm thu, dựng ở `V202608271031`.
+
+⬜ **Mở mới 27/8 — `OI-01`→`OI-10`** (§9 của `docs_origin/nghiem_thu_phase1.md`). Tài liệu đề nghị phía phát triển trả lời **ngay trong tuần** ba mục kỹ thuật `OI-01`/`OI-02`/`OI-07`; câu trả lời đo được đã có ở `master-tracking.md` T24.23→T24.25. Chặn nghiệm thu nặng nhất: **`OI-03`** (danh sách 10 cống trục chính) · **`OI-05`** (7 hay 8 Xí nghiệp — Bố cục ghi 7, danh mục công trình có 8).
 
 Gửi kèm `report-templates-proposal.md`. Chi tiết từng mục: `business-open-questions.md` Phần II.
 
@@ -177,6 +192,13 @@ Rút ra sau khi **cùng một hình dạng lỗi lặp lại nhiều lần**. Ng
 25. **Một bộ canh theo hình dạng phải được thử với dữ liệu THẬT đang dùng** *(cùng họ với nhóm phép kiểm ở trên)* — ba bộ canh "không ghi cứng liên hệ Công ty", chỉ **một** bắt được khi lỗi tái phát: regex điện thoại đòi khoảng trắng giữa các nhóm số trong khi số thật dùng dấu chấm; regex địa chỉ phân biệt hoa thường trong khi địa chỉ mới viết HOA. Bắt theo hình dạng là đúng hướng, nhưng hình dạng phải đối chiếu với dữ liệu đang chạy — nếu không thì nó chỉ canh được cái đã chết. Bổ trợ bằng một bài ở tầng **cấu trúc** (mọi khoá `company.*` phải rơi về rỗng): bắt theo từng loại dữ liệu thì luôn có loại thứ tư lọt qua.
 
 26. **Merge không đụng độ ≠ merge không vỡ** — `git merge-tree` sạch, typecheck sạch, phân tích tệp cho thấy không đụng file nào của backend; vậy mà bộ test FE trên cây đã merge vẫn đỏ, vì nhánh kia khôi phục một lỗi mà nhánh này có bài canh. **Xung đột văn bản và xung đột ngữ nghĩa là hai chuyện khác nhau** — phải chạy bộ kiểm trên chính cây đã hợp nhất, không suy ra từ việc mỗi nhánh riêng lẻ đều xanh.
+
+27. **Đếm "đã dựng xong bao nhiêu tính năng" là đếm sai đơn vị** — thứ người dùng nhận được là một vòng khép kín *nhập → lưu → hiện*, và một nửa vòng chạy hoàn hảo vẫn cho ra số không. Lượt 28/8 tìm ra **sáu** cột/khoá/tham số thiếu đúng một nửa cặp đọc–ghi, **bốn trong số đó ra đời một ngày trước** từ một đợt cẩn thận, có bài kiểm, có nghiệm thu: bảng `org_unit_leaders` chỉ có đường đọc · ba cột liên hệ có người hiển thị mà không ai ghi · `shortName` qua validate rồi bị vứt · `PUT` không màn hình nào gọi · hai cột tài liệu có setter mà lời gọi duy nhất nằm trong một bài kiểm · component có ba props mà nơi gọi truyền rỗng. Triệu chứng luôn giống nhau và luôn im lặng: **màn hình báo *lưu thành công*, cổng không đổi gì.**
+
+28. **Một cơ chế canh gác phải nói ra phạm vi của chính nó** — ba lần trong hai ngày cùng một hình dạng: `NginxSecurityHeadersTest` soi mỗi `admin-app` trong khi cổng công khai chạy không CSP · `PortalSettingsReadTest` soi mỗi một tệp migration nên mọi khoá seed trước đó đi lọt · bộ canh màu chưa phủ `admin-app`. Bộ canh đúng luật, hẹp hơn nơi nó phải chặn, và **cái xanh của nó đọc như một lời bảo đảm**. Không phủ hết được thì ghi giới hạn vào chính bộ canh và mở một dòng nợ có số đo.
+
+29. **Một bài kiểm chứng ngược có thể sai theo đúng cách mà thứ nó kiểm chứng đang sai** — người viết cả hai là cùng một người, mang cùng một giả định. Ngày 28/8 cả hai lượt kiểm chứng ngược đều hỏng: một cái đặt `--` trước câu `DELETE` rồi chờ bộ canh đỏ (không đỏ — regex không biết SQL có chú thích), một cái khẳng định mẫu bắt enum trả về 2 giá trị từ một enum có 3 (**chép lại lỗi thay vì bắt nó**). Thứ cứu được không phải bài kiểm chứng ngược mà là một khẳng định **về số lượng** — `hasSizeGreaterThanOrEqualTo(3)` không chia sẻ giả định nào với mẫu regex. Bổ sung luật 10: xác nhận bản hỏng **đã được nạp** *và* **bộ canh nhìn thấy nó** là hai chuyện khác nhau.
+
 
 ## Quy ước làm việc với user
 

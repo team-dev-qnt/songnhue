@@ -237,6 +237,8 @@ public class ConstructionController {
                 c.getDesigner(),
                 c.getContractor(),
                 c.getTotalInvestment(),
+                c.getOperatingProcedureAttachmentPublicId(),
+                c.getProtectionPlanAttachmentPublicId(),
                 c.getDescription(),
                 c.getConstructionType() == ConstructionType.TRAM_BOM ? pump(c) : null,
                 c.getConstructionType() == ConstructionType.CONG ? sluice(c) : null,

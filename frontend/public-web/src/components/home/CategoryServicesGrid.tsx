@@ -1,102 +1,54 @@
-import { EmptyBlock } from './EmptyBlock';
-
-/** Bộ biểu tượng xoay vòng — chỉ để trang trí ô chuyên mục. */
-const VONG_BIEU_TUONG = ['dam', 'shield', 'water', 'file'] as const;
-
 import Link from 'next/link';
 
-import type { CategoryNode } from '@/lib/api';
-import { ROUTES } from '@/lib/routes';
+import type { MenuLink } from '@/lib/api';
+import { isExternal, menuHref } from '@/lib/routes';
+import { EmptyBlock } from './EmptyBlock';
+
+/** Bộ biểu tượng xoay vòng — thuần trang trí, không mang thông tin nghiệp vụ nào. */
+const VONG_BIEU_TUONG = ['dam', 'shield', 'water', 'file'] as const;
 
 interface CategoryServicesGridProps {
-  categories: CategoryNode[];
+  /** Cây menu HEADER đã dựng — cùng đúng một nguồn với thanh điều hướng. */
+  menuTree: { item: MenuLink; children: MenuLink[] }[];
 }
 
-export function CategoryServicesGrid({ categories }: CategoryServicesGridProps) {
-  // Lấy các category cấp 0 từ backend hoặc fallback sang bộ chuyên mục tiêu chuẩn
-  // ⛔ Bản trước: có dưới 4 chuyên mục thì thay TOÀN BỘ bằng bốn chuyên mục viết cứng, và khi
-  //    đủ 4 thì vẫn mượn phần mô tả viết cứng làm giá trị dự phòng — tên thật ghép mô tả bịa.
-  //    Nay hiện đúng những gì CMS có, kể cả khi chỉ có một.
-  const items = categories
-    .filter((c) => c.depth === 0)
-    .slice(0, 4)
-    .map((c, i) => ({
-      title: c.name,
-      description: c.description ?? '',
-      slug: c.slug,
-      // Thuần trang trí, xoay vòng theo vị trí — không mang thông tin nghiệp vụ nào.
+/**
+ * Khối **CHUYÊN MỤC &amp; LĨNH VỰC HOẠT ĐỘNG** — CR-18.
+ *
+ * <h2>Vì sao đọc MENU chứ không đọc `categories`</h2>
+ *
+ * §2 của tài liệu chỉnh sửa ra một ràng buộc bằng lời: *"Menu chính, footer, các card chuyên
+ * mục và cây nội dung phải dùng CHUNG một hệ phân loại"*. Bản trước đọc
+ * `GET /public/categories` — một nguồn <b>khác</b> với thanh menu — nên hai chỗ có thể trôi ra
+ * khỏi nhau mà không có lỗi nào: thêm một danh mục là card xuất hiện dù menu không có, ẩn một
+ * mục menu thì card vẫn còn.
+ *
+ * Đọc thẳng cây menu thì "đồng bộ" không còn là một việc phải nhớ — nó là điều duy nhất có
+ * thể xảy ra (quy tắc 12).
+ *
+ * <h2>Chọn mục nào làm card, mà không gọi tên mục nào</h2>
+ *
+ * Card = mục cấp 1 <b>có menu con</b> hoặc <b>trỏ vào một chuyên mục</b>. Luật ấy tự loại
+ * "Trang chủ", "Liên hệ" (đường dẫn đơn, không con) và "Văn bản điều hành" (liên kết ra
+ * ngoài), để lại đúng năm mục §3 liệt kê — <b>mà không viết một nhãn nào vào mã</b>. Lọc theo
+ * danh sách nhãn thì Công ty đổi tên "Hoạt động Đảng, đoàn thể" là card biến mất, và không ai
+ * biết vì sao.
+ */
+export function CategoryServicesGrid({ menuTree }: CategoryServicesGridProps) {
+  const items = menuTree
+    .filter(({ item, children }) => {
+      if (item.linkType === 'EXTERNAL_DOC') return false;
+      return children.length > 0 || item.linkType === 'CATEGORY';
+    })
+    .map(({ item, children }, i) => ({
+      label: item.label,
+      // Mục `NONE` chỉ mở menu con nên không có đường dẫn của riêng nó — card trỏ vào mục con
+      // đầu tiên. Không có con nào dùng được thì card thành thẻ không bấm, chứ không trỏ `#`.
+      href: menuHref(item) ?? children.map(menuHref).find(Boolean) ?? null,
+      children,
+      external: isExternal(item),
       iconType: VONG_BIEU_TUONG[i % VONG_BIEU_TUONG.length],
     }));
-
-  const renderIcon = (type: string) => {
-    switch (type) {
-      case 'dam':
-        return (
-          <svg
-            className="h-6 w-6 text-brand-primary"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.75}
-              d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-            />
-          </svg>
-        );
-      case 'shield':
-        return (
-          <svg
-            className="h-6 w-6 text-brand-primary"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.75}
-              d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-            />
-          </svg>
-        );
-      case 'water':
-        return (
-          <svg
-            className="h-6 w-6 text-brand-primary"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.75}
-              d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-            />
-          </svg>
-        );
-      case 'file':
-      default:
-        return (
-          <svg
-            className="h-6 w-6 text-brand-primary"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.75}
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-            />
-          </svg>
-        );
-    }
-  };
 
   return (
     <section className="mt-10 sm:mt-14">
@@ -104,50 +56,113 @@ export function CategoryServicesGrid({ categories }: CategoryServicesGridProps) 
         <div className="flex items-center gap-2">
           <span className="h-5 w-1.5 rounded-full bg-brand-primary"></span>
           <h2 className="text-base font-bold uppercase tracking-tight text-surface-textBase sm:text-lg">
-            Chuyên mục & Lĩnh vực Hoạt động
+            Chuyên mục &amp; Lĩnh vực Hoạt động
           </h2>
         </div>
       </div>
 
       {items.length === 0 ? (
         <div className="mt-5">
-          <EmptyBlock>Chưa có chuyên mục nào được tạo trong CMS.</EmptyBlock>
+          <EmptyBlock>Menu chính chưa có mục nào để dựng thành chuyên mục.</EmptyBlock>
         </div>
       ) : (
-        <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {items.map((item) => (
-            <Link
-              key={item.slug}
-              href={ROUTES.category(item.slug)}
-              className="group relative flex flex-col overflow-hidden rounded-xl border border-surface-border bg-white p-5 shadow-xs transition-all duration-300 ease-smooth hover:-translate-y-1 hover:border-brand-primary hover:shadow-md"
-            >
-              {/* Vạch Accent Bar 3px trên đỉnh */}
-              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand-primaryGradientFrom to-brand-primary opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+        <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          {items.map((item) => {
+            const than = (
+              <>
+                <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand-primaryGradientFrom to-brand-primary opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-brand-primaryLight transition-transform duration-300 ease-smooth group-hover:scale-110">
+                  <BieuTuong loai={item.iconType} />
+                </div>
+                <h3 className="mt-4 text-sm font-bold text-surface-textBase transition-colors duration-200 group-hover:text-brand-primary sm:text-base">
+                  {item.label}
+                </h3>
+                {item.children.length > 0 ? (
+                  <p className="mt-2 line-clamp-2 text-xs text-surface-textSecondary">
+                    {item.children.map((c) => c.label).join(' · ')}
+                  </p>
+                ) : null}
+                {item.href ? (
+                  <div className="mt-4 flex items-center gap-1 text-xs font-semibold text-brand-primary">
+                    <span>Khám phá</span>
+                    <span className="transition-transform duration-200 group-hover:translate-x-1">
+                      ➔
+                    </span>
+                  </div>
+                ) : null}
+              </>
+            );
 
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-brand-primaryLight transition-transform duration-300 ease-smooth group-hover:scale-110">
-                {renderIcon(item.iconType)}
+            const lop =
+              'group relative flex flex-col overflow-hidden rounded-xl border border-surface-border bg-white p-5 shadow-xs transition-all duration-300 ease-smooth hover:-translate-y-1 hover:border-brand-primary hover:shadow-md';
+
+            return item.href ? (
+              <Link
+                key={item.label}
+                href={item.href}
+                rel={item.external ? 'noopener noreferrer' : undefined}
+                className={lop}
+              >
+                {than}
+              </Link>
+            ) : (
+              <div key={item.label} className={lop}>
+                {than}
               </div>
-
-              <h3 className="mt-4 text-sm font-bold text-surface-textBase transition-colors duration-200 group-hover:text-brand-primary sm:text-base">
-                {item.title}
-              </h3>
-
-              {item.description ? (
-                <p className="mt-2 line-clamp-2 text-xs text-surface-textSecondary">
-                  {item.description}
-                </p>
-              ) : null}
-
-              <div className="mt-4 flex items-center gap-1 text-xs font-semibold text-brand-primary">
-                <span>Khám phá</span>
-                <span className="transition-transform duration-200 group-hover:translate-x-1">
-                  ➔
-                </span>
-              </div>
-            </Link>
-          ))}
+            );
+          })}
         </div>
       )}
     </section>
   );
+}
+
+function BieuTuong({ loai }: { loai: string }) {
+  const chung = 'h-6 w-6 text-brand-primary';
+  switch (loai) {
+    case 'dam':
+      return (
+        <svg className={chung} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1.75}
+            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+          />
+        </svg>
+      );
+    case 'shield':
+      return (
+        <svg className={chung} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1.75}
+            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+          />
+        </svg>
+      );
+    case 'water':
+      return (
+        <svg className={chung} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1.75}
+            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+          />
+        </svg>
+      );
+    default:
+      return (
+        <svg className={chung} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1.75}
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+          />
+        </svg>
+      );
+  }
 }

@@ -7,6 +7,13 @@ import { EmptyBlock } from './home/EmptyBlock';
 interface PortalSidebarProps {
   latestArticles?: ArticleRow[];
   hotline?: string;
+  /**
+   * `site.external.doc-system-url` — CR-07, đóng nợ T11.28.
+   *
+   * ⛔ Không có giá trị mặc định. Rỗng ⇒ không render nút; một nút mở sang sai hệ thống tệ
+   * hơn hẳn không có nút (luật 16).
+   */
+  docSystemUrl?: string;
 }
 
 /**
@@ -16,7 +23,11 @@ interface PortalSidebarProps {
  * - Khối Trực ban PCTT 24/7.
  * - Khối Liên kết dịch vụ công và văn bản quy phạm.
  */
-export function PortalSidebar({ latestArticles = [], hotline = '' }: PortalSidebarProps) {
+export function PortalSidebar({
+  latestArticles = [],
+  hotline = '',
+  docSystemUrl = '',
+}: PortalSidebarProps) {
   // ⛔ Bản trước ghép thêm năm bài viết cứng cho đủ 5 ô — cùng bộ dữ liệu, cùng cái bẫy với
   //    trang chủ (§10.54). Có bao nhiêu thì hiện bấy nhiêu.
   const displayNews = latestArticles.slice(0, 5);
@@ -115,34 +126,58 @@ export function PortalSidebar({ latestArticles = [], hotline = '' }: PortalSideb
           </h3>
         </div>
 
+        {/*
+          ⛔ Ba liên kết cũ ở khối này đều đã hỏng sau đợt chỉnh sửa 27/08/2026, và cả ba đều
+             viết cứng:
+
+             • `http://songnhue.bhh40.net` — CR-07 đổi sang hệ thống của Thành phố, và địa chỉ
+               nay là cấu hình (nợ T11.28, từng ghi cứng ở BA tệp);
+             • `/bai-viet/lien-he` — CR-22 đưa Liên hệ thành trang riêng;
+             • `/danh-muc/thong-bao` gắn nhãn "Lịch Vận hành Cống & Xả lũ" — nhãn và đích chưa
+               bao giờ nói cùng một chuyện, và CR-01 vừa bỏ hẳn mục Thông báo khỏi cây nội dung.
+
+             Nay khối trỏ vào chính hai mục của "Quản lý, vận hành" — có trong menu, có trang
+             thật đứng sau (§2: một hệ phân loại dùng chung).
+        */}
         <ul className="mt-3.5 space-y-2 text-xs">
+          {docSystemUrl ? (
+            <li>
+              <a
+                href={docSystemUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between rounded-lg border border-surface-border p-2.5 font-semibold text-surface-textBase transition-colors hover:border-brand-primary hover:bg-brand-primaryLight hover:text-brand-primary"
+              >
+                <span>Hệ thống Văn bản Điều hành</span>
+                <span aria-hidden="true">↗</span>
+              </a>
+            </li>
+          ) : null}
           <li>
             <Link
-              href="http://songnhue.bhh40.net"
-              target="_blank"
-              rel="noopener noreferrer"
+              href={ROUTES.quanLyVanHanh.danhMucCongTrinh}
               className="flex items-center justify-between rounded-lg border border-surface-border p-2.5 font-semibold text-surface-textBase transition-colors hover:border-brand-primary hover:bg-brand-primaryLight hover:text-brand-primary"
             >
-              <span>Hệ thống Văn bản Điều hành</span>
-              <span>↗</span>
+              <span>Danh mục công trình</span>
+              <span aria-hidden="true">→</span>
             </Link>
           </li>
           <li>
             <Link
-              href="/bai-viet/lien-he"
+              href={ROUTES.quanLyVanHanh.mucNuocLuongMua}
               className="flex items-center justify-between rounded-lg border border-surface-border p-2.5 font-semibold text-surface-textBase transition-colors hover:border-brand-primary hover:bg-brand-primaryLight hover:text-brand-primary"
             >
-              <span>Gửi Phản ánh & Kiến nghị</span>
-              <span>→</span>
+              <span>Mực nước, lượng mưa</span>
+              <span aria-hidden="true">→</span>
             </Link>
           </li>
           <li>
             <Link
-              href="/danh-muc/thong-bao"
+              href={ROUTES.lienHe}
               className="flex items-center justify-between rounded-lg border border-surface-border p-2.5 font-semibold text-surface-textBase transition-colors hover:border-brand-primary hover:bg-brand-primaryLight hover:text-brand-primary"
             >
-              <span>Lịch Vận hành Cống & Xả lũ</span>
-              <span>→</span>
+              <span>Gửi Phản ánh &amp; Kiến nghị</span>
+              <span aria-hidden="true">→</span>
             </Link>
           </li>
         </ul>

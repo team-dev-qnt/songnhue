@@ -222,6 +222,9 @@ class ConstructionLifecycleAndDocumentTest extends IntegrationTestBase {
                 null,
                 null,
                 null,
+                // Hai cột tài liệu công bố (CR-28) — bài kiểm này không dùng tới.
+                null,
+                null,
                 null,
                 null,
                 null,

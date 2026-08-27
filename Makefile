@@ -260,33 +260,35 @@ lint-fe: ## Frontend: ESLint + Prettier check
 .PHONY: ci-local
 ci-local: ## Chạy đúng trình tự cổng kiểm của CI (trừ CVE scan + đóng gói image)
 	@echo ""
-	@echo "  [1/8] Backend — Spotless + Checkstyle"
+	@echo "  [1/9] Bộ đọc tracking (nhanh nhất, hỏng thì hỏng ngay)"
+	@python3 .agents/mcp/google_sheets_sync/test_parse.py
+	@echo "  [2/9] Backend — Spotless + Checkstyle"
 	@cd $(BACKEND) && ./mvnw -B -ntp spotless:check checkstyle:check -q
-	@echo "  [2/8] Frontend — ESLint"
+	@echo "  [3/9] Frontend — ESLint"
 	@cd $(FRONTEND) && npm run lint --silent
-	@echo "  [3/8] Frontend — Prettier"
+	@echo "  [4/9] Frontend — Prettier"
 	@cd $(FRONTEND) && npm run format:check --silent
-	@echo "  [4/8] Frontend — kiểm kiểu"
+	@echo "  [5/9] Frontend — kiểm kiểu"
 	@cd $(FRONTEND) && npm run typecheck --silent
-	@echo "  [5/8] Frontend — test"
+	@echo "  [6/9] Frontend — test"
 	@cd $(FRONTEND) && npm test --silent
-	@echo "  [6/8] Frontend — build admin-app"
+	@echo "  [7/9] Frontend — build admin-app"
 	@cd $(FRONTEND) && npm run build --workspace admin-app --silent
-	@echo "  [7/8] Frontend — build public-web"
+	@echo "  [8/9] Frontend — build public-web"
 	@cd $(FRONTEND) && npm run build --workspace public-web --silent
-	@echo "  [8/8] Backend — verify (test + ArchUnit + cổng bao phủ)"
+	@echo "  [9/9] Backend — verify (test + ArchUnit + cổng bao phủ)"
 	@cd $(BACKEND) && ./mvnw -B -ntp verify
 	@echo ""
 	@echo "  ✓ Mọi cổng kiểm CI chạy ở máy đều xanh."
 	@echo "    Còn lại chỉ chạy trên runner: quét CVE, đóng gói image GHCR."
-	@echo "    ⚠ Bước [6] và [7] KHÔNG thay được 'make ci-image' — xem lý do ở đó."
+	@echo "    ⚠ Bước [7] và [8] KHÔNG thay được 'make ci-image' — xem lý do ở đó."
 	@echo ""
 
 # ⚠⚠ Vì sao target này phải tồn tại riêng, không gộp vào `ci-local` (§10.38):
 #
 #   `npm run build` ở máy **luôn nạp `frontend/public-web/.env.local`**, còn runner
 #   checkout sạch nên không có tệp ấy. Biến `NEXT_PUBLIC_SITE_URL` rỗng vì thế là
-#   một trạng thái mà bước [7] của `ci-local` VỀ NGUYÊN TẮC không dựng lại được.
+#   một trạng thái mà bước [8] của `ci-local` VỀ NGUYÊN TẮC không dựng lại được.
 #
 #   Đúng trạng thái ấy đã giết lượt CI đầu tiên sau khi merge vào `dev`: `ci.yml`
 #   truyền `NEXT_PUBLIC_SITE_URL=$${{ vars.PUBLIC_SITE_URL }}` mà biến kho chưa

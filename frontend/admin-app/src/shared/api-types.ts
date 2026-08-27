@@ -158,6 +158,9 @@ export interface OrgUnitNode {
   depth: number;
   sortOrder: number;
   active: boolean;
+  address: string | null;
+  phone: string | null;
+  email: string | null;
   children: OrgUnitNode[];
 }
 
@@ -170,6 +173,26 @@ export interface OrgUnitSummary {
   path: string;
   depth: number;
   active: boolean;
+  address: string | null;
+  phone: string | null;
+  email: string | null;
+}
+
+/**
+ * Một dòng danh bạ lãnh đạo công bố trên cổng — CR-25 (bảng Lãnh đạo Công ty) và cột "Giám đốc XN"
+ * của CR-26.
+ *
+ * ⛔ **Không phải hồ sơ nhân sự.** Bảng `org_unit_leaders` cố ý không nối `employees` của MOD-04,
+ * nên đường công khai đọc nó không có lối nào chạm trường nhạy cảm (NĐ 13/2023).
+ */
+export interface OrgUnitLeaderRow {
+  publicId: string;
+  fullName: string;
+  title: string;
+  phone: string | null;
+  email: string | null;
+  sortOrder: number;
+  active: boolean;
 }
 
 export interface CreateOrgUnitRequest {
@@ -179,6 +202,24 @@ export interface CreateOrgUnitRequest {
   unitType: OrgUnitType;
   /** Bỏ trống = nút gốc; toàn hệ thống chỉ được đúng một nút gốc. */
   parentPublicId?: string;
+  /** Ba ô liên hệ — bảng 6 cột "Xí nghiệp trực thuộc" của cổng công khai đọc đúng ba cột này. */
+  address?: string;
+  phone?: string;
+  email?: string;
+}
+
+/**
+ * ⚠ `PUT /org-units/{publicId}` tồn tại từ WS-6 nhưng **không màn hình nào gọi** cho tới
+ * 28/08/2026 — nên tên, tên tắt và loại đơn vị chưa bao giờ sửa được sau khi tạo. Cùng hình dạng
+ * với `categories.visible` (T24.25): một nửa đường ghi có mặt, và cái nửa ấy đọc như đã xong.
+ */
+export interface UpdateOrgUnitRequest {
+  name: string;
+  shortName?: string;
+  unitType: OrgUnitType;
+  address?: string;
+  phone?: string;
+  email?: string;
 }
 
 // =============================================================================
@@ -532,6 +573,9 @@ export interface ConstructionDetail {
   designer: string | null;
   contractor: string | null;
   totalInvestment: number | null;
+  /** Hai tài liệu công bố ra cổng công khai — CR-28, bảng 7 cột §5.1. */
+  operatingProcedureAttachmentId: string | null;
+  protectionPlanAttachmentId: string | null;
   description: string | null;
   pump: PumpSpecView | null;
   sluice: SluiceSpecView | null;
