@@ -17,7 +17,7 @@ Khai ở chỗ đăng ký MCP server (`~/.claude.json` hoặc `.mcp.json` của 
       "args": [".agents/mcp/google_sheets_sync/server.py"],
       "env": {
         "GSHEETS_SPREADSHEET_ID": "<id trong URL bảng tính>",
-        "GSHEETS_SHEET_NAME": "Sheet1",
+        "GSHEETS_SHEET_NAME": "Trang tính1",
         "GSHEETS_CREDENTIALS_PATH": ".claude/google-credentials.json"
       }
     }
@@ -28,10 +28,16 @@ Khai ở chỗ đăng ký MCP server (`~/.claude.json` hoặc `.mcp.json` của 
 | Biến | Bắt buộc | Mặc định |
 |---|---|---|
 | `GSHEETS_SPREADSHEET_ID` | ✅ | — (thiếu là dừng) |
-| `GSHEETS_SHEET_NAME` | | `Sheet1` |
+| `GSHEETS_SHEET_NAME` | | `Sheet1` — ⚠ **không phải tên tab của bảng tính này** |
 | `GSHEETS_CREDENTIALS_PATH` | | `.claude/google-credentials.json` |
 
 ⛔ `google-credentials.json` là khoá tài khoản dịch vụ — không commit, không dán vào issue.
+
+⚠ **Tab của bảng tính đang dùng tên `Trang tính1`, không phải `Sheet1`.** Google đặt tên tab theo
+ngôn ngữ tài khoản lúc tạo bảng. Mặc định `Sheet1` trong mã là mặc định của Google **bản tiếng
+Anh**, nên nó sai ngay với bảng tính của dự án — đo được 26/8: lượt chạy đầu dừng ở
+`Bảng tính không có tab tên 'Sheet1'`. Cấu hình thật nằm ở `.mcp.json` của dự án; đừng dựa vào
+mặc định. (Đây là luật 3 của `CLAUDE.md`: canh giá trị ĐÃ GIẢI, đừng canh giá trị MẶC ĐỊNH.)
 
 ## Bốn lưới an toàn, và vì sao mỗi cái tồn tại
 
