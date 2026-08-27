@@ -82,6 +82,23 @@ class PublicHttpTest extends IntegrationTestBase {
     }
 
     @Test
+    @DisplayName("⭐⭐ `/photos` vào được không cần đăng nhập, và RỖNG khi chưa chỉ định thư mục")
+    void thuVienAnhCongKhaiVaRongKhiChuaCauHinh() {
+        ResponseEntity<String> response = http.getForEntity("/api/v1/public/photos", String.class);
+
+        assertThat(response.getStatusCode())
+                .as("Khối ảnh trang chủ dựng ở phía máy chủ — 401 ở đây là cả trang chủ hỏng")
+                .isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).contains("\"success\":true").contains("\"traceId\"");
+
+        // ⛔ `site.home.photos-folder` chưa đặt trong bộ kiểm ⇒ PHẢI rỗng. Đây là chỗ một bộ ảnh
+        //    dự phòng "cho giao diện luôn sống động" sẽ lộ ra (§10.54 — luật 16).
+        assertThat(response.getBody())
+                .as("Chưa chỉ định thư mục mà vẫn có ảnh nghĩa là ở đâu đó có bộ ảnh mặc định")
+                .contains("\"data\":[]");
+    }
+
+    @Test
     @DisplayName("⛔ Endpoint quản trị vẫn bị chặn — 401, không phải 404")
     void quanTriVanBiChan() {
         ResponseEntity<String> response = http.getForEntity("/api/v1/cms/menus/HEADER", String.class);

@@ -54,8 +54,21 @@ import org.junit.jupiter.api.Test;
  */
 class SeedGateTest {
 
+    /**
+     * Tệp seed ĐẦU TIÊN — chỉ dùng cho hai bài nói về NỘI DUNG RIÊNG của nó (khối xoá bài theo vị
+     * từ menu, và bài kiểm chứng ngược lấy nó làm mẫu).
+     *
+     * <p>⛔ KHÔNG dùng nó cho hai bài canh byte. Bản trước dùng, và hậu quả lộ ra ngày 27/08/2026
+     * khi có tệp seed THỨ HAI: bộ canh đọc đúng một tệp ghi cứng rồi khẳng định {@code hasSize(4)},
+     * nên 30 tệp byte mới thành "mồ côi" trong khi hàng của chúng nằm ngay ở tệp seed kia. Đúng
+     * hình dạng {@code CLAUDE.md} luật 28 — <i>một cơ chế canh gác hẹp hơn nơi nó phải chặn</i>.
+     */
     private static final String SEED_SQL =
             "backend/content/src/main/resources/db/seed/portal/V202608251100__seed_portal_content.sql";
+
+    /** Thư mục chứa MỌI migration seed — bộ canh byte phải đọc hết, không đọc một tệp. */
+    private static final String THU_MUC_SEED = "backend/content/src/main/resources/db/seed";
+
     private static final String THU_MUC_BYTE = "deploy/seed/media";
     /** Tên biến đã bị bỏ ở T11.26 — canh để nó không quay lại. */
     private static final String BIEN_DA_BO = "SEED_MEDIA" + "_DIR";
@@ -245,7 +258,7 @@ class SeedGateTest {
     @Test
     @DisplayName("⭐⭐ Mỗi hàng `attachments` phải có BYTE THẬT khớp cả kích thước lẫn băm")
     void moiHangDeuCoByteThat() {
-        List<String> lech = soLech(doc(tuGocKho(SEED_SQL)));
+        List<String> lech = soLech(moiSeedSql());
 
         assertThat(lech)
                 .as(
@@ -263,7 +276,7 @@ class SeedGateTest {
     void khongCoByteMoCoi() {
         Path goc = tuGocKho(THU_MUC_BYTE);
         Set<String> coHang = new TreeSet<>();
-        Matcher khop = HANG_DINH_KEM.matcher(doc(tuGocKho(SEED_SQL)));
+        Matcher khop = HANG_DINH_KEM.matcher(moiSeedSql());
         while (khop.find()) {
             coHang.add(khop.group(1));
         }
@@ -286,10 +299,19 @@ class SeedGateTest {
                     không ai biết nó từ đâu ra.""")
                 .isEmpty();
 
+        // Chiều ngược lại: hàng trỏ tới một tệp KHÔNG có trên đĩa cũng là hỏng — `minio-init` sẽ
+        // không đẩy gì lên, và `/api/v1/public/files/<id>` trả 404 trong khi CSDL nói tệp tồn tại.
+        Set<String> thieuByte = new TreeSet<>(coHang);
+        thieuByte.removeAll(trenDia);
+        assertThat(thieuByte)
+                .as("Hàng `attachments` trỏ tới byte không có trong `deploy/seed/media` — hỏng câm.")
+                .isEmpty();
+
         assertThat(coHang)
-                .as("chặn xanh-trên-tập-rỗng: regex hỏng hoặc đổi tên tệp SQL thì bài này sẽ so hai "
-                        + "tập rỗng với nhau và xanh trọn vẹn")
-                .hasSize(4);
+                .as("chặn xanh-trên-tập-rỗng: regex hỏng hoặc đổi đường dẫn thì bài này sẽ so hai "
+                        + "tập rỗng với nhau và xanh trọn vẹn. Ngưỡng là SÀN, không phải con số "
+                        + "chết — thêm ảnh seed không được làm bài này đỏ.")
+                .hasSizeGreaterThanOrEqualTo(4);
     }
 
     @Test
@@ -457,6 +479,28 @@ class SeedGateTest {
         try (Stream<Path> duyet = Files.list(thuMuc)) {
             return duyet.filter(p -> p.getFileName().toString().matches("[VR].*\\.sql"))
                     .toList();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /** Nội dung của MỌI tệp migration seed, nối lại — bộ canh byte soi toàn bộ, không soi một tệp. */
+    private static String moiSeedSql() {
+        Path goc = tuGocKho(THU_MUC_SEED);
+        try (Stream<Path> duyet = Files.walk(goc)) {
+            List<Path> tep = duyet.filter(Files::isRegularFile)
+                    .filter(f -> f.getFileName().toString().endsWith(".sql"))
+                    .sorted()
+                    .toList();
+            // Không tệp nào ⇒ đường dẫn đã đổi ⇒ mọi bài dùng hàm này sẽ xanh trên tập rỗng.
+            assertThat(tep)
+                    .as("Không thấy tệp seed nào trong `%s`", THU_MUC_SEED)
+                    .isNotEmpty();
+            StringBuilder sb = new StringBuilder();
+            for (Path f : tep) {
+                sb.append(doc(f)).append('\n');
+            }
+            return sb.toString();
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

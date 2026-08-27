@@ -294,6 +294,21 @@ export function getBanners(): Promise<BannerItem[] | null> {
   return apiGet<BannerItem[]>('/banners', { tags: [CACHE_TAGS.layout] });
 }
 
+/**
+ * Ảnh của thư viện trên trang chủ.
+ *
+ * ⚠ Không có trường "nơi chụp": ảnh Công ty gửi không kèm dữ liệu ấy, và bịa một địa điểm cho
+ *   mỗi ảnh là đúng thứ CLAUDE.md luật 16 cấm. `PhotoRow` chỉ mang thứ có thật.
+ */
+export interface PhotoRow {
+  publicId: string;
+  title: string;
+}
+
+export function getPhotos(): Promise<PhotoRow[] | null> {
+  return apiGet<PhotoRow[]>('/photos', { tags: [CACHE_TAGS.layout] });
+}
+
 export function getCategories(): Promise<CategoryNode[] | null> {
   return apiGet<CategoryNode[]>('/categories', { tags: [CACHE_TAGS.layout] });
 }

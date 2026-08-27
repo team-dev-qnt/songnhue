@@ -58,7 +58,7 @@ export default async function MucNuocLuongMuaPage() {
       breadcrumb={[{ label: 'Quản lý, vận hành' }, { label: 'Mực nước, lượng mưa' }]}
     >
       <section className="rounded-xl border border-surface-border bg-white p-5 shadow-xs">
-        <h2 className="text-sm font-bold uppercase tracking-tight text-brand-primary">
+        <h2 className="text-sm font-bold tracking-tight text-brand-primary">
           Số liệu tại giờ truy cập
         </h2>
         <div className="mt-4">

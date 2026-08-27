@@ -79,7 +79,7 @@ export default async function DanhMucCongTrinhPage() {
                 <table className="w-full min-w-[980px] border-collapse text-sm">
                   <caption className="sr-only">Bảng công trình do {donVi.unitName} quản lý</caption>
                   <thead>
-                    <tr className="bg-brand-primaryLight text-left text-xs uppercase tracking-wider text-brand-primary">
+                    <tr className="bg-brand-primaryLight text-left text-xs text-brand-primary">
                       <th scope="col" className="w-14 px-4 py-3 font-bold">
                         TT
                       </th>
@@ -104,7 +104,7 @@ export default async function DanhMucCongTrinhPage() {
 
       {/* ───── CR-29 · Bản đồ hệ thống ───── */}
       <section className="mt-10">
-        <h2 className="flex items-center gap-2 border-b-2 border-brand-primary pb-2.5 text-base font-bold uppercase tracking-tight text-surface-textBase">
+        <h2 className="flex items-center gap-2 border-b-2 border-brand-primary pb-2.5 text-base font-bold tracking-tight text-surface-textBase">
           <span className="h-5 w-1.5 rounded-full bg-brand-primary" />
           Bản đồ hệ thống
         </h2>
@@ -187,7 +187,7 @@ function TepQuyetDinh({ href, nhan }: { href: string | null; nhan: string }) {
       rel="noopener noreferrer"
       className="inline-flex items-center gap-1.5 whitespace-nowrap font-medium text-brand-primary hover:underline"
     >
-      <span className="rounded bg-red-50 px-1 py-0.5 text-[10px] font-extrabold uppercase text-red-700">
+      <span className="rounded bg-red-50 px-1 py-0.5 text-[10px] font-extrabold text-red-700">
         pdf
       </span>
       <span>{nhan}</span>

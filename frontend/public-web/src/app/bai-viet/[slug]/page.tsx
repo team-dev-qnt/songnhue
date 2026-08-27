@@ -85,7 +85,7 @@ export default async function ArticlePage({ params }: PageProps) {
                   <Link
                     key={c.slug}
                     href={ROUTES.category(c.slug)}
-                    className="rounded bg-brand-primaryLight px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-brand-primary transition-colors hover:bg-brand-primary hover:text-white"
+                    className="rounded bg-brand-primaryLight px-2.5 py-1 text-xs font-bold text-brand-primary transition-colors hover:bg-brand-primary hover:text-white"
                   >
                     {c.name}
                   </Link>

@@ -146,9 +146,7 @@ function BoChon({
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="text-xs font-bold uppercase tracking-wider text-surface-textSecondary">
-        {nhan}
-      </span>
+      <span className="text-xs font-bold text-surface-textSecondary">{nhan}</span>
       {muc.map((c) => {
         const chon = c.slug === dangChon;
         return (

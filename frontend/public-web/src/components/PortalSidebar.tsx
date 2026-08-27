@@ -38,9 +38,7 @@ export function PortalSidebar({
       <div className="overflow-hidden rounded-xl border border-red-200 bg-gradient-to-br from-red-50 via-white to-red-50/50 p-4 shadow-xs">
         <div className="flex items-center gap-2">
           <span className="flex h-3 w-3 rounded-full bg-red-600 animate-pulse" />
-          <h3 className="text-xs font-black uppercase tracking-wider text-red-900">
-            Trực ban PCTT 24/7
-          </h3>
+          <h3 className="text-xs font-black text-red-900">Trực ban PCTT 24/7</h3>
         </div>
         <p className="mt-1.5 text-xs text-red-800/90 leading-relaxed">
           Tiếp nhận tin báo sự cố ngập úng, mực nước và thiên tai thủy lợi lưu vực Sông Nhuệ:
@@ -72,9 +70,7 @@ export function PortalSidebar({
         <div className="flex items-center justify-between border-b border-surface-border pb-3">
           <div className="flex items-center gap-2">
             <span className="h-4 w-1.5 rounded-full bg-brand-primary" />
-            <h3 className="text-sm font-bold uppercase tracking-tight text-surface-textBase">
-              Tin mới nhận
-            </h3>
+            <h3 className="text-sm font-bold tracking-tight text-surface-textBase">Tin mới nhận</h3>
           </div>
           <Link
             href={ROUTES.search}
@@ -121,8 +117,8 @@ export function PortalSidebar({
       <div className="rounded-xl border border-surface-border bg-white p-5 shadow-xs">
         <div className="flex items-center gap-2 border-b border-surface-border pb-3">
           <span className="h-4 w-1.5 rounded-full bg-brand-primary" />
-          <h3 className="text-sm font-bold uppercase tracking-tight text-surface-textBase">
-            Tra cứu & Dịch vụ
+          <h3 className="text-sm font-bold tracking-tight text-surface-textBase">
+            Tra cứu &amp; dịch vụ
           </h3>
         </div>
 
@@ -148,7 +144,7 @@ export function PortalSidebar({
                 rel="noopener noreferrer"
                 className="flex items-center justify-between rounded-lg border border-surface-border p-2.5 font-semibold text-surface-textBase transition-colors hover:border-brand-primary hover:bg-brand-primaryLight hover:text-brand-primary"
               >
-                <span>Hệ thống Văn bản Điều hành</span>
+                <span>Hệ thống văn bản điều hành</span>
                 <span aria-hidden="true">↗</span>
               </a>
             </li>
@@ -176,7 +172,7 @@ export function PortalSidebar({
               href={ROUTES.lienHe}
               className="flex items-center justify-between rounded-lg border border-surface-border p-2.5 font-semibold text-surface-textBase transition-colors hover:border-brand-primary hover:bg-brand-primaryLight hover:text-brand-primary"
             >
-              <span>Gửi Phản ánh &amp; Kiến nghị</span>
+              <span>Gửi phản ánh &amp; kiến nghị</span>
               <span aria-hidden="true">→</span>
             </Link>
           </li>

@@ -68,7 +68,7 @@ export async function SiteHeader() {
             {/* ⚠ `line-clamp-2` + `min-w-0`: tên Công ty dài 56 ký tự. Không có hai lớp này thì
                 trên điện thoại nó đẩy khối số trực ban ra khỏi màn hình — flex mặc định không
                 cho con co lại dưới bề rộng nội dung của nó. */}
-            <span className="line-clamp-2 text-[13px] font-black uppercase leading-tight tracking-tight text-white drop-shadow-2xs sm:text-base md:text-lg">
+            <span className="line-clamp-2 text-[13px] font-black leading-tight tracking-tight text-white drop-shadow-2xs sm:text-base md:text-lg">
               {siteName}
             </span>
           </Link>
@@ -78,9 +78,7 @@ export async function SiteHeader() {
               <div className="hidden items-center gap-2 rounded-xl border border-red-200/80 bg-white/95 px-3.5 py-1.5 text-red-900 shadow-xs backdrop-blur-xs md:flex">
                 <span className="flex h-2.5 w-2.5 rounded-full bg-red-600 animate-pulse" />
                 <div className="flex flex-col text-left leading-tight">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-red-700">
-                    Trực ban PCTT 24/7
-                  </span>
+                  <span className="text-[10px] font-bold text-red-700">Trực ban PCTT 24/7</span>
                   <a
                     href={`tel:${hotline.replace(/\D/g, '')}`}
                     className="text-xs font-extrabold text-red-800 hover:underline"

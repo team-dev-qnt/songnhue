@@ -51,7 +51,7 @@ export function WaterLevelBlock({ hotline = '', refreshSeconds, updatedAt }: Wat
             </svg>
           </div>
           <div>
-            <h2 className="text-sm font-bold uppercase tracking-tight text-brand-primary sm:text-base">
+            <h2 className="text-sm font-bold tracking-tight text-brand-primary sm:text-base">
               Mực nước, lượng mưa
             </h2>
             <p className="text-xs text-surface-textSecondary">

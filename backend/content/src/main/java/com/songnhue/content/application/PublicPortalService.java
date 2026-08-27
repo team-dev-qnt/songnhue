@@ -20,6 +20,7 @@ import com.songnhue.content.domain.Category;
 import com.songnhue.content.domain.MenuPosition;
 import com.songnhue.content.infra.ArticleRepository;
 import com.songnhue.content.infra.CategoryRepository;
+import com.songnhue.content.infra.MediaFolderRepository;
 import com.songnhue.core.common.util.VietnameseUtils;
 import com.songnhue.core.spi.AttachmentContent;
 import com.songnhue.core.spi.AttachmentPort;
@@ -63,6 +64,7 @@ public class PublicPortalService {
     private final SiteConfigService siteConfig;
     private final AttachmentPort attachments;
     private final ViewCountService viewCounts;
+    private final MediaFolderRepository mediaFolders;
 
     public PublicPortalService(
             ArticleRepository articles,
@@ -71,7 +73,8 @@ public class PublicPortalService {
             BannerService banners,
             SiteConfigService siteConfig,
             AttachmentPort attachments,
-            ViewCountService viewCounts) {
+            ViewCountService viewCounts,
+            MediaFolderRepository mediaFolders) {
         this.articles = articles;
         this.categories = categories;
         this.menus = menus;
@@ -79,6 +82,7 @@ public class PublicPortalService {
         this.siteConfig = siteConfig;
         this.attachments = attachments;
         this.viewCounts = viewCounts;
+        this.mediaFolders = mediaFolders;
     }
 
     // ---- Khung cổng ----------------------------------------------------------
@@ -99,6 +103,69 @@ public class PublicPortalService {
     public List<Banner> banners() {
         return banners.listVisible(Instant.now());
     }
+
+    /**
+     * Ảnh của thư viện trên trang chủ — đọc thư mục media mà {@code site.home.photos-folder} chỉ tới.
+     *
+     * <h3>⚠ Rỗng là một câu trả lời hợp lệ, không phải một lỗi</h3>
+     *
+     * Khoá chưa đặt, hoặc trỏ vào một thư mục đã xoá, đều trả về danh sách rỗng — và khối trên
+     * trang chủ nói thẳng là chưa có ảnh. Đây là {@code CLAUDE.md} luật 16 ở dạng đường dẫn dữ
+     * liệu: <i>ô nào chưa có nguồn thì nói là chưa có</i>, tuyệt đối không rơi về một bộ ảnh mặc
+     * định cho "giao diện luôn sống động" (§10.54).
+     *
+     * <h3>⭐ Vì sao tiêu đề lấy từ {@code originalName}</h3>
+     *
+     * Bảng {@code attachments} không có cột tiêu đề, và thêm một cột chỉ để phục vụ một khối hiển
+     * thị là mở rộng lược đồ trước khi biết hình dạng nhu cầu. Chú thích ảnh của Công ty <b>đang
+     * nằm trong chính tên tệp họ gửi</b> — {@code "AN2. Đại hội Công đoàn Công ty nhiệm kỳ
+     * 2023-2028.jpg"} — nên đọc nó ra là dùng đúng thứ đã có, không phải bịa thêm.
+     *
+     * <p>⚠ Việc bóc tiền tố đặt ở ĐÂY, một chỗ duy nhất (quy tắc 12). Để phía giao diện tự bóc là
+     * mỗi nơi hiển thị một kiểu, và bộ seed lại bóc một kiểu thứ ba.
+     */
+    @Transactional(readOnly = true)
+    public List<AnhThuVien> photos() {
+        String khoa = siteConfig.effectiveValues().getOrDefault("site.home.photos-folder", "");
+        if (khoa.isBlank()) {
+            return List.of();
+        }
+        UUID idThuMuc;
+        try {
+            idThuMuc = UUID.fromString(khoa.trim());
+        } catch (IllegalArgumentException e) {
+            // Khoá do người nhập — giá trị hỏng KHÔNG được làm sập cả trang chủ.
+            return List.of();
+        }
+        return mediaFolders
+                .findByPublicIdAndDeletedAtIsNull(idThuMuc)
+                .map(thuMuc -> attachments.refsOf("MEDIA_FOLDER", thuMuc.getId()).stream()
+                        .map(a -> new AnhThuVien(a.publicId(), tieuDeTuTenTep(a.originalName())))
+                        .toList())
+                .orElseGet(List::of);
+    }
+
+    /**
+     * Bóc tiền tố kỹ thuật và đuôi tệp, giữ NGUYÊN VĂN phần còn lại.
+     *
+     * <p>Công ty đặt tên tệp theo quy ước của họ: {@code "Ảnh to. …"} cho ảnh lớn, {@code "AN1./AN2./AN3. …"}
+     * cho ảnh thường. Phần sau tiền tố chính là chú thích. Không viết hoa lại, không cắt ngắn, không
+     * thêm gì — đó là chữ của Công ty.
+     *
+     * <p>Tên tệp không theo quy ước (ảnh tải từ điện thoại, tên là một chuỗi băm) thì trả về nguyên
+     * tên đã bỏ đuôi — xấu, nhưng THẬT. Bịa một tiêu đề đẹp cho nó mới là điều bị cấm.
+     */
+    static String tieuDeTuTenTep(String tenTep) {
+        if (tenTep == null || tenTep.isBlank()) {
+            return "";
+        }
+        String t = tenTep.replaceAll("(?i)\\.(jpe?g|png|webp|gif)$", "");
+        t = t.replaceFirst("^(Ảnh to\\.|AN\\d\\.?)\\s*", "");
+        return t.trim().replaceAll("\\s+", " ");
+    }
+
+    /** Một ảnh của thư viện: mã tệp để dựng URL, và chú thích của Công ty. */
+    public record AnhThuVien(UUID publicId, String title) {}
 
     /**
      * Danh mục đang hiện — danh mục ẩn <b>và cả nhánh dưới nó</b> biến khỏi điều hướng của cổng.
