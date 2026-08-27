@@ -505,12 +505,22 @@ Job `Cổng kiểm CI` (`ci.yml`, khoá `cong-kiem`) mang `if: always()` và `ne
 đổi là đúng việc của nó), và in bảng kết quả từng job vào tóm tắt lượt chạy.
 
 ```bash
-gh api -X PUT repos/team-dev-qnt/songnhue/branches/dev/protection/required_status_checks \
-  -f strict=true -f 'contexts[]=Cổng kiểm CI'
+# ⚠ `-X PATCH`, không phải `PUT` — `PUT` là cho cả đối tượng protection.
+# ⚠ `-F strict=true`, không phải `-f`: `-f` gửi CHUỖI "true", và endpoint trả
+#   422 `For 'properties/strict', "true" is not a boolean`.
+gh api -X PATCH repos/team-dev-qnt/songnhue/branches/dev/protection/required_status_checks \
+  -F strict=true -f 'contexts[]=Cổng kiểm CI'
 
 # ĐO LẠI, đừng tick theo lệnh đã gõ:
 gh api repos/team-dev-qnt/songnhue/branches/dev/protection/required_status_checks -q '.contexts'
 ```
+
+⛔ **Và đừng bịt miệng lệnh.** Lượt áp đầu ngày 27/8 gõ `... >/dev/null 2>&1`, thấy exit 0, tưởng
+xong — trong khi API trả **422** và danh sách context **không đổi một ký tự**. Chỉ bước đo lại mới
+lộ ra. Cùng đúng hình dạng §10.60 (một lệnh nuốt mất phần việc còn lại) và §10.57 (cổng secret bỏ
+qua trong im lặng): **đầu ra bị vứt đi thì thất bại trông y hệt thành công.**
+
+📌 Đo được sau khi áp đúng: `strict=true` · 1 context = `Cổng kiểm CI`.
 
 ⚠⚠ **Thứ tự bắt buộc**: job `Cổng kiểm CI` phải có mặt trên `dev` **TRƯỚC** khi đổi danh sách
 context. Đổi trước thì mọi PR treo ở *"Waiting for status to be reported"* — kể cả PR mang chính

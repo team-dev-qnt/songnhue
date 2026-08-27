@@ -4296,3 +4296,73 @@ với **chính dấu tích ấy**, nên vẫn xanh 8/8 sau khi gỡ bản vá. C
 
 **Khi tự kiểm một tệp, hãy chạy BỘ ĐỌC THẬT của nó.** Một bộ kiểm tự viết mang đúng giả định của
 người viết — và ở đây nó vừa bỏ sót lỗi có thật, vừa bịa ra 233 lỗi không có.
+
+---
+
+### §10.65 — Một đợt sửa CHÚ THÍCH làm ứng dụng không khởi động được (27/8)
+
+CD Staging đỏ ở bước "Triển khai". Ứng dụng chết ngay lúc dựng `flywayInitializer`:
+
+```
+Migration checksum mismatch for migration version 202608251100
+-> Applied to database : -1232886408
+-> Resolved locally    :  2110920357
+```
+
+Thứ đã đổi trong `V202608251100__seed_portal_content.sql`: **14 dòng thêm, 5 dòng xoá, toàn bộ nằm
+trong một khối chú thích `--`. Không một dòng SQL nào đổi.** Nội dung chú thích ấy hoàn toàn đúng và
+hữu ích — nó giải thích vì sao vị từ xoá theo *quan hệ* tốt hơn danh sách slug viết cứng.
+
+Flyway băm **toàn bộ nội dung tệp**. Chú thích nằm trong tệp, nên nó nằm trong checksum.
+
+#### ⚠⚠ Vì sao 680 bài kiểm không thể bắt được
+
+Mọi bài kiểm chạy migration từ CSDL **rỗng** — Testcontainers dựng mới mỗi lượt. Không có bản ghi
+`flyway_schema_history` cũ nào, nên **không có checksum cũ để so**. Bộ test xanh trọn vẹn, `make
+ci-local` 9/9, CI trên `dev` 10/10 — rồi lượt deploy kế tiếp chết.
+
+Đây là lớp lỗi mà bộ test **về nguyên tắc** không thấy: nó chỉ tồn tại ở một CSDL đã sống. Cùng họ
+với §10.56 (tham số chỉ có hiệu lực một lần) — *trạng thái đã tích luỹ ngoài kho không suy ra được
+từ trong kho*.
+
+#### Đường ống đã hành xử đúng — và đây là lần đầu chứng minh được
+
+`migrator` chạy ở service **riêng**, `run --rm`, **trước** `up -d --force-recreate`. Nên:
+
+- migration hỏng → bước "Triển khai" đỏ **trước khi** chạm container nào
+- ba container vẫn là bản 03:17, `healthy`, site trả 200 suốt
+- `Quay lui bản cũ` chạy và thành công (`→ [quay-lui] 511 byte, khớp hai đầu`)
+
+⚠ Nhưng **không tick DOD0.21**: đường quay lui đã chạy trọn vẹn lần đầu, song đó là một lượt *không
+có gì để quay lui* — container chưa hề bị thay. Nó chứng minh đường đi thông, chưa chứng minh nó
+dựng lại được một bản đã bị thay.
+
+📌 So với §10.60 (cũng 27/8): lần ấy bước "Triển khai" **xanh** trong khi không làm gì; lần này nó
+**đỏ** đúng lúc phải đỏ. Cùng một bước, hai hành vi — khác nhau ở chỗ bản vá §10.60 làm nửa cuối
+script thật sự chạy.
+
+#### Đã vá
+
+1. Khôi phục `V202608251100` về **đúng byte** bản staging đã áp (đối chiếu SHA-256 với bản ở
+   `7b0b26a` — khớp). Nội dung chú thích có giá trị ấy chuyển về đây, không nhét lại vào tệp.
+2. `backend/db-migration-checksums.txt` — vân tay SHA-256 của **41** tệp migration/seed trong nguồn.
+3. `MigrationImmutabilityTest` (3 bài): tệp bị sửa → đỏ · tệp bị xoá → đỏ · tệp mới chưa ghi vân tay
+   → đỏ kèm lệnh cần chạy. Kèm một bài canh chính manifest không lẫn `target/` (bản sao lúc build —
+   `mvn clean` sẽ làm bộ canh đỏ mà không ai sửa gì) và `src/test/` (CSDL dùng-một-lần).
+4. `make migration-manifest` → `backend/tools/sinh-vantay-migration.sh`, đã kiểm **chạy hai lần cho
+   kết quả y hệt**.
+
+#### Giới hạn, ghi ra thay vì để người đọc tự suy (luật 28)
+
+- Bài dùng **SHA-256**, không phải thuật toán của Flyway. Với việc *phát hiện thay đổi* thì tương
+  đương, nhưng SHA-256 **chặt hơn**: Flyway chuẩn hoá ký tự xuống dòng, SHA-256 thì không. Đỏ nhầm
+  theo hướng an toàn.
+- Bài **không** biết migration nào đã thật sự được áp ở đâu. Một migration thêm hôm nay, chưa chạy ở
+  đâu cả, sửa vẫn vô hại — mà bài vẫn đỏ. Cố ý: "đã áp ở một CSDL nào đó trên đời" là thứ không kiểm
+  được từ trong kho, và đoán sai theo hướng thoải mái thì đúng bằng không có bộ canh.
+
+#### Bài học
+
+**Chú thích trong tệp migration không phải là chú thích — nó là dữ liệu đã ký.** Muốn giải thích một
+migration thì giải thích ở nơi khác. Và một lần nữa: *cây kiểm xanh không nói gì về trạng thái đã
+tích luỹ ở môi trường thật.*
