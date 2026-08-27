@@ -78,7 +78,7 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 
 ✅ **Staging đã dựng lại cluster 26/8** (T11.3-b) — `i | collate=C.UTF-8 | icu=vi-VN`, vân tay số dòng khớp từng bảng, 6/6 container healthy, 4/4 smoke test xanh trên site thật, trang chủ 11 liên kết đều là slug thật. Lượt khôi phục ấy tìm ra **T7.13-a** — đường quay lui dữ liệu duy nhất của hệ vốn khôi phục ra một CSDL ứng dụng không đọc nổi (§10.58).
 
-⚠⚠ **Mười bảy lượt liên tiếp một bản ghi "đã xong" bị lượt rà sau bác bỏ.** Đây là hình dạng rủi ro
+⚠⚠ **Hai mươi mốt lượt liên tiếp một bản ghi "đã xong" bị lượt rà sau bác bỏ.** Đây là hình dạng rủi ro
 đặc trưng của dự án, không phải sự cố lẻ — nguyên nhân gốc từng vụ ở `architecture-review.md`:
 
 | Ngày | Lượt rà tìm ra | § |
@@ -100,10 +100,10 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 | 27/8 | trang **Tiến độ sản xuất** liệt kê hai danh mục của mục đã ẩn làm các **Năm** — 906 bài kiểm hai phía đều xanh, chỉ lộ ra khi mở trang trên stack đang chạy | §10.61 |
 | 28/8 | **6 cột/khoá/tham số thiếu nửa cặp đọc–ghi** — 4 do đợt hôm trước tạo ra; thanh điều hướng tràn khung 22% ở *mọi* bề rộng mà `flex-wrap` che đi | §10.62 |
 | 28/8 | **hai lượt kiểm chứng ngược của chính tôi đều sai** — một cái mù trước SQL đã chú thích, một cái *chép lại* hành vi sai thay vì bắt nó | §10.62 |
-| 27/8 | CD Staging **success trọn vẹn mà không container nào được thay** — một lệnh nuốt mất nửa cuối script | §10.60 |
 | 27/8 | **bảy context bắt buộc khoá chết mọi PR chỉ sửa tài liệu** — job matrix bỏ qua báo một cái tên khác | §10.63 |
 | 27/8 | **9 phép kiểm canh nguồn sự thật, không cổng nào chạy** — và có sẵn nhánh `sys.exit(0)` chờ | §10.64 |
 | 27/8 | **một đợt sửa CHÚ THÍCH làm ứng dụng không khởi động được** — Flyway băm cả tệp; 680 bài kiểm về nguyên tắc không thấy | §10.65 |
+| 27/8 | **migration mới đánh số bằng giờ-phút** rơi xuống dưới bản staging đã áp — và cùng lỗi ấy làm seed ghi vào một khoá chưa tồn tại, **0 hàng, không một dòng log** | §10.66 |
 
 ⛔ Hệ quả rút ra: **"đã tick" không phải bằng chứng.** Trước khi mở một giai đoạn mới, đối chiếu với mã thật và chạy đường mà người dùng thật đi.
 
@@ -111,14 +111,14 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 
 ⛔ **Cấm seed dữ liệu công trình/thuỷ văn "cho đẹp demo"** — ô nào chưa có nguồn thì nói thẳng là chưa có.
 
-**Codebase đo ngày 28/8 (sau WS-25)**: **688 test BE** (249 core + 24 content + 33 operations + 382 app) + **252 test FE** (142 admin + 110 public) · **74 mã lỗi** (BE = FE) · 88 quyền / 12 vai trò / 334 dòng phân quyền · **32 bài ArchUnit** (7 lớp, gồm 11 bài tự-kiểm chứng minh luật bắt được vi phạm) · **9 phép kiểm bộ đọc tracking** (nay CÓ trong `ci.yml` + `make ci-local` bước 1/9) · mọi cổng bao phủ **chạy thật** (content 18.2%) · 0 CVE ≥ 7 · **0 mã màu ghi cứng** và **0 chỗ ép ALL CAPS** trong `public-web` (admin-app còn 25 mã màu — nợ T25.23; chữ hoa ở admin-app chưa rà).
+**Codebase đo ngày 28/8 (sau WS-25)**: **691 test BE** (249 core + 24 content + 33 operations + 385 app) + **252 test FE** (142 admin + 110 public) · **74 mã lỗi** (BE = FE) · 88 quyền / 12 vai trò / 334 dòng phân quyền · **32 bài ArchUnit** (7 lớp, gồm 11 bài tự-kiểm chứng minh luật bắt được vi phạm) · **9 phép kiểm bộ đọc tracking** (nay CÓ trong `ci.yml` + `make ci-local` bước 1/10) · **bộ canh thứ tự migration** (bước 2/10 + job CI `Thứ tự migration`) · mọi cổng bao phủ **chạy thật** (content 18.2%) · 0 CVE ≥ 7 · **0 mã màu ghi cứng** và **0 chỗ ép ALL CAPS** trong `public-web` (admin-app còn 25 mã màu — nợ T25.23; chữ hoa ở admin-app chưa rà).
 
 ### Tra ở đâu
 
 | Cần gì | Đọc ở đâu |
 |---|---|
 | Nợ đang treo, task còn lại | **`.claude/master-tracking.md`** — nguồn DUY NHẤT (conventions.md §6). `phase0-tracking.md` / `phase1-tracking.md` chỉ là lưu trữ, cấm sửa |
-| **Lý do** một quyết định, **nguyên nhân gốc** một lỗi đã sửa | `architecture-review.md` **§9** (Phase 0, 14 mục) · **§10** (Phase 1, 49 mục — §10.35 đợt vá sau WS-22, §10.36 nghiệm thu lại WS-21 + DoD, §10.37 nghiệm thu image, §10.38 CI đỏ sau merge `dev`, §10.40 lỗi 204, §10.41 biến CSDL không ai đọc, §10.52 envelope bọc `byte[]`, §10.53 container không được thay, §10.54 trang chủ nướng rỗng + dữ liệu bịa che chỗ rỗng, §10.55 `minio-init` đo thay vì khai báo + bộ seed một công tắc, §10.56 collation vắng ở `compose.prod.yml` — tham số chỉ chạy một lần, §10.57 cổng secret bỏ qua trong im lặng + 4 khoản bấm ở GitHub, §10.58 bản dump khôi phục ra CSDL không đọc nổi, §10.59 cổng 22 bị quét làm đỏ deploy, §10.60 một lệnh nuốt stdin làm nửa cuối khối triển khai không chạy mà CD vẫn xanh, §10.61 đợt chỉnh sửa cổng theo nghiệm thu Công ty — cổng công khai chưa từng có CSP, đổi menu làm ba trang tĩnh mất lối vào, hai bộ canh cũ canh hình dạng thay vì canh bất biến, §10.62 sáu cột/khoá thiếu nửa cặp đọc–ghi + hai lượt kiểm chứng ngược tự sai, §10.63 bảy context bắt buộc khoá chết mọi PR chỉ sửa tài liệu, §10.64 chín phép kiểm canh nguồn sự thật mà không cổng nào chạy, **§10.65 một đợt sửa chú thích làm ứng dụng không khởi động được**) |
+| **Lý do** một quyết định, **nguyên nhân gốc** một lỗi đã sửa | `architecture-review.md` **§9** (Phase 0, 14 mục) · **§10** (Phase 1, 49 mục — §10.35 đợt vá sau WS-22, §10.36 nghiệm thu lại WS-21 + DoD, §10.37 nghiệm thu image, §10.38 CI đỏ sau merge `dev`, §10.40 lỗi 204, §10.41 biến CSDL không ai đọc, §10.52 envelope bọc `byte[]`, §10.53 container không được thay, §10.54 trang chủ nướng rỗng + dữ liệu bịa che chỗ rỗng, §10.55 `minio-init` đo thay vì khai báo + bộ seed một công tắc, §10.56 collation vắng ở `compose.prod.yml` — tham số chỉ chạy một lần, §10.57 cổng secret bỏ qua trong im lặng + 4 khoản bấm ở GitHub, §10.58 bản dump khôi phục ra CSDL không đọc nổi, §10.59 cổng 22 bị quét làm đỏ deploy, §10.60 một lệnh nuốt stdin làm nửa cuối khối triển khai không chạy mà CD vẫn xanh, §10.61 đợt chỉnh sửa cổng theo nghiệm thu Công ty — cổng công khai chưa từng có CSP, đổi menu làm ba trang tĩnh mất lối vào, hai bộ canh cũ canh hình dạng thay vì canh bất biến, §10.62 sáu cột/khoá thiếu nửa cặp đọc–ghi + hai lượt kiểm chứng ngược tự sai, §10.63 bảy context bắt buộc khoá chết mọi PR chỉ sửa tài liệu, §10.64 chín phép kiểm canh nguồn sự thật mà không cổng nào chạy, §10.65 một đợt sửa chú thích làm ứng dụng không khởi động được, **§10.66 migration đánh số bằng giờ-phút rơi xuống dưới bản đã áp — và cùng lỗi ấy làm seed ghi vào khoá chưa tồn tại**) |
 | Cách viết một chức năng + bảng bẫy tra nhanh | `docs/coding-guide.md` |
 | Luật bắt buộc khi viết code | `conventions.md` |
 | Nghiệp vụ | `function-spec.md`; điểm chưa chốt → `business-open-questions.md` Phần III |
@@ -199,6 +199,8 @@ Rút ra sau khi **cùng một hình dạng lỗi lặp lại nhiều lần**. Ng
 28. **Một cơ chế canh gác phải nói ra phạm vi của chính nó** — ba lần trong hai ngày cùng một hình dạng: `NginxSecurityHeadersTest` soi mỗi `admin-app` trong khi cổng công khai chạy không CSP · `PortalSettingsReadTest` soi mỗi một tệp migration nên mọi khoá seed trước đó đi lọt · bộ canh màu chưa phủ `admin-app`. Bộ canh đúng luật, hẹp hơn nơi nó phải chặn, và **cái xanh của nó đọc như một lời bảo đảm**. Không phủ hết được thì ghi giới hạn vào chính bộ canh và mở một dòng nợ có số đo.
 
 29. **Một bài kiểm chứng ngược có thể sai theo đúng cách mà thứ nó kiểm chứng đang sai** — người viết cả hai là cùng một người, mang cùng một giả định. Ngày 28/8 cả hai lượt kiểm chứng ngược đều hỏng: một cái đặt `--` trước câu `DELETE` rồi chờ bộ canh đỏ (không đỏ — regex không biết SQL có chú thích), một cái khẳng định mẫu bắt enum trả về 2 giá trị từ một enum có 3 (**chép lại lỗi thay vì bắt nó**). Thứ cứu được không phải bài kiểm chứng ngược mà là một khẳng định **về số lượng** — `hasSizeGreaterThanOrEqualTo(3)` không chia sẻ giả định nào với mẫu regex. Bổ sung luật 10: xác nhận bản hỏng **đã được nạp** *và* **bộ canh nhìn thấy nó** là hai chuyện khác nhau.
+
+30. **Bộ test chạy migration từ CSDL RỖNG mù trước cả một lớp lỗi — và lớp ấy chỉ hiện ra lúc deploy** — hai lượt CD liên tiếp ngày 27/8 chết vì đúng nó. Trên CSDL rỗng **không có checksum cũ để so** (§10.65) và **không tồn tại khái niệm out-of-order** (§10.66): Flyway sắp mọi tệp theo version rồi áp tuần tự, xanh trọn vẹn. 688 bài kiểm không sai — chúng **về nguyên tắc** không thể thấy. Mọi bảo đảm về migration vì thế phải neo vào thứ **ngoài** bộ test: vân tay ghi trong kho (`db-migration-checksums.txt`) và phép so với **nhánh nền** (`kiem-thu-tu-migration.sh`). ⚠ Hệ quả cho việc đặt tên: số hiệu `V<YYYYMMDD><số thứ tự>` **trông như** dấu thời gian nên rất dễ viết *thành* dấu thời gian, và hai cách viết chỉ khác nhau ở đúng chỗ không ai nhìn — thứ tự sắp xếp.
 
 
 ## Quy ước làm việc với user

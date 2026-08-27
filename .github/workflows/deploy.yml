@@ -372,14 +372,14 @@ jobs:
             #   migration ghi hàng khẳng định các byte ấy tồn tại. Thứ tự nằm ở
             #   compose, không nằm ở đây — gõ tay lúc chữa cháy vẫn đúng.
             #
-            # ⚠⚠ `docker compose run` GẮN STDIN. Ngày 27/8 nó nuốt trọn phần script còn
+            # ⚠⚠ \`docker compose run\` GẮN STDIN. Ngày 27/8 nó nuốt trọn phần script còn
             #    lại của khối này (khối khi ấy được nuôi vào bash-từ-xa qua stdin), nên
-            #    `up -d --force-recreate` và cả bước đo lại image ID BÊN DƯỚI không hề
-            #    chạy — mà CD vẫn báo success (§10.60). `-T` KHÔNG chữa được: nó chỉ tắt
+            #    \`up -d --force-recreate\` và cả bước đo lại image ID BÊN DƯỚI không hề
+            #    chạy — mà CD vẫn báo success (§10.60). \`-T\` KHÔNG chữa được: nó chỉ tắt
             #    TTY, stdin vẫn gắn.
-            #    Bảo đảm KHÔNG nằm ở dòng này mà ở `chay-tu-xa.sh`: khối chạy từ TỆP với
+            #    Bảo đảm KHÔNG nằm ở dòng này mà ở \`chay-tu-xa.sh\`: khối chạy từ TỆP với
             #    stdin là /dev/null, nên lệnh nuốt stdin tiếp theo ai đó thêm vào cũng
-            #    không phá được. Đừng "sửa" bằng cách thêm `</dev/null` ở đây rồi bỏ helper.
+            #    không phá được. Đừng "sửa" bằng cách thêm \`</dev/null\` ở đây rồi bỏ helper.
             \$dc run --rm migrator
 
             # ⚠ \`--force-recreate\`: KHÔNG để compose tự quyết có thay container hay không.
