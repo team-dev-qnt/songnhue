@@ -8,7 +8,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -41,13 +44,26 @@ import org.junit.jupiter.api.Test;
  */
 class PortalSettingsReadTest {
 
-    private static final String MIGRATION =
-            "backend/content/src/main/resources/db/migration/cms/V202608271032__cms_portal_settings_v2.sql";
+    /**
+     * ⚠⚠ <b>Phạm vi đã mở rộng ngày 28/08/2026 — và việc mở rộng ấy lộ ra 4 khoá chết.</b>
+     *
+     * <p>Bản đầu (T24.19) chỉ soi <b>một</b> tệp: migration của đợt 27/8. Nó bắt đúng luật nhưng
+     * canh sai chỗ — mọi khoá seed <i>trước</i> đợt ấy đều đi lọt. Đo lại khi mở phạm vi ra cả thư
+     * mục: {@code site.analytics.ga-tracking-id}, {@code site.analytics.gtm-container-id},
+     * {@code site.color.primary}, {@code site.color.secondary} — <b>0 nơi đọc</b>, bày trên màn hình
+     * Cấu hình hệ thống từ 19/8 (đã gỡ ở {@code V202608281037}).
+     *
+     * <p>Cùng hình dạng với {@code NginxSecurityHeadersTest} chỉ soi {@code admin-app.Dockerfile}
+     * trong khi cổng công khai chạy không có CSP nào (§10.61): <i>một cơ chế canh gác tồn tại
+     * trong mã nhưng phạm vi của nó hẹp hơn nơi nó phải chặn</i>. Bộ canh xanh, và cái xanh ấy
+     * đọc như một lời bảo đảm.
+     */
+    private static final String THU_MUC_MIGRATION_CMS = "backend/content/src/main/resources/db/migration/cms";
 
     private static final String MA_CONG = "frontend/public-web/src";
 
     /**
-     * Khoá seed ở migration đợt 27/08/2026.
+     * Khoá seed — dòng {@code ('khoa', 'giá trị', 'KIỂU',} của khối {@code VALUES}.
      *
      * <p>⚠ Chỉ bắt dòng {@code ('khoa', 'giá trị', 'KIỂU',} của khối {@code VALUES} — <b>không</b>
      * bắt khoá nằm trong câu {@code DELETE}. Hai khoá bị gỡ ({@code site.home.blocks},
@@ -56,8 +72,21 @@ class PortalSettingsReadTest {
      */
     private static final Pattern KHOA_SEED = Pattern.compile("\\('([a-z0-9.\\-]+)',\\s*'[^']*',\\s*'[A-Z]+',");
 
+    /**
+     * Câu {@code DELETE FROM settings WHERE setting_key IN (...)} — bắt <b>cả câu</b>, rồi mới trích
+     * khoá bên trong bằng {@link #MOT_KHOA}.
+     *
+     * <p>Hai bước thay vì một biểu thức lồng: một mẫu vừa xác định ngữ cảnh vừa trích giá trị thì
+     * phải dùng lookbehind, và một lookbehind gõ sai vẫn biên dịch được rồi khớp 0 lần — tức bộ canh
+     * xanh mà không trừ khoá nào. {@code kiemChungNguocDelete} kiểm cả hai bước.
+     */
+    private static final Pattern CAU_XOA = Pattern.compile(
+            "DELETE\\s+FROM\\s+settings\\s+WHERE\\s+setting_key\\s+IN\\s*\\(([^)]*)\\)", Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern MOT_KHOA = Pattern.compile("'([a-z0-9.\\-]+)'");
+
     @Test
-    @DisplayName("⛔ Mọi khoá settings seed ở đợt 27/08/2026 đều có nơi đọc trong mã cổng")
+    @DisplayName("⛔ MỌI khoá site.*/company.* còn sống đều có nơi đọc trong mã cổng")
     void moiKhoaDeuCoNguoiDoc() throws IOException {
         String maCong = docCaThuMuc();
         List<String> khongAiDoc = khoaSeed().stream()
@@ -96,7 +125,9 @@ class PortalSettingsReadTest {
     void doDuocCaHaiNguon() throws IOException {
         // Luật 7. Đổi cách viết khối VALUES là `KHOA_SEED` khớp 0 dòng, và bài trên sẽ duyệt qua
         // một danh sách rỗng rồi xanh trọn vẹn.
-        assertThat(khoaSeed()).as("không trích được khoá nào từ %s", MIGRATION).hasSizeGreaterThanOrEqualTo(6);
+        assertThat(khoaSeed())
+                .as("không trích được khoá site.*/company.* nào từ %s", THU_MUC_MIGRATION_CMS)
+                .hasSizeGreaterThanOrEqualTo(20);
         assertThat(docCaThuMuc()).as("không đọc được mã cổng ở %s", MA_CONG).hasSizeGreaterThan(10_000);
     }
 
@@ -115,11 +146,97 @@ class PortalSettingsReadTest {
         assertThat(m.find()).as("không được bắt khoá trong câu DELETE").isFalse();
     }
 
+    @Test
+    @DisplayName("⛔ Kiểm chứng ngược: khoá bị DELETE ở migration sau bị TRỪ khỏi danh sách")
+    void kiemChungNguocDelete() {
+        // Luật 1. Không có bài này thì `CAU_XOA` gõ sai vẫn khớp 0 lần, không khoá nào bị trừ, và
+        // bài chính sẽ đòi `site.home.blocks` (đã gỡ 27/8) phải có người đọc — đỏ vì lý do sai.
+        Matcher cau = CAU_XOA.matcher("DELETE FROM settings WHERE setting_key IN ('a.b', 'c.d');");
+        assertThat(cau.find()).as("không bắt được câu DELETE").isTrue();
+        assertThat(MOT_KHOA.matcher(cau.group(1)).results().map(r -> r.group(1)).toList())
+                .containsExactly("a.b", "c.d");
+
+        // ⛔ Và một câu DELETE đã bị `--` vô hiệu hoá thì KHÔNG được tính là đã chạy. Đây là lỗ đã
+        //    lộ ra khi kiểm chứng ngược lượt đầu; xem `boChuThichSql`.
+        assertThat(CAU_XOA.matcher(boChuThichSql("-- DELETE FROM settings WHERE setting_key IN ('a.b');"))
+                        .find())
+                .as("câu DELETE trong chú thích vẫn bị tính là đã chạy")
+                .isFalse();
+
+        // Và vế thật: bốn khoá gỡ ở V202608281037 phải KHÔNG còn trong danh sách phải-có-người-đọc.
+        assertThat(khoaSeed())
+                .as("khoá đã DELETE mà vẫn bị đòi có người đọc")
+                .doesNotContain(
+                        "site.analytics.ga-tracking-id",
+                        "site.analytics.gtm-container-id",
+                        "site.color.primary",
+                        "site.color.secondary",
+                        "site.home.blocks",
+                        "site.slider.effect");
+    }
+
     // ---- Trích dữ liệu -------------------------------------------------------
 
+    /**
+     * Mọi khoá nhóm {@code site.*} / {@code company.*} còn sống sau khi áp hết migration CMS.
+     *
+     * <p>Trừ đi khoá bị {@code DELETE} ở một migration <i>sau</i> lượt seed nó: hai câu ấy nằm ở hai
+     * tệp khác nhau, nên đọc từng tệp riêng lẻ sẽ đòi một khoá đã gỡ phải có người đọc — đúng ngược
+     * ý định. Thứ tự áp = thứ tự tên tệp, giống Flyway.
+     */
     private static List<String> khoaSeed() {
-        Matcher m = KHOA_SEED.matcher(doc(MIGRATION));
-        return m.results().map(r -> r.group(1)).distinct().sorted().toList();
+        List<Path> tep;
+        try (Stream<Path> luot = Files.list(timTuGocKho(THU_MUC_MIGRATION_CMS))) {
+            tep = luot.filter(p -> p.getFileName().toString().endsWith(".sql"))
+                    .sorted(Comparator.comparing(p -> p.getFileName().toString()))
+                    .toList();
+        } catch (IOException e) {
+            throw new IllegalStateException("Không liệt kê được " + THU_MUC_MIGRATION_CMS, e);
+        }
+
+        Set<String> song = new LinkedHashSet<>();
+        for (Path p : tep) {
+            String sql = boChuThichSql(doc(THU_MUC_MIGRATION_CMS + "/" + p.getFileName()));
+            KHOA_SEED
+                    .matcher(sql)
+                    .results()
+                    .map(r -> r.group(1))
+                    .filter(PortalSettingsReadTest::laKhoaCong)
+                    .forEach(song::add);
+            CAU_XOA.matcher(sql)
+                    .results()
+                    .flatMap(cau -> MOT_KHOA.matcher(cau.group(1)).results())
+                    .map(r -> r.group(1))
+                    .forEach(song::remove);
+        }
+        return song.stream().sorted().toList();
+    }
+
+    /**
+     * Bỏ chú thích {@code --} trước khi soi.
+     *
+     * <p>⚠ Phát hiện ngày 28/08/2026 <b>trong lúc kiểm chứng ngược chính bài kiểm này</b>: lượt phá
+     * hoại có chủ đích đặt {@code --} trước câu {@code DELETE} rồi chờ bộ canh đỏ lên. Nó
+     * <b>không đỏ</b> — {@link #CAU_XOA} là biểu thức chính quy, nó không biết SQL có chú thích, nên
+     * một câu {@code DELETE} đã bị vô hiệu hoá vẫn được tính là đã chạy và bốn khoá vẫn bị trừ.
+     *
+     * <p>Đúng bài học 10 ở dạng thuần khiết nhất: <i>làm hỏng có chủ đích để kiểm chứng thì phải xác
+     * nhận bản hỏng ĐÃ được nạp</i> — ở đây bản hỏng được nạp, mà bộ canh vẫn mù trước nó. Nếu lượt
+     * kiểm chứng ấy không chạy, lỗ này nằm lại vĩnh viễn và không có triệu chứng nào.
+     */
+    private static String boChuThichSql(String sql) {
+        return sql.replaceAll("(?m)--.*$", "");
+    }
+
+    /**
+     * Chỉ soi khoá mà <b>cổng công khai</b> chịu trách nhiệm hiển thị.
+     *
+     * <p>{@code hr.*}, {@code hydro.*}, {@code security.*}, {@code limits.*}, {@code ops.*} là tham
+     * số nghiệp vụ do backend đọc — chúng cũng phải có người đọc, nhưng người đọc nằm ở Java chứ
+     * không ở mã cổng, nên hỏi chúng ở đây sẽ ra một câu trả lời sai.
+     */
+    private static boolean laKhoaCong(String khoa) {
+        return khoa.startsWith("site.") || khoa.startsWith("company.");
     }
 
     /** Nối toàn bộ mã nguồn của cổng — đủ cho phép hỏi "có ai nhắc tới khoá này không". */

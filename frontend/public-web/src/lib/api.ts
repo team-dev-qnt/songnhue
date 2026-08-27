@@ -286,7 +286,7 @@ export function getSiteConfig(): Promise<SiteConfig | null> {
   return apiGet<SiteConfig>('/site-config', { tags: [CACHE_TAGS.layout] });
 }
 
-export function getMenu(position: 'HEADER' | 'FOOTER'): Promise<MenuLink[] | null> {
+export function getMenu(position: 'HEADER' | 'FOOTER' | 'LIEN_KET'): Promise<MenuLink[] | null> {
   return apiGet<MenuLink[]>(`/menus/${position}`, { tags: [CACHE_TAGS.layout] });
 }
 

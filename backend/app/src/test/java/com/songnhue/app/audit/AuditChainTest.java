@@ -160,7 +160,8 @@ class AuditChainTest extends IntegrationTestBase {
     // -------------------------------------------------------------------------
 
     private void createUnit(String code) {
-        createdUnit = orgUnits.create(code, "Đơn vị kiểm thử " + code, OrgUnitType.PHONG_BAN, rootPublicId())
+        createdUnit = orgUnits.create(
+                        code, "Đơn vị kiểm thử " + code, OrgUnitType.PHONG_BAN, rootPublicId(), null, null, null, null)
                 .getPublicId();
     }
 

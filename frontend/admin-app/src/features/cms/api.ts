@@ -118,6 +118,22 @@ export const cmsApi = {
     return api.put<CategoryNode>(`${BASE}/categories/${publicId}`, body);
   },
 
+  /**
+   * Ẩn / hiện một danh mục trên cổng công khai.
+   *
+   * ⚠⚠ Cột `categories.visible` có từ `V202608191016` và DTO quản trị **trả nó ra** từ đầu, nhưng
+   * cho tới 27/08/2026 **không endpoint nào ghi nó** — quản trị viên thấy trạng thái Hiện/Ẩn mà
+   * không đổi được. Chuyện thành gấp khi migration CR-01 chọn *ẩn* danh mục "Thông báo" với lý do
+   * "ẩn là thao tác quay lui được bằng một cú bấm": lý do ấy chỉ đúng khi cú bấm đó tồn tại.
+   *
+   * ⛔ Ẩn một danh mục cha thì **cả nhánh dưới nó** rút khỏi cổng, kể cả con đang `visible` —
+   * `PublicPortalService.hienTrenCong()` lọc theo `path`. Đây là bản vá của lỗi trang Tiến độ sản
+   * xuất liệt kê hai danh mục mồ côi làm các "Năm" (T24.24).
+   */
+  setCategoryVisibility(publicId: string, visible: boolean) {
+    return api.put<CategoryNode>(`${BASE}/categories/${publicId}/visibility`, { visible });
+  },
+
   moveCategory(publicId: string, newParentId: string | null) {
     return api.put<CategoryNode>(`${BASE}/categories/${publicId}/parent`, { newParentId });
   },

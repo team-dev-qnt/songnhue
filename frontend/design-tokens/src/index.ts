@@ -53,6 +53,50 @@ export const brandColors = {
   primaryGradientTo: '#1b64c0',
 } as const;
 
+/**
+ * Sắc navy của khung cổng công khai — đầu trang và chân trang.
+ *
+ * <h3>Vì sao có nhóm này, và vì sao giá trị lấy từ màn hình chứ không từ tài liệu</h3>
+ *
+ * Trước 28/08/2026 `SiteHeader` và `SiteFooter` khai **bảy** mã navy ghi thẳng vào class
+ * Tailwind (`from-[#061b37]`, `bg-[#082242]`…). `docs/ui-styles.md` §2.3 lại ghi dải gradient
+ * của navbar là `#0c366e → #165bb6` — **một màu chưa từng chạy**. Hai nguồn nói hai chuyện, và
+ * đọc nguồn nào cũng thấy hợp lý; đúng hình dạng lỗi của quy tắc 14.
+ *
+ * Giá trị dưới đây là **thứ đang hiện trên màn hình**, không phải thứ tài liệu mong muốn. §2 của
+ * văn bản nghiệm thu 27/8 chốt *"hệ màu GIỮ NGUYÊN"*, nên bản đúng là bản người dùng đang thấy;
+ * tài liệu đã được sửa theo, không phải ngược lại.
+ *
+ * Bảy mã gộp còn năm bậc: `#0b2e59` và `#0b2d5b` lệch nhau 2/255 ở một kênh (cùng một màu bị
+ * chép tay hai lần), `#082242` gộp vào `navy700` — lệch 8/255 ở kênh lam, dưới ngưỡng phân biệt
+ * được của mắt trên nền lớn.
+ */
+export const portalChrome = {
+  /** Đáy chân trang — bậc sâu nhất */
+  navy900: '#05172c',
+  /** Dải nhận diện + thanh điều hướng đầu trang */
+  navy800: '#061b37',
+  /** Đỉnh chân trang, dải bản quyền */
+  navy700: '#081e3a',
+  /** Thân chân trang */
+  navy600: '#0c294e',
+  /** Điểm giữa gradient đầu trang, dải đường dây nóng chân trang */
+  navy500: '#0b2d5b',
+} as const;
+
+/**
+ * Màu nhận diện của nền tảng bên ngoài — chỉ dùng cho biểu tượng của chính họ.
+ *
+ * ⚠ Đây **không** phải màu của dự án và không được mượn sang chỗ khác: chúng là tài sản nhận
+ * diện của Facebook/Zalo/YouTube, đặt ở đây để một biểu tượng không tự chọn sắc riêng, chứ
+ * không phải để mở rộng bảng màu. Không có mã nào trong nhóm này mang nghĩa nghiệp vụ.
+ */
+export const externalBrandColors = {
+  facebook: '#1877F2',
+  zalo: '#0068FF',
+  youtube: '#FF0000',
+} as const;
+
 export const neutralColors = {
   textBase: '#1f1f1f',
   textSecondary: '#595959',

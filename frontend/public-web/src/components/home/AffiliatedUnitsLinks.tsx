@@ -1,27 +1,21 @@
-import type { SubsidiaryRow } from '@/lib/api';
-import { ROUTES } from '@/lib/routes';
 import Link from 'next/link';
-import { EmptyBlock } from './EmptyBlock';
 
-/**
- * Cổng TTĐT của cơ quan quản lý cấp trên — liên kết điều hướng, không phải dữ liệu nghiệp vụ
- * của Công ty, nên không có endpoint nào phục vụ chúng và cũng không nên có.
- *
- * ⚠ CR-21 yêu cầu **rà soát lại tên và đường dẫn theo tổ chức hiện hành**. "Sở Nông nghiệp và
- * Môi trường" là tên tài liệu chỉ định đích danh — đã sửa. Hai dòng còn lại giữ nguyên tên
- * đang dùng và **chờ Công ty xác nhận**: đổi tên một cơ quan nhà nước theo suy đoán của người
- * viết mã thì sai cũng không ai phát hiện được, mà cổng lại là nơi công bố.
- */
-const EXTERNAL_PORTALS = [
-  { name: 'Bộ Nông nghiệp & PTNT', url: 'https://www.mard.gov.vn' },
-  { name: 'UBND Thành phố Hà Nội', url: 'https://hanoi.gov.vn' },
-  { name: 'Sở Nông nghiệp và Môi trường Hà Nội', url: 'https://sonnptnt.hanoi.gov.vn' },
-  { name: 'Cục Thủy lợi', url: 'http://cucthuyloi.gov.vn' },
-];
+import type { MenuLink, SubsidiaryRow } from '@/lib/api';
+import { isExternal, menuHref, ROUTES } from '@/lib/routes';
+import { EmptyBlock } from './EmptyBlock';
 
 interface AffiliatedUnitsLinksProps {
   /** Xí nghiệp trực thuộc — CR-19. Rỗng khi Công ty chưa nhập (OI-05 còn chờ chốt 7 hay 8 XN). */
   subsidiaries: SubsidiaryRow[];
+  /**
+   * Liên kết sang cổng TTĐT cơ quan cấp trên — menu vị trí `LIEN_KET` (CR-21).
+   *
+   * ⛔ Trước 28/08/2026 đây là hằng số `EXTERNAL_PORTALS` viết cứng ngay trong tệp này. CR-21
+   * yêu cầu Công ty *"rà soát lại tên và đường link chính thức"* — mà rà xong thì không có cách
+   * nào sửa: đổi một cái tên là sửa mã nguồn rồi dựng lại image. Nay bốn dòng ấy nằm trong
+   * `menu_items`, sửa ở đúng màn hình Menu mà Công ty đã dùng cho menu đầu trang và chân trang.
+   */
+  portalLinks: MenuLink[];
 }
 
 /**
@@ -39,7 +33,7 @@ interface AffiliatedUnitsLinksProps {
  * vì <i>chưa ai nhập</i>, không phải rỗng vì <i>không có đường nào để lấy</i>. Hai câu trả lời
  * khác nhau, và ô rỗng phải nói đúng câu của mình.
  */
-export function AffiliatedUnitsLinks({ subsidiaries }: AffiliatedUnitsLinksProps) {
+export function AffiliatedUnitsLinks({ subsidiaries, portalLinks }: AffiliatedUnitsLinksProps) {
   return (
     <section className="mt-10 sm:mt-14">
       <div className="flex items-center justify-between border-b-2 border-brand-primary pb-2.5">
@@ -95,22 +89,30 @@ export function AffiliatedUnitsLinks({ subsidiaries }: AffiliatedUnitsLinksProps
         )}
       </div>
 
-      <div className="mt-6 flex flex-wrap items-center justify-center gap-3 rounded-xl border border-surface-border bg-surface-bgLayout p-4 text-xs sm:justify-between">
-        <span className="font-bold text-surface-textBase">Liên kết Cổng TTĐT:</span>
-        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-          {EXTERNAL_PORTALS.map((p) => (
-            <a
-              key={p.name}
-              href={p.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-md border border-surface-border bg-white px-3 py-1.5 font-medium text-surface-textSecondary transition-all duration-200 hover:border-brand-primary hover:text-brand-primary hover:shadow-2xs"
-            >
-              {p.name} ↗
-            </a>
-          ))}
+      {/* ⛔ Danh sách rỗng ⇒ KHÔNG render dải này. Không rơi về bốn liên kết mặc định: một dải
+          liên kết chỉ hiện đúng lúc CSDL hỏng là dải không ai soi, và nó quảng cáo những địa
+          chỉ mà không ai còn kiểm chứng (cùng cái bẫy đã gỡ khỏi `SiteHeader`, §10.54). */}
+      {portalLinks.length > 0 ? (
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3 rounded-xl border border-surface-border bg-surface-bgLayout p-4 text-xs sm:justify-between">
+          <span className="font-bold text-surface-textBase">Liên kết Cổng TTĐT:</span>
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+            {portalLinks.map((muc) => {
+              const href = menuHref(muc);
+              return href ? (
+                <a
+                  key={muc.label}
+                  href={href}
+                  target={muc.openNewTab ? '_blank' : undefined}
+                  rel={isExternal(muc) ? 'noopener noreferrer' : undefined}
+                  className="rounded-md border border-surface-border bg-white px-3 py-1.5 font-medium text-surface-textSecondary transition-all duration-200 hover:border-brand-primary hover:text-brand-primary hover:shadow-2xs"
+                >
+                  {muc.label} ↗
+                </a>
+              ) : null;
+            })}
+          </div>
         </div>
-      </div>
+      ) : null}
     </section>
   );
 }

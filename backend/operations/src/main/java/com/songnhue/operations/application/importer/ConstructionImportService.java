@@ -286,6 +286,14 @@ public class ConstructionImportService {
                 row.get("don_vi_thiet_ke"),
                 row.get("don_vi_thi_cong"),
                 so(row.get("tong_von_vnd"), soDong, "tong_von_vnd", loi),
+                // ⛔ Hai cột tài liệu công bố (Quy trình vận hành · Phương án bảo vệ) KHÔNG nhận
+                //    từ tệp nhập, và đó là chủ ý: giá trị của chúng là `attachments.public_id` —
+                //    một khoá ngoại tới tệp đã tải lên. Một ô trong Excel không tải tệp nào lên,
+                //    nên nhận nó ở đây chỉ có hai kết cục: người nhập gõ một UUID không tồn tại
+                //    (khoá ngoại chặn, báo lỗi khó hiểu), hoặc gõ đúng UUID của tệp người khác.
+                //    Hai tài liệu này gắn ở màn hình hồ sơ công trình, sau khi tệp đã có.
+                null,
+                null,
                 row.get("mo_ta"),
                 null,
                 null,

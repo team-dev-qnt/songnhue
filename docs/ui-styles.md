@@ -52,8 +52,25 @@
 
 ### 2.3. Quy chuẩn Gradient
 
-- **Full Brand Blue Gradient**: Dùng cho Navbar và toàn bộ Footer của cổng thông tin:
-  `bg-gradient-to-r from-[#0c366e] via-[#165bb6] to-[#0c366e]` (hoặc `bg-gradient-to-b`).
+- **Full Brand Blue Gradient** — dùng cho các khối *bên trong* trang (card accent, nút CTA):
+  `from-brand-primaryGradientFrom to-brand-primary`.
+
+- **Navy khung cổng** — thanh nhận diện, thanh điều hướng và chân trang của `public-web`:
+  `bg-gradient-to-r from-chrome-navy800 via-chrome-navy500 to-chrome-navy800` (đầu trang) ·
+  `bg-gradient-to-b from-chrome-navy700 via-chrome-navy600 to-chrome-navy900` (chân trang).
+
+  > [!WARNING]
+  > ⚠⚠ **Mục này TRƯỚC 28/08/2026 ghi một dải màu chưa từng chạy.** Bản cũ viết
+  > `from-[#0c366e] via-[#165bb6] to-[#0c366e]` cho navbar, trong khi `SiteHeader` thật sự vẽ
+  > `#061b37 → #0b2d5b`. Hai nguồn nói hai chuyện suốt 13 ngày và **đọc bên nào cũng thấy hợp
+  > lý** — không có lượt kiểm nào đối chiếu chúng (đúng hình dạng quy tắc 14).
+  >
+  > Đã sửa **tài liệu theo mã**, không sửa mã theo tài liệu: §2 của văn bản nghiệm thu 27/8 chốt
+  > *"hệ màu GIỮ NGUYÊN"*, nên bản đúng là bản người dùng đang nhìn thấy. Bảy sắc navy chép tay
+  > gộp còn năm bậc `portalChrome.navy900…navy500` trong `design-tokens`.
+  >
+  > `frontend/public-web/src/lib/noHardcodedColors.test.ts` nay canh: **0 mã hex** được phép nằm
+  > trong mã nguồn `public-web`. ⚠ `admin-app` còn 25 chỗ, ghi nợ ở `master-tracking.md` T25.23.
 - **Masthead Blue Gradient**: Dùng cho tầng nhận diện đầu trang:
   `bg-gradient-to-r from-[#bfd9f8] via-[#d5e7fb] to-[#b4d3f6]`.
 - **Auth/Login Banner Gradient**: Nền đăng nhập chuyển nhẹ nhàng từ xanh thương hiệu mờ sang xám nhạt (`#0c366e/10` ➔ `#f0f2f5`).

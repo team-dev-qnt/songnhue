@@ -3,6 +3,8 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { boChuThich } from '../lib/boChuThich';
+
 /**
  * **Không component nào được chứa dữ liệu nghiệp vụ bịa.**
  *
@@ -36,20 +38,25 @@ import { describe, expect, it } from 'vitest';
 
 const GOC = join(process.cwd(), 'src');
 
-/** Hằng số dữ liệu tĩnh có thật, được phép tồn tại — kèm lý do, không phải danh sách để dài thêm. */
-const CHO_PHEP_MANG = new Set([
-  // Cổng TTĐT của cơ quan quản lý cấp trên. Là liên kết điều hướng có thật, không phải dữ liệu
-  // nghiệp vụ của Công ty; không có endpoint nào phục vụ chúng và cũng không nên có.
-  'EXTERNAL_PORTALS',
-]);
+/**
+ * Hằng số dữ liệu tĩnh có thật, được phép tồn tại — kèm lý do, không phải danh sách để dài thêm.
+ *
+ * ⭐ Ngày 28/08/2026 danh sách này **rỗng trở lại**. Mục duy nhất của nó, `EXTERNAL_PORTALS`
+ * (bốn cổng TTĐT cơ quan cấp trên), đã chuyển vào `menu_items` vị trí `LIEN_KET` — CR-21 yêu cầu
+ * Công ty rà soát lại tên và địa chỉ bốn cơ quan ấy, và một hằng số trong mã thì rà xong cũng
+ * không sửa được. Lý lẽ miễn trừ ghi ở đây ("liên kết điều hướng, không phải dữ liệu nghiệp vụ")
+ * đúng về bản chất dữ liệu nhưng trả lời sai câu hỏi: vấn đề không phải nó có thật hay không, mà
+ * là **ai sửa được nó**.
+ */
+const CHO_PHEP_MANG = new Set<string>([]);
 
 /** Tên miền ngoài được phép xuất hiện trong mã component. */
 const CHO_PHEP_TEN_MIEN = [
   'youtube-nocookie.com', // khung nhúng video, tuân thủ CSP — ID video đến từ props
-  'mard.gov.vn',
-  'hanoi.gov.vn',
-  'cucthuyloi.gov.vn',
   'google.com', // liên kết tra bản đồ, dựng từ địa chỉ trong `settings` — không phải dữ liệu bịa
+  // ⭐ Ba tên miền cơ quan nhà nước (mard / hanoi / cucthuyloi) đã gỡ khỏi danh sách cùng lượt
+  //   chuyển `EXTERNAL_PORTALS` sang `menu_items`: không còn địa chỉ nào trong mã cổng, nên để
+  //   chúng ở đây là chừa sẵn một lối cho lần sau ai đó ghi cứng lại.
 ];
 
 function timTsx(thuMuc: string): string[] {
@@ -58,34 +65,6 @@ function timTsx(thuMuc: string): string[] {
     if (statSync(duong).isDirectory()) return timTsx(duong);
     return ten.endsWith('.tsx') && !ten.includes('.test.') ? [duong] : [];
   });
-}
-
-/**
- * Bỏ chú thích trước khi soi.
- *
- * ⛔ Bắt buộc, và đã suýt trả giá ngay trong lượt viết bản vá này: chú thích giải thích *vì sao*
- *    một hằng số bị xoá thường **trích dẫn lại chính thứ bị cấm**. Bản đầu của lượt vá có một
- *    phép khẳng định đỏ oan vì đúng lý do đó — cùng hình dạng với việc `SeedGateTest` từng khớp
- *    trúng một `DELETE FROM articles` nằm trong lời giải thích (luật 2).
- *
- * ⚠ `//` chỉ được coi là mở chú thích khi nó **không nằm trong chuỗi** — đếm dấu nháy chưa bị
- *   thoát đứng trước nó trên cùng dòng. Nếu không thì `'https://…'` bị cắt mất và bài canh tên
- *   miền bên dưới sẽ xanh trong khi hotlink vẫn còn nguyên.
- */
-export function boChuThich(nguon: string): string {
-  const khongKhoi = nguon.replace(/\/\*[\s\S]*?\*\//g, '');
-  return khongKhoi
-    .split('\n')
-    .map((dong) => {
-      for (let i = 0; i < dong.length - 1; i++) {
-        if (dong[i] !== '/' || dong[i + 1] !== '/') continue;
-        const truoc = dong.slice(0, i);
-        const soNhay = (truoc.match(/(?<!\\)['"`]/g) ?? []).length;
-        if (soNhay % 2 === 0) return truoc;
-      }
-      return dong;
-    })
-    .join('\n');
 }
 
 const TEP = timTsx(GOC);

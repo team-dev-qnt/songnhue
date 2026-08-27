@@ -51,14 +51,16 @@ export const revalidate = 300;
 const SO_BAI_TIN_TUC = 24;
 
 export default async function HomePage() {
-  const [config, banners, latest, headerMenu, subsidiaries, serverTime] = await Promise.all([
-    getSiteConfig(),
-    getBanners(),
-    getArticles({ size: SO_BAI_TIN_TUC }),
-    getMenu('HEADER'),
-    getSubsidiaries(),
-    getServerTime(),
-  ]);
+  const [config, banners, latest, headerMenu, portalLinks, subsidiaries, serverTime] =
+    await Promise.all([
+      getSiteConfig(),
+      getBanners(),
+      getArticles({ size: SO_BAI_TIN_TUC }),
+      getMenu('HEADER'),
+      getMenu('LIEN_KET'),
+      getSubsidiaries(),
+      getServerTime(),
+    ]);
 
   const hotline = config?.['company.hotline'] ?? '';
   const allArticles = latest?.content ?? [];
@@ -115,10 +117,17 @@ export default async function HomePage() {
       <CategoryServicesGrid menuTree={buildMenuTree(headerMenu ?? [])} />
 
       {/* ───── 6. Truyền thông & hình ảnh hoạt động ───── */}
-      <HomeMediaGallery />
+      {/* ⚠ Ba props của khối này TRƯỚC ĐÂY không nơi gọi nào truyền — `<HomeMediaGallery />`
+          trần, nên `videoId` luôn `undefined` và khối rỗng vĩnh viễn ở mọi môi trường (quy tắc
+          15 ở dạng React). Hai khoá `site.home.video-*` dựng ở `V202608281038`. Vế `photos` vẫn
+          chưa có nguồn: nó cần endpoint công khai cho thư viện ảnh công trình (nợ T11.30). */}
+      <HomeMediaGallery
+        videoId={config?.['site.home.video-id'] || undefined}
+        videoTitle={config?.['site.home.video-title'] || undefined}
+      />
 
       {/* ───── 7. Đơn vị trực thuộc & liên kết ───── */}
-      <AffiliatedUnitsLinks subsidiaries={subsidiaries ?? []} />
+      <AffiliatedUnitsLinks subsidiaries={subsidiaries ?? []} portalLinks={portalLinks ?? []} />
     </div>
   );
 }

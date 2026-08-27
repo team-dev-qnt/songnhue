@@ -47,6 +47,23 @@ public record ConstructionForm(
         String contractor,
         /* Đơn vị VND — điểm nghiệp vụ 18. */
         BigDecimal totalInvestment,
+        /*
+          ⚠⚠ HAI cột này thêm ngày 27/08/2026 (`V202608271035`) rồi bị bỏ quên đúng một ngày:
+          `PublicConstructionCatalogService` ĐỌC chúng để dựng cột "Quy trình vận hành" và
+          "Phương án bảo vệ" của bảng 7 cột (CR-28), nhưng `SaveRequest` không mang chúng và
+          biểu mẫu quản trị không có ô nào — hai setter chỉ có đúng một lời gọi trong toàn kho,
+          và lời gọi ấy nằm trong một **bài kiểm**.
+
+          Tức là hai cột đọc-được-mà-không-ghi-được. §10 của văn bản nghiệm thu có một dòng
+          riêng cho hậu quả: *"các link Quyết định và Google Map hoạt động"* — hai liên kết ấy
+          sẽ không bao giờ có gì để trỏ tới. Quy tắc 15, chiều ghi (xem thêm `OrgUnitDtos`).
+
+          Kiểu là `UUID` của một `attachments.public_id` đã tải lên qua màn hình đính kèm —
+          không phải một đường dẫn tự do: một URL gõ tay thì không ai bảo đảm tệp còn tồn tại,
+          còn khoá ngoại `ON DELETE SET NULL` thì cột tự rỗng khi tệp bị gỡ.
+        */
+        UUID operatingProcedureAttachmentId,
+        UUID protectionPlanAttachmentId,
         String description,
         PumpSpec pump,
         SluiceSpec sluice,

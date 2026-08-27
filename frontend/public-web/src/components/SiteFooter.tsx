@@ -9,7 +9,11 @@ import { SITE } from '@/lib/site';
  *
  * Màu sắc đồng bộ 100% với SiteHeader và `design-tokens`:
  * - Dải hotline tiếp nhận thông tin: Xanh thương hiệu gradient (đồng bộ thanh Navbar)
- * - Khối nội dung 4 cột: Nền sáng nhẹ (slate-50 / white / blue-50), tiêu đề xanh đậm `#003eb3`, text tương phản cao
+ * - Khối nội dung 4 cột: nền navy theo `portalChrome`, tiêu đề trắng, text tương phản cao
+ *
+ * ⛔ Bảy mã navy từng ghi thẳng vào class Tailwind ở tệp này và ở `SiteHeader`. Nay đọc từ
+ *   `design-tokens.portalChrome` — cùng giá trị đang hiện, chỉ khác nơi khai (`ui-styles.md`
+ *   §2.1 cấm khai màu tại chỗ). `noHardcodedColors.test.ts` canh.
  * - Dải bản quyền đáy trang: Nền trang nhã, phân cách rõ ràng
  */
 export async function SiteFooter() {
@@ -50,7 +54,7 @@ export async function SiteFooter() {
       label: 'Facebook Fanpage',
       url: config?.['site.footer.social.facebook'] ?? '',
       icon: (
-        <svg className="h-4 w-4 text-[#1877F2]" fill="currentColor" viewBox="0 0 24 24">
+        <svg className="h-4 w-4 text-social-facebook" fill="currentColor" viewBox="0 0 24 24">
           <path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z" />
         </svg>
       ),
@@ -59,7 +63,7 @@ export async function SiteFooter() {
       label: 'Zalo Official Account',
       url: config?.['site.footer.social.zalo'] ?? '',
       icon: (
-        <span className="flex h-4 w-4 items-center justify-center rounded bg-[#0068FF] font-bold text-[9px] text-white leading-none">
+        <span className="flex h-4 w-4 items-center justify-center rounded bg-social-zalo font-bold text-[9px] text-white leading-none">
           Z
         </span>
       ),
@@ -68,7 +72,7 @@ export async function SiteFooter() {
       label: 'Kênh YouTube',
       url: config?.['site.footer.social.youtube'] ?? '',
       icon: (
-        <svg className="h-4 w-4 text-[#FF0000]" fill="currentColor" viewBox="0 0 24 24">
+        <svg className="h-4 w-4 text-social-youtube" fill="currentColor" viewBox="0 0 24 24">
           <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
         </svg>
       ),
@@ -76,9 +80,9 @@ export async function SiteFooter() {
   ];
 
   return (
-    <footer className="mt-16 w-full border-t border-white/10 bg-gradient-to-b from-[#081e3a] via-[#0c294e] to-[#05172c] text-white">
+    <footer className="mt-16 w-full border-t border-white/10 bg-gradient-to-b from-chrome-navy700 via-chrome-navy600 to-chrome-navy900 text-white">
       {/* ───── 1. Dải tiếp nhận thông tin trực ban / Hotline bão lũ ───── */}
-      <div className="border-b border-white/10 bg-[#0b2e59]/80 py-3 text-xs text-white sm:text-sm">
+      <div className="border-b border-white/10 bg-chrome-navy500/80 py-3 text-xs text-white sm:text-sm">
         <div className="mx-auto flex max-w-[1240px] flex-col items-center justify-between gap-2 px-4 sm:flex-row sm:px-6">
           {hotline ? (
             <div className="flex items-center gap-2">
@@ -288,24 +292,35 @@ export async function SiteFooter() {
       </div>
 
       {/* ───── 3. Dải bản quyền đáy trang ───── */}
-      <div className="border-t border-white/10 bg-[#082242] py-3.5 text-xs text-white/70">
+      <div className="border-t border-white/10 bg-chrome-navy700 py-3.5 text-xs text-white/70">
         <div className="mx-auto flex max-w-[1240px] flex-col items-center justify-between gap-2 px-4 text-center sm:flex-row sm:px-6 sm:text-left">
           <div>
             <p className="font-medium text-white">{copyright}</p>
+            {/* ⚠ Tên trong câu này ĐỌC `site.name`, không viết lại lần nữa. Bản trước ghi cứng
+                "Cổng thông tin Thủy lợi Sông Nhuệ" ngay dưới một dòng {siteName} lấy từ
+                `settings` — hai nguồn cho cùng một cái tên, và đổi tên trên màn hình cấu hình
+                chỉ đổi được một nửa (luật 14). */}
             <p className="mt-0.5 text-[11px] text-white/60">
-              Ghi rõ nguồn &ldquo;Cổng thông tin Thủy lợi Sông Nhuệ&rdquo; khi phát hành lại thông
-              tin từ website này.
+              Ghi rõ nguồn &ldquo;{siteName}&rdquo; khi phát hành lại thông tin từ website này.
             </p>
           </div>
+          {/*
+            ⛔ Ba mục cũ ở đây đều đã gỡ, mỗi mục một lý do — cùng một họ với §10.54:
+
+            • "Phiên bản 1.0" — một con số viết cứng, không nơi nào đọc, không đổi khi cổng đổi.
+              Nó KHẲNG ĐỊNH một điều với người đọc mà không gì bảo đảm nó còn đúng;
+            • "Sơ đồ cổng" — nhãn hứa một trang sơ đồ, `href` trỏ về **trang chủ**. Không có
+              trang sơ đồ nào tồn tại. Một liên kết mà nhãn và đích nói hai chuyện khác nhau;
+            • "Hỗ trợ kỹ thuật" — trỏ `/lien-he`, nơi chỉ có liên hệ của Công ty, không có đầu
+              mối kỹ thuật nào. Đổi nhãn cho khớp đích thay vì giữ một lời hứa không ai nhận.
+          */}
           <div className="flex items-center gap-4 text-[11px] text-white/70">
-            <span>Phiên bản 1.0</span>
-            <span>•</span>
-            <Link href="/" className="hover:text-white">
-              Sơ đồ cổng
+            <Link href={ROUTES.lienHe} className="hover:text-white">
+              Liên hệ
             </Link>
             <span>•</span>
-            <Link href={ROUTES.lienHe} className="hover:text-white">
-              Hỗ trợ kỹ thuật
+            <Link href={ROUTES.search} className="hover:text-white">
+              Tìm kiếm
             </Link>
           </div>
         </div>

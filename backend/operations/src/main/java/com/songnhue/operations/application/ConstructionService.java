@@ -304,6 +304,8 @@ public class ConstructionService {
         ct.setDesigner(form.designer());
         ct.setContractor(form.contractor());
         ct.setTotalInvestment(form.totalInvestment());
+        ct.setOperatingProcedureAttachmentPublicId(form.operatingProcedureAttachmentId());
+        ct.setProtectionPlanAttachmentPublicId(form.protectionPlanAttachmentId());
         ct.setDescription(form.description());
 
         apDungThongSo(ct, form);

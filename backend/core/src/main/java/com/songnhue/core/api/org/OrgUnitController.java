@@ -103,8 +103,15 @@ public class OrgUnitController {
     @Operation(summary = "Thêm đơn vị mới")
     @RequirePermission("adm:org-unit:manage")
     public OrgUnitDtos.OrgUnitSummary create(@Valid @RequestBody OrgUnitDtos.CreateRequest request) {
-        return OrgUnitDtos.OrgUnitSummary.of(
-                service.create(request.code(), request.name(), request.unitType(), request.parentPublicId()));
+        return OrgUnitDtos.OrgUnitSummary.of(service.create(
+                request.code(),
+                request.name(),
+                request.unitType(),
+                request.parentPublicId(),
+                request.shortName(),
+                request.address(),
+                request.phone(),
+                request.email()));
     }
 
     @PutMapping("/{publicId}")
@@ -112,8 +119,14 @@ public class OrgUnitController {
     @RequirePermission("adm:org-unit:manage")
     public OrgUnitDtos.OrgUnitSummary update(
             @PathVariable UUID publicId, @Valid @RequestBody OrgUnitDtos.UpdateRequest request) {
-        return OrgUnitDtos.OrgUnitSummary.of(
-                service.update(publicId, request.name(), request.shortName(), request.unitType()));
+        return OrgUnitDtos.OrgUnitSummary.of(service.update(
+                publicId,
+                request.name(),
+                request.shortName(),
+                request.unitType(),
+                request.address(),
+                request.phone(),
+                request.email()));
     }
 
     @PatchMapping("/{publicId}/parent")

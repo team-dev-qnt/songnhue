@@ -4081,3 +4081,125 @@ mở đúng trang ấy trên hệ đang chạy — đúng điều CLAUDE.md đã
 khẳng định `containsExactly` chạy ở mỗi lượt CI; bảng phân quyền §6 sẽ là một bộ bài kiểm gọi thẳng
 API khi chưa đăng nhập. Thứ không chuyển được thành phép khẳng định thì cũng không nghiệm thu được —
 và với dự án này, "đã tick" chưa bao giờ là bằng chứng.
+
+---
+
+### §10.62. Đầu trang thân thiện + "mọi thứ hiển thị phải cấu hình từ admin" (28/8/2026)
+
+Hai việc được giao. Việc thứ nhất là một yêu cầu giao diện; việc thứ hai là một **lượt kiểm kê**.
+Cả hai đều tìm ra thứ không ai đang đi tìm, và cả hai thứ ấy đều đã nằm sẵn trong §10 của chính văn
+bản nghiệm thu.
+
+#### 1. Thanh điều hướng tràn khung trên **mọi** màn hình — và `flex-wrap` che nó đi
+
+Cây nội dung §3 mà đợt trước vừa dựng có tám mục cấp 1 với nhãn tiếng Việt dài. Bản cũ vẽ chúng
+bằng `text-[13px] font-bold uppercase tracking-wider` + `px-3.5`. Đo:
+
+```
+menu 1344px + nút Tìm kiếm 110px = 1454px
+khung chứa 1240 − 48             = 1192px      → tràn 22%
+```
+
+Thanh không **vỡ** — nó `flex-wrap`, nên nó **xuống dòng**. Đầu trang cao gấp đôi ở mọi bề rộng, kể
+cả desktop rộng nhất, và trên điện thoại tám mục viết hoa xếp thành một mảng chữ chiếm gần hết màn
+hình đầu tiên. Không lỗi nào báo ra. Không bài kiểm nào đụng tới. `flex-wrap` là một cơ chế **chịu
+lỗi**, và một cơ chế chịu lỗi làm đúng việc của nó thì lỗi không bao giờ nổi lên.
+
+Nặng hơn phần bề rộng: hai mục cấp 1 kiểu `NONE` ("Giới thiệu", "Quản lý, vận hành") được vẽ thành
+`<button>` **không gắn hành vi nào**. Trên máy có chuột thì `group-hover` mở menu con nên không ai
+thấy vấn đề; trên máy tính bảng, chạm vào là chạm một nút không phản hồi và bốn mục con **không có
+cách nào mở ra**. §10 của văn bản nghiệm thu ghi đúng một dòng cho chuyện này: *"Giao diện hiển thị
+đúng trên máy tính, máy tính bảng và điện thoại"*.
+
+#### 2. Sáu cột / khoá / tham số bày ra mà **một nửa cặp đọc–ghi không tồn tại**
+
+Việc thứ hai không tìm ra một lỗi; nó tìm ra một **hình dạng**:
+
+| Thứ bị hỏng | Nửa có | Nửa thiếu | Triệu chứng |
+|---|---|---|---|
+| `org_unit_leaders` | đọc + endpoint công khai | **không controller, không màn hình** | trang Lãnh đạo rỗng vĩnh viễn |
+| `org_units.address/phone/email` | đọc + hiện ở bảng 6 cột | 3 setter **không lời gọi nào** | ba cột trống mãi |
+| `CreateRequest.shortName` | DTO + validate + ô nhập | `create()` không nhận tham số | báo *lưu thành công*, giá trị biến mất |
+| `PUT /org-units/{id}` | endpoint đầy đủ | **không màn hình nào gọi** | tên đơn vị không sửa được sau khi tạo |
+| 2 cột tài liệu công trình | đọc + dựng 2 liên kết CR-28 | setter chỉ có **1 lời gọi, trong một bài kiểm** | hai liên kết không có gì để trỏ tới |
+| `HomeMediaGallery` 3 props | component hoàn chỉnh | trang chủ gọi `<HomeMediaGallery />` **trần** | khối rỗng ở mọi môi trường |
+
+Cộng thêm bốn khoá `settings` (`site.analytics.*`, `site.color.*`) bày trên màn hình cấu hình từ
+19/8 mà **0 nơi đọc** — chiều ngược lại của cùng một hình dạng.
+
+⚠ **Bốn trong sáu mục trên do chính đợt WS-24 tạo ra một ngày trước.** Đợt ấy đếm "đường đọc đã
+dựng xong" rồi tick, và nửa còn lại của mỗi cặp không có ai đếm. Đây là luật 19 (*việc làm xong nửa
+đường trông y hệt việc làm xong*) ở dạng có cấu trúc: không phải một người lười, mà là một **đơn vị
+đếm sai** — ta đếm *tính năng đã dựng*, trong khi thứ người dùng nhận được là *vòng khép kín
+nhập → lưu → hiện*.
+
+#### 3. Hai lượt kiểm chứng ngược thất bại, và cả hai đều lộ ra lỗi thật
+
+Đây là phần đáng giá nhất của lượt này.
+
+**(a) Bộ canh khoá `settings`.** Để chứng minh nó bắt được vi phạm, tôi đặt `--` trước câu `DELETE`
+của migration rồi chờ nó đỏ. Nó **không đỏ**. Nguyên nhân: mẫu bắt câu `DELETE` là biểu thức chính
+quy, và regex **không biết SQL có chú thích** — một câu lệnh đã bị vô hiệu hoá vẫn được tính là đã
+chạy, nên bốn khoá vẫn bị trừ khỏi danh sách phải-có-người-đọc. Bản hỏng *đã* được nạp; bộ canh mù
+trước nó. Nếu lượt kiểm chứng ấy không chạy, lỗ này nằm lại vĩnh viễn và không có triệu chứng nào.
+
+**(b) Bộ canh vị trí menu.** Bài kiểm chứng ngược bản đầu khẳng định mẫu bắt enum trả về
+`("HEADER", "FOOTER")` từ một enum có **ba** hằng — vì mẫu đòi `[,;]` sau tên hằng, mà hằng cuối
+của enum Java không có dấu phẩy. Bài kiểm chứng ngược ấy **chép lại hành vi sai thay vì bắt nó**, và
+nó sẽ xanh mãi mãi. Chỗ lộ ra là một khẳng định khác trong bài chính: *"phải trích được ít nhất 3
+giá trị"* — 2 < 3.
+
+> ⛔ **Một bài kiểm chứng ngược cũng có thể sai theo đúng cách mà thứ nó kiểm chứng đang sai.**
+> Người viết cả hai là cùng một người, mang cùng một giả định. Thứ cứu được ở đây không phải bài
+> kiểm chứng ngược mà là một khẳng định **về số lượng** — `hasSizeGreaterThanOrEqualTo(3)` không
+> chia sẻ giả định nào với mẫu regex. Bổ sung cho luật 10: *làm hỏng có chủ đích thì phải xác nhận
+> bản hỏng đã được nạp* — và **xác nhận rằng bộ canh nhìn thấy nó**, hai chuyện khác nhau.
+
+#### 4. Chạy thật lại tìm ra thứ thứ ba
+
+17/17 đường dẫn trả 200 và mọi bài kiểm xanh, nhưng trang Xí nghiệp vẫn rỗng trong khi API trả đủ
+dữ liệu. Không phải lỗi mã: bộ đệm ISR của Next nằm trên **lớp ghi của container**, và `docker
+restart` giữ nguyên lớp ấy — phải `up -d --force-recreate`. Cùng họ §10.53.
+
+Chính chỗ ấy lộ ra một giới hạn thật, đo được và chưa vá: `PortalCache` (nơi xếp job xoá cache cổng)
+nằm ở module `content`, còn `org_units` ở `core` và `constructions` ở `operations`. Quy tắc 6 không
+cho gọi qua ranh giới module, nên **sửa dữ liệu tổ chức không xoá được cache cổng** — cổng trễ tới
+5 phút. Không mất dữ liệu, có tự lành, nhưng người nhập liệu không thấy đổi ngay sẽ tưởng lưu hỏng.
+Vá tạm: một dòng cảnh báo trên màn hình. Vá thật cần một SPI cache cổng — ghi nợ T25.22.
+
+#### 5. Tài liệu và mã nói hai chuyện về màu, suốt 13 ngày
+
+`ui-styles.md` §2.3 ghi gradient navbar là `#0c366e → #165bb6`. `SiteHeader` vẽ `#061b37 → #0b2d5b`.
+**Một trong hai màu chưa từng chạy**, và đọc tệp nào cũng thấy hợp lý. Cùng hình dạng với §10.61
+(hai tệp trỏ vào nhau về CSP) và với quy tắc 14.
+
+Đã sửa **tài liệu theo mã**, không ngược lại — §2 của văn bản nghiệm thu chốt *"hệ màu GIỮ
+NGUYÊN"*, nên bản đúng là bản người dùng đang nhìn thấy. Bảy sắc navy chép tay gộp còn năm bậc
+`portalChrome`, và `noHardcodedColors.test.ts` nay khẳng định **0 mã hex** trong `public-web`.
+
+⚠ Bộ canh ấy cố ý **chưa phủ `admin-app`** (còn 25 chỗ, 12 tệp) — và javadoc của nó **ghi rõ giới
+hạn ấy**. Im lặng về phạm vi là tái tạo đúng lỗi vừa sửa cùng lượt: `PortalSettingsReadTest` soi
+đúng một tệp migration nên mọi khoá seed trước đó đi lọt, y như `NginxSecurityHeadersTest` chỉ soi
+`admin-app` trong khi cổng công khai chạy không CSP (§10.61).
+
+#### 6. Sổ tiến độ tự nó sai — vì một ký tự trong ghi chú
+
+Bộ đọc `master-tracking.md` quét ghi chú tìm ký hiệu trạng thái để đọc được những dòng bảng không có
+ô tick. Nó quét cả ghi chú của dòng **đã tick**, nên một task hoàn thành mà ghi chú nhắc phần còn
+treo — `"⬜ Nợ: màn hình quản trị chưa có nút"` — bị hạ xuống `Pending` và lên Google Sheet dưới dạng
+*chưa làm*. Đo lúc phát hiện: **T24.25** (tick từ 27/8) và **T25.13**.
+
+Markdown đọc đúng, Sheet đọc sai, hai bên lệch nhau ở một ký tự. Cùng họ **T11.47**. Chữa ở phía nội
+dung chứ không ở bộ đọc — nới lỏng nó sẽ làm hỏng những dòng bảng vốn dựa vào ký hiệu — và thêm phép
+kiểm thứ **8** cho bộ đọc.
+
+#### Bài học
+
+⛔ **Đếm "đã dựng xong bao nhiêu tính năng" là đếm sai đơn vị.** Thứ người dùng nhận được là một
+vòng khép kín *nhập → lưu → hiện*; một nửa vòng ấy chạy hoàn hảo vẫn cho ra số không. Bốn trong sáu
+lỗ của lượt này ra đời **một ngày trước** từ một đợt làm việc cẩn thận, có bài kiểm, có nghiệm thu.
+
+⛔ **Một cơ chế canh gác phải nói ra phạm vi của chính nó.** Ba lần trong hai ngày, cùng một hình
+dạng: bộ canh đúng luật nhưng hẹp hơn nơi nó phải chặn, và cái xanh của nó đọc như một lời bảo đảm.
+Khi không phủ hết được thì **ghi giới hạn vào chính bộ canh** và mở một dòng nợ có số đo.
+

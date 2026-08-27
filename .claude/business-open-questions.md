@@ -186,6 +186,32 @@ CN-01.5 yêu cầu cấu hình logo, favicon, màu chủ đạo, footer, mạng 
 
 ⚠ **reCAPTCHA secret là bí mật** — gửi riêng, không đưa vào tài liệu chung. Hệ thống lưu ở biến môi trường, không nằm trong bản xuất cấu hình.
 
+> #### ⚠⚠ Cập nhật 28/8/2026 — hai nhóm trên đã **gỡ khỏi màn hình cấu hình**, và Công ty cần biết vì sao
+>
+> Bốn khoá `site.analytics.ga-tracking-id` · `site.analytics.gtm-container-id` · `site.color.primary` ·
+> `site.color.secondary` bày ra trên màn hình *Cấu hình hệ thống* từ 19/8 mà **không dòng mã nào đọc**
+> (đo grep toàn kho, `V202608281037`). Quản trị viên đặt giá trị, hệ thống báo *lưu thành công*, và
+> không có gì thay đổi — đúng loại lỗi mà `master-tracking.md` quy tắc 15 cấm để lại. Nên chúng đã bị
+> gỡ, và sẽ **dựng lại cùng lượt với phần hạ tầng đứng sau**, không sớm hơn.
+>
+> **① GA / GTM — có một quyết định về quyền riêng tư phải chốt trước, không phải chỉ là dán một mã.**
+> Bật GA/GTM đòi tải mã JavaScript từ `googletagmanager.com`, mà chính sách bảo mật của cổng chốt
+> `script-src 'self'` (`conventions.md` §4.5). Nới nó ra nghĩa là **địa chỉ IP của mọi người dân tra
+> cứu cổng được gửi sang máy chủ Google ở mỗi lượt tải trang**, và người đọc không có cách nào từ
+> chối. Đây cũng chính là lý do dự án đã bỏ việc lấy phông chữ từ CDN Google mà tự lưu trữ.
+> **Đề nghị Công ty trả lời**: có chấp nhận điều đó không? Nếu chỉ cần số liệu truy cập, có phương án
+> thống kê chạy trên chính máy chủ của Công ty, không gửi dữ liệu ra ngoài.
+>
+> **② Màu chủ đạo / màu phụ — không nhận qua màn hình cấu hình nữa.** Màu thương hiệu nay khai ở một
+> nơi duy nhất trong mã (`design-tokens`), vì hai nguồn cho cùng một màu thì hai màn hình sẽ lệch nhau
+> mà không ai coi đó là lỗi. Nhận diện thương hiệu đổi vài năm một lần nên nó xứng đáng một lượt cập
+> nhật có kiểm soát. ⚠ Hai giá trị đang seed còn **sai**: ô "Màu chủ đạo" hiện `#1677ff` (xanh mặc
+> định của thư viện giao diện) trong khi màu thương hiệu thật của cổng là `#165bb6`.
+> **Vẫn đề nghị Công ty gửi mã màu** nếu đã có bộ nhận diện — nó vào `design-tokens` chứ không vào một ô nhập.
+>
+> ⛔ **Logo · favicon · chân trang · mạng xã hội · reCAPTCHA giữ nguyên yêu cầu** — cả năm nhóm ấy
+> đều đã có nơi đọc thật trong mã và đang chờ đúng dữ liệu.
+
 ### ~~G14~~. ✅ **ĐÃ ĐÓNG 27/8/2026** — Công ty ban hành cây nội dung chuẩn
 
 > **Trả lời**: `docs_origin/nghiem_thu_phase1.md` — *"YÊU CẦU CHỈNH SỬA WEBSITE" v1.0*, trạng thái *Ban hành để thực hiện*. §3 cho **cây nội dung chuẩn 7 mục cấp 1**, và §2 ra một ràng buộc bằng lời: *"Menu chính, footer, các card chuyên mục và cây nội dung phải dùng CHUNG một hệ phân loại"*.
