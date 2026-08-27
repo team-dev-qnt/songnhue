@@ -97,6 +97,18 @@ Thứ tự này không tuỳ tiện — mỗi bước tạo ra thứ mà bước
 
 `backend/<module>/src/main/resources/db/migration/<tiền-tố>/V<yyyyMMdd><nnnn>__<mo_ta>.sql`
 
+⛔⛔ **`<nnnn>` là SỐ THỨ TỰ chạy tiếp, KHÔNG PHẢI giờ-phút.** Chuỗi ấy chạy `1023 → 1024 → … →
+1038` xuyên suốt cả kho, không đếm lại theo ngày. Số hiệu mới phải **lớn hơn mọi số đã có** — kể cả
+số của một tệp mang **ngày lớn hơn hôm nay** (chuyện thường gặp: một PR mở trước, merge sau).
+
+Viết `<nnnn>` thành `HHmm` cho ra một chuỗi *trông đúng* mà sắp sai: `202608272320` (23:20 ngày 27)
+đứng **trước** `202608281036`. Ngày 27/8 điều đó làm CD Staging đỏ (`Detected resolved migration not
+applied to database`) **và** làm một câu `UPDATE` của bộ seed chạm 0 hàng trong im lặng — §10.66.
+
+Bộ canh: `make migration-order` (`backend/tools/kiem-thu-tu-migration.sh`), chạy sẵn ở bước 2/10 của
+`make ci-local` và ở job CI *Thứ tự migration*. Nó so với **nhánh nền**, vì thứ đã merge vào `dev`
+là thứ đã (hoặc sắp) áp lên staging.
+
 ⚠ **Tiền tố thư mục KHÔNG trùng tên module** — Flyway chỉ quét đúng 5 đường dẫn khai trong
 `app/src/main/resources/application.yml`:
 
@@ -236,6 +248,8 @@ Không cần đọc thuộc — chỉ cần biết chúng tồn tại để lúc
 | `updatedAt == null` để hỏi "chưa ai sửa" | Bộ ghi nhật ký của Spring Data đặt `@LastModifiedDate` ngay ở lượt **chèn** → điều kiện luôn sai, và công tắc dựa vào nó không mở cho ai. Dùng `version == 0` |
 | Trả `null` trong một `record` DTO | Cấu hình `NON_NULL` chung **xoá hẳn khoá** khỏi JSON; phía nhận đọc ra `undefined`, không phân biệt được với "API đổi tên trường". Ô nào cố ý rỗng phải đè `@JsonInclude(ALWAYS)` |
 | Dựng thân JSON của bài kiểm bằng `replace` chồng lên bản mặc định | Để lại **hai khoá cùng tên**; Jackson lấy khoá sau, tức là giá trị mặc định. Bài kiểm nhận một mã lỗi khác và ta đi tìm lỗi ở chỗ không có lỗi. Dựng bằng tham số |
+| **Số hiệu migration mới nhỏ hơn số đã áp ở môi trường** | Flyway `validate` chặn lượt deploy: `Detected resolved migration not applied to database`. **Bộ test không bao giờ bắt được** — nó chạy từ CSDL rỗng, mà ở đó không tồn tại out-of-order. Chạy `make migration-order` trước khi mở PR |
+| **Seed `UPDATE` một khoá do migration khác `INSERT`** | Số hiệu quyết định thứ tự. Chạy trước tệp tạo ra khoá thì `UPDATE` chạm **0 hàng**: không lỗi, không cảnh báo, ô cấu hình rỗng vĩnh viễn. Ràng buộc thứ tự phải ghi vào đầu tệp seed **và** có một bài kiểm nối hai vế bằng `JOIN` |
 | **Đổi tên một tệp migration** | Maven copy tài nguyên **tăng dần**, không xoá tệp đã biến mất khỏi `target/classes` → Flyway thấy **hai** migration cùng số hiệu và chết lúc khởi động. Bắt buộc `./mvnw clean` sau mỗi lần đổi tên hoặc đổi số hiệu migration |
 | `@Generated` thiếu `insertable = false, updatable = false` | Bản ghi trả về sau khi tạo mới bị **rỗng** ở cột đó dù CSDL đã tính xong (do Hibernate không nhả để tự đọc lại). Giao diện hiển thị ô trống, người dùng F5 thì có — loại lỗi mất thời gian truy vết nhất |
 | Migration thiếu cột chuẩn của `BaseEntity`/`ScopedEntity` | Bảng mới kế thừa `BaseEntity` nhưng migration chỉ có `created_at`, `created_by` mà **thiếu `public_id`, `deleted_at`, `updated_at`, `updated_by`, `version`**. Hibernate schema-validation phát hiện ở CI nhưng **lỗi nằm ở tên cột**, không ở entity → truy vết sai hướng. Khi tạo bảng mới, đối chiếu migration với **tất cả** cột của lớp cha (`BaseEntity`: 7 cột, `ScopedEntity`: 8 cột) |

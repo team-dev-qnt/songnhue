@@ -8,6 +8,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
@@ -114,6 +116,92 @@ class DeployRemoteStdinTest {
         assertThat(dem)
                 .as("Không tìm thấy khối heredoc nào — regex đã lỗi thời, SỬA bài kiểm")
                 .isEqualTo(4);
+    }
+
+    @Test
+    @DisplayName("⭐⭐ Heredoc KHÔNG NHÁY: không dấu huyền / `$(` nào chưa thoát — kể cả trong chú thích")
+    void heredocKhongNhayKhongThayTheLenh() {
+        List<String> viPham = timThayTheLenh(doc(timTuGocKho(".github/workflows/deploy.yml")));
+        if (!viPham.isEmpty()) {
+            fail(
+                    """
+                    %d dòng trong heredoc KHÔNG NHÁY còn dấu huyền hoặc `$(` chưa thoát:
+
+                      %s
+
+                    ⛔ Heredoc mở bằng `<<REMOTE` (không nháy) được RUNNER khai triển trước khi \
+                    gửi đi — dấu huyền là THAY THẾ LỆNH, kể cả nằm trong một dòng `#`. Ngày 27/8 \
+                    một khối chú thích về `docker compose run` làm runner chạy thật `docker \
+                    compose run`, `up -d --force-recreate` và `-T`, in ra ba dòng `command not \
+                    found` giữa lượt deploy (§10.66).
+
+                    Cần biến của runner (`$APP_IMAGE`, `$COMPOSE`) nên KHÔNG nháy được dấu kết \
+                    thúc heredoc. Vậy thì thoát thủ công: `\\`` và `\\$(`."""
+                            .formatted(viPham.size(), String.join("\n      ", viPham)));
+        }
+    }
+
+    @Test
+    @DisplayName("⭐⭐ Bộ dò ấy BẮT ĐƯỢC vi phạm — chứng minh cái xanh ở trên có nghĩa")
+    void boDoThayTheLenhBatDuocViPham() {
+        String gia =
+                """
+                      - name: Giả
+                        run: |
+                          .github/scripts/chay-tu-xa.sh "gia" <<REMOTE
+                            # ⚠ `docker compose run` nuốt stdin
+                            echo "\\$(date)"
+                            ket=$(hostname)
+                          REMOTE
+                """;
+        assertThat(timThayTheLenh(gia))
+                .as("Bộ dò phải bắt CẢ dấu huyền trong chú thích LẪN `$(` chưa thoát")
+                .hasSize(2);
+
+        String sach = gia.replace("`docker compose run`", "\\`docker compose run\\`")
+                .replace("ket=$(hostname)", "ket=\\$(hostname)");
+        assertThat(timThayTheLenh(sach))
+                .as("Bản đã thoát phải sạch — nếu không thì bộ dò đang bắt bừa")
+                .isEmpty();
+    }
+
+    /**
+     * Trả về mọi dòng nằm trong một heredoc KHÔNG NHÁY còn dấu huyền hoặc {@code $(} chưa thoát.
+     *
+     * <p>⚠ Cố ý KHÔNG dùng {@link #boChuThich}: dòng {@code #} bên trong heredoc chính là chỗ đã
+     * phát nổ ngày 27/8. Với shell nó là chú thích, nhưng runner khai triển dấu huyền TRƯỚC khi
+     * shell nào nhìn thấy dòng ấy.
+     */
+    private static List<String> timThayTheLenh(String yaml) {
+        Pattern mo = Pattern.compile("<<([A-Z]+)\\s*$");
+        Pattern xau = Pattern.compile("(?<!\\\\)`|(?<!\\\\)\\$\\(");
+
+        List<String> viPham = new ArrayList<>();
+        String dauKetThuc = null;
+        int soKhoi = 0;
+        String[] dong = yaml.split("\n", -1);
+        for (int i = 0; i < dong.length; i++) {
+            if (dauKetThuc == null) {
+                Matcher m = mo.matcher(dong[i]);
+                if (m.find()) {
+                    dauKetThuc = m.group(1);
+                    soKhoi++;
+                }
+                continue;
+            }
+            if (dong[i].strip().equals(dauKetThuc)) {
+                dauKetThuc = null;
+                continue;
+            }
+            if (xau.matcher(dong[i]).find()) {
+                viPham.add("dòng %d: %s".formatted(i + 1, dong[i].strip()));
+            }
+        }
+        // Chặn xanh-trên-tập-rỗng: regex mở heredoc lỗi thời thì không quét được gì.
+        assertThat(soKhoi)
+                .as("Không thấy heredoc KHÔNG NHÁY nào — regex đã lỗi thời, SỬA bài kiểm chứ đừng xoá")
+                .isGreaterThanOrEqualTo(1);
+        return viPham;
     }
 
     // =========================================================================

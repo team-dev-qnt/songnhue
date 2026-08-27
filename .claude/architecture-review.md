@@ -4366,3 +4366,120 @@ script thật sự chạy.
 **Chú thích trong tệp migration không phải là chú thích — nó là dữ liệu đã ký.** Muốn giải thích một
 migration thì giải thích ở nơi khác. Và một lần nữa: *cây kiểm xanh không nói gì về trạng thái đã
 tích luỹ ở môi trường thật.*
+
+### §10.66 — Migration mới đánh số bằng GIỜ-PHÚT nên rơi xuống dưới bản đã áp (27/8)
+
+CD Staging đỏ ở bước "Triển khai" — **lần thứ hai trong hai ngày, cùng một bước, khác nguyên nhân**.
+`migrator` chết lúc dựng `flywayInitializer`:
+
+```
+Validate failed: Migrations have failed validation
+Detected resolved migration not applied to database: 202608272320.
+Detected resolved migration not applied to database: 202608272321.
+```
+
+Quy ước đánh số của dự án là `V<YYYYMMDD><số thứ tự 4 chữ số>` — chuỗi `1023, 1024, … 1038` chạy
+xuyên suốt 43 tệp. Hai tệp thêm ở PR #53 dùng **giờ-phút**: `202608272320` = 23:20 ngày 27. Nhìn thì
+giống, sắp thì không:
+
+```
+202608271035  ops_construction_public_documents     ← đã áp
+202608272320  seed_portal_media_cong_ty             ← MỚI, rơi vào ĐÂY
+202608272321  cms_home_video_value                  ← MỚI
+202608281036  cms_menu_position_lien_ket            ← đã áp (PR #52)
+202608281037  cms_drop_unread_site_settings         ← đã áp
+202608281038  cms_home_video_settings               ← đã áp
+```
+
+Ngày 28 lớn hơn ngày 27, nên ba mã `…28xxxx` — vốn ra đời **trước** — lại đứng **sau**. Staging đã
+áp tới `…281038`; hai mã mới nằm dưới nó ⇒ out-of-order ⇒ Flyway từ chối chạy. Đúng như thiết kế:
+áp chèn vào giữa lịch sử là cách làm hai CSDL cùng lược đồ mà khác nội dung.
+
+#### Hỏng thứ hai, im lặng hơn — và cùng một nguyên nhân
+
+Cũng vì số hiệu sai thứ tự, seed `…2320` `UPDATE` khoá `site.home.photos-folder`, trong khi hàng ấy
+do migration `…2321` mới `INSERT` ra. Trên một CSDL trắng, seed chạy **trước**, `UPDATE` chạm **đúng
+0 hàng** — không lỗi, không cảnh báo, không dòng log nào. Khối ảnh trang chủ sẽ rỗng vĩnh viễn và
+mọi bài kiểm vẫn xanh.
+
+Nếu Flyway *không* chặn lượt deploy, thứ lên staging sẽ là một trang chủ thiếu ảnh mà không ai biết
+tại sao. **Lượt đỏ này đã che cho một lỗi câm** — hình dạng luật 27 (nửa cặp đọc–ghi), lần thứ hai
+trong ba ngày.
+
+#### ⚠⚠ Vì sao 688 bài kiểm về nguyên tắc không thấy
+
+Mọi bài kiểm chạy migration từ CSDL **rỗng**. Trên CSDL rỗng **không tồn tại khái niệm
+out-of-order**: Flyway sắp mọi tệp theo version và áp tuần tự từ đầu, xanh trọn vẹn. Không có
+`flyway_schema_history` cũ thì không có gì để "ngoài thứ tự" so với.
+
+Cùng lớp mù với §10.65 (checksum) — và đó là **lần thứ hai liên tiếp** lớp mù ấy làm đỏ CD. Cả hai
+đều là *trạng thái đã tích luỹ ở môi trường thật, không suy ra được từ trong kho*.
+
+#### Hỏng thứ ba, do chính bản vá §10.60 đưa vào — dấu huyền trong heredoc không nháy
+
+Giữa lượt deploy, log in ba dòng lạ **trước** khi khối được gửi đi:
+
+```
+requires at least 1 arg(s), only received 0
+…/952e020a….sh: line 6: up: command not found
+…/952e020a….sh: line 6: -T: command not found
+…/952e020a….sh: line 6: chay-tu-xa.sh: command not found
+```
+
+Khối `trien-khai` mở bằng `<<REMOTE` **không nháy** — bắt buộc, vì nó cần `$APP_IMAGE`, `$COMPOSE`
+của runner. Trong heredoc không nháy, dấu huyền là **thay thế lệnh**, kể cả nằm trong một dòng `#`:
+với `bash` đó là chú thích, nhưng runner khai triển dòng ấy **trước khi** shell nào nhìn thấy nó.
+
+Khối chú thích §10.60 viết hôm 27/8 có 5 cặp dấu huyền chưa thoát, nên runner chạy thật
+`docker compose run`, `up -d --force-recreate`, `-T`, `chay-tu-xa.sh` và `</dev/null`. Vô hại lần
+này (tất cả đều lỗi rồi thôi), nhưng đó là **may**: một dòng chú thích nhắc tới `rm -rf` hay
+`docker compose down` sẽ chạy thật, trên runner, giữa lượt triển khai.
+
+📌 Một chú thích **cảnh báo về lệnh nuốt stdin** lại tự nó chạy lệnh ấy. Cùng họ với §10.65: *thứ
+trông như chú thích nhưng không phải chú thích.*
+
+#### Đường ống lại hành xử đúng — lần thứ hai, và vẫn chưa đủ để tick DOD0.21
+
+`migrator` chạy `run --rm` **trước** `up -d --force-recreate`, nên lượt hỏng dừng trước khi chạm
+container nào; `Quay lui bản cũ` chạy và thành công (`→ [quay-lui] 511 byte, khớp hai đầu`), dịch vụ
+trả lời sau 10 giây. Và vì `validate` chặn **trước** khi áp, **không migration nào được ghi vào
+`flyway_schema_history`** — nên đổi tên hai tệp là an toàn ở staging/production.
+
+⚠ Vẫn **không tick DOD0.21**, cùng lý do §10.65: không có gì bị thay thì không có gì để dựng lại.
+
+#### Đã vá
+
+1. Đổi tên theo đúng quy ước, và xếp cho **đúng chiều phụ thuộc**:
+   `V202608281039__cms_home_video_value.sql` (tạo khoá) chạy **trước**
+   `V202608281040__seed_portal_media_cong_ty.sql` (ghi giá trị). Ràng buộc ấy ghi vào chính đầu tệp
+   1040, kèm lý do — không để người sau đọc số mà đoán.
+2. `backend/tools/kiem-thu-tu-migration.sh` — so số hiệu migration **mới** với đỉnh của **nhánh
+   nền**. Chạy ở `make ci-local` bước 2/10 và ở job CI mới `Thứ tự migration` (cần
+   `fetch-depth: 0`). Kiểm chứng ngược **trên chính commit `3a39b79` đã làm đỏ CD**: đỏ, exit 1, gọi
+   đích danh cả hai mã; cây đã sửa: xanh.
+3. Thoát 5 cặp dấu huyền trong heredoc `trien-khai`, kèm 2 bài trong `DeployRemoteStdinTest`
+   (8 bài): một bài soi tệp thật, một bài **chứng minh bộ dò bắt được vi phạm** — cố ý *không* dùng
+   `boChuThich`, vì chính dòng `#` là chỗ đã nổ. Kiểm chứng ngược bằng cách nạp lại nội dung cũ:
+   đỏ, đúng 5 dòng, đúng số hiệu dòng.
+4. Sinh lại `db-migration-checksums.txt` → 43 vân tay.
+5. Cổng gộp `Cổng kiểm CI` nâng ngưỡng `so_job` 8 → 9.
+
+#### Giới hạn, ghi ra thay vì để người đọc tự suy (luật 28)
+
+- Bộ canh lấy **`dev`** làm nền, không phải staging/production. Nếu có môi trường nào chạy trước
+  `dev` thì phép so hụt — hiện không có.
+- Nó **không** bắt việc xoá/đổi tên một migration đã phát hành; đó là vế `biXoa` của
+  `MigrationImmutabilityTest`. Lượt `git mv` này đã bị đúng bài ấy chặn — đo lại bằng cách nạp
+  manifest bản trước khi đổi tên (43 vân tay, 2 dòng mang số hiệu cũ): bài **đỏ**, nêu đích danh cả hai tệp
+  kèm câu `applied migration not resolved locally`. Cơ chế hoạt động đúng.
+- Nó chỉ biết **thứ tự**, không biết migration mới có đúng nghiệp vụ không.
+
+#### Bài học
+
+**Một quy ước đặt tên mà chỉ con người nhớ thì sớm muộn có người nhớ nhầm** — luật 14, ở dạng tên
+tệp. Số hiệu migration trông như dấu thời gian nên rất dễ *viết như* dấu thời gian, và hai cách viết
+chỉ khác nhau ở đúng chỗ không ai nhìn: thứ tự sắp xếp.
+
+Và lần thứ hai trong hai ngày: **thứ quyết định lượt deploy sống hay chết nằm ở trạng thái CSDL đã
+tích luỹ, không nằm trong kho** — nên bảo đảm cũng không thể chỉ là một bài kiểm chạy trên CSDL
+rỗng.

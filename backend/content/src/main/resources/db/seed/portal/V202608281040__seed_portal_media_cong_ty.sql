@@ -27,6 +27,16 @@
 --
 --  ⛔ `storage_key` phải khớp TỪNG KÝ TỰ với khoá `mc cp` tạo ra từ `deploy/seed/media/`. Lệch một
 --     chỗ thì `/api/v1/public/files/<id>` trả 404 trong khi CSDL vẫn nói tệp tồn tại — hỏng câm.
+--
+--  ⛔⛔ SỐ HIỆU TỆP NÀY PHẢI LỚN HƠN `V202608281039` — ĐÓ LÀ MỘT RÀNG BUỘC, KHÔNG PHẢI SỞ THÍCH
+--
+--     Mục [4] bên dưới `UPDATE` khoá `site.home.photos-folder`, mà hàng ấy do `V202608281039`
+--     `INSERT` ra. Chạy trước nó thì `UPDATE` chạm ĐÚNG 0 HÀNG: không lỗi, không cảnh báo, khối
+--     ảnh trang chủ rỗng vĩnh viễn. Bản đầu của tệp này đánh số `202608272320` (giờ-phút thay vì
+--     số thứ tự) nên nằm TRƯỚC `…2321` — hỏng đúng kiểu đó, và còn nằm dưới cả `…281038` đã áp
+--     lên staging nên Flyway `validate` chặn luôn lượt deploy (§10.66).
+--
+--     Bộ canh: `backend/tools/kiem-thu-tu-migration.sh` (chạy trong `make ci-local` + CI).
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
 
 -- [1] Thư mục ảnh của thư viện
