@@ -16,12 +16,22 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# `server` kéo theo fastmcp/google-api; khi thiếu chúng thì vẫn phải kiểm được phần thuần logic.
-try:
-    from server import TASK_LINE, TRACKING_FILE, find_duplicate_task_ids, parse_markdown_to_data
-except ImportError as error:  # pragma: no cover - chỉ chạy khi venv chưa dựng
-    print(f"BỎ QUA: chưa cài phụ thuộc của server.py ({error})")
-    sys.exit(0)
+# ⭐ Import từ `tracking_parser`, KHÔNG từ `server` (27/8).
+#
+#   Bản trước import `server`, mà `server` kéo theo fastmcp + google-api. Máy chưa dựng venv thì
+#   import hỏng, và bản trước bắt ImportError rồi `sys.exit(0)` — tức bộ kiểm XANH mà không kiểm
+#   gì. Cộng thêm việc nó không nằm trong `ci.yml` lẫn `Makefile`, thành ra 9 phép kiểm canh nguồn
+#   sự thật duy nhất về task và nợ của dự án chưa cổng nào chạy, và nếu chạy cũng xanh giả.
+#
+#   `tracking_parser` chỉ dùng thư viện chuẩn nên KHÔNG có nhánh bỏ qua nào ở đây nữa: import hỏng
+#   thì bộ kiểm ĐỎ, đúng như nó phải thế.
+from tracking_parser import (
+    STATUS_BY_MARK,
+    TASK_LINE,
+    TRACKING_FILE,
+    find_duplicate_task_ids,
+    parse_markdown_to_data,
+)
 
 
 def _repo_root():
@@ -33,7 +43,8 @@ def _repo_root():
     raise AssertionError("Không tìm thấy gốc repo (thư mục chứa .claude)")
 
 
-TASKS = parse_markdown_to_data(os.path.join(_repo_root(), TRACKING_FILE))
+TRACKING_FILE_ABS = os.path.join(_repo_root(), TRACKING_FILE)
+TASKS = parse_markdown_to_data(TRACKING_FILE_ABS)
 
 # Dòng sổ nợ liên WS — không phải công việc nên không mang mã số. Xem conventions.md §6.
 NOTE_PREFIXES = ("Nhận nợ", "Trả nợ", "Kèm theo")
@@ -107,6 +118,53 @@ def test_khong_co_ma_so_trung():
     assert not trung, f"{len(trung)} mã số trùng: {trung[:20]}"
 
 
+def test_dau_tich_thang_chu_trong_ghi_chu():
+    """⭐⭐ Trạng thái parser trả về phải bằng ĐÚNG dấu tích, không bị chữ trong ghi chú ghi đè.
+
+    Đo trên chính file tracking ngày 27/8: bản trước quét ``✅`` trên TOÀN dòng — kể cả cột Note —
+    nên một dấu ``✅`` đánh dấu một ý phụ đã xong biến cả task thành ``Done``. Hai dòng bị báo sai,
+    và cả hai đều là việc còn mở quan trọng nhất:
+
+    * ``T11.45`` ``[ ]`` siết SSH (đang làm đỏ lượt deploy) → Sheet hiện **Done**
+    * ``T11.7``  ``[~]`` secret production                  → Sheet hiện **Done**
+
+    Công ty đọc Google Sheet, không đọc file markdown. Một task chưa làm hiện là đã làm thì không ai
+    hỏi tới nó nữa — đúng hình dạng "đã tick không phải bằng chứng" của dự án, lần này ở tầng báo cáo.
+
+    ⚠ Bài này phải so với ĐẦU RA CỦA PARSER (``TASKS``), không được tự suy lại trạng thái từ dấu tích
+    rồi so với chính dấu tích ấy. Bản đầu của bài đã mắc đúng lỗi đó và **vẫn xanh sau khi gỡ bản
+    vá** — một khẳng định không phân biệt được hai trạng thái thì không khẳng định gì.
+    """
+    dau_tich = _dau_tich_theo_thu_tu()
+    assert len(dau_tich) == len(TASKS), (
+        f"{len(dau_tich)} dòng task trong file nhưng parser trả {len(TASKS)} dòng — "
+        "phép ghép theo thứ tự không còn đúng, SỬA bài kiểm chứ đừng nới lỏng nó"
+    )
+
+    lech = []
+    for mark, row in zip(dau_tich, TASKS):
+        mong_doi = STATUS_BY_MARK.get(mark)
+        if mong_doi and row[3] != mong_doi:
+            lech.append(f"{row[1] or row[2][:40]}: dấu [{mark}] = {mong_doi} nhưng parser trả '{row[3]}'")
+    assert not lech, f"{len(lech)} dòng có trạng thái khác dấu tích: {lech[:5]}"
+
+
+def _dau_tich_theo_thu_tu():
+    """Dấu trong ``- [x]`` của từng dòng task, ĐÚNG thứ tự parser duyệt file.
+
+    Parser nối thêm một dòng cho mỗi ``TASK_LINE`` khớp, theo thứ tự đọc file — nên ghép theo chỉ số
+    là ghép 1:1. Bài trên khẳng định độ dài khớp trước khi ghép, để phép ghép hỏng thì ĐỎ chứ không
+    âm thầm so lệch hàng.
+    """
+    marks = []
+    with open(TRACKING_FILE_ABS, encoding="utf-8") as handle:
+        for raw in handle:
+            match = TASK_LINE.match(raw.strip())
+            if match:
+                marks.append(match.group(1))
+    return marks
+
+
 def test_trang_thai_nam_trong_tap_da_biet():
     hop_le = {"Done", "In Progress", "Pending", "Cancelled", "Paused"}
     la = sorted({row[3] for row in TASKS} - hop_le)
@@ -127,9 +185,20 @@ def test_task_da_tick_khong_bi_ghi_chu_ha_trang_thai():
     nào báo sai; markdown đọc đúng, Sheet đọc sai, và hai bên chỉ lệch nhau ở một ký tự trong ghi
     chú.
 
-    Đây đúng họ với **T11.47** — *bản ghi tiến độ nói một đằng, thứ nó mô tả nằm một nẻo*. Cách
-    chữa ở phía nội dung (đừng gắn ký hiệu trạng thái vào ghi chú của task đã xong) chứ không ở
-    phía bộ đọc: nới lỏng ``_status_from_text`` sẽ làm hỏng những dòng bảng vốn dựa vào nó.
+    Đây đúng họ với **T11.47** — *bản ghi tiến độ nói một đằng, thứ nó mô tả nằm một nẻo*.
+
+    ⭐ **Cập nhật 27/8 (T11.47): đã chữa ở phía BỘ ĐỌC, và không phải bằng cách nới lỏng.**
+    Bản ghi trên đề nghị chữa ở phía nội dung vì sợ nới ``_status_from_text`` sẽ làm hỏng những
+    dòng bảng vốn dựa vào nó. Nỗi lo ấy đúng — nên bản vá **không đụng** hàm đó: dòng bảng vẫn gọi
+    ``_status_from_text(status_col, status_col)`` y nguyên. Chỉ dòng **có ô tick** thôi dùng nó, vì
+    ở đó dấu tích là thứ người viết CỐ Ý đặt còn chữ trong ghi chú thì không.
+
+    Nhờ vậy cả hai chiều đều hết: ``⬜`` trong ghi chú không hạ một task ``[x]`` xuống *Pending*
+    (lỗi bài này), và ``✅`` trong ghi chú không nâng một task ``[ ]`` lên *Done* (T11.47 — hai
+    dòng bị sai khi đó là **T11.45** và **T11.7**, đúng hai việc còn mở quan trọng nhất).
+
+    ⚠ Bài này GIỮ LẠI làm phép canh hồi quy: nay nó đúng *do cấu tạo* chứ không do quy ước viết
+    ghi chú, và nếu ai đó hoàn tác bản vá thì nó đỏ trở lại.
     """
     goc = _repo_root()
     duong = os.path.join(goc, TRACKING_FILE)

@@ -100,6 +100,9 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 | 27/8 | trang **Tiến độ sản xuất** liệt kê hai danh mục của mục đã ẩn làm các **Năm** — 906 bài kiểm hai phía đều xanh, chỉ lộ ra khi mở trang trên stack đang chạy | §10.61 |
 | 28/8 | **6 cột/khoá/tham số thiếu nửa cặp đọc–ghi** — 4 do đợt hôm trước tạo ra; thanh điều hướng tràn khung 22% ở *mọi* bề rộng mà `flex-wrap` che đi | §10.62 |
 | 28/8 | **hai lượt kiểm chứng ngược của chính tôi đều sai** — một cái mù trước SQL đã chú thích, một cái *chép lại* hành vi sai thay vì bắt nó | §10.62 |
+| 27/8 | CD Staging **success trọn vẹn mà không container nào được thay** — một lệnh nuốt mất nửa cuối script | §10.60 |
+| 27/8 | **bảy context bắt buộc khoá chết mọi PR chỉ sửa tài liệu** — job matrix bỏ qua báo một cái tên khác | §10.63 |
+| 27/8 | **9 phép kiểm canh nguồn sự thật, không cổng nào chạy** — và có sẵn nhánh `sys.exit(0)` chờ | §10.64 |
 
 ⛔ Hệ quả rút ra: **"đã tick" không phải bằng chứng.** Trước khi mở một giai đoạn mới, đối chiếu với mã thật và chạy đường mà người dùng thật đi.
 
@@ -107,14 +110,14 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 
 ⛔ **Cấm seed dữ liệu công trình/thuỷ văn "cho đẹp demo"** — ô nào chưa có nguồn thì nói thẳng là chưa có.
 
-**Codebase đo ngày 28/8 (sau WS-25)**: **676 test BE** (249 core + 20 content + 33 operations + 374 app) + **249 test FE** (142 admin + 107 public) · **74 mã lỗi** (BE = FE) · 88 quyền / 12 vai trò / 334 dòng phân quyền · **32 bài ArchUnit** (7 lớp, gồm 11 bài tự-kiểm chứng minh luật bắt được vi phạm) · **8 phép kiểm bộ đọc tracking** · mọi cổng bao phủ **chạy thật** (content 18.2%) · 0 CVE ≥ 7 · **0 mã màu ghi cứng trong `public-web`** (admin-app còn 25 — nợ T25.23).
+**Codebase đo ngày 28/8 (sau WS-25)**: **680 test BE** (249 core + 20 content + 33 operations + 378 app) + **249 test FE** (142 admin + 107 public) · **74 mã lỗi** (BE = FE) · 88 quyền / 12 vai trò / 334 dòng phân quyền · **32 bài ArchUnit** (7 lớp, gồm 11 bài tự-kiểm chứng minh luật bắt được vi phạm) · **9 phép kiểm bộ đọc tracking** (nay CÓ trong `ci.yml` + `make ci-local` bước 1/9) · mọi cổng bao phủ **chạy thật** (content 18.2%) · 0 CVE ≥ 7 · **0 mã màu ghi cứng trong `public-web`** (admin-app còn 25 — nợ T25.23).
 
 ### Tra ở đâu
 
 | Cần gì | Đọc ở đâu |
 |---|---|
 | Nợ đang treo, task còn lại | **`.claude/master-tracking.md`** — nguồn DUY NHẤT (conventions.md §6). `phase0-tracking.md` / `phase1-tracking.md` chỉ là lưu trữ, cấm sửa |
-| **Lý do** một quyết định, **nguyên nhân gốc** một lỗi đã sửa | `architecture-review.md` **§9** (Phase 0, 14 mục) · **§10** (Phase 1, 49 mục — §10.35 đợt vá sau WS-22, §10.36 nghiệm thu lại WS-21 + DoD, §10.37 nghiệm thu image, §10.38 CI đỏ sau merge `dev`, §10.40 lỗi 204, §10.41 biến CSDL không ai đọc, §10.52 envelope bọc `byte[]`, §10.53 container không được thay, §10.54 trang chủ nướng rỗng + dữ liệu bịa che chỗ rỗng, §10.55 `minio-init` đo thay vì khai báo + bộ seed một công tắc, §10.56 collation vắng ở `compose.prod.yml` — tham số chỉ chạy một lần, §10.57 cổng secret bỏ qua trong im lặng + 4 khoản bấm ở GitHub, §10.58 bản dump khôi phục ra CSDL không đọc nổi, §10.59 cổng 22 bị quét làm đỏ deploy, §10.60 một lệnh nuốt stdin làm nửa cuối khối triển khai không chạy mà CD vẫn xanh, §10.61 đợt chỉnh sửa cổng theo nghiệm thu Công ty — cổng công khai chưa từng có CSP, đổi menu làm ba trang tĩnh mất lối vào, hai bộ canh cũ canh hình dạng thay vì canh bất biến, **§10.62 sáu cột/khoá thiếu nửa cặp đọc–ghi + hai lượt kiểm chứng ngược tự sai + tài liệu và mã nói hai màu khác nhau suốt 13 ngày**) |
+| **Lý do** một quyết định, **nguyên nhân gốc** một lỗi đã sửa | `architecture-review.md` **§9** (Phase 0, 14 mục) · **§10** (Phase 1, 49 mục — §10.35 đợt vá sau WS-22, §10.36 nghiệm thu lại WS-21 + DoD, §10.37 nghiệm thu image, §10.38 CI đỏ sau merge `dev`, §10.40 lỗi 204, §10.41 biến CSDL không ai đọc, §10.52 envelope bọc `byte[]`, §10.53 container không được thay, §10.54 trang chủ nướng rỗng + dữ liệu bịa che chỗ rỗng, §10.55 `minio-init` đo thay vì khai báo + bộ seed một công tắc, §10.56 collation vắng ở `compose.prod.yml` — tham số chỉ chạy một lần, §10.57 cổng secret bỏ qua trong im lặng + 4 khoản bấm ở GitHub, §10.58 bản dump khôi phục ra CSDL không đọc nổi, §10.59 cổng 22 bị quét làm đỏ deploy, §10.60 một lệnh nuốt stdin làm nửa cuối khối triển khai không chạy mà CD vẫn xanh, §10.61 đợt chỉnh sửa cổng theo nghiệm thu Công ty — cổng công khai chưa từng có CSP, đổi menu làm ba trang tĩnh mất lối vào, hai bộ canh cũ canh hình dạng thay vì canh bất biến, §10.62 sáu cột/khoá thiếu nửa cặp đọc–ghi + hai lượt kiểm chứng ngược tự sai, **§10.63 bảy context bắt buộc khoá chết mọi PR chỉ sửa tài liệu, §10.64 chín phép kiểm canh nguồn sự thật mà không cổng nào chạy**) |
 | Cách viết một chức năng + bảng bẫy tra nhanh | `docs/coding-guide.md` |
 | Luật bắt buộc khi viết code | `conventions.md` |
 | Nghiệp vụ | `function-spec.md`; điểm chưa chốt → `business-open-questions.md` Phần III |

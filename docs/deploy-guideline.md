@@ -151,6 +151,37 @@ bước mở ba kết nối SSH liên tiếp — với `kex_exchange_identificat
 đề **sẵn sàng phục vụ**, không phải xâm nhập. Nhưng nó vẫn là một cửa mở cho người lạ tiêu tài nguyên
 của máy.
 
+#### ⭐ Đo lại 27/8 lúc 10:05 — sshd tự khai, không cần suy ra nữa
+
+Lượt đo đầu chỉ **suy ra** `MaxStartups` từ con số 30%. Lượt sau đọc thẳng nhật ký sshd:
+
+```
+sshd[748]: exited MaxStartups throttling after 00:00:25, 13 connections dropped
+sshd[1081153]: Disconnecting authenticating user root 79.108.163.24 port 39048: Too many
+               authentication failures [preauth]          ← và ~18 dòng nữa cùng giây
+```
+
+**sshd nói tên cơ chế và đếm số kết nối nó đã thả.** Không còn chỗ cho giả thuyết khác.
+
+Và đã loại được giả thuyết *"chính vòng lặp đo gây ra"*:
+
+| kiểm | kết quả | nghĩa là |
+|---|---|---|
+| `ufw status` | `ufw: command not found` | không có ufw |
+| `iptables -S \| grep 'dport 22\|recent\|limit'` | **không dòng nào** | không luật giới hạn tốc độ |
+| `nft list ruleset \| grep …` | **không dòng nào** | cũng không ở nftables |
+
+Nên 6/10 là do sshd thả thật, không phải do máy tự giới hạn người đo.
+
+⛔ **`ss -K dst <IP>` chỉ cắt phiên ĐANG mở, không chặn lượt sau.** Sau lượt cắt hôm 26/8, sshd rơi từ
+67 xuống 7 tiến trình — rồi **cùng IP ấy quay lại** vào 10:05 hôm sau. Cắt là dọn hiện trường; hai
+bước dưới mới là khoá cửa.
+
+⚠ Trạng thái đo được 27/8 sau lượt cắt: gói `fail2ban` **không có trong `dpkg`** · **không** tệp
+drop-in nào trong `/etc/ssh/sshd_config.d/` · `MaxStartups`/`ClientAliveInterval` vẫn là dòng `#` mặc
+định trong `sshd_config` · `systemctl show ssh` cho `NRestarts=0`, chạy liên tục từ 26/8 00:26. Tức
+là **hai bước dưới chưa có hiệu lực** — nếu tưởng đã làm rồi thì đo lại bằng đúng bốn lệnh ấy.
+
 #### Làm gì
 
 ```bash
