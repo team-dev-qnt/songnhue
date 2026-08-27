@@ -39,8 +39,8 @@ export function AffiliatedUnitsLinks({ subsidiaries, portalLinks }: AffiliatedUn
       <div className="flex items-center justify-between border-b-2 border-brand-primary pb-2.5">
         <div className="flex items-center gap-2">
           <span className="h-5 w-1.5 rounded-full bg-brand-primary"></span>
-          <h2 className="text-base font-bold uppercase tracking-tight text-surface-textBase sm:text-lg">
-            Đơn vị Trực thuộc &amp; Mạng lưới Liên kết
+          <h2 className="text-base font-bold tracking-tight text-surface-textBase sm:text-lg">
+            Đơn vị trực thuộc &amp; mạng lưới liên kết
           </h2>
         </div>
         {subsidiaries.length > 0 ? (
@@ -94,7 +94,7 @@ export function AffiliatedUnitsLinks({ subsidiaries, portalLinks }: AffiliatedUn
           chỉ mà không ai còn kiểm chứng (cùng cái bẫy đã gỡ khỏi `SiteHeader`, §10.54). */}
       {portalLinks.length > 0 ? (
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3 rounded-xl border border-surface-border bg-surface-bgLayout p-4 text-xs sm:justify-between">
-          <span className="font-bold text-surface-textBase">Liên kết Cổng TTĐT:</span>
+          <span className="font-bold text-surface-textBase">Liên kết cổng TTĐT:</span>
           <div className="flex flex-wrap items-center gap-3 sm:gap-4">
             {portalLinks.map((muc) => {
               const href = menuHref(muc);

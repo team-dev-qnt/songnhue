@@ -48,7 +48,7 @@ export default async function SearchPage({
           <div className="rounded-xl border border-surface-border bg-white p-5 shadow-xs sm:p-6 mb-6">
             <div className="flex items-center gap-2.5 border-b border-surface-border pb-3">
               <span className="h-6 w-1.5 rounded-full bg-brand-primary"></span>
-              <h1 className="text-xl font-bold uppercase tracking-tight text-surface-textBase sm:text-2xl">
+              <h1 className="text-xl font-bold tracking-tight text-surface-textBase sm:text-2xl">
                 {tuKhoa ? `Kết quả tìm kiếm cho "${tuKhoa}"` : 'Tìm kiếm bài viết & tin tức'}
               </h1>
             </div>
@@ -80,7 +80,7 @@ export default async function SearchPage({
               </div>
               <button
                 type="submit"
-                className="flex items-center gap-1.5 rounded-lg bg-brand-primary px-5 py-2.5 text-xs sm:text-sm font-bold uppercase tracking-wider text-white shadow-xs transition-colors hover:bg-brand-primaryHover"
+                className="flex items-center gap-1.5 rounded-lg bg-brand-primary px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-xs transition-colors hover:bg-brand-primaryHover"
               >
                 <span>Tìm</span>
               </button>

@@ -55,8 +55,8 @@ export function CategoryServicesGrid({ menuTree }: CategoryServicesGridProps) {
       <div className="flex items-center justify-between border-b-2 border-brand-primary pb-2.5">
         <div className="flex items-center gap-2">
           <span className="h-5 w-1.5 rounded-full bg-brand-primary"></span>
-          <h2 className="text-base font-bold uppercase tracking-tight text-surface-textBase sm:text-lg">
-            Chuyên mục &amp; Lĩnh vực Hoạt động
+          <h2 className="text-base font-bold tracking-tight text-surface-textBase sm:text-lg">
+            Chuyên mục &amp; lĩnh vực hoạt động
           </h2>
         </div>
       </div>

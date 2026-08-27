@@ -75,7 +75,7 @@ export default async function LienHePage() {
     <PageShell title="Liên hệ" description={tenCongTy} breadcrumb={[{ label: 'Liên hệ' }]}>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <section className="rounded-xl border border-surface-border bg-white p-5 shadow-xs">
-          <h2 className="border-b border-surface-border pb-3 text-sm font-bold uppercase tracking-tight text-brand-primary">
+          <h2 className="border-b border-surface-border pb-3 text-sm font-bold tracking-tight text-brand-primary">
             Thông tin liên hệ
           </h2>
           {dong.length === 0 ? (
@@ -118,7 +118,7 @@ export default async function LienHePage() {
         </section>
 
         <section className="rounded-xl border border-surface-border bg-white p-5 shadow-xs">
-          <h2 className="border-b border-surface-border pb-3 text-sm font-bold uppercase tracking-tight text-brand-primary">
+          <h2 className="border-b border-surface-border pb-3 text-sm font-bold tracking-tight text-brand-primary">
             Bản đồ trụ sở
           </h2>
           <div className="mt-4">
@@ -155,7 +155,7 @@ export default async function LienHePage() {
 
       {/* ───── Form liên hệ — chưa dựng, nói thẳng thay vì dựng một form không ai nhận ───── */}
       <section className="mt-6 rounded-xl border border-surface-border bg-white p-5 shadow-xs">
-        <h2 className="border-b border-surface-border pb-3 text-sm font-bold uppercase tracking-tight text-brand-primary">
+        <h2 className="border-b border-surface-border pb-3 text-sm font-bold tracking-tight text-brand-primary">
           Gửi phản ánh, kiến nghị
         </h2>
         <div className="mt-4">

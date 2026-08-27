@@ -111,7 +111,7 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 
 ⛔ **Cấm seed dữ liệu công trình/thuỷ văn "cho đẹp demo"** — ô nào chưa có nguồn thì nói thẳng là chưa có.
 
-**Codebase đo ngày 28/8 (sau WS-25)**: **680 test BE** (249 core + 20 content + 33 operations + 378 app) + **249 test FE** (142 admin + 107 public) · **74 mã lỗi** (BE = FE) · 88 quyền / 12 vai trò / 334 dòng phân quyền · **32 bài ArchUnit** (7 lớp, gồm 11 bài tự-kiểm chứng minh luật bắt được vi phạm) · **9 phép kiểm bộ đọc tracking** (nay CÓ trong `ci.yml` + `make ci-local` bước 1/9) · mọi cổng bao phủ **chạy thật** (content 18.2%) · 0 CVE ≥ 7 · **0 mã màu ghi cứng trong `public-web`** (admin-app còn 25 — nợ T25.23).
+**Codebase đo ngày 28/8 (sau WS-25)**: **680 test BE** (249 core + 20 content + 33 operations + 378 app) + **252 test FE** (142 admin + 110 public) · **74 mã lỗi** (BE = FE) · 88 quyền / 12 vai trò / 334 dòng phân quyền · **32 bài ArchUnit** (7 lớp, gồm 11 bài tự-kiểm chứng minh luật bắt được vi phạm) · **9 phép kiểm bộ đọc tracking** (nay CÓ trong `ci.yml` + `make ci-local` bước 1/9) · mọi cổng bao phủ **chạy thật** (content 18.2%) · 0 CVE ≥ 7 · **0 mã màu ghi cứng** và **0 chỗ ép ALL CAPS** trong `public-web` (admin-app còn 25 mã màu — nợ T25.23; chữ hoa ở admin-app chưa rà).
 
 ### Tra ở đâu
 

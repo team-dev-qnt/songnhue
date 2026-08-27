@@ -29,7 +29,7 @@ export function PageShell({ title, description, breadcrumb, children }: PageShel
       <header className="mb-6 border-b-2 border-brand-primary pb-3">
         <div className="flex items-center gap-2.5">
           <span className="h-6 w-1.5 rounded-full bg-brand-primary" />
-          <h1 className="text-lg font-bold uppercase tracking-tight text-surface-textBase sm:text-xl">
+          <h1 className="text-lg font-bold tracking-tight text-surface-textBase sm:text-xl">
             {title}
           </h1>
         </div>

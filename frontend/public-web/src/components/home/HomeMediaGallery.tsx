@@ -38,8 +38,8 @@ export function HomeMediaGallery({ videoId, videoTitle, photos = [] }: HomeMedia
       <div className="flex items-center justify-between border-b-2 border-brand-primary pb-2.5">
         <div className="flex items-center gap-2">
           <span className="h-5 w-1.5 rounded-full bg-brand-primary"></span>
-          <h2 className="text-base font-bold uppercase tracking-tight text-surface-textBase sm:text-lg">
-            Truyền thông & Hình ảnh Hoạt động
+          <h2 className="text-base font-bold tracking-tight text-surface-textBase sm:text-lg">
+            Truyền thông &amp; hình ảnh hoạt động
           </h2>
         </div>
       </div>
