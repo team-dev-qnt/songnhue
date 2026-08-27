@@ -24,11 +24,14 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.songnhue.app.testsupport.CmsFixtures;
 import com.songnhue.app.testsupport.IntegrationTestBase;
+import com.songnhue.content.api.PublicPortalController;
 import com.songnhue.content.application.BannerService;
 import com.songnhue.content.application.CategoryService;
 import com.songnhue.content.application.MenuService;
+import com.songnhue.content.application.PublicPortalService;
 import com.songnhue.content.application.SiteConfigService;
 import com.songnhue.content.domain.Banner;
+import com.songnhue.content.domain.Category;
 import com.songnhue.content.domain.MenuLinkType;
 import com.songnhue.content.domain.MenuPosition;
 import com.songnhue.core.application.settings.SettingService;
@@ -70,6 +73,12 @@ class SiteLayoutTest extends IntegrationTestBase {
 
     @Autowired
     private CategoryService categories;
+
+    @Autowired
+    private PublicPortalService portal;
+
+    @Autowired
+    private PublicPortalController publicPortalController;
 
     @Autowired
     private SettingService settings;
@@ -445,6 +454,70 @@ class SiteLayoutTest extends IntegrationTestBase {
 
         assertThat(banners.listVisible(now)).isEmpty();
         assertThat(banners.listAll()).as("tắt là ẩn khỏi cổng, không phải xoá").hasSize(1);
+    }
+
+    // ---- Ẩn một danh mục = rút CẢ NHÁNH khỏi cổng ---------------------------
+
+    @Test
+    @DisplayName("⛔ Ẩn danh mục cha thì danh mục con cũng biến khỏi cổng — không để lại mục mồ côi")
+    void anDanhMucChaThiAnCaNhanh() {
+        Category cha = categories.create("Nhóm sẽ ẩn", null, null);
+        Category con = categories.create("Mục con", null, cha.getPublicId());
+
+        assertThat(portal.categories())
+                .as("trước khi ẩn, cả hai đều có mặt")
+                .extracting(Category::getSlug)
+                .contains(cha.getSlug(), con.getSlug());
+
+        categories.setVisible(cha.getPublicId(), false);
+
+        assertThat(portal.categories())
+                .as(
+                        """
+                        ⚠⚠ SỰ CỐ ĐÃ CÓ THẬT, đo trên site đang chạy 27/8. CR-01 ẩn mục "Thông báo" nhưng                         hai danh mục con của nó vẫn nằm trong danh sách trả về; và vì danh sách sắp theo                         `path` DẠNG CHUỖI ('/12/' < '/2/') chúng rơi đúng sau `tien-do-san-xuat`. Trang                         "Tiến độ sản xuất" khi đó liệt kê "Lịch vận hành cống & trạm bơm" và "Thông báo                         xả nước đệm" làm các NĂM của nó.
+
+                        Không lỗi nào báo ra: hai danh mục đều có thật, đều đang hiện, trang vẫn dựng                         bình thường — chỉ nội dung là vô nghĩa.""")
+                .extracting(Category::getSlug)
+                .doesNotContain(cha.getSlug(), con.getSlug());
+    }
+
+    @Test
+    @DisplayName("⛔ Danh mục nằm dưới một danh mục ẩn cũng thôi phục vụ bài qua địa chỉ trực tiếp")
+    void danhMucDuoiNhanhAnKhongPhucVuBai() {
+        Category cha = categories.create("Nhóm sẽ ẩn 2", null, null);
+        Category con = categories.create("Mục con 2", null, cha.getPublicId());
+        categories.setVisible(cha.getPublicId(), false);
+
+        assertThat(portal.articles(con.getSlug(), null, 0, 10).getTotalElements())
+                .as(
+                        """
+                        Lọc bằng `isVisible()` một mình thì một nhánh đã rút khỏi điều hướng vẫn mở được                         bằng địa chỉ trực tiếp — hai câu trả lời cho cùng một câu hỏi "danh mục này còn                         trên cổng không".""")
+                .isZero();
+    }
+
+    @Test
+    @DisplayName("⭐ `parentSlug` đi ra tới API — giao diện KHÔNG được suy cha–con từ vị trí trong mảng")
+    void apiTraParentSlug() {
+        Category cha = categories.create("Nhóm có con", null, null);
+        Category con = categories.create("Con của nhóm", null, cha.getPublicId());
+
+        List<PublicPortalController.CategoryNode> ra = publicPortalController.categories();
+
+        assertThat(ra)
+                .filteredOn(n -> n.slug().equals(con.getSlug()))
+                .singleElement()
+                .extracting(PublicPortalController.CategoryNode::parentSlug)
+                .as(
+                        """
+                        Thiếu trường này thì giao diện buộc phải suy quan hệ cha–con từ THỨ TỰ danh sách                         — phép suy đã hỏng thật khi backend lọc một mục ra khỏi giữa danh sách (xem bài                         `anDanhMucChaThiAnCaNhanh`).""")
+                .isEqualTo(cha.getSlug());
+
+        assertThat(ra)
+                .filteredOn(n -> n.slug().equals(cha.getSlug()))
+                .singleElement()
+                .extracting(PublicPortalController.CategoryNode::parentSlug)
+                .as("danh mục gốc thì `null`, không phải chuỗi rỗng")
+                .isNull();
     }
 
     // ---- Khung đề xuất do migration seed (T15.7 + T13.13) --------------------

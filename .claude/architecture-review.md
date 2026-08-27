@@ -4020,7 +4020,62 @@ lúc", nút làm mới, trạng thái dự phòng) nhưng **không** dựng sẵ
 một lưới mà không lượt chạy nào từng đổ dữ liệu thật vào là mã chưa được kiểm, đội lốt mã đã xong
 (luật 7), và danh sách 10 cống còn đang chờ Công ty chốt (OI-03).
 
+#### 7. ⚠⚠ Lỗi mà 906 bài kiểm của cả hai phía đều không thấy — chỉ lộ ra khi mở trang thật
+
+Sau khi mọi cổng kiểm ở máy đã xanh (662 test BE · 244 test FE · 8/8 bước `ci-local`), lượt chạy
+`make dev-docker` rồi bấm qua từng mục menu cho ra **17/17 đường dẫn trả 200**. Nhưng mở trang
+"Tiến độ sản xuất" thì bộ chọn **Năm** hiện hai lựa chọn: *"Lịch vận hành cống & trạm bơm"* và
+*"Thông báo xả nước đệm"*.
+
+Không có lỗi nào báo ra. Hai danh mục ấy đều có thật, đều đang hiện, HTTP 200, trang dựng bình
+thường — **chỉ nội dung là vô nghĩa**. Đây là loại sai mà mọi khẳng định kỹ thuật đều đúng.
+
+Nguyên nhân là **hai lỗi độc lập gặp nhau**, và mỗi lỗi tự nó đủ để sinh ra triệu chứng:
+
+1. **Backend lọc `isVisible()` theo từng dòng.** CR-01 ẩn mục "Thông báo", nhưng hai danh mục con
+   của nó vẫn `visible = true` nên vẫn nằm trong danh sách trả về — **mồ côi mà vẫn hiện**.
+2. **Giao diện suy quan hệ cha–con từ vị trí trong mảng phẳng.** Danh sách sắp theo `path` dạng
+   **chuỗi**, nên `'/12/' < '/2/'`: hai đứa con của `thong-bao` (`/2/7/`, `/2/8/`) rơi đúng sau
+   `tien-do-san-xuat` (`/12/`), và phép suy theo vị trí nhận chúng làm con của nó.
+
+Điều đáng ghi nhất là **vì sao không bộ test nào bắt được**: mỗi bên đều đúng với dữ liệu của mình.
+Bài kiểm backend dựng danh mục rồi khẳng định danh mục ẩn không trả về — đúng, nó không kiểm các
+con. Bài kiểm frontend truyền một mảng dựng tay có đủ cha lẫn con liền nhau — đúng, đó là mảng
+"sạch" mà backend chỉ trả về khi không có gì bị lọc. Lỗi nằm ở **chỗ tiếp giáp**, và chỗ tiếp giáp
+chỉ tồn tại khi hai bên thật sự nói chuyện với nhau.
+
+Vá cả hai vế, cố ý không chọn một:
+
+- `PublicPortalService.categories()` loại **cả nhánh** dưới một danh mục ẩn (khớp tiền tố `path`).
+  Áp cùng luật cho `articles(categorySlug)` — nếu không thì một nhánh đã rút khỏi điều hướng vẫn mở
+  được bằng địa chỉ trực tiếp, tức hai câu trả lời cho cùng một câu hỏi.
+- DTO công khai thêm `parentSlug`, và giao diện đối chiếu trường đó thay vì đếm vị trí.
+
+Kiểm chứng ngược có số đo: gỡ bản vá backend (`grep -c noneMatch` = 0) → 1 bài đỏ; khôi phục (= 1)
+→ 0 đỏ.
+
+#### 8. Và lỗ thứ ba lộ ra khi viết bài kiểm cho lỗ thứ hai
+
+Bài kiểm cần ẩn một danh mục để dựng hiện trường — và **không có đường nào để ẩn**. Cột
+{@code categories.visible} có từ `V202608191016`, DTO của màn hình quản trị *trả nó ra*, nhưng
+không endpoint nào ghi được nó. Quản trị viên nhìn thấy trạng thái Hiện/Ẩn của từng danh mục mà
+không có cách nào đổi.
+
+Đó là quy tắc 15 ở **chiều ghi** — bản thân nó đã là một lỗi. Nhưng nó thành chuyện gấp vì migration
+của đợt này chọn *ẩn* mục "Thông báo" thay vì xoá, với lý do ghi thẳng trong tệp: *"ẩn là thao tác
+quay lui được bằng một cú bấm, còn xoá thì không"*. Lý do ấy chỉ đúng khi cú bấm đó tồn tại — và nó
+không tồn tại. Một quyết định đúng dựa trên một tiền đề sai.
+
+`CategoryService.setVisible` + `PUT /cms/categories/{publicId}/visibility` đóng lỗ ở tầng API; nút
+bấm trên màn hình quản trị còn nợ.
+
 #### Bài học
+
+⛔ **"Mọi cổng kiểm xanh" và "chạy đúng" là hai câu khác nhau, và khoảng cách giữa chúng nằm ở chỗ
+tiếp giáp giữa hai hệ thống.** Cả hai bên đều có bài kiểm, cả hai bên đều đúng với dữ liệu *của
+mình*, và cái sai chỉ tồn tại khi chúng nói chuyện với nhau. Không có cách nào tìm ra nó ngoài việc
+mở đúng trang ấy trên hệ đang chạy — đúng điều CLAUDE.md đã ghi và lần này phải trả giá để nhớ:
+*trước khi mở một giai đoạn mới, chạy đường mà người dùng thật đi.*
 
 **Một tài liệu nghiệm thu là dữ liệu, không phải văn xuôi.** Bảy mục cấp 1 của §3 nay là một phép
 khẳng định `containsExactly` chạy ở mỗi lượt CI; bảng phân quyền §6 sẽ là một bộ bài kiểm gọi thẳng

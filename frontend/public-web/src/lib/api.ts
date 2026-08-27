@@ -202,6 +202,16 @@ export interface CategoryNode {
   slug: string;
   name: string;
   description: string | null;
+  /**
+   * Slug danh mục cha; `null` với danh mục gốc.
+   *
+   * ⚠⚠ Dùng trường này để dựng cây — **đừng** suy quan hệ cha–con từ vị trí trong mảng. Phép
+   * suy theo vị trí (mọi mục `depth = n+1` đứng sau một mục `depth = n` là con của mục ấy)
+   * đúng chừng nào danh sách còn nguyên vẹn, và sai ngay lượt đầu tiên backend lọc bỏ một mục
+   * khỏi giữa danh sách. Đo được trên máy: trang "Tiến độ sản xuất" từng liệt kê hai danh mục
+   * của mục "Thông báo" (đã ẩn) làm các **Năm** của nó.
+   */
+  parentSlug: string | null;
   depth: number;
   sortOrder: number;
 }

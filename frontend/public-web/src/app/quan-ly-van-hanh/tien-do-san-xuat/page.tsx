@@ -48,10 +48,6 @@ export default async function TienDoSanXuatPage({ searchParams }: PageProps) {
   const tatCa = categories ?? [];
   const nut = tatCa.find((c) => c.slug === goc);
 
-  // ⚠ Backend trả danh sách PHẲNG đã sắp theo `path`, và không trả `parentSlug`. Nên quan hệ
-  //   cha–con suy từ `depth` và thứ tự: mọi mục `depth = n+1` đứng sau một mục `depth = n` là
-  //   con của mục ấy, cho tới mục `depth <= n` kế tiếp. Đây là cùng phép suy mà
-  //   `buildMenuTree` dùng cho menu.
   const cacNam = nut ? conTrucTiep(tatCa, nut) : [];
   const namChon = cacNam.find((c) => c.slug === nam) ?? cacNam[0];
   const cacVu = namChon ? conTrucTiep(tatCa, namChon) : [];
@@ -115,17 +111,26 @@ export default async function TienDoSanXuatPage({ searchParams }: PageProps) {
   );
 }
 
-/** Con trực tiếp của một nút, suy từ danh sách phẳng đã sắp theo `path`. */
+/**
+ * Con trực tiếp của một nút — đối chiếu `parentSlug`, KHÔNG suy từ vị trí trong mảng.
+ *
+ * <h3>⚠⚠ Bản trước suy theo vị trí, và nó đã sai trên site đang chạy</h3>
+ *
+ * Nó duyệt tiếp từ chỗ của cha và nhận mọi mục `depth = cha.depth + 1` cho tới mục `depth <=
+ * cha.depth` kế tiếp. Phép suy ấy giả định danh sách phẳng còn **nguyên vẹn** — mà backend thì
+ * lọc bỏ danh mục ẩn khỏi giữa danh sách.
+ *
+ * Đo được ngày 27/8 trên máy: CR-01 ẩn mục "Thông báo" (`path = '/2/'`), hai danh mục con của
+ * nó vẫn hiện, và vì danh sách sắp theo `path` dạng **chuỗi** — `'/12/' < '/2/'` — chúng rơi
+ * đúng sau `tien-do-san-xuat` (`path = '/12/'`). Trang này khi đó hiện *"Lịch vận hành cống &
+ * trạm bơm"* và *"Thông báo xả nước đệm"* làm các **Năm**.
+ *
+ * ⛔ Không lỗi nào báo ra: hai danh mục đều có thật, đều đang hiện, trang vẫn dựng bình thường.
+ * Chỉ nội dung là vô nghĩa. Backend nay cũng ẩn cả nhánh dưới một danh mục ẩn — hai bản vá độc
+ * lập cho cùng một sự cố, vì mỗi bên đều tự nó đủ để sinh ra lỗi.
+ */
 function conTrucTiep(tatCa: CategoryNode[], cha: CategoryNode): CategoryNode[] {
-  const viTri = tatCa.indexOf(cha);
-  const con: CategoryNode[] = [];
-  for (let i = viTri + 1; i < tatCa.length; i++) {
-    const muc = tatCa[i];
-    // Gặp một mục cùng cấp hoặc cao hơn cha ⇒ đã ra khỏi cây con của cha.
-    if (muc.depth <= cha.depth) break;
-    if (muc.depth === cha.depth + 1) con.push(muc);
-  }
-  return con;
+  return tatCa.filter((muc) => muc.parentSlug === cha.slug);
 }
 
 function BoChon({

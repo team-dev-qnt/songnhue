@@ -84,7 +84,20 @@ public class PublicPortalController {
     public record BannerView(
             String title, String description, UUID imageId, String linkUrl, boolean openNewTab, Integer sortOrder) {}
 
-    public record CategoryNode(String slug, String name, String description, Short depth, Integer sortOrder) {}
+    /**
+     * Một danh mục trên cổng.
+     *
+     * @param parentSlug slug của danh mục cha, {@code null} với danh mục gốc.
+     *     <p>⚠⚠ Trường này <b>bắt buộc phải có</b>, và nó thay cho một phép suy đã hỏng thật: giao
+     *     diện từng suy quan hệ cha–con từ <i>vị trí trong danh sách phẳng</i> (mọi mục {@code depth
+     *     = n+1} đứng sau một mục {@code depth = n} là con của mục ấy). Phép suy đó đúng chừng nào
+     *     danh sách còn nguyên vẹn — và nó sai ngay lượt đầu tiên có một mục bị lọc bỏ khỏi giữa
+     *     danh sách. Đo được trên máy: trang "Tiến độ sản xuất" liệt kê hai danh mục của mục
+     *     "Thông báo" (đã ẩn) làm các <b>Năm</b> của nó.
+     *     <p>Không trả {@code parentId} chạy số — cùng lý do với mọi DTO công khai khác (§4.2).
+     */
+    public record CategoryNode(
+            String slug, String name, String description, String parentSlug, Short depth, Integer sortOrder) {}
 
     // ---- Khung cổng ----------------------------------------------------------
 
@@ -136,9 +149,21 @@ public class PublicPortalController {
     @Operation(summary = "Danh mục đang hiện")
     @PublicEndpoint(reason = "Điều hướng theo chuyên mục của cổng — CN-01.2")
     public List<CategoryNode> categories() {
-        return portal.categories().stream()
-                .map(c ->
-                        new CategoryNode(c.getSlug(), c.getName(), c.getDescription(), c.getDepth(), c.getSortOrder()))
+        List<com.songnhue.content.domain.Category> hien = portal.categories();
+        // Tra slug của cha trong CHÍNH danh sách đang hiện: cha đã bị ẩn thì con cũng không còn ở
+        // đây (PublicPortalService loại cả nhánh), nên map này luôn giải được — và nếu một ngày nó
+        // không giải được thì `null` là câu trả lời đúng, không phải một slug đoán ra.
+        Map<Long, String> slugTheoId = hien.stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        com.songnhue.content.domain.Category::getId, com.songnhue.content.domain.Category::getSlug));
+        return hien.stream()
+                .map(c -> new CategoryNode(
+                        c.getSlug(),
+                        c.getName(),
+                        c.getDescription(),
+                        c.getParentId() == null ? null : slugTheoId.get(c.getParentId()),
+                        c.getDepth(),
+                        c.getSortOrder()))
                 .toList();
     }
 
