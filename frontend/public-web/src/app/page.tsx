@@ -10,12 +10,13 @@ import { WaterLevelBlock } from '@/components/home/WaterLevelBlock';
 import {
   getArticles,
   getBanners,
+  getPhotos,
   getMenu,
   getServerTime,
   getSiteConfig,
   getSubsidiaries,
 } from '@/lib/api';
-import { buildMenuTree } from '@/lib/routes';
+import { fileUrl, buildMenuTree } from '@/lib/routes';
 import { docBool, docSo } from '@/lib/settings';
 
 /**
@@ -51,10 +52,11 @@ export const revalidate = 300;
 const SO_BAI_TIN_TUC = 24;
 
 export default async function HomePage() {
-  const [config, banners, latest, headerMenu, portalLinks, subsidiaries, serverTime] =
+  const [config, banners, photos, latest, headerMenu, portalLinks, subsidiaries, serverTime] =
     await Promise.all([
       getSiteConfig(),
       getBanners(),
+      getPhotos(),
       getArticles({ size: SO_BAI_TIN_TUC }),
       getMenu('HEADER'),
       getMenu('LIEN_KET'),
@@ -119,11 +121,17 @@ export default async function HomePage() {
       {/* ───── 6. Truyền thông & hình ảnh hoạt động ───── */}
       {/* ⚠ Ba props của khối này TRƯỚC ĐÂY không nơi gọi nào truyền — `<HomeMediaGallery />`
           trần, nên `videoId` luôn `undefined` và khối rỗng vĩnh viễn ở mọi môi trường (quy tắc
-          15 ở dạng React). Hai khoá `site.home.video-*` dựng ở `V202608281038`. Vế `photos` vẫn
-          chưa có nguồn: nó cần endpoint công khai cho thư viện ảnh công trình (nợ T11.30). */}
+          15 ở dạng React). Hai khoá `site.home.video-*` dựng ở `V202608281038`; vế `photos` nay
+          đọc `GET /api/v1/public/photos`, tức thư mục mà `site.home.photos-folder` chỉ tới
+          (T25.24). Khoá rỗng ⇒ mảng rỗng ⇒ khối nói thẳng là chưa có — không có bộ ảnh dự phòng. */}
       <HomeMediaGallery
         videoId={config?.['site.home.video-id'] || undefined}
         videoTitle={config?.['site.home.video-title'] || undefined}
+        photos={(photos ?? []).map((a) => ({
+          id: a.publicId,
+          title: a.title,
+          imageUrl: fileUrl(a.publicId) ?? '',
+        }))}
       />
 
       {/* ───── 7. Đơn vị trực thuộc & liên kết ───── */}

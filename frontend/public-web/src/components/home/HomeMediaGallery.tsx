@@ -3,7 +3,6 @@ import { EmptyBlock } from './EmptyBlock';
 interface PhotoItem {
   id: string;
   title: string;
-  location: string;
   imageUrl: string;
 }
 
@@ -77,8 +76,8 @@ export function HomeMediaGallery({ videoId, videoTitle, photos = [] }: HomeMedia
         <div className="lg:col-span-5">
           {photos.length === 0 ? (
             <EmptyBlock>
-              Thư viện ảnh công trình chưa mở ra cổng công khai — ảnh hiện trạng đang nằm trong hồ
-              sơ từng công trình ở trang quản trị.
+              Chưa có ảnh trong thư viện. Chọn thư mục ảnh ở ô &ldquo;Thư mục ảnh của thư viện trang
+              chủ&rdquo; trong Cấu hình website, rồi tải ảnh vào thư mục ấy ở Thư viện media.
             </EmptyBlock>
           ) : (
             <div className="grid grid-cols-2 gap-3.5">
@@ -99,9 +98,6 @@ export function HomeMediaGallery({ videoId, videoTitle, photos = [] }: HomeMedia
                     <h3 className="line-clamp-1 text-xs font-bold text-surface-textBase transition-colors duration-200 group-hover:text-brand-primary">
                       {p.title}
                     </h3>
-                    <span className="mt-0.5 block text-[10px] text-surface-textSecondary">
-                      📍 {p.location}
-                    </span>
                   </div>
                 </div>
               ))}
