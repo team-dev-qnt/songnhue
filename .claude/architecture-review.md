@@ -3785,3 +3785,101 @@ Và bước *"Ghi lại bản đang chạy"* gộp ba lượt `ssh` thành **m�
 #### Bài học chung
 
 Đây là lần đầu một lượt deploy đỏ vì **thứ nằm ngoài mã lẫn ngoài cấu hình của ta**. Cách phân biệt rẻ nhất hoá ra là **so hai cổng trên cùng một máy cùng một lúc**: 22 hỏng 30%, 443 đạt 5/5 — một phép so mất 30 giây và loại ngay được "máy chết", "mạng hỏng", "workflow sai".
+
+---
+
+### §10.60 — CD Staging báo **success** trọn vẹn trong khi **không container nào được thay** (27/8)
+
+Lượt CD Staging đầu tiên đi hết đường ống sau khi vá ghép kênh SSH (§10.59). Mọi cổng đều xanh:
+`pull` xong · `run --rm migrator` xong (33 migration) · **4/4 câu smoke test đạt** · gắn tag
+`:staging` cho cả ba image · ghi tóm tắt "**✅ ĐẠT**".
+
+Đo trên máy chủ ngay sau đó:
+
+| service | digest vừa "triển khai" | image **đang chạy** | container tạo lúc |
+|---|---|---|---|
+| app | `6dcf9e4b…` | `9c9f18e9…` | **25/8** |
+| admin-app | `af546d21…` | `f022dac1…` | **24/8** |
+| public-web | `ed49011f…` | `19754e8b…` | **24/8** |
+
+**Không một container nào được thay.** Máy chủ vẫn chạy mã của 24–25/8.
+
+#### Nguyên nhân gốc
+
+Khối "Triển khai" được nuôi vào bash-từ-xa bằng chính stdin:
+
+```
+ssh "$USER@$HOST" bash -euo pipefail <<REMOTE
+```
+
+Bash đọc script ấy **dần** từ stdin. Giữa khối có `docker compose run --rm migrator`, và
+`docker compose run` **gắn stdin** — nó nuốt nốt phần script chưa đọc. Bash gặp EOF, thoát 0.
+
+Phần bị nuốt gồm đúng hai thứ quan trọng nhất của bước:
+
+- `$dc up -d --force-recreate app admin-app public-web nginx` — **việc chính**
+- khối **đo lại image ID** của container đang chạy — **thứ duy nhất phát hiện được chuyện này**
+
+Bằng chứng trong log: dòng cuối của bước là log tắt máy của migrator lúc `02:46:58.8`; bước Smoke
+test mở lúc `02:46:59.19`. **0,4 giây** — không đủ chỗ cho `up -d` bốn container, và không có một
+dòng `Recreated` nào.
+
+Đo trên chính VPS-2, mỗi dòng là một khối heredoc có `echo` đứng sau lệnh:
+
+| lệnh | dòng sau nó |
+|---|---|
+| `docker compose run --rm` | **MẤT** |
+| `docker compose run --rm -T` | **MẤT** — `-T` chỉ tắt TTY, stdin vẫn gắn |
+| `docker compose run --rm </dev/null` | chạy |
+| `docker compose up -d` | chạy |
+| `docker compose pull` | chạy |
+
+#### Vì sao 4/4 smoke test không cứu được
+
+Chúng hỏi **site**, mà site vẫn sống — bằng mã cũ. Không câu nào phân biệt được "đã thay container"
+với "chưa thay":
+
+- câu 1 hỏi collation của **cluster** — không đổi theo lượt deploy
+- câu 2 hỏi chặng `nginx → public-web → app → postgres` — bản cũ cũng đi hết chặng ấy
+- câu 3 đếm bài viết — dữ liệu, không phải mã
+- câu 4 hỏi byte MinIO — cũng dữ liệu
+
+Đó **đúng là** việc của bước đo lại image ID, thêm vào sau §10.53 vì lý do y hệt. Lần này nó không
+sai — nó **không chạy**. Một cơ chế canh gác nằm trong vùng bị nuốt thì im lặng hệt như khi nó vắng mặt.
+
+#### Vì sao ẩn được
+
+`§10.53` (25/8) là *compose in `Running` rồi giữ container cũ* — khi ấy `up -d` **có** chạy và **có**
+in ra. Bản vá là `--force-recreate` cộng bước đo lại. Cả hai đều đúng. Nhưng `run --rm migrator` được
+thêm vào **giữa** chúng ở đợt sau (`migrator` thành service riêng, `depends_on: minio-init` — §10.55),
+và từ lượt ấy trở đi mọi thứ đứng sau nó chưa từng chạy một lần nào.
+
+Không lệnh nào báo sai, vì **không có lệnh nào cả** — phần script ấy đơn giản là biến mất trước khi
+được đọc.
+
+#### Đã vá
+
+`.github/scripts/chay-tu-xa.sh` — khối lệnh **chuyển thành TỆP** trên máy chủ rồi chạy với
+`</dev/null`. Bốn khối heredoc của `deploy.yml` đều đi qua nó.
+
+Bảo đảm đặt **ở chỗ dữ liệu đi qua** (CLAUDE.md luật 12), không ở từng lời gọi: thêm `</dev/null`
+riêng cho dòng `migrator` chỉ chữa đúng dòng ấy, còn lệnh nuốt stdin **tiếp theo** mà ai đó thêm vào
+sẽ lại hỏng trong im lặng. `deploy/backup/pre-deploy-dump.sh` đã có sẵn **ba** lệnh `docker exec -i`;
+nó chưa gây hại chỉ vì tình cờ được gọi ở **dòng cuối** của khối — tức là một quả mìn đã cài sẵn.
+
+Kèm bước **đối chiếu số byte hai đầu**: gửi bao nhiêu, máy chủ nhận bấy nhiêu. Không có nó thì "sang
+máy chủ một nửa" cũng chạy êm rồi thoát 0 — tức kiểu mới chỉ là một cách hỏng khác trong im lặng.
+
+`DeployRemoteStdinTest` (6 bài), trong đó **một bài chạy kiểu CŨ và khẳng định nó MẤT dòng sau** —
+không có bài ấy thì năm bài kia chỉ chứng minh "kiểu mới chạy được", chứ không chứng minh lỗi có
+thật. Một bài khác cắt bớt byte lúc chuyển và đòi helper phải dừng đỏ.
+
+#### Bài học
+
+**Một lệnh có thể ăn mất phần công việc đứng sau nó, và dấu vết để lại là *không có dấu vết*.**
+Mọi lỗi trước đây của dự án đều để lại *một dòng sai*. Lỗi này để lại một *khoảng trống* — và khoảng
+trống thì không đọc log theo mã lỗi mà thấy được. Thứ tìm ra nó là một phép **so mốc thời gian**:
+bước kết thúc 0,4 giây sau lệnh áp chót, trong khi việc còn lại cần vài chục giây.
+
+⛔ Và một lần nữa: **cổng kiểm phải phân biệt được hai trạng thái nó khẳng định.** Smoke test hỏi
+"site có sống không"; câu cần hỏi là "site đang chạy image nào".
