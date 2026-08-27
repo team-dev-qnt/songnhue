@@ -57,7 +57,7 @@ export default async function XiNghiepPage() {
               liên hệ
             </caption>
             <thead>
-              <tr className="bg-brand-primaryLight text-left text-xs uppercase tracking-wider text-brand-primary">
+              <tr className="bg-brand-primaryLight text-left text-xs text-brand-primary">
                 <th scope="col" className="w-14 px-4 py-3 font-bold">
                   TT
                 </th>

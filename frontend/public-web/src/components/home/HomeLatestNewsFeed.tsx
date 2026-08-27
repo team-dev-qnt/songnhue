@@ -41,7 +41,7 @@ export function HomeLatestNewsFeed({ latestArticles, soBai }: HomeLatestNewsFeed
       <div className="flex items-center justify-between border-b border-surface-border pb-3">
         <div className="flex items-center gap-2">
           <span className="h-4 w-1 rounded-full bg-brand-primary"></span>
-          <h2 className="text-base font-bold uppercase tracking-tight text-surface-textBase sm:text-lg">
+          <h2 className="text-base font-bold tracking-tight text-surface-textBase sm:text-lg">
             Tin tức – Sự kiện
           </h2>
         </div>

@@ -49,7 +49,7 @@ export default async function VanHanhCongTrinhPage() {
       breadcrumb={[{ label: 'Quản lý, vận hành' }, { label: 'Vận hành công trình' }]}
     >
       <section className="rounded-xl border border-surface-border bg-white p-5 shadow-xs">
-        <h2 className="text-sm font-bold uppercase tracking-tight text-emerald-800">
+        <h2 className="text-sm font-bold tracking-tight text-emerald-800">
           Số liệu tại ngày truy cập
         </h2>
         <div className="mt-4">

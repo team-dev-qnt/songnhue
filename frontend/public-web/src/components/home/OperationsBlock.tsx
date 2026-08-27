@@ -56,7 +56,7 @@ export function OperationsBlock({ refreshSeconds, updatedAt }: OperationsBlockPr
             </svg>
           </div>
           <div>
-            <h2 className="text-sm font-bold uppercase tracking-tight text-emerald-900 sm:text-base">
+            <h2 className="text-sm font-bold tracking-tight text-emerald-900 sm:text-base">
               Vận hành công trình
             </h2>
             <p className="text-xs text-surface-textSecondary">

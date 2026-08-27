@@ -58,7 +58,7 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
           <div className="mb-6 border-b-2 border-brand-primary pb-3">
             <div className="flex items-center gap-2.5">
               <span className="h-6 w-1.5 rounded-full bg-brand-primary"></span>
-              <h1 className="text-xl font-bold uppercase tracking-tight text-surface-textBase sm:text-2xl">
+              <h1 className="text-xl font-bold tracking-tight text-surface-textBase sm:text-2xl">
                 {categoryName}
               </h1>
             </div>

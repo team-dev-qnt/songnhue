@@ -127,9 +127,7 @@ export async function SiteFooter() {
             </div>
             {/* CR-39: đã bỏ dòng "Doanh nghiệp 100% vốn Nhà nước" theo yêu cầu của Công ty. */}
             <div className="flex flex-col">
-              <span className="font-bold uppercase tracking-tight text-white drop-shadow-xs">
-                {siteName}
-              </span>
+              <span className="font-bold tracking-tight text-white drop-shadow-xs">{siteName}</span>
             </div>
           </div>
 
@@ -178,7 +176,7 @@ export async function SiteFooter() {
         */}
         {/* Cột 2: Liên kết nhanh — ĐỌC MENU FOOTER, không có mục nào viết cứng */}
         <div className="lg:col-span-5">
-          <p className="relative pb-2 font-bold uppercase tracking-wider text-xs text-white after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-8 after:rounded after:bg-sky-300">
+          <p className="relative pb-2 font-bold text-xs text-white after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-8 after:rounded after:bg-sky-300">
             Liên kết nhanh
           </p>
           <ul className="mt-3.5 grid grid-cols-1 gap-x-6 gap-y-2 text-xs text-white/85 sm:grid-cols-2">
@@ -237,7 +235,7 @@ export async function SiteFooter() {
 
         {/* Cột 4: Kênh kết nối truyền thông & Bản đồ (3/12 cột) */}
         <div className="space-y-3.5 lg:col-span-3">
-          <p className="relative pb-2 font-bold uppercase tracking-wider text-xs text-white after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-8 after:rounded after:bg-sky-300">
+          <p className="relative pb-2 font-bold text-xs text-white after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-8 after:rounded after:bg-sky-300">
             Kênh kết nối
           </p>
 
@@ -270,7 +268,7 @@ export async function SiteFooter() {
             <div className="rounded-lg border border-white/20 bg-white/10 p-3 text-xs text-white/90 backdrop-blur-xs">
               <div className="flex items-center gap-1.5 font-bold text-white">
                 <span>📍</span>
-                <span>Chỉ đường tới Trụ sở</span>
+                <span>Chỉ đường tới trụ sở</span>
               </div>
               {diaChi ? (
                 <p className="mt-1 text-[11px] text-white/80 line-clamp-1">{diaChi}</p>

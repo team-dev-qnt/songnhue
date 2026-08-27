@@ -81,6 +81,14 @@ public class PublicPortalController {
             Short depth,
             String parentLabel) {}
 
+    /**
+     * Một ảnh của thư viện trang chủ.
+     *
+     * <p>⚠ KHÔNG có trường "nơi chụp". Ảnh Công ty gửi không kèm dữ liệu ấy, và bịa ra một địa
+     * điểm cho mỗi ảnh là đúng thứ {@code CLAUDE.md} luật 16 cấm. Thiếu thì để thiếu.
+     */
+    public record PhotoView(java.util.UUID publicId, String title) {}
+
     public record BannerView(
             String title, String description, UUID imageId, String linkUrl, boolean openNewTab, Integer sortOrder) {}
 
@@ -142,6 +150,15 @@ public class PublicPortalController {
                         b.getLinkUrl(),
                         b.isOpenNewTab(),
                         b.getSortOrder()))
+                .toList();
+    }
+
+    @GetMapping("/photos")
+    @Operation(summary = "Ảnh thư viện hoạt động trên trang chủ")
+    @PublicEndpoint(reason = "Thư viện ảnh hoạt động của cổng — CN-01.5")
+    public List<PhotoView> photos() {
+        return portal.photos().stream()
+                .map(a -> new PhotoView(a.publicId(), a.title()))
                 .toList();
     }
 
