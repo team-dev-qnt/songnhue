@@ -88,15 +88,25 @@ class SeedPortalMigrationTest extends IntegrationTestBase {
                         .isZero();
 
                 // ── 2. …nhưng KHÔNG chạm 4 trang tĩnh và cây menu ───────────────────
+                assertThat(dem(st, "SELECT count(*) FROM articles WHERE slug = 'tong-quan'"))
+                        .as(
+                                """
+                                Trang tĩnh CÒN mục menu trỏ tới đã bị xoá — menu Header/Footer gãy theo.                                 Vị từ theo quan hệ của bộ seed sinh ra để bảo vệ đúng trường hợp này.""")
+                        .isEqualTo(1);
+
+                // ⭐ Vế ngược, và nó mới là phần đắt: ba trang tĩnh MẤT mục menu ở V202608271031
+                //    (CR-22/23/24 thay chúng bằng trang thật ở đường dẫn khác) thì bộ seed PHẢI
+                //    dọn đi. Không có khẳng định này thì một vị từ "bảo vệ mọi bài do migration
+                //    tạo" cũng xanh y hệt — trong khi nó để lại ba bài mồ côi rỗng trên cổng.
                 assertThat(
                                 dem(
                                         st,
                                         """
                                 SELECT count(*) FROM articles
-                                 WHERE slug IN ('gioi-thieu-chung','chuc-nang-nhiem-vu','co-cau-to-chuc','lien-he')
+                                 WHERE slug IN ('chuc-nang-nhiem-vu','co-cau-to-chuc','lien-he')
                                 """))
-                        .as("4 trang tĩnh do V202608191021 sở hữu đã bị xoá — menu Header/Footer gãy theo")
-                        .isEqualTo(4);
+                        .as("ba trang tĩnh đã bị cây nội dung mới thay thế vẫn còn — chúng không còn lối vào nào")
+                        .isZero();
                 assertThat(dem(st, "SELECT count(*) FROM menu_items")).isEqualTo(menuTruoc);
                 assertThat(
                                 dem(

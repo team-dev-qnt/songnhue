@@ -22,7 +22,54 @@ export const ROUTES = {
   search: '/tim-kiem',
   article: (slug: string) => `/bai-viet/${slug}`,
   category: (slug: string) => `/danh-muc/${slug}`,
+
+  /**
+   * Bảy tuyến đường mà **menu trong CSDL trỏ vào bằng `linkType: 'URL'`** — đợt chỉnh sửa
+   * 27/08/2026, CR-02 và CR-05.
+   *
+   * ⚠⚠ Hai nơi phải khớp: các chuỗi dưới đây và cột `menu_items.url` do
+   * `V202608271031__cms_site_taxonomy_v2.sql` ghi. Lệch một ký tự là một mục menu trỏ vào
+   * 404 — đúng hình dạng §10.54, nơi cổng quảng cáo những khu vực mà bấm vào là không có.
+   * `portalRoutes.test.ts` đọc thẳng tệp migration rồi đối chiếu với bảng này (luật 14).
+   */
+  gioiThieu: {
+    coCauToChuc: '/gioi-thieu/co-cau-to-chuc',
+    lanhDao: '/gioi-thieu/lanh-dao',
+    xiNghiep: '/gioi-thieu/xi-nghiep',
+  },
+  quanLyVanHanh: {
+    danhMucCongTrinh: '/quan-ly-van-hanh/danh-muc-cong-trinh',
+    tienDoSanXuat: '/quan-ly-van-hanh/tien-do-san-xuat',
+    mucNuocLuongMua: '/quan-ly-van-hanh/muc-nuoc-luong-mua',
+    vanHanhCongTrinh: '/quan-ly-van-hanh/van-hanh-cong-trinh',
+  },
+  lienHe: '/lien-he',
 } as const;
+
+/**
+ * Liên kết Google Map của một công trình — cột "Vị trí" của bảng CR-28.
+ *
+ * ⚠ Dựng từ toạ độ chứ **không** đọc một cột `map_url` nào: hai nguồn toạ độ cùng tồn tại là
+ * hai nguồn sẽ lệch, và một cột dẫn xuất trộn hai nguồn đúng là hình dạng lỗi đã trả giá ở
+ * `ConstructionStatusService` (luật 13).
+ *
+ * @returns `null` khi chưa có toạ độ — nơi gọi hiện dấu gạch, không dựng liên kết trỏ vào
+ *   giữa Đại Tây Dương (quy tắc 16).
+ */
+export function mapUrl(
+  latitude: string | number | null | undefined,
+  longitude: string | number | null | undefined,
+): string | null {
+  if (
+    latitude === null ||
+    latitude === undefined ||
+    longitude === null ||
+    longitude === undefined
+  ) {
+    return null;
+  }
+  return `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+}
 
 /**
  * Địa chỉ công khai của một tệp — T16.6.
@@ -87,6 +134,36 @@ export function buildMenuTree(items: MenuLink[]): { item: MenuLink; children: Me
     }
   }
   return roots;
+}
+
+/**
+ * `HH:mm dd/MM/yyyy` theo giờ Việt Nam — dòng "Cập nhật lúc" mà CR-35 bắt buộc có ở mọi khối
+ * dữ liệu thời gian thực.
+ *
+ * ⚠ Định dạng viết đúng thứ tự tài liệu yêu cầu (giờ trước, ngày sau) chứ không phải thứ tự
+ * mặc định của `Intl`. Nên phải ghép tay từ `formatToParts`; `format()` của locale `vi-VN`
+ * trả `dd/MM/yyyy HH:mm`.
+ *
+ * @returns chuỗi rỗng khi không có mốc thời gian — nơi gọi phải hiện "chưa rõ", không được
+ *   thay bằng giờ hiện tại của trình duyệt (quy tắc 16: một mốc bịa trông y hệt mốc thật).
+ */
+export function formatDateTime(isoInstant: string | null | undefined): string {
+  if (!isoInstant) {
+    return '';
+  }
+  const phan = new Intl.DateTimeFormat('vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour12: false,
+    timeZone: 'Asia/Ho_Chi_Minh',
+  }).formatToParts(new Date(isoInstant));
+
+  const lay = (loai: Intl.DateTimeFormatPartTypes) =>
+    phan.find((p) => p.type === loai)?.value ?? '';
+  return `${lay('hour')}:${lay('minute')} ${lay('day')}/${lay('month')}/${lay('year')}`;
 }
 
 /** `dd/MM/yyyy` theo giờ Việt Nam — quy tắc 1 của dự án: lưu UTC, hiển thị UTC+7. */

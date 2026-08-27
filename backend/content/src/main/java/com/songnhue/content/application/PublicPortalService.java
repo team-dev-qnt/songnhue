@@ -1,7 +1,10 @@
 package com.songnhue.content.application;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -128,7 +131,31 @@ public class PublicPortalService {
         String mau = tuKhoa == null || tuKhoa.isBlank() ? null : "%" + VietnameseUtils.normalizeForSearch(tuKhoa) + "%";
 
         int kichThuoc = Math.clamp(size, 1, TRAN_MOI_TRANG);
-        return articles.findPublic(mau, categoryId, Instant.now(), PageRequest.of(Math.max(page, 0), kichThuoc));
+        Page<PublicArticleRow> trang =
+                articles.findPublic(mau, categoryId, Instant.now(), PageRequest.of(Math.max(page, 0), kichThuoc));
+        return trang.map(nhanChuyenMuc(trang.getContent()));
+    }
+
+    /**
+     * Ghép nhãn chuyên mục vào từng dòng — CR-12.
+     *
+     * <p>Gom bằng <b>một</b> lượt hỏi cho cả trang rồi tra trong bộ nhớ. Đọc
+     * {@code article.getCategories()} trong vòng lặp cũng cho kết quả đúng, nhưng đó là quan hệ
+     * LAZY: 12 bài trên trang chủ thành 13 lượt hỏi CSDL, và con số ấy tăng theo độ dài trang.
+     *
+     * @return hàm ánh xạ; bài không có chuyên mục nào đang hiện thì giữ nguyên {@link List#of()}
+     */
+    private java.util.function.Function<PublicArticleRow, PublicArticleRow> nhanChuyenMuc(List<PublicArticleRow> dong) {
+        if (dong.isEmpty()) {
+            return row -> row;
+        }
+        Map<String, List<PublicArticleDetail.CategoryRef>> theoSlug = new LinkedHashMap<>();
+        for (Object[] hang : articles.findCategoryLabels(
+                dong.stream().map(PublicArticleRow::slug).toList())) {
+            theoSlug.computeIfAbsent((String) hang[0], k -> new ArrayList<>())
+                    .add(new PublicArticleDetail.CategoryRef((String) hang[1], (String) hang[2]));
+        }
+        return row -> row.withCategories(theoSlug.getOrDefault(row.slug(), List.of()));
     }
 
     /**

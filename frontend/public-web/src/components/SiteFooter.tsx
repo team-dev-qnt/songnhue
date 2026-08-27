@@ -32,9 +32,13 @@ export async function SiteFooter() {
   const diaChi = config?.['company.address'] ?? '';
   const dienThoai = config?.['company.phone'] ?? '';
   const fax = config?.['company.fax'] ?? '';
-  const email = config?.['company.email'] ?? '';
   const hotline = config?.['company.hotline'] ?? '';
-  const gioLamViec = config?.['company.working-hours'] ?? '';
+  // CR-07 · đóng nợ T11.28. Địa chỉ hệ thống văn bản điều hành từng ghi cứng ở BA tệp giao
+  // diện, nên đổi địa chỉ của khách là sửa mã nguồn và dựng lại image. Nay là cấu hình.
+  //
+  // ⛔ Rỗng thì KHÔNG render nút — không rơi về một địa chỉ mặc định. Một nút mở sang sai hệ
+  //    thống tệ hơn hẳn không có nút (luật 16).
+  const heThongVanBan = config?.['site.external.doc-system-url'] ?? '';
   const companyInfo = config?.['site.footer.company-info'] ?? '';
   const mapEmbed = config?.['site.footer.map-embed'] ?? '';
   const logo = fileUrl(config?.['site.logo.attachment-id']) || '/logo-song-nhue.png';
@@ -88,6 +92,10 @@ export async function SiteFooter() {
           ) : (
             <span />
           )}
+          {/* ⚠ OI-08 còn mở: Công ty chưa chốt giữ / đổi tên / bỏ hai mục này, và liệu
+              "Tra cứu văn bản" có trùng chức năng với "Công bố thông tin" không. Giữ nguyên
+              tới khi có trả lời — bỏ trước là tự quyết thay khách. Đường dẫn Liên hệ đã đổi
+              sang trang riêng `/lien-he` (CR-22), không còn là một bài viết. */}
           <div className="flex items-center gap-4 text-xs font-medium text-white/90">
             <Link
               href={ROUTES.search}
@@ -97,7 +105,7 @@ export async function SiteFooter() {
             </Link>
             <span className="text-white/30">|</span>
             <Link
-              href="/bai-viet/lien-he"
+              href={ROUTES.lienHe}
               className="rounded-full bg-white/15 px-3 py-1 text-white backdrop-blur-xs transition-all hover:bg-white hover:text-brand-primary"
             >
               Gửi phản ánh kiến nghị →
@@ -113,12 +121,10 @@ export async function SiteFooter() {
             <div className="flex h-12 shrink-0 items-center justify-center">
               <img src={logo} alt={siteName} className="h-full w-auto object-contain" />
             </div>
+            {/* CR-39: đã bỏ dòng "Doanh nghiệp 100% vốn Nhà nước" theo yêu cầu của Công ty. */}
             <div className="flex flex-col">
               <span className="font-bold uppercase tracking-tight text-white drop-shadow-xs">
                 {siteName}
-              </span>
-              <span className="text-xs font-semibold text-sky-200">
-                Doanh nghiệp 100% vốn Nhà nước
               </span>
             </div>
           </div>
@@ -131,86 +137,47 @@ export async function SiteFooter() {
             />
           ) : (
             <div className="space-y-2 text-xs text-white/85">
+              {/* CR-42: hiện nguyên văn giá trị trong `settings`, KHÔNG ép `uppercase`.
+                  Địa chỉ mới Công ty gửi viết thường ("Tầng 4-5 Tòa nhà Newhouse – Phường
+                  Hà Đông"); ép hoa ở đây là giao diện tự quyết định thay người nhập. */}
               <p className="flex items-start gap-2">
                 <span className="shrink-0 font-semibold text-white">Trụ sở:</span>
-                <span className="uppercase">{diaChi}</span>
+                <span>{diaChi}</span>
               </p>
               <p className="flex items-center gap-2">
-                <span className="shrink-0 font-semibold text-white">LIÊN HỆ:</span>
+                <span className="shrink-0 font-semibold text-white">Liên hệ:</span>
                 <span>
                   {dienThoai}
-                  {fax ? ` FAX: ${fax}` : ''}
+                  {fax ? ` — Fax: ${fax}` : ''}
                 </span>
               </p>
-              <p className="flex items-center gap-2">
-                <span className="shrink-0 font-semibold text-white">EMAIL:</span>
-                <span className="font-medium text-sky-200">{email}</span>
-              </p>
-              <p className="flex items-start gap-2">
-                <span className="shrink-0 font-semibold text-white">Giờ làm việc:</span>
-                <span>{gioLamViec}</span>
-              </p>
+              {/* ⛔ CR-40 (email) và CR-41 (giờ làm việc) đã BỎ khỏi chân trang.
+                  Hai khoá `company.email` / `company.working-hours` vẫn còn trong `settings`
+                  và vẫn hiện ở trang Liên hệ — tài liệu yêu cầu bỏ khỏi *chân trang*, không
+                  yêu cầu xoá dữ liệu. OI-04 còn chờ Công ty chốt bỏ hẳn email hay thay bằng
+                  email công vụ; xoá dữ liệu bây giờ là quyết định thay họ. */}
             </div>
           )}
         </div>
 
-        {/* Cột 2: Nghiệp vụ & Dịch vụ (3/12 cột) */}
-        <div className="lg:col-span-3">
-          <p className="relative pb-2 font-bold uppercase tracking-wider text-xs text-white after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-8 after:rounded after:bg-sky-300">
-            Nghiệp vụ thủy lợi
-          </p>
-          <ul className="mt-3.5 space-y-2 text-xs text-white/85">
-            <li>
-              <Link
-                href="/danh-muc/tin-tuc"
-                className="transition-colors hover:text-white hover:underline"
-              >
-                Vận hành cống & điều tiết nước
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/danh-muc/thong-bao"
-                className="transition-colors hover:text-white hover:underline"
-              >
-                Thông báo cảnh báo xả lũ
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/bai-viet/chuc-nang-nhiem-vu"
-                className="transition-colors hover:text-white hover:underline"
-              >
-                Quản lý công trình & hồ đập
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/bai-viet/co-cau-to-chuc"
-                className="transition-colors hover:text-white hover:underline"
-              >
-                Cơ cấu các Xí nghiệp thủy lợi
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="http://songnhue.bhh40.net"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 font-semibold text-sky-200 hover:text-white hover:underline"
-              >
-                Hệ thống văn bản điều hành ↗
-              </Link>
-            </li>
-          </ul>
-        </div>
+        {/*
+          ⛔ CR-09 — cột "Nghiệp vụ thủy lợi" đã bị gỡ.
 
-        {/* Cột 3: Liên kết nhanh & Cơ quan (2/12 cột) */}
-        <div className="lg:col-span-2">
+          Nó là năm liên kết viết cứng tạo ra một hệ phân loại THỨ HAI ngay cạnh menu:
+          "Vận hành cống & điều tiết nước", "Thông báo cảnh báo xả lũ", "Quản lý công trình &
+          hồ đập"… không mục nào có mặt trong cây nội dung §3, và ba trong số đó trỏ vào
+          chuyên mục/bài mà Công ty vừa đổi hoặc bỏ. §2 nói thẳng: *"Tránh để menu trên và
+          footer dùng hai hệ phân loại khác nhau."*
+
+          Chân trang nay chỉ đọc menu vị trí FOOTER — cùng bảng, cùng màn hình quản trị với
+          menu chính, nên hai nơi không lệch được (quy tắc 12).
+        */}
+        {/* Cột 2: Liên kết nhanh — ĐỌC MENU FOOTER, không có mục nào viết cứng */}
+        <div className="lg:col-span-5">
           <p className="relative pb-2 font-bold uppercase tracking-wider text-xs text-white after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-8 after:rounded after:bg-sky-300">
             Liên kết nhanh
           </p>
-          <ul className="mt-3.5 space-y-2 text-xs text-white/85">
+          <ul className="mt-3.5 grid grid-cols-1 gap-x-6 gap-y-2 text-xs text-white/85 sm:grid-cols-2">
             {menu && menu.length > 0 ? (
               menu.map((item) => {
                 const href = menuHref(item);
@@ -228,39 +195,40 @@ export async function SiteFooter() {
                 ) : null;
               })
             ) : (
-              <>
-                <li>
-                  <Link href="/" className="transition-colors hover:text-white hover:underline">
-                    Trang chủ
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/bai-viet/gioi-thieu-chung"
-                    className="transition-colors hover:text-white hover:underline"
-                  >
-                    Giới thiệu chung
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/danh-muc/tin-tuc"
-                    className="transition-colors hover:text-white hover:underline"
-                  >
-                    Tin tức & Sự kiện
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/bai-viet/lien-he"
-                    className="transition-colors hover:text-white hover:underline"
-                  >
-                    Thông tin liên hệ
-                  </Link>
-                </li>
-              </>
+              /*
+                ⛔ Dự phòng CHỈ chứa tuyến đường mà bản thân ứng dụng bảo đảm có.
+
+                Bản trước rơi về bốn liên kết viết cứng, và sau đợt chỉnh sửa này thì HAI
+                trong số đó đã chết: `/bai-viet/gioi-thieu-chung` nay là `tong-quan` (CR-23),
+                `/bai-viet/lien-he` nay là trang riêng `/lien-he` (CR-22). Một dự phòng như vậy
+                chỉ hiện đúng lúc backend hỏng — tức lúc không ai soi — và nó quảng cáo những
+                địa chỉ trả 404. Đây là cùng cái bẫy đã gỡ khỏi `SiteHeader` ở §10.54.
+              */
+              <li>
+                <Link
+                  href={ROUTES.home}
+                  className="transition-colors hover:text-white hover:underline"
+                >
+                  Trang chủ
+                </Link>
+              </li>
             )}
           </ul>
+
+          {/* CR-07 — cánh cửa sang hệ thống văn bản điều hành của Thành phố. Cổng KHÔNG dựng
+              module văn bản nội bộ và KHÔNG đồng bộ dữ liệu (CN-01.7); đây chỉ là một liên kết
+              mở tab mới. Địa chỉ đọc từ `settings`, rỗng thì không render gì. */}
+          {heThongVanBan ? (
+            <a
+              href={heThongVanBan}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-white/25 bg-white/10 px-3 py-2 text-xs font-semibold text-sky-100 transition-all hover:bg-white hover:text-brand-primary"
+            >
+              <span>Hệ thống văn bản điều hành</span>
+              <span aria-hidden="true">↗</span>
+            </a>
+          ) : null}
         </div>
 
         {/* Cột 4: Kênh kết nối truyền thông & Bản đồ (3/12 cột) */}
@@ -336,7 +304,7 @@ export async function SiteFooter() {
               Sơ đồ cổng
             </Link>
             <span>•</span>
-            <Link href="/bai-viet/lien-he" className="hover:text-white">
+            <Link href={ROUTES.lienHe} className="hover:text-white">
               Hỗ trợ kỹ thuật
             </Link>
           </div>

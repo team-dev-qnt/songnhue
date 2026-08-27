@@ -17,7 +17,7 @@ Khi mâu thuẫn: `architecture-review.md` > `function-spec.md` / `implement.md`
 | `.claude/conventions.md` | **Luật** khi viết code + đặc tả Common Platform (envelope, exception, mã lỗi, RBAC 3 tầng, chống giả mạo) |
 | `.claude/master-tracking.md` | **Nguồn DUY NHẤT** của task và nợ (§6). Đồng bộ lên Google Sheet qua MCP `google_sheets_sync` |
 | `.claude/implement.md` | Kế hoạch implement — 4 nhóm A/B/C/D, thứ tự phase, cấu trúc code |
-| `.claude/business-open-questions.md` | BOQ đợt 1+2 đã đóng · **8 mục còn mở** · truy vết chức năng nào còn điểm chưa chốt |
+| `.claude/business-open-questions.md` | BOQ đợt 1+2 đã đóng · **7 mục còn mở** (G14 đóng 27/8 bằng văn bản nghiệm thu) · truy vết chức năng nào còn điểm chưa chốt |
 | `.claude/phase0-tracking.md` · `phase1-tracking.md` | **Lưu trữ, cấm sửa.** Phase 1 có mục "18 điểm nghiệp vụ đã làm rõ trước khi code" |
 | `.claude/report-templates-proposal.md` | Đề xuất format báo cáo gửi Công ty duyệt |
 | `docs/coding-guide.md` | **Đường đi** — công thức viết một chức năng (migration → entity → workflow → service → controller → quyền → mã lỗi → test) + bẫy đã trả giá |
@@ -68,13 +68,14 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 
 **Phase "Tài liệu hệ thống"** ✅ xong 12/8/2026 — BOQ đợt 1 (A–F) + đợt 2 (G) đã đóng và đồng bộ vào `function-spec.md` **v2.2**.
 **Phase 0 — Core Platform** ✅ 10/11 hạng mục. **WS-11 (Deploy)**: staging đã chạy thật, đường ống CD đóng (§10.50→§10.55); còn production + quay lui thật.
-**Phase 1 — CMS & master data công trình** ✅ **xong 24/8/2026** — WS-12→WS-23 đóng đủ, **16/17 mục DoD** có phép kiểm đứng sau. 
+**Phase 1 — CMS & master data công trình** ✅ **xong 24/8/2026** — WS-12→WS-23 đóng đủ, **16/17 mục DoD** có phép kiểm đứng sau.
+**WS-24 — Đợt chỉnh sửa cổng theo nghiệm thu Công ty** (`docs_origin/nghiem_thu_phase1.md`, 27/8): **34/43 mã CR đóng**, 9 mã còn lại chờ đăng nhập trên cổng · nguồn dữ liệu · nhập liệu. Chi tiết `master-tracking.md` WS-24 · nguyên nhân gốc §10.61.
 
 ⬜ **DoD còn treo**: **DOD1.17** trang chủ < 3s (NFR-02) — nay đo được trên staging có nội dung thật · **DOD0.21** quay lui — chưa lượt deploy nào đi qua đường quay lui thành công.
 
 ✅ **Staging đã dựng lại cluster 26/8** (T11.3-b) — `i | collate=C.UTF-8 | icu=vi-VN`, vân tay số dòng khớp từng bảng, 6/6 container healthy, 4/4 smoke test xanh trên site thật, trang chủ 11 liên kết đều là slug thật. Lượt khôi phục ấy tìm ra **T7.13-a** — đường quay lui dữ liệu duy nhất của hệ vốn khôi phục ra một CSDL ứng dụng không đọc nổi (§10.58).
 
-⚠⚠ **Mười ba lượt liên tiếp một bản ghi "đã xong" bị lượt rà sau bác bỏ.** Đây là hình dạng rủi ro
+⚠⚠ **Mười bốn lượt liên tiếp một bản ghi "đã xong" bị lượt rà sau bác bỏ.** Đây là hình dạng rủi ro
 đặc trưng của dự án, không phải sự cố lẻ — nguyên nhân gốc từng vụ ở `architecture-review.md`:
 
 | Ngày | Lượt rà tìm ra | § |
@@ -92,6 +93,7 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 | 26/8 | **đường quay lui dữ liệu duy nhất** khôi phục ra CSDL mà ứng dụng không đọc nổi | §10.58 |
 | 27/8 | lượt deploy đỏ vì **cổng 22 bị quét** — sshd thả 30% kết nối; không phải lỗi mã | §10.59 |
 | 27/8 | CD Staging **success trọn vẹn mà không container nào được thay** — một lệnh nuốt mất nửa cuối script | §10.60 |
+| 27/8 | **cổng công khai chưa từng có CSP nào** — `next.config` bảo *nginx đặt*, nginx bảo *image FE đặt*; bộ canh chỉ soi `admin-app` | §10.61 |
 
 ⛔ Hệ quả rút ra: **"đã tick" không phải bằng chứng.** Trước khi mở một giai đoạn mới, đối chiếu với mã thật và chạy đường mà người dùng thật đi.
 
@@ -99,23 +101,27 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 
 ⛔ **Cấm seed dữ liệu công trình/thuỷ văn "cho đẹp demo"** — ô nào chưa có nguồn thì nói thẳng là chưa có.
 
-**Codebase đo ngày 27/8**: **635 test BE** (242 core + 20 content + 24 operations + 349 app) + **222 test FE** (142 admin + 80 public) · **74 mã lỗi** (BE = FE) · 88 quyền / 12 vai trò / 334 dòng phân quyền · **32 bài ArchUnit** (7 lớp, gồm 11 bài tự-kiểm chứng minh luật bắt được vi phạm) · 7 phép kiểm bộ đọc tracking · mọi cổng bao phủ **chạy thật** (content 18.2%) · 0 CVE ≥ 7.
+**Codebase đo ngày 27/8 (sau WS-24)**: **662 test BE** (249 core + 20 content + 33 operations + 360 app) + **244 test FE** (142 admin + 102 public) · **74 mã lỗi** (BE = FE) · 88 quyền / 12 vai trò / 334 dòng phân quyền · **32 bài ArchUnit** (7 lớp, gồm 11 bài tự-kiểm chứng minh luật bắt được vi phạm) · 7 phép kiểm bộ đọc tracking · mọi cổng bao phủ **chạy thật** (content 18.2%) · 0 CVE ≥ 7.
 
 ### Tra ở đâu
 
 | Cần gì | Đọc ở đâu |
 |---|---|
 | Nợ đang treo, task còn lại | **`.claude/master-tracking.md`** — nguồn DUY NHẤT (conventions.md §6). `phase0-tracking.md` / `phase1-tracking.md` chỉ là lưu trữ, cấm sửa |
-| **Lý do** một quyết định, **nguyên nhân gốc** một lỗi đã sửa | `architecture-review.md` **§9** (Phase 0, 14 mục) · **§10** (Phase 1, 47 mục — §10.35 đợt vá sau WS-22, §10.36 nghiệm thu lại WS-21 + DoD, §10.37 nghiệm thu image, §10.38 CI đỏ sau merge `dev`, §10.40 lỗi 204, §10.41 biến CSDL không ai đọc, §10.52 envelope bọc `byte[]`, §10.53 container không được thay, §10.54 trang chủ nướng rỗng + dữ liệu bịa che chỗ rỗng, §10.55 `minio-init` đo thay vì khai báo + bộ seed một công tắc, §10.56 collation vắng ở `compose.prod.yml` — tham số chỉ chạy một lần, §10.57 cổng secret bỏ qua trong im lặng + 4 khoản bấm ở GitHub, §10.58 bản dump khôi phục ra CSDL không đọc nổi, §10.59 cổng 22 bị quét làm đỏ deploy, §10.60 một lệnh nuốt stdin làm nửa cuối khối triển khai không chạy mà CD vẫn xanh) |
+| **Lý do** một quyết định, **nguyên nhân gốc** một lỗi đã sửa | `architecture-review.md` **§9** (Phase 0, 14 mục) · **§10** (Phase 1, 48 mục — §10.35 đợt vá sau WS-22, §10.36 nghiệm thu lại WS-21 + DoD, §10.37 nghiệm thu image, §10.38 CI đỏ sau merge `dev`, §10.40 lỗi 204, §10.41 biến CSDL không ai đọc, §10.52 envelope bọc `byte[]`, §10.53 container không được thay, §10.54 trang chủ nướng rỗng + dữ liệu bịa che chỗ rỗng, §10.55 `minio-init` đo thay vì khai báo + bộ seed một công tắc, §10.56 collation vắng ở `compose.prod.yml` — tham số chỉ chạy một lần, §10.57 cổng secret bỏ qua trong im lặng + 4 khoản bấm ở GitHub, §10.58 bản dump khôi phục ra CSDL không đọc nổi, §10.59 cổng 22 bị quét làm đỏ deploy, §10.60 một lệnh nuốt stdin làm nửa cuối khối triển khai không chạy mà CD vẫn xanh, **§10.61 đợt chỉnh sửa cổng theo nghiệm thu Công ty — cổng công khai chưa từng có CSP, đổi menu làm ba trang tĩnh mất lối vào, hai bộ canh cũ canh hình dạng thay vì canh bất biến**) |
 | Cách viết một chức năng + bảng bẫy tra nhanh | `docs/coding-guide.md` |
 | Luật bắt buộc khi viết code | `conventions.md` |
 | Nghiệp vụ | `function-spec.md`; điểm chưa chốt → `business-open-questions.md` Phần III |
 
-### Nghiệp vụ còn chờ Công ty — 8 mục
+### Nghiệp vụ còn chờ Công ty — 7 mục BOQ + 10 mục OI
 
 Không mục nào **chặn code**, chỉ chặn **dữ liệu khởi tạo và nghiệm thu**; riêng **G5** chặn đích danh CN-01.7 (lưu mã số hệ thống văn bản) nên task đó tách riêng.
 
-**G3-a** lượng mưa · **G5** mã số hệ thống văn bản (+ xin SSO) · **G6** mẫu 2C-BNV · **G8** tuyến sông/lý trình/toạ độ + danh mục công trình · **G9-a** bộ mức ngưỡng · **G10** duyệt format báo cáo · **G13** bộ nhận diện cổng (logo/màu/GA/GTM/reCAPTCHA) · **G14** cây danh mục + menu + nội dung 4 trang tĩnh.
+**G3-a** lượng mưa · **G5** mã số hệ thống văn bản (+ xin SSO) · **G6** mẫu 2C-BNV · **G8** tuyến sông/lý trình/toạ độ + danh mục công trình · **G9-a** bộ mức ngưỡng · **G10** duyệt format báo cáo · **G13** bộ nhận diện cổng (logo/màu/GA/GTM/reCAPTCHA).
+
+✅ **G14 đóng 27/8** — cây danh mục + menu nhận qua §3 văn bản nghiệm thu, dựng ở `V202608271031`.
+
+⬜ **Mở mới 27/8 — `OI-01`→`OI-10`** (§9 của `docs_origin/nghiem_thu_phase1.md`). Tài liệu đề nghị phía phát triển trả lời **ngay trong tuần** ba mục kỹ thuật `OI-01`/`OI-02`/`OI-07`; câu trả lời đo được đã có ở `master-tracking.md` T24.23→T24.25. Chặn nghiệm thu nặng nhất: **`OI-03`** (danh sách 10 cống trục chính) · **`OI-05`** (7 hay 8 Xí nghiệp — Bố cục ghi 7, danh mục công trình có 8).
 
 Gửi kèm `report-templates-proposal.md`. Chi tiết từng mục: `business-open-questions.md` Phần II.
 

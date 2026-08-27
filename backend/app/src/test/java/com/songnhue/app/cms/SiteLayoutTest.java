@@ -109,8 +109,36 @@ class SiteLayoutTest extends IntegrationTestBase {
                         "site.name",
                         "site.logo.attachment-id",
                         "site.footer.copyright",
-                        "site.home.blocks",
                         "site.slider.interval-seconds");
+    }
+
+    @Test
+    @DisplayName("⛔ KHÔNG còn `site.home.blocks` / `site.slider.effect` — hai công tắc không ai đọc")
+    void khongConCongTacBoCucChet() {
+        assertThat(siteConfig.list())
+                .as(
+                        """
+                        Cùng luật với bài ngay trên. `site.home.blocks` liệt kê SLIDER/FEATURED/NEWS/NOTICE —                         từ vựng có TRƯỚC cây nội dung mà Công ty duyệt 27/08/2026: CR-10 đã thay bài đinh                         (FEATURED) bằng slider ảnh, CR-01 đã bỏ mục Thông báo (NOTICE) khỏi cây nội dung.                         `site.slider.effect` thì chưa từng có nơi đọc. Cả hai gỡ ở V202608271032; bài này                         canh cho chúng không quay lại qua một lượt seed nào khác.""")
+                .extracting(SettingItem::key)
+                .doesNotContain("site.home.blocks", "site.slider.effect");
+    }
+
+    @Test
+    @DisplayName("Tham số cổng của đợt chỉnh sửa 27/08/2026 có mặt và sửa được")
+    void thamSoDotChinhSuaCoMat() {
+        assertThat(siteConfig.list())
+                .as(
+                        """
+                        §2 của "YÊU CẦU CHỈNH SỬA WEBSITE": chu kỳ refresh, số bài hiển thị, số ảnh slider,                         thời gian chuyển ảnh phải cấu hình được, không gán cứng trong mã nguồn. Bài này canh                         vế "có mặt"; vế "có nơi đọc" do PortalSettingsAreReadTest ở public-web canh.""")
+                .extracting(SettingItem::key)
+                .contains(
+                        "site.external.doc-system-url",
+                        "site.slider.max-items",
+                        "site.home.news-count",
+                        "site.home.documents-category",
+                        "site.home.documents-count",
+                        "site.page.production-progress-category",
+                        "site.home.realtime.refresh-seconds");
     }
 
     @Test
@@ -422,52 +450,116 @@ class SiteLayoutTest extends IntegrationTestBase {
     // ---- Khung đề xuất do migration seed (T15.7 + T13.13) --------------------
 
     @Test
-    @DisplayName("⭐ Migration seed đủ khung cổng: danh mục, 4 trang tĩnh, hai cây menu")
+    @DisplayName("⭐ Migration seed dựng đúng cây nội dung Công ty duyệt 27/08/2026")
     void migrationSeedDuKhungCong() {
         assertThat(jdbc.queryForObject(
                         "SELECT count(*) FROM articles WHERE created_by IS NULL AND status = 'XUAT_BAN' "
-                                + "AND published_version_id IS NOT NULL",
+                                + "AND published_version_id IS NOT NULL AND deleted_at IS NULL",
                         Integer.class))
                 .as(
                         """
-                        Bốn trang tĩnh phải XUẤT BẢN và có bản phục vụ công khai. Để ở Nháp thì menu trỏ \
-                        vào bốn địa chỉ trả 404 — đúng thứ mà việc seed này sinh ra để tránh.""")
-                .isEqualTo(4);
+                        Chỉ còn MỘT trang tĩnh do migration sở hữu: "Tổng quan". Ba trang cũ                         (chuc-nang-nhiem-vu · co-cau-to-chuc · lien-he) đã bị V202608271031 xoá mềm vì                         cây nội dung mới thay chúng bằng trang thật ở đường dẫn khác (CR-22/23/24).                         Trang tĩnh còn lại phải XUẤT BẢN và có bản phục vụ công khai — để ở Nháp thì                         mục menu trỏ vào nó trả 404.""")
+                .isEqualTo(1);
 
+        // ⭐ Ghim ĐÚNG bảy mục cấp 1 của §3 cộng lối sang hệ thống văn bản điều hành (CR-07).
+        //    Đây là tiêu chí nghiệm thu viết thành phép khẳng định: §2 đòi menu chính, chân trang
+        //    và card chuyên mục dùng CHUNG một hệ phân loại, nên hệ ấy phải có đúng một mô tả
+        //    máy đọc được. Đổi thứ tự hay đổi tên một mục là một quyết định, và nó phải làm đỏ.
         assertThat(menus.tree(MenuPosition.HEADER))
-                .as("menu Header đề xuất: Trang chủ · Giới thiệu (3 mục con) · Tin tức · Thông báo · Văn bản · Liên hệ")
-                .hasSize(9);
-        assertThat(menus.tree(MenuPosition.FOOTER)).hasSize(4);
+                .filteredOn(node -> node.depth() == 0)
+                .extracting(MenuService.MenuNode::label)
+                .containsExactly(
+                        "Trang chủ",
+                        "Giới thiệu",
+                        "Tin tức – Sự kiện",
+                        "Hoạt động Đảng, đoàn thể",
+                        "Quản lý, vận hành",
+                        "Công bố thông tin",
+                        "Liên hệ",
+                        "Văn bản điều hành");
+
+        // Bốn nhánh có menu con — CR-02, CR-03, CR-05, CR-06.
+        assertThat(menus.tree(MenuPosition.HEADER))
+                .filteredOn(node -> node.depth() == 1)
+                .as("Giới thiệu 4 · Tin tức – Sự kiện 2 · Quản lý, vận hành 4 · Công bố thông tin 2")
+                .hasSize(12);
+
+        assertThat(menus.tree(MenuPosition.FOOTER))
+                .as("CR-09: chân trang dùng đúng hệ phân loại của menu chính — bảy mục cấp 1")
+                .hasSize(7);
 
         assertThat(menus.tree(MenuPosition.HEADER))
                 .filteredOn(node -> node.linkType() == MenuLinkType.EXTERNAL_DOC)
                 .singleElement()
                 .satisfies(node -> {
-                    assertThat(node.openNewTab()).isTrue();
-                    assertThat(node.url()).contains("songnhue.bhh40.net");
+                    assertThat(node.openNewTab())
+                            .as("CR-07 + checklist §10: nút Văn bản điều hành phải mở TAB MỚI")
+                            .isTrue();
+                    assertThat(node.url())
+                            .as(
+                                    """
+                                    CR-07 đổi đích sang hệ thống của Thành phố. `songnhue.bhh40.net` là hệ                                     thống văn bản CŨ của Công ty và cũng là nguồn API thuỷ văn của MOD-03 —                                     hai vai trò khác nhau trên cùng một host, nên nhầm chỗ này không lộ ra                                     ở đâu cả.""")
+                            .contains("quanlyvanban.hanoi.gov.vn");
                 });
     }
 
     @Test
-    @DisplayName("Materialized path của menu seed đúng — cha đứng trước con")
+    @DisplayName("⛔ Mọi mục menu seed có đích giải được, và cha luôn đứng trước con")
     void pathCuaMenuSeedDung() {
         List<MenuService.MenuNode> header = menus.tree(MenuPosition.HEADER);
 
-        List<MenuService.MenuNode> con =
-                header.stream().filter(n -> n.depth() == 1).toList();
+        /*
+          ⚠ Bản trước khẳng định "ba mục con của Giới thiệu đều trỏ tới trang tĩnh" — một mô tả
+            HÌNH DẠNG của cây menu tháng 8, nên nó đỏ ngay lượt Công ty duyệt cây nội dung mới,
+            dù không có gì hỏng. Bài kiểm phải nói về BẤT BIẾN, không về hình dạng hiện thời:
+            hình dạng đã có `migrationSeedDuKhungCong` ghim riêng, còn ở đây là hai điều luôn
+            phải đúng với mọi cây menu.
+        */
+        assertThat(header)
+                .filteredOn(node -> node.depth() == 1)
+                .as("phải có mục con để kiểm — chạy qua tập rỗng thì xanh mà không canh gì (luật 7)")
+                .isNotEmpty();
 
-        assertThat(con).hasSize(3);
-        assertThat(con).allSatisfy(node -> {
-            assertThat(node.parentPublicId()).isNotNull();
-            assertThat(node.articlePublicId())
-                    .as("ba mục con của 'Giới thiệu' trỏ tới ba trang tĩnh")
-                    .isNotNull();
-            int viTriCha = header.indexOf(header.stream()
-                    .filter(x -> x.publicId().equals(node.parentPublicId()))
-                    .findFirst()
-                    .orElseThrow());
-            assertThat(viTriCha).isLessThan(header.indexOf(node));
-        });
+        for (MenuService.MenuNode node : header) {
+            if (node.depth() > 0) {
+                assertThat(node.parentPublicId())
+                        .as("mục '%s' ở cấp %d mà không có cha", node.label(), node.depth())
+                        .isNotNull();
+                int viTriCha = header.indexOf(header.stream()
+                        .filter(x -> x.publicId().equals(node.parentPublicId()))
+                        .findFirst()
+                        .orElseThrow(() -> new AssertionError("không tìm thấy cha của " + node.label())));
+                assertThat(viTriCha)
+                        .as("cha của '%s' đứng SAU nó — buildMenuTree ở public-web duyệt một lượt", node.label())
+                        .isLessThan(header.indexOf(node));
+            }
+
+            // ⛔ Đích giải được. Một mục `CATEGORY` không có slug, hay `URL` không có url, sẽ
+            //    render thành thẻ không bấm được ở cổng — mất một lối vào mà không có lỗi nào.
+            switch (node.linkType()) {
+                case CATEGORY ->
+                    assertThat(node.categorySlug())
+                            .as("mục '%s' kiểu CATEGORY nhưng không có slug", node.label())
+                            .isNotBlank();
+                case ARTICLE ->
+                    assertThat(node.articlePublicId())
+                            .as("mục '%s' kiểu ARTICLE nhưng không trỏ tới bài nào", node.label())
+                            .isNotNull();
+                case URL, EXTERNAL_DOC ->
+                    assertThat(node.url())
+                            .as("mục '%s' kiểu %s nhưng không có đường dẫn", node.label(), node.linkType())
+                            .isNotBlank();
+                case NONE ->
+                    assertThat(header)
+                            .filteredOn(x -> node.publicId().equals(x.parentPublicId()))
+                            .as("mục '%s' kiểu NONE (chỉ mở menu con) mà KHÔNG có mục con nào", node.label())
+                            .isNotEmpty();
+                // ⚠ Nhánh này không chạy với năm giá trị hiện có của `MenuLinkType`, và đó chính
+                //   là lý do nó phải ném. Thêm một loại liên kết thứ sáu mà quên khai cách giải
+                //   đích của nó thì bài kiểm nói ra ngay, thay vì lặng lẽ bỏ qua mọi mục kiểu ấy.
+                default -> throw new AssertionError("kiểu liên kết chưa khai cách giải đích: " + node.linkType());
+            }
+        }
     }
 
     // ---- Trợ giúp ------------------------------------------------------------

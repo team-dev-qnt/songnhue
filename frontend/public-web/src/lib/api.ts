@@ -135,6 +135,11 @@ export async function apiGetWithMeta<T>(
 
 // ---- Kiểu dữ liệu, mirror của DTO backend --------------------------------
 
+export interface CategoryRef {
+  slug: string;
+  name: string;
+}
+
 export interface ArticleRow {
   slug: string;
   title: string;
@@ -142,6 +147,14 @@ export interface ArticleRow {
   coverAttachmentPublicId: string | null;
   publishedAt: string | null;
   viewCount: number;
+  /**
+   * Chuyên mục **đang hiện** của bài — CR-12 cần nhãn "Tin thủy lợi / Tin Công ty".
+   *
+   * ⚠ Backend lọc `visible` trước khi trả: một chuyên mục đang ẩn không được lộ ra dưới dạng
+   * nhãn. Mảng rỗng nghĩa là bài không thuộc chuyên mục nào đang hiện — nơi hiển thị bỏ hẳn
+   * ô tag, không thay bằng một nhãn mặc định.
+   */
+  categories: CategoryRef[];
 }
 
 export interface ArticleDetail extends ArticleRow {
@@ -151,7 +164,7 @@ export interface ArticleDetail extends ArticleRow {
   metaKeywords: string | null;
   /** Bài Lưu trữ — vẫn vào được bằng địa chỉ trực tiếp nhưng phải gắn `noindex`. */
   archived: boolean;
-  categories: { slug: string; name: string }[];
+  categories: CategoryRef[];
 }
 
 /** Kết quả một trang, đã ghép `data` với `meta` để nơi gọi chỉ cầm một thứ. */
@@ -191,6 +204,67 @@ export interface CategoryNode {
   description: string | null;
   depth: number;
   sortOrder: number;
+}
+
+/**
+ * Một nút của sơ đồ tổ chức công bố — CR-24.
+ *
+ * ⚠ Cố ý **không** có `path`: materialized path là chuỗi id chạy số (`/1/4/9/`), và backend
+ * không trả nó ra đường công khai. Nếu một ngày trường ấy xuất hiện ở đây thì đó là dấu hiệu
+ * ai đó vừa tái dùng DTO của màn hình quản trị cho cổng.
+ */
+export interface OrgChartNode {
+  code: string;
+  name: string;
+  shortName: string | null;
+  unitType: string;
+  children: OrgChartNode[];
+}
+
+/** Một dòng bảng "Lãnh đạo Công ty" — đúng ba cột của CR-25. */
+export interface LeaderRow {
+  fullName: string;
+  title: string;
+  phone: string | null;
+}
+
+/** Một dòng bảng "Xí nghiệp trực thuộc" — đúng sáu cột của CR-26. */
+export interface SubsidiaryRow {
+  code: string;
+  name: string;
+  shortName: string | null;
+  address: string | null;
+  phone: string | null;
+  email: string | null;
+  directorName: string | null;
+  directorPhone: string | null;
+}
+
+/**
+ * Một dòng của bảng danh mục công trình 7 cột — CR-28 / §5.1.
+ *
+ * ⚠ `latitude`/`longitude` về dạng **chuỗi**: backend dùng `BigDecimal` (quy tắc 2 — cấm
+ * float cho mọi số đo), và Jackson tuần tự hoá nó thành chuỗi để không mất chữ số khi đi qua
+ * `number` của JavaScript. Đừng `parseFloat` rồi in lại — chỉ nối thẳng vào liên kết bản đồ.
+ */
+export interface ConstructionRow {
+  code: string;
+  name: string;
+  constructionType: string;
+  location: string | null;
+  mainSpec: string | null;
+  operatingProcedureFileId: string | null;
+  protectionPlanFileId: string | null;
+  latitude: string | null;
+  longitude: string | null;
+}
+
+/** Danh mục công trình của một Xí nghiệp — CR-27 gom theo đơn vị quản lý. */
+export interface UnitCatalog {
+  unitCode: string | null;
+  unitName: string;
+  unitShortName: string | null;
+  constructions: ConstructionRow[];
 }
 
 /** Cụm khoá–giá trị của nhóm `SITE`. Khoá lạ trả về `undefined`, nơi gọi tự đặt mặc định. */
@@ -247,4 +321,49 @@ export function getArticle(slug: string): Promise<ArticleDetail | null> {
   return apiGet<ArticleDetail>(`/articles/${encodeURIComponent(slug)}`, {
     tags: [CACHE_TAGS.articles],
   });
+}
+
+// ---- Tổ chức & công trình công khai (T11.30) --------------------------------
+
+/**
+ * ⚠ Ba nhóm dữ liệu dưới đây gắn nhãn cache **riêng**, không dùng chung `layout`.
+ *
+ * Chúng đổi theo nhịp khác hẳn tin bài: một Xí nghiệp đổi số điện thoại vài năm một lần.
+ * Gộp nhãn thì mỗi lượt xuất bản bài viết lại xoá luôn cả bảng công trình khỏi bộ đệm —
+ * không sai kết quả, nhưng backend bị hỏi lại một câu mà câu trả lời không hề đổi.
+ */
+export const ORG_TAG = 'to-chuc';
+export const CONSTRUCTION_TAG = 'cong-trinh';
+
+/** Sơ đồ cây cơ cấu tổ chức — CR-24. */
+export function getOrgChart(): Promise<OrgChartNode[] | null> {
+  return apiGet<OrgChartNode[]>('/org-units/chart', { tags: [ORG_TAG] });
+}
+
+/** Bảng Lãnh đạo Công ty — CR-25. */
+export function getCompanyLeaders(): Promise<LeaderRow[] | null> {
+  return apiGet<LeaderRow[]>('/org-units/leaders', { tags: [ORG_TAG] });
+}
+
+/** Bảng Xí nghiệp trực thuộc — CR-26, và khối "Đơn vị trực thuộc" trang chủ (CR-19). */
+export function getSubsidiaries(): Promise<SubsidiaryRow[] | null> {
+  return apiGet<SubsidiaryRow[]>('/org-units/subsidiaries', { tags: [ORG_TAG] });
+}
+
+/** Danh mục công trình gom theo Xí nghiệp — CR-27, CR-28. */
+export function getConstructionCatalog(): Promise<UnitCatalog[] | null> {
+  return apiGet<UnitCatalog[]>('/constructions', { tags: [CONSTRUCTION_TAG] });
+}
+
+/**
+ * Giờ máy chủ — mốc cho dòng "Cập nhật lúc" của CR-35.
+ *
+ * ⛔ `revalidate: 0` là bắt buộc và là điểm khác biệt duy nhất của lượt gọi này. Một mốc thời
+ * gian nằm trong bộ đệm 5 phút thì nó nói dối chính xác 5 phút, mà cả lý do tồn tại của dòng
+ * "Cập nhật lúc" là để người xem biết số liệu mới đến bao giờ. Đây cũng là lý do mốc lấy từ
+ * **máy chủ** chứ không phải `new Date()` phía máy khách: đồng hồ máy khách sai thì cả trang
+ * nói sai theo, và không ai đối chiếu được.
+ */
+export function getServerTime(): Promise<string | null> {
+  return apiGet<string>('/now', { revalidate: 0 });
 }

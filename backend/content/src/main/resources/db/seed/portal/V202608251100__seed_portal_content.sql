@@ -37,11 +37,20 @@
 --    phần.
 --
 --    Vị từ dưới đây canh theo QUAN HỆ, không theo danh sách slug: *xoá mọi bài
---    không có mục menu nào trỏ tới*. Nó tự bảo vệ 4 trang tĩnh do
---    `V202608191021__cms_seed_site_structure` sở hữu (gioi-thieu-chung ·
---    chuc-nang-nhiem-vu · co-cau-to-chuc · lien-he), và vẫn đúng khi sau này có
---    thêm trang tĩnh thứ năm — một danh sách slug viết cứng thì lần thêm ấy sẽ
---    làm gãy menu, im lặng.
+--    không có mục menu nào trỏ tới*. Một danh sách slug viết cứng sẽ làm gãy menu
+--    trong im lặng ngay lần cây nội dung đổi.
+--
+--    ⚠⚠ CẬP NHẬT 27/08/2026 — và đây là lý do vị từ theo quan hệ đã trả công:
+--    `V202608271031` thay cây nội dung theo tài liệu Công ty duyệt, và trong bốn
+--    trang tĩnh cũ thì BA trang mất mục menu (chuc-nang-nhiem-vu · co-cau-to-chuc
+--    · lien-he — mỗi trang bị một trang thật ở đường dẫn khác thay thế). Nếu chỗ
+--    này là danh sách slug thì nó vẫn "bảo vệ" ba bài đã chết; còn vị từ quan hệ
+--    thì tự động thôi bảo vệ chúng — đúng hành vi mong muốn. Nay chỉ còn
+--    `tong-quan` (đổi tên từ `gioi-thieu-chung`) là trang tĩnh có menu trỏ tới.
+--
+--    ⛔ Chính vì nó xoá CỨNG, `V202608271031` đã chủ động xoá mềm ba bài kia
+--    trước — để việc chúng biến mất là một quyết định ghi trong migration, không
+--    phải một tác dụng phụ của bộ seed mà không ai đọc ra.
 --
 -- Xoá CỨNG, không `deleted_at`: đây là dựng lại trạng thái đầu của một môi trường
 -- đo đạc, không phải hành vi xoá bài của người dùng. Bài ẩn mà còn nằm trong bảng

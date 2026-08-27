@@ -3883,3 +3883,146 @@ bước kết thúc 0,4 giây sau lệnh áp chót, trong khi việc còn lại 
 
 ⛔ Và một lần nữa: **cổng kiểm phải phân biệt được hai trạng thái nó khẳng định.** Smoke test hỏi
 "site có sống không"; câu cần hỏi là "site đang chạy image nào".
+
+### §10.61. Đợt chỉnh sửa cổng TTĐT theo văn bản nghiệm thu của Công ty (27/8/2026)
+
+**Bối cảnh.** Công ty ban hành *"YÊU CẦU CHỈNH SỬA WEBSITE" v1.0* (`docs_origin/nghiem_thu_phase1.md`)
+— 43 mã CR, một cây nội dung chuẩn 7 mục cấp 1, một bảng phân quyền, và 10 câu hỏi kỹ thuật. Đây là
+lần đầu Công ty mô tả cổng bằng một tài liệu máy đọc được thay vì bằng ảnh chụp màn hình có chú
+thích, nên nó **đóng mục G14** đã treo từ 19/8.
+
+Mục dưới đây chỉ ghi những quyết định có *nguyên nhân gốc*, không chép lại danh sách việc — danh
+sách nằm ở `master-tracking.md` WS-24.
+
+#### 1. Cùng một hình dạng lỗi cũ: cây nội dung ở hai nơi, không nơi nào biết nơi kia
+
+Menu của cổng nằm ở `menu_items` (CSDL), còn bảy tuyến đường mà menu trỏ tới nằm ở `ROUTES` của
+Next. Một mục menu trỏ vào tuyến đường không tồn tại **không làm đỏ bất cứ thứ gì**: migration chạy
+xanh, `next build` xanh, mọi bộ test xanh. Nó chỉ hiện ra khi một người dùng thật bấm vào và nhận
+404 — đúng hình dạng §10.54, nơi cổng quảng cáo những khu vực bấm vào là không có.
+
+Chữa bằng `PortalTaxonomyTest`, và điểm đáng ghi là nó canh **cả hai chiều**. Chiều "menu → có
+trang" bắt lỗi 404. Chiều ngược lại — "trang → có ai dẫn tới" — bắt một loại lãng phí im lặng hơn:
+một trang được viết, được kiểm, được triển khai mà không lối vào nào. Lượt kiểm chứng ngược làm hỏng
+đúng một URL và **hai bài đỏ, mỗi chiều một bài**.
+
+#### 2. ⚠⚠ Đổi menu làm ba trang tĩnh mất lối vào — và bộ seed sẽ xoá cứng chúng
+
+Menu cũ trỏ vào bốn trang tĩnh bằng `link_type = 'ARTICLE'`. Cây nội dung mới chỉ giữ lại một
+(`tong-quan`); ba trang kia bị thay bằng **trang thật ở đường dẫn khác** — `co-cau-to-chuc` thành
+một trang đọc `org_units`, `lien-he` thành `/lien-he`, còn `chuc-nang-nhiem-vu` gộp vào Tổng quan
+theo CR-23.
+
+Hậu quả nhìn thấy được là ba bài mồ côi. Hậu quả **không** nhìn thấy được nằm ở bộ seed staging
+`V202608251100`: vị từ dọn bài của nó là *"xoá mọi bài không có mục menu nào trỏ tới"*, **xoá CỨNG**.
+Vị từ ấy được viết khi cả bốn trang đều có mục menu, và chính chú thích của nó liệt kê bốn slug như
+một sự bảo đảm. Sau lượt đổi menu, nó sẽ nuốt ba bài — không lỗi, không log, và chỉ lộ ra ở lượt
+dựng lại CSDL kế tiếp.
+
+Điều đáng chú ý: vị từ **theo quan hệ** ấy hoá ra đúng, và đúng vì lý do người viết nó đã lường
+trước — một danh sách slug viết cứng sẽ vẫn "bảo vệ" ba bài đã chết. Cái sai duy nhất là *chú thích*
+của nó mô tả một trạng thái nay đã thay đổi.
+
+Chữa: `V202608271031` **chủ động xoá mềm** ba bài, có điều kiện `created_by IS NULL AND updated_at
+IS NULL` — biên tập viên đã viết nội dung thật vào đó thì bài ở lại, vì nội dung của khách không
+phải thứ một migration được quyền quyết định thay họ. Việc chúng biến mất nay là một quyết định ghi
+trong migration, không phải tác dụng phụ của một bộ seed mà không ai đọc ra.
+
+`SeedPortalMigrationTest` nay canh **cả hai vế**: `tong-quan` phải sống sót, ba bài kia phải bị dọn.
+Không có vế thứ hai thì một vị từ "bảo vệ mọi bài do migration tạo" cũng xanh y hệt — trong khi nó
+để lại ba trang rỗng trên cổng.
+
+#### 3. ⚠⚠ Cổng công khai chưa từng có CSP — hai tệp trỏ vào nhau
+
+`next.config.ts` ghi *"CSP đầy đủ và HSTS đặt ở nginx (WS-11/T11.5) — nơi duy nhất biết đủ mọi
+origin"*. `deploy/nginx/snippets/edge-headers.conf` ghi ngược lại: *"Cố ý KHÔNG đặt lại CSP … Hai
+image FE đã đặt đủ chúng (`admin-app.Dockerfile` · public-web `next.config`)"*, kèm một nguyên tắc
+nghe rất đúng — *mỗi header có ĐÚNG MỘT nơi chịu trách nhiệm*.
+
+Cả hai lập luận đều mạch lạc. Chúng chỉ có một khiếm khuyết: **không nơi nào đặt CSP cho public-web**,
+và đã như vậy từ WS-16. `NginxSecurityHeadersTest` có canh CSP — nhưng nó khai
+`DOCKERFILE = "deploy/docker/admin-app.Dockerfile"`, nên cổng công khai nằm ngoài tầm với suốt thời
+gian bài kiểm ấy báo xanh.
+
+Đây là hình dạng đặc trưng của dự án ở dạng thuần khiết nhất: **một cơ chế canh gác tồn tại trong
+tài liệu nhưng chưa có hiệu lực ở nơi nó phải chặn** — cùng họ với nợ #27 (lệnh bảo vệ nhánh nằm sẵn
+trong `branch-protection.md` từ 15/8, không ai chạy, và không ai biết là chưa chạy). Khác biệt duy
+nhất: ở đây *hai* tài liệu cùng khẳng định việc đã xong, nên đọc tệp nào cũng thấy yên tâm.
+
+Nó lộ ra vì một lý do không liên quan: CR-22 đòi nhúng iframe Google Map, nên phải đi tìm `frame-src`
+để mở — và không tìm thấy chỉ thị nào để mở.
+
+`csp.test.ts` đọc **giá trị đã giải** qua `nextConfig.headers()`, không grep tệp: grep chuỗi
+`Content-Security-Policy` sẽ xanh kể cả khi hằng số được khai mà không ai gắn vào `headers()` (luật 3).
+
+⚠ Ghi lại một đánh đổi để nó là quyết định đọc được thay vì một chỗ ai đó nới ra rồi quên:
+`script-src` của public-web **phải** có `'unsafe-inline'`, khác admin-app. Next App Router chèn
+`<script>` nội tuyến cho hydration; cách chặt hơn là gắn `nonce`, nhưng nonce phải khác nhau mỗi
+request — tức mọi trang thành động và **ISR tắt hẳn**, trong khi DOD1.17 (trang chủ < 3s) đang dựa
+vào ISR.
+
+#### 4. Hai bộ canh cũ đỏ vì canh **hình dạng** thay vì canh **bất biến**
+
+Cả hai đều đỏ oan, và cả hai đều đáng ghi vì lý do đỏ khác nhau:
+
+- `siteContactConfig.test.ts` khẳng định *"`SiteFooter.tsx` phải chứa `'company.email'`"*. CR-40 yêu
+  cầu bỏ email khỏi chân trang, nên bài kiểm đọc một lượt sửa **đúng yêu cầu** thành *"cổng lại ghi
+  cứng thông tin liên hệ"* — đúng ngược sự thật. Bất biến thật không bao giờ là *"tệp X chứa chuỗi
+  Y"* mà là *"thông tin liên hệ phải đến từ `settings`, ở mọi nơi cổng công bố nó"*. Nay danh sách
+  là **các nơi công bố**, mỗi khoá chỉ cần có một nơi đọc — và thêm **vế ngược**: chân trang KHÔNG
+  được đọc lại hai khoá ấy, để lượt sửa giao diện kế tiếp không lặng lẽ đặt chúng về (đúng chuyện đã
+  xảy ra ngày 24/8).
+
+- `SiteLayoutTest.pathCuaMenuSeedDung` khẳng định *"ba mục con của Giới thiệu đều trỏ tới trang
+  tĩnh"* — một mô tả hình dạng của cây menu tháng 8. Nay nó canh bất biến: cha đứng trước con, mọi
+  mục có đích giải được **khớp `linkType`**, và mục `NONE` phải thật sự có con. Hình dạng thì ghim
+  riêng ở `migrationSeedDuKhungCong` bằng danh sách bảy mục §3 — vì đó là *tiêu chí nghiệm thu*, và
+  ghim nó là đúng: đổi tên hay đổi thứ tự một mục là một quyết định, nó **phải** làm đỏ.
+
+Bài học chung: bài kiểm mô tả hình dạng hiện thời sẽ đỏ ở đúng lượt thay đổi hợp lệ, và cái giá
+không phải là mấy phút sửa — mà là người sửa quen dần với việc "bài này đỏ thì cứ chỉnh cho khớp".
+
+#### 5. Ba quyết định mô hình dữ liệu, và vì sao không chọn cách rẻ hơn
+
+- **CR-25/26 → bảng `org_unit_leaders`, không phải hai cột `head_name`/`head_phone`.** Hai cột chỉ
+  chứa được một người, mà CR-25 là một *danh sách* (Chủ tịch, Giám đốc, các Phó Giám đốc). Dựng hai
+  cột cho CR-26 rồi dựng thêm cơ chế khác cho CR-25 là hai nơi trả lời cùng câu hỏi *"ai đứng đầu
+  đơn vị này"*.
+  ⛔ Và nó **không nối `employees`**: toàn bộ nội dung là thông tin Công ty chủ động công bố, nên
+  endpoint công khai đọc nó không có đường nào chạm tới trường nhạy cảm (quy tắc 10, NĐ 13/2023).
+  Một phép lọc là thứ có thể quên; một bảng không chứa dữ liệu nhạy cảm thì không rò được.
+
+- **CR-30 Tiến độ sản xuất → cây danh mục CMS, không phải entity mới.** §5.5 mô tả đúng một luồng
+  (Năm → Vụ → nội dung) nhưng **không nói tiến độ đo bằng chỉ tiêu gì, đơn vị gì, ai nhập, tần suất
+  nào** — chưa đủ để thiết kế một bảng số liệu. Dựng `production_progress` lúc này là đoán hộ Công
+  ty một mô hình nghiệp vụ, rồi phải di chuyển dữ liệu khi đoán sai. Cây danh mục đã có sẵn ba cấp
+  đúng hình dạng cần.
+
+- **CR-28 cột "Vị trí" → dựng từ `latitude`/`longitude`, KHÔNG thêm cột `map_url`.** Hai nguồn toạ
+  độ cùng tồn tại là hai nguồn sẽ lệch — đúng hình dạng đã trả giá ở `ConstructionStatusService`
+  (luật 13).
+
+#### 6. Thứ cố ý **không** làm, và vì sao việc không làm cũng cần lý do ghi lại
+
+CR-14/CR-38 đòi số liệu tuần/tháng chỉ xem được sau khi đăng nhập, và §2 nói rõ *"phân quyền phải xử
+lý ở tầng route/API, không chỉ ẩn/hiện ở giao diện"*. Cổng công khai chưa có tầng xác thực nào.
+
+Hai cách làm cho *trông như đã xong* đều bị loại có chủ đích:
+
+1. **Nút "Đăng nhập" dẫn tới trang chưa tồn tại** — đúng hình dạng §10.54.
+2. **Dựng sẵn bảng tuần/tháng rồi ẩn bằng CSS** — dữ liệu đã nằm trong HTML gửi tới trình duyệt, ai
+   mở DevTools cũng đọc được; và tệ hơn là nó **trông như đã phân quyền**. Đó là ảo giác đắt tiền:
+   nó làm người nghiệm thu tick vào một ô chưa có gì đứng sau — chính là *"việc làm xong nửa đường
+   trông y hệt việc làm xong"* (luật 19).
+
+Cùng lý lẽ cho khối Mực nước và khối Vận hành công trình: dựng đủ khung theo §7 (dòng "Cập nhật
+lúc", nút làm mới, trạng thái dự phòng) nhưng **không** dựng sẵn một lưới 10 cống với dấu gạch —
+một lưới mà không lượt chạy nào từng đổ dữ liệu thật vào là mã chưa được kiểm, đội lốt mã đã xong
+(luật 7), và danh sách 10 cống còn đang chờ Công ty chốt (OI-03).
+
+#### Bài học
+
+**Một tài liệu nghiệm thu là dữ liệu, không phải văn xuôi.** Bảy mục cấp 1 của §3 nay là một phép
+khẳng định `containsExactly` chạy ở mỗi lượt CI; bảng phân quyền §6 sẽ là một bộ bài kiểm gọi thẳng
+API khi chưa đăng nhập. Thứ không chuyển được thành phép khẳng định thì cũng không nghiệm thu được —
+và với dự án này, "đã tick" chưa bao giờ là bằng chứng.

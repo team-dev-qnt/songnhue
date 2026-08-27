@@ -1,6 +1,7 @@
 package com.songnhue.content.infra;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -100,6 +101,29 @@ public interface ArticleRepository extends JpaRepository<Article, Long> {
             @Param("danhMucId") Long danhMucId,
             @Param("now") Instant now,
             Pageable pageable);
+
+    /**
+     * Nhãn chuyên mục của một loạt bài — <b>một lượt hỏi cho cả trang</b>.
+     *
+     * <p>CR-12 cần tag "Tin thủy lợi / Tin Công ty" cạnh mỗi bài ở khối Tin tức – Sự kiện. Danh
+     * sách chuyên mục không dựng được trong biểu thức khởi tạo của {@link #findPublic} (JPQL không
+     * dựng collection), nên nó đến từ đây rồi được ghép vào ở tầng application.
+     *
+     * <p>⚠ Vì sao không đọc {@code article.getCategories()} trong vòng lặp: đó là quan hệ LAZY, nên
+     * mỗi bài là một truy vấn — 12 bài trên trang chủ thành 13 lượt hỏi CSDL. Ở đây một lượt là đủ,
+     * và số lượt không đổi khi trang dài ra.
+     *
+     * <p>⛔ Lọc {@code c.visible} ngay trong câu lệnh: một chuyên mục đang ẩn thì không được xuất
+     * hiện dưới dạng nhãn trên cổng — ẩn danh mục mà nhãn của nó vẫn hiện là để lộ đúng thứ người
+     * quản trị vừa quyết định giấu đi.
+     */
+    @Query(
+            """
+            SELECT a.slug, c.slug, c.name FROM Article a JOIN a.categories c
+            WHERE a.slug IN :slugs AND c.visible = TRUE AND c.deletedAt IS NULL
+            ORDER BY c.path, c.sortOrder
+            """)
+    List<Object[]> findCategoryLabels(@Param("slugs") Collection<String> slugs);
 
     /**
      * Một bài trên cổng, tra theo slug.

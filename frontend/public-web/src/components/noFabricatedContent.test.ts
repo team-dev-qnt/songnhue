@@ -50,7 +50,6 @@ const CHO_PHEP_TEN_MIEN = [
   'hanoi.gov.vn',
   'cucthuyloi.gov.vn',
   'google.com', // liên kết tra bản đồ, dựng từ địa chỉ trong `settings` — không phải dữ liệu bịa
-  'songnhue.bhh40.net', // hệ thống văn bản điều hành (CN-01.7) — nợ T11.28: phải đưa vào `settings`
 ];
 
 function timTsx(thuMuc: string): string[] {
@@ -141,7 +140,17 @@ const HINH_DANG: { ten: string; mau: RegExp; viPham: string }[] = [
 describe('Component không chứa dữ liệu nghiệp vụ bịa', () => {
   it('⚠ tìm được tệp để soi — bài kiểm chạy qua tập rỗng thì xanh mà không canh gì (luật 7)', () => {
     expect(TEP.length).toBeGreaterThan(10);
-    expect(MA.map((m) => m.ten)).toContain(join('components', 'home', 'HomeHeroFeatured.tsx'));
+    // ⚠ Neo vào một tệp CÓ THẬT, và nó phải là tệp từng chứa dữ liệu bịa. `HomeHeroFeatured.tsx`
+    //   là neo cũ; nó đã bị CR-10/CR-11 thay bằng `HomeHotNews.tsx` (bài đinh nhường chỗ cho
+    //   slider ảnh). Neo chết là bài kiểm đỏ oan — nhưng bỏ neo hẳn thì bộ canh quét qua tập
+    //   rỗng vẫn xanh trọn vẹn, đúng luật 7. Nên đổi neo, không gỡ neo.
+    const ten = MA.map((m) => m.ten);
+    expect(ten).toContain(join('components', 'home', 'HomeHotNews.tsx'));
+    expect(ten).toContain(join('components', 'home', 'AffiliatedUnitsLinks.tsx'));
+    // Tám trang dựng ở đợt 27/08/2026 nằm dưới `app/`, không phải `components/` — bộ canh phải
+    // với tới chúng, vì bảng 7 cột và bảng 6 cột là đúng chỗ dữ liệu bịa dễ mọc lại nhất.
+    expect(ten).toContain(join('app', 'gioi-thieu', 'xi-nghiep', 'page.tsx'));
+    expect(ten).toContain(join('app', 'quan-ly-van-hanh', 'danh-muc-cong-trinh', 'page.tsx'));
   });
 
   describe.each(HINH_DANG)('$ten', ({ mau, viPham }) => {

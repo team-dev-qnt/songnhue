@@ -8,6 +8,50 @@ import type { NextConfig } from 'next';
  *   chủ và đọc lúc chạy; đặt nhầm tiền tố `NEXT_PUBLIC_` cho một bí mật là đưa nó thẳng
  *   vào mã nguồn ai cũng tải được.
  */
+/**
+ * Content-Security-Policy của cổng công khai.
+ *
+ * <h3>⚠⚠ Header này TRƯỚC ĐÂY KHÔNG TỒN TẠI, và cả hai bên đều tưởng bên kia đặt</h3>
+ *
+ * Chú thích cũ ở đây ghi *"CSP đầy đủ và HSTS đặt ở nginx"*, trong khi
+ * `deploy/nginx/snippets/edge-headers.conf` ghi ngược lại: *"Cố ý KHÔNG đặt lại CSP … Hai
+ * image FE đã đặt đủ chúng (admin-app.Dockerfile · public-web `next.config`)"*. Kết quả là
+ * cổng công khai chạy **không có CSP nào** suốt từ WS-16, và `NginxSecurityHeadersTest` không
+ * bắt được vì nó chỉ soi `admin-app.Dockerfile`.
+ *
+ * Đây đúng hình dạng lỗi đặc trưng của dự án: *một cơ chế canh gác tồn tại trong tài liệu
+ * nhưng chưa có hiệu lực ở nơi nó phải chặn*. Hai tệp trỏ vào nhau nên đọc tệp nào cũng thấy
+ * yên tâm. `csp.test.ts` nay khẳng định từng chỉ thị bằng cách đọc chính giá trị đã giải.
+ *
+ * <h3>Vì sao `script-src` phải có `'unsafe-inline'`, khác admin-app</h3>
+ *
+ * Next App Router chèn `<script>` nội tuyến để truyền dữ liệu flight và khởi động hydration.
+ * Cách chặt hơn là gắn `nonce`, nhưng nonce phải khác nhau mỗi request — tức mọi trang thành
+ * động và **ISR tắt hẳn**, trong khi NFR-02 (trang chủ < 3s) dựa vào ISR. admin-app là bundle
+ * Vite tĩnh, không có script nội tuyến nào, nên nó giữ được `script-src 'self'`.
+ *
+ * <h3>`frame-src` — đúng hai host, mỗi host một lý do</h3>
+ *
+ * - `www.google.com` — khung bản đồ trụ sở ở trang Liên hệ và chân trang (CR-22);
+ * - `www.youtube-nocookie.com` — video phóng sự ở khối Truyền thông (CN-01.3).
+ *
+ * ⚠ Thêm host thứ ba ở đây mà quên `noFabricatedContent.test.ts` (danh sách tên miền được
+ * phép trong mã component) thì hai danh sách lệch nhau — luật 14.
+ */
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self'",
+  "connect-src 'self'",
+  "frame-src 'self' https://www.google.com https://www.youtube-nocookie.com",
+  "frame-ancestors 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "object-src 'none'",
+].join('; ');
+
 const nextConfig: NextConfig = {
   // Bắt buộc cho `deploy/docker/public-web.Dockerfile`: tầng runtime chép
   // `.next/standalone`, không có cờ này thì thư mục đó không tồn tại và image chép hụt.
@@ -50,8 +94,7 @@ const nextConfig: NextConfig = {
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          // CSP đầy đủ và HSTS đặt ở nginx (WS-11/T11.5) — nơi duy nhất biết đủ mọi
-          // origin của cả hệ thống. Ở đây chỉ đặt phần không phụ thuộc hạ tầng.
+          { key: 'Content-Security-Policy', value: CSP },
         ],
       },
     ];

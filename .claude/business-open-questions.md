@@ -2,9 +2,11 @@
 > ⛔ **Phần I-B KHÔNG nén và không được nén**: câu trả lời đợt 2 nhận **qua trao đổi trực tiếp**, không có văn bản gốc — đây là **bản ghi duy nhất** của những gì Công ty đã chốt.
 > ✅ **ĐỢT 1 (mục A–F) ĐÃ ĐÓNG** — Công ty trả lời đầy đủ ngày 12/8/2026 (`docs_origin/Trả lời Business Open Questions 12.8.2026.docx.md`), đã đồng bộ vào `function-spec.md`, `implement.md`, `architecture-review.md` §8.
 > ✅ **ĐỢT 2 — ĐÃ ĐÓNG 9/12 mục**: **G1, G2, G3 (phần lớn), G4, G7, G8b, G9, G11, G12** → xem **Phần I-B**, đã đồng bộ vào `function-spec.md` v2.2.
-> ⬜ **CÒN MỞ 8 mục**: **G3-a** (lượng mưa) · **G5** (mã số hệ thống văn bản) · **G6** (mẫu 2C-BNV) · **G8** (tuyến sông/lý trình/tọa độ + danh mục công trình) · **G9-a** (bộ mức ngưỡng) · **G10** (duyệt format báo cáo) · ⭐ **G13** (bộ nhận diện cổng) · ⭐ **G14** (sơ đồ danh mục/menu cổng) → xem **Phần II**.
+> ⬜ **CÒN MỞ 7 mục**: **G3-a** (lượng mưa) · **G5** (mã số hệ thống văn bản) · **G6** (mẫu 2C-BNV) · **G8** (tuyến sông/lý trình/tọa độ + danh mục công trình) · **G9-a** (bộ mức ngưỡng) · **G10** (duyệt format báo cáo) · ⭐ **G13** (bộ nhận diện cổng) → xem **Phần II**.
+> ✅ **G14 đóng 27/8/2026** — Công ty ban hành *"YÊU CẦU CHỈNH SỬA WEBSITE" v1.0* (`docs_origin/nghiem_thu_phase1.md`) với cây nội dung chuẩn 7 mục cấp 1 ở §3. Đã dựng vào CSDL ở `V202608271031`; xem `master-tracking.md` WS-24.
+> ⬜ **MỞ MỚI 27/8 — 10 mục `OI-01`→`OI-10`** ở §9 của chính tài liệu ấy. Chúng KHÔNG chặn code (khung đã dựng đủ theo §7) nhưng chặn **đấu nối dữ liệu và nghiệm thu**: `OI-01`/`OI-02` API mực nước & vận hành trạm bơm · `OI-03` danh sách 10 cống trục chính · `OI-05` 7 hay 8 Xí nghiệp · `OI-07` KMZ cho tải hay nhúng viewer. Phía phát triển đã trả lời `OI-01`/`OI-02`/`OI-07` — xem WS-24 T24.23→T24.25.
 > ✅ **G15 đóng 19/8/2026** — cụm công trình chỉ là cách nhóm, không phải đơn vị tổ chức.
-> ✅ **KHÔNG CÒN MỤC NÀO CHẶN CODE.** G8b — mục chặn cuối cùng của MOD-03 — đã đóng ngày 12/8/2026. G13/G14 chặn **nghiệm thu** cổng TTĐT chứ không chặn code.
+> ✅ **KHÔNG CÒN MỤC NÀO CHẶN CODE.** G8b — mục chặn cuối cùng của MOD-03 — đã đóng ngày 12/8/2026. G13 chặn **nghiệm thu** cổng TTĐT chứ không chặn code; G14 đã đóng.
 > Ký hiệu: 🔴 chặn thiết kế/code · 🟡 cần trước khi làm module liên quan · ⚪ chốt sau được.
 
 ---
@@ -184,7 +186,19 @@ CN-01.5 yêu cầu cấu hình logo, favicon, màu chủ đạo, footer, mạng 
 
 ⚠ **reCAPTCHA secret là bí mật** — gửi riêng, không đưa vào tài liệu chung. Hệ thống lưu ở biến môi trường, không nằm trong bản xuất cấu hình.
 
-### G14. 🟡 Sơ đồ danh mục nội dung, menu cổng và nội dung trang tĩnh
+### ~~G14~~. ✅ **ĐÃ ĐÓNG 27/8/2026** — Công ty ban hành cây nội dung chuẩn
+
+> **Trả lời**: `docs_origin/nghiem_thu_phase1.md` — *"YÊU CẦU CHỈNH SỬA WEBSITE" v1.0*, trạng thái *Ban hành để thực hiện*. §3 cho **cây nội dung chuẩn 7 mục cấp 1**, và §2 ra một ràng buộc bằng lời: *"Menu chính, footer, các card chuyên mục và cây nội dung phải dùng CHUNG một hệ phân loại"*.
+>
+> **Áp dụng**: `V202608271031__cms_site_taxonomy_v2.sql` thay khung đề xuất cũ. Menu HEADER 8 mục cấp 1 + 12 mục cấp 2, FOOTER 7 mục cùng hệ phân loại. Khối "Chuyên mục & lĩnh vực" của trang chủ nay **đọc thẳng cây menu** thay vì đọc `categories` — hai nguồn không trôi ra khỏi nhau được nữa.
+>
+> **Hệ quả cần biết**: trong 4 trang tĩnh khung cũ, **ba trang mất mục menu** vì bị trang thật ở đường dẫn khác thay thế (Cơ cấu tổ chức → đọc `org_units`; Liên hệ → `/lien-he`; Chức năng nhiệm vụ → gộp vào Tổng quan). Chúng bị xoá mềm có điều kiện — xem `architecture-review.md` §10.61 mục 2.
+>
+> ⬜ **Ý 4 của câu hỏi gốc vẫn CHƯA có trả lời**: *cần bao nhiêu tài khoản Biên tập viên / Quản trị nội dung, ai đăng bài đầu tiên*. Tài liệu nghiệm thu không nhắc tới, và `OI-06` (§9) hỏi một câu gần đó — *cơ chế cấp tài khoản đăng nhập: ai cấp, bao nhiêu nhóm quyền*. Gộp vào `OI-06` để hỏi một lần.
+
+<details><summary>Nội dung câu hỏi gốc (giữ để truy vết)</summary>
+
+#### G14. 🟡 Sơ đồ danh mục nội dung, menu cổng và nội dung trang tĩnh
 
 D4 đã chốt **không migrate website cũ**, Công ty tự nhập lại nội dung. Nhưng phần **khung** thì phía phát triển phải dựng và bàn giao sẵn, nếu không thì đến ngày nghiệm thu mới ngồi nghĩ cây danh mục.
 
@@ -196,6 +210,8 @@ D4 đã chốt **không migrate website cũ**, Công ty tự nhập lại nội 
 4. **Ai là người đăng bài đầu tiên** và cần bao nhiêu tài khoản Biên tập viên / Quản trị nội dung — để cấp tài khoản khi bàn giao.
 
 👉 Nếu Công ty chưa chốt kịp, phía phát triển sẽ **seed khung đề xuất ở trên** để cổng chạy được, Công ty sửa sau qua giao diện — không phải sửa mã.
+
+</details>
 
 ### ~~G15~~. ✅ **ĐÃ ĐÓNG 19/8/2026** — "Cụm công trình" chỉ là cách nhóm
 
@@ -238,7 +254,7 @@ Tài liệu đang mô tả hai điều khác nhau: CN-02.1 xếp **Cụm** vào 
 | 5 | 🟡 **G3-a** | Chốt cách xử lý **lượng mưa** ở v1 (PA A/B/C) | Trước Phase MOD-03 |
 | 6 | ⚪ **G9-a** | Xác nhận **bộ mức ngưỡng** cảnh báo (3 mức đề xuất hay cấp I/II/III) | Trước khi cấu hình ngưỡng thật |
 | 7 | 🟡 **G13** | **Bộ nhận diện cổng**: logo, favicon, màu, thông tin chân trang, liên kết mạng xã hội, GA/GTM, reCAPTCHA key | **Trước nghiệm thu cổng TTĐT (Phase 1)** |
-| 8 | 🟡 **G14** | **Cây danh mục + menu cổng + nội dung 4 trang tĩnh** + số tài khoản biên tập cần cấp | **Trước nghiệm thu cổng TTĐT (Phase 1)** |
+| 8 | ✅ ~~**G14**~~ | ~~Cây danh mục + menu cổng + nội dung 4 trang tĩnh~~ **đóng 27/8** bằng §3 của văn bản nghiệm thu. ⬜ Còn lại: **số tài khoản biên tập cần cấp** → gộp vào `OI-06` | Đã dựng vào `V202608271031` |
 | ~~9~~ | ✅ **G15** | ~~"Cụm công trình" là đơn vị tổ chức hay cách nhóm?~~ | **ĐÃ ĐÓNG 19/8** — chỉ là cách nhóm → bảng riêng |
 
 Trả lời theo mã mục, ví dụ: `G3-a: chọn PA B · G5: mã số riêng từng người, user tự nhập · G15: cụm có tổ trưởng, nằm trong sơ đồ tổ chức`.
@@ -255,7 +271,7 @@ Sau khi nhận confirm → cập nhật `function-spec.md`, `implement.md` và �
 | Chức năng | Mục mở | Mức | Vùng chưa chốt & cách xử lý tạm |
 |---|---|:-:|---|
 | **CN-01.7** Liên kết hệ thống văn bản | **G5** | 🟥 | **Mã số riêng từng người hay chung 1 mã?** Quyết định schema: `external_system_credentials(user_id, …)` **per-user** hay 1 dòng trong `settings` **toàn hệ thống** — 2 hướng khác nhau về cả bảng, UI lẫn phân quyền. Nếu Công ty xin được **token/SSO** thì bỏ hẳn việc lưu credential → đổi bản chất lần 2. **Không code phần lưu mã số trước khi có trả lời**; phần còn lại của MOD-01 làm bình thường |
-| **CN-01.2** Danh mục nội dung | **G14** | 🟩 | Cây danh mục là **dữ liệu**, không phải mã. Chưa có sơ đồ của Công ty thì seed khung đề xuất ở G14, sửa qua giao diện — code xong hoàn toàn |
+| **CN-01.2** Danh mục nội dung | ✅ ~~G14~~ | 🟩 | Cây danh mục là **dữ liệu**, không phải mã. Sơ đồ chính thức nhận 27/8 (§3 văn bản nghiệm thu), dựng ở `V202608271031`; sửa tiếp qua giao diện |
 | **CN-01.5** Cấu hình giao diện | **G13** | 🟩 | Logo/màu/GA/GTM/mạng xã hội đọc từ `settings`, để trống vẫn chạy. Thiếu thì **cổng nghiệm thu bằng giá trị mặc định của lập trình viên** — không sai chức năng, sai diện mạo |
 | **CN-02.1** Cấp quản lý & Cụm công trình | ~~G15~~ | ✅ | **Đã đóng 19/8**: cụm chỉ là cách nhóm → bảng `construction_clusters` + `constructions.cluster_id` nullable. ⛔ Không thêm loại nút vào `org_units` |
 | **CN-03.1** Danh mục điểm đo | **G8** | 🟩 | Đã có tên + vai trò (G8b). Thiếu `river_name` / `chainage` / **tọa độ** của 19 điểm → cột đã có sẵn trong bảng, chỉ để `NULL` tới khi Công ty gửi |
