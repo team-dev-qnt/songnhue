@@ -123,6 +123,83 @@ ssh -N -L 13001:127.0.0.1:13001 songnhue@<VPS-2>    # rồi mở http://localhos
 Đây là cách đúng hơn hẳn: Grafana và Prometheus **không có lớp xác thực nào trước mặt** ở cấu hình
 này, nên mở chúng ra mạng là mở toàn bộ chỉ số vận hành.
 
+### 2.2-b. Siết SSH — ⛔ **cổng 22 đang bị quét liên tục, và nó làm ĐỎ lượt deploy**
+
+Đo trên VPS-2 ngày 27/8, không phải suy đoán:
+
+```
+── kết nối đang mở ở cổng 22, theo IP ──
+     32  79.108.163.24      ← một IP lạ, giữ 32 kết nối cùng lúc
+      1  <máy dev>
+```
+
+Sáu lượt đếm cách nhau 5 giây: `28 → 1 → 1 → 33 → 33 → 33` kết nối · **67 tiến trình sshd**. Nó tới
+theo đợt.
+
+**Vì sao nó làm hỏng deploy.** `MaxStartups` mặc định là `10:30:100`: vượt **10** kết nối chưa xác
+thực thì sshd **thả ngẫu nhiên 30%** kết nối mới. Tỉ lệ đo được:
+
+| | |
+|---|---|
+| SSH cổng 22, giãn 4 giây | 7/10 đạt — **hỏng 30%** |
+| HTTPS cổng 443, cùng máy cùng lúc | 5/5 |
+
+**30% đúng bằng chữ số giữa của `10:30:100`.** CD Staging 27/8 đỏ ở bước *"Ghi lại bản đang chạy"* —
+bước mở ba kết nối SSH liên tiếp — với `kex_exchange_identification: Connection reset by peer`.
+
+⚠ Không ai vào được (`PasswordAuthentication no`, `PermitRootLogin no`, `who` = 0 phiên). Đây là vấn
+đề **sẵn sàng phục vụ**, không phải xâm nhập. Nhưng nó vẫn là một cửa mở cho người lạ tiêu tài nguyên
+của máy.
+
+#### Làm gì
+
+```bash
+# 1 ─ fail2ban. ⚠ Đo 27/8: CHƯA CÀI trên VPS-2, không phải "đã cài mà tắt".
+sudo apt-get update && sudo apt-get install -y fail2ban
+sudo tee /etc/fail2ban/jail.local >/dev/null <<'EOF'
+[sshd]
+enabled  = true
+mode     = aggressive
+maxretry = 3
+findtime = 10m
+bantime  = 1h
+EOF
+sudo systemctl enable --now fail2ban
+sudo fail2ban-client status sshd
+
+# 2 ─ Không cho MỘT nguồn chiếm hết suất kết nối (OpenSSH ≥ 8.5; máy đang chạy 9.6)
+sudo tee /etc/ssh/sshd_config.d/60-startups.conf >/dev/null <<'EOF'
+MaxStartups 30:30:200
+PerSourceMaxStartups 6
+PerSourceNetBlockSize 32:128
+ClientAliveInterval 120
+ClientAliveCountMax 3
+EOF
+sudo sshd -t && sudo systemctl reload ssh
+```
+
+⛔ **Giữ nguyên dấu `&&`.** Reload một cấu hình sai là tự khoá mình khỏi máy chủ, và phiên SSH đang
+mở là thứ duy nhất còn lại để cứu. `sshd -t` phải xanh trước.
+
+⚠ `ClientAliveInterval` mặc định là `0` — phiên chết **không bao giờ** được dọn. Đo được lúc sự cố:
+33 kết nối "đã xác thực" còn treo trong khi `who` trả về **0** phiên đăng nhập.
+
+#### Phía đường ống đã làm gì
+
+`deploy.yml` nay ghép kênh SSH (`ControlMaster`/`ControlPath`/`ControlPersist`): cả lượt deploy dùng
+**một** kết nối thay vì ~10, và lượt bắt tay đầu tiên có thử lại 6 lần giãn cách tăng dần.
+
+⛔ **Đó là giảm mặt tiếp xúc, không phải bản vá gốc.** Chưa làm hai bước ở trên thì máy chủ vẫn đang
+bị quét, và một lượt deploy vẫn có thể đỏ vì lý do chẳng liên quan gì tới mã.
+
+#### Kiểm chứng sau khi làm
+
+```bash
+# tỉ lệ huồng phải về 0
+ok=0; for i in $(seq 1 10); do ssh -o BatchMode=yes -o ConnectTimeout=8 <user>@<host> true 2>/dev/null && ok=$((ok+1)); sleep 2; done; echo "$ok/10"
+sudo fail2ban-client status sshd     # Currently banned phải > 0 sau ít giờ
+```
+
 ### 2.3. Docker
 
 ```bash

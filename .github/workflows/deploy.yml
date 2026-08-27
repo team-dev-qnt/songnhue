@@ -169,16 +169,71 @@ jobs:
           BASE_URL: ${{ secrets.BASE_URL }}
         run: .github/scripts/kiem-secret-may-chu.sh
 
+      # ⚠⚠ MỘT kết nối SSH cho CẢ lượt deploy, không phải một kết nối mỗi lệnh.
+      #
+      # Lượt 27/8 đỏ ở bước "Ghi lại bản đang chạy" với:
+      #     kex_exchange_identification: read: Connection reset by peer
+      #     Connection reset by <host> port 22
+      # Không phải lỗi logic. Đo trên VPS-2 cùng lúc: **một IP lạ giữ 32 kết nối
+      # SSH đồng thời** (67 tiến trình sshd), trong khi `MaxStartups` mặc định là
+      # `10:30:100` — vượt 10 kết nối chưa xác thực thì sshd **thả ngẫu nhiên 30%**.
+      # Đo tỉ lệ thật từ máy dev: SSH 7/10 đạt (hỏng 30%), HTTPS cùng máy cùng lúc
+      # 5/5. Con số 30 đúng bằng chữ số giữa của `10:30:100`.
+      #
+      # Thân workflow này mở ~10 kết nối rời rạc, và bước ấy mở BA cái liên tiếp —
+      # tức nó là bước có xác suất trúng cao nhất. Ghép kênh (ControlMaster) đưa
+      # cả lượt về **một** kết nối: bớt hẳn mặt tiếp xúc, và nhanh hơn.
+      #
+      # ⛔ Ghép kênh KHÔNG phải bản vá gốc. Gốc là máy chủ chưa có fail2ban và
+      #    chưa siết `PerSourceMaxStartups` — xem `deploy-guideline.md` §2.2-b.
+      #    Ghi rõ ở đây để không ai đọc dòng này rồi tưởng đã xong.
       - name: Mở đường SSH
         if: steps.target.outputs.ready == 'true'
         env:
           SSH_KEY: ${{ secrets.SSH_KEY }}
           HOST: ${{ secrets.HOST }}
+          USER: ${{ secrets.USER }}
         run: |
           set -euo pipefail
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+          # `rsync -e ssh` và mọi lệnh `ssh` sau đây đều đọc tệp này, nên không
+          # bước nào phải nhắc lại tuỳ chọn ghép kênh.
+          cat >> ~/.ssh/config <<CFG
+          Host $HOST
+            User $USER
+            IdentityFile ~/.ssh/id_ed25519
+            ControlMaster auto
+            ControlPath ~/.ssh/cm-%r@%h:%p
+            ControlPersist 15m
+            ServerAliveInterval 30
+            ServerAliveCountMax 4
+            ConnectTimeout 20
+          CFG
+          chmod 600 ~/.ssh/config
+
+          # ⚠ Kết nối ĐẦU TIÊN vẫn có thể bị thả — nó là kết nối duy nhất phải đi
+          #   qua cửa hẹp. Thử lại có giãn cách tăng dần; các lệnh sau dùng lại
+          #   ổ cắm này nên không tốn thêm lượt bắt tay nào.
+          for lan in 1 2 3 4 5 6; do
+            if ssh -o BatchMode=yes "$HOST" true 2>/dev/null; then
+              echo "✓ Mở được kênh dùng chung ở lần thử $lan"
+              exit 0
+            fi
+            echo "⚠ Lần $lan không mở được kênh — chờ $((lan * 5))s rồi thử lại."
+            sleep $((lan * 5))
+          done
+
+          echo "::error::Không mở được kết nối SSH tới máy chủ sau 6 lần thử."
+          echo "Chẩn đoán theo thứ tự:"
+          echo "  1. \`nc -z -w5 <host> 22\` — cổng có mở không;"
+          echo "  2. \`ss -tnH '( sport = :22 )' | wc -l\` TRÊN máy chủ — có ai đang"
+          echo "     chiếm hết suất kết nối không (đã gặp: một IP giữ 32 kết nối);"
+          echo "  3. \`systemctl is-active fail2ban\` — lớp chặn có đang chạy không."
+          echo "Chi tiết: docs/deploy-guideline.md §2.2-b."
+          exit 1
 
       # ⚠⚠ ĐỒNG BỘ CẤU HÌNH TRƯỚC KHI TRIỂN KHAI — bước này ngăn một kiểu trôi
       #    hoàn toàn câm. `compose.*.yml`, cấu hình nginx, script sao lưu, byte của
@@ -249,12 +304,24 @@ jobs:
           USER: ${{ secrets.USER }}
         run: |
           set -euo pipefail
-          doc() {
-            ssh "$USER@$HOST" "docker inspect -f '{{.Config.Image}}' $1 2>/dev/null || true" | tr -d '\r'
-          }
-          cu_app="$(doc songnhue-app)"
-          cu_admin="$(doc songnhue-admin-app)"
-          cu_public="$(doc songnhue-public-web)"
+
+          # ⚠ MỘT lượt `ssh` hỏi cả ba container, không phải ba lượt. Ngay cả khi
+          #   đã ghép kênh thì ba lệnh vẫn là ba phiên con — và bản trước chính là
+          #   bước đỏ vì mở ba kết nối liên tiếp (xem ghi chú ở bước "Mở đường SSH").
+          bo_ba="$(ssh "$USER@$HOST" \
+            "docker inspect -f '{{.Config.Image}}' songnhue-app songnhue-admin-app songnhue-public-web 2>/dev/null || true" \
+            | tr -d '\r')"
+
+          # `docker inspect` in mỗi container một dòng, ĐÚNG THỨ TỰ đối số — nhưng
+          # nó BỎ QUA container không tồn tại thay vì in dòng trống. Nên chỉ tin
+          # thứ tự khi đủ ba dòng; thiếu thì coi như chưa đủ đường quay lui.
+          if [ "$(printf '%s\n' "$bo_ba" | grep -c .)" -eq 3 ]; then
+            cu_app="$(printf '%s\n' "$bo_ba" | sed -n 1p)"
+            cu_admin="$(printf '%s\n' "$bo_ba" | sed -n 2p)"
+            cu_public="$(printf '%s\n' "$bo_ba" | sed -n 3p)"
+          else
+            cu_app=""; cu_admin=""; cu_public=""
+          fi
 
           {
             echo "app_image=$cu_app"
