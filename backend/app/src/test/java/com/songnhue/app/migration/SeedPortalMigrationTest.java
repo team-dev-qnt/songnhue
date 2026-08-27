@@ -50,6 +50,9 @@ class SeedPortalMigrationTest extends IntegrationTestBase {
 
     private static final String TEP_SEED = "db/seed/portal/V202608251100__seed_portal_content.sql";
 
+    /** Bộ ảnh Công ty gửi — 5 banner + 25 ảnh thư viện. */
+    private static final String TEP_SEED_ANH = "db/seed/portal/V202608281040__seed_portal_media_cong_ty.sql";
+
     /** public_id của một ảnh seed — cũng chính là đích mà smoke test của CD gọi tới. */
     private static final String ANH_MOC = "15509c57-8e04-57e6-8d36-6a9cd1c68334";
 
@@ -201,6 +204,78 @@ class SeedPortalMigrationTest extends IntegrationTestBase {
         }
     }
 
+    @Test
+    @DisplayName("⭐⭐ Seed ảnh Công ty đóng ĐỦ vòng: ghi khoá `settings` → trỏ tới thư mục có ảnh thật")
+    void seedAnhCongTyDongDuVongDocGhi() throws Exception {
+        try (Connection ket = moKetNoiChuSoHuu()) {
+            ket.setAutoCommit(false);
+            try (Statement st = ket.createStatement()) {
+
+                // Vế ĐỌC dựng sẵn bởi V202608281039; nó phải đang RỖNG, nếu không thì vị từ
+                // `coalesce(setting_value,'') = ''` của bộ seed sẽ bỏ qua và bài này vô nghĩa.
+                assertThat(dem(st, "SELECT count(*) FROM settings WHERE setting_key = 'site.home.photos-folder'"))
+                        .as("khoá chưa tồn tại — V202608281039 chưa chạy, hoặc đã bị đổi tên")
+                        .isEqualTo(1);
+                assertThat(dem(
+                                st,
+                                "SELECT count(*) FROM settings WHERE setting_key = 'site.home.photos-folder' "
+                                        + "AND coalesce(setting_value, '') = ''"))
+                        .as("khoá đã có giá trị sẵn — bộ seed sẽ bỏ qua và bài này không khẳng định gì")
+                        .isEqualTo(1);
+
+                st.execute(docTep(TEP_SEED_ANH));
+
+                // ── Vòng khép kín: giá trị ghi xuống phải TRA RA một thư mục CÓ ẢNH ──
+                // Ba khẳng định rời (khoá có giá trị · thư mục tồn tại · thư mục có ảnh)
+                // đều xanh được trong khi ba thứ ấy không dính gì tới nhau. Nối bằng JOIN.
+                assertThat(
+                                dem(
+                                        st,
+                                        """
+                                SELECT count(*) FROM settings s
+                                  JOIN media_folders f ON f.public_id = NULLIF(s.setting_value, '')::uuid
+                                  JOIN attachments  a ON a.owner_type = 'MEDIA_FOLDER' AND a.owner_id = f.id
+                                 WHERE s.setting_key = 'site.home.photos-folder'
+                                   AND a.purpose = 'SEED_PORTAL'
+                                """))
+                        .as(
+                                """
+                                Khoá `site.home.photos-folder` không tra ra ảnh nào. Triệu chứng trên cổng: \
+                                khối thư viện RỖNG, không lỗi ở đâu cả. Bản đầu của bộ seed đánh số THẤP HƠN \
+                                migration tạo ra khoá này, nên `UPDATE` chạm 0 hàng (§10.66).""")
+                        .isEqualTo(25);
+
+                // Slider trang chủ — vế còn lại của cùng đợt ảnh.
+                assertThat(
+                                dem(
+                                        st,
+                                        """
+                                SELECT count(*) FROM banners b
+                                  JOIN attachments a ON a.public_id = b.image_attachment_public_id
+                                 WHERE b.active AND b.deleted_at IS NULL AND a.purpose = 'BANNER'
+                                """))
+                        .as("banner của đợt ảnh Công ty không bật, hoặc không trỏ tới ảnh seed nào")
+                        .isEqualTo(5);
+
+                // Chạy lại không nhân đôi: người vận hành có thể `psql -f` lúc chữa cháy.
+                st.execute(docTep(TEP_SEED_ANH));
+                assertThat(dem(st, "SELECT count(*) FROM attachments WHERE purpose = 'SEED_PORTAL'"))
+                        // 25, không phải 29: bài này chỉ chạy TEP_SEED_ANH, không chạy bộ seed
+                        // nội dung 25/8 (4 ảnh còn lại của nó).
+                        .as("chạy lần hai nhân đôi ảnh thư viện — `ON CONFLICT (public_id)` không khớp")
+                        .isEqualTo(25);
+                assertThat(dem(st, "SELECT count(*) FROM attachments WHERE purpose = 'BANNER'"))
+                        .as("chạy lần hai nhân đôi ảnh slider")
+                        .isEqualTo(5);
+                assertThat(dem(st, "SELECT count(*) FROM banners WHERE deleted_at IS NULL"))
+                        .as("chạy lần hai nhân đôi hàng banner — vị từ `WHERE NOT EXISTS` không khớp")
+                        .isEqualTo(5);
+            } finally {
+                ket.rollback();
+            }
+        }
+    }
+
     // -------------------------------------------------------------------------
 
     /**
@@ -212,11 +287,15 @@ class SeedPortalMigrationTest extends IntegrationTestBase {
                 SongnhuePostgres.instance().getJdbcUrl(), "songnhue_owner", SongnhuePostgres.password());
     }
 
-    /** Đọc từ CLASSPATH, không đọc từ đĩa: cũng là phép kiểm rằng tệp seed được đóng vào jar. */
     private static String docTepSeed() throws IOException {
-        try (InputStream vao = SeedPortalMigrationTest.class.getClassLoader().getResourceAsStream(TEP_SEED)) {
+        return docTep(TEP_SEED);
+    }
+
+    /** Đọc từ CLASSPATH, không đọc từ đĩa: cũng là phép kiểm rằng tệp seed được đóng vào jar. */
+    private static String docTep(String tep) throws IOException {
+        try (InputStream vao = SeedPortalMigrationTest.class.getClassLoader().getResourceAsStream(tep)) {
             assertThat(vao)
-                    .as("`%s` không có trên classpath — Flyway ở migrator cũng sẽ không thấy nó", TEP_SEED)
+                    .as("`%s` không có trên classpath — Flyway ở migrator cũng sẽ không thấy nó", tep)
                     .isNotNull();
             return new String(vao.readAllBytes(), StandardCharsets.UTF_8);
         }

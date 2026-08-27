@@ -257,29 +257,34 @@ lint-fe: ## Frontend: ESLint + Prettier check
 #
 #   ⛔ KHÔNG thay được lượt chạy CI thật: quét CVE và đóng gói image lên GHCR
 #      chỉ chạy trên runner. Lệnh này bao phủ 2 job `backend` + `frontend`.
-.PHONY: ci-local
+.PHONY: ci-local migration-manifest migration-order
 migration-manifest:  ## Sinh lại vân tay migration (backend/db-migration-checksums.txt)
 	@./backend/tools/sinh-vantay-migration.sh
 
+migration-order:  ## Migration mới có số hiệu lớn hơn đỉnh nhánh nền chưa?
+	@./backend/tools/kiem-thu-tu-migration.sh
+
 ci-local: ## Chạy đúng trình tự cổng kiểm của CI (trừ CVE scan + đóng gói image)
 	@echo ""
-	@echo "  [1/9] Bộ đọc tracking (nhanh nhất, hỏng thì hỏng ngay)"
+	@echo "  [1/10] Bộ đọc tracking (nhanh nhất, hỏng thì hỏng ngay)"
 	@python3 .agents/mcp/google_sheets_sync/test_parse.py
-	@echo "  [2/9] Backend — Spotless + Checkstyle"
+	@echo "  [2/10] Thứ tự migration so với nhánh nền"
+	@./backend/tools/kiem-thu-tu-migration.sh
+	@echo "  [3/10] Backend — Spotless + Checkstyle"
 	@cd $(BACKEND) && ./mvnw -B -ntp spotless:check checkstyle:check -q
-	@echo "  [3/9] Frontend — ESLint"
+	@echo "  [4/10] Frontend — ESLint"
 	@cd $(FRONTEND) && npm run lint --silent
-	@echo "  [4/9] Frontend — Prettier"
+	@echo "  [5/10] Frontend — Prettier"
 	@cd $(FRONTEND) && npm run format:check --silent
-	@echo "  [5/9] Frontend — kiểm kiểu"
+	@echo "  [6/10] Frontend — kiểm kiểu"
 	@cd $(FRONTEND) && npm run typecheck --silent
-	@echo "  [6/9] Frontend — test"
+	@echo "  [7/10] Frontend — test"
 	@cd $(FRONTEND) && npm test --silent
-	@echo "  [7/9] Frontend — build admin-app"
+	@echo "  [8/10] Frontend — build admin-app"
 	@cd $(FRONTEND) && npm run build --workspace admin-app --silent
-	@echo "  [8/9] Frontend — build public-web"
+	@echo "  [9/10] Frontend — build public-web"
 	@cd $(FRONTEND) && npm run build --workspace public-web --silent
-	@echo "  [9/9] Backend — verify (test + ArchUnit + cổng bao phủ)"
+	@echo "  [10/10] Backend — verify (test + ArchUnit + cổng bao phủ)"
 	@cd $(BACKEND) && ./mvnw -B -ntp verify
 	@echo ""
 	@echo "  ✓ Mọi cổng kiểm CI chạy ở máy đều xanh."

@@ -174,6 +174,32 @@ jobs:
       - name: Chạy phép kiểm bộ đọc
         run: python3 .agents/mcp/google_sheets_sync/test_parse.py
 
+  # ===========================================================================
+  # Thứ tự migration — §10.66
+  #
+  # ⛔ Lớp lỗi mà BỘ TEST VỀ NGUYÊN TẮC KHÔNG THẤY. Mọi bài kiểm chạy migration
+  #    từ CSDL RỖNG, mà trên CSDL rỗng thì không tồn tại khái niệm out-of-order:
+  #    Flyway áp tuần tự từ đầu và xanh trọn vẹn. Ngày 27/8, 688 bài BE xanh
+  #    trong khi lượt CD kế tiếp chết ngay ở `validate` vì hai migration mới
+  #    đánh số bằng GIỜ-PHÚT nên rơi xuống dưới ba mã đã áp lên staging.
+  #
+  # ⚠ `fetch-depth: 0` là BẮT BUỘC: bộ canh so cây làm việc với nhánh nền, mà
+  #   bản checkout nông không có nhánh nền để so.
+  # ===========================================================================
+  thu-tu-migration:
+    name: Thứ tự migration
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: So số hiệu migration mới với nhánh nền
+        env:
+          NEN: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || 'HEAD^' }}
+        run: ./backend/tools/kiem-thu-tu-migration.sh "$NEN"
+
   backend:
     name: Backend — build, lint, test
     needs: changes
@@ -667,7 +693,7 @@ jobs:
   # ===========================================================================
   cong-kiem:
     name: Cổng kiểm CI
-    needs: [changes, tracking, backend, frontend, image, image-frontend, gan-tag-sha, dependency-review]
+    needs: [changes, tracking, thu-tu-migration, backend, frontend, image, image-frontend, gan-tag-sha, dependency-review]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -681,7 +707,7 @@ jobs:
           # ⚠ Chặn xanh-trên-tập-rỗng: `toJSON(needs)` rỗng nghĩa là khai `needs`
           #   đã hỏng, và khi ấy cổng sẽ xanh mà không soi gì (luật 7).
           so_job=$(jq 'length' <<< "$KET_QUA")
-          if [ "$so_job" -lt 8 ]; then
+          if [ "$so_job" -lt 9 ]; then
             echo "::error::Chỉ thấy $so_job job trong \`needs\` — khai báo đã hỏng, cổng này không soi được gì."
             exit 1
           fi
