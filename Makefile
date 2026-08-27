@@ -258,6 +258,9 @@ lint-fe: ## Frontend: ESLint + Prettier check
 #   ⛔ KHÔNG thay được lượt chạy CI thật: quét CVE và đóng gói image lên GHCR
 #      chỉ chạy trên runner. Lệnh này bao phủ 2 job `backend` + `frontend`.
 .PHONY: ci-local
+migration-manifest:  ## Sinh lại vân tay migration (backend/db-migration-checksums.txt)
+	@./backend/tools/sinh-vantay-migration.sh
+
 ci-local: ## Chạy đúng trình tự cổng kiểm của CI (trừ CVE scan + đóng gói image)
 	@echo ""
 	@echo "  [1/9] Bộ đọc tracking (nhanh nhất, hỏng thì hỏng ngay)"
