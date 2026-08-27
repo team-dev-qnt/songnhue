@@ -94,11 +94,16 @@ export function HomeMediaGallery({ videoId, videoTitle, photos = [] }: HomeMedia
                       className="h-full w-full object-cover transition-transform duration-500 ease-smooth group-hover:scale-110"
                     />
                   </div>
-                  <div className="p-2.5">
-                    <h3 className="line-clamp-1 text-xs font-bold text-surface-textBase transition-colors duration-200 group-hover:text-brand-primary">
-                      {p.title}
-                    </h3>
-                  </div>
+                  {/* Tiêu đề rỗng ⇒ BỎ HẲN dải chú thích, không để một thanh trắng có lề.
+                      Ảnh Công ty gửi có tệp mang tên do máy sinh, và BE trả rỗng thay vì
+                      bịa một câu (§10.66 · luật 16). */}
+                  {p.title ? (
+                    <div className="p-2.5">
+                      <h3 className="line-clamp-1 text-xs font-bold text-surface-textBase transition-colors duration-200 group-hover:text-brand-primary">
+                        {p.title}
+                      </h3>
+                    </div>
+                  ) : null}
                 </div>
               ))}
             </div>
