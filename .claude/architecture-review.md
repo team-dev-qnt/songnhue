@@ -3726,3 +3726,62 @@ Khối chú thích mới bị chèn **vào giữa** một lệnh nối dòng b�
 61 bảng · 27 bảng có dữ liệu · vân tay số dòng **khớp từng bảng** với trước khi dựng lại, trừ đúng `system_backups` 7→6 — và chênh lệch ấy tự giải thích: `pre-deploy-dump.sh` chụp CSDL **rồi mới** ghi sổ bản chụp ấy, nên bản dump không chứa chính nó.
 
 Sáu container **healthy**, kể cả `nginx` (trước đó `unhealthy` 22 giờ liền — T11.37). Bốn câu smoke test đều xanh trên site thật, và trang chủ trả **11 liên kết bài viết, tất cả là slug thật trong CSDL, 0 bài bịa** (§10.54 được nghiệm thu ở điều kiện thật).
+
+---
+
+### §10.59. ⚠ CD Staging đỏ vì cổng 22 bị quét — 30% lượt SSH bị sshd thả (27/8/2026)
+
+#### Triệu chứng và cái KHÔNG phải nguyên nhân
+
+Lượt CD Staging đầu tiên sau khi đề bạt `9ae5f19` đỏ ở bước *"Ghi lại bản đang chạy"*:
+
+```
+kex_exchange_identification: read: Connection reset by peer
+Connection reset by <host> port 22
+Process completed with exit code 255
+```
+
+Bước trước đó — `pg_dump trước khi triển khai` — **success**. Bước `Triển khai` **skipped**, nên máy chủ không bị đụng gì: 6/6 container vẫn healthy, site vẫn HTTP 200.
+
+#### Nguyên nhân, đo được
+
+| | |
+|---|---|
+| SSH cổng 22, giãn 4 giây, 10 lượt | **7 đạt / 3 hỏng — hỏng 30%** |
+| HTTPS cổng 443, cùng máy cùng lúc | **5/5 = 200** |
+
+Riêng cổng 22. Đếm kết nối trên máy chủ:
+
+```
+── kết nối :22 theo IP ──
+     32  79.108.163.24
+      1  <máy dev>
+```
+
+Sáu lượt đếm cách nhau 5 giây: `28 → 1 → 1 → 33 → 33 → 33` · **67 tiến trình sshd**.
+
+`MaxStartups` mặc định `10:30:100` — vượt 10 kết nối chưa xác thực thì sshd **thả ngẫu nhiên 30%**. **30 đúng là chữ số giữa.** Bước đỏ là bước mở **ba** kết nối SSH liên tiếp (`docker inspect` cho ba container) — bước có xác suất trúng cao nhất trong cả job.
+
+#### Ba thứ loại trừ được bằng phép đo, không bằng phỏng đoán
+
+- `fail2ban` — **chưa cài** (không phải "cài mà tắt")
+- sshd chưa từng restart (`NRestarts=0`), không đặt `MaxStartups` tường minh
+- RAM còn 4,9/7,9 GB · `PasswordAuthentication no` · `PermitRootLogin no` · `who` = **0** phiên
+
+⚠ Không ai vào được. Đây là vấn đề **sẵn sàng phục vụ**, không phải xâm nhập.
+
+⚠ Và `ClientAliveInterval` không đặt → mặc định `0`, phiên chết **không bao giờ** được dọn: đo được 33 kết nối "đã xác thực" còn treo trong khi `who` trả về 0.
+
+#### Đã vá — và ranh giới của bản vá
+
+**Phía đường ống** (làm được ngay): `deploy.yml` ghép kênh SSH — `ControlMaster auto` · `ControlPath` · `ControlPersist 15m`, thêm `ServerAliveInterval`. Cả lượt deploy dùng **một** kết nối thay vì ~10. Lượt bắt tay đầu tiên — cái duy nhất còn phải đi qua cửa hẹp — thử lại 6 lần giãn cách tăng dần, hết lượt thì đỏ kèm ba bước chẩn đoán.
+
+Và bước *"Ghi lại bản đang chạy"* gộp ba lượt `ssh` thành **một**: `docker inspect` nhận nhiều đối số. Kiểm chứng hành vi trên VPS-2 trước khi dựa vào nó — ba container thật → 3 dòng đúng thứ tự; xen một tên không tồn tại → **2 dòng, bỏ hẳn dòng thiếu** (không in dòng trống) và exit 1. Nên mã chỉ tin thứ tự khi đủ 3 dòng.
+
+⛔ **Đó là giảm mặt tiếp xúc, KHÔNG phải bản vá gốc.** Gốc nằm ở máy chủ (`fail2ban` + `PerSourceMaxStartups` + `ClientAliveInterval`) và cần `sudo` — user triển khai không có sudo không mật khẩu. Quy trình: `deploy-guideline.md` **§2.2-b**.
+
+`DeploySshMultiplexTest` (5 bài) canh phần làm được, và **một bài trong đó bắt workflow phải mang con trỏ tới §2.2-b, cùng một bài kiểm mục ấy có thật** — để không ai đọc bộ canh xanh rồi tưởng chuyện đã xong. Kiểm chứng ngược 3 kịch bản.
+
+#### Bài học chung
+
+Đây là lần đầu một lượt deploy đỏ vì **thứ nằm ngoài mã lẫn ngoài cấu hình của ta**. Cách phân biệt rẻ nhất hoá ra là **so hai cổng trên cùng một máy cùng một lúc**: 22 hỏng 30%, 443 đạt 5/5 — một phép so mất 30 giây và loại ngay được "máy chết", "mạng hỏng", "workflow sai".
