@@ -140,7 +140,12 @@ export interface BannerRequest {
   endAt?: string | null;
 }
 
-export type MenuPosition = 'HEADER' | 'FOOTER';
+/**
+ * ⚠ Ba giá trị này phải khớp enum `MenuPosition` của backend và ràng buộc
+ * `ck_menu_items_position` trong CSDL. Ba nơi nhớ cùng một danh sách — quy tắc 14;
+ * `SiteLayoutTest.viTriMenuKhongLech` canh hộ.
+ */
+export type MenuPosition = 'HEADER' | 'FOOTER' | 'LIEN_KET';
 
 export type MenuLinkType = 'CATEGORY' | 'ARTICLE' | 'URL' | 'EXTERNAL_DOC' | 'NONE';
 

@@ -1,4 +1,4 @@
-import { PlusOutlined } from '@ant-design/icons';
+import { EditOutlined, PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   App,
@@ -21,7 +21,13 @@ import { useMemo, useState } from 'react';
 
 import { useAuth } from '@/app/auth/useAuth';
 import { OrgUnitTreeSelect } from '@/components/business/OrgUnitTreeSelect';
-import { type CreateOrgUnitRequest, type OrgUnitNode, type OrgUnitType } from '@/shared/api-types';
+import { OrgUnitLeadersPanel } from './OrgUnitLeadersPanel';
+import {
+  type CreateOrgUnitRequest,
+  type OrgUnitNode,
+  type OrgUnitType,
+  type UpdateOrgUnitRequest,
+} from '@/shared/api-types';
 import { ApiClientError, api } from '@/shared/apiClient';
 
 /**
@@ -41,6 +47,7 @@ export function OrgUnitsPage() {
 
   const [selected, setSelected] = useState<OrgUnitNode | null>(null);
   const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [moving, setMoving] = useState(false);
 
   const tree = useQuery({
@@ -118,8 +125,33 @@ export function OrgUnitsPage() {
               </Space>
               <Typography.Text type="secondary">Đường dẫn cây: {selected.path}</Typography.Text>
 
+              {/*
+                ⛔ Ba dòng liên hệ hiện "Chưa nhập" chứ không hiện dấu gạch hay bỏ trống hẳn:
+                   đúng ba cột này là bảng 6 cột "Xí nghiệp trực thuộc" trên cổng công khai
+                   (CR-26), nên người quản trị cần thấy ngay ô nào đang rỗng và vì sao trang
+                   công khai trống. Trước 28/08/2026 ba cột ấy ĐỌC ĐƯỢC MÀ KHÔNG GHI ĐƯỢC —
+                   không biểu mẫu nào có ô nhập.
+              */}
+              <Space direction="vertical" size={2} style={{ marginTop: 8 }}>
+                <Typography.Text>
+                  <Typography.Text type="secondary">Địa chỉ: </Typography.Text>
+                  {selected.address ?? <Typography.Text type="warning">Chưa nhập</Typography.Text>}
+                </Typography.Text>
+                <Typography.Text>
+                  <Typography.Text type="secondary">Điện thoại: </Typography.Text>
+                  {selected.phone ?? <Typography.Text type="warning">Chưa nhập</Typography.Text>}
+                </Typography.Text>
+                <Typography.Text>
+                  <Typography.Text type="secondary">Email: </Typography.Text>
+                  {selected.email ?? <Typography.Text type="warning">Chưa nhập</Typography.Text>}
+                </Typography.Text>
+              </Space>
+
               {canManage && (
                 <Space wrap style={{ marginTop: 12 }}>
+                  <Button icon={<EditOutlined />} onClick={() => setEditing(true)}>
+                    Sửa thông tin
+                  </Button>
                   <Button onClick={() => setMoving(true)}>Chuyển sang đơn vị cha khác</Button>
                   <Popconfirm
                     title="Xóa đơn vị này?"
@@ -132,12 +164,22 @@ export function OrgUnitsPage() {
                   </Popconfirm>
                 </Space>
               )}
+
+              {/* Danh bạ lãnh đạo — CR-25 (bảng Lãnh đạo Công ty) · CR-26 (cột Giám đốc XN). */}
+              <OrgUnitLeadersPanel orgUnitPublicId={selected.publicId} />
             </Space>
           )}
         </Card>
       </Col>
 
       <CreateOrgUnitModal open={creating} onClose={() => setCreating(false)} onDone={invalidate} />
+
+      <EditOrgUnitModal
+        open={editing}
+        unit={selected}
+        onClose={() => setEditing(false)}
+        onDone={invalidate}
+      />
 
       <Modal
         open={moving}
@@ -238,6 +280,133 @@ function CreateOrgUnitModal({
         >
           <OrgUnitTreeSelect />
         </Form.Item>
+        <OTruongLienHe />
+      </Form>
+    </Modal>
+  );
+}
+
+/**
+ * Ba ô liên hệ dùng chung cho biểu mẫu Tạo và biểu mẫu Sửa.
+ *
+ * ⚠ Một component, không chép hai bản: hai bản sẽ trôi ra khỏi nhau đúng lúc ai đó thêm ô thứ tư
+ * vào một trong hai (quy tắc 14). Ba ô này đổ thẳng vào bảng 6 cột "Xí nghiệp trực thuộc" của cổng
+ * công khai — CR-26.
+ */
+function OTruongLienHe() {
+  return (
+    <>
+      <Form.Item
+        name="address"
+        label="Địa chỉ"
+        extra="Hiện ở cột 2 bảng Xí nghiệp trực thuộc trên cổng công khai"
+      >
+        <Input />
+      </Form.Item>
+      <Form.Item name="phone" label="Điện thoại">
+        <Input />
+      </Form.Item>
+      <Form.Item
+        name="email"
+        label="Email"
+        rules={[{ type: 'email', message: 'Email không hợp lệ' }]}
+      >
+        <Input />
+      </Form.Item>
+    </>
+  );
+}
+
+/**
+ * Sửa thông tin một đơn vị — {@code PUT /org-units/:publicId}.
+ *
+ * ⚠⚠ Endpoint ấy có từ WS-6 nhưng **không màn hình nào gọi** cho tới 28/08/2026: màn hình này chỉ
+ * có Tạo, Chuyển cha và Xoá. Hệ quả là tên, tên viết tắt và loại đơn vị **chưa bao giờ sửa được**
+ * sau khi tạo — gõ sai một chữ trong tên Xí nghiệp thì cách chữa duy nhất là xoá rồi tạo lại, mà
+ * xoá thì vướng ràng buộc "còn người dùng thuộc đơn vị".
+ *
+ * ⛔ `initialValues` nạp ĐỦ sáu trường. Nạp thiếu một trường thì mỗi lượt Lưu ghi đè giá trị đang
+ * có bằng rỗng — biểu mẫu trông đúng, dữ liệu mất, không thông báo nào (xem `OrgUnitNode`).
+ */
+function EditOrgUnitModal({
+  open,
+  unit,
+  onClose,
+  onDone,
+}: {
+  open: boolean;
+  unit: OrgUnitNode | null;
+  onClose: () => void;
+  onDone: () => Promise<void>;
+}) {
+  const { message } = App.useApp();
+  const [form] = Form.useForm<UpdateOrgUnitRequest>();
+
+  const update = useMutation({
+    mutationFn: (values: UpdateOrgUnitRequest) =>
+      api.put<OrgUnitNode>(`/org-units/${unit?.publicId}`, values),
+    onSuccess: async () => {
+      message.success('Đã cập nhật đơn vị');
+      onClose();
+      await onDone();
+    },
+    onError: (caught: unknown) => {
+      if (caught instanceof ApiClientError && caught.details.length > 0) {
+        form.setFields(caught.fieldErrors<keyof UpdateOrgUnitRequest & string>());
+        return;
+      }
+      message.error(caught instanceof ApiClientError ? caught.message : 'Không cập nhật được');
+    },
+  });
+
+  if (!unit) return null;
+
+  return (
+    <Modal
+      open={open}
+      title={`Sửa "${unit.name}"`}
+      okText="Lưu"
+      cancelText="Hủy"
+      confirmLoading={update.isPending}
+      onCancel={onClose}
+      onOk={() => void form.submit()}
+      destroyOnClose
+    >
+      <Form<UpdateOrgUnitRequest>
+        form={form}
+        layout="vertical"
+        preserve={false}
+        initialValues={{
+          name: unit.name,
+          shortName: unit.shortName ?? undefined,
+          unitType: unit.unitType,
+          address: unit.address ?? undefined,
+          phone: unit.phone ?? undefined,
+          email: unit.email ?? undefined,
+        }}
+        onFinish={(values) => update.mutate(values)}
+      >
+        {/* Mã đơn vị KHÔNG sửa được: nó là khoá nghiệp vụ, đã in trên văn bản và dùng làm mã tra
+            cứu ở tệp nhập công trình. Đổi mã là đổi danh tính, không phải sửa một lỗi gõ. */}
+        <Form.Item label="Mã đơn vị">
+          <Input value={unit.code} disabled />
+        </Form.Item>
+        <Form.Item name="name" label="Tên đơn vị" rules={[{ required: true, message: 'Bắt buộc' }]}>
+          <Input />
+        </Form.Item>
+        <Form.Item name="shortName" label="Tên viết tắt">
+          <Input />
+        </Form.Item>
+        <Form.Item
+          name="unitType"
+          label="Loại đơn vị"
+          rules={[{ required: true, message: 'Bắt buộc' }]}
+        >
+          <Select
+            options={Object.entries(UNIT_TYPE_LABELS).map(([value, label]) => ({ value, label }))}
+          />
+        </Form.Item>
+        <OTruongLienHe />
       </Form>
     </Modal>
   );

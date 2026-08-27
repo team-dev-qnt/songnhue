@@ -23,6 +23,18 @@ public record OrgUnitNode(
         int depth,
         int sortOrder,
         boolean active,
+        /*
+          Ba trường liên hệ đi kèm nút cây từ 28/08/2026.
+
+          ⚠ Chúng ở đây vì màn hình quản trị nạp CẢ cây bằng một lượt gọi rồi mở biểu mẫu sửa từ
+          dữ liệu đã có — không có endpoint "lấy một đơn vị" nào cho giao diện. Thiếu ba trường
+          này thì biểu mẫu sửa mở ra với ba ô trống, người dùng bấm Lưu, và ba giá trị đang có
+          trong CSDL bị ghi đè bằng rỗng. Một biểu mẫu nạp thiếu trường thì mỗi lượt lưu là một
+          lượt xoá dữ liệu, và không có thông báo nào.
+        */
+        String address,
+        String phone,
+        String email,
         List<OrgUnitNode> children) {
 
     public static OrgUnitNode of(OrgUnit unit, List<OrgUnitNode> children) {
@@ -36,6 +48,9 @@ public record OrgUnitNode(
                 unit.getDepth(),
                 unit.getSortOrder(),
                 unit.isActive(),
+                unit.getAddress(),
+                unit.getPhone(),
+                unit.getEmail(),
                 children);
     }
 }

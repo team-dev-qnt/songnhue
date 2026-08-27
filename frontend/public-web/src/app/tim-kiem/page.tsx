@@ -112,6 +112,7 @@ export default async function SearchPage({
           <PortalSidebar
             latestArticles={latestNews?.content ?? []}
             hotline={config?.['company.hotline']}
+            docSystemUrl={config?.['site.external.doc-system-url']}
           />
         </div>
       </div>

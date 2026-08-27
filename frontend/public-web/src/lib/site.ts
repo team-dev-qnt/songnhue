@@ -64,12 +64,12 @@ export const SITE = {
   locale: 'vi_VN',
 } as const;
 
-/** Điều hướng chính. Phase 1 thay bằng danh mục lấy từ CMS; giữ tĩnh để có khung dựng trước. */
-export const NAV_ITEMS: readonly { href: string; label: string }[] = [
-  { href: '/', label: 'Trang chủ' },
-  { href: '/gioi-thieu', label: 'Giới thiệu' },
-  { href: '/tin-tuc', label: 'Tin tức' },
-  { href: '/van-ban', label: 'Văn bản' },
-  { href: '/thuy-van', label: 'Số liệu thủy văn' },
-  { href: '/lien-he', label: 'Liên hệ' },
-];
+/*
+ * ⛔ `NAV_ITEMS` đã bị gỡ ở đợt chỉnh sửa 27/08/2026.
+ *
+ * Nó là một menu sáu mục viết cứng mà **không dòng mã nào đọc** — `SiteHeader` lấy menu từ
+ * `GET /public/menus/HEADER` ngay từ WS-16. Luật 15: *công tắc chưa ai đọc là một lỗi, không
+ * phải việc để dành*; và ở đây nó còn tệ hơn một hằng số chết, vì nó mô tả một cây menu
+ * (Tin tức · Văn bản · Số liệu thủy văn) mà CR-01 vừa thay hẳn — người đọc tệp này sau sáu
+ * tháng sẽ tin đó là điều hướng thật của cổng.
+ */

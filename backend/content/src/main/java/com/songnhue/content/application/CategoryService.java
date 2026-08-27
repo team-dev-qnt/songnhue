@@ -72,6 +72,30 @@ public class CategoryService {
     }
 
     /**
+     * Hiện / ẩn một danh mục trên cổng công khai.
+     *
+     * <h3>⚠⚠ Vì sao phương thức này phải tồn tại</h3>
+     *
+     * Cột {@code visible} có từ {@code V202608191016} và được trả ra ở DTO của màn hình quản trị —
+     * nhưng cho tới lượt này <b>không endpoint nào ghi được nó</b>. Nghĩa là quản trị viên nhìn
+     * thấy trạng thái Hiện/Ẩn của từng danh mục mà không có cách nào đổi: đúng hình dạng quy tắc 15
+     * (<i>cột chưa ai đọc/ghi là một lỗi, không phải việc để dành</i>), chỉ khác là ở chiều ghi.
+     *
+     * <p>Nó thành chuyện gấp ở đợt chỉnh sửa 27/8: CR-01 bỏ mục "Thông báo" khỏi cây nội dung, và
+     * migration chọn <b>ẩn</b> thay vì xoá với lý do "ẩn là thao tác quay lui được bằng một cú bấm".
+     * Lý do ấy chỉ đúng khi cú bấm đó tồn tại.
+     *
+     * <p>⚠ Ẩn một danh mục sẽ rút <b>cả nhánh dưới nó</b> khỏi cổng — xem
+     * {@code PublicPortalService.categories()}. Đó là hành vi có chủ đích, không phải tác dụng phụ.
+     */
+    @Transactional
+    public Category setVisible(UUID publicId, boolean visible) {
+        Category category = get(publicId);
+        category.setVisible(visible);
+        return category;
+    }
+
+    /**
      * Chuyển danh mục sang chỗ khác trong cây.
      *
      * <p>Ba thứ phải kiểm, và thiếu thứ ba là hỏng dữ liệu chứ không chỉ hỏng màn hình: không vượt 3

@@ -256,14 +256,17 @@ async function stage1_siteConfig() {
   const siteConfigs: Record<string, string> = {
     'site.name': 'CÔNG TY TNHH MTV ĐẦU TƯ PHÁT TRIỂN THỦY LỢI SÔNG NHUỆ',
     'site.slogan': 'THỦY LỢI SÔNG NHUỆ',
-    'site.home.blocks': '["SLIDER", "FEATURED", "NEWS", "NOTICE", "THUY_VAN"]',
+    // ⛔ `site.home.blocks` đã gỡ ở `V202608271032` — công tắc không còn ánh xạ vào khối nào
+    //    (CR-10 thay bài đinh bằng slider, CR-01 bỏ mục Thông báo). Đặt lại ở đây là dựng lại
+    //    đúng thứ migration vừa xoá, và không ai biết vì hai đường seed chạy độc lập (nợ T11.38).
   };
 
   const generalSettings: Record<string, string> = {
     'company.hotline': '(024) 33.546.247',
     'company.phone': '(024) 33.546.247',
     'company.fax': '(024) 33.540.794',
-    'company.address': 'TẦNG 4-5 TÒA NHÀ NEW HOUSE XALA - KHU ĐÔ THỊ XALA - QUẬN HÀ ĐÔNG - THÀNH PHỐ HÀ NỘI',
+    // CR-42: địa giới hành chính mới, bỏ cấp 'Quận'. Phải khớp `V202608271033`.
+    'company.address': 'Tầng 4-5 Tòa nhà Newhouse – Phường Hà Đông – Thành phố Hà Nội',
     'company.email': 'songnhue2015@gmail.com',
     'company.working-hours': 'Thứ Hai – Thứ Sáu: 08:00 – 17:00 (Trực ban PCTT 24/24h)',
     'company.copyright': '© 2026 CÔNG TY TNHH MỘT THÀNH VIÊN ĐẦU TƯ PHÁT TRIỂN THỦY LỢI SÔNG NHUỆ',

@@ -1,7 +1,10 @@
 package com.songnhue.content.application;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -97,11 +100,47 @@ public class PublicPortalService {
         return banners.listVisible(Instant.now());
     }
 
-    /** Danh mục đang hiện — danh mục ẩn thì không có mặt trong điều hướng của cổng. */
+    /**
+     * Danh mục đang hiện — danh mục ẩn <b>và cả nhánh dưới nó</b> biến khỏi điều hướng của cổng.
+     *
+     * <h3>⚠⚠ Vì sao phải loại cả nhánh con, không chỉ loại đúng nút bị ẩn</h3>
+     *
+     * Bản trước chỉ lọc {@code isVisible()} trên từng dòng, nên ẩn một danh mục cha để lại các con
+     * của nó <b>mồ côi nhưng vẫn hiện</b>. Đo được trên máy sau khi CR-01 ẩn mục "Thông báo": hai
+     * danh mục con của nó ({@code lich-van-hanh}, {@code thong-bao-xa-lu}) vẫn nằm trong danh sách
+     * trả về, và vì danh sách sắp theo {@code path} dạng chuỗi — {@code '/12/' < '/2/'} — chúng rơi
+     * đúng sau {@code tien-do-san-xuat}. Trang "Tiến độ sản xuất" khi đó liệt kê
+     * <i>"Lịch vận hành cống &amp; trạm bơm"</i> và <i>"Thông báo xả nước đệm"</i> làm các <b>Năm</b>.
+     *
+     * <p>Không lỗi nào báo ra: cả hai danh mục đều có thật, đều đang hiện, và trang vẫn dựng bình
+     * thường. Chỉ có nội dung là vô nghĩa. Người tìm ra là người mở đúng trang ấy trên site đang
+     * chạy — không bộ test nào của cả hai phía bắt được, vì cả hai đều đúng với dữ liệu của mình.
+     *
+     * <p>Ẩn một mục trong cây có nghĩa là <i>rút nhánh ấy khỏi điều hướng</i>. Đặt luật ở đây — chỗ
+     * dữ liệu đi qua — thay vì bắt mỗi nơi hiển thị tự nhớ (quy tắc 12).
+     */
     @Transactional(readOnly = true)
     public List<Category> categories() {
-        return categories.findAllByDeletedAtIsNullOrderByPathAscSortOrderAsc().stream()
+        return hienTrenCong(categories.findAllByDeletedAtIsNullOrderByPathAscSortOrderAsc());
+    }
+
+    /**
+     * Lọc bỏ danh mục ẩn và mọi hậu duệ của chúng.
+     *
+     * <p>Dùng {@code path} (đường dẫn vật chất hoá {@code /1/4/9/}) chứ không truy ngược
+     * {@code parentId} từng bậc: một lượt duyệt là đủ, và không phụ thuộc vào việc cha có nằm trong
+     * danh sách hay không.
+     */
+    private static List<Category> hienTrenCong(List<Category> tatCa) {
+        List<String> pathAn = tatCa.stream()
+                .filter(c -> !c.isVisible())
+                .map(Category::getPath)
+                .toList();
+        return tatCa.stream()
                 .filter(Category::isVisible)
+                // `path` của con luôn bắt đầu bằng `path` của cha, và dấu `/` cuối là thứ giữ cho
+                // `/1/` không khớp nhầm `/10/` — xem MaterializedPath.
+                .filter(c -> pathAn.stream().noneMatch(an -> c.getPath().startsWith(an)))
                 .toList();
     }
 
@@ -117,9 +156,13 @@ public class PublicPortalService {
     public Page<PublicArticleRow> articles(String categorySlug, String tuKhoa, int page, int size) {
         Long categoryId = categorySlug == null || categorySlug.isBlank()
                 ? null
-                : categories
-                        .findBySlugAndDeletedAtIsNull(categorySlug)
-                        .filter(Category::isVisible)
+                // ⚠ Dùng CÙNG một luật với `categories()`: danh mục ẩn hoặc nằm dưới một danh mục
+                //   ẩn đều không phục vụ bài. Lọc bằng `isVisible()` một mình thì một nhánh đã rút
+                //   khỏi điều hướng vẫn mở được bằng địa chỉ trực tiếp — hai câu trả lời cho cùng
+                //   một câu hỏi "danh mục này còn trên cổng không".
+                : hienTrenCong(categories.findAllByDeletedAtIsNullOrderByPathAscSortOrderAsc()).stream()
+                        .filter(c -> categorySlug.equals(c.getSlug()))
+                        .findFirst()
                         .map(Category::getId)
                         // Danh mục lạ hoặc đang ẩn → coi như không có bài nào, KHÔNG phải bỏ qua bộ
                         // lọc. Bỏ qua thì gõ sai một slug là nhận về toàn bộ bài của cổng.
@@ -128,7 +171,31 @@ public class PublicPortalService {
         String mau = tuKhoa == null || tuKhoa.isBlank() ? null : "%" + VietnameseUtils.normalizeForSearch(tuKhoa) + "%";
 
         int kichThuoc = Math.clamp(size, 1, TRAN_MOI_TRANG);
-        return articles.findPublic(mau, categoryId, Instant.now(), PageRequest.of(Math.max(page, 0), kichThuoc));
+        Page<PublicArticleRow> trang =
+                articles.findPublic(mau, categoryId, Instant.now(), PageRequest.of(Math.max(page, 0), kichThuoc));
+        return trang.map(nhanChuyenMuc(trang.getContent()));
+    }
+
+    /**
+     * Ghép nhãn chuyên mục vào từng dòng — CR-12.
+     *
+     * <p>Gom bằng <b>một</b> lượt hỏi cho cả trang rồi tra trong bộ nhớ. Đọc
+     * {@code article.getCategories()} trong vòng lặp cũng cho kết quả đúng, nhưng đó là quan hệ
+     * LAZY: 12 bài trên trang chủ thành 13 lượt hỏi CSDL, và con số ấy tăng theo độ dài trang.
+     *
+     * @return hàm ánh xạ; bài không có chuyên mục nào đang hiện thì giữ nguyên {@link List#of()}
+     */
+    private java.util.function.Function<PublicArticleRow, PublicArticleRow> nhanChuyenMuc(List<PublicArticleRow> dong) {
+        if (dong.isEmpty()) {
+            return row -> row;
+        }
+        Map<String, List<PublicArticleDetail.CategoryRef>> theoSlug = new LinkedHashMap<>();
+        for (Object[] hang : articles.findCategoryLabels(
+                dong.stream().map(PublicArticleRow::slug).toList())) {
+            theoSlug.computeIfAbsent((String) hang[0], k -> new ArrayList<>())
+                    .add(new PublicArticleDetail.CategoryRef((String) hang[1], (String) hang[2]));
+        }
+        return row -> row.withCategories(theoSlug.getOrDefault(row.slug(), List.of()));
     }
 
     /**

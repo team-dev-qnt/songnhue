@@ -1,4 +1,12 @@
-import { brandColors, neutralColors, shadow, sizing, statusColors } from 'design-tokens';
+import {
+  brandColors,
+  externalBrandColors,
+  neutralColors,
+  portalChrome,
+  shadow,
+  sizing,
+  statusColors,
+} from 'design-tokens';
 import type { Config } from 'tailwindcss';
 
 /**
@@ -19,6 +27,10 @@ const config: Config = {
         status: statusColors,
         brand: brandColors,
         surface: neutralColors,
+        // Navy của khung cổng (đầu trang / chân trang) — `bg-chrome-navy800`.
+        chrome: portalChrome,
+        // Chỉ cho biểu tượng của chính nền tảng đó — `text-social-facebook`.
+        social: externalBrandColors,
       },
       fontFamily: {
         sans: [sizing.fontFamily],

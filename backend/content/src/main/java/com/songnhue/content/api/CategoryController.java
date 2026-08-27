@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import org.springframework.http.HttpStatus;
@@ -88,6 +89,23 @@ public class CategoryController {
     }
 
     public record MoveRequest(UUID newParentId) {}
+
+    /**
+     * Hiện / ẩn danh mục trên cổng công khai.
+     *
+     * <p>⚠ Ẩn một danh mục rút <b>cả nhánh dưới nó</b> khỏi điều hướng và khỏi trang chuyên mục —
+     * mô tả kỹ ở {@code PublicPortalService.categories()}. Bài viết trong đó <b>không</b> bị ẩn:
+     * chúng vẫn vào được bằng địa chỉ trực tiếp, đúng như trạng thái "Lưu trữ" của bài viết.
+     */
+    @PutMapping("/{publicId}/visibility")
+    @Operation(summary = "Hiện / ẩn danh mục trên cổng — ẩn thì cả nhánh con biến khỏi điều hướng")
+    @RequirePermission("cms:category:manage")
+    public CategoryNode setVisible(@PathVariable UUID publicId, @Valid @RequestBody VisibilityRequest request) {
+        Category saved = categories.setVisible(publicId, request.visible());
+        return toNode(saved, categories.tree());
+    }
+
+    public record VisibilityRequest(@NotNull Boolean visible) {}
 
     @DeleteMapping("/{publicId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)

@@ -11,13 +11,14 @@ hoặc ``python3 .agents/mcp/google_sheets_sync/test_parse.py`` (không cần py
 """
 
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # `server` kéo theo fastmcp/google-api; khi thiếu chúng thì vẫn phải kiểm được phần thuần logic.
 try:
-    from server import TRACKING_FILE, find_duplicate_task_ids, parse_markdown_to_data
+    from server import TASK_LINE, TRACKING_FILE, find_duplicate_task_ids, parse_markdown_to_data
 except ImportError as error:  # pragma: no cover - chỉ chạy khi venv chưa dựng
     print(f"BỎ QUA: chưa cài phụ thuộc của server.py ({error})")
     sys.exit(0)
@@ -110,6 +111,49 @@ def test_trang_thai_nam_trong_tap_da_biet():
     hop_le = {"Done", "In Progress", "Pending", "Cancelled", "Paused"}
     la = sorted({row[3] for row in TASKS} - hop_le)
     assert not la, f"trạng thái lạ: {la}"
+
+
+def test_task_da_tick_khong_bi_ghi_chu_ha_trang_thai():
+    """⛔ Một task tick ``[x]`` phải ra ``Done`` — ghi chú của nó không được hạ trạng thái.
+
+    ⚠⚠ **Lỗi có thật, tìm ra ngày 28/08/2026, và nó đã sai sổ từ hôm trước.**
+
+    ``_status_from_text`` quét ghi chú tìm ký hiệu trạng thái (``⬜``, ``❌``, ``🟡``…) để đọc được
+    những dòng bảng không có ô tick. Nhưng nó cũng quét ghi chú của dòng **đã có tick**, nên một
+    task hoàn thành mà ghi chú nhắc tới phần còn treo — ``"⬜ Nợ: màn hình quản trị chưa có nút"`` —
+    bị hạ xuống ``Pending`` và lên Google Sheet dưới dạng *chưa làm*.
+
+    Đo được lúc phát hiện: **T24.25** (tick từ 27/8) và **T25.13** đều báo ``Pending``. Không lệnh
+    nào báo sai; markdown đọc đúng, Sheet đọc sai, và hai bên chỉ lệch nhau ở một ký tự trong ghi
+    chú.
+
+    Đây đúng họ với **T11.47** — *bản ghi tiến độ nói một đằng, thứ nó mô tả nằm một nẻo*. Cách
+    chữa ở phía nội dung (đừng gắn ký hiệu trạng thái vào ghi chú của task đã xong) chứ không ở
+    phía bộ đọc: nới lỏng ``_status_from_text`` sẽ làm hỏng những dòng bảng vốn dựa vào nó.
+    """
+    goc = _repo_root()
+    duong = os.path.join(goc, TRACKING_FILE)
+    tasks = parse_markdown_to_data(duong)
+    theo_id = {row[1]: row for row in tasks}
+
+    lech = []
+    with open(duong, encoding="utf-8") as tep:
+        for dong in tep:
+            khop = TASK_LINE.match(dong)
+            if not khop or khop.group(1) != "x":
+                continue
+            ma = re.match(r"\*{0,2}(T[\d.]+[a-z]?)\*{0,2}\s*:", khop.group(2).lstrip("*"))
+            if not ma:
+                continue
+            hang = theo_id.get(ma.group(1))
+            if hang and hang[3] != "Done":
+                lech.append((ma.group(1), hang[3]))
+
+    assert not lech, (
+        "Những task tick [x] nhưng bộ đọc trả về trạng thái khác 'Done': "
+        f"{lech}. Gần như chắc chắn ghi chú của chúng có chứa một ký hiệu trạng thái "
+        "(⬜ ❌ 🟡 ⏸). Gỡ ký hiệu ra khỏi ghi chú, hoặc tách phần còn treo thành một task riêng."
+    )
 
 
 if __name__ == "__main__":

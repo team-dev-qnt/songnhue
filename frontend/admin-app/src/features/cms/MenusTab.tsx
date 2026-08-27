@@ -149,6 +149,9 @@ export function MenusTab() {
           options={[
             { label: 'Menu đầu trang', value: 'HEADER' },
             { label: 'Menu chân trang', value: 'FOOTER' },
+            // Dải "Liên kết Cổng TTĐT" ở cuối trang chủ — bốn cơ quan cấp trên (CR-21).
+            // Trước 28/08/2026 danh sách này viết cứng trong mã cổng nên Công ty không sửa được.
+            { label: 'Liên kết cổng TTĐT', value: 'LIEN_KET' },
           ]}
         />
         <Button

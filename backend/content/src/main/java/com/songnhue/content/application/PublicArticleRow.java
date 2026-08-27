@@ -1,6 +1,7 @@
 package com.songnhue.content.application;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -27,4 +28,37 @@ import java.util.UUID;
  * không vi phạm luật nào và không kéo theo gì.
  */
 public record PublicArticleRow(
-        String slug, String title, String summary, UUID coverAttachmentPublicId, Instant publishedAt, long viewCount) {}
+        String slug,
+        String title,
+        String summary,
+        UUID coverAttachmentPublicId,
+        Instant publishedAt,
+        long viewCount,
+        List<PublicArticleDetail.CategoryRef> categories) {
+
+    /**
+     * Hàm dựng mà <b>biểu thức khởi tạo của JPQL</b> gọi — không có {@code categories}.
+     *
+     * <p>⚠ JPQL không dựng được collection trong {@code SELECT new …}. Nên danh sách chuyên mục
+     * <b>không</b> đi ra từ cùng câu truy vấn với các cột khác; nó được ghép vào sau bằng
+     * {@link #withCategories} từ một lượt hỏi thứ hai gom cho cả trang.
+     *
+     * <p>Cố ý <b>không</b> để mặc định là {@code null}: {@link List#of()} nghĩa là "bài này không
+     * thuộc chuyên mục nào đang hiện", còn {@code null} sẽ bắt mọi nơi hiển thị phải nhớ kiểm —
+     * và nơi thứ ba sẽ quên (quy tắc 12).
+     */
+    public PublicArticleRow(
+            String slug,
+            String title,
+            String summary,
+            UUID coverAttachmentPublicId,
+            Instant publishedAt,
+            long viewCount) {
+        this(slug, title, summary, coverAttachmentPublicId, publishedAt, viewCount, List.of());
+    }
+
+    /** Bản sao có nhãn chuyên mục — CR-12 cần tag phân biệt Tin thủy lợi / Tin Công ty. */
+    public PublicArticleRow withCategories(List<PublicArticleDetail.CategoryRef> categories) {
+        return new PublicArticleRow(slug, title, summary, coverAttachmentPublicId, publishedAt, viewCount, categories);
+    }
+}
