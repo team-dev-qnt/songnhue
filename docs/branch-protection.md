@@ -459,3 +459,63 @@ PR #1** (`gh run view 32145220919`):
 - `ci.yml` cố ý chỉ trigger ở `dev`. Đổi điều đó là phá luồng "kiểm một lần".
 - `delete_branch_on_merge` để **false** — có chủ đích: PR đề bạt dùng nhánh nguồn sống lâu (`dev`,
   `staging`), không phải nhánh feature dùng xong bỏ.
+
+---
+
+## 7. ⛔⛔ Bảy context của §6.2 khoá chết mọi PR chỉ sửa tài liệu — vá 27/8
+
+### 7.1. Đo được
+
+Hai PR mở **cùng lúc**, cùng nhánh đích `dev`, khác đúng **một** biến — một thí nghiệm đối chứng
+tự nhiên:
+
+| PR | có đụng `frontend/`? | matrix `Đóng gói image frontend` | trạng thái |
+|---|---|---|---|
+| **#48** | có | **CHẠY** → báo hai tên đã bung | `CLEAN` |
+| **#47** | không (chỉ `docs/`, `.claude/`, `.agents/`) | **BỎ QUA** → báo tên gốc | **`BLOCKED`** |
+
+Context bắt buộc so với context thực sự được báo cáo trên #47:
+
+| bắt buộc | báo cáo |
+|---|---|
+| `Đóng gói image frontend (admin-app, deploy/docker/admin-app.Dockerfile)` | — **không có** |
+| `Đóng gói image frontend (public-web, deploy/docker/public-web.Dockerfile)` | — **không có** |
+| | `Đóng gói image frontend` → `skipped` |
+
+**Một job matrix khi CHẠY báo tên đã bung; khi BỊ BỎ QUA chỉ báo tên gốc chưa bung.** Hai context
+bắt buộc kia không bao giờ tới → PR treo mãi ở *"Waiting for status to be reported"*.
+
+⚠ Không sửa được bằng cách đổi danh sách context: đòi tên gốc thì hỏng trường hợp **chạy**, đòi tên
+đã bung thì hỏng trường hợp **bỏ qua**. **Không có tên nào đúng cho cả hai.**
+
+### 7.2. Vì sao ẩn được suốt
+
+§2.1 của chính tài liệu này đã cảnh báo *"check bắt buộc mà không bao giờ chạy"*, và §6.2 còn ngồi
+phân tích đúng trường hợp `Gắn tag SHA` — rồi kết luận bảy context kia an toàn. Phân tích ấy chỉ
+soi trường hợp job **bị `if` loại**, không soi trường hợp job **matrix bị bỏ qua**. Từ 26/8 tới 27/8
+không PR nào chỉ sửa tài liệu, nên cái bẫy nằm im.
+
+📌 Cùng hình dạng CLAUDE.md luật 28: *một cơ chế canh gác hẹp hơn nơi nó phải chặn, và cái xanh của
+nó đọc như một lời bảo đảm.*
+
+### 7.3. Vá: một context DUY NHẤT, luôn được báo cáo
+
+Job `Cổng kiểm CI` (`ci.yml`, khoá `cong-kiem`) mang `if: always()` và `needs` **mọi** job khác. Nó
+đỏ khi có job `failure`/`cancelled`, bỏ qua `skipped` (bộ lọc đường dẫn bỏ qua một vùng không thay
+đổi là đúng việc của nó), và in bảng kết quả từng job vào tóm tắt lượt chạy.
+
+```bash
+gh api -X PUT repos/team-dev-qnt/songnhue/branches/dev/protection/required_status_checks \
+  -f strict=true -f 'contexts[]=Cổng kiểm CI'
+
+# ĐO LẠI, đừng tick theo lệnh đã gõ:
+gh api repos/team-dev-qnt/songnhue/branches/dev/protection/required_status_checks -q '.contexts'
+```
+
+⚠⚠ **Thứ tự bắt buộc**: job `Cổng kiểm CI` phải có mặt trên `dev` **TRƯỚC** khi đổi danh sách
+context. Đổi trước thì mọi PR treo ở *"Waiting for status to be reported"* — kể cả PR mang chính
+job ấy, và khi đó chỉ còn đường bypass bằng quyền admin.
+
+⚠ Gom về một context nghĩa là **context ấy phải biết hết**. Thêm job mới mà quên khai vào `needs`
+thì cổng xanh trong khi job ấy đỏ. `CiGateCoverageTest` đối chiếu `needs` với danh sách job có thật
+trong `ci.yml`, cả hai chiều — nên chỗ quên ấy thành một bài kiểm ĐỎ.

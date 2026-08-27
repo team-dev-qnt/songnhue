@@ -4203,3 +4203,96 @@ lỗ của lượt này ra đời **một ngày trước** từ một đợt là
 dạng: bộ canh đúng luật nhưng hẹp hơn nơi nó phải chặn, và cái xanh của nó đọc như một lời bảo đảm.
 Khi không phủ hết được thì **ghi giới hạn vào chính bộ canh** và mở một dòng nợ có số đo.
 
+
+---
+
+### §10.63 — Bảy context bắt buộc khoá chết mọi PR chỉ sửa tài liệu (27/8)
+
+Hai PR mở **cùng lúc**, cùng nhánh đích `dev`, khác đúng **một** biến — một thí nghiệm đối chứng
+tự nhiên mà không ai cố ý dựng ra:
+
+| PR | đụng `frontend/`? | job matrix `Đóng gói image frontend` | kết quả |
+|---|---|---|---|
+| **#48** | có | **CHẠY** → báo hai tên đã bung | `CLEAN` |
+| **#47** | không (`docs/` · `.claude/` · `.agents/`) | **BỎ QUA** → chỉ báo tên gốc | **`BLOCKED`** |
+
+Context bắt buộc so với context thực sự được báo cáo trên #47:
+
+| bắt buộc | báo cáo |
+|---|---|
+| `Đóng gói image frontend (admin-app, deploy/docker/admin-app.Dockerfile)` | — **không có** |
+| `Đóng gói image frontend (public-web, deploy/docker/public-web.Dockerfile)` | — **không có** |
+| | `Đóng gói image frontend` → `skipped` |
+
+Một job matrix khi **chạy** báo tên đã bung; khi **bị bỏ qua** chỉ báo tên gốc chưa bung. Hai
+context bắt buộc kia không bao giờ tới → PR treo mãi ở *"Waiting for status to be reported"*.
+
+⛔ **Không sửa được bằng cách đổi danh sách context**: đòi tên gốc thì hỏng trường hợp *chạy*, đòi
+tên đã bung thì hỏng trường hợp *bỏ qua*. Không có tên nào đúng cho cả hai.
+
+#### Vì sao ẩn được
+
+`branch-protection.md` §2.1 đã cảnh báo đúng cái bẫy này — *"check bắt buộc mà không bao giờ chạy"*
+— và §6.2 còn ngồi phân tích riêng trường hợp `Gắn tag SHA`, rồi kết luận bảy context kia an toàn.
+Phân tích ấy soi trường hợp job **bị `if` loại** (vẫn báo cáo), không soi trường hợp job **matrix
+bị bỏ qua** (báo một cái tên khác). Từ 26/8 tới 27/8 không PR nào chỉ sửa tài liệu, nên cái bẫy nằm
+im đúng một ngày rồi bật ra ở PR ghi lại chính ba sự cố trước đó.
+
+📌 Cùng hình dạng luật 28: *một cơ chế canh gác hẹp hơn nơi nó phải chặn, và cái xanh của nó đọc
+như một lời bảo đảm.* Ở đây còn ngược đời hơn — cái **treo mãi** của nó đọc như *"CI đang chạy"*.
+
+#### Đã vá
+
+Job `Cổng kiểm CI` (`if: always()`, `needs` **mọi** job) thành context bắt buộc **duy nhất**. Nó đỏ
+khi có job `failure`/`cancelled`, bỏ qua `skipped` — bộ lọc đường dẫn bỏ qua một vùng không thay
+đổi là đúng việc của nó — và in bảng kết quả từng job ra tóm tắt.
+
+⚠ Gom về một context nghĩa là **context ấy phải biết hết**. `CiGateCoverageTest` (4 bài) đối chiếu
+`needs` với danh sách job có thật trong `ci.yml` **cả hai chiều**: job đứng ngoài `needs` → đỏ; và
+`needs` trỏ tới job không tồn tại → cũng đỏ. Kiểm chứng ngược: bỏ `tracking` khỏi `needs` → bài đỏ
+và **nêu đích danh** job thiếu.
+
+⚠⚠ Thứ tự áp bắt buộc: job phải có mặt trên `dev` **TRƯỚC** khi đổi danh sách context. Đổi trước
+thì mọi PR treo — kể cả PR mang chính job ấy — và chỉ còn đường bypass bằng quyền admin.
+
+### §10.64 — Chín phép kiểm canh nguồn sự thật, không cổng nào chạy, và có sẵn nhánh thoát-0 (27/8)
+
+Lộ ra khi tự kiểm dòng tracking vừa sửa bằng **chính bộ đọc thật** thay vì bằng một bộ kiểm tự viết
+(bộ tự viết sai spec và báo 233 dòng "lỗi" không có thật — nó không biết dự án dùng `- [~]` và dòng
+nối).
+
+Ba tầng, mỗi tầng đủ để vô hiệu hoá tầng dưới:
+
+1. `test_parse.py` **không nằm trong `ci.yml` lẫn `Makefile`** — chưa cổng nào chạy nó.
+2. Nếu có chạy: nó `import server`, mà `server` kéo theo `fastmcp` + `google-api`, và nhánh
+   `ImportError` gọi **`sys.exit(0)`** — in `BỎ QUA…` rồi **xanh**.
+3. Bên trong bộ đọc: `_status_from_text` quét `✅` trên **toàn dòng kể cả cột Note**, nên một dấu
+   `✅` đánh dấu ý phụ nâng cả task lên `Done`. Đo trên file thật: **đúng 2 dòng sai**, và cả hai là
+   việc còn mở quan trọng nhất — **T11.45** `[ ]` (siết SSH, đang làm đỏ deploy) và **T11.7** `[~]`
+   (secret production) đều hiện **Done** trên bảng Công ty đọc.
+
+#### Hai nửa của cùng một lỗi, tìm ra bởi hai nhánh khác nhau
+
+WS-25 (#48) tìm ra **chiều ngược lại** cùng lớp lỗi: `⬜` trong ghi chú **hạ** một task `[x]` xuống
+`Pending`. Bản ghi ấy kết luận *"chữa ở phía nội dung chứ không ở phía bộ đọc: nới lỏng
+`_status_from_text` sẽ làm hỏng những dòng bảng vốn dựa vào nó"*.
+
+Nỗi lo đúng, nhưng bản vá **không nới lỏng** hàm ấy: dòng bảng vẫn gọi
+`_status_from_text(status_col, status_col)` y nguyên. Chỉ dòng **có ô tick** thôi dùng nó — ở đó dấu
+tích là thứ người viết cố ý đặt, chữ trong ghi chú thì không. Cả hai chiều hết cùng lúc.
+
+#### Đã vá
+
+Tách phần đọc thuần sang `tracking_parser.py` **chỉ dùng thư viện chuẩn** → `test_parse.py` import
+thẳng, **không còn nhánh bỏ qua nào**; `server.py` tái xuất nên MCP không đổi hành vi (đo: 8/8 tên
+còn nguyên, đọc ra 437 dòng). Thêm job `Bộ đọc tracking` vào `ci.yml` **không có bộ lọc đường dẫn**
+và bước `[1/9]` của `make ci-local`.
+
+#### Bài học
+
+⚠⚠ **Bản ĐẦU của bài kiểm cho tầng 3 là xanh giả** — nó tự suy lại trạng thái từ dấu tích rồi so
+với **chính dấu tích ấy**, nên vẫn xanh 8/8 sau khi gỡ bản vá. Chỉ bước kiểm chứng ngược bắt được.
+Đây là lần thứ ba trong dự án một bài kiểm chứng ngược cứu một bộ canh vô nghĩa (§10.62 hai lần).
+
+**Khi tự kiểm một tệp, hãy chạy BỘ ĐỌC THẬT của nó.** Một bộ kiểm tự viết mang đúng giả định của
+người viết — và ở đây nó vừa bỏ sót lỗi có thật, vừa bịa ra 233 lỗi không có.

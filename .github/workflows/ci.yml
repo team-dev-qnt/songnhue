@@ -150,6 +150,30 @@ jobs:
           echo "→ backend=$backend · frontend=$frontend"
           echo "Vùng chạy lần này: backend=\`$backend\` · frontend=\`$frontend\`" >> "$GITHUB_STEP_SUMMARY"
 
+  # ===========================================================================
+  # Bộ đọc tracking — KHÔNG có bộ lọc đường dẫn, và đó là cố ý.
+  #
+  # Nó canh `.claude/master-tracking.md`, tức **nguồn sự thật DUY NHẤT về task và
+  # nợ** của dự án (conventions.md §6). Job chạy trong ~10 giây và không cần cài
+  # gì, nên đặt một bộ lọc lên nó chỉ tạo thêm một chỗ có thể bỏ sót.
+  #
+  # ⛔ Trước 27/8 bộ kiểm này KHÔNG nằm ở đâu cả — không `ci.yml`, không
+  #    `Makefile` — và nếu có chạy thì cũng xanh giả: nó `import server`, mà
+  #    `server` kéo theo fastmcp + google-api, và nhánh ImportError của nó gọi
+  #    `sys.exit(0)`. Chín phép kiểm, không cổng nào chạy, và một nhánh thoát-0
+  #    chờ sẵn (CLAUDE.md luật 1 và luật 7). Phần đọc nay tách sang
+  #    `tracking_parser.py` chỉ dùng thư viện chuẩn, nên không còn nhánh bỏ qua.
+  # ===========================================================================
+  tracking:
+    name: Bộ đọc tracking
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Chạy phép kiểm bộ đọc
+        run: python3 .agents/mcp/google_sheets_sync/test_parse.py
+
   backend:
     name: Backend — build, lint, test
     needs: changes
@@ -611,3 +635,70 @@ jobs:
         with:
           fail-on-severity: high
           comment-summary-in-pr: on-failure
+
+  # ===========================================================================
+  # Cổng kiểm CI — context DUY NHẤT mà bảo vệ nhánh cần, và là context duy nhất
+  # LUÔN được báo cáo.
+  #
+  # ⛔⛔ VÌ SAO PHẢI CÓ NÓ: một PR không đụng `frontend/` thì KHÔNG BAO GIỜ merge
+  #    được vào `dev`. Đo ngày 27/8 trên hai PR cùng lúc — một thí nghiệm đối
+  #    chứng tự nhiên, cùng nhánh đích, khác đúng một biến:
+  #
+  #      PR #48 (có đụng frontend/) → matrix CHẠY  → báo hai tên đã bung → CLEAN
+  #      PR #47 (chỉ sửa tài liệu)  → matrix BỎ QUA → báo tên GỐC        → BLOCKED
+  #
+  #    Bảo vệ nhánh đòi hai context ĐÃ BUNG:
+  #      "Đóng gói image frontend (admin-app, deploy/docker/admin-app.Dockerfile)"
+  #      "Đóng gói image frontend (public-web, deploy/docker/public-web.Dockerfile)"
+  #    Nhưng job matrix bị bỏ qua chỉ báo tên CHƯA BUNG "Đóng gói image frontend".
+  #    Hai context kia không bao giờ tới → PR treo mãi ở "Waiting for status to be
+  #    reported". Không có tên nào đúng cho CẢ hai trường hợp, nên không sửa được
+  #    bằng cách đổi danh sách context — phải có một job luôn chạy.
+  #
+  # ⚠ `skipped` KHÔNG bị coi là hỏng ở đây, và đó là cố ý: bộ lọc đường dẫn bỏ
+  #   qua một vùng không thay đổi là đúng việc của nó. Cái bị chặn là `failure`
+  #   và `cancelled`. (Khác với luật 24 — ở đó vấn đề là `skipped` của một
+  #   required check được tính ĐẠT *mà không ai biết*; ở đây nó được in ra.)
+  #
+  # ⚠⚠ Rủi ro của chính cổng này: thêm một job mới mà quên khai vào `needs` thì
+  #    cổng xanh trong khi job ấy đỏ (CLAUDE.md luật 28 — bộ canh hẹp hơn nơi nó
+  #    phải chặn). `CiGateCoverageTest` đối chiếu `needs` với danh sách job có
+  #    thật trong tệp này, nên chỗ quên ấy thành một bài kiểm ĐỎ.
+  # ===========================================================================
+  cong-kiem:
+    name: Cổng kiểm CI
+    needs: [changes, tracking, backend, frontend, image, image-frontend, gan-tag-sha, dependency-review]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Tổng kết mọi job
+        env:
+          KET_QUA: ${{ toJSON(needs) }}
+        run: |
+          set -euo pipefail
+
+          # ⚠ Chặn xanh-trên-tập-rỗng: `toJSON(needs)` rỗng nghĩa là khai `needs`
+          #   đã hỏng, và khi ấy cổng sẽ xanh mà không soi gì (luật 7).
+          so_job=$(jq 'length' <<< "$KET_QUA")
+          if [ "$so_job" -lt 8 ]; then
+            echo "::error::Chỉ thấy $so_job job trong \`needs\` — khai báo đã hỏng, cổng này không soi được gì."
+            exit 1
+          fi
+
+          {
+            echo "### Cổng kiểm CI"
+            echo ""
+            echo "| Job | Kết quả |"
+            echo "|---|---|"
+            jq -r 'to_entries[] | "| \(.key) | \(.value.result) |"' <<< "$KET_QUA"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          jq -r 'to_entries[] | "  \(.key): \(.value.result)"' <<< "$KET_QUA"
+
+          hong=$(jq -r 'to_entries[] | select(.value.result == "failure" or .value.result == "cancelled") | .key' <<< "$KET_QUA")
+          if [ -n "$hong" ]; then
+            echo "::error::Job hỏng: $(tr '\n' ' ' <<< "$hong")"
+            exit 1
+          fi
+          echo "✓ $so_job job, không job nào hỏng"

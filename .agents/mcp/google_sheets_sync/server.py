@@ -36,166 +36,20 @@ logger = logging.getLogger("google_sheets_sync")
 
 mcp = FastMCP("GoogleSheetsSync")
 
-TRACKING_FILE = ".claude/master-tracking.md"
-HEADER = ["Phase/WS", "Task ID", "Description", "Status", "Date", "Notes"]
-
-STATUS_BY_MARK = {
-    "x": "Done",
-    " ": "Pending",
-    "~": "In Progress",
-    "✅": "Done",
-    "🟡": "In Progress",
-    "⬜": "Pending",
-    "❌": "Cancelled",
-    "⏸": "Paused",
-}
-
-TASK_LINE = re.compile(r"^\s*-\s+\[(x| |~|✅|🟡|⬜|❌|⏸)\]\s+(.*)$")
-
-# ⭐ Cú pháp chính thức theo conventions.md §10: "T1.1:" — dấu hai chấm, không phải khoảng trắng.
-#    Hai dạng còn lại (in đậm, khoảng trắng) giữ lại để đọc được các dòng viết trước khi §10 ra đời.
-TASK_ID_FORMS = (
-    re.compile(r"^\*\*(?P<id>[A-Z]+\d+\.\d+(?:-?[a-z])?)\*\*[:.]?\s*(?P<rest>.*)$"),
-    re.compile(r"^(?P<id>[A-Z]+\d+\.\d+(?:-?[a-z])?)\s*:\s*(?P<rest>.*)$"),
-    re.compile(r"^(?P<id>[A-Z]+\d+\.\d+(?:-?[a-z])?)\s+(?P<rest>.*)$"),
+from tracking_parser import (  # noqa: F401 — tái xuất để nơi gọi cũ không phải đổi
+    HEADER,
+    STATUS_BY_MARK,
+    STATUS_BY_TEXT,
+    TABLE_ROW,
+    TABLE_SEPARATOR,
+    TASK_ID_FORMS,
+    TASK_LINE,
+    TRACKING_FILE,
+    SECTION_HEADING,
+    SyncError,
+    find_duplicate_task_ids,
+    parse_markdown_to_data,
 )
-
-# "## WS-19", "## 1. WS-19 — Tình hình vận hành", "## Phase 1" đều phải quy về MỘT khoá.
-#
-# ⚠ `DoD Phase n` phải đứng TRƯỚC nhánh `Phase\s*\d+` trong phép hoặc, và phải được nhận diện —
-#   bản trước không khớp tiêu đề này nên 38 dòng Definition of Done **thừa kế khoá của mục phía
-#   trên** và nằm gọn dưới `WS-22` trên bảng. Không có lỗi nào báo ra: khoá "WS-22" vẫn là một khoá
-#   hợp lệ, chỉ là gán sai chỗ.
-SECTION_HEADING = re.compile(
-    r"^#{2,3}\s+(?:\d+\.\s*)?(?P<key>DoD\s+Phase\s*\d+|WS-\d+|VM-\d+|Phase\s*\d+)\b", re.IGNORECASE
-)
-
-TABLE_SEPARATOR = re.compile(r"^\s*\|[-:| ]+\|[-:| ]+\|")
-TABLE_ROW = re.compile(r"^\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|(.*)\|$")
-
-STATUS_BY_TEXT = (
-    ("✅", "Done"),
-    ("Xong", "Done"),
-    ("🟡", "In Progress"),
-    ("Đang làm", "In Progress"),
-    ("⬜", "Pending"),
-    ("Chưa làm", "Pending"),
-    ("❌", "Cancelled"),
-    ("⏸", "Paused"),
-)
-
-
-class SyncError(RuntimeError):
-    """Hỏng hóc đã được nhận diện và có câu trả lời rõ ràng cho người dùng."""
-
-
-def _split_task_id(content):
-    """Tách mã số khỏi phần mô tả. Trả về ``(task_id, phần còn lại)``."""
-    for form in TASK_ID_FORMS:
-        match = form.match(content)
-        if match:
-            return match.group("id"), match.group("rest").strip()
-    return "", content
-
-
-def _split_metadata(rest):
-    """Bóc ``| Date: … | Note: …`` khỏi phần mô tả."""
-    if "|" not in rest:
-        return rest.strip(" -*"), "", ""
-
-    parts = [p.strip() for p in rest.split("|")]
-    description = parts[0].strip(" -*")
-    date_str = ""
-    note_str = ""
-    for part in parts[1:]:
-        lowered = part.lower()
-        if lowered.startswith("date:"):
-            date_str = part[5:].strip()
-        elif lowered.startswith("note:"):
-            note_str = part[5:].strip()
-        elif not date_str and re.fullmatch(r"\d{1,2}/\d{1,2}/\d{4}", part):
-            date_str = part
-        elif not note_str:
-            note_str = part
-    return description, date_str, note_str
-
-
-def _status_from_text(text, fallback):
-    for needle, status in STATUS_BY_TEXT:
-        if needle in text:
-            return status
-    return fallback
-
-
-def parse_markdown_to_data(input_path):
-    """Đọc file tracking thành các dòng ``[WS, TaskID, Mô tả, Trạng thái, Ngày, Ghi chú]``."""
-    if not os.path.exists(input_path):
-        raise SyncError(f"Không tìm thấy file tracking: {input_path}")
-
-    tasks = []
-    current_section = ""
-    in_table = False
-
-    with open(input_path, "r", encoding="utf-8") as handle:
-        for raw_line in handle:
-            line = raw_line.strip()
-
-            heading = SECTION_HEADING.match(line)
-            if heading:
-                current_section = " ".join(heading.group("key").upper().split())
-                in_table = False
-                continue
-
-            if TABLE_SEPARATOR.match(line):
-                in_table = True
-                continue
-
-            task_line = TASK_LINE.match(line)
-            if task_line:
-                content = task_line.group(2).strip()
-                # ⛔ DẤU TÍCH THẮNG, không để phần chữ ghi đè.
-                #
-                # Bản trước gọi `_status_from_text(content, …)` trên TOÀN dòng — kể cả cột Note. Mà
-                # Note thì thường xuyên có `✅` để đánh dấu một Ý PHỤ đã xong ("✅ Không phải sự cố
-                # xâm nhập", "✅ repo secret `NVD_API_KEY`"), và một dấu ấy biến cả task thành Done.
-                #
-                # Đo trên chính file tracking ngày 27/8: **2 dòng** bị báo sai, và cả hai đều là việc
-                # còn mở quan trọng nhất — T11.45 `[ ]` (siết SSH, đang làm đỏ deploy) và T11.7 `[~]`
-                # (secret production) đều hiện **Done** trên Google Sheet mà Công ty đọc.
-                #
-                # Dấu tích là thứ người viết CỐ Ý đặt; chữ trong ghi chú thì không. Chỉ khi dấu tích
-                # không nhận ra được mới đi đoán theo chữ.
-                dau_tich = STATUS_BY_MARK.get(task_line.group(1))
-                status = dau_tich if dau_tich else _status_from_text(content, "Unknown")
-                task_id, rest = _split_task_id(content)
-                description, date_str, note_str = _split_metadata(rest)
-                tasks.append([current_section, task_id, description, status, date_str, note_str])
-                continue
-
-            table_row = TABLE_ROW.match(line) if in_table else None
-            if table_row:
-                id_col = table_row.group(1).strip()
-                if id_col.lower() in ("id", "mã", "ws", "task"):
-                    continue
-                if not re.match(r"^(T\d+\.\d+|WS-\d+)", id_col):
-                    continue
-                status_col = table_row.group(3).strip()
-                tasks.append([
-                    current_section,
-                    id_col,
-                    table_row.group(2).strip(),
-                    _status_from_text(status_col, status_col),
-                    "",
-                    (table_row.group(4) or "").strip(" |"),
-                ])
-
-    return tasks
-
-
-def find_duplicate_task_ids(tasks):
-    """Mã số xuất hiện nhiều lần — mỗi cái là một chỗ hai dòng có thể nói ngược nhau."""
-    counts = Counter(row[1] for row in tasks if row[1])
-    return sorted(task_id for task_id, count in counts.items() if count > 1)
 
 
 def _config():

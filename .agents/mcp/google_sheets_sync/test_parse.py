@@ -16,18 +16,22 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# `server` kéo theo fastmcp/google-api; khi thiếu chúng thì vẫn phải kiểm được phần thuần logic.
-try:
-    from server import (
-        STATUS_BY_MARK,
-        TASK_LINE,
-        TRACKING_FILE,
-        find_duplicate_task_ids,
-        parse_markdown_to_data,
-    )
-except ImportError as error:  # pragma: no cover - chỉ chạy khi venv chưa dựng
-    print(f"BỎ QUA: chưa cài phụ thuộc của server.py ({error})")
-    sys.exit(0)
+# ⭐ Import từ `tracking_parser`, KHÔNG từ `server` (27/8).
+#
+#   Bản trước import `server`, mà `server` kéo theo fastmcp + google-api. Máy chưa dựng venv thì
+#   import hỏng, và bản trước bắt ImportError rồi `sys.exit(0)` — tức bộ kiểm XANH mà không kiểm
+#   gì. Cộng thêm việc nó không nằm trong `ci.yml` lẫn `Makefile`, thành ra 9 phép kiểm canh nguồn
+#   sự thật duy nhất về task và nợ của dự án chưa cổng nào chạy, và nếu chạy cũng xanh giả.
+#
+#   `tracking_parser` chỉ dùng thư viện chuẩn nên KHÔNG có nhánh bỏ qua nào ở đây nữa: import hỏng
+#   thì bộ kiểm ĐỎ, đúng như nó phải thế.
+from tracking_parser import (
+    STATUS_BY_MARK,
+    TASK_LINE,
+    TRACKING_FILE,
+    find_duplicate_task_ids,
+    parse_markdown_to_data,
+)
 
 
 def _repo_root():
@@ -181,9 +185,20 @@ def test_task_da_tick_khong_bi_ghi_chu_ha_trang_thai():
     nào báo sai; markdown đọc đúng, Sheet đọc sai, và hai bên chỉ lệch nhau ở một ký tự trong ghi
     chú.
 
-    Đây đúng họ với **T11.47** — *bản ghi tiến độ nói một đằng, thứ nó mô tả nằm một nẻo*. Cách
-    chữa ở phía nội dung (đừng gắn ký hiệu trạng thái vào ghi chú của task đã xong) chứ không ở
-    phía bộ đọc: nới lỏng ``_status_from_text`` sẽ làm hỏng những dòng bảng vốn dựa vào nó.
+    Đây đúng họ với **T11.47** — *bản ghi tiến độ nói một đằng, thứ nó mô tả nằm một nẻo*.
+
+    ⭐ **Cập nhật 27/8 (T11.47): đã chữa ở phía BỘ ĐỌC, và không phải bằng cách nới lỏng.**
+    Bản ghi trên đề nghị chữa ở phía nội dung vì sợ nới ``_status_from_text`` sẽ làm hỏng những
+    dòng bảng vốn dựa vào nó. Nỗi lo ấy đúng — nên bản vá **không đụng** hàm đó: dòng bảng vẫn gọi
+    ``_status_from_text(status_col, status_col)`` y nguyên. Chỉ dòng **có ô tick** thôi dùng nó, vì
+    ở đó dấu tích là thứ người viết CỐ Ý đặt còn chữ trong ghi chú thì không.
+
+    Nhờ vậy cả hai chiều đều hết: ``⬜`` trong ghi chú không hạ một task ``[x]`` xuống *Pending*
+    (lỗi bài này), và ``✅`` trong ghi chú không nâng một task ``[ ]`` lên *Done* (T11.47 — hai
+    dòng bị sai khi đó là **T11.45** và **T11.7**, đúng hai việc còn mở quan trọng nhất).
+
+    ⚠ Bài này GIỮ LẠI làm phép canh hồi quy: nay nó đúng *do cấu tạo* chứ không do quy ước viết
+    ghi chú, và nếu ai đó hoàn tác bản vá thì nó đỏ trở lại.
     """
     goc = _repo_root()
     duong = os.path.join(goc, TRACKING_FILE)
