@@ -280,7 +280,7 @@ jobs:
           USER: ${{ secrets.USER }}
         run: |
           set -euo pipefail
-          ssh "$USER@$HOST" bash -euo pipefail <<'REMOTE'
+          .github/scripts/chay-tu-xa.sh "pg-dump" <<'REMOTE'
             cd /opt/songnhue
             ./backup/pre-deploy-dump.sh
           REMOTE
@@ -352,7 +352,7 @@ jobs:
           #   runner thay TRƯỚC khi chuỗi lệnh đi qua SSH — máy chủ không biết
           #   chúng. Đổi thành `<<'REMOTE'` là compose bên kia thấy biến rỗng và
           #   dừng với "Thiếu APP_IMAGE".
-          ssh "$USER@$HOST" bash -euo pipefail <<REMOTE
+          .github/scripts/chay-tu-xa.sh "trien-khai" <<REMOTE
             cd /opt/songnhue
             export APP_IMAGE="$APP_IMAGE"
             export ADMIN_IMAGE="$ADMIN_IMAGE"
@@ -371,6 +371,15 @@ jobs:
             #   cũng tạo bucket và nạp byte seed (nếu môi trường bật) TRƯỚC khi
             #   migration ghi hàng khẳng định các byte ấy tồn tại. Thứ tự nằm ở
             #   compose, không nằm ở đây — gõ tay lúc chữa cháy vẫn đúng.
+            #
+            # ⚠⚠ `docker compose run` GẮN STDIN. Ngày 27/8 nó nuốt trọn phần script còn
+            #    lại của khối này (khối khi ấy được nuôi vào bash-từ-xa qua stdin), nên
+            #    `up -d --force-recreate` và cả bước đo lại image ID BÊN DƯỚI không hề
+            #    chạy — mà CD vẫn báo success (§10.60). `-T` KHÔNG chữa được: nó chỉ tắt
+            #    TTY, stdin vẫn gắn.
+            #    Bảo đảm KHÔNG nằm ở dòng này mà ở `chay-tu-xa.sh`: khối chạy từ TỆP với
+            #    stdin là /dev/null, nên lệnh nuốt stdin tiếp theo ai đó thêm vào cũng
+            #    không phá được. Đừng "sửa" bằng cách thêm `</dev/null` ở đây rồi bỏ helper.
             \$dc run --rm migrator
 
             # ⚠ \`--force-recreate\`: KHÔNG để compose tự quyết có thay container hay không.
@@ -470,7 +479,7 @@ jobs:
           # ⚠ Heredoc CÓ trích dẫn (`<<'REMOTE'`): không biến nào của runner cần
           #   thay vào đây, và script tra container bằng nhãn compose nên nó không
           #   cần biết tệp compose nào đang dùng.
-          ssh "$USER@$HOST" bash -euo pipefail <<'REMOTE'
+          .github/scripts/chay-tu-xa.sh "collation" <<'REMOTE'
             cd /opt/songnhue
             ./postgres/kiem-collation.sh
           REMOTE
@@ -575,7 +584,7 @@ jobs:
           set -euo pipefail
           echo "::warning::Lượt triển khai hỏng — đang dựng lại bản trước đó."
 
-          ssh "$USER@$HOST" bash -euo pipefail <<REMOTE
+          .github/scripts/chay-tu-xa.sh "quay-lui" <<REMOTE
             cd /opt/songnhue
             export APP_IMAGE="$APP_IMAGE"
             export ADMIN_IMAGE="$ADMIN_IMAGE"
