@@ -153,7 +153,20 @@ def parse_markdown_to_data(input_path):
             task_line = TASK_LINE.match(line)
             if task_line:
                 content = task_line.group(2).strip()
-                status = _status_from_text(content, STATUS_BY_MARK.get(task_line.group(1), "Unknown"))
+                # ⛔ DẤU TÍCH THẮNG, không để phần chữ ghi đè.
+                #
+                # Bản trước gọi `_status_from_text(content, …)` trên TOÀN dòng — kể cả cột Note. Mà
+                # Note thì thường xuyên có `✅` để đánh dấu một Ý PHỤ đã xong ("✅ Không phải sự cố
+                # xâm nhập", "✅ repo secret `NVD_API_KEY`"), và một dấu ấy biến cả task thành Done.
+                #
+                # Đo trên chính file tracking ngày 27/8: **2 dòng** bị báo sai, và cả hai đều là việc
+                # còn mở quan trọng nhất — T11.45 `[ ]` (siết SSH, đang làm đỏ deploy) và T11.7 `[~]`
+                # (secret production) đều hiện **Done** trên Google Sheet mà Công ty đọc.
+                #
+                # Dấu tích là thứ người viết CỐ Ý đặt; chữ trong ghi chú thì không. Chỉ khi dấu tích
+                # không nhận ra được mới đi đoán theo chữ.
+                dau_tich = STATUS_BY_MARK.get(task_line.group(1))
+                status = dau_tich if dau_tich else _status_from_text(content, "Unknown")
                 task_id, rest = _split_task_id(content)
                 description, date_str, note_str = _split_metadata(rest)
                 tasks.append([current_section, task_id, description, status, date_str, note_str])
