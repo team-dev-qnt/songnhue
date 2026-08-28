@@ -60,10 +60,25 @@ export async function SiteHeader() {
       <div className="w-full border-b border-white/10 bg-gradient-to-r from-chrome-navy800 via-chrome-navy500 to-chrome-navy800 shadow-xs">
         <div className="mx-auto flex max-w-[1240px] items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-3.5">
           <Link href={ROUTES.home} className="group flex min-w-0 items-center gap-3 sm:gap-4">
+            {/* ⚠ `translate-y-[11.2%]` bù KHOẢNG TRỐNG BAKED-IN của tệp logo, không phải một
+                tinh chỉnh thẩm mỹ.
+
+                Logo Công ty tải lên từ màn hình quản trị là PNG 612×792, nhưng phần vẽ chỉ nằm ở
+                hàng 88→525: lề trên 88px, **lề dưới 266px**. Tức 33,6% đáy khung là trong suốt,
+                nên tâm phần nhìn thấy nằm CAO HƠN tâm khung 89px = 11,24% chiều cao. `items-center`
+                canh giữa cái KHUNG, nên mắt thấy logo lệch lên — đúng thứ Công ty báo 28/08.
+
+                Dùng `%` chứ không dùng `px`: đơn vị ấy tính theo chiều cao của chính ảnh, nên một
+                giá trị đúng cho cả `h-11` (≈4,9px) lẫn `sm:h-16` (≈7,2px).
+
+                ⛔ Con số này gắn với TỆP LOGO HIỆN TẠI. Nếu Công ty tải lên bản đã cắt sát viền thì
+                   PHẢI bỏ dòng này, nếu không nó lại lệch xuống. Cách đo lại: lấy tệp ở
+                   `/api/v1/public/files/<site.logo.attachment-id>`, tìm hộp bao của các điểm ảnh có
+                   alpha > 16, rồi lấy (tâm nội dung − tâm khung) / chiều cao. */}
             <img
               src={logo}
               alt={siteName}
-              className="h-11 w-auto shrink-0 object-contain transition-transform duration-300 ease-smooth group-hover:scale-105 sm:h-16"
+              className="h-11 w-auto shrink-0 translate-y-[11.2%] object-contain transition-transform duration-300 ease-smooth group-hover:scale-105 sm:h-16"
             />
             {/* ⚠ `line-clamp-2` + `min-w-0`: tên Công ty dài 56 ký tự. Không có hai lớp này thì
                 trên điện thoại nó đẩy khối số trực ban ra khỏi màn hình — flex mặc định không
