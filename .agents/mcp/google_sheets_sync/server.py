@@ -49,7 +49,23 @@ from tracking_parser import (  # noqa: F401 — tái xuất để nơi gọi cũ
     SyncError,
     find_duplicate_task_ids,
     parse_markdown_to_data,
+    van_tay_nguon,
 )
+
+# ── Vân tay của chính mã này TẠI THỜI ĐIỂM NẠP ──────────────────────────────────
+#
+# ⛔⛔ Máy chủ MCP sống lâu: nó `import` một lần rồi giữ trong bộ nhớ. Sửa mã trên đĩa KHÔNG chạm
+#    tới tiến trình đang phục vụ. Ngày 28/08 điều đó làm bảng Công ty đọc mang ba trạng thái sai
+#    suốt từ 27/08 19:36 (lúc bản vá T11.47 vào kho) — hai tiến trình đang chạy khởi động lúc
+#    15:17 và 19:13, tức trước bản vá.
+#
+# ⚠ Đọc-ngược-sau-khi-ghi không đỡ được: tiến trình cũ ghi giá trị cũ rồi đọc lại thấy khớp với
+#   CHÍNH NÓ. Chỉ phép so đĩa ↔ bộ nhớ phân biệt được hai trạng thái ấy (CLAUDE.md luật 9).
+_NGUON = [
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), ten)
+    for ten in ("tracking_parser.py", "server.py")
+]
+_VAN_TAY_LUC_NAP = van_tay_nguon(_NGUON)
 
 
 def _config():
@@ -87,6 +103,16 @@ def sync_markdown_to_sheets() -> str:
     Từ chối ghi khi file không parse ra dòng nào, hoặc khi có mã số task trùng nhau.
     """
     logger.info("Bắt đầu đồng bộ tracking lên Google Sheets")
+
+    # ⛔ TRƯỚC MỌI VIỆC KHÁC: tiến trình này có đang chạy đúng mã trên đĩa không.
+    if van_tay_nguon(_NGUON) != _VAN_TAY_LUC_NAP:
+        raise SyncError(
+            "Mã của bộ đồng bộ trên ĐĨA đã đổi sau khi tiến trình MCP này nạp nó, nên lượt ghi "
+            "sắp tới sẽ dùng MÃ CŨ trong bộ nhớ — âm thầm, và bảng vẫn báo thành công. "
+            "Đúng chuyện đã xảy ra ngày 28/08: ba trạng thái sai lên bảng Công ty đọc, trong đó "
+            "T11.7 (secret production, đang làm) hiện 'Done'. "
+            "Hãy KẾT NỐI LẠI máy chủ MCP (lệnh /mcp trong Claude Code) rồi đồng bộ lại."
+        )
 
     try:
         spreadsheet_id, sheet_name, credentials_path = _config()
