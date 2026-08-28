@@ -100,6 +100,36 @@ describe('Cổng không ép chữ hoa bằng CSS', () => {
     ).toBe(SO_CHO_HOA_TRONG_NAV);
   });
 
+  it('⛔⛔ chữ hoa của thanh điều hướng nằm trên CHÍNH mục, không trên khung chứa', () => {
+    const nav = MA.find(({ ten }) => ten === TEP_NGOAI_LE)?.nguon ?? '';
+    const lopMuc = /const LOP_MUC_CAP1 =\s*'([^']*)'/.exec(nav)?.[1];
+    const lopChu = /const LOP_CHU_CAP1 =\s*'([^']*)'/.exec(nav)?.[1];
+
+    expect(
+      lopMuc,
+      'không đọc được `LOP_MUC_CAP1` — SỬA bài kiểm, đừng để nó soi tập rỗng',
+    ).toBeDefined();
+    expect(
+      lopChu,
+      'không đọc được `LOP_CHU_CAP1` — SỬA bài kiểm, đừng để nó soi tập rỗng',
+    ).toBeDefined();
+
+    expect(
+      lopMuc,
+      'Mục `linkType=NONE` vẽ ra `<button>`, và UA stylesheet khai thẳng `text-transform: none` ' +
+        'trên `button` — một khai báo trên chính phần tử luôn thắng giá trị kế thừa. Preflight của ' +
+        'Tailwind v4 reset `font`/`letter-spacing`/`color` cho form control đúng vì lý do này, ' +
+        'nhưng KHÔNG reset `text-transform`. Đặt chữ hoa lên `<ul>` thì "Giới thiệu" và ' +
+        '"Quản lý, vận hành" — đúng hai mục NONE — lặng lẽ không viết hoa (đo 28/08).',
+    ).toContain('uppercase');
+
+    expect(
+      lopChu,
+      '`LOP_CHU_CAP1` gắn lên `<ul>` khung chứa. Để `uppercase` ở đó là quay lại đúng lỗi vừa sửa: ' +
+        'sáu mục `<a>` viết hoa, hai mục `<button>` thì không, và nhìn như lỗi dữ liệu menu.',
+    ).not.toContain('uppercase');
+  });
+
   it('⛔ không tệp nào KHÁC ép `uppercase`', () => {
     const pham = MA.filter(({ ten }) => ten !== TEP_NGOAI_LE).flatMap(({ ten, nguon }) =>
       (nguon.match(EP_HOA) ?? []).map(() => ten),

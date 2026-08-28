@@ -16,10 +16,25 @@ import { vuaThanhNgang } from '@/lib/vuaThanhNgang';
  *    ấy im lặng — thanh vẫn hiện, chỉ là tràn. Đúng hình dạng luật 14 (hai nơi phải nhớ giống
  *    nhau), nên chặn bằng cấu trúc chứ không bằng lời dặn.
  */
-const LOP_CHU_CAP1 = 'text-[12px] font-semibold uppercase';
+const LOP_CHU_CAP1 = 'text-[12px] font-semibold';
 
-/** Đệm và khoảng cách trong MỘT mục cấp 1 — cùng lý do trên. */
-const LOP_MUC_CAP1 = 'flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-3';
+/**
+ * Đệm, khoảng cách **và chữ hoa** của MỘT mục cấp 1 — cùng lý do trên, cộng một lý do nữa.
+ *
+ * ⛔⛔ {@code uppercase} phải nằm ở ĐÂY, tuyệt đối không đặt lên {@code <ul>} rồi trông chờ kế thừa.
+ *
+ * Mục {@code linkType='NONE'} vẽ ra {@code <button>} chứ không phải {@code <a>} — chúng chỉ để mở
+ * menu con. UA stylesheet của trình duyệt khai thẳng {@code text-transform: none} trên
+ * {@code button}, và <b>một khai báo trên chính phần tử luôn thắng giá trị kế thừa</b>, kể cả khai
+ * báo của trình duyệt. Preflight của Tailwind v4 có reset {@code font}, {@code letter-spacing},
+ * {@code color} cho form control đúng vì lý do này, nhưng <b>không</b> reset
+ * {@code text-transform}.
+ *
+ * <p>Hậu quả đo được ngày 28/08: sáu mục viết hoa, còn <i>"Giới thiệu"</i> và
+ * <i>"Quản lý, vận hành"</i> thì không — <b>đúng bằng tập hai mục {@code NONE}</b>, không mục nào
+ * khác. Trông như lỗi dữ liệu, thật ra là một luật CSS.
+ */
+const LOP_MUC_CAP1 = 'flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-3 uppercase';
 
 export interface NhanhMenu {
   item: MenuLink;
