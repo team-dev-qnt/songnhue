@@ -42,10 +42,45 @@ interface PortalNavProps {
  *   <li><b>Bỏ {@code uppercase} + {@code tracking-wider} ở cấp 1</b> — thu 1344px → ~1082px.
  *       Không chỉ để vừa: chữ hoa tiếng Việt chồng dấu ("ĐOÀN THỂ", "HOẠT ĐỘNG") làm dấu thanh
  *       dính vào nhau và khó đọc hơn hẳn chữ thường. Menu con vẫn giữ chữ thường như cũ.
+ *       <b>⚠ Vế chữ hoa đã ĐẢO NGƯỢC ngày 28/08 theo yêu cầu Công ty — xem mục kế tiếp; vế
+ *       {@code tracking-wider} thì KHÔNG, và lý do là ngân sách bề rộng ở dưới.</b>
  *   <li><b>Dưới {@code lg} chuyển sang ngăn kéo</b> — một nút, và toàn bộ cây mở ra theo chiều
  *       dọc, nơi nhãn dài không phải cạnh tranh bề ngang với nhau.
  *   <li><b>Menu con mở được bằng CHẠM và bàn phím</b>, không chỉ bằng rê chuột — xem dưới.
  * </ol>
+ *
+ * <h2>⭐ 28/08: chữ hoa trở lại ở cấp 1 — và bề rộng phải mua lại bằng cái khác</h2>
+ *
+ * Công ty yêu cầu <b>toàn bộ mục cấp 1 viết hoa</b>. Thêm {@code uppercase} vào bản đang chạy mà
+ * không đổi gì khác thì <b>tràn khung trở lại</b> — đúng lỗi §10.62 vừa sửa xong. Đo bằng chính
+ * font đang dùng (Noto Sans 600, {@code @fontsource}), trên tám nhãn thật lấy từ API menu:
+ *
+ * <pre>
+ *   khung chứa (max-w-1240 − px-6×2)                        = 1192px
+ *
+ *   thường 13px px-3   (bản 28/08 sáng)   1173,0px   dư  19,0
+ *   HOA    13px px-3   (thêm mỗi uppercase) 1297,5px  TRÀN 105,5   ← §10.62 tái phát
+ *   HOA    13px px-2                      1225,5px   TRÀN  33,5
+ *   HOA    12px px-2.5                    1186,6px   dư   5,4     ← sát mép, không nhận
+ *   HOA    12px px-2                      1150,6px   dư  41,4     ← ĐANG DÙNG
+ * </pre>
+ *
+ * Chữ hoa tiếng Việt rộng hơn chữ thường <b>15,7%</b> (đo được, không ước lượng). Nên cỡ chữ
+ * xuống 12px và đệm ngang {@code px-3 → px-2}. Kết quả còn <b>nhiều headroom hơn</b> bản chữ
+ * thường trước đó (41,4px so với 19,0px).
+ *
+ * <p>⛔ <b>KHÔNG thêm lại {@code tracking-wider}</b> dù nó vốn đi cùng chữ hoa: nó ngốn thêm
+ * ~38px và đẩy thanh về sát mép. Cần thoáng hơn thì nới {@code py}, đừng nới {@code tracking}.
+ *
+ * <p>⚠ Menu con <b>vẫn chữ thường</b> — nhãn cấp 2 dài hơn và xếp dọc trong một danh sách dày;
+ * viết hoa ở đó là bỏ đúng lợi ích dễ đọc mà không đổi lại được gì. Ngăn kéo dưới {@code lg} thì
+ * cấp 1 CÓ viết hoa: nó xếp dọc nên bề rộng không phải ràng buộc.
+ *
+ * <p>⬜ <b>Chưa có bộ canh tự động cho ngân sách này</b> (luật 28 — nói ra thay vì để người sau tự
+ * suy). Nhãn menu nằm trong CSDL, không nằm trong mã, nên một bài kiểm tĩnh không biết chúng.
+ * Thêm mục cấp 1 thứ chín, hay một nhãn dài hơn "Hoạt động Đảng, đoàn thể", đều có thể làm tràn
+ * lại <b>mà không cổng kiểm nào đỏ</b>. Cách đo lại: lấy nhãn từ {@code /api/v1/public/menus/HEADER},
+ * cộng bề rộng chữ theo font 600 với đệm {@code px-2} và {@code gap-0.5}.
  *
  * ⛔ Hệ màu, kiểu khối và cách trình bày <b>giữ nguyên</b> (§2 của văn bản nghiệm thu):
  * cùng dải navy, cùng chiều cao, cùng vàng kim khi rê chuột. Bảy mã màu ghi cứng nay đọc từ
@@ -176,7 +211,7 @@ export function PortalNav({ tree }: PortalNavProps) {
         </button>
 
         {/* ───── Thanh ngang — từ lg trở lên ───── */}
-        <ul className="hidden flex-1 items-center gap-0.5 text-[13px] font-semibold lg:flex">
+        <ul className="hidden flex-1 items-center gap-0.5 text-[12px] font-semibold uppercase lg:flex">
           {tree.map((nhanh) => (
             <MucCap1
               key={`${nhanh.item.label}-${nhanh.item.depth}`}
@@ -193,7 +228,7 @@ export function PortalNav({ tree }: PortalNavProps) {
         {/* ───── Tìm kiếm ───── */}
         <Link
           href={ROUTES.search}
-          className="flex items-center gap-1.5 rounded-md px-2.5 py-2 text-[13px] font-semibold text-white transition-colors duration-200 ease-smooth hover:bg-white/15 hover:text-brand-gold"
+          className="flex items-center gap-1.5 rounded-md px-2 py-2 text-[12px] font-semibold uppercase text-white transition-colors duration-200 ease-smooth hover:bg-white/15 hover:text-brand-gold"
           aria-label="Tìm kiếm"
         >
           <BieuTuongKinhLup />
@@ -240,7 +275,7 @@ function MucCap1({ nhanh, dangO, dangMo, doiMo, dong, khiDieuHuong }: MucCap1Pro
   const idMenuCon = useId();
 
   const lop = [
-    'flex items-center gap-1 whitespace-nowrap rounded-md px-3 py-3 transition-colors duration-200 ease-smooth',
+    'flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-3 transition-colors duration-200 ease-smooth',
     dangO ? 'text-brand-gold' : 'text-white',
     'hover:bg-white/10 hover:text-brand-gold',
   ].join(' ');
@@ -323,7 +358,7 @@ function MucNganKeo({
   const [mo, datMo] = useState(dangO);
   const idMenuCon = useId();
 
-  const lopNhan = `flex-1 rounded-md px-3 py-3 text-left text-sm font-semibold ${
+  const lopNhan = `flex-1 rounded-md px-3 py-3 text-left text-sm font-semibold uppercase ${
     dangO ? 'text-brand-gold' : 'text-white'
   }`;
 
