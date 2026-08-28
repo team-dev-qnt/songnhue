@@ -4483,3 +4483,76 @@ chỉ khác nhau ở đúng chỗ không ai nhìn: thứ tự sắp xếp.
 Và lần thứ hai trong hai ngày: **thứ quyết định lượt deploy sống hay chết nằm ở trạng thái CSDL đã
 tích luỹ, không nằm trong kho** — nên bảo đảm cũng không thể chỉ là một bài kiểm chạy trên CSDL
 rỗng.
+
+### §10.67 — Bản vá sống trên đĩa, tiến trình đang phục vụ vẫn chạy mã cũ (28/8)
+
+Lượt đồng bộ `master-tracking.md` lên Google Sheet trả về `Đã đồng bộ 452 công việc`. Cả 452 mã
+đều có mặt trên bảng, không thiếu không thừa. Nhưng đọc ngược từng dòng thì **3 trạng thái sai**:
+
+```
+T11.7    cục bộ = In Progress   Sheet = Done       ← secret production, ĐANG LÀM
+T11.50   cục bộ = Done          Sheet = Pending
+T25.29   cục bộ = Done          Sheet = Pending
+```
+
+Đúng ba dòng ấy là ba dòng mà **phần chữ trong cột Note nói khác dấu tích** — tức đúng lỗi T11.47
+đã vá hôm 27/8. Mô phỏng hành vi trước bản vá trên chính tệp tracking cho ra **đúng ba dòng, đúng
+ba giá trị**. Không còn chỗ cho giả thuyết khác.
+
+#### Vì sao một bản vá đã merge lại không có hiệu lực
+
+Máy chủ MCP là **tiến trình sống lâu**. Nó `import` bộ đọc đúng một lần lúc khởi động rồi giữ
+module trong bộ nhớ suốt phiên.
+
+| | |
+|---|---|
+| bản vá `tracking_parser.py` vào kho | **27/08 19:36** (`992a586`) |
+| tiến trình MCP #1 khởi động | **27/08 15:17:09** |
+| tiến trình MCP #2 khởi động | **27/08 19:13:00** |
+| `server.cpython-314.pyc` ghi lần cuối | 27/08 19:23:43 |
+
+Cả hai tiến trình khởi động **trước** bản vá. `server.py` trên đĩa mang mốc 28/08 00:02 nhưng
+bytecode vẫn là 19:23 — dấu hiệu đo được rằng **không tiến trình nào import lại kể từ đó**.
+
+⛔ Bản ghi T11.47 nói *"đo trên file thật, đúng 2 dòng sai"* rồi coi như đóng. Phần ấy đúng — nhưng
+nó đo **parser trên đĩa**, không đo **thứ đang chạy**. Cùng hình dạng luật 10: *xác nhận bản đã sửa
+THẬT SỰ được nạp*. Ở §10.53 là container giữ image cũ; ở §10.56 là cluster giữ collation cũ; ở đây
+là một tiến trình Python giữ module cũ. **Ba lần, ba tầng khác nhau, cùng một câu hỏi chưa ai hỏi:
+thứ đang chạy có phải thứ vừa sửa không?**
+
+#### Vì sao "ghi xong rồi đọc lại" không cứu được
+
+Đây là chỗ dễ chọn nhầm bản vá. Một lượt đọc-ngược-sau-khi-ghi **vẫn xanh**: tiến trình cũ parse ra
+giá trị cũ, ghi giá trị cũ, rồi đọc lại và thấy khớp — với **chính nó**. Hai trạng thái *"mã mới"*
+và *"mã cũ"* không phân biệt được bằng phép ấy (luật 9: một khẳng định không phân biệt được hai
+trạng thái thì không khẳng định gì).
+
+Thứ duy nhất phân biệt được: **so mã trên ĐĨA với mã đã NẠP**.
+
+#### Đã vá
+
+1. Ba ô sai đã sửa bằng chính khoá dịch vụ của công cụ, có in trước–sau và đọc lại toàn bảng:
+   **0 dòng còn lệch**.
+2. `tracking_parser.van_tay_nguon(paths)` — SHA-256 của `tracking_parser.py` + `server.py`.
+3. `server.py` chụp vân tay **lúc nạp**, và `sync_markdown_to_sheets` **từ chối ghi** khi vân tay
+   trên đĩa đã khác, kèm câu chỉ thẳng việc phải làm (`/mcp` kết nối lại). Phép so đặt **trước**
+   mọi lượt đọc/ghi — đặt sau thì bảng đã bị ghi đè trước khi ai kịp dừng.
+4. Hai bài kiểm (bộ tracking nay 11): vân tay đổi khi nội dung đổi, trở lại khi khôi phục, phụ
+   thuộc thứ tự tệp · `server.py` gọi cổng ấy **hai lượt** và phép so nằm **trước** lượt ghi.
+   Kiểm chứng ngược: làm vân tay mù trước nội dung → đỏ · gỡ cổng khỏi `server.py` → đỏ · khôi
+   phục → 0 đỏ.
+
+#### Giới hạn, nói ra thay vì để người đọc tự suy (luật 28)
+
+- Cổng chặn chỉ bắt được thay đổi xảy ra **sau** khi tiến trình nạp. Một tiến trình khởi động với
+  mã đã hỏng sẵn thì nó không biết gì — đó vẫn là việc của bộ test.
+- Nó **không** tự nạp lại mã; nó chỉ dừng và nói ra. Cố tự nạp lại module đang phục vụ là một cơ
+  chế phức tạp hơn hẳn thứ nó chữa.
+- ⚠ **Chính tiến trình đang chạy hôm nay vẫn là bản cũ** và không tự thấy được điều đó. Cổng chỉ
+  có hiệu lực từ lượt kết nối lại kế tiếp.
+
+#### Bài học
+
+**Một tiến trình sống lâu là một bản sao của mã nguồn tại một thời điểm.** Kho có thể đã đi tiếp
+mà nó thì không, và không lệnh nào báo sai. Mọi công cụ chạy nền — MCP server, worker, daemon —
+cần một cách tự trả lời câu *"tôi có đang chạy đúng thứ trong kho không"*, vì không ai nhớ hỏi hộ.

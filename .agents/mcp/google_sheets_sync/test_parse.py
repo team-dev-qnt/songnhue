@@ -25,7 +25,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 #
 #   `tracking_parser` chỉ dùng thư viện chuẩn nên KHÔNG có nhánh bỏ qua nào ở đây nữa: import hỏng
 #   thì bộ kiểm ĐỎ, đúng như nó phải thế.
-from tracking_parser import (
+from tracking_parser import (  # noqa: F401
+    van_tay_nguon,
     STATUS_BY_MARK,
     TASK_LINE,
     TRACKING_FILE,
@@ -222,6 +223,65 @@ def test_task_da_tick_khong_bi_ghi_chu_ha_trang_thai():
         "Những task tick [x] nhưng bộ đọc trả về trạng thái khác 'Done': "
         f"{lech}. Gần như chắc chắn ghi chú của chúng có chứa một ký hiệu trạng thái "
         "(⬜ ❌ 🟡 ⏸). Gỡ ký hiệu ra khỏi ghi chú, hoặc tách phần còn treo thành một task riêng."
+    )
+
+
+def test_van_tay_nguon_bat_duoc_ma_doi():
+    """Vân tay nguồn phải ĐỔI khi tệp đổi, và GIỮ NGUYÊN khi không đổi.
+
+    ⛔ Đây là bộ canh cho lớp lỗi ngày 28/08: máy chủ MCP sống lâu, `import` bộ đọc một lần rồi
+       giữ trong bộ nhớ. Bản vá T11.47 vào kho lúc 27/08 19:36 nhưng hai tiến trình đang phục vụ
+       khởi động lúc 15:17 và 19:13 — nên mọi lượt đồng bộ sau đó vẫn ghi bằng MÃ CŨ, và bảng
+       Công ty đọc mang ba trạng thái sai mà không dấu hiệu nào.
+
+    ⚠ Đọc-ngược-sau-khi-ghi KHÔNG bắt được: tiến trình cũ ghi giá trị cũ rồi đọc lại thấy khớp
+      với chính nó. Chỉ phép so đĩa ↔ bộ nhớ phân biệt được hai trạng thái ấy (luật 9).
+    """
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as thu_muc:
+        a = os.path.join(thu_muc, "a.py")
+        b = os.path.join(thu_muc, "b.py")
+        with open(a, "w", encoding="utf-8") as tep:
+            tep.write("x = 1\n")
+        with open(b, "w", encoding="utf-8") as tep:
+            tep.write("y = 2\n")
+
+        goc = van_tay_nguon([a, b])
+        assert goc == van_tay_nguon([a, b]), "cùng nội dung mà ra hai vân tay khác nhau"
+
+        # Sửa một tệp — đúng thứ đã xảy ra khi bản vá T11.47 vào kho.
+        with open(a, "w", encoding="utf-8") as tep:
+            tep.write("x = 2\n")
+        assert van_tay_nguon([a, b]) != goc, (
+            "Sửa nội dung nguồn mà vân tay KHÔNG đổi — cổng chặn mã cũ của `server.py` sẽ không "
+            "bao giờ đỏ, tức nó chỉ là trang trí."
+        )
+
+        # Khôi phục nguyên văn thì phải trở lại đúng vân tay cũ, nếu không cổng sẽ đỏ oan mãi.
+        with open(a, "w", encoding="utf-8") as tep:
+            tep.write("x = 1\n")
+        assert van_tay_nguon([a, b]) == goc, "khôi phục nguyên văn mà vân tay không trở lại"
+
+        # Thứ tự tệp là một phần của vân tay — đảo thứ tự là một cấu hình khác.
+        assert van_tay_nguon([b, a]) != goc
+
+
+def test_server_co_cong_chan_ma_cu():
+    """`server.py` phải THẬT SỰ gọi cổng chặn ấy — một hàm không ai gọi thì canh cho ai."""
+    duong = os.path.join(os.path.dirname(os.path.abspath(__file__)), "server.py")
+    with open(duong, encoding="utf-8") as tep:
+        nguon = tep.read()
+
+    assert "_VAN_TAY_LUC_NAP" in nguon, "`server.py` không chụp vân tay lúc nạp"
+    assert nguon.count("van_tay_nguon(_NGUON)") >= 2, (
+        "Cổng chặn cần HAI lượt gọi: một lúc nạp, một lúc đồng bộ. Chỉ một lượt thì không có gì "
+        "để so."
+    )
+    vi_tri_gac = nguon.find("!= _VAN_TAY_LUC_NAP")
+    vi_tri_ghi = nguon.find("parse_markdown_to_data(os.path.join")
+    assert 0 < vi_tri_gac < vi_tri_ghi, (
+        "Phép so phải nằm TRƯỚC lượt đọc/ghi. Đặt sau thì bảng đã bị ghi đè trước khi ai kịp dừng."
     )
 
 
