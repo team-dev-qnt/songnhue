@@ -103,6 +103,16 @@ theo **thứ tự chữ cái**.
 Nghĩa là ảnh Ubuntu của nhà cung cấp thả một `50-cloud-init.conf` chứa `PasswordAuthentication yes`
 thì nó **thắng cả `sshd_config` lẫn mọi drop-in đánh số lớn hơn 50**.
 
+⭐ Đo trên VPS-2 ngày 29/8 — **đúng từng dòng**:
+
+```
+/etc/ssh/sshd_config:132:                    PasswordAuthentication no    ← thua
+/etc/ssh/sshd_config.d/50-cloud-init.conf:1: PasswordAuthentication yes   ← thắng
+```
+
+Thư mục chỉ có hai tệp: `50-cloud-init.conf` và `60-startups.conf`. Nên `60-` **thua** cloud-init nếu
+tranh cùng từ khoá — nó chỉ có tác dụng vì `MaxStartups` không tệp nào khác đặt.
+
 ⭐ Đo trên VPS-2 ngày 29/8 — đúng như vậy: `sshd -T` trả **`passwordauthentication yes`** trong khi
 `sshd_config` có dòng `no` như hướng dẫn cũ dặn. Tài liệu này đã **sai suốt từ lúc viết**, và cái sai
 đi kèm một lời trấn an còn nguy hiểm hơn (xem §2.2-b). Cùng lúc đó `60-startups.conf` lại **có** tác
