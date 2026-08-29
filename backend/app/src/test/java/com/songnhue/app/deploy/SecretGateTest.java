@@ -39,6 +39,17 @@ class SecretGateTest {
 
     private static final String DU_BON = "co-gia-tri";
 
+    /** Bộ NĂM secret hợp lệ — một chỗ duy nhất, để thêm secret thứ sáu chỉ phải sửa ở đây. */
+    private static Map<String, String> duBo() {
+        Map<String, String> m = new LinkedHashMap<>();
+        m.put("HOST", DU_BON);
+        m.put("USER", DU_BON);
+        m.put("SSH_KEY", DU_BON);
+        m.put("BASE_URL", "https://vi.du");
+        m.put("SSH_KNOWN_HOSTS", "27.71.27.75 ssh-ed25519 AAAAC3Nza-gia-lap");
+        return m;
+    }
+
     @Test
     @DisplayName("⭐⭐ production + environment RỖNG → DỪNG ĐỎ, không phải bỏ qua trong im lặng")
     void productionRongThiDungDo() throws Exception {
@@ -72,14 +83,13 @@ class SecretGateTest {
     }
 
     @Test
-    @DisplayName("⭐ Đủ bốn secret → đi tiếp, ở CẢ HAI môi trường")
+    @DisplayName("⭐ Đủ năm secret → đi tiếp, ở CẢ HAI môi trường")
     void duBonThiDiTiep() throws Exception {
         for (String moi : new String[] {"staging", "production"}) {
-            KetQua kq =
-                    chay(moi, Map.of("HOST", DU_BON, "USER", DU_BON, "SSH_KEY", DU_BON, "BASE_URL", "https://vi.du"));
+            KetQua kq = chay(moi, duBo());
 
             assertThat(kq.maThoat())
-                    .as("`%s` có đủ bốn secret mà cổng vẫn chặn. Ra: %s", moi, kq.dauRa())
+                    .as("`%s` có đủ năm secret mà cổng vẫn chặn. Ra: %s", moi, kq.dauRa())
                     .isZero();
             assertThat(kq.output()).contains("ready=true");
         }
@@ -91,10 +101,8 @@ class SecretGateTest {
         // Đây là trạng thái nguy hiểm nhất và cũng dễ tạo ra nhất: đặt xong 3 secret rồi bị gọi đi.
         // Bản cũ chỉ hỏi HOST, nên tổ hợp này đi lọt và hỏng ở `ssh` với "Permission denied" —
         // một thông báo không nhắc gì tới secret.
-        Map<String, String> thieuSshKey = new LinkedHashMap<>();
-        thieuSshKey.put("HOST", DU_BON);
-        thieuSshKey.put("USER", DU_BON);
-        thieuSshKey.put("BASE_URL", "https://vi.du");
+        Map<String, String> thieuSshKey = duBo();
+        thieuSshKey.remove("SSH_KEY");
 
         for (String moi : new String[] {"staging", "production"}) {
             KetQua kq = chay(moi, thieuSshKey);
@@ -114,11 +122,8 @@ class SecretGateTest {
         // CLAUDE.md luật 3. Một secret gõ nhầm thành chuỗi rỗng tới đây giống hệt một secret không tồn
         // tại, và cả hai đều không dùng được. Nếu cổng chỉ hỏi "biến có được khai không" thì tổ hợp
         // này đi lọt.
-        Map<String, String> rong = new LinkedHashMap<>();
-        rong.put("HOST", DU_BON);
-        rong.put("USER", DU_BON);
+        Map<String, String> rong = duBo();
         rong.put("SSH_KEY", "");
-        rong.put("BASE_URL", "https://vi.du");
 
         KetQua kq = chay("production", rong);
 
@@ -127,9 +132,32 @@ class SecretGateTest {
     }
 
     @Test
+    @DisplayName("⭐⭐ Thiếu RIÊNG `SSH_KNOWN_HOSTS` → đỏ, và phải GỌI TÊN nó")
+    void thieuKhoaGhimThiDo() throws Exception {
+        // Secret này vào bộ ngày 29/8 (§10.68-C). Trước đó bước "Mở đường SSH" tự dò khoá bằng
+        // `ssh-keyscan`, và chính lượt dò ấy — 5 kết nối đóng trước xác thực — làm fail2ban của máy
+        // chủ cấm IP runner ngay ở lệnh đầu tiên. Nay khoá phải ghim sẵn, nên thiếu nó thì KHÔNG nối
+        // được; cổng phải chặn ở đây thay vì để hỏng ở `ssh` với một câu không nhắc gì tới secret.
+        Map<String, String> thieu = duBo();
+        thieu.remove("SSH_KNOWN_HOSTS");
+
+        for (String moi : new String[] {"staging", "production"}) {
+            KetQua kq = chay(moi, thieu);
+
+            assertThat(kq.maThoat())
+                    .as("`%s` thiếu SSH_KNOWN_HOSTS mà cổng vẫn cho đi tiếp. Ra: %s", moi, kq.dauRa())
+                    .isEqualTo(1);
+            assertThat(kq.dauRa())
+                    .as("Đỏ mà không nói thiếu cái gì thì người gặp phải dò lại từ đầu")
+                    .contains("SSH_KNOWN_HOSTS");
+            assertThat(kq.output()).doesNotContain("ready=true");
+        }
+    }
+
+    @Test
     @DisplayName("Thiếu MOI_TRUONG thì script tự dừng — không có mặc định im lặng")
     void thieuMoiTruongThiDung() throws Exception {
-        KetQua kq = chay(null, Map.of("HOST", DU_BON, "USER", DU_BON, "SSH_KEY", DU_BON, "BASE_URL", "x"));
+        KetQua kq = chay(null, duBo());
 
         assertThat(kq.maThoat()).isNotZero();
     }
