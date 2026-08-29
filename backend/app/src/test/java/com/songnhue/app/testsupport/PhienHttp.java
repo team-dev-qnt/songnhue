@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.List;
 
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -12,6 +13,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 
 import com.songnhue.core.application.auth.PasswordPolicyService;
 import com.songnhue.core.domain.identity.User;
@@ -153,6 +156,35 @@ public final class PhienHttp {
 
     public ResponseEntity<String> goi(Phien phien, HttpMethod verb, String duong, String than) {
         return http.exchange(duong, verb, new HttpEntity<>(than, header(phien)), String.class);
+    }
+
+    /**
+     * Tải một tệp lên bằng {@code multipart/form-data} — đúng cách trình duyệt gửi.
+     *
+     * <h2>Vì sao phải có helper riêng thay vì tái dùng {@link #goi}</h2>
+     *
+     * Vì tầng cần kiểm nằm <b>trước</b> controller. {@code MaxUploadSizeExceededException} được ném
+     * lúc {@code DispatcherServlet.checkMultipart} phân tích thân yêu cầu; không có thân multipart
+     * thật thì không có gì để phân tích, và cả tầng ấy không bao giờ chạy. Đó chính là lý do trần
+     * 1MB sống sót qua 723 bài kiểm tới tận 30/08/2026 — xem {@code UploadSizeCeilingTest}.
+     *
+     * <p>⚠ {@code getFilename()} phải trả về tên thật: {@code ByteArrayResource} mặc định không có
+     * tên, và một phần multipart không tên bị Spring coi là <i>trường form</i> chứ không phải
+     * <i>tệp</i> — {@code @RequestPart("file") MultipartFile} khi ấy trả 400 vì "thiếu tệp", một
+     * triệu chứng chẳng liên quan gì tới thứ đang kiểm.
+     */
+    public ResponseEntity<String> dangTep(Phien phien, String duong, byte[] noiDung, String tenTep) {
+        MultiValueMap<String, Object> than = new LinkedMultiValueMap<>();
+        than.add("file", new ByteArrayResource(noiDung) {
+            @Override
+            public String getFilename() {
+                return tenTep;
+            }
+        });
+
+        HttpHeaders headers = header(phien);
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        return http.exchange(duong, HttpMethod.POST, new HttpEntity<>(than, headers), String.class);
     }
 
     public ResponseEntity<String> get(Phien phien, String duong) {
