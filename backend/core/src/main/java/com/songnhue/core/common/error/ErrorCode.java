@@ -87,6 +87,8 @@ public enum ErrorCode {
     CMS_2013("CMS-2013", HttpStatus.UNPROCESSABLE_ENTITY),
     /** Lịch hiển thị banner có ngày kết thúc không sau ngày bắt đầu. */
     CMS_2014("CMS-2014", HttpStatus.UNPROCESSABLE_ENTITY),
+    /** Tải logo cho mục menu không thuộc dải "Liên kết website" (vị trí LIEN_KET). */
+    CMS_2015("CMS-2015", HttpStatus.UNPROCESSABLE_ENTITY),
     CMS_5001("CMS-5001", HttpStatus.BAD_GATEWAY),
 
     // ---- MOD-02 Vận hành công trình --------------------------------------------

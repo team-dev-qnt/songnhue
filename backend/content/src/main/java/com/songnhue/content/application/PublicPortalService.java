@@ -51,8 +51,17 @@ public class PublicPortalService {
      * mở đường cho bất kỳ ai đọc mọi tệp thuộc loại đó, chỉ cần biết {@code publicId}. Hồ sơ nhân sự
      * ({@code EMPLOYEE}) và tài liệu công trình ({@code CONSTRUCTION}) <b>không</b> nằm ở đây và
      * không được thêm vào — chúng có màn hình riêng, sau đăng nhập.
+     *
+     * <p>{@code MENU_ITEM} vào danh sách ngày 29/08 cho logo cơ quan cấp trên ở dải "Liên kết
+     * website" (CR-21). Cùng lập luận với {@code BANNER}: những tệp ấy sinh ra để hiện trên trang
+     * chủ, nên "ai biết publicId thì tải được" chính là hành vi mong muốn.
+     *
+     * <p>⛔ Danh sách này có bài kiểm riêng ({@code PublicFileScopeTest}) — đây là một ranh giới
+     * bảo mật, và một ranh giới không có phép kiểm nào thì lượt sửa kế tiếp không có gì cản
+     * (quy tắc 1). Bài kiểm khẳng định cả hai chiều: bốn loại này CÓ, và {@code EMPLOYEE} /
+     * {@code CONSTRUCTION} KHÔNG.
      */
-    private static final List<String> LOAI_TEP_CONG_KHAI = List.of("MEDIA_FOLDER", "BANNER", "SITE_CONFIG");
+    public static final List<String> LOAI_TEP_CONG_KHAI = List.of("MEDIA_FOLDER", "BANNER", "SITE_CONFIG", "MENU_ITEM");
 
     /** Trần số bài mỗi trang. Người gọi xin 10.000 thì đó là một lượt quét, không phải một lượt xem. */
     private static final int TRAN_MOI_TRANG = 50;

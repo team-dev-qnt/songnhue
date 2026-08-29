@@ -89,10 +89,13 @@ public class SiteConfigController {
      * quên mất bước đó.
      */
     @PostMapping(path = "/brand-images/{key}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "Tải logo hoặc favicon — nhận PNG, JPEG, WebP và SVG")
+    @Operation(summary = "Tải một ảnh cấu hình (logo, favicon, sơ đồ hệ thống) — nhận PNG, JPEG, WebP và SVG")
     @RequirePermission("cms:layout:manage")
     public BrandImage uploadBrandImage(@PathVariable String key, @RequestPart("file") MultipartFile file) {
-        if (!SiteConfigService.KEY_LOGO.equals(key) && !SiteConfigService.KEY_FAVICON.equals(key)) {
+        // ⚠ Đọc từ SiteConfigService.KHOA_ANH, KHÔNG liệt kê lại ở đây: bản trước viết hai
+        //   `equals` ngay tại chỗ này, nên thêm một khoá ảnh là phải nhớ sửa một tệp thứ hai mà
+        //   không có gì nhắc (quy tắc 14).
+        if (!SiteConfigService.KHOA_ANH.contains(key)) {
             throw (ValidationException)
                     new ValidationException(ErrorCode.SYS_0003).withDetail("key", "UNSUPPORTED_BRAND_IMAGE", key);
         }

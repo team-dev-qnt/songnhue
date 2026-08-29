@@ -37,6 +37,11 @@ const THE_ANH = /<img[\s/>]/g;
  * - `PortalImage.tsx` **1** — chính nó, nơi luật được viết ra.
  * - `SiteHeader.tsx` / `SiteFooter.tsx` **1** — logo Công ty. Logo dùng `object-contain` và
  *   KHÔNG được cắt: cắt logo là cắt nhận diện pháp nhân. Nó không thuộc luật "phủ khung".
+ * - `AffiliatedUnitsLinks.tsx` **1** — logo cơ quan cấp trên ở dải "Liên kết website", cùng
+ *   đúng lý do ấy. Thêm 29/08 cùng lượt mở đường tải logo (`V202608291047`). ⚠ Ở đây `<img>`
+ *   còn nằm trong một nhánh điều kiện: chưa có logo thì KHÔNG vẽ ô ảnh nào — nên bọc bằng
+ *   `PortalImage` (vốn luôn dựng một khung giữ chỗ) sẽ cho ra đúng cái ô xám mà khối này cố ý
+ *   không có.
  * - `AnhCarousel.tsx` **1** — mỗi ảnh slider LÀ một khung tuyệt đối phủ kín ô trượt, tức
  *   khung đã có kích thước từ trước; bọc thêm một khung tỉ lệ nữa là lồng hai khung. ⚠ Ô này
  *   trước 29/08 mang tên `HomeBannerSlider.tsx`; cơ chế trượt đã gom về một chỗ vì trang chủ
@@ -50,6 +55,7 @@ const NGOAI_LE: Record<string, number> = {
   'components/PortalImage.tsx': 1,
   'components/SiteHeader.tsx': 1,
   'components/SiteFooter.tsx': 1,
+  'components/home/AffiliatedUnitsLinks.tsx': 1,
   'components/home/AnhCarousel.tsx': 1,
 };
 

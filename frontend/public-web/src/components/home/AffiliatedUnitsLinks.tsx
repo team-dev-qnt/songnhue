@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
 import type { MenuLink, SubsidiaryRow } from '@/lib/api';
-import { isExternal, menuHref, ROUTES } from '@/lib/routes';
+import { fileUrl, isExternal, menuHref, ROUTES } from '@/lib/routes';
 import { EmptyBlock } from './EmptyBlock';
 import { SectionTitle } from './SectionTitle';
 
@@ -124,9 +124,13 @@ export function AffiliatedUnitsLinks({ subsidiaries, portalLinks }: AffiliatedUn
           dưới lưới Xí nghiệp: bốn cơ quan cấp trên nằm ở cỡ chữ 12px, nhỏ hơn cả chú thích của
           khối ngay trên nó.
 
-          ⛔ Thẻ mang TÊN cơ quan, không mang ô ảnh logo chờ tệp: cổng không có tệp logo của bốn
-             cơ quan ấy, và một ô ảnh rỗng 90px là một chỗ trống nói rằng "đáng ra ở đây có gì
-             đó" — trong khi thật ra không có gì thiếu cả.
+          ⭐ 29/08 (lượt hai): thẻ NAY CÓ logo — `menu_items.logo_attachment_public_id`, tải lên
+             ở màn hình Menu → "Liên kết cổng TTĐT" (`V202608291047`). Trước lượt ấy bảng không
+             có cột ảnh nào, nên nợ T26.60 ghi thẳng là *"không có chỗ để đặt logo"*.
+
+          ⛔ Nhưng logo là TUỲ CHỌN, và thẻ chưa có logo vẫn giữ nguyên hình dạng cũ: chữ căn
+             giữa, không khung ảnh xám. Một ô ảnh rỗng là chỗ trống nói rằng "đáng ra ở đây có
+             gì đó" — mà cho tới khi Công ty tải lên thì không thiếu gì cả (luật 16).
 
           ⛔ Danh sách rỗng ⇒ KHÔNG render mục này. Không rơi về bốn liên kết mặc định: một dải
              liên kết chỉ hiện đúng lúc CSDL hỏng là dải không ai soi, và nó quảng cáo những địa
@@ -137,15 +141,35 @@ export function AffiliatedUnitsLinks({ subsidiaries, portalLinks }: AffiliatedUn
           <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {portalLinks.map((muc) => {
               const href = menuHref(muc);
+              const logo = fileUrl(muc.logoId);
               return href ? (
                 <a
                   key={muc.label}
                   href={href}
                   target={muc.openNewTab ? '_blank' : undefined}
                   rel={isExternal(muc) ? 'noopener noreferrer' : undefined}
-                  className="group flex h-[90px] items-center justify-center gap-2 rounded-lg border border-surface-border bg-white px-4 text-center text-sm font-semibold text-surface-textBase shadow-2xs transition-all duration-200 hover:border-brand-primary hover:text-brand-primary hover:shadow-xs"
+                  className="group flex h-[90px] items-center justify-center gap-3 rounded-lg border border-surface-border bg-white px-4 text-center text-sm font-semibold text-surface-textBase shadow-2xs transition-all duration-200 hover:border-brand-primary hover:text-brand-primary hover:shadow-xs"
                 >
-                  <span className="line-clamp-2">{muc.label}</span>
+                  {/* ⭐ Có logo thì logo dẫn dắt, tên thu nhỏ lại thành phần chú; chưa có thì
+                      thẻ giữ nguyên hình dạng cũ — CHỮ CĂN GIỮA, không có khung ảnh xám chờ
+                      tệp. Đây là chỗ dễ sai nhất của lượt này: một ô ảnh rỗng 40px là một chỗ
+                      trống nói rằng "đáng ra ở đây có gì đó", trong khi thật ra không thiếu gì
+                      cả cho tới khi Công ty tải lên (luật 16).
+
+                      ⚠ `object-contain`, KHÔNG `object-cover`: logo cơ quan bị cắt là cắt nhận
+                      diện pháp nhân. Cùng lý do với logo Công ty ở đầu trang. */}
+                  {logo ? (
+                    <img
+                      src={logo}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                      className="h-[46px] w-[60px] shrink-0 object-contain"
+                    />
+                  ) : null}
+                  <span className={logo ? 'line-clamp-2 text-left text-xs' : 'line-clamp-2'}>
+                    {muc.label}
+                  </span>
                   <span
                     aria-hidden="true"
                     className="shrink-0 text-xs text-surface-textSecondary transition-colors group-hover:text-brand-primary"
