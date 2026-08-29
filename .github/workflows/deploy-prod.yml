@@ -97,3 +97,4 @@ jobs:
       USER: ${{ secrets.PROD_USER }}
       SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
       BASE_URL: ${{ secrets.PROD_BASE_URL }}
+      SSH_KNOWN_HOSTS: ${{ secrets.PROD_SSH_KNOWN_HOSTS }}

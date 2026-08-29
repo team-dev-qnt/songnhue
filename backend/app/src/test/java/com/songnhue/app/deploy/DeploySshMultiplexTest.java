@@ -200,8 +200,10 @@ class DeploySshMultiplexTest {
     @Test
     @DisplayName("⭐ Cổng secret phải hỏi cả `SSH_KNOWN_HOSTS` — thiếu nửa cặp là hỏng muộn")
     void congSecretPhaiHoiKhoaGhim() {
-        // Luật 27: một nửa cặp chạy hoàn hảo vẫn cho ra số không. Workflow đọc secret ấy, nên cổng
-        // secret phải kiểm nó — nếu không, thiếu khoá sẽ hỏng ở `ssh` với câu không nhắc gì tới secret.
+        // ⚠ Bài này CHỈ soi hai tệp: `deploy.yml` và script cổng. Nó KHÔNG kiểm hai workflow GỌI có
+        // truyền secret vào hay không — và đúng chỗ trống ấy đã làm CD Staging đỏ ngày 29/8, sau khi
+        // bài này đã xanh. Phép đối chiếu ĐỦ BỐN NƠI nằm ở `DeploySecretWiringTest` (luật 28: một bộ
+        // canh phải nói ra phạm vi của chính nó).
         assertThat(doc(timTuGocKho(".github/scripts/kiem-secret-may-chu.sh")))
                 .as("`kiem-secret-may-chu.sh` không kiểm `SSH_KNOWN_HOSTS`")
                 .contains("SSH_KNOWN_HOSTS");
