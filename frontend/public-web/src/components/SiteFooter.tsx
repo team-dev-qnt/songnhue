@@ -83,7 +83,7 @@ export async function SiteFooter() {
     <footer className="mt-16 w-full border-t border-white/10 bg-gradient-to-b from-chrome-navy700 via-chrome-navy600 to-chrome-navy900 text-white">
       {/* ───── 1. Dải tiếp nhận thông tin trực ban / Hotline bão lũ ───── */}
       <div className="border-b border-white/10 bg-chrome-navy500/80 py-3 text-xs text-white sm:text-sm">
-        <div className="mx-auto flex max-w-[1240px] flex-col items-center justify-between gap-2 px-4 sm:flex-row sm:px-6">
+        <div className="mx-auto flex max-w-[1232px] flex-col items-center justify-between gap-2 px-4 sm:flex-row sm:px-6">
           {hotline ? (
             <div className="flex items-center gap-2">
               <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -119,7 +119,7 @@ export async function SiteFooter() {
       </div>
 
       {/* ───── 2. Khối nội dung chính (4 cột trên nền Full Blue Gradient) ───── */}
-      <div className="mx-auto grid max-w-[1240px] gap-8 px-4 py-10 text-sm sm:grid-cols-2 sm:px-6 lg:grid-cols-12">
+      <div className="mx-auto grid max-w-[1232px] gap-8 px-4 py-10 text-sm sm:grid-cols-2 sm:px-6 lg:grid-cols-12">
         <div className="space-y-3.5 lg:col-span-4">
           <div className="flex items-center gap-3">
             <div className="flex h-12 shrink-0 items-center justify-center">
@@ -276,7 +276,7 @@ export async function SiteFooter() {
           nguyên chúng. Selector `[&_iframe]:h-full` ghi đè bằng CSS — sửa chuỗi HTML lúc hiển
           thị là sửa thứ đã qua khâu làm sạch, tức mở lại đúng cửa mà khâu ấy vừa đóng. */}
       {mapEmbed ? (
-        <div className="mx-auto max-w-[1240px] px-4 pb-10 sm:px-6">
+        <div className="mx-auto max-w-[1232px] px-4 pb-10 sm:px-6">
           <p className="relative mb-3.5 pb-2 font-bold text-xs text-white after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-8 after:rounded after:bg-sky-300">
             Bản đồ trụ sở
           </p>
@@ -290,7 +290,7 @@ export async function SiteFooter() {
         /* ⛔ Chưa cấu hình mã nhúng thì KHÔNG dựng một khung xám cao 320px cho có: một ô trống
            to bằng cả bề rộng trang là thứ trông như hỏng. Thẻ chỉ đường nhỏ, nói thẳng, và có
            một đường đi thật tới Google Maps. */
-        <div className="mx-auto max-w-[1240px] px-4 pb-10 sm:px-6">
+        <div className="mx-auto max-w-[1232px] px-4 pb-10 sm:px-6">
           <div className="flex flex-col gap-2 rounded-xl border border-white/20 bg-white/10 p-4 text-xs text-white/90 backdrop-blur-xs sm:flex-row sm:items-center sm:justify-between">
             <div>
               <div className="flex items-center gap-1.5 font-bold text-white">
@@ -316,7 +316,7 @@ export async function SiteFooter() {
 
       {/* ───── 3. Dải bản quyền đáy trang ───── */}
       <div className="border-t border-white/10 bg-chrome-navy700 py-3.5 text-xs text-white/70">
-        <div className="mx-auto flex max-w-[1240px] flex-col items-center justify-between gap-2 px-4 text-center sm:flex-row sm:px-6 sm:text-left">
+        <div className="mx-auto flex max-w-[1232px] flex-col items-center justify-between gap-2 px-4 text-center sm:flex-row sm:px-6 sm:text-left">
           <div>
             <p className="font-medium text-white">{copyright}</p>
             {/* ⚠ Tên trong câu này ĐỌC `site.name`, không viết lại lần nữa. Bản trước ghi cứng

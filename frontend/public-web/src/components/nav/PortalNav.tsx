@@ -57,7 +57,7 @@ interface PortalNavProps {
  *
  * <pre>
  *   menu 1344px + nút Tìm kiếm 110px = 1454px
- *   khung chứa                        = 1240 − 48 = 1192px      → tràn 22%
+ *   khung chứa                        = 1232 − 48 = 1184px      → tràn 22%
  * </pre>
  *
  * {@code flex-wrap} nên nó không vỡ bố cục — nó <b>xuống dòng</b>, và thanh điều hướng cao gấp
@@ -86,7 +86,7 @@ interface PortalNavProps {
  * font đang dùng (Noto Sans 600, {@code @fontsource}), trên tám nhãn thật lấy từ API menu:
  *
  * <pre>
- *   khung chứa (max-w-1240 − px-6×2)                        = 1192px
+ *   khung chứa (max-w-1232 − px-6×2)                        = 1184px
  *
  *   thường 13px px-3   (bản 28/08 sáng)   1173,0px   dư  19,0
  *   HOA    13px px-3   (thêm mỗi uppercase) 1297,5px  TRÀN 105,5   ← §10.62 tái phát

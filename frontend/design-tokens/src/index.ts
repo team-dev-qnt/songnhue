@@ -139,6 +139,18 @@ export const shadow = {
   md: '0 4px 12px 0 rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06)',
   /** Modal, drawer, sticky header */
   lg: '0 8px 24px 0 rgba(0, 0, 0, 0.12), 0 4px 8px -4px rgba(0, 0, 0, 0.08)',
+  /**
+   * Thẻ nổi của cổng công khai — slider và cột tin của trang chủ.
+   *
+   * Bán kính toả 30px với độ mờ thấp: bóng gần như không thấy được ở mép mà vẫn tách thẻ
+   * trắng khỏi nền trắng của trang. `sm`/`md` bám sát (3–12px) nên trên nền trắng chúng
+   * trông như một đường viền xám, không như một thẻ nổi.
+   *
+   * ⚠ Đặt ở đây chứ không viết thẳng vào component: `noHardcodedColors` cấm mọi `rgba(`
+   * trong `public-web`, và cấm đúng chỗ — một bóng đổ viết tay ở mười một khối là mười một
+   * con số sẽ trôi ra khỏi nhau.
+   */
+  card: '0 4px 30px 0 rgba(0, 0, 0, 0.1)',
 } as const;
 
 /**

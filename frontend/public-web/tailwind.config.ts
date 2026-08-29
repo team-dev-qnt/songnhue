@@ -19,6 +19,11 @@ import type { Config } from 'tailwindcss';
  * cùng một hệ thống nói hai điều khác nhau về cùng một mức nghiêm trọng.
  */
 const config: Config = {
+  // ⚠ Tailwind 4 TỰ dò nguồn từ thư mục dự án; mảng này chỉ THÊM vào, KHÔNG thu hẹp được. Đo
+  //   ngày 29/08: cả mẫu phủ định ở đây lẫn `@source not` trong `globals.css` đều không loại
+  //   được tệp kiểm khỏi phạm vi quét, nên cách duy nhất còn tác dụng là **đừng viết tên lớp
+  //   thành một token liền mạch** ở nơi không phải giao diện — kể cả trong chú thích. Xem
+  //   `vuaThanhNgang.test.ts`, chỗ mẫu vi phạm được ghép lúc chạy.
   content: ['./src/**/*.{ts,tsx}'],
   theme: {
     extend: {
@@ -42,6 +47,8 @@ const config: Config = {
         sm: shadow.sm,
         md: shadow.md,
         lg: shadow.lg,
+        // `shadow-card` — thẻ trắng nổi trên nền trắng của cổng công khai.
+        card: shadow.card,
       },
       keyframes: {
         'sn-fade-in': {

@@ -16,6 +16,14 @@ interface PublishedDocumentsSectionProps {
    *   dữ liệu từ hệ thống ấy; đây chỉ là một cánh cửa mở tab mới (CN-01.7).
    */
   docSystemUrl: string;
+  /**
+   * Hai nhánh con của "Công bố thông tin" trên MENU — Văn bản pháp luật · Văn bản Công ty.
+   *
+   * ⛔ Lấy từ menu, KHÔNG từ cây `categories`: hai nguồn ấy không trùng nhau (xem
+   * `lib/homeCategories.ts`), và điều hướng thì phải nói cùng một chuyện với thanh menu.
+   * Mảng rỗng ⇒ không vẽ hàng nào, chứ không dựng hai nhãn viết cứng.
+   */
+  nhomCon: { label: string; slug: string }[];
 }
 
 /**
@@ -46,6 +54,7 @@ export function PublishedDocumentsSection({
   documents,
   categorySlug,
   docSystemUrl,
+  nhomCon,
 }: PublishedDocumentsSectionProps) {
   return (
     <section className="mt-5">
@@ -64,6 +73,24 @@ export function PublishedDocumentsSection({
           >
             Công bố thông tin
           </SectionTitle>
+
+          {/* ⭐ Hàng nhánh con — bản vẽ vẽ nó dưới dạng TAB với một tab đang chọn. Ở đây là
+              LIÊN KẾT, không phải tab, và khác biệt ấy có chủ ý: trang chủ không đứng ở nhánh
+              nào cả (khối liệt kê bài của nhánh cha), nên tô đậm một nhánh là nói dối về trạng
+              thái hiện tại — và bấm vào nó thì rời trang, thứ một tab không bao giờ làm. */}
+          {nhomCon.length > 0 ? (
+            <nav aria-label="Nhánh văn bản" className="mt-4 flex flex-wrap gap-x-6 gap-y-2">
+              {nhomCon.map((nhom) => (
+                <Link
+                  key={nhom.slug}
+                  href={ROUTES.category(nhom.slug)}
+                  className="border-b-2 border-transparent pb-2 text-sm font-semibold text-surface-textSecondary transition-colors hover:border-brand-primary hover:text-brand-primary"
+                >
+                  {nhom.label}
+                </Link>
+              ))}
+            </nav>
+          ) : null}
 
           <div className="mt-5 flex-1">
             {documents.length === 0 ? (

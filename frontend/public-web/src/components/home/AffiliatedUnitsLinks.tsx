@@ -50,7 +50,7 @@ export function AffiliatedUnitsLinks({ subsidiaries, portalLinks }: AffiliatedUn
           ) : null
         }
       >
-        Đơn vị trực thuộc
+        Xí nghiệp trực thuộc
       </SectionTitle>
 
       <div className="mt-5">
@@ -119,13 +119,22 @@ export function AffiliatedUnitsLinks({ subsidiaries, portalLinks }: AffiliatedUn
         )}
       </div>
 
-      {/* ⛔ Danh sách rỗng ⇒ KHÔNG render dải này. Không rơi về bốn liên kết mặc định: một dải
-          liên kết chỉ hiện đúng lúc CSDL hỏng là dải không ai soi, và nó quảng cáo những địa
-          chỉ mà không ai còn kiểm chứng (cùng cái bẫy đã gỡ khỏi `SiteHeader`, §10.54). */}
+      {/* ⭐ 29/08: "Liên kết website" thành MỘT MỤC RIÊNG có tiêu đề, lưới thẻ cao 90px kín bề
+          rộng — đúng dải logo 377×90 của cổng tham chiếu. Bản trước là một hàng chip nhỏ nhét
+          dưới lưới Xí nghiệp: bốn cơ quan cấp trên nằm ở cỡ chữ 12px, nhỏ hơn cả chú thích của
+          khối ngay trên nó.
+
+          ⛔ Thẻ mang TÊN cơ quan, không mang ô ảnh logo chờ tệp: cổng không có tệp logo của bốn
+             cơ quan ấy, và một ô ảnh rỗng 90px là một chỗ trống nói rằng "đáng ra ở đây có gì
+             đó" — trong khi thật ra không có gì thiếu cả.
+
+          ⛔ Danh sách rỗng ⇒ KHÔNG render mục này. Không rơi về bốn liên kết mặc định: một dải
+             liên kết chỉ hiện đúng lúc CSDL hỏng là dải không ai soi, và nó quảng cáo những địa
+             chỉ mà không ai còn kiểm chứng (cùng cái bẫy đã gỡ khỏi `SiteHeader`, §10.54). */}
       {portalLinks.length > 0 ? (
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-3 rounded-xl border border-surface-border bg-surface-bgLayout p-4 text-xs sm:justify-between">
-          <span className="font-bold text-surface-textBase">Liên kết cổng TTĐT:</span>
-          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+        <div className="mt-9">
+          <SectionTitle>Liên kết website</SectionTitle>
+          <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {portalLinks.map((muc) => {
               const href = menuHref(muc);
               return href ? (
@@ -134,9 +143,15 @@ export function AffiliatedUnitsLinks({ subsidiaries, portalLinks }: AffiliatedUn
                   href={href}
                   target={muc.openNewTab ? '_blank' : undefined}
                   rel={isExternal(muc) ? 'noopener noreferrer' : undefined}
-                  className="rounded-md border border-surface-border bg-white px-3 py-1.5 font-medium text-surface-textSecondary transition-all duration-200 hover:border-brand-primary hover:text-brand-primary hover:shadow-2xs"
+                  className="group flex h-[90px] items-center justify-center gap-2 rounded-lg border border-surface-border bg-white px-4 text-center text-sm font-semibold text-surface-textBase shadow-2xs transition-all duration-200 hover:border-brand-primary hover:text-brand-primary hover:shadow-xs"
                 >
-                  {muc.label} ↗
+                  <span className="line-clamp-2">{muc.label}</span>
+                  <span
+                    aria-hidden="true"
+                    className="shrink-0 text-xs text-surface-textSecondary transition-colors group-hover:text-brand-primary"
+                  >
+                    ↗
+                  </span>
                 </a>
               ) : null;
             })}

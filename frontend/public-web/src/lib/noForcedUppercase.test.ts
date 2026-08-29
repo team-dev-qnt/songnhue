@@ -37,7 +37,7 @@ import { boChuThich } from './boChuThich';
  * sao — để nó là một quyết định đọc được, không phải một lớp CSS trôi vào.
  *
  * <p>⛔ `tracking-wider` **vẫn cấm ở mọi nơi, kể cả `PortalNav`** — không phải vì thẩm mỹ mà vì
- * ngân sách bề rộng: đo được nó ngốn thêm ~38px và đẩy thanh điều hướng về sát mép khung 1192px.
+ * ngân sách bề rộng: đo được nó ngốn thêm ~38px và đẩy thanh điều hướng về sát mép khung 1184px.
  *
  * <h2>⚠ Giới hạn, nói ra thay vì để người đọc tự suy (luật 28)</h2>
  *

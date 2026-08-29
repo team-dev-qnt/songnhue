@@ -5,6 +5,7 @@ import { PortalNav } from '@/components/nav/PortalNav';
 import type { MenuLink } from '@/lib/api';
 import { getArticles, getMenu, getSiteConfig } from '@/lib/api';
 import { buildMenuTree, fileUrl, ROUTES } from '@/lib/routes';
+import { docSo } from '@/lib/settings';
 import { SITE } from '@/lib/site';
 
 /**
@@ -57,14 +58,22 @@ const MENU_TOI_THIEU: MenuLink[] = [
   },
 ];
 
-/** Số bài chở trên dải chữ chạy. Nhiều hơn thì một vòng dài quá sức kiên nhẫn của người đọc. */
-const SO_TIN_CHAY = 10;
+/**
+ * Trần của `site.home.marquee-count` — lấy đúng số trong ràng buộc `^(0|[1-9]|1[0-9]|20)$` của
+ * `V202608291045`.
+ *
+ * ⚠ Đây KHÔNG phải "số bài hiển thị": số ấy nằm trong `settings` và người vận hành sửa được.
+ * Đây là số bài **lấy về** để lượt gọi cấu hình và lượt gọi bài chạy song song — đọc `settings`
+ * trước rồi mới gọi `/articles` là thêm một vòng khứ hồi vào TTFB của MỌI trang, vì đầu trang
+ * dựng ở mọi trang. Lấy dư rồi cắt là rẻ hơn hẳn, và điểm cắt vẫn là giá trị Công ty đặt.
+ */
+const SO_TIN_TOI_DA = 20;
 
 export async function SiteHeader() {
   const [config, menu, tinMoi] = await Promise.all([
     getSiteConfig(),
     getMenu('HEADER'),
-    getArticles({ size: SO_TIN_CHAY }),
+    getArticles({ size: SO_TIN_TOI_DA }),
   ]);
 
   const siteName = config?.['site.name'] ?? SITE.name;
@@ -82,6 +91,12 @@ export async function SiteHeader() {
   const gioLamViec = config?.['company.working-hours'] ?? '';
   const email = config?.['company.email'] ?? '';
   const activeMenu = menu && menu.length > 0 ? menu : MENU_TOI_THIEU;
+
+  // ⭐ Số bài trên dải chữ chạy — `site.home.marquee-count` (`V202608291045`). Trước lượt này
+  //    con số 10 nằm trong chính tệp này: một tham số nghiệp vụ viết trong mã, đúng thứ quy
+  //    tắc 12 cấm. Đặt 0 ở màn hình cấu hình ⇒ `PortalTicker` không vẽ dải nào — không cần
+  //    thêm một công tắc bật/tắt thứ hai.
+  const soTinChay = docSo(config?.['site.home.marquee-count'], 10);
 
   return (
     <>
@@ -170,7 +185,9 @@ export async function SiteHeader() {
 
       {/* ───── Tầng 3: Dải thông tin ───── */}
       <PortalInfoStrip
-        tinMoi={(tinMoi?.content ?? []).map((b) => ({ slug: b.slug, title: b.title }))}
+        tinMoi={(tinMoi?.content ?? [])
+          .slice(0, soTinChay)
+          .map((b) => ({ slug: b.slug, title: b.title }))}
         hotline={hotline}
         gioLamViec={gioLamViec}
         email={email}

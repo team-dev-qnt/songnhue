@@ -60,7 +60,10 @@ export function CategoryServicesGrid({ menuTree }: CategoryServicesGridProps) {
           <EmptyBlock>Menu chính chưa có mục nào để dựng thành chuyên mục.</EmptyBlock>
         </div>
       ) : (
-        <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        /* ⚠ Dừng ở ba cột, KHÔNG mở tới `xl:grid-cols-5`: năm thẻ trên một hàng 1232px cho mỗi
+           thẻ ~215px, mà nhãn dài nhất ("Hoạt động Đảng, đoàn thể") đã chiếm ba dòng ở cỡ đó.
+           Bản vẽ chốt ba cột cho cả khối này lẫn "Chuyên mục ảnh" ngay trên nó. */
+        <div className="mt-5 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((item) => {
             const than = (
               <>

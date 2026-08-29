@@ -121,6 +121,8 @@ export default async function HomePage() {
   // "Tin tức – Sự kiện" nào viết trong tệp này nữa.
   const tieuDeTin = nhanNhanhTin(menuTree, danhMucTin);
   const chuyenMuc = chonKhoiChuyenMuc(menuTree, danhMucTin);
+  // Cùng một hàm, cùng một luật: nhánh con của mục menu trỏ vào `site.home.documents-category`.
+  const nhomVanBan = chonKhoiChuyenMuc(menuTree, danhMucVanBan);
 
   // Hai lượt gọi dưới đây phụ thuộc `config` ở lượt trên nên phải chờ tới đây; chúng chạy song
   // song với nhau. Danh mục lạ ⇒ backend trả rỗng, khối nói thẳng là chưa có bài — không nổ.
@@ -137,7 +139,12 @@ export default async function HomePage() {
   return (
     <div className="mx-auto max-w-[1232px] px-4 py-6 sm:px-6 sm:py-8 animate-fade-in">
       {/* ═════════ NHÓM 1 · TIN TỨC & SỰ KIỆN ═════════ */}
-      <section aria-label="Ảnh hoạt động và tin tức">
+      {/* ⚠ Nhãn nhóm này TỪNG thiếu: bốn nhóm dưới có, nhóm đầu không — nên dải mảnh đầu tiên
+          người đọc gặp là "Điều hành & số liệu" ở giữa trang, và nó trông như mốc bắt đầu của
+          một cấp bậc chứ không phải mốc thứ hai của một dãy. Một cấp phân nhóm chỉ có nghĩa
+          khi nó xuất hiện ở MỌI nhóm. */}
+      <GroupLabel dauTien>Tin tức &amp; sự kiện</GroupLabel>
+      <section aria-label="Ảnh hoạt động và tin tức" className="mt-5">
         <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-12 lg:gap-9">
           {/* Không có mục menu cho nhánh tin ⇒ không có cột tin ⇒ slider chiếm cả 12 cột.
               Đây là chính sách "bố cục trang chủ LÀ cây menu" ở dạng bố cục, không phải một
@@ -182,6 +189,7 @@ export default async function HomePage() {
         documents={documents?.content ?? []}
         categorySlug={danhMucVanBan}
         docSystemUrl={config?.['site.external.doc-system-url'] ?? ''}
+        nhomCon={nhomVanBan}
       />
       {/* ⛔ Không truyền `company.*` xuống nữa — địa chỉ, điện thoại, thư điện tử và giờ làm việc
           nay chỉ hiển thị ở `/lien-he` (yêu cầu Công ty 29/08). Khối này còn đúng biểu mẫu. */}

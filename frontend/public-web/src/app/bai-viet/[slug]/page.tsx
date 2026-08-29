@@ -63,7 +63,7 @@ export default async function ArticlePage({ params }: PageProps) {
   const primaryCategory = article.categories.length > 0 ? article.categories[0] : null;
 
   return (
-    <div className="mx-auto max-w-[1240px] px-4 py-6 sm:px-6 sm:py-8 animate-fade-in">
+    <div className="mx-auto max-w-[1232px] px-4 py-6 sm:px-6 sm:py-8 animate-fade-in">
       {/* ───── Breadcrumbs Điều hướng ───── */}
       <Breadcrumb
         items={[

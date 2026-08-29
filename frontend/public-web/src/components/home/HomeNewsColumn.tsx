@@ -40,7 +40,7 @@ export function HomeNewsColumn({ articles, soBai, tieuDe, categorySlug }: HomeNe
   const hienThi = articles.slice(0, soBai);
 
   return (
-    <div className="flex h-full flex-col rounded-lg border border-surface-border bg-white p-5 shadow-sm sm:p-6">
+    <div className="flex h-full flex-col rounded-lg bg-white p-5 shadow-card sm:p-6">
       <SectionTitle href={ROUTES.category(categorySlug)}>{tieuDe}</SectionTitle>
 
       {hienThi.length === 0 ? (
@@ -54,7 +54,7 @@ export function HomeNewsColumn({ articles, soBai, tieuDe, categorySlug }: HomeNe
               key={article.slug}
               className="group border-b border-surface-border/60 pb-4 last:border-b-0"
             >
-              <Link href={ROUTES.article(article.slug)} className="flex gap-3">
+              <Link href={ROUTES.article(article.slug)} className="flex gap-[13px]">
                 <PortalImage
                   src={fileUrl(article.coverAttachmentPublicId)}
                   alt=""

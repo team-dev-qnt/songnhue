@@ -15,9 +15,25 @@
  * trang thì tiêu đề khối đã giữ đúng thứ bậc rồi. Chèn thêm một cấp `h` ở đây là trình đọc màn
  * hình đọc ra một mục lục hai tầng cho một trang vốn phẳng.
  */
-export function GroupLabel({ children }: { children: React.ReactNode }) {
+export function GroupLabel({
+  children,
+  dauTien = false,
+}: {
+  children: React.ReactNode;
+  /**
+   * Nhãn nhóm ĐẦU TIÊN của trang — bỏ lề trên.
+   *
+   * ⚠ Lề `mt-10` là khoảng cách GIỮA hai nhóm, không phải khoảng cách trên của một nhãn. Nhãn
+   * đầu đã có `py-6` của khung trang phía trên nó, nên giữ thêm 40px nữa là một dải trắng rộng
+   * hơn cả nhãn — và nó chỉ lộ ra ở đúng nhãn đầu, tức chỗ không ai nghĩ tới khi sửa nhãn thứ ba.
+   */
+  dauTien?: boolean;
+}) {
   return (
-    <div className="mt-10 flex items-center gap-3.5 sm:mt-12" aria-hidden="true">
+    <div
+      className={`flex items-center gap-3.5 ${dauTien ? '' : 'mt-10 sm:mt-12'}`}
+      aria-hidden="true"
+    >
       <span className="h-[15px] w-[3px] shrink-0 rounded-sm bg-brand-primary" />
       <span className="whitespace-nowrap text-[11px] font-bold tracking-[0.16em] text-surface-textSecondary">
         {children}
