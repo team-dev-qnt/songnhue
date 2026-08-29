@@ -4556,3 +4556,92 @@ Thứ duy nhất phân biệt được: **so mã trên ĐĨA với mã đã NẠ
 **Một tiến trình sống lâu là một bản sao của mã nguồn tại một thời điểm.** Kho có thể đã đi tiếp
 mà nó thì không, và không lệnh nào báo sai. Mọi công cụ chạy nền — MCP server, worker, daemon —
 cần một cách tự trả lời câu *"tôi có đang chạy đúng thứ trong kho không"*, vì không ai nhớ hỏi hộ.
+
+---
+
+### §10.68 — Lượt rà CI/CD 29/8: một cổng kiểm đỏ suốt một ngày không ai thấy, và một bước đỏ không nói được vì sao (29/8)
+
+Hai phát hiện khác gốc, cùng lộ ra trong một lượt rà đường ống. Cả hai đều **không phải lỗi mã** —
+nên cả hai đều không có bài kiểm nào ở máy bắt được, và đó là điểm chung đáng ghi.
+
+#### A. `tomcat-embed-core` 10.1.57 — 9 mã CVE ≥ 7, đỏ từ 28/8 mà không ai biết
+
+`Quét bảo mật phụ thuộc` xanh liên tục từ 20/8 tới **27/8 12:48**, rồi **đỏ từ 28/8 02:15 UTC** và
+đỏ tiếp ở hai lượt sau. Giữa hai mốc ấy **không một dòng khai báo phụ thuộc nào đổi**.
+
+Đây đúng là trường hợp `security-scan.yml` đã tự viết vào phần đầu của chính nó khi tách khỏi PR:
+
+> *Kho phụ thuộc hôm nay không an toàn hơn vì có người mở PR, và nó kém an toàn đi kể cả khi không
+> ai đụng vào mã — vì thế giới công bố thêm CVE.*
+
+Lời ấy đúng, cơ chế dựng theo nó cũng đúng, và cơ chế đã **chạy đúng**: nó bắt được, đúng ngày.
+
+⛔ **Chỗ hỏng nằm sau đó**: lượt quét chạy 02:15 UTC theo lịch, đỏ, rồi **không ai đọc trong hơn một
+ngày**. Không có thông báo nào rời khỏi tab Actions. Đây không phải một bộ canh xanh giả — nó là
+một **chuông reo trong phòng trống**, hình dạng thứ ba bên cạnh hai hình dạng đã biết
+(*bộ canh không chạy* — §10.64; *bộ canh hẹp hơn nơi nó phải chặn* — §10.62 / luật 28).
+
+Đọc **từ chính báo cáo lượt chạy 33244618650**, không đoán theo tên CVE:
+
+| CVE | CVSS | `versionEndExcluding` |
+|---|---|---|
+| CVE-2026-65637 · CVE-2026-65905 | 9.8 | 10.1.58 |
+| CVE-2026-65182 · CVE-2026-68525 | 9.1 | 10.1.58 |
+| CVE-2026-65183 · CVE-2026-66422 · CVE-2026-68569 | 8.1 | 10.1.58 |
+| CVE-2026-65927 · CVE-2026-68763 | 7.5 | 10.1.58 |
+
+**Cả 9 mã vá ở đúng một bản** ⇒ không mã nào cần suppression (`conventions.md` §4.5 luật 1). Nâng
+`<tomcat.version>` 10.1.57 → **10.1.59** (bản 10.1.x cao nhất trên `maven-metadata.xml` — tra bằng
+metadata chứ không bằng API tìm kiếm, luật 21). Đo giá trị **đã giải** chứ không đọc lời khai trong
+POM (luật 3): `dependency:tree` cho `tomcat-embed-core`, `-websocket` và `-el` đều ra **10.1.59**.
+
+⚠ Và sổ đang nói sai: `CLAUDE.md` khẳng định **"0 CVE ≥ 7"** như một thuộc tính của dự án. Nó không
+phải thuộc tính — nó là **số đo có hạn dùng**, đúng tới ngày đo và tự hỏng theo thời gian mà không ai
+chạm vào mã. Đã ghi lại kèm ngày đo.
+
+#### B. Bước "Mở đường SSH" đỏ 6/6 mà không nói được vì sao
+
+CD Staging của lượt đề bạt `6f86b47` đỏ ở bước *Mở đường SSH*: sáu lượt thử, mỗi lượt đúng 20 giây
+(`ConnectTimeout`), rồi thoát. `deploy.yml` **không đổi một ký tự** kể từ lượt CD xanh gần nhất, và
+lượt xanh ấy mở được kênh ở **lần thử 1 sau 5,6 giây** — nên nguyên nhân nằm ở máy chủ, không ở mã.
+
+Đường ống lại hành xử đúng: nó dừng **trước** khi chạm container nào; `staging.songnhue.com` và
+`admin-staging.songnhue.com` vẫn trả 200 suốt.
+
+⛔ Nhưng bước ấy chạy `ssh … 2>/dev/null`. Nó **vứt đi câu trả lời** rồi in ba lệnh chẩn đoán để
+người đi chạy tay trên máy chủ — trong khi client SSH đã viết sẵn lý do ra stderr. Ba nguyên nhân
+thường gặp cần ba cách xử lý ngược nhau:
+
+| client báo | nghĩa là | phải làm |
+|---|---|---|
+| `Connection refused` | có thứ **CHẶN** — fail2ban đã cấm IP runner, hoặc sshd không chạy | gỡ cấm / bật lại sshd |
+| im lặng tới hết giờ, `Connection reset` | bị **THẢ** vì quá tải (§10.59) | thử lại là đúng |
+| `Permission denied` | **SAI KHOÁ** | thử lại là vô nghĩa — đỏ ngay |
+
+⭐ **Đo được, không phải lập luận**: cho bản cũ chạy qua ba `ssh` giả tương ứng ba nguyên nhân, đầu ra
+**trùng từng byte** — cùng một vân tay `5ed3fce68b39` cho cả ba. Nó không phân biệt được gì (luật 9).
+Bản mới cho ba vân tay khác nhau (`d3297a88…` / `d7da6704…` / `4b9a3b26…`), giữ nguyên văn lý do, và
+với `Permission denied` thì **đỏ ngay ở lượt 1** thay vì tiêu thêm hai phút rồi báo nhầm là sự cố mạng.
+
+Bộ canh: `DeploySshMultiplexTest` 5 → 8 bài, trong đó một bài **tự kiểm chứng** — nạp đúng nguyên văn
+dòng `if ssh -o BatchMode=yes "$HOST" true 2>/dev/null; then` đã nằm trong kho tới 29/8 và đòi bộ dò
+phải đỏ trước nó (luật 1). Kiểm chứng ngược trên tệp thật: khôi phục dòng cũ vào `deploy.yml` → bài
+`khongDuocNuotLyDoSsh` **đỏ, gọi đích danh**; khôi phục lại → 8/8 xanh. Mẫu regex cố ý **không** khớp
+`ssh-keyscan … 2>/dev/null` ở ngay trên — lượt kiểm chứng phân biệt được hai dòng ấy.
+
+⚠ **Bản vá này chữa lượt SAU, không chữa lượt này.** Nguyên nhân gốc vẫn ở máy chủ và cần `sudo`.
+
+⭐ Một số đo phụ, thu được ngoài ý muốn nhưng đáng giữ: dò SSH từ máy dev khiến **chính IP máy dev bị
+fail2ban cấm** sau khoảng 20 lượt kết nối — cổng 22 chuyển từ mở sang `Connection refused`. Đó là
+**bằng chứng chạy thật đầu tiên** rằng fail2ban của T11.45 đang cấm thật, chứ không chỉ `active`.
+Nhưng nó cũng chỉ thẳng vào một rủi ro: `jail.local` trong `deploy-guideline.md` §2.2-b đặt
+`mode = aggressive` + `maxretry = 3` và **không có `ignoreip`** — mà `mode = aggressive` tính cả
+những lượt mở-rồi-đóng chưa xác thực. Một IP runner của GitHub trùng với IP từng bị quét sẽ bị thả
+im lặng, và triệu chứng đúng bằng triệu chứng đã thấy: hết giờ, không lời giải thích.
+
+#### Bài học
+
+**Một cổng kiểm đỏ mà không ai đọc thì cũng gần bằng không có cổng kiểm** — nó khác hai hình dạng đã
+biết ở chỗ cơ chế hoàn toàn đúng và vẫn không đổi được kết quả nào. Và **một số đo có hạn dùng thì
+phải ghi kèm ngày đo**; viết `0 CVE ≥ 7` trần trụi vào sổ là biến một phép đo thành một lời hứa mà
+không ai giữ được.

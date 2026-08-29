@@ -43,6 +43,9 @@ class DeploySshMultiplexTest {
 
     private static final Pattern GOI_SSH = Pattern.compile("(?<![\\w-])ssh\\s+[\"$]");
 
+    /** Một lượt `ssh` đẩy stderr vào /dev/null — tức vứt đi lý do đỏ. */
+    private static final Pattern SSH_NUOT_LOI = Pattern.compile("(?<![\\w-])ssh\\s+[^\\n]*2>\\s*/dev/null");
+
     @Test
     @DisplayName("⭐⭐ `deploy.yml` khai ghép kênh SSH — ControlMaster + ControlPath + ControlPersist")
     void phaiKhaiGhepKenh() {
@@ -108,6 +111,52 @@ class DeploySshMultiplexTest {
         assertThat(doc(timTuGocKho("docs/deploy-guideline.md")))
                 .as("`deploy-guideline.md` phải CÓ mục ấy — con trỏ trỏ vào chỗ trống là con trỏ hỏng")
                 .contains("2.2-b");
+    }
+
+    @Test
+    @DisplayName("⭐⭐ Lượt `ssh` thử lại KHÔNG được nuốt stderr — đó là thứ duy nhất nói vì sao đỏ")
+    void khongDuocNuotLyDoSsh() {
+        String than = boChuThich(thanBuoc("Mở đường SSH"));
+
+        assertThat(SSH_NUOT_LOI.matcher(than).find())
+                .as(
+                        """
+                        Bước 'Mở đường SSH' đẩy stderr của `ssh` vào /dev/null.
+
+                        Lượt CD đỏ 29/8 in ra SÁU dòng "không mở được kênh" và không một chữ nào nói \
+                        vì sao — trong khi client SSH đã viết lý do ra stderr. Ba nguyên nhân cần ba \
+                        cách xử lý ngược nhau: bị CHẶN (Connection refused) · bị THẢ vì quá tải (im \
+                        lặng, hết giờ) · SAI KHOÁ (Permission denied — thử lại vô nghĩa). Đo được: \
+                        bản nuốt stderr cho ra đầu ra TRÙNG TỪNG BYTE ở cả ba, nên nó không phân \
+                        biệt được gì (luật 9).""")
+                .isFalse();
+
+        assertThat(than).as("Phải GIỮ lý do lại (`2>&1`) thì mới in ra được").contains("2>&1");
+    }
+
+    @Test
+    @DisplayName("⭐ Sai khoá thì phải ĐỎ NGAY, đừng thử lại sáu lượt rồi báo nhầm là lỗi mạng")
+    void saiKhoaPhaiDoNgay() {
+        String than = boChuThich(thanBuoc("Mở đường SSH"));
+
+        assertThat(than)
+                .as("Không có nhánh nhận diện lỗi xác thực thì sai khoá vẫn tiêu hai phút của mọi người")
+                .contains("Permission denied");
+        assertThat(than)
+                .as("Nhận ra rồi thì phải thoát, không rơi tiếp vào `sleep`")
+                .containsPattern("Permission denied[\\s\\S]{0,400}?exit 1");
+    }
+
+    @Test
+    @DisplayName("⛔ Và bộ dò ấy phải BẮT ĐƯỢC bản cũ — nếu không thì nó chỉ đang canh tập rỗng")
+    void boDoNuotLoiBatDuocViPham() {
+        // Nguyên văn dòng đã nằm trong `deploy.yml` tới 29/8. Bộ dò phải đỏ trước nó; một mẫu regex
+        // chỉ xanh trên cây hiện tại thì không chứng minh được điều gì (luật 1, luật 29).
+        String banCu = "            if ssh -o BatchMode=yes \"$HOST\" true 2>/dev/null; then";
+
+        assertThat(SSH_NUOT_LOI.matcher(banCu).find())
+                .as("Bộ dò KHÔNG bắt được chính dòng đã gây ra lượt đỏ 29/8 — mẫu regex sai")
+                .isTrue();
     }
 
     @Test

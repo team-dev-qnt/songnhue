@@ -217,16 +217,50 @@ jobs:
           # ⚠ Kết nối ĐẦU TIÊN vẫn có thể bị thả — nó là kết nối duy nhất phải đi
           #   qua cửa hẹp. Thử lại có giãn cách tăng dần; các lệnh sau dùng lại
           #   ổ cắm này nên không tốn thêm lượt bắt tay nào.
+          #
+          # ⛔ KHÔNG được `2>/dev/null` lượt `ssh` này. Bản trước làm thế, nên lượt
+          #   đỏ 29/8 in ra SÁU dòng "không mở được kênh" mà không một chữ nào nói
+          #   vì sao — trong khi client SSH biết thừa và đã viết ra stderr. Ba
+          #   nguyên nhân thường gặp cần ba cách xử lý NGƯỢC NHAU:
+          #     "Connection refused"          → có thứ CHẶN (fail2ban đã cấm IP
+          #                                     của runner, hoặc sshd không chạy);
+          #     hết giờ / "Connection reset"  → bị THẢ vì quá tải — §10.59;
+          #     "Permission denied"           → SAI KHOÁ, thử lại là vô nghĩa.
+          #   Bước này vốn in ba lệnh chẩn đoán để người đi chạy TAY trên máy chủ,
+          #   trong khi câu trả lời rẻ nhất đã nằm sẵn trên stderr và đang bị vứt.
+          ly_do=""
           for lan in 1 2 3 4 5 6; do
-            if ssh -o BatchMode=yes "$HOST" true 2>/dev/null; then
+            if ly_do="$(ssh -o BatchMode=yes "$HOST" true 2>&1)"; then
               echo "✓ Mở được kênh dùng chung ở lần thử $lan"
               exit 0
             fi
-            echo "⚠ Lần $lan không mở được kênh — chờ $((lan * 5))s rồi thử lại."
-            sleep $((lan * 5))
+            echo "⚠ Lần $lan không mở được kênh."
+            if [ -n "$(printf '%s' "$ly_do" | tr -d '[:space:]')" ]; then
+              printf '%s\n' "$ly_do" | tail -3 | sed 's/^/      /'
+            else
+              echo "      (client không in lý do — im lặng ở tầng TCP, tức bị THẢ chứ không bị từ chối)"
+            fi
+
+            # Sai khoá hay sai người dùng thì năm lượt nữa cho đúng bằng ấy kết
+            # quả, chỉ tốn thêm hai phút rồi báo nhầm thành "sự cố mạng".
+            case "$ly_do" in
+              *"Permission denied"* | *"Too many authentication failures"* | *"Host key verification failed"*)
+                echo "::error::Máy chủ TRẢ LỜI nhưng TỪ CHỐI XÁC THỰC — đây không phải sự cố mạng."
+                echo "Kiểm secret \`SSH_KEY\` / \`USER\` của environment, và khoá công khai trong"
+                echo "\`~/.ssh/authorized_keys\` của người dùng ấy trên máy chủ."
+                exit 1
+                ;;
+            esac
+
+            if [ "$lan" -lt 6 ]; then
+              echo "   chờ $((lan * 5))s rồi thử lại."
+              sleep $((lan * 5))
+            fi
           done
 
           echo "::error::Không mở được kết nối SSH tới máy chủ sau 6 lần thử."
+          echo "Lý do client báo ở lượt CUỐI:"
+          printf '%s\n' "${ly_do:-(client không in gì)}" | sed 's/^/  /'
           echo "Chẩn đoán theo thứ tự:"
           echo "  1. \`nc -z -w5 <host> 22\` — cổng có mở không;"
           echo "  2. \`ss -tnH '( sport = :22 )' | wc -l\` TRÊN máy chủ — có ai đang"
