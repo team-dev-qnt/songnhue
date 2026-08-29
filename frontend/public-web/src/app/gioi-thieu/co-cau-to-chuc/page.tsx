@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 
 import { EmptyBlock } from '@/components/home/EmptyBlock';
 import { PageShell } from '@/components/PageShell';
+import { SectionNav } from '@/components/SectionNav';
 import type { OrgChartNode } from '@/lib/api';
 import { getOrgChart } from '@/lib/api';
 import { ROUTES } from '@/lib/routes';
@@ -52,6 +53,7 @@ export default async function CoCauToChucPage() {
           </ul>
         </div>
       )}
+      <SectionNav duongDan={ROUTES.gioiThieu.coCauToChuc} />
     </PageShell>
   );
 }

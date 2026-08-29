@@ -12,6 +12,7 @@ import {
   LaptopOutlined,
   LayoutOutlined,
   PictureOutlined,
+  MailOutlined,
   ReadOutlined,
   SafetyCertificateOutlined,
   SettingOutlined,
@@ -84,6 +85,13 @@ export const MENU: readonly MenuNode[] = [
         icon: <FileTextOutlined />,
         path: '/noi-dung/bai-viet',
         permissions: ['cms:article:view'],
+      },
+      {
+        key: 'hop-thu-lien-he',
+        label: 'Hộp thư liên hệ',
+        icon: <MailOutlined />,
+        path: '/noi-dung/hop-thu-lien-he',
+        permissions: ['cms:contact:manage'],
       },
       {
         key: 'danh-muc-noi-dung',

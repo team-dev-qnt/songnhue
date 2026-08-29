@@ -1,4 +1,6 @@
+import { PortalImage } from '@/components/PortalImage';
 import { EmptyBlock } from './EmptyBlock';
+import { SectionTitle } from './SectionTitle';
 
 interface PhotoItem {
   id: string;
@@ -33,17 +35,10 @@ interface HomeMediaGalleryProps {
  */
 export function HomeMediaGallery({ videoId, videoTitle, photos = [] }: HomeMediaGalleryProps) {
   return (
-    <section className="mt-10 sm:mt-14">
-      <div className="flex items-center justify-between border-b-2 border-brand-primary pb-2.5">
-        <div className="flex items-center gap-2">
-          <span className="h-5 w-1.5 rounded-full bg-brand-primary"></span>
-          <h2 className="text-base font-bold tracking-tight text-surface-textBase sm:text-lg">
-            Truyền thông &amp; hình ảnh hoạt động
-          </h2>
-        </div>
-      </div>
+    <section className="mt-5">
+      <SectionTitle>Truyền thông &amp; hình ảnh hoạt động</SectionTitle>
 
-      <div className="mt-5 grid grid-cols-1 gap-6 lg:grid-cols-12 lg:gap-8">
+      <div className="mt-5 grid grid-cols-1 items-stretch gap-6 lg:grid-cols-12 lg:gap-9">
         {/* CỘT TRÁI (7 CỘT): VIDEO PHÓNG SỰ */}
         <div className="flex flex-col lg:col-span-7">
           {videoId ? (
@@ -73,7 +68,7 @@ export function HomeMediaGallery({ videoId, videoTitle, photos = [] }: HomeMedia
         </div>
 
         {/* CỘT PHẢI (5 CỘT): THƯ VIỆN HÌNH ẢNH CÔNG TRÌNH */}
-        <div className="lg:col-span-5">
+        <div className="flex flex-col lg:col-span-5">
           {photos.length === 0 ? (
             <EmptyBlock>
               Chưa có ảnh trong thư viện. Chọn thư mục ảnh ở ô &ldquo;Thư mục ảnh của thư viện trang
@@ -86,14 +81,7 @@ export function HomeMediaGallery({ videoId, videoTitle, photos = [] }: HomeMedia
                   key={p.id}
                   className="group relative flex flex-col overflow-hidden rounded-lg border border-surface-border bg-white shadow-2xs"
                 >
-                  <div className="aspect-[4/3] w-full overflow-hidden bg-surface-bgLayout">
-                    <img
-                      src={p.imageUrl}
-                      alt={p.title}
-                      loading="lazy"
-                      className="h-full w-full object-cover transition-transform duration-500 ease-smooth group-hover:scale-110"
-                    />
-                  </div>
+                  <PortalImage src={p.imageUrl || null} alt={p.title} ratio="aspect-[4/3]" />
                   {/* Tiêu đề rỗng ⇒ BỎ HẲN dải chú thích, không để một thanh trắng có lề.
                       Ảnh Công ty gửi có tệp mang tên do máy sinh, và BE trả rỗng thay vì
                       bịa một câu (§10.66 · luật 16). */}

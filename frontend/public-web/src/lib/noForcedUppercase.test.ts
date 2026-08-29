@@ -50,13 +50,40 @@ const GOC = join(process.cwd(), 'src');
 const EP_HOA = /(?<![\w-])uppercase(?![\w-])/g;
 
 /**
- * Tệp DUY NHẤT được ép chữ hoa, và số chỗ nó được phép ép.
+ * Bảng ngoại lệ: tệp nào được ép chữ hoa, và ĐÚNG bao nhiêu chỗ.
  *
- * Ba chỗ: thanh ngang cấp 1 (`ul`), nút Tìm kiếm cạnh nó, và nhãn cấp 1 trong ngăn kéo. Menu con
- * KHÔNG nằm trong số đó — nhãn cấp 2 dài hơn và xếp dọc trong một danh sách dày.
+ * <h2>Ranh giới — đọc trước khi thêm dòng vào bảng này</h2>
+ *
+ * Được ép hoa: nhãn do **chính giao diện** đặt ra và không bao giờ đổi theo dữ liệu — mục điều
+ * hướng, tiêu đề khối. Cấm ép hoa: mọi thứ **người dùng nhập** — tên Công ty, nhãn menu lấy từ
+ * `settings`, tiêu đề bài viết, tên chuyên mục. CR-42 gọi đúng tên vấn đề: *"ép hoa ở đây là giao
+ * diện tự quyết định thay người nhập"*. Cần chữ hoa cho dữ liệu thì viết hoa trong GIÁ TRỊ (xem
+ * `site.header.display-name`, dựng ở `V202608291042`), không phải trong CSS.
+ *
+ * <h2>Từng dòng, và vì sao con số đó</h2>
+ *
+ * - `PortalNav` **4**: thanh ngang cấp 1 (`LOP_MUC_CAP1`), nhãn cấp 1 trong ngăn kéo, **menu con
+ *   ở máy tính**, và **menu con trong ngăn kéo**.
+ *   ⚠ Con số này đã đổi hai lần trong một ngày, và mỗi lần vì một quyết định đọc được:
+ *   **3 → 2** khi nút Tìm kiếm chuyển lên dải nhận diện ({@code SiteHeader}) để trả bề rộng lại
+ *   cho thanh; **2 → 4** khi Công ty yêu cầu menu con cũng viết hoa (29/08 chiều).
+ *   ⛔ Vì sao chữ hoa của menu con nằm ở CSS chứ không ở nhãn trong CSDL: nhãn menu do Công ty
+ *   nhập từ màn hình quản trị, nên đặt ở dữ liệu là hôm nay 12 mục đúng còn mục thứ 13 thêm vào
+ *   tuần sau sẽ chữ thường — một quy ước phụ thuộc trí nhớ con người mà **không cổng kiểm nào bắt
+ *   được**, vì nó nằm trong CSDL chứ không trong mã. Đúng cảnh ấy đã xảy ra: một migration đổi
+ *   nhãn thành chữ hoa cho MỘT mục cấp 2 tạo ra *một mục hoa, mười một mục thường*; migration ấy
+ *   đã bị gỡ và thay bằng hai chỗ ép hoa ở đây.
+ * - `SectionTitle` **1**: tiêu đề khối trang chủ, bố cục Công ty duyệt 29/08. Một chỗ duy nhất
+ *   phục vụ cả mười một khối — đó chính là lý do nó được vào bảng này: gom về một nơi thì ngưỡng
+ *   đếm còn có nghĩa, chứ mười một khối tự viết `uppercase` thì bảng này thành vô dụng.
+ *
+ * ⛔ Ngưỡng phải khớp CHÍNH XÁC theo cả hai chiều. Cao hơn thực tế là một khoảng trống lặng lẽ
+ *    cho chỗ ép hoa kế tiếp trôi vào.
  */
-const TEP_NGOAI_LE = 'components/nav/PortalNav.tsx';
-const SO_CHO_HOA_TRONG_NAV = 3;
+const NGOAI_LE: Record<string, number> = {
+  'components/nav/PortalNav.tsx': 4,
+  'components/home/SectionTitle.tsx': 1,
+};
 
 /**
  * Giãn chữ chỉ hợp với chữ hoa; để lại `tracking-wider` trên chữ thường là để lại đúng nửa vấn
@@ -85,23 +112,26 @@ describe('Cổng không ép chữ hoa bằng CSS', () => {
     expect(MA.reduce((t, m) => t + m.nguon.length, 0)).toBeGreaterThan(50_000);
   });
 
-  it('⭐ ngoại lệ có thật và ĐÚNG số chỗ — không phải tấm vé trắng cho cả tệp', () => {
-    const nav = MA.find(({ ten }) => ten === TEP_NGOAI_LE);
-    // Ngoại lệ trỏ vào một tệp không còn tồn tại thì bài dưới sẽ trừ đi một tập rỗng, và bộ canh
-    // im lặng nới rộng ra cả cây (luật 7).
-    expect(
-      nav,
-      `\`${TEP_NGOAI_LE}\` không còn — SỬA hằng số ngoại lệ, đừng để nó trỏ vào chỗ trống`,
-    ).toBeDefined();
-    expect(
-      (nav!.nguon.match(EP_HOA) ?? []).length,
-      'Số chỗ ép hoa trong thanh điều hướng đã đổi. Thêm chỗ mới thì sửa `SO_CHO_HOA_TRONG_NAV` ' +
-        'kèm lý do; bớt đi thì cũng sửa — một ngưỡng cao hơn thực tế là một khoảng trống lặng lẽ.',
-    ).toBe(SO_CHO_HOA_TRONG_NAV);
-  });
+  it.each(Object.entries(NGOAI_LE))(
+    '⭐ ngoại lệ %s có thật và ĐÚNG số chỗ — không phải tấm vé trắng cho cả tệp',
+    (tep, soCho) => {
+      const m = MA.find(({ ten }) => ten === tep);
+      // Ngoại lệ trỏ vào một tệp không còn tồn tại thì bài dưới sẽ trừ đi một tập rỗng, và bộ canh
+      // im lặng nới rộng ra cả cây (luật 7).
+      expect(
+        m,
+        `\`${tep}\` không còn — SỬA bảng NGOAI_LE, đừng để nó trỏ vào chỗ trống`,
+      ).toBeDefined();
+      expect(
+        (m!.nguon.match(EP_HOA) ?? []).length,
+        `Số chỗ ép hoa trong \`${tep}\` đã đổi. Thêm chỗ mới thì sửa NGOAI_LE kèm lý do; ` +
+          'bớt đi thì cũng sửa — một ngưỡng cao hơn thực tế là một khoảng trống lặng lẽ.',
+      ).toBe(soCho);
+    },
+  );
 
   it('⛔⛔ chữ hoa của thanh điều hướng nằm trên CHÍNH mục, không trên khung chứa', () => {
-    const nav = MA.find(({ ten }) => ten === TEP_NGOAI_LE)?.nguon ?? '';
+    const nav = MA.find(({ ten }) => ten === 'components/nav/PortalNav.tsx')?.nguon ?? '';
     const lopMuc = /const LOP_MUC_CAP1 =\s*'([^']*)'/.exec(nav)?.[1];
     const lopChu = /const LOP_CHU_CAP1 =\s*'([^']*)'/.exec(nav)?.[1];
 
@@ -131,12 +161,14 @@ describe('Cổng không ép chữ hoa bằng CSS', () => {
   });
 
   it('⛔ không tệp nào KHÁC ép `uppercase`', () => {
-    const pham = MA.filter(({ ten }) => ten !== TEP_NGOAI_LE).flatMap(({ ten, nguon }) =>
+    const pham = MA.filter(({ ten }) => !(ten in NGOAI_LE)).flatMap(({ ten, nguon }) =>
       (nguon.match(EP_HOA) ?? []).map(() => ten),
     );
     expect(
       pham,
-      `Chỉ \`${TEP_NGOAI_LE}\` được ép chữ hoa (Công ty yêu cầu 28/08, chỉ cho thanh điều hướng). ` +
+      `Chỉ ${Object.keys(NGOAI_LE)
+        .map((t) => `\`${t}\``)
+        .join(' và ')} được ép chữ hoa. ` +
         'Chữ hoa tiếng Việt chồng dấu khó đọc hơn chữ thường, và nhãn lấy từ `settings` phải hiện ' +
         'nguyên văn người nhập (CR-42). Cần nhấn mạnh thì dùng `font-bold`/`text-lg`/màu, ' +
         'đừng đổi chính con chữ. Nếu thật sự cần chữ hoa cho một nhãn cụ thể thì viết hoa trong ' +

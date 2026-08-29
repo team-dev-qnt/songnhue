@@ -87,7 +87,7 @@ export function HomeBannerSlider({
       onMouseLeave={() => datTamDung(false)}
       onFocus={() => datTamDung(true)}
       onBlur={() => datTamDung(false)}
-      className="group relative overflow-hidden rounded-xl border border-surface-border bg-surface-bgLayout shadow-sm"
+      className="group relative h-full overflow-hidden rounded-lg border border-surface-border bg-surface-bgLayout shadow-sm"
     >
       <div className="relative aspect-[16/9] w-full sm:aspect-[21/9]">
         {banners.map((anh, i) => {
@@ -101,6 +101,14 @@ export function HomeBannerSlider({
                   alt={anh.title}
                   // Ảnh đầu tải ngay (nó nằm trên màn hình đầu tiên), phần còn lại chờ.
                   loading={i === 0 ? 'eager' : 'lazy'}
+                  // ⭐ Ảnh đầu của slider LÀ phần tử LCP của trang chủ — đo 28/08: 381 KB trên
+                  //   đường tới hạn. `eager` chỉ nói "đừng hoãn"; `fetchpriority="high"` mới nói
+                  //   "xếp trước các tài nguyên khác". DOD1.17 ghi rõ `fetchpriority` chưa từng
+                  //   xuất hiện lần nào trong HTML của cổng — đây là chỗ nó phải có.
+                  //
+                  //   ⛔ Chỉ ảnh ĐẦU. Đặt `high` cho cả năm ảnh là không ưu tiên gì cả, mà còn
+                  //      giành băng thông với chính ảnh LCP.
+                  fetchPriority={i === 0 ? 'high' : 'auto'}
                   decoding="async"
                   className="h-full w-full object-cover"
                 />

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { ArticleList } from '@/components/ArticleList';
 import { EmptyBlock } from '@/components/home/EmptyBlock';
 import { PageShell } from '@/components/PageShell';
+import { SectionNav } from '@/components/SectionNav';
 import type { CategoryNode } from '@/lib/api';
 import { getArticles, getCategories, getSiteConfig } from '@/lib/api';
 import { ROUTES } from '@/lib/routes';
@@ -107,6 +108,7 @@ export default async function TienDoSanXuatPage({ searchParams }: PageProps) {
           </div>
         </>
       )}
+      <SectionNav duongDan={ROUTES.quanLyVanHanh.tienDoSanXuat} />
     </PageShell>
   );
 }

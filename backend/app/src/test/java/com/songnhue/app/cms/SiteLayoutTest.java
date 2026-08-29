@@ -534,10 +534,14 @@ class SiteLayoutTest extends IntegrationTestBase {
                         Chỉ còn MỘT trang tĩnh do migration sở hữu: "Tổng quan". Ba trang cũ                         (chuc-nang-nhiem-vu · co-cau-to-chuc · lien-he) đã bị V202608271031 xoá mềm vì                         cây nội dung mới thay chúng bằng trang thật ở đường dẫn khác (CR-22/23/24).                         Trang tĩnh còn lại phải XUẤT BẢN và có bản phục vụ công khai — để ở Nháp thì                         mục menu trỏ vào nó trả 404.""")
                 .isEqualTo(1);
 
-        // ⭐ Ghim ĐÚNG bảy mục cấp 1 của §3 cộng lối sang hệ thống văn bản điều hành (CR-07).
+        // ⭐ Ghim ĐÚNG sáu mục cấp 1 của §3 cộng lối sang hệ thống văn bản điều hành (CR-07).
         //    Đây là tiêu chí nghiệm thu viết thành phép khẳng định: §2 đòi menu chính, chân trang
         //    và card chuyên mục dùng CHUNG một hệ phân loại, nên hệ ấy phải có đúng một mô tả
         //    máy đọc được. Đổi thứ tự hay đổi tên một mục là một quyết định, và nó phải làm đỏ.
+        //
+        //    ⭐ 29/08 (V202608291041): "Hoạt động Đảng, đoàn thể" rời cấp 1 xuống làm mục con của
+        //    "Tin tức – Sự kiện" — nội dung của nó vốn là tin, và nó là nhãn dài nhất trong tám
+        //    mục. Cấp 1 còn BẢY. Bài kiểm này đỏ đúng lúc migration đổi cây, và đó là việc của nó.
         assertThat(menus.tree(MenuPosition.HEADER))
                 .filteredOn(node -> node.depth() == 0)
                 .extracting(MenuService.MenuNode::label)
@@ -545,7 +549,6 @@ class SiteLayoutTest extends IntegrationTestBase {
                         "Trang chủ",
                         "Giới thiệu",
                         "Tin tức – Sự kiện",
-                        "Hoạt động Đảng, đoàn thể",
                         "Quản lý, vận hành",
                         "Công bố thông tin",
                         "Liên hệ",
@@ -554,11 +557,13 @@ class SiteLayoutTest extends IntegrationTestBase {
         // Bốn nhánh có menu con — CR-02, CR-03, CR-05, CR-06.
         assertThat(menus.tree(MenuPosition.HEADER))
                 .filteredOn(node -> node.depth() == 1)
-                .as("Giới thiệu 4 · Tin tức – Sự kiện 2 · Quản lý, vận hành 4 · Công bố thông tin 2")
-                .hasSize(12);
+                .as("Giới thiệu 4 · Tin tức – Sự kiện 3 · Quản lý, vận hành 4 · Công bố thông tin 2")
+                .hasSize(13);
 
         assertThat(menus.tree(MenuPosition.FOOTER))
-                .as("CR-09: chân trang dùng đúng hệ phân loại của menu chính — bảy mục cấp 1")
+                .as("CR-09: chân trang dùng đúng hệ phân loại của menu chính. ⚠ FOOTER KHÔNG đi "
+                        + "theo lượt chuyển của HEADER ở V202608291041 — hai vị trí là hai cây "
+                        + "riêng trong `menu_items`, và Công ty sắp xếp chân trang độc lập.")
                 .hasSize(7);
 
         assertThat(menus.tree(MenuPosition.HEADER))

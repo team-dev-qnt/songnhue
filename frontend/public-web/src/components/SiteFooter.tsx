@@ -233,7 +233,9 @@ export async function SiteFooter() {
           ) : null}
         </div>
 
-        {/* Cột 4: Kênh kết nối truyền thông & Bản đồ (3/12 cột) */}
+        {/* Cột 4: Kênh kết nối truyền thông (3/12 cột).
+
+            ⛔ Bản đồ ĐÃ RỜI khỏi cột này — xem dải bản đồ kín bề rộng ngay dưới lưới. */}
         <div className="space-y-3.5 lg:col-span-3">
           <p className="relative pb-2 font-bold text-xs text-white after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-8 after:rounded after:bg-sky-300">
             Kênh kết nối
@@ -256,38 +258,61 @@ export async function SiteFooter() {
                 </a>
               ))}
           </div>
-
-          {/* Bản đồ nếu có cấu hình hoặc thẻ chỉ đường mặc định */}
-          {mapEmbed ? (
-            <div
-              className="overflow-hidden rounded-lg border border-white/20 shadow-xs [&_iframe]:h-28 [&_iframe]:w-full"
-              // eslint-disable-next-line react/no-danger -- HtmlSanitizer.cleanMapEmbed() lúc ghi
-              dangerouslySetInnerHTML={{ __html: mapEmbed }}
-            />
-          ) : (
-            <div className="rounded-lg border border-white/20 bg-white/10 p-3 text-xs text-white/90 backdrop-blur-xs">
-              <div className="flex items-center gap-1.5 font-bold text-white">
-                <span>📍</span>
-                <span>Chỉ đường tới trụ sở</span>
-              </div>
-              {diaChi ? (
-                <p className="mt-1 text-[11px] text-white/80 line-clamp-1">{diaChi}</p>
-              ) : null}
-              <a
-                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                  `${siteName} ${diaChi}`,
-                )}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-sky-200 hover:text-white hover:underline"
-              >
-                <span>Xem trên Google Maps</span>
-                <span>↗</span>
-              </a>
-            </div>
-          )}
         </div>
       </div>
+
+      {/* ───── 2b. Dải BẢN ĐỒ TRỤ SỞ — kín bề rộng chân trang ─────
+
+          ⭐ Yêu cầu Công ty 29/08: *"mở rộng hết sức có thể phần diện tích bản đồ hiển thị"*.
+
+          Trước lượt này bản đồ nằm trong cột "Kênh kết nối" rộng 3/12 với `[&_iframe]:h-28` —
+          112px cao, ~250px rộng trên màn hình 1232px. Ở cỡ đó Google Map không đọc được tên
+          đường nào: nó là một hình trang trí có hình dạng của một bản đồ. Nay nó là một dải
+          riêng chiếm trọn bề rộng, cao 320px (384px từ `sm`), tức diện tích tăng khoảng **13
+          lần**.
+
+          ⚠ Chiều cao đặt ở KHUNG chứ không ở `<iframe>` gốc: mã nhúng do Công ty dán vào ô cấu
+          hình mang `width`/`height` riêng của Google, và `HtmlSanitizer.cleanMapEmbed()` giữ
+          nguyên chúng. Selector `[&_iframe]:h-full` ghi đè bằng CSS — sửa chuỗi HTML lúc hiển
+          thị là sửa thứ đã qua khâu làm sạch, tức mở lại đúng cửa mà khâu ấy vừa đóng. */}
+      {mapEmbed ? (
+        <div className="mx-auto max-w-[1240px] px-4 pb-10 sm:px-6">
+          <p className="relative mb-3.5 pb-2 font-bold text-xs text-white after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-8 after:rounded after:bg-sky-300">
+            Bản đồ trụ sở
+          </p>
+          <div
+            className="h-[320px] overflow-hidden rounded-xl border border-white/20 shadow-xs sm:h-[384px] [&_iframe]:h-full [&_iframe]:w-full [&_iframe]:border-0"
+            // eslint-disable-next-line react/no-danger -- HtmlSanitizer.cleanMapEmbed() lúc ghi
+            dangerouslySetInnerHTML={{ __html: mapEmbed }}
+          />
+        </div>
+      ) : (
+        /* ⛔ Chưa cấu hình mã nhúng thì KHÔNG dựng một khung xám cao 320px cho có: một ô trống
+           to bằng cả bề rộng trang là thứ trông như hỏng. Thẻ chỉ đường nhỏ, nói thẳng, và có
+           một đường đi thật tới Google Maps. */
+        <div className="mx-auto max-w-[1240px] px-4 pb-10 sm:px-6">
+          <div className="flex flex-col gap-2 rounded-xl border border-white/20 bg-white/10 p-4 text-xs text-white/90 backdrop-blur-xs sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="flex items-center gap-1.5 font-bold text-white">
+                <span aria-hidden="true">📍</span>
+                <span>Chỉ đường tới trụ sở</span>
+              </div>
+              {diaChi ? <p className="mt-1 text-[11px] text-white/80">{diaChi}</p> : null}
+            </div>
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                `${siteName} ${diaChi}`,
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-white/25 bg-white/10 px-3 py-2 text-[11px] font-semibold text-sky-100 transition-all hover:bg-white hover:text-brand-primary"
+            >
+              <span>Xem trên Google Maps</span>
+              <span aria-hidden="true">↗</span>
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* ───── 3. Dải bản quyền đáy trang ───── */}
       <div className="border-t border-white/10 bg-chrome-navy700 py-3.5 text-xs text-white/70">

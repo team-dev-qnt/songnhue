@@ -111,7 +111,6 @@ class RbacMatrixTest extends IntegrationTestBase {
             "hr:directory:view", // Danh bạ — Phase 2
             "hr:report:view", // Báo cáo HR — Phase 2
             "hr:report:export", // Xuất báo cáo HR — Phase 2
-            "cms:contact:manage", // CMS — Phase 2
             "cms:feedback:manage", // CMS — Phase 2
             "cms:external-doc:view", // CMS — Phase 2
             "cms:external-doc:link", // CMS — Phase 2

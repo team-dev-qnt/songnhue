@@ -106,3 +106,82 @@ button {
     scroll-behavior: auto !important;
   }
 }
+
+/*
+  ───── Dòng chữ chạy của dải thông tin (PortalTicker) ─────
+
+  Danh sách được vẽ HAI lần rồi kéo đúng một nửa: hết bản sao thứ nhất là bản thứ hai đã
+  nằm đúng chỗ nó vừa rời đi, nên vòng lặp không có điểm giật. Cách khác (kéo hết chiều
+  rộng rồi nhảy về 0) luôn để lộ một khoảng trắng cuối vòng.
+
+  ⛔ `prefers-reduced-motion` KHÔNG phải tuỳ chọn làm cho đẹp: một dải chữ tự chạy không
+     dừng là tác nhân gây chóng mặt tiền đình đã có tên trong WCAG 2.2 (2.3.3 Animation from
+     Interactions). Người đặt "giảm chuyển động" ở hệ điều hành phải nhận được một dải ĐỨNG
+     YÊN — và vì nó đứng yên nên vùng chứa phải cuộn ngang được, nếu không họ mất phần chữ
+     bị tràn.
+*/
+@keyframes sn-ticker {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.sn-ticker-track {
+  display: flex;
+  width: max-content;
+  animation: sn-ticker var(--sn-ticker-duration, 60s) linear infinite;
+}
+
+/* Dừng khi rê chuột hoặc khi một mục con nhận focus bàn phím — để còn đọc và bấm kịp. */
+.sn-ticker:hover .sn-ticker-track,
+.sn-ticker:focus-within .sn-ticker-track {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sn-ticker {
+    overflow-x: auto;
+  }
+  .sn-ticker-track {
+    animation: none;
+  }
+}
+
+/*
+  ───── Vùng cuộn trong thẻ (danh sách tin cạnh slider) ─────
+
+  Thanh cuộn mảnh, chỉ tô phần kéo. Cổng tham chiếu để `overflow-y: hidden` rồi mở ra khi rê
+  chuột — ở đây KHÔNG làm vậy: một vùng chỉ cuộn được khi có con trỏ là một vùng mà người dùng
+  bàn phím và người dùng màn hình cảm ứng không tới được phần nội dung bị tràn.
+*/
+.sn-scroll {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+}
+.sn-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.sn-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sn-scroll::-webkit-scrollbar-thumb {
+  background: theme(--color-surface-border);
+  border-radius: 4px;
+}
+
+/*
+  ───── Dấu vị trí trên bản đồ công trình ─────
+
+  Vẽ bằng SVG trong `divIcon`, không dùng bộ ảnh mặc định của Leaflet: đường dẫn tới
+  `marker-icon.png` do bộ đóng gói giải và với Next nó hay ra 404 lặng lẽ, để lại một bản đồ
+  có điểm mà không thấy dấu nào.
+*/
+.sn-marker {
+  display: block;
+  color: theme(--color-brand-primary);
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.35));
+}

@@ -124,7 +124,7 @@ describe('Component không chứa dữ liệu nghiệp vụ bịa', () => {
     //   slider ảnh). Neo chết là bài kiểm đỏ oan — nhưng bỏ neo hẳn thì bộ canh quét qua tập
     //   rỗng vẫn xanh trọn vẹn, đúng luật 7. Nên đổi neo, không gỡ neo.
     const ten = MA.map((m) => m.ten);
-    expect(ten).toContain(join('components', 'home', 'HomeHotNews.tsx'));
+    expect(ten).toContain(join('components', 'home', 'HomeNewsColumn.tsx'));
     expect(ten).toContain(join('components', 'home', 'AffiliatedUnitsLinks.tsx'));
     // Tám trang dựng ở đợt 27/08/2026 nằm dưới `app/`, không phải `components/` — bộ canh phải
     // với tới chúng, vì bảng 7 cột và bảng 6 cột là đúng chỗ dữ liệu bịa dễ mọc lại nhất.

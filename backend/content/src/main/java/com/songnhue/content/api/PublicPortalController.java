@@ -13,11 +13,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.songnhue.content.application.ContactService;
 import com.songnhue.content.application.MenuService;
 import com.songnhue.content.application.PublicArticleDetail;
 import com.songnhue.content.application.PublicArticleRow;
@@ -67,7 +69,10 @@ public class PublicPortalController {
 
     private final PublicPortalService portal;
 
-    public PublicPortalController(PublicPortalService portal) {
+    private final ContactService contacts;
+
+    public PublicPortalController(PublicPortalService portal, ContactService contacts) {
+        this.contacts = contacts;
         this.portal = portal;
     }
 
@@ -223,6 +228,35 @@ public class PublicPortalController {
     @PublicEndpoint(reason = "Đếm lượt xem bài trên cổng — CN-01.1")
     public void recordView(@PathVariable String slug) {
         portal.recordView(slug);
+    }
+
+    // ---- Liên hệ / phản ánh ---------------------------------------------------
+
+    /** Thân yêu cầu của biểu mẫu liên hệ. Kiểm tra nằm ở {@link ContactService}, không ở đây. */
+    public record ContactRequest(String fullName, String email, String phone, String subject, String content) {}
+
+    /**
+     * Tiếp nhận một liên hệ / phản ánh — CN-01.4.
+     *
+     * <h2>⛔ 204 và không thân phản hồi</h2>
+     *
+     * Không trả lại {@code publicId} hay bất kỳ mảnh nào của bản ghi vừa tạo. Đây là đường
+     * <b>ẩn danh</b>: trả về một mã định danh là trao cho người gửi (và cho người quét) một tay
+     * cầm vào dữ liệu bên trong, mà chẳng để làm gì — biểu mẫu chỉ cần biết đã gửi được.
+     *
+     * <h2>Chống lạm dụng</h2>
+     *
+     * Hạn mức tần suất do {@code RateLimitFilter} lo trên tiền tố {@code /api/v1/public}
+     * ({@code RateLimitPolicy.PUBLIC}). ⚠ reCAPTCHA v3 mà CN-01.4 yêu cầu <b>chưa dựng</b> —
+     * chặn bởi <b>G13</b> (Công ty chưa cấp khoá). Ghi ra để đây không bị đọc thành "đã đủ biện
+     * pháp chống lạm dụng".
+     */
+    @PostMapping("/contacts")
+    @ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)
+    @Operation(summary = "Gửi liên hệ / phản ánh từ cổng công khai")
+    @PublicEndpoint(reason = "Biểu mẫu liên hệ của người dân — CN-01.4")
+    public void submitContact(@RequestBody ContactRequest yeuCau) {
+        contacts.tiepNhan(yeuCau.fullName(), yeuCau.email(), yeuCau.phone(), yeuCau.subject(), yeuCau.content());
     }
 
     // ---- Tệp -----------------------------------------------------------------

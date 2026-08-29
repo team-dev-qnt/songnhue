@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 
 import type { MenuLink } from '@/lib/api';
-import { isExternal, menuHref, ROUTES } from '@/lib/routes';
+import { isExternal, menuHref } from '@/lib/routes';
 import { vuaThanhNgang } from '@/lib/vuaThanhNgang';
 
 /**
@@ -102,9 +102,21 @@ interface PortalNavProps {
  * <p>⛔ <b>KHÔNG thêm lại {@code tracking-wider}</b> dù nó vốn đi cùng chữ hoa: nó ngốn thêm
  * ~38px và đẩy thanh về sát mép. Cần thoáng hơn thì nới {@code py}, đừng nới {@code tracking}.
  *
- * <p>⚠ Menu con <b>vẫn chữ thường</b> — nhãn cấp 2 dài hơn và xếp dọc trong một danh sách dày;
- * viết hoa ở đó là bỏ đúng lợi ích dễ đọc mà không đổi lại được gì. Ngăn kéo dưới {@code lg} thì
- * cấp 1 CÓ viết hoa: nó xếp dọc nên bề rộng không phải ràng buộc.
+ * <p>⭐⭐ <b>29/08: menu con CŨNG viết hoa</b> — Công ty yêu cầu, và nó đảo lại lựa chọn ghi ở
+ * đoạn trên (giữ nguyên đoạn ấy để đọc được vì sao từng chọn khác).
+ *
+ * <p>⛔ Vì sao đặt ở CSS chứ không viết hoa vào nhãn trong CSDL: nhãn menu do Công ty nhập từ màn
+ * hình quản trị. Đặt ở dữ liệu thì hôm nay 12 mục con đúng, còn mục thứ 13 ai đó thêm vào tuần
+ * sau sẽ chữ thường — một quy ước phụ thuộc trí nhớ con người, và <b>không cổng kiểm nào bắt
+ * được</b> vì nó nằm trong CSDL. Đặt ở đây thì mọi mục mới tự có, kể cả mục chưa ai nhập.
+ *
+ * <p>Đây cũng là lý do bản vá ngày 29/08 <b>gỡ</b> migration đổi nhãn thành chữ hoa: hai cơ chế
+ * cùng sinh ra chữ hoa (CSS cho cấp 1, dữ liệu cho một mục cấp 2) chính là thứ tạo ra cảnh
+ * <i>một mục hoa, mười một mục thường</i> mà QuanTran chỉ ra.
+ *
+ * <p>⚠ Bề rộng đã đo, không ước lượng: menu con là danh sách dọc {@code min-w-64} (256px). Nhãn
+ * dài nhất "HOẠT ĐỘNG ĐẢNG, ĐOÀN THỂ" ở 13px chiếm ~204px + đệm 32px = 236px, còn dư 20px. Và
+ * {@code min-w} chứ không phải bề rộng cố định, nên nhãn dài hơn làm khối rộng ra chứ không tràn.
  *
  * <h2>⭐⭐ Ngưỡng là một PHÉP ĐO, không phải một con số chốt sẵn</h2>
  *
@@ -186,13 +198,20 @@ export function PortalNav({ tree }: PortalNavProps) {
     //   lượt vẽ lại nối đuôi. ResizeObserver bắn ngay lần `observe` đầu tiên nên phép đo mở màn
     //   vẫn có, mà không cần gọi tay.
     const doLai = () => {
-      const tim = timKiemRef.current;
-      if (!tim) return;
+      // ⚠⚠ 29/08: ô Tìm kiếm đã chuyển lên dải nhận diện, nên `timKiemRef` nay LUÔN null.
+      //    Bản trước `return` khi không tìm thấy nó — giữ nguyên dòng ấy là phép đo im lặng
+      //    ngừng chạy, `vuaKhung` kẹt ở `null` vĩnh viễn, và thanh điều hướng không bao giờ
+      //    rơi về ngăn kéo nữa. Không lỗi nào, không cổng kiểm nào đỏ. Đúng hình dạng "cơ chế
+      //    canh gác tồn tại mà không có hiệu lực".
+      //
+      //    Ref được giữ lại có chủ đích: chỗ bên phải thanh còn có thể có mục khác về sau, và
+      //    lúc ấy phép đo phải tính nó. Không có gì ở đó ⇒ 0, không phải "bỏ đo".
+      const rongTim = timKiemRef.current?.offsetWidth ?? 0;
       const kieu = getComputedStyle(khung);
       const vua = vuaThanhNgang({
         trong: khung.clientWidth - parseFloat(kieu.paddingLeft) - parseFloat(kieu.paddingRight),
         thuoc: thuoc.scrollWidth,
-        tim: tim.offsetWidth,
+        tim: rongTim,
       });
       // `null` = chưa kết luận được (khung bề rộng 0: tab chạy nền, lượt vẽ để in). GIỮ NGUYÊN
       // kết luận cũ — xem lý do ở `vuaThanhNgang`.
@@ -285,11 +304,11 @@ export function PortalNav({ tree }: PortalNavProps) {
     <nav
       ref={vungNavRef}
       aria-label="Điều hướng chính"
-      className="sticky top-0 z-40 w-full border-b border-black/20 bg-gradient-to-r from-chrome-navy800 via-chrome-navy500 to-chrome-navy800 text-white shadow-md backdrop-blur-md"
+      className="sticky top-0 z-40 w-full border-b-2 border-brand-primary bg-white text-surface-textBase shadow-sm"
     >
       <div
         ref={khungRef}
-        className="mx-auto flex max-w-[1240px] items-center justify-between gap-2 px-4 sm:px-6"
+        className="mx-auto flex max-w-[1232px] items-center justify-between gap-2 px-4 sm:px-6"
       >
         {/* ───── Nút ngăn kéo — chỉ dưới lg ───── */}
         <button
@@ -297,7 +316,7 @@ export function PortalNav({ tree }: PortalNavProps) {
           onClick={() => datMoNganKeo((cu) => !cu)}
           aria-expanded={moNganKeo}
           aria-controls={idNganKeo}
-          className={`items-center gap-2 py-3 pr-2 text-sm font-semibold text-white ${lopNutNganKeo}`}
+          className={`items-center gap-2 py-3 pr-2 text-sm font-semibold text-surface-textBase ${lopNutNganKeo}`}
         >
           <span className="relative flex h-5 w-5 items-center justify-center">
             <span
@@ -356,24 +375,13 @@ export function PortalNav({ tree }: PortalNavProps) {
             ))}
           </ul>
         </div>
-
-        {/* ───── Tìm kiếm ───── */}
-        <Link
-          ref={timKiemRef}
-          href={ROUTES.search}
-          className="flex items-center gap-1.5 rounded-md px-2 py-2 text-[12px] font-semibold uppercase text-white transition-colors duration-200 ease-smooth hover:bg-white/15 hover:text-brand-gold"
-          aria-label="Tìm kiếm"
-        >
-          <BieuTuongKinhLup />
-          <span className="hidden xl:inline">Tìm kiếm</span>
-        </Link>
       </div>
 
       {/* ───── Ngăn kéo — dưới lg ───── */}
       <div
         id={idNganKeo}
         hidden={!moNganKeo}
-        className={`max-h-[calc(100vh-3.5rem)] overflow-y-auto border-t border-white/10 bg-chrome-navy800 ${lopVungNganKeo}`}
+        className={`max-h-[calc(100vh-3.5rem)] overflow-y-auto border-t border-surface-border bg-white ${lopVungNganKeo}`}
       >
         <ul className="px-2 py-2">
           {tree.map((nhanh) => (
@@ -407,10 +415,13 @@ function MucCap1({ nhanh, dangO, dangMo, doiMo, dong, khiDieuHuong }: MucCap1Pro
   const coCon = children.length > 0;
   const idMenuCon = useId();
 
+  // ⚠ Gạch chân dùng `border-b-[3px]` ở CẢ hai trạng thái (trong suốt khi không hoạt động):
+  //   thêm viền chỉ ở trạng thái hoạt động là mục ấy cao hơn các mục khác 3px và cả hàng nhấp
+  //   nháy mỗi lần đổi trang.
   const lop = [
-    `${LOP_MUC_CAP1} transition-colors duration-200 ease-smooth`,
-    dangO ? 'text-brand-gold' : 'text-white',
-    'hover:bg-white/10 hover:text-brand-gold',
+    `${LOP_MUC_CAP1} border-b-[3px] transition-colors duration-200 ease-smooth`,
+    dangO ? 'border-brand-primary text-brand-primary' : 'border-transparent text-surface-textBase',
+    'hover:border-brand-primary hover:text-brand-primary',
   ].join(' ');
 
   return (
@@ -460,7 +471,7 @@ function MucCap1({ nhanh, dangO, dangMo, doiMo, dong, khiDieuHuong }: MucCap1Pro
                   target={con.openNewTab ? '_blank' : undefined}
                   rel={isExternal(con) ? 'noopener noreferrer' : undefined}
                   onClick={khiDieuHuong}
-                  className="block px-4 py-2.5 text-[13px] font-medium text-surface-textBase transition-all duration-150 ease-smooth hover:bg-brand-primaryLight hover:pl-5 hover:text-brand-primary"
+                  className="block px-4 py-2.5 text-[13px] font-medium uppercase text-surface-textBase transition-all duration-150 ease-smooth hover:bg-brand-primaryLight hover:pl-5 hover:text-brand-primary"
                 >
                   {con.label}
                 </Link>
@@ -492,11 +503,11 @@ function MucNganKeo({
   const idMenuCon = useId();
 
   const lopNhan = `flex-1 rounded-md px-3 py-3 text-left text-sm font-semibold uppercase ${
-    dangO ? 'text-brand-gold' : 'text-white'
+    dangO ? 'text-brand-primary' : 'text-surface-textBase'
   }`;
 
   return (
-    <li className="border-b border-white/10 last:border-0">
+    <li className="border-b border-surface-border/70 last:border-0">
       <div className="flex items-center">
         {href ? (
           <Link
@@ -524,7 +535,7 @@ function MucNganKeo({
             aria-expanded={mo}
             aria-controls={idMenuCon}
             aria-label={`${mo ? 'Thu gọn' : 'Mở rộng'} ${item.label}`}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-white/80 hover:bg-white/10 hover:text-white"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-surface-textSecondary hover:bg-surface-bgLayout hover:text-brand-primary"
           >
             <span className={`transition-transform duration-200 ${mo ? 'rotate-180' : ''}`}>
               <MuiTen />
@@ -544,7 +555,7 @@ function MucNganKeo({
                   target={con.openNewTab ? '_blank' : undefined}
                   rel={isExternal(con) ? 'noopener noreferrer' : undefined}
                   onClick={khiDieuHuong}
-                  className="block rounded-md px-3 py-2.5 text-[13px] font-medium text-white/85 hover:bg-white/10 hover:text-white"
+                  className="block rounded-md px-3 py-2.5 text-[13px] font-medium uppercase text-surface-textSecondary hover:bg-surface-bgLayout hover:text-brand-primary"
                 >
                   {con.label}
                 </Link>
@@ -569,25 +580,6 @@ function MuiTen() {
       aria-hidden="true"
     >
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-    </svg>
-  );
-}
-
-function BieuTuongKinhLup() {
-  return (
-    <svg
-      className="h-4 w-4"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      aria-hidden="true"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-      />
     </svg>
   );
 }

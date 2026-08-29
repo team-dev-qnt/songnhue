@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 
 import { EmptyBlock } from '@/components/home/EmptyBlock';
 import { PageShell } from '@/components/PageShell';
+import { SectionNav } from '@/components/SectionNav';
 import { getCompanyLeaders } from '@/lib/api';
 import { ROUTES } from '@/lib/routes';
 
@@ -95,6 +96,7 @@ export default async function LanhDaoPage() {
           </table>
         </div>
       )}
+      <SectionNav duongDan={ROUTES.gioiThieu.lanhDao} />
     </PageShell>
   );
 }

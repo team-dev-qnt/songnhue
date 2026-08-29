@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 
 import { EmptyBlock } from '@/components/home/EmptyBlock';
 import { PageShell } from '@/components/PageShell';
+import { SectionNav } from '@/components/SectionNav';
 import type { ConstructionRow } from '@/lib/api';
 import { getConstructionCatalog } from '@/lib/api';
 import { fileUrl, mapUrl, ROUTES } from '@/lib/routes';
@@ -116,6 +117,7 @@ export default async function DanhMucCongTrinhPage() {
           </EmptyBlock>
         </div>
       </section>
+      <SectionNav duongDan={ROUTES.quanLyVanHanh.danhMucCongTrinh} />
     </PageShell>
   );
 }
