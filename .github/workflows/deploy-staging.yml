@@ -116,3 +116,4 @@ jobs:
       USER: ${{ secrets.STAGING_USER }}
       SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
       BASE_URL: ${{ secrets.STAGING_BASE_URL }}
+      SSH_KNOWN_HOSTS: ${{ secrets.STAGING_SSH_KNOWN_HOSTS }}
