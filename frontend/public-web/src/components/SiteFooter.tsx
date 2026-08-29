@@ -80,7 +80,7 @@ export async function SiteFooter() {
         </svg>
       ),
     },
-  ];
+  ].filter((kenh) => kenh.url);
 
   return (
     <footer className="mt-16 w-full border-t border-white/10 bg-gradient-to-b from-chrome-navy700 via-chrome-navy600 to-chrome-navy900 text-white">
@@ -177,8 +177,12 @@ export async function SiteFooter() {
           Chân trang nay chỉ đọc menu vị trí FOOTER — cùng bảng, cùng màn hình quản trị với
           menu chính, nên hai nơi không lệch được (quy tắc 12).
         */}
-        {/* Cột 2: Liên kết nhanh — ĐỌC MENU FOOTER, không có mục nào viết cứng */}
-        <div className="lg:col-span-5">
+        {/* Cột 2: Liên kết nhanh — ĐỌC MENU FOOTER, không có mục nào viết cứng.
+            ⚠ Bề rộng bù lại phần cột "Kênh kết nối" khi cột ấy không được dựng: 4+5+3 = 12,
+              bỏ cột 3 mà giữ nguyên 5 là để lại một khoảng trống 3/12 bên phải chân trang —
+              trông y hệt một khối chưa tải xong. Hai chuỗi lớp viết nguyên văn để bộ quét
+              nguồn của Tailwind sinh được cả hai. */}
+        <div className={social.length > 0 ? 'lg:col-span-5' : 'lg:col-span-8'}>
           <p className="relative pb-2 font-bold text-xs text-white after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-8 after:rounded after:bg-sky-300">
             Liên kết nhanh
           </p>
@@ -239,29 +243,39 @@ export async function SiteFooter() {
         {/* Cột 4: Kênh kết nối truyền thông (3/12 cột).
 
             ⛔ Bản đồ ĐÃ RỜI khỏi cột này — xem dải bản đồ kín bề rộng ngay dưới lưới. */}
-        <div className="space-y-3.5 lg:col-span-3">
-          <p className="relative pb-2 font-bold text-xs text-white after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-8 after:rounded after:bg-sky-300">
-            Kênh kết nối
-          </p>
+        {/* ⛔ 29/08: KHÔNG dựng cột này khi chưa kênh nào được cấu hình.
 
-          {/* Mạng xã hội */}
-          <div className="flex flex-col gap-2">
-            {social
-              .filter((s) => s.url)
-              .map((s) => (
+            Trước lượt này tiêu đề "Kênh kết nối" hiện vô điều kiện rồi lọc danh sách bên
+            trong — mà cả ba khoá `site.footer.social.*` đang RỖNG trên mọi môi trường (Facebook
+            / Zalo / YouTube của Công ty thuộc nhóm **G13**, chưa được cung cấp). Kết quả đo
+            được: một tiêu đề có gạch chân, chiếm 3/12 bề rộng chân trang, và không một dòng
+            nào bên dưới — người đọc thấy một mục hỏng, không thấy một mục trống.
+
+            ⛔ Và KHÔNG có kênh mặc định. `architecture-review.md` §3408 ghi lại đúng chỗ này
+               từng rơi về `https://facebook.com`: một liên kết trỏ tới trang chủ Facebook,
+               nhân danh Công ty, hiện ra đúng lúc cấu hình rỗng. */}
+        {social.length > 0 ? (
+          <div className="space-y-3.5 lg:col-span-3">
+            <p className="relative pb-2 font-bold text-xs text-white after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-8 after:rounded after:bg-sky-300">
+              Kênh kết nối
+            </p>
+
+            <div className="flex flex-col gap-2">
+              {social.map((kenh) => (
                 <a
-                  key={s.label}
-                  href={s.url}
+                  key={kenh.label}
+                  href={kenh.url}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2.5 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-medium text-white shadow-xs backdrop-blur-xs transition-all duration-200 hover:-translate-y-0.5 hover:bg-white hover:text-brand-primary"
                 >
-                  <span>{s.icon}</span>
-                  <span>{s.label}</span>
+                  <span>{kenh.icon}</span>
+                  <span>{kenh.label}</span>
                 </a>
               ))}
+            </div>
           </div>
-        </div>
+        ) : null}
       </div>
 
       {/* ───── 2b. Dải BẢN ĐỒ TRỤ SỞ — kín bề rộng chân trang ─────

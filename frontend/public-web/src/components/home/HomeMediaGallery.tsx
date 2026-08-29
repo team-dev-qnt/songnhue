@@ -1,4 +1,5 @@
 import { PortalImage } from '@/components/PortalImage';
+import { AnhCarousel } from './AnhCarousel';
 import { EmptyBlock } from './EmptyBlock';
 import { SectionTitle } from './SectionTitle';
 
@@ -12,6 +13,14 @@ interface HomeMediaGalleryProps {
   videoId?: string;
   videoTitle?: string;
   photos?: PhotoItem[];
+  /**
+   * Cấu hình slider — ĐÚNG bộ khoá `site.slider.*` mà slider tin tức đang đọc (yêu cầu 29/08).
+   * Không có bộ khoá thứ hai cho dải ảnh này: một cơ chế, một chỗ chỉnh.
+   */
+  intervalSeconds: number;
+  autoplay: boolean;
+  showArrows: boolean;
+  showDots: boolean;
 }
 
 /**
@@ -27,8 +36,9 @@ interface HomeMediaGalleryProps {
  *
  * <h2>⭐ 29/08: hai mục có tiêu đề riêng, và KHÔNG ảnh nào hiện hai lần</h2>
  *
- * Bản vẽ tách thành hai khối: cột phải 5/12 cạnh video là danh sách ảnh nhỏ 103×68, rồi bên
- * dưới là "Chuyên mục ảnh" lưới ba cột. Nhưng bản vẽ vẽ <b>cùng ba tấm ảnh</b> ở cả hai chỗ —
+ * Bản vẽ tách thành hai khối: cột phải 5/12 cạnh video, rồi bên dưới là "Chuyên mục ảnh" lưới
+ * ba cột. (Cột phải là một <b>slider</b> từ 29/08 chiều — xem {@link SO_ANH_CANH_VIDEO}.)
+ * Nhưng bản vẽ vẽ <b>cùng ba tấm ảnh</b> ở cả hai chỗ —
  * đó là một lỗi của bản vẽ, không phải một ý đồ: cổng chỉ có MỘT nguồn ảnh
  * ({@code /public/photos}), nên hai khối lấy cùng mảng là người xem cuộn qua đúng bộ ảnh hai
  * lần và tưởng thư viện dài gấp đôi thực tế.
@@ -43,16 +53,29 @@ interface HomeMediaGalleryProps {
  */
 
 /**
- * Số ảnh đứng cạnh video. Bốn dòng 103×68 kèm khoảng cách vừa lấp chiều cao của khung video
- * 16:9 ở cột 7/12 — nhiều hơn thì cột phải dài hơn cột trái, đúng thứ yêu cầu 29/08 gọi là
- * *"bên cao bên thấp"*.
+ * Số ảnh vào slider cạnh video.
+ *
+ * ⚠ Bản trước là một DANH SÁCH bốn dòng, và nó hỏng đúng theo hai cách cùng lúc: lớp
+ * {@code w-[103px]} truyền qua {@code className} của {@code PortalImage} không có tác dụng
+ * (xem Javadoc của {@code PortalImage}), nên mỗi ảnh nở kín bề rộng cột và cột phải cao khoảng
+ * <b>2000px</b> trong khi khung video chỉ 394px — đúng thứ nghiệm thu 29/08 mô tả là *"column
+ * ảnh bên trái hiển thị xuống dưới trong khi column video bị trống"*. Nay là một slider: chiều
+ * cao do khung quyết định, không do số ảnh, nên thêm bao nhiêu ảnh cũng không lệch cột.
  */
-const SO_ANH_CANH_VIDEO = 4;
+const SO_ANH_CANH_VIDEO = 6;
 
 /** Số ô của lưới "Chuyên mục ảnh" — hai hàng ba cột. */
 const SO_ANH_LUOI = 6;
 
-export function HomeMediaGallery({ videoId, videoTitle, photos = [] }: HomeMediaGalleryProps) {
+export function HomeMediaGallery({
+  videoId,
+  videoTitle,
+  photos = [],
+  intervalSeconds,
+  autoplay,
+  showArrows,
+  showDots,
+}: HomeMediaGalleryProps) {
   const anhCanhVideo = photos.slice(0, SO_ANH_CANH_VIDEO);
   const anhLuoi = photos.slice(SO_ANH_CANH_VIDEO, SO_ANH_CANH_VIDEO + SO_ANH_LUOI);
 
@@ -90,44 +113,30 @@ export function HomeMediaGallery({ videoId, videoTitle, photos = [] }: HomeMedia
             ) : null}
           </div>
 
-          {/* CỘT PHẢI (5/12): ẢNH MỚI NHẤT — dòng ảnh 103×68 + tiêu đề, đúng bản vẽ */}
+          {/* CỘT PHẢI (5/12): SLIDER ẢNH — cùng cơ chế và cùng cấu hình với slider tin tức. */}
           <div className="flex flex-col lg:col-span-5">
-            {anhCanhVideo.length === 0 ? (
-              <div className="flex flex-1 items-center">
-                <EmptyBlock>
-                  Chưa có ảnh trong thư viện. Chọn thư mục ảnh ở ô &ldquo;Thư mục ảnh của thư viện
-                  trang chủ&rdquo; trong Cấu hình website, rồi tải ảnh vào thư mục ấy ở Thư viện
-                  media.
-                </EmptyBlock>
-              </div>
-            ) : (
-              <ul className="flex flex-1 flex-col justify-between gap-1">
-                {anhCanhVideo.map((p) => (
-                  <li
-                    key={p.id}
-                    className="flex items-center gap-4 border-b border-surface-border/60 py-3 last:border-b-0"
-                  >
-                    <PortalImage
-                      src={p.imageUrl || null}
-                      alt={p.title}
-                      ratio="aspect-[103/68]"
-                      className="w-[103px] shrink-0 rounded-md"
-                    />
-                    {/* Tiêu đề rỗng ⇒ ô chữ bỏ trống, KHÔNG hiện tên tệp và không bịa một câu.
-                        Ảnh Công ty gửi mang tên do máy sinh; BE trả rỗng (sửa ở #57). */}
-                    {p.title ? (
-                      <span className="line-clamp-3 text-[15px] leading-snug text-surface-textBase">
-                        {p.title}
-                      </span>
-                    ) : (
-                      <span className="text-xs italic text-surface-textSecondary">
-                        Ảnh chưa có chú thích
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
+            <AnhCarousel
+              muc={anhCanhVideo.map((p) => ({
+                khoa: p.id,
+                src: p.imageUrl || null,
+                title: p.title,
+              }))}
+              intervalSeconds={intervalSeconds}
+              autoplay={autoplay}
+              showArrows={showArrows}
+              showDots={showDots}
+              nhan="Ảnh thư viện của Công ty"
+              chieuCaoToiThieu="min-h-[220px] lg:min-h-[300px]"
+              khiRong={
+                <div className="flex flex-1 items-center">
+                  <EmptyBlock>
+                    Chưa có ảnh trong thư viện. Chọn thư mục ảnh ở ô &ldquo;Thư mục ảnh của thư viện
+                    trang chủ&rdquo; trong Cấu hình website, rồi tải ảnh vào thư mục ấy ở Thư viện
+                    media.
+                  </EmptyBlock>
+                </div>
+              }
+            />
           </div>
         </div>
       </section>

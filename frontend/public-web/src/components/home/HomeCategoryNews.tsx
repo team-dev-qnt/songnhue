@@ -92,7 +92,8 @@ export function HomeCategoryNews({ blocks }: { blocks: KhoiTinChuyenMuc[] }) {
                             src={fileUrl(bai.coverAttachmentPublicId)}
                             alt=""
                             ratio="aspect-[103/68]"
-                            className="w-[103px] shrink-0 rounded-md"
+                            rong="w-[103px]"
+                            className="shrink-0 rounded-md"
                           />
                           <div className="min-w-0">
                             <h4 className="line-clamp-2 text-[15px] leading-snug text-surface-textBase transition-colors duration-200 group-hover:text-brand-primary">

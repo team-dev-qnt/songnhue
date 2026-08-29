@@ -308,7 +308,12 @@ FROM (VALUES
      'Slug nhánh danh mục. Các mục menu con của nhánh này dựng thành hàng chuyên mục dưới slider.',
      '^[a-z0-9-]+$', 97),
 
-    ('site.home.category-news-count', '4', 'INTEGER',
+    -- ⭐ 2, không phải 4 — Công ty chốt sổ ngày 29/08: *"chỉ hiển thị mỗi column 2 bài viết
+    --   mới nhất"*. Hàng chuyên mục vẽ bài đầu bằng ảnh lớn rồi các bài sau bằng dòng ảnh
+    --   nhỏ, nên 2 cho ra đúng một ảnh lớn + một dòng: ba cột cao gần bằng nhau với MỌI bộ
+    --   nội dung. Ở 4, cột nào đủ bài thì cao gấp đôi cột chưa có bài — thứ đo được trên
+    --   stack sáng 29/08.
+    ('site.home.category-news-count', '2', 'INTEGER',
      'SITE', 'Số bài mỗi chuyên mục ở hàng chuyên mục trang chủ',
      'Áp cho từng ô chuyên mục con. Ô nào chưa có bài thì nói thẳng là chưa có, không mượn bài của ô khác.',
      '^([1-9]|1[0-2])$', 98),

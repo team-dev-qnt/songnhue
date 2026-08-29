@@ -23,6 +23,27 @@
  *       {@code null} — trả null là lưới co lại và các thẻ cạnh nhau cao thấp so le.
  * </ol>
  *
+ * <h2>⭐⭐ Bề rộng có đúng MỘT chủ: prop {@code rong}</h2>
+ *
+ * Khung ngoài luôn mang một lớp bề rộng, mặc định {@code w-full}. Muốn khác thì truyền
+ * {@code rong}, <b>không</b> nhét vào {@code className}.
+ *
+ * <p>⛔ Vì sao đây là một luật chứ không phải sở thích — đo được ngày 29/08 trên CSS đang chạy:
+ * {@code .w-\[103px\]} nằm ở byte <b>28977</b>, {@code .w-full} ở byte <b>29021</b>. Hai lớp cùng
+ * độ ưu tiên, nên lớp đứng SAU thắng — và lớp đứng sau luôn là {@code w-full}, vì Tailwind xếp
+ * giá trị tùy biến trước giá trị có sẵn. Kết quả: mọi nơi gọi truyền {@code w-[103px]} qua
+ * {@code className} đều nhận một ảnh <b>kín bề rộng cột</b>.
+ *
+ * <p>Hậu quả đo được trên trang chủ hôm ấy — và đây mới là phần đắt: ảnh nở ra kín cả hàng
+ * {@code flex}, ô chữ bên cạnh ({@code min-w-0}) co về <b>bề rộng 0</b>, nên <b>tiêu đề bài viết
+ * biến mất</b> còn ngày tháng tràn sang cột bên. Ba nơi gọi cùng dính: danh sách tin theo chuyên
+ * mục, cột tin cạnh slider, dải ảnh cạnh video. Không có gì đỏ ở bất kỳ đâu: lớp vẫn đúng tên,
+ * vẫn được sinh ra trong CSS, chỉ là không thắng.
+ *
+ * <p>Cách chữa không phải {@code !w-[103px]} mà là <b>bỏ hẳn cuộc đua</b>: {@code w-full} không
+ * còn được phát ra khi nơi gọi đã đặt {@code rong}, vì cả hai dùng chung một ô trong chuỗi lớp.
+ * Hai lớp không bao giờ cùng xuất hiện thì không có thứ tự nào để mà phụ thuộc.
+ *
  * <h2>⚠ Vì sao là {@code <img>} chứ không phải {@code next/image}</h2>
  *
  * Quyết định cũ ở {@code architecture-review.md} §10.9: bộ tối ưu của Next đòi {@code sharp},
@@ -39,7 +60,15 @@ interface PortalImageProps {
   alt: string;
   /** Lớp tỉ lệ khung của Tailwind. Đổi tỉ lệ là đổi ở đây, không đổi bằng chiều cao cố định. */
   ratio?: string;
-  /** Lớp cho KHUNG ngoài — bo góc, viền, `h-full` khi khung phải giãn theo lưới. */
+  /**
+   * **Bề rộng khung** — mặc định `w-full`. Chỗ DUY NHẤT được đặt bề rộng cho ô ảnh.
+   *
+   * ⛔⛔ Đặt bề rộng trong {@link className} thì nó KHÔNG có tác dụng, và không có gì đỏ.
+   *    Xem khối "Bề rộng có đúng MỘT chủ" ở đầu tệp — đây là chỗ chữa của lỗi đo được ngày
+   *    29/08. `noPortalImageWidth.test.ts` canh cho không ai đặt nhầm chỗ nữa.
+   */
+  rong?: string;
+  /** Lớp cho KHUNG ngoài — bo góc, viền, `shrink-0`, `h-full` khi khung phải giãn theo lưới. */
   className?: string;
   /**
    * Ảnh nằm trong màn hình đầu tiên (slider trang chủ). Chỉ bật cho **một** ảnh mỗi trang:
@@ -52,11 +81,12 @@ export function PortalImage({
   src,
   alt,
   ratio = 'aspect-[16/10]',
+  rong = 'w-full',
   className = '',
   priority = false,
 }: PortalImageProps) {
   return (
-    <div className={`relative ${ratio} w-full overflow-hidden bg-surface-bgLayout ${className}`}>
+    <div className={`relative ${ratio} ${rong} overflow-hidden bg-surface-bgLayout ${className}`}>
       {src ? (
         <img
           src={src}

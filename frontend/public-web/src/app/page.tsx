@@ -80,30 +80,19 @@ export const revalidate = 300;
 const SO_BAI_TIN_TUC = 24;
 
 export default async function HomePage() {
-  const [
-    config,
-    banners,
-    photos,
-    latest,
-    headerMenu,
-    portalLinks,
-    subsidiaries,
-    catalog,
-    serverTime,
-  ] = await Promise.all([
-    getSiteConfig(),
-    getBanners(),
-    getPhotos(),
-    getArticles({ size: SO_BAI_TIN_TUC }),
-    getMenu('HEADER'),
-    getMenu('LIEN_KET'),
-    getSubsidiaries(),
-    getConstructionCatalog(),
-    getServerTime(),
-  ]);
+  const [config, banners, photos, headerMenu, portalLinks, subsidiaries, catalog, serverTime] =
+    await Promise.all([
+      getSiteConfig(),
+      getBanners(),
+      getPhotos(),
+      getMenu('HEADER'),
+      getMenu('LIEN_KET'),
+      getSubsidiaries(),
+      getConstructionCatalog(),
+      getServerTime(),
+    ]);
 
   const hotline = config?.['company.hotline'] ?? '';
-  const allArticles = latest?.content ?? [];
   const menuTree = buildMenuTree(headerMenu ?? []);
 
   // ⚠ Mọi tham số dưới đây đọc từ `settings`, không có số nào viết trong tệp này. Mặc định thứ hai
@@ -126,7 +115,13 @@ export default async function HomePage() {
 
   // Hai lượt gọi dưới đây phụ thuộc `config` ở lượt trên nên phải chờ tới đây; chúng chạy song
   // song với nhau. Danh mục lạ ⇒ backend trả rỗng, khối nói thẳng là chưa có bài — không nổ.
-  const [documents, baiTheoChuyenMuc] = await Promise.all([
+  const [latest, documents, baiTheoChuyenMuc] = await Promise.all([
+    // ⚠ LỌC theo `site.home.news-category`, không lấy toàn bộ bài. Bản trước gọi
+    //   `getArticles({ size })` trần, nên cột "Tin tức – Sự kiện" liệt kê cả bài của nhánh
+    //   Giới thiệu — đo được trên stack 29/08: dòng mới nhất là trang tĩnh **"Tổng quan"**,
+    //   không có ảnh bìa. Một danh sách mà nút "Xem tất cả" dẫn tới nơi KHÔNG chứa những mục
+    //   vừa liệt kê là một danh sách sai, không phải một danh sách rộng hơn.
+    getArticles({ category: danhMucTin, size: SO_BAI_TIN_TUC }),
     getArticles({ category: danhMucVanBan, size: soVanBan }),
     Promise.all(
       chuyenMuc.map(async (cm) => ({
@@ -135,6 +130,8 @@ export default async function HomePage() {
       })),
     ),
   ]);
+
+  const allArticles = latest?.content ?? [];
 
   return (
     <div className="mx-auto max-w-[1232px] px-4 py-6 sm:px-6 sm:py-8 animate-fade-in">
@@ -212,6 +209,10 @@ export default async function HomePage() {
           title: a.title,
           imageUrl: fileUrl(a.publicId) ?? '',
         }))}
+        intervalSeconds={nhipSlider}
+        autoplay={docBool(config?.['site.slider.autoplay'], true)}
+        showArrows={docBool(config?.['site.slider.show-arrows'], true)}
+        showDots={docBool(config?.['site.slider.show-dots'], true)}
       />
       <CategoryServicesGrid menuTree={menuTree} />
     </div>

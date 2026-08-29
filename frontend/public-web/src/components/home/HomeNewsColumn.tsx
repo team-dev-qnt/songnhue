@@ -59,7 +59,8 @@ export function HomeNewsColumn({ articles, soBai, tieuDe, categorySlug }: HomeNe
                   src={fileUrl(article.coverAttachmentPublicId)}
                   alt=""
                   ratio="aspect-[16/9]"
-                  className="w-[103px] shrink-0 rounded-lg lg:w-[120px]"
+                  rong="w-[103px] lg:w-[120px]"
+                  className="shrink-0 rounded-lg"
                 />
                 <div className="min-w-0">
                   <h3 className="line-clamp-3 text-[15px] leading-snug text-surface-textBase transition-colors duration-200 group-hover:text-brand-primary">
