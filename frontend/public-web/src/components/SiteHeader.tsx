@@ -80,7 +80,7 @@ export async function SiteHeader() {
   // Ghi đè chỉ khi Công ty thật sự đặt — rỗng thì một nguồn là đủ.
   const tenDauTrang = config?.['site.header.display-name'] || siteName;
   const coQuanChuQuan = config?.['site.header.parent-org'] ?? '';
-  const logo = fileUrl(config?.['site.logo.attachment-id']) || '/logo-song-nhue.png';
+  const logo = fileUrl(config?.['site.logo.attachment-id']) || '/logo.png';
 
   // Số trực ban 24/7 — đọc từ nhóm `company.*`.
   //
@@ -104,23 +104,24 @@ export async function SiteHeader() {
       <div className="w-full border-b border-white/10 bg-gradient-to-r from-chrome-navy800 via-chrome-navy500 to-chrome-navy800 shadow-xs">
         <div className="mx-auto flex max-w-[1232px] items-center justify-between gap-4 px-4 py-3 sm:gap-8 sm:px-6 sm:py-4">
           <Link href={ROUTES.home} className="group flex min-w-0 items-center gap-3 sm:gap-4">
-            {/* ⚠ `translate-y-[11.2%]` bù KHOẢNG TRỐNG BAKED-IN của tệp logo, không phải một
-                tinh chỉnh thẩm mỹ.
+            {/* ⭐ 29/08: ĐÃ GỠ `translate-y-[11.2%]` — và việc gỡ là bắt buộc, không phải dọn dẹp.
 
-                Logo Công ty tải lên từ màn hình quản trị là PNG 612×792, nhưng phần vẽ chỉ nằm ở
-                hàng 88→525: lề trên 88px, **lề dưới 266px**. Tức 33,6% đáy khung là trong suốt,
-                nên tâm phần nhìn thấy nằm CAO HƠN tâm khung 89px = 11,24% chiều cao. `items-center`
-                canh giữa cái KHUNG, nên mắt thấy logo lệch lên.
+                Bản trước bù KHOẢNG TRỐNG BAKED-IN của `logo-song-nhue.png`: PNG 612×792 mà phần
+                vẽ chỉ nằm ở hàng 88→525 (lề dưới 266px = 33,6% khung), nên tâm phần nhìn thấy cao
+                hơn tâm khung 11,24% và `items-center` canh giữa cái KHUNG chứ không canh phần vẽ.
+                Chú thích cũ nói thẳng: *"nếu Công ty tải lên bản đã cắt sát viền thì PHẢI bỏ dòng
+                này, nếu không nó lại lệch xuống"*.
 
-                Dùng `%` chứ không dùng `px`: đơn vị ấy tính theo chiều cao của chính ảnh, nên một
-                giá trị đúng cho cả `h-11` (≈4,9px) lẫn `sm:h-16` (≈7,2px).
+                Đo `logo.png` (tệp Công ty gửi 29/08) bằng cách đọc kênh alpha từng hàng: 354×353,
+                phần vẽ nằm ở hàng **0→352** — lề trên 0px, lề dưới 0px, tâm vẽ trùng tâm khung.
+                Giữ lại phép bù là đẩy logo xuống 11,2% mà không có gì để bù.
 
-                ⛔ Con số này gắn với TỆP LOGO HIỆN TẠI. Nếu Công ty tải lên bản đã cắt sát viền thì
-                   PHẢI bỏ dòng này, nếu không nó lại lệch xuống. */}
+                ⛔ Con số bù luôn gắn với MỘT tệp cụ thể. Đổi logo thì đo lại biên alpha trước, đừng
+                   chép lại giá trị cũ. */}
             <img
               src={logo}
               alt={siteName}
-              className="h-11 w-auto shrink-0 translate-y-[11.2%] object-contain transition-transform duration-300 ease-smooth group-hover:scale-105 sm:h-16"
+              className="h-11 w-auto shrink-0 object-contain transition-transform duration-300 ease-smooth group-hover:scale-105 sm:h-16"
             />
             <div className="min-w-0">
               {coQuanChuQuan ? (

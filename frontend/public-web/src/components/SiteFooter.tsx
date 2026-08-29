@@ -45,7 +45,10 @@ export async function SiteFooter() {
   const heThongVanBan = config?.['site.external.doc-system-url'] ?? '';
   const companyInfo = config?.['site.footer.company-info'] ?? '';
   const mapEmbed = config?.['site.footer.map-embed'] ?? '';
-  const logo = fileUrl(config?.['site.logo.attachment-id']) || '/logo-song-nhue.png';
+  // ⚠ Dự phòng là `/logo.png` — bản trắng trên nền trong suốt Công ty gửi 29/08. Nó chỉ đọc
+  //   được trên nền TỐI, và cả đầu trang lẫn chân trang đều nền navy nên đúng chỗ. Biểu tượng
+  //   tab trình duyệt thì KHÔNG dùng tệp này — xem `layout.tsx`.
+  const logo = fileUrl(config?.['site.logo.attachment-id']) || '/logo.png';
   const copyright =
     config?.['site.footer.copyright'] || `© ${new Date().getFullYear()} ${siteName}`;
 

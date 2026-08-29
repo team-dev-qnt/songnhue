@@ -251,6 +251,41 @@ class SeedGateTest {
                 .contains("condition: service_completed_successfully");
     }
 
+    @Test
+    @DisplayName("⭐ compose LOCAL cũng ràng buộc đúng thứ tự ấy — máy dev đo được thứ staging đo")
+    void composeLocalCungRangBuocThuTu() {
+        // ⚠⚠ LUẬT 28 — bài trên chỉ soi `compose.prod.yml`, và cho tới 29/08 đó là toàn bộ phạm
+        //    vi của bộ canh này. Hệ quả đo được: stack local KHÔNG có vế byte nào và KHÔNG đọc
+        //    `SEED_LOCATION`, nên `/banners` và `/photos` trả 0 trên mọi máy dev. Slider và thư
+        //    viện ảnh vì thế chỉ từng được nghiệm thu ở nhánh RỖNG — nhánh có dữ liệu thì duy
+        //    nhất staging đi qua, tức lỗi ở đó chỉ lộ ra sau khi đã deploy.
+        //
+        //    Cái xanh của bài trên đọc như một lời bảo đảm về "bộ seed", trong khi nó chỉ bảo
+        //    đảm cho một trong hai môi trường chạy bộ seed ấy.
+        String infra = doc(tuGocKho("deploy/compose.infra.yml"));
+        String local = doc(tuGocKho("deploy/compose.local.yml"));
+
+        assertThat(khoiService(infra, "minio-init"))
+                .as("`minio-init` của stack local phải gắn thư mục byte seed và đọc CÙNG biến "
+                        + "`SEED_LOCATION` mà `migrator` đọc — hai biến là hai thứ sẽ lệch.")
+                .contains("./seed/media:/seed-media:ro")
+                .contains("SEED_LOCATION: ${SEED_LOCATION:-}")
+                .contains("if [ -n \"$$SEED_LOCATION\" ]; then");
+
+        assertThat(khoiService(local, "migrator"))
+                .as("`migrator` của stack local phải chờ `minio-init` xong. Thiếu ràng buộc này "
+                        + "thì hàng `attachments` có thể vào CSDL trước byte — CSDL nói tệp tồn "
+                        + "tại, `GET /api/v1/public/files/<id>` trả 404.")
+                .contains("minio-init:")
+                .contains("condition: service_completed_successfully");
+
+        // Chặn xanh-trên-tập-rỗng: tệp env của local PHẢI đang bật, nếu không hai khẳng định
+        // trên chỉ chứng minh dây đã nối mà không ai bật công tắc.
+        assertThat(giaTri(doc(tuGocKho("deploy/env/local.env")), "SEED_LOCATION"))
+                .as("`local.env` phải bật bộ seed — nếu không, máy dev lại đo nhánh rỗng.")
+                .isEqualTo("classpath:db/seed/portal");
+    }
+
     // =========================================================================
     // 3. Hàng trong CSDL ↔ byte trên đĩa
     // =========================================================================

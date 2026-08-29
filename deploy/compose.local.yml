@@ -40,6 +40,13 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      # ⚠⚠ PHẢI có, và phải là `service_completed_successfully` — giống hệt
+      #   `compose.prod.yml`. Migration seed ghi hàng `attachments` KHẲNG ĐỊNH byte
+      #   đã có trong MinIO; đảo thứ tự thì CSDL nói tệp tồn tại còn
+      #   `GET /api/v1/public/files/<id>` trả 404 — hỏng CÂM. Ràng buộc đặt ở chỗ
+      #   lời khẳng định được viết ra, không đặt ở thứ tự dòng lệnh.
+      minio-init:
+        condition: service_completed_successfully
     env_file:
       - ./env/local.env
     environment:
