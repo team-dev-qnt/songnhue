@@ -56,7 +56,19 @@ import com.songnhue.core.common.filter.CorrelationFilter;
         properties = {
             "spring.messages.basename=error-messages",
             "spring.messages.encoding=UTF-8",
-            "spring.messages.fallback-to-system-locale=false"
+            "spring.messages.fallback-to-system-locale=false",
+            // ⭐ BẮT BUỘC, và việc nó bắt buộc là CÓ CHỦ ĐÍCH — không phải phiền toái để né.
+            //
+            // `GlobalExceptionHandler` đọc trần multipart bằng `@Value` KHÔNG mặc định, nên thiếu
+            // thuộc tính này là context không lên. Đổi lại, ta được một bảo đảm mạnh hơn mọi bài
+            // kiểm: xoá khối `spring.servlet.multipart` khỏi `application.yml` thì **ứng dụng từ
+            // chối khởi động**, thay vì âm thầm rơi về mặc định 1MB của Spring Boot và trả 500 cho
+            // mọi tệp lớn (§10.69 — đúng sự cố staging 30/08).
+            //
+            // ⛔ Nếu bạn tới đây vì context đỏ: KHÔNG thêm giá trị mặc định vào `@Value`. Một mặc
+            //    định ở đó làm câu thông báo lỗi nói một con số còn máy chủ hành xử theo con số
+            //    khác — đúng cái bẫy mà cả §10.69 sinh ra để đóng lại.
+            "spring.servlet.multipart.max-file-size=1MB"
         })
 @Import(EnvelopeAndErrorHandlingTest.TestController.class)
 class EnvelopeAndErrorHandlingTest {

@@ -93,6 +93,15 @@ export const ERROR_CATALOG = {
     handling: 'toast',
     severity: 'warning',
   },
+  // ⚠ Trần HẠ TẦNG, không phải hạn mức nghiệp vụ. Hạn mức nghiệp vụ (`limits.upload.max-mb.*`,
+  //   sửa được ở màn hình Cấu hình hệ thống) trả SYS-0003 kèm chi tiết FILE_TOO_LARGE. Mã này chỉ
+  //   nổ khi tệp vượt trần multipart của máy chủ — chặn trước cả controller. Trước 30/08/2026 nó
+  //   trả về 500 và người dùng nhận "Lỗi hệ thống, vui lòng thử lại" cho một tệp cần nén nhỏ lại.
+  'SYS-0011': {
+    message: 'Tệp quá lớn so với giới hạn máy chủ — nén nhỏ lại hoặc chia thành nhiều tệp',
+    handling: 'toast',
+    severity: 'warning',
+  },
 
   // --- Xác thực & phân quyền -------------------------------------------------
   'AUTH-0001': {

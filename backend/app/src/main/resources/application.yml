@@ -115,9 +115,60 @@ spring:
     serialization:
       write-dates-as-timestamps: false
 
+  # ── Trần dung lượng lúc PHÂN TÍCH multipart ───────────────────────────────────────────────
+  #
+  # ⚠⚠ KHÔNG XOÁ KHỐI NÀY. Thiếu nó, Spring Boot áp mặc định **1MB/tệp**, và mặc định ấy nằm
+  #    TRƯỚC controller — ở `DispatcherServlet.checkMultipart`. Đo được trên staging 30/08: mọi
+  #    tệp > 1MB ném `MaxUploadSizeExceededException`, rơi vào lưới an toàn cuối của
+  #    `GlobalExceptionHandler` và trả **500**, trong khi màn hình cấu hình vẫn bày ra
+  #    `limits.upload.max-mb.image = 10`.
+  #
+  #    Hệ quả nặng hơn một lỗi 500: cơ chế hạn mức đọc từ `settings` (WS-12, `AttachmentQuotaTest`)
+  #    **chưa từng quyết định điều gì** — nó nằm sau một trần thấp hơn mà không ai nhìn thấy. Đúng
+  #    quy tắc 3 (canh giá trị ĐÃ GIẢI, đừng canh giá trị MẶC ĐỊNH); ở đây mặc định thắng còn
+  #    không phải của mình. Nó sống được vì 39/39 tệp trên staging đều dưới 1MB (lớn nhất 570 kB).
+  #
+  # ⛔ VÌ SAO 120MB, KHÔNG PHẢI 500MB CHO BẰNG `limits.upload.max-mb.video`
+  #
+  #    Đường tải lên đi qua `byte[]`: `file.getBytes()` rồi `ImageSanitizer`/`storage.put` — ít
+  #    nhất hai bản sao nằm trong heap cùng lúc. Heap đo được ở staging là 1.076 GB
+  #    (`MaxRAMPercentage=70` trên container 1.5 GB) và JVM chạy `-XX:+ExitOnOutOfMemoryError`.
+  #    Nâng trần lên 500MB KHÔNG mở khoá video 500MB — nó đổi một lỗi 413 sạch sẽ lấy một lượt
+  #    **giết tiến trình**. 120MB phủ trọn nhóm lớn nhất còn sống được (`gis = 100`).
+  #
+  #    Muốn tải tệp lớn hơn thì phải đổi sang tải theo luồng, không phải viết một số to hơn ở đây
+  #    (nợ T26.71). `limits.upload.max-mb.video` đã hạ 500 → 120 ở `V202608301048` cho khớp, và
+  #    `UploadSizeCeilingTest` canh không cho khoá nào vượt trần này nữa.
+  servlet:
+    multipart:
+      max-file-size: ${UPLOAD_MAX_FILE_MB:120}MB
+      # Nhỉnh hơn max-file-size: thân multipart còn mang chuỗi biên, header từng phần và các
+      # trường đi kèm. Bằng nhau thì một tệp đúng bằng trần vẫn bị chặn ở mức request.
+      max-request-size: ${UPLOAD_MAX_REQUEST_MB:130}MB
+
 server:
   port: ${APP_PORT:8080}
   shutdown: graceful
+  tomcat:
+    # ── Vì sao một lỗi 413 cần thêm dòng cấu hình này mới TỚI được người dùng ───────────────
+    #
+    # ⚠⚠ Tomcat từ chối tệp quá lớn khi mới đọc được một phần thân yêu cầu. Phần còn lại vẫn
+    #    đang trên đường tới. Muốn trả lời tử tế thì phải đọc nốt rồi vứt đi ("swallow"); không
+    #    đọc nốt thì Tomcat ĐÓNG KẾT NỐI, và trình duyệt nhận một lỗi mạng trắng trơn thay vì
+    #    câu "tệp quá lớn".
+    #
+    #    Mặc định là 2MB — tức nhỏ hơn trần multipart (120MB) rất nhiều. Hệ quả: đúng những lượt
+    #    tải mà SYS-0011 sinh ra để giải thích lại là những lượt KHÔNG BAO GIỜ nhận được nó.
+    #    Bộ bắt ngoại lệ vẫn chạy, log vẫn ghi, response vẫn dựng — chỉ là không ai đọc được.
+    #
+    #    Đây không phải suy luận: `UploadTooLargeResponseTest` lượt chạy đầu đỏ với
+    #    `I/O error ... chunked transfer encoding, state: READING_LENGTH`, chứ không phải đỏ vì
+    #    sai mã lỗi. Một bài kiểm gọi thẳng bộ bắt ngoại lệ sẽ xanh và không thấy gì.
+    #
+    # 📌 Bằng `max-request-size` là có chủ đích: mọi yêu cầu nằm trong kích thước hệ thống tự
+    #    quảng cáo đều được trả lời tử tế. Vượt qua cả con số đó thì đóng kết nối là đúng — lúc
+    #    ấy không còn là người dùng gõ nhầm nữa.
+    max-swallow-size: ${UPLOAD_MAX_REQUEST_MB:130}MB
   error:
     # Không bao giờ lộ stacktrace ra ngoài — conventions.md §2.2
     include-stacktrace: never
