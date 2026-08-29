@@ -81,16 +81,38 @@ chmod 600 /home/songnhue/.ssh/authorized_keys
 chown -R songnhue:songnhue /home/songnhue/.ssh
 ```
 
-Khoá đăng nhập bằng mật khẩu — `/etc/ssh/sshd_config`:
+Khoá đăng nhập bằng mật khẩu. ⛔ **Ghi vào tệp drop-in `10-…`, KHÔNG ghi vào
+`/etc/ssh/sshd_config`** — xem hộp cảnh báo ngay dưới:
 
-```
+```bash
+sudo tee /etc/ssh/sshd_config.d/10-hardening.conf >/dev/null <<'EOF'
 PermitRootLogin no
 PasswordAuthentication no
 KbdInteractiveAuthentication no
+EOF
+sudo sshd -t && sudo systemctl reload ssh
 ```
 
+⛔⛔ **VÌ SAO `10-` CHỨ KHÔNG PHẢI `sshd_config`, VÀ VÌ SAO KHÔNG PHẢI `60-`**
+
+Trong `sshd_config`, với mỗi từ khoá thì **giá trị ĐỌC ĐƯỢC ĐẦU TIÊN thắng** — không phải giá trị
+cuối, ngược với trực giác của gần như mọi tệp cấu hình khác. Và Ubuntu đặt
+`Include /etc/ssh/sshd_config.d/*.conf` ở **dòng đầu** `sshd_config`, các tệp trong thư mục ấy đọc
+theo **thứ tự chữ cái**.
+
+Nghĩa là ảnh Ubuntu của nhà cung cấp thả một `50-cloud-init.conf` chứa `PasswordAuthentication yes`
+thì nó **thắng cả `sshd_config` lẫn mọi drop-in đánh số lớn hơn 50**.
+
+⭐ Đo trên VPS-2 ngày 29/8 — đúng như vậy: `sshd -T` trả **`passwordauthentication yes`** trong khi
+`sshd_config` có dòng `no` như hướng dẫn cũ dặn. Tài liệu này đã **sai suốt từ lúc viết**, và cái sai
+đi kèm một lời trấn an còn nguy hiểm hơn (xem §2.2-b). Cùng lúc đó `60-startups.conf` lại **có** tác
+dụng — vì `MaxStartups` không tệp nào khác tranh. Một tham số ăn, một tham số không, cùng một thư mục.
+
+⚠ **Luôn nghiệm thu bằng cấu hình ĐANG CÓ HIỆU LỰC, đừng đọc lại tệp mình vừa ghi:**
+
 ```bash
-sshd -t && systemctl restart ssh
+sudo sshd -T | grep -iE '^(passwordauthentication|permitrootlogin|kbdinteractiveauthentication)'
+sudo grep -rn -i '^[[:space:]]*passwordauthentication' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/
 ```
 
 > ⚠ **Mở một phiên SSH thứ hai và đăng nhập được rồi mới đóng phiên đang dùng.** Gõ sai một dòng
@@ -147,9 +169,31 @@ thực thì sshd **thả ngẫu nhiên 30%** kết nối mới. Tỉ lệ đo đ
 **30% đúng bằng chữ số giữa của `10:30:100`.** CD Staging 27/8 đỏ ở bước *"Ghi lại bản đang chạy"* —
 bước mở ba kết nối SSH liên tiếp — với `kex_exchange_identification: Connection reset by peer`.
 
-⚠ Không ai vào được (`PasswordAuthentication no`, `PermitRootLogin no`, `who` = 0 phiên). Đây là vấn
-đề **sẵn sàng phục vụ**, không phải xâm nhập. Nhưng nó vẫn là một cửa mở cho người lạ tiêu tài nguyên
-của máy.
+⛔⛔ **ĐÍNH CHÍNH 29/8 — đoạn dưới đây từng ghi *"không ai vào được"*, và điều đó KHÔNG ĐÚNG.**
+
+Bản cũ viết: *"Không ai vào được (`PasswordAuthentication no`, `PermitRootLogin no`, `who` = 0 phiên).
+Đây là vấn đề sẵn sàng phục vụ, không phải xâm nhập."* Câu ấy dựa trên việc **đọc lại tệp
+`sshd_config`**, không dựa trên phép đo.
+
+Đo bằng `sshd -T` ngày 29/8:
+
+| tham số | thực tế | tài liệu từng nói |
+|---|---|---|
+| `permitrootlogin` | `no` | `no` ✅ |
+| **`passwordauthentication`** | **`yes`** | `no` ⛔ |
+| `kbdinteractiveauthentication` | `no` | — |
+| `maxstartups` | `30:30:200` | `30:30:200` ✅ |
+| `persourcemaxstartups` | `6` | `6` ✅ |
+
+Tức máy **vẫn đang cho cả Internet đoán mật khẩu** — nhật ký đầy `Failed password for root`, và
+`permitrootlogin no` chỉ chặn *root*, không chặn `songnhue` (user có `sudo`). Nguyên nhân ở §2.1:
+hướng dẫn cũ bảo ghi vào `sshd_config`, mà tệp ấy **thua** drop-in.
+
+⛔ Bài học đắt hơn cả lỗ hổng: **một lời trấn an sai còn tệ hơn không có lời nào.** Câu *"không ai vào
+được"* đã khiến ba lượt rà sau đó bỏ qua hẳn hướng xác thực và chỉ nhìn vào chỗ nghẽn kết nối.
+
+Phần còn lại của mục này nói về **sẵn sàng phục vụ** — cổng 22 bị quét làm đỏ deploy — và phần ấy vẫn
+đúng. Nhưng nó không phải toàn bộ câu chuyện.
 
 #### ⭐ Đo lại 27/8 lúc 10:05 — sshd tự khai, không cần suy ra nữa
 
