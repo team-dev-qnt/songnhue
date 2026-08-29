@@ -279,11 +279,33 @@ class SeedGateTest {
                 .contains("minio-init:")
                 .contains("condition: service_completed_successfully");
 
-        // Chặn xanh-trên-tập-rỗng: tệp env của local PHẢI đang bật, nếu không hai khẳng định
-        // trên chỉ chứng minh dây đã nối mà không ai bật công tắc.
-        assertThat(giaTri(doc(tuGocKho("deploy/env/local.env")), "SEED_LOCATION"))
-                .as("`local.env` phải bật bộ seed — nếu không, máy dev lại đo nhánh rỗng.")
+        // Chặn xanh-trên-tập-rỗng: hai khẳng định trên chỉ chứng minh DÂY ĐÃ NỐI, không chứng
+        // minh có ai bật công tắc. Phải soi cả tệp env.
+        //
+        // ⚠⚠ SOI TỆP MẪU, KHÔNG SOI `local.env`. Bản đầu của bài này (29/08) khẳng định trên
+        //    `deploy/env/local.env` — tệp ấy nằm trong `.gitignore` (nó giữ mật khẩu), nên nó
+        //    có ở máy tôi và KHÔNG BAO GIỜ có trên runner. Bài xanh ở máy, đỏ ở CI, và làm đỏ
+        //    luôn `Promotion guard` của lượt đề bạt kế tiếp. Đúng ghi chú "xanh ở máy không
+        //    phải bằng chứng" ở CLAUDE.md, chỉ khác chiều: ở đây cái CÓ ở máy mới là thứ đánh lừa.
+        //
+        //    Và lượt sửa ấy lộ ra một lỗi thật, không chỉ lỗi đường dẫn: `local.env.example`
+        //    KHÔNG hề có `SEED_LOCATION`. Tức mọi bản clone mới `cp local.env.example local.env`
+        //    đều nhận bộ seed TẮT — đúng tình trạng cả đợt 29/08 vừa gỡ bỏ. Bản vá chỉ sống
+        //    trong tệp không được commit của một máy (quy tắc 27: một nửa cặp đọc–ghi).
+        assertThat(giaTri(doc(tuGocKho("deploy/env/local.env.example")), "SEED_LOCATION"))
+                .as("`local.env.example` phải bật bộ seed. Đây là tệp mọi bản clone chép ra, nên "
+                        + "tắt ở đây nghĩa là máy dev tiếp theo lại đo nhánh rỗng.")
                 .isEqualTo("classpath:db/seed/portal");
+
+        // Tệp env THẬT của máy đang chạy — chỉ soi khi nó tồn tại, và nói rõ phạm vi ấy (luật 28).
+        // Trên runner không có tệp này; ở máy dev thì nó là thứ quyết định, không phải tệp mẫu.
+        Path envThat = tuGocKho("deploy/env/local.env.example").resolveSibling("local.env");
+        if (Files.exists(envThat)) {
+            assertThat(giaTri(doc(envThat), "SEED_LOCATION"))
+                    .as("`local.env` của máy này đang TẮT bộ seed — stack local sẽ đo nhánh rỗng "
+                            + "trong khi staging đo nhánh có dữ liệu.")
+                    .isEqualTo("classpath:db/seed/portal");
+        }
     }
 
     // =========================================================================
