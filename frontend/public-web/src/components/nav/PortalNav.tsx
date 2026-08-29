@@ -5,7 +5,36 @@ import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 
 import type { MenuLink } from '@/lib/api';
-import { isExternal, menuHref, ROUTES } from '@/lib/routes';
+import { isExternal, menuHref } from '@/lib/routes';
+import { vuaThanhNgang } from '@/lib/vuaThanhNgang';
+
+/**
+ * Kiểu chữ và đệm của mục cấp 1 — khai **một lần**, dùng ở cả thanh thật lẫn thước đo.
+ *
+ * ⛔ Đây không phải gom code cho gọn. Thước đo quyết định thanh ngang có hiện hay không; nếu nó
+ *    vẽ bằng cỡ chữ khác thanh thật thì phép đo trả lời cho một thanh KHÔNG TỒN TẠI, và sai số
+ *    ấy im lặng — thanh vẫn hiện, chỉ là tràn. Đúng hình dạng luật 14 (hai nơi phải nhớ giống
+ *    nhau), nên chặn bằng cấu trúc chứ không bằng lời dặn.
+ */
+const LOP_CHU_CAP1 = 'text-[12px] font-semibold';
+
+/**
+ * Đệm, khoảng cách **và chữ hoa** của MỘT mục cấp 1 — cùng lý do trên, cộng một lý do nữa.
+ *
+ * ⛔⛔ {@code uppercase} phải nằm ở ĐÂY, tuyệt đối không đặt lên {@code <ul>} rồi trông chờ kế thừa.
+ *
+ * Mục {@code linkType='NONE'} vẽ ra {@code <button>} chứ không phải {@code <a>} — chúng chỉ để mở
+ * menu con. UA stylesheet của trình duyệt khai thẳng {@code text-transform: none} trên
+ * {@code button}, và <b>một khai báo trên chính phần tử luôn thắng giá trị kế thừa</b>, kể cả khai
+ * báo của trình duyệt. Preflight của Tailwind v4 có reset {@code font}, {@code letter-spacing},
+ * {@code color} cho form control đúng vì lý do này, nhưng <b>không</b> reset
+ * {@code text-transform}.
+ *
+ * <p>Hậu quả đo được ngày 28/08: sáu mục viết hoa, còn <i>"Giới thiệu"</i> và
+ * <i>"Quản lý, vận hành"</i> thì không — <b>đúng bằng tập hai mục {@code NONE}</b>, không mục nào
+ * khác. Trông như lỗi dữ liệu, thật ra là một luật CSS.
+ */
+const LOP_MUC_CAP1 = 'flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-3 uppercase';
 
 export interface NhanhMenu {
   item: MenuLink;
@@ -28,7 +57,7 @@ interface PortalNavProps {
  *
  * <pre>
  *   menu 1344px + nút Tìm kiếm 110px = 1454px
- *   khung chứa                        = 1240 − 48 = 1192px      → tràn 22%
+ *   khung chứa                        = 1232 − 48 = 1184px      → tràn 22%
  * </pre>
  *
  * {@code flex-wrap} nên nó không vỡ bố cục — nó <b>xuống dòng</b>, và thanh điều hướng cao gấp
@@ -42,10 +71,73 @@ interface PortalNavProps {
  *   <li><b>Bỏ {@code uppercase} + {@code tracking-wider} ở cấp 1</b> — thu 1344px → ~1082px.
  *       Không chỉ để vừa: chữ hoa tiếng Việt chồng dấu ("ĐOÀN THỂ", "HOẠT ĐỘNG") làm dấu thanh
  *       dính vào nhau và khó đọc hơn hẳn chữ thường. Menu con vẫn giữ chữ thường như cũ.
- *   <li><b>Dưới {@code lg} chuyển sang ngăn kéo</b> — một nút, và toàn bộ cây mở ra theo chiều
- *       dọc, nơi nhãn dài không phải cạnh tranh bề ngang với nhau.
+ *       <b>⚠ Vế chữ hoa đã ĐẢO NGƯỢC ngày 28/08 theo yêu cầu Công ty — xem mục kế tiếp; vế
+ *       {@code tracking-wider} thì KHÔNG, và lý do là ngân sách bề rộng ở dưới.</b>
+ *   <li><b>Không vừa thì chuyển sang ngăn kéo</b> — một nút, và toàn bộ cây mở ra theo chiều
+ *       dọc, nơi nhãn dài không phải cạnh tranh bề ngang với nhau. (Bản đầu chốt ở ngưỡng
+ *       {@code lg}; từ 28/08 nó ĐO — xem mục "Ngưỡng là phép đo" bên dưới.)
  *   <li><b>Menu con mở được bằng CHẠM và bàn phím</b>, không chỉ bằng rê chuột — xem dưới.
  * </ol>
+ *
+ * <h2>⭐ 28/08: chữ hoa trở lại ở cấp 1 — và bề rộng phải mua lại bằng cái khác</h2>
+ *
+ * Công ty yêu cầu <b>toàn bộ mục cấp 1 viết hoa</b>. Thêm {@code uppercase} vào bản đang chạy mà
+ * không đổi gì khác thì <b>tràn khung trở lại</b> — đúng lỗi §10.62 vừa sửa xong. Đo bằng chính
+ * font đang dùng (Noto Sans 600, {@code @fontsource}), trên tám nhãn thật lấy từ API menu:
+ *
+ * <pre>
+ *   khung chứa (max-w-1232 − px-6×2)                        = 1184px
+ *
+ *   thường 13px px-3   (bản 28/08 sáng)   1173,0px   dư  19,0
+ *   HOA    13px px-3   (thêm mỗi uppercase) 1297,5px  TRÀN 105,5   ← §10.62 tái phát
+ *   HOA    13px px-2                      1225,5px   TRÀN  33,5
+ *   HOA    12px px-2.5                    1186,6px   dư   5,4     ← sát mép, không nhận
+ *   HOA    12px px-2                      1150,6px   dư  41,4     ← ĐANG DÙNG
+ * </pre>
+ *
+ * Chữ hoa tiếng Việt rộng hơn chữ thường <b>15,7%</b> (đo được, không ước lượng). Nên cỡ chữ
+ * xuống 12px và đệm ngang {@code px-3 → px-2}. Kết quả còn <b>nhiều headroom hơn</b> bản chữ
+ * thường trước đó (41,4px so với 19,0px).
+ *
+ * <p>⛔ <b>KHÔNG thêm lại {@code tracking-wider}</b> dù nó vốn đi cùng chữ hoa: nó ngốn thêm
+ * ~38px và đẩy thanh về sát mép. Cần thoáng hơn thì nới {@code py}, đừng nới {@code tracking}.
+ *
+ * <p>⭐⭐ <b>29/08: menu con CŨNG viết hoa</b> — Công ty yêu cầu, và nó đảo lại lựa chọn ghi ở
+ * đoạn trên (giữ nguyên đoạn ấy để đọc được vì sao từng chọn khác).
+ *
+ * <p>⛔ Vì sao đặt ở CSS chứ không viết hoa vào nhãn trong CSDL: nhãn menu do Công ty nhập từ màn
+ * hình quản trị. Đặt ở dữ liệu thì hôm nay 12 mục con đúng, còn mục thứ 13 ai đó thêm vào tuần
+ * sau sẽ chữ thường — một quy ước phụ thuộc trí nhớ con người, và <b>không cổng kiểm nào bắt
+ * được</b> vì nó nằm trong CSDL. Đặt ở đây thì mọi mục mới tự có, kể cả mục chưa ai nhập.
+ *
+ * <p>Đây cũng là lý do bản vá ngày 29/08 <b>gỡ</b> migration đổi nhãn thành chữ hoa: hai cơ chế
+ * cùng sinh ra chữ hoa (CSS cho cấp 1, dữ liệu cho một mục cấp 2) chính là thứ tạo ra cảnh
+ * <i>một mục hoa, mười một mục thường</i> mà QuanTran chỉ ra.
+ *
+ * <p>⚠ Bề rộng đã đo, không ước lượng: menu con là danh sách dọc {@code min-w-64} (256px). Nhãn
+ * dài nhất "HOẠT ĐỘNG ĐẢNG, ĐOÀN THỂ" ở 13px chiếm ~204px + đệm 32px = 236px, còn dư 20px. Và
+ * {@code min-w} chứ không phải bề rộng cố định, nên nhãn dài hơn làm khối rộng ra chứ không tràn.
+ *
+ * <h2>⭐⭐ Ngưỡng là một PHÉP ĐO, không phải một con số chốt sẵn</h2>
+ *
+ * Bảng trên là ngân sách của <b>bộ nhãn hôm nay</b>. Nhãn menu nằm trong CSDL và Công ty sửa được
+ * từ màn hình quản trị, nên mọi con số cân sẵn đều có hạn dùng: thêm mục cấp 1 thứ chín, hay đổi
+ * một nhãn dài hơn "Hoạt động Đảng, đoàn thể", là tràn lại — và <b>không cổng kiểm nào đỏ được</b>,
+ * vì một bài kiểm tĩnh không đọc được CSDL.
+ *
+ * <p>Nên từ 28/08 ngưỡng không còn là {@code lg}: một {@code ResizeObserver} đo <b>thước đo</b>
+ * (bản vô hình của tám mục, vẽ bằng đúng {@code LOP_CHU_CAP1} và {@code LOP_MUC_CAP1} của thanh
+ * thật) rồi so với chỗ trống còn lại sau nút Tìm kiếm. Không vừa ⇒ rơi về ngăn kéo. Ràng buộc tự
+ * đúng với mọi bộ nhãn, kể cả bộ chưa ai nhập.
+ *
+ * <p>⚠ Trước lượt đo đầu tiên — SSR, khung hình đầu, hoặc trình duyệt không chạy JS —
+ * {@code vuaKhung} là {@code null} và component giữ nguyên ngưỡng {@code lg} cũ làm <b>đường
+ * lui</b>. Không có JS thì cổng vẫn dùng được đúng như trước, chỉ mất phần tự rơi về ngăn kéo.
+ *
+ * <p>⚠ Giới hạn, nói ra thay vì để người đọc tự suy (luật 28): phép đo trả lời <i>"tám nhãn này có
+ * vừa không"</i>, <b>không</b> trả lời <i>"thanh có đẹp không"</i>. Vừa sát mép vẫn là vừa. Và nó
+ * không biết gì về menu con — menu con bung ra bên dưới nên bề rộng của chúng chưa bao giờ là
+ * ràng buộc của thanh.
  *
  * ⛔ Hệ màu, kiểu khối và cách trình bày <b>giữ nguyên</b> (§2 của văn bản nghiệm thu):
  * cùng dải navy, cùng chiều cao, cùng vàng kim khi rê chuột. Bảy mã màu ghi cứng nay đọc từ
@@ -76,6 +168,74 @@ export function PortalNav({ tree }: PortalNavProps) {
   const duongDan = usePathname();
   const idNganKeo = useId();
   const vungNavRef = useRef<HTMLElement>(null);
+  const khungRef = useRef<HTMLDivElement>(null);
+  const thuocDoRef = useRef<HTMLUListElement>(null);
+  const timKiemRef = useRef<HTMLAnchorElement>(null);
+
+  /**
+   * Thanh ngang có VỪA khung không — `null` nghĩa là chưa đo lần nào.
+   *
+   * <h2>Vì sao đo, thay vì chọn một ngưỡng `lg`</h2>
+   *
+   * Ngưỡng theo bề rộng màn hình trả lời sai câu hỏi. Câu hỏi thật là *"tám nhãn này, ở cỡ chữ
+   * này, có vừa khung không"* — mà nhãn nằm trong CSDL và Công ty sửa được từ màn hình quản trị.
+   * Bản trước chốt `lg` (1024px) rồi cân cỡ chữ cho vừa **đúng bộ nhãn hôm nay**: thêm mục cấp 1
+   * thứ chín, hay đổi một nhãn dài hơn, là tràn lại — và **không cổng kiểm nào đỏ**, vì bài kiểm
+   * tĩnh không đọc được CSDL.
+   *
+   * <p>Đo thì ràng buộc tự đúng mãi: không vừa ⇒ rơi về ngăn kéo, nơi nhãn dài xếp dọc và không
+   * phải cạnh tranh bề ngang với nhau.
+   */
+  const [vuaKhung, datVuaKhung] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const khung = khungRef.current;
+    const thuoc = thuocDoRef.current;
+    if (!khung || !thuoc) return;
+
+    // ⚠ Đặt `setState` trong callback của ResizeObserver, KHÔNG trong thân effect:
+    //   `react-hooks/set-state-in-effect` chặn cách kia, và nó chặn đúng — gọi thẳng sinh ra một
+    //   lượt vẽ lại nối đuôi. ResizeObserver bắn ngay lần `observe` đầu tiên nên phép đo mở màn
+    //   vẫn có, mà không cần gọi tay.
+    const doLai = () => {
+      // ⚠⚠ 29/08: ô Tìm kiếm đã chuyển lên dải nhận diện, nên `timKiemRef` nay LUÔN null.
+      //    Bản trước `return` khi không tìm thấy nó — giữ nguyên dòng ấy là phép đo im lặng
+      //    ngừng chạy, `vuaKhung` kẹt ở `null` vĩnh viễn, và thanh điều hướng không bao giờ
+      //    rơi về ngăn kéo nữa. Không lỗi nào, không cổng kiểm nào đỏ. Đúng hình dạng "cơ chế
+      //    canh gác tồn tại mà không có hiệu lực".
+      //
+      //    Ref được giữ lại có chủ đích: chỗ bên phải thanh còn có thể có mục khác về sau, và
+      //    lúc ấy phép đo phải tính nó. Không có gì ở đó ⇒ 0, không phải "bỏ đo".
+      const rongTim = timKiemRef.current?.offsetWidth ?? 0;
+      const kieu = getComputedStyle(khung);
+      const vua = vuaThanhNgang({
+        trong: khung.clientWidth - parseFloat(kieu.paddingLeft) - parseFloat(kieu.paddingRight),
+        thuoc: thuoc.scrollWidth,
+        tim: rongTim,
+      });
+      // `null` = chưa kết luận được (khung bề rộng 0: tab chạy nền, lượt vẽ để in). GIỮ NGUYÊN
+      // kết luận cũ — xem lý do ở `vuaThanhNgang`.
+      if (vua === null) return;
+      datVuaKhung((cu) => (cu === vua ? cu : vua));
+      // ⚠ Bắt buộc: hiệu ứng khoá cuộn nền bám theo `moNganKeo`. Nếu ngăn kéo đang mở mà thanh
+      //   ngang vừa khung trở lại (xoay ngang máy tính bảng), ngăn kéo bị ẩn bằng CSS nhưng
+      //   `moNganKeo` vẫn `true` — và trang đứng im, cuộn không được, không dấu vết nào.
+      if (vua) datMoNganKeo(false);
+    };
+
+    const bd = new ResizeObserver(doLai);
+    bd.observe(khung);
+    // Quan sát cả thước đo: đổi nhãn menu làm nó rộng ra trong khi khung không đổi kích thước.
+    bd.observe(thuoc);
+    return () => bd.disconnect();
+  }, []);
+
+  // `null` = chưa đo (SSR, lượt vẽ đầu, hoặc không có JS) → giữ nguyên ngưỡng `lg` cũ làm đường
+  // lui. Không có JS thì cổng vẫn dùng được đúng như trước, chỉ mất phần tự rơi về ngăn kéo.
+  const chuaDo = vuaKhung === null;
+  const lopThanhNgang = chuaDo ? 'hidden lg:flex' : vuaKhung ? 'flex' : 'hidden';
+  const lopNutNganKeo = chuaDo ? 'lg:hidden' : vuaKhung ? 'hidden' : 'flex';
+  const lopVungNganKeo = chuaDo ? 'lg:hidden' : vuaKhung ? 'hidden' : 'block';
 
   /**
    * Đóng mọi thứ đang mở — gọi từ **trình xử lý sự kiện** của từng liên kết.
@@ -144,16 +304,19 @@ export function PortalNav({ tree }: PortalNavProps) {
     <nav
       ref={vungNavRef}
       aria-label="Điều hướng chính"
-      className="sticky top-0 z-40 w-full border-b border-black/20 bg-gradient-to-r from-chrome-navy800 via-chrome-navy500 to-chrome-navy800 text-white shadow-md backdrop-blur-md"
+      className="sticky top-0 z-40 w-full border-b-2 border-brand-primary bg-white text-surface-textBase shadow-sm"
     >
-      <div className="mx-auto flex max-w-[1240px] items-center justify-between gap-2 px-4 sm:px-6">
+      <div
+        ref={khungRef}
+        className="mx-auto flex max-w-[1232px] items-center justify-between gap-2 px-4 sm:px-6"
+      >
         {/* ───── Nút ngăn kéo — chỉ dưới lg ───── */}
         <button
           type="button"
           onClick={() => datMoNganKeo((cu) => !cu)}
           aria-expanded={moNganKeo}
           aria-controls={idNganKeo}
-          className="flex items-center gap-2 py-3 pr-2 text-sm font-semibold text-white lg:hidden"
+          className={`items-center gap-2 py-3 pr-2 text-sm font-semibold text-surface-textBase ${lopNutNganKeo}`}
         >
           <span className="relative flex h-5 w-5 items-center justify-center">
             <span
@@ -176,7 +339,7 @@ export function PortalNav({ tree }: PortalNavProps) {
         </button>
 
         {/* ───── Thanh ngang — từ lg trở lên ───── */}
-        <ul className="hidden flex-1 items-center gap-0.5 text-[13px] font-semibold lg:flex">
+        <ul className={`flex-1 items-center gap-0.5 ${LOP_CHU_CAP1} ${lopThanhNgang}`}>
           {tree.map((nhanh) => (
             <MucCap1
               key={`${nhanh.item.label}-${nhanh.item.depth}`}
@@ -190,22 +353,35 @@ export function PortalNav({ tree }: PortalNavProps) {
           ))}
         </ul>
 
-        {/* ───── Tìm kiếm ───── */}
-        <Link
-          href={ROUTES.search}
-          className="flex items-center gap-1.5 rounded-md px-2.5 py-2 text-[13px] font-semibold text-white transition-colors duration-200 ease-smooth hover:bg-white/15 hover:text-brand-gold"
-          aria-label="Tìm kiếm"
+        {/* ───── Thước đo — quyết định thanh ngang có hiện hay không ─────
+            Vẽ đúng tám nhãn ấy bằng ĐÚNG hằng số kiểu chữ của thanh thật, ngoài luồng bố cục
+            (`absolute`) và không nhìn thấy được, chỉ để đọc `scrollWidth`.
+
+            ⚠ `w-max`: thước phải lấy bề rộng TỰ NHIÊN. Không có nó, bọc `overflow-hidden` bên
+              ngoài sẽ ép các mục co lại và thước đo một thanh hẹp hơn thanh thật — tức luôn kết
+              luận "vừa", tức bộ đo trở thành trang trí.
+            ⚠ `h-0 overflow-hidden` ở lớp bọc: thước rộng hơn màn hình, để tràn tự do sẽ sinh
+              thanh cuộn ngang cho cả trang. */}
+        <div
+          aria-hidden
+          className="pointer-events-none invisible absolute left-0 top-0 h-0 overflow-hidden"
         >
-          <BieuTuongKinhLup />
-          <span className="hidden xl:inline">Tìm kiếm</span>
-        </Link>
+          <ul ref={thuocDoRef} className={`flex w-max items-center gap-0.5 ${LOP_CHU_CAP1}`}>
+            {tree.map((nhanh) => (
+              <li key={`thuoc-${nhanh.item.label}-${nhanh.item.depth}`} className={LOP_MUC_CAP1}>
+                <span>{nhanh.item.label}</span>
+                {nhanh.children.length > 0 ? <MuiTen /> : null}
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
 
       {/* ───── Ngăn kéo — dưới lg ───── */}
       <div
         id={idNganKeo}
         hidden={!moNganKeo}
-        className="max-h-[calc(100vh-3.5rem)] overflow-y-auto border-t border-white/10 bg-chrome-navy800 lg:hidden"
+        className={`max-h-[calc(100vh-3.5rem)] overflow-y-auto border-t border-surface-border bg-white ${lopVungNganKeo}`}
       >
         <ul className="px-2 py-2">
           {tree.map((nhanh) => (
@@ -239,10 +415,13 @@ function MucCap1({ nhanh, dangO, dangMo, doiMo, dong, khiDieuHuong }: MucCap1Pro
   const coCon = children.length > 0;
   const idMenuCon = useId();
 
+  // ⚠ Gạch chân dùng `border-b-[3px]` ở CẢ hai trạng thái (trong suốt khi không hoạt động):
+  //   thêm viền chỉ ở trạng thái hoạt động là mục ấy cao hơn các mục khác 3px và cả hàng nhấp
+  //   nháy mỗi lần đổi trang.
   const lop = [
-    'flex items-center gap-1 whitespace-nowrap rounded-md px-3 py-3 transition-colors duration-200 ease-smooth',
-    dangO ? 'text-brand-gold' : 'text-white',
-    'hover:bg-white/10 hover:text-brand-gold',
+    `${LOP_MUC_CAP1} border-b-[3px] transition-colors duration-200 ease-smooth`,
+    dangO ? 'border-brand-primary text-brand-primary' : 'border-transparent text-surface-textBase',
+    'hover:border-brand-primary hover:text-brand-primary',
   ].join(' ');
 
   return (
@@ -292,7 +471,7 @@ function MucCap1({ nhanh, dangO, dangMo, doiMo, dong, khiDieuHuong }: MucCap1Pro
                   target={con.openNewTab ? '_blank' : undefined}
                   rel={isExternal(con) ? 'noopener noreferrer' : undefined}
                   onClick={khiDieuHuong}
-                  className="block px-4 py-2.5 text-[13px] font-medium text-surface-textBase transition-all duration-150 ease-smooth hover:bg-brand-primaryLight hover:pl-5 hover:text-brand-primary"
+                  className="block px-4 py-2.5 text-[13px] font-medium uppercase text-surface-textBase transition-all duration-150 ease-smooth hover:bg-brand-primaryLight hover:pl-5 hover:text-brand-primary"
                 >
                   {con.label}
                 </Link>
@@ -323,12 +502,12 @@ function MucNganKeo({
   const [mo, datMo] = useState(dangO);
   const idMenuCon = useId();
 
-  const lopNhan = `flex-1 rounded-md px-3 py-3 text-left text-sm font-semibold ${
-    dangO ? 'text-brand-gold' : 'text-white'
+  const lopNhan = `flex-1 rounded-md px-3 py-3 text-left text-sm font-semibold uppercase ${
+    dangO ? 'text-brand-primary' : 'text-surface-textBase'
   }`;
 
   return (
-    <li className="border-b border-white/10 last:border-0">
+    <li className="border-b border-surface-border/70 last:border-0">
       <div className="flex items-center">
         {href ? (
           <Link
@@ -356,7 +535,7 @@ function MucNganKeo({
             aria-expanded={mo}
             aria-controls={idMenuCon}
             aria-label={`${mo ? 'Thu gọn' : 'Mở rộng'} ${item.label}`}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-white/80 hover:bg-white/10 hover:text-white"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-surface-textSecondary hover:bg-surface-bgLayout hover:text-brand-primary"
           >
             <span className={`transition-transform duration-200 ${mo ? 'rotate-180' : ''}`}>
               <MuiTen />
@@ -376,7 +555,7 @@ function MucNganKeo({
                   target={con.openNewTab ? '_blank' : undefined}
                   rel={isExternal(con) ? 'noopener noreferrer' : undefined}
                   onClick={khiDieuHuong}
-                  className="block rounded-md px-3 py-2.5 text-[13px] font-medium text-white/85 hover:bg-white/10 hover:text-white"
+                  className="block rounded-md px-3 py-2.5 text-[13px] font-medium uppercase text-surface-textSecondary hover:bg-surface-bgLayout hover:text-brand-primary"
                 >
                   {con.label}
                 </Link>
@@ -401,25 +580,6 @@ function MuiTen() {
       aria-hidden="true"
     >
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-    </svg>
-  );
-}
-
-function BieuTuongKinhLup() {
-  return (
-    <svg
-      className="h-4 w-4"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      aria-hidden="true"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-      />
     </svg>
   );
 }

@@ -45,7 +45,10 @@ export async function SiteFooter() {
   const heThongVanBan = config?.['site.external.doc-system-url'] ?? '';
   const companyInfo = config?.['site.footer.company-info'] ?? '';
   const mapEmbed = config?.['site.footer.map-embed'] ?? '';
-  const logo = fileUrl(config?.['site.logo.attachment-id']) || '/logo-song-nhue.png';
+  // ⚠ Dự phòng là `/logo.png` — bản trắng trên nền trong suốt Công ty gửi 29/08. Nó chỉ đọc
+  //   được trên nền TỐI, và cả đầu trang lẫn chân trang đều nền navy nên đúng chỗ. Biểu tượng
+  //   tab trình duyệt thì KHÔNG dùng tệp này — xem `layout.tsx`.
+  const logo = fileUrl(config?.['site.logo.attachment-id']) || '/logo.png';
   const copyright =
     config?.['site.footer.copyright'] || `© ${new Date().getFullYear()} ${siteName}`;
 
@@ -77,13 +80,13 @@ export async function SiteFooter() {
         </svg>
       ),
     },
-  ];
+  ].filter((kenh) => kenh.url);
 
   return (
     <footer className="mt-16 w-full border-t border-white/10 bg-gradient-to-b from-chrome-navy700 via-chrome-navy600 to-chrome-navy900 text-white">
       {/* ───── 1. Dải tiếp nhận thông tin trực ban / Hotline bão lũ ───── */}
       <div className="border-b border-white/10 bg-chrome-navy500/80 py-3 text-xs text-white sm:text-sm">
-        <div className="mx-auto flex max-w-[1240px] flex-col items-center justify-between gap-2 px-4 sm:flex-row sm:px-6">
+        <div className="mx-auto flex max-w-[1232px] flex-col items-center justify-between gap-2 px-4 sm:flex-row sm:px-6">
           {hotline ? (
             <div className="flex items-center gap-2">
               <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -119,7 +122,7 @@ export async function SiteFooter() {
       </div>
 
       {/* ───── 2. Khối nội dung chính (4 cột trên nền Full Blue Gradient) ───── */}
-      <div className="mx-auto grid max-w-[1240px] gap-8 px-4 py-10 text-sm sm:grid-cols-2 sm:px-6 lg:grid-cols-12">
+      <div className="mx-auto grid max-w-[1232px] gap-8 px-4 py-10 text-sm sm:grid-cols-2 sm:px-6 lg:grid-cols-12">
         <div className="space-y-3.5 lg:col-span-4">
           <div className="flex items-center gap-3">
             <div className="flex h-12 shrink-0 items-center justify-center">
@@ -174,8 +177,12 @@ export async function SiteFooter() {
           Chân trang nay chỉ đọc menu vị trí FOOTER — cùng bảng, cùng màn hình quản trị với
           menu chính, nên hai nơi không lệch được (quy tắc 12).
         */}
-        {/* Cột 2: Liên kết nhanh — ĐỌC MENU FOOTER, không có mục nào viết cứng */}
-        <div className="lg:col-span-5">
+        {/* Cột 2: Liên kết nhanh — ĐỌC MENU FOOTER, không có mục nào viết cứng.
+            ⚠ Bề rộng bù lại phần cột "Kênh kết nối" khi cột ấy không được dựng: 4+5+3 = 12,
+              bỏ cột 3 mà giữ nguyên 5 là để lại một khoảng trống 3/12 bên phải chân trang —
+              trông y hệt một khối chưa tải xong. Hai chuỗi lớp viết nguyên văn để bộ quét
+              nguồn của Tailwind sinh được cả hai. */}
+        <div className={social.length > 0 ? 'lg:col-span-5' : 'lg:col-span-8'}>
           <p className="relative pb-2 font-bold text-xs text-white after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-8 after:rounded after:bg-sky-300">
             Liên kết nhanh
           </p>
@@ -233,65 +240,100 @@ export async function SiteFooter() {
           ) : null}
         </div>
 
-        {/* Cột 4: Kênh kết nối truyền thông & Bản đồ (3/12 cột) */}
-        <div className="space-y-3.5 lg:col-span-3">
-          <p className="relative pb-2 font-bold text-xs text-white after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-8 after:rounded after:bg-sky-300">
-            Kênh kết nối
-          </p>
+        {/* Cột 4: Kênh kết nối truyền thông (3/12 cột).
 
-          {/* Mạng xã hội */}
-          <div className="flex flex-col gap-2">
-            {social
-              .filter((s) => s.url)
-              .map((s) => (
+            ⛔ Bản đồ ĐÃ RỜI khỏi cột này — xem dải bản đồ kín bề rộng ngay dưới lưới. */}
+        {/* ⛔ 29/08: KHÔNG dựng cột này khi chưa kênh nào được cấu hình.
+
+            Trước lượt này tiêu đề "Kênh kết nối" hiện vô điều kiện rồi lọc danh sách bên
+            trong — mà cả ba khoá `site.footer.social.*` đang RỖNG trên mọi môi trường (Facebook
+            / Zalo / YouTube của Công ty thuộc nhóm **G13**, chưa được cung cấp). Kết quả đo
+            được: một tiêu đề có gạch chân, chiếm 3/12 bề rộng chân trang, và không một dòng
+            nào bên dưới — người đọc thấy một mục hỏng, không thấy một mục trống.
+
+            ⛔ Và KHÔNG có kênh mặc định. `architecture-review.md` §3408 ghi lại đúng chỗ này
+               từng rơi về `https://facebook.com`: một liên kết trỏ tới trang chủ Facebook,
+               nhân danh Công ty, hiện ra đúng lúc cấu hình rỗng. */}
+        {social.length > 0 ? (
+          <div className="space-y-3.5 lg:col-span-3">
+            <p className="relative pb-2 font-bold text-xs text-white after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-8 after:rounded after:bg-sky-300">
+              Kênh kết nối
+            </p>
+
+            <div className="flex flex-col gap-2">
+              {social.map((kenh) => (
                 <a
-                  key={s.label}
-                  href={s.url}
+                  key={kenh.label}
+                  href={kenh.url}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2.5 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-medium text-white shadow-xs backdrop-blur-xs transition-all duration-200 hover:-translate-y-0.5 hover:bg-white hover:text-brand-primary"
                 >
-                  <span>{s.icon}</span>
-                  <span>{s.label}</span>
+                  <span>{kenh.icon}</span>
+                  <span>{kenh.label}</span>
                 </a>
               ))}
+            </div>
           </div>
+        ) : null}
+      </div>
 
-          {/* Bản đồ nếu có cấu hình hoặc thẻ chỉ đường mặc định */}
-          {mapEmbed ? (
-            <div
-              className="overflow-hidden rounded-lg border border-white/20 shadow-xs [&_iframe]:h-28 [&_iframe]:w-full"
-              // eslint-disable-next-line react/no-danger -- HtmlSanitizer.cleanMapEmbed() lúc ghi
-              dangerouslySetInnerHTML={{ __html: mapEmbed }}
-            />
-          ) : (
-            <div className="rounded-lg border border-white/20 bg-white/10 p-3 text-xs text-white/90 backdrop-blur-xs">
+      {/* ───── 2b. Dải BẢN ĐỒ TRỤ SỞ — kín bề rộng chân trang ─────
+
+          ⭐ Yêu cầu Công ty 29/08: *"mở rộng hết sức có thể phần diện tích bản đồ hiển thị"*.
+
+          Trước lượt này bản đồ nằm trong cột "Kênh kết nối" rộng 3/12 với `[&_iframe]:h-28` —
+          112px cao, ~250px rộng trên màn hình 1232px. Ở cỡ đó Google Map không đọc được tên
+          đường nào: nó là một hình trang trí có hình dạng của một bản đồ. Nay nó là một dải
+          riêng chiếm trọn bề rộng, cao 320px (384px từ `sm`), tức diện tích tăng khoảng **13
+          lần**.
+
+          ⚠ Chiều cao đặt ở KHUNG chứ không ở `<iframe>` gốc: mã nhúng do Công ty dán vào ô cấu
+          hình mang `width`/`height` riêng của Google, và `HtmlSanitizer.cleanMapEmbed()` giữ
+          nguyên chúng. Selector `[&_iframe]:h-full` ghi đè bằng CSS — sửa chuỗi HTML lúc hiển
+          thị là sửa thứ đã qua khâu làm sạch, tức mở lại đúng cửa mà khâu ấy vừa đóng. */}
+      {mapEmbed ? (
+        <div className="mx-auto max-w-[1232px] px-4 pb-10 sm:px-6">
+          <p className="relative mb-3.5 pb-2 font-bold text-xs text-white after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-8 after:rounded after:bg-sky-300">
+            Bản đồ trụ sở
+          </p>
+          <div
+            className="h-[320px] overflow-hidden rounded-xl border border-white/20 shadow-xs sm:h-[384px] [&_iframe]:h-full [&_iframe]:w-full [&_iframe]:border-0"
+            // eslint-disable-next-line react/no-danger -- HtmlSanitizer.cleanMapEmbed() lúc ghi
+            dangerouslySetInnerHTML={{ __html: mapEmbed }}
+          />
+        </div>
+      ) : (
+        /* ⛔ Chưa cấu hình mã nhúng thì KHÔNG dựng một khung xám cao 320px cho có: một ô trống
+           to bằng cả bề rộng trang là thứ trông như hỏng. Thẻ chỉ đường nhỏ, nói thẳng, và có
+           một đường đi thật tới Google Maps. */
+        <div className="mx-auto max-w-[1232px] px-4 pb-10 sm:px-6">
+          <div className="flex flex-col gap-2 rounded-xl border border-white/20 bg-white/10 p-4 text-xs text-white/90 backdrop-blur-xs sm:flex-row sm:items-center sm:justify-between">
+            <div>
               <div className="flex items-center gap-1.5 font-bold text-white">
-                <span>📍</span>
+                <span aria-hidden="true">📍</span>
                 <span>Chỉ đường tới trụ sở</span>
               </div>
-              {diaChi ? (
-                <p className="mt-1 text-[11px] text-white/80 line-clamp-1">{diaChi}</p>
-              ) : null}
-              <a
-                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                  `${siteName} ${diaChi}`,
-                )}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-sky-200 hover:text-white hover:underline"
-              >
-                <span>Xem trên Google Maps</span>
-                <span>↗</span>
-              </a>
+              {diaChi ? <p className="mt-1 text-[11px] text-white/80">{diaChi}</p> : null}
             </div>
-          )}
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                `${siteName} ${diaChi}`,
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-white/25 bg-white/10 px-3 py-2 text-[11px] font-semibold text-sky-100 transition-all hover:bg-white hover:text-brand-primary"
+            >
+              <span>Xem trên Google Maps</span>
+              <span aria-hidden="true">↗</span>
+            </a>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ───── 3. Dải bản quyền đáy trang ───── */}
       <div className="border-t border-white/10 bg-chrome-navy700 py-3.5 text-xs text-white/70">
-        <div className="mx-auto flex max-w-[1240px] flex-col items-center justify-between gap-2 px-4 text-center sm:flex-row sm:px-6 sm:text-left">
+        <div className="mx-auto flex max-w-[1232px] flex-col items-center justify-between gap-2 px-4 text-center sm:flex-row sm:px-6 sm:text-left">
           <div>
             <p className="font-medium text-white">{copyright}</p>
             {/* ⚠ Tên trong câu này ĐỌC `site.name`, không viết lại lần nữa. Bản trước ghi cứng

@@ -20,6 +20,8 @@ không cài gì thêm. ``server.py`` import lại từ đây, nên hành vi củ
 """
 
 import os
+import hashlib
+import pathlib
 import re
 from collections import Counter
 
@@ -178,6 +180,30 @@ def parse_markdown_to_data(input_path):
                 ])
 
     return tasks
+
+
+def van_tay_nguon(duong_dan):
+    """Vân tay SHA-256 của các tệp NGUỒN của bộ đồng bộ, ghép lại theo thứ tự.
+
+    ⛔⛔ VÌ SAO CẦN — chuyện đã xảy ra ngày 28/08
+
+    Máy chủ MCP là một tiến trình SỐNG LÂU: nó ``import`` bộ đọc đúng một lần lúc khởi động rồi
+    giữ trong bộ nhớ. Bản vá T11.47 (dấu tích thắng phần chữ) vào kho lúc **27/08 19:36**, nhưng
+    hai tiến trình MCP đang phục vụ khởi động lúc **15:17** và **19:13** — cả hai trước đó. Nên
+    mọi lượt đồng bộ sau bản vá vẫn chạy MÃ CŨ, và ghi lên bảng Công ty đọc ba trạng thái sai:
+    ``T11.7`` (secret production, đang làm) hiện **Done**, ``T11.50`` và ``T25.29`` (đã xong)
+    hiện **Pending**.
+
+    ⚠ Đọc-ngược-sau-khi-ghi KHÔNG bắt được lớp lỗi này: tiến trình cũ ghi giá trị cũ rồi đọc lại
+    thấy khớp với chính nó. Thứ duy nhất phân biệt được là so mã TRÊN ĐĨA với mã ĐÃ NẠP.
+
+    Cùng họ với luật 10 — *xác nhận bản đã sửa THẬT SỰ được nạp* — và với §10.56: trạng thái tích
+    luỹ ngoài tệp nguồn không suy ra được từ tệp nguồn.
+    """
+    bam = hashlib.sha256()
+    for duong in duong_dan:
+        bam.update(pathlib.Path(duong).read_bytes())
+    return bam.hexdigest()
 
 
 def find_duplicate_task_ids(tasks):

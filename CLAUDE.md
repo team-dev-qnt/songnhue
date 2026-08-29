@@ -72,13 +72,17 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 **Phase 1 — CMS & master data công trình** ✅ **xong 24/8/2026** — WS-12→WS-23 đóng đủ, **16/17 mục DoD** có phép kiểm đứng sau.
 **WS-24 — Đợt chỉnh sửa cổng theo nghiệm thu Công ty** (`docs_origin/nghiem_thu_phase1.md`, 27/8): **34/43 mã CR đóng**, 9 mã còn lại chờ đăng nhập trên cổng · nguồn dữ liệu · nhập liệu. Đã **chạy thật trên stack đầy đủ**: 17/17 đường dẫn menu trả 200. Chi tiết `master-tracking.md` WS-24 · nguyên nhân gốc §10.61.
 
+✅ **Staging nghiệm thu 28/8 sau lượt CD `22876c8`** — đo ĐỘC LẬP qua SSH, không đọc lại lời workflow: ba container chạy đúng ID ảnh đã triển khai, `healthy`, tạo trong cửa sổ deploy · Flyway `1039 → 1040` đúng thứ tự, 0 migration thất bại · `/photos` trả **25 ảnh, 25/25 ra byte JPEG thật** (tb 124 KB) · `/banners` **5/5** · video + logo đúng. ⚠ Smoke test của CD **không** kiểm 25 ảnh mới — nó hỏi ảnh seed từ 25/8.
+
+✅ **T11.45 đóng 28/8** — QuanTran chạy lệnh `sudo`; đo lại: `fail2ban` **active**, drop-in `60-startups.conf` có mặt **và đã được nạp** (`StateChangeTimestamp` 00:36:12 trong khi `NRestarts=0` — chữ ký của `reload`), **SSH 10/10** (trước: 7/10), cổng 22 còn 2 kết nối / 5 tiến trình sshd (lúc sự cố: 67). ⬜ Còn `sudo fail2ban-client status sshd` để xem số IP đã cấm.
+
 **WS-25 — Đầu trang thân thiện + kiểm kê "cấu hình được từ admin"** ✅ **28/8** (§10.62). Thanh điều hướng **đo được là tràn 1454/1192px trên mọi màn hình** (`flex-wrap` che đi) và mục cấp 1 kiểu `NONE` là nút không hành vi → không mở được menu con trên máy tính bảng — cả hai nằm trong §10 checklist *"Responsive"*. Kiểm kê tìm ra **6 cột/khoá/tham số thiếu một nửa cặp đọc–ghi** (4 trong số đó do WS-24 tạo ra **một ngày trước**) + 4 khoá `settings` không ai đọc. **21/24 task đóng**; 3 nợ có số đo: T25.22 (cache cổng không xoá được từ `core`/`operations` — trễ 5') · T25.23 (25 hex ở admin-app) · ~~T25.24~~ đã đóng 27/8.
 
 ⬜ **DoD còn treo**: **DOD1.17** trang chủ < 3s (NFR-02) — nay đo được trên staging có nội dung thật · **DOD0.21** quay lui — chưa lượt deploy nào đi qua đường quay lui thành công.
 
 ✅ **Staging đã dựng lại cluster 26/8** (T11.3-b) — `i | collate=C.UTF-8 | icu=vi-VN`, vân tay số dòng khớp từng bảng, 6/6 container healthy, 4/4 smoke test xanh trên site thật, trang chủ 11 liên kết đều là slug thật. Lượt khôi phục ấy tìm ra **T7.13-a** — đường quay lui dữ liệu duy nhất của hệ vốn khôi phục ra một CSDL ứng dụng không đọc nổi (§10.58).
 
-⚠⚠ **Hai mươi mốt lượt liên tiếp một bản ghi "đã xong" bị lượt rà sau bác bỏ.** Đây là hình dạng rủi ro
+⚠⚠ **Hai mươi hai lượt liên tiếp một bản ghi "đã xong" bị lượt rà sau bác bỏ.** Đây là hình dạng rủi ro
 đặc trưng của dự án, không phải sự cố lẻ — nguyên nhân gốc từng vụ ở `architecture-review.md`:
 
 | Ngày | Lượt rà tìm ra | § |
@@ -104,6 +108,7 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 | 27/8 | **9 phép kiểm canh nguồn sự thật, không cổng nào chạy** — và có sẵn nhánh `sys.exit(0)` chờ | §10.64 |
 | 27/8 | **một đợt sửa CHÚ THÍCH làm ứng dụng không khởi động được** — Flyway băm cả tệp; 680 bài kiểm về nguyên tắc không thấy | §10.65 |
 | 27/8 | **migration mới đánh số bằng giờ-phút** rơi xuống dưới bản staging đã áp — và cùng lỗi ấy làm seed ghi vào một khoá chưa tồn tại, **0 hàng, không một dòng log** | §10.66 |
+| 28/8 | **bản vá sống trên đĩa mà tiến trình MCP vẫn chạy mã cũ** — bảng Công ty đọc mang 3 trạng thái sai suốt từ lúc bản vá vào kho; đọc-ngược-sau-khi-ghi *không* bắt được | §10.67 |
 
 ⛔ Hệ quả rút ra: **"đã tick" không phải bằng chứng.** Trước khi mở một giai đoạn mới, đối chiếu với mã thật và chạy đường mà người dùng thật đi.
 
@@ -111,14 +116,14 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 
 ⛔ **Cấm seed dữ liệu công trình/thuỷ văn "cho đẹp demo"** — ô nào chưa có nguồn thì nói thẳng là chưa có.
 
-**Codebase đo ngày 28/8 (sau WS-25)**: **691 test BE** (249 core + 24 content + 33 operations + 385 app) + **252 test FE** (142 admin + 110 public) · **74 mã lỗi** (BE = FE) · 88 quyền / 12 vai trò / 334 dòng phân quyền · **32 bài ArchUnit** (7 lớp, gồm 11 bài tự-kiểm chứng minh luật bắt được vi phạm) · **9 phép kiểm bộ đọc tracking** (nay CÓ trong `ci.yml` + `make ci-local` bước 1/10) · **bộ canh thứ tự migration** (bước 2/10 + job CI `Thứ tự migration`) · mọi cổng bao phủ **chạy thật** (content 18.2%) · 0 CVE ≥ 7 · **0 mã màu ghi cứng** và **0 chỗ ép ALL CAPS** trong `public-web` (admin-app còn 25 mã màu — nợ T25.23; chữ hoa ở admin-app chưa rà).
+**Codebase đo ngày 28/8 (sau WS-25)**: **693 test BE** (249 core + 26 content + 33 operations + 385 app) + **259 test FE** (142 admin + 117 public) · **74 mã lỗi** (BE = FE) · 88 quyền / 12 vai trò / 334 dòng phân quyền · **32 bài ArchUnit** (7 lớp, gồm 11 bài tự-kiểm chứng minh luật bắt được vi phạm) · **11 phép kiểm bộ đọc tracking** (nay CÓ trong `ci.yml` + `make ci-local` bước 1/10, gồm 2 bài canh **tiến trình MCP chạy đúng mã trong kho**) · **bộ canh thứ tự migration** (bước 2/10 + job CI `Thứ tự migration`) · mọi cổng bao phủ **chạy thật** (content 18.2%) · 0 CVE ≥ 7 · **0 mã màu ghi cứng** trong `public-web`; **ép ALL CAPS chỉ còn ở `PortalNav`** (3 chỗ, Công ty yêu cầu 28/8 — bộ canh thu hẹp kèm ngưỡng đếm, mọi tệp khác vẫn cấm) (admin-app còn 25 mã màu — nợ T25.23; chữ hoa ở admin-app chưa rà).
 
 ### Tra ở đâu
 
 | Cần gì | Đọc ở đâu |
 |---|---|
 | Nợ đang treo, task còn lại | **`.claude/master-tracking.md`** — nguồn DUY NHẤT (conventions.md §6). `phase0-tracking.md` / `phase1-tracking.md` chỉ là lưu trữ, cấm sửa |
-| **Lý do** một quyết định, **nguyên nhân gốc** một lỗi đã sửa | `architecture-review.md` **§9** (Phase 0, 14 mục) · **§10** (Phase 1, 49 mục — §10.35 đợt vá sau WS-22, §10.36 nghiệm thu lại WS-21 + DoD, §10.37 nghiệm thu image, §10.38 CI đỏ sau merge `dev`, §10.40 lỗi 204, §10.41 biến CSDL không ai đọc, §10.52 envelope bọc `byte[]`, §10.53 container không được thay, §10.54 trang chủ nướng rỗng + dữ liệu bịa che chỗ rỗng, §10.55 `minio-init` đo thay vì khai báo + bộ seed một công tắc, §10.56 collation vắng ở `compose.prod.yml` — tham số chỉ chạy một lần, §10.57 cổng secret bỏ qua trong im lặng + 4 khoản bấm ở GitHub, §10.58 bản dump khôi phục ra CSDL không đọc nổi, §10.59 cổng 22 bị quét làm đỏ deploy, §10.60 một lệnh nuốt stdin làm nửa cuối khối triển khai không chạy mà CD vẫn xanh, §10.61 đợt chỉnh sửa cổng theo nghiệm thu Công ty — cổng công khai chưa từng có CSP, đổi menu làm ba trang tĩnh mất lối vào, hai bộ canh cũ canh hình dạng thay vì canh bất biến, §10.62 sáu cột/khoá thiếu nửa cặp đọc–ghi + hai lượt kiểm chứng ngược tự sai, §10.63 bảy context bắt buộc khoá chết mọi PR chỉ sửa tài liệu, §10.64 chín phép kiểm canh nguồn sự thật mà không cổng nào chạy, §10.65 một đợt sửa chú thích làm ứng dụng không khởi động được, **§10.66 migration đánh số bằng giờ-phút rơi xuống dưới bản đã áp — và cùng lỗi ấy làm seed ghi vào khoá chưa tồn tại**) |
+| **Lý do** một quyết định, **nguyên nhân gốc** một lỗi đã sửa | `architecture-review.md` **§9** (Phase 0, 14 mục) · **§10** (Phase 1, 49 mục — §10.35 đợt vá sau WS-22, §10.36 nghiệm thu lại WS-21 + DoD, §10.37 nghiệm thu image, §10.38 CI đỏ sau merge `dev`, §10.40 lỗi 204, §10.41 biến CSDL không ai đọc, §10.52 envelope bọc `byte[]`, §10.53 container không được thay, §10.54 trang chủ nướng rỗng + dữ liệu bịa che chỗ rỗng, §10.55 `minio-init` đo thay vì khai báo + bộ seed một công tắc, §10.56 collation vắng ở `compose.prod.yml` — tham số chỉ chạy một lần, §10.57 cổng secret bỏ qua trong im lặng + 4 khoản bấm ở GitHub, §10.58 bản dump khôi phục ra CSDL không đọc nổi, §10.59 cổng 22 bị quét làm đỏ deploy, §10.60 một lệnh nuốt stdin làm nửa cuối khối triển khai không chạy mà CD vẫn xanh, §10.61 đợt chỉnh sửa cổng theo nghiệm thu Công ty — cổng công khai chưa từng có CSP, đổi menu làm ba trang tĩnh mất lối vào, hai bộ canh cũ canh hình dạng thay vì canh bất biến, §10.62 sáu cột/khoá thiếu nửa cặp đọc–ghi + hai lượt kiểm chứng ngược tự sai, §10.63 bảy context bắt buộc khoá chết mọi PR chỉ sửa tài liệu, §10.64 chín phép kiểm canh nguồn sự thật mà không cổng nào chạy, §10.65 một đợt sửa chú thích làm ứng dụng không khởi động được, §10.66 migration đánh số bằng giờ-phút rơi xuống dưới bản đã áp, **§10.67 bản vá sống trên đĩa mà tiến trình MCP vẫn chạy mã cũ**) |
 | Cách viết một chức năng + bảng bẫy tra nhanh | `docs/coding-guide.md` |
 | Luật bắt buộc khi viết code | `conventions.md` |
 | Nghiệp vụ | `function-spec.md`; điểm chưa chốt → `business-open-questions.md` Phần III |

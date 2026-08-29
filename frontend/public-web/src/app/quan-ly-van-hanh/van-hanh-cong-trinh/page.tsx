@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 
 import { PageShell } from '@/components/PageShell';
+import { SectionNav } from '@/components/SectionNav';
 import { KhoaDangNhap } from '@/components/realtime/KhoaDangNhap';
 import { RealtimeFrame } from '@/components/realtime/RealtimeFrame';
 import { getServerTime, getSiteConfig } from '@/lib/api';
@@ -68,6 +69,7 @@ export default async function VanHanhCongTrinhPage() {
           moTa="Số liệu vận hành theo tuần, tháng và hai biểu mẫu Báo cáo nhanh chống hạn / chống úng chỉ dành cho người dùng đã đăng nhập."
         />
       </div>
+      <SectionNav duongDan={ROUTES.quanLyVanHanh.vanHanhCongTrinh} />
     </PageShell>
   );
 }

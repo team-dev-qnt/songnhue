@@ -3,6 +3,7 @@ import Link from 'next/link';
 import type { MenuLink } from '@/lib/api';
 import { isExternal, menuHref } from '@/lib/routes';
 import { EmptyBlock } from './EmptyBlock';
+import { SectionTitle } from './SectionTitle';
 
 /** Bộ biểu tượng xoay vòng — thuần trang trí, không mang thông tin nghiệp vụ nào. */
 const VONG_BIEU_TUONG = ['dam', 'shield', 'water', 'file'] as const;
@@ -51,22 +52,18 @@ export function CategoryServicesGrid({ menuTree }: CategoryServicesGridProps) {
     }));
 
   return (
-    <section className="mt-10 sm:mt-14">
-      <div className="flex items-center justify-between border-b-2 border-brand-primary pb-2.5">
-        <div className="flex items-center gap-2">
-          <span className="h-5 w-1.5 rounded-full bg-brand-primary"></span>
-          <h2 className="text-base font-bold tracking-tight text-surface-textBase sm:text-lg">
-            Chuyên mục &amp; lĩnh vực hoạt động
-          </h2>
-        </div>
-      </div>
+    <section className="mt-5">
+      <SectionTitle>Chuyên mục &amp; lĩnh vực hoạt động</SectionTitle>
 
       {items.length === 0 ? (
         <div className="mt-5">
           <EmptyBlock>Menu chính chưa có mục nào để dựng thành chuyên mục.</EmptyBlock>
         </div>
       ) : (
-        <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        /* ⚠ Dừng ở ba cột, KHÔNG mở tới `xl:grid-cols-5`: năm thẻ trên một hàng 1232px cho mỗi
+           thẻ ~215px, mà nhãn dài nhất ("Hoạt động Đảng, đoàn thể") đã chiếm ba dòng ở cỡ đó.
+           Bản vẽ chốt ba cột cho cả khối này lẫn "Chuyên mục ảnh" ngay trên nó. */
+        <div className="mt-5 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((item) => {
             const than = (
               <>
@@ -83,7 +80,7 @@ export function CategoryServicesGrid({ menuTree }: CategoryServicesGridProps) {
                   </p>
                 ) : null}
                 {item.href ? (
-                  <div className="mt-4 flex items-center gap-1 text-xs font-semibold text-brand-primary">
+                  <div className="mt-auto flex items-center gap-1 pt-4 text-xs font-semibold text-brand-primary">
                     <span>Khám phá</span>
                     <span className="transition-transform duration-200 group-hover:translate-x-1">
                       ➔
@@ -94,7 +91,7 @@ export function CategoryServicesGrid({ menuTree }: CategoryServicesGridProps) {
             );
 
             const lop =
-              'group relative flex flex-col overflow-hidden rounded-xl border border-surface-border bg-white p-5 shadow-xs transition-all duration-300 ease-smooth hover:-translate-y-1 hover:border-brand-primary hover:shadow-md';
+              'group relative flex h-full flex-col overflow-hidden rounded-xl border border-surface-border bg-white p-5 shadow-xs transition-all duration-300 ease-smooth hover:-translate-y-1 hover:border-brand-primary hover:shadow-md';
 
             return item.href ? (
               <Link

@@ -42,7 +42,11 @@ const CSP = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
+  // `https://tile.openstreetmap.org` — nguồn ô bản đồ của khối Bản đồ công trình (CN-02.4).
+  // ⚠ Địa chỉ này phải khớp `TILE_HOST` ở `src/lib/mapTiles.ts`; `mapTiles.test.ts` đối chiếu
+  //   hai bên. Lệch nhau thì bản đồ vẫn dựng và vẫn kéo thả được, chỉ toàn màu xám vì mọi ô
+  //   ảnh bị chặn — lỗi chỉ hiện trong console trình duyệt, nơi không cổng kiểm nào nhìn.
+  "img-src 'self' data: blob: https://tile.openstreetmap.org",
   "font-src 'self'",
   "connect-src 'self'",
   "frame-src 'self' https://www.google.com https://www.youtube-nocookie.com",

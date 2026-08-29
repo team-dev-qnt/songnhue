@@ -161,7 +161,43 @@ public class PublicPortalService {
         }
         String t = tenTep.replaceAll("(?i)\\.(jpe?g|png|webp|gif)$", "");
         t = t.replaceFirst("^(Ảnh to\\.|AN\\d\\.?)\\s*", "");
-        return t.trim().replaceAll("\\s+", " ");
+        t = t.trim().replaceAll("\\s+", " ");
+
+        // ⛔ Tên do MÁY sinh không phải một chú thích. Đo trên staging 28/8: 3 trong 25 ảnh Công ty
+        //    gửi mang tên kiểu `1785224749554_4602082902160469425_…_683fabe93a80ea…` (tệp tải từ
+        //    điện thoại/Zalo). Cổng đang hiện nguyên chuỗi ấy làm tiêu đề ảnh.
+        //
+        //    Trả RỖNG chứ không bịa: không có nguồn cho chú thích thì ô ấy phải trống và nói thẳng
+        //    là chưa có (luật 16). Cổng bỏ hẳn dải chú thích khi tiêu đề rỗng.
+        return laTenMaySinh(t) ? "" : t;
+    }
+
+    /**
+     * Tên tệp do máy sinh: không khoảng trắng, đủ dài, và <b>đậm đặc chữ số</b>.
+     *
+     * <h2>Ba ngưỡng lấy từ dữ liệu THẬT, không từ ví dụ tự nghĩ ra (luật 25)</h2>
+     *
+     * Đo trên 25 ảnh Công ty gửi đang chạy ở staging, cộng vài dạng tên máy ảnh phổ biến:
+     *
+     * <pre>
+     *   tên máy      : 80,0 – 82,6 % chữ số   (dài 30 – 86)
+     *   chú thích thật:  0,0 – 28,6 % chữ số
+     * </pre>
+     *
+     * Ngưỡng <b>40 %</b> nằm giữa một khoảng trống rộng, nên biên rất an toàn ở cả hai phía.
+     *
+     * <p>⚠ Cố ý KHÔNG bắt theo dải ký tự hex: {@code IMG_20240115_103045_…} có chữ {@code I},
+     * {@code M}, {@code G} nên lọt, còn nới dải ra thì bắt đầu ăn cả chú thích không dấu kiểu
+     * {@code Nha-may-nuoc-Ha-Dong}. Tỉ lệ chữ số tách hai nhóm sạch hơn hẳn.
+     *
+     * <p>⚠ Tên có dù chỉ MỘT khoảng trắng thì luôn được giữ — người đặt tên đã có ý diễn đạt.
+     */
+    static boolean laTenMaySinh(String t) {
+        if (t.length() <= 20 || t.indexOf(' ') >= 0) {
+            return false;
+        }
+        long soChuSo = t.chars().filter(Character::isDigit).count();
+        return soChuSo * 100 >= t.length() * 40L;
     }
 
     /** Một ảnh của thư viện: mã tệp để dựng URL, và chú thích của Công ty. */

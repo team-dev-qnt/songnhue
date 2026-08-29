@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 
 import { PageShell } from '@/components/PageShell';
+import { SectionNav } from '@/components/SectionNav';
 import { RealtimeFrame } from '@/components/realtime/RealtimeFrame';
 import { getServerTime, getSiteConfig } from '@/lib/api';
 import { ROUTES } from '@/lib/routes';
@@ -77,6 +78,7 @@ export default async function MucNuocLuongMuaPage() {
           moTa="Bảng và biểu đồ diễn biến mực nước theo tuần, tháng chỉ dành cho người dùng đã đăng nhập."
         />
       </div>
+      <SectionNav duongDan={ROUTES.quanLyVanHanh.mucNuocLuongMua} />
     </PageShell>
   );
 }

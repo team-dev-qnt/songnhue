@@ -13,6 +13,7 @@ import {
   type MenuNode,
   type MenuPosition,
   type MenuRequest,
+  type ContactView,
   type SiteSettingItem,
   type VersionContent,
   type VersionSummary,
@@ -45,6 +46,7 @@ export const cmsKeys = {
   banners: () => ['cms', 'banners'] as const,
   menu: (position: MenuPosition) => ['cms', 'menu', position] as const,
   siteConfig: () => ['cms', 'site-config'] as const,
+  contacts: (status?: string, page = 0) => ['cms', 'contacts', status ?? 'all', page] as const,
 };
 
 export interface ArticleFilter {
@@ -63,6 +65,20 @@ export const cmsApi = {
 
   searchArticles(filter: ArticleFilter): Promise<PageResult<ArticleSummary>> {
     return api.getPage<ArticleSummary>(`${BASE}/articles`, filter as Record<string, unknown>);
+  },
+
+  // ---- Hộp thư liên hệ ----------------------------------------------------
+
+  listContacts(
+    status: string | undefined,
+    page: number,
+    size: number,
+  ): Promise<PageResult<ContactView>> {
+    return api.getPage<ContactView>(`${BASE}/contacts`, { status, page, size });
+  },
+
+  markContactRead(publicId: string): Promise<ContactView> {
+    return api.patch<ContactView>(`${BASE}/contacts/${publicId}/read`, {});
   },
 
   getArticle(publicId: string): Promise<ArticleDetail> {

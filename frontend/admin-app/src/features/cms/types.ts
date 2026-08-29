@@ -177,6 +177,26 @@ export interface MenuRequest {
 }
 
 /** Một tham số của nhóm `SITE` — khớp `core.spi.SettingItem`. */
+export type ContactStatus = 'MOI' | 'DA_DOC' | 'DANG_XU_LY' | 'DA_PHAN_HOI' | 'DONG' | 'LUU_TRU';
+
+/**
+ * Một liên hệ / phản ánh gửi từ cổng công khai — CN-01.4.
+ *
+ * ⛔ `content` và `subject` là chuỗi do người lạ trên Internet nhập. Hiển thị bằng text thường;
+ * KHÔNG `dangerouslySetInnerHTML`, không `Typography` với `dangerouslySetInnerHTML`.
+ */
+export interface ContactView {
+  publicId: string;
+  fullName: string;
+  email: string | null;
+  phone: string | null;
+  subject: string;
+  content: string;
+  status: ContactStatus;
+  createdAt: string;
+  readAt: string | null;
+}
+
 export interface SiteSettingItem {
   key: string;
   value: string | null;

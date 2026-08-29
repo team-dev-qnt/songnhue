@@ -3,6 +3,7 @@ import Link from 'next/link';
 import type { MenuLink, SubsidiaryRow } from '@/lib/api';
 import { isExternal, menuHref, ROUTES } from '@/lib/routes';
 import { EmptyBlock } from './EmptyBlock';
+import { SectionTitle } from './SectionTitle';
 
 interface AffiliatedUnitsLinksProps {
   /** Xí nghiệp trực thuộc — CR-19. Rỗng khi Công ty chưa nhập (OI-05 còn chờ chốt 7 hay 8 XN). */
@@ -35,23 +36,22 @@ interface AffiliatedUnitsLinksProps {
  */
 export function AffiliatedUnitsLinks({ subsidiaries, portalLinks }: AffiliatedUnitsLinksProps) {
   return (
-    <section className="mt-10 sm:mt-14">
-      <div className="flex items-center justify-between border-b-2 border-brand-primary pb-2.5">
-        <div className="flex items-center gap-2">
-          <span className="h-5 w-1.5 rounded-full bg-brand-primary"></span>
-          <h2 className="text-base font-bold tracking-tight text-surface-textBase sm:text-lg">
-            Đơn vị trực thuộc &amp; mạng lưới liên kết
-          </h2>
-        </div>
-        {subsidiaries.length > 0 ? (
-          <Link
-            href={ROUTES.gioiThieu.xiNghiep}
-            className="text-xs font-semibold text-brand-primary hover:underline"
-          >
-            Xem đầy đủ ➔
-          </Link>
-        ) : null}
-      </div>
+    <section className="mt-5">
+      <SectionTitle
+        href={ROUTES.gioiThieu.xiNghiep}
+        phu={
+          subsidiaries.length > 0 ? (
+            <Link
+              href={ROUTES.gioiThieu.xiNghiep}
+              className="text-xs font-semibold text-brand-primary hover:underline"
+            >
+              Xem đầy đủ ➔
+            </Link>
+          ) : null
+        }
+      >
+        Xí nghiệp trực thuộc
+      </SectionTitle>
 
       <div className="mt-5">
         {subsidiaries.length === 0 ? (
@@ -64,38 +64,77 @@ export function AffiliatedUnitsLinks({ subsidiaries, portalLinks }: AffiliatedUn
             {subsidiaries.map((xn) => (
               <div
                 key={xn.code}
-                className="rounded-lg border border-surface-border bg-white p-3.5 shadow-xs transition-colors hover:border-brand-primary"
+                className="flex h-full flex-col overflow-hidden rounded-lg border border-surface-border bg-white shadow-xs transition-colors hover:border-brand-primary"
               >
-                <p className="text-sm font-bold text-surface-textBase">{xn.shortName || xn.name}</p>
-                {/* ⛔ Bản trước có tám xí nghiệp viết cứng KÈM SỐ ĐIỆN THOẠI, tất cả bịa
+                {/* Dải nhận diện cao 90px — tỉ lệ thẻ logo của cổng tham chiếu. KHÔNG có ảnh
+                    logo riêng cho từng Xí nghiệp (chúng dùng chung nhận diện Công ty), nên đây
+                    là một dấu hiệu vẽ bằng SVG chứ không phải một ô ảnh rỗng chờ tệp. */}
+                <div className="flex h-[90px] shrink-0 items-center gap-3 bg-gradient-to-br from-chrome-navy800 to-chrome-navy500 px-4">
+                  <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full border-2 border-brand-gold">
+                    <svg
+                      className="h-6 w-6 text-brand-gold"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.8}
+                        d="M3 7h18M6 7v10M18 7v10M3 17h18M9 7v4h6V7"
+                      />
+                    </svg>
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-[10px] font-bold tracking-wide text-brand-gold">
+                      Xí nghiệp trực thuộc
+                    </span>
+                    <span className="mt-0.5 block text-sm font-bold leading-tight text-white">
+                      {xn.shortName || xn.name}
+                    </span>
+                  </span>
+                </div>
+                <div className="p-3.5">
+                  {/* ⛔ Bản trước có tám xí nghiệp viết cứng KÈM SỐ ĐIỆN THOẠI, tất cả bịa
                     (§10.54). Nay mỗi ô chỉ hiện thứ thật sự có trong `org_units`; thiếu thì
                     không có dòng nào, không có dấu gạch giả làm một giá trị. */}
-                {xn.address ? (
-                  <p className="mt-1 line-clamp-2 text-xs text-surface-textSecondary">
-                    {xn.address}
-                  </p>
-                ) : null}
-                {xn.phone ? (
-                  <a
-                    href={`tel:${xn.phone.replace(/\D/g, '')}`}
-                    className="mt-1.5 inline-block text-xs font-semibold text-brand-primary hover:underline"
-                  >
-                    {xn.phone}
-                  </a>
-                ) : null}
+                  {xn.address ? (
+                    <p className="mt-1 line-clamp-2 text-xs text-surface-textSecondary">
+                      {xn.address}
+                    </p>
+                  ) : null}
+                  {xn.phone ? (
+                    <a
+                      href={`tel:${xn.phone.replace(/\D/g, '')}`}
+                      className="mt-1.5 inline-block text-xs font-semibold text-brand-primary hover:underline"
+                    >
+                      {xn.phone}
+                    </a>
+                  ) : null}
+                </div>
               </div>
             ))}
           </div>
         )}
       </div>
 
-      {/* ⛔ Danh sách rỗng ⇒ KHÔNG render dải này. Không rơi về bốn liên kết mặc định: một dải
-          liên kết chỉ hiện đúng lúc CSDL hỏng là dải không ai soi, và nó quảng cáo những địa
-          chỉ mà không ai còn kiểm chứng (cùng cái bẫy đã gỡ khỏi `SiteHeader`, §10.54). */}
+      {/* ⭐ 29/08: "Liên kết website" thành MỘT MỤC RIÊNG có tiêu đề, lưới thẻ cao 90px kín bề
+          rộng — đúng dải logo 377×90 của cổng tham chiếu. Bản trước là một hàng chip nhỏ nhét
+          dưới lưới Xí nghiệp: bốn cơ quan cấp trên nằm ở cỡ chữ 12px, nhỏ hơn cả chú thích của
+          khối ngay trên nó.
+
+          ⛔ Thẻ mang TÊN cơ quan, không mang ô ảnh logo chờ tệp: cổng không có tệp logo của bốn
+             cơ quan ấy, và một ô ảnh rỗng 90px là một chỗ trống nói rằng "đáng ra ở đây có gì
+             đó" — trong khi thật ra không có gì thiếu cả.
+
+          ⛔ Danh sách rỗng ⇒ KHÔNG render mục này. Không rơi về bốn liên kết mặc định: một dải
+             liên kết chỉ hiện đúng lúc CSDL hỏng là dải không ai soi, và nó quảng cáo những địa
+             chỉ mà không ai còn kiểm chứng (cùng cái bẫy đã gỡ khỏi `SiteHeader`, §10.54). */}
       {portalLinks.length > 0 ? (
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-3 rounded-xl border border-surface-border bg-surface-bgLayout p-4 text-xs sm:justify-between">
-          <span className="font-bold text-surface-textBase">Liên kết cổng TTĐT:</span>
-          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+        <div className="mt-9">
+          <SectionTitle>Liên kết website</SectionTitle>
+          <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {portalLinks.map((muc) => {
               const href = menuHref(muc);
               return href ? (
@@ -104,9 +143,15 @@ export function AffiliatedUnitsLinks({ subsidiaries, portalLinks }: AffiliatedUn
                   href={href}
                   target={muc.openNewTab ? '_blank' : undefined}
                   rel={isExternal(muc) ? 'noopener noreferrer' : undefined}
-                  className="rounded-md border border-surface-border bg-white px-3 py-1.5 font-medium text-surface-textSecondary transition-all duration-200 hover:border-brand-primary hover:text-brand-primary hover:shadow-2xs"
+                  className="group flex h-[90px] items-center justify-center gap-2 rounded-lg border border-surface-border bg-white px-4 text-center text-sm font-semibold text-surface-textBase shadow-2xs transition-all duration-200 hover:border-brand-primary hover:text-brand-primary hover:shadow-xs"
                 >
-                  {muc.label} ↗
+                  <span className="line-clamp-2">{muc.label}</span>
+                  <span
+                    aria-hidden="true"
+                    className="shrink-0 text-xs text-surface-textSecondary transition-colors group-hover:text-brand-primary"
+                  >
+                    ↗
+                  </span>
                 </a>
               ) : null;
             })}
