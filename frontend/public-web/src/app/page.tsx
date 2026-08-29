@@ -4,7 +4,6 @@ import { GroupLabel } from '@/components/home/GroupLabel';
 import { HomeBannerSlider } from '@/components/home/HomeBannerSlider';
 import { HomeCategoryNews } from '@/components/home/HomeCategoryNews';
 import { HomeConstructionMap } from '@/components/home/HomeConstructionMap';
-import { HomeContactBlock } from '@/components/home/HomeContactBlock';
 import { HomeMediaGallery } from '@/components/home/HomeMediaGallery';
 import { HomeNewsColumn } from '@/components/home/HomeNewsColumn';
 import { OperationsBlock } from '@/components/home/OperationsBlock';
@@ -58,8 +57,9 @@ import { docBool, docSo } from '@/lib/settings';
  * <h2>⭐ 29/08 — ba thay đổi Công ty yêu cầu sau khi duyệt bản vẽ</h2>
  *
  * <ol>
- *   <li><b>Trụ sở &amp; đầu mối liên hệ rời khỏi trang chủ</b>, dồn hết về {@code /lien-he}. Ở
- *       đây chỉ còn biểu mẫu, chiếm trọn bề rộng — xem {@link HomeContactBlock}.
+ *   <li><b>Trụ sở, đầu mối liên hệ VÀ biểu mẫu gửi ý kiến đều rời khỏi trang chủ</b>, dồn hết về
+ *       {@code /lien-he}. Lượt đầu 29/08 còn giữ lại biểu mẫu; lượt hai bỏ nốt, vì hai bản của
+ *       cùng một biểu mẫu là hai nơi phải nhớ sửa khi CN-01.4 làm tiếp (T26.24).
  *   <li><b>Cơ cấu tổ chức KHÔNG lên trang chủ.</b> Bản vẽ có một ô "Sơ đồ tổ chức Công ty" +
  *       "Lãnh đạo Công ty" ở Nhóm 4; cả hai đã là trang riêng dưới nhánh Giới thiệu
  *       ({@code /gioi-thieu/co-cau-to-chuc}, {@code /gioi-thieu/lanh-dao}) và đọc cùng
@@ -178,7 +178,10 @@ export default async function HomePage() {
         <WaterLevelBlock hotline={hotline} refreshSeconds={nhipLamMoi} updatedAt={serverTime} />
         <OperationsBlock refreshSeconds={nhipLamMoi} updatedAt={serverTime} />
       </div>
-      <HomeConstructionMap catalog={catalog ?? []} />
+      <HomeConstructionMap
+        catalog={catalog ?? []}
+        anhSoDo={config?.['site.home.map-image.attachment-id']}
+      />
 
       {/* ═════════ NHÓM 3 · VĂN BẢN & TIẾP NHẬN Ý KIẾN ═════════ */}
       <GroupLabel>Văn bản &amp; tiếp nhận ý kiến</GroupLabel>
@@ -188,9 +191,18 @@ export default async function HomePage() {
         docSystemUrl={config?.['site.external.doc-system-url'] ?? ''}
         nhomCon={nhomVanBan}
       />
-      {/* ⛔ Không truyền `company.*` xuống nữa — địa chỉ, điện thoại, thư điện tử và giờ làm việc
-          nay chỉ hiển thị ở `/lien-he` (yêu cầu Công ty 29/08). Khối này còn đúng biểu mẫu. */}
-      <HomeContactBlock />
+      {/* ⛔ BIỂU MẪU GỬI Ý KIẾN ĐÃ RỜI KHỎI TRANG CHỦ (yêu cầu Công ty 29/08, lượt hai).
+
+          Trang `/lien-he` đã có đúng biểu mẫu ấy, cùng một `POST /public/contacts`, cùng một bộ
+          validate. Giữ hai bản là hai nơi phải nhớ sửa khi CN-01.4 làm tiếp (reCAPTCHA v3, email
+          xác nhận, phân loại ý kiến — nợ T26.24), và người sửa một bên sẽ không biết bên kia tồn
+          tại (luật 14). Lối vào vẫn có ở đúng chỗ người đọc tìm: mục "Liên hệ" trên thanh điều
+          hướng, dải "Gửi phản ánh kiến nghị" ở chân trang, và nút của khối Văn bản ngay trên đây.
+
+          ⚠ `HomeContactBlock.tsx` XOÁ HẲN, không để lại làm component mồ côi: trang chủ là nơi
+            gọi DUY NHẤT của nó (trang `/lien-he` dựng thẳng từ `ContactForm`). Một component
+            không ai gọi là thứ lượt rà sau sẽ đọc như "còn dùng ở đâu đó" — quy tắc 15. Biểu
+            mẫu thì không mất đi đâu: `ContactForm` vẫn là một, vẫn dùng ở `/lien-he`. */}
 
       {/* ═════════ NHÓM 4 · TỔ CHỨC & ĐƠN VỊ ═════════ */}
       <GroupLabel>Tổ chức &amp; đơn vị trực thuộc</GroupLabel>

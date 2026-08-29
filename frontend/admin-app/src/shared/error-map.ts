@@ -213,6 +213,11 @@ export const ERROR_CATALOG = {
     handling: 'form',
     severity: 'warning',
   },
+  'CMS-2015': {
+    message: 'Chỉ mục thuộc dải "Liên kết website" mới đặt được logo',
+    handling: 'toast',
+    severity: 'warning',
+  },
   'CMS-5001': {
     message: 'Không đăng nhập được sang hệ thống văn bản điều hành',
     handling: 'toast',

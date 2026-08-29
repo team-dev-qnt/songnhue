@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -64,6 +65,25 @@ public class SiteConfigService {
 
     public static final String KEY_LOGO = "site.logo.attachment-id";
     public static final String KEY_FAVICON = "site.favicon.attachment-id";
+
+    /** Ảnh sơ đồ hệ thống công trình trên trang chủ — CN-02.4, thêm 29/08/2026. */
+    public static final String KEY_HOME_MAP = "site.home.map-image.attachment-id";
+
+    /**
+     * Những khoá {@code settings} nhận được một tệp ảnh — <b>một nguồn sự thật</b>.
+     *
+     * <p>⚠⚠ Trước 29/08 danh sách này là một biểu thức {@code if} viết thẳng trong
+     * {@code SiteConfigController.uploadBrandImage}. Thêm khoá ảnh thứ ba nghĩa là phải nhớ sửa ở
+     * một chỗ mà không ai nghĩ tới khi đọc lớp này — đúng tình huống quy tắc 14 cấm, và triệu
+     * chứng của nó rất im: màn hình quản trị dựng ô tải ảnh (nó chỉ nhìn hậu tố khoá), người dùng
+     * chọn tệp, rồi nhận một lỗi "UNSUPPORTED_BRAND_IMAGE" không nói được gì.
+     *
+     * <p>⭐ Hậu tố {@code .attachment-id} là thứ LÁI GIAO DIỆN, không phải quy ước cho đẹp:
+     * {@code SiteConfigTab.tsx} lọc {@code key.endsWith('.attachment-id')} để quyết định dựng ô
+     * tải ảnh hay ô nhập chữ. {@code SiteConfigKeysTest} khẳng định mọi khoá trong tập này đều
+     * mang hậu tố ấy — thiếu nó thì khoá có đường ghi mà không có ô để bấm.
+     */
+    public static final Set<String> KHOA_ANH = Set.of(KEY_LOGO, KEY_FAVICON, KEY_HOME_MAP);
 
     /**
      * Hai khoá duy nhất mà cổng công khai dựng bằng {@code dangerouslySetInnerHTML}.
@@ -176,7 +196,7 @@ public class SiteConfigService {
      * logo không đáng để làm hỏng ảnh trên những trang đó cho tới lượt dựng lại kế tiếp. Vài tệp
      * logo bỏ lại trong kho là cái giá rẻ hơn nhiều.
      *
-     * @param key {@link #KEY_LOGO} hoặc {@link #KEY_FAVICON}
+     * @param key một khoá trong {@link #KHOA_ANH}
      */
     @Transactional
     public AttachmentRef uploadBrandImage(String key, String originalName, byte[] content) {

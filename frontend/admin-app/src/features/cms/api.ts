@@ -258,6 +258,16 @@ export const cmsApi = {
     return api.put<void>(`${BASE}/menus/items/reorder`, { publicIds });
   },
 
+  uploadMenuLogo(publicId: string, file: File): Promise<MenuNode> {
+    const form = new FormData();
+    form.append('file', file);
+    return api.upload<MenuNode>(`${BASE}/menus/items/${publicId}/logo`, form);
+  },
+
+  removeMenuLogo(publicId: string): Promise<MenuNode> {
+    return api.delete<MenuNode>(`${BASE}/menus/items/${publicId}/logo`);
+  },
+
   deleteMenuItem(publicId: string): Promise<void> {
     return api.delete<void>(`${BASE}/menus/items/${publicId}`);
   },
