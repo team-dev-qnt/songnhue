@@ -72,9 +72,9 @@ describe('error-map đồng bộ với danh mục của backend', () => {
   // Con số này CỐ Ý phải sửa tay mỗi lần thêm mã. Bài kiểm trên đã canh việc hai bên khớp nhau;
   // bài này canh việc *người viết mã biết mình vừa thêm một mã lỗi* — thêm mã là một quyết định
   // (nó vào tài liệu bàn giao, vào bảng tra cứu của người vận hành), không phải một chi tiết trôi qua.
-  it('có đủ 75 mã: 62 đến hết WS-15, + 9 mã OPS của WS-17, + OPS-2017 (WS-18), + OPS-2018/2019 (nghiệm thu lại WS-19), + CMS-2015 (logo Liên kết cổng TTĐT, 29/08)', () => {
-    expect(frontend).toHaveLength(75);
-    expect(backend).toHaveLength(75);
+  it('có đủ 76 mã: 62 đến hết WS-15, + 9 mã OPS của WS-17, + OPS-2017 (WS-18), + OPS-2018/2019 (nghiệm thu lại WS-19), + CMS-2015 (logo Liên kết cổng TTĐT, 29/08), + SYS-0011 (tệp vượt trần multipart, 30/08)', () => {
+    expect(frontend).toHaveLength(76);
+    expect(backend).toHaveLength(76);
   });
 
   // conventions.md §1.5 — mỗi cơ chế canh gác phải có bài kiểm chứng minh nó bắt được vi phạm.

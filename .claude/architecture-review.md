@@ -4789,3 +4789,89 @@ khẳng định mỗi tập có ≥ 5 phần tử **và** chứa đúng những 
 **Khai một thứ và dùng một thứ chưa phải là nối nó.** Giữa hai đầu ấy còn những khâu trung gian không
 ai nghĩ tới lúc sửa — ở đây là hai workflow gọi. Bộ canh đi theo **chuỗi ký tự** chỉ thấy hai đầu; bộ
 canh đi theo **tập hợp, hai chiều, đủ mọi nơi tham gia** mới thấy khúc giữa.
+
+### §10.69 — Trần 1MB không ai khai: mọi tệp lớn trả 500, và cả cơ chế hạn mức nghiệp vụ chưa từng quyết định điều gì (30/8)
+
+#### Triệu chứng
+
+Công ty tải ảnh sơ đồ hệ thống công trình lên staging — đúng ô vừa dựng xong hôm trước ở
+§10.62/T26.66 — và nhận **500 Internal Server Error** trên
+`POST /api/v1/cms/site-config/brand-images/site.home.map-image.attachment-id`.
+
+#### Nguyên nhân gốc — đo trên log staging, không suy luận
+
+```
+ERROR ... GlobalExceptionHandler ... "Lỗi không lường trước"
+  error.type: org.springframework.web.multipart.MaxUploadSizeExceededException
+  at StandardMultipartHttpServletRequest.parseRequest
+  at DispatcherServlet.checkMultipart          ← TRƯỚC KHI VÀO CONTROLLER
+```
+
+`application.yml` **chưa từng khai** `spring.servlet.multipart.*`, nên Spring Boot áp mặc định
+**1MB/tệp**. Và mặc định ấy chặn ở `DispatcherServlet.checkMultipart` — trước cả `@RequirePermission`,
+trước cả dòng mã nghiệp vụ đầu tiên.
+
+#### ⭐ Thứ nặng hơn một lỗi 500
+
+Hệ có một cơ chế hạn mức **đầy đủ và đúng**: bốn tham số `limits.upload.max-mb.{image,document,gis,video}`
+= 10/50/100/500, nằm trong `settings`, sửa được trên giao diện, `AttachmentService` đọc thật, và
+`AttachmentQuotaTest` chứng minh đổi giá trị thì hành vi đổi theo.
+
+Cơ chế ấy **chưa từng quyết định điều gì**. Nó luôn nằm sau một trần thấp hơn mười lần mà không ai
+nhìn thấy. Đây là quy tắc 3 nguyên văn — *canh giá trị ĐÃ GIẢI, đừng canh giá trị MẶC ĐỊNH* — với một
+vòng xoắn: **mặc định thắng cuộc lần này còn không phải của mình**, nó là của framework, không xuất
+hiện trong bất kỳ tệp nào của dự án, nên không có gì để đọc và phát hiện ra.
+
+Ghi nhận từ WS-12 (`AttachmentService` Javadoc) từng ghi *"bản đầu đọc một khoá CHƯA TỪNG ĐƯỢC SEED…
+mọi lượt tải rơi về giá trị dự phòng"*. Sửa xong nửa ấy rồi, mà nửa còn lại vẫn treo 18 ngày.
+
+#### ⚠⚠ Vì sao 723 bài kiểm về nguyên tắc không thể thấy
+
+`AttachmentQuotaTest` gọi `attachments.upload(lenh)` — **thẳng vào service**, không qua bộ phân tích
+multipart. Trần 1MB nằm ở tầng bài kiểm ấy không đi qua. Quy tắc 5 nguyên văn: *bài kiểm gọi thẳng
+service không đi cùng đường với production*.
+
+Và nó sống được nhờ một sự tình cờ **đo được**: `SELECT count(*) FILTER (WHERE size_bytes > 1048576)`
+trên staging trả **0/39** — tệp lớn nhất từng được tải lên là 570 kB. Tấm sơ đồ hệ thống là tệp đầu
+tiên vượt qua ngưỡng ấy. Quy tắc 25 ở dạng thụ động: một bộ canh chưa gặp dữ liệu thật chưa chứng minh
+được gì, kể cả khi nó không tồn tại.
+
+#### Bản vá — ba phần, và phần thứ ba chỉ lộ ra khi chạy thật
+
+1. **Trần được khai tường minh**, `${UPLOAD_MAX_FILE_MB:120}MB`. ⛔ **Không** nâng lên 500 cho bằng
+   `max-mb.video`: đường tải đi qua `byte[]` (`getBytes()` → `ImageSanitizer` → `storage.put`, ít nhất
+   hai bản sao trong heap), heap staging đo được **1.076 GB** và JVM chạy `-XX:+ExitOnOutOfMemoryError`.
+   Nâng trần lên 500MB không mở khoá gì — nó **đổi một lỗi 413 sạch sẽ lấy một lượt giết tiến trình**.
+2. **`MaxUploadSizeExceededException` có nhánh riêng** → `SYS-0011`, **413**, kèm số MB đọc lại từ
+   chính thuộc tính cấu hình (không phải hằng số chép tay — nếu không thì câu thông báo và hành vi thật
+   trôi khỏi nhau ngay lượt đầu ai đó đặt `UPLOAD_MAX_FILE_MB`).
+3. ⭐⭐ **`server.tomcat.max-swallow-size` = kích thước yêu cầu tối đa.** Phần này **không nằm trong kế
+   hoạch** — nó lộ ra khi bài kiểm 413 chạy lần đầu và đỏ với
+   `I/O error … chunked transfer encoding, state: READING_LENGTH`, chứ không đỏ vì sai mã lỗi. Tomcat
+   từ chối tệp khi mới đọc được một phần thân yêu cầu; không đọc nốt phần còn lại thì nó **đóng kết
+   nối**, và trình duyệt nhận một lỗi mạng trắng trơn. Mặc định 2MB — nhỏ hơn trần 120MB rất nhiều.
+   Nghĩa là **đúng những lượt tải mà SYS-0011 sinh ra để giải thích lại là những lượt không bao giờ
+   nhận được nó**: bộ bắt ngoại lệ vẫn chạy, log vẫn ghi, response vẫn dựng — chỉ là không ai đọc được.
+4. `limits.upload.max-mb.video` **500 → 120** (`V202608301048`), kèm câu kẹp theo nhóm cho mọi khoá
+   tương lai. Hạ số này không mất gì: **0 tệp video** từng được tải lên, và video trang chủ là nhúng
+   YouTube (`site.home.video-id`), không phải tệp.
+
+#### Kiểm chứng ngược — hai chiều, có số đo
+
+| Làm hỏng | Đo trước khi chạy | Kết quả |
+|---|---|---|
+| Hạ trần về `1MB` (mô phỏng "quên khai") | `grep -c` = 1 | **3/3 bài đỏ**, mỗi bài gọi tên một thứ khác nhau |
+| Gỡ `@ExceptionHandler(MaxUploadSizeExceededException)` | `grep -c` = **0** | đỏ với `SYS-0001 "Lỗi hệ thống, vui lòng thử lại"` — **tái hiện đúng triệu chứng staging** |
+
+#### Bài học
+
+**Một tham số cấu hình nói dối khó phát hiện hơn một tham số không ai đọc.** Quy tắc 15 canh cái thứ
+hai (`limits.upload.max-mb.*` *có* mã đọc, *có* bài kiểm, *có* UI). Cái thứ nhất mang đủ mọi dấu hiệu
+của một cơ chế đang chạy tốt, và chỉ sai ở chỗ **có một tầng thấp hơn nó nắm quyền quyết định thật**.
+Muốn biết một hạn mức có thật hay không thì phải hỏi *"ai là người nói KHÔNG đầu tiên"*, chứ không
+phải *"con số này có được đọc không"*.
+
+**Hệ luận cho mọi tham số cấu hình về sau:** giá trị bày ra cho người dùng phải được ép ≤ trần kỹ thuật
+bằng một phép kiểm, chứ không bằng việc người viết nhớ. Đó là `UploadSizeCeilingTest` mục 3 — nó đọc
+**cả hai nguồn thật** (bảng `settings` và thuộc tính Spring đã giải) rồi so, nên không có chỗ nào để
+một con số mới lọt vào mà không ai so lại.

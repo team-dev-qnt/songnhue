@@ -7,11 +7,13 @@ import jakarta.validation.ConstraintViolationException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.util.unit.DataSize;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import com.songnhue.core.common.error.ErrorCode;
@@ -42,8 +45,20 @@ public class GlobalExceptionHandler {
 
     private final ErrorMessageResolver messages;
 
-    public GlobalExceptionHandler(ErrorMessageResolver messages) {
+    /**
+     * Trần multipart <b>đã giải</b>, đọc lại từ chính thuộc tính Spring dùng để cấu hình bộ phân
+     * tích — không phải một hằng số chép tay ở đây.
+     *
+     * <p>⚠ Đây là điểm mấu chốt của quy tắc 3. Chép số 120 vào mã nghĩa là câu thông báo và hành vi
+     * thật có thể trôi khỏi nhau ngay lượt đầu ai đó đặt {@code UPLOAD_MAX_FILE_MB} — và trôi trong
+     * im lặng, vì cả hai đều "có vẻ đúng". Đọc cùng một nguồn thì không có hai giá trị để lệch.
+     */
+    private final DataSize tranMotTep;
+
+    public GlobalExceptionHandler(
+            ErrorMessageResolver messages, @Value("${spring.servlet.multipart.max-file-size}") DataSize tranMotTep) {
         this.messages = messages;
+        this.tranMotTep = tranMotTep;
     }
 
     // -------------------------------------------------------------------------
@@ -100,6 +115,31 @@ public class GlobalExceptionHandler {
         // Message gốc hay chứa tên class và cấu trúc JSON nội bộ → CHỈ ghi log
         log.debug("[{}] Request sai định dạng: {}", RequestContext.traceId(), ex.getMessage());
         return validationResponse(List.of());
+    }
+
+    /**
+     * Tệp vượt trần multipart của máy chủ — <b>413</b>, không phải 500.
+     *
+     * <h2>Vì sao ngoại lệ này cần một nhánh riêng</h2>
+     *
+     * Nó được ném ở {@code DispatcherServlet.checkMultipart}, tức <b>trước khi vào controller</b>:
+     * không {@code @RequirePermission} nào chạy, không dòng mã nghiệp vụ nào chạy. Nên nó không thể
+     * là {@link AppException}, và trước 30/08/2026 nó rơi thẳng vào {@link #handleUnexpected} →
+     * người dùng nhận <i>"Lỗi hệ thống, vui lòng thử lại"</i> kèm mã tra cứu, cho một tệp chỉ cần
+     * nén nhỏ lại. Đo được trên staging: 3 lượt, tất cả là màn hình tải ảnh sơ đồ hệ thống.
+     *
+     * <p>⚠ {@code log.warn} chứ không {@code log.error}: đây là lỗi người dùng gửi sai, và nhánh
+     * ERROR duy nhất của lớp này phải giữ nguyên nghĩa "phía mình hỏng". Một lỗi nhập liệu thường
+     * ngày nằm trong ERROR sẽ làm chính cái ERROR mất giá trị cảnh báo.
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUploadTooLarge(MaxUploadSizeExceededException ex) {
+        String traceId = RequestContext.traceId();
+        long tranMb = tranMotTep.toMegabytes();
+        log.warn("[{}] Tệp vượt trần multipart {} MB: {}", traceId, tranMb, ex.getMessage());
+
+        ApiError error = ApiError.of(ErrorCode.SYS_0011.code(), messages.resolve(ErrorCode.SYS_0011, tranMb));
+        return ResponseEntity.status(ErrorCode.SYS_0011.status()).body(ApiResponse.fail(error, traceId));
     }
 
     // -------------------------------------------------------------------------

@@ -40,6 +40,19 @@ public enum ErrorCode {
     SYS_0009("SYS-0009", HttpStatus.CONFLICT),
     /** Bản ghi đã dùng hết hạn mức dung lượng tệp đính kèm (CN-02.3: 500MB/công trình). */
     SYS_0010("SYS-0010", HttpStatus.UNPROCESSABLE_ENTITY),
+    /**
+     * Thân yêu cầu vượt trần multipart của máy chủ — {0} là trần tính bằng MB.
+     *
+     * <p>⚠ Đây <b>không</b> phải hạn mức nghiệp vụ. Hạn mức nghiệp vụ nằm ở {@code settings}
+     * ({@code limits.upload.max-mb.*}), sửa được trên giao diện, và nó trả {@code SYS-0003} kèm
+     * chi tiết {@code FILE_TOO_LARGE}. Mã này chỉ nổ khi tệp vượt trần <i>hạ tầng</i> — thứ chặn
+     * trước cả controller, ở {@code DispatcherServlet.checkMultipart}.
+     *
+     * <p>Trước 30/08/2026 không ai bắt {@code MaxUploadSizeExceededException}, nên nó rơi vào lưới
+     * an toàn cuối và trả <b>500</b>: người dùng nhận "Lỗi hệ thống, vui lòng thử lại" cho một tệp
+     * chỉ cần nén nhỏ lại. Xem {@code UploadSizeCeilingTest}.
+     */
+    SYS_0011("SYS-0011", HttpStatus.PAYLOAD_TOO_LARGE),
 
     // ---- Xác thực & phân quyền -------------------------------------------------
     /** Message cố ý mơ hồ: không tiết lộ tài khoản có tồn tại hay không (§4.1). */
