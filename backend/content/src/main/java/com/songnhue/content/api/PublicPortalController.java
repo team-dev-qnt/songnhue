@@ -84,7 +84,15 @@ public class PublicPortalController {
             String url,
             boolean openNewTab,
             Short depth,
-            String parentLabel) {}
+            String parentLabel,
+            /**
+             * {@code publicId} của logo, hoặc {@code null} khi mục chưa có.
+             *
+             * <p>⚠ Chỉ mục ở vị trí {@code LIEN_KET} mới đặt được (CR-21). Nơi hiển thị phải xử lý
+             * được {@code null}: dải liên kết là bốn cơ quan cấp trên, Công ty tải logo từng cái
+             * một, nên trạng thái "một nửa có logo" là bình thường chứ không phải lỗi.
+             */
+            UUID logoId) {}
 
     /**
      * Một ảnh của thư viện trang chủ.
@@ -139,7 +147,8 @@ public class PublicPortalController {
                                 .filter(x -> x.publicId().equals(node.parentPublicId()))
                                 .map(MenuService.MenuNode::label)
                                 .findFirst()
-                                .orElse(null)))
+                                .orElse(null),
+                        node.logoAttachmentId()))
                 .toList();
     }
 

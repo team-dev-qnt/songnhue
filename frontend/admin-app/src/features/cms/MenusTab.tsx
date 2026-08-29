@@ -15,6 +15,7 @@ import {
   Tag,
   Tree,
   Typography,
+  Upload,
 } from 'antd';
 import { type DataNode } from 'antd/es/tree';
 import { useMemo, useState } from 'react';
@@ -86,11 +87,46 @@ export function MenusTab() {
     onError: (caught) => baoLoi(caught, 'Không đổi được thứ tự'),
   });
 
+  const uploadLogo = useMutation({
+    mutationFn: ({ publicId, file }: { publicId: string; file: File }) =>
+      cmsApi.uploadMenuLogo(publicId, file),
+    onSuccess: async () => {
+      message.success('Đã tải logo');
+      await invalidate();
+    },
+    onError: (caught) => baoLoi(caught, 'Không tải được logo'),
+  });
+
+  const removeLogo = useMutation({
+    mutationFn: (publicId: string) => cmsApi.removeMenuLogo(publicId),
+    onSuccess: async () => {
+      message.success('Đã gỡ logo');
+      await invalidate();
+    },
+    onError: (caught) => baoLoi(caught, 'Không gỡ được logo'),
+  });
+
   const treeData: DataNode[] = useMemo(() => {
     const toNode = (item: ReturnType<typeof buildTree<MenuNode>>[number]): DataNode => ({
       key: item.value.publicId,
       title: (
         <Space>
+          {/* ⭐ Ô logo CHỈ hiện ở vị trí `LIEN_KET`.
+
+              Không phải để giao diện gọn: menu đầu trang và chân trang là menu CHỮ — cổng công
+              khai không dựng ô ảnh nào cho chúng. Bày nút "Tải logo" ở đó là mời người dùng làm
+              một việc mà kết quả không hiện ở đâu cả; backend cũng từ chối bằng `CMS-2015`, và
+              hai lớp chặn ấy nói cùng một điều (ràng buộc thật nằm ở service — quy tắc 12). */}
+          {position === 'LIEN_KET' &&
+            (item.value.logoAttachmentId ? (
+              <img
+                src={`/api/v1/public/files/${item.value.logoAttachmentId}`}
+                alt=""
+                style={{ height: 24, width: 40, objectFit: 'contain' }}
+              />
+            ) : (
+              <Tag color="warning">Chưa có logo</Tag>
+            ))}
           <span>{item.value.label}</span>
           <Tag>{MO_TA_LOAI[item.value.linkType]}</Tag>
           {!item.value.active && <Tag color="default">Đang tắt</Tag>}
@@ -123,6 +159,32 @@ export function MenusTab() {
           >
             Thêm con
           </Button>
+          {position === 'LIEN_KET' && (
+            <Upload
+              showUploadList={false}
+              accept="image/png,image/jpeg,image/webp"
+              beforeUpload={(file) => {
+                uploadLogo.mutate({ publicId: item.value.publicId, file });
+                return false;
+              }}
+            >
+              <Button type="link" size="small" onClick={(event) => event.stopPropagation()}>
+                {item.value.logoAttachmentId ? 'Đổi logo' : 'Tải logo'}
+              </Button>
+            </Upload>
+          )}
+          {position === 'LIEN_KET' && item.value.logoAttachmentId && (
+            <Button
+              type="link"
+              size="small"
+              onClick={(event) => {
+                event.stopPropagation();
+                removeLogo.mutate(item.value.publicId);
+              }}
+            >
+              Gỡ logo
+            </Button>
+          )}
           <Popconfirm
             title="Xoá mục menu?"
             okText="Xoá"
@@ -138,7 +200,7 @@ export function MenusTab() {
       children: item.children.map(toNode),
     });
     return buildTree(items).map(toNode);
-  }, [items, form, remove]);
+  }, [items, form, remove, position, uploadLogo, removeLogo]);
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
@@ -169,8 +231,16 @@ export function MenusTab() {
       <Alert
         type="info"
         showIcon
-        message="Menu đầu trang và chân trang là hai cây riêng"
-        description="Một mục con luôn thuộc cùng vị trí với mục cha — ràng buộc này được cơ sở dữ liệu bảo đảm, không phải bằng nhắc nhở."
+        message={
+          position === 'LIEN_KET'
+            ? 'Dải "Liên kết website" ở cuối trang chủ'
+            : 'Menu đầu trang và chân trang là hai cây riêng'
+        }
+        description={
+          position === 'LIEN_KET'
+            ? 'Mỗi mục là một cơ quan cấp trên: nhãn, đường dẫn và logo. Chưa tải logo thì thẻ trên cổng chỉ hiện tên — không có ô ảnh rỗng. Nhận PNG, JPEG, WebP.'
+            : 'Một mục con luôn thuộc cùng vị trí với mục cha — ràng buộc này được cơ sở dữ liệu bảo đảm, không phải bằng nhắc nhở.'
+        }
       />
 
       {menu.isLoading ? (

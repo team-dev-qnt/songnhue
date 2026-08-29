@@ -55,6 +55,7 @@ const MENU_TOI_THIEU: MenuLink[] = [
     openNewTab: false,
     depth: 0,
     parentLabel: null,
+    logoId: null,
   },
 ];
 

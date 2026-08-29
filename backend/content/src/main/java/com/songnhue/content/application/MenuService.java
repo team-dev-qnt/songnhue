@@ -22,6 +22,9 @@ import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.BusinessRuleException;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
 import com.songnhue.core.common.tree.MaterializedPath;
+import com.songnhue.core.spi.AttachmentPort;
+import com.songnhue.core.spi.AttachmentRef;
+import com.songnhue.core.spi.AttachmentUploadCommand;
 
 /**
  * Menu điều hướng của cổng — CN-01.5, T15.1.
@@ -36,14 +39,31 @@ public class MenuService {
     /** Giá trị giữ chỗ cho lượt INSERT đầu — {@code path} chứa chính id do CSDL sinh. */
     private static final String PATH_TAM = "/";
 
+    /**
+     * Định dạng nhận cho logo cơ quan.
+     *
+     * <p>⛔ KHÔNG có {@code image/svg+xml}. {@code SiteConfigService} là <b>nơi duy nhất</b> trong hệ
+     * thống nhận SVG (điểm nghiệp vụ 7) và nó có lý do: logo Công ty do chính Công ty làm. Logo cơ
+     * quan cấp trên thì tải từ nơi khác về, tức là tệp của người lạ — và SVG là một tài liệu chạy
+     * được script. Khử trùng thì vẫn có ({@code AttachmentService} luôn đưa SVG qua
+     * {@code SvgSanitizer}), nhưng không mở thêm một cửa nữa khi không cần.
+     */
+    private static final List<String> DINH_DANG_LOGO = List.of("image/png", "image/jpeg", "image/webp");
+
     private final MenuItemRepository items;
     private final CategoryRepository categories;
     private final ArticleRepository articles;
+    private final AttachmentPort attachments;
 
-    public MenuService(MenuItemRepository items, CategoryRepository categories, ArticleRepository articles) {
+    public MenuService(
+            MenuItemRepository items,
+            CategoryRepository categories,
+            ArticleRepository articles,
+            AttachmentPort attachments) {
         this.items = items;
         this.categories = categories;
         this.articles = articles;
+        this.attachments = attachments;
     }
 
     /**
@@ -92,7 +112,12 @@ public class MenuService {
             boolean openNewTab,
             Short depth,
             Integer sortOrder,
-            boolean active) {}
+            boolean active,
+            /**
+             * {@code publicId} của logo, hoặc {@code null}. Chỉ mục ở vị trí {@code LIEN_KET} mới
+             * đặt được — xem {@link #uploadLogo}.
+             */
+            UUID logoAttachmentId) {}
 
     /**
      * Thêm một mục.
@@ -264,7 +289,14 @@ public class MenuService {
                         item.isOpenNewTab(),
                         item.getDepth(),
                         item.getSortOrder(),
-                        item.isActive()))
+                        item.isActive(),
+                        // ⚠⚠ ĐÂY là đường mà cổng công khai đi (`tree()` → `/public/menus/…`),
+                        //    còn `toNode()` bên dưới chỉ phục vụ lượt tạo/sửa một mục. Quên vế
+                        //    này thì màn hình quản trị hiện logo, CSDL có logo, và trang chủ
+                        //    vẫn là thẻ chữ — hỏng câm, đúng nửa cặp đọc–ghi (quy tắc 27).
+                        //    Lượt này chỉ lộ ra vì `record` bắt sai số tham số; một `setter`
+                        //    thì đã đi lọt.
+                        item.getLogoAttachmentPublicId()))
                 .toList();
     }
 
@@ -294,6 +326,53 @@ public class MenuService {
                 item.isOpenNewTab(),
                 item.getDepth(),
                 item.getSortOrder(),
-                item.isActive());
+                item.isActive(),
+                item.getLogoAttachmentPublicId());
+    }
+
+    /**
+     * Tải logo cho một mục của dải "Liên kết website".
+     *
+     * <h2>⛔ Chỉ vị trí {@code LIEN_KET}, và đó là một ràng buộc chứ không phải một bộ lọc giao diện</h2>
+     *
+     * Menu Header và Footer là menu <b>chữ</b>: cổng không dựng ô ảnh nào cho chúng. Cho tải logo
+     * vào đấy nghĩa là tạo ra một cột có người ghi mà không ai đọc — đúng thứ {@code CLAUDE.md} quy
+     * tắc 15 gọi tên, và nó im lặng: màn hình quản trị báo *lưu thành công*, cổng không đổi gì
+     * (quy tắc 27).
+     *
+     * <p>Chặn ở ĐÂY chứ không ở màn hình quản trị: giao diện chỉ là một trong các đường vào, còn
+     * đây là chỗ dữ liệu đi qua (quy tắc 12).
+     *
+     * <h2>⚠ Tệp cũ không bị xoá</h2>
+     *
+     * Cùng lý do với {@code SiteConfigService.uploadBrandImage}: trang đã dựng sẵn (ISR) còn trỏ
+     * vào nó. Vài tệp bỏ lại trong kho rẻ hơn ảnh vỡ trên những trang ấy.
+     */
+    @Transactional
+    public MenuNode uploadLogo(UUID publicId, String originalName, byte[] content) {
+        MenuItem item = get(publicId);
+        if (item.getPosition() != MenuPosition.LIEN_KET) {
+            throw new BusinessRuleException(ErrorCode.CMS_2015);
+        }
+        AttachmentRef ref = attachments.upload(new AttachmentUploadCommand(
+                MenuItem.OWNER_TYPE, item.getId(), "MENU_LOGO", originalName, content, DINH_DANG_LOGO));
+        item.setLogoAttachmentPublicId(ref.publicId());
+        items.flush();
+        return toNode(item, parentPublicIdOf(item));
+    }
+
+    /** Gỡ logo — mục quay về thẻ chữ, không để lại ô ảnh rỗng. */
+    @Transactional
+    public MenuNode removeLogo(UUID publicId) {
+        MenuItem item = get(publicId);
+        item.setLogoAttachmentPublicId(null);
+        items.flush();
+        return toNode(item, parentPublicIdOf(item));
+    }
+
+    private UUID parentPublicIdOf(MenuItem item) {
+        return item.getParentId() == null
+                ? null
+                : items.findById(item.getParentId()).map(MenuItem::getPublicId).orElse(null);
     }
 }

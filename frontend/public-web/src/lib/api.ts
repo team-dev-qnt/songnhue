@@ -187,6 +187,14 @@ export interface MenuLink {
   openNewTab: boolean;
   depth: number;
   parentLabel: string | null;
+  /**
+   * `publicId` của logo, hoặc `null`.
+   *
+   * ⚠ Chỉ mục ở vị trí `LIEN_KET` mới có (CR-21). Nơi hiển thị **phải** xử lý được `null`: Công ty
+   * tải logo từng cơ quan một, nên "một nửa danh sách có logo" là trạng thái bình thường. Ô rỗng
+   * thì hiện tên — không dựng khung ảnh xám chờ tệp.
+   */
+  logoId: string | null;
 }
 
 export interface BannerItem {

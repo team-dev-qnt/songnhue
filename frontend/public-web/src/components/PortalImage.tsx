@@ -68,6 +68,20 @@ interface PortalImageProps {
    *    29/08. `noPortalImageWidth.test.ts` canh cho không ai đặt nhầm chỗ nữa.
    */
   rong?: string;
+  /**
+   * `true` (mặc định) ⇒ ảnh **phủ** khung và bị cắt cho vừa (`object-cover`) — đúng cho ảnh minh
+   * hoạ, nơi mất một dải mép không sao.
+   *
+   * <p>`false` ⇒ ảnh **vừa trọn** trong khung (`object-contain`), có thể chừa nền hai bên. Dùng
+   * cho thứ mà cắt đi là mất thông tin: sơ đồ kỹ thuật, logo, bản vẽ. Cắt một sơ đồ hệ thống là
+   * cắt mất một đoạn tuyến sông, và **không ai biết đoạn nào vừa mất**.
+   *
+   * ⛔ Đây là một PROP chứ không phải một lớp truyền qua {@link className}, và lý do là bài học
+   * đo được ngày 29/08: `object-cover` nằm sẵn trên thẻ `<img>`, nên một lớp cạnh tranh phải
+   * thắng nó bằng độ ưu tiên CSS — đúng cuộc đua đã làm biến mất tiêu đề bài viết trên trang
+   * chủ. Hai lớp không bao giờ cùng được phát ra thì không có thứ tự nào để mà phụ thuộc.
+   */
+  phuKhung?: boolean;
   /** Lớp cho KHUNG ngoài — bo góc, viền, `shrink-0`, `h-full` khi khung phải giãn theo lưới. */
   className?: string;
   /**
@@ -82,6 +96,7 @@ export function PortalImage({
   alt,
   ratio = 'aspect-[16/10]',
   rong = 'w-full',
+  phuKhung = true,
   className = '',
   priority = false,
 }: PortalImageProps) {
@@ -94,7 +109,9 @@ export function PortalImage({
           loading={priority ? 'eager' : 'lazy'}
           decoding="async"
           fetchPriority={priority ? 'high' : 'auto'}
-          className="absolute inset-0 h-full w-full object-cover object-center"
+          className={`absolute inset-0 h-full w-full object-center ${
+            phuKhung ? 'object-cover' : 'object-contain'
+          }`}
         />
       ) : (
         <div

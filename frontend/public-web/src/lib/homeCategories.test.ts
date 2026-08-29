@@ -14,6 +14,7 @@ function muc(partial: Partial<MenuLink>): MenuLink {
     openNewTab: false,
     depth: 0,
     parentLabel: null,
+    logoId: null,
     ...partial,
   };
 }

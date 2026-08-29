@@ -26,6 +26,16 @@ public class MenuItem extends BaseEntity {
     /** Mục cha → mục con → mục cháu. Sâu hơn nữa thì không thao tác được bằng chuột. */
     public static final int MAX_DEPTH = 2;
 
+    /**
+     * {@code attachments.owner_type} của logo mục menu.
+     *
+     * <p>⛔ Giá trị này nằm trong danh sách trắng {@code PublicPortalService.LOAI_TEP_CONG_KHAI},
+     * tức <b>mọi</b> tệp mang loại chủ sở hữu này đều tải về được không cần đăng nhập, chỉ cần biết
+     * {@code publicId}. Đúng cho logo cơ quan cấp trên — chúng vốn để hiện trên trang chủ. Đừng tái
+     * dùng hằng số này cho bất cứ thứ gì không phải ảnh công khai.
+     */
+    public static final String OWNER_TYPE = "MENU_ITEM";
+
     @Enumerated(EnumType.STRING)
     @Column(name = "position", nullable = false, length = 20)
     private MenuPosition position;
@@ -64,6 +74,17 @@ public class MenuItem extends BaseEntity {
     @Column(name = "active", nullable = false)
     private boolean active = true;
 
+    /**
+     * Logo hiển thị cạnh nhãn — chỉ có nghĩa ở vị trí {@link MenuPosition#LIEN_KET}.
+     *
+     * <p>Ràng buộc "chỉ LIEN_KET" ép ở {@code MenuService.uploadLogo}, không ép bằng {@code CHECK}:
+     * CHECK chỉ thấy một dòng, mà ở đây điều kiện nằm trên chính dòng ấy nên viết được — nhưng nó
+     * sẽ khoá cứng một quyết định trình bày vào lược đồ. Ngày Công ty muốn menu chân trang có
+     * logo, đổi một dòng Java dễ hơn đổi một ràng buộc CSDL đang có dữ liệu.
+     */
+    @Column(name = "logo_attachment_public_id")
+    private java.util.UUID logoAttachmentPublicId;
+
     protected MenuItem() {}
 
     public MenuItem(MenuPosition position, String label, MenuLinkType linkType) {
@@ -95,6 +116,15 @@ public class MenuItem extends BaseEntity {
 
     public MenuPosition getPosition() {
         return position;
+    }
+
+    public java.util.UUID getLogoAttachmentPublicId() {
+        return logoAttachmentPublicId;
+    }
+
+    /** Chỉ {@code MenuService} gọi — {@code null} là gỡ logo. */
+    public void setLogoAttachmentPublicId(java.util.UUID logoAttachmentPublicId) {
+        this.logoAttachmentPublicId = logoAttachmentPublicId;
     }
 
     public Long getParentId() {

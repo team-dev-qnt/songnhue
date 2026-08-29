@@ -163,6 +163,13 @@ export interface MenuNode {
   depth: number;
   sortOrder: number;
   active: boolean;
+  /**
+   * `publicId` của logo, hoặc `null`.
+   *
+   * ⚠ Chỉ đặt được cho mục ở vị trí `LIEN_KET` — backend trả `CMS-2015` cho mọi vị trí khác.
+   * Menu Header/Footer là menu chữ, cổng không dựng ô ảnh nào cho chúng.
+   */
+  logoAttachmentId: string | null;
 }
 
 export interface MenuRequest {
