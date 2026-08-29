@@ -81,16 +81,48 @@ chmod 600 /home/songnhue/.ssh/authorized_keys
 chown -R songnhue:songnhue /home/songnhue/.ssh
 ```
 
-Khoá đăng nhập bằng mật khẩu — `/etc/ssh/sshd_config`:
+Khoá đăng nhập bằng mật khẩu. ⛔ **Ghi vào tệp drop-in `10-…`, KHÔNG ghi vào
+`/etc/ssh/sshd_config`** — xem hộp cảnh báo ngay dưới:
 
-```
+```bash
+sudo tee /etc/ssh/sshd_config.d/10-hardening.conf >/dev/null <<'EOF'
 PermitRootLogin no
 PasswordAuthentication no
 KbdInteractiveAuthentication no
+EOF
+sudo sshd -t && sudo systemctl reload ssh
 ```
 
+⛔⛔ **VÌ SAO `10-` CHỨ KHÔNG PHẢI `sshd_config`, VÀ VÌ SAO KHÔNG PHẢI `60-`**
+
+Trong `sshd_config`, với mỗi từ khoá thì **giá trị ĐỌC ĐƯỢC ĐẦU TIÊN thắng** — không phải giá trị
+cuối, ngược với trực giác của gần như mọi tệp cấu hình khác. Và Ubuntu đặt
+`Include /etc/ssh/sshd_config.d/*.conf` ở **dòng đầu** `sshd_config`, các tệp trong thư mục ấy đọc
+theo **thứ tự chữ cái**.
+
+Nghĩa là ảnh Ubuntu của nhà cung cấp thả một `50-cloud-init.conf` chứa `PasswordAuthentication yes`
+thì nó **thắng cả `sshd_config` lẫn mọi drop-in đánh số lớn hơn 50**.
+
+⭐ Đo trên VPS-2 ngày 29/8 — **đúng từng dòng**:
+
+```
+/etc/ssh/sshd_config:132:                    PasswordAuthentication no    ← thua
+/etc/ssh/sshd_config.d/50-cloud-init.conf:1: PasswordAuthentication yes   ← thắng
+```
+
+Thư mục chỉ có hai tệp: `50-cloud-init.conf` và `60-startups.conf`. Nên `60-` **thua** cloud-init nếu
+tranh cùng từ khoá — nó chỉ có tác dụng vì `MaxStartups` không tệp nào khác đặt.
+
+⭐ Đo trên VPS-2 ngày 29/8 — đúng như vậy: `sshd -T` trả **`passwordauthentication yes`** trong khi
+`sshd_config` có dòng `no` như hướng dẫn cũ dặn. Tài liệu này đã **sai suốt từ lúc viết**, và cái sai
+đi kèm một lời trấn an còn nguy hiểm hơn (xem §2.2-b). Cùng lúc đó `60-startups.conf` lại **có** tác
+dụng — vì `MaxStartups` không tệp nào khác tranh. Một tham số ăn, một tham số không, cùng một thư mục.
+
+⚠ **Luôn nghiệm thu bằng cấu hình ĐANG CÓ HIỆU LỰC, đừng đọc lại tệp mình vừa ghi:**
+
 ```bash
-sshd -t && systemctl restart ssh
+sudo sshd -T | grep -iE '^(passwordauthentication|permitrootlogin|kbdinteractiveauthentication)'
+sudo grep -rn -i '^[[:space:]]*passwordauthentication' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/
 ```
 
 > ⚠ **Mở một phiên SSH thứ hai và đăng nhập được rồi mới đóng phiên đang dùng.** Gõ sai một dòng
@@ -147,9 +179,31 @@ thực thì sshd **thả ngẫu nhiên 30%** kết nối mới. Tỉ lệ đo đ
 **30% đúng bằng chữ số giữa của `10:30:100`.** CD Staging 27/8 đỏ ở bước *"Ghi lại bản đang chạy"* —
 bước mở ba kết nối SSH liên tiếp — với `kex_exchange_identification: Connection reset by peer`.
 
-⚠ Không ai vào được (`PasswordAuthentication no`, `PermitRootLogin no`, `who` = 0 phiên). Đây là vấn
-đề **sẵn sàng phục vụ**, không phải xâm nhập. Nhưng nó vẫn là một cửa mở cho người lạ tiêu tài nguyên
-của máy.
+⛔⛔ **ĐÍNH CHÍNH 29/8 — đoạn dưới đây từng ghi *"không ai vào được"*, và điều đó KHÔNG ĐÚNG.**
+
+Bản cũ viết: *"Không ai vào được (`PasswordAuthentication no`, `PermitRootLogin no`, `who` = 0 phiên).
+Đây là vấn đề sẵn sàng phục vụ, không phải xâm nhập."* Câu ấy dựa trên việc **đọc lại tệp
+`sshd_config`**, không dựa trên phép đo.
+
+Đo bằng `sshd -T` ngày 29/8:
+
+| tham số | thực tế | tài liệu từng nói |
+|---|---|---|
+| `permitrootlogin` | `no` | `no` ✅ |
+| **`passwordauthentication`** | **`yes`** | `no` ⛔ |
+| `kbdinteractiveauthentication` | `no` | — |
+| `maxstartups` | `30:30:200` | `30:30:200` ✅ |
+| `persourcemaxstartups` | `6` | `6` ✅ |
+
+Tức máy **vẫn đang cho cả Internet đoán mật khẩu** — nhật ký đầy `Failed password for root`, và
+`permitrootlogin no` chỉ chặn *root*, không chặn `songnhue` (user có `sudo`). Nguyên nhân ở §2.1:
+hướng dẫn cũ bảo ghi vào `sshd_config`, mà tệp ấy **thua** drop-in.
+
+⛔ Bài học đắt hơn cả lỗ hổng: **một lời trấn an sai còn tệ hơn không có lời nào.** Câu *"không ai vào
+được"* đã khiến ba lượt rà sau đó bỏ qua hẳn hướng xác thực và chỉ nhìn vào chỗ nghẽn kết nối.
+
+Phần còn lại của mục này nói về **sẵn sàng phục vụ** — cổng 22 bị quét làm đỏ deploy — và phần ấy vẫn
+đúng. Nhưng nó không phải toàn bộ câu chuyện.
 
 #### ⭐ Đo lại 27/8 lúc 10:05 — sshd tự khai, không cần suy ra nữa
 
@@ -230,6 +284,70 @@ bị quét, và một lượt deploy vẫn có thể đỏ vì lý do chẳng li
 ok=0; for i in $(seq 1 10); do ssh -o BatchMode=yes -o ConnectTimeout=8 <user>@<host> true 2>/dev/null && ok=$((ok+1)); sleep 2; done; echo "$ok/10"
 sudo fail2ban-client status sshd     # Currently banned phải > 0 sau ít giờ
 ```
+
+### 2.2-c. Khoá máy chủ phải GHIM SẴN — ⛔ **lượt deploy từng tự cấm chính nó**
+
+Đo 29/8, sau khi fail2ban đã chạy được một ngày. Nhật ký sshd trong cửa sổ lượt CD đỏ:
+
+```
+19:27:03 Unable to negotiate with 52.230.251.196 port 39970: no matching host key type
+         found. Their offer: sk-ssh-ed25519@openssh.com [preauth]
+19:27:04 Connection closed by 52.230.251.196 port 39971 [preauth]
+19:27:05 Connection closed by 52.230.251.196 port 39968 [preauth]
+19:27:05 Connection closed by 52.230.251.196 port 39972 [preauth]
+19:27:06 Unable to negotiate with 52.230.251.196 port 39969 … sk-ecdsa-sha2-nistp256
+```
+
+`52.230.251.196` thuộc dải Azure — runner GitHub. Bước *Mở đường SSH* khởi động lúc
+**12:27:03 UTC = 19:27:03 giờ VN**: khớp **tới từng giây**. Năm kết nối song song, hai cái chào bằng
+kiểu khoá `sk-*` — đó là vân tay của **`ssh-keyscan`**, dòng đầu tiên của chính bước ấy.
+
+Tham số fail2ban **đo trên máy** (không đọc lại tài liệu): `bantime 3600` · `maxretry 3` ·
+`findtime 600` · `mode = aggressive`. `aggressive` tính cả `Connection closed … [preauth]`, nên
+**năm kết nối dò vượt ngưỡng ba ngay lập tức**. IP runner vào `Banned IP list`, rồi sáu lượt `ssh`
+kế tiếp gõ vào bức tường mà chính nó vừa dựng.
+
+⛔ **Mỗi lượt deploy đều tự cấm mình.** Lượt CD xanh trước đó mở được kênh ở giây thứ **5,6** — nó chỉ
+**thắng cuộc đua** với vòng quét nhật ký của fail2ban. Đường ống chạy bằng may rủi, không bằng thiết kế.
+
+#### Làm gì
+
+Bỏ hẳn `ssh-keyscan`, ghim khoá công khai của máy chủ vào secret `*_SSH_KNOWN_HOSTS`.
+
+```bash
+# TRÊN máy chủ
+cat /etc/ssh/ssh_host_ed25519_key.pub
+```
+
+Lấy **hai trường đầu** (`ssh-ed25519 AAAA…`), bỏ phần đuôi `root@…`, rồi ghép với đúng địa chỉ đang
+nằm ở secret `*_HOST`:
+
+```
+27.71.27.75 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA…
+```
+
+⚠ Chuỗi đứng đầu phải **trùng từng ký tự** với `*_HOST`. Ghi `staging.songnhue.com` trong khi `HOST`
+là `27.71.27.75` thì `known_hosts` không khớp và lượt deploy đỏ ở bước xác minh — đúng như thiết kế,
+nhưng mất công dò.
+
+#### Vì sao đây còn là bản vá BẢO MẬT, không chỉ vá độ ổn định
+
+`ssh-keyscan` **nhận bất kỳ khoá nào máy chủ đưa ra rồi tin luôn**. Dò lại ở mỗi lượt deploy nghĩa là
+**không lượt nào thật sự xác minh** mình đang nói chuyện với đúng máy: ai chen được vào giữa sẽ nhận
+trọn khoá triển khai và toàn bộ nội dung deploy. Ghim khoá đổi *tin-lần-đầu-mỗi-lượt* thành xác minh
+thật, và `deploy.yml` nói thẳng `StrictHostKeyChecking yes` thay vì dựa vào mặc định.
+
+#### Kiểm chứng sau khi làm
+
+| kiểm | đạt khi |
+|---|---|
+| `sudo fail2ban-client status sshd` sau một lượt CD | IP runner **không** xuất hiện trong `Banned IP list` |
+| log bước *Mở đường SSH* | có dòng `✓ Đã ghim 1 khoá máy chủ — 0 kết nối dò` |
+| `sudo journalctl -t sshd --since '<đầu lượt CD>'` | **không** còn cụm 5 kết nối `[preauth]` từ dải Azure |
+
+⛔ Ba bài kiểm trong `DeploySshMultiplexTest` canh phía kho: cấm `ssh-keyscan` quay lại · bắt buộc đọc
+`SSH_KNOWN_HOSTS` · buộc cổng secret phải hỏi biến ấy (luật 27 — nửa cặp đọc–ghi). Nhưng **bảng trên
+mới là phép kiểm thật**, vì nguyên nhân nằm ở máy chủ.
 
 ### 2.3. Docker
 
@@ -591,8 +709,8 @@ curl -sk https://<IP-VPS2>/ -o /dev/null -w '%{http_code}\n'    # → 000 (đón
 
 | Loại | Tên | Đặt ở | Giá trị |
 |---|---|---|---|
-| Secret | `STAGING_HOST` · `STAGING_USER` · `STAGING_SSH_KEY` · `STAGING_BASE_URL` | environment `staging` | IP VPS-2 · `songnhue` · nội dung `~/.ssh/songnhue_deploy` · `https://staging.songnhue.vn` |
-| Secret | `PROD_HOST` · `PROD_USER` · `PROD_SSH_KEY` · `PROD_BASE_URL` | environment `production` | như trên, cho VPS-1 |
+| Secret | `STAGING_HOST` · `STAGING_USER` · `STAGING_SSH_KEY` · `STAGING_BASE_URL` · `STAGING_SSH_KNOWN_HOSTS` | environment `staging` | IP VPS-2 · `songnhue` · nội dung `~/.ssh/songnhue_deploy` · `https://staging.songnhue.com` · một dòng `known_hosts` (§2.2-c) |
+| Secret | `PROD_HOST` · `PROD_USER` · `PROD_SSH_KEY` · `PROD_BASE_URL` · `PROD_SSH_KNOWN_HOSTS` | environment `production` | như trên, cho VPS-1 |
 | Secret | `NVD_API_KEY` | **repo** | ✅ đã đặt 18/8 |
 | **Variable** | `PUBLIC_SITE_URL` | **repo** | `https://songnhue.vn` |
 

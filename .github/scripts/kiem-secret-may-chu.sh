@@ -3,7 +3,8 @@
 # CỔNG SECRET — quyết định lượt triển khai được đi tiếp, bỏ qua, hay dừng đỏ.
 #
 # Dùng (chạy trên runner, không phải trên máy chủ):
-#   MOI_TRUONG=production HOST=… USER=… SSH_KEY=… BASE_URL=… kiem-secret-may-chu.sh
+#   MOI_TRUONG=production HOST=… USER=… SSH_KEY=… BASE_URL=… SSH_KNOWN_HOSTS=… \
+#     kiem-secret-may-chu.sh
 #
 # ⭐ VÌ SAO CÓ TỆP RIÊNG THAY VÌ VÀI DÒNG TRONG `deploy.yml`
 #
@@ -21,11 +22,16 @@
 #
 # BA TRẠNG THÁI, và chúng phải phân biệt được nhau:
 #
-#   đủ cả bốn      → ready=true,  thoát 0
+#   đủ cả NĂM      → ready=true,  thoát 0
 #   thiếu MỘT SỐ   → thoát 1      ở MỌI môi trường. Cấu hình dở dang không phải
 #                                 "chưa dựng" — nó là cấu hình hỏng, và nó sẽ
 #                                 hỏng muộn hơn ở một bước không nói được vì sao.
-#   thiếu CẢ BỐN   → production: thoát 1. staging: ready=false + cảnh báo.
+#   thiếu CẢ NĂM   → production: thoát 1. staging: ready=false + cảnh báo.
+#
+# ⚠ `SSH_KNOWN_HOSTS` vào danh sách ngày 29/8 (§10.68-C). Trước đó bước "Mở đường
+#   SSH" tự dò khoá bằng `ssh-keyscan`, và chính lượt dò ấy làm fail2ban của máy
+#   chủ cấm IP runner. Nay khoá phải được GHIM sẵn, nên thiếu nó thì lượt deploy
+#   không thể nối — đúng loại thiếu mà cổng này sinh ra để chặn SỚM.
 #
 #   Vì sao staging được nhẹ tay: `deploy-staging.yml` chạy tự động sau mỗi lượt
 #   merge, nên một môi trường chưa dựng sẽ nhuộm đỏ cả dòng CI của mọi người.
@@ -38,7 +44,7 @@ MOI_TRUONG="${MOI_TRUONG:?Thiếu MOI_TRUONG}"
 GITHUB_OUTPUT="${GITHUB_OUTPUT:-/dev/null}"
 
 thieu=()
-for ten in HOST USER SSH_KEY BASE_URL; do
+for ten in HOST USER SSH_KEY BASE_URL SSH_KNOWN_HOSTS; do
     # ⚠ Kiểm giá trị ĐÃ GIẢI: một secret không tồn tại và một secret đặt bằng
     #   chuỗi rỗng đến đây giống hệt nhau, và cả hai đều không dùng được (luật 3).
     gia_tri="$(eval "printf '%s' \"\${$ten:-}\"")"
@@ -47,26 +53,30 @@ done
 
 if [ ${#thieu[@]} -eq 0 ]; then
     echo "ready=true" >> "$GITHUB_OUTPUT"
-    echo "✓ Đủ bốn secret máy chủ cho $MOI_TRUONG"
+    echo "✓ Đủ năm secret máy chủ cho $MOI_TRUONG"
     exit 0
 fi
 
-if [ ${#thieu[@]} -lt 4 ]; then
+if [ ${#thieu[@]} -lt 5 ]; then
     echo "::error::Cấu hình máy chủ $MOI_TRUONG DỞ DANG — thiếu: ${thieu[*]}"
     echo "Có secret nhưng không đủ bộ thì lượt triển khai sẽ hỏng ở một bước xa hơn"
-    echo "với thông báo không nhắc gì tới secret. Đặt đủ bốn, hoặc xoá hết."
+    echo "với thông báo không nhắc gì tới secret. Đặt đủ năm, hoặc xoá hết."
+    echo ""
+    echo "SSH_KNOWN_HOSTS là khoá CÔNG KHAI của máy chủ, một dòng:"
+    echo "    <host> ssh-ed25519 AAAAC3Nza…"
+    echo "Lấy bằng: cat /etc/ssh/ssh_host_ed25519_key.pub  (TRÊN máy chủ)"
     exit 1
 fi
 
 if [ "$MOI_TRUONG" = "production" ]; then
-    echo "::error::Environment \`production\` chưa có secret nào (HOST/USER/SSH_KEY/BASE_URL)."
+    echo "::error::Environment \`production\` chưa có secret nào (HOST/USER/SSH_KEY/BASE_URL/SSH_KNOWN_HOSTS)."
     echo ""
     echo "Lượt chạy này DỪNG ĐỎ, cố ý. Bỏ qua trong im lặng sẽ cho ra một lượt CD"
     echo "Production xanh trọn vẹn mà không một byte nào chạm máy chủ — và người bấm"
     echo "nút sẽ tin là đã deploy xong."
     echo ""
     echo "Đặt ở: Settings → Environments → production → Environment secrets"
-    echo "  PROD_HOST · PROD_USER · PROD_SSH_KEY · PROD_BASE_URL"
+    echo "  PROD_HOST · PROD_USER · PROD_SSH_KEY · PROD_BASE_URL · PROD_SSH_KNOWN_HOSTS"
     exit 1
 fi
 

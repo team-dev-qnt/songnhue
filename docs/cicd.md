@@ -448,8 +448,10 @@ kiểm hai điều:
 
 | Secret | Đặt ở | Dùng ở | Ghi chú |
 |---|---|---|---|
-| `STAGING_HOST` · `STAGING_USER` · `STAGING_SSH_KEY` · `STAGING_BASE_URL` | environment `staging` | CD Staging | ✅ đủ 4 (đo 26/8). Thiếu **cả bốn** → cảnh báo và bỏ qua bước deploy |
-| `PROD_HOST` · `PROD_USER` · `PROD_SSH_KEY` · `PROD_BASE_URL` | environment `production` | CD Production | ⛔ **chưa có cái nào** (đo 26/8). Thiếu ở production → lượt chạy **DỪNG ĐỎ**, không bỏ qua |
+| `STAGING_HOST` · `STAGING_USER` · `STAGING_SSH_KEY` · `STAGING_BASE_URL` · **`STAGING_SSH_KNOWN_HOSTS`** | environment `staging` | CD Staging | ⬜ đủ 4 (đo 26/8) — **cần đặt thêm cái thứ NĂM** (29/8). Thiếu **cả năm** → cảnh báo và bỏ qua; thiếu **một số** → đỏ |
+| `PROD_HOST` · `PROD_USER` · `PROD_SSH_KEY` · `PROD_BASE_URL` · **`PROD_SSH_KNOWN_HOSTS`** | environment `production` | CD Production | ⛔ **chưa có cái nào** (đo 26/8). Thiếu ở production → lượt chạy **DỪNG ĐỎ**, không bỏ qua |
+
+⭐ **`*_SSH_KNOWN_HOSTS` vào bộ ngày 29/8** (§10.68-C). Giá trị là **một dòng `known_hosts`** — `<host> ssh-ed25519 AAAA…`, lấy bằng `cat /etc/ssh/ssh_host_ed25519_key.pub` **trên máy chủ**, thay phần cuối `root@…` bằng địa chỉ đứng ở `*_HOST`. Trước đó workflow tự dò khoá bằng `ssh-keyscan`, và chính lượt dò ấy — 5 kết nối đóng trước xác thực — làm fail2ban của máy chủ **cấm IP runner ngay ở lệnh đầu tiên**. Ghim khoá vừa gỡ nguyên nhân, vừa đổi *tin-lần-đầu-mỗi-lượt* thành xác minh thật.
 | `NVD_API_KEY` | **repo** | `security-scan.yml` | ✅ **Đã đặt 18/8**. **Thiếu thì bỏ qua hẳn phép quét OWASP** (có cảnh báo trong Job Summary). Xin miễn phí ~2 phút: <https://nvd.nist.gov/developers/request-an-api-key> |
 
 **Biến (Variables, không phải Secret) — đặt ở cấp repo:**
