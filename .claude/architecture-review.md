@@ -4731,3 +4731,61 @@ Không tài liệu nào sai; chỗ trống nằm **giữa** hai tài liệu.
 ⚠ Và lần này chỗ trống bị lộ ra bởi một tai nạn: tôi dò SSH quá tay, tự làm IP văn phòng bị cấm, và
 chính việc phải vào bằng 5G mới lấy được `journalctl` — thứ lẽ ra phải lấy **ngay từ đầu**, thay vì
 suy đoán ba lượt về nguyên nhân.
+
+---
+
+### §10.68-D — Secret nối được ba phần tư đường: cổng chặn đúng một lỗi lẽ ra không nên có (29/8)
+
+Ngay sau khi §10.68-C lên `dev` và QuanTran đặt secret trên GitHub, lượt CD Staging kế tiếp đỏ:
+
+```
+SSH_KNOWN_HOSTS:
+##[error]Cấu hình máy chủ staging DỞ DANG — thiếu: SSH_KNOWN_HOSTS
+```
+
+Secret **có** trên GitHub — đo qua API, environment `staging` có đủ 5 tên. Thứ thiếu là **đường dây**:
+`SSH_KNOWN_HOSTS` được khai ở `deploy.yml` (`workflow_call.secrets`) và được kiểm ở
+`kiem-secret-may-chu.sh`, nhưng **hai workflow gọi nó — `deploy-staging.yml` và `deploy-prod.yml` —
+không truyền vào**. Trong `workflow_call`, secret không tự chảy xuống; caller phải ánh xạ từng cái.
+
+Ba phần tư đường dây hoạt động hoàn hảo, và kết quả là chuỗi rỗng.
+
+⭐ **Cổng kiểm hành xử ĐÚNG** — chặn ngay, gọi đích danh, kèm cách lấy giá trị. Đó chính là thứ
+§10.57 dựng ra: thà đỏ sớm còn hơn hỏng muộn ở `ssh` với một câu không nhắc gì tới secret. Nhưng nó
+đang chặn **một lỗi lẽ ra không nên tồn tại**.
+
+⛔ **Và bài kiểm tôi vừa viết cho §10.68-C không bắt được.** `congSecretPhaiHoiKhoaGhim` khẳng định
+chuỗi `SSH_KNOWN_HOSTS` **có mặt** trong `deploy.yml` và trong script — cả hai đều đúng, cả hai đều
+xanh, và đường dây vẫn đứt. Một chuỗi ký tự có mặt ở hai tệp **không chứng minh được nó đã nối**.
+Đúng luật 28: bộ canh hẹp hơn nơi nó phải chặn, và cái xanh của nó đọc như một lời bảo đảm.
+
+Đây là lần thứ hai trong cùng một phiên tôi tự dựng ra chỗ trống rồi tự vấp: lần trước là chú thích
+trong heredoc (bị `DeployRemoteStdinTest` bắt), lần này là nửa đường dây (không bộ canh nào bắt, phải
+đợi lượt CD thật).
+
+#### Vá — đổi từ *"có chuỗi này không"* sang *"bốn tập có bằng nhau không"*
+
+`DeploySecretWiringTest` đọc **bốn nơi** rồi so **tập hợp**, hai chiều:
+
+| nơi | đọc gì |
+|---|---|
+| `deploy.yml` | khối `workflow_call.secrets:` |
+| `deploy-staging.yml` | khối `secrets:` của lượt gọi |
+| `deploy-prod.yml` | khối `secrets:` của lượt gọi |
+| `kiem-secret-may-chu.sh` | danh sách trong `for ten in …` |
+
+Thiếu ở caller → secret tới cổng dưới dạng **chuỗi rỗng**, không phân biệt được với *chưa đặt trên
+GitHub* — nên người đọc log sẽ đi đặt lại một secret vốn đã có. Thừa ở cổng → đòi một secret không ai
+truyền, chặn vĩnh viễn. Cả hai chiều đều phải bắt.
+
+Kèm một bài chống **xanh trên tập rỗng** (luật 7): bốn tập rỗng cũng bằng nhau hoàn hảo, nên phải
+khẳng định mỗi tập có ≥ 5 phần tử **và** chứa đúng những tên đã biết.
+
+⭐ Kiểm chứng ngược, có số đo trước khi chạy: gỡ dòng khỏi `deploy-staging.yml` (`grep -c` in `0`) →
+**2 bài đỏ**, gọi đích danh tệp và in ra cả hai tập để so; khôi phục (`grep -c` in `1`) → 3/3 xanh.
+
+#### Bài học
+
+**Khai một thứ và dùng một thứ chưa phải là nối nó.** Giữa hai đầu ấy còn những khâu trung gian không
+ai nghĩ tới lúc sửa — ở đây là hai workflow gọi. Bộ canh đi theo **chuỗi ký tự** chỉ thấy hai đầu; bộ
+canh đi theo **tập hợp, hai chiều, đủ mọi nơi tham gia** mới thấy khúc giữa.
