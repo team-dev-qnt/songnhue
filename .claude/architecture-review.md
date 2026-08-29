@@ -4595,6 +4595,10 @@ một **chuông reo trong phòng trống**, hình dạng thứ ba bên cạnh ha
 metadata chứ không bằng API tìm kiếm, luật 21). Đo giá trị **đã giải** chứ không đọc lời khai trong
 POM (luật 3): `dependency:tree` cho `tomcat-embed-core`, `-websocket` và `-el` đều ra **10.1.59**.
 
+⭐ Nghiệm thu bằng **lượt quét thật** trên nhánh vá (run 33253652221), đọc báo cáo bằng chính bộ phân
+tích đã dùng cho lượt đỏ: **110 artifact được quét** (không phải tập rỗng — luật 7), báo cáo mang đúng
+`tomcat-embed-core-10.1.59.jar`, và **0 mã ≥ 7**.
+
 ⚠ Và sổ đang nói sai: `CLAUDE.md` khẳng định **"0 CVE ≥ 7"** như một thuộc tính của dự án. Nó không
 phải thuộc tính — nó là **số đo có hạn dùng**, đúng tới ngày đo và tự hỏng theo thời gian mà không ai
 chạm vào mã. Đã ghi lại kèm ngày đo.
