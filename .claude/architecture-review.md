@@ -4649,3 +4649,85 @@ im lặng, và triệu chứng đúng bằng triệu chứng đã thấy: hết 
 biết ở chỗ cơ chế hoàn toàn đúng và vẫn không đổi được kết quả nào. Và **một số đo có hạn dùng thì
 phải ghi kèm ngày đo**; viết `0 CVE ≥ 7` trần trụi vào sổ là biến một phép đo thành một lời hứa mà
 không ai giữ được.
+
+---
+
+### §10.68-C — Lượt deploy tự cấm chính nó: `ssh-keyscan` làm mồi cho fail2ban (29/8)
+
+Phần B ở trên vá được *cách báo lỗi* của bước `Mở đường SSH`. Đây là **nguyên nhân gốc** của lượt đỏ,
+tìm ra sau khi QuanTran lấy được dữ liệu `sudo` trên VPS-2.
+
+#### Bằng chứng khớp tới từng giây
+
+```
+19:27:03 Unable to negotiate with 52.230.251.196 port 39970: no matching host key type
+         found. Their offer: sk-ssh-ed25519@openssh.com [preauth]
+19:27:04 Connection closed by 52.230.251.196 port 39971 [preauth]
+19:27:05 Connection closed by 52.230.251.196 port 39968 [preauth]
+19:27:05 Connection closed by 52.230.251.196 port 39972 [preauth]
+19:27:06 Unable to negotiate with 52.230.251.196 port 39969 … sk-ecdsa-sha2-nistp256
+```
+
+`52.230.251.196` thuộc dải Azure — nơi runner GitHub chạy — và nó nằm trong `Banned IP list`. Bước
+*Mở đường SSH* khởi động **12:27:03 UTC = 19:27:03 giờ VN**. Năm kết nối song song, hai cái chào bằng
+kiểu khoá `sk-*`: vân tay của **`ssh-keyscan`**, đúng dòng đầu tiên của bước ấy.
+
+Tham số fail2ban **đo trên máy**, không đọc lại tài liệu: `bantime 3600` · `maxretry 3` ·
+`findtime 600` · `mode = aggressive`. `aggressive` tính cả `Connection closed … [preauth]`.
+Năm kết nối dò vượt ngưỡng ba **ngay lập tức**.
+
+⛔ **Lượt deploy tự cấm chính nó bằng lệnh mở đầu của nó.** Sáu lượt `ssh` sau đó gõ vào bức tường mà
+chính nó vừa dựng — và vì stderr bị `2>/dev/null` nuốt (phần B), sáu dòng cảnh báo không nói được gì.
+
+#### Vì sao lượt trước vẫn xanh — và vì sao điều đó tệ hơn là an ủi
+
+Lượt CD xanh gần nhất mở được kênh ở giây thứ **5,6**: `ssh-keyscan` chạy ~3s, rồi `ssh` chen vào
+**trước khi** fail2ban kịp quét nhật ký và áp luật. Nó **thắng một cuộc đua**, không phải chạy đúng
+thiết kế. Một đường ống mà kết quả phụ thuộc vào việc ai nhanh hơn ai vài giây thì "xanh" không còn là
+tín hiệu — cùng họ với §10.62 (kết quả phụ thuộc *ai bấm F5 sau cùng*).
+
+#### Vá — và nó vá luôn một lỗ hổng chưa ai gọi tên
+
+Bỏ hẳn `ssh-keyscan`, ghim khoá công khai máy chủ vào secret `*_SSH_KNOWN_HOSTS`, khai
+`StrictHostKeyChecking yes`.
+
+⭐ Điều đáng nói: `ssh-keyscan` **nhận bất kỳ khoá nào máy chủ đưa ra rồi tin luôn**. Chạy lại ở *mỗi*
+lượt deploy nghĩa là **không lượt nào thật sự xác minh** đang nói chuyện với đúng máy — ai chen vào
+giữa sẽ nhận trọn khoá triển khai và toàn bộ nội dung deploy. Suốt từ WS-11 tới nay đường ống vẫn
+`tin-lần-đầu` ở **mọi** lượt, tức là chưa từng có xác minh nào. Cái tưởng là bản vá độ ổn định hoá ra
+đồng thời là bản vá bảo mật.
+
+Cổng secret lên **năm** biến: thiếu `SSH_KNOWN_HOSTS` thì không nối được, nên phải chặn **sớm** ở cổng
+thay vì hỏng muộn ở `ssh` với một câu không nhắc gì tới secret (luật 27 — nửa cặp đọc–ghi).
+
+Bộ canh, tất cả có kiểm chứng ngược **có số đo trước mỗi lượt**: cấm `ssh-keyscan` quay lại (khôi phục
+dòng cũ → đỏ đích danh; `grep -c` in `1` trước khi chạy) · buộc đọc `SSH_KNOWN_HOSTS` và khai
+`StrictHostKeyChecking yes` · buộc cổng secret hỏi biến ấy (gỡ khỏi script → **hai** bài đỏ, trong đó
+có bài `stagingRongThiBoQua` — vì đếm 4 và đếm 5 không còn khớp nhau). `DeploySshMultiplexTest`
+8 → 11 bài · `SecretGateTest` 7 → 8 bài.
+
+#### ⭐ Và bộ canh cũ đã bắt được chính đợt sửa này
+
+Bản đầu của đợt vá đặt một dòng chú thích `# … \`ask\` …` **bên trong heredoc `<<CFG` không nháy** —
+tức đúng lỗi §10.66 mà chính tôi vừa viết luật để chặn: trong heredoc không nháy, `#` không phải chú
+thích mà là văn bản, và dấu huyền bị khai triển thành **thay thế lệnh**. `make ci-local` đỏ ngay,
+`DeployRemoteStdinTest.heredocKhongNhayKhongThayTheLenh` gọi đích danh **1 dòng**.
+
+Đây là lần đầu một bộ canh của dự án bắt được **người viết ra nó**, trong cùng một phiên. Nó cũng cho
+thấy hình dạng lỗi này không phải chuyện cẩu thả một lần — nó là chỗ **rất dễ trượt chân**, vì viết
+chú thích cạnh dòng cấu hình là phản xạ đúng ở mọi ngữ cảnh khác.
+
+⚠ Kèm một cái bẫy nữa, cùng họ: thông báo hoàn tất của tác vụ nền báo `exit code 0` trong khi
+**mã thoát thật của `make` là 2** — vì lệnh cuối trong khối là `echo`. Chỉ dòng
+`MÃ THOÁT THẬT CỦA make = 2` do chính khối in ra mới lộ. Cùng bài học với `make ci-local | tail`.
+
+#### Bài học
+
+**Một cơ chế bảo vệ và một cơ chế tự động hoá đặt cạnh nhau mà không ai đối chiếu thì chúng sẽ ăn thịt
+nhau.** fail2ban đúng, `ssh-keyscan` đúng, mỗi cái đọc riêng đều hợp lý — chỉ có điều một cái coi năm
+kết nối vô danh là dấu hiệu tấn công, còn cái kia tạo ra đúng năm kết nối vô danh ở mỗi lượt deploy.
+Không tài liệu nào sai; chỗ trống nằm **giữa** hai tài liệu.
+
+⚠ Và lần này chỗ trống bị lộ ra bởi một tai nạn: tôi dò SSH quá tay, tự làm IP văn phòng bị cấm, và
+chính việc phải vào bằng 5G mới lấy được `journalctl` — thứ lẽ ra phải lấy **ngay từ đầu**, thay vì
+suy đoán ba lượt về nguyên nhân.

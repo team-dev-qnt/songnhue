@@ -231,6 +231,70 @@ ok=0; for i in $(seq 1 10); do ssh -o BatchMode=yes -o ConnectTimeout=8 <user>@<
 sudo fail2ban-client status sshd     # Currently banned phải > 0 sau ít giờ
 ```
 
+### 2.2-c. Khoá máy chủ phải GHIM SẴN — ⛔ **lượt deploy từng tự cấm chính nó**
+
+Đo 29/8, sau khi fail2ban đã chạy được một ngày. Nhật ký sshd trong cửa sổ lượt CD đỏ:
+
+```
+19:27:03 Unable to negotiate with 52.230.251.196 port 39970: no matching host key type
+         found. Their offer: sk-ssh-ed25519@openssh.com [preauth]
+19:27:04 Connection closed by 52.230.251.196 port 39971 [preauth]
+19:27:05 Connection closed by 52.230.251.196 port 39968 [preauth]
+19:27:05 Connection closed by 52.230.251.196 port 39972 [preauth]
+19:27:06 Unable to negotiate with 52.230.251.196 port 39969 … sk-ecdsa-sha2-nistp256
+```
+
+`52.230.251.196` thuộc dải Azure — runner GitHub. Bước *Mở đường SSH* khởi động lúc
+**12:27:03 UTC = 19:27:03 giờ VN**: khớp **tới từng giây**. Năm kết nối song song, hai cái chào bằng
+kiểu khoá `sk-*` — đó là vân tay của **`ssh-keyscan`**, dòng đầu tiên của chính bước ấy.
+
+Tham số fail2ban **đo trên máy** (không đọc lại tài liệu): `bantime 3600` · `maxretry 3` ·
+`findtime 600` · `mode = aggressive`. `aggressive` tính cả `Connection closed … [preauth]`, nên
+**năm kết nối dò vượt ngưỡng ba ngay lập tức**. IP runner vào `Banned IP list`, rồi sáu lượt `ssh`
+kế tiếp gõ vào bức tường mà chính nó vừa dựng.
+
+⛔ **Mỗi lượt deploy đều tự cấm mình.** Lượt CD xanh trước đó mở được kênh ở giây thứ **5,6** — nó chỉ
+**thắng cuộc đua** với vòng quét nhật ký của fail2ban. Đường ống chạy bằng may rủi, không bằng thiết kế.
+
+#### Làm gì
+
+Bỏ hẳn `ssh-keyscan`, ghim khoá công khai của máy chủ vào secret `*_SSH_KNOWN_HOSTS`.
+
+```bash
+# TRÊN máy chủ
+cat /etc/ssh/ssh_host_ed25519_key.pub
+```
+
+Lấy **hai trường đầu** (`ssh-ed25519 AAAA…`), bỏ phần đuôi `root@…`, rồi ghép với đúng địa chỉ đang
+nằm ở secret `*_HOST`:
+
+```
+27.71.27.75 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA…
+```
+
+⚠ Chuỗi đứng đầu phải **trùng từng ký tự** với `*_HOST`. Ghi `staging.songnhue.com` trong khi `HOST`
+là `27.71.27.75` thì `known_hosts` không khớp và lượt deploy đỏ ở bước xác minh — đúng như thiết kế,
+nhưng mất công dò.
+
+#### Vì sao đây còn là bản vá BẢO MẬT, không chỉ vá độ ổn định
+
+`ssh-keyscan` **nhận bất kỳ khoá nào máy chủ đưa ra rồi tin luôn**. Dò lại ở mỗi lượt deploy nghĩa là
+**không lượt nào thật sự xác minh** mình đang nói chuyện với đúng máy: ai chen được vào giữa sẽ nhận
+trọn khoá triển khai và toàn bộ nội dung deploy. Ghim khoá đổi *tin-lần-đầu-mỗi-lượt* thành xác minh
+thật, và `deploy.yml` nói thẳng `StrictHostKeyChecking yes` thay vì dựa vào mặc định.
+
+#### Kiểm chứng sau khi làm
+
+| kiểm | đạt khi |
+|---|---|
+| `sudo fail2ban-client status sshd` sau một lượt CD | IP runner **không** xuất hiện trong `Banned IP list` |
+| log bước *Mở đường SSH* | có dòng `✓ Đã ghim 1 khoá máy chủ — 0 kết nối dò` |
+| `sudo journalctl -t sshd --since '<đầu lượt CD>'` | **không** còn cụm 5 kết nối `[preauth]` từ dải Azure |
+
+⛔ Ba bài kiểm trong `DeploySshMultiplexTest` canh phía kho: cấm `ssh-keyscan` quay lại · bắt buộc đọc
+`SSH_KNOWN_HOSTS` · buộc cổng secret phải hỏi biến ấy (luật 27 — nửa cặp đọc–ghi). Nhưng **bảng trên
+mới là phép kiểm thật**, vì nguyên nhân nằm ở máy chủ.
+
 ### 2.3. Docker
 
 ```bash
@@ -591,8 +655,8 @@ curl -sk https://<IP-VPS2>/ -o /dev/null -w '%{http_code}\n'    # → 000 (đón
 
 | Loại | Tên | Đặt ở | Giá trị |
 |---|---|---|---|
-| Secret | `STAGING_HOST` · `STAGING_USER` · `STAGING_SSH_KEY` · `STAGING_BASE_URL` | environment `staging` | IP VPS-2 · `songnhue` · nội dung `~/.ssh/songnhue_deploy` · `https://staging.songnhue.vn` |
-| Secret | `PROD_HOST` · `PROD_USER` · `PROD_SSH_KEY` · `PROD_BASE_URL` | environment `production` | như trên, cho VPS-1 |
+| Secret | `STAGING_HOST` · `STAGING_USER` · `STAGING_SSH_KEY` · `STAGING_BASE_URL` · `STAGING_SSH_KNOWN_HOSTS` | environment `staging` | IP VPS-2 · `songnhue` · nội dung `~/.ssh/songnhue_deploy` · `https://staging.songnhue.com` · một dòng `known_hosts` (§2.2-c) |
+| Secret | `PROD_HOST` · `PROD_USER` · `PROD_SSH_KEY` · `PROD_BASE_URL` · `PROD_SSH_KNOWN_HOSTS` | environment `production` | như trên, cho VPS-1 |
 | Secret | `NVD_API_KEY` | **repo** | ✅ đã đặt 18/8 |
 | **Variable** | `PUBLIC_SITE_URL` | **repo** | `https://songnhue.vn` |
 

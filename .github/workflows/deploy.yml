@@ -59,6 +59,11 @@ on:
       USER: { required: false }
       SSH_KEY: { required: false }
       BASE_URL: { required: false }
+      # Khoá CÔNG KHAI của máy chủ, dạng một dòng `known_hosts`:
+      #     27.71.27.75 ssh-ed25519 AAAAC3Nza…
+      # Không bí mật về mặt mật mã (ai kết nối cũng thấy), nhưng để ở secret vì nó
+      # chứa địa chỉ máy chủ — thứ `HOST` đã cố ý không phơi ra log.
+      SSH_KNOWN_HOSTS: { required: false }
 
 permissions:
   contents: read
@@ -167,6 +172,7 @@ jobs:
           USER: ${{ secrets.USER }}
           SSH_KEY: ${{ secrets.SSH_KEY }}
           BASE_URL: ${{ secrets.BASE_URL }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
         run: .github/scripts/kiem-secret-may-chu.sh
 
       # ⚠⚠ MỘT kết nối SSH cho CẢ lượt deploy, không phải một kết nối mỗi lệnh.
@@ -193,18 +199,55 @@ jobs:
           SSH_KEY: ${{ secrets.SSH_KEY }}
           HOST: ${{ secrets.HOST }}
           USER: ${{ secrets.USER }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
         run: |
           set -euo pipefail
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+          # ⛔⛔ KHÔNG dùng `ssh-keyscan` ở đây. Hai lý do, cả hai đã trả giá:
+          #
+          # 1. Nó MỞ ~5 KẾT NỐI SONG SONG để dò từng kiểu khoá, và mọi kết nối ấy
+          #    đóng lại TRƯỚC khi xác thực. fail2ban của VPS-2 đặt
+          #    `mode = aggressive` + `maxretry = 3` + `findtime = 600` (đo trên máy
+          #    29/8, không đọc lại tài liệu) — mà `aggressive` tính cả dòng
+          #    `Connection closed … [preauth]`. Tức lượt deploy TỰ CẤM CHÍNH NÓ
+          #    ngay ở lệnh đầu tiên của bước này.
+          #    Đo 29/8: nhật ký sshd ghi 5 kết nối từ `52.230.251.196` (dải Azure)
+          #    lúc 19:27:03–19:27:06, hai cái chào bằng kiểu khoá `sk-*` — vân tay
+          #    của ssh-keyscan — ĐÚNG GIÂY bước này khởi động (12:27:03 UTC); rồi
+          #    IP ấy nằm trong `Banned IP list`, và cả 6 lượt `ssh` sau đó gõ vào
+          #    bức tường mà chính nó vừa dựng. Lượt CD xanh hôm trước chỉ THẮNG
+          #    CUỘC ĐUA với vòng quét nhật ký của fail2ban — không phải đúng thiết
+          #    kế, chỉ là may.
+          #
+          # 2. Nó TIN BẤT KỲ khoá nào máy chủ đưa ra. Dò lại mỗi lượt deploy nghĩa
+          #    là KHÔNG lượt nào thật sự xác minh mình đang nói chuyện với đúng
+          #    máy: ai chen được vào giữa sẽ nhận trọn khoá triển khai và toàn bộ
+          #    nội dung deploy. Ghim khoá vào secret vừa gỡ nguyên nhân (1), vừa
+          #    đổi TOFU-mỗi-lần thành xác minh thật.
+          #
+          # §10.68-C · docs/deploy-guideline.md §2.2-c
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          echo "✓ Đã ghim $(grep -c . ~/.ssh/known_hosts) khoá máy chủ — 0 kết nối dò"
 
           # `rsync -e ssh` và mọi lệnh `ssh` sau đây đều đọc tệp này, nên không
           # bước nào phải nhắc lại tuỳ chọn ghép kênh.
+          # ⚠ `StrictHostKeyChecking yes` dưới đây: khoá đã ghim ở trên nên nói
+          #   THẲNG là khoá lạ thì từ chối. Mặc định `ask` dưới BatchMode cũng từ
+          #   chối, nhưng mặc định là thứ người sau phải tra mới biết.
+          #
+          # ⛔ Chú thích phải nằm NGOÀI heredoc. Trong `<<CFG` không nháy thì `#`
+          #   không phải chú thích — nó là văn bản ghi thẳng vào tệp, và dấu huyền
+          #   trong đó bị shell khai triển thành THAY THẾ LỆNH (§10.66). Bản đầu
+          #   của chính đợt sửa này đã viết sai đúng như vậy và bị
+          #   `DeployRemoteStdinTest` bắt tại chỗ.
           cat >> ~/.ssh/config <<CFG
           Host $HOST
             User $USER
             IdentityFile ~/.ssh/id_ed25519
+            StrictHostKeyChecking yes
             ControlMaster auto
             ControlPath ~/.ssh/cm-%r@%h:%p
             ControlPersist 15m

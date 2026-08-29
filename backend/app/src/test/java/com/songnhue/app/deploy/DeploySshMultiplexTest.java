@@ -43,6 +43,9 @@ class DeploySshMultiplexTest {
 
     private static final Pattern GOI_SSH = Pattern.compile("(?<![\\w-])ssh\\s+[\"$]");
 
+    /** Lượt DÒ khoá máy chủ — thứ đã tự làm runner bị fail2ban cấm (§10.68-C). */
+    private static final Pattern DO_KHOA = Pattern.compile("(?<![\\w-])ssh-keyscan\\b");
+
     /** Một lượt `ssh` đẩy stderr vào /dev/null — tức vứt đi lý do đỏ. */
     private static final Pattern SSH_NUOT_LOI = Pattern.compile("(?<![\\w-])ssh\\s+[^\\n]*2>\\s*/dev/null");
 
@@ -157,6 +160,54 @@ class DeploySshMultiplexTest {
         assertThat(SSH_NUOT_LOI.matcher(banCu).find())
                 .as("Bộ dò KHÔNG bắt được chính dòng đã gây ra lượt đỏ 29/8 — mẫu regex sai")
                 .isTrue();
+    }
+
+    @Test
+    @DisplayName("⭐⭐ KHÔNG được dò khoá máy chủ — lượt dò ấy làm fail2ban cấm chính runner")
+    void khongDuocDoKhoaMayChu() {
+        String than = boChuThich(thanBuoc("Mở đường SSH"));
+
+        assertThat(DO_KHOA.matcher(than).find())
+                .as(
+                        """
+                        Bước 'Mở đường SSH' còn gọi `ssh-keyscan`.
+
+                        Nó mở ~5 kết nối song song để dò từng kiểu khoá, tất cả đóng lại TRƯỚC khi                         xác thực. fail2ban của VPS-2 đặt `mode = aggressive` + `maxretry = 3`                         + `findtime = 600` (đo trên máy 29/8), mà `aggressive` tính cả dòng                         `Connection closed … [preauth]` — nên lượt deploy TỰ CẤM CHÍNH NÓ ngay ở                         lệnh đầu tiên. Đo được: 5 kết nối từ `52.230.251.196` (dải Azure) lúc                         19:27:03–06, đúng giây bước này khởi động, rồi IP ấy vào `Banned IP list`.
+
+                        Và nó còn TIN BẤT KỲ khoá nào máy chủ đưa ra — dò lại mỗi lượt nghĩa là                         không lượt nào thật sự xác minh mình đang nói chuyện với đúng máy.""")
+                .isFalse();
+
+        assertThat(than)
+                .as("Bỏ dò rồi thì phải GHIM — khoá đọc từ secret `SSH_KNOWN_HOSTS`")
+                .contains("SSH_KNOWN_HOSTS")
+                .contains("known_hosts");
+        assertThat(doc(timTuGocKho(".github/workflows/deploy.yml")))
+                .as("Khoá lạ phải bị TỪ CHỐI, và nói thẳng ra chứ đừng dựa vào mặc định")
+                .contains("StrictHostKeyChecking yes");
+    }
+
+    @Test
+    @DisplayName("⛔ Bộ dò `ssh-keyscan` phải BẮT ĐƯỢC dòng cũ — không thì nó chỉ canh tập rỗng")
+    void boDoDoKhoaBatDuocViPham() {
+        // Nguyên văn dòng đã nằm trong `deploy.yml` tới 29/8.
+        String banCu = "          ssh-keyscan -H \"$HOST\" >> ~/.ssh/known_hosts 2>/dev/null";
+
+        assertThat(DO_KHOA.matcher(banCu).find())
+                .as("Bộ dò KHÔNG bắt được chính dòng đã làm runner bị cấm — mẫu regex sai")
+                .isTrue();
+    }
+
+    @Test
+    @DisplayName("⭐ Cổng secret phải hỏi cả `SSH_KNOWN_HOSTS` — thiếu nửa cặp là hỏng muộn")
+    void congSecretPhaiHoiKhoaGhim() {
+        // Luật 27: một nửa cặp chạy hoàn hảo vẫn cho ra số không. Workflow đọc secret ấy, nên cổng
+        // secret phải kiểm nó — nếu không, thiếu khoá sẽ hỏng ở `ssh` với câu không nhắc gì tới secret.
+        assertThat(doc(timTuGocKho(".github/scripts/kiem-secret-may-chu.sh")))
+                .as("`kiem-secret-may-chu.sh` không kiểm `SSH_KNOWN_HOSTS`")
+                .contains("SSH_KNOWN_HOSTS");
+        assertThat(doc(timTuGocKho(".github/workflows/deploy.yml")))
+                .as("`deploy.yml` phải KHAI secret ấy ở `workflow_call`, không thì caller không truyền được")
+                .containsPattern("secrets:[\\s\\S]{0,600}?SSH_KNOWN_HOSTS");
     }
 
     @Test
