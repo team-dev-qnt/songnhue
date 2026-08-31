@@ -7,6 +7,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -117,6 +118,28 @@ public final class HydroCatalogDtos {
      *
      * <p>⚠ {@code riverName} / {@code chainage} / toạ độ để trống là <b>bình thường</b> ở v1: G8
      * chưa có dữ liệu cho 19 điểm đo. ⛔ Không suy từ tên, không điền cho đẹp.
+     *
+     * <h2>⚠⚠ {@code measurementTypeIds} phải {@code @NotEmpty} — bỏ trường ra là XOÁ SẠCH</h2>
+     *
+     * Trường này trước 01/09 không có ràng buộc nào, và {@code StationService.loaiChiSo(null)} trả
+     * <b>tập rỗng</b> rồi {@code setMeasurementTypes} ghi đè bằng chính tập rỗng ấy. Nghĩa là một
+     * lượt {@code PUT} thiếu trường — đúng thứ mọi công cụ tích hợp và mọi bài kiểm dựng thân JSON
+     * bằng tay đều làm — <b>gỡ hết liên kết loại chỉ số của điểm đo</b>, trả về <b>200 OK</b>, và
+     * không để lại dấu vết nào.
+     *
+     * <p>Đây là cùng lớp lỗi T28.24 (đổi Nguồn dữ liệu bị vứt) ở chiều ngược lại: ở đó một trường
+     * gửi lên bị bỏ qua, ở đây một trường <i>không</i> gửi lên bị hiểu là "xoá hết". Cả hai cùng
+     * im lặng vì 200 OK là câu trả lời đúng cho mọi thứ khác trong cùng lượt gửi.
+     *
+     * <p>⛔ Nó bị bắt bởi một lượt CI ĐỎ chứ không phải bởi lượt rà nào: {@code HydroCatalogueHttpTest}
+     * gửi thân 5 trường, làm điểm đo mất liên kết {@code MUC_NUOC}, và
+     * {@code HydroCatalogueSeedTest.moiDiemDoDeuDoMucNuoc} đếm ra <b>18/19</b>. Ở máy thì xanh —
+     * thứ tự chạy của surefire phụ thuộc hệ tệp, macOS xếp Seed trước Http còn runner Linux xếp
+     * ngược lại. Đúng nguyên văn *"xanh ở máy cũng không phải bằng chứng"*.
+     *
+     * <p>Một điểm đo không đo chỉ số nào là một bản ghi vô nghĩa — nó không sinh được số liệu nào.
+     * Nên ràng buộc đúng là {@code @NotEmpty}: gửi thiếu thì <b>422 nói thẳng</b>, thay vì 200 rồi
+     * mất dữ liệu.
      */
     public record StationRequest(
             @NotBlank @Size(max = 50) String code,
@@ -132,7 +155,7 @@ public final class HydroCatalogDtos {
             Boolean interpolated,
             Boolean active,
             @Size(max = 500) String description,
-            Set<UUID> measurementTypeIds) {}
+            @NotEmpty Set<UUID> measurementTypeIds) {}
 
     public record StationView(
             UUID id,

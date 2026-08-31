@@ -145,6 +145,54 @@ class HydroCatalogueHttpTest extends IntegrationTestBase {
                 .contains("HYD-2006");
     }
 
+    @Test
+    @DisplayName("⛔ PUT thiếu `measurementTypeIds` bị TỪ CHỐI — không được lặng lẽ xoá hết liên kết")
+    void updatingAStationWithoutMeasurementTypesIsRejected() {
+        // ⚠⚠ Bài này ra đời từ một lượt CI ĐỎ, không từ một lượt rà. Trước 01/09 lượt gọi dưới
+        //    đây trả **200 OK** và **gỡ sạch** liên kết loại chỉ số của điểm đo — im lặng tuyệt
+        //    đối, vì 200 là câu trả lời đúng cho mọi trường khác trong cùng thân gửi. Nó chỉ lộ
+        //    ra ở một bài kiểm KHÁC (`HydroCatalogueSeedTest` đếm 18/19), và chỉ trên runner
+        //    Linux, vì thứ tự chạy của surefire phụ thuộc hệ tệp.
+        //
+        // 📌 Một điểm đo không đo chỉ số nào là bản ghi vô nghĩa — nó không sinh được số liệu.
+        //    Nên câu trả lời đúng là 422, không phải 200 kèm mất dữ liệu.
+        UUID diemDo = motDiemDo();
+        int truoc = soLoaiChiSoCua(diemDo);
+        assertThat(truoc)
+                .as("điểm đo thử phải đang CÓ liên kết, nếu không bài kiểm không đo gì")
+                .isPositive();
+
+        String thanThieu = jdbc.queryForObject(
+                "SELECT code, name, api_code, position_role FROM stations WHERE public_id = ?",
+                (rs, i) ->
+                        """
+                        {"code":"%s","name":"%s","apiCode":"%s","apiSourceId":"%s","positionRole":"%s"}"""
+                                .formatted(
+                                        rs.getString(1),
+                                        rs.getString(2),
+                                        rs.getString(3),
+                                        nguonCuaDiemDo(diemDo),
+                                        rs.getString(4)),
+                diemDo);
+
+        ResponseEntity<String> tl = phienHttp.goi(kyThuat, HttpMethod.PUT, "/api/v1/hyd/stations/" + diemDo, thanThieu);
+
+        assertThat(tl.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(tl.getBody()).contains("measurementTypeIds");
+        // ⭐ Khẳng định QUAN TRỌNG NHẤT: dữ liệu KHÔNG suy suyển. Chỉ khẳng định mã trạng thái
+        //    thôi thì một bản vá trả 400 rồi vẫn xoá vẫn qua được bài này.
+        assertThat(soLoaiChiSoCua(diemDo)).isEqualTo(truoc);
+    }
+
+    private int soLoaiChiSoCua(UUID diemDo) {
+        Integer n = jdbc.queryForObject(
+                "SELECT count(*) FROM station_measurement_types smt "
+                        + "JOIN stations s ON s.id = smt.station_id WHERE s.public_id = ?",
+                Integer.class,
+                diemDo);
+        return n == null ? 0 : n;
+    }
+
     // === ⭐ Vòng nhập → lưu → đọc lại của loại chỉ số =========================
 
     @Test
@@ -219,13 +267,54 @@ class HydroCatalogueHttpTest extends IntegrationTestBase {
     }
 
     /** Thân PUT dựng từ chính bản ghi đang có — chỉ đổi đúng nguồn, để phép đo không lẫn biến khác. */
+    /**
+     * Thân {@code PUT} cho một điểm đo — <b>kèm nguyên vẹn danh sách loại chỉ số đang có</b>.
+     *
+     * <h2>⚠⚠ Vì sao phải gửi lại `measurementTypeIds` dù bài kiểm không quan tâm tới nó</h2>
+     *
+     * Bản đầu của hàm này dựng thân <b>5 trường</b> và bỏ qua `measurementTypeIds`. Hậu quả không
+     * nằm ở bài kiểm này mà nằm ở <b>bài kiểm khác</b>: `StationService` hiểu "không gửi" là "xoá
+     * hết", nên điểm đo mất liên kết `MUC_NUOC`, và
+     * {@code HydroCatalogueSeedTest.moiDiemDoDeuDoMucNuoc} đếm ra <b>18/19</b>.
+     *
+     * <p>Ở máy thì xanh: thứ tự chạy của surefire phụ thuộc hệ tệp, macOS xếp `Seed` trước `Http`
+     * còn runner Linux xếp ngược lại. Chỉ CI đỏ. Đúng nguyên văn *"xanh ở máy cũng không phải bằng
+     * chứng"* — và lần này thứ khác nhau giữa hai môi trường là **thứ tự đọc thư mục**.
+     *
+     * <p>📌 Hai bài học, và bài thứ hai đắt hơn:
+     * <ol>
+     *   <li>bài kiểm dùng chung một CSDL thì mỗi lượt ghi là một tác dụng phụ lên bài kiểm khác —
+     *       gửi <b>trọn</b> trạng thái hiện có, đừng gửi phần mình quan tâm;
+     *   <li>và nếu một thân JSON thiếu trường có thể xoá dữ liệu, thì <b>khuyết tật nằm ở API</b>,
+     *       không ở bài kiểm. {@code measurementTypeIds} nay là {@code @NotEmpty} — xem javadoc
+     *       của {@code StationRequest}.
+     * </ol>
+     */
     private String thanSua(UUID diemDo, UUID nguon) {
+        String loai = jdbc
+                .queryForList(
+                        "SELECT mt.public_id FROM station_measurement_types smt "
+                                + "JOIN measurement_types mt ON mt.id = smt.measurement_type_id "
+                                + "JOIN stations s ON s.id = smt.station_id WHERE s.public_id = ?",
+                        String.class,
+                        diemDo)
+                .stream()
+                .map(id -> "\"" + id + "\"")
+                .collect(java.util.stream.Collectors.joining(","));
+
         return jdbc.queryForObject(
                 "SELECT code, name, api_code, position_role FROM stations WHERE public_id = ?",
                 (rs, i) ->
                         """
-                        {"code":"%s","name":"%s","apiCode":"%s","apiSourceId":"%s","positionRole":"%s"}"""
-                                .formatted(rs.getString(1), rs.getString(2), rs.getString(3), nguon, rs.getString(4)),
+                        {"code":"%s","name":"%s","apiCode":"%s","apiSourceId":"%s","positionRole":"%s",\
+                        "measurementTypeIds":[%s]}"""
+                                .formatted(
+                                        rs.getString(1),
+                                        rs.getString(2),
+                                        rs.getString(3),
+                                        nguon,
+                                        rs.getString(4),
+                                        loai),
                 diemDo);
     }
 }
