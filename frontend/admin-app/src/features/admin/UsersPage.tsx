@@ -16,6 +16,8 @@ import {
   type UserView,
 } from '@/shared/api-types';
 import { ApiClientError, api } from '@/shared/apiClient';
+import { HuongDanMatKhau } from '@/shared/HuongDanMatKhau';
+import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
 import { formatDateTime } from '@/shared/format';
 
 /**
@@ -164,11 +166,12 @@ function CreateUserModal({
       await onDone();
     },
     onError: (caught: unknown) => {
-      if (caught instanceof ApiClientError && caught.details.length > 0) {
-        // Lỗi theo trường: tô đỏ đúng ô thay vì một dòng đỏ chung chung ở đầu form.
-        form.setFields(caught.fieldErrors<keyof CreateUserRequest & string>());
-        return;
-      }
+      // ⭐ 01/09: `datLoiTheoTruong` TRẢ VỀ `false` khi không trường nào trên biểu mẫu nhận
+      //    được lỗi — và lúc ấy phải rơi xuống toast. Bản trước gọi `form.setFields` rồi
+      //    `return` vô điều kiện: backend gửi `field: "newPassword"` (trường của màn hình ĐỔI
+      //    mật khẩu) trong khi biểu mẫu này khai `temporaryPassword`, AntD bỏ qua tên lạ trong
+      //    im lặng, và 422 hiện ra thành MỘT MÀN HÌNH KHÔNG ĐỔI GÌ.
+      if (caught instanceof ApiClientError && datLoiTheoTruong(form, caught)) return;
       message.error(caught instanceof ApiClientError ? caught.message : 'Không tạo được tài khoản');
     },
   });
@@ -221,11 +224,20 @@ function CreateUserModal({
         >
           <OrgUnitTreeSelect />
         </Form.Item>
+        {/* ⭐ 01/09: `extra` cũ chỉ nói *"Người dùng bắt buộc đổi ở lần đăng nhập đầu tiên"* —
+            đúng, và không một chữ nào về yêu cầu độ mạnh, dù đó chính là thứ làm lượt bấm "Tạo"
+            thất bại. `HuongDanMatKhau` đọc chính sách THẬT từ `settings`; ghi cứng "≥10 ký tự"
+            vào đây là dựng một con số nói dối ngay lần đầu Admin sửa tham số (§10.69). */}
         <Form.Item
           name="temporaryPassword"
           label="Mật khẩu tạm"
           rules={[{ required: true, message: 'Bắt buộc' }]}
-          extra="Người dùng bắt buộc đổi ở lần đăng nhập đầu tiên"
+          extra={
+            <>
+              <HuongDanMatKhau />
+              <div>Người dùng bắt buộc đổi ở lần đăng nhập đầu tiên.</div>
+            </>
+          }
         >
           <Input.Password autoComplete="new-password" />
         </Form.Item>

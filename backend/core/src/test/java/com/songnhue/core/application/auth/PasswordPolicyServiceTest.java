@@ -69,14 +69,15 @@ class PasswordPolicyServiceTest {
     @Test
     @DisplayName("Mật khẩu đạt chuẩn thì qua")
     void acceptsCompliantPassword() {
-        assertThatCode(() -> service.validate("ThuyLoi2026x", "nva")).doesNotThrowAnyException();
+        assertThatCode(() -> service.validate("ThuyLoi2026x", "nva", "newPassword"))
+                .doesNotThrowAnyException();
     }
 
     @ParameterizedTest(name = "từ chối: {0}")
     @ValueSource(strings = {"ngan1", "chicochu", "12345678901", "Abc123"})
     @DisplayName("Từ chối mật khẩu quá ngắn hoặc thiếu chữ/số")
     void rejectsWeakPasswords(String weak) {
-        assertThatThrownBy(() -> service.validate(weak, "nva"))
+        assertThatThrownBy(() -> service.validate(weak, "nva", "newPassword"))
                 .isInstanceOf(BusinessRuleException.class)
                 .extracting(e -> ((AppException) e).errorCode())
                 .isEqualTo(ErrorCode.AUTH_0006);
@@ -86,7 +87,8 @@ class PasswordPolicyServiceTest {
     @DisplayName("Từ chối mật khẩu chứa tên đăng nhập")
     void rejectsPasswordContainingUsername() {
         // "admin/admin123" là cặp bị dò đầu tiên trong mọi đợt tấn công tự động
-        assertThatThrownBy(() -> service.validate("Admin123456", "admin")).isInstanceOf(BusinessRuleException.class);
+        assertThatThrownBy(() -> service.validate("Admin123456", "admin", "newPassword"))
+                .isInstanceOf(BusinessRuleException.class);
     }
 
     @Test
@@ -94,7 +96,7 @@ class PasswordPolicyServiceTest {
     void errorDetailNeverLeaksThePassword() {
         String secret = "abc";
         try {
-            service.validate(secret, "nva");
+            service.validate(secret, "nva", "newPassword");
         } catch (BusinessRuleException e) {
             assertThat(e.details()).isNotEmpty();
             assertThat(e.details()).allSatisfy(detail -> {
@@ -111,7 +113,9 @@ class PasswordPolicyServiceTest {
         when(settings.getInt(SettingKeys.PASSWORD_MIN_LENGTH, SettingKeys.DEFAULT_PASSWORD_MIN_LENGTH))
                 .thenReturn(16);
 
-        assertThatThrownBy(() -> service.validate("ThuyLoi2026x", "nva")).isInstanceOf(BusinessRuleException.class);
-        assertThatCode(() -> service.validate("ThuyLoiSongNhue2026", "nva")).doesNotThrowAnyException();
+        assertThatThrownBy(() -> service.validate("ThuyLoi2026x", "nva", "newPassword"))
+                .isInstanceOf(BusinessRuleException.class);
+        assertThatCode(() -> service.validate("ThuyLoiSongNhue2026", "nva", "newPassword"))
+                .doesNotThrowAnyException();
     }
 }

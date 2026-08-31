@@ -7,6 +7,7 @@ import { OrgUnitTreeSelect } from '@/components/business/OrgUnitTreeSelect';
 import { INCIDENT_SEVERITY, MAINTENANCE_TYPE } from '@/components/business/statusVocabulary';
 import { type MaintenanceRow, type MaintenanceType } from '@/shared/api-types';
 import { ApiClientError, api } from '@/shared/apiClient';
+import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
 
 import { type MaintenanceFormValues, dungPayloadSuaChua } from '../constructionRules';
 
@@ -46,10 +47,12 @@ export function MaintenanceFormModal({
       onClose();
     },
     onError: (caught: unknown) => {
-      if (caught instanceof ApiClientError && caught.details.length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        form.setFields(caught.fieldErrors() as any);
-      }
+      // ⛔ Bản trước KHÔNG có nhánh nào sau `if` — `details` rỗng (mọi lỗi nghiệp vụ không
+      //    theo trường: OPS-2xxx, quyền, xung đột phiên bản) là màn hình im hoàn toàn. Đây là
+      //    dạng nặng nhất của lớp lỗi 01/09: không phải "đặt lỗi vào chỗ không ai thấy" mà là
+      //    "không có chỗ nào để đặt".
+      if (caught instanceof ApiClientError && datLoiTheoTruong(form, caught)) return;
+      message.error(caught instanceof ApiClientError ? caught.message : 'Không lưu được bản ghi');
     },
   });
 

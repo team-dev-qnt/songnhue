@@ -23,6 +23,7 @@ import { ApprovalActions } from '@/components/business/ApprovalActions';
 import { RichTextEditor } from '@/components/business/RichTextEditor';
 import { StatusBadge } from '@/components/business/StatusBadge';
 import { ApiClientError } from '@/shared/apiClient';
+import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
 import { formatInteger, toApiInstant } from '@/shared/format';
 
 import { ARTICLE_STATUS, visibilityHint } from './articleStatus';
@@ -149,11 +150,7 @@ function ArticleForm({ article: data }: { article?: ArticleDetail }) {
       if (caught instanceof ApiClientError) {
         // Lỗi theo trường đưa thẳng vào ô tương ứng — thông báo nổi ở góc màn hình thì người
         // dùng phải tự đi tìm ô nào sai trong một biểu mẫu mười hai trường.
-        const fields = caught.fieldErrors<keyof FormValues & string>();
-        if (fields.length > 0) {
-          form.setFields(fields);
-          return;
-        }
+        if (datLoiTheoTruong(form, caught)) return;
         message.error(caught.message);
         return;
       }

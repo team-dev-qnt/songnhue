@@ -15,6 +15,7 @@ import {
   type LinearSpecView,
 } from '@/shared/api-types';
 import { ApiClientError, api } from '@/shared/apiClient';
+import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
 
 // We will extract these steps into separate files if they grow too large,
 // but for now, we define them here.
@@ -129,11 +130,7 @@ export function ConstructionFormPage() {
       navigate('/van-hanh/cong-trinh');
     },
     onError: (caught: unknown) => {
-      if (caught instanceof ApiClientError && caught.details.length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        form.setFields(caught.fieldErrors() as any);
-        return;
-      }
+      if (caught instanceof ApiClientError && datLoiTheoTruong(form, caught)) return;
       message.error(caught instanceof ApiClientError ? caught.message : 'Không lưu được hồ sơ');
     },
   });

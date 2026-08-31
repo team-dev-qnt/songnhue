@@ -37,6 +37,10 @@ export function InboxPage() {
       message.success(`Đã đánh dấu ${result.marked} thông báo`);
       await invalidate();
     },
+    onError: (caught: unknown) =>
+      message.error(
+        caught instanceof ApiClientError ? caught.message : 'Không đánh dấu được tất cả',
+      ),
   });
 
   return (

@@ -160,18 +160,34 @@ export function MenusTab() {
             Thêm con
           </Button>
           {position === 'LIEN_KET' && (
-            <Upload
-              showUploadList={false}
-              accept="image/png,image/jpeg,image/webp"
-              beforeUpload={(file) => {
-                uploadLogo.mutate({ publicId: item.value.publicId, file });
-                return false;
-              }}
-            >
-              <Button type="link" size="small" onClick={(event) => event.stopPropagation()}>
-                {item.value.logoAttachmentId ? 'Đổi logo' : 'Tải logo'}
-              </Button>
-            </Upload>
+            /* ⭐⭐ 01/09 — `stopPropagation` PHẢI nằm ở lớp bọc NGOÀI `<Upload>`, không nằm trên
+               nút bên trong. Đây là nguyên nhân của "phần upload image cho mục Liên kết cổng
+               TTĐT đang không hoạt động".
+
+               `rc-upload` (lõi của `<Upload>` trong AntD) gắn trình xử lý mở hộp thoại chọn tệp
+               lên chính `<span>` bọc `children`, và nó nhận cú bấm **nhờ sự kiện nổi bọt lên từ
+               nút**. Đặt `onClick={e => e.stopPropagation()}` trên `<Button>` chặn đúng cái nổi
+               bọt ấy: hộp thoại chọn tệp **không bao giờ mở**, `beforeUpload` không chạy, và
+               không có lỗi nào — bấm vào thì không có gì xảy ra cả.
+
+               `stopPropagation` vốn ở đó để cây `<Tree>` không chọn/gập nút khi người dùng bấm.
+               Chuyển nó ra ngoài thì cả hai cùng đúng: nổi bọt đi qua rc-upload TRƯỚC (hộp thoại
+               mở), rồi bị chặn ở lớp bọc (cây không phản ứng). Thứ tự nổi bọt làm đúng việc mà
+               một cờ boolean không làm được. */
+            <span onClick={(event) => event.stopPropagation()}>
+              <Upload
+                showUploadList={false}
+                accept="image/png,image/jpeg,image/webp"
+                beforeUpload={(file) => {
+                  uploadLogo.mutate({ publicId: item.value.publicId, file });
+                  return false;
+                }}
+              >
+                <Button type="link" size="small" loading={uploadLogo.isPending}>
+                  {item.value.logoAttachmentId ? 'Đổi logo' : 'Tải logo'}
+                </Button>
+              </Upload>
+            </span>
           )}
           {position === 'LIEN_KET' && item.value.logoAttachmentId && (
             <Button

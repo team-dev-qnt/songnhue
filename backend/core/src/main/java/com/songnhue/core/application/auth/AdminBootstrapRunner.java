@@ -76,7 +76,9 @@ public class AdminBootstrapRunner implements ApplicationRunner {
         }
 
         // Áp đúng chính sách như mọi mật khẩu khác — mật khẩu quản trị tối cao không phải ngoại lệ
-        passwords.validate(bootstrapPassword, BOOTSTRAP_USERNAME);
+        // Không phải request HTTP nào cả — tên trường chỉ đi vào log của lượt fail-fast lúc khởi
+        // động. Vẫn khai tường minh: một chuỗi rỗng ở đây sẽ làm chi tiết lỗi vô nghĩa.
+        passwords.validate(bootstrapPassword, BOOTSTRAP_USERNAME, "SEED_ADMIN_PASSWORD");
 
         admin.setPasswordHash(passwords.hash(bootstrapPassword));
         admin.setPasswordChangedAt(Instant.now());

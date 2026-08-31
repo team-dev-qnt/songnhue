@@ -21,7 +21,8 @@ import { useState } from 'react';
 
 import { useAuth } from '@/app/auth/useAuth';
 import { type MeasurementType, type MeasurementTypeRequest } from '@/shared/api-types';
-import { api } from '@/shared/apiClient';
+import { ApiClientError, api } from '@/shared/apiClient';
+import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
 
 /**
  * Danh mục loại chỉ số quan trắc — CN-03.1 (T28.1).
@@ -55,6 +56,15 @@ export function MeasurementTypesPage() {
       setModalVisible(false);
       void lamMoi();
     },
+    // ⭐ 01/09 (T28.31): mutation này TRƯỚC ĐÂY không có `onError` nào. HYD-1002/2005/2006 và cả
+    //    403 đều im lặng tuyệt đối — người dùng bấm Lưu, không có gì xảy ra và không có gì báo.
+    //    Mã lỗi đã khớp đủ bốn nơi từ T28.10, nhưng không màn hình nào hiện chúng.
+    onError: (caught: unknown) => {
+      if (caught instanceof ApiClientError && datLoiTheoTruong(form, caught)) return;
+      message.error(
+        caught instanceof ApiClientError ? caught.message : 'Không thêm được loại chỉ số',
+      );
+    },
   });
 
   const updateMutation = useMutation({
@@ -65,6 +75,12 @@ export function MeasurementTypesPage() {
       setModalVisible(false);
       void lamMoi();
     },
+    onError: (caught: unknown) => {
+      if (caught instanceof ApiClientError && datLoiTheoTruong(form, caught)) return;
+      message.error(
+        caught instanceof ApiClientError ? caught.message : 'Không cập nhật được loại chỉ số',
+      );
+    },
   });
 
   const deleteMutation = useMutation({
@@ -73,6 +89,10 @@ export function MeasurementTypesPage() {
       message.success('Đã xoá');
       void lamMoi();
     },
+    onError: (caught: unknown) =>
+      message.error(
+        caught instanceof ApiClientError ? caught.message : 'Không xoá được loại chỉ số',
+      ),
   });
 
   const moTaoMoi = () => {

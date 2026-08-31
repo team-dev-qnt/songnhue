@@ -96,7 +96,10 @@ public class UserAdminService implements UserDirectoryPort {
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004))
                 .getId();
 
-        passwordPolicy.validate(temporaryPassword, username);
+        // ⭐ "temporaryPassword" — ĐÚNG tên trường của `CreateUserRequest`. Bản trước để
+        //    PasswordPolicyService ghi cứng "newPassword", nên mọi lỗi 422 ở màn hình Thêm tài
+        //    khoản trỏ vào một trường không có trên biểu mẫu và biến mất không dấu vết.
+        passwordPolicy.validate(temporaryPassword, username, "temporaryPassword");
 
         User user = new User();
         user.setUsername(username);
