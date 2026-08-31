@@ -56,7 +56,32 @@ public enum SecurityEventType {
     /** Bắt đầu ghi đè toàn bộ CSDL bằng một bản dump (M5.11). */
     DATABASE_RESTORE_STARTED(Severity.CRITICAL),
     DATABASE_RESTORE_FINISHED(Severity.CRITICAL),
-    DATABASE_RESTORE_FAILED(Severity.CRITICAL);
+    DATABASE_RESTORE_FAILED(Severity.CRITICAL),
+
+    // --- Credential bên thứ ba (WS-28, conventions.md §4.7) --------------------
+    /**
+     * Mã số truy cập một nguồn dữ liệu bên ngoài vừa được ĐẶT LẦN ĐẦU, THAY, hoặc XOÁ.
+     *
+     * <p>{@code detail} ghi mã nguồn và hành động — ⛔ không bao giờ ghi giá trị mã số.
+     *
+     * <p>⚠ <b>Cố ý KHÔNG có sự kiện "đã dùng mã số".</b> §4.7 đòi ghi nhận cả lượt sử dụng, nhưng
+     * poller gọi nguồn <b>2 phút/lần</b> — 720 dòng mỗi ngày cho một nguồn. Nhật ký bảo mật là chỗ
+     * người ta tìm bốn năm dòng đáng ngờ giữa hàng nghìn dòng bình thường; đổ 720 dòng đều đặn vào
+     * đó là chôn sống chính những dòng cần thấy, và bảng lưu 5 năm. Vế "dùng" được ghi ở
+     * {@code sync_logs} (mỗi lượt polling một dòng, có kết quả) — đúng chỗ để tra, và
+     * {@link #EXTERNAL_CREDENTIAL_DECRYPT_FAILED} giữ lại phần thật sự thuộc về bảo mật.
+     */
+    EXTERNAL_CREDENTIAL_CHANGED(Severity.DANGER),
+
+    /**
+     * Không giải mã được credential của một nguồn.
+     *
+     * <p>Nghĩa là bản mã và khoá AES hiện tại không khớp — hoặc khoá vừa xoay mà chưa mã hoá lại,
+     * hoặc CSDL được khôi phục từ một bản sao lưu cũ hơn lần xoay khoá. Cả hai đều là sự cố hạ tầng
+     * im lặng: nguồn ngừng lấy dữ liệu, và nếu chỉ nhìn log ứng dụng thì triệu chứng giống hệt
+     * "nguồn không phản hồi".
+     */
+    EXTERNAL_CREDENTIAL_DECRYPT_FAILED(Severity.CRITICAL);
 
     private final Severity severity;
 

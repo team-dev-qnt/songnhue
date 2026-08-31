@@ -191,6 +191,19 @@ app:
     keys:
       v1: ${AES_KEY_V1}
 
+  # Nguồn dữ liệu thuỷ văn bên thứ ba (MOD-03).
+  # ⚠ Đây CHỈ là giá trị MỒI cho lần triển khai đầu. Nhà của mã số là cột
+  #   `api_sources.credential` (AES-256-GCM), sửa trên màn hình Nguồn dữ liệu.
+  #   ApiSourceCredentialBootstrap chỉ ghi khi cột ấy đang rỗng.
+  # ⚠ Rỗng là HỢP LỆ: staging/rehearse/prod đang để trống vì Công ty chưa cấp mã số —
+  #   thiếu mã số thì lượt polling từ chối chạy và nói rõ lý do, KHÔNG kéo cả app xuống.
+  # ⚠ Dấu ';' cuối mã số là MỘT PHẦN CỦA GIÁ TRỊ — thiếu nó thì nguồn trả "not.working",
+  #   trông y hệt lỗi sai mã số.
+  # ⛔ Không có `base-url` ở đây: địa chỉ nguồn nằm ở `api_sources.base_url` (V202608311049).
+  hydro:
+    api:
+      key: ${HYDRO_API_KEY:}
+
   # Khoá ký access token (RS256). Thiếu file hoặc hai file không cùng một cặp →
   # app KHÔNG khởi động (JwtKeyStore). Sinh khoá: make gen-keys
   jwt:

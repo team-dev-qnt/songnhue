@@ -18,16 +18,30 @@ import { SITE } from '@/lib/site';
  *   <li>dải thông tin — {@link PortalInfoStrip}: đồng hồ · chữ chạy · trực ban.
  * </ol>
  *
- * <h2>⭐ 29/08: ô Tìm kiếm rời thanh điều hướng lên dải nhận diện</h2>
+ * <h2>⭐⭐ 01/09: ô tìm kiếm RỜI HẲN dải nhận diện — và dải này thôi phải chia bề rộng</h2>
  *
- * Không phải chuyện thẩm mỹ mà là <b>ngân sách bề rộng</b>. {@link PortalNav} đo tám nhãn cấp 1
- * rồi so với chỗ trống còn lại <i>sau khi trừ nút Tìm kiếm</i>; bỏ nút ấy ra khỏi thanh trả lại
- * ~110px, tức khung khả dụng 1232px thay vì 1082px. Cùng lượt này migration
- * {@code V202608291041} chuyển "Hoạt động Đảng, đoàn thể" xuống làm mục con nên cấp 1 còn bảy —
- * hai thay đổi cộng lại là thanh điều hướng thôi chật.
+ * Đường đi của một ô nhập, ghi lại vì mỗi chặng đổi một ràng buộc khác:
  *
- * <p>⛔ Nhưng <b>KHÔNG</b> vì thế mà gỡ {@code ResizeObserver} trong {@link PortalNav}: nhãn menu
- * nằm trong CSDL và Công ty sửa được, nên mọi con số cân sẵn đều có hạn dùng.
+ * <pre>
+ *   28/08  nút Tìm kiếm ở thanh điều hướng    → ngân sách bề rộng thanh mất ~110px
+ *   29/08  dời lên dải nhận diện              → trả 110px cho thanh, dải phải chia chỗ 3 phần
+ *   31/08  dải vỡ ở 375px vì đúng việc chia   → vá bằng xếp hai hàng (xem mục dưới)
+ *   01/09  về lại thanh, THU VỀ MỘT BIỂU TƯỢNG → dải chỉ còn logo + tên, thanh chỉ mất 44px
+ * </pre>
+ *
+ * Chặng cuối là chặng duy nhất không phải đánh đổi: ô nhập bung ra ở <b>một hàng riêng</b> dưới
+ * thanh điều hướng (xem {@link PortalNav}), nên nó không giành bề ngang với ai — không với tám
+ * nhãn cấp 1, không với logo và tên.
+ *
+ * <p>Hệ quả cho tệp này, và là lý do nó được sửa: dải nhận diện <b>không còn ba khối phải xếp
+ * cạnh nhau</b>, chỉ còn một. Nên {@code justify-between} đổi thành {@code justify-center} —
+ * logo và tên canh giữa khung, đúng yêu cầu Công ty. Và toàn bộ máy móc xếp-hai-hàng của bản
+ * 31/08 thôi cần: nguyên nhân của sự cố ấy là <i>ô tìm kiếm 288px không chịu co</i>, mà nay nó
+ * không nằm ở đây nữa.
+ *
+ * <p>⛔ Phép trừ 31/08 vẫn đúng và vẫn phải nhớ: 375 − 32 − 16 − 288 = <b>39px</b> cho logo + tên,
+ * trong khi riêng logo đã 44px. Ai định đưa một ô nhập bề rộng cố định trở lại hàng này thì đọc
+ * lại con số đó trước.
  *
  * <h2>⭐ 29/08: tên đầu trang hai dòng — và chữ hoa nằm ở DỮ LIỆU</h2>
  *
@@ -38,6 +52,27 @@ import { SITE } from '@/lib/site';
  *
  * <p>{@code site.header.display-name} rỗng ⇒ rơi về {@code site.name}, lúc ấy tên Công ty chỉ
  * còn một nguồn duy nhất.
+ *
+ * <h2>📌 31/08 — LƯU TRỮ: vì sao dải này từng phải xếp hai hàng ở điện thoại</h2>
+ *
+ * <p>⚠ Mục này <b>đã hết hiệu lực</b> từ 01/09 (ô tìm kiếm rời đi ⇒ hàng chỉ còn một khối, không
+ * còn gì để xếp cột). Giữ lại vì <b>bài học</b> thì không hết hiệu lực, và vì nó là bằng chứng
+ * cho một lớp lỗi mà bộ canh của kho vẫn chưa bắt được.
+ *
+ * <p>Đo trên staging bằng Chrome ở <b>375×812, DPR 2</b>: bề rộng khối chữ (logo + tên) =
+ * <b>0px</b>; dòng cơ quan chủ quản nổ thành <b>8 dòng / cao 100px</b> trong một cái hộp rộng 0;
+ * ô tìm kiếm <b>288px cố định</b> = 77% bề rộng màn hình; và {@code body.scrollWidth} = 375 —
+ * <b>không</b> tràn ngang.
+ *
+ * <p>Dòng cuối là toàn bộ vấn đề: <b>không có tràn ngang nào để bắt</b>. Ô tìm kiếm mang
+ * {@code shrink-0} nên nó không chịu co; khối chữ mang {@code min-w-0} nên nó là thứ duy nhất co
+ * được — và nó co về 0, rồi chữ tràn ra ngoài một cái hộp rộng 0 mà {@code overflow: visible}
+ * hiển thị như chữ bình thường. Cùng hình dạng §10.62: <i>một cơ chế chịu lỗi làm đúng việc của
+ * nó thì lỗi không bao giờ nổi lên</i> — ở đó là {@code flex-wrap} che một thanh tràn 22%.
+ *
+ * <p>⛔ {@code line-clamp-2} ở dòng cơ quan chủ quản thì <b>GIỮ</b>. Nó là lớp phòng thủ theo chiều
+ * sâu chứ không phải bản vá: bề rộng khung chứa còn phụ thuộc dữ liệu Công ty nhập, mà chuỗi
+ * trong CSDL thì dài ra được bất cứ lúc nào.
  *
  * <h2>⛔ Dự phòng khi API menu không trả lời</h2>
  *
@@ -103,8 +138,11 @@ export async function SiteHeader() {
     <>
       {/* ───── Tầng 1: Dải nhận diện thương hiệu ───── */}
       <div className="w-full border-b border-white/10 bg-gradient-to-r from-chrome-navy800 via-chrome-navy500 to-chrome-navy800 shadow-xs">
-        <div className="mx-auto flex max-w-[1232px] items-center justify-between gap-4 px-4 py-3 sm:gap-8 sm:px-6 sm:py-4">
-          <Link href={ROUTES.home} className="group flex min-w-0 items-center gap-3 sm:gap-4">
+        <div className="mx-auto flex max-w-[1232px] items-center justify-center px-4 py-3 sm:px-6 sm:py-4">
+          <Link
+            href={ROUTES.home}
+            className="group flex min-w-0 items-center justify-center gap-3 text-center sm:gap-4"
+          >
             {/* ⭐ 29/08: ĐÃ GỠ `translate-y-[11.2%]` — và việc gỡ là bắt buộc, không phải dọn dẹp.
 
                 Bản trước bù KHOẢNG TRỐNG BAKED-IN của `logo-song-nhue.png`: PNG 612×792 mà phần
@@ -122,63 +160,26 @@ export async function SiteHeader() {
             <img
               src={logo}
               alt={siteName}
-              className="h-11 w-auto shrink-0 object-contain transition-transform duration-300 ease-smooth group-hover:scale-105 sm:h-16"
+              className="h-12 w-auto shrink-0 object-contain transition-transform duration-300 ease-smooth group-hover:scale-105 sm:h-16"
             />
             <div className="min-w-0">
               {coQuanChuQuan ? (
-                <div className="text-[10px] font-semibold leading-tight tracking-wide text-brand-gold sm:text-[13px]">
+                <div className="line-clamp-2 text-[11px] font-semibold leading-tight tracking-wide text-brand-gold sm:text-[13px]">
                   {coQuanChuQuan}
                 </div>
               ) : null}
-              {/* ⚠ `line-clamp-2` + `min-w-0`: tên Công ty dài 53 ký tự. Không có hai lớp này thì
-                  trên điện thoại nó đẩy ô tìm kiếm ra khỏi màn hình — flex mặc định không cho con
-                  co lại dưới bề rộng nội dung của nó. */}
+              {/* ⚠ `line-clamp-2` giữ tên Công ty (53 ký tự) trong hai dòng.
+
+                  📌 Hai lượt chú thích trước ở đúng chỗ này đều nói về `min-w-0` và ô tìm kiếm,
+                     và lượt đầu nói SAI CHIỀU nguyên nhân (§10.42). Từ 01/09 ô tìm kiếm không
+                     còn ở hàng này, nên `min-w-0` không còn ai để tranh chỗ — nó chỉ còn giữ
+                     một việc: cho phép `line-clamp` cắt chữ thay vì đẩy hàng rộng ra. Giữ lại,
+                     vì tên Công ty đến từ CSDL và dài ra được. */}
               <div className="mt-0.5 line-clamp-2 text-[13px] font-black leading-tight tracking-tight text-white drop-shadow-2xs sm:text-base md:text-lg">
                 {tenDauTrang}
               </div>
             </div>
           </Link>
-
-          {/* Biểu mẫu GET thuần — chạy được cả khi JavaScript chưa tải xong. */}
-          <form
-            action={ROUTES.search}
-            method="get"
-            className="w-full max-w-[288px] shrink-0"
-            role="search"
-          >
-            <label htmlFor="tim-kiem-dau-trang" className="sr-only">
-              Tìm kiếm trên cổng thông tin
-            </label>
-            <div className="flex h-10 items-center gap-2 rounded-full bg-white pl-3.5 pr-1.5">
-              <svg
-                className="h-4 w-4 shrink-0 text-surface-textSecondary"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-4.35-4.35M11 19a8 8 0 110-16 8 8 0 010 16z"
-                />
-              </svg>
-              <input
-                id="tim-kiem-dau-trang"
-                name="q"
-                type="search"
-                placeholder="Nhập từ khoá tìm kiếm…"
-                className="min-w-0 flex-1 bg-transparent text-[15px] text-surface-textBase outline-none placeholder:text-surface-textSecondary"
-              />
-              <button
-                type="submit"
-                className="hidden h-7 shrink-0 rounded-full bg-brand-primary px-3 text-xs font-bold text-white transition-colors hover:bg-brand-primaryHover sm:block"
-              >
-                Tìm
-              </button>
-            </div>
-          </form>
         </div>
       </div>
 

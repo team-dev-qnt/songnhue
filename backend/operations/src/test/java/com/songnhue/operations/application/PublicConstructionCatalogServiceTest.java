@@ -1,12 +1,16 @@
 package com.songnhue.operations.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
@@ -16,6 +20,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.songnhue.core.spi.AttachmentContent;
+import com.songnhue.core.spi.AttachmentPort;
 import com.songnhue.core.spi.OrgUnitPort;
 import com.songnhue.core.spi.OrgUnitRef;
 import com.songnhue.operations.domain.Construction;
@@ -42,8 +48,51 @@ class PublicConstructionCatalogServiceTest {
     @Mock
     private OrgUnitPort orgUnits;
 
+    @Mock
+    private AttachmentPort attachments;
+
     @InjectMocks
     private PublicConstructionCatalogService service;
+
+    // ---- publishedDocument — đường tệp HẸP của hai cột công bố (CR-28) ---------------------
+
+    @Test
+    @DisplayName("⛔ Tệp CHƯA được công bố: trả rỗng và KHÔNG hỏi tầng đính kèm lấy một byte nào")
+    void tepChuaCongBoKhongDocKho() {
+        UUID tepLa = UUID.randomUUID();
+        when(constructions.daCongBoTaiLieu(tepLa, LifecycleState.DA_THANH_LY)).thenReturn(false);
+
+        assertThat(service.publishedDocument(tepLa)).isEmpty();
+
+        verify(attachments, never()).readForPublic(any(), any());
+    }
+
+    @Test
+    @DisplayName("⭐ Tệp đã công bố: đọc kho với danh sách CHO PHÉP đúng một loại CONSTRUCTION")
+    void tepDaCongBoDocDuocVaChiLoaiCongTrinh() {
+        UUID tep = UUID.randomUUID();
+        AttachmentContent noiDung = new AttachmentContent(new byte[] {1, 2, 3}, "application/pdf", "quy-trinh.pdf");
+        when(constructions.daCongBoTaiLieu(tep, LifecycleState.DA_THANH_LY)).thenReturn(true);
+        when(attachments.readForPublic(tep, List.of("CONSTRUCTION"))).thenReturn(Optional.of(noiDung));
+
+        assertThat(service.publishedDocument(tep))
+                .as(
+                        """
+                        Đây là bài đi NHÁNH CÓ DỮ LIỆU. §10.52: bản kiểm cũ của đường ảnh cổng dùng một \
+                        UUID không tồn tại nên chỉ đi nhánh 404, và ảnh chưa từng trả về được một byte \
+                        nào suốt nhiều WS mà bộ kiểm vẫn xanh.""")
+                .contains(noiDung);
+
+        // ⛔ Danh sách CHO PHÉP, không phải danh sách cấm: khẳng định đúng tham số đã truyền xuống.
+        verify(attachments).readForPublic(tep, List.of("CONSTRUCTION"));
+    }
+
+    @Test
+    @DisplayName("publicId null trả rỗng, không ném")
+    void tepNullTraRong() {
+        assertThat(service.publishedDocument(null)).isEmpty();
+        verify(attachments, never()).readForPublic(any(), any());
+    }
 
     private static Construction congTrinh(String ma, String ten, long donVi, LifecycleState vongDoi) {
         Construction c = new Construction();

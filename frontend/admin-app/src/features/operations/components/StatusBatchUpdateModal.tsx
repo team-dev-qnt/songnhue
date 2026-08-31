@@ -18,9 +18,8 @@ import {
   type ConstructionRow,
   type OperationStatusBatchItem,
   type OperationStatusCode,
-  type PageResult,
 } from '@/shared/api-types';
-import { api } from '@/shared/apiClient';
+import { ApiClientError, api } from '@/shared/apiClient';
 
 import { dungPayloadNhapNhanh } from '../constructionRules';
 
@@ -53,7 +52,7 @@ export function StatusBatchUpdateModal({ open, onClose }: { open: boolean; onClo
   const { data: constructions, isLoading } = useQuery({
     queryKey: ['ops', 'constructions', 'all'],
     queryFn: () =>
-      api.get<PageResult<ConstructionRow>>('/ops/constructions', {
+      api.getPage<ConstructionRow>('/ops/constructions', {
         page: 1,
         size: 1000,
         sort: 'name,asc',
@@ -103,8 +102,21 @@ export function StatusBatchUpdateModal({ open, onClose }: { open: boolean; onClo
       queryClient.invalidateQueries({ queryKey: ['ops', 'operation-statuses'] });
       onClose();
     },
-    // Không nuốt lỗi bằng một câu chung: apiClient đã tra error-map và hiện đúng mã lỗi
-    // (OPS-2006 thiếu tham số, OPS-2018 mã đã ẩn, AUTH-3002 ngoài phạm vi đơn vị).
+    // ⚠⚠ 01/09: chú thích cũ ở ĐÚNG chỗ này khẳng định *"apiClient đã tra error-map và hiện đúng
+    //    mã lỗi (OPS-2006 thiếu tham số, OPS-2018 mã đã ẩn, AUTH-3002 ngoài phạm vi đơn vị)"* —
+    //    và đó là một niềm tin SAI. `apiClient` **tra** error-map thật, nhưng nó chỉ **phát thông
+    //    báo** cho ba loại sự kiện phiên (`sessionLost`, `maintenance`, `mustChangePassword`);
+    //    `handling: 'toast'` không có một dòng nào hiện gì cả. Ba mã lỗi kể tên trong chú thích
+    //    ấy vì thế hiện ra cho **không ai**.
+    //
+    // 📌 Đây là §10.42 ở dạng đắt nhất: một chú thích tự tin, nêu đích danh ba mã lỗi, mô tả một
+    //    cơ chế **không tồn tại** — và chính vì nó tự tin nên không ai đi kiểm.
+    onError: (caught: unknown) =>
+      message.error(
+        caught instanceof ApiClientError
+          ? caught.message
+          : 'Không ghi nhận được tình hình vận hành',
+      ),
   });
 
   const handleSubmit = () => {

@@ -1,9 +1,10 @@
-import { Alert, Button, Form, Input, Typography } from 'antd';
+import { Alert, Button, Form, Input } from 'antd';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useAuth } from '@/app/auth/useAuth';
 import { ApiClientError, api } from '@/shared/apiClient';
+import { HuongDanMatKhau } from '@/shared/HuongDanMatKhau';
 
 import { AuthShell } from './AuthShell';
 
@@ -124,10 +125,19 @@ export function ChangePasswordPage() {
           <Input.Password autoComplete="new-password" size="large" />
         </Form.Item>
 
-        <Typography.Paragraph type="secondary">
-          Yêu cầu độ mạnh do quản trị hệ thống đặt trong phần cấu hình; hệ thống sẽ báo cụ thể nếu
-          mật khẩu chưa đạt.
-        </Typography.Paragraph>
+        {/* ⭐⭐ 01/09: câu cũ ở đây có HAI vế và cả hai đều không giúp được ai.
+
+            *"Yêu cầu độ mạnh do quản trị hệ thống đặt trong phần cấu hình"* — đúng, và người
+            dùng đang bị BẮT BUỘC đổi mật khẩu lần đầu thì không mở được màn hình cấu hình.
+
+            *"hệ thống sẽ báo cụ thể nếu mật khẩu chưa đạt"* — KHÔNG đúng. Backend trả AUTH-0006
+            = "Mật khẩu chưa đạt yêu cầu an toàn", còn ba `rule` cụ thể đi kèm thì `fieldErrors()`
+            vứt hết. Người dùng đoán, thử, thử lại. Hai vế cộng lại thành một lời hứa mà không có
+            cơ chế nào đứng sau — nay `loiTheoTruong.ts` dịch `rule` ra tiếng Việt, và dòng dưới
+            đây nói trước yêu cầu thay vì để người dùng phát hiện bằng cách thất bại. */}
+        <div style={{ marginBottom: 16 }}>
+          <HuongDanMatKhau />
+        </div>
 
         <Button type="primary" htmlType="submit" block size="large" loading={submitting}>
           Đổi mật khẩu

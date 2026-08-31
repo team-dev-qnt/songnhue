@@ -5,12 +5,15 @@ import java.text.Collator;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.songnhue.core.spi.AttachmentContent;
+import com.songnhue.core.spi.AttachmentPort;
 import com.songnhue.core.spi.OrgUnitPort;
 import com.songnhue.core.spi.OrgUnitRef;
 import com.songnhue.operations.domain.Construction;
@@ -60,12 +63,24 @@ public class PublicConstructionCatalogService {
      */
     private static final Collator TIENG_VIET = Collator.getInstance(java.util.Locale.of("vi", "VN"));
 
+    /**
+     * Loại chủ sở hữu của tệp tài liệu công trình.
+     *
+     * <p>Truyền xuống {@link AttachmentPort#readForPublic} làm danh sách CHO PHÉP, nên đường này
+     * không mở được tệp thuộc loại khác kể cả khi ai đó đoán trúng {@code publicId} — hồ sơ nhân sự
+     * (<code>EMPLOYEE</code>) nằm ngoài, và nằm ngoài một cách có kiểm chứng.
+     */
+    private static final List<String> LOAI_TEP_CONG_TRINH = List.of("CONSTRUCTION");
+
     private final ConstructionRepository constructions;
     private final OrgUnitPort orgUnits;
+    private final AttachmentPort attachments;
 
-    public PublicConstructionCatalogService(ConstructionRepository constructions, OrgUnitPort orgUnits) {
+    public PublicConstructionCatalogService(
+            ConstructionRepository constructions, OrgUnitPort orgUnits, AttachmentPort attachments) {
         this.constructions = constructions;
         this.orgUnits = orgUnits;
+        this.attachments = attachments;
     }
 
     /**
@@ -134,6 +149,41 @@ public class PublicConstructionCatalogService {
                 })
                 .sorted(Comparator.comparing(UnitCatalog::unitName, TIENG_VIET))
                 .toList();
+    }
+
+    /**
+     * Nội dung một tệp tài liệu công trình <b>đã được công bố</b> — CR-28.
+     *
+     * <h2>Vì sao đường này tồn tại thay vì nới danh sách của cổng</h2>
+     *
+     * <p>{@code PublicPortalService.LOAI_TEP_CONG_KHAI} cố ý <b>không</b> chứa
+     * {@code CONSTRUCTION}, và có bài kiểm đóng đinh điều đó. Nhưng màn hình quản trị lại hứa với
+     * người dùng bằng chữ: <i>"Tệp được chọn sẽ hiện thành liên kết tải về trên cổng công khai"</i>,
+     * và cổng thật sự dựng liên kết {@code /public/files/{id}} cho hai cột ấy. Hai vế đúng riêng
+     * lẻ, ghép lại là <b>404 câm</b>: CSDL nói tệp tồn tại, DTO trả id, đường tải trả 404 — và chưa
+     * ai thấy vì bảng công trình đang rỗng (G8). Đúng hình dạng §10.52.
+     *
+     * <p>Chốt: <b>không nới danh sách của cổng</b> (nới là mở cả kho tài liệu công trình, gồm hồ sơ
+     * hoàn công và ảnh hiện trạng), mà mở một đường <b>hẹp</b> ở chính module sở hữu dữ liệu. Hai
+     * lớp chặn, cả hai đều phải qua:
+     *
+     * <ol>
+     *   <li>{@code publicId} phải là một trong <b>đúng hai</b> cột công bố của một công trình còn
+     *       sống, chưa thanh lý — {@link ConstructionRepository#daCongBoTaiLieu};
+     *   <li>tệp phải thuộc loại {@code CONSTRUCTION} — kiểm ở tầng đính kèm của Core.
+     * </ol>
+     *
+     * @return rỗng khi không tồn tại, khi chưa được công bố, <b>hoặc</b> khi thuộc loại khác — cố ý
+     *     không phân biệt, y như đường tệp của cổng: phân biệt được là nói cho người hỏi biết
+     *     {@code publicId} nào có thật
+     */
+    @Transactional(readOnly = true)
+    public Optional<AttachmentContent> publishedDocument(UUID attachmentPublicId) {
+        if (attachmentPublicId == null
+                || !constructions.daCongBoTaiLieu(attachmentPublicId, LifecycleState.DA_THANH_LY)) {
+            return Optional.empty();
+        }
+        return attachments.readForPublic(attachmentPublicId, LOAI_TEP_CONG_TRINH);
     }
 
     private static CatalogRow thanhDong(Construction c) {

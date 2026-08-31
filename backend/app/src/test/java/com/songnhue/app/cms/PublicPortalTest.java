@@ -155,6 +155,49 @@ class PublicPortalTest extends IntegrationTestBase {
     }
 
     @Test
+    @DisplayName("⭐ Ô \"Nguồn tin\" ra tới cổng — và rỗng thì KHÔNG có nhãn mặc định (T26.63)")
+    void nguonTinRaToiCongVaRongThiKhongCoNhanMacDinh() {
+        String urlGoc = "https://hanoimoi.vn/ha-noi-nganh-thuy-loi-ung-truc-ngay-dem-1250844.html";
+        Article danLai = articles.create(new ArticleDraft(
+                "Hà Nội: Ngành thủy lợi ứng trực ngày đêm",
+                null,
+                null,
+                "<p>Nội dung</p>",
+                null,
+                null,
+                urlGoc,
+                null,
+                null,
+                null,
+                null,
+                Set.of(danhMuc)));
+        articles.execute(danLai.getPublicId(), "SUBMIT", null);
+        articles.execute(danLai.getPublicId(), "APPROVE", null);
+
+        assertThat(portal.article(danLai.getSlug()))
+                .get()
+                .extracting(PublicArticleDetail::source)
+                .as(
+                        """
+                        Cột `articles.source` có dữ liệu thật từ 25/08 (năm bài seed mang URL hanoimoi.vn, \
+                        vneconomy.vn) mà KHÔNG nằm trong DTO công khai nào — nửa cặp đọc–ghi, luật 27.""")
+                .isEqualTo(urlGoc);
+
+        Article tuViet = taoBaiDaXuatBan("Thông báo lịch cắt nước");
+
+        assertThat(portal.article(tuViet.getSlug()))
+                .get()
+                .extracting(PublicArticleDetail::source)
+                .as(
+                        """
+                        ⛔ Chưa ai điền nguồn ⇒ null, và nơi hiển thị phải BỎ HẲN dòng. Tới 31/08/2026 \
+                        chân mọi bài in cứng "Nguồn: Cổng TTĐT Thủy lợi Sông Nhuệ" — một nhãn mặc định \
+                        biến "chưa biết" thành một câu khẳng định sai sự thật (cùng họ §10.34: SUM trả \
+                        null không được biến thành số 0).""")
+                .isNull();
+    }
+
+    @Test
     @DisplayName("⭐ Bài hẹn giờ chưa tới hạn thì chưa hiện, dù đã duyệt xong")
     void baiHenGioChuaToiHanChuaHien() {
         Article bai = articles.create(new ArticleDraft(

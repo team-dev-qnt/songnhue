@@ -4875,3 +4875,123 @@ phải *"con số này có được đọc không"*.
 bằng một phép kiểm, chứ không bằng việc người viết nhớ. Đó là `UploadSizeCeilingTest` mục 3 — nó đọc
 **cả hai nguồn thật** (bảng `settings` và thuộc tính Spring đã giải) rồi so, nên không có chỗ nào để
 một con số mới lọt vào mà không ai so lại.
+
+---
+
+### §10.70 — "Biên dịch được" đọc như "qua cổng kiểm"; và ba khuyết tật im lặng lộ ra ở lượt kiểm HTTP đầu tiên của `hydro` (1/9)
+
+**Bối cảnh.** WS-27 + WS-28 dựng xong module `hydro` trên một máy **không có Maven/Docker và bị chặn
+Maven Central**. Bản ghi 31/8 (T28.21) khai rất rõ và rất thật thà cái đã canh được: *cổng biên dịch
+`javac 21` trên 395 tệp `src/main/java`, `JAVAC_EXIT=0`, classpath dựng từ `BOOT-INF/lib`; `tsc
+--noEmit` sạch; `eslint` sạch; `menu.test.ts` 14/14 và `routerGuards.test.ts` 5/5 qua shim.* Cả bốn
+đều **đúng**. Phiên 1/9 chạy trên máy có Java 21 + Docker 29.4.0 + Maven Central (200).
+
+#### A. Bốn cổng đã chạy, năm cổng chưa ai chạm — và không có gì nói ra điều đó
+
+Lượt `./mvnw verify` đầu tiên **đỏ ngay module thứ nhất**:
+
+| # | Cổng | Cái gì đỏ | Vì sao 8 cổng hôm trước không thấy |
+|---|---|---|---|
+| 1 | Spotless | thứ tự import ở 2 tệp `core` (`PortalCachePort` chèn sai chỗ) | `javac` không có ý kiến gì về thứ tự import |
+| 2 | Checkstyle | `ParameterNumber` ×2: `StationService.update` **14 tham số**, `ApiSourceService.update` 9 | như trên |
+| 3 | Prettier | 4 tệp chưa định dạng (3 màn hình hydro + `router.tsx`) | `eslint` và `prettier` là hai cổng khác nhau, bước 4/10 và 5/10 |
+| 4 | `npm test` | `error-map.test.ts` khẳng định **76 mã**, thực tế **79** | shim chỉ chạy 2 tệp test được chọn tay |
+| 5 | ArchUnit | `SilentFailureRuleTest` đỏ vì `Station` | ArchUnit là **bài kiểm**, không phải trình biên dịch |
+
+Không cổng nào trong số này *khó*. Vấn đề là **hình dạng của lời khai**: một danh sách bốn thứ đã
+chạy, viết thật thà, đọc như một danh sách đầy đủ — vì nó không nói ra **cái đã KHÔNG chạy**. Cùng
+họ luật 28 (*bộ canh phải nói ra phạm vi của chính nó*), nhưng ở tầng **bản ghi tiến độ** thay vì
+tầng mã: cái xanh của bốn cổng đọc như một lời bảo đảm về mười cổng.
+
+📌 **Hệ luận.** Khi không chạy được cổng kiểm thật, bản ghi phải liệt kê **cổng nào KHÔNG chạy được**,
+không chỉ cổng nào đã chạy. `make ci-local` có đúng 10 bước đánh số sẵn — dùng chính danh sách đó làm
+khuôn, và đánh dấu ⬜ cho từng bước chưa chạy.
+
+#### B. Luật ArchUnit và thiết kế `Station` mâu thuẫn suốt WS-28 vì luật chưa từng chạy
+
+`SCOPED_ENTITY_BAT_BUOC_MANG_FILTER` đòi điều kiện `@Filter` **bằng đúng** hằng dùng chung. `Station`
+khai `(org_unit_id IS NULL OR <chuẩn>)` — và vế `IS NULL` là **bắt buộc**: `org_unit_id` nullable vì
+19 điểm đo được seed trước khi OI-05 chốt 7 hay 8 Xí nghiệp, mà trong SQL `NULL IN (…)` cho ra `NULL`
+chứ không phải `TRUE` ⇒ thiếu vế ấy thì **19/19 điểm đo vô hình với TẤT CẢ**, kể cả SUPER_ADMIN ở path
+gốc. Cả hai bên đều đúng; T28.7 được tick ✅ và mâu thuẫn nằm im vì **không lượt nào chạy luật**.
+
+⛔ **Cách vá SAI, và nó rất hấp dẫn**: nới luật thành `condition.contains(ORG_UNIT_FILTER_CONDITION)`.
+Một dòng, hết đỏ, hằng dùng chung vẫn "được dùng". Nhưng nó cho qua cả `(1=1 OR <chuẩn>)` — chuỗi
+chứa nguyên văn hằng, trong khi bộ lọc phạm vi **đã tắt hoàn toàn**: mọi Xí nghiệp thấy dữ liệu của
+nhau, không lỗi, không log. Đúng loại hỏng âm thầm mà cả lớp luật ấy sinh ra để chặn.
+
+**Cách vá đã dùng**: ngoại lệ phải thoả **CẢ HAI** vế — tên lớp có trong `PHAM_VI_NULL_DUOC_PHEP`
+(hiện đúng `{Station}`) **và** điều kiện khớp mẫu chặt `^\(\w+ IS NULL OR <quote(chuẩn)>\)$`. Mẫu ép
+vế nới phải là **một cột đơn `IS NULL`**, nên không viết được `1=1`; danh sách ép việc nới thành một
+quyết định phải khai ra.
+
+⭐ **Chi tiết đắt nhất của đợt này nằm ở bài tự-kiểm chứng.** Fixture `NullableScopeUnsanctioned`
+(mang `1=1 OR`) cố ý **cũng nằm trong danh sách cho phép**. Nếu chỉ cho `NullableScopeCompliant` vào
+danh sách thì bài `catchesUnsanctionedWidening` vẫn xanh — nhưng **xanh vì lý do sai**: nó đỏ do lớp
+kia thiếu tên, chứ không phải do mẫu điều kiện bị từ chối. Cho cả hai vào thì thứ **duy nhất** phân
+biệt chúng là hình dạng chuỗi — đúng thứ luật phải kiểm. Đây là §10.62 áp cho chính mình: *một bài
+kiểm chứng ngược có thể sai theo đúng cách mà thứ nó kiểm chứng đang sai.*
+
+#### C. Ba khuyết tật im lặng, và cả ba đều "lưu thành công"
+
+WS-28 đóng với `StationScopeTest` + `ApiSourceServiceTest` — **cả hai gọi thẳng service**. Lượt kiểm
+HTTP **đầu tiên** của ba controller `hydro` (`HydroCatalogueHttpTest`, 5 bài) bắt được ngay ba thứ:
+
+1. **Đổi "Nguồn dữ liệu" của điểm đo bị vứt.** `StationsPage` render ô ấy **bắt buộc** ở cả hai chế
+   độ và `PUT` trọn `values`; `StationService.update` không có tham số nào nhận nó. Màn hình báo *"Đã
+   cập nhật điểm đo"*, `api_source_id` không đổi. ⚠ Im lặng **tuyệt đối** — vì `200 OK` là câu trả
+   lời đúng cho mọi trường khác trong cùng lượt gửi.
+2. **TECHNICIAN không tạo nổi một điểm đo nào.** Danh sách nguồn nạp sau
+   `hasPermission('hyd:api-source:manage')`, mà TECHNICIAN — **vai trò DUY NHẤT ngoài SA/ADMIN có
+   `hyd:station:manage`** — không có quyền ấy ⇒ ô bắt buộc rỗng vĩnh viễn. Đây là **T27.20 tái phát
+   nguyên hình dạng, một ngày sau khi T27.20 được vá**: quyền cấp đúng, màn hình có thật, endpoint
+   có thật, việc bị **chôn sau một quyền khác**.
+3. **Cờ "Đang dùng" bị bỏ rơi** khi tạo loại chỉ số — nhận và validate rồi không truyền xuống service.
+
+📌 **Đơn vị đếm.** Cả ba lọt qua `tsc`, `eslint`, `javac`, ArchUnit và 786 bài kiểm khác, vì mỗi mảnh
+riêng lẻ đều đúng. Thứ sai là **vòng khép kín**: nhập → lưu → **đọc lại**. Đếm *màn hình đã dựng* thì
+WS-28 xanh; đếm *vòng có khép không* thì ba vòng hở. (Luật 27, luật 5.)
+
+#### D. Trả một nợ ở ba điểm ghi không đóng được lớp lỗi
+
+T27.7 (31/8) nối `PortalCachePort` vào `OrgUnitService`, `OrgUnitLeaderService`, `ConstructionService`
+— ba điểm ghi **đã biết**. Cùng đợt ấy, T27.16/T27.17 đưa **tình hình vận hành** lên cổng công khai
+lần đầu. Nhưng `ConstructionOperationStatusService` có **0** lời gọi `portalCache`: trực ban bấm Lưu,
+cổng vẫn hiện mã cũ tới 5 phút — **đúng nguyên văn triệu chứng §10.62 mà T27.7 vừa đi trả nợ**, tái
+phát ở một đường ghi thứ tư, trong cùng một đợt làm việc.
+
+📌 Nợ dạng "nối cơ chế X vào N nơi đang cần" không đóng được bằng cách nối đủ N nơi — vì N tăng. Cái
+đóng được nó là một phép kiểm hỏi **"còn đường ghi nào chạm dữ liệu cổng mà không báo cache không?"**
+Chưa có phép kiểm ấy; `PortalCacheInvalidationTest` hiện canh **bốn** đường ghi cụ thể và **tự khai
+giới hạn đó** (luật 28).
+
+#### E. Hai bẫy về công cụ, đo được trong chính phiên này
+
+1. ⚠⚠ **`./mvnw -pl app test` KHÔNG có `-am` chạy trên jar module khác CŨ trong repo local.** Lượt
+   kiểm chứng ngược đầu tiên của T27.18 — gỡ chốt `daCongBoTaiLieu` rồi chạy lại — báo **7/7 XANH**.
+   Bản hỏng nằm trên đĩa (đo được: `grep -c` từ 2 xuống 1) nhưng **chưa từng được nạp**: Maven lấy
+   `songnhue-operations` từ repo local. Thêm `-am` → **2 bài đỏ đúng chỗ**. Đây là luật 10 ở một hình
+   dạng mới, và là hình dạng khó thấy nhất của nó: *bản hỏng có thật, lệnh chạy thật, kết quả xanh
+   thật, và cả ba không nói về cùng một đống bytecode.*
+2. **Reactor dừng ở module đầu che mất phần còn lại** (luật 11 tái diễn): Spotless đỏ ở `core` nên
+   `hydro` và `app` không chạy — hai cổng đỏ tiếp theo chỉ lộ ra ở lượt thứ ba. Dùng `-fae` khi mục
+   tiêu là **kiểm kê** chứ không phải **chặn**. ⚠ `-fae` không cứu được trường hợp module sau *phụ
+   thuộc* module đỏ (`app` vẫn SKIPPED khi `hydro` đỏ ở pha `validate`).
+
+#### F. Một bộ canh mới, và nó đỏ ngay lượt chạy đầu
+
+T27.2 hứa *"bài kiểm mọi `V*.sql` khớp mẫu"*. Nhưng **canh hình dạng ở đây là vô dụng**:
+`V202608272320` — chính tệp đã gây hai lượt CD đỏ (§10.66) — khớp hoàn hảo mẫu "8 chữ số + 4 chữ số".
+Bất biến **thật**: sắp mọi migration theo số hiệu đầy đủ (đúng thứ tự Flyway áp) thì phần `nnnn` cũng
+phải **tăng dần**; giờ-phút phá đúng điều đó và không phá gì khác (luật 9 — *đo cái thật sự khác giữa
+hai cấu hình, đừng khẳng định cái nghe có vẻ đúng*).
+
+`MigrationNamingTest` đỏ ngay lượt đầu, và **đúng**: `V202608241255` / `V202608241256` mang `1255` /
+`1256` = **12:55 / 12:56**, lạc hẳn khỏi dãy `1001…1049` của cả kho. Đã merge (`c4a49ef`) và đã áp
+staging ⇒ **không đổi tên được** (đổi số hiệu một migration đã ghi vào `flyway_schema_history` là
+lượt khởi động kế tiếp báo thiếu bản đã áp). Baseline đúng hai tệp ấy, kèm một bài canh **danh sách
+không dài thêm** — đường ranh, không phải chỗ để dọn.
+
+⚠ Và nguyên nhân gốc của T27.2 lớn hơn cái tên nó: quy ước SAI vẫn nằm ở **`conventions.md` §1.2 —
+nguồn sự thật** — cùng **4/5 README module** chép lại từ đó. Lượt 31/8 sửa đúng **1/6 nơi** (`hyd/`).
+Người viết migration kế tiếp sẽ mở `conventions.md` và chép lại đúng lỗi đã làm đỏ hai lượt CD.

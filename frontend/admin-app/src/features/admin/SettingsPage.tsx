@@ -13,6 +13,8 @@ import {
   Tooltip,
   Typography,
 } from 'antd';
+import { DownloadOutlined, UploadOutlined } from '@ant-design/icons';
+import { Modal } from 'antd';
 import { type ColumnsType } from 'antd/es/table';
 import { useMemo, useState } from 'react';
 
@@ -38,6 +40,59 @@ export function SettingsPage() {
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const { hasPermission } = useAuth();
+  const [modalNhap, setModalNhap] = useState(false);
+  const [vanBanNhap, setVanBanNhap] = useState('');
+
+  /**
+   * Xuất bộ cấu hình ra tệp JSON — **M5.17**, và tới 31/08 nút này không tồn tại.
+   *
+   * Trước đó ô `extra` chỉ chứa một dòng chữ *"Bản xuất cấu hình không bao giờ chứa credential"* —
+   * một câu giải thích cho một cái nút không có. Endpoint `GET /settings/export` đã có từ WS-6 và
+   * **không lời gọi nào**: nửa cặp đọc–ghi, luật 27.
+   *
+   * ⛔ Tải về bằng Blob ngay tại trình duyệt, KHÔNG qua hàng đợi job: `/settings/export` trả JSON
+   * đồng bộ. `ExportButton` dùng chung dựng cho luồng job bất đồng bộ (202 + `jobId`) — dùng nó ở
+   * đây là đợi một `jobId` không bao giờ tới.
+   */
+  const xuat = useMutation({
+    mutationFn: () => api.get<Record<string, string>>('/settings/export'),
+    onSuccess: (data) => {
+      const tep = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(tep);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `cau-hinh-songnhue-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      message.success(`Đã xuất ${Object.keys(data).length} tham số cấu hình`);
+    },
+    onError: (error) =>
+      message.error(error instanceof ApiClientError ? error.message : 'Không xuất được cấu hình'),
+  });
+
+  /**
+   * Nhập bộ cấu hình.
+   *
+   * ⚠ Backend kiểm **toàn bộ rồi mới áp** (`SettingService.importConfiguration`) và trả về số khoá
+   * đã đổi + danh sách khoá bị bỏ qua. Hiện cả hai con số: "đã nhập xong" mà không nói bỏ qua bao
+   * nhiêu là để người vận hành tin rằng mọi thứ đã vào.
+   */
+  const nhap = useMutation({
+    mutationFn: (values: Record<string, string>) =>
+      api.post<{ changed: number; skippedKeys: string[] }>('/settings/import', { values }),
+    onSuccess: (kq) => {
+      setModalNhap(false);
+      setVanBanNhap('');
+      void queryClient.invalidateQueries({ queryKey: ['settings'] });
+      message.success(
+        kq.skippedKeys.length === 0
+          ? `Đã cập nhật ${kq.changed} tham số`
+          : `Đã cập nhật ${kq.changed} tham số — bỏ qua ${kq.skippedKeys.length}: ${kq.skippedKeys.join(', ')}`,
+      );
+    },
+    onError: (error) =>
+      message.error(error instanceof ApiClientError ? error.message : 'Không nhập được cấu hình'),
+  });
   const canEdit = hasPermission('adm:setting:update');
   const [drafts, setDrafts] = useState<Record<string, string>>({});
 
@@ -148,11 +203,24 @@ export function SettingsPage() {
       title="Cấu hình hệ thống"
       loading={settings.isLoading}
       extra={
-        hasPermission('adm:setting:export') && (
-          <Typography.Text type="secondary">
-            Bản xuất cấu hình không bao giờ chứa credential (§4.7)
-          </Typography.Text>
-        )
+        <Space>
+          {hasPermission('adm:setting:export') && (
+            <Tooltip title="Bản xuất không bao giờ chứa credential (§4.7) — khoá API thủy văn và mã số hệ thống văn bản bị loại ở phía máy chủ.">
+              <Button
+                icon={<DownloadOutlined />}
+                loading={xuat.isPending}
+                onClick={() => xuat.mutate()}
+              >
+                Xuất cấu hình
+              </Button>
+            </Tooltip>
+          )}
+          {hasPermission('adm:setting:import') && (
+            <Button icon={<UploadOutlined />} onClick={() => setModalNhap(true)}>
+              Nhập cấu hình
+            </Button>
+          )}
+        </Space>
       }
     >
       <Tabs
@@ -170,11 +238,44 @@ export function SettingsPage() {
           ),
         }))}
       />
+
+      <Modal
+        title="Nhập bộ cấu hình"
+        open={modalNhap}
+        onCancel={() => setModalNhap(false)}
+        okText="Áp dụng"
+        confirmLoading={nhap.isPending}
+        onOk={() => {
+          try {
+            const doc = JSON.parse(vanBanNhap) as Record<string, string>;
+            nhap.mutate(doc);
+          } catch {
+            // ⛔ Bắt ở đây thay vì để `mutate` ném: JSON hỏng là lỗi của người dán, không phải lỗi
+            //    máy chủ, và một thông báo "SYS-0001" cho chuyện ấy là chỉ sai hướng.
+            message.error('Nội dung không phải JSON hợp lệ — dán nguyên tệp đã xuất vào đây.');
+          }
+        }}
+      >
+        <Typography.Paragraph type="secondary">
+          Dán nội dung tệp JSON đã xuất. Máy chủ kiểm <b>toàn bộ</b> rồi mới áp — một khoá sai thì
+          không khoá nào được ghi.
+        </Typography.Paragraph>
+        <Input.TextArea
+          rows={12}
+          value={vanBanNhap}
+          onChange={(e) => setVanBanNhap(e.target.value)}
+          placeholder='{"security.login.max-failed-attempts": "5", …}'
+        />
+      </Modal>
     </Card>
   );
 }
 
 const GROUP_LABELS: Record<string, string> = {
+  // ⚠ Thiếu một nhãn ở đây không làm gì đỏ — tab chỉ hiện mã nhóm thô ("SITE (30)") cạnh các tab
+  //    tiếng Việt. Đo 31/08: hai nhóm lớn nhất `SITE` và `COMPANY` đều thiếu.
+  SITE: 'Cổng thông tin (giao diện)',
+  COMPANY: 'Thông tin Công ty',
   SECURITY: 'Bảo mật',
   BACKUP: 'Sao lưu',
   NOTIFICATION: 'Thông báo',

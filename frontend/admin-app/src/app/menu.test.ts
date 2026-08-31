@@ -52,7 +52,45 @@ describe('menu ẩn/hiện theo quyền — điều kiện nghiệm thu WS-8', (
       'adm:notification:broadcast',
     );
     // 8 màn hình quản trị + Tổng quan + Hộp thư + Phiên đăng nhập.
+    // ⚠ `all` chỉ cấp quyền `adm:*` nên nhóm "Dữ liệu thuỷ văn" (WS-28) không nằm trong số này —
+    //    đó chính là điều bài kiểm ngay dưới khẳng định.
     expect(leafLabels(visibleMenu(MENU, all))).toHaveLength(11);
+  });
+});
+
+/**
+ * Nhóm "Dữ liệu thuỷ văn" (WS-28) — canh đúng hình dạng lỗi §10.36.
+ *
+ * `Nguồn dữ liệu` đứng sau `hyd:api-source:manage`, một quyền mà **chỉ SUPER_ADMIN có**. Nếu ai đó
+ * gộp cả nhóm về `hyd:station:view` cho gọn thì màn hình cấu hình mã số nguồn hiện ra với cán bộ Xí
+ * nghiệp — bấm vào là 403, và triệu chứng đọc như "hệ thống lỗi" chứ không như "bạn không có quyền".
+ * Chiều ngược lại cũng phải đúng: gộp cả nhóm về `hyd:api-source:manage` thì danh mục điểm đo biến
+ * mất với đúng những người dùng nó hằng ngày.
+ */
+describe('nhóm Dữ liệu thuỷ văn hiện theo đúng quyền của từng màn hình — WS-28', () => {
+  it('người xem điểm đo thấy danh mục và loại chỉ số, KHÔNG thấy Nguồn dữ liệu', () => {
+    const visible = leafLabels(visibleMenu(MENU, checker('hyd:station:view')));
+
+    expect(visible).toContain('Danh mục điểm đo');
+    expect(visible).toContain('Loại chỉ số quan trắc');
+    expect(visible).not.toContain('Nguồn dữ liệu');
+  });
+
+  it('người cấu hình nguồn thấy Nguồn dữ liệu', () => {
+    const visible = leafLabels(visibleMenu(MENU, checker('hyd:api-source:manage')));
+
+    expect(visible).toContain('Nguồn dữ liệu');
+    expect(visible).not.toContain('Danh mục điểm đo');
+  });
+
+  it('không có quyền thuỷ văn nào thì cả nhóm biến mất, không để lại mục trống', () => {
+    const visible = visibleMenu(MENU, checker('adm:user:view'));
+    expect(visible.map((node) => node.label)).not.toContain('Dữ liệu thuỷ văn');
+  });
+
+  it('đường dẫn con của màn hình điểm đo vẫn tô sáng đúng mục menu', () => {
+    expect(findMenuKey(MENU, '/thuy-van/diem-do')).toBe('diem-do');
+    expect(findMenuKey(MENU, '/thuy-van/nguon-du-lieu')).toBe('nguon-du-lieu');
   });
 });
 

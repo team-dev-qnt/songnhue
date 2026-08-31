@@ -1,11 +1,12 @@
 import type { Metadata } from 'next';
 
+import { BanDoHeThongCongTrinh } from '@/components/congtrinh/BanDoHeThongCongTrinh';
 import { EmptyBlock } from '@/components/home/EmptyBlock';
 import { PageShell } from '@/components/PageShell';
 import { SectionNav } from '@/components/SectionNav';
 import type { ConstructionRow } from '@/lib/api';
-import { getConstructionCatalog } from '@/lib/api';
-import { fileUrl, mapUrl, ROUTES } from '@/lib/routes';
+import { getConstructionCatalog, getSiteConfig } from '@/lib/api';
+import { constructionDocUrl, mapUrl, ROUTES } from '@/lib/routes';
 
 export const revalidate = 300;
 
@@ -51,7 +52,10 @@ const COT = [
  * không ai canh — nên chỗ này để trống kèm lý do, không để một nút chết.
  */
 export default async function DanhMucCongTrinhPage() {
-  const catalog = (await getConstructionCatalog()) ?? [];
+  // Hai lượt gọi độc lập ⇒ song song. `config` chỉ để lấy ảnh sơ đồ hệ thống; bảng công trình
+  // không phụ thuộc nó, nên trang vẫn dựng đủ khi khoá cấu hình chưa có.
+  const [catalogRaw, config] = await Promise.all([getConstructionCatalog(), getSiteConfig()]);
+  const catalog = catalogRaw ?? [];
 
   return (
     <PageShell
@@ -103,20 +107,26 @@ export default async function DanhMucCongTrinhPage() {
         </div>
       )}
 
-      {/* ───── CR-29 · Bản đồ hệ thống ───── */}
-      <section className="mt-10">
-        <h2 className="flex items-center gap-2 border-b-2 border-brand-primary pb-2.5 text-base font-bold tracking-tight text-surface-textBase">
-          <span className="h-5 w-1.5 rounded-full bg-brand-primary" />
-          Bản đồ hệ thống
-        </h2>
-        <div className="mt-4">
-          <EmptyBlock>
-            Bản đồ hệ thống chưa được đăng. Bản PDF hai tỷ lệ (1/50.000 và 1/75.000) chờ Công ty gửi
-            tệp; bản KMZ yêu cầu đăng nhập nên chờ chức năng đăng nhập trên cổng, và cách phục vụ
-            (cho tải về hay nhúng viewer) còn đang chờ Công ty chốt.
-          </EmptyBlock>
-        </div>
-      </section>
+      {/* ───── CR-29 · Bản đồ hệ thống ─────
+          ⭐ 01/09: khối này TRƯỚC ĐÂY là một `EmptyBlock` nói "bản đồ hệ thống chưa được đăng",
+             trong khi trang chủ đang hiện đúng bản đồ ấy (ảnh sơ đồ Công ty đã tải lên + bản đồ
+             tương tác). Hai trang trả lời ngược nhau về cùng một câu hỏi — quy tắc 14. Nay chỉ
+             còn một chỗ, và nó ở đây, cạnh danh sách công trình mà nó vẽ điểm.
+
+          ⚠ Câu chờ-dữ-liệu của CR-29 KHÔNG mất: nó nói về hai thứ khác (PDF hai tỷ lệ, KMZ sau
+            đăng nhập) và vẫn đúng, nên nó xuống làm chú thích dưới bản đồ. Gỡ nó đi là để người
+            nghiệm thu tưởng CR-29 đã xong. */}
+      <div className="mt-10">
+        <BanDoHeThongCongTrinh
+          catalog={catalog}
+          anhSoDo={config?.['site.home.map-image.attachment-id']}
+        />
+        <p className="mt-3 text-xs leading-relaxed text-surface-textSecondary">
+          <strong className="font-semibold">CR-29 còn chờ:</strong> bản PDF hai tỷ lệ (1/50.000 và
+          1/75.000) chờ Công ty gửi tệp; bản KMZ yêu cầu đăng nhập nên chờ chức năng đăng nhập trên
+          cổng, và cách phục vụ (cho tải về hay nhúng viewer) còn đang chờ Công ty chốt (OI-07).
+        </p>
+      </div>
       <SectionNav duongDan={ROUTES.quanLyVanHanh.danhMucCongTrinh} />
     </PageShell>
   );
@@ -132,8 +142,10 @@ const NHAN_LOAI: Record<string, string> = {
 };
 
 function DongCongTrinh({ row, stt }: { row: ConstructionRow; stt: number }) {
-  const quyTrinh = fileUrl(row.operatingProcedureFileId);
-  const phuongAn = fileUrl(row.protectionPlanFileId);
+  // ⛔ `constructionDocUrl`, KHÔNG phải `fileUrl` — xem javadoc của nó: đường tệp của cổng không
+  //    phục vụ loại `CONSTRUCTION`, nên `fileUrl` ở đây là một liên kết 404 câm chờ sẵn.
+  const quyTrinh = constructionDocUrl(row.operatingProcedureFileId);
+  const phuongAn = constructionDocUrl(row.protectionPlanFileId);
   const banDo = mapUrl(row.latitude, row.longitude);
 
   return (

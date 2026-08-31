@@ -50,6 +50,17 @@ public final class AuthDtos {
      * @param challengeToken chỉ có ở hai nhánh 2FA
      * @param csrfToken cũng đã được đặt vào cookie; trả kèm để FE dùng ngay không phải đọc cookie
      */
+    /**
+     * Chính sách độ mạnh mật khẩu đang có hiệu lực.
+     *
+     * <p>⛔ Trả ra để giao diện nói được YÊU CẦU THẬT. Ghi cứng "ít nhất 10 ký tự" vào màn hình
+     * là hai con số ở hai nơi, và cái ở màn hình <b>nói dối</b> ngay lần đầu Admin sửa tham số —
+     * đúng lớp lỗi §10.69. Ở đây chỉ có ràng buộc, không có bí mật nào: kẻ tấn công biết được
+     * "mật khẩu tối thiểu 10 ký tự" thì cũng biết đúng bằng cách thử tạo một mật khẩu 9 ký tự.
+     */
+    @Schema(description = "Chính sách độ mạnh mật khẩu đang có hiệu lực")
+    public record PasswordPolicyResponse(int minLength, boolean requireLetterAndDigit) {}
+
     @Schema(description = "Kết quả bước 1 của đăng nhập")
     public record LoginResponse(
             String stage,

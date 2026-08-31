@@ -1,7 +1,21 @@
 # Migration của module `hydro` (MOD-03 Dữ liệu thủy văn) — prefix `hyd`
 
-Đặt tên: `V<yyyyMMddHHmm>__hyd_<mô_tả>.sql` (conventions.md §1.2).
-Chưa có migration nào — module này thuộc **Phase 2**.
+Đặt tên: `V<yyyyMMdd><nnnn>__hyd_<mô_tả>.sql`
+
+⛔⛔ **`<nnnn>` là SỐ THỨ TỰ CHẠY TIẾP TOÀN KHO, KHÔNG PHẢI GIỜ-PHÚT.** Chuỗi ấy chạy
+`1046 → 1047 → 1048 → …` xuyên suốt cả kho, không đếm lại theo ngày; số hiệu mới phải
+**lớn hơn mọi số đã có**, kể cả số của một tệp mang ngày lớn hơn hôm nay.
+
+> ⚠ Tệp này từng ghi `V<yyyyMMddHHmm>` — chép từ `conventions.md` §1.2, bản cũ. Hai cách
+> viết **chỉ khác nhau ở đúng chỗ không ai nhìn**: thứ tự sắp xếp. Ngày 27/08/2026 hai
+> migration đánh số bằng giờ-phút (`202608272320`) rơi xuống *dưới* ba migration mang ngày
+> 28 đã áp trên staging ⇒ out-of-order ⇒ **hai lượt CD đỏ liên tiếp**, và cùng lỗi ấy làm
+> một câu seed `UPDATE` chạm **0 hàng, không lỗi, không log** (§10.66). Quy ước đúng nằm ở
+> `docs/coding-guide.md` §3.1 và có bộ canh: `backend/tools/kiem-thu-tu-migration.sh`
+> (bước 2/10 của `make ci-local` + job CI *Thứ tự migration*).
+
+Chạy `make migration-order` **trước mỗi PR có migration**, và `make migration-manifest`
+sau khi thêm/đổi tên tệp.
 
 **Cấm sửa file đã merge** — chỉ thêm file mới.
 

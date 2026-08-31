@@ -76,7 +76,7 @@ public class PasswordChangeService {
             throw new BusinessRuleException(ErrorCode.AUTH_0006)
                     .withDetail("newPassword", "MUST_DIFFER_FROM_CURRENT", null);
         }
-        passwords.validate(newPassword, user.getUsername());
+        passwords.validate(newPassword, user.getUsername(), "newPassword");
 
         user.setPasswordHash(passwords.hash(newPassword));
         user.setPasswordChangedAt(now);

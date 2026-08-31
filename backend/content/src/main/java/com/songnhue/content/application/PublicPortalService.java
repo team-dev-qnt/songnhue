@@ -342,6 +342,7 @@ public class PublicPortalService {
                 version.getMetaKeywords(),
                 article.getPublishedAt(),
                 article.getViewCount(),
+                article.getSource(),
                 com.songnhue.content.domain.ArticleState.LUU_TRU.equals(article.getStatus()),
                 danhMuc));
     }

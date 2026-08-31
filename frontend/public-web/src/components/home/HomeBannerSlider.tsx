@@ -51,7 +51,14 @@ export function HomeBannerSlider({
       showArrows={showArrows}
       showDots={showDots}
       nhan="Ảnh hoạt động của Công ty"
-      chieuCaoToiThieu="min-h-[220px] lg:min-h-[444px]"
+      // ⭐ 01/09: `lg:min-h-[444px]` → `lg:min-h-[300px]`. Con số 444 là SÀN, và một cái sàn cao
+      //    thắng mọi cái trần: trang chủ nay chặn chiều cao Nhóm 1 theo khung nhìn
+      //    (`src/app/page.tsx`), mà `min-height` luôn thắng `max-height` trong CSS. Giữ 444 là
+      //    cái trần ấy không có hiệu lực trên màn hình thấp — đúng hình dạng "cơ chế canh gác
+      //    tồn tại mà không có hiệu lực".
+      chieuCaoToiThieu="min-h-[220px] lg:min-h-[300px]"
+      // ⭐ 01/09: KHÔNG cắt ảnh. Yêu cầu QuanTran: *"các ảnh luôn hiển thị đủ 100% content ảnh"*.
+      phuKhung={false}
       uuTienAnhDau
       khiRong={
         <EmptyBlock>

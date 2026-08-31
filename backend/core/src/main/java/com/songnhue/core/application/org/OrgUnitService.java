@@ -25,6 +25,7 @@ import com.songnhue.core.infra.identity.UserRepository;
 import com.songnhue.core.infra.org.OrgUnitRepository;
 import com.songnhue.core.spi.OrgUnitPort;
 import com.songnhue.core.spi.OrgUnitRef;
+import com.songnhue.core.spi.PortalCachePort;
 
 /**
  * Cây tổ chức — pattern P2 (implement.md §2), một bảng dùng chung cho Xí nghiệp và phòng ban
@@ -47,11 +48,32 @@ public class OrgUnitService implements OrgUnitPort {
     private final OrgUnitRepository repository;
     private final UserRepository userRepository;
     private final SettingService settings;
+    private final PortalCachePort portalCache;
 
-    public OrgUnitService(OrgUnitRepository repository, UserRepository userRepository, SettingService settings) {
+    public OrgUnitService(
+            OrgUnitRepository repository,
+            UserRepository userRepository,
+            SettingService settings,
+            PortalCachePort portalCache) {
         this.repository = repository;
         this.userRepository = userRepository;
         this.settings = settings;
+        this.portalCache = portalCache;
+    }
+
+    /**
+     * Xoá bộ đệm cổng công khai sau mỗi thay đổi — <b>trả nợ T25.22</b>.
+     *
+     * <p>Ba trang {@code /gioi-thieu/*} và khối "Đơn vị trực thuộc" ở trang chủ đọc thẳng từ bảng
+     * này. Trước 31/08 chúng trễ tới <b>5 phút</b> sau mỗi lượt sửa, và người nhập liệu thấy màn
+     * hình báo "lưu thành công" rồi mở cổng thấy số cũ — tức là tưởng lưu hỏng (§10.62).
+     *
+     * <p>⚠ Gọi <b>bên trong</b> giao dịch, đúng như {@code ArticleService} đang làm: hàng đợi việc
+     * nằm ở CSDL, nên dòng job commit cùng dữ liệu. Giao dịch quay lui thì job biến mất theo — đó
+     * là cái mà một {@code @TransactionalEventListener(AFTER_COMMIT)} phải tự tay dựng lại.
+     */
+    private void bienDongToChuc() {
+        portalCache.orgUnitsChanged();
     }
 
     // ---- Đọc ------------------------------------------------------------------
@@ -197,7 +219,9 @@ public class OrgUnitService implements OrgUnitPort {
                 parent == null
                         ? MaterializedPath.rootPath(saved.getId())
                         : MaterializedPath.childPath(parent.getPath(), saved.getId()));
-        return repository.saveAndFlush(saved);
+        OrgUnit ketQua = repository.saveAndFlush(saved);
+        bienDongToChuc();
+        return ketQua;
     }
 
     @Transactional
@@ -216,7 +240,9 @@ public class OrgUnitService implements OrgUnitPort {
         unit.setAddress(rongThanhNull(address));
         unit.setPhone(rongThanhNull(phone));
         unit.setEmail(rongThanhNull(email));
-        return repository.save(unit);
+        OrgUnit ketQua = repository.save(unit);
+        bienDongToChuc();
+        return ketQua;
     }
 
     /**
@@ -272,6 +298,7 @@ public class OrgUnitService implements OrgUnitPort {
         int moved = repository.reparentSubtree(oldPrefix, newPrefix);
         log.info("Chuyển đơn vị {} từ {} sang {} — {} bản ghi đổi path", unit.getCode(), oldPrefix, newPrefix, moved);
 
+        bienDongToChuc();
         // reparentSubtree là câu lệnh gốc + clearAutomatically → entity trong bộ nhớ đã cũ, phải đọc lại
         return require(publicId);
     }
@@ -285,6 +312,7 @@ public class OrgUnitService implements OrgUnitPort {
             unit.setSortOrder(order++);
             repository.save(unit);
         }
+        bienDongToChuc();
     }
 
     /**
@@ -306,6 +334,7 @@ public class OrgUnitService implements OrgUnitPort {
         }
         unit.markDeleted(Instant.now());
         repository.save(unit);
+        bienDongToChuc();
     }
 
     // ---- Nội bộ ---------------------------------------------------------------

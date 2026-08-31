@@ -5,6 +5,8 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 import java.util.Arrays;
 import java.util.Optional;
+import java.util.Set;
+import java.util.regex.Pattern;
 
 import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Filters;
@@ -59,12 +61,29 @@ class SilentFailureRuleTest {
      * tại, {@code ScopeFilterAspect} vẫn bật nó thành công, và truy vấn vẫn trả về mọi dòng của mọi
      * đơn vị — không có ngoại lệ, không có log.
      */
+    /**
+     * ⚠ <b>Danh sách hẹp các entity có cột phạm vi NULLable</b> — bộ canh tự khai phạm vi của chính
+     * nó (luật 28).
+     *
+     * <p>{@code ScopedEntity.orgUnitId} là {@code nullable = false} cho mọi entity của dự án trừ
+     * {@code Station}: 19 điểm đo được seed trước khi OI-05 chốt 7 hay 8 Xí nghiệp, nên
+     * {@code org_unit_id} phải nhận {@code NULL} và bộ lọc phải có vế {@code IS NULL} — thiếu vế ấy
+     * thì <b>19/19 điểm đo vô hình với TẤT CẢ</b>, kể cả SUPER_ADMIN, vì trong SQL {@code NULL IN
+     * (…)} cho ra {@code NULL} chứ không phải {@code TRUE}.
+     *
+     * <p>⛔ Thêm tên vào đây là một quyết định, không phải một thao tác dọn dẹp: nó nới đúng một
+     * entity ra khỏi bộ lọc phạm vi. Bản nới vẫn phải mang {@link ScopedEntity#ORG_UNIT_FILTER_CONDITION}
+     * <b>nguyên văn</b> và chỉ được nới đúng dạng {@code (<cột> IS NULL OR <điều kiện chuẩn>)} —
+     * xem {@link CarriesOrgUnitFilter#NOI_DUOC_PHEP}. Viết {@code (1=1 OR …)} thì luật vẫn đỏ.
+     */
+    static final Set<String> PHAM_VI_NULL_DUOC_PHEP = Set.of("Station");
+
     static final ArchRule SCOPED_ENTITY_BAT_BUOC_MANG_FILTER = classes()
             .that()
             .areAssignableTo(ScopedEntity.class)
             .and()
             .doNotHaveFullyQualifiedName(ScopedEntity.class.getName())
-            .should(new CarriesOrgUnitFilter())
+            .should(new CarriesOrgUnitFilter(PHAM_VI_NULL_DUOC_PHEP))
             .allowEmptyShould(true)
             .because(
                     """
@@ -147,8 +166,26 @@ class SilentFailureRuleTest {
 
     static final class CarriesOrgUnitFilter extends ArchCondition<JavaClass> {
 
-        CarriesOrgUnitFilter() {
+        /**
+         * Dạng nới <b>duy nhất</b> được chấp nhận: {@code (<cột> IS NULL OR <điều kiện chuẩn>)}.
+         *
+         * <p>Vì sao phải là một mẫu chặt chứ không phải {@code condition.contains(chuẩn)}: một phép
+         * kiểm "có chứa" cho qua cả {@code (1=1 OR <điều kiện chuẩn>)} — điều kiện chuẩn vẫn nằm
+         * nguyên trong chuỗi, mà bộ lọc phạm vi thì đã tắt hoàn toàn. Mẫu này bắt buộc vế nới phải là
+         * <b>một cột đơn IS NULL</b>, tức là chỉ mở đúng những dòng chưa gán đơn vị.
+         *
+         * <p>Điều kiện chuẩn vẫn được {@code Pattern.quote} nguyên văn ⇒ bảo đảm "viết đúng một lần
+         * cho cả dự án" không bị mất: không ai chép tay lại được biểu thức materialized path.
+         */
+        static final Pattern NOI_DUOC_PHEP = Pattern.compile(
+                "^\\(\\w+ IS NULL OR " + Pattern.quote(ScopedEntity.ORG_UNIT_FILTER_CONDITION) + "\\)$");
+
+        /** Tên đơn của những entity được phép dùng dạng nới trên — xem {@link #PHAM_VI_NULL_DUOC_PHEP}. */
+        private final Set<String> phamViNullDuocPhep;
+
+        CarriesOrgUnitFilter(Set<String> phamViNullDuocPhep) {
             super("khai @Filter(name = ScopedEntity.ORG_UNIT_FILTER, condition = ORG_UNIT_FILTER_CONDITION)");
+            this.phamViNullDuocPhep = phamViNullDuocPhep;
         }
 
         @Override
@@ -165,13 +202,28 @@ class SilentFailureRuleTest {
             // Điều kiện SQL phải là đúng hằng số dùng chung. Tự viết lại một điều kiện "gần giống"
             // (VD so bằng org_unit_id thay vì so theo materialized path) là bản mà cấp trên không
             // thấy dữ liệu của cấp dưới — sai theo hướng ngược lại, và cũng im lặng như vậy.
-            if (!ScopedEntity.ORG_UNIT_FILTER_CONDITION.equals(filter.get().condition())) {
-                events.add(SimpleConditionEvent.violated(
-                        item,
-                        "%s khai @Filter với điều kiện tự viết. Dùng hằng ScopedEntity.ORG_UNIT_FILTER_CONDITION "
-                                        .formatted(item.getSimpleName())
-                                + "— điều kiện lọc theo materialized path được viết đúng một lần cho cả dự án"));
+            String dieuKien = filter.get().condition();
+            if (ScopedEntity.ORG_UNIT_FILTER_CONDITION.equals(dieuKien)) {
+                return;
             }
+            // Ngoại lệ hẹp: entity có cột phạm vi NULLable được nới đúng dạng `(<cột> IS NULL OR <chuẩn>)`.
+            // Hai vế phải cùng đúng — có tên trong danh sách mà viết sai dạng thì vẫn đỏ, và viết đúng
+            // dạng mà không có tên trong danh sách cũng đỏ. Nới phạm vi lọc là quyết định phải khai ra.
+            boolean duocNoi = phamViNullDuocPhep.contains(item.getSimpleName());
+            if (duocNoi && NOI_DUOC_PHEP.matcher(dieuKien).matches()) {
+                return;
+            }
+            events.add(SimpleConditionEvent.violated(
+                    item,
+                    duocNoi
+                            ? ("%s nằm trong danh sách phạm vi NULLable nhưng điều kiện không đúng dạng nới "
+                                            + "được phép `(<cột> IS NULL OR <điều kiện chuẩn>)`. Điều kiện đang khai: %s")
+                                    .formatted(item.getSimpleName(), dieuKien)
+                            : ("%s khai @Filter với điều kiện tự viết. Dùng hằng ScopedEntity.ORG_UNIT_FILTER_CONDITION "
+                                            + "— điều kiện lọc theo materialized path được viết đúng một lần cho cả "
+                                            + "dự án. Cần nới cho cột phạm vi NULLable thì thêm tên lớp vào "
+                                            + "PHAM_VI_NULL_DUOC_PHEP và dùng đúng dạng `(<cột> IS NULL OR <chuẩn>)`")
+                                    .formatted(item.getSimpleName())));
         }
 
         private static Optional<Filter> orgUnitFilterOf(JavaClass item) {

@@ -83,6 +83,23 @@ export function fileUrl(publicId: string | null | undefined): string | null {
 }
 
 /**
+ * Địa chỉ tải một tệp tài liệu **đã công bố** của công trình — hai cột "Quy trình vận hành" và
+ * "Phương án bảo vệ" của bảng danh mục công trình (CR-28).
+ *
+ * ⛔ **Không dùng `fileUrl()` cho hai cột này.** Đường `/public/files/{id}` chỉ phục vụ bốn loại
+ * chủ sở hữu — `MEDIA_FOLDER`, `BANNER`, `SITE_CONFIG`, `MENU_ITEM` — và `CONSTRUCTION` **cố ý**
+ * không nằm trong đó (backend có bài kiểm đóng đinh). Tới 31/08/2026 cổng vẫn dựng liên kết trỏ
+ * vào đường ấy, nên nó trả **404 câm** ngay lượt đầu có dữ liệu thật: CSDL nói tệp tồn tại, DTO
+ * trả id, liên kết chết — và chưa ai thấy vì bảng công trình đang rỗng (G8). Cùng hình dạng §10.52.
+ *
+ * Đường riêng bên dưới đi qua module `operations`, nơi kiểm được rằng `publicId` đúng là một trong
+ * hai cột công bố của một công trình còn sống.
+ */
+export function constructionDocUrl(publicId: string | null | undefined): string | null {
+  return publicId ? `${API_BASE_URL}/public/constructions/documents/${publicId}` : null;
+}
+
+/**
  * Đường dẫn của một mục menu.
  *
  * @returns `null` cho mục chỉ mở menu con (`NONE`) — nơi gọi render nó thành thẻ không bấm

@@ -1,7 +1,20 @@
 import { MailOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Badge, Card, Descriptions, Empty, Select, Space, Table, Tag, Typography } from 'antd';
+import {
+  Badge,
+  Card,
+  Descriptions,
+  Empty,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Typography,
+  message,
+} from 'antd';
 import { useState } from 'react';
+
+import { ApiClientError } from '@/shared/apiClient';
 
 import { cmsApi, cmsKeys } from './api';
 import { type ContactStatus, type ContactView } from './types';
@@ -54,6 +67,10 @@ export function ContactsPage() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['cms', 'contacts'] });
     },
+    // ⚠ Lượt đánh dấu này chạy ngầm khi mở một ý kiến, không có nút nào để bấm lại. Hỏng mà im
+    //   lặng thì ý kiến ấy ở nguyên trạng thái "chưa đọc" và không ai biết vì sao.
+    onError: (caught: unknown) =>
+      message.error(caught instanceof ApiClientError ? caught.message : 'Không đánh dấu được'),
   });
 
   const cot = [

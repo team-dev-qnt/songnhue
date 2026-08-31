@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App as AntdApp } from 'antd';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -68,23 +69,38 @@ vi.mock('@/shared/apiClient', () => ({
   ApiClientError: class extends Error {},
 }));
 
-/** Dựng đúng hình dạng route của `router.tsx`: hai nhánh guard, hai màn hình. */
+/**
+ * Dựng đúng hình dạng route của `router.tsx`: hai nhánh guard, hai màn hình.
+ *
+ * ⚠⚠ 01/09: thêm `QueryClientProvider`. Bài kiểm này dựng lại chồng provider bằng tay, và bản
+ * đầu **thiếu một tầng** so với `main.tsx` — nó bọc `AntdApp → AuthProvider` trong khi thật sự
+ * là `ConfigProvider → AntdApp → QueryClientProvider → AuthProvider`. Không ai thấy, cho tới khi
+ * `ChangePasswordPage` mọc thêm một `useQuery` (hướng dẫn mật khẩu) và bài kiểm nổ với
+ * *"No QueryClient set"* — một lỗi **của bộ khung kiểm thử**, không phải của màn hình.
+ *
+ * <p>📌 Bài học giữ lại: mỗi lần dựng lại chồng provider bằng tay là một cơ hội để nó trôi khỏi
+ * `main.tsx`. Khoảng trôi ấy nằm im cho tới khi có ai đó dùng đúng cái tầng bị thiếu — và lúc
+ * đó nó trông như một lỗi của mã mới.
+ */
 function dungManHinh() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <AntdApp>
-      <AuthProvider>
-        <MemoryRouter initialEntries={['/doi-mat-khau']}>
-          <Routes>
-            <Route element={<RequireAnonymous />}>
-              <Route path="/dang-nhap" element={<h1>Đăng nhập hệ thống</h1>} />
-            </Route>
-            <Route element={<RequireAuth />}>
-              <Route path="/doi-mat-khau" element={<ChangePasswordPage />} />
-              <Route path="/" element={<h1>Bảng điều khiển</h1>} />
-            </Route>
-          </Routes>
-        </MemoryRouter>
-      </AuthProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <MemoryRouter initialEntries={['/doi-mat-khau']}>
+            <Routes>
+              <Route element={<RequireAnonymous />}>
+                <Route path="/dang-nhap" element={<h1>Đăng nhập hệ thống</h1>} />
+              </Route>
+              <Route element={<RequireAuth />}>
+                <Route path="/doi-mat-khau" element={<ChangePasswordPage />} />
+                <Route path="/" element={<h1>Bảng điều khiển</h1>} />
+              </Route>
+            </Routes>
+          </MemoryRouter>
+        </AuthProvider>
+      </QueryClientProvider>
     </AntdApp>,
   );
 }
@@ -93,7 +109,14 @@ describe('Luồng đổi mật khẩu bắt buộc', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     bootstrapGia.mockResolvedValue(true);
-    getGia.mockResolvedValue(HO_SO);
+    // ⚠ Mock theo ĐƯỜNG DẪN, không trả một giá trị cho mọi lượt gọi: màn hình nay gọi cả
+    //   `/auth/me` lẫn `/auth/password-policy`, và trả hồ sơ người dùng cho lượt sau sẽ vẽ ra
+    //   "ít nhất undefined ký tự" — một bài kiểm xanh trên một màn hình vô nghĩa.
+    getGia.mockImplementation((url: string) =>
+      url === '/auth/password-policy'
+        ? Promise.resolve({ minLength: 12, requireLetterAndDigit: true })
+        : Promise.resolve(HO_SO),
+    );
     postGia.mockResolvedValue(undefined);
   });
 

@@ -13,7 +13,7 @@ import {
   type MaintenanceDetail,
   type MaintenanceRow,
 } from '@/shared/api-types';
-import { api } from '@/shared/apiClient';
+import { ApiClientError, api } from '@/shared/apiClient';
 import { formatInvestment } from '@/shared/format';
 
 import { MaintenanceFormModal } from './MaintenanceFormModal';
@@ -84,6 +84,10 @@ export function ConstructionMaintenancePanel({
       // cờ đỏ tắt. Không làm mới hồ sơ công trình thì màn hình hiện trạng thái cũ cho tới lượt F5.
       void queryClient.invalidateQueries({ queryKey: ['ops', 'constructions'] });
     },
+    onError: (caught: unknown) =>
+      message.error(
+        caught instanceof ApiClientError ? caught.message : 'Không chuyển được trạng thái',
+      ),
   });
 
   const banGhi = trang?.items ?? [];

@@ -1,4 +1,4 @@
-import { EditOutlined, PlusOutlined } from '@ant-design/icons';
+import { ArrowDownOutlined, ArrowUpOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   App,
@@ -29,6 +29,7 @@ import {
   type UpdateOrgUnitRequest,
 } from '@/shared/api-types';
 import { ApiClientError, api } from '@/shared/apiClient';
+import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
 
 /**
  * Sơ đồ tổ chức — **một bảng `org_units` dùng chung** cho Xí nghiệp và phòng ban
@@ -81,6 +82,64 @@ export function OrgUnitsPage() {
       message.error(caught instanceof ApiClientError ? caught.message : 'Không chuyển được đơn vị');
     },
   });
+
+  /**
+   * Đổi thứ tự một đơn vị so với các đơn vị **cùng cấp** — `PATCH /org-units/order`.
+   *
+   * <p>Endpoint và `OrgUnitService.reorder()` có từ WS-6, cây đọc theo `sort_order`, và **không
+   * lời gọi nào** từ giao diện cho tới 31/08/2026 — nửa cặp đọc–ghi, luật 27. Hệ quả nhìn thấy
+   * trên cổng công khai: trang *Cơ cấu tổ chức* và bảng *Xí nghiệp trực thuộc* dựng theo đúng thứ
+   * tự ấy, nên thứ tự các Xí nghiệp trên cổng cố định theo **thứ tự tạo bản ghi** — không ai sắp
+   * lại được.
+   *
+   * <p>⚠ Gửi **toàn bộ danh sách anh em đã sắp lại**, không gửi "chuyển lên một bậc": backend gán
+   * `sortOrder` chạy từ 0 theo đúng thứ tự nhận được. Gửi một phép dịch chuyển tương đối là hai
+   * nơi cùng phải biết thứ tự hiện tại, và hai nơi biết một sự thật là hai nơi sẽ lệch.
+   */
+  const doiThuTu = useMutation({
+    mutationFn: (orderedPublicIds: string[]) =>
+      api.patch<void>('/org-units/order', { orderedPublicIds }),
+    onSuccess: async () => {
+      message.success('Đã đổi thứ tự hiển thị');
+      await invalidate();
+    },
+    onError: (caught: unknown) => {
+      message.error(caught instanceof ApiClientError ? caught.message : 'Không đổi được thứ tự');
+    },
+  });
+
+  /** Danh sách anh em cùng cha của đơn vị đang chọn, theo đúng thứ tự cây đang hiển thị. */
+  const anhEm = useMemo<OrgUnitNode[]>(() => {
+    if (!selected) {
+      return [];
+    }
+    const goc = tree.data ?? [];
+    if (selected.depth === 0 || goc.some((node) => node.publicId === selected.publicId)) {
+      return goc;
+    }
+    const tim = (nodes: OrgUnitNode[]): OrgUnitNode[] | null => {
+      for (const node of nodes) {
+        if (node.children.some((con) => con.publicId === selected.publicId)) {
+          return node.children;
+        }
+        const sau = tim(node.children);
+        if (sau) {
+          return sau;
+        }
+      }
+      return null;
+    };
+    return tim(goc) ?? [];
+  }, [selected, tree.data]);
+
+  const viTri = anhEm.findIndex((node) => node.publicId === selected?.publicId);
+
+  const dichChuyen = (buoc: -1 | 1) => {
+    const moi = [...anhEm];
+    const [bi] = moi.splice(viTri, 1);
+    moi.splice(viTri + buoc, 0, bi);
+    doiThuTu.mutate(moi.map((node) => node.publicId));
+  };
 
   const treeData = useMemo(() => (tree.data ?? []).map(toTreeData), [tree.data]);
   const index = useMemo(() => flatten(tree.data ?? []), [tree.data]);
@@ -153,6 +212,23 @@ export function OrgUnitsPage() {
                     Sửa thông tin
                   </Button>
                   <Button onClick={() => setMoving(true)}>Chuyển sang đơn vị cha khác</Button>
+                  {/* ⚠ Thứ tự này đi thẳng ra cổng công khai — trang Cơ cấu tổ chức và bảng Xí
+                      nghiệp trực thuộc dựng theo `sort_order`. Vô hiệu ở hai đầu danh sách thay vì
+                      ẩn nút: nút biến mất làm người dùng tưởng chức năng chỉ có ở vài đơn vị. */}
+                  <Button
+                    icon={<ArrowUpOutlined />}
+                    disabled={viTri <= 0 || doiThuTu.isPending}
+                    onClick={() => dichChuyen(-1)}
+                  >
+                    Lên
+                  </Button>
+                  <Button
+                    icon={<ArrowDownOutlined />}
+                    disabled={viTri < 0 || viTri >= anhEm.length - 1 || doiThuTu.isPending}
+                    onClick={() => dichChuyen(1)}
+                  >
+                    Xuống
+                  </Button>
                   <Popconfirm
                     title="Xóa đơn vị này?"
                     description="Chỉ xóa được khi không còn đơn vị cấp dưới và không còn người dùng."
@@ -230,10 +306,7 @@ function CreateOrgUnitModal({
       await onDone();
     },
     onError: (caught: unknown) => {
-      if (caught instanceof ApiClientError && caught.details.length > 0) {
-        form.setFields(caught.fieldErrors<keyof CreateOrgUnitRequest & string>());
-        return;
-      }
+      if (caught instanceof ApiClientError && datLoiTheoTruong(form, caught)) return;
       message.error(caught instanceof ApiClientError ? caught.message : 'Không thêm được đơn vị');
     },
   });
@@ -351,10 +424,7 @@ function EditOrgUnitModal({
       await onDone();
     },
     onError: (caught: unknown) => {
-      if (caught instanceof ApiClientError && caught.details.length > 0) {
-        form.setFields(caught.fieldErrors<keyof UpdateOrgUnitRequest & string>());
-        return;
-      }
+      if (caught instanceof ApiClientError && datLoiTheoTruong(form, caught)) return;
       message.error(caught instanceof ApiClientError ? caught.message : 'Không cập nhật được');
     },
   });

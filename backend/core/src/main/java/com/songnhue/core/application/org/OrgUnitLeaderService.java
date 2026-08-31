@@ -13,6 +13,7 @@ import com.songnhue.core.domain.org.OrgUnit;
 import com.songnhue.core.domain.org.OrgUnitLeader;
 import com.songnhue.core.infra.org.OrgUnitLeaderRepository;
 import com.songnhue.core.infra.org.OrgUnitRepository;
+import com.songnhue.core.spi.PortalCachePort;
 
 /**
  * Quản trị danh bạ lãnh đạo của một đơn vị — đường <b>GHI</b> cho {@code org_unit_leaders}.
@@ -43,7 +44,11 @@ public class OrgUnitLeaderService {
     private final OrgUnitLeaderRepository repository;
     private final OrgUnitRepository orgUnits;
 
-    public OrgUnitLeaderService(OrgUnitLeaderRepository repository, OrgUnitRepository orgUnits) {
+    private final PortalCachePort portalCache;
+
+    public OrgUnitLeaderService(
+            OrgUnitLeaderRepository repository, OrgUnitRepository orgUnits, PortalCachePort portalCache) {
+        this.portalCache = portalCache;
         this.repository = repository;
         this.orgUnits = orgUnits;
     }
@@ -60,7 +65,9 @@ public class OrgUnitLeaderService {
         OrgUnitLeader dong = new OrgUnitLeader();
         dong.setOrgUnitId(donVi(orgUnitPublicId).getId());
         ganTruong(dong, fullName, title, phone, email, sortOrder);
-        return repository.save(dong);
+        OrgUnitLeader ketQua = repository.save(dong);
+        portalCache.orgUnitsChanged();
+        return ketQua;
     }
 
     @Transactional
@@ -68,7 +75,9 @@ public class OrgUnitLeaderService {
             UUID publicId, String fullName, String title, String phone, String email, Integer sortOrder) {
         OrgUnitLeader dong = require(publicId);
         ganTruong(dong, fullName, title, phone, email, sortOrder);
-        return repository.save(dong);
+        OrgUnitLeader ketQua = repository.save(dong);
+        portalCache.orgUnitsChanged();
+        return ketQua;
     }
 
     /**
@@ -82,7 +91,9 @@ public class OrgUnitLeaderService {
     public OrgUnitLeader doiTrangThai(UUID publicId, boolean active) {
         OrgUnitLeader dong = require(publicId);
         dong.setActive(active);
-        return repository.save(dong);
+        OrgUnitLeader ketQua = repository.save(dong);
+        portalCache.orgUnitsChanged();
+        return ketQua;
     }
 
     @Transactional
@@ -90,6 +101,7 @@ public class OrgUnitLeaderService {
         OrgUnitLeader dong = require(publicId);
         dong.markDeleted(Instant.now());
         repository.save(dong);
+        portalCache.orgUnitsChanged();
     }
 
     // ---- Nội bộ --------------------------------------------------------------

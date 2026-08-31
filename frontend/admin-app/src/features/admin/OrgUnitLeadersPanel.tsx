@@ -19,6 +19,7 @@ import { useState } from 'react';
 import { useAuth } from '@/app/auth/useAuth';
 import { type OrgUnitLeaderRow } from '@/shared/api-types';
 import { ApiClientError, api } from '@/shared/apiClient';
+import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
 
 /**
  * Danh bạ lãnh đạo của một đơn vị — CR-25, CR-26.
@@ -218,10 +219,7 @@ function LeaderModal({
       await onDone();
     },
     onError: (caught: unknown) => {
-      if (caught instanceof ApiClientError && caught.details.length > 0) {
-        form.setFields(caught.fieldErrors<keyof LeaderForm & string>());
-        return;
-      }
+      if (caught instanceof ApiClientError && datLoiTheoTruong(form, caught)) return;
       message.error(caught instanceof ApiClientError ? caught.message : 'Không lưu được');
     },
   });

@@ -38,6 +38,30 @@ public final class ViolatingFixtures {
     @Filter(name = ScopedEntity.ORG_UNIT_FILTER, condition = ScopedEntity.ORG_UNIT_FILTER_CONDITION)
     public static class CompliantScopedEntity extends ScopedEntity {}
 
+    /**
+     * Nới đúng dạng được phép — đóng vai {@code Station} (cột phạm vi NULLable).
+     *
+     * <p>⚠ Chuỗi dưới đây cố ý <b>ghép</b> từ hằng dùng chung chứ không chép tay: nếu ai đó sửa
+     * {@link ScopedEntity#ORG_UNIT_FILTER_CONDITION} thì fixture đi theo, và bài tự kiểm chứng vẫn
+     * kiểm đúng thứ nó định kiểm.
+     */
+    @Filter(
+            name = ScopedEntity.ORG_UNIT_FILTER,
+            condition = "(org_unit_id IS NULL OR " + ScopedEntity.ORG_UNIT_FILTER_CONDITION + ")")
+    public static class NullableScopeCompliant extends ScopedEntity {}
+
+    /**
+     * ⚠⚠ Vi phạm <b>khó thấy nhất</b> của nhóm này, và là lý do luật dùng mẫu chặt thay vì
+     * {@code contains()}.
+     *
+     * <p>Điều kiện chuẩn vẫn nằm nguyên văn trong chuỗi — một phép kiểm "có chứa hằng dùng chung"
+     * sẽ cho qua. Nhưng {@code 1=1 OR …} làm vế trái luôn đúng, tức là <b>tắt hẳn bộ lọc phạm vi</b>:
+     * mọi Xí nghiệp thấy dữ liệu của nhau, không lỗi, không log — đúng loại hỏng âm thầm mà cả lớp
+     * luật này sinh ra để chặn.
+     */
+    @Filter(name = ScopedEntity.ORG_UNIT_FILTER, condition = "(1=1 OR " + ScopedEntity.ORG_UNIT_FILTER_CONDITION + ")")
+    public static class NullableScopeUnsanctioned extends ScopedEntity {}
+
     /** Entity theo quy trình duyệt, chỉ để lớp dưới có thứ mà gọi sai. */
     public static class ApprovableDocument implements WorkflowAware {
 

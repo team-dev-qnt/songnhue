@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { App, Button, Card, Form, Space, Steps, Tabs } from 'antd';
+import { Alert, App, Button, Card, Form, Space, Steps, Tabs } from 'antd';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+
+import { useAuth } from '@/app/auth/useAuth';
 
 import {
   type ConstructionDetail,
@@ -13,6 +15,7 @@ import {
   type LinearSpecView,
 } from '@/shared/api-types';
 import { ApiClientError, api } from '@/shared/apiClient';
+import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
 
 // We will extract these steps into separate files if they grow too large,
 // but for now, we define them here.
@@ -61,6 +64,7 @@ const steps = [
 ];
 
 export function ConstructionFormPage() {
+  const { hasPermission } = useAuth();
   const { publicId } = useParams<{ publicId: string }>();
   const isEdit = !!publicId;
   const navigate = useNavigate();
@@ -126,11 +130,7 @@ export function ConstructionFormPage() {
       navigate('/van-hanh/cong-trinh');
     },
     onError: (caught: unknown) => {
-      if (caught instanceof ApiClientError && caught.details.length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        form.setFields(caught.fieldErrors() as any);
-        return;
-      }
+      if (caught instanceof ApiClientError && datLoiTheoTruong(form, caught)) return;
       message.error(caught instanceof ApiClientError ? caught.message : 'Không lưu được hồ sơ');
     },
   });
@@ -156,6 +156,18 @@ export function ConstructionFormPage() {
 
   const type = Form.useWatch('constructionType', form);
 
+  // ⚠⚠ Ba tab của trang này thuộc BA quyền khác nhau, và tới 31/08 cả trang bị canh bằng riêng
+  //    `ops:construction:update`. Đo được: XN_MANAGER (8 quyền vận hành) và XN_OPERATOR (3 quyền)
+  //    không mở nổi trang ⇒ 11 quyền chưa từng dùng được, và cán bộ Xí nghiệp không có đường tải
+  //    tệp Quy trình vận hành lên — đúng hai cột mà cổng công khai đang chờ (CR-28).
+  //
+  //    Nay tuyến nhận MẢNG quyền (HOẶC), còn đây quyết định từng tab. Nguyên tắc lấy nguyên từ
+  //    chú thích nút "Nhập nhanh" ở `ConstructionsPage`: canh đúng quyền mà việc ấy đòi, không
+  //    phải quyền của màn hình chứa nó.
+  const coSuaHoSo = hasPermission('ops:construction:update');
+  const coXemTaiLieu = hasPermission('ops:document:view');
+  const coXemSuaChua = hasPermission('ops:maintenance:view');
+
   if (isEdit && isLoading) {
     return <div>Loading...</div>;
   }
@@ -170,10 +182,24 @@ export function ConstructionFormPage() {
       >
         <Steps current={currentStep} items={steps} style={{ marginBottom: 32 }} />
 
+        {isEdit && !coSuaHoSo ? (
+          <Alert
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+            message="Bạn đang xem hồ sơ ở chế độ chỉ đọc"
+            description="Tài khoản của bạn không có quyền sửa hồ sơ công trình (ops:construction:update). Các tab Tài liệu đính kèm và Lịch sử sửa chữa vẫn dùng được bình thường."
+          />
+        ) : null}
+
+        {/* ⛔ `disabled` ở đây là tầng 1 — chỉ để UX. Chốt thật vẫn là `@RequirePermission` ở
+            controller (tầng 2) + bộ lọc phạm vi đơn vị (tầng 3): tầng 1 gỡ được bằng DevTools
+            trong ba giây (§9.10.4). */}
         <Form<ConstructionFormValues>
           form={form}
           layout="vertical"
           onFinish={onFinish}
+          disabled={isEdit && !coSuaHoSo}
           initialValues={{ constructionType: 'TRAM_BOM' }}
         >
           <div style={{ display: currentStep === 0 ? 'block' : 'none' }}>
@@ -197,7 +223,7 @@ export function ConstructionFormPage() {
                   Tiếp theo
                 </Button>
               )}
-              {currentStep === steps.length - 1 && (
+              {currentStep === steps.length - 1 && (!isEdit || coSuaHoSo) && (
                 <Button type="primary" htmlType="submit" loading={save.isPending}>
                   Lưu hồ sơ
                 </Button>
@@ -219,15 +245,13 @@ export function ConstructionFormPage() {
     return formContent;
   }
 
-  return (
-    <Tabs
-      items={[
-        {
-          key: 'form',
-          label: 'Hồ sơ công trình',
-          children: formContent,
-        },
-        {
+  // ⛔ Tab nào người dùng không có quyền xem thì KHÔNG dựng — dựng rồi để nó trả 403 khi bấm là
+  //    mời người ta đi vào một cánh cửa khoá. Và tab đầu tiên còn lại phải là tab mặc định, nếu
+  //    không AntD chọn `items[0]` — tức một tab không tồn tại.
+  const tabs = [
+    { key: 'form', label: 'Hồ sơ công trình', children: formContent },
+    coXemTaiLieu
+      ? {
           key: 'attachments',
           label: 'Tài liệu đính kèm',
           children: (
@@ -235,8 +259,10 @@ export function ConstructionFormPage() {
               <ConstructionDocumentsPanel publicId={publicId as string} />
             </Card>
           ),
-        },
-        {
+        }
+      : null,
+    coXemSuaChua
+      ? {
           key: 'history',
           label: 'Lịch sử sửa chữa',
           children: (
@@ -244,8 +270,9 @@ export function ConstructionFormPage() {
               <ConstructionMaintenancePanel constructionPublicId={publicId as string} />
             </Card>
           ),
-        },
-      ]}
-    />
-  );
+        }
+      : null,
+  ].filter((tab) => tab !== null);
+
+  return <Tabs defaultActiveKey={tabs[0].key} items={tabs} />;
 }
