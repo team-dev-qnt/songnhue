@@ -66,20 +66,48 @@ const CO_TIEN_TO = /^(sm|md|lg|xl|2xl):/;
 
 /** Bề rộng cố định: `w-60`, `w-[288px]`, `max-w-[288px]`, `min-w-[…]`. Không tính `w-full`/`w-auto`. */
 function laBeRongCoDinh(lop: string): boolean {
+  // ⚠ `min-w-0` khớp mẫu dưới đây vì `\d+` bắt cả số 0 — nhưng nó là lớp *cho phép* co, đúng
+  //   ngược với thứ bài này đi tìm. Loại trừ tường minh; xem cùng cái bẫy ở
+  //   `nav/thanhDieuHuongMotNguon.test.ts`.
+  if (lop === 'min-w-0') return false;
   return /^(max-|min-)?w-(\[[^\]]+\]|\d+(\.\d+)?|px)$/.test(lop);
 }
 
 // ── Ba vị từ — mỗi cái nhận CHUỖI LỚP và trả lời đúng/sai, để bản hỏng dùng lại được ──
 
-function hangNhanDienXepCotTruoc(lopHang: string): boolean {
-  const lop = lopHang.split(' ');
-  return lop.includes('flex-col') && lop.some((l) => /^(sm|md|lg):flex-row$/.test(l));
+/**
+ * ⭐ 01/09 — vị từ 1 THAY cho `hangNhanDienXepCotTruoc`, và lý do phải thay chứ không phải xoá.
+ *
+ * Bất biến cũ: *"hàng nhận diện phải xếp cột trước, thành hàng sau"*. Nó là **bản vá**, không
+ * phải bất biến — nó tồn tại vì hàng ấy phải chứa ba khối (logo, tên, ô tìm kiếm) trong 375px.
+ * Ô tìm kiếm rời đi ⇒ hàng chỉ còn một khối ⇒ xếp cột không còn nghĩa gì, và giữ lại nó là canh
+ * một bố cục cụ thể thay vì canh nguyên nhân.
+ *
+ * <h2>Nguyên nhân thật, phát biểu chính xác</h2>
+ *
+ * Thứ làm vỡ dải nhận diện ở 375px **không phải** "có bề rộng cố định" — `max-w-*` chặn phần tử
+ * *nở ra*, nó không hề chặn phần tử co lại, và `min-w-0` thì đúng nghĩa *cho phép* co. Thứ làm
+ * vỡ là một mục flex vừa **từ chối co** (`shrink-0`) vừa **giữ chỗ theo một hạn mức bề rộng**
+ * (`max-w-[288px]`): nó ăn 288px trong 375px và bỏ 39px lại cho hai khối còn lại.
+ *
+ * <p>⚠ Hai lượt viết trước của vị từ này đều bắt nhầm — lượt một bắt `min-w-0`, lượt hai bắt
+ * `max-w-[1232px]` của chính khung chứa. Cả hai đều là lớp vô hại, và cả hai đều lọt qua vì
+ * người viết đọc "bề rộng cố định" thành "có chữ w- và một con số". Ghi lại vì đây đúng là
+ * **luật 25** ở quy mô nhỏ nhất: một vị từ canh hình dạng phải được thử với dữ liệu THẬT của cả
+ * hai phía — thứ nó định bắt, và thứ nó không được bắt.
+ */
+function hangNhanDienKhongCoGiChanCo(cacLop: string[]): boolean {
+  return !cacLop.some((chuoi) => {
+    const lop = chuoi.split(' ');
+    if (!lop.includes('shrink-0')) return false;
+    // `w-auto` là bề rộng nội tại (logo) — không phải một hạn mức giành chỗ.
+    return lop.filter((l) => !CO_TIEN_TO.test(l)).some(laBeRongCoDinh);
+  });
 }
 
-function oTimKiemKhongCoDinhOMobile(lopForm: string): boolean {
-  const lop = lopForm.split(' ');
-  const coDinhTranLan = lop.filter((l) => !CO_TIEN_TO.test(l)).some(laBeRongCoDinh);
-  return !coDinhTranLan && lop.includes('w-full');
+/** ⭐ 01/09 — vị từ 2: dải nhận diện canh GIỮA (yêu cầu Công ty, sau khi ô tìm kiếm rời đi). */
+function hangNhanDienCanhGiua(lopHang: string): boolean {
+  return lopHang.split(' ').includes('justify-center');
 }
 
 function moiDongChuDeuChanSoDong(lopChu: string[]): boolean {
@@ -97,6 +125,7 @@ function moiDongChuDeuChanSoDong(lopChu: string[]): boolean {
  */
 const BAN_HONG = {
   hang: 'mx-auto flex max-w-[1232px] items-center justify-between gap-4 px-4 py-3 sm:gap-8 sm:px-6 sm:py-4',
+  /** Ô tìm kiếm của bản 31/08 — nay không còn ở tệp này, nhưng vị từ 1 vẫn phải bắt được nó. */
   form: 'w-full max-w-[288px] shrink-0',
   chu: [
     'text-[10px] font-semibold leading-tight tracking-wide text-brand-gold sm:text-[13px]',
@@ -104,38 +133,37 @@ const BAN_HONG = {
   ],
 };
 
-describe('Dải nhận diện đầu trang — ba bất biến của sự cố 31/08', () => {
+describe('Dải nhận diện đầu trang — bất biến sau khi ô tìm kiếm rời đi (01/09)', () => {
   const ma = readFileSync(NGUON, 'utf8');
   const cacLop = docClassName(ma);
 
   const lopHang = cacLop.find((l) => l.includes('max-w-[1232px]'));
-  const lopForm = cacLop.find((l) => l.includes('shrink-0') && l.includes('w-full'));
   const lopChu = cacLop.filter(
     (l) => /text-brand-gold|text-white/.test(l) && l.includes('leading-tight'),
   );
 
   it('đọc được đúng các khối cần soi — chống xanh trên tập rỗng', () => {
-    // ⛔ Nếu đổi cấu trúc đầu trang mà quên bài này, ba khẳng định dưới sẽ chạy trên `undefined`
+    // ⛔ Nếu đổi cấu trúc đầu trang mà quên bài này, các khẳng định dưới sẽ chạy trên `undefined`
     //    và xanh trọn vẹn. Khẳng định về SỐ LƯỢNG là thứ duy nhất ở đây không dùng chung giả định
     //    với các mẫu regex — đúng thứ đã cứu lượt kiểm chứng ngược ở §10.62.
-    expect(cacLop.length).toBeGreaterThanOrEqual(6);
+    expect(cacLop.length).toBeGreaterThanOrEqual(5);
     expect(lopHang, 'không tìm thấy hàng nhận diện (max-w-[1232px])').toBeTruthy();
-    expect(lopForm, 'không tìm thấy ô tìm kiếm').toBeTruthy();
     expect(lopChu.length, 'phải soi đủ hai dòng chữ: cơ quan chủ quản và tên Công ty').toBe(2);
   });
 
-  it('hàng nhận diện xếp CỘT ở điện thoại, chỉ thành hàng từ một điểm dừng', () => {
+  it('⭐ không khối nào trong dải nhận diện từ chối co lại ở bề rộng điện thoại', () => {
+    const viPham = cacLop.filter((chuoi) => !hangNhanDienKhongCoGiChanCo([chuoi]));
     expect(
-      hangNhanDienXepCotTruoc(lopHang as string),
-      `hàng nhận diện phải có "flex-col" và một "sm|md|lg:flex-row". Đang là: ${lopHang}`,
-    ).toBe(true);
+      viPham,
+      `bề rộng cố định không tiền tố điểm dừng ở: ${viPham.join(' | ')}. ` +
+        `Phép trừ 31/08: 375 − 32 (px-4) − 16 (gap) − 288 = 39px cho logo + tên, riêng logo 44px.`,
+    ).toHaveLength(0);
   });
 
-  it('ô tìm kiếm KHÔNG có bề rộng cố định ở bề rộng điện thoại', () => {
+  it('⭐ dải nhận diện canh GIỮA — logo và tên đứng giữa khung (yêu cầu Công ty 01/09)', () => {
     expect(
-      oTimKiemKhongCoDinhOMobile(lopForm as string),
-      `ô tìm kiếm phải "w-full" ở mobile; bề rộng cố định chỉ được phép sau tiền tố điểm dừng. ` +
-        `Đang là: ${lopForm}`,
+      hangNhanDienCanhGiua(lopHang as string),
+      `hàng nhận diện phải có "justify-center". Đang là: ${lopHang}`,
     ).toBe(true);
   });
 
@@ -146,21 +174,25 @@ describe('Dải nhận diện đầu trang — ba bất biến của sự cố 3
     ).toBe(true);
   });
 
-  describe('kiểm chứng ngược — ba vị từ phải BẮT ĐƯỢC bản đã gây ra sự cố', () => {
-    it('bản hỏng: hàng nhận diện không xếp cột → vị từ 1 phải trả false', () => {
-      expect(hangNhanDienXepCotTruoc(BAN_HONG.hang)).toBe(false);
+  describe('kiểm chứng ngược — mỗi vị từ phải BẮT ĐƯỢC bản đã gây ra sự cố', () => {
+    it('bản hỏng: ô tìm kiếm max-w-[288px] shrink-0 → vị từ 1 phải trả false', () => {
+      expect(hangNhanDienKhongCoGiChanCo([BAN_HONG.form])).toBe(false);
     });
 
-    it('bản hỏng: ô tìm kiếm có max-w-[288px] không tiền tố → vị từ 2 phải trả false', () => {
-      expect(oTimKiemKhongCoDinhOMobile(BAN_HONG.form)).toBe(false);
+    it('bản hỏng: hàng nhận diện justify-between → vị từ 2 phải trả false', () => {
+      expect(hangNhanDienCanhGiua(BAN_HONG.hang)).toBe(false);
     });
 
     it('bản hỏng: dòng cơ quan chủ quản không chặn số dòng → vị từ 3 phải trả false', () => {
       expect(moiDongChuDeuChanSoDong(BAN_HONG.chu)).toBe(false);
     });
 
-    it('bản hỏng chỉ sai ĐÚNG ba chỗ ấy — dòng tên Công ty vốn đã đúng', () => {
-      // Nếu vị từ 3 trả false cho MỌI chuỗi thì nó không canh gì cả, chỉ đang luôn đỏ.
+    it('ba vị từ chỉ đỏ ĐÚNG chỗ chúng canh, không đỏ với mọi đầu vào', () => {
+      // Nếu một vị từ trả false cho MỌI chuỗi thì nó không canh gì cả, chỉ đang luôn đỏ.
+      expect(hangNhanDienKhongCoGiChanCo(['h-12 w-auto shrink-0 sm:h-16'])).toBe(true);
+      expect(hangNhanDienKhongCoGiChanCo(['mx-auto flex max-w-[1232px] px-4'])).toBe(true);
+      expect(hangNhanDienKhongCoGiChanCo(['min-w-0'])).toBe(true);
+      expect(hangNhanDienCanhGiua('mx-auto flex items-center justify-center px-4')).toBe(true);
       expect(moiDongChuDeuChanSoDong([BAN_HONG.chu[1]])).toBe(true);
     });
   });
