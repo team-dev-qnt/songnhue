@@ -75,6 +75,34 @@ export const MENU: readonly MenuNode[] = [
     ],
   },
   {
+    key: 'thuy-van',
+    label: 'Dữ liệu thuỷ văn',
+    icon: <CloudServerOutlined />,
+    children: [
+      {
+        key: 'diem-do',
+        label: 'Danh mục điểm đo',
+        icon: <ApartmentOutlined />,
+        path: '/thuy-van/diem-do',
+        permissions: ['hyd:station:view'],
+      },
+      {
+        key: 'loai-chi-so',
+        label: 'Loại chỉ số quan trắc',
+        icon: <AppstoreOutlined />,
+        path: '/thuy-van/loai-chi-so',
+        permissions: ['hyd:station:view'],
+      },
+      {
+        key: 'nguon-du-lieu',
+        label: 'Nguồn dữ liệu',
+        icon: <CloudServerOutlined />,
+        path: '/thuy-van/nguon-du-lieu',
+        permissions: ['hyd:api-source:manage'],
+      },
+    ],
+  },
+  {
     key: 'noi-dung',
     label: 'Nội dung cổng',
     icon: <ReadOutlined />,

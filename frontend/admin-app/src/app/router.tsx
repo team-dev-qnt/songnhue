@@ -54,7 +54,15 @@ function lazyPage(loader: () => Promise<Record<string, ComponentType>>, name: st
 }
 
 /** Route quản trị: tải theo nhu cầu + chặn theo quyền, gộp thành một chỗ khai báo. */
-function adminRoute(path: string, permission: string, element: ReactElement) {
+/**
+ * Một tuyến quản trị, canh bằng quyền.
+ *
+ * <p>⚠ `permission` nhận **một mã hoặc một mảng**, và mảng có nghĩa **HOẶC**
+ * ({@link RequirePermission} dùng `.some`). Đó là chỗ để khai *"ai được vào trang này"* cho đúng
+ * khi một trang chứa nhiều việc thuộc nhiều quyền khác nhau — xem tuyến
+ * `/van-hanh/cong-trinh/:publicId`.
+ */
+function adminRoute(path: string, permission: string | readonly string[], element: ReactElement) {
   return { path, element: <RequirePermission code={permission}>{element}</RequirePermission> };
 }
 export const router = createBrowserRouter([
@@ -102,6 +110,25 @@ export const router = createBrowserRouter([
             lazyPage(() => import('@/features/operations/ConstructionsPage'), 'ConstructionsPage'),
           ),
           adminRoute(
+            '/thuy-van/diem-do',
+            'hyd:station:view',
+            lazyPage(() => import('@/features/hydro/StationsPage'), 'StationsPage'),
+          ),
+          adminRoute(
+            '/thuy-van/loai-chi-so',
+            'hyd:station:view',
+            lazyPage(() => import('@/features/hydro/MeasurementTypesPage'), 'MeasurementTypesPage'),
+          ),
+          // ⚠ Quyền canh tuyến này là quyền mà ENDPOINT nó gọi đòi
+          // (`hyd:api-source:manage`), không phải quyền xem điểm đo. Đây đúng hình
+          // dạng lỗi 31/08: màn hình có thật, quyền cấp đúng, mà bị chôn sau một
+          // quyền khác — xem `routerGuards.test.ts`.
+          adminRoute(
+            '/thuy-van/nguon-du-lieu',
+            'hyd:api-source:manage',
+            lazyPage(() => import('@/features/hydro/ApiSourcesPage'), 'ApiSourcesPage'),
+          ),
+          adminRoute(
             '/van-hanh/danh-muc-tinh-hinh',
             'ops:operation-status-code:manage',
             lazyPage(
@@ -117,9 +144,22 @@ export const router = createBrowserRouter([
               'ConstructionFormPage',
             ),
           ),
+          // ⚠⚠ Trang này chứa BA việc thuộc BA quyền khác nhau: sửa hồ sơ
+          //     (`ops:construction:update`), tài liệu đính kèm (`ops:document:*`) và lịch sử sửa
+          //     chữa (`ops:maintenance:*`). Canh cả trang bằng riêng `update` là chôn hai việc kia
+          //     sau một quyền không liên quan — và đo được ngày 31/08: **XN_MANAGER có 8 quyền,
+          //     XN_OPERATOR có 3 quyền, không ai trong hai vai trò mở nổi trang này** (403), nên
+          //     toàn bộ 11 quyền ấy chưa từng dùng được. Cán bộ Xí nghiệp giữ tệp gốc Quy trình vận
+          //     hành mà không có đường tải lên, trong khi ô chọn tệp vẫn bảo họ *"tải lên ở tab Tài
+          //     liệu đính kèm trước"*.
+          //
+          //     Nguyên tắc đúng đã được chính dự án viết ra cho nút "Nhập nhanh"
+          //     (`ConstructionsPage.tsx`): *canh đúng quyền mà endpoint đòi, không phải quyền của
+          //     màn hình chứa nó*. Ở đây nghĩa là: vào được trang nếu có BẤT KỲ quyền nào trong ba;
+          //     tab Hồ sơ tự chuyển sang chỉ-đọc khi thiếu `update` (xem `ConstructionFormPage`).
           adminRoute(
             '/van-hanh/cong-trinh/:publicId',
-            'ops:construction:update',
+            ['ops:construction:update', 'ops:document:view', 'ops:maintenance:view'],
             lazyPage(
               () => import('@/features/operations/ConstructionFormPage'),
               'ConstructionFormPage',
