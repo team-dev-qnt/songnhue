@@ -27,7 +27,8 @@ import {
   type OperationStatusCodeCreateRequest,
   type OperationStatusCodeUpdateRequest,
 } from '@/shared/api-types';
-import { api } from '@/shared/apiClient';
+import { ApiClientError, api } from '@/shared/apiClient';
+import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
 
 export function OperationStatusCodesPage() {
   const { hasPermission } = useAuth();
@@ -51,6 +52,10 @@ export function OperationStatusCodesPage() {
       setModalVisible(false);
       queryClient.invalidateQueries({ queryKey: ['ops', 'operation-status-codes'] });
     },
+    onError: (caught: unknown) => {
+      if (caught instanceof ApiClientError && datLoiTheoTruong(form, caught)) return;
+      message.error(caught instanceof ApiClientError ? caught.message : 'Không thêm được mã');
+    },
   });
 
   const updateMutation = useMutation({
@@ -61,6 +66,10 @@ export function OperationStatusCodesPage() {
       setModalVisible(false);
       queryClient.invalidateQueries({ queryKey: ['ops', 'operation-status-codes'] });
     },
+    onError: (caught: unknown) => {
+      if (caught instanceof ApiClientError && datLoiTheoTruong(form, caught)) return;
+      message.error(caught instanceof ApiClientError ? caught.message : 'Không cập nhật được mã');
+    },
   });
 
   const deleteMutation = useMutation({
@@ -69,6 +78,8 @@ export function OperationStatusCodesPage() {
       message.success('Xoá thành công');
       queryClient.invalidateQueries({ queryKey: ['ops', 'operation-status-codes'] });
     },
+    onError: (caught: unknown) =>
+      message.error(caught instanceof ApiClientError ? caught.message : 'Không xoá được mã'),
   });
 
   const openCreateModal = () => {

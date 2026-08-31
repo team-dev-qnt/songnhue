@@ -20,7 +20,7 @@ import { useState } from 'react';
 
 import { useAuth } from '@/app/auth/useAuth';
 import { type ConstructionDocument, type ConstructionDocumentList } from '@/shared/api-types';
-import { api } from '@/shared/apiClient';
+import { ApiClientError, api } from '@/shared/apiClient';
 import { formatBytes, formatDateTime } from '@/shared/format';
 
 /**
@@ -75,6 +75,8 @@ export function ConstructionDocumentsPanel({ publicId }: { publicId: string }) {
       message.success('Đã xoá tài liệu');
       queryClient.invalidateQueries({ queryKey });
     },
+    onError: (caught: unknown) =>
+      message.error(caught instanceof ApiClientError ? caught.message : 'Không xoá được tài liệu'),
   });
 
   const taiVe = async (doc: ConstructionDocument) => {

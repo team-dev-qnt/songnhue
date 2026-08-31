@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.songnhue.core.application.auth.AuthService;
 import com.songnhue.core.application.auth.ClientInfo;
 import com.songnhue.core.application.auth.PasswordChangeService;
+import com.songnhue.core.application.auth.PasswordPolicyService;
 import com.songnhue.core.application.auth.SessionService;
 import com.songnhue.core.application.auth.TotpService;
 import com.songnhue.core.common.config.JwtProperties;
@@ -60,6 +61,7 @@ public class AuthController {
     private final PasswordChangeService passwordChangeService;
     private final SessionService sessionService;
     private final JwtProperties jwtProperties;
+    private final PasswordPolicyService passwordPolicy;
 
     /**
      * Cookie có cờ {@code Secure} hay không.
@@ -74,12 +76,14 @@ public class AuthController {
             PasswordChangeService passwordChangeService,
             SessionService sessionService,
             JwtProperties jwtProperties,
+            PasswordPolicyService passwordPolicy,
             @org.springframework.beans.factory.annotation.Value("${app.security.secure-cookie:true}")
                     boolean secureCookie) {
         this.authService = authService;
         this.passwordChangeService = passwordChangeService;
         this.sessionService = sessionService;
         this.jwtProperties = jwtProperties;
+        this.passwordPolicy = passwordPolicy;
         this.secureCookie = secureCookie;
     }
 
@@ -200,6 +204,24 @@ public class AuthController {
                 current.permissions(),
                 current.mustChangePassword(),
                 view.twoFactorEnrolled());
+    }
+
+    /**
+     * Chính sách độ mạnh mật khẩu — để màn hình đổi/đặt mật khẩu nói ra YÊU CẦU THẬT.
+     *
+     * <h2>Vì sao KHÔNG dùng {@code GET /settings}</h2>
+     *
+     * {@code SettingController.list} đòi quyền {@code adm:setting:view}. Màn hình cần chính sách
+     * nhất lại là màn hình <b>bắt buộc đổi mật khẩu lần đầu</b>, nơi người dùng thường không có
+     * quyền quản trị nào — họ sẽ nhận 403 và giao diện quay về đúng câu chung chung cũ. Một
+     * endpoint chỉ-đọc, chỉ trả hai con số ràng buộc, là câu trả lời đúng cho nhu cầu ấy.
+     */
+    @GetMapping("/password-policy")
+    @AuthenticatedEndpoint(reason = "Ai cũng phải biết yêu cầu mật khẩu trước khi đặt mật khẩu")
+    @Operation(summary = "Chính sách độ mạnh mật khẩu đang có hiệu lực")
+    public AuthDtos.PasswordPolicyResponse passwordPolicy() {
+        PasswordPolicyService.ChinhSachMatKhau chinhSach = passwordPolicy.chinhSach();
+        return new AuthDtos.PasswordPolicyResponse(chinhSach.minLength(), chinhSach.requireLetterAndDigit());
     }
 
     @PostMapping("/change-password")

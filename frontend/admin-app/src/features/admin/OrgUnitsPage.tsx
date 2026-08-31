@@ -29,6 +29,7 @@ import {
   type UpdateOrgUnitRequest,
 } from '@/shared/api-types';
 import { ApiClientError, api } from '@/shared/apiClient';
+import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
 
 /**
  * Sơ đồ tổ chức — **một bảng `org_units` dùng chung** cho Xí nghiệp và phòng ban
@@ -305,10 +306,7 @@ function CreateOrgUnitModal({
       await onDone();
     },
     onError: (caught: unknown) => {
-      if (caught instanceof ApiClientError && caught.details.length > 0) {
-        form.setFields(caught.fieldErrors<keyof CreateOrgUnitRequest & string>());
-        return;
-      }
+      if (caught instanceof ApiClientError && datLoiTheoTruong(form, caught)) return;
       message.error(caught instanceof ApiClientError ? caught.message : 'Không thêm được đơn vị');
     },
   });
@@ -426,10 +424,7 @@ function EditOrgUnitModal({
       await onDone();
     },
     onError: (caught: unknown) => {
-      if (caught instanceof ApiClientError && caught.details.length > 0) {
-        form.setFields(caught.fieldErrors<keyof UpdateOrgUnitRequest & string>());
-        return;
-      }
+      if (caught instanceof ApiClientError && datLoiTheoTruong(form, caught)) return;
       message.error(caught instanceof ApiClientError ? caught.message : 'Không cập nhật được');
     },
   });
