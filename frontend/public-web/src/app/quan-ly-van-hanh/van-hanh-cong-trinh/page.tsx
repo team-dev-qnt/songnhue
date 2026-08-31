@@ -2,11 +2,18 @@ import type { Metadata } from 'next';
 
 import { PageShell } from '@/components/PageShell';
 import { SectionNav } from '@/components/SectionNav';
+import { ColumnHeaderRow } from '@/components/home/ColumnHeaderRow';
+import { OperationStatusRows } from '@/components/home/OperationStatusRows';
 import { KhoaDangNhap } from '@/components/realtime/KhoaDangNhap';
 import { RealtimeFrame } from '@/components/realtime/RealtimeFrame';
-import { getServerTime, getSiteConfig } from '@/lib/api';
+import { getOperationStatuses, getServerTime, getSiteConfig } from '@/lib/api';
+import { COT_VAN_HANH } from '@/lib/homeDataColumns';
 import { ROUTES } from '@/lib/routes';
 import { docSo } from '@/lib/settings';
+
+/** Lưới 6 cột — TRÙNG với khối trên trang chủ; hai nơi lệch nhau là hai bảng khác nhau. */
+const LUOI = 'grid-cols-[1.7fr_1.2fr_1.3fr_1fr_1.1fr_1.1fr]';
+const BE_RONG_TOI_THIEU = 'min-w-[760px]';
 
 export const revalidate = 300;
 
@@ -19,29 +26,37 @@ export const metadata: Metadata = {
 /**
  * Quản lý, vận hành &gt; **Vận hành công trình** — CR-15, CR-34, §5.3.
  *
- * <h2>Trạng thái thật: chưa có nguồn — trả lời OI-02</h2>
+ * <h2>⭐ 31/08: đã đấu nối phần CN-02.11 — và chỉ phần ấy</h2>
  *
- * Bảng {@code construction_operation_status} đã tồn tại từ WS-19, nhưng nó phục vụ CN-02.11:
- * <b>tình hình vận hành nhập tay</b>, mỗi bản ghi là một mã trạng thái kèm <i>một</i> giá trị
- * tham số. §5.3 lại đòi bốn trường cùng lúc — trạng thái vận hành, số máy đang chạy, lưu
- * lượng, thời điểm cập nhật — và đòi chúng <b>theo ngày truy cập</b>, tức là một luồng số liệu
- * đều đặn chứ không phải một sổ ghi chép sự kiện.
+ * Bảng {@code construction_operation_status} có từ WS-19, phục vụ CN-02.11: <b>tình hình vận hành
+ * nhập tay</b>, mỗi bản ghi là một mã trạng thái kèm <i>một</i> giá trị tham số. Nay nó ra tới cổng
+ * qua {@code GET /api/v1/public/constructions/operation-statuses} — endpoint công khai từng là mục
+ * "chưa có" duy nhất sửa được bằng mã. Mở nó là một quyết định về <b>phạm vi công bố</b> (bảng
+ * thuộc phạm vi đơn vị, lọc tầng 3), chốt 31/08: công bố đúng sáu cột, {@code note} và người cập
+ * nhật ở lại bên trong.
  *
- * <p>Ba thứ còn thiếu, không thứ nào sửa được ở tầng giao diện:
+ * <h2>⬜ Hai thứ còn thiếu — và §5.3 vẫn CHƯA được trả lời đủ</h2>
+ *
+ * <p>§5.3 đòi bốn trường cùng lúc — trạng thái vận hành, số máy đang chạy, lưu lượng, thời điểm
+ * cập nhật — và đòi chúng <b>theo ngày truy cập</b>, tức một luồng số liệu đều đặn chứ không phải
+ * một sổ ghi chép sự kiện. Bảng CN-02.11 không thay thế được nó.
  *
  * <ol>
- *   <li>chưa có API nguồn nào cấp bốn trường ấy (câu hỏi OI-02 gửi Công ty);
- *   <li>chưa có dữ liệu công trình — danh mục tổng thể thuộc G8;
- *   <li>chưa có endpoint công khai cho nhật ký vận hành. Bảng ấy thuộc phạm vi đơn vị (lọc
- *       tầng 3): mở nó ra công khai là một quyết định về phạm vi công bố, không phải một dòng
- *       mã — và phải kèm bài kiểm cố tình hỏi dữ liệu của Xí nghiệp khác.
+ *   <li>⬜ chưa có API nguồn nào cấp bốn trường ấy — <b>OI-02</b> còn mở;
+ *   <li>⬜ chưa có dữ liệu công trình — danh mục tổng thể thuộc <b>G8</b>, nên bảng dưới đây vẫn
+ *       rỗng cho tới khi Công ty gửi.
  * </ol>
  *
- * <p>Theo §7, trang vẫn dựng đủ khung và để trạng thái chờ dữ liệu.
+ * <p>⛔ Rỗng thì nói thẳng là rỗng, không dựng sẵn lưới dấu gạch (§10.54).
  */
 export default async function VanHanhCongTrinhPage() {
-  const [config, serverTime] = await Promise.all([getSiteConfig(), getServerTime()]);
+  const [config, tinhHinhVanHanh, serverTime] = await Promise.all([
+    getSiteConfig(),
+    getOperationStatuses(),
+    getServerTime(),
+  ]);
   const nhipLamMoi = docSo(config?.['site.home.realtime.refresh-seconds'], 300);
+  const dong = tinhHinhVanHanh ?? [];
 
   return (
     <PageShell
@@ -49,16 +64,29 @@ export default async function VanHanhCongTrinhPage() {
       description="Số liệu vận hành trạm bơm của từng Xí nghiệp trực thuộc tại ngày truy cập."
       breadcrumb={[{ label: 'Quản lý, vận hành' }, { label: 'Vận hành công trình' }]}
     >
-      <section className="rounded-xl border border-surface-border bg-white p-5 shadow-xs">
-        <h2 className="text-sm font-bold tracking-tight text-emerald-800">
-          Số liệu tại ngày truy cập
-        </h2>
-        <div className="mt-4">
+      <section className="overflow-hidden rounded-xl border border-surface-border bg-white shadow-xs">
+        <div className="p-5 pb-4">
+          <h2 className="text-sm font-bold tracking-tight text-emerald-800">
+            Tình hình vận hành hiện hành
+          </h2>
+          <p className="mt-1 text-xs text-surface-textSecondary">
+            Mã tình hình vận hành do trực ban ghi nhận (CN-02.11). Số liệu tự động của trạm bơm — số
+            máy đang chạy, lưu lượng — chưa có nguồn API.
+          </p>
+        </div>
+
+        <ColumnHeaderRow cot={COT_VAN_HANH} luoi={LUOI} beRongToiThieu={BE_RONG_TOI_THIEU} />
+
+        {dong.length > 0 ? (
+          <OperationStatusRows rows={dong} luoi={LUOI} beRongToiThieu={BE_RONG_TOI_THIEU} />
+        ) : null}
+
+        <div className="p-5">
           <RealtimeFrame
             updatedAt={serverTime}
             refreshSeconds={nhipLamMoi}
-            unavailable
-            unavailableReason="Chưa có nguồn số liệu vận hành trạm bơm tự động, và danh mục công trình chưa được nhập."
+            unavailable={dong.length === 0}
+            unavailableReason="Chưa công trình nào được ghi nhận tình hình vận hành — danh mục công trình tổng thể thuộc G8. Số liệu tự động của trạm bơm (§5.3) vẫn chờ API nguồn — OI-02."
           />
         </div>
       </section>

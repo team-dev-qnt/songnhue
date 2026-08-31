@@ -5,7 +5,7 @@ import { PageShell } from '@/components/PageShell';
 import { SectionNav } from '@/components/SectionNav';
 import type { ConstructionRow } from '@/lib/api';
 import { getConstructionCatalog } from '@/lib/api';
-import { fileUrl, mapUrl, ROUTES } from '@/lib/routes';
+import { constructionDocUrl, mapUrl, ROUTES } from '@/lib/routes';
 
 export const revalidate = 300;
 
@@ -132,8 +132,10 @@ const NHAN_LOAI: Record<string, string> = {
 };
 
 function DongCongTrinh({ row, stt }: { row: ConstructionRow; stt: number }) {
-  const quyTrinh = fileUrl(row.operatingProcedureFileId);
-  const phuongAn = fileUrl(row.protectionPlanFileId);
+  // ⛔ `constructionDocUrl`, KHÔNG phải `fileUrl` — xem javadoc của nó: đường tệp của cổng không
+  //    phục vụ loại `CONSTRUCTION`, nên `fileUrl` ở đây là một liên kết 404 câm chờ sẵn.
+  const quyTrinh = constructionDocUrl(row.operatingProcedureFileId);
+  const phuongAn = constructionDocUrl(row.protectionPlanFileId);
   const banDo = mapUrl(row.latitude, row.longitude);
 
   return (

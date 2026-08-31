@@ -1,4 +1,9 @@
-import { PlusOutlined, FormOutlined, HistoryOutlined } from '@ant-design/icons';
+import {
+  PlusOutlined,
+  FormOutlined,
+  HistoryOutlined,
+  ThunderboltOutlined,
+} from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { Button, Card, Space, Table, Typography, Tooltip } from 'antd';
 import { type ColumnsType } from 'antd/es/table';
@@ -12,12 +17,14 @@ import {
   CONSTRUCTION_TYPE,
   MANAGEMENT_LEVEL,
 } from '@/components/business/statusVocabulary';
-import { type ConstructionRow, type PageResult } from '@/shared/api-types';
+import { type ConstructionRow } from '@/shared/api-types';
 import { api } from '@/shared/apiClient';
 import { formatDateTime } from '@/shared/format';
 
 import { locTuDuongDan } from './constructionRules';
 import { ConstructionChangeLogDrawer } from './components/ConstructionChangeLogDrawer';
+import { ConstructionLifecycleActions } from './components/ConstructionLifecycleActions';
+import { OperationStatusHistoryDrawer } from './components/OperationStatusHistoryDrawer';
 import { ConstructionFilter, type ConstructionFilterValues } from './components/ConstructionFilter';
 import { ConstructionImportModal } from './components/ConstructionImportModal';
 import { ConstructionStatisticsBlock } from './components/ConstructionStatisticsBlock';
@@ -45,6 +52,9 @@ export function ConstructionsPage() {
   const [batchModalOpen, setBatchModalOpen] = useState(false);
   const [historyDrawerId, setHistoryDrawerId] = useState<string | null>(null);
   const [importModalOpen, setImportModalOpen] = useState(false);
+  const [opsStatusDrawer, setOpsStatusDrawer] = useState<{ publicId: string; name: string } | null>(
+    null,
+  );
 
   const rivers = useQuery({
     queryKey: ['ops', 'constructions', 'rivers'],
@@ -54,7 +64,7 @@ export function ConstructionsPage() {
   const constructions = useQuery({
     queryKey: ['ops', 'constructions', { page, size, sort, ...filters }],
     queryFn: () =>
-      api.get<PageResult<ConstructionRow>>('/ops/constructions', {
+      api.getPage<ConstructionRow>('/ops/constructions', {
         page,
         size,
         sort,
@@ -100,16 +110,37 @@ export function ConstructionsPage() {
     {
       title: 'Thao tác',
       key: 'actions',
-      width: 80,
+      width: 180,
       align: 'center',
       render: (_, row) => (
-        <Tooltip title="Lịch sử thay đổi">
-          <Button
-            type="text"
-            icon={<HistoryOutlined />}
-            onClick={() => setHistoryDrawerId(row.publicId)}
+        <Space size={0}>
+          <Tooltip title="Lịch sử thay đổi hồ sơ">
+            <Button
+              type="text"
+              icon={<HistoryOutlined />}
+              onClick={() => setHistoryDrawerId(row.publicId)}
+            />
+          </Tooltip>
+          {/* ⚠ Canh `ops:operation-status:view` — quyền mà endpoint đòi, KHÔNG phải quyền của
+              màn hình chứa nút (cùng nguyên tắc đã viết cho nút "Nhập nhanh" bên dưới). Tới
+              31/08 quyền này được cấp cho 6 vai trò mà không màn hình nào gọi endpoint đọc:
+              tình hình vận hành chỉ có đường ghi vào. Từ 31/08 bản ghi mới nhất lên thẳng cổng
+              công khai, nên "không thấy được mình vừa nhập gì" thành một lỗ thật. */}
+          {hasPermission('ops:operation-status:view') && (
+            <Tooltip title="Lịch sử tình hình vận hành">
+              <Button
+                type="text"
+                icon={<ThunderboltOutlined />}
+                onClick={() => setOpsStatusDrawer({ publicId: row.publicId, name: row.name })}
+              />
+            </Tooltip>
+          )}
+          <ConstructionLifecycleActions
+            publicId={row.publicId}
+            name={row.name}
+            lifecycleState={row.lifecycleState}
           />
-        </Tooltip>
+        </Space>
       ),
     },
   ];
@@ -193,6 +224,13 @@ export function ConstructionsPage() {
         publicId={historyDrawerId}
         open={!!historyDrawerId}
         onClose={() => setHistoryDrawerId(null)}
+      />
+
+      <OperationStatusHistoryDrawer
+        publicId={opsStatusDrawer?.publicId ?? null}
+        constructionName={opsStatusDrawer?.name}
+        open={!!opsStatusDrawer}
+        onClose={() => setOpsStatusDrawer(null)}
       />
 
       <ConstructionImportModal open={importModalOpen} onClose={() => setImportModalOpen(false)} />

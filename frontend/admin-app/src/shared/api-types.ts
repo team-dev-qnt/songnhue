@@ -705,6 +705,22 @@ export interface ConstructionDocumentList {
   items: ConstructionDocument[];
 }
 
+/**
+ * Một cụm công trình — G15 chốt cụm là **bảng riêng**, không phải một cột trên `constructions`.
+ *
+ * ⚠ `publicId` là UUID và là thứ gửi lên khi gán cụm cho một công trình (`clusterId`).
+ */
+export interface ClusterView {
+  publicId: string;
+  code: string;
+  name: string;
+  orgUnitId: string;
+  orgUnitName: string | null;
+  description: string | null;
+  sortOrder: number | null;
+  active: boolean;
+}
+
 /** Một dòng lịch sử tình hình vận hành của công trình. */
 export interface OperationStatusRow {
   publicId: string;
@@ -761,4 +777,139 @@ export interface ImportReport {
   toCreate: number;
   toUpdate: number;
   errors: RowError[];
+}
+
+// =============================================================================
+// MOD-03 Thuỷ văn — danh mục (WS-28)
+// =============================================================================
+
+export type PositionRole = 'THUONG_LUU' | 'HA_LUU' | 'BE_HUT' | 'MN_SONG' | 'MUA';
+export type AdapterType = 'BHH40' | 'MOCK';
+export type ApiSourceStatus = 'HOAT_DONG' | 'TAM_DUNG';
+
+export interface MeasurementType {
+  id: string;
+  code: string;
+  name: string;
+  /** Đơn vị ĐÃ CHUẨN HOÁ trong CSDL — không phải đơn vị nguồn trả về (nguồn trả cm, DB lưu m). */
+  unit: string;
+  valueScale: number;
+  sortOrder: number;
+  active: boolean;
+  description: string | null;
+}
+
+export interface MeasurementTypeRequest {
+  code: string;
+  name: string;
+  unit: string;
+  valueScale?: number;
+  sortOrder?: number;
+  active?: boolean;
+  description?: string;
+}
+
+/**
+ * ⛔ Không có trường mã số. Backend không bao giờ trả credential, kể cả cho SUPER_ADMIN
+ * (`conventions.md` §4.7) — giao diện chỉ biết `credentialDaCauHinh`.
+ *
+ * Bốn trường `*HieuLuc` là giá trị **đã giải**; `*DungChung` cho biết nó đến từ bảng
+ * `settings` hay từ cột riêng của nguồn. Hiện ô nhập rỗng mà không nói nguồn đang chạy
+ * theo tham số chung là để người vận hành kết luận "chưa cấu hình" trong khi poller vẫn chạy.
+ */
+export interface ApiSource {
+  id: string;
+  code: string;
+  name: string;
+  adapterType: AdapterType;
+  baseUrl: string;
+  credentialDaCauHinh: boolean;
+  status: ApiSourceStatus;
+  cron: string | null;
+  frameMinutes: number | null;
+  timeoutSeconds: number | null;
+  maxRetry: number | null;
+  cronHieuLuc: string;
+  cronDungChung: boolean;
+  khungNguonPhutHieuLuc: number;
+  khungDungChung: boolean;
+  timeoutGiayHieuLuc: number;
+  timeoutDungChung: boolean;
+  soLanThuLaiHieuLuc: number;
+  thuLaiDungChung: boolean;
+  lastSuccessAt: string | null;
+  lastFailureAt: string | null;
+  lastFailureReason: string | null;
+  consecutiveFailures: number;
+  soDiemDo: number;
+  description: string | null;
+}
+
+export interface ApiSourceCreateRequest {
+  code: string;
+  name: string;
+  adapterType: AdapterType;
+  baseUrl: string;
+  description?: string;
+}
+
+export interface ApiSourceRequest {
+  name: string;
+  baseUrl: string;
+  frameMinutes?: number | null;
+  timeoutSeconds?: number | null;
+  maxRetry?: number | null;
+  cron?: string | null;
+  status: ApiSourceStatus;
+  description?: string;
+}
+
+export interface StationConstructionView {
+  id: string;
+  constructionId: string;
+  role: PositionRole;
+  primary: boolean;
+}
+
+export interface Station {
+  id: string;
+  code: string;
+  name: string;
+  /** ⛔ Bất biến sau khi seed — đổi là gán số liệu của trạm này sang trạm khác. */
+  apiCode: string;
+  apiSourceId: string | null;
+  apiSourceCode: string | null;
+  positionRole: PositionRole;
+  orgUnitId: string | null;
+  orgUnitName: string | null;
+  riverName: string | null;
+  chainage: string | null;
+  chainageM: number | null;
+  latitude: string | null;
+  longitude: string | null;
+  interpolated: boolean;
+  active: boolean;
+  description: string | null;
+  measurementTypes: MeasurementType[];
+  constructions: StationConstructionView[];
+  /** ⚠ Điểm đo `MN_SONG` không liên kết công trình nào là HỢP LỆ — cờ này đã trừ trường hợp đó. */
+  thieuLienKetCongTrinh: boolean;
+  chuaGanDonVi: boolean;
+}
+
+export interface StationRequest {
+  code: string;
+  name: string;
+  apiCode: string;
+  apiSourceId: string;
+  positionRole: PositionRole;
+  orgUnitId?: string | null;
+  riverName?: string | null;
+  chainage?: string | null;
+  latitude?: string | null;
+  longitude?: string | null;
+  interpolated?: boolean;
+  active?: boolean;
+  description?: string;
+  measurementTypeIds?: string[];
 }

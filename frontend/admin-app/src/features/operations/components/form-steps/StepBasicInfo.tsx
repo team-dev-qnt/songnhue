@@ -1,4 +1,5 @@
 import { Col, Form, Input, Row, Select, type FormInstance } from 'antd';
+import { ClusterSelect } from '@/components/business/ClusterSelect';
 import { OrgUnitTreeSelect } from '@/components/business/OrgUnitTreeSelect';
 import { CONSTRUCTION_TYPE, MANAGEMENT_LEVEL } from '@/components/business/statusVocabulary';
 
@@ -72,9 +73,11 @@ export function StepBasicInfo({ form: _form }: { form: FormInstance }) {
           </Form.Item>
         </Col>
         <Col span={12}>
+          {/* ⛔ Trước 31/08 ô này là `<Input placeholder="Nhập ID cụm (tạm thời)">` — trong khi
+              backend nhận `clusterId` kiểu **UUID**, tức là bắt người vận hành gõ tay 36 ký tự.
+              Bốn endpoint quản lý cụm có đủ từ WS-17 mà không lời gọi nào từ giao diện. */}
           <Form.Item name="clusterId" label="Cụm công trình">
-            {/* Will need a ClusterSelect if implemented, use Input temporarily or Select */}
-            <Input placeholder="Nhập ID cụm (tạm thời)" />
+            <ClusterSelect />
           </Form.Item>
         </Col>
       </Row>

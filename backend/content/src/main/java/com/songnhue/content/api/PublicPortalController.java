@@ -28,6 +28,7 @@ import com.songnhue.content.domain.MenuPosition;
 import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
 import com.songnhue.core.common.security.PublicEndpoint;
+import com.songnhue.core.common.util.HttpHeaderText;
 import com.songnhue.core.spi.AttachmentContent;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -294,21 +295,10 @@ public class PublicPortalController {
                         .immutable())
                 // `inline` để ảnh hiện trong trang thay vì bật hộp thoại tải về. Tên gốc chỉ để
                 // người dùng thấy tên có nghĩa khi họ chủ động lưu tệp.
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + tenAnToan(tep.originalName()) + "\"")
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "inline; filename=\"" + HttpHeaderText.tenTepAnToan(tep.originalName()) + "\"")
                 .body(tep.content());
-    }
-
-    /**
-     * Bỏ mọi ký tự có thể phá cấu trúc header.
-     *
-     * <p>Tên gốc do người tải lên đặt. Một tên chứa xuống dòng là chèn được header tuỳ ý vào phản
-     * hồi (HTTP response splitting) — cũ nhưng vẫn sống ở chỗ nào ghép chuỗi vào header.
-     */
-    private static String tenAnToan(String originalName) {
-        if (originalName == null || originalName.isBlank()) {
-            return "tep";
-        }
-        return originalName.replaceAll("[\\r\\n\"\\\\]", "_");
     }
 
     /** Thời điểm máy chủ trả lời — cổng dùng để hiện "cập nhật lúc" mà không phụ thuộc giờ máy khách. */

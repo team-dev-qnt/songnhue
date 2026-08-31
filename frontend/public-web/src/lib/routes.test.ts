@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import type { MenuLink } from '@/lib/api';
-import { buildMenuTree, fileUrl, formatDate, isExternal, menuHref, ROUTES } from '@/lib/routes';
+import {
+  buildMenuTree,
+  constructionDocUrl,
+  fileUrl,
+  formatDate,
+  isExternal,
+  menuHref,
+  ROUTES,
+} from '@/lib/routes';
 
 function muc(partial: Partial<MenuLink>): MenuLink {
   return {
@@ -92,6 +100,23 @@ describe('fileUrl — địa chỉ tệp công khai', () => {
   it('không có tệp thì trả null, để nơi gọi khỏi render <img src="null">', () => {
     expect(fileUrl(null)).toBeNull();
     expect(fileUrl(undefined)).toBeNull();
+  });
+});
+
+describe('constructionDocUrl — tệp tài liệu công trình đi đường RIÊNG (404 câm, 31/08)', () => {
+  it('rỗng → null, không dựng liên kết chết', () => {
+    expect(constructionDocUrl(null)).toBeNull();
+    expect(constructionDocUrl(undefined)).toBeNull();
+    expect(constructionDocUrl('')).toBeNull();
+  });
+
+  it('KHÁC đường tệp của cổng — đây chính là cả nội dung của bản vá', () => {
+    const id = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
+    // ⛔ `/public/files/{id}` chỉ phục vụ MEDIA_FOLDER · BANNER · SITE_CONFIG · MENU_ITEM;
+    //    CONSTRUCTION cố ý nằm ngoài (backend có bài kiểm đóng đinh). Hai hàm trả về CÙNG một
+    //    chuỗi nghĩa là bản vá đã bị hoàn tác.
+    expect(constructionDocUrl(id)).not.toBe(fileUrl(id));
+    expect(constructionDocUrl(id)).toBe(`/api/v1/public/constructions/documents/${id}`);
   });
 });
 
