@@ -36,8 +36,9 @@ Quy tắc:
 - Cột chuẩn mọi bảng nghiệp vụ (BaseEntity): `created_at timestamptz`, `created_by`, `updated_at`, `updated_by`, `deleted_at` (soft delete), `version int` (optimistic lock).
 - FK: `<bảng_số_ít>_id` (`org_unit_id`); index: `ix_<bảng>_<cột>`; unique: `uq_<bảng>_<cột>`; check: `ck_<bảng>_<rule>`.
 - Enum nghiệp vụ: lưu `VARCHAR` + CHECK constraint (không dùng Postgres enum type — khó migrate).
-- Migration Flyway: `V<yyyyMMddHHmm>__<module>_<mô_tả>.sql` (VD `V202607201030__ops_create_constructions.sql`). Cấm sửa migration đã merge — chỉ thêm mới. Prefix `<module>`: `core`/`cms`/`ops`/`hyd`/`hr`.
-- **Vị trí migration**: mỗi module tự quản trong `src/main/resources/db/migration/<prefix>/`; module `app` gộp lại qua `spring.flyway.locations=classpath:db/migration/core,…/cms,…/ops,…/hyd,…/hr`. Version là timestamp toàn cục nên thứ tự vẫn đúng khi trộn nhiều module.
+- Migration Flyway: `V<yyyyMMdd><nnnn>__<module>_<mô_tả>.sql` (VD `V202608311049__hyd_danh_muc_diem_do.sql`). ⛔⛔ **`<nnnn>` là SỐ THỨ TỰ CHẠY TIẾP TOÀN KHO, KHÔNG PHẢI GIỜ-PHÚT** — chuỗi `1046 → 1047 → 1048 → …` xuyên suốt cả kho, không đếm lại theo ngày; số mới phải **lớn hơn mọi số đã có**, kể cả số của một tệp mang ngày lớn hơn hôm nay. Cấm sửa migration đã merge — chỉ thêm mới (⚠ Flyway băm **cả tệp**, nên sửa một dòng CHÚ THÍCH cũng làm app không khởi động được — §10.65). Prefix `<module>`: `core`/`cms`/`ops`/`hyd`/`hr`.
+  > ⚠ Dòng này từng ghi `V<yyyyMMddHHmm>`. Hai cách viết **chỉ khác nhau ở đúng chỗ không ai nhìn** — thứ tự sắp xếp. Ngày 27/08/2026 hai migration đánh số bằng giờ-phút (`202608272320`) rơi xuống *dưới* ba migration mang ngày 28 đã áp trên staging ⇒ out-of-order ⇒ **hai lượt CD đỏ liên tiếp**, và cùng lỗi ấy làm một câu seed `UPDATE` chạm **0 hàng, không lỗi, không log** (§10.66). Bộ canh: `backend/tools/kiem-thu-tu-migration.sh` (bước 2/10 của `make ci-local` + job CI *Thứ tự migration*); chạy `make migration-order` trước mỗi PR có migration.
+- **Vị trí migration**: mỗi module tự quản trong `src/main/resources/db/migration/<prefix>/`; module `app` gộp lại qua `spring.flyway.locations=classpath:db/migration/core,…/cms,…/ops,…/hyd,…/hr`. Version là một dãy số **tăng dần toàn cục** (không phải timestamp) nên thứ tự vẫn đúng khi trộn nhiều module.
 - **Cấu hình Flyway bắt buộc**: `cleanDisabled=true` (chặn `flyway clean` xóa sạch production do lỡ tay) · `validateOnMigrate=true` · `outOfOrder=false`.
 - **Production/Staging chạy migration ở service `migrator` riêng** trước khi app khởi động; app chạy với `flyway.enabled=false` → migration hỏng thì app không lên nửa vời (`architecture-review.md` §9.2).
 - **Phân quyền DB theo role, không chỉ theo code**: `songnhue_owner` (chỉ migrator) · `songnhue_app` (**không có DELETE** trên `audit_logs`, `security_events`, `hydro_raw_logs`) · `songnhue_archiver` (DELETE audit, chỉ job kết xuất) · `songnhue_readonly`. Xem §4.3. Role tạo ở `deploy/postgres/init/10-bootstrap.sh` (cần superuser); GRANT ở migration.
@@ -257,10 +258,13 @@ Format: `<PREFIX>-<4 số>` — prefix theo module: `SYS` (hệ thống), `AUTH`
 | OPS-2007 | 422 | Mã tình hình vận hành đã được sử dụng — chỉ được ẩn, không được xóa |
 | OPS-3001 | 403 | Không được sửa trực tiếp trạng thái công trình — trạng thái được tính tự động |
 | HYD-1001 | 404 | Điểm đo chưa ánh xạ nguồn API bên thứ 3 |
+| HYD-1002 | 409 | Mã {0} đã được dùng cho một bản ghi khác |
 | HYD-2001 | 422 | Giá trị đo ngoài khoảng vật lý cho phép |
 | HYD-2002 | 422 | Bản ghi đang ở trạng thái Nghi ngờ — cần duyệt trước khi sử dụng |
 | HYD-2003 | 422 | Điểm đo chưa cấu hình ngưỡng cảnh báo |
 | HYD-2004 | 422 | Điểm đo đang mất tín hiệu — không dùng giá trị cũ để đánh giá ngưỡng |
+| HYD-2005 | 422 | Vai trò của liên kết chính phải trùng vai trò của điểm đo |
+| HYD-2006 | 422 | Không được đổi mã ánh xạ API của điểm đo (đang là {0}, gửi lên {1}) |
 | HR-2001 | 422 | Số ngày đăng ký vượt số phép còn lại |
 | ADM-2001 | 422 | Kết xuất lưu trữ nhật ký thất bại — không xóa bản ghi nào |
 | ADM-2008 | 422 | Chưa cấu hình được sao lưu — thư mục lưu hoặc tài khoản đọc CSDL (WS-7) |
