@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 import com.songnhue.core.spi.JobPort;
 import com.songnhue.core.spi.JobRequest;
+import com.songnhue.core.spi.PortalCachePort;
 
 /**
  * Đặt việc "dựng lại trang công khai" vào hàng đợi — T16.5.
@@ -21,7 +22,7 @@ import com.songnhue.core.spi.JobRequest;
  * một chuỗi, nên chuỗi đó nằm trong hằng số có tài liệu ở cả hai phía.
  */
 @Component
-public class PortalCache {
+public class PortalCache implements PortalCachePort {
 
     private static final Logger log = LoggerFactory.getLogger(PortalCache.class);
 
@@ -47,6 +48,39 @@ public class PortalCache {
     public void articleChanged(String slug) {
         datViec("{\"path\":\"/bai-viet/%s\"}".formatted(slug), "bai:" + slug);
         datViec("{\"tag\":\"%s\"}".formatted(TAG_ARTICLES), "tag:" + TAG_ARTICLES);
+    }
+
+    /**
+     * Sơ đồ tổ chức / lãnh đạo / Xí nghiệp — nhãn {@code to-chuc} của {@code lib/api.ts}.
+     *
+     * <p>⚠ Hai nơi phải nhớ cùng một chuỗi, nên chuỗi nằm trong hằng số có tài liệu ở cả hai phía —
+     * y như {@link #TAG_ARTICLES}. Đổi nhãn ở một phía là một loại thay đổi <b>không lên cổng</b>,
+     * và không có gì báo.
+     */
+    public static final String TAG_TO_CHUC = "to-chuc";
+
+    /** Danh mục công trình và tình hình vận hành — nhãn {@code cong-trinh} của {@code lib/api.ts}. */
+    public static final String TAG_CONG_TRINH = "cong-trinh";
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Gửi <b>cả nhãn lẫn đường dẫn trang chủ</b>. Nhãn lo ba trang {@code /gioi-thieu/*}; đường
+     * dẫn lo trang chủ, vì §10.17 đã đo được: một lượt {@code fetch} hỏng thì <b>không mục cache nào
+     * mang nhãn được tạo ra</b>, nên {@code revalidateTag} không có gì để lần ngược. Trang chủ là
+     * trang duy nhất trong nhóm này từng ra đời rỗng sau một lượt triển khai.
+     */
+    @Override
+    public void orgUnitsChanged() {
+        datViec("{\"tag\":\"%s\"}".formatted(TAG_TO_CHUC), "tag:" + TAG_TO_CHUC);
+        datViec("{\"path\":\"/\"}", "duong-dan:/");
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public void constructionsChanged() {
+        datViec("{\"tag\":\"%s\"}".formatted(TAG_CONG_TRINH), "tag:" + TAG_CONG_TRINH);
+        datViec("{\"path\":\"/\"}", "duong-dan:/");
     }
 
     /** Menu, banner hoặc cấu hình nhận diện vừa đổi — chúng nằm trên mọi trang. */

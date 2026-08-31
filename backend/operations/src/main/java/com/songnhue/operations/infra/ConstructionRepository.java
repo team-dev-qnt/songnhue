@@ -39,6 +39,28 @@ public interface ConstructionRepository extends JpaRepository<Construction, Long
      */
     List<Construction> findByDeletedAtIsNull();
 
+    /**
+     * Tệp này có đang được một công trình <b>công bố</b> trên cổng không? — CR-28.
+     *
+     * <p>⛔ Câu hỏi cố ý hẹp: chỉ đúng hai cột {@code operating_procedure_attachment_public_id} và
+     * {@code protection_plan_attachment_public_id}, và chỉ trên công trình còn sống, chưa thanh lý.
+     * Một tệp khác <i>của cùng công trình ấy</i> (hồ sơ hoàn công, ảnh hiện trạng…) phải trả
+     * {@code false} — nếu không, mở một cột công bố sẽ vô tình mở cả kho tài liệu.
+     *
+     * <p>⚠ Điều kiện vòng đời phải khớp {@code PublicConstructionCatalogService#catalogByUnit()}:
+     * hai nơi cùng trả lời "công trình nào đang công bố", lệch nhau là một tệp tải được cho một
+     * công trình không còn trong danh mục.
+     */
+    @Query(
+            """
+            SELECT COUNT(c) > 0 FROM Construction c
+            WHERE c.deletedAt IS NULL
+              AND c.lifecycleState <> :daThanhLy
+              AND (c.operatingProcedureAttachmentPublicId = :tepId
+                   OR c.protectionPlanAttachmentPublicId = :tepId)
+            """)
+    boolean daCongBoTaiLieu(@Param("tepId") UUID tepId, @Param("daThanhLy") LifecycleState daThanhLy);
+
     /** Tra theo mã — dùng ở đường nhập hàng loạt để biết dòng nào là thêm mới, dòng nào là cập nhật. */
     Optional<Construction> findByCodeAndDeletedAtIsNull(String code);
 

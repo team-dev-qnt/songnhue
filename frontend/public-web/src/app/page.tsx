@@ -15,6 +15,7 @@ import {
   getConstructionCatalog,
   getPhotos,
   getMenu,
+  getOperationStatuses,
   getServerTime,
   getSiteConfig,
   getSubsidiaries,
@@ -80,17 +81,27 @@ export const revalidate = 300;
 const SO_BAI_TIN_TUC = 24;
 
 export default async function HomePage() {
-  const [config, banners, photos, headerMenu, portalLinks, subsidiaries, catalog, serverTime] =
-    await Promise.all([
-      getSiteConfig(),
-      getBanners(),
-      getPhotos(),
-      getMenu('HEADER'),
-      getMenu('LIEN_KET'),
-      getSubsidiaries(),
-      getConstructionCatalog(),
-      getServerTime(),
-    ]);
+  const [
+    config,
+    banners,
+    photos,
+    headerMenu,
+    portalLinks,
+    subsidiaries,
+    catalog,
+    tinhHinhVanHanh,
+    serverTime,
+  ] = await Promise.all([
+    getSiteConfig(),
+    getBanners(),
+    getPhotos(),
+    getMenu('HEADER'),
+    getMenu('LIEN_KET'),
+    getSubsidiaries(),
+    getConstructionCatalog(),
+    getOperationStatuses(),
+    getServerTime(),
+  ]);
 
   const hotline = config?.['company.hotline'] ?? '';
   const menuTree = buildMenuTree(headerMenu ?? []);
@@ -176,7 +187,11 @@ export default async function HomePage() {
       <GroupLabel>Điều hành &amp; số liệu công trình</GroupLabel>
       <div className="mt-5 space-y-6">
         <WaterLevelBlock hotline={hotline} refreshSeconds={nhipLamMoi} updatedAt={serverTime} />
-        <OperationsBlock refreshSeconds={nhipLamMoi} updatedAt={serverTime} />
+        <OperationsBlock
+          refreshSeconds={nhipLamMoi}
+          updatedAt={serverTime}
+          rows={tinhHinhVanHanh ?? []}
+        />
       </div>
       <HomeConstructionMap
         catalog={catalog ?? []}

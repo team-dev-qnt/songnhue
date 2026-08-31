@@ -39,6 +39,48 @@ import { SITE } from '@/lib/site';
  * <p>{@code site.header.display-name} rỗng ⇒ rơi về {@code site.name}, lúc ấy tên Công ty chỉ
  * còn một nguồn duy nhất.
  *
+ * <h2>⭐ 31/08: dải nhận diện xếp HAI HÀNG ở điện thoại — và vì sao một hàng là không thể</h2>
+ *
+ * Đo trên staging bằng Chrome ở <b>375×812, DPR 2</b> (bản trước đợt sửa):
+ *
+ * <table>
+ *   <tr><th>Đo</th><th>Trước</th></tr>
+ *   <tr><td>bề rộng khối chữ (logo + tên)</td><td><b>0px</b></td></tr>
+ *   <tr><td>dòng cơ quan chủ quản</td><td><b>8 dòng / cao 100px</b>, rộng 0px</td></tr>
+ *   <tr><td>ô tìm kiếm</td><td><b>288px cố định</b> = 77% bề rộng màn hình</td></tr>
+ *   <tr><td>chiều cao dải nhận diện</td><td><b>160px</b> (máy tính: ~90px)</td></tr>
+ *   <tr><td>{@code body.scrollWidth}</td><td>375 — <b>không</b> tràn ngang</td></tr>
+ * </table>
+ *
+ * Phép trừ nói hết: 375 − 32 ({@code px-4}) − 16 ({@code gap-4}) − 288 (ô tìm kiếm
+ * {@code shrink-0}) = <b>39px</b> cho cả logo lẫn tên, mà riêng logo đã 44px. Khối chữ mang
+ * {@code min-w-0} nên nó là thứ duy nhất chịu co — và nó co về 0.
+ *
+ * <p>⛔ <b>Không bộ canh nào bắt được</b>: hộp rộng 0px với chữ tràn ra ngoài không sinh ra tràn
+ * ngang, {@code body.scrollWidth} vẫn đúng bằng bề rộng khung nhìn. Cùng hình dạng §10.62 —
+ * <i>một cơ chế chịu lỗi làm đúng việc của nó thì lỗi không bao giờ nổi lên</i>. Ở đó là
+ * {@code flex-wrap} che một thanh điều hướng tràn 22%; ở đây là {@code overflow: visible} che một
+ * khối chữ rộng 0.
+ *
+ * <p>Bản vá đổi <b>ba</b> thứ, và cả ba đều cần:
+ * <ol>
+ *   <li><b>Xếp cột ở điện thoại</b> ({@code flex-col sm:flex-row}) — hàng riêng cho ô tìm kiếm.
+ *       Một hàng chứa logo + hai dòng tên + ô tìm kiếm là <i>không đủ chỗ về mặt số học</i> ở
+ *       375px, không phải chuyện tinh chỉnh khoảng cách.
+ *   <li><b>Bỏ {@code max-w-[288px] shrink-0} ở điện thoại</b> → {@code w-full shrink-0 sm:w-60
+ *       lg:w-72}. Bề rộng cố định chỉ có hiệu lực từ {@code sm} trở lên, nơi đã đo là còn chỗ.
+ *   <li><b>{@code line-clamp-2} cho dòng cơ quan chủ quản</b> — dòng duy nhất trong khối chữ
+ *       chưa được chặn số dòng, và nó chính là dòng nổ thành 8 dòng.
+ * </ol>
+ *
+ * <p>⚠ Mục (3) là lớp phòng thủ theo chiều sâu, không phải bản vá: sửa (1)+(2) là đủ để nó về một
+ * dòng. Giữ nó vì bề rộng khung chứa còn phụ thuộc dữ liệu Công ty nhập, mà chuỗi trong CSDL thì
+ * dài ra được bất cứ lúc nào.
+ *
+ * <p>Logo lên {@code h-12} (48px) ở điện thoại cho cân với ô tìm kiếm cao 44px — 44px cũng là
+ * ngưỡng chạm tay tối thiểu, nên ô nhập đổi {@code h-10} → {@code h-11 sm:h-10}. Nút "Tìm" thôi
+ * {@code hidden}: nay nó có chỗ.
+ *
  * <h2>⛔ Dự phòng khi API menu không trả lời</h2>
  *
  * Chỉ chứa tuyến đường mà bản thân ứng dụng bảo đảm có. Bản trước rơi về một menu 10 mục viết
@@ -103,8 +145,11 @@ export async function SiteHeader() {
     <>
       {/* ───── Tầng 1: Dải nhận diện thương hiệu ───── */}
       <div className="w-full border-b border-white/10 bg-gradient-to-r from-chrome-navy800 via-chrome-navy500 to-chrome-navy800 shadow-xs">
-        <div className="mx-auto flex max-w-[1232px] items-center justify-between gap-4 px-4 py-3 sm:gap-8 sm:px-6 sm:py-4">
-          <Link href={ROUTES.home} className="group flex min-w-0 items-center gap-3 sm:gap-4">
+        <div className="mx-auto flex max-w-[1232px] flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-8 sm:px-6 sm:py-4">
+          <Link
+            href={ROUTES.home}
+            className="group flex min-w-0 items-center gap-3 sm:flex-1 sm:gap-4"
+          >
             {/* ⭐ 29/08: ĐÃ GỠ `translate-y-[11.2%]` — và việc gỡ là bắt buộc, không phải dọn dẹp.
 
                 Bản trước bù KHOẢNG TRỐNG BAKED-IN của `logo-song-nhue.png`: PNG 612×792 mà phần
@@ -122,17 +167,21 @@ export async function SiteHeader() {
             <img
               src={logo}
               alt={siteName}
-              className="h-11 w-auto shrink-0 object-contain transition-transform duration-300 ease-smooth group-hover:scale-105 sm:h-16"
+              className="h-12 w-auto shrink-0 object-contain transition-transform duration-300 ease-smooth group-hover:scale-105 sm:h-16"
             />
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               {coQuanChuQuan ? (
-                <div className="text-[10px] font-semibold leading-tight tracking-wide text-brand-gold sm:text-[13px]">
+                <div className="line-clamp-2 text-[11px] font-semibold leading-tight tracking-wide text-brand-gold sm:text-[13px]">
                   {coQuanChuQuan}
                 </div>
               ) : null}
-              {/* ⚠ `line-clamp-2` + `min-w-0`: tên Công ty dài 53 ký tự. Không có hai lớp này thì
-                  trên điện thoại nó đẩy ô tìm kiếm ra khỏi màn hình — flex mặc định không cho con
-                  co lại dưới bề rộng nội dung của nó. */}
+              {/* ⚠ `line-clamp-2` giữ tên Công ty (53 ký tự) trong hai dòng.
+
+                  ⛔ Chú thích cũ ở đây nói `min-w-0` là thứ ngăn khối chữ "đẩy ô tìm kiếm ra khỏi
+                     màn hình". Đo ngày 31/08 cho ra ĐÚNG CHIỀU NGƯỢC LẠI: ô tìm kiếm mới là thứ
+                     không chịu co, và `min-w-0` là thứ cho phép khối chữ bị ép về **0px**. Một
+                     chú thích tự tin mà sai chiều nguyên nhân còn tốn thời gian hơn không có
+                     chú thích nào (§10.42). */}
               <div className="mt-0.5 line-clamp-2 text-[13px] font-black leading-tight tracking-tight text-white drop-shadow-2xs sm:text-base md:text-lg">
                 {tenDauTrang}
               </div>
@@ -143,13 +192,13 @@ export async function SiteHeader() {
           <form
             action={ROUTES.search}
             method="get"
-            className="w-full max-w-[288px] shrink-0"
+            className="w-full shrink-0 sm:w-60 lg:w-72"
             role="search"
           >
             <label htmlFor="tim-kiem-dau-trang" className="sr-only">
               Tìm kiếm trên cổng thông tin
             </label>
-            <div className="flex h-10 items-center gap-2 rounded-full bg-white pl-3.5 pr-1.5">
+            <div className="flex h-11 items-center gap-2 rounded-full bg-white pl-3.5 pr-1.5 sm:h-10">
               <svg
                 className="h-4 w-4 shrink-0 text-surface-textSecondary"
                 fill="none"
@@ -173,7 +222,7 @@ export async function SiteHeader() {
               />
               <button
                 type="submit"
-                className="hidden h-7 shrink-0 rounded-full bg-brand-primary px-3 text-xs font-bold text-white transition-colors hover:bg-brand-primaryHover sm:block"
+                className="h-8 shrink-0 rounded-full bg-brand-primary px-3.5 text-xs font-bold text-white transition-colors hover:bg-brand-primaryHover sm:h-7 sm:px-3"
               >
                 Tìm
               </button>

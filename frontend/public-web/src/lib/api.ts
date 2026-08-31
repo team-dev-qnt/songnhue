@@ -164,6 +164,13 @@ export interface ArticleDetail extends ArticleRow {
   metaKeywords: string | null;
   /** Bài Lưu trữ — vẫn vào được bằng địa chỉ trực tiếp nhưng phải gắn `noindex`. */
   archived: boolean;
+  /**
+   * Ô "Nguồn tin" biên tập viên nhập, **nguyên văn** — URL bài gốc, tên báo, hoặc `null`.
+   *
+   * ⛔ `null` nghĩa là *chưa ai điền*, KHÔNG phải *nguồn là Công ty*. Xem `docNguonBaiViet()` —
+   * chân bài in cứng "Nguồn: Cổng TTĐT Thủy lợi Sông Nhuệ" cho mọi bài suốt tới 31/08/2026 (T26.63).
+   */
+  source: string | null;
   categories: CategoryRef[];
 }
 
@@ -386,6 +393,44 @@ export function getSubsidiaries(): Promise<SubsidiaryRow[] | null> {
 /** Danh mục công trình gom theo Xí nghiệp — CR-27, CR-28. */
 export function getConstructionCatalog(): Promise<UnitCatalog[] | null> {
   return apiGet<UnitCatalog[]>('/constructions', { tags: [CONSTRUCTION_TAG] });
+}
+
+/**
+ * Một dòng của khối "Tình hình vận hành công trình" — CN-02.11, 6 cột (chốt G4).
+ *
+ * ⚠ `parameterValue` về dạng **chuỗi**: backend dùng `BigDecimal` (quy tắc 2 — cấm float/double
+ * cho mọi số đo), và đọc nó thành `number` ở đây là đánh mất đúng thứ kiểu ấy bảo vệ.
+ *
+ * ⛔ Không có `note` và không có người cập nhật. Hai trường ấy có trong bảng nhưng thuộc phạm vi
+ * nội bộ; chúng không nằm trong DTO công khai của backend, nên chúng cũng không có chỗ ở đây.
+ */
+export interface OperationStatusRow {
+  constructionCode: string;
+  constructionName: string;
+  /** `null` = chưa gán đơn vị quản lý — hiện "Chưa phân đơn vị quản lý", không giấu dòng đi. */
+  unitName: string | null;
+  statusCode: string;
+  statusName: string;
+  /** Mã màu `#rrggbb` do Công ty đặt trong danh mục mã. Xem `mauTrangThaiHopLe()`. */
+  statusColor: string;
+  /** `null` khi mã không mang tham số (VD "Đóng kín") — ⛔ không quy về `0`. */
+  parameterValue: string | null;
+  parameterUnit: string | null;
+  effectiveAt: string;
+  updatedAt: string | null;
+}
+
+/**
+ * Tình hình vận hành hiện hành của từng công trình — CN-02.11.
+ *
+ * ⚠ Đây là dữ liệu **nhập tay** của trực ban, không phải số liệu tự động của trạm bơm. §5.3 của
+ * văn bản nghiệm thu đòi bốn trường theo ngày (trạng thái trạm, số máy chạy, lưu lượng) và cần một
+ * API nguồn chưa tồn tại — **OI-02 còn mở**.
+ */
+export function getOperationStatuses(): Promise<OperationStatusRow[] | null> {
+  return apiGet<OperationStatusRow[]>('/constructions/operation-statuses', {
+    tags: [CONSTRUCTION_TAG],
+  });
 }
 
 /**

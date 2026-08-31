@@ -86,16 +86,16 @@ class RbacMatrixTest extends IntegrationTestBase {
             "ops:gis-layer:view", // Xem tầng GIS — Phase 3
             "ops:report:export", // Kết xuất báo cáo — Phase 3
             "ops:report:view", // Xem báo cáo — Phase 3
+            // ⬇ WS-28 đã GỠ ba dòng khỏi danh sách này: `hyd:station:view`,
+            //   `hyd:station:manage`, `hyd:api-source:manage`. Danh mục điểm đo / loại chỉ số /
+            //   nguồn dữ liệu đã có endpoint thật, nên chúng không còn là "quyền chờ Phase sau".
             "hyd:alert:view", // Cảnh báo thủy văn — Phase 2
             "hyd:alert:handle", // Xử lý cảnh báo — Phase 2
             "hyd:alert-group:manage", // Nhóm cảnh báo — Phase 2
-            "hyd:api-source:manage", // Nguồn API thủy văn — Phase 2
             "hyd:measurement:view", // Xem số liệu đo — Phase 2
             "hyd:measurement:review", // Duyệt số liệu — Phase 2
             "hyd:report:view", // Báo cáo thủy văn — Phase 2
             "hyd:report:export", // Xuất báo cáo thủy văn — Phase 2
-            "hyd:station:view", // Xem trạm đo — Phase 2
-            "hyd:station:manage", // Quản lý trạm — Phase 2
             "hyd:threshold:view", // Xem ngưỡng — Phase 2
             "hyd:threshold:manage", // Quản lý ngưỡng — Phase 2
             "hr:employee:create", // Nhân sự — Phase 2

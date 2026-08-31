@@ -343,6 +343,11 @@ export const ERROR_CATALOG = {
     handling: 'toast',
     severity: 'warning',
   },
+  'HYD-1002': {
+    message: 'Mã này đã được dùng cho một bản ghi khác',
+    handling: 'form',
+    severity: 'warning',
+  },
   'HYD-2001': {
     message: 'Giá trị đo ngoài khoảng vật lý cho phép',
     handling: 'form',
@@ -362,6 +367,16 @@ export const ERROR_CATALOG = {
     message: 'Điểm đo đang mất tín hiệu — không dùng giá trị cũ để đánh giá ngưỡng',
     handling: 'toast',
     severity: 'warning',
+  },
+  'HYD-2005': {
+    message: 'Vai trò của liên kết chính phải trùng vai trò của điểm đo',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'HYD-2006': {
+    message: 'Không được đổi mã ánh xạ API của điểm đo',
+    handling: 'form',
+    severity: 'error',
   },
 
   // --- MOD-04 Nhân sự ---------------------------------------------------------

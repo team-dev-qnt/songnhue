@@ -7,6 +7,7 @@ import { PortalImage } from '@/components/PortalImage';
 import { PortalSidebar } from '@/components/PortalSidebar';
 import { ViewTracker } from '@/components/ViewTracker';
 import { getArticle, getArticles, getSiteConfig } from '@/lib/api';
+import { docNguonBaiViet } from '@/lib/nguonBaiViet';
 import { fileUrl, formatDate, ROUTES } from '@/lib/routes';
 
 /** Trang chi tiết một bài viết — T16.2. */
@@ -61,6 +62,7 @@ export default async function ArticlePage({ params }: PageProps) {
 
   const cover = fileUrl(article.coverAttachmentPublicId);
   const primaryCategory = article.categories.length > 0 ? article.categories[0] : null;
+  const nguon = docNguonBaiViet(article.source);
 
   return (
     <div className="mx-auto max-w-[1232px] px-4 py-6 sm:px-6 sm:py-8 animate-fade-in">
@@ -161,9 +163,26 @@ export default async function ArticlePage({ params }: PageProps) {
               >
                 ← Quay lại danh sách
               </Link>
-              <span className="font-semibold text-surface-textSecondary">
-                Nguồn: Cổng TTĐT Thủy lợi Sông Nhuệ
-              </span>
+              {/* ⛔ Chuỗi "Nguồn: Cổng TTĐT Thủy lợi Sông Nhuệ" từng in cứng ở đây cho MỌI bài,
+                  kể cả năm bài mang URL báo ngoài trong CSDL — một câu sai sự thật (nợ T26.63).
+                  Nay đọc `articles.source`; chưa ai điền thì KHÔNG in gì, không nhãn mặc định. */}
+              {nguon ? (
+                <span className="font-semibold text-surface-textSecondary">
+                  Nguồn:{' '}
+                  {nguon.href ? (
+                    <a
+                      href={nguon.href}
+                      target="_blank"
+                      rel="noopener noreferrer nofollow"
+                      className="text-brand-primary hover:underline"
+                    >
+                      {nguon.nhan}
+                    </a>
+                  ) : (
+                    nguon.nhan
+                  )}
+                </span>
+              ) : null}
             </div>
 
             <ViewTracker slug={article.slug} />

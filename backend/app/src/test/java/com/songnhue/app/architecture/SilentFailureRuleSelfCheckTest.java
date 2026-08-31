@@ -5,6 +5,8 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.Set;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -64,6 +66,64 @@ class SilentFailureRuleSelfCheckTest {
                 .noneMatch(detail -> detail.contains(ViolatingFixtures.CompliantScopedEntity.class.getSimpleName()));
     }
 
+    // ---- Ngoại lệ "cột phạm vi NULLable" (thêm ở WS-28, khi Station là lớp đầu tiên cần nó) ----
+
+    /**
+     * ⚠ <b>Cả hai fixture nới đều nằm trong danh sách</b> — và đó là chủ ý.
+     *
+     * <p>Nếu chỉ cho {@code NullableScopeCompliant} vào danh sách thì
+     * {@link #catchesUnsanctionedWidening()} sẽ xanh vì <i>lý do sai</i>: nó đỏ do lớp kia không có
+     * tên trong danh sách, chứ không phải do mẫu điều kiện bị từ chối. Cho cả hai vào thì thứ duy
+     * nhất phân biệt được chúng là <b>hình dạng chuỗi điều kiện</b> — đúng thứ luật phải kiểm.
+     *
+     * <p>Đây là bài học §10.62: một bài kiểm chứng ngược có thể xanh theo đúng cách nó đang sai.
+     */
+    private static final Set<String> FIXTURE_CHO_PHEP_NOI = Set.of(
+            ViolatingFixtures.NullableScopeCompliant.class.getSimpleName(),
+            ViolatingFixtures.NullableScopeUnsanctioned.class.getSimpleName());
+
+    @Test
+    @DisplayName("Luật ScopedEntity cho qua vế nới `IS NULL` của entity có cột phạm vi NULLable")
+    void acceptsSanctionedNullableWidening() {
+        EvaluationResult result = scopedEntityRule().evaluate(FIXTURES);
+
+        assertThat(result.getFailureReport().getDetails())
+                .as(
+                        """
+                        Station cần vế `org_unit_id IS NULL` vì 19 điểm đo được seed trước khi OI-05 chốt \
+                        7 hay 8 Xí nghiệp. Bài này đỏ nghĩa là luật đang ép một điều kiện làm 19/19 điểm \
+                        đo vô hình với TẤT CẢ, kể cả SUPER_ADMIN.""")
+                .noneMatch(detail -> detail.contains(ViolatingFixtures.NullableScopeCompliant.class.getSimpleName()));
+    }
+
+    @Test
+    @DisplayName("⚠⚠ Luật ScopedEntity bắt được vế nới `1=1 OR` dù nó CÓ chứa hằng dùng chung")
+    void catchesUnsanctionedWidening() {
+        assertThatThrownBy(() -> scopedEntityRule().check(FIXTURES))
+                .as(
+                        """
+                        `(1=1 OR <điều kiện chuẩn>)` chứa nguyên văn hằng dùng chung, nên một phép kiểm \
+                        `contains()` sẽ cho qua — trong khi bộ lọc phạm vi đã tắt hoàn toàn. Bài này là \
+                        lý do luật phải dùng mẫu chặt.""")
+                .isInstanceOf(AssertionError.class)
+                .hasMessageContaining(ViolatingFixtures.NullableScopeUnsanctioned.class.getSimpleName())
+                .hasMessageContaining("không đúng dạng nới được phép");
+    }
+
+    @Test
+    @DisplayName("⚠ Vế nới `IS NULL` KHÔNG được cho qua nếu lớp không có tên trong danh sách")
+    void wideningRequiresBeingOnTheList() {
+        assertThatThrownBy(() -> scopedEntityRule(Set.of()).check(FIXTURES))
+                .as(
+                        """
+                        Danh sách PHAM_VI_NULL_DUOC_PHEP phải thật sự có hiệu lực. Nếu bài này xanh thì \
+                        mọi entity đều tự nới được bộ lọc phạm vi chỉ bằng cách viết đúng cú pháp — \
+                        danh sách trở thành trang trí.""")
+                .isInstanceOf(AssertionError.class)
+                .hasMessageContaining(ViolatingFixtures.NullableScopeCompliant.class.getSimpleName())
+                .hasMessageContaining("điều kiện tự viết");
+    }
+
     @Test
     @DisplayName("Luật workflow bắt được lời gọi applyState() ngoài WorkflowEngine")
     void catchesApplyStateCalledOutsideEngine() {
@@ -107,13 +167,18 @@ class SilentFailureRuleSelfCheckTest {
     // hằng @ArchTest ở đó: hằng của lớp @AnalyzeClasses đã bị bộ máy ArchUnit gắn vào tập lớp
     // production, gọi check() lần nữa trên tập khác cho kết quả khó lường.
 
+    /** Luật thật, chạy trên fixture — danh sách nới là {@link #FIXTURE_CHO_PHEP_NOI}. */
     private static ArchRule scopedEntityRule() {
+        return scopedEntityRule(FIXTURE_CHO_PHEP_NOI);
+    }
+
+    private static ArchRule scopedEntityRule(Set<String> chophepNoi) {
         return classes()
                 .that()
                 .areAssignableTo(ScopedEntity.class)
                 .and()
                 .doNotHaveFullyQualifiedName(ScopedEntity.class.getName())
-                .should(new SilentFailureRuleTest.CarriesOrgUnitFilter())
+                .should(new SilentFailureRuleTest.CarriesOrgUnitFilter(chophepNoi))
                 .allowEmptyShould(true);
     }
 

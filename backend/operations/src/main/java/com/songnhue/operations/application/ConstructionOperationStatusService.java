@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.ValidationException;
+import com.songnhue.core.spi.PortalCachePort;
 import com.songnhue.operations.api.dto.OperationStatusBatchCreateRequest;
 import com.songnhue.operations.api.dto.OperationStatusBatchItemRequest;
 import com.songnhue.operations.domain.Construction;
@@ -53,15 +54,28 @@ public class ConstructionOperationStatusService {
     private final ConstructionService constructions;
     private final ConstructionStatusService statusService;
 
+    /**
+     * ⚠ Thêm 01/09/2026 — đường ghi này <b>chạm cổng công khai</b> kể từ T27.16/T27.17.
+     *
+     * <p>Trước đó bảng {@code construction_operation_status} chỉ hiện trong màn hình quản trị, nên
+     * không xoá đệm cổng cũng không ai thấy. Từ 31/08 bản ghi mới nhất đi thẳng ra khối "Vận hành
+     * công trình" trên trang chủ và trang Vận hành công trình — mà đường ghi vẫn không báo cho
+     * {@code PortalCache}. Hệ quả đúng bằng §10.62: <b>trực ban bấm Lưu, cổng vẫn hiện mã cũ tới 5
+     * phút</b>, tức là đúng cái nợ T25.22 mà T27.7 vừa đi trả, tái phát ở một đường ghi khác.
+     */
+    private final PortalCachePort portalCache;
+
     public ConstructionOperationStatusService(
             ConstructionOperationStatusRepository repository,
             OperationStatusCodeRepository codeRepository,
             ConstructionService constructions,
-            ConstructionStatusService statusService) {
+            ConstructionStatusService statusService,
+            PortalCachePort portalCache) {
         this.repository = repository;
         this.codeRepository = codeRepository;
         this.constructions = constructions;
         this.statusService = statusService;
+        this.portalCache = portalCache;
     }
 
     public static Set<String> allowedSortFields() {
@@ -135,6 +149,13 @@ public class ConstructionOperationStatusService {
             throw loi;
         }
         hopLe.forEach(this::ghi);
+
+        // ⚠ Một lần cho cả lô, SAU khi mọi dòng đã ghi — không phải trong `ghi()`. Nhập nhanh 20
+        // cống là một thao tác của người dùng, không phải 20; đặt trong vòng lặp thì hàng đợi nhận
+        // 20 việc dựng lại cùng một trang (dedup gộp lại, nhưng đó là may chứ không phải thiết kế).
+        if (!hopLe.isEmpty()) {
+            portalCache.constructionsChanged();
+        }
     }
 
     /**

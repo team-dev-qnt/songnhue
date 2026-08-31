@@ -141,10 +141,26 @@ public enum ErrorCode {
 
     // ---- MOD-03 Thủy văn --------------------------------------------------------
     HYD_1001("HYD-1001", HttpStatus.NOT_FOUND),
+    /** Trùng mã trong một danh mục thuỷ văn — {0} là mã bị trùng. */
+    HYD_1002("HYD-1002", HttpStatus.CONFLICT),
     HYD_2001("HYD-2001", HttpStatus.UNPROCESSABLE_ENTITY),
     HYD_2002("HYD-2002", HttpStatus.UNPROCESSABLE_ENTITY),
     HYD_2003("HYD-2003", HttpStatus.UNPROCESSABLE_ENTITY),
     HYD_2004("HYD-2004", HttpStatus.UNPROCESSABLE_ENTITY),
+    /**
+     * Vai trò của liên kết CHÍNH khác vai trò chính thức của điểm đo (A2b).
+     *
+     * <p>Hai giá trị này lệch nhau thì biểu tổng hợp xếp điểm đo vào nhầm cột TL/HL, và không có
+     * triệu chứng nào ngoài một con số nằm sai chỗ.
+     */
+    HYD_2005("HYD-2005", HttpStatus.UNPROCESSABLE_ENTITY),
+    /**
+     * Sửa mã ánh xạ API của một điểm đo đã tồn tại — {0} là mã cũ, {1} là mã mới.
+     *
+     * <p>Mã API là khoá nối duy nhất giữa response của nguồn và điểm đo. Đổi nó là âm thầm gán số
+     * liệu của trạm này sang trạm khác; biểu đồ vẫn vẽ đẹp, chỉ là của nhầm trạm.
+     */
+    HYD_2006("HYD-2006", HttpStatus.UNPROCESSABLE_ENTITY),
 
     // ---- MOD-04 Nhân sự ---------------------------------------------------------
     HR_2001("HR-2001", HttpStatus.UNPROCESSABLE_ENTITY),

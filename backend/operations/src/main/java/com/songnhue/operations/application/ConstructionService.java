@@ -28,6 +28,7 @@ import com.songnhue.core.spi.NotifyRequest;
 import com.songnhue.core.spi.NotifySeverity;
 import com.songnhue.core.spi.OrgUnitPort;
 import com.songnhue.core.spi.OrgUnitRef;
+import com.songnhue.core.spi.PortalCachePort;
 import com.songnhue.operations.domain.Construction;
 import com.songnhue.operations.domain.ConstructionCluster;
 import com.songnhue.operations.domain.ConstructionType;
@@ -87,6 +88,7 @@ public class ConstructionService {
     private final ScopeGuard scopeGuard;
     private final OrgUnitPort orgUnits;
     private final NotificationPort notifications;
+    private final PortalCachePort portalCache;
 
     public ConstructionService(
             ConstructionRepository constructions,
@@ -94,13 +96,29 @@ public class ConstructionService {
             ConstructionStatusService trangThai,
             ScopeGuard scopeGuard,
             OrgUnitPort orgUnits,
-            NotificationPort notifications) {
+            NotificationPort notifications,
+            PortalCachePort portalCache) {
         this.constructions = constructions;
         this.clusters = clusters;
         this.trangThai = trangThai;
         this.scopeGuard = scopeGuard;
         this.orgUnits = orgUnits;
         this.notifications = notifications;
+        this.portalCache = portalCache;
+    }
+
+    /**
+     * Xoá bộ đệm cổng công khai sau mỗi thay đổi hồ sơ công trình — <b>trả nợ T25.22</b>.
+     *
+     * <p>Trang Danh mục công trình, bản đồ hệ thống trên trang chủ và khối Vận hành công trình đọc
+     * thẳng từ bảng này. Trước 31/08 chúng trễ tới <b>5 phút</b> sau mỗi lượt sửa vì {@code
+     * PortalCache} nằm ở module {@code content} và quy tắc 6 chặn lời gọi chéo (§10.62).
+     *
+     * <p>⚠ Gọi <b>bên trong</b> giao dịch: hàng đợi việc nằm ở CSDL nên dòng job commit cùng dữ
+     * liệu; giao dịch quay lui thì job biến mất theo.
+     */
+    private void bienDongCongTrinh() {
+        portalCache.constructionsChanged();
     }
 
     // === Đọc =================================================================
@@ -194,6 +212,7 @@ public class ConstructionService {
 
         Construction saved = constructions.save(ct);
         log.info("Thêm công trình {} ({}) thuộc đơn vị {}", saved.getCode(), saved.getConstructionType(), donVi.code());
+        bienDongCongTrinh();
         return saved;
     }
 
@@ -219,6 +238,7 @@ public class ConstructionService {
         if (!donViMoi.id().equals(donViCu)) {
             baoBanGiao(saved, donViCu, donViMoi);
         }
+        bienDongCongTrinh();
         return saved;
     }
 
@@ -250,6 +270,7 @@ public class ConstructionService {
                     NotifySeverity.WARNING,
                     List.of(saved.getOrgUnitId())));
         }
+        bienDongCongTrinh();
         return saved;
     }
 
@@ -259,6 +280,7 @@ public class ConstructionService {
         Construction ct = trongPhamVi(publicId);
         ct.markDeleted(Instant.now());
         constructions.save(ct);
+        bienDongCongTrinh();
         log.info("Xoá mềm công trình {}", ct.getCode());
     }
 

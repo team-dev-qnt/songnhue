@@ -18,7 +18,6 @@ import {
   type ConstructionRow,
   type OperationStatusBatchItem,
   type OperationStatusCode,
-  type PageResult,
 } from '@/shared/api-types';
 import { api } from '@/shared/apiClient';
 
@@ -53,7 +52,7 @@ export function StatusBatchUpdateModal({ open, onClose }: { open: boolean; onClo
   const { data: constructions, isLoading } = useQuery({
     queryKey: ['ops', 'constructions', 'all'],
     queryFn: () =>
-      api.get<PageResult<ConstructionRow>>('/ops/constructions', {
+      api.getPage<ConstructionRow>('/ops/constructions', {
         page: 1,
         size: 1000,
         sort: 'name,asc',
