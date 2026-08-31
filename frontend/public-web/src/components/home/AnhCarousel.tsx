@@ -38,6 +38,18 @@ interface AnhCarouselProps {
    * trang chủ là phần tử LCP, còn đặt `high` ở chỗ thứ hai là giành băng thông với chính nó.
    */
   uuTienAnhDau?: boolean;
+  /**
+   * Ảnh có được phép **cắt** cho kín khung không.
+   *
+   * `true` (mặc định, giữ hành vi cũ) ⇒ `object-cover`: ảnh phủ kín, phần thừa bị cắt.
+   * `false` ⇒ `object-contain`: **toàn bộ nội dung ảnh** hiện ra, phần dôi của khung thành nền.
+   *
+   * ⛔ Đây không phải lựa chọn thẩm mỹ mà là lựa chọn *mất thông tin hay không*. Ảnh hoạt động
+   * của Công ty có tỷ lệ bất kỳ (điện thoại chụp dọc, ảnh quét, ảnh sơ đồ); `object-cover` trên
+   * một khung 16/9 cắt mất hai đầu của ảnh dọc, và **không ai biết đã mất phần nào** — cùng lý
+   * do `PortalImage` có `phuKhung` và ảnh sơ đồ hệ thống dùng `phuKhung={false}`.
+   */
+  phuKhung?: boolean;
   /** Ô rỗng — phải nói vì sao rỗng và ai là người nhập, không phải một khung xám. */
   khiRong: ReactNode;
 }
@@ -81,6 +93,7 @@ export function AnhCarousel({
   showDots,
   nhan,
   chieuCaoToiThieu,
+  phuKhung = true,
   uuTienAnhDau = false,
   khiRong,
 }: AnhCarouselProps) {
@@ -149,7 +162,7 @@ export function AnhCarousel({
                   //   hiện lần nào trong HTML của cổng — đây là chỗ nó phải có.
                   fetchPriority={i === 0 && uuTienAnhDau ? 'high' : 'auto'}
                   decoding="async"
-                  className="h-full w-full object-cover"
+                  className={`h-full w-full ${phuKhung ? 'object-cover' : 'object-contain'}`}
                 />
               ) : (
                 <div className="h-full w-full bg-gradient-to-br from-brand-primaryGradientFrom to-brand-primary" />

@@ -1,15 +1,28 @@
-import Link from 'next/link';
-
 import type { UnitCatalog } from '@/lib/api';
 import { PortalImage } from '@/components/PortalImage';
-import { fileUrl, ROUTES } from '@/lib/routes';
+import { fileUrl } from '@/lib/routes';
 import type { DiemCongTrinh } from './ConstructionMap';
 import { ConstructionMapLoader } from './ConstructionMapLoader';
-import { EmptyBlock } from './EmptyBlock';
-import { SectionTitle } from './SectionTitle';
+import { EmptyBlock } from '@/components/home/EmptyBlock';
+import { SectionTitle } from '@/components/home/SectionTitle';
 
 /**
- * Khối **BẢN ĐỒ HỆ THỐNG CÔNG TRÌNH** trên trang chủ — CN-02.4.
+ * Khối **BẢN ĐỒ HỆ THỐNG CÔNG TRÌNH** — CN-02.4 · CR-29.
+ *
+ * <h2>⭐⭐ 01/09: khối này RỜI TRANG CHỦ, về Danh mục công trình</h2>
+ *
+ * Yêu cầu QuanTran: *"Bản đồ hệ thống công trình hiện tại đã có trong danh mục công trình,
+ * phần quản lý vận hành. Do đó, move phần display map khỏi homepage và đưa vào luôn trong
+ * phần danh mục công trình."*
+ *
+ * <p>Và nó đúng ở một chỗ sâu hơn thẩm mỹ: trang {@code /quan-ly-van-hanh/danh-muc-cong-trinh}
+ * đã có sẵn một mục *"Bản đồ hệ thống"* (CR-29) nói *chưa được đăng*, trong khi trang chủ đang
+ * hiện đúng cái bản đồ ấy. **Hai chỗ trả lời khác nhau về cùng một câu hỏi** — đúng thứ quy tắc
+ * 14 cấm, và là thứ sẽ lệch tiếp ngay lần đầu ai đó sửa một bên.
+ *
+ * <p>⚠ Tên tệp đổi theo ({@code HomeConstructionMap} → {@code BanDoHeThongCongTrinh}) và tệp
+ * chuyển khỏi {@code components/home/}. Giữ nguyên tiền tố {@code Home} cho một khối không còn
+ * ở trang chủ là để lại một cái bẫy đọc-hiểu cho lượt rà sau.
  *
  * <h2>⭐ Hai nguồn, và chúng KHÔNG loại trừ nhau</h2>
  *
@@ -46,13 +59,13 @@ import { SectionTitle } from './SectionTitle';
  * toạ độ là chuyện bình thường). Chuyển đổi và loại bỏ dòng hỏng nằm ở tầng này để component
  * bản đồ chỉ nhận số đã sạch — nó không phải biết dữ liệu từng thiếu thế nào.
  */
-interface HomeConstructionMapProps {
+interface BanDoHeThongCongTrinhProps {
   catalog: UnitCatalog[];
   /** Ảnh sơ đồ hệ thống — `site.home.map-image.attachment-id`. Rỗng là trạng thái hợp lệ. */
   anhSoDo?: string | null;
 }
 
-export function HomeConstructionMap({ catalog, anhSoDo }: HomeConstructionMapProps) {
+export function BanDoHeThongCongTrinh({ catalog, anhSoDo }: BanDoHeThongCongTrinhProps) {
   const diem: DiemCongTrinh[] = catalog.flatMap((donVi) =>
     // `?? []`: một Xí nghiệp chưa có công trình nào có thể về mà không kèm mảng. Đọc thẳng
     // `.flatMap` trên `undefined` là ném lỗi ở phía máy chủ và **cả trang chủ trắng** — một
@@ -72,19 +85,11 @@ export function HomeConstructionMap({ catalog, anhSoDo }: HomeConstructionMapPro
 
   return (
     <section className="mt-5">
-      <SectionTitle
-        href={ROUTES.quanLyVanHanh.danhMucCongTrinh}
-        phu={
-          <Link
-            href={ROUTES.quanLyVanHanh.danhMucCongTrinh}
-            className="text-xs font-semibold text-brand-primary hover:underline"
-          >
-            Danh mục công trình ➔
-          </Link>
-        }
-      >
-        Bản đồ hệ thống công trình
-      </SectionTitle>
+      {/* ⚠ 01/09: `href` và ô `phụ` ĐÃ GỠ. Cả hai trỏ về `danh-muc-cong-trinh` — trang mà khối
+          này nay đứng trên đó. Một liên kết tự trỏ về chính trang đang xem không phải lỗi hiển
+          thị, nó là một lối đi cụt: người dùng bấm, không thấy gì xảy ra, và bấm tiếp. Đây cũng
+          là mảnh dễ sót nhất khi chuyển một khối sang trang khác. */}
+      <SectionTitle>Bản đồ hệ thống công trình</SectionTitle>
 
       <div className="mt-5 space-y-6">
         {/* Ảnh sơ đồ đứng TRƯỚC bản đồ tương tác: nó là cái nhìn tổng thể, và hôm nay nó là thứ
@@ -107,21 +112,16 @@ export function HomeConstructionMap({ catalog, anhSoDo }: HomeConstructionMapPro
         {diem.length === 0 ? (
           <EmptyBlock>
             {anhSoDoUrl
-              ? 'Bản đồ tương tác chưa vẽ được điểm nào: tuyến sông, lý trình và toạ độ công trình thuộc nhóm dữ liệu Công ty chưa cung cấp (G8). Ảnh sơ đồ phía trên là bản Công ty đã tải lên.'
+              ? 'Bản đồ tương tác chưa vẽ được điểm nào: tuyến sông, lý trình và toạ độ công trình thuộc nhóm dữ liệu Công ty chưa cung cấp (G8) — cột “Vị trí” của bảng phía trên cũng vì thế còn trống. Ảnh sơ đồ phía trên là bản Công ty đã tải lên.'
               : 'Chưa có gì để hiển thị. Hai đường đưa nội dung vào ô này: tải ảnh sơ đồ hệ thống ở màn hình Cấu hình giao diện (mục “Ảnh sơ đồ hệ thống công trình”), hoặc nhập toạ độ cho danh mục công trình (G8) để bản đồ tương tác tự hiện.'}
           </EmptyBlock>
         ) : (
           <>
             <ConstructionMapLoader diem={diem} />
             <p className="mt-2.5 text-xs text-surface-textSecondary">
-              {diem.length} công trình có toạ độ. Danh sách đọc được ở{' '}
-              <Link
-                href={ROUTES.quanLyVanHanh.danhMucCongTrinh}
-                className="font-semibold text-brand-primary hover:underline"
-              >
-                Danh mục công trình
-              </Link>
-              .
+              {diem.length} công trình có toạ độ — trên tổng số{' '}
+              {catalog.reduce((tong, dv) => tong + (dv.constructions?.length ?? 0), 0)} công trình
+              trong bảng phía trên.
             </p>
           </>
         )}

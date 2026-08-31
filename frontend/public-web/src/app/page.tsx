@@ -3,7 +3,6 @@ import { CategoryServicesGrid } from '@/components/home/CategoryServicesGrid';
 import { GroupLabel } from '@/components/home/GroupLabel';
 import { HomeBannerSlider } from '@/components/home/HomeBannerSlider';
 import { HomeCategoryNews } from '@/components/home/HomeCategoryNews';
-import { HomeConstructionMap } from '@/components/home/HomeConstructionMap';
 import { HomeMediaGallery } from '@/components/home/HomeMediaGallery';
 import { HomeNewsColumn } from '@/components/home/HomeNewsColumn';
 import { OperationsBlock } from '@/components/home/OperationsBlock';
@@ -12,7 +11,6 @@ import { WaterLevelBlock } from '@/components/home/WaterLevelBlock';
 import {
   getArticles,
   getBanners,
-  getConstructionCatalog,
   getPhotos,
   getMenu,
   getOperationStatuses,
@@ -88,7 +86,6 @@ export default async function HomePage() {
     headerMenu,
     portalLinks,
     subsidiaries,
-    catalog,
     tinhHinhVanHanh,
     serverTime,
   ] = await Promise.all([
@@ -98,7 +95,6 @@ export default async function HomePage() {
     getMenu('HEADER'),
     getMenu('LIEN_KET'),
     getSubsidiaries(),
-    getConstructionCatalog(),
     getOperationStatuses(),
     getServerTime(),
   ]);
@@ -152,12 +148,49 @@ export default async function HomePage() {
           một cấp bậc chứ không phải mốc thứ hai của một dãy. Một cấp phân nhóm chỉ có nghĩa
           khi nó xuất hiện ở MỌI nhóm. */}
       <GroupLabel dauTien>Tin tức &amp; sự kiện</GroupLabel>
+      {/* ⭐⭐ 01/09 — Nhóm 1 phải LỌT TRONG MỘT KHUNG NHÌN ở mức thu phóng 100%.
+
+          Yêu cầu QuanTran: *"khi view 100% vào homepage cần nhìn thấy hết bao quát ít nhất là
+          toàn bộ ảnh và bài viết của mục 1"*.
+
+          <h3>Vì sao trước đây không lọt</h3>
+
+          Chiều cao hàng lưới = cột CAO HƠN trong hai cột, và cột cao hơn là cột tin: 5 bài ×
+          ~90px + tiêu đề + chân khối ≈ 540px, trong khi slider chỉ đòi 444px. Cột tin có
+          `overflow-y-auto` sẵn nhưng nó **không bao giờ được dùng đến**, vì không có gì chặn
+          chiều cao hàng — vùng cuộn chỉ cuộn khi có trần, và trần thì chưa từng có.
+
+          <h3>Trần lấy ở đâu — SỐ HỌC, không phải một con số chọn cho vừa mắt</h3>
+
+          Cộng chiều cao mọi thứ đứng trên Nhóm 1, đọc thẳng từ lớp CSS của chúng:
+
+            dải nhận diện   logo h-16 (64) + py-4 (32) + viền 1     =  97px
+            thanh nav       py-3 (24) + chữ 12px (~18) + viền 2     =  44px
+            dải thông tin   py-3 (24) + text-sm (~21) + viền 1      =  46px
+            khung trang     py-8 phần trên                          =  32px
+            nhãn nhóm       text-[11px] (~17)                       =  17px
+            section         mt-5                                    =  20px
+                                                                      ─────
+                                                                      256px = 16rem
+
+          Lấy 17rem để chừa ~16px, nếu không mép dưới của khối dính sát đáy khung nhìn và
+          "nhìn thấy hết" thành ra đọc được nhưng không thấy nó KẾT THÚC ở đâu.
+
+          ⚠ Đây là số học từ mã nguồn, KHÔNG phải số đo trên trình duyệt — kho này không có
+            trình duyệt trong CI (`vitest.config.mts`). Phải đo lại trên staging, và đo lại mỗi
+            khi đổi chiều cao của một trong sáu dòng trên. `min-h-[300px]` là sàn để cửa sổ
+            thấp bất thường không ép khối về gần 0.
+
+          ⚠⚠ `min-h-0` ở CẢ HAI cột là mắt xích không được quên: mặc định `min-height` của một
+             mục lưới là `auto`, tức nó TỪ CHỐI co nhỏ hơn nội dung — trần ở trên sẽ bị bỏ qua
+             trong im lặng và mọi thứ còn lại vẫn trông như đang chạy. Cùng cái bẫy đã ghi ở
+             `HomeNewsColumn`, ở một tầng cao hơn. */}
       <section aria-label="Ảnh hoạt động và tin tức" className="mt-5">
-        <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-12 lg:gap-9">
+        <div className="grid grid-cols-1 items-stretch gap-6 lg:max-h-[calc(100svh-17rem)] lg:min-h-[300px] lg:grid-cols-12 lg:gap-9">
           {/* Không có mục menu cho nhánh tin ⇒ không có cột tin ⇒ slider chiếm cả 12 cột.
               Đây là chính sách "bố cục trang chủ LÀ cây menu" ở dạng bố cục, không phải một
               nhánh dự phòng: bỏ mục menu là cố ý bỏ khối. */}
-          <div className={tieuDeTin ? 'lg:col-span-8' : 'lg:col-span-12'}>
+          <div className={`lg:min-h-0 ${tieuDeTin ? 'lg:col-span-8' : 'lg:col-span-12'}`}>
             <HomeBannerSlider
               banners={(banners ?? []).slice(0, soAnhSlider)}
               intervalSeconds={nhipSlider}
@@ -167,7 +200,7 @@ export default async function HomePage() {
             />
           </div>
           {tieuDeTin ? (
-            <div className="lg:col-span-4">
+            <div className="lg:col-span-4 lg:min-h-0">
               {/* Khối này THAY cả `HomeHotNews` lẫn `HomeLatestNewsFeed`: cùng một nguồn bài mà chia
                   hai chỗ, hai kiểu trình bày, người đọc phải quét hai lần. */}
               <HomeNewsColumn
@@ -193,10 +226,18 @@ export default async function HomePage() {
           rows={tinhHinhVanHanh ?? []}
         />
       </div>
-      <HomeConstructionMap
-        catalog={catalog ?? []}
-        anhSoDo={config?.['site.home.map-image.attachment-id']}
-      />
+      {/* ⛔ BẢN ĐỒ HỆ THỐNG CÔNG TRÌNH ĐÃ RỜI TRANG CHỦ (yêu cầu QuanTran 01/09).
+
+          Nó nay nằm ở `/quan-ly-van-hanh/danh-muc-cong-trinh`, cùng trang với danh sách công
+          trình mà nó vẽ điểm — và cùng chỗ với mục "Bản đồ hệ thống" (CR-29) vốn đang nói
+          *chưa được đăng* trong khi trang chủ hiện đúng bản đồ ấy. Hai chỗ trả lời khác nhau về
+          cùng một câu hỏi là thứ quy tắc 14 cấm.
+
+          ⭐ `getConstructionCatalog()` GỠ LUÔN khỏi `Promise.all` ở trên: bản đồ là nơi đọc nó
+             duy nhất trên trang này. Lượt viết đầu của chú thích này khẳng định "`OperationsBlock`
+             đọc nó" — SAI, và `tsc` bắt được ngay vì biến thành ra không ai dùng. Giữ một lượt
+             gọi API không ai đọc là quy tắc 15 ở dạng đắt nhất của trang chủ: nó nằm trong
+             `Promise.all`, nên nó kéo dài TTFB của mọi lượt tải (NFR-02, DOD1.17). */}
 
       {/* ═════════ NHÓM 3 · VĂN BẢN & TIẾP NHẬN Ý KIẾN ═════════ */}
       <GroupLabel>Văn bản &amp; tiếp nhận ý kiến</GroupLabel>
