@@ -120,6 +120,18 @@ export interface UserView {
   lastLoginAt: string | null;
 }
 
+/**
+ * `GET /auth/password-policy` — chính sách độ mạnh mật khẩu đang có hiệu lực.
+ *
+ * ⚠ Hai trường này đọc từ bảng `settings`, Admin sửa được. Mọi con số ghi cứng ở giao diện sẽ
+ * *nói dối* ngay lần đầu tham số đổi (§10.69) — nên chúng phải đi qua đây, không phải qua một
+ * hằng số.
+ */
+export interface PasswordPolicyResponse {
+  minLength: number;
+  requireLetterAndDigit: boolean;
+}
+
 export interface CreateUserRequest {
   username: string;
   fullName: string;

@@ -12,6 +12,7 @@ import {
   Table,
   Tag,
   Typography,
+  message,
 } from 'antd';
 import { type ColumnsType } from 'antd/es/table';
 import { useState } from 'react';
@@ -60,6 +61,10 @@ export function AuditLogPage() {
   const verify = useMutation({
     mutationFn: () => api.post<ChainVerification>('/audit-logs/verify'),
     onSuccess: setVerification,
+    onError: (caught: unknown) =>
+      message.error(
+        caught instanceof ApiClientError ? caught.message : 'Không kiểm tra được chuỗi băm',
+      ),
   });
 
   const columns: ColumnsType<AuditLogView> = [

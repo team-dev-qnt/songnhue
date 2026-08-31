@@ -26,7 +26,8 @@ import {
   type ApiSourceCreateRequest,
   type ApiSourceRequest,
 } from '@/shared/api-types';
-import { api } from '@/shared/apiClient';
+import { ApiClientError, api } from '@/shared/apiClient';
+import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
 
 /**
  * Nguồn dữ liệu quan trắc bên thứ 3 — CN-03.2 (T28.2).
@@ -67,6 +68,15 @@ export function ApiSourcesPage() {
       setTaoMoi(false);
       void lamMoi();
     },
+    // ⭐ 01/09 (T28.31): mutation này TRƯỚC ĐÂY không có `onError` nào. HYD-1002/2005/2006 và cả
+    //    403 đều im lặng tuyệt đối — người dùng bấm Lưu, không có gì xảy ra và không có gì báo.
+    //    Mã lỗi đã khớp đủ bốn nơi từ T28.10, nhưng không màn hình nào hiện chúng.
+    onError: (caught: unknown) => {
+      if (caught instanceof ApiClientError && datLoiTheoTruong(formTao, caught)) return;
+      message.error(
+        caught instanceof ApiClientError ? caught.message : 'Không thêm được nguồn dữ liệu',
+      );
+    },
   });
 
   const updateMutation = useMutation({
@@ -76,6 +86,12 @@ export function ApiSourcesPage() {
       message.success('Đã cập nhật nguồn');
       setDangSua(null);
       void lamMoi();
+    },
+    onError: (caught: unknown) => {
+      if (caught instanceof ApiClientError && datLoiTheoTruong(formSua, caught)) return;
+      message.error(
+        caught instanceof ApiClientError ? caught.message : 'Không cập nhật được nguồn',
+      );
     },
   });
 
@@ -87,6 +103,8 @@ export function ApiSourcesPage() {
       setDatMaSoCho(null);
       void lamMoi();
     },
+    onError: (caught: unknown) =>
+      message.error(caught instanceof ApiClientError ? caught.message : 'Không lưu được mã số'),
   });
 
   const xoaMaSoMutation = useMutation({
@@ -95,6 +113,8 @@ export function ApiSourcesPage() {
       message.success('Đã gỡ mã số — nguồn về trạng thái chưa cấu hình');
       void lamMoi();
     },
+    onError: (caught: unknown) =>
+      message.error(caught instanceof ApiClientError ? caught.message : 'Không gỡ được mã số'),
   });
 
   const moSua = (nguon: ApiSource) => {
