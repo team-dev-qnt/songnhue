@@ -57,6 +57,12 @@ jobs:
 
       # Nhánh nguồn đúng vẫn chưa đủ: `dev` có thể vừa nhận một commit đang đỏ.
       # Vì vậy kiểm đúng SHA sắp được đề bạt, không kiểm "nhánh dev nói chung".
+      # ⚠ Cần checkout TRƯỚC bước này: nó chạy script trong `.github/scripts/`.
+      #   Lịch sử đầy đủ là yêu cầu của bước cuối, không phải của bước này.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Commit này đã xanh CI ở chặng trước chưa
         env:
           GH_TOKEN: ${{ github.token }}
@@ -65,60 +71,50 @@ jobs:
         run: |
           echo "Kiểm tra check-runs của $SHA"
 
-          # Soi CẢ hai phép kiểm bắt buộc của `dev`, không riêng Backend. Bản
-          # đầu chỉ lọc `startswith("Backend")`, nên một lượt `Frontend — lint`
-          # hỏng vẫn đi qua được cổng này.
-          runs=$(gh api "repos/$REPO/commits/$SHA/check-runs" --jq \
-            '.check_runs[] | select(.name | startswith("Backend") or startswith("Frontend"))
-             | "\(.name)=\(.conclusion)"')
-
-          if [ -z "$runs" ]; then
-            echo "::error::Không tìm thấy kết quả CI nào cho commit $SHA."
-            echo "Nhiều khả năng commit này chưa từng chạy qua pipeline ở dev."
-            exit 1
-          fi
-
-          # ⚠ `skipped` là ĐẠT, không phải hỏng (sửa 19/8).
+          # ⛔⛔ VÌ SAO CÓ VÒNG CHỜ (thêm 1/9 sau một lượt đỏ giả)
           #
-          #   `ci.yml` chỉ chạy job nặng khi vùng tương ứng đổi, và job bị bỏ
-          #   qua VẪN tạo check-run — với `conclusion: "skipped"` (đã kiểm bằng
-          #   API). Bản đầu so `!= "success"` nên một lượt đề bạt chỉ chứa thay
-          #   đổi tài liệu sẽ bị chặn với thông báo sai hẳn: *"CI kết thúc với
-          #   'skipped'"*, trong khi thực tế là không có gì cần kiểm.
+          #   Gộp một PR vào `dev` làm head SHA của PR đề bạt đổi NGAY, và
+          #   `Promotion guard` chạy trước khi CI của `dev` kịp bắt đầu. Đo được:
+          #   #77 gộp lúc 11:06:0x, cổng chạy 11:06:19, hai check bắt buộc trả
+          #   `conclusion: null`. Bản cũ gọi đó là "kết thúc với 'null'" và đỏ.
           #
-          #   Cổng này hỏi "có phép kiểm nào HỎNG ở dev không", không phải "có
-          #   chạy đủ mọi phép kiểm không" — điều kiện đủ ấy do bảo vệ nhánh
-          #   `dev` quyết định, không phải chỗ này.
-          # ⚠ PHẢI đọc theo DÒNG, không `for muc in $runs`. Tên job có dấu cách
-          #   ("Backend — build, lint, test"), mà bash tách từ theo IFS gồm cả
-          #   khoảng trắng — vòng lặp sẽ vỡ tên job thành 5 mảnh và cổng này
-          #   LUÔN đỏ. Đã tái hiện bằng dữ liệu thật: `for` cho ra [Frontend]
-          #   [—] [lint=success] [Backend] [—] [build,] [lint,] [test=success].
-          #   (Thử ở máy local dùng zsh sẽ KHÔNG thấy lỗi — zsh không tách từ
-          #   mặc định. Runner chạy bash.)
-          loi=0
-          while IFS= read -r muc; do
-            [ -n "$muc" ] || continue
-            ten="${muc%=*}"; ket="${muc##*=}"
-            case "$ket" in
-              success|skipped|neutral)
-                echo "  ✓ $ten = $ket" ;;
-              *)
-                echo "::error::$ten của commit $SHA kết thúc với '$ket'."
-                loi=1 ;;
+          #   Đây là CUỘC ĐUA, nên nó không xảy ra mọi lần — mở PR đề bạt lâu sau
+          #   lượt gộp thì cổng xanh. Loại lỗi ấy dễ bị đóng hồ sơ nhầm bằng câu
+          #   "chạy lại thấy xanh rồi".
+          #
+          # ⚠ Chờ có CHỐT, và hết chốt thì ĐỎ chứ không đi tiếp: một cổng đề bạt
+          #   bỏ qua vì "chờ mãi không thấy" thì đúng bằng không có cổng.
+          for lan in $(seq 1 20); do
+            runs=$(gh api "repos/$REPO/commits/$SHA/check-runs" --jq \
+              '.check_runs[] | select(.name | startswith("Backend") or startswith("Frontend"))
+               | "\(.name)=\(.conclusion)"')
+
+            set +e
+            printf '%s\n' "$runs" | bash .github/scripts/phan-loai-check-chang-truoc.sh "$SHA"
+            ma=$?
+            set -e
+
+            case "$ma" in
+              0) exit 0 ;;
+              1) exit 1 ;;
             esac
-          done <<< "$runs"
-          [ "$loi" -eq 0 ] || exit 1
-          echo "✓ Commit $SHA không có phép kiểm nào hỏng ở chặng trước"
 
-      # ⚠ Cần lịch sử ĐẦY ĐỦ. Bản clone nông làm `git rev-list A..B` trả về rỗng,
-      #   và rỗng thì trông y hệt "sạch" — đúng hình dạng luật 7 (phép kiểm chạy
-      #   qua tập rỗng vẫn xanh trọn vẹn). Script tự in con số đếm được trước khi
-      #   kết luận, nên một lượt clone nông sẽ lộ ra ở dòng "hơn … 0 commit".
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+            if [ "$lan" -lt 20 ]; then
+              echo "   (lần $lan/20) còn phép kiểm chưa xong — chờ 30s rồi hỏi lại."
+              sleep 30
+            fi
+          done
 
+          echo "::error::Sau 10 phút vẫn còn phép kiểm của $SHA chưa kết thúc."
+          echo "Cổng đề bạt KHÔNG đi tiếp khi chưa biết kết quả — chạy lại job này"
+          echo "sau khi CI của \`dev\` xong."
+          exit 1
+
+      # ⚠ Bước checkout ở trên PHẢI có `fetch-depth: 0`. Bản clone nông làm
+      #   `git rev-list A..B` trả về rỗng, và rỗng thì trông y hệt "sạch" — đúng
+      #   hình dạng luật 7 (phép kiểm chạy qua tập rỗng vẫn xanh trọn vẹn).
+      #   Script tự in con số đếm được trước khi kết luận, nên một lượt clone
+      #   nông sẽ lộ ra ngay ở dòng "hơn … 0 commit".
       - name: Nhánh đích không được có commit riêng
         env:
           BASE: ${{ github.base_ref }}

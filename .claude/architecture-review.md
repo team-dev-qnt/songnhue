@@ -5231,3 +5231,32 @@ luật 3 (canh giá trị ĐÃ GIẢI, đừng canh giá trị mặc định).
 `§10.69` (trần 1MB 30/8 và CVE spring 1/9), và `T11.61` trỏ vào số ấy — tức trỏ nhầm mục. Đã đổi mục
 CVE thành **§10.71** và sửa con trỏ. Cùng họ với §10.66: một dãy số **trông như** tự tăng thì rất dễ
 viết trùng, và chỗ trùng chỉ lộ ra khi có người lần theo con trỏ.
+
+**Đuôi 1/9 — cổng vừa dựng xong thì đỏ giả ngay lượt chạy đầu tiên.** Gộp #77 lúc 11:06:0x làm head
+SHA của PR #76 đổi, và `Promotion guard` chạy **lúc 11:06:19** — trước khi CI của `dev@4e564d9` kịp
+bắt đầu. API trả `conclusion: null` cho hai check bắt buộc, và bước cũ rơi vào nhánh `*)`:
+
+```
+##[error]Backend — build, lint, test của commit 4e564d9 kết thúc với 'null'.
+```
+
+Câu ấy **nói sai chuyện đang xảy ra**: không có gì kết thúc cả. Cổng đỏ, PR #76 bị chặn, và người đọc
+log bị dẫn đi tìm một lượt CI hỏng vốn không tồn tại. ⭐ Luật 9 đúng nguyên văn — `null` bảo *đợi
+thêm*, `failure` bảo *dừng lại và đi sửa*, mà một nhánh `*)` trộn chung cả hai.
+
+⚠ Và nó là một **cuộc đua**, nên nó không xảy ra mọi lần: mở PR đề bạt lâu sau lượt gộp thì cổng
+xanh. Loại lỗi chỉ hiện ra khi hai việc xảy ra sát nhau là loại **dễ đóng hồ sơ nhầm nhất** —
+*"chạy lại thấy xanh rồi"* là một kết luận đúng về triệu chứng và sai về nguyên nhân.
+
+Vá: tách phần phân loại ra `.github/scripts/phan-loai-check-chang-truoc.sh` (0 = đạt · 2 = chưa xong ·
+1 = hỏng, **hỏng thắng chưa-xong** — đợi thêm một thứ đã đỏ là mời người ta đợi vô ích); workflow chờ
+tối đa 20×30s rồi **ĐỎ** chứ không đi tiếp. ⭐ Tách ra là để **kiểm chứng được**: nằm trong bước
+`run:` thì muốn thử nhánh `null` phải *thắng một cuộc đua* mới tái hiện được; tách ra thì ba dòng đầu
+vào tổng hợp là đo được cả ba nhánh. `PromotionCheckStateTest` 6 bài. Kiểm chứng ngược khôi phục đúng
+lỗi cũ (`grep -c 'còn đang chạy'` = 0) ⇒ tái hiện **nguyên văn** `kết thúc với 'null'`, bài kiểm đỏ
+đích danh; gỡ `sleep 30` (`grep -c` = 0) ⇒ đỏ đích danh bài canh vòng chờ.
+
+⛔ **Một xanh giả bắt được ngay trong lượt này**: `-Dtest='A+B'` là cú pháp SAI của surefire (phải là
+dấu phẩy). Lượt chạy đầu báo `MÃ THOÁT THẬT = 0` trong khi lớp kiểm mới **chưa từng chạy** — chỉ phép
+đếm số tệp báo cáo (`ls … | wc -l`, cần = 2) mới nói ra. Luật 7 ở dạng công cụ: một bộ chọn không
+khớp gì cũng cho ra một lượt chạy xanh trọn vẹn.
