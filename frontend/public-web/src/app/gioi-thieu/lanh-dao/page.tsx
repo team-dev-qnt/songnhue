@@ -47,9 +47,14 @@ export default async function LanhDaoPage() {
       ) : (
         <div className="overflow-x-auto rounded-xl border border-surface-border bg-white shadow-xs">
           <table className="w-full min-w-[560px] border-collapse text-sm">
-            <caption className="sr-only">
-              Bảng lãnh đạo Công ty gồm họ và tên, chức danh, điện thoại liên hệ
-            </caption>
+            {/* ⚠⚠ 01/09/2026 — GỠ cột "Điện thoại liên hệ".
+                Số điện thoại của một cá nhân là dữ liệu cá nhân (NĐ 13/2023), và không cơ chế
+                nào trong hệ phân biệt được số tổng đài với số di động riêng.
+                ⛔ Gỡ ở RECORD backend (`PublicOrgDirectoryService.LeaderRow`), không chỉ ẩn ở
+                đây — ẩn ở component thì trường vẫn đi qua dây và ai mở DevTools vẫn đọc được.
+                📌 Đây là thay đổi phạm vi công bố đã thống nhất ở CR-25, phải báo lại Công ty.
+                Số tổng đài của Công ty và của từng Xí nghiệp thì GIỮ — xem trang Liên hệ. */}
+            <caption className="sr-only">Bảng lãnh đạo Công ty gồm họ và tên, chức danh</caption>
             <thead>
               <tr className="bg-brand-primaryLight text-left text-xs text-brand-primary">
                 <th scope="col" className="w-16 px-4 py-3 font-bold">
@@ -61,9 +66,6 @@ export default async function LanhDaoPage() {
                 <th scope="col" className="px-4 py-3 font-bold">
                   Chức danh
                 </th>
-                <th scope="col" className="px-4 py-3 font-bold">
-                  Điện thoại liên hệ
-                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-surface-border">
@@ -74,22 +76,6 @@ export default async function LanhDaoPage() {
                     {người.fullName}
                   </td>
                   <td className="px-4 py-3 text-surface-textBase">{người.title}</td>
-                  <td className="px-4 py-3">
-                    {/* ⛔ Chưa công bố số thì hiện dấu gạch, KHÔNG hiện số của người khác và
-                        không hiện một chuỗi rỗng trông như lỗi hiển thị (quy tắc 16). */}
-                    {người.phone ? (
-                      <a
-                        href={`tel:${người.phone.replace(/\D/g, '')}`}
-                        className="font-medium text-brand-primary hover:underline"
-                      >
-                        {người.phone}
-                      </a>
-                    ) : (
-                      <span className="text-surface-textSecondary" aria-label="Chưa công bố">
-                        —
-                      </span>
-                    )}
-                  </td>
                 </tr>
               ))}
             </tbody>

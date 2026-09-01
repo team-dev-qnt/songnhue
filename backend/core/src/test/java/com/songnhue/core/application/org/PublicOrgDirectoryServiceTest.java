@@ -131,8 +131,8 @@ class PublicOrgDirectoryServiceTest {
 
         assertThat(service.companyLeaders())
                 .containsExactly(
-                        new PublicOrgDirectoryService.LeaderRow("Nguyễn Văn A", "Chủ tịch Công ty", "(024) 3111 1111"),
-                        new PublicOrgDirectoryService.LeaderRow("Trần Thị B", "Phó Giám đốc", null));
+                        new PublicOrgDirectoryService.LeaderRow("Nguyễn Văn A", "Chủ tịch Công ty"),
+                        new PublicOrgDirectoryService.LeaderRow("Trần Thị B", "Phó Giám đốc"));
     }
 
     @Test
@@ -176,18 +176,16 @@ class PublicOrgDirectoryServiceTest {
             assertThat(a.directorName())
                     .as("`sort_order` là thứ tự Công ty tự sắp, nên dòng đầu là người họ muốn đứng đầu")
                     .isEqualTo("Lê Văn C");
-            assertThat(a.directorPhone()).isEqualTo("(024) 3333 3333");
         });
 
         assertThat(bang.get(1)).satisfies(b -> {
             assertThat(b.directorName())
                     .as(
                             """
-                            Xí nghiệp chưa có dòng danh bạ nào ⇒ hai cột cuối là null ⇒ cổng hiện dấu gạch. \
+                            Xí nghiệp chưa có dòng danh bạ nào ⇒ cột Giám đốc là null ⇒ cổng hiện dấu gạch. \
                             KHÔNG mượn tên của Xí nghiệp khác, và không để chuỗi rỗng trông như lỗi hiển \
                             thị (quy tắc 16).""")
                     .isNull();
-            assertThat(b.directorPhone()).isNull();
         });
     }
 
@@ -225,11 +223,31 @@ class PublicOrgDirectoryServiceTest {
                 .map(java.lang.reflect.RecordComponent::getName)
                 .toList();
         assertThat(truongXn)
-                .as("đúng sáu cột của CR-26 cộng mã đơn vị — không hơn")
-                .containsExactly(
-                        "code", "name", "shortName", "address", "phone", "email", "directorName", "directorPhone");
+                .as("⚠ 01/09/2026 gỡ `directorPhone` — số của một CÁ NHÂN. `phone`/`email` giữ lại "
+                        + "vì đó là tổng đài và hộp thư của ĐƠN VỊ.")
+                .containsExactly("code", "name", "shortName", "address", "phone", "email", "directorName");
+
+        /*
+          ⚠⚠ `LeaderRow` trước 01/09/2026 KHÔNG có bộ canh nào. Bài này khẳng định chính xác cho
+          `OrgChartNode` và `SubsidiaryRow` rồi bỏ qua nó hoàn toàn — nghĩa là thêm một thành phần
+          `email` / `dateOfBirth` / `employeeId` vào record ấy là nó ra thẳng Internet với TOÀN BỘ
+          bài kiểm xanh. Đây là lỗ đúng nghĩa "một bộ canh hẹp hơn nơi nó phải chặn" (luật 28).
+        */
+        List<String> truongLanhDao = java.util.Arrays.stream(
+                        PublicOrgDirectoryService.LeaderRow.class.getRecordComponents())
+                .map(java.lang.reflect.RecordComponent::getName)
+                .toList();
+        assertThat(truongLanhDao)
+                .as("bảng Lãnh đạo Công ty công bố ĐÚNG họ tên + chức danh, không hơn")
+                .containsExactly("fullName", "title");
 
         assertThat(truongChart).doesNotContain("path", "publicId", "headUserId", "deputyUserId", "id");
         assertThat(truongXn).doesNotContain("path", "publicId", "headUserId", "deputyUserId", "id");
+
+        // Dữ liệu CÁ NHÂN: khai theo TÊN TRƯỜNG để thông báo lỗi chỉ thẳng vào thứ vừa lọt ra.
+        assertThat(truongLanhDao)
+                .as("số điện thoại, thư điện tử, ngày sinh, mã nhân viên của một CÁ NHÂN — NĐ 13/2023")
+                .doesNotContain("phone", "email", "dateOfBirth", "employeeId", "idNumber");
+        assertThat(truongXn).doesNotContain("directorPhone", "directorEmail");
     }
 }

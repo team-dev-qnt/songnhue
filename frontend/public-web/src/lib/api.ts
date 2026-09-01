@@ -266,14 +266,25 @@ export interface OrgChartNode {
   children: OrgChartNode[];
 }
 
-/** Một dòng bảng "Lãnh đạo Công ty" — đúng ba cột của CR-25. */
+/**
+ * Một dòng bảng "Lãnh đạo Công ty" — CR-25.
+ *
+ * ⚠⚠ 01/09/2026 gỡ cột `phone`. Số điện thoại của một cá nhân là dữ liệu cá nhân (NĐ 13/2023),
+ * và không cơ chế nào phân biệt được số tổng đài với số di động riêng. Gỡ ở **record backend**,
+ * không chỉ ẩn ở component — ẩn ở giao diện thì trường vẫn đi qua dây.
+ */
 export interface LeaderRow {
   fullName: string;
   title: string;
-  phone: string | null;
 }
 
-/** Một dòng bảng "Xí nghiệp trực thuộc" — đúng sáu cột của CR-26. */
+/**
+ * Một dòng bảng "Xí nghiệp trực thuộc" — CR-26.
+ *
+ * ⚠⚠ 01/09/2026 gỡ `directorPhone` (số của một **cá nhân**).
+ * ⛔ Nhưng `phone` và `email` GIỮ NGUYÊN — đó là tổng đài và hộp thư của **đơn vị**. Đây là ranh
+ * giới của cả đợt gỡ: gỡ số của người, giữ số của tổ chức.
+ */
 export interface SubsidiaryRow {
   code: string;
   name: string;
@@ -282,7 +293,6 @@ export interface SubsidiaryRow {
   phone: string | null;
   email: string | null;
   directorName: string | null;
-  directorPhone: string | null;
 }
 
 /**

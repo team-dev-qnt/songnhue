@@ -212,8 +212,24 @@ class OrgUnitLeaderHttpTest extends IntegrationTestBase {
                 .isTrue();
     }
 
+    /**
+     * ⚠⚠ Bài này <b>trước 01/09/2026 đang KHOÁ RÒ RỈ VÀO CHỖ</b>.
+     *
+     * <p>Tên cũ của nó là <i>"…kèm điện thoại"</i> và nó khẳng định thân phản hồi công khai
+     * {@code .contains("024.1212.3434")} — tức nó biến việc công bố số điện thoại của một cá nhân
+     * thành một <b>bất biến được bảo vệ</b>. Ai gỡ cột ấy đi vì lý do bảo vệ dữ liệu cá nhân sẽ
+     * thấy bộ kiểm đỏ và rất dễ kết luận rằng mình vừa làm hỏng một thứ.
+     *
+     * <p>⛔ Sửa <b>có chủ đích</b>, không xoá cho hết đỏ: vế còn lại của bài — <i>"đường ghi mới
+     * phải nối tới đường đọc đã có"</i> — vẫn đúng và vẫn là lý do lớp này tồn tại. Chỉ đổi
+     * <b>trường được khẳng định</b> sang họ tên + chức danh, và thêm vế ngược khẳng định số điện
+     * thoại <b>KHÔNG</b> còn ra tới dây.
+     *
+     * <p>📌 Số vẫn được <b>ghi</b> vào {@code org_unit_leaders.phone} và vẫn hiện ở màn hình quản
+     * trị — nó chỉ thôi được công bố. Bài dưới đây khẳng định đúng hai vế ấy cùng lúc.
+     */
     @Test
-    @DisplayName("⭐ Dòng đã thêm hiện NGAY trên endpoint công khai, kèm điện thoại")
+    @DisplayName("⭐ Dòng đã thêm hiện NGAY trên cổng — nhưng ⛔ KHÔNG kèm số điện thoại")
     void themXongLaCongThayNgay() {
         phienHttp.goi(
                 duQuyen,
@@ -227,8 +243,20 @@ class OrgUnitLeaderHttpTest extends IntegrationTestBase {
         assertThat(cong)
                 .as("⛔ Đây là cả lý do lớp này tồn tại: đường ghi mới phải nối tới đường đọc đã có")
                 .contains("Trần Thị T25")
-                .contains("Phó Giám đốc")
-                .contains("024.1212.3434");
+                .contains("Phó Giám đốc");
+
+        assertThat(cong)
+                .as("số điện thoại của một CÁ NHÂN không được ra endpoint không đăng nhập (NĐ 13/2023). "
+                        + "Khẳng định trên THÂN PHẢN HỒI THẬT, không đọc lại record: record đúng mà "
+                        + "controller trả một DTO khác thì bài phản chiếu vẫn xanh (§10.68-D)")
+                .doesNotContain("024.1212.3434")
+                .doesNotContain("\"phone\"");
+
+        assertThat(jdbc.queryForObject(
+                        "SELECT phone FROM org_unit_leaders WHERE full_name = 'Trần Thị T25'", String.class))
+                .as("⭐ vế NGƯỢC: số vẫn được GHI và vẫn dùng được trong nội bộ — đợt này gỡ việc "
+                        + "CÔNG BỐ, không gỡ dữ liệu")
+                .isEqualTo("024.1212.3434");
     }
 
     @Test
