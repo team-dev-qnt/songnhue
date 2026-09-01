@@ -75,6 +75,36 @@ jobs:
               echo "::warning::Không nối được staging với dev qua merge-base — PR nhiều khả năng đã bị squash/rebase."
               echo "Đối chiếu theo cây tệp: nội dung staging trùng khít dev@$dev_tip nên dùng image của commit đó."
               echo "⚠ Lần sau chọn 'Create a merge commit' khi merge vào staging (docs/branch-protection.md §2.3-b)."
+
+              # ⛔⛔ Cảnh báo này ĐÃ kêu đúng lúc — 31/8 23:54:54, dòng 194 của log lượt
+              #   33452639951, gọi đúng tên nguyên nhân và nói đúng việc phải làm. Không ai
+              #   đọc, vì job XANH. Hai ngày sau nó thành 13 tệp xung đột giả trên PR đề bạt
+              #   #76, và xung đột giả ấy khoá luôn `Promotion guard` (§10.72).
+              #
+              #   Đây là cái giá ẩn của chính bản vá §10.42: đối chiếu theo cây tệp làm lượt
+              #   deploy SỐNG SÓT qua một lượt squash — đúng và cần — nhưng nó đã biến một
+              #   lần DỪNG HẲN thành một dòng ::warning:: trên một lượt chạy màu xanh. Làm
+              #   một sự cố sống sót được mà không dời chuông sang chỗ khác là **gỡ mất
+              #   chuông**. Cùng hình dạng §10.68-A, nặng hơn một bậc: lần ấy còn có màu đỏ.
+              #
+              #   Nên ghi thẳng lên trang tóm tắt của lượt chạy — chỗ người ta thật sự nhìn.
+              {
+                echo "## ⚠ Lượt đề bạt này đã bị SQUASH"
+                echo ""
+                echo "\`staging\` không nối được với \`dev\` qua merge-base. Image vẫn giải đúng"
+                echo "theo cây tệp (\`dev@$dev_tip\`) nên lượt deploy này an toàn — **nhưng gốc chung"
+                echo "của hai nhánh đã gãy**, và lượt đề bạt KẾ TIẾP sẽ đầy xung đột giả."
+                echo ""
+                echo "Chữa ngay, không đợi (§10.72):"
+                echo ""
+                echo '```bash'
+                echo "git checkout -b fix/noi-lai-goc-chung origin/dev"
+                echo "git merge -s ours origin/staging   # giữ nguyên cây của dev"
+                echo "git diff --name-only origin/dev HEAD   # PHẢI rỗng"
+                echo '```'
+                echo ""
+                echo "rồi mở PR vào \`dev\` và gộp bằng **Create a merge commit**."
+              } >> "$GITHUB_STEP_SUMMARY"
             fi
           fi
 

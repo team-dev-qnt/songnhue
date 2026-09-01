@@ -84,7 +84,8 @@ public interface ArticleRepository extends JpaRepository<Article, Long> {
     @Query(
             """
             SELECT new com.songnhue.content.application.PublicArticleRow(
-                       a.slug, v.title, v.summary, v.coverAttachmentPublicId, a.publishedAt, a.viewCount)
+                       a.slug, v.title, v.summary, v.coverAttachmentPublicId, a.publishedAt, a.viewCount,
+                       v.docNumber, v.docIssuedDate)
             FROM Article a JOIN ArticleVersion v ON v.id = a.publishedVersionId
             WHERE a.deletedAt IS NULL
               AND a.status = 'XUAT_BAN'

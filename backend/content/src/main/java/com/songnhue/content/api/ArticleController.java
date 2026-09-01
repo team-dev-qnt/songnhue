@@ -187,6 +187,8 @@ public class ArticleController {
                 r.metaTitle(),
                 r.metaDescription(),
                 r.metaKeywords(),
+                r.docNumber(),
+                r.docIssuedDate(),
                 r.categoryPublicIds());
     }
 

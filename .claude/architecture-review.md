@@ -4995,3 +4995,239 @@ không dài thêm** — đường ranh, không phải chỗ để dọn.
 ⚠ Và nguyên nhân gốc của T27.2 lớn hơn cái tên nó: quy ước SAI vẫn nằm ở **`conventions.md` §1.2 —
 nguồn sự thật** — cùng **4/5 README module** chép lại từ đó. Lượt 31/8 sửa đúng **1/6 nơi** (`hyd/`).
 Người viết migration kế tiếp sẽ mở `conventions.md` và chép lại đúng lỗi đã làm đỏ hai lượt CD.
+
+---
+
+### §10.71 — CVE 9.8 không có bản vá trên dòng đang dùng, và một suppression bị bỏ quên sau lượt nâng cấp (1/9)
+
+Lượt quét theo lịch 1/9 đỏ. Giả thuyết đầu tiên của QuanTran là **khoá NVD hết hạn** — hợp lý, vì
+lượt quét cần khoá và nó vừa xanh hôm qua. Nhưng log nói khác: `NVD_API_KEY: ***` có mặt, lượt quét
+**chạy trọn** và trả về báo cáo **110 artifact**. Khoá hỏng thì trượt ở bước cập nhật CSDL và không
+ra được kết quả nào.
+
+Đỏ vì một CVE thật: **CVE-2026-59313 (9.8)** ở `spring-core` và `spring-web` 6.2.19. Lại đúng hình
+dạng §10.68-A — mã không đổi, **thế giới đổi**; lần này chỉ cách lần trước ba ngày.
+
+#### Chỗ khác với lần trước: không có bản vá để nâng lên
+
+`tomcat` lần trước có `versionEndExcluding = 10.1.58` và 10.1.59 nằm sẵn trên Central — nâng một dòng
+là xong. Lần này advisory dùng **`versionEndIncluding`**, tức bản đang dùng *bị dính* và bản vá là
+bản kế tiếp. Đo ngày 1/9:
+
+| dòng | dính tới `<=` | Central cao nhất | |
+|---|---|---|---|
+| 5.3.x | 5.3.49 | 5.3.39 | chưa có bản vá công khai |
+| 6.0.x | 6.0.30 | 6.0.23 | chưa có bản vá công khai |
+| 6.1.x | 6.1.28 | 6.1.21 | chưa có bản vá công khai |
+| **6.2.x** | **6.2.19** | **6.2.19** | **chưa có** — `6.2.20` trả **HTTP 404** |
+| 7.0.x | 7.0.8 | 7.0.9 | ĐÃ CÓ |
+
+⭐ Số cao hơn ở ba dòng đầu (5.3.49, 6.0.30, 6.1.28) **không tồn tại trên Central** — đó là các bản
+hỗ trợ thương mại. Đường duy nhất tới bản đã sửa là **Spring Framework 7** ⇒ **Spring Boot 4**, cuộc
+di trú mà `pom.xml` đã cố ý tách thành hạng mục riêng và ghi rõ *"không gộp vào một lượt vá bảo mật"*.
+
+Nên đây là trường hợp `conventions.md` §4.5 luật 1 chừa ra: nâng cấp **không khả dụng**.
+
+#### Lý do suppression phải là *"không áp dụng"*, và nó được chứng minh chứ không được khẳng định
+
+Luật số 2 của `dependency-check-suppressions.xml`: *"Lý do phải nói ĐƯỢC hay KHÔNG áp dụng, không phải
+'chưa có bản vá'."* CVE đòi **cả hai** điều kiện: *functional web framework* **và** *Server-Sent
+Events*. Đếm trên toàn `backend/`, chạy dưới `bash` kèm **đối chứng phải-tìm-thấy**:
+
+```
+ĐỐI CHỨNG   @RestController 37 · @GetMapping 33          ← phép đo hoạt động
+ĐIỀU KIỆN   RouterFunction(s) 0 · HandlerFunction 0 · SseEmitter 0
+            ServerSentEvent 0 · TEXT_EVENT_STREAM 0 · text/event-stream 0
+            reactor.core 0 · webflux 0
+```
+
+⚠ Lượt đếm **đầu tiên** cho 0 ở *tất cả* các mục — kể cả những mục chắc chắn phải có. Nguyên nhân:
+zsh nuốt `--include=*.java` nên `grep` không quét gì. **Một phép đo trả 0 ở mọi ô là phép đo hỏng,
+không phải kết quả tốt** (luật 20). Đối chứng là thứ phân biệt được hai trạng thái ấy.
+
+`StreamingResponseBody` khớp đúng 1 tệp, và nó nằm trong **một dòng chú thích** của
+`ResponseEnvelopeAdvice` — không phải mã chạy. Hết hạn đặt **15/10**, cố ý ngắn: 6.2.20 nhiều khả năng
+ra trong vài tuần.
+
+#### ⛔ Và lượt nâng tomcat ba ngày trước đã bỏ quên suppression của chính nó
+
+Tệp còn một mục suppress `CVE-2026-66299` cho `tomcat-embed-core` **10.1.57**, kèm dòng tự dặn:
+*"Xem lại khi 10.1.58 lên Central — lúc đó **xoá mục này và nâng phiên bản**, đừng gia hạn."*
+§10.68-A đã nâng lên **10.1.59** và **không xoá mục ấy**.
+
+Chứng minh nó đã thành rác chứ không đoán: báo cáo dependency-check ghi riêng phần
+`suppressedVulnerabilities`, và `tomcat-embed-core-10.1.59.jar` cho **rỗng ở cả hai** — không mã nào
+đang hiện, cũng không mã nào đang bị che. Suppression ấy không còn khớp gì.
+
+Vô hại lần này, nhưng hình dạng thì không: **một suppression sống lâu hơn lý do của nó là một cái bẫy
+đặt sẵn**. Ai đó hạ phiên bản tomcat vì lý do khác, và một CVE 7.5 sẽ bị che trong im lặng.
+
+#### Bộ canh
+
+Tệp suppression tự khai bốn luật ở đầu nó, và tới 1/9 **không gì thi hành cả** — trong khi đây là chỗ
+**duy nhất** trong dự án mà một dòng chữ làm một CVE 9.8 biến mất khỏi mọi bảng điều khiển mà cổng
+quét vẫn xanh. `SuppressionPolicyTest` 4 bài: mọi mục phải có `until` · phải có `<notes>` đủ dài để là
+một lượt thẩm định thật · phải giới hạn phạm vi (`packageUrl`/`gav`/`filePath`/`cpe`) và chỉ đích danh
+CVE · và một bài chống **xanh trên tập rỗng** (ba bài trên duyệt một danh sách; danh sách rỗng thì cả
+ba xanh mà không kiểm gì — luật 7).
+
+Kiểm chứng ngược **trên tệp thật**, có số đo trước khi chạy: gỡ `until` của một mục (`grep -c` 2 → 1)
+→ đỏ đích danh; khôi phục (1 → 2) → 4/4 xanh.
+
+#### ⭐ Lượt nghiệm thu bắt được bản vá đầu tiên còn hẹp
+
+Chạy lại chính workflow quét trên nhánh vá — và nó **đỏ tiếp**, với cùng mã ấy ở **`spring-tx`** và
+**`spring-webmvc`**. Mẫu đầu tiên viết `spring-(core|web)` vì đó là hai artifact xuất hiện trong log
+lượt đỏ. Nhưng Dependency-Check khớp qua CPE `spring_framework`, tức nó gán lỗ hổng cho **mọi**
+artifact của cùng release train. Đo trên báo cáo thật: **4** artifact `spring-*@6.2.19` mang mã này.
+
+⛔ Đây đúng là luật 25 — **liệt kê tên là bắt theo từng loại dữ liệu, và luôn có loại thứ tư lọt qua**
+— và tôi vấp nó ngay trong lượt sửa mà mình đang viết luật cho tệp ấy. Thứ cứu được không phải suy
+luận mà là **chạy lại phép quét thật** thay vì tin rằng suppression đã đủ.
+
+Lượt nghiệm thu **thứ hai** vẫn đỏ — `spring-context-support`. Hai lỗi độc lập: `[a-z]+` không khớp
+dấu gạch nối; và **tập artifact mang mã này KHÔNG ổn định giữa các lượt quét trên cùng cây mã** —
+lượt 1 báo `core · tx · web · webmvc`, lượt 2 báo `context-support · core · web`. Dependency-Check gán
+CPE `spring_framework` cho một tập con **khác nhau mỗi lần**.
+
+⛔⛔ Nghĩa là **mọi mẫu liệt kê tên artifact đều không thể đủ** — kể cả khi hôm nay nó phủ đúng tất cả
+những gì báo cáo đang hiện. Đây là một bậc nặng hơn luật 25: không phải *"luôn có loại thứ tư"* mà là
+*"tập cần phủ không đứng yên để mà đếm"*. Bất biến thật là **nhóm + phiên bản**:
+`^pkg:maven/org\.springframework/[^/]+@6\.2\.19$`. **Ghim `@6.2.19` là cố ý**:
+nó làm mục này *không thể sống lâu hơn phiên bản đã thẩm định* — nâng lên 6.2.20 thì mẫu hết khớp và
+phép quét tự nói lại sự thật. Đó là bản vá trực tiếp cho đúng cái bẫy tomcat ở ngay trên.
+
+Lượt quét **thứ ba** xanh, đọc trên báo cáo chứ không đọc màu job: **110 artifact · 0 mã ≥ 7**, phần
+bị suppress đúng bộ đã khai và không thừa mục nào.
+
+#### Bài học
+
+**Nâng cấp xong phải đi xoá suppression mà nó vừa làm cho thừa** — lượt nâng chỉ hoàn tất khi lý do
+cũ được gỡ đi, nếu không ta để lại một tấm chắn không ai nhớ là còn đó. Và **ràng buộc của một tệp
+phải nằm trong một bài kiểm, không nằm trong phần chú thích của chính tệp ấy**: người thêm mục thứ ba
+là người không đọc phần đầu.
+
+---
+
+### §10.72 — Một lượt đề bạt gộp bằng Squash làm gãy gốc chung, và xung đột giả ấy khoá luôn cổng kiểm bắt buộc (1/9)
+
+**Triệu chứng.** CI trên `dev@4543d82` xanh trọn vẹn — 10 job `success`, 1 `skipped`. Mở PR đề bạt
+`dev → staging` (#76): GitHub trả `mergeable = CONFLICTING`, `mergeStateStatus = DIRTY`, **13 tệp
+xung đột**, trong đó có cả `page.tsx`, `PortalNav.tsx`, `PortalCache.java` — những tệp mà lượt đề bạt
+lẽ ra chỉ việc chuyển nguyên qua.
+
+**Và thứ đắt hơn hẳn:** danh sách check của PR #76 có đủ 11 mục của `dev`, nhưng **không có
+`Promotion guard`** — đúng context bắt buộc DUY NHẤT của nhánh `staging`. Nó không đỏ. Nó **không tồn
+tại**. Lượt chạy `promotion-guard.yml` gần nhất là 31/8, không có lượt nào cho #76.
+
+**Nguyên nhân gốc.** PR đề bạt **#72** đã được gộp bằng **Squash and merge**. Đo được:
+
+```
+b4a0ac0  cha=1  feat(fe): tìm kiếm xuống thanh nav… (#70) (#72)   ← squash
+6866f70  cha=2  Merge pull request #68 from team-dev-qnt/dev      ← đúng luồng
+22876c8  cha=2  fix(db): migration đánh số bằng giờ-phút… (#56)
+fe0d5ff  cha=2  Merge pull request #66 from team-dev-qnt/dev
+```
+
+Squash tạo một commit **mới**, một cha, mang đúng nội dung của `dev@2add2bf` nhưng **không nối vào
+lịch sử `dev`**. Về nội dung không mất gì — đo được `git diff --name-only 2add2bf b4a0ac0` = **0 tệp**,
+và `2add2bf` là tổ tiên của `origin/dev`. Về đồ thị thì gốc chung **đứng yên** ở `bbe0b50` (30/8, #67).
+
+Hệ quả dây chuyền:
+
+1. Lượt đề bạt kế tiếp phải áp lại nguyên delta của #70 lên một `staging` **vốn đã có nó**. Ở mọi tệp
+   mà #73/#75 đụng tiếp sau đó, git thấy hai bên cùng sửa một vùng ⇒ **xung đột giả**.
+2. GitHub dựng `refs/pull/N/merge` để chạy workflow `pull_request`. PR đụng độ thì ref ấy **không dựng
+   được**, nên `Promotion guard` không bao giờ được lên lịch và context bắt buộc treo vĩnh viễn ở
+   *"Expected — waiting for status to be reported"*.
+
+📌 Đây là hình dạng §10.63 lặp lại ở một chỗ khác: **một cổng kiểm không chạy không đọc như một cổng
+kiểm đỏ**. Nó đọc như *chưa xong*, và một PR chưa xong thì người ta đợi chứ không điều tra. Cùng họ
+với luật 24 (`skipped` được tính là ĐẠT) — cái nguy hiểm không phải màu đỏ, mà là **sự vắng mặt**.
+
+**⛔⛔ Chuông ĐÃ kêu — đúng lúc, đúng tên, và không ai nghe.** Đây là phần đắt nhất của vụ này.
+
+`deploy-staging.yml` phát hiện được ngay tại thời điểm gây ra lỗi. Dòng 194 của log lượt
+`33452639951`, lúc **31/8 23:54:54** — chưa đầy một phút sau khi #72 được gộp:
+
+```
+##[warning]Không nối được staging với dev qua merge-base — PR nhiều khả năng đã bị squash/rebase.
+⚠ Lần sau chọn 'Create a merge commit' khi merge vào staging.
+```
+
+Gọi đúng nguyên nhân, nói đúng việc phải làm. Nó trôi qua vì **job màu xanh**.
+
+Và lý do nó chỉ còn là một cảnh báo thì nằm ở chính một bản vá tốt: §10.42 cho `deploy-staging.yml`
+giải image theo **cây tệp** thay vì theo `HEAD^2`, nên một lượt đề bạt bị squash **vẫn deploy thành
+công**. Đó là bản vá đúng — lượt deploy không nên chết vì ai bấm nhầm nút. Nhưng nó đã đổi một lần
+**DỪNG HẲN** lấy một dòng `::warning::` trên một lượt chạy xanh, và không ai để ý rằng lần dừng hẳn
+ấy chính là **chuông báo duy nhất** của lỗi này.
+
+📌 **Làm cho một sự cố sống sót được mà không dời chuông sang chỗ khác là gỡ mất chuông.** Cùng họ
+§10.68-A (*cổng quét CVE đỏ hơn một ngày không ai đọc*) nhưng nặng hơn một bậc: lần ấy ít nhất còn có
+màu đỏ. `docs/cicd.md` §9 khi ấy vẫn khẳng định *"làm sai ở vế thứ hai thì hỏng to tiếng"* — câu đó
+đã hết đúng từ ngày §10.42 vào kho, và không ai sửa lại nó vì không ai có lý do quay lại đọc.
+
+**Vì sao không bộ canh nào thấy.** `promotion-guard.yml` kiểm hai điều: nhánh nguồn đúng chặng trước,
+và commit ấy đã xanh CI. Cả hai đều **đúng** ở đây. Không câu nào hỏi *"hai nhánh còn chung gốc
+không"* — và nó không thể hỏi, vì bản thân nó đã không được chạy. Bộ canh chỉ chặn được ở lượt đề bạt
+**kế tiếp**, không chặn được nút Squash: GitHub **không có** tuỳ chọn tắt squash cho riêng một nhánh.
+
+**Bản vá.**
+
+1. **Nối lại gốc chung, không đổi một byte** — `git merge -s ours origin/staging` trên một nhánh cắt từ
+   `dev`. Giữ nguyên cây của `dev` (đo: hash cây trước = sau = `251fb445`, `git diff` 0 tệp), chỉ ghi
+   lại quan hệ cha. An toàn *vì đã đo* rằng `staging` không có nội dung nào `dev` chưa có — không phải
+   vì tin là thế.
+2. **`.github/scripts/kiem-goc-chung.sh`** — bất biến đo được: nhánh đích không được có commit
+   **không-phải-merge** nào mà nhánh nguồn không có. Đo 1/9 trước vá: **1**. Sau vá: **0**.
+3. **Nối vào `promotion-guard.yml`** kèm `fetch-depth: 0` — clone nông làm `git rev-list A..B` trả rỗng,
+   và rỗng trông y hệt *sạch* (luật 7). Script tự in số đếm được trước khi kết luận nên một lượt clone
+   nông lộ ra ở dòng `hơn … 0 commit`.
+4. **`PromotionAncestryTest` 6 bài** — dựng kho git thật trong `@TempDir`, tái hiện squash ⇒ đỏ, merge
+   commit ⇒ xanh, `merge -s ours` ⇒ xanh và cây không đổi. Luật 9: nếu chỉ có bài "squash phải đỏ" thì
+   một script `exit 1` vô điều kiện cũng qua.
+
+**Kiểm chứng ngược, có số đo trước mỗi lượt** (luật 10 — bản hỏng phải được nạp *và* bộ canh phải nhìn
+thấy nó):
+
+| Đột biến | Số đo bản hỏng | Kết quả |
+|---|---|---|
+| `if [ "$so_rieng" -eq 0 ]` → `if true` | `grep -c 'if true; then'` = 1 | ĐỎ đích danh `squashLamGayGocChungThiPhaiDo` |
+| gỡ `fetch-depth: 0` | `grep -c 'fetch-depth: 0'` = 0 | ĐỎ đích danh `phaiCheckoutDuLichSu` |
+| khôi phục cả hai | `grep -c` về 1 và 1 | 6/6 xanh |
+
+**Nợ để lại, ghi thẳng vì bộ canh hẹp hơn nơi nó phải chặn (luật 28).** Bộ canh này chặn ở lượt kế
+tiếp. Thứ chặn được tận gốc là **cách gộp**: PR đề bạt phải dùng *Create a merge commit*, squash chỉ
+dành cho PR tính năng vào `dev`. Điều đó hiện chỉ nằm trong tài liệu và trong thông báo lỗi của script
+— không có cơ chế kỹ thuật nào cưỡng chế được nó ở tầng GitHub.
+
+**⛔⛔ Và cách chữa hiển nhiên nhất KHÔNG chạy được — đo ra ở bước cuối.** Bản đầu của bộ canh in
+hướng dẫn: *"`git merge -s ours origin/staging` rồi mở PR vào `dev`, gộp bằng merge commit"*. Tôi đã
+dựng đúng commit ấy — cây trước = sau = `251fb445`, 0 tệp đổi — rồi mới đọc `branches/dev/protection`:
+
+```
+required_linear_history : true     ← dev KHÔNG nhận merge commit
+required_status_checks  : ["Cổng kiểm CI"]
+```
+
+Squash và rebase đều **xoá đúng cái quan hệ cha** cần dựng, nên PR ấy về nguyên tắc không gộp được
+theo cách có ích. Một hướng dẫn sai trong thông báo lỗi tệ hơn không có hướng dẫn: nó gửi người đọc
+đi làm một việc bất khả rồi kết luận là bộ canh hỏng. Script nay in đúng hai lối còn lại, cả hai đều
+cần quyền quản trị kho, kèm lệnh cụ thể và một phép so **hash cây** để dừng lại nếu lệch:
+
+| | [A] tạm tắt `required_linear_history` | [B] admin gộp thẳng trên `staging` |
+|---|---|---|
+| Đổi cài đặt | có — hoàn nguyên được | không |
+| Qua `Promotion guard` | **có** | không (kho đặt `enforce_admins: false` nên admin đi qua được) |
+| Viết lại lịch sử | không | không |
+| Đổi nội dung | không | không |
+
+📌 Bài học lặp lại lần thứ ba trong dự án: **một quy trình chỉ đúng khi đã đối chiếu với cấu hình
+đang chạy, không phải với cấu hình mình nhớ.** Cùng họ §10.57 (cổng secret bỏ qua trong im lặng) và
+luật 3 (canh giá trị ĐÃ GIẢI, đừng canh giá trị mặc định).
+
+📌 **Một lỗi đánh số phát hiện cùng lượt**: `architecture-review.md` có **hai** mục cùng mang số
+`§10.69` (trần 1MB 30/8 và CVE spring 1/9), và `T11.61` trỏ vào số ấy — tức trỏ nhầm mục. Đã đổi mục
+CVE thành **§10.71** và sửa con trỏ. Cùng họ với §10.66: một dãy số **trông như** tự tăng thì rất dễ
+viết trùng, và chỗ trùng chỉ lộ ra khi có người lần theo con trỏ.

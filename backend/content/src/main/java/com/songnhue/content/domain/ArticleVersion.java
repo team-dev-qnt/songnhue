@@ -1,6 +1,7 @@
 package com.songnhue.content.domain;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -68,6 +69,19 @@ public class ArticleVersion {
     @Column(name = "meta_keywords", length = 500)
     private String metaKeywords;
 
+    /**
+     * Số ký hiệu và ngày ban hành của văn bản — xem javadoc hai trường cùng tên ở {@code Article}.
+     *
+     * <p>⭐ Chúng nằm ở đây vì chúng là <b>nội dung</b>, và cổng công khai đọc mọi trường nội dung từ
+     * bản đã duyệt. Để chúng chỉ ở {@code articles} thì sửa số ký hiệu của một bài đang xuất bản là
+     * đổi ngay trên cổng, <b>không qua duyệt</b> — đúng thứ cơ chế bản chụp sinh ra để chặn.
+     */
+    @Column(name = "doc_number", length = 100)
+    private String docNumber;
+
+    @Column(name = "doc_issued_date")
+    private LocalDate docIssuedDate;
+
     /** Vì sao có bản này: "Lưu nháp", "Duyệt xuất bản", "Phục hồi từ bản #3"… */
     @Column(name = "note", length = 500)
     private String note;
@@ -99,6 +113,11 @@ public class ArticleVersion {
         version.metaTitle = article.getMetaTitle();
         version.metaDescription = article.getMetaDescription();
         version.metaKeywords = article.getMetaKeywords();
+        // ⚠ Quy tắc 14: hai cột này phải được chép Ở ĐÂY và phục hồi ở `restoreInto` bên dưới —
+        //   quên một trong hai chỗ thì bài kiểm không đỏ, chỉ có một ô trên cổng lặng lẽ rỗng.
+        //   `ArticleVersionSnapshotTest` đếm số trường được chép nên nó bắt được thiếu sót.
+        version.docNumber = article.getDocNumber();
+        version.docIssuedDate = article.getDocIssuedDate();
         version.note = note;
         return version;
     }
@@ -112,6 +131,8 @@ public class ArticleVersion {
         article.setMetaTitle(metaTitle);
         article.setMetaDescription(metaDescription);
         article.setMetaKeywords(metaKeywords);
+        article.setDocNumber(docNumber);
+        article.setDocIssuedDate(docIssuedDate);
         // ⚠ Cố ý KHÔNG phục hồi slug: slug là địa chỉ công khai, đổi nó lúc phục hồi nội dung là âm
         //   thầm làm chết mọi liên kết đang trỏ tới bài. Muốn đổi slug thì đổi tường minh.
     }
@@ -162,6 +183,14 @@ public class ArticleVersion {
 
     public String getMetaKeywords() {
         return metaKeywords;
+    }
+
+    public String getDocNumber() {
+        return docNumber;
+    }
+
+    public LocalDate getDocIssuedDate() {
+        return docIssuedDate;
     }
 
     public String getNote() {

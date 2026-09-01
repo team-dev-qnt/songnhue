@@ -126,6 +126,10 @@ function ArticleForm({ article: data }: { article?: ArticleDetail }) {
     metaTitle: data?.metaTitle ?? '',
     metaDescription: data?.metaDescription ?? '',
     metaKeywords: data?.metaKeywords ?? '',
+    docNumber: data?.docNumber ?? '',
+    // ⚠ `docIssuedDate` là NGÀY thuần (`YYYY-MM-DD`), không phải mốc thời gian — `dayjs` đọc nó
+    //   ở múi giờ địa phương và trả đúng ngày ấy. Đừng đưa qua `toApiInstant`.
+    docIssuedDate: data?.docIssuedDate ? dayjs(data.docIssuedDate) : null,
     categoryPublicIds: data?.categoryPublicIds ?? [],
   };
 
@@ -181,6 +185,11 @@ function ArticleForm({ article: data }: { article?: ArticleDetail }) {
       metaTitle: values.metaTitle || undefined,
       metaDescription: values.metaDescription || undefined,
       metaKeywords: values.metaKeywords || undefined,
+      docNumber: values.docNumber || undefined,
+      // ⛔ `format('YYYY-MM-DD')` chứ KHÔNG `toISOString()`: chuyển sang UTC sẽ lùi ngày ký ban
+      //    hành đúng một hôm với mọi văn bản ký trước 07:00 giờ Hà Nội. Ngày ban hành là một
+      //    NGÀY trên tờ giấy, không có giờ để quy đổi.
+      docIssuedDate: values.docIssuedDate ? values.docIssuedDate.format('YYYY-MM-DD') : null,
       categoryPublicIds: values.categoryPublicIds,
     });
   };
@@ -395,6 +404,40 @@ function ArticleForm({ article: data }: { article?: ArticleDetail }) {
                 <Input placeholder="VD: Cổng TTĐT Bộ NN&PTNT" />
               </Form.Item>
 
+              {/* ⭐ Hai ô này HIỆN LUÔN, không ẩn theo danh mục đang chọn.
+
+                  Ẩn theo danh mục nghe hợp lý hơn, nhưng nó dựng ra một trạng thái thứ hai phải
+                  nhớ đồng bộ với `site.home.documents-category` — đổi khoá ấy ở màn hình Cấu hình
+                  giao diện là hai ô này biến mất khỏi đúng những bài cần chúng, và không có gì
+                  báo (quy tắc 14). Hai ô trống thì không hại gì.
+
+                  ⛔ Và KHÔNG điền mặc định: để trống ⇒ ô tương ứng trên cổng để trống. Suy ngày
+                     ban hành từ ngày đăng là biến "chưa ai nhập" thành một câu khẳng định sai với
+                     mọi văn bản được đăng lại sau ngày ký (quy tắc 16). */}
+              <Card
+                size="small"
+                title="Thông tin văn bản (tuỳ chọn)"
+                styles={{ body: { paddingBottom: 0 } }}
+                style={{ marginBottom: 16 }}
+              >
+                <Form.Item
+                  name="docNumber"
+                  label="Số ký hiệu"
+                  rules={[{ max: 100, message: 'Tối đa 100 ký tự' }]}
+                  style={{ marginBottom: 12 }}
+                >
+                  <Input placeholder="VD: 43/2015/NĐ-CP" />
+                </Form.Item>
+                <Form.Item
+                  name="docIssuedDate"
+                  label="Ngày ban hành"
+                  extra="Ngày ký trên văn bản — khác Ngày đăng ở trên. Để trống thì cột này trên cổng bỏ trống."
+                  style={{ marginBottom: 12 }}
+                >
+                  <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} />
+                </Form.Item>
+              </Card>
+
               <Card
                 size="small"
                 title="Tối ưu tìm kiếm (SEO)"
@@ -458,6 +501,8 @@ interface FormValues {
   metaTitle: string;
   metaDescription: string;
   metaKeywords: string;
+  docNumber: string;
+  docIssuedDate: Dayjs | null;
   categoryPublicIds: string[];
 }
 

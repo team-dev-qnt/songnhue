@@ -68,7 +68,7 @@ export function HomeCategoryNews({ blocks }: { blocks: KhoiTinChuyenMuc[] }) {
                     ratio="aspect-[380/240]"
                     className="rounded-lg"
                   />
-                  <h3 className="mt-3.5 line-clamp-3 text-[17px] font-bold leading-snug text-surface-textBase transition-colors duration-200 group-hover:text-brand-primary">
+                  <h3 className="mt-3.5 line-clamp-3 text-justify text-[17px] font-bold leading-snug text-surface-textBase transition-colors duration-200 group-hover:text-brand-primary">
                     {khoi.articles[0].title}
                   </h3>
                   <time
@@ -96,7 +96,7 @@ export function HomeCategoryNews({ blocks }: { blocks: KhoiTinChuyenMuc[] }) {
                             className="shrink-0 rounded-md"
                           />
                           <div className="min-w-0">
-                            <h4 className="line-clamp-2 text-[15px] leading-snug text-surface-textBase transition-colors duration-200 group-hover:text-brand-primary">
+                            <h4 className="line-clamp-2 text-justify text-[15px] leading-snug text-surface-textBase transition-colors duration-200 group-hover:text-brand-primary">
                               {bai.title}
                             </h4>
                             <time

@@ -195,3 +195,29 @@ export function formatDate(isoInstant: string | null | undefined): string {
     timeZone: 'Asia/Ho_Chi_Minh',
   }).format(new Date(isoInstant));
 }
+
+/**
+ * `dd/MM/yyyy` cho một NGÀY THUẦN dạng `YYYY-MM-DD` — không phải một mốc thời gian.
+ *
+ * <h2>⚠⚠ Vì sao không dùng lại {@link formatDate}</h2>
+ *
+ * `new Date('2015-05-04')` được ECMAScript quy định là **nửa đêm UTC**. Đưa nó qua
+ * `timeZone: 'Asia/Ho_Chi_Minh'` thì ra `04/05/2015` — đúng, may mắn, vì UTC+7 đi *tới*. Nhưng
+ * cùng phép ấy ở một múi giờ âm (hoặc nếu ai đó đổi `timeZone`) cho ra **03/05/2015**: lùi đúng
+ * một ngày. Một ngày ban hành lùi một hôm là sai số liệu, và nó sai im lặng.
+ *
+ * <p>Nên hàm này **không đụng tới `Date`**: nó tách chuỗi. Ngày ban hành là một ngày in trên tờ
+ * giấy — không có giờ, không có múi giờ, không có gì để quy đổi.
+ *
+ * @param ngay chuỗi `YYYY-MM-DD` từ backend (`articles.doc_issued_date`, kiểu SQL `DATE`)
+ * @returns chuỗi `dd/MM/yyyy`, hoặc `''` khi chưa có — nơi hiển thị để TRỐNG ô, không dựng dấu gạch
+ */
+export function formatNgayThuan(ngay: string | null | undefined): string {
+  if (!ngay) {
+    return '';
+  }
+  const khop = /^(\d{4})-(\d{2})-(\d{2})/.exec(ngay);
+  // Không khớp dạng mong đợi ⇒ trả nguyên văn thay vì đoán. Một chuỗi lạ hiện ra thì có người
+  // nhìn thấy và báo; một chuỗi lạ bị nuốt thành '' thì trông y hệt "chưa ai nhập".
+  return khop ? `${khop[3]}/${khop[2]}/${khop[1]}` : ngay;
+}

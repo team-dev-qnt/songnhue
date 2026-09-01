@@ -41,6 +41,10 @@ export interface ArticleDetail {
   metaTitle: string | null;
   metaDescription: string | null;
   metaKeywords: string | null;
+  /** Số ký hiệu văn bản — `null` với tin bài thường. Xem `ArticleSaveRequest`. */
+  docNumber: string | null;
+  /** Ngày ký ban hành, dạng `YYYY-MM-DD`. KHÁC `publishedAt` (thời gian đăng lên cổng). */
+  docIssuedDate: string | null;
   viewCount: number;
   /**
    * ⚠ **Tính ở BE**, đừng ghép lại ở đây. Ba điều kiện (đã duyệt · trạng thái cho phép ·
@@ -65,6 +69,16 @@ export interface ArticleSaveRequest {
   metaTitle?: string;
   metaDescription?: string;
   metaKeywords?: string;
+  /**
+   * Số ký hiệu văn bản, ví dụ `43/2015/NĐ-CP`.
+   *
+   * ⛔ Để trống ⇒ ô tương ứng trên cổng ĐỂ TRỐNG. Cổng không có thực thể "văn bản": một văn
+   * bản là một bài viết thuộc nhánh "Công bố thông tin" (CR-07), nên hai trường này là ô nhập
+   * tay, không phải dữ liệu đồng bộ từ hệ thống văn bản điều hành của Thành phố (CN-01.7).
+   */
+  docNumber?: string;
+  /** Ngày ký ban hành, dạng `YYYY-MM-DD` (không có giờ, không có múi giờ). */
+  docIssuedDate?: string | null;
   categoryPublicIds: string[];
 }
 

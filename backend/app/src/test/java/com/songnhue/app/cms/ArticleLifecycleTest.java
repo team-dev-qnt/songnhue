@@ -257,7 +257,7 @@ class ArticleLifecycleTest extends IntegrationTestBase {
     @DisplayName("⛔ Bài không có danh mục nào bị chặn — CMS-2006")
     void baiPhaiCoDanhMuc() {
         ArticleDraft khongDanhMuc = new ArticleDraft(
-                "Bài mồ côi", null, null, "Nội dung", null, null, null, null, null, null, null, Set.of());
+                "Bài mồ côi", null, null, "Nội dung", null, null, null, null, null, null, null, null, null, Set.of());
 
         assertThatThrownBy(() -> articles.create(khongDanhMuc)).hasMessageContaining("CMS-2006");
     }
@@ -338,7 +338,7 @@ class ArticleLifecycleTest extends IntegrationTestBase {
 
     private ArticleDraft banThao(String tieuDe, String noiDung, Instant hienLuc) {
         return new ArticleDraft(
-                tieuDe, null, null, noiDung, null, null, null, hienLuc, null, null, null, Set.of(danhMuc));
+                tieuDe, null, null, noiDung, null, null, null, hienLuc, null, null, null, null, null, Set.of(danhMuc));
     }
 
     private void laBienTapVien() {

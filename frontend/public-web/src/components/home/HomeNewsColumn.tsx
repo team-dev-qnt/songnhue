@@ -48,7 +48,15 @@ export function HomeNewsColumn({ articles, soBai, tieuDe, categorySlug }: HomeNe
           <EmptyBlock>Chưa có tin tức nào được xuất bản.</EmptyBlock>
         </div>
       ) : (
-        <div className="sn-scroll mt-4 min-h-0 flex-1 content-start space-y-4 overflow-y-auto pr-2">
+        <div
+          // `data-cuon-tin`: mốc neo cho bộ đo bố cục (`e2e/boCucTrangChu.spec.ts`).
+          // `overflow-y-auto` ở đây đúng từ đầu nhưng CHƯA BAO GIỜ chạy — nó chỉ cuộn khi có
+          // một cha bị chặn chiều cao, mà trần thì đặt nhầm tầng (xem javadoc Nhóm 1 ở
+          // `app/page.tsx`). Bộ đo khẳng định `scrollHeight > clientHeight`, tức chứng minh
+          // nó THẬT SỰ cuộn chứ không chỉ khai trong lớp CSS.
+          data-cuon-tin
+          className="sn-scroll mt-4 min-h-0 flex-1 content-start space-y-4 overflow-y-auto pr-2"
+        >
           {hienThi.map((article) => (
             <article
               key={article.slug}
@@ -63,7 +71,7 @@ export function HomeNewsColumn({ articles, soBai, tieuDe, categorySlug }: HomeNe
                   className="shrink-0 rounded-lg"
                 />
                 <div className="min-w-0">
-                  <h3 className="line-clamp-3 text-[15px] leading-snug text-surface-textBase transition-colors duration-200 group-hover:text-brand-primary">
+                  <h3 className="line-clamp-3 text-justify text-[15px] leading-snug text-surface-textBase transition-colors duration-200 group-hover:text-brand-primary">
                     {article.title}
                   </h3>
                   <time

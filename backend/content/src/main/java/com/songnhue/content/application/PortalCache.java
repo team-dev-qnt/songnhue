@@ -83,9 +83,33 @@ public class PortalCache implements PortalCachePort {
         datViec("{\"path\":\"/\"}", "duong-dan:/");
     }
 
-    /** Menu, banner hoặc cấu hình nhận diện vừa đổi — chúng nằm trên mọi trang. */
+    /**
+     * Menu, banner hoặc cấu hình nhận diện vừa đổi — chúng nằm trên mọi trang.
+     *
+     * <h2>⛔⛔ 01/09/2026 — phương thức này từng có ĐÚNG MỘT lần xuất hiện trong toàn kho</h2>
+     *
+     * Chính định nghĩa của nó. <b>Không một nơi gọi nào</b> — không ở {@code main}, không ở
+     * {@code test}, không ở tài liệu. Nhãn {@code giao-dien} thì vẫn được {@code lib/api.ts} gắn
+     * vào {@code getSiteConfig}, {@code getMenu} và {@code getBanners}, tức đầu nhận có sẵn còn
+     * đầu phát chưa từng bấm. Đó là nợ T25.22/T27.7 ở dạng thuần khiết nhất và là đúng hình dạng
+     * quy tắc 27: <i>một nửa vòng đọc–ghi chạy hoàn hảo vẫn cho ra số không</i>. Triệu chứng của
+     * nó im như mọi lần trước — màn hình quản trị báo <i>"Đã lưu"</i>, cổng không đổi gì trong
+     * tối đa 300 giây (chu kỳ ISR), rồi tự đúng lại; không lỗi nào, không dấu vết nào.
+     *
+     * <p>Nay {@link SiteConfigService#onSettingChanged} gọi nó, và
+     * {@code CongTacTrangChuTest} đếm hàng bảng {@code jobs} để chứng minh lời gọi ấy còn sống.
+     *
+     * <h2>⭐ Gửi CẢ nhãn lẫn đường dẫn trang chủ — cùng lý do với hai phương thức anh em</h2>
+     *
+     * §10.17 đã đo được: một lượt {@code fetch} hỏng thì <b>không mục cache nào mang nhãn được
+     * tạo ra</b>, nên {@code revalidateTag} không có gì để lần ngược. Trang chủ là trang duy nhất
+     * trong nhóm này từng ra đời rỗng sau một lượt triển khai — và nó cũng chính là trang mà công
+     * tắc {@code site.home.show-dieu-hanh} bật/tắt. Chỉ gửi nhãn là chấp nhận một xác suất im
+     * lặng ngay tại chỗ đắt nhất.
+     */
     public void layoutChanged() {
         datViec("{\"tag\":\"%s\"}".formatted(TAG_LAYOUT), "tag:" + TAG_LAYOUT);
+        datViec("{\"path\":\"/\"}", "duong-dan:/");
     }
 
     /**

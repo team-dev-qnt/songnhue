@@ -1,6 +1,7 @@
 package com.songnhue.content.application;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Set;
 import java.util.UUID;
 
@@ -28,4 +29,6 @@ public record ArticleDraft(
         String metaTitle,
         String metaDescription,
         String metaKeywords,
+        String docNumber,
+        LocalDate docIssuedDate,
         Set<UUID> categoryPublicIds) {}

@@ -17,6 +17,16 @@ interface AffiliatedUnitsLinksProps {
    * `menu_items`, sửa ở đúng màn hình Menu mà Công ty đã dùng cho menu đầu trang và chân trang.
    */
   portalLinks: MenuLink[];
+  /**
+   * Có hiện TÊN cơ quan dưới banner không — `site.home.lien-ket.show-label`.
+   *
+   * <p>QuanTran 01/09: *"admin cho phép bật/tắt hiển thị chữ. Vì có thể phần text sẽ bị ảnh hưởng
+   * bởi phần màu"* — tức chữ chìm vào nền của chính tấm banner.
+   *
+   * ⛔ Tắt **không** có nghĩa là gỡ nhãn khỏi cây DOM. Xem chú thích ở chỗ dựng thẻ: một liên kết
+   * chỉ có ảnh và `alt=""` là một liên kết KHÔNG CÓ TÊN — trình đọc màn hình đọc địa chỉ URL.
+   */
+  hienNhan: boolean;
 }
 
 /**
@@ -34,7 +44,11 @@ interface AffiliatedUnitsLinksProps {
  * vì <i>chưa ai nhập</i>, không phải rỗng vì <i>không có đường nào để lấy</i>. Hai câu trả lời
  * khác nhau, và ô rỗng phải nói đúng câu của mình.
  */
-export function AffiliatedUnitsLinks({ subsidiaries, portalLinks }: AffiliatedUnitsLinksProps) {
+export function AffiliatedUnitsLinks({
+  subsidiaries,
+  portalLinks,
+  hienNhan,
+}: AffiliatedUnitsLinksProps) {
   return (
     <section className="mt-5">
       <SectionTitle
@@ -138,7 +152,11 @@ export function AffiliatedUnitsLinks({ subsidiaries, portalLinks }: AffiliatedUn
       {portalLinks.length > 0 ? (
         <div className="mt-9">
           <SectionTitle>Liên kết website</SectionTitle>
-          <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {/* ⭐⭐ 01/09/2026 — BA cột, không phải bốn. Đây là số học, không phải thẩm mỹ:
+              (1184 − 2×20)/3 = 381px, ở chiều cao 90px cho ra một khung 381×90 — đúng tỉ lệ dải
+              logo 377×90 của cổng tham chiếu `bocongan.gov.vn` (đo 01/09). Bốn cột cho 281×90,
+              tức 3,1:1, và mọi banner tải lên sẽ méo thêm một lần nữa. */}
+          <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {portalLinks.map((muc) => {
               const href = menuHref(muc);
               const logo = fileUrl(muc.logoId);
@@ -148,33 +166,51 @@ export function AffiliatedUnitsLinks({ subsidiaries, portalLinks }: AffiliatedUn
                   href={href}
                   target={muc.openNewTab ? '_blank' : undefined}
                   rel={isExternal(muc) ? 'noopener noreferrer' : undefined}
-                  className="group flex h-[90px] items-center justify-center gap-3 rounded-lg border border-surface-border bg-white px-4 text-center text-sm font-semibold text-surface-textBase shadow-2xs transition-all duration-200 hover:border-brand-primary hover:text-brand-primary hover:shadow-xs"
+                  className="group block overflow-hidden rounded-lg border border-surface-border bg-white shadow-2xs transition-all duration-200 hover:border-brand-primary hover:shadow-xs"
                 >
-                  {/* ⭐ Có logo thì logo dẫn dắt, tên thu nhỏ lại thành phần chú; chưa có thì
-                      thẻ giữ nguyên hình dạng cũ — CHỮ CĂN GIỮA, không có khung ảnh xám chờ
-                      tệp. Đây là chỗ dễ sai nhất của lượt này: một ô ảnh rỗng 40px là một chỗ
-                      trống nói rằng "đáng ra ở đây có gì đó", trong khi thật ra không thiếu gì
-                      cả cho tới khi Công ty tải lên (luật 16).
-
-                      ⚠ `object-contain`, KHÔNG `object-cover`: logo cơ quan bị cắt là cắt nhận
-                      diện pháp nhân. Cùng lý do với logo Công ty ở đầu trang. */}
                   {logo ? (
                     <img
                       src={logo}
                       alt=""
                       loading="lazy"
                       decoding="async"
-                      className="h-[46px] w-[60px] shrink-0 object-contain"
+                      // ⭐ `object-fill` — QuanTran chốt 01/09: *"kéo ảnh full"*. Cổng tham chiếu
+                      //   làm đúng vậy (thẻ `<img class="w-full h-full">` không khai `object-fit`,
+                      //   nên mặc định `fill`), và ảnh của họ vốn là banner 377×90.
+                      //
+                      //   ⚠⚠ Chú thích ở đây TRƯỚC 01/09 khẳng định ngược lại: *"`object-contain`,
+                      //   KHÔNG `object-cover`: logo cơ quan bị cắt là cắt nhận diện pháp nhân"*.
+                      //   Lý do ấy vẫn đúng về mặt bảo toàn thông tin — `fill` không cắt, nhưng nó
+                      //   KÉO MÉO, và một logo méo cũng là một nhận diện sai. Đây là một đánh đổi
+                      //   QuanTran đã cân và chọn, không phải một điều bị bỏ sót. Hệ quả phải nói
+                      //   ra ở chỗ người tải ảnh đọc được: mô tả của khoá `settings` và cảnh báo ở
+                      //   màn hình Menu → "Liên kết cổng TTĐT" đều dặn tải banner tỉ lệ ~4:1.
+                      className="h-[90px] w-full object-fill"
                     />
                   ) : null}
-                  <span className={logo ? 'line-clamp-2 text-left text-xs' : 'line-clamp-2'}>
-                    {muc.label}
-                  </span>
+                  {/* ⭐⭐ NHÃN KHÔNG BAO GIỜ RỜI KHỎI CÂY DOM — công tắc chỉ đổi việc nó có HIỆN.
+
+                      Bỏ hẳn nhãn khi tắt thì thẻ này còn đúng một `<img alt="">` bên trong một
+                      `<a>`: một liên kết **không có tên**, và trình đọc màn hình đọc địa chỉ URL
+                      thay cho tên cơ quan. Đó là lỗi WCAG (2.4.4 Link Purpose), không phải một
+                      lựa chọn trình bày — nên nhánh tắt là `sr-only`, không phải `null`.
+
+                      ⚠ Mục CHƯA có logo thì luôn hiện chữ, bất kể công tắc: tắt nhãn ở đó là để
+                        lại một ô trắng không nội dung. */}
                   <span
-                    aria-hidden="true"
-                    className="shrink-0 text-xs text-surface-textSecondary transition-colors group-hover:text-brand-primary"
+                    className={
+                      hienNhan || !logo
+                        ? 'flex items-center justify-center gap-2 px-4 py-3 text-center text-sm font-semibold text-surface-textBase transition-colors group-hover:text-brand-primary'
+                        : 'sr-only'
+                    }
                   >
-                    ↗
+                    <span className="line-clamp-2">{muc.label}</span>
+                    <span
+                      aria-hidden="true"
+                      className="shrink-0 text-xs text-surface-textSecondary"
+                    >
+                      ↗
+                    </span>
                   </span>
                 </a>
               ) : null;

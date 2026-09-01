@@ -232,6 +232,8 @@ class MediaLibraryTest extends IntegrationTestBase {
                 null,
                 null,
                 null,
+                null,
+                null,
                 Set.of(danhMuc)));
 
         assertThat(media.articlesUsing(tep.publicId())).containsExactly(bai.getTitle());
@@ -284,6 +286,8 @@ class MediaLibraryTest extends IntegrationTestBase {
                 null,
                 "Nội dung không nhắc tới ảnh",
                 tep.publicId(),
+                null,
+                null,
                 null,
                 null,
                 null,

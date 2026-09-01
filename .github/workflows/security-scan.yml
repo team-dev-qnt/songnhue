@@ -25,11 +25,18 @@ on:
     - cron: '15 2 * * *'
   workflow_dispatch:
   # Đổi khai báo phụ thuộc thì quét lại ngay, không đợi tới đêm.
+  #
+  # ⚠ Danh sách này phải bao cả những tệp mà LƯỢT QUÉT ĐỌC, không chỉ tệp khai
+  #   phụ thuộc (CLAUDE.md luật 24). `dependency-check-suppressions.xml` là tệp
+  #   ảnh hưởng TRỰC TIẾP nhất tới việc lượt quét báo gì — thêm một mục vào đó có
+  #   thể làm một CVE 9.8 biến mất khỏi báo cáo. Thiếu nó ở đây thì một thay đổi
+  #   như vậy chỉ được kiểm ở lượt chạy theo lịch hôm sau (§10.69).
   push:
     branches: [dev]
     paths:
       - '**/pom.xml'
       - 'frontend/package-lock.json'
+      - 'backend/dependency-check-suppressions.xml'
 
 permissions:
   contents: read

@@ -45,6 +45,29 @@ describe('boChuThich — phân biệt lời giải thích với lời thi hành'
     expect(boChuThich('  const url = "https://songnhue.vn";')).toContain('songnhue.vn');
   });
 
+  it('⭐⭐ KHÔNG quay lui qua nhiều chú thích — bản trước nuốt mất 8.174 ký tự vì lỗi này', () => {
+    // Dựng lại đúng bố cục đã làm bản cũ hỏng: một `{` theo sau là xuống dòng rồi javadoc,
+    // rồi (cách xa) một chú thích JSX kết thúc bằng `*/}`. Bản cũ chạy mẫu JSX trước, quay
+    // lui từ `{` đầu tới `*/}` cuối và xoá sạch mọi thứ ở giữa.
+    const ma = [
+      'export interface Muc {',
+      '  /** tài liệu của trường. */',
+      '  khoa: string;',
+      '}',
+      'const GIU_LAI = 1;',
+      'export function PhaiConDay() {',
+      '  return <div>{/* chú thích JSX */}<span>noi dung</span></div>;',
+      '}',
+    ].join('\n');
+
+    const sau = boChuThich(ma);
+    expect(sau, 'phần thi hành giữa hai chú thích bị nuốt mất').toContain('const GIU_LAI = 1;');
+    expect(sau).toContain('export function PhaiConDay');
+    expect(sau).toContain('noi dung');
+    expect(sau, 'chú thích JSX vẫn phải bị cắt').not.toContain('chú thích JSX');
+    expect(sau, 'javadoc của trường vẫn phải bị cắt').not.toContain('tài liệu của trường');
+  });
+
   it('⚠ giới hạn THẬT: chuỗi ký tự chứa `/*` bị cắt nhầm', () => {
     // Luật 28: một cơ chế canh gác phải nói ra phạm vi của chính nó. Đây là hành vi SAI về mặt
     // cú pháp JavaScript, ghi thành khẳng định để người đọc sau biết ranh giới thay vì phát

@@ -148,6 +148,26 @@ export interface ArticleRow {
   publishedAt: string | null;
   viewCount: number;
   /**
+   * Số ký hiệu văn bản — ví dụ `43/2015/NĐ-CP`. `null`/vắng mặt với tin bài thường.
+   *
+   * <p>Cổng không có thực thể "văn bản": một văn bản **là** một bài viết thuộc nhánh
+   * `cong-bo-thong-tin` (CR-07 — cổng KHÔNG đồng bộ từ hệ thống văn bản điều hành của Thành phố,
+   * CN-01.7). Hai trường này là ô để biên tập viên nhập, thêm 01/09/2026 cho bảng danh sách văn bản.
+   *
+   * ⛔ Rỗng ⇒ **ô bảng để trống**. Không dấu gạch, không "Đang cập nhật" (quy tắc 16).
+   */
+  docNumber: string | null;
+  /**
+   * Ngày ký ban hành, dạng `YYYY-MM-DD` — một NGÀY thuần, không phải mốc thời gian.
+   *
+   * ⚠ Hiển thị bằng `formatNgayThuan()`, **không** `formatDate()`: `formatDate` đi qua `new Date()`
+   * nên chuỗi này bị hiểu là nửa đêm UTC rồi quy múi giờ — lệch một ngày ở nửa số múi giờ.
+   *
+   * ⛔ KHÁC `publishedAt` (thời gian đăng lên cổng), và **không cột nào được suy ra từ cột kia**:
+   * một văn bản ký năm 2015 có thể được đăng lại năm 2026.
+   */
+  docIssuedDate: string | null;
+  /**
    * Chuyên mục **đang hiện** của bài — CR-12 cần nhãn "Tin thủy lợi / Tin Công ty".
    *
    * ⚠ Backend lọc `visible` trước khi trả: một chuyên mục đang ẩn không được lộ ra dưới dạng

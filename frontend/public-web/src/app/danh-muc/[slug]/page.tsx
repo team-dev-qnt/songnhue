@@ -2,8 +2,10 @@ import type { Metadata } from 'next';
 
 import { ArticleList } from '@/components/ArticleList';
 import { Breadcrumb } from '@/components/Breadcrumb';
+import { DocumentListing } from '@/components/DocumentListing';
 import { PortalSidebar } from '@/components/PortalSidebar';
 import { getArticles, getCategories, getSiteConfig } from '@/lib/api';
+import { laNhanhCua } from '@/lib/homeCategories';
 import { ROUTES } from '@/lib/routes';
 
 /** Trang danh sách bài theo chuyên mục — T16.3. */
@@ -17,7 +19,7 @@ export const revalidate = 300;
 
 interface PageProps {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; q?: string }>;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -34,16 +36,30 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function CategoryPage({ params, searchParams }: PageProps) {
   const { slug } = await params;
-  const { page } = await searchParams;
+  const { page, q } = await searchParams;
+  const tuKhoa = (q ?? '').trim();
 
   const [categories, articles, latestNews, config] = await Promise.all([
     getCategories(),
-    getArticles({ category: slug, page: Number(page ?? 0) }),
+    getArticles({ category: slug, page: Number(page ?? 0), q: tuKhoa || undefined }),
     getArticles({ size: 6 }),
     getSiteConfig(),
   ]);
   const category = categories?.find((c) => c.slug === slug);
   const categoryName = category?.name ?? 'Chuyên mục';
+
+  /*
+   * ⭐⭐ Nhánh VĂN BẢN trình bày bằng BẢNG, nhánh tin tức bằng danh sách bài có ảnh.
+   *
+   * Nhánh gốc đọc từ `site.home.documents-category` — cùng khoá `settings` mà trang chủ dùng, nên
+   * đổi nhánh ở màn hình Cấu hình giao diện là cả hai nơi đổi theo. Viết cứng `'cong-bo-thong-tin'`
+   * ở đây là dựng nguồn sự thật thứ hai (luật 14).
+   *
+   * ⚠ `laNhanhCua` leo `parentSlug` nên nó phủ CẢ nhánh con ("Văn bản pháp luật", "Văn bản Công
+   *   ty") chứ không chỉ nhánh gốc — đúng chỗ người dùng bấm vào từ hàng nhánh con ở trang chủ.
+   */
+  const danhMucVanBan = config?.['site.home.documents-category'] ?? 'cong-bo-thong-tin';
+  const laVanBan = laNhanhCua(categories ?? [], slug, danhMucVanBan);
 
   return (
     <div className="mx-auto max-w-[1232px] px-4 py-6 sm:px-6 sm:py-8 animate-fade-in">
@@ -69,12 +85,21 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
             ) : null}
           </div>
 
-          {/* Danh sách bài viết */}
-          <ArticleList
-            page={articles}
-            basePath={ROUTES.category(slug)}
-            emptyText={`Chưa có bài viết nào trong chuyên mục "${categoryName}".`}
-          />
+          {/* Danh sách bài viết — hoặc BẢNG VĂN BẢN nếu đây là nhánh Công bố thông tin */}
+          {laVanBan ? (
+            <DocumentListing
+              page={articles}
+              basePath={ROUTES.category(slug)}
+              tuKhoa={tuKhoa}
+              tenChuyenMuc={`chuyên mục "${categoryName}"`}
+            />
+          ) : (
+            <ArticleList
+              page={articles}
+              basePath={ROUTES.category(slug)}
+              emptyText={`Chưa có bài viết nào trong chuyên mục "${categoryName}".`}
+            />
+          )}
         </main>
 
         {/* Cột Sidebar 4/12 */}

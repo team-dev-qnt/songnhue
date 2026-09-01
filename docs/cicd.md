@@ -517,9 +517,25 @@ Dependabot.
 | nhánh feature → `dev` | **Squash** hoặc **Rebase** | `dev` bật `required_linear_history` — merge commit bị chặn |
 | `dev` → `staging` → `production` | **Create a merge commit** | `deploy-staging.yml` tìm image qua `HEAD^2`; squash sinh SHA mới, cắt đứt liên kết với image đã kiểm (§4.1) |
 
-GitHub không giới hạn được kiểu merge theo từng nhánh, nên đây là quy ước người dùng phải nhớ. Bù
-lại, làm sai ở vế thứ hai thì **hỏng to tiếng**: không tìm thấy image → workflow dừng ngay với thông
-báo "commit này chưa từng qua CI của dev", không có bản deploy nửa vời nào.
+GitHub không giới hạn được kiểu merge theo từng nhánh, nên đây là quy ước người dùng phải nhớ.
+
+> ⛔⛔ **Sửa 1/9: câu "làm sai ở vế thứ hai thì hỏng to tiếng" ĐÃ HẾT ĐÚNG.**
+>
+> Nó đúng cho tới bản vá §10.42 — bản vá ấy cho `deploy-staging.yml` giải image theo **cây tệp**
+> thay vì theo `HEAD^2`, nên một lượt đề bạt bị squash **vẫn deploy thành công**. Đúng và cần
+> (lượt deploy không nên chết vì ai bấm nhầm nút), nhưng nó đã đổi một lần **DỪNG HẲN** lấy một
+> dòng `::warning::` trên một lượt chạy **màu xanh**.
+>
+> Đo được: PR đề bạt #72 bị squash lúc 31/8 23:53. Lượt CD Staging ngay sau đó **xanh**, và dòng
+> 194 của log (`run 33452639951`, 23:54:54) ghi đúng nguyên nhân:
+> *"Không nối được staging với dev qua merge-base — PR nhiều khả năng đã bị squash/rebase."*
+> Không ai đọc. Hai ngày sau nó thành **13 tệp xung đột giả** trên PR đề bạt #76, và xung đột giả
+> ấy khoá luôn `Promotion guard` — cổng bắt buộc duy nhất của `staging` không đỏ mà **không chạy**.
+>
+> 📌 Bài học chung: **làm cho một sự cố sống sót được mà không dời chuông sang chỗ khác là gỡ mất
+> chuông.** Nay chuông đặt ở hai chỗ: `deploy-staging.yml` ghi hẳn một khối lên trang tóm tắt lượt
+> chạy, và `.github/scripts/kiem-goc-chung.sh` chặn cứng ở lượt đề bạt kế tiếp
+> (`PromotionAncestryTest`, 6 bài). Chi tiết: `architecture-review.md` §10.72.
 
 ### 9.1. ⚠⚠ Squash xong thì nhánh nguồn ĐÃ CHẾT — đừng dùng lại (18/8, sập 2 lần trong một ngày)
 
