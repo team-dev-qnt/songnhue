@@ -126,7 +126,7 @@ export function PublishedDocumentsSection({
                         </svg>
                       </span>
                       <div className="flex-1">
-                        <h3 className="line-clamp-2 text-sm font-medium text-surface-textBase transition-colors duration-200 group-hover:text-brand-primary">
+                        <h3 className="line-clamp-2 text-justify text-sm font-medium text-surface-textBase transition-colors duration-200 group-hover:text-brand-primary">
                           {doc.title}
                         </h3>
                         <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-surface-textSecondary">
@@ -172,7 +172,7 @@ export function PublishedDocumentsSection({
               <p className="mt-3.5 text-[15px] font-semibold leading-snug text-surface-textBase">
                 Hệ thống quản lý văn bản điều hành thành phố Hà Nội
               </p>
-              <p className="mt-2 text-xs leading-relaxed text-surface-textSecondary">
+              <p className="mt-2 text-justify text-xs leading-relaxed text-surface-textSecondary">
                 Mở ở tab mới. Cổng <b>không</b> đồng bộ dữ liệu — chỉ lưu mã số và tự đăng nhập
                 (CN-01.7).
               </p>

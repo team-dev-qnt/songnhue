@@ -51,14 +51,21 @@ export function HomeBannerSlider({
       showArrows={showArrows}
       showDots={showDots}
       nhan="Ảnh hoạt động của Công ty"
-      // ⭐ 01/09: `lg:min-h-[444px]` → `lg:min-h-[300px]`. Con số 444 là SÀN, và một cái sàn cao
-      //    thắng mọi cái trần: trang chủ nay chặn chiều cao Nhóm 1 theo khung nhìn
-      //    (`src/app/page.tsx`), mà `min-height` luôn thắng `max-height` trong CSS. Giữ 444 là
-      //    cái trần ấy không có hiệu lực trên màn hình thấp — đúng hình dạng "cơ chế canh gác
-      //    tồn tại mà không có hiệu lực".
-      chieuCaoToiThieu="min-h-[220px] lg:min-h-[300px]"
-      // ⭐ 01/09: KHÔNG cắt ảnh. Yêu cầu QuanTran: *"các ảnh luôn hiển thị đủ 100% content ảnh"*.
-      phuKhung={false}
+      // ⭐⭐ 01/09 (lượt hai): TỈ LỆ thay cho chiều cao. Lượt một sáng nay hạ
+      //    `lg:min-h-[444px]` → `300px` để cái trần theo khung nhìn có hiệu lực; cả trần lẫn
+      //    sàn nay đều bỏ, vì trần ấy đặt sai tầng và chưa từng chặn được gì (xem javadoc
+      //    Nhóm 1 ở `app/page.tsx`).
+      //    16/9 không phải con số chọn cho vừa mắt: `docs/ui-styles.md:212` ghi "Cột 8: Tin
+      //    đinh 16:9", và cổng tham chiếu ghi cứng `lg:h-[444px]` ở cột 8/12 khung 1232px —
+      //    785/444 = 1,77, tức họ cũng đang làm 16:9, chỉ viết bằng pixel.
+      tiLeKhung="aspect-[16/9]"
+      // ⭐ 01/09 lượt hai: TRỞ LẠI `object-cover` (bỏ `phuKhung={false}`).
+      //    Lượt một đặt `contain` theo yêu cầu *"ảnh luôn hiển thị đủ 100% content ảnh"*, nhưng
+      //    trên một khung có tỉ lệ tai nạn (đo được 1,357 / 3,273 / 1,559) thì `contain` sinh ra
+      //    đúng "diện tích thừa" QuanTran báo ở lượt sau. QuanTran đã chốt 01/09: chấp nhận cắt
+      //    mép để hết thừa. Cổng tham chiếu cùng hướng — `object-cover` 90 lần / `contain` 2 lần.
+      //    ⛔ Ảnh SƠ ĐỒ hệ thống ở Danh mục công trình vẫn giữ `contain`: bản vẽ kỹ thuật bị cắt
+      //       mép là mất thông tin, không phải mất thẩm mỹ.
       uuTienAnhDau
       khiRong={
         <EmptyBlock>

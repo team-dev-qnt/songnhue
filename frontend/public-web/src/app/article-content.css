@@ -44,6 +44,29 @@
   @apply text-surface-textBase;
   line-height: 1.75;
   overflow-wrap: break-word;
+  /* ⭐ 01/09 — căn đều hai bên lề cho THÂN BÀI. Yêu cầu QuanTran: *"phần hiển thị text của
+     văn bản tôi muốn căn đều 2 bên lề"*, phạm vi đã chốt là "văn bản, bài báo, tin tức".
+     Cổng tham chiếu cũng căn đều đoạn văn và tiêu đề thẻ.
+
+     ⚠⚠ ĐẶT Ở ĐÂY, TRÊN `.sn-article`, KHÔNG PHẢI TRÊN `.sn-article p`.
+     `text-align` là thuộc tính KẾ THỪA, nên khai ở khối cha là đủ phủ mọi đoạn văn — mà một
+     giá trị kế thừa luôn THUA một khai báo trực tiếp, nên ba lớp `.sn-align-*` bên dưới vẫn
+     ghi đè được từng khối.
+     Khai trên `.sn-article p` (độ ưu tiên 0,1,1) thì nó THẮNG `.sn-article .sn-align-left`
+     (0,2,0)? Không — nhưng nó thắng mọi lớp căn lề viết dạng `.sn-align-*` trần, và quan
+     trọng hơn: nó biến một mặc định thành một khai báo cạnh tranh. Căn lề tác giả tự chọn
+     trong trình soạn thảo là DỮ LIỆU, mặc định của cổng chỉ là mặc định — thứ tự thắng thua
+     ấy có bài canh riêng ở `articleContentCss.test.ts`. */
+  text-align: justify;
+}
+
+/* Tiêu đề trong bài KHÔNG căn đều: một dòng ngắn bị giãn đều trông như chữ vỡ. Độ ưu tiên
+   (0,1,1) — vẫn thua `.sn-article .sn-align-*` (0,2,0), nên tác giả chọn căn giữa cho một
+   tiêu đề thì lựa chọn ấy vẫn thắng. */
+.sn-article h2,
+.sn-article h3,
+.sn-article h4 {
+  text-align: left;
 }
 
 /* ---- Tiêu đề trong bài: h2–h4, vì h1 là tiêu đề bài do trang đặt ---- */

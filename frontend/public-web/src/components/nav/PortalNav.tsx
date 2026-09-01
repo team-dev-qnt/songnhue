@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 
 import type { MenuLink } from '@/lib/api';
+import { boCucHangNav } from '@/lib/hangDieuHuong';
 import { menuCap1KeTiep, type SuKienMenuCap1 } from '@/lib/menuCap1';
 import { isExternal, menuHref, ROUTES } from '@/lib/routes';
 import { vuaThanhNgang } from '@/lib/vuaThanhNgang';
@@ -288,12 +289,16 @@ export function PortalNav({ tree }: PortalNavProps) {
     return () => bd.disconnect();
   }, []);
 
-  // `null` = chưa đo (SSR, lượt vẽ đầu, hoặc không có JS) → giữ nguyên ngưỡng `lg` cũ làm đường
-  // lui. Không có JS thì cổng vẫn dùng được đúng như trước, chỉ mất phần tự rơi về ngăn kéo.
-  const chuaDo = vuaKhung === null;
-  const lopThanhNgang = chuaDo ? 'hidden lg:flex' : vuaKhung ? 'flex' : 'hidden';
-  const lopNutNganKeo = chuaDo ? 'lg:hidden' : vuaKhung ? 'hidden' : 'flex';
-  const lopVungNganKeo = chuaDo ? 'lg:hidden' : vuaKhung ? 'hidden' : 'block';
+  // ⭐ Ba chuỗi lớp này nay đến từ MỘT hàm thuần (`boCucHangNav`) thay vì ba biểu thức rải
+  //   trong tệp — đó là chỗ duy nhất kiểm được ở kho không có DOM, và là nơi bất biến "menu và
+  //   ô nhập không bao giờ cùng hiện" được vét cạn sáu tổ hợp trong `hangDieuHuong.test.ts`.
+  //   `null` = chưa đo (SSR, lượt vẽ đầu, không JS) → vẫn rơi về ngưỡng `lg` tĩnh như trước.
+  const {
+    menu: lopThanhNgang,
+    nutNganKeo: lopNutNganKeo,
+    vungNganKeo: lopVungNganKeo,
+    oTimTrenHang,
+  } = boCucHangNav({ vuaKhung, moTimKiem });
 
   /**
    * Đóng mọi thứ đang mở — gọi từ **trình xử lý sự kiện** của từng liên kết.
@@ -384,6 +389,10 @@ export function PortalNav({ tree }: PortalNavProps) {
     >
       <div
         ref={khungRef}
+        // `data-hang-nav`: mốc neo cho bộ đo bố cục. Phải đo theo HÀNG MENU, không theo
+        // `<nav>` — `<nav>` bọc cả hàng tìm kiếm phụ nếu có, nên "ô nhập nằm trong <nav>"
+        // xanh cho CẢ hai cách dựng và vì thế không khẳng định gì (luật 9).
+        data-hang-nav
         className="mx-auto flex max-w-[1232px] items-center justify-between gap-2 px-4 sm:px-6"
       >
         {/* ───── Nút ngăn kéo — chỉ dưới lg ───── */}
@@ -455,51 +464,32 @@ export function PortalNav({ tree }: PortalNavProps) {
           </ul>
         </div>
 
-        {/* ───── Biểu tượng Tìm kiếm — hiện ở MỌI bề rộng ─────
-            Nó đứng ngoài `lopThanhNgang` có chủ đích: khi thanh ngang rơi về ngăn kéo, ô tìm
-            kiếm KHÔNG được biến mất theo. Đây là lối tìm kiếm duy nhất của cổng kể từ 01/09
-            (dải nhận diện không còn ô nào) — mất nó ở điện thoại là mất hẳn chức năng.
+        {/* ───── Ô tìm kiếm — CHIẾM CHÍNH HÀNG NÀY khi mở ─────
+            Yêu cầu QuanTran 01/09: *"open search bar ngay trên thanh navigation, không đặt
+            riêng 1 thẻ search bar như hiện tại"*.
 
-            ⚠ `shrink-0`: nút này là số trừ trong ngân sách bề rộng ở `doLai()`. Để nó co lại
-              thì bề rộng đo được nhỏ hơn bề rộng thật, và phép đo kết luận "vừa" cho một thanh
-              đang tràn. */}
-        <button
-          ref={timKiemRef}
-          type="button"
-          onClick={() => datMoTimKiem((cu) => !cu)}
-          aria-expanded={moTimKiem}
-          aria-controls={idTimKiem}
-          aria-label={moTimKiem ? 'Đóng ô tìm kiếm' : 'Tìm kiếm trên cổng thông tin'}
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-md transition-colors duration-200 ease-smooth ${
-            moTimKiem
-              ? 'bg-brand-primaryLight text-brand-primary'
-              : 'text-surface-textSecondary hover:bg-surface-bgLayout hover:text-brand-primary'
-          }`}
-        >
-          {moTimKiem ? <DauX /> : <KinhLup />}
-        </button>
-      </div>
+            Bản trước dựng nó thành một hàng riêng bên dưới, vì ở 1232px tám nhãn cấp 1 đã
+            chiếm 1150,6/1184px — không còn chỗ chèn thêm. Con số ấy vẫn đúng, nhưng nó chỉ
+            ràng buộc khi menu và ô nhập CÙNG TỒN TẠI. `boCucHangNav` ẩn menu và nút ngăn kéo
+            khi `moTimKiem`, nên ô nhập không tranh chỗ với ai — xem javadoc `hangDieuHuong.ts`.
 
-      {/* ───── Ô tìm kiếm bung ra — một hàng riêng, kín bề rộng khung ─────
-          ⛔ KHÔNG nhét ô nhập vào chính hàng menu. Ở 1232px, tám nhãn cấp 1 đã chiếm 1150,6px
-             trong 1184px khả dụng (bảng ngân sách ở javadoc trên) — chèn thêm một ô nhập rộng
-             240px vào đó là đẩy thanh vào ngăn kéo ngay trên màn hình desktop rộng nhất. Một
-             hàng riêng thì ô nhập không phải cạnh tranh bề ngang với bất cứ thứ gì, và cùng một
-             bố cục chạy đúng từ 320px tới 1232px. */}
-      {moTimKiem ? (
-        <div id={idTimKiem} className="border-t border-surface-border bg-surface-bgLayout">
+            ⚠ `min-w-0 flex-1`: thiếu `min-w-0` thì ô nhập từ chối co dưới bề rộng nội dung của
+              nó và đẩy nút X ra khỏi khung ở điện thoại. */}
+        {oTimTrenHang ? (
           <form
+            id={idTimKiem}
             action={ROUTES.search}
             method="get"
             role="search"
-            className="mx-auto max-w-[1232px] px-4 py-2.5 sm:px-6"
+            className="min-w-0 flex-1"
             onSubmit={() => datMoTimKiem(false)}
           >
             <label htmlFor={`${idTimKiem}-o-nhap`} className="sr-only">
               Tìm kiếm trên cổng thông tin
             </label>
-            <div className="flex h-11 items-center gap-2 rounded-full bg-white pl-3.5 pr-1.5 shadow-xs sm:h-10">
-              <span className="shrink-0 text-surface-textSecondary">
+            <div className="flex h-10 items-center gap-2 rounded-full bg-surface-bgLayout pl-3.5 pr-1.5">
+              {/* Kính lúp dẫn chỉ hiện từ `sm`: ở 320px mỗi 16px đều phải dành cho chỗ gõ. */}
+              <span className="hidden shrink-0 text-surface-textSecondary sm:block">
                 <KinhLup />
               </span>
               <input
@@ -512,14 +502,48 @@ export function PortalNav({ tree }: PortalNavProps) {
               />
               <button
                 type="submit"
-                className="h-8 shrink-0 rounded-full bg-brand-primary px-3.5 text-xs font-bold text-white transition-colors hover:bg-brand-primaryHover sm:h-7 sm:px-3"
+                className="h-7 shrink-0 rounded-full bg-brand-primary px-3 text-xs font-bold text-white transition-colors hover:bg-brand-primaryHover"
               >
                 Tìm
               </button>
             </div>
           </form>
-        </div>
-      ) : null}
+        ) : null}
+
+        {/* ───── Biểu tượng Tìm kiếm — hiện ở MỌI bề rộng, MỌI trạng thái ─────
+            Nó đứng ngoài `lopThanhNgang` có chủ đích: khi thanh ngang rơi về ngăn kéo, ô tìm
+            kiếm KHÔNG được biến mất theo. Đây là lối tìm kiếm duy nhất của cổng kể từ 01/09
+            (dải nhận diện không còn ô nào) — mất nó ở điện thoại là mất hẳn chức năng.
+
+            ⚠ `shrink-0`: nút này là số trừ trong ngân sách bề rộng ở `doLai()`. Để nó co lại
+              thì bề rộng đo được nhỏ hơn bề rộng thật, và phép đo kết luận "vừa" cho một thanh
+              đang tràn.
+            ⛔ KHÔNG bao giờ được gỡ khỏi cây, kể cả khi đang mở tìm kiếm — chỉ đổi biểu tượng.
+               Gỡ thì `timKiemRef.current` về `null`, `?? 0` trong `doLai()` âm thầm mất 44px
+               khỏi phép trừ, và bộ đo kết luận "vừa" cho một thanh đang tràn. Lịch sử của đúng
+               dòng `?? 0` ấy nằm ngay trên. */}
+        <button
+          ref={timKiemRef}
+          type="button"
+          onClick={() => {
+            // Đóng luôn ngăn kéo và menu con: cả hai đều vẽ đè lên hàng nav, và để chúng mở
+            // trong khi ô nhập vừa chiếm chỗ là người dùng gõ vào một ô bị che.
+            datMoTimKiem((cu) => !cu);
+            datMoNganKeo(false);
+            datMoCap1(null);
+          }}
+          aria-expanded={moTimKiem}
+          aria-controls={idTimKiem}
+          aria-label={moTimKiem ? 'Đóng ô tìm kiếm' : 'Tìm kiếm trên cổng thông tin'}
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-md transition-colors duration-200 ease-smooth ${
+            moTimKiem
+              ? 'bg-brand-primaryLight text-brand-primary'
+              : 'text-surface-textSecondary hover:bg-surface-bgLayout hover:text-brand-primary'
+          }`}
+        >
+          {moTimKiem ? <DauX /> : <KinhLup />}
+        </button>
+      </div>
 
       {/* ───── Ngăn kéo — dưới lg ───── */}
       <div

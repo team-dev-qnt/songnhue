@@ -21,6 +21,9 @@ export default tseslint.config(
       '**/out/**',
       '**/coverage/**',
       '**/*.min.js',
+      // Artifact của Playwright — sinh lại mỗi lượt chạy bộ đo, git đã bỏ qua.
+      '**/test-results/**',
+      '**/playwright-report/**',
     ],
   },
 
@@ -155,6 +158,17 @@ export default tseslint.config(
     rules: {
       'no-console': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
+    },
+  },
+
+  // Bộ đo bố cục chạy trên trình duyệt thật (Playwright). `console.log` ở đó KHÔNG phải vết
+  // gỡ lỗi bỏ quên mà là sản phẩm chính: nó in con số đo được ở mỗi bề rộng, để một lượt
+  // kiểm chứng ngược có số đối chiếu chứ không chỉ có xanh/đỏ (luật 10).
+  // ⚠ Phạm vi hẹp đúng thư mục `e2e/` — mã sản phẩm vẫn cấm `console.log` như cũ.
+  {
+    files: ['**/e2e/**/*.{ts,tsx}'],
+    rules: {
+      'no-console': 'off',
     },
   },
 
