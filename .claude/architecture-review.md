@@ -4998,7 +4998,7 @@ Người viết migration kế tiếp sẽ mở `conventions.md` và chép lại
 
 ---
 
-### §10.69 — CVE 9.8 không có bản vá trên dòng đang dùng, và một suppression bị bỏ quên sau lượt nâng cấp (1/9)
+### §10.71 — CVE 9.8 không có bản vá trên dòng đang dùng, và một suppression bị bỏ quên sau lượt nâng cấp (1/9)
 
 Lượt quét theo lịch 1/9 đỏ. Giả thuyết đầu tiên của QuanTran là **khoá NVD hết hạn** — hợp lý, vì
 lượt quét cần khoá và nó vừa xanh hôm qua. Nhưng log nói khác: `NVD_API_KEY: ***` có mặt, lượt quét
@@ -5106,3 +5106,128 @@ bị suppress đúng bộ đã khai và không thừa mục nào.
 cũ được gỡ đi, nếu không ta để lại một tấm chắn không ai nhớ là còn đó. Và **ràng buộc của một tệp
 phải nằm trong một bài kiểm, không nằm trong phần chú thích của chính tệp ấy**: người thêm mục thứ ba
 là người không đọc phần đầu.
+
+---
+
+### §10.72 — Một lượt đề bạt gộp bằng Squash làm gãy gốc chung, và xung đột giả ấy khoá luôn cổng kiểm bắt buộc (1/9)
+
+**Triệu chứng.** CI trên `dev@4543d82` xanh trọn vẹn — 10 job `success`, 1 `skipped`. Mở PR đề bạt
+`dev → staging` (#76): GitHub trả `mergeable = CONFLICTING`, `mergeStateStatus = DIRTY`, **13 tệp
+xung đột**, trong đó có cả `page.tsx`, `PortalNav.tsx`, `PortalCache.java` — những tệp mà lượt đề bạt
+lẽ ra chỉ việc chuyển nguyên qua.
+
+**Và thứ đắt hơn hẳn:** danh sách check của PR #76 có đủ 11 mục của `dev`, nhưng **không có
+`Promotion guard`** — đúng context bắt buộc DUY NHẤT của nhánh `staging`. Nó không đỏ. Nó **không tồn
+tại**. Lượt chạy `promotion-guard.yml` gần nhất là 31/8, không có lượt nào cho #76.
+
+**Nguyên nhân gốc.** PR đề bạt **#72** đã được gộp bằng **Squash and merge**. Đo được:
+
+```
+b4a0ac0  cha=1  feat(fe): tìm kiếm xuống thanh nav… (#70) (#72)   ← squash
+6866f70  cha=2  Merge pull request #68 from team-dev-qnt/dev      ← đúng luồng
+22876c8  cha=2  fix(db): migration đánh số bằng giờ-phút… (#56)
+fe0d5ff  cha=2  Merge pull request #66 from team-dev-qnt/dev
+```
+
+Squash tạo một commit **mới**, một cha, mang đúng nội dung của `dev@2add2bf` nhưng **không nối vào
+lịch sử `dev`**. Về nội dung không mất gì — đo được `git diff --name-only 2add2bf b4a0ac0` = **0 tệp**,
+và `2add2bf` là tổ tiên của `origin/dev`. Về đồ thị thì gốc chung **đứng yên** ở `bbe0b50` (30/8, #67).
+
+Hệ quả dây chuyền:
+
+1. Lượt đề bạt kế tiếp phải áp lại nguyên delta của #70 lên một `staging` **vốn đã có nó**. Ở mọi tệp
+   mà #73/#75 đụng tiếp sau đó, git thấy hai bên cùng sửa một vùng ⇒ **xung đột giả**.
+2. GitHub dựng `refs/pull/N/merge` để chạy workflow `pull_request`. PR đụng độ thì ref ấy **không dựng
+   được**, nên `Promotion guard` không bao giờ được lên lịch và context bắt buộc treo vĩnh viễn ở
+   *"Expected — waiting for status to be reported"*.
+
+📌 Đây là hình dạng §10.63 lặp lại ở một chỗ khác: **một cổng kiểm không chạy không đọc như một cổng
+kiểm đỏ**. Nó đọc như *chưa xong*, và một PR chưa xong thì người ta đợi chứ không điều tra. Cùng họ
+với luật 24 (`skipped` được tính là ĐẠT) — cái nguy hiểm không phải màu đỏ, mà là **sự vắng mặt**.
+
+**⛔⛔ Chuông ĐÃ kêu — đúng lúc, đúng tên, và không ai nghe.** Đây là phần đắt nhất của vụ này.
+
+`deploy-staging.yml` phát hiện được ngay tại thời điểm gây ra lỗi. Dòng 194 của log lượt
+`33452639951`, lúc **31/8 23:54:54** — chưa đầy một phút sau khi #72 được gộp:
+
+```
+##[warning]Không nối được staging với dev qua merge-base — PR nhiều khả năng đã bị squash/rebase.
+⚠ Lần sau chọn 'Create a merge commit' khi merge vào staging.
+```
+
+Gọi đúng nguyên nhân, nói đúng việc phải làm. Nó trôi qua vì **job màu xanh**.
+
+Và lý do nó chỉ còn là một cảnh báo thì nằm ở chính một bản vá tốt: §10.42 cho `deploy-staging.yml`
+giải image theo **cây tệp** thay vì theo `HEAD^2`, nên một lượt đề bạt bị squash **vẫn deploy thành
+công**. Đó là bản vá đúng — lượt deploy không nên chết vì ai bấm nhầm nút. Nhưng nó đã đổi một lần
+**DỪNG HẲN** lấy một dòng `::warning::` trên một lượt chạy xanh, và không ai để ý rằng lần dừng hẳn
+ấy chính là **chuông báo duy nhất** của lỗi này.
+
+📌 **Làm cho một sự cố sống sót được mà không dời chuông sang chỗ khác là gỡ mất chuông.** Cùng họ
+§10.68-A (*cổng quét CVE đỏ hơn một ngày không ai đọc*) nhưng nặng hơn một bậc: lần ấy ít nhất còn có
+màu đỏ. `docs/cicd.md` §9 khi ấy vẫn khẳng định *"làm sai ở vế thứ hai thì hỏng to tiếng"* — câu đó
+đã hết đúng từ ngày §10.42 vào kho, và không ai sửa lại nó vì không ai có lý do quay lại đọc.
+
+**Vì sao không bộ canh nào thấy.** `promotion-guard.yml` kiểm hai điều: nhánh nguồn đúng chặng trước,
+và commit ấy đã xanh CI. Cả hai đều **đúng** ở đây. Không câu nào hỏi *"hai nhánh còn chung gốc
+không"* — và nó không thể hỏi, vì bản thân nó đã không được chạy. Bộ canh chỉ chặn được ở lượt đề bạt
+**kế tiếp**, không chặn được nút Squash: GitHub **không có** tuỳ chọn tắt squash cho riêng một nhánh.
+
+**Bản vá.**
+
+1. **Nối lại gốc chung, không đổi một byte** — `git merge -s ours origin/staging` trên một nhánh cắt từ
+   `dev`. Giữ nguyên cây của `dev` (đo: hash cây trước = sau = `251fb445`, `git diff` 0 tệp), chỉ ghi
+   lại quan hệ cha. An toàn *vì đã đo* rằng `staging` không có nội dung nào `dev` chưa có — không phải
+   vì tin là thế.
+2. **`.github/scripts/kiem-goc-chung.sh`** — bất biến đo được: nhánh đích không được có commit
+   **không-phải-merge** nào mà nhánh nguồn không có. Đo 1/9 trước vá: **1**. Sau vá: **0**.
+3. **Nối vào `promotion-guard.yml`** kèm `fetch-depth: 0` — clone nông làm `git rev-list A..B` trả rỗng,
+   và rỗng trông y hệt *sạch* (luật 7). Script tự in số đếm được trước khi kết luận nên một lượt clone
+   nông lộ ra ở dòng `hơn … 0 commit`.
+4. **`PromotionAncestryTest` 6 bài** — dựng kho git thật trong `@TempDir`, tái hiện squash ⇒ đỏ, merge
+   commit ⇒ xanh, `merge -s ours` ⇒ xanh và cây không đổi. Luật 9: nếu chỉ có bài "squash phải đỏ" thì
+   một script `exit 1` vô điều kiện cũng qua.
+
+**Kiểm chứng ngược, có số đo trước mỗi lượt** (luật 10 — bản hỏng phải được nạp *và* bộ canh phải nhìn
+thấy nó):
+
+| Đột biến | Số đo bản hỏng | Kết quả |
+|---|---|---|
+| `if [ "$so_rieng" -eq 0 ]` → `if true` | `grep -c 'if true; then'` = 1 | ĐỎ đích danh `squashLamGayGocChungThiPhaiDo` |
+| gỡ `fetch-depth: 0` | `grep -c 'fetch-depth: 0'` = 0 | ĐỎ đích danh `phaiCheckoutDuLichSu` |
+| khôi phục cả hai | `grep -c` về 1 và 1 | 6/6 xanh |
+
+**Nợ để lại, ghi thẳng vì bộ canh hẹp hơn nơi nó phải chặn (luật 28).** Bộ canh này chặn ở lượt kế
+tiếp. Thứ chặn được tận gốc là **cách gộp**: PR đề bạt phải dùng *Create a merge commit*, squash chỉ
+dành cho PR tính năng vào `dev`. Điều đó hiện chỉ nằm trong tài liệu và trong thông báo lỗi của script
+— không có cơ chế kỹ thuật nào cưỡng chế được nó ở tầng GitHub.
+
+**⛔⛔ Và cách chữa hiển nhiên nhất KHÔNG chạy được — đo ra ở bước cuối.** Bản đầu của bộ canh in
+hướng dẫn: *"`git merge -s ours origin/staging` rồi mở PR vào `dev`, gộp bằng merge commit"*. Tôi đã
+dựng đúng commit ấy — cây trước = sau = `251fb445`, 0 tệp đổi — rồi mới đọc `branches/dev/protection`:
+
+```
+required_linear_history : true     ← dev KHÔNG nhận merge commit
+required_status_checks  : ["Cổng kiểm CI"]
+```
+
+Squash và rebase đều **xoá đúng cái quan hệ cha** cần dựng, nên PR ấy về nguyên tắc không gộp được
+theo cách có ích. Một hướng dẫn sai trong thông báo lỗi tệ hơn không có hướng dẫn: nó gửi người đọc
+đi làm một việc bất khả rồi kết luận là bộ canh hỏng. Script nay in đúng hai lối còn lại, cả hai đều
+cần quyền quản trị kho, kèm lệnh cụ thể và một phép so **hash cây** để dừng lại nếu lệch:
+
+| | [A] tạm tắt `required_linear_history` | [B] admin gộp thẳng trên `staging` |
+|---|---|---|
+| Đổi cài đặt | có — hoàn nguyên được | không |
+| Qua `Promotion guard` | **có** | không (kho đặt `enforce_admins: false` nên admin đi qua được) |
+| Viết lại lịch sử | không | không |
+| Đổi nội dung | không | không |
+
+📌 Bài học lặp lại lần thứ ba trong dự án: **một quy trình chỉ đúng khi đã đối chiếu với cấu hình
+đang chạy, không phải với cấu hình mình nhớ.** Cùng họ §10.57 (cổng secret bỏ qua trong im lặng) và
+luật 3 (canh giá trị ĐÃ GIẢI, đừng canh giá trị mặc định).
+
+📌 **Một lỗi đánh số phát hiện cùng lượt**: `architecture-review.md` có **hai** mục cùng mang số
+`§10.69` (trần 1MB 30/8 và CVE spring 1/9), và `T11.61` trỏ vào số ấy — tức trỏ nhầm mục. Đã đổi mục
+CVE thành **§10.71** và sửa con trỏ. Cùng họ với §10.66: một dãy số **trông như** tự tăng thì rất dễ
+viết trùng, và chỗ trùng chỉ lộ ra khi có người lần theo con trỏ.

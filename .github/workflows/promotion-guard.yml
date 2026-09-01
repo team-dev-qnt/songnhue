@@ -110,3 +110,19 @@ jobs:
           done <<< "$runs"
           [ "$loi" -eq 0 ] || exit 1
           echo "✓ Commit $SHA không có phép kiểm nào hỏng ở chặng trước"
+
+      # ⚠ Cần lịch sử ĐẦY ĐỦ. Bản clone nông làm `git rev-list A..B` trả về rỗng,
+      #   và rỗng thì trông y hệt "sạch" — đúng hình dạng luật 7 (phép kiểm chạy
+      #   qua tập rỗng vẫn xanh trọn vẹn). Script tự in con số đếm được trước khi
+      #   kết luận, nên một lượt clone nông sẽ lộ ra ở dòng "hơn … 0 commit".
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Nhánh đích không được có commit riêng
+        env:
+          BASE: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          git fetch --quiet origin "$BASE" "$HEAD_REF"
+          bash .github/scripts/kiem-goc-chung.sh "origin/$HEAD_REF" "origin/$BASE"
