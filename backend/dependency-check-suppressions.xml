@@ -66,37 +66,66 @@
         <cve>CVE-2026-53914</cve>
     </suppress>
 
+
     <!--
-      CVE-2026-66299 — tomcat-embed-core 10.1.57 — 7.5.
+      CVE-2026-59313 — spring-core / spring-web 6.2.19 — 9.8.
 
-      Thẩm định 18/8/2026:
+      Thẩm định 1/9/2026:
 
-      • Lỗ hổng nằm ở **ứng dụng ví dụ WebSocket chat** đi kèm bản phân phối
-        Tomcat đầy đủ ("Uncontrolled Resource Consumption vulnerability in
-        Apache Tomcat's WebSocket chat example"). Chính advisory viết: *"Users
-        who have followed the security guidance to remove the examples web
-        application are not affected."*
+      • Nội dung thật của lỗ hổng: *"Spring MVC applications using the
+        **functional web framework** are vulnerable to stream corruption when
+        using **Server-Sent Events (SSE)**."* Hai điều kiện, phải có CẢ HAI.
 
-      • Spring Boot nhúng **`tomcat-embed-core`** — chỉ phần lõi servlet
-        container. Bộ `webapps/examples` không có trong artifact này và không
-        bao giờ được triển khai. Đường tấn công không tồn tại trong hệ.
+      • Dự án này **không có điều kiện nào**. Đếm trên toàn `backend/` (grep chạy
+        dưới `bash`, có đối chứng phải-tìm-thấy để chắc phép đo không hỏng):
 
-      • Không phải "chưa có bản vá cho tiện": bản vá là **10.1.58**, và tới
-        18/8/2026 Maven Central mới có tới **10.1.57** (đã kiểm
-        `maven-metadata.xml`). Ta đã ở bản mới nhất hiện có của dòng 10.1.x.
+            ĐỐI CHỨNG   @RestController          37 tệp
+                        @GetMapping              33 tệp
+            ĐIỀU KIỆN   RouterFunction(s)         0 tệp
+                        HandlerFunction           0 tệp
+                        SseEmitter                0 tệp
+                        ServerSentEvent           0 tệp
+                        TEXT_EVENT_STREAM         0 tệp
+                        text/event-stream         0 tệp
+                        reactor.core / webflux    0 tệp
 
-      • Hết hạn 30/11/2026. Xem lại khi 10.1.58 lên Central — lúc đó **xoá mục
-        này và nâng phiên bản**, đừng gia hạn.
+        `StreamingResponseBody` khớp đúng **1** tệp và nó nằm trong một dòng CHÚ
+        THÍCH của `ResponseEnvelopeAdvice`, không phải mã chạy. Toàn bộ tầng web
+        là Spring MVC theo annotation, `spring-boot-starter-web`, không WebFlux.
+
+      • **Không phải "chưa có bản vá cho tiện"** — đã tra `maven-metadata.xml`
+        (luật 21), và đây là chỗ đáng chú ý: advisory dùng `versionEndIncluding`,
+        tức 6.2.19 DÍNH và bản vá là bản kế tiếp. Đo ngày 1/9:
+
+            dòng    dính tới <=   Central cao nhất   →
+            5.3.x   5.3.49        5.3.39             chưa có bản vá công khai
+            6.0.x   6.0.30        6.0.23             chưa có bản vá công khai
+            6.1.x   6.1.28        6.1.21             chưa có bản vá công khai
+            6.2.x   6.2.19        6.2.19             chưa có bản vá công khai
+            7.0.x   7.0.8         7.0.9              ĐÃ CÓ
+
+        `spring-core 6.2.20` trả **HTTP 404** trên Central. Đường duy nhất tới
+        bản đã sửa là **Spring Framework 7**, kéo theo **Spring Boot 4** — một
+        cuộc di trú lớn mà `pom.xml` đã cố ý tách thành hạng mục riêng, không gộp
+        vào một lượt vá bảo mật.
+
+      • **Hết hạn 15/10/2026 — cố ý NGẮN.** 6.2.20 nhiều khả năng ra trong vài
+        tuần; hết hạn thì phép quét tự đỏ lại và buộc nhìn lại. Xem lại khi
+        6.2.20 lên Central — lúc đó **xoá mục này và nâng phiên bản**, đừng gia
+        hạn. Và nếu dự án bắt đầu dùng functional web framework hoặc SSE thì lý
+        do bên trên **hết đúng** ngay lập tức.
     -->
-    <suppress until="2026-11-30Z">
+    <suppress until="2026-10-15Z">
         <notes><![CDATA[
-            Lỗ hổng ở ứng dụng ví dụ WebSocket chat của bản phân phối Tomcat đầy đủ.
-            Spring Boot chỉ nhúng tomcat-embed-core, không kèm webapps/examples nên
-            không dính. Bản vá 10.1.58 chưa lên Maven Central (mới tới 10.1.57).
-            Thẩm định 18/8/2026.
+            Lỗ hổng đòi CẢ HAI điều kiện: functional web framework (RouterFunction)
+            VÀ Server-Sent Events. Dự án đo được 0 tệp cho cả hai, toàn bộ tầng web
+            là Spring MVC theo annotation (37 @RestController). Bản vá cho dòng
+            6.2.x chưa có trên Maven Central (6.2.20 trả 404); đường duy nhất là
+            Spring Framework 7 + Boot 4, tách thành hạng mục riêng. Thẩm định
+            1/9/2026.
         ]]></notes>
-        <packageUrl regex="true">^pkg:maven/org\.apache\.tomcat\.embed/tomcat-embed-.*$</packageUrl>
-        <cve>CVE-2026-66299</cve>
+        <packageUrl regex="true">^pkg:maven/org\.springframework/spring-(core|web)@.*$</packageUrl>
+        <cve>CVE-2026-59313</cve>
     </suppress>
 
 </suppressions>
