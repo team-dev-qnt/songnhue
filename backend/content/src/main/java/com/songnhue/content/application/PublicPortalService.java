@@ -344,6 +344,11 @@ public class PublicPortalService {
                 article.getViewCount(),
                 article.getSource(),
                 com.songnhue.content.domain.ArticleState.LUU_TRU.equals(article.getStatus()),
+                // ⚠ Lấy từ BẢN ĐÃ DUYỆT (`version`), không từ `article`: hai cột này là nội dung,
+                //   nên chúng đi cùng đường với title/summary/content. Đọc từ `article` là để bản
+                //   biên tập viên đang sửa dở lọt lên cổng — xem javadoc `Article`.
+                version.getDocNumber(),
+                version.getDocIssuedDate(),
                 danhMuc));
     }
 

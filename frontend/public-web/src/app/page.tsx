@@ -67,11 +67,27 @@ import { docBool, docSo } from '@/lib/settings';
  *   <li><b>Hàng chuyên mục con</b> dưới slider — xem {@link HomeCategoryNews}.
  * </ol>
  *
- * <h2>⛔ `site.home.blocks` đã thôi được dùng làm công tắc bật/tắt khối</h2>
+ * <h2>⛔ `site.home.blocks` đã thôi được dùng làm công tắc bật/tắt khối — và luật ấy vẫn đứng</h2>
  *
  * Bố cục trang chủ <b>là</b> cây nội dung Công ty đã duyệt; muốn bớt một khối thì bỏ mục tương
- * ứng khỏi menu, và card ở khối Chuyên mục biến mất theo — cùng một nguồn. Hàng chuyên mục mới
- * đi đúng luật ấy: nó dựng từ các mục con của nhánh menu {@code site.home.news-category}.
+ * ứng khỏi menu, và card ở khối Chuyên mục biến mất theo — cùng một nguồn. Hàng chuyên mục đi
+ * đúng luật ấy: nó dựng từ các mục con của nhánh menu {@code site.home.news-category}.
+ * {@code SiteLayoutTest} và {@code PortalSettingsReadTest} vẫn canh cho khoá cũ không sống lại.
+ *
+ * <h2>⚠ 01/09/2026 — MỘT ngoại lệ có tên: `site.home.show-dieu-hanh`</h2>
+ *
+ * Luật trên chỉ áp được cho khối <b>có một mục menu để gỡ</b>. Nhóm 2 không có: "Mực nước, lượng
+ * mưa" và "Vận hành công trình" trên trang chủ là hai khối <i>tóm tắt</i>, còn mục menu tương ứng
+ * trỏ sang hai TRANG riêng dưới nhánh {@code /quan-ly-van-hanh}. Gỡ mục menu ấy là gỡ mất cả hai
+ * trang chi tiết — tức cái nút duy nhất có sẵn làm nhiều hơn hẳn thứ QuanTran yêu cầu (01/09:
+ * <i>"tôi muốn admin có thêm tính năng bật / tắt hiển thị ở trên public-web"</i>).
+ *
+ * <p>Nên đây là một công tắc <b>trình bày</b>, cùng họ với {@code site.slider.*}: nó chỉnh cách
+ * một khối hiện ra, không chỉnh việc khối ấy có thuộc cây nội dung hay không. Ranh giới ấy là thứ
+ * giữ cho ngoại lệ này không lớn dần trở lại thành {@code site.home.blocks}.
+ *
+ * <p>⛔ MỘT công tắc cho cả nhóm, không phải hai. Tách riêng Mực nước / Vận hành là dựng thêm một
+ * cột không ai yêu cầu — quy tắc 15 tính đó là một lỗi, không phải một tính năng để dành.
  */
 export const revalidate = 300;
 
@@ -112,6 +128,11 @@ export default async function HomePage() {
   const danhMucVanBan = config?.['site.home.documents-category'] ?? 'cong-bo-thong-tin';
   const danhMucTin = config?.['site.home.news-category'] ?? '';
   const soBaiChuyenMuc = docSo(config?.['site.home.category-news-count'], 4);
+  // Công tắc Nhóm 2 — xem javadoc đầu tệp để biết vì sao khối này được có một công tắc trong khi
+  // chính sách chung là "bố cục trang chủ LÀ cây menu". Mặc định BẬT: một bản vá thêm công tắc
+  // không được đổi thứ người dùng đang nhìn thấy.
+  const hienDieuHanh = docBool(config?.['site.home.show-dieu-hanh'], true);
+  const hienNhanLienKet = docBool(config?.['site.home.lien-ket.show-label'], true);
 
   // Nhãn và danh sách chuyên mục con đều lấy từ MENU — không có chuỗi 'tin-tuc' hay
   // "Tin tức – Sự kiện" nào viết trong tệp này nữa.
@@ -219,15 +240,22 @@ export default async function HomePage() {
       <HomeCategoryNews blocks={baiTheoChuyenMuc} />
 
       {/* ═════════ NHÓM 2 · ĐIỀU HÀNH & SỐ LIỆU ═════════ */}
-      <GroupLabel>Điều hành &amp; số liệu công trình</GroupLabel>
-      <div className="mt-5 space-y-6">
-        <WaterLevelBlock hotline={hotline} refreshSeconds={nhipLamMoi} updatedAt={serverTime} />
-        <OperationsBlock
-          refreshSeconds={nhipLamMoi}
-          updatedAt={serverTime}
-          rows={tinhHinhVanHanh ?? []}
-        />
-      </div>
+      {/* ⚠ Công tắc bọc CẢ nhãn nhóm lẫn hai khối. Tắt mà còn trơ một dải nhãn "Điều hành & số
+          liệu công trình" không có gì bên dưới là nửa vòng đọc–ghi ở dạng nhìn thấy được: quản
+          trị viên tắt khối, cổng vẫn tuyên bố có khối ấy. */}
+      {hienDieuHanh ? (
+        <>
+          <GroupLabel>Điều hành &amp; số liệu công trình</GroupLabel>
+          <div className="mt-5 space-y-6">
+            <WaterLevelBlock hotline={hotline} refreshSeconds={nhipLamMoi} updatedAt={serverTime} />
+            <OperationsBlock
+              refreshSeconds={nhipLamMoi}
+              updatedAt={serverTime}
+              rows={tinhHinhVanHanh ?? []}
+            />
+          </div>
+        </>
+      ) : null}
       {/* ⛔ BẢN ĐỒ HỆ THỐNG CÔNG TRÌNH ĐÃ RỜI TRANG CHỦ (yêu cầu QuanTran 01/09).
 
           Nó nay nằm ở `/quan-ly-van-hanh/danh-muc-cong-trinh`, cùng trang với danh sách công
@@ -264,7 +292,11 @@ export default async function HomePage() {
 
       {/* ═════════ NHÓM 4 · TỔ CHỨC & ĐƠN VỊ ═════════ */}
       <GroupLabel>Tổ chức &amp; đơn vị trực thuộc</GroupLabel>
-      <AffiliatedUnitsLinks subsidiaries={subsidiaries ?? []} portalLinks={portalLinks ?? []} />
+      <AffiliatedUnitsLinks
+        subsidiaries={subsidiaries ?? []}
+        portalLinks={portalLinks ?? []}
+        hienNhan={hienNhanLienKet}
+      />
 
       {/* ═════════ NHÓM 5 · TRUYỀN THÔNG ═════════ */}
       <GroupLabel>Truyền thông &amp; chuyên mục</GroupLabel>

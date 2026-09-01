@@ -1,6 +1,7 @@
 package com.songnhue.content.api;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -39,6 +40,8 @@ public final class ArticleDtos {
             @Size(max = 70) String metaTitle,
             @Size(max = 160) String metaDescription,
             @Size(max = 500) String metaKeywords,
+            @Size(max = 100) String docNumber,
+            LocalDate docIssuedDate,
             @NotEmpty Set<UUID> categoryPublicIds) {}
 
     /** Yêu cầu chuyển trạng thái. {@code reason} bắt buộc khi trả bài về — kiểm ở controller. */
@@ -87,6 +90,8 @@ public final class ArticleDtos {
             String metaTitle,
             String metaDescription,
             String metaKeywords,
+            String docNumber,
+            LocalDate docIssuedDate,
             Long viewCount,
             boolean publiclyVisible,
             Set<UUID> categoryPublicIds,
@@ -107,6 +112,8 @@ public final class ArticleDtos {
                     a.getMetaTitle(),
                     a.getMetaDescription(),
                     a.getMetaKeywords(),
+                    a.getDocNumber(),
+                    a.getDocIssuedDate(),
                     a.getViewCount(),
                     a.isPubliclyVisible(now),
                     a.getCategories().stream().map(Category::getPublicId).collect(java.util.stream.Collectors.toSet()),

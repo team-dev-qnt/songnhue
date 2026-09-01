@@ -1,4 +1,4 @@
-import type { MenuLink } from './api';
+import type { CategoryNode, MenuLink } from './api';
 
 /** Một ô chuyên mục ở hàng dưới slider: nhãn lấy từ MENU, bài lấy theo `slug`. */
 export interface KhoiChuyenMuc {
@@ -73,4 +73,51 @@ export function nhanNhanhTin(
     (n) => n.item.linkType === 'CATEGORY' && n.item.categorySlug === slugCha,
   );
   return cha ? cha.item.label : null;
+}
+
+/**
+ * `slug` có nằm trong nhánh `slugGoc` không — chính nó, con nó, hay cháu nó.
+ *
+ * <h2>Dùng để làm gì</h2>
+ *
+ * Trang `/danh-muc/[slug]` phải biết mình đang ở nhánh VĂN BẢN hay nhánh tin tức, vì hai nhánh
+ * trình bày khác nhau: văn bản là một **bảng năm cột** (số ký hiệu · trích yếu · nút xem · ngày
+ * ban hành · thời gian đăng tải), tin tức là danh sách bài có ảnh. Nhánh gốc đến từ
+ * `site.home.documents-category` — một khoá `settings`, không phải một chuỗi viết cứng.
+ *
+ * <h2>⭐ Vì sao leo cây `categories` chứ không hỏi thêm API</h2>
+ *
+ * Trang ấy **đã** lấy `getCategories()` để dựng tên chuyên mục. Gọi thêm `getMenu('HEADER')` chỉ
+ * để trả lời một câu hỏi phân cấp là thêm một lượt chờ vào đường tới hạn của mọi lượt tải
+ * (NFR-02) — trong khi `CategoryNode.parentSlug` đã mang đúng thông tin ấy.
+ *
+ * <h2>⚠⚠ Vòng lặp phải CHẶN ĐƯỢC, không phải "sẽ không xảy ra"</h2>
+ *
+ * `parentSlug` là dữ liệu, và dữ liệu hỏng thì tạo được chu trình A→B→A. Một `while` leo tới khi
+ * gặp `null` sẽ **treo tiến trình dựng trang** — trên máy chủ Next đó là một lượt tải không bao
+ * giờ trả lời, không phải một lỗi có thông báo. Nên số bước leo bị chặn bằng độ dài mảng: một cây
+ * đúng không thể sâu hơn số nút của nó.
+ *
+ * @param categories toàn bộ danh mục đang hiện (`getCategories()`)
+ * @param slug danh mục đang mở
+ * @param slugGoc nhánh gốc cần đối chiếu — rỗng thì luôn trả `false`, KHÔNG khớp mọi thứ
+ */
+export function laNhanhCua(categories: CategoryNode[], slug: string, slugGoc: string): boolean {
+  // ⛔ Rỗng ⇒ `false`. Coi chuỗi rỗng là "khớp tất cả" thì một khoá `settings` chưa đặt sẽ biến
+  //    MỌI trang danh mục thành bảng văn bản — hỏng theo hướng ồn ào nhất.
+  if (!slug || !slugGoc) {
+    return false;
+  }
+  if (slug === slugGoc) {
+    return true;
+  }
+  const theoSlug = new Map(categories.map((c) => [c.slug, c]));
+  let hienTai = theoSlug.get(slug);
+  for (let buoc = 0; buoc < categories.length && hienTai; buoc += 1) {
+    if (hienTai.parentSlug === slugGoc) {
+      return true;
+    }
+    hienTai = hienTai.parentSlug ? theoSlug.get(hienTai.parentSlug) : undefined;
+  }
+  return false;
 }

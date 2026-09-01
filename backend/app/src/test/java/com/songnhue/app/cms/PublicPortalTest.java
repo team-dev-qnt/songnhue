@@ -170,6 +170,8 @@ class PublicPortalTest extends IntegrationTestBase {
                 null,
                 null,
                 null,
+                null,
+                null,
                 Set.of(danhMuc)));
         articles.execute(danLai.getPublicId(), "SUBMIT", null);
         articles.execute(danLai.getPublicId(), "APPROVE", null);
@@ -209,6 +211,8 @@ class PublicPortalTest extends IntegrationTestBase {
                 null,
                 null,
                 Instant.now().plus(2, ChronoUnit.HOURS),
+                null,
+                null,
                 null,
                 null,
                 null,
@@ -446,7 +450,8 @@ class PublicPortalTest extends IntegrationTestBase {
     }
 
     private ArticleDraft banThao(String tieuDe, String noiDung, String slug) {
-        return new ArticleDraft(tieuDe, slug, null, noiDung, null, null, null, null, null, null, null, Set.of(danhMuc));
+        return new ArticleDraft(
+                tieuDe, slug, null, noiDung, null, null, null, null, null, null, null, null, null, Set.of(danhMuc));
     }
 
     private static byte[] anhPng(int rong, int cao) {

@@ -1,6 +1,7 @@
 package com.songnhue.content.application;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -16,6 +17,10 @@ import java.util.UUID;
  *     tới 31/08/2026 chân mỗi bài trên cổng in cứng <i>"Nguồn: Cổng TTĐT Thủy lợi Sông Nhuệ"</i> cho
  *     MỌI bài, kể cả năm bài mang URL báo ngoài trong CSDL — một câu sai sự thật, không phải một
  *     nhãn mặc định (nợ T26.63). Rỗng thì nơi hiển thị <b>bỏ hẳn dòng</b>
+ * @param docNumber số ký hiệu văn bản, {@code null} với tin bài thường
+ * @param docIssuedDate ngày ký ban hành — <b>khác</b> {@code publishedAt} (thời gian đăng lên cổng),
+ *     và không cột nào được suy ra từ cột kia. ⛔ Rỗng thì nơi hiển thị để TRỐNG, không dựng dấu
+ *     gạch giả làm một giá trị (quy tắc 16)
  */
 public record PublicArticleDetail(
         String slug,
@@ -30,6 +35,8 @@ public record PublicArticleDetail(
         long viewCount,
         String source,
         boolean archived,
+        String docNumber,
+        LocalDate docIssuedDate,
         List<CategoryRef> categories) {
 
     public record CategoryRef(String slug, String name) {}

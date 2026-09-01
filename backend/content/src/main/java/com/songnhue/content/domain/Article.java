@@ -1,6 +1,7 @@
 package com.songnhue.content.domain;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -72,6 +73,37 @@ public class Article extends BaseEntity implements WorkflowAware {
 
     @Column(name = "source", length = 255)
     private String source;
+
+    /**
+     * Số ký hiệu văn bản — ví dụ {@code 43/2015/NĐ-CP}. {@code null} với tin bài thường.
+     *
+     * <p>Cổng không có thực thể "văn bản": một văn bản <b>là</b> một bài viết thuộc nhánh
+     * {@code cong-bo-thong-tin} (CR-07 — cổng KHÔNG dựng mô-đun văn bản nội bộ và KHÔNG đồng bộ từ
+     * hệ thống văn bản điều hành của Thành phố, CN-01.7). Hai cột này là <b>ô để biên tập viên
+     * nhập</b>, thêm 01/09/2026 để dựng được bảng danh sách năm cột của cổng tham chiếu.
+     *
+     * <p>⛔ Để trống ⇒ ô tương ứng trên cổng <b>để trống</b>. Không dựng dấu gạch giả làm một giá
+     * trị, và không có bộ dữ liệu dự phòng: bản trang chủ 29/08 từng có bốn văn bản viết cứng kèm
+     * số hiệu và người ký — tất cả bịa, và chúng đã lên staging (§10.54, quy tắc 16).
+     */
+    @Column(name = "doc_number", length = 100)
+    private String docNumber;
+
+    /**
+     * Ngày ký ban hành văn bản. {@code null} với tin bài thường.
+     *
+     * <p>⭐ {@link LocalDate} chứ không {@link Instant}, và đó không phải một sự tuỳ tiện với quy
+     * tắc 1 của dự án: quy tắc ấy nói về <b>timestamp</b> — mốc thời gian do hệ thống ghi. Ngày ban
+     * hành là một NGÀY in trên tờ giấy: không có giờ, không có múi giờ, không có "thời điểm" nào để
+     * quy về UTC. Ép nó thành {@code timestamptz} là bịa ra một giờ 00:00 rồi để nó lệch đúng một
+     * ngày ở biên UTC+7.
+     *
+     * <p>⚠ KHÁC {@link #publishedAt} — đó mới là mốc thật (bài lên cổng lúc nào), và nó vẫn là
+     * {@code timestamptz}. Hai cột hiện ở hai ô khác nhau của bảng danh sách; <b>không cột nào
+     * được suy ra từ cột kia</b>.
+     */
+    @Column(name = "doc_issued_date")
+    private LocalDate docIssuedDate;
 
     @Column(name = "status", nullable = false, length = 50)
     private String status = ArticleState.NHAP;
@@ -243,6 +275,23 @@ public class Article extends BaseEntity implements WorkflowAware {
 
     public void setSource(String source) {
         this.source = source;
+    }
+
+    public String getDocNumber() {
+        return docNumber;
+    }
+
+    /** Chuỗi rỗng quy về {@code null}: một ô để trống và một ô chứa khoảng trắng là cùng một ý. */
+    public void setDocNumber(String docNumber) {
+        this.docNumber = docNumber == null || docNumber.isBlank() ? null : docNumber.trim();
+    }
+
+    public LocalDate getDocIssuedDate() {
+        return docIssuedDate;
+    }
+
+    public void setDocIssuedDate(LocalDate docIssuedDate) {
+        this.docIssuedDate = docIssuedDate;
     }
 
     public String getStatus() {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import type { MenuLink } from '@/lib/api';
-import { chonKhoiChuyenMuc, nhanNhanhTin } from '@/lib/homeCategories';
+import type { CategoryNode, MenuLink } from '@/lib/api';
+import { chonKhoiChuyenMuc, laNhanhCua, nhanNhanhTin } from '@/lib/homeCategories';
 import { buildMenuTree } from '@/lib/routes';
 
 function muc(partial: Partial<MenuLink>): MenuLink {
@@ -130,5 +130,68 @@ describe('nhanNhanhTin — tiêu đề cột tin cạnh slider', () => {
   it('⛔ không có mục menu ⇒ null, nơi gọi bỏ khối thay vì viết cứng một tiêu đề', () => {
     expect(nhanNhanhTin(cayThat(), 'khong-ton-tai')).toBeNull();
     expect(nhanNhanhTin(cayThat(), '')).toBeNull();
+  });
+});
+
+/**
+ * `laNhanhCua` — trang `/danh-muc/[slug]` dùng nó để chọn giữa BẢNG văn bản và danh sách tin.
+ *
+ * ⚠ Bài quan trọng nhất ở đây không phải "trả đúng true/false" mà là **cây có vòng phải dừng**:
+ * `parentSlug` là dữ liệu, và một chu trình A→B→A biến một `while` leo-tới-null thành một lượt
+ * dựng trang không bao giờ trả lời. Trên máy chủ Next đó là một tab quay mãi, không phải một lỗi
+ * có thông báo — nên nó phải được kiểm, chứ không phải được tin là "sẽ không xảy ra".
+ */
+describe('laNhanhCua', () => {
+  const cay: CategoryNode[] = [
+    { slug: 'cong-bo-thong-tin', name: 'Công bố thông tin', description: null, parentSlug: null },
+    {
+      slug: 'van-ban-phap-luat',
+      name: 'Văn bản pháp luật',
+      description: null,
+      parentSlug: 'cong-bo-thong-tin',
+    },
+    {
+      slug: 'quyet-dinh-2026',
+      name: 'Quyết định 2026',
+      description: null,
+      parentSlug: 'van-ban-phap-luat',
+    },
+    { slug: 'tin-tuc', name: 'Tin tức', description: null, parentSlug: null },
+  ] as CategoryNode[];
+
+  it('chính nó ⇒ true', () => {
+    expect(laNhanhCua(cay, 'cong-bo-thong-tin', 'cong-bo-thong-tin')).toBe(true);
+  });
+
+  it('con trực tiếp ⇒ true', () => {
+    expect(laNhanhCua(cay, 'van-ban-phap-luat', 'cong-bo-thong-tin')).toBe(true);
+  });
+
+  it('⭐ CHÁU cũng phải true — hàng nhánh con của trang chủ dẫn tới cấp 3 (CR-31/CR-32)', () => {
+    expect(laNhanhCua(cay, 'quyet-dinh-2026', 'cong-bo-thong-tin')).toBe(true);
+  });
+
+  it('nhánh khác ⇒ false', () => {
+    expect(laNhanhCua(cay, 'tin-tuc', 'cong-bo-thong-tin')).toBe(false);
+  });
+
+  it('slug không có trong cây ⇒ false, không nổ', () => {
+    expect(laNhanhCua(cay, 'khong-ton-tai', 'cong-bo-thong-tin')).toBe(false);
+  });
+
+  it('⛔ gốc RỖNG ⇒ false — chuỗi rỗng KHÔNG được khớp mọi thứ', () => {
+    // Một khoá `settings` chưa đặt mà khớp tất cả sẽ biến MỌI trang danh mục thành bảng văn bản.
+    expect(laNhanhCua(cay, 'tin-tuc', '')).toBe(false);
+    expect(laNhanhCua(cay, '', 'cong-bo-thong-tin')).toBe(false);
+  });
+
+  it('⭐⭐ cây có VÒNG thì dừng, không treo tiến trình dựng trang', () => {
+    const cayVong: CategoryNode[] = [
+      { slug: 'a', name: 'A', description: null, parentSlug: 'b' },
+      { slug: 'b', name: 'B', description: null, parentSlug: 'a' },
+    ] as CategoryNode[];
+    // Nếu hàm treo thì bài kiểm này không "đỏ" — nó chạy mãi và cả bộ test hết giờ. Đó chính là
+    // lý do phải chặn số bước leo bằng độ dài mảng thay vì tin vào `null` ở đâu đó.
+    expect(laNhanhCua(cayVong, 'a', 'cong-bo-thong-tin')).toBe(false);
   });
 });

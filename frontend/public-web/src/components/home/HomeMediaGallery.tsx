@@ -84,12 +84,33 @@ export function HomeMediaGallery({
       <section className="mt-5">
         <SectionTitle>Video giới thiệu</SectionTitle>
 
+        {/* ⭐⭐ 01/09 (đợt hai) — HAI CỘT CHIA ĐÔI, và đó là điều kiện để hai khung trùng khít.
+
+            Bản trước chia 7/12 và 5/12 rồi đặt CÙNG `aspect-[16/9]` cho cả hai, kèm chú thích
+            *"hai khối cùng tỉ lệ thì mép trên của ảnh và của video thẳng hàng"*. Mép TRÊN thì
+            đúng — nhưng chính vì cùng tỉ lệ mà mép DƯỚI **buộc phải** lệch: hai bề rộng khác
+            nhau nhân cùng một tỉ lệ ra hai chiều cao khác nhau. Đo trên trình duyệt 01/09:
+
+              ≥1280   video 673,7×378,9  ·  ảnh 472,3×265,7  ⇒ đáy ảnh cao hơn đáy video 113,2px
+              1024    video 552,3×310,7  ·  ảnh 385,7×216,9  ⇒                            94,8px
+
+            Chia đôi thì bề rộng bằng nhau ⇒ cùng tỉ lệ cho cùng chiều cao, ở MỌI bề rộng, vì cả
+            hai suy ra từ đúng một công thức track. Không có hằng số nào phải canh lại.
+
+            ⛔ KHÔNG ghim chiều cao bằng `lg:absolute lg:inset-0` như Nhóm 1. Ở Nhóm 1 cột phải
+               là một danh sách CUỘN ĐƯỢC nên nhận chiều cao xác định là đúng việc nó cần. Ở đây
+               cột phải là ẢNH CÓ TỈ LỆ; ghim chiều cao là trả `flex-1` về khung ảnh và dựng lại
+               đúng lỗi "tỉ lệ là tai nạn của cột bên cạnh" mà PR #73 vừa gỡ.
+               `khungAnhTiLe.test.ts` sẽ đỏ, và nó đỏ đúng. */}
         <div className="mt-5 grid grid-cols-1 items-stretch gap-6 lg:grid-cols-12 lg:gap-9">
-          {/* CỘT TRÁI (7/12): VIDEO */}
-          <div className="flex flex-col lg:col-span-7">
+          {/* CỘT TRÁI (6/12): VIDEO */}
+          <div className="flex flex-col lg:col-span-6">
             {videoId ? (
               <div className="group relative overflow-hidden rounded-lg border border-surface-border bg-black shadow-xs">
-                <div className="aspect-[16/9] w-full">
+                {/* `data-khung-video`: mốc neo cho bộ đo bố cục. Nó là ĐỐI TƯỢNG SO SÁNH của
+                    khung ảnh bên cạnh — hai khung phải trùng khít, và điều đó chỉ kiểm được
+                    bằng hộp thật ở trình duyệt, không bằng chuỗi lớp. */}
+                <div data-khung-video className="aspect-[16/9] w-full">
                   <iframe
                     src={`https://www.youtube-nocookie.com/embed/${videoId}?rel=0`}
                     title={videoTitle}
@@ -113,8 +134,8 @@ export function HomeMediaGallery({
             ) : null}
           </div>
 
-          {/* CỘT PHẢI (5/12): SLIDER ẢNH — cùng cơ chế và cùng cấu hình với slider tin tức. */}
-          <div className="flex flex-col lg:col-span-5">
+          {/* CỘT PHẢI (6/12): SLIDER ẢNH — cùng cơ chế và cùng cấu hình với slider tin tức. */}
+          <div className="flex flex-col lg:col-span-6">
             <AnhCarousel
               muc={anhCanhVideo.map((p) => ({
                 khoa: p.id,
@@ -126,11 +147,12 @@ export function HomeMediaGallery({
               showArrows={showArrows}
               showDots={showDots}
               nhan="Ảnh thư viện của Công ty"
-              // 16/9 để khớp khung video `aspect-[16/9]` đứng cạnh ở cột rộng hơn. Hai khối
-              // cùng tỉ lệ thì mép trên của ảnh và của video thẳng hàng.
-              // ⚠ Thẻ này nay cao đúng bằng nội dung nó (`AnhCarousel` bỏ `h-full`), nên nếu
-              //   cột video cao hơn thì phần trống nằm NGOÀI thẻ trắng, không phải bên trong —
-              //   đó là điều kiện để ô trắng 216px của 29/08 không quay lại.
+              // 16/9 — cùng tỉ lệ VÀ cùng bề rộng với khung video bên cạnh (cả hai `lg:col-span-6`),
+              // nên hai khung trùng khít cả bốn mép. Xem chú thích của lưới ở trên để biết vì sao
+              // "cùng tỉ lệ" một mình là chưa đủ.
+              // ⚠ Thẻ này cao đúng bằng nội dung nó (`AnhCarousel` bỏ `h-full`), nên phần chú
+              //   thích dài ngắn thế nào cũng không đội khung ảnh lên — đó là điều kiện để ô
+              //   trắng 216px của 29/08 không quay lại.
               tiLeKhung="aspect-[16/9]"
               khiRong={
                 <div className="flex flex-1 items-center">

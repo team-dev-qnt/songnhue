@@ -1,6 +1,7 @@
 package com.songnhue.content.application;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -34,6 +35,8 @@ public record PublicArticleRow(
         UUID coverAttachmentPublicId,
         Instant publishedAt,
         long viewCount,
+        String docNumber,
+        LocalDate docIssuedDate,
         List<PublicArticleDetail.CategoryRef> categories) {
 
     /**
@@ -53,12 +56,32 @@ public record PublicArticleRow(
             String summary,
             UUID coverAttachmentPublicId,
             Instant publishedAt,
-            long viewCount) {
-        this(slug, title, summary, coverAttachmentPublicId, publishedAt, viewCount, List.of());
+            long viewCount,
+            String docNumber,
+            LocalDate docIssuedDate) {
+        this(
+                slug,
+                title,
+                summary,
+                coverAttachmentPublicId,
+                publishedAt,
+                viewCount,
+                docNumber,
+                docIssuedDate,
+                List.of());
     }
 
     /** Bản sao có nhãn chuyên mục — CR-12 cần tag phân biệt Tin thủy lợi / Tin Công ty. */
     public PublicArticleRow withCategories(List<PublicArticleDetail.CategoryRef> categories) {
-        return new PublicArticleRow(slug, title, summary, coverAttachmentPublicId, publishedAt, viewCount, categories);
+        return new PublicArticleRow(
+                slug,
+                title,
+                summary,
+                coverAttachmentPublicId,
+                publishedAt,
+                viewCount,
+                docNumber,
+                docIssuedDate,
+                categories);
     }
 }
