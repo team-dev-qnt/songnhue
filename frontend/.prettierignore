@@ -10,3 +10,9 @@ package-lock.json
 # Không có nó ở đây thì `format:check` đỏ ở máy dev (nơi đã chạy Next) mà xanh ở CI
 # (nơi tệp chưa tồn tại) — một phép kiểm cho kết quả khác nhau tuỳ máy là phép kiểm không tin được.
 next-env.d.ts
+
+# Playwright sinh lại mỗi lượt chạy bộ đo bố cục và đã bị git bỏ qua. Cùng lý do với
+# `next-env.d.ts` ở trên: có nó thì `format:check` đỏ ở máy đã chạy bộ đo và xanh ở CI
+# (nơi tệp chưa tồn tại) — một cổng kiểm cho kết quả khác nhau tuỳ máy là cổng không tin được.
+public-web/test-results/
+public-web/playwright-report/

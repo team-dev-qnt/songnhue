@@ -21,11 +21,11 @@ export function ArticleCard({ article }: { article: ArticleRow }) {
       <Link href={ROUTES.article(article.slug)} className="flex flex-1 flex-col">
         <PortalImage src={cover} alt={article.title} ratio="aspect-[16/10]" />
         <div className="flex flex-1 flex-col p-4 sm:p-5">
-          <h3 className="line-clamp-2 text-sm font-bold leading-snug text-surface-textBase transition-colors duration-200 group-hover:text-brand-primary sm:text-base">
+          <h3 className="line-clamp-2 text-justify text-sm font-bold leading-snug text-surface-textBase transition-colors duration-200 group-hover:text-brand-primary sm:text-base">
             {article.title}
           </h3>
           {article.summary ? (
-            <p className="mt-2 line-clamp-2 text-xs text-surface-textSecondary leading-relaxed sm:text-sm">
+            <p className="mt-2 line-clamp-2 text-justify text-xs text-surface-textSecondary leading-relaxed sm:text-sm">
               {article.summary}
             </p>
           ) : null}

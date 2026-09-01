@@ -34,10 +34,26 @@
  *
  * Đủ dùng để soi câu chữ và cấu trúc JSX của một tệp TSX; đừng dùng nó cho việc gì cần độ chính
  * xác cao hơn thế.
+ *
+ * <h2>⚠⚠ 01/09 — THỨ TỰ ba phép thay là bắt buộc, và bản trước sai</h2>
+ *
+ * Bản trước chạy mẫu chú thích JSX TRƯỚC. Mẫu ấy có thể **quay lui qua nhiều chú thích**: gặp
+ * `interface X &#123;` theo sau là xuống dòng rồi một javadoc, nó thấy sau dấu đóng không phải
+ * `&#125;` nên kéo dài phần `[\s\S]*?` mãi tới dấu đóng của một chú thích JSX cách đó hàng trăm
+ * dòng — và **nuốt trọn mọi thứ ở giữa**.
+ *
+ * <p>Đo được ở `public-web/src/components/home/AnhCarousel.tsx`: bản cũ cắt mất **8.174 ký tự**,
+ * gồm cả `export function AnhCarousel`. Ở `admin-app/src/features/cms/MenusTab.tsx` bản cũ tình
+ * cờ ra **đúng cùng kết quả** với bản mới (lệch 0 ký tự) — tức hai bộ canh của admin-app đang
+ * xanh **nhờ bố cục tệp**, không nhờ phép cắt đúng. Đó đúng là hình dạng "cơ chế canh gác xanh
+ * mà không chạy": một bộ cắt quá tay không làm bài nào đỏ, nó chỉ lặng lẽ xoá thứ cần soi.
+ *
+ * <p>Cắt khối `/* … *&#47;` TRƯỚC thì mỗi chú thích được xử lý riêng lẻ (`*?` dừng ở `*&#47;`
+ * gần nhất, không có chỗ quay lui); `{/* … *&#47;}` khi ấy còn lại `{ }`, dọn bằng phép thứ ba.
  */
 export function boChuThich(ma: string): string {
   return ma
-    .replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, ' ') // {/* … */} của JSX
-    .replace(/\/\*[\s\S]*?\*\//g, ' ') // /* … */
-    .replace(/^\s*\/\/.*$/gm, ' '); // // … trọn dòng
+    .replace(/\/\*[\s\S]*?\*\//g, ' ') // /* … */ và /** … */ — PHẢI chạy trước
+    .replace(/^\s*\/\/.*$/gm, ' ') // // … trọn dòng
+    .replace(/\{\s*\}/g, ' '); // cặp ngoặc rỗng còn lại của {/* … */}
 }

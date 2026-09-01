@@ -89,8 +89,18 @@ button {
 /*
   Vòng viền khi điều hướng bằng bàn phím: giữ rõ ràng, không tắt.
   Cổng thông tin của cơ quan nhà nước phải dùng được bằng bàn phím và trình đọc màn hình.
+
+  ⚠⚠ Luật này nằm NGOÀI mọi `@layer`, nên nó thắng MỌI utility của Tailwind bất kể độ ưu tiên —
+  `focus-visible:outline-none` (0,2,0) vẫn thua nó (0,1,0). Đó là quy tắc của cascade layers,
+  không phải của specificity, và nó rất dễ đọc nhầm: đo 01/09, thêm `outline-none` ở component
+  xong mà `getComputedStyle` vẫn trả `solid/2px`.
+
+  ⭐ Nên chỗ nào cần dời vòng viền đi nơi khác thì phải khai ở ĐÂY, bằng `[data-vien-focus-ngoai]`.
+  Đó là một lối thoát có tên, tìm được bằng `grep`, và **không tắt vòng viền** — nó buộc nơi
+  dùng phải tự vẽ dấu hiệu focus của mình (xem ô tìm kiếm ở `PortalNav`: pill mang
+  `focus-within:ring-2`). Không có thuộc tính này thì mọi thứ giữ nguyên hành vi cũ.
 */
-:focus-visible {
+:focus-visible:not([data-vien-focus-ngoai]) {
   outline: 2px solid theme(--color-brand-primary);
   outline-offset: 2px;
 }

@@ -80,3 +80,7 @@ backup/*.sha256
 __pycache__/
 *.py[cod]
 .agents/mcp/*/venv/
+
+# Playwright — kết quả chạy bộ đo bố cục, không phải mã nguồn
+frontend/public-web/test-results/
+frontend/public-web/playwright-report/

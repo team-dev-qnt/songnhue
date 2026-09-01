@@ -27,12 +27,33 @@ interface AnhCarouselProps {
   /** `aria-label` của vùng trượt — hai slider trên cùng trang phải gọi tên khác nhau. */
   nhan: string;
   /**
-   * Chiều cao TỐI THIỂU của khung ảnh, dạng lớp Tailwind viết nguyên văn ở nơi gọi.
+   * TỈ LỆ khung ảnh, dạng lớp Tailwind `aspect-*` viết nguyên văn ở nơi gọi.
+   *
+   * <h2>⚠⚠ 01/09 — vì sao đây là TỈ LỆ chứ không còn là chiều cao tối thiểu</h2>
+   *
+   * Bản trước nhận `chieuCaoToiThieu` (`min-h-[220px] lg:min-h-[444px]`) và khung mang thêm
+   * `flex-1`. Hệ quả: khung **nhận chiều cao mà HÀNG LƯỚI phát cho**, mà hàng lưới lại do
+   * *cột tin bên cạnh* định — tức tỉ lệ khung ảnh là **tai nạn của số bài bên cột kia**.
+   *
+   * <p>Số đo trên trình duyệt 01/09, cùng một lượt dựng, ba bề rộng:
+   *
+   * <pre>
+   *   desktop 1920   khung 777,3 × 572,6  ⇒ tỉ lệ 1,357
+   *   bảng    768    khung 720,0 × 220,0  ⇒ tỉ lệ 3,273
+   *   điện thoại 375 khung 343,0 × 220,0  ⇒ tỉ lệ 1,559
+   * </pre>
+   *
+   * Ba bề rộng, ba tỉ lệ khác nhau, không cái nào là 16/9 (1,778). Cộng thêm
+   * {@code object-contain} thì ảnh 16/9 nằm giữa hai dải nền — đúng "diện tích thừa" QuanTran
+   * chỉ ra. Cổng tham chiếu ghi cứng {@code lg:h-[444px]}, ở cột 8/12 trong khung 1232px cho ra
+   * 785/444 = 1,77: **họ cũng đang làm 16:9**, chỉ viết bằng pixel. Ta viết bằng tỉ lệ nên đúng
+   * ở mọi bề rộng thay vì chỉ đúng ở 1232px.
    *
    * ⚠ Phải là một chuỗi hằng ở nơi gọi: bộ quét nguồn của Tailwind đọc mã, không chạy mã —
-   * ghép chuỗi lúc chạy thì lớp không được sinh ra và khung tụt về chiều cao 0.
+   * ghép chuỗi lúc chạy thì lớp không được sinh ra và khung tụt về chiều cao 0, **không bài
+   * kiểm nào đỏ**. `khungAnhTiLe.test.ts` canh đúng điều này.
    */
-  chieuCaoToiThieu: string;
+  tiLeKhung: string;
   /**
    * `fetchpriority="high"` cho ảnh đầu. Chỉ MỘT slider mỗi trang được bật: ảnh đầu của slider
    * trang chủ là phần tử LCP, còn đặt `high` ở chỗ thứ hai là giành băng thông với chính nó.
@@ -65,12 +86,22 @@ interface AnhCarouselProps {
  * bên kia trôi lại, và không có gì đỏ. Điều kiện tự chạy còn được tách xuống {@link coTuChay}
  * để kiểm được bằng bốn dòng thay vì dựng cả một DOM.
  *
- * <h2>⭐ Chú thích nằm DƯỚI ảnh, và phần dôi ra rơi vào ẢNH</h2>
+ * <h2>⭐ Chú thích nằm DƯỚI ảnh, và KHUNG ẢNH TỰ ĐỊNH CHIỀU CAO CỦA NÓ</h2>
  *
- * Thẻ là {@code flex-col h-full}: thẻ chữ {@code shrink-0} chỉ cao bằng chữ nó mang, khung ảnh
- * lấy {@code flex-1} với một chiều cao tối thiểu. Khi lưới cấp cho hàng một chiều cao (bằng cột
- * cao hơn), phần dôi ra nở ảnh chứ không thành một ô trắng dưới tiêu đề — lỗi đo được sáng
- * 29/08: thẻ chữ nhận <b>216px</b> thừa cho đúng một dòng tiêu đề.
+ * Thẻ là {@code flex-col} (không {@code h-full}), khung ảnh {@code shrink-0} mang một lớp
+ * {@code aspect-*}, thẻ chữ {@code shrink-0} cao bằng chữ nó mang. Tức chiều cao của cả thẻ là
+ * <b>tổng của hai phần</b>, do chính nó quyết định — không còn ai phát chiều cao cho nó.
+ *
+ * <p>⚠⚠ Bản 29/08 → 31/08 làm ngược lại: {@code h-full} ở gốc + {@code flex-1} ở khung ảnh, để
+ * "phần dôi ra rơi vào ẢNH chứ không thành ô trắng dưới tiêu đề" (lỗi 216px trắng, đo sáng
+ * 29/08). Cách ấy chữa được ô trắng nhưng trả giá bằng một thứ tệ hơn: **tỉ lệ khung ảnh trở
+ * thành tai nạn của cột bên cạnh** — đo 01/09 ra ba tỉ lệ khác nhau ở ba bề rộng (1,357 ·
+ * 3,273 · 1,559). Nay ô trắng không thể quay lại vì gốc không còn nhận chiều cao thừa nào để
+ * phân phát: cả hai phần đều {@code shrink-0} và cao đúng bằng nội dung.
+ *
+ * <p>⛔ Đừng thêm lại {@code h-full} vào gốc. Ở {@link HomeMediaGallery} thẻ này đứng cạnh một
+ * khung video 16/9 của cột rộng hơn; {@code h-full} sẽ kéo thẻ trắng cao bằng video và dựng lại
+ * đúng ô trắng 216px ấy, lần này ở khối Truyền thông.
  *
  * <h2>Cả ảnh lẫn tiêu đề là MỘT liên kết — bằng vùng bấm kéo giãn</h2>
  *
@@ -92,7 +123,7 @@ export function AnhCarousel({
   showArrows,
   showDots,
   nhan,
-  chieuCaoToiThieu,
+  tiLeKhung,
   phuKhung = true,
   uuTienAnhDau = false,
   khiRong,
@@ -134,9 +165,16 @@ export function AnhCarousel({
       onMouseLeave={() => datTamDung(false)}
       onFocus={() => datTamDung(true)}
       onBlur={() => datTamDung(false)}
-      className="group relative flex h-full flex-col overflow-hidden rounded-lg bg-white shadow-card"
+      className="group relative flex flex-col overflow-hidden rounded-lg bg-white shadow-card"
     >
-      <div className={`relative flex-1 overflow-hidden bg-surface-bgLayout ${chieuCaoToiThieu}`}>
+      {/* `data-khung-anh`: mốc neo cho bộ đo bố cục (`e2e/boCucTrangChu.spec.ts`) đo tỉ lệ
+          khung bằng `getBoundingClientRect()`. Đo bằng lớp CSS thì không thấy được tỉ lệ
+          THẬT — đó đúng là chỗ đã hỏng: khung mang `flex-1` nên nhận chiều cao hàng thay
+          vì giữ tỉ lệ của chính nó. */}
+      <div
+        data-khung-anh
+        className={`relative w-full shrink-0 overflow-hidden bg-surface-bgLayout ${tiLeKhung}`}
+      >
         {muc.map((anh, i) => {
           const dangHien = i === viTri;
           return (
@@ -258,7 +296,7 @@ export function AnhCarousel({
           <p className="text-sm italic text-surface-textSecondary">Ảnh chưa có chú thích</p>
         )}
         {hienTai.description ? (
-          <p className="line-clamp-3 text-[15px] leading-relaxed text-surface-textSecondary">
+          <p className="line-clamp-3 text-justify text-[15px] leading-relaxed text-surface-textSecondary">
             {hienTai.description}
           </p>
         ) : null}

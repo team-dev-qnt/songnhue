@@ -126,7 +126,12 @@ export function HomeMediaGallery({
               showArrows={showArrows}
               showDots={showDots}
               nhan="Ảnh thư viện của Công ty"
-              chieuCaoToiThieu="min-h-[220px] lg:min-h-[300px]"
+              // 16/9 để khớp khung video `aspect-[16/9]` đứng cạnh ở cột rộng hơn. Hai khối
+              // cùng tỉ lệ thì mép trên của ảnh và của video thẳng hàng.
+              // ⚠ Thẻ này nay cao đúng bằng nội dung nó (`AnhCarousel` bỏ `h-full`), nên nếu
+              //   cột video cao hơn thì phần trống nằm NGOÀI thẻ trắng, không phải bên trong —
+              //   đó là điều kiện để ô trắng 216px của 29/08 không quay lại.
+              tiLeKhung="aspect-[16/9]"
               khiRong={
                 <div className="flex flex-1 items-center">
                   <EmptyBlock>
