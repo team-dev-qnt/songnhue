@@ -5097,6 +5097,9 @@ những gì báo cáo đang hiện. Đây là một bậc nặng hơn luật 25:
 nó làm mục này *không thể sống lâu hơn phiên bản đã thẩm định* — nâng lên 6.2.20 thì mẫu hết khớp và
 phép quét tự nói lại sự thật. Đó là bản vá trực tiếp cho đúng cái bẫy tomcat ở ngay trên.
 
+Lượt quét **thứ ba** xanh, đọc trên báo cáo chứ không đọc màu job: **110 artifact · 0 mã ≥ 7**, phần
+bị suppress đúng bộ đã khai và không thừa mục nào.
+
 #### Bài học
 
 **Nâng cấp xong phải đi xoá suppression mà nó vừa làm cho thừa** — lượt nâng chỉ hoàn tất khi lý do
