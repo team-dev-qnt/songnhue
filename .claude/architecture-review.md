@@ -4995,3 +4995,114 @@ không dài thêm** — đường ranh, không phải chỗ để dọn.
 ⚠ Và nguyên nhân gốc của T27.2 lớn hơn cái tên nó: quy ước SAI vẫn nằm ở **`conventions.md` §1.2 —
 nguồn sự thật** — cùng **4/5 README module** chép lại từ đó. Lượt 31/8 sửa đúng **1/6 nơi** (`hyd/`).
 Người viết migration kế tiếp sẽ mở `conventions.md` và chép lại đúng lỗi đã làm đỏ hai lượt CD.
+
+---
+
+### §10.69 — CVE 9.8 không có bản vá trên dòng đang dùng, và một suppression bị bỏ quên sau lượt nâng cấp (1/9)
+
+Lượt quét theo lịch 1/9 đỏ. Giả thuyết đầu tiên của QuanTran là **khoá NVD hết hạn** — hợp lý, vì
+lượt quét cần khoá và nó vừa xanh hôm qua. Nhưng log nói khác: `NVD_API_KEY: ***` có mặt, lượt quét
+**chạy trọn** và trả về báo cáo **110 artifact**. Khoá hỏng thì trượt ở bước cập nhật CSDL và không
+ra được kết quả nào.
+
+Đỏ vì một CVE thật: **CVE-2026-59313 (9.8)** ở `spring-core` và `spring-web` 6.2.19. Lại đúng hình
+dạng §10.68-A — mã không đổi, **thế giới đổi**; lần này chỉ cách lần trước ba ngày.
+
+#### Chỗ khác với lần trước: không có bản vá để nâng lên
+
+`tomcat` lần trước có `versionEndExcluding = 10.1.58` và 10.1.59 nằm sẵn trên Central — nâng một dòng
+là xong. Lần này advisory dùng **`versionEndIncluding`**, tức bản đang dùng *bị dính* và bản vá là
+bản kế tiếp. Đo ngày 1/9:
+
+| dòng | dính tới `<=` | Central cao nhất | |
+|---|---|---|---|
+| 5.3.x | 5.3.49 | 5.3.39 | chưa có bản vá công khai |
+| 6.0.x | 6.0.30 | 6.0.23 | chưa có bản vá công khai |
+| 6.1.x | 6.1.28 | 6.1.21 | chưa có bản vá công khai |
+| **6.2.x** | **6.2.19** | **6.2.19** | **chưa có** — `6.2.20` trả **HTTP 404** |
+| 7.0.x | 7.0.8 | 7.0.9 | ĐÃ CÓ |
+
+⭐ Số cao hơn ở ba dòng đầu (5.3.49, 6.0.30, 6.1.28) **không tồn tại trên Central** — đó là các bản
+hỗ trợ thương mại. Đường duy nhất tới bản đã sửa là **Spring Framework 7** ⇒ **Spring Boot 4**, cuộc
+di trú mà `pom.xml` đã cố ý tách thành hạng mục riêng và ghi rõ *"không gộp vào một lượt vá bảo mật"*.
+
+Nên đây là trường hợp `conventions.md` §4.5 luật 1 chừa ra: nâng cấp **không khả dụng**.
+
+#### Lý do suppression phải là *"không áp dụng"*, và nó được chứng minh chứ không được khẳng định
+
+Luật số 2 của `dependency-check-suppressions.xml`: *"Lý do phải nói ĐƯỢC hay KHÔNG áp dụng, không phải
+'chưa có bản vá'."* CVE đòi **cả hai** điều kiện: *functional web framework* **và** *Server-Sent
+Events*. Đếm trên toàn `backend/`, chạy dưới `bash` kèm **đối chứng phải-tìm-thấy**:
+
+```
+ĐỐI CHỨNG   @RestController 37 · @GetMapping 33          ← phép đo hoạt động
+ĐIỀU KIỆN   RouterFunction(s) 0 · HandlerFunction 0 · SseEmitter 0
+            ServerSentEvent 0 · TEXT_EVENT_STREAM 0 · text/event-stream 0
+            reactor.core 0 · webflux 0
+```
+
+⚠ Lượt đếm **đầu tiên** cho 0 ở *tất cả* các mục — kể cả những mục chắc chắn phải có. Nguyên nhân:
+zsh nuốt `--include=*.java` nên `grep` không quét gì. **Một phép đo trả 0 ở mọi ô là phép đo hỏng,
+không phải kết quả tốt** (luật 20). Đối chứng là thứ phân biệt được hai trạng thái ấy.
+
+`StreamingResponseBody` khớp đúng 1 tệp, và nó nằm trong **một dòng chú thích** của
+`ResponseEnvelopeAdvice` — không phải mã chạy. Hết hạn đặt **15/10**, cố ý ngắn: 6.2.20 nhiều khả năng
+ra trong vài tuần.
+
+#### ⛔ Và lượt nâng tomcat ba ngày trước đã bỏ quên suppression của chính nó
+
+Tệp còn một mục suppress `CVE-2026-66299` cho `tomcat-embed-core` **10.1.57**, kèm dòng tự dặn:
+*"Xem lại khi 10.1.58 lên Central — lúc đó **xoá mục này và nâng phiên bản**, đừng gia hạn."*
+§10.68-A đã nâng lên **10.1.59** và **không xoá mục ấy**.
+
+Chứng minh nó đã thành rác chứ không đoán: báo cáo dependency-check ghi riêng phần
+`suppressedVulnerabilities`, và `tomcat-embed-core-10.1.59.jar` cho **rỗng ở cả hai** — không mã nào
+đang hiện, cũng không mã nào đang bị che. Suppression ấy không còn khớp gì.
+
+Vô hại lần này, nhưng hình dạng thì không: **một suppression sống lâu hơn lý do của nó là một cái bẫy
+đặt sẵn**. Ai đó hạ phiên bản tomcat vì lý do khác, và một CVE 7.5 sẽ bị che trong im lặng.
+
+#### Bộ canh
+
+Tệp suppression tự khai bốn luật ở đầu nó, và tới 1/9 **không gì thi hành cả** — trong khi đây là chỗ
+**duy nhất** trong dự án mà một dòng chữ làm một CVE 9.8 biến mất khỏi mọi bảng điều khiển mà cổng
+quét vẫn xanh. `SuppressionPolicyTest` 4 bài: mọi mục phải có `until` · phải có `<notes>` đủ dài để là
+một lượt thẩm định thật · phải giới hạn phạm vi (`packageUrl`/`gav`/`filePath`/`cpe`) và chỉ đích danh
+CVE · và một bài chống **xanh trên tập rỗng** (ba bài trên duyệt một danh sách; danh sách rỗng thì cả
+ba xanh mà không kiểm gì — luật 7).
+
+Kiểm chứng ngược **trên tệp thật**, có số đo trước khi chạy: gỡ `until` của một mục (`grep -c` 2 → 1)
+→ đỏ đích danh; khôi phục (1 → 2) → 4/4 xanh.
+
+#### ⭐ Lượt nghiệm thu bắt được bản vá đầu tiên còn hẹp
+
+Chạy lại chính workflow quét trên nhánh vá — và nó **đỏ tiếp**, với cùng mã ấy ở **`spring-tx`** và
+**`spring-webmvc`**. Mẫu đầu tiên viết `spring-(core|web)` vì đó là hai artifact xuất hiện trong log
+lượt đỏ. Nhưng Dependency-Check khớp qua CPE `spring_framework`, tức nó gán lỗ hổng cho **mọi**
+artifact của cùng release train. Đo trên báo cáo thật: **4** artifact `spring-*@6.2.19` mang mã này.
+
+⛔ Đây đúng là luật 25 — **liệt kê tên là bắt theo từng loại dữ liệu, và luôn có loại thứ tư lọt qua**
+— và tôi vấp nó ngay trong lượt sửa mà mình đang viết luật cho tệp ấy. Thứ cứu được không phải suy
+luận mà là **chạy lại phép quét thật** thay vì tin rằng suppression đã đủ.
+
+Lượt nghiệm thu **thứ hai** vẫn đỏ — `spring-context-support`. Hai lỗi độc lập: `[a-z]+` không khớp
+dấu gạch nối; và **tập artifact mang mã này KHÔNG ổn định giữa các lượt quét trên cùng cây mã** —
+lượt 1 báo `core · tx · web · webmvc`, lượt 2 báo `context-support · core · web`. Dependency-Check gán
+CPE `spring_framework` cho một tập con **khác nhau mỗi lần**.
+
+⛔⛔ Nghĩa là **mọi mẫu liệt kê tên artifact đều không thể đủ** — kể cả khi hôm nay nó phủ đúng tất cả
+những gì báo cáo đang hiện. Đây là một bậc nặng hơn luật 25: không phải *"luôn có loại thứ tư"* mà là
+*"tập cần phủ không đứng yên để mà đếm"*. Bất biến thật là **nhóm + phiên bản**:
+`^pkg:maven/org\.springframework/[^/]+@6\.2\.19$`. **Ghim `@6.2.19` là cố ý**:
+nó làm mục này *không thể sống lâu hơn phiên bản đã thẩm định* — nâng lên 6.2.20 thì mẫu hết khớp và
+phép quét tự nói lại sự thật. Đó là bản vá trực tiếp cho đúng cái bẫy tomcat ở ngay trên.
+
+Lượt quét **thứ ba** xanh, đọc trên báo cáo chứ không đọc màu job: **110 artifact · 0 mã ≥ 7**, phần
+bị suppress đúng bộ đã khai và không thừa mục nào.
+
+#### Bài học
+
+**Nâng cấp xong phải đi xoá suppression mà nó vừa làm cho thừa** — lượt nâng chỉ hoàn tất khi lý do
+cũ được gỡ đi, nếu không ta để lại một tấm chắn không ai nhớ là còn đó. Và **ràng buộc của một tệp
+phải nằm trong một bài kiểm, không nằm trong phần chú thích của chính tệp ấy**: người thêm mục thứ ba
+là người không đọc phần đầu.
