@@ -103,6 +103,9 @@ export function SessionsPage() {
           dataSource={data ?? []}
           rowKey="id"
           loading={isLoading}
+          // Bề ngang tối thiểu: hẹp hơn thì CUỘN NGANG, không bóp chữ.
+          // Vì sao cần — xem chú thích cột "Địa chỉ" ở `features/hydro/ApiSourcesPage.tsx`.
+          scroll={{ x: 900 }}
           pagination={false}
         />
       )}

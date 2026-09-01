@@ -230,7 +230,9 @@ export function StatusBatchUpdateModal({ open, onClose }: { open: boolean; onClo
           rowKey="publicId"
           pagination={false}
           loading={isLoading}
-          scroll={{ y: 460 }}
+          // `y` giữ chiều cao; `x` mới là thứ chặn bóp chữ — hai trục khác nhau, khai `y`
+          // không đỡ hộ `x`. 110+240+220+150+280 = 1000.
+          scroll={{ x: 1000, y: 460 }}
         />
       </Space>
     </Modal>

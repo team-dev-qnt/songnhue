@@ -55,6 +55,9 @@ export function RolesPage() {
             dataSource={roles.data ?? []}
             rowKey="code"
             loading={roles.isLoading}
+            // Bề ngang tối thiểu: hẹp hơn thì CUỘN NGANG, không bóp chữ.
+            // Vì sao cần — xem chú thích cột "Địa chỉ" ở `features/hydro/ApiSourcesPage.tsx`.
+            scroll={{ x: 640 }}
             pagination={false}
             onRow={(row) => ({
               onClick: () => setSelected(row.code),

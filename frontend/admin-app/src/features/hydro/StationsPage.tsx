@@ -145,6 +145,7 @@ export function StationsPage() {
     {
       title: 'Điểm đo',
       dataIndex: 'name',
+      width: 260,
       render: (name: string, r) => (
         <Space direction="vertical" size={0}>
           <span>{name}</span>
@@ -316,6 +317,10 @@ export function StationsPage() {
         dataSource={hienThi}
         columns={columns}
         pagination={false}
+        // 170+260+140+160+220+140+110+70 = 1270. Trước 01/09 bảng này KHÔNG khai `scroll` và có
+        // 1010px cột cố định cộng một cột không khai bề ngang — cùng lỗi với trang Nguồn dữ liệu,
+        // chỉ chưa ai báo vì chưa mở ở màn hẹp. Xem chú thích cột "Địa chỉ" ở `ApiSourcesPage`.
+        scroll={{ x: 1270 }}
       />
 
       <Typography.Paragraph type="secondary" style={{ marginTop: 12, marginBottom: 0 }}>

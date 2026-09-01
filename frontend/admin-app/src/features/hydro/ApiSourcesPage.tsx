@@ -134,13 +134,32 @@ export function ApiSourcesPage() {
 
   const columns: ColumnsType<ApiSource> = [
     { title: 'Mã', dataIndex: 'code', width: 110 },
-    { title: 'Tên nguồn', dataIndex: 'name' },
+    { title: 'Tên nguồn', dataIndex: 'name', width: 200, ellipsis: true },
     {
+      // ⚠⚠ Vá 01/09/2026 — cột này từng bóp còn ~29px và URL xuống dòng TỪNG KÝ TỰ.
+      //
+      // Ba thứ cộng lại, không cái nào tự nó đủ:
+      //   1. Không cột nào khai `ellipsis` và bảng không khai `scroll` ⇒ `rc-table` chọn
+      //      `tableLayout: 'auto'`, và dưới `auto` thì `<col width>` chỉ là GỢI Ý — trình duyệt
+      //      được phép bóp cột không khai bề ngang xuống tận `min-content`.
+      //   2. Sáu cột cố định cộng lại 940px + cột mở rộng 48px, trong khi bề ngang khả dụng là
+      //      `viewport − 336` (sider 248 + margin 40 + padding Card 48). Ở 1440px thì hai cột
+      //      không khai chia nhau đúng 116px.
+      //   3. `.ant-table-cell{overflow-wrap:break-word}` + `.ant-typography{word-break:break-word}`
+      //      ⇒ `min-content` của một URL bằng MỘT KÝ TỰ.
+      //
+      // ⚠ Lỗi có ở MỌI bề ngang, chỉ THẤY ĐƯỢC dưới ~1600px — cùng hình dạng §10.62, nơi
+      // `flex-wrap` che một thanh điều hướng tràn 22%.
       title: 'Địa chỉ',
       dataIndex: 'baseUrl',
+      width: 320,
       render: (url: string) => (
         <Space size={4}>
-          <Typography.Text code>{url}</Typography.Text>
+          {/* `break-all` cho URL xuống dòng ở ranh giới ký tự thay vì đẩy ngang bảng; khung đã
+              có bề rộng cố định nên nó không còn co về min-content được nữa. */}
+          <Typography.Text code style={{ wordBreak: 'break-all' }}>
+            {url}
+          </Typography.Text>
           {url.startsWith('http://') && (
             <Tooltip title="Nguồn chỉ có HTTP. Trình duyệt không gọi thẳng — mọi lượt gọi đi từ máy chủ.">
               <Tag color="orange">HTTP</Tag>
@@ -261,6 +280,9 @@ export function ApiSourcesPage() {
         dataSource={query.data ?? []}
         columns={columns}
         pagination={false}
+        // 110+200+320+150+90+260+190+140 = 1460, cộng 48px cột mở rộng.
+        // Hẹp hơn thì CUỘN NGANG, ⛔ không bóp chữ — đúng lời javadoc của `DataTable`.
+        scroll={{ x: 1508 }}
         expandable={{
           expandedRowRender: (r) => (
             <Descriptions size="small" column={2} bordered>

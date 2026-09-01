@@ -239,6 +239,9 @@ export function ConstructionDocumentsPanel({ publicId }: { publicId: string }) {
         dataSource={data?.items ?? []}
         rowKey="publicId"
         loading={isLoading}
+        // Bề ngang tối thiểu: hẹp hơn thì CUỘN NGANG, không bóp chữ.
+        // Vì sao cần — xem chú thích cột "Địa chỉ" ở `features/hydro/ApiSourcesPage.tsx`.
+        scroll={{ x: 1010 }}
         pagination={false}
         locale={{ emptyText: 'Chưa có tài liệu nào cho công trình này' }}
       />
