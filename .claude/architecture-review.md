@@ -5074,6 +5074,21 @@ ba xanh mà không kiểm gì — luật 7).
 Kiểm chứng ngược **trên tệp thật**, có số đo trước khi chạy: gỡ `until` của một mục (`grep -c` 2 → 1)
 → đỏ đích danh; khôi phục (1 → 2) → 4/4 xanh.
 
+#### ⭐ Lượt nghiệm thu bắt được bản vá đầu tiên còn hẹp
+
+Chạy lại chính workflow quét trên nhánh vá — và nó **đỏ tiếp**, với cùng mã ấy ở **`spring-tx`** và
+**`spring-webmvc`**. Mẫu đầu tiên viết `spring-(core|web)` vì đó là hai artifact xuất hiện trong log
+lượt đỏ. Nhưng Dependency-Check khớp qua CPE `spring_framework`, tức nó gán lỗ hổng cho **mọi**
+artifact của cùng release train. Đo trên báo cáo thật: **4** artifact `spring-*@6.2.19` mang mã này.
+
+⛔ Đây đúng là luật 25 — **liệt kê tên là bắt theo từng loại dữ liệu, và luôn có loại thứ tư lọt qua**
+— và tôi vấp nó ngay trong lượt sửa mà mình đang viết luật cho tệp ấy. Thứ cứu được không phải suy
+luận mà là **chạy lại phép quét thật** thay vì tin rằng suppression đã đủ.
+
+Mẫu sửa thành `^pkg:maven/org\.springframework/spring-[a-z]+@6\.2\.19$`. **Ghim `@6.2.19` là cố ý**:
+nó làm mục này *không thể sống lâu hơn phiên bản đã thẩm định* — nâng lên 6.2.20 thì mẫu hết khớp và
+phép quét tự nói lại sự thật. Đó là bản vá trực tiếp cho đúng cái bẫy tomcat ở ngay trên.
+
 #### Bài học
 
 **Nâng cấp xong phải đi xoá suppression mà nó vừa làm cho thừa** — lượt nâng chỉ hoàn tất khi lý do

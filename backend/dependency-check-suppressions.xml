@@ -109,6 +109,20 @@
         cuộc di trú lớn mà `pom.xml` đã cố ý tách thành hạng mục riêng, không gộp
         vào một lượt vá bảo mật.
 
+      • **Phạm vi bắt theo BẤT BIẾN, không liệt kê tên artifact.** Bản đầu của mục
+        này viết `spring-(core|web)` — và lượt quét nghiệm thu bắt ngay: cùng mã
+        ấy còn hiện ở **`spring-tx`** và **`spring-webmvc`**. Dependency-Check
+        khớp qua CPE `spring_framework`, tức nó gán lỗ hổng cho **mọi** artifact
+        của cùng release train. Liệt kê tên là bắt theo từng loại dữ liệu, và
+        luôn có loại thứ tư lọt qua (CLAUDE.md luật 25). Đo trên báo cáo thật:
+        4 artifact `org.springframework/spring-*@6.2.19` đều mang mã này.
+
+      • **Ghim `@6.2.19` trong mẫu là CỐ Ý.** Nó làm mục này **không thể sống lâu
+        hơn phiên bản đã được thẩm định**: nâng lên 6.2.20 thì mẫu hết khớp và
+        phép quét tự nói lại sự thật. Đây là bài học trực tiếp từ mục tomcat bị
+        bỏ quên trong chính lượt sửa này — một suppression sống lâu hơn lý do của
+        nó là cái bẫy đặt sẵn (§10.69).
+
       • **Hết hạn 15/10/2026 — cố ý NGẮN.** 6.2.20 nhiều khả năng ra trong vài
         tuần; hết hạn thì phép quét tự đỏ lại và buộc nhìn lại. Xem lại khi
         6.2.20 lên Central — lúc đó **xoá mục này và nâng phiên bản**, đừng gia
@@ -124,7 +138,7 @@
             Spring Framework 7 + Boot 4, tách thành hạng mục riêng. Thẩm định
             1/9/2026.
         ]]></notes>
-        <packageUrl regex="true">^pkg:maven/org\.springframework/spring-(core|web)@.*$</packageUrl>
+        <packageUrl regex="true">^pkg:maven/org\.springframework/spring-[a-z]+@6\.2\.19$</packageUrl>
         <cve>CVE-2026-59313</cve>
     </suppress>
 
