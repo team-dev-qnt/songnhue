@@ -243,6 +243,8 @@ export function PortalNav({ tree }: PortalNavProps) {
    * phải cạnh tranh bề ngang với nhau.
    */
   const [vuaKhung, datVuaKhung] = useState<boolean | null>(null);
+  /** Bề rộng còn trống trên hàng nav (px). `null` = chưa đo. */
+  const [choTrong, datChoTrong] = useState<number | null>(null);
 
   useEffect(() => {
     const khung = khungRef.current;
@@ -267,15 +269,21 @@ export function PortalNav({ tree }: PortalNavProps) {
       //            "bỏ đo": một phép đo đúng ở cả hai cấu hình, không phải hai bản mã.
       const rongTim = timKiemRef.current?.offsetWidth ?? 0;
       const kieu = getComputedStyle(khung);
-      const vua = vuaThanhNgang({
-        trong: khung.clientWidth - parseFloat(kieu.paddingLeft) - parseFloat(kieu.paddingRight),
-        thuoc: thuoc.scrollWidth,
-        tim: rongTim,
-      });
+      const trong =
+        khung.clientWidth - parseFloat(kieu.paddingLeft) - parseFloat(kieu.paddingRight);
+      const vua = vuaThanhNgang({ trong, thuoc: thuoc.scrollWidth, tim: rongTim });
       // `null` = chưa kết luận được (khung bề rộng 0: tab chạy nền, lượt vẽ để in). GIỮ NGUYÊN
       // kết luận cũ — xem lý do ở `vuaThanhNgang`.
       if (vua === null) return;
       datVuaKhung((cu) => (cu === vua ? cu : vua));
+
+      // ⭐ 01/09 lượt hai — chỗ trống CÒN LẠI sau khi trừ menu và nút kính lúp. `boCucHangNav`
+      //   dùng nó để quyết ô nhập đứng cạnh menu hay chiếm trọn hàng.
+      //   ⚠ Cùng ba số liệu với phép đo ngay trên, KHÔNG đo lại bằng đường khác: hai phép đo
+      //     cho cùng một quyết định là hai chỗ phải nhớ sửa, và chúng sẽ lệch nhau (luật 14).
+      //   ⚠ `- 8` là `gap-2` giữa menu và nút — có thật trong bố cục, không phải số phòng xa.
+      const con = trong - thuoc.scrollWidth - rongTim - 8;
+      datChoTrong((cu) => (cu === con ? cu : con));
       // ⚠ Bắt buộc: hiệu ứng khoá cuộn nền bám theo `moNganKeo`. Nếu ngăn kéo đang mở mà thanh
       //   ngang vừa khung trở lại (xoay ngang máy tính bảng), ngăn kéo bị ẩn bằng CSS nhưng
       //   `moNganKeo` vẫn `true` — và trang đứng im, cuộn không được, không dấu vết nào.
@@ -298,7 +306,8 @@ export function PortalNav({ tree }: PortalNavProps) {
     nutNganKeo: lopNutNganKeo,
     vungNganKeo: lopVungNganKeo,
     oTimTrenHang,
-  } = boCucHangNav({ vuaKhung, moTimKiem });
+    oTimCanhMenu,
+  } = boCucHangNav({ vuaKhung, moTimKiem, choTrong });
 
   /**
    * Đóng mọi thứ đang mở — gọi từ **trình xử lý sự kiện** của từng liên kết.
@@ -424,7 +433,7 @@ export function PortalNav({ tree }: PortalNavProps) {
         </button>
 
         {/* ───── Thanh ngang — từ lg trở lên ───── */}
-        <ul className={`flex-1 items-center gap-0.5 ${LOP_CHU_CAP1} ${lopThanhNgang}`}>
+        <ul className={`items-center gap-0.5 ${LOP_CHU_CAP1} ${lopThanhNgang}`}>
           {tree.map((nhanh) => (
             <MucCap1
               key={`${nhanh.item.label}-${nhanh.item.depth}`}
@@ -468,26 +477,36 @@ export function PortalNav({ tree }: PortalNavProps) {
             Yêu cầu QuanTran 01/09: *"open search bar ngay trên thanh navigation, không đặt
             riêng 1 thẻ search bar như hiện tại"*.
 
-            Bản trước dựng nó thành một hàng riêng bên dưới, vì ở 1232px tám nhãn cấp 1 đã
-            chiếm 1150,6/1184px — không còn chỗ chèn thêm. Con số ấy vẫn đúng, nhưng nó chỉ
-            ràng buộc khi menu và ô nhập CÙNG TỒN TẠI. `boCucHangNav` ẩn menu và nút ngăn kéo
-            khi `moTimKiem`, nên ô nhập không tranh chỗ với ai — xem javadoc `hangDieuHuong.ts`.
+            ⭐ 01/09 lượt hai: nó KHÔNG còn luôn dàn trải. `boCucHangNav` đo chỗ trống thật rồi
+            quyết — đủ chỗ (desktop, ≥200px) thì menu ở nguyên và ô nhập lấy phần còn lại; chật
+            thì mới hoán đổi như hành vi mobile. Xem javadoc `hangDieuHuong.ts` để biết số đo.
 
-            ⚠ `min-w-0 flex-1`: thiếu `min-w-0` thì ô nhập từ chối co dưới bề rộng nội dung của
-              nó và đẩy nút X ra khỏi khung ở điện thoại. */}
+            ⚠ `min-w-0 flex-1` ở CẢ HAI chế độ: menu bỏ `flex-1` khi ô nhập hiện (do
+              `boCucHangNav` trả về), nên phần dôi ra rơi hết cho form — flexbox tự chia, không
+              phải tính px bằng tay rồi gán `style.width`.
+            ⚠ Thiếu `min-w-0` thì ô nhập từ chối co dưới bề rộng nội dung của nó và đẩy nút X
+              ra khỏi khung ở điện thoại. */}
         {oTimTrenHang ? (
           <form
             id={idTimKiem}
             action={ROUTES.search}
             method="get"
             role="search"
-            className="min-w-0 flex-1"
+            className={`min-w-0 flex-1 ${oTimCanhMenu ? 'ml-2' : ''}`}
             onSubmit={() => datMoTimKiem(false)}
           >
             <label htmlFor={`${idTimKiem}-o-nhap`} className="sr-only">
               Tìm kiếm trên cổng thông tin
             </label>
-            <div className="flex h-10 items-center gap-2 rounded-full bg-surface-bgLayout pl-3.5 pr-1.5">
+            {/* ⭐ Vòng focus nằm trên PILL, không trên `<input>`.
+                `globals.css` có luật toàn cục `:focus-visible { outline: 2px solid … }`, và vì ô
+                nhập được tự động nhận con trỏ khi mở, luật ấy vẽ một **hình chữ nhật** ôm lấy
+                thẻ `<input>` — nằm lọt trong pill bo tròn, trông như một khung lạ chồng lên.
+                Đó là thứ QuanTran chỉ ra 01/09.
+                ⛔ Cách sửa KHÔNG phải gỡ vòng focus đi: nó là lối định vị bàn phím duy nhất của
+                   ô này. Chuyển nó ra pill bằng `focus-within:ring-*` thì dấu hiệu vẫn còn, vẫn
+                   đủ tương phản, mà theo đúng hình dạng bo tròn của ô. */}
+            <div className="flex h-10 items-center gap-2 rounded-full bg-surface-bgLayout pl-3.5 pr-1.5 transition-shadow focus-within:ring-2 focus-within:ring-brand-primary/60">
               {/* Kính lúp dẫn chỉ hiện từ `sm`: ở 320px mỗi 16px đều phải dành cho chỗ gõ. */}
               <span className="hidden shrink-0 text-surface-textSecondary sm:block">
                 <KinhLup />
@@ -498,6 +517,12 @@ export function PortalNav({ tree }: PortalNavProps) {
                 name="q"
                 type="search"
                 placeholder="Nhập từ khoá tìm kiếm…"
+                // ⭐ `data-vien-focus-ngoai`: lối thoát có tên khai ở `globals.css`. Luật
+                //    `:focus-visible` toàn cục nằm NGOÀI `@layer` nên `focus-visible:outline-none`
+                //    của Tailwind thua nó — đo 01/09 vẫn ra `solid/2px` sau khi thêm utility.
+                //    ⛔ Thuộc tính này KHÔNG tắt dấu hiệu focus, nó DỜI dấu hiệu lên pill ngay
+                //       trên (`focus-within:ring-2`). Gỡ một trong hai là mất lối định vị bàn phím.
+                data-vien-focus-ngoai
                 className="min-w-0 flex-1 bg-transparent text-[15px] text-surface-textBase outline-none placeholder:text-surface-textSecondary"
               />
               <button

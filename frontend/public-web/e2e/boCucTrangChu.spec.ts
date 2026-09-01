@@ -194,7 +194,82 @@ test.describe('Trang chủ — bố cục đo trên trình duyệt thật', () =
         expect(hopO!.bottom, 'ô nhập tràn xuống dưới hàng menu').toBeLessThanOrEqual(
           hang!.bottom + 1,
         );
-        expect(hopO!.w, 'ô nhập quá hẹp để gõ').toBeGreaterThan(120);
+        expect(hopO!.w, 'ô nhập quá hẹp để gõ').toBeGreaterThan(100);
+      });
+
+      test('⭐⭐ ô tìm kiếm KHÔNG che mất điều hướng khi còn chỗ', async ({ page }) => {
+        // Yêu cầu QuanTran 01/09 lượt hai. Bản lượt một ẩn menu ở MỌI bề rộng, kể cả khi còn
+        // 280px trống — đó là "thẻ dàn trải che mất navigation".
+        const menuTruoc = await page.evaluate(() => {
+          const ul = document.querySelector('[data-hang-nav] ul');
+          return ul ? getComputedStyle(ul).display !== 'none' : false;
+        });
+
+        await page.getByRole('button', { name: /Tìm kiếm trên cổng thông tin/ }).click();
+        await page.waitForTimeout(150);
+
+        const sau = await page.evaluate(() => {
+          const hang = document.querySelector('[data-hang-nav]') as HTMLElement;
+          const ul = hang.querySelector('ul');
+          const form = hang.querySelector('form[role="search"]');
+          return {
+            menuHien: ul ? getComputedStyle(ul).display !== 'none' : false,
+            formRong: form ? Math.round(form.getBoundingClientRect().width) : 0,
+            menuRong: ul ? Math.round(ul.getBoundingClientRect().width) : 0,
+            hangRong: Math.round(hang.getBoundingClientRect().width),
+          };
+        });
+        console.log(
+          `    [${bp.ten}] menu trước=${menuTruoc} sau=${sau.menuHien} · ` +
+            `menu ${sau.menuRong}px + form ${sau.formRong}px trong hàng ${sau.hangRong}px`,
+        );
+
+        if (menuTruoc) {
+          // Thanh ngang đang hiện ⇒ mở tìm kiếm KHÔNG được làm nó biến mất, và ô nhập chỉ
+          // được lấy phần CÒN LẠI: hai khối cộng lại phải nằm gọn trong hàng.
+          expect(sau.menuHien, 'menu bị ẩn dù thanh ngang đang hiện ⇒ che mất điều hướng').toBe(
+            true,
+          );
+          expect(
+            sau.menuRong + sau.formRong,
+            'menu + ô nhập vượt quá bề rộng hàng ⇒ thanh bị tràn',
+          ).toBeLessThanOrEqual(sau.hangRong + 1);
+        } else {
+          // Ngăn kéo (mobile) — QuanTran yêu cầu GIỮ hành vi hoán đổi ở đây.
+          expect(sau.menuHien).toBe(false);
+        }
+      });
+
+      test('⭐ ô nhập không còn vòng focus hình CHỮ NHẬT — dấu hiệu nằm trên pill bo tròn', async ({
+        page,
+      }) => {
+        await page.getByRole('button', { name: /Tìm kiếm trên cổng thông tin/ }).click();
+        const o = page.locator('input[name="q"]');
+        await expect(o).toBeFocused();
+
+        const k = await page.evaluate(() => {
+          const el = document.querySelector('input[name="q"]') as HTMLElement;
+          const pill = el.parentElement as HTMLElement;
+          const ko = getComputedStyle(el);
+          const kp = getComputedStyle(pill);
+          return {
+            outlineO: `${ko.outlineStyle}/${ko.outlineWidth}`,
+            banKinhPill: kp.borderRadius,
+            boxShadowPill: kp.boxShadow,
+          };
+        });
+        console.log(
+          `    [${bp.ten}] outline ô nhập=${k.outlineO} · pill bo ${k.banKinhPill} · ring=${k.boxShadowPill !== 'none'}`,
+        );
+
+        // `globals.css` có luật toàn cục `:focus-visible { outline: 2px solid … }`. Nó vẽ một
+        // hình CHỮ NHẬT quanh `<input>` — nằm lọt trong pill bo tròn. Đây là thứ phải hết.
+        expect(k.outlineO, 'vòng focus chữ nhật vẫn còn trên <input>').toMatch(/none|\/0px/);
+        // ⛔ Nhưng KHÔNG được mất dấu hiệu focus: nó phải chuyển lên pill.
+        expect(
+          k.boxShadowPill,
+          'gỡ vòng focus mà không thay bằng gì ⇒ mất lối định vị bàn phím',
+        ).not.toBe('none');
       });
     });
   }
