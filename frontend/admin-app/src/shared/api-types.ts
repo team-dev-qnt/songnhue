@@ -514,7 +514,14 @@ export type OperationalStatus =
   'BINH_THUONG' | 'CANH_BAO' | 'SU_CO' | 'BAO_TRI' | 'NGUNG_MUA_VU' | 'DA_THANH_LY';
 export type LifecycleState = 'DANG_HOAT_DONG' | 'NGUNG_MUA_VU' | 'DA_THANH_LY';
 export type ManagementLevel = 'CONG_TY' | 'XI_NGHIEP' | 'CUM';
-export type ConstructionPurpose = 'TUOI' | 'TIEU' | 'TUOI_TIEU_KET_HOP' | 'KHAC';
+/**
+ * ⚠ Phải khớp ĐÚNG enum Java `ConstructionPurpose` và `ck_constructions_purpose`.
+ *
+ * Bản trước khai `TUOI_TIEU_KET_HOP` và `KHAC` — cả hai không tồn tại ở hai nơi kia, nên `tsc`
+ * xanh trong khi lượt lưu trả 400. Khai kiểu là một **lời khẳng định**, không phải phép đo
+ * (cùng bài học T27.22). `enumBaNoi.test.ts` nay canh cho ba nơi khớp nhau.
+ */
+export type ConstructionPurpose = 'TUOI' | 'TIEU' | 'HON_HOP';
 
 /** Một dòng trên danh sách — cố ý gọn, không kéo theo thông số kỹ thuật. */
 export interface ConstructionRow {
