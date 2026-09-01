@@ -116,15 +116,17 @@ public class SiteConfigService {
 
     private final SettingAdminPort settings;
     private final AttachmentPort attachments;
+    private final PortalCache portalCache;
 
     private final Cache<String, Map<String, String>> cache = Caffeine.newBuilder()
             .maximumSize(1)
             .expireAfterWrite(Duration.ofMinutes(10))
             .build();
 
-    public SiteConfigService(SettingAdminPort settings, AttachmentPort attachments) {
+    public SiteConfigService(SettingAdminPort settings, AttachmentPort attachments, PortalCache portalCache) {
         this.settings = settings;
         this.attachments = attachments;
+        this.portalCache = portalCache;
     }
 
     /** Danh sách đầy đủ cho màn hình quản trị — kèm nhãn, kiểu và luật kiểm tra. */
@@ -220,6 +222,28 @@ public class SiteConfigService {
      *
      * <p>{@code AFTER_COMMIT} là bắt buộc: dọn trước khi commit thì lượt đọc kế tiếp nạp lại đúng giá
      * trị cũ và không còn ai dọn lần nữa ({@link SettingChangedEvent}).
+     *
+     * <h2>⛔⛔ 01/09/2026 — dọn đệm ở ĐÂY mới chỉ là nửa việc</h2>
+     *
+     * Hai bộ đệm nằm nối tiếp nhau trên cùng một đường, và bản trước chỉ dọn cái thứ nhất:
+     *
+     * <pre>
+     *   settings (CSDL)
+     *     → Caffeine của lớp này          ← bản trước dọn ĐÚNG cái này
+     *       → cache fetch + ISR của Next  ← 300 giây, KHÔNG ai bảo nó dựng lại
+     *         → trang người dân nhìn thấy
+     * </pre>
+     *
+     * Nên quản trị viên gạt một công tắc, màn hình báo <i>"Đã lưu"</i>, đọc lại API cũng thấy giá
+     * trị mới — mà <b>cổng không đổi gì cho tới 5 phút sau</b>. Không lỗi nào, và tự đúng lại nên
+     * người báo lỗi cũng không dựng lại được. Đó là nợ T25.22/T27.7, và
+     * {@link PortalCache#layoutChanged()} vốn sinh ra để trả nó nhưng <b>chưa từng có nơi gọi
+     * nào</b> kể từ khi được viết.
+     *
+     * <p>⚠ Gọi trong chính listener {@code AFTER_COMMIT} này chứ không gọi trong {@link #update}:
+     * cùng lý do đã ghi ở javadoc trên — hai màn hình cùng ghi những dòng {@code settings} ấy, và
+     * chỉ sự kiện mới phủ được cả hai đường (MOD-05 {@code PUT /api/v1/settings/&#123;key&#125;} và
+     * {@code POST /api/v1/settings/import}).
      */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onSettingChanged(SettingChangedEvent event) {
@@ -228,6 +252,7 @@ public class SiteConfigService {
         // 10 phút — không lỗi nào, không dấu vết nào.
         if (GROUP.equals(event.groupCode()) || GROUP_COMPANY.equals(event.groupCode())) {
             cache.invalidateAll();
+            portalCache.layoutChanged();
         }
     }
 }

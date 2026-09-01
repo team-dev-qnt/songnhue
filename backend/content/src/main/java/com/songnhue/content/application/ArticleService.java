@@ -328,6 +328,8 @@ public class ArticleService {
         article.setMetaTitle(draft.metaTitle());
         article.setMetaDescription(draft.metaDescription());
         article.setMetaKeywords(draft.metaKeywords());
+        article.setDocNumber(draft.docNumber());
+        article.setDocIssuedDate(draft.docIssuedDate());
         if (draft.publishedAt() != null) {
             article.setPublishedAt(draft.publishedAt());
         }

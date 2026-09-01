@@ -15,7 +15,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.content.application.PortalCache;
+import com.songnhue.content.application.SiteConfigService;
 import com.songnhue.core.application.org.OrgUnitService;
+import com.songnhue.core.application.settings.SettingService;
 import com.songnhue.core.common.security.AuthContext;
 import com.songnhue.core.domain.org.OrgUnit;
 import com.songnhue.core.domain.org.OrgUnitType;
@@ -64,6 +66,12 @@ class PortalCacheInvalidationTest extends IntegrationTestBase {
     private ConstructionOperationStatusService operationStatuses;
 
     @Autowired
+    private SiteConfigService siteConfig;
+
+    @Autowired
+    private SettingService settings;
+
+    @Autowired
     private JdbcTemplate jdbc;
 
     /**
@@ -78,15 +86,32 @@ class PortalCacheInvalidationTest extends IntegrationTestBase {
 
     private UUID donViGoc;
 
+    /**
+     * Công tắc Nhóm 2 của trang chủ — một khoá {@code SITE} kiểu {@code BOOLEAN} có thật
+     * ({@code V202609011051}). Dùng khoá THẬT chứ không bịa một khoá: {@code updateInGroup} từ chối
+     * khoá không tồn tại, nên một khoá bịa sẽ làm bài kiểm đỏ vì lý do không liên quan.
+     */
+    private static final String KHOA_CONG_TAC = "site.home.show-dieu-hanh";
+
+    /** Giá trị ban đầu, trả lại sau mỗi bài — bài kiểm không được để lại cổng ở trạng thái đã tắt. */
+    private String congTacBanDau;
+
     @BeforeEach
     void setUp() {
         AuthContext.clear();
         donDep();
         donViGoc = jdbc.queryForObject("SELECT public_id FROM org_units WHERE code = 'CTY'", UUID.class);
+        congTacBanDau = jdbc.queryForObject(
+                "SELECT coalesce(setting_value, default_value) FROM settings WHERE setting_key = ?",
+                String.class,
+                KHOA_CONG_TAC);
     }
 
     @AfterEach
     void tearDown() {
+        if (congTacBanDau != null) {
+            jdbc.update("UPDATE settings SET setting_value = ? WHERE setting_key = ?", congTacBanDau, KHOA_CONG_TAC);
+        }
         donDep();
     }
 
@@ -187,6 +212,55 @@ class PortalCacheInvalidationTest extends IntegrationTestBase {
                         truoc)
                 .isGreaterThan(truoc);
         assertThat(nhungViecDungLaiCong()).anyMatch(payload -> payload.contains(PortalCache.TAG_CONG_TRINH));
+    }
+
+    // === ⭐⭐ Ghi `settings` → cổng phải được bảo dựng lại (WS-39) ==============
+
+    @Test
+    @DisplayName("⭐⭐ Đổi một tham số SITE từ màn hình GIAO DIỆN → ĐẾM ĐƯỢC việc dựng lại cổng")
+    void updatingASiteSettingEnqueuesARevalidateJob() {
+        donDepHangDoi();
+        int truoc = soViecDungLaiCong();
+
+        siteConfig.update(KHOA_CONG_TAC, "false");
+
+        assertThat(soViecDungLaiCong())
+                .as(
+                        """
+                        ⛔⛔ Cho tới 01/09/2026, `PortalCache.layoutChanged()` có ĐÚNG MỘT lần xuất hiện \
+                        trong toàn kho — chính định nghĩa của nó. Không nơi gọi nào. Nên quản trị viên gạt \
+                        một công tắc, màn hình báo "Đã lưu", và cổng KHÔNG đổi gì trong tối đa 300 giây \
+                        (chu kỳ ISR), rồi tự đúng lại — không lỗi nào, và người báo lỗi cũng không dựng \
+                        lại được. Đó là nợ T25.22/T27.7 ở dạng thuần khiết nhất. Trước: %d.""",
+                        truoc)
+                .isGreaterThan(truoc);
+        assertThat(nhungViecDungLaiCong())
+                .as("nhãn `giao-dien` là nhãn mà `lib/api.ts` gắn vào getSiteConfig/getMenu/getBanners")
+                .anyMatch(payload -> payload.contains(PortalCache.TAG_LAYOUT));
+        assertThat(nhungViecDungLaiCong())
+                .as(
+                        """
+                        ⚠ Và phải có CẢ đường dẫn trang chủ — §10.17: một lượt fetch hỏng thì không mục \
+                        cache nào mang nhãn được tạo ra, nên revalidateTag không có gì để lần ngược. Trang \
+                        chủ vừa là trang duy nhất từng ra đời rỗng sau một lượt triển khai, vừa đúng là \
+                        trang mà công tắc này bật/tắt.""")
+                .anyMatch(payload -> payload.contains("\"path\""));
+    }
+
+    @Test
+    @DisplayName("⭐⭐ Đổi CÙNG tham số ấy từ màn hình HỆ THỐNG (MOD-05) → cũng phải đặt việc")
+    void updatingTheSameSettingFromSystemScreenAlsoEnqueues() {
+        // Cùng một dòng `settings` sửa được từ HAI màn hình. Đặt lời gọi trong `SiteConfigService.update`
+        // thì đường thứ hai không gọi gì cả — đó đúng lý do javadoc của lớp ấy chọn nghe SỰ KIỆN thay vì
+        // tự dọn: sự kiện phát từ nơi DUY NHẤT ghi bảng, nên nó phủ cả hai đường.
+        donDepHangDoi();
+        int truoc = soViecDungLaiCong();
+
+        settings.update(KHOA_CONG_TAC, "true");
+
+        assertThat(soViecDungLaiCong())
+                .as("đường ghi thứ hai không đặt việc ⇒ nửa số lượt sửa vẫn im lặng. Trước: %d.", truoc)
+                .isGreaterThan(truoc);
     }
 
     // === Vế chống xanh-trên-tập-rỗng ==========================================

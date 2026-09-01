@@ -91,6 +91,9 @@ async function mepDuoiThucTe(page: Page, selector: string): Promise<number | nul
 
 const NHOM1 = 'section[aria-label="Ảnh hoạt động và tin tức"]';
 const CHUYEN_MUC = 'section[aria-label="Tin theo chuyên mục"]';
+/** Nhóm 5 — khối "Video giới thiệu": khung video bên trái, slider ảnh bên phải. */
+const KHUNG_VIDEO = '[data-khung-video]';
+const KHUNG_ANH_NHOM5 = 'section[aria-label="Ảnh thư viện của Công ty"] [data-khung-anh]';
 
 test.describe('Trang chủ — bố cục đo trên trình duyệt thật', () => {
   test('⛔ TIỀN ĐỀ: trang phải có đủ nội dung, nếu không mọi phép đo dưới đây đo tập rỗng', async ({
@@ -152,6 +155,45 @@ test.describe('Trang chủ — bố cục đo trên trình duyệt thật', () =
           `    [${bp.ten}] khung ảnh = ${khung!.w.toFixed(1)}×${khung!.h.toFixed(1)} ⇒ tỉ lệ ${tiLe.toFixed(3)}`,
         );
         expect(tiLe, `tỉ lệ ${tiLe.toFixed(3)} lệch khỏi 16/9`).toBeCloseTo(16 / 9, 1);
+      });
+
+      test('⭐⭐ Nhóm 5: khung video và khung ảnh TRÙNG KHÍT', async ({ page }) => {
+        // Yêu cầu QuanTran 01/09 đợt hai: *"fix cứng chiều rộng của phần slider so với video
+        // giới thiệu"*. Bản trước để hai cột 7/12 và 5/12 rồi đặt CÙNG `aspect-[16/9]` cho cả
+        // hai, kèm chú thích *"hai khối cùng tỉ lệ thì mép trên thẳng hàng"* — đúng mép TRÊN,
+        // và chính vì cùng tỉ lệ mà mép DƯỚI **buộc phải** lệch: hai bề rộng khác nhau nhân
+        // cùng một tỉ lệ thì ra hai chiều cao khác nhau. Đo được 114,3px ở ≥1280px.
+        const video = await hopCua(page, KHUNG_VIDEO);
+        const anh = await hopCua(page, KHUNG_ANH_NHOM5);
+        if (!video || !anh) {
+          // Video chưa cấu hình (`site.home.video-id` rỗng) hoặc thư viện chưa có ảnh ⇒ một
+          // trong hai khung không được dựng. Nói thẳng là chưa đo được, KHÔNG xanh im lặng:
+          // một phép đo chạy qua tập rỗng vẫn xanh trọn vẹn (luật 7).
+          throw new Error(
+            `Nhóm 5 chưa đủ hai khung để đo (video=${video !== null}, ảnh=${anh !== null}) — ` +
+              'đặt `site.home.video-id` và `site.home.photos-folder` rồi chạy lại',
+          );
+        }
+
+        const lechRong = Math.abs(video.w - anh.w);
+        const lechCao = Math.abs(video.h - anh.h);
+        console.log(
+          `    [${bp.ten}] video ${video.w.toFixed(1)}×${video.h.toFixed(1)} · ` +
+            `ảnh ${anh.w.toFixed(1)}×${anh.h.toFixed(1)} ⇒ ` +
+            `lệch rộng ${lechRong.toFixed(1)}px · lệch cao ${lechCao.toFixed(1)}px`,
+        );
+
+        // ⚠ Biên ±3px chứ không ±0: khung video nằm trong một thẻ có `border` 1px mỗi bên, nên
+        //   hộp trong của nó luôn hẹp hơn ô lưới đúng 2px — và 2px ấy kéo theo ~1,1px chiều cao
+        //   qua tỉ lệ 16/9. Đòi bằng nhau tuyệt đối là đòi bỏ viền.
+        expect(
+          lechRong,
+          'hai khung khác bề rộng ⇒ hai cột không cùng số ô lưới',
+        ).toBeLessThanOrEqual(3);
+        expect(
+          lechCao,
+          `đáy ảnh lệch đáy video ${lechCao.toFixed(1)}px — đúng lỗi QuanTran báo`,
+        ).toBeLessThanOrEqual(3);
       });
 
       test('⭐ trang không cuộn ngang', async ({ page }) => {

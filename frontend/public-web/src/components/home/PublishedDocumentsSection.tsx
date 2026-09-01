@@ -1,7 +1,8 @@
 import Link from 'next/link';
 
+import { DocumentTable } from '@/components/DocumentTable';
 import type { ArticleRow } from '@/lib/api';
-import { formatDate, ROUTES } from '@/lib/routes';
+import { ROUTES } from '@/lib/routes';
 import { EmptyBlock } from './EmptyBlock';
 import { SectionTitle } from './SectionTitle';
 
@@ -92,62 +93,26 @@ export function PublishedDocumentsSection({
             </nav>
           ) : null}
 
+          {/* ⭐⭐ 01/09/2026 — LƯỚI HAI CỘT ĐỔI THÀNH BẢNG NĂM CỘT.
+
+              QuanTran chỉ đích danh `thuyloisongday.vn/van-ban` làm chuẩn: *"copy design theo
+              dạng list như vậy thay vì dạng grid như hiện tại. Các thông tin hiển thị lên list
+              table cũng lấy tương tự"*. Số đo của họ nằm ở javadoc `DocumentTable`.
+
+              ⚠ Cùng MỘT component với trang `/danh-muc/...`: hai bản của cùng một bảng là hai nơi
+                phải nhớ sửa khi Công ty đổi ý về một cột (luật 14). Trang chủ chỉ khác ở chỗ nó
+                cắt danh sách theo `site.home.documents-count` và có nút "Xem tất cả". */}
           <div className="mt-5 flex-1">
-            {documents.length === 0 ? (
-              <EmptyBlock>
-                Chưa có văn bản nào được công bố. Mục này do biên tập viên của Công ty đăng trong
-                nhánh danh mục &ldquo;Công bố thông tin&rdquo;; cổng không đồng bộ dữ liệu từ hệ
-                thống văn bản điều hành (CN-01.7).
-              </EmptyBlock>
-            ) : (
-              <div className="grid grid-cols-1 gap-x-8 gap-y-0 sm:grid-cols-2">
-                {documents.map((doc) => (
-                  <article
-                    key={doc.slug}
-                    className="group border-b border-surface-border py-3 last:border-b-0"
-                  >
-                    <Link href={ROUTES.article(doc.slug)} className="flex items-start gap-3">
-                      <span
-                        aria-hidden="true"
-                        className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-primaryLight text-brand-primary transition-colors group-hover:bg-brand-primary group-hover:text-white"
-                      >
-                        <svg
-                          className="h-4 w-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={1.75}
-                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                          />
-                        </svg>
-                      </span>
-                      <div className="flex-1">
-                        <h3 className="line-clamp-2 text-justify text-sm font-medium text-surface-textBase transition-colors duration-200 group-hover:text-brand-primary">
-                          {doc.title}
-                        </h3>
-                        <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-surface-textSecondary">
-                          <time dateTime={doc.publishedAt ?? undefined}>
-                            {formatDate(doc.publishedAt)}
-                          </time>
-                          {doc.categories.map((c) => (
-                            <span
-                              key={c.slug}
-                              className="rounded bg-surface-bgLayout px-1.5 py-0.5 font-semibold"
-                            >
-                              {c.name}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </Link>
-                  </article>
-                ))}
-              </div>
-            )}
+            <DocumentTable
+              documents={documents}
+              khiRong={
+                <EmptyBlock>
+                  Chưa có văn bản nào được công bố. Mục này do biên tập viên của Công ty đăng trong
+                  nhánh danh mục &ldquo;Công bố thông tin&rdquo;; cổng không đồng bộ dữ liệu từ hệ
+                  thống văn bản điều hành (CN-01.7).
+                </EmptyBlock>
+              }
+            />
           </div>
         </div>
 

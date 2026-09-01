@@ -22,7 +22,12 @@ import { describe, expect, it } from 'vitest';
 
 /** Tệp → số lần `text-justify` được phép. Thêm dòng ở đây là một quyết định, không phải một lượt vá. */
 const CHO_PHEP: Record<string, number> = {
-  'components/home/PublishedDocumentsSection.tsx': 2,
+  // ⚠ 01/09/2026: 2 → 1. Khối "Công bố thông tin" đổi từ lưới hai cột sang BẢNG năm cột
+  //   (`DocumentTable`), nên tiêu đề bài nay nằm trong một ô bảng rộng khoảng 300px. Căn đều
+  //   trong một ô hẹp thì khoảng cách giữa các từ giãn ra thành sông chữ — `text-justify` chỉ
+  //   đúng với đoạn văn nhiều dòng đủ rộng. Con số còn lại là đoạn giải thích ở cột phải.
+  //   Sửa CÓ CHỦ ĐÍCH, không phải nới ngưỡng cho bài kiểm hết đỏ.
+  'components/home/PublishedDocumentsSection.tsx': 1,
   'components/home/AnhCarousel.tsx': 1,
   'components/home/HomeNewsColumn.tsx': 1,
   'components/home/HomeCategoryNews.tsx': 2,
