@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import { PortalImage } from '@/components/PortalImage';
+import { ANH_BAI_VIET_MAC_DINH } from '@/lib/anhMacDinh';
 import type { ArticleRow } from '@/lib/api';
 import { fileUrl, formatDate, ROUTES } from '@/lib/routes';
 import { EmptyBlock } from './EmptyBlock';
@@ -67,6 +68,7 @@ export function HomeCategoryNews({ blocks }: { blocks: KhoiTinChuyenMuc[] }) {
                     alt=""
                     ratio="aspect-[380/240]"
                     className="rounded-lg"
+                    anhMacDinh={ANH_BAI_VIET_MAC_DINH}
                   />
                   <h3 className="mt-3.5 line-clamp-3 text-justify text-[17px] font-bold leading-snug text-surface-textBase transition-colors duration-200 group-hover:text-brand-primary">
                     {khoi.articles[0].title}
@@ -94,6 +96,7 @@ export function HomeCategoryNews({ blocks }: { blocks: KhoiTinChuyenMuc[] }) {
                             ratio="aspect-[103/68]"
                             rong="w-[103px]"
                             className="shrink-0 rounded-md"
+                            anhMacDinh={ANH_BAI_VIET_MAC_DINH}
                           />
                           <div className="min-w-0">
                             <h4 className="line-clamp-2 text-justify text-[15px] leading-snug text-surface-textBase transition-colors duration-200 group-hover:text-brand-primary">

@@ -89,6 +89,18 @@ interface PortalImageProps {
    * `fetchpriority="high"` mà rải khắp nơi thì không còn ưu tiên gì nữa.
    */
   priority?: boolean;
+  /**
+   * Ảnh dùng khi {@link src} rỗng — đường dẫn tĩnh cục bộ, xem `lib/anhMacDinh.ts`.
+   *
+   * <p>Không truyền ⇒ giữ nguyên hành vi cũ: ô xám kèm biểu tượng. Đó vẫn là lựa chọn đúng cho
+   * ảnh **của một thực thể cụ thể** (logo một đơn vị, ảnh một banner) — ở đó một ảnh thay thế
+   * dùng chung sẽ bị đọc thành ảnh thật của thực thể ấy.
+   *
+   * ⚠ Ảnh mặc định luôn vẽ bằng `object-contain`, **bỏ qua** {@link phuKhung}. Nó là dấu hiệu
+   * nhận diện chứ không phải ảnh minh hoạ: `object-cover` sẽ cắt cụt logo, và một logo bị cắt
+   * trông như lỗi hiển thị chứ không như "bài này chưa có ảnh".
+   */
+  anhMacDinh?: string;
 }
 
 export function PortalImage({
@@ -99,18 +111,29 @@ export function PortalImage({
   phuKhung = true,
   className = '',
   priority = false,
+  anhMacDinh,
 }: PortalImageProps) {
+  // ⚠ MỘT thẻ <img> duy nhất cho cả hai nhánh, cố ý: `responsiveImages.test.ts` giữ một danh
+  //   sách ngoại lệ ĐẾM CHÍNH XÁC số thẻ <img> thô, và tệp này được cấp đúng 1. Thêm một thẻ
+  //   thứ hai cho ảnh mặc định là làm đỏ đúng bộ canh đang bảo vệ luật "ảnh phải qua PortalImage".
+  const nguonAnh = src ?? anhMacDinh ?? null;
+  const dangDungAnhMacDinh = !src && !!anhMacDinh;
+
   return (
     <div className={`relative ${ratio} ${rong} overflow-hidden bg-surface-bgLayout ${className}`}>
-      {src ? (
+      {nguonAnh ? (
         <img
-          src={src}
-          alt={alt}
+          src={nguonAnh}
+          alt={dangDungAnhMacDinh ? '' : alt}
           loading={priority ? 'eager' : 'lazy'}
           decoding="async"
           fetchPriority={priority ? 'high' : 'auto'}
           className={`absolute inset-0 h-full w-full object-center ${
-            phuKhung ? 'object-cover' : 'object-contain'
+            dangDungAnhMacDinh
+              ? 'p-[12%] opacity-40 object-contain'
+              : phuKhung
+                ? 'object-cover'
+                : 'object-contain'
           }`}
         />
       ) : (
