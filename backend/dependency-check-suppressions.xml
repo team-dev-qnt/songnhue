@@ -109,13 +109,28 @@
         cuộc di trú lớn mà `pom.xml` đã cố ý tách thành hạng mục riêng, không gộp
         vào một lượt vá bảo mật.
 
-      • **Phạm vi bắt theo BẤT BIẾN, không liệt kê tên artifact.** Bản đầu của mục
-        này viết `spring-(core|web)` — và lượt quét nghiệm thu bắt ngay: cùng mã
-        ấy còn hiện ở **`spring-tx`** và **`spring-webmvc`**. Dependency-Check
-        khớp qua CPE `spring_framework`, tức nó gán lỗ hổng cho **mọi** artifact
-        của cùng release train. Liệt kê tên là bắt theo từng loại dữ liệu, và
-        luôn có loại thứ tư lọt qua (CLAUDE.md luật 25). Đo trên báo cáo thật:
-        4 artifact `org.springframework/spring-*@6.2.19` đều mang mã này.
+      • **Phạm vi bắt theo BẤT BIẾN, không liệt kê tên artifact — và phải mất HAI
+        lượt nghiệm thu mới học được điều đó.**
+
+            mẫu `spring-(core|web)`      → lượt quét vẫn đỏ ở spring-tx, spring-webmvc
+            mẫu `spring-[a-z]+`          → lượt quét vẫn đỏ ở spring-context-support
+            mẫu `[^/]+` (nhóm+phiên bản) → xanh
+
+        Hai lý do, độc lập nhau:
+
+        (1) `[a-z]+` **không khớp dấu gạch nối**, nên `spring-context-support` lọt.
+
+        (2) ⭐ Quan trọng hơn: **tập artifact mang mã này KHÔNG ổn định giữa các
+            lượt quét trên cùng cây mã.** Đo được — lượt 1 báo `core · tx · web ·
+            webmvc`; lượt 2 báo `context-support · core · web`. Dependency-Check
+            gán CPE `spring_framework` cho một tập con **khác nhau mỗi lần**.
+            Nghĩa là *mọi* mẫu liệt kê tên artifact đều không thể đủ, kể cả khi
+            hôm nay nó phủ đúng tất cả những gì báo cáo đang hiện.
+
+        Bất biến thật là **nhóm + phiên bản**: CVE nằm ở Spring Framework 6.2.19,
+        và Dependency-Check gắn nó vào bất kỳ jar nào của release train ấy mà nó
+        tình cờ khớp CPE. `org.springframework.boot` và `.security` là nhóm khác
+        nên mẫu không lan sang (purl có đúng một dấu `/` sau tên nhóm).
 
       • **Ghim `@6.2.19` trong mẫu là CỐ Ý.** Nó làm mục này **không thể sống lâu
         hơn phiên bản đã được thẩm định**: nâng lên 6.2.20 thì mẫu hết khớp và
@@ -138,7 +153,7 @@
             Spring Framework 7 + Boot 4, tách thành hạng mục riêng. Thẩm định
             1/9/2026.
         ]]></notes>
-        <packageUrl regex="true">^pkg:maven/org\.springframework/spring-[a-z]+@6\.2\.19$</packageUrl>
+        <packageUrl regex="true">^pkg:maven/org\.springframework/[^/]+@6\.2\.19$</packageUrl>
         <cve>CVE-2026-59313</cve>
     </suppress>
 

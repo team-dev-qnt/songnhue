@@ -5085,7 +5085,15 @@ artifact của cùng release train. Đo trên báo cáo thật: **4** artifact `
 — và tôi vấp nó ngay trong lượt sửa mà mình đang viết luật cho tệp ấy. Thứ cứu được không phải suy
 luận mà là **chạy lại phép quét thật** thay vì tin rằng suppression đã đủ.
 
-Mẫu sửa thành `^pkg:maven/org\.springframework/spring-[a-z]+@6\.2\.19$`. **Ghim `@6.2.19` là cố ý**:
+Lượt nghiệm thu **thứ hai** vẫn đỏ — `spring-context-support`. Hai lỗi độc lập: `[a-z]+` không khớp
+dấu gạch nối; và **tập artifact mang mã này KHÔNG ổn định giữa các lượt quét trên cùng cây mã** —
+lượt 1 báo `core · tx · web · webmvc`, lượt 2 báo `context-support · core · web`. Dependency-Check gán
+CPE `spring_framework` cho một tập con **khác nhau mỗi lần**.
+
+⛔⛔ Nghĩa là **mọi mẫu liệt kê tên artifact đều không thể đủ** — kể cả khi hôm nay nó phủ đúng tất cả
+những gì báo cáo đang hiện. Đây là một bậc nặng hơn luật 25: không phải *"luôn có loại thứ tư"* mà là
+*"tập cần phủ không đứng yên để mà đếm"*. Bất biến thật là **nhóm + phiên bản**:
+`^pkg:maven/org\.springframework/[^/]+@6\.2\.19$`. **Ghim `@6.2.19` là cố ý**:
 nó làm mục này *không thể sống lâu hơn phiên bản đã thẩm định* — nâng lên 6.2.20 thì mẫu hết khớp và
 phép quét tự nói lại sự thật. Đó là bản vá trực tiếp cho đúng cái bẫy tomcat ở ngay trên.
 
