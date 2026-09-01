@@ -122,6 +122,25 @@ class SuppressionPolicyTest {
         assertThat(boMuc(khongPhamVi).get(0)).doesNotContainPattern("<(packageUrl|gav|filePath|cpe)\\b");
     }
 
+    @Test
+    @DisplayName("⭐ Bộ lọc đường dẫn của lượt quét phải bao chính tệp này — luật 24")
+    void congQuetPhaiChayLaiKhiTepNayDoi() {
+        // Luật 24: bộ lọc phải bao những tệp mà bài kiểm ĐỌC, không chỉ tệp nó nằm cùng thư mục.
+        // Đây là tệp ảnh hưởng TRỰC TIẾP nhất tới việc lượt quét báo gì — thêm một mục vào đây có thể
+        // làm một CVE 9.8 biến mất khỏi báo cáo. Thiếu nó trong `paths:` thì thay đổi ấy chỉ được kiểm
+        // ở lượt chạy theo lịch hôm sau.
+        String w = doc(timTuGocKho(".github/workflows/security-scan.yml"));
+
+        assertThat(w)
+                .as(
+                        """
+                        `security-scan.yml` không chạy lại khi `dependency-check-suppressions.xml` đổi.
+
+                        Sửa tệp suppression là cách nhanh nhất làm đổi kết quả quét, mà lượt push lại \
+                        không kiểm nó — phải đợi lịch đêm. Thêm đường dẫn ấy vào khối `paths:`.""")
+                .contains("backend/dependency-check-suppressions.xml");
+    }
+
     // -------------------------------------------------------------------------
 
     private static String tomTat(String muc) {
