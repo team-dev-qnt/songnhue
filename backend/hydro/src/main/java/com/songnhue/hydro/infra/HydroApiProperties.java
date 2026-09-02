@@ -70,6 +70,30 @@ public class HydroApiProperties {
     /** ⚠ Rỗng là hợp lệ và có nghĩa: "chưa mồi, mã số đặt trên UI". */
     private String key = "";
 
+    /**
+     * Cho phép nguồn trỏ vào máy nội bộ ({@code 127.0.0.1}, {@code 10.*}, {@code localhost}…).
+     *
+     * <h2>⛔⛔ Mặc định {@code false}, và nó phải ở nguyên như vậy ngoài môi trường phát triển</h2>
+     *
+     * <p>{@code DiaChiNguon} chặn các dải nội bộ để một dòng {@code api_sources.base_url} sai —
+     * dù do tài khoản quản trị bị chiếm, do một bản khôi phục cũ, hay do một câu {@code UPDATE} tay
+     * lúc xử lý sự cố — không biến poller thành công cụ đọc endpoint metadata của máy ảo
+     * ({@code 169.254.169.254}) hay gõ cửa các dịch vụ nội bộ. Đó là mục A10 của
+     * {@code conventions.md} §4.6.
+     *
+     * <p>Công tắc này tồn tại vì đúng <b>một</b> lý do: bài kiểm dựng máy chủ HTTP thật (T30.9) bind
+     * vào {@code 127.0.0.1}, và một nguồn giả trên máy lập trình viên cũng vậy. Không có nó thì hoặc
+     * phép kiểm SSRF phải bị gỡ, hoặc bài kiểm phải mock đúng chỗ mã chạm ra ngoài — <b>luật 4</b>,
+     * thứ đã làm {@code pg_dump} chưa từng chạy suốt 4 ngày mà {@code BackupServiceTest} vẫn xanh.
+     *
+     * <p>⚠ Một công tắc nới bảo mật mà không ai canh thì sáu tháng nữa nó bật ở prod và không ai
+     * biết là từ lúc nào (§10.57 — cổng secret bỏ qua trong im lặng). Có hai vế canh:
+     * {@code Bhh40AdapterHttpTest} chứng minh nó <b>chặn thật</b> khi tắt, và
+     * {@code HydroEnvSwitchTest} chứng minh không tệp {@code deploy/env/{staging,prod,rehearse}} nào
+     * đặt nó.
+     */
+    private boolean allowInternalHost = false;
+
     /** ⛔ Giá trị NGUYÊN VĂN, kể cả dấu {@code ;} cuối. Không log giá trị trả về. */
     public String getKey() {
         return key;
@@ -77,6 +101,15 @@ public class HydroApiProperties {
 
     public void setKey(String key) {
         this.key = key == null ? "" : key;
+    }
+
+    /** ⛔ Xem javadoc của trường: {@code true} chỉ hợp lệ ở máy lập trình viên và trong bài kiểm. */
+    public boolean isAllowInternalHost() {
+        return allowInternalHost;
+    }
+
+    public void setAllowInternalHost(boolean allowInternalHost) {
+        this.allowInternalHost = allowInternalHost;
     }
 
     /**
@@ -91,6 +124,6 @@ public class HydroApiProperties {
     /** ⛔ Cố ý che: mặc định của Java in cả trường {@link #key} — một dòng log là lộ credential. */
     @Override
     public String toString() {
-        return "HydroApiProperties{key=***}";
+        return "HydroApiProperties{key=***, allowInternalHost=" + allowInternalHost + "}";
     }
 }

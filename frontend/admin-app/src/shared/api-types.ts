@@ -872,6 +872,39 @@ export interface ApiSourceCreateRequest {
   description?: string;
 }
 
+/** Vì sao một lượt gọi nguồn hỏng — năm giá trị, và chúng đòi năm việc phải làm khác nhau. */
+export type SyncFailureKind =
+  'THIEU_MA_SO' | 'NOT_WORKING' | 'TIMEOUT' | 'HTTP_ERROR' | 'EMPTY_BODY';
+
+/**
+ * Kết quả một lượt **Gọi thử** nguồn — `POST /hyd/api-sources/{id}/goi-thu`.
+ *
+ * ⛔ **Không có trường nào mang thân phản hồi của nguồn**, và đó là chủ ý: thân thật của
+ * `bhh40` chứa chính mã số (`<form action="…?key=…%3b">`, đo 01/09/2026). Muốn đối chiếu
+ * nguyên văn thì tra `hydro_raw_logs` — nơi có phân quyền, có hạn lưu và có bộ che.
+ *
+ * ⚠ Envelope của dự án bỏ hẳn trường `null` khỏi JSON, nên đọc `rawLogId == null`,
+ * ⛔ không `'rawLogId' in kq`.
+ */
+export interface KetQuaGoiThu {
+  thanhCong: boolean;
+  httpStatus: number | null;
+  durationMs: number;
+  loi: SyncFailureKind | null;
+  lyDo: string | null;
+  soByteThan: number;
+  soBanGhi: number;
+  soDongRac: number;
+  soDongTrung: number;
+  /** ⛔ Chỉ LIỆT KÊ. Tuyệt đối không tự tạo điểm đo từ mã lạ — đó là G8, thuộc Công ty. */
+  maChuaKhai: string[];
+  soDiemDoDangHoatDong: number;
+  thieuDuLieu: boolean;
+  mocDoGanNhat: string | null;
+  /** `null` = đã gọi nhưng KHÔNG lưu được nguyên văn — một sự cố CSDL đáng biết ngay. */
+  rawLogId: number | null;
+}
+
 export interface ApiSourceRequest {
   name: string;
   baseUrl: string;

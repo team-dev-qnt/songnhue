@@ -203,6 +203,20 @@ app:
   hydro:
     api:
       key: ${HYDRO_API_KEY:}
+      # ⛔⛔ Hai công tắc NỚI BẢO MẬT — mặc định TẮT, và phải ở nguyên như vậy ngoài máy
+      #     lập trình viên. `HydroEnvSwitchTest` khẳng định không tệp deploy/env nào của
+      #     staging/prod/rehearse bật chúng; §10.57 là chuyện một cổng secret bỏ qua trong
+      #     im lặng làm CD Production xanh mà không byte nào chạm máy chủ.
+      #
+      #   allow-internal-host: cho nguồn trỏ vào 127.0.0.1 / 10.* / localhost. Tồn tại vì
+      #     bài kiểm dựng máy chủ HTTP thật (T30.9) bind vào loopback — không có nó thì
+      #     hoặc phép kiểm SSRF phải gỡ, hoặc bài kiểm phải mock đúng chỗ mã chạm ra ngoài
+      #     (luật 4, thứ đã làm pg_dump chưa từng chạy suốt 4 ngày).
+      #   mock: bật MockAdapter — nguồn GIẢ. ⛔ Dữ liệu nó sinh ra đi vào cùng bảng với dữ
+      #     liệu thật; lớp bảo vệ ở tầng cấu trúc là mã của nó mang tiền tố Z, không khớp
+      #     CHECK ^F[0-9]{5}$ của stations.api_code, nên không bao giờ tra ra điểm đo nào.
+      allow-internal-host: ${HYDRO_API_ALLOW_INTERNAL_HOST:false}
+      mock: ${HYDRO_API_MOCK:false}
 
   # Khoá ký access token (RS256). Thiếu file hoặc hai file không cùng một cặp →
   # app KHÔNG khởi động (JwtKeyStore). Sinh khoá: make gen-keys

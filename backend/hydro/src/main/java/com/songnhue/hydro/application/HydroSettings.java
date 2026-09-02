@@ -68,6 +68,7 @@ public class HydroSettings {
     static final String KHOA_MAT_TIN_HIEU = "hydro.station.signal-loss-frames";
     static final String KHOA_RETENTION = "hydro.retention-years";
     static final String KHOA_RETENTION_RAW = "hydro.raw-retention-days";
+    static final String KHOA_CANH_BAO_NGUON = "hydro.source.alert-after-failures";
 
     private final SettingPort settings;
 
@@ -139,5 +140,20 @@ public class HydroSettings {
      */
     public int soNgayGiuRawLog() {
         return settings.getInt(KHOA_RETENTION_RAW, 90);
+    }
+
+    /**
+     * Số lượt gọi hỏng <b>liên tiếp</b> thì đánh thức Quản trị — T30.6.
+     *
+     * <p>⛔ Cố ý <b>không</b> dùng lại {@link #soLanThuLai()}: hai con số nghe giống nhau nhưng đo
+     * hai thứ khác nhau — một cái là "thử lại bao nhiêu lần trong một lượt việc", một cái là "bao
+     * nhiêu lượt hỏng liên tiếp thì gọi người". Gộp lại là một công tắc cho hai bóng đèn: hạ số lần
+     * thử lại để nguồn đỡ tải, và vô tình làm cảnh báo réo sớm hơn.
+     *
+     * <p>📌 Khoá seed <b>cùng commit</b> với hàm này ({@code V202609021053}) và có người gọi ngay
+     * ({@code ApiSourceHealthService}) — ⛔ không lặp lại 18 ngày im lặng của tám khoá ngày 13/8.
+     */
+    public int soLanHongTruocKhiCanhBao() {
+        return settings.getInt(KHOA_CANH_BAO_NGUON, 3);
     }
 }

@@ -19,7 +19,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.songnhue.core.common.security.RequirePermission;
 import com.songnhue.hydro.application.ApiSourceForm;
 import com.songnhue.hydro.application.ApiSourceService;
+import com.songnhue.hydro.application.KetQuaGoiThu;
 import com.songnhue.hydro.application.StationService;
+import com.songnhue.hydro.application.TelemetryProbeService;
 import com.songnhue.hydro.application.ThamSoNguon;
 import com.songnhue.hydro.domain.ApiSource;
 
@@ -46,10 +48,12 @@ public class ApiSourceController {
 
     private final ApiSourceService sources;
     private final StationService stations;
+    private final TelemetryProbeService probe;
 
-    public ApiSourceController(ApiSourceService sources, StationService stations) {
+    public ApiSourceController(ApiSourceService sources, StationService stations, TelemetryProbeService probe) {
         this.sources = sources;
         this.stations = stations;
+        this.probe = probe;
     }
 
     /**
@@ -131,6 +135,31 @@ public class ApiSourceController {
     @RequirePermission("hyd:api-source:manage")
     public void xoaMaSo(@PathVariable UUID publicId) {
         sources.xoaMaSo(publicId);
+    }
+
+    /**
+     * <b>Gọi thử</b> nguồn ngay lập tức — WS-30/T30.2.
+     *
+     * <h2>Vì sao trả 200 kèm chi tiết, ⛔ không trả 502 khi nguồn hỏng</h2>
+     *
+     * <p>Lượt gọi này <i>thành công</i> ngay cả khi nguồn hỏng: nó đã trả lời được đúng câu hỏi
+     * người dùng đặt ra. Ném {@code UpstreamException} (SYS-0006) ở đây là bóp năm tình trạng phân
+     * biệt được ({@code NOT_WORKING} / {@code TIMEOUT} / {@code HTTP_ERROR} / {@code EMPTY_BODY} /
+     * {@code THIEU_MA_SO}) thành một câu chung <i>"Hệ thống bên ngoài không phản hồi"</i> — mà năm
+     * tình trạng ấy đòi năm việc phải làm khác nhau (§10.68-B).
+     *
+     * <p>⬜ SYS-0006 vẫn có nhà của nó, và đó là <b>poller</b> (WS-31): ở đấy một lượt gọi hỏng phải
+     * <i>ném</i> để hàng đợi ghi FAILED và thử lại. Nợ được ghi rõ, ⛔ không tự nhận là đã xong.
+     *
+     * <p>⚠ Endpoint <b>POST</b> dù không tạo tài nguyên: nó mở một kết nối ra ngoài, ghi
+     * {@code hydro_raw_logs} và cập nhật bộ đếm sức khoẻ của nguồn. Một {@code GET} có tác dụng phụ
+     * là thứ mọi bộ nạp trước (prefetch) của trình duyệt và mọi bộ giám sát sẽ bấm hộ.
+     */
+    @PostMapping("/{publicId}/goi-thu")
+    @Operation(summary = "Gọi thử nguồn ngay — ⛔ không trả thân phản hồi (thân chứa chính mã số)")
+    @RequirePermission("hyd:api-source:manage")
+    public KetQuaGoiThu goiThu(@PathVariable UUID publicId) {
+        return probe.goiThu(publicId);
     }
 
     @DeleteMapping("/{publicId}")

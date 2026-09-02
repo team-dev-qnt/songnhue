@@ -1,4 +1,4 @@
-import { EditOutlined, KeyOutlined, PlusOutlined } from '@ant-design/icons';
+import { ApiOutlined, EditOutlined, KeyOutlined, PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
@@ -25,6 +25,7 @@ import {
   type ApiSource,
   type ApiSourceCreateRequest,
   type ApiSourceRequest,
+  type KetQuaGoiThu,
 } from '@/shared/api-types';
 import { ApiClientError, api } from '@/shared/apiClient';
 import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
@@ -51,6 +52,9 @@ export function ApiSourcesPage() {
   const [dangSua, setDangSua] = useState<ApiSource | null>(null);
   const [taoMoi, setTaoMoi] = useState(false);
   const [datMaSoCho, setDatMaSoCho] = useState<ApiSource | null>(null);
+  const [ketQuaGoiThu, setKetQuaGoiThu] = useState<{ nguon: ApiSource; kq: KetQuaGoiThu } | null>(
+    null,
+  );
 
   const coQuanLy = hasPermission('hyd:api-source:manage');
 
@@ -115,6 +119,28 @@ export function ApiSourcesPage() {
     },
     onError: (caught: unknown) =>
       message.error(caught instanceof ApiClientError ? caught.message : 'Không gỡ được mã số'),
+  });
+
+  /**
+   * ⭐ Gọi nguồn một lượt ngay bây giờ — WS-30.
+   *
+   * ⚠ Endpoint trả **200 kèm chi tiết** cả khi nguồn hỏng, ⛔ không trả 502: lượt gọi đã trả
+   * lời đúng câu hỏi người dùng đặt ra. Bóp năm tình trạng phân biệt được thành một câu
+   * *"Hệ thống bên ngoài không phản hồi"* là xoá đúng thứ họ cần để biết phải làm gì.
+   * ⇒ `onError` ở đây chỉ dành cho lỗi của **ta** (mất mạng tới backend, hết phiên).
+   */
+  const goiThuMutation = useMutation({
+    mutationFn: (nguon: ApiSource) =>
+      api
+        .post<KetQuaGoiThu>(`/hyd/api-sources/${nguon.id}/goi-thu`, {})
+        .then((kq) => ({ nguon, kq })),
+    onSuccess: (ket) => {
+      setKetQuaGoiThu(ket);
+      // Bốn cột sức khoẻ vừa đổi ở CSDL — không làm mới thì bảng nói một đằng, hộp thoại một nẻo.
+      void lamMoi();
+    },
+    onError: (caught: unknown) =>
+      message.error(caught instanceof ApiClientError ? caught.message : 'Không gọi thử được'),
   });
 
   const moSua = (nguon: ApiSource) => {
@@ -215,11 +241,19 @@ export function ApiSourcesPage() {
     },
     {
       title: '',
-      width: 140,
+      width: 180,
       align: 'right',
       render: (_, r) =>
         coQuanLy ? (
           <Space>
+            <Tooltip title="Gọi nguồn một lượt ngay để xem mã số có dùng được không">
+              <Button
+                type="text"
+                icon={<ApiOutlined />}
+                loading={goiThuMutation.isPending && goiThuMutation.variables?.id === r.id}
+                onClick={() => goiThuMutation.mutate(r)}
+              />
+            </Tooltip>
             <Tooltip title="Đặt / thay mã số truy cập">
               <Button
                 type="text"
@@ -458,7 +492,116 @@ export function ApiSourcesPage() {
           </Form.Item>
         </Form>
       </Modal>
+
+      <Modal
+        open={ketQuaGoiThu !== null}
+        title={`Kết quả gọi thử — ${ketQuaGoiThu?.nguon.name ?? ''}`}
+        onCancel={() => setKetQuaGoiThu(null)}
+        footer={<Button onClick={() => setKetQuaGoiThu(null)}>Đóng</Button>}
+        destroyOnClose
+      >
+        {ketQuaGoiThu && <BangKetQuaGoiThu kq={ketQuaGoiThu.kq} />}
+      </Modal>
     </Card>
+  );
+}
+
+/** Việc phải làm ứng với từng kiểu hỏng — ⛔ một câu chung cho năm nguyên nhân là không nói gì. */
+const VIEC_PHAI_LAM: Record<NonNullable<KetQuaGoiThu['loi']>, string> = {
+  THIEU_MA_SO: 'Nguồn chưa cấu hình mã số. Bấm biểu tượng chìa khoá để đặt.',
+  NOT_WORKING:
+    'Nguồn từ chối mã số. ⚠ Kiểm tra mã số còn dấu ";" ở cuối không — thiếu dấu ấy nguồn trả đúng thông báo này, trông y hệt mã số sai.',
+  TIMEOUT: 'Nguồn không trả lời kịp. Kiểm tra đường mạng tới nguồn trước khi nới timeout.',
+  HTTP_ERROR: 'Không gọi được nguồn. Kiểm tra địa chỉ nguồn và đường mạng ra ngoài.',
+  EMPTY_BODY:
+    'Nguồn trả HTTP 200 nhưng không có nội dung — nhiều khả năng phía nguồn đang bảo trì.',
+};
+
+/**
+ * Kết quả một lượt gọi thử.
+ *
+ * ⛔ **Không hiển thị thân phản hồi** — thân thật của `bhh40` chứa chính mã số. DTO cũng không
+ * mang nó, nên đây là lớp bảo vệ thứ hai chứ không phải lớp duy nhất.
+ */
+function BangKetQuaGoiThu({ kq }: { kq: KetQuaGoiThu }) {
+  if (!kq.thanhCong) {
+    return (
+      <Alert
+        type="error"
+        showIcon
+        message={kq.lyDo ?? 'Lượt gọi hỏng'}
+        description={
+          <>
+            {kq.loi ? VIEC_PHAI_LAM[kq.loi] : null}
+            <br />
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              {kq.httpStatus === null ? 'Chưa nhận được phản hồi nào' : `HTTP ${kq.httpStatus}`} ·{' '}
+              {kq.durationMs} ms
+              {kq.rawLogId === null
+                ? ' · ⛔ chưa lưu được nguyên văn response'
+                : ` · nguyên văn đã lưu (#${kq.rawLogId})`}
+            </Typography.Text>
+          </>
+        }
+      />
+    );
+  }
+
+  return (
+    <Space direction="vertical" size={12} style={{ width: '100%' }}>
+      <Alert
+        type="success"
+        showIcon
+        message={`Nguồn trả về ${kq.soBanGhi} số đo trong ${kq.durationMs} ms`}
+      />
+      <Descriptions column={1} size="small" bordered>
+        <Descriptions.Item label="Số đo bóc được">{kq.soBanGhi}</Descriptions.Item>
+        <Descriptions.Item label="Điểm đo đang hoạt động">
+          {kq.soDiemDoDangHoatDong}
+        </Descriptions.Item>
+        <Descriptions.Item label="Mốc đo gần nhất">
+          {kq.mocDoGanNhat ? new Date(kq.mocDoGanNhat).toLocaleString('vi-VN') : '—'}
+        </Descriptions.Item>
+        <Descriptions.Item label="Dòng không đọc được">
+          {kq.soDongRac > 0 ? (
+            <Tag color="orange">{kq.soDongRac}</Tag>
+          ) : (
+            <Typography.Text type="secondary">0</Typography.Text>
+          )}
+        </Descriptions.Item>
+        <Descriptions.Item label="Dòng trùng">{kq.soDongTrung}</Descriptions.Item>
+      </Descriptions>
+
+      {kq.thieuDuLieu && (
+        <Alert
+          type="warning"
+          showIcon
+          message="Nguồn trả dưới một nửa số điểm đo đang hoạt động"
+          description="Không hẳn là lỗi: nguồn cập nhật rải trong cửa sổ x1:30 → x8:30 nên một lượt gọi sớm được phép thiếu trạm. Gọi lại sau vài phút; còn thiếu thì mới đáng hỏi phía nguồn."
+        />
+      )}
+
+      {kq.maChuaKhai.length > 0 && (
+        <Alert
+          type="info"
+          showIcon
+          message={`${kq.maChuaKhai.length} mã nguồn trả về mà chưa khai điểm đo`}
+          description={
+            <>
+              <Space size={4} wrap style={{ marginBottom: 8 }}>
+                {kq.maChuaKhai.map((ma) => (
+                  <Tag key={ma}>{ma}</Tag>
+                ))}
+              </Space>
+              <br />
+              Số đo của chúng vẫn được giữ lại, ⛔ nhưng hệ thống <b>không tự tạo điểm đo</b>: ta
+              chưa biết mã ấy là trạm nào, ở đâu, thuộc công trình gì. Cần bảng ánh xạ của Công ty
+              (G8) rồi khai tay ở màn hình Điểm đo.
+            </>
+          }
+        />
+      )}
+    </Space>
   );
 }
 
