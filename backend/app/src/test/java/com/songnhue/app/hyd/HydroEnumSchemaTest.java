@@ -50,10 +50,9 @@ import com.songnhue.hydro.domain.SyncStatus;
  *   <li>Đọc <b>văn bản migration</b>, ⛔ không đọc lược đồ CSDL đang chạy. Nghĩa là nó bắt được
  *       "người viết migration mới gõ sai", ⛔ không bắt được "một CSDL đã sống mang ràng buộc cũ".
  *       Lớp lỗi thứ hai neo vào {@code db-migration-checksums.txt}, không vào bài kiểm.
- *   <li>✅ <b>Vế TypeScript đã nối 02/09 (T31.13)</b> cho {@link SyncStatus} và
- *       {@link SyncFailureKind} — hai màn hình chẩn đoán đã ra đời nên hai union ấy tồn tại.
- *       ⬜ {@link ReadingQuality} và {@link ReadingSource} <b>vẫn chưa có union TS</b>: màn hình
- *       duyệt chất lượng thuộc WS-32. Nói ra thay vì để người đọc suy rằng cả bốn đã phủ (luật 28).
+ *   <li>✅ <b>Vế TypeScript phủ ĐỦ BỐN enum từ 02/09 (T31.13 hai cái, WS-32 hai cái)</b>. Cả bốn
+ *       đều được đối chiếu ở <b>ba nơi</b>: enum Java · ràng buộc {@code CHECK} · union TS kèm bản
+ *       đồ nhãn. ⛔ Không còn enum {@code hydro} nào của {@code V202609011052} đứng ngoài.
  * </ul>
  */
 class HydroEnumSchemaTest {
@@ -73,7 +72,11 @@ class HydroEnumSchemaTest {
 
     private static final List<DoiChieu> DOI_CHIEU = List.of(
             new DoiChieu(ReadingQuality.class, "ck_hydro_readings_quality"),
-            new DoiChieu(ReadingQuality.class, "ck_hydro_latest_quality"),
+            // ⭐⭐ `hydro_latest` CỐ Ý hẹp hơn: bảng "hiện tại" ⛔ không bao giờ được trỏ vào một bản
+            //    ghi đã bị loại bỏ. `HydroLatestRecomputer` lọc `quality <> 'XOA'` trước khi ghi, nên
+            //    ràng buộc hẹp ở đây là LƯỚI AN TOÀN cho lượt ghi ấy. Khoảng chênh khai CÓ TÊN —
+            //    một khoảng chênh im lặng là một chỗ quên.
+            new DoiChieu(ReadingQuality.class, "ck_hydro_latest_quality", Set.of("XOA")),
             new DoiChieu(ReadingSource.class, "ck_hydro_readings_source"),
             new DoiChieu(ReadingSource.class, "ck_hydro_latest_source"),
             new DoiChieu(SyncStatus.class, "ck_sync_logs_status"),
@@ -84,13 +87,47 @@ class HydroEnumSchemaTest {
             //   thái không ai ghi được (luật 15 ở tầng ràng buộc).
             new DoiChieu(SyncFailureKind.class, "ck_hydro_raw_logs_failure_kind", Set.of("THIEU_MA_SO")));
 
-    private static final Path MIGRATION =
-            gocKho().resolve("backend/hydro/src/main/resources/db/migration/hyd/V202609011052__hyd_time_series.sql");
+    /**
+     * ⭐⭐ TOÀN BỘ migration của {@code hyd}, nối theo <b>thứ tự số hiệu</b> — ⛔ không phải một tệp.
+     *
+     * <p>Bản đầu (T29) đọc đúng một tệp: {@code V202609011052__hyd_time_series.sql}. Nó đúng đúng
+     * <b>một ngày</b> — tới khi {@code V202609021054} thêm {@code XOA} bằng
+     * {@code ALTER TABLE … DROP CONSTRAINT … ADD CONSTRAINT …}. Khi ấy bộ canh vẫn đọc bản
+     * {@code CHECK} <i>cũ</i> trong tệp cũ, và nó sẽ <b>đỏ vì một lý do sai</b> (báo enum lệch trong
+     * khi CSDL thật đã khớp) — hoặc tệ hơn, nếu enum cũng không đổi thì nó <b>xanh trong khi lược đồ
+     * đã khác</b>.
+     *
+     * <p>📌 Đúng hình dạng luật 28: một bộ canh hẹp hơn nơi nó phải chặn, và cái xanh của nó đọc như
+     * một lời bảo đảm. Nối mọi tệp theo thứ tự rồi lấy <b>định nghĩa CUỐI CÙNG</b> của mỗi ràng buộc
+     * là mô hình đúng của thứ CSDL thật sự mang.
+     *
+     * <p>⚠ Giới hạn còn lại, nói ra thay vì để suy: một ràng buộc bị {@code DROP} mà ⛔ không
+     * {@code ADD} lại thì bộ đọc vẫn thấy định nghĩa cũ. Lớp lỗi ấy neo vào
+     * {@code db-migration-checksums.txt}, ⛔ không vào bài kiểm.
+     */
+    private static final Path THU_MUC_MIGRATION = gocKho().resolve("backend/hydro/src/main/resources/db/migration/hyd");
+
+    /** Nối mọi {@code V*.sql} của {@code hyd} theo thứ tự số hiệu. */
+    private static String sqlHyd() throws IOException {
+        try (java.util.stream.Stream<Path> cay = Files.list(THU_MUC_MIGRATION)) {
+            List<Path> tep = cay.filter(p -> p.getFileName().toString().endsWith(".sql"))
+                    .sorted()
+                    .toList();
+            if (tep.isEmpty()) {
+                throw new IllegalStateException("Không thấy migration nào ở " + THU_MUC_MIGRATION);
+            }
+            StringBuilder ra = new StringBuilder();
+            for (Path t : tep) {
+                ra.append(Files.readString(t, StandardCharsets.UTF_8)).append('\n');
+            }
+            return ra.toString();
+        }
+    }
 
     @Test
     @DisplayName("⭐⭐ Enum Java ↔ CHECK của CSDL — cùng một bộ giá trị ở cả hai nơi")
     void enumVaRangBuocCungMotBoGiaTri() throws IOException {
-        String sql = Files.readString(MIGRATION, StandardCharsets.UTF_8);
+        String sql = sqlHyd();
 
         for (DoiChieu bo : DOI_CHIEU) {
             Set<String> mongDoi = giaTriJava(bo.enumJava());
@@ -113,7 +150,7 @@ class HydroEnumSchemaTest {
     @Test
     @DisplayName("⛔ Vế chống xanh-trên-tập-rỗng: bộ đọc thật sự bóc được giá trị ở cả hai nguồn")
     void boDocKhongChayQuaTapRong() throws IOException {
-        String sql = Files.readString(MIGRATION, StandardCharsets.UTF_8);
+        String sql = sqlHyd();
 
         // Luật 7: một khẳng định chạy qua tập rỗng vẫn xanh trọn vẹn. Nếu ai đó đổi tên ràng buộc
         // hay đổi cách trình bày, bộ đọc trả về rỗng — bài trên sẽ đỏ vì lệch, nhưng bài này nói
@@ -127,7 +164,9 @@ class HydroEnumSchemaTest {
                     .as("enum %s không có hằng nào", bo.enumJava().getSimpleName())
                     .isNotEmpty();
             assertThat(giaTriCsdl(sql, bo.tenRangBuoc()))
-                    .as("không bóc được giá trị nào của `%s` từ %s — ràng buộc đổi tên?", bo.tenRangBuoc(), MIGRATION)
+                    .as(
+                            "không bóc được giá trị nào của `%s` từ %s — ràng buộc đổi tên?",
+                            bo.tenRangBuoc(), THU_MUC_MIGRATION)
                     .isNotEmpty();
         }
     }
@@ -163,7 +202,7 @@ class HydroEnumSchemaTest {
     @Test
     @DisplayName("⛔ THIEU_MA_SO có ở sync_logs và KHÔNG có ở hydro_raw_logs — cả hai vế đều phải đúng")
     void khoangChenhMotGiaTriLaChuDich() throws IOException {
-        String sql = Files.readString(MIGRATION, StandardCharsets.UTF_8);
+        String sql = sqlHyd();
 
         assertThat(giaTriJava(SyncFailureKind.class))
                 .as("enum là nguồn sự thật — gỡ giá trị này là gỡ trạng thái 'chưa cấu hình mã số'")
@@ -200,10 +239,18 @@ class HydroEnumSchemaTest {
     private static Set<String> giaTriCsdl(String sql, String tenRangBuoc) {
         Matcher dau = Pattern.compile("CONSTRAINT\\s+" + Pattern.quote(tenRangBuoc) + "\\s+CHECK\\s*\\(")
                 .matcher(sql);
-        if (!dau.find()) {
+
+        // ⭐⭐ Lấy định nghĩa CUỐI CÙNG, ⛔ không phải định nghĩa đầu tiên. Một ràng buộc bị
+        //    `DROP CONSTRAINT` rồi `ADD CONSTRAINT` ở migration sau thì bản có hiệu lực là bản sau;
+        //    dừng ở lần khớp đầu là đọc lược đồ của quá khứ và gọi nó là hiện tại.
+        int batDau = -1;
+        while (dau.find()) {
+            batDau = dau.end();
+        }
+        if (batDau < 0) {
             return Set.of();
         }
-        int i = dau.end();
+        int i = batDau;
         int sau = 1;
         while (i < sql.length() && sau > 0) {
             char c = sql.charAt(i);
@@ -217,7 +264,7 @@ class HydroEnumSchemaTest {
         if (sau != 0) {
             return Set.of();
         }
-        String than = sql.substring(dau.end(), i - 1);
+        String than = sql.substring(batDau, i - 1);
 
         Matcher danhSach =
                 Pattern.compile("IN\\s*\\(([^)]*)\\)", Pattern.DOTALL).matcher(than);
@@ -249,7 +296,11 @@ class HydroEnumSchemaTest {
 
     private static final List<BoBaTs> BO_BA_TS = List.of(
             new BoBaTs(SyncStatus.class, "SyncStatus", "KET_CUC_DONG_BO"),
-            new BoBaTs(SyncFailureKind.class, "SyncFailureKind", "LY_DO_HONG"));
+            new BoBaTs(SyncFailureKind.class, "SyncFailureKind", "LY_DO_HONG"),
+            // ✅ WS-32 nối nốt hai enum còn lại: màn hình Dữ liệu nghi ngờ đã ra đời nên hai union
+            //    ấy tồn tại. Từ đây bảng đối chiếu phủ ĐỦ BỐN enum ở cả ba nơi (Java · CHECK · TS).
+            new BoBaTs(ReadingQuality.class, "ReadingQuality", "CHAT_LUONG_SO_DO"),
+            new BoBaTs(ReadingSource.class, "ReadingSource", "NGUON_SO_DO"));
 
     private static final Path API_TYPES = gocKho().resolve("frontend/admin-app/src/shared/api-types.ts");
 
@@ -264,7 +315,7 @@ class HydroEnumSchemaTest {
 
         assertThat(BO_BA_TS)
                 .as("bảng đối chiếu rỗng thì bài này không khẳng định gì")
-                .hasSize(2);
+                .hasSize(4);
 
         for (BoBaTs bo : BO_BA_TS) {
             Set<String> java = giaTriJava(bo.enumJava());

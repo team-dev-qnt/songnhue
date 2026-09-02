@@ -15,7 +15,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.songnhue.app.testsupport.IntegrationTestBase;
-import com.songnhue.hydro.domain.ReadingQuality;
+import com.songnhue.hydro.domain.ChanDoanChatLuong;
+import com.songnhue.hydro.domain.LyDoNghiNgo;
 import com.songnhue.hydro.domain.ReadingRow;
 import com.songnhue.hydro.domain.ReadingSource;
 import com.songnhue.hydro.domain.UnmappedRow;
@@ -43,6 +44,15 @@ import com.songnhue.hydro.infra.HydroTimeSeriesWriter;
  * </ol>
  */
 class HydroTimeSeriesSchemaTest extends IntegrationTestBase {
+
+    /** Bản ghi nghi ngờ mẫu — hàm dựng `ChanDoanChatLuong` đòi NGHI_NGO phải kèm lý do. */
+    private static final ChanDoanChatLuong NGO_99 =
+            ChanDoanChatLuong.nghiNgo(LyDoNghiNgo.NGOAI_KHOANG_VAT_LY, "Giá trị 99.900 ngoài khoảng vật lý [-10 … 30]");
+
+    /** `writeReadings` trả về KHOÁ của dòng đã ghi (T32.3); các bài dưới chỉ cần số lượng. */
+    private static int soDong(java.util.List<com.songnhue.hydro.domain.KhoaSoDo> daGhi) {
+        return daGhi.size();
+    }
 
     /** Cống Liên Mạc — Thượng lưu. Mã thật, seed từ bảng ánh xạ G8b. */
     private static final String MA_API = "F01771";
@@ -150,14 +160,14 @@ class HydroTimeSeriesSchemaTest extends IntegrationTestBase {
                 .as("trạng thái nền phải sạch, nếu không hai khẳng định dưới không nói lên điều gì")
                 .isZero();
 
-        int ghi = writer.writeReadings(List.of(new ReadingRow(
+        int ghi = soDong(writer.writeReadings(List.of(new ReadingRow(
                 stationId(),
                 typeId(),
                 NGOAI_RUNWAY,
                 new BigDecimal("4.930"),
-                ReadingQuality.HOP_LE,
+                ChanDoanChatLuong.hopLe(),
                 ReadingSource.API,
-                null)));
+                null))));
 
         assertThat(ghi).as("ghi được — ⛔ không được ném lỗi chỉ vì hết runway").isEqualTo(1);
         assertThat(maintenance.countInDefaultPartition("hydro_readings"))
@@ -175,7 +185,7 @@ class HydroTimeSeriesSchemaTest extends IntegrationTestBase {
                         typeId(),
                         khung,
                         new BigDecimal("4.930"),
-                        ReadingQuality.HOP_LE,
+                        ChanDoanChatLuong.hopLe(),
                         ReadingSource.API,
                         null),
                 new ReadingRow(
@@ -183,12 +193,14 @@ class HydroTimeSeriesSchemaTest extends IntegrationTestBase {
                         typeId(),
                         khung.plus(10, ChronoUnit.MINUTES),
                         new BigDecimal("4.940"),
-                        ReadingQuality.HOP_LE,
+                        ChanDoanChatLuong.hopLe(),
                         ReadingSource.API,
                         null));
 
-        assertThat(writer.writeReadings(lo)).as("lượt đầu ghi mới cả hai dòng").isEqualTo(2);
-        assertThat(writer.writeReadings(lo))
+        assertThat(soDong(writer.writeReadings(lo)))
+                .as("lượt đầu ghi mới cả hai dòng")
+                .isEqualTo(2);
+        assertThat(soDong(writer.writeReadings(lo)))
                 .as(
                         """
                         Lượt thứ hai phải ghi 0 dòng và ⛔ KHÔNG ném lỗi. Đây là hành vi của 4/5 lượt \
@@ -210,9 +222,9 @@ class HydroTimeSeriesSchemaTest extends IntegrationTestBase {
         Instant t1 = t0.plus(10, ChronoUnit.MINUTES);
 
         ReadingRow hopLe = new ReadingRow(
-                stationId(), typeId(), t0, new BigDecimal("4.930"), ReadingQuality.HOP_LE, ReadingSource.API, null);
-        ReadingRow nghiNgo = new ReadingRow(
-                stationId(), typeId(), t1, new BigDecimal("99.900"), ReadingQuality.NGHI_NGO, ReadingSource.API, null);
+                stationId(), typeId(), t0, new BigDecimal("4.930"), ChanDoanChatLuong.hopLe(), ReadingSource.API, null);
+        ReadingRow nghiNgo =
+                new ReadingRow(stationId(), typeId(), t1, new BigDecimal("99.900"), NGO_99, ReadingSource.API, null);
 
         writer.upsertLatest(List.of(hopLe));
         writer.upsertLatest(List.of(nghiNgo));
@@ -252,10 +264,22 @@ class HydroTimeSeriesSchemaTest extends IntegrationTestBase {
         Instant cu = moi.minus(30, ChronoUnit.MINUTES);
 
         writer.upsertLatest(List.of(new ReadingRow(
-                stationId(), typeId(), moi, new BigDecimal("4.930"), ReadingQuality.HOP_LE, ReadingSource.API, null)));
+                stationId(),
+                typeId(),
+                moi,
+                new BigDecimal("4.930"),
+                ChanDoanChatLuong.hopLe(),
+                ReadingSource.API,
+                null)));
         // Lượt ingest muộn (thử lại sau lỗi mạng, hoặc nhập tay bù quá khứ) mang về bản ghi CŨ HƠN.
         writer.upsertLatest(List.of(new ReadingRow(
-                stationId(), typeId(), cu, new BigDecimal("1.110"), ReadingQuality.HOP_LE, ReadingSource.API, null)));
+                stationId(),
+                typeId(),
+                cu,
+                new BigDecimal("1.110"),
+                ChanDoanChatLuong.hopLe(),
+                ReadingSource.API,
+                null)));
 
         var dong = jdbc.queryForMap(
                 "SELECT last_seen_at, valid_value FROM hydro_latest WHERE station_id = ?", stationId());
@@ -371,7 +395,7 @@ class HydroTimeSeriesSchemaTest extends IntegrationTestBase {
                         typeId(),
                         Instant.now(),
                         new BigDecimal("1.000"),
-                        ReadingQuality.HOP_LE,
+                        ChanDoanChatLuong.hopLe(),
                         ReadingSource.MANUAL,
                         null))
                 .isInstanceOf(IllegalArgumentException.class)

@@ -6,6 +6,7 @@ import {
   CloudServerOutlined,
   DashboardOutlined,
   HeartOutlined,
+  ExperimentOutlined,
   HistoryOutlined,
   InboxOutlined,
   FileTextOutlined,
@@ -115,6 +116,16 @@ export const MENU: readonly MenuNode[] = [
         icon: <QuestionCircleOutlined />,
         path: '/thuy-van/ma-la',
         permissions: ['hyd:measurement:view', 'hyd:api-source:manage'],
+      },
+      {
+        // ⚠ Gác bằng `hyd:measurement:view` — quyền RỘNG NHẤT trong ba quyền của trang. Người
+        //   không duyệt được vẫn phải THẤY số liệu nào đang bị treo, vì chính họ là người đọc
+        //   biểu đồ có lỗ hổng ấy. Nút Duyệt / Nhập tay tự ẩn theo quyền hẹp hơn ở trong trang.
+        key: 'du-lieu-nghi-ngo',
+        label: 'Dữ liệu nghi ngờ',
+        icon: <ExperimentOutlined />,
+        path: '/thuy-van/du-lieu-nghi-ngo',
+        permissions: ['hyd:measurement:view', 'hyd:measurement:review'],
       },
     ],
   },

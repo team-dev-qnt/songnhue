@@ -34,6 +34,8 @@ import org.springframework.transaction.support.SimpleTransactionStatus;
 import com.songnhue.hydro.domain.AdapterType;
 import com.songnhue.hydro.domain.ApiSource;
 import com.songnhue.hydro.domain.DiemDoDich;
+import com.songnhue.hydro.domain.KhoaSoDo;
+import com.songnhue.hydro.domain.QuyTacNghiNgo;
 import com.songnhue.hydro.domain.ReadingQuality;
 import com.songnhue.hydro.domain.ReadingRow;
 import com.songnhue.hydro.domain.ReadingSource;
@@ -93,6 +95,9 @@ class TelemetryIngestServiceTest {
     private ApiSourceHealthService health;
 
     @Mock
+    private ChatLuongSoDoService chatLuong;
+
+    @Mock
     private PlatformTransactionManager txManager;
 
     private AdapterGia adapter;
@@ -117,11 +122,21 @@ class TelemetryIngestServiceTest {
         when(poller.dichTheoMaApi(anyLong())).thenReturn(Map.of("F01771", dich(7L, "DO-LMAC-TL", true, true)));
         when(rawLogs.write(any())).thenReturn(101L);
         when(syncLogs.write(any())).thenReturn(555L);
-        when(timeSeries.writeReadings(anyList())).thenAnswer(i -> ((List<?>) i.getArgument(0)).size());
+        // ⭐ writeReadings trả về KHOÁ của dòng đã ghi (T32.3) — mặc định "ghi được hết".
+        when(timeSeries.writeReadings(anyList())).thenAnswer(i -> khoaCua(i.getArgument(0)));
+        // ⛔ Phiên phân loại KHÔNG cấu hình quy tắc: các bài ở lớp này đo QUYẾT ĐỊNH của luồng đồng
+        //    bộ, không đo bộ phân loại (`PhanLoaiChatLuongTest` mới đo cái đó). Mọi dòng ra HOP_LE.
+        when(chatLuong.moPhien(anyLong(), any()))
+                .thenReturn(new ChatLuongSoDoService.Phien(QuyTacNghiNgo.KHONG_KIEM, Map.of()));
         when(timeSeries.writeUnmapped(anyList())).thenAnswer(i -> ((List<?>) i.getArgument(0)).size());
 
-        service =
-                new TelemetryIngestService(sources, adapters, poller, rawLogs, timeSeries, syncLogs, health, txManager);
+        service = new TelemetryIngestService(
+                sources, adapters, poller, rawLogs, timeSeries, syncLogs, health, chatLuong, txManager);
+    }
+
+    /** Khoá của mọi dòng trong lô — dùng làm câu trả lời mặc định của {@code writeReadings}. */
+    private static List<KhoaSoDo> khoaCua(List<ReadingRow> lo) {
+        return lo.stream().map(r -> new KhoaSoDo(r.stationId(), r.measuredAt())).toList();
     }
 
     private static DiemDoDich dich(long id, String ma, boolean active, boolean daKhai) {
@@ -364,7 +379,7 @@ class TelemetryIngestServiceTest {
     @DisplayName("⭐ written / skipped tách riêng — 'ghi 0 dòng' là kết cục BÌNH THƯỜNG của 4/5 lượt")
     void demGhiMoiVaTrungTachRieng() {
         when(poller.demDiemDoDangHoatDong(anyLong())).thenReturn(1);
-        when(timeSeries.writeReadings(anyList())).thenReturn(0);
+        when(timeSeries.writeReadings(anyList())).thenReturn(List.of());
         adapter.me = new TelemetryBatch(List.of(doDuoc("F01771", "240")), 0, 0, false);
 
         KetQuaDongBo ket = service.chayTheoLich(nguon);
@@ -381,7 +396,7 @@ class TelemetryIngestServiceTest {
     @Test
     @DisplayName("⭐ upsertLatest nhận MỌI dòng, kể cả dòng vừa bị ON CONFLICT bỏ qua")
     void upsertLatestNhanMoiDong() {
-        when(timeSeries.writeReadings(anyList())).thenReturn(0);
+        when(timeSeries.writeReadings(anyList())).thenReturn(List.of());
         adapter.me = new TelemetryBatch(List.of(doDuoc("F01771", "240")), 0, 0, false);
 
         service.chayTheoLich(nguon);

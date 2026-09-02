@@ -174,12 +174,16 @@ class HydroRawLogAppendOnlyTest extends IntegrationTestBase {
                     jdbc.update(
                             """
                             INSERT INTO hydro_readings (measured_at, station_id, measurement_type_id,
-                                                        reading_value, quality, source)
-                            VALUES (?, ?, ?, 1.234, 'NGHI_NGO', 'API')
+                                                        reading_value, quality, quality_reason, source)
+                            VALUES (?, ?, ?, 1.234, 'NGHI_NGO', 'kiểm quyền ghi đè', 'API')
                             """,
                             java.sql.Timestamp.from(moc),
                             stationId,
                             typeId);
+                    // ⚠ `quality_reason` bắt buộc với dòng NGHI_NGO từ `V202609021054`
+                    //   (`ck_hydro_readings_nghi_ngo_co_ly_do`): một cờ đỏ không nói được vì sao là
+                    //   một cờ đỏ không hành động được. Bài này ⛔ không đo ràng buộc ấy — nó đo
+                    //   QUYỀN ghi đè — nên chỉ cần điền cho hợp lệ.
                     jdbc.update(
                             "UPDATE hydro_readings SET quality = 'HOP_LE' WHERE station_id = ? AND measured_at = ?",
                             stationId,

@@ -161,6 +161,7 @@ public enum ErrorCode {
      * liệu của trạm này sang trạm khác; biểu đồ vẫn vẽ đẹp, chỉ là của nhầm trạm.
      */
     HYD_2006("HYD-2006", HttpStatus.UNPROCESSABLE_ENTITY),
+    HYD_2007("HYD-2007", HttpStatus.CONFLICT),
 
     // ---- MOD-04 Nhân sự ---------------------------------------------------------
     HR_2001("HR-2001", HttpStatus.UNPROCESSABLE_ENTITY),

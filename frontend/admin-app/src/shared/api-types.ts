@@ -1075,3 +1075,92 @@ export interface UnmappedCodeRow {
   daKhaiThanhDiemDo: boolean;
   maDiemDo: string | null;
 }
+
+// =============================================================================
+// MOD-03 Thuỷ văn — chất lượng số đo (WS-32)
+// =============================================================================
+
+/**
+ * Trạng thái một bản ghi số đo — **hai mức chất lượng + một bia mộ**.
+ *
+ * ⚠⚠ Bản ghi `NGHI_NGO` và `XOA` **nằm chung bảng chính**, nên mọi truy vấn báo cáo/cảnh
+ * báo/tổng hợp phải lọc `HOP_LE` (quy tắc 14). Ở phía giao diện, hệ quả là: đừng bao giờ
+ * cộng dồn một danh sách trả về từ màn hình *Dữ liệu nghi ngờ* vào một con số thống kê —
+ * nó cố ý chứa đúng những dòng mà báo cáo loại ra.
+ *
+ * ⛔ `XOA` **không phải** mức chất lượng thứ ba: nó là trạng thái cuối của bước xoá mềm.
+ */
+export type ReadingQuality = 'HOP_LE' | 'NGHI_NGO' | 'XOA';
+
+/** Bản ghi này do đâu mà có. `MANUAL` là đường nhập tay khi API gián đoạn (CN-03.2). */
+export type ReadingSource = 'API' | 'MANUAL';
+
+/**
+ * Một dòng của màn hình *Dữ liệu nghi ngờ* — `GET /hyd/so-do/nghi-ngo`.
+ *
+ * ⛔⛔ **Không có trường `id`.** Khoá tự tăng của `hydro_readings` ⛔ không ra tới dây: địa chỉ của
+ * một bản ghi là bộ ba `(diemDoId, loaiChiSoCode, mocDo)` — cùng bộ khoá mà `POST /thao-tac` và
+ * `POST /nhap-tay` dùng. Lấy đúng bộ ba ấy làm `rowKey`.
+ */
+export interface SuspectReadingRow {
+  mocDo: string;
+  diemDoId: string;
+  diemDoCode: string;
+  diemDoName: string;
+  loaiChiSoCode: string;
+  loaiChiSoName: string;
+  donVi: string;
+  /**
+   * ⭐ Chuỗi, ⛔ **không phải số**. `2.300` tuần tự hoá thành số JSON cho ra `2.3`, và với
+   * mực nước thì chữ số thập phân thứ ba là **milimét** — thứ mà toàn bộ ngưỡng cảnh báo
+   * treo lên. Đã trả giá hai lần: T28.27 ở cổng công khai, rồi V2 ở đường quản trị.
+   */
+  giaTri: string;
+  trangThai: ReadingQuality;
+  /** MÁY nói: vì sao bộ phân loại đánh dấu dòng này lúc ingest. */
+  lyDoMay: string | null;
+  /** NGƯỜI nói: lý do người duyệt loại bỏ. `null` khi chưa ai xử lý. */
+  lyDoNguoi: string | null;
+  nguon: ReadingSource;
+  mocGhi: string | null;
+  /** ⚠ `null` nghĩa là dòng do NGƯỜI nhập — ⛔ không phải "raw số 0". */
+  rawLogId: number | null;
+}
+
+/**
+ * ⚠ Câu trả lời cho *"bảng rỗng nghĩa là gì"* — `GET /hyd/so-do/nghi-ngo/tinh-trang`.
+ *
+ * Ba trạng thái **phân biệt được**, và cả ba đều cho ra một bảng rỗng:
+ * bộ phân loại đang chạy mà không có gì đáng ngờ (`dangKiem = true`) · chưa ai cấu hình
+ * quy tắc (`dangKiem = false`, `loiCauHinh` vắng) · cấu hình có mà **hỏng** (`loiCauHinh`).
+ * ⛔ Giao diện phải nói ra cái nào — quy tắc 16: *số 0 là một câu khẳng định*.
+ */
+export interface QualityRuleStatus {
+  dangKiem: boolean;
+  loiCauHinh?: string | null;
+}
+
+/** Kết quả một bước chuyển — `POST /hyd/so-do/thao-tac`. */
+export interface ReviewResult {
+  mocDo: string;
+  trangThai: ReadingQuality;
+  lyDoNguoi: string | null;
+}
+
+/** Địa chỉ một bản ghi — khoá tự nhiên, ⛔ không phải khoá tự tăng. */
+export interface ReviewRequest {
+  diemDoId: string;
+  maLoaiChiSo: string;
+  mocDo: string;
+  action: string;
+  reason?: string;
+}
+
+/** Ô nhập tay — `POST /hyd/so-do/nhap-tay`. ⚠ `giaTri` gửi lên là **chuỗi**. */
+export interface ManualEntryRequest {
+  diemDoId: string;
+  maLoaiChiSo: string;
+  mocDo: string;
+  giaTri: string;
+  ghiChu?: string;
+}

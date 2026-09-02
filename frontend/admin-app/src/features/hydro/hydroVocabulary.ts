@@ -1,4 +1,10 @@
-import { type PositionRole, type SyncFailureKind, type SyncStatus } from '@/shared/api-types';
+import {
+  type PositionRole,
+  type ReadingQuality,
+  type ReadingSource,
+  type SyncFailureKind,
+  type SyncStatus,
+} from '@/shared/api-types';
 
 /**
  * Nhãn tiếng Việt của vai trò vị trí điểm đo — <b>một chỗ duy nhất</b>.
@@ -102,4 +108,53 @@ export const LY_DO_HONG: Record<SyncFailureKind, { label: string; viecPhaiLam: s
     viecPhaiLam:
       '⚠ Nguy hiểm nhất: lượt gọi trông như thành công. Thường là nguồn đổi định dạng — đối chiếu nguyên văn ở hydro_raw_logs.',
   },
+};
+
+// =============================================================================
+// Chất lượng số đo — WS-32
+// =============================================================================
+
+/**
+ * Ba trạng thái của một bản ghi số đo, kèm màu và **việc phải làm**.
+ *
+ * ⛔⛔ `HOP_LE` **không được vẽ màu**: nó là kết cục của gần như mọi bản ghi, và tô màu cho
+ * trạng thái bình thường là làm hai trạng thái còn lại chìm đi. Cùng bài học §10.42 đã áp cho
+ * `SKIPPED_UP_TO_DATE` ở bảng trên.
+ *
+ * ⚠ `XOA` là **bia mộ**, ⛔ không phải "mức chất lượng thứ ba". Nó nằm ngoài thang HOP_LE ↔
+ * NGHI_NGO, và bộ lọc `quality = 'HOP_LE'` của quy tắc 14 loại nó ra miễn phí.
+ */
+export const CHAT_LUONG_SO_DO: Record<
+  ReadingQuality,
+  { label: string; color: string; giaiThich: string }
+> = {
+  HOP_LE: {
+    label: 'Hợp lệ',
+    color: 'default',
+    giaiThich: 'Qua bộ quy tắc chuẩn hoá — được dùng cho báo cáo, biểu đồ và cảnh báo ngưỡng.',
+  },
+  NGHI_NGO: {
+    label: 'Nghi ngờ',
+    color: 'orange',
+    giaiThich:
+      'Vượt khoảng vật lý hoặc nhảy quá nhanh. ⚠ Bản ghi VẪN nằm trong CSDL — nó chỉ bị loại khỏi báo cáo, biểu đồ và cảnh báo cho tới khi có người duyệt.',
+  },
+  XOA: {
+    label: 'Đã loại bỏ',
+    color: 'red',
+    giaiThich:
+      'Người duyệt kết luận không dùng được, kèm lý do. ⛔ Dòng vẫn nằm nguyên và giá trị gốc không bị sửa — nguyên văn response cũng còn ở nhật ký thô. ⛔ Không có đường quay lại.',
+  },
+};
+
+/**
+ * Bản ghi này do đâu mà có.
+ *
+ * ⭐ Phân biệt được hai nguồn là điều kiện để trả lời một câu hỏi vận hành có thật: *"khoảng
+ * trống hôm qua là do poller chết hay do nguồn không phát?"* — nếu ai đó đã nhập tay bù vào
+ * thì hai tình huống ấy trông giống hệt nhau trên biểu đồ.
+ */
+export const NGUON_SO_DO: Record<ReadingSource, { label: string; color: string }> = {
+  API: { label: 'Tự động', color: 'blue' },
+  MANUAL: { label: 'Nhập tay', color: 'purple' },
 };

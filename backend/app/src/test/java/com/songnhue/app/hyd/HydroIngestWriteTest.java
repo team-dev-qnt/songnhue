@@ -19,6 +19,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.songnhue.app.testsupport.IntegrationTestBase;
+import com.songnhue.hydro.domain.ChanDoanChatLuong;
+import com.songnhue.hydro.domain.LyDoNghiNgo;
 import com.songnhue.hydro.domain.ReadingQuality;
 import com.songnhue.hydro.domain.ReadingRow;
 import com.songnhue.hydro.domain.ReadingSource;
@@ -135,7 +137,11 @@ class HydroIngestWriteTest extends IntegrationTestBase {
     }
 
     private ReadingRow dong(Instant moc, String giaTri, ReadingQuality chatLuong) {
-        return new ReadingRow(idTram, idLoaiChiSo, moc, new BigDecimal(giaTri), chatLuong, ReadingSource.API, null);
+        ChanDoanChatLuong chanDoan = chatLuong == ReadingQuality.HOP_LE
+                ? ChanDoanChatLuong.hopLe()
+                : ChanDoanChatLuong.nghiNgo(
+                        LyDoNghiNgo.NGOAI_KHOANG_VAT_LY, "Giá trị " + giaTri + " ngoài khoảng vật lý [-10 … 30]");
+        return new ReadingRow(idTram, idLoaiChiSo, moc, new BigDecimal(giaTri), chanDoan, ReadingSource.API, null);
     }
 
     private Map<String, Object> latest() {
@@ -148,12 +154,12 @@ class HydroIngestWriteTest extends IntegrationTestBase {
     void onConflictTraVeSoDongGhiMoi() {
         List<ReadingRow> me = List.of(dong(KHUNG, "4.930", ReadingQuality.HOP_LE));
 
-        assertThat(timeSeries.writeReadings(me)).isEqualTo(1);
+        assertThat(timeSeries.writeReadings(me)).hasSize(1);
         assertThat(timeSeries.writeReadings(me))
                 .as("poll 2' trên nguồn 10' ⇒ 4/5 lượt trả dữ liệu TRÙNG. Nếu con số này không phân biệt "
                         + "được 'ghi mới' với 'đã có' thì một poller ghi 0 dòng suốt ba ngày trông y hệt "
                         + "một poller khoẻ mạnh — và ba ngày ấy mất vĩnh viễn")
-                .isZero();
+                .isEmpty();
 
         assertThat(jdbc.queryForObject("SELECT count(*) FROM hydro_readings WHERE station_id = ?", Long.class, idTram))
                 .isEqualTo(1);
@@ -164,9 +170,11 @@ class HydroIngestWriteTest extends IntegrationTestBase {
     void meVuaCoTrungVuaCoMoi() {
         timeSeries.writeReadings(List.of(dong(KHUNG, "4.930", ReadingQuality.HOP_LE)));
 
-        int ghiMoi = timeSeries.writeReadings(List.of(
-                dong(KHUNG, "4.930", ReadingQuality.HOP_LE),
-                dong(KHUNG.plus(Duration.ofMinutes(10)), "4.940", ReadingQuality.HOP_LE)));
+        int ghiMoi = timeSeries
+                .writeReadings(List.of(
+                        dong(KHUNG, "4.930", ReadingQuality.HOP_LE),
+                        dong(KHUNG.plus(Duration.ofMinutes(10)), "4.940", ReadingQuality.HOP_LE)))
+                .size();
 
         assertThat(ghiMoi)
                 .as("⛔ jdbc.update() trên một câu INSERT nhiều dòng trả TỔNG số dòng ghi được — đây là "

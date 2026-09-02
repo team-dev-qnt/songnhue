@@ -11,6 +11,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import com.songnhue.hydro.domain.DiemDoDich;
+import com.songnhue.hydro.domain.SoDoTruoc;
 import com.songnhue.hydro.domain.TinHieuDiemDo;
 
 /**
@@ -129,6 +130,30 @@ public class PollerRepository {
     private static final String SQL_ID_LOAI_CHI_SO =
             "SELECT id FROM measurement_types WHERE code = ? AND deleted_at IS NULL";
 
+    /**
+     * ⭐ Mốc so sánh của phép kiểm delta/giờ — <b>bản ghi HỢP LỆ gần nhất</b> của từng điểm đo
+     * (T32.1).
+     *
+     * <p>⚠⚠ Đọc {@code valid_measured_at}/{@code valid_value}, ⛔ <b>không</b> {@code last_seen_at}.
+     * Đó là toàn bộ giá trị của việc {@code hydro_latest} tách sẵn hai cặp cột: so một số đo mới với
+     * một số đo <i>đang bị nghi ngờ</i> là dựng một chuỗi trong đó mỗi bước sai kéo theo bước sau —
+     * một cảm biến trôi dần sẽ luôn "chênh ít so với lần trước" và ⛔ không bao giờ bị bắt.
+     *
+     * <p>⭐ Vì đọc {@code valid_*}, câu này ⛔ <b>không cần</b> vế {@code quality = 'HOP_LE'}: bộ lọc
+     * ấy đã được ép ở <i>chỗ dữ liệu đi qua</i> — lúc {@code UPSERT_LATEST} ghi bảng này (luật 12).
+     * Đây là lý do {@code QualityFilterGuardTest} chỉ soi truy vấn chạm {@code hydro_readings}.
+     *
+     * <p>⚠ Một lượt quét toàn bảng, ⛔ không {@code IN (…)} theo danh sách trạm: bảng có đúng một
+     * dòng cho mỗi (điểm đo × loại chỉ số) — 19 dòng hôm nay — và một câu duy nhất mỗi lượt polling
+     * rẻ hơn hẳn 28 lượt tra riêng lẻ.
+     */
+    private static final String SQL_SO_DO_HOP_LE_GAN_NHAT =
+            """
+            SELECT station_id, valid_measured_at, valid_value
+              FROM hydro_latest
+             WHERE measurement_type_id = ? AND valid_measured_at IS NOT NULL
+            """;
+
     private final JdbcTemplate jdbc;
 
     public PollerRepository(JdbcTemplate jdbc) {
@@ -162,6 +187,25 @@ public class PollerRepository {
                 },
                 measurementTypeId);
         return Map.copyOf(theoMa);
+    }
+
+    /**
+     * @return điểm đo → bản ghi hợp lệ gần nhất. Điểm đo <b>vắng khỏi map</b> nghĩa là chưa từng có
+     *     bản ghi hợp lệ nào — ⚠ nơi gọi phải truyền {@code null} cho bộ phân loại, ⛔ không dựng một
+     *     {@code SoDoTruoc} giá trị 0: "chưa có mốc để so" khác hẳn "mốc trước là 0"
+     */
+    public Map<Long, SoDoTruoc> soDoHopLeGanNhat(long measurementTypeId) {
+        Map<Long, SoDoTruoc> theoDiemDo = new HashMap<>();
+        jdbc.query(
+                SQL_SO_DO_HOP_LE_GAN_NHAT,
+                rs -> {
+                    theoDiemDo.put(
+                            rs.getLong("station_id"),
+                            new SoDoTruoc(
+                                    rs.getTimestamp("valid_measured_at").toInstant(), rs.getBigDecimal("valid_value")));
+                },
+                measurementTypeId);
+        return Map.copyOf(theoDiemDo);
     }
 
     public int demDiemDoDaCoTrongKhung(long apiSourceId, Instant frameStart) {

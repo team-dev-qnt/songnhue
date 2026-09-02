@@ -28,7 +28,7 @@ import com.songnhue.core.common.security.RequirePermission;
  * Ma trận <b>vai trò × tài nguyên</b> đối chiếu với dữ liệu phân quyền thật trong DB — T10.3,
  * NFR-06 đòi hỏi đúng 100%.
  *
- * <p><b>Vì sao không kiểm bằng cách gọi HTTP cho từng ô.</b> 12 vai trò × 88 quyền là hơn một nghìn
+ * <p><b>Vì sao không kiểm bằng cách gọi HTTP cho từng ô.</b> 12 vai trò × 89 quyền là hơn một nghìn
  * ô; dựng phiên đăng nhập cho từng vai trò rồi gọi từng endpoint sẽ mất hàng phút mỗi lần chạy CI, và
  * một bài kiểm chậm là một bài kiểm sớm muộn bị bỏ qua. Cơ chế chặn (tầng 2) đã có
  * {@code PermissionInterceptorTest} và {@code DenyByDefaultTest} lo; cái còn thiếu là <b>bản thân
@@ -96,7 +96,11 @@ class RbacMatrixTest extends IntegrationTestBase {
             //   M3.16 · Mã lạ từ nguồn) canh bằng đúng quyền ấy, nên nó không còn là "quyền chờ
             //   Phase sau". ⛔ Đừng thêm lại cho hết đỏ — bài ngoaiLeQuyenPhaseSauVanConDung() canh
             //   đúng chiều này.
-            "hyd:measurement:review", // Duyệt số liệu — Phase 2 (WS-32 duyệt NGHI_NGO)
+            // ⬇ WS-32 đã GỠ `hyd:measurement:review`: màn hình Dữ liệu nghi ngờ gác bằng đúng quyền
+            //   ấy, VÀ hai bước chuyển `DUYET`/`XOA` của quy trình HYDRO_READING khai nó ở
+            //   `workflow_transitions.required_permission`. ⛔ Đừng thêm lại cho hết đỏ.
+            //   ⚠ `hyd:measurement:create` (mới ở V202609021054) CỐ Ý không có mặt ở đây: nó có
+            //   endpoint thật ngay từ lượt ra đời — POST /hyd/so-do/nhap-tay.
             "hyd:report:view", // Báo cáo thủy văn — Phase 2
             "hyd:report:export", // Xuất báo cáo thủy văn — Phase 2
             "hyd:threshold:view", // Xem ngưỡng — Phase 2

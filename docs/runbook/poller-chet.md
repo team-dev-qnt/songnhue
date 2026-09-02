@@ -180,8 +180,32 @@ SELECT s.code, s.name, s.active,
 ⭐ Ở tầng lược đồ, `hydro_latest` đã tách sẵn `valid_value` (giá trị **HỢP LỆ** gần nhất) khỏi
 `last_seen_at`: widget cổng và lớp GIS đọc `valid_value` nên **không có cách nào** hiện nhầm một số
 đang bị nghi ngờ.
-⬜ Tới 02/09/2026 mọi bản ghi ingest đều là `HOP_LE` — bộ phân loại `NGHI_NGO` thuộc WS-32. Nghĩa là
-bộ lọc trên **đúng nhưng chưa được thử**; ⛔ đừng đọc nó thành "đã kiểm chứng".
+✅ **Từ 02/09/2026 (WS-32) bộ phân loại đã chạy** — bộ lọc trên không còn là một luật chưa được thử.
+Bộ canh `QualityFilterGuardTest` đọc **mã thật** và bắt mọi truy vấn đọc `hydro_readings` thiếu
+`quality = 'HOP_LE'`; ngoại lệ phải khai **có tên** trong chính bộ canh ấy.
+
+⚠ **Có thêm trạng thái thứ ba: `XOA`** (xoá mềm, người duyệt bấm kèm lý do bắt buộc). Nó ⛔ không
+phải mức chất lượng thứ ba — bộ lọc `= 'HOP_LE'` loại nó ra **miễn phí**, nên ⛔ đừng thêm vế
+`AND deleted_at IS NULL` ở đâu cả.
+
+### 4-b. Hàng chờ duyệt rỗng — ba nghĩa khác nhau
+
+Màn hình **Thuỷ văn › Dữ liệu nghi ngờ** (`/thuy-van/du-lieu-nghi-ngo`) tự nói ra nghĩa nào:
+
+| Nhìn thấy | Nghĩa | Việc phải làm |
+|---|---|---|
+| Dải xanh *"bộ phân loại đang chạy…"* | Không có gì đáng ngờ | ✅ Không phải làm gì |
+| Dải vàng *"chưa cấu hình quy tắc"* | ⛔ Bộ phân loại **đang tắt** — không bản ghi nào bị đánh dấu | Khai khoảng vật lý ở **Cấu hình hệ thống › HYDRO**, khoá `hydro.quality.suspect-rule` |
+| Dải đỏ *"quy tắc đang HỎNG"* | JSON không đọc được ⇒ **mọi số đo mới ghi là Hợp lệ mà không qua kiểm tra nào** | Sửa JSON; log ứng dụng có dòng `ERROR` kèm nguyên nhân |
+
+⛔ Một bảng rỗng ⛔ **không** đồng nghĩa dữ liệu sạch — quy tắc 16: *số 0 là một câu khẳng định*.
+
+```sql
+-- Đối chiếu nhanh khi ứng dụng đang chết
+SELECT quality, count(*) FROM hydro_readings
+ WHERE measured_at > now() - interval '24 hours' GROUP BY quality;
+SELECT setting_value FROM settings WHERE setting_key = 'hydro.quality.suspect-rule';
+```
 
 ## 5. Xác nhận đã xong
 

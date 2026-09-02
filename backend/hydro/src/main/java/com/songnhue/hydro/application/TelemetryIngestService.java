@@ -19,6 +19,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import com.songnhue.hydro.domain.ApiSource;
 import com.songnhue.hydro.domain.DiemDoDich;
+import com.songnhue.hydro.domain.KhoaSoDo;
+import com.songnhue.hydro.domain.PhanLoaiChatLuong;
 import com.songnhue.hydro.domain.RawFetch;
 import com.songnhue.hydro.domain.ReadingQuality;
 import com.songnhue.hydro.domain.ReadingRow;
@@ -81,13 +83,27 @@ import com.songnhue.hydro.infra.TelemetryAdapters;
  *       kèm chẩn đoán, còn poller phải để lại một job FAILED. Lớp này chỉ kể lại đã thấy gì.
  * </ol>
  *
- * <h2>⬜ Chất lượng số đo tạm thời luôn {@code HOP_LE} — nợ có tên, đóng ở WS-32</h2>
+ * <h2>✅ Chất lượng số đo — nối 02/09/2026 (WS-32/T32.1 · T32.3)</h2>
  *
- * <p>{@link ReadingQuality#NGHI_NGO} cần bộ quy tắc {@code hydro.quality.suspect-rule} (khoá đã seed,
- * chưa ai đọc) và một màn hình duyệt. Cho tới lúc ấy mọi dòng ghi {@code HOP_LE} — trùng khít giá trị
- * mặc định của lược đồ, nên ⛔ <b>không</b> có chỗ nào nói hai điều khác nhau. ⚠ Hệ quả phải nói ra:
- * bộ lọc {@code quality = 'HOP_LE'} của quy tắc 14 <b>hôm nay chưa loại được gì</b> — nó đúng nhưng
- * chưa được thử. Bài kiểm chứng minh nó thật sự lọc thuộc WS-32/T32.4.
+ * <p>Mỗi số đo đi qua {@link PhanLoaiChatLuong} trước khi thành {@link ReadingRow}. Bốn điểm chịu
+ * lực:
+ *
+ * <ol>
+ *   <li>⛔ Bản ghi {@link ReadingQuality#NGHI_NGO} <b>vẫn được ghi</b> vào bảng chính, ⛔ không bị
+ *       loại bỏ và ⛔ không bị sửa giá trị — chốt F2. Nguồn không có API lịch sử.
+ *   <li>Mốc so sánh của phép kiểm delta/giờ là bản ghi <b>hợp lệ</b> gần nhất, chụp <b>một lần</b> ở
+ *       đầu lượt ({@code PollerRepository.soDoHopLeGanNhat}) — ⛔ không đọc lại giữa chừng, cùng lý
+ *       lẽ với {@code dangHoatDong} ở {@link BoiCanh}.
+ *   <li>⛔ Bộ phân loại <b>không so chéo hai điểm đo</b> (T32.2) — cấm lệnh nghiệp vụ, ép bằng hình
+ *       dạng chữ ký hàm chứ không bằng lời dặn.
+ *   <li>⭐ Thông báo phát theo <b>dòng vừa ghi mới</b>, ⛔ không theo dòng nhận được: 4/5 lượt gọi
+ *       trả về dữ liệu cũ, nên phát theo cái nhận được là đánh thức người trực 5 lần một khung cho
+ *       cùng một bản ghi.
+ * </ol>
+ *
+ * <p>⚠ Khi khoá {@code hydro.quality.suspect-rule} rỗng hoặc hỏng thì bộ phân loại rơi về "không
+ * kiểm gì" và mọi dòng là {@code HOP_LE} — ⛔ đó <b>không</b> phải "đã kiểm và thấy hợp lệ", và
+ * {@code HydroSettings.loiQuyTacNghiNgo()} là thứ nói ra sự khác biệt ấy ra tới màn hình.
  */
 @Service
 public class TelemetryIngestService {
@@ -107,10 +123,20 @@ public class TelemetryIngestService {
     private final HydroTimeSeriesWriter timeSeries;
     private final SyncLogWriter syncLogs;
     private final ApiSourceHealthService health;
+    private final ChatLuongSoDoService chatLuong;
     private final TransactionTemplate giaoDichRieng;
     private final TransactionTemplate giaoDichGhi;
 
-    @SuppressWarnings("checkstyle:ParameterNumber")
+    // CHECKSTYLE.OFF: ParameterNumber - Lớp điều phối của một lượt đồng bộ: 9 cộng tác viên là số
+    // BƯỚC của luồng (nguồn · adapter · tra cứu · ghi raw · ghi số đo · ghi nhật ký · sức khoẻ ·
+    // chất lượng · giao dịch), không phải dấu hiệu lớp ôm nhiều việc. Gom bừa vài cái vào một facade
+    // chỉ giấu số đó đi mà không giảm một phụ thuộc nào — và nó sẽ giấu luôn ranh giới REQUIRES_NEW
+    // của lượt ghi raw, thứ duy nhất cứu được dữ liệu khi các bước sau đổ vỡ.
+    //
+    // ⚠ Trước bản này chỗ đây là `@SuppressWarnings("checkstyle:ParameterNumber")` — nó KHÔNG có tác
+    //   dụng nào: checkstyle.xml không nạp module `SuppressWarningsHolder`/`SuppressWarningsFilter`,
+    //   nên chú thích ấy chỉ là chữ. Nó "hiệu quả" suốt vì tham số vừa đúng 8, tức bằng ngưỡng —
+    //   một bộ canh trông như đã tắt mà thật ra chưa từng bị chạm tới (luật 1).
     public TelemetryIngestService(
             ApiSourceService sources,
             TelemetryAdapters adapters,
@@ -119,7 +145,9 @@ public class TelemetryIngestService {
             HydroTimeSeriesWriter timeSeries,
             SyncLogWriter syncLogs,
             ApiSourceHealthService health,
+            ChatLuongSoDoService chatLuong,
             PlatformTransactionManager txManager) {
+        // CHECKSTYLE.ON: ParameterNumber
         this.sources = sources;
         this.adapters = adapters;
         this.poller = poller;
@@ -127,6 +155,7 @@ public class TelemetryIngestService {
         this.timeSeries = timeSeries;
         this.syncLogs = syncLogs;
         this.health = health;
+        this.chatLuong = chatLuong;
         // ⛔⛔ TransactionTemplate, ⛔ KHÔNG phải @Transactional(REQUIRES_NEW) trên một phương thức
         //    của chính lớp này: Spring chặn lời gọi ở PROXY, nên một lời gọi nội bộ đi thẳng vào
         //    phương thức và chú thích ấy KHÔNG có tác dụng nào — mà mã vẫn biên dịch, bài kiểm vẫn
@@ -244,6 +273,10 @@ public class TelemetryIngestService {
                         + "ghi mực nước vào cột lượng mưa."));
         Map<String, DiemDoDich> anhXa = poller.dichTheoMaApi(loaiChiSo);
 
+        // ⚠ Quy tắc và mốc so sánh chốt MỘT LẦN ở đầu lượt — bất biến ấy nằm trong kiểu `Phien`,
+        //   không nằm trong lời dặn: xem javadoc `ChatLuongSoDoService.moPhien`.
+        ChatLuongSoDoService.Phien phien = chatLuong.moPhien(loaiChiSo, MA_LOAI_CHI_SO);
+
         List<ReadingRow> soDo = new ArrayList<>(me.soDo().size());
         List<UnmappedRow> maLa = new ArrayList<>();
         List<String> thieuLoaiChiSo = new ArrayList<>();
@@ -269,28 +302,34 @@ public class TelemetryIngestService {
             // ⚠ Ghi cho CẢ điểm đo đang ngừng (`active = false`). `active` là quyết định trưng bày,
             //   ⛔ không phải cái van của đường ingest: số đo vừa về là một sự thật đã xảy ra, và
             //   `StationDisplayStatus.suyRa` vẫn trả NGUNG nên không màn hình nào hiện nhầm.
+            // ⭐ T32.1 — `stationId` ở đây CHỈ để tra mốc so sánh của chính trạm ấy; nó ⛔ không đi
+            //   tiếp vào bộ phân loại. Cấm lệnh T32.2 (⛔ cấm so chéo hai điểm đo) được ép bằng hình
+            //   dạng chữ ký hàm, ⛔ không bằng lời dặn.
             soDo.add(new ReadingRow(
                     dich.stationId(),
                     loaiChiSo,
                     r.measuredAt(),
                     r.giaTri(),
-                    ReadingQuality.HOP_LE,
+                    phien.danhGia(dich.stationId(), r.giaTri(), r.measuredAt()),
                     ReadingSource.API,
                     rawLogId));
         }
 
         canhBaoDanhMuc(nguon, thieuLoaiChiSo, khacNguon);
 
-        int[] dem = giaoDichGhi.execute(tx -> {
-            int ghiMoi = timeSeries.writeReadings(soDo);
+        KetQuaGhi ketGhi = giaoDichGhi.execute(tx -> {
+            List<KhoaSoDo> daGhi = timeSeries.writeReadings(soDo);
             // ⚠ upsert cho MỌI dòng nhận được, kể cả dòng vừa bị ON CONFLICT bỏ qua: `last_seen_at`
             //   trả lời "trạm còn phát tín hiệu không", và một trạm gửi lại đúng giá trị cũ VẪN
             //   đang phát. Chỉ upsert cho dòng ghi mới là tự dựng ra một trạm mất tín hiệu giả.
             timeSeries.upsertLatest(soDo);
-            return new int[] {ghiMoi, timeSeries.writeUnmapped(maLa)};
+            return new KetQuaGhi(daGhi, timeSeries.writeUnmapped(maLa));
         });
-        int ghiMoi = dem == null ? 0 : dem[0];
-        int maLaGhi = dem == null ? 0 : dem[1];
+        List<KhoaSoDo> daGhi = ketGhi == null ? List.of() : ketGhi.daGhi();
+        int ghiMoi = daGhi.size();
+        int maLaGhi = ketGhi == null ? 0 : ketGhi.maLaGhi();
+
+        chatLuong.baoNguoiDuyet(nguon, soDo, daGhi);
 
         boolean thieu = me.thieuDuLieu(bc.dangHoatDong());
         SyncOutcome ket = new SyncOutcome(
@@ -372,6 +411,9 @@ public class TelemetryIngestService {
 
         static final BoDemChanDoan RONG = new BoDemChanDoan(0, 0, 0, 0);
     }
+
+    /** Hai kết quả của một lượt ghi — gộp để {@code giaoDichGhi.execute} trả về được cả hai. */
+    private record KetQuaGhi(List<KhoaSoDo> daGhi, int maLaGhi) {}
 
     /**
      * ⚠ Hai bất thường <b>danh mục</b>, cả hai đều KHÔNG chặn lượt ghi.

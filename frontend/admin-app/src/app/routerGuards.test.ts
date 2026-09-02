@@ -97,6 +97,24 @@ describe('Guard của tuyến quản trị — sự cố 31/08', () => {
     expect(quyenCuaTuyen(ma, '/thuy-van/ma-la')).toEqual(CAP_QUYEN);
   });
 
+  /**
+   * ⭐⭐ WS-32: trang *Dữ liệu nghi ngờ* chứa **ba** việc thuộc **ba** quyền —
+   * `hyd:measurement:view` (xem hàng chờ) · `:review` (Duyệt / Loại bỏ) · `:create` (nhập tay).
+   *
+   * Tuyến phải khai quyền **rộng nhất**; hai nút tự ẩn theo quyền hẹp hơn ở trong trang. Gác tuyến
+   * bằng `:review` là chôn cả trang sau quyền hẹp nhất — đúng lỗi 31/08 với tuyến hồ sơ công trình,
+   * nơi XN_MANAGER có 8 quyền vận hành mà vẫn nhận 403.
+   *
+   * ⚠ Đây cũng là chỗ đo được rằng người ĐANG TRỰC vào được: DUTY_OFFICER có `:view` và `:create`
+   * mà ⛔ không có `:review`.
+   */
+  it('trang Dữ liệu nghi ngờ khai quyền RỘNG NHẤT, ⛔ không phải quyền của nút hẹp nhất', () => {
+    expect(quyenCuaTuyen(ma, '/thuy-van/du-lieu-nghi-ngo')).toEqual([
+      'hyd:measurement:view',
+      'hyd:measurement:review',
+    ]);
+  });
+
   it('⛔ và tuyến Nguồn dữ liệu vẫn chỉ MỘT quyền — vế phân biệt', () => {
     // Thiếu vế này thì bài trên xanh cả khi ai đó nới toàn bộ nhóm thuỷ văn về cùng một cặp quyền.
     expect(quyenCuaTuyen(ma, '/thuy-van/nguon-du-lieu')).toEqual(['hyd:api-source:manage']);

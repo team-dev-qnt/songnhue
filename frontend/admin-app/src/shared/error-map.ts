@@ -378,6 +378,11 @@ export const ERROR_CATALOG = {
     handling: 'form',
     severity: 'error',
   },
+  'HYD-2007': {
+    message: 'Điểm đo này đã có số đo tại mốc đã chọn — không ghi đè',
+    handling: 'form',
+    severity: 'warning',
+  },
 
   // --- MOD-04 Nhân sự ---------------------------------------------------------
   'HR-2001': {

@@ -142,6 +142,15 @@ export const router = createBrowserRouter([
             ['hyd:measurement:view', 'hyd:api-source:manage'],
             lazyPage(() => import('@/features/hydro/UnmappedCodesPage'), 'UnmappedCodesPage'),
           ),
+          // ⭐ WS-32: trang chứa BA việc thuộc BA quyền (`:view` xem hàng chờ · `:review` duyệt ·
+          //   `:create` nhập tay), nên tuyến khai quyền RỘNG NHẤT và các nút tự ẩn ở trong. Gác
+          //   tuyến bằng `:review` là chôn cả trang sau quyền hẹp nhất — đúng lỗi 31/08 với tuyến
+          //   hồ sơ công trình, nơi XN_MANAGER có 8 quyền vận hành mà vẫn nhận 403.
+          adminRoute(
+            '/thuy-van/du-lieu-nghi-ngo',
+            ['hyd:measurement:view', 'hyd:measurement:review'],
+            lazyPage(() => import('@/features/hydro/SuspectReadingsPage'), 'SuspectReadingsPage'),
+          ),
           adminRoute(
             '/van-hanh/danh-muc-tinh-hinh',
             'ops:operation-status-code:manage',

@@ -16,6 +16,7 @@ import org.springframework.core.annotation.AnnotationUtils;
 
 import com.songnhue.core.common.persistence.BaseEntity;
 import com.songnhue.core.common.persistence.ScopedEntity;
+import com.songnhue.core.common.persistence.WorkflowAware;
 import com.songnhue.core.domain.audit.AuditAction;
 import com.songnhue.core.domain.audit.AuditEntry;
 
@@ -138,6 +139,22 @@ public class AuditEventListener implements PostInsertEventListener, PostUpdateEv
         if (entity instanceof BaseEntity base) {
             entityId = base.getId();
             publicId = base.getPublicId();
+        } else if (entity instanceof WorkflowAware quyTrinh) {
+            // ⭐⭐ Nhánh này bịt một lỗ đo được ngày 02/09/2026: một entity KHÔNG kế thừa
+            //    `BaseEntity` vẫn ghi được nhật ký, nhưng ghi với `entity_id = NULL` — tức nhật ký
+            //    có dòng mà ⛔ không truy ngược được về bản ghi nào. Câu hỏi "ai loại bỏ số đo #123
+            //    và vì sao" khi ấy KHÔNG có chỗ nào trả lời, dù mọi cơ chế trông như đã chạy.
+            //
+            //    ⚠ Chính javadoc của `WorkflowAware.entityId()` đã nói mục đích: *"Id dùng cho NHẬT
+            //    KÝ và thông báo"* — và tới hôm nay không ai đọc nó cho nhật ký. Một nửa cặp đọc–ghi
+            //    ở dạng khó thấy nhất: vế khai thì có, vế dùng thì không (luật 15/27).
+            //
+            //    ⛔ `else if`, ⛔ không phải nhánh song song: entity kế thừa `BaseEntity` giữ NGUYÊN
+            //    hành vi cũ (chúng có cả `public_id`), nên thay đổi này thuần bổ sung.
+            //    Trường hợp đầu tiên đi qua đây: `HydroReading` — bảng phân mảnh, khoá ghép
+            //    `(id, measured_at)`, ⛔ không có `public_id` nên ⛔ không kế thừa `BaseEntity` được.
+            entityId = quyTrinh.entityId();
+            orgUnitId = quyTrinh.orgUnitId();
         }
         if (entity instanceof ScopedEntity scoped) {
             orgUnitId = scoped.getOrgUnitId();

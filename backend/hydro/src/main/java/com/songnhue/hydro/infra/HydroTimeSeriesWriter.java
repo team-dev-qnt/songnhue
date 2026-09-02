@@ -1,12 +1,16 @@
 package com.songnhue.hydro.infra;
 
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import com.songnhue.hydro.domain.KhoaSoDo;
+import com.songnhue.hydro.domain.NhapTayRow;
 import com.songnhue.hydro.domain.ReadingQuality;
 import com.songnhue.hydro.domain.ReadingRow;
 import com.songnhue.hydro.domain.UnmappedRow;
@@ -39,13 +43,62 @@ public class HydroTimeSeriesWriter {
     private static final String INSERT_READING_DAU =
             """
             INSERT INTO hydro_readings (
-                measured_at, station_id, measurement_type_id, reading_value, quality, source, raw_log_id
+                measured_at, station_id, measurement_type_id, reading_value,
+                quality, quality_reason, source, raw_log_id
             ) VALUES
             """;
 
-    /** ⚠ Khoá suy ra phải khớp {@code ux_hydro_readings_diem_do_khung}, kể cả thứ tự cột. */
+    /**
+     * ⚠ Khoá suy ra phải khớp {@code ux_hydro_readings_diem_do_khung}, kể cả thứ tự cột.
+     *
+     * <p>⭐ {@code RETURNING} — T32.3. {@code jdbc.update()} đếm được số dòng ghi mới, nhưng
+     * <b>không nói được dòng nào</b>, và thông báo "có số đo nghi ngờ" thì cần đúng vế thứ hai: phát
+     * theo <i>những gì nhận được</i> sẽ đánh thức người trực 5 lần mỗi khung cho cùng một bản ghi
+     * (xem {@link com.songnhue.hydro.domain.KhoaSoDo}). Câu này vẫn là <b>một</b> câu SQL, nên phép
+     * đếm không mất gì: {@code danh sách trả về .size()} chính là con số cũ.
+     */
     private static final String INSERT_READING_DUOI =
-            " ON CONFLICT (station_id, measurement_type_id, measured_at) DO NOTHING";
+            " ON CONFLICT (station_id, measurement_type_id, measured_at) DO NOTHING"
+                    + " RETURNING station_id, measured_at";
+
+    /**
+     * Đường ghi <b>nhập tay</b> — T32.7. ⛔ Một dòng một lượt, ⛔ không {@code ON CONFLICT}.
+     *
+     * <p>⚠⚠ Cố ý <b>không</b> có {@code ON CONFLICT DO NOTHING}, khác hẳn đường ingest. Ở đó, trùng
+     * khoá là chuyện <i>bình thường</i> (poll 2' trên nguồn 10'); ở đây, trùng khoá nghĩa là người
+     * dùng vừa định ghi đè một số đo đã tồn tại — và bỏ qua trong im lặng sẽ hiện ra thành <i>"lưu
+     * thành công"</i> kèm một màn hình ⛔ không đổi gì. Đó đúng hình dạng luật 27.
+     *
+     * <p>⇒ Trùng khoá phải nổ, và nơi gọi biến nó thành {@code HYD-2007} / {@code HYD-2002} tuỳ
+     * trạng thái của dòng đang chiếm chỗ.
+     */
+    private static final String INSERT_MANUAL =
+            """
+            INSERT INTO hydro_readings (
+                measured_at, station_id, measurement_type_id, reading_value,
+                quality, source, created_by, note
+            ) VALUES (?, ?, ?, ?, 'HOP_LE', 'MANUAL', ?, ?)
+            RETURNING id
+            """;
+
+    /**
+     * Ô này đã có gì chưa — đọc <b>trước</b> khi ghi tay.
+     *
+     * <p>⚠⚠ Ngoại lệ <b>có tên</b> của quy tắc 14 (khai ở {@code QualityFilterGuardTest}): câu này
+     * <b>phải</b> thấy cả dòng {@code NGHI_NGO} và {@code XOA}. Nó không trả về số liệu — nó trả lời
+     * <i>"chỗ này có ai ngồi chưa, và người ấy đang ở trạng thái nào"</i>, và lọc {@code HOP_LE} ở
+     * đây làm câu trả lời sai theo hướng nguy hiểm nhất: báo "trống" cho một ô đang bị chiếm, rồi
+     * lượt {@code INSERT} nổ bằng một lỗi ràng buộc thô.
+     *
+     * <p>⭐ Nhờ nó mà {@code HYD-2002} có đường chạy thật: người trực nhập tay đúng khung mà máy vừa
+     * ghi một số đáng ngờ sẽ được chỉ sang màn hình <i>Dữ liệu nghi ngờ</i>, thay vì nhận một thông
+     * báo "trùng dữ liệu" chung chung rồi không biết làm gì tiếp.
+     */
+    private static final String SQL_O_DA_CO_GI =
+            """
+            SELECT quality FROM hydro_readings
+             WHERE station_id = ? AND measurement_type_id = ? AND measured_at = ?
+            """;
 
     private static final String INSERT_UNMAPPED_DAU =
             """
@@ -104,28 +157,69 @@ public class HydroTimeSeriesWriter {
     }
 
     /**
-     * @return số dòng <b>ghi mới</b>. Hiệu với {@code rows.size()} là số dòng trùng khoá — ⚠ trùng
-     *     khoá là chuyện bình thường, xem javadoc của lớp
+     * @return khoá của những dòng <b>thật sự ghi mới</b>. Hiệu giữa {@code rows.size()} và kích
+     *     thước danh sách là số dòng trùng khoá — ⚠ trùng khoá là chuyện bình thường, xem javadoc
+     *     của lớp
      */
-    public int writeReadings(List<ReadingRow> rows) {
+    public List<KhoaSoDo> writeReadings(List<ReadingRow> rows) {
         if (rows.isEmpty()) {
-            return 0;
+            return List.of();
         }
         StringBuilder sql = new StringBuilder(INSERT_READING_DAU);
-        List<Object> args = new ArrayList<>(rows.size() * 7);
+        List<Object> args = new ArrayList<>(rows.size() * 8);
         for (int i = 0; i < rows.size(); i++) {
-            sql.append(i == 0 ? " " : ", ").append("(?, ?, ?, ?, ?, ?, ?)");
+            sql.append(i == 0 ? " " : ", ").append("(?, ?, ?, ?, ?, ?, ?, ?)");
             ReadingRow r = rows.get(i);
             args.add(Timestamp.from(r.measuredAt()));
             args.add(r.stationId());
             args.add(r.measurementTypeId());
             args.add(r.value());
             args.add(r.quality().name());
+            args.add(r.qualityReason());
             args.add(r.source().name());
             args.add(r.rawLogId());
         }
         sql.append(INSERT_READING_DUOI);
-        return jdbc.update(sql.toString(), args.toArray());
+        return jdbc.query(
+                sql.toString(),
+                (rs, i) -> new KhoaSoDo(
+                        rs.getLong("station_id"), rs.getTimestamp("measured_at").toInstant()),
+                args.toArray());
+    }
+
+    /**
+     * Trạng thái của dòng đang chiếm ô {@code (điểm đo × loại chỉ số × mốc đo)} — xem
+     * {@link #SQL_O_DA_CO_GI}.
+     *
+     * @return rỗng nghĩa là ô còn trống
+     */
+    public Optional<ReadingQuality> chatLuongTaiO(long stationId, long measurementTypeId, Instant measuredAt) {
+        return jdbc
+                .queryForList(SQL_O_DA_CO_GI, String.class, stationId, measurementTypeId, Timestamp.from(measuredAt))
+                .stream()
+                .findFirst()
+                .map(ReadingQuality::valueOf);
+    }
+
+    /**
+     * Ghi một số đo nhập tay — T32.7.
+     *
+     * @return khoá của dòng vừa ghi
+     * @throws org.springframework.dao.DuplicateKeyException khi ô đã bị chiếm; nơi gọi phải kiểm
+     *     trước bằng {@link #chatLuongTaiO} để nói được <b>vì sao</b>, ⚠ nhưng vẫn phải bắt ngoại lệ
+     *     này: giữa lượt kiểm và lượt ghi có một khe hở, và poller chạy 2 phút/lần
+     */
+    public long writeManual(NhapTayRow row) {
+        Long id = jdbc.queryForObject(
+                INSERT_MANUAL,
+                Long.class,
+                Timestamp.from(row.measuredAt()),
+                row.stationId(),
+                row.measurementTypeId(),
+                row.value(),
+                row.createdBy(),
+                row.note());
+        return id == null ? 0L : id;
     }
 
     /** @return số dòng ghi mới; trùng {@code (api_code, measured_at)} thì bỏ qua trong im lặng */
