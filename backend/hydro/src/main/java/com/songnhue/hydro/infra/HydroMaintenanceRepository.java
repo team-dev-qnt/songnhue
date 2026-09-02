@@ -1,7 +1,6 @@
 package com.songnhue.hydro.infra;
 
 import java.sql.Date;
-import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -87,13 +86,42 @@ public class HydroMaintenanceRepository {
     }
 
     /**
+     * ⭐⭐ "Hôm nay" theo <b>chính phiên CSDL này</b> — ⛔ không phải theo đồng hồ JVM.
+     *
+     * <h2>Khuyết tật thật, đo được 02/09/2026 — vì sao hàm này tồn tại</h2>
+     *
+     * <p>Bản đầu của {@code HydroRetentionHandler} tính mốc cắt bằng
+     * {@code LocalDate.now(Clock.system(ZONE_VN))}, trong khi sàn an toàn của
+     * {@code hyd_drop_month_partitions_before} so với {@code current_date} của phiên CSDL. Hai thứ
+     * ấy <b>không cùng một ngày</b>: container ứng dụng chạy {@code -Duser.timezone=UTC}
+     * ({@code compose.prod.yml:326} và {@code backend.Dockerfile:81}), pgjdbc gửi múi giờ mặc định
+     * của JVM làm múi giờ phiên, còn job chạy lúc <b>04:30 giờ VN = 21:30 UTC ngày HÔM TRƯỚC</b>.
+     *
+     * <p>Nên {@code homNay} phía Java luôn bằng {@code current_date + 1} — <b>tất định, mọi đêm</b>,
+     * không phải một cuộc đua hiếm (Việt Nam không đổi giờ). Hệ quả đo được: đặt
+     * {@code hydro.raw-retention-days = 7} — đúng biên dưới mà chính migration khai là hợp lệ —
+     * cho ra mốc cắt {@code current_date - 6}, sàn từ chối, job đỏ. Và vì đó là lời gọi <b>đầu
+     * tiên</b> của handler, toàn bộ phần dọn còn lại không chạy.
+     *
+     * <p>⇒ Một quyết định, một cái đồng hồ. Mốc cắt và sàn an toàn phải đọc cùng một
+     * {@code current_date}, và cách rẻ nhất để bảo đảm điều đó là hỏi đúng nơi đang phán xét.
+     */
+    public LocalDate ngayHienTai() {
+        return jdbc.queryForObject("SELECT current_date", LocalDate.class);
+    }
+
+    /**
      * Dọn {@code sync_logs} cũ.
      *
      * <p>Không phân mảnh vì mỗi ngày chỉ ~720 dòng; {@code DELETE} theo mốc là đủ và không cần thêm
      * một cơ chế bảo trì thứ hai để quên.
+     *
+     * <p>⚠ Nhận {@link LocalDate}, ⛔ không nhận {@link Instant}: quy đổi ngày → khoảnh khắc phía
+     * Java là mời lại đúng cái lệch múi giờ mà {@link #ngayHienTai()} vừa gỡ. Để CSDL tự quy đổi
+     * bằng múi giờ của chính phiên nó.
      */
-    public int purgeSyncLogsBefore(Instant cutoff) {
-        return jdbc.update("DELETE FROM sync_logs WHERE started_at < ?", Timestamp.from(cutoff));
+    public int purgeSyncLogsBefore(LocalDate cutoff) {
+        return jdbc.update("DELETE FROM sync_logs WHERE started_at < ?", Date.valueOf(cutoff));
     }
 
     /**
@@ -104,8 +132,8 @@ public class HydroMaintenanceRepository {
      * vứt đúng thứ mà cả bảng này sinh ra để giữ — nguồn không có API lịch sử, nên số đo mất là mất
      * vĩnh viễn kể cả sau khi Công ty trả lời G8.
      */
-    public int purgeUnmappedBefore(Instant cutoff) {
-        return jdbc.update("DELETE FROM hydro_unmapped_readings WHERE measured_at < ?", Timestamp.from(cutoff));
+    public int purgeUnmappedBefore(LocalDate cutoff) {
+        return jdbc.update("DELETE FROM hydro_unmapped_readings WHERE measured_at < ?", Date.valueOf(cutoff));
     }
 
     /** Tên partition tháng hiện có của một bảng — dùng cho bài kiểm và cho màn hình bảo trì. */

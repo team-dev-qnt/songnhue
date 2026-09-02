@@ -40,6 +40,20 @@ public record ReadingRow(
         Objects.requireNonNull(value, "value");
         Objects.requireNonNull(quality, "quality");
         Objects.requireNonNull(source, "source");
+
+        // ⛔ Kiểu này là dòng của ĐƯỜNG INGEST TỰ ĐỘNG và chỉ của đường ấy: nó không có chỗ nào để
+        //   mang `created_by`. Ràng buộc `ck_hydro_readings_nguoi_nhap` đòi mọi dòng `MANUAL` phải
+        //   có người chịu trách nhiệm, nên một `ReadingRow(… MANUAL …)` đi tới CSDL là chắc chắn
+        //   vỡ — vỡ ở giữa một lượt ingest, cách chỗ viết sai rất xa.
+        //
+        //   ⚠ Cách sai mà rất dễ chọn: thêm hai trường `createdBy`/`note` vào đây "cho đủ". Chúng
+        //   sẽ là hai trường mà mọi lời gọi hôm nay truyền null — một nửa cặp đọc–ghi ngay từ lúc
+        //   sinh ra (luật 15). Đường nhập tay có bối cảnh riêng (ai nhập, vì sao, duyệt bởi ai) và
+        //   nó ra đời cùng màn hình của nó ở WS-32/T32.7.
+        if (source == ReadingSource.MANUAL) {
+            throw new IllegalArgumentException("ReadingRow chỉ dành cho đường ingest tự động (source=API). "
+                    + "Đường nhập tay có kiểu riêng và ra đời ở WS-32 cùng màn hình của nó.");
+        }
     }
 
     /** Bản ghi này có được phép hiện lên cổng / đem đi so ngưỡng không (quy tắc 14). */

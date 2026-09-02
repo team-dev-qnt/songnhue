@@ -1,6 +1,7 @@
 package com.songnhue.app.hyd;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.sql.Date;
@@ -144,6 +145,58 @@ class HydroRetentionTest extends IntegrationTestBase {
         assertThat(maintenance.partitionNames("hydro_readings"))
                 .as("và sau hai lượt bị từ chối, runway vẫn nguyên vẹn")
                 .containsExactlyElementsOf(runwayMongDoi("hydro_readings"));
+    }
+
+    @Test
+    @DisplayName("⭐⭐ Biên dưới UI cho phép (7 ngày) PHẢI đi qua sàn an toàn — lượt gọi THẬT, không mock")
+    void bienDuoiCuaUiPhaiDiQuaDuoc() {
+        // ⚠⚠ Đây là bài kiểm mà lượt rà 02/09 tìm ra là ĐANG THIẾU, và sự thiếu ấy che một khuyết
+        //   tật tất định. Chuỗi sự việc:
+        //     · migration seed `hydro.raw-retention-days` với `validation = 'min=7;max=1825'`
+        //       ⇒ màn hình Cấu hình hệ thống NHẬN giá trị 7 và lưu thành công;
+        //     · handler tính mốc cắt = hôm-nay − 7 ngày;
+        //     · sàn an toàn từ chối mọi mốc `> current_date - 7`.
+        //   Ba mệnh đề ấy chỉ nhất quán khi "hôm nay" của handler và `current_date` của phiên CSDL
+        //   là CÙNG MỘT NGÀY. Bản đầu dùng `LocalDate.now(ZONE_VN)` trong khi container chạy
+        //   `-Duser.timezone=UTC` và job chạy 04:30 VN = 21:30 UTC hôm trước ⇒ lệch +1 ngày TẤT
+        //   ĐỊNH ⇒ mốc = `current_date - 6` ⇒ sàn từ chối ⇒ job đỏ mỗi đêm, và vì đó là lời gọi đầu
+        //   tiên nên toàn bộ phần dọn còn lại không chạy.
+        //
+        //   ⛔ Bài kiểm ĐƠN VỊ về nguyên tắc không thấy được: nó mock đúng lớp chạm tới sàn (luật
+        //   4), và trong JVM test thì đồng hồ Java với phiên CSDL cùng một múi giờ nên độ lệch
+        //   không tồn tại (cùng họ luật 30). Chỉ một lượt gọi thật ở đúng biên mới bắt được.
+        LocalDate homNay = maintenance.ngayHienTai();
+
+        assertThatCode(() -> maintenance.dropPartitionsBefore("hydro_raw_logs", homNay.minusDays(7)))
+                .as(
+                        """
+                        Mốc cắt ứng với hạn lưu 7 ngày — giá trị NHỎ NHẤT mà giao diện cho phép đặt — \
+                        bị chính CSDL từ chối. Nghĩa là giá trị nhỏ nhất UI cho phép là giá trị làm job \
+                        dọn dữ liệu ĐỎ mỗi đêm, và không dọn được gì.""")
+                .doesNotThrowAnyException();
+
+        assertThatCode(() -> maintenance.dropPartitionsBefore("hydro_readings", homNay.minusYears(1)))
+                .as("biên dưới của hạn lưu số đo (min=1 năm) cũng phải đi qua")
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("⭐ ngayHienTai() đọc current_date của CHÍNH phiên đang phán xét — một quyết định, một đồng hồ")
+    void ngayHienTaiDocTuPhienCsdl() {
+        LocalDate tuRepo = maintenance.ngayHienTai();
+        LocalDate tuCungPhien = jdbc.queryForObject("SELECT current_date", LocalDate.class);
+
+        assertThat(tuRepo).isEqualTo(tuCungPhien);
+
+        // ⚠ Vế phân biệt hai trạng thái (luật 9): khẳng định trên vẫn xanh nếu ai đó đổi
+        //   `ngayHienTai()` thành `LocalDate.now()` và tình cờ máy chạy test cùng múi giờ với CSDL.
+        //   Vế dưới đo thứ THẬT SỰ khác giữa hai cách cài: sàn an toàn được tính từ đâu.
+        assertThatCode(() -> maintenance.dropPartitionsBefore("hydro_raw_logs", tuRepo.minusDays(7)))
+                .as("mốc suy từ ngayHienTai() phải luôn nằm đúng trên sàn, không sớm hơn một ngày")
+                .doesNotThrowAnyException();
+        assertThatThrownBy(() -> maintenance.dropPartitionsBefore("hydro_raw_logs", tuRepo.minusDays(6)))
+                .as("và đúng một ngày sớm hơn thì phải bị từ chối — nếu không, sàn đang không ở chỗ ta tưởng")
+                .hasMessageContaining("sàn an toàn");
     }
 
     @Test

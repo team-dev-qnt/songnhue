@@ -214,8 +214,17 @@ CREATE TABLE hydro_readings (
     CONSTRAINT ck_hydro_readings_quality CHECK (quality IN ('HOP_LE', 'NGHI_NGO')),
     CONSTRAINT ck_hydro_readings_source CHECK (source IN ('API', 'MANUAL')),
     -- Nhập tay phải có người chịu trách nhiệm; máy ghi thì không được mượn tên ai.
+    --
+    -- ⚠⚠ Bản đầu viết `(source = 'MANUAL') OR (created_by IS NULL AND note IS NULL)`
+    --    và chỉ ép được **nửa sau**: với `source = 'MANUAL'` thì vế trái đã TRUE
+    --    nên `created_by` NULL đi lọt. Một ràng buộc khai HAI bảo đảm ngay trên
+    --    đầu nó mà chỉ thi hành MỘT — đúng hình dạng luật 15/27 ở tầng CHECK, và
+    --    nguy hiểm hơn một ràng buộc vắng mặt, vì dòng chú thích làm người đọc
+    --    tin là đã có. Viết lại thành hai nhánh loại trừ nhau để mỗi vế phải tự
+    --    đứng được.
     CONSTRAINT ck_hydro_readings_nguoi_nhap CHECK (
-        (source = 'MANUAL') OR (created_by IS NULL AND note IS NULL)
+        (source = 'MANUAL' AND created_by IS NOT NULL)
+        OR (source <> 'MANUAL' AND created_by IS NULL AND note IS NULL)
     )
 ) PARTITION BY RANGE (measured_at);
 

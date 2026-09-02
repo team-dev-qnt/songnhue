@@ -311,6 +311,74 @@ class HydroTimeSeriesSchemaTest extends IntegrationTestBase {
     }
 
     @Test
+    @DisplayName("⛔⛔ ck_hydro_readings_nguoi_nhap ép CẢ HAI vế nó tự khai — cả hai đều phải đỏ")
+    void nguoiChiuTrachNhiemEpCaHaiVe() {
+        // ⚠ Bản đầu viết `(source = 'MANUAL') OR (created_by IS NULL AND note IS NULL)` và chỉ ép
+        //   được NỬA SAU: với source='MANUAL' thì vế trái đã TRUE nên created_by NULL đi lọt. Một
+        //   ràng buộc khai HAI bảo đảm ngay trên đầu nó mà chỉ thi hành MỘT thì nguy hiểm hơn một
+        //   ràng buộc vắng mặt — dòng chú thích làm người đọc tin là đã có.
+        //
+        //   Nên bài này khẳng định CẢ HAI chiều. Chỉ kiểm một chiều thì bản cũ vẫn xanh.
+        assertThatThrownBy(() -> jdbc.update(
+                        """
+                        INSERT INTO hydro_readings (measured_at, station_id, measurement_type_id,
+                                                    reading_value, quality, source, created_by)
+                        VALUES ('2049-02-01T00:00:00Z', ?, ?, 1.234, 'HOP_LE', 'MANUAL', NULL)
+                        """,
+                        stationId(),
+                        typeId()))
+                .as("vế 1 — nhập tay PHẢI có người chịu trách nhiệm (đây là vế bản cũ để lọt)")
+                .rootCause()
+                .hasMessageContaining("ck_hydro_readings_nguoi_nhap");
+
+        assertThatThrownBy(() -> jdbc.update(
+                        """
+                        INSERT INTO hydro_readings (measured_at, station_id, measurement_type_id,
+                                                    reading_value, quality, source, created_by)
+                        VALUES ('2049-02-02T00:00:00Z', ?, ?, 1.234, 'HOP_LE', 'API', 7)
+                        """,
+                        stationId(),
+                        typeId()))
+                .as("vế 2 — máy ghi thì ⛔ không được mượn tên ai (quy tắc 18: bịa một chữ ký)")
+                .rootCause()
+                .hasMessageContaining("ck_hydro_readings_nguoi_nhap");
+
+        // Và vế THUẬN: dòng nhập tay hợp lệ phải ghi được — nếu không, ràng buộc mới đã chặn luôn
+        // cả đường đúng, và hai khẳng định trên sẽ xanh vì lý do sai (luật 9).
+        jdbc.update(
+                """
+                INSERT INTO hydro_readings (measured_at, station_id, measurement_type_id,
+                                            reading_value, quality, source, created_by, note)
+                VALUES ('2049-02-03T00:00:00Z', ?, ?, 1.234, 'HOP_LE', 'MANUAL', 7, 'bù dữ liệu mất tín hiệu')
+                """,
+                stationId(),
+                typeId());
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM hydro_readings WHERE station_id = ? AND source = 'MANUAL'",
+                        Integer.class,
+                        stationId()))
+                .isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("⛔ ReadingRow từ chối source=MANUAL — kiểu này không có chỗ mang người chịu trách nhiệm")
+    void readingRowTuChoiNhapTay() {
+        // Ràng buộc CSDL đòi mọi dòng MANUAL có `created_by`, mà ReadingRow không có trường ấy ⇒ một
+        // ReadingRow(… MANUAL …) đi tới CSDL là chắc chắn vỡ, vỡ ở giữa một lượt ingest và cách chỗ
+        // viết sai rất xa. Chặn ở hàm dựng để lỗi rơi đúng dòng mã sai.
+        assertThatThrownBy(() -> new ReadingRow(
+                        stationId(),
+                        typeId(),
+                        Instant.now(),
+                        new BigDecimal("1.000"),
+                        ReadingQuality.HOP_LE,
+                        ReadingSource.MANUAL,
+                        null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("WS-32");
+    }
+
+    @Test
     @DisplayName("⛔ Đơn vị rỗng bị chặn ở HÀM DỰNG, không đợi tới CSDL")
     void donViRongBiChanSom() {
         assertThatThrownBy(() -> new UnmappedRow("Z99003", sourceId(), Instant.now(), BigDecimal.ONE, " ", null))

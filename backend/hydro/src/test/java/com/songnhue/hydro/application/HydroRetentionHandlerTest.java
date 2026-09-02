@@ -1,17 +1,15 @@
 package com.songnhue.hydro.application;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.time.Clock;
-import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
+import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -22,20 +20,28 @@ import com.songnhue.hydro.infra.HydroMaintenanceRepository;
  * ⭐ Phép tính <b>mốc cắt</b> của job dọn dữ liệu — chỗ duy nhất trong MOD-03 mà một lỗi số học biến
  * thành mất dữ liệu không phục hồi được.
  *
- * <p>Bài này cố ý là bài kiểm <b>đơn vị</b>, không phải tích hợp: thứ cần khẳng định là
- * <i>"đọc tham số nào, trừ bao nhiêu, gọi bảng nào"</i>, và ba câu hỏi ấy trả lời được mà không cần
- * CSDL. Bài tích hợp {@code HydroRetentionTest} lo phần còn lại — rằng CSDL thật sự từ chối một mốc
- * cắt quá gần.
+ * <h2>⚠⚠ Phạm vi tự khai (luật 28) — bài này KHÔNG kiểm được điều gì</h2>
  *
- * <p>⚠ Đồng hồ được tiêm vào qua hàm dựng gói-riêng. Không có nó thì bài kiểm phải tự tính
- * {@code LocalDate.now().minusDays(90)} — tức là <b>chép lại chính công thức đang được kiểm</b>, và
- * một bài kiểm chép lại lỗi thay vì bắt lỗi là đúng thứ §10.62 đã gặp.
+ * <p>Bài này mock {@link HydroMaintenanceRepository}, tức mock <b>đúng chỗ mã chạm tới CSDL</b>. Nó
+ * khẳng định được <i>"đọc tham số nào, trừ bao nhiêu, gọi bảng nào"</i> và ⛔ <b>không</b> khẳng
+ * định được rằng CSDL chấp nhận mốc cắt ấy.
+ *
+ * <p>Đó không phải một giới hạn lý thuyết. Bản đầu của bài này khẳng định
+ * {@code dropPartitionsBefore("hydro_raw_logs", 2026-08-26)} với hạn lưu 7 ngày và <b>ghi hẳn vào
+ * chú thích</b> rằng <i>"biên phải đi qua được"</i> — trong khi tại đúng khoảnh khắc ấy sàn an toàn
+ * phía CSDL từ chối nó. Bài kiểm <b>phát biểu ra</b> một bất biến rồi mock mất đường duy nhất thấy
+ * bất biến ấy vỡ (luật 4). Vế thật nằm ở {@code HydroRetentionTest.bienDuoiCuaUiPhaiDiQuaDuoc}, và
+ * nó gọi hàm CSDL thật ở đúng biên.
+ *
+ * <p>⚠ Đồng hồ không còn tiêm qua {@code Clock}: mốc cắt nay lấy từ
+ * {@link HydroMaintenanceRepository#ngayHienTai()} — {@code current_date} của chính phiên CSDL sắp
+ * phán xét nó. Một quyết định, một cái đồng hồ.
  */
 @ExtendWith(MockitoExtension.class)
 class HydroRetentionHandlerTest {
 
-    /** 02/09/2026 lúc 04:30 giờ VN — đúng khung giờ job này chạy thật. */
-    private static final Clock DONG_HO = Clock.fixed(Instant.parse("2026-09-01T21:30:00Z"), ZoneOffset.ofHours(7));
+    /** "Hôm nay" theo CSDL — bài kiểm điều khiển nó qua repository, không qua đồng hồ hệ thống. */
+    private static final LocalDate HOM_NAY = LocalDate.of(2026, 9, 2);
 
     @Mock
     private HydroMaintenanceRepository repository;
@@ -43,19 +49,23 @@ class HydroRetentionHandlerTest {
     @Mock
     private HydroSettings settings;
 
+    @InjectMocks
+    private HydroRetentionHandler handler;
+
     private static JobContext boiCanh() {
-        return new JobContext(java.util.UUID.randomUUID(), HydroJobTypes.RETENTION, "{}", null, percent -> {});
+        return new JobContext(UUID.randomUUID(), HydroJobTypes.RETENTION, "{}", null, percent -> {});
     }
 
     @Test
-    @DisplayName("⭐⭐ Hai hạn lưu KHÁC NHAU: raw tính bằng NGÀY, số đo tính bằng NĂM")
+    @DisplayName("⭐⭐ Hai hạn lưu KHÁC ĐƠN VỊ: raw tính bằng NGÀY, số đo tính bằng NĂM")
     void haiHanLuuKhacDonVi() {
+        when(repository.ngayHienTai()).thenReturn(HOM_NAY);
         when(settings.soNgayGiuRawLog()).thenReturn(90);
         when(settings.soNamGiuDuLieu()).thenReturn(5);
 
-        new HydroRetentionHandler(repository, settings, DONG_HO).handle(boiCanh());
+        handler.handle(boiCanh());
 
-        // 02/09/2026 − 90 ngày = 04/06/2026. Nhầm đơn vị ở đây (ngày ↔ tháng) là cách nhanh nhất để
+        // 02/09/2026 − 90 NGÀY = 04/06/2026. Nhầm đơn vị ở đây (ngày ↔ tháng) là cách nhanh nhất để
         // xoá mất dữ liệu của cả năm — và sàn an toàn phía CSDL KHÔNG bắt được, vì mốc sai theo
         // hướng CŨ HƠN thì vẫn qua sàn.
         verify(repository).dropPartitionsBefore("hydro_raw_logs", LocalDate.of(2026, 6, 4));
@@ -63,44 +73,55 @@ class HydroRetentionHandlerTest {
     }
 
     @Test
-    @DisplayName("⭐ Nhật ký đồng bộ đi theo nhịp của RAW; mã chưa khai đi theo nhịp của SỐ ĐO")
+    @DisplayName("⭐ Nhật ký đồng bộ đi theo nhịp RAW; mã chưa khai đi theo nhịp SỐ ĐO — cả hai khẳng định GIÁ TRỊ")
     void haiBangPhuDiTheoDungNhip() {
+        when(repository.ngayHienTai()).thenReturn(HOM_NAY);
         when(settings.soNgayGiuRawLog()).thenReturn(90);
         when(settings.soNamGiuDuLieu()).thenReturn(5);
 
-        new HydroRetentionHandler(repository, settings, DONG_HO).handle(boiCanh());
+        handler.handle(boiCanh());
 
-        verify(repository).purgeSyncLogsBefore(any());
-        // ⛔ `hydro_unmapped_readings` KHÔNG được dọn theo nhịp raw (90 ngày). Đó là số đo THẬT của
-        //   những trạm có thật, chỉ thiếu mỗi phần khai báo — xoá chúng sau 90 ngày là vứt đúng thứ
-        //   mà cả bảng ấy sinh ra để giữ, và nguồn không có API lịch sử nên mất là mất vĩnh viễn kể
-        //   cả sau khi Công ty trả lời G8.
-        verify(repository)
-                .purgeUnmappedBefore(LocalDate.of(2021, 9, 2)
-                        .atStartOfDay(java.time.ZoneId.of("Asia/Ho_Chi_Minh"))
-                        .toInstant());
+        // ⚠ Bản đầu viết `purgeSyncLogsBefore(any())` — nó xanh kể cả khi nhật ký đồng bộ bị dọn
+        //   theo nhịp 5 NĂM thay vì 90 ngày, tức xanh trong khi đúng thứ nó mang tên đã sai
+        //   (luật 9: một khẳng định không phân biệt được hai trạng thái thì không khẳng định gì).
+        verify(repository).purgeSyncLogsBefore(LocalDate.of(2026, 6, 4));
+
+        // ⛔ `hydro_unmapped_readings` KHÔNG dọn theo nhịp raw. Đó là số đo THẬT của những trạm có
+        //   thật, chỉ thiếu mỗi phần khai báo — xoá sau 90 ngày là vứt đúng thứ mà cả bảng ấy sinh
+        //   ra để giữ, và nguồn không có API lịch sử nên mất là mất vĩnh viễn kể cả sau khi Công ty
+        //   trả lời G8.
+        verify(repository).purgeUnmappedBefore(LocalDate.of(2021, 9, 2));
     }
 
     @Test
-    @DisplayName("⭐ Đọc tham số từ `settings` mỗi lượt chạy — đổi trên UI là có tác dụng ngay đêm sau")
-    void docThamSoMoiLuotChay() {
+    @DisplayName("⭐ Mốc cắt lấy từ CSDL, ⛔ không từ đồng hồ JVM — một quyết định, một cái đồng hồ")
+    void mocCatLayTuCsdl() {
+        // Trả về một ngày KHÔNG THỂ là ngày hôm nay của máy chạy test. Nếu ai đó quay lại
+        // `LocalDate.now(...)` thì hai khẳng định dưới đây đỏ ngay — chứ không đợi tới lượt deploy
+        // rồi mới lộ ra bằng một job đỏ mỗi đêm.
+        when(repository.ngayHienTai()).thenReturn(LocalDate.of(2031, 3, 17));
+        when(settings.soNgayGiuRawLog()).thenReturn(90);
+        when(settings.soNamGiuDuLieu()).thenReturn(5);
+
+        handler.handle(boiCanh());
+
+        verify(repository).dropPartitionsBefore("hydro_raw_logs", LocalDate.of(2030, 12, 17));
+        verify(repository).dropPartitionsBefore("hydro_readings", LocalDate.of(2026, 3, 17));
+    }
+
+    @Test
+    @DisplayName("⭐ Biên dưới của UI (7 ngày) cho ra ĐÚNG mốc mà sàn an toàn chấp nhận")
+    void bienDuoiChoRaMocDungBang() {
+        when(repository.ngayHienTai()).thenReturn(HOM_NAY);
         when(settings.soNgayGiuRawLog()).thenReturn(7);
         when(settings.soNamGiuDuLieu()).thenReturn(1);
 
-        new HydroRetentionHandler(repository, settings, DONG_HO).handle(boiCanh());
+        handler.handle(boiCanh());
 
-        // 7 ngày là biên dưới của ràng buộc seed `min=7`, và nó chạm ĐÚNG sàn an toàn 7 ngày của
-        // hàm trong CSDL. Biên phải đi qua được — nếu không thì giá trị nhỏ nhất mà UI cho phép đặt
-        // lại là giá trị làm job đỏ mỗi đêm.
-        verify(repository).dropPartitionsBefore("hydro_raw_logs", LocalDate.of(2026, 8, 26));
+        // Sàn phía CSDL từ chối mọi mốc `> current_date - 7`. Với cùng một `current_date`, mốc này
+        // BẰNG sàn ⇒ đi qua. ⚠ Đây mới chỉ là phép tính; việc CSDL thật sự chấp nhận nó do
+        // `HydroRetentionTest.bienDuoiCuaUiPhaiDiQuaDuoc` chứng minh.
+        verify(repository).dropPartitionsBefore("hydro_raw_logs", HOM_NAY.minusDays(7));
         verify(repository).dropPartitionsBefore("hydro_readings", LocalDate.of(2025, 9, 2));
-    }
-
-    @Test
-    @DisplayName("⛔ Việc XOÁ chỉ thử MỘT lần — thử lại tự động một việc xoá là xoá nhiều lần trong một đêm")
-    void khongThuLaiViecXoa() {
-        org.assertj.core.api.Assertions.assertThat(
-                        new HydroRetentionHandler(repository, settings, DONG_HO).maxAttempts())
-                .isEqualTo((short) 1);
     }
 }

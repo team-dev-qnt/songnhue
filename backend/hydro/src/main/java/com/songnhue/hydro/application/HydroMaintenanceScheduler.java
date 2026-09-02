@@ -42,8 +42,27 @@ public class HydroMaintenanceScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(HydroMaintenanceScheduler.class);
 
-    /** Việc bảo trì hỏng không được kéo theo cảnh báo giả — lượt sau vẫn có ngày mai. */
-    private static final short MAX_ATTEMPTS = 2;
+    /**
+     * Việc TẠO partition hỏng thì thử lại vô hại — lượt sau vẫn có ngày mai, và hàm idempotent.
+     *
+     * <p>⚠⚠ Con số này là <b>nơi DUY NHẤT</b> quyết định số lần thử. {@code JobHandler.maxAttempts()}
+     * <b>không có người đọc trong toàn kho</b>: {@code JobWorker} lấy {@code max_attempts} từ cột
+     * của bảng {@code jobs}, mà cột ấy do {@code JobService.enqueue(…, request.maxAttempts())} ghi.
+     * Ghi đè phương thức kia là khai một con số không điều khiển gì — và <b>trông như</b> đã điều
+     * khiển, đó mới là phần đắt.
+     */
+    private static final short THU_LAI_TAO_PARTITION = 2;
+
+    /**
+     * ⛔ Việc XOÁ chỉ thử <b>MỘT</b> lần.
+     *
+     * <p>{@code HYDRO_RETENTION} chạy {@code DROP PARTITION} trên hai bảng và {@code DELETE} trên
+     * hai bảng nữa — không phục hồi được, và nguồn không có API lịch sử. Thử lại tự động một thao
+     * tác xoá là cách một lỗi cấu hình biến thành nhiều lượt xoá trong cùng một đêm. Hỏng thì để nó
+     * hiện FAILED trên màn hình theo dõi việc nền và chờ người đọc — hạn lưu 90 ngày không gấp tới
+     * mức phải thử lại sau một phút.
+     */
+    private static final short THU_LAI_DON_DU_LIEU = 1;
 
     private final JobPort jobs;
 
@@ -59,7 +78,7 @@ public class HydroMaintenanceScheduler {
      */
     @Scheduled(cron = "0 15 4 * * *", zone = DateTimeUtils.ZONE_VN_ID)
     public void schedulePartition() {
-        enqueueDaily(HydroJobTypes.PARTITION);
+        enqueueDaily(HydroJobTypes.PARTITION, THU_LAI_TAO_PARTITION);
     }
 
     /**
@@ -70,12 +89,18 @@ public class HydroMaintenanceScheduler {
      */
     @Scheduled(cron = "0 30 4 * * *", zone = DateTimeUtils.ZONE_VN_ID)
     public void scheduleRetention() {
-        enqueueDaily(HydroJobTypes.RETENTION);
+        enqueueDaily(HydroJobTypes.RETENTION, THU_LAI_DON_DU_LIEU);
     }
 
-    private void enqueueDaily(String jobType) {
+    /**
+     * ⚠ Khoá chống trùng dùng ngày <b>giờ VN</b>, và ở đây là đúng: nó chỉ cần <i>ổn định trong một
+     * lượt chạy</i> và trùng với ngày làm việc mà người vận hành nhìn thấy trên màn hình việc nền.
+     * ⛔ Đừng nhầm nó với mốc cắt hạn lưu — mốc ấy phải đọc {@code current_date} của phiên CSDL, vì
+     * nó bị so với một giá trị do chính CSDL tính (xem {@code HydroRetentionHandler}).
+     */
+    private void enqueueDaily(String jobType, short soLanThu) {
         String dedupKey = jobType + ":" + LocalDate.now(DateTimeUtils.ZONE_VN);
-        jobs.enqueue(new JobRequest(jobType, "{}", dedupKey, MAX_ATTEMPTS));
-        log.debug("Đã đặt việc bảo trì thuỷ văn {}", dedupKey);
+        jobs.enqueue(new JobRequest(jobType, "{}", dedupKey, soLanThu));
+        log.debug("Đã đặt việc bảo trì thuỷ văn {} (tối đa {} lượt thử)", dedupKey, soLanThu);
     }
 }
