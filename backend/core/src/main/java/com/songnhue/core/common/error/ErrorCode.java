@@ -163,6 +163,14 @@ public enum ErrorCode {
      */
     HYD_2005("HYD-2005", HttpStatus.UNPROCESSABLE_ENTITY),
     /**
+     * Liên kết điểm đo ↔ công trình đã tồn tại ở đúng vai trò ấy — T28.19.
+     *
+     * <p>Ứng với chỉ mục {@code ux_station_constructions_cap (station_id, construction_id, role)}.
+     * ⚠ Cùng một cặp <b>hai vai trò khác nhau</b> là hợp lệ và có thật: một điểm đo là hạ lưu của
+     * cống này đồng thời là thượng lưu của cống kế tiếp trên cùng tuyến.
+     */
+    HYD_2008("HYD-2008", HttpStatus.CONFLICT),
+    /**
      * Sửa mã ánh xạ API của một điểm đo đã tồn tại — {0} là mã cũ, {1} là mã mới.
      *
      * <p>Mã API là khoá nối duy nhất giữa response của nguồn và điểm đo. Đổi nó là âm thầm gán số

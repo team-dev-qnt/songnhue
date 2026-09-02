@@ -1,6 +1,7 @@
 package com.songnhue.hydro.api;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import jakarta.validation.Valid;
@@ -17,8 +18,10 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.songnhue.core.common.security.RequirePermission;
+import com.songnhue.core.spi.ConstructionRef;
 import com.songnhue.core.spi.OrgUnitPort;
 import com.songnhue.core.spi.OrgUnitRef;
+import com.songnhue.hydro.application.StationConstructionService;
 import com.songnhue.hydro.application.StationForm;
 import com.songnhue.hydro.application.StationService;
 import com.songnhue.hydro.domain.ApiSource;
@@ -45,10 +48,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class StationController {
 
     private final StationService stations;
+    private final StationConstructionService lienKets;
     private final OrgUnitPort orgUnits;
 
-    public StationController(StationService stations, OrgUnitPort orgUnits) {
+    public StationController(StationService stations, StationConstructionService lienKets, OrgUnitPort orgUnits) {
         this.stations = stations;
+        this.lienKets = lienKets;
         this.orgUnits = orgUnits;
     }
 
@@ -119,6 +124,25 @@ public class StationController {
                 request.measurementTypeIds());
     }
 
+    @PostMapping("/{publicId}/lien-ket")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Khai liên kết điểm đo ↔ công trình (T28.19)")
+    @RequirePermission("hyd:station:manage")
+    public HydroCatalogDtos.StationConstructionView lienKet(
+            @PathVariable UUID publicId, @Valid @RequestBody HydroCatalogDtos.StationLinkRequest request) {
+        StationConstruction lienKet = lienKets.lienKet(
+                publicId, request.constructionId(), request.role(), Boolean.TRUE.equals(request.primary()));
+        return toLinkView(lienKet, lienKets.congTrinhCua(List.of(lienKet)));
+    }
+
+    @DeleteMapping("/lien-ket/{lienKetId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Bỏ liên kết điểm đo ↔ công trình")
+    @RequirePermission("hyd:station:manage")
+    public void boLienKet(@PathVariable UUID lienKetId) {
+        lienKets.boLienKet(lienKetId);
+    }
+
     @DeleteMapping("/{publicId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(summary = "Xoá mềm điểm đo")
@@ -154,11 +178,30 @@ public class StationController {
                 diemDo.getMeasurementTypes().stream()
                         .map(MeasurementTypeController::toView)
                         .toList(),
-                lienKet.stream()
-                        .map(l -> new HydroCatalogDtos.StationConstructionView(
-                                l.getPublicId(), l.getConstructionPublicId(), l.getRole(), l.isPrimary()))
-                        .toList(),
+                toLinkViews(lienKet),
                 lienKet.isEmpty() && !diemDo.duocPhepKhongGanCongTrinh(),
                 diemDo.chuaGanDonVi());
+    }
+
+    /**
+     * ⚠ MỘT lượt tra cho cả danh sách — {@code timTheoIds} là hàm gộp, ⛔ không gọi trong vòng lặp.
+     * Màn hình điểm đo hiện 19 dòng, mỗi dòng có thể có vài liên kết; gọi lẻ là N+1 ngay ở màn hình
+     * đầu tiên người dùng mở.
+     */
+    private List<HydroCatalogDtos.StationConstructionView> toLinkViews(List<StationConstruction> lienKet) {
+        Map<Long, ConstructionRef> congTrinh = lienKets.congTrinhCua(lienKet);
+        return lienKet.stream().map(l -> toLinkView(l, congTrinh)).toList();
+    }
+
+    private static HydroCatalogDtos.StationConstructionView toLinkView(
+            StationConstruction l, Map<Long, ConstructionRef> congTrinh) {
+        ConstructionRef ct = congTrinh.get(l.getConstructionId());
+        return new HydroCatalogDtos.StationConstructionView(
+                l.getPublicId(),
+                l.getConstructionPublicId(),
+                ct == null ? null : ct.code(),
+                ct == null ? null : ct.name(),
+                l.getRole(),
+                l.isPrimary());
     }
 }

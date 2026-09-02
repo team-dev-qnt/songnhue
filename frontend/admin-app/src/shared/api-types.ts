@@ -938,8 +938,22 @@ export interface ApiSourceRequest {
 export interface StationConstructionView {
   id: string;
   constructionId: string;
+  /**
+   * ⚠ `null` khi công trình đã bị xoá mềm SAU lúc liên kết được khai — giao diện phải nói ra
+   * điều đó, ⛔ không giấu cả dòng đi: một liên kết trỏ vào công trình đã xoá là thứ người vận
+   * hành cần thấy để dọn.
+   */
+  constructionCode: string | null;
+  constructionName: string | null;
   role: PositionRole;
   primary: boolean;
+}
+
+/** Khai một liên kết điểm đo ↔ công trình — T28.19. */
+export interface StationLinkRequest {
+  constructionId: string;
+  role: PositionRole;
+  primary?: boolean;
 }
 
 export interface Station {

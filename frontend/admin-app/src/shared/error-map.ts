@@ -378,6 +378,11 @@ export const ERROR_CATALOG = {
     handling: 'form',
     severity: 'warning',
   },
+  'HYD-2008': {
+    message: 'Điểm đo này đã liên kết với công trình ấy ở cùng vai trò',
+    handling: 'form',
+    severity: 'warning',
+  },
   'HYD-2006': {
     message: 'Không được đổi mã ánh xạ API của điểm đo',
     handling: 'form',

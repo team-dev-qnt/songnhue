@@ -1,4 +1,4 @@
-import { EditOutlined, PlusOutlined } from '@ant-design/icons';
+import { ApartmentOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
@@ -32,6 +32,7 @@ import {
 import { ApiClientError, api } from '@/shared/apiClient';
 import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
 
+import { LienKetCongTrinhModal } from './LienKetCongTrinhModal';
 import {
   VAI_TRO_KHONG_CAN_CONG_TRINH,
   VAI_TRO_VI_TRI,
@@ -57,6 +58,7 @@ export function StationsPage() {
   const [form] = Form.useForm<StationRequest>();
   const [dangSua, setDangSua] = useState<Station | null>(null);
   const [taoMoiThuCong, setTaoMoiThuCong] = useState(false);
+  const [dangLienKet, setDangLienKet] = useState<Station | null>(null);
   const [boLoc, setBoLoc] = useState<BoLoc>('TAT_CA');
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -234,10 +236,21 @@ export function StationsPage() {
     },
     {
       title: '',
-      width: 70,
+      width: 110,
       align: 'right',
       render: (_, r) =>
-        coQuanLy ? <Button type="text" icon={<EditOutlined />} onClick={() => moSua(r)} /> : null,
+        coQuanLy ? (
+          <Space size={0}>
+            {/* ⭐ T28.19 — nút mở nửa GHI của liên kết điểm đo ↔ công trình. Trước 03/09 bảng
+                `station_constructions` chỉ có đường ĐỌC: cột "Công trình" hiện số liên kết và bộ
+                lọc "Chưa liên kết" đếm được 15, nhưng ⛔ không màn hình nào cho làm gì với con số
+                ấy — một danh sách việc phải làm mà không có chỗ làm. */}
+            <Tooltip title="Liên kết công trình">
+              <Button type="text" icon={<ApartmentOutlined />} onClick={() => setDangLienKet(r)} />
+            </Tooltip>
+            <Button type="text" icon={<EditOutlined />} onClick={() => moSua(r)} />
+          </Space>
+        ) : null,
     },
   ];
 
@@ -435,10 +448,10 @@ export function StationsPage() {
         dataSource={hienThi}
         columns={columns}
         pagination={false}
-        // 170+260+140+160+220+140+110+70 = 1270. Trước 01/09 bảng này KHÔNG khai `scroll` và có
+        // 170+260+140+160+220+140+110+110 = 1310. Trước 01/09 bảng này KHÔNG khai `scroll` và có
         // 1010px cột cố định cộng một cột không khai bề ngang — cùng lỗi với trang Nguồn dữ liệu,
         // chỉ chưa ai báo vì chưa mở ở màn hẹp. Xem chú thích cột "Địa chỉ" ở `ApiSourcesPage`.
-        scroll={{ x: 1270 }}
+        scroll={{ x: 1310 }}
       />
 
       <Typography.Paragraph type="secondary" style={{ marginTop: 12, marginBottom: 0 }}>
@@ -502,6 +515,14 @@ export function StationsPage() {
           {truongHoSo}
         </Form>
       </Modal>
+      <LienKetCongTrinhModal
+        diemDo={dangLienKet}
+        onClose={() => setDangLienKet(null)}
+        onDone={() => {
+          setDangLienKet(null);
+          void lamMoi();
+        }}
+      />
     </Card>
   );
 }

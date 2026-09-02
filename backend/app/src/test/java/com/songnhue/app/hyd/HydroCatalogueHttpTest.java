@@ -221,6 +221,36 @@ class HydroCatalogueHttpTest extends IntegrationTestBase {
         }
     }
 
+    // === ⭐⭐ Đường ĐỌC điểm đo qua HTTP — chưa từng có bài kiểm nào ============
+
+    @Test
+    @DisplayName("⭐⭐ GET danh sách điểm đo qua HTTP trả 200 — trước 03/09 nó trả 500 ở MỌI lượt gọi")
+    void theStationListActuallyLoadsOverHttp() {
+        ResponseEntity<String> phanHoi = phienHttp.get(kyThuat, "/api/v1/hyd/stations");
+
+        assertThat(phanHoi.getStatusCode())
+                .as(
+                        """
+                        ⛔⛔ `spring.jpa.open-in-view = false` (cố ý), nên phiên Hibernate đóng ngay khi                         StationService.list() trả về — còn StationController.toView đọc                         getMeasurementTypes() SAU đó. Kết quả: LazyInitializationException ⇒ 500 ở mọi                         lượt mở màn hình Danh mục điểm đo, kể từ WS-28.                         Vì sao không ai thấy: WS-28 đóng bằng StationScopeTest và ApiSourceServiceTest,                         CẢ HAI gọi thẳng service — tức chạy trong giao dịch của bài kiểm, nơi phiên còn                         sống (luật 5). Và đường POST vẫn chạy vì entity vừa dựng mang Set thường chứ                         không phải proxy, nên thử tay thấy "thêm được" là màn hình có vẻ ổn. %s""",
+                        phanHoi.getBody())
+                .isEqualTo(HttpStatus.OK);
+        assertThat(phanHoi.getBody())
+                .as("⛔ và phải có loại chỉ số trong thân — 200 với mảng rỗng thì bài này không đo gì")
+                .contains("\"measurementTypes\"")
+                .contains("MUC_NUOC");
+    }
+
+    @Test
+    @DisplayName("⭐ GET /chua-gan-don-vi cũng đi qua toView — cùng khuyết tật, cùng bản vá")
+    void theUnassignedListAlsoLoads() {
+        ResponseEntity<String> phanHoi = phienHttp.get(kyThuat, "/api/v1/hyd/stations/chua-gan-don-vi");
+
+        assertThat(phanHoi.getStatusCode()).as("%s", phanHoi.getBody()).isEqualTo(HttpStatus.OK);
+        assertThat(phanHoi.getBody())
+                .as("19/19 điểm đo seed chưa gán đơn vị (OI-05) — danh sách này ⛔ không được rỗng hôm nay")
+                .contains("\"code\"");
+    }
+
     // === ⭐⭐ T28.33 — POST validate 14 trường thì phải GHI đủ 14 ==============
 
     @Test
