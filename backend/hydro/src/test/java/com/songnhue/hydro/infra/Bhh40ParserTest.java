@@ -38,7 +38,7 @@ import com.songnhue.hydro.domain.TelemetryReading;
  *
  * <ul>
  *   <li><b>Quy tắc 1</b> (ghi raw trước parse) — thứ tự giữa hai lời gọi, kiểm ở
- *       {@code TelemetryProbeService} / poller;
+ *       {@code TelemetryIngestService} (poller + nút Gọi thử);
  *   <li><b>Quy tắc 5</b> (mã lạ → bỏ qua, ⛔ không tự tạo điểm đo) — cần CSDL. Ở đây chỉ khẳng định
  *       <i>vế ngược</i>: parser <b>không</b> tự lọc mã, nó trả về đủ (xem
  *       {@link #parserKhongTuLocMaLa()});

@@ -23,6 +23,10 @@ import java.time.Instant;
  * <p>Hàm {@link #suyRa} dưới đây không phụ thuộc vào việc poller còn sống: nó chỉ so mốc đọc gần
  * nhất với hiện tại. Poller chết bao lâu thì {@code readingAt} lùi xa bấy nhiêu, và tất cả điểm đo
  * chuyển sang {@link #MAT_TIN_HIEU} <i>tự nó</i>.
+ *
+ * <p>✅ <b>Người gọi (đóng nợ T28.20, 02/09/2026)</b>: {@code HydroSignalLossHandler} — job rà tín
+ * hiệu 5 phút/lần của WS-31. Trước đó hàm này có 6 bài kiểm mà <b>không một lời gọi production
+ * nào</b>, tức là nửa cặp đọc–ghi trông y hệt cả cặp (luật 27).
  */
 public enum StationDisplayStatus {
 

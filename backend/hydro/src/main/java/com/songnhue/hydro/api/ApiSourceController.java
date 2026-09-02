@@ -19,9 +19,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.songnhue.core.common.security.RequirePermission;
 import com.songnhue.hydro.application.ApiSourceForm;
 import com.songnhue.hydro.application.ApiSourceService;
-import com.songnhue.hydro.application.KetQuaGoiThu;
+import com.songnhue.hydro.application.KetQuaDongBo;
 import com.songnhue.hydro.application.StationService;
-import com.songnhue.hydro.application.TelemetryProbeService;
+import com.songnhue.hydro.application.TelemetryIngestService;
 import com.songnhue.hydro.application.ThamSoNguon;
 import com.songnhue.hydro.domain.ApiSource;
 
@@ -48,12 +48,12 @@ public class ApiSourceController {
 
     private final ApiSourceService sources;
     private final StationService stations;
-    private final TelemetryProbeService probe;
+    private final TelemetryIngestService ingest;
 
-    public ApiSourceController(ApiSourceService sources, StationService stations, TelemetryProbeService probe) {
+    public ApiSourceController(ApiSourceService sources, StationService stations, TelemetryIngestService ingest) {
         this.sources = sources;
         this.stations = stations;
-        this.probe = probe;
+        this.ingest = ingest;
     }
 
     /**
@@ -148,18 +148,25 @@ public class ApiSourceController {
      * {@code THIEU_MA_SO}) thành một câu chung <i>"Hệ thống bên ngoài không phản hồi"</i> — mà năm
      * tình trạng ấy đòi năm việc phải làm khác nhau (§10.68-B).
      *
-     * <p>⬜ SYS-0006 vẫn có nhà của nó, và đó là <b>poller</b> (WS-31): ở đấy một lượt gọi hỏng phải
-     * <i>ném</i> để hàng đợi ghi FAILED và thử lại. Nợ được ghi rõ, ⛔ không tự nhận là đã xong.
+     * <p>✅ SYS-0006 đã có nhà của nó từ WS-31: {@code HydroPollJobHandler} ném khi lượt gọi
+     * <b>đã xảy ra</b> và hỏng, để hàng đợi ghi FAILED. Hai lối vào cùng chạy
+     * {@code TelemetryIngestService}, và khác nhau đúng ở chỗ này — endpoint kể lại, poller báo động.
      *
      * <p>⚠ Endpoint <b>POST</b> dù không tạo tài nguyên: nó mở một kết nối ra ngoài, ghi
-     * {@code hydro_raw_logs} và cập nhật bộ đếm sức khoẻ của nguồn. Một {@code GET} có tác dụng phụ
-     * là thứ mọi bộ nạp trước (prefetch) của trình duyệt và mọi bộ giám sát sẽ bấm hộ.
+     * {@code hydro_raw_logs}, ghi số đo, ghi {@code sync_logs} và cập nhật bộ đếm sức khoẻ của nguồn.
+     * Một {@code GET} có tác dụng phụ là thứ mọi bộ nạp trước (prefetch) của trình duyệt và mọi bộ
+     * giám sát sẽ bấm hộ.
+     *
+     * <p>⚠⚠ Từ WS-31 lượt gọi thử <b>GHI SỐ ĐO THẬT</b> xuống {@code hydro_readings}, ⛔ không còn chỉ
+     * ghi raw. Đó là chủ ý và là điều đúng: response mang 28 số đo thật của một khung không lấy lại
+     * được (quy tắc 18) — vứt chúng đi vì "chỉ là gọi thử" là vứt dữ liệu thật. Lượt gọi ⛔ <b>không</b>
+     * chịu rate-limit: một con người vừa bấm nút và đang chờ câu trả lời.
      */
     @PostMapping("/{publicId}/goi-thu")
     @Operation(summary = "Gọi thử nguồn ngay — ⛔ không trả thân phản hồi (thân chứa chính mã số)")
     @RequirePermission("hyd:api-source:manage")
-    public KetQuaGoiThu goiThu(@PathVariable UUID publicId) {
-        return probe.goiThu(publicId);
+    public KetQuaDongBo goiThu(@PathVariable UUID publicId) {
+        return ingest.goiThu(publicId);
     }
 
     @DeleteMapping("/{publicId}")

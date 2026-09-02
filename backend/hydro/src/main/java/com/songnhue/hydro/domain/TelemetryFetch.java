@@ -51,12 +51,16 @@ public record TelemetryFetch(
         if (durationMs < 0) {
             throw new IllegalArgumentException("durationMs không âm, nhận " + durationMs);
         }
-        if (failureKind == SyncFailureKind.THIEU_MA_SO) {
+        if (failureKind != null && !failureKind.duocGhiVaoRawLog()) {
             // ⚠ Không phải sự khắt khe cho vui: `hydro_raw_logs.failure_kind` có CHECK BỐN giá trị,
             //   cố ý thiếu THIEU_MA_SO, vì thiếu mã số nghĩa là KHÔNG có lượt gọi nào — không có
             //   response để ghi. Trạng thái ấy chỉ sống ở `sync_logs` (năm giá trị). Để nó lọt tới
             //   đây là dựng sẵn một lượt INSERT chắc chắn vỡ vì ràng buộc, ở giữa một lượt ingest.
-            throw new IllegalArgumentException("THIEU_MA_SO là trạng thái TRƯỚC khi mở HTTP — nó thuộc sync_logs, "
+            //
+            // ⭐ Hỏi qua `duocGhiVaoRawLog()` chứ ⛔ không so thẳng với THIEU_MA_SO: cùng một vị ngữ
+            //   còn quyết định `HydroPollJobHandler` có ném UpstreamException hay không. Hai nơi tự
+            //   liệt kê giá trị là hai nơi để lệch nhau (luật 14).
+            throw new IllegalArgumentException(failureKind + " là trạng thái TRƯỚC khi mở HTTP — nó thuộc sync_logs, "
                     + "⛔ không thuộc một TelemetryFetch (hydro_raw_logs chỉ nhận 4 giá trị)");
         }
         if (failureKind == null && failureDetail != null) {

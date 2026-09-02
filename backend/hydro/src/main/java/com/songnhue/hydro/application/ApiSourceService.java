@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -19,6 +20,7 @@ import com.songnhue.core.common.util.CryptoService;
 import com.songnhue.core.spi.SecurityEventPort;
 import com.songnhue.hydro.domain.AdapterType;
 import com.songnhue.hydro.domain.ApiSource;
+import com.songnhue.hydro.domain.ApiSourceStatus;
 import com.songnhue.hydro.infra.ApiSourceRepository;
 import com.songnhue.hydro.infra.StationRepository;
 
@@ -68,6 +70,38 @@ public class ApiSourceService {
     @Transactional(readOnly = true)
     public ApiSource get(UUID publicId) {
         return tim(publicId);
+    }
+
+    /**
+     * Tra nguồn theo <b>mã</b> — đường vào của poller (T31.1).
+     *
+     * <p>⚠ Poller tra bằng {@code code}, ⛔ không bằng {@code public_id}, và đó là chủ ý: mã nguồn là
+     * thứ nằm trong {@code jobs.payload}, trong dòng log và trong runbook — người trực đọc
+     * {@code BHH40} thì biết ngay đang nói về cái gì, còn một UUID thì phải tra thêm một lượt. Payload
+     * là văn bản người đọc, không chỉ là dữ liệu máy đọc.
+     *
+     * @return rỗng khi nguồn đã bị xoá mềm giữa lúc đặt việc và lúc chạy — nơi gọi phải nói ra
+     */
+    @Transactional(readOnly = true)
+    public Optional<ApiSource> timTheoMa(String code) {
+        return code == null || code.isBlank()
+                ? Optional.empty()
+                : sources.findByCodeAndDeletedAtIsNull(code.trim().toUpperCase(Locale.ROOT));
+    }
+
+    /**
+     * Các nguồn poller phải gọi theo lịch — ⛔ đã loại nguồn người vận hành tạm dừng.
+     *
+     * <p>⚠ Lọc {@link ApiSourceStatus#HOAT_DONG} bằng phép <b>bằng</b>, ⛔ không bằng phép khác
+     * {@code TAM_DUNG}: thêm một giá trị vào enum về sau thì nhánh mặc định phải là <i>"không gọi"</i>,
+     * không phải <i>"cứ gọi"</i>. Cùng vị ngữ với {@code HydroPollJobHandler}, và cả hai đều kiểm —
+     * trạng thái có thể đổi giữa lúc đặt việc và lúc chạy.
+     */
+    @Transactional(readOnly = true)
+    public List<ApiSource> nguonDangHoatDong() {
+        return sources.findByDeletedAtIsNullOrderByCodeAsc().stream()
+                .filter(n -> n.getStatus() == ApiSourceStatus.HOAT_DONG)
+                .toList();
     }
 
     /**

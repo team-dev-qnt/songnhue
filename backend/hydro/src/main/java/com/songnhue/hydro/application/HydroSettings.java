@@ -17,20 +17,22 @@ import com.songnhue.core.spi.SettingPort;
  * là một lỗi, không phải việc để dành</i> — người vận hành thấy tám ô nhập trên màn hình Cấu hình
  * hệ thống, sửa chúng, và không có gì đổi.
  *
- * <p>Lớp này khai hàm đọc cho <b>bảy</b> khoá, và ⚠ <b>tính tới 02/09/2026 có SÁU khoá thật sự có
- * người gọi lúc chạy</b>:
+ * <p>Lớp này khai hàm đọc cho <b>tám</b> khoá, và ✅ <b>tính tới 02/09/2026 (sau WS-31) cả TÁM đều
+ * có người gọi lúc chạy</b>:
  *
  * <ul>
  *   <li>{@link #cronPolling}, {@link #khungNguon}, {@link #timeoutGoiNguon}, {@link #soLanThuLai} —
  *       qua {@code ApiSourceService.thamSoHieuLuc()};
  *   <li>{@link #soNamGiuDuLieu} và {@link #soNgayGiuRawLog} — qua {@code HydroRetentionHandler}
- *       (WS-29/T29.7, nối vế đọc trong cùng đợt này).
+ *       (WS-29/T29.7);
+ *   <li>{@link #soLanHongTruocKhiCanhBao} — qua {@code ApiSourceHealthService} (WS-30/T30.6);
+ *   <li>✅ {@link #soKhungMatTinHieu} — qua {@code HydroSignalLossHandler} (WS-31/T31.8), <b>đóng nợ
+ *       T28.36</b>. Nó gọi {@code StationDisplayStatus.suyRa()}, đồng thời đóng nốt <b>T28.20</b>.
  * </ul>
  *
- * <p>⬜ Còn <b>một</b> hàm chưa ai gọi (nợ <b>T28.36</b>): {@link #soKhungMatTinHieu} chờ job phát
- * hiện mất tín hiệu (WS-31) — người tiêu thụ duy nhất của nó là {@code StationDisplayStatus.suyRa()},
- * mà hàm ấy <i>cũng</i> chưa ai gọi (T28.20). ⛔ Tới WS-31 mà vẫn không ai gọi thì <b>gỡ hàm</b>,
- * đừng để lại một cơ chế chưa ai đi qua (luật 15).
+ * <p>📌 Hai nợ ấy treo từ 31/08 với một hạn chót ghi thẳng trong javadoc: <i>"tới WS-31 mà vẫn không
+ * ai gọi thì GỠ HÀM"</i>. Hạn ấy tới, và câu trả lời là nối vế đọc — ⛔ không gia hạn thêm một lần
+ * nữa. Ghi lại vì một nợ được gia hạn hai lần là một nợ sẽ không bao giờ trả.
  *
  * <p>📌 Câu "lớp này đóng sáu khoá" nằm ở đây từ 31/08 và <b>không đúng</b> — một hàm đọc tồn tại
  * không phải là một khoá đã được đọc. Đó đúng là hình dạng nợ mà chính lớp này sinh ra để trả, tái

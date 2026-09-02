@@ -64,11 +64,12 @@ import com.songnhue.hydro.infra.HydroLatestRepository;
  * tồn tại với hệ giám sát, và {@code TelemetryHealthIndicator} nói đúng điều đang xảy ra: <i>"chưa
  * có nguồn dữ liệu ngoài nào đăng ký"</i>.
  *
- * <p>⬜ <b>Nợ đi kèm, có tên</b>: sau khi WS-31 chạy, một hệ thống <i>chưa từng</i> ghi được dòng
- * nào sẽ im lặng thay vì báo động — đúng trạng thái đáng báo động nhất với một nguồn không lấy lại
- * được. Vế còn thiếu ấy thuộc WS-31/T31.9 (cảnh báo <i>sự vắng mặt</i>, đo bằng việc <b>không có
- * lượt ingest thành công nào</b> chứ không bằng độ tươi của bảng), ⛔ không phải bằng cách đăng ký
- * sớm ở đây.
+ * <p>✅ <b>Nợ đi kèm đã trả (T31.9, 02/09/2026)</b>: một hệ thống <i>chưa từng</i> ghi được dòng nào
+ * vẫn im lặng ở lớp này — và đó vẫn đúng — nhưng nay {@code HydroSignalLossHandler} đứng ra nói hộ.
+ * Nó hỏi một câu khác hẳn: <b>đã có lượt ingest nào thành công chưa</b>
+ * ({@code max(sync_logs.started_at) WHERE status IN ('SUCCESS','PARTIAL')}), một câu mà một chỉ số về
+ * <i>dữ liệu</i> về nguyên tắc không trả lời được. Hai cơ chế, hai câu hỏi, ⛔ không chồng lấn —
+ * và ⛔ vẫn không đăng ký sớm ở đây.
  *
  * <h2>⚠ "Chưa từng có" khác "vừa mới có"</h2>
  *

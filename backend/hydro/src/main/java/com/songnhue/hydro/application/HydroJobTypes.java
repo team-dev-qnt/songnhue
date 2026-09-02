@@ -25,5 +25,28 @@ public final class HydroJobTypes {
     /** Dọn dữ liệu quá hạn lưu: raw · sync log · số đo · mã chưa khai (T29.7). */
     public static final String RETENTION = "HYDRO_RETENTION";
 
+    /**
+     * ⭐ Một lượt lấy dữ liệu từ nguồn — T31.1.
+     *
+     * <p>{@code @Scheduled} <b>chỉ đặt việc vào hàng đợi</b>; handler mới mở HTTP. Chạy thẳng trong
+     * phương thức hẹn giờ thì hỏng là <i>im lặng</i>: không trạng thái, không thử lại, không hiện ở
+     * màn hình nào — và với một nguồn không có API lịch sử, mỗi phút im lặng là số đo mất vĩnh viễn.
+     *
+     * <p>⚠ Khoá chống trùng là {@code HYDRO_POLL:<mã nguồn>}, ⛔ <b>không</b> kèm mốc khung. Bất biến
+     * cần giữ là <i>"mỗi nguồn tối đa một lượt polling đang chạy"</i> — nếu lượt trước còn kẹt thì
+     * lượt sau không được chồng lên. Kèm mốc khung vào khoá là cho phép năm lượt của cùng một khung
+     * xếp hàng cùng lúc, đúng thứ khoá này sinh ra để chặn.
+     */
+    public static final String POLL = "HYDRO_POLL";
+
+    /**
+     * Rà điểm đo <b>mất tín hiệu</b> và tình trạng <b>chưa từng ingest được lần nào</b> — T31.8/T31.9.
+     *
+     * <p>⛔ Việc này ⛔ <b>không</b> ghi một cột trạng thái nào: trạng thái tín hiệu là giá trị dẫn
+     * xuất ({@code StationDisplayStatus.suyRa}). Lý do nằm ở javadoc lớp ấy và nó là lý do duy nhất
+     * khiến hệ nói đúng lúc poller chết — không ai ghi thì cũng không có trạng thái cũ để tin nhầm.
+     */
+    public static final String SIGNAL_LOSS = "HYDRO_SIGNAL_LOSS";
+
     private HydroJobTypes() {}
 }

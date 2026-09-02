@@ -25,7 +25,7 @@ import {
   type ApiSource,
   type ApiSourceCreateRequest,
   type ApiSourceRequest,
-  type KetQuaGoiThu,
+  type KetQuaDongBo,
 } from '@/shared/api-types';
 import { ApiClientError, api } from '@/shared/apiClient';
 import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
@@ -52,7 +52,7 @@ export function ApiSourcesPage() {
   const [dangSua, setDangSua] = useState<ApiSource | null>(null);
   const [taoMoi, setTaoMoi] = useState(false);
   const [datMaSoCho, setDatMaSoCho] = useState<ApiSource | null>(null);
-  const [ketQuaGoiThu, setKetQuaGoiThu] = useState<{ nguon: ApiSource; kq: KetQuaGoiThu } | null>(
+  const [ketQuaGoiThu, setKetQuaGoiThu] = useState<{ nguon: ApiSource; kq: KetQuaDongBo } | null>(
     null,
   );
 
@@ -132,7 +132,7 @@ export function ApiSourcesPage() {
   const goiThuMutation = useMutation({
     mutationFn: (nguon: ApiSource) =>
       api
-        .post<KetQuaGoiThu>(`/hyd/api-sources/${nguon.id}/goi-thu`, {})
+        .post<KetQuaDongBo>(`/hyd/api-sources/${nguon.id}/goi-thu`, {})
         .then((kq) => ({ nguon, kq })),
     onSuccess: (ket) => {
       setKetQuaGoiThu(ket);
@@ -507,7 +507,7 @@ export function ApiSourcesPage() {
 }
 
 /** Việc phải làm ứng với từng kiểu hỏng — ⛔ một câu chung cho năm nguyên nhân là không nói gì. */
-const VIEC_PHAI_LAM: Record<NonNullable<KetQuaGoiThu['loi']>, string> = {
+const VIEC_PHAI_LAM: Record<NonNullable<KetQuaDongBo['loi']>, string> = {
   THIEU_MA_SO: 'Nguồn chưa cấu hình mã số. Bấm biểu tượng chìa khoá để đặt.',
   NOT_WORKING:
     'Nguồn từ chối mã số. ⚠ Kiểm tra mã số còn dấu ";" ở cuối không — thiếu dấu ấy nguồn trả đúng thông báo này, trông y hệt mã số sai.',
@@ -523,8 +523,8 @@ const VIEC_PHAI_LAM: Record<NonNullable<KetQuaGoiThu['loi']>, string> = {
  * ⛔ **Không hiển thị thân phản hồi** — thân thật của `bhh40` chứa chính mã số. DTO cũng không
  * mang nó, nên đây là lớp bảo vệ thứ hai chứ không phải lớp duy nhất.
  */
-function BangKetQuaGoiThu({ kq }: { kq: KetQuaGoiThu }) {
-  if (!kq.thanhCong) {
+function BangKetQuaGoiThu({ kq }: { kq: KetQuaDongBo }) {
+  if (kq.trangThai === 'FAILED') {
     return (
       <Alert
         type="error"
@@ -540,6 +540,9 @@ function BangKetQuaGoiThu({ kq }: { kq: KetQuaGoiThu }) {
               {kq.rawLogId === null
                 ? ' · ⛔ chưa lưu được nguyên văn response'
                 : ` · nguyên văn đã lưu (#${kq.rawLogId})`}
+              {kq.syncLogId === null
+                ? ' · ⛔ chưa ghi được nhật ký đồng bộ'
+                : ` · nhật ký đồng bộ #${kq.syncLogId}`}
             </Typography.Text>
           </>
         }
@@ -552,15 +555,27 @@ function BangKetQuaGoiThu({ kq }: { kq: KetQuaGoiThu }) {
       <Alert
         type="success"
         showIcon
-        message={`Nguồn trả về ${kq.soBanGhi} số đo trong ${kq.durationMs} ms`}
+        message={`Nguồn trả về ${kq.soBanGhi} số đo trong ${kq.durationMs} ms — ghi mới ${kq.soGhiMoi} dòng`}
       />
       <Descriptions column={1} size="small" bordered>
         <Descriptions.Item label="Số đo bóc được">{kq.soBanGhi}</Descriptions.Item>
+        <Descriptions.Item label="Ghi mới vào CSDL">
+          {kq.soGhiMoi}
+          {kq.soTrungBoQua > 0 && (
+            <Typography.Text type="secondary">
+              {' '}
+              · {kq.soTrungBoQua} dòng đã có sẵn nên bỏ qua
+            </Typography.Text>
+          )}
+        </Descriptions.Item>
         <Descriptions.Item label="Điểm đo đang hoạt động">
           {kq.soDiemDoDangHoatDong}
         </Descriptions.Item>
         <Descriptions.Item label="Mốc đo gần nhất">
           {kq.mocDoGanNhat ? new Date(kq.mocDoGanNhat).toLocaleString('vi-VN') : '—'}
+        </Descriptions.Item>
+        <Descriptions.Item label="Khung nhắm tới">
+          {kq.khungNhamToi ? new Date(kq.khungNhamToi).toLocaleString('vi-VN') : '—'}
         </Descriptions.Item>
         <Descriptions.Item label="Dòng không đọc được">
           {kq.soDongRac > 0 ? (
@@ -570,9 +585,37 @@ function BangKetQuaGoiThu({ kq }: { kq: KetQuaGoiThu }) {
           )}
         </Descriptions.Item>
         <Descriptions.Item label="Dòng trùng">{kq.soDongTrung}</Descriptions.Item>
+        <Descriptions.Item label="Số đo của mã chưa khai">
+          {kq.soMaLa > 0 ? <Tag color="blue">{kq.soMaLa}</Tag> : '0'}
+        </Descriptions.Item>
+        <Descriptions.Item label="Nhật ký đồng bộ">
+          {kq.syncLogId === null ? (
+            <Typography.Text type="danger">⛔ chưa ghi được</Typography.Text>
+          ) : (
+            `#${kq.syncLogId}`
+          )}
+        </Descriptions.Item>
       </Descriptions>
 
-      {kq.thieuDuLieu && (
+      {kq.soThieuLoaiChiSo > 0 && (
+        <Alert
+          type="warning"
+          showIcon
+          message={`${kq.soThieuLoaiChiSo} điểm đo nhận số đo mà chưa tích loại chỉ số "Mực nước"`}
+          description="Số đo VẪN được ghi — bảng station_measurement_types nuôi biểu mẫu và báo cáo, nó không phải cái van của đường ingest. Nhưng báo cáo sẽ không khớp cho tới khi tích ô Loại chỉ số ở màn hình Điểm đo. Mã điểm đo cụ thể nằm trong log của máy chủ."
+        />
+      )}
+
+      {kq.soKhacNguon > 0 && (
+        <Alert
+          type="warning"
+          showIcon
+          message={`${kq.soKhacNguon} điểm đo được nguồn này trả về nhưng hồ sơ khai thuộc nguồn khác`}
+          description="Số đo vẫn được ghi vì mã API là duy nhất toàn hệ thống — nhưng đây là dấu hiệu cấu hình nguồn cần đối chiếu lại."
+        />
+      )}
+
+      {kq.trangThai === 'PARTIAL' && (
         <Alert
           type="warning"
           showIcon

@@ -27,7 +27,10 @@ import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.app.testsupport.PhienHttp;
 import com.songnhue.core.application.auth.PasswordPolicyService;
 import com.songnhue.core.infra.identity.UserRepository;
+import com.songnhue.core.spi.JobContext;
 import com.songnhue.hydro.application.ApiSourceService;
+import com.songnhue.hydro.application.HydroJobTypes;
+import com.songnhue.hydro.application.HydroPollJobHandler;
 
 /**
  * ⭐⭐ <b>Gọi thử</b> nguồn đi qua HTTP — WS-30, lượt đi <b>trọn vòng</b> đầu tiên của adapter.
@@ -61,6 +64,18 @@ import com.songnhue.hydro.application.ApiSourceService;
 class TelemetryProbeHttpTest extends IntegrationTestBase {
 
     private static final String MA_SO = "maso-kiem-thu-goi-thu;";
+
+    /**
+     * ⚠ Chuỗi payload viết TAY, ⛔ không gọi {@code HydroPollJobHandler.payloadCho} — hàm ấy
+     * package-private và mở nó ra {@code public} chỉ để một bài kiểm gọi được là nới hợp đồng của mã
+     * production cho vừa phép đo.
+     *
+     * <p>Bất biến "hai vế sinh–bóc khớp nhau" đã có bộ canh riêng ở đúng chỗ nó sống:
+     * {@code HydroPollSchedulerTest.payloadChiMangMaNguon} khẳng định chuỗi này <b>từng ký tự</b>. Đổi
+     * định dạng mà quên sửa ở đây thì {@code docMaNguon} ném — ⛔ không đi lọt trong im lặng.
+     */
+    private static final String PAYLOAD_POLL = "{\"maNguon\":\"%s\"}";
+
     private static final String VAI_TRO_TAM = "KIEMTRA_GOI_THU";
 
     @Autowired
@@ -80,6 +95,9 @@ class TelemetryProbeHttpTest extends IntegrationTestBase {
 
     @Autowired
     private ApiSourceService sources;
+
+    @Autowired
+    private HydroPollJobHandler pollHandler;
 
     private PhienHttp phienHttp;
     private PhienHttp.Phien quanTri;
@@ -152,6 +170,12 @@ class TelemetryProbeHttpTest extends IntegrationTestBase {
         }
     }
 
+    /** Số dòng {@code hydro_unmapped_readings} do MockAdapter sinh ra — hai mã {@code Z9000x}. */
+    private long demMaLaCuaMock() {
+        return jdbc.queryForObject(
+                "SELECT count(*) FROM hydro_unmapped_readings WHERE api_code IN ('Z90001','Z90002')", Long.class);
+    }
+
     private ResponseEntity<String> goiThu(PhienHttp.Phien phien, UUID nguon) {
         return phienHttp.goi(phien, HttpMethod.POST, "/api/v1/hyd/api-sources/" + nguon + "/goi-thu", null);
     }
@@ -160,14 +184,29 @@ class TelemetryProbeHttpTest extends IntegrationTestBase {
     @DisplayName("⭐⭐ Gọi thử khép trọn vòng: 200 · bóc được số đo · GHI hydro_raw_logs · CẬP NHẬT last_success_at")
     void goiThuKhepTronVong() {
         UUID nguon = taoNguonGia("GT-OK", true);
+        long maLaTruoc = demMaLaCuaMock();
 
         ResponseEntity<String> kq = goiThu(quanTri, nguon);
 
         assertThat(kq.getStatusCode()).isEqualTo(HttpStatus.OK);
         JsonNode than = doc(kq).path("data");
-        assertThat(than.get("thanhCong").asBoolean()).isTrue();
+        assertThat(than.get("trangThai").asText())
+                .as("⭐ hai số đo giả cho 0 điểm đo đang hoạt động ⇒ quy tắc parse 9 KHÔNG bắn (mẫu số 0 "
+                        + "trả false — một cảnh báo kêu vì tập rỗng là một cảnh báo sẽ bị tắt)")
+                .isEqualTo("SUCCESS");
         assertThat(than.get("httpStatus").asInt()).isEqualTo(200);
         assertThat(than.get("soBanGhi").asInt()).isEqualTo(2);
+        assertThat(than.get("soMaLa").asInt())
+                .as("⭐ WS-31: lượt gọi thử nay GHI số đo thật — hai mã Z9000x chưa khai nên chúng xuống "
+                        + "hydro_unmapped_readings, ⛔ không bị vứt đi (quy tắc 18). ⚠ Con số là số dòng "
+                        + "GHI MỚI, và MockAdapter dùng mốc CỐ ĐỊNH 01/01/2000 (để dữ liệu giả không bao "
+                        + "giờ trông tươi) — nên từ lượt thứ hai trở đi ux_hydro_unmapped_ma_khung bỏ qua "
+                        + "và con số này về 0. Đó là hành vi ĐÚNG, nên khẳng định bắt vào ĐỘ CHÊNH.")
+                .isEqualTo((int) (demMaLaCuaMock() - maLaTruoc));
+        assertThat(demMaLaCuaMock())
+                .as("⛔ và vế thật sự quan trọng: số đo của mã chưa khai CÓ MẶT trong bảng")
+                .isEqualTo(2);
+        assertThat(than.get("syncLogId").asLong()).isPositive();
 
         List<String> maLa = new ArrayList<>();
         than.get("maChuaKhai").forEach(n -> maLa.add(n.asText()));
@@ -206,7 +245,7 @@ class TelemetryProbeHttpTest extends IntegrationTestBase {
         assertThat(kq.getBody())
                 .as("⛔ conventions.md §4.7: mã số không bao giờ ra API, kể cả cho quản trị. Thân phản "
                         + "hồi của bhh40 mang credential trong <form action> (đo 01/09/2026), nên trả "
-                        + "thân ra là trả mã số cho bất kỳ ai mở DevTools. KetQuaGoiThu KHÔNG CÓ CHỖ "
+                        + "thân ra là trả mã số cho bất kỳ ai mở DevTools. KetQuaDongBo KHÔNG CÓ CHỖ "
                         + "để đặt thân vào — bảo đảm ở tầng cấu trúc, ⛔ không ở lời dặn.")
                 .doesNotContain(MA_SO)
                 .doesNotContain("maso-kiem-thu")
@@ -234,8 +273,13 @@ class TelemetryProbeHttpTest extends IntegrationTestBase {
                         + "không phản hồi' là xoá đúng thứ họ cần (§10.68-B).")
                 .isEqualTo(HttpStatus.OK);
         JsonNode than = doc(kq).path("data");
-        assertThat(than.get("thanhCong").asBoolean()).isFalse();
+        assertThat(than.get("trangThai").asText()).isEqualTo("FAILED");
         assertThat(than.get("loi").asText()).isEqualTo("THIEU_MA_SO");
+        assertThat(than.get("syncLogId").asLong())
+                .as("⭐ T31.12 — ghi sync_logs ở MỌI nhánh thoát, kể cả nhánh chưa hề mở kết nối. Worker "
+                        + "chỉ biết 'job này hỏng'; nó không biết VÌ SAO và không hiện ở màn hình của "
+                        + "người vận hành thuỷ văn")
+                .isPositive();
         // ⚠ Envelope của dự án bỏ hẳn trường null khỏi JSON, nên đây là "vắng mặt" chứ không phải
         //   "null" — FE phải đọc `rawLogId == null` chứ ⛔ không `'rawLogId' in kq`.
         assertThat(than.path("rawLogId").isMissingNode()
@@ -267,5 +311,111 @@ class TelemetryProbeHttpTest extends IntegrationTestBase {
                 .as("⛔ Gọi thử mở một kết nối ra ngoài và cập nhật bộ đếm sức khoẻ — nó là việc quản "
                         + "trị, đứng sau hyd:api-source:manage như mọi việc ghi khác")
                 .isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    @DisplayName(
+            "⭐⭐ Hợp đồng JSON khớp KHÍT `KetQuaDongBo` của api-types.ts — thừa một trường là một bề mặt không ai canh")
+    void hopDongJsonKhopVoiKieuFe() {
+        UUID nguon = taoNguonGia("GT-JSON", true);
+
+        JsonNode than = doc(goiThu(quanTri, nguon)).path("data");
+        List<String> truong = new ArrayList<>();
+        than.fieldNames().forEachRemaining(truong::add);
+
+        // ⚠ Envelope bỏ hẳn trường null, nên đây là tập trường CÓ MẶT ở một lượt THÀNH CÔNG. Danh
+        //   sách này phải trùng khít `KetQuaDongBo` trong `frontend/admin-app/src/shared/api-types.ts`
+        //   — chỗ nào con người phải nhớ hai nơi thì chỗ đó cần một phép kiểm nhớ hộ (luật 14).
+        assertThat(truong)
+                .as("⛔ Một trường lọt ra JSON mà FE không khai là một bề mặt không ai canh (§7.7); một "
+                        + "trường FE khai mà BE không gửi là một ô rỗng vĩnh viễn (luật 27)")
+                .containsExactlyInAnyOrder(
+                        "trangThai",
+                        "httpStatus",
+                        "durationMs",
+                        "soByteThan",
+                        "khungNhamToi",
+                        "soBanGhi",
+                        "soGhiMoi",
+                        "soTrungBoQua",
+                        "soMaLa",
+                        "soDongRac",
+                        "soDongTrung",
+                        "maChuaKhai",
+                        "soDiemDoDangHoatDong",
+                        "soThieuLoaiChiSo",
+                        "soKhacNguon",
+                        "mocDoGanNhat",
+                        "rawLogId",
+                        "syncLogId");
+        assertThat(String.join(",", truong))
+                .as("⛔ thân phản hồi của nguồn KHÔNG có chỗ nào để đặt vào — bảo đảm ở tầng cấu trúc")
+                .doesNotContain("body")
+                .doesNotContain("than");
+    }
+
+    @Test
+    @DisplayName(
+            "⭐⭐ Lượt POLLING khép trọn vòng qua hàng đợi thật: ghi raw · ghi mã lạ · ghi sync_logs · ⛔ 0 điểm đo mới")
+    void luotPollingKhepTronVong() {
+        UUID nguon = taoNguonGia("PL-OK", true);
+        Long soSyncTruoc = jdbc.queryForObject("SELECT count(*) FROM sync_logs", Long.class);
+        long maLaTruoc = demMaLaCuaMock();
+
+        pollHandler.handle(
+                new JobContext(UUID.randomUUID(), HydroJobTypes.POLL, PAYLOAD_POLL.formatted("PL-OK"), null, p -> {}));
+
+        Map<String, Object> log = jdbc.queryForMap(
+                """
+                SELECT s.status, s.received_count, s.written_count, s.unmapped_count, s.raw_log_id, s.frame_start
+                  FROM sync_logs s JOIN api_sources a ON a.id = s.api_source_id
+                 WHERE a.public_id = ? ORDER BY s.id DESC LIMIT 1
+                """,
+                nguon);
+        assertThat(log.get("status")).isEqualTo("SUCCESS");
+        assertThat(log.get("received_count")).isEqualTo(2);
+        assertThat(log.get("written_count"))
+                .as("hai mã Z9000x KHÔNG khớp CHECK ^F[0-9]{5}$ của stations.api_code nên về nguyên tắc "
+                        + "không tra ra điểm đo thật nào ⇒ 0 dòng vào hydro_readings")
+                .isEqualTo(0);
+        assertThat(log.get("unmapped_count"))
+                .as("⚠ Bộ đếm phải khớp SỐ DÒNG THẬT SỰ SINH RA, ⛔ không phải số mã nhận được — mốc cố "
+                        + "định của MockAdapter làm lượt thứ hai trở đi ghi 0 dòng, và đó là đúng")
+                .isEqualTo((int) (demMaLaCuaMock() - maLaTruoc));
+        assertThat(log.get("raw_log_id")).isNotNull();
+        assertThat(log.get("frame_start"))
+                .as("mốc khung phải được ghi — nó là khoá đối soát của rate-limit")
+                .isNotNull();
+
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM sync_logs", Long.class))
+                .as("⭐ ĐÚNG MỘT dòng cho một lượt polling — quy tắc parse 10")
+                .isEqualTo(soSyncTruoc + 1);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM stations WHERE api_code LIKE 'Z%'", Long.class))
+                .as("⛔⛔ Quy tắc parse 5: KHÔNG tự tạo điểm đo từ mã lạ, kể cả trên đường tự động")
+                .isZero();
+        assertThat(demMaLaCuaMock())
+                .as("⭐ nhưng số đo VẪN được giữ: nguồn không có API lịch sử, bỏ đi là bỏ vĩnh viễn")
+                .isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("⭐ Nguồn chưa có mã số ⇒ job polling KHÔNG ném — 720 job FAILED/ngày là một màn hình không ai đọc")
+    void pollingThieuMaSoKhongLamJobDo() {
+        taoNguonGia("PL-NOKEY", false);
+
+        org.assertj.core.api.Assertions.assertThatCode(() -> pollHandler.handle(new JobContext(
+                        UUID.randomUUID(), HydroJobTypes.POLL, PAYLOAD_POLL.formatted("PL-NOKEY"), null, p -> {})))
+                .as("⭐⭐ Luật: ném khi lượt gọi ĐÃ XẢY RA và hỏng; ⛔ không ném khi chưa hề có lượt gọi "
+                        + "nào. Đó chính là đường phân chia mà lược đồ đã vẽ giữa hai ràng buộc CHECK.")
+                .doesNotThrowAnyException();
+
+        assertThat(jdbc.queryForObject(
+                        """
+                        SELECT s.failure_kind FROM sync_logs s JOIN api_sources a ON a.id = s.api_source_id
+                         WHERE a.code = 'PL-NOKEY' ORDER BY s.id DESC LIMIT 1
+                        """,
+                        String.class))
+                .as("⛔ và nó vẫn phải để lại dấu vết ở đúng chỗ người vận hành thuỷ văn nhìn")
+                .isEqualTo("THIEU_MA_SO");
     }
 }

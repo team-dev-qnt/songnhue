@@ -76,5 +76,30 @@ public enum SyncFailureKind {
      * định dạng — và vì nguyên văn response đã được ghi vào {@code hydro_raw_logs} <b>trước khi</b>
      * parse, đây là lúc bảng ấy trả lại toàn bộ chi phí lưu trữ của nó.
      */
-    EMPTY_BODY
+    EMPTY_BODY;
+
+    /**
+     * Lý do này có được phép nằm trên một dòng {@code hydro_raw_logs} không — và, cùng một câu hỏi
+     * viết cách khác, <b>lượt gọi HTTP đã thật sự xảy ra chưa</b>.
+     *
+     * <p>⭐ Một vị ngữ, ba nơi dùng, để ba nơi ấy không thể lệch nhau (luật 14):
+     *
+     * <ol>
+     *   <li>{@link TelemetryFetch} từ chối dựng một bản ghi mang lý do không được phép — chặn một
+     *       lượt {@code INSERT} chắc chắn vỡ ràng buộc ở giữa lượt ingest;
+     *   <li>{@code ck_hydro_raw_logs_failure_kind} (4 giá trị) so với {@code ck_sync_logs_failure_kind}
+     *       (5 giá trị) — {@code HydroEnumSchemaTest} đối chiếu chênh lệch ấy với hàm này;
+     *   <li>⭐ {@code HydroPollJobHandler} quyết <b>ném hay không ném</b> {@code UpstreamException}.
+     * </ol>
+     *
+     * <p>Điểm 3 là chỗ hàm này chịu lực nhất, nên viết rõ luật: <b>ném khi lượt gọi ĐÃ xảy ra và
+     * hỏng; ⛔ không ném khi chưa hề có lượt gọi nào.</b> {@link #THIEU_MA_SO} là một <i>trạng thái
+     * cấu hình</i> — người vận hành đã thấy nó trên màn hình <i>Nguồn dữ liệu</i>, đã nhận thông báo,
+     * và {@code sync_logs} đã ghi. Biến nó thành job đỏ nghĩa là <b>720 job FAILED mỗi ngày</b> cho
+     * một nguồn chưa ai dán mã số vào, và một màn hình việc nền đỏ rực vì một lý do ai cũng biết là
+     * một màn hình sẽ không còn ai đọc (§10.42).
+     */
+    public boolean duocGhiVaoRawLog() {
+        return this != THIEU_MA_SO;
+    }
 }

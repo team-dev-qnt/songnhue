@@ -877,7 +877,17 @@ export type SyncFailureKind =
   'THIEU_MA_SO' | 'NOT_WORKING' | 'TIMEOUT' | 'HTTP_ERROR' | 'EMPTY_BODY';
 
 /**
- * Kết quả một lượt **Gọi thử** nguồn — `POST /hyd/api-sources/{id}/goi-thu`.
+ * Kết cục một lượt đồng bộ — bốn giá trị **phân biệt được**.
+ *
+ * ⚠ `SKIPPED_UP_TO_DATE` là kết cục **bình thường và mong muốn** của 4/5 lượt chạy (poll 2 phút
+ * trên nguồn cập nhật 10 phút). ⛔ Đừng vẽ nó màu đỏ — trộn nó vào `FAILED` là dạy người vận
+ * hành bỏ qua màu đỏ.
+ */
+export type SyncStatus = 'SUCCESS' | 'PARTIAL' | 'FAILED' | 'SKIPPED_UP_TO_DATE';
+
+/**
+ * Kết quả một lượt đồng bộ — `POST /hyd/api-sources/{id}/goi-thu`, và cũng là hình dạng mà
+ * poller ghi vào `sync_logs`.
  *
  * ⛔ **Không có trường nào mang thân phản hồi của nguồn**, và đó là chủ ý: thân thật của
  * `bhh40` chứa chính mã số (`<form action="…?key=…%3b">`, đo 01/09/2026). Muốn đối chiếu
@@ -886,23 +896,32 @@ export type SyncFailureKind =
  * ⚠ Envelope của dự án bỏ hẳn trường `null` khỏi JSON, nên đọc `rawLogId == null`,
  * ⛔ không `'rawLogId' in kq`.
  */
-export interface KetQuaGoiThu {
-  thanhCong: boolean;
+export interface KetQuaDongBo {
+  trangThai: SyncStatus;
   httpStatus: number | null;
   durationMs: number;
   loi: SyncFailureKind | null;
   lyDo: string | null;
   soByteThan: number;
+  /** Mốc đầu khung 10' mà lượt này nhắm tới. */
+  khungNhamToi: string | null;
   soBanGhi: number;
+  /** ⚠ 0 là bình thường ở 4/5 lượt — nguồn cập nhật 10' còn poller gọi 2'. */
+  soGhiMoi: number;
+  soTrungBoQua: number;
+  soMaLa: number;
   soDongRac: number;
   soDongTrung: number;
   /** ⛔ Chỉ LIỆT KÊ. Tuyệt đối không tự tạo điểm đo từ mã lạ — đó là G8, thuộc Công ty. */
   maChuaKhai: string[];
   soDiemDoDangHoatDong: number;
-  thieuDuLieu: boolean;
+  /** ⚠ Điểm đo có hồ sơ nhưng chưa tích loại chỉ số — số đo VẪN được ghi, đây là lỗi danh mục. */
+  soThieuLoaiChiSo: number;
+  soKhacNguon: number;
   mocDoGanNhat: string | null;
   /** `null` = đã gọi nhưng KHÔNG lưu được nguyên văn — một sự cố CSDL đáng biết ngay. */
   rawLogId: number | null;
+  syncLogId: number | null;
 }
 
 export interface ApiSourceRequest {
