@@ -17,18 +17,25 @@ import com.songnhue.core.spi.SettingPort;
  * là một lỗi, không phải việc để dành</i> — người vận hành thấy tám ô nhập trên màn hình Cấu hình
  * hệ thống, sửa chúng, và không có gì đổi.
  *
- * <p>Lớp này khai hàm đọc cho sáu khoá — nhưng ⚠ <b>tính tới 01/09/2026 chỉ BỐN khoá thật sự có
- * người gọi lúc chạy</b>: {@link #cronPolling}, {@link #khungNguon}, {@link #timeoutGoiNguon} và
- * {@link #soLanThuLai}, cả bốn qua {@code ApiSourceService.thamSoHieuLuc()}.
+ * <p>Lớp này khai hàm đọc cho <b>bảy</b> khoá, và ⚠ <b>tính tới 02/09/2026 có SÁU khoá thật sự có
+ * người gọi lúc chạy</b>:
  *
- * <p>⬜ Hai hàm còn lại chưa ai gọi (nợ <b>T28.36</b>): {@link #soKhungMatTinHieu} chờ job phát hiện
- * mất tín hiệu (WS-31) — người tiêu thụ duy nhất của nó là {@code StationDisplayStatus.suyRa()}, mà
- * hàm ấy <i>cũng</i> chưa ai gọi (T28.20); {@link #soNamGiuDuLieu} chờ job dọn dữ liệu cũ (WS-29).
- * ⛔ Tới WS-31 mà vẫn không ai gọi thì <b>gỡ hàm</b>, đừng để lại một cơ chế chưa ai đi qua (luật 15).
+ * <ul>
+ *   <li>{@link #cronPolling}, {@link #khungNguon}, {@link #timeoutGoiNguon}, {@link #soLanThuLai} —
+ *       qua {@code ApiSourceService.thamSoHieuLuc()};
+ *   <li>{@link #soNamGiuDuLieu} và {@link #soNgayGiuRawLog} — qua {@code HydroRetentionHandler}
+ *       (WS-29/T29.7, nối vế đọc trong cùng đợt này).
+ * </ul>
+ *
+ * <p>⬜ Còn <b>một</b> hàm chưa ai gọi (nợ <b>T28.36</b>): {@link #soKhungMatTinHieu} chờ job phát
+ * hiện mất tín hiệu (WS-31) — người tiêu thụ duy nhất của nó là {@code StationDisplayStatus.suyRa()},
+ * mà hàm ấy <i>cũng</i> chưa ai gọi (T28.20). ⛔ Tới WS-31 mà vẫn không ai gọi thì <b>gỡ hàm</b>,
+ * đừng để lại một cơ chế chưa ai đi qua (luật 15).
  *
  * <p>📌 Câu "lớp này đóng sáu khoá" nằm ở đây từ 31/08 và <b>không đúng</b> — một hàm đọc tồn tại
  * không phải là một khoá đã được đọc. Đó đúng là hình dạng nợ mà chính lớp này sinh ra để trả, tái
- * diễn ở tầng javadoc: nửa cặp đọc–ghi trông y hệt một cặp hoàn chỉnh.
+ * diễn ở tầng javadoc: nửa cặp đọc–ghi trông y hệt một cặp hoàn chỉnh. Con số ở đây vì thế phải
+ * đếm <b>người gọi</b>, không đếm hàm.
  *
  * <p>⬜ Hai khoá <i>không</i> có hàm đọc — {@code hydro.threshold.default-set} và
  * {@code hydro.quality.suspect-rule} — là JSON rỗng chờ Công ty (G9-a) và chỉ có nghĩa khi bộ
@@ -60,6 +67,7 @@ public class HydroSettings {
     static final String KHOA_MAX_RETRY = "hydro.polling.max-retry";
     static final String KHOA_MAT_TIN_HIEU = "hydro.station.signal-loss-frames";
     static final String KHOA_RETENTION = "hydro.retention-years";
+    static final String KHOA_RETENTION_RAW = "hydro.raw-retention-days";
 
     private final SettingPort settings;
 
@@ -112,5 +120,24 @@ public class HydroSettings {
     /** Số năm giữ dữ liệu chi tiết {@code hydro_readings} — chốt D5. */
     public int soNamGiuDuLieu() {
         return settings.getInt(KHOA_RETENTION, 5);
+    }
+
+    /**
+     * Số ngày giữ <b>nguyên văn response</b> ({@code hydro_raw_logs}) và nhật ký đồng bộ.
+     *
+     * <p>⚠ Ngắn hơn hạn lưu số đo tới hai bậc độ lớn (90 ngày so với 5 năm) — và đó là chủ ý. Raw
+     * chỉ có giá trị khi cần đối chiếu <i>"số này parse từ đâu ra"</i> hoặc khi nguồn đổi định dạng;
+     * cả hai đều là việc của vài tuần gần nhất. Giữ 5 năm là giữ ~2 GB văn bản để trả lời một câu
+     * hỏi không ai hỏi, trong khi ngân sách bộ nhớ VPS đã tính chặt
+     * ({@code hosting_recommendations.md} §8).
+     *
+     * <p>⛔ Dọn bằng cách <b>xoá hẳn partition tháng</b> — không kết xuất, không phục hồi được. Ràng
+     * buộc seed: {@code min=7;max=1825}, và hàm trong CSDL còn một sàn an toàn 7 ngày nữa phía sau.
+     *
+     * <p>📌 Khoá này seed <b>cùng lúc</b> với hàm đọc này ({@code V202609011052}), ⛔ không seed
+     * trước — tám khoá HYDRO của 13/8 đã nằm 18 ngày không ai đọc, và đó chính là luật 15 (§10.9).
+     */
+    public int soNgayGiuRawLog() {
+        return settings.getInt(KHOA_RETENTION_RAW, 90);
     }
 }
