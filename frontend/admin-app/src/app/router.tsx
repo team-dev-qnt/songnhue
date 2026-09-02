@@ -128,6 +128,20 @@ export const router = createBrowserRouter([
             'hyd:api-source:manage',
             lazyPage(() => import('@/features/hydro/ApiSourcesPage'), 'ApiSourcesPage'),
           ),
+          // ⭐ Hai tuyến chẩn đoán (T31.13) khai ĐÚNG cặp quyền mà endpoint của chúng nhận ở chế
+          //   độ HOẶC. Gác riêng `hyd:api-source:manage` thì TECHNICIAN — vai trò duy nhất ngoài
+          //   quản trị có `hyd:station:manage`, tức đúng người sẽ đi khai một mã lạ — không đọc
+          //   nổi lý do vì sao số liệu không về. Đó là hình dạng T27.20 lần thứ ba.
+          adminRoute(
+            '/thuy-van/nhat-ky-dong-bo',
+            ['hyd:measurement:view', 'hyd:api-source:manage'],
+            lazyPage(() => import('@/features/hydro/SyncLogsPage'), 'SyncLogsPage'),
+          ),
+          adminRoute(
+            '/thuy-van/ma-la',
+            ['hyd:measurement:view', 'hyd:api-source:manage'],
+            lazyPage(() => import('@/features/hydro/UnmappedCodesPage'), 'UnmappedCodesPage'),
+          ),
           adminRoute(
             '/van-hanh/danh-muc-tinh-hinh',
             'ops:operation-status-code:manage',

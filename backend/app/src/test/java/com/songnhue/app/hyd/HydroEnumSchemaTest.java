@@ -50,8 +50,10 @@ import com.songnhue.hydro.domain.SyncStatus;
  *   <li>Đọc <b>văn bản migration</b>, ⛔ không đọc lược đồ CSDL đang chạy. Nghĩa là nó bắt được
  *       "người viết migration mới gõ sai", ⛔ không bắt được "một CSDL đã sống mang ràng buộc cũ".
  *       Lớp lỗi thứ hai neo vào {@code db-migration-checksums.txt}, không vào bài kiểm.
- *   <li>Chưa có union TypeScript nào để đối chiếu — màn hình quản trị của bốn enum này ra đời ở
- *       WS-31. ⬜ Khi có, thêm vế thứ ba theo đúng khuôn {@code EnumBaNoiTest}.
+ *   <li>✅ <b>Vế TypeScript đã nối 02/09 (T31.13)</b> cho {@link SyncStatus} và
+ *       {@link SyncFailureKind} — hai màn hình chẩn đoán đã ra đời nên hai union ấy tồn tại.
+ *       ⬜ {@link ReadingQuality} và {@link ReadingSource} <b>vẫn chưa có union TS</b>: màn hình
+ *       duyệt chất lượng thuộc WS-32. Nói ra thay vì để người đọc suy rằng cả bốn đã phủ (luật 28).
  * </ul>
  */
 class HydroEnumSchemaTest {
@@ -228,6 +230,161 @@ class HydroEnumSchemaTest {
             ket.add(m.group(1));
         }
         return ket;
+    }
+
+    // =========================================================================
+    // Vế thứ ba — TypeScript (T31.13, 02/09/2026)
+    // =========================================================================
+
+    /**
+     * Một dòng = một enum phải khớp một union TS <b>và</b> một bản đồ nhãn.
+     *
+     * @param tenBanDoNhan hằng trong {@code hydroVocabulary.ts} ánh xạ <i>mọi</i> giá trị enum sang
+     *     nhãn tiếng Việt. Đây là vế đáng giá hơn cả union: thiếu một khoá ở đây thì
+     *     {@code LY_DO_HONG[v].label} là {@code undefined.label} — <b>màn hình trắng</b>, không
+     *     phải một nhãn xấu. Và {@code tsc} <b>không</b> thấy: {@code Record<K, V>} chỉ được kiểm khi
+     *     khai đủ khoá lúc viết, còn thêm một hằng vào enum Java thì {@code tsc} chẳng biết gì.
+     */
+    private record BoBaTs(Class<? extends Enum<?>> enumJava, String tenKieuTs, String tenBanDoNhan) {}
+
+    private static final List<BoBaTs> BO_BA_TS = List.of(
+            new BoBaTs(SyncStatus.class, "SyncStatus", "KET_CUC_DONG_BO"),
+            new BoBaTs(SyncFailureKind.class, "SyncFailureKind", "LY_DO_HONG"));
+
+    private static final Path API_TYPES = gocKho().resolve("frontend/admin-app/src/shared/api-types.ts");
+
+    private static final Path TU_VUNG_HYDRO =
+            gocKho().resolve("frontend/admin-app/src/features/hydro/hydroVocabulary.ts");
+
+    @Test
+    @DisplayName("⭐⭐ Enum Java ↔ union TypeScript ↔ bản đồ nhãn — ba nơi cùng một bộ giá trị")
+    void enumUnionTsVaBanDoNhanKhopNhau() throws IOException {
+        String ts = Files.readString(API_TYPES, StandardCharsets.UTF_8);
+        String tuVung = Files.readString(TU_VUNG_HYDRO, StandardCharsets.UTF_8);
+
+        assertThat(BO_BA_TS)
+                .as("bảng đối chiếu rỗng thì bài này không khẳng định gì")
+                .hasSize(2);
+
+        for (BoBaTs bo : BO_BA_TS) {
+            Set<String> java = giaTriJava(bo.enumJava());
+
+            assertThat(giaTriTypeScript(ts, bo.tenKieuTs()))
+                    .as(
+                            """
+                            `%s`: union TypeScript lệch enum Java.
+                            Thừa ở TS = giao diện chào một giá trị backend KHÔNG GIẢI ĐƯỢC.
+                            Thiếu ở TS = một giá trị hợp lệ mà giao diện không xử lý được.""",
+                            bo.tenKieuTs())
+                    .isEqualTo(java);
+
+            assertThat(khoaBanDoNhan(tuVung, bo.tenBanDoNhan()))
+                    .as(
+                            """
+                            `%s` trong hydroVocabulary.ts thiếu/thừa khoá so với enum `%s`.
+                            ⛔ Thiếu một khoá là `%s[v].label` trả undefined ⇒ MÀN HÌNH TRẮNG, và tsc \
+                            không thấy vì nó không biết enum Java có bao nhiêu hằng.""",
+                            bo.tenBanDoNhan(), bo.enumJava().getSimpleName(), bo.tenBanDoNhan())
+                    .isEqualTo(java);
+        }
+    }
+
+    @Test
+    @DisplayName("⛔⛔ “Bỏ qua vì đã đủ” KHÔNG được tô đỏ — 4/5 lượt chạy rơi vào đúng trạng thái ấy")
+    void trangThaiBoQuaKhongDuocToDo() throws IOException {
+        String tuVung = Files.readString(TU_VUNG_HYDRO, StandardCharsets.UTF_8);
+
+        String mau = mauCuaKhoa(tuVung, "KET_CUC_DONG_BO", SyncStatus.SKIPPED_UP_TO_DATE.name());
+
+        assertThat(mau)
+                .as("§10.42: một chuông kêu vì lý do ai cũng biết là một chuông sẽ bị tắt. Poller gọi "
+                        + "2 phút/lần trên nguồn 10 phút/lần nên bỏ qua là kết cục BÌNH THƯỜNG của "
+                        + "phần lớn lượt chạy — vẽ nó đỏ là dạy người vận hành bỏ qua màu đỏ")
+                .isNotNull()
+                .isNotEqualTo("red")
+                .isNotEqualTo("volcano");
+        assertThat(mauCuaKhoa(tuVung, "KET_CUC_DONG_BO", SyncStatus.FAILED.name()))
+                .as("⚠ Vế PHÂN BIỆT: thiếu nó thì khẳng định trên xanh cả khi bộ đọc trả null cho MỌI "
+                        + "khoá (luật 7 · luật 9)")
+                .isEqualTo("red");
+    }
+
+    @Test
+    @DisplayName("⛔ Tự kiểm chứng: bộ đọc bản đồ nhãn PHÁT HIỆN được khi thiếu một khoá")
+    void boDocBanDoNhanBatDuocViPham() {
+        String hong =
+                """
+                export const LY_DO_HONG: Record<SyncFailureKind, { label: string }> = {
+                  THIEU_MA_SO: { label: 'Chưa có mã số' },
+                  NOT_WORKING: { label: 'Nguồn từ chối mã số' },
+                };
+                """;
+
+        Set<String> bocRa = khoaBanDoNhan(hong, "LY_DO_HONG");
+
+        assertThat(bocRa)
+                .as("bộ đọc phải bóc đúng hai khoá của chuỗi dựng tay, ⛔ không nuốt các khoá chữ "
+                        + "thường bên trong (`label`)")
+                .containsExactlyInAnyOrder("THIEU_MA_SO", "NOT_WORKING");
+        assertThat(bocRa)
+                .as("và phải KHÁC enum — nếu bằng thì bộ đọc đang bịa khoá ra chứ không đọc")
+                .isNotEqualTo(giaTriJava(SyncFailureKind.class));
+        assertThat(giaTriJava(SyncFailureKind.class)).hasSize(bocRa.size() + 3);
+    }
+
+    /** Bóc {@code export type <Ten> = \'A\' | \'B\';} — chấp nhận xuống dòng tuỳ ý giữa các giá trị. */
+    private static Set<String> giaTriTypeScript(String noiDung, String tenKieu) {
+        Matcher khai = Pattern.compile("export\\s+type\\s+" + Pattern.quote(tenKieu) + "\\s*=([^;]*);", Pattern.DOTALL)
+                .matcher(noiDung);
+        if (!khai.find()) {
+            return Set.of();
+        }
+        Set<String> ket = new LinkedHashSet<>();
+        Matcher m = Pattern.compile("'([A-Z_][A-Z0-9_]*)'").matcher(khai.group(1));
+        while (m.find()) {
+            ket.add(m.group(1));
+        }
+        return ket;
+    }
+
+    /**
+     * Khoá cấp một của {@code export const <TEN>: Record<…> = { … };}.
+     *
+     * <p>⚠ Ràng buộc <b>hai dấu cách đầu dòng</b>, ⛔ không bắt mọi cụm CHỮ_HOA rồi hai chấm: các
+     * khoá lồng bên trong ({@code label}, {@code color}) là chữ thường nên không lẫn, nhưng một câu
+     * tiếng Việt trong chuỗi nhãn hoàn toàn có thể chứa một cụm viết hoa kèm dấu hai chấm. Bắt theo
+     * <i>cấu trúc</i> (thụt lề của Prettier) chứ không theo <i>văn bản</i> — luật 2.
+     */
+    private static Set<String> khoaBanDoNhan(String noiDung, String tenHang) {
+        Matcher khoi = Pattern.compile(
+                        "export\\s+const\\s+" + Pattern.quote(tenHang) + "\\b[^=]*=\\s*\\{(.*?)\\n\\};", Pattern.DOTALL)
+                .matcher(noiDung);
+        if (!khoi.find()) {
+            return Set.of();
+        }
+        Set<String> ket = new LinkedHashSet<>();
+        Matcher m = Pattern.compile("(?m)^ {2}([A-Z][A-Z0-9_]*):").matcher(khoi.group(1));
+        while (m.find()) {
+            ket.add(m.group(1));
+        }
+        return ket;
+    }
+
+    /** @return giá trị {@code color: '…'} của một khoá cấp một, hoặc {@code null} khi không thấy */
+    private static String mauCuaKhoa(String noiDung, String tenHang, String khoa) {
+        Matcher khoi = Pattern.compile(
+                        "export\\s+const\\s+" + Pattern.quote(tenHang) + "\\b[^=]*=\\s*\\{(.*?)\\n\\};", Pattern.DOTALL)
+                .matcher(noiDung);
+        if (!khoi.find()) {
+            return null;
+        }
+        Matcher m = Pattern.compile("(?m)^ {2}" + Pattern.quote(khoa) + ":\\s*\\{(.*?)^ {2}\\},", Pattern.DOTALL)
+                .matcher(khoi.group(1));
+        if (!m.find()) {
+            return null;
+        }
+        Matcher mau = Pattern.compile("color:\\s*'([^']*)'").matcher(m.group(1));
+        return mau.find() ? mau.group(1) : null;
     }
 
     /** Đi ngược lên tới thư mục chứa {@code .claude} — chạy được cả từ module lẫn từ gốc repo. */

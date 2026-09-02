@@ -85,6 +85,23 @@ describe('Guard của tuyến quản trị — sự cố 31/08', () => {
     ]);
   });
 
+  /**
+   * ⭐ Hai tuyến chẩn đoán của T31.13 phải khai ĐÚNG cặp quyền endpoint của chúng nhận (chế độ
+   * HOẶC). Đây là cùng một bài học ở dạng phòng ngừa: quyền canh tuyến phải là quyền mà API màn
+   * hình gọi, ⛔ không phải quyền "nghe có vẻ thuộc nhóm ấy".
+   */
+  it('hai màn hình chẩn đoán thuỷ văn nhận cả quyền xem số liệu lẫn quyền cấu hình nguồn', () => {
+    const CAP_QUYEN = ['hyd:measurement:view', 'hyd:api-source:manage'];
+
+    expect(quyenCuaTuyen(ma, '/thuy-van/nhat-ky-dong-bo')).toEqual(CAP_QUYEN);
+    expect(quyenCuaTuyen(ma, '/thuy-van/ma-la')).toEqual(CAP_QUYEN);
+  });
+
+  it('⛔ và tuyến Nguồn dữ liệu vẫn chỉ MỘT quyền — vế phân biệt', () => {
+    // Thiếu vế này thì bài trên xanh cả khi ai đó nới toàn bộ nhóm thuỷ văn về cùng một cặp quyền.
+    expect(quyenCuaTuyen(ma, '/thuy-van/nguon-du-lieu')).toEqual(['hyd:api-source:manage']);
+  });
+
   describe('kiểm chứng ngược — vị từ phải BẮT ĐƯỢC bản đã gây ra sự cố', () => {
     /** Nguyên văn bản trước bản vá. */
     const BAN_HONG = `

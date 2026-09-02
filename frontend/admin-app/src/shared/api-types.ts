@@ -984,3 +984,94 @@ export interface StationRequest {
   description?: string;
   measurementTypeIds?: string[];
 }
+
+// =============================================================================
+// MOD-03 Thuỷ văn — chẩn đoán đường ingest (WS-31 / T31.13)
+// =============================================================================
+
+/**
+ * Một lượt polling — `GET /hyd/sync-logs`.
+ *
+ * ⚠ **Bốn bộ đếm đi riêng, ⛔ đừng cộng lại thành một cột "kết quả".** `soGhiMoi = 0` là kết
+ * cục **bình thường của 4/5 lượt chạy**: poller gọi 2 phút một lần trên một nguồn cập nhật 10
+ * phút một lần. Gộp chúng là biến trạng thái bình thường nhất của hệ thống thành một dòng
+ * trông như lỗi.
+ *
+ * ⛔ Không có trường nào mang thân phản hồi của nguồn — thân thật chứa chính mã số.
+ * `rawLogId` là con trỏ tới `hydro_raw_logs`, ⛔ không phải nội dung; `null` nghĩa là **chưa
+ * hề mở kết nối**, ⛔ không phải "ghi hỏng".
+ */
+export interface SyncLogRow {
+  id: number;
+  nguonId: string;
+  nguonCode: string;
+  nguonName: string;
+  batDau: string;
+  ketThuc: string | null;
+  durationMs: number | null;
+  /** Mốc đầu khung 10' mà lượt này nhắm tới — ⛔ khác giờ gọi. */
+  khungNhamToi: string | null;
+  trangThai: SyncStatus;
+  loi: SyncFailureKind | null;
+  lyDo: string | null;
+  soNhan: number;
+  soGhiMoi: number;
+  soTrungBoQua: number;
+  soMaLa: number;
+  rawLogId: number | null;
+}
+
+/**
+ * Dải tóm tắt sức khoẻ — `GET /hyd/sync-logs/tong-hop`.
+ *
+ * ⭐ Hai bản đồ luôn mang **đủ mọi khoá, kể cả khoá bằng 0** (backend ép ở hàm dựng): "24 giờ
+ * qua có **0** lượt NOT_WORKING" là một điều đã đo được, còn thiếu khoá thì đọc giống hệt
+ * "chưa ai đo".
+ *
+ * ⭐ `soLuotGoiHong` do backend tính — ⛔ đừng cộng lại ở đây: luật "lượt gọi đã thật sự xảy
+ * ra chưa" nằm ở `SyncFailureKind.duocGhiVaoRawLog()` và cộng lại là mở nơi thứ tư phải nhớ.
+ */
+export interface SyncSummary {
+  tuMoc: string;
+  /** ⚠ Số giờ **đã kẹp** ở backend — dùng nó để đặt nhãn, ⛔ không dùng lại con số đã gửi đi. */
+  soGio: number;
+  soLuot: number;
+  theoTrangThai: Record<SyncStatus, number>;
+  theoLoi: Record<SyncFailureKind, number>;
+  soLuotGoiHong: number;
+  /** `null` = **không có lượt nào trong cửa sổ** — triệu chứng nặng hơn mọi con số lỗi. */
+  mocGanNhat: string | null;
+}
+
+/** Bộ từ vựng của hai ô lọc — `GET /hyd/sync-logs/tu-vung`, ⛔ đừng chép cứng vào .tsx. */
+export interface SyncVocabulary {
+  trangThai: SyncStatus[];
+  lyDoHong: SyncFailureKind[];
+  /** Lý do hỏng xảy ra **trước khi** mở kết nối — hiện "chưa hề gọi" thay vì "gọi hỏng". */
+  loiChuaGoi: SyncFailureKind[];
+}
+
+/**
+ * Một mã nguồn **chưa khai thành điểm đo** — `GET /hyd/ma-la`.
+ *
+ * ⚠⚠ `giaTriGanNhat` là số **nguyên văn nguồn, CHƯA quy đổi**, và `donViNguon` là đơn vị
+ * nguồn khai (nguồn trả **cm**, hệ thống lưu **m**). Hiện con số mà không kèm đơn vị là để
+ * người đọc hiểu `213` thành *213 mét*.
+ */
+export interface UnmappedCodeRow {
+  apiCode: string;
+  nguonId: string;
+  nguonCode: string;
+  soBanGhi: number;
+  lanDau: string | null;
+  lanGanNhat: string | null;
+  /** Chuỗi, ⛔ không phải số — `2.30` tuần tự hoá thành số sẽ mất chữ số cuối (T28.27). */
+  giaTriGanNhat: string | null;
+  donViNguon: string | null;
+  /**
+   * ⚠ `true` **không có nghĩa là xong**: số đo *mới* từ nay đi thẳng vào `hydro_readings`,
+   * nhưng `soBanGhi` bản ghi *lịch sử* vẫn nằm lại cho tới khi có job chuyển.
+   */
+  daKhaiThanhDiemDo: boolean;
+  maDiemDo: string | null;
+}

@@ -14,7 +14,8 @@ không phải chờ, không phải backfill.
 Poller chết lúc 3 giờ sáng thứ Bảy mà tới thứ Hai mới phát hiện = mất 2 ngày dữ liệu mực nước của
 19 điểm đo. Vì vậy luật cảnh báo này có `for` ngắn nhất trong cả bộ (5 phút).
 
-> **Trạng thái từ 02/09/2026 (WS-31)**: poller đã chạy. `HydroFreshnessRegistrar` đăng ký nguồn
+> **Trạng thái từ 02/09/2026 (WS-31 + T31.13)**: poller đã chạy, và `sync_logs` nay **có màn hình**
+> — trước T31.13 nó chỉ tra được bằng SQL. `HydroFreshnessRegistrar` đăng ký nguồn
 > `hydro-water-level` với `DataFreshnessRegistry` **ở lượt đầu tiên đọc được một mốc thật** — cố ý
 > đăng ký muộn, để cảnh báo này không kêu suốt quãng chưa có dữ liệu. Vế còn lại — *"chưa TỪNG ingest
 > được lần nào"* — do job `HYDRO_SIGNAL_LOSS` đo, bằng `sync_logs` chứ không bằng độ tươi dữ liệu.
@@ -63,9 +64,18 @@ curl -sS --max-time 30 "http://songnhue.bhh40.net/api/getmn.aspx?key=${HYDRO_API
 
 ## 2. Nguồn ổn, poller không chạy
 
-⭐ **Bắt đầu ở `sync_logs` — một dòng cho một lượt polling, và bốn kết cục phân biệt được.** Đây là
-nơi trả lời nhanh nhất câu hỏi *"lượt vừa rồi không ghi được gì — vì nguồn hỏng, vì đã đủ dữ liệu, hay
-vì ta chưa kịp gọi?"*:
+⭐ **Bắt đầu ở màn hình *Dữ liệu thuỷ văn › Nhật ký đồng bộ*** (`/thuy-van/nhat-ky-dong-bo`, T31.13).
+Nó đọc đúng bảng `sync_logs` dưới đây, nhưng nói thẳng **việc phải làm** cho từng lý do hỏng và có
+dải tóm tắt 24 giờ ở đầu trang. Quyền: `hyd:measurement:view` **hoặc** `hyd:api-source:manage` —
+TECHNICIAN và cán bộ Xí nghiệp đều mở được.
+
+- Bật công tắc **“Chỉ lượt có vấn đề”** để bỏ qua `SKIPPED_UP_TO_DATE` — 4/5 lượt rơi vào đó và đó
+  là điều **đúng**.
+- Ô **“Lượt gần nhất”** rỗng ⇒ **không có lượt polling nào trong 24 giờ** — triệu chứng nặng hơn mọi
+  con số lỗi, đi thẳng xuống mục 2b.
+
+⚠ **Khi ứng dụng không lên được thì mới dùng SQL** — và đó chính là lúc runbook này cần nhất. Câu
+truy vấn dưới đây trả cùng dữ liệu màn hình hiển thị:
 
 ```sql
 SELECT s.started_at, a.code, s.status, s.failure_kind, s.frame_start,
@@ -99,8 +109,11 @@ SELECT job_type, status, count(*), max(created_at) FROM jobs
 - ⚠ **Job polling chỉ thử MỘT lần** (`max_attempts = 1`), và đó là chủ ý: backoff của worker là
   1′/5′/15′ còn lượt polling kế tiếp chỉ cách 2 phút — **lượt kế tiếp chính là lượt thử lại**.
 - Có bản ghi thô mới nhưng `hydro_readings` không có → **lỗi parser hoặc lỗi ánh xạ**, không phải lỗi
-  mạng. Dữ liệu chưa mất (bản thô còn nguyên) — xem `sync_logs.unmapped_count`: khác 0 nghĩa là nguồn
-  trả mã **chưa khai điểm đo**, và số đo nằm ở `hydro_unmapped_readings`.
+  mạng. Dữ liệu chưa mất (bản thô còn nguyên) — xem cột **“Mã lạ”** trên màn hình nhật ký, hoặc
+  `sync_logs.unmapped_count`: khác 0 nghĩa là nguồn trả mã **chưa khai điểm đo**, và số đo nằm ở
+  `hydro_unmapped_readings`. Danh sách đầy đủ ở màn hình *Dữ liệu thuỷ văn › Mã lạ từ nguồn*
+  (`/thuy-van/ma-la`) — kèm số bản ghi đã tích, mốc gần nhất và nút *Khai thành điểm đo*.
+  ⚠ Giá trị hiện ở màn hình ấy là số **nguyên văn nguồn (cm)**, ⛔ chưa quy đổi sang mét.
 - Không có bản ghi thô nào → poller không chạy → [job-that-bai.md](job-that-bai.md).
 - Kiểm `hydro.polling.cron` trong `settings`: mặc định `45 1/2 * * * *` (2 phút/lần, phút lẻ, giây 45).
   ⚠ **Đổi trên màn hình *Cấu hình hệ thống* có hiệu lực trong ≤10 giây, không cần khởi động lại** —

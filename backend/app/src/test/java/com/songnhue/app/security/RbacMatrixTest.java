@@ -92,8 +92,11 @@ class RbacMatrixTest extends IntegrationTestBase {
             "hyd:alert:view", // Cảnh báo thủy văn — Phase 2
             "hyd:alert:handle", // Xử lý cảnh báo — Phase 2
             "hyd:alert-group:manage", // Nhóm cảnh báo — Phase 2
-            "hyd:measurement:view", // Xem số liệu đo — Phase 2
-            "hyd:measurement:review", // Duyệt số liệu — Phase 2
+            // ⬇ WS-31/T31.13 đã GỠ `hyd:measurement:view`: hai màn hình chẩn đoán (Nhật ký đồng bộ
+            //   M3.16 · Mã lạ từ nguồn) canh bằng đúng quyền ấy, nên nó không còn là "quyền chờ
+            //   Phase sau". ⛔ Đừng thêm lại cho hết đỏ — bài ngoaiLeQuyenPhaseSauVanConDung() canh
+            //   đúng chiều này.
+            "hyd:measurement:review", // Duyệt số liệu — Phase 2 (WS-32 duyệt NGHI_NGO)
             "hyd:report:view", // Báo cáo thủy văn — Phase 2
             "hyd:report:export", // Xuất báo cáo thủy văn — Phase 2
             "hyd:threshold:view", // Xem ngưỡng — Phase 2

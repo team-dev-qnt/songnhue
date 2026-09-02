@@ -19,6 +19,7 @@ import {
 } from 'antd';
 import { type ColumnsType } from 'antd/es/table';
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import { useAuth } from '@/app/auth/useAuth';
 import { OrgUnitTreeSelect } from '@/components/business/OrgUnitTreeSelect';
@@ -51,10 +52,40 @@ export function StationsPage() {
   const queryClient = useQueryClient();
   const [form] = Form.useForm<StationRequest>();
   const [dangSua, setDangSua] = useState<Station | null>(null);
-  const [taoMoi, setTaoMoi] = useState(false);
+  const [taoMoiThuCong, setTaoMoiThuCong] = useState(false);
   const [boLoc, setBoLoc] = useState<BoLoc>('TAT_CA');
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const coQuanLy = hasPermission('hyd:station:manage');
+
+  /**
+   * ⭐ Mã API điền sẵn khi tới từ màn hình **Mã lạ từ nguồn** (T31.13).
+   *
+   * Đây là nửa ĐỌC của cặp mà nút *"Khai thành điểm đo"* mở ra. Thiếu nửa này thì nút ấy chỉ
+   * chuyển trang và người dùng phải tự chép lại `F01613` bằng mắt — đúng loại nửa cặp đọc–ghi
+   * mà luật 27 gọi tên, và cũng đúng chỗ một mã gõ sai gán số liệu sang trạm khác.
+   */
+  const maApiDatSan = searchParams.get('apiCode');
+
+  /** Bỏ tham số khỏi URL: F5 sau khi lưu ⛔ không được mở lại biểu mẫu với mã đã dùng. */
+  const xoaMaDatSan = () => {
+    if (maApiDatSan) setSearchParams({}, { replace: true });
+  };
+
+  /**
+   * ⭐ Modal mở là trạng thái **SUY RA** từ URL, ⛔ không phải một bản sao trong state.
+   *
+   * Bản đầu dùng `useEffect` gọi `setTaoMoi(true)` — ESLint chặn đúng
+   * (`react-hooks/set-state-in-effect`), và luật ấy đúng ở đây chứ không chỉ đúng về hiệu năng:
+   * chép URL vào state là dựng nửa thứ hai của một cặp phải tự đồng bộ, tức đúng hình dạng lỗi
+   * luật 27 mô tả. Suy ra thì không có gì để lệch.
+   */
+  const taoMoi = taoMoiThuCong || (!!maApiDatSan && coQuanLy);
+
+  const dongTaoMoi = () => {
+    setTaoMoiThuCong(false);
+    xoaMaDatSan();
+  };
 
   const query = useQuery({
     queryKey: ['hyd', 'stations'],
@@ -80,7 +111,7 @@ export function StationsPage() {
     mutationFn: (data: StationRequest) => api.post<Station>('/hyd/stations', data),
     onSuccess: () => {
       message.success('Đã thêm điểm đo');
-      setTaoMoi(false);
+      dongTaoMoi();
       void lamMoi();
     },
     // ⭐ 01/09 (T28.31): mutation này TRƯỚC ĐÂY không có `onError` nào. HYD-1002/2005/2006 và cả
@@ -276,8 +307,7 @@ export function StationsPage() {
             icon={<PlusOutlined />}
             onClick={() => {
               form.resetFields();
-              form.setFieldsValue({ active: true, interpolated: false });
-              setTaoMoi(true);
+              setTaoMoiThuCong(true);
             }}
           >
             Thêm điểm đo
@@ -285,6 +315,16 @@ export function StationsPage() {
         ) : null
       }
     >
+      {maApiDatSan && !coQuanLy && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message={`Không mở được biểu mẫu cho mã ${maApiDatSan.toUpperCase()}`}
+          description="Khai điểm đo cần quyền quản lý danh mục điểm đo. Không có nó thì trang này chỉ xem được — nói ra vì một nút bấm không phản ứng đọc như giao diện hỏng."
+        />
+      )}
+
       {soChuaGan > 0 && (
         <Alert
           type="warning"
@@ -332,7 +372,7 @@ export function StationsPage() {
       <Modal
         open={taoMoi}
         title="Thêm điểm đo"
-        onCancel={() => setTaoMoi(false)}
+        onCancel={dongTaoMoi}
         onOk={async () => {
           const values = await form.validateFields();
           createMutation.mutate(values);
@@ -341,7 +381,27 @@ export function StationsPage() {
         width={640}
         destroyOnClose
       >
-        <Form form={form} layout="vertical">
+        {maApiDatSan && (
+          <Alert
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+            message={`Mã ${maApiDatSan.toUpperCase()} lấy từ danh sách Mã lạ từ nguồn`}
+            description="Số đo của mã này đã được giữ lại từ trước. ⛔ Chỉ khai khi đã biết chắc nó là trạm nào — hệ thống không tự suy được, và một mã gán nhầm là toàn bộ lịch sử đi vào biểu đồ của trạm khác."
+          />
+        )}
+        {/* ⚠ `initialValues` chứ không `setFieldsValue` trước khi mở: Form nằm trong Modal có
+            `destroyOnClose` nên nó gắn lại mỗi lượt mở, và giá trị đặt lúc chưa gắn là giá trị đặt
+            vào một chỗ chưa tồn tại. */}
+        <Form
+          form={form}
+          layout="vertical"
+          initialValues={{
+            active: true,
+            interpolated: false,
+            apiCode: maApiDatSan?.toUpperCase(),
+          }}
+        >
           {truongChung(false)}
         </Form>
       </Modal>
