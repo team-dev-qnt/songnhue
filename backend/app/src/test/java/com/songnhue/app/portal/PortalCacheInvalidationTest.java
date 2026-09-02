@@ -24,11 +24,14 @@ import com.songnhue.core.domain.org.OrgUnitType;
 import com.songnhue.core.spi.PortalCachePort;
 import com.songnhue.operations.api.dto.OperationStatusBatchCreateRequest;
 import com.songnhue.operations.api.dto.OperationStatusBatchItemRequest;
+import com.songnhue.operations.api.dto.OperationStatusCodeUpdateRequest;
 import com.songnhue.operations.application.ConstructionForm;
 import com.songnhue.operations.application.ConstructionOperationStatusService;
 import com.songnhue.operations.application.ConstructionService;
+import com.songnhue.operations.application.OperationStatusCodeService;
 import com.songnhue.operations.domain.ConstructionType;
 import com.songnhue.operations.domain.ManagementLevel;
+import com.songnhue.operations.domain.OperationalStatus;
 
 /**
  * <b>Bộ đệm cổng có thật sự bị xoá khi dữ liệu ngoài module {@code content} đổi không</b> — T27.8.
@@ -64,6 +67,9 @@ class PortalCacheInvalidationTest extends IntegrationTestBase {
 
     @Autowired
     private ConstructionOperationStatusService operationStatuses;
+
+    @Autowired
+    private OperationStatusCodeService statusCodes;
 
     @Autowired
     private SiteConfigService siteConfig;
@@ -214,6 +220,37 @@ class PortalCacheInvalidationTest extends IntegrationTestBase {
         assertThat(nhungViecDungLaiCong()).anyMatch(payload -> payload.contains(PortalCache.TAG_CONG_TRINH));
     }
 
+    @Test
+    @DisplayName("⭐⭐ V1 — đổi TÊN một mã tình hình vận hành → ĐẾM ĐƯỢC việc dựng lại cổng")
+    void renamingAnOperationStatusCodeEnqueuesARevalidateJob() {
+        UUID ma = themMa("T278-MA-01");
+        donDepHangDoi();
+        int truoc = soViecDungLaiCong();
+
+        OperationStatusCodeUpdateRequest doiTen = new OperationStatusCodeUpdateRequest();
+        doiTen.setCode("T278-MA-01");
+        doiTen.setName("Tên đã đổi — phải lên cổng ngay");
+        doiTen.setColorHex("#10b981");
+        doiTen.setMappedStatus(OperationalStatus.BINH_THUONG);
+        doiTen.setSortOrder(920);
+        doiTen.setActive(true);
+
+        statusCodes.update(ma, doiTen);
+
+        assertThat(soViecDungLaiCong())
+                .as(
+                        """
+                        ⚠⚠ Cổng công bố NGUYÊN VĂN `name`, `colorHex` và `parameterUnit` của mã — cố ý, \
+                        để cổng khỏi giữ một bảng ánh xạ thứ hai. Cái giá là: sửa danh mục CŨNG LÀ sửa \
+                        nội dung cổng. Cho tới 02/09/2026 `OperationStatusCodeService` chưa từng gọi \
+                        PortalCachePort, nên đổi một cái tên là cổng hiện tên cũ tới 5 phút — đúng \
+                        §10.62 mà T27.7 đã vá ở đường ghi TRẠNG THÁI, tái phát ở đường ghi DANH MỤC. \
+                        Trước: %d.""",
+                        truoc)
+                .isGreaterThan(truoc);
+        assertThat(nhungViecDungLaiCong()).anyMatch(payload -> payload.contains(PortalCache.TAG_CONG_TRINH));
+    }
+
     // === ⭐⭐ Ghi `settings` → cổng phải được bảo dựng lại (WS-39) ==============
 
     @Test
@@ -303,6 +340,26 @@ class PortalCacheInvalidationTest extends IntegrationTestBase {
         jdbc.update("DELETE FROM jobs WHERE job_type = 'CMS_PORTAL_REVALIDATE'");
         jdbc.update("DELETE FROM constructions WHERE code LIKE 'T278-CT-%'");
         jdbc.update("DELETE FROM org_units WHERE code LIKE 'T278-XN-%'");
+        jdbc.update("DELETE FROM operation_status_codes WHERE code LIKE 'T278-MA-%'");
+    }
+
+    /**
+     * ⛔ Chèn thẳng bằng SQL, ⛔ không qua {@code statusCodes.create}.
+     *
+     * <p>Đường {@code create} cố ý <b>không</b> gọi {@code portalCache} (mã vừa sinh chưa ai mang),
+     * nên dựng dữ liệu bằng nó rồi đo là đo lẫn hai đường vào cùng một con số.
+     */
+    private UUID themMa(String ma) {
+        return jdbc.queryForObject(
+                """
+                INSERT INTO operation_status_codes
+                    (code, name, has_parameter, color_hex, mapped_status, sort_order, created_at)
+                VALUES (?, ?, FALSE, '#10b981', 'BINH_THUONG', 920, now())
+                RETURNING public_id
+                """,
+                UUID.class,
+                ma,
+                "Mã kiểm thử " + ma);
     }
 
     /** Một dòng "Đóng kín" — mã seed, không mang tham số. */

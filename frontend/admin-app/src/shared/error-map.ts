@@ -331,6 +331,11 @@ export const ERROR_CATALOG = {
     handling: 'form',
     severity: 'warning',
   },
+  'OPS-2020': {
+    message: 'Thời điểm hiệu lực không được ở tương lai — ghi nhận là việc đã quan sát được',
+    handling: 'form',
+    severity: 'warning',
+  },
   'OPS-3001': {
     message: 'Không được sửa trực tiếp trạng thái công trình — trạng thái được tính tự động',
     handling: 'toast',

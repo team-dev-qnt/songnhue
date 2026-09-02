@@ -21,6 +21,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.BusinessRuleException;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
+import com.songnhue.core.spi.PortalCachePort;
 import com.songnhue.operations.api.dto.OperationStatusCodeCreateRequest;
 import com.songnhue.operations.api.dto.OperationStatusCodeUpdateRequest;
 import com.songnhue.operations.domain.OperationStatusCode;
@@ -41,6 +42,14 @@ class OperationStatusCodeServiceTest {
 
     @Mock
     private ConstructionStatusService constructionStatusService;
+
+    /**
+     * ⚠ Thiếu {@code @Mock} này thì {@code @InjectMocks} tiêm {@code null} — và bài kiểm sẽ đỏ vì
+     * {@code NullPointerException}, không vì luật nghiệp vụ nào. Đó là cách rẻ nhất để biết đường
+     * ghi đã thật sự chạm cổng chứ không chỉ khai một trường.
+     */
+    @Mock
+    private PortalCachePort portalCache;
 
     @InjectMocks
     private OperationStatusCodeService service;
@@ -130,6 +139,52 @@ class OperationStatusCodeServiceTest {
         service.update(PUBLIC_ID, yeuCauSua("ĐK", OperationalStatus.NGUNG_MUA_VU, false));
 
         verify(constructionStatusService).recomputeFor(3L);
+    }
+
+    @Test
+    @DisplayName("⭐⭐ V1 — chỉ đổi TÊN (ánh xạ và cờ ẩn giữ nguyên) vẫn phải bảo cổng dựng lại")
+    void renamingACodeStillInvalidatesThePortalCache() {
+        OperationStatusCode entity = ma("ĐK", OperationalStatus.NGUNG_MUA_VU, true);
+
+        when(repository.findByPublicIdAndDeletedAtIsNull(PUBLIC_ID)).thenReturn(Optional.of(entity));
+
+        OperationStatusCodeUpdateRequest doiTen = yeuCauSua("ĐK", OperationalStatus.NGUNG_MUA_VU, true);
+        doiTen.setName("Đóng kín hoàn toàn");
+
+        service.update(PUBLIC_ID, doiTen);
+
+        // ⭐ Đây là bài PHÂN BIỆT ĐƯỢC HAI CÁCH VIẾT (luật 9): lượt sửa này để cả `anhXaDoi` lẫn
+        //   `anAnDoi` ở `false`, nên một lời gọi gói trong nhánh ấy sẽ KHÔNG chạy — và nó là lượt
+        //   sửa thường gặp nhất. `verify(never()).recomputeFor` giữ vế còn lại: xoá đệm cổng ⛔
+        //   không được kéo theo một vòng tính lại trạng thái mà không ai cần.
+        verify(portalCache).constructionsChanged();
+        verify(constructionStatusService, never()).recomputeFor(org.mockito.ArgumentMatchers.anyLong());
+    }
+
+    @Test
+    @DisplayName("⛔ Thêm và xoá mã KHÔNG bảo cổng dựng lại — cổng chỉ thấy mã đang có người dùng")
+    void creatingAndDeletingDoNotTouchThePortal() {
+        OperationStatusCodeCreateRequest them = new OperationStatusCodeCreateRequest();
+        them.setCode("XX");
+        them.setName("Mã mới");
+        them.setColorHex("#123456");
+        them.setSortOrder(10);
+        them.setActive(true);
+        when(repository.existsByCodeAndDeletedAtIsNull("XX")).thenReturn(false);
+
+        service.create(them);
+
+        OperationStatusCode entity = ma("YY", null, true);
+        when(repository.findByPublicIdAndDeletedAtIsNull(PUBLIC_ID)).thenReturn(Optional.of(entity));
+        when(statusRepository.existsByOperationCodeId(1L)).thenReturn(false);
+
+        service.delete(PUBLIC_ID);
+
+        // ⛔ Khẳng định NGƯỢC, có chủ đích — nó khoá lập luận trong javadoc lớp lại thành một phép
+        //   kiểm: mã vừa tạo chưa ai mang, mã xoá được là mã không ai mang (OPS-2007 chặn phần còn
+        //   lại), nên cả hai đường ⛔ không đổi được một ô nào trên cổng. Ngày nào cổng công bố cả
+        //   danh mục thì bài này đỏ — và đỏ đúng chỗ cần đọc lại.
+        verify(portalCache, never()).constructionsChanged();
     }
 
     @Test

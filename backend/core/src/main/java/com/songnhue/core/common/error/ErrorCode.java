@@ -136,6 +136,14 @@ public enum ErrorCode {
     OPS_2018("OPS-2018", HttpStatus.UNPROCESSABLE_ENTITY),
     /** Lô nhập nhanh còn dòng lỗi — báo đủ theo từng dòng, và không dòng nào được ghi. */
     OPS_2019("OPS-2019", HttpStatus.UNPROCESSABLE_ENTITY),
+    /**
+     * Thời điểm hiệu lực ở tương lai — V1/V3.
+     *
+     * <p>{@code banGhiMoiNhat} sắp theo {@code effective_at DESC}, nên một dòng đề ngày mai
+     * <b>ghim</b> cả trạng thái dẫn xuất lẫn dòng trên cổng cho tới khi tới ngày ấy — và nó ghim
+     * bằng cách <i>trông đúng</i>. Lùi ngày thì vẫn hợp lệ (bù nhật ký), chỉ chặn cận trên.
+     */
+    OPS_2020("OPS-2020", HttpStatus.UNPROCESSABLE_ENTITY),
     /** Trạng thái công trình là giá trị dẫn xuất — client sửa trực tiếp là từ chối. */
     OPS_3001("OPS-3001", HttpStatus.FORBIDDEN),
 

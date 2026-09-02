@@ -78,14 +78,7 @@ public class StationController {
     @Operation(summary = "Thêm điểm đo")
     @RequirePermission("hyd:station:manage")
     public HydroCatalogDtos.StationView create(@Valid @RequestBody HydroCatalogDtos.StationRequest request) {
-        return toView(stations.create(
-                request.code(),
-                request.name(),
-                request.apiCode(),
-                request.apiSourceId(),
-                request.positionRole(),
-                request.orgUnitId(),
-                request.measurementTypeIds()));
+        return toView(stations.create(hoSo(request)));
     }
 
     @PutMapping("/{publicId}")
@@ -93,23 +86,37 @@ public class StationController {
     @RequirePermission("hyd:station:manage")
     public HydroCatalogDtos.StationView update(
             @PathVariable UUID publicId, @Valid @RequestBody HydroCatalogDtos.StationRequest request) {
-        return toView(stations.update(
-                publicId,
-                new StationForm(
-                        request.code(),
-                        request.name(),
-                        request.apiCode(),
-                        request.apiSourceId(),
-                        request.positionRole(),
-                        request.orgUnitId(),
-                        request.riverName(),
-                        request.chainage(),
-                        request.latitude(),
-                        request.longitude(),
-                        request.interpolated() != null && request.interpolated(),
-                        request.active() == null || request.active(),
-                        request.description(),
-                        request.measurementTypeIds())));
+        return toView(stations.update(publicId, hoSo(request)));
+    }
+
+    /**
+     * ⭐ Một hàm đổi DTO → form, dùng cho <b>cả hai</b> đường ghi — T28.33.
+     *
+     * <p>Trước 02/09 chỉ {@code update} dựng {@link StationForm}, còn {@code create} tự chuyển tay
+     * <b>7 trong 14</b> trường. Hai cách viết cạnh nhau cho cùng một DTO là chỗ chênh lệch sinh ra
+     * và không ai thấy: {@code @Valid} chạy trên đủ 14 trường ở cả hai đường, nên lượt {@code POST}
+     * kèm toạ độ vẫn <b>201 Created</b> trong khi toạ độ không tới được tầng dưới.
+     *
+     * <p>⚠ Hai phép giải mặc định nằm ở đây chứ không ở tầng application, có chủ ý: {@code Boolean}
+     * của DTO mang <b>ba</b> trạng thái (true / false / không gửi) còn nghiệp vụ chỉ có hai. Giải
+     * ngay tại biên là chỗ duy nhất còn phân biệt được "không gửi" — sâu hơn thì thông tin ấy mất.
+     */
+    private static StationForm hoSo(HydroCatalogDtos.StationRequest request) {
+        return new StationForm(
+                request.code(),
+                request.name(),
+                request.apiCode(),
+                request.apiSourceId(),
+                request.positionRole(),
+                request.orgUnitId(),
+                request.riverName(),
+                request.chainage(),
+                request.latitude(),
+                request.longitude(),
+                request.interpolated() != null && request.interpolated(),
+                request.active() == null || request.active(),
+                request.description(),
+                request.measurementTypeIds());
     }
 
     @DeleteMapping("/{publicId}")

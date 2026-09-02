@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.BusinessRuleException;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
+import com.songnhue.core.spi.PortalCachePort;
 import com.songnhue.operations.api.dto.OperationStatusCodeCreateRequest;
 import com.songnhue.operations.api.dto.OperationStatusCodeFields;
 import com.songnhue.operations.api.dto.OperationStatusCodeUpdateRequest;
@@ -29,6 +30,31 @@ import com.songnhue.operations.infra.OperationStatusCodeRepository;
  * cột {@code operational_status} giữ giá trị suy ra từ luật <i>cũ</i> cho tới lần ghi nhận kế tiếp —
  * có thể là nhiều ngày. Nên {@link #update} gọi lại {@code recomputeFor} cho đúng nhúm công trình
  * đang lấy mã này làm bản ghi mới nhất.
+ *
+ * <h2>⭐ Ba cột của danh mục này được cổng công khai công bố NGUYÊN VĂN — V1</h2>
+ *
+ * <p>{@code PublicOperationStatusService.OperationStatusRow} mang thẳng {@code name},
+ * {@code colorHex} và {@code parameterUnit} của mã ra cổng, cố ý — <i>"trả mã màu ra để cổng khỏi
+ * giữ một bảng ánh xạ thứ hai"</i>. Cái giá của quyết định đó là: <b>sửa danh mục cũng là sửa nội
+ * dung cổng</b>, và cho tới 02/09/2026 lớp này ⛔ chưa từng gọi {@link PortalCachePort} — đổi tên
+ * hay màu một mã thì cổng hiện giá trị cũ tới hết chu kỳ ISR 5 phút. Đúng triệu chứng §10.62 mà
+ * T27.7 đã đi trả nợ ở <i>đường ghi trạng thái</i>, tái phát ở <b>đường ghi danh mục</b> (luật 27).
+ *
+ * <h2>⛔ Vì sao chỉ {@link #update} gọi, còn {@link #create} và {@link #delete} thì không</h2>
+ *
+ * <p>Không phải vì tiết kiệm, mà vì hai đường kia <b>về nguyên tắc không đổi được nội dung cổng</b>,
+ * và ghi lý do ra đây để người sau khỏi "sửa" cho đều tay:
+ *
+ * <ul>
+ *   <li>{@code create} — cổng chỉ công bố mã <i>đang được một công trình mang</i>; một mã vừa sinh ra
+ *       chưa có bản ghi nào tham chiếu, nên không ô nào trên cổng đổi. ⛔ Không có endpoint công khai
+ *       nào trả về danh mục mã (đã kiểm: {@code PublicConstructionController} không đụng tới).
+ *   <li>{@code delete} — {@code OPS-2007} chặn xoá đúng khi mã <i>đang</i> được dùng, nên mã xoá được
+ *       là mã không ai mang. Cùng lập luận.
+ * </ul>
+ *
+ * <p>⚠ Bất biến ngầm ở đây: <b>"cổng chỉ thấy mã đang được dùng"</b>. Ngày nào cổng công bố cả danh
+ * mục (một chú giải màu, một bộ lọc), hai nhánh trên hết đúng và phải gọi theo.
  */
 @Service
 @Transactional(readOnly = true)
@@ -37,14 +63,17 @@ public class OperationStatusCodeService {
     private final OperationStatusCodeRepository repository;
     private final ConstructionOperationStatusRepository statusRepository;
     private final ConstructionStatusService constructionStatusService;
+    private final PortalCachePort portalCache;
 
     public OperationStatusCodeService(
             OperationStatusCodeRepository repository,
             ConstructionOperationStatusRepository statusRepository,
-            ConstructionStatusService constructionStatusService) {
+            ConstructionStatusService constructionStatusService,
+            PortalCachePort portalCache) {
         this.repository = repository;
         this.statusRepository = statusRepository;
         this.constructionStatusService = constructionStatusService;
+        this.portalCache = portalCache;
     }
 
     /**
@@ -92,6 +121,12 @@ public class OperationStatusCodeService {
                     .findConstructionIdsWithLatestCode(entity.getId())
                     .forEach(constructionStatusService::recomputeFor);
         }
+
+        // ⚠ VÔ ĐIỀU KIỆN, ⛔ không gói trong `anhXaDoi || anAnDoi`: hai cờ ấy chỉ hỏi *"trạng thái
+        //   dẫn xuất có phải tính lại không"*. Ba cột cổng công bố nguyên văn — tên, màu, đơn vị
+        //   tham số — đổi được mà cả hai cờ vẫn `false`, và đó chính là lượt sửa THƯỜNG GẶP NHẤT
+        //   (gõ lại một cái tên cho gọn). Gói vào là vá đúng một nửa số lượt sửa — xem javadoc lớp.
+        portalCache.constructionsChanged();
 
         return entity;
     }

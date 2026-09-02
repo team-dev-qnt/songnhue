@@ -32,7 +32,11 @@ import {
 import { ApiClientError, api } from '@/shared/apiClient';
 import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
 
-import { VAI_TRO_VI_TRI, VAI_TRO_VI_TRI_OPTIONS } from './hydroVocabulary';
+import {
+  VAI_TRO_KHONG_CAN_CONG_TRINH,
+  VAI_TRO_VI_TRI,
+  VAI_TRO_VI_TRI_OPTIONS,
+} from './hydroVocabulary';
 
 type BoLoc = 'TAT_CA' | 'CHUA_GAN_DON_VI' | 'THIEU_LIEN_KET';
 
@@ -274,10 +278,28 @@ export function StationsPage() {
           }))}
         />
       </Form.Item>
-      <Form.Item name="positionRole" label="Vai trò vị trí" rules={[{ required: true }]}>
+      <Form.Item
+        name="positionRole"
+        label="Vai trò vị trí"
+        rules={[{ required: true }]}
+        // ⚠ Câu này DỰNG TỪ hằng số chứ không gõ lại danh sách: `VAI_TRO_KHONG_CAN_CONG_TRINH` là
+        //   nơi luật ấy sống, và nó vốn được export mà chưa nơi nào import — một hằng số chết mang
+        //   đúng tri thức nghiệp vụ mà không ai đọc (luật 15). Gõ lại tên vai trò vào đây là dựng
+        //   bản sao thứ hai của cùng một luật, rồi một hôm hai bản nói khác nhau (luật 14).
+        extra={`Quyết định điểm đo là thượng lưu / hạ lưu / bể hút / mực nước sông. ${VAI_TRO_KHONG_CAN_CONG_TRINH.map(
+          (v) => `“${VAI_TRO_VI_TRI[v]}”`,
+        ).join(', ')} là vai trò duy nhất hợp lệ khi điểm đo không thuộc công trình nào.`}
+      >
         <Select options={VAI_TRO_VI_TRI_OPTIONS} />
       </Form.Item>
-      <Form.Item name="measurementTypeIds" label="Loại chỉ số đo được">
+      <Form.Item
+        name="measurementTypeIds"
+        label="Loại chỉ số đo được"
+        // ⚠ Backend là `@NotEmpty` từ 01/09 (bỏ trường ra = XOÁ SẠCH liên kết). Thiếu luật này ở
+        //   client thì người dùng đi trọn một vòng máy chủ để nhận 422 cho một điều biểu mẫu biết
+        //   trước — và một điểm đo không đo chỉ số nào là bản ghi không sinh ra được số liệu nào.
+        rules={[{ required: true, message: 'Chọn ít nhất một loại chỉ số' }]}
+      >
         <Select
           mode="multiple"
           loading={loaiQuery.isLoading}
@@ -293,6 +315,62 @@ export function StationsPage() {
         extra="Để trống được, nhưng cảnh báo của điểm đo sẽ chưa có người nhận."
       >
         <OrgUnitTreeSelect />
+      </Form.Item>
+    </>
+  );
+
+  /**
+   * Bảy ô còn lại của hồ sơ — hiện ở **cả hai** modal kể từ 02/09/2026 (T28.33 · N2).
+   *
+   * ⚠⚠ Trước đợt này chúng chỉ có ở modal **Sửa**, vì `StationService.create` chỉ nhận 7 trường.
+   * Hệ quả người dùng gặp: muốn nhập toạ độ phải **Tạo → đóng → mở lại → Sửa**, và ⛔ không ô nào
+   * nói ra điều đó — người khai điền toạ độ ở lượt tạo rồi tin là đã lưu. Nay backend nhận đủ 14
+   * trường ở cả hai đường, nên biểu mẫu không còn lý do gì để giấu chúng đi.
+   */
+  const truongHoSo = (
+    <>
+      <Form.Item
+        name="riverName"
+        label="Tuyến sông"
+        extra="Chưa có dữ liệu từ Công ty (G8) — để trống nếu chưa được cấp."
+      >
+        <Input />
+      </Form.Item>
+      <Form.Item
+        name="chainage"
+        label="Lý trình"
+        rules={[{ pattern: /^K[0-9]+\+[0-9]{1,3}$/, message: 'Dạng K<km>+<m>, VD K12+300' }]}
+        extra="Để trống được — chờ G8."
+      >
+        <Input placeholder="K12+300" />
+      </Form.Item>
+      <Form.Item
+        name="latitude"
+        label="Vĩ độ"
+        extra="Toạ độ phải nhập đủ cả cặp — thiếu một nửa thì cả cặp bị từ chối."
+      >
+        <Input placeholder="20.980000" />
+      </Form.Item>
+      <Form.Item
+        name="longitude"
+        label="Kinh độ"
+        extra="Toạ độ phải nhập đủ cả cặp — thiếu một nửa thì cả cặp bị từ chối."
+      >
+        <Input placeholder="105.780000" />
+      </Form.Item>
+      <Form.Item
+        name="interpolated"
+        label="Giá trị nội suy"
+        valuePropName="checked"
+        extra="Nguồn đánh dấu một số điểm là nội suy, không đo trực tiếp — báo cáo phải phân biệt được."
+      >
+        <Switch />
+      </Form.Item>
+      <Form.Item name="active" label="Đang dùng" valuePropName="checked">
+        <Switch />
+      </Form.Item>
+      <Form.Item name="description" label="Ghi chú">
+        <Input.TextArea rows={2} maxLength={500} />
       </Form.Item>
     </>
   );
@@ -403,6 +481,7 @@ export function StationsPage() {
           }}
         >
           {truongChung(false)}
+          {truongHoSo}
         </Form>
       </Modal>
 
@@ -420,40 +499,7 @@ export function StationsPage() {
       >
         <Form form={form} layout="vertical">
           {truongChung(true)}
-          <Form.Item
-            name="riverName"
-            label="Tuyến sông"
-            extra="Chưa có dữ liệu từ Công ty (G8) — để trống nếu chưa được cấp."
-          >
-            <Input />
-          </Form.Item>
-          <Form.Item
-            name="chainage"
-            label="Lý trình"
-            rules={[{ pattern: /^K[0-9]+\+[0-9]{1,3}$/, message: 'Dạng K<km>+<m>, VD K12+300' }]}
-          >
-            <Input placeholder="K12+300" />
-          </Form.Item>
-          <Form.Item name="latitude" label="Vĩ độ" extra="Toạ độ phải nhập đủ cả cặp.">
-            <Input placeholder="20.980000" />
-          </Form.Item>
-          <Form.Item name="longitude" label="Kinh độ">
-            <Input placeholder="105.780000" />
-          </Form.Item>
-          <Form.Item
-            name="interpolated"
-            label="Giá trị nội suy"
-            valuePropName="checked"
-            extra="Nguồn đánh dấu một số điểm là nội suy, không đo trực tiếp — báo cáo phải phân biệt được."
-          >
-            <Switch />
-          </Form.Item>
-          <Form.Item name="active" label="Đang dùng" valuePropName="checked">
-            <Switch />
-          </Form.Item>
-          <Form.Item name="description" label="Ghi chú">
-            <Input.TextArea rows={2} maxLength={500} />
-          </Form.Item>
+          {truongHoSo}
         </Form>
       </Modal>
     </Card>
