@@ -5303,3 +5303,182 @@ bằng `-Dtest=QualityFilterGuardTest`: bộ chọn ấy trả `Tests run: **0**
 có `@Nested` nên bộ lọc không bắt được lớp lồng. Đúng luật 32 ở dạng đã gặp ở §10.72, chỉ đổi nguyên
 nhân: lần trước là cú pháp `A+B` sai, lần này là lớp lồng. ⇒ **Với bất kỳ lớp nào có `@Nested`, phép
 đo tin được là chạy cả module rồi đếm `Tests run`, không phải mã thoát của một lượt `-Dtest`.**
+
+---
+
+## §11. QUYẾT ĐỊNH KIẾN TRÚC PHASE 2 (2026-09-04)
+
+### §11.1 — Bảng tổng hợp ngày: `quality` nằm TRONG KHOÁ (WS-34/T34.1)
+
+**Quyết định.** `hydro_agg_daily` khoá theo bộ **bốn**: `(station_id, measurement_type_id,
+agg_date, quality)`. Một ngày của một điểm đo có tối đa ba hàng — `HOP_LE` · `NGHI_NGO` · `XOA`.
+
+**Cách quen thuộc và vì sao bác bỏ.** Một hàng mỗi kỳ, max/min/TB tính trên `HOP_LE`, thêm một cột
+`suspect_count` bên cạnh. Nó làm tên cột `max_value` **hứa** *"giá trị lớn nhất trong ngày"* trong
+khi thật ra là *"lớn nhất trong số bản ghi hợp lệ"*, và lời hứa ấy chỉ sống trong một dòng chú
+thích. §10.69 gọi tên đúng hình dạng ấy: **một tham số nói dối khó thấy hơn một tham số không ai
+đọc**.
+
+**Hệ quả kép, cả hai đều là thứ ta muốn:**
+- báo cáo nghiệp vụ viết `WHERE quality = 'HOP_LE'` — **đúng vị từ** mà `QualityFilterGuardTest`
+  đang canh, nên bộ canh mở rộng sang bảng mới mà ⛔ không phải nới một chữ;
+- BC-13 (báo cáo chất lượng) đọc **cả ba** hàng, nên nó phải khai một ngoại lệ **có tên**. Đó chính
+  là điều đúng: một báo cáo tồn tại ĐỂ đếm dữ liệu xấu thì việc nó không lọc là một *quyết định*,
+  và quyết định phải đi qua review.
+
+### §11.2 — `agg_date` là ngày GIỜ VIỆT NAM, và múi giờ sống ở đúng một cặp hàm CSDL
+
+`measured_at::date` cắt ngày theo UTC ⇒ **mọi số đo từ 00:00 tới 06:59 giờ VN bị xếp sang ngày hôm
+trước** — 42 trong 144 khung, **29%**. Triệu chứng gần như vô hình: báo cáo vẫn ra đủ hàng, vẫn có
+max/min hợp lý, chỉ là *"mực nước cao nhất ngày 12"* thật ra xảy ra rạng sáng ngày 13.
+
+⇒ `hyd_ngay_vn(timestamptz) → date` và `hyd_dau_ngay_vn(date) → timestamptz`, cộng một khối
+`DO $$ … RAISE EXCEPTION $$` **chạy mỗi lượt migrate**: khứ hồi · biên micro-giây hai đầu · và một
+khẳng định **phân biệt được** `hyd_ngay_vn` với `::date` (00:30 giờ VN ⛔ không được rơi vào ngày
+hôm trước). Sửa một hàm mà quên hàm kia thì **Flyway hỏng ngay tại đó**, ⛔ không phải ba tháng sau
+ở một ô báo cáo lệch 7 giờ.
+
+### §11.3 — Cờ "cần tính lại" đánh bằng TRIGGER, ⛔ không bằng lời gọi ở tầng ứng dụng
+
+Luật 12: *đặt bảo đảm ở chỗ dữ liệu đi qua*. `hydro_readings` hôm nay có **ba** đường ghi, và WS-33
+vừa phải dựng cả một bài ArchUnit chỉ để đếm đủ ba đường ấy cho máy cảnh báo. Ở đây **đặt được** ở
+tầng CSDL, nên đặt: `AFTER INSERT OR UPDATE ... FOR EACH ROW` trên bảng cha của cây phân mảnh
+(PostgreSQL nhân bản xuống mọi partition, kể cả partition tạo sau).
+
+⚠ Tiền lệ đắt: **T27.7 vá đệm cổng ở ba điểm ghi, và điểm ghi THỨ TƯ ra đời cùng đợt mang lại đúng
+lỗi cũ.**
+
+**Đo được ở lượt kiểm NFR-04 (4/9):** trigger chạy **84.816 lượt** khi nạp một tháng dữ liệu, và
+hàng đợi gom về **đúng 589 hàng** (19 điểm đo × 31 ngày) — `ON CONFLICT DO NOTHING` làm việc đúng
+dưới tải hàng loạt; toàn bộ lượt nạp mất **1.534 ms**.
+
+### §11.4 — Tính lại = XOÁ TRỌN KỲ rồi dựng lại, ⛔ không UPSERT thuần
+
+Một UPSERT theo khoá kỳ chỉ sửa được những nhóm chất lượng **còn sinh ra hàng**; nó ⛔ không xoá
+được nhóm đã biến mất. Kịch bản thường xuyên nhất của bảng này:
+
+```
+ngày 12/9, trạm X có đúng 1 bản ghi, bị đánh NGHI_NGO
+  → agg có 1 hàng (…, NGHI_NGO, count=1)
+người trực duyệt nó lên HOP_LE
+  → UPSERT thuần GIỮ NGUYÊN hàng NGHI_NGO cũ
+  → BC-13 báo trạm ấy có dữ liệu nghi ngờ VĨNH VIỄN, dù không còn cái nào
+```
+
+Đúng luật 27, và **im lặng**: đường ghi chạy hoàn hảo, số liệu vẫn đủ định dạng. Kiểm chứng ngược
+(4/9): thu hẹp lượt xoá → **2 bài đỏ đúng chỗ**, khôi phục khớp byte.
+
+⚠ Thứ tự bắt buộc trong lượt drain: **NHẬN kỳ (xoá cờ) TRƯỚC, tính SAU**. Đảo lại mở một cửa sổ mất
+số đo *im lặng* — một bản ghi về giữa chừng làm trigger cắm cờ, nhưng cờ ấy *đã có sẵn* nên
+`ON CONFLICT DO NOTHING` bỏ qua, rồi ta xoá chính cái cờ đó đi.
+
+### §11.5 — T34.8: ⛔ KHÔNG thêm Apache POI ở Phase 2; CSV với ba quy ước đi thành BỘ
+
+**Quyết định.** Kết xuất báo cáo chỉ ra **CSV**. POI kéo theo ~12 MB phụ thuộc, mở thêm một bề mặt
+CVE (POI/XMLBeans/commons-compress đều có lịch sử), và dựng workbook trong bộ nhớ là đúng thứ VPS 2
+nhân đang phải tiết kiệm (`hosting_recommendations` §8).
+
+**Ba quy ước, và chúng là MỘT BỘ** — để Excel bản tiếng Việt đọc đúng ngay khi mở:
+1. **BOM UTF-8** — thiếu thì *"Cống Liên Mạc"* thành *"CÃ´ng LiÃªn Máº¡c"*;
+2. **dấu tách `;`** — khớp dấu tách danh sách của vi-VN (dấu phẩy cho ra **một cột duy nhất**);
+3. **dấu thập phân `,`** — ⚠ **bắt buộc đi cùng mục 2**: giữ dấu chấm thì Excel vi-VN đọc `4.93`
+   thành **493**. Sai gấp trăm lần, đúng định dạng, ⛔ không một cảnh báo nào.
+
+⛔ **Chặn CSV injection**: ô mở đầu bằng `=` `+` `-` `@` được Excel **thi hành như công thức**. Nguy
+cơ có thật chứ ⛔ không lý thuyết — cột *Lý do* của BC-12 mang `review_note`, chữ do người duyệt gõ,
+và bản kết xuất thì gửi cho người khác mở. Chặn bằng một dấu nháy đơn **đứng trước**, ⛔ không xoá
+ký tự đầu (một ghi chú mở đầu bằng dấu trừ là chuyện bình thường).
+
+### §11.6 — Hai nửa cặp đọc–ghi hở từ Phase 0, cùng được nối ở T34.7
+
+| | Có sẵn | Thiếu |
+|---|---|---|
+| `MINIO_BUCKET_REPORT` | khai ở **4 tệp env** · `minio-init` tạo ở cả compose hạ tầng lẫn production · `push-offsite.sh` **sao lưu ra ngoài hằng đêm** · `@NotBlank` nên **thiếu nó là ứng dụng không khởi động được** | ⛔ **0 lời gọi** `getBucketReport()` |
+| `jobs.result` | **ba** nơi đọc (`JobDtos` · `JobService.findJob` · và chính `JobWorker.succeed()` đọc lại để giữ giá trị qua lượt ghi trạng thái) · javadoc `JobRef.resultRef` ghi thẳng *"VD khoá tệp báo cáo trong kho"* | ⛔ **0 nơi ghi** |
+
+⭐ Cả hai là **luật 15 ở dạng khó thấy nhất**: có fail-fast, có sao lưu, có javadoc mô tả đích danh
+tính năng — nên mọi lượt rà đọc chúng là *"đã xong"*. Thứ vắng mặt là đúng **một đầu dây**.
+
+⚠ Và có một lý do kỹ thuật khiến `jobs.result` chưa từng được ghi: cột là **JSONB** +
+`@JdbcTypeCode(SqlTypes.JSON)`, nên một chuỗi khoá **trần** làm PostgreSQL từ chối với *"invalid
+input syntax for type json"* — và lượt việc hỏng **sau khi đã dựng xong toàn bộ tệp**. Phương thức
+mới mang tên `resultJson` chính vì kiểu tham số là `String` nên trình biên dịch ⛔ không đỡ được gì.
+
+⚠ Suýt mắc khi nối: gọi `markSucceeded()` từ đường ghi con trỏ. Hàm ấy còn đặt `finishedAt`,
+`progress = 100` **và thả khoá** — tức tuyên bố job xong khi handler còn chạy, rồi mở cửa cho một
+worker khác nhặt lại chính nó. ⇒ setter hẹp đúng một cột (`ghiConTroKetQua`).
+
+### §11.7 — TTL của bản kết xuất thi hành ở CẢ HAI đầu
+
+Một hạn dùng chỉ kiểm ở **tầng đọc** là một hạn dùng ⛔ **không có thật**: tệp vẫn nằm nguyên trong
+bucket và vẫn được `push-offsite.sh` sao lưu ra ngoài **mỗi đêm, mãi mãi**. ⇒ `HAN_TAI` là **một**
+hằng, dùng ở endpoint tải *và* ở lượt dọn hằng ngày (luật 14).
+
+⚠ Lượt dọn chạy hằng ngày nên một đối tượng có thể sống tới ~48 giờ. Đó là chủ ý **và đã nói ra**:
+hạn *truy cập* vẫn đúng 24 giờ, phần dư chỉ là dung lượng. ⛔ Đừng đọc con số 24 thành *"tệp biến
+mất sau 24 giờ"*.
+
+⛔ Đường tải kiểm `jobType`: bỏ nó thì ai có `hyd:report:export` cũng đọc được kết quả của **mọi**
+loại việc nền, gồm `DB_BACKUP`. *"UUID khó đoán"* ⛔ không phải một tầng phân quyền (§4.2).
+
+### §11.8 — NFR-04 đo được, ⛔ không suy ra (T34.9) — số đo 4/9/2026
+
+Đo trên **một tháng đầy đủ ở quy mô thật**: 19 điểm đo × 31 ngày × 144 khung = **84.816 bản ghi**.
+
+| Phép đo | Kết quả | Trần |
+|---|---|---|
+| Nạp 84.816 bản ghi (trigger chạy đủ 84.816 lượt) | **1.534 ms** | — |
+| Tổng hợp 589 kỳ / 2 lượt drain | **685 ms** | — |
+| **BC-05 báo cáo tháng** | **50 ms** | 60.000 ms |
+| **BC-13 chất lượng cả tháng** | **29 ms** | 60.000 ms |
+| BC-11 biểu tuyến sông | **13 ms** | 5.000 ms (tự đặt — nó tự làm mới 2'/lần trên màn hình tường) |
+
+⛔ Đo trên CSDL rỗng là phép đo **không phân biệt được hai trạng thái**: ở quy mô vài nghìn bản ghi
+thì cả câu SQL đúng lẫn câu SQL sai đều trả lời trong mili-giây (luật 9).
+
+⭐ Một khẳng định của lượt viết đầu **sai và lộ ra ngay**: *"một lượt drain tính hết 589 kỳ"* — lượt
+đầu trả đúng **500**, vì `TRAN_MOI_LUOT = 500`. Trần ấy là hành vi đúng (giữ cho một lượt việc nền
+⛔ không chạy hàng chục phút); bài kiểm nay nói ra nó để lượt sau ⛔ đừng "sửa" nó đi.
+
+### §11.9 — Lỗ hổng của `QualityFilterGuardTest` tìm ra khi dựng BC-13
+
+`FILTER (WHERE quality = 'HOP_LE')` lọc cho **một hàm gộp**, ⛔ không lọc cho câu. Một câu như
+
+```sql
+SELECT avg(reading_value), count(*) FILTER (WHERE quality = 'HOP_LE') FROM …
+```
+
+có `avg` chạy trên **toàn bộ** ba nhóm chất lượng, mà bản trước của bộ canh vẫn xanh vì chuỗi
+`quality = 'HOP_LE'` *có mặt ở đâu đó trong câu*. Cùng họ với `quality <> 'XOA'`: một câu **gần
+đúng** nguy hiểm hơn một câu thiếu hẳn, vì nó trông đã cẩn thận.
+
+⭐ Lỗ này ⛔ không phải giả thuyết — nó lộ ra vì BC-13 là truy vấn **đầu tiên** của dự án dùng
+`FILTER`, và **câu đầu tiên bộ canh bắt được sau khi vá chính là truy vấn ấy**. Vá sau thì nó đã kịp
+đóng dấu "đạt".
+
+### §11.10 — Khoá ngoại trên một HÀNG ĐỢI là một quyết định sai, và bị đo ngay
+
+Bản đầu của `hydro_agg_dirty` có `REFERENCES stations(id)` với lý lẽ *"nhất quán với mọi bảng
+khác"*. Lượt chạy bộ kiểm đầu tiên bác bỏ bằng một con số: **năm lớp kiểm** hỏng ở bước dọn dẹp —
+một hàng của **hàng đợi**, thứ sinh ra để bị xoá trong vài phút, giành được quyền **phủ quyết** lên
+một thao tác trên **danh mục**.
+
+⚠ Đó ⛔ không phải "chuyện của bộ kiểm": ngày nào cần gỡ cứng một điểm đo khai nhầm, thao tác sẽ
+hỏng vì một dòng rác trong hàng đợi, và thông báo lỗi chỉ về phía `hydro_agg_dirty` — nơi ⛔ không
+ai nghĩ tới. Khoá ngoại ở đây cũng ⛔ không mua được gì: một hàng mồ côi chỉ làm lượt tính lại chạy
+qua tập rỗng rồi tự xoá chính nó.
+
+📌 `hydro_agg_daily` thì **giữ** khoá ngoại: nó là **số liệu**, sống nhiều năm. Hàng đợi và số liệu
+chịu hai luật khác nhau — sự khác nhau ấy là chủ ý, ⛔ không phải một chỗ quên.
+
+### §11.11 — Bảng tổng hợp ⛔ KHÔNG bị retention dọn
+
+`HydroRetentionHandler` dọn raw (90 ngày) và số đo (5 năm). `hydro_agg_daily` cố ý **không** nằm
+trong danh sách ấy: nguồn ⛔ không có API lịch sử, nên khi partition năm thứ sáu bị `DROP` thì hàng
+agg là thứ **duy nhất** còn nói được mực nước cao nhất tháng ấy là bao nhiêu. Kích thước: 19 × 2 × 3
+× 365 ≈ **42 nghìn hàng/năm** — mười năm vẫn nhỏ hơn *một tháng* của `hydro_readings`.
+
+⚠ Hệ quả phải biết trước: sau khi số đo chi tiết bị dọn, một lượt tính lại trên ngày cũ sẽ **xoá**
+hàng agg. Đường đó đóng một cách tự nhiên (trigger chỉ bắn khi có ai GHI, mà `DROP PARTITION` ⛔
+không bắn trigger) — nhưng ⛔ **đừng thêm một job "tính lại toàn bộ lịch sử"**: nó sẽ xoá sạch đúng
+phần dữ liệu mà bảng này sinh ra để giữ.
