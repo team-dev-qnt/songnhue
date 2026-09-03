@@ -5,7 +5,7 @@
   "description": "Frontend workspace — admin-app (Vite/React/AntD) + public-web (Next.js/Tailwind)",
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "workspaces": [
     "design-tokens",

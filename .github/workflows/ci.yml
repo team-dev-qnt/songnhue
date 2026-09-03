@@ -50,7 +50,7 @@ jobs:
   # ---------------------------------------------------------------------------
   changes:
     name: Vùng nào thay đổi
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
@@ -137,8 +137,22 @@ jobs:
           #   bỏ qua job backend đúng lúc script ấy thay đổi — cùng hình dạng với đoạn
           #   ngay trên. `CiPathFilterTest` nay đối chiếu biểu thức này với TỪNG đường dẫn
           #   mà bộ test BE thật sự đọc, nên nó không mục theo thời gian được nữa.
+          #
+          # ⚠⚠ Vế backend bao CẢ `docs/` (3/9) — và đây là chỗ tốn thời gian nhất, cố ý:
+          #
+          #      TenMienTaiLieuTest  →  docs/**/*.md
+          #
+          #   Nó canh *không LỆNH CHẠY ĐƯỢC nào trong `docs/` trỏ vào host chưa phân giải*
+          #   (T11.53: sáu lệnh nghiệm thu gõ `staging.songnhue.vn`, host trả HTTP 000, nên
+          #   người nghiệm thu kết luận hệ thống chết trong khi nó đang chạy). Thứ nó canh
+          #   NẰM TRONG `docs/`, nên bỏ `docs/` khỏi bộ lọc là dựng đúng cái lỗ §10.37 lần
+          #   nữa: bộ canh không chạy ĐÚNG LÚC thứ nó canh thay đổi.
+          #
+          #   Giá phải trả: PR chỉ sửa tài liệu nay chạy trọn job backend (~10'). Đắt, và
+          #   vẫn rẻ hơn một bộ canh về nguyên tắc không bao giờ nổ. Chính khối chú thích
+          #   ở đầu bước này đã chốt: **thà chạy thừa còn hơn bỏ sót.**
           if [ -n "$changed" ]; then
-            grep -qE '^(backend/|frontend/|deploy/|\.github/)'  <<< "$changed" || backend=false
+            grep -qE '^(backend/|frontend/|deploy/|docs/|\.github/)'  <<< "$changed" || backend=false
             grep -qE '^(frontend/|deploy/|\.github/workflows/)' <<< "$changed" || frontend=false
           fi
 
@@ -166,7 +180,7 @@ jobs:
   # ===========================================================================
   tracking:
     name: Bộ đọc tracking
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
@@ -188,7 +202,7 @@ jobs:
   # ===========================================================================
   thu-tu-migration:
     name: Thứ tự migration
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
@@ -204,7 +218,7 @@ jobs:
     name: Backend — build, lint, test
     needs: changes
     if: needs.changes.outputs.backend == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
 
     steps:
@@ -282,7 +296,7 @@ jobs:
     name: Frontend — lint
     needs: changes
     if: needs.changes.outputs.frontend == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -304,7 +318,9 @@ jobs:
         if: steps.detect.outputs.exists == 'true'
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          # Đọc `.nvmrc` thay vì ghi cứng — trước đây Node khai ở 5 nơi rời nhau
+          # (2 workflow, 3 Dockerfile, `engines.node`) và không nơi nào là nguồn.
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -381,7 +397,7 @@ jobs:
     name: Đóng gói image
     needs: [changes, backend]
     if: needs.changes.outputs.backend == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
       contents: read
@@ -456,7 +472,7 @@ jobs:
     name: Đóng gói image frontend
     needs: [changes, frontend]
     if: needs.changes.outputs.frontend == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
       contents: read
@@ -551,7 +567,7 @@ jobs:
       github.event_name == 'push' && !cancelled()
       && needs.image.result != 'failure'
       && needs.image-frontend.result != 'failure'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -619,7 +635,7 @@ jobs:
   dependency-review:
     name: Soi phụ thuộc PR thêm vào
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       contents: read
@@ -695,7 +711,7 @@ jobs:
     name: Cổng kiểm CI
     needs: [changes, tracking, thu-tu-migration, backend, frontend, image, image-frontend, gan-tag-sha, dependency-review]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: Tổng kết mọi job
