@@ -64,4 +64,26 @@ public interface ConstructionLookupPort {
      * @return chỉ chứa những khoá tra được; khoá trỏ vào công trình đã xoá mềm ⛔ không có mặt
      */
     Map<Long, ConstructionRef> timTheoIds(Collection<Long> ids);
+
+    /**
+     * ⭐ Tình hình vận hành <b>hiện hành</b> của một tập công trình — T34.4 (BC-11).
+     *
+     * <h2>⛔ MỘT định nghĩa "hiện hành", ⛔ không hai</h2>
+     *
+     * <p>Cài đặt <b>phải</b> dùng lại đúng nguồn sự thật mà cổng công khai đang dùng
+     * ({@code PublicOperationStatusService.hienHanh()}), ⛔ không viết một câu truy vấn thứ hai. Lý
+     * do đã được ghi từ lượt rà kế hoạch: hai định nghĩa lệch nhau <i>một bản ghi</i> là cổng nói
+     * cống đang mở trong khi biểu tổng hợp nói đang đóng — cùng một thời điểm, hai màn hình, và ⛔
+     * không có gì báo sai.
+     *
+     * <p>⛔ Cổng này ⛔ <b>không</b> lọc phạm vi đơn vị, cùng lý do với {@code timTheoIds}: nó nuôi
+     * một biểu tổng hợp vận hành, và một cột trạng thái đổi theo người đang đăng nhập là đúng lỗi
+     * quy tắc 13 (<i>cột dẫn xuất trộn hai nguồn khác chiều lọc</i>) — thứ đã làm trạng thái công
+     * trình bị hạ xuống "Bình thường" cho tất cả mọi người chỉ vì một người ngoài đơn vị mở màn hình.
+     *
+     * @return chỉ chứa công trình <b>đã có</b> ít nhất một bản ghi tình hình vận hành. Công trình
+     *     chưa ghi nhận lần nào ⛔ không có mặt — đó là <i>"chưa bắt đầu ghi nhận"</i>, ⛔ không phải
+     *     "mã rỗng", và nơi gọi phải hiện hai thứ ấy khác nhau (quy tắc 16)
+     */
+    java.util.Map<Long, TinhHinhVanHanhRef> tinhHinhHienHanh(java.util.Collection<Long> constructionIds);
 }

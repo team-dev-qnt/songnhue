@@ -153,6 +153,13 @@ export const MENU: readonly MenuNode[] = [
         permissions: ['hyd:alert:view'],
       },
       {
+        key: 'bieu-tuyen-song',
+        label: 'Biểu tổng hợp tuyến sông',
+        icon: <FundProjectionScreenOutlined />,
+        path: '/thuy-van/bieu-tuyen-song',
+        permissions: ['hyd:report:view'],
+      },
+      {
         key: 'bao-cao-tong-hop',
         label: 'Báo cáo tổng hợp kỳ',
         icon: <FileTextOutlined />,

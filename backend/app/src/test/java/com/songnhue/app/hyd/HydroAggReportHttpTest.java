@@ -540,6 +540,100 @@ class HydroAggReportHttpTest extends IntegrationTestBase {
     }
 
     // =========================================================================
+    // ⭐ T34.4 — BC-11 biểu tổng hợp theo tuyến sông
+    // =========================================================================
+
+    @Test
+    @Order(15)
+    @DisplayName("⭐⭐ BC-11 — điểm đo MẤT TÍN HIỆU vẫn có mặt, ô rỗng kèm lý do; ⛔ không bị lọc bỏ")
+    void theRiverBoardKeepsSilentStations() {
+        ResponseEntity<String> ra = phienHttp.get(kyThuat, "/api/v1/hyd/bao-cao/tuyen-song");
+
+        assertThat(ra.getStatusCode()).as("Thân: %s", ra.getBody()).isEqualTo(HttpStatus.OK);
+        String than = ra.getBody();
+
+        assertThat(than)
+                .as(
+                        """
+                        ⛔⛔ Điểm đo im lặng đã biến mất khỏi biểu. Một trạm mất tín hiệu là ĐÚNG thứ \
+                        biểu tổng hợp vận hành sinh ra để chỉ ra — lọc nó đi là để lại một bảng sạch \
+                        sẽ đúng lúc nó phải kêu.""")
+                .contains(MA_DIEM_DO_IM);
+
+        assertThat(than)
+                .as("⭐ Lời gọi production ĐẦU TIÊN của StationDisplayStatus.suyRa() — hàm ấy có 6 bài "
+                        + "kiểm mà ⛔ không nơi nào gọi kể từ WS-28 (nợ T28.20)")
+                .contains("\"trangThaiTinHieu\":\"CHUA_CO_DU_LIEU\"")
+                .contains("Chưa có số đo nào");
+    }
+
+    @Test
+    @Order(16)
+    @DisplayName("⛔⛔ Lượng mưa LUÔN rỗng kèm lý do — ⛔ không bao giờ là 0 (G3-a chưa có nguồn)")
+    void rainfallIsAlwaysEmptyWithAReason() {
+        String than = phienHttp.get(kyThuat, "/api/v1/hyd/bao-cao/tuyen-song").getBody();
+
+        assertThat(than)
+                .as(
+                        """
+                        ⛔⛔ Ô lượng mưa trả 0. `0 mm` là câu khẳng định "trời không mưa" — một câu về \
+                        THỜI TIẾT mà hệ thống ⛔ không có nguồn nào để nói: loại chỉ số lượng mưa đã \
+                        seed nhưng ⛔ CHƯA gắn cho điểm đo nào (mục G3-a). Quy tắc 16 và điều cấm "⛔ \
+                        không seed dữ liệu thuỷ văn cho đẹp demo" áp thẳng vào đây.""")
+                .contains("\"luongMua\":null")
+                .contains("G3-a")
+                .doesNotContain("\"luongMua\":0");
+    }
+
+    @Test
+    @Order(17)
+    @DisplayName("⭐ Điểm đo chưa có tuyến sông gom vào nhóm 'Chưa phân tuyến' — ⛔ không bịa tên tuyến")
+    void stationsWithoutARiverAreGroupedHonestly() {
+        String than = phienHttp.get(kyThuat, "/api/v1/hyd/bao-cao/tuyen-song").getBody();
+
+        assertThat(than)
+                .as("⬜ `river_name` NULL là trạng thái ĐÚNG hôm nay — tuyến sông thuộc G8")
+                .contains("\"tenTuyen\":\"Chưa phân tuyến\"")
+                .contains("\"chuaPhanTuyen\":true");
+    }
+
+    @Test
+    @Order(18)
+    @DisplayName("⭐⭐ 'Đã ngừng' và 'chưa có số đo' là HAI trạng thái phân biệt được (luật 9)")
+    void stoppedAndNeverReportedAreDistinct() {
+        // Trước: điểm đo im lặng nhưng vẫn đang dùng ⇒ CHUA_CO_DU_LIEU.
+        assertThat(phienHttp.get(kyThuat, "/api/v1/hyd/bao-cao/tuyen-song").getBody())
+                .contains("Chưa có số đo nào");
+
+        jdbc.update("UPDATE stations SET active = FALSE WHERE id = ?", idDiemDoIm);
+        try {
+            assertThat(phienHttp.get(kyThuat, "/api/v1/hyd/bao-cao/tuyen-song").getBody())
+                    .as(
+                            """
+                            ⛔ Gộp hai trạng thái này là biến ngày triển khai đầu tiên thành 19 cảnh báo \
+                            giả — và ngược lại, báo một điểm đo mà CHÍNH NGƯỜI VẬN HÀNH vừa tắt là "mất \
+                            tín hiệu" là sinh cảnh báo cho một việc họ vừa quyết định.""")
+                    .contains("\"trangThaiTinHieu\":\"NGUNG\"")
+                    .contains("Điểm đo đã ngừng sử dụng");
+        } finally {
+            jdbc.update("UPDATE stations SET active = TRUE WHERE id = ?", idDiemDoIm);
+        }
+    }
+
+    @Test
+    @Order(19)
+    @DisplayName("⭐ Cột tình hình vận hành rỗng KÈM LÝ DO — 'chưa liên kết' khác 'chưa ghi nhận'")
+    void theOperationStatusColumnExplainsItsEmptiness() {
+        String than = phienHttp.get(kyThuat, "/api/v1/hyd/bao-cao/tuyen-song").getBody();
+
+        assertThat(than)
+                .as("⛔ Ô rỗng không lời trông y hệt ô đang tải — và ở đây hai lý do dẫn tới hai việc "
+                        + "phải làm khác nhau: khai liên kết, hay đi nhập tình hình vận hành")
+                .contains("\"tinhHinhVanHanh\":null")
+                .contains("Điểm đo chưa liên kết công trình nào");
+    }
+
+    // =========================================================================
 
     private ResponseEntity<String> nhapTay(Instant moc, String giaTri) {
         return phienHttp.goi(

@@ -138,6 +138,84 @@ public final class HydroReportDtos {
     }
 
     /**
+     * ⭐⭐ BC-11 — biểu tổng hợp mực nước theo tuyến sông (T34.4).
+     *
+     * <p>⭐ Cấu trúc <b>nhóm → hàng</b> chứ ⛔ không phải một danh sách phẳng có cột "tuyến sông":
+     * đây là một <i>biểu</i>, và biểu ấy dùng chung bố cục với <b>màn hình tường 4K</b> (làm một
+     * lần dùng hai nơi). Một bảng phẳng đọc được ở khoảng cách bàn làm việc; ở 4–6 mét thì thứ đọc
+     * được là các khối có tiêu đề.
+     *
+     * @param ngay ngày (giờ VN) mà cột nhỏ nhất/lớn nhất trong ngày tính theo
+     */
+    @JsonInclude(JsonInclude.Include.ALWAYS)
+    public record BieuTuyenSongView(LocalDate ngay, List<NhomTuyenView> tuyen) {}
+
+    /**
+     * Một tuyến sông.
+     *
+     * @param tenTuyen ⬜ <b>"Chưa phân tuyến"</b> khi {@code stations.river_name} còn rỗng — trạng
+     *     thái ĐÚNG hôm nay, vì tuyến sông và lý trình thuộc <b>G8</b>. ⛔ Không bịa tên tuyến, ⛔
+     *     không ẩn điểm đo đi.
+     * @param chuaPhanTuyen cờ để giao diện hiện đúng một dòng giải thích thay vì để người đọc đoán
+     */
+    @JsonInclude(JsonInclude.Include.ALWAYS)
+    public record NhomTuyenView(String tenTuyen, boolean chuaPhanTuyen, List<DiemDoTuyenView> diemDo) {}
+
+    /**
+     * Một điểm đo trên biểu.
+     *
+     * <h2>⛔ Ba ô rỗng, ba lý do KHÁC nhau — và người đọc phải phân biệt được (luật 9)</h2>
+     *
+     * <ul>
+     *   <li>{@link #giaTri} rỗng ⇒ {@link #lyDoTrong} nói vì sao (chưa có số đo / trạm đã ngừng)
+     *   <li>{@link #luongMua} <b>luôn</b> rỗng hôm nay — loại chỉ số lượng mưa ⛔ chưa gắn cho điểm
+     *       đo nào (<b>G3-a</b>). ⛔ Cố ý ⛔ không trả {@code 0}: 0 mm là <i>"trời không mưa"</i>,
+     *       một câu khẳng định về thời tiết mà ta ⛔ không có nguồn nào để nói.
+     *   <li>{@link #tinhHinhVanHanh} rỗng ⇒ điểm đo chưa liên kết công trình, hoặc công trình ấy
+     *       chưa từng được ghi nhận tình hình vận hành
+     * </ul>
+     *
+     * @param trangThaiTinHieu {@code HOAT_DONG} · {@code MAT_TIN_HIEU} · {@code CHUA_CO_DU_LIEU} ·
+     *     {@code NGUNG}. ⭐ Đây là <b>người gọi production đầu tiên</b> của
+     *     {@code StationDisplayStatus.suyRa()} — hàm ấy có 6 bài kiểm mà ⛔ không lời gọi thật nào
+     *     kể từ WS-28 (nợ T28.20, luật 27).
+     * @param mocDo mốc của giá trị <b>hợp lệ</b> đang hiện
+     * @param mocTinHieu bản ghi gần nhất <b>bất kể chất lượng</b> — ⚠ khác {@link #mocDo}, và sự
+     *     khác nhau ấy chính là cách phân biệt "trạm chết" với "trạm đang trả số đáng ngờ"
+     */
+    @JsonInclude(JsonInclude.Include.ALWAYS)
+    public record DiemDoTuyenView(
+            String stationCode,
+            String stationName,
+            String positionRole,
+            String chainage,
+            String measurementTypeCode,
+            String measurementTypeName,
+            String unit,
+            @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal giaTri,
+            Instant mocDo,
+            Instant mocTinHieu,
+            @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal minNgay,
+            @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal maxNgay,
+            int soBanGhiNgay,
+            String trangThaiTinHieu,
+            String lyDoTrong,
+            @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal luongMua,
+            String lyDoLuongMua,
+            TinhHinhVanHanhView tinhHinhVanHanh,
+            String lyDoTinhHinh) {}
+
+    /** Tình hình vận hành của công trình mà điểm đo thuộc về — nguồn: {@code core.spi}. */
+    @JsonInclude(JsonInclude.Include.ALWAYS)
+    public record TinhHinhVanHanhView(
+            String ma,
+            String ten,
+            String mau,
+            @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal thamSo,
+            String donViThamSo,
+            Instant hieuLucTu) {}
+
+    /**
      * ⭐ BC-12 — chi tiết theo yêu cầu (T34.6).
      *
      * <p>⛔ {@code quality} và {@code source} là <b>hai cột chịu lực</b>, ⛔ không phải siêu dữ liệu

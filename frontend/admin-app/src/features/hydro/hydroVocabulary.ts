@@ -4,6 +4,7 @@ import {
   type PositionRole,
   type ReadingQuality,
   type ReadingSource,
+  type StationSignalStatus,
   type SyncFailureKind,
   type SyncStatus,
 } from '@/shared/api-types';
@@ -231,5 +232,46 @@ export const TRANG_THAI_CANH_BAO: Record<
     color: 'orange',
     giaiThich:
       'Điều kiện hết trước khi giữ đủ số phút cấu hình (một cú nhiễu cảm biến), hoặc người trực xem lại và bác bỏ.',
+  },
+};
+
+// =============================================================================
+// Biểu tổng hợp theo tuyến sông — WS-34 / BC-11
+// =============================================================================
+
+/**
+ * Trạng thái hiển thị của một điểm đo.
+ *
+ * ⭐ **Bốn** giá trị, ⛔ không ba: `CHUA_CO_DU_LIEU` và `MAT_TIN_HIEU` **phải** tách nhau. Một điểm
+ * đo vừa khai mà chưa tới lượt polling đầu tiên ⛔ không phải một trạm hỏng — gộp hai trạng thái là
+ * biến ngày triển khai đầu tiên thành 19 cảnh báo giả. Và `NGUNG` là quyết định của **con người**,
+ * nó luôn thắng: báo "mất tín hiệu" cho một điểm đo mà chính người vận hành vừa tắt là sinh cảnh
+ * báo cho việc họ vừa làm.
+ */
+export const TRANG_THAI_TIN_HIEU: Record<
+  StationSignalStatus,
+  { label: string; color: string; giaiThich: string }
+> = {
+  HOAT_DONG: {
+    label: 'Đang phát',
+    color: 'green',
+    giaiThich: 'Có bản ghi trong khoảng thời gian còn coi là tươi.',
+  },
+  MAT_TIN_HIEU: {
+    label: 'Mất tín hiệu',
+    color: 'red',
+    giaiThich:
+      'Đang dùng nhưng đã quá nhiều khung không có bản ghi mới. ⚠ Điểm đo ở trạng thái này bị LOẠI khỏi đánh giá ngưỡng — giá trị cũ của một trạm đã chết ⛔ không dùng để kết luận mực nước hiện tại.',
+  },
+  CHUA_CO_DU_LIEU: {
+    label: 'Chưa có số đo',
+    color: 'default',
+    giaiThich:
+      'Chưa từng có bản ghi nào. ⛔ Khác hẳn "mất tín hiệu": một điểm đo vừa khai mà chưa tới lượt polling đầu tiên ⛔ không phải một trạm hỏng.',
+  },
+  NGUNG: {
+    label: 'Đã ngừng',
+    color: 'default',
+    giaiThich: 'Người vận hành đã ngừng dùng điểm đo. Quyết định của con người, luôn thắng.',
   },
 };

@@ -1,8 +1,13 @@
 package com.songnhue.hydro.application;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -15,16 +20,24 @@ import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
 import com.songnhue.core.common.exception.ValidationException;
 import com.songnhue.core.common.util.DateTimeUtils;
+import com.songnhue.core.spi.ConstructionLookupPort;
+import com.songnhue.core.spi.TinhHinhVanHanhRef;
 import com.songnhue.hydro.api.HydroReportDtos.BaoCaoDongBoView;
 import com.songnhue.hydro.api.HydroReportDtos.BaoCaoTongHopView;
+import com.songnhue.hydro.api.HydroReportDtos.BieuTuyenSongView;
 import com.songnhue.hydro.api.HydroReportDtos.ChatLuongNgayView;
 import com.songnhue.hydro.api.HydroReportDtos.ChiTietSoDoView;
+import com.songnhue.hydro.api.HydroReportDtos.DiemDoTuyenView;
 import com.songnhue.hydro.api.HydroReportDtos.DongBoNgayView;
+import com.songnhue.hydro.api.HydroReportDtos.NhomTuyenView;
+import com.songnhue.hydro.api.HydroReportDtos.TinhHinhVanHanhView;
 import com.songnhue.hydro.api.HydroReportDtos.TongHopKyView;
 import com.songnhue.hydro.domain.ChatLuongNgayRow;
 import com.songnhue.hydro.domain.DoDayDuKhung;
 import com.songnhue.hydro.domain.Station;
+import com.songnhue.hydro.domain.StationDisplayStatus;
 import com.songnhue.hydro.domain.TongHopKyRow;
+import com.songnhue.hydro.domain.TuyenSongRow;
 import com.songnhue.hydro.infra.HydroReportRepository;
 import com.songnhue.hydro.infra.MeasurementTypeRepository;
 import com.songnhue.hydro.infra.StationRepository;
@@ -66,17 +79,120 @@ public class HydroReportService {
     private final HydroReportRepository kho;
     private final StationRepository diemDo;
     private final MeasurementTypeRepository loaiChiSo;
+    private final ConstructionLookupPort congTrinh;
     private final HydroSettings thamSo;
 
     public HydroReportService(
             HydroReportRepository kho,
             StationRepository diemDo,
             MeasurementTypeRepository loaiChiSo,
+            ConstructionLookupPort congTrinh,
             HydroSettings thamSo) {
         this.kho = kho;
         this.diemDo = diemDo;
         this.loaiChiSo = loaiChiSo;
+        this.congTrinh = congTrinh;
         this.thamSo = thamSo;
+    }
+
+    /**
+     * ⭐⭐ BC-11 — biểu tổng hợp mực nước theo tuyến sông (T34.4).
+     *
+     * <p>⛔ Điểm đo ⛔ <b>không bao giờ</b> bị lọc bỏ khỏi biểu: một trạm mất tín hiệu là đúng thứ
+     * một biểu tổng hợp vận hành sinh ra để chỉ ra. Ô số liệu khi ấy rỗng <b>kèm lý do</b>, và
+     * {@code trangThaiTinHieu} nói ra <i>loại</i> im lặng (chưa từng có / đã ngừng / mất tín hiệu) —
+     * ba tình huống cần ba hành động khác nhau.
+     *
+     * <p>⭐ Đây là <b>lời gọi production đầu tiên</b> của {@link StationDisplayStatus#suyRa} kể từ
+     * WS-28: hàm ấy có 6 bài kiểm mà ⛔ không nơi nào gọi (nợ T28.20, luật 27 — nửa cặp đọc–ghi
+     * trông y hệt cả cặp).
+     */
+    @Transactional(readOnly = true)
+    public BieuTuyenSongView bieuTuyenSong(LocalDate ngay) {
+        List<TuyenSongRow> hang = kho.tuyenSong(ngay);
+        Map<Long, Long> congTrinhCuaDiemDo = kho.congTrinhChinhCuaDiemDo();
+        Map<Long, TinhHinhVanHanhRef> tinhHinh = congTrinh.tinhHinhHienHanh(congTrinhCuaDiemDo.values());
+
+        Instant bayGio = Instant.now();
+        Duration khung = thamSo.khungNguon();
+        int soKhungMat = thamSo.soKhungMatTinHieu();
+
+        // ⚠ LinkedHashMap: thứ tự nhóm phải giữ nguyên thứ tự SQL đã sắp (tuyến, rồi lý trình).
+        //   Một `HashMap` ở đây làm thứ tự tuyến sông đổi giữa hai lượt tải — trên màn hình tường
+        //   thì đó là cả biểu nhảy chỗ mỗi 5 phút.
+        Map<String, List<DiemDoTuyenView>> theoTuyen = new LinkedHashMap<>();
+        for (TuyenSongRow r : hang) {
+            theoTuyen
+                    .computeIfAbsent(r.nhomTuyen(), k -> new ArrayList<>())
+                    .add(dungDiemDo(r, congTrinhCuaDiemDo, tinhHinh, bayGio, khung, soKhungMat));
+        }
+
+        List<NhomTuyenView> tuyen = theoTuyen.entrySet().stream()
+                .map(e -> new NhomTuyenView(e.getKey(), TuyenSongRow.CHUA_PHAN_TUYEN.equals(e.getKey()), e.getValue()))
+                .toList();
+        return new BieuTuyenSongView(ngay, tuyen);
+    }
+
+    private static DiemDoTuyenView dungDiemDo(
+            TuyenSongRow r,
+            Map<Long, Long> congTrinhCuaDiemDo,
+            Map<Long, TinhHinhVanHanhRef> tinhHinh,
+            Instant bayGio,
+            Duration khung,
+            int soKhungMat) {
+
+        StationDisplayStatus tinHieu =
+                StationDisplayStatus.suyRa(r.active(), r.lastSeenAt(), bayGio, khung, soKhungMat);
+
+        String lyDo = null;
+        if (r.validValue() == null) {
+            lyDo = switch (tinHieu) {
+                case NGUNG -> "Điểm đo đã ngừng sử dụng";
+                case CHUA_CO_DU_LIEU -> "Chưa có số đo nào";
+                case MAT_TIN_HIEU -> "Mất tín hiệu — chưa có số đo hợp lệ nào";
+                case HOAT_DONG -> "Trạm đang phát nhưng chưa có số đo HỢP LỆ nào";
+            };
+        }
+
+        Long idCongTrinh = congTrinhCuaDiemDo.get(r.stationId());
+        TinhHinhVanHanhRef th = idCongTrinh == null ? null : tinhHinh.get(idCongTrinh);
+        String lyDoTinhHinh = th != null
+                ? null
+                : idCongTrinh == null
+                        ? "Điểm đo chưa liên kết công trình nào"
+                        : "Công trình chưa được ghi nhận tình hình vận hành lần nào";
+
+        return new DiemDoTuyenView(
+                r.stationCode(),
+                r.stationName(),
+                r.positionRole(),
+                r.chainage(),
+                r.measurementTypeCode(),
+                r.measurementTypeName(),
+                r.unit(),
+                r.validValue(),
+                r.validMeasuredAt(),
+                r.lastSeenAt(),
+                r.minNgay(),
+                r.maxNgay(),
+                r.soBanGhiNgay(),
+                tinHieu.name(),
+                lyDo,
+                // ⛔⛔ Lượng mưa LUÔN rỗng hôm nay và đó là câu trả lời ĐÚNG: loại chỉ số lượng mưa
+                //    đã seed nhưng ⛔ CHƯA gắn cho điểm đo nào (G3-a). Trả 0 ở đây là khẳng định
+                //    "trời không mưa" — một câu về thời tiết mà ta ⛔ không có nguồn nào để nói.
+                null,
+                "Chưa có nguồn lượng mưa (mục G3-a)",
+                th == null
+                        ? null
+                        : new TinhHinhVanHanhView(
+                                th.maTinhHinh(),
+                                th.tenTinhHinh(),
+                                th.mauTinhHinh(),
+                                th.thamSo(),
+                                th.donViThamSo(),
+                                th.hieuLucTu()),
+                lyDoTinhHinh);
     }
 
     /**

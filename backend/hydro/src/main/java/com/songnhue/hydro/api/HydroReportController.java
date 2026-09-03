@@ -22,6 +22,7 @@ import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.ConflictException;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
 import com.songnhue.core.common.security.RequirePermission;
+import com.songnhue.core.common.util.DateTimeUtils;
 import com.songnhue.core.common.util.PageUtils;
 import com.songnhue.core.spi.JobPort;
 import com.songnhue.core.spi.JobRef;
@@ -29,6 +30,7 @@ import com.songnhue.core.spi.JobRequest;
 import com.songnhue.core.spi.ReportFilePort;
 import com.songnhue.hydro.api.HydroReportDtos.BaoCaoDongBoView;
 import com.songnhue.hydro.api.HydroReportDtos.BaoCaoTongHopView;
+import com.songnhue.hydro.api.HydroReportDtos.BieuTuyenSongView;
 import com.songnhue.hydro.api.HydroReportDtos.ChiTietSoDoView;
 import com.songnhue.hydro.application.HydroJobTypes;
 import com.songnhue.hydro.application.HydroReportExportHandler;
@@ -151,6 +153,28 @@ public class HydroReportController {
             @RequestParam(required = false) Integer size) {
         return baoCao.chiTiet(
                 stationPublicId, maLoaiChiSo, tuNgay, denNgay, PageUtils.toPageable(page, size, null, Set.of()));
+    }
+
+    /**
+     * BC-11 — T34.4.
+     *
+     * <p>⭐ Cùng dữ liệu này nuôi <b>hai</b> nơi: trang báo cáo và <b>màn hình tường 4K</b>. Làm một
+     * lần dùng hai nơi là yêu cầu nguyên văn của T34.4 — dựng một endpoint thứ hai cho wall mode là
+     * mở đường cho hai con số khác nhau về cùng một mực nước.
+     *
+     * <p>⚠ ⛔ Không nhận khoảng ngày: biểu này là <b>ảnh chụp hiện tại</b> (giá trị mới nhất) cộng
+     * min/max <i>trong ngày</i>. Một "biểu tổng hợp" trải nhiều ngày thì cột "mực nước hiện tại"
+     * ⛔ không còn nghĩa gì.
+     */
+    @GetMapping("/tuyen-song")
+    @RequirePermission("hyd:report:view")
+    @Operation(
+            summary = "BC-11 — biểu tổng hợp mực nước theo tuyến sông (dùng chung với màn hình tường 4K)",
+            description = "Điểm đo mất tín hiệu VẪN có mặt, ô số liệu rỗng kèm lý do — đó là thứ biểu này "
+                    + "sinh ra để chỉ ra. Lượng mưa luôn rỗng (mục G3-a chưa có nguồn), ⛔ không trả 0")
+    public BieuTuyenSongView tuyenSong(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate ngay) {
+        return baoCao.bieuTuyenSong(ngay == null ? LocalDate.now(DateTimeUtils.ZONE_VN) : ngay);
     }
 
     // =========================================================================

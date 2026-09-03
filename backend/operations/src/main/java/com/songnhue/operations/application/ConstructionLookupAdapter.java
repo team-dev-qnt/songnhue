@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
 import com.songnhue.core.spi.ConstructionLookupPort;
 import com.songnhue.core.spi.ConstructionRef;
+import com.songnhue.core.spi.TinhHinhVanHanhRef;
 import com.songnhue.operations.domain.Construction;
 import com.songnhue.operations.infra.ConstructionRepository;
 
@@ -43,10 +44,15 @@ public class ConstructionLookupAdapter implements ConstructionLookupPort {
 
     private final ConstructionService constructions;
     private final ConstructionRepository repository;
+    private final PublicOperationStatusService tinhHinh;
 
-    public ConstructionLookupAdapter(ConstructionService constructions, ConstructionRepository repository) {
+    public ConstructionLookupAdapter(
+            ConstructionService constructions,
+            ConstructionRepository repository,
+            PublicOperationStatusService tinhHinh) {
         this.constructions = constructions;
         this.repository = repository;
+        this.tinhHinh = tinhHinh;
     }
 
     @Override
@@ -93,5 +99,56 @@ public class ConstructionLookupAdapter implements ConstructionLookupPort {
                 c.getName(),
                 c.getOrgUnitId(),
                 c.getLifecycleState() == null ? null : c.getLifecycleState().name());
+    }
+
+    /**
+     * ⭐⭐ Dùng lại {@code PublicOperationStatusService.hienHanh()} — <b>MỘT</b> định nghĩa "hiện
+     * hành", ⛔ không hai.
+     *
+     * <p>Viết một câu truy vấn thứ hai ở đây sẽ nhanh hơn và sẽ <b>lệch</b>: định nghĩa hiện hành
+     * là <i>bản ghi có {@code effective_at} lớn nhất mà ⛔ không ở tương lai</i>, và mỗi lần một
+     * người viết lại nó thì một trong hai vế bị quên. Hệ quả đo được sẽ là cổng công khai nói cống
+     * đang mở trong khi biểu tổng hợp nói đang đóng — cùng thời điểm, hai màn hình.
+     *
+     * <p>⚠ Cái giá: {@code hienHanh()} duyệt <b>toàn bộ</b> danh mục công trình chứ ⛔ không lọc
+     * theo {@code constructionIds}. Chấp nhận có chủ đích ở quy mô hôm nay (danh mục còn chờ G8, và
+     * BC-11 là một bảng làm mới theo phút, ⛔ không phải một endpoint nóng). ⬜ Khi danh mục vượt
+     * ~200 công trình thì việc phải làm là đổi <b>chính {@code hienHanh()}</b> sang
+     * {@code DISTINCT ON} — ⛔ không phải thêm một câu truy vấn thứ hai ở đây.
+     *
+     * <p>⚠ Khoá trả về là <b>id nội bộ</b> vì nơi gọi ({@code hydro}) chỉ có
+     * {@code station_constructions.construction_id}. Ánh xạ mã → id đi qua repository ở đây, ⛔
+     * không bắt {@code hydro} chạm bảng {@code constructions} (quy tắc 6).
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Map<Long, TinhHinhVanHanhRef> tinhHinhHienHanh(Collection<Long> constructionIds) {
+        if (constructionIds == null || constructionIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Long> idTheoMa = new HashMap<>();
+        for (Construction c : repository.findAllById(constructionIds)) {
+            idTheoMa.put(c.getCode(), c.getId());
+        }
+        if (idTheoMa.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<Long, TinhHinhVanHanhRef> ket = new HashMap<>();
+        for (PublicOperationStatusService.OperationStatusRow r : tinhHinh.hienHanh()) {
+            Long id = idTheoMa.get(r.constructionCode());
+            if (id != null) {
+                ket.put(
+                        id,
+                        new TinhHinhVanHanhRef(
+                                r.statusCode(),
+                                r.statusName(),
+                                r.statusColor(),
+                                r.parameterValue(),
+                                r.parameterUnit(),
+                                r.effectiveAt() == null ? null : r.effectiveAt().toInstant()));
+            }
+        }
+        return ket;
     }
 }

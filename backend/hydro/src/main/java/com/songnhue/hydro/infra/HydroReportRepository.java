@@ -12,6 +12,7 @@ import com.songnhue.hydro.domain.ChatLuongNgayRow;
 import com.songnhue.hydro.domain.ChiTietSoDoRow;
 import com.songnhue.hydro.domain.DongBoNgayRow;
 import com.songnhue.hydro.domain.TongHopKyRow;
+import com.songnhue.hydro.domain.TuyenSongRow;
 
 /**
  * Truy vấn nuôi báo cáo thuỷ văn — WS-34.
@@ -187,6 +188,66 @@ public class HydroReportRepository {
             """;
 
     /**
+     * ⭐⭐ BC-11 — biểu tổng hợp theo tuyến sông. T34.4.
+     *
+     * <h3>⚠⚠ {@code quality = 'HOP_LE'} ở mệnh đề {@code ON}, cùng lý do với BC-05</h3>
+     *
+     * <p>Đẩy xuống {@code WHERE} biến {@code LEFT JOIN} thành {@code INNER JOIN}, và khi ấy đúng
+     * những điểm đo <b>đang mất tín hiệu</b> — thứ mà một biểu tổng hợp vận hành sinh ra để chỉ ra —
+     * biến mất khỏi bảng.
+     *
+     * <h3>⭐ Đọc {@code hydro_latest}, ⛔ không đọc bản ghi mới nhất của {@code hydro_readings}</h3>
+     *
+     * <p>{@code hydro_latest} tách sẵn <b>hai</b> mốc khác nhau và đó là toàn bộ giá trị của nó:
+     * {@code valid_*} là <i>giá trị hợp lệ gần nhất</i> (thứ hiện lên bảng), còn {@code last_seen_at}
+     * là <i>bản ghi gần nhất bất kể chất lượng</i> (thứ trả lời "trạm còn phát tín hiệu không").
+     * Gộp hai câu hỏi ấy vào một cột là dựng ra một trạm mất tín hiệu giả cho mỗi trạm chỉ đang trả
+     * số đáng ngờ.
+     *
+     * <p>⚠ Sắp theo {@code chainage_m} — lý trình, tức <b>thứ tự dọc tuyến sông</b>. Đó là thứ tự
+     * người vận hành đọc: thượng lưu trước, hạ lưu sau. ⛔ Sắp theo tên là sắp theo bảng chữ cái,
+     * và một tuyến sông ⛔ không chảy theo bảng chữ cái. {@code NULLS LAST} vì lý trình chờ G8.
+     */
+    private static final String SQL_TUYEN_SONG =
+            """
+            SELECT s.id AS station_id, s.code AS station_code, s.name AS station_name,
+                   s.river_name, s.chainage, s.chainage_m, s.position_role, s.active,
+                   m.code AS type_code, m.name AS type_name, m.unit,
+                   l.valid_value, l.valid_measured_at, l.last_seen_at,
+                   a.min_value AS min_ngay, a.max_value AS max_ngay,
+                   a.reading_count AS so_ban_ghi_ngay
+              FROM station_measurement_types smt
+              JOIN stations s ON s.id = smt.station_id AND s.deleted_at IS NULL
+              JOIN measurement_types m ON m.id = smt.measurement_type_id AND m.deleted_at IS NULL
+              LEFT JOIN hydro_latest l
+                     ON l.station_id = s.id AND l.measurement_type_id = m.id
+              LEFT JOIN hydro_agg_daily a
+                     ON a.station_id = s.id
+                    AND a.measurement_type_id = m.id
+                    AND a.agg_date = ?
+                    AND a.quality = 'HOP_LE'
+             ORDER BY s.river_name NULLS LAST, s.chainage_m NULLS LAST, s.code, m.code
+            """;
+
+    /**
+     * Công trình mà mỗi điểm đo trỏ tới — để BC-11 hiện được cột <i>tình hình vận hành</i>.
+     *
+     * <p>⛔ Câu này dừng ở {@code construction_id}: nó ⛔ <b>không</b> đọc một cột nào của bảng
+     * {@code constructions} (quy tắc 6 — module ⛔ không chạm bảng của module khác). Tình hình vận
+     * hành lấy qua {@code core.spi.ConstructionLookupPort}.
+     *
+     * <p>⚠ {@code is_primary} quyết định công trình nào được hiện khi một điểm đo nối nhiều công
+     * trình — hạ lưu của cống này đồng thời là thượng lưu của cống kế tiếp là chuyện bình thường
+     * trên một tuyến kênh.
+     */
+    private static final String SQL_CONG_TRINH_CUA_DIEM_DO =
+            """
+            SELECT station_id, construction_id
+              FROM station_constructions
+             WHERE deleted_at IS NULL AND is_primary
+            """;
+
+    /**
      * ⭐ BC-12 — chi tiết theo yêu cầu. T34.6.
      *
      * <h3>⚠⚠ Ngoại lệ hợp lệ DUY NHẤT của quy tắc 8 — và của quy tắc 14</h3>
@@ -274,6 +335,39 @@ public class HydroReportRepository {
                 Date.valueOf(denNgay),
                 stationId,
                 stationId);
+    }
+
+    public List<TuyenSongRow> tuyenSong(LocalDate ngay) {
+        return jdbc.query(
+                SQL_TUYEN_SONG,
+                (rs, i) -> new TuyenSongRow(
+                        rs.getLong("station_id"),
+                        rs.getString("station_code"),
+                        rs.getString("station_name"),
+                        rs.getString("river_name"),
+                        rs.getString("chainage"),
+                        (Integer) rs.getObject("chainage_m"),
+                        rs.getString("position_role"),
+                        rs.getBoolean("active"),
+                        rs.getString("type_code"),
+                        rs.getString("type_name"),
+                        rs.getString("unit"),
+                        rs.getBigDecimal("valid_value"),
+                        moc(rs, "valid_measured_at"),
+                        moc(rs, "last_seen_at"),
+                        rs.getBigDecimal("min_ngay"),
+                        rs.getBigDecimal("max_ngay"),
+                        rs.getInt("so_ban_ghi_ngay")),
+                Date.valueOf(ngay));
+    }
+
+    /** @return điểm đo → công trình CHÍNH của nó; điểm đo chưa liên kết ⛔ không có mặt */
+    public java.util.Map<Long, Long> congTrinhChinhCuaDiemDo() {
+        java.util.Map<Long, Long> ket = new java.util.LinkedHashMap<>();
+        jdbc.query(SQL_CONG_TRINH_CUA_DIEM_DO, rs -> {
+            ket.put(rs.getLong("station_id"), rs.getLong("construction_id"));
+        });
+        return ket;
     }
 
     public List<TongHopKyRow> tongHopKy(LocalDate tuNgay, LocalDate denNgay, Long stationId) {

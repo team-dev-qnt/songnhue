@@ -1364,6 +1364,64 @@ export interface SyncDailyRow {
   hongGanNhat: string | null;
 }
 
+/** Trạng thái hiển thị của một điểm đo — suy ra ở backend từ `stations.active` + mốc bản ghi cuối. */
+export type StationSignalStatus = 'HOAT_DONG' | 'MAT_TIN_HIEU' | 'CHUA_CO_DU_LIEU' | 'NGUNG';
+
+/** BC-11 — tình hình vận hành của công trình mà điểm đo thuộc về. */
+export interface RiverOperationStatus {
+  ma: string;
+  ten: string;
+  /** ⛔ Màu đến TỪ DỮ LIỆU (danh mục mã có CRUD, chốt G4) — FE ⛔ không giữ bảng ánh xạ mã → màu. */
+  mau: string;
+  thamSo: string | null;
+  donViThamSo: string | null;
+  hieuLucTu: string | null;
+}
+
+/**
+ * BC-11 — một điểm đo trên biểu tổng hợp theo tuyến sông.
+ *
+ * ⛔⛔ Ba ô có thể rỗng và **ba lý do khác nhau**, mỗi ô có trường lý do riêng bên cạnh:
+ * `lyDoTrong` (chưa có số đo / đã ngừng), `lyDoLuongMua` (**luôn** rỗng — G3-a chưa có nguồn),
+ * `lyDoTinhHinh` (chưa liên kết công trình / chưa ghi nhận lần nào). ⛔ Đừng `?? 0` ô nào.
+ *
+ * ⚠ `mocDo` là mốc của giá trị **hợp lệ**; `mocTinHieu` là bản ghi gần nhất **bất kể chất lượng**.
+ * Hai mốc ấy khác nhau chính là cách phân biệt "trạm chết" với "trạm đang trả số đáng ngờ".
+ */
+export interface RiverStationRow {
+  stationCode: string;
+  stationName: string;
+  positionRole: string;
+  chainage: string | null;
+  measurementTypeCode: string;
+  measurementTypeName: string;
+  unit: string;
+  giaTri: string | null;
+  mocDo: string | null;
+  mocTinHieu: string | null;
+  minNgay: string | null;
+  maxNgay: string | null;
+  soBanGhiNgay: number;
+  trangThaiTinHieu: StationSignalStatus;
+  lyDoTrong: string | null;
+  luongMua: string | null;
+  lyDoLuongMua: string | null;
+  tinhHinhVanHanh: RiverOperationStatus | null;
+  lyDoTinhHinh: string | null;
+}
+
+export interface RiverGroup {
+  tenTuyen: string;
+  /** ⬜ `true` khi nhóm là nơi tạm của điểm đo chưa khai tuyến sông (mục G8). */
+  chuaPhanTuyen: boolean;
+  diemDo: RiverStationRow[];
+}
+
+export interface RiverBoardReport {
+  ngay: string;
+  tuyen: RiverGroup[];
+}
+
 /**
  * BC-05 — một hàng tổng hợp kỳ.
  *
