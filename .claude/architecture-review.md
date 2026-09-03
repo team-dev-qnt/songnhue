@@ -5260,3 +5260,46 @@ lỗi cũ (`grep -c 'còn đang chạy'` = 0) ⇒ tái hiện **nguyên văn** `
 dấu phẩy). Lượt chạy đầu báo `MÃ THOÁT THẬT = 0` trong khi lớp kiểm mới **chưa từng chạy** — chỉ phép
 đếm số tệp báo cáo (`ls … | wc -l`, cần = 2) mới nói ra. Luật 7 ở dạng công cụ: một bộ chọn không
 khớp gì cũng cho ra một lượt chạy xanh trọn vẹn.
+
+### §10.73 — Một bộ canh hỏng vì kho LỚN LÊN, không vì mã sai (3/9)
+
+**Triệu chứng.** `./mvnw clean verify` ở máy: **MÃ THOÁT 0 · 1201 test · 7/7 module SUCCESS**. Đẩy
+đúng cây ấy lên CI: job *Backend — build, lint, test* **ĐỎ**, một lỗi duy nhất —
+`QualityFilterGuardTest.ngoaiLeKhongDuocMoCoi » StackOverflow`, cùng 654 bài `app` chạy ở cả hai nơi.
+
+**Nguyên nhân gốc.** Bộ canh bóc chuỗi SQL trong mã Java bằng regex:
+
+```java
+"\"(?:[^\"\\\\]|\\\\.)*\""
+```
+
+Java thực thi một `*` bọc quanh **nhóm có lựa chọn** bằng **đệ quy** — mỗi ký tự của literal là một
+khung stack. Đo trên kho ngày 3/9: literal dài nhất trong `src/main` là **1521 ký tự**
+(`HydroTimeSeriesWriter`), tức hơn một nghìn năm trăm khung cho **một** lần khớp, cộng khung của
+JUnit/Surefire bên dưới. Cùng một cây mã: mặc định macOS **xanh**, `-Xss512k` **đỏ**.
+
+**⛔ Vì sao đây là một LỚP lỗi riêng, không phải một con bọ.** Bộ canh này *không hỏng vì nó sai*. Nó
+hỏng vì **kho lớn lên**. Ngưỡng nằm ở tổng độ sâu stack, nên nó trôi mỗi khi có người viết thêm một
+câu SQL dài — hoặc thậm chí chỉ thêm bài kiểm làm đổi thứ tự nạp và trạng thái JIT. Cái literal 1521
+ký tự **đã có từ WS-30**, và lượt CI xanh gần nhất của nhánh cũng có nó.
+
+⇒ Câu hỏi *"commit nào làm hỏng?"* là **câu hỏi sai** ở đây; `git bisect` sẽ chỉ vào một commit vô
+can. Hình dạng đúng là: **một cổng kiểm tự tắt vào một ngày không ai đoán trước**, và nó tắt bằng
+`Error` chứ không bằng một khẳng định đỏ — cùng họ với luật 31 (*thứ nguy hiểm là sự vắng mặt*), chỉ
+khác là ở đây sự vắng mặt tới **theo lịch của kích thước kho**.
+
+**⭐ Câu trả lời đã nằm sẵn trong chính tệp ấy.** Hàm `boChuThichJava()` ngay bên trên là một **bộ
+quét ký tự viết tay** — nó phải viết tay vì đúng lý do này. Hàm anh em bóc literal thì vẫn dùng
+regex. Bài học rộng hơn con bọ: **khi một hàm trong tệp được viết tay để né một cơ chế, hàm anh em
+vẫn dùng cơ chế ấy là một khoản nợ, không phải một lựa chọn phong cách.**
+
+**Vá.** Thay regex bằng vòng lặp phẳng `O(n)`, **0 đệ quy**, cùng idiom với `boChuThichJava`:
+`literalTrong()` trả về vị trí + nội dung từng literal, rồi `chiCoMotDauCong()` gộp các literal nối
+bằng `+` thành một câu (từng mảnh rời thì `CO_VE_LA_SQL` không nhận ra), và `tenHangNgayTruoc()` tra
+ngược tên hằng trên **160 ký tự** đứng trước — một cửa sổ có biên, không phải một mẫu chạy suốt tệp.
+
+**Nghiệm thu.** Chạy lại **cả module `app`** ở đúng mức `-Xss512k` từng làm đỏ. ⚠ Không nghiệm thu
+bằng `-Dtest=QualityFilterGuardTest`: bộ chọn ấy trả `Tests run: **0**` mà Maven vẫn thoát 0 — lớp
+có `@Nested` nên bộ lọc không bắt được lớp lồng. Đúng luật 32 ở dạng đã gặp ở §10.72, chỉ đổi nguyên
+nhân: lần trước là cú pháp `A+B` sai, lần này là lớp lồng. ⇒ **Với bất kỳ lớp nào có `@Nested`, phép
+đo tin được là chạy cả module rồi đếm `Tests run`, không phải mã thoát của một lượt `-Dtest`.**

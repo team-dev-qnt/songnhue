@@ -128,6 +128,8 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 | 3/9 | **phép kiểm bảo mật duy nhất canh bản dump thoát 0 ở mọi lượt triển khai từ 26/8** — VPS không cài `postgresql-client`, nhánh thiếu công cụ `exit 0` | T11.41 |
 | 3/9 | **`MigrationTest` khẳng định `applied >= 9` trong khi kho có 47 migration** — ngưỡng đi lọt gần như mọi mức hỏng, kể cả Flyway chỉ áp được một phần | T11.72 |
 | 3/9 | **`CVE-2026-59283` (9.1) chỉ còn một MẶC ĐỊNH của framework chặn nó** — `spring.expression.compiler.mode` không được khai ở bất kỳ đâu trong kho | T11.73 |
+| 3/9 | **`clean verify` ở máy xanh trọn vẹn (1201 test), CI đỏ ngay bài đầu** — regex của một bộ canh đệ quy **một khung stack mỗi ký tự**; nó hỏng vì **kho lớn lên**, không vì mã sai, nên `git bisect` chỉ vào commit vô can | §10.73 |
+| 3/9 | **`-Dtest=<Lớp>` in `Tests run: 0` mà Maven thoát 0** — lớp có `@Nested`; dòng tóm tắt `.txt` của surefire ghi 0 trong khi XML liệt đủ **12** `<testcase>` | §10.73 |
 
 ⛔ Hệ quả rút ra: **"đã tick" không phải bằng chứng.** Trước khi mở một giai đoạn mới, đối chiếu với mã thật và chạy đường mà người dùng thật đi.
 

@@ -242,20 +242,105 @@ class QualityFilterGuardTest {
     static List<CauSql> cauTrongJava(String tenLop, String ma) {
         String sach = boChuThichJava(ma);
         List<CauSql> ket = new ArrayList<>();
-        Matcher hang = Pattern.compile(
-                        "(?:static\\s+final\\s+String\\s+(\\w+)\\s*=)?"
-                                + "\\s*(\"\"\"[\\s\\S]*?\"\"\"|\"(?:[^\"\\\\]|\\\\.)*\"(?:\\s*\\+\\s*\"(?:[^\"\\\\]|\\\\.)*\")*)")
-                .matcher(sach);
-        while (hang.find()) {
-            String ten = hang.group(1);
-            String noiDung =
-                    hang.group(2).replace("\"\"\"", "").replace("\"", "").replace("+", " ");
-            if (!CO_VE_LA_SQL.matcher(noiDung).find()) {
-                continue;
+        List<Literal> chuoi = literalTrong(sach);
+
+        int i = 0;
+        while (i < chuoi.size()) {
+            // Gộp chuỗi nối bằng `+` thành MỘT câu: `"SELECT ... " + "FROM x WHERE ..."` chỉ là
+            // một câu SQL bị xuống dòng, và từng mảnh rời thì `CO_VE_LA_SQL` không nhận ra.
+            int j = i;
+            StringBuilder gom = new StringBuilder(chuoi.get(i).noiDung());
+            while (j + 1 < chuoi.size()
+                    && chiCoMotDauCong(
+                            sach, chuoi.get(j).ketThuc(), chuoi.get(j + 1).batDau())) {
+                gom.append(' ').append(chuoi.get(j + 1).noiDung());
+                j++;
             }
-            ket.add(new CauSql(tenLop + "#" + (ten == null ? "inline" : ten), noiDung));
+            String noiDung = gom.toString();
+            if (CO_VE_LA_SQL.matcher(noiDung).find()) {
+                String ten = tenHangNgayTruoc(sach, chuoi.get(i).batDau());
+                ket.add(new CauSql(tenLop + "#" + (ten == null ? "inline" : ten), noiDung));
+            }
+            i = j + 1;
         }
         return ket;
+    }
+
+    /** Một literal chuỗi trong mã Java, kèm vị trí để biết cái nào đứng cạnh cái nào. */
+    private record Literal(int batDau, int ketThuc, String noiDung) {}
+
+    /**
+     * ⚠⚠ <b>Bóc literal bằng BỘ QUÉT KÝ TỰ, không bằng regex — §10.73.</b>
+     *
+     * <p>Bản trước dùng {@code "(?:[^"\\]|\\.)*"}. Trong Java, một {@code *} bọc quanh <b>nhóm có
+     * lựa chọn</b> được thực thi bằng <b>đệ quy</b>: mỗi ký tự của literal là một khung stack. Kho
+     * này có một literal dài <b>1521 ký tự</b> ({@code HydroTimeSeriesWriter}) ⇒ hơn một nghìn năm
+     * trăm khung chỉ cho một lần khớp, cộng khung của JUnit/Surefire bên dưới.
+     *
+     * <p>⛔ Hệ quả là bộ canh <b>mong manh theo kích thước kho</b> chứ không theo tính đúng đắn: nó
+     * xanh ở máy (stack lớn) và ném {@code StackOverflowError} trên runner CI, và ngưỡng ấy trôi
+     * mỗi khi có người viết thêm một câu SQL dài. Đo được ngày 3/9/2026: cùng một cây mã, mặc định
+     * ở macOS thì xanh, {@code -Xss512k} thì đỏ. ⚠ Nó <b>không hỏng vì sai</b> — nó hỏng vì kho lớn
+     * lên, tức là một cổng kiểm sẽ tự tắt vào một ngày không ai đoán trước.
+     *
+     * <p>Bộ quét dưới đây chạy <b>vòng lặp phẳng, O(n), 0 đệ quy</b> — cùng idiom với
+     * {@link #boChuThichJava(String)} ngay trong tệp này, thứ vốn đã phải viết tay vì cùng lý do.
+     */
+    private static List<Literal> literalTrong(String ma) {
+        List<Literal> ket = new ArrayList<>();
+        int i = 0;
+        while (i < ma.length()) {
+            char c = ma.charAt(i);
+            if (ma.startsWith("\"\"\"", i)) {
+                int het = ma.indexOf("\"\"\"", i + 3);
+                int cuoi = het < 0 ? ma.length() : het + 3;
+                ket.add(new Literal(i, cuoi, ma.substring(i + 3, Math.max(i + 3, cuoi - 3))));
+                i = cuoi;
+            } else if (c == '"') {
+                StringBuilder than = new StringBuilder();
+                int j = i + 1;
+                while (j < ma.length() && ma.charAt(j) != '"') {
+                    if (ma.charAt(j) == '\\' && j + 1 < ma.length()) {
+                        than.append(ma.charAt(j + 1));
+                        j += 2;
+                    } else {
+                        than.append(ma.charAt(j));
+                        j++;
+                    }
+                }
+                int cuoi = Math.min(j + 1, ma.length());
+                ket.add(new Literal(i, cuoi, than.toString()));
+                i = cuoi;
+            } else {
+                i++;
+            }
+        }
+        return ket;
+    }
+
+    /** Giữa hai literal chỉ có khoảng trắng và ĐÚNG MỘT dấu {@code +} ⇒ chúng là một câu bị nối. */
+    private static boolean chiCoMotDauCong(String ma, int tu, int den) {
+        boolean thayCong = false;
+        for (int k = tu; k < den; k++) {
+            char c = ma.charAt(k);
+            if (c == '+') {
+                if (thayCong) {
+                    return false;
+                }
+                thayCong = true;
+            } else if (!Character.isWhitespace(c)) {
+                return false;
+            }
+        }
+        return thayCong;
+    }
+
+    /** Tên hằng khai ngay trước literal, để tên nguồn đọc được là {@code Lớp#TEN_HANG}. */
+    private static final Pattern TEN_HANG_TRUOC = Pattern.compile("static\\s+final\\s+String\\s+(\\w+)\\s*=\\s*$");
+
+    private static String tenHangNgayTruoc(String ma, int viTri) {
+        Matcher m = TEN_HANG_TRUOC.matcher(ma.substring(Math.max(0, viTri - 160), viTri));
+        return m.find() ? m.group(1) : null;
     }
 
     /** Tách một tệp migration thành các câu, ⚠ ⛔ không cắt bên trong khối {@code $$ … $$}. */
