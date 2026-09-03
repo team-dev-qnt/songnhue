@@ -75,10 +75,11 @@ public class HydroReviewService {
     private final StationRepository stations;
     private final HydroSettings settings;
     private final WorkflowPort workflow;
+    private final NguongAlertService nguongAlert;
 
-    // CHECKSTYLE.OFF: ParameterNumber - 7 cộng tác viên là số BƯỚC của một lượt duyệt (nạp · liệt kê
-    // · dựng lại latest · tra loại chỉ số · tra điểm đo · đọc quy tắc · máy trạng thái). Gom bừa vào
-    // một facade chỉ giấu số đó đi mà không giảm một phụ thuộc nào.
+    // CHECKSTYLE.OFF: ParameterNumber - 8 cộng tác viên là số BƯỚC của một lượt duyệt (nạp · liệt kê
+    // · dựng lại latest · tra loại chỉ số · tra điểm đo · đọc quy tắc · máy trạng thái · đánh giá
+    // ngưỡng). Gom bừa vào một facade chỉ giấu số đó đi mà không giảm một phụ thuộc nào.
     public HydroReviewService(
             HydroReadingRepository readings,
             SuspectReadingRepository danhSach,
@@ -86,7 +87,8 @@ public class HydroReviewService {
             MeasurementTypeRepository loaiChiSo,
             StationRepository stations,
             HydroSettings settings,
-            WorkflowPort workflow) {
+            WorkflowPort workflow,
+            NguongAlertService nguongAlert) {
         // CHECKSTYLE.ON: ParameterNumber
         this.readings = readings;
         this.danhSach = danhSach;
@@ -95,6 +97,7 @@ public class HydroReviewService {
         this.stations = stations;
         this.settings = settings;
         this.workflow = workflow;
+        this.nguongAlert = nguongAlert;
     }
 
     // ------------------------------------------------------------------ đọc
@@ -179,6 +182,21 @@ public class HydroReviewService {
         //   đúng dòng latest mà ta vừa muốn sửa — một lượt "cập nhật" không đổi gì, im lặng.
         readings.flush();
         boolean conDuLieu = latest.dungLai(banGhi.getStationId(), banGhi.getMeasurementTypeId());
+
+        // ⭐ Bước 4 — WS-33 / T33.5: đường ghi THỨ BA của một số đo hợp lệ.
+        // ⚠⚠ Đây là đường dễ quên nhất trong ba, vì nó ⛔ không INSERT gì cả — nó chỉ đổi một cột
+        //    `quality`. Nhưng hệ quả thì y hệt: một giá trị trước đây bị quy tắc 14 loại ra khỏi mọi
+        //    phép tính nay ĐƯỢC TÍNH, và nếu nó vượt ngưỡng thì cảnh báo phải bắn. Bỏ qua chỗ này
+        //    nghĩa là đúng những số đo mà con người đã xem tận mắt và xác nhận là thật thì lại là
+        //    những số đo duy nhất không bao giờ báo động.
+        // ⛔ Đặt SAU `execute` (trạng thái mới đã chốt) và SAU `flush` (câu SQL thuần của máy cảnh
+        //    báo phải đọc được giá trị mới), trong CÙNG giao dịch.
+        nguongAlert.danhGia(
+                banGhi.getStationId(),
+                banGhi.getMeasurementTypeId(),
+                banGhi.getMeasuredAt(),
+                banGhi.getReadingValue(),
+                banGhi.getQuality());
 
         log.info(
                 "Duyệt số đo #{} (điểm đo {}, mốc {}): {} → {}{}",

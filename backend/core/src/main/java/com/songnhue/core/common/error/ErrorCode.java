@@ -144,6 +144,14 @@ public enum ErrorCode {
      * bằng cách <i>trông đúng</i>. Lùi ngày thì vẫn hợp lệ (bù nhật ký), chỉ chặn cận trên.
      */
     OPS_2020("OPS-2020", HttpStatus.UNPROCESSABLE_ENTITY),
+    /**
+     * {@code maintenance_logs.alert_event_public_id} trỏ vào một cảnh báo không tồn tại — T33.4.
+     *
+     * <p>Cột ấy có từ 21/08, có setter, có trường trong form, và ⛔ <b>chưa bao giờ được đối chiếu
+     * với bất cứ thứ gì</b>: một UUID bất kỳ lưu thành công. ⛔ Không chữa bằng khoá ngoại — hai
+     * module không thấy nhau, nên tính toàn vẹn do tầng dịch vụ giữ, qua {@code HydroAlertPort}.
+     */
+    OPS_2021("OPS-2021", HttpStatus.UNPROCESSABLE_ENTITY),
     /** Trạng thái công trình là giá trị dẫn xuất — client sửa trực tiếp là từ chối. */
     OPS_3001("OPS-3001", HttpStatus.FORBIDDEN),
 
@@ -178,6 +186,29 @@ public enum ErrorCode {
      */
     HYD_2006("HYD-2006", HttpStatus.UNPROCESSABLE_ENTITY),
     HYD_2007("HYD-2007", HttpStatus.CONFLICT),
+    /**
+     * Điểm đo đã có ngưỡng cho cùng (loại chỉ số × mức cảnh báo) — T33.2.
+     *
+     * <p>Ứng với {@code ux_alert_rules_bo_ba}. Hai dòng <i>"BĐ I của mực nước tại Liên Mạc"</i> mang
+     * hai con số khác nhau là một câu hỏi không có câu trả lời.
+     */
+    HYD_2009("HYD-2009", HttpStatus.CONFLICT),
+    /**
+     * Xoá một mức cảnh báo đang có ngưỡng trỏ vào — T33.1.
+     *
+     * <p>⛔ Không xoá lan sang {@code alert_rules}: mức cảnh báo là danh mục của Công ty, và xoá nó
+     * âm thầm tắt một loạt ngưỡng ai đó đã cấu hình. Buộc người dùng gỡ ngưỡng trước là buộc họ
+     * <b>nhìn thấy</b> cái mình sắp tắt.
+     */
+    HYD_2010("HYD-2010", HttpStatus.CONFLICT),
+    /**
+     * Đóng/bác bỏ một cảnh báo không còn ở trạng thái đang xảy ra — T33.11.
+     *
+     * <p>Hai người trực cùng mở màn hình lịch sử và cùng bấm "Đã xử lý" là chuyện bình thường; câu
+     * {@code UPDATE … WHERE status = 'DANG_XAY_RA'} trả 0 dòng cho người bấm sau, và người ấy phải
+     * được nói rõ thay vì thấy một thông báo thành công giả.
+     */
+    HYD_2011("HYD-2011", HttpStatus.CONFLICT),
 
     // ---- MOD-04 Nhân sự ---------------------------------------------------------
     HR_2001("HR-2001", HttpStatus.UNPROCESSABLE_ENTITY),

@@ -66,18 +66,21 @@ public class SoDoNhapTayService {
     private final HydroTimeSeriesWriter writer;
     private final HydroLatestRecomputer latest;
     private final HydroSettings settings;
+    private final NguongAlertService nguongAlert;
 
     public SoDoNhapTayService(
             StationRepository stations,
             MeasurementTypeRepository loaiChiSo,
             HydroTimeSeriesWriter writer,
             HydroLatestRecomputer latest,
-            HydroSettings settings) {
+            HydroSettings settings,
+            NguongAlertService nguongAlert) {
         this.stations = stations;
         this.loaiChiSo = loaiChiSo;
         this.writer = writer;
         this.latest = latest;
         this.settings = settings;
+        this.nguongAlert = nguongAlert;
     }
 
     /**
@@ -113,6 +116,14 @@ public class SoDoNhapTayService {
         //   quãng API chết), và lượt UPSERT của poller cố ý không lùi. Dựng lại từ toàn bộ lịch sử
         //   của cặp ấy là đường duy nhất luôn đúng — xem HydroLatestRecomputer.
         latest.dungLai(diemDo.getId(), loai.getId());
+
+        // ⭐ WS-33 / T33.5 — đường ghi THỨ HAI của một số đo hợp lệ, và nó phải đánh giá ngưỡng y
+        //   như đường poller. Một số đo nhập tay lúc API chết là một quan sát THẬT của người trực;
+        //   bỏ qua nó ở đây nghĩa là đúng quãng nguồn hỏng — quãng nguy hiểm nhất — thì cảnh báo
+        //   ngưỡng im lặng tắt.
+        // ⚠ `writeManual` luôn ghi `quality = HOP_LE` (không có cột nào để ghi khác), nên hằng số
+        //   dưới đây ⛔ không phải một giả định: nó là hình dạng của chính câu INSERT.
+        nguongAlert.danhGia(diemDo.getId(), loai.getId(), mocDo, giaTri, ReadingQuality.HOP_LE);
 
         log.info(
                 "Nhập tay số đo #{}: điểm đo {} · {} · mốc {} · {} {} · người nhập {}",

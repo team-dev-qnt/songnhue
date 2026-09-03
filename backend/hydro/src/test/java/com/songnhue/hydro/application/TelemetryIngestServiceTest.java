@@ -97,6 +97,15 @@ class TelemetryIngestServiceTest {
     @Mock
     private ChatLuongSoDoService chatLuong;
 
+    /**
+     * ⚠ Mock BẮT BUỘC từ WS-33: {@code TelemetryIngestService} nay gọi máy cảnh báo ngưỡng bên
+     * trong khối {@code giaoDichGhi} (T33.5). Thiếu {@code @Mock} này thì Mockito tiêm {@code null}
+     * và mọi bài của lớp nổ bằng {@code NullPointerException} — một lỗi hạ tầng bài kiểm, ⛔ không
+     * phải một lỗi nghiệp vụ, tức đúng loại tín hiệu dễ đọc nhầm nhất.
+     */
+    @Mock
+    private NguongAlertService nguongAlert;
+
     @Mock
     private PlatformTransactionManager txManager;
 
@@ -131,7 +140,7 @@ class TelemetryIngestServiceTest {
         when(timeSeries.writeUnmapped(anyList())).thenAnswer(i -> ((List<?>) i.getArgument(0)).size());
 
         service = new TelemetryIngestService(
-                sources, adapters, poller, rawLogs, timeSeries, syncLogs, health, chatLuong, txManager);
+                sources, adapters, poller, rawLogs, timeSeries, syncLogs, health, chatLuong, nguongAlert, txManager);
     }
 
     /** Khoá của mọi dòng trong lô — dùng làm câu trả lời mặc định của {@code writeReadings}. */

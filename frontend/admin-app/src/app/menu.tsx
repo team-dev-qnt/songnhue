@@ -1,4 +1,5 @@
 import {
+  AlertOutlined,
   ApartmentOutlined,
   AppstoreOutlined,
   AuditOutlined,
@@ -20,6 +21,7 @@ import {
   SafetyCertificateOutlined,
   SettingOutlined,
   TeamOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 import { type ReactNode } from 'react';
 
@@ -126,6 +128,29 @@ export const MENU: readonly MenuNode[] = [
         icon: <ExperimentOutlined />,
         path: '/thuy-van/du-lieu-nghi-ngo',
         permissions: ['hyd:measurement:view', 'hyd:measurement:review'],
+      },
+      {
+        key: 'muc-canh-bao',
+        label: 'Mức cảnh báo',
+        icon: <AppstoreOutlined />,
+        path: '/thuy-van/muc-canh-bao',
+        permissions: ['hyd:threshold:view'],
+      },
+      {
+        key: 'nguong-canh-bao',
+        label: 'Ngưỡng cảnh báo',
+        icon: <WarningOutlined />,
+        path: '/thuy-van/nguong-canh-bao',
+        permissions: ['hyd:threshold:view'],
+      },
+      {
+        // ⚠ `hyd:alert:view` — quyền RỘNG NHẤT của trang. Người không xử lý được vẫn phải THẤY
+        //   cảnh báo nào đang mở; nút Đã xử lý / Báo động giả tự ẩn theo `hyd:alert:handle`.
+        key: 'canh-bao',
+        label: 'Cảnh báo ngưỡng',
+        icon: <AlertOutlined />,
+        path: '/thuy-van/canh-bao',
+        permissions: ['hyd:alert:view'],
       },
     ],
   },

@@ -1,4 +1,6 @@
 import {
+  type AlertConditionType,
+  type AlertEventStatus,
   type PositionRole,
   type ReadingQuality,
   type ReadingSource,
@@ -157,4 +159,77 @@ export const CHAT_LUONG_SO_DO: Record<
 export const NGUON_SO_DO: Record<ReadingSource, { label: string; color: string }> = {
   API: { label: 'Tự động', color: 'blue' },
   MANUAL: { label: 'Nhập tay', color: 'purple' },
+};
+
+// =============================================================================
+// Máy cảnh báo ngưỡng — WS-33
+// =============================================================================
+
+/**
+ * Loại điều kiện của một ngưỡng, kèm **cách đọc con số** đi cùng nó.
+ *
+ * ⭐ `moTaThamSo` là thứ cứu người nhập: bốn loại dùng chung hai ô số, và ý nghĩa của hai ô
+ * ấy đổi theo loại. Không nói ra thì `RATE_OF_CHANGE` bị hiểu là *"chênh giữa hai lượt đo"*
+ * — sai một bậc thời gian, và sai kiểu ⛔ không bao giờ lộ ra khi thử tay.
+ */
+export const LOAI_DIEU_KIEN_NGUONG: Record<
+  AlertConditionType,
+  { label: string; moTaThamSo: string; canCanTren: boolean }
+> = {
+  GT: {
+    label: 'Vượt lên trên',
+    moTaThamSo: 'Báo khi giá trị đo LỚN HƠN ngưỡng. ⚠ Bằng đúng ngưỡng thì chưa báo.',
+    canCanTren: false,
+  },
+  LT: {
+    label: 'Xuống dưới',
+    moTaThamSo: 'Báo khi giá trị đo NHỎ HƠN ngưỡng — dùng cho mực nước bể hút cạn.',
+    canCanTren: false,
+  },
+  OUT_OF_RANGE: {
+    label: 'Ra ngoài khoảng',
+    moTaThamSo: 'Báo khi giá trị ra khỏi khoảng [cận dưới … cận trên]. Phải nhập đủ cả hai cận.',
+    canCanTren: true,
+  },
+  RATE_OF_CHANGE: {
+    label: 'Đổi quá nhanh',
+    moTaThamSo:
+      'Ngưỡng là ĐỘ LỚN thay đổi trên MỘT GIỜ, ⛔ không phải chênh giữa hai lượt đo. Cần ít nhất một số đo hợp lệ trước đó.',
+    canCanTren: false,
+  },
+};
+
+/**
+ * Trạng thái một lần vượt ngưỡng.
+ *
+ * ⚠⚠ Nhãn của `DANG_XAY_RA` cố ý **không** nói "đang cảnh báo": một dòng chưa `daXacNhan`
+ * là điều kiện đang được theo dõi, ⛔ chưa ai nhận thông báo nào. Màn hình phải hiện cả hai
+ * thông tin — trạng thái và cờ xác nhận — nếu không thì "đang xảy ra" đọc thành "đã báo động"
+ * và người trực tưởng lãnh đạo đã biết.
+ *
+ * ⛔ `DA_XU_LY` **không** vẽ màu: nó là kết cục bình thường của gần như mọi cảnh báo, và tô
+ * màu cho trạng thái bình thường là làm hai trạng thái còn lại chìm đi (§10.42).
+ */
+export const TRANG_THAI_CANH_BAO: Record<
+  AlertEventStatus,
+  { label: string; color: string; giaiThich: string }
+> = {
+  DANG_XAY_RA: {
+    label: 'Đang xảy ra',
+    color: 'red',
+    giaiThich:
+      'Giá trị vẫn ngoài ngưỡng. ⚠ Xem cột "Đã báo động": chưa xác nhận nghĩa là điều kiện chưa giữ đủ số phút cấu hình, và CHƯA AI nhận thông báo.',
+  },
+  DA_XU_LY: {
+    label: 'Đã kết thúc',
+    color: 'default',
+    giaiThich:
+      'Giá trị đã về trong ngưỡng, hoặc người trực đã đóng. Cột "Người đóng" phân biệt hai trường hợp — trống nghĩa là hệ thống tự đóng.',
+  },
+  FALSE_ALARM: {
+    label: 'Báo động giả',
+    color: 'orange',
+    giaiThich:
+      'Điều kiện hết trước khi giữ đủ số phút cấu hình (một cú nhiễu cảm biến), hoặc người trực xem lại và bác bỏ.',
+  },
 };

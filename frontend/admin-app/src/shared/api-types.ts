@@ -1178,3 +1178,134 @@ export interface ManualEntryRequest {
   giaTri: string;
   ghiChu?: string;
 }
+
+// =============================================================================
+// WS-33 — Máy cảnh báo ngưỡng
+// =============================================================================
+
+/**
+ * Loại điều kiện của một ngưỡng cảnh báo.
+ *
+ * ⛔ **Không phải** quy tắc "nghi ngờ" của WS-32. Hai thứ dễ lẫn vì cùng là một con số so
+ * với một giá trị đo:
+ *
+ * - `QuyTacNghiNgo` hỏi *"cảm biến có đang hỏng không"* — khoảng vật lý, kết quả ghi vào
+ *   `quality` của chính dòng số đo.
+ * - Cái này hỏi *"tình hình có đáng báo động không"* — ngưỡng nghiệp vụ, và nó **chỉ chạy
+ *   trên số đo đã `HOP_LE`**.
+ *
+ * ⚠ `OUT_OF_RANGE` là loại **duy nhất** dùng `thresholdValueHigh`; `RATE_OF_CHANGE` đo độ
+ * lớn thay đổi trên **một giờ**, ⛔ không phải chênh lệch giữa hai lượt đo.
+ */
+export type AlertConditionType = 'GT' | 'LT' | 'OUT_OF_RANGE' | 'RATE_OF_CHANGE';
+
+/**
+ * Trạng thái một lần vượt ngưỡng.
+ *
+ * ⚠⚠ `DANG_XAY_RA` **chưa chắc là một cảnh báo thật** — phải xem thêm `daXacNhan`. Một điều
+ * kiện vừa vượt nhưng chưa giữ đủ `delayMinutes` là một điều kiện *đang được theo dõi*:
+ * chưa ai nhận thông báo nào, và nó ⛔ không lật trạng thái công trình sang `CANH_BAO`.
+ *
+ * ⚠ `DA_XU_LY` có **hai** người sinh ra, phân biệt bằng `dongBoiNguoi`: máy tự đóng vì giá
+ * trị về dưới ngưỡng (`false`), hay người trực bấm đóng (`true`).
+ */
+export type AlertEventStatus = 'DANG_XAY_RA' | 'DA_XU_LY' | 'FALSE_ALARM';
+
+/**
+ * Một mức cảnh báo trong danh mục (G9-a).
+ *
+ * ⛔ `colorToken` là **khoá `design-tokens`**, ⛔ không phải mã hex — ràng buộc CSDL chặn
+ * `#RRGGBB` ở tầng dưới. ⛔ Đừng đổ thẳng vào `style={{ color }}`.
+ */
+export interface AlertLevelRow {
+  id: string;
+  code: string;
+  name: string;
+  colorToken: string;
+  severityRank: number;
+  active: boolean;
+  description?: string | null;
+}
+
+export interface AlertLevelRequest {
+  code: string;
+  name: string;
+  colorToken: string;
+  severityRank: number;
+  active?: boolean;
+  description?: string | null;
+}
+
+/** ⚠ Mọi số đo ra dây là **chuỗi** (`@JsonFormat(STRING)`) — xem `parameterValue`, cùng lý do. */
+export interface AlertRuleRow {
+  id: string;
+  stationId: string;
+  stationCode: string;
+  stationName: string;
+  measurementTypeCode: string;
+  measurementTypeName: string;
+  unit: string;
+  alertLevelId: string;
+  alertLevelCode: string;
+  alertLevelName: string;
+  colorToken: string;
+  conditionType: AlertConditionType;
+  thresholdValue: string;
+  thresholdValueHigh?: string | null;
+  delayMinutes: number;
+  active: boolean;
+  note?: string | null;
+}
+
+export interface AlertRuleRequest {
+  stationId: string;
+  measurementTypeCode: string;
+  alertLevelId: string;
+  conditionType: AlertConditionType;
+  thresholdValue: string;
+  thresholdValueHigh?: string | null;
+  delayMinutes?: number;
+  active?: boolean;
+  note?: string | null;
+}
+
+export interface AlertRuleUpdateRequest {
+  conditionType: AlertConditionType;
+  thresholdValue: string;
+  thresholdValueHigh?: string | null;
+  delayMinutes?: number;
+  active?: boolean;
+  note?: string | null;
+}
+
+export interface AlertEventRow {
+  id: string;
+  stationId: string;
+  stationCode: string;
+  stationName: string;
+  measurementTypeName: string;
+  unit: string;
+  alertLevelCode: string;
+  alertLevelName: string;
+  colorToken: string;
+  conditionType: AlertConditionType;
+  status: AlertEventStatus;
+  startedAt: string;
+  confirmedAt?: string | null;
+  endedAt?: string | null;
+  triggerValue: string;
+  peakValue: string;
+  peakAt: string;
+  reason: string;
+  daXacNhan: boolean;
+  dongBoiNguoi: boolean;
+  note?: string | null;
+}
+
+/** Điểm đo chưa cấu hình ngưỡng nào — nửa **đọc** của `HYD-2003`. */
+export interface StationWithoutThresholdRow {
+  id: string;
+  code: string;
+  name: string;
+  orgUnitName?: string | null;
+}

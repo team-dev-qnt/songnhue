@@ -4,9 +4,11 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 
@@ -124,12 +126,13 @@ public class TelemetryIngestService {
     private final SyncLogWriter syncLogs;
     private final ApiSourceHealthService health;
     private final ChatLuongSoDoService chatLuong;
+    private final NguongAlertService nguongAlert;
     private final TransactionTemplate giaoDichRieng;
     private final TransactionTemplate giaoDichGhi;
 
-    // CHECKSTYLE.OFF: ParameterNumber - Lớp điều phối của một lượt đồng bộ: 9 cộng tác viên là số
+    // CHECKSTYLE.OFF: ParameterNumber - Lớp điều phối của một lượt đồng bộ: 10 cộng tác viên là số
     // BƯỚC của luồng (nguồn · adapter · tra cứu · ghi raw · ghi số đo · ghi nhật ký · sức khoẻ ·
-    // chất lượng · giao dịch), không phải dấu hiệu lớp ôm nhiều việc. Gom bừa vài cái vào một facade
+    // chất lượng · ngưỡng cảnh báo · giao dịch), không phải dấu hiệu lớp ôm nhiều việc. Gom bừa vài cái vào một facade
     // chỉ giấu số đó đi mà không giảm một phụ thuộc nào — và nó sẽ giấu luôn ranh giới REQUIRES_NEW
     // của lượt ghi raw, thứ duy nhất cứu được dữ liệu khi các bước sau đổ vỡ.
     //
@@ -146,6 +149,7 @@ public class TelemetryIngestService {
             SyncLogWriter syncLogs,
             ApiSourceHealthService health,
             ChatLuongSoDoService chatLuong,
+            NguongAlertService nguongAlert,
             PlatformTransactionManager txManager) {
         // CHECKSTYLE.ON: ParameterNumber
         this.sources = sources;
@@ -156,6 +160,7 @@ public class TelemetryIngestService {
         this.syncLogs = syncLogs;
         this.health = health;
         this.chatLuong = chatLuong;
+        this.nguongAlert = nguongAlert;
         // ⛔⛔ TransactionTemplate, ⛔ KHÔNG phải @Transactional(REQUIRES_NEW) trên một phương thức
         //    của chính lớp này: Spring chặn lời gọi ở PROXY, nên một lời gọi nội bộ đi thẳng vào
         //    phương thức và chú thích ấy KHÔNG có tác dụng nào — mà mã vẫn biên dịch, bài kiểm vẫn
@@ -323,6 +328,11 @@ public class TelemetryIngestService {
             //   trả lời "trạm còn phát tín hiệu không", và một trạm gửi lại đúng giá trị cũ VẪN
             //   đang phát. Chỉ upsert cho dòng ghi mới là tự dựng ra một trạm mất tín hiệu giả.
             timeSeries.upsertLatest(soDo);
+            // ⭐ WS-33 — đánh giá ngưỡng TRONG CÙNG giao dịch ghi số đo (T33.5). Đặt ngoài khối này
+            //   là mở ra trạng thái "số đo đã ghi mà cảnh báo chưa" — một cửa sổ im lặng mà không
+            //   log nào bắt được. `NguongAlertService` khai `Propagation.MANDATORY` nên gọi sai chỗ
+            //   là nổ ngay lượt đầu, ⛔ không phải mất một cảnh báo vào một ngày nào đó.
+            danhGiaNguong(soDo, daGhi);
             return new KetQuaGhi(daGhi, timeSeries.writeUnmapped(maLa));
         });
         List<KhoaSoDo> daGhi = ketGhi == null ? List.of() : ketGhi.daGhi();
@@ -380,6 +390,29 @@ public class TelemetryIngestService {
      *
      * @param soByte số byte thân <b>đã lưu</b> (sau khi che mã số), ⛔ không phải số byte trên dây
      */
+    /**
+     * Đánh giá ngưỡng cho những dòng <b>thật sự vừa ghi mới</b> — WS-33 / T33.5.
+     *
+     * <p>⚠ Chỉ dòng mới, ⛔ không phải mọi dòng nhận được. Poll 2 phút trên nguồn khung 10 phút nên
+     * phần lớn lượt gọi trả về dữ liệu <b>đã có</b>; đánh giá lại chúng không sinh cảnh báo trùng
+     * (chỉ mục {@code ux_alert_events_mot_cai_dang_mo} chặn) nhưng là 5 lượt đọc {@code alert_rules}
+     * thừa cho mỗi lượt poll, mỗi 2 phút, suốt đời hệ thống.
+     *
+     * <p>⛔ Lọc {@code HOP_LE} nằm trong {@code NguongAlertService.danhGia} chứ không ở đây — quy
+     * tắc 14 phải được giữ ở <b>một</b> chỗ, và chỗ ấy là nơi mọi đường vào đi qua (luật 12).
+     */
+    private void danhGiaNguong(List<ReadingRow> soDo, List<KhoaSoDo> daGhi) {
+        if (daGhi.isEmpty()) {
+            return;
+        }
+        Set<KhoaSoDo> moi = new HashSet<>(daGhi);
+        for (ReadingRow r : soDo) {
+            if (moi.contains(new KhoaSoDo(r.stationId(), r.measuredAt()))) {
+                nguongAlert.danhGia(r.stationId(), r.measurementTypeId(), r.measuredAt(), r.value(), r.quality());
+            }
+        }
+    }
+
     private record DoLuotGoi(Integer httpStatus, int durationMs, int soByte) {
 
         static final DoLuotGoi CHUA_GOI = new DoLuotGoi(null, 0, 0);

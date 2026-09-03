@@ -52,9 +52,11 @@ import com.songnhue.hydro.domain.QuyTacNghiNgo;
  * <p>✅ {@link #quyTacNghiNgo()} nối vế đọc cho {@code hydro.quality.suspect-rule} ngày
  * <b>02/09/2026</b> (WS-32/T32.1) — khoá ấy seed từ 13/8 và nằm <b>20 ngày</b> không ai đọc.
  *
- * <p>⬜ Còn <b>một</b> khoá chưa có hàm đọc: {@code hydro.threshold.default-set} — JSON rỗng chờ
- * Công ty (G9-a), chỉ có nghĩa khi alert engine (WS-33) ra đời. Nối vế đọc ở đúng hạng mục ấy, hoặc
- * <b>gỡ khỏi seed</b> nếu Phase 2 không dùng. ⛔ Không gia hạn lần thứ hai.
+ * <p>✅ <b>Không còn khoá nào chưa có người đọc.</b> {@code hydro.threshold.default-set} đã bị
+ * <b>gỡ khỏi seed</b> ở {@code V202609031055} (WS-33/T33.12) thay vì được nối vế đọc — nối nghĩa là
+ * áp một tập <b>con số ngưỡng</b> tự động cho mọi trạm mới, mà những con số ấy chính là G9-a Công ty
+ * chưa đưa. Ngày họ đưa, khoá dựng lại <b>cùng commit với đoạn mã đọc nó</b>. ⛔ Không gia hạn lần
+ * thứ hai, và ⛔ không seed lại trước khi có người gọi.
  *
  * <h2>⚠ Đọc mỗi lần gọi, không cache trong trường</h2>
  *

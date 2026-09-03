@@ -151,6 +151,29 @@ export const router = createBrowserRouter([
             ['hyd:measurement:view', 'hyd:measurement:review'],
             lazyPage(() => import('@/features/hydro/SuspectReadingsPage'), 'SuspectReadingsPage'),
           ),
+          // ---- WS-33 máy cảnh báo ngưỡng ----
+          // ⭐ Ba tuyến khai ĐÚNG quyền mà endpoint của chúng đòi. Danh mục mức và cấu hình ngưỡng
+          //   gác bằng `hyd:threshold:view` (quyền RỘNG hơn `:manage`): người chỉ được xem vẫn
+          //   phải thấy ngưỡng nào đang đặt, vì chính họ đọc con số cảnh báo sinh ra từ đó. Nút
+          //   Thêm/Sửa/Xoá tự ẩn theo `:manage` ở trong trang.
+          adminRoute(
+            '/thuy-van/muc-canh-bao',
+            'hyd:threshold:view',
+            lazyPage(() => import('@/features/hydro/AlertLevelsPage'), 'AlertLevelsPage'),
+          ),
+          adminRoute(
+            '/thuy-van/nguong-canh-bao',
+            'hyd:threshold:view',
+            lazyPage(() => import('@/features/hydro/AlertRulesPage'), 'AlertRulesPage'),
+          ),
+          // ⚠ Lịch sử gác bằng `hyd:alert:view`, ⛔ KHÔNG bằng `:handle`: XN_OPERATOR và
+          //   DUTY_OFFICER có `:view` và là người ĐỌC cảnh báo nhiều nhất. Gác bằng quyền hẹp hơn
+          //   là chôn cả trang sau nút của nó — đúng lỗi 31/08 với tuyến hồ sơ công trình.
+          adminRoute(
+            '/thuy-van/canh-bao',
+            'hyd:alert:view',
+            lazyPage(() => import('@/features/hydro/AlertHistoryPage'), 'AlertHistoryPage'),
+          ),
           adminRoute(
             '/van-hanh/danh-muc-tinh-hinh',
             'ops:operation-status-code:manage',

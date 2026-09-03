@@ -19,6 +19,8 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import com.songnhue.hydro.domain.AlertConditionType;
+import com.songnhue.hydro.domain.AlertEventStatus;
 import com.songnhue.hydro.domain.ReadingQuality;
 import com.songnhue.hydro.domain.ReadingSource;
 import com.songnhue.hydro.domain.SyncFailureKind;
@@ -85,7 +87,13 @@ class HydroEnumSchemaTest {
             //   một lượt gọi HTTP ĐÃ XẢY RA. Thiếu mã số thì không có lượt gọi nào, nên cũng không
             //   có dòng raw nào mang lý do ấy. Cho phép giá trị đó ở bảng raw là dựng sẵn một trạng
             //   thái không ai ghi được (luật 15 ở tầng ràng buộc).
-            new DoiChieu(SyncFailureKind.class, "ck_hydro_raw_logs_failure_kind", Set.of("THIEU_MA_SO")));
+            new DoiChieu(SyncFailureKind.class, "ck_hydro_raw_logs_failure_kind", Set.of("THIEU_MA_SO")),
+            // ⭐ WS-33 — máy cảnh báo ngưỡng. Hai enum này là chỗ luật 14 dễ cắn nhất của cả module:
+            //   `condition_type` quyết định phép so nào chạy, nên thêm một loại điều kiện ở Java mà
+            //   quên CHECK là mọi lượt lưu ngưỡng loại mới nổ bằng lỗi ràng buộc thô; quên chiều
+            //   ngược lại là một giá trị vào được CSDL rồi `valueOf` ném ngay giữa đường ingest.
+            new DoiChieu(AlertConditionType.class, "ck_alert_rules_condition"),
+            new DoiChieu(AlertEventStatus.class, "ck_alert_events_status"));
 
     /**
      * ⭐⭐ TOÀN BỘ migration của {@code hyd}, nối theo <b>thứ tự số hiệu</b> — ⛔ không phải một tệp.
@@ -157,7 +165,7 @@ class HydroEnumSchemaTest {
         // thẳng nguyên nhân thay vì bắt người đọc tự suy.
         assertThat(DOI_CHIEU)
                 .as("bảng đối chiếu rỗng thì bài trên không khẳng định gì")
-                .hasSize(7);
+                .hasSize(9);
 
         for (DoiChieu bo : DOI_CHIEU) {
             assertThat(giaTriJava(bo.enumJava()))
@@ -300,7 +308,10 @@ class HydroEnumSchemaTest {
             // ✅ WS-32 nối nốt hai enum còn lại: màn hình Dữ liệu nghi ngờ đã ra đời nên hai union
             //    ấy tồn tại. Từ đây bảng đối chiếu phủ ĐỦ BỐN enum ở cả ba nơi (Java · CHECK · TS).
             new BoBaTs(ReadingQuality.class, "ReadingQuality", "CHAT_LUONG_SO_DO"),
-            new BoBaTs(ReadingSource.class, "ReadingSource", "NGUON_SO_DO"));
+            new BoBaTs(ReadingSource.class, "ReadingSource", "NGUON_SO_DO"),
+            // ⭐ WS-33 — màn hình cấu hình ngưỡng và lịch sử cảnh báo đọc nhãn từ hai bản đồ này.
+            new BoBaTs(AlertConditionType.class, "AlertConditionType", "LOAI_DIEU_KIEN_NGUONG"),
+            new BoBaTs(AlertEventStatus.class, "AlertEventStatus", "TRANG_THAI_CANH_BAO"));
 
     private static final Path API_TYPES = gocKho().resolve("frontend/admin-app/src/shared/api-types.ts");
 
@@ -315,7 +326,7 @@ class HydroEnumSchemaTest {
 
         assertThat(BO_BA_TS)
                 .as("bảng đối chiếu rỗng thì bài này không khẳng định gì")
-                .hasSize(4);
+                .hasSize(6);
 
         for (BoBaTs bo : BO_BA_TS) {
             Set<String> java = giaTriJava(bo.enumJava());

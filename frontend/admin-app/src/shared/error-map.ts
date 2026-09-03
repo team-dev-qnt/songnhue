@@ -336,6 +336,11 @@ export const ERROR_CATALOG = {
     handling: 'form',
     severity: 'warning',
   },
+  'OPS-2021': {
+    message: 'Cảnh báo ngưỡng được tham chiếu không tồn tại',
+    handling: 'form',
+    severity: 'warning',
+  },
   'OPS-3001': {
     message: 'Không được sửa trực tiếp trạng thái công trình — trạng thái được tính tự động',
     handling: 'toast',
@@ -391,6 +396,21 @@ export const ERROR_CATALOG = {
   'HYD-2007': {
     message: 'Điểm đo này đã có số đo tại mốc đã chọn — không ghi đè',
     handling: 'form',
+    severity: 'warning',
+  },
+  'HYD-2009': {
+    message: 'Điểm đo này đã có ngưỡng cho cùng loại chỉ số và mức cảnh báo',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'HYD-2010': {
+    message: 'Mức cảnh báo đang được ngưỡng khác sử dụng — gỡ các ngưỡng ấy trước',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'HYD-2011': {
+    message: 'Cảnh báo này không còn ở trạng thái đang xảy ra',
+    handling: 'toast',
     severity: 'warning',
   },
 

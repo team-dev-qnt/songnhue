@@ -89,8 +89,12 @@ class RbacMatrixTest extends IntegrationTestBase {
             // ⬇ WS-28 đã GỠ ba dòng khỏi danh sách này: `hyd:station:view`,
             //   `hyd:station:manage`, `hyd:api-source:manage`. Danh mục điểm đo / loại chỉ số /
             //   nguồn dữ liệu đã có endpoint thật, nên chúng không còn là "quyền chờ Phase sau".
-            "hyd:alert:view", // Cảnh báo thủy văn — Phase 2
-            "hyd:alert:handle", // Xử lý cảnh báo — Phase 2
+            // ⬇ WS-33 đã GỠ bốn dòng khỏi danh sách này: `hyd:alert:view`, `hyd:alert:handle`,
+            //   `hyd:threshold:view`, `hyd:threshold:manage`. Máy cảnh báo ngưỡng đã có ba
+            //   controller thật (`AlertLevelController` · `AlertRuleController` ·
+            //   `AlertEventController`) gác bằng đúng bốn quyền ấy, nên chúng không còn là "quyền
+            //   chờ Phase sau". ⛔ Đừng thêm lại cho hết đỏ — bài `ngoaiLeQuyenPhaseSauVanConDung()`
+            //   canh đúng chiều này.
             "hyd:alert-group:manage", // Nhóm cảnh báo — Phase 2
             // ⬇ WS-31/T31.13 đã GỠ `hyd:measurement:view`: hai màn hình chẩn đoán (Nhật ký đồng bộ
             //   M3.16 · Mã lạ từ nguồn) canh bằng đúng quyền ấy, nên nó không còn là "quyền chờ
@@ -101,10 +105,8 @@ class RbacMatrixTest extends IntegrationTestBase {
             //   `workflow_transitions.required_permission`. ⛔ Đừng thêm lại cho hết đỏ.
             //   ⚠ `hyd:measurement:create` (mới ở V202609021054) CỐ Ý không có mặt ở đây: nó có
             //   endpoint thật ngay từ lượt ra đời — POST /hyd/so-do/nhap-tay.
-            "hyd:report:view", // Báo cáo thủy văn — Phase 2
-            "hyd:report:export", // Xuất báo cáo thủy văn — Phase 2
-            "hyd:threshold:view", // Xem ngưỡng — Phase 2
-            "hyd:threshold:manage", // Quản lý ngưỡng — Phase 2
+            "hyd:report:view", // Báo cáo thủy văn — Phase 2 (WS-34)
+            "hyd:report:export", // Xuất báo cáo thủy văn — Phase 2 (WS-34)
             "hr:employee:create", // Nhân sự — Phase 2
             "hr:employee:view", // Nhân sự — Phase 2
             "hr:employee:view-sensitive", // Nhân sự — Phase 2
