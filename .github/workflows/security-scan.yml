@@ -225,6 +225,31 @@ jobs:
 
       # ⚠ Một lockfile duy nhất ở `frontend/` — npm workspaces. Chạy trong
       #   từng app là lỗi đã mắc một lần rồi (nợ #36).
+      #
+      # ⚠⚠ `moderate`, KHÔNG phải `high` (đổi 3/9).
+      #
+      #   Cổng cũ VỀ NGUYÊN TẮC mù trước lớp lỗ hổng nó vừa để lọt. Đo trên
+      #   chính cây mã trước lượt vá này:
+      #
+      #       npm audit --audit-level=high      -> mã thoát 0   (ĐI QUA)
+      #       npm audit --audit-level=moderate  -> mã thoát 1   (CHẶN)
+      #       tổng: 28 moderate · 0 high · 0 critical
+      #
+      #   28 lỗ hổng ấy là GHSA-cp6q-959q-f8rh trên `@tiptap/core` — CVSS v4
+      #   **6.4**, CWE-79 + CWE-1321: `mergeAttributes()` biến khoá `__proto__`
+      #   thành thuộc tính DOM thực thi được. Bản vá đã có từ **26/8**, và cổng
+      #   này chạy mỗi đêm suốt tuần ấy mà **chưa từng có gì để nói**.
+      #
+      #   Không phải "hạ ngưỡng cho chặt". Một ngưỡng chỉ bắt `high` là một
+      #   ngưỡng khẳng định rằng mọi thứ dưới nó không đáng biết — trong khi
+      #   `npm audit` chấm theo thang khác `dependency-check` (bên kia dùng CVSS
+      #   NVD và fail ở ≥ 7). Hai cổng, hai thang, và cái ở đây đang bỏ trống
+      #   đúng khoảng mà hệ sinh thái npm dùng nhiều nhất.
+      #
+      #   ⚠ Ngưỡng này chỉ đứng được khi cây phụ thuộc SẠCH. Lượt vá cùng PR
+      #   nâng `@tiptap/*` 3.30.2 → 3.31.0 và đo lại: **0 lỗ hổng**. Siết cổng
+      #   trước khi vá là dựng một cổng đỏ thường trực, và một cổng luôn đỏ thì
+      #   người ta thôi đọc nó.
       - name: npm audit
         working-directory: frontend
-        run: npm audit --audit-level=high
+        run: npm audit --audit-level=moderate
