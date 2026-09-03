@@ -31,12 +31,20 @@ on:
   #   ảnh hưởng TRỰC TIẾP nhất tới việc lượt quét báo gì — thêm một mục vào đó có
   #   thể làm một CVE 9.8 biến mất khỏi báo cáo. Thiếu nó ở đây thì một thay đổi
   #   như vậy chỉ được kiểm ở lượt chạy theo lịch hôm sau (§10.69).
+  #
+  # ⚠⚠ Và phải bao cả CHÍNH WORKFLOW NÀY lẫn script chuông. Đo 3/9: sửa
+  #   `security-scan.yml` **không** làm nó chạy lại, nên một thay đổi ở ngưỡng
+  #   `--audit-level` hay ở nhánh báo động chỉ được kiểm ở lượt theo lịch hôm
+  #   sau. Cùng hình dạng §10.69, và `SuppressionPolicyTest` đã bắt đúng lỗi
+  #   ấy cho tệp suppression — chỗ này thì chưa ai bắt.
   push:
     branches: [dev]
     paths:
       - '**/pom.xml'
       - 'frontend/package-lock.json'
       - 'backend/dependency-check-suppressions.xml'
+      - '.github/workflows/security-scan.yml'
+      - '.github/scripts/bao-dong-quet-cve.sh'
 
 permissions:
   contents: read
@@ -228,3 +236,51 @@ jobs:
       - name: npm audit
         working-directory: frontend
         run: npm audit --audit-level=high
+
+  # ===========================================================================
+  # CHUÔNG — T11.58
+  #
+  # `needs` phải liệt kê MỌI job quét. Thiếu một cái thì lượt ấy đỏ mà chuông
+  # vẫn báo xanh, và cái xanh của nó đọc như một lời bảo đảm (luật 28).
+  # `CanhBaoQuetCveTest` so hai chiều nên thêm job quét mà quên khai ở đây sẽ đỏ.
+  #
+  # `if: always()` — không có nó thì job bị bỏ qua đúng lúc cần chạy nhất, và
+  # `skipped` được GitHub tính là ĐẠT (luật 24).
+  # ===========================================================================
+  bao-dong:
+    name: Báo động lượt quét đỏ
+    needs: [owasp, npm]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Quyền hẹp nhất có thể: chỉ job này cần ghi issue, không phải cả workflow.
+    # ⚠ Thiếu dòng `issues: write` thì `gh issue create` trả **403 trong im
+    #   lặng** — đúng hình dạng §10.57 (cổng secret bỏ qua trong im lặng).
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Gọi chuông
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Kết quả ĐÃ GIẢI của hai job quét, không phải mặc định (luật 3).
+          KQ_OWASP: ${{ needs.owasp.result }}
+          KQ_NPM: ${{ needs.npm.result }}
+          URL_LAN_CHAY: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          echo "owasp=$KQ_OWASP · npm=$KQ_NPM"
+          # `success` và `skipped` là ĐẠT; mọi thứ khác (failure, cancelled) là đỏ.
+          # `cancelled` tính là đỏ có chủ đích: một lượt quét bị huỷ vì timeout
+          # chính là chuyện đã xảy ra ngày 18/8, và nó KHÔNG phải một lượt xanh.
+          trang_thai=xanh
+          for kq in "$KQ_OWASP" "$KQ_NPM"; do
+            case "$kq" in
+              success|skipped) ;;
+              *) trang_thai=do ;;
+            esac
+          done
+          .github/scripts/bao-dong-quet-cve.sh "$trang_thai" "$URL_LAN_CHAY"
