@@ -148,6 +148,15 @@ class QualityFilterGuardTest {
                     + "cho nó đi lọt vì chuỗi ấy có mặt — lỗ hổng được bịt ở chính đợt WS-34 "
                     + "(`boFilterGop`), và câu đầu tiên nó bắt được là câu này. FILTER lọc cho MỘT "
                     + "hàm gộp, ⛔ không lọc cho câu.",
+            "HydroReportRepository#SQL_CHI_TIET",
+            "⭐⭐ BC-12 — ngoại lệ hợp lệ DUY NHẤT của cả quy tắc 8 lẫn quy tắc 14. Nó là nơi duy nhất "
+                    + "được phép hiện bản ghi NGHI_NGO/XOA, và nó ĐÁNH ĐỔI bộ lọc lấy hai cột: Chất lượng "
+                    + "và Nguồn. Người đọc biết chính xác mình đang nhìn gì, nên số nghi ngờ ⛔ không thể "
+                    + "bị nhầm thành số liệu chính thức — đó mới là thứ bộ lọc kia bảo vệ. Giữ an toàn bằng "
+                    + "khoảng ngày tối đa 31 ngày + phân trang.",
+            "HydroReportRepository#SQL_DEM_CHI_TIET",
+            "⭐ Phép đếm của BC-12 — phải khớp CHÍNH XÁC tập mà SQL_CHI_TIET liệt ra. Lọc HOP_LE ở đây "
+                    + "mà không lọc ở câu kia là tổng số trang nói một đằng, nội dung trang nói một nẻo.",
             "V202609031056__hyd_agg_daily.sql#" + CAU_NAP_CO_BAN,
             "⭐ §9 của migration — nạp cờ bẩn cho số đo ĐÃ CÓ để lượt tổng hợp đầu tiên tính được "
                     + "cả lịch sử. ⛔ Không tạo ra một con số nào; cùng lý do với SQL_CAM_LAI_CO_GAN_DAY.");
@@ -188,7 +197,7 @@ class QualityFilterGuardTest {
      * qua một tập rỗng và xanh trọn vẹn. ⚠ Nó đếm <b>cả ngoại lệ</b>: thứ cần chứng minh là bộ tách
      * còn nhìn thấy mã, không phải là còn bao nhiêu câu tuân thủ.
      */
-    private static final int SO_CAU_TOI_THIEU = 10;
+    private static final int SO_CAU_TOI_THIEU = 12;
 
     // =========================================================================
     // Bộ tách — bóc chú thích TRƯỚC khi khớp (§10.62)

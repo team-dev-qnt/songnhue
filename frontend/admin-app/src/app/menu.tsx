@@ -153,6 +153,13 @@ export const MENU: readonly MenuNode[] = [
         permissions: ['hyd:alert:view'],
       },
       {
+        key: 'bao-cao-tong-hop',
+        label: 'Báo cáo tổng hợp kỳ',
+        icon: <FileTextOutlined />,
+        path: '/thuy-van/bao-cao-tong-hop',
+        permissions: ['hyd:report:view'],
+      },
+      {
         key: 'bao-cao-dong-bo',
         label: 'Báo cáo đồng bộ & chất lượng',
         icon: <FileTextOutlined />,

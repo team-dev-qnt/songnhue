@@ -1364,6 +1364,60 @@ export interface SyncDailyRow {
   hongGanNhat: string | null;
 }
 
+/**
+ * BC-05 — một hàng tổng hợp kỳ.
+ *
+ * ⛔⛔ `giaTriMin`/`giaTriMax`/`giaTriTb` là `null` khi kỳ ⛔ KHÔNG có bản ghi hợp lệ nào, và khi ấy
+ *    `lyDoTrong` nói vì sao. ⛔ Đừng `?? 0`: mực nước trung bình `0.000` là một câu **sai và đáng
+ *    tin** — đúng định dạng, vẽ được biểu đồ, nằm gọn giữa các con số thật. Backend ép ràng buộc ấy
+ *    ở hàm dựng (`TongHopKyView`); đây là vế hiển thị của cùng một luật.
+ *
+ * ⭐ `giaTriTb` là trung bình **theo trọng số**, ⛔ không phải trung bình của các trung bình ngày.
+ *    `soBanGhi` + `soNgayCoDuLieu` là hai con số cho người đọc biết nó dựa trên bao nhiêu quan sát.
+ */
+export interface PeriodSummaryRow {
+  stationCode: string;
+  stationName: string;
+  riverName: string | null;
+  positionRole: string;
+  measurementTypeCode: string;
+  measurementTypeName: string;
+  unit: string;
+  soBanGhi: number;
+  soNgayCoDuLieu: number;
+  giaTriMin: string | null;
+  mocMin: string | null;
+  giaTriMax: string | null;
+  mocMax: string | null;
+  giaTriTb: string | null;
+  lyDoTrong: string | null;
+}
+
+export interface PeriodSummaryReport {
+  tuNgay: string;
+  denNgay: string;
+  soNgayTrongKy: number;
+  hang: PeriodSummaryRow[];
+}
+
+/**
+ * BC-12 — một bản ghi chi tiết.
+ *
+ * ⭐⭐ `quality` và `source` là **hai cột chịu lực**, ⛔ không phải siêu dữ liệu phụ trợ: chúng là
+ *    thứ được đánh đổi lấy quyền không lọc chất lượng. Đây là màn hình **duy nhất** hiện bản ghi
+ *    `NGHI_NGO`/`XOA` cạnh bản ghi hợp lệ — ẩn hai cột ấy đi là biến ngoại lệ hợp lệ thành đúng cái
+ *    lỗi mà quy tắc 14 sinh ra để chặn.
+ */
+export interface ReadingDetailRow {
+  mocDo: string;
+  giaTri: string;
+  quality: ReadingQuality;
+  qualityReason: string | null;
+  source: string;
+  note: string | null;
+  reviewNote: string | null;
+}
+
 export interface SyncQualityReport {
   tuNgay: string;
   denNgay: string;

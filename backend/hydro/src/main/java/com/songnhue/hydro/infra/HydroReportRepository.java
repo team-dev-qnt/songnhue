@@ -9,7 +9,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import com.songnhue.hydro.domain.ChatLuongNgayRow;
+import com.songnhue.hydro.domain.ChiTietSoDoRow;
 import com.songnhue.hydro.domain.DongBoNgayRow;
+import com.songnhue.hydro.domain.TongHopKyRow;
 
 /**
  * Truy vấn nuôi báo cáo thuỷ văn — WS-34.
@@ -128,6 +130,110 @@ public class HydroReportRepository {
             """;
 
     /**
+     * ⭐⭐ BC-05 — tổng hợp kỳ theo (điểm đo × chỉ số). T34.5.
+     *
+     * <h3>⚠⚠ {@code quality = 'HOP_LE'} nằm ở mệnh đề {@code ON}, ⛔ KHÔNG ở {@code WHERE}</h3>
+     *
+     * <p>Đây là chỗ dễ sai nhất của cả tệp, và cái sai thì <b>im lặng</b>: đẩy vị từ ấy xuống
+     * {@code WHERE} biến {@code LEFT JOIN} thành {@code INNER JOIN}, nên mọi điểm đo <b>không có
+     * số liệu hợp lệ trong kỳ</b> — tức đúng những điểm đo đang có vấn đề — <b>biến mất khỏi báo
+     * cáo</b>. Bảng khi ấy sạch sẽ, đủ hàng, và ⛔ không nói ra rằng nó vừa giấu đi thứ cần xem
+     * nhất. Cùng hình dạng đã ghi ở {@link #SQL_CHAT_LUONG_NGAY}: sự vắng mặt đọc như sự bình
+     * thường (quy tắc 16).
+     *
+     * <h3>⭐ Trung bình kỳ = {@code SUM(sum_value) / SUM(reading_count)}</h3>
+     *
+     * <p>⛔ <b>Không</b> {@code avg(avg_value)}. Ngày có 144 bản ghi và ngày poller chết chỉ có 12
+     * bản ghi sẽ được tính <b>cùng trọng số</b>, và một ngày dữ liệu thưa kéo cả kỳ theo nó. Con số
+     * sai ấy vẫn nằm trong khoảng min/max của kỳ nên ⛔ <b>không có cách nào nhìn ra bằng mắt</b> —
+     * đó là toàn bộ lý do cột {@code sum_value} tồn tại.
+     *
+     * <p>⭐ {@code array_agg(… ORDER BY …)[1]} lấy <b>mốc</b> đạt max/min của kỳ từ chính hàng ngày
+     * đã đạt nó — BC-05 đòi "kèm thời điểm đạt max/min", và ⛔ không phải quay lại quét số đo thô
+     * (quy tắc 8). Khoá phụ theo mốc làm phép chọn tất định khi nhiều ngày cùng giá trị.
+     */
+    private static final String SQL_TONG_HOP_KY =
+            """
+            WITH cap AS (
+                SELECT s.id AS station_id, s.code AS station_code, s.name AS station_name,
+                       s.river_name, s.position_role,
+                       m.id AS type_id, m.code AS type_code, m.name AS type_name, m.unit
+                  FROM station_measurement_types smt
+                  JOIN stations s ON s.id = smt.station_id AND s.deleted_at IS NULL
+                  JOIN measurement_types m ON m.id = smt.measurement_type_id AND m.deleted_at IS NULL
+                 WHERE (?::bigint IS NULL OR s.id = ?::bigint)
+            )
+            SELECT c.station_code, c.station_name, c.river_name, c.position_role,
+                   c.type_code, c.type_name, c.unit,
+                   coalesce(sum(a.reading_count), 0) AS so_ban_ghi,
+                   count(a.id) AS so_ngay_co_du_lieu,
+                   min(a.min_value) AS gia_tri_min,
+                   (array_agg(a.min_at ORDER BY a.min_value ASC, a.min_at ASC))[1] AS moc_min,
+                   max(a.max_value) AS gia_tri_max,
+                   (array_agg(a.max_at ORDER BY a.max_value DESC, a.max_at ASC))[1] AS moc_max,
+                   CASE WHEN coalesce(sum(a.reading_count), 0) > 0
+                        THEN round(sum(a.sum_value) / sum(a.reading_count), 3)
+                   END AS gia_tri_tb
+              FROM cap c
+              LEFT JOIN hydro_agg_daily a
+                     ON a.station_id = c.station_id
+                    AND a.measurement_type_id = c.type_id
+                    AND a.agg_date >= ?
+                    AND a.agg_date <= ?
+                    AND a.quality = 'HOP_LE'
+             GROUP BY c.station_code, c.station_name, c.river_name, c.position_role,
+                      c.type_code, c.type_name, c.unit
+             ORDER BY c.station_code, c.type_code
+            """;
+
+    /**
+     * ⭐ BC-12 — chi tiết theo yêu cầu. T34.6.
+     *
+     * <h3>⚠⚠ Ngoại lệ hợp lệ DUY NHẤT của quy tắc 8 — và của quy tắc 14</h3>
+     *
+     * <p>Mọi báo cáo khác đọc bảng tổng hợp. Báo cáo này <b>phải</b> đọc {@code hydro_readings}: nó
+     * tồn tại để hiện <i>từng bản ghi</i>, và một bảng tổng hợp theo ngày ⛔ không trả lời được
+     * <i>"lúc 14 giờ 20 hôm ấy máy đọc được bao nhiêu"</i> — câu hỏi mà người ta mở báo cáo chi
+     * tiết ra để hỏi.
+     *
+     * <p>Và nó ⛔ <b>không</b> lọc {@code quality}: BC-12 là <b>nơi duy nhất</b> được phép hiện bản
+     * ghi {@code NGHI_NGO} và {@code XOA} cạnh bản ghi hợp lệ, vì nó có <b>cột Chất lượng</b> và
+     * <b>cột Nguồn</b> để người đọc biết mình đang nhìn cái gì. Bộ lọc bị thay bằng một thứ khác:
+     * hai cột nói ra sự thật.
+     *
+     * <p>⛔ Cả hai ngoại lệ ấy <b>chỉ dùng được ở đây</b>, và cái giá phải trả để giữ chúng an toàn
+     * là một khoảng ngày <b>có cận cứng</b> ({@code HYD-2012}) cộng phân trang. ⚠ Đừng để câu này
+     * thành cái cớ mở đường cho báo cáo khác quay lại quét bảng gốc.
+     *
+     * <p>⛔ Cố ý ⛔ <b>không</b> join {@code users} để hiện tên người nhập: đó là bảng của Core
+     * (quy tắc 6), và một danh tính trong bản xuất là dữ liệu cá nhân đi ra ngoài mà ⛔ không ai
+     * quyết định điều đó. {@code source} đã trả lời đủ câu hỏi <i>"số này từ đâu"</i>.
+     */
+    private static final String SQL_CHI_TIET =
+            """
+            SELECT r.measured_at, r.reading_value, r.quality, r.quality_reason,
+                   r.source, r.note, r.review_note
+              FROM hydro_readings r
+             WHERE r.station_id = ?
+               AND r.measurement_type_id = ?
+               AND r.measured_at >= hyd_dau_ngay_vn(?)
+               AND r.measured_at <  hyd_dau_ngay_vn((?::date) + 1)
+             ORDER BY r.measured_at DESC
+             LIMIT ? OFFSET ?
+            """;
+
+    /** ⚠ Ngoại lệ CÓ TÊN cùng lý do với {@link #SQL_CHI_TIET} — phép đếm phải khớp tập được liệt. */
+    private static final String SQL_DEM_CHI_TIET =
+            """
+            SELECT count(*)
+              FROM hydro_readings r
+             WHERE r.station_id = ?
+               AND r.measurement_type_id = ?
+               AND r.measured_at >= hyd_dau_ngay_vn(?)
+               AND r.measured_at <  hyd_dau_ngay_vn((?::date) + 1)
+            """;
+
+    /**
      * ⚠⚠ {@code rs.getObject(col, Instant.class)} <b>ném</b> với cột {@code timestamptz} — trình
      * điều khiển PostgreSQL ⛔ không khai phép đổi ấy ("conversion to class java.time.Instant from
      * timestamptz not supported"), dù nó đổi được sang {@code OffsetDateTime}.
@@ -168,6 +274,61 @@ public class HydroReportRepository {
                 Date.valueOf(denNgay),
                 stationId,
                 stationId);
+    }
+
+    public List<TongHopKyRow> tongHopKy(LocalDate tuNgay, LocalDate denNgay, Long stationId) {
+        return jdbc.query(
+                SQL_TONG_HOP_KY,
+                (rs, i) -> new TongHopKyRow(
+                        rs.getString("station_code"),
+                        rs.getString("station_name"),
+                        rs.getString("river_name"),
+                        rs.getString("position_role"),
+                        rs.getString("type_code"),
+                        rs.getString("type_name"),
+                        rs.getString("unit"),
+                        rs.getLong("so_ban_ghi"),
+                        rs.getInt("so_ngay_co_du_lieu"),
+                        rs.getBigDecimal("gia_tri_min"),
+                        moc(rs, "moc_min"),
+                        rs.getBigDecimal("gia_tri_max"),
+                        moc(rs, "moc_max"),
+                        rs.getBigDecimal("gia_tri_tb")),
+                stationId,
+                stationId,
+                Date.valueOf(tuNgay),
+                Date.valueOf(denNgay));
+    }
+
+    public long demChiTiet(long stationId, long measurementTypeId, LocalDate tuNgay, LocalDate denNgay) {
+        Long so = jdbc.queryForObject(
+                SQL_DEM_CHI_TIET,
+                Long.class,
+                stationId,
+                measurementTypeId,
+                Date.valueOf(tuNgay),
+                Date.valueOf(denNgay));
+        return so == null ? 0L : so;
+    }
+
+    public List<ChiTietSoDoRow> chiTiet(
+            long stationId, long measurementTypeId, LocalDate tuNgay, LocalDate denNgay, int gioiHan, long boQua) {
+        return jdbc.query(
+                SQL_CHI_TIET,
+                (rs, i) -> new ChiTietSoDoRow(
+                        moc(rs, "measured_at"),
+                        rs.getBigDecimal("reading_value"),
+                        rs.getString("quality"),
+                        rs.getString("quality_reason"),
+                        rs.getString("source"),
+                        rs.getString("note"),
+                        rs.getString("review_note")),
+                stationId,
+                measurementTypeId,
+                Date.valueOf(tuNgay),
+                Date.valueOf(denNgay),
+                gioiHan,
+                boQua);
     }
 
     public List<DongBoNgayRow> dongBoTheoNgay(LocalDate tuNgay, LocalDate denNgay) {

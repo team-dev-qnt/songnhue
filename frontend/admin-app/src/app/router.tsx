@@ -187,6 +187,11 @@ export const router = createBrowserRouter([
             ),
           ),
           adminRoute(
+            '/thuy-van/bao-cao-tong-hop',
+            'hyd:report:view',
+            lazyPage(() => import('@/features/hydro/PeriodReportPage'), 'PeriodReportPage'),
+          ),
+          adminRoute(
             '/van-hanh/danh-muc-tinh-hinh',
             'ops:operation-status-code:manage',
             lazyPage(

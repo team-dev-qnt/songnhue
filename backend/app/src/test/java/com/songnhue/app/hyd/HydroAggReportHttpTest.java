@@ -406,6 +406,140 @@ class HydroAggReportHttpTest extends IntegrationTestBase {
     }
 
     // =========================================================================
+    // ⭐ T34.5 — BC-05 tổng hợp kỳ
+    // =========================================================================
+
+    @Test
+    @Order(11)
+    @DisplayName("⭐⭐ BC-05 — max/min kèm THỜI ĐIỂM đạt, và trung bình tính THEO TRỌNG SỐ")
+    void thePeriodReportCarriesTheMomentEachExtremeWasReached() {
+        ResponseEntity<String> ra = phienHttp.get(
+                kyThuat,
+                "/api/v1/hyd/bao-cao/tong-hop?tuNgay=%s&denNgay=%s&stationPublicId=%s"
+                        .formatted(ngayDo, ngayDo, publicIdDiemDo));
+
+        assertThat(ra.getStatusCode()).as("Thân: %s", ra.getBody()).isEqualTo(HttpStatus.OK);
+        String than = ra.getBody();
+
+        // Bốn bản ghi HỢP LỆ trong ngày: 3.100 (08:00) · 3.200 (00:30) · 3.900 (12:00) · 9.999 (20:00)
+        assertThat(than).contains("\"soBanGhi\":4").contains("\"soNgayCoDuLieu\":1");
+        assertThat(than)
+                .as("⚠ Số thập phân ra dây phải là CHUỖI — quy tắc 2 + bài học T28.27")
+                .contains("\"giaTriMin\":\"3.100\"")
+                .contains("\"giaTriMax\":\"9.999\"");
+
+        // (3.100 + 3.200 + 3.900 + 9.999) / 4 = 20.199 / 4 = 5.04975 → làm tròn 3 chữ số
+        assertThat(than)
+                .as("⭐ Trung bình THEO TRỌNG SỐ = SUM(sum_value)/SUM(reading_count), ⛔ không phải "
+                        + "trung bình của các trung bình ngày")
+                .contains("\"giaTriTb\":\"5.050\"");
+
+        assertThat(than)
+                .as("⭐ BC-05 đòi 'kèm thời điểm đạt max/min' — mốc phải lấy từ bảng tổng hợp, "
+                        + "⛔ không phải quét lại số đo thô")
+                .contains("\"mocMax\":\"" + mocTrongNgay(ngayDo, 20, 0) + "\"")
+                .contains("\"mocMin\":\"" + mocTrongNgay(ngayDo, 8, 0) + "\"");
+    }
+
+    @Test
+    @Order(12)
+    @DisplayName("⭐⭐ Điểm đo KHÔNG có số liệu hợp lệ vẫn PHẢI có hàng — ô rỗng kèm lý do, ⛔ không biến mất")
+    void aStationWithNoValidDataStillGetsARowInThePeriodReport() {
+        ResponseEntity<String> ra =
+                phienHttp.get(kyThuat, "/api/v1/hyd/bao-cao/tong-hop?tuNgay=%s&denNgay=%s".formatted(ngayDo, ngayDo));
+
+        assertThat(ra.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(ra.getBody())
+                .as(
+                        """
+                        ⛔⛔ Điểm đo ⛔ KHÔNG có số liệu hợp lệ đã biến mất khỏi báo cáo. Nguyên nhân gần \
+                        như luôn là một chỗ: vị từ `quality = 'HOP_LE'` bị đẩy từ mệnh đề ON xuống WHERE, \
+                        biến LEFT JOIN thành INNER JOIN. Khi ấy đúng những điểm đo ĐANG CÓ VẤN ĐỀ bị giấu \
+                        đi, và bảng trông sạch sẽ, đủ hàng, ⛔ không nói ra rằng nó vừa giấu gì.""")
+                .contains(MA_DIEM_DO_IM);
+
+        assertThat(ra.getBody())
+                .as("quy tắc 16 — ô rỗng BẮT BUỘC kèm lý do, ⛔ không được thay bằng 0")
+                .contains("\"giaTriTb\":null")
+                .contains("không có bản ghi hợp lệ nào");
+    }
+
+    // =========================================================================
+    // ⭐ T34.6 — BC-12 chi tiết theo yêu cầu
+    // =========================================================================
+
+    @Test
+    @Order(13)
+    @DisplayName("⭐⭐ BC-12 — nơi DUY NHẤT hiện bản ghi NGHI_NGO, kèm cột Chất lượng và cột Nguồn")
+    void theDetailReportIsTheOnlyPlaceSuspectRowsAreShown() {
+        // Một bản ghi nghi ngờ mới, để BC-12 có cái để hiện.
+        jdbc.update(
+                """
+                INSERT INTO hydro_readings (
+                    measured_at, station_id, measurement_type_id, reading_value,
+                    quality, quality_reason, source)
+                VALUES (?, ?, ?, '8.888', 'NGHI_NGO', 'vượt khoảng vật lý (kiểm thử T34)', 'API')
+                """,
+                Timestamp.from(mocTrongNgay(ngayDo, 22, 0)),
+                idDiemDo,
+                idLoaiChiSo);
+
+        ResponseEntity<String> ra = phienHttp.get(
+                kyThuat,
+                "/api/v1/hyd/bao-cao/chi-tiet?stationPublicId=%s&maLoaiChiSo=MUC_NUOC&tuNgay=%s&denNgay=%s"
+                        .formatted(publicIdDiemDo, ngayDo, ngayDo));
+
+        assertThat(ra.getStatusCode()).as("Thân: %s", ra.getBody()).isEqualTo(HttpStatus.OK);
+        String than = ra.getBody();
+
+        assertThat(than)
+                .as("⭐ Bản ghi nghi ngờ PHẢI hiện ra ở đây — đó là lý do báo cáo này được miễn quy tắc 14")
+                .contains("\"giaTri\":\"8.888\"")
+                .contains("\"quality\":\"NGHI_NGO\"");
+
+        assertThat(than)
+                .as(
+                        """
+                        ⛔⛔ Hai cột `quality` và `source` là thứ được ĐÁNH ĐỔI lấy quyền không lọc chất \
+                        lượng. Bỏ chúng đi thì ngoại lệ của quy tắc 14 mất chỗ dựa và biến thành đúng cái \
+                        lỗi nó được miễn: một con số nghi ngờ đứng lẫn giữa số liệu chính thức.""")
+                .contains("\"source\":\"API\"")
+                .contains("vượt khoảng vật lý");
+
+        assertThat(than)
+                .as("⛔ Cố ý ⛔ KHÔNG join `users` — danh tính người nhập là dữ liệu cá nhân, và `users` "
+                        + "là bảng của Core (quy tắc 6)")
+                .doesNotContain("fullName")
+                .doesNotContain("createdBy");
+    }
+
+    @Test
+    @Order(14)
+    @DisplayName("⭐ Trần khoảng ngày của BC-12 HẸP HƠN hẳn (31) — hai trần khác nhau và cùng đúng")
+    void theDetailReportHasItsOwnTighterDateCap() {
+        // 40 ngày: BC-13 và BC-05 nhận (trần 366), BC-12 từ chối (trần 31).
+        LocalDate tu = ngayDo.minusDays(39);
+
+        assertThat(phienHttp
+                        .get(kyThuat, "/api/v1/hyd/bao-cao/tong-hop?tuNgay=%s&denNgay=%s".formatted(tu, ngayDo))
+                        .getStatusCode())
+                .as("⚠ Vế phân biệt: cùng khoảng ngày ấy BC-05 PHẢI nhận, nếu không bài này ⛔ không "
+                        + "chứng minh được hai trần là hai con số khác nhau")
+                .isEqualTo(HttpStatus.OK);
+
+        ResponseEntity<String> qua = phienHttp.get(
+                kyThuat,
+                "/api/v1/hyd/bao-cao/chi-tiet?stationPublicId=%s&maLoaiChiSo=MUC_NUOC&tuNgay=%s&denNgay=%s"
+                        .formatted(publicIdDiemDo, tu, ngayDo));
+
+        assertThat(qua.getStatusCode())
+                .as("⛔ BC-12 là báo cáo DUY NHẤT quét bảng gốc: 144 bản ghi/ngày × 40 ngày là đúng lượt "
+                        + "quét mà bảng tổng hợp sinh ra để tránh")
+                .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(qua.getBody()).contains("HYD-2012").contains("31");
+    }
+
+    // =========================================================================
 
     private ResponseEntity<String> nhapTay(Instant moc, String giaTri) {
         return phienHttp.goi(

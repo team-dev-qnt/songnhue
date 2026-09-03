@@ -1,8 +1,10 @@
 package com.songnhue.hydro.api;
 
 import java.time.LocalDate;
+import java.util.Set;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -10,7 +12,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.songnhue.core.common.security.RequirePermission;
+import com.songnhue.core.common.util.PageUtils;
 import com.songnhue.hydro.api.HydroReportDtos.BaoCaoDongBoView;
+import com.songnhue.hydro.api.HydroReportDtos.BaoCaoTongHopView;
+import com.songnhue.hydro.api.HydroReportDtos.ChiTietSoDoView;
 import com.songnhue.hydro.application.HydroReportService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -69,5 +74,55 @@ public class HydroReportController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate denNgay,
             @RequestParam(required = false) UUID stationPublicId) {
         return baoCao.baoCaoDongBo(tuNgay, denNgay, stationPublicId);
+    }
+
+    /**
+     * BC-05 — T34.5.
+     *
+     * <p>⚠ Nhận một <b>khoảng ngày</b> chứ ⛔ không nhận "tháng": báo cáo tháng là <i>trường hợp
+     * dùng mặc định</i> của giao diện, ⛔ không phải giới hạn của số liệu. Một kỳ 10 ngày (đợt xả)
+     * hay một kỳ mùa lũ đều là câu hỏi có thật, và ép chúng vào ranh giới tháng là bắt người dùng
+     * cộng tay hai bản báo cáo — đúng lúc con số phải chính xác nhất.
+     */
+    @GetMapping("/tong-hop")
+    @RequirePermission("hyd:report:view")
+    @Operation(
+            summary = "BC-05 — tổng hợp kỳ: max/min/TB CHỈ trên số liệu hợp lệ, kèm thời điểm đạt max/min",
+            description = "Trung bình tính THEO TRỌNG SỐ (tổng giá trị / tổng số bản ghi), ⛔ không phải "
+                    + "trung bình của các trung bình ngày. Kỳ không có bản ghi hợp lệ trả ô RỖNG KÈM LÝ DO, "
+                    + "⛔ không trả 0 và ⛔ không biến mất khỏi danh sách")
+    public BaoCaoTongHopView tongHop(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate tuNgay,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate denNgay,
+            @RequestParam(required = false) UUID stationPublicId) {
+        return baoCao.tongHopKy(tuNgay, denNgay, stationPublicId);
+    }
+
+    /**
+     * BC-12 — T34.6.
+     *
+     * <p>⭐⭐ Báo cáo <b>duy nhất</b> hiện bản ghi {@code NGHI_NGO} và {@code XOA}, và ⛔ là ngoại lệ
+     * hợp lệ duy nhất của quy tắc 8 (đọc bảng gốc thay vì bảng tổng hợp). Hai điều kiện giữ cho
+     * ngoại lệ ấy an toàn: khoảng ngày <b>tối đa 31 ngày</b> ({@code HYD-2012}) và phân trang.
+     *
+     * <p>⛔ Whitelist sort RỖNG: endpoint ⛔ không nhận {@code sort} — số đo chỉ có một thứ tự có
+     * nghĩa là theo mốc đo, mới nhất trước. Vẫn đi qua {@code PageUtils} để dùng đúng một luật kẹp
+     * {@code size} của cả hệ.
+     */
+    @GetMapping("/chi-tiet")
+    @RequirePermission("hyd:report:view")
+    @Operation(
+            summary = "BC-12 — chi tiết từng bản ghi, KÈM cột Chất lượng và cột Nguồn",
+            description = "Nơi DUY NHẤT hiện cả bản ghi nghi ngờ và đã xoá. Hai cột ấy là thứ được đánh "
+                    + "đổi lấy quyền không lọc chất lượng — ⛔ đừng bỏ chúng đi")
+    public Page<ChiTietSoDoView> chiTiet(
+            @RequestParam UUID stationPublicId,
+            @RequestParam String maLoaiChiSo,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate tuNgay,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate denNgay,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return baoCao.chiTiet(
+                stationPublicId, maLoaiChiSo, tuNgay, denNgay, PageUtils.toPageable(page, size, null, Set.of()));
     }
 }
