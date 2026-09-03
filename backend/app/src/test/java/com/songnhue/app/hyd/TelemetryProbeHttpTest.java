@@ -362,8 +362,8 @@ class TelemetryProbeHttpTest extends IntegrationTestBase {
         Long soSyncTruoc = jdbc.queryForObject("SELECT count(*) FROM sync_logs", Long.class);
         long maLaTruoc = demMaLaCuaMock();
 
-        pollHandler.handle(
-                new JobContext(UUID.randomUUID(), HydroJobTypes.POLL, PAYLOAD_POLL.formatted("PL-OK"), null, p -> {}));
+        pollHandler.handle(new JobContext(
+                UUID.randomUUID(), HydroJobTypes.POLL, PAYLOAD_POLL.formatted("PL-OK"), null, p -> {}, conTro -> {}));
 
         Map<String, Object> log = jdbc.queryForMap(
                 """
@@ -404,7 +404,12 @@ class TelemetryProbeHttpTest extends IntegrationTestBase {
         taoNguonGia("PL-NOKEY", false);
 
         org.assertj.core.api.Assertions.assertThatCode(() -> pollHandler.handle(new JobContext(
-                        UUID.randomUUID(), HydroJobTypes.POLL, PAYLOAD_POLL.formatted("PL-NOKEY"), null, p -> {})))
+                        UUID.randomUUID(),
+                        HydroJobTypes.POLL,
+                        PAYLOAD_POLL.formatted("PL-NOKEY"),
+                        null,
+                        p -> {},
+                        conTro -> {})))
                 .as("⭐⭐ Luật: ném khi lượt gọi ĐÃ XẢY RA và hỏng; ⛔ không ném khi chưa hề có lượt gọi "
                         + "nào. Đó chính là đường phân chia mà lược đồ đã vẽ giữa hai ràng buộc CHECK.")
                 .doesNotThrowAnyException();

@@ -3,6 +3,10 @@ package com.songnhue.core.infra.storage;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.ZonedDateTime;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -14,10 +18,13 @@ import com.songnhue.core.common.exception.UpstreamException;
 
 import io.minio.GetObjectArgs;
 import io.minio.GetPresignedObjectUrlArgs;
+import io.minio.ListObjectsArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
+import io.minio.Result;
 import io.minio.http.Method;
+import io.minio.messages.Item;
 
 /**
  * Đọc/ghi tệp tin trên MinIO — <b>nơi duy nhất</b> hệ thống chạm vào kho đối tượng (T6.3).
@@ -82,6 +89,37 @@ public class ObjectStorage {
         } catch (Exception e) {
             throw new UpstreamException(ErrorCode.SYS_0006, e, "MinIO");
         }
+    }
+
+    /**
+     * Liệt kê đối tượng theo tiền tố, kèm <b>mốc sửa đổi</b> — WS-34/T34.7.
+     *
+     * <p>⚠ Mốc lấy từ <b>MinIO</b>, ⛔ không phải từ đồng hồ ứng dụng. Đó là chủ ý: nó là mốc của
+     * chính đối tượng sắp bị phán xét, nên không có độ lệch múi giờ hay lệch đồng hồ giữa hai máy —
+     * cùng bài học với {@code HydroRetentionHandler} (mốc cắt lấy từ {@code current_date} của phiên
+     * CSDL, ⛔ không từ {@code LocalDate.now()}).
+     *
+     * @return khoá đối tượng → mốc sửa đổi gần nhất; rỗng khi ⛔ không có đối tượng nào khớp
+     */
+    public Map<String, Instant> list(String bucket, String prefix) {
+        Map<String, Instant> ket = new LinkedHashMap<>();
+        try {
+            Iterable<Result<Item>> ds = client.listObjects(ListObjectsArgs.builder()
+                    .bucket(bucket)
+                    .prefix(prefix)
+                    .recursive(true)
+                    .build());
+            for (Result<Item> r : ds) {
+                Item it = r.get();
+                if (!it.isDir()) {
+                    ZonedDateTime moc = it.lastModified();
+                    ket.put(it.objectName(), moc == null ? null : moc.toInstant());
+                }
+            }
+        } catch (Exception e) {
+            throw new UpstreamException(ErrorCode.SYS_0006, e, "MinIO");
+        }
+        return ket;
     }
 
     public void delete(String bucket, String objectKey) {

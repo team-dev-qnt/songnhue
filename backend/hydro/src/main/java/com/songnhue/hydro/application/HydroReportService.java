@@ -51,7 +51,7 @@ public class HydroReportService {
      *
      * <p>366 ⛔ không phải 365: một năm nhuận phải xem trọn được.
      */
-    static final int TRAN_SO_NGAY = 366;
+    public static final int TRAN_SO_NGAY = 366;
 
     /**
      * ⛔ Trần khoảng ngày của BC-12 <b>hẹp hơn hẳn</b> — 31 ngày.
@@ -61,7 +61,7 @@ public class HydroReportService {
      * như các báo cáo khác sẽ là 52 nghìn — và đó chính là lượt quét mà bảng tổng hợp sinh ra để
      * tránh. Cận này ⛔ không phải sự cẩn thận thừa: nó là điều kiện để ngoại lệ kia còn hợp lệ.
      */
-    static final int TRAN_NGAY_CHI_TIET = 31;
+    public static final int TRAN_NGAY_CHI_TIET = 31;
 
     private final HydroReportRepository kho;
     private final StationRepository diemDo;
@@ -232,7 +232,7 @@ public class HydroReportService {
      * ⭐ Hai phép kiểm <b>phân biệt được nhau</b> (luật 9), ⛔ không gộp thành một câu "khoảng ngày
      * không hợp lệ": người gõ ngược hai ô cần một câu khác hẳn người xin năm năm dữ liệu.
      */
-    void kiemKhoang(LocalDate tuNgay, LocalDate denNgay, int tran) {
+    public void kiemKhoang(LocalDate tuNgay, LocalDate denNgay, int tran) {
         if (tuNgay.isAfter(denNgay)) {
             throw new ValidationException(ErrorCode.HYD_2013);
         }

@@ -72,7 +72,8 @@ class HydroSignalLossHandlerTest {
     }
 
     private void chay() {
-        handler.handle(new JobContext(java.util.UUID.randomUUID(), HydroJobTypes.SIGNAL_LOSS, "{}", null, p -> {}));
+        handler.handle(new JobContext(
+                java.util.UUID.randomUUID(), HydroJobTypes.SIGNAL_LOSS, "{}", null, p -> {}, conTro -> {}));
     }
 
     private List<NotifyRequest> tinDaGui() {

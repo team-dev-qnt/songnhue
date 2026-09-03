@@ -1,5 +1,18 @@
 import { useQuery } from '@tanstack/react-query';
-import { Alert, Card, DatePicker, Drawer, Space, Table, Tag, Tooltip, Typography } from 'antd';
+import { DownloadOutlined } from '@ant-design/icons';
+import {
+  Alert,
+  Button,
+  Card,
+  DatePicker,
+  Drawer,
+  Space,
+  Table,
+  Tag,
+  Tooltip,
+  Typography,
+  message,
+} from 'antd';
 import { type ColumnsType } from 'antd/es/table';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useState } from 'react';
@@ -11,9 +24,11 @@ import {
   type Station,
 } from '@/shared/api-types';
 import { api } from '@/shared/apiClient';
+import { useAuth } from '@/app/auth/useAuth';
 import { formatDateTime } from '@/shared/format';
 
 import { CHAT_LUONG_SO_DO, NGUON_SO_DO, VAI_TRO_VI_TRI } from './hydroVocabulary';
+import { useXuatBaoCao } from './useXuatBaoCao';
 
 /** ⛔ Trần khoảng ngày của BC-12 — phải khớp `HydroReportService.TRAN_NGAY_CHI_TIET`. */
 const TRAN_NGAY_CHI_TIET = 31;
@@ -36,6 +51,8 @@ const TRAN_NGAY_CHI_TIET = 31;
  * ngày lại thay vì để người dùng nhận một lỗi họ ⛔ không gây ra.
  */
 export function PeriodReportPage() {
+  const { hasPermission } = useAuth();
+  const { xuat, dangCho } = useXuatBaoCao();
   const [khoang, setKhoang] = useState<[Dayjs, Dayjs]>(() => [
     dayjs().startOf('month'),
     dayjs().endOf('month').isAfter(dayjs()) ? dayjs() : dayjs().endOf('month'),
@@ -149,11 +166,28 @@ export function PeriodReportPage() {
     <Card
       title="BC-05 — Tổng hợp thuỷ văn theo kỳ"
       extra={
-        <DatePicker.RangePicker
-          allowClear={false}
-          value={khoang}
-          onChange={(v) => v?.[0] && v[1] && setKhoang([v[0], v[1]])}
-        />
+        <Space wrap>
+          {hasPermission('hyd:report:export') ? (
+            <Button
+              icon={<DownloadOutlined />}
+              loading={dangCho}
+              onClick={() => {
+                void xuat({ loai: 'BC05', tuNgay, denNgay })
+                  .then((ten) => message.success(`Đã tải ${ten}`))
+                  .catch((e: unknown) =>
+                    message.error(e instanceof Error ? e.message : 'Không kết xuất được'),
+                  );
+              }}
+            >
+              {dangCho ? 'Đang dựng tệp…' : 'Xuất CSV'}
+            </Button>
+          ) : null}
+          <DatePicker.RangePicker
+            allowClear={false}
+            value={khoang}
+            onChange={(v) => v?.[0] && v[1] && setKhoang([v[0], v[1]])}
+          />
+        </Space>
       }
     >
       <Alert
@@ -243,6 +277,8 @@ function ChiTietSoDo({
   dsDiemDo: Station[];
 }) {
   const [trang, setTrang] = useState(1);
+  const { hasPermission } = useAuth();
+  const { xuat, dangCho } = useXuatBaoCao();
 
   const soNgay = denNgay.diff(tuNgay, 'day') + 1;
   const batDau =
@@ -344,6 +380,31 @@ function ChiTietSoDo({
           message={`Chi tiết chỉ hiện ${TRAN_NGAY_CHI_TIET} ngày cuối của kỳ (${batDau.format('DD/MM/YYYY')} – ${denNgay.format('DD/MM/YYYY')})`}
           description="Báo cáo chi tiết là báo cáo duy nhất đọc thẳng bảng số đo — mỗi điểm đo sinh 144 bản ghi một ngày, nên khoảng ngày phải có cận."
         />
+      ) : null}
+
+      {hasPermission('hyd:report:export') ? (
+        <Button
+          icon={<DownloadOutlined />}
+          loading={dangCho}
+          disabled={(dl.data?.totalElements ?? 0) === 0}
+          onClick={() => {
+            // ⚠ Xuất ĐÚNG khoảng đã kẹp mà bảng đang hiện — ⛔ không xuất khoảng gốc của BC-05.
+            //   Một tệp có phạm vi khác thứ người dùng vừa nhìn là một tệp họ ⛔ không kiểm được.
+            void xuat({
+              loai: 'BC12',
+              tuNgay: batDau.format('YYYY-MM-DD'),
+              denNgay: denNgay.format('YYYY-MM-DD'),
+              stationPublicId: publicId,
+              maLoaiChiSo,
+            })
+              .then((ten) => message.success(`Đã tải ${ten}`))
+              .catch((e: unknown) =>
+                message.error(e instanceof Error ? e.message : 'Không kết xuất được'),
+              );
+          }}
+        >
+          {dangCho ? 'Đang dựng tệp…' : 'Xuất chi tiết ra CSV'}
+        </Button>
       ) : null}
 
       <Table

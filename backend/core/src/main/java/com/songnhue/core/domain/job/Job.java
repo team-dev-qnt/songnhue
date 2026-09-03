@@ -107,6 +107,21 @@ public class Job {
         this.payload = payload == null || payload.isBlank() ? "{}" : payload;
     }
 
+    /**
+     * Ghi <b>con trỏ kết quả</b> mà ⛔ KHÔNG kết thúc job — WS-34/T34.7.
+     *
+     * <p>⚠⚠ Cố ý tách khỏi {@link #markSucceeded(String)}, và lý do là một lỗi suýt mắc: hàm kia
+     * đặt {@code status = SUCCEEDED}, {@code progress = 100}, {@code finishedAt}, <b>và thả khoá</b>.
+     * Gọi nó từ đường ghi con trỏ — tức <i>trong khi handler còn đang chạy</i> — là tuyên bố job đã
+     * xong rồi mở cửa cho một worker khác nhặt lại chính nó. Triệu chứng sẽ là một việc nền chạy hai
+     * lần mà nhật ký chỉ ghi một.
+     *
+     * <p>⇒ Setter này hẹp đúng một cột. Kết luận thành/bại vẫn là việc của {@code JobWorker}.
+     */
+    public void ghiConTroKetQua(String result) {
+        this.result = result;
+    }
+
     public void markSucceeded(String result) {
         this.status = JobStatus.SUCCEEDED;
         this.result = result;

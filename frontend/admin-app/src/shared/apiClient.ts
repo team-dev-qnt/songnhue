@@ -430,6 +430,26 @@ export const api = {
     };
   },
 
+  /**
+   * Tải một tệp nhị phân — bản kết xuất báo cáo (T34.7).
+   *
+   * ⛔⛔ ⛔ Đừng thay bằng `window.open(url)`: endpoint đòi header `Authorization`, và một tab mới
+   * ⛔ không mang theo nó — người dùng nhận một tab trắng kèm 401, và triệu chứng ấy đọc như "hệ
+   * thống hỏng" chứ ⛔ không như "thiếu quyền".
+   *
+   * ⚠ `responseType: 'blob'` ⇒ thân phản hồi ⛔ KHÔNG đi qua `unwrap`: endpoint tệp trả byte trần,
+   * ⛔ không bọc envelope (§10.52 — envelope bọc `byte[]` làm ảnh cổng im lặng suốt bốn ngày).
+   *
+   * @returns blob kèm tên tệp lấy từ `Content-Disposition` — ⛔ FE ⛔ không tự đặt tên, vì tên tệp là
+   *   thứ người dùng lưu lại rồi gửi đi, và hai nơi đặt tên là hai cách gọi cùng một báo cáo
+   */
+  async getTep(url: string): Promise<{ blob: Blob; tenTep: string | null }> {
+    const response = await http.get<Blob>(url, { responseType: 'blob' });
+    const cd = response.headers['content-disposition'];
+    const m = typeof cd === 'string' ? /filename="?([^";]+)"?/i.exec(cd) : null;
+    return { blob: response.data, tenTep: m ? m[1] : null };
+  },
+
   async post<T>(url: string, body?: unknown): Promise<T> {
     const response = await http.post<ApiEnvelope<T>>(url, body);
     return unwrap(response);

@@ -1,5 +1,18 @@
 import { useQuery } from '@tanstack/react-query';
-import { Alert, Card, DatePicker, Select, Space, Table, Tag, Tooltip, Typography } from 'antd';
+import { DownloadOutlined } from '@ant-design/icons';
+import {
+  Alert,
+  Button,
+  Card,
+  DatePicker,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Tooltip,
+  Typography,
+  message,
+} from 'antd';
 import { type ColumnsType } from 'antd/es/table';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useState } from 'react';
@@ -11,7 +24,10 @@ import {
   type SyncQualityRow,
 } from '@/shared/api-types';
 import { api } from '@/shared/apiClient';
+import { useAuth } from '@/app/auth/useAuth';
 import { formatDateTime } from '@/shared/format';
+
+import { useXuatBaoCao } from './useXuatBaoCao';
 
 /**
  * **BC-13 — Nhật ký đồng bộ & chất lượng dữ liệu** (T34.3).
@@ -29,6 +45,8 @@ import { formatDateTime } from '@/shared/format';
  * *số liệu nào không về*; bảng dưới là (nguồn × ngày) — *vì sao*. Trộn lại là mất nghĩa cả hai.
  */
 export function SyncQualityReportPage() {
+  const { hasPermission } = useAuth();
+  const { xuat, dangCho, hanTaiGio } = useXuatBaoCao();
   const [khoang, setKhoang] = useState<[Dayjs, Dayjs]>(() => [dayjs().subtract(6, 'day'), dayjs()]);
   const [diemDo, setDiemDo] = useState<string | undefined>();
 
@@ -181,6 +199,23 @@ export function SyncQualityReportPage() {
         title="BC-13 — Nhật ký đồng bộ & chất lượng dữ liệu"
         extra={
           <Space wrap>
+            {/* ⚠ Nút Xuất gác bằng `hyd:report:export`, ⛔ KHÔNG bằng quyền của cả trang: xem và
+                mang ra ngoài là hai việc, và XN_OPERATOR · DUTY_OFFICER chỉ có vế đầu. */}
+            {hasPermission('hyd:report:export') ? (
+              <Button
+                icon={<DownloadOutlined />}
+                loading={dangCho}
+                onClick={() => {
+                  void xuat({ loai: 'BC13', tuNgay, denNgay, stationPublicId: diemDo })
+                    .then((ten) => message.success(`Đã tải ${ten}`))
+                    .catch((e: unknown) =>
+                      message.error(e instanceof Error ? e.message : 'Không kết xuất được'),
+                    );
+                }}
+              >
+                {dangCho ? 'Đang dựng tệp…' : 'Xuất CSV'}
+              </Button>
+            ) : null}
             <DatePicker.RangePicker
               allowClear={false}
               value={khoang}
@@ -209,6 +244,9 @@ export function SyncQualityReportPage() {
           message={`Một khung là ${khungPhut} phút — mỗi ngày trọn vẹn có ${Math.round(1440 / khungPhut)} khung`}
           description={
             <>
+              Bản kết xuất mở thẳng được bằng Excel (dấu tách <code>;</code>, số dùng dấu phẩy thập
+              phân) và có hạn tải {hanTaiGio} giờ.
+              <br />
               Cột <b>Khung bỏ sót</b> là thước đo của cam kết NFR-03. Ô để <b>trống</b> nghĩa là
               chưa đo được — lý do hiện ngay tại ô — và ⛔ <b>không</b> đồng nghĩa với 0.
               <br />

@@ -64,7 +64,12 @@ class HydroPollJobHandlerTest {
 
     private void chay() {
         handler.handle(new JobContext(
-                UUID.randomUUID(), HydroJobTypes.POLL, HydroPollJobHandler.payloadCho("BHH40"), null, p -> {}));
+                UUID.randomUUID(),
+                HydroJobTypes.POLL,
+                HydroPollJobHandler.payloadCho("BHH40"),
+                null,
+                p -> {},
+                conTro -> {}));
     }
 
     private void ketQua(SyncStatus trangThai, SyncFailureKind loi) {

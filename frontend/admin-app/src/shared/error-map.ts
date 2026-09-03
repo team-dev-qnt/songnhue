@@ -423,6 +423,16 @@ export const ERROR_CATALOG = {
     handling: 'form',
     severity: 'warning',
   },
+  'HYD-2014': {
+    message: 'Bản kết xuất đã quá hạn tải (24 giờ) — hãy xuất lại',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'HYD-2015': {
+    message: 'Bản kết xuất chưa sẵn sàng — việc nền còn đang chạy',
+    handling: 'toast',
+    severity: 'info',
+  },
 
   // --- MOD-04 Nhân sự ---------------------------------------------------------
   'HR-2001': {

@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.songnhue.core.spi.JobContext;
 import com.songnhue.core.spi.JobHandler;
+import com.songnhue.core.spi.ReportFilePort;
 import com.songnhue.hydro.infra.HydroMaintenanceRepository;
 
 /**
@@ -66,8 +67,11 @@ public class HydroRetentionHandler implements JobHandler {
 
     private final HydroMaintenanceRepository repository;
     private final HydroSettings settings;
+    private final ReportFilePort khoBaoCao;
 
-    public HydroRetentionHandler(HydroMaintenanceRepository repository, HydroSettings settings) {
+    public HydroRetentionHandler(
+            HydroMaintenanceRepository repository, HydroSettings settings, ReportFilePort khoBaoCao) {
+        this.khoBaoCao = khoBaoCao;
         this.repository = repository;
         this.settings = settings;
     }
@@ -104,5 +108,40 @@ public class HydroRetentionHandler implements JobHandler {
                 soNamGiuDuLieu,
                 cutoffDuLieu,
                 unmappedDeleted);
+
+        donBanKetXuatQuaHan();
+    }
+
+    /**
+     * ⭐ Dọn bản kết xuất báo cáo quá hạn — T34.7.
+     *
+     * <p>⚠⚠ Thiếu bước này thì "TTL 24 giờ" chỉ là một câu kiểm ở endpoint tải: tệp vẫn nằm nguyên
+     * trong bucket, và {@code push-offsite.sh} sao lưu nó ra ngoài <b>mỗi đêm, mãi mãi</b>. Một hạn
+     * dùng chỉ thi hành ở tầng đọc là một hạn dùng ⛔ không có thật — và ở đây nó còn tốn tiền lưu
+     * trữ ngoài site.
+     *
+     * <p>⚠ Hạn lấy từ {@link HydroReportExportHandler#HAN_TAI} — <b>một</b> con số cho cả đường tải
+     * lẫn đường dọn (luật 14). Tách làm hai hằng là mở đường cho một bản kết xuất còn hạn mà tệp đã
+     * bị xoá.
+     *
+     * <p>⛔ Việc này chạy <b>hằng ngày</b>, nên một đối tượng có thể sống tới ~48 giờ trước khi bị
+     * dọn. Đó là chủ ý và đã nói ra: hạn <i>truy cập</i> vẫn đúng 24 giờ (endpoint tải kiểm mốc tạo
+     * job), phần dư chỉ là dung lượng. ⛔ Đừng đọc con số 24 ở đây thành "tệp biến mất sau 24 giờ".
+     *
+     * <p>⛔ Lỗi ở đây ⛔ <b>không</b> được làm hỏng cả việc dọn: phần trên vừa {@code DROP PARTITION}
+     * xong và job này chỉ thử <b>một</b> lần (xoá là không phục hồi được). Một lượt dọn tệp hỏng vì
+     * MinIO tạm không với tới sẽ được lượt ngày mai làm lại; báo FAILED ở đây là nói rằng phần dọn
+     * CSDL cũng hỏng, và đó là một câu sai.
+     */
+    private void donBanKetXuatQuaHan() {
+        try {
+            int daXoa = khoBaoCao.donQuaHan(HydroReportExportHandler.TIEN_TO_KHOA, HydroReportExportHandler.HAN_TAI);
+            log.info("Dọn bản kết xuất báo cáo quá {} giờ: {} tệp", HydroReportExportHandler.HAN_TAI.toHours(), daXoa);
+        } catch (RuntimeException e) {
+            log.error(
+                    "⚠ Dọn bản kết xuất báo cáo hỏng — phần dọn CSDL ở trên ĐÃ xong. "
+                            + "Lượt chạy ngày mai sẽ dọn lại; bucket phình thêm một ngày.",
+                    e);
+        }
     }
 }

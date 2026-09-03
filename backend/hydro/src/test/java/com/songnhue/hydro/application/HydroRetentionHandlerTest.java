@@ -14,6 +14,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.songnhue.core.spi.JobContext;
+import com.songnhue.core.spi.ReportFilePort;
 import com.songnhue.hydro.infra.HydroMaintenanceRepository;
 
 /**
@@ -49,11 +50,22 @@ class HydroRetentionHandlerTest {
     @Mock
     private HydroSettings settings;
 
+    /**
+     * ⭐ Mock CÓ TÊN cho kho tệp báo cáo — ⛔ không để nó là {@code null}.
+     *
+     * <p>{@code donBanKetXuatQuaHan()} bắt {@code RuntimeException} và đi tiếp (xem javadoc của nó),
+     * nên một trường {@code null} sẽ làm bước dọn ném NPE rồi <b>bị nuốt</b> — bộ kiểm vẫn xanh
+     * trong khi nhánh đang kiểm ⛔ chưa từng chạy. Đúng luật 7 ở dạng khó thấy: xanh vì đi qua nhánh
+     * xử lý lỗi, ⛔ không phải vì làm đúng.
+     */
+    @Mock
+    private ReportFilePort khoBaoCao;
+
     @InjectMocks
     private HydroRetentionHandler handler;
 
     private static JobContext boiCanh() {
-        return new JobContext(UUID.randomUUID(), HydroJobTypes.RETENTION, "{}", null, percent -> {});
+        return new JobContext(UUID.randomUUID(), HydroJobTypes.RETENTION, "{}", null, percent -> {}, conTro -> {});
     }
 
     @Test
@@ -123,5 +135,37 @@ class HydroRetentionHandlerTest {
         // `HydroRetentionTest.bienDuoiCuaUiPhaiDiQuaDuoc` chứng minh.
         verify(repository).dropPartitionsBefore("hydro_raw_logs", HOM_NAY.minusDays(7));
         verify(repository).dropPartitionsBefore("hydro_readings", LocalDate.of(2025, 9, 2));
+    }
+
+    @Test
+    @DisplayName("⭐⭐ Lượt dọn CÓ gọi kho tệp báo cáo — TTL 24h không được chỉ sống ở endpoint tải")
+    void luotDonGoiKhoTepBaoCao() {
+        when(repository.ngayHienTai()).thenReturn(HOM_NAY);
+        when(settings.soNgayGiuRawLog()).thenReturn(90);
+        when(settings.soNamGiuDuLieu()).thenReturn(5);
+
+        handler.handle(boiCanh());
+
+        // ⚠⚠ Khẳng định ĐÚNG hai tham số, ⛔ không phải `any()`. Thiếu bước dọn này thì "TTL 24 giờ"
+        //    chỉ là một câu kiểm ở endpoint tải: tệp vẫn nằm nguyên trong bucket và vẫn được
+        //    `push-offsite.sh` sao lưu ra ngoài mỗi đêm, mãi mãi. Một hạn dùng chỉ thi hành ở tầng
+        //    đọc là một hạn dùng ⛔ không có thật.
+        verify(khoBaoCao).donQuaHan(HydroReportExportHandler.TIEN_TO_KHOA, HydroReportExportHandler.HAN_TAI);
+    }
+
+    @Test
+    @DisplayName("⛔ Kho tệp hỏng ⛔ KHÔNG được làm hỏng lượt dọn CSDL — nó vừa DROP PARTITION xong")
+    void khoTepHongKhongLamHongLuotDon() {
+        when(repository.ngayHienTai()).thenReturn(HOM_NAY);
+        when(settings.soNgayGiuRawLog()).thenReturn(90);
+        when(settings.soNamGiuDuLieu()).thenReturn(5);
+        when(khoBaoCao.donQuaHan(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any()))
+                .thenThrow(new IllegalStateException("MinIO tạm không với tới"));
+
+        // ⛔ Job này chỉ thử MỘT lần (xoá là không phục hồi được). Ném ở đây là nói rằng phần dọn
+        //   CSDL cũng hỏng — một câu SAI, và nó chặn luôn lượt dọn của ngày hôm sau.
+        handler.handle(boiCanh());
+
+        verify(repository).dropPartitionsBefore("hydro_readings", LocalDate.of(2021, 9, 2));
     }
 }

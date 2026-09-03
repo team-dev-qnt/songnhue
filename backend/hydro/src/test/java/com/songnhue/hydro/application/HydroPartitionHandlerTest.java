@@ -27,7 +27,7 @@ class HydroPartitionHandlerTest {
     private HydroPartitionHandler handler;
 
     private static JobContext boiCanh() {
-        return new JobContext(UUID.randomUUID(), HydroJobTypes.PARTITION, "{}", null, percent -> {});
+        return new JobContext(UUID.randomUUID(), HydroJobTypes.PARTITION, "{}", null, percent -> {}, conTro -> {});
     }
 
     @Test

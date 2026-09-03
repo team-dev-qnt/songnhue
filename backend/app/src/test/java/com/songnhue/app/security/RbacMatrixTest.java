@@ -108,7 +108,11 @@ class RbacMatrixTest extends IntegrationTestBase {
             // ⭐ `hyd:report:view` RỜI khỏi danh sách này ở WS-34/T34.3 — BC-13 là người đọc đầu
             //   tiên (`HydroReportController`). Giữ lại một quyền đã có cổng dùng là làm bài này
             //   khẳng định điều sai, và một bài kiểm nói sai thì lượt sau người ta nới nó ra.
-            "hyd:report:export", // Xuất báo cáo thủy văn — T34.7, chưa có endpoint nào đọc
+            // ⭐ `hyd:report:export` RỜI ở WS-34/T34.7 — POST /hyd/bao-cao/xuat và GET
+            //   /hyd/bao-cao/tai/{jobId} gác bằng đúng nó. ⚠ Hai quyền này CỐ Ý tách nhau: đo trên
+            //   ma trận seed thì XN_OPERATOR và DUTY_OFFICER chỉ có `:view` — họ đọc được báo cáo
+            //   trên màn hình nhưng ⛔ không mang được nó ra ngoài, và đó là quyết định của Công ty
+            //   chứ ⛔ không phải một chi tiết kỹ thuật.
             "hr:employee:create", // Nhân sự — Phase 2
             "hr:employee:view", // Nhân sự — Phase 2
             "hr:employee:view-sensitive", // Nhân sự — Phase 2

@@ -58,5 +58,15 @@ public final class HydroJobTypes {
      */
     public static final String AGG_REBUILD = "HYDRO_AGG_REBUILD";
 
+    /**
+     * ⭐ Kết xuất một báo cáo thuỷ văn ra CSV — T34.7.
+     *
+     * <p>⚠ Khoá chống trùng kèm <b>toàn bộ tham số</b> của yêu cầu, ⛔ không chỉ mã báo cáo: hai
+     * người cùng xin BC-05 cho hai khoảng ngày khác nhau là hai việc khác nhau, và gộp chúng lại thì
+     * người thứ hai nhận về bản kết xuất của người thứ nhất — đúng số liệu, sai kỳ, ⛔ không có gì
+     * báo sai.
+     */
+    public static final String REPORT_EXPORT = "HYDRO_REPORT_EXPORT";
+
     private HydroJobTypes() {}
 }

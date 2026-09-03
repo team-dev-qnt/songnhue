@@ -224,6 +224,19 @@ public enum ErrorCode {
     /** Ngày bắt đầu sau ngày kết thúc — T34.3. Khoảng rỗng trả 0 hàng, và 0 hàng đọc như "không có dữ liệu". */
     HYD_2013("HYD-2013", HttpStatus.UNPROCESSABLE_ENTITY),
 
+    /**
+     * Bản kết xuất đã quá hạn tải — T34.7.
+     *
+     * <p>⭐ {@code 410 GONE}, ⛔ <b>không</b> {@code 404}: hai câu trả lời khác hẳn nhau. 404 nói
+     * <i>"chưa từng có"</i> và người dùng sẽ đi tìm xem mình bấm nhầm ở đâu; 410 nói <i>"có, và đã
+     * hết hạn"</i> — việc phải làm là bấm Xuất lại. Một mã trạng thái ⛔ không phân biệt được hai
+     * tình huống thì ⛔ không nói gì cả (luật 9).
+     */
+    HYD_2014("HYD-2014", HttpStatus.GONE),
+
+    /** Bản kết xuất chưa sẵn sàng — việc nền còn đang chạy hoặc đã hỏng. T34.7. */
+    HYD_2015("HYD-2015", HttpStatus.CONFLICT),
+
     // ---- MOD-04 Nhân sự ---------------------------------------------------------
     HR_2001("HR-2001", HttpStatus.UNPROCESSABLE_ENTITY),
 
