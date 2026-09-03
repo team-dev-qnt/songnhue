@@ -23,6 +23,13 @@
 #   phép kiểm bảo mật này báo ĐẠT mà chưa một lần soi tìm khoá PEM. Sửa bằng
 #   `-e` (mẫu là mẫu, không phải tuỳ chọn) và bằng phép TỰ KIỂM ở dưới.
 #
+# ⚠⚠ Và nó âm thầm sai LẦN THỨ HAI — phát hiện 26/8, vá 3/9 (T11.41). Nhánh
+#   "không có pg_restore trên host" `exit 0`, mà VPS staging không cài
+#   postgresql-client, nên từ 26/8 mọi lượt triển khai đều in *"BỎ QUA việc kiểm
+#   khoá"* rồi đi tiếp — phép kiểm chạy suốt mà chưa soi một byte nào.
+#   Nay: hỏi container `postgres` (luôn có pg_restore, đúng phiên bản), và không
+#   hỏi được thì **thoát 1**. Xem khối chọn nguồn ở dưới.
+#
 #   Dùng:  deploy/backup/verify-no-keys.sh <đường-dẫn-bản-dump>
 # =============================================================================
 set -euo pipefail
@@ -74,15 +81,60 @@ self_test() {
 
 self_test
 
-if ! command -v pg_restore >/dev/null 2>&1; then
-    echo "  ⚠ Không có pg_restore — BỎ QUA việc kiểm khoá trong bản dump." >&2
-    echo "    Đây là bỏ qua một kiểm chứng bảo mật, không phải 'không sao'." >&2
-    exit 0
+# -----------------------------------------------------------------------------
+# ⚠⚠ CHỌN CHỖ CHẠY pg_restore — T11.41
+#
+# Bản trước: không có `pg_restore` trên host thì in "BỎ QUA việc kiểm khoá" rồi
+# `exit 0`. Trên VPS staging KHÔNG CÓ postgresql-client, nên nhánh ấy chạy ở
+# **mọi lượt triển khai** kể từ 26/8: phép kiểm bảo mật duy nhất canh bản dump
+# chưa từng soi một byte nào, và nó thoát 0 nên `pre-deploy-dump.sh` in ✓ đi tiếp.
+#
+# ⛔ `exit 0` là chỗ sai, không phải chỗ thiếu công cụ. Cùng hình dạng với nhánh
+#    `ImportError → sys.exit(0)` của bộ đọc tracking (T11.49): một cơ chế canh gác
+#    KHÔNG CHẠY ĐƯỢC phải nói ra bằng mã thoát khác 0. "Không kiểm được" và "kiểm
+#    rồi, sạch" là hai kết luận khác nhau và phải trông khác nhau (luật 9).
+#
+# Container `postgres` LUÔN có `pg_restore`, đúng phiên bản máy chủ, và thư mục
+# sao lưu được gắn vào nó ở **cùng một đường dẫn** với host
+# (`/var/lib/songnhue/backup:/var/lib/songnhue/backup`, compose.prod.yml) — nên
+# đường dẫn truyền vào dùng nguyên si được, không phải dịch.
+# -----------------------------------------------------------------------------
+NGUON_PG=""
+if command -v pg_restore >/dev/null 2>&1; then
+    NGUON_PG="host"
+    pg_restore_run() { pg_restore "$@"; }
+elif command -v docker >/dev/null 2>&1; then
+    # shellcheck source=../lib/docker-svc.sh
+    . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/docker-svc.sh"
+    CT_PG="$(container_cua postgres 2>/dev/null)" || CT_PG=""
+    if [ -n "$CT_PG" ]; then
+        # Bản dump phải NHÌN THẤY ĐƯỢC từ trong container. Không kiểm bước này thì
+        # `pg_restore` trong đó báo "no such file" và ta lại rơi vào đúng cái bẫy
+        # "không tìm thấy gì vì không đọc được gì".
+        if docker exec "$CT_PG" test -f "$DUMP" 2>/dev/null; then
+            NGUON_PG="container ${CT_PG:0:12}"
+            pg_restore_run() { docker exec "$CT_PG" pg_restore "$@"; }
+        else
+            echo "  ✗ Container postgres không thấy $DUMP — thư mục sao lưu chưa được gắn vào nó," >&2
+            echo "    hoặc bản dump nằm ngoài BACKUP_DIR. Không kết luận được gì về khoá." >&2
+            exit 1
+        fi
+    fi
 fi
+
+if [ -z "$NGUON_PG" ]; then
+    echo "  ✗ KHÔNG CHẠY ĐƯỢC phép kiểm khoá: không có pg_restore trên host, và cũng không" >&2
+    echo "    hỏi được container postgres (thiếu docker, hoặc container không chạy)." >&2
+    echo "    Đây KHÔNG phải 'không sao' — bản dump sắp rời máy này mà chưa ai soi nó." >&2
+    echo "    Chữa: dựng container postgres rồi chạy lại, hoặc cài postgresql-client." >&2
+    exit 1
+fi
+
+echo "  · Soi bằng pg_restore của: $NGUON_PG"
 
 # Bản dump không đọc được mà vẫn in ✓ thì lại đúng cái bẫy cũ: không tìm thấy gì
 # vì không đọc được gì. Chặn ở đây, trước khi soi.
-if ! pg_restore --list "$DUMP" >/dev/null 2>&1; then
+if ! pg_restore_run --list "$DUMP" >/dev/null 2>&1; then
     echo "  ✗ Không đọc được bản dump $DUMP — không kết luận được gì về khoá." >&2
     exit 1
 fi
@@ -90,8 +142,8 @@ fi
 # Giải nén ra dạng văn bản rồi soi. Không ghi ra tệp tạm: nội dung CSDL đầy đủ
 # nằm trên đĩa dưới dạng đọc được là đúng thứ ta đang cố tránh.
 FOUND=0
-pg_restore --file=- "$DUMP" 2>/dev/null | scan_stream "$PATTERN_PEM" 'khoá riêng dạng PEM' || FOUND=1
-pg_restore --file=- "$DUMP" 2>/dev/null | scan_stream "$PATTERN_ENV" 'tên biến môi trường chứa bí mật' || FOUND=1
+pg_restore_run --file=- "$DUMP" 2>/dev/null | scan_stream "$PATTERN_PEM" 'khoá riêng dạng PEM' || FOUND=1
+pg_restore_run --file=- "$DUMP" 2>/dev/null | scan_stream "$PATTERN_ENV" 'tên biến môi trường chứa bí mật' || FOUND=1
 
 if [ "$FOUND" -ne 0 ]; then
     echo "" >&2

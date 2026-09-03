@@ -182,6 +182,10 @@ server {
         return 200 "ok\n";
     }
 
+    # Tài liệu API không ra ngoài — T11.6-a. Lý do đầy đủ nằm trong chính tệp
+    # snippet; đặt TRƯỚC `location /api/` để thứ tự đọc khớp thứ tự nginx xét.
+    include /etc/nginx/snippets/chan-tai-lieu-api.conf;
+
     # ⚠⚠ `add_header` KHÔNG cộng dồn: một `location` có `add_header` riêng sẽ
     #    VỨT BỎ toàn bộ `add_header` kế thừa từ cấp `server`. Vì thế snippet
     #    phải được `include` lại trong TỪNG khối location — giống hệt cách làm
@@ -228,6 +232,11 @@ server {
         add_header Content-Type text/plain;
         return 200 "ok\n";
     }
+
+    # Tài liệu API không ra ngoài — T11.6-a. Tên miền quản trị là chỗ DUY NHẤT
+    # đo được 200 trước bản vá (index.html của SPA, không phải swagger), nên
+    # đây cũng là chỗ dễ tưởng nhầm là "đang có gì đó ở đường dẫn này".
+    include /etc/nginx/snippets/chan-tai-lieu-api.conf;
 
     # ⚠ Hạn mức chặt cho đường đăng nhập/đổi token. Backend đã có lockout
     #   5 lần/15' theo tài khoản; hạn mức này chặn tầng thấp hơn — dò mật khẩu

@@ -88,15 +88,27 @@ phải thêm một bước tra thử riêng chỉ để phân biệt hai thứ �
 
 `ci.yml` chạy khi push vào `dev` và khi có PR hướng vào `dev`.
 
-| Job | Việc | Bắt buộc để merge |
-|---|---|:-:|
-| `Vùng nào thay đổi` | So đường dẫn thay đổi, quyết định chạy job nào | — |
-| `Backend — build, lint, test` | Spotless · Checkstyle · `mvn verify` (test đơn vị + Testcontainers + ArchUnit + cổng bao phủ) | ✅ |
-| `Frontend — lint` | ESLint + `tsc --noEmit` (tự bỏ qua tới khi WS-8/WS-9 có mã) | ✅ |
-| `Đóng gói image` | Build backend. **Dựng ở cả PR, chỉ ĐẨY** `ghcr.io/…/app:<sha>` khi push vào `dev` | ⬜ nên bật |
-| `Đóng gói image frontend` | Ma trận `admin-app` + `public-web`. Cùng luật: dựng ở PR, đẩy khi push | ⬜ nên bật |
-| `Gắn tag SHA cho image không đổi` | Chỉ khi push `dev`. Gắn thêm tag `<sha>` lên digest cũ của image lượt này không dựng lại — để mọi commit `dev` có đủ ba tag (§2.1-b) | — |
-| `Soi phụ thuộc PR thêm vào` | `dependency-review-action` — chỉ soi phần PR **thêm vào**, đọc Advisory Database của GitHub, vài giây | ❌ (xem §3.2) |
+> ⚠⚠ **Cột "bắt buộc để merge" đã BỎ (sửa 3/9/2026).** Từ T11.48 (§10.63), `dev` có **đúng MỘT**
+> context bắt buộc: **`Cổng kiểm CI`** — một job `if: always()` đứng sau `needs` mọi job khác, đỏ khi
+> có `failure`/`cancelled` và bỏ qua `skipped`. Đo bằng API 3/9: `contexts=["Cổng kiểm CI"]`,
+> `strict=true`.
+>
+> ⛔ **Đừng thêm tên job vào `required_status_checks`.** Job matrix khi CHẠY báo tên đã bung
+> (`Đóng gói image frontend (admin-app, …)`), khi BỎ QUA chỉ báo tên gốc — nên đòi tên nào cũng
+> khoá chết một nửa số trường hợp. Đó đúng là cách bảy context cũ khoá chết mọi PR chỉ sửa tài liệu.
+
+| Job | Việc |
+|---|---|
+| `Vùng nào thay đổi` | So đường dẫn thay đổi, quyết định chạy job nào |
+| `Bộ đọc tracking` | 11 phép kiểm bộ đọc `master-tracking.md`. **Không có bộ lọc đường dẫn** — chạy ~10s, đặt bộ lọc chỉ thêm một chỗ bỏ sót |
+| `Thứ tự migration` | So số hiệu migration mới với đỉnh **nhánh nền** (`fetch-depth: 0`) — §10.66 |
+| `Backend — build, lint, test` | Spotless · Checkstyle · `mvn verify` (test đơn vị + Testcontainers + ArchUnit + cổng bao phủ) |
+| `Frontend — lint` | ESLint + `tsc --noEmit` |
+| `Đóng gói image` | Build backend. **Dựng ở cả PR, chỉ ĐẨY** `ghcr.io/…/app:<sha>` khi push vào `dev` |
+| `Đóng gói image frontend` | Ma trận `admin-app` + `public-web`. Cùng luật: dựng ở PR, đẩy khi push |
+| `Gắn tag SHA cho image không đổi` | Chỉ khi push `dev`. Gắn thêm tag `<sha>` lên digest cũ của image lượt này không dựng lại — để mọi commit `dev` có đủ ba tag (§2.1-b) |
+| `Soi phụ thuộc PR thêm vào` | `dependency-review-action` — chỉ soi phần PR **thêm vào**, đọc Advisory Database của GitHub, vài giây |
+| **`Cổng kiểm CI`** | ⭐ **Context bắt buộc DUY NHẤT.** Gom kết quả 9 job trên; ngưỡng `so_job -lt 9` chặn trường hợp khai báo `needs` hỏng làm cổng soi trên tập rỗng. `CiGateCoverageTest` đối chiếu hai chiều |
 
 > ⚠ **OWASP Dependency-Check đã CHUYỂN RA khỏi `ci.yml`** (18/8) sang `security-scan.yml` chạy theo lịch — xem §3.3.
 
@@ -109,9 +121,9 @@ phải thêm một bước tra thử riêng chỉ để phân biệt hai thứ �
 > `.env.local` vắng mặt, tầng runtime chép hụt. Không thứ nào có mặt ở `npm run build` hay
 > `mvn verify`, kể cả khi chạy trên cùng commit.
 >
-> ⬜ **Còn phải bấm ở GitHub**: thêm `Đóng gói image` và `Đóng gói image frontend` vào
-> `required_status_checks` của nhánh `dev` (§ script ở `docs/branch-protection.md`). Chưa bật thì
-> chúng chỉ *hiện* lỗi ở PR chứ không *chặn* merge.
+> ✅ **Đã xong theo cách khác (3/9/2026).** Bản trước dặn *"thêm `Đóng gói image` và `Đóng gói
+> image frontend` vào `required_status_checks`"* — làm đúng vậy thì dựng lại §10.63. Hai job này nay
+> chặn được merge vì chúng nằm trong `needs` của `Cổng kiểm CI`, context bắt buộc duy nhất.
 
 ### 3.1. Lọc theo đường dẫn — tiết kiệm ở đâu, và cố ý KHÔNG tiết kiệm ở đâu
 
@@ -448,8 +460,8 @@ kiểm hai điều:
 
 | Secret | Đặt ở | Dùng ở | Ghi chú |
 |---|---|---|---|
-| `STAGING_HOST` · `STAGING_USER` · `STAGING_SSH_KEY` · `STAGING_BASE_URL` · **`STAGING_SSH_KNOWN_HOSTS`** | environment `staging` | CD Staging | ⬜ đủ 4 (đo 26/8) — **cần đặt thêm cái thứ NĂM** (29/8). Thiếu **cả năm** → cảnh báo và bỏ qua; thiếu **một số** → đỏ |
-| `PROD_HOST` · `PROD_USER` · `PROD_SSH_KEY` · `PROD_BASE_URL` · **`PROD_SSH_KNOWN_HOSTS`** | environment `production` | CD Production | ⛔ **chưa có cái nào** (đo 26/8). Thiếu ở production → lượt chạy **DỪNG ĐỎ**, không bỏ qua |
+| `STAGING_HOST` · `STAGING_USER` · `STAGING_SSH_KEY` · `STAGING_BASE_URL` · **`STAGING_SSH_KNOWN_HOSTS`** | environment `staging` | CD Staging | ✅ **đủ cả 5** (đo lại 3/9/2026 bằng API). Thiếu **cả năm** → cảnh báo và bỏ qua; thiếu **một số** → đỏ. ⚠ Env này còn một secret thứ sáu `PUBLIC_SITE_URL` — **đặt sai loại**, xem nợ N1/T11.7-a ở `master-tracking.md` |
+| `PROD_HOST` · `PROD_USER` · `PROD_SSH_KEY` · `PROD_BASE_URL` · **`PROD_SSH_KNOWN_HOSTS`** | environment `production` | CD Production | ⛔ **chưa có cái nào** — `total_count = 0`, đo lại 3/9/2026. Chặn bởi T11.2 (chưa có VPS-1); lệnh đặt sẵn ở `master-tracking.md` T11.7. Thiếu ở production → lượt chạy **DỪNG ĐỎ**, không bỏ qua |
 
 ⭐ **`*_SSH_KNOWN_HOSTS` vào bộ ngày 29/8** (§10.68-C). Giá trị là **một dòng `known_hosts`** — `<host> ssh-ed25519 AAAA…`, lấy bằng `cat /etc/ssh/ssh_host_ed25519_key.pub` **trên máy chủ**, thay phần cuối `root@…` bằng địa chỉ đứng ở `*_HOST`. Trước đó workflow tự dò khoá bằng `ssh-keyscan`, và chính lượt dò ấy — 5 kết nối đóng trước xác thực — làm fail2ban của máy chủ **cấm IP runner ngay ở lệnh đầu tiên**. Ghim khoá vừa gỡ nguyên nhân, vừa đổi *tin-lần-đầu-mỗi-lượt* thành xác minh thật.
 | `NVD_API_KEY` | **repo** | `security-scan.yml` | ✅ **Đã đặt 18/8**. **Thiếu thì bỏ qua hẳn phép quét OWASP** (có cảnh báo trong Job Summary). Xin miễn phí ~2 phút: <https://nvd.nist.gov/developers/request-an-api-key> |
