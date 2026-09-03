@@ -48,5 +48,15 @@ public final class HydroJobTypes {
      */
     public static final String SIGNAL_LOSS = "HYDRO_SIGNAL_LOSS";
 
+    /**
+     * ⭐ Tính lại {@code hydro_agg_daily} cho những kỳ đang mang cờ bẩn — T34.1.
+     *
+     * <p>⚠ Loại việc <b>duy nhất</b> của MOD-03 chạy theo phút (5') chứ không theo ngày. Lý do và
+     * hai khoá chống trùng khác nhau nằm ở {@link HydroAggScheduler}; ⛔ đừng gộp nó vào
+     * {@link HydroMaintenanceScheduler} — ở đó nó sẽ thừa hưởng nhịp hằng đêm, và BC-13 (phép đo
+     * duy nhất của NFR-03) sẽ chỉ nói được sự thật của ngày hôm qua.
+     */
+    public static final String AGG_REBUILD = "HYDRO_AGG_REBUILD";
+
     private HydroJobTypes() {}
 }

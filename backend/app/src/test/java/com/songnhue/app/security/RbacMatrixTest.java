@@ -105,8 +105,10 @@ class RbacMatrixTest extends IntegrationTestBase {
             //   `workflow_transitions.required_permission`. ⛔ Đừng thêm lại cho hết đỏ.
             //   ⚠ `hyd:measurement:create` (mới ở V202609021054) CỐ Ý không có mặt ở đây: nó có
             //   endpoint thật ngay từ lượt ra đời — POST /hyd/so-do/nhap-tay.
-            "hyd:report:view", // Báo cáo thủy văn — Phase 2 (WS-34)
-            "hyd:report:export", // Xuất báo cáo thủy văn — Phase 2 (WS-34)
+            // ⭐ `hyd:report:view` RỜI khỏi danh sách này ở WS-34/T34.3 — BC-13 là người đọc đầu
+            //   tiên (`HydroReportController`). Giữ lại một quyền đã có cổng dùng là làm bài này
+            //   khẳng định điều sai, và một bài kiểm nói sai thì lượt sau người ta nới nó ra.
+            "hyd:report:export", // Xuất báo cáo thủy văn — T34.7, chưa có endpoint nào đọc
             "hr:employee:create", // Nhân sự — Phase 2
             "hr:employee:view", // Nhân sự — Phase 2
             "hr:employee:view-sensitive", // Nhân sự — Phase 2

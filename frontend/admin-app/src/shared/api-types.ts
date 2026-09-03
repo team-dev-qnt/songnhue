@@ -1309,3 +1309,66 @@ export interface StationWithoutThresholdRow {
   name: string;
   orgUnitName?: string | null;
 }
+
+// ---------------------------------------------------------------------------
+// WS-34 — Báo cáo thuỷ văn
+// ---------------------------------------------------------------------------
+
+/**
+ * BC-13 — một hàng chất lượng dữ liệu của (điểm đo × chỉ số × ngày).
+ *
+ * ⛔⛔ `soKhungBoSot` là `null` khi CHƯA ĐO ĐƯỢC, và khi ấy `lyDoTrong` nói vì sao.
+ *    ⛔ Đừng `?? 0` ở tầng hiển thị: **0 là một câu khẳng định** (*"hôm ấy poller chạy hoàn hảo"*),
+ *    còn rỗng là một câu khác hẳn. Đây là cột dùng để nghiệm thu NFR-03 — một số 0 bịa ra ở đây đi
+ *    thẳng vào một cam kết với Công ty.
+ *
+ * ⚠ `tyLeDayDu` là **chuỗi** (`@JsonFormat STRING` ở backend) — quy tắc 2 + bài học T28.27.
+ */
+export interface SyncQualityRow {
+  ngay: string;
+  stationCode: string;
+  stationName: string;
+  stationActive: boolean;
+  measurementTypeCode: string;
+  measurementTypeName: string;
+  soHopLe: number;
+  soNghiNgo: number;
+  soDaXoa: number;
+  soKhungMongDoi: number | null;
+  soKhungBoSot: number | null;
+  tyLeDayDu: string | null;
+  lyDoTrong: string | null;
+  tinhLuc: string | null;
+}
+
+/**
+ * BC-13 — một hàng nhật ký đồng bộ, gộp theo (nguồn × ngày).
+ *
+ * ⭐ `soBoQua` (lượt bỏ vì mọi điểm đo đã có bản ghi của khung hiện tại) ⛔ KHÔNG được cộng vào
+ *    "thành công": con số ấy cao là **tốt**. Gộp lại thì một ngày 720 lượt thành công với
+ *    `soGhiMoi = 0` — tức một ngày mất trắng — cho cùng tỷ lệ với một ngày hoàn hảo.
+ */
+export interface SyncDailyRow {
+  ngay: string;
+  sourceCode: string;
+  sourceName: string;
+  soLuot: number;
+  soThanhCong: number;
+  soMotPhan: number;
+  soHong: number;
+  soBoQua: number;
+  soNhan: number;
+  soGhiMoi: number;
+  soTrung: number;
+  soMaLa: number;
+  hongGanNhat: string | null;
+}
+
+export interface SyncQualityReport {
+  tuNgay: string;
+  denNgay: string;
+  /** Kích thước khung của nguồn, phút — mẫu số của tỷ lệ đầy đủ. ⛔ Đừng ghi cứng 10 ở FE. */
+  khungPhut: number;
+  chatLuong: SyncQualityRow[];
+  dongBo: SyncDailyRow[];
+}

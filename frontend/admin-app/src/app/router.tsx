@@ -174,6 +174,18 @@ export const router = createBrowserRouter([
             'hyd:alert:view',
             lazyPage(() => import('@/features/hydro/AlertHistoryPage'), 'AlertHistoryPage'),
           ),
+          // ---- WS-34 báo cáo thuỷ văn ----
+          // ⚠ Gác bằng `hyd:report:view`, ⛔ KHÔNG bằng `hyd:report:export`: xem và xuất là hai
+          //   việc, và XN_OPERATOR · DUTY_OFFICER chỉ có vế đầu. Gác cả trang bằng quyền hẹp hơn
+          //   là chôn trang sau nút của nó — hình dạng T27.20 đã tái phát ba lần (§10.70).
+          adminRoute(
+            '/thuy-van/bao-cao-dong-bo',
+            'hyd:report:view',
+            lazyPage(
+              () => import('@/features/hydro/SyncQualityReportPage'),
+              'SyncQualityReportPage',
+            ),
+          ),
           adminRoute(
             '/van-hanh/danh-muc-tinh-hinh',
             'ops:operation-status-code:manage',

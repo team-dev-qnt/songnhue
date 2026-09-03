@@ -210,6 +210,20 @@ public enum ErrorCode {
      */
     HYD_2011("HYD-2011", HttpStatus.CONFLICT),
 
+    /**
+     * Khoảng ngày của báo cáo thuỷ văn vượt trần — T34.3/T34.5.
+     *
+     * <p>⭐ Trần này ⛔ không phải để "bảo vệ máy chủ": báo cáo đọc bảng tổng hợp nên một năm dữ
+     * liệu chỉ là vài nghìn hàng. Nó bảo vệ <b>người đọc</b> — BC-13 sinh một hàng cho mỗi (điểm đo
+     * × chỉ số × ngày), nên 19 điểm đo × 2 chỉ số × 5 năm là <b>69 nghìn hàng</b> đổ vào một bảng
+     * ⛔ không phân trang. Từ chối lớn tiếng kèm con số trần thì người dùng hẹp khoảng lại; trả về
+     * 69 nghìn hàng thì trình duyệt đứng và triệu chứng đọc như "hệ thống hỏng".
+     */
+    HYD_2012("HYD-2012", HttpStatus.UNPROCESSABLE_ENTITY),
+
+    /** Ngày bắt đầu sau ngày kết thúc — T34.3. Khoảng rỗng trả 0 hàng, và 0 hàng đọc như "không có dữ liệu". */
+    HYD_2013("HYD-2013", HttpStatus.UNPROCESSABLE_ENTITY),
+
     // ---- MOD-04 Nhân sự ---------------------------------------------------------
     HR_2001("HR-2001", HttpStatus.UNPROCESSABLE_ENTITY),
 

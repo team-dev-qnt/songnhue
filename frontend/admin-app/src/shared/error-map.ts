@@ -413,6 +413,16 @@ export const ERROR_CATALOG = {
     handling: 'toast',
     severity: 'warning',
   },
+  'HYD-2012': {
+    message: 'Khoảng ngày của báo cáo tối đa 366 ngày — hãy thu hẹp lại',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'HYD-2013': {
+    message: 'Ngày bắt đầu phải trước hoặc bằng ngày kết thúc',
+    handling: 'form',
+    severity: 'warning',
+  },
 
   // --- MOD-04 Nhân sự ---------------------------------------------------------
   'HR-2001': {

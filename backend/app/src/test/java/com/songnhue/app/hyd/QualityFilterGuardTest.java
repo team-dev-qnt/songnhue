@@ -66,8 +66,11 @@ import org.junit.jupiter.api.Test;
  *       bảng truyền vào, và bài này mù trước nó. Đó là DDL partition (DROP/ATTACH), ⛔ không phải
  *       truy vấn đọc, nên khoảng mù ấy <b>hôm nay</b> không che giấu rủi ro nào — nhưng ngày nào có
  *       ai dựng một câu <i>đọc</i> theo cùng kiểu thì bài này im lặng.
- *   <li>Soi <b>một</b> bảng: {@code hydro_readings}. ⬜ Bảng tổng hợp {@code hydro_agg_daily} chưa
- *       tồn tại (WS-34); thêm nó vào {@link #BANG_CANH} <b>cùng lúc</b> với migration tạo bảng.
+ *   <li>Soi <b>hai</b> bảng: {@code hydro_readings} và {@code hydro_agg_daily} (thêm ở WS-34/T34.1,
+ *       <b>cùng commit</b> với migration tạo bảng). ⛔ Bảng tổng hợp cố ý giữ {@code quality} trong
+ *       khoá để vị từ ở đây dùng được nguyên xi. ⚠ {@code hydro_latest} ⛔ <b>không</b> nằm trong
+ *       danh sách và ⛔ không cần: nó tách sẵn {@code valid_value} khỏi {@code last_seen_at}, tức
+ *       bảo đảm đã nằm ở lược đồ chứ không ở truy vấn.
  *   <li>⚠⚠ <b>Một câu ghép từ nhiều hằng chỉ được nhìn thấy từng mảnh.</b>
  *       {@code SuspectReadingRepository} tách {@code CHON_COT} · {@code TU_BANG} · {@code dieuKien()}
  *       — bài này thấy {@code TU_BANG} (có {@code FROM}, không có vị từ) và ⛔ không bao giờ thấy câu
@@ -81,10 +84,23 @@ class QualityFilterGuardTest {
     /**
      * Bảng mà mọi truy vấn đọc phải khai chất lượng.
      *
-     * <p>⬜ {@code hydro_agg_daily} (WS-34) thêm vào đây cùng lúc với migration tạo nó — ⛔ không
-     * để sau, vì lúc ấy đã có sẵn vài truy vấn không lọc và người ta sẽ khai chúng thành ngoại lệ.
+     * <p>✅ {@code hydro_agg_daily} (WS-34/T34.1) đã vào đây <b>cùng commit</b> với migration tạo
+     * nó — ⛔ không để sau, vì lúc ấy đã có sẵn vài truy vấn không lọc và người ta sẽ khai chúng
+     * thành ngoại lệ. Bảng ấy giữ {@code quality} <b>trong khoá</b> chính là để vị từ mà bài này
+     * canh dùng được nguyên xi, ⛔ không phải nới một chữ nào.
      */
-    private static final Set<String> BANG_CANH = Set.of("hydro_readings");
+    private static final Set<String> BANG_CANH = Set.of("hydro_readings", "hydro_agg_daily");
+
+    /**
+     * Số thứ tự câu {@code INSERT INTO hydro_agg_dirty … SELECT … FROM hydro_readings} trong
+     * {@code V202609031056__hyd_agg_daily.sql}, theo cách đánh số của {@link #cauTrongSql}.
+     *
+     * <p>⚠ Con số này <b>mong manh theo cách viết migration</b> — thêm một câu lệnh phía trên là nó
+     * lệch. Điều đó chấp nhận được vì migration là tệp <b>bất biến</b> (Flyway băm cả tệp,
+     * {@code MigrationImmutabilityTest} canh), nên nó ⛔ không thể lệch sau khi đã vào kho. Và nếu
+     * có ai sửa thì {@link #ngoaiLeKhongDuocMoCoi} đỏ ngay — ⛔ không im lặng.
+     */
+    private static final int CAU_NAP_CO_BAN = 26;
 
     /**
      * ⭐ Ngoại lệ <b>phải nêu tên và nêu lý do</b> — ⛔ không có mục "còn lại".
@@ -98,20 +114,43 @@ class QualityFilterGuardTest {
      */
     private static final Map<String, String> NGOAI_LE = Map.of(
             "HydroLatestRecomputer#SQL_MOC_GAN_NHAT",
-                    "⭐ Câu trả lời 'trạm còn phát tín hiệu không' — cố ý nhận CẢ bản ghi NGHI_NGO "
-                            + "(`quality <> 'XOA'`). Một trạm chỉ trả số nghi ngờ VẪN đang phát; lọc HOP_LE ở "
-                            + "đây là tự dựng ra một trạm mất tín hiệu giả, rồi job mất tín hiệu báo động về "
-                            + "một sự cố không có thật.",
+            "⭐ Câu trả lời 'trạm còn phát tín hiệu không' — cố ý nhận CẢ bản ghi NGHI_NGO "
+                    + "(`quality <> 'XOA'`). Một trạm chỉ trả số nghi ngờ VẪN đang phát; lọc HOP_LE ở "
+                    + "đây là tự dựng ra một trạm mất tín hiệu giả, rồi job mất tín hiệu báo động về "
+                    + "một sự cố không có thật.",
             "SuspectReadingRepository#TU_BANG",
-                    "⭐ Màn hình 'Dữ liệu nghi ngờ' — nó tồn tại ĐỂ đọc những dòng mà quy tắc 14 loại ra. "
-                            + "Lọc HOP_LE ở đây là làm hàng chờ duyệt LUÔN RỖNG, và một hàng chờ luôn rỗng "
-                            + "trông y hệt một hệ thống không có dữ liệu xấu. Vế `quality = ?` nằm ở "
-                            + "`dieuKien()` và bị chặn hẹp lại bởi `chanHopLe()`.",
+            "⭐ Màn hình 'Dữ liệu nghi ngờ' — nó tồn tại ĐỂ đọc những dòng mà quy tắc 14 loại ra. "
+                    + "Lọc HOP_LE ở đây là làm hàng chờ duyệt LUÔN RỖNG, và một hàng chờ luôn rỗng "
+                    + "trông y hệt một hệ thống không có dữ liệu xấu. Vế `quality = ?` nằm ở "
+                    + "`dieuKien()` và bị chặn hẹp lại bởi `chanHopLe()`.",
             "HydroTimeSeriesWriter#SQL_O_DA_CO_GI",
-                    "⭐ Không trả về số liệu — nó hỏi 'ô (điểm đo × chỉ số × mốc) này có ai ngồi chưa, và "
-                            + "người ấy đang ở trạng thái nào'. PHẢI thấy cả NGHI_NGO lẫn XOA: lọc HOP_LE ở "
-                            + "đây báo 'trống' cho một ô đang bị chiếm, rồi lượt INSERT nhập tay nổ bằng một "
-                            + "lỗi ràng buộc thô thay vì HYD-2002 chỉ đường sang màn hình Dữ liệu nghi ngờ.");
+            "⭐ Không trả về số liệu — nó hỏi 'ô (điểm đo × chỉ số × mốc) này có ai ngồi chưa, và "
+                    + "người ấy đang ở trạng thái nào'. PHẢI thấy cả NGHI_NGO lẫn XOA: lọc HOP_LE ở "
+                    + "đây báo 'trống' cho một ô đang bị chiếm, rồi lượt INSERT nhập tay nổ bằng một "
+                    + "lỗi ràng buộc thô thay vì HYD-2002 chỉ đường sang màn hình Dữ liệu nghi ngờ.",
+            "HydroAggRepository#SQL_DUNG_LAI",
+            "⭐⭐ Chính bộ dựng bảng tổng hợp — T34.1. Bảng đích giữ `quality` TRONG KHOÁ, nên câu "
+                    + "này phải thấy cả ba nhóm để sinh ra ba hàng. Lọc HOP_LE ở đây làm BC-13 mù trước "
+                    + "đúng những ngày tồi tệ nhất, tức mù đúng lúc nó cần nhìn. Bộ lọc nghiệp vụ nằm ở "
+                    + "NƠI ĐỌC bảng agg, ⛔ không ở nơi dựng nó.",
+            "HydroAggRepository#SQL_CAM_LAI_CO_GAN_DAY",
+            "⭐ Lưới an toàn hằng ngày: cắm lại cờ bẩn cho hai ngày gần nhất. Nó ⛔ không đọc một "
+                    + "giá trị đo nào — chỉ liệt kê những kỳ CÓ số đo. Một ngày chỉ toàn bản ghi nghi "
+                    + "ngờ vẫn là một kỳ phải tổng hợp; lọc HOP_LE ở đây bỏ quên đúng nhóm ấy.",
+            "HydroAggRepository#SQL_XOA_KY",
+            "⭐ Xoá TRỌN kỳ (cả ba mức chất lượng) trước khi dựng lại — T34.1. Lọc `quality` ở đây "
+                    + "để lại đúng những hàng cần biến mất: một bản ghi được duyệt NGHI_NGO → HOP_LE "
+                    + "sẽ để lại hàng agg NGHI_NGO cũ, và BC-13 báo có dữ liệu nghi ngờ VĨNH VIỄN dù "
+                    + "không còn cái nào. Đó là luật 27 ở tầng bảng tổng hợp.",
+            "HydroReportRepository#SQL_CHAT_LUONG_NGAY",
+            "⭐⭐ BC-13 — báo cáo tồn tại ĐỂ ĐẾM dữ liệu xấu, nên nó đọc cả ba nhóm chất lượng. "
+                    + "⚠ Câu này CÓ `FILTER (WHERE quality = 'HOP_LE')`, và bản TRƯỚC của bộ canh đã "
+                    + "cho nó đi lọt vì chuỗi ấy có mặt — lỗ hổng được bịt ở chính đợt WS-34 "
+                    + "(`boFilterGop`), và câu đầu tiên nó bắt được là câu này. FILTER lọc cho MỘT "
+                    + "hàm gộp, ⛔ không lọc cho câu.",
+            "V202609031056__hyd_agg_daily.sql#" + CAU_NAP_CO_BAN,
+            "⭐ §9 của migration — nạp cờ bẩn cho số đo ĐÃ CÓ để lượt tổng hợp đầu tiên tính được "
+                    + "cả lịch sử. ⛔ Không tạo ra một con số nào; cùng lý do với SQL_CAM_LAI_CO_GAN_DAY.");
 
     /** Câu SQL có ít nhất một trong các cụm này thì mới là truy vấn <b>đọc</b> bảng đang canh. */
     private static final Pattern DOC_BANG = Pattern.compile("(?i)\\b(?:from|join|update)\\s+(\\w+)\\b");
@@ -149,7 +188,7 @@ class QualityFilterGuardTest {
      * qua một tập rỗng và xanh trọn vẹn. ⚠ Nó đếm <b>cả ngoại lệ</b>: thứ cần chứng minh là bộ tách
      * còn nhìn thấy mã, không phải là còn bao nhiêu câu tuân thủ.
      */
-    private static final int SO_CAU_TOI_THIEU = 4;
+    private static final int SO_CAU_TOI_THIEU = 10;
 
     // =========================================================================
     // Bộ tách — bóc chú thích TRƯỚC khi khớp (§10.62)
@@ -343,6 +382,46 @@ class QualityFilterGuardTest {
         return m.find() ? m.group(1) : null;
     }
 
+    /**
+     * ⭐⭐ Bóc mệnh đề {@code FILTER (…)} của hàm gộp — <b>lỗ hổng tìm ra khi dựng WS-34</b>.
+     *
+     * <p>{@code FILTER (WHERE quality = 'HOP_LE')} lọc cho <b>một hàm gộp</b>, ⛔ không lọc cho câu.
+     * Một câu như
+     *
+     * <pre>SELECT avg(reading_value), count(*) FILTER (WHERE quality = 'HOP_LE') FROM …</pre>
+     *
+     * có {@code avg} chạy trên <b>toàn bộ</b> ba nhóm chất lượng, mà bộ canh bản trước vẫn xanh vì
+     * chuỗi {@code quality = 'HOP_LE'} <i>có mặt ở đâu đó trong câu</i>. Đúng họ với
+     * {@code quality <> 'XOA'}: một câu <b>gần đúng</b> nguy hiểm hơn một câu thiếu hẳn, vì nó trông
+     * đã cẩn thận.
+     *
+     * <p>⚠ Lỗ này ⛔ không phải giả thuyết — nó lộ ra vì báo cáo BC-13 (T34.3) là truy vấn đầu tiên
+     * của dự án dùng {@code FILTER}, và nếu bịt sau thì câu ấy đã kịp đóng dấu "đạt".
+     *
+     * <p>Bộ quét đếm ngoặc cân bằng, ⛔ không regex — cùng lý do §10.73.
+     */
+    static String boFilterGop(String sql) {
+        StringBuilder ra = new StringBuilder(sql.length());
+        Matcher m = Pattern.compile("(?i)\\bfilter\\s*\\(").matcher(sql);
+        int tu = 0;
+        while (m.find(tu)) {
+            ra.append(sql, tu, m.start());
+            int sau = m.end();
+            int sau2 = 1;
+            while (sau < sql.length() && sau2 > 0) {
+                char c = sql.charAt(sau);
+                if (c == '(') {
+                    sau2++;
+                } else if (c == ')') {
+                    sau2--;
+                }
+                sau++;
+            }
+            tu = sau;
+        }
+        return ra.append(sql.substring(tu)).toString();
+    }
+
     /** Tách một tệp migration thành các câu, ⚠ ⛔ không cắt bên trong khối {@code $$ … $$}. */
     static List<CauSql> cauTrongSql(String tenTep, String sql) {
         List<CauSql> ket = new ArrayList<>();
@@ -400,7 +479,8 @@ class QualityFilterGuardTest {
     @DisplayName("⭐⭐ Mọi truy vấn ĐỌC hydro_readings đều lọc quality — ngoại lệ phải khai có tên")
     void moiTruyVanDocDeuLocChatLuong() {
         List<String> viPham = cauChamBangCanh().stream()
-                .filter(c -> !VI_TU_CHAT_LUONG.matcher(c.sql()).find())
+                // ⭐ Bóc `FILTER (…)` TRƯỚC khi khớp: nó lọc cho một hàm gộp, ⛔ không lọc cho câu.
+                .filter(c -> !VI_TU_CHAT_LUONG.matcher(boFilterGop(c.sql())).find())
                 .filter(c -> !NGOAI_LE.containsKey(c.nguon()))
                 .map(c -> c.nguon() + " → " + gonLai(c.sql()))
                 .toList();
@@ -509,6 +589,36 @@ class QualityFilterGuardTest {
                     .as("SQL không phân biệt hoa thường ở từ khoá, nhưng chuỗi 'hop_le' thì CÓ — "
                             + "PostgreSQL sẽ không khớp dòng nào, nên bộ canh cũng không được nhận")
                     .isFalse();
+        }
+
+        @Test
+        @DisplayName("⭐⭐ `FILTER (WHERE quality = 'HOP_LE')` KHÔNG phải bộ lọc của câu — lỗ tìm ra ở WS-34")
+        void filterCuaHamGopKhongDuocTinhLaBoLoc() {
+            String lua = "SELECT avg(reading_value), count(*) FILTER (WHERE quality = 'HOP_LE') "
+                    + "FROM hydro_agg_daily WHERE station_id = ?";
+
+            assertThat(chamBangCanh(lua)).isTrue();
+            assertThat(VI_TU_CHAT_LUONG.matcher(lua).find())
+                    .as("bản TRƯỚC của bộ canh xanh ở đây — chuỗi có mặt, nhưng `avg` chạy trên cả ba nhóm")
+                    .isTrue();
+            assertThat(VI_TU_CHAT_LUONG.matcher(boFilterGop(lua)).find())
+                    .as("sau khi bóc FILTER thì câu này ⛔ không còn vị từ nào — phải bị bắt")
+                    .isFalse();
+
+            // ⚠ Vế phân biệt: bộ bóc ⛔ KHÔNG được nuốt vị từ THẬT ở WHERE. Thiếu vế này thì một bộ
+            //   bóc trả về chuỗi rỗng cũng làm khẳng định trên xanh, và cả bộ canh mù (luật 9).
+            String that = "SELECT count(*) FILTER (WHERE quality = 'NGHI_NGO') FROM hydro_agg_daily "
+                    + "WHERE station_id = ? AND quality = 'HOP_LE'";
+            assertThat(VI_TU_CHAT_LUONG.matcher(boFilterGop(that)).find())
+                    .as("vị từ ở WHERE vẫn phải ĐẠT sau khi bóc FILTER")
+                    .isTrue();
+
+            // Ngoặc lồng bên trong FILTER ⛔ không được làm bộ quét cắt hụt.
+            String long2 = "SELECT count(*) FILTER (WHERE quality IN ('HOP_LE', 'XOA')) FROM hydro_agg_daily";
+            assertThat(boFilterGop(long2))
+                    .as("bóc trọn mệnh đề FILTER kể cả khi bên trong còn ngoặc")
+                    .doesNotContain("HOP_LE")
+                    .contains("FROM hydro_agg_daily");
         }
 
         @Test

@@ -152,6 +152,13 @@ export const MENU: readonly MenuNode[] = [
         path: '/thuy-van/canh-bao',
         permissions: ['hyd:alert:view'],
       },
+      {
+        key: 'bao-cao-dong-bo',
+        label: 'Báo cáo đồng bộ & chất lượng',
+        icon: <FileTextOutlined />,
+        path: '/thuy-van/bao-cao-dong-bo',
+        permissions: ['hyd:report:view'],
+      },
     ],
   },
   {
