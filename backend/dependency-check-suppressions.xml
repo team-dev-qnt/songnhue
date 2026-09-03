@@ -138,11 +138,44 @@
         bỏ quên trong chính lượt sửa này — một suppression sống lâu hơn lý do của
         nó là cái bẫy đặt sẵn (§10.69).
 
-      • **Hết hạn 15/10/2026 — cố ý NGẮN.** 6.2.20 nhiều khả năng ra trong vài
-        tuần; hết hạn thì phép quét tự đỏ lại và buộc nhìn lại. Xem lại khi
-        6.2.20 lên Central — lúc đó **xoá mục này và nâng phiên bản**, đừng gia
-        hạn. Và nếu dự án bắt đầu dùng functional web framework hoặc SSE thì lý
-        do bên trên **hết đúng** ngay lập tức.
+      • ⛔⛔ **SỬA 3/9/2026 — điều kiện xem lại ghi ở đây SẼ KHÔNG BAO GIỜ XẢY RA.**
+
+        Bản viết ngày 1/9 chốt *"hết hạn 15/10 — cố ý NGẮN, vì 6.2.20 nhiều khả
+        năng ra trong vài tuần; xem lại khi 6.2.20 lên Central"*. Quan sát đúng
+        (`spring-core 6.2.20` trả 404), **quy sai nguyên nhân**: nó đọc cái 404
+        ấy là *bản vá chưa kịp ra*. Đo lại 3/9:
+
+            Spring Boot 3.5 / Framework 6.2 hết hỗ trợ OSS      30/6/2026
+            spring-boot 3.5.16 lên Central                      25/6/2026
+            lượt phát hành đồng loạt 4.0/4.1/7.0/7.1            20/8/2026
+              → dòng 3.5.x và 6.2.x nhận:                       KHÔNG GÌ
+
+            6.2.20 · 6.2.21 · 6.5.12 · 3.5.17 · 10.1.60         đều HTTP 404
+
+        `6.2.19` là **bản vá miễn phí CUỐI CÙNG** của dòng ấy. `6.5.12`/`6.4.19`
+        gắn nhãn *Enterprise Support Only* — nằm sau hợp đồng thương mại, không
+        bao giờ lên Central. **404 trên Central ở đây không phải "chưa ra" — nó
+        là ngày hết hỗ trợ nói bằng HTTP.**
+
+        ⇒ Chờ 6.2.20 là chờ một thứ không tồn tại. Đường ra duy nhất là **đổi
+        dòng**: Spring Boot 4.1.1 (OSS tới 31/7/2027) kéo theo Framework 7.0.9 +
+        Security 7.1.1 + Tomcat 11.0.24.
+
+      • **`until` neo vào MỐC DI TRÚ, không neo vào việc chờ một bản vá.**
+        Hết hạn 15/10/2026 giữ nguyên — nhưng lý do đổi hẳn: nó là cái đồng hồ
+        của hạng mục di trú Boot 4, không phải cái đồng hồ đợi 6.2.20. Hết hạn
+        mà chưa di trú xong thì phép quét đỏ lại, và đó là **đúng** điều phải
+        xảy ra.
+
+        ⛔ Và khi ấy **không được gia hạn**: lý do *"dòng này hết hỗ trợ"* không
+        phải một lý do hợp lệ cho suppression — nó biến một ngày hết hạn ĐÃ TỚI
+        thành một ngày hết hạn tự đặt.
+
+      • **Ghim `@6.2.19` trong mẫu vẫn CỐ Ý** (xem trên): lượt di trú làm mẫu hết
+        khớp, và phép quét tự nói lại sự thật mà không ai phải nhớ xoá mục này.
+
+      • Và nếu dự án bắt đầu dùng functional web framework hoặc SSE thì lý do
+        "không áp dụng" bên trên **hết đúng ngay lập tức**.
     -->
     <suppress until="2026-10-15Z">
         <notes><![CDATA[

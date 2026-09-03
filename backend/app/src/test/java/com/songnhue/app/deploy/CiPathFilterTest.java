@@ -42,8 +42,15 @@ import org.junit.jupiter.api.Test;
  */
 class CiPathFilterTest {
 
-    /** Thư mục gốc nằm ngoài `backend/` mà một bài kiểm BE có thể đọc. */
-    private static final Pattern DUONG_DAN_NGOAI = Pattern.compile("\"((?:\\.github|deploy|frontend)/[^\"]*)\"");
+    /**
+     * Thư mục gốc nằm ngoài `backend/` mà một bài kiểm BE có thể đọc.
+     *
+     * <p>⚠ {@code docs} vào danh sách 3/9/2026 cùng {@code TenMienTaiLieuTest} (T11.53). Không thêm
+     * thì bài kiểm ấy đọc {@code docs/**} mà bộ canh này <b>không biết</b>, nên nó sẽ không bao giờ
+     * báo rằng bộ lọc CI bỏ sót {@code docs/} — một bộ canh hẹp hơn nơi nó phải chặn (luật 28), và
+     * cái xanh của nó đọc như một lời bảo đảm.
+     */
+    private static final Pattern DUONG_DAN_NGOAI = Pattern.compile("\"((?:\\.github|deploy|frontend|docs)/[^\"]*)\"");
 
     /** Dòng quyết định vế `backend` trong `ci.yml`. */
     private static final Pattern BO_LOC_BACKEND =

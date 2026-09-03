@@ -292,7 +292,19 @@ app:
     bucket-report: ${MINIO_BUCKET_REPORT}
     bucket-audit: ${MINIO_BUCKET_AUDIT}
 
-# Tài liệu API (T4.10). Trên production nginx chặn 2 đường dẫn này (WS-11/T11.6).
+# Tài liệu API (T4.10).
+#
+# ⚠⚠ Câu ở đây trước 3/9/2026 là *"Trên production nginx chặn 2 đường dẫn này
+#    (WS-11/T11.6)"* — và nó SAI suốt từ lúc viết: toàn bộ cấu hình nginx của kho
+#    không có một dòng nào về swagger. Thứ giữ chúng khỏi ra ngoài là định tuyến:
+#    backend chỉ với tới được qua tiền tố `/api/`, mà hai đường dưới nằm ngoài nó.
+#    Một tai nạn may mắn, không phải một bảo đảm.
+#
+#    Bảo đảm thật nay ở `deploy/nginx/snippets/chan-tai-lieu-api.conf`, được
+#    `include` vào cả khối public lẫn khối admin của nginx biên, và
+#    `NginxApiDocsBlockedTest` canh việc include ấy còn đó.
+#
+# ⛔ Đừng chuyển hai đường dẫn dưới vào dưới `/api/` mà không đọc snippet ấy trước.
 springdoc:
   api-docs:
     path: /v3/api-docs

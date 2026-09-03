@@ -571,6 +571,18 @@ thì fail-fast không hoạt động, và một biến điền sai sẽ chỉ l�
 | `songnhue.vn` · `www` · `admin` · `files` | A | IP của **VPS-1** |
 | `staging` · `admin-staging` · `files-staging` | A | IP của **VPS-2** |
 
+> ⚠⚠ **Bảng trên là KẾ HOẠCH, không phải hiện trạng — T11.53.** Tên miền `.vn` chưa mua: chủ thể
+> đăng ký phải là Công ty (`hosting_recommendations.md` §9, nợ **T11.2-b**). Đo 28/8 và 3/9/2026:
+> `https://staging.songnhue.vn` trả **HTTP 000, không phân giải được**.
+>
+> **Staging đang chạy thật ở `staging.songnhue.com` / `admin-staging.songnhue.com`** (HTTP 200).
+> Mọi lệnh kiểm chứng trong tài liệu này dùng tên miền ĐANG CHẠY. Khi có `.vn`, đổi một lượt và
+> `TenMienTaiLieuTest` sẽ nhắc nếu bỏ sót chỗ nào.
+>
+> ⛔ Vì sao đây không phải chuyện khó coi: người theo tài liệu để nghiệm thu sẽ gõ `.vn`, nhận
+> HTTP 000, và **kết luận hệ thống chết** trong khi nó đang chạy. Một tài liệu vận hành sai địa
+> chỉ nguy hiểm hơn một tài liệu thiếu địa chỉ.
+
 Nếu dùng Cloudflare: **cổng công khai bật proxy** (cam) để có cache và chống ngập; **`admin` và
 `files` để DNS-only** (xám). Không cho phiên quản trị và tệp nhân sự đi vòng qua hạ tầng nước
 ngoài — vốn là điều đang cố tránh khi chọn đặt máy trong nước.
@@ -676,20 +688,20 @@ docker compose --env-file .env -f compose.staging.yml up -d app admin-app public
 #    đường đó KHÔNG đi tới đâu. nginx biên chỉ định tuyến `/api/` và `/` sang hai
 #    image giao diện, không khối location nào chuyển `/actuator` sang `app`.
 #    Đo thật: public-web trả 404, admin-app trả 200 kèm trang HTML của SPA.
-curl -fsS https://staging.songnhue.vn/api/v1/public/site-config | head -c 120
+curl -fsS https://staging.songnhue.com/api/v1/public/site-config | head -c 120
 #    → phải thấy '"success":true'
 
 # 2. ⚠ PHẢI có Origin. curl trần không preflight nên nó đi lọt qua đúng bức tường
 #    chặn người dùng thật — CORS đã chặn cả giao diện quản trị suốt WS-8→WS-20.
-curl -si -X OPTIONS https://admin-staging.songnhue.vn/api/v1/auth/login \
-     -H "Origin: https://admin-staging.songnhue.vn" \
+curl -si -X OPTIONS https://admin-staging.songnhue.com/api/v1/auth/login \
+     -H "Origin: https://admin-staging.songnhue.com" \
      -H "Access-Control-Request-Method: POST" | head -1
 
 # 3. Header bảo mật có mặt
-curl -sI https://admin-staging.songnhue.vn/ | grep -iE "strict-transport|content-security|x-frame|x-robots"
+curl -sI https://admin-staging.songnhue.com/ | grep -iE "strict-transport|content-security|x-frame|x-robots"
 
 # 4. Staging KHÔNG được đánh chỉ mục
-curl -sI https://staging.songnhue.vn/ | grep -i x-robots-tag    # → noindex, nofollow
+curl -sI https://staging.songnhue.com/ | grep -i x-robots-tag    # → noindex, nofollow
 
 # 5. Gõ thẳng IP phải bị từ chối ở tầng TLS
 curl -sk https://<IP-VPS2>/ -o /dev/null -w '%{http_code}\n'    # → 000 (đóng kết nối)

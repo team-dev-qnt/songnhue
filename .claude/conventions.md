@@ -102,13 +102,15 @@ admin-app/src/
 - ⚠ **Lời khuyên chữa lỗi in ra từ một bộ canh cũng là mã — phải đối chiếu với cấu hình ĐANG CHẠY.** Bản đầu của `kiem-goc-chung.sh` khuyên `merge -s ours` rồi mở PR vào `dev`; `dev` đặt `required_linear_history: true` nên đường ấy **bất khả**. Lỗi ở thứ tự: viết lời khuyên trước, đọc `branches/dev/protection` sau.
 - ⚠⚠ **Đổi một thiết lập bảo vệ nhánh thì phải chứng minh vòng tắt–bật KHÔNG mất mát TRƯỚC khi dựa vào nó.** `DELETE /branches/{b}/protection/required_linear_history` trả **404** trong khi dòng log của tôi in "TẮT"; phép đo ngay sau đó cho `true` — **không có gì đổi cả**. Thiết lập này chỉ đổi qua `PUT` **toàn bộ** object, nên một lượt ghi hụt trường sẽ **xoá âm thầm** phần bảo vệ khác. Quy trình bắt buộc: sao lưu JSON đầy đủ → dựng hai payload khác nhau đúng MỘT trường → tắt (đo = false) → làm việc → bật (đo = true) → **diff toàn bộ JSON với bản sao lưu**, tất cả bọc trong `trap` khôi phục ở mọi đường thoát.
 - PR bắt buộc: 1 reviewer, CI xanh (unit + integration Testcontainers + ArchUnit + lint), không merge khi coverage domain layer giảm.
-  - Thi hành: `.github/workflows/ci.yml` (**5 job**: lọc vùng · backend · frontend · đóng gói image · soi phụ thuộc PR) + `security-scan.yml` (quét CVE **theo lịch**, không gắn vào PR — `docs/cicd.md` §3.3) + `docs/branch-protection.md`. ⚠ Branch protection là **cấu hình phía GitHub, không nằm trong repo** — tắt đi không để lại dấu vết nào trong mã nguồn, nên trạng thái của nó phải được ghi ra thay vì giả định.
+  - Thi hành: `.github/workflows/ci.yml` (**10 job**, đo 3/9/2026: `changes` · `tracking` · `thu-tu-migration` · `backend` · `frontend` · `image` · `image-frontend` · `gan-tag-sha` · `dependency-review` · `cong-kiem`) + `security-scan.yml` (quét CVE **theo lịch**, không gắn vào PR — `docs/cicd.md` §3.3) + `docs/branch-protection.md`. ⚠ Branch protection là **cấu hình phía GitHub, không nằm trong repo** — tắt đi không để lại dấu vết nào trong mã nguồn, nên trạng thái của nó phải được ghi ra thay vì giả định.
   - Cổng bao phủ: JaCoCo `check` ở phase `verify`, **chỉ soi gói `domain`**. Ngưỡng hiện tại (`jacoco.domain.line.coverage`) là **mức đo được**, không phải mục tiêu — nâng dần khi Phase 1 đưa logic nghiệp vụ thật vào `domain`, và không bao giờ hạ.
 - Cấm commit: secrets, file config môi trường thật, `.env` (dùng `.env.example`).
 - ⚠ **Mỗi cơ chế canh gác phải có bài kiểm chứng minh nó bắt được vi phạm.** WS-10 tìm ra **4 cơ chế báo xanh trong khi không chạy qua thứ gì** (`architecture-review.md` §9.8.2): bộ máy ArchUnit tìm ra 0 bài kiểm, luật JaCoCo bị bỏ qua vì lọc sai chỗ, và 2 luật chạy qua 0 lớp. "Xanh" chỉ nói lên rằng nó không đỏ, không nói lên rằng nó đang canh.
 - ⚠⚠ **Mock đặt đúng chỗ mã chạm ra ngoài = chưa kiểm gì cả.** Chạm ra ngoài nghĩa là tiến trình con, CSDL, hệ tệp, mạng — nơi *môi trường* mới là thứ hay hỏng, chứ không phải logic. Rà soát 17/8 (`architecture-review.md` §9.12.1): `BackupServiceTest` mock `PostgresToolRunner` nên xanh trọn vẹn trong khi `pg_dump` **chưa từng chạy được một lần nào** vì thiếu một quyền trên CSDL — mất trắng cơ chế sao lưu suốt 3 work stream. Bài kiểm mock chứng minh phần điều phối, và phải đi kèm **một** bài chạy thật qua đúng ranh giới đó.
 - ⚠ **Script trong workflow phải kiểm bằng `bash -c`, không phải shell mặc định của máy.** Runner GitHub chạy **bash**; máy dev ở đây chạy **zsh**, mà zsh **không tách từ khi khai triển biến** còn bash thì có. Ngày 19/8 một bản sửa `promotion-guard` dùng `for muc in $runs` với tên job chứa dấu cách (`Backend — build, lint, test`): thử ở local thấy đúng, dưới bash thì tên job vỡ thành 5 mảnh và cổng **luôn đỏ**. Cùng họ với luật ngay trên — shell là cơ chế canh gác, và nó hỏng theo cách phụ thuộc môi trường.
 - ⚠ **Script shell cũng là cơ chế canh gác, và hỏng còn im lặng hơn.** `verify-no-keys.sh` in `✓` suốt từ WS-7 vì mẫu tìm khoá PEM bắt đầu bằng `-` nên `grep` đọc thành tuỳ chọn rồi chết, mà lời gọi nằm trong `if` nên lỗi bị nuốt (§9.12.2). Luật: mẫu luôn truyền qua `-e`/`--`, và script canh gác phải **tự kiểm mỗi lượt** — cho một mẫu vi phạm giả đi qua đúng hàm đó và bắt nó phải kêu.
+- ⛔⛔ **Một cơ chế canh gác KHÔNG CHẠY ĐƯỢC phải nói ra bằng mã thoát khác 0. Cấm `exit 0` ở nhánh "thiếu công cụ".** *"Không kiểm được"* và *"kiểm rồi, sạch"* là hai kết luận khác nhau và phải trông khác nhau — một nhánh thoát 0 làm nơi gọi coi là ĐẠT và đi tiếp. Ba lần đã trả giá, cùng một hình dạng: `test_parse.py` `ImportError → sys.exit(0)` chạy xanh mà không kiểm gì trên mọi máy chưa dựng venv (T11.49) · `verify-no-keys.sh` thiếu `pg_restore` → `exit 0`, mà VPS staging không cài postgresql-client nên **mọi lượt triển khai từ 26/8** đều bỏ qua phép kiểm bảo mật duy nhất canh bản dump (T11.41) · `NginxSecurityHeadersTest` soi mỗi `admin-app` nên cổng công khai chạy không CSP (§10.61). Nếu buộc phải bỏ qua thì phải là một **quyết định có tên**, khai tường minh ở nơi gọi, không phải một nhánh im lặng trong script.
+- ⭐ **Thêm một job vào `ci.yml` thì phải thêm nó vào `needs` của `Cổng kiểm CI` và nâng ngưỡng `so_job`.** `dev` chỉ có **một** context bắt buộc là `Cổng kiểm CI` (§10.63 — bảy context khoá chết mọi PR chỉ sửa tài liệu), nên một job không nằm trong `needs` của nó là một job **không chặn được gì**. Đây không phải việc phải nhớ: `CiGateCoverageTest` đối chiếu **hai chiều** giữa danh sách job có thật và `needs`, và ngưỡng `so_job` chặn trường hợp khai báo hỏng làm cổng soi trên tập rỗng. Nghĩa là quên thì CI đỏ ngay — đừng hạ ngưỡng cho qua.
 
 ### 1.6. Cấu hình & kết nối — bắt buộc qua env
 
@@ -466,7 +468,33 @@ Tầng 3 — Repository scope filter (org_unit)     → chặn dữ liệu (IDOR
 6. ⚠ **Cảnh báo lặp lại hàng trăm lần mỗi lượt là một hỏng hóc, không phải nền nhiễu.** Sonatype OSS Index đổ **130 cảnh báo mỗi lượt quét** suốt 4 lượt liền — tức nó lỗi ở gần như mọi artifact và **chưa từng đóng góp dữ liệu nào**. Không ai đọc, vì nó chỉ là `[WARNING]`. Tới lượt thứ tư Sonatype chặn truy cập ẩn danh (401) thì DC nâng lên `AnalysisException` và **giết cả build đúng lúc cổng CVE vừa sạch**. Nguồn dữ liệu hỏng thì tắt đích danh và ghi lại, đừng để nó nằm đó kêu.
    ⛔ Và đừng chữa bằng `failOnError=false`: nó nuốt **mọi** lỗi phân tích, kể cả của analyzer đang chạy thật — biến một hỏng hóc nhìn thấy được thành một hỏng hóc im lặng.
 
-> ⚠ Nâng phiên bản để vá bảo mật thì **giữ trong cùng dòng minor** (3.5.x → 3.5.x). Nhảy major là hạng mục riêng, không gộp vào một lượt vá — và không phải nâng nào cũng đi được: `minio 8.6.0` kéo okhttp 5.x phát hành kiểu Kotlin Multiplatform, Maven không giải được biến thể nên vỡ biên dịch (chi tiết ghi tại chỗ trong `pom.xml`).
+7. ⚠⚠ **Chỉ chạy trên một DÒNG CÒN ĐƯỢC HỖ TRỢ OSS — "cùng dòng minor" là cách viết tắt, và nó hết đúng vào đúng ngày dòng ấy chết.**
+
+   Luật cũ ở đây viết *"nâng phiên bản để vá bảo mật thì giữ trong cùng dòng minor (3.5.x → 3.5.x)"*. Câu ấy **đúng khi dòng còn được vá**, và nó biến thành cái bẫy đúng vào lúc dòng ngừng được vá: khi đó nó biến một CVE 9.8 *có bản vá* thành một CVE *"không có đường nâng cấp"* — tức biến một việc phải làm thành một việc tưởng không làm được.
+
+   Đo ngày 3/9/2026, sau khi lượt quét theo lịch đỏ với 4 mã ≥ 7 không vá được:
+
+   | | |
+   |---|---|
+   | Spring Boot 3.5 / Framework 6.2 hết hỗ trợ OSS | **30/6/2026** |
+   | `spring-boot 3.5.16` lên Central | **25/6/2026** — 5 ngày trước EOL |
+   | lượt phát hành đồng loạt 4.0.x / 4.1.x / 7.0.x / 7.1.x | **20/8/2026** — dòng 3.5.x nhận **không gì** |
+   | `6.2.20` · `6.2.21` · `6.5.12` · `3.5.17` · `10.1.60` | đều **HTTP 404** |
+
+   `6.2.19` là **bản vá miễn phí cuối cùng** của dòng ấy; `6.5.12`/`6.4.19` gắn nhãn *Enterprise Support Only*, không bao giờ lên Central. ⛔ **404 trên Central không phải "chưa ra" — nó là ngày hết hỗ trợ nói bằng HTTP.**
+
+   Và không phải trường hợp lẻ: cùng lượt rà tìm ra `nginx:1.27-alpine` **đã hết hỗ trợ từ 24/6/2025 — 14 tháng** — mà không dòng nào trong kho nói ra điều đó.
+
+   **Luật thay thế, bốn vế:**
+
+   1. **Ngày hết hỗ trợ là dữ liệu MÁY ĐỌC ĐƯỢC**, ở `deploy/vong-doi-phien-ban.tsv` — không phải trí nhớ, không phải chú thích. ⚠ Nó nằm ở `deploy/` chứ không phải `.claude/` vì bộ lọc đường dẫn của CI là `^(backend/|frontend/|deploy/|\.github/)`; đặt sai chỗ thì sửa nó không làm bộ canh chạy (luật 24).
+   2. **Vẫn tách hai loại lượt**: *vá trong dòng* (một dòng pom, gộp ngay) và *đổi dòng* (hạng mục riêng, bắt buộc có bước **đo tương thích trước** rồi mới chia PR).
+   3. **Mở hạng mục đổi dòng trước EOL ít nhất 90 ngày.** `VongDoiPhienBanTest` tự đỏ khi còn dưới ngưỡng ấy — cùng cơ chế `until` của tệp suppression: **hạn tự làm CI đỏ**, không phụ thuộc ai nhớ.
+   4. Và không phải nâng nào cũng đi được: `minio 8.6.0` kéo okhttp 5.x phát hành kiểu Kotlin Multiplatform, Maven không giải được biến thể nên vỡ biên dịch (chi tiết ghi tại chỗ trong `pom.xml`).
+
+   ⛔ **Bổ sung cho luật 1 ở trên**: nếu dòng hiện tại **không còn bản vá** thì việc phải làm là **đổi dòng**, không phải suppress. Một mục suppression lấy lý do *"dòng này hết hỗ trợ"* là **không hợp lệ** — nó biến một ngày hết hạn ĐÃ TỚI thành một ngày hết hạn tự đặt.
+
+   ⛔ **Và cấm tag trôi**: `:latest` cùng `ubuntu-latest` đổi vào một ngày không ai chọn, và khi chúng hỏng thì hỏng trông như hỏng vì mã. `VongDoiPhienBanTest` chặn cả hai.
 
 ### 4.6. Checklist OWASP Top 10 (điều kiện pass security test)
 
