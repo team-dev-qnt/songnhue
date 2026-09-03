@@ -44,7 +44,7 @@ permissions:
 jobs:
   owasp:
     name: OWASP Dependency-Check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Lần đầu dựng CSDL NVD là lâu thật, kể cả khi có khoá. Các lượt sau đọc
     # bộ nhớ đệm bên dưới nên chỉ còn vài phút.
     timeout-minutes: 60
@@ -211,7 +211,7 @@ jobs:
 
   npm:
     name: npm audit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
 
     steps:
@@ -219,7 +219,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          # Đọc `.nvmrc` thay vì ghi cứng — trước đây Node khai ở 5 nơi rời nhau
+          # (2 workflow, 3 Dockerfile, `engines.node`) và không nơi nào là nguồn.
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 

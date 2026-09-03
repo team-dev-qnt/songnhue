@@ -18,6 +18,36 @@
           Vẫn ở dòng 3.5.x — bản vá, không phải nhảy major. (Boot 4.1.0 có sẵn
           nhưng kéo theo Spring Framework 7; việc đó là một hạng mục riêng, không
           gộp vào một lượt vá bảo mật.)
+
+          ─────────────────────────────────────────────────────────────────────
+          ⛔⛔ QUYẾT ĐỊNH TRÊN ĐÚNG LÚC NÓ ĐƯỢC VIẾT, VÀ HẾT ĐÚNG NGÀY 30/6/2026.
+
+          Nó bị viện dẫn hai lần để từ chối Boot 4 — 18/8 và 1/9. Cả hai lần đều
+          hợp lý: dòng 3.5.x khi ấy vẫn nhận bản vá, và nhảy major giữa một lượt
+          vá bảo mật là trộn hai lớp rủi ro.
+
+          Đo lại 3/9/2026 thì tiền đề ấy đã sai:
+
+            Spring Boot 3.5 / Framework 6.2 hết hỗ trợ OSS   30/6/2026
+            3.5.16 lên Central                               25/6/2026
+              -> 5 ngày trước EOL; nó là bản vá CUỐI CÙNG
+            phát hành đồng loạt 4.0/4.1/7.0/7.1              20/8/2026
+              -> dòng 3.5.x nhận: KHÔNG GÌ
+            6.2.20 · 6.2.21 · 6.5.12 · 3.5.17 · 10.1.60      đều HTTP 404
+
+          Tức là câu "vẫn ở dòng 3.5.x — bản vá, không phải nhảy major" nay mô tả
+          một dòng KHÔNG CÒN BẢN VÁ NÀO. Đứng yên không phải lựa chọn thận trọng;
+          nó là đóng băng vĩnh viễn với 4 mã CVSS >= 7 không có đường ra.
+
+          Không xoá đoạn trên: nó ghi lại LÝ DO chứ không chỉ kết luận, và lý do
+          ấy vẫn đúng cho mọi lượt vá trong tương lai — chỉ tiền đề "dòng này còn
+          được vá" là thứ đã hết hạn. Ngày hết hạn nay nằm ở
+          `deploy/vong-doi-phien-ban.tsv`, có `VongDoiPhienBanTest` canh.
+
+          Hạng mục đổi dòng: Spring Boot 4.1.1 (OSS tới 31/7/2027), kéo theo
+          Framework 7.0.9 + Security 7.1.1 + Tomcat 11.0.24. Nợ T11.69, hạn
+          hoàn tất 15/10/2026 — quá hạn thì CI đỏ và KHÔNG được gia hạn.
+          ─────────────────────────────────────────────────────────────────────
         -->
         <version>3.5.16</version>
         <relativePath/>

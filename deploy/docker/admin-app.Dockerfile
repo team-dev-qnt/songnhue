@@ -30,7 +30,7 @@ ARG VITE_API_BASE_URL
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 RUN npm run build --workspace admin-app
 
-FROM nginx:1.27-alpine AS runtime
+FROM nginx:1.30-alpine AS runtime
 
 # Máy chủ backend mà nginx chuyển tiếp `/api` tới. Đọc LÚC CHẠY qua cơ chế
 # template của image nginx (`/etc/nginx/templates/*.template` + envsubst), nên
