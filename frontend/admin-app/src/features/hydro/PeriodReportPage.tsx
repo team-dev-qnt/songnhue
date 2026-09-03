@@ -442,7 +442,14 @@ function giaTri(v: string | null, row: PeriodSummaryRow) {
 function oRong(lyDo: string | null) {
   return (
     <Tooltip title={lyDo ?? 'Chưa đo được'}>
-      <Typography.Text type="secondary" style={{ cursor: 'help' }}>
+      {/* ⚠ `sn-o-rong` + `data-ly-do`: bản in ⛔ không có tooltip, nên lý do phải đi vào DOM —
+          xem khối `@media print` ở `admin-global.css` (T34.10). */}
+      <Typography.Text
+        type="secondary"
+        className="sn-o-rong"
+        data-ly-do={lyDo ?? 'Chưa đo được'}
+        style={{ cursor: 'help' }}
+      >
         —
       </Typography.Text>
     </Tooltip>

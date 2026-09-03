@@ -128,3 +128,73 @@ html {
     scroll-behavior: auto !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Bản in báo cáo — WS-34 / T34.10
+
+   ⬜⬜ ĐÂY LÀ KHUNG, ⛔ CHƯA PHẢI BỐ CỤC ĐÃ DUYỆT.
+
+   Format báo cáo in thuộc mục **G10** — Công ty chưa duyệt `report-templates-proposal.md`.
+   Khối này cố ý chỉ làm đúng một việc: gỡ phần *giao diện điều khiển* ra khỏi trang giấy và
+   mở hết bảng ra. Nó ⛔ KHÔNG đặt tiêu đề công văn, ⛔ không đặt khung ký duyệt, ⛔ không
+   đặt thứ tự cột — cả ba đều là quyết định của Công ty, và dựng sẵn chúng theo phỏng đoán là
+   đúng thứ §10.54 gọi tên: một bản in trông "đã xong" khiến không ai đi hỏi cho xong.
+
+   ⚠ Khi G10 chốt: sửa Ở ĐÂY và ở component tiêu đề in, ⛔ đừng thêm một tầng CSS in thứ hai
+   trong từng trang — hai nơi quyết định bố cục giấy thì bản in của hai báo cáo sẽ lệch nhau.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media print {
+  /* Điều hướng, nút bấm, bộ lọc: chúng ⛔ không có nghĩa gì trên giấy. */
+  .ant-layout-sider,
+  .ant-layout-header,
+  .ant-card-extra,
+  .ant-pagination,
+  .ant-back-top,
+  .ant-float-btn-group,
+  .ant-message,
+  .ant-notification {
+    display: none !important;
+  }
+
+  .ant-layout,
+  .ant-layout-content {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  /* ⭐ Bảng phải in HẾT hàng. `scroll={{ y }}` dựng một khung cuộn trong trang — trên giấy nó
+     cắt cụt bảng ở đúng chiều cao ấy, và một bản in bị cắt cụt trông y hệt một bản in đầy đủ. */
+  .ant-table-body,
+  .ant-table-content {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  /* ⛔ Không để một hàng bị cắt làm đôi giữa hai trang giấy. */
+  .ant-table-row {
+    break-inside: avoid;
+  }
+
+  /* Tiêu đề cột lặp lại ở đầu mỗi trang giấy — bảng nhiều trang mà mất tiêu đề là bảng
+     không đọc được. */
+  .ant-table-thead {
+    display: table-header-group;
+  }
+
+  .ant-card {
+    border: none !important;
+    box-shadow: none !important;
+    break-inside: auto;
+  }
+
+  /* ⚠ Ô rỗng KÈM LÝ DO (quy tắc 16) hiện bằng tooltip trên màn hình — mà giấy ⛔ không có
+     tooltip. `.sn-o-rong` mang lý do trong `data-ly-do` và in nó ra sau dấu gạch. Thiếu chỗ
+     này thì mọi ô rỗng trên bản in đều là một dấu gạch không lời, và ba tình huống khác nhau
+     ("chưa theo dõi" · "đã ngừng" · "poller chết") thành một. */
+  .sn-o-rong::after {
+    content: ' (' attr(data-ly-do) ')';
+    font-size: 0.85em;
+    color: #555;
+  }
+}
