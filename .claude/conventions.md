@@ -454,7 +454,33 @@ Tầng 3 — Repository scope filter (org_unit)     → chặn dữ liệu (IDOR
 6. ⚠ **Cảnh báo lặp lại hàng trăm lần mỗi lượt là một hỏng hóc, không phải nền nhiễu.** Sonatype OSS Index đổ **130 cảnh báo mỗi lượt quét** suốt 4 lượt liền — tức nó lỗi ở gần như mọi artifact và **chưa từng đóng góp dữ liệu nào**. Không ai đọc, vì nó chỉ là `[WARNING]`. Tới lượt thứ tư Sonatype chặn truy cập ẩn danh (401) thì DC nâng lên `AnalysisException` và **giết cả build đúng lúc cổng CVE vừa sạch**. Nguồn dữ liệu hỏng thì tắt đích danh và ghi lại, đừng để nó nằm đó kêu.
    ⛔ Và đừng chữa bằng `failOnError=false`: nó nuốt **mọi** lỗi phân tích, kể cả của analyzer đang chạy thật — biến một hỏng hóc nhìn thấy được thành một hỏng hóc im lặng.
 
-> ⚠ Nâng phiên bản để vá bảo mật thì **giữ trong cùng dòng minor** (3.5.x → 3.5.x). Nhảy major là hạng mục riêng, không gộp vào một lượt vá — và không phải nâng nào cũng đi được: `minio 8.6.0` kéo okhttp 5.x phát hành kiểu Kotlin Multiplatform, Maven không giải được biến thể nên vỡ biên dịch (chi tiết ghi tại chỗ trong `pom.xml`).
+7. ⚠⚠ **Chỉ chạy trên một DÒNG CÒN ĐƯỢC HỖ TRỢ OSS — "cùng dòng minor" là cách viết tắt, và nó hết đúng vào đúng ngày dòng ấy chết.**
+
+   Luật cũ ở đây viết *"nâng phiên bản để vá bảo mật thì giữ trong cùng dòng minor (3.5.x → 3.5.x)"*. Câu ấy **đúng khi dòng còn được vá**, và nó biến thành cái bẫy đúng vào lúc dòng ngừng được vá: khi đó nó biến một CVE 9.8 *có bản vá* thành một CVE *"không có đường nâng cấp"* — tức biến một việc phải làm thành một việc tưởng không làm được.
+
+   Đo ngày 3/9/2026, sau khi lượt quét theo lịch đỏ với 4 mã ≥ 7 không vá được:
+
+   | | |
+   |---|---|
+   | Spring Boot 3.5 / Framework 6.2 hết hỗ trợ OSS | **30/6/2026** |
+   | `spring-boot 3.5.16` lên Central | **25/6/2026** — 5 ngày trước EOL |
+   | lượt phát hành đồng loạt 4.0.x / 4.1.x / 7.0.x / 7.1.x | **20/8/2026** — dòng 3.5.x nhận **không gì** |
+   | `6.2.20` · `6.2.21` · `6.5.12` · `3.5.17` · `10.1.60` | đều **HTTP 404** |
+
+   `6.2.19` là **bản vá miễn phí cuối cùng** của dòng ấy; `6.5.12`/`6.4.19` gắn nhãn *Enterprise Support Only*, không bao giờ lên Central. ⛔ **404 trên Central không phải "chưa ra" — nó là ngày hết hỗ trợ nói bằng HTTP.**
+
+   Và không phải trường hợp lẻ: cùng lượt rà tìm ra `nginx:1.27-alpine` **đã hết hỗ trợ từ 24/6/2025 — 14 tháng** — mà không dòng nào trong kho nói ra điều đó.
+
+   **Luật thay thế, bốn vế:**
+
+   1. **Ngày hết hỗ trợ là dữ liệu MÁY ĐỌC ĐƯỢC**, ở `deploy/vong-doi-phien-ban.tsv` — không phải trí nhớ, không phải chú thích. ⚠ Nó nằm ở `deploy/` chứ không phải `.claude/` vì bộ lọc đường dẫn của CI là `^(backend/|frontend/|deploy/|\.github/)`; đặt sai chỗ thì sửa nó không làm bộ canh chạy (luật 24).
+   2. **Vẫn tách hai loại lượt**: *vá trong dòng* (một dòng pom, gộp ngay) và *đổi dòng* (hạng mục riêng, bắt buộc có bước **đo tương thích trước** rồi mới chia PR).
+   3. **Mở hạng mục đổi dòng trước EOL ít nhất 90 ngày.** `VongDoiPhienBanTest` tự đỏ khi còn dưới ngưỡng ấy — cùng cơ chế `until` của tệp suppression: **hạn tự làm CI đỏ**, không phụ thuộc ai nhớ.
+   4. Và không phải nâng nào cũng đi được: `minio 8.6.0` kéo okhttp 5.x phát hành kiểu Kotlin Multiplatform, Maven không giải được biến thể nên vỡ biên dịch (chi tiết ghi tại chỗ trong `pom.xml`).
+
+   ⛔ **Bổ sung cho luật 1 ở trên**: nếu dòng hiện tại **không còn bản vá** thì việc phải làm là **đổi dòng**, không phải suppress. Một mục suppression lấy lý do *"dòng này hết hỗ trợ"* là **không hợp lệ** — nó biến một ngày hết hạn ĐÃ TỚI thành một ngày hết hạn tự đặt.
+
+   ⛔ **Và cấm tag trôi**: `:latest` cùng `ubuntu-latest` đổi vào một ngày không ai chọn, và khi chúng hỏng thì hỏng trông như hỏng vì mã. `VongDoiPhienBanTest` chặn cả hai.
 
 ### 4.6. Checklist OWASP Top 10 (điều kiện pass security test)
 

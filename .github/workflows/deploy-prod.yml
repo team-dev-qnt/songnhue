@@ -39,7 +39,7 @@ permissions:
 jobs:
   kiem-moc:
     name: Mốc đề bạt đã qua staging chưa
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
       sha: ${{ inputs.commit_sha }}
