@@ -59,9 +59,31 @@ public class ObjectStorage {
     }
 
     public byte[] get(String bucket, String objectKey) {
-        try (InputStream stream = client.getObject(
-                GetObjectArgs.builder().bucket(bucket).object(objectKey).build())) {
+        try (InputStream stream = openStream(bucket, objectKey)) {
             return stream.readAllBytes();
+        } catch (Exception e) {
+            throw new UpstreamException(ErrorCode.SYS_0006, e, "MinIO");
+        }
+    }
+
+    /**
+     * Mở luồng đọc — <b>T28.35</b>, đường phục vụ tệp mà ⛔ không nạp trọn vào heap.
+     *
+     * <h2>⚠⚠ Người gọi PHẢI đóng luồng này</h2>
+     *
+     * <p>Đây là hợp đồng, ⛔ không phải lời khuyên: luồng của MinIO giữ một kết nối HTTP trong pool.
+     * Rò một lượt mỗi lần tải thì pool cạn sau vài trăm lượt, và triệu chứng là <b>toàn hệ treo lúc
+     * gọi kho</b> — ⛔ không phải một lỗi ở đường tải, nên nó ⛔ không chỉ vào đây.
+     *
+     * <p>⭐ Vì sao {@link #get} vẫn ở lại: đường tải <b>có đăng nhập</b> ({@code downloadUrl},
+     * {@code readForPublic} của các luồng nội bộ) và các lượt đọc nhỏ trong job nền vẫn cần nguyên
+     * mảng byte, và ở đó số lượt đồng thời bị chặn bởi phân quyền. Bề mặt ⛔ không đăng nhập mới là
+     * chỗ ⛔ không có gì hạn chế số người bấm.
+     */
+    public InputStream openStream(String bucket, String objectKey) {
+        try {
+            return client.getObject(
+                    GetObjectArgs.builder().bucket(bucket).object(objectKey).build());
         } catch (Exception e) {
             throw new UpstreamException(ErrorCode.SYS_0006, e, "MinIO");
         }

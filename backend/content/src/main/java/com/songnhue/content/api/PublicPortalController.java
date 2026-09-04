@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import com.songnhue.content.application.ContactService;
 import com.songnhue.content.application.MenuService;
@@ -29,6 +30,7 @@ import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
 import com.songnhue.core.common.security.PublicEndpoint;
 import com.songnhue.core.common.util.HttpHeaderText;
+import com.songnhue.core.common.web.PhatTepTrucTiep;
 import com.songnhue.core.spi.AttachmentContent;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -284,12 +286,13 @@ public class PublicPortalController {
     @GetMapping("/files/{publicId}")
     @Operation(summary = "Ảnh và tệp công khai — phục vụ trực tiếp, không qua presigned URL")
     @PublicEndpoint(reason = "Ảnh trong bài viết, banner và logo của cổng — CN-01.3, CN-01.5")
-    public ResponseEntity<byte[]> file(@PathVariable UUID publicId) {
+    public ResponseEntity<StreamingResponseBody> file(@PathVariable UUID publicId) {
         AttachmentContent tep =
                 portal.file(publicId).orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
 
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(tep.contentType()))
+                .contentLength(tep.sizeBytes())
                 .cacheControl(CacheControl.maxAge(java.time.Duration.ofSeconds(CACHE_TEP_GIAY))
                         .cachePublic()
                         .immutable())
@@ -298,7 +301,7 @@ public class PublicPortalController {
                 .header(
                         HttpHeaders.CONTENT_DISPOSITION,
                         "inline; filename=\"" + HttpHeaderText.tenTepAnToan(tep.originalName()) + "\"")
-                .body(tep.content());
+                .body(PhatTepTrucTiep.cua(tep));
     }
 
     /**
@@ -325,12 +328,13 @@ public class PublicPortalController {
     @GetMapping("/article-documents/{publicId}")
     @Operation(summary = "Tài liệu đính kèm của một bài đã xuất bản — tải về")
     @PublicEndpoint(reason = "Tệp đính kèm trong bài viết của cổng — CN-01.1, WS-40")
-    public ResponseEntity<byte[]> articleDocument(@PathVariable UUID publicId) {
+    public ResponseEntity<StreamingResponseBody> articleDocument(@PathVariable UUID publicId) {
         AttachmentContent tep =
                 portal.articleDocument(publicId).orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
 
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(tep.contentType()))
+                .contentLength(tep.sizeBytes())
                 // `immutable` an toàn: mỗi lượt tải lên sinh một `public_id` mới, nên thay tệp
                 // không bao giờ tái dùng UUID cũ.
                 .cacheControl(CacheControl.maxAge(java.time.Duration.ofSeconds(CACHE_TEP_GIAY))
@@ -339,7 +343,7 @@ public class PublicPortalController {
                 .header(
                         HttpHeaders.CONTENT_DISPOSITION,
                         "attachment; filename=\"" + HttpHeaderText.tenTepAnToan(tep.originalName()) + "\"")
-                .body(tep.content());
+                .body(PhatTepTrucTiep.cua(tep));
     }
 
     /** Thời điểm máy chủ trả lời — cổng dùng để hiện "cập nhật lúc" mà không phụ thuộc giờ máy khách. */

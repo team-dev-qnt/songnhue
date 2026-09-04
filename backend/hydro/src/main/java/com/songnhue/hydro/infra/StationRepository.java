@@ -6,6 +6,8 @@ import java.util.UUID;
 
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.songnhue.hydro.domain.Station;
 
@@ -70,4 +72,53 @@ public interface StationRepository extends JpaRepository<Station, Long> {
     List<Station> findByOrgUnitIdIsNullAndDeletedAtIsNullOrderByCodeAsc();
 
     List<Station> findByApiSourceIdAndDeletedAtIsNullOrderByCodeAsc(Long apiSourceId);
+
+    // =========================================================================
+    // ⭐⭐ T28.32 — hai phép đếm CỐ Ý ĐỨNG NGOÀI bộ lọc phạm vi
+    // =========================================================================
+
+    /**
+     * Số điểm đo <b>toàn hệ thống</b> đang trỏ vào một nguồn dữ liệu — ⛔ ⛔ <b>không</b> lọc phạm vi.
+     *
+     * <h2>⛔⛔ Vì sao một phép đếm "còn ai dùng không" ⛔ KHÔNG được chịu bộ lọc</h2>
+     *
+     * <p>{@link #findByApiSourceIdAndDeletedAtIsNullOrderByCodeAsc} đi qua
+     * {@code Station.LOC_PHAM_VI}. Dùng nó để trả lời <i>"nguồn này còn ai dùng không"</i> thì câu
+     * trả lời phụ thuộc <b>người đang hỏi</b>: người của Xí nghiệp A đếm ra 0 trong khi Xí nghiệp B
+     * còn 12 điểm đo trỏ vào nguồn ấy ⇒ {@code HYD-1002} ⛔ không bao giờ bắn, nguồn bị xoá mềm, và
+     * <b>12 điểm đo của đơn vị khác mất đường lấy số liệu</b> — ⛔ không lỗi nào, ⛔ không cảnh báo
+     * nào, và người gây ra thì ⛔ không nhìn thấy hậu quả vì nó nằm ngoài phạm vi của họ.
+     *
+     * <p>⚠ Đây đúng họ với luật 13 (§10.35 lỗi 2): <i>một phép tính trộn hai nguồn khác chiều lọc
+     * thì kết quả phụ thuộc ai bấm nút</i>. Ràng buộc toàn vẹn ⛔ <b>không</b> phải một câu hỏi về
+     * phạm vi — <i>"đối tượng này còn được tham chiếu không"</i> có <b>một</b> câu trả lời đúng cho
+     * cả hệ.
+     *
+     * <p>⭐ {@code nativeQuery} là <b>cơ chế</b> đi vòng: {@code @Filter} của Hibernate chỉ áp cho
+     * HQL/Criteria, ⛔ không áp cho SQL thuần. ⛔ Đừng "dọn" thành câu derived cho gọn — làm vậy là
+     * khôi phục nguyên vẹn khuyết tật này, và bộ test sẽ ⛔ không đỏ nếu người kiểm chỉ đăng nhập
+     * bằng SUPER_ADMIN.
+     */
+    @Query(
+            value = "SELECT count(*) FROM stations WHERE api_source_id = :apiSourceId AND deleted_at IS NULL",
+            nativeQuery = true)
+    long demMoiPhamViTheoNguon(@Param("apiSourceId") Long apiSourceId);
+
+    /**
+     * Số điểm đo <b>toàn hệ thống</b> đang gắn một loại chỉ số — ⛔ ⛔ <b>không</b> lọc phạm vi.
+     *
+     * <p>Cùng lý lẽ với {@link #demMoiPhamViTheoNguon}, và hậu quả còn im lặng hơn: xoá một loại chỉ
+     * số vẫn đang được gắn thì {@code hydro_readings} của loại ấy mồ côi — số liệu <b>vẫn được
+     * ghi</b>, chỉ là ⛔ không màn hình nào đọc ra nữa.
+     */
+    @Query(
+            value =
+                    """
+                    SELECT count(DISTINCT s.id)
+                      FROM stations s
+                      JOIN station_measurement_types smt ON smt.station_id = s.id
+                     WHERE smt.measurement_type_id = :typeId AND s.deleted_at IS NULL
+                    """,
+            nativeQuery = true)
+    long demMoiPhamViTheoLoaiChiSo(@Param("typeId") Long typeId);
 }

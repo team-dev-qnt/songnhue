@@ -155,7 +155,7 @@ class MenuLogoAndMapImageTest extends IntegrationTestBase {
 
     @Test
     @DisplayName("⭐⭐ Tệp logo TẢI VỀ ĐƯỢC qua đường công khai — `MENU_ITEM` nằm trong danh sách trắng")
-    void byteLogoRaDuocDuongCongKhai() {
+    void byteLogoRaDuocDuongCongKhai() throws java.io.IOException {
         UUID muc = menus.create(
                         MenuPosition.LIEN_KET,
                         null,
@@ -169,12 +169,18 @@ class MenuLogoAndMapImageTest extends IntegrationTestBase {
         // ⛔ Không có bước này thì cả lượt là công cốc theo cách khó truy nhất: CSDL nói tệp tồn
         //    tại, DTO trả id, và `GET /api/v1/public/files/<id>` trả 404 vì loại chủ sở hữu
         //    `MENU_ITEM` không nằm trong `LOAI_TEP_CONG_KHAI`. Hỏng câm, đúng §10.52.
+        // ⚠ T28.35 — `content()` nay là `InputStream` (ba endpoint công khai PHÁT TRỰC TIẾP thay vì
+        //   nạp trọn tệp vào heap). ⇒ khẳng định phải ĐỌC luồng, và đó là một phép đo MẠNH HƠN bản
+        //   cũ: bản cũ hỏi độ dài một mảng đã nằm sẵn trong bộ nhớ, bản này chứng minh byte thật sự
+        //   CHẢY được từ kho ra — đúng thứ §10.52 trả giá vì thiếu.
         assertThat(portal.file(anh))
                 .as("Byte logo phải ra được đường công khai — thẻ trên trang chủ tải bằng chính đường ấy")
-                .isPresent()
-                .get()
-                .extracting(c -> c.content().length)
-                .isEqualTo(goc.length);
+                .isPresent();
+        try (java.io.InputStream luong = portal.file(anh).orElseThrow().content()) {
+            assertThat(luong.readAllBytes())
+                    .as("⛔ Đúng nguyên văn byte đã tải lên — ⛔ không phải 'có một luồng nào đó'")
+                    .isEqualTo(goc);
+        }
     }
 
     // =========================================================================
