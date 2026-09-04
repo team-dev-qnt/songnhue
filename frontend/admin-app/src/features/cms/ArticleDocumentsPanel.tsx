@@ -1,4 +1,9 @@
-import { ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, PaperClipOutlined } from '@ant-design/icons';
+import {
+  ArrowDownOutlined,
+  ArrowUpOutlined,
+  DeleteOutlined,
+  PaperClipOutlined,
+} from '@ant-design/icons';
 import { Button, Card, Empty, Input, Space, Table, Tag, Typography } from 'antd';
 
 import { formatBytes } from '@/shared/format';
@@ -87,7 +92,10 @@ export function ArticleDocumentsPanel({
                   //   hai phía đều phải nhớ xử lý.
                   onChange={(e) => {
                     const ketQua = [...documents];
-                    ketQua[index] = { ...doc, label: e.target.value.trim() === '' ? null : e.target.value };
+                    ketQua[index] = {
+                      ...doc,
+                      label: e.target.value.trim() === '' ? null : e.target.value,
+                    };
                     onChange(ketQua);
                   }}
                   placeholder={doc.originalName}
