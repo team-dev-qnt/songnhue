@@ -19,6 +19,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import { useAuth } from '@/app/auth/useAuth';
 import { ApprovalActions } from '@/components/business/ApprovalActions';
 import { RichTextEditor } from '@/components/business/RichTextEditor';
 import { StatusBadge } from '@/components/business/StatusBadge';
@@ -87,6 +88,7 @@ function ArticleForm({ article: data }: { article?: ArticleDetail }) {
   const navigate = useNavigate();
   const { message } = App.useApp();
   const queryClient = useQueryClient();
+  const { hasPermission } = useAuth();
   const { chonTep: chonAnh, picker } = useMediaPicker();
   // ⭐ Hộp chọn THỨ HAI, kho khác — WS-40. Hai lượt gọi hook giữ trạng thái riêng và render hai
   //   `<Modal>` riêng; gộp làm một là dựng lại đúng cái trạng thái "đang mở để làm gì" mà kiểu
@@ -248,6 +250,30 @@ function ArticleForm({ article: data }: { article?: ArticleDetail }) {
   const khoaSua = data?.status === 'CHO_DUYET';
 
   /**
+   * ⭐⭐ **T27.28 — lệch tầng 1 ↔ tầng 2**, vá 04/09/2026.
+   *
+   * Tuyến `/noi-dung/bai-viet/:publicId` gác bằng `cms:article:view` (tầng 1), còn nút Lưu gọi
+   * `POST`/`PUT` đòi `cms:article:create`/`update` (tầng 3). Đo trên ma trận seed:
+   *
+   * | quyền | vai trò |
+   * |---|---|
+   * | `cms:article:view` | CONTENT_EDITOR · CONTENT_MANAGER · **EXECUTIVE** · **VIEWER** |
+   * | `cms:article:create`/`update` | CONTENT_EDITOR · CONTENT_MANAGER |
+   *
+   * ⇒ **EXECUTIVE và VIEWER mở được trình soạn thảo**, gõ xong cả bài, bấm Lưu và nhận **403**.
+   * Hai vai trò ấy là lãnh đạo và người xem — đúng những người ⛔ không có cách nào tự đoán rằng
+   * mình chỉ được đọc, vì màn hình mở ra y hệt người soạn bài.
+   *
+   * ⛔ Cách sửa **sai** là siết tuyến lên `cms:article:create`: khi ấy lãnh đạo ⛔ không xem được
+   * nội dung một bài nữa, mà xem là đúng thứ họ được phép. Cách đúng là **tầng 2 nói thật**: mở
+   * để đọc, ⛔ không mở để ghi.
+   *
+   * ⚠ Khuôn đã có ngay cạnh — `ArticleListPage` gác từng nút bằng `hasPermission`. Lệch này sống
+   * được vì trình soạn thảo có **0** lời gọi `hasPermission`.
+   */
+  const coQuyenGhi = hasPermission(laBaiMoi ? 'cms:article:create' : 'cms:article:update');
+
+  /**
    * ⚠ Khoá Lưu khi còn ảnh đang tải, và đây **không** phải chuyện tiện dụng.
    *
    * Ảnh chưa tải xong thì `src` của nó là `blob:` — địa chỉ chỉ sống trong tab đang mở. Lưu
@@ -255,7 +281,7 @@ function ArticleForm({ article: data }: { article?: ArticleDetail }) {
    * phép) và bài viết còn lại một thẻ ảnh rỗng: người soạn thấy "Đã lưu", mở lại thì đúng
    * tấm ảnh vừa kéo vào đã biến mất, không lỗi nào.
    */
-  const khoaLuu = khoaSua || anhDangTai > 0;
+  const khoaLuu = khoaSua || anhDangTai > 0 || !coQuyenGhi;
 
   return (
     <>
@@ -282,7 +308,15 @@ function ArticleForm({ article: data }: { article?: ArticleDetail }) {
               type="primary"
               loading={save.isPending}
               disabled={khoaLuu}
-              title={anhDangTai > 0 ? `Đang tải ${anhDangTai} ảnh lên` : undefined}
+              // ⚠ `title` phải nói ĐÚNG lý do đang khoá — một nút xám ⛔ không giải thích được là
+              //   thứ người dùng báo lại thành "hệ thống lỗi". Ba lý do, ba câu khác nhau.
+              title={
+                !coQuyenGhi
+                  ? 'Bạn chỉ có quyền XEM bài viết — cần cms:article:create/update để lưu'
+                  : anhDangTai > 0
+                    ? `Đang tải ${anhDangTai} ảnh lên`
+                    : undefined
+              }
               onClick={() => void submit()}
             >
               Lưu
