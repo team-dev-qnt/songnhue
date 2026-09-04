@@ -42,10 +42,20 @@ public class CmsAttachmentRefCleaner {
      * ⚠ Ba câu, ⛔ không một câu gộp: chúng chạm <b>ba bảng khác nhau</b>.
      *
      * <p>Mỗi phần tử là {@code {bảng, cột}}. Danh sách khai tường minh để một bảng thứ tư ra đời
-     * <i>phải</i> được thêm vào đây — và {@code CmsAttachmentRefCleanerTest} đếm số phần tử để lượt
-     * thêm cột mà quên nơi gỡ ⛔ không đi lọt trong im lặng.
+     * <i>phải</i> được thêm vào đây.
+     *
+     * <p>⭐ {@code public} là <b>cố ý</b>, ⛔ không phải sơ suất: {@code CmsAttachmentRefCleanerTest}
+     * (module {@code app}) đối chiếu danh sách này với <b>lược đồ thật</b> — mọi cột migration
+     * {@code cms} khai {@code REFERENCES attachments (public_id) ON DELETE SET NULL} đều phải có mặt
+     * ở đây. Thu hẹp lại {@code package-private} là làm bộ canh ấy ⛔ không biên dịch được.
+     *
+     * <p>⚠⚠ Câu trên <b>từng là một lời nói dối</b>. Bản viết 04/09/2026 nêu đích danh
+     * {@code CmsAttachmentRefCleanerTest} trong khi tệp ấy ⛔ <b>không tồn tại</b> — lần thứ hai
+     * trong cùng một ngày (sáng hôm ấy {@code PortalCache#layoutChanged} bị bắt vì trỏ vào
+     * {@code CongTacTrangChuTest}, cũng không có thật). Một chú thích nêu tên bài kiểm đọc y hệt một
+     * lời bảo đảm, nên ⛔ không ai đi kiểm. ⇒ Tìm bằng {@code grep} trước khi viết tên vào đây.
      */
-    static final List<String[]> BANG_CO_THAM_CHIEU = List.of(
+    public static final List<String[]> BANG_CO_THAM_CHIEU = List.of(
             new String[] {"categories", "cover_attachment_public_id"},
             new String[] {"articles", "cover_attachment_public_id"},
             new String[] {"menu_items", "logo_attachment_public_id"});

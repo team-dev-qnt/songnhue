@@ -59,7 +59,17 @@ class HaiNhipLamMoiTest {
     /** Nơi CHỐT nhịp nội bộ — hằng số trong mã admin-app. */
     private static final List<String> TEP_NOI_BO = List.of(
             "frontend/admin-app/src/features/hydro/RiverBoardPage.tsx",
-            "frontend/admin-app/src/features/dashboard/useDashboard.ts");
+            "frontend/admin-app/src/features/dashboard/useDashboard.ts",
+            // ⚠⚠ Thêm 04/09/2026 — và lượt thiếu nó là một bài học đắt.
+            //
+            // Javadoc lớp này tự khai "soi BA tệp" ngay từ bản đầu, trong khi danh sách có HAI. Tệp
+            // thứ ba — `WaterLevelChartPage` — ra đời CÙNG NGÀY, ở CÙNG đợt WS-35, và nó mang đúng
+            // hằng `NHIP_LAM_MOI_MS` mà bài này sinh ra để canh.
+            //
+            // ⛔ Đây là luật 28 tái diễn NGAY TRONG bộ canh viện dẫn luật 28: bộ canh tự khai một
+            //    phạm vi RỘNG HƠN phạm vi nó thật sự soi, và cái xanh của nó đọc như một lời bảo
+            //    đảm cho cả ba tệp. Người viết màn hình realtime thứ tư phải thêm tên vào ĐÂY.
+            "frontend/admin-app/src/features/hydro/WaterLevelChartPage.tsx");
 
     private static final Pattern HANG_SO_NHIP =
             Pattern.compile("const\\s+(NHIP_\\w+)\\s*=\\s*(\\d+)\\s*\\*\\s*60\\s*\\*\\s*1000");
