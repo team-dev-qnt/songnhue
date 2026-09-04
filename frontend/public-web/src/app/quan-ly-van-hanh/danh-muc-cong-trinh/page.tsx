@@ -121,11 +121,11 @@ export default async function DanhMucCongTrinhPage() {
           catalog={catalog}
           anhSoDo={config?.['site.home.map-image.attachment-id']}
         />
-        <p className="mt-3 text-xs leading-relaxed text-surface-textSecondary">
+        {/* <p className="mt-3 text-xs leading-relaxed text-surface-textSecondary">
           <strong className="font-semibold">CR-29 còn chờ:</strong> bản PDF hai tỷ lệ (1/50.000 và
           1/75.000) chờ Công ty gửi tệp; bản KMZ yêu cầu đăng nhập nên chờ chức năng đăng nhập trên
           cổng, và cách phục vụ (cho tải về hay nhúng viewer) còn đang chờ Công ty chốt (OI-07).
-        </p>
+        </p> */}
       </div>
       <SectionNav duongDan={ROUTES.quanLyVanHanh.danhMucCongTrinh} />
     </PageShell>
