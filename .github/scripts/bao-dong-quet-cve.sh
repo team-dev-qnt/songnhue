@@ -62,6 +62,9 @@ set -euo pipefail
 #   Nhánh MỞ và nhánh ĐÓNG phải tìm cùng một chuỗi. Để hai hằng số rời nhau là
 #   dựng lại luật 14 — hai nơi phải nhớ mà không ai nhớ hộ. `CanhBaoQuetCveTest`
 #   canh điều đó.
+# Nhánh DUY NHẤT được phép đóng issue mốc. Định nghĩa một lần (luật 14).
+NHANH_MOC='dev'
+
 NHAN='[quét-cve]'
 TIEU_DE="$NHAN Lượt quét phụ thuộc ĐỎ — có CVE cần xử lý"
 
@@ -132,8 +135,29 @@ HET
         echo "→ đã mở issue mốc mới"
     fi
 else
+    # ⛔⛔ T11.81 — CHỈ `dev` mới được đóng issue mốc.
+    #
+    #    Đo 05/09: script không đọc một biến nhánh nào (`grep -cE 'GITHUB_REF|ref_name|branch'`
+    #    = 0), nên nhánh XANH đóng issue bất kể lượt quét chạy ở đâu. Và lượt nhánh phụ CÓ
+    #    với tới chuông thật — bình luận thứ 5 của issue #84 đến từ lượt `33887563690` chạy
+    #    trên `fix/t11-76-jackson-bom` bằng `workflow_dispatch`.
+    #
+    #    Hệ quả đúng vào lúc nguy hiểm nhất: khi làm T11.69 (Boot 4.1.1) người ta sẽ bấm
+    #    `workflow_dispatch` trên nhánh vá để xem đã sạch chưa. Lượt ấy XANH ⇒ script đóng
+    #    issue #84 trong khi `dev` **vẫn đỏ nguyên**. Chuông tự tắt mình, và lượt quét theo
+    #    lịch hôm sau mở một issue MỚI — số issue thôi khớp số lượt đỏ, tức phá đúng vòng
+    #    khứ hồi mà T11.58 dựng ra để tự nghiệm thu (luật 9: hai trạng thái khác nhau —
+    #    *`dev` đã sạch* và *một nhánh phụ đã sạch* — cho ra cùng một hành động).
+    #
+    #    Nhánh ĐỎ cố ý KHÔNG kiểm nhánh: một nhánh phụ phát hiện thêm mã thì vẫn đáng nói.
+    #    Bất đối xứng này là có chủ đích — mở thì rộng tay, đóng thì chặt tay.
+    if [ "${NHANH:-}" != "$NHANH_MOC" ]; then
+        echo "→ lượt XANH này chạy trên nhánh '${NHANH:-(không rõ)}', không phải '$NHANH_MOC'."
+        echo "  ⛔ KHÔNG đóng issue mốc: một nhánh phụ sạch không chứng minh '$NHANH_MOC' đã sạch."
+        exit 0
+    fi
     if [ -n "${so_issue:-}" ]; then
-        gh issue comment "$so_issue" --body "Lượt quét phụ thuộc đã **XANH** trở lại: ${url_lan_chay:-(không rõ)}
+        gh issue comment "$so_issue" --body "Lượt quét phụ thuộc đã **XANH** trở lại trên \`$NHANH_MOC\`: ${url_lan_chay:-(không rõ)}
 
 Đóng issue mốc. Lượt đỏ kế tiếp sẽ mở lại một issue mới."
         # Bình luận TRƯỚC rồi mới đóng — đóng trước thì dòng giải thích rơi vào

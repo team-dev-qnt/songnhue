@@ -297,6 +297,12 @@ jobs:
           KQ_OWASP: ${{ needs.owasp.result }}
           KQ_NPM: ${{ needs.npm.result }}
           URL_LAN_CHAY: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          # ⛔ T11.81 — nhánh phải đi vào script: nhánh XANH chỉ được đóng issue mốc
+          #    khi lượt quét chạy trên `dev`. Thiếu biến này thì một lượt
+          #    `workflow_dispatch` xanh trên nhánh vá sẽ đóng issue trong khi `dev`
+          #    vẫn đỏ nguyên — đo được là lượt nhánh phụ CÓ với tới chuông
+          #    (bình luận #5 của issue #84 đến từ `fix/t11-76-jackson-bom`).
+          NHANH: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           echo "owasp=$KQ_OWASP · npm=$KQ_NPM"
