@@ -57,6 +57,12 @@ export const EDITOR_TAGS = [
   'table',
   'thead',
   'tbody',
+  // ⚠⚠ `colgroup`/`col` KHÔNG phải thẻ mới — WS-41 phát hiện chúng **đã** đi vào CSDL từ trước mà
+  // không ai khai. `Table.renderHTML` của TipTap gọi `createColGroup` **vô điều kiện**, kể cả khi
+  // `resizable: false` (đã đo trên 3.31.0). jsoup `relaxed()` cho chúng qua, nên chúng nằm **ngoài
+  // tầm** cả ba bộ canh suốt thời gian đó — đúng hình dạng "một thẻ không ai khai, không ai canh".
+  'colgroup',
+  'col',
   'tr',
   'th',
   'td',
@@ -127,6 +133,67 @@ export const ALIGN_CLASSES = ['sn-align-left', 'sn-align-center', 'sn-align-righ
 export const IMAGE_WIDTH_CLASSES = ['sn-w-full', 'sn-w-1-2', 'sn-w-1-3'] as const;
 
 /**
+ * **Sàn bề rộng một ô bảng, tính bằng px** — WS-41 (T41.1, T41.4).
+ *
+ * <h3>Vì sao cần một con số, và vì sao nó phải nằm ở đây</h3>
+ *
+ * Bề rộng cột **không lưu được**: TipTap ghi nó bằng `style` (bị `HtmlSanitizer` gỡ) và bằng thuộc
+ * tính `colwidth` trên `td`/`th` (jsoup `Safelist.relaxed()` không có nó ⇒ cũng gỡ). Nên trình soạn
+ * thảo tắt hẳn `resizable` — xem `admin-app/.../editorExtensions.ts`.
+ *
+ * Thứ **sống sót** là CSS, vì CSS không đi qua bộ lọc HTML. Sàn `min-width` làm bảng nhiều cột
+ * **cuộn ngang** thay vì bóp mỗi cột còn một ký tự — mà bảng số liệu thuỷ lợi thường 6–7 cột và
+ * bảng tiến độ theo tháng tới 13 cột.
+ *
+ * ⚠ Con số này phải giống nhau ở **hai** tệp CSS (`richTextEditor.css` của trình soạn thảo và
+ * `article-content.css` của cổng). Chỗ nào con người phải nhớ hai nơi thì chỗ đó cần một phép kiểm
+ * nhớ hộ (quy tắc 14) — cả hai bài kiểm CSS đọc hằng này và đòi tệp khai **đúng** con số.
+ *
+ * <h3>⭐ Đo được, không ước lượng — khuôn T25.30</h3>
+ *
+ * Đo bằng `fontTools` trên **chính** font đang chạy (Noto Sans, `sizing.fontSize = 14`), trên nội
+ * dung THẬT: bảy nhãn cột của một bảng mực nước/lượng mưa và bảy ô dữ liệu tương ứng.
+ *
+ * <pre>
+ *   từ rộng nhất  'thượng' (600)   51,7px   ← "Mực nước thượng lưu (m)"
+ *   + đệm ngang   0,75rem × 2      24px     ← article-content.css, bản lớn hơn của hai tệp
+ *   + viền        1px × 2           2px
+ *   ⇒ cần                          77,7px  ⇒ chốt 80px (bội của 4)
+ * </pre>
+ *
+ * Hệ quả đo được: bảng **7 cột = 560px** (vừa khung soạn thảo ~1000px ở 1920), bảng **13 cột =
+ * 1040px** (vượt khung ⇒ cuộn ngang trong `.tableWrapper` / `.sn-article table`).
+ *
+ * ⛔ Đổi con số này thì phải **đo lại**, không ước lượng: nó gắn với font và cỡ chữ đang dùng.
+ * Câu hỏi nó trả lời là *"một ô số liệu có xuống dòng giữa từ không"*, không phải *"trông có đẹp
+ * không"*.
+ */
+export const TABLE_CELL_MIN_WIDTH_PX = 80;
+
+/**
+ * **Thuộc tính của bảng phải sống sót qua bộ khử trùng** — WS-41 (T41.7).
+ *
+ * <h3>Vì sao cần một danh sách riêng cho THUỘC TÍNH</h3>
+ *
+ * Cả ba bộ canh của tam giác chỉ kiểm **thẻ** (và đúng hai class căn lề). Không cái nào kiểm một
+ * thuộc tính nào khác — nên `colwidth` (thứ TipTap phát ra để mang bề rộng cột) bị jsoup gỡ suốt
+ * thời gian dài mà **không cơ chế nào có thể thấy**.
+ *
+ * Ô gộp đi bằng `colspan`/`rowspan`, và nếu chúng bị gỡ thì một bảng có ô gộp **vỡ cấu trúc** khi
+ * mở lại: số ô mỗi hàng không còn khớp số cột, và ProseMirror sẽ tự vá bằng cách thêm ô — người
+ * soạn thấy bảng của mình mọc thêm ô trống, không lỗi nào.
+ *
+ * ⚠ **Nháy đơn bắt buộc.** Bộ đọc regex của `EditorVocabularyTest.java` chỉ nhận mảng chuỗi nháy
+ * đơn dạng `export const TÊN = [...] as const`; phần tử viết nháy kép bị **bỏ qua im lặng** — và
+ * một danh sách đọc hụt cho ra một bài kiểm xanh mà không kiểm gì.
+ *
+ * ⛔ **Không** thêm `colwidth` vào đây: nó *cố ý* bị gỡ. Nó là thuộc tính TipTap tự bịa, **không
+ * trình duyệt nào đọc nó**, và cổng công khai không có dòng mã nào dịch nó thành bề rộng. Đường
+ * mang bề rộng cột đang đóng — điều kiện mở lại ở T41.14.
+ */
+export const EDITOR_TABLE_ATTRS = ['colspan', 'rowspan'] as const;
+
+/**
  * Mẫu HTML dùng cho bài kiểm hai đầu.
  *
  * Cố ý là **một chuỗi duy nhất chứa đủ mọi thứ trình soạn thảo tạo ra**, không phải một
@@ -148,7 +215,27 @@ export const EDITOR_SAMPLE_HTML = [
   '<figure class="sn-align-center sn-w-1-2">',
   '<img src="/api/v1/public/files/8a7b6c5d-0000-0000-0000-000000000000" alt="Ảnh" loading="lazy">',
   '<figcaption>Chú thích ảnh</figcaption></figure>',
-  '<table><thead><tr><th>Cột</th></tr></thead><tbody><tr><td>Ô</td></tr></tbody></table>',
+  // ⚠⚠ Bảng THẬT mà trình soạn thảo sinh ra, không phải một bảng tối giản viết tay.
+  // Bản trước là `<table><thead><tr><th>Cột</th></tr></thead>…` — một chuỗi TipTap **không bao giờ
+  // sinh ra**: nó không có `colgroup`, không `colspan`/`rowspan`, và mô hình bảng của ProseMirror
+  // còn không có khái niệm `thead`. Ba bộ canh chạy trên chuỗi ấy vì thế mù trước mọi thứ liên
+  // quan tới bảng thật — đó là cách `resizable: true` sống sót trong khi mỗi cú kéo cột bị vứt.
+  //
+  // ⚠ Ô gộp cố ý đặt ở **hàng thân**, không ở hàng đầu: `parseColgroupWidth` của TipTap ánh xạ
+  //   `<col>` về ô bằng **chỉ số Ô trong hàng**, nên `colspan` ở hàng đầu làm lệch chỉ số cột.
+  //   Hôm nay ta không mang bề rộng cột nên chuyện đó vô hại, nhưng mẫu không nên chứa sẵn một
+  //   hình dạng đã biết là bẫy — xem T41.14.
+  '<table><colgroup><col><col><col></colgroup><tbody>',
+  '<tr><th>Điểm đo</th><th>Mực nước (m)</th><th>Ghi chú</th></tr>',
+  '<tr><td colspan="2">Cụm cống Liên Mạc</td><td rowspan="2">Đang vận hành</td></tr>',
+  '<tr><td>Cống Hà Đông</td><td>+2,45</td></tr>',
+  '</tbody></table>',
+  // ⚠ `thead` KHÔNG do trình soạn thảo sinh ra — mô hình bảng của ProseMirror không có khái niệm
+  //   nhóm đầu bảng, ô tiêu đề là `th` nằm thẳng trong `tbody`. Nhưng nội dung **dán từ Word/Excel**
+  //   mang nó, nên bộ lọc phải giữ. Dòng này là chỗ vế ấy được kiểm; `editorRoundTrip.test.ts` xếp
+  //   `thead` vào `CHI_CO_O_BO_LOC` vì trình soạn thảo chuẩn hoá nó đi (và `th` thì giữ nguyên —
+  //   phần ngữ nghĩa quan trọng không mất).
+  '<table><thead><tr><th>Dán từ Word</th></tr></thead><tbody><tr><td>Ô</td></tr></tbody></table>',
   '<hr>',
   '<p><iframe src="https://www.youtube-nocookie.com/embed/abc123" allowfullscreen></iframe></p>',
 ].join('');
