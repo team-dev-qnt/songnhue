@@ -174,8 +174,7 @@ function tieuDeTheoHinhHoc(editor: EditorNhu): { hangTieuDe: boolean; cotTieuDe:
   }
 
   const hangDau = bang.firstChild;
-  const hangTieuDe =
-    hangDau !== null && hangDau.childCount > 0 && moiOLaTieuDe(hangDau);
+  const hangTieuDe = hangDau !== null && hangDau.childCount > 0 && moiOLaTieuDe(hangDau);
 
   let cotTieuDe = bang.childCount > 0;
   bang.forEach((hang) => {

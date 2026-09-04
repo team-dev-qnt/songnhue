@@ -101,14 +101,7 @@ export function EditorTableInsertModal({ open, onCancel, onInsert }: EditorTable
   };
 
   return (
-    <Modal
-      open={open}
-      title="Chèn bảng"
-      footer={null}
-      onCancel={dong}
-      width={420}
-      destroyOnHidden
-    >
+    <Modal open={open} title="Chèn bảng" footer={null} onCancel={dong} width={420} destroyOnHidden>
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
         <div
           role="grid"
@@ -141,7 +134,9 @@ export function EditorTableInsertModal({ open, onCancel, onInsert }: EditorTable
         </div>
 
         <Typography.Text type="secondary" aria-live="polite">
-          {ngam ? `${ngam.hang} hàng × ${ngam.cot} cột` : 'Rê chuột trên lưới, hoặc nhập số bên dưới'}
+          {ngam
+            ? `${ngam.hang} hàng × ${ngam.cot} cột`
+            : 'Rê chuột trên lưới, hoặc nhập số bên dưới'}
         </Typography.Text>
 
         <Space wrap align="center">
@@ -164,11 +159,7 @@ export function EditorTableInsertModal({ open, onCancel, onInsert }: EditorTable
         </Space>
 
         <Space align="center">
-          <Switch
-            checked={coHangTieuDe}
-            onChange={setCoHangTieuDe}
-            id="sn-cong-tac-hang-tieu-de"
-          />
+          <Switch checked={coHangTieuDe} onChange={setCoHangTieuDe} id="sn-cong-tac-hang-tieu-de" />
           <label htmlFor="sn-cong-tac-hang-tieu-de">Hàng đầu là tiêu đề</label>
         </Space>
 

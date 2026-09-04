@@ -161,10 +161,7 @@ describe('EditorTableBar — canh bằng cấu trúc', () => {
     // Giữ ranh giới này là điều kiện để thanh công cụ dựng được trong bài kiểm mà không cần một
     // `Editor` sống, và để mọi phép quyết định nằm ở `tableCommands.ts` (chỗ kiểm được headless).
     const nguon = boChuThich(
-      readFileSync(
-        join(dirname(fileURLToPath(import.meta.url)), 'EditorTableBar.tsx'),
-        'utf8',
-      ),
+      readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'EditorTableBar.tsx'), 'utf8'),
     );
 
     expect(nguon.length, 'đọc hụt tệp thì bài này xanh mà không canh gì').toBeGreaterThan(500);

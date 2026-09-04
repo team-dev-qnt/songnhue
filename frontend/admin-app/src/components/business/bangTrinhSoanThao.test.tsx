@@ -57,9 +57,7 @@ function dung() {
 }
 
 async function moHopChenBang(nguoiDung: ReturnType<typeof userEvent.setup>) {
-  await nguoiDung.click(
-    screen.getByRole('button', { name: /Chèn bảng — chọn số hàng/ }),
-  );
+  await nguoiDung.click(screen.getByRole('button', { name: /Chèn bảng — chọn số hàng/ }));
   await screen.findByRole('grid', { name: 'Chọn nhanh kích thước bảng' });
 }
 
@@ -220,9 +218,7 @@ describe('Chốt chặn: không chèn bảng vào chỗ sẽ phá thứ khác', 
     await nguoiDung.click(screen.getByRole('button', { name: '2 hàng × 2 cột' }));
 
     await waitFor(() =>
-      expect(
-        screen.getByRole('button', { name: /Con trỏ đang ở trong một bảng/ }),
-      ).toBeDisabled(),
+      expect(screen.getByRole('button', { name: /Con trỏ đang ở trong một bảng/ })).toBeDisabled(),
     );
   });
 

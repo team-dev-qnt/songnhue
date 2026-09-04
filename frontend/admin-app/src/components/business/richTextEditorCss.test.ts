@@ -75,8 +75,7 @@ function quyTacKhop(mau: RegExp): QuyTac[] {
 
 function coKhai(mau: RegExp, thuocTinh?: string): boolean {
   return quyTacKhop(mau).some(
-    (qt) =>
-      thuocTinh === undefined || new RegExp(`(^|[;{\\s])${thuocTinh}\\s*:`).test(qt.than),
+    (qt) => thuocTinh === undefined || new RegExp(`(^|[;{\\s])${thuocTinh}\\s*:`).test(qt.than),
   );
 }
 
@@ -175,10 +174,10 @@ describe('CSS trình soạn thảo', () => {
       { resizable: bat, coCssTayNam, coConTro },
       bat
         ? 'Bật `resizable` mà thiếu CSS `.column-resize-handle` + `.resize-cursor` thì tay nắm ' +
-          'kéo cột VÔ HÌNH — tính năng bật mà không ai thấy. ⚠ Và trước khi bật lại, đọc T41.14: ' +
-          'bề rộng cột còn bị HtmlSanitizer gỡ ở CẢ HAI đường (`style` và `colwidth`).'
+            'kéo cột VÔ HÌNH — tính năng bật mà không ai thấy. ⚠ Và trước khi bật lại, đọc T41.14: ' +
+            'bề rộng cột còn bị HtmlSanitizer gỡ ở CẢ HAI đường (`style` và `colwidth`).'
         : 'Tắt `resizable` thì plugin `columnResizing` không còn nạp, nên CSS cho ' +
-          '`.column-resize-handle`/`.resize-cursor` là quy tắc cho một thứ không tồn tại — gỡ đi.',
+            '`.column-resize-handle`/`.resize-cursor` là quy tắc cho một thứ không tồn tại — gỡ đi.',
     ).toEqual({ resizable: bat, coCssTayNam: bat, coConTro: bat });
   });
 

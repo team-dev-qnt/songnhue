@@ -89,7 +89,14 @@ vi.mock('./api', () => ({
     categories: vi.fn(async () => [{ publicId: 'dm-1', name: 'Tin tức', depth: 0 }]),
     folders: vi.fn(async () => []),
     versions: vi.fn(async () => [
-      { publicId: 'v1', versionNo: 1, createdAt: '2026-09-01T00:00:00Z', title: 'Bản 1', note: null, servingPublic: false },
+      {
+        publicId: 'v1',
+        versionNo: 1,
+        createdAt: '2026-09-01T00:00:00Z',
+        title: 'Bản 1',
+        note: null,
+        servingPublic: false,
+      },
     ]),
     versionContent: vi.fn(async () => ({ content: BAI_CU })),
     restoreVersion: vi.fn(async () => chiTiet(BAI_PHUC_HOI, 'Tiêu đề đã phục hồi')),
@@ -231,9 +238,7 @@ describe('Phục hồi phiên bản', () => {
     expect(await screen.findByText('Rời trang khi chưa lưu?')).toBeInTheDocument();
     await nguoiDung.click(screen.getByRole('button', { name: 'Ở lại' }));
 
-    await waitFor(() =>
-      expect(router.state.location.pathname).toBe('/noi-dung/bai-viet/bai-1'),
-    );
+    await waitFor(() => expect(router.state.location.pathname).toBe('/noi-dung/bai-viet/bai-1'));
   });
 
   it('⭐ và bấm "Rời trang" thì đi thật — hộp thoại không được thành ngõ cụt', async () => {

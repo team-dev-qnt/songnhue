@@ -657,10 +657,7 @@ export function RichTextEditor({
               onClick={() => setVideoOpen(true)}
             />
             <ToolbarButton
-              title={
-                lyDoKhongChenBang ??
-                'Chèn bảng — chọn số hàng, số cột trên lưới hoặc nhập số'
-              }
+              title={lyDoKhongChenBang ?? 'Chèn bảng — chọn số hàng, số cột trên lưới hoặc nhập số'}
               icon={<TableOutlined />}
               disabled={lyDoKhongChenBang !== null}
               onClick={() => setBangOpen(true)}

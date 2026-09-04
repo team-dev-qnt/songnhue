@@ -124,11 +124,15 @@ function vanTayBang(html: string): { hang: number; oMoiHang: string[]; oGop: num
     hang: hangs.length,
     oMoiHang: hangs.map((tr) =>
       Array.from(tr.children)
-        .map((o) => `${o.tagName.toLowerCase()}:${o.getAttribute('colspan') ?? 1}x${o.getAttribute('rowspan') ?? 1}`)
+        .map(
+          (o) =>
+            `${o.tagName.toLowerCase()}:${o.getAttribute('colspan') ?? 1}x${o.getAttribute('rowspan') ?? 1}`,
+        )
         .join(','),
     ),
     oGop: Array.from(doc.querySelectorAll('td,th')).filter(
-      (o) => Number(o.getAttribute('colspan') ?? 1) > 1 || Number(o.getAttribute('rowspan') ?? 1) > 1,
+      (o) =>
+        Number(o.getAttribute('colspan') ?? 1) > 1 || Number(o.getAttribute('rowspan') ?? 1) > 1,
     ).length,
   };
 }
