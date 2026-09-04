@@ -172,7 +172,8 @@ class PublicPortalTest extends IntegrationTestBase {
                 null,
                 null,
                 null,
-                Set.of(danhMuc)));
+                Set.of(danhMuc),
+                List.of()));
         articles.execute(danLai.getPublicId(), "SUBMIT", null);
         articles.execute(danLai.getPublicId(), "APPROVE", null);
 
@@ -216,7 +217,8 @@ class PublicPortalTest extends IntegrationTestBase {
                 null,
                 null,
                 null,
-                Set.of(danhMuc)));
+                Set.of(danhMuc),
+                List.of()));
         articles.execute(bai.getPublicId(), "SUBMIT", null);
         articles.execute(bai.getPublicId(), "APPROVE", null);
 
@@ -451,7 +453,21 @@ class PublicPortalTest extends IntegrationTestBase {
 
     private ArticleDraft banThao(String tieuDe, String noiDung, String slug) {
         return new ArticleDraft(
-                tieuDe, slug, null, noiDung, null, null, null, null, null, null, null, null, null, Set.of(danhMuc));
+                tieuDe,
+                slug,
+                null,
+                noiDung,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                Set.of(danhMuc),
+                List.of());
     }
 
     private static byte[] anhPng(int rong, int cao) {

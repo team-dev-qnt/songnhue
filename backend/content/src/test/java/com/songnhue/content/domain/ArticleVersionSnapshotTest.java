@@ -39,10 +39,16 @@ class ArticleVersionSnapshotTest {
      *   <li>{@code id}, {@code publicId} — do CSDL / hàm dựng sinh ra.
      *   <li>{@code articleId}, {@code versionNo}, {@code note}, {@code createdAt}, {@code createdBy}
      *       — siêu dữ liệu của chính bản chụp, {@code snapshotOf} nhận qua tham số hoặc đặt sau.
+     *   <li>⛔⛔ {@code documents} (WS-40) — <b>là</b> nội dung, nhưng phép phản chiếu ở đây
+     *       <b>về nguyên tắc không thấy được nó</b>: một {@code List} khởi tạo rỗng vẫn khác
+     *       {@code null}, nên vòng lặp dưới sẽ xanh kể cả khi {@code snapshotOf} quên chép. Giữ nó
+     *       trong danh sách này là để cái xanh ấy <i>không đọc như một lời bảo đảm</i> (quy tắc 9 +
+     *       28). Bảo đảm thật nằm ở {@link #chupVaPhucHoiDanhSachTaiLieu} ngay dưới và ở
+     *       {@code ArticleAttachmentTest} (đi qua HTTP, đọc lại cổng).
      * </ul>
      */
     private static final Set<String> KHONG_PHAI_NOI_DUNG =
-            Set.of("id", "publicId", "articleId", "versionNo", "note", "createdAt", "createdBy");
+            Set.of("id", "publicId", "articleId", "versionNo", "note", "createdAt", "createdBy", "documents");
 
     /** Một bài viết đã điền ĐỦ mọi trường nội dung — không trường nào để {@code null}. */
     private static Article baiDayDu() {
@@ -123,6 +129,48 @@ class ArticleVersionSnapshotTest {
         assertThat(sau.getSummary()).isEqualTo(goc.getSummary());
         // ⚠ Slug là địa chỉ công khai — phục hồi nội dung KHÔNG được đổi nó.
         assertThat(sau.getSlug()).isEqualTo("dia-chi-cong-khai-khong-duoc-doi");
+    }
+
+    @Test
+    @DisplayName("⭐⭐ WS-40: danh sách tài liệu đi TRỌN vòng chụp → phục hồi")
+    void chupVaPhucHoiDanhSachTaiLieu() {
+        // Bài này tồn tại vì phép phản chiếu ở trên KHÔNG thấy được `documents` — xem
+        // KHONG_PHAI_NOI_DUNG. Không có nó thì `snapshotOf` quên chép vẫn xanh trọn vẹn.
+        UUID quyetDinh = UUID.randomUUID();
+        UUID phuLuc = UUID.randomUUID();
+
+        Article goc = baiDayDu();
+        goc.getDocuments().add(new ArticleDocument(quyetDinh, "Xem quyết định ở đây", 0));
+        goc.getDocuments().add(new ArticleDocument(phuLuc, null, 1));
+
+        ArticleVersion ban = ArticleVersion.snapshotOf(goc, 1, "Xuất bản");
+
+        assertThat(ban.getDocuments())
+                .as("`snapshotOf` không chép danh sách tài liệu ⇒ cổng sẽ phục vụ bài KHÔNG có tệp nào")
+                .extracting(ArticleDocument::getAttachmentPublicId)
+                .containsExactly(quyetDinh, phuLuc);
+        assertThat(ban.getDocuments().get(0).getLabel()).isEqualTo("Xem quyết định ở đây");
+        assertThat(ban.getDocuments().get(1).getLabel())
+                .as("nhãn rỗng phải ở nguyên là rỗng — ⛔ không sinh 'Tài liệu 2' (quy tắc 16)")
+                .isNull();
+
+        // ⛔ Bản chụp phải BẤT BIẾN: sửa bài sau đó không được vọng ngược vào bản đã chụp. Gán
+        //   tham chiếu thay vì chép phần tử là đúng lỗi này, và nó im lặng hoàn toàn.
+        goc.getDocuments().clear();
+        assertThat(ban.getDocuments())
+                .as("bản chụp dùng chung tham chiếu với bài ⇒ 'so sánh hai phiên bản' luôn cho hai bản giống hệt")
+                .hasSize(2);
+
+        // Chiều ngược: phục hồi bản cũ phải trả LẠI đúng bộ tài liệu ấy. Thiếu vế này thì cổng
+        // phục vụ "nội dung bản 3 + tài liệu bản 7".
+        Article sau = new Article();
+        sau.getDocuments().add(new ArticleDocument(UUID.randomUUID(), "Tệp của bản mới", 0));
+        ban.restoreInto(sau);
+
+        assertThat(sau.getDocuments())
+                .as("`restoreInto` không chép ngược ⇒ phục hồi cho ra nội dung cũ + tài liệu mới")
+                .extracting(ArticleDocument::getAttachmentPublicId)
+                .containsExactly(quyetDinh, phuLuc);
     }
 
     @Test

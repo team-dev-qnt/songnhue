@@ -271,6 +271,7 @@ public class AttachmentService implements AttachmentPort {
     private static AttachmentRef toRef(Attachment attachment) {
         return new AttachmentRef(
                 attachment.getPublicId(),
+                attachment.getOwnerType(),
                 attachment.getOriginalName(),
                 attachment.getContentType(),
                 attachment.getSizeBytes(),

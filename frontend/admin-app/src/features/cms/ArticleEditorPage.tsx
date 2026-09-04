@@ -26,12 +26,13 @@ import { ApiClientError } from '@/shared/apiClient';
 import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
 import { formatInteger, toApiInstant } from '@/shared/format';
 
+import { ArticleDocumentsPanel } from './ArticleDocumentsPanel';
 import { ARTICLE_STATUS, visibilityHint } from './articleStatus';
 import { cmsApi, cmsKeys } from './api';
 import { useMediaPicker } from './MediaPickerModal';
 import { SeoInput } from './SeoField';
 import { suggestSlug } from './seo';
-import { type ArticleDetail, type ArticleSaveRequest } from './types';
+import { type ArticleDetail, type ArticleDocumentView, type ArticleSaveRequest } from './types';
 import { VersionHistoryDrawer } from './VersionHistoryDrawer';
 
 /**
@@ -86,11 +87,16 @@ function ArticleForm({ article: data }: { article?: ArticleDetail }) {
   const navigate = useNavigate();
   const { message } = App.useApp();
   const queryClient = useQueryClient();
-  const { chonAnh, picker } = useMediaPicker();
+  const { chonTep: chonAnh, picker } = useMediaPicker();
+  // ⭐ Hộp chọn THỨ HAI, kho khác — WS-40. Hai lượt gọi hook giữ trạng thái riêng và render hai
+  //   `<Modal>` riêng; gộp làm một là dựng lại đúng cái trạng thái "đang mở để làm gì" mà kiểu
+  //   hàm-hứa sinh ra để loại bỏ.
+  const { chonTep: chonTaiLieu, picker: pickerTaiLieu } = useMediaPicker({ kho: 'TAI_LIEU' });
 
   const [form] = Form.useForm<FormValues>();
   const [content, setContent] = useState(data?.content ?? '');
   const [coverId, setCoverId] = useState<string | null>(data?.coverAttachmentPublicId ?? null);
+  const [documents, setDocuments] = useState<ArticleDocumentView[]>(data?.documents ?? []);
   const [historyOpen, setHistoryOpen] = useState(false);
   /** Bài đã có slug thì thôi gợi ý; bài mới thì gợi ý cho tới khi người dùng tự sửa. */
   const [slugDaSuaTay, setSlugDaSuaTay] = useState(!laBaiMoi);
@@ -116,6 +122,45 @@ function ArticleForm({ article: data }: { article?: ArticleDetail }) {
    * vì nuốt tệp im lặng.
    */
   const thuMucAnh = folders.data?.[0]?.publicId ?? null;
+
+  /**
+   * Mở Kho tài liệu, **thêm tệp vào danh sách đính kèm**, rồi trả chữ cho trình soạn thảo chèn.
+   *
+   * <h3>⛔⛔ Chèn liên kết PHẢI đồng thời tạo mối nối — đây là chỗ ràng buộc ấy được ép</h3>
+   *
+   * Đường công khai `/api/v1/public/article-documents/{id}` đòi tệp có mặt trong **bản chụp phiên
+   * bản** của bài. Một liên kết chỉ nằm trong HTML là một liên kết **chết**: nó có tên, bấm vào
+   * trả 404, và không lỗi nào ở phía quản trị. Đó đúng là §10.52.
+   *
+   * ⚠ Chốt **một** trong hai cách nối, không để cả hai: *chèn ⇒ tự thêm vào danh sách*. Hệ quả
+   * chấp nhận có ý thức là tệp vừa chèn giữa bài **cũng** xuất hiện ở khối cuối bài — khối ấy là
+   * mục lục tài liệu của bài, nên trùng lặp ở đây không phải lỗi. ⛔ Không có lựa chọn thứ ba
+   * "chèn được mà không nối": đó là dựng sẵn một liên kết chết.
+   */
+  const chenTaiLieuVaoBai = async () => {
+    const tep = await chonTaiLieu();
+    if (!tep) {
+      return null;
+    }
+    const daCo = documents.find((d) => d.publicId === tep.publicId);
+    if (!daCo) {
+      setDocuments((truoc) => [
+        ...truoc,
+        {
+          publicId: tep.publicId,
+          label: null,
+          originalName: tep.originalName,
+          contentType: tep.contentType,
+          sizeBytes: tep.sizeBytes,
+          // Hộp chọn chỉ bày tệp trong Kho tài liệu; trạng thái quét thật do backend trả lại ở
+          // lượt lưu kế tiếp. Đặt `true` ở đây là nói dối, nên đặt `false` và để dòng mang thẻ
+          // "đang quét" cho tới lúc có câu trả lời thật (quy tắc 16).
+          downloadable: false,
+        },
+      ]);
+    }
+    return { publicId: tep.publicId, text: daCo?.label ?? tep.originalName };
+  };
 
   const initialValues: FormValues = {
     title: data?.title ?? '',
@@ -191,6 +236,10 @@ function ArticleForm({ article: data }: { article?: ArticleDetail }) {
       //    NGÀY trên tờ giấy, không có giờ để quy đổi.
       docIssuedDate: values.docIssuedDate ? values.docIssuedDate.format('YYYY-MM-DD') : null,
       categoryPublicIds: values.categoryPublicIds,
+      // ⚠ Gửi cả khi rỗng, KHÔNG bỏ trường đi: mảng rỗng nghĩa là *gỡ hết tài liệu*, còn thiếu
+      //   trường thì backend đọc `null` và cũng ghi rỗng — hai đường ra cùng kết quả hôm nay,
+      //   nhưng chỉ một trong hai nói đúng ý người dùng. Gửi tường minh thì không phải đoán.
+      documents: documents.map((d) => ({ publicId: d.publicId, label: d.label })),
     });
   };
 
@@ -311,6 +360,7 @@ function ArticleForm({ article: data }: { article?: ArticleDetail }) {
                     const file = await chonAnh();
                     return file ? { publicId: file.publicId, alt: file.originalName } : null;
                   }}
+                  onPickDocument={chenTaiLieuVaoBai}
                   onUploadImage={
                     thuMucAnh
                       ? async (file) => {
@@ -330,6 +380,16 @@ function ArticleForm({ article: data }: { article?: ArticleDetail }) {
               <Form.Item name="summary" label="Tóm tắt">
                 <SeoInputBridge field="summary" form={form} name="summary" textarea />
               </Form.Item>
+
+              {/* ⚠ Nằm NGOÀI `Form.Item`: danh sách này không phải một trường của biểu mẫu AntD,
+                  nó là trạng thái riêng đi kèm lượt lưu. Nhét vào `Form` thì `validateFields`
+                  phải biết cách so sánh một mảng đối tượng — và không đổi lại được gì. */}
+              <ArticleDocumentsPanel
+                documents={documents}
+                onChange={setDocuments}
+                disabled={khoaSua}
+                onPick={() => void chenTaiLieuVaoBai()}
+              />
             </Col>
 
             <Col xs={24} lg={8}>
@@ -479,6 +539,7 @@ function ArticleForm({ article: data }: { article?: ArticleDetail }) {
       </Card>
 
       {picker}
+      {pickerTaiLieu}
 
       {!laBaiMoi && (
         <VersionHistoryDrawer

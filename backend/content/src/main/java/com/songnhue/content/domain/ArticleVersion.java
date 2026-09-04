@@ -2,14 +2,23 @@ package com.songnhue.content.domain;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
+
+import org.hibernate.annotations.BatchSize;
 
 /**
  * Ảnh chụp nội dung bài viết tại một thời điểm — CN-01.1 ("so sánh phiên bản, rollback về bản cũ").
@@ -82,6 +91,36 @@ public class ArticleVersion {
     @Column(name = "doc_issued_date")
     private LocalDate docIssuedDate;
 
+    /**
+     * Tài liệu đính kèm — <b>BẢN CHỤP</b>, và đây là thứ cổng công khai thật sự đọc (WS-40).
+     *
+     * <h2>⭐ Vì sao tài liệu phải được chụp, dù danh mục thì không</h2>
+     *
+     * Tiền lệ gần nhất <b>không</b> phải {@code article_categories} (phân loại, không chụp) mà là
+     * {@code coverAttachmentPublicId} — tham chiếu <i>tệp</i> duy nhất đang có, và nó <b>có</b>
+     * trong bản chụp. Tài liệu giống ảnh bìa hơn giống danh mục.
+     *
+     * <p>Khoá danh sách theo {@code article_id} một mình mang đúng hai hệ quả, cả hai đều im lặng:
+     *
+     * <ol>
+     *   <li>phục hồi bản #3 vẫn giữ danh sách tài liệu <i>hiện tại</i> ⇒ cổng phục vụ
+     *       <i>"nội dung bản 3 + tài liệu bản 7"</i>;
+     *   <li>⛔ đổi tài liệu của một bài <b>đang xuất bản</b> là đổi ngay trên cổng, <b>không qua ai
+     *       duyệt</b> — trái CN-01.1.
+     * </ol>
+     *
+     * <p>⛔⛔ {@code ArticleVersionSnapshotTest} <b>không thấy được trường này</b>: nó đếm bằng phản
+     * chiếu và một {@code List} khởi tạo rỗng vẫn khác {@code null}, nên nó sẽ xanh kể cả khi
+     * {@link #snapshotOf} quên chép. Đó đúng là "một khẳng định không phân biệt được hai trạng
+     * thái" (quy tắc 9). Bài giữ chỗ này là {@code ArticleAttachmentTest} — nó đi qua HTTP và đọc
+     * lại cổng.
+     */
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "article_version_attachments", joinColumns = @JoinColumn(name = "article_version_id"))
+    @OrderBy("sortOrder ASC")
+    @BatchSize(size = 50)
+    private List<ArticleDocument> documents = new ArrayList<>();
+
     /** Vì sao có bản này: "Lưu nháp", "Duyệt xuất bản", "Phục hồi từ bản #3"… */
     @Column(name = "note", length = 500)
     private String note;
@@ -118,6 +157,12 @@ public class ArticleVersion {
         //   `ArticleVersionSnapshotTest` đếm số trường được chép nên nó bắt được thiếu sót.
         version.docNumber = article.getDocNumber();
         version.docIssuedDate = article.getDocIssuedDate();
+        // ⭐ Chép DANH SÁCH TÀI LIỆU ở đây — cùng một lượt, cùng một chỗ với `content`.
+        //   Đặt ở `ArticleService` thay vì ở đây thì việc chụp thành HAI lời gọi rời nhau, và lời
+        //   gọi thứ hai là thứ sẽ bị quên ở đường sinh version thứ ba (quy tắc 12).
+        //   ⚠ Chép PHẦN TỬ chứ không gán tham chiếu: hai `@ElementCollection` dùng chung một
+        //     `PersistentList` là Hibernate ghi cùng một tập vào cả hai bảng.
+        version.documents.addAll(article.getDocuments());
         version.note = note;
         return version;
     }
@@ -133,8 +178,18 @@ public class ArticleVersion {
         article.setMetaKeywords(metaKeywords);
         article.setDocNumber(docNumber);
         article.setDocIssuedDate(docIssuedDate);
+        // ⭐ Chép NGƯỢC danh sách tài liệu. Thiếu dòng này thì phục hồi bản #3 cho ra
+        //   "nội dung bản 3 + tài liệu bản 7" — đúng một trong hai lý do bảng chụp tồn tại, và
+        //   triệu chứng của nó là một danh sách tệp trông hoàn toàn bình thường.
+        article.getDocuments().clear();
+        article.getDocuments().addAll(documents);
         // ⚠ Cố ý KHÔNG phục hồi slug: slug là địa chỉ công khai, đổi nó lúc phục hồi nội dung là âm
         //   thầm làm chết mọi liên kết đang trỏ tới bài. Muốn đổi slug thì đổi tường minh.
+    }
+
+    /** Tài liệu của bản chụp này — <b>thứ cổng công khai đọc</b>. */
+    public List<ArticleDocument> getDocuments() {
+        return documents;
     }
 
     public Long getId() {

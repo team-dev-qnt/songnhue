@@ -102,6 +102,30 @@ public enum ErrorCode {
     CMS_2014("CMS-2014", HttpStatus.UNPROCESSABLE_ENTITY),
     /** Tải logo cho mục menu không thuộc dải "Liên kết website" (vị trí LIEN_KET). */
     CMS_2015("CMS-2015", HttpStatus.UNPROCESSABLE_ENTITY),
+    /**
+     * Gắn vào bài viết một tệp <b>không nằm trong Kho tài liệu</b> hoặc <b>chưa quét virus xong</b>.
+     *
+     * <p>Một mã cho hai lý do là có chủ đích: cả hai đều cho ra cùng một hệ quả — một dòng có tên
+     * trên cổng mà bấm vào là 404 (§10.52) — và người biên tập làm cùng một việc để chữa: chọn lại
+     * tệp trong Kho tài liệu, hoặc chờ vài giây rồi thử lại.
+     *
+     * <p>⛔ Đường công khai {@code /public/article-documents/&#123;id&#125;} <b>không</b> dùng mã
+     * này: nó trả 404 trần. Nói <i>"bài chưa xuất bản"</i> là xác nhận tệp có tồn tại.
+     */
+    CMS_2016("CMS-2016", HttpStatus.UNPROCESSABLE_ENTITY),
+    /**
+     * Tài liệu đính kèm vượt trần dung lượng <b>phục vụ ra cổng công khai</b>
+     * ({@code KhoTep.TRAN_PHUC_VU_CONG_KHAI_MB}).
+     *
+     * <p>⛔ Cố ý <b>không</b> gộp vào 404 của đường công khai. Ba vế kia (chưa xuất bản · đã gỡ ·
+     * sai kho) im lặng vì phân biệt được là tiết lộ tệp có tồn tại; vế này thì không — lúc nó bắn ra
+     * thì tệp <i>đã</i> công khai, và biến "quá lớn" thành "không tồn tại" là để người biên tập
+     * không bao giờ biết vì sao độc giả tải không được.
+     *
+     * <p>413 chứ không 422: đây đúng nghĩa là {@code PAYLOAD_TOO_LARGE}, cùng họ với
+     * {@link #SYS_0011} ở chiều tải lên.
+     */
+    CMS_2017("CMS-2017", HttpStatus.PAYLOAD_TOO_LARGE),
     CMS_5001("CMS-5001", HttpStatus.BAD_GATEWAY),
 
     // ---- MOD-02 Vận hành công trình --------------------------------------------

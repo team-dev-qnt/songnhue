@@ -2,16 +2,21 @@ package com.songnhue.content.domain;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 
 import org.hibernate.annotations.BatchSize;
@@ -151,6 +156,25 @@ public class Article extends BaseEntity implements WorkflowAware {
             joinColumns = @JoinColumn(name = "article_id"),
             inverseJoinColumns = @JoinColumn(name = "category_id"))
     private Set<Category> categories = new LinkedHashSet<>();
+
+    /**
+     * Tài liệu đính kèm — <b>BẢN ĐANG BIÊN TẬP</b> (WS-40).
+     *
+     * <h3>⛔⛔ Cổng công khai KHÔNG đọc danh sách này</h3>
+     *
+     * Nó đọc {@code ArticleVersion.getDocuments()} của bản đang được xuất bản, đúng như nó đọc
+     * {@code content} từ đó. Đọc thẳng từ đây là để một biên tập viên đổi tài liệu của bài <b>đang
+     * chạy trên cổng</b> mà <b>không qua ai duyệt</b> — chính điều mà cơ chế bản chụp sinh ra để
+     * chặn (xem javadoc lớp và {@code ArticleVersion}).
+     *
+     * <p>⚠ {@code List} chứ không {@code Set}: thứ tự tài liệu là dữ liệu người dùng nhập, khác hẳn
+     * {@link #categories} vốn không có thứ tự.
+     */
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "article_attachments", joinColumns = @JoinColumn(name = "article_id"))
+    @OrderBy("sortOrder ASC")
+    @BatchSize(size = 50)
+    private List<ArticleDocument> documents = new ArrayList<>();
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
@@ -349,6 +373,17 @@ public class Article extends BaseEntity implements WorkflowAware {
 
     public Long getViewCount() {
         return viewCount;
+    }
+
+    /**
+     * Danh sách tài liệu đang biên tập — sửa tại chỗ ({@code clear()} + {@code addAll()}), y hệt
+     * {@link #getCategories()}.
+     *
+     * <p>⛔ Không có setter: thay cả tham chiếu là Hibernate mất dấu {@code PersistentList} và lượt
+     * lưu kế tiếp ném {@code SharedSessionContract} — cùng lý do {@code categories} cũng không có.
+     */
+    public List<ArticleDocument> getDocuments() {
+        return documents;
     }
 
     public Set<Category> getCategories() {

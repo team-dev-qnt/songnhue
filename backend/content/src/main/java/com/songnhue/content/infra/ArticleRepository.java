@@ -180,6 +180,44 @@ public interface ArticleRepository extends JpaRepository<Article, Long> {
     int addViews(@Param("id") Long id, @Param("them") long them);
 
     /**
+     * Tệp này có nằm trong bản chụp <b>đang được xuất bản</b> của một bài đang thật sự công khai
+     * không — chốt chặn duy nhất của {@code GET /api/v1/public/article-documents/&#123;id&#125;}
+     * (WS-40).
+     *
+     * <h2>⛔⛔ Bốn vế, MỘT câu truy vấn — và đó là cả thiết kế</h2>
+     *
+     * <ol>
+     *   <li>{@code a.deletedAt IS NULL} — bài đã xoá thì tệp của nó đi theo;
+     *   <li>{@code a.status IN ('XUAT_BAN','LUU_TRU')} — <b>Nháp, Chờ duyệt, Gỡ bài đều 404</b>.
+     *       {@code LUU_TRU} có mặt vì bài lưu trữ vẫn vào được bằng địa chỉ trực tiếp (T16.7), nên
+     *       tệp của nó cũng phải sống; {@code GO_BAI} thì không — gỡ bài là quyết định rút nội dung
+     *       khỏi công khai, và tệp đính kèm là một phần của nội dung ấy;
+     *   <li>{@code a.publishedAt <= :now} — bài hẹn giờ chưa tới hạn thì tệp cũng chưa;
+     *   <li><b>JOIN vào {@code v.documents} của chính bản {@code publishedVersionId}</b> — không
+     *       phải danh sách đang biên tập. Đây là vế biến "đổi tài liệu phải qua duyệt" thành một
+     *       điều <i>không biểu diễn được</i>, chứ không phải một lời dặn.
+     * </ol>
+     *
+     * <p>⛔ Bốn vế ở <b>một chỗ dữ liệu đi qua</b>, không rải thành bốn phép kiểm trong service
+     * (quy tắc 12) — và mỗi vế có một bài kiểm chứng ngược riêng ở {@code ArticleAttachmentTest}:
+     * bốn vế mà chỉ kiểm một là ba vế chưa ai đi qua (quy tắc 7).
+     *
+     * <p>⚠ Trả {@code boolean}, không trả bài viết: nơi gọi <b>không được</b> biết bài nào — và
+     * cũng không cần. Câu trả lời duy nhất cho cả bốn vế hỏng là 404 trần.
+     */
+    @Query(
+            """
+            SELECT COUNT(d) > 0 FROM Article a
+            JOIN ArticleVersion v ON v.id = a.publishedVersionId
+            JOIN v.documents d
+            WHERE a.deletedAt IS NULL
+              AND a.status IN ('XUAT_BAN', 'LUU_TRU')
+              AND a.publishedAt <= :now
+              AND d.attachmentPublicId = :maTep
+            """)
+    boolean daCongBoTaiLieu(@Param("maTep") UUID attachmentPublicId, @Param("now") Instant now);
+
+    /**
      * Bài viết đang dùng một tệp media — nguồn cho cảnh báo trước khi xoá (T14.5).
      *
      * <p>Hai chỗ một tệp có thể bị tham chiếu, và <b>phải xét cả hai</b>:
@@ -198,6 +236,34 @@ public interface ArticleRepository extends JpaRepository<Article, Long> {
      *
      * <p>Cũng xét cả bản chụp đang phục vụ công khai: bài đã xuất bản dùng ảnh trong
      * {@code article_versions}, mà cột nội dung của {@code articles} có thể đã đổi.
+     *
+     * <h2>⭐ 04/09 (WS-40) — thêm HAI vế, và vế thứ hai mới là vế nguy hiểm</h2>
+     *
+     * Tài liệu đính kèm là tham chiếu <b>có khoá</b>, không phải chuỗi trong HTML, nên bốn vế cũ
+     * không thấy nó: gắn một PDF bằng khối "Tài liệu đính kèm" mà không nhắc tới trong nội dung thì
+     * dò chuỗi trả rỗng và tệp xoá được. Hai vế mới:
+     *
+     * <ul>
+     *   <li>{@code article_attachments} — bản đang biên tập;
+     *   <li>⛔ {@code article_version_attachments} — <b>bản chụp đang phục vụ công khai</b>. Thiếu vế
+     *       này là xoá được một tài liệu <i>đang nằm trong bài đã xuất bản</i>, và triệu chứng chỉ
+     *       hiện ra ở phía người đọc cổng.
+     * </ul>
+     *
+     * <p>⚠ Vế thứ hai chỉ soi <b>bản đang xuất bản</b> ({@code published_version_id}), không soi mọi
+     * phiên bản cũ — đúng bằng phạm vi của vế {@code v.content} đã có từ trước. Nới ra mọi phiên bản
+     * nghe an toàn hơn nhưng biến kho tài liệu thành thứ <i>không bao giờ dọn được</i>: một tệp từng
+     * đính vào bản nháp năm ngoái sẽ chặn mãi mãi. Đây là <b>lưới cảnh báo, không phải ràng buộc
+     * toàn vẹn</b> — và xoá vẫn là xoá mềm.
+     *
+     * <p>⚠ Thêm vào <b>chính câu này</b>, không dựng một phép kiểm thứ hai ở tầng service: đường xoá
+     * đi qua {@code MediaService.deleteFile} và màn hình quản trị gọi {@code /usages} <i>trước</i>
+     * khi hỏi người dùng — hai nơi ấy phải trả lời giống hệt nhau, mà cách chắc chắn nhất là chúng
+     * đọc cùng một câu (quy tắc 12).
+     *
+     * <p>⚠⚠ {@code EXISTS} chứ không {@code LEFT JOIN} thêm hai bảng: join thì một tệp nằm trong
+     * năm bản chụp của cùng một bài sẽ nhân dòng lên, và {@code DISTINCT} che mất chuyện đó cho tới
+     * khi ai đó bỏ nó đi.
      */
     @Query(
             value =
@@ -209,7 +275,13 @@ public interface ArticleRepository extends JpaRepository<Article, Long> {
                       AND (a.cover_attachment_public_id = CAST(:maTep AS uuid)
                            OR v.cover_attachment_public_id = CAST(:maTep AS uuid)
                            OR a.content LIKE CONCAT('%', :maTep, '%')
-                           OR v.content LIKE CONCAT('%', :maTep, '%'))
+                           OR v.content LIKE CONCAT('%', :maTep, '%')
+                           OR EXISTS (SELECT 1 FROM article_attachments aa
+                                       WHERE aa.article_id = a.id
+                                         AND aa.attachment_public_id = CAST(:maTep AS uuid))
+                           OR EXISTS (SELECT 1 FROM article_version_attachments va
+                                       WHERE va.article_version_id = a.published_version_id
+                                         AND va.attachment_public_id = CAST(:maTep AS uuid)))
                     """,
             nativeQuery = true)
     List<String> findTitlesReferencing(@Param("maTep") String attachmentPublicId);

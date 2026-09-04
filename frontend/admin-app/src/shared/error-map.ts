@@ -227,6 +227,16 @@ export const ERROR_CATALOG = {
     handling: 'toast',
     severity: 'warning',
   },
+  'CMS-2016': {
+    message: 'Chỉ tệp trong Kho tài liệu và đã quét virus xong mới đính kèm được vào bài viết',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'CMS-2017': {
+    message: 'Tệp vượt trần dung lượng cho tài liệu phục vụ trên cổng — nén hoặc tách nhỏ rồi thử lại',
+    handling: 'toast',
+    severity: 'warning',
+  },
   'CMS-5001': {
     message: 'Không đăng nhập được sang hệ thống văn bản điều hành',
     handling: 'toast',

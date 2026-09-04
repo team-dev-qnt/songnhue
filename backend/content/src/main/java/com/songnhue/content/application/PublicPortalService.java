@@ -17,10 +17,13 @@ import com.songnhue.content.domain.Article;
 import com.songnhue.content.domain.ArticleVersion;
 import com.songnhue.content.domain.Banner;
 import com.songnhue.content.domain.Category;
+import com.songnhue.content.domain.KhoTep;
 import com.songnhue.content.domain.MenuPosition;
 import com.songnhue.content.infra.ArticleRepository;
 import com.songnhue.content.infra.CategoryRepository;
 import com.songnhue.content.infra.MediaFolderRepository;
+import com.songnhue.core.common.error.ErrorCode;
+import com.songnhue.core.common.exception.BusinessRuleException;
 import com.songnhue.core.common.util.VietnameseUtils;
 import com.songnhue.core.spi.AttachmentContent;
 import com.songnhue.core.spi.AttachmentPort;
@@ -56,10 +59,23 @@ public class PublicPortalService {
      * website" (CR-21). Cùng lập luận với {@code BANNER}: những tệp ấy sinh ra để hiện trên trang
      * chủ, nên "ai biết publicId thì tải được" chính là hành vi mong muốn.
      *
-     * <p>⛔ Danh sách này có bài kiểm riêng ({@code PublicFileScopeTest}) — đây là một ranh giới
-     * bảo mật, và một ranh giới không có phép kiểm nào thì lượt sửa kế tiếp không có gì cản
-     * (quy tắc 1). Bài kiểm khẳng định cả hai chiều: bốn loại này CÓ, và {@code EMPLOYEE} /
-     * {@code CONSTRUCTION} KHÔNG.
+     * <p>{@code TAI_LIEU} (kho tài liệu bài viết, WS-40) <b>cố ý không</b> ở đây — xem
+     * {@link com.songnhue.content.domain.KhoTep}. Tài liệu chỉ ra cổng qua
+     * {@link #articleDocument(UUID)}, đường đòi tệp nằm trong bản chụp đang xuất bản của một bài
+     * đang công khai.
+     *
+     * <p>⛔ Danh sách này có bài kiểm riêng — đây là một ranh giới bảo mật, và một ranh giới không
+     * có phép kiểm nào thì lượt sửa kế tiếp không có gì cản (quy tắc 1). Bài kiểm khẳng định cả hai
+     * chiều: bốn loại này CÓ, còn {@code EMPLOYEE} / {@code CONSTRUCTION} / {@code TAI_LIEU} KHÔNG.
+     *
+     * <p>⚠⚠ 04/09: câu trên trước đây nêu tên {@code PublicFileScopeTest} — <b>một tệp KHÔNG tồn
+     * tại trong kho</b> (đo bằng {@code find}, 0 kết quả). Bài làm việc thật là
+     * {@code MenuLogoAndMapImageTest} (hai khẳng định về danh sách này) và
+     * {@code ArticleAttachmentTest} (đo qua HTTP rằng {@code /public/files/&#123;id&#125;} trả 404
+     * cho một tệp tài liệu). Đây là lần thứ hai trong hai ngày cùng một hình dạng — lần trước là
+     * {@code CongTacTrangChuTest} ở {@code PortalCache}. Một javadoc nêu tên bài kiểm <b>đọc như
+     * một lời bảo đảm</b>, nên tên ấy phải có thật: tìm bằng {@code grep} trước khi viết vào
+     * (quy tắc 28).
      */
     public static final List<String> LOAI_TEP_CONG_KHAI = List.of("MEDIA_FOLDER", "BANNER", "SITE_CONFIG", "MENU_ITEM");
 
@@ -349,7 +365,112 @@ public class PublicPortalService {
                 //   biên tập viên đang sửa dở lọt lên cổng — xem javadoc `Article`.
                 version.getDocNumber(),
                 version.getDocIssuedDate(),
-                danhMuc));
+                danhMuc,
+                // ⛔ Lấy từ BẢN ĐÃ DUYỆT — cùng lập luận với hai cột ngay trên. Đọc từ `article` là
+                //    để một biên tập viên đổi tài liệu của bài đang chạy mà không qua ai duyệt.
+                taiLieuCongKhai(version)));
+    }
+
+    /**
+     * Tài liệu của một bản chụp, đã lọc còn <b>những tệp phục vụ được thật</b> — WS-40.
+     *
+     * <h2>⛔⛔ Ba phép lọc, và bỏ sót cái nào cũng cho ra CÙNG một triệu chứng</h2>
+     *
+     * Một dòng có tên trên cổng mà bấm vào là 404 — §10.52 ở dạng thuần khiết.
+     *
+     * <ol>
+     *   <li><b>Còn sống</b>: {@code findRef} lọc {@code deleted_at IS NULL}, nên tệp đã xoá mềm
+     *       <b>biến mất khỏi danh sách</b> chứ không thành một dòng chết;
+     *   <li><b>Đã quét xong</b>: {@code findRef} <b>KHÔNG</b> lọc trạng thái quét — chỉ
+     *       {@code readForPublic} mới lọc {@code isDownloadable()}. Phải tự kiểm ở đây, nếu không
+     *       thì một tệp vừa tải lên vẫn ra DTO trong khi byte trả 404;
+     *   <li><b>Đúng kho</b>: {@code owner_type = 'TAI_LIEU'}. Ảnh media gắn nhầm vào đây sẽ 404 ở
+     *       đường hẹp vì đường ấy chỉ nhận {@code TAI_LIEU}.
+     * </ol>
+     *
+     * <p>⚠ Một lượt hỏi cho mỗi tệp. Chấp nhận có ý thức: đây là <b>một bài</b>, và số tệp đính kèm
+     * đếm bằng đơn vị. ⛔ Nếu về sau cần {@code documents} cho cả <i>danh sách</i> bài thì phải đi
+     * khuôn {@code findCategoryLabels} — một lượt hỏi cho cả trang — chứ không lặp cái này.
+     */
+    private List<PublicArticleDetail.TaiLieuRef> taiLieuCongKhai(ArticleVersion version) {
+        return version.getDocuments().stream()
+                .map(d -> attachments
+                        .findRef(d.getAttachmentPublicId())
+                        .filter(ref -> KhoTep.TAI_LIEU.ownerType().equals(ref.ownerType()) && ref.downloadable())
+                        .map(ref -> new PublicArticleDetail.TaiLieuRef(
+                                ref.publicId(),
+                                // ⭐ Rơi về tên gốc khi chưa ai đặt nhãn — quyết định ở MỘT chỗ.
+                                //    ⛔ Không sinh "Tài liệu 1" (quy tắc 16).
+                                d.getLabel() == null ? ref.originalName() : d.getLabel(),
+                                ref.contentType(),
+                                ref.sizeBytes()))
+                        .orElse(null))
+                .filter(java.util.Objects::nonNull)
+                .toList();
+    }
+
+    /**
+     * Nội dung một tài liệu đính kèm — đường ra cổng <b>duy nhất</b> của kho tài liệu (WS-40).
+     *
+     * <h2>Vì sao một đường hẹp riêng thay vì nới danh sách của cổng</h2>
+     *
+     * Nới {@link #LOAI_TEP_CONG_KHAI} thêm {@code TAI_LIEU} là làm mọi tệp trong kho tài liệu công
+     * khai <b>ngay khi tải lên</b> — kể cả bản dự thảo chưa ai duyệt, kể cả tệp của một bài đã gỡ.
+     * QuanTran chốt 04/09 là <b>siết</b>: chỉ tài liệu thuộc bài ĐÃ xuất bản mới tải được. Cùng
+     * khuôn với {@code PublicConstructionCatalogService.publishedDocument} của WS-27, sinh ra từ
+     * đúng bài học này.
+     *
+     * <p>Hai lớp, cả hai đều phải qua:
+     *
+     * <ol>
+     *   <li>{@code publicId} phải nằm trong bản chụp đang xuất bản của một bài đang công khai —
+     *       {@link ArticleRepository#daCongBoTaiLieu} (bốn vế trong một câu);
+     *   <li>tệp phải thuộc kho {@code TAI_LIEU}, còn sống và đã quét xong — kiểm ở tầng đính kèm
+     *       của Core.
+     * </ol>
+     *
+     * <h2>⛔ Trần dung lượng — chặn một nút tắt máy chủ, không phải một nợ để lại</h2>
+     *
+     * Số đo đã có đủ: {@code readForPublic} trả {@code byte[]} <b>toàn phần</b>; trần tải tài liệu
+     * là <b>50MB</b> ({@code V202608131009}); production {@code mem_limit: 3g} +
+     * {@code MaxRAMPercentage=70} ⇒ heap ~2.1GB, <b>và {@code -XX:+ExitOnOutOfMemoryError}: OOM
+     * không suy giảm, container CHẾT</b>; hạn mức công khai đếm <i>request</i>, không đếm byte;
+     * nginx {@code proxy_buffering off}. ⇒ 20 lượt tải song song một PDF 50MB ≈ 1GB {@code byte[]}
+     * sống cùng lúc. Không cần ác ý — chỉ cần một văn bản được nhiều người mở.
+     *
+     * <p>Trần {@code KhoTep.TRAN_PHUC_VU_CONG_KHAI_MB} là hằng số trong mã, cùng loại với
+     * {@link #TRAN_MOI_TRANG} ngay trên: đây là <b>giới hạn an toàn bộ nhớ</b>, không phải tham số
+     * nghiệp vụ, nên nó không thuộc bảng {@code settings} (quy tắc 12 nói về tham số nghiệp vụ).
+     *
+     * <p>📌 Đường sạch hơn <b>đã đo được là khả thi</b>: {@code deploy/nginx} có sẵn một server
+     * block {@code ${FILES_DOMAIN}} chuyển tiếp thẳng vào MinIO và {@code MINIO_ENDPOINT} là tên
+     * miền công khai, nên trình duyệt tới được MinIO — tức là 302 → presigned URL chạy được. Nó cần
+     * {@code ObjectStorage} nhận thêm {@code response-content-disposition} để giữ tên tệp, nên
+     * không làm trong đợt này (nợ T40.19).
+     *
+     * @return rỗng cho <b>mọi</b> lý do từ chối — cố ý không phân biệt. Nói <i>"bài chưa xuất
+     *     bản"</i> là xác nhận tệp có tồn tại
+     */
+    @Transactional(readOnly = true)
+    public Optional<AttachmentContent> articleDocument(UUID attachmentPublicId) {
+        if (attachmentPublicId == null || !articles.daCongBoTaiLieu(attachmentPublicId, Instant.now())) {
+            return Optional.empty();
+        }
+        // ⛔ Trần dung lượng ném 413 chứ KHÔNG trả rỗng. Ba vế trên im lặng vì phân biệt được là
+        //    tiết lộ tệp có tồn tại; tới đây thì tệp ĐÃ công khai, nên biến "quá lớn" thành "không
+        //    tồn tại" chỉ giấu mất lý do khỏi đúng người cần biết. Lớp ép chính nằm ở
+        //    `ArticleService` — lúc đính kèm; đây là lớp thứ hai cho tệp đã đính từ trước.
+        attachments
+                .findRef(attachmentPublicId)
+                .filter(ref -> KhoTep.vuotTranPhucVu(ref.sizeBytes()))
+                .ifPresent(ref -> {
+                    throw new BusinessRuleException(
+                            ErrorCode.CMS_2017,
+                            ref.originalName(),
+                            ref.sizeBytes() / (1024 * 1024),
+                            KhoTep.TRAN_PHUC_VU_CONG_KHAI_MB);
+                });
+        return attachments.readForPublic(attachmentPublicId, List.of(KhoTep.TAI_LIEU.ownerType()));
     }
 
     /** Ghi nhận một lượt xem — gom trong bộ nhớ, đẩy xuống CSDL theo lô. */

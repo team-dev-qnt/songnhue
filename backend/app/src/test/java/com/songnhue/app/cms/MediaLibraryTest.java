@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -25,6 +26,7 @@ import com.songnhue.content.application.ArticleService;
 import com.songnhue.content.application.CategoryService;
 import com.songnhue.content.application.MediaService;
 import com.songnhue.content.domain.Article;
+import com.songnhue.content.domain.KhoTep;
 import com.songnhue.content.domain.MediaFolder;
 import com.songnhue.core.application.attachment.VirusScanHandler;
 import com.songnhue.core.common.exception.BusinessRuleException;
@@ -108,11 +110,13 @@ class MediaLibraryTest extends IntegrationTestBase {
     @Test
     @DisplayName("⭐ Tải ảnh lên đi tới MinIO thật, đọc lại được")
     void taiAnhLenKhoThat() {
-        AttachmentRef tep = media.upload(thuMuc, "so-do-tuyen.png", anhPng(40, 30));
+        AttachmentRef tep = media.upload(thuMuc, KhoTep.MEDIA, "so-do-tuyen.png", anhPng(40, 30));
 
         assertThat(tep.contentType()).isEqualTo("image/png");
         assertThat(tep.sizeBytes()).isPositive();
-        assertThat(media.filesIn(thuMuc)).extracting(AttachmentRef::publicId).contains(tep.publicId());
+        assertThat(media.filesIn(thuMuc, KhoTep.MEDIA))
+                .extracting(AttachmentRef::publicId)
+                .contains(tep.publicId());
 
         // Tệp vừa tải lên CHƯA dùng được — đang chờ quét. Đây là hành vi đúng, không phải lỗi.
         assertThatThrownBy(() -> media.downloadUrl(tep.publicId())).hasMessageContaining("SYS-0009");
@@ -128,7 +132,7 @@ class MediaLibraryTest extends IntegrationTestBase {
     @Test
     @DisplayName("⭐ Tên lưu xuống kho là chuỗi ngẫu nhiên, KHÔNG phải tên người dùng đặt")
     void tenLuuXuongKhoLaNgauNhien() {
-        AttachmentRef tep = media.upload(thuMuc, "bao-cao.jpg.exe", anhPng(10, 10));
+        AttachmentRef tep = media.upload(thuMuc, KhoTep.MEDIA, "bao-cao.jpg.exe", anhPng(10, 10));
 
         String storageKey = jdbc.queryForObject(
                 "SELECT storage_key FROM attachments WHERE public_id = ?", String.class, tep.publicId());
@@ -151,7 +155,7 @@ class MediaLibraryTest extends IntegrationTestBase {
     void doiDuoiTepKhongLuaDuoc() {
         byte[] khongPhaiAnh = "Đây chỉ là văn bản thuần, không phải ảnh.".getBytes(StandardCharsets.UTF_8);
 
-        assertThatThrownBy(() -> media.upload(thuMuc, "anh-dep.png", khongPhaiAnh))
+        assertThatThrownBy(() -> media.upload(thuMuc, KhoTep.MEDIA, "anh-dep.png", khongPhaiAnh))
                 .as("tin đuôi tệp hoặc tin Content-Type trình duyệt gửi là tin vào thứ người gửi tự đặt")
                 .hasMessageContaining("SYS-0003");
     }
@@ -161,7 +165,7 @@ class MediaLibraryTest extends IntegrationTestBase {
     void thuVienMediaKhongNhanSvg() {
         byte[] svg = "<svg xmlns=\"http://www.w3.org/2000/svg\"><rect/></svg>".getBytes(StandardCharsets.UTF_8);
 
-        assertThatThrownBy(() -> media.upload(thuMuc, "logo.svg", svg))
+        assertThatThrownBy(() -> media.upload(thuMuc, KhoTep.MEDIA, "logo.svg", svg))
                 .as(
                         """
                         SVG chạy được JavaScript. Nó chỉ vào hệ thống qua màn hình cấu hình giao diện \
@@ -187,7 +191,7 @@ class MediaLibraryTest extends IntegrationTestBase {
     @Test
     @DisplayName("⛔ Xoá thư mục còn tệp bị chặn — CMS-2008")
     void xoaThuMucConTepBiChan() {
-        media.upload(thuMuc, "anh.png", anhPng(8, 8));
+        media.upload(thuMuc, KhoTep.MEDIA, "anh.png", anhPng(8, 8));
 
         assertThatThrownBy(() -> media.deleteFolder(thuMuc))
                 .as("xoá đệ quy nghe tiện hơn, nhưng một lần bấm nhầm cuốn đi cả nhánh mà không ai thấy trước")
@@ -216,7 +220,7 @@ class MediaLibraryTest extends IntegrationTestBase {
     @Test
     @DisplayName("⭐ Xoá tệp đang được bài viết dùng bị chặn, kèm tên bài — CMS-2009")
     void xoaTepDangDungBiChan() {
-        AttachmentRef tep = media.upload(thuMuc, "tram-bom.png", anhPng(20, 20));
+        AttachmentRef tep = media.upload(thuMuc, KhoTep.MEDIA, "tram-bom.png", anhPng(20, 20));
         UUID danhMuc = categories.create("Chuyên mục kiểm thử", null, null).getPublicId();
 
         // Ảnh chèn giữa bài: nằm trong chuỗi HTML, không có khoá ngoại nào bắt được.
@@ -234,7 +238,8 @@ class MediaLibraryTest extends IntegrationTestBase {
                 null,
                 null,
                 null,
-                Set.of(danhMuc)));
+                Set.of(danhMuc),
+                List.of()));
 
         assertThat(media.articlesUsing(tep.publicId())).containsExactly(bai.getTitle());
         assertThatThrownBy(() -> media.deleteFile(tep.publicId()))
@@ -245,7 +250,7 @@ class MediaLibraryTest extends IntegrationTestBase {
     @Test
     @DisplayName("⭐ Tệp chỉ dùng được SAU khi qua bước quét — SYS-0009 trước đó")
     void tepChiDungDuocSauKhiQuet() {
-        AttachmentRef tep = media.upload(thuMuc, "ho-so.png", anhPng(12, 12));
+        AttachmentRef tep = media.upload(thuMuc, KhoTep.MEDIA, "ho-so.png", anhPng(12, 12));
 
         assertThat(jdbc.queryForObject(
                         "SELECT scan_status FROM attachments WHERE public_id = ?", String.class, tep.publicId()))
@@ -266,18 +271,20 @@ class MediaLibraryTest extends IntegrationTestBase {
     @Test
     @DisplayName("Tệp không ai dùng thì xoá được")
     void tepKhongAiDungXoaDuoc() {
-        AttachmentRef tep = media.upload(thuMuc, "khong-dung.png", anhPng(5, 5));
+        AttachmentRef tep = media.upload(thuMuc, KhoTep.MEDIA, "khong-dung.png", anhPng(5, 5));
 
         assertThat(media.articlesUsing(tep.publicId())).isEmpty();
         media.deleteFile(tep.publicId());
 
-        assertThat(media.filesIn(thuMuc)).extracting(AttachmentRef::publicId).doesNotContain(tep.publicId());
+        assertThat(media.filesIn(thuMuc, KhoTep.MEDIA))
+                .extracting(AttachmentRef::publicId)
+                .doesNotContain(tep.publicId());
     }
 
     @Test
     @DisplayName("Ảnh đại diện của bài cũng tính là đang dùng")
     void anhDaiDienCungTinhLaDangDung() {
-        AttachmentRef tep = media.upload(thuMuc, "bia.png", anhPng(16, 9));
+        AttachmentRef tep = media.upload(thuMuc, KhoTep.MEDIA, "bia.png", anhPng(16, 9));
         UUID danhMuc = categories.create("Chuyên mục kiểm thử", null, null).getPublicId();
 
         articles.create(new ArticleDraft(
@@ -294,7 +301,8 @@ class MediaLibraryTest extends IntegrationTestBase {
                 null,
                 null,
                 null,
-                Set.of(danhMuc)));
+                Set.of(danhMuc),
+                List.of()));
 
         assertThat(media.articlesUsing(tep.publicId()))
                 .as("hai chỗ tham chiếu — cột ảnh bìa và chuỗi HTML — phải xét cả hai")

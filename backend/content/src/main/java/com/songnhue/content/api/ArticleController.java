@@ -86,7 +86,7 @@ public class ArticleController {
     @RequirePermission("cms:article:view")
     public ArticleDtos.ArticleDetail detail(@PathVariable UUID publicId) {
         Article article = articles.get(publicId);
-        return ArticleDtos.ArticleDetail.of(article, articles.allowedActions(publicId), Instant.now());
+        return chiTiet(article);
     }
 
     @GetMapping("/{publicId}/versions")
@@ -119,7 +119,7 @@ public class ArticleController {
     @RequirePermission("cms:article:create")
     public ArticleDtos.ArticleDetail create(@Valid @RequestBody ArticleDtos.SaveRequest request) {
         Article saved = articles.create(toDraft(request));
-        return ArticleDtos.ArticleDetail.of(saved, articles.allowedActions(saved.getPublicId()), Instant.now());
+        return chiTiet(saved);
     }
 
     @PutMapping("/{publicId}")
@@ -128,7 +128,7 @@ public class ArticleController {
     public ArticleDtos.ArticleDetail update(
             @PathVariable UUID publicId, @Valid @RequestBody ArticleDtos.SaveRequest request) {
         Article saved = articles.update(publicId, toDraft(request));
-        return ArticleDtos.ArticleDetail.of(saved, articles.allowedActions(publicId), Instant.now());
+        return chiTiet(saved);
     }
 
     /**
@@ -153,7 +153,7 @@ public class ArticleController {
         //    giao diện vừa ép buộc lúc `execute` (luật 12). Controller không còn biết tên hành
         //    động nào cả — thêm một bước đòi lý do là một dòng UPDATE, không phải sửa mã.
         Article saved = articles.execute(publicId, request.action(), request.reason());
-        return ArticleDtos.ArticleDetail.of(saved, articles.allowedActions(publicId), Instant.now());
+        return chiTiet(saved);
     }
 
     @PostMapping("/{publicId}/versions/{versionId}/restore")
@@ -161,7 +161,7 @@ public class ArticleController {
     @RequirePermission("cms:article:update")
     public ArticleDtos.ArticleDetail restore(@PathVariable UUID publicId, @PathVariable UUID versionId) {
         Article saved = articles.restoreVersion(publicId, versionId);
-        return ArticleDtos.ArticleDetail.of(saved, articles.allowedActions(publicId), Instant.now());
+        return chiTiet(saved);
     }
 
     @DeleteMapping("/{publicId}")
@@ -173,6 +173,19 @@ public class ArticleController {
     }
 
     // -------------------------------------------------------------------------
+
+    /**
+     * Dựng DTO chi tiết — <b>một chỗ duy nhất</b> cho cả năm endpoint trả về nó.
+     *
+     * <p>Trước WS-40 năm nơi ấy đều gọi thẳng {@code ArticleDetail.of(...)}. Thêm tài liệu đính kèm
+     * là thêm một tham số ở cả năm chỗ, và chỗ thứ sáu ra đời sau sẽ quên — đúng hình dạng T27.7
+     * (trả nợ ở ba điểm ghi, điểm ghi thứ tư mang lại đúng lỗi cũ). Gom lại thì không còn chỗ nào
+     * để quên.
+     */
+    private ArticleDtos.ArticleDetail chiTiet(Article bai) {
+        return ArticleDtos.ArticleDetail.of(
+                bai, articles.taiLieuCua(bai), articles.allowedActions(bai.getPublicId()), Instant.now());
+    }
 
     private ArticleDraft toDraft(ArticleDtos.SaveRequest r) {
         return new ArticleDraft(
@@ -189,7 +202,12 @@ public class ArticleController {
                 r.metaKeywords(),
                 r.docNumber(),
                 r.docIssuedDate(),
-                r.categoryPublicIds());
+                r.categoryPublicIds(),
+                r.documents() == null
+                        ? null
+                        : r.documents().stream()
+                                .map(d -> new ArticleDraft.TaiLieu(d.publicId(), d.label()))
+                                .toList());
     }
 
     private Long requireUser(UUID publicId) {

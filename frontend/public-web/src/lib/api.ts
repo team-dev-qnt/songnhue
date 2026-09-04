@@ -193,6 +193,30 @@ export interface ArticleDetail extends ArticleRow {
    */
   source: string | null;
   categories: CategoryRef[];
+  /**
+   * Tài liệu đính kèm — lấy từ **bản chụp phiên bản đang xuất bản** (WS-40).
+   *
+   * ⛔ Backend đã lọc còn những tệp **tải về được thật**: đúng kho, chưa xoá, đã quét virus xong.
+   * Nên nơi hiển thị không phải kiểm gì thêm — nhưng cũng ⛔ **không** được dựng liên kết bằng
+   * `fileUrl()`: dùng `articleDocUrl()`, xem javadoc của nó.
+   *
+   * Mảng rỗng = bài không có tệp nào ⇒ nơi hiển thị **bỏ hẳn khối**, không vẽ "Đang cập nhật".
+   */
+  documents: TaiLieuRef[];
+}
+
+/**
+ * Một tài liệu đính kèm trên cổng.
+ *
+ * @remarks `title` là chữ đã **giải xong** ở backend: nhãn gợi nhớ người biên tập đặt, hoặc tên
+ * gốc của tệp khi chưa ai đặt. ⛔ Đừng tự ghép lại ở đây — để phía giao diện tự chọn thì khối
+ * cuối bài, liên kết giữa nội dung và tên tệp lúc tải về sẽ nói ba kiểu khác nhau.
+ */
+export interface TaiLieuRef {
+  publicId: string;
+  title: string;
+  contentType: string;
+  sizeBytes: number;
 }
 
 /** Kết quả một trang, đã ghép `data` với `meta` để nơi gọi chỉ cầm một thứ. */

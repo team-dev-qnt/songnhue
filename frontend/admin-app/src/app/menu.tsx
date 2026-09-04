@@ -136,6 +136,16 @@ export const MENU: readonly MenuNode[] = [
         permissions: ['cms:media:manage'],
       },
       {
+        // ⛔ Dùng lại `cms:media:manage`, KHÔNG thêm mã quyền mới (WS-40): cùng bộ máy, cùng nhóm
+        //    người dùng, và quyền này đã cấp cho cả vai trò biên tập lẫn quản trị nội dung. Thêm
+        //    một mã quyền là thêm một dòng phân quyền phải seed, phải cấp, phải nhớ.
+        key: 'kho-tai-lieu',
+        label: 'Kho tài liệu',
+        icon: <FileTextOutlined />,
+        path: '/noi-dung/kho-tai-lieu',
+        permissions: ['cms:media:manage'],
+      },
+      {
         key: 'giao-dien',
         label: 'Giao diện cổng',
         icon: <LayoutOutlined />,

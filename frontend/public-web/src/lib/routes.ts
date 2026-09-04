@@ -100,6 +100,24 @@ export function constructionDocUrl(publicId: string | null | undefined): string 
 }
 
 /**
+ * Địa chỉ tải một **tài liệu đính kèm bài viết** — WS-40, CN-01.1.
+ *
+ * ⛔ **Không dùng `fileUrl()`.** Tệp tài liệu mang `owner_type = 'TAI_LIEU'` và **cố ý** không nằm
+ * trong `LOAI_TEP_CONG_KHAI` — dùng `fileUrl()` là rơi đúng bẫy **404 câm** mà `constructionDocUrl`
+ * ngay trên vừa ghi lại nguyên văn: CSDL nói tệp tồn tại, DTO trả id, liên kết chết, và chưa ai
+ * thấy vì bảng đang rỗng.
+ *
+ * Đường riêng bên dưới kiểm bốn vế trong một câu truy vấn: tệp phải nằm trong **bản chụp phiên
+ * bản đang được xuất bản** của một bài còn sống, đúng trạng thái công khai, đã tới giờ đăng. Bài
+ * còn Nháp ⇒ 404; gỡ bài ⇒ 404 theo.
+ *
+ * ⚠ Không mang slug bài, nên đổi slug **không** làm hỏng liên kết đã chèn giữa nội dung.
+ */
+export function articleDocUrl(publicId: string | null | undefined): string | null {
+  return publicId ? `${API_BASE_URL}/public/article-documents/${publicId}` : null;
+}
+
+/**
  * Đường dẫn của một mục menu.
  *
  * @returns `null` cho mục chỉ mở menu con (`NONE`) — nơi gọi render nó thành thẻ không bấm
