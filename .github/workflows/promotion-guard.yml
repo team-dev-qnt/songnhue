@@ -85,8 +85,31 @@ jobs:
           # ⚠ Chờ có CHỐT, và hết chốt thì ĐỎ chứ không đi tiếp: một cổng đề bạt
           #   bỏ qua vì "chờ mãi không thấy" thì đúng bằng không có cổng.
           for lan in $(seq 1 20); do
+            # ⭐⭐ T11.79 — `Cổng kiểm CI` PHẢI có trong bộ lọc, và nó là phần quan trọng nhất.
+            #
+            #    Đo 04/09: bộ lọc cũ chỉ khớp `Backend*` và `Frontend*`, tức **2 trên 9** check-run
+            #    của một lượt push vào `dev`. Lượt đề bạt thật gần nhất (run 33834838646) in ra
+            #    đúng hai dòng — bằng chứng thực nghiệm, không phải suy từ regex.
+            #
+            #    Bảy cái vô hình gồm những cái có hậu quả thật: `Thứ tự migration` (bộ canh sinh ra
+            #    sau §10.66, đúng lớp lỗi đã giết hai lượt CD ngày 27/8 và bộ test *về nguyên tắc*
+            #    không thấy — luật 30) và `Gắn tag SHA cho image không đổi` (đỏ ⇒ tag `:<sha>` có
+            #    thể không tồn tại, mà `deploy-staging.yml` truyền `commit_sha` xuống để kéo image
+            #    THEO ĐÚNG SHA đó).
+            #
+            #    ⛔ KHÔNG nới thành "mọi check-run": lượt quét CVE cũng chạy trên push vào `dev`
+            #    khi `pom.xml` đổi, và `security-scan.yml` CỐ Ý đứng ngoài luồng chặn — nhịp của
+            #    việc quét CVE không phải nhịp của PR (xem đầu tệp đó). Gộp nó vào đây là biến
+            #    một quyết định đã cân nhắc thành một tác dụng phụ.
+            #
+            #    Thay vào đó trỏ vào `Cổng kiểm CI`: nó `needs` cả 9 job còn lại của `ci.yml`, và
+            #    `CiGateCoverageTest` ĐÃ canh sẵn bất biến "cổng phủ MỌI job". Một cái tên thay
+            #    cho bảy cái, và cái tên ấy tự lớn lên khi `ci.yml` thêm job — liệt kê bảy tên là
+            #    tự hẹn một ngày quên cái thứ tám (luật 14).
+            #
+            #    Giữ `Backend*`/`Frontend*` để log vẫn nói ra hai cột nặng nhất đã chạy thế nào.
             runs=$(gh api "repos/$REPO/commits/$SHA/check-runs" --jq \
-              '.check_runs[] | select(.name | startswith("Backend") or startswith("Frontend"))
+              '.check_runs[] | select(.name | startswith("Backend") or startswith("Frontend") or . == "Cổng kiểm CI")
                | "\(.name)=\(.conclusion)"')
 
             set +e

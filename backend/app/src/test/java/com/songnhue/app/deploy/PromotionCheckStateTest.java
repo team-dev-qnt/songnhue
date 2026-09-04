@@ -9,6 +9,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -130,6 +132,81 @@ class PromotionCheckStateTest {
                         Vòng chờ phải có CHỐT và hết chốt thì ĐỎ. Một cổng đề bạt bỏ qua vì \
                         "chờ mãi không thấy" đúng bằng không có cổng.""")
                 .contains("Sau 10 phút vẫn còn phép kiểm");
+    }
+
+    @Test
+    @DisplayName("⭐⭐ T11.79 · Bộ lọc phải soi `Cổng kiểm CI` — không thì nó chỉ nhìn 2/9 check")
+    void boLocPhaiSoiCongKiemCi() {
+        String yml = doc(WORKFLOW);
+        String tenCong = tenJobTrongCi("cong-kiem");
+
+        assertThat(locCheckRun(yml))
+                .as(
+                        """
+                        Đo 04/09: bộ lọc chỉ khớp `Backend*` và `Frontend*` — **2 trên 9** check-run \
+                        của một lượt push vào `dev`. Lượt đề bạt thật gần nhất (run 33834838646) in \
+                        ra đúng hai dòng, nên đây là số đo chứ không phải suy từ regex.
+
+                        Bảy cái vô hình gồm `Thứ tự migration` (lớp lỗi đã giết hai lượt CD ngày \
+                        27/8, và bộ test VỀ NGUYÊN TẮC không thấy — luật 30) và `Gắn tag SHA cho \
+                        image không đổi` (đỏ ⇒ tag `:<sha>` có thể không tồn tại, mà deploy kéo \
+                        image THEO ĐÚNG SHA đó).
+
+                        Cổng đề bạt tự mô tả là "commit này đã xanh CI ở chặng trước chưa" — một \
+                        bộ canh hẹp hơn nơi nó phải chặn, mà cái xanh của nó đọc như lời bảo đảm \
+                        (luật 28).""")
+                .contains(tenCong);
+    }
+
+    @Test
+    @DisplayName("⛔ Không nới thành \"mọi check-run\" — lượt quét CVE cố ý đứng ngoài luồng chặn")
+    void khongDuocNuocThanhMoiCheck() {
+        String loc = locCheckRun(doc(WORKFLOW));
+
+        assertThat(loc)
+                .as(
+                        """
+                        `security-scan.yml` viết ngay ở đầu tệp rằng nhịp của việc quét CVE KHÔNG \
+                        phải nhịp của PR, và nó chạy trên push vào `dev` mỗi khi `pom.xml` đổi. \
+                        Bỏ `select` đi là biến một quyết định đã cân nhắc thành tác dụng phụ: \
+                        7 mã ≥ 7 của T11.69 sẽ chặn cứng mọi lượt đề bạt cho tới 15/10.""")
+                .contains("select(");
+        assertThat(loc).doesNotContain("OWASP").doesNotContain("npm audit");
+    }
+
+    @Test
+    @DisplayName("⭐ TỰ KIỂM: bỏ tên cổng khỏi bộ lọc thì phép so PHẢI bắt")
+    void tuKiemBoLoc() {
+        String tenCong = tenJobTrongCi("cong-kiem");
+        String locGia = "'.check_runs[] | select(.name | startswith(\"Backend\")) | \"x\"'";
+
+        // Chính phép so của bài trên, chạy trên một bộ lọc GIẢ đã bỏ tên cổng.
+        assertThat(locGia)
+                .as("Bộ lọc giả này thiếu tên cổng, nên phép so phải phân biệt được nó với bản thật")
+                .doesNotContain(tenCong);
+        assertThat(locCheckRun(doc(WORKFLOW)))
+                .as("Đối chứng phải-tìm-thấy: bản THẬT có tên cổng (luật 7 — phân biệt hai trạng thái)")
+                .contains(tenCong);
+    }
+
+    /**
+     * Tên hiển thị của một job trong {@code ci.yml}, đọc từ chính tệp ấy.
+     *
+     * <p>⭐ Không viết cứng chuỗi {@code "Cổng kiểm CI"} vào bài kiểm: đổi tên job ở
+     * {@code ci.yml} mà quên sửa {@code promotion-guard.yml} là đúng hình dạng luật 14 — hai chỗ
+     * một con người phải nhớ. Đọc một đầu và so với đầu kia thì bài kiểm nhớ hộ.
+     */
+    private static String tenJobTrongCi(String khoaJob) {
+        String ci = doc(timTuGocKho(".github/workflows/ci.yml"));
+        Matcher m = Pattern.compile("(?m)^  " + Pattern.quote(khoaJob) + ":\\n    name: (.+)$")
+                .matcher(ci);
+        return m.find() ? m.group(1).strip() : fail("Không đọc được tên job `%s` từ ci.yml".formatted(khoaJob));
+    }
+
+    /** Dòng {@code --jq} lọc check-run trong {@code promotion-guard.yml}. */
+    private static String locCheckRun(String yml) {
+        Matcher m = Pattern.compile("(?m)^\\s*'\\.check_runs\\[\\].*$").matcher(yml);
+        return m.find() ? m.group() : fail("Không tìm thấy dòng lọc `.check_runs[]` trong promotion-guard.yml");
     }
 
     // -------------------------------------------------------------------------
