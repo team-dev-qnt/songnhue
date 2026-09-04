@@ -51,8 +51,12 @@ export function SettingsPage() {
    * **không lời gọi nào**: nửa cặp đọc–ghi, luật 27.
    *
    * ⛔ Tải về bằng Blob ngay tại trình duyệt, KHÔNG qua hàng đợi job: `/settings/export` trả JSON
-   * đồng bộ. `ExportButton` dùng chung dựng cho luồng job bất đồng bộ (202 + `jobId`) — dùng nó ở
-   * đây là đợi một `jobId` không bao giờ tới.
+   * đồng bộ, ⛔ không phải 202 + `jobId`.
+   *
+   * ⚠ Từng có `components/business/ExportButton.tsx` dựng cho luồng job bất đồng bộ; nó **đã bị
+   * xoá 04/09/2026** (nợ T27.29) vì 0 nơi import, và vì endpoint mẫu ghi trong chính javadoc của
+   * nó — `/audit-logs/export` — **chưa từng tồn tại**. Luồng job thật (T34.7) đã dựng riêng
+   * `useXuatBaoCao`, có trần số lượt hỏi và đường dừng — thứ bản dùng chung không có.
    */
   const xuat = useMutation({
     mutationFn: () => api.get<Record<string, string>>('/settings/export'),

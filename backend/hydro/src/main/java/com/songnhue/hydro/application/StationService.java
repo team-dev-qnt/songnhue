@@ -94,19 +94,6 @@ public class StationService {
     }
 
     /**
-     * Điểm đo <b>chưa gán đơn vị phụ trách</b> — T28.9, hệ quả trực tiếp của OI-05.
-     *
-     * <p>⚠ Đây không phải một bộ lọc tiện tay: cho tới khi danh sách này rỗng, resolver người nhận
-     * cảnh báo (G11 tập 2) không tìm được ai để gửi. Một cảnh báo không có người nhận là một cảnh
-     * báo không tồn tại, và nó không báo lỗi ở đâu cả — nên việc còn thiếu phải hiện thành một con
-     * số trên màn hình.
-     */
-    @Transactional(readOnly = true)
-    public List<Station> chuaGanDonVi() {
-        return stations.findByOrgUnitIdIsNullAndDeletedAtIsNullOrderByCodeAsc();
-    }
-
-    /**
      * Số điểm đo đang trỏ vào một nguồn — để màn hình Nguồn dữ liệu hiện "19 điểm đo".
      *
      * <p>⚠ Con số này đi qua bộ lọc phạm vi như mọi truy vấn khác, nên với người dùng cấp Xí nghiệp

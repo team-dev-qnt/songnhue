@@ -130,7 +130,11 @@ class StationScopeTest extends IntegrationTestBase {
     void danhSachChuaGanDonVi() {
         AuthContext.set(nguoiDungTai(xnAId, pathA));
 
-        List<String> chuaGan = stations.chuaGanDonVi().stream()
+        // ⚠ T28.30 — endpoint `/chua-gan-don-vi` đã GỠ 04/09. Câu hỏi ấy nay đọc từ CỜ
+        //   `Station.chuaGanDonVi()` đi kèm mỗi dòng của `list()`, và đó là đúng đường mà
+        //   `StationsPage` đi. Kiểm qua đường màn hình thật, ⛔ không qua một API không ai gọi.
+        List<String> chuaGan = stations.list().stream()
+                .filter(Station::chuaGanDonVi)
                 .map(Station::getCode)
                 .filter(ma -> ma.startsWith("T28-"))
                 .toList();

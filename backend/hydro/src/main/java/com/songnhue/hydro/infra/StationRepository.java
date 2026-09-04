@@ -66,11 +66,6 @@ public interface StationRepository extends JpaRepository<Station, Long> {
     @EntityGraph(attributePaths = "measurementTypes")
     List<Station> findByDeletedAtIsNullOrderByCodeAsc();
 
-    /** Màn hình "Điểm đo chưa gán đơn vị" — hệ quả của OI-05 (T28.9). */
-    /** ⚠ Cũng đi qua {@code toView} nên cũng cần nạp kèm — cùng lý do với hai câu trên. */
-    @EntityGraph(attributePaths = "measurementTypes")
-    List<Station> findByOrgUnitIdIsNullAndDeletedAtIsNullOrderByCodeAsc();
-
     List<Station> findByApiSourceIdAndDeletedAtIsNullOrderByCodeAsc(Long apiSourceId);
 
     // =========================================================================

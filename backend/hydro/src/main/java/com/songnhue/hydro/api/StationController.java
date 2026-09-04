@@ -86,18 +86,27 @@ public class StationController {
         return banDo.lopDiemDo();
     }
 
+    /**
+     * ⛔ <b>Gỡ 04/09/2026: {@code GET /chua-gan-don-vi}</b> — nợ <b>T28.30</b>, đóng bằng cách XOÁ.
+     *
+     * <p>Nó trả lời <i>"điểm đo nào chưa gán đơn vị"</i>, và câu hỏi ấy <b>đã có câu trả lời</b> đi
+     * cùng mỗi dòng của chính endpoint này: cờ {@code chuaGanDonVi} trên {@code StationView}, tính
+     * từ {@code Station.chuaGanDonVi()}. {@code StationsPage} lọc theo cờ ấy và còn làm được nhiều
+     * hơn — <b>hai</b> danh sách việc cần làm kèm số đếm, trong <b>một</b> lượt gọi.
+     *
+     * <p>⇒ Endpoint kia có <b>0 nơi gọi</b> từ giao diện suốt từ WS-28. Nó ⛔ không phải một cơ chế
+     * đang chờ người dùng — nó là <b>nửa còn thừa</b> của một cặp đã hoàn chỉnh ở chỗ khác, và
+     * §10.33 đã chốt cách xử lý: <i>"Phase sau đến mà vẫn không ai gọi thì XOÁ, không phải giữ"</i>.
+     *
+     * <p>⚠ Có một bài kiểm HTTP đi qua nó ({@code HydroCatalogueHttpTest}) — nhưng <b>bị kiểm ⛔
+     * không phải là được dùng</b>. Bài ấy ra đời để bắt lỗi {@code LazyInitializationException} của
+     * {@code toView}, và {@code list()} đã canh đúng lỗi đó rồi.
+     */
     @GetMapping
     @Operation(summary = "Danh sách điểm đo")
     @RequirePermission("hyd:station:view")
     public List<HydroCatalogDtos.StationView> list() {
         return stations.list().stream().map(this::toView).toList();
-    }
-
-    @GetMapping("/chua-gan-don-vi")
-    @Operation(summary = "Điểm đo chưa gán đơn vị phụ trách — chặn resolver người nhận cảnh báo")
-    @RequirePermission("hyd:station:view")
-    public List<HydroCatalogDtos.StationView> chuaGanDonVi() {
-        return stations.chuaGanDonVi().stream().map(this::toView).toList();
     }
 
     @GetMapping("/{publicId}")
