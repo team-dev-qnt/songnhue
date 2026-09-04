@@ -169,6 +169,77 @@ class CanhBaoQuetCveTest {
         assertThat(kq.lenhGh()).anyMatch(l -> l.contains("in:title " + nhan));
     }
 
+    @Test
+    @DisplayName("⛔⛔ T11.81 · XANH trên NHÁNH PHỤ → KHÔNG được đóng issue mốc")
+    void xanhTrenNhanhPhuThiKhongDong(@TempDir Path thuMuc) throws Exception {
+        Path bin = dungGhGia(thuMuc, "[{\"number\":42}]");
+        KetQua kq = chayVoiPath(
+                thuMuc, bin + java.io.File.pathSeparator + System.getenv("PATH"), "xanh", "fix/mot-nhanh-va");
+
+        assertThat(kq.maThoat()).as("Đầu ra:\n%s", kq.dauRa()).isZero();
+        assertThat(kq.lenhGh())
+                .as(
+                        """
+                        Đo 05/09: script không đọc một biến nhánh nào, nên nhánh XANH đóng issue mốc \
+                        bất kể lượt quét chạy ở đâu — và lượt nhánh phụ CÓ với tới chuông thật \
+                        (bình luận #5 của issue #84 đến từ `fix/t11-76-jackson-bom` qua \
+                        `workflow_dispatch`).
+
+                        Hệ quả rơi đúng vào lúc nguy hiểm nhất: làm T11.69 thì người ta bấm \
+                        `workflow_dispatch` trên nhánh vá để xem đã sạch chưa; lượt ấy xanh ⇒ đóng \
+                        issue #84 trong khi `dev` VẪN ĐỎ. Chuông tự tắt mình, và lượt theo lịch hôm \
+                        sau mở một issue MỚI — số issue thôi khớp số lượt đỏ, phá đúng vòng khứ hồi \
+                        mà T11.58 dựng ra để tự nghiệm thu.""")
+                .noneMatch(l -> l.startsWith("issue close"));
+    }
+
+    @Test
+    @DisplayName("⭐ Đối chứng: cùng đầu vào ấy nhưng trên `dev` thì PHẢI đóng (luật 9)")
+    void xanhTrenDevThiVanDong(@TempDir Path thuMuc) throws Exception {
+        KetQua kq = chay(thuMuc, "[{\"number\":42}]", "xanh");
+
+        assertThat(kq.maThoat()).isZero();
+        assertThat(kq.lenhGh())
+                .as(
+                        """
+                        Không có bài này thì bài trên xanh cả khi ai đó vô hiệu hoá hẳn nhánh đóng — \
+                        một khẳng định không phân biệt được hai trạng thái thì không khẳng định gì.""")
+                .anyMatch(l -> l.startsWith("issue close 42"));
+    }
+
+    @Test
+    @DisplayName("⭐ ĐỎ trên nhánh phụ VẪN phải bình luận — mở rộng tay, đóng chặt tay")
+    void doTrenNhanhPhuVanBinhLuan(@TempDir Path thuMuc) throws Exception {
+        Path bin = dungGhGia(thuMuc, "[{\"number\":42}]");
+        KetQua kq =
+                chayVoiPath(thuMuc, bin + java.io.File.pathSeparator + System.getenv("PATH"), "do", "fix/mot-nhanh-va");
+
+        assertThat(kq.maThoat()).isZero();
+        assertThat(kq.lenhGh())
+                .as("Một nhánh phụ phát hiện THÊM mã thì vẫn đáng nói — bất đối xứng này là cố ý")
+                .anyMatch(l -> l.startsWith("issue comment 42"));
+    }
+
+    @Test
+    @DisplayName("⭐ Nhánh mốc định nghĩa ĐÚNG MỘT LẦN, và workflow có truyền `NHANH` vào")
+    void nhanhMocMotLanVaWorkflowTruyenVao() {
+        String script = doc(timTuGocKho(".github/scripts/bao-dong-quet-cve.sh"));
+        long soLanGan =
+                script.lines().filter(d -> d.strip().startsWith("NHANH_MOC=")).count();
+        assertThat(soLanGan)
+                .as("Hai hằng rời nhau là dựng lại luật 14 — nhánh kiểm một chuỗi, thông báo in chuỗi khác")
+                .isEqualTo(1);
+
+        String yml = doc(timTuGocKho(".github/workflows/security-scan.yml"));
+        assertThat(yml)
+                .as(
+                        """
+                        Script đọc `NHANH` mà workflow không truyền thì biến rỗng, và rỗng != "dev" \
+                        nên chuông THÔI ĐÓNG issue ở mọi lượt — hỏng theo hướng ngược lại, im lặng \
+                        y hệt. Đây là nửa còn lại của cặp đọc–ghi (quy tắc 27).""")
+                .contains("NHANH: ${{ github.ref_name }}");
+    }
+
     // ── Nhóm 2: dây nối trong workflow ─────────────────────────────────────────────────────────
 
     @Test
@@ -399,6 +470,10 @@ class CanhBaoQuetCveTest {
     }
 
     private static KetQua chayVoiPath(Path thuMuc, String path, String trangThai) throws Exception {
+        return chayVoiPath(thuMuc, path, trangThai, "dev");
+    }
+
+    private static KetQua chayVoiPath(Path thuMuc, String path, String trangThai, String nhanh) throws Exception {
         Path script = timTuGocKho(".github/scripts/bao-dong-quet-cve.sh");
 
         // ⚠ `/bin/bash` TUYỆT ĐỐI, không dựa vào PATH: bài E cố tình dựng một PATH rỗng để giấu
@@ -408,6 +483,9 @@ class CanhBaoQuetCveTest {
         pb.redirectErrorStream(true);
         pb.environment().clear();
         pb.environment().put("PATH", path);
+        // ⚠ Môi trường bị xoá sạch nên `NHANH` PHẢI được đặt tường minh — thiếu nó thì mọi bài
+        //   "xanh ⇒ đóng" đỏ vì lý do khác hẳn thứ chúng đo (luật 9).
+        pb.environment().put("NHANH", nhanh);
 
         Process p = pb.start();
         String dauRa = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
