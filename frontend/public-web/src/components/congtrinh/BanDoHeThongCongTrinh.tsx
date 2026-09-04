@@ -109,7 +109,7 @@ export function BanDoHeThongCongTrinh({ catalog, anhSoDo }: BanDoHeThongCongTrin
           </figure>
         ) : null}
 
-        {diem.length === 0 ? (
+        {/* {diem.length === 0 ? (
           <EmptyBlock>
             {anhSoDoUrl
               ? 'Bản đồ tương tác chưa vẽ được điểm nào: tuyến sông, lý trình và toạ độ công trình thuộc nhóm dữ liệu Công ty chưa cung cấp (G8) — cột “Vị trí” của bảng phía trên cũng vì thế còn trống. Ảnh sơ đồ phía trên là bản Công ty đã tải lên.'
@@ -124,7 +124,7 @@ export function BanDoHeThongCongTrinh({ catalog, anhSoDo }: BanDoHeThongCongTrin
               trong bảng phía trên.
             </p>
           </>
-        )}
+        )} */}
       </div>
     </section>
   );
