@@ -574,6 +574,11 @@ jobs:
       packages: write
 
     steps:
+      # ⚠ BẮT BUỘC từ 4/9: trước đó job này không checkout vì thân lệnh nằm nội
+      #   tuyến trong `run:`. Nay nó gọi `.github/scripts/gan-tag-sha.sh`, nên
+      #   thiếu bước này là "No such file or directory" ở mọi lượt chạy.
+      - uses: actions/checkout@v4
+
       - name: Đăng nhập GHCR
         uses: docker/login-action@v3
         with:
@@ -581,33 +586,24 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # ⛔⛔ Thân lệnh nằm ở `.github/scripts/gan-tag-sha.sh`, KHÔNG ở đây — T11.78.
+      #
+      #    Ngày 4/9 khối `run:` cũ đỏ vì một cú chớp mạng của ghcr.io, nhưng in ra
+      #    *"app chưa có tag `dev` … commit ĐẦU TIÊN của một gói GHCR mới"* — sai,
+      #    vì job `image` bên trên vừa đẩy `app:dev` xong 2 phút 16 giây trước đó.
+      #    Nó nuốt stderr ở lượt dò đầu (`2>&1`) và khẳng định MỘT nguyên nhân cho
+      #    một điều kiện có ít nhất BA — đúng khuyết tật §10.43 mà chú thích ở đầu
+      #    job này viết ra để tránh (CLAUDE.md luật 9 · luật 23 · luật 33).
+      #
+      #    Tách ra tệp để nhánh quyết định kiểm được bằng `docker` GIẢ, đúng lý do
+      #    `bao-dong-quet-cve.sh` đã tách: thứ nằm trong `run:` thì muốn tái hiện
+      #    phải thắng một cuộc đua thật. Bộ canh: `GanTagShaTest`.
       - name: Gắn tag
         run: |
-          set -euo pipefail
-          for name in app admin-app public-web; do
-            kho="ghcr.io/${{ github.repository }}/$name"
-
-            if docker manifest inspect "$kho:${{ github.sha }}" >/dev/null 2>&1; then
-              echo "✓ $name — lượt này đã đóng gói, không cần gắn thêm"
-              continue
-            fi
-
-            # `:dev` là tag DI ĐỘNG, trỏ vào bản dựng gần nhất của image này. Ở đây
-            # dùng nó làm NGUỒN để giải ra digest, rồi ghim digest ấy dưới một tên
-            # BẤT BIẾN. Vẫn giữ nguyên luật "không deploy theo tag di động".
-            if ! docker manifest inspect "$kho:dev" >/dev/null; then
-              echo "::error::$name chưa có tag \`dev\` — không suy được bản không đổi là bản nào."
-              echo "Xảy ra ở commit ĐẦU TIÊN của một gói GHCR mới. Chạy lại CI sau khi job đóng gói"
-              echo "tương ứng đã đẩy được ít nhất một lần."
-              exit 1
-            fi
-
-            docker buildx imagetools create --tag "$kho:${{ github.sha }}" "$kho:dev"
-            echo "ℹ $name không đổi — gắn thêm tag ${{ github.sha }} lên đúng digest cũ"
-          done
-
-          echo "Cả ba image đều có tag \`${{ github.sha }}\` — luồng đề bạt chỉ cần một SHA." \
-            >> "$GITHUB_STEP_SUMMARY"
+          .github/scripts/gan-tag-sha.sh \
+            "ghcr.io/${{ github.repository }}" \
+            "${{ github.sha }}" \
+            app admin-app public-web
 
   # ---------------------------------------------------------------------------
   # Kiểm phụ thuộc Ở MỨC PR — nhanh, chỉ soi phần PR THÊM VÀO
