@@ -80,8 +80,11 @@ public class SiteConfigService {
      *
      * <p>⭐ Hậu tố {@code .attachment-id} là thứ LÁI GIAO DIỆN, không phải quy ước cho đẹp:
      * {@code SiteConfigTab.tsx} lọc {@code key.endsWith('.attachment-id')} để quyết định dựng ô
-     * tải ảnh hay ô nhập chữ. {@code SiteConfigKeysTest} khẳng định mọi khoá trong tập này đều
-     * mang hậu tố ấy — thiếu nó thì khoá có đường ghi mà không có ô để bấm.
+     * tải ảnh hay ô nhập chữ. {@code SiteLayoutTest} và {@code MenuLogoAndMapImageTest} đi qua
+     * đúng đường ấy — thiếu hậu tố thì khoá có đường ghi mà không có ô để bấm.
+     *
+     * <p>⚠ 04/09: câu trên trước đây trỏ vào {@code SiteConfigKeysTest}, <b>một tệp không tồn tại
+     * trong kho</b> (quy tắc 28 — chú thích nêu tên bài kiểm đọc như một lời bảo đảm).
      */
     public static final Set<String> KHOA_ANH = Set.of(KEY_LOGO, KEY_FAVICON, KEY_HOME_MAP);
 
@@ -89,9 +92,14 @@ public class SiteConfigService {
      * Hai khoá duy nhất mà cổng công khai dựng bằng {@code dangerouslySetInnerHTML}.
      *
      * <p>Việc khử trùng <b>không</b> nằm ở lớp này (xem {@link #update}); chúng có mặt ở đây để
-     * {@code SiteConfigHtmlTypeTest} khẳng định hai dòng {@code settings} tương ứng vẫn mang
-     * {@code value_type} là {@code HTML} / {@code HTML_EMBED}. Đổi kiểu về {@code TEXT} là bộ lọc
-     * lặng lẽ ngừng chạy mà không lỗi nào — nên phải có bài kiểm giữ hộ.
+     * {@code SettingHtmlSanitizeTest} kiểm rằng HTML thô đi qua đúng bộ lọc trước khi ra
+     * {@code /public/site-config}. Đổi {@code value_type} về {@code TEXT} là bộ lọc lặng lẽ ngừng
+     * chạy mà không lỗi nào — nên phải có bài kiểm giữ hộ.
+     *
+     * <p>⚠ 04/09: câu trên trước đây trỏ vào {@code SiteConfigHtmlTypeTest}, <b>một tệp không tồn
+     * tại trong kho</b>. ⬜ Và phần *"khẳng định hai dòng settings vẫn mang HTML / HTML_EMBED"*
+     * thì <b>chưa bài nào làm</b> — nợ ghi ở {@code master-tracking.md} WS-40. Ghi ra khoảng
+     * trống còn hơn để một tên bài kiểm không tồn tại lấp chỗ nó (quy tắc 28).
      */
     public static final String KEY_FOOTER_INFO = "site.footer.company-info";
 

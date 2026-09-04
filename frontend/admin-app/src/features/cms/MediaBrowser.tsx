@@ -21,7 +21,7 @@ import { formatBytes, formatDateTime } from '@/shared/format';
 
 import { cmsApi, cmsKeys } from './api';
 import { buildTree } from './tree';
-import { type FolderNode, type MediaFile } from './types';
+import { type FolderNode, type KhoTep, type MediaFile } from './types';
 
 /**
  * Duyệt thư viện media — phần dùng chung giữa màn hình quản lý (T20.7) và hộp chọn ảnh cho
@@ -36,8 +36,16 @@ import { type FolderNode, type MediaFile } from './types';
  */
 
 export interface MediaBrowserProps {
-  /** Chỉ nhận ảnh — dùng khi mở từ trình soạn thảo. */
-  imagesOnly?: boolean;
+  /**
+   * Kho nào — WS-40. Mặc định `MEDIA` để mọi nơi gọi có trước 04/09 giữ nguyên hành vi.
+   *
+   * ⛔ Đây **không** phải một bộ lọc định dạng: hai kho khác nhau ở `owner_type`, tức ở **phạm vi
+   * công bố**. Ảnh và video công khai ngay khi tải lên; tài liệu chỉ ra cổng qua một bài đã xuất
+   * bản. Xem `KhoTep` phía backend.
+   */
+  kho?: KhoTep;
+  /** Lọc **nhóm định dạng bên trong** một kho: `image` · `video` · `document`. */
+  loai?: 'image' | 'video' | 'document';
   selectedId?: string | null;
   onSelect?: (file: MediaFile) => void;
   /** Ô thao tác thêm ở mỗi dòng — màn hình quản lý cắm nút xoá vào đây. */
@@ -45,13 +53,33 @@ export interface MediaBrowserProps {
   height?: number;
 }
 
-/** Ảnh xem trước đi qua đường công khai ổn định, không phải presigned URL sống 10 phút. */
+/**
+ * Ảnh xem trước đi qua đường công khai ổn định, không phải presigned URL sống 10 phút.
+ *
+ * ⛔ **Chỉ dùng cho `kho = 'MEDIA'`.** Tệp `TAI_LIEU` cố ý không nằm trong `LOAI_TEP_CONG_KHAI`
+ * nên đường này trả 404 — và một ô ảnh vỡ trông y hệt một tệp hỏng. Ở kho tài liệu, ô xám in đuôi
+ * MIME bên dưới mới là đường đúng.
+ */
 function previewUrl(publicId: string): string {
   return `/api/v1/public/files/${publicId}`;
 }
 
+/**
+ * Nhóm hiển thị của một MIME — **phải khớp `MediaService.nhomCua` của backend**.
+ *
+ * ⚠ Hai nơi phải nhớ cùng một luật phân nhóm; lệch nhau thì bộ lọc client và bộ lọc server trả
+ * hai danh sách khác nhau cho cùng một yêu cầu, và triệu chứng là "thỉnh thoảng thiếu tệp".
+ * Định dạng lạ rơi vào `document`, y hệt phía backend.
+ */
+function nhomCua(contentType: string): 'image' | 'video' | 'document' {
+  if (contentType.startsWith('image/')) return 'image';
+  if (contentType.startsWith('video/')) return 'video';
+  return 'document';
+}
+
 export function MediaBrowser({
-  imagesOnly = false,
+  kho = 'MEDIA',
+  loai,
   selectedId = null,
   onSelect,
   renderFileExtra,
@@ -74,8 +102,11 @@ export function MediaBrowser({
   const activeFolder = folderId ?? folders.data?.[0]?.publicId ?? null;
 
   const files = useQuery({
-    queryKey: cmsKeys.files(activeFolder),
-    queryFn: () => (activeFolder ? cmsApi.files(activeFolder) : Promise.resolve([])),
+    // ⛔ `kho` và `loai` PHẢI có trong khoá — xem javadoc `cmsKeys.files`. Thiếu chúng thì hộp
+    //    chọn ảnh và hộp chọn tài liệu dùng chung một mục cache, và hộp thứ hai hiện danh sách
+    //    của hộp thứ nhất mà không lỗi nào.
+    queryKey: cmsKeys.files(activeFolder, kho, loai),
+    queryFn: () => (activeFolder ? cmsApi.files(activeFolder, kho, loai) : Promise.resolve([])),
     enabled: activeFolder !== null,
   });
 
@@ -84,11 +115,11 @@ export function MediaBrowser({
       if (!activeFolder) {
         return Promise.reject(new Error('Chưa chọn thư mục'));
       }
-      return cmsApi.uploadFile(activeFolder, file);
+      return cmsApi.uploadFile(activeFolder, file, kho);
     },
     onSuccess: async (_data, variables) => {
       setProgress((prev) => ({ ...prev, [variables.uid]: 100 }));
-      await queryClient.invalidateQueries({ queryKey: cmsKeys.files(activeFolder) });
+      await queryClient.invalidateQueries({ queryKey: cmsKeys.files(activeFolder, kho, loai) });
     },
     onError: (caught: unknown, variables) => {
       // Giữ lại dòng tiến trình ở mức đang dở: xoá đi thì tệp hỏng biến mất khỏi danh sách
@@ -108,8 +139,11 @@ export function MediaBrowser({
     return buildTree(folders.data ?? []).map(toNode);
   }, [folders.data]);
 
+  // ⚠ Bộ lọc client GIỮ NGUYÊN song song với tham số server, có chủ đích. Ở đây hai lớp thật sự
+  //   ĐỘC LẬP — một ở Java, một ở trình duyệt — nên chúng không cùng hỏng vì một lý do. (Khác hẳn
+  //   cặp fail-open của `khoiVanHanh`, nơi cả hai lớp đọc chung một lượt gọi API.)
   const hienThi = (files.data ?? [])
-    .filter((file) => !imagesOnly || file.contentType.startsWith('image/'))
+    .filter((file) => loai === undefined || nhomCua(file.contentType) === loai)
     .filter((file) => file.originalName.toLowerCase().includes(keyword.trim().toLowerCase()));
 
   return (
@@ -162,7 +196,9 @@ export function MediaBrowser({
           <Button
             icon={<ReloadOutlined />}
             onClick={() =>
-              void queryClient.invalidateQueries({ queryKey: cmsKeys.files(activeFolder) })
+              void queryClient.invalidateQueries({
+                queryKey: cmsKeys.files(activeFolder, kho, loai),
+              })
             }
           />
         </Space>
@@ -188,7 +224,10 @@ export function MediaBrowser({
             loading={files.isLoading}
             locale={{ emptyText: <Empty description="Thư mục này chưa có tệp nào" /> }}
             renderItem={(file) => {
-              const laAnh = file.contentType.startsWith('image/');
+              // ⛔ `kho === 'MEDIA'` là vế BẮT BUỘC. Không có nó thì kho tài liệu (nếu một ngày
+              //    nhận ảnh) sẽ dựng `<Image src="/public/files/{id}">` — đường trả 404 với
+              //    `TAI_LIEU` — và màn hình đầy ô ảnh vỡ trông y hệt tệp hỏng.
+              const laAnh = kho === 'MEDIA' && file.contentType.startsWith('image/');
               const dangChon = file.publicId === selectedId;
               return (
                 <List.Item>

@@ -53,8 +53,32 @@ export interface ArticleDetail {
    */
   publiclyVisible: boolean;
   categoryPublicIds: string[];
+  /**
+   * Tài liệu đính kèm — **BẢN ĐANG BIÊN TẬP** (WS-40).
+   *
+   * ⛔ Cổng công khai đọc **bản chụp phiên bản**, không đọc danh sách này. Hai danh sách khác
+   * nhau chừng nào bản sửa chưa được duyệt — và đó chính là điểm của cơ chế, không phải lỗi.
+   */
+  documents: ArticleDocumentView[];
   /** Nút được phép bấm, đã lọc theo quyền và theo `workflow_transitions`. */
   allowedActions: AllowedActionView[];
+}
+
+/**
+ * Một tài liệu đính kèm, đã ghép siêu dữ liệu của tệp — khớp `TaiLieuDinhKem` của BE.
+ *
+ * ⚠ `label` và `originalName` là **hai thứ khác nhau** và màn hình phải hiện cả hai: chỉ hiện
+ * nhãn thì ba dòng cùng mang chữ *"Xem quyết định ở đây"* là không truy được cái nào là cái nào.
+ */
+export interface ArticleDocumentView {
+  publicId: string;
+  /** Tên gợi nhớ; `null` = chưa đặt ⇒ cổng hiện `originalName`. ⛔ Không sinh nhãn mặc định. */
+  label: string | null;
+  originalName: string;
+  contentType: string;
+  sizeBytes: number;
+  /** `false` = còn đang quét virus — hiện đúng trạng thái ấy thay vì một nút tải sẽ bị từ chối. */
+  downloadable: boolean;
 }
 
 export interface ArticleSaveRequest {
@@ -80,6 +104,13 @@ export interface ArticleSaveRequest {
   /** Ngày ký ban hành, dạng `YYYY-MM-DD` (không có giờ, không có múi giờ). */
   docIssuedDate?: string | null;
   categoryPublicIds: string[];
+  /**
+   * Tài liệu đính kèm, **theo đúng thứ tự người dùng sắp** (WS-40).
+   *
+   * ⚠ Mảng chứ không tập: thứ tự là dữ liệu người dùng nhập, khác `categoryPublicIds`.
+   * Bỏ trống hoặc mảng rỗng = bài không có tệp nào — một câu trả lời hợp lệ.
+   */
+  documents?: ArticleDocumentLink[];
 }
 
 export interface VersionSummary {
@@ -128,6 +159,24 @@ export interface MediaFile {
   sizeBytes: number;
   createdAt: string;
 }
+
+/** Mã tệp + tên gợi nhớ — thứ gửi lên khi lưu bài. */
+export interface ArticleDocumentLink {
+  publicId: string;
+  label?: string | null;
+}
+
+/**
+ * Hai kho tệp dùng chung bộ máy thư viện, khác **phạm vi công bố** — khớp enum `KhoTep` của BE.
+ *
+ * - `MEDIA` — ảnh và video: công khai ngay khi tải lên (`/api/v1/public/files/{id}`).
+ * - `TAI_LIEU` — tài liệu: **chỉ ra cổng qua một bài đã xuất bản**
+ *   (`/api/v1/public/article-documents/{id}`); đường tệp công khai trả 404.
+ *
+ * ⛔ Đây là hai từ vựng phải khớp giữa hai phía. Gõ sai chuỗi thì backend ném 422 chứ không âm
+ * thầm trả kho kia — `KhoTep.tuThamSo` cố ý không rơi về mặc định khi gặp giá trị lạ.
+ */
+export type KhoTep = 'MEDIA' | 'TAI_LIEU';
 
 export interface BannerView {
   publicId: string;

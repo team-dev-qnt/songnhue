@@ -97,7 +97,12 @@ public class PortalCache implements PortalCachePort {
      * tối đa 300 giây (chu kỳ ISR), rồi tự đúng lại; không lỗi nào, không dấu vết nào.
      *
      * <p>Nay {@link SiteConfigService#onSettingChanged} gọi nó, và
-     * {@code CongTacTrangChuTest} đếm hàng bảng {@code jobs} để chứng minh lời gọi ấy còn sống.
+     * {@code PortalCacheInvalidationTest} đếm hàng bảng {@code jobs} để chứng minh lời gọi ấy còn
+     * sống.
+     *
+     * <p>⚠ 04/09: câu trên trước đây trỏ vào {@code CongTacTrangChuTest} — <b>một tệp không tồn
+     * tại trong kho</b>. Một chú thích nêu tên bài kiểm đọc như một lời bảo đảm, nên nó phải nêu
+     * tên bài kiểm <i>có thật</i> (quy tắc 28). Tìm bằng {@code grep} trước khi viết tên vào đây.
      *
      * <h2>⭐ Gửi CẢ nhãn lẫn đường dẫn trang chủ — cùng lý do với hai phương thức anh em</h2>
      *

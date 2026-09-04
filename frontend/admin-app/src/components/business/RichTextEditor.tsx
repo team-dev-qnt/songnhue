@@ -9,6 +9,7 @@ import {
   ItalicOutlined,
   LinkOutlined,
   OrderedListOutlined,
+  PaperClipOutlined,
   PlayCircleOutlined,
   StrikethroughOutlined,
   TableOutlined,
@@ -81,6 +82,20 @@ export interface RichTextEditorProps {
    * (và vẫn chặn trình duyệt điều hướng đi) chứ không im lặng nuốt tệp.
    */
   onUploadImage?: (file: File) => Promise<{ publicId: string }>;
+  /**
+   * Mở Kho tài liệu và trả về tệp được chọn, kèm chữ sẽ hiện làm liên kết — WS-40.
+   *
+   * ⛔⛔ **Nơi gọi phải ĐỒNG THỜI thêm tệp ấy vào danh sách đính kèm của bài.** Một liên kết chỉ
+   * nằm trong HTML là một liên kết CHẾT: đường công khai
+   * `/api/v1/public/article-documents/{id}` đòi tệp có mặt trong bản chụp phiên bản, nên nó trả
+   * 404. Đó là §10.52 ở dạng thuần khiết — liên kết có tên, bấm vào thì hỏng, và không lỗi nào.
+   *
+   * ⚠ Trình soạn thảo cố ý **không tự nối**: nó không biết gì về bài viết. Ràng buộc ấy ép ở nơi
+   * gọi (`ArticleEditorPage`), và câu này là chỗ nó được ghi ra.
+   *
+   * `null` = người dùng đóng hộp thoại.
+   */
+  onPickDocument?: () => Promise<{ publicId: string; text: string } | null>;
   /** Số ảnh đang tải dở — nơi gọi dùng để khoá nút Lưu. Xem `FigureImage.TransientAttrs`. */
   onPendingUploadsChange?: (count: number) => void;
   disabled?: boolean;
@@ -109,6 +124,7 @@ export function RichTextEditor({
   onChange,
   onPickImage,
   onUploadImage,
+  onPickDocument,
   onPendingUploadsChange,
   disabled = false,
   minHeight = 360,
@@ -347,6 +363,44 @@ export function RichTextEditor({
   };
 
   /**
+   * Chèn một liên kết tải tài liệu tại vị trí con trỏ — WS-40.
+   *
+   * <h3>⛔ Đường dẫn phải là ĐƯỜNG HẸP, không phải `/public/files/{id}`</h3>
+   *
+   * Tệp tài liệu mang `owner_type = 'TAI_LIEU'`, cố ý không nằm trong `LOAI_TEP_CONG_KHAI`, nên
+   * `/public/files/{id}` trả **404 câm**. Đường `/public/article-documents/{id}` không mang slug
+   * bài nên đổi slug không làm hỏng liên kết đã chèn.
+   *
+   * <h3>⚠ Chèn TƯƠNG ĐỐI, và đó là điều kiện để nó sống sót qua bộ khử trùng</h3>
+   *
+   * `HtmlSanitizer` bật `preserveRelativeLinks(true)`, nên `href` bắt đầu bằng `/` đi qua nguyên
+   * vẹn. Ghi cả tên miền vào đây là khoá cứng địa chỉ của một môi trường vào nội dung bài.
+   */
+  const chenTaiLieu = async () => {
+    if (!onPickDocument) {
+      return;
+    }
+    const picked = await onPickDocument();
+    if (!picked) {
+      return;
+    }
+    editor
+      .chain()
+      .focus()
+      .insertContent({
+        type: 'text',
+        text: picked.text,
+        marks: [
+          {
+            type: 'link',
+            attrs: { href: `/api/v1/public/article-documents/${picked.publicId}`, target: null },
+          },
+        ],
+      })
+      .run();
+  };
+
+  /**
    * Sửa một thuộc tính của ảnh đang chọn.
    *
    * ⚠ Cố ý **không** gọi `.focus()`: ô nhập chú thích nằm ngoài vùng soạn thảo, kéo con trỏ
@@ -487,6 +541,13 @@ export function RichTextEditor({
                 title="Chèn ảnh từ thư viện"
                 icon={<FileImageOutlined />}
                 onClick={() => void chenAnhTuThuVien()}
+              />
+            )}
+            {onPickDocument && (
+              <ToolbarButton
+                title="Chèn liên kết tài liệu"
+                icon={<PaperClipOutlined />}
+                onClick={() => void chenTaiLieu()}
               />
             )}
             <ToolbarButton

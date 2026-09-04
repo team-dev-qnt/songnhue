@@ -1,5 +1,6 @@
 import { connection } from 'next/server';
 
+import { khoiVanHanhBat, locMenuTheoCongTac } from '@/lib/khoiVanHanh';
 import { API_INTERNAL_BASE_URL } from '@/lib/site';
 
 /**
@@ -192,6 +193,30 @@ export interface ArticleDetail extends ArticleRow {
    */
   source: string | null;
   categories: CategoryRef[];
+  /**
+   * Tài liệu đính kèm — lấy từ **bản chụp phiên bản đang xuất bản** (WS-40).
+   *
+   * ⛔ Backend đã lọc còn những tệp **tải về được thật**: đúng kho, chưa xoá, đã quét virus xong.
+   * Nên nơi hiển thị không phải kiểm gì thêm — nhưng cũng ⛔ **không** được dựng liên kết bằng
+   * `fileUrl()`: dùng `articleDocUrl()`, xem javadoc của nó.
+   *
+   * Mảng rỗng = bài không có tệp nào ⇒ nơi hiển thị **bỏ hẳn khối**, không vẽ "Đang cập nhật".
+   */
+  documents: TaiLieuRef[];
+}
+
+/**
+ * Một tài liệu đính kèm trên cổng.
+ *
+ * @remarks `title` là chữ đã **giải xong** ở backend: nhãn gợi nhớ người biên tập đặt, hoặc tên
+ * gốc của tệp khi chưa ai đặt. ⛔ Đừng tự ghép lại ở đây — để phía giao diện tự chọn thì khối
+ * cuối bài, liên kết giữa nội dung và tên tệp lúc tải về sẽ nói ba kiểu khác nhau.
+ */
+export interface TaiLieuRef {
+  publicId: string;
+  title: string;
+  contentType: string;
+  sizeBytes: number;
 }
 
 /** Kết quả một trang, đã ghép `data` với `meta` để nơi gọi chỉ cầm một thứ. */
@@ -331,8 +356,33 @@ export function getSiteConfig(): Promise<SiteConfig | null> {
   return apiGet<SiteConfig>('/site-config', { tags: [CACHE_TAGS.layout] });
 }
 
-export function getMenu(position: 'HEADER' | 'FOOTER' | 'LIEN_KET'): Promise<MenuLink[] | null> {
-  return apiGet<MenuLink[]>(`/menus/${position}`, { tags: [CACHE_TAGS.layout] });
+/**
+ * Menu công khai của một vị trí — **đã lọc theo công tắc khối Vận hành**.
+ *
+ * <h3>⭐ Vì sao bộ lọc nằm ở ĐÂY chứ không ở từng component</h3>
+ *
+ * Ba nơi vẽ menu ({@code SiteHeader}, {@code SiteFooter}, {@code SectionNav}) cộng trang chủ đều
+ * đi qua đúng hàm này. Đặt bộ lọc ở từng nơi gọi là bốn chỗ phải nhớ, và nơi gọi **thứ năm** ra
+ * đời sau sẽ quên — T27.7 đã trả nợ xoá đệm cổng ở ba điểm ghi rồi điểm ghi thứ tư ra đời cùng
+ * đợt mang lại đúng lỗi cũ. Đặt ở đây thì "quên lọc" là điều không biểu diễn được (quy tắc 12).
+ *
+ * <p>⚠ Không thêm vòng khứ hồi nào: {@code getSiteConfig()} dùng cùng {@code apiGet} với cùng
+ * nhãn cache {@code giao-dien}, và mọi nơi gọi menu đều đã lấy cấu hình sẵn trong cùng một
+ * {@code Promise.all} — Next gộp hai lượt {@code fetch} trùng URL trong một lượt dựng.
+ *
+ * <p>⚠ Bộ lọc so theo **đường dẫn**, nên vị trí {@code LIEN_KET} (dải logo cơ quan, toàn liên kết
+ * ngoài) không bao giờ bị đụng. Có bài kiểm khẳng định đúng điều đó.
+ */
+export async function getMenu(
+  position: 'HEADER' | 'FOOTER' | 'LIEN_KET',
+): Promise<MenuLink[] | null> {
+  const [menu, config] = await Promise.all([
+    apiGet<MenuLink[]>(`/menus/${position}`, { tags: [CACHE_TAGS.layout] }),
+    getSiteConfig(),
+  ]);
+
+  // Menu không về được thì trả `null` như trước — nơi gọi đã có nhánh dự phòng riêng.
+  return menu === null ? null : locMenuTheoCongTac(menu, khoiVanHanhBat(config));
 }
 
 export function getBanners(): Promise<BannerItem[] | null> {

@@ -82,6 +82,10 @@ export function OperationsBlock({ refreshSeconds, updatedAt, rows }: OperationsB
           </div>
         </div>
 
+        {/* ⚠ Liên kết này trỏ vào một trang có thể trả 404 (công tắc `lib/khoiVanHanh.ts`). Nó an
+            toàn vì cả khối chỉ được vẽ BÊN TRONG nhánh `hienDieuHanh` của `app/page.tsx` — tức an
+            toàn do VỊ TRÍ trong JSX, không do một phép kiểm nào. Gỡ bọc điều kiện ấy là có ngay
+            một liên kết chết; ai chuyển khối này đi chỗ khác phải mang theo công tắc. */}
         <Link
           href={ROUTES.quanLyVanHanh.vanHanhCongTrinh}
           className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-lg bg-emerald-700 px-4 py-2 text-[13px] font-bold text-white shadow-xs transition-colors hover:bg-emerald-800"

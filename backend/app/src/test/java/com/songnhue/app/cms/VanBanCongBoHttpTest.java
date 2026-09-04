@@ -3,6 +3,7 @@ package com.songnhue.app.cms;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -178,7 +179,8 @@ class VanBanCongBoHttpTest extends IntegrationTestBase {
                         null,
                         "SO-HIEU-CHUA-DUYET",
                         LocalDate.of(2026, 1, 1),
-                        Set.of(danhMuc)));
+                        Set.of(danhMuc),
+                        List.of()));
 
         ResponseEntity<String> res = http.getForEntity("/api/v1/public/articles/" + bai.getSlug(), String.class);
 
@@ -210,7 +212,8 @@ class VanBanCongBoHttpTest extends IntegrationTestBase {
                 null,
                 soKyHieu,
                 ngayBanHanh,
-                Set.of(danhMuc)));
+                Set.of(danhMuc),
+                List.of()));
         articles.execute(bai.getPublicId(), "SUBMIT", null);
         return articles.execute(bai.getPublicId(), "APPROVE", null);
     }

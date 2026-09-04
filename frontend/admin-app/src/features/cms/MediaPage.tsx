@@ -8,18 +8,25 @@ import { ApiClientError } from '@/shared/apiClient';
 
 import { cmsApi, cmsKeys } from './api';
 import { MediaBrowser } from './MediaBrowser';
-import { type MediaFile } from './types';
+import { type KhoTep, type MediaFile } from './types';
 
 /**
- * Thư viện media — T20.7, CN-01.3.
+ * Thư viện media và **Kho tài liệu** — T20.7, CN-01.3, WS-40.
  *
  * <h3>Xoá tệp: hỏi trước xem có ai đang dùng nó không</h3>
  *
  * Backend có sẵn endpoint liệt kê bài viết đang tham chiếu một tệp. Không hỏi thì việc xoá
  * một ảnh sẽ làm **hỏng ảnh trong những bài đã xuất bản** — mà bài đó đã dựng sẵn trên cổng
  * và sẽ giữ ô ảnh vỡ suốt tới chu kỳ dựng lại kế tiếp. Người xoá thì không hề biết.
+ *
+ * <h3>⭐ Một trang, hai kho — ⛔ không chép thành tệp thứ hai</h3>
+ *
+ * Kho tài liệu khác thư viện media ở **đúng một thứ**: `owner_type`, tức phạm vi công bố. Cây
+ * thư mục, đường tải lên, magic-bytes, hạn mức, quét virus, chốt chặn xoá đều dùng chung. Chép
+ * màn hình ra thành hai tệp là dựng hai bản của cùng một luật, rồi lượt sửa sau chỉ chạm được
+ * một bản.
  */
-export function MediaPage() {
+export function MediaPage({ kho = 'MEDIA' }: { kho?: KhoTep } = {}) {
   const { message, modal } = App.useApp();
   const queryClient = useQueryClient();
   const { hasPermission } = useAuth();
@@ -96,9 +103,11 @@ export function MediaPage() {
     });
   };
 
+  const laTaiLieu = kho === 'TAI_LIEU';
+
   return (
     <Card
-      title="Thư viện media"
+      title={laTaiLieu ? 'Kho tài liệu' : 'Thư viện media'}
       extra={
         coQuyen && (
           <Button icon={<FolderAddOutlined />} onClick={() => setCreatingFolder(true)}>
@@ -107,7 +116,30 @@ export function MediaPage() {
         )
       }
     >
+      {/* ⭐ Một dòng CHỮ THẬT, không phải tooltip. Ranh giới công bố là thứ người vận hành phải
+          biết TRƯỚC khi tải tệp lên, và một ghi chú chỉ hiện khi rê chuột thì không ai đọc.
+          ⚠ Nói ra cả điều lâu nay đúng mà chưa ai viết: ảnh trong thư viện media công khai NGAY
+            khi tải lên, kể cả khi chưa bài nào dùng. Đó là hành vi CỐ Ý, có ba bài kiểm đóng
+            đinh — đợt WS-40 không đụng tới, chỉ tài liệu mới siết. */}
+      <Typography.Paragraph type="secondary" style={{ fontSize: 13 }}>
+        {laTaiLieu ? (
+          <>
+            Tài liệu ở đây <strong>chưa công khai</strong>. Chúng chỉ tải về được từ cổng khi đã
+            đính vào một bài viết <strong>đã xuất bản</strong> — bài còn nháp hoặc đã gỡ thì đường
+            tải trả về &ldquo;không tìm thấy&rdquo;. Nhận PDF, DOC/DOCX, XLS/XLSX, ZIP.
+          </>
+        ) : (
+          <>
+            Ảnh và video ở đây <strong>công khai ngay khi tải lên</strong>, kể cả khi chưa bài nào
+            dùng — ai biết đường dẫn đều xem được. Tài liệu (PDF, DOCX, XLSX…) đi{' '}
+            <strong>Kho tài liệu</strong> riêng, có kiểm trạng thái xuất bản.
+          </>
+        )}
+      </Typography.Paragraph>
+
       <MediaBrowser
+        kho={kho}
+        loai={laTaiLieu ? 'document' : undefined}
         height={560}
         renderFileExtra={
           coQuyen
@@ -155,4 +187,17 @@ export function MediaPage() {
       </Modal>
     </Card>
   );
+}
+
+/**
+ * Kho tài liệu — cùng màn hình, khác kho (WS-40).
+ *
+ * ⚠ Tồn tại vì `lazyPage` của `router.tsx` render component **không truyền prop nào**. Một
+ * component bọc ba dòng ở đây rẻ hơn hẳn việc nới `lazyPage` thành nhận props: nới nó là mở
+ * cho mọi tuyến truyền trạng thái qua bảng định tuyến, đúng thứ khó lần ngược nhất khi đọc mã.
+ *
+ * ⛔ Không chép `MediaPage` ra tệp thứ hai — xem javadoc của nó.
+ */
+export function KhoTaiLieuPage() {
+  return <MediaPage kho="TAI_LIEU" />;
 }

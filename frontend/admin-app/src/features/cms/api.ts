@@ -9,6 +9,7 @@ import {
   type BannerView,
   type CategoryNode,
   type FolderNode,
+  type KhoTep,
   type MediaFile,
   type MenuNode,
   type MenuPosition,
@@ -41,7 +42,19 @@ export const cmsKeys = {
     ['cms', 'article', publicId, 'version', versionId] as const,
   categories: () => ['cms', 'categories'] as const,
   folders: () => ['cms', 'folders'] as const,
-  files: (folderId: string | null) => ['cms', 'files', folderId] as const,
+  /**
+   * ⛔⛔ `kho` và `loai` **bắt buộc** nằm trong khoá — WS-40.
+   *
+   * Trước 04/09 khoá chỉ có `folderId`, mà `MediaBrowser` lọc phía client. Từ khi có hai kho
+   * và bộ lọc chạy ở server, mở hộp chọn **ảnh** rồi hộp chọn **tài liệu** trong cùng một
+   * `ArticleEditorPage` là **hai truy vấn khác nhau dùng chung một mục cache**: hộp thứ hai
+   * hiện danh sách của hộp thứ nhất, không lỗi nào — và `invalidateQueries` xoá nhầm.
+   *
+   * Đây là lỗi *sẽ chắc chắn xảy ra*, không phải rủi ro xa: hai lời gọi ấy nằm cách nhau vài
+   * dòng trong cùng một màn hình.
+   */
+  files: (folderId: string | null, kho: KhoTep = 'MEDIA', loai?: string) =>
+    ['cms', 'files', folderId, kho, loai ?? null] as const,
   fileUsages: (publicId: string) => ['cms', 'file', publicId, 'usages'] as const,
   banners: () => ['cms', 'banners'] as const,
   menu: (position: MenuPosition) => ['cms', 'menu', position] as const,
@@ -176,14 +189,28 @@ export const cmsApi = {
     return api.delete<void>(`${BASE}/media/folders/${publicId}`);
   },
 
-  files(folderId: string, params?: { q?: string; contentType?: string }): Promise<MediaFile[]> {
-    return api.get<MediaFile[]>(`${BASE}/media/folders/${folderId}/files`, params);
+  /**
+   * Tệp trong một thư mục.
+   *
+   * ⚠⚠ **Ba tham số cũ `{ q, contentType }` chưa từng được backend đọc** — nó chỉ nhận
+   * `type`/`from`/`to`. Chưa nơi gọi nào truyền nên khuyết tật im lặng suốt từ WS-14; truyền vào
+   * mà tưởng đã lọc thì nhận về *tất cả*, và hộp chọn tài liệu sẽ hiện cả ảnh lẫn video. Đúng
+   * hình dạng quy tắc 15 (nửa cặp đọc–ghi), sửa 04/09 cùng đợt WS-40.
+   *
+   * @param kho kho nào — `MEDIA` (ảnh, video) hay `TAI_LIEU`. Mặc định `MEDIA`.
+   * @param loai lọc **nhóm định dạng bên trong** một kho: `image` · `video` · `document`
+   */
+  files(folderId: string, kho: KhoTep = 'MEDIA', loai?: string): Promise<MediaFile[]> {
+    return api.get<MediaFile[]>(`${BASE}/media/folders/${folderId}/files`, { kho, type: loai });
   },
 
-  uploadFile(folderId: string, file: File): Promise<MediaFile> {
+  uploadFile(folderId: string, file: File, kho: KhoTep = 'MEDIA'): Promise<MediaFile> {
     const form = new FormData();
     form.append('file', file);
-    return api.upload<MediaFile>(`${BASE}/media/folders/${folderId}/files`, form);
+    // ⚠ `kho` đi qua QUERY STRING, không nhét vào form: backend khai nó là `@RequestParam` để
+    //   đường tải lên vẫn là một `multipart` thuần một phần `file` — thêm phần thứ hai là đổi
+    //   hợp đồng của mọi nơi gọi cũ.
+    return api.upload<MediaFile>(`${BASE}/media/folders/${folderId}/files?kho=${kho}`, form);
   },
 
   /**

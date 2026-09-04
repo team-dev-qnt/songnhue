@@ -260,6 +260,11 @@ export const router = createBrowserRouter([
             lazyPage(() => import('@/features/cms/MediaPage'), 'MediaPage'),
           ),
           adminRoute(
+            '/noi-dung/kho-tai-lieu',
+            'cms:media:manage',
+            lazyPage(() => import('@/features/cms/MediaPage'), 'KhoTaiLieuPage'),
+          ),
+          adminRoute(
             '/noi-dung/giao-dien',
             'cms:layout:manage',
             lazyPage(() => import('@/features/cms/SiteLayoutPage'), 'SiteLayoutPage'),

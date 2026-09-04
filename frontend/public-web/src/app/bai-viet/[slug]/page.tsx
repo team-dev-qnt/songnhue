@@ -5,8 +5,10 @@ import { notFound } from 'next/navigation';
 import { Breadcrumb } from '@/components/Breadcrumb';
 import { PortalSidebar } from '@/components/PortalSidebar';
 import { ViewTracker } from '@/components/ViewTracker';
+import { TaiLieuDinhKem } from '@/components/article/TaiLieuDinhKem';
 import { getArticle, getArticles, getSiteConfig } from '@/lib/api';
 import { docNguonBaiViet } from '@/lib/nguonBaiViet';
+import { khoiVanHanhBat } from '@/lib/khoiVanHanh';
 import { fileUrl, formatDate, ROUTES } from '@/lib/routes';
 
 /** Trang chi tiết một bài viết — T16.2. */
@@ -145,6 +147,10 @@ export default async function ArticlePage({ params }: PageProps) {
               dangerouslySetInnerHTML={{ __html: article.content }}
             />
 
+            {/* Tài liệu đính kèm — WS-40. ⛔ Component tự biến mất khi mảng rỗng, nên KHÔNG bọc
+                thêm điều kiện ở đây: hai chỗ cùng quyết định một việc là hai chỗ có thể lệch. */}
+            <TaiLieuDinhKem documents={article.documents} />
+
             {/* Dải chân bài viết: Chia sẻ & Quay lại */}
             <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-surface-border/80 pt-4 text-xs">
               <Link
@@ -185,6 +191,7 @@ export default async function ArticlePage({ params }: PageProps) {
             latestArticles={latestNews?.content ?? []}
             hotline={config?.['company.hotline']}
             docSystemUrl={config?.['site.external.doc-system-url']}
+            hienKhoiVanHanh={khoiVanHanhBat(config)}
           />
         </div>
       </div>
