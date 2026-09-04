@@ -10,7 +10,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
- * Gọi các hàm bảo trì time-series đã cài trong CSDL ({@code V202609011052}).
+ * Gọi các hàm bảo trì time-series đã cài trong CSDL ({@code V202609041059}).
  *
  * <p>⚠ Lớp này <b>không tự viết DDL bằng Java</b>. Việc tạo và xoá partition sống trong hai hàm
  * plpgsql, vì chúng phải làm ba việc mà mã ứng dụng làm được nhưng làm sai thì rất khó thấy: siết

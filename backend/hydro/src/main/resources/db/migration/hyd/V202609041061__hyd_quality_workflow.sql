@@ -6,7 +6,7 @@
 --   T32.5  quy trình `HYDRO_READING`: NGHI_NGO → HOP_LE | XOA
 --
 -- ⚠ Số hiệu `V<yyyyMMdd><nnnn>`: `nnnn` là **số thứ tự chạy toàn kho**, ⛔ KHÔNG
---   phải giờ-phút. Đỉnh trước migration này là `V202609021053` ⇒ `1054`.
+--   phải giờ-phút. Đỉnh trước migration này là `V202609041060` ⇒ `1054`.
 --   §10.66 đã làm đỏ hai lượt CD liên tiếp vì đúng chỗ này.
 -- =============================================================================
 

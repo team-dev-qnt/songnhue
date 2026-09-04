@@ -53,7 +53,7 @@ import com.songnhue.hydro.domain.QuyTacNghiNgo;
  * <b>02/09/2026</b> (WS-32/T32.1) — khoá ấy seed từ 13/8 và nằm <b>20 ngày</b> không ai đọc.
  *
  * <p>✅ <b>Không còn khoá nào chưa có người đọc.</b> {@code hydro.threshold.default-set} đã bị
- * <b>gỡ khỏi seed</b> ở {@code V202609031055} (WS-33/T33.12) thay vì được nối vế đọc — nối nghĩa là
+ * <b>gỡ khỏi seed</b> ở {@code V202609041062} (WS-33/T33.12) thay vì được nối vế đọc — nối nghĩa là
  * áp một tập <b>con số ngưỡng</b> tự động cho mọi trạm mới, mà những con số ấy chính là G9-a Công ty
  * chưa đưa. Ngày họ đưa, khoá dựng lại <b>cùng commit với đoạn mã đọc nó</b>. ⛔ Không gia hạn lần
  * thứ hai, và ⛔ không seed lại trước khi có người gọi.
@@ -158,7 +158,7 @@ public class HydroSettings {
      * <p>⛔ Dọn bằng cách <b>xoá hẳn partition tháng</b> — không kết xuất, không phục hồi được. Ràng
      * buộc seed: {@code min=7;max=1825}, và hàm trong CSDL còn một sàn an toàn 7 ngày nữa phía sau.
      *
-     * <p>📌 Khoá này seed <b>cùng lúc</b> với hàm đọc này ({@code V202609011052}), ⛔ không seed
+     * <p>📌 Khoá này seed <b>cùng lúc</b> với hàm đọc này ({@code V202609041059}), ⛔ không seed
      * trước — tám khoá HYDRO của 13/8 đã nằm 18 ngày không ai đọc, và đó chính là luật 15 (§10.9).
      */
     public int soNgayGiuRawLog() {
@@ -173,7 +173,7 @@ public class HydroSettings {
      * nhiêu lượt hỏng liên tiếp thì gọi người". Gộp lại là một công tắc cho hai bóng đèn: hạ số lần
      * thử lại để nguồn đỡ tải, và vô tình làm cảnh báo réo sớm hơn.
      *
-     * <p>📌 Khoá seed <b>cùng commit</b> với hàm này ({@code V202609021053}) và có người gọi ngay
+     * <p>📌 Khoá seed <b>cùng commit</b> với hàm này ({@code V202609041060}) và có người gọi ngay
      * ({@code ApiSourceHealthService}) — ⛔ không lặp lại 18 ngày im lặng của tám khoá ngày 13/8.
      */
     public int soLanHongTruocKhiCanhBao() {
@@ -187,7 +187,7 @@ public class HydroSettings {
      * lưới an toàn cho một con số kỹ thuật, còn ở đây một vỏ bọc ghi cứng trong Java sẽ âm thầm
      * thắng ô nhập trên màn hình Cấu hình khi khoá rỗng — người vận hành xoá quy tắc đi mà hệ thống
      * vẫn đánh dấu NGHI_NGO, không giải thích được. Nơi chốt giá trị là migration
-     * {@code V202609021054}; ở đây rỗng nghĩa là <b>không kiểm</b>, và {@link BoQuyTacNghiNgo#RONG}
+     * {@code V202609041061}; ở đây rỗng nghĩa là <b>không kiểm</b>, và {@link BoQuyTacNghiNgo#RONG}
      * nói rõ điều đó không phải là "mọi bản ghi hợp lệ".
      *
      * @return ⛔ không bao giờ {@code null}; {@link BoQuyTacNghiNgo#RONG} khi chưa cấu hình <b>hoặc</b>

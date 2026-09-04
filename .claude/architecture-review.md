@@ -5304,6 +5304,62 @@ có `@Nested` nên bộ lọc không bắt được lớp lồng. Đúng luật 
 nhân: lần trước là cú pháp `A+B` sai, lần này là lớp lồng. ⇒ **Với bất kỳ lớp nào có `@Nested`, phép
 đo tin được là chạy cả module rồi đếm `Tests run`, không phải mã thoát của một lượt `-Dtest`.**
 
+### §10.74 — `git merge` sạch không đụng độ một dòng nào, và cây gộp vỡ ở BỐN chỗ (4/9)
+
+**Bối cảnh.** PR #78 (Phase 2, WS-29→34) mở trước. PR #85 (WS-40) gộp vào `dev` **trước**, CI trên
+`dev` xanh. Gộp `dev` ngược vào nhánh PR #78 ⇒ `git merge` báo **0 đụng độ ở mã**, đúng một đụng độ
+văn bản ở `CLAUDE.md`. CI của PR #78 sau lượt ấy: **3 job đỏ**.
+
+Đây là luật 26 ở dạng đầy đủ nhất kho này từng đo được: **hai nhánh mỗi nhánh xanh trọn vẹn, không
+tệp nào bị cả hai sửa, và hợp của chúng vỡ.**
+
+**Bốn khuyết tật — hai cặp soi gương nhau.**
+
+| # | `dev` (PR #85) mang gì | PR #78 mang gì | Kết quả |
+|---|---|---|---|
+| 1 | migration `V202609041057`/`1058` | 5 tệp `1052`–`1056` | out-of-order, **§10.66 dựng lại** |
+| 2 | **nơi gọi mới** `new JobContext(…5 tham số)` | `record` mở rộng thành **6** | không biên dịch |
+| 3 | `it('có đủ 81 mã')` | `it('có đủ 90 mã')` | vá tay hỏng → **sai cú pháp** |
+| 4 | **bảng mới** không khai `scroll.x` | **bộ canh mới** đòi mọi bảng khai | bài kiểm đỏ |
+
+⭐ **#2 và #4 là cùng một hình dạng nhìn từ hai đầu**: một nhánh thêm *luật*, nhánh kia thêm *thứ vi
+phạm luật*. Không nhánh nào một mình sai, và ⛔ **không phép kiểm nào chạy trên một nhánh riêng lẻ có
+thể thấy** — kể cả bộ canh vừa được viết ra chính để bắt lỗi ấy.
+
+**#1 — bẫy phụ suýt mắc khi vá.** Lượt `sed` đổi số toàn cây chạm vào **chú thích bên trong
+`V202609041058`**, migration đã nằm trên `dev`. Flyway băm **cả tệp**, nên một dòng chú thích đổi là
+`validate` từ chối khởi động — đúng §10.65. Cứu được bằng phép đo, không bằng trí nhớ: đối chiếu băm
+tệp với `db-migration-checksums.txt` (`62ab1812…` khớp) **sau** khi trả nguyên trạng.
+
+⚠ Hệ quả không gỡ được: chú thích trong `V202609041058` nay nhắc dãy `1052–1056` **không còn tồn
+tại**. Một tệp bất biến ⇒ mọi câu trong nó là *ảnh chụp lúc viết*, ⛔ không phải mô tả hiện tại. Đó
+là cái giá cố hữu của việc đặt lý lẽ vào chú thích migration, và nó ⛔ không phải lý do để bỏ thói
+quen ấy — nó là lý do để **viết chú thích migration ở thì quá khứ**.
+
+**#3 — chỗ duy nhất *người* hỏng, và nó hỏng theo cách công cụ không đỡ được.** Cả hai nhánh sửa
+cùng một bài kiểm đếm mã lỗi. Lượt vá xung đột giữ **cả hai khối `it(`** và đánh rơi `});` của khối
+đầu ⇒ `eslint` báo `Parsing error: '}' expected` ở **dòng 113 của một tệp dài 112 dòng**. ⭐ Con số
+đúng ⛔ không phải 90 (PR #78) cũng ⛔ không phải 81 (`dev`) mà là **92** — chỉ đo được bằng cách đếm
+lại cả hai phía (`error-messages.properties` và `error-map.ts`, hai phía độc lập cùng ra 92). **Chọn
+một trong hai số của hai nhánh là sai ở cả hai lựa chọn** — hình dạng này không có "bên thắng".
+
+**⛔⛔ Và bài học đắt nhất của lượt này: khuyết tật thứ tư CI CHƯA TỪNG THẤY.**
+Job *Frontend — lint* (`ci.yml:296`) có **sáu bước nối tiếp**: `Lint + định dạng` → `Kiểm kiểu` →
+`Test` → hai lượt `Build`. `eslint` đỏ ở #3 ⇒ **bước đầu hỏng ⇒ GitHub Actions bỏ mọi bước sau** ⇒
+#4 nằm ở bước `Test` **không bao giờ được chạy tới**. Vá ba lỗi CI báo rồi đẩy là gặp một lượt đỏ
+thứ hai — và lượt ấy sẽ trông như một lỗi *mới*, không phải một lỗi vốn đã ở đó.
+
+⇒ **Số job đỏ ⛔ không phải số khuyết tật.** Một cổng kiểm dừng-ở-lỗi-đầu báo **chặn dưới**, không
+báo tổng. Nghiệm thu phải chạy **trọn bộ cổng kiểm ở máy** (`make ci-local`, 10/10) chứ ⛔ không chỉ
+chạy lại đúng những job CI đã kêu. Cùng họ với luật 11 (*phép kiểm chạy lâu phải ưu tiên báo cáo
+trọn vẹn hơn dừng sớm*), nay đo được ở tầng **job CI**, không chỉ ở tầng reactor Maven.
+
+**Rút ra, thêm vào luật 26.** `git merge-tree` sạch · typecheck sạch · không tệp chung — **cả ba
+cộng lại vẫn không nói được gì**. Thứ duy nhất nói được là chạy **toàn bộ** cổng kiểm trên **chính
+cây đã hợp nhất**. Và khi hai nhánh cùng chạm một *khái niệm* (một `record`, một danh mục mã lỗi,
+một quy ước bảng, một dãy số hiệu migration), xác suất vỡ ⛔ không giảm theo việc chúng không đụng
+tệp — nó **tăng** theo việc mỗi nhánh tưởng mình sở hữu khái niệm ấy.
+
 ---
 
 ## §11. QUYẾT ĐỊNH KIẾN TRÚC PHASE 2 (2026-09-04)

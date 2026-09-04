@@ -14,7 +14,7 @@ import com.songnhue.core.common.exception.ValidationException;
  * trạng thái bình thường và mong muốn. Người trực mở màn hình này để tìm cái hỏng, nên phải có đúng
  * một cú bấm đưa họ tới đó. Cờ này ánh xạ thẳng vào chỉ mục riêng
  * {@code ix_sync_logs_hong (started_at DESC) WHERE status IN ('FAILED','PARTIAL')} đã dựng sẵn từ
- * {@code V202609011052}.
+ * {@code V202609041059}.
  *
  * <p>⚠ {@link #chiHong()} và {@link #trangThai()} <b>giao nhau</b>, không phải cái này thắng cái kia:
  * đặt cả hai với {@code trangThai = SUCCESS} cho ra <b>0 dòng</b>. Đó là câu trả lời đúng cho một

@@ -72,12 +72,9 @@ describe('error-map đồng bộ với danh mục của backend', () => {
   // Con số này CỐ Ý phải sửa tay mỗi lần thêm mã. Bài kiểm trên đã canh việc hai bên khớp nhau;
   // bài này canh việc *người viết mã biết mình vừa thêm một mã lỗi* — thêm mã là một quyết định
   // (nó vào tài liệu bàn giao, vào bảng tra cứu của người vận hành), không phải một chi tiết trôi qua.
-  it('có đủ 90 mã: 62 đến hết WS-15, + 9 mã OPS của WS-17, + OPS-2017 (WS-18), + OPS-2018/2019 (nghiệm thu lại WS-19), + CMS-2015 (logo Liên kết cổng TTĐT, 29/08), + SYS-0011 (tệp vượt trần multipart, 30/08), + HYD-1002/2005/2006 (danh mục điểm đo, WS-28), + HYD-2007 (ô đã có số đo, WS-32), + OPS-2020 (hiệu lực ở tương lai, V3), + HYD-2008 (liên kết điểm đo ↔ công trình trùng, T28.19), + OPS-2021/HYD-2009/HYD-2010/HYD-2011 (máy cảnh báo ngưỡng, WS-33), + HYD-2012/HYD-2013 (khoảng ngày báo cáo, WS-34), + HYD-2014/HYD-2015 (kết xuất báo cáo, T34.7)', () => {
-    expect(frontend).toHaveLength(90);
-    expect(backend).toHaveLength(90);
-  it('có đủ 81 mã: 62 đến hết WS-15, + 9 mã OPS của WS-17, + OPS-2017 (WS-18), + OPS-2018/2019 (nghiệm thu lại WS-19), + CMS-2015 (logo Liên kết cổng TTĐT, 29/08), + SYS-0011 (tệp vượt trần multipart, 30/08), + HYD-1002/2005/2006 (danh mục điểm đo, WS-28), + CMS-2016/2017 (tài liệu đính kèm bài viết, WS-40 04/09)', () => {
-    expect(frontend).toHaveLength(81);
-    expect(backend).toHaveLength(81);
+  it('có đủ 92 mã: 62 đến hết WS-15, + 9 mã OPS của WS-17, + OPS-2017 (WS-18), + OPS-2018/2019 (nghiệm thu lại WS-19), + CMS-2015 (logo Liên kết cổng TTĐT, 29/08), + SYS-0011 (tệp vượt trần multipart, 30/08), + HYD-1002/2005/2006 (danh mục điểm đo, WS-28), + HYD-2007 (ô đã có số đo, WS-32), + OPS-2020 (hiệu lực ở tương lai, V3), + HYD-2008 (liên kết điểm đo ↔ công trình trùng, T28.19), + OPS-2021/HYD-2009/HYD-2010/HYD-2011 (máy cảnh báo ngưỡng, WS-33), + HYD-2012/HYD-2013 (khoảng ngày báo cáo, WS-34), + HYD-2014/HYD-2015 (kết xuất báo cáo, T34.7), + CMS-2016/2017 (tài liệu đính kèm bài viết, WS-40 04/09)', () => {
+    expect(frontend).toHaveLength(92);
+    expect(backend).toHaveLength(92);
   });
 
   // conventions.md §1.5 — mỗi cơ chế canh gác phải có bài kiểm chứng minh nó bắt được vi phạm.

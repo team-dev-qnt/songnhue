@@ -3,7 +3,7 @@ package com.songnhue.hydro.domain;
 /**
  * Trạng thái một lần vượt ngưỡng — <b>T33.3</b>.
  *
- * <p>Ba giá trị, khớp {@code ck_alert_events_status} của migration {@code V202609031055}.
+ * <p>Ba giá trị, khớp {@code ck_alert_events_status} của migration {@code V202609041062}.
  *
  * <table border="1">
  *   <caption>Ai sinh ra giá trị nào</caption>

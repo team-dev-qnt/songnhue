@@ -7,7 +7,7 @@
 -- nào chạm tới được, và chuỗi 6 mắt xích **trông như** đã phủ vì bài kiểm mock cổng.
 --
 -- ⚠ Số hiệu `1055` là SỐ THỨ TỰ CHẠY TOÀN KHO, ⛔ không phải giờ-phút.
---    Đỉnh trước: `V202609021054`. §10.66 đã làm đỏ hai lượt CD liên tiếp vì đúng
+--    Đỉnh trước: `V202609041061`. §10.66 đã làm đỏ hai lượt CD liên tiếp vì đúng
 --    chỗ này — `V202608241255` trông như 12:55 và rơi xuống dưới bản đã áp.
 --
 -- ⛔⛔ MIGRATION NÀY KHÔNG SEED MỘT DÒNG `alert_levels` NÀO
@@ -295,7 +295,7 @@ COMMENT ON COLUMN alert_events.resolved_by IS
 --
 -- ⬜ Ngày Công ty muốn có bộ mặc định thật, khoá này dựng lại **cùng commit với
 --    đoạn mã đọc nó** — đúng khuôn `hydro.source.alert-after-failures` ở
---    V202609021053.
+--    V202609041060.
 --
 -- ⚠ `DELETE` an toàn: khoá chưa từng có người đọc nên ⛔ không đường chạy nào
 --    hỏng, và giá trị đang là chuỗi rỗng nên ⛔ không mất cấu hình của ai.

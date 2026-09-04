@@ -939,6 +939,18 @@ ngược thứ tự mà kế hoạch giả định, và nó sinh ra **một vi�
 ⚠ Bộ test chạy từ CSDL **rỗng** *về nguyên tắc* không thấy out-of-order (quy tắc 30) — nên bảo đảm
 duy nhất ở đây là script so với nhánh nền, không phải bộ test.
 
+✅ **Đã đánh số lại 04/09** trên nhánh Phase 2, sau khi PR #85 gộp vào `dev`:
+`1052→V202609041059` · `1053→1060` · `1054→1061` · `1055→1062` · `1056→1063`. Đo sau khi đổi:
+`kiem-thu-tu-migration.sh` in **5 dòng `✓`** trên nền `origin/dev` (`fab343e`, đỉnh `202609041058`)
+— chính bộ canh đã bắt lỗi nay là bộ canh nghiệm thu nó. `make migration-manifest` đổi **đúng 5
+dòng / 57 vân tay**; hai tệp giữ nguyên băm (chỉ đổi tên), ba tệp đổi băm vì chú thích bên trong
+nhắc số cũ. ⛔ Một lượt `sed` toàn cây suýt sửa **chú thích trong `V202609041058`** — migration đã
+nằm trên `dev`; đã trả lại nguyên trạng và đối chiếu băm với sổ (`62ab1812…` khớp). Flyway băm cả
+tệp nên sửa một dòng chú thích của bản đã phát hành là dựng lại §10.65.
+⚠ Hệ quả chấp nhận có chủ đích: chú thích trong `V202609041058` nay còn nhắc dãy `1052–1056` **đã
+không còn tồn tại**. ⛔ Không sửa được — nó là bản ghi lịch sử bất biến; câu ấy vẫn đúng như một mô
+tả *trạng thái lúc viết* và như lời dặn việc đã làm xong.
+
 ### Hạng mục 1 — công tắc Nhóm 2 khoá cả trang (PR 1)
 
 - [x] T40.1: **Nguồn duy nhất `lib/khoiVanHanh.ts`** — tên khoá · danh sách tuyến bị khoá · `khoiVanHanhBat` · `locMenuTheoCongTac` | Note: đo 04/09 trước khi sửa — khoá `site.home.show-dieu-hanh` có **đúng MỘT nơi đọc** trong toàn `public-web` (`app/page.tsx:134`), và bốn trang `/quan-ly-van-hanh` không trang nào đọc nó, không trang nào có `notFound()`. Tắt ở admin ⇒ trang chủ sạch, bấm menu vẫn vào được trang rỗng: quy tắc 27 ở dạng người dùng nhìn thấy được
@@ -1079,6 +1091,18 @@ duy nhất ở đây là script so với nhánh nền, không phải bộ test.
 - [ ] T34.8: ⛔ Không thêm Apache POI ở phase này — CSV/XLSX tối giản, ghi quyết định vào §11 (§10.32)
 - [ ] T34.9: Đo NFR-04 — báo cáo tháng < 60s
 - [ ] T34.10: Layout in ấn chờ **G10** — làm khung + trường dữ liệu trước | Note: 9/19 điểm đo **không thành cặp TL–HL** ⇒ biểu và báo cáo phải chịu được ô trống
+
+### Vá cây đã gộp `dev` ← PR #85 vào nhánh Phase 2 — 04/09/2026
+
+> **`git merge` sạch không đụng độ một dòng nào, và cây gộp vỡ ở BỐN chỗ.** PR #78 mở trước, PR #85
+> gộp vào `dev` trước; lượt gộp ngược lại làm CI của PR #78 đỏ 3 job. Luật 26 ở dạng đầy đủ nhất kho
+> này từng đo được — nguyên nhân gốc: [`architecture-review.md` §10.74](architecture-review.md).
+
+- [x] T34.11: **Thứ tự migration** — đánh số lại 5 tệp `hyd` `1052–1056` → `V202609041059–1063` | Note: xem khối ⛔⛔ ở WS-40. Nghiệm thu bằng chính bộ canh đã bắt: `kiem-thu-tu-migration.sh` **5/5 `✓`**, manifest đổi **đúng 5/57 vân tay**. ⛔ Bẫy suýt mắc: lượt `sed` toàn cây sửa cả chú thích trong `V202609041058` — migration **đã trên `dev`**; Flyway băm cả tệp nên đó là §10.65 dựng lại. Trả nguyên trạng, băm `62ab1812…` khớp sổ
+- [x] T34.12: **`ArticleAttachmentTest` không biên dịch** — `JobContext` 5 → 6 thành phần | Note: hai nhánh không đụng **một tệp chung nào**. `dev` (`6b71cb6`, WS-40) thêm một **nơi gọi mới** `chayBuocQuet`, PR #78 (`8307482`, WS-34/T34.7) mở rộng chính `record` ấy thêm `resultSink`. Bản sao thứ ba của cùng một hàm — hai bản kia (`MediaLibraryTest`, `PublicHttpTest`) đã được PR #78 cập nhật, bản này ra đời ở nhánh kia nên không ai chạm. ⚠ Ba bản sao của một hàm 6 dòng là mặt còn lại của luật 12: bảo đảm đặt ở *nơi gọi*, nên nơi gọi thứ ba là nơi quên
+- [x] T34.13: **`error-map.test.ts` sai cú pháp** — vá xung đột đánh rơi `});` | Note: đây là chỗ *người* hỏng, không phải công cụ: cả hai nhánh sửa cùng một `it('có đủ N mã')`, lượt vá giữ **cả hai khối `it(`** và bỏ mất dấu đóng của cái đầu ⇒ `eslint` báo `Parsing error: '}' expected` ở dòng 113 của một tệp dài 112 dòng. ⭐ Số đúng ⛔ không phải 90 (PR #78) cũng ⛔ không phải 81 (dev) mà là **92** — đo bằng `grep -cE '^[A-Z]+-[0-9]+=' error-messages.properties` **và** đếm khoá trong `error-map.ts`, hai phía độc lập cùng ra 92. Nhãn bài kiểm gộp cả hai vế giải thích
+- [x] T34.14: ⭐ **`ArticleDocumentsPanel` thiếu `scroll={{ x }}`** — lỗi thứ tư, CI **chưa từng thấy** | Note: soi gương T78.2 — lần này PR #78 mang **bộ canh mới** (`bangCuonNgang.test.ts`, WS-39/T39) còn `dev` mang **vi phạm mới**. ⛔⛔ Nó nằm ở bước `Test`, **sau** bước `Lint + định dạng` đã đỏ trong cùng job — một bước hỏng thì GitHub Actions bỏ mọi bước sau, nên CI chưa từng chạy tới nó: **vá xong ba lỗi đầu rồi đẩy là gặp lượt đỏ thứ hai**. Đặt `x: 720` = 370 cố định (Tệp 260 + nút 110) + 350 tối thiểu cho ô nhập nhãn
+- [x] T34.15: Nghiệm thu **toàn bộ 10 cổng kiểm ở máy**, không suy từ 3 job đã vá | Note: `make ci-local` từng bước: tracking **802 dòng / 0 đỏ** · thứ tự migration ✓ · Spotless+Checkstyle ✓ · ESLint ✓ · Prettier ✓ · typecheck ✓ · FE test **507** (admin 208 + public 299) · build cả hai app ✓ · `clean verify` **mã thoát 0 · 1258 test** (249 core + 42 content + 43 operations + 222 hydro + 702 app) · **166 báo cáo surefire** · **0 dòng `[ERROR]`**
 
 ## WS-35 — GIS + Dashboard + Widget cổng (điểm giao B×C)
 

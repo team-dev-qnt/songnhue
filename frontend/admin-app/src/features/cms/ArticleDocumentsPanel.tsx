@@ -78,6 +78,12 @@ export function ArticleDocumentsPanel({
           rowKey="publicId"
           pagination={false}
           dataSource={documents}
+          // ⭐ Hai cột cố định cộng lại 370px (Tệp 260 + nút 110). Cột "Tên hiển thị" mang một
+          //   `<Input>`, cột "Tệp" mang TÊN TỆP GỐC — hai chuỗi dài nhất của bảng này. Không khai
+          //   `scroll.x` thì `rc-table` chạy `tableLayout: 'auto'` và `overflow-wrap: break-word`
+          //   bóp tên tệp về một ký tự mỗi dòng thay vì cuộn ngang (bộ canh `bangCuonNgang`).
+          //   720 = 370 cố định + 350 tối thiểu cho ô nhập nhãn.
+          scroll={{ x: 720 }}
           columns={[
             {
               title: 'Tên hiển thị trên cổng',

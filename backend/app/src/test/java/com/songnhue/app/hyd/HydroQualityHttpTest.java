@@ -44,7 +44,7 @@ import com.songnhue.core.infra.identity.UserRepository;
  * <ul>
  *   <li>{@code TECHNICIAN} — vai trò <b>duy nhất</b> ngoài quản trị có {@code hyd:measurement:review};
  *   <li>{@code DUTY_OFFICER} — người <b>đang trực</b>: có {@code :create} (mới ở
- *       {@code V202609021054}) mà ⛔ <b>không</b> có {@code :review}. Đây là khẳng định chịu lực của
+ *       {@code V202609041061}) mà ⛔ <b>không</b> có {@code :review}. Đây là khẳng định chịu lực của
  *       cả lớp: nếu ô nhập tay bị gác bằng {@code :review} thì đúng người cần nó nhất bị 403;
  *   <li>một tài khoản <b>không vai trò</b> — vế phân biệt, ⛔ không có gì cả.
  * </ul>
@@ -78,7 +78,7 @@ class HydroQualityHttpTest extends IntegrationTestBase {
 
     private static final String MA_API_LATEST = "F97033";
 
-    /** Khớp vỏ bọc seed ở {@code V202609021054}: {@code {"MUC_NUOC":{"min":-10,"max":30}}}. */
+    /** Khớp vỏ bọc seed ở {@code V202609041061}: {@code {"MUC_NUOC":{"min":-10,"max":30}}}. */
     private static final String NGOAI_KHOANG = "493.000";
 
     @Autowired
@@ -355,7 +355,7 @@ class HydroQualityHttpTest extends IntegrationTestBase {
         JsonNode t = than(phienHttp.get(kyThuat, "/api/v1/hyd/so-do/nghi-ngo/tinh-trang"));
 
         assertThat(t.path("dangKiem").asBoolean())
-                .as("⭐ `V202609021054` seed vỏ bọc MUC_NUOC [-10 … 30]; nếu cờ này FALSE thì hoặc "
+                .as("⭐ `V202609041061` seed vỏ bọc MUC_NUOC [-10 … 30]; nếu cờ này FALSE thì hoặc "
                         + "migration không chạy, hoặc bộ đọc JSON hỏng — và hàng chờ sẽ RỖNG VĨNH VIỄN "
                         + "mà trông y hệt 'không có gì đáng ngờ'")
                 .isTrue();

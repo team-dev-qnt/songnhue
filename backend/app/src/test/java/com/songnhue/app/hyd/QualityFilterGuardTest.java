@@ -93,7 +93,7 @@ class QualityFilterGuardTest {
 
     /**
      * Số thứ tự câu {@code INSERT INTO hydro_agg_dirty … SELECT … FROM hydro_readings} trong
-     * {@code V202609031056__hyd_agg_daily.sql}, theo cách đánh số của {@link #cauTrongSql}.
+     * {@code V202609041063__hyd_agg_daily.sql}, theo cách đánh số của {@link #cauTrongSql}.
      *
      * <p>⚠ Con số này <b>mong manh theo cách viết migration</b> — thêm một câu lệnh phía trên là nó
      * lệch. Điều đó chấp nhận được vì migration là tệp <b>bất biến</b> (Flyway băm cả tệp,
@@ -157,7 +157,7 @@ class QualityFilterGuardTest {
             "HydroReportRepository#SQL_DEM_CHI_TIET",
             "⭐ Phép đếm của BC-12 — phải khớp CHÍNH XÁC tập mà SQL_CHI_TIET liệt ra. Lọc HOP_LE ở đây "
                     + "mà không lọc ở câu kia là tổng số trang nói một đằng, nội dung trang nói một nẻo.",
-            "V202609031056__hyd_agg_daily.sql#" + CAU_NAP_CO_BAN,
+            "V202609041063__hyd_agg_daily.sql#" + CAU_NAP_CO_BAN,
             "⭐ §9 của migration — nạp cờ bẩn cho số đo ĐÃ CÓ để lượt tổng hợp đầu tiên tính được "
                     + "cả lịch sử. ⛔ Không tạo ra một con số nào; cùng lý do với SQL_CAM_LAI_CO_GAN_DAY.");
 

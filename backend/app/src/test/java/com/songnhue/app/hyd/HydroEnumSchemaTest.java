@@ -54,7 +54,7 @@ import com.songnhue.hydro.domain.SyncStatus;
  *       Lớp lỗi thứ hai neo vào {@code db-migration-checksums.txt}, không vào bài kiểm.
  *   <li>✅ <b>Vế TypeScript phủ ĐỦ BỐN enum từ 02/09 (T31.13 hai cái, WS-32 hai cái)</b>. Cả bốn
  *       đều được đối chiếu ở <b>ba nơi</b>: enum Java · ràng buộc {@code CHECK} · union TS kèm bản
- *       đồ nhãn. ⛔ Không còn enum {@code hydro} nào của {@code V202609011052} đứng ngoài.
+ *       đồ nhãn. ⛔ Không còn enum {@code hydro} nào của {@code V202609041059} đứng ngoài.
  * </ul>
  */
 class HydroEnumSchemaTest {
@@ -98,8 +98,8 @@ class HydroEnumSchemaTest {
     /**
      * ⭐⭐ TOÀN BỘ migration của {@code hyd}, nối theo <b>thứ tự số hiệu</b> — ⛔ không phải một tệp.
      *
-     * <p>Bản đầu (T29) đọc đúng một tệp: {@code V202609011052__hyd_time_series.sql}. Nó đúng đúng
-     * <b>một ngày</b> — tới khi {@code V202609021054} thêm {@code XOA} bằng
+     * <p>Bản đầu (T29) đọc đúng một tệp: {@code V202609041059__hyd_time_series.sql}. Nó đúng đúng
+     * <b>một ngày</b> — tới khi {@code V202609041061} thêm {@code XOA} bằng
      * {@code ALTER TABLE … DROP CONSTRAINT … ADD CONSTRAINT …}. Khi ấy bộ canh vẫn đọc bản
      * {@code CHECK} <i>cũ</i> trong tệp cũ, và nó sẽ <b>đỏ vì một lý do sai</b> (báo enum lệch trong
      * khi CSDL thật đã khớp) — hoặc tệ hơn, nếu enum cũng không đổi thì nó <b>xanh trong khi lược đồ

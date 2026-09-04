@@ -98,7 +98,7 @@ $$;
 
 COMMENT ON FUNCTION hyd_dau_ngay_vn(date) IS
     'Ngày giờ VN → mốc 00:00 giờ VN dưới dạng timestamptz. Hàm NGƯỢC của hyd_ngay_vn — '
-    'sửa một cái mà quên cái kia thì khối kiểm ở V202609031056 §4 làm Flyway hỏng ngay.';
+    'sửa một cái mà quên cái kia thì khối kiểm ở V202609041063 §4 làm Flyway hỏng ngay.';
 
 
 -- =============================================================================
@@ -205,7 +205,7 @@ CREATE TABLE hydro_agg_daily (
     -- ⭐ Khoá kỳ. `ON CONFLICT` của lượt tính lại bám đúng bộ bốn này.
     CONSTRAINT ux_hydro_agg_daily_ky UNIQUE (station_id, measurement_type_id, agg_date, quality),
 
-    -- ⚠ Ba giá trị, khớp `ck_hydro_readings_quality` sau V202609021054.
+    -- ⚠ Ba giá trị, khớp `ck_hydro_readings_quality` sau V202609041061.
     --   `HydroEnumSchemaTest` canh cặp enum ↔ CHECK này.
     CONSTRAINT ck_hydro_agg_daily_quality CHECK (quality IN ('HOP_LE', 'NGHI_NGO', 'XOA')),
 

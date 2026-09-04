@@ -25,7 +25,7 @@ class PhanLoaiChatLuongTest {
 
     private static final Instant MOC = Instant.parse("2026-09-02T03:20:00Z");
 
-    /** Vỏ bọc đang seed ở {@code V202609021054} — ⛔ dùng đúng số thật, không bịa số cho dễ tính. */
+    /** Vỏ bọc đang seed ở {@code V202609041061} — ⛔ dùng đúng số thật, không bịa số cho dễ tính. */
     private static final QuyTacNghiNgo VO_BOC = new QuyTacNghiNgo(new BigDecimal("-10"), new BigDecimal("30"), null);
 
     private static ChanDoanChatLuong danhGia(String giaTri, QuyTacNghiNgo quyTac, SoDoTruoc truoc) {

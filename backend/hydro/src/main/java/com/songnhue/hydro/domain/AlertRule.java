@@ -32,7 +32,7 @@ import com.songnhue.core.common.persistence.BaseEntity;
  *
  * <p>⛔ Đồng hồ ấy ⛔ <b>không</b> chạy trong bộ nhớ: mốc bắt đầu vượt nằm ở
  * {@code alert_events.started_at}, mốc xác nhận ở {@code confirmed_at}. Xem khối hysteresis của
- * migration {@code V202609031055}.
+ * migration {@code V202609041062}.
  *
  * <h2>⛔ Đây KHÔNG phải quy tắc "nghi ngờ" của WS-32</h2>
  *

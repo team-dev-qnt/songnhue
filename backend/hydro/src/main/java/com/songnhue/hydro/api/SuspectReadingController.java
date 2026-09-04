@@ -42,7 +42,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
  * </table>
  *
  * <p>⚠ Cột thứ ba là <b>số đo trên ma trận seed</b>, ⛔ không phải mong muốn. Nó là lý do
- * {@code hyd:measurement:create} phải ra đời ở {@code V202609021054}: gác ô nhập tay bằng
+ * {@code hyd:measurement:create} phải ra đời ở {@code V202609041061}: gác ô nhập tay bằng
  * {@code :review} thì chỉ TECHNICIAN dùng được, trong khi chức năng này tồn tại cho người
  * <b>đang trực</b> lúc API chết. Đó là hình dạng T27.20 lặp lần thứ ba — một biểu mẫu mà vai trò sở
  * hữu công việc ấy không mở được (§10.70).

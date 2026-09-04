@@ -103,7 +103,7 @@ class RbacMatrixTest extends IntegrationTestBase {
             // ⬇ WS-32 đã GỠ `hyd:measurement:review`: màn hình Dữ liệu nghi ngờ gác bằng đúng quyền
             //   ấy, VÀ hai bước chuyển `DUYET`/`XOA` của quy trình HYDRO_READING khai nó ở
             //   `workflow_transitions.required_permission`. ⛔ Đừng thêm lại cho hết đỏ.
-            //   ⚠ `hyd:measurement:create` (mới ở V202609021054) CỐ Ý không có mặt ở đây: nó có
+            //   ⚠ `hyd:measurement:create` (mới ở V202609041061) CỐ Ý không có mặt ở đây: nó có
             //   endpoint thật ngay từ lượt ra đời — POST /hyd/so-do/nhap-tay.
             // ⭐ `hyd:report:view` RỜI khỏi danh sách này ở WS-34/T34.3 — BC-13 là người đọc đầu
             //   tiên (`HydroReportController`). Giữ lại một quyền đã có cổng dùng là làm bài này

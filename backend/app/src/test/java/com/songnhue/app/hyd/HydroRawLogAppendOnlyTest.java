@@ -180,7 +180,7 @@ class HydroRawLogAppendOnlyTest extends IntegrationTestBase {
                             java.sql.Timestamp.from(moc),
                             stationId,
                             typeId);
-                    // ⚠ `quality_reason` bắt buộc với dòng NGHI_NGO từ `V202609021054`
+                    // ⚠ `quality_reason` bắt buộc với dòng NGHI_NGO từ `V202609041061`
                     //   (`ck_hydro_readings_nghi_ngo_co_ly_do`): một cờ đỏ không nói được vì sao là
                     //   một cờ đỏ không hành động được. Bài này ⛔ không đo ràng buộc ấy — nó đo
                     //   QUYỀN ghi đè — nên chỉ cần điền cho hợp lệ.
