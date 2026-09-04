@@ -4,6 +4,7 @@ import { ArticleList } from '@/components/ArticleList';
 import { Breadcrumb } from '@/components/Breadcrumb';
 import { PortalSidebar } from '@/components/PortalSidebar';
 import { getArticles, getSiteConfig } from '@/lib/api';
+import { khoiVanHanhBat } from '@/lib/khoiVanHanh';
 import { ROUTES } from '@/lib/routes';
 
 /**
@@ -113,6 +114,7 @@ export default async function SearchPage({
             latestArticles={latestNews?.content ?? []}
             hotline={config?.['company.hotline']}
             docSystemUrl={config?.['site.external.doc-system-url']}
+            hienKhoiVanHanh={khoiVanHanhBat(config)}
           />
         </div>
       </div>

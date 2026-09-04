@@ -14,6 +14,17 @@ interface PortalSidebarProps {
    * hơn hẳn không có nút (luật 16).
    */
   docSystemUrl?: string;
+  /**
+   * Công tắc khối Vận hành — {@code lib/khoiVanHanh.ts}.
+   *
+   * ⚠ Sidebar này viết CỨNG một liên kết "Mực nước, lượng mưa", nên nó là một trong sáu bề mặt
+   * công tắc phải chi phối. Ba nơi gọi ({@code danh-muc}, {@code tim-kiem}, {@code bai-viet}) đều
+   * đã lấy {@code getSiteConfig()} sẵn ⇒ truyền một cờ xuống là đủ, không thêm lượt gọi nào.
+   *
+   * ⛔ Mặc định {@code true}: một component nhận thiếu prop không được im lặng giấu mất một mục
+   * người dùng đang thấy.
+   */
+  hienKhoiVanHanh?: boolean;
 }
 
 /**
@@ -27,6 +38,7 @@ export function PortalSidebar({
   latestArticles = [],
   hotline = '',
   docSystemUrl = '',
+  hienKhoiVanHanh = true,
 }: PortalSidebarProps) {
   // ⛔ Bản trước ghép thêm năm bài viết cứng cho đủ 5 ô — cùng bộ dữ liệu, cùng cái bẫy với
   //    trang chủ (§10.54). Có bao nhiêu thì hiện bấy nhiêu.
@@ -158,15 +170,20 @@ export function PortalSidebar({
               <span aria-hidden="true">→</span>
             </Link>
           </li>
-          <li>
-            <Link
-              href={ROUTES.quanLyVanHanh.mucNuocLuongMua}
-              className="flex items-center justify-between rounded-lg border border-surface-border p-2.5 font-semibold text-surface-textBase transition-colors hover:border-brand-primary hover:bg-brand-primaryLight hover:text-brand-primary"
-            >
-              <span>Mực nước, lượng mưa</span>
-              <span aria-hidden="true">→</span>
-            </Link>
-          </li>
+          {/* ⚠ Liên kết viết CỨNG, không đi qua `getMenu()` — nên nó phải tự đọc công tắc. Đây
+              đúng là loại bề mặt mà một bộ lọc đặt trong `getMenu()` KHÔNG với tới, và là lý do
+              `khoiVanHanh.test.ts` đếm số nơi gọi thay vì tin rằng một chỗ là đủ. */}
+          {hienKhoiVanHanh ? (
+            <li>
+              <Link
+                href={ROUTES.quanLyVanHanh.mucNuocLuongMua}
+                className="flex items-center justify-between rounded-lg border border-surface-border p-2.5 font-semibold text-surface-textBase transition-colors hover:border-brand-primary hover:bg-brand-primaryLight hover:text-brand-primary"
+              >
+                <span>Mực nước, lượng mưa</span>
+                <span aria-hidden="true">→</span>
+              </Link>
+            </li>
+          ) : null}
           <li>
             <Link
               href={ROUTES.lienHe}

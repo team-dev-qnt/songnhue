@@ -8,6 +8,7 @@ import { PortalSidebar } from '@/components/PortalSidebar';
 import { ViewTracker } from '@/components/ViewTracker';
 import { getArticle, getArticles, getSiteConfig } from '@/lib/api';
 import { docNguonBaiViet } from '@/lib/nguonBaiViet';
+import { khoiVanHanhBat } from '@/lib/khoiVanHanh';
 import { fileUrl, formatDate, ROUTES } from '@/lib/routes';
 
 /** Trang chi tiết một bài viết — T16.2. */
@@ -195,6 +196,7 @@ export default async function ArticlePage({ params }: PageProps) {
             latestArticles={latestNews?.content ?? []}
             hotline={config?.['company.hotline']}
             docSystemUrl={config?.['site.external.doc-system-url']}
+            hienKhoiVanHanh={khoiVanHanhBat(config)}
           />
         </div>
       </div>

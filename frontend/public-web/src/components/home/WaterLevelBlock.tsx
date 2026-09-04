@@ -88,7 +88,11 @@ export function WaterLevelBlock({ hotline = '', refreshSeconds, updatedAt }: Wat
           ) : null}
           {/* CR-14: xem theo TUẦN / THÁNG phải đăng nhập. Đường dẫn dẫn sang trang chi tiết,
               nơi chính trang ấy chặn ở tầng route — không ẩn nút ở đây rồi coi là đã phân
-              quyền (§2: "không xử lý bằng cách ẩn ở giao diện"). */}
+              quyền (§2: "không xử lý bằng cách ẩn ở giao diện").
+
+              ⚠ 04/09: trang đích còn có thể trả 404 khi công tắc `lib/khoiVanHanh.ts` tắt. Liên
+              kết này an toàn vì cả khối chỉ được vẽ BÊN TRONG nhánh `hienDieuHanh` của
+              `app/page.tsx` — an toàn do VỊ TRÍ trong JSX, không do một phép kiểm nào. */}
           <Link
             href={ROUTES.quanLyVanHanh.mucNuocLuongMua}
             className="inline-flex items-center gap-1.5 rounded-lg bg-brand-primary px-4 py-2 text-[13px] font-bold text-white shadow-xs transition-colors hover:bg-brand-primaryGradientFrom"

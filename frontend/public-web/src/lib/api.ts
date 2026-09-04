@@ -1,5 +1,6 @@
 import { connection } from 'next/server';
 
+import { khoiVanHanhBat, locMenuTheoCongTac } from '@/lib/khoiVanHanh';
 import { API_INTERNAL_BASE_URL } from '@/lib/site';
 
 /**
@@ -321,8 +322,33 @@ export function getSiteConfig(): Promise<SiteConfig | null> {
   return apiGet<SiteConfig>('/site-config', { tags: [CACHE_TAGS.layout] });
 }
 
-export function getMenu(position: 'HEADER' | 'FOOTER' | 'LIEN_KET'): Promise<MenuLink[] | null> {
-  return apiGet<MenuLink[]>(`/menus/${position}`, { tags: [CACHE_TAGS.layout] });
+/**
+ * Menu công khai của một vị trí — **đã lọc theo công tắc khối Vận hành**.
+ *
+ * <h3>⭐ Vì sao bộ lọc nằm ở ĐÂY chứ không ở từng component</h3>
+ *
+ * Ba nơi vẽ menu ({@code SiteHeader}, {@code SiteFooter}, {@code SectionNav}) cộng trang chủ đều
+ * đi qua đúng hàm này. Đặt bộ lọc ở từng nơi gọi là bốn chỗ phải nhớ, và nơi gọi **thứ năm** ra
+ * đời sau sẽ quên — T27.7 đã trả nợ xoá đệm cổng ở ba điểm ghi rồi điểm ghi thứ tư ra đời cùng
+ * đợt mang lại đúng lỗi cũ. Đặt ở đây thì "quên lọc" là điều không biểu diễn được (quy tắc 12).
+ *
+ * <p>⚠ Không thêm vòng khứ hồi nào: {@code getSiteConfig()} dùng cùng {@code apiGet} với cùng
+ * nhãn cache {@code giao-dien}, và mọi nơi gọi menu đều đã lấy cấu hình sẵn trong cùng một
+ * {@code Promise.all} — Next gộp hai lượt {@code fetch} trùng URL trong một lượt dựng.
+ *
+ * <p>⚠ Bộ lọc so theo **đường dẫn**, nên vị trí {@code LIEN_KET} (dải logo cơ quan, toàn liên kết
+ * ngoài) không bao giờ bị đụng. Có bài kiểm khẳng định đúng điều đó.
+ */
+export async function getMenu(
+  position: 'HEADER' | 'FOOTER' | 'LIEN_KET',
+): Promise<MenuLink[] | null> {
+  const [menu, config] = await Promise.all([
+    apiGet<MenuLink[]>(`/menus/${position}`, { tags: [CACHE_TAGS.layout] }),
+    getSiteConfig(),
+  ]);
+
+  // Menu không về được thì trả `null` như trước — nơi gọi đã có nhánh dự phòng riêng.
+  return menu === null ? null : locMenuTheoCongTac(menu, khoiVanHanhBat(config));
 }
 
 export function getBanners(): Promise<BannerItem[] | null> {
