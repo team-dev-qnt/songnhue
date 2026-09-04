@@ -9,8 +9,11 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -148,6 +151,126 @@ class HydroEnvSwitchTest {
                         + "được GIẢI khi tệp env không nói gì (§10.29-a)")
                 .contains("${HYDRO_API_ALLOW_INTERNAL_HOST:false}")
                 .contains("${HYDRO_API_MOCK:false}");
+    }
+
+    // =========================================================================
+    // ⭐⭐ T27.4 — bộ đối chiếu HAI CHIỀU: biến ĐƯỢC ĐỌC ↔ biến ĐƯỢC KHAI
+    // =========================================================================
+
+    /**
+     * ⭐⭐ Mọi biến {@code HYDRO_*} phải <b>vừa có người đọc, vừa có nơi khai</b>.
+     *
+     * <h2>Vì sao {@code .contains(tên)} một chiều là chưa đủ — nợ T27.4</h2>
+     *
+     * <p>Bài {@link #congTacDuocKhaiTrongApplicationYml()} phía trên hỏi <i>"tên này có xuất hiện ở
+     * {@code application.yml} không"</i> cho <b>hai</b> biến chép tay. Nó ⛔ không thấy:
+     *
+     * <ul>
+     *   <li>biến thứ <b>ba</b> ({@code HYDRO_API_KEY}) — có thật, được đọc thật, ⛔ chưa từng được
+     *       bài nào canh;
+     *   <li>chiều <b>ngược lại</b>: một biến khai trong {@code deploy/env/*} mà ⛔ không ai đọc.
+     *       Đó là luật 15 ở dạng nguy hiểm nhất của nó — người vận hành đặt giá trị, đọc lại thấy
+     *       đúng dòng mình vừa gõ, và hệ thống ⛔ không dùng nó. §10.41 đã trả giá đúng thế với
+     *       {@code DB_APP_PASSWORD}: một biến ⛔ không ai đọc <b>che mất</b> một biến thật sự thiếu.
+     * </ul>
+     *
+     * <h2>⛔⛔ Bộ tách phải theo CẤU TRÚC — và bản đầu của lượt đo này đã sai vì không thế</h2>
+     *
+     * <p>Lượt đo tay 04/09 dùng {@code grep -oE "HYDRO_[A-Z_]+"} và kết luận rằng
+     * {@code HYDRO_API_BASE_URL} <i>vẫn còn</i> trong cả ba tệp env — trong khi javadoc của
+     * {@code HydroApiProperties} nói nó đã bị gỡ. Cả hai đều "đúng": biến <b>đã</b> bị gỡ, và thứ
+     * còn lại là <b>dòng chú thích giải thích rằng nó đã bị gỡ</b>.
+     *
+     * <p>⇒ Ở đây <b>khai</b> nghĩa là một dòng {@code ^\s*TÊN=} thật sự, và <b>đọc</b> nghĩa là một
+     * placeholder {@code ${TÊN...}} thật sự. Văn xuôi ⛔ không tạo ra được cái nào.
+     *
+     * <h2>⚠ Phạm vi tự khai (luật 28)</h2>
+     *
+     * <p>Soi {@code application.yml} (nơi Spring giải biến) và {@code deploy/env/*.example} (nơi
+     * người vận hành chép ra). ⛔ <b>Không</b> soi {@code compose*.yml} lẫn workflow CI — chúng
+     * truyền biến xuống container, và cặp ấy do {@code DeploySecretWiringTest} canh cho nhóm secret.
+     * Một biến {@code HYDRO_*} mới mà quên khai ở compose ⛔ sẽ không bị bài này bắt.
+     */
+    @Test
+    @DisplayName("⭐⭐ T27.4 — mọi biến HYDRO_* vừa có người ĐỌC vừa có nơi KHAI (hai chiều)")
+    void moiBienHydroDeuCoCaHaiVe() {
+        Set<String> duocDoc = bienDuocDoc(doc(timTuGocKho("backend/app/src/main/resources/application.yml")));
+        Set<String> duocKhai = new LinkedHashSet<>();
+        for (String tep : TEP_MAU_ENV) {
+            duocKhai.addAll(bienDuocKhai(doc(timTuGocKho(tep))));
+        }
+
+        // ⚠ Vế chống xanh-trên-tập-rỗng (luật 7): bộ tách hỏng ⇒ hai tập rỗng ⇒ mọi phép so xanh.
+        assertThat(duocDoc)
+                .as("⛔ Bộ tách ⛔ không thấy một placeholder ${HYDRO_*} nào trong application.yml — "
+                        + "hoặc mẫu hỏng, hoặc tệp đổi tên. Cả hai đều làm bài này mù, ⛔ không đỏ.")
+                .isNotEmpty();
+        assertThat(duocKhai)
+                .as("⛔ Bộ tách ⛔ không thấy một dòng khai HYDRO_*= nào trong %s", TEP_MAU_ENV)
+                .isNotEmpty();
+
+        assertThat(duocKhai)
+                .as(
+                        """
+                        ⛔ Biến được KHAI mà ⛔ KHÔNG ai đọc — luật 15. Người vận hành đặt giá trị, đọc lại \
+                        thấy đúng dòng mình vừa gõ, và hệ thống ⛔ không dùng nó. §10.41: một biến không ai \
+                        đọc CHE MẤT một biến thật sự thiếu. Đọc: %s""",
+                        duocDoc)
+                .isSubsetOf(duocDoc);
+
+        assertThat(duocDoc)
+                .as(
+                        """
+                        ⛔ Biến được ĐỌC mà ⛔ KHÔNG tệp mẫu nào khai — người dựng máy chủ ⛔ không có cách \
+                        nào biết nó tồn tại, và giá trị sẽ rơi về mặc định trong im lặng. Khai: %s""",
+                        duocKhai)
+                .isSubsetOf(duocKhai);
+    }
+
+    /**
+     * ⚠ Vế tự kiểm (luật 29): hai bộ tách phải <b>phân biệt được</b> một dòng khai thật với một
+     * dòng chú thích — đúng chỗ lượt đo tay đã sai.
+     */
+    @Test
+    @DisplayName("⚠ Tự kiểm: dòng CHÚ THÍCH nhắc tên biến ⛔ KHÔNG được tính là khai hay đọc")
+    void boTachPhanBietDuocChuThich() {
+        String chuThich = "# ⛔ HYDRO_API_BASE_URL đã BỎ (31/08/2026): địa chỉ nguồn nằm ở `api_sources.base_url`";
+
+        assertThat(bienDuocKhai(chuThich))
+                .as("⛔ Một dòng chú thích nói rằng biến ĐÃ BỊ GỠ mà bị đọc thành 'đã khai' thì bộ canh "
+                        + "đòi phải có người đọc một biến ⛔ không còn tồn tại — đỏ trên mã ĐÚNG.")
+                .isEmpty();
+        assertThat(bienDuocDoc(chuThich)).isEmpty();
+
+        assertThat(bienDuocKhai("HYDRO_API_KEY=abc;"))
+                .as("⚠ và vế phân biệt: một dòng khai THẬT phải được thấy")
+                .containsExactly("HYDRO_API_KEY");
+        assertThat(bienDuocDoc("      key: ${HYDRO_API_KEY:}")).containsExactly("HYDRO_API_KEY");
+    }
+
+    /** Tệp <b>mẫu</b> — thứ người dựng máy chủ chép ra. ⛔ Không soi tệp env thật (⛔ không vào kho). */
+    private static final List<String> TEP_MAU_ENV =
+            List.of("deploy/env/local.env.example", "deploy/env/staging.env.example", "deploy/env/prod.env.example");
+
+    /** {@code ${HYDRO_XXX...}} — placeholder THẬT, ⛔ không phải một lần nhắc tên. */
+    private static final Pattern DOC_BIEN = Pattern.compile("\\$\\{(HYDRO_[A-Z0-9_]+)[:}]");
+
+    /** {@code ^ TÊN=} — dòng khai THẬT; dòng bắt đầu bằng {@code #} ⛔ không khớp. */
+    private static final Pattern KHAI_BIEN = Pattern.compile("(?m)^\\s*(HYDRO_[A-Z0-9_]+)\\s*=");
+
+    private static Set<String> bienDuocDoc(String noiDung) {
+        return DOC_BIEN.matcher(noiDung)
+                .results()
+                .map(r -> r.group(1))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    private static Set<String> bienDuocKhai(String noiDung) {
+        return KHAI_BIEN
+                .matcher(noiDung)
+                .results()
+                .map(r -> r.group(1))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     private static String doc(Path tep) {

@@ -69,6 +69,13 @@ import com.songnhue.hydro.domain.QuyTacNghiNgo;
  * chưa đưa. Ngày họ đưa, khoá dựng lại <b>cùng commit với đoạn mã đọc nó</b>. ⛔ Không gia hạn lần
  * thứ hai, và ⛔ không seed lại trước khi có người gọi.
  *
+ * <p>✅ <b>Và từ 04/09/2026 điều đó được một BỘ CANH giữ</b> ({@code HydroSettingsReadTest}, nợ
+ * T27.5): mọi khoá {@code hydro.*} đã seed phải có hằng ở lớp này, và mọi hằng ở lớp này phải
+ * ứng với một khoá đã seed — <b>đối chiếu hai chiều</b>. Trước đó ⛔ không bài kiểm nào giữ sự
+ * khớp ấy: {@code PortalSettingsReadTest} canh đúng luật nhưng chỉ quét {@code migration/cms} +
+ * {@code public-web}, tức <b>hẹp hơn nơi nó phải chặn</b> (luật 28). Câu <i>"cả tám đều có người
+ * gọi"</i> ở trên vì thế là một lời khai tay suốt ba ngày — nay nó là một phép đo.
+ *
  * <h2>⚠ Đọc mỗi lần gọi, không cache trong trường</h2>
  *
  * <p>{@link SettingPort} đã có bộ đệm Caffeine phía sau và bộ đệm ấy được dọn bằng
