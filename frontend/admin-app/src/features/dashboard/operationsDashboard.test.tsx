@@ -3,7 +3,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { DashboardView } from '@/shared/api-types';
+import type { DashboardView, StationLayerView } from '@/shared/api-types';
 import { datBeRongCua } from '@/testsupport/setup';
 
 import { OperationsDashboardPage } from './OperationsDashboardPage';
@@ -121,10 +121,70 @@ const DASHBOARD: DashboardView = {
   },
 };
 
+/**
+ * ⭐ Lớp điểm đo thuỷ văn (T35.1) — hai điểm đo có toạ độ, một điểm đo còn chờ toạ độ (G8).
+ *
+ * ⚠ Phải khai RIÊNG khỏi `/ops/dashboard/map-points`: hai endpoint cùng chứa chuỗi `map-points`,
+ * nên bản đầu của bộ giả trả `[]` cho cả hai — và trang **sập** với `undefined.length`. Đó là một
+ * lỗi thật ở mã trang, ⛔ không phải lỗi của bộ giả; nó đã được vá bằng `?.` ở cả hai mức.
+ */
+const LOP_DIEM_DO: StationLayerView = {
+  diemDo: [
+    {
+      publicId: 'a1',
+      code: 'DO-TEST-TL',
+      name: 'Điểm đo kiểm thử — Thượng lưu',
+      positionRole: 'THUONG_LUU',
+      latitude: '20.980000',
+      longitude: '105.780000',
+      riverName: null,
+      chainage: null,
+      trangThai: 'HOAT_DONG',
+      nghiNgo: false,
+      giaTri: '2.400',
+      donVi: 'm',
+      tenChiSo: 'Mực nước',
+      mocDo: '2026-09-04T03:00:00Z',
+      khoaMauCanhBao: null,
+      tenMucCanhBao: null,
+    },
+    {
+      publicId: 'a2',
+      code: 'DO-TEST-HL',
+      name: 'Điểm đo kiểm thử — Hạ lưu',
+      positionRole: 'HA_LUU',
+      latitude: '20.990000',
+      longitude: '105.790000',
+      riverName: null,
+      chainage: null,
+      trangThai: 'MAT_TIN_HIEU',
+      nghiNgo: true,
+      giaTri: '1.800',
+      donVi: 'm',
+      tenChiSo: 'Mực nước',
+      mocDo: '2026-09-01T03:00:00Z',
+      khoaMauCanhBao: 'alert-level-3',
+      tenMucCanhBao: 'Báo động III',
+    },
+  ],
+  chuaSoHoaViTri: [
+    {
+      publicId: 'b1',
+      code: 'DO-CHUA-TOA-DO',
+      name: 'Điểm đo chưa có toạ độ',
+      positionRole: 'MN_SONG',
+      riverName: null,
+      chainage: null,
+    },
+  ],
+};
+
 function dung(duongDan = '/van-hanh/dieu-hanh') {
-  getGia.mockImplementation((url: string) =>
-    url.includes('map-points') ? Promise.resolve([]) : Promise.resolve(DASHBOARD),
-  );
+  getGia.mockImplementation((url: string) => {
+    if (url.startsWith('/hyd/stations/map-points')) return Promise.resolve(LOP_DIEM_DO);
+    if (url.includes('map-points')) return Promise.resolve([]);
+    return Promise.resolve(DASHBOARD);
+  });
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
@@ -180,6 +240,50 @@ describe('ô KPI chưa có nguồn', () => {
 
     await waitFor(() => expect(screen.getByText('32')).toBeInTheDocument());
     expect(screen.getByText('/ 40')).toBeInTheDocument();
+  });
+});
+
+describe('lớp điểm đo thuỷ văn trên bản đồ (T35.1 · T35.2)', () => {
+  it('⭐ T35.2 — nói ra ĐÍCH XÁC còn bao nhiêu điểm đo chưa có toạ độ', async () => {
+    dung();
+
+    await waitFor(() =>
+      expect(screen.getByText('Bản đồ công trình và điểm đo')).toBeInTheDocument(),
+    );
+    expect(
+      screen.getByText(/1 điểm đo chưa có toạ độ nên chưa lên bản đồ \(mục G8\)/),
+    ).toBeInTheDocument();
+  });
+
+  /**
+   * ⭐⭐ Hồi quy cho một lỗi THẬT, tìm ra lúc chạy bài kiểm đầu tiên của T35.1.
+   *
+   * Bản đầu đọc `lopDiemDo.data.chuaSoHoaViTri.length` với `?.` chỉ ở mức `data`. Một phản hồi
+   * đúng kiểu nhưng sai HÌNH DẠNG (API cũ, thân rỗng, hay như ở đây: bộ giả trả `[]`) cho
+   * `chuaSoHoaViTri === undefined`, và `undefined.length` ném ngay trong lúc render ⇒ **sập cả
+   * màn hình điều hành** vì một lớp phụ.
+   *
+   * ⛔ TypeScript không thấy được điều đó — nó tin kiểu ta khai ở `api-types.ts`. Chỉ một lượt
+   * chạy thật mới bắt được, và đó đúng là lý do bài này tồn tại.
+   */
+  it('⭐ lớp điểm đo trả hình dạng lạ ⇒ ⛔ KHÔNG làm sập dashboard', async () => {
+    getGia.mockImplementation((url: string) => {
+      if (url.startsWith('/hyd/stations/map-points')) return Promise.resolve([]);
+      if (url.includes('map-points')) return Promise.resolve([]);
+      return Promise.resolve(DASHBOARD);
+    });
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/van-hanh/dieu-hanh']}>
+          <OperationsDashboardPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    // Phần còn lại của dashboard vẫn phải dựng được.
+    await waitFor(() => expect(screen.getByTestId('luoi-kpi')).toBeInTheDocument());
+    expect(screen.getByText('Công trình đang hoạt động')).toBeInTheDocument();
   });
 });
 

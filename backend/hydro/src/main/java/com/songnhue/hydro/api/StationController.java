@@ -23,6 +23,7 @@ import com.songnhue.core.spi.OrgUnitPort;
 import com.songnhue.core.spi.OrgUnitRef;
 import com.songnhue.hydro.application.StationConstructionService;
 import com.songnhue.hydro.application.StationForm;
+import com.songnhue.hydro.application.StationMapService;
 import com.songnhue.hydro.application.StationService;
 import com.songnhue.hydro.domain.ApiSource;
 import com.songnhue.hydro.domain.Station;
@@ -50,11 +51,39 @@ public class StationController {
     private final StationService stations;
     private final StationConstructionService lienKets;
     private final OrgUnitPort orgUnits;
+    private final StationMapService banDo;
 
-    public StationController(StationService stations, StationConstructionService lienKets, OrgUnitPort orgUnits) {
+    public StationController(
+            StationService stations,
+            StationConstructionService lienKets,
+            OrgUnitPort orgUnits,
+            StationMapService banDo) {
         this.stations = stations;
         this.lienKets = lienKets;
         this.orgUnits = orgUnits;
+        this.banDo = banDo;
+    }
+
+    /**
+     * Lớp GIS "Điểm đo thuỷ văn" — <b>T35.1</b>, kèm danh sách chưa số hoá vị trí (<b>T35.2</b>).
+     *
+     * <h2>⚠ Phụ thuộc chéo phải ghi ở CHỖ GỌI, không ở tài liệu</h2>
+     *
+     * <p>Bản đồ mà lớp này vẽ lên nằm ở màn hình điều hành của {@code operations}, mở bằng
+     * {@code ops:dashboard:view}; còn endpoint này đòi {@code hyd:station:view}. Đo ngày 04/09/2026:
+     * <b>cả 5</b> vai trò có {@code ops:dashboard:view} (CLERK · TECHNICIAN · XN_MANAGER ·
+     * XN_OPERATOR · DUTY_OFFICER) đều có {@code hyd:station:view}, nên hôm nay ⛔ không ai mở được
+     * bản đồ mà thiếu lớp.
+     *
+     * <p>⚠ Ngày nào có một vai trò mới được {@code ops:dashboard:view} mà ⛔ không có
+     * {@code hyd:station:view}, lớp này sẽ <b>im lặng rỗng</b> — bản đồ vẫn vẽ, chỉ thiếu chấm, và
+     * ⛔ không có thông báo lỗi nào. Đúng hình dạng T27.20/T28.25 đã tái phát hai lần.
+     */
+    @GetMapping("/map-points")
+    @Operation(summary = "Lớp GIS điểm đo + danh sách chưa số hoá vị trí")
+    @RequirePermission("hyd:station:view")
+    public HydroMapDtos.LopDiemDoView mapPoints() {
+        return banDo.lopDiemDo();
     }
 
     @GetMapping

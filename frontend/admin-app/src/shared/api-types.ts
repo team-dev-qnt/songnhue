@@ -613,6 +613,51 @@ export interface MapPointView {
   longitude: number;
 }
 
+/**
+ * Một chấm **điểm đo thuỷ văn** trên bản đồ — T35.1.
+ *
+ * ⚠ `latitude`/`longitude`/`giaTri` là **chuỗi**, ⛔ không phải `number`: backend gửi mọi
+ * `BigDecimal` dưới dạng chuỗi (§10.32 — một lượt "bỏ hết dấu chấm" từng biến vĩ độ `21,023456`
+ * thành `21023456`, và CHECK chỉ bắt được khi vượt biên). Leaflet cần số ⇒ đổi **ở đúng chỗ vẽ**,
+ * ⛔ không đổi kiểu ở đây.
+ */
+export interface StationMarkerView {
+  publicId: string;
+  code: string;
+  name: string;
+  positionRole: PositionRole;
+  latitude: string;
+  longitude: string;
+  riverName: string | null;
+  chainage: string | null;
+  trangThai: StationSignalStatus;
+  /** Bản ghi gần nhất mang chất lượng `NGHI_NGO` ⇒ vẽ **viền nét đứt**, ⛔ không đổi màu chấm. */
+  nghiNgo: boolean;
+  giaTri: string | null;
+  donVi: string | null;
+  tenChiSo: string | null;
+  mocDo: string | null;
+  /** Khoá màu của mức cảnh báo **nặng nhất đang mở**; `null` khi điểm đo không có cảnh báo nào. */
+  khoaMauCanhBao: string | null;
+  tenMucCanhBao: string | null;
+}
+
+/** Điểm đo **chưa số hoá vị trí** — T35.2, danh sách việc phải làm (mục G8). */
+export interface StationAwaitingCoordsView {
+  publicId: string;
+  code: string;
+  name: string;
+  positionRole: PositionRole;
+  riverName: string | null;
+  chainage: string | null;
+}
+
+/** Hai danh sách trong một phản hồi — xem `HydroMapDtos.LopDiemDoView`. */
+export interface StationLayerView {
+  diemDo: StationMarkerView[];
+  chuaSoHoaViTri: StationAwaitingCoordsView[];
+}
+
 // =============================================================================
 // Danh mục Tình trạng Vận hành (Mã màu & Cấu hình)
 // =============================================================================

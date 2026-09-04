@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { type DashboardView, type MapPointView } from '@/shared/api-types';
+import { type DashboardView, type MapPointView, type StationLayerView } from '@/shared/api-types';
 import { api } from '@/shared/apiClient';
 
 /** Chu kỳ dự phòng khi chưa có phản hồi nào — chỉ dùng cho **lượt chờ đầu tiên**. */
@@ -48,3 +48,30 @@ export function useMapPoints() {
     staleTime: 10 * 60_000,
   });
 }
+
+/**
+ * ⭐ Lớp **điểm đo thuỷ văn** cho bản đồ — T35.1.
+ *
+ * <p>⛔ Truy vấn RIÊNG, ⛔ không gộp vào {@link useMapPoints}: hai lớp có nhịp sống ngược nhau. Toạ
+ * độ công trình chỉ đổi khi có người sửa hồ sơ (`staleTime` 10 phút), còn điểm đo mang **giá trị đo
+ * và trạng thái tín hiệu** — chúng đổi mỗi khung 10 phút của nguồn.
+ *
+ * <p>⚠ Nhịp làm mới ở đây là **2 phút**, cố ý ⛔ KHÁC con số 5 phút của widget cổng công khai
+ * (OI-09, T35.12). Hai con số trả lời hai câu hỏi khác nhau: người trực cần số mới nhất, còn cổng
+ * công khai cân bằng giữa độ tươi và tải máy chủ. ⛔ Đừng gộp thành một tham số — *"một công tắc
+ * cho hai bóng đèn cũng là lỗi"*.
+ *
+ * <p>⚠ Đòi quyền `hyd:station:view`, trong khi bản đồ mở bằng `ops:dashboard:view`. Hôm nay cả 5
+ * vai trò có quyền sau đều có quyền trước (đo 04/09/2026), nên chưa ai gặp lớp rỗng. Xem javadoc
+ * `StationController#mapPoints` — ngày nào lệch, lớp này im lặng rỗng.
+ */
+export function useStationLayer() {
+  return useQuery({
+    queryKey: ['hyd', 'stations', 'map-points'],
+    queryFn: () => api.get<StationLayerView>('/hyd/stations/map-points'),
+    refetchInterval: NHIP_DIEM_DO_MS,
+  });
+}
+
+/** ⭐ Nhịp nội bộ — xem {@link useStationLayer}. ⛔ Không dùng chung với cổng công khai. */
+const NHIP_DIEM_DO_MS = 2 * 60 * 1000;
