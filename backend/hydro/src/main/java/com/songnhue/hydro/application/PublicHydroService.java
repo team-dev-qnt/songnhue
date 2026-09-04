@@ -3,8 +3,14 @@ package com.songnhue.hydro.application;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -96,6 +102,8 @@ public class PublicHydroService {
 
     private static final String CHUA_PHAN_TUYEN = "Chưa phân tuyến";
 
+    private static final Logger log = LoggerFactory.getLogger(PublicHydroService.class);
+
     private final StationMapRepository repository;
     private final HydroSettings settings;
 
@@ -112,6 +120,11 @@ public class PublicHydroService {
      *
      * <p>⛔ Điểm đo đã {@code NGUNG} thì ⛔ KHÔNG ra cổng: đó là quyết định của người vận hành
      * ("thôi không dùng trạm này nữa"), khác hẳn "trạm hỏng".
+     *
+     * <p>⭐ <b>T35.8</b> — khoá {@code hydro.portal.station-codes} lọc thêm một tầng nữa, và
+     * ⛔ <b>rỗng nghĩa là TẤT CẢ</b>: xem {@link HydroSettings#maDiemDoLenCong()}. Hai bộ lọc xếp
+     * chồng có thứ tự có nghĩa — {@code NGUNG} bị loại <b>trước</b>, nên gõ một mã đã ngừng vào danh
+     * sách công bố ⛔ không hồi sinh nó, và mã ấy sẽ nằm trong dòng WARN cuối hàm.
      */
     @Transactional(readOnly = true)
     public List<MucNuocRow> mucNuoc() {
@@ -119,12 +132,22 @@ public class PublicHydroService {
         int soKhung = settings.soKhungMatTinHieu();
         Instant bayGio = Instant.now();
 
+        // ⭐ T35.8 — danh sách công bố. RỖNG nghĩa là TẤT CẢ; xem javadoc `maDiemDoLenCong()`.
+        List<String> danhSach = settings.maDiemDoLenCong();
+        Set<String> loc = new HashSet<>(danhSach);
+        Set<String> daGap = new HashSet<>();
+
         List<MucNuocRow> ket = new ArrayList<>();
         for (StationMapRepository.DiemDoBanDoRow r : repository.diemDoBanDo()) {
             StationDisplayStatus tt = StationDisplayStatus.suyRa(r.active(), r.mocGanNhat(), bayGio, khung, soKhung);
             if (tt == StationDisplayStatus.NGUNG) {
                 continue;
             }
+            String ma = r.code() == null ? "" : r.code().toUpperCase(Locale.ROOT);
+            if (!loc.isEmpty() && !loc.contains(ma)) {
+                continue;
+            }
+            daGap.add(ma);
 
             boolean thuongLuu = "THUONG_LUU".equals(r.positionRole());
             BigDecimal gt = r.giaTri();
@@ -170,6 +193,38 @@ public class PublicHydroService {
                     gt == null ? null : "HOP_LE",
                     lyDo,
                     LY_DO_LUONG_MUA));
+        }
+
+        // ⭐⭐ Mã gõ nhầm phải KÊU — ⛔ không được lặng lẽ làm bảng ngắn đi.
+        //
+        // ⚠ Đây là hình dạng lỗi im lặng đặc trưng của khoá này: gõ nhầm một mã trong danh sách 10
+        //   mã cho ra 9 dòng, và 9 dòng SỐ THẬT trông y hệt một bảng đúng — ⛔ không có ô rỗng nào,
+        //   ⛔ không có dấu gạch nào, ⛔ không có gì để người đọc nghi ngờ. Quy tắc 16 nói "số 0 là
+        //   một câu khẳng định"; ở đây cả một DÒNG VẮNG MẶT cũng vậy.
+        //
+        // ⛔ Cố ý ⛔ KHÔNG ném và ⛔ KHÔNG đưa ra thân phản hồi: đây là endpoint công khai, và một
+        //    danh sách mã điểm đo là cấu hình nội bộ. Chỗ đúng của câu này là nhật ký hệ thống, và
+        //    mô tả của khoá (người vận hành đọc được) đã trỏ thẳng tới đó.
+        if (!loc.isEmpty()) {
+            List<String> khongKhop =
+                    danhSach.stream().filter(m -> !daGap.contains(m)).toList();
+            if (!khongKhop.isEmpty()) {
+                log.warn(
+                        "⛔ Khoá `{}` có {} mã ⛔ KHÔNG khớp điểm đo nào đang hoạt động: {}. Bảng mực nước "
+                                + "trên cổng vì thế thiếu {} dòng — kiểm lại chính tả ở Cấu hình hệ thống › nhóm HYDRO.",
+                        HydroSettings.KHOA_DIEM_DO_LEN_CONG,
+                        khongKhop.size(),
+                        khongKhop,
+                        khongKhop.size());
+            }
+        }
+
+        // ⚠ Sắp theo ĐÚNG thứ tự người vận hành gõ — mô tả của khoá hứa như vậy, và một danh sách
+        //   "chọn được nhưng không xếp được" thì lần đầu Công ty dùng đã phải mở lại mã. Danh sách
+        //   rỗng ⇒ giữ nguyên thứ tự của câu truy vấn.
+        if (!loc.isEmpty()) {
+            ket.sort(Comparator.comparingInt(
+                    row -> danhSach.indexOf(row.maDiemDo().toUpperCase(Locale.ROOT))));
         }
         return ket;
     }

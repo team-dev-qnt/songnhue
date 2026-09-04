@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.songnhue.core.spi.HydroAlertPort;
+import com.songnhue.core.spi.PortalCachePort;
 import com.songnhue.operations.domain.Construction;
 import com.songnhue.operations.domain.LifecycleState;
 import com.songnhue.operations.domain.OperationalStatus;
@@ -65,16 +66,19 @@ public class ConstructionStatusService {
     private final MaintenanceLogRepository maintenanceLogs;
     private final ConstructionOperationStatusRepository operationStatuses;
     private final HydroAlertPort hydroAlertPort;
+    private final PortalCachePort portalCache;
 
     public ConstructionStatusService(
             ConstructionRepository constructions,
             MaintenanceLogRepository maintenanceLogs,
             ConstructionOperationStatusRepository operationStatuses,
-            HydroAlertPort hydroAlertPort) {
+            HydroAlertPort hydroAlertPort,
+            PortalCachePort portalCache) {
         this.constructions = constructions;
         this.maintenanceLogs = maintenanceLogs;
         this.operationStatuses = operationStatuses;
         this.hydroAlertPort = hydroAlertPort;
+        this.portalCache = portalCache;
     }
 
     /**
@@ -92,6 +96,21 @@ public class ConstructionStatusService {
         OperationalStatus sau = tinh(construction);
         if (sau != truoc) {
             construction.apDungTrangThai(sau);
+            // ⭐⭐ Xoá đệm cổng đặt Ở ĐÂY, ⛔ không ở từng nơi gọi — luật 12, và đây là chỗ dữ liệu
+            //    THẬT SỰ đi qua.
+            //
+            // Đo được 04/09/2026: `operational_status` được cổng công bố (Danh mục công trình, bản
+            // đồ hệ thống, khối "Vận hành công trình"), và nó đổi qua BỐN đường —
+            // `MaintenanceLogService` (mở/đóng sự cố), `NguongAlertService` (cảnh báo ngưỡng),
+            // `OperationStatusCodeService`, `ConstructionService`. Chỉ hai đường sau gọi
+            // `portalCache`; hai đường đầu ⛔ chưa từng gọi. ⇒ trực ban ghi một SỰ CỐ, công trình
+            // chuyển đỏ trong CSDL, và cổng vẫn hiện "Bình thường" tới 5 phút — đúng triệu chứng
+            // §10.62/T27.7, tái phát ở đường ghi thứ năm và thứ sáu.
+            //
+            // ⭐ Rải lời gọi ra bốn nơi là mời lời gọi thứ năm đặt sai chỗ (đúng lịch sử T27.7).
+            //    Đặt trong nhánh này thì nó chỉ bắn khi trạng thái THẬT SỰ đổi — một lượt
+            //    `recompute` không đổi gì ⛔ không đặt việc nào, nên nó rẻ kể cả trên đường ingest.
+            portalCache.constructionsChanged();
             log.info("Công trình {} đổi trạng thái {} → {}", construction.getCode(), truoc, sau);
         }
         return sau;

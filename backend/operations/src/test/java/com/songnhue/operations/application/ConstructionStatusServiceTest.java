@@ -16,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.songnhue.core.spi.HydroAlertPort;
+import com.songnhue.core.spi.PortalCachePort;
 import com.songnhue.operations.domain.Construction;
 import com.songnhue.operations.domain.ConstructionOperationStatus;
 import com.songnhue.operations.domain.LifecycleState;
@@ -39,6 +40,17 @@ class ConstructionStatusServiceTest {
 
     @Mock
     private HydroAlertPort hydroAlertPort;
+
+    /**
+     * ⚠⚠ Thiếu {@code @Mock} này thì <b>test-compile vẫn XANH</b> và cả năm bài đổ vỡ lúc chạy —
+     * {@code @InjectMocks} nối bằng phản chiếu, ⛔ không qua trình biên dịch.
+     *
+     * <p>Đúng cảnh báo §10.70: <i>"biên dịch được" ⛔ KHÔNG phải "qua cổng kiểm"</i>. Lượt thêm
+     * {@code PortalCachePort} vào hàm dựng 04/09 đi qua {@code test-compile} sạch rồi mới đỏ ở
+     * {@code make ci-local}.
+     */
+    @Mock
+    private PortalCachePort portalCache;
 
     @InjectMocks
     private ConstructionStatusService service;

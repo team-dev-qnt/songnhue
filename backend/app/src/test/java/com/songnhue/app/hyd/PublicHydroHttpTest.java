@@ -49,10 +49,27 @@ class PublicHydroHttpTest extends IntegrationTestBase {
     @Autowired
     private JdbcTemplate jdbc;
 
+    @Autowired
+    private com.songnhue.core.application.settings.SettingService settings;
+
     @AfterEach
     void donDep() {
         jdbc.update("DELETE FROM hydro_latest WHERE station_id IN (SELECT id FROM stations WHERE code = ?)", MA);
         jdbc.update("DELETE FROM stations WHERE code = ?", MA);
+        // ⚠ Trả khoá T35.8 về rỗng: một bài để lại danh sách lọc thì mọi bài SAU nó đo trên một cổng
+        //   đã bị thu hẹp, và triệu chứng là "bài kiểm đỏ theo thứ tự chạy".
+        datDanhSachCong("");
+    }
+
+    /**
+     * ⚠ Ghi qua {@code SettingService}, ⛔ không {@code UPDATE} thẳng bảng.
+     *
+     * <p>{@code SettingPort} có bộ đệm Caffeine phía sau, và nó chỉ được dọn bởi lượt ghi đi qua
+     * service. {@code UPDATE} thẳng thì hàng CSDL đổi mà {@code HydroSettings} vẫn đọc giá trị cũ —
+     * bài kiểm sẽ đỏ vì <b>cách đo</b>, và ta sẽ đi sửa mã đúng.
+     */
+    private void datDanhSachCong(String giaTri) {
+        settings.update("hydro.portal.station-codes", giaTri);
     }
 
     // === 1. Đường công khai đi được, và đi bằng đường TRÌNH DUYỆT ============
@@ -203,6 +220,71 @@ class PublicHydroHttpTest extends IntegrationTestBase {
                 .doesNotContain(MA_API)
                 .doesNotContain("apiCode")
                 .doesNotContain("orgUnit");
+    }
+
+    // === 4. ⭐ T35.8 — danh sách công bố cấu hình được từ admin ===============
+
+    /**
+     * ⛔⛔ Nhánh <b>RỖNG = TẤT CẢ</b>, và nó phải có bài kiểm riêng.
+     *
+     * <p>Đây là nhánh mà một người đọc mã sáu tháng nữa sẽ đọc ngược — "khoá rỗng thì lọc ra rỗng"
+     * là cách đọc tự nhiên hơn. Nếu ai đó "sửa" theo cách đọc ấy thì cổng mất trắng bảng mực nước
+     * và ⛔ không lỗi nào bắn: một danh sách rỗng trả về {@code []} hợp lệ, và giao diện hiện đúng
+     * khối "chưa có dữ liệu" mà nó được dựng để hiện.
+     */
+    @Test
+    @DisplayName("⭐ T35.8 — khoá RỖNG nghĩa là công bố TẤT CẢ, ⛔ không phải 'không công bố gì'")
+    void anEmptyPortalListPublishesEveryActiveStation() {
+        taoDiemDo("THUONG_LUU");
+        datDanhSachCong("");
+
+        assertThat(doc().getBody())
+                .as(
+                        """
+                        ⛔ Rỗng = TẤT CẢ. Đọc ngược thành "không công bố gì" là tự quyết định thay Công ty \
+                        rằng OI-03 chưa chốt nghĩa là giấu đi — và nó xoá 19 dòng SỐ THẬT đang chạy.""")
+                .contains(MA);
+    }
+
+    @Test
+    @DisplayName("⭐ T35.8 — khoá có mã điểm đo thì điểm đo ấy lên cổng")
+    void aListedStationIsPublished() {
+        taoDiemDo("THUONG_LUU");
+        datDanhSachCong(MA);
+
+        assertThat(doc().getBody()).contains(MA);
+    }
+
+    /**
+     * ⭐⭐ Vế chịu lực: bộ lọc phải <b>thật sự lọc</b>.
+     *
+     * <p>Không có bài này thì hai bài trên xanh trọn vẹn kể cả khi {@code maDiemDoLenCong()} bị bỏ
+     * qua hoàn toàn — cả hai chỉ khẳng định "có mặt", và một bộ lọc <b>chưa từng chạy</b> cũng cho
+     * ra đúng kết quả ấy (luật 9: một khẳng định không phân biệt được hai trạng thái thì ⛔ không
+     * khẳng định gì).
+     */
+    @Test
+    @DisplayName("⭐⭐ T35.8 — điểm đo NGOÀI danh sách ⛔ KHÔNG lên cổng (bộ lọc thật sự chạy)")
+    void anUnlistedStationIsFilteredOut() {
+        taoDiemDo("THUONG_LUU");
+        assertThat(doc().getBody()).as("tiền đề: rỗng thì nó có mặt").contains(MA);
+
+        datDanhSachCong("MOT-MA-KHAC");
+
+        assertThat(doc().getBody())
+                .as("⛔ danh sách khác rỗng và ⛔ không chứa mã này ⇒ điểm đo phải biến mất khỏi cổng")
+                .doesNotContain(MA);
+    }
+
+    @Test
+    @DisplayName("⚠ T35.8 — mã gõ thừa dấu cách và viết thường vẫn khớp; ⛔ chỉ có thế mới dùng được")
+    void codesAreTrimmedAndCaseInsensitive() {
+        taoDiemDo("THUONG_LUU");
+        datDanhSachCong("  " + MA.toLowerCase(java.util.Locale.ROOT) + " , MOT-MA-KHAC ");
+
+        assertThat(doc().getBody())
+                .as("người vận hành dán danh sách từ Excel — dấu cách và chữ thường là chuyện thường ngày")
+                .contains(MA);
     }
 
     // === Helper ==============================================================

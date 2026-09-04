@@ -16,6 +16,7 @@ import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.ConflictException;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
 import com.songnhue.core.common.exception.ValidationException;
+import com.songnhue.core.spi.PortalCachePort;
 import com.songnhue.hydro.domain.AlertLevel;
 import com.songnhue.hydro.infra.AlertLevelRepository;
 import com.songnhue.hydro.infra.AlertRuleRepository;
@@ -78,10 +79,12 @@ public class AlertLevelService {
 
     private final AlertLevelRepository levels;
     private final AlertRuleRepository rules;
+    private final PortalCachePort portalCache;
 
-    public AlertLevelService(AlertLevelRepository levels, AlertRuleRepository rules) {
+    public AlertLevelService(AlertLevelRepository levels, AlertRuleRepository rules, PortalCachePort portalCache) {
         this.levels = levels;
         this.rules = rules;
+        this.portalCache = portalCache;
     }
 
     @Transactional(readOnly = true)
@@ -111,6 +114,10 @@ public class AlertLevelService {
         muc.setActive(active == null || active);
         muc.setDescription(description);
         AlertLevel daLuu = levels.save(muc);
+        // ⚠ Mức cảnh báo là DANH MỤC, và từ T35.14 `colorToken` + `name` của nó đi thẳng ra marker
+        //   GIS lẫn bảng mực nước trên cổng. Đổi màu/tên mà ⛔ không xoá đệm là đúng lỗi T27.7 —
+        //   xem javadoc PortalCachePort.hydroStationsChanged().
+        portalCache.hydroStationsChanged();
         log.info("Thêm mức cảnh báo {} (hạng {})", ma, hang);
         return daLuu;
     }
@@ -143,6 +150,7 @@ public class AlertLevelService {
         //   PATCH ngầm, tức một cờ mà màn hình bật/tắt được nhưng API thì không.
         muc.setActive(active == null || active);
         muc.setDescription(description);
+        portalCache.hydroStationsChanged();
         return muc;
     }
 
@@ -163,6 +171,7 @@ public class AlertLevelService {
             throw new ConflictException(ErrorCode.HYD_2010, String.valueOf(dem));
         }
         muc.markDeleted(Instant.now());
+        portalCache.hydroStationsChanged();
         log.info("Xoá mềm mức cảnh báo {}", muc.getCode());
     }
 

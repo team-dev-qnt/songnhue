@@ -17,7 +17,7 @@ package com.songnhue.core.spi;
  *
  * <h2>SPI mỏng là cố ý</h2>
  *
- * <p>Chỉ hai phương thức, đúng hai tập dữ liệu <b>đang</b> có người gọi. Không có
+ * <p>Chỉ ba phương thức, đúng ba tập dữ liệu <b>đang</b> có người gọi. Không có
  * {@code evict(String tag)} tự do: một cổng nhận nhãn bất kỳ thì nhãn của cổng công khai trở thành
  * thứ mọi module phải nhớ đúng chính tả, và một nhãn gõ sai không có triệu chứng nào (cùng lý lẽ với
  * {@code SettingAdminPort} bắt buộc khai {@code groupCode} — §10.12).
@@ -38,4 +38,41 @@ public interface PortalCachePort {
      * <p>Chạm trang Danh mục công trình, bản đồ hệ thống trên trang chủ và khối Vận hành công trình.
      */
     void constructionsChanged();
+
+    /**
+     * <b>Danh mục</b> thuỷ văn vừa đổi — điểm đo, liên kết công trình, mức cảnh báo, số đo
+     * <b>nhập tay</b>, hoặc danh sách điểm đo công bố lên cổng (T35.8). <b>T35.9</b>.
+     *
+     * <p>Chạm bảng "Mực nước, lượng mưa" ở trang chủ và trang
+     * {@code /quan-ly-van-hanh/muc-nuoc-luong-mua}.
+     *
+     * <h2>⛔⛔ Đường ghi SỐ ĐO ⛔ KHÔNG được gọi phương thức này</h2>
+     *
+     * <p>Đây là ranh giới chịu lực của cả T35.9, và nó ⛔ không hiển nhiên từ tên phương thức — nên
+     * nó phải nằm trong hợp đồng chứ ⛔ không nằm trong trí nhớ người viết lời gọi tiếp theo.
+     *
+     * <p>Đo được 04/09/2026: {@code hydro} có <b>năm</b> đường ghi, và chúng chia làm hai loại khác
+     * hẳn nhau về <i>tần suất</i>:
+     *
+     * <ul>
+     *   <li><b>Biên tập / danh mục</b> — con người bấm Lưu, vài lượt một ngày:
+     *       {@code StationService}, {@code AlertLevelService}, {@code SoDoNhapTayService}, và lượt
+     *       ghi khoá {@code hydro.portal.*}. ⇒ <b>gọi</b>.
+     *   <li><b>Số đo</b> — máy ghi, <b>2 phút/lần vĩnh viễn</b>: {@code TelemetryIngestService},
+     *       {@code HydroLatestRecomputer}, {@code NguongAlertService}, {@code AlertEventService}.
+     *       ⇒ ⛔ <b>không gọi</b>.
+     * </ul>
+     *
+     * <p>⚠ Vì sao vế thứ hai ⛔ không phải là "quên nối": {@code PortalCache} có {@code dedupKey},
+     * nhưng hàng đợi chỉ gộp <b>khi việc cũ còn đang chờ</b> — mà worker rút việc mỗi 5 giây, nên
+     * hai lượt cách nhau 2 phút ⛔ không bao giờ gộp. Nối đường ingest là đặt <b>~720 việc dựng lại
+     * cổng mỗi ngày</b> để phục vụ một trang mà OI-09 đã cam kết với Công ty là làm mới
+     * <b>5 phút/lần</b>. Cửa sổ ISR ấy <i>đã</i> là câu trả lời cho số đo mới; xoá đệm thêm chỉ đổi
+     * 5 phút lấy 2 phút và trả bằng một hàng đợi không bao giờ rỗng.
+     *
+     * <p>📌 Ghi ở đây vì T27.7 đã trả giá đúng chỗ này theo chiều ngược lại: ba điểm ghi được nối,
+     * điểm ghi thứ tư ra đời <b>cùng đợt</b> mang lại đúng lỗi cũ. Một ranh giới chỉ sống trong đầu
+     * người viết thì lời gọi thứ năm sẽ đặt sai bên.
+     */
+    void hydroStationsChanged();
 }
