@@ -6,6 +6,7 @@ import {
   ALIGN_CLASSES,
   IMAGE_WIDTH_CLASSES,
   PORTAL_STYLED_TAGS,
+  TABLE_CELL_MIN_WIDTH_PX,
 } from 'design-tokens/editor-schema';
 import { describe, expect, it } from 'vitest';
 
@@ -162,6 +163,23 @@ describe('CSS nội dung bài của cổng công khai', () => {
 
   it('bảng phải cuộn ngang được — bài thuỷ lợi hay có bảng sáu, bảy cột', () => {
     expect(coKhai(/\.sn-article\s+table$/, 'overflow-x')).toBe(true);
+  });
+
+  it('⭐ ô bảng phải có sàn `min-width`, đúng bằng hằng dùng chung — WS-41', () => {
+    // Cuộn ngang một mình chưa đủ: không có sàn thì bảng luôn co vừa khung bằng cách bóp từng
+    // cột, nên `overflow-x` KHÔNG BAO GIỜ kích hoạt. Một bảng 7 cột trên điện thoại cho ra bảy
+    // cột ~45px, mỗi ô số liệu vỡ thành hai ba dòng — và bài kiểm cuộn ngang ở trên vẫn xanh.
+    const oBang = tachQuyTac(CSS).filter((qt) =>
+      qt.boChon.some((bc) => /\.sn-article\s+(th|td)$/.test(bc)),
+    );
+
+    expect(oBang.length, 'không tìm thấy quy tắc cho ô bảng').toBeGreaterThan(0);
+    expect(
+      oBang.map((qt) => qt.than).join('\n'),
+      `Phải bằng TABLE_CELL_MIN_WIDTH_PX (${TABLE_CELL_MIN_WIDTH_PX}px) — cùng con số với ` +
+        '`admin-app/.../richTextEditor.css`. Lệch nhau là bảng cuộn ở hai ngưỡng khác nhau: ' +
+        'người soạn thấy vừa khung, bạn đọc thấy tràn (quy tắc 14).',
+    ).toMatch(new RegExp(`min-width\\s*:\\s*${TABLE_CELL_MIN_WIDTH_PX}px`));
   });
 
   it('ảnh hẹp phải trở lại toàn khung trên điện thoại', () => {

@@ -16,7 +16,7 @@ import {
   Typography,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { useAuth } from '@/app/auth/useAuth';
@@ -25,6 +25,7 @@ import { RichTextEditor } from '@/components/business/RichTextEditor';
 import { StatusBadge } from '@/components/business/StatusBadge';
 import { ApiClientError } from '@/shared/apiClient';
 import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
+import { useChanRoiTrang } from '@/shared/useChanRoiTrang';
 import { formatInteger, toApiInstant } from '@/shared/format';
 
 import { ArticleDocumentsPanel } from './ArticleDocumentsPanel';
@@ -65,7 +66,39 @@ import { VersionHistoryDrawer } from './VersionHistoryDrawer';
  */
 export function ArticleEditorPage() {
   const { publicId } = useParams<{ publicId: string }>();
+  const queryClient = useQueryClient();
   const laBaiMoi = publicId === undefined || publicId === 'moi';
+
+  /**
+   * ⭐⭐ **Mốc nạp lại tường minh** — bản vá cho lỗi mất dữ liệu ở luồng Phục hồi phiên bản (T41.9).
+   *
+   * <h3>Lỗi đã đo được</h3>
+   *
+   * `key` cũ là `article.data.publicId` — một **hằng số suốt vòng đời màn hình**. Nên sau khi
+   * Phục hồi một phiên bản cũ, `ArticleForm` **không remount**, mà `useState(data?.content)` và
+   * `initialValues` của AntD chỉ đổ dữ liệu vào **lượt mount đầu**. Đo bằng test dựng thật:
+   * dữ liệu query đổi = `true`, DOM giữ nội dung CŨ = `true`, nội dung mới xuất hiện = `false`.
+   *
+   * Backend `restoreInto` ghi đè **9 trường**, nên màn hình đứng yên hoàn toàn — và cú bấm **Lưu**
+   * kế tiếp gửi lại `content`/`documents`/`coverId` CŨ **đè lên bản vừa phục hồi**. Mất dữ liệu,
+   * im lặng, không lỗi nào.
+   *
+   * <h3>Vì sao là một số đếm tường minh, không phải một trường dữ liệu</h3>
+   *
+   * ⛔ **Không** gắn `key` vào `version`/`updatedAt`: `queryClient` bật `refetchOnWindowFocus`, nên
+   * gắn key vào dữ liệu là biến **mỗi lượt alt-tab quay lại** thành một lượt dựng lại biểu mẫu —
+   * xoá sạch ngăn hoàn tác của TipTap và mọi ô đang gõ dở. (Và `ArticleDetail` hôm nay không có
+   * mốc nào dùng được: không `updatedAt`, không `versionNo`.)
+   *
+   * ⛔ **Không** `location.reload()`: `apiClient` cố ý giữ access token **chỉ trong RAM**, nên F5
+   * là mất phiên đăng nhập.
+   *
+   * ⛔ **Không** liệt kê tay 14 ô cho `form.setFieldsValue`: quên một ô là dựng lại đúng lỗi cũ ở
+   * quy mô nhỏ hơn — và chỗ quên sẽ là ô ít dùng nhất, tức chỗ lâu bị phát hiện nhất.
+   *
+   * Mốc tường minh thì biểu mẫu **chỉ** dựng lại khi chính màn hình quyết định nạp lại.
+   */
+  const [mocNap, setMocNap] = useState(0);
 
   const article = useQuery({
     queryKey: cmsKeys.article(publicId ?? ''),
@@ -73,16 +106,41 @@ export function ArticleEditorPage() {
     enabled: !laBaiMoi,
   });
 
+  /**
+   * Nạp lại biểu mẫu từ một `ArticleDetail` **máy chủ vừa trả về**.
+   *
+   * ⚠ Cả `restoreVersion` và `transition` đều trả về `ArticleDetail` đầy đủ, nên không tốn thêm
+   * một lượt mạng nào — `setQueryData` rồi tăng mốc là đủ. Bản trước `restore.mutate` **vứt bỏ**
+   * giá trị ấy và chỉ gọi `invalidateQueries`.
+   */
+  const napLaiTuMayChu = (detail: ArticleDetail) => {
+    queryClient.setQueryData(cmsKeys.article(detail.publicId), detail);
+    setMocNap((truoc) => truoc + 1);
+  };
+
   if (laBaiMoi) {
-    return <ArticleForm key="moi" />;
+    return <ArticleForm key="moi" onNapLai={napLaiTuMayChu} />;
   }
   if (article.isLoading || !article.data) {
     return <Card loading title="Đang tải bài viết…" />;
   }
-  return <ArticleForm key={article.data.publicId} article={article.data} />;
+  return (
+    <ArticleForm
+      key={`${article.data.publicId}:${mocNap}`}
+      article={article.data}
+      onNapLai={napLaiTuMayChu}
+    />
+  );
 }
 
-function ArticleForm({ article: data }: { article?: ArticleDetail }) {
+function ArticleForm({
+  article: data,
+  onNapLai,
+}: {
+  article?: ArticleDetail;
+  /** Dựng lại biểu mẫu từ dữ liệu máy chủ vừa trả về — xem `napLaiTuMayChu`. */
+  onNapLai: (detail: ArticleDetail) => void;
+}) {
   const laBaiMoi = data === undefined;
   const publicId = data?.publicId;
   const navigate = useNavigate();
@@ -104,6 +162,35 @@ function ArticleForm({ article: data }: { article?: ArticleDetail }) {
   const [slugDaSuaTay, setSlugDaSuaTay] = useState(!laBaiMoi);
   /** Ảnh kéo-thả đang tải dở — xem `khoaLuu` bên dưới. */
   const [anhDangTai, setAnhDangTai] = useState(0);
+
+  /**
+   * Có thay đổi chưa lưu không — T41.10.
+   *
+   * ⭐⭐ Đo bằng **hành động của người dùng**, ⛔ KHÔNG so `content` với `data.content`.
+   *
+   * `HtmlSanitizer` gọi `Jsoup.clean` với OutputSettings mặc định ⇒ **prettyPrint bật** ⇒ HTML
+   * trong CSDL có xuống dòng và thụt lề giữa các thẻ khối, còn `editor.getHTML()` thì không. Một
+   * phép so chuỗi vì thế **báo bẩn 100%** với mọi bài nhiều hơn một khối — ngay khi vừa mở, chưa
+   * gõ gì. Và một cảnh báo luôn hiện là một cảnh báo người dùng học cách bấm qua mà không đọc.
+   *
+   * `RichTextEditor` chỉ gọi `onChange` khi người dùng thật sự sửa: lượt đồng bộ từ ngoài vào dùng
+   * `setContent(value, { emitUpdate: false })`, nên nó **không** bắn `onUpdate`. Vậy một lượt
+   * `onChange` là một tín hiệu sạch, không cần so gì.
+   */
+  const [coSuaChuaLuu, setCoSuaChuaLuu] = useState(false);
+
+  /**
+   * Bản chuẩn hoá của nội dung **lúc nạp** — do chính trình soạn thảo báo lên (`onNormalized`).
+   *
+   * ⚠ Không so với `data.content`: chuỗi trong CSDL đã qua `Jsoup.clean` với prettyPrint bật nên
+   * mang thụt lề mà `editor.getHTML()` không có ⇒ so trực tiếp là bẩn ngay khi vừa mở bài.
+   */
+  const mocNoiDung = useRef<string | null>(null);
+
+  const { choPhepRoi, hopThoaiRoiTrang } = useChanRoiTrang(
+    coSuaChuaLuu,
+    'Phần vừa sửa chưa được lưu và sẽ mất nếu rời khỏi trang này.',
+  );
 
   const categories = useQuery({
     queryKey: cmsKeys.categories(),
@@ -192,8 +279,17 @@ function ArticleForm({ article: data }: { article?: ArticleDetail }) {
       laBaiMoi ? cmsApi.createArticle(body) : cmsApi.updateArticle(publicId as string, body),
     onSuccess: async (saved) => {
       message.success('Đã lưu bài viết');
+      // Mốc mới là thứ VỪA GỬI ĐI, không phải thứ máy chủ trả về: `HtmlSanitizer` có thể lọc bớt
+      // và prettyPrint thêm thụt lề, nên lấy bản máy chủ làm mốc là bẩn ngay sau khi lưu.
+      mocNoiDung.current = content;
+      setCoSuaChuaLuu(false);
       await invalidate();
       if (laBaiMoi) {
+        // ⛔ `choPhepRoi()` TRƯỚC `navigate`: React gộp `setState` rồi mới vẽ lại, nên hàm chặn mà
+        //    router đang giữ vẫn là bản cũ (`coSuaChuaLuu === true`) và nó sẽ chặn đúng cú chuyển
+        //    trang do chính ta thực hiện — người dùng lưu xong thì bị hỏi "rời trang không?".
+        //    Một `ref` có hiệu lực ngay, không đợi lượt vẽ.
+        choPhepRoi();
         navigate(`/noi-dung/bai-viet/${saved.publicId}`, { replace: true });
       }
     },
@@ -212,15 +308,41 @@ function ArticleForm({ article: data }: { article?: ArticleDetail }) {
   const transition = useMutation({
     mutationFn: ({ action, reason }: { action: string; reason?: string }) =>
       cmsApi.transition(publicId as string, action, reason),
-    onSuccess: invalidate,
+    // ⭐ Nạp lại biểu mẫu, không chỉ `invalidate`. Chuyển trạng thái đổi cả `status`,
+    //   `allowedActions` **và** `publishedAt` (sau khi duyệt) — trước đây ba thứ ấy đổi trong
+    //   dữ liệu mà biểu mẫu đứng yên, nên ô "Ngày đăng" không bao giờ hiện giờ đăng thật.
+    onSuccess: async (detail) => {
+      await invalidate();
+      onNapLai(detail);
+    },
     onError: (caught: unknown) =>
       message.error(
         caught instanceof ApiClientError ? caught.message : 'Không đổi được trạng thái',
       ),
   });
 
+  /**
+   * ⚠⚠ `validateFields()` **reject** khi có ô sai, và lời gọi ở nút Lưu là `void submit()` — không
+   * gắn `catch` nào. Một promise bị từ chối mà không ai bắt là một **unhandledRejection**: trong
+   * trình duyệt nó là một dòng đỏ ở console không ai đọc, còn trong vitest 4 nó làm **đỏ cả lượt
+   * chạy** ở một tệp chẳng liên quan.
+   *
+   * Bắt ở đây, và **đưa tiêu điểm về ô sai đầu tiên**. ⛔ Không dùng prop `scrollToFirstError` của
+   * `<Form>`: nó chỉ chạy trong `onInternalFinishFailed`, tức chỉ khi submit qua `form.submit()` —
+   * màn hình này gọi `validateFields()` bằng tay nên prop ấy là một trường **không ai đọc**
+   * (quy tắc 15).
+   */
   const submit = async () => {
-    const values = await form.validateFields();
+    let values: FormValues;
+    try {
+      values = await form.validateFields();
+    } catch (loi) {
+      const truong = (loi as { errorFields?: { name: (string | number)[] }[] }).errorFields?.[0];
+      if (truong) {
+        form.scrollToField(truong.name, { behavior: 'smooth', block: 'center' });
+      }
+      return;
+    }
     save.mutate({
       title: values.title,
       slug: values.slug || undefined,
@@ -283,14 +405,47 @@ function ArticleForm({ article: data }: { article?: ArticleDetail }) {
    */
   const khoaLuu = khoaSua || anhDangTai > 0 || !coQuyenGhi;
 
+  /**
+   * Vì sao **không** chuyển trạng thái được lúc này — `null` = chuyển được. T41.11.
+   *
+   * <h3>⛔ Hai lỗ mà một luật khoá DÙNG CHUNG đóng lại</h3>
+   *
+   * Trước lượt này `ApprovalActions` chỉ khoá theo `transition.isPending`, trong khi nút Lưu ngay
+   * phía trên đọc `khoaLuu`. Hai chỗ, hai luật, và cả hai lỗ đều im lặng:
+   *
+   * <ul>
+   *   <li><b>Ảnh đang tải</b> — bấm "Gửi duyệt" lúc đó là gửi đi một bài có thẻ ảnh mang `blob:`,
+   *       thứ `HtmlSanitizer` sẽ gỡ `src`. Người duyệt đọc một bài thiếu ảnh.
+   *   <li><b>Còn sửa chưa lưu</b> — chuyển sang `CHO_DUYET` làm `khoaSua` bật ⇒ biểu mẫu
+   *       `disabled` **và** nút Lưu khoá. Phần vừa gõ còn hiện trên màn hình mà **không còn đường
+   *       nào lưu nó nữa**; backend cũng ném `CMS-2007` nếu cố. Mất công gõ, không cảnh báo.
+   * </ul>
+   *
+   * ⚠ Trả **câu lý do** và hiện nó bằng CHỮ cạnh nút, ⛔ không chỉ ở `title`: máy tính bảng không
+   * có hover, nên một nút xám kèm tooltip là một nút xám câm.
+   */
+  const lyDoKhongChuyenTrangThai: string | null = (() => {
+    if (anhDangTai > 0) {
+      return `Đang tải ${anhDangTai} ảnh lên — chờ xong rồi mới chuyển trạng thái được`;
+    }
+    if (coSuaChuaLuu) {
+      return 'Còn thay đổi chưa lưu — bấm Lưu trước, vì chuyển sang Chờ duyệt sẽ khoá chỉnh sửa';
+    }
+    return null;
+  })();
+
   return (
     <>
       <Card
         title={
           <Space>
+            {/* ⚠ `aria-label` là BẮT BUỘC: nút chỉ có biểu tượng thì không có tên khả truy cập —
+                trình đọc màn hình đọc "button", và `getByRole('button', { name })` không tìm thấy
+                nó. Cùng khuôn `ToolbarButton` của trình soạn thảo. */}
             <Button
               icon={<ArrowLeftOutlined />}
               type="text"
+              aria-label="Quay lại danh sách bài viết"
               onClick={() => navigate('/noi-dung/bai-viet')}
             />
             {laBaiMoi ? 'Viết bài mới' : 'Sửa bài viết'}
@@ -354,6 +509,7 @@ function ArticleForm({ article: data }: { article?: ArticleDetail }) {
           layout="vertical"
           disabled={khoaSua}
           initialValues={initialValues}
+          onValuesChange={() => setCoSuaChuaLuu(true)}
         >
           <Row gutter={24}>
             <Col xs={24} lg={16}>
@@ -378,7 +534,11 @@ function ArticleForm({ article: data }: { article?: ArticleDetail }) {
                 extra={
                   data?.publiclyVisible
                     ? '⚠ Bài đang hiển thị công khai — đổi đường dẫn làm mọi liên kết đã chia sẻ bị hỏng'
-                    : 'Tự sinh từ tiêu đề; sửa được, hệ thống tự thêm hậu tố nếu trùng'
+                    : // ⚠ Câu cũ ở đây — "hệ thống tự thêm hậu tố nếu trùng" — là NÓI DỐI:
+                      //   `requireUniqueSlug` của backend **ném** CMS-2001 chứ không thêm hậu tố.
+                      //   Một dòng gợi ý sai còn tệ hơn không có: người dùng tin nó, đặt trùng, và
+                      //   nhận một lỗi họ tưởng là lỗi hệ thống (§10.69 — tham số nói dối).
+                      'Tự sinh từ tiêu đề; sửa được. Đường dẫn phải là DUY NHẤT — trùng thì bị từ chối'
                 }
               >
                 <Input addonBefore="/bai-viet/" onChange={() => setSlugDaSuaTay(true)} />
@@ -387,7 +547,17 @@ function ArticleForm({ article: data }: { article?: ArticleDetail }) {
               <Form.Item label="Nội dung" required>
                 <RichTextEditor
                   value={content}
-                  onChange={setContent}
+                  onChange={(html) => {
+                    setContent(html);
+                    // ⚠ TipTap bắn một lượt `onUpdate` khi nạp nội dung (đã đo). So với mốc chuẩn
+                    //   hoá thay vì đếm lượt: lượt ấy mang đúng chuỗi của mốc nên không tính là sửa.
+                    if (mocNoiDung.current !== null && html !== mocNoiDung.current) {
+                      setCoSuaChuaLuu(true);
+                    }
+                  }}
+                  onNormalized={(html) => {
+                    mocNoiDung.current = html;
+                  }}
                   disabled={khoaSua}
                   onPendingUploadsChange={setAnhDangTai}
                   onPickImage={async () => {
@@ -561,9 +731,14 @@ function ArticleForm({ article: data }: { article?: ArticleDetail }) {
             <Typography.Title level={5} style={{ marginTop: 24 }}>
               Quy trình duyệt
             </Typography.Title>
+            {lyDoKhongChuyenTrangThai && (
+              <Typography.Paragraph type="warning" style={{ marginBottom: 8 }}>
+                {lyDoKhongChuyenTrangThai}
+              </Typography.Paragraph>
+            )}
             <ApprovalActions
               actions={data.allowedActions}
-              disabled={transition.isPending}
+              disabled={transition.isPending || lyDoKhongChuyenTrangThai !== null}
               onAction={async (action, reason) => {
                 await transition.mutateAsync({ action, reason });
               }}
@@ -574,13 +749,20 @@ function ArticleForm({ article: data }: { article?: ArticleDetail }) {
 
       {picker}
       {pickerTaiLieu}
+      {hopThoaiRoiTrang}
 
       {!laBaiMoi && (
         <VersionHistoryDrawer
           articleId={publicId as string}
           open={historyOpen}
           onClose={() => setHistoryOpen(false)}
-          onRestored={invalidate}
+          onRestored={async (detail) => {
+            // ⭐ Hai việc, không phải một: `invalidate` làm mới DANH SÁCH bài và danh sách phiên
+            //   bản; `onNapLai` dựng lại BIỂU MẪU. Bản trước chỉ có việc thứ nhất, nên dữ liệu
+            //   đúng mà màn hình sai — xem `napLaiTuMayChu`.
+            await invalidate();
+            onNapLai(detail);
+          }}
         />
       )}
     </>

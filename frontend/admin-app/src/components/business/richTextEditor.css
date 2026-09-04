@@ -7,16 +7,54 @@
  * soạn không có cách nào biết.
  */
 
+/*
+  ⛔⛔ KHÔNG đặt lại `overflow: hidden` ở đây — T41.3.
+
+  Bản trước có nó, và nó làm hỏng một thứ ở rất xa: `position: sticky` bị giới hạn bởi **hộp cuộn
+  gần nhất**, mà `overflow: hidden` biến `.sn-editor` thành đúng một hộp cuộn — một hộp **không bao
+  giờ cuộn**. Nên thanh công cụ ngữ cảnh của bảng sẽ "dính" vào một khung không di chuyển: nó nằm
+  im ở đầu vùng soạn thảo, và với một bài có bốn đoạn văn trước bảng thì nó ở **ngoài màn hình**
+  trong khi người dùng đang bấm vào ô hàng 8.
+
+  Triệu chứng của việc đặt lại: CSS trông đúng, `sticky` được khai, và **không có gì xảy ra**.
+
+  Bo góc vì thế chuyển xuống từng phần con (toolbar ở trên, body/preview ở dưới) — cùng kết quả
+  hình ảnh, không dựng hộp cuộn.
+*/
+/*
+  Màu nhấn của trình soạn thảo — MỘT nguồn cho viền tiêu điểm, ảnh đang chọn, ô bảng đang chọn và
+  lưới chọn kích thước bảng. Trước đây cùng một mã màu được chép ở ba chỗ.
+
+  ⚠⚠ Khai ở `:root` chứ KHÔNG ở `.sn-editor`, và đó là một bản sửa chứ không phải sở thích:
+  `<Modal>` của AntD render trong một **portal** gắn thẳng vào `<body>`, tức NGOÀI cây con của
+  `.sn-editor`. Biến khai trên `.sn-editor` sẽ không với tới lưới chọn bảng, và hệ quả là một ô
+  lưới **không có màu** — `var()` không giải được thì thuộc tính bị bỏ qua, im lặng, không lỗi.
+
+  ⚠ Giới hạn ghi ra (quy tắc 28): biến này **cục bộ của tệp này**, chưa nối vào `design-tokens`.
+  Nối được thì phải bật `theme.cssVar` của AntD hoặc truyền qua `style` — cả hai rộng hơn phạm vi
+  WS-41, và `design-tokens/src/index.ts` đang có luồng khác sửa song song. Nợ chung với T25.23.
+*/
+:root {
+  --sn-editor-nhan: #1677ff;
+}
+
 .sn-editor {
   border: 1px solid #d9d9d9;
   border-radius: 6px;
-  overflow: hidden;
 }
 
 .sn-editor__toolbar {
   padding: 6px 8px;
   border-bottom: 1px solid #f0f0f0;
   background: #fafafa;
+  border-start-start-radius: 6px;
+  border-start-end-radius: 6px;
+}
+
+.sn-editor__body,
+.sn-editor__preview {
+  border-end-start-radius: 6px;
+  border-end-end-radius: 6px;
 }
 
 .sn-editor__body {
@@ -26,7 +64,7 @@
 
 .sn-editor__body:focus-visible,
 .sn-editor__body .ProseMirror:focus-visible {
-  outline: 2px solid #1677ff;
+  outline: 2px solid var(--sn-editor-nhan);
   outline-offset: -2px;
 }
 
@@ -35,9 +73,18 @@
   min-height: inherit;
 }
 
-/* Nội dung rỗng cần một dòng gợi ý, nếu không thì ô trắng trông như đang hỏng. */
+/*
+  Nội dung rỗng cần một dòng gợi ý, nếu không thì ô trắng trông như đang hỏng.
+
+  ⚠⚠ Quy tắc này **chưa từng chạy** cho tới WS-41: class `is-editor-empty` do extension
+  `Placeholder` gắn, mà StarterKit v3 **không** gói nó (đo được: 42 extension nạp, không có
+  `placeholder`). Nó nay được khai tường minh ở `editorExtensions.ts`.
+
+  ⛔ `attr(data-placeholder)` chứ không viết cứng chuỗi: câu chữ khai ở extension, CSS chỉ vẽ nó.
+  Viết cứng ở đây là hai nguồn sự thật cho cùng một câu — sửa một nơi, nơi kia lặng lẽ lạc hậu.
+*/
 .sn-editor__body .ProseMirror p.is-editor-empty:first-child::before {
-  content: 'Nhập nội dung bài viết…';
+  content: attr(data-placeholder);
   color: #bfbfbf;
   float: left;
   height: 0;
@@ -60,21 +107,90 @@
   margin-top: 4px;
 }
 
-.sn-editor__body table {
-  border-collapse: collapse;
-  width: 100%;
+/* ---- Bảng ---- */
+
+/*
+  ⚠⚠ `.tableWrapper` là khung do CHÍNH TipTap sinh ra (`TableView` đặt `dom.className`), không phải
+  class của ta — nên nó chỉ tồn tại trong **DOM soạn thảo**, không có trong `getHTML()`.
+  Thiếu quy tắc này thì bảng 13 cột (1040px, đo được) bị **cắt cụt không có thanh cuộn**: cột bên
+  phải biến mất khỏi màn hình và không có cách nào với tới. Đó là hiện trạng trước T41.3.
+*/
+.sn-editor__body .tableWrapper {
+  overflow-x: auto;
+  max-width: 100%;
   margin: 12px 0;
 }
 
+.sn-editor__body table {
+  border-collapse: collapse;
+  /* ⛔ KHÔNG `width: 100%` — với `table-layout: fixed` nó biến `min-width` của ô thành một tỉ lệ
+     gợi ý thay vì một sàn thật. `min-width: 100%` cho bảng ít cột vẫn trải đủ khung, còn bảng
+     nhiều cột thì rộng ra và cuộn trong `.tableWrapper`. */
+  min-width: 100%;
+  table-layout: fixed;
+}
+
+/*
+  ⚠ `position: relative` trên ô là **bắt buộc**, không phải trang trí: `.selectedCell::after` phủ
+  màu bằng `position: absolute`, và thiếu nó thì lớp phủ neo vào tổ tiên định vị gần nhất — tức
+  rơi ra ngoài ô, phủ nhầm chỗ. (Cùng lý do `prosemirror-tables/style/tables.css` khai nó; gói ấy
+  cố ý KHÔNG được import — ta khai đúng phần đang dùng thay vì kéo cả tệp có `.column-resize-handle`
+  cho một plugin không còn nạp.)
+
+  `min-width` đọc từ `TABLE_CELL_MIN_WIDTH_PX` của `design-tokens/editor-schema` — 80px, đo bằng
+  fontTools trên Noto Sans 14px. `richTextEditorCss.test.ts` đòi con số ở đây khớp đúng hằng ấy.
+*/
 .sn-editor__body th,
 .sn-editor__body td {
+  position: relative;
+  box-sizing: border-box;
   border: 1px solid #d9d9d9;
   padding: 6px 10px;
+  min-width: 80px;
+  vertical-align: top;
 }
 
 .sn-editor__body th {
   background: #fafafa;
   font-weight: 600;
+}
+
+/*
+  Ô đang được chọn — điều kiện để nút "Gộp ô" có nghĩa.
+
+  Trước T41.3 không có quy tắc nào cho `.selectedCell`, nên người dùng kéo chuột qua hai ô mà màn
+  hình **không đổi gì**: họ không biết mình đang chọn ô nào, và một nút "Gộp ô" khi đó là nút mù.
+
+  ⚠ Dùng `::after` phủ trong suốt chứ không đổi `background`: ô tiêu đề đã có nền `#fafafa`, đổi
+  thẳng nền sẽ làm ô tiêu đề và ô thường sáng khác nhau ở cùng một trạng thái "đang chọn".
+*/
+.sn-editor__body .selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--sn-editor-nhan) 18%, transparent);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/*
+  ---- Xem trước: BẢNG phải cư xử y như trên cổng ----
+
+  ⚠⚠ Chế độ Xem trước dựng `value` THÔ bằng `dangerouslySetInnerHTML`, nên ở đây **không có**
+  `div.tableWrapper` — khung ấy là sản phẩm của NodeView, chỉ tồn tại trong DOM soạn thảo. Không
+  khai riêng thì bảng nhiều cột tràn ra ngoài khung xem trước mà không có thanh cuộn.
+
+  ⭐ Quy tắc dưới đây cố ý **chép đúng khuôn cổng** (`article-content.css`: `display:block` +
+  `overflow-x:auto`), vì đó là hình dạng bài viết sẽ có khi lên cổng. §10.26 đã trả giá đúng chỗ
+  này: *"xem trước thấy đẹp, xuất bản, và không ai mở lại trang công khai để đối chiếu"*.
+
+  ⚠ Giới hạn ghi ra (quy tắc 28): đợt này chỉ khớp **mô hình hộp của BẢNG**. Màu, cỡ chữ, và
+  `text-align: justify` của cổng vẫn khác — xem T41.17.
+*/
+.sn-editor__preview table {
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
 }
 
 .sn-editor__body blockquote {
@@ -97,6 +213,43 @@
   border: 0;
 }
 
+/* ---- Lưới chọn kích thước bảng (EditorTableInsertModal) ---- */
+
+/*
+  ⛔ Lưới dựng bằng CSS grid trên `div`, KHÔNG bằng thẻ bảng: đây là một bộ chọn, không phải dữ
+  liệu dạng bảng. Dùng thẻ bảng ở đây là nói dối trình đọc màn hình.
+
+  Số cột lấy từ `TRAN_COT_LUOI` của `tableCommands.ts`. ⚠ Con số 10 xuất hiện ở hai nơi (hằng TS
+  và `repeat(10, …)` ở đây) — chấp nhận có ý thức vì CSS không đọc được hằng TS; đổi trần lưới thì
+  phải sửa cả hai. Nếu trần này còn đổi thêm lần nữa thì đưa vào biến CSS truyền từ component.
+*/
+.sn-luoi-chon-bang {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 2px;
+  width: max-content;
+}
+
+.sn-luoi-chon-bang__o {
+  width: 22px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid #d9d9d9;
+  border-radius: 2px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.sn-luoi-chon-bang__o--chon {
+  border-color: var(--sn-editor-nhan);
+  background: color-mix(in srgb, var(--sn-editor-nhan) 22%, transparent);
+}
+
+.sn-luoi-chon-bang__o:focus-visible {
+  outline: 2px solid var(--sn-editor-nhan);
+  outline-offset: 1px;
+}
+
 /* ---- Thanh công cụ của ảnh đang chọn ---- */
 
 .sn-editor__imagebar {
@@ -105,9 +258,29 @@
   padding: 8px;
 }
 
+/* ---- Thanh công cụ ngữ cảnh của bảng ---- */
+
+/*
+  ⚠⚠ `sticky` ở đây CHỈ chạy được nhờ `.sn-editor` KHÔNG có `overflow: hidden` — xem khối chú
+  thích ở đầu tệp. Nếu ai đó đặt lại thuộc tính ấy thì quy tắc dưới đây **im lặng vô hiệu**, và
+  triệu chứng là thanh bảng nằm ngoài màn hình khi con trỏ ở hàng thứ tám của một bảng dài.
+
+  Vì sao cần sticky: vùng soạn thảo không có trần chiều cao (`minHeight` là sàn, không phải trần),
+  nên thứ cuộn là CẢ TRANG. Một thanh đặt cứng ở đầu khung sẽ trôi khỏi tầm nhìn ngay khi bảng dài
+  hơn một màn hình.
+*/
+.sn-editor__tablebar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: #f6ffed;
+  border-bottom: 1px solid #d9f7be;
+  padding: 8px;
+}
+
 /* Ảnh đang được chọn: viền rõ để người dùng biết thanh công cụ phía trên đang nói về tấm nào. */
 .sn-editor__body .ProseMirror-selectednode {
-  outline: 2px solid #1677ff;
+  outline: 2px solid var(--sn-editor-nhan);
   outline-offset: 2px;
 }
 
@@ -128,7 +301,7 @@
   bottom: 8px;
   text-align: center;
   font-size: 12px;
-  color: #1677ff;
+  color: var(--sn-editor-nhan);
 }
 
 /* ---- Bề ngang ảnh — phải khớp IMAGE_WIDTH_CLASSES của design-tokens/editor-schema.ts ---- */

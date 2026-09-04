@@ -187,4 +187,66 @@ class HtmlSanitizerTest {
                 .as("và ngược lại — nội dung bài không phải chỗ nhúng bản đồ")
                 .doesNotContain("maps.google.com");
     }
+
+    // ---- Bảng — WS-41 ------------------------------------------------------
+    //
+    // ⚠⚠ MỌI mảnh bảng dưới đây bọc trong `<table>` + `<colgroup>`/`<tbody>` đầy đủ, và mỗi bài
+    // chốt `contains("<table")` TRƯỚC các khẳng định phủ định. Lý do đã đo: một `<col>` hay `<td>`
+    // đứng lạc ngoài ngữ cảnh bảng bị **bộ phân tích HTML bỏ hẳn**, `clean()` trả về CHUỖI RỖNG,
+    // và khi ấy mọi `doesNotContain(...)` đều xanh — một bài kiểm chứng minh số không.
+
+    @Test
+    @DisplayName("⭐⭐ `colspan`/`rowspan` sống sót — ô gộp mất chúng là bảng vỡ cấu trúc")
+    void giuColspanRowspan() {
+        String sach = HtmlSanitizer.clean(
+                """
+                <table><colgroup><col><col></colgroup><tbody>\
+                <tr><th colspan="2">Cụm cống Liên Mạc</th></tr>\
+                <tr><td rowspan="2">Đang vận hành</td><td>+2,45</td></tr>\
+                </tbody></table>""");
+
+        assertThat(sach)
+                .as("bảng phải còn — nếu rỗng thì mọi khẳng định dưới đây vô nghĩa")
+                .contains("<table");
+        assertThat(sach).contains("colspan=\"2\"").contains("rowspan=\"2\"");
+        assertThat(sach)
+                .as("và chữ trong ô không mất")
+                .contains("Cụm cống Liên Mạc")
+                .contains("+2,45");
+    }
+
+    @Test
+    @DisplayName("⛔ `style` bị gỡ khỏi bảng và `<col>`, nhưng hai thẻ ấy thì CÒN")
+    void goStyleTrenBangVaCol() {
+        String sach = HtmlSanitizer.clean(
+                """
+                <table style="min-width: 100px"><colgroup><col style="min-width: 25px"></colgroup>\
+                <tbody><tr><td>Ô</td></tr></tbody></table>""");
+
+        assertThat(sach).contains("<table").contains("<col").contains("Ô");
+        assertThat(sach)
+                .as("`style` là đường TipTap dùng để mang bề rộng cột — nó bị gỡ, và đó là chủ đích (T41.14)")
+                .doesNotContain("style=");
+    }
+
+    @Test
+    @DisplayName("⛔ Thuộc tính bắt sự kiện trên `<col>` bị gỡ, thẻ và `width` thì giữ")
+    void goSuKienTrenCol() {
+        String sach = HtmlSanitizer.clean(
+                """
+                <table><colgroup><col width="300" onload="alert(1)"></colgroup>\
+                <tbody><tr><td>Ô</td></tr></tbody></table>""");
+
+        assertThat(sach).contains("<table").contains("<col");
+        assertThat(sach).doesNotContain("onload");
+        assertThat(HtmlSanitizer.coMaChayDuoc(sach))
+                .as("bộ dò của chính lớp này cũng phải nói là sạch")
+                .isFalse();
+        // `width` trên `<col>` nằm sẵn trong `Safelist.relaxed()` (đo bằng `javap -c` trên jsoup
+        // 1.23.1). Ghi nhận ở đây vì nó là **nửa GHI** của đường bề rộng cột: ngày nào mở lại
+        // T41.14 thì đây là đường đi, và nó KHÔNG đòi sửa Safelist.
+        assertThat(sach)
+                .as("`col[width]` đi qua sẵn — nửa GHI của T41.14 đã có đường")
+                .contains("width=\"300\"");
+    }
 }
