@@ -112,6 +112,9 @@ export function OrgUnitLeadersPanel({ orgUnitPublicId }: { orgUnitPublicId: stri
       <Table<OrgUnitLeaderRow>
         size="small"
         rowKey="publicId"
+        // Bề ngang tối thiểu: hẹp hơn thì CUỘN NGANG, không bóp chữ.
+        // Vì sao cần — xem chú thích cột "Địa chỉ" ở `features/hydro/ApiSourcesPage.tsx`.
+        scroll={{ x: 780 }}
         pagination={false}
         dataSource={danhSach.data ?? []}
         locale={{

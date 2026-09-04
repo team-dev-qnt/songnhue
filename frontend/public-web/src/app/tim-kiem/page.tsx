@@ -36,7 +36,7 @@ export default async function SearchPage({
   ]);
 
   return (
-    <div className="mx-auto max-w-[1232px] px-4 py-6 sm:px-6 sm:py-8 animate-fade-in">
+    <div className="mx-auto max-w-[1232px] px-4 py-4 sm:px-6 animate-fade-in">
       {/* ───── Breadcrumbs Điều hướng ───── */}
       <Breadcrumb
         items={[{ label: 'Tìm kiếm' }, ...(tuKhoa ? [{ label: `Từ khóa: "${tuKhoa}"` }] : [])]}

@@ -84,7 +84,12 @@ class MediaLibraryTest extends IntegrationTestBase {
         Long id = jdbc.queryForObject("SELECT id FROM attachments WHERE public_id = ?", Long.class, attachmentPublicId);
         try {
             virusScanHandler.handle(new JobContext(
-                    UUID.randomUUID(), "VIRUS_SCAN", "{\"attachmentId\":%d}".formatted(id), null, percent -> {}));
+                    UUID.randomUUID(),
+                    "VIRUS_SCAN",
+                    "{\"attachmentId\":%d}".formatted(id),
+                    null,
+                    percent -> {},
+                    conTro -> {}));
         } catch (Exception e) {
             throw new IllegalStateException("Bước quét lỗi", e);
         }

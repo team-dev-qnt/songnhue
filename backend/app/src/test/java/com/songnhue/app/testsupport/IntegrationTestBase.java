@@ -33,6 +33,17 @@ import com.songnhue.core.testsupport.RsaKeyPairFixture;
  * </ul>
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+// ⭐⭐ `app.worker-enabled` khai ở ĐÂY chứ ⛔ không ở @DynamicPropertySource — WS-34/T34.7.
+//
+// Nó là một hằng, ⛔ không phải giá trị phải tính lúc chạy (khác cổng container, khác endpoint
+// MinIO), nên nó thuộc về @TestPropertySource. Và khác biệt thật sự nằm ở chỗ **ghi đè được**:
+// thuộc tính động được nạp ở vị trí ưu tiên CAO NHẤT của Environment, nên một lớp con ⛔ KHÔNG có
+// cách nào bật worker lên — đo được ngày 4/9, một lớp con khai @DynamicPropertySource cùng khoá vẫn
+// nhận `false`. Với @TestPropertySource thì khai báo ở lớp con thắng, đúng như tài liệu Spring.
+//
+// ⚠ Lớp con nào ghi đè khoá này sẽ có context Spring RIÊNG (tập thuộc tính đã khác) — đó là cái giá
+//   có chủ đích, ⛔ đừng dùng bừa. Mọi lớp kiểm khác vẫn dùng chung đúng một context.
+@org.springframework.test.context.TestPropertySource(properties = "app.worker-enabled=false")
 public abstract class IntegrationTestBase {
 
     @DynamicPropertySource
@@ -64,7 +75,6 @@ public abstract class IntegrationTestBase {
         registry.add("app.audit.archiver.username", () -> "songnhue_archiver");
         registry.add("app.audit.archiver.password", SongnhuePostgres::password);
 
-        registry.add("app.worker-enabled", () -> "false");
         registry.add("app.shedlock-enabled", () -> "false");
 
         JwtProperties jwt = RsaKeyPairFixture.propertiesFor(keyDirectory(), "test-key");

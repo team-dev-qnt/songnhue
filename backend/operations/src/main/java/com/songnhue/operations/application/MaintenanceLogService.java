@@ -27,6 +27,7 @@ import com.songnhue.core.common.security.AuthenticatedUser;
 import com.songnhue.core.common.util.CodeGenerator;
 import com.songnhue.core.common.util.DateTimeUtils;
 import com.songnhue.core.spi.AllowedAction;
+import com.songnhue.core.spi.HydroAlertPort;
 import com.songnhue.core.spi.NotificationPort;
 import com.songnhue.core.spi.NotifyRequest;
 import com.songnhue.core.spi.NotifySeverity;
@@ -87,6 +88,7 @@ public class MaintenanceLogService {
     private final NotificationPort notifications;
     private final SettingPort settings;
     private final ScopeGuard scopeGuard;
+    private final HydroAlertPort hydroAlerts;
 
     // CHECKSTYLE.OFF: ParameterNumber - hàm dựng tiêm phụ thuộc; gói lại thành một "context" object
     // chỉ giấu số phụ thuộc đi chứ không giảm nó, và làm mất luôn khả năng thấy lớp nào đang phình.
@@ -100,7 +102,8 @@ public class MaintenanceLogService {
             UserDirectoryPort users,
             NotificationPort notifications,
             SettingPort settings,
-            ScopeGuard scopeGuard) {
+            ScopeGuard scopeGuard,
+            HydroAlertPort hydroAlerts) {
         this.logs = logs;
         this.constructions = constructions;
         this.trangThai = trangThai;
@@ -111,6 +114,7 @@ public class MaintenanceLogService {
         this.notifications = notifications;
         this.settings = settings;
         this.scopeGuard = scopeGuard;
+        this.hydroAlerts = hydroAlerts;
     }
     // CHECKSTYLE.ON: ParameterNumber
 
@@ -376,7 +380,35 @@ public class MaintenanceLogService {
         banGhi.setFundingSource(form.fundingSource());
         banGhi.setAcceptanceResult(form.acceptanceResult());
         banGhi.setAcceptanceNote(form.acceptanceNote());
-        banGhi.setAlertEventPublicId(form.alertEventPublicId());
+        banGhi.setAlertEventPublicId(kiemCanhBao(form.alertEventPublicId()));
+    }
+
+    /**
+     * ⭐ Đối chiếu {@code alert_event_public_id} với cảnh báo có thật — <b>T33.4</b>.
+     *
+     * <h2>Cột này đã sống 13 ngày mà chưa ai kiểm nó lấy một lần</h2>
+     *
+     * <p>Có từ {@code V202608211028} (21/08): có cột, có setter, có trường trong
+     * {@link MaintenanceLogForm}, và lời gọi duy nhất tới setter là dòng ngay trên. ⛔ <b>Không một
+     * phép đối chiếu nào</b> — một UUID bất kỳ lưu thành công. Đúng luật 27 ở chiều ngược: nửa
+     * <i>ghi</i> hoàn chỉnh, ⛔ không có ai đọc, ⛔ không có ai kiểm.
+     *
+     * <p>⛔ Không chữa bằng {@code REFERENCES}: {@code operations} và {@code hydro} là hai module
+     * ⛔ không thấy nhau ở tầng biên dịch, và một khoá ngoại xuyên ranh giới là ràng buộc mà ⛔ không
+     * lượt tái tổ chức nào gỡ ra được (§10.4). Cái giá phải trả là tính toàn vẹn do tầng dịch vụ
+     * giữ — tức đúng chỗ này, qua {@code HydroAlertPort}.
+     *
+     * <p>⚠ {@code null} là <b>hợp lệ</b> và là giá trị thường gặp nhất: phần lớn bản ghi bảo trì
+     * ⛔ không đến từ một cảnh báo ngưỡng nào.
+     */
+    private UUID kiemCanhBao(UUID alertEventPublicId) {
+        if (alertEventPublicId == null) {
+            return null;
+        }
+        if (!hydroAlerts.alertEventExists(alertEventPublicId)) {
+            throw new ValidationException(ErrorCode.OPS_2021);
+        }
+        return alertEventPublicId;
     }
 
     /**

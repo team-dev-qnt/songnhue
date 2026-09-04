@@ -342,6 +342,16 @@ export const ERROR_CATALOG = {
     handling: 'form',
     severity: 'warning',
   },
+  'OPS-2020': {
+    message: 'Thời điểm hiệu lực không được ở tương lai — ghi nhận là việc đã quan sát được',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'OPS-2021': {
+    message: 'Cảnh báo ngưỡng được tham chiếu không tồn tại',
+    handling: 'form',
+    severity: 'warning',
+  },
   'OPS-3001': {
     message: 'Không được sửa trực tiếp trạng thái công trình — trạng thái được tính tự động',
     handling: 'toast',
@@ -384,10 +394,55 @@ export const ERROR_CATALOG = {
     handling: 'form',
     severity: 'warning',
   },
+  'HYD-2008': {
+    message: 'Điểm đo này đã liên kết với công trình ấy ở cùng vai trò',
+    handling: 'form',
+    severity: 'warning',
+  },
   'HYD-2006': {
     message: 'Không được đổi mã ánh xạ API của điểm đo',
     handling: 'form',
     severity: 'error',
+  },
+  'HYD-2007': {
+    message: 'Điểm đo này đã có số đo tại mốc đã chọn — không ghi đè',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'HYD-2009': {
+    message: 'Điểm đo này đã có ngưỡng cho cùng loại chỉ số và mức cảnh báo',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'HYD-2010': {
+    message: 'Mức cảnh báo đang được ngưỡng khác sử dụng — gỡ các ngưỡng ấy trước',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'HYD-2011': {
+    message: 'Cảnh báo này không còn ở trạng thái đang xảy ra',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'HYD-2012': {
+    message: 'Khoảng ngày của báo cáo tối đa 366 ngày — hãy thu hẹp lại',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'HYD-2013': {
+    message: 'Ngày bắt đầu phải trước hoặc bằng ngày kết thúc',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'HYD-2014': {
+    message: 'Bản kết xuất đã quá hạn tải (24 giờ) — hãy xuất lại',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'HYD-2015': {
+    message: 'Bản kết xuất chưa sẵn sàng — việc nền còn đang chạy',
+    handling: 'toast',
+    severity: 'info',
   },
 
   // --- MOD-04 Nhân sự ---------------------------------------------------------

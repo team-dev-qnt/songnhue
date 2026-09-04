@@ -234,6 +234,9 @@ export function ArticleListPage() {
             : undefined
         }
         locale={{ emptyText: 'Chưa có bài viết nào khớp bộ lọc' }}
+        // Bề ngang tối thiểu: hẹp hơn thì CUỘN NGANG, không bóp chữ.
+        // Vì sao cần — xem chú thích cột "Địa chỉ" ở `features/hydro/ApiSourcesPage.tsx`.
+        scroll={{ x: 1200 }}
         pagination={{
           // ⚠ `meta.page` đếm từ 1, tham số `page` gửi lên đếm từ 0 — quy đổi ở đúng chỗ này.
           current: articles.data?.meta.page ?? 1,

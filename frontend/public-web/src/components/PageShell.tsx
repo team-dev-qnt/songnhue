@@ -23,7 +23,7 @@ interface PageShellProps {
  */
 export function PageShell({ title, description, breadcrumb, children }: PageShellProps) {
   return (
-    <div className="mx-auto max-w-[1232px] px-4 py-6 sm:px-6 sm:py-8 animate-fade-in">
+    <div className="mx-auto max-w-[1232px] px-4 py-4 sm:px-6 animate-fade-in">
       <Breadcrumb items={breadcrumb} />
 
       <header className="mb-6 border-b-2 border-brand-primary pb-3">

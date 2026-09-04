@@ -33,6 +33,18 @@ mvnw.cmd                        text eol=crlf
 *.docx binary
 *.xlsx binary
 
+# ⭐⭐ Bản chụp NGUYÊN VĂN response của nguồn thuỷ văn — WS-30/T30.9.
+#
+# `* text=auto eol=lf` ở đầu tệp này sẽ đổi CRLF của IIS thành LF, và khi ấy tệp thôi
+# là một bản chụp: nó thành một bản ĐÃ CHUẨN HOÁ trông y hệt bản gốc. Nguồn
+# `songnhue.bhh40.net` KHÔNG có API lịch sử, nên đây là mẫu duy nhất ta có để đối
+# chiếu khi họ đổi định dạng — mất byte nào là mất vĩnh viễn byte ấy.
+#
+# ⚠ Cùng họ với §10.56: một tham số chỉ có hiệu lực MỘT LẦN (ở đây là lượt `git add`
+# đầu tiên) thì sau đó tệp trên đĩa và tệp trong kho có thể nói hai điều khác nhau mà
+# không lệnh nào báo sai.
+backend/hydro/src/test/resources/bhh40/*.txt  -text
+
 # Không tính vào thống kê ngôn ngữ của GitHub
 .claude/**  linguist-documentation
 docs/**     linguist-documentation

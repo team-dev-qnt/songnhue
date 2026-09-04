@@ -221,6 +221,139 @@ class HydroCatalogueHttpTest extends IntegrationTestBase {
         }
     }
 
+    // === ⭐⭐ Đường ĐỌC điểm đo qua HTTP — chưa từng có bài kiểm nào ============
+
+    @Test
+    @DisplayName("⭐⭐ GET danh sách điểm đo qua HTTP trả 200 — trước 03/09 nó trả 500 ở MỌI lượt gọi")
+    void theStationListActuallyLoadsOverHttp() {
+        ResponseEntity<String> phanHoi = phienHttp.get(kyThuat, "/api/v1/hyd/stations");
+
+        assertThat(phanHoi.getStatusCode())
+                .as(
+                        """
+                        ⛔⛔ `spring.jpa.open-in-view = false` (cố ý), nên phiên Hibernate đóng ngay khi                         StationService.list() trả về — còn StationController.toView đọc                         getMeasurementTypes() SAU đó. Kết quả: LazyInitializationException ⇒ 500 ở mọi                         lượt mở màn hình Danh mục điểm đo, kể từ WS-28.                         Vì sao không ai thấy: WS-28 đóng bằng StationScopeTest và ApiSourceServiceTest,                         CẢ HAI gọi thẳng service — tức chạy trong giao dịch của bài kiểm, nơi phiên còn                         sống (luật 5). Và đường POST vẫn chạy vì entity vừa dựng mang Set thường chứ                         không phải proxy, nên thử tay thấy "thêm được" là màn hình có vẻ ổn. %s""",
+                        phanHoi.getBody())
+                .isEqualTo(HttpStatus.OK);
+        assertThat(phanHoi.getBody())
+                .as("⛔ và phải có loại chỉ số trong thân — 200 với mảng rỗng thì bài này không đo gì")
+                .contains("\"measurementTypes\"")
+                .contains("MUC_NUOC");
+    }
+
+    @Test
+    @DisplayName("⭐ GET /chua-gan-don-vi cũng đi qua toView — cùng khuyết tật, cùng bản vá")
+    void theUnassignedListAlsoLoads() {
+        ResponseEntity<String> phanHoi = phienHttp.get(kyThuat, "/api/v1/hyd/stations/chua-gan-don-vi");
+
+        assertThat(phanHoi.getStatusCode()).as("%s", phanHoi.getBody()).isEqualTo(HttpStatus.OK);
+        assertThat(phanHoi.getBody())
+                .as("19/19 điểm đo seed chưa gán đơn vị (OI-05) — danh sách này ⛔ không được rỗng hôm nay")
+                .contains("\"code\"");
+    }
+
+    // === ⭐⭐ T28.33 — POST validate 14 trường thì phải GHI đủ 14 ==============
+
+    @Test
+    @DisplayName("⭐⭐ T28.33 — POST kèm toạ độ / tuyến sông / lý trình thì bảy trường ấy PHẢI vào CSDL")
+    void creatingAStationPersistsAllFourteenFields() {
+        String maApi = "F97128";
+        donDepDiemDo(maApi);
+        String than =
+                """
+                {"code":"T2833-DIEMDO","name":"Điểm đo kiểm thử T28.33","apiCode":"%s","apiSourceId":"%s",
+                 "positionRole":"THUONG_LUU","riverName":"Sông Kiểm Thử","chainage":"K12+300",
+                 "latitude":"20.980000","longitude":"105.780000","interpolated":true,"active":false,
+                 "description":"Ghi chú kiểm thử","measurementTypeIds":["%s"]}"""
+                        .formatted(maApi, motNguon(), motLoaiChiSo());
+
+        try {
+            ResponseEntity<String> tao = phienHttp.goi(kyThuat, HttpMethod.POST, "/api/v1/hyd/stations", than);
+            assertThat(tao.getStatusCode()).as("%s", tao.getBody()).isEqualTo(HttpStatus.CREATED);
+
+            assertThat(jdbc.queryForMap(
+                            """
+                            SELECT river_name, chainage, latitude, longitude, is_interpolated, active, description
+                            FROM stations WHERE api_code = ?
+                            """,
+                            maApi))
+                    .as(
+                            """
+                            ⛔⛔ Trước 02/09 `StationRequest` khai và validate ĐỦ 14 trường cho POST, còn \
+                            `StationController.create` chuyển sang service đúng 7. Gửi kèm toạ độ thì nhận \
+                            201 Created và toạ độ BIẾN MẤT — không lỗi, không cảnh báo, không dấu vết. \
+                            Đó là hợp đồng API NÓI DỐI (§10.69), khó thấy hơn một tham số không ai đọc: \
+                            người tích hợp đọc lược đồ, gửi đủ, nhận 201, và tin là đã lưu. Hôm nay chưa \
+                            ai gặp CHỈ VÌ màn hình Thêm cố ý không vẽ bảy ô ấy — tức là giao diện đang \
+                            che một khuyết tật của API.""")
+                    .containsEntry("river_name", "Sông Kiểm Thử")
+                    .containsEntry("chainage", "K12+300")
+                    .containsEntry("is_interpolated", true)
+                    .containsEntry("active", false)
+                    .containsEntry("description", "Ghi chú kiểm thử")
+                    .hasEntrySatisfying("latitude", v -> assertThat(v).hasToString("20.980000"))
+                    .hasEntrySatisfying("longitude", v -> assertThat(v).hasToString("105.780000"));
+        } finally {
+            donDepDiemDo(maApi);
+        }
+    }
+
+    @Test
+    @DisplayName("⛔ T28.33 — POST NỬA cặp toạ độ bị từ chối, ⛔ không lặng lẽ bỏ qua")
+    void creatingAStationWithHalfACoordinatePairIsRejected() {
+        String maApi = "F97129";
+        donDepDiemDo(maApi);
+        String than =
+                """
+                {"code":"T2833-NUACAP","name":"Điểm đo nửa cặp","apiCode":"%s","apiSourceId":"%s",
+                 "positionRole":"THUONG_LUU","latitude":"20.980000","measurementTypeIds":["%s"]}"""
+                        .formatted(maApi, motNguon(), motLoaiChiSo());
+
+        try {
+            ResponseEntity<String> tao = phienHttp.goi(kyThuat, HttpMethod.POST, "/api/v1/hyd/stations", than);
+
+            assertThat(tao.getStatusCode())
+                    .as(
+                            """
+                            ⚠ Lỗ thứ hai của T28.33, im lặng hơn lỗ thứ nhất: `create` cũ không đi qua \
+                            `datToaDo()`/`lyTrinh()`, nên nửa cặp toạ độ hay một lý trình sai định dạng \
+                            KHÔNG bị từ chối — nó bị BỎ QUA, và `ck_stations_coords_paired` không bao giờ \
+                            bắn vì cả hai cột ở lại NULL. Bản ghi ra đời trông hoàn toàn bình thường. %s""",
+                            tao.getBody())
+                    .isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(tao.getBody())
+                    .as("⭐ F1 — lỗi phải KÈM TÊN TRƯỜNG, nếu không giao diện chỉ hiện được một toast "
+                            + "chung chung cho một biểu mẫu 14 ô và người dùng không biết ô nào sai")
+                    .contains("\"field\":\"latitude\"");
+            assertThat(soDiemDoMangMa(maApi))
+                    .as("và ⛔ không được ghi một bản ghi nào — 422 rồi vẫn tạo là tệ hơn cả hai đằng")
+                    .isZero();
+        } finally {
+            donDepDiemDo(maApi);
+        }
+    }
+
+    private UUID motLoaiChiSo() {
+        return jdbc.queryForObject(
+                "SELECT public_id FROM measurement_types WHERE code = 'MUC_NUOC' AND deleted_at IS NULL", UUID.class);
+    }
+
+    private int soDiemDoMangMa(String maApi) {
+        Integer n = jdbc.queryForObject("SELECT count(*) FROM stations WHERE api_code = ?", Integer.class, maApi);
+        return n == null ? 0 : n;
+    }
+
+    /**
+     * ⚠ Xoá CỨNG, ⛔ không xoá mềm — {@code ux_stations_api_code} là chỉ mục <i>partial</i>
+     * ({@code WHERE deleted_at IS NULL}), nên xoá mềm vẫn để lại hàng và bài kiểm khác đếm phải nó.
+     * {@code HydroQualityHttpTest} khẳng định đúng <b>19</b> điểm đo ở chỗ dọn của nó.
+     */
+    private void donDepDiemDo(String maApi) {
+        jdbc.update(
+                "DELETE FROM station_measurement_types WHERE station_id IN (SELECT id FROM stations WHERE api_code = ?)",
+                maApi);
+        jdbc.update("DELETE FROM stations WHERE api_code = ?", maApi);
+    }
+
     // -------------------------------------------------------------------------
 
     private UUID motNguon() {

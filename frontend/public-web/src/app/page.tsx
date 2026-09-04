@@ -175,7 +175,7 @@ export default async function HomePage() {
   const allArticles = latest?.content ?? [];
 
   return (
-    <div className="mx-auto max-w-[1232px] px-4 py-6 sm:px-6 sm:py-8 animate-fade-in">
+    <div className="mx-auto max-w-[1232px] px-4 py-4 sm:px-6 animate-fade-in">
       {/* ═════════ NHÓM 1 · TIN TỨC & SỰ KIỆN ═════════ */}
       {/* ⚠ Nhãn nhóm này TỪNG thiếu: bốn nhóm dưới có, nhóm đầu không — nên dải mảnh đầu tiên
           người đọc gặp là "Điều hành & số liệu" ở giữa trang, và nó trông như mốc bắt đầu của

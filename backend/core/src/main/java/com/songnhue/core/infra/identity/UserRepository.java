@@ -38,9 +38,34 @@ public interface UserRepository extends JpaRepository<User, Long> {
      *
      * <p>Gửi cảnh báo cho tài khoản đã khoá là cảnh báo rơi vào khoảng không, mà bảng
      * {@code notification_recipients} vẫn ghi "đã gửi" — nhìn vào tưởng đã tới nơi.
+     *
+     * <h2>⛔ Vế lọc là {@code status}, ⛔ KHÔNG phải {@code locked_until} — và đó là chủ ý</h2>
+     *
+     * <p>Hai thứ khác nhau, dễ gộp nhầm: {@code status = 'LOCKED'} là quyết định của quản trị viên
+     * (khoá cho tới khi có người mở); {@code locked_until} là khoá <b>tạm</b> vài phút do gõ sai mật
+     * khẩu. Thêm {@code locked_until} vào đây thì một người trực vừa gõ nhầm mật khẩu ⛔ <b>không
+     * bao giờ</b> nhận email cảnh báo lũ của 15 phút ấy — cảnh báo mất <b>vĩnh viễn</b>, còn cái
+     * khoá thì hết sau vài phút. Rà 03/09 từng ghi nhầm chỗ này là một khoản nợ; đo lại thì hành vi
+     * hiện tại đúng, và dòng ghi chú này ở đây để lượt sau đừng "sửa" nó.
      */
     @Query("SELECT u.id FROM User u WHERE u.id IN :ids AND u.deletedAt IS NULL AND u.status = 'ACTIVE'")
     List<Long> findActiveIdsIn(@Param("ids") List<Long> ids);
+
+    /**
+     * Đổi {@code public_id} sang khoá nội bộ — <b>WS-33</b>, cho nhóm "Ban điều hành".
+     *
+     * <p>⚠ Tồn tại vì một lệch kiểu <b>đo được</b>: seed của
+     * {@code notification.alert-group.executive-board} mô tả giá trị là <i>"Danh sách publicId tài
+     * khoản"</i> (UUID), trong khi {@code RecipientResolver.executiveBoard()} suốt từ 13/08 lại
+     * {@code readValue(raw, Long[].class)}. Admin nhập <b>đúng như nhãn dặn</b> ⇒
+     * {@code JsonProcessingException} ⇒ nuốt thành {@code log.error} ⇒ nhóm rỗng ⇒ màn hình vẫn báo
+     * lưu thành công. Cả hai vế "xanh", cảnh báo tới <b>0 người</b>.
+     *
+     * <p>⛔ Chữa ở phía <b>mã</b>, ⛔ không sửa nhãn thành "id nội bộ": id nội bộ ⛔ không được lộ ra
+     * giao diện (conventions §4), và màn hình chọn người dùng vốn gửi {@code publicId}.
+     */
+    @Query("SELECT u.id FROM User u WHERE u.publicId IN :publicIds AND u.deletedAt IS NULL")
+    List<Long> findIdsByPublicIds(@Param("publicIds") List<java.util.UUID> publicIds);
 
     /**
      * Lọc ra tài khoản <b>chưa bị xoá</b>, không quan tâm đang hoạt động hay đã khoá.

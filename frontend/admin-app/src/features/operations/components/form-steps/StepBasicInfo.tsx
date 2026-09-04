@@ -38,14 +38,25 @@ export function StepBasicInfo({ form: _form }: { form: FormInstance }) {
           </Form.Item>
         </Col>
         <Col span={8}>
-          <Form.Item name="purpose" label="Mục đích sử dụng">
+          <Form.Item
+            name="purpose"
+            label="Mục đích sử dụng"
+            extra="Bỏ trống được — hồ sơ chưa xác định nhiệm vụ tưới hay tiêu"
+          >
+            {/* ⚠⚠ Vá 01/09/2026 — hai trong bốn lựa chọn cũ là giá trị KHÔNG TỒN TẠI.
+                Bản cũ chào `TUOI_TIEU_KET_HOP` và `KHAC`; enum Java `ConstructionPurpose` chỉ có
+                `TUOI` · `TIEU` · `HON_HOP`, và `ck_constructions_purpose` cũng đúng ba giá trị ấy.
+                Chọn một trong hai giá trị ma ⇒ Jackson không giải được ⇒ **400 hỏng CẢ lượt lưu**,
+                không riêng ô này. Ngược lại, giá trị hợp lệ `HON_HOP` KHÔNG ô nào tạo ra được —
+                nó chỉ vào hệ thống qua bộ nhập Excel (`ConstructionImportService.NHAN_NHIEM_VU`).
+                ⛔ Bỏ `KHAC` không mất gì: `purpose` nullable và ô có `allowClear`, nên "chưa xác
+                định" vẫn biểu diễn được — còn `KHAC` thì chưa bao giờ lưu nổi. */}
             <Select
               allowClear
               options={[
                 { value: 'TUOI', label: 'Tưới' },
                 { value: 'TIEU', label: 'Tiêu' },
-                { value: 'TUOI_TIEU_KET_HOP', label: 'Tưới tiêu kết hợp' },
-                { value: 'KHAC', label: 'Khác' },
+                { value: 'HON_HOP', label: 'Tưới tiêu kết hợp' },
               ]}
             />
           </Form.Item>

@@ -91,6 +91,41 @@ describe('nhóm Dữ liệu thuỷ văn hiện theo đúng quyền của từng 
   it('đường dẫn con của màn hình điểm đo vẫn tô sáng đúng mục menu', () => {
     expect(findMenuKey(MENU, '/thuy-van/diem-do')).toBe('diem-do');
     expect(findMenuKey(MENU, '/thuy-van/nguon-du-lieu')).toBe('nguon-du-lieu');
+    expect(findMenuKey(MENU, '/thuy-van/nhat-ky-dong-bo')).toBe('nhat-ky-dong-bo');
+    expect(findMenuKey(MENU, '/thuy-van/ma-la')).toBe('ma-la');
+  });
+
+  /**
+   * ⭐⭐ Hai màn hình chẩn đoán (T31.13) đứng sau `hyd:measurement:view`, ⛔ KHÔNG sau
+   * `hyd:api-source:manage`.
+   *
+   * Đo trên ma trận seed: `hyd:api-source:manage` chỉ SUPER_ADMIN và ADMIN có. Gác bằng nó thì
+   * TECHNICIAN — vai trò duy nhất ngoài quản trị có `hyd:station:manage`, tức đúng người sẽ đi
+   * khai một mã lạ — không đọc nổi lý do vì sao số liệu không về. Đó là hình dạng T27.20 lần thứ
+   * ba trong hai tuần.
+   */
+  it('người XEM SỐ LIỆU thấy hai màn hình chẩn đoán, KHÔNG thấy Nguồn dữ liệu', () => {
+    const visible = leafLabels(visibleMenu(MENU, checker('hyd:measurement:view')));
+
+    expect(visible).toContain('Nhật ký đồng bộ');
+    expect(visible).toContain('Mã lạ từ nguồn');
+    expect(visible).not.toContain('Nguồn dữ liệu');
+    expect(visible).not.toContain('Danh mục điểm đo');
+  });
+
+  it('người CẤU HÌNH NGUỒN cũng thấy hai màn hình ấy — hai quyền ở chế độ HOẶC', () => {
+    const visible = leafLabels(visibleMenu(MENU, checker('hyd:api-source:manage')));
+
+    expect(visible).toContain('Nhật ký đồng bộ');
+    expect(visible).toContain('Mã lạ từ nguồn');
+  });
+
+  it('⛔ Chỉ xem điểm đo thì KHÔNG thấy hai màn hình chẩn đoán — vế phân biệt', () => {
+    // Thiếu vế này thì hai bài trên xanh cả khi ai đó gộp cả nhóm về một quyền duy nhất.
+    const visible = leafLabels(visibleMenu(MENU, checker('hyd:station:view')));
+
+    expect(visible).not.toContain('Nhật ký đồng bộ');
+    expect(visible).not.toContain('Mã lạ từ nguồn');
   });
 });
 

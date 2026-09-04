@@ -58,10 +58,45 @@ public class PublicOrgDirectoryService {
     public record OrgChartNode(
             String code, String name, String shortName, String unitType, List<OrgChartNode> children) {}
 
-    /** Một dòng bảng "Lãnh đạo Công ty" — đúng ba cột của CR-25. */
-    public record LeaderRow(String fullName, String title, String phone) {}
+    /**
+     * Một dòng bảng "Lãnh đạo Công ty" — CR-25.
+     *
+     * <h2>⚠⚠ 01/09/2026 — GỠ cột điện thoại</h2>
+     *
+     * <p>CR-25 gốc ghi <i>"đúng ba cột"</i> và cột thứ ba là <b>Điện thoại liên hệ</b>. QuanTran
+     * chốt gỡ: số điện thoại của một cá nhân là <b>dữ liệu cá nhân</b> theo NĐ 13/2023, và không
+     * cơ chế nào trong hệ phân biệt được một số tổng đài với một số di động riêng — cột
+     * {@code org_unit_leaders.phone} chỉ có chú thích <i>"điện thoại liên hệ công vụ"</i>, không
+     * có ràng buộc nào ép điều đó.
+     *
+     * <p>⛔ Gỡ ở <b>RECORD</b> chứ không chỉ ẩn ở giao diện. Ẩn ở component là không gỡ gì cả:
+     * trường vẫn đi qua dây, ai mở DevTools hay gọi thẳng
+     * {@code /api/v1/public/org-units/leaders} vẫn đọc được.
+     *
+     * <p>📌 Đây là <b>thay đổi phạm vi công bố đã thống nhất</b> với Công ty, không phải một lượt
+     * dọn dẹp kỹ thuật — phải báo lại, ⛔ không sửa lặng lẽ rồi để lượt nghiệm thu sau phát hiện
+     * bảng thiếu cột.
+     *
+     * <p>Giữ {@code fullName} + {@code title}: công bố họ tên và chức danh lãnh đạo là thông lệ
+     * của cổng thông tin điện tử, và đó chính là mục đích của bảng này.
+     */
+    public record LeaderRow(String fullName, String title) {}
 
-    /** Một dòng bảng "Xí nghiệp trực thuộc" — đúng sáu cột của CR-26. */
+    /**
+     * Một dòng bảng "Xí nghiệp trực thuộc" — CR-26.
+     *
+     * <h2>⚠⚠ 01/09/2026 — GỠ {@code directorPhone}</h2>
+     *
+     * <p>Cùng lý do với {@link LeaderRow}: số của giám đốc Xí nghiệp là số của một <b>cá nhân</b>.
+     *
+     * <p>⛔ Ngược lại, {@code phone} và {@code email} <b>giữ nguyên</b> — đó là tổng đài và hộp thư
+     * của <b>đơn vị</b>, không phải của một người. Đây là ranh giới của cả đợt gỡ này: gỡ số của
+     * người, giữ số của tổ chức.
+     *
+     * <p>⚠ Chú thích cũ ghi <i>"đúng sáu cột"</i> trong khi record khai <b>tám</b> trường —
+     * {@code directorName} và {@code directorPhone} nằm ngoài bộ sáu ấy. Một trường có trong JSON
+     * mà lời chú thích ngay cạnh nói là không có: đúng hình dạng rò rỉ khó thấy nhất.
+     */
     public record SubsidiaryRow(
             String code,
             String name,
@@ -69,8 +104,7 @@ public class PublicOrgDirectoryService {
             String address,
             String phone,
             String email,
-            String directorName,
-            String directorPhone) {}
+            String directorName) {}
 
     /**
      * Sơ đồ cây cơ cấu tổ chức — CR-24.
@@ -123,7 +157,7 @@ public class PublicOrgDirectoryService {
                         leaders
                                 .findByOrgUnitIdAndActiveTrueAndDeletedAtIsNullOrderBySortOrderAscIdAsc(goc.getId())
                                 .stream()
-                                .map(l -> new LeaderRow(l.getFullName(), l.getTitle(), l.getPhone()))
+                                .map(l -> new LeaderRow(l.getFullName(), l.getTitle()))
                                 .toList())
                 .orElseGet(List::of);
     }
@@ -134,8 +168,11 @@ public class PublicOrgDirectoryService {
      *
      * <p>Cột "Giám đốc Xí nghiệp" lấy <b>dòng danh bạ đầu tiên</b> của Xí nghiệp ấy. Đó là quy ước
      * chứ không phải suy đoán: {@code sort_order} là thứ tự Công ty tự sắp trên màn hình quản trị,
-     * nên dòng đầu là người họ muốn đứng đầu. Xí nghiệp chưa có dòng nào thì hai cột cuối trả
+     * nên dòng đầu là người họ muốn đứng đầu. Xí nghiệp chưa có dòng nào thì cột ấy trả
      * {@code null} và cổng hiện dấu gạch — không mượn tên của ai khác (quy tắc 16).
+     *
+     * <p>⚠ 01/09/2026: trước đây trả <b>hai</b> cột cuối (tên + điện thoại giám đốc). Số điện thoại
+     * đã gỡ — xem {@link SubsidiaryRow}.
      */
     @Transactional(readOnly = true)
     public List<SubsidiaryRow> subsidiaries() {
@@ -167,8 +204,7 @@ public class PublicOrgDirectoryService {
                     xn.getAddress(),
                     xn.getPhone(),
                     xn.getEmail(),
-                    giamDoc == null ? null : giamDoc.getFullName(),
-                    giamDoc == null ? null : giamDoc.getPhone()));
+                    giamDoc == null ? null : giamDoc.getFullName()));
         }
         return ket;
     }

@@ -70,9 +70,33 @@ public class ConstructionService {
      *
      * <p>Bảng trắng chứ không nhận tên cột tự do: {@code Pageable} dịch thẳng tên trường sang HQL,
      * nên tên tự do là đường đọc dữ liệu ngoài ý muốn — kể cả trường không hiện trên giao diện.
+     *
+     * <h3>⚠⚠ {@code updatedAt} bổ sung 01/09/2026 — vá một lỗi CHẶN</h3>
+     *
+     * <p>{@code ConstructionsPage.tsx} khai sort mặc định {@code 'updatedAt,desc'} ngay ở
+     * {@code useState}, tức nó đi kèm <b>mọi</b> lượt gọi kể cả lượt tải đầu. Trường ấy không nằm
+     * trong bảng trắng, và {@code PageUtils.parseSort} <b>ném</b> {@code SORT_FIELD_NOT_ALLOWED} chứ
+     * không lặng lẽ bỏ qua ⇒ <b>màn hình danh sách công trình trả 422 ở lượt tải đầu tiên</b>, và
+     * đó cũng là màn hình đặt nút "Nhập nhanh tình hình vận hành".
+     *
+     * <p>⛔ Vì sao không ai thấy: bảng vốn đang rỗng thật (G8 chưa có danh mục công trình), nên
+     * "rỗng" trông đúng. Cùng khuôn §10.62 — <i>triệu chứng trùng khít trạng thái đúng</i>. T27.22
+     * từng vá đúng bảng này vì "LUÔN 0 dòng" và chữa <b>một</b> nguyên nhân; đây là nguyên nhân
+     * thứ hai, nằm ngay cạnh.
+     *
+     * <p>Chọn nới bảng trắng thay vì đổi mặc định của giao diện: cột "Cập nhật lúc" <b>có thật</b>
+     * trên bảng, và {@code createdAt} vốn đã được phép — {@code updatedAt} cùng loại (cột kiểm toán
+     * của {@code BaseEntity}), không lộ thêm gì về cấu trúc bảng.
      */
-    private static final Set<String> SAP_XEP_CHO_PHEP =
-            Set.of("code", "name", "constructionType", "operationalStatus", "riverName", "chainageM", "createdAt");
+    private static final Set<String> SAP_XEP_CHO_PHEP = Set.of(
+            "code",
+            "name",
+            "constructionType",
+            "operationalStatus",
+            "riverName",
+            "chainageM",
+            "createdAt",
+            "updatedAt");
 
     /** Tiền tố mã gợi ý theo loại công trình — CN-02.1 nêu ví dụ {@code TB-SN-001}, {@code CG-SN-001}. */
     private static final java.util.Map<ConstructionType, String> TIEN_TO_MA = java.util.Map.of(

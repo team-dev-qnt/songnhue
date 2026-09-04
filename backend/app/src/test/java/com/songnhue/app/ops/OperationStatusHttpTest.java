@@ -2,6 +2,7 @@ package com.songnhue.app.ops;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 import org.junit.jupiter.api.AfterEach;
@@ -241,6 +242,83 @@ class OperationStatusHttpTest extends IntegrationTestBase {
                 .isEqualTo("NGUNG_MUA_VU");
     }
 
+    // === ⭐ V3 — cận trên của `effective_at` ==================================
+
+    @Test
+    @DisplayName("⭐⭐ V3 — dòng đề NGÀY MAI bị từ chối bằng OPS-2020, không dòng nào được ghi")
+    void aFutureDatedRowIsRejected() {
+        String ngayMai = OffsetDateTime.now().plusDays(1).toString();
+
+        ResponseEntity<String> phanHoi = ghiNhanLuc(trucBanA, congTrinhCuaA, MA_DONG_KIN, ngayMai);
+
+        assertThat(phanHoi.getStatusCode())
+                .as(
+                        """
+                        ⛔ Không có cận trên thì một dòng đề ngày mai GHIM cả trạng thái dẫn xuất lẫn \
+                        dòng trên cổng cho tới khi tới ngày ấy — `banGhiMoiNhat` sắp theo \
+                        `effective_at DESC`, nên nó luôn thắng mọi lượt ghi thật sau đó. Và nó ghim \
+                        bằng cách TRÔNG ĐÚNG: không lỗi, không cảnh báo, chỉ là một con số không chịu \
+                        đổi. %s""",
+                        phanHoi.getBody())
+                .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(phanHoi.getBody()).contains("OPS-2020");
+        assertThat(soBanGhi(congTrinhCuaA)).isZero();
+    }
+
+    @Test
+    @DisplayName("⚠ V3 — mốc trễ vài giây so với đồng hồ máy chủ VẪN ghi được (dung sai đồng hồ)")
+    void aTimestampSecondsAheadIsStillAccepted() {
+        // ⭐ Đây là bài PHÂN BIỆT ĐƯỢC HAI CÁCH VIẾT (luật 9): `@PastOrPresent` trên DTO sẽ làm bài
+        //   này ĐỎ, còn dung sai 300 giây thì xanh. Mốc do đồng hồ TRÌNH DUYỆT sinh ra, đối chiếu
+        //   với đồng hồ MÁY CHỦ — hai đồng hồ luôn lệch, và một cận trên đúng bằng "bây giờ" sẽ từ
+        //   chối những lượt nhập hợp lệ một cách ngẫu nhiên, chỉ ở một số máy.
+        String hoiSom = OffsetDateTime.now().plusSeconds(30).toString();
+
+        ResponseEntity<String> phanHoi = ghiNhanLuc(trucBanA, congTrinhCuaA, MA_DONG_KIN, hoiSom);
+
+        assertThat(phanHoi.getStatusCode()).as("%s", phanHoi.getBody()).isEqualTo(HttpStatus.CREATED);
+        assertThat(soBanGhi(congTrinhCuaA)).isEqualTo(1);
+    }
+
+    // === ⭐ V2 — hình dạng của `parameterValue` trên dây QUẢN TRỊ =============
+
+    @Test
+    @DisplayName("⭐⭐ V2 — `parameterValue` ra dây quản trị dưới dạng CHUỖI, giữ nguyên 2 chữ số")
+    void giaTriThamSoRaDayLaChuoi() {
+        jdbc.update(
+                """
+                INSERT INTO operation_status_codes
+                    (code, name, has_parameter, parameter_unit, color_hex, mapped_status, sort_order, created_at)
+                VALUES ('T19M', 'Mở tham số kiểm thử', TRUE, 'm', '#10b981', 'BINH_THUONG', 910, now())
+                """);
+        String than =
+                """
+                {"items":[{"constructionPublicId":"%s","operationCode":"T19M",
+                           "parameterValue":2.30,"effectiveAt":"2026-08-23T08:00:00+07:00"}]}"""
+                        .formatted(congTrinhCuaA);
+        assertThat(phienHttp
+                        .goi(trucBanA, HttpMethod.POST, "/api/v1/ops/operation-statuses/batch", than)
+                        .getStatusCode())
+                .isEqualTo(HttpStatus.CREATED);
+
+        String body = phienHttp
+                .get(trucBanA, "/api/v1/ops/operation-statuses?constructionPublicId=" + congTrinhCuaA)
+                .getBody();
+
+        assertThat(body)
+                .as(
+                        """
+                        ⚠⚠ T28.27 vá đúng NỬA đường đi: `PublicConstructionPortalHttpTest` đo được \
+                        "2.30" trên cổng công khai từ 31/08, trong khi đường QUẢN TRỊ — nơi trực ban \
+                        đọc lại chính con số mình vừa nhập — vẫn gửi số JSON `2.3`. \
+                        `admin-app/shared/api-types.ts` khai `parameterValue: string | null` suốt thời \
+                        gian ấy, và không cổng kiểm nào đọc thân phản hồi để thấy hai vế nói khác nhau \
+                        (luật 12: đếm đủ MỌI đường ra). Thân thật: %s""",
+                        body)
+                .contains("\"parameterValue\":\"2.30\"")
+                .doesNotContain("\"parameterValue\":2.3");
+    }
+
     // === Đường dẫn — chỗ giao diện và backend phải khớp nhau ==================
 
     @Test
@@ -370,6 +448,9 @@ class OperationStatusHttpTest extends IntegrationTestBase {
                     (SELECT id FROM constructions WHERE code LIKE 'T19H-%')
                 """);
         jdbc.update("DELETE FROM constructions WHERE code LIKE 'T19H-%'");
+        // ⚠ SAU khi các dòng tham chiếu đã đi — `operation_code_id` là khoá ngoại, xoá ngược thứ tự
+        //   thì lượt dọn chết vì ràng buộc chứ không phải vì bài kiểm sai.
+        jdbc.update("DELETE FROM operation_status_codes WHERE code = 'T19M'");
     }
 
     private void donDepDonVi() {

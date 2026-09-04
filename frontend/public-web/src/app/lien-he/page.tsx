@@ -91,7 +91,10 @@ export default async function LienHePage() {
     { nhan: 'Giờ làm việc', giaTri: gioLamViec, icon: 'gio' as const },
   ].filter((d) => d.giaTri);
 
-  const dauMoi = (subsidiaries ?? []).filter((x) => x.phone || x.email || x.directorPhone);
+  // ⚠ 01/09/2026: bỏ `x.directorPhone` khỏi điều kiện — trường ấy đã gỡ khỏi record công khai
+  //   (số của một cá nhân, NĐ 13/2023). Một Xí nghiệp chỉ có tên giám đốc mà không có tổng đài
+  //   hay hộp thư thì KHÔNG còn là một đầu mối liên hệ, nên không lên bảng này.
+  const dauMoi = (subsidiaries ?? []).filter((x) => x.phone || x.email);
 
   return (
     <PageShell title="Liên hệ" description={tenCongTy} breadcrumb={[{ label: 'Liên hệ' }]}>
@@ -264,14 +267,6 @@ export default async function LienHePage() {
                         ) : (
                           <span className="text-surface-textSecondary">Chưa có</span>
                         )}
-                        {xn.directorPhone ? (
-                          <a
-                            href={`tel:${xn.directorPhone.replace(/\D/g, '')}`}
-                            className="ml-2 text-brand-primary hover:underline"
-                          >
-                            {xn.directorPhone}
-                          </a>
-                        ) : null}
                       </td>
                     </tr>
                   ))}

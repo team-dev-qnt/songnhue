@@ -63,7 +63,7 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
   const laVanBan = laNhanhCua(categories ?? [], slug, danhMucVanBan);
 
   return (
-    <div className="mx-auto max-w-[1232px] px-4 py-6 sm:px-6 sm:py-8 animate-fade-in">
+    <div className="mx-auto max-w-[1232px] px-4 py-4 sm:px-6 animate-fade-in">
       {/* ───── Breadcrumbs Điều hướng ───── */}
       <Breadcrumb items={[{ label: 'Chuyên mục', href: ROUTES.home }, { label: categoryName }]} />
 

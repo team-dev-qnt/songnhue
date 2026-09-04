@@ -3,13 +3,18 @@ package com.songnhue.app.migration;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.FlywayException;
+import org.flywaydb.core.api.Location;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.songnhue.app.testsupport.IntegrationTestBase;
@@ -31,16 +36,110 @@ class MigrationTest extends IntegrationTestBase {
     @Autowired
     private JdbcTemplate jdbc;
 
+    /**
+     * <b>Số migration ĐÃ ÁP phải khớp ĐÚNG số tệp Flyway nhìn thấy — T11.72.</b>
+     *
+     * <h2>Vì sao ngưỡng ghi cứng là một lời hứa rỗng</h2>
+     *
+     * Bản trước khẳng định {@code applied >= 9}. Con số 9 đúng ở ngày viết ra và không ai sửa nữa;
+     * đo 3/9/2026 thì kho có <b>52</b> tệp {@code V*.sql}. Nghĩa là Flyway áp được 9 tệp rồi dừng —
+     * hoặc 40 tệp rồi dừng — bài này vẫn <b>xanh trọn vẹn</b>. Một ngưỡng đứng yên trong khi thứ nó
+     * canh lớn lên năm lần thì thôi phân biệt được hai trạng thái, tức là thôi khẳng định gì (luật 9).
+     *
+     * <h2>Bất biến thay thế: hai chiều, không có số nào để lỗi thời</h2>
+     *
+     * Đếm tệp trên <b>chính classpath</b>, qua <b>chính danh sách location</b> mà bean Flyway đang
+     * chạy khai — {@code flyway.getConfiguration().getLocations()}. Không ghi cứng đường dẫn, không
+     * ghi cứng số lượng: thêm một migration thì cả hai vế cùng tăng, còn Flyway áp thiếu một tệp thì
+     * hai vế lệch nhau ngay.
+     *
+     * <p>⚠ Đây là chỗ đọc bằng cùng một cơ chế Flyway dùng để phân giải location, nên nó không thể
+     * "đúng ở test mà sai ở chạy thật" vì lệch đường dẫn — đó là cả lý do dùng
+     * {@code getConfiguration()} thay vì {@code find backend -name 'V*.sql'}.
+     *
+     * <h2>⛔ Lớp lỗi bài này sinh ra để bắt</h2>
+     *
+     * Boot 4 dời auto-config của Flyway sang starter riêng. Nếu {@code app/pom.xml} khai
+     * {@code flyway-core} mà thiếu starter, {@code migrator} ở máy chủ <b>im lặng không áp gì</b>,
+     * trong khi bộ test vẫn xanh vì {@code IntegrationTestBase} tự đặt {@code spring.flyway.*} bằng
+     * {@code @DynamicPropertySource}. Ngưỡng 9 sẽ không thấy; phép so hai chiều thì thấy.
+     */
     @Test
-    @DisplayName("Migration chạy hết, không version nào lỗi")
-    void everyMigrationApplied() {
+    @DisplayName("⭐⭐ Số migration đã áp KHỚP ĐÚNG số tệp trên classpath — không ngưỡng ghi cứng")
+    void soMigrationDaApKhopSoTepTrenClasspath() throws IOException {
+        Map<String, Integer> theoLocation = demTepTheoLocation();
+        int tongTep = theoLocation.values().stream().mapToInt(Integer::intValue).sum();
+
+        // ⛔ Chặn tập rỗng (luật 7): quét hỏng cho ra 0 tệp, và `0 == 0` là một bài xanh vô nghĩa.
+        assertThat(tongTep)
+                .as(
+                        "quét classpath ra %d tệp V*.sql qua %s — phép quét đang hỏng, và khi nó hỏng "
+                                + "thì phép so bên dưới là 0 với 0",
+                        tongTep, theoLocation.keySet())
+                .isGreaterThanOrEqualTo(NGUONG_TAP_RONG);
+
         Integer applied =
                 jdbc.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success = true", Integer.class);
         Integer failed =
                 jdbc.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success = false", Integer.class);
 
-        assertThat(applied).as("số migration đã áp dụng").isGreaterThanOrEqualTo(9);
         assertThat(failed).as("migration lỗi còn sót trong lịch sử").isZero();
+        assertThat(applied)
+                .as(
+                        "Flyway ghi %d hàng thành công, nhưng classpath có %d tệp V*.sql (%s). "
+                                + "Lệch nghĩa là có migration KHÔNG được áp — trên máy chủ đó là một cột "
+                                + "thiếu, và `ddl-auto: validate` sẽ chặn ứng dụng lúc khởi động.",
+                        applied, tongTep, theoLocation)
+                .isEqualTo(tongTep);
+    }
+
+    /**
+     * ⭐ Tự kiểm: chứng minh phép đếm bám vào location THẬT, không khớp bừa.
+     *
+     * <p>Chỗ bài trên dễ sai nhất là mẫu glob quá lỏng — một mẫu quét trúng mọi thứ vẫn cho ra hai
+     * vế bằng nhau và xanh. Nên hỏi nó một location <b>không tồn tại</b>: phải ra <b>0</b>. Và hỏi
+     * một location có thật: phải ra <b>số dương</b>. Hai câu ấy cùng đúng thì phép đếm mới đang đo
+     * cái nó nói là đang đo.
+     *
+     * <p>⚠ Khẳng định ở đây là <b>về số lượng</b>, không khớp chuỗi — nó không chia sẻ giả định nào
+     * với mẫu glob mà nó đang kiểm (luật 29).
+     */
+    @Test
+    @DisplayName("⭐ Tự kiểm: location không tồn tại phải ra 0, location thật phải ra số dương")
+    void tuKiemPhepDemBamVaoLocationThat() throws IOException {
+        assertThat(demTep("db/migration/khong-ton-tai-" + getClass().getSimpleName()))
+                .as("một location KHÔNG TỒN TẠI mà ra > 0 ⇒ mẫu glob đang khớp bừa, và phép so "
+                        + "hai chiều ở bài trên xanh vì lý do sai")
+                .isZero();
+
+        Map<String, Integer> theoLocation = demTepTheoLocation();
+        assertThat(theoLocation)
+                .as("Flyway phải khai đủ các location của 5 module + thư mục test")
+                .hasSizeGreaterThanOrEqualTo(5);
+        assertThat(theoLocation.values().stream().filter(n -> n > 0).count())
+                .as("phải có ít nhất 3 location thật sự chứa migration — %s", theoLocation)
+                .isGreaterThanOrEqualTo(3);
+    }
+
+    /** Số tệp {@code V*.sql} tối thiểu phải quét ra; 52 ở thời điểm viết, để chừa biên rộng. */
+    private static final int NGUONG_TAP_RONG = 30;
+
+    /**
+     * Đếm tệp {@code V*.sql} theo TỪNG location mà bean Flyway đang chạy khai.
+     *
+     * <p>Trả về map giữ thứ tự để thông báo lỗi chỉ thẳng được location nào rỗng bất thường.
+     */
+    private Map<String, Integer> demTepTheoLocation() throws IOException {
+        Map<String, Integer> ket = new LinkedHashMap<>();
+        for (Location loc : flyway.getConfiguration().getLocations()) {
+            ket.put(loc.getPath(), demTep(loc.getPath()));
+        }
+        return ket;
+    }
+
+    /** Số tệp {@code V*.sql} thấy được trên classpath dưới một đường dẫn location. */
+    private int demTep(String duongDan) throws IOException {
+        return new PathMatchingResourcePatternResolver().getResources("classpath*:" + duongDan + "/V*.sql").length;
     }
 
     @Test
