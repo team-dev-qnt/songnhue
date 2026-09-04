@@ -147,6 +147,37 @@
           xa hơn mức cần thiết cho một lượt vá bảo mật.
         -->
         <commons-lang3.version>3.18.0</commons-lang3.version>
+
+        <!--
+          Đè `jackson-bom` của BOM Boot: 3.5.16 ghim **2.21.4**, dính
+          CVE-2026-54515 (5.3, CWE-915 — dưới ngưỡng 7 nên KHÔNG làm đỏ cổng).
+          Cùng lý do và cùng cơ chế với `commons-lang3` ngay trên: có bản vá sẵn
+          nên đây là việc **nâng**, không phải việc thẩm định (`conventions.md`
+          §4.5 luật 1: nâng cấp trước, suppress sau).
+
+          Lỗ hổng: trong `BeanDeserializerBase.createContextual()`, loại trừ
+          `@JsonIgnoreProperties` **ở mức thuộc tính** sinh ra một deserializer
+          ngữ cảnh mà `BeanPropertyMap` đã gỡ mất các thuộc tính bị bỏ qua —
+          hình dạng gán-hàng-loạt (mass assignment).
+
+          ⚠ Đo 4/9: `@JsonIgnoreProperties` xuất hiện **0 lần** trong toàn backend
+          (đối chứng phải-tìm-thấy: `ObjectMapper` 18 tệp, nên bộ dò có chạy).
+          ⛔ Nhưng KHÔNG lấy đó làm lý do bỏ qua: "grep mã nguồn rồi kết luận về
+          runtime" đúng là hình dạng đã bị bác **2/3 phiếu ở cả bốn mã Spring**
+          ngày 3/9 — Boot tự bật thứ mã nguồn không khai. Tốn công thẩm định khả
+          năng khai thác cho một bản vá MỘT DÒNG là sai tỉ lệ.
+
+          Dải dính đọc từ chính báo cáo quét (không đoán): `versionEndExcluding`
+          = **2.21.5**. Lấy **2.21.6** — bản cao nhất còn trong dòng 2.21.x trên
+          `maven-metadata.xml` (luật 21), không nhảy sang 2.22.x.
+
+          ⛔ KHÔNG kỳ vọng nó đóng issue #84: 7 mã ≥ 7 ở spring-* còn nguyên,
+          lượt quét **vẫn đỏ**. Lợi ích thật là 13 mã → 12 trong báo cáo.
+
+          ⭐ Dòng này BỎ ĐI ở T11.69 cùng lượt với `postgresql.version` và
+          `log4j2.version`: BOM 4.1.1 khai `jackson-bom 3.1.5`, đã cao hơn.
+        -->
+        <jackson-bom.version>2.21.6</jackson-bom.version>
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
