@@ -64,26 +64,43 @@ const DASHBOARD: DashboardView = {
       unavailableReason: null,
       availableIn: null,
     },
-    // ⚠ Ô "chưa có nguồn" thứ hai lấy từ MOD-03, KHÔNG lấy từ WS-18 nữa: WS-18 đã trả nợ hai ô
-    //   sửa chữa / sự cố, và một dữ liệu mẫu hẹn "sẽ có ở WS-18" là một lời hẹn đã tới hạn — nó làm
-    //   bài kiểm mô tả sai hiện trạng, dù vẫn xanh.
+    // ⭐ T35.3 (04/09/2026) — hai ô thuỷ văn NAY CÓ SỐ THẬT. Trước đó chúng là dữ liệu mẫu
+    //   "chưa có nguồn"; giữ nguyên sau khi backend đã nối là để bài kiểm mô tả một trạng thái
+    //   backend ⛔ không còn sinh ra được — xanh, và sai (§10.69).
     {
       key: 'hydro.stations-offline',
       label: 'Điểm đo mất tín hiệu',
-      value: null,
-      total: null,
-      tone: 'UNKNOWN',
-      unavailableReason: 'Chưa đấu nối dữ liệu thuỷ văn',
-      availableIn: 'Phase 2 (MOD-03)',
+      value: 2,
+      total: 19,
+      tone: 'WARNING',
+      unavailableReason: null,
+      availableIn: null,
     },
     {
       key: 'hydro.active-alerts',
       label: 'Cảnh báo thuỷ văn đang xảy ra',
+      value: 1,
+      total: null,
+      tone: 'DANGER',
+      unavailableReason: null,
+      availableIn: null,
+    },
+    // ⚠⚠ Ô TỔNG HỢP, ⛔ không phải một ô có thật của backend.
+    //
+    // Sau T35.3 ⛔ KHÔNG ô KPI nào của backend còn trả `value: null` — cả mười ô đều có nguồn. Nhưng
+    // cơ chế "ô trống phải nói được vì sao trống" vẫn phải sống: nó là ràng buộc ở tầng kiểu của
+    // record `Kpi` (backend ném lỗi nếu thiếu lý do), và ô KPI thứ mười một sẽ cần đúng nó.
+    //
+    // ⛔ Đừng thay ô này bằng một khoá `hydro.*` cho "thật hơn" — làm thế là quay lại đúng lời nói
+    // dối vừa gỡ. Đây là dữ liệu mẫu cho MỘT nhánh hiển thị, và nó tự khai điều đó.
+    {
+      key: 'demo.chua-co-nguon',
+      label: 'Ô mẫu cho nhánh chưa có nguồn',
       value: null,
       total: null,
       tone: 'UNKNOWN',
-      unavailableReason: 'Chưa đấu nối dữ liệu thuỷ văn',
-      availableIn: 'Phase 2 (MOD-03)',
+      unavailableReason: 'Ô tổng hợp của bài kiểm — không ô backend nào đang ở trạng thái này',
+      availableIn: 'Hạng mục sau',
     },
   ],
   statistics: {
@@ -129,14 +146,33 @@ describe('ô KPI chưa có nguồn', () => {
 
     await waitFor(() => expect(screen.getByText('Điểm đo mất tín hiệu')).toBeInTheDocument());
 
-    // Hai ô "chưa có nguồn" đều phải nói ra điều đó...
-    expect(screen.getAllByText('Chưa có dữ liệu')).toHaveLength(2);
-    expect(screen.getAllByText('Phase 2 (MOD-03)')).toHaveLength(2);
+    // Ô mẫu chưa có nguồn phải nói ra điều đó...
+    expect(screen.getAllByText('Chưa có dữ liệu')).toHaveLength(1);
+    expect(screen.getAllByText('Hạng mục sau')).toHaveLength(1);
 
     // ...và ô "Sự cố" (đã đo, bằng 0) vẫn phải hiện đúng số 0. Đây là vế thứ hai, và
     // thiếu nó thì một bản sửa biến mọi số 0 thành dấu gạch cũng sẽ xanh — tức là giấu
     // mất con số duy nhất người trực cần thấy khi mọi thứ đang bình thường.
     expect(screen.getByText('0')).toBeInTheDocument();
+  });
+
+  /**
+   * ⭐ T35.3 — vế NGƯỢC, và nó là vế đáng giá hơn.
+   *
+   * ⛔ Bài trên chỉ khẳng định "ô rỗng thì nói là rỗng". Nó vẫn xanh trọn vẹn nếu ai đó làm hai ô
+   * thuỷ văn quay về `null` — mà đó đúng là hồi quy cần bắt: hai ô ấy vừa chuyển từ "chưa có nguồn"
+   * sang "có số thật", và đường đi qua `hydro.spi` là thứ mới nhất, mỏng nhất trong cả chuỗi.
+   */
+  it('⭐ hai ô thuỷ văn hiện SỐ, ⛔ không còn "Chưa có dữ liệu"', async () => {
+    dung();
+
+    await waitFor(() => expect(screen.getByText('Điểm đo mất tín hiệu')).toBeInTheDocument());
+
+    expect(screen.getByText('2')).toBeInTheDocument();
+    expect(screen.getByText('/ 19')).toBeInTheDocument();
+    expect(screen.getByText('1')).toBeInTheDocument();
+    // Không còn ô thuỷ văn nào hẹn "sẽ có ở Phase 2".
+    expect(screen.queryByText('Phase 2 (MOD-03)')).not.toBeInTheDocument();
   });
 
   it('ô có số hiện đủ tử số và mẫu số', async () => {
@@ -169,7 +205,9 @@ describe('bố cục ở các bề rộng thiết bị', () => {
 
       // Vế "không mất khối": cùng một cây component cho mọi bề rộng, nên số khối phải
       // không đổi. Một bản "rút gọn cho màn hình nhỏ" sẽ đỏ ngay ở đây.
-      expect(screen.getByTestId('luoi-kpi').children).toHaveLength(4);
+      // ⚠ 4 → 5 ở T35.3: dữ liệu mẫu thêm một ô cho nhánh "chưa có nguồn" sau khi hai ô thuỷ văn
+      //   chuyển sang số thật. Con số này đếm DỮ LIỆU MẪU, ⛔ không phải số ô của backend.
+      expect(screen.getByTestId('luoi-kpi').children).toHaveLength(5);
       expect(screen.getByTestId('luoi-thong-ke').children).toHaveLength(3);
 
       // Vế "không tràn ngang" đã kiểm bằng số ở `gridLayout.test.ts`; ở đây khẳng định
@@ -202,8 +240,8 @@ describe('chế độ màn hình lớn', () => {
     dung('/van-hanh/dieu-hanh?mode=wall');
 
     await waitFor(() => expect(screen.getByTestId('khung-wall')).toBeInTheDocument());
-    expect(screen.getByTestId('luoi-kpi').children).toHaveLength(4);
+    expect(screen.getByTestId('luoi-kpi').children).toHaveLength(5);
     expect(screen.getByTestId('luoi-thong-ke').children).toHaveLength(3);
-    expect(screen.getAllByText('Chưa có dữ liệu')).toHaveLength(2);
+    expect(screen.getAllByText('Chưa có dữ liệu')).toHaveLength(1);
   });
 });

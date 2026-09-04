@@ -1,8 +1,12 @@
 package com.songnhue.app.architecture;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
+import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -80,6 +84,60 @@ class ModuleBoundaryTest {
     @DisplayName("Module nghiệp vụ không phụ thuộc ngược lên tầng lắp ráp `app`")
     void modulesDoNotDependOnTheAssembler() {
         KHONG_PHU_THUOC_NGUOC_LEN_APP.check(ProductionClasses.ALL);
+    }
+
+    /**
+     * ⭐⭐ <b>DOD2.1</b> — luật {@code spi/} chạy trên một tập <b>KHÁC RỖNG</b>.
+     *
+     * <h2>Vì sao bài này tồn tại</h2>
+     *
+     * <p>{@link #CHI_IMPORT_SPI_CUA_MODULE_KHAC} chỉ biết báo <i>vi phạm</i>. Nó ⛔ không hề khẳng
+     * định rằng có <b>lượt đi qua hợp lệ</b> nào — nên một hệ mà <i>không module nào gọi module
+     * nào</i> làm nó xanh trọn vẹn. Đó chính xác là tình trạng của {@code hydro} cho tới 04/09/2026:
+     * {@code content} và {@code operations} import {@code com.songnhue.hydro.*} đúng <b>0 lần</b>,
+     * và ranh giới trông như đang được canh trong khi thật ra <b>chưa ai đi qua nó</b> (luật 7 —
+     * <i>một cơ chế chưa ai đi qua thì chưa biết nó đúng hay sai</i>).
+     *
+     * <p>⚠ Đây cũng là hình dạng đã trả giá nhiều lần ở dự án này: ArchUnit suốt Phase 0 tìm ra 0
+     * bài kiểm, tầng 3 phân quyền chạy qua tập rỗng, ISR revalidate chưa ai gọi. Một luật xanh trên
+     * tập rỗng <b>đọc y hệt</b> một luật xanh vì mã đúng.
+     *
+     * <p>⛔ Khẳng định là <b>về SỐ LƯỢNG và về CẶP module cụ thể</b>, không phải một mẫu chuỗi —
+     * một phép đếm không chia sẻ giả định nào với điều kiện {@code startsWith} ở luật trên (luật 29).
+     */
+    @Test
+    @DisplayName("⭐ DOD2.1 — luật spi/ chạy trên tập KHÁC RỖNG: `operations → hydro.spi` có lượt đi qua thật")
+    void theSpiRuleRunsOnANonEmptySet() {
+        Map<String, Set<String>> quaSpi = new TreeMap<>();
+        for (JavaClass lop : ProductionClasses.ALL) {
+            String from = moduleOf(lop.getPackageName());
+            if (from == null) {
+                continue;
+            }
+            for (Dependency phuThuoc : lop.getDirectDependenciesFromSelf()) {
+                String targetPackage = phuThuoc.getTargetClass().getPackageName();
+                String to = moduleOf(targetPackage);
+                if (to == null || to.equals(from)) {
+                    continue;
+                }
+                if (targetPackage.startsWith("com.songnhue." + to + ".spi")) {
+                    quaSpi.computeIfAbsent(from + " → " + to, k -> new TreeSet<>())
+                            .add(lop.getName());
+                }
+            }
+        }
+
+        assertThat(quaSpi)
+                .as("⛔ Không cặp module nào đi qua `spi/` ⇒ luật ranh giới đang chạy trên TẬP RỖNG "
+                        + "và cái xanh của nó không nói lên điều gì")
+                .isNotEmpty();
+
+        assertThat(quaSpi)
+                .as("⭐ T35.6 — ô KPI thuỷ văn của dashboard đọc `hydro` qua `hydro.spi`. Mất cặp này "
+                        + "nghĩa là ai đó đã gỡ cạnh Maven `operations → hydro`, hoặc đã lách qua "
+                        + "`core.spi` — cả hai đều phải là quyết định có ý thức, ⛔ không phải hệ quả "
+                        + "phụ của một lượt dọn dẹp")
+                .containsKey("operations → hydro");
     }
 
     // -------------------------------------------------------------------------

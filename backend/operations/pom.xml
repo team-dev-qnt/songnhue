@@ -21,5 +21,26 @@
             <groupId>com.songnhue</groupId>
             <artifactId>songnhue-core</artifactId>
         </dependency>
+        <!--
+          ⭐⭐ T35.6 — cạnh Maven `operations → hydro`, thêm 04/09/2026. Cạnh ĐẦU TIÊN giữa hai
+          module nghiệp vụ; trước đó `content`, `operations`, `hydro` đều chỉ thấy `core`.
+
+          Vì sao cần: ô KPI thuỷ văn của dashboard điều hành (T35.3) và lớp GIS điểm đo (T35.1) đều
+          nằm trong `operations`, và cả hai phải đọc dữ liệu do `hydro` sở hữu.
+
+          ⛔⛔ HỆ QUẢ PHẢI BIẾT TRƯỚC — cạnh này KHÔNG đảo ngược được:
+          từ nay `hydro` ⛔ KHÔNG được phép phụ thuộc `operations`, vì đó sẽ là một vòng ở tầng
+          Maven và reactor không dựng được. Đó chính là lý do `ConstructionLookupPort` phải ở
+          `core.spi` chứ không ở `operations.spi` — xem javadoc của nó. Nếu sau này `hydro` cần thêm
+          thứ gì từ `operations`, đường duy nhất vẫn là một cổng ở `core.spi`.
+
+          ⛔ Và cạnh này KHÔNG nới lỏng ranh giới: `operations` chỉ được import
+          `com.songnhue.hydro.spi.*`. `ModuleBoundaryTest.CHI_IMPORT_SPI_CUA_MODULE_KHAC` chặn phần
+          còn lại, và WS-35 là lượt đầu tiên luật ấy chạy trên một tập KHÁC RỖNG.
+        -->
+        <dependency>
+            <groupId>com.songnhue</groupId>
+            <artifactId>songnhue-hydro</artifactId>
+        </dependency>
     </dependencies>
 </project>
