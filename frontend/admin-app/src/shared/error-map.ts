@@ -233,7 +233,8 @@ export const ERROR_CATALOG = {
     severity: 'warning',
   },
   'CMS-2017': {
-    message: 'Tệp vượt trần dung lượng cho tài liệu phục vụ trên cổng — nén hoặc tách nhỏ rồi thử lại',
+    message:
+      'Tệp vượt trần dung lượng cho tài liệu phục vụ trên cổng — nén hoặc tách nhỏ rồi thử lại',
     handling: 'toast',
     severity: 'warning',
   },

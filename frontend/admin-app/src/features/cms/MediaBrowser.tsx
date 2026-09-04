@@ -196,7 +196,9 @@ export function MediaBrowser({
           <Button
             icon={<ReloadOutlined />}
             onClick={() =>
-              void queryClient.invalidateQueries({ queryKey: cmsKeys.files(activeFolder, kho, loai) })
+              void queryClient.invalidateQueries({
+                queryKey: cmsKeys.files(activeFolder, kho, loai),
+              })
             }
           />
         </Space>

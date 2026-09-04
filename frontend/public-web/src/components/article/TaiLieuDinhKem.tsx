@@ -64,10 +64,7 @@ export function TaiLieuDinhKem({ documents }: { documents: TaiLieuRef[] }) {
 function NhanLoai({ contentType }: { contentType: string }) {
   const { nhan, mau } = kieuTep(contentType);
   return (
-    <span
-      className={`mt-0.5 rounded px-1.5 py-0.5 text-[10px] font-extrabold ${mau}`}
-      aria-hidden
-    >
+    <span className={`mt-0.5 rounded px-1.5 py-0.5 text-[10px] font-extrabold ${mau}`} aria-hidden>
       {nhan}
     </span>
   );
