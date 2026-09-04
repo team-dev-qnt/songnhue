@@ -227,8 +227,17 @@ public class ApiSourceService {
     @Transactional
     public void delete(UUID publicId) {
         ApiSource nguon = tim(publicId);
-        int dangDung = stations.findByApiSourceIdAndDeletedAtIsNullOrderByCodeAsc(nguon.getId())
-                .size();
+        // ⛔⛔ T28.32 — phép đếm này CỐ Ý đứng ngoài bộ lọc phạm vi.
+        //
+        // Bản cũ gọi `findByApiSourceIdAndDeletedAtIsNullOrderByCodeAsc`, một câu derived CHỊU
+        // `Station.LOC_PHAM_VI`. Hệ quả đo được: người của Xí nghiệp A đếm ra 0 trong khi Xí nghiệp
+        // B còn điểm đo trỏ vào nguồn ấy ⇒ HYD-1002 KHÔNG bắn, nguồn bị xoá mềm, và điểm đo của đơn
+        // vị khác mất đường lấy số liệu — ⛔ không lỗi nào, và người gây ra ⛔ không nhìn thấy hậu
+        // quả vì nó nằm ngoài phạm vi của họ.
+        //
+        // ⚠ "Đối tượng này còn được tham chiếu không" là một câu hỏi về TOÀN VẸN, và nó có MỘT câu
+        //   trả lời đúng cho cả hệ — ⛔ không phải một câu hỏi về phạm vi (luật 13).
+        long dangDung = stations.demMoiPhamViTheoNguon(nguon.getId());
         if (dangDung > 0) {
             throw new ConflictException(ErrorCode.HYD_1002, nguon.getCode());
         }

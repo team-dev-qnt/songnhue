@@ -182,6 +182,68 @@ export const severityColorKey = {
 } as const satisfies Record<string, StatusColorKey>;
 
 /**
+ * ⭐⭐ Bảng màu **mức cảnh báo thuỷ văn** — T35.14, đóng một nửa cặp đọc–ghi hở từ WS-33.
+ *
+ * <h3>Nửa nào đang hở</h3>
+ *
+ * `alert_levels.color_token` được validate bằng regex `^[a-z][a-z0-9-]*$` ở service **và** một
+ * CHECK ở CSDL — nhưng cho tới 04/09/2026 **không bảng ánh xạ nào trong toàn kho** đổi nó thành một
+ * màu. `AlertLevelsPage` hiện nó ra dưới dạng **chữ trần**. Nghĩa là `color_token = 'banana'` đi
+ * lọt mọi tầng và mọi bài kiểm, rồi hiện lên màn hình đúng chữ "banana" (luật 27, luật 15).
+ *
+ * <h3>⛔ Vì sao là SLOT dùng lại, ⛔ không phải "mỗi mức một màu riêng"</h3>
+ *
+ * Quy tắc 16 của dự án: mức ngưỡng là **danh mục có CRUD** — Công ty thêm một mức mới ⛔ không được
+ * đòi deploy (G9-a). Nếu mỗi mức cần một khoá màu riêng thì mức thứ sáu ⛔ không có màu, và ta lại
+ * phải deploy để thêm nó. Nên bảng này là một tập **slot cố định** để danh mục *chọn vào*, ⛔ không
+ * phải một dòng cho mỗi mức nghiệp vụ.
+ *
+ * ⚠ Kèm theo đó: danh sách khoá hợp lệ phải giống hệt ở FE và BE. Đó là hai nơi con người phải nhớ,
+ * nên nó có **một phép kiểm nhớ hộ** (luật 14) — `alertLevelColors.test.ts` đọc thẳng
+ * `AlertLevelService.java` và so hai tập hợp.
+ *
+ * <h3>Thang màu</h3>
+ *
+ * Đi từ nhẹ tới nặng theo đúng tập quán phòng chống thiên tai (Báo động I → II → III), và ba slot
+ * đầu **dùng lại** đúng ba màu trạng thái của hệ để một mức "nguy cấp" không hiện hai sắc đỏ khác
+ * nhau ở bảng KPI và ở lớp GIS.
+ */
+export const alertLevelColors = {
+  'alert-level-1': statusColors.warning,
+  'alert-level-2': '#fa8c16',
+  'alert-level-3': statusColors.danger,
+  'alert-level-4': '#a8071a',
+  'alert-level-5': '#520339',
+} as const;
+
+export type AlertLevelColorToken = keyof typeof alertLevelColors;
+
+/** Danh sách khoá hợp lệ — nguồn sự thật cho ô chọn ở `AlertLevelsPage` và cho bài kiểm đối chiếu. */
+export const alertLevelColorTokens = Object.keys(alertLevelColors) as AlertLevelColorToken[];
+
+/**
+ * Đổi `color_token` thành mã màu.
+ *
+ * ⚠ **Không im lặng khi gặp khoá lạ.** Dữ liệu cũ (hoặc một lượt `PUT` thẳng qua API) có thể mang
+ * một khoá ngoài bảng; trả về màu "không xác định" là câu trả lời đúng — nó **nhìn thấy được** trên
+ * màn hình, khác hẳn việc trả một màu mặc định trông như đã cấu hình xong.
+ *
+ * ⛔ Đừng đổi thành `?? statusColors.danger`: một mức chưa cấu hình đúng mà hiện màu đỏ là một cảnh
+ * báo giả, và người trực sẽ tin nó.
+ */
+export function mauMucCanhBao(colorToken: string | null | undefined): string {
+  if (!colorToken) {
+    return statusColors.unknown;
+  }
+  return alertLevelColors[colorToken as AlertLevelColorToken] ?? statusColors.unknown;
+}
+
+/** Khoá có nằm trong bảng không — dùng để giao diện đánh dấu một mức cấu hình sai. */
+export function laKhoaMauHopLe(colorToken: string | null | undefined): boolean {
+  return !!colorToken && colorToken in alertLevelColors;
+}
+
+/**
  * Theme ECharts — khai bằng object thuần, **không import `echarts`**.
  *
  * Gói tokens không phụ thuộc vào thư viện vẽ đồ thị: nó chỉ mô tả *màu và chữ trông

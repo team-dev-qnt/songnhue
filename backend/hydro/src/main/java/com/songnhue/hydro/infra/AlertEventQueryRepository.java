@@ -50,6 +50,21 @@ public class AlertEventQueryRepository {
      *
      * <p>⛔ Nối qua {@code station_constructions}, ⛔ không qua một khoá ngoại xuyên module (T33.4).
      */
+    /**
+     * ⭐⭐ <b>Định nghĩa DUY NHẤT của "cảnh báo đang xảy ra"</b> — T35.6.
+     *
+     * <p>Tách thành hằng số vì từ WS-35 có <b>hai</b> người hỏi cùng một câu: mắt xích 3 hỏi
+     * <i>"công trình này có không"</i> ({@link #SQL_CONG_TRINH_DANG_CANH_BAO}), ô KPI dashboard hỏi
+     * <i>"toàn hệ có bao nhiêu"</i> ({@link #SQL_DEM_DANG_CANH_BAO}). Chép vị từ làm hai câu là mở
+     * đúng cửa mà luật 14 nói tới — <i>chỗ nào con người phải nhớ hai nơi thì chỗ đó cần một phép
+     * kiểm nhớ hộ</i> — và ở đây rẻ hơn nhiều: một hằng số thì không có gì để quên.
+     *
+     * <p>⚠ Hệ quả nếu ai đó nới vế {@code confirmed_at}: cả trạng thái công trình lẫn ô KPI đổi
+     * <b>cùng lúc, cùng chiều</b>. Đó là điều mong muốn — hai màn hình cạnh nhau nói hai con số về
+     * cùng một sự việc là thứ làm người trực mất lòng tin vào cả hai.
+     */
+    static final String DIEU_KIEN_DANG_CANH_BAO = "e.status = 'DANG_XAY_RA' AND e.confirmed_at IS NOT NULL";
+
     private static final String SQL_CONG_TRINH_DANG_CANH_BAO =
             """
             SELECT 1
@@ -57,10 +72,21 @@ public class AlertEventQueryRepository {
               JOIN station_constructions sc
                 ON sc.station_id = e.station_id AND sc.deleted_at IS NULL
              WHERE sc.construction_id = ?
-               AND e.status = 'DANG_XAY_RA'
-               AND e.confirmed_at IS NOT NULL
+               AND %s
              LIMIT 1
-            """;
+            """
+                    .formatted(DIEU_KIEN_DANG_CANH_BAO);
+
+    /**
+     * Đếm cảnh báo đang mở trên toàn hệ — nuôi ô KPI {@code hydro.active-alerts} (T35.3).
+     *
+     * <p>⛔ Không {@code JOIN station_constructions}: một điểm đo {@code MN_SONG} hợp lệ mà ⛔ không
+     * thuộc công trình nào (DOD2.3) vẫn phát cảnh báo được, và cảnh báo ấy <b>phải</b> được đếm. Mắt
+     * xích 3 nối qua bảng liên kết vì nó hỏi về <i>một công trình</i>; câu này hỏi về <i>cả hệ</i>.
+     * Hai phạm vi khác nhau một cách có chủ đích — ⛔ đừng "thống nhất" chúng ở lượt dọn dẹp sau.
+     */
+    private static final String SQL_DEM_DANG_CANH_BAO =
+            "SELECT count(*) FROM alert_events e WHERE " + DIEU_KIEN_DANG_CANH_BAO;
 
     private static final String CHON =
             """
@@ -92,6 +118,12 @@ public class AlertEventQueryRepository {
 
     public boolean suKienTonTai(UUID publicId) {
         return khoaNoiBo(publicId).isPresent();
+    }
+
+    /** @see #SQL_DEM_DANG_CANH_BAO */
+    public long demDangCanhBao() {
+        Long n = jdbc.queryForObject(SQL_DEM_DANG_CANH_BAO, Long.class);
+        return n == null ? 0L : n;
     }
 
     /**

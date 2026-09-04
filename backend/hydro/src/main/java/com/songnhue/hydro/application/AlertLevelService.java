@@ -3,6 +3,7 @@ package com.songnhue.hydro.application;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -15,6 +16,7 @@ import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.ConflictException;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
 import com.songnhue.core.common.exception.ValidationException;
+import com.songnhue.core.spi.PortalCachePort;
 import com.songnhue.hydro.domain.AlertLevel;
 import com.songnhue.hydro.infra.AlertLevelRepository;
 import com.songnhue.hydro.infra.AlertRuleRepository;
@@ -43,12 +45,46 @@ public class AlertLevelService {
      */
     private static final Pattern MAU_KHOA_MAU = Pattern.compile("^[a-z][a-z0-9-]*$");
 
+    /**
+     * ⭐⭐ Danh sách khoá màu <b>thật sự vẽ được</b> — T35.14.
+     *
+     * <h2>Vì sao regex một mình là chưa đủ</h2>
+     *
+     * <p>{@link #MAU_KHOA_MAU} chỉ kiểm <b>hình dạng</b>. Cho tới 04/09/2026 nó là tầng chặn duy
+     * nhất, và hệ quả đo được: {@code color_token = "banana"} đi lọt service, lọt CHECK của CSDL,
+     * lọt mọi bài kiểm — rồi hiện lên màn hình đúng chữ "banana", vì ⛔ <b>không bảng ánh xạ nào
+     * trong toàn kho</b> đổi khoá thành màu. Nửa <i>ghi</i> hoàn chỉnh, nửa <i>đọc</i> không tồn
+     * tại (luật 27).
+     *
+     * <p>⇒ Từ nay khoá phải nằm trong <b>bảng màu có thật</b>.
+     *
+     * <h2>⛔⛔ HAI NƠI PHẢI NHỚ — và phép kiểm nhớ hộ</h2>
+     *
+     * <p>Danh sách này phải trùng khít với {@code alertLevelColors} ở
+     * {@code frontend/design-tokens/src/index.ts}. Java ⛔ không import được TypeScript, nên đây là
+     * đúng hình dạng luật 14. Phép kiểm nhớ hộ: {@code alertLevelColors.test.ts} <b>đọc thẳng tệp
+     * Java này</b> và so hai tập hợp, kèm khẳng định về <b>số lượng</b> để nó ⛔ không xanh trên tập
+     * rỗng (cùng khuôn {@code error-map.test.ts} đang dùng cho mã lỗi BE ↔ FE).
+     *
+     * <p>⚠ Thêm một slot thì phải sửa <b>cả hai</b> tệp — bài kiểm sẽ đỏ nếu chỉ sửa một.
+     *
+     * <h2>⛔ Vì sao là SLOT, không phải "mỗi mức một màu"</h2>
+     *
+     * <p>Quy tắc 16: mức ngưỡng là <b>danh mục có CRUD</b>, thêm mức mới ⛔ không được đòi deploy
+     * (G9-a). Nên danh sách này là tập <i>slot</i> để danh mục chọn vào — Công ty thêm mức thứ sáu
+     * vẫn dùng lại được một slot có sẵn.
+     */
+    static final Set<String> KHOA_MAU_CHO_PHEP =
+            Set.of("alert-level-1", "alert-level-2", "alert-level-3", "alert-level-4", "alert-level-5");
+
     private final AlertLevelRepository levels;
     private final AlertRuleRepository rules;
+    private final PortalCachePort portalCache;
 
-    public AlertLevelService(AlertLevelRepository levels, AlertRuleRepository rules) {
+    public AlertLevelService(AlertLevelRepository levels, AlertRuleRepository rules, PortalCachePort portalCache) {
         this.levels = levels;
         this.rules = rules;
+        this.portalCache = portalCache;
     }
 
     @Transactional(readOnly = true)
@@ -78,6 +114,10 @@ public class AlertLevelService {
         muc.setActive(active == null || active);
         muc.setDescription(description);
         AlertLevel daLuu = levels.save(muc);
+        // ⚠ Mức cảnh báo là DANH MỤC, và từ T35.14 `colorToken` + `name` của nó đi thẳng ra marker
+        //   GIS lẫn bảng mực nước trên cổng. Đổi màu/tên mà ⛔ không xoá đệm là đúng lỗi T27.7 —
+        //   xem javadoc PortalCachePort.hydroStationsChanged().
+        portalCache.hydroStationsChanged();
         log.info("Thêm mức cảnh báo {} (hạng {})", ma, hang);
         return daLuu;
     }
@@ -110,6 +150,7 @@ public class AlertLevelService {
         //   PATCH ngầm, tức một cờ mà màn hình bật/tắt được nhưng API thì không.
         muc.setActive(active == null || active);
         muc.setDescription(description);
+        portalCache.hydroStationsChanged();
         return muc;
     }
 
@@ -130,6 +171,7 @@ public class AlertLevelService {
             throw new ConflictException(ErrorCode.HYD_2010, String.valueOf(dem));
         }
         muc.markDeleted(Instant.now());
+        portalCache.hydroStationsChanged();
         log.info("Xoá mềm mức cảnh báo {}", muc.getCode());
     }
 
@@ -157,6 +199,10 @@ public class AlertLevelService {
         if (!MAU_KHOA_MAU.matcher(v).matches()) {
             // ⚠ Tên vi phạm nói thẳng cái sai thường gặp nhất: người dùng dán một mã hex vào đây.
             throw loiTruong("colorToken", "PHAI_LA_KHOA_DESIGN_TOKEN", v);
+        }
+        // ⭐ T35.14 — hình dạng đúng vẫn chưa đủ: khoá phải VẼ ĐƯỢC. Xem KHOA_MAU_CHO_PHEP.
+        if (!KHOA_MAU_CHO_PHEP.contains(v)) {
+            throw loiTruong("colorToken", "KHOA_MAU_KHONG_CO_TRONG_BANG_MAU", v);
         }
         return v;
     }

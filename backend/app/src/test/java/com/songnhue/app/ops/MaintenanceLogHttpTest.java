@@ -491,9 +491,19 @@ class MaintenanceLogHttpTest extends IntegrationTestBase {
         assertThat(dashboard)
                 .containsPattern("\"key\":\"incident.open\",\"label\":\"[^\"]+\",\"value\":\\d+")
                 .containsPattern("\"key\":\"maintenance.in-progress\",\"label\":\"[^\"]+\",\"value\":\\d+");
+        // ⚠⚠ Khẳng định ở đây đã bị ĐẢO ở T35.3 (04/09/2026), ⛔ không phải xoá cho hết đỏ.
+        //
+        // Bản cũ: `.contains("Phase 2 (MOD-03)")` — "hai ô thuỷ văn thì VẪN chưa có nguồn". Câu ấy
+        // đúng ở WS-18 và sai từ WS-35: hai ô ấy nay đọc `hydro.spi`. Giữ nguyên là để một bài kiểm
+        // đóng đinh trạng thái CŨ, và nó sẽ chặn đúng lượt sửa làm cho đúng.
+        //
+        // ⭐ Giữ lại vế đối xứng — vế mà bài này thật sự sinh ra để canh: ⛔ KHÔNG ô nào của dashboard
+        //    còn hẹn một hạng mục tương lai. Đó là bất biến bền, ⛔ không phải một tên hạng mục cụ
+        //    thể sẽ hết hạn ở lượt sau.
         assertThat(dashboard)
-                .as("hai ô thuỷ văn thì VẪN chưa có nguồn — Phase 2")
-                .contains("Phase 2 (MOD-03)");
+                .as("⛔ mọi ô KPI đều đã có nguồn — không ô nào còn hẹn 'sẽ có ở <hạng mục>'")
+                .doesNotContain("Phase 2 (MOD-03)")
+                .doesNotContain("\"availableIn\":\"");
     }
 
     @Test

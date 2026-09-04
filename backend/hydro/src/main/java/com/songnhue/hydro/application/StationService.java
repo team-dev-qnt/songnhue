@@ -20,6 +20,7 @@ import com.songnhue.core.common.exception.ResourceNotFoundException;
 import com.songnhue.core.common.exception.ValidationException;
 import com.songnhue.core.common.persistence.ScopeGuard;
 import com.songnhue.core.spi.OrgUnitPort;
+import com.songnhue.core.spi.PortalCachePort;
 import com.songnhue.hydro.domain.ApiSource;
 import com.songnhue.hydro.domain.MeasurementType;
 import com.songnhue.hydro.domain.PositionRole;
@@ -45,6 +46,17 @@ import com.songnhue.hydro.infra.StationRepository;
  * <p>{@code findByPublicIdAndDeletedAtIsNull} đi qua bộ lọc phạm vi, nên bản ghi ngoài phạm vi trả
  * về rỗng và nếu ném thẳng "không tìm thấy" thì một lần dò dữ liệu đơn vị khác trông y hệt gõ nhầm
  * đường dẫn — {@code conventions.md} §4.2.
+ *
+ * <h2>⭐ Ba đường ghi ở đây là đường ghi <b>BIÊN TẬP</b> — chúng xoá đệm cổng (T35.9)</h2>
+ *
+ * <p>Từ T35.7, {@code code} · {@code name} · {@code riverName} · {@code chainage} · toạ độ và cờ
+ * {@code active} của điểm đo đi <b>thẳng ra bảng "Mực nước, lượng mưa" trên cổng công khai</b>. ⇒
+ * sửa danh mục <b>cũng là</b> sửa nội dung cổng, và ⛔ không gọi {@link PortalCachePort} thì người
+ * nhập bấm Lưu, màn hình báo thành công, cổng hiện tên cũ tới 5 phút — nguyên văn triệu chứng
+ * §10.62 mà T27.7 đã đi trả nợ ở {@code operations}.
+ *
+ * <p>⛔ Ranh giới ngược lại nằm ở javadoc {@link PortalCachePort#hydroStationsChanged()}: đường ghi
+ * <b>số đo</b> ⛔ không gọi.
  */
 @Service
 public class StationService {
@@ -57,6 +69,7 @@ public class StationService {
     private final MeasurementTypeRepository types;
     private final OrgUnitPort orgUnits;
     private final ScopeGuard scopeGuard;
+    private final PortalCachePort portalCache;
 
     public StationService(
             StationRepository stations,
@@ -64,31 +77,20 @@ public class StationService {
             ApiSourceRepository sources,
             MeasurementTypeRepository types,
             OrgUnitPort orgUnits,
-            ScopeGuard scopeGuard) {
+            ScopeGuard scopeGuard,
+            PortalCachePort portalCache) {
         this.stations = stations;
         this.links = links;
         this.sources = sources;
         this.types = types;
         this.orgUnits = orgUnits;
         this.scopeGuard = scopeGuard;
+        this.portalCache = portalCache;
     }
 
     @Transactional(readOnly = true)
     public List<Station> list() {
         return stations.findByDeletedAtIsNullOrderByCodeAsc();
-    }
-
-    /**
-     * Điểm đo <b>chưa gán đơn vị phụ trách</b> — T28.9, hệ quả trực tiếp của OI-05.
-     *
-     * <p>⚠ Đây không phải một bộ lọc tiện tay: cho tới khi danh sách này rỗng, resolver người nhận
-     * cảnh báo (G11 tập 2) không tìm được ai để gửi. Một cảnh báo không có người nhận là một cảnh
-     * báo không tồn tại, và nó không báo lỗi ở đâu cả — nên việc còn thiếu phải hiện thành một con
-     * số trên màn hình.
-     */
-    @Transactional(readOnly = true)
-    public List<Station> chuaGanDonVi() {
-        return stations.findByOrgUnitIdIsNullAndDeletedAtIsNullOrderByCodeAsc();
     }
 
     /**
@@ -164,7 +166,9 @@ public class StationService {
                 batBuoc(form.positionRole()));
         apDung(diemDo, form);
         log.info("Thêm điểm đo {} (mã API {})", ma, maApi);
-        return stations.save(diemDo);
+        Station daLuu = stations.save(diemDo);
+        portalCache.hydroStationsChanged();
+        return daLuu;
     }
 
     /**
@@ -196,7 +200,9 @@ public class StationService {
         diemDo.setApiSourceId(nguon(form.apiSourcePublicId()).getId());
         diemDo.setPositionRole(vaiTro);
         apDung(diemDo, form);
-        return stations.save(diemDo);
+        Station daLuu = stations.save(diemDo);
+        portalCache.hydroStationsChanged();
+        return daLuu;
     }
 
     /**
@@ -228,6 +234,11 @@ public class StationService {
         Station diemDo = get(publicId);
         diemDo.markDeleted(Instant.now());
         stations.save(diemDo);
+        // ⚠ Đường XOÁ cũng phải xoá đệm, và đây là đường dễ quên nhất trong ba: nó ⛔ không trả về
+        //   gì, nên nhìn qua ⛔ không giống một lượt "ghi nội dung". Hệ quả thì nặng hơn hẳn hai
+        //   đường kia — một điểm đo đã xoá còn nằm trên cổng là công bố số liệu của một trạm mà
+        //   người vận hành vừa tuyên bố là ⛔ không dùng nữa.
+        portalCache.hydroStationsChanged();
         log.info("Xoá điểm đo {} (mã API {})", diemDo.getCode(), diemDo.getApiCode());
     }
 

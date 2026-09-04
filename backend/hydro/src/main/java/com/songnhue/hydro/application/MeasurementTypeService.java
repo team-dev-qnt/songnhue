@@ -107,10 +107,11 @@ public class MeasurementTypeService {
     @Transactional
     public void delete(UUID publicId) {
         MeasurementType loai = tim(publicId);
-        long dangDung = stations.findByDeletedAtIsNullOrderByCodeAsc().stream()
-                .filter(s ->
-                        s.getMeasurementTypes().stream().anyMatch(t -> t.getId().equals(loai.getId())))
-                .count();
+        // ⛔⛔ T28.32 — xem javadoc `demMoiPhamViTheoLoaiChiSo`. Bản cũ lọc trong bộ nhớ TRÊN một
+        //    danh sách đã bị bộ lọc phạm vi cắt, nên người Xí nghiệp A xoá được loại chỉ số mà điểm
+        //    đo Xí nghiệp B đang gắn. Hậu quả im lặng hơn cả vế nguồn dữ liệu: `hydro_readings` của
+        //    loại ấy mồ côi — số liệu VẪN được ghi, chỉ là ⛔ không màn hình nào đọc ra nữa.
+        long dangDung = stations.demMoiPhamViTheoLoaiChiSo(loai.getId());
         if (dangDung > 0) {
             throw new ConflictException(ErrorCode.HYD_1002, loai.getCode());
         }

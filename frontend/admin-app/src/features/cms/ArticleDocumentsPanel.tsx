@@ -14,11 +14,14 @@ import { type ArticleDocumentView } from './types';
  * Khối "Tài liệu đính kèm" của màn hình soạn bài — WS-40, CN-01.1
  * (*"Tệp đính kèm | File | Nhiều tệp (pdf, docx, xlsx…)"*).
  *
- * <h3>⛔ Vì sao KHÔNG dùng `components/business/AttachmentPanel.tsx`</h3>
+ * <h3>⛔ Vì sao không có một khối đính kèm "dùng chung"</h3>
  *
- * Nó nhận `ownerId: number` trong khi CMS đi bằng UUID, và tới 04/09/2026 **không màn hình nào
- * dùng nó** — `ConstructionDocumentsPanel` đã ghi lại đúng lý do ấy. Khối này còn khác về bản
- * chất: nó **không tự tải lên và không tự lưu**. Nó chỉ sửa một danh sách trong bộ nhớ, và danh
+ * Từng có `components/business/AttachmentPanel.tsx`, và nó **đã bị xoá 04/09/2026** (nợ T27.29):
+ * 0 nơi import, nhận `ownerId: number` trong khi CMS lẫn MOD-02 đều đi bằng UUID, và gọi thẳng
+ * `POST`/`DELETE /api/v1/attachments` — đúng cặp endpoint chung mà A1 vừa vá quyền. Một component
+ * không ai dùng nhưng **dùng được**, trỏ vào đường rộng nhất, là một lời mời.
+ *
+ * <p>Khối này còn khác về bản chất: nó **không tự tải lên và không tự lưu**. Nó chỉ sửa một danh sách trong bộ nhớ, và danh
  * sách ấy đi cùng lượt bấm **Lưu** của cả bài — vì tài liệu là *nội dung*, phải qua đúng quy
  * trình duyệt như tiêu đề và nội dung bài.
  *

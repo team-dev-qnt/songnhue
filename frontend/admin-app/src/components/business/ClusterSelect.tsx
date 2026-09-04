@@ -53,7 +53,18 @@ export function ClusterSelect({
       showSearch
       optionFilterProp="label"
       // ⛔ Chưa có cụm nào thì nói thẳng là chưa có, đừng để ô rỗng trông như đang tải.
-      notFoundContent={isLoading ? 'Đang tải…' : 'Chưa khai báo cụm công trình nào'}
+      //
+      // ⚠⚠ T27.30 — và câu này phải nói ra VÌ SAO nó rỗng, ⛔ không chỉ RẰNG nó rỗng. Đo 04/09:
+      //    `construction_clusters` ⛔ không có seed và ba endpoint ghi
+      //    (`POST`/`PUT`/`DELETE /ops/construction-clusters`) có 0 nơi gọi ⇒ ⛔ KHÔNG có đường nào
+      //    tạo ra một cụm. Danh sách này vì thế rỗng **vĩnh viễn** cho tới khi có màn hình quản lý.
+      //
+      // ⛔ "Chưa khai báo cụm nào" đọc như *"bạn đi khai đi"* — một lời hướng dẫn tới một màn hình
+      //    ⛔ KHÔNG tồn tại. Đó là quy tắc 16 ở tầng câu chữ: ô rỗng phải nói được lý do THẬT, nếu
+      //    không người vận hành đi tìm một chức năng không có và kết luận là hệ thống hỏng.
+      notFoundContent={
+        isLoading ? 'Đang tải…' : 'Chưa có màn hình quản lý cụm công trình — bỏ trống ô này'
+      }
       options={(data ?? [])
         .filter((cum) => cum.active)
         .map((cum) => ({

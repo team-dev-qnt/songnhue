@@ -1,46 +1,61 @@
 import Link from 'next/link';
 
+import type { WaterLevelRow } from '@/lib/api';
 import { COT_MUC_NUOC } from '@/lib/homeDataColumns';
 import { ROUTES } from '@/lib/routes';
 import { RealtimeFrame } from '../realtime/RealtimeFrame';
 import { ColumnHeaderRow } from './ColumnHeaderRow';
+import { WaterLevelRows } from './WaterLevelRows';
 
 interface WaterLevelBlockProps {
   hotline?: string;
   refreshSeconds: number;
   /** Mốc của số liệu. `null` khi chưa có nguồn — xem ghi chú về việc KHÔNG lấy giờ máy khách. */
   updatedAt: string | null;
+  /**
+   * Dòng số liệu — **T35.7**.
+   *
+   * ⚠ `null` = **lượt gọi API hỏng** (`apiGet` gộp 404 và lỗi mạng làm một); `[]` = gọi được
+   * nhưng **chưa điểm đo nào đang hoạt động**. Hai trạng thái khác nhau và khối này nói hai câu
+   * khác nhau — gộp lại là để một sự cố backend trông y hệt một hệ thống chưa có dữ liệu.
+   */
+  rows: WaterLevelRow[] | null;
 }
 
 /**
  * Khối **MỰC NƯỚC, LƯỢNG MƯA** trên trang chủ — CR-13, CR-14, CR-33, CR-35, CR-36.
  *
- * <h2>⛔ Khối này hiện KHÔNG có nguồn dữ liệu, và nó nói thẳng điều đó</h2>
+ * <h2>⭐⭐ 04/09/2026 — khối này NAY CÓ NGUỒN DỮ LIỆU THẬT (T35.7)</h2>
  *
- * Trả lời <b>OI-01</b>: API mực nước <b>chưa</b> sẵn sàng. Module MOD-03 (Quản lý dữ liệu thủy
- * văn) chưa được dựng — thư mục `hydro/` của backend mới chỉ có khai báo gói. Nguồn
- * `songnhue.bhh40.net` đã khảo sát xong (2 phút/lần, 19 điểm đo, <b>không có API lượng mưa</b>
- * và không có API lịch sử) nhưng chưa có poller nào chạy.
+ * Số đến từ {@code GET /api/v1/public/hydro/muc-nuoc}, đọc bảng {@code hydro_latest} do poller
+ * bhh40 ghi. Trả lời <b>OI-01</b>: API mực nước <b>đã đấu nối</b>.
  *
- * Theo §7: *"Nếu tại thời điểm bàn giao chưa có API, khối vẫn phải dựng đầy đủ và để trạng
- * thái chờ dữ liệu, sẵn sàng đấu nối khi có nguồn."* Nên ở đây có đủ khung, dòng "Cập nhật
- * lúc", nút làm mới, đường dẫn xem sâu — và một câu nói rõ vì sao chưa có số.
+ * <p>⚠ Ba giới hạn của nguồn vẫn còn nguyên và cổng phải nói ra, ⛔ không được lấp liếm:
  *
- * <h2>⭐ 29/08: có hàng TIÊU ĐỀ CỘT, vẫn không có DÒNG nào</h2>
+ * <ul>
+ *   <li><b>Không có API lượng mưa</b> — cột "Lượng mưa" rỗng vĩnh viễn cho tới khi chốt
+ *       <b>G3-a</b>. ⛔ Không `?? 0`: `0 mm` là một khẳng định về thời tiết.
+ *   <li><b>Tuyến sông và lý trình chưa có</b> — mục <b>G8</b>; các dòng gom vào "Chưa phân tuyến".
+ *   <li><b>Không có API lịch sử</b> — dữ liệu quá khứ chỉ có kể từ ngày poller chạy lần đầu.
+ * </ul>
  *
- * Bản vẽ đòi khối dựng đủ khung, và §7 nói thẳng lý do: người duyệt cần biết *"khi có số thì
- * tôi sẽ đọc được những gì"*. Nên tám tên cột của CN-03.4 nay hiện ra ({@code COT_MUC_NUOC}).
+ * <h2>⛔⛔ Ranh giới cũ đã được gỡ ĐÚNG CÁCH, ⛔ không phải bị nới</h2>
  *
- * <p>⛔ Ranh giới hẹp và cố ý: được dựng <b>tên cột</b>, cấm dựng <b>dòng</b>. Luật 7 —
- * <i>một cơ chế chưa ai đi qua thì chưa biết nó đúng hay sai</i> — vẫn áp cho phần thân: một
- * lưới ô mà không lượt chạy nào từng đổ dữ liệu thật vào là mã chưa được kiểm, đội lốt mã đã
- * xong, và danh sách 10 cống trục chính còn đang chờ Công ty chốt (<b>OI-03</b>). Bản trước
- * của khối này có 5 trạm quan trắc viết cứng <b>kèm mực nước và một mức cảnh báo BĐ I trên tên
- * cống có thật</b>; chúng lên staging và không ai nhìn ra đường dữ liệu đã chết (§10.54). Một
- * cái tên cột không thể bị đọc nhầm thành một phép đo; một dòng có tên cống và một con số thì
- * có — đó là toàn bộ chỗ ranh giới nằm.
+ * Từ 29/08 khối này cố ý chỉ dựng <b>tên cột</b> và cấm dựng <b>dòng</b>, vì lúc ấy chưa có
+ * endpoint nào đứng sau — và bản trước đó đã có 5 trạm quan trắc viết cứng <b>kèm mực nước và một
+ * mức "Cảnh báo BĐ I" gắn tên cống có thật</b>; chúng lên staging và không ai nhìn ra đường dữ
+ * liệu đã chết (§10.54).
+ *
+ * <p>Ranh giới ấy nay hết hạn vì <b>đã có nguồn thật</b>, ⛔ không phải vì ai đó thấy trang trống
+ * quá. ⛔ Vẫn cấm tuyệt đối: mảng `DEFAULT_*`, `rows.length >= n ? rows : [...rows, ...BIA]`, và
+ * mọi con số viết trong tệp này. `noFabricatedContent.test.ts` quét toàn cây và phải vẫn xanh.
  */
-export function WaterLevelBlock({ hotline = '', refreshSeconds, updatedAt }: WaterLevelBlockProps) {
+export function WaterLevelBlock({
+  hotline = '',
+  refreshSeconds,
+  updatedAt,
+  rows,
+}: WaterLevelBlockProps) {
   return (
     <section
       aria-label="Mực nước, lượng mưa"
@@ -111,12 +126,28 @@ export function WaterLevelBlock({ hotline = '', refreshSeconds, updatedAt }: Wat
       />
 
       <div className="p-4 sm:p-5">
+        {/* ⚠ `unavailable` CHỈ khi lượt gọi hỏng (`rows === null`) — T35.10: widget hỏng ⛔ không
+            được làm sập trang chủ, và cũng ⛔ không được lộ lỗi kỹ thuật ra ngoài. Danh sách rỗng
+            là một trạng thái KHÁC và có câu nói riêng bên dưới. */}
         <RealtimeFrame
           updatedAt={updatedAt}
           refreshSeconds={refreshSeconds}
-          unavailable
-          unavailableReason="Mô-đun Quản lý dữ liệu thủy văn (MOD-03) chưa được đấu nối, nên chưa có mực nước và lượng mưa để hiển thị."
-        />
+          unavailable={rows === null}
+          unavailableReason="Chưa lấy được số liệu mực nước. Số liệu sẽ hiện lại khi kết nối tới nguồn được khôi phục."
+        >
+          {rows !== null && rows.length > 0 ? (
+            <WaterLevelRows
+              rows={rows}
+              luoi="grid-cols-[1.1fr_1.7fr_0.9fr_1fr_1fr_0.95fr_1.1fr_0.9fr]"
+              beRongToiThieu="min-w-[920px]"
+            />
+          ) : (
+            /* ⛔ Rỗng THẬT — nói thẳng, ⛔ không dựng một lưới dấu gạch cho "đỡ trống" (§10.61). */
+            <p className="px-3.5 py-6 text-center text-[13px] text-surface-textSecondary">
+              Chưa điểm đo nào đang hoạt động để công bố số liệu.
+            </p>
+          )}
+        </RealtimeFrame>
       </div>
     </section>
   );

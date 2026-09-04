@@ -26,11 +26,13 @@ import { formatBytes, formatDateTime } from '@/shared/format';
 /**
  * Tài liệu của một công trình — CN-02.3, T21.4.
  *
- * ⛔ **Không dùng `AttachmentPanel` dùng chung.** Component đó nhận `ownerId: number` và gọi
- * `GET /attachments?ownerId=…`, nơi backend khai `@RequestParam Long ownerId`. Bản trước của màn
- * hình này truyền `publicId` (UUID) qua một lượt ép kiểu `as unknown as number`, kèm chú thích tự
- * hỏi *"backend expects UUID for construction?"* — nghĩa là Spring không bind được và **mọi lượt mở
- * tab trả 400**. Tab hiện ra, bảng rỗng, không có gì báo sai.
+ * ⛔ **Không có "khối đính kèm dùng chung".** Từng có `components/business/AttachmentPanel.tsx`;
+ * nó **đã bị xoá 04/09/2026** (nợ T27.29) sau khi đo được 0 nơi import. Component ấy nhận
+ * `ownerId: number` và gọi `GET /attachments?ownerId=…`, nơi backend khai
+ * `@RequestParam Long ownerId`. Bản trước của màn hình này truyền `publicId` (UUID) qua một lượt ép
+ * kiểu `as unknown as number`, kèm chú thích tự hỏi *"backend expects UUID for construction?"* —
+ * nghĩa là Spring không bind được và **mọi lượt mở tab trả 400**. Tab hiện ra, bảng rỗng, không có
+ * gì báo sai.
  *
  * MOD-02 đã có sẵn bộ endpoint riêng đi bằng `publicId` và mang đúng ba quyền `ops:document:*`
  * (xem / tải lên / xoá) thay vì mượn `ops:construction:update`. Dùng đúng nó.

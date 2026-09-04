@@ -513,6 +513,48 @@ export function getOperationStatuses(): Promise<OperationStatusRow[] | null> {
   });
 }
 
+/** Nhãn đệm của số liệu thuỷ văn — xem {@link getWaterLevels}. */
+export const HYDRO_TAG = 'thuy-van';
+
+/**
+ * Một dòng bảng **"Mực nước, lượng mưa"** — CR-13 · CR-33 · CN-03.4, 8 cột.
+ *
+ * ⚠ Mọi số về dạng **chuỗi**: backend dùng `BigDecimal` (quy tắc 2 — cấm float/double cho số đo),
+ * và đọc thành `number` ở đây là đánh mất đúng thứ kiểu ấy bảo vệ (§10.32).
+ *
+ * ⛔ `luongMua` **luôn `null`** — loại chỉ số đã khai nhưng chưa gắn cho điểm đo nào (mục G3-a).
+ * ⛔ Đừng `?? 0`: `0 mm` là một câu khẳng định về thời tiết.
+ *
+ * ⚠ `mucNuocThuongLuu`/`mucNuocHaLuu` cũng `null` khi điểm đo **mất tín hiệu** — backend cố ý
+ * ⛔ KHÔNG công bố số cuối của một trạm đã im lặng như một số hiện tại. `lyDoTrong` nói vì sao.
+ */
+export interface WaterLevelRow {
+  tuyenSong: string;
+  tenDiemDo: string;
+  maDiemDo: string;
+  lyTrinh: string | null;
+  mucNuocThuongLuu: string | null;
+  mucNuocHaLuu: string | null;
+  luongMua: string | null;
+  donVi: string | null;
+  thoiDiemDo: string | null;
+  chatLuong: string | null;
+  lyDoTrong: string | null;
+  lyDoLuongMua: string | null;
+}
+
+/**
+ * Bảng mực nước cho khối trang chủ và trang "Mực nước, lượng mưa" — **T35.7**.
+ *
+ * ⛔⛔ Đây là chỗ §10.54 đã trả giá: bản cũ của khối này có **5 trạm viết cứng** kèm mực nước và
+ * một mức "Cảnh báo BĐ I" gắn tên cống có thật — tất cả đều bịa, và đã lên staging. Mọi con số
+ * hàm này trả về đến từ CSDL; danh sách rỗng thì khối hiện trạng thái chờ dữ liệu, ⛔ **không**
+ * độn thêm dòng nào.
+ */
+export function getWaterLevels(): Promise<WaterLevelRow[] | null> {
+  return apiGet<WaterLevelRow[]>('/hydro/muc-nuoc', { tags: [HYDRO_TAG] });
+}
+
 /**
  * Giờ máy chủ — mốc cho dòng "Cập nhật lúc" của CR-35.
  *

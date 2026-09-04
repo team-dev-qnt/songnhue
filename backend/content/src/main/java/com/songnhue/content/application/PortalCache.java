@@ -63,6 +63,24 @@ public class PortalCache implements PortalCachePort {
     public static final String TAG_CONG_TRINH = "cong-trinh";
 
     /**
+     * Bảng "Mực nước, lượng mưa" — nhãn {@code thuy-van}, khớp {@code HYDRO_TAG} của
+     * {@code lib/api.ts}. <b>T35.9</b>.
+     */
+    public static final String TAG_THUY_VAN = "thuy-van";
+
+    /**
+     * Trang "Mực nước, lượng mưa" của cổng — <b>đường dẫn thứ hai</b> mà lớp này biết tới, ngoài
+     * trang chủ.
+     *
+     * <p>⚠ Chuỗi này phải khớp <b>thư mục tuyến</b> của Next
+     * ({@code public-web/src/app/quan-ly-van-hanh/muc-nuoc-luong-mua/page.tsx}). Hai nơi phải nhớ
+     * cùng một chuỗi, và gõ sai ⛔ không có triệu chứng nào: {@code revalidatePath} với một đường
+     * dẫn không tồn tại vẫn trả {@code {"revalidated":true}}. Luật 14 ⇒ có bài kiểm đối chiếu với
+     * cây thư mục thật ({@code PortalRevalidatePathTest}).
+     */
+    public static final String DUONG_DAN_MUC_NUOC = "/quan-ly-van-hanh/muc-nuoc-luong-mua";
+
+    /**
      * {@inheritDoc}
      *
      * <p>Gửi <b>cả nhãn lẫn đường dẫn trang chủ</b>. Nhãn lo ba trang {@code /gioi-thieu/*}; đường
@@ -81,6 +99,25 @@ public class PortalCache implements PortalCachePort {
     public void constructionsChanged() {
         datViec("{\"tag\":\"%s\"}".formatted(TAG_CONG_TRINH), "tag:" + TAG_CONG_TRINH);
         datViec("{\"path\":\"/\"}", "duong-dan:/");
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>⭐ <b>Ba</b> việc, ⛔ không phải một — và đường dẫn thứ hai là chỗ khác hẳn hai phương thức
+     * anh em phía trên. Bảng mực nước hiện ở <b>hai</b> trang, nên chỉ gửi {@code "/"} là chữa trang
+     * chủ và bỏ nguyên trang chi tiết ở trạng thái cũ tới hết chu kỳ ISR. Triệu chứng sẽ là dạng khó
+     * truy nhất: <i>"cùng một số liệu, hai trang nói hai điều khác nhau"</i>.
+     *
+     * <p>⚠ Nhãn ⛔ không thay được đường dẫn: §10.17 đo được rằng một lượt {@code fetch} hỏng thì
+     * <b>không mục cache nào mang nhãn được tạo ra</b>, nên {@code revalidateTag} ⛔ không có gì để
+     * lần ngược. Nhãn lo lượt sau, đường dẫn lo lượt này.
+     */
+    @Override
+    public void hydroStationsChanged() {
+        datViec("{\"tag\":\"%s\"}".formatted(TAG_THUY_VAN), "tag:" + TAG_THUY_VAN);
+        datViec("{\"path\":\"/\"}", "duong-dan:/");
+        datViec("{\"path\":\"%s\"}".formatted(DUONG_DAN_MUC_NUOC), "duong-dan:" + DUONG_DAN_MUC_NUOC);
     }
 
     /**

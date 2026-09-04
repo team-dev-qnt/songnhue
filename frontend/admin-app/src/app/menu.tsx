@@ -14,6 +14,7 @@ import {
   FundProjectionScreenOutlined,
   LaptopOutlined,
   LayoutOutlined,
+  LineChartOutlined,
   PictureOutlined,
   MailOutlined,
   QuestionCircleOutlined,
@@ -157,6 +158,13 @@ export const MENU: readonly MenuNode[] = [
         label: 'Biểu tổng hợp tuyến sông',
         icon: <FundProjectionScreenOutlined />,
         path: '/thuy-van/bieu-tuyen-song',
+        permissions: ['hyd:report:view'],
+      },
+      {
+        key: 'bieu-do-muc-nuoc',
+        label: 'Biểu đồ mực nước 24h',
+        icon: <LineChartOutlined />,
+        path: '/thuy-van/bieu-do-muc-nuoc',
         permissions: ['hyd:report:view'],
       },
       {

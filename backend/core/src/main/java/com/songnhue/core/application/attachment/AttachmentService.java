@@ -9,6 +9,7 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +30,7 @@ import com.songnhue.core.domain.attachment.Attachment;
 import com.songnhue.core.infra.attachment.AttachmentRepository;
 import com.songnhue.core.infra.storage.ObjectStorage;
 import com.songnhue.core.spi.AttachmentContent;
+import com.songnhue.core.spi.AttachmentDeletedEvent;
 import com.songnhue.core.spi.AttachmentPort;
 import com.songnhue.core.spi.AttachmentRef;
 import com.songnhue.core.spi.AttachmentUploadCommand;
@@ -95,18 +97,21 @@ public class AttachmentService implements AttachmentPort {
     private final StorageProperties storageProperties;
     private final SettingService settings;
     private final JobService jobs;
+    private final ApplicationEventPublisher events;
 
     public AttachmentService(
             AttachmentRepository repository,
             ObjectStorage storage,
             StorageProperties storageProperties,
             SettingService settings,
-            JobService jobs) {
+            JobService jobs,
+            ApplicationEventPublisher events) {
         this.repository = repository;
         this.storage = storage;
         this.storageProperties = storageProperties;
         this.settings = settings;
         this.jobs = jobs;
+        this.events = events;
     }
 
     /**
@@ -220,8 +225,20 @@ public class AttachmentService implements AttachmentPort {
         if (!attachment.isDownloadable()) {
             return Optional.empty();
         }
-        byte[] content = storage.get(attachment.getStorageBucket(), attachment.getStorageKey());
-        return Optional.of(new AttachmentContent(content, attachment.getContentType(), attachment.getOriginalName()));
+        // ⭐ T28.35 — PHÁT TRỰC TIẾP, ⛔ không `storage.get` (thứ nạp trọn tệp vào heap).
+        //
+        // Ba endpoint gọi tới đây đều là bề mặt CÔNG KHAI, ⛔ không đăng nhập, và trần dung lượng
+        // đang seed là 120 MB (video) / 50 MB (tài liệu) trên một hệ CHẠY MỘT NODE. Mười lượt tải
+        // đồng thời một tệp 120 MB là 1,2 GB heap cho một việc lẽ ra ⛔ không cần bộ nhớ nào.
+        //
+        // ⚠ `sizeBytes` lấy từ CSDL chứ ⛔ không từ kho: nó phải có TRƯỚC khi byte đầu tiên chảy, để
+        //   đặt được `Content-Length`. Thiếu nó thì phản hồi rơi về `chunked` và trình duyệt ⛔
+        //   không hiện được thanh tiến trình.
+        return Optional.of(new AttachmentContent(
+                storage.openStream(attachment.getStorageBucket(), attachment.getStorageKey()),
+                attachment.getContentType(),
+                attachment.getOriginalName(),
+                attachment.getSizeBytes()));
     }
 
     @Transactional(readOnly = true)
@@ -323,6 +340,20 @@ public class AttachmentService implements AttachmentPort {
         Attachment attachment = require(publicId);
         attachment.markDeleted(Instant.now());
         repository.save(attachment);
+
+        // ⭐⭐ T28.34 — gỡ MỌI tham chiếu đang trỏ vào tệp này, ở CÙNG giao dịch.
+        //
+        // ⛔ Năm cột trong hai module khai `REFERENCES attachments (public_id) ON DELETE SET NULL`,
+        //    và cả năm CHƯA TỪNG bắn một lần: xoá ở đây là xoá MỀM (quy tắc 9), nên với CSDL thì
+        //    không có gì bị xoá và không có gì để SET NULL. Hai luật đúng riêng lẻ, loại trừ nhau
+        //    khi ghép — và không ai để ý.
+        //
+        // ⚠ Triệu chứng: `readForPublic` lọc `deleted_at IS NULL` ⇒ 404, trong khi cột ở
+        //   `constructions` VẪN giữ UUID nên cổng VẪN dựng liên kết. Người dân bấm "Quy trình vận
+        //   hành" và nhận trang lỗi; quản trị viên mở màn hình thì thấy tài liệu vẫn được khai.
+        //
+        // ⛔ Đặt lời phát Ở ĐÂY — chỗ dữ liệu ĐI QUA (luật 12), không ở từng nơi gọi `delete`.
+        events.publishEvent(new AttachmentDeletedEvent(attachment.getPublicId(), attachment.getOwnerType()));
     }
 
     private Attachment require(UUID publicId) {

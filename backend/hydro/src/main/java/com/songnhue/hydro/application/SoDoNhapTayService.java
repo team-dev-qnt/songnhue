@@ -16,6 +16,7 @@ import com.songnhue.core.common.exception.ResourceNotFoundException;
 import com.songnhue.core.common.exception.ValidationException;
 import com.songnhue.core.common.security.AuthContext;
 import com.songnhue.core.common.security.AuthenticatedUser;
+import com.songnhue.core.spi.PortalCachePort;
 import com.songnhue.hydro.domain.ChanDoanChatLuong;
 import com.songnhue.hydro.domain.LyDoNghiNgo;
 import com.songnhue.hydro.domain.MeasurementType;
@@ -52,9 +53,9 @@ import com.songnhue.hydro.infra.StationRepository;
  * ngay, và một giá trị ngoài khoảng vật lý gần như chắc chắn là lỗi gõ. Lặng lẽ nhận nó rồi gắn cờ
  * là bắt chính người vừa gõ đi duyệt lỗi của mình ở một màn hình khác.
  *
- * <p>⬜ <b>Chưa nối cổng công khai.</b> Widget mực nước lên cổng ở WS-35; tới đó lượt ghi này phải
- * gọi {@code PortalCachePort} như mọi đường ghi khác, ⛔ không thì lặp lại đúng T27.7 (ba điểm ghi
- * xoá đệm, điểm thứ tư ra đời cùng đợt mang lại đúng lỗi cũ).
+ * <p>✅ <b>Đã nối cổng công khai 04/09/2026</b> (T35.9). Lượt ghi này gọi
+ * {@link PortalCachePort#hydroStationsChanged()} — nó là đường ghi <b>số đo</b> duy nhất làm vậy, và
+ * javadoc của phương thức ấy nói rõ vì sao bốn đường còn lại ⛔ không được gọi.
  */
 @Service
 public class SoDoNhapTayService {
@@ -67,6 +68,7 @@ public class SoDoNhapTayService {
     private final HydroLatestRecomputer latest;
     private final HydroSettings settings;
     private final NguongAlertService nguongAlert;
+    private final PortalCachePort portalCache;
 
     public SoDoNhapTayService(
             StationRepository stations,
@@ -74,13 +76,15 @@ public class SoDoNhapTayService {
             HydroTimeSeriesWriter writer,
             HydroLatestRecomputer latest,
             HydroSettings settings,
-            NguongAlertService nguongAlert) {
+            NguongAlertService nguongAlert,
+            PortalCachePort portalCache) {
         this.stations = stations;
         this.loaiChiSo = loaiChiSo;
         this.writer = writer;
         this.latest = latest;
         this.settings = settings;
         this.nguongAlert = nguongAlert;
+        this.portalCache = portalCache;
     }
 
     /**
@@ -124,6 +128,17 @@ public class SoDoNhapTayService {
         // ⚠ `writeManual` luôn ghi `quality = HOP_LE` (không có cột nào để ghi khác), nên hằng số
         //   dưới đây ⛔ không phải một giả định: nó là hình dạng của chính câu INSERT.
         nguongAlert.danhGia(diemDo.getId(), loai.getId(), mocDo, giaTri, ReadingQuality.HOP_LE);
+
+        // ⭐ T35.9 — lời hứa ghi ở javadoc lớp này từ WS-33, nay trả.
+        //
+        // ⚠⚠ Đây là đường ghi số đo DUY NHẤT xoá đệm cổng, và ranh giới ấy ⛔ không tuỳ tiện: nhập
+        //    tay là một hành vi BIÊN TẬP — một con người bấm Lưu, vài lượt một ngày, và lý do họ
+        //    nhập thường là "API chết, mực nước trên cổng đang sai". Bắt họ chờ hết 5 phút ISR là
+        //    bắt chờ đúng lúc con số ấy gấp nhất.
+        //
+        // ⛔ Poller thì KHÔNG — 2 phút/lần vĩnh viễn, ~720 việc/ngày. Cùng dữ liệu, khác tần suất,
+        //    khác quyết định. Xem javadoc PortalCachePort.hydroStationsChanged().
+        portalCache.hydroStationsChanged();
 
         log.info(
                 "Nhập tay số đo #{}: điểm đo {} · {} · mốc {} · {} {} · người nhập {}",

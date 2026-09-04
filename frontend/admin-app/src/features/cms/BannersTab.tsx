@@ -20,11 +20,18 @@ import {
 import dayjs from 'dayjs';
 import { useState } from 'react';
 
+import { useAuth } from '@/app/auth/useAuth';
 import { ApiClientError } from '@/shared/apiClient';
 import { formatDateTime, toApiInstant } from '@/shared/format';
 
 import { cmsApi, cmsKeys } from './api';
 import { type BannerView } from './types';
+
+/**
+ * ⚠ Một câu duy nhất, dùng cho mọi nút bị khoá — một nút xám ⛔ không giải thích được là thứ
+ * người dùng báo lại thành *"hệ thống lỗi"*, và người tiếp nhận ⛔ không dựng lại được.
+ */
+const LY_DO_THIEU_QUYEN = 'Bạn không có quyền cms:banner:manage để sửa banner';
 
 /**
  * Banner trang chủ — T20.8, CN-01.4.
@@ -42,6 +49,23 @@ import { type BannerView } from './types';
  * là quanh mốc nửa đêm, khi múi giờ vào cuộc.
  */
 export function BannersTab() {
+  const { hasPermission } = useAuth();
+
+  /**
+   * ⭐ **T27.28 — lệch tầng 1 ↔ tầng 3**, vá 04/09/2026.
+   *
+   * Tuyến `/noi-dung/giao-dien` gác bằng `cms:layout:manage`, còn **cả bảy** endpoint ghi của
+   * `BannerController` đòi `cms:banner:manage`. Tab này có **0** lời gọi `hasPermission`, nên
+   * ⛔ không có gì đứng giữa hai mã quyền ấy.
+   *
+   * ⚠ **Hôm nay vô hại, và đó chính là lý do phải vá bây giờ**: đo trên ma trận seed 04/09, cả
+   * hai mã thuộc **đúng một vai trò** (CONTENT_MANAGER), nên ⛔ chưa ai gặp. Ngày Công ty tách
+   * chúng — việc mà CN-05.2 sinh ra để làm — người vào được trang Giao diện sẽ thấy đủ nút Thêm ·
+   * Sửa · Xoá · đổi thứ tự, bấm cái nào cũng **403**, và ⛔ không màn hình nào giải thích được.
+   *
+   * ⛔ Đây là loại nợ ⛔ không có triệu chứng cho tới đúng ngày nó đắt nhất.
+   */
+  const coQuyenGhi = hasPermission('cms:banner:manage');
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const [form] = Form.useForm();
@@ -116,7 +140,13 @@ export function BannersTab() {
             return false;
           }}
         >
-          <Button type="primary" icon={<PlusOutlined />} loading={create.isPending}>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            loading={create.isPending}
+            disabled={!coQuyenGhi}
+            title={coQuyenGhi ? undefined : LY_DO_THIEU_QUYEN}
+          >
             Thêm banner
           </Button>
         </Upload>
@@ -136,7 +166,7 @@ export function BannersTab() {
                 key="len"
                 type="text"
                 icon={<UpOutlined />}
-                disabled={index === 0 || reorder.isPending}
+                disabled={index === 0 || reorder.isPending || !coQuyenGhi}
                 onClick={() => doiCho(index, -1)}
                 aria-label="Đưa lên trên"
               />,
@@ -144,13 +174,15 @@ export function BannersTab() {
                 key="xuong"
                 type="text"
                 icon={<DownOutlined />}
-                disabled={index === list.length - 1 || reorder.isPending}
+                disabled={index === list.length - 1 || reorder.isPending || !coQuyenGhi}
                 onClick={() => doiCho(index, 1)}
                 aria-label="Đưa xuống dưới"
               />,
               <Button
                 key="sua"
                 type="link"
+                disabled={!coQuyenGhi}
+                title={coQuyenGhi ? undefined : LY_DO_THIEU_QUYEN}
                 onClick={() => {
                   setEditing(banner);
                   form.setFieldsValue({
@@ -176,9 +208,15 @@ export function BannersTab() {
                 title="Xoá banner?"
                 okText="Xoá"
                 cancelText="Huỷ"
+                disabled={!coQuyenGhi}
                 onConfirm={() => remove.mutate(banner.publicId)}
               >
-                <Button type="link" danger>
+                <Button
+                  type="link"
+                  danger
+                  disabled={!coQuyenGhi}
+                  title={coQuyenGhi ? undefined : LY_DO_THIEU_QUYEN}
+                >
                   Xoá
                 </Button>
               </Popconfirm>,

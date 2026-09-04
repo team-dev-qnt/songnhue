@@ -98,10 +98,37 @@ public class AttachmentController {
                 .toList();
     }
 
+    /**
+     * ⭐⭐ Gác bằng {@code ops:document:delete} — <b>sửa 04/09/2026</b>, trước đó là
+     * {@code ops:document:upload}.
+     *
+     * <h2>Đường CHUNG rộng hơn đường RIÊNG, và cái rộng hơn ấy là cái không ai canh</h2>
+     *
+     * <p>Đo trên ma trận seed: {@code TECHNICIAN} · {@code XN_MANAGER} · {@code XN_OPERATOR} đều có
+     * {@code ops:document:upload}, và ⛔ <b>không</b> ai trong ba vai trò ấy có
+     * {@code ops:document:delete} (chỉ SUPER_ADMIN + ADMIN). Hai controller khác gác đúng —
+     * {@code ConstructionDocumentController} và {@code MaintenanceLogController} đều đòi
+     * {@code :delete} — và giao diện cũng ẩn nút theo đúng mã ấy
+     * ({@code ConstructionDocumentsPanel}). ⇒ ba vai trò <b>không thấy nút xoá ở đâu cả</b> mà vẫn
+     * xoá được <b>bất kỳ</b> tệp nào trong hệ bằng một lượt {@code DELETE} thẳng vào đường chung.
+     *
+     * <p>⚠ Đây là hình dạng nguy hiểm nhất của một lỗ phân quyền: <b>tầng 1 (menu) và tầng 2 (nút)
+     * đều đúng</b>, nên ⛔ không màn hình nào lộ ra điều gì. Chỉ tầng 3 sai, và tầng 3 là tầng duy
+     * nhất thật sự chặn.
+     *
+     * <p>⛔ Cách sửa <b>sai</b> là nới {@code ConstructionDocumentController} xuống
+     * {@code :upload} cho "nhất quán" — nó biến một lỗ thành ba lỗ. Đường riêng đang khai đúng ý
+     * định của Công ty; đường chung phải đi theo nó.
+     *
+     * <p>📌 Nếu Công ty muốn người tải lên tự xoá được tệp mình vừa tải nhầm thì đó là một
+     * <b>quyết định về ma trận quyền</b> — cấp {@code ops:document:delete} cho vai trò ấy bằng
+     * migration, ⛔ không hạ chốt chặn của một endpoint. ⚠ Và chừng nào CN-05.2 (màn hình sửa ma
+     * trận quyền) chưa có thì mọi thay đổi như vậy đều đòi một lượt deploy — nợ ấy đã ghi.
+     */
     @DeleteMapping("/{publicId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(summary = "Xoá mềm bản ghi — tệp trên kho vẫn giữ để nhật ký không trỏ vào khoảng không")
-    @RequirePermission("ops:document:upload")
+    @RequirePermission("ops:document:delete")
     public void delete(@PathVariable UUID publicId) {
         attachmentService.delete(publicId);
     }

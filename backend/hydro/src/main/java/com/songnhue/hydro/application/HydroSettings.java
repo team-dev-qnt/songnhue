@@ -1,8 +1,14 @@
 package com.songnhue.hydro.application;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,11 +58,23 @@ import com.songnhue.hydro.domain.QuyTacNghiNgo;
  * <p>✅ {@link #quyTacNghiNgo()} nối vế đọc cho {@code hydro.quality.suspect-rule} ngày
  * <b>02/09/2026</b> (WS-32/T32.1) — khoá ấy seed từ 13/8 và nằm <b>20 ngày</b> không ai đọc.
  *
+ * <p>✅ {@link #maDiemDoLenCong()} — khoá {@code hydro.portal.station-codes}, seed
+ * <b>cùng migration với hàm đọc này</b> ({@code V202609041064}, T35.8) và có người gọi ngay
+ * ({@code PublicHydroService.mucNuoc()}). ⭐ Đây cũng là khoá HYDRO <b>duy nhất</b> chạm nội dung
+ * cổng công khai, nên lượt ghi nó phải xoá đệm cổng — {@link HydroPortalSettingListener}.
+ *
  * <p>✅ <b>Không còn khoá nào chưa có người đọc.</b> {@code hydro.threshold.default-set} đã bị
  * <b>gỡ khỏi seed</b> ở {@code V202609041062} (WS-33/T33.12) thay vì được nối vế đọc — nối nghĩa là
  * áp một tập <b>con số ngưỡng</b> tự động cho mọi trạm mới, mà những con số ấy chính là G9-a Công ty
  * chưa đưa. Ngày họ đưa, khoá dựng lại <b>cùng commit với đoạn mã đọc nó</b>. ⛔ Không gia hạn lần
  * thứ hai, và ⛔ không seed lại trước khi có người gọi.
+ *
+ * <p>✅ <b>Và từ 04/09/2026 điều đó được một BỘ CANH giữ</b> ({@code HydroSettingsReadTest}, nợ
+ * T27.5): mọi khoá {@code hydro.*} đã seed phải có hằng ở lớp này, và mọi hằng ở lớp này phải
+ * ứng với một khoá đã seed — <b>đối chiếu hai chiều</b>. Trước đó ⛔ không bài kiểm nào giữ sự
+ * khớp ấy: {@code PortalSettingsReadTest} canh đúng luật nhưng chỉ quét {@code migration/cms} +
+ * {@code public-web}, tức <b>hẹp hơn nơi nó phải chặn</b> (luật 28). Câu <i>"cả tám đều có người
+ * gọi"</i> ở trên vì thế là một lời khai tay suốt ba ngày — nay nó là một phép đo.
  *
  * <h2>⚠ Đọc mỗi lần gọi, không cache trong trường</h2>
  *
@@ -86,6 +104,14 @@ public class HydroSettings {
     static final String KHOA_RETENTION_RAW = "hydro.raw-retention-days";
     static final String KHOA_CANH_BAO_NGUON = "hydro.source.alert-after-failures";
     static final String KHOA_QUY_TAC_NGHI_NGO = "hydro.quality.suspect-rule";
+
+    /**
+     * Danh sách điểm đo công bố lên cổng — <b>T35.8</b>, seed ở {@code V202609041064}.
+     *
+     * <p>⚠ Khoá <b>duy nhất</b> của nhóm HYDRO chạm tới nội dung cổng công khai ⇒ lượt ghi nó phải
+     * xoá đệm cổng ({@code HydroPortalSettingListener}). Xem {@code PortalCachePort}.
+     */
+    public static final String KHOA_DIEM_DO_LEN_CONG = "hydro.portal.station-codes";
 
     private static final Logger log = LoggerFactory.getLogger(HydroSettings.class);
 
@@ -195,6 +221,40 @@ public class HydroSettings {
      */
     public BoQuyTacNghiNgo quyTacNghiNgo() {
         return doc().bo();
+    }
+
+    /**
+     * ⭐ Mã điểm đo công bố lên cổng, <b>theo đúng thứ tự người vận hành gõ</b> — T35.8.
+     *
+     * <h2>⛔⛔ Danh sách RỖNG nghĩa là "TẤT CẢ", ⛔ không phải "không có gì"</h2>
+     *
+     * <p>Đây là chỗ dễ đọc ngược nhất của khoá này, nên nó được nói ra ở ba nơi: mô tả trong
+     * migration (người vận hành đọc), javadoc này (lập trình viên đọc), và một bài kiểm giữ
+     * <b>cả hai</b> nhánh.
+     *
+     * <p>Lý do là nghiệp vụ: mục <b>OI-03</b> — Công ty chưa chốt 10 cống trục chính nào lên cổng.
+     * Đọc "rỗng" thành "không công bố gì" là tự quyết định thay Công ty rằng <i>chưa chốt</i> nghĩa
+     * là <i>giấu đi</i>, và nó xoá 19 dòng số thật đang chạy để đổi lấy một khối trạng thái chờ.
+     *
+     * <p>⚠ Và nó ⛔ <b>không</b> phải một bộ dữ liệu dự phòng (quy tắc 16): 19 điểm đo ấy đều có
+     * thật, số đo có thật, ô nào chưa có nguồn vẫn rỗng kèm lý do. Rỗng ở đây chỉ chọn <b>phạm vi
+     * công bố</b>, ⛔ không sinh ra nội dung.
+     *
+     * @return danh sách mã đã chuẩn hoá HOA và <b>khử trùng lặp giữ nguyên thứ tự</b>; rỗng nghĩa là
+     *     ⛔ không lọc gì cả
+     */
+    public List<String> maDiemDoLenCong() {
+        String tho = settings.getString(KHOA_DIEM_DO_LEN_CONG).orElse("");
+        if (tho.isBlank()) {
+            return List.of();
+        }
+        // ⚠ `LinkedHashSet`, ⛔ không `Set.of`/`toSet`: thứ tự gõ LÀ thứ tự hiển thị trên cổng (mô tả
+        //   khoá hứa đúng điều đó), nên một tập không thứ tự làm lời hứa ấy sai một cách không nhìn
+        //   thấy được — bảng vẫn đủ dòng, chỉ xếp sai.
+        return new ArrayList<>(Arrays.stream(tho.split(","))
+                .map(s -> s.trim().toUpperCase(Locale.ROOT))
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toCollection(LinkedHashSet::new)));
     }
 
     /**

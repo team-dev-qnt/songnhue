@@ -240,15 +240,27 @@ class HydroCatalogueHttpTest extends IntegrationTestBase {
                 .contains("MUC_NUOC");
     }
 
+    /**
+     * ⛔ <b>Đổi 04/09/2026</b>: {@code GET /chua-gan-don-vi} đã được <b>gỡ</b> (nợ T28.30) — nó có 0
+     * nơi gọi từ giao diện suốt từ WS-28, trong khi cờ {@code chuaGanDonVi} đi cùng mỗi dòng của
+     * {@code GET /stations} đã trả lời đúng câu hỏi ấy và {@code StationsPage} đọc theo cờ.
+     *
+     * <p>⚠ Bài này <b>không xoá theo</b>, vì thứ nó thật sự canh vẫn còn nguyên giá trị: cờ ấy phải
+     * <b>ra tới dây</b>. Cho tới khi OI-05 có câu trả lời, <b>19/19</b> điểm đo seed chưa gán đơn
+     * vị, và resolver người nhận cảnh báo (G11 tập 2) ⛔ không tìm được ai để gửi — <i>một cảnh báo
+     * không có người nhận là một cảnh báo không tồn tại</i>. Con số ấy phải hiện được trên màn hình,
+     * nên nó phải đi qua được đường tuần tự hoá.
+     */
     @Test
-    @DisplayName("⭐ GET /chua-gan-don-vi cũng đi qua toView — cùng khuyết tật, cùng bản vá")
-    void theUnassignedListAlsoLoads() {
-        ResponseEntity<String> phanHoi = phienHttp.get(kyThuat, "/api/v1/hyd/stations/chua-gan-don-vi");
+    @DisplayName("⭐ Cờ `chuaGanDonVi` ra tới dây — con số việc-còn-thiếu của OI-05 phải hiện được")
+    void theUnassignedFlagReachesTheWire() {
+        ResponseEntity<String> phanHoi = phienHttp.get(kyThuat, "/api/v1/hyd/stations");
 
         assertThat(phanHoi.getStatusCode()).as("%s", phanHoi.getBody()).isEqualTo(HttpStatus.OK);
         assertThat(phanHoi.getBody())
-                .as("19/19 điểm đo seed chưa gán đơn vị (OI-05) — danh sách này ⛔ không được rỗng hôm nay")
-                .contains("\"code\"");
+                .as("19/19 điểm đo seed chưa gán đơn vị (OI-05) — cờ này ⛔ không được vắng mặt và ⛔ "
+                        + "không được toàn `false` hôm nay")
+                .contains("\"chuaGanDonVi\":true");
     }
 
     // === ⭐⭐ T28.33 — POST validate 14 trường thì phải GHI đủ 14 ==============

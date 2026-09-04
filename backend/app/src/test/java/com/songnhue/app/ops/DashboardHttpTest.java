@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.UUID;
 
 import org.junit.jupiter.api.AfterEach;
@@ -166,27 +167,180 @@ class DashboardHttpTest extends IntegrationTestBase {
         assertThat(than).doesNotContain("\"orgUnitName\":null");
     }
 
-    // === 2. Ô chưa có nguồn ===================================================
+    // === 2. Hai ô thuỷ văn — T35.3, nay CÓ NGUỒN ==============================
 
+    /**
+     * ⚠⚠ <b>Khẳng định ở đây đã bị ĐẢO ở WS-35, ⛔ không phải nới ra.</b>
+     *
+     * <p>Từ WS-23 tới 04/09/2026 bài này khẳng định điều ngược lại — {@code "value":null} và
+     * {@code doesNotContain("\"value\":0")} — vì MOD-03 chưa tồn tại và một ô "Cảnh báo thuỷ văn: 0"
+     * là câu khẳng định sai. Nay hai ô có nguồn thật nên số 0 trở thành câu khẳng định <b>đúng</b>,
+     * và khẳng định cũ phải chết chứ không được nới thành "null hoặc số".
+     *
+     * <p>⭐⭐ Vì sao bài này dựng dữ liệu thay vì chỉ đọc: khẳng định {@code "value":0} ⛔ <b>không
+     * phân biệt được hai trạng thái</b> — "đã nối cổng và đếm được 0" trông y hệt "cổng chưa nối,
+     * trả 0 ghi cứng". Đó đúng là luật 9 (<i>một khẳng định không phân biệt được hai trạng thái thì
+     * không khẳng định gì</i>), và với hai ô vừa chuyển từ null sang số thì nó là rủi ro thật, không
+     * phải rủi ro lý thuyết. ⇒ Bài này ép cả hai ô ra một số <b>khác 0</b>.
+     */
     @Test
-    @DisplayName("⛔ Hai ô thuỷ văn chưa có nguồn trả rỗng kèm lý do — KHÔNG phải số 0")
-    void unavailableKpisSayWhyInsteadOfShowingZero() {
+    @DisplayName("⭐ Hai ô thuỷ văn nay đếm dữ liệu THẬT — một số khác 0, không còn 'chưa có nguồn'")
+    void hydroKpisNowCountRealData() {
+        long idDiemDo = taoDiemDoImLang("T35D-001", "F99001", Duration.ofDays(10));
+        taoCanhBaoDangMo(idDiemDo, true);
+
         String than = phienHttp.get(duQuyen, DUONG_DAN).getBody();
 
-        // ⚠ Danh sách này rút từ bốn xuống hai ở WS-18: hai ô sửa chữa / sự cố nay có nguồn thật, và
-        //   từ đó số 0 của CHÚNG là một câu khẳng định đúng ("đã đếm, không có bản ghi nào đang mở").
-        //   Hai ô còn lại thuộc MOD-03, chưa có gì để đếm.
+        String oCanhBao = oKpi(than, "hydro.active-alerts");
+        assertThat(oCanhBao)
+                .as("⭐ khác 0: một cảnh báo DANG_XAY_RA đã xác nhận vừa được dựng")
+                .contains("\"value\":1")
+                .doesNotContain("\"value\":null");
+
+        String oMatTinHieu = oKpi(than, "hydro.stations-offline");
+        assertThat(oMatTinHieu)
+                .as("⭐ đúng MỘT điểm đo im lặng quá ngưỡng — 19 điểm seed chưa từng có bản ghi nào "
+                        + "nên chúng là CHUA_CO_DU_LIEU, ⛔ không phải MAT_TIN_HIEU")
+                .contains("\"value\":1")
+                .doesNotContain("\"value\":null");
+
+        // ⚠ Mẫu số phải là số điểm đo ĐANG DÙNG, và nó phải lớn hơn tử số. Khẳng định về QUAN HỆ
+        //   giữa hai số, ⛔ không phải một hằng số 20 — con số ấy đổi mỗi lần ai đó thêm một bài
+        //   kiểm dựng điểm đo, và một bài kiểm đỏ vì lý do sai còn tệ hơn không có bài kiểm.
+        long tong = soTrongO(oMatTinHieu, "total");
+        assertThat(tong).as("mẫu số gồm cả 19 điểm đo seed + điểm vừa dựng").isGreaterThan(1L);
+
         for (String khoa : new String[] {"hydro.active-alerts", "hydro.stations-offline"}) {
-            String o = oKpi(than, khoa);
-            assertThat(o)
-                    .as("ô %s: số 0 nghĩa là 'đã đo và bằng không', khác hẳn 'chưa đo'", khoa)
-                    .contains("\"value\":null")
-                    .doesNotContain("\"value\":0");
-            assertThat(o)
-                    .as("ô %s phải nói vì sao trống và bao giờ có số", khoa)
-                    .contains("\"unavailableReason\":\"")
-                    .contains("\"availableIn\":\"");
+            assertThat(oKpi(than, khoa))
+                    .as("ô %s đã có nguồn thì ⛔ không còn được hẹn 'sẽ có ở Phase 2' nữa", khoa)
+                    .contains("\"unavailableReason\":null")
+                    .contains("\"availableIn\":null");
         }
+    }
+
+    /**
+     * ⭐ Vế {@code confirmed_at IS NOT NULL} là <b>vế chịu lực</b>, và nó có bài kiểm riêng.
+     *
+     * <p>Một dòng {@code DANG_XAY_RA} chưa xác nhận là điều kiện <i>đang được theo dõi</i> — chưa ai
+     * nhận thông báo nào về nó. Đếm nó vào ô KPI là để một cú nhiễu cảm biến 2 phút hiện lên màn
+     * hình trực ban như một cảnh báo thật.
+     *
+     * <p>⛔ Đây cũng là bài giữ cho ô KPI và <b>mắt xích 3</b> của {@code ConstructionStatusService}
+     * dùng chung một định nghĩa: cả hai đi qua hằng số
+     * {@code AlertEventQueryRepository#DIEU_KIEN_DANG_CANH_BAO}. Nếu ai đó chép vị từ ra làm hai
+     * câu rồi nới một câu, bài này đỏ.
+     */
+    @Test
+    @DisplayName("⛔ Cảnh báo CHƯA xác nhận không được đếm — nếu không, một cú nhiễu 2 phút thành cảnh báo")
+    void unconfirmedAlertsAreNotCounted() {
+        long idDiemDo = taoDiemDoImLang("T35D-002", "F99002", Duration.ofDays(10));
+        taoCanhBaoDangMo(idDiemDo, false);
+
+        String than = phienHttp.get(duQuyen, DUONG_DAN).getBody();
+
+        assertThat(oKpi(than, "hydro.active-alerts"))
+                .as("dòng DANG_XAY_RA nhưng confirmed_at NULL ⇒ chưa tính là cảnh báo")
+                .contains("\"value\":0");
+    }
+
+    /**
+     * Dựng một điểm đo đã im lặng quá ngưỡng.
+     *
+     * <p>⚠ Phải ghi {@code hydro_latest}: một điểm đo <b>chưa từng</b> có bản ghi nào là
+     * {@code CHUA_CO_DU_LIEU}, ⛔ không phải {@code MAT_TIN_HIEU} — đó chính là ranh giới mà
+     * {@code StationDisplayStatus} dựng nên để ngày triển khai đầu tiên không sinh 19 cảnh báo giả.
+     */
+    private long taoDiemDoImLang(String ma, String maApi, Duration imLangBaoLau) {
+        Long idNguon = jdbc.queryForObject(
+                "SELECT id FROM api_sources WHERE deleted_at IS NULL ORDER BY id LIMIT 1", Long.class);
+        Long idLoai = jdbc.queryForObject(
+                "SELECT id FROM measurement_types WHERE code = 'MUC_NUOC' AND deleted_at IS NULL", Long.class);
+        assertThat(idNguon)
+                .as("⚠ vế chống tập rỗng: không có nguồn seed thì điểm đo dưới đây không dựng được")
+                .isNotNull();
+        assertThat(idLoai)
+                .as("⚠ vế chống tập rỗng: loại chỉ số MUC_NUOC phải có trong seed")
+                .isNotNull();
+
+        Long idDiemDo = jdbc.queryForObject(
+                """
+                INSERT INTO stations (code, name, api_code, api_source_id, position_role, active, created_at)
+                VALUES (?, 'Điểm đo kiểm thử KPI', ?, ?, 'MN_SONG', TRUE, now())
+                RETURNING id
+                """,
+                Long.class,
+                ma,
+                // ⚠ `ck_stations_api_code_format` ép ĐÚNG `^F[0-9]{5}$` — mã truyền vào, ⛔ không suy
+                //   từ `code`: lượt viết đầu ghép "F9" + "-001" và ràng buộc bắt được ngay. Dải F99xxx
+                //   nằm ngoài mọi mã thật của nguồn bhh40 nên ⛔ không đụng 19 điểm đo seed.
+                maApi,
+                idNguon);
+
+        java.time.Instant mocCu = java.time.Instant.now().minus(imLangBaoLau);
+        jdbc.update(
+                """
+                INSERT INTO hydro_latest (
+                    station_id, measurement_type_id, last_seen_at, last_quality, last_source,
+                    valid_measured_at, valid_value)
+                VALUES (?, ?, ?, 'HOP_LE', 'API', ?, 2.400)
+                """,
+                idDiemDo,
+                idLoai,
+                java.sql.Timestamp.from(mocCu),
+                java.sql.Timestamp.from(mocCu));
+        return idDiemDo;
+    }
+
+    /** Dựng một mức + một quy tắc + một sự kiện đang mở cho điểm đo đã cho. */
+    private void taoCanhBaoDangMo(long idDiemDo, boolean daXacNhan) {
+        Long idLoai = jdbc.queryForObject(
+                "SELECT id FROM measurement_types WHERE code = 'MUC_NUOC' AND deleted_at IS NULL", Long.class);
+        Long idMuc = jdbc.queryForObject(
+                """
+                INSERT INTO alert_levels (code, name, color_token, severity_rank, created_at)
+                VALUES (?, 'Mức kiểm thử KPI', 'alert-level-1', ?, now())
+                RETURNING id
+                """,
+                Long.class,
+                "T35D-MUC-" + idDiemDo,
+                // severity_rank là UNIQUE — lấy theo id điểm đo để hai bài kiểm không đụng nhau.
+                (int) (900 + idDiemDo % 90));
+        Long idQuyTac = jdbc.queryForObject(
+                """
+                INSERT INTO alert_rules (
+                    station_id, measurement_type_id, alert_level_id, condition_type,
+                    threshold_value, delay_minutes, created_at)
+                VALUES (?, ?, ?, 'GT', 1.000, 0, now())
+                RETURNING id
+                """,
+                Long.class,
+                idDiemDo,
+                idLoai,
+                idMuc);
+
+        java.time.Instant batDau = java.time.Instant.now().minus(Duration.ofHours(1));
+        jdbc.update(
+                """
+                INSERT INTO alert_events (
+                    rule_id, station_id, measurement_type_id, alert_level_id, started_at, confirmed_at,
+                    status, trigger_value, peak_value, peak_at, reason, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, 'DANG_XAY_RA', 2.400, 2.400, ?, '2.400 > 1.000', now())
+                """,
+                idQuyTac,
+                idDiemDo,
+                idLoai,
+                idMuc,
+                java.sql.Timestamp.from(batDau),
+                daXacNhan ? java.sql.Timestamp.from(batDau) : null,
+                java.sql.Timestamp.from(batDau));
+    }
+
+    /** Đọc một số nguyên trong ô KPI đã cắt ra — ⛔ không dựng cả cây JSON chỉ để lấy một con số. */
+    private static long soTrongO(String oKpi, String truong) {
+        java.util.regex.Matcher m =
+                java.util.regex.Pattern.compile("\"" + truong + "\":(\\d+)").matcher(oKpi);
+        assertThat(m.find()).as("ô KPI phải có trường %s là một số", truong).isTrue();
+        return Long.parseLong(m.group(1));
     }
 
     @Test
@@ -345,5 +499,14 @@ class DashboardHttpTest extends IntegrationTestBase {
 
     private void donDep() {
         jdbc.update("DELETE FROM constructions WHERE code LIKE 'T23D-%'");
+
+        // ⚠ Dọn theo THỨ TỰ KHOÁ NGOẠI, từ lá về gốc: alert_events → alert_rules → alert_levels, và
+        //   hydro_latest trước stations. Sai thứ tự thì lỗi ràng buộc nổ ở @AfterEach của bài kiểm
+        //   này và làm đỏ một lớp KHÁC — người đọc log sẽ đi tìm lỗi ở đúng chỗ không có lỗi nào.
+        jdbc.update("DELETE FROM alert_events WHERE station_id IN (SELECT id FROM stations WHERE code LIKE 'T35D-%')");
+        jdbc.update("DELETE FROM alert_rules WHERE station_id IN (SELECT id FROM stations WHERE code LIKE 'T35D-%')");
+        jdbc.update("DELETE FROM alert_levels WHERE code LIKE 'T35D-MUC-%'");
+        jdbc.update("DELETE FROM hydro_latest WHERE station_id IN (SELECT id FROM stations WHERE code LIKE 'T35D-%')");
+        jdbc.update("DELETE FROM stations WHERE code LIKE 'T35D-%'");
     }
 }

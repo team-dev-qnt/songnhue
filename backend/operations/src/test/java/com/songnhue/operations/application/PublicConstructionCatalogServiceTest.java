@@ -71,7 +71,10 @@ class PublicConstructionCatalogServiceTest {
     @DisplayName("⭐ Tệp đã công bố: đọc kho với danh sách CHO PHÉP đúng một loại CONSTRUCTION")
     void tepDaCongBoDocDuocVaChiLoaiCongTrinh() {
         UUID tep = UUID.randomUUID();
-        AttachmentContent noiDung = new AttachmentContent(new byte[] {1, 2, 3}, "application/pdf", "quy-trinh.pdf");
+        // ⚠ T28.35 — `content()` nay là `InputStream`, ⛔ không còn `byte[]`: ba endpoint công khai
+        //   PHÁT TRỰC TIẾP thay vì nạp trọn tệp vào heap. Xem javadoc `AttachmentContent`.
+        AttachmentContent noiDung = new AttachmentContent(
+                new java.io.ByteArrayInputStream(new byte[] {1, 2, 3}), "application/pdf", "quy-trinh.pdf", 3L);
         when(constructions.daCongBoTaiLieu(tep, LifecycleState.DA_THANH_LY)).thenReturn(true);
         when(attachments.readForPublic(tep, List.of("CONSTRUCTION"))).thenReturn(Optional.of(noiDung));
 

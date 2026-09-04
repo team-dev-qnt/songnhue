@@ -12,11 +12,13 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
 import com.songnhue.core.common.security.PublicEndpoint;
 import com.songnhue.core.common.util.HttpHeaderText;
+import com.songnhue.core.common.web.PhatTepTrucTiep;
 import com.songnhue.core.spi.AttachmentContent;
 import com.songnhue.operations.application.PublicConstructionCatalogService;
 import com.songnhue.operations.application.PublicOperationStatusService;
@@ -101,18 +103,19 @@ public class PublicConstructionController {
     @GetMapping("/documents/{publicId}")
     @Operation(summary = "Tệp Quy trình vận hành / Phương án bảo vệ đã công bố của một công trình")
     @PublicEndpoint(reason = "Hai cột tài liệu của bảng Danh mục công trình — CR-28, §6 nhóm Tất cả người dùng")
-    public ResponseEntity<byte[]> document(@PathVariable UUID publicId) {
+    public ResponseEntity<StreamingResponseBody> document(@PathVariable UUID publicId) {
         AttachmentContent tep = catalog.publishedDocument(publicId)
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
 
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(tep.contentType()))
+                .contentLength(tep.sizeBytes())
                 .cacheControl(CacheControl.maxAge(Duration.ofSeconds(CACHE_TEP_GIAY))
                         .cachePublic()
                         .immutable())
                 .header(
                         HttpHeaders.CONTENT_DISPOSITION,
                         "attachment; filename=\"" + HttpHeaderText.tenTepAnToan(tep.originalName()) + "\"")
-                .body(tep.content());
+                .body(PhatTepTrucTiep.cua(tep));
     }
 }

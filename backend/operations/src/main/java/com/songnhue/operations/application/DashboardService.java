@@ -12,6 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import com.songnhue.core.spi.SettingPort;
+import com.songnhue.hydro.spi.HydroAlertQueryPort;
+import com.songnhue.hydro.spi.HydroLatestQueryPort;
 import com.songnhue.operations.domain.LifecycleState;
 import com.songnhue.operations.domain.OperationalStatus;
 import com.songnhue.operations.infra.ConstructionRepository;
@@ -22,9 +24,15 @@ import com.songnhue.operations.infra.MaintenanceLogRepository;
  *
  * <h2>⛔ Ô nào chưa có nguồn thì nói thẳng là chưa có</h2>
  *
- * CN-02.5 liệt kê sáu nhóm KPI. Ở WS-23 có bốn nhóm chưa có nguồn; WS-18 đã trả hai trong số đó
- * (công việc bảo trì và sự cố chưa xử lý). Còn <b>hai</b> ô thuộc MOD-03 — cảnh báo thuỷ văn và
- * điểm đo mất tín hiệu — trả {@code value = null} kèm <b>lý do</b> và <b>mốc thời gian sẽ có</b>.
+ * CN-02.5 liệt kê sáu nhóm KPI. Ở WS-23 có bốn nhóm chưa có nguồn; WS-18 đã trả hai (công việc bảo
+ * trì · sự cố chưa xử lý) và <b>WS-35 / T35.3 đã trả hai ô cuối</b> — cảnh báo thuỷ văn và điểm đo
+ * mất tín hiệu — qua {@link com.songnhue.hydro.spi.HydroAlertQueryPort} và
+ * {@link com.songnhue.hydro.spi.HydroLatestQueryPort}. ✅ Từ 04/09/2026 <b>không còn ô nào trả
+ * {@code null}</b>.
+ *
+ * <p>⚠ Cơ chế {@link Kpi#chuaCo} vẫn <b>giữ nguyên</b> dù hiện không ai gọi. Đây là ngoại lệ có chủ
+ * đích với luật 15: nó là ràng buộc ở <i>tầng kiểu</i> cho mọi ô KPI thêm về sau, và bài kiểm của
+ * chính {@link Kpi} vẫn đi qua nó. ⛔ Đừng "dọn dẹp" nó đi — ô KPI thứ mười hai sẽ cần đúng nó.
  *
  * <p>⚠⚠ <b>Không được trả số 0.</b> Số 0 nghĩa là "đã đo và bằng không" — trên một dashboard điều
  * hành công trình thuỷ lợi, ô "Sự cố chưa xử lý: 0" là câu khẳng định rằng không có sự cố nào, và
@@ -37,10 +45,29 @@ import com.songnhue.operations.infra.MaintenanceLogRepository;
  * Quy tắc 3 của dự án: mọi giá trị tính toán tính ở BE. Để FE gọi từng endpoint rồi tự cộng là
  * chuyển phép tính sang chỗ không kiểm chứng được, và mỗi màn hình sẽ cộng theo một cách.
  *
- * <h2>⚠ Con số ở đây đã bị lọc theo phạm vi đơn vị</h2>
+ * <h2>⚠⚠ Con số ở đây đã bị lọc theo phạm vi đơn vị — TRỪ hai ô thuỷ văn</h2>
  *
  * Giống {@link ConstructionStatisticsService}: người của Xí nghiệp thấy số của Xí nghiệp mình. Đó là
  * hành vi đúng, và cũng là lý do endpoint này không bao giờ được đem ra cổng công khai.
+ *
+ * <p>⛔ <b>Ngoại lệ có tên, khai ra thay vì để im lặng</b> (T35.3): {@code hydro.active-alerts} và
+ * {@code hydro.stations-offline} <b>không lọc phạm vi</b>. Ba lý do, theo thứ tự sức nặng:
+ *
+ * <ol>
+ *   <li>⭐ <i>"Điểm đo này đang im lặng"</i> là một <b>sự thật về thiết bị</b>, không phụ thuộc ai
+ *       đang nhìn — cùng lập luận đã ghi ở {@code core.spi.HydroAlertPort#hasActiveAlert}.
+ *   <li>Định nghĩa "mất tín hiệu" dùng chung <b>đúng một</b> đường với job rà tín hiệu 5 phút/lần
+ *       ({@code HydroSignalLossHandler}), và job thì không có người dùng để mà lọc theo. Dựng một
+ *       đường lọc song song là dựng định nghĩa thứ hai — xem javadoc {@code HydroQueryAdapter}.
+ *   <li>⚠ Hôm nay hai cách cho ra <b>cùng một con số</b>: cả 19 điểm đo có {@code org_unit_id} NULL
+ *       (chặn bởi <b>OI-05</b> — 7 hay 8 Xí nghiệp), và {@code Station.LOC_PHAM_VI} cho NULL đi qua
+ *       với mọi người. ⇒ Chọn cách lọc lúc này là dựng một cơ chế <b>không phép kiểm nào phân biệt
+ *       được đúng hay sai</b> (luật 7).
+ * </ol>
+ *
+ * <p>⚠ Khi OI-05 về và {@code stations.org_unit_id} có giá trị thật, hai con số sẽ tách nhau và
+ * <b>phải quyết lại</b>. Đây ⛔ không phải chỗ để im lặng chọn mặc định — ⛔ không lọc là quyết định
+ * <i>đang</i> có hiệu lực, không phải thứ chưa ai nghĩ tới.
  */
 @Service
 public class DashboardService {
@@ -109,25 +136,29 @@ public class DashboardService {
     public static final String KEY_AUTO_REFRESH = "system.dashboard.auto-refresh-minutes";
     public static final String KEY_WALL_ROTATE = "system.wall.auto-rotate-seconds";
 
-    private static final String LY_DO_THUY_VAN = "Chưa đấu nối dữ liệu thuỷ văn";
-
     private final ConstructionRepository constructions;
     private final MaintenanceLogRepository maintenanceLogs;
     private final ConstructionStatisticsService statistics;
     private final MapConfigService mapConfig;
     private final SettingPort settings;
+    private final HydroLatestQueryPort hydroTinHieu;
+    private final HydroAlertQueryPort hydroCanhBao;
 
     public DashboardService(
             ConstructionRepository constructions,
             MaintenanceLogRepository maintenanceLogs,
             ConstructionStatisticsService statistics,
             MapConfigService mapConfig,
-            SettingPort settings) {
+            SettingPort settings,
+            HydroLatestQueryPort hydroTinHieu,
+            HydroAlertQueryPort hydroCanhBao) {
         this.constructions = constructions;
         this.maintenanceLogs = maintenanceLogs;
         this.statistics = statistics;
         this.mapConfig = mapConfig;
         this.settings = settings;
+        this.hydroTinHieu = hydroTinHieu;
+        this.hydroCanhBao = hydroCanhBao;
     }
 
     @Transactional(readOnly = true)
@@ -178,10 +209,33 @@ public class DashboardService {
                 tong,
                 chuaSoHoa == 0 ? Tone.NORMAL : Tone.WARNING));
 
-        // === Hai ô chưa có nguồn — CN-02.5 đòi, dữ liệu chưa tồn tại =========
-        kpis.add(
-                Kpi.chuaCo("hydro.active-alerts", "Cảnh báo thuỷ văn đang xảy ra", LY_DO_THUY_VAN, "Phase 2 (MOD-03)"));
-        kpis.add(Kpi.chuaCo("hydro.stations-offline", "Điểm đo mất tín hiệu", LY_DO_THUY_VAN, "Phase 2 (MOD-03)"));
+        // === Hai ô thuỷ văn — T35.3, nay CÓ NGUỒN THẬT ======================
+        //
+        // ⚠⚠ Từ 04/09/2026 số 0 ở hai ô này là một câu KHẲNG ĐỊNH: "đã đếm, và không có". Trước đó
+        //    chúng cố ý trả `null` kèm lý do suốt từ WS-23, vì MOD-03 chưa tồn tại — và đó là lý do
+        //    `DashboardHttpTest` từng khẳng định `doesNotContain("\"value\":0")`. Khẳng định ấy đã
+        //    được ĐẢO trong cùng commit này, ⛔ không phải nới ra: một ô "Cảnh báo thuỷ văn: 0" chỉ
+        //    được phép xuất hiện sau khi thật sự có ai đếm.
+        //
+        // ⛔ Dữ liệu đọc qua `hydro.spi`, ⛔ không đụng bảng `hydro_*` — xem chú thích ở
+        //    `operations/pom.xml` về cạnh Maven `operations → hydro` và hệ quả không đảo ngược được.
+        long canhBaoDangMo = hydroCanhBao.demCanhBaoDangXayRa();
+        kpis.add(Kpi.co(
+                "hydro.active-alerts",
+                "Cảnh báo thuỷ văn đang xảy ra",
+                canhBaoDangMo,
+                null,
+                canhBaoDangMo == 0 ? Tone.NORMAL : Tone.DANGER));
+
+        // ⭐ Tử số và mẫu số đến từ MỘT ảnh chụp — xem `HydroLatestQueryPort.TinhTrangTinHieu`.
+        //    Hai lượt đếm rời là hai mốc thời gian, và ô KPI sẽ có lúc hiện "20 / 19".
+        HydroLatestQueryPort.TinhTrangTinHieu tinHieu = hydroTinHieu.tinhTrangTinHieu();
+        kpis.add(Kpi.co(
+                "hydro.stations-offline",
+                "Điểm đo mất tín hiệu",
+                tinHieu.matTinHieu(),
+                tinHieu.dangDung(),
+                tinHieu.matTinHieu() == 0 ? Tone.NORMAL : Tone.WARNING));
 
         // === Hai ô WS-18 vừa trả nợ — nay có nguồn thật ======================
         //

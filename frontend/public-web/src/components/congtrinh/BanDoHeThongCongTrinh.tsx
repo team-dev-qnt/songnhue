@@ -1,9 +1,11 @@
 import type { UnitCatalog } from '@/lib/api';
 import { PortalImage } from '@/components/PortalImage';
 import { fileUrl } from '@/lib/routes';
-import type { DiemCongTrinh } from './ConstructionMap';
-import { ConstructionMapLoader } from './ConstructionMapLoader';
-import { EmptyBlock } from '@/components/home/EmptyBlock';
+// ⚠ TẠM GỠ cùng khối bản đồ tương tác bên dưới. Giữ lại dạng chú thích để lượt khôi phục
+//    chỉ là bỏ dấu chú thích, không phải đi tìm lại tên import.
+// import type { DiemCongTrinh } from './ConstructionMap';
+// import { ConstructionMapLoader } from './ConstructionMapLoader';
+// import { EmptyBlock } from '@/components/home/EmptyBlock';
 import { SectionTitle } from '@/components/home/SectionTitle';
 
 /**
@@ -65,21 +67,23 @@ interface BanDoHeThongCongTrinhProps {
   anhSoDo?: string | null;
 }
 
-export function BanDoHeThongCongTrinh({ catalog, anhSoDo }: BanDoHeThongCongTrinhProps) {
-  const diem: DiemCongTrinh[] = catalog.flatMap((donVi) =>
-    // `?? []`: một Xí nghiệp chưa có công trình nào có thể về mà không kèm mảng. Đọc thẳng
-    // `.flatMap` trên `undefined` là ném lỗi ở phía máy chủ và **cả trang chủ trắng** — một
-    // khối rỗng không được phép kéo theo cả trang.
-    (donVi.constructions ?? []).flatMap((ct) => {
-      const lat = Number(ct.latitude);
-      const lng = Number(ct.longitude);
-      // ⚠ `Number(null)` là 0, không phải NaN — kiểm `null` TRƯỚC. Thiếu bước này thì mọi công
-      //   trình chưa có toạ độ rơi xuống đảo Null ở vịnh Guinea, và bản đồ trông như có dữ liệu.
-      if (ct.latitude === null || ct.longitude === null) return [];
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return [];
-      return [{ code: ct.code, name: ct.name, unitName: donVi.unitName, lat, lng }];
-    }),
-  );
+// ⚠ `catalog` KHÔNG còn được đọc trong lượt tạm gỡ này — nó vẫn ở trong props và nơi gọi vẫn
+//   truyền, để lượt khôi phục không phải sửa cả hai đầu.
+export function BanDoHeThongCongTrinh({ anhSoDo }: BanDoHeThongCongTrinhProps) {
+  // const diem: DiemCongTrinh[] = catalog.flatMap((donVi) =>
+  //   // `?? []`: một Xí nghiệp chưa có công trình nào có thể về mà không kèm mảng. Đọc thẳng
+  //   // `.flatMap` trên `undefined` là ném lỗi ở phía máy chủ và **cả trang chủ trắng** — một
+  //   // khối rỗng không được phép kéo theo cả trang.
+  //   (donVi.constructions ?? []).flatMap((ct) => {
+  //     const lat = Number(ct.latitude);
+  //     const lng = Number(ct.longitude);
+  //     // ⚠ `Number(null)` là 0, không phải NaN — kiểm `null` TRƯỚC. Thiếu bước này thì mọi công
+  //     //   trình chưa có toạ độ rơi xuống đảo Null ở vịnh Guinea, và bản đồ trông như có dữ liệu.
+  //     if (ct.latitude === null || ct.longitude === null) return [];
+  //     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return [];
+  //     return [{ code: ct.code, name: ct.name, unitName: donVi.unitName, lat, lng }];
+  //   }),
+  // );
 
   const anhSoDoUrl = fileUrl(anhSoDo ?? null);
 
@@ -109,7 +113,7 @@ export function BanDoHeThongCongTrinh({ catalog, anhSoDo }: BanDoHeThongCongTrin
           </figure>
         ) : null}
 
-        {diem.length === 0 ? (
+        {/* {diem.length === 0 ? (
           <EmptyBlock>
             {anhSoDoUrl
               ? 'Bản đồ tương tác chưa vẽ được điểm nào: tuyến sông, lý trình và toạ độ công trình thuộc nhóm dữ liệu Công ty chưa cung cấp (G8) — cột “Vị trí” của bảng phía trên cũng vì thế còn trống. Ảnh sơ đồ phía trên là bản Công ty đã tải lên.'
@@ -124,7 +128,7 @@ export function BanDoHeThongCongTrinh({ catalog, anhSoDo }: BanDoHeThongCongTrin
               trong bảng phía trên.
             </p>
           </>
-        )}
+        )} */}
       </div>
     </section>
   );

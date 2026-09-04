@@ -368,7 +368,8 @@ FE mirror (`shared/`): `apiClient` (axios instance duy nhất: gắn CSRF header
 - Số liệu đo lường hiển thị qua `ThresholdValue` (tự đổi màu theo ngưỡng trả về từ API — ngưỡng do BE cung cấp, FE không giữ bản sao rule).
 - Nút thao tác workflow luôn render từ `allowedActions` API trả về (`ApprovalActions`) — không tự suy quyền ở FE.
 - Form: label tiếng Việt, message validation lấy từ zod schema dùng chung; trường bắt buộc theo spec, đánh dấu `*`.
-- Bảng dữ liệu: luôn có phân trang server-side, empty state, loading skeleton; export qua `ExportButton` (async job).
+- Bảng dữ liệu: luôn có phân trang server-side, empty state, loading skeleton.
+- Kết xuất chạy nền (202 + `jobId`): dựng theo khuôn `useXuatBaoCao` — vòng chờ **có trần** và **có đường dừng**, tải bằng `api.getTep` rồi dựng blob (⛔ không `window.open`: tab mới ⛔ không mang header `Authorization`). ⚠ Component `ExportButton` dùng chung **đã bị xoá 04/09/2026** (nợ T27.29): 0 nơi import, và endpoint mẫu ghi trong javadoc của chính nó — `/audit-logs/export` — **chưa từng tồn tại**.
 - Datetime hiển thị `dd/MM/yyyy HH:mm` (UTC+7); số: dấu phẩy ngăn nghìn kiểu VN.
 
 ---

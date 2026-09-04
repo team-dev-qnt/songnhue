@@ -24,7 +24,7 @@ import { formatDateTime } from '@/shared/format';
 
 import { WallFrame } from './WallFrame';
 import { useWallMode } from './wallMode';
-import { useDashboard, useMapPoints } from './useDashboard';
+import { useDashboard, useMapPoints, useStationLayer } from './useDashboard';
 
 /**
  * Dashboard điều hành — CN-02.5, CN-02.6.
@@ -48,6 +48,18 @@ export function OperationsDashboardPage() {
 
   const { data, isLoading, isError, dataUpdatedAt } = useDashboard();
   const { data: diem } = useMapPoints();
+  const lopDiemDo = useStationLayer();
+  // ⚠ `null` khi CHƯA TẢI XONG — khác hẳn 0. Quy tắc 16: số 0 là một câu khẳng định, và ở đây nó
+  //   sẽ khẳng định "mọi điểm đo đã có toạ độ" đúng vào lúc chưa ai đếm.
+  //
+  // ⚠⚠ `?.` trên CẢ HAI mức, ⛔ không phải chỉ trên `data`. Bản đầu viết
+  //    `lopDiemDo.data ? lopDiemDo.data.chuaSoHoaViTri.length : null` và **làm sập cả trang
+  //    dashboard** ngay lượt chạy bài kiểm đầu tiên: một phản hồi đúng-kiểu-nhưng-sai-hình-dạng
+  //    (API cũ, hoặc lỗi mạng trả thân rỗng) cho `chuaSoHoaViTri === undefined`, và
+  //    `undefined.length` ném ngay trong lúc render. TypeScript ⛔ không thấy được điều đó — nó
+  //    tin kiểu ta khai. Đây là T35.10 áp cho màn hình quản trị: một lớp phụ hỏng ⛔ không được
+  //    làm sập màn hình điều hành.
+  const chuaSoHoaViTri = lopDiemDo.data?.chuaSoHoaViTri?.length ?? null;
 
   const { ref, beRong } = useElementWidth<HTMLDivElement>();
   const boCuc = boCucTheoBeRong(beRong);
@@ -106,11 +118,24 @@ export function OperationsDashboardPage() {
           }}
         >
           <ChartCard
-            title="Bản đồ công trình"
-            note="Chỉ hiện hồ sơ đã số hoá toạ độ. Màu marker theo trạng thái vận hành."
+            title="Bản đồ công trình và điểm đo"
+            /* ⭐ T35.2 — nói ra ĐÍCH XÁC còn thiếu bao nhiêu toạ độ, ⛔ không để bản đồ trống tự
+               giải thích. Hôm nay là 19/19 điểm đo (mục G8), và con số ấy chính là thứ Công ty
+               cần thấy để biết phải cấp những gì. ⛔ Không hiện "0 điểm đo" khi chưa tải xong —
+               `?? 0` ở đây sẽ là một khẳng định sai trong khoảng thời gian chờ. */
+            note={
+              chuaSoHoaViTri === null
+                ? 'Chấm tròn: công trình. Quả trám: điểm đo thuỷ văn — màu theo mức cảnh báo, viền nét đứt khi số đo bị đánh dấu nghi ngờ.'
+                : `Chấm tròn: công trình. Quả trám: điểm đo thuỷ văn. ⚠ ${chuaSoHoaViTri} điểm đo chưa có toạ độ nên chưa lên bản đồ (mục G8).`
+            }
             wall={wall}
           >
-            <ConstructionMap points={diem ?? []} config={data?.map} height={wall ? 520 : 380} />
+            <ConstructionMap
+              points={diem ?? []}
+              diemDo={lopDiemDo.data?.diemDo ?? []}
+              config={data?.map}
+              height={wall ? 520 : 380}
+            />
           </ChartCard>
 
           <ChartCard title="Phân bố theo trạng thái" wall={wall}>

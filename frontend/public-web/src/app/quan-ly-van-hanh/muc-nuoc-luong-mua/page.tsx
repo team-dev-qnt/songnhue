@@ -3,8 +3,11 @@ import { notFound } from 'next/navigation';
 
 import { PageShell } from '@/components/PageShell';
 import { SectionNav } from '@/components/SectionNav';
+import { ColumnHeaderRow } from '@/components/home/ColumnHeaderRow';
+import { WaterLevelRows } from '@/components/home/WaterLevelRows';
 import { RealtimeFrame } from '@/components/realtime/RealtimeFrame';
-import { getServerTime, getSiteConfig } from '@/lib/api';
+import { COT_MUC_NUOC } from '@/lib/homeDataColumns';
+import { getServerTime, getSiteConfig, getWaterLevels } from '@/lib/api';
 import { khoiVanHanhBat } from '@/lib/khoiVanHanh';
 import { ROUTES } from '@/lib/routes';
 import { docSo } from '@/lib/settings';
@@ -22,11 +25,13 @@ export const metadata: Metadata = {
 /**
  * Quản lý, vận hành &gt; **Mực nước, lượng mưa** — CR-13, CR-14, CR-33, §5.2.
  *
- * <h2>Trạng thái thật: chưa có nguồn dữ liệu — trả lời OI-01</h2>
+ * <h2>⭐⭐ 04/09/2026 — ĐÃ CÓ NGUỒN DỮ LIỆU THẬT (T35.7)</h2>
  *
- * Module MOD-03 (Quản lý dữ liệu thủy văn) <b>chưa được dựng</b>: thư mục {@code hydro/} của
- * backend mới chỉ có khai báo gói và một service rỗng. Nguồn {@code songnhue.bhh40.net} đã
- * khảo sát xong nhưng chưa có poller nào chạy, và ba giới hạn của nguồn đã đo được:
+ * Trả lời <b>OI-01</b>: MOD-03 đã dựng, poller {@code songnhue.bhh40.net} đang chạy, và bảng dưới
+ * đây đọc {@code hydro_latest} qua {@code GET /api/v1/public/hydro/muc-nuoc}.
+ *
+ * <p>⚠ Nhưng <b>ba giới hạn của nguồn vẫn còn nguyên</b>, và trang này phải nói ra chúng — chúng
+ * ⛔ không biến mất chỉ vì đường dữ liệu đã thông:
  *
  * <ul>
  *   <li><b>không có API lượng mưa</b> — nguồn chỉ có {@code getmn.aspx} (mực nước);
@@ -60,7 +65,11 @@ export const metadata: Metadata = {
  * hỏi một cờ.
  */
 export default async function MucNuocLuongMuaPage() {
-  const [config, serverTime] = await Promise.all([getSiteConfig(), getServerTime()]);
+  const [config, serverTime, mucNuoc] = await Promise.all([
+    getSiteConfig(),
+    getServerTime(),
+    getWaterLevels(),
+  ]);
 
   if (!khoiVanHanhBat(config)) {
     notFound();
@@ -71,20 +80,42 @@ export default async function MucNuocLuongMuaPage() {
   return (
     <PageShell
       title="Mực nước, lượng mưa"
-      description="Số liệu tại giờ truy cập của 10 cống trên trục chính. Theo dõi theo tuần và tháng yêu cầu đăng nhập."
+      description="Số liệu tại giờ truy cập của các điểm đo đang hoạt động. Theo dõi theo tuần và tháng yêu cầu đăng nhập."
       breadcrumb={[{ label: 'Quản lý, vận hành' }, { label: 'Mực nước, lượng mưa' }]}
     >
       <section className="rounded-xl border border-surface-border bg-white p-5 shadow-xs">
         <h2 className="text-sm font-bold tracking-tight text-brand-primary">
           Số liệu tại giờ truy cập
         </h2>
+        {/* ⚠ Trang này dùng LẠI đúng hai component của trang chủ — một bộ cột, một cách hiển thị ô
+            rỗng. Dựng bảng thứ hai ở đây là mở đường cho hai con số khác nhau về cùng một mực
+            nước, và chúng sẽ lệch nhau đúng vào ngày có sự cố. */}
         <div className="mt-4">
           <RealtimeFrame
             updatedAt={serverTime}
             refreshSeconds={nhipLamMoi}
-            unavailable
-            unavailableReason="Mô-đun Quản lý dữ liệu thủy văn (MOD-03) chưa được đấu nối. Danh sách 10 cống trên trục chính cũng đang chờ Công ty chốt."
-          />
+            unavailable={mucNuoc === null}
+            unavailableReason="Chưa lấy được số liệu mực nước. Số liệu sẽ hiện lại khi kết nối tới nguồn được khôi phục."
+          >
+            {mucNuoc !== null && mucNuoc.length > 0 ? (
+              <div className="overflow-hidden rounded-lg border border-surface-border">
+                <ColumnHeaderRow
+                  cot={COT_MUC_NUOC}
+                  luoi="grid-cols-[1.1fr_1.7fr_0.9fr_1fr_1fr_0.95fr_1.1fr_0.9fr]"
+                  beRongToiThieu="min-w-[920px]"
+                />
+                <WaterLevelRows
+                  rows={mucNuoc}
+                  luoi="grid-cols-[1.1fr_1.7fr_0.9fr_1fr_1fr_0.95fr_1.1fr_0.9fr]"
+                  beRongToiThieu="min-w-[920px]"
+                />
+              </div>
+            ) : (
+              <p className="px-3.5 py-6 text-center text-[13px] text-surface-textSecondary">
+                Chưa điểm đo nào đang hoạt động để công bố số liệu.
+              </p>
+            )}
+          </RealtimeFrame>
         </div>
       </section>
 

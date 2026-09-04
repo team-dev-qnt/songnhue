@@ -3,7 +3,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { DashboardView } from '@/shared/api-types';
+import type { DashboardView, StationLayerView } from '@/shared/api-types';
 import { datBeRongCua } from '@/testsupport/setup';
 
 import { OperationsDashboardPage } from './OperationsDashboardPage';
@@ -64,26 +64,43 @@ const DASHBOARD: DashboardView = {
       unavailableReason: null,
       availableIn: null,
     },
-    // ⚠ Ô "chưa có nguồn" thứ hai lấy từ MOD-03, KHÔNG lấy từ WS-18 nữa: WS-18 đã trả nợ hai ô
-    //   sửa chữa / sự cố, và một dữ liệu mẫu hẹn "sẽ có ở WS-18" là một lời hẹn đã tới hạn — nó làm
-    //   bài kiểm mô tả sai hiện trạng, dù vẫn xanh.
+    // ⭐ T35.3 (04/09/2026) — hai ô thuỷ văn NAY CÓ SỐ THẬT. Trước đó chúng là dữ liệu mẫu
+    //   "chưa có nguồn"; giữ nguyên sau khi backend đã nối là để bài kiểm mô tả một trạng thái
+    //   backend ⛔ không còn sinh ra được — xanh, và sai (§10.69).
     {
       key: 'hydro.stations-offline',
       label: 'Điểm đo mất tín hiệu',
-      value: null,
-      total: null,
-      tone: 'UNKNOWN',
-      unavailableReason: 'Chưa đấu nối dữ liệu thuỷ văn',
-      availableIn: 'Phase 2 (MOD-03)',
+      value: 2,
+      total: 19,
+      tone: 'WARNING',
+      unavailableReason: null,
+      availableIn: null,
     },
     {
       key: 'hydro.active-alerts',
       label: 'Cảnh báo thuỷ văn đang xảy ra',
+      value: 1,
+      total: null,
+      tone: 'DANGER',
+      unavailableReason: null,
+      availableIn: null,
+    },
+    // ⚠⚠ Ô TỔNG HỢP, ⛔ không phải một ô có thật của backend.
+    //
+    // Sau T35.3 ⛔ KHÔNG ô KPI nào của backend còn trả `value: null` — cả mười ô đều có nguồn. Nhưng
+    // cơ chế "ô trống phải nói được vì sao trống" vẫn phải sống: nó là ràng buộc ở tầng kiểu của
+    // record `Kpi` (backend ném lỗi nếu thiếu lý do), và ô KPI thứ mười một sẽ cần đúng nó.
+    //
+    // ⛔ Đừng thay ô này bằng một khoá `hydro.*` cho "thật hơn" — làm thế là quay lại đúng lời nói
+    // dối vừa gỡ. Đây là dữ liệu mẫu cho MỘT nhánh hiển thị, và nó tự khai điều đó.
+    {
+      key: 'demo.chua-co-nguon',
+      label: 'Ô mẫu cho nhánh chưa có nguồn',
       value: null,
       total: null,
       tone: 'UNKNOWN',
-      unavailableReason: 'Chưa đấu nối dữ liệu thuỷ văn',
-      availableIn: 'Phase 2 (MOD-03)',
+      unavailableReason: 'Ô tổng hợp của bài kiểm — không ô backend nào đang ở trạng thái này',
+      availableIn: 'Hạng mục sau',
     },
   ],
   statistics: {
@@ -104,10 +121,70 @@ const DASHBOARD: DashboardView = {
   },
 };
 
+/**
+ * ⭐ Lớp điểm đo thuỷ văn (T35.1) — hai điểm đo có toạ độ, một điểm đo còn chờ toạ độ (G8).
+ *
+ * ⚠ Phải khai RIÊNG khỏi `/ops/dashboard/map-points`: hai endpoint cùng chứa chuỗi `map-points`,
+ * nên bản đầu của bộ giả trả `[]` cho cả hai — và trang **sập** với `undefined.length`. Đó là một
+ * lỗi thật ở mã trang, ⛔ không phải lỗi của bộ giả; nó đã được vá bằng `?.` ở cả hai mức.
+ */
+const LOP_DIEM_DO: StationLayerView = {
+  diemDo: [
+    {
+      publicId: 'a1',
+      code: 'DO-TEST-TL',
+      name: 'Điểm đo kiểm thử — Thượng lưu',
+      positionRole: 'THUONG_LUU',
+      latitude: '20.980000',
+      longitude: '105.780000',
+      riverName: null,
+      chainage: null,
+      trangThai: 'HOAT_DONG',
+      nghiNgo: false,
+      giaTri: '2.400',
+      donVi: 'm',
+      tenChiSo: 'Mực nước',
+      mocDo: '2026-09-04T03:00:00Z',
+      khoaMauCanhBao: null,
+      tenMucCanhBao: null,
+    },
+    {
+      publicId: 'a2',
+      code: 'DO-TEST-HL',
+      name: 'Điểm đo kiểm thử — Hạ lưu',
+      positionRole: 'HA_LUU',
+      latitude: '20.990000',
+      longitude: '105.790000',
+      riverName: null,
+      chainage: null,
+      trangThai: 'MAT_TIN_HIEU',
+      nghiNgo: true,
+      giaTri: '1.800',
+      donVi: 'm',
+      tenChiSo: 'Mực nước',
+      mocDo: '2026-09-01T03:00:00Z',
+      khoaMauCanhBao: 'alert-level-3',
+      tenMucCanhBao: 'Báo động III',
+    },
+  ],
+  chuaSoHoaViTri: [
+    {
+      publicId: 'b1',
+      code: 'DO-CHUA-TOA-DO',
+      name: 'Điểm đo chưa có toạ độ',
+      positionRole: 'MN_SONG',
+      riverName: null,
+      chainage: null,
+    },
+  ],
+};
+
 function dung(duongDan = '/van-hanh/dieu-hanh') {
-  getGia.mockImplementation((url: string) =>
-    url.includes('map-points') ? Promise.resolve([]) : Promise.resolve(DASHBOARD),
-  );
+  getGia.mockImplementation((url: string) => {
+    if (url.startsWith('/hyd/stations/map-points')) return Promise.resolve(LOP_DIEM_DO);
+    if (url.includes('map-points')) return Promise.resolve([]);
+    return Promise.resolve(DASHBOARD);
+  });
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
@@ -129,9 +206,9 @@ describe('ô KPI chưa có nguồn', () => {
 
     await waitFor(() => expect(screen.getByText('Điểm đo mất tín hiệu')).toBeInTheDocument());
 
-    // Hai ô "chưa có nguồn" đều phải nói ra điều đó...
-    expect(screen.getAllByText('Chưa có dữ liệu')).toHaveLength(2);
-    expect(screen.getAllByText('Phase 2 (MOD-03)')).toHaveLength(2);
+    // Ô mẫu chưa có nguồn phải nói ra điều đó...
+    expect(screen.getAllByText('Chưa có dữ liệu')).toHaveLength(1);
+    expect(screen.getAllByText('Hạng mục sau')).toHaveLength(1);
 
     // ...và ô "Sự cố" (đã đo, bằng 0) vẫn phải hiện đúng số 0. Đây là vế thứ hai, và
     // thiếu nó thì một bản sửa biến mọi số 0 thành dấu gạch cũng sẽ xanh — tức là giấu
@@ -139,11 +216,74 @@ describe('ô KPI chưa có nguồn', () => {
     expect(screen.getByText('0')).toBeInTheDocument();
   });
 
+  /**
+   * ⭐ T35.3 — vế NGƯỢC, và nó là vế đáng giá hơn.
+   *
+   * ⛔ Bài trên chỉ khẳng định "ô rỗng thì nói là rỗng". Nó vẫn xanh trọn vẹn nếu ai đó làm hai ô
+   * thuỷ văn quay về `null` — mà đó đúng là hồi quy cần bắt: hai ô ấy vừa chuyển từ "chưa có nguồn"
+   * sang "có số thật", và đường đi qua `hydro.spi` là thứ mới nhất, mỏng nhất trong cả chuỗi.
+   */
+  it('⭐ hai ô thuỷ văn hiện SỐ, ⛔ không còn "Chưa có dữ liệu"', async () => {
+    dung();
+
+    await waitFor(() => expect(screen.getByText('Điểm đo mất tín hiệu')).toBeInTheDocument());
+
+    expect(screen.getByText('2')).toBeInTheDocument();
+    expect(screen.getByText('/ 19')).toBeInTheDocument();
+    expect(screen.getByText('1')).toBeInTheDocument();
+    // Không còn ô thuỷ văn nào hẹn "sẽ có ở Phase 2".
+    expect(screen.queryByText('Phase 2 (MOD-03)')).not.toBeInTheDocument();
+  });
+
   it('ô có số hiện đủ tử số và mẫu số', async () => {
     dung();
 
     await waitFor(() => expect(screen.getByText('32')).toBeInTheDocument());
     expect(screen.getByText('/ 40')).toBeInTheDocument();
+  });
+});
+
+describe('lớp điểm đo thuỷ văn trên bản đồ (T35.1 · T35.2)', () => {
+  it('⭐ T35.2 — nói ra ĐÍCH XÁC còn bao nhiêu điểm đo chưa có toạ độ', async () => {
+    dung();
+
+    await waitFor(() =>
+      expect(screen.getByText('Bản đồ công trình và điểm đo')).toBeInTheDocument(),
+    );
+    expect(
+      screen.getByText(/1 điểm đo chưa có toạ độ nên chưa lên bản đồ \(mục G8\)/),
+    ).toBeInTheDocument();
+  });
+
+  /**
+   * ⭐⭐ Hồi quy cho một lỗi THẬT, tìm ra lúc chạy bài kiểm đầu tiên của T35.1.
+   *
+   * Bản đầu đọc `lopDiemDo.data.chuaSoHoaViTri.length` với `?.` chỉ ở mức `data`. Một phản hồi
+   * đúng kiểu nhưng sai HÌNH DẠNG (API cũ, thân rỗng, hay như ở đây: bộ giả trả `[]`) cho
+   * `chuaSoHoaViTri === undefined`, và `undefined.length` ném ngay trong lúc render ⇒ **sập cả
+   * màn hình điều hành** vì một lớp phụ.
+   *
+   * ⛔ TypeScript không thấy được điều đó — nó tin kiểu ta khai ở `api-types.ts`. Chỉ một lượt
+   * chạy thật mới bắt được, và đó đúng là lý do bài này tồn tại.
+   */
+  it('⭐ lớp điểm đo trả hình dạng lạ ⇒ ⛔ KHÔNG làm sập dashboard', async () => {
+    getGia.mockImplementation((url: string) => {
+      if (url.startsWith('/hyd/stations/map-points')) return Promise.resolve([]);
+      if (url.includes('map-points')) return Promise.resolve([]);
+      return Promise.resolve(DASHBOARD);
+    });
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/van-hanh/dieu-hanh']}>
+          <OperationsDashboardPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    // Phần còn lại của dashboard vẫn phải dựng được.
+    await waitFor(() => expect(screen.getByTestId('luoi-kpi')).toBeInTheDocument());
+    expect(screen.getByText('Công trình đang hoạt động')).toBeInTheDocument();
   });
 });
 
@@ -169,7 +309,9 @@ describe('bố cục ở các bề rộng thiết bị', () => {
 
       // Vế "không mất khối": cùng một cây component cho mọi bề rộng, nên số khối phải
       // không đổi. Một bản "rút gọn cho màn hình nhỏ" sẽ đỏ ngay ở đây.
-      expect(screen.getByTestId('luoi-kpi').children).toHaveLength(4);
+      // ⚠ 4 → 5 ở T35.3: dữ liệu mẫu thêm một ô cho nhánh "chưa có nguồn" sau khi hai ô thuỷ văn
+      //   chuyển sang số thật. Con số này đếm DỮ LIỆU MẪU, ⛔ không phải số ô của backend.
+      expect(screen.getByTestId('luoi-kpi').children).toHaveLength(5);
       expect(screen.getByTestId('luoi-thong-ke').children).toHaveLength(3);
 
       // Vế "không tràn ngang" đã kiểm bằng số ở `gridLayout.test.ts`; ở đây khẳng định
@@ -202,8 +344,8 @@ describe('chế độ màn hình lớn', () => {
     dung('/van-hanh/dieu-hanh?mode=wall');
 
     await waitFor(() => expect(screen.getByTestId('khung-wall')).toBeInTheDocument());
-    expect(screen.getByTestId('luoi-kpi').children).toHaveLength(4);
+    expect(screen.getByTestId('luoi-kpi').children).toHaveLength(5);
     expect(screen.getByTestId('luoi-thong-ke').children).toHaveLength(3);
-    expect(screen.getAllByText('Chưa có dữ liệu')).toHaveLength(2);
+    expect(screen.getAllByText('Chưa có dữ liệu')).toHaveLength(1);
   });
 });
