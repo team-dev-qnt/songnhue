@@ -15,6 +15,7 @@ import {
   getMenu,
   getOperationStatuses,
   getServerTime,
+  getWaterLevels,
   getSiteConfig,
   getSubsidiaries,
 } from '@/lib/api';
@@ -111,6 +112,7 @@ export default async function HomePage() {
     portalLinks,
     subsidiaries,
     tinhHinhVanHanh,
+    mucNuoc,
     serverTime,
   ] = await Promise.all([
     getSiteConfig(),
@@ -120,6 +122,9 @@ export default async function HomePage() {
     getMenu('LIEN_KET'),
     getSubsidiaries(),
     getOperationStatuses(),
+    // ⭐ T35.7 — số liệu mực nước thật. Nằm TRONG `Promise.all` vì khối của nó ở nửa trên trang
+    //   chủ: tách ra thành một lượt chờ nối tiếp là cộng thẳng vào TTFB (NFR-02, DOD1.17).
+    getWaterLevels(),
     getServerTime(),
   ]);
 
@@ -260,7 +265,12 @@ export default async function HomePage() {
         <>
           <GroupLabel>Điều hành &amp; số liệu công trình</GroupLabel>
           <div className="mt-5 space-y-6">
-            <WaterLevelBlock hotline={hotline} refreshSeconds={nhipLamMoi} updatedAt={serverTime} />
+            <WaterLevelBlock
+              hotline={hotline}
+              refreshSeconds={nhipLamMoi}
+              updatedAt={serverTime}
+              rows={mucNuoc}
+            />
             <OperationsBlock
               refreshSeconds={nhipLamMoi}
               updatedAt={serverTime}
