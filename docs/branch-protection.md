@@ -437,10 +437,51 @@ Hai điều bắt buộc ở PR này:
 
 ### 6.4. Kiểm chứng còn lại — chỉ làm được sau khi có mã trên `dev`
 
+> ⛔⛔ **Câu lệnh viết ở đây ngày 15/8 KHÔNG THỂ sinh ra điều kiện ĐẠT của chính nó — T11.77.**
+>
+> Bản cũ là `git push origin dev   # phải bị từ chối`, và kế hoạch kiểm chứng đọc *"mã thoát 0
+> không phải thành công"*. Đo ngày 4/9/2026: `dev` chạy với `enforce_admins = false` (§5 giải
+> thích vì sao — đó là **quyết định có chủ đích**, không phải sơ suất), và **cả hai** collaborator
+> `quannt18`, `Toclac18` đều có quyền `admin`. Nghĩa là **với mọi người có thể chạy được câu lệnh
+> ấy, lượt push luôn thoát 0.**
+>
+> Nó vì thế không phân biệt được *(bảo vệ nhánh đang bật)* với *(bảo vệ nhánh đã tắt)* — theo
+> CLAUDE.md luật 9 thì nó **không khẳng định gì**, và ai chạy nó cũng sẽ rút ra kết luận **ngược**.
+> Chạy còn tệ hơn không chạy, vì nó trả về một cảm giác đã kiểm.
+>
+> Đây là cùng họ với §6.2 — *lệnh nằm sẵn trong tài liệu mà không ai chạy* — chỉ khác ở chỗ này
+> lệnh **có** chạy được, và cái nó nói ra là sai.
+
+Vế đo được, thay cho câu lệnh cũ. Cả ba đều đọc **giá trị đã giải** từ API chứ không đọc lời khai
+trong tài liệu (luật 3):
+
 ```bash
-git push origin dev            # phải bị từ chối
-# Mở PR từ một nhánh feature thẳng vào production → Promotion guard phải đỏ
+REPO=team-dev-qnt/songnhue
+# 1 · Cấu hình bảo vệ có đúng như bảng §2 không — đây mới là thứ kiểm được
+gh api repos/$REPO/branches/dev/protection --jq '{
+  contexts:      .required_status_checks.contexts,
+  strict:        .required_status_checks.strict,
+  reviews:       .required_pull_request_reviews.required_approving_review_count,
+  linear:        .required_linear_history.enabled,
+  force_push:    .allow_force_pushes.enabled,
+  admin_enforce: .enforce_admins.enabled
+}'
+# ĐẠT (đo 4/9/2026): contexts = ["Cổng kiểm CI"] · strict = true · reviews = 1
+#                    linear = true · force_push = false · admin_enforce = false
+
+# 2 · Gốc chung của `dev` và `staging` chưa bị lượt gộp nào làm gãy (§10.72)
+git rev-list --count --no-merges origin/dev..origin/staging      # PHẢI = 0
+
+# 3 · Cổng đề bạt thật sự ĐỎ khi đi tắt — mở PR từ một nhánh feature thẳng vào `production`
+#     ĐẠT = `Promotion guard` có conclusion "failure".
+#     ⚠ `null` nghĩa là ĐANG CHẠY, không phải đạt và cũng không phải hỏng — chờ hết (§10.72).
 ```
+
+⛔ **Vế *"push thẳng bị từ chối"* không kiểm được bằng tài khoản hiện có, và tài liệu này nói
+thẳng ra điều đó thay vì để một câu lệnh sẵn sàng cho kết luận sai** (luật 28 — bộ canh phải nói ra
+phạm vi của chính nó). Muốn kiểm thật thì cần một token **không** có quyền admin trên kho; chừng
+nào chưa có, bất biến đúng để canh là dòng `admin_enforce` ở phép đo 1 — nó khớp giá trị đã chốt ở
+§5, và **đổi giá trị ấy là một quyết định phải thấy được**, không phải một phép thử.
 
 Ngoài ra ở lượt chạy đầu cần nhìn hai chỗ — **kết quả thật 18/8, lượt push vào `dev` sau khi merge
 PR #1** (`gh run view 32145220919`):
