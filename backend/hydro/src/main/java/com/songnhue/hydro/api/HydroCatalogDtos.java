@@ -181,5 +181,39 @@ public final class HydroCatalogDtos {
             boolean thieuLienKetCongTrinh,
             boolean chuaGanDonVi) {}
 
-    public record StationConstructionView(UUID id, UUID constructionId, PositionRole role, boolean primary) {}
+    /**
+     * Một liên kết điểm đo ↔ công trình — T28.19.
+     *
+     * <p>⚠ {@code constructionCode} và {@code constructionName} thêm 03/09/2026. Trước đó bản ghi
+     * chỉ mang {@code constructionId} (một UUID), nên màn hình <b>chỉ hiện được một chuỗi 36 ký
+     * tự</b> — dữ liệu có, người đọc không dùng được. Cùng hình dạng T27.24 (<i>"⛔ không bắt gõ
+     * UUID"</i>), chỉ ở chiều đọc.
+     *
+     * @param constructionCode {@code null} khi công trình đã bị xoá mềm sau lúc liên kết được khai —
+     *     giao diện phải nói ra điều đó, ⛔ không giấu cả dòng đi: một liên kết trỏ vào công trình
+     *     đã xoá là thứ người vận hành cần thấy để dọn
+     */
+    public record StationConstructionView(
+            UUID id,
+            UUID constructionId,
+            String constructionCode,
+            String constructionName,
+            PositionRole role,
+            boolean primary) {}
+
+    /**
+     * Khai một liên kết — T28.19.
+     *
+     * <p>⛔ Không có trường {@code stationId}: điểm đo là <b>chủ sở hữu</b> của liên kết và nằm trên
+     * đường dẫn. Nhận nó ở cả hai chỗ là mời một lượt gọi mà hai giá trị nói khác nhau.
+     */
+    public record StationLinkRequest(
+            @NotNull UUID constructionId,
+            @NotNull PositionRole role,
+            /**
+             * ⚠ {@code Boolean} chứ ⛔ không {@code boolean}: thiếu trường phải giải về {@code false}
+             * ở <b>biên</b>, và chỉ kiểu bọc mới phân biệt được "gửi false" với "không gửi" đủ lâu
+             * để controller ghi lại quyết định ấy thành một dòng đọc được.
+             */
+            Boolean primary) {}
 }

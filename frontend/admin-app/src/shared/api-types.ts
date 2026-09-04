@@ -514,7 +514,14 @@ export type OperationalStatus =
   'BINH_THUONG' | 'CANH_BAO' | 'SU_CO' | 'BAO_TRI' | 'NGUNG_MUA_VU' | 'DA_THANH_LY';
 export type LifecycleState = 'DANG_HOAT_DONG' | 'NGUNG_MUA_VU' | 'DA_THANH_LY';
 export type ManagementLevel = 'CONG_TY' | 'XI_NGHIEP' | 'CUM';
-export type ConstructionPurpose = 'TUOI' | 'TIEU' | 'TUOI_TIEU_KET_HOP' | 'KHAC';
+/**
+ * ⚠ Phải khớp ĐÚNG enum Java `ConstructionPurpose` và `ck_constructions_purpose`.
+ *
+ * Bản trước khai `TUOI_TIEU_KET_HOP` và `KHAC` — cả hai không tồn tại ở hai nơi kia, nên `tsc`
+ * xanh trong khi lượt lưu trả 400. Khai kiểu là một **lời khẳng định**, không phải phép đo
+ * (cùng bài học T27.22). `enumBaNoi.test.ts` nay canh cho ba nơi khớp nhau.
+ */
+export type ConstructionPurpose = 'TUOI' | 'TIEU' | 'HON_HOP';
 
 /** Một dòng trên danh sách — cố ý gọn, không kéo theo thông số kỹ thuật. */
 export interface ConstructionRow {
@@ -865,6 +872,58 @@ export interface ApiSourceCreateRequest {
   description?: string;
 }
 
+/** Vì sao một lượt gọi nguồn hỏng — năm giá trị, và chúng đòi năm việc phải làm khác nhau. */
+export type SyncFailureKind =
+  'THIEU_MA_SO' | 'NOT_WORKING' | 'TIMEOUT' | 'HTTP_ERROR' | 'EMPTY_BODY';
+
+/**
+ * Kết cục một lượt đồng bộ — bốn giá trị **phân biệt được**.
+ *
+ * ⚠ `SKIPPED_UP_TO_DATE` là kết cục **bình thường và mong muốn** của 4/5 lượt chạy (poll 2 phút
+ * trên nguồn cập nhật 10 phút). ⛔ Đừng vẽ nó màu đỏ — trộn nó vào `FAILED` là dạy người vận
+ * hành bỏ qua màu đỏ.
+ */
+export type SyncStatus = 'SUCCESS' | 'PARTIAL' | 'FAILED' | 'SKIPPED_UP_TO_DATE';
+
+/**
+ * Kết quả một lượt đồng bộ — `POST /hyd/api-sources/{id}/goi-thu`, và cũng là hình dạng mà
+ * poller ghi vào `sync_logs`.
+ *
+ * ⛔ **Không có trường nào mang thân phản hồi của nguồn**, và đó là chủ ý: thân thật của
+ * `bhh40` chứa chính mã số (`<form action="…?key=…%3b">`, đo 01/09/2026). Muốn đối chiếu
+ * nguyên văn thì tra `hydro_raw_logs` — nơi có phân quyền, có hạn lưu và có bộ che.
+ *
+ * ⚠ Envelope của dự án bỏ hẳn trường `null` khỏi JSON, nên đọc `rawLogId == null`,
+ * ⛔ không `'rawLogId' in kq`.
+ */
+export interface KetQuaDongBo {
+  trangThai: SyncStatus;
+  httpStatus: number | null;
+  durationMs: number;
+  loi: SyncFailureKind | null;
+  lyDo: string | null;
+  soByteThan: number;
+  /** Mốc đầu khung 10' mà lượt này nhắm tới. */
+  khungNhamToi: string | null;
+  soBanGhi: number;
+  /** ⚠ 0 là bình thường ở 4/5 lượt — nguồn cập nhật 10' còn poller gọi 2'. */
+  soGhiMoi: number;
+  soTrungBoQua: number;
+  soMaLa: number;
+  soDongRac: number;
+  soDongTrung: number;
+  /** ⛔ Chỉ LIỆT KÊ. Tuyệt đối không tự tạo điểm đo từ mã lạ — đó là G8, thuộc Công ty. */
+  maChuaKhai: string[];
+  soDiemDoDangHoatDong: number;
+  /** ⚠ Điểm đo có hồ sơ nhưng chưa tích loại chỉ số — số đo VẪN được ghi, đây là lỗi danh mục. */
+  soThieuLoaiChiSo: number;
+  soKhacNguon: number;
+  mocDoGanNhat: string | null;
+  /** `null` = đã gọi nhưng KHÔNG lưu được nguyên văn — một sự cố CSDL đáng biết ngay. */
+  rawLogId: number | null;
+  syncLogId: number | null;
+}
+
 export interface ApiSourceRequest {
   name: string;
   baseUrl: string;
@@ -879,8 +938,22 @@ export interface ApiSourceRequest {
 export interface StationConstructionView {
   id: string;
   constructionId: string;
+  /**
+   * ⚠ `null` khi công trình đã bị xoá mềm SAU lúc liên kết được khai — giao diện phải nói ra
+   * điều đó, ⛔ không giấu cả dòng đi: một liên kết trỏ vào công trình đã xoá là thứ người vận
+   * hành cần thấy để dọn.
+   */
+  constructionCode: string | null;
+  constructionName: string | null;
   role: PositionRole;
   primary: boolean;
+}
+
+/** Khai một liên kết điểm đo ↔ công trình — T28.19. */
+export interface StationLinkRequest {
+  constructionId: string;
+  role: PositionRole;
+  primary?: boolean;
 }
 
 export interface Station {
@@ -924,4 +997,490 @@ export interface StationRequest {
   active?: boolean;
   description?: string;
   measurementTypeIds?: string[];
+}
+
+// =============================================================================
+// MOD-03 Thuỷ văn — chẩn đoán đường ingest (WS-31 / T31.13)
+// =============================================================================
+
+/**
+ * Một lượt polling — `GET /hyd/sync-logs`.
+ *
+ * ⚠ **Bốn bộ đếm đi riêng, ⛔ đừng cộng lại thành một cột "kết quả".** `soGhiMoi = 0` là kết
+ * cục **bình thường của 4/5 lượt chạy**: poller gọi 2 phút một lần trên một nguồn cập nhật 10
+ * phút một lần. Gộp chúng là biến trạng thái bình thường nhất của hệ thống thành một dòng
+ * trông như lỗi.
+ *
+ * ⛔ Không có trường nào mang thân phản hồi của nguồn — thân thật chứa chính mã số.
+ * `rawLogId` là con trỏ tới `hydro_raw_logs`, ⛔ không phải nội dung; `null` nghĩa là **chưa
+ * hề mở kết nối**, ⛔ không phải "ghi hỏng".
+ */
+export interface SyncLogRow {
+  id: number;
+  nguonId: string;
+  nguonCode: string;
+  nguonName: string;
+  batDau: string;
+  ketThuc: string | null;
+  durationMs: number | null;
+  /** Mốc đầu khung 10' mà lượt này nhắm tới — ⛔ khác giờ gọi. */
+  khungNhamToi: string | null;
+  trangThai: SyncStatus;
+  loi: SyncFailureKind | null;
+  lyDo: string | null;
+  soNhan: number;
+  soGhiMoi: number;
+  soTrungBoQua: number;
+  soMaLa: number;
+  rawLogId: number | null;
+}
+
+/**
+ * Dải tóm tắt sức khoẻ — `GET /hyd/sync-logs/tong-hop`.
+ *
+ * ⭐ Hai bản đồ luôn mang **đủ mọi khoá, kể cả khoá bằng 0** (backend ép ở hàm dựng): "24 giờ
+ * qua có **0** lượt NOT_WORKING" là một điều đã đo được, còn thiếu khoá thì đọc giống hệt
+ * "chưa ai đo".
+ *
+ * ⭐ `soLuotGoiHong` do backend tính — ⛔ đừng cộng lại ở đây: luật "lượt gọi đã thật sự xảy
+ * ra chưa" nằm ở `SyncFailureKind.duocGhiVaoRawLog()` và cộng lại là mở nơi thứ tư phải nhớ.
+ */
+export interface SyncSummary {
+  tuMoc: string;
+  /** ⚠ Số giờ **đã kẹp** ở backend — dùng nó để đặt nhãn, ⛔ không dùng lại con số đã gửi đi. */
+  soGio: number;
+  soLuot: number;
+  theoTrangThai: Record<SyncStatus, number>;
+  theoLoi: Record<SyncFailureKind, number>;
+  soLuotGoiHong: number;
+  /** `null` = **không có lượt nào trong cửa sổ** — triệu chứng nặng hơn mọi con số lỗi. */
+  mocGanNhat: string | null;
+}
+
+/** Bộ từ vựng của hai ô lọc — `GET /hyd/sync-logs/tu-vung`, ⛔ đừng chép cứng vào .tsx. */
+export interface SyncVocabulary {
+  trangThai: SyncStatus[];
+  lyDoHong: SyncFailureKind[];
+  /** Lý do hỏng xảy ra **trước khi** mở kết nối — hiện "chưa hề gọi" thay vì "gọi hỏng". */
+  loiChuaGoi: SyncFailureKind[];
+}
+
+/**
+ * Một mã nguồn **chưa khai thành điểm đo** — `GET /hyd/ma-la`.
+ *
+ * ⚠⚠ `giaTriGanNhat` là số **nguyên văn nguồn, CHƯA quy đổi**, và `donViNguon` là đơn vị
+ * nguồn khai (nguồn trả **cm**, hệ thống lưu **m**). Hiện con số mà không kèm đơn vị là để
+ * người đọc hiểu `213` thành *213 mét*.
+ */
+export interface UnmappedCodeRow {
+  apiCode: string;
+  nguonId: string;
+  nguonCode: string;
+  soBanGhi: number;
+  lanDau: string | null;
+  lanGanNhat: string | null;
+  /** Chuỗi, ⛔ không phải số — `2.30` tuần tự hoá thành số sẽ mất chữ số cuối (T28.27). */
+  giaTriGanNhat: string | null;
+  donViNguon: string | null;
+  /**
+   * ⚠ `true` **không có nghĩa là xong**: số đo *mới* từ nay đi thẳng vào `hydro_readings`,
+   * nhưng `soBanGhi` bản ghi *lịch sử* vẫn nằm lại cho tới khi có job chuyển.
+   */
+  daKhaiThanhDiemDo: boolean;
+  maDiemDo: string | null;
+}
+
+// =============================================================================
+// MOD-03 Thuỷ văn — chất lượng số đo (WS-32)
+// =============================================================================
+
+/**
+ * Trạng thái một bản ghi số đo — **hai mức chất lượng + một bia mộ**.
+ *
+ * ⚠⚠ Bản ghi `NGHI_NGO` và `XOA` **nằm chung bảng chính**, nên mọi truy vấn báo cáo/cảnh
+ * báo/tổng hợp phải lọc `HOP_LE` (quy tắc 14). Ở phía giao diện, hệ quả là: đừng bao giờ
+ * cộng dồn một danh sách trả về từ màn hình *Dữ liệu nghi ngờ* vào một con số thống kê —
+ * nó cố ý chứa đúng những dòng mà báo cáo loại ra.
+ *
+ * ⛔ `XOA` **không phải** mức chất lượng thứ ba: nó là trạng thái cuối của bước xoá mềm.
+ */
+export type ReadingQuality = 'HOP_LE' | 'NGHI_NGO' | 'XOA';
+
+/** Bản ghi này do đâu mà có. `MANUAL` là đường nhập tay khi API gián đoạn (CN-03.2). */
+export type ReadingSource = 'API' | 'MANUAL';
+
+/**
+ * Một dòng của màn hình *Dữ liệu nghi ngờ* — `GET /hyd/so-do/nghi-ngo`.
+ *
+ * ⛔⛔ **Không có trường `id`.** Khoá tự tăng của `hydro_readings` ⛔ không ra tới dây: địa chỉ của
+ * một bản ghi là bộ ba `(diemDoId, loaiChiSoCode, mocDo)` — cùng bộ khoá mà `POST /thao-tac` và
+ * `POST /nhap-tay` dùng. Lấy đúng bộ ba ấy làm `rowKey`.
+ */
+export interface SuspectReadingRow {
+  mocDo: string;
+  diemDoId: string;
+  diemDoCode: string;
+  diemDoName: string;
+  loaiChiSoCode: string;
+  loaiChiSoName: string;
+  donVi: string;
+  /**
+   * ⭐ Chuỗi, ⛔ **không phải số**. `2.300` tuần tự hoá thành số JSON cho ra `2.3`, và với
+   * mực nước thì chữ số thập phân thứ ba là **milimét** — thứ mà toàn bộ ngưỡng cảnh báo
+   * treo lên. Đã trả giá hai lần: T28.27 ở cổng công khai, rồi V2 ở đường quản trị.
+   */
+  giaTri: string;
+  trangThai: ReadingQuality;
+  /** MÁY nói: vì sao bộ phân loại đánh dấu dòng này lúc ingest. */
+  lyDoMay: string | null;
+  /** NGƯỜI nói: lý do người duyệt loại bỏ. `null` khi chưa ai xử lý. */
+  lyDoNguoi: string | null;
+  nguon: ReadingSource;
+  mocGhi: string | null;
+  /** ⚠ `null` nghĩa là dòng do NGƯỜI nhập — ⛔ không phải "raw số 0". */
+  rawLogId: number | null;
+}
+
+/**
+ * ⚠ Câu trả lời cho *"bảng rỗng nghĩa là gì"* — `GET /hyd/so-do/nghi-ngo/tinh-trang`.
+ *
+ * Ba trạng thái **phân biệt được**, và cả ba đều cho ra một bảng rỗng:
+ * bộ phân loại đang chạy mà không có gì đáng ngờ (`dangKiem = true`) · chưa ai cấu hình
+ * quy tắc (`dangKiem = false`, `loiCauHinh` vắng) · cấu hình có mà **hỏng** (`loiCauHinh`).
+ * ⛔ Giao diện phải nói ra cái nào — quy tắc 16: *số 0 là một câu khẳng định*.
+ */
+export interface QualityRuleStatus {
+  dangKiem: boolean;
+  loiCauHinh?: string | null;
+}
+
+/** Kết quả một bước chuyển — `POST /hyd/so-do/thao-tac`. */
+export interface ReviewResult {
+  mocDo: string;
+  trangThai: ReadingQuality;
+  lyDoNguoi: string | null;
+}
+
+/** Địa chỉ một bản ghi — khoá tự nhiên, ⛔ không phải khoá tự tăng. */
+export interface ReviewRequest {
+  diemDoId: string;
+  maLoaiChiSo: string;
+  mocDo: string;
+  action: string;
+  reason?: string;
+}
+
+/** Ô nhập tay — `POST /hyd/so-do/nhap-tay`. ⚠ `giaTri` gửi lên là **chuỗi**. */
+export interface ManualEntryRequest {
+  diemDoId: string;
+  maLoaiChiSo: string;
+  mocDo: string;
+  giaTri: string;
+  ghiChu?: string;
+}
+
+// =============================================================================
+// WS-33 — Máy cảnh báo ngưỡng
+// =============================================================================
+
+/**
+ * Loại điều kiện của một ngưỡng cảnh báo.
+ *
+ * ⛔ **Không phải** quy tắc "nghi ngờ" của WS-32. Hai thứ dễ lẫn vì cùng là một con số so
+ * với một giá trị đo:
+ *
+ * - `QuyTacNghiNgo` hỏi *"cảm biến có đang hỏng không"* — khoảng vật lý, kết quả ghi vào
+ *   `quality` của chính dòng số đo.
+ * - Cái này hỏi *"tình hình có đáng báo động không"* — ngưỡng nghiệp vụ, và nó **chỉ chạy
+ *   trên số đo đã `HOP_LE`**.
+ *
+ * ⚠ `OUT_OF_RANGE` là loại **duy nhất** dùng `thresholdValueHigh`; `RATE_OF_CHANGE` đo độ
+ * lớn thay đổi trên **một giờ**, ⛔ không phải chênh lệch giữa hai lượt đo.
+ */
+export type AlertConditionType = 'GT' | 'LT' | 'OUT_OF_RANGE' | 'RATE_OF_CHANGE';
+
+/**
+ * Trạng thái một lần vượt ngưỡng.
+ *
+ * ⚠⚠ `DANG_XAY_RA` **chưa chắc là một cảnh báo thật** — phải xem thêm `daXacNhan`. Một điều
+ * kiện vừa vượt nhưng chưa giữ đủ `delayMinutes` là một điều kiện *đang được theo dõi*:
+ * chưa ai nhận thông báo nào, và nó ⛔ không lật trạng thái công trình sang `CANH_BAO`.
+ *
+ * ⚠ `DA_XU_LY` có **hai** người sinh ra, phân biệt bằng `dongBoiNguoi`: máy tự đóng vì giá
+ * trị về dưới ngưỡng (`false`), hay người trực bấm đóng (`true`).
+ */
+export type AlertEventStatus = 'DANG_XAY_RA' | 'DA_XU_LY' | 'FALSE_ALARM';
+
+/**
+ * Một mức cảnh báo trong danh mục (G9-a).
+ *
+ * ⛔ `colorToken` là **khoá `design-tokens`**, ⛔ không phải mã hex — ràng buộc CSDL chặn
+ * `#RRGGBB` ở tầng dưới. ⛔ Đừng đổ thẳng vào `style={{ color }}`.
+ */
+export interface AlertLevelRow {
+  id: string;
+  code: string;
+  name: string;
+  colorToken: string;
+  severityRank: number;
+  active: boolean;
+  description?: string | null;
+}
+
+export interface AlertLevelRequest {
+  code: string;
+  name: string;
+  colorToken: string;
+  severityRank: number;
+  active?: boolean;
+  description?: string | null;
+}
+
+/** ⚠ Mọi số đo ra dây là **chuỗi** (`@JsonFormat(STRING)`) — xem `parameterValue`, cùng lý do. */
+export interface AlertRuleRow {
+  id: string;
+  stationId: string;
+  stationCode: string;
+  stationName: string;
+  measurementTypeCode: string;
+  measurementTypeName: string;
+  unit: string;
+  alertLevelId: string;
+  alertLevelCode: string;
+  alertLevelName: string;
+  colorToken: string;
+  conditionType: AlertConditionType;
+  thresholdValue: string;
+  thresholdValueHigh?: string | null;
+  delayMinutes: number;
+  active: boolean;
+  note?: string | null;
+}
+
+export interface AlertRuleRequest {
+  stationId: string;
+  measurementTypeCode: string;
+  alertLevelId: string;
+  conditionType: AlertConditionType;
+  thresholdValue: string;
+  thresholdValueHigh?: string | null;
+  delayMinutes?: number;
+  active?: boolean;
+  note?: string | null;
+}
+
+export interface AlertRuleUpdateRequest {
+  conditionType: AlertConditionType;
+  thresholdValue: string;
+  thresholdValueHigh?: string | null;
+  delayMinutes?: number;
+  active?: boolean;
+  note?: string | null;
+}
+
+export interface AlertEventRow {
+  id: string;
+  stationId: string;
+  stationCode: string;
+  stationName: string;
+  measurementTypeName: string;
+  unit: string;
+  alertLevelCode: string;
+  alertLevelName: string;
+  colorToken: string;
+  conditionType: AlertConditionType;
+  status: AlertEventStatus;
+  startedAt: string;
+  confirmedAt?: string | null;
+  endedAt?: string | null;
+  triggerValue: string;
+  peakValue: string;
+  peakAt: string;
+  reason: string;
+  daXacNhan: boolean;
+  dongBoiNguoi: boolean;
+  note?: string | null;
+}
+
+/** Điểm đo chưa cấu hình ngưỡng nào — nửa **đọc** của `HYD-2003`. */
+export interface StationWithoutThresholdRow {
+  id: string;
+  code: string;
+  name: string;
+  orgUnitName?: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// WS-34 — Báo cáo thuỷ văn
+// ---------------------------------------------------------------------------
+
+/**
+ * BC-13 — một hàng chất lượng dữ liệu của (điểm đo × chỉ số × ngày).
+ *
+ * ⛔⛔ `soKhungBoSot` là `null` khi CHƯA ĐO ĐƯỢC, và khi ấy `lyDoTrong` nói vì sao.
+ *    ⛔ Đừng `?? 0` ở tầng hiển thị: **0 là một câu khẳng định** (*"hôm ấy poller chạy hoàn hảo"*),
+ *    còn rỗng là một câu khác hẳn. Đây là cột dùng để nghiệm thu NFR-03 — một số 0 bịa ra ở đây đi
+ *    thẳng vào một cam kết với Công ty.
+ *
+ * ⚠ `tyLeDayDu` là **chuỗi** (`@JsonFormat STRING` ở backend) — quy tắc 2 + bài học T28.27.
+ */
+export interface SyncQualityRow {
+  ngay: string;
+  stationCode: string;
+  stationName: string;
+  stationActive: boolean;
+  measurementTypeCode: string;
+  measurementTypeName: string;
+  soHopLe: number;
+  soNghiNgo: number;
+  soDaXoa: number;
+  soKhungMongDoi: number | null;
+  soKhungBoSot: number | null;
+  tyLeDayDu: string | null;
+  lyDoTrong: string | null;
+  tinhLuc: string | null;
+}
+
+/**
+ * BC-13 — một hàng nhật ký đồng bộ, gộp theo (nguồn × ngày).
+ *
+ * ⭐ `soBoQua` (lượt bỏ vì mọi điểm đo đã có bản ghi của khung hiện tại) ⛔ KHÔNG được cộng vào
+ *    "thành công": con số ấy cao là **tốt**. Gộp lại thì một ngày 720 lượt thành công với
+ *    `soGhiMoi = 0` — tức một ngày mất trắng — cho cùng tỷ lệ với một ngày hoàn hảo.
+ */
+export interface SyncDailyRow {
+  ngay: string;
+  sourceCode: string;
+  sourceName: string;
+  soLuot: number;
+  soThanhCong: number;
+  soMotPhan: number;
+  soHong: number;
+  soBoQua: number;
+  soNhan: number;
+  soGhiMoi: number;
+  soTrung: number;
+  soMaLa: number;
+  hongGanNhat: string | null;
+}
+
+/** Trạng thái hiển thị của một điểm đo — suy ra ở backend từ `stations.active` + mốc bản ghi cuối. */
+export type StationSignalStatus = 'HOAT_DONG' | 'MAT_TIN_HIEU' | 'CHUA_CO_DU_LIEU' | 'NGUNG';
+
+/** BC-11 — tình hình vận hành của công trình mà điểm đo thuộc về. */
+export interface RiverOperationStatus {
+  ma: string;
+  ten: string;
+  /** ⛔ Màu đến TỪ DỮ LIỆU (danh mục mã có CRUD, chốt G4) — FE ⛔ không giữ bảng ánh xạ mã → màu. */
+  mau: string;
+  thamSo: string | null;
+  donViThamSo: string | null;
+  hieuLucTu: string | null;
+}
+
+/**
+ * BC-11 — một điểm đo trên biểu tổng hợp theo tuyến sông.
+ *
+ * ⛔⛔ Ba ô có thể rỗng và **ba lý do khác nhau**, mỗi ô có trường lý do riêng bên cạnh:
+ * `lyDoTrong` (chưa có số đo / đã ngừng), `lyDoLuongMua` (**luôn** rỗng — G3-a chưa có nguồn),
+ * `lyDoTinhHinh` (chưa liên kết công trình / chưa ghi nhận lần nào). ⛔ Đừng `?? 0` ô nào.
+ *
+ * ⚠ `mocDo` là mốc của giá trị **hợp lệ**; `mocTinHieu` là bản ghi gần nhất **bất kể chất lượng**.
+ * Hai mốc ấy khác nhau chính là cách phân biệt "trạm chết" với "trạm đang trả số đáng ngờ".
+ */
+export interface RiverStationRow {
+  stationCode: string;
+  stationName: string;
+  positionRole: string;
+  chainage: string | null;
+  measurementTypeCode: string;
+  measurementTypeName: string;
+  unit: string;
+  giaTri: string | null;
+  mocDo: string | null;
+  mocTinHieu: string | null;
+  minNgay: string | null;
+  maxNgay: string | null;
+  soBanGhiNgay: number;
+  trangThaiTinHieu: StationSignalStatus;
+  lyDoTrong: string | null;
+  luongMua: string | null;
+  lyDoLuongMua: string | null;
+  tinhHinhVanHanh: RiverOperationStatus | null;
+  lyDoTinhHinh: string | null;
+}
+
+export interface RiverGroup {
+  tenTuyen: string;
+  /** ⬜ `true` khi nhóm là nơi tạm của điểm đo chưa khai tuyến sông (mục G8). */
+  chuaPhanTuyen: boolean;
+  diemDo: RiverStationRow[];
+}
+
+export interface RiverBoardReport {
+  ngay: string;
+  tuyen: RiverGroup[];
+}
+
+/**
+ * BC-05 — một hàng tổng hợp kỳ.
+ *
+ * ⛔⛔ `giaTriMin`/`giaTriMax`/`giaTriTb` là `null` khi kỳ ⛔ KHÔNG có bản ghi hợp lệ nào, và khi ấy
+ *    `lyDoTrong` nói vì sao. ⛔ Đừng `?? 0`: mực nước trung bình `0.000` là một câu **sai và đáng
+ *    tin** — đúng định dạng, vẽ được biểu đồ, nằm gọn giữa các con số thật. Backend ép ràng buộc ấy
+ *    ở hàm dựng (`TongHopKyView`); đây là vế hiển thị của cùng một luật.
+ *
+ * ⭐ `giaTriTb` là trung bình **theo trọng số**, ⛔ không phải trung bình của các trung bình ngày.
+ *    `soBanGhi` + `soNgayCoDuLieu` là hai con số cho người đọc biết nó dựa trên bao nhiêu quan sát.
+ */
+export interface PeriodSummaryRow {
+  stationCode: string;
+  stationName: string;
+  riverName: string | null;
+  positionRole: string;
+  measurementTypeCode: string;
+  measurementTypeName: string;
+  unit: string;
+  soBanGhi: number;
+  soNgayCoDuLieu: number;
+  giaTriMin: string | null;
+  mocMin: string | null;
+  giaTriMax: string | null;
+  mocMax: string | null;
+  giaTriTb: string | null;
+  lyDoTrong: string | null;
+}
+
+export interface PeriodSummaryReport {
+  tuNgay: string;
+  denNgay: string;
+  soNgayTrongKy: number;
+  hang: PeriodSummaryRow[];
+}
+
+/**
+ * BC-12 — một bản ghi chi tiết.
+ *
+ * ⭐⭐ `quality` và `source` là **hai cột chịu lực**, ⛔ không phải siêu dữ liệu phụ trợ: chúng là
+ *    thứ được đánh đổi lấy quyền không lọc chất lượng. Đây là màn hình **duy nhất** hiện bản ghi
+ *    `NGHI_NGO`/`XOA` cạnh bản ghi hợp lệ — ẩn hai cột ấy đi là biến ngoại lệ hợp lệ thành đúng cái
+ *    lỗi mà quy tắc 14 sinh ra để chặn.
+ */
+export interface ReadingDetailRow {
+  mocDo: string;
+  giaTri: string;
+  quality: ReadingQuality;
+  qualityReason: string | null;
+  source: string;
+  note: string | null;
+  reviewNote: string | null;
+}
+
+export interface SyncQualityReport {
+  tuNgay: string;
+  denNgay: string;
+  /** Kích thước khung của nguồn, phút — mẫu số của tỷ lệ đầy đủ. ⛔ Đừng ghi cứng 10 ở FE. */
+  khungPhut: number;
+  chatLuong: SyncQualityRow[];
+  dongBo: SyncDailyRow[];
 }

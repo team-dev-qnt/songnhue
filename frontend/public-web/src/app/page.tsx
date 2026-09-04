@@ -19,6 +19,7 @@ import {
   getSubsidiaries,
 } from '@/lib/api';
 import { chonKhoiChuyenMuc, nhanNhanhTin } from '@/lib/homeCategories';
+import { khoiVanHanhBat } from '@/lib/khoiVanHanh';
 import { fileUrl, buildMenuTree } from '@/lib/routes';
 import { docBool, docSo } from '@/lib/settings';
 
@@ -74,17 +75,24 @@ import { docBool, docSo } from '@/lib/settings';
  * đúng luật ấy: nó dựng từ các mục con của nhánh menu {@code site.home.news-category}.
  * {@code SiteLayoutTest} và {@code PortalSettingsReadTest} vẫn canh cho khoá cũ không sống lại.
  *
- * <h2>⚠ 01/09/2026 — MỘT ngoại lệ có tên: `site.home.show-dieu-hanh`</h2>
+ * <h2>⚠ MỘT ngoại lệ có tên: `site.home.show-dieu-hanh` — và 04/09 nó đã lớn hơn trang chủ</h2>
  *
  * Luật trên chỉ áp được cho khối <b>có một mục menu để gỡ</b>. Nhóm 2 không có: "Mực nước, lượng
  * mưa" và "Vận hành công trình" trên trang chủ là hai khối <i>tóm tắt</i>, còn mục menu tương ứng
- * trỏ sang hai TRANG riêng dưới nhánh {@code /quan-ly-van-hanh}. Gỡ mục menu ấy là gỡ mất cả hai
- * trang chi tiết — tức cái nút duy nhất có sẵn làm nhiều hơn hẳn thứ QuanTran yêu cầu (01/09:
- * <i>"tôi muốn admin có thêm tính năng bật / tắt hiển thị ở trên public-web"</i>).
+ * trỏ sang hai TRANG riêng dưới nhánh {@code /quan-ly-van-hanh}. Nên công tắc dựng 01/09 là một
+ * ngoại lệ có tên, cùng họ {@code site.slider.*}: chỉnh cách một khối hiện ra, không chỉnh việc
+ * khối ấy có thuộc cây nội dung hay không.
  *
- * <p>Nên đây là một công tắc <b>trình bày</b>, cùng họ với {@code site.slider.*}: nó chỉnh cách
- * một khối hiện ra, không chỉnh việc khối ấy có thuộc cây nội dung hay không. Ranh giới ấy là thứ
- * giữ cho ngoại lệ này không lớn dần trở lại thành {@code site.home.blocks}.
+ * <p>⚠⚠ <b>Bản 01/09 dừng lại nửa đường, và chú thích cũ ở đây nói ra điều đó như một tính năng.</b>
+ * Nó khẳng định gỡ mục menu <i>"là gỡ mất cả hai trang chi tiết"</i> nên công tắc cố ý chỉ động
+ * tới trang chủ. Kết quả đo được 04/09: tắt công tắc ⇒ trang chủ sạch, mà mục menu vẫn nằm nguyên
+ * và bấm vào vẫn mở được một trang rỗng. Đó là quy tắc 27 ở dạng nhìn thấy được — nửa vòng
+ * đọc–ghi, và người dùng nhìn thấy đúng nửa còn lại.
+ *
+ * <p>Từ 04/09 (QuanTran yêu cầu) công tắc chi phối <b>sáu bề mặt</b>: khối này · thanh điều hướng ·
+ * chân trang · dải điều hướng trong mục · sidebar · và hai trang {@code van-hanh-cong-trinh} +
+ * {@code muc-nuoc-luong-mua} trả <b>404</b>. Toàn bộ luật nằm ở {@code lib/khoiVanHanh.ts}; ba nơi
+ * vẽ menu nhận cây <b>đã lọc sẵn</b> từ {@code getMenu()} nên không nơi nào phải nhớ lọc lại.
  *
  * <p>⛔ MỘT công tắc cho cả nhóm, không phải hai. Tách riêng Mực nước / Vận hành là dựng thêm một
  * cột không ai yêu cầu — quy tắc 15 tính đó là một lỗi, không phải một tính năng để dành.
@@ -131,7 +139,12 @@ export default async function HomePage() {
   // Công tắc Nhóm 2 — xem javadoc đầu tệp để biết vì sao khối này được có một công tắc trong khi
   // chính sách chung là "bố cục trang chủ LÀ cây menu". Mặc định BẬT: một bản vá thêm công tắc
   // không được đổi thứ người dùng đang nhìn thấy.
-  const hienDieuHanh = docBool(config?.['site.home.show-dieu-hanh'], true);
+  //
+  // ⭐ 04/09: chuỗi khoá KHÔNG còn viết ở đây. Từ lượt này công tắc chi phối SÁU bề mặt (khối này,
+  //    ba nơi vẽ menu, sidebar, và hai trang phải trả 404), nên nó có một nhà riêng —
+  //    `lib/khoiVanHanh.ts` — và mọi nơi đọc đi qua đó. Một chuỗi khoá lặp ở sáu tệp là sáu chỗ
+  //    có thể gõ sai mà không lỗi nào báo (quy tắc 14).
+  const hienDieuHanh = khoiVanHanhBat(config);
   const hienNhanLienKet = docBool(config?.['site.home.lien-ket.show-label'], true);
 
   // Nhãn và danh sách chuyên mục con đều lấy từ MENU — không có chuỗi 'tin-tuc' hay
@@ -162,7 +175,7 @@ export default async function HomePage() {
   const allArticles = latest?.content ?? [];
 
   return (
-    <div className="mx-auto max-w-[1232px] px-4 py-6 sm:px-6 sm:py-8 animate-fade-in">
+    <div className="mx-auto max-w-[1232px] px-4 py-4 sm:px-6 animate-fade-in">
       {/* ═════════ NHÓM 1 · TIN TỨC & SỰ KIỆN ═════════ */}
       {/* ⚠ Nhãn nhóm này TỪNG thiếu: bốn nhóm dưới có, nhóm đầu không — nên dải mảnh đầu tiên
           người đọc gặp là "Điều hành & số liệu" ở giữa trang, và nó trông như mốc bắt đầu của

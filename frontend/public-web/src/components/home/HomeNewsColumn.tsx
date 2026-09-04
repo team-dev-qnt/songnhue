@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import { PortalImage } from '@/components/PortalImage';
+import { ANH_BAI_VIET_MAC_DINH } from '@/lib/anhMacDinh';
 import type { ArticleRow } from '@/lib/api';
 import { fileUrl, formatDate, ROUTES } from '@/lib/routes';
 import { EmptyBlock } from './EmptyBlock';
@@ -69,6 +70,7 @@ export function HomeNewsColumn({ articles, soBai, tieuDe, categorySlug }: HomeNe
                   ratio="aspect-[16/9]"
                   rong="w-[103px] lg:w-[120px]"
                   className="shrink-0 rounded-lg"
+                  anhMacDinh={ANH_BAI_VIET_MAC_DINH}
                 />
                 <div className="min-w-0">
                   <h3 className="line-clamp-3 text-justify text-[15px] leading-snug text-surface-textBase transition-colors duration-200 group-hover:text-brand-primary">

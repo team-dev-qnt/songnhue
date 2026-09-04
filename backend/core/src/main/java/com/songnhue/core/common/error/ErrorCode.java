@@ -102,6 +102,30 @@ public enum ErrorCode {
     CMS_2014("CMS-2014", HttpStatus.UNPROCESSABLE_ENTITY),
     /** Tải logo cho mục menu không thuộc dải "Liên kết website" (vị trí LIEN_KET). */
     CMS_2015("CMS-2015", HttpStatus.UNPROCESSABLE_ENTITY),
+    /**
+     * Gắn vào bài viết một tệp <b>không nằm trong Kho tài liệu</b> hoặc <b>chưa quét virus xong</b>.
+     *
+     * <p>Một mã cho hai lý do là có chủ đích: cả hai đều cho ra cùng một hệ quả — một dòng có tên
+     * trên cổng mà bấm vào là 404 (§10.52) — và người biên tập làm cùng một việc để chữa: chọn lại
+     * tệp trong Kho tài liệu, hoặc chờ vài giây rồi thử lại.
+     *
+     * <p>⛔ Đường công khai {@code /public/article-documents/&#123;id&#125;} <b>không</b> dùng mã
+     * này: nó trả 404 trần. Nói <i>"bài chưa xuất bản"</i> là xác nhận tệp có tồn tại.
+     */
+    CMS_2016("CMS-2016", HttpStatus.UNPROCESSABLE_ENTITY),
+    /**
+     * Tài liệu đính kèm vượt trần dung lượng <b>phục vụ ra cổng công khai</b>
+     * ({@code KhoTep.TRAN_PHUC_VU_CONG_KHAI_MB}).
+     *
+     * <p>⛔ Cố ý <b>không</b> gộp vào 404 của đường công khai. Ba vế kia (chưa xuất bản · đã gỡ ·
+     * sai kho) im lặng vì phân biệt được là tiết lộ tệp có tồn tại; vế này thì không — lúc nó bắn ra
+     * thì tệp <i>đã</i> công khai, và biến "quá lớn" thành "không tồn tại" là để người biên tập
+     * không bao giờ biết vì sao độc giả tải không được.
+     *
+     * <p>413 chứ không 422: đây đúng nghĩa là {@code PAYLOAD_TOO_LARGE}, cùng họ với
+     * {@link #SYS_0011} ở chiều tải lên.
+     */
+    CMS_2017("CMS-2017", HttpStatus.PAYLOAD_TOO_LARGE),
     CMS_5001("CMS-5001", HttpStatus.BAD_GATEWAY),
 
     // ---- MOD-02 Vận hành công trình --------------------------------------------
@@ -136,6 +160,22 @@ public enum ErrorCode {
     OPS_2018("OPS-2018", HttpStatus.UNPROCESSABLE_ENTITY),
     /** Lô nhập nhanh còn dòng lỗi — báo đủ theo từng dòng, và không dòng nào được ghi. */
     OPS_2019("OPS-2019", HttpStatus.UNPROCESSABLE_ENTITY),
+    /**
+     * Thời điểm hiệu lực ở tương lai — V1/V3.
+     *
+     * <p>{@code banGhiMoiNhat} sắp theo {@code effective_at DESC}, nên một dòng đề ngày mai
+     * <b>ghim</b> cả trạng thái dẫn xuất lẫn dòng trên cổng cho tới khi tới ngày ấy — và nó ghim
+     * bằng cách <i>trông đúng</i>. Lùi ngày thì vẫn hợp lệ (bù nhật ký), chỉ chặn cận trên.
+     */
+    OPS_2020("OPS-2020", HttpStatus.UNPROCESSABLE_ENTITY),
+    /**
+     * {@code maintenance_logs.alert_event_public_id} trỏ vào một cảnh báo không tồn tại — T33.4.
+     *
+     * <p>Cột ấy có từ 21/08, có setter, có trường trong form, và ⛔ <b>chưa bao giờ được đối chiếu
+     * với bất cứ thứ gì</b>: một UUID bất kỳ lưu thành công. ⛔ Không chữa bằng khoá ngoại — hai
+     * module không thấy nhau, nên tính toàn vẹn do tầng dịch vụ giữ, qua {@code HydroAlertPort}.
+     */
+    OPS_2021("OPS-2021", HttpStatus.UNPROCESSABLE_ENTITY),
     /** Trạng thái công trình là giá trị dẫn xuất — client sửa trực tiếp là từ chối. */
     OPS_3001("OPS-3001", HttpStatus.FORBIDDEN),
 
@@ -155,12 +195,71 @@ public enum ErrorCode {
      */
     HYD_2005("HYD-2005", HttpStatus.UNPROCESSABLE_ENTITY),
     /**
+     * Liên kết điểm đo ↔ công trình đã tồn tại ở đúng vai trò ấy — T28.19.
+     *
+     * <p>Ứng với chỉ mục {@code ux_station_constructions_cap (station_id, construction_id, role)}.
+     * ⚠ Cùng một cặp <b>hai vai trò khác nhau</b> là hợp lệ và có thật: một điểm đo là hạ lưu của
+     * cống này đồng thời là thượng lưu của cống kế tiếp trên cùng tuyến.
+     */
+    HYD_2008("HYD-2008", HttpStatus.CONFLICT),
+    /**
      * Sửa mã ánh xạ API của một điểm đo đã tồn tại — {0} là mã cũ, {1} là mã mới.
      *
      * <p>Mã API là khoá nối duy nhất giữa response của nguồn và điểm đo. Đổi nó là âm thầm gán số
      * liệu của trạm này sang trạm khác; biểu đồ vẫn vẽ đẹp, chỉ là của nhầm trạm.
      */
     HYD_2006("HYD-2006", HttpStatus.UNPROCESSABLE_ENTITY),
+    HYD_2007("HYD-2007", HttpStatus.CONFLICT),
+    /**
+     * Điểm đo đã có ngưỡng cho cùng (loại chỉ số × mức cảnh báo) — T33.2.
+     *
+     * <p>Ứng với {@code ux_alert_rules_bo_ba}. Hai dòng <i>"BĐ I của mực nước tại Liên Mạc"</i> mang
+     * hai con số khác nhau là một câu hỏi không có câu trả lời.
+     */
+    HYD_2009("HYD-2009", HttpStatus.CONFLICT),
+    /**
+     * Xoá một mức cảnh báo đang có ngưỡng trỏ vào — T33.1.
+     *
+     * <p>⛔ Không xoá lan sang {@code alert_rules}: mức cảnh báo là danh mục của Công ty, và xoá nó
+     * âm thầm tắt một loạt ngưỡng ai đó đã cấu hình. Buộc người dùng gỡ ngưỡng trước là buộc họ
+     * <b>nhìn thấy</b> cái mình sắp tắt.
+     */
+    HYD_2010("HYD-2010", HttpStatus.CONFLICT),
+    /**
+     * Đóng/bác bỏ một cảnh báo không còn ở trạng thái đang xảy ra — T33.11.
+     *
+     * <p>Hai người trực cùng mở màn hình lịch sử và cùng bấm "Đã xử lý" là chuyện bình thường; câu
+     * {@code UPDATE … WHERE status = 'DANG_XAY_RA'} trả 0 dòng cho người bấm sau, và người ấy phải
+     * được nói rõ thay vì thấy một thông báo thành công giả.
+     */
+    HYD_2011("HYD-2011", HttpStatus.CONFLICT),
+
+    /**
+     * Khoảng ngày của báo cáo thuỷ văn vượt trần — T34.3/T34.5.
+     *
+     * <p>⭐ Trần này ⛔ không phải để "bảo vệ máy chủ": báo cáo đọc bảng tổng hợp nên một năm dữ
+     * liệu chỉ là vài nghìn hàng. Nó bảo vệ <b>người đọc</b> — BC-13 sinh một hàng cho mỗi (điểm đo
+     * × chỉ số × ngày), nên 19 điểm đo × 2 chỉ số × 5 năm là <b>69 nghìn hàng</b> đổ vào một bảng
+     * ⛔ không phân trang. Từ chối lớn tiếng kèm con số trần thì người dùng hẹp khoảng lại; trả về
+     * 69 nghìn hàng thì trình duyệt đứng và triệu chứng đọc như "hệ thống hỏng".
+     */
+    HYD_2012("HYD-2012", HttpStatus.UNPROCESSABLE_ENTITY),
+
+    /** Ngày bắt đầu sau ngày kết thúc — T34.3. Khoảng rỗng trả 0 hàng, và 0 hàng đọc như "không có dữ liệu". */
+    HYD_2013("HYD-2013", HttpStatus.UNPROCESSABLE_ENTITY),
+
+    /**
+     * Bản kết xuất đã quá hạn tải — T34.7.
+     *
+     * <p>⭐ {@code 410 GONE}, ⛔ <b>không</b> {@code 404}: hai câu trả lời khác hẳn nhau. 404 nói
+     * <i>"chưa từng có"</i> và người dùng sẽ đi tìm xem mình bấm nhầm ở đâu; 410 nói <i>"có, và đã
+     * hết hạn"</i> — việc phải làm là bấm Xuất lại. Một mã trạng thái ⛔ không phân biệt được hai
+     * tình huống thì ⛔ không nói gì cả (luật 9).
+     */
+    HYD_2014("HYD-2014", HttpStatus.GONE),
+
+    /** Bản kết xuất chưa sẵn sàng — việc nền còn đang chạy hoặc đã hỏng. T34.7. */
+    HYD_2015("HYD-2015", HttpStatus.CONFLICT),
 
     // ---- MOD-04 Nhân sự ---------------------------------------------------------
     HR_2001("HR-2001", HttpStatus.UNPROCESSABLE_ENTITY),

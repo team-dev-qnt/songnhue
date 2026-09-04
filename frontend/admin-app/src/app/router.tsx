@@ -128,6 +128,74 @@ export const router = createBrowserRouter([
             'hyd:api-source:manage',
             lazyPage(() => import('@/features/hydro/ApiSourcesPage'), 'ApiSourcesPage'),
           ),
+          // ⭐ Hai tuyến chẩn đoán (T31.13) khai ĐÚNG cặp quyền mà endpoint của chúng nhận ở chế
+          //   độ HOẶC. Gác riêng `hyd:api-source:manage` thì TECHNICIAN — vai trò duy nhất ngoài
+          //   quản trị có `hyd:station:manage`, tức đúng người sẽ đi khai một mã lạ — không đọc
+          //   nổi lý do vì sao số liệu không về. Đó là hình dạng T27.20 lần thứ ba.
+          adminRoute(
+            '/thuy-van/nhat-ky-dong-bo',
+            ['hyd:measurement:view', 'hyd:api-source:manage'],
+            lazyPage(() => import('@/features/hydro/SyncLogsPage'), 'SyncLogsPage'),
+          ),
+          adminRoute(
+            '/thuy-van/ma-la',
+            ['hyd:measurement:view', 'hyd:api-source:manage'],
+            lazyPage(() => import('@/features/hydro/UnmappedCodesPage'), 'UnmappedCodesPage'),
+          ),
+          // ⭐ WS-32: trang chứa BA việc thuộc BA quyền (`:view` xem hàng chờ · `:review` duyệt ·
+          //   `:create` nhập tay), nên tuyến khai quyền RỘNG NHẤT và các nút tự ẩn ở trong. Gác
+          //   tuyến bằng `:review` là chôn cả trang sau quyền hẹp nhất — đúng lỗi 31/08 với tuyến
+          //   hồ sơ công trình, nơi XN_MANAGER có 8 quyền vận hành mà vẫn nhận 403.
+          adminRoute(
+            '/thuy-van/du-lieu-nghi-ngo',
+            ['hyd:measurement:view', 'hyd:measurement:review'],
+            lazyPage(() => import('@/features/hydro/SuspectReadingsPage'), 'SuspectReadingsPage'),
+          ),
+          // ---- WS-33 máy cảnh báo ngưỡng ----
+          // ⭐ Ba tuyến khai ĐÚNG quyền mà endpoint của chúng đòi. Danh mục mức và cấu hình ngưỡng
+          //   gác bằng `hyd:threshold:view` (quyền RỘNG hơn `:manage`): người chỉ được xem vẫn
+          //   phải thấy ngưỡng nào đang đặt, vì chính họ đọc con số cảnh báo sinh ra từ đó. Nút
+          //   Thêm/Sửa/Xoá tự ẩn theo `:manage` ở trong trang.
+          adminRoute(
+            '/thuy-van/muc-canh-bao',
+            'hyd:threshold:view',
+            lazyPage(() => import('@/features/hydro/AlertLevelsPage'), 'AlertLevelsPage'),
+          ),
+          adminRoute(
+            '/thuy-van/nguong-canh-bao',
+            'hyd:threshold:view',
+            lazyPage(() => import('@/features/hydro/AlertRulesPage'), 'AlertRulesPage'),
+          ),
+          // ⚠ Lịch sử gác bằng `hyd:alert:view`, ⛔ KHÔNG bằng `:handle`: XN_OPERATOR và
+          //   DUTY_OFFICER có `:view` và là người ĐỌC cảnh báo nhiều nhất. Gác bằng quyền hẹp hơn
+          //   là chôn cả trang sau nút của nó — đúng lỗi 31/08 với tuyến hồ sơ công trình.
+          adminRoute(
+            '/thuy-van/canh-bao',
+            'hyd:alert:view',
+            lazyPage(() => import('@/features/hydro/AlertHistoryPage'), 'AlertHistoryPage'),
+          ),
+          // ---- WS-34 báo cáo thuỷ văn ----
+          // ⚠ Gác bằng `hyd:report:view`, ⛔ KHÔNG bằng `hyd:report:export`: xem và xuất là hai
+          //   việc, và XN_OPERATOR · DUTY_OFFICER chỉ có vế đầu. Gác cả trang bằng quyền hẹp hơn
+          //   là chôn trang sau nút của nó — hình dạng T27.20 đã tái phát ba lần (§10.70).
+          adminRoute(
+            '/thuy-van/bao-cao-dong-bo',
+            'hyd:report:view',
+            lazyPage(
+              () => import('@/features/hydro/SyncQualityReportPage'),
+              'SyncQualityReportPage',
+            ),
+          ),
+          adminRoute(
+            '/thuy-van/bao-cao-tong-hop',
+            'hyd:report:view',
+            lazyPage(() => import('@/features/hydro/PeriodReportPage'), 'PeriodReportPage'),
+          ),
+          adminRoute(
+            '/thuy-van/bieu-tuyen-song',
+            'hyd:report:view',
+            lazyPage(() => import('@/features/hydro/RiverBoardPage'), 'RiverBoardPage'),
+          ),
           adminRoute(
             '/van-hanh/danh-muc-tinh-hinh',
             'ops:operation-status-code:manage',
@@ -190,6 +258,11 @@ export const router = createBrowserRouter([
             '/noi-dung/thu-vien',
             'cms:media:manage',
             lazyPage(() => import('@/features/cms/MediaPage'), 'MediaPage'),
+          ),
+          adminRoute(
+            '/noi-dung/kho-tai-lieu',
+            'cms:media:manage',
+            lazyPage(() => import('@/features/cms/MediaPage'), 'KhoTaiLieuPage'),
           ),
           adminRoute(
             '/noi-dung/giao-dien',

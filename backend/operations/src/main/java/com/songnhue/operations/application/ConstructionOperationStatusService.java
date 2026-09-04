@@ -1,5 +1,6 @@
 package com.songnhue.operations.application;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -48,6 +49,21 @@ public class ConstructionOperationStatusService {
 
     /** Whitelist sắp xếp — {@code PageUtils} từ chối mọi cột ngoài tập này ({@code §2.5}). */
     private static final Set<String> SAP_XEP_CHO_PHEP = Set.of("effectiveAt", "createdAt");
+
+    /**
+     * ⭐ Dung sai cận trên của {@code effective_at} — V3, 02/09/2026.
+     *
+     * <p><b>Vì sao ⛔ không dùng {@code @PastOrPresent} trên DTO.</b> Mốc này do <i>đồng hồ trình
+     * duyệt</i> sinh ra ({@code StatusBatchUpdateModal} khởi tạo bằng {@code dayjs()}), rồi được
+     * đối chiếu với <i>đồng hồ máy chủ</i>. Hai đồng hồ ấy luôn lệch nhau vài giây, nên một cận
+     * trên đúng bằng "bây giờ" sẽ từ chối những lượt nhập hoàn toàn hợp lệ, ngẫu nhiên, và chỉ ở
+     * một số máy — đúng loại lỗi không tái hiện được. Năm phút đủ nuốt mọi lệch đồng hồ thực tế mà
+     * vẫn chặn được thứ V3 nói tới: một dòng đề <i>ngày mai</i>.
+     *
+     * <p>⚠ Cùng con số và cùng lý do với {@code SoDoNhapTayService.kiemMocDo} của MOD-03 — hai
+     * module không chia sẻ hằng số, nên chép thì phải chép cả lý do, ⛔ không chỉ chép con số.
+     */
+    private static final long DUNG_SAI_DONG_HO_GIAY = 300;
 
     private final ConstructionOperationStatusRepository repository;
     private final OperationStatusCodeRepository codeRepository;
@@ -187,6 +203,12 @@ public class ConstructionOperationStatusService {
 
         if (code.isHasParameter() != (item.getParameterValue() != null)) {
             return ErrorCode.OPS_2006.code();
+        }
+
+        // ⭐ V3 — cận trên của `effective_at`. Cận DƯỚI cố ý không có: bù nhật ký cho quãng đã qua
+        //   là việc thật của trực ban, và đã có bài kiểm giữ chiều lùi ngày mở.
+        if (item.getEffectiveAt().toInstant().isAfter(Instant.now().plusSeconds(DUNG_SAI_DONG_HO_GIAY))) {
+            return ErrorCode.OPS_2020.code();
         }
         return null;
     }

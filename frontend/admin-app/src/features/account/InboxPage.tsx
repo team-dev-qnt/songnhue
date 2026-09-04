@@ -60,6 +60,7 @@ export function InboxPage() {
         rowKey="recipientId"
         onPageChange={pagination.onPageChange}
         emptyText="Chưa có thông báo nào"
+        scrollX={900}
         columns={[
           {
             title: 'Nội dung',

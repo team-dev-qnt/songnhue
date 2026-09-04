@@ -16,6 +16,7 @@ import com.songnhue.core.common.exception.PermissionDeniedException;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
 import com.songnhue.core.common.exception.ValidationException;
 import com.songnhue.core.common.persistence.WorkflowAware;
+import com.songnhue.core.common.persistence.WorkflowReasonAware;
 import com.songnhue.core.common.security.AuthContext;
 import com.songnhue.core.common.security.AuthenticatedUser;
 import com.songnhue.core.domain.notification.NotificationChannel;
@@ -80,6 +81,15 @@ public class WorkflowEngine implements WorkflowPort {
 
         requirePermission(transition);
         requireReason(transition, reason);
+
+        // ⭐ Giữ lại lý do — T32.5. Trước 02/09/2026 tham số `reason` được KIỂM rồi VỨT ĐI: không
+        //   entity nào, không cột nào, không `audit_logs` nào giữ nó (bảng ấy ⛔ không có cột lý do).
+        //   Nghĩa là `requires_reason = TRUE` chỉ bắt người dùng gõ một câu vào hư không — một nửa
+        //   cặp đọc–ghi trông y hệt cả cặp, vì màn hình có ô nhập và engine có chốt chặn.
+        //   ⚠ Gọi TRƯỚC `applyState` để một bước chuyển bị từ chối ở trên ⛔ không để lại lý do mồ côi.
+        if (entity instanceof WorkflowReasonAware coLyDo) {
+            coLyDo.applyWorkflowReason(action, reason);
+        }
 
         String previous = entity.currentState();
         entity.applyState(transition.getToState());

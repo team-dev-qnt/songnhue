@@ -10,6 +10,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
 
+import com.songnhue.content.application.TaiLieuDinhKem;
 import com.songnhue.content.domain.Article;
 import com.songnhue.content.domain.ArticleVersion;
 import com.songnhue.content.domain.Category;
@@ -27,6 +28,13 @@ public final class ArticleDtos {
 
     private ArticleDtos() {}
 
+    /**
+     * Một tài liệu đính kèm gửi lên từ màn hình soạn bài — WS-40.
+     *
+     * @param label tên gợi nhớ hiện trên cổng; rỗng ⇒ cổng hiện tên gốc của tệp
+     */
+    public record DocumentLink(@jakarta.validation.constraints.NotNull UUID publicId, @Size(max = 255) String label) {}
+
     /** Dữ liệu tạo/sửa bài viết. */
     public record SaveRequest(
             @NotBlank @Size(max = 255) String title,
@@ -42,7 +50,10 @@ public final class ArticleDtos {
             @Size(max = 500) String metaKeywords,
             @Size(max = 100) String docNumber,
             LocalDate docIssuedDate,
-            @NotEmpty Set<UUID> categoryPublicIds) {}
+            @NotEmpty Set<UUID> categoryPublicIds,
+            // ⚠ List chứ không Set: thứ tự tài liệu là dữ liệu người dùng sắp, khác categoryPublicIds.
+            //   ⛔ Không @NotEmpty — bài không có tệp nào là chuyện bình thường.
+            @jakarta.validation.Valid List<DocumentLink> documents) {}
 
     /** Yêu cầu chuyển trạng thái. {@code reason} bắt buộc khi trả bài về — kiểm ở controller. */
     public record TransitionRequest(@NotBlank String action, @Size(max = 2000) String reason) {}
@@ -95,9 +106,13 @@ public final class ArticleDtos {
             Long viewCount,
             boolean publiclyVisible,
             Set<UUID> categoryPublicIds,
+            // ⛔ Đây là BẢN ĐANG BIÊN TẬP. Cổng công khai đọc bản chụp — hai danh sách này khác nhau
+            //    chừng nào bản sửa chưa được duyệt, và đó chính là điểm của cơ chế (WS-40).
+            List<TaiLieuDinhKem> documents,
             List<AllowedAction> allowedActions) {
 
-        public static ArticleDetail of(Article a, List<AllowedAction> actions, Instant now) {
+        public static ArticleDetail of(
+                Article a, List<TaiLieuDinhKem> documents, List<AllowedAction> actions, Instant now) {
             return new ArticleDetail(
                     a.getPublicId(),
                     a.getTitle(),
@@ -117,6 +132,7 @@ public final class ArticleDtos {
                     a.getViewCount(),
                     a.isPubliclyVisible(now),
                     a.getCategories().stream().map(Category::getPublicId).collect(java.util.stream.Collectors.toSet()),
+                    documents,
                     actions);
         }
     }

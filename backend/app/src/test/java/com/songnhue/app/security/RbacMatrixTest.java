@@ -28,7 +28,7 @@ import com.songnhue.core.common.security.RequirePermission;
  * Ma trận <b>vai trò × tài nguyên</b> đối chiếu với dữ liệu phân quyền thật trong DB — T10.3,
  * NFR-06 đòi hỏi đúng 100%.
  *
- * <p><b>Vì sao không kiểm bằng cách gọi HTTP cho từng ô.</b> 12 vai trò × 88 quyền là hơn một nghìn
+ * <p><b>Vì sao không kiểm bằng cách gọi HTTP cho từng ô.</b> 12 vai trò × 89 quyền là hơn một nghìn
  * ô; dựng phiên đăng nhập cho từng vai trò rồi gọi từng endpoint sẽ mất hàng phút mỗi lần chạy CI, và
  * một bài kiểm chậm là một bài kiểm sớm muộn bị bỏ qua. Cơ chế chặn (tầng 2) đã có
  * {@code PermissionInterceptorTest} và {@code DenyByDefaultTest} lo; cái còn thiếu là <b>bản thân
@@ -89,15 +89,30 @@ class RbacMatrixTest extends IntegrationTestBase {
             // ⬇ WS-28 đã GỠ ba dòng khỏi danh sách này: `hyd:station:view`,
             //   `hyd:station:manage`, `hyd:api-source:manage`. Danh mục điểm đo / loại chỉ số /
             //   nguồn dữ liệu đã có endpoint thật, nên chúng không còn là "quyền chờ Phase sau".
-            "hyd:alert:view", // Cảnh báo thủy văn — Phase 2
-            "hyd:alert:handle", // Xử lý cảnh báo — Phase 2
+            // ⬇ WS-33 đã GỠ bốn dòng khỏi danh sách này: `hyd:alert:view`, `hyd:alert:handle`,
+            //   `hyd:threshold:view`, `hyd:threshold:manage`. Máy cảnh báo ngưỡng đã có ba
+            //   controller thật (`AlertLevelController` · `AlertRuleController` ·
+            //   `AlertEventController`) gác bằng đúng bốn quyền ấy, nên chúng không còn là "quyền
+            //   chờ Phase sau". ⛔ Đừng thêm lại cho hết đỏ — bài `ngoaiLeQuyenPhaseSauVanConDung()`
+            //   canh đúng chiều này.
             "hyd:alert-group:manage", // Nhóm cảnh báo — Phase 2
-            "hyd:measurement:view", // Xem số liệu đo — Phase 2
-            "hyd:measurement:review", // Duyệt số liệu — Phase 2
-            "hyd:report:view", // Báo cáo thủy văn — Phase 2
-            "hyd:report:export", // Xuất báo cáo thủy văn — Phase 2
-            "hyd:threshold:view", // Xem ngưỡng — Phase 2
-            "hyd:threshold:manage", // Quản lý ngưỡng — Phase 2
+            // ⬇ WS-31/T31.13 đã GỠ `hyd:measurement:view`: hai màn hình chẩn đoán (Nhật ký đồng bộ
+            //   M3.16 · Mã lạ từ nguồn) canh bằng đúng quyền ấy, nên nó không còn là "quyền chờ
+            //   Phase sau". ⛔ Đừng thêm lại cho hết đỏ — bài ngoaiLeQuyenPhaseSauVanConDung() canh
+            //   đúng chiều này.
+            // ⬇ WS-32 đã GỠ `hyd:measurement:review`: màn hình Dữ liệu nghi ngờ gác bằng đúng quyền
+            //   ấy, VÀ hai bước chuyển `DUYET`/`XOA` của quy trình HYDRO_READING khai nó ở
+            //   `workflow_transitions.required_permission`. ⛔ Đừng thêm lại cho hết đỏ.
+            //   ⚠ `hyd:measurement:create` (mới ở V202609041061) CỐ Ý không có mặt ở đây: nó có
+            //   endpoint thật ngay từ lượt ra đời — POST /hyd/so-do/nhap-tay.
+            // ⭐ `hyd:report:view` RỜI khỏi danh sách này ở WS-34/T34.3 — BC-13 là người đọc đầu
+            //   tiên (`HydroReportController`). Giữ lại một quyền đã có cổng dùng là làm bài này
+            //   khẳng định điều sai, và một bài kiểm nói sai thì lượt sau người ta nới nó ra.
+            // ⭐ `hyd:report:export` RỜI ở WS-34/T34.7 — POST /hyd/bao-cao/xuat và GET
+            //   /hyd/bao-cao/tai/{jobId} gác bằng đúng nó. ⚠ Hai quyền này CỐ Ý tách nhau: đo trên
+            //   ma trận seed thì XN_OPERATOR và DUTY_OFFICER chỉ có `:view` — họ đọc được báo cáo
+            //   trên màn hình nhưng ⛔ không mang được nó ra ngoài, và đó là quyết định của Công ty
+            //   chứ ⛔ không phải một chi tiết kỹ thuật.
             "hr:employee:create", // Nhân sự — Phase 2
             "hr:employee:view", // Nhân sự — Phase 2
             "hr:employee:view-sensitive", // Nhân sự — Phase 2

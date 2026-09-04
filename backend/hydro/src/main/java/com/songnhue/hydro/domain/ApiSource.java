@@ -141,18 +141,54 @@ public class ApiSource extends BaseEntity {
         return credential;
     }
 
-    /** Ghi nhận một lượt gọi nguồn thành công — xoá chuỗi hỏng liên tiếp. */
-    public void ghiNhanThanhCong(Instant when) {
+    /**
+     * Ghi nhận một lượt gọi nguồn thành công — xoá chuỗi hỏng liên tiếp.
+     *
+     * <h2>⚠⚠ Hai phương thức này viết ở WS-28 và tới 02/09/2026 KHÔNG AI GỌI</h2>
+     *
+     * <p>Bốn cột chúng ghi ({@code last_success_at}, {@code last_failure_at},
+     * {@code last_failure_reason}, {@code consecutive_failures}) <b>đều</b> nằm trong
+     * {@code ApiSourceView} và <b>đều</b> hiện trên màn hình <i>Nguồn dữ liệu</i> từ 31/08. Nghĩa là
+     * bốn ô ấy rỗng vĩnh viễn, mà người đọc hiểu thành "chưa có sự cố nào". Luật 27 ở dạng khó thấy
+     * nhất: <b>vế ghi có tồn tại</b> — chỉ là không ai gọi nó. Một phương thức domain viết đúng vẫn
+     * là một nửa cặp nếu tầng ứng dụng không đi qua.
+     *
+     * <p>⇒ WS-30 nối vế gọi ({@code ApiSourceHealthService}), và nhân đó sửa hai điểm:
+     *
+     * <ol>
+     *   <li>trả về <b>sự chuyển trạng thái</b> thay vì {@code void} — người gọi cần biết "vừa trở
+     *       lại" để phát tin phục hồi. Hỏi lại {@code consecutiveFailures == 0} sau khi gọi thì bao
+     *       giờ cũng đúng, và một khẳng định luôn đúng không phân biệt được gì (luật 9);
+     *   <li>⛔ <b>không</b> xoá {@link #lastFailureReason} nữa. Tên cột là <i>lần hỏng gần nhất</i>,
+     *       không phải <i>lỗi hiện tại</i>; xoá lý do mà giữ {@link #lastFailureAt} cho ra một màn
+     *       hình nói "hỏng lúc 3:07 sáng" mà không nói vì sao — đúng câu người trực cần nhất.
+     * </ol>
+     *
+     * @return {@code true} nếu nguồn <b>vừa trở lại</b> sau một chuỗi hỏng
+     */
+    public boolean ghiNhanThanhCong(Instant when) {
+        boolean vuaTroLai = consecutiveFailures != null && consecutiveFailures > 0;
         this.lastSuccessAt = when;
         this.consecutiveFailures = 0;
-        this.lastFailureReason = null;
+        return vuaTroLai;
     }
 
-    /** Ghi nhận một lượt gọi hỏng. {@code lyDo} là thông điệp cho người vận hành, ⛔ không kèm mã số. */
-    public void ghiNhanThatBai(Instant when, String lyDo) {
+    /**
+     * Ghi nhận một lượt gọi hỏng. {@code lyDo} là thông điệp cho người vận hành, ⛔ không kèm mã số.
+     *
+     * <p>Người gọi so số trả về với ngưỡng và cảnh báo <b>đúng lúc bằng ngưỡng</b>, ⛔ không phải mỗi
+     * lượt vượt ngưỡng: poller chạy 2 phút/lần, nên "≥ ngưỡng thì cảnh báo" là 720 thông báo mỗi ngày
+     * cho một nguồn hỏng — và một chuông kêu liên tục là một chuông sẽ bị tắt (§10.42).
+     *
+     * @return số lượt hỏng liên tiếp <b>sau khi cộng</b>
+     */
+    public int ghiNhanThatBai(Instant when, String lyDo) {
         this.lastFailureAt = when;
-        this.lastFailureReason = lyDo;
+        // Cắt cho khớp cột 500 ký tự ngay tại đây: để CSDL từ chối cả lượt ghi ngay giữa một sự cố
+        // là mất luôn bộ đếm — tức mất đúng thứ dùng để phát cảnh báo.
+        this.lastFailureReason = lyDo == null || lyDo.length() <= 500 ? lyDo : lyDo.substring(0, 500);
         this.consecutiveFailures = (consecutiveFailures == null ? 0 : consecutiveFailures) + 1;
+        return this.consecutiveFailures;
     }
 
     public String getCode() {

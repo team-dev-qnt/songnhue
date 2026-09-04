@@ -22,6 +22,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import com.songnhue.app.testsupport.CmsFixtures;
 import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.content.application.MediaService;
+import com.songnhue.content.domain.KhoTep;
 import com.songnhue.core.application.attachment.VirusScanHandler;
 import com.songnhue.core.common.security.AuthContext;
 import com.songnhue.core.common.security.AuthenticatedUser;
@@ -198,7 +199,8 @@ class PublicHttpTest extends IntegrationTestBase {
     void anhCongKhaiTraNguyenByte() {
         dangNhap("cms:media:manage");
         byte[] goc = anhPng(24, 18);
-        AttachmentRef tep = media.upload(media.createFolder("Ảnh cổng", null).getPublicId(), "bia.png", goc);
+        AttachmentRef tep =
+                media.upload(media.createFolder("Ảnh cổng", null).getPublicId(), KhoTep.MEDIA, "bia.png", goc);
         chayBuocQuet(tep.publicId());
         AuthContext.clear();
 
@@ -241,7 +243,12 @@ class PublicHttpTest extends IntegrationTestBase {
         Long id = jdbc.queryForObject("SELECT id FROM attachments WHERE public_id = ?", Long.class, attachmentPublicId);
         try {
             virusScanHandler.handle(new JobContext(
-                    UUID.randomUUID(), "VIRUS_SCAN", "{\"attachmentId\":%d}".formatted(id), null, percent -> {}));
+                    UUID.randomUUID(),
+                    "VIRUS_SCAN",
+                    "{\"attachmentId\":%d}".formatted(id),
+                    null,
+                    percent -> {},
+                    conTro -> {}));
         } catch (Exception e) {
             throw new IllegalStateException("Bước quét lỗi", e);
         }

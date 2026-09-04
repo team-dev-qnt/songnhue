@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import { PortalImage } from '@/components/PortalImage';
+import { ANH_BAI_VIET_MAC_DINH } from '@/lib/anhMacDinh';
 import type { ArticleRow } from '@/lib/api';
 import { fileUrl, formatDate, ROUTES } from '@/lib/routes';
 
@@ -19,7 +20,12 @@ export function ArticleCard({ article }: { article: ArticleRow }) {
   return (
     <article className="group flex flex-col overflow-hidden rounded-xl border border-surface-border bg-white shadow-xs transition-all duration-300 ease-smooth hover:-translate-y-1 hover:border-brand-primary hover:shadow-md">
       <Link href={ROUTES.article(article.slug)} className="flex flex-1 flex-col">
-        <PortalImage src={cover} alt={article.title} ratio="aspect-[16/10]" />
+        <PortalImage
+          src={cover}
+          alt={article.title}
+          ratio="aspect-[16/10]"
+          anhMacDinh={ANH_BAI_VIET_MAC_DINH}
+        />
         <div className="flex flex-1 flex-col p-4 sm:p-5">
           <h3 className="line-clamp-2 text-justify text-sm font-bold leading-snug text-surface-textBase transition-colors duration-200 group-hover:text-brand-primary sm:text-base">
             {article.title}

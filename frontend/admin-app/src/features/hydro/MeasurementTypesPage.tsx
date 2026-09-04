@@ -133,7 +133,7 @@ export function MeasurementTypesPage() {
   const columns: ColumnsType<MeasurementType> = [
     { title: 'STT', dataIndex: 'sortOrder', width: 70, align: 'center' },
     { title: 'Mã', dataIndex: 'code', width: 140 },
-    { title: 'Tên loại chỉ số', dataIndex: 'name' },
+    { title: 'Tên loại chỉ số', dataIndex: 'name', width: 240, ellipsis: true },
     {
       title: 'Đơn vị lưu',
       dataIndex: 'unit',
@@ -205,6 +205,9 @@ export function MeasurementTypesPage() {
         dataSource={query.data ?? []}
         columns={columns}
         pagination={false}
+        // 70+140+240+110+80+120+110 = 870. Xem chú thích cột "Địa chỉ" ở `ApiSourcesPage` để
+        // biết vì sao thiếu `scroll` là bóp chữ chứ không phải cuộn.
+        scroll={{ x: 870 }}
       />
 
       <Modal

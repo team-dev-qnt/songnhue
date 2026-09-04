@@ -78,5 +78,14 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=45s --retries=5 \
 
 # MaxRAMPercentage: JVM tự co theo giới hạn bộ nhớ của container thay vì đọc RAM
 # của cả máy chủ — không có dòng này thì heap phình ra và bị OOM-kill.
-ENV JAVA_OPTS="-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError -Duser.timezone=UTC"
+#
+# ⛔ `spring.expression.compiler.mode=off` là CAM KẾT BẢO MẬT (T11.73), không phải
+#    chỉnh hiệu năng. CVE-2026-59283 (9.1) chỉ khai thác được khi trình biên dịch
+#    SpEL đang bật; bản vá nằm ở Spring Framework 7.0.9, tức phải lên Boot 4
+#    (T11.69). Tới đó, thứ duy nhất chặn là **mặc định** của framework — và mặc
+#    định là thứ của người khác (luật 3). Khai ở CẢ HAI nơi biến JVM đi vào:
+#    dòng này là mặc định của image (đường `docker run` trần), còn
+#    `JAVA_TOOL_OPTIONS` ở `compose.prod.yml` là đường triển khai thật. Bỏ một
+#    trong hai thì có một đường chạy không được che. Bộ canh: `SpelCompilerTatTest`.
+ENV JAVA_OPTS="-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError -Duser.timezone=UTC -Dspring.expression.compiler.mode=off"
 ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar \"$@\"", "--"]

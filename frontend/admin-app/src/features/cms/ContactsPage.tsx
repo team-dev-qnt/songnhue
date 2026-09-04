@@ -149,6 +149,9 @@ export function ContactsPage() {
         locale={{
           emptyText: <Empty description="Chưa có liên hệ nào gửi từ cổng thông tin" />,
         }}
+        // Bề ngang tối thiểu: hẹp hơn thì CUỘN NGANG, không bóp chữ.
+        // Vì sao cần — xem chú thích cột "Địa chỉ" ở `features/hydro/ApiSourcesPage.tsx`.
+        scroll={{ x: 900 }}
         pagination={{
           current: trang + 1,
           pageSize: CO_TRANG,

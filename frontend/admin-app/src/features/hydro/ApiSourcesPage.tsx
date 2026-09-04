@@ -1,4 +1,4 @@
-import { EditOutlined, KeyOutlined, PlusOutlined } from '@ant-design/icons';
+import { ApiOutlined, EditOutlined, KeyOutlined, PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
@@ -25,6 +25,7 @@ import {
   type ApiSource,
   type ApiSourceCreateRequest,
   type ApiSourceRequest,
+  type KetQuaDongBo,
 } from '@/shared/api-types';
 import { ApiClientError, api } from '@/shared/apiClient';
 import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
@@ -51,6 +52,9 @@ export function ApiSourcesPage() {
   const [dangSua, setDangSua] = useState<ApiSource | null>(null);
   const [taoMoi, setTaoMoi] = useState(false);
   const [datMaSoCho, setDatMaSoCho] = useState<ApiSource | null>(null);
+  const [ketQuaGoiThu, setKetQuaGoiThu] = useState<{ nguon: ApiSource; kq: KetQuaDongBo } | null>(
+    null,
+  );
 
   const coQuanLy = hasPermission('hyd:api-source:manage');
 
@@ -117,6 +121,28 @@ export function ApiSourcesPage() {
       message.error(caught instanceof ApiClientError ? caught.message : 'Không gỡ được mã số'),
   });
 
+  /**
+   * ⭐ Gọi nguồn một lượt ngay bây giờ — WS-30.
+   *
+   * ⚠ Endpoint trả **200 kèm chi tiết** cả khi nguồn hỏng, ⛔ không trả 502: lượt gọi đã trả
+   * lời đúng câu hỏi người dùng đặt ra. Bóp năm tình trạng phân biệt được thành một câu
+   * *"Hệ thống bên ngoài không phản hồi"* là xoá đúng thứ họ cần để biết phải làm gì.
+   * ⇒ `onError` ở đây chỉ dành cho lỗi của **ta** (mất mạng tới backend, hết phiên).
+   */
+  const goiThuMutation = useMutation({
+    mutationFn: (nguon: ApiSource) =>
+      api
+        .post<KetQuaDongBo>(`/hyd/api-sources/${nguon.id}/goi-thu`, {})
+        .then((kq) => ({ nguon, kq })),
+    onSuccess: (ket) => {
+      setKetQuaGoiThu(ket);
+      // Bốn cột sức khoẻ vừa đổi ở CSDL — không làm mới thì bảng nói một đằng, hộp thoại một nẻo.
+      void lamMoi();
+    },
+    onError: (caught: unknown) =>
+      message.error(caught instanceof ApiClientError ? caught.message : 'Không gọi thử được'),
+  });
+
   const moSua = (nguon: ApiSource) => {
     formSua.resetFields();
     formSua.setFieldsValue({
@@ -134,13 +160,32 @@ export function ApiSourcesPage() {
 
   const columns: ColumnsType<ApiSource> = [
     { title: 'Mã', dataIndex: 'code', width: 110 },
-    { title: 'Tên nguồn', dataIndex: 'name' },
+    { title: 'Tên nguồn', dataIndex: 'name', width: 200, ellipsis: true },
     {
+      // ⚠⚠ Vá 01/09/2026 — cột này từng bóp còn ~29px và URL xuống dòng TỪNG KÝ TỰ.
+      //
+      // Ba thứ cộng lại, không cái nào tự nó đủ:
+      //   1. Không cột nào khai `ellipsis` và bảng không khai `scroll` ⇒ `rc-table` chọn
+      //      `tableLayout: 'auto'`, và dưới `auto` thì `<col width>` chỉ là GỢI Ý — trình duyệt
+      //      được phép bóp cột không khai bề ngang xuống tận `min-content`.
+      //   2. Sáu cột cố định cộng lại 940px + cột mở rộng 48px, trong khi bề ngang khả dụng là
+      //      `viewport − 336` (sider 248 + margin 40 + padding Card 48). Ở 1440px thì hai cột
+      //      không khai chia nhau đúng 116px.
+      //   3. `.ant-table-cell{overflow-wrap:break-word}` + `.ant-typography{word-break:break-word}`
+      //      ⇒ `min-content` của một URL bằng MỘT KÝ TỰ.
+      //
+      // ⚠ Lỗi có ở MỌI bề ngang, chỉ THẤY ĐƯỢC dưới ~1600px — cùng hình dạng §10.62, nơi
+      // `flex-wrap` che một thanh điều hướng tràn 22%.
       title: 'Địa chỉ',
       dataIndex: 'baseUrl',
+      width: 320,
       render: (url: string) => (
         <Space size={4}>
-          <Typography.Text code>{url}</Typography.Text>
+          {/* `break-all` cho URL xuống dòng ở ranh giới ký tự thay vì đẩy ngang bảng; khung đã
+              có bề rộng cố định nên nó không còn co về min-content được nữa. */}
+          <Typography.Text code style={{ wordBreak: 'break-all' }}>
+            {url}
+          </Typography.Text>
           {url.startsWith('http://') && (
             <Tooltip title="Nguồn chỉ có HTTP. Trình duyệt không gọi thẳng — mọi lượt gọi đi từ máy chủ.">
               <Tag color="orange">HTTP</Tag>
@@ -196,11 +241,19 @@ export function ApiSourcesPage() {
     },
     {
       title: '',
-      width: 140,
+      width: 180,
       align: 'right',
       render: (_, r) =>
         coQuanLy ? (
           <Space>
+            <Tooltip title="Gọi nguồn một lượt ngay để xem mã số có dùng được không">
+              <Button
+                type="text"
+                icon={<ApiOutlined />}
+                loading={goiThuMutation.isPending && goiThuMutation.variables?.id === r.id}
+                onClick={() => goiThuMutation.mutate(r)}
+              />
+            </Tooltip>
             <Tooltip title="Đặt / thay mã số truy cập">
               <Button
                 type="text"
@@ -261,6 +314,9 @@ export function ApiSourcesPage() {
         dataSource={query.data ?? []}
         columns={columns}
         pagination={false}
+        // 110+200+320+150+90+260+190+140 = 1460, cộng 48px cột mở rộng.
+        // Hẹp hơn thì CUỘN NGANG, ⛔ không bóp chữ — đúng lời javadoc của `DataTable`.
+        scroll={{ x: 1508 }}
         expandable={{
           expandedRowRender: (r) => (
             <Descriptions size="small" column={2} bordered>
@@ -436,7 +492,159 @@ export function ApiSourcesPage() {
           </Form.Item>
         </Form>
       </Modal>
+
+      <Modal
+        open={ketQuaGoiThu !== null}
+        title={`Kết quả gọi thử — ${ketQuaGoiThu?.nguon.name ?? ''}`}
+        onCancel={() => setKetQuaGoiThu(null)}
+        footer={<Button onClick={() => setKetQuaGoiThu(null)}>Đóng</Button>}
+        destroyOnClose
+      >
+        {ketQuaGoiThu && <BangKetQuaGoiThu kq={ketQuaGoiThu.kq} />}
+      </Modal>
     </Card>
+  );
+}
+
+/** Việc phải làm ứng với từng kiểu hỏng — ⛔ một câu chung cho năm nguyên nhân là không nói gì. */
+const VIEC_PHAI_LAM: Record<NonNullable<KetQuaDongBo['loi']>, string> = {
+  THIEU_MA_SO: 'Nguồn chưa cấu hình mã số. Bấm biểu tượng chìa khoá để đặt.',
+  NOT_WORKING:
+    'Nguồn từ chối mã số. ⚠ Kiểm tra mã số còn dấu ";" ở cuối không — thiếu dấu ấy nguồn trả đúng thông báo này, trông y hệt mã số sai.',
+  TIMEOUT: 'Nguồn không trả lời kịp. Kiểm tra đường mạng tới nguồn trước khi nới timeout.',
+  HTTP_ERROR: 'Không gọi được nguồn. Kiểm tra địa chỉ nguồn và đường mạng ra ngoài.',
+  EMPTY_BODY:
+    'Nguồn trả HTTP 200 nhưng không có nội dung — nhiều khả năng phía nguồn đang bảo trì.',
+};
+
+/**
+ * Kết quả một lượt gọi thử.
+ *
+ * ⛔ **Không hiển thị thân phản hồi** — thân thật của `bhh40` chứa chính mã số. DTO cũng không
+ * mang nó, nên đây là lớp bảo vệ thứ hai chứ không phải lớp duy nhất.
+ */
+function BangKetQuaGoiThu({ kq }: { kq: KetQuaDongBo }) {
+  if (kq.trangThai === 'FAILED') {
+    return (
+      <Alert
+        type="error"
+        showIcon
+        message={kq.lyDo ?? 'Lượt gọi hỏng'}
+        description={
+          <>
+            {kq.loi ? VIEC_PHAI_LAM[kq.loi] : null}
+            <br />
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              {kq.httpStatus === null ? 'Chưa nhận được phản hồi nào' : `HTTP ${kq.httpStatus}`} ·{' '}
+              {kq.durationMs} ms
+              {kq.rawLogId === null
+                ? ' · ⛔ chưa lưu được nguyên văn response'
+                : ` · nguyên văn đã lưu (#${kq.rawLogId})`}
+              {kq.syncLogId === null
+                ? ' · ⛔ chưa ghi được nhật ký đồng bộ'
+                : ` · nhật ký đồng bộ #${kq.syncLogId}`}
+            </Typography.Text>
+          </>
+        }
+      />
+    );
+  }
+
+  return (
+    <Space direction="vertical" size={12} style={{ width: '100%' }}>
+      <Alert
+        type="success"
+        showIcon
+        message={`Nguồn trả về ${kq.soBanGhi} số đo trong ${kq.durationMs} ms — ghi mới ${kq.soGhiMoi} dòng`}
+      />
+      <Descriptions column={1} size="small" bordered>
+        <Descriptions.Item label="Số đo bóc được">{kq.soBanGhi}</Descriptions.Item>
+        <Descriptions.Item label="Ghi mới vào CSDL">
+          {kq.soGhiMoi}
+          {kq.soTrungBoQua > 0 && (
+            <Typography.Text type="secondary">
+              {' '}
+              · {kq.soTrungBoQua} dòng đã có sẵn nên bỏ qua
+            </Typography.Text>
+          )}
+        </Descriptions.Item>
+        <Descriptions.Item label="Điểm đo đang hoạt động">
+          {kq.soDiemDoDangHoatDong}
+        </Descriptions.Item>
+        <Descriptions.Item label="Mốc đo gần nhất">
+          {kq.mocDoGanNhat ? new Date(kq.mocDoGanNhat).toLocaleString('vi-VN') : '—'}
+        </Descriptions.Item>
+        <Descriptions.Item label="Khung nhắm tới">
+          {kq.khungNhamToi ? new Date(kq.khungNhamToi).toLocaleString('vi-VN') : '—'}
+        </Descriptions.Item>
+        <Descriptions.Item label="Dòng không đọc được">
+          {kq.soDongRac > 0 ? (
+            <Tag color="orange">{kq.soDongRac}</Tag>
+          ) : (
+            <Typography.Text type="secondary">0</Typography.Text>
+          )}
+        </Descriptions.Item>
+        <Descriptions.Item label="Dòng trùng">{kq.soDongTrung}</Descriptions.Item>
+        <Descriptions.Item label="Số đo của mã chưa khai">
+          {kq.soMaLa > 0 ? <Tag color="blue">{kq.soMaLa}</Tag> : '0'}
+        </Descriptions.Item>
+        <Descriptions.Item label="Nhật ký đồng bộ">
+          {kq.syncLogId === null ? (
+            <Typography.Text type="danger">⛔ chưa ghi được</Typography.Text>
+          ) : (
+            `#${kq.syncLogId}`
+          )}
+        </Descriptions.Item>
+      </Descriptions>
+
+      {kq.soThieuLoaiChiSo > 0 && (
+        <Alert
+          type="warning"
+          showIcon
+          message={`${kq.soThieuLoaiChiSo} điểm đo nhận số đo mà chưa tích loại chỉ số "Mực nước"`}
+          description="Số đo VẪN được ghi — bảng station_measurement_types nuôi biểu mẫu và báo cáo, nó không phải cái van của đường ingest. Nhưng báo cáo sẽ không khớp cho tới khi tích ô Loại chỉ số ở màn hình Điểm đo. Mã điểm đo cụ thể nằm trong log của máy chủ."
+        />
+      )}
+
+      {kq.soKhacNguon > 0 && (
+        <Alert
+          type="warning"
+          showIcon
+          message={`${kq.soKhacNguon} điểm đo được nguồn này trả về nhưng hồ sơ khai thuộc nguồn khác`}
+          description="Số đo vẫn được ghi vì mã API là duy nhất toàn hệ thống — nhưng đây là dấu hiệu cấu hình nguồn cần đối chiếu lại."
+        />
+      )}
+
+      {kq.trangThai === 'PARTIAL' && (
+        <Alert
+          type="warning"
+          showIcon
+          message="Nguồn trả dưới một nửa số điểm đo đang hoạt động"
+          description="Không hẳn là lỗi: nguồn cập nhật rải trong cửa sổ x1:30 → x8:30 nên một lượt gọi sớm được phép thiếu trạm. Gọi lại sau vài phút; còn thiếu thì mới đáng hỏi phía nguồn."
+        />
+      )}
+
+      {kq.maChuaKhai.length > 0 && (
+        <Alert
+          type="info"
+          showIcon
+          message={`${kq.maChuaKhai.length} mã nguồn trả về mà chưa khai điểm đo`}
+          description={
+            <>
+              <Space size={4} wrap style={{ marginBottom: 8 }}>
+                {kq.maChuaKhai.map((ma) => (
+                  <Tag key={ma}>{ma}</Tag>
+                ))}
+              </Space>
+              <br />
+              Số đo của chúng vẫn được giữ lại, ⛔ nhưng hệ thống <b>không tự tạo điểm đo</b>: ta
+              chưa biết mã ấy là trạm nào, ở đâu, thuộc công trình gì. Cần bảng ánh xạ của Công ty
+              (G8) rồi khai tay ở màn hình Điểm đo.
+            </>
+          }
+        />
+      )}
+    </Space>
   );
 }
 

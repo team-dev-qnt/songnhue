@@ -203,6 +203,20 @@ app:
   hydro:
     api:
       key: ${HYDRO_API_KEY:}
+      # ⛔⛔ Hai công tắc NỚI BẢO MẬT — mặc định TẮT, và phải ở nguyên như vậy ngoài máy
+      #     lập trình viên. `HydroEnvSwitchTest` khẳng định không tệp deploy/env nào của
+      #     staging/prod/rehearse bật chúng; §10.57 là chuyện một cổng secret bỏ qua trong
+      #     im lặng làm CD Production xanh mà không byte nào chạm máy chủ.
+      #
+      #   allow-internal-host: cho nguồn trỏ vào 127.0.0.1 / 10.* / localhost. Tồn tại vì
+      #     bài kiểm dựng máy chủ HTTP thật (T30.9) bind vào loopback — không có nó thì
+      #     hoặc phép kiểm SSRF phải gỡ, hoặc bài kiểm phải mock đúng chỗ mã chạm ra ngoài
+      #     (luật 4, thứ đã làm pg_dump chưa từng chạy suốt 4 ngày).
+      #   mock: bật MockAdapter — nguồn GIẢ. ⛔ Dữ liệu nó sinh ra đi vào cùng bảng với dữ
+      #     liệu thật; lớp bảo vệ ở tầng cấu trúc là mã của nó mang tiền tố Z, không khớp
+      #     CHECK ^F[0-9]{5}$ của stations.api_code, nên không bao giờ tra ra điểm đo nào.
+      allow-internal-host: ${HYDRO_API_ALLOW_INTERNAL_HOST:false}
+      mock: ${HYDRO_API_MOCK:false}
 
   # Khoá ký access token (RS256). Thiếu file hoặc hai file không cùng một cặp →
   # app KHÔNG khởi động (JwtKeyStore). Sinh khoá: make gen-keys
@@ -278,7 +292,19 @@ app:
     bucket-report: ${MINIO_BUCKET_REPORT}
     bucket-audit: ${MINIO_BUCKET_AUDIT}
 
-# Tài liệu API (T4.10). Trên production nginx chặn 2 đường dẫn này (WS-11/T11.6).
+# Tài liệu API (T4.10).
+#
+# ⚠⚠ Câu ở đây trước 3/9/2026 là *"Trên production nginx chặn 2 đường dẫn này
+#    (WS-11/T11.6)"* — và nó SAI suốt từ lúc viết: toàn bộ cấu hình nginx của kho
+#    không có một dòng nào về swagger. Thứ giữ chúng khỏi ra ngoài là định tuyến:
+#    backend chỉ với tới được qua tiền tố `/api/`, mà hai đường dưới nằm ngoài nó.
+#    Một tai nạn may mắn, không phải một bảo đảm.
+#
+#    Bảo đảm thật nay ở `deploy/nginx/snippets/chan-tai-lieu-api.conf`, được
+#    `include` vào cả khối public lẫn khối admin của nginx biên, và
+#    `NginxApiDocsBlockedTest` canh việc include ấy còn đó.
+#
+# ⛔ Đừng chuyển hai đường dẫn dưới vào dưới `/api/` mà không đọc snippet ấy trước.
 springdoc:
   api-docs:
     path: /v3/api-docs

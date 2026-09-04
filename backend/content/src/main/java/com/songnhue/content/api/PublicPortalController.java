@@ -301,6 +301,47 @@ public class PublicPortalController {
                 .body(tep.content());
     }
 
+    /**
+     * Tài liệu đính kèm của một bài <b>đã xuất bản</b> — WS-40, CN-01.1.
+     *
+     * <h2>⛔⛔ Vì sao KHÔNG dùng {@code /public/files/&#123;id&#125;}</h2>
+     *
+     * Tệp tài liệu mang {@code owner_type = 'TAI_LIEU'}, <b>cố ý</b> không nằm trong
+     * {@code LOAI_TEP_CONG_KHAI}. Nới danh sách ấy là làm mọi tệp trong Kho tài liệu công khai
+     * <i>ngay khi tải lên</i> — kể cả bản dự thảo chưa ai duyệt, kể cả tệp của một bài đã gỡ.
+     * QuanTran chốt 04/09 là <b>siết</b>: chỉ tài liệu thuộc bài ĐÃ xuất bản mới tải được. Cùng
+     * khuôn với {@code /public/constructions/documents/&#123;id&#125;} của WS-27.
+     *
+     * <p>⛔ <b>404 trần cho mọi lý do từ chối</b> — bài còn Nháp, bài đã gỡ, tệp chưa quét xong, tệp
+     * sai kho, tệp không tồn tại: một câu trả lời duy nhất. Nói <i>"bài chưa xuất bản"</i> là xác
+     * nhận tệp có tồn tại. Ngoại lệ duy nhất là <b>413</b> (CMS-2017): lúc nó bắn ra thì tệp đã
+     * công khai, nên giấu lý do chỉ làm người biên tập không biết vì sao độc giả tải không được.
+     *
+     * <p>⚠ {@code attachment} chứ không {@code inline}: đây là văn bản để phát hành, không phải ảnh
+     * để hiện trong trang. Và thuộc tính {@code download} của HTML <b>bị bỏ qua khi khác gốc</b> —
+     * mà {@code API_BASE_URL} của cổng có thể khác gốc — nên header này là thứ duy nhất quyết định
+     * được tên tệp lúc lưu.
+     */
+    @GetMapping("/article-documents/{publicId}")
+    @Operation(summary = "Tài liệu đính kèm của một bài đã xuất bản — tải về")
+    @PublicEndpoint(reason = "Tệp đính kèm trong bài viết của cổng — CN-01.1, WS-40")
+    public ResponseEntity<byte[]> articleDocument(@PathVariable UUID publicId) {
+        AttachmentContent tep =
+                portal.articleDocument(publicId).orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(tep.contentType()))
+                // `immutable` an toàn: mỗi lượt tải lên sinh một `public_id` mới, nên thay tệp
+                // không bao giờ tái dùng UUID cũ.
+                .cacheControl(CacheControl.maxAge(java.time.Duration.ofSeconds(CACHE_TEP_GIAY))
+                        .cachePublic()
+                        .immutable())
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + HttpHeaderText.tenTepAnToan(tep.originalName()) + "\"")
+                .body(tep.content());
+    }
+
     /** Thời điểm máy chủ trả lời — cổng dùng để hiện "cập nhật lúc" mà không phụ thuộc giờ máy khách. */
     @GetMapping("/now")
     @Operation(summary = "Giờ máy chủ (UTC)")

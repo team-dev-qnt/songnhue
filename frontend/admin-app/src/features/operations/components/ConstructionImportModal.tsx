@@ -153,7 +153,7 @@ export function ConstructionImportModal({ open, onClose }: Props) {
                   rowKey={(r, i) => `${r.rowNumber}-${i}`}
                   pagination={false}
                   size="small"
-                  scroll={{ y: 250 }}
+                  scroll={{ x: 560, y: 250 }}
                 />
               </>
             ) : (

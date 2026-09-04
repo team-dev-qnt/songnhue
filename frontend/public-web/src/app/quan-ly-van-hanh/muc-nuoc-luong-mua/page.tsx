@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 
 import { PageShell } from '@/components/PageShell';
 import { SectionNav } from '@/components/SectionNav';
 import { RealtimeFrame } from '@/components/realtime/RealtimeFrame';
 import { getServerTime, getSiteConfig } from '@/lib/api';
+import { khoiVanHanhBat } from '@/lib/khoiVanHanh';
 import { ROUTES } from '@/lib/routes';
 import { docSo } from '@/lib/settings';
 import { KhoaDangNhap } from '@/components/realtime/KhoaDangNhap';
@@ -47,9 +49,23 @@ export const metadata: Metadata = {
  * <p>⛔ Nên trang này KHÔNG dựng một nút "Đăng nhập" dẫn tới hư không, và cũng không dựng sẵn
  * bảng tuần/tháng rồi ẩn bằng CSS. Ẩn ở giao diện là đúng thứ §2 cấm, và nó tạo ra <i>ảo giác
  * đã phân quyền</i> — loại sai nguy hiểm hơn hẳn một ô nói thẳng là chưa có.
+ *
+ * <h2>⭐ 04/09: trang này TẮT ĐƯỢC từ màn hình quản trị</h2>
+ *
+ * Cùng một công tắc với khối Nhóm 2 trên trang chủ — xem {@code lib/khoiVanHanh.ts}. Đây là trang
+ * chịu ảnh hưởng rõ nhất: chừng nào MOD-03 chưa cấp số liệu, Công ty tắt công tắc là ẩn được cả
+ * lối vào lẫn trang, thay vì để một khung "chưa có dữ liệu" đứng trên cổng.
+ *
+ * <p>⚠ {@code config} dùng lại lượt gọi đã có sẵn ngay dưới — ⛔ không gọi lượt thứ hai chỉ để
+ * hỏi một cờ.
  */
 export default async function MucNuocLuongMuaPage() {
   const [config, serverTime] = await Promise.all([getSiteConfig(), getServerTime()]);
+
+  if (!khoiVanHanhBat(config)) {
+    notFound();
+  }
+
   const nhipLamMoi = docSo(config?.['site.home.realtime.refresh-seconds'], 300);
 
   return (

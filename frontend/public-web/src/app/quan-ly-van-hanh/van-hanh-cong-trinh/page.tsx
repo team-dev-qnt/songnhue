@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 
 import { PageShell } from '@/components/PageShell';
 import { SectionNav } from '@/components/SectionNav';
@@ -8,6 +9,7 @@ import { KhoaDangNhap } from '@/components/realtime/KhoaDangNhap';
 import { RealtimeFrame } from '@/components/realtime/RealtimeFrame';
 import { getOperationStatuses, getServerTime, getSiteConfig } from '@/lib/api';
 import { COT_VAN_HANH } from '@/lib/homeDataColumns';
+import { khoiVanHanhBat } from '@/lib/khoiVanHanh';
 import { ROUTES } from '@/lib/routes';
 import { docSo } from '@/lib/settings';
 
@@ -48,6 +50,16 @@ export const metadata: Metadata = {
  * </ol>
  *
  * <p>⛔ Rỗng thì nói thẳng là rỗng, không dựng sẵn lưới dấu gạch (§10.54).
+ *
+ * <h2>⭐ 04/09: trang này TẮT ĐƯỢC từ màn hình quản trị</h2>
+ *
+ * Cùng một công tắc với khối Nhóm 2 trên trang chủ — xem {@code lib/khoiVanHanh.ts}. Tắt ⇒ mục
+ * menu biến mất khỏi thanh điều hướng, chân trang, dải mục và sidebar, <b>và</b> địa chỉ này trả
+ * 404. Ẩn lối vào mà vẫn để trang mở là nửa vòng: ai có liên kết cũ, hoặc công cụ tìm kiếm đã lập
+ * chỉ mục, vẫn dẫn người dùng vào một trang Công ty đã quyết định không công bố.
+ *
+ * <p>⚠ {@code config} dùng lại lượt gọi đã có sẵn ngay dưới — ⛔ không gọi {@code getSiteConfig()}
+ * lượt thứ hai chỉ để hỏi một cờ; thêm một lượt gọi là thêm một điểm hỏng.
  */
 export default async function VanHanhCongTrinhPage() {
   const [config, tinhHinhVanHanh, serverTime] = await Promise.all([
@@ -55,6 +67,11 @@ export default async function VanHanhCongTrinhPage() {
     getOperationStatuses(),
     getServerTime(),
   ]);
+
+  if (!khoiVanHanhBat(config)) {
+    notFound();
+  }
+
   const nhipLamMoi = docSo(config?.['site.home.realtime.refresh-seconds'], 300);
   const dong = tinhHinhVanHanh ?? [];
 

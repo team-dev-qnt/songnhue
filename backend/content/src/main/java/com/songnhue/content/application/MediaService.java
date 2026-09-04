@@ -7,6 +7,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.songnhue.content.domain.KhoTep;
 import com.songnhue.content.domain.MediaFolder;
 import com.songnhue.content.infra.ArticleRepository;
 import com.songnhue.content.infra.MediaFolderRepository;
@@ -31,32 +32,6 @@ public class MediaService {
 
     /** Giá trị giữ chỗ cho lượt INSERT đầu — {@code path} chứa chính id do CSDL sinh. */
     private static final String PATH_TAM = "/";
-
-    /**
-     * Định dạng nhận được ở thư viện media.
-     *
-     * <p>⛔ <b>Không có {@code image/svg+xml}</b> — điểm nghiệp vụ 7. SVG chạy được JavaScript, nên
-     * nó chỉ vào hệ thống qua màn hình cấu hình giao diện (người tải là Quản trị viên) và phải qua
-     * {@code SvgSanitizer}. Ảnh trong bài viết thì không nhận SVG, chấm hết.
-     */
-    private static final List<String> DINH_DANG_ANH = List.of("image/jpeg", "image/png", "image/gif", "image/webp");
-
-    private static final List<String> DINH_DANG_VIDEO = List.of("video/mp4", "video/webm");
-
-    private static final List<String> DINH_DANG_TAI_LIEU = List.of(
-            "application/pdf",
-            "application/zip",
-            "application/msword",
-            "application/vnd.ms-excel",
-            "application/x-ole-storage",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-
-    /** Mọi định dạng thư viện media chấp nhận — hợp của ba nhóm trên. */
-    private static final List<String> TAT_CA = java.util.stream.Stream.of(
-                    DINH_DANG_ANH, DINH_DANG_VIDEO, DINH_DANG_TAI_LIEU)
-            .flatMap(List::stream)
-            .toList();
 
     private final MediaFolderRepository folders;
     private final ArticleRepository articles;
@@ -122,8 +97,15 @@ public class MediaService {
         if (folders.countByParentIdAndDeletedAtIsNull(folder.getId()) > 0) {
             throw new BusinessRuleException(ErrorCode.CMS_2004);
         }
-        if (!attachments.refsOf(MediaFolder.OWNER_TYPE, folder.getId()).isEmpty()) {
-            throw new BusinessRuleException(ErrorCode.CMS_2008);
+        // ⚠⚠ Duyệt CẢ HAI kho — 04/09. Một thư mục mang cả ảnh (`MEDIA_FOLDER`) lẫn tài liệu
+        //    (`TAI_LIEU`) vì `owner_id` của cả hai đều trỏ vào chính thư mục này. Chỉ hỏi kho media
+        //    là xoá được một thư mục vẫn còn nguyên tài liệu bên trong — và xoá thư mục KHÔNG xoá
+        //    tệp, nên hệ quả là một đống tệp mất lối vào, im lặng. Vòng lặp trên `values()` chứ
+        //    không hai lời gọi rời: thêm kho thứ ba thì chỗ này không phải nhớ gì (quy tắc 12).
+        for (KhoTep kho : KhoTep.values()) {
+            if (!attachments.refsOf(kho.ownerType(), folder.getId()).isEmpty()) {
+                throw new BusinessRuleException(ErrorCode.CMS_2008);
+            }
         }
         folder.markDeleted(Instant.now());
     }
@@ -131,8 +113,8 @@ public class MediaService {
     // ---- Tệp -----------------------------------------------------------------
 
     @Transactional(readOnly = true)
-    public List<AttachmentRef> filesIn(UUID folderPublicId) {
-        return attachments.refsOf(MediaFolder.OWNER_TYPE, folder(folderPublicId).getId());
+    public List<AttachmentRef> filesIn(UUID folderPublicId, KhoTep kho) {
+        return attachments.refsOf(kho.ownerType(), folder(folderPublicId).getId());
     }
 
     /**
@@ -147,11 +129,12 @@ public class MediaService {
      * thư viện thay vì trong một thư mục. Lúc đó việc phải làm là mở rộng SPI, không phải phân trang
      * cái danh sách đã nằm sẵn trong bộ nhớ.
      *
+     * @param kho kho tệp — {@link KhoTep#MEDIA} (ảnh, video) hay {@link KhoTep#TAI_LIEU}
      * @param nhom {@code "image"}, {@code "video"}, {@code "document"}; {@code null} = mọi loại
      */
     @Transactional(readOnly = true)
-    public List<AttachmentRef> filesIn(UUID folderPublicId, String nhom, Instant tuNgay, Instant denNgay) {
-        return filesIn(folderPublicId).stream()
+    public List<AttachmentRef> filesIn(UUID folderPublicId, KhoTep kho, String nhom, Instant tuNgay, Instant denNgay) {
+        return filesIn(folderPublicId, kho).stream()
                 .filter(ref -> nhom == null || nhom.isBlank() || nhom.equals(nhomCua(ref.contentType())))
                 .filter(ref -> tuNgay == null || !ref.createdAt().isBefore(tuNgay))
                 .filter(ref -> denNgay == null || !ref.createdAt().isAfter(denNgay))
@@ -178,12 +161,16 @@ public class MediaService {
      * <p>Định dạng kiểm bằng <b>magic bytes</b> trong {@link AttachmentPort}, không tin đuôi tệp và
      * không tin {@code Content-Type} trình duyệt gửi. Giới hạn dung lượng đọc từ {@code settings}
      * theo nhóm định dạng — cùng cơ chế đã sửa ở WS-12/T12.6.
+     *
+     * <p>⭐ 04/09: <b>danh sách định dạng nay do {@code kho} quyết định</b>, không còn là hợp của cả
+     * ba nhóm. Đường media chỉ nhận ảnh + video; PDF/DOCX/XLSX đi đường {@link KhoTep#TAI_LIEU}. Đây
+     * là chỗ ranh giới công bố được ép — xem javadoc {@link KhoTep}.
      */
     @Transactional
-    public AttachmentRef upload(UUID folderPublicId, String originalName, byte[] content) {
+    public AttachmentRef upload(UUID folderPublicId, KhoTep kho, String originalName, byte[] content) {
         MediaFolder folder = folder(folderPublicId);
         return attachments.upload(new AttachmentUploadCommand(
-                MediaFolder.OWNER_TYPE, folder.getId(), "MEDIA", originalName, content, TAT_CA));
+                kho.ownerType(), folder.getId(), kho.purpose(), originalName, content, kho.dinhDangChoPhep()));
     }
 
     /** Đường dẫn tải về — presigned URL, hạn ngắn. */

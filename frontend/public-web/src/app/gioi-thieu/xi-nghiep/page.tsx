@@ -16,14 +16,13 @@ export const metadata: Metadata = {
 };
 
 /** Sáu cột đúng thứ tự CR-26 — bảng ở đây và bảng trong tài liệu phải đọc ra cùng một thứ. */
-const COT = [
-  'Tên Xí nghiệp',
-  'Địa chỉ',
-  'Điện thoại',
-  'Email',
-  'Giám đốc Xí nghiệp',
-  'Điện thoại liên hệ',
-];
+/**
+ * ⚠⚠ 01/09/2026 — bỏ cột cuối "Điện thoại liên hệ" (số của **giám đốc**, tức của một cá nhân).
+ *
+ * ⛔ Cột "Điện thoại" thứ ba GIỮ NGUYÊN: đó là tổng đài của **đơn vị**. Ranh giới của cả đợt gỡ
+ * này là gỡ số của người, giữ số của tổ chức.
+ */
+const COT = ['Tên Xí nghiệp', 'Địa chỉ', 'Điện thoại', 'Email', 'Giám đốc Xí nghiệp'];
 
 /**
  * Giới thiệu &gt; **Xí nghiệp trực thuộc** — CR-26, bảng sáu cột.
@@ -54,8 +53,7 @@ export default async function XiNghiepPage() {
         <div className="overflow-x-auto rounded-xl border border-surface-border bg-white shadow-xs">
           <table className="w-full min-w-[900px] border-collapse text-sm">
             <caption className="sr-only">
-              Bảng Xí nghiệp trực thuộc gồm tên, địa chỉ, điện thoại, email, Giám đốc và điện thoại
-              liên hệ
+              Bảng Xí nghiệp trực thuộc gồm tên, địa chỉ, điện thoại, email và Giám đốc
             </caption>
             <thead>
               <tr className="bg-brand-primaryLight text-left text-xs text-brand-primary">
@@ -94,9 +92,6 @@ export default async function XiNghiepPage() {
                   </td>
                   <td className="px-4 py-3 text-surface-textBase">
                     <OTrong giaTri={xn.directorName} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <SoDienThoai so={xn.directorPhone} />
                   </td>
                 </tr>
               ))}

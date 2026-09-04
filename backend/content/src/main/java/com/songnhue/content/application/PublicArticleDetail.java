@@ -37,7 +37,27 @@ public record PublicArticleDetail(
         boolean archived,
         String docNumber,
         LocalDate docIssuedDate,
-        List<CategoryRef> categories) {
+        List<CategoryRef> categories,
+        List<TaiLieuRef> documents) {
 
     public record CategoryRef(String slug, String name) {}
+
+    /**
+     * Một tài liệu đính kèm <b>đã đủ điều kiện phục vụ</b> — WS-40.
+     *
+     * <p>⛔ Danh sách này chỉ chứa tệp <b>tải về được thật</b>: đúng kho ({@code TAI_LIEU}), chưa
+     * xoá, đã quét virus xong. Một dòng có tên mà bấm vào là 404 tệ hơn hẳn một dòng không có —
+     * đúng hình dạng §10.52, nơi bài kiểm chỉ đi nhánh 404 nên chưa ai thấy ảnh cổng chưa từng ra
+     * được một byte.
+     *
+     * <p>⛔ Rỗng thì nơi hiển thị <b>bỏ hẳn khối</b>, không vẽ "Đang cập nhật" (quy tắc 16).
+     *
+     * @param title chữ hiện trên cổng — {@code label} do người biên tập đặt, hoặc tên gốc của tệp
+     *     khi chưa ai đặt. ⭐ Việc rơi-về-tên-gốc quyết định ở ĐÂY, một chỗ duy nhất: để phía giao
+     *     diện tự chọn thì khối cuối bài, liên kết giữa nội dung và tên tệp lúc tải về sẽ nói ba
+     *     kiểu khác nhau (quy tắc 12)
+     * @param contentType để giao diện in nhãn loại (pdf/docx/xlsx) — ⛔ không suy từ đuôi tên tệp,
+     *     tên do người dùng đặt còn cái này do magic-bytes xác định
+     */
+    public record TaiLieuRef(UUID publicId, String title, String contentType, long sizeBytes) {}
 }

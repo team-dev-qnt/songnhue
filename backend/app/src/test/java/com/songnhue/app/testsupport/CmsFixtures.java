@@ -72,7 +72,13 @@ public final class CmsFixtures {
         jdbc.update("DELETE FROM articles WHERE id > ?", mocBaiViet);
         jdbc.update("DELETE FROM categories WHERE id > ?", mocDanhMuc);
 
-        jdbc.update("DELETE FROM attachments WHERE owner_type IN ('MEDIA_FOLDER', 'BANNER', 'SITE_CONFIG')");
+        // ⚠ `TAI_LIEU` vào danh sách 04/09 (WS-40) — kho tài liệu dùng CHUNG bảng `attachments` với
+        //   thư viện media, chỉ khác `owner_type`. Quên nó thì tệp tài liệu tích tụ qua từng bài
+        //   kiểm, và triệu chứng là những con số đếm cứ lớn dần — đúng lỗi mà javadoc lớp này kể.
+        //   ⛔ Hai bảng nối (`article_attachments`, `article_version_attachments`) KHÔNG cần dòng
+        //      xoá riêng: chúng có ON DELETE CASCADE từ `articles`/`article_versions` đã xoá ở trên.
+        jdbc.update(
+                "DELETE FROM attachments WHERE owner_type IN ('MEDIA_FOLDER', 'BANNER', 'SITE_CONFIG', 'TAI_LIEU')");
         jdbc.update("DELETE FROM media_folders");
     }
 

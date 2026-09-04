@@ -3,11 +3,12 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { Breadcrumb } from '@/components/Breadcrumb';
-import { PortalImage } from '@/components/PortalImage';
 import { PortalSidebar } from '@/components/PortalSidebar';
 import { ViewTracker } from '@/components/ViewTracker';
+import { TaiLieuDinhKem } from '@/components/article/TaiLieuDinhKem';
 import { getArticle, getArticles, getSiteConfig } from '@/lib/api';
 import { docNguonBaiViet } from '@/lib/nguonBaiViet';
+import { khoiVanHanhBat } from '@/lib/khoiVanHanh';
 import { fileUrl, formatDate, ROUTES } from '@/lib/routes';
 
 /** Trang chi tiết một bài viết — T16.2. */
@@ -60,12 +61,11 @@ export default async function ArticlePage({ params }: PageProps) {
     notFound();
   }
 
-  const cover = fileUrl(article.coverAttachmentPublicId);
   const primaryCategory = article.categories.length > 0 ? article.categories[0] : null;
   const nguon = docNguonBaiViet(article.source);
 
   return (
-    <div className="mx-auto max-w-[1232px] px-4 py-6 sm:px-6 sm:py-8 animate-fade-in">
+    <div className="mx-auto max-w-[1232px] px-4 py-4 sm:px-6 animate-fade-in">
       {/* ───── Breadcrumbs Điều hướng ───── */}
       <Breadcrumb
         items={[
@@ -133,20 +133,12 @@ export default async function ArticlePage({ params }: PageProps) {
               </div>
             ) : null}
 
-            {/* Ảnh minh họa bài viết nếu có */}
-            {cover ? (
-              // ⚠ Bản trước: `<img className="w-full object-cover">` trong một div không có
-              //   chiều cao. `object-cover` chỉ có tác dụng khi khung ĐÃ có kích thước — không
-              //   có thì nó là một khai báo chết, ảnh vẫn hiện theo tỉ lệ gốc. Nặng hơn: khung
-              //   cao 0 cho tới lúc ảnh về rồi bung ra, đẩy toàn bộ bài viết xuống (CLS).
-              <PortalImage
-                src={cover}
-                alt={article.title}
-                ratio="aspect-[16/9]"
-                priority
-                className="mt-6 rounded-xl shadow-xs"
-              />
-            ) : null}
+            {/* ⚠⚠ 01/09/2026 — KHÔNG vẽ ảnh bìa ở trang chi tiết nữa.
+                Ảnh đại diện là ảnh cho DANH SÁCH (thẻ tin, chia sẻ mạng xã hội). Biên tập viên
+                gần như luôn chọn nó từ chính ảnh đầu trong thân bài, nên trang chi tiết hiện
+                cùng một tấm ảnh HAI LẦN, cách nhau vài dòng.
+                ⛔ `cover` vẫn được tính ở `generateMetadata` cho `og:image` — đó là thứ KHÁC:
+                bỏ nhầm nó là mọi lượt chia sẻ bài viết lên mạng xã hội mất ảnh. */}
 
             {/* Nội dung bài viết chuẩn sn-article đã khử độc HTML */}
             <div
@@ -154,6 +146,10 @@ export default async function ArticlePage({ params }: PageProps) {
               // eslint-disable-next-line react/no-danger -- HtmlSanitizer (BE) đã lọc lúc GHI
               dangerouslySetInnerHTML={{ __html: article.content }}
             />
+
+            {/* Tài liệu đính kèm — WS-40. ⛔ Component tự biến mất khi mảng rỗng, nên KHÔNG bọc
+                thêm điều kiện ở đây: hai chỗ cùng quyết định một việc là hai chỗ có thể lệch. */}
+            <TaiLieuDinhKem documents={article.documents} />
 
             {/* Dải chân bài viết: Chia sẻ & Quay lại */}
             <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-surface-border/80 pt-4 text-xs">
@@ -195,6 +191,7 @@ export default async function ArticlePage({ params }: PageProps) {
             latestArticles={latestNews?.content ?? []}
             hotline={config?.['company.hotline']}
             docSystemUrl={config?.['site.external.doc-system-url']}
+            hienKhoiVanHanh={khoiVanHanhBat(config)}
           />
         </div>
       </div>

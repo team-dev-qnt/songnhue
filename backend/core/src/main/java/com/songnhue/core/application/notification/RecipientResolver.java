@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -149,16 +150,51 @@ public class RecipientResolver {
     /**
      * Nhóm "Ban điều hành" từ bảng {@code settings}.
      *
+     * <h2>⚠⚠ Giá trị là mảng {@code publicId} (UUID) — WS-33 sửa một lệch kiểu đã sống 21 ngày</h2>
+     *
+     * <p>Seed {@code V202608131009} mô tả khoá này là <i>"Danh sách publicId tài khoản, Admin sửa
+     * (chốt G11)"</i>. Bản đầu của hàm này lại đọc {@code Long[].class}. Hai vế lệch nhau ở đúng chỗ
+     * <b>không ai nhìn</b>, và triệu chứng thì im lặng hoàn hảo: Admin nhập đúng như nhãn dặn ⇒
+     * Jackson ném ⇒ khối {@code catch} bên dưới nuốt thành một dòng {@code log.error} ⇒ nhóm rỗng ⇒
+     * màn hình báo <i>lưu thành công</i> ⇒ mọi cảnh báo tới <b>0 người</b>, trong khi bảng
+     * {@code notifications} vẫn đầy dòng.
+     *
+     * <p>Giá trị chưa từng khác {@code '[]'} nên chưa ai cắn phải — và đó chính là lý do nó sống
+     * được tới hôm nay: một lỗi chỉ nổ khi tính năng bắt đầu được dùng thật.
+     *
+     * <p>⛔ Chữa ở phía mã, ⛔ không sửa nhãn: id nội bộ ⛔ không được lộ ra giao diện, và ô chọn
+     * người dùng vốn gửi {@code publicId}.
+     *
      * <p>Giá trị hỏng thì trả rỗng và ghi log, <b>không ném</b>: một dòng cấu hình sai không được
      * phép chặn luôn việc gửi cảnh báo cho những người nhận còn lại (người phụ trách công trình).
      */
     private List<Long> executiveBoard() {
         String raw = settings.getString(KEY_EXECUTIVE_BOARD).orElse("[]");
+        List<UUID> publicIds;
         try {
-            return List.of(objectMapper.readValue(raw, Long[].class));
-        } catch (JsonProcessingException e) {
-            log.error("Tham số '{}' không phải mảng JSON hợp lệ — bỏ qua nhóm này", KEY_EXECUTIVE_BOARD, e);
+            publicIds = List.of(objectMapper.readValue(raw, UUID[].class));
+        } catch (JsonProcessingException | IllegalArgumentException e) {
+            log.error(
+                    "Tham số '{}' không phải mảng publicId (UUID) hợp lệ — bỏ qua nhóm này. Giá trị: {}",
+                    KEY_EXECUTIVE_BOARD,
+                    raw,
+                    e);
             return List.of();
         }
+        if (publicIds.isEmpty()) {
+            return List.of();
+        }
+        List<Long> ids = users.findIdsByPublicIds(publicIds);
+        if (ids.size() < publicIds.size()) {
+            // ⚠ Không ném: nhóm còn lại vẫn phải nhận được. Nhưng cũng ⛔ không im lặng — một
+            //   publicId trỏ vào khoảng không nghĩa là ai đó đã bị xoá khỏi hệ thống mà danh sách
+            //   này chưa được dọn, và không ai biết cho tới khi có người đếm.
+            log.warn(
+                    "Nhóm '{}' khai {} tài khoản nhưng chỉ tra được {} — có publicId không còn tồn tại",
+                    KEY_EXECUTIVE_BOARD,
+                    publicIds.size(),
+                    ids.size());
+        }
+        return ids;
     }
 }

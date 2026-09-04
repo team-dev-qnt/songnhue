@@ -323,7 +323,17 @@ services:
       # Cổng công khai gọi theo TÊN SERVICE trong mạng Docker — dùng tên miền
       # thật thì lượt dựng lại trang ISR phải đi vòng ra ngoài không cần thiết.
       PORTAL_BASE_URL: http://public-web:3000
-      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=70 -XX:+ExitOnOutOfMemoryError -Duser.timezone=UTC"
+      # ⛔ `spring.expression.compiler.mode=off` là một CAM KẾT BẢO MẬT, không phải chỉnh hiệu năng
+      #    — T11.73. CVE-2026-59283 (9.1) là lách được lớp bảo vệ của `SimpleEvaluationContext`
+      #    **khi trình biên dịch SpEL đang bật**, và bản vá chỉ có ở Spring Framework 7.0.9 (tức
+      #    Boot 4 — T11.69). Tới lúc đó, thứ DUY NHẤT chặn nó là giá trị mặc định `OFF` của
+      #    framework, mà đo 3/9/2026 thì giá trị ấy không được khai ở bất kỳ đâu trong kho.
+      #    Luật 3: canh giá trị ĐÃ GIẢI, đừng canh giá trị MẶC ĐỊNH — mặc định là thứ của người
+      #    khác, họ đổi lúc nào không ai báo ta. Khai tường minh biến nó thành một giá trị đo được
+      #    và một thay đổi có người duyệt. ⚠ GIỮ NGUYÊN cả sau khi lên Boot 4: bản vá xử lý lỗ
+      #    hổng đã biết, dòng này xử lý cả những lỗ hổng cùng họ chưa ai đặt tên.
+      #    Bộ canh: `SpelCompilerTatTest`.
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=70 -XX:+ExitOnOutOfMemoryError -Duser.timezone=UTC -Dspring.expression.compiler.mode=off"
     volumes:
       # ⛔ Khoá KHÔNG BAO GIỜ nằm trong image và không nằm trong bản backup DB.
       #    Lộ backup + lộ khoá = lộ toàn bộ employee_sensitive.
@@ -368,7 +378,7 @@ services:
   # nginx biên — nơi kết thúc TLS, cửa DUY NHẤT ra Internet
   # ---------------------------------------------------------------------------
   nginx:
-    image: nginx:1.27-alpine
+    image: nginx:1.30-alpine
     container_name: songnhue-nginx
     restart: unless-stopped
     depends_on: [admin-app, public-web]
@@ -429,7 +439,7 @@ services:
   # host khi gia hạn (xem docs/deploy-guideline.md §5).
   # ---------------------------------------------------------------------------
   certbot:
-    image: certbot/certbot:latest
+    image: certbot/certbot:v5.8.0
     container_name: songnhue-certbot
     profiles: ["certbot"]
     volumes:

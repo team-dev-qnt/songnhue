@@ -145,6 +145,63 @@ class ConstructionHttpTest extends IntegrationTestBase {
         assertThat(tao.getBody()).contains("OPS-3001");
     }
 
+    /**
+     * ⚠⚠ Sắp xếp mặc định mà GIAO DIỆN gửi phải nằm trong bảng trắng của backend.
+     *
+     * <p>Lỗi đã có thật, đo ngày 01/09/2026: {@code ConstructionsPage.tsx} khai
+     * {@code useState('updatedAt,desc')} — tức tham số ấy đi kèm <b>mọi</b> lượt gọi, kể cả lượt
+     * tải đầu — trong khi {@code updatedAt} không có trong {@code ConstructionService.SAP_XEP_CHO_PHEP}.
+     * {@code PageUtils.parseSort} <b>ném</b> {@code SORT_FIELD_NOT_ALLOWED} chứ không lặng lẽ bỏ qua,
+     * nên <b>màn hình danh mục công trình trả 422 ngay lượt tải đầu tiên</b> — và đó cũng là màn hình
+     * đặt nút "Nhập nhanh tình hình vận hành".
+     *
+     * <p>⛔ Vì sao không ai thấy suốt thời gian ấy: bảng vốn đang rỗng thật (G8 chưa có danh mục công
+     * trình), nên "rỗng" trông đúng — <i>triệu chứng trùng khít trạng thái đúng</i> (§10.62).
+     *
+     * <p>⭐ Bài này <b>đọc giá trị mặc định từ chính tệp giao diện</b> thay vì chép lại chuỗi
+     * {@code "updatedAt,desc"}: chép lại thì ngày nào ai đó đổi mặc định sang một trường khác cũng
+     * không được phép, bài kiểm vẫn xanh và lỗi tái phát y nguyên.
+     */
+    @Test
+    @DisplayName("⭐⭐ Sắp xếp mặc định của ConstructionsPage.tsx phải được backend chấp nhận")
+    void defaultSortFromTheAdminScreenIsAccepted() throws java.io.IOException {
+        java.nio.file.Path trang = gocKho().resolve("frontend/admin-app/src/features/operations/ConstructionsPage.tsx");
+        String nguon = java.nio.file.Files.readString(trang, java.nio.charset.StandardCharsets.UTF_8);
+
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("useState\\(\\s*'([A-Za-z]+,(?:asc|desc))'\\s*\\)")
+                .matcher(nguon);
+        assertThat(m.find())
+                .as(
+                        "không bóc được sort mặc định từ %s — trang đổi cách khai? (luật 7: tập rỗng thì "
+                                + "khẳng định dưới đây vô nghĩa)",
+                        trang)
+                .isTrue();
+        String sortMacDinh = m.group(1);
+
+        ResponseEntity<String> danhSach =
+                phienHttp.get(duQuyen, "/api/v1/ops/constructions?page=1&size=20&sort=" + sortMacDinh);
+
+        assertThat(danhSach.getStatusCode())
+                .as(
+                        "giao diện gửi `sort=%s` ở MỌI lượt gọi; backend từ chối là màn hình trắng ngay "
+                                + "lượt tải đầu, không phải khi người dùng bấm gì cả",
+                        sortMacDinh)
+                .isEqualTo(HttpStatus.OK);
+        assertThat(danhSach.getBody()).doesNotContain("SORT_FIELD_NOT_ALLOWED");
+    }
+
+    /** Đi ngược lên tới thư mục chứa {@code .claude} — chạy được cả từ module lẫn từ gốc repo. */
+    private static java.nio.file.Path gocKho() {
+        java.nio.file.Path p = java.nio.file.Paths.get("").toAbsolutePath();
+        while (p != null && !java.nio.file.Files.isDirectory(p.resolve(".claude"))) {
+            p = p.getParent();
+        }
+        if (p == null) {
+            throw new IllegalStateException("Không tìm thấy gốc repo (thư mục chứa .claude)");
+        }
+        return p;
+    }
+
     @Test
     @DisplayName("Thiếu quyền → 403 AUTH-3001, đúng tầng 2")
     void withoutPermissionIsForbidden() {

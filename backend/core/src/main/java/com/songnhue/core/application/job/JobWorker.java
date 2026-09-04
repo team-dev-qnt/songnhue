@@ -201,6 +201,17 @@ public class JobWorker {
                             .ifPresent(fresh -> {
                                 fresh.updateProgress(percent);
                                 repository.save(fresh);
+                            })),
+                    // ⭐ Đường ghi cho `jobs.result` — WS-34/T34.7. Cột này có ba nơi ĐỌC từ Phase 0
+                    //   và cho tới đợt này ⛔ KHÔNG có nơi ghi nào; xem javadoc JobContext.
+                    //   ⚠ Ghi trong giao dịch RIÊNG, cùng khuôn với `progress`: handler có thể còn
+                    //     chạy tiếp và ném sau đó, và khi ấy con trỏ vẫn phải còn để người vận hành
+                    //     tra được tệp đã sinh ra dở tới đâu.
+                    conTro -> transactions.executeWithoutResult(status -> repository
+                            .findByPublicId(job.getPublicId())
+                            .ifPresent(fresh -> {
+                                fresh.ghiConTroKetQua(conTro);
+                                repository.save(fresh);
                             }))));
 
             succeed(job);

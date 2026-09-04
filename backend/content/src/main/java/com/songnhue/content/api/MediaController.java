@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.songnhue.content.application.MediaService;
+import com.songnhue.content.domain.KhoTep;
 import com.songnhue.content.domain.MediaFolder;
 import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.ValidationException;
@@ -100,15 +101,29 @@ public class MediaController {
 
     // ---- Tệp -----------------------------------------------------------------
 
+    /**
+     * Tệp trong một thư mục.
+     *
+     * <p>⭐ {@code kho} chọn <b>kho nào</b> ({@code MEDIA} ảnh+video · {@code TAI_LIEU} tài liệu) —
+     * thiếu tham số thì là {@code MEDIA}, giữ nguyên hành vi của mọi nơi gọi có trước 04/09.
+     * {@code type} vẫn lọc theo <b>nhóm định dạng bên trong</b> một kho; hai tham số ấy trả lời hai
+     * câu hỏi khác nhau và không thay thế cho nhau.
+     *
+     * <p>⚠ Cho tới 04/09 giao diện gửi xuống {@code contentType} — <b>một tham số không ai đọc</b>
+     * (backend chỉ nhận {@code type}/{@code from}/{@code to}). Chưa nơi gọi nào truyền nên nó im
+     * lặng; truyền vào mà tưởng đã lọc thì nhận về <i>tất cả</i>. Đã sửa ở {@code cms/api.ts} cùng
+     * đợt — quy tắc 15.
+     */
     @GetMapping("/folders/{folderId}/files")
-    @Operation(summary = "Tệp trong một thư mục, lọc theo loại và khoảng ngày")
+    @Operation(summary = "Tệp trong một thư mục, lọc theo kho, loại và khoảng ngày")
     @RequirePermission("cms:media:manage")
     public List<MediaFile> files(
             @PathVariable UUID folderId,
+            @RequestParam(required = false) String kho,
             @RequestParam(required = false) String type,
             @RequestParam(required = false) Instant from,
             @RequestParam(required = false) Instant to) {
-        return media.filesIn(folderId, type, from, to).stream()
+        return media.filesIn(folderId, khoTep(kho), type, from, to).stream()
                 .map(MediaFile::of)
                 .toList();
     }
@@ -128,13 +143,16 @@ public class MediaController {
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Tải tệp lên thư mục")
     @RequirePermission("cms:media:manage")
-    public MediaFile upload(@PathVariable UUID folderId, @RequestPart("file") MultipartFile file) {
+    public MediaFile upload(
+            @PathVariable UUID folderId,
+            @RequestParam(required = false) String kho,
+            @RequestPart("file") MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw (ValidationException)
                     new ValidationException(ErrorCode.SYS_0003).withDetail("file", "FILE_EMPTY", "");
         }
         try {
-            return MediaFile.of(media.upload(folderId, file.getOriginalFilename(), file.getBytes()));
+            return MediaFile.of(media.upload(folderId, khoTep(kho), file.getOriginalFilename(), file.getBytes()));
         } catch (IOException e) {
             // Luồng tải lên đứt giữa chừng. Không phải lỗi của người dùng theo nghĩa dữ liệu sai,
             // nhưng cũng không phải lỗi hệ thống — nói rõ là tệp chưa lên tới nơi.
@@ -174,6 +192,22 @@ public class MediaController {
     }
 
     // -------------------------------------------------------------------------
+
+    /**
+     * Đọc tham số {@code kho}, biến giá trị lạ thành <b>lỗi 422 có thông điệp</b>.
+     *
+     * <p>{@link KhoTep#tuThamSo} ném {@link IllegalArgumentException} — để nó bay lên thì
+     * {@code GlobalExceptionHandler} trả 500, một lỗi hệ thống cho một lỗi nhập liệu. Bọc ở đây,
+     * chỗ duy nhất giá trị của người dùng đi vào, chứ không ở enum: enum không biết gì về HTTP.
+     */
+    private static KhoTep khoTep(String kho) {
+        try {
+            return KhoTep.tuThamSo(kho);
+        } catch (IllegalArgumentException e) {
+            throw (ValidationException)
+                    new ValidationException(ErrorCode.SYS_0003, e).withDetail("kho", "KHO_KHONG_HOP_LE", kho);
+        }
+    }
 
     private static FolderNode toNode(MediaFolder f, List<MediaFolder> all) {
         UUID parentPublicId = f.getParentId() == null

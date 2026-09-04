@@ -1,4 +1,5 @@
 import {
+  AlertOutlined,
   ApartmentOutlined,
   AppstoreOutlined,
   AuditOutlined,
@@ -6,6 +7,8 @@ import {
   CloudServerOutlined,
   DashboardOutlined,
   HeartOutlined,
+  ExperimentOutlined,
+  HistoryOutlined,
   InboxOutlined,
   FileTextOutlined,
   FundProjectionScreenOutlined,
@@ -13,10 +16,12 @@ import {
   LayoutOutlined,
   PictureOutlined,
   MailOutlined,
+  QuestionCircleOutlined,
   ReadOutlined,
   SafetyCertificateOutlined,
   SettingOutlined,
   TeamOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 import { type ReactNode } from 'react';
 
@@ -100,6 +105,74 @@ export const MENU: readonly MenuNode[] = [
         path: '/thuy-van/nguon-du-lieu',
         permissions: ['hyd:api-source:manage'],
       },
+      {
+        key: 'nhat-ky-dong-bo',
+        label: 'Nhật ký đồng bộ',
+        icon: <HistoryOutlined />,
+        path: '/thuy-van/nhat-ky-dong-bo',
+        permissions: ['hyd:measurement:view', 'hyd:api-source:manage'],
+      },
+      {
+        key: 'ma-la',
+        label: 'Mã lạ từ nguồn',
+        icon: <QuestionCircleOutlined />,
+        path: '/thuy-van/ma-la',
+        permissions: ['hyd:measurement:view', 'hyd:api-source:manage'],
+      },
+      {
+        // ⚠ Gác bằng `hyd:measurement:view` — quyền RỘNG NHẤT trong ba quyền của trang. Người
+        //   không duyệt được vẫn phải THẤY số liệu nào đang bị treo, vì chính họ là người đọc
+        //   biểu đồ có lỗ hổng ấy. Nút Duyệt / Nhập tay tự ẩn theo quyền hẹp hơn ở trong trang.
+        key: 'du-lieu-nghi-ngo',
+        label: 'Dữ liệu nghi ngờ',
+        icon: <ExperimentOutlined />,
+        path: '/thuy-van/du-lieu-nghi-ngo',
+        permissions: ['hyd:measurement:view', 'hyd:measurement:review'],
+      },
+      {
+        key: 'muc-canh-bao',
+        label: 'Mức cảnh báo',
+        icon: <AppstoreOutlined />,
+        path: '/thuy-van/muc-canh-bao',
+        permissions: ['hyd:threshold:view'],
+      },
+      {
+        key: 'nguong-canh-bao',
+        label: 'Ngưỡng cảnh báo',
+        icon: <WarningOutlined />,
+        path: '/thuy-van/nguong-canh-bao',
+        permissions: ['hyd:threshold:view'],
+      },
+      {
+        // ⚠ `hyd:alert:view` — quyền RỘNG NHẤT của trang. Người không xử lý được vẫn phải THẤY
+        //   cảnh báo nào đang mở; nút Đã xử lý / Báo động giả tự ẩn theo `hyd:alert:handle`.
+        key: 'canh-bao',
+        label: 'Cảnh báo ngưỡng',
+        icon: <AlertOutlined />,
+        path: '/thuy-van/canh-bao',
+        permissions: ['hyd:alert:view'],
+      },
+      {
+        key: 'bieu-tuyen-song',
+        label: 'Biểu tổng hợp tuyến sông',
+        icon: <FundProjectionScreenOutlined />,
+        path: '/thuy-van/bieu-tuyen-song',
+        permissions: ['hyd:report:view'],
+      },
+      {
+        key: 'bao-cao-tong-hop',
+        label: 'Báo cáo tổng hợp kỳ',
+        icon: <FileTextOutlined />,
+        path: '/thuy-van/bao-cao-tong-hop',
+        permissions: ['hyd:report:view'],
+      },
+      {
+        key: 'bao-cao-dong-bo',
+        label: 'Báo cáo đồng bộ & chất lượng',
+        icon: <FileTextOutlined />,
+        path: '/thuy-van/bao-cao-dong-bo',
+        permissions: ['hyd:report:view'],
+      },
     ],
   },
   {
@@ -133,6 +206,16 @@ export const MENU: readonly MenuNode[] = [
         label: 'Thư viện media',
         icon: <PictureOutlined />,
         path: '/noi-dung/thu-vien',
+        permissions: ['cms:media:manage'],
+      },
+      {
+        // ⛔ Dùng lại `cms:media:manage`, KHÔNG thêm mã quyền mới (WS-40): cùng bộ máy, cùng nhóm
+        //    người dùng, và quyền này đã cấp cho cả vai trò biên tập lẫn quản trị nội dung. Thêm
+        //    một mã quyền là thêm một dòng phân quyền phải seed, phải cấp, phải nhớ.
+        key: 'kho-tai-lieu',
+        label: 'Kho tài liệu',
+        icon: <FileTextOutlined />,
+        path: '/noi-dung/kho-tai-lieu',
         permissions: ['cms:media:manage'],
       },
       {

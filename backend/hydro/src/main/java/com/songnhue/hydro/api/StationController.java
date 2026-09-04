@@ -1,6 +1,7 @@
 package com.songnhue.hydro.api;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import jakarta.validation.Valid;
@@ -17,8 +18,10 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.songnhue.core.common.security.RequirePermission;
+import com.songnhue.core.spi.ConstructionRef;
 import com.songnhue.core.spi.OrgUnitPort;
 import com.songnhue.core.spi.OrgUnitRef;
+import com.songnhue.hydro.application.StationConstructionService;
 import com.songnhue.hydro.application.StationForm;
 import com.songnhue.hydro.application.StationService;
 import com.songnhue.hydro.domain.ApiSource;
@@ -45,10 +48,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class StationController {
 
     private final StationService stations;
+    private final StationConstructionService lienKets;
     private final OrgUnitPort orgUnits;
 
-    public StationController(StationService stations, OrgUnitPort orgUnits) {
+    public StationController(StationService stations, StationConstructionService lienKets, OrgUnitPort orgUnits) {
         this.stations = stations;
+        this.lienKets = lienKets;
         this.orgUnits = orgUnits;
     }
 
@@ -78,14 +83,7 @@ public class StationController {
     @Operation(summary = "Thêm điểm đo")
     @RequirePermission("hyd:station:manage")
     public HydroCatalogDtos.StationView create(@Valid @RequestBody HydroCatalogDtos.StationRequest request) {
-        return toView(stations.create(
-                request.code(),
-                request.name(),
-                request.apiCode(),
-                request.apiSourceId(),
-                request.positionRole(),
-                request.orgUnitId(),
-                request.measurementTypeIds()));
+        return toView(stations.create(hoSo(request)));
     }
 
     @PutMapping("/{publicId}")
@@ -93,23 +91,56 @@ public class StationController {
     @RequirePermission("hyd:station:manage")
     public HydroCatalogDtos.StationView update(
             @PathVariable UUID publicId, @Valid @RequestBody HydroCatalogDtos.StationRequest request) {
-        return toView(stations.update(
-                publicId,
-                new StationForm(
-                        request.code(),
-                        request.name(),
-                        request.apiCode(),
-                        request.apiSourceId(),
-                        request.positionRole(),
-                        request.orgUnitId(),
-                        request.riverName(),
-                        request.chainage(),
-                        request.latitude(),
-                        request.longitude(),
-                        request.interpolated() != null && request.interpolated(),
-                        request.active() == null || request.active(),
-                        request.description(),
-                        request.measurementTypeIds())));
+        return toView(stations.update(publicId, hoSo(request)));
+    }
+
+    /**
+     * ⭐ Một hàm đổi DTO → form, dùng cho <b>cả hai</b> đường ghi — T28.33.
+     *
+     * <p>Trước 02/09 chỉ {@code update} dựng {@link StationForm}, còn {@code create} tự chuyển tay
+     * <b>7 trong 14</b> trường. Hai cách viết cạnh nhau cho cùng một DTO là chỗ chênh lệch sinh ra
+     * và không ai thấy: {@code @Valid} chạy trên đủ 14 trường ở cả hai đường, nên lượt {@code POST}
+     * kèm toạ độ vẫn <b>201 Created</b> trong khi toạ độ không tới được tầng dưới.
+     *
+     * <p>⚠ Hai phép giải mặc định nằm ở đây chứ không ở tầng application, có chủ ý: {@code Boolean}
+     * của DTO mang <b>ba</b> trạng thái (true / false / không gửi) còn nghiệp vụ chỉ có hai. Giải
+     * ngay tại biên là chỗ duy nhất còn phân biệt được "không gửi" — sâu hơn thì thông tin ấy mất.
+     */
+    private static StationForm hoSo(HydroCatalogDtos.StationRequest request) {
+        return new StationForm(
+                request.code(),
+                request.name(),
+                request.apiCode(),
+                request.apiSourceId(),
+                request.positionRole(),
+                request.orgUnitId(),
+                request.riverName(),
+                request.chainage(),
+                request.latitude(),
+                request.longitude(),
+                request.interpolated() != null && request.interpolated(),
+                request.active() == null || request.active(),
+                request.description(),
+                request.measurementTypeIds());
+    }
+
+    @PostMapping("/{publicId}/lien-ket")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Khai liên kết điểm đo ↔ công trình (T28.19)")
+    @RequirePermission("hyd:station:manage")
+    public HydroCatalogDtos.StationConstructionView lienKet(
+            @PathVariable UUID publicId, @Valid @RequestBody HydroCatalogDtos.StationLinkRequest request) {
+        StationConstruction lienKet = lienKets.lienKet(
+                publicId, request.constructionId(), request.role(), Boolean.TRUE.equals(request.primary()));
+        return toLinkView(lienKet, lienKets.congTrinhCua(List.of(lienKet)));
+    }
+
+    @DeleteMapping("/lien-ket/{lienKetId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Bỏ liên kết điểm đo ↔ công trình")
+    @RequirePermission("hyd:station:manage")
+    public void boLienKet(@PathVariable UUID lienKetId) {
+        lienKets.boLienKet(lienKetId);
     }
 
     @DeleteMapping("/{publicId}")
@@ -147,11 +178,30 @@ public class StationController {
                 diemDo.getMeasurementTypes().stream()
                         .map(MeasurementTypeController::toView)
                         .toList(),
-                lienKet.stream()
-                        .map(l -> new HydroCatalogDtos.StationConstructionView(
-                                l.getPublicId(), l.getConstructionPublicId(), l.getRole(), l.isPrimary()))
-                        .toList(),
+                toLinkViews(lienKet),
                 lienKet.isEmpty() && !diemDo.duocPhepKhongGanCongTrinh(),
                 diemDo.chuaGanDonVi());
+    }
+
+    /**
+     * ⚠ MỘT lượt tra cho cả danh sách — {@code timTheoIds} là hàm gộp, ⛔ không gọi trong vòng lặp.
+     * Màn hình điểm đo hiện 19 dòng, mỗi dòng có thể có vài liên kết; gọi lẻ là N+1 ngay ở màn hình
+     * đầu tiên người dùng mở.
+     */
+    private List<HydroCatalogDtos.StationConstructionView> toLinkViews(List<StationConstruction> lienKet) {
+        Map<Long, ConstructionRef> congTrinh = lienKets.congTrinhCua(lienKet);
+        return lienKet.stream().map(l -> toLinkView(l, congTrinh)).toList();
+    }
+
+    private static HydroCatalogDtos.StationConstructionView toLinkView(
+            StationConstruction l, Map<Long, ConstructionRef> congTrinh) {
+        ConstructionRef ct = congTrinh.get(l.getConstructionId());
+        return new HydroCatalogDtos.StationConstructionView(
+                l.getPublicId(),
+                l.getConstructionPublicId(),
+                ct == null ? null : ct.code(),
+                ct == null ? null : ct.name(),
+                l.getRole(),
+                l.isPrimary());
     }
 }

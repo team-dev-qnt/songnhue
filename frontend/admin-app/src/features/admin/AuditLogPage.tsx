@@ -252,6 +252,9 @@ function VerificationResult({ result }: { result: ChainVerification }) {
         columns={columns}
         dataSource={result.breaks}
         rowKey="seq"
+        // Bề ngang tối thiểu: hẹp hơn thì CUỘN NGANG, không bóp chữ.
+        // Vì sao cần — xem chú thích cột "Địa chỉ" ở `features/hydro/ApiSourcesPage.tsx`.
+        scroll={{ x: 1540 }}
         pagination={false}
         size="small"
       />
