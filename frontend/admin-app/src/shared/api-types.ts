@@ -1504,6 +1504,40 @@ export interface PeriodSummaryReport {
 }
 
 /**
+ * T35.4 — một điểm trên đường cong 24 giờ.
+ *
+ * ⚠ `giaTri` là **chuỗi**, ⛔ không phải `number`: JSON number là `double`, và một mực nước `1.005`
+ *   đi qua `double` có thể về thành `1.0049999999999999`. Quy tắc 2 của dự án cấm `float`/`double`
+ *   cho mọi số đo, và ranh giới ấy ⛔ không dừng ở tầng Java.
+ */
+export interface ChartPoint {
+  moc: string;
+  giaTri: string;
+}
+
+/**
+ * T35.4 — đường cong mực nước 24 giờ của **một** điểm đo.
+ *
+ * ⛔⛔ `diem` rỗng ⇒ `lyDoTrong` **luôn** có câu, và ngược lại — backend ép ràng buộc ấy ở hàm dựng
+ *    (`BieuDoMucNuoc`). ⛔ Đừng vẽ một biểu đồ trục rỗng: nó trông **y hệt** một biểu đồ mà mọi giá
+ *    trị bằng 0, và cũng y hệt trường hợp quên đăng ký component ECharts. `BaseChart` có sẵn nhánh
+ *    `empty` cho đúng việc này.
+ *
+ * ⚠ Khoảng trống giữa các điểm là **thông tin** — nó nghĩa là trạm ⛔ không gửi số về.
+ *   `optionDuong` đặt `connectNulls: false` để chỗ ấy nhìn thấy được; ⛔ đừng nội suy.
+ */
+export interface WaterLevelChart {
+  maDiemDo: string;
+  tenDiemDo: string;
+  tenChiSo: string;
+  donVi: string | null;
+  tu: string;
+  den: string;
+  diem: ChartPoint[];
+  lyDoTrong: string | null;
+}
+
+/**
  * BC-12 — một bản ghi chi tiết.
  *
  * ⭐⭐ `quality` và `source` là **hai cột chịu lực**, ⛔ không phải siêu dữ liệu phụ trợ: chúng là

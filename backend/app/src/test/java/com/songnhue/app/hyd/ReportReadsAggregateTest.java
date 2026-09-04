@@ -39,9 +39,11 @@ import org.junit.jupiter.api.Test;
  * <h2>⚠ Phạm vi tự khai (luật 28)</h2>
  *
  * <ul>
- *   <li>Soi <b>một</b> tệp: {@code HydroReportRepository}. Đó là nơi truy vấn báo cáo sống, và là
- *       nơi câu tiếp theo sẽ được viết. ⬜ Dashboard (WS-35) sẽ có kho riêng — <b>thêm nó vào
- *       {@link #TEP_BAO_CAO} cùng lúc</b> với tệp ấy, ⛔ không để sau.
+ *   <li>Soi <b>hai</b> tệp: {@code HydroReportRepository} và {@code HydroChartRepository}. ✅ Tệp thứ
+ *       hai ra đời 04/09/2026 (T35.4) và được thêm vào {@link #TEP_BAO_CAO} <b>trong cùng
+ *       commit</b> — đúng lời hẹn ghi ở đây từ WS-34. ⚠ Kho truy vấn thứ ba phải làm y hệt: một bộ
+ *       canh <i>hẹp hơn nơi nó phải chặn</i> vẫn in màu xanh, và cái xanh ấy đọc như một lời bảo
+ *       đảm (luật 28).
  *   <li>Chỉ thấy SQL nằm trong <b>một hằng chuỗi</b>. Một câu ghép từ nhiều mảnh thì bài này mù —
  *       cùng khoảng mù đã khai ở {@code QualityFilterGuardTest}, và cùng kết luận: ⛔ đừng gói SQL
  *       theo kiểu ấy trên các bảng đang được canh.
@@ -49,8 +51,9 @@ import org.junit.jupiter.api.Test;
  */
 class ReportReadsAggregateTest {
 
-    /** ⬜ Kho truy vấn của dashboard (WS-35) thêm vào đây <b>cùng lúc</b> với tệp ấy ra đời. */
-    private static final List<String> TEP_BAO_CAO = List.of("hydro/HydroReportRepository.java");
+    /** ✅ Kho truy vấn biểu đồ (T35.4) thêm vào đây <b>cùng commit</b> với tệp ấy ra đời. */
+    private static final List<String> TEP_BAO_CAO =
+            List.of("hydro/HydroReportRepository.java", "hydro/HydroChartRepository.java");
 
     /** Bảng số đo thô — báo cáo ⛔ không được đọc, trừ ngoại lệ có tên. */
     private static final String BANG_THO = "hydro_readings";
@@ -58,10 +61,17 @@ class ReportReadsAggregateTest {
     /**
      * ⭐ Ngoại lệ <b>phải nêu tên và nêu lý do</b> — ⛔ không có mục "còn lại".
      *
-     * <p>Hôm nay đúng <b>hai</b> câu, và cả hai thuộc về BC-12 — báo cáo tồn tại ĐỂ hiện từng bản
-     * ghi. Thêm một mục ở đây là một quyết định phải đi qua review, và đó chính là điều bài này muốn.
+     * <p>Hôm nay đúng <b>ba</b> câu: hai thuộc BC-12 (báo cáo tồn tại ĐỂ hiện từng bản ghi) và một
+     * thuộc T35.4. Thêm một mục ở đây là một quyết định phải đi qua review, và đó chính là điều bài
+     * này muốn.
      */
     private static final Map<String, String> NGOAI_LE = Map.of(
+            "SQL_CHUOI_24H",
+                    "⭐⭐ T35.4 — đường cong 24 giờ. Bảng tổng hợp THEO NGÀY có đúng MỘT hàng cho hôm nay, "
+                            + "nên nó ⛔ không trả lời được 'nước lên từ lúc mấy giờ' — thứ người ta mở biểu đồ "
+                            + "ra để hỏi. Chi phí ĐÃ CHẶN Ở SQL: 1 điểm đo × 1 loại chỉ số × 24 giờ ≤ 144 dòng, "
+                            + "cộng LIMIT 200. ⛔ Đừng nới cửa sổ thành khoảng ngày — đó đúng là cách một ngoại "
+                            + "lệ hợp lệ trở thành một lượt quét 82 nghìn dòng; biểu nhiều ngày đọc hydro_agg_daily.",
             "SQL_CHI_TIET",
                     "⭐⭐ BC-12 — báo cáo chi tiết theo yêu cầu. Nó PHẢI đọc bảng gốc: một bảng tổng hợp "
                             + "theo ngày ⛔ không trả lời được 'lúc 14 giờ 20 hôm ấy máy đọc được bao nhiêu' — "
@@ -78,7 +88,7 @@ class ReportReadsAggregateTest {
      * theo kiểu bài này ⛔ không đọc được — cả ba đều làm khẳng định phía dưới chạy qua một tập rỗng
      * và xanh trọn vẹn. ⚠ Đếm <b>cả ngoại lệ</b>: thứ cần chứng minh là bộ tách còn nhìn thấy mã.
      */
-    private static final int SO_HANG_TOI_THIEU = 7;
+    private static final int SO_HANG_TOI_THIEU = 8;
 
     private static final Pattern HANG_SQL =
             Pattern.compile("static\\s+final\\s+String\\s+(\\w+)\\s*=\\s*\"\"\"(.*?)\"\"\";", Pattern.DOTALL);

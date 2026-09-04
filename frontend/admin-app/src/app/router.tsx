@@ -196,6 +196,14 @@ export const router = createBrowserRouter([
             'hyd:report:view',
             lazyPage(() => import('@/features/hydro/RiverBoardPage'), 'RiverBoardPage'),
           ),
+          // ⚠ `hyd:report:view` khớp đúng quyền mà `HydroChartController` đòi — ⛔ không phải
+          //    `hyd:station:view`. Lệch tầng 1 ↔ tầng 2 ở đây cho ra đúng lỗi T27.28: mở được trang
+          //    rồi nhận 403 lúc dữ liệu về, tức một màn hình trống ⛔ không giải thích được.
+          adminRoute(
+            '/thuy-van/bieu-do-muc-nuoc',
+            'hyd:report:view',
+            lazyPage(() => import('@/features/hydro/WaterLevelChartPage'), 'WaterLevelChartPage'),
+          ),
           adminRoute(
             '/van-hanh/danh-muc-tinh-hinh',
             'ops:operation-status-code:manage',
