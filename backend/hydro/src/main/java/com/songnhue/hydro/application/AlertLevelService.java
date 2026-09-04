@@ -3,6 +3,7 @@ package com.songnhue.hydro.application;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -42,6 +43,38 @@ public class AlertLevelService {
      * được <i>vì sao</i>.
      */
     private static final Pattern MAU_KHOA_MAU = Pattern.compile("^[a-z][a-z0-9-]*$");
+
+    /**
+     * ⭐⭐ Danh sách khoá màu <b>thật sự vẽ được</b> — T35.14.
+     *
+     * <h2>Vì sao regex một mình là chưa đủ</h2>
+     *
+     * <p>{@link #MAU_KHOA_MAU} chỉ kiểm <b>hình dạng</b>. Cho tới 04/09/2026 nó là tầng chặn duy
+     * nhất, và hệ quả đo được: {@code color_token = "banana"} đi lọt service, lọt CHECK của CSDL,
+     * lọt mọi bài kiểm — rồi hiện lên màn hình đúng chữ "banana", vì ⛔ <b>không bảng ánh xạ nào
+     * trong toàn kho</b> đổi khoá thành màu. Nửa <i>ghi</i> hoàn chỉnh, nửa <i>đọc</i> không tồn
+     * tại (luật 27).
+     *
+     * <p>⇒ Từ nay khoá phải nằm trong <b>bảng màu có thật</b>.
+     *
+     * <h2>⛔⛔ HAI NƠI PHẢI NHỚ — và phép kiểm nhớ hộ</h2>
+     *
+     * <p>Danh sách này phải trùng khít với {@code alertLevelColors} ở
+     * {@code frontend/design-tokens/src/index.ts}. Java ⛔ không import được TypeScript, nên đây là
+     * đúng hình dạng luật 14. Phép kiểm nhớ hộ: {@code alertLevelColors.test.ts} <b>đọc thẳng tệp
+     * Java này</b> và so hai tập hợp, kèm khẳng định về <b>số lượng</b> để nó ⛔ không xanh trên tập
+     * rỗng (cùng khuôn {@code error-map.test.ts} đang dùng cho mã lỗi BE ↔ FE).
+     *
+     * <p>⚠ Thêm một slot thì phải sửa <b>cả hai</b> tệp — bài kiểm sẽ đỏ nếu chỉ sửa một.
+     *
+     * <h2>⛔ Vì sao là SLOT, không phải "mỗi mức một màu"</h2>
+     *
+     * <p>Quy tắc 16: mức ngưỡng là <b>danh mục có CRUD</b>, thêm mức mới ⛔ không được đòi deploy
+     * (G9-a). Nên danh sách này là tập <i>slot</i> để danh mục chọn vào — Công ty thêm mức thứ sáu
+     * vẫn dùng lại được một slot có sẵn.
+     */
+    static final Set<String> KHOA_MAU_CHO_PHEP =
+            Set.of("alert-level-1", "alert-level-2", "alert-level-3", "alert-level-4", "alert-level-5");
 
     private final AlertLevelRepository levels;
     private final AlertRuleRepository rules;
@@ -157,6 +190,10 @@ public class AlertLevelService {
         if (!MAU_KHOA_MAU.matcher(v).matches()) {
             // ⚠ Tên vi phạm nói thẳng cái sai thường gặp nhất: người dùng dán một mã hex vào đây.
             throw loiTruong("colorToken", "PHAI_LA_KHOA_DESIGN_TOKEN", v);
+        }
+        // ⭐ T35.14 — hình dạng đúng vẫn chưa đủ: khoá phải VẼ ĐƯỢC. Xem KHOA_MAU_CHO_PHEP.
+        if (!KHOA_MAU_CHO_PHEP.contains(v)) {
+            throw loiTruong("colorToken", "KHOA_MAU_KHONG_CO_TRONG_BANG_MAU", v);
         }
         return v;
     }

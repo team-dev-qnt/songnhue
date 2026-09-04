@@ -240,10 +240,47 @@ class AlertEngineHttpTest extends IntegrationTestBase {
                 HttpMethod.POST,
                 "/api/v1/hyd/alert-levels",
                 """
-                {"code":"T33-TRUNG","name":"Trùng hạng","colorToken":"alert-level-9","severityRank":10}
+                {"code":"T33-TRUNG","name":"Trùng hạng","colorToken":"alert-level-3","severityRank":10}
                 """);
 
         assertThat(ra.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    }
+
+    /**
+     * ⭐⭐ <b>T35.14</b> — khoá màu đúng <i>hình dạng</i> nhưng ⛔ không có trong bảng màu bị TỪ CHỐI.
+     *
+     * <p>Bài {@link #aHexColourIsRejectedAsAColourToken} ở trên chỉ chặn mã hex — tức chỉ chặn sai
+     * <b>hình dạng</b>. Cho tới 04/09/2026 đó là tầng chặn duy nhất, và hệ quả đo được:
+     * {@code colorToken = "banana"} khớp regex {@code ^[a-z][a-z0-9-]*$}, qua CHECK của CSDL, lưu
+     * thành công, rồi hiện lên màn hình đúng chữ "banana" — vì ⛔ không bảng ánh xạ nào trong kho
+     * đổi khoá thành màu (luật 27).
+     *
+     * <p>⚠ {@code alert-level-9} trong bài ở trên <b>cũng</b> là một khoá như thế: đúng hình dạng,
+     * ⛔ không vẽ được. Nó đã được đổi sang {@code alert-level-3} trong cùng commit — nếu không, bài
+     * ấy sẽ đỏ vì <i>lý do sai</i> (400 do màu, chứ không phải 409 do trùng hạng), và một bài kiểm
+     * đỏ vì lý do sai còn tốn thời gian hơn không có bài kiểm.
+     */
+    @Test
+    @Order(3)
+    @DisplayName("⛔ T35.14 — khoá màu đúng hình dạng mà không có trong bảng màu vẫn bị từ chối")
+    void aWellFormedButUnknownColourTokenIsRejected() {
+        for (String khoaLa : new String[] {"banana", "alert-level-9"}) {
+            ResponseEntity<String> ra = phienHttp.goi(
+                    kyThuat,
+                    HttpMethod.POST,
+                    "/api/v1/hyd/alert-levels",
+                    """
+                    {"code":"T35-LA","name":"Khoá lạ","colorToken":"%s","severityRank":95}
+                    """
+                            .formatted(khoaLa));
+
+            assertThat(ra.getStatusCode())
+                    .as("khoá '%s' khớp regex nhưng ⛔ không vẽ được ⇒ phải bị chặn ở tầng ghi", khoaLa)
+                    .isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(ra.getBody())
+                    .as("⭐ lỗi phải gắn TÊN TRƯỜNG để FE hiện dòng đỏ dưới đúng ô (F1)")
+                    .contains("colorToken");
+        }
     }
 
     // =========================================================================

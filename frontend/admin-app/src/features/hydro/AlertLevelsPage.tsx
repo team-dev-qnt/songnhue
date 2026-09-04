@@ -9,14 +9,17 @@ import {
   InputNumber,
   Modal,
   Popconfirm,
+  Select,
   Space,
   Switch,
   Table,
   Tag,
+  Tooltip,
   Typography,
   message,
 } from 'antd';
 import { type ColumnsType } from 'antd/es/table';
+import { alertLevelColorTokens, laKhoaMauHopLe, mauMucCanhBao, neutralColors } from 'design-tokens';
 import { useState } from 'react';
 
 import { useAuth } from '@/app/auth/useAuth';
@@ -31,10 +34,19 @@ import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
  * chốt, và migration ⛔ không seed dòng nào. Rỗng là trạng thái ĐÚNG, ⛔ không phải lỗi cấu
  * hình — nó nghĩa là *chưa có ngưỡng nào, nên chưa có cảnh báo nào*.
  *
- * ⛔ **Ô "Khoá màu" ⛔ không nhận mã hex.** Nó là khoá trong `design-tokens`; ràng buộc
- * `ck_alert_levels_color_token` chặn `#RRGGBB` ngay ở tầng CSDL. Dự án đang mang nợ T25.23 vì
- * 29 mã màu ghi cứng lọt vào admin-app, và cách rẻ nhất để không sinh thêm là làm cho giá trị
+ * ⛔ **Màu mức là một KHOÁ trong `design-tokens`, ⛔ không phải mã hex.** Dự án đang mang nợ T25.23
+ * vì 29 mã màu ghi cứng lọt vào admin-app, và cách rẻ nhất để không sinh thêm là làm cho giá trị
  * sai **không lưu được**.
+ *
+ * ⭐⭐ **T35.14 (04/09/2026) — nửa cặp đọc–ghi vừa được nối.** Trước đó ô này là `<Input>` gõ tay và
+ * cột trên bảng hiện khoá dưới dạng **chữ trần**: `colorToken = 'banana'` qua được regex của
+ * service, qua được `ck_alert_levels_color_token`, lưu thành công, rồi hiện lên màn hình đúng chữ
+ * "banana" — vì ⛔ **không bảng ánh xạ nào trong toàn kho** đổi khoá thành màu (luật 27, luật 15).
+ * Nay: ô **chọn** từ bảng màu chung, cột hiện **ô màu thật**, và service từ chối khoá ngoài bảng.
+ *
+ * ⚠ Thêm một **mức** mới vẫn ⛔ không cần deploy (quy tắc 16) — mức mới chọn lại một slot màu có
+ * sẵn. Chỉ thêm một **slot màu** mới mới phải sửa mã, và khi đó phải sửa **cả hai** tệp
+ * (`design-tokens` + `AlertLevelService.java`); `alertLevelColors.test.ts` canh đúng điều đó.
  */
 export function AlertLevelsPage() {
   const { hasPermission } = useAuth();
@@ -110,7 +122,39 @@ export function AlertLevelsPage() {
       // ⭐ Nói ra ý nghĩa ngay trên bảng: con số này ⛔ không phải thứ tự hiển thị.
       render: (v: number) => <Tag>{v}</Tag>,
     },
-    { title: 'Khoá màu', dataIndex: 'colorToken', width: 180, ellipsis: true },
+    {
+      // ⭐⭐ T35.14 — trước đây cột này hiện khoá dưới dạng CHỮ TRẦN, và ⛔ không nơi nào trong kho
+      //    đổi khoá thành màu. Nghĩa là `colorToken = 'banana'` lưu thành công rồi hiện lên đúng
+      //    chữ "banana": nửa ghi hoàn chỉnh, nửa đọc không tồn tại (luật 27).
+      title: 'Màu mức',
+      dataIndex: 'colorToken',
+      width: 200,
+      render: (v: string) => (
+        <Space size={8}>
+          <span
+            aria-hidden
+            style={{
+              display: 'inline-block',
+              width: 14,
+              height: 14,
+              borderRadius: 3,
+              background: mauMucCanhBao(v),
+              border: `1px solid ${neutralColors.border}`,
+            }}
+          />
+          {laKhoaMauHopLe(v) ? (
+            <Typography.Text>{v}</Typography.Text>
+          ) : (
+            // ⛔ Khoá ngoài bảng phải NHÌN THẤY ĐƯỢC, ⛔ không im lặng rơi về một màu mặc định:
+            //    dữ liệu tạo trước T35.14 có thể mang khoá lạ, và một ô xám không giải thích sẽ bị
+            //    đọc thành "chưa cấu hình" thay vì "cấu hình sai".
+            <Tooltip title="Khoá này không có trong bảng màu chung nên không vẽ được — sửa lại mức để chọn một khoá hợp lệ.">
+              <Typography.Text type="danger">{v} ⚠</Typography.Text>
+            </Tooltip>
+          )}
+        </Space>
+      ),
+    },
     {
       title: 'Đang dùng',
       dataIndex: 'active',
@@ -222,13 +266,37 @@ export function AlertLevelsPage() {
             <InputNumber min={1} max={999} style={{ width: '100%' }} placeholder="10" />
           </Form.Item>
 
+          {/* ⭐ T35.14 — ô CHỌN thay ô gõ tay. Bảng màu là một tập slot cố định (`design-tokens`),
+              nên gõ tay chỉ mở đường cho một khoá không vẽ được. Thêm một MỨC mới vẫn ⛔ không cần
+              deploy (quy tắc 16) — mức mới chọn lại một slot có sẵn. */}
           <Form.Item
             name="colorToken"
-            label="Khoá màu"
-            rules={[{ required: true, message: 'Nhập khoá màu' }]}
-            extra="⛔ Không nhập mã màu dạng #RRGGBB — đây là KHOÁ trong bảng màu chung, ví dụ alert-level-1. Nhập mã hex sẽ bị từ chối."
+            label="Màu mức"
+            rules={[{ required: true, message: 'Chọn màu cho mức' }]}
+            extra="Màu này dùng chung cho lớp bản đồ, biểu tuyến sông và lịch sử cảnh báo — cùng một mức ⛔ không được hiện hai màu ở hai màn hình."
           >
-            <Input placeholder="alert-level-1" />
+            <Select
+              placeholder="Chọn màu"
+              options={alertLevelColorTokens.map((khoa) => ({
+                value: khoa,
+                label: (
+                  <Space size={8}>
+                    <span
+                      aria-hidden
+                      style={{
+                        display: 'inline-block',
+                        width: 14,
+                        height: 14,
+                        borderRadius: 3,
+                        background: mauMucCanhBao(khoa),
+                        border: `1px solid ${neutralColors.border}`,
+                      }}
+                    />
+                    {khoa}
+                  </Space>
+                ),
+              }))}
+            />
           </Form.Item>
 
           <Form.Item
