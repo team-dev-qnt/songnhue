@@ -1,0 +1,651 @@
+import { ApiOutlined, EditOutlined, KeyOutlined, PlusOutlined } from '@ant-design/icons';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  Alert,
+  Button,
+  Card,
+  Descriptions,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Tooltip,
+  Typography,
+  message,
+} from 'antd';
+import { type ColumnsType } from 'antd/es/table';
+import { useState } from 'react';
+
+import { useAuth } from '@/app/auth/useAuth';
+import {
+  type ApiSource,
+  type ApiSourceCreateRequest,
+  type ApiSourceRequest,
+  type KetQuaDongBo,
+} from '@/shared/api-types';
+import { ApiClientError, api } from '@/shared/apiClient';
+import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
+
+/**
+ * Nguồn dữ liệu quan trắc bên thứ 3 — CN-03.2 (T28.2).
+ *
+ * ⛔ **Màn hình này không bao giờ hiển thị mã số**, kể cả cho SUPER_ADMIN: backend không trả
+ * credential ra khỏi CSDL (`conventions.md` §4.7). Muốn đổi thì gõ lại mã mới; không có ô
+ * "xem mã hiện tại", và cũng không có bản che một phần — vài ký tự cuối của một mã ngắn thu
+ * hẹp không gian tìm kiếm rất nhiều, đổi lại chỉ đỡ phải hỏi người giữ mã.
+ *
+ * ⚠ Bốn ô tham số nhịp để trống nghĩa là **dùng tham số chung** ở Cấu hình hệ thống, không
+ * phải "chưa cấu hình". Cột *Đang chạy theo* hiện giá trị ĐÃ GIẢI kèm nguồn gốc, vì một ô
+ * trống không nói gì sẽ khiến người vận hành kết luận nhầm.
+ */
+export function ApiSourcesPage() {
+  const { hasPermission } = useAuth();
+  const queryClient = useQueryClient();
+  const [formSua] = Form.useForm<ApiSourceRequest>();
+  const [formTao] = Form.useForm<ApiSourceCreateRequest>();
+  const [formMaSo] = Form.useForm<{ maSo: string }>();
+
+  const [dangSua, setDangSua] = useState<ApiSource | null>(null);
+  const [taoMoi, setTaoMoi] = useState(false);
+  const [datMaSoCho, setDatMaSoCho] = useState<ApiSource | null>(null);
+  const [ketQuaGoiThu, setKetQuaGoiThu] = useState<{ nguon: ApiSource; kq: KetQuaDongBo } | null>(
+    null,
+  );
+
+  const coQuanLy = hasPermission('hyd:api-source:manage');
+
+  const query = useQuery({
+    queryKey: ['hyd', 'api-sources'],
+    queryFn: () => api.get<ApiSource[]>('/hyd/api-sources'),
+  });
+
+  const lamMoi = () => queryClient.invalidateQueries({ queryKey: ['hyd', 'api-sources'] });
+
+  const createMutation = useMutation({
+    mutationFn: (data: ApiSourceCreateRequest) => api.post<ApiSource>('/hyd/api-sources', data),
+    onSuccess: () => {
+      message.success('Đã thêm nguồn dữ liệu');
+      setTaoMoi(false);
+      void lamMoi();
+    },
+    // ⭐ 01/09 (T28.31): mutation này TRƯỚC ĐÂY không có `onError` nào. HYD-1002/2005/2006 và cả
+    //    403 đều im lặng tuyệt đối — người dùng bấm Lưu, không có gì xảy ra và không có gì báo.
+    //    Mã lỗi đã khớp đủ bốn nơi từ T28.10, nhưng không màn hình nào hiện chúng.
+    onError: (caught: unknown) => {
+      if (caught instanceof ApiClientError && datLoiTheoTruong(formTao, caught)) return;
+      message.error(
+        caught instanceof ApiClientError ? caught.message : 'Không thêm được nguồn dữ liệu',
+      );
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (data: { id: string; payload: ApiSourceRequest }) =>
+      api.put<ApiSource>(`/hyd/api-sources/${data.id}`, data.payload),
+    onSuccess: () => {
+      message.success('Đã cập nhật nguồn');
+      setDangSua(null);
+      void lamMoi();
+    },
+    onError: (caught: unknown) => {
+      if (caught instanceof ApiClientError && datLoiTheoTruong(formSua, caught)) return;
+      message.error(
+        caught instanceof ApiClientError ? caught.message : 'Không cập nhật được nguồn',
+      );
+    },
+  });
+
+  const maSoMutation = useMutation({
+    mutationFn: (data: { id: string; maSo: string }) =>
+      api.put(`/hyd/api-sources/${data.id}/credential`, { maSo: data.maSo }),
+    onSuccess: () => {
+      message.success('Đã lưu mã số — hệ thống chỉ giữ bản đã mã hoá');
+      setDatMaSoCho(null);
+      void lamMoi();
+    },
+    onError: (caught: unknown) =>
+      message.error(caught instanceof ApiClientError ? caught.message : 'Không lưu được mã số'),
+  });
+
+  const xoaMaSoMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/hyd/api-sources/${id}/credential`),
+    onSuccess: () => {
+      message.success('Đã gỡ mã số — nguồn về trạng thái chưa cấu hình');
+      void lamMoi();
+    },
+    onError: (caught: unknown) =>
+      message.error(caught instanceof ApiClientError ? caught.message : 'Không gỡ được mã số'),
+  });
+
+  /**
+   * ⭐ Gọi nguồn một lượt ngay bây giờ — WS-30.
+   *
+   * ⚠ Endpoint trả **200 kèm chi tiết** cả khi nguồn hỏng, ⛔ không trả 502: lượt gọi đã trả
+   * lời đúng câu hỏi người dùng đặt ra. Bóp năm tình trạng phân biệt được thành một câu
+   * *"Hệ thống bên ngoài không phản hồi"* là xoá đúng thứ họ cần để biết phải làm gì.
+   * ⇒ `onError` ở đây chỉ dành cho lỗi của **ta** (mất mạng tới backend, hết phiên).
+   */
+  const goiThuMutation = useMutation({
+    mutationFn: (nguon: ApiSource) =>
+      api
+        .post<KetQuaDongBo>(`/hyd/api-sources/${nguon.id}/goi-thu`, {})
+        .then((kq) => ({ nguon, kq })),
+    onSuccess: (ket) => {
+      setKetQuaGoiThu(ket);
+      // Bốn cột sức khoẻ vừa đổi ở CSDL — không làm mới thì bảng nói một đằng, hộp thoại một nẻo.
+      void lamMoi();
+    },
+    onError: (caught: unknown) =>
+      message.error(caught instanceof ApiClientError ? caught.message : 'Không gọi thử được'),
+  });
+
+  const moSua = (nguon: ApiSource) => {
+    formSua.resetFields();
+    formSua.setFieldsValue({
+      name: nguon.name,
+      baseUrl: nguon.baseUrl,
+      frameMinutes: nguon.frameMinutes,
+      timeoutSeconds: nguon.timeoutSeconds,
+      maxRetry: nguon.maxRetry,
+      cron: nguon.cron,
+      status: nguon.status,
+      description: nguon.description ?? undefined,
+    });
+    setDangSua(nguon);
+  };
+
+  const columns: ColumnsType<ApiSource> = [
+    { title: 'Mã', dataIndex: 'code', width: 110 },
+    { title: 'Tên nguồn', dataIndex: 'name', width: 200, ellipsis: true },
+    {
+      // ⚠⚠ Vá 01/09/2026 — cột này từng bóp còn ~29px và URL xuống dòng TỪNG KÝ TỰ.
+      //
+      // Ba thứ cộng lại, không cái nào tự nó đủ:
+      //   1. Không cột nào khai `ellipsis` và bảng không khai `scroll` ⇒ `rc-table` chọn
+      //      `tableLayout: 'auto'`, và dưới `auto` thì `<col width>` chỉ là GỢI Ý — trình duyệt
+      //      được phép bóp cột không khai bề ngang xuống tận `min-content`.
+      //   2. Sáu cột cố định cộng lại 940px + cột mở rộng 48px, trong khi bề ngang khả dụng là
+      //      `viewport − 336` (sider 248 + margin 40 + padding Card 48). Ở 1440px thì hai cột
+      //      không khai chia nhau đúng 116px.
+      //   3. `.ant-table-cell{overflow-wrap:break-word}` + `.ant-typography{word-break:break-word}`
+      //      ⇒ `min-content` của một URL bằng MỘT KÝ TỰ.
+      //
+      // ⚠ Lỗi có ở MỌI bề ngang, chỉ THẤY ĐƯỢC dưới ~1600px — cùng hình dạng §10.62, nơi
+      // `flex-wrap` che một thanh điều hướng tràn 22%.
+      title: 'Địa chỉ',
+      dataIndex: 'baseUrl',
+      width: 320,
+      render: (url: string) => (
+        <Space size={4}>
+          {/* `break-all` cho URL xuống dòng ở ranh giới ký tự thay vì đẩy ngang bảng; khung đã
+              có bề rộng cố định nên nó không còn co về min-content được nữa. */}
+          <Typography.Text code style={{ wordBreak: 'break-all' }}>
+            {url}
+          </Typography.Text>
+          {url.startsWith('http://') && (
+            <Tooltip title="Nguồn chỉ có HTTP. Trình duyệt không gọi thẳng — mọi lượt gọi đi từ máy chủ.">
+              <Tag color="orange">HTTP</Tag>
+            </Tooltip>
+          )}
+        </Space>
+      ),
+    },
+    {
+      title: 'Mã số',
+      dataIndex: 'credentialDaCauHinh',
+      width: 150,
+      render: (daCo: boolean) =>
+        daCo ? <Tag color="green">Đã cấu hình</Tag> : <Tag color="red">Chưa cấu hình</Tag>,
+    },
+    {
+      title: 'Điểm đo',
+      dataIndex: 'soDiemDo',
+      width: 90,
+      align: 'center',
+    },
+    {
+      title: 'Đang chạy theo',
+      width: 260,
+      render: (_, r) => (
+        <Space direction="vertical" size={0}>
+          <span>
+            <Typography.Text code>{r.cronHieuLuc}</Typography.Text>{' '}
+            {r.cronDungChung ? <Tag>tham số chung</Tag> : <Tag color="blue">riêng</Tag>}
+          </span>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            khung {r.khungNguonPhutHieuLuc} phút · chờ {r.timeoutGiayHieuLuc}s · thử lại{' '}
+            {r.soLanThuLaiHieuLuc}
+          </Typography.Text>
+        </Space>
+      ),
+    },
+    {
+      title: 'Sức khoẻ',
+      width: 190,
+      render: (_, r) =>
+        r.consecutiveFailures > 0 ? (
+          <Tooltip title={r.lastFailureReason ?? ''}>
+            <Tag color="red">{r.consecutiveFailures} lượt hỏng liên tiếp</Tag>
+          </Tooltip>
+        ) : r.lastSuccessAt ? (
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            Lần cuối lấy được: {new Date(r.lastSuccessAt).toLocaleString('vi-VN')}
+          </Typography.Text>
+        ) : (
+          <Tag>Chưa lấy lần nào</Tag>
+        ),
+    },
+    {
+      title: '',
+      width: 180,
+      align: 'right',
+      render: (_, r) =>
+        coQuanLy ? (
+          <Space>
+            <Tooltip title="Gọi nguồn một lượt ngay để xem mã số có dùng được không">
+              <Button
+                type="text"
+                icon={<ApiOutlined />}
+                loading={goiThuMutation.isPending && goiThuMutation.variables?.id === r.id}
+                onClick={() => goiThuMutation.mutate(r)}
+              />
+            </Tooltip>
+            <Tooltip title="Đặt / thay mã số truy cập">
+              <Button
+                type="text"
+                icon={<KeyOutlined />}
+                onClick={() => {
+                  formMaSo.resetFields();
+                  setDatMaSoCho(r);
+                }}
+              />
+            </Tooltip>
+            <Button type="text" icon={<EditOutlined />} onClick={() => moSua(r)} />
+          </Space>
+        ) : null,
+    },
+  ];
+
+  const chuaCoMaSo = (query.data ?? []).filter((n) => !n.credentialDaCauHinh);
+
+  return (
+    <Card
+      title="Nguồn dữ liệu quan trắc"
+      extra={
+        coQuanLy ? (
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => {
+              formTao.resetFields();
+              formTao.setFieldsValue({ adapterType: 'BHH40' });
+              setTaoMoi(true);
+            }}
+          >
+            Thêm nguồn
+          </Button>
+        ) : null
+      }
+    >
+      {chuaCoMaSo.length > 0 && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message={`${chuaCoMaSo.length} nguồn chưa có mã số — lượt lấy dữ liệu sẽ KHÔNG chạy`}
+          description={
+            <>
+              Nguồn thiếu mã số thì hệ thống từ chối gọi và ghi rõ lý do, thay vì gọi bằng một mã
+              rỗng rồi báo &quot;nguồn không phản hồi&quot;. Bấm biểu tượng chìa khoá để đặt mã số.
+              <br />⚠ Mã số của <code>bhh40.net</code> có <b>dấu chấm phẩy ở cuối</b> — giữ nguyên
+              khi dán, thiếu nó nguồn trả <code>not.working</code>, trông y hệt lỗi sai mã.
+            </>
+          }
+        />
+      )}
+
+      <Table
+        rowKey="id"
+        loading={query.isLoading}
+        dataSource={query.data ?? []}
+        columns={columns}
+        pagination={false}
+        // 110+200+320+150+90+260+190+140 = 1460, cộng 48px cột mở rộng.
+        // Hẹp hơn thì CUỘN NGANG, ⛔ không bóp chữ — đúng lời javadoc của `DataTable`.
+        scroll={{ x: 1508 }}
+        expandable={{
+          expandedRowRender: (r) => (
+            <Descriptions size="small" column={2} bordered>
+              <Descriptions.Item label="Adapter">{r.adapterType}</Descriptions.Item>
+              <Descriptions.Item label="Trạng thái">
+                {r.status === 'HOAT_DONG' ? 'Đang dùng' : 'Tạm dừng'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Cron đặt riêng">
+                {r.cron ?? '— dùng chung'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Khung nguồn đặt riêng">
+                {r.frameMinutes ?? '— dùng chung'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Chờ tối đa đặt riêng">
+                {r.timeoutSeconds ?? '— dùng chung'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Thử lại đặt riêng">
+                {r.maxRetry ?? '— dùng chung'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Ghi chú" span={2}>
+                {r.description ?? '—'}
+              </Descriptions.Item>
+            </Descriptions>
+          ),
+        }}
+      />
+
+      <Modal
+        open={taoMoi}
+        title="Thêm nguồn dữ liệu"
+        onCancel={() => setTaoMoi(false)}
+        onOk={async () => {
+          const values = await formTao.validateFields();
+          createMutation.mutate(values);
+        }}
+        confirmLoading={createMutation.isPending}
+        destroyOnClose
+      >
+        <Form form={formTao} layout="vertical">
+          <Form.Item name="code" label="Mã nguồn" rules={[{ required: true }]}>
+            <Input placeholder="BHH40" />
+          </Form.Item>
+          <Form.Item name="name" label="Tên nguồn" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item
+            name="adapterType"
+            label="Adapter"
+            rules={[{ required: true }]}
+            extra="Mỗi giá trị ứng với đúng một bộ đọc trong hệ thống."
+          >
+            <Select
+              options={[
+                { value: 'BHH40', label: 'BHH40 — bhh40.net (getmn.aspx)' },
+                { value: 'MOCK', label: 'MOCK — nguồn giả, chỉ dùng khi phát triển' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item
+            name="baseUrl"
+            label="Địa chỉ gốc"
+            rules={[{ required: true }]}
+            extra="Bắt đầu bằng http:// hoặc https://"
+          >
+            <Input placeholder="http://songnhue.bhh40.net" />
+          </Form.Item>
+          <Form.Item name="description" label="Ghi chú">
+            <Input.TextArea rows={2} maxLength={500} />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        open={!!dangSua}
+        title={`Sửa nguồn ${dangSua?.code ?? ''}`}
+        onCancel={() => setDangSua(null)}
+        onOk={async () => {
+          const values = await formSua.validateFields();
+          if (dangSua) updateMutation.mutate({ id: dangSua.id, payload: values });
+        }}
+        confirmLoading={updateMutation.isPending}
+        destroyOnClose
+      >
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="Để TRỐNG một ô tham số = dùng tham số chung ở Cấu hình hệ thống"
+          description="Chỉ điền khi nguồn này thật sự cần nhịp khác các nguồn còn lại."
+        />
+        <Form form={formSua} layout="vertical">
+          <Form.Item name="name" label="Tên nguồn" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="baseUrl" label="Địa chỉ gốc" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="status" label="Trạng thái" rules={[{ required: true }]}>
+            <Select
+              options={[
+                { value: 'HOAT_DONG', label: 'Đang dùng' },
+                { value: 'TAM_DUNG', label: 'Tạm dừng — poller bỏ qua và ghi rõ lý do' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item name="cron" label="Cron riêng" extra="Trống = dùng tham số chung">
+            <Input placeholder="45 1/2 * * * *" />
+          </Form.Item>
+          <Form.Item name="frameMinutes" label="Khung nguồn riêng (phút)">
+            <InputNumber min={1} max={1440} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="timeoutSeconds" label="Chờ tối đa riêng (giây)">
+            <InputNumber min={5} max={300} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="maxRetry" label="Số lần thử lại riêng">
+            <InputNumber min={0} max={10} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="description" label="Ghi chú">
+            <Input.TextArea rows={2} maxLength={500} />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        open={!!datMaSoCho}
+        title={`Mã số truy cập — ${datMaSoCho?.name ?? ''}`}
+        onCancel={() => setDatMaSoCho(null)}
+        confirmLoading={maSoMutation.isPending}
+        onOk={async () => {
+          const values = await formMaSo.validateFields();
+          if (datMaSoCho) maSoMutation.mutate({ id: datMaSoCho.id, maSo: values.maSo });
+        }}
+        okText="Lưu mã số"
+        footer={(nut) => (
+          <Space>
+            {datMaSoCho?.credentialDaCauHinh && (
+              <Button
+                danger
+                loading={xoaMaSoMutation.isPending}
+                onClick={() => {
+                  if (datMaSoCho) xoaMaSoMutation.mutate(datMaSoCho.id);
+                }}
+              >
+                Gỡ mã số
+              </Button>
+            )}
+            {nut}
+          </Space>
+        )}
+        destroyOnClose
+      >
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="Hệ thống không hiển thị lại mã số sau khi lưu"
+          description={
+            <>
+              Mã số được mã hoá trước khi ghi vào cơ sở dữ liệu và không có đường nào đọc ngược ra
+              màn hình. Muốn đổi thì gõ lại mã mới.
+              <br />⚠ <b>Giữ nguyên dấu chấm phẩy cuối</b> nếu mã số có — thiếu nó nguồn trả{' '}
+              <code>not.working</code>, trông y hệt lỗi sai mã số.
+            </>
+          }
+        />
+        <Form form={formMaSo} layout="vertical">
+          <Form.Item
+            name="maSo"
+            label="Mã số truy cập"
+            rules={[{ required: true, message: 'Nhập mã số' }]}
+          >
+            <Input.Password placeholder="dán nguyên văn, kể cả dấu ';' cuối" autoComplete="off" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        open={ketQuaGoiThu !== null}
+        title={`Kết quả gọi thử — ${ketQuaGoiThu?.nguon.name ?? ''}`}
+        onCancel={() => setKetQuaGoiThu(null)}
+        footer={<Button onClick={() => setKetQuaGoiThu(null)}>Đóng</Button>}
+        destroyOnClose
+      >
+        {ketQuaGoiThu && <BangKetQuaGoiThu kq={ketQuaGoiThu.kq} />}
+      </Modal>
+    </Card>
+  );
+}
+
+/** Việc phải làm ứng với từng kiểu hỏng — ⛔ một câu chung cho năm nguyên nhân là không nói gì. */
+const VIEC_PHAI_LAM: Record<NonNullable<KetQuaDongBo['loi']>, string> = {
+  THIEU_MA_SO: 'Nguồn chưa cấu hình mã số. Bấm biểu tượng chìa khoá để đặt.',
+  NOT_WORKING:
+    'Nguồn từ chối mã số. ⚠ Kiểm tra mã số còn dấu ";" ở cuối không — thiếu dấu ấy nguồn trả đúng thông báo này, trông y hệt mã số sai.',
+  TIMEOUT: 'Nguồn không trả lời kịp. Kiểm tra đường mạng tới nguồn trước khi nới timeout.',
+  HTTP_ERROR: 'Không gọi được nguồn. Kiểm tra địa chỉ nguồn và đường mạng ra ngoài.',
+  EMPTY_BODY:
+    'Nguồn trả HTTP 200 nhưng không có nội dung — nhiều khả năng phía nguồn đang bảo trì.',
+};
+
+/**
+ * Kết quả một lượt gọi thử.
+ *
+ * ⛔ **Không hiển thị thân phản hồi** — thân thật của `bhh40` chứa chính mã số. DTO cũng không
+ * mang nó, nên đây là lớp bảo vệ thứ hai chứ không phải lớp duy nhất.
+ */
+function BangKetQuaGoiThu({ kq }: { kq: KetQuaDongBo }) {
+  if (kq.trangThai === 'FAILED') {
+    return (
+      <Alert
+        type="error"
+        showIcon
+        message={kq.lyDo ?? 'Lượt gọi hỏng'}
+        description={
+          <>
+            {kq.loi ? VIEC_PHAI_LAM[kq.loi] : null}
+            <br />
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              {kq.httpStatus === null ? 'Chưa nhận được phản hồi nào' : `HTTP ${kq.httpStatus}`} ·{' '}
+              {kq.durationMs} ms
+              {kq.rawLogId === null
+                ? ' · ⛔ chưa lưu được nguyên văn response'
+                : ` · nguyên văn đã lưu (#${kq.rawLogId})`}
+              {kq.syncLogId === null
+                ? ' · ⛔ chưa ghi được nhật ký đồng bộ'
+                : ` · nhật ký đồng bộ #${kq.syncLogId}`}
+            </Typography.Text>
+          </>
+        }
+      />
+    );
+  }
+
+  return (
+    <Space direction="vertical" size={12} style={{ width: '100%' }}>
+      <Alert
+        type="success"
+        showIcon
+        message={`Nguồn trả về ${kq.soBanGhi} số đo trong ${kq.durationMs} ms — ghi mới ${kq.soGhiMoi} dòng`}
+      />
+      <Descriptions column={1} size="small" bordered>
+        <Descriptions.Item label="Số đo bóc được">{kq.soBanGhi}</Descriptions.Item>
+        <Descriptions.Item label="Ghi mới vào CSDL">
+          {kq.soGhiMoi}
+          {kq.soTrungBoQua > 0 && (
+            <Typography.Text type="secondary">
+              {' '}
+              · {kq.soTrungBoQua} dòng đã có sẵn nên bỏ qua
+            </Typography.Text>
+          )}
+        </Descriptions.Item>
+        <Descriptions.Item label="Điểm đo đang hoạt động">
+          {kq.soDiemDoDangHoatDong}
+        </Descriptions.Item>
+        <Descriptions.Item label="Mốc đo gần nhất">
+          {kq.mocDoGanNhat ? new Date(kq.mocDoGanNhat).toLocaleString('vi-VN') : '—'}
+        </Descriptions.Item>
+        <Descriptions.Item label="Khung nhắm tới">
+          {kq.khungNhamToi ? new Date(kq.khungNhamToi).toLocaleString('vi-VN') : '—'}
+        </Descriptions.Item>
+        <Descriptions.Item label="Dòng không đọc được">
+          {kq.soDongRac > 0 ? (
+            <Tag color="orange">{kq.soDongRac}</Tag>
+          ) : (
+            <Typography.Text type="secondary">0</Typography.Text>
+          )}
+        </Descriptions.Item>
+        <Descriptions.Item label="Dòng trùng">{kq.soDongTrung}</Descriptions.Item>
+        <Descriptions.Item label="Số đo của mã chưa khai">
+          {kq.soMaLa > 0 ? <Tag color="blue">{kq.soMaLa}</Tag> : '0'}
+        </Descriptions.Item>
+        <Descriptions.Item label="Nhật ký đồng bộ">
+          {kq.syncLogId === null ? (
+            <Typography.Text type="danger">⛔ chưa ghi được</Typography.Text>
+          ) : (
+            `#${kq.syncLogId}`
+          )}
+        </Descriptions.Item>
+      </Descriptions>
+
+      {kq.soThieuLoaiChiSo > 0 && (
+        <Alert
+          type="warning"
+          showIcon
+          message={`${kq.soThieuLoaiChiSo} điểm đo nhận số đo mà chưa tích loại chỉ số "Mực nước"`}
+          description="Số đo VẪN được ghi — bảng station_measurement_types nuôi biểu mẫu và báo cáo, nó không phải cái van của đường ingest. Nhưng báo cáo sẽ không khớp cho tới khi tích ô Loại chỉ số ở màn hình Điểm đo. Mã điểm đo cụ thể nằm trong log của máy chủ."
+        />
+      )}
+
+      {kq.soKhacNguon > 0 && (
+        <Alert
+          type="warning"
+          showIcon
+          message={`${kq.soKhacNguon} điểm đo được nguồn này trả về nhưng hồ sơ khai thuộc nguồn khác`}
+          description="Số đo vẫn được ghi vì mã API là duy nhất toàn hệ thống — nhưng đây là dấu hiệu cấu hình nguồn cần đối chiếu lại."
+        />
+      )}
+
+      {kq.trangThai === 'PARTIAL' && (
+        <Alert
+          type="warning"
+          showIcon
+          message="Nguồn trả dưới một nửa số điểm đo đang hoạt động"
+          description="Không hẳn là lỗi: nguồn cập nhật rải trong cửa sổ x1:30 → x8:30 nên một lượt gọi sớm được phép thiếu trạm. Gọi lại sau vài phút; còn thiếu thì mới đáng hỏi phía nguồn."
+        />
+      )}
+
+      {kq.maChuaKhai.length > 0 && (
+        <Alert
+          type="info"
+          showIcon
+          message={`${kq.maChuaKhai.length} mã nguồn trả về mà chưa khai điểm đo`}
+          description={
+            <>
+              <Space size={4} wrap style={{ marginBottom: 8 }}>
+                {kq.maChuaKhai.map((ma) => (
+                  <Tag key={ma}>{ma}</Tag>
+                ))}
+              </Space>
+              <br />
+              Số đo của chúng vẫn được giữ lại, ⛔ nhưng hệ thống <b>không tự tạo điểm đo</b>: ta
+              chưa biết mã ấy là trạm nào, ở đâu, thuộc công trình gì. Cần bảng ánh xạ của Công ty
+              (G8) rồi khai tay ở màn hình Điểm đo.
+            </>
+          }
+        />
+      )}
+    </Space>
+  );
+}
+
+export default ApiSourcesPage;

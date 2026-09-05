@@ -1,0 +1,100 @@
+# =============================================================================
+# CD Production — CHỈ chạy khi có người ra lệnh (WS-11 / T11.8)
+#
+# Cố ý KHÔNG có trigger `push`. Merge vào `production` không tự deploy: đưa lên
+# môi trường thật là một quyết định vận hành, có thời điểm của nó (ngoài giờ hành
+# chính, sau khi đã báo Công ty), chứ không phải hệ quả tự động của một thao tác
+# git.
+#
+# Ba lớp chặn trước khi một byte nào chạm production:
+#   1. Commit yêu cầu phải là tổ tiên của `staging` — kiểm ở đây.
+#   2. `environment: production` — GitHub dừng chờ người duyệt bấm nút (ở thân
+#      chung `deploy.yml`).
+#   3. `pg_dump` trước khi deploy — điểm quay lui DUY NHẤT về dữ liệu, vì hệ này
+#      không có PITR (architecture-review.md §6.5). Cũng ở thân chung.
+#
+# Mọi thứ sau bước 1 dùng CHUNG một tệp với staging — xem đầu `deploy.yml`.
+# =============================================================================
+name: CD Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: 'Commit SHA cần đưa lên (đầy đủ 40 ký tự, lấy từ nhánh staging)'
+        required: true
+        type: string
+      reason:
+        description: 'Lý do / số hiệu yêu cầu — đi vào nhật ký vận hành'
+        required: true
+        type: string
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  kiem-moc:
+    name: Mốc đề bạt đã qua staging chưa
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      sha: ${{ inputs.commit_sha }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ⚠ Chặn đúng cái sai nguy hiểm nhất của deploy thủ công: gõ nhầm một SHA
+      #   chưa bao giờ chạy ở staging. Không có bước này thì "manual deploy" nghĩa
+      #   là "ai gõ gì cũng lên được".
+      - name: Commit này đã qua staging chưa
+        run: |
+          set -euo pipefail
+          sha="${{ inputs.commit_sha }}"
+
+          if ! git cat-file -e "$sha^{commit}" 2>/dev/null; then
+            echo "::error::Không tìm thấy commit $sha trong repo."
+            exit 1
+          fi
+
+          git fetch origin staging --depth=0 2>/dev/null || git fetch origin staging
+          if ! git merge-base --is-ancestor "$sha" origin/staging; then
+            echo "::error::Commit $sha KHÔNG nằm trong lịch sử của nhánh staging."
+            echo "Luồng đã chốt: dev → staging → production. Chỉ đưa lên production thứ đã chạy thật ở staging."
+            exit 1
+          fi
+
+          echo "✓ $sha đã có trong staging"
+          {
+            echo "### Mốc đề bạt"
+            echo "- Commit: \`$sha\`"
+            echo "- Lý do: ${{ inputs.reason }}"
+            echo "- Người ra lệnh: @${{ github.actor }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  trien-khai:
+    name: Triển khai
+    needs: kiem-moc
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/deploy.yml
+    with:
+      moi_truong: production
+      commit_sha: ${{ needs.kiem-moc.outputs.sha }}
+      compose_file: compose.prod.yml
+      # Production KHÔNG chạy bộ seed, và nội dung thật do Công ty tự đăng — nên ở
+      # đây chỉ khẳng định được điều tối thiểu: cổng không rỗng. Khi Công ty đã đăng
+      # đủ nội dung khởi tạo thì nâng số này lên, và nó thành một phép kiểm thật.
+      so_bai_toi_thieu: 1
+    secrets:
+      HOST: ${{ secrets.PROD_HOST }}
+      USER: ${{ secrets.PROD_USER }}
+      SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
+      BASE_URL: ${{ secrets.PROD_BASE_URL }}
+      SSH_KNOWN_HOSTS: ${{ secrets.PROD_SSH_KNOWN_HOSTS }}

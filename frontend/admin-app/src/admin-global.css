@@ -1,0 +1,200 @@
+/*
+  Kiểu dáng toàn cục cho admin-app.
+
+  File này bổ sung những gì AntD theme token không phủ tới: scrollbar, selection color,
+  micro-animation cho card/table, và smooth scroll. Import ở `main.tsx`.
+
+  ⛔ Không khai màu tại chỗ — mọi giá trị lấy từ design-tokens qua CSS custom property
+  được AntD ConfigProvider tạo ra, hoặc bằng hằng số trùng với tokens.
+*/
+
+/*
+  ───── Noto Sans — TỰ HOST, không lấy từ CDN Google ─────
+
+  Cùng bộ chữ, cùng các trọng số như bản CDN; chỉ khác nơi tải về. Ba lý do, lý do đầu là
+  lý do chặn:
+
+  1. ⛔ `conventions.md` §4.5 đã chốt CSP `default-src 'self'`. Khi WS-11 dựng nginx thì
+     `fonts.googleapis.com` (biểu định kiểu) và `fonts.gstatic.com` (tệp chữ) đều **bị chặn**
+     — trang vẫn hiện, chỉ là rơi về font hệ thống, không lỗi nào. Đúng loại hỏng im lặng mà
+     dự án này đã trả giá nhiều lần, và nó chỉ lộ ra sau khi lên production.
+  2. Cổng thông tin của doanh nghiệp nhà nước gửi địa chỉ IP của **mọi người dân tra cứu**
+     sang máy chủ Google ở mỗi lượt tải trang. Cùng lý do đã chọn `youtube-nocookie.com` cho
+     khối nhúng video: người đọc không có cách nào từ chối.
+  3. Mạng nội bộ Công ty chặn ra ngoài là font không tải được, mà không ai biết vì sao.
+
+  `@fontsource/noto-sans` đóng gói chính bộ chữ đó (giấy phép SIL OFL) kèm tệp `woff2`, phục
+  vụ từ cùng máy chủ với ứng dụng.
+*/
+@import '@fontsource/noto-sans/400.css';
+@import '@fontsource/noto-sans/500.css';
+@import '@fontsource/noto-sans/600.css';
+@import '@fontsource/noto-sans/700.css';
+@import '@fontsource/noto-sans/400-italic.css';
+@import '@fontsource/noto-sans/500-italic.css';
+
+/* ───── Smooth scroll ───── */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ───── Selection ───── */
+::selection {
+  background: #e6f4ff; /* brandColors.primaryLight */
+  color: #0958d9; /* brandColors.primary */
+}
+
+/* ───── Scrollbar — mỏng, nhẹ, không chiếm chỗ ───── */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d9d9d9; /* neutralColors.border */
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #8c8c8c;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #d9d9d9 transparent;
+}
+
+/* ───── Card micro-animation ───── */
+
+/*
+  Mọi Card AntD đều có class `.ant-card`. Thêm transition cho transform và shadow
+  để hover lift mượt mà. Chỉ thẻ có `.sn-card-hoverable` mới nhấc lên (opt-in).
+*/
+.ant-card {
+  transition:
+    box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sn-card-hoverable:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 4px 12px 0 rgba(0, 0, 0, 0.1),
+    0 2px 4px -2px rgba(0, 0, 0, 0.06);
+}
+
+/* ───── Table row hover mượt ───── */
+.ant-table-tbody > tr {
+  transition: background-color 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ───── Menu transition mượt ───── */
+.ant-menu-item,
+.ant-menu-submenu-title {
+  transition:
+    background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    color 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* ───── Page content fade-in ───── */
+@keyframes sn-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.sn-page-enter {
+  animation: sn-fade-in 0.35s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* ───── Accessibility: tôn trọng người dùng yêu cầu giảm chuyển động ───── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Bản in báo cáo — WS-34 / T34.10
+
+   ⬜⬜ ĐÂY LÀ KHUNG, ⛔ CHƯA PHẢI BỐ CỤC ĐÃ DUYỆT.
+
+   Format báo cáo in thuộc mục **G10** — Công ty chưa duyệt `report-templates-proposal.md`.
+   Khối này cố ý chỉ làm đúng một việc: gỡ phần *giao diện điều khiển* ra khỏi trang giấy và
+   mở hết bảng ra. Nó ⛔ KHÔNG đặt tiêu đề công văn, ⛔ không đặt khung ký duyệt, ⛔ không
+   đặt thứ tự cột — cả ba đều là quyết định của Công ty, và dựng sẵn chúng theo phỏng đoán là
+   đúng thứ §10.54 gọi tên: một bản in trông "đã xong" khiến không ai đi hỏi cho xong.
+
+   ⚠ Khi G10 chốt: sửa Ở ĐÂY và ở component tiêu đề in, ⛔ đừng thêm một tầng CSS in thứ hai
+   trong từng trang — hai nơi quyết định bố cục giấy thì bản in của hai báo cáo sẽ lệch nhau.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media print {
+  /* Điều hướng, nút bấm, bộ lọc: chúng ⛔ không có nghĩa gì trên giấy. */
+  .ant-layout-sider,
+  .ant-layout-header,
+  .ant-card-extra,
+  .ant-pagination,
+  .ant-back-top,
+  .ant-float-btn-group,
+  .ant-message,
+  .ant-notification {
+    display: none !important;
+  }
+
+  .ant-layout,
+  .ant-layout-content {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  /* ⭐ Bảng phải in HẾT hàng. `scroll={{ y }}` dựng một khung cuộn trong trang — trên giấy nó
+     cắt cụt bảng ở đúng chiều cao ấy, và một bản in bị cắt cụt trông y hệt một bản in đầy đủ. */
+  .ant-table-body,
+  .ant-table-content {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  /* ⛔ Không để một hàng bị cắt làm đôi giữa hai trang giấy. */
+  .ant-table-row {
+    break-inside: avoid;
+  }
+
+  /* Tiêu đề cột lặp lại ở đầu mỗi trang giấy — bảng nhiều trang mà mất tiêu đề là bảng
+     không đọc được. */
+  .ant-table-thead {
+    display: table-header-group;
+  }
+
+  .ant-card {
+    border: none !important;
+    box-shadow: none !important;
+    break-inside: auto;
+  }
+
+  /* ⚠ Ô rỗng KÈM LÝ DO (quy tắc 16) hiện bằng tooltip trên màn hình — mà giấy ⛔ không có
+     tooltip. `.sn-o-rong` mang lý do trong `data-ly-do` và in nó ra sau dấu gạch. Thiếu chỗ
+     này thì mọi ô rỗng trên bản in đều là một dấu gạch không lời, và ba tình huống khác nhau
+     ("chưa theo dõi" · "đã ngừng" · "poller chết") thành một. */
+  .sn-o-rong::after {
+    content: ' (' attr(data-ly-do) ')';
+    font-size: 0.85em;
+    color: #555;
+  }
+}

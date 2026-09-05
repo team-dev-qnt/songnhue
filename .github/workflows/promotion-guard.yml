@@ -1,0 +1,124 @@
+# =============================================================================
+# Cổng đề bạt — dev → staging → production (WS-10 / T10.7)
+#
+# Luồng làm việc đã chốt: MỌI kiểm tra nặng chạy đúng một lần ở `dev`. Hai chặng
+# sau không kiểm lại — chúng chỉ xác minh rằng thứ đang được đẩy lên đúng là thứ
+# đã được kiểm.
+#
+# Job này cố ý CỰC NHẸ (vài giây) vì nó là check bắt buộc duy nhất của
+# staging/production. Nó bịt đúng cái lỗ mà branch protection của GitHub không
+# bịt được: **không có tuỳ chọn "chỉ nhận PR từ nhánh X"**. Thiếu nó, ai cũng mở
+# được PR từ một nhánh feature thẳng vào production và không check nặng nào chặn
+# lại, vì ta đã cố ý không yêu cầu chúng ở đó.
+#
+# ⚠ Đừng đổi tên job này mà quên sửa `contexts` trong branch protection: GitHub
+# sẽ chờ một check không bao giờ tới, và mọi PR đề bạt kẹt ở "Expected — Waiting
+# for status to be reported" mà không có dòng lỗi nào.
+# =============================================================================
+name: Promotion guard
+
+on:
+  pull_request:
+    branches: [staging, production]
+
+permissions:
+  contents: read
+  checks: read
+  actions: read
+
+jobs:
+  guard:
+    name: Promotion guard
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - name: Nhánh nguồn phải đúng chặng trước
+        run: |
+          target="${{ github.base_ref }}"
+          source="${{ github.head_ref }}"
+
+          case "$target" in
+            staging)    expected="dev" ;;
+            production) expected="staging" ;;
+            *)
+              echo "::error::Nhánh đích '$target' không nằm trong luồng đề bạt."
+              exit 1
+              ;;
+          esac
+
+          if [ "$source" != "$expected" ]; then
+            echo "::error::PR vào '$target' chỉ được mở từ '$expected', đang mở từ '$source'."
+            echo "Luồng đã chốt: dev → staging → production. Mọi kiểm tra nặng chạy ở dev;"
+            echo "đi tắt vào đây là đưa lên môi trường thật một thay đổi chưa qua kiểm tra nào."
+            exit 1
+          fi
+          echo "✓ $source → $target"
+
+      # Nhánh nguồn đúng vẫn chưa đủ: `dev` có thể vừa nhận một commit đang đỏ.
+      # Vì vậy kiểm đúng SHA sắp được đề bạt, không kiểm "nhánh dev nói chung".
+      # ⚠ Cần checkout TRƯỚC bước này: nó chạy script trong `.github/scripts/`.
+      #   Lịch sử đầy đủ là yêu cầu của bước cuối, không phải của bước này.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Commit này đã xanh CI ở chặng trước chưa
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          echo "Kiểm tra check-runs của $SHA"
+
+          # ⛔⛔ VÌ SAO CÓ VÒNG CHỜ (thêm 1/9 sau một lượt đỏ giả)
+          #
+          #   Gộp một PR vào `dev` làm head SHA của PR đề bạt đổi NGAY, và
+          #   `Promotion guard` chạy trước khi CI của `dev` kịp bắt đầu. Đo được:
+          #   #77 gộp lúc 11:06:0x, cổng chạy 11:06:19, hai check bắt buộc trả
+          #   `conclusion: null`. Bản cũ gọi đó là "kết thúc với 'null'" và đỏ.
+          #
+          #   Đây là CUỘC ĐUA, nên nó không xảy ra mọi lần — mở PR đề bạt lâu sau
+          #   lượt gộp thì cổng xanh. Loại lỗi ấy dễ bị đóng hồ sơ nhầm bằng câu
+          #   "chạy lại thấy xanh rồi".
+          #
+          # ⚠ Chờ có CHỐT, và hết chốt thì ĐỎ chứ không đi tiếp: một cổng đề bạt
+          #   bỏ qua vì "chờ mãi không thấy" thì đúng bằng không có cổng.
+          for lan in $(seq 1 20); do
+            runs=$(gh api "repos/$REPO/commits/$SHA/check-runs" --jq \
+              '.check_runs[] | select(.name | startswith("Backend") or startswith("Frontend"))
+               | "\(.name)=\(.conclusion)"')
+
+            set +e
+            printf '%s\n' "$runs" | bash .github/scripts/phan-loai-check-chang-truoc.sh "$SHA"
+            ma=$?
+            set -e
+
+            case "$ma" in
+              0) exit 0 ;;
+              1) exit 1 ;;
+            esac
+
+            if [ "$lan" -lt 20 ]; then
+              echo "   (lần $lan/20) còn phép kiểm chưa xong — chờ 30s rồi hỏi lại."
+              sleep 30
+            fi
+          done
+
+          echo "::error::Sau 10 phút vẫn còn phép kiểm của $SHA chưa kết thúc."
+          echo "Cổng đề bạt KHÔNG đi tiếp khi chưa biết kết quả — chạy lại job này"
+          echo "sau khi CI của \`dev\` xong."
+          exit 1
+
+      # ⚠ Bước checkout ở trên PHẢI có `fetch-depth: 0`. Bản clone nông làm
+      #   `git rev-list A..B` trả về rỗng, và rỗng thì trông y hệt "sạch" — đúng
+      #   hình dạng luật 7 (phép kiểm chạy qua tập rỗng vẫn xanh trọn vẹn).
+      #   Script tự in con số đếm được trước khi kết luận, nên một lượt clone
+      #   nông sẽ lộ ra ngay ở dòng "hơn … 0 commit".
+      - name: Nhánh đích không được có commit riêng
+        env:
+          BASE: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          git fetch --quiet origin "$BASE" "$HEAD_REF"
+          bash .github/scripts/kiem-goc-chung.sh "origin/$HEAD_REF" "origin/$BASE"

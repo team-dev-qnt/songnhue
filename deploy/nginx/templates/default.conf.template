@@ -1,0 +1,322 @@
+# =============================================================================
+# NGINX BIÊN — nơi kết thúc TLS và là cửa duy nhất ra Internet (WS-11 / T11.5)
+#
+# Tệp này nằm ở `/etc/nginx/templates/` nên image nginx chạy `envsubst` lúc
+# khởi động: `${PUBLIC_DOMAIN}`, `${ADMIN_DOMAIN}`, `${PUBLIC_UPSTREAM}`,
+# `${ADMIN_UPSTREAM}` được thay bằng biến môi trường; còn `$host`, `$scheme`,
+# `$remote_addr`… GIỮ NGUYÊN vì không có biến môi trường nào trùng tên.
+# Nhờ vậy đổi tên miền chỉ là sửa `.env`, không phải dựng lại image.
+#
+# ⭐ Nó KHÔNG nói chuyện trực tiếp với backend. Kiến trúc cùng-origin:
+#
+#     Internet ──TLS──► nginx biên ──┬─► public-web:3000  ──/api/v1──► app:8080
+#                                    └─► admin-app:80     ──/api/──►  app:8080
+#
+#   Mỗi image FE tự chuyển tiếp API dưới CHÍNH tên miền của nó, nên với trình
+#   duyệt thì giao diện và API luôn cùng origin. Đó là lý do backend không có
+#   một dòng cấu hình CORS nào, và cookie refresh giữ được `SameSite=Strict`.
+#   ⛔ Đừng "tối ưu" bằng cách cho biên trỏ thẳng `/api` sang `app`: làm thế là
+#      dựng lại đúng cấu hình đã chặn toàn bộ giao diện quản trị suốt WS-8→WS-20.
+# =============================================================================
+
+# --- Ngữ cảnh `http` ---------------------------------------------------------
+# Hợp lệ ở đây vì `/etc/nginx/conf.d/*.conf` được `include` bên trong khối
+# `http` của nginx.conf gốc.
+
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+# Giá trị của `X-Robots-Tag`, dùng trong snippets/edge-headers.conf. Phải khai
+# ở đây chứ không khai thẳng trong snippet: envsubst CHỈ xử lý tệp trong
+# /etc/nginx/templates, snippet được gắn vào nguyên văn.
+#   production → all   ·   staging → noindex, nofollow
+map $host $robots_tag {
+    default "${ROBOTS_TAG}";
+}
+
+# ⚠ Hạn mức ở biên là lưới CHỐNG NGẬP, không phải lưới nghiệp vụ. Hạn mức thật
+#   (đăng nhập 5 lần/15', API 100/phút, kết xuất 10/giờ) nằm ở `RateLimitFilter`
+#   phía backend, nơi biết được người dùng là ai. Ở đây chỉ biết IP.
+#
+#   ⛔ Cố ý KHÔNG áp hạn mức lên tệp tĩnh. Một trang của cổng công khai kéo hàng
+#      chục tệp cùng lúc, và cả Công ty có thể đi chung MỘT địa chỉ IP công cộng
+#      (NAT). Áp hạn mức theo IP lên tệp tĩnh là cách chắc chắn để tự chặn chính
+#      người dùng của mình vào giờ cao điểm, với triệu chứng là "trang tải nửa
+#      vời" — rất khó truy ra.
+limit_req_zone  $binary_remote_addr zone=api_general:10m rate=30r/s;
+limit_req_zone  $binary_remote_addr zone=api_auth:5m     rate=20r/m;
+limit_conn_zone $binary_remote_addr zone=per_ip:10m;
+
+# Log có thời gian phản hồi để về sau còn truy được chậm ở đâu.
+log_format songnhue '$remote_addr - $host "$request" $status $body_bytes_sent '
+                    '"$http_referer" "$http_user_agent" rt=$request_time urt=$upstream_response_time';
+access_log /var/log/nginx/access.log songnhue;
+
+server_tokens off;
+
+# ⚠ `resolver` + biến trong `proxy_pass` là BẮT BUỘC, không phải cho gọn.
+#   Viết thẳng `proxy_pass http://app:8080` thì nginx phân giải tên máy LÚC NẠP
+#   CẤU HÌNH; dịch vụ đích chưa lên là nginx từ chối khởi động với
+#   `[emerg] host not found in upstream` rồi container quay vòng khởi động lại.
+#   Hậu quả: một sự cố của backend kéo theo CẢ TRANG TRẮNG thay vì chỉ hỏng
+#   lượt gọi API. Dự án đã trả giá đúng lỗi này một lần ở image admin-app.
+resolver ${NGINX_LOCAL_RESOLVERS} valid=10s ipv6=off;
+
+# --- Tham số TLS dùng chung --------------------------------------------------
+#
+# ⚠ TLS 1.2 được giữ lại CÓ CHỦ ĐÍCH, dù `conventions.md` §4.5 ghi "TLS 1.3".
+#   Cổng thông tin phục vụ người dân: bỏ 1.2 là khoá cửa với Windows 10 bản cũ,
+#   Android < 10 và một phần máy trạm trong cơ quan nhà nước. Đây là đánh đổi
+#   khả năng tiếp cận lấy một mức an toàn mà 1.2 với bộ mã dưới đây vẫn đạt
+#   (không RSA key exchange, không CBC, bắt buộc ECDHE → có forward secrecy).
+#   ⛔ Nếu về sau bỏ 1.2 thì phải đo lại tỷ lệ trình duyệt trước, đừng bỏ vì đẹp.
+ssl_protocols             TLSv1.2 TLSv1.3;
+ssl_ciphers               ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305;
+ssl_prefer_server_ciphers off;
+ssl_session_cache         shared:SSL:10m;
+ssl_session_timeout       1d;
+ssl_session_tickets       off;
+ssl_stapling              on;
+ssl_stapling_verify       on;
+
+# =============================================================================
+# Cổng 80 — CHỈ hai việc: trả lời thử thách ACME, và đẩy mọi thứ còn lại sang 443
+# =============================================================================
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+
+    # ⚠ Phải đứng TRƯỚC lệnh chuyển hướng. Đặt sau thì certbot bị đẩy sang HTTPS
+    #   và không gia hạn được chứng chỉ — hỏng âm thầm cho tới ngày hết hạn.
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        default_type "text/plain";
+    }
+
+    # Câu "nginx còn sống không" — `return 200` tĩnh, trả lời được cả khi mọi
+    # upstream đã chết. Để ở cổng 80 vì lượt kiểm chạy từ bên trong container,
+    # nơi không có chứng chỉ và không cần TLS.
+    location = /healthz {
+        access_log off;
+        add_header Content-Type text/plain;
+        return 200 "ok\n";
+    }
+
+    # ⭐⭐ ĐÍCH THẬT của `healthcheck:` trong compose — khác `/healthz` ngay trên ở
+    #    chỗ nó CHUYỂN TIẾP.
+    #
+    # Đích cũ là `/.well-known/acme-challenge/`, và nó trả **404** khi không có
+    # lượt xin chứng chỉ nào đang chạy — tức là gần như luôn luôn. Container báo
+    # `unhealthy` suốt 22 giờ liền trong khi cả hệ chạy bình thường (đo trên
+    # staging 26/8). Một cảnh báo luôn bật là một cảnh báo không ai đọc nữa.
+    #
+    # `/healthz` tĩnh thì ngược lại: nó xanh cả khi nginx không định tuyến được
+    # tới đâu — mà định tuyến chính là việc của nginx (CLAUDE.md luật 8).
+    #
+    # Đích này đi qua `$probe_upstream`, một BIẾN, nên nó bắt được cả lỗi phân
+    # giải DNS trong mạng compose — đúng lỗi đã làm nginx chết với
+    # `[emerg] host not found in resolver`.
+    #
+    # ⚠ `/api/health` của public-web cố ý KHÔNG gọi sang backend, nên lượt kiểm
+    #   30 giây một lần này không tạo tải lên CSDL. Đổi sang một đường có gọi
+    #   backend là biến healthcheck thành một nguồn tải định kỳ, và làm backend
+    #   hỏng kéo theo nginx bị đánh dấu hỏng.
+    set $probe_upstream ${PUBLIC_UPSTREAM};
+    location = /healthz/upstream {
+        access_log off;
+        allow 127.0.0.1;
+        allow ::1;
+        deny all;
+        proxy_pass $probe_upstream/api/health;
+        proxy_set_header Host $host;
+    }
+
+    location / {
+        return 308 https://$host$request_uri;
+    }
+}
+
+# =============================================================================
+# Cổng 443 mặc định — từ chối bắt tay khi SNI không khớp tên miền nào
+#
+# Không có khối này thì gõ thẳng địa chỉ IP sẽ rơi vào server block đầu tiên,
+# tức là phơi giao diện quản trị ra dưới một tên không ai kiểm soát. Máy quét
+# tự động trên Internet làm đúng việc đó cả ngày.
+# `ssl_reject_handshake` đóng kết nối ngay ở tầng TLS nên không cần chứng chỉ.
+# =============================================================================
+server {
+    listen 443 ssl default_server;
+    listen [::]:443 ssl default_server;
+    http2 on;
+    ssl_reject_handshake on;
+}
+
+# =============================================================================
+# CỔNG THÔNG TIN CÔNG KHAI — ${PUBLIC_DOMAIN}
+# =============================================================================
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name ${PUBLIC_DOMAIN} www.${PUBLIC_DOMAIN};
+
+    ssl_certificate     /etc/letsencrypt/live/${PUBLIC_DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${PUBLIC_DOMAIN}/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/${PUBLIC_DOMAIN}/chain.pem;
+
+    # Trần mặc định cho thân yêu cầu. Đường tải tệp lên có trần riêng bên dưới.
+    client_max_body_size 1m;
+    limit_conn per_ip 50;
+
+    set $public_upstream ${PUBLIC_UPSTREAM};
+
+    # Đích ping từ bên ngoài (UptimeRobot…). Không ghi log để không làm nhiễu
+    # thống kê truy cập, và không chuyển tiếp để còn trả lời được cả khi ứng
+    # dụng đã chết — nó trả lời câu "nginx còn sống không", đúng một câu đó.
+    location = /healthz {
+        access_log off;
+        add_header Content-Type text/plain;
+        return 200 "ok\n";
+    }
+
+    # Tài liệu API không ra ngoài — T11.6-a. Lý do đầy đủ nằm trong chính tệp
+    # snippet; đặt TRƯỚC `location /api/` để thứ tự đọc khớp thứ tự nginx xét.
+    include /etc/nginx/snippets/chan-tai-lieu-api.conf;
+
+    # ⚠⚠ `add_header` KHÔNG cộng dồn: một `location` có `add_header` riêng sẽ
+    #    VỨT BỎ toàn bộ `add_header` kế thừa từ cấp `server`. Vì thế snippet
+    #    phải được `include` lại trong TỪNG khối location — giống hệt cách làm
+    #    ở image admin-app, và vì đúng lý do đó.
+    location /api/ {
+        limit_req zone=api_general burst=60 nodelay;
+        # Tải tệp: 0 = không chặn ở tầng nginx, để hạn mức thật nằm trong bảng
+        # `settings` có UI sửa (CLAUDE.md quy tắc 12). Có `proxy_request_buffering
+        # off` nên byte chảy thẳng, không đọng ra đĩa tạm của nginx.
+        client_max_body_size 0;
+        proxy_request_buffering off;
+        include /etc/nginx/snippets/proxy-common.conf;
+        include /etc/nginx/snippets/edge-headers.conf;
+        proxy_pass $public_upstream;
+    }
+
+    location / {
+        include /etc/nginx/snippets/proxy-common.conf;
+        include /etc/nginx/snippets/edge-headers.conf;
+        proxy_pass $public_upstream;
+    }
+}
+
+# =============================================================================
+# GIAO DIỆN QUẢN TRỊ — ${ADMIN_DOMAIN}
+# =============================================================================
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name ${ADMIN_DOMAIN};
+
+    ssl_certificate     /etc/letsencrypt/live/${ADMIN_DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${ADMIN_DOMAIN}/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/${ADMIN_DOMAIN}/chain.pem;
+
+    client_max_body_size 1m;
+    limit_conn per_ip 50;
+
+    set $admin_upstream ${ADMIN_UPSTREAM};
+
+    location = /healthz {
+        access_log off;
+        add_header Content-Type text/plain;
+        return 200 "ok\n";
+    }
+
+    # Tài liệu API không ra ngoài — T11.6-a. Tên miền quản trị là chỗ DUY NHẤT
+    # đo được 200 trước bản vá (index.html của SPA, không phải swagger), nên
+    # đây cũng là chỗ dễ tưởng nhầm là "đang có gì đó ở đường dẫn này".
+    include /etc/nginx/snippets/chan-tai-lieu-api.conf;
+
+    # ⚠ Hạn mức chặt cho đường đăng nhập/đổi token. Backend đã có lockout
+    #   5 lần/15' theo tài khoản; hạn mức này chặn tầng thấp hơn — dò mật khẩu
+    #   rải trên NHIỀU tài khoản khác nhau, thứ mà lockout theo tài khoản không
+    #   thấy. Hai lớp trả lời hai câu hỏi khác nhau, không thừa nhau.
+    location ~ ^/api/v1/auth/(login|refresh|2fa) {
+        limit_req zone=api_auth burst=10 nodelay;
+        include /etc/nginx/snippets/proxy-common.conf;
+        include /etc/nginx/snippets/edge-headers.conf;
+        proxy_pass $admin_upstream;
+    }
+
+    location /api/ {
+        limit_req zone=api_general burst=60 nodelay;
+        client_max_body_size 0;
+        proxy_request_buffering off;
+        include /etc/nginx/snippets/proxy-common.conf;
+        include /etc/nginx/snippets/edge-headers.conf;
+        proxy_pass $admin_upstream;
+    }
+
+    location / {
+        include /etc/nginx/snippets/proxy-common.conf;
+        include /etc/nginx/snippets/edge-headers.conf;
+        proxy_pass $admin_upstream;
+    }
+
+    # ---------------------------------------------------------------------
+    # 🔒 Giới hạn theo dải IP — MỞ KHI Công ty cung cấp dải IP cố định (G13)
+    #    Bỏ chú thích, điền dải thật, rồi `docker compose exec nginx nginx -s reload`.
+    #    ⛔ Đừng bật khi chưa có dải IP thật: tự khoá mình ra ngoài giao diện
+    #       quản trị của production là sự cố có thật, và cách chữa là SSH vào máy.
+    # ---------------------------------------------------------------------
+    # allow 203.0.113.0/24;
+    # deny  all;
+}
+
+# =============================================================================
+# KHO TỆP — ${FILES_DOMAIN} → MinIO (S3 API)
+#
+# ⚠ VÌ SAO PHẢI PHƠI MINIO RA NGOÀI, dù nghe rất trái tai:
+#   `AttachmentService` trả *presigned URL* để trình duyệt tải tệp THẲNG từ
+#   MinIO, cố ý không cho luồng dữ liệu lớn đi qua ứng dụng (ObjectStorage.java:
+#   "vài người tải tài liệu GIS cùng lúc là đủ chiếm hết"). Không có tên miền
+#   này thì mọi nút Tải về đều hỏng.
+#
+# ⚠ Và vì sao thế vẫn AN TOÀN — ba điều phải cùng đúng, kiểm lại khi sửa:
+#   1. Bucket ở chế độ riêng tư (minio-init KHÔNG chạy `mc anonymous set`).
+#      Không có chữ ký hợp lệ thì MinIO trả 403, kể cả biết chính xác tên tệp.
+#   2. Chữ ký có hạn 10 phút (AttachmentService.DOWNLOAD_URL_TTL).
+#   3. Bảng điều khiển MinIO (cổng 9001) KHÔNG được chuyển tiếp, và đã tắt hẳn
+#      bằng `MINIO_BROWSER: "off"`. Chỉ cổng 9000 — API thuần — đi qua đây.
+#
+#   ⛔ Presigned URL bỏ qua MỌI tầng phân quyền: ai cầm được đường dẫn trong 10
+#      phút đó đều tải được. Đừng nới TTL cho "tiện", và đừng ghi nó vào log.
+# =============================================================================
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name ${FILES_DOMAIN};
+
+    ssl_certificate     /etc/letsencrypt/live/${FILES_DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${FILES_DOMAIN}/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/${FILES_DOMAIN}/chain.pem;
+
+    # Tệp đính kèm và ảnh bản đồ có thể lớn; trần thật nằm ở bảng `settings`.
+    client_max_body_size 0;
+    proxy_request_buffering off;
+    limit_conn per_ip 30;
+
+    set $files_upstream ${FILES_UPSTREAM};
+
+    location / {
+        include /etc/nginx/snippets/proxy-common.conf;
+        include /etc/nginx/snippets/edge-headers.conf;
+        # ⚠ MinIO xác minh chữ ký SigV4 dựa trên header `Host` nó NHẬN ĐƯỢC.
+        #   `proxy-common.conf` đặt `Host $host`, tức giữ nguyên tên miền công
+        #   khai — đúng tên đã dùng lúc ký. Đổi thành `$proxy_host` là mọi
+        #   presigned URL trả `SignatureDoesNotMatch`.
+        proxy_pass $files_upstream;
+    }
+}

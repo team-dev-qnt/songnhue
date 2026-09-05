@@ -6,20 +6,30 @@ Hệ thống quản lý điều hành công trình thủy lợi + Cổng thông 
 
 **Ưu tiên xuyên suốt** (theo thứ tự): độ chính xác → nghiệp vụ chuẩn → tối ưu → vận hành/bảo trì → khả năng scale.
 
-## Cấu trúc tài liệu (đọc theo thứ tự này)
+## Cấu trúc tài liệu
+
+Khi mâu thuẫn: `architecture-review.md` > `function-spec.md` / `implement.md`.
 
 | File | Vai trò |
 |---|---|
-| `function-spec.md` | **Nguồn sự thật về nghiệp vụ** — đặc tả 5 module, trường dữ liệu, workflow, validation, RBAC, NFR |
-| `implement.md` | Kế hoạch implement — gom 4 nhóm (A Core / B Content / C Operations / D HR), thứ tự phase, cấu trúc code, checklist quyết định |
-| `architecture-review.md` | Quyết định kiến trúc/tech ĐÃ CHỐT + lý do — khi mâu thuẫn với 2 file trên, file này thắng |
-| `conventions.md` | Convention coding/design/security + đặc tả Common Platform (envelope, exception, error code, middleware, utils, RBAC 3 tầng, chống giả mạo) — chuẩn bắt buộc khi viết code |
-| `business-open-questions.md` | Phần I-A: BOQ đợt 1 **đã đóng**. Phần I-B: **9 mục G đợt 2 đã đóng**. Phần II: **6 mục còn mở** cần khách cung cấp. Phần III: **truy vết chức năng nào còn chứa điểm chưa chốt** — đọc trước khi code 1 chức năng |
-| `phase0-tracking.md` | **Bảng theo dõi tiến độ Phase 0** — 11 hạng mục WS-1→WS-11, **107 task** dạng checkbox, mỗi WS tự chứa điều kiện tiên quyết/đầu ra/cách kiểm chứng. Tick khi làm xong; cuối file là **21 mục Definition of Done** |
-| `report-templates-proposal.md` | Đề xuất format mẫu báo cáo gửi Công ty duyệt (khung 5 khối + danh mục BC/BCNS/BCQT + trường dữ liệu). Layout chi tiết làm sau, khi vào Phase module tương ứng |
-| `docs_origin/Trả lời Business Open Questions 12.8.2026.docx.md` | **Câu trả lời chính thức của khách — đợt 1 (12/8/2026)**. Confirm **đợt 2 (mục G)** nhận qua trao đổi trực tiếp cùng ngày, ghi ở `business-open-questions.md` Phần I-B. Cả hai là nguồn của mọi thay đổi scope trong function-spec v2.2 |
-| `docs_origin/SRS_QuanTriDieuHanh_TLSN ver 06.8.2026.docx.md` | **SRS v1.0 (23/07/2026)** — đặc tả yêu cầu chính thức của khách (dự thảo lấy ý kiến). function-spec.md v2.0 đã đồng bộ cấu trúc module + traceability theo file này |
-| `docs_origin/Tổng quan HT PM...docx.md`, `docs_origin/Đặc tả hệ thống...docx.md` | Tài liệu gốc từ khách hàng — chỉ tham khảo, đã được tổng hợp vào function-spec.md |
+| `.claude/function-spec.md` | **Nguồn sự thật nghiệp vụ** — 5 module, trường dữ liệu, workflow, validation, RBAC, NFR |
+| `.claude/architecture-review.md` | Quyết định kiến trúc ĐÃ CHỐT + **nguyên nhân gốc từng sự cố** (§9 Phase 0 · §10 Phase 1). Kho lưu, không phải guideline |
+| `.claude/conventions.md` | **Luật** khi viết code + đặc tả Common Platform (envelope, exception, mã lỗi, RBAC 3 tầng, chống giả mạo) |
+| `.claude/master-tracking.md` | **Nguồn DUY NHẤT** của task và nợ (§6). Đồng bộ lên Google Sheet qua MCP `google_sheets_sync` |
+| `.claude/implement.md` | Kế hoạch implement — 4 nhóm A/B/C/D, thứ tự phase, cấu trúc code |
+| `.claude/business-open-questions.md` | BOQ đợt 1+2 đã đóng · **7 mục còn mở** (G14 đóng 27/8 bằng văn bản nghiệm thu) · truy vết chức năng nào còn điểm chưa chốt |
+| `.claude/phase0-tracking.md` · `phase1-tracking.md` | **Lưu trữ, cấm sửa.** Phase 1 có mục "18 điểm nghiệp vụ đã làm rõ trước khi code" |
+| `.claude/report-templates-proposal.md` | Đề xuất format báo cáo gửi Công ty duyệt |
+| `docs/coding-guide.md` | **Đường đi** — công thức viết một chức năng (migration → entity → workflow → service → controller → quyền → mã lỗi → test) + bẫy đã trả giá |
+| `docs/ui-styles.md` | Quy chuẩn UI — màu qua `design-tokens`, Noto Sans, spacing, animation, a11y. Đọc trước khi sửa styling |
+| `hosting_recommendations.md` | **Mua gì và vì sao** — 2 VPS không PaaS (5 bảo đảm phải tháo), pháp lý DLCN, ngân sách bộ nhớ §8, tên miền §9, cắt chi phí §10 |
+| `docs/cicd.md` | Luồng 3 chặng `dev → staging → production`, cổng đề bạt, secret cần đặt |
+| `docs/deploy-guideline.md` | Dựng máy, khoá, `.env`, DNS/TLS, lượt deploy tay đầu tiên, checklist nghiệm thu — **chung cho cả hai môi trường** |
+| `docs/deploy-production-guideline.md` | **Production, từ đầu tới cuối** — mua VPS-1 và tên miền → đăng nhập lần đầu → làm cứng máy → `.env` + khoá → collation → DNS/TLS → lượt dựng tay → 5 secret `PROD_*` + biến kho → luồng CD Production → sao lưu/quay lui → checklist go-live 30 mục. Mang **số đo có ngày**, và một mục *chỗ tài liệu cũ đang nói sai* |
+| `docs/branch-protection.md` | Ba hồ sơ bảo vệ nhánh + lệnh áp dụng |
+| `docs/nghiem-thu-cong-ttdt-v1.md` | **Sổ nghiệm thu v1 chốt 28/8** — đối chiếu 43 mã CR ↔ trạng thái, checklist §10, trả lời OI-01→OI-12, danh sách ô sẽ rỗng và vì sao. **Bản đối chiếu, không phải nguồn sự thật** — task và nợ vẫn ở `master-tracking.md` |
+| `docs/setup-guideline.md` · `run-guideline.md` | Dựng máy dev; bốn chế độ chạy |
+| `docs_origin/` | Tài liệu gốc của khách — chỉ tham khảo, đã tổng hợp vào `function-spec.md` |
 
 ## Module
 
@@ -56,22 +66,182 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 17. Poller thủy văn: cron **2 phút/lần vào phút lẻ, giây 45**; **rate-limit trước khi mở HTTP** — bỏ lượt gọi khi *toàn bộ* trạm đã có bản ghi của khung 10' hiện tại (không phải "đã có bản ghi đầu tiên"). Nguồn trả rải rác trong cửa sổ `x1:30 → x8:30`.
 18. Không có API lịch sử → **mất dữ liệu là vĩnh viễn**. Ghi nguyên văn response vào `hydro_raw_logs` trước khi parse; giám sát poller ưu tiên ngang backup DB.
 
-## Trạng thái & mục chờ confirm
+## Trạng thái
 
-**📌 Phase "Tài liệu hệ thống" — HOÀN THÀNH ngày 2026-08-12.** BOQ đợt 1 (A–F) + **8/12 mục đợt 2 (G)** đã đóng và đồng bộ vào function-spec **v2.2** / implement / architecture-review §8 / conventions.
+**Phase "Tài liệu hệ thống"** ✅ xong 12/8/2026 — BOQ đợt 1 (A–F) + đợt 2 (G) đã đóng và đồng bộ vào `function-spec.md` **v2.2**.
+**Phase 0 — Core Platform** ✅ 10/11 hạng mục. **WS-11 (Deploy)**: staging đã chạy thật, đường ống CD đóng (§10.50→§10.55); còn production + quay lui thật.
+**Phase 1 — CMS & master data công trình** ✅ **xong 24/8/2026** — WS-12→WS-23 đóng đủ, **16/17 mục DoD** có phép kiểm đứng sau.
+**WS-24 — Đợt chỉnh sửa cổng theo nghiệm thu Công ty** (`docs_origin/nghiem_thu_phase1.md`, 27/8): **34/43 mã CR đóng**, 9 mã còn lại chờ đăng nhập trên cổng · nguồn dữ liệu · nhập liệu. Đã **chạy thật trên stack đầy đủ**: 17/17 đường dẫn menu trả 200. Chi tiết `master-tracking.md` WS-24 · nguyên nhân gốc §10.61.
 
-- ✅ Confirmed (2026-08-06): tái cấu trúc module theo SRS; Restore qua UI (M5.11) + bảo vệ nhiều lớp.
-- ✅ Confirmed đợt 1 (2026-08-12): bỏ nhật ký vận hành → lịch sử sửa chữa · bỏ kế hoạch vụ mùa · bỏ diện tích tưới tiêu · bỏ trạng thái tổ máy realtime · lưu vực = trường text · thủy văn 2 mức chất lượng · bỏ SMS v1 (thông báo qua website + email) · TV 85" 4K · chỉ tiếng Việt · không migrate web cũ · quan hệ điểm đo↔công trình n–n có vai trò · mọi tham số để config.
-- ✅ **Confirmed đợt 2 (2026-08-12)**: **G1** gộp sự cố vào lịch sử sửa chữa (PA A) · **G2** không cần giờ chạy máy/kWh/m³ → bỏ vĩnh viễn · **G3** chấp nhận không có API lịch sử; **cron 2'/phút lẻ + rate-limit theo khung 10'**; trạm trục trặc → **GIS xám** · **G4** tình hình vận hành cống nhập tay, **danh mục mã có CRUD + màu + ánh xạ trạng thái** (CN-02.11) · **G7** audit 5 năm rồi kết xuất lưu trữ · **G9** Admin tự cấu hình ngưỡng (màn hình cấu hình là hạng mục nghiệm thu) · **G11** người nhận = nhóm "Ban điều hành" ∪ người phụ trách công trình · **G12** chốt số NFR nghiệm thu (99% · 200 CCU · 3s · 60s · 2FA Admin).
-- ✅ **API thủy văn đã đấu nối được (12/8/2026)**: `GET http://songnhue.bhh40.net/api/getmn.aspx?key=<mã số>;` — **dấu `;` cuối key bắt buộc**, thiếu thì trả `not.working`. Response text, phân tách `<br>`, bản ghi `F#####;dd/MM/yyyy;HH:mm;value=<cm>;` — 19 điểm mực nước, đơn vị **cm** (chia 100 ra m). Đặc tả parser: `function-spec.md` CN-03.2.
-- ⛔ **Giới hạn nguồn**: **không có API lịch sử** (đã chấp nhận — poller là nơi bắt dữ liệu duy nhất, mất là mất vĩnh viễn, giám sát như backup) · **không có API lượng mưa** (v1 hiển thị `-`) · **không trả tên điểm đo, chỉ trả mã**.
-- ✅ **G8b ĐÃ ĐÓNG (12/8/2026)** — Công ty cấp đủ **19/19 mã API ↔ tên điểm đo + vai trò**; bảng seed ở `function-spec.md` CN-03.1. **Không còn mục nào chặn.** 3 hệ quả: thêm vai trò **`MN_SONG`** (điểm loại này có thể không gắn công trình nào) · **cấm validate "TL > HL"** (2/5 cặp đảo hợp lệ) · seed/join **dùng mã, cấm dùng tên** (có 2 công trình cùng tên "Yên Nghĩa").
-- ⬜ **Còn mở 6 mục, chỉ ảnh hưởng dữ liệu khởi tạo & nghiệm thu**: **G8** tuyến sông/lý trình/tọa độ + khoảng trống API-vs-biểu tổng hợp + 3 cặp mã trùng giá trị + danh mục công trình · **G3-a** lượng mưa · **G5** mã số hệ thống văn bản (+ xin SSO) · **G6** mẫu 2C-BNV · **G9-a** bộ mức ngưỡng · **G10** duyệt format báo cáo.
-- ✅ **Đã verify sẵn sàng code (2026-08-13)**: Phase 0/1/2 **bắt đầu được ngay**; chỉ **CN-01.7 (lưu mã số) bị chặn bởi G5** → tách task riêng. Môi trường máy dev đủ (JDK 21 · Node 22 · Docker+Compose · psql 17); chưa cài Maven/Gradle nhưng dùng wrapper là được. Repo chưa có dòng code nào → greenfield. Chi tiết: `implement.md` §7.
-- 📋 **Bảng truy vết "chức năng nào còn chứa điểm chưa chốt"**: `business-open-questions.md` **Phần III** — dev đọc trước khi bắt tay vào 1 chức năng.
-- ✅ **Phase 0 đã có kế hoạch chi tiết (2026-08-13)** — `phase0-tracking.md`: 11 hạng mục, ~113 task, ~114 người-ngày. Quyết định nền tảng ghi ở `architecture-review.md` **§9**: Maven multi-module · monorepo · docker-compose **3 VM** · secrets env + GitHub Secrets · **migration chạy ở service `migrator` riêng** · **DB roles tách quyền**.
-- ⚠ **Backup đã hạ xuống bản tối giản (13/8/2026)**: `pg_dump` hàng đêm, **RPO ≤ 24h · RTO ≤ 4h**, **không PITR/WAL/replica** — chấp nhận mất tối đa 1 ngày dữ liệu. Bảng 4 rủi ro chấp nhận ở `architecture-review.md` §6.5. Đây là quyết định nội bộ, **không hỏi khách**.
-- ➡️ **Bước tiếp theo**: gửi 6 mục còn mở + `report-templates-proposal.md` cho Công ty; bắt đầu **Phase 0** theo `phase0-tracking.md` — trong đó **ArchUnit, 2FA Admin và khung giám sát dữ liệu quá hạn phải nằm trong Phase 0**, load test 200 CCU đưa vào kế hoạch từ Phase 2.
+✅ **Đề bạt `dev → staging` 1/9 (#76, merge commit)** — đo ĐỘC LẬP qua SSH: 4 container ứng dụng tạo lúc 18:14:39–41 +07 (trong cửa sổ deploy), **6/6 healthy** · Flyway `1050 → 1051` đúng thứ tự, **0 thất bại** · `staging.songnhue.com/` **200** (226 KB), `admin-staging` **200** · bảng văn bản WS-39 render 1 hàng dữ liệu thật. **Bộ canh gốc chung làm việc đúng ngay lượt đề bạt thật đầu tiên**: CD giải đỉnh `dev` qua merge-base, không rơi vào nhánh cảnh báo squash. Chi tiết `master-tracking.md` T11.65.
+
+✅ **Staging nghiệm thu 28/8 sau lượt CD `22876c8`** — đo ĐỘC LẬP qua SSH, không đọc lại lời workflow: ba container chạy đúng ID ảnh đã triển khai, `healthy`, tạo trong cửa sổ deploy · Flyway `1039 → 1040` đúng thứ tự, 0 migration thất bại · `/photos` trả **25 ảnh, 25/25 ra byte JPEG thật** (tb 124 KB) · `/banners` **5/5** · video + logo đúng. ⚠ Smoke test của CD **không** kiểm 25 ảnh mới — nó hỏi ảnh seed từ 25/8.
+
+✅ **T11.45 đóng 28/8** — QuanTran chạy lệnh `sudo`; đo lại: `fail2ban` **active**, drop-in `60-startups.conf` có mặt **và đã được nạp** (`StateChangeTimestamp` 00:36:12 trong khi `NRestarts=0` — chữ ký của `reload`), **SSH 10/10** (trước: 7/10), cổng 22 còn 2 kết nối / 5 tiến trình sshd (lúc sự cố: 67). ⬜ Còn `sudo fail2ban-client status sshd` để xem số IP đã cấm.
+
+**WS-25 — Đầu trang thân thiện + kiểm kê "cấu hình được từ admin"** ✅ **28/8** (§10.62). Thanh điều hướng **đo được là tràn 1454/1192px trên mọi màn hình** (`flex-wrap` che đi) và mục cấp 1 kiểu `NONE` là nút không hành vi → không mở được menu con trên máy tính bảng — cả hai nằm trong §10 checklist *"Responsive"*. Kiểm kê tìm ra **6 cột/khoá/tham số thiếu một nửa cặp đọc–ghi** (4 trong số đó do WS-24 tạo ra **một ngày trước**) + 4 khoá `settings` không ai đọc. **21/24 task đóng**; 3 nợ có số đo: T25.22 (cache cổng không xoá được từ `core`/`operations` — trễ 5') · T25.23 (25 hex ở admin-app) · ~~T25.24~~ đã đóng 27/8.
+
+⬜ **DoD còn treo**: **DOD1.17** trang chủ < 3s (NFR-02) — nay đo được trên staging có nội dung thật · **DOD0.21** quay lui — chưa lượt deploy nào đi qua đường quay lui thành công.
+
+✅ **Staging đã dựng lại cluster 26/8** (T11.3-b) — `i | collate=C.UTF-8 | icu=vi-VN`, vân tay số dòng khớp từng bảng, 6/6 container healthy, 4/4 smoke test xanh trên site thật, trang chủ 11 liên kết đều là slug thật. Lượt khôi phục ấy tìm ra **T7.13-a** — đường quay lui dữ liệu duy nhất của hệ vốn khôi phục ra một CSDL ứng dụng không đọc nổi (§10.58).
+
+⚠⚠ **Hai mươi lăm lượt liên tiếp một bản ghi "đã xong" bị lượt rà sau bác bỏ.** Đây là hình dạng rủi ro
+đặc trưng của dự án, không phải sự cố lẻ — nguyên nhân gốc từng vụ ở `architecture-review.md`:
+
+| Ngày | Lượt rà tìm ra | § |
+|---|---|---|
+| 22/8 | bản ghi "đã xong" bị bác bỏ toàn phần | — |
+| 23/8 | 4/11 mục WS-21 chưa làm hoặc hỏng; 4/17 cam kết DoD không có phép kiểm nào | §10.36 |
+| 24/8 | 1 lỗi CHẶN nghiệp vụ trong phạm vi đã tick; image quản trị phát mã nguồn; bộ lọc CI bỏ qua đúng job nó cần | §10.37 |
+| 24/8 | CI đỏ ở job đóng gói image **dù 8 cổng kiểm ở máy đều xanh** — biến build rỗng, `??` không đỡ | §10.38 |
+| 25/8 | 204 No Content bị giao diện biến thành lỗi trên 24 endpoint; `DB_APP_PASSWORD` không ai đọc che mất biến thật sự thiếu | §10.40 · §10.41 |
+| 25/8 | ảnh cổng chưa từng ra được một byte — bài kiểm dùng UUID không tồn tại nên chỉ đi nhánh 404 | §10.52 |
+| 25/8 | bản vá không bao giờ được nạp — compose in `Running` và giữ container cũ | §10.53 |
+| 25/8 | trang chủ nướng rỗng vào image, và **19 bài viết + 4 văn bản có số hiệu + 5 trạm thuỷ văn + 9 số điện thoại bịa** làm trang rỗng trông đầy | §10.54 |
+| 26/8 | tham số collation **vắng hẳn** ở `compose.prod.yml` 12 ngày — và vá tệp cũng không chữa được cluster đã dựng | §10.56 |
+| 26/8 | cổng secret bỏ qua trong im lặng → CD Production xanh mà không byte nào chạm máy chủ | §10.57 |
+| 26/8 | **đường quay lui dữ liệu duy nhất** khôi phục ra CSDL mà ứng dụng không đọc nổi | §10.58 |
+| 27/8 | lượt deploy đỏ vì **cổng 22 bị quét** — sshd thả 30% kết nối; không phải lỗi mã | §10.59 |
+| 27/8 | CD Staging **success trọn vẹn mà không container nào được thay** — một lệnh nuốt mất nửa cuối script | §10.60 |
+| 27/8 | **cổng công khai chưa từng có CSP nào** — `next.config` bảo *nginx đặt*, nginx bảo *image FE đặt*; bộ canh chỉ soi `admin-app` | §10.61 |
+| 27/8 | trang **Tiến độ sản xuất** liệt kê hai danh mục của mục đã ẩn làm các **Năm** — 906 bài kiểm hai phía đều xanh, chỉ lộ ra khi mở trang trên stack đang chạy | §10.61 |
+| 28/8 | **6 cột/khoá/tham số thiếu nửa cặp đọc–ghi** — 4 do đợt hôm trước tạo ra; thanh điều hướng tràn khung 22% ở *mọi* bề rộng mà `flex-wrap` che đi | §10.62 |
+| 28/8 | **hai lượt kiểm chứng ngược của chính tôi đều sai** — một cái mù trước SQL đã chú thích, một cái *chép lại* hành vi sai thay vì bắt nó | §10.62 |
+| 27/8 | **bảy context bắt buộc khoá chết mọi PR chỉ sửa tài liệu** — job matrix bỏ qua báo một cái tên khác | §10.63 |
+| 27/8 | **9 phép kiểm canh nguồn sự thật, không cổng nào chạy** — và có sẵn nhánh `sys.exit(0)` chờ | §10.64 |
+| 27/8 | **một đợt sửa CHÚ THÍCH làm ứng dụng không khởi động được** — Flyway băm cả tệp; 680 bài kiểm về nguyên tắc không thấy | §10.65 |
+| 27/8 | **migration mới đánh số bằng giờ-phút** rơi xuống dưới bản staging đã áp — và cùng lỗi ấy làm seed ghi vào một khoá chưa tồn tại, **0 hàng, không một dòng log** | §10.66 |
+| 28/8 | **bản vá sống trên đĩa mà tiến trình MCP vẫn chạy mã cũ** — bảng Công ty đọc mang 3 trạng thái sai suốt từ lúc bản vá vào kho; đọc-ngược-sau-khi-ghi *không* bắt được | §10.67 |
+| 29/8 | **cổng quét CVE đỏ hơn một ngày không ai đọc** — 9 mã ≥ 7 ở `tomcat-embed-core`, mã không đổi, *thế giới* đổi; và bước SSH của CD đỏ 6/6 mà `2>/dev/null` **vứt mất lý do** | §10.68 |
+| 29/8 | **lượt deploy tự cấm chính nó** — `ssh-keyscan` mở 5 kết nối vô danh, fail2ban `maxretry=3` cấm ngay IP runner; lượt xanh hôm trước chỉ **thắng cuộc đua** | §10.68-C |
+| 29/8 | **secret nối được ba phần tư đường** — khai ở thân + kiểm ở cổng, nhưng hai workflow GỌI không truyền; bộ canh soi *chuỗi có mặt* nên xanh trong khi đường dây đứt | §10.68-D |
+| 30/8 | **trần tải tệp 1MB chưa ai khai** — mặc định của *framework* thắng, nên bốn hạn mức trong `settings` (có UI, có mã đọc, có bài kiểm) **chưa từng quyết định điều gì**; và phản hồi 413 vừa thêm vốn không giao được tới trình duyệt | §10.69 |
+| 1/9 | **5 cổng kiểm CI sẽ đỏ mà 8 cổng "đã canh" hôm trước không cái nào chạm tới** — *biên dịch được* đọc như *qua cổng kiểm*; và luật ArchUnit vs thiết kế `Station` mâu thuẫn suốt vì **luật chưa từng chạy** | §10.70 |
+| 1/9 | **ba khuyết tật im lặng lộ ra ngay lượt kiểm HTTP ĐẦU TIÊN của `hydro`** — đổi Nguồn dữ liệu bị vứt · TECHNICIAN không tạo nổi điểm đo · cờ "Đang dùng" bị bỏ rơi; cả ba đều *lưu thành công* | §10.70 |
+| 1/9 | **T27.7 trả nợ cache cổng ở ba điểm ghi, điểm ghi thứ tư ra đời cùng đợt mang lại đúng lỗi cũ** — tình hình vận hành lên cổng từ T27.16 mà không xoá đệm | §10.70 |
+| 1/9 | **`layoutChanged()` có đúng MỘT lần xuất hiện trong toàn kho — chính định nghĩa của nó**; nhãn `giao-dien` có đầu nhận từ lâu mà chưa từng có đầu phát | WS-39 |
+| 1/9 | **`tsc --noEmit -p <app>/tsconfig.json` chưa từng kiểm một tệp nguồn nào** — tsconfig là tệp *solution* chỉ có `references`; nó báo xanh trên một tệp thiếu hẳn một trường bắt buộc | WS-39 |
+| 1/9 | **chép PIXEL của cổng tham chiếu vào một khung hẹp hơn** — bảng của họ rộng 1160px, của ta 776px; bốn cột cố định ăn hết, cột đặt TÊN văn bản còn 102px | WS-39 |
+| 1/9 | **một lượt đề bạt gộp bằng Squash làm gãy gốc chung** — 13 tệp xung đột giả, và xung đột giả ấy khiến `Promotion guard` **không chạy**: cổng bắt buộc duy nhất của `staging` treo ở *Expected*, không một dòng đỏ nào để đọc | §10.72 |
+| 1/9 | **cổng đề bạt vừa vá xong đỏ giả ở lượt chạy ĐẦU TIÊN** — `conclusion: null` (đang chạy) bị đọc thành *"kết thúc với 'null'"*; một cuộc đua 19 giây giữa lượt gộp và lượt CI | §10.72 |
+| 3/9 | **bộ lọc CI bỏ sót `docs/` — và `CiPathFilterTest`, bộ canh sinh ra để bắt đúng lỗi ấy, KHÔNG THỂ thấy** vì danh sách tiền tố của nó không có `docs`. Hai lớp kiểm đọc `docs/` đã nằm trong kho từ lâu | T11.71 |
+| 3/9 | **`application.yml` khẳng định từ WS-4 rằng *nginx chặn swagger*, mà cấu hình nginx của kho không có một dòng nào về swagger** — thứ giữ nó khỏi ra ngoài là tai nạn của định tuyến | T11.6-a |
+| 3/9 | **phép kiểm bảo mật duy nhất canh bản dump thoát 0 ở mọi lượt triển khai từ 26/8** — VPS không cài `postgresql-client`, nhánh thiếu công cụ `exit 0` | T11.41 |
+| 4/9 | **`git merge` sạch 0 đụng độ ở mã, cây gộp vỡ ở BỐN chỗ** — hai nhánh mỗi nhánh xanh trọn vẹn, không tệp nào bị cả hai sửa. Hai cặp soi gương: một nhánh thêm *luật* (`record` mở rộng · bộ canh bảng mới), nhánh kia thêm *thứ vi phạm luật* | §10.74 |
+| 4/9 | **khuyết tật thứ tư CI CHƯA TỪNG THẤY** — `eslint` đỏ ở bước đầu nên bốn bước sau của job (gồm bộ test FE) bị bỏ, không bao giờ chạy tới. **Số job đỏ ⛔ không phải số khuyết tật**; vá đúng thứ CI kêu rồi đẩy là gặp lượt đỏ thứ hai | §10.74 |
+| 3/9 | **`MigrationTest` khẳng định `applied >= 9` trong khi kho có 47 migration** — ngưỡng đi lọt gần như mọi mức hỏng, kể cả Flyway chỉ áp được một phần | T11.72 |
+| 3/9 | **`CVE-2026-59283` (9.1) chỉ còn một MẶC ĐỊNH của framework chặn nó** — `spring.expression.compiler.mode` không được khai ở bất kỳ đâu trong kho | T11.73 |
+| 3/9 | **`clean verify` ở máy xanh trọn vẹn (1201 test), CI đỏ ngay bài đầu** — regex của một bộ canh đệ quy **một khung stack mỗi ký tự**; nó hỏng vì **kho lớn lên**, không vì mã sai, nên `git bisect` chỉ vào commit vô can | §10.73 |
+| 3/9 | **`-Dtest=<Lớp>` in `Tests run: 0` mà Maven thoát 0** — lớp có `@Nested`; dòng tóm tắt `.txt` của surefire ghi 0 trong khi XML liệt đủ **12** `<testcase>` | §10.73 |
+| 4/9 | **phép kiểm bảo vệ nhánh §6.4 không thể sinh ra điều kiện ĐẠT của chính nó** — `git push origin dev # phải bị từ chối`, mà `enforce_admins=false` và **cả hai** collaborator đều admin ⇒ luôn thoát 0 với mọi người chạy được nó. Chạy còn sai hơn không chạy | T11.77 |
+| 4/9 | **một cú chớp mạng của ghcr.io hạ đỏ cổng bắt buộc duy nhất của `dev`** — job gắn tag nuốt stderr rồi in *"commit ĐẦU TIÊN của một gói GHCR mới"*, trong khi job đóng gói vừa đẩy `app:dev` xong **2 phút 16 giây** trước. Chú thích ngay trên chính job ấy mô tả đúng khuyết tật này (§10.43) — **bản thay thế tái lập nó** | T11.78 |
+
+⛔ Hệ quả rút ra: **"đã tick" không phải bằng chứng.** Trước khi mở một giai đoạn mới, đối chiếu với mã thật và chạy đường mà người dùng thật đi.
+
+⛔ Và **"xanh ở máy" cũng không phải bằng chứng**: hai job chỉ sống trên runner (quét CVE · đóng gói image) chạy trên **cây checkout sạch, không có `.env.local`**. Mọi lượt build ở máy đều nạp tệp ấy — nên một biến môi trường rỗng là trạng thái mà `make ci-local` **về nguyên tắc không dựng lại được**. Muốn kiểm trước thì phải `docker build` đúng đối số của `ci.yml`.
+
+⛔ **Cấm seed dữ liệu công trình/thuỷ văn "cho đẹp demo"** — ô nào chưa có nguồn thì nói thẳng là chưa có.
+
+**Codebase đo ngày 4/9 trên đỉnh `dev` `f165f06`** — số đọc từ **lượt CI thật `33881305079`**, không đọc ở máy (WS-29→35 + PR #83 + #85 + #87): **1324 test BE** (249 core + 42 content + 43 operations + 222 hydro + **768** app — WS-35 thêm **+55**, `GanTagShaTest` thêm **+11**; 7/7 module SUCCESS, **178 báo cáo surefire**, 0 dòng `[ERROR]`) + **526 test FE** (**222** admin/29 tệp + **304** public/34 tệp) + **30 phép đo Playwright** (chưa vào CI — T38.10) ⚠ **CHƯA đo lại trên `f165f06`** — bê từ mốc `cbce381`, cùng nhóm với: 166 báo cáo surefire · 88 quyền/12 vai trò/334 dòng phân quyền · 36 bài ArchUnit · 25 mã màu ghi cứng · **92 mã lỗi** (BE = FE = properties, đếm độc lập hai phía cùng ra 92 — +HYD-2012→2015 của WS-34, +CMS-2016/2017 của WS-40; ⚠ bài canh đếm ở `error-map.test.ts` là chỗ lượt gộp 4/9 làm vỡ cú pháp, §10.74) · 88 quyền / 12 vai trò / 334 dòng phân quyền · **36 bài ArchUnit** (7 lớp, gồm **14 bài tự-kiểm** — +3 bài chứng minh ngoại lệ "cột phạm vi NULLable" của `Station` không bị lạm dụng) · **11 phép kiểm bộ đọc tracking** · **bộ canh thứ tự migration** (script so nhánh nền) **+ `MigrationNamingTest` 5 bài** canh dãy `nnnn` tăng dần — bắt được ngay 2 tệp lịch sử `V202608241255/1256` đánh số bằng giờ-phút · **55 migration** (+1 tệp chỉ-test ⇒ 56 tệp trên đĩa), đỉnh `V202609041064__hyd_portal_station_list` — WS-35 thêm đúng 1 tệp — 5 tệp `hyd` đã **đánh số lại** từ `1052–1056` sau khi WS-40 gộp trước (T34.11) · mọi cổng bao phủ **chạy thật** · ⛔ CVE ≥ 7: **7** — **đo lại 4/9 trên đỉnh `dev` `f165f06`** (lượt `33881305369`, artifact `9940036101`; trước đó 3/9 lượt `33728393299` ra **cùng một tập, không lệch một mã**): 3 mã **9.8** + 2 mã **9.1** + 2 mã 7.5, tất cả ở `spring-core`/`spring-web` 6.2.19 và `spring-security-crypto` 6.5.11 · thêm **5 mã < 7** (6.1 · 5.9 · 5.3 · 4.3 · 3.7) trên **110 phụ thuộc được quét** — **6 → 5 sau khi PR #89 gộp** (`jackson-bom` 2.21.6 xoá `CVE-2026-54515`; đo ở lượt `33887563690`, artifact `9942519804`: 12 mã khác nhau, không jar jackson nào còn lỗ hổng) · `tomcat-embed-core` 10.1.59 **0 mã** (xác nhận lại T11.58) · **0 mục suppression mồ côi**. **4 → 7 trong 24 giờ, mã không đổi một dòng.** Không mã nào vá được trong dòng đang dùng (`6.2.20`/`6.5.12` đều HTTP 404, vĩnh viễn) ⇒ chỉ Boot 4.1.1 xoá được, T11.69. Con số **0** ghi ở đây từ 28/8 đã sai suốt 6 ngày — đúng lý do mọi số đo phải mang ngày · **0 mã màu ghi cứng** trong `public-web` (admin-app còn 25 — nợ T25.23). ⛔ Mọi con số trên là **số đo có hạn dùng**: ghi vào sổ thì phải ghi kèm ngày đo.
+
+⛔⛔ **Và "biên dịch được" KHÔNG phải "qua cổng kiểm"** (§10.70): bản ghi 31/8 khai *javac 21 trên 395 tệp, JAVAC_EXIT=0, `tsc` sạch, `eslint` sạch* — đúng cả bốn, và **không cái nào chạm tới** Spotless, Checkstyle, Prettier, ArchUnit hay một dòng SQL. Lượt chạy thật đầu tiên tìm ra 5 cổng sẽ đỏ. ⚠ Thêm một bẫy đo được 1/9: **`./mvnw -pl app test` KHÔNG có `-am` chạy trên jar module khác CŨ trong repo local** — một lượt kiểm chứng ngược "phá rồi thử" báo XANH vì bản hỏng chưa từng được nạp (luật 10).
+
+### Tra ở đâu
+
+| Cần gì | Đọc ở đâu |
+|---|---|
+| Nợ đang treo, task còn lại | **`.claude/master-tracking.md`** — nguồn DUY NHẤT (conventions.md §6). `phase0-tracking.md` / `phase1-tracking.md` chỉ là lưu trữ, cấm sửa |
+| **Lý do** một quyết định, **nguyên nhân gốc** một lỗi đã sửa | `architecture-review.md` **§9** (Phase 0, 14 mục) · **§10** (Phase 1, 49 mục — §10.35 đợt vá sau WS-22, §10.36 nghiệm thu lại WS-21 + DoD, §10.37 nghiệm thu image, §10.38 CI đỏ sau merge `dev`, §10.40 lỗi 204, §10.41 biến CSDL không ai đọc, §10.52 envelope bọc `byte[]`, §10.53 container không được thay, §10.54 trang chủ nướng rỗng + dữ liệu bịa che chỗ rỗng, §10.55 `minio-init` đo thay vì khai báo + bộ seed một công tắc, §10.56 collation vắng ở `compose.prod.yml` — tham số chỉ chạy một lần, §10.57 cổng secret bỏ qua trong im lặng + 4 khoản bấm ở GitHub, §10.58 bản dump khôi phục ra CSDL không đọc nổi, §10.59 cổng 22 bị quét làm đỏ deploy, §10.60 một lệnh nuốt stdin làm nửa cuối khối triển khai không chạy mà CD vẫn xanh, §10.61 đợt chỉnh sửa cổng theo nghiệm thu Công ty — cổng công khai chưa từng có CSP, đổi menu làm ba trang tĩnh mất lối vào, hai bộ canh cũ canh hình dạng thay vì canh bất biến, §10.62 sáu cột/khoá thiếu nửa cặp đọc–ghi + hai lượt kiểm chứng ngược tự sai, §10.63 bảy context bắt buộc khoá chết mọi PR chỉ sửa tài liệu, §10.64 chín phép kiểm canh nguồn sự thật mà không cổng nào chạy, §10.65 một đợt sửa chú thích làm ứng dụng không khởi động được, §10.66 migration đánh số bằng giờ-phút rơi xuống dưới bản đã áp, §10.67 bản vá sống trên đĩa mà tiến trình MCP vẫn chạy mã cũ, §10.68 cổng quét CVE đỏ mà không ai đọc + bước SSH vứt mất lý do đỏ, §10.68-C lượt deploy tự cấm chính nó bằng `ssh-keyscan`, §10.68-D secret nối ba phần tư đường, §10.69 trần multipart 1MB không ai khai — một tham số cấu hình *nói dối* khó thấy hơn một tham số không ai đọc, §10.71 CVE 9.8 không có bản vá + suppression bị bỏ quên, **§10.72 đề bạt bị squash làm gãy gốc chung — một cổng kiểm KHÔNG CHẠY không đọc như một cổng kiểm ĐỎ**) |
+| Cách viết một chức năng + bảng bẫy tra nhanh | `docs/coding-guide.md` |
+| Luật bắt buộc khi viết code | `conventions.md` |
+| Nghiệp vụ | `function-spec.md`; điểm chưa chốt → `business-open-questions.md` Phần III |
+
+### Nghiệp vụ còn chờ Công ty — 7 mục BOQ + 10 mục OI
+
+Không mục nào **chặn code**, chỉ chặn **dữ liệu khởi tạo và nghiệm thu**; riêng **G5** chặn đích danh CN-01.7 (lưu mã số hệ thống văn bản) nên task đó tách riêng.
+
+**G3-a** lượng mưa · **G5** mã số hệ thống văn bản (+ xin SSO) · **G6** mẫu 2C-BNV · **G8** tuyến sông/lý trình/toạ độ + danh mục công trình · **G9-a** bộ mức ngưỡng · **G10** duyệt format báo cáo · **G13** bộ nhận diện cổng (logo/màu/GA/GTM/reCAPTCHA).
+
+✅ **G14 đóng 27/8** — cây danh mục + menu nhận qua §3 văn bản nghiệm thu, dựng ở `V202608271031`.
+
+⬜ **Mở mới 27/8 — `OI-01`→`OI-10`** (§9 của `docs_origin/nghiem_thu_phase1.md`). Tài liệu đề nghị phía phát triển trả lời **ngay trong tuần** ba mục kỹ thuật `OI-01`/`OI-02`/`OI-07`; câu trả lời đo được đã có ở `master-tracking.md` T24.23→T24.25. Chặn nghiệm thu nặng nhất: **`OI-03`** (danh sách 10 cống trục chính) · **`OI-05`** (7 hay 8 Xí nghiệp — Bố cục ghi 7, danh mục công trình có 8).
+
+Gửi kèm `report-templates-proposal.md`. Chi tiết từng mục: `business-open-questions.md` Phần II.
+
+### Việc bấm ở GitHub — áp và đo lại 26/8
+
+| | Trạng thái đo được |
+|---|---|
+| **Nợ #45** Dependency graph | ✅ đã bật từ trước, sổ ghi sai — job *Soi phụ thuộc* chạy `success` (không `skipped`), SBOM trả về (T11.32) |
+| **Nợ #27** bảo vệ nhánh | ✅ `staging` + `production` `strict` → `false`; `dev` thêm *Vùng nào thay đổi* (T11.39) |
+| **Nợ #46** context đóng gói image | ⚠ **Số trong sổ đã SAI từ 27/8** — đo lại bằng API 3/9: `dev` có **ĐÚNG 1** context bắt buộc là `Cổng kiểm CI`, `strict=true`. Bảy context ấy đã bị T11.48 gỡ ngay hôm sau vì chúng khoá chết mọi PR chỉ sửa tài liệu (§10.63); hai job đóng gói image nay chặn được merge vì nằm trong `needs` của `Cổng kiểm CI`. Sổ ghi `2 → 7` và không ai cập nhật khi nó bị đảo ngược. ⚠ `Gắn tag SHA cho image không đổi` cố ý ngoài danh sách context — nó **có** báo cáo ở PR (`skipping`), mà `skipped` được tính ĐẠT. ⛔ **Nhưng câu "nên nó không chặn được gì" (T22.23) ĐÃ HẾT ĐÚNG** — đo 4/9: nó nằm trong `needs` của `Cổng kiểm CI`, nên khi nó đỏ thì cổng bắt buộc DUY NHẤT đỏ theo. Chứng minh bằng lượt `33881305079`: một cú chớp mạng của ghcr.io hạ đỏ cả lượt CI trên `dev` (T11.78). *Ngoài danh sách context* ≠ *không chặn được gì* |
+| Bảo mật kho | ✅ secret scanning · push protection · non-provider patterns · Dependabot alerts + security updates — cả 5 `enabled`, `secret-scanning/alerts` trả **0** (T11.40) |
+| Cổng secret của lượt triển khai | ✅ thiếu secret ở production nay **DỪNG ĐỎ**. Trước đó cảnh báo rồi bỏ qua → lượt CD Production xanh trọn vẹn mà không byte nào chạm máy chủ (T11.7-b, §10.57) |
+| Environment `production` | ⬜ vẫn **không có secret nào** — chỉ đặt được sau khi có VPS-1 (T11.7) |
+| Biến kho `PUBLIC_SITE_URL` | ⬜ `actions/variables` vẫn RỖNG → sitemap/canonical của staging trỏ `localhost` (T11.7-a) |
+
+📌 Cùng một hình dạng: **một cổng kiểm tồn tại trong mã nhưng chưa có hiệu lực ở nơi nó phải chặn.**
+Lệnh áp nợ #27 nằm sẵn trong `branch-protection.md` §6.2 **từ 15/8** — không ai chạy, và không ai
+biết là chưa chạy. Bản ghi cũng mục theo thời gian: nợ #45 đã xong từ lúc nào không ai cập nhật.
+
+## Luật đã trả giá — áp cho mọi phiên làm việc
+
+Rút ra sau khi **cùng một hình dạng lỗi lặp lại nhiều lần**. Nguyên nhân gốc từng vụ ở `architecture-review.md` §9–§10; ở đây chỉ giữ phần dùng được cho việc kế tiếp.
+
+**Về phép kiểm — nhóm đắt giá nhất, gần như mọi lỗi nặng của dự án đều đi qua đây**
+
+1. **Mỗi cơ chế canh gác phải có bài kiểm chứng minh nó bắt được vi phạm** (`conventions.md` §1.5). Đã có 5 cơ chế *xanh mà không chạy*: bộ máy JUnit của ArchUnit tìm ra 0 bài kiểm · luật JaCoCo bị bỏ qua vì `<includes>` sai chỗ · `verify-no-keys.sh` chưa từng quét khoá PEM · `FrontendSameOriginTest` soi sai đối tượng · bài canh CSS khớp trúng chuỗi ở quy tắc khác.
+2. **Canh cấu trúc, đừng canh văn bản** — `includes('.sn-align-center')` vẫn xanh sau khi thuộc tính đã bị xoá hẳn.
+3. **Canh giá trị ĐÃ GIẢI, đừng canh giá trị MẶC ĐỊNH** — mặc định chỉ dùng đến khi không ai ghi đè, mà thường thì luôn có người ghi đè (`--env-file` thắng `${VAR:-}`). ⚠ Và **"rỗng" khác "chưa đặt"**: Docker `ARG` không truyền vẫn gán chuỗi rỗng, nên `??` giữ nguyên nó còn `||` mới đỡ. Đây là chỗ mọi mặc định của FE nằm — dùng `||` cho mọi hằng số đọc từ env (§10.38).
+4. **Mock đặt đúng chỗ mã chạm ra ngoài là chưa kiểm gì cả** — `BackupServiceTest` mock `PostgresToolRunner`, và sao lưu (lưới an toàn *duy nhất* của hệ) chưa từng sinh ra một tệp nào suốt 4 ngày.
+5. **Bài kiểm gọi thẳng service không đi cùng đường với production** — 391 bài xanh trong khi mọi màn hình quản trị nội dung trả 500. Cam kết nằm ở controller/filter thì phải kiểm **qua HTTP**.
+6. **Endpoint mà trình duyệt phải gọi thì lượt kiểm phải mang `Origin`** — `curl` không có origin, không preflight, nên đi lọt qua đúng bức tường chặn người dùng thật (CORS chặn toàn bộ giao diện quản trị suốt WS-8→WS-20).
+7. **Một cơ chế chưa ai đi qua thì chưa biết nó đúng hay sai** — phép kiểm chạy qua *tập rỗng* vẫn xanh trọn vẹn (ArchUnit suốt Phase 0, tầng 3 phân quyền, ISR revalidate).
+8. **Healthcheck trỏ vào endpoint không đại diện chỉ chứng minh tiến trình còn sống** — sập 3 lần, nặng nhất là image backend chạy suốt 4 WS mà mọi `/api/v1/**` trả 404.
+9. **Một khẳng định không phân biệt được hai trạng thái thì không khẳng định gì** — bài canh "đi bằng HTTP/1.1" khẳng định `exchange.getProtocol()`, và xanh cả khi đã gỡ `.version(HTTP_1_1)`: máy chủ JDK chỉ nói HTTP/1.1 nên client tự hạ cấp. Phải **đo** cái gì thật sự khác giữa hai cấu hình (ở đây là header `Upgrade`/`HTTP2-Settings`), đừng khẳng định cái nghe có vẻ đúng.
+10. **Làm hỏng có chủ đích để kiểm chứng thì phải xác nhận bản hỏng ĐÃ được nạp — và bản KHÔI PHỤC cũng vậy** — lượt kiểm chứng bản vá IDOR ngày 23/8 báo 6/6 xanh sau khi đã gỡ lớp bảo vệ; hoá ra `install` bị Checkstyle chặn, output đã bị `>/dev/null` nuốt, và bài kiểm chạy trên jar cũ *còn nguyên bản vá*. Chính bước chứng minh cũng là một xanh giả. ⚠ Thêm 26/8, hai lượt nữa trong một phiên: `sed -i.bak` rồi `mv .bak` trả lại **mtime gốc**, nên Maven thấy nguồn cũ hơn `.class` và bỏ qua biên dịch — cả bộ test chạy trên lớp hỏng (169 lỗi, dòng thật nằm cách chỗ báo lỗi hàng nghìn dòng); và một khối kiểm chứng chạy sai thư mục nên `sed` không sửa gì mà bài kiểm **vẫn in 5/5 xanh**. Cách rẻ nhất: in một con số ĐO ĐƯỢC ở mỗi bước (`grep -c`, `stat`), và `touch` tệp sau khi khôi phục (§10.56).
+11. **Phép kiểm chạy lâu phải ưu tiên báo cáo trọn vẹn hơn dừng sớm** — reactor dừng ở module đầu làm 4 vòng quét CVE chỉ soi được **một** module; nếu module đầu tình cờ sạch thì ta tưởng cả dự án sạch.
+
+**Về chỗ đặt một bảo đảm**
+
+12. **Khi một bảo đảm phải đúng ở nhiều đường vào, đặt nó ở chỗ *dữ liệu đi qua*, đừng đặt ở *nơi gọi*** — không đặt được thì phải có phép kiểm đếm đủ các đường vào. (XSS lưu trữ lọt qua 2/3 đường ghi `settings`; `SvgSanitizer` có 9 bài kiểm mà không nằm trên đường chạy nào.)
+13. **Một cột dẫn xuất trộn hai nguồn khác chiều lọc thì kết quả phụ thuộc *ai bấm F5 sau cùng*** — `ConstructionStatusService.tinh()` đếm sự cố bằng câu native (không lọc) nhưng tra mã tình hình vận hành bằng câu derived (có lọc); người ngoài đơn vị mở màn hình là trạng thái bị hạ xuống "Bình thường" **cho tất cả mọi người**, vì đó là cột được ghi xuống CSDL.
+14. **Chỗ nào con người phải nhớ hai nơi thì chỗ đó cần một phép kiểm nhớ hộ** — enum SPI ↔ enum domain · từ vựng trình soạn thảo ↔ danh sách cho phép của bộ lọc ↔ CSS cổng công khai · mã lỗi BE ↔ FE · URL tile ↔ CSP.
+15. **Công tắc / cột / tham số chưa ai đọc là một lỗi, không phải việc để dành** — `limits.upload.max-mb.*`, `company.*`, `attachments.valid_from` đều bày ra ở giao diện hoặc lược đồ mà không dòng mã nào đọc. ⛔ Hệ quả: **không seed tham số `settings` cho tính năng chưa dựng**.
+16. **Số 0 là một câu khẳng định** — ô số liệu chưa có nguồn phải trả rỗng kèm lý do, và ràng buộc đó ép ở **hàm dựng** chứ không ở lời dặn.
+    ⛔ **Và cấm mọi bộ dữ liệu dự phòng "cho giao diện luôn sống động"** — nó không làm dịu một sự cố, nó xoá dấu vết của sự cố: `articles.length >= 4 ? articles : [...articles, ...BIA]` khiến một mảng RỖNG cho ra một trang chủ ĐẦY. 19 bài viết, 4 văn bản có số hiệu và người ký, 5 trạm thuỷ văn có mực nước, 9 số điện thoại — tất cả đã lên staging. Bộ canh phải soi **toàn cây**, vì "ở đây thì chưa có nguồn" là câu người viết component nào cũng tự thấy mình là ngoại lệ (§10.54).
+17. **Tham số chỉ có hiệu lực MỘT LẦN thì tệp cấu hình không còn là bằng chứng — phải đo thứ ĐÃ được tạo ra.** `POSTGRES_INITDB_ARGS` chỉ chạy lúc `initdb` dựng cluster; sau đó tệp compose và CSDL thật có thể nói hai điều khác nhau **vĩnh viễn** mà không lệnh nào báo sai. Đo 26/8: vá tệp rồi `up -d --force-recreate` vẫn ra collation cũ — bản vá tệp một mình chỉ tạo **cảm giác** đã xong. Cùng họ: quyền thư mục lúc tạo volume, `docker login` trên máy chủ (§10.56).
+
+18. **Đổi trạng thái chỉ qua Workflow engine, và cấm lách bằng transition giả** — hash chain đang ký tên vào lịch sử, bịa một bước chuyển là bịa một chữ ký.
+
+19. **Việc làm xong nửa đường trông y hệt việc làm xong** — nghiệm thu WS-21 tìm ra một placeholder văn bản, một component gọi sai kiểu, một `navigate` mà đầu nhận không đọc; cả ba đều đã được tích ✅. Nghiệm thu phải đối chiếu với **mã thật**, không đối chiếu với bản ghi tiến độ.
+**Về công cụ và quy trình**
+
+20. **Script của workflow phải kiểm bằng `bash -c`** — zsh không tách từ mặc định, thử ở máy local không lộ ra mà runner chạy bash.
+21. **Nâng cấp trước, suppress sau; tra phiên bản bằng `maven-metadata.xml`, không bằng API tìm kiếm** — API `solrsearch` trả kết quả cũ, suýt lập suppression cho 49 CVE **đã có bản vá**.
+22. **Squash xong thì nhánh nguồn đã chết — cắt nhánh mới từ `dev`** (`.githooks/pre-push` canh; `make hooks` để bật, và nó là cấu hình **cục bộ từng bản clone**).
+23. **Đọc log theo trình tự, đừng đọc theo mã lỗi** — dòng đáng chú ý nhất thường nằm *trước* thứ được báo là lỗi.
+24. **`skipped` của một required check được GitHub tính là ĐẠT** — bộ lọc đường dẫn trục trặc thì phải mặc định **chạy thừa**, không bỏ sót. ⚠ Và bộ lọc phải bao **những tệp mà bài kiểm ĐỌC**, không chỉ những tệp nó nằm cùng thư mục: 7 lớp kiểm của bộ BE đọc `frontend/` và `deploy/`, nên bộ lọc cũ bỏ qua job canh chúng **đúng lúc chúng thay đổi**.
+
+25. **Một bộ canh theo hình dạng phải được thử với dữ liệu THẬT đang dùng** *(cùng họ với nhóm phép kiểm ở trên)* — ba bộ canh "không ghi cứng liên hệ Công ty", chỉ **một** bắt được khi lỗi tái phát: regex điện thoại đòi khoảng trắng giữa các nhóm số trong khi số thật dùng dấu chấm; regex địa chỉ phân biệt hoa thường trong khi địa chỉ mới viết HOA. Bắt theo hình dạng là đúng hướng, nhưng hình dạng phải đối chiếu với dữ liệu đang chạy — nếu không thì nó chỉ canh được cái đã chết. Bổ trợ bằng một bài ở tầng **cấu trúc** (mọi khoá `company.*` phải rơi về rỗng): bắt theo từng loại dữ liệu thì luôn có loại thứ tư lọt qua.
+
+26. **Merge không đụng độ ≠ merge không vỡ** — `git merge-tree` sạch, typecheck sạch, phân tích tệp cho thấy không đụng file nào của backend; vậy mà bộ test FE trên cây đã merge vẫn đỏ, vì nhánh kia khôi phục một lỗi mà nhánh này có bài canh. **Xung đột văn bản và xung đột ngữ nghĩa là hai chuyện khác nhau** — phải chạy bộ kiểm trên chính cây đã hợp nhất, không suy ra từ việc mỗi nhánh riêng lẻ đều xanh.
+
+27. **Đếm "đã dựng xong bao nhiêu tính năng" là đếm sai đơn vị** — thứ người dùng nhận được là một vòng khép kín *nhập → lưu → hiện*, và một nửa vòng chạy hoàn hảo vẫn cho ra số không. Lượt 28/8 tìm ra **sáu** cột/khoá/tham số thiếu đúng một nửa cặp đọc–ghi, **bốn trong số đó ra đời một ngày trước** từ một đợt cẩn thận, có bài kiểm, có nghiệm thu: bảng `org_unit_leaders` chỉ có đường đọc · ba cột liên hệ có người hiển thị mà không ai ghi · `shortName` qua validate rồi bị vứt · `PUT` không màn hình nào gọi · hai cột tài liệu có setter mà lời gọi duy nhất nằm trong một bài kiểm · component có ba props mà nơi gọi truyền rỗng. Triệu chứng luôn giống nhau và luôn im lặng: **màn hình báo *lưu thành công*, cổng không đổi gì.**
+
+28. **Một cơ chế canh gác phải nói ra phạm vi của chính nó** — ba lần trong hai ngày cùng một hình dạng: `NginxSecurityHeadersTest` soi mỗi `admin-app` trong khi cổng công khai chạy không CSP · `PortalSettingsReadTest` soi mỗi một tệp migration nên mọi khoá seed trước đó đi lọt · bộ canh màu chưa phủ `admin-app`. Bộ canh đúng luật, hẹp hơn nơi nó phải chặn, và **cái xanh của nó đọc như một lời bảo đảm**. Không phủ hết được thì ghi giới hạn vào chính bộ canh và mở một dòng nợ có số đo.
+
+29. **Một bài kiểm chứng ngược có thể sai theo đúng cách mà thứ nó kiểm chứng đang sai** — người viết cả hai là cùng một người, mang cùng một giả định. Ngày 28/8 cả hai lượt kiểm chứng ngược đều hỏng: một cái đặt `--` trước câu `DELETE` rồi chờ bộ canh đỏ (không đỏ — regex không biết SQL có chú thích), một cái khẳng định mẫu bắt enum trả về 2 giá trị từ một enum có 3 (**chép lại lỗi thay vì bắt nó**). Thứ cứu được không phải bài kiểm chứng ngược mà là một khẳng định **về số lượng** — `hasSizeGreaterThanOrEqualTo(3)` không chia sẻ giả định nào với mẫu regex. Bổ sung luật 10: xác nhận bản hỏng **đã được nạp** *và* **bộ canh nhìn thấy nó** là hai chuyện khác nhau.
+
+30. **Bộ test chạy migration từ CSDL RỖNG mù trước cả một lớp lỗi — và lớp ấy chỉ hiện ra lúc deploy** — hai lượt CD liên tiếp ngày 27/8 chết vì đúng nó. Trên CSDL rỗng **không có checksum cũ để so** (§10.65) và **không tồn tại khái niệm out-of-order** (§10.66): Flyway sắp mọi tệp theo version rồi áp tuần tự, xanh trọn vẹn. 688 bài kiểm không sai — chúng **về nguyên tắc** không thể thấy. Mọi bảo đảm về migration vì thế phải neo vào thứ **ngoài** bộ test: vân tay ghi trong kho (`db-migration-checksums.txt`) và phép so với **nhánh nền** (`kiem-thu-tu-migration.sh`). ⚠ Hệ quả cho việc đặt tên: số hiệu `V<YYYYMMDD><số thứ tự>` **trông như** dấu thời gian nên rất dễ viết *thành* dấu thời gian, và hai cách viết chỉ khác nhau ở đúng chỗ không ai nhìn — thứ tự sắp xếp.
+
+31. **Một cổng kiểm KHÔNG CHẠY không đọc như một cổng kiểm ĐỎ — và không có gì đứng ra báo sự vắng mặt.** PR #76 đụng độ giả (13 tệp) vì một lượt đề bạt trước đó gộp bằng **Squash**, làm gãy gốc chung của `staging` — một nhánh không bao giờ bị xoá. Hệ quả nặng hơn xung đột: PR đụng độ thì GitHub không dựng được `refs/pull/N/merge`, nên `Promotion guard` — **cổng bắt buộc duy nhất của `staging`** — không bao giờ được lên lịch, treo ở *"Expected"*. Cùng họ với luật 24 (`skipped` tính là ĐẠT): thứ nguy hiểm là **sự vắng mặt**, không phải màu đỏ. Nay có bất biến đo được — `git rev-list --count --no-merges <nguồn>..<đích>` = 0 — canh bởi `kiem-goc-chung.sh` + `PromotionAncestryTest` (`conventions.md` §1.5, §10.72).
+    ⚠ Và **một bản vá làm hệ thống sống sót qua lỗi cũng làm tắt chuông báo lỗi ấy**: §10.42 đổi một lần dừng hẳn lấy một dòng `::warning::` trên lượt chạy xanh. Chuông kêu đúng nguyên nhân lúc 31/8 23:54:54 và trôi qua. Hạ mức một cảnh báo thì phải nói ra ai còn đọc nó, và sửa tài liệu đang khẳng định hành vi cũ.
+
+32. **Ba cách một lượt kiểm chứng tự nói dối, cả ba đều in màu xanh** — gặp đủ trong một phiên: `conclusion: null` (đang chạy) bị đọc thành *"kết thúc với 'null'"*, làm cổng đỏ giả sau một cuộc đua **19 giây** — luật 9, "chưa xong" phải là nhánh riêng, và **hỏng thắng chưa-xong** · `./mvnw … | tail -40` in `MÃ THOÁT THẬT = 0` trong khi Maven đã hỏng, vì `$?` là mã của `tail` · `-Dtest='A+B'` sai cú pháp surefire nên **một lớp chưa từng chạy** mà Maven vẫn thoát 0 — luật 7 ở dạng cụ thể nhất. Cả ba chỉ lộ ra khi in một **con số đếm được** (ghi ra tệp rồi lấy `$?`, `ls target/surefire-reports/*<Tên>*.txt | wc -l`) — ⚠ và ngay câu lệnh phòng thân cũng phụ thuộc shell: `${PIPESTATUS[0]}` **rỗng dưới zsh** (zsh dùng `$pipestatus[1]`), in ra một dòng trống trông như chưa chạy, không lộ ra khi đọc output.
+
+33. **Lời khuyên chữa lỗi in ra từ một bộ canh cũng là mã — và thao tác đổi cấu hình phải chứng minh vòng khứ hồi trước khi dựa vào nó.** `kiem-goc-chung.sh` bản đầu khuyên `merge -s ours` rồi mở PR vào `dev`; `dev` đặt `required_linear_history: true` nên đường ấy **bất khả** — tôi viết lời khuyên trước, đọc `branches/dev/protection` sau. Cùng phiên: `DELETE …/protection/required_linear_history` trả **404** trong khi log của tôi in "TẮT", phép đo ngay sau cho `true`. Thiết lập ấy chỉ đổi qua `PUT` **toàn bộ** object, nên ghi hụt một trường là **xoá âm thầm** phần bảo vệ khác. Bắt buộc: sao lưu JSON đầy đủ → hai payload khác nhau đúng một trường → đo sau mỗi lượt ghi → **diff toàn bộ với bản sao lưu** → bọc trong `trap` khôi phục.
+
 
 ## Quy ước làm việc với user
 

@@ -1,0 +1,74 @@
+import {
+  brandColors,
+  externalBrandColors,
+  neutralColors,
+  portalChrome,
+  shadow,
+  sizing,
+  statusColors,
+} from 'design-tokens';
+import type { Config } from 'tailwindcss';
+
+/**
+ * Cấu hình Tailwind dựng **từ** `design-tokens` — không có mã màu nào tự khai ở đây.
+ *
+ * Tailwind 4 khai theme bằng CSS (`@theme`), nhưng vẫn nhận cấu hình JS/TS qua chỉ thị
+ * `@config` trong `globals.css`. Dùng đường đó là có chủ ý: khai lại năm màu trạng thái
+ * bằng CSS custom property nghĩa là **hai bản sao** — mà năm màu đó mang nghĩa nghiệp vụ
+ * (đỏ = sự cố đang mở, xám = trạm mất tín hiệu), nên hai bản sao lệch nhau là hai trang
+ * cùng một hệ thống nói hai điều khác nhau về cùng một mức nghiêm trọng.
+ */
+const config: Config = {
+  // ⚠ Tailwind 4 TỰ dò nguồn từ thư mục dự án; mảng này chỉ THÊM vào, KHÔNG thu hẹp được. Đo
+  //   ngày 29/08: cả mẫu phủ định ở đây lẫn `@source not` trong `globals.css` đều không loại
+  //   được tệp kiểm khỏi phạm vi quét, nên cách duy nhất còn tác dụng là **đừng viết tên lớp
+  //   thành một token liền mạch** ở nơi không phải giao diện — kể cả trong chú thích. Xem
+  //   `vuaThanhNgang.test.ts`, chỗ mẫu vi phạm được ghép lúc chạy.
+  content: ['./src/**/*.{ts,tsx}'],
+  theme: {
+    extend: {
+      colors: {
+        // Dùng như `text-status-danger`, `bg-status-normal`
+        status: statusColors,
+        brand: brandColors,
+        surface: neutralColors,
+        // Navy của khung cổng (đầu trang / chân trang) — `bg-chrome-navy800`.
+        chrome: portalChrome,
+        // Chỉ cho biểu tượng của chính nền tảng đó — `text-social-facebook`.
+        social: externalBrandColors,
+      },
+      fontFamily: {
+        sans: [sizing.fontFamily],
+      },
+      borderRadius: {
+        DEFAULT: `${sizing.borderRadius}px`,
+      },
+      boxShadow: {
+        sm: shadow.sm,
+        md: shadow.md,
+        lg: shadow.lg,
+        // `shadow-card` — thẻ trắng nổi trên nền trắng của cổng công khai.
+        card: shadow.card,
+      },
+      keyframes: {
+        'sn-fade-in': {
+          from: { opacity: '0', transform: 'translateY(8px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+        'sn-slide-up': {
+          from: { opacity: '0', transform: 'translateY(16px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+      },
+      animation: {
+        'fade-in': 'sn-fade-in 0.5s cubic-bezier(0.4, 0, 0.2, 1) both',
+        'slide-up': 'sn-slide-up 0.5s cubic-bezier(0.4, 0, 0.2, 1) both',
+      },
+      transitionTimingFunction: {
+        smooth: 'cubic-bezier(0.4, 0, 0.2, 1)',
+      },
+    },
+  },
+};
+
+export default config;
