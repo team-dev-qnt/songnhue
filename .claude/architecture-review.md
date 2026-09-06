@@ -5362,6 +5362,85 @@ tệp — nó **tăng** theo việc mỗi nhánh tưởng mình sở hữu khái
 
 ---
 
+### §10.75 — Một dòng nợ ⛔⛔ trong sổ tự nó sai: "cổng quét CVE soi 110 jar trong khi runtime có 121" (6/9)
+
+**Triệu chứng.** T11.83 (ghi 5/9, mang ⛔⛔) khẳng định cổng quét CVE **bỏ sót 11/121 jar** của fat jar,
+nêu đích danh bảy gói "chưa từng được quét" — gồm `spring-context`/`spring-beans`, nơi `DataBinder`
+nằm — và kết luận *"mọi con số CVE trong sổ là cận dưới"*. `CLAUDE.md` chép câu ấy ở **hai** chỗ trong
+cùng ngày. Kế hoạch xử lý ghi trong dòng nợ: *"tìm vì sao `aggregate` bỏ sót 11 jar"*.
+
+**Đo lại 6/9**, trên chính báo cáo lượt `33951186299` và fat jar `songnhue-app.jar`:
+
+| | Số đo |
+|---|---|
+| `dependencies[]` (top-level) | 110 |
+| `relatedDependencies[]` — ODC gộp jar cùng nhóm/phiên bản dưới một mục cha | **39** |
+| Tên jar duy nhất báo cáo phủ | 146 |
+| Jar trong `BOOT-INF/lib` | 121 → **115 có trong báo cáo** |
+| Ngoài báo cáo | 6 = 5 module `songnhue-*` + **1** `spring-boot-jarmode-tools-3.5.16.jar` |
+
+Bảy gói "chưa từng được quét" đều CÓ trong báo cáo: `spring-context/beans/aop/tx/jdbc` dưới
+`spring-core-6.2.19.jar`, `spring-boot-autoconfigure` dưới `spring-boot-3.5.16.jar`, `logback-classic`
+dưới `logback-core-1.5.34.jar`. Khoảng trống thật là **một** jar: `jarmode-tools`, do
+`spring-boot-maven-plugin` chèn lúc repackage (`includeTools` mặc định `true`), không nằm trong đồ thị
+Maven nên `aggregate` không thể thấy — và không đường chạy nào trong kho dùng nó (`java -jar`, 0 chỗ
+`-Djarmode`/layertools).
+
+**Nguyên nhân gốc.** Người đo đếm **một tầng** của báo cáo rồi so với `BOOT-INF/lib`. Không sai ở công
+cụ, sai ở cách đọc — và ⛔ **không bộ canh nào đứng giữa một dòng nợ và sự thật**: một câu mang ⛔⛔ đi
+vào sổ với sức nặng của một kết luận, được `CLAUDE.md` nhắc lại, và sống một ngày với kế hoạch xử lý trỏ
+sai hướng (mở rộng phạm vi quét, trong khi phạm vi vốn đủ). Đây là luật 19 nhìn từ chiều ngược: *"đã
+tick" không phải bằng chứng* — và **"đã ghi nợ" cũng không**. Sổ nợ là dữ liệu chưa kiểm cho tới khi
+có phép đo lặp lại được.
+
+**Vá — ba tầng, không tầng nào là "sửa câu trong sổ" đứng một mình.**
+
+1. **Cổng tự nói ra phạm vi của mình mỗi lượt** (luật 28): `.github/scripts/phu-quet-cve.sh` chạy trong
+   job `owasp` ngay sau bước `aggregate`, `if: always()` vì bước quét đỏ là trạng thái thường trực. Nó
+   liệt kê `BOOT-INF/lib/*.jar` của fat jar **vừa dựng trong cùng lượt**, lấy tên ở **cả hai tầng** của
+   báo cáo (`fileName` top-level ∪ `relatedDependencies[].fileName`, chuẩn hoá `X.jar (shaded: …)` về
+   `X.jar`), loại module của kho bằng regex (`^songnhue-`, tham số 4) rồi ghi `runtime=N phu=M ngoai=K
+   thieu=J` + `NGOAI:`/`THIEU:` vào `phu-quet-cve.txt` (đi vào artifact và step summary). `J > 0` ⇒
+   **exit 1** — không `warn` (luật 24). ⛔ Không có danh sách ngoại lệ.
+2. **Xoá khoảng trống thật** bằng cấu hình, không bằng ngoại lệ: `<includeTools>false</includeTools>` ở
+   `app/pom.xml`. Đo: jar `121 → 120`, `unzip -Z1 … 'BOOT-INF/lib/*jarmode*'` thoát 11 (không khớp);
+   script trên jar cũ `121/115/5/1` exit 1, trên jar mới `120/115/5/0` exit 0.
+3. **Sửa sổ** cho đúng số đo, kèm ngày: T11.83, `CLAUDE.md` (hai chỗ), `docs/cicd.md` §3.3-0 — câu *"đối
+   chiếu mọi thư viện"* nay có phép đo đứng sau.
+
+#### Bộ canh
+
+`PhuQuetCveTest` **10 bài**, chạy script THẬT bằng `/bin/bash` trên fat jar giả (`ZipOutputStream`) và
+báo cáo giả dựng trong `@TempDir`: phủ đủ ⇒ `3/2/1/0` exit 0 · thiếu một jar ⇒ exit 1 và gọi đúng tên ·
+⭐ jar **chỉ ở `relatedDependencies`** ⇒ phủ (chính lỗi này) · tên dạng `b-2.jar (shaded: …)` /
+`a-1.jar: x.js` ⇒ khớp · tham số regex **được đọc** (hai lượt khác nhau đúng một tham số, luật 9) · thiếu
+báo cáo / thiếu jar / jar không có `BOOT-INF/lib` / JSON rác ⇒ đều đỏ (luật 7) · PATH rỗng ⇒ đỏ nêu tên
+công cụ · dây nối workflow (`always()`, upload path, `paths:`) · ⭐ **cặp đọc–ghi pom ↔ script**: khối
+`<plugin>` của `spring-boot-maven-plugin` phải chứa `<includeTools>false</includeTools>` (cắt khối theo
+cấu trúc, bỏ chú thích XML) và script không có dòng mã nào nhắc `jarmode` · tự-kiểm bộ cắt khối: thẻ ở
+plugin KHÁC hay trong chú thích không được tính (luật 2, 29).
+
+⭐ Lượt viết đầu, hai bài đỏ đúng chỗ đáng đỏ: **P4** bắt thứ tự hai phép `sub` sai (cắt `/` trước rồi
+mới cắt hậu tố ⇒ `a-1.jar: some/file.js` thành `file.js`), **P9** bắt chính thông báo lỗi của script
+nhắc tên `jarmode-tools` — một ngoại lệ chưa thành hình nhưng đã có tên trong mã. Cả hai sửa ở script,
+không sửa ở bài kiểm.
+
+Kiểm chứng ngược trên tệp thật, in `grep -c` trước và sau: xoá dòng `includeTools` ở `app/pom.xml`
+(1 → 0) ⇒ P9 đỏ đích danh, 9 bài kia xanh; khôi phục + `touch` (0 → 1) ⇒ 10/10.
+
+#### Bài học
+
+- **Trước khi trả một nợ, đo lại tiền đề của nó.** Lần này tiền đề sai đổi hẳn việc phải làm — từ "mở
+  rộng phạm vi quét" sang "sửa sổ + đo phủ mỗi lượt". Một dòng nợ viết bằng số đo (110, 121, bảy tên gói)
+  trông thuyết phục hơn một dòng nợ viết bằng cảm giác, và vì thế nguy hiểm hơn khi nó sai.
+- **Con số trong sổ có hạn dùng; con số do máy đo mỗi lượt thì không.** Cách duy nhất để "mọi thư viện"
+  không trở lại thành lời hứa là bắt cổng in phạm vi của nó ra mỗi lần chạy — đúng luật 28, nay có
+  thêm vế: *bộ canh phải đo phạm vi, không phải người viết sổ*.
+- **Khoảng trống thật thì bịt bằng cấu hình đóng gói, không bằng ngoại lệ trong bộ canh.** Một
+  allow-list trong script là chỗ mọi jar thiếu tương lai sẽ được tha.
+
+---
+
 ## §11. QUYẾT ĐỊNH KIẾN TRÚC PHASE 2 (2026-09-04)
 
 ### §11.1 — Bảng tổng hợp ngày: `quality` nằm TRONG KHOÁ (WS-34/T34.1)

@@ -223,6 +223,14 @@ Nó **không** đọc mã nguồn của dự án, không tìm lỗi logic, khôn
 phụ thuộc — kể cả phụ thuộc bắc cầu — rồi hỏi "phiên bản này có nằm trong dải bị ảnh hưởng của CVE
 nào không".
 
+⚠ *"Mọi thư viện"* là một lời hứa, và tới 6/9 nó mới được **đo** thay vì được tin. Ngày 5/9 sổ nợ ghi
+rằng cổng bỏ sót 11/121 jar của fat jar — sai, vì người đo đếm một tầng của báo cáo: Dependency-Check
+gộp jar cùng nhóm/phiên bản dưới một mục cha ở `relatedDependencies[]` (§10.75). Từ 6/9 bước **Phạm vi
+quét** so `BOOT-INF/lib` của fat jar **vừa dựng trong cùng lượt** với báo cáo (top-level +
+`relatedDependencies`) ở **mỗi lượt**, và đỏ khi thiếu một jar bên thứ ba. Khoảng trống thật duy nhất
+tìm ra là `spring-boot-jarmode-tools` — plugin chèn lúc repackage, ngoài đồ thị Maven — nay đã bỏ khỏi
+jar bằng `<includeTools>false</includeTools>` (`app/pom.xml`), không thêm ngoại lệ vào script.
+
 | Bước | Việc | Ghi chú |
 |---|---|---|
 | Nạp bộ nhớ đệm CSDL NVD | lấy CSDL lỗ hổng của lượt trước | quyết định job chạy 20 giây hay 25 phút — §3.3-a |
@@ -231,7 +239,8 @@ nào không".
 | Lưu bộ nhớ đệm | `if: always()` | vì bước sau **được thiết kế để đỏ** — §3.3-a |
 | Dựng jar mọi module | `package -DskipTests` | `aggregate` cần jar liên module để giải phụ thuộc |
 | **Dependency-Check `aggregate`** | quét + áp ngưỡng CVSS ≥ 7 | §3.3-b |
-| Giữ lại báo cáo CVE | tải lên artifact | thứ **duy nhất** đọc được sau khi job đỏ |
+| **Phạm vi quét** (`phu-quet-cve.sh`) | so mọi jar trong fat jar với báo cáo | `if: always()`; thiếu jar bên thứ ba ⇒ **đỏ**; ghi `runtime/phu/ngoai/thieu` vào `phu-quet-cve.txt` (T11.83) |
+| Giữ lại báo cáo CVE | tải lên artifact | báo cáo + `phu-quet-cve.txt` — thứ đọc được sau khi job đỏ, cùng với issue mốc của chuông |
 
 Hai nguồn dữ liệu, và chỉ một cái còn dùng:
 
@@ -240,13 +249,14 @@ Hai nguồn dữ liệu, và chỉ một cái còn dùng:
   mỗi lượt) mà chưa đóng góp dữ liệu nào; tới khi Sonatype chặn truy cập ẩn danh (401) thì nó nâng
   thành `AnalysisException` và giết cả build. Muốn dùng lại phải có tài khoản Sonatype (nợ #49).
 
-Khi job đỏ, có **ba** kiểu hỏng khác hẳn nhau — đọc nhầm kiểu là sửa nhầm chỗ:
+Khi job đỏ, có **bốn** kiểu hỏng khác hẳn nhau — đọc nhầm kiểu là sửa nhầm chỗ:
 
 | Dấu hiệu trong log | Nghĩa là gì | Làm gì |
 |---|---|---|
 | `One or more dependencies were identified with vulnerabilities…` | **Đúng việc của nó** — có lỗ hổng thật | Nâng phiên bản; không nâng được thì thẩm định rồi suppress có hạn (`conventions.md` §4.5) |
 | `One or more exceptions occurred during dependency-check analysis` | Hạ tầng quét hỏng (mạng, nguồn dữ liệu, xác thực) | Sửa hạ tầng. ⛔ **Không** dùng `failOnError=false` |
 | `NoDataException: … database does not exist` | Chưa dựng CSDL NVD | Bộ nhớ đệm trượt hoặc bước cập nhật bị bỏ |
+| `N jar trong BOOT-INF/lib KHÔNG được lượt quét CVE phủ` | Cổng **hẹp hơn runtime** — một jar vào fat jar ngoài đồ thị Maven, mọi con số CVE của lượt là cận dưới | Đọc `THIEU:` trong `phu-quet-cve.txt`. Jar do plugin chèn thì tắt ở pom (`includeTools`); ⛔ không thêm ngoại lệ vào `phu-quet-cve.sh` |
 
 > ⚠ **Điểm in ra trong thông báo không phải điểm dùng để chặn.** DC in **CVSS v4**, chặn theo **điểm
 > cao nhất mọi thang**. Nên `CVE-2026-34479(6.9)` nằm dưới tiêu đề "≥ 7.0" là đúng — mã đó có v3 =

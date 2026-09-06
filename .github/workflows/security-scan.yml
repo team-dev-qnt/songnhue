@@ -45,6 +45,7 @@ on:
       - 'backend/dependency-check-suppressions.xml'
       - '.github/workflows/security-scan.yml'
       - '.github/scripts/bao-dong-quet-cve.sh'
+      - '.github/scripts/phu-quet-cve.sh'
 
 permissions:
   contents: read
@@ -200,6 +201,22 @@ jobs:
             -Ddependency-check.data="${{ github.workspace }}/.dc-data" \
             -DautoUpdate=false
 
+      # T11.83 — cổng tự nói ra PHẠM VI của mình mỗi lượt (luật 28): mọi jar trong fat jar THẬT
+      # vừa dựng ở bước "Dựng jar mọi module" phải có tên trong báo cáo — ở top-level HOẶC ở
+      # `relatedDependencies` (đếm thiếu tầng thứ hai là đúng cái lỗi làm sổ nợ ghi "110/121").
+      # Có jar thiếu ⇒ bước này ĐỎ, không cảnh báo (luật 24), và chuông đọc được lý do từ
+      # `phu-quet-cve.txt` trong artifact.
+      #
+      # `always()` vì bước quét ở trên ĐỎ là trạng thái thường trực của job — không có nó thì phép
+      # đo phạm vi bị bỏ qua đúng lúc có CVE, và `skipped` được tính là ĐẠT.
+      - name: Phạm vi quét — mọi jar trong fat jar phải có trong báo cáo
+        if: always() && steps.nvd.outputs.co_khoa == 'true'
+        run: >
+          .github/scripts/phu-quet-cve.sh
+          backend/app/target/songnhue-app.jar
+          backend/target/dependency-check-report.json
+          backend/target/phu-quet-cve.txt
+
       - name: Giữ lại báo cáo CVE
         if: always()
         uses: actions/upload-artifact@v4
@@ -208,10 +225,12 @@ jobs:
           # `aggregate` ghi MỘT báo cáo ở `backend/target/`, khác `check` (mỗi
           # module một báo cáo ở `backend/<module>/target/`). Khai cả hai đường
           # dẫn tường minh thay vì trông vào việc `**` có khớp zero thư mục hay
-          # không — báo cáo CVE là thứ duy nhất đọc được sau khi job đỏ.
+          # không. Artifact này là thứ duy nhất còn đọc được sau khi job đỏ: báo
+          # cáo CVE và tệp phạm vi quét `phu-quet-cve.txt` (T11.83).
           path: |
             backend/target/dependency-check-report.*
             backend/*/target/dependency-check-report.*
+            backend/target/phu-quet-cve.txt
           retention-days: 14
           # ⚠ `ignore` là sai chỗ này: glob trượt thì artifact lặng lẽ không có,
           # và người ta chỉ phát hiện lúc cần đọc báo cáo nhất. `warn` để nó nói.
