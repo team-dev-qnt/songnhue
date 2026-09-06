@@ -154,6 +154,20 @@
                 <configuration>
                     <mainClass>com.songnhue.app.SongnhueApplication</mainClass>
                     <!--
+                      T11.83 — KHÔNG đóng `spring-boot-jarmode-tools` vào fat jar.
+
+                      Đó là jar DUY NHẤT trong `BOOT-INF/lib` không nằm trong đồ thị phụ thuộc Maven
+                      (plugin chèn nó lúc repackage), nên `dependency-check:aggregate` không bao giờ
+                      quét nó — jar duy nhất ngoài phạm vi của cổng CVE. Đo 6/9 trên fat jar thật:
+                      121 jar, 115 có trong báo cáo, 5 là module của chính kho, và 1 là jar này.
+                      Không đường chạy nào dùng `-Djarmode` (backend.Dockerfile chạy `java -jar`;
+                      grep `jarmode|layertools` toàn kho = 0).
+
+                      ⛔ `.github/scripts/phu-quet-cve.sh` cố ý KHÔNG có danh sách ngoại lệ, và
+                      `PhuQuetCveTest` canh chính dòng dưới — bật lại là lượt quét đỏ đích danh.
+                    -->
+                    <includeTools>false</includeTools>
+                    <!--
                       Chạy từ thư mục `backend/` chứ không phải `backend/app/`.
                       Các đường dẫn tương đối trong file env (khoá JWT ở `../deploy/keys/…`) được
                       viết theo gốc `backend/`; để mặc định thì cùng một file env cho kết quả khác

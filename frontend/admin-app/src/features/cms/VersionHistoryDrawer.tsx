@@ -7,6 +7,7 @@ import { formatDateTime } from '@/shared/format';
 
 import { cmsApi, cmsKeys } from './api';
 import { diffBlocks, summarizeDiff, toBlocks } from './diff';
+import { type ArticleDetail } from './types';
 
 /**
  * Lịch sử phiên bản: so sánh và phục hồi — T20.5, CN-01.1.
@@ -27,7 +28,8 @@ export function VersionHistoryDrawer({
   articleId: string;
   open: boolean;
   onClose: () => void;
-  onRestored: () => Promise<void> | void;
+  /** Nhận `ArticleDetail` máy chủ vừa trả về — nơi gọi dùng nó để dựng lại biểu mẫu. */
+  onRestored: (detail: ArticleDetail) => Promise<void> | void;
 }) {
   const { message } = App.useApp();
   const [leftId, setLeftId] = useState<string | null>(null);
@@ -71,9 +73,15 @@ export function VersionHistoryDrawer({
 
   const restore = useMutation({
     mutationFn: (versionId: string) => cmsApi.restoreVersion(articleId, versionId),
-    onSuccess: async () => {
+    // ⭐⭐ Truyền `detail` LÊN, đừng vứt nó đi — T41.9.
+    //
+    // Bản trước bỏ qua giá trị mà POST đã trả về và chỉ gọi `onRestored()` rỗng. Nơi gọi chạy
+    // `invalidateQueries`, dữ liệu query đổi thật, **và màn hình soạn bài đứng yên** — vì
+    // `ArticleForm` không remount và `initialValues` chỉ đổ một lần lúc mount. Người dùng thấy
+    // "Đã phục hồi", nhìn xuống thì bài y nguyên, và cú Lưu kế tiếp ghi đè ngược bản vừa phục hồi.
+    onSuccess: async (detail) => {
       message.success('Đã phục hồi nội dung từ phiên bản cũ');
-      await onRestored();
+      await onRestored(detail);
       onClose();
     },
     onError: (caught: unknown) =>

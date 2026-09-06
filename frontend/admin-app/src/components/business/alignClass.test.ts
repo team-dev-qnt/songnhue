@@ -1,12 +1,9 @@
 import { Editor, getSchema } from '@tiptap/core';
-import { TableKit } from '@tiptap/extension-table';
-import { StarterKit } from '@tiptap/starter-kit';
 import { ALIGN_CLASSES } from 'design-tokens/editor-schema';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { AlignClass, ALIGN_TYPES } from './AlignClass';
-import { FigureImage } from './FigureImage';
-import { VideoEmbed } from './VideoEmbed';
+import { ALIGN_TYPES } from './AlignClass';
+import { EXTENSIONS_SOAN_THAO } from './editorExtensions';
 
 /**
  * **Căn lề phải thật sự đặt được class lên đúng nút.**
@@ -29,13 +26,8 @@ import { VideoEmbed } from './VideoEmbed';
  * class đó lên ảnh không" (không).
  */
 
-const EXTENSIONS = [
-  StarterKit.configure({ heading: { levels: [2, 3, 4] } }),
-  TableKit.configure({ table: { resizable: true } }),
-  AlignClass,
-  FigureImage,
-  VideoEmbed,
-];
+/** ⚠ Danh sách của bản chạy thật — xem lý do ở `editorExtensions.ts` (T41.2). */
+const EXTENSIONS = EXTENSIONS_SOAN_THAO;
 
 const editors: Editor[] = [];
 

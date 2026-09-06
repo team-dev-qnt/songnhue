@@ -178,6 +178,13 @@
           `log4j2.version`: BOM 4.1.1 khai `jackson-bom 3.1.5`, đã cao hơn.
         -->
         <jackson-bom.version>2.21.6</jackson-bom.version>
+
+        <!--
+          THỬ NGHIỆM T11.82 — ghim `spring-security-crypto` 6.5.11 → 7.1.1.
+          Xoá 4 mã: CVE-2026-59270 (9.1) · CVE-2026-47841 (7.4) · CVE-2026-47842 (6.5)
+          · CVE-2026-59276 (5.9). ⛔ KHÔNG làm cổng xanh: còn 6 mã ≥ 7 ở spring-core/web.
+        -->
+        <spring-security.version>7.1.1</spring-security.version>
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>

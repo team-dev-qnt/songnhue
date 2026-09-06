@@ -22,9 +22,9 @@
 ```
 nhánh feature ──PR──► dev ──PR──► staging ──PR──► production
                        │           │                │
-                   CI đầy đủ   CD tự động      CD khi có lệnh
-                   + đóng gói   (không kiểm     (dừng chờ duyệt,
-                     image       lại, không      dump trước, không
+                   CI đầy đủ   CD tự động       CD tự động
+                   + đóng gói   (không kiểm     (dump trước, không
+                     image       lại, không      kiểm lại, không
                                  build lại)      build lại)
 ```
 
@@ -223,6 +223,14 @@ Nó **không** đọc mã nguồn của dự án, không tìm lỗi logic, khôn
 phụ thuộc — kể cả phụ thuộc bắc cầu — rồi hỏi "phiên bản này có nằm trong dải bị ảnh hưởng của CVE
 nào không".
 
+⚠ *"Mọi thư viện"* là một lời hứa, và tới 6/9 nó mới được **đo** thay vì được tin. Ngày 5/9 sổ nợ ghi
+rằng cổng bỏ sót 11/121 jar của fat jar — sai, vì người đo đếm một tầng của báo cáo: Dependency-Check
+gộp jar cùng nhóm/phiên bản dưới một mục cha ở `relatedDependencies[]` (§10.75). Từ 6/9 bước **Phạm vi
+quét** so `BOOT-INF/lib` của fat jar **vừa dựng trong cùng lượt** với báo cáo (top-level +
+`relatedDependencies`) ở **mỗi lượt**, và đỏ khi thiếu một jar bên thứ ba. Khoảng trống thật duy nhất
+tìm ra là `spring-boot-jarmode-tools` — plugin chèn lúc repackage, ngoài đồ thị Maven — nay đã bỏ khỏi
+jar bằng `<includeTools>false</includeTools>` (`app/pom.xml`), không thêm ngoại lệ vào script.
+
 | Bước | Việc | Ghi chú |
 |---|---|---|
 | Nạp bộ nhớ đệm CSDL NVD | lấy CSDL lỗ hổng của lượt trước | quyết định job chạy 20 giây hay 25 phút — §3.3-a |
@@ -231,7 +239,9 @@ nào không".
 | Lưu bộ nhớ đệm | `if: always()` | vì bước sau **được thiết kế để đỏ** — §3.3-a |
 | Dựng jar mọi module | `package -DskipTests` | `aggregate` cần jar liên module để giải phụ thuộc |
 | **Dependency-Check `aggregate`** | quét + áp ngưỡng CVSS ≥ 7 | §3.3-b |
-| Giữ lại báo cáo CVE | tải lên artifact | thứ **duy nhất** đọc được sau khi job đỏ |
+| **Vân tay CVE** (`van-tay-cve.sh`) | rút báo cáo JSON thành văn bản thuần `ge7=/tong=/suppress=` + một dòng mỗi mã | `if: always()`; điểm = **max v2/v3/v4**; cột `>=7|<7`; chuông so tệp này, không đọc JSON (T11.84) — §3.3-c |
+| **Phạm vi quét** (`phu-quet-cve.sh`) | so mọi jar trong fat jar với báo cáo | `if: always()`; thiếu jar bên thứ ba ⇒ **đỏ**; ghi `runtime/phu/ngoai/thieu` vào `phu-quet-cve.txt` (T11.83) |
+| Giữ lại báo cáo CVE | tải lên artifact | báo cáo + `van-tay-cve.txt` + `phu-quet-cve.txt` — job `bao-dong` tải về để đọc hai tệp sau; thứ đọc được sau khi job đỏ, cùng với issue mốc |
 
 Hai nguồn dữ liệu, và chỉ một cái còn dùng:
 
@@ -240,13 +250,14 @@ Hai nguồn dữ liệu, và chỉ một cái còn dùng:
   mỗi lượt) mà chưa đóng góp dữ liệu nào; tới khi Sonatype chặn truy cập ẩn danh (401) thì nó nâng
   thành `AnalysisException` và giết cả build. Muốn dùng lại phải có tài khoản Sonatype (nợ #49).
 
-Khi job đỏ, có **ba** kiểu hỏng khác hẳn nhau — đọc nhầm kiểu là sửa nhầm chỗ:
+Khi job đỏ, có **bốn** kiểu hỏng khác hẳn nhau — đọc nhầm kiểu là sửa nhầm chỗ:
 
 | Dấu hiệu trong log | Nghĩa là gì | Làm gì |
 |---|---|---|
 | `One or more dependencies were identified with vulnerabilities…` | **Đúng việc của nó** — có lỗ hổng thật | Nâng phiên bản; không nâng được thì thẩm định rồi suppress có hạn (`conventions.md` §4.5) |
 | `One or more exceptions occurred during dependency-check analysis` | Hạ tầng quét hỏng (mạng, nguồn dữ liệu, xác thực) | Sửa hạ tầng. ⛔ **Không** dùng `failOnError=false` |
 | `NoDataException: … database does not exist` | Chưa dựng CSDL NVD | Bộ nhớ đệm trượt hoặc bước cập nhật bị bỏ |
+| `N jar trong BOOT-INF/lib KHÔNG được lượt quét CVE phủ` | Cổng **hẹp hơn runtime** — một jar vào fat jar ngoài đồ thị Maven, mọi con số CVE của lượt là cận dưới | Đọc `THIEU:` trong `phu-quet-cve.txt`. Jar do plugin chèn thì tắt ở pom (`includeTools`); ⛔ không thêm ngoại lệ vào `phu-quet-cve.sh` |
 
 > ⚠ **Điểm in ra trong thông báo không phải điểm dùng để chặn.** DC in **CVSS v4**, chặn theo **điểm
 > cao nhất mọi thang**. Nên `CVE-2026-34479(6.9)` nằm dưới tiêu đề "≥ 7.0" là đúng — mã đó có v3 =
@@ -309,6 +320,48 @@ Bước quét chạy với `-DautoUpdate=false` để không chạm mạng NVD l
 > **Luật rút ra**: bất cứ khi nào một bước *tốn kém nhưng ổn định* nằm chung job với một bước *rẻ
 > nhưng hay đỏ*, phải hỏi kết quả của cái sau có quyết định cái trước được giữ lại hay không. Ở đây
 > câu trả lời là có, và nó vô lý.
+
+### 3.3-c. Chuông có trạng thái — issue mốc, năm trạng thái, mốc ở body (T11.58 · T11.81 · T11.84)
+
+Job thứ ba của `security-scan.yml` là `bao-dong` (`needs: [owasp, npm]`, `if: always()`, quyền
+`issues: write` ở cấp job). Nó gọi `.github/scripts/bao-dong-quet-cve.sh` — tách khỏi `run:` để nhánh
+quyết định kiểm được bằng dữ liệu giả (`CanhBaoQuetCveTest` chạy script thật với một `gh` giả).
+
+**Vì sao là issue.** Issue có trạng thái và quan sát được bằng API; thư của scheduled workflow gửi cho
+*người tạo workflow*, không phải người commit cuối (đo 5 lượt: `quannt18` cả 5, tác giả HEAD là
+`Toclac18` ở 4/5). Một issue mốc duy nhất, nhận diện bằng nhãn `[quét-cve]` trong **tiêu đề** — không
+dùng label vì label phải tạo tay trước.
+
+**Vì sao có trạng thái (T11.84).** Từ 3/9 tới 5/9 chuông để lại 9 bình luận đúng 732 byte giống hệt
+nhau trong khi tập CVE đi 12 → 13 → 12 → 15 → 11 mã. Nó không đọc báo cáo. Nay job `owasp` rút báo cáo
+thành `van-tay-cve.txt` (xem bảng §3.3-0), job `bao-dong` tải artifact về (`continue-on-error` — artifact
+vắng là một trạng thái có tên, không phải lỗi câm) và so với **mốc ghi trong body issue**:
+
+```
+<!-- van-tay-cve ge7=6 tong=11 suppress=2 npm=success phu=ok ma7=CVE-…,… ma=CVE-…,… -->
+```
+
+| # | Trạng thái | Điều kiện | Trên `dev` | Nhánh khác |
+|---|---|---|---|---|
+| 1 | xanh-có-bằng-chứng | `xanh` + tệp vân tay `ge7=0` | bình luận rồi đóng issue | **không** đóng (T11.81) |
+| 2 | xanh-không-có-báo-cáo | `xanh` mà không có tệp vân tay | bình luận "không có bằng chứng", **không** đóng, job đỏ | như `dev` |
+| 3 | đỏ-không-có-báo-cáo | `do` mà không có tệp vân tay | bình luận nêu `owasp=/npm=` — lỗi công cụ; không dời mốc | như `dev` |
+| 4 | đỏ-như-cũ | vân tay khớp mốc | **im lặng** (chỉ log + step summary) | im lặng |
+| 5 | đỏ-và-đổi | vân tay khác mốc | bình luận `MỐC ĐẦU` / `LEO THANG` / `GIẢM` / `ĐỔI` + diff + bảng; sửa tiêu đề (mang số mã ≥ 7) và body (mốc mới) | chỉ bình luận khi có mã ≥ 7 **mới** so với mốc `dev`; **không** dời mốc |
+
+Trạng thái 2 bịt một lỗ cùng họ T11.81: thiếu `NVD_API_KEY` ⇒ mọi bước OWASP `skipped` ⇒ job
+`success` ⇒ chuông cũ đóng issue trong khi chẳng quét gì. Từ nay *"xanh"* phải mang bằng chứng.
+
+Nhánh phụ không dời mốc là bắt buộc: một `workflow_dispatch` trên nhánh vá đưa 6 → 4 mã mà dời mốc thì
+lượt theo lịch hôm sau trên `dev` báo "LEO THANG 4 → 6" giả.
+
+**Đọc kết quả ở đâu.** Danh sách issue: tiêu đề mang số (`[quét-cve] Lượt quét phụ thuộc — ĐỔ · 6 mã
+CVSS ≥ 7 · 11 mã`). Mở issue: body là trạng thái hiện tại (bảng CVE + phạm vi quét + mốc); bình luận là
+nhật ký thay đổi. Step summary của job `bao-dong`: có ở mọi trạng thái, kể cả khi im lặng.
+
+**Giới hạn (luật 28).** Chuông chứng minh dây đã nối, không chứng minh GitHub đã giao — nửa sau chỉ đo
+được bằng lượt thật. Nó không phủ trường hợp **lượt quét không chạy** (luật 31) — vế ấy là dòng nợ riêng.
+Hai lượt chạy song song trên `dev` có thể cùng thấy mốc cũ và cùng bình luận — hiếm, chấp nhận.
 
 ## 4. Chặng `staging` — tự động
 
@@ -425,18 +478,32 @@ trong `.env`), chặn ngay trước khi trang nào kịp được đọc.
 phía máy chủ dùng (`layout.tsx`, `sitemap.ts`, `robots.ts`), nên đổi được mà không chạm bundle của
 trình duyệt. Xem `docs/deploy-guideline.md` §9.3.
 
-## 5. Chặng `production` — chỉ khi có lệnh
+## 5. Chặng `production` — tự động khi merge vào `production`
 
-`deploy-prod.yml` **không có trigger `push`**. Merge vào `production` không tự deploy: đưa lên môi
-trường thật là một quyết định vận hành có thời điểm của nó (ngoài giờ hành chính, sau khi đã báo
-Công ty), không phải hệ quả tự động của một thao tác git.
+> ⭐ **ĐỔI 6/9/2026 (T11.86).** Trước đó `deploy-prod.yml` cố ý **không có trigger `push`**, với lập
+> luận "đưa lên môi trường thật là một quyết định vận hành có thời điểm của nó". Lập luận ấy đúng,
+> nhưng nó tính giá cho một chốt an toàn mà thực tế **chưa từng được dùng một lần nào**: đo 6/9,
+> `CD Production` có **0 lượt chạy** trong toàn bộ lịch sử kho, trong khi `staging` đã đi qua 30 lượt
+> deploy. Một chốt không ai bấm không bảo vệ được gì — nó chỉ làm chặng cuối khác chặng giữa, và đầu
+> `deploy.yml` đã nói khác biệt giữa hai môi trường chính là thứ làm *"chạy tốt ở staging"* mất hết
+> ý nghĩa.
 
-Chạy bằng `workflow_dispatch`, bắt buộc nhập **commit SHA** và **lý do**. Ba lớp chặn:
+`deploy-prod.yml` chạy trên `push: branches: [production]` — merge PR đề bạt là deploy, y như staging.
+`workflow_dispatch` **vẫn còn**, và nay nó có đúng một việc: **quay lui** (§13.1 của
+`deploy-production-guideline.md`) — điền `commit_sha` là một SHA `dev` cũ hơn để dựng lại bản trước;
+để trống thì triển khai lại thứ đang ở đỉnh `production`.
 
-1. **`environment: production`** — GitHub dừng chờ người duyệt bấm nút.
-2. **Commit phải là tổ tiên của `staging`** — chặn đúng cái sai nguy hiểm nhất của deploy thủ công:
-   gõ nhầm một SHA chưa bao giờ chạy ở staging. Không có bước này thì "manual deploy" nghĩa là "ai
-   gõ gì cũng lên được".
+⚠ Lượt dispatch phải chọn nhánh **`production`** trong ô *"Use workflow from"* — xem lớp chặn 2.
+
+**Số lớp chặn không giảm, chỉ đổi thành phần:**
+
+1. **Giải theo cây tệp + tổ tiên của `staging`** — hai câu hỏi khác nhau, cần cả hai. Cây tệp trả lời
+   *"nội dung này đã dựng image chưa"* (`.github/scripts/giai-dinh-dev.sh`); `--is-ancestor` trả lời
+   *"nó đã đi qua staging chưa"*. Đây cũng là thứ chặn cái sai nguy hiểm nhất của lượt bấm tay: gõ
+   nhầm một SHA chưa bao giờ chạy ở staging.
+2. **`deployment_branch_policy` của environment `production`** — chỉ nhánh `production` deploy được
+   vào đó, nên một lượt `workflow_dispatch` từ nhánh khác **không chạm nổi** `PROD_*`. Đây là thứ
+   thay cho required reviewer đã gỡ: một ràng buộc máy đo được thay cho một cú bấm của người.
 3. **`pg_dump` ngay trước khi deploy** — điểm quay lui **duy nhất** về dữ liệu. Hệ này không có
    PITR (`architecture-review.md` §6.5), bản dump đêm trước là thứ gần nhất, nên migration hỏng lúc
    10h sáng là mất cả buổi làm việc.
@@ -455,13 +522,32 @@ kiểm hai điều:
   vào production, và không check nặng nào chặn lại vì ta đã cố ý không yêu cầu chúng ở đó.
 - **Đúng commit đang đề bạt** đã xanh CI, tra qua API check-runs của chính SHA đó — không phải
   "nhánh `dev` nói chung đang xanh". `dev` hoàn toàn có thể vừa nhận một commit đỏ.
+- **Nhánh đích không có commit riêng** (`kiem-goc-chung.sh`) — bất biến chống gãy gốc chung §10.72.
+
+> ⛔⛔ **6/9/2026 — cổng này từng KHÔNG THỂ XANH ở chặng cuối, và nó đỏ suốt một ngày mà không ai
+> đọc.** Bản cũ hỏi check-run của `pull_request.head.sha` ở **cả hai** chặng. Với `dev → staging` thì
+> đúng: head là đỉnh `dev`, nơi CI thật sự chạy. Với `staging → production` thì head là một **merge
+> commit nằm trên `staging`** — mà `ci.yml` chỉ chạy trên `dev`, nên commit ấy **không có, và không
+> thể có**, một check-run nào.
+>
+> Số đo: PR #94 (`staging → production`, mở 5/9) — `Promotion guard = FAILURE`,
+> `mergeStateStatus = BLOCKED`, log ghi `Không tìm thấy kết quả CI nào cho commit 107e315b…`; và
+> `CD Production` **0 lượt chạy** kể từ 15/8.
+>
+> **Vì sao không ai thấy:** cổng đỏ kèm một lý do *nghe rất hợp lý* — "commit này chưa từng chạy qua
+> pipeline ở dev" — nên nó đọc như một kết luận đúng, không như một khuyết tật. Cùng họ §10.72,
+> nhưng lần ấy cổng **vắng mặt**, lần này cổng **có màu** mà màu ấy nói sai chuyện.
+>
+> Nay với `base_ref == production`, cổng giải head SHA về commit `dev` tương ứng bằng **cây tệp**
+> (`giai-dinh-dev.sh` — cùng phép giải mà CD Staging đã dùng từ §10.42) rồi mới hỏi check-run.
+> Canh bởi `PromotionCheckStateTest` (4 bài mới, có phản chứng).
 
 ## 7. Secret cần đặt (WS-11)
 
 | Secret | Đặt ở | Dùng ở | Ghi chú |
 |---|---|---|---|
-| `STAGING_HOST` · `STAGING_USER` · `STAGING_SSH_KEY` · `STAGING_BASE_URL` · **`STAGING_SSH_KNOWN_HOSTS`** | environment `staging` | CD Staging | ✅ **đủ cả 5** (đo lại 3/9/2026 bằng API). Thiếu **cả năm** → cảnh báo và bỏ qua; thiếu **một số** → đỏ. ⚠ Env này còn một secret thứ sáu `PUBLIC_SITE_URL` — **đặt sai loại**, xem nợ N1/T11.7-a ở `master-tracking.md` |
-| `PROD_HOST` · `PROD_USER` · `PROD_SSH_KEY` · `PROD_BASE_URL` · **`PROD_SSH_KNOWN_HOSTS`** | environment `production` | CD Production | ⛔ **chưa có cái nào** — `total_count = 0`, đo lại 3/9/2026. Chặn bởi T11.2 (chưa có VPS-1); lệnh đặt sẵn ở `master-tracking.md` T11.7. Thiếu ở production → lượt chạy **DỪNG ĐỎ**, không bỏ qua |
+| `STAGING_HOST` · `STAGING_USER` · `STAGING_SSH_KEY` · `STAGING_BASE_URL` · **`STAGING_SSH_KNOWN_HOSTS`** | environment `staging` | CD Staging | ✅ **đúng 5, không thừa** (đo lại 6/9/2026 bằng API). Thiếu **cả năm** → cảnh báo và bỏ qua; thiếu **một số** → đỏ. ⭐ Secret thứ sáu `PUBLIC_SITE_URL` đặt sai loại **đã xoá 6/9** cùng biến trùng tên ở env này — không dòng mã nào đọc chúng (`ci.yml` đọc `vars.PUBLIC_SITE_URL` ở **cấp repo**, trong một job không có `environment:`) |
+| `PROD_HOST` · `PROD_USER` · `PROD_SSH_KEY` · `PROD_BASE_URL` · **`PROD_SSH_KNOWN_HOSTS`** | environment `production` | CD Production | ✅ **đủ cả 5 từ 6/9/2026** (T11.7 đóng) — `PROD_HOST=27.71.16.154`, `PROD_USER=songnhue`, `PROD_BASE_URL=https://songnhue.com`. Khoá host lấy bằng `cat /etc/ssh/ssh_host_ed25519_key.pub` **trên chính máy chủ** rồi đối chiếu với `known_hosts` cục bộ — khớp tuyệt đối. Thiếu ở production → lượt chạy **DỪNG ĐỎ**, không bỏ qua |
 
 ⭐ **`*_SSH_KNOWN_HOSTS` vào bộ ngày 29/8** (§10.68-C). Giá trị là **một dòng `known_hosts`** — `<host> ssh-ed25519 AAAA…`, lấy bằng `cat /etc/ssh/ssh_host_ed25519_key.pub` **trên máy chủ**, thay phần cuối `root@…` bằng địa chỉ đứng ở `*_HOST`. Trước đó workflow tự dò khoá bằng `ssh-keyscan`, và chính lượt dò ấy — 5 kết nối đóng trước xác thực — làm fail2ban của máy chủ **cấm IP runner ngay ở lệnh đầu tiên**. Ghim khoá vừa gỡ nguyên nhân, vừa đổi *tin-lần-đầu-mỗi-lượt* thành xác minh thật.
 | `NVD_API_KEY` | **repo** | `security-scan.yml` | ✅ **Đã đặt 18/8**. **Thiếu thì bỏ qua hẳn phép quét OWASP** (có cảnh báo trong Job Summary). Xin miễn phí ~2 phút: <https://nvd.nist.gov/developers/request-an-api-key> |
@@ -470,7 +556,7 @@ kiểm hai điều:
 
 | Biến | Dùng ở | Ghi chú |
 |---|---|---|
-| `PUBLIC_SITE_URL` | job `Đóng gói image frontend` | Địa chỉ **production** của cổng công khai, ví dụ `https://songnhue.vn`. Nướng vào bundle lúc build — xem §4.2. Thiếu thì sitemap/canonical trỏ về `localhost`, và Job Summary nói to điều đó |
+| `PUBLIC_SITE_URL` | job `Đóng gói image frontend` | ✅ **đặt 6/9/2026** = `https://songnhue.com` (T11.7-a đóng). Địa chỉ **production** của cổng công khai. Nướng vào bundle lúc build — xem §4.2. Thiếu thì sitemap/canonical trỏ về `localhost`, và Job Summary nói to điều đó. ⛔ Đổi giá trị **không** đổi được image đã dựng: phải có một lượt build mới trên `dev` rồi mới đề bạt. Khi cắt sang `thuyloisongnhue.vn` sau này, nhớ điều đó — sửa DNS một mình là chưa đủ |
 
 > ⚠ Đây là **biến**, không phải bí mật: nó đi vào bundle mà cả thế giới tải về được. Để nhầm vào
 > Secrets thì vẫn chạy, nhưng nó sẽ bị che trong log — và che một giá trị công khai chỉ làm việc
@@ -489,9 +575,16 @@ Cùng một cổng (`.github/scripts/kiem-secret-may-chu.sh`), ba trạng thái:
 
 | tình trạng | staging | production |
 |---|---|---|
-| đủ bốn | đi tiếp | đi tiếp |
-| thiếu **một số** | ⛔ đỏ | ⛔ đỏ |
-| thiếu **cả bốn** | cảnh báo + bỏ qua | ⛔ **đỏ** |
+| đủ **năm** | đi tiếp | đi tiếp |
+| thiếu **một số** (1–4) | ⛔ đỏ | ⛔ đỏ |
+| thiếu **cả năm** | cảnh báo + bỏ qua | ⛔ **đỏ** |
+
+> ⚠ **Sửa 4/9/2026: "bốn" → "năm".** Bảng này giữ con số 4 từ trước 29/8, khi
+> `*_SSH_KNOWN_HOSTS` chưa vào bộ (§10.68-C). Script duyệt **cả năm** biến
+> (`kiem-secret-may-chu.sh:47`) và kiểm **giá trị đã giải**, nên "chưa đặt" và "chuỗi rỗng" cùng bị
+> tính là thiếu. Ai đặt đúng 4 secret theo bảng cũ sẽ rơi vào nhánh *thiếu một số* → **cổng đỏ**,
+> không phải "đi tiếp" — và thông báo lỗi nói về một biến mà bảng này không hề nhắc tới. §7 ngay
+> bên trên đã liệt kê đủ năm tên từ lâu; đây là hai chỗ trong cùng một tệp nói hai điều khác nhau.
 
 Vì sao lệch nhau: CD Staging chạy **tự động** sau mỗi lượt merge, nên một môi trường chưa dựng mà
 nhuộm đỏ cả dòng CI của mọi người là đổi một lỗi thật lấy một lỗi phiền. CD Production chỉ chạy khi

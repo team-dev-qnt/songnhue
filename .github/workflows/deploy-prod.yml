@@ -1,34 +1,58 @@
 # =============================================================================
-# CD Production — CHỈ chạy khi có người ra lệnh (WS-11 / T11.8)
+# CD Production — TỰ ĐỘNG khi có mã mới vào nhánh `production` (WS-11 / T11.86)
 #
-# Cố ý KHÔNG có trigger `push`. Merge vào `production` không tự deploy: đưa lên
-# môi trường thật là một quyết định vận hành, có thời điểm của nó (ngoài giờ hành
-# chính, sau khi đã báo Công ty), chứ không phải hệ quả tự động của một thao tác
-# git.
+# ⭐ ĐỔI 6/9/2026. Trước đó tệp này cố ý KHÔNG có trigger `push`, với lập luận
+#   "đưa lên môi trường thật là một quyết định vận hành, có thời điểm của nó".
+#   Lập luận ấy đúng, nhưng nó tính giá cho một cổng kiểm mà thực tế **chưa từng
+#   được dùng một lần nào**: đo 6/9, `CD Production` có **0 lượt chạy** trong
+#   toàn bộ lịch sử kho, trong khi `staging` đã đi qua 30 lượt deploy. Một chốt
+#   an toàn không ai bấm không bảo vệ được gì — nó chỉ làm chặng cuối khác chặng
+#   giữa, và §4 của `deploy.yml` đã nói khác biệt giữa hai môi trường là thứ làm
+#   "chạy tốt ở staging" mất hết ý nghĩa.
 #
-# Ba lớp chặn trước khi một byte nào chạm production:
-#   1. Commit yêu cầu phải là tổ tiên của `staging` — kiểm ở đây.
-#   2. `environment: production` — GitHub dừng chờ người duyệt bấm nút (ở thân
-#      chung `deploy.yml`).
+# ⛔ SỐ LỚP CHẶN KHÔNG GIẢM — chỉ đổi thành phần. Nay là:
+#   1. Commit đem triển khai phải giải được từ CÂY TỆP của đỉnh `production` về
+#      một commit trên `dev` (nơi duy nhất đóng gói image), và commit ấy phải là
+#      **tổ tiên của `staging`** — kiểm ở đây, hai lớp.
+#   2. `deployment_branch_policy` khoá environment `production` vào đúng nhánh
+#      `production`, nên `workflow_dispatch` từ nhánh khác **không** chạm được
+#      `PROD_*`. (Thay cho required reviewer đã gỡ — một ràng buộc máy kiểm được
+#      thay cho một cú bấm của người.)
 #   3. `pg_dump` trước khi deploy — điểm quay lui DUY NHẤT về dữ liệu, vì hệ này
-#      không có PITR (architecture-review.md §6.5). Cũng ở thân chung.
+#      không có PITR (architecture-review.md §6.5). Ở thân chung.
 #
-# Mọi thứ sau bước 1 dùng CHUNG một tệp với staging — xem đầu `deploy.yml`.
+# ⭐ `workflow_dispatch` GIỮ LẠI, và nay nó có một việc rõ ràng: **quay lui**.
+#   Điền `commit_sha` = một SHA `dev` cũ hơn để dựng lại bản trước (§13.1 của
+#   `docs/deploy-production-guideline.md`). Để trống = triển khai lại đúng thứ
+#   đang nằm trên nhánh `production`.
+#   ⚠ Sau lớp chặn 2, lượt dispatch phải chọn nhánh **`production`** trong ô
+#     "Use workflow from" — chọn `dev` sẽ bị environment từ chối.
+#
+# Mọi thứ sau bước chốt mốc dùng CHUNG một tệp với staging — xem đầu `deploy.yml`.
 # =============================================================================
 name: CD Production
 
 on:
+  push:
+    branches: [production]
   workflow_dispatch:
     inputs:
       commit_sha:
-        description: 'Commit SHA cần đưa lên (đầy đủ 40 ký tự, lấy từ nhánh staging)'
-        required: true
+        description: 'SHA trên `dev`. ĐỂ TRỐNG = triển khai lại thứ đang ở đỉnh production. Điền SHA cũ = QUAY LUI.'
+        required: false
         type: string
       reason:
         description: 'Lý do / số hiệu yêu cầu — đi vào nhật ký vận hành'
         required: true
         type: string
 
+# Hai lượt merge liên tiếp: để lượt sau chờ lượt trước xong. KHÔNG huỷ giữa chừng
+# — huỷ một lượt deploy đang chạy có thể để lại môi trường nửa vời.
+#
+# ⚠ Nhóm này gộp cả `push` lẫn `workflow_dispatch`: một lượt quay lui bấm tay sẽ
+#   XẾP HÀNG sau lượt deploy đang chạy chứ không chen ngang. Đúng ý — nhưng nhớ
+#   rằng đường cứu ĐẦU TIÊN là bước "Quay lui bản cũ" tự động trong `deploy.yml`
+#   (chạy ngay khi smoke test đỏ), lượt dispatch này là đường thứ hai.
 concurrency:
   group: deploy-production
   cancel-in-progress: false
@@ -42,39 +66,84 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
-      sha: ${{ inputs.commit_sha }}
+      # ⛔⛔ PHẢI đến từ `steps.*`, KHÔNG phải `inputs.commit_sha`. Trên một lượt
+      #   `push` thì input ấy là CHUỖI RỖNG, và thân chung sẽ đi tra
+      #   `ghcr.io/…/app:` (tag rỗng) rồi in một 404 kèm ba bước chẩn đoán trỏ
+      #   vào ba chỗ đều đang tốt — đúng hình dạng §10.43, nhưng lần này im lặng
+      #   hơn vì lượt chạy vẫn "có vẻ" đang làm đúng việc.
+      sha: ${{ steps.moc.outputs.sha }}
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # ⚠ Chặn đúng cái sai nguy hiểm nhất của deploy thủ công: gõ nhầm một SHA
-      #   chưa bao giờ chạy ở staging. Không có bước này thì "manual deploy" nghĩa
-      #   là "ai gõ gì cũng lên được".
-      - name: Commit này đã qua staging chưa
+      # `fetch-depth: 0` lấy đủ lịch sử của NHÁNH ĐANG CHECKOUT, không lấy nhánh khác.
+      - name: Nạp thêm dev và staging để đối chiếu
+        run: |
+          git fetch --no-tags origin \
+            +refs/heads/dev:refs/remotes/origin/dev \
+            +refs/heads/staging:refs/remotes/origin/staging
+
+      - name: Chốt commit sẽ triển khai
+        id: moc
+        env:
+          # ⚠ Qua `env:`, không nội suy `${{ }}` thẳng vào thân `run:` — một giá
+          #   trị chứa `$(…)` sẽ được shell CHẠY. Bản trước nội suy thẳng.
+          SHA_VAO: ${{ inputs.commit_sha }}
         run: |
           set -euo pipefail
-          sha="${{ inputs.commit_sha }}"
-
-          if ! git cat-file -e "$sha^{commit}" 2>/dev/null; then
-            echo "::error::Không tìm thấy commit $sha trong repo."
-            exit 1
+          if [ -n "$SHA_VAO" ]; then
+            if ! git cat-file -e "$SHA_VAO^{commit}" 2>/dev/null; then
+              echo "::error::Không tìm thấy commit $SHA_VAO trong repo."
+              exit 1
+            fi
+            sha="$(git rev-parse "$SHA_VAO^{commit}")"
+            echo "Nguồn SHA: người vận hành nhập tay (quay lui / triển khai lại)."
+          else
+            echo "Nguồn SHA: giải theo CÂY TỆP từ đỉnh nhánh production."
+            sha="$(bash .github/scripts/giai-dinh-dev.sh HEAD 500)"
           fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
-          git fetch origin staging --depth=0 2>/dev/null || git fetch origin staging
-          if ! git merge-base --is-ancestor "$sha" origin/staging; then
-            echo "::error::Commit $sha KHÔNG nằm trong lịch sử của nhánh staging."
+      # ⚠ Chặn đúng cái sai nguy hiểm nhất: đưa lên production một commit chưa
+      #   bao giờ chạy ở staging. Với lượt `push` thì cây tệp đã khớp một commit
+      #   `dev`, nhưng "khớp nội dung" chưa trả lời câu "đã đi qua chặng trước
+      #   chưa" — hai câu khác nhau, cần cả hai.
+      - name: Commit này đã qua staging chưa
+        env:
+          SHA: ${{ steps.moc.outputs.sha }}
+          LY_DO: ${{ inputs.reason }}
+          THONG_DIEP: ${{ github.event.head_commit.message }}
+        run: |
+          set -euo pipefail
+
+          if ! git merge-base --is-ancestor "$SHA" origin/staging; then
+            echo "::error::Commit $SHA KHÔNG nằm trong lịch sử của nhánh staging."
             echo "Luồng đã chốt: dev → staging → production. Chỉ đưa lên production thứ đã chạy thật ở staging."
+            echo ""
+            echo "⚠ Nếu SHA này vừa được GIẢI THEO CÂY TỆP thì nguyên nhân gần như chắc chắn là"
+            echo "  lượt merge dev → staging đã bị SQUASH: nội dung khớp, quan hệ cha thì không."
             exit 1
           fi
+          echo "✓ $SHA đã có trong staging"
 
-          echo "✓ $sha đã có trong staging"
+          # `${VAR%%$'\n'*}` chứ không `| head -1`: dưới `pipefail`, `head` đóng
+          # ống sớm làm lệnh bên trái ăn SIGPIPE và cả bước đỏ vì một lý do không
+          # liên quan gì tới nội dung.
+          ly_do="${LY_DO:-}"
+          [ -n "$ly_do" ] || ly_do="${THONG_DIEP%%$'\n'*}"
+          [ -n "$ly_do" ] || ly_do="(không có mô tả)"
+
+          # Nhật ký vận hành: với lượt `push` thì "lý do" tụt xuống thành dòng đầu
+          # của thông điệp merge. Hạ cấp CÓ THẬT so với ô nhập bắt buộc — bù bằng
+          # cách ghi đủ cách kích hoạt, người bấm, và SHA đã giải (docs/cicd.md §5).
           {
             echo "### Mốc đề bạt"
-            echo "- Commit: \`$sha\`"
-            echo "- Lý do: ${{ inputs.reason }}"
-            echo "- Người ra lệnh: @${{ github.actor }}"
+            echo "- Commit triển khai: \`$SHA\`"
+            echo "- Kích hoạt: \`${{ github.event_name }}\` bởi @${{ github.actor }}"
+            echo "- Đỉnh \`production\`: \`${{ github.sha }}\`"
+            echo "- Lý do: $ly_do"
           } >> "$GITHUB_STEP_SUMMARY"
 
   trien-khai:
@@ -88,9 +157,12 @@ jobs:
       moi_truong: production
       commit_sha: ${{ needs.kiem-moc.outputs.sha }}
       compose_file: compose.prod.yml
-      # Production KHÔNG chạy bộ seed, và nội dung thật do Công ty tự đăng — nên ở
-      # đây chỉ khẳng định được điều tối thiểu: cổng không rỗng. Khi Công ty đã đăng
-      # đủ nội dung khởi tạo thì nâng số này lên, và nó thành một phép kiểm thật.
+      # Production KHÔNG chạy bộ seed. Ngưỡng 1 là điều tối thiểu khẳng định được:
+      # cổng không rỗng. Đo 6/9: migration `V202608191021` tạo sẵn **4 bài**
+      # `XUAT_BAN` (Giới thiệu chung · Chức năng nhiệm vụ · Cơ cấu tổ chức · Liên
+      # hệ) — đó là migration thường, không phải bộ seed, nên một production
+      # trắng vẫn qua được ngưỡng này. Khi Công ty đã đăng đủ nội dung khởi tạo
+      # thì nâng số này lên, và nó thành một phép kiểm thật.
       so_bai_toi_thieu: 1
     secrets:
       HOST: ${{ secrets.PROD_HOST }}

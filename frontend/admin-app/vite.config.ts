@@ -69,5 +69,24 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/testsupport/setup.ts'],
     css: false,
+    // ⭐⭐ T11.85 — ngưỡng này TRƯỚC ĐÂY không ai khai, tức mặc định 5000ms của vitest đang
+    //    quyết định một cổng kiểm bắt buộc. Đúng luật 3: canh giá trị ĐÃ GIẢI, đừng canh giá
+    //    trị MẶC ĐỊNH — mặc định là thứ của người khác, đổi theo bản nâng cấp và không ai báo.
+    //
+    //    Đo 05/09 trên HAI lượt CI chạy CÙNG MỘT cây mã FE (dev `33925450041` xanh · PR #93
+    //    `33929553481` đỏ, và đỏ lại ở lượt chạy lại):
+    //
+    //      bấm Phục hồi ⇒ nội dung MỚI hiện ngay      4093ms  (82% hạn mức)
+    //      cú LƯU kế tiếp gửi nội dung ĐÃ PHỤC HỒI    4026ms  (81%)
+    //      cả bộ admin-app                    32,47s ↔ 41,86s  (runner chậm hơn 29%)
+    //
+    //    Biên còn 18% mà chênh lệch runner là 29% ⇒ kết cục do runner bốc được quyết định,
+    //    không do mã. Đó không phải "bài kiểm chập chờn" mà là **một ngưỡng chưa ai sở hữu**.
+    //
+    //    15000ms cho biên ~3,7× so với bài chậm nhất. ⛔ KHÔNG phải để giấu bài chậm: ba bài
+    //    ~4s là màn soạn bài mang trình soạn thảo tiptap, và `import` của riêng tệp ấy đã
+    //    27–36s. Việc rút ngắn chúng là T11.85, dòng nợ riêng có số đo — ngưỡng này chỉ thôi
+    //    để runner quyết định thay.
+    testTimeout: 15_000,
   },
 });

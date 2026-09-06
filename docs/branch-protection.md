@@ -152,16 +152,35 @@ thứ hai.
 
 ## 3. Ba hồ sơ
 
+⭐ **Bảng dưới đây là SỐ ĐO ngày 6/9/2026** (`gh api …/branches/<b>/protection`), không phải ý định.
+Bản trước của bảng này sai ở ba ô và không ai cập nhật khi chúng bị đảo — xem §7.
+
 | | `dev` | `staging` | `production` |
 |---|---|---|---|
-| Check bắt buộc | `Vùng nào thay đổi`, `Backend — build, lint, test`, `Frontend — lint` | `Promotion guard` | `Promotion guard` |
+| Check bắt buộc | `Cổng kiểm CI` (**đúng một** — xem §7) | `Promotion guard` | `Promotion guard` |
 | Nguồn hợp lệ | nhánh feature bất kỳ | chỉ `dev` | chỉ `staging` |
-| Số người duyệt | 0 khi đội 1 người — xem §2.6 | 0 | 0 + môi trường có approval |
+| Số người duyệt | **0** — hạ 6/9/2026, PR vẫn bắt buộc | **1** | **1** |
 | `strict` (bắt cập nhật với base) | ✅ | ❌ — xem §2.4 | ❌ — xem §2.4 |
 | `required_linear_history` | ✅ | ❌ — xem §2.3 | ❌ |
 | Cách merge | Squash / Rebase | **Create a merge commit** — xem §3.2 | **Create a merge commit** |
 | Force push / xoá nhánh | cấm | cấm | cấm |
 | `enforce_admins` | false | false | **bật khi đội ≥ 2 người** |
+| Environment GitHub | — | `staging`, không rào | `production`: **không còn người duyệt**, thay bằng `deployment_branch_policy` chỉ cho nhánh `production` (6/9/2026) |
+
+> ⭐ **6/9/2026 — hai thay đổi đi cùng nhau, và thứ tự lập luận quan trọng.**
+>
+> `dev` hạ xuống **0 người duyệt** (PR vẫn bắt buộc, `Cổng kiểm CI` vẫn bắt buộc): đội thực chất một
+> người, và một cổng "tự duyệt PR của chính mình" không thêm bảo đảm nào. `dismiss_stale_reviews` và
+> `require_last_push_approval` **phải tắt cùng lúc** — chúng chỉ có nghĩa khi ≥ 1 người duyệt, để
+> `true` cùng số 0 là rủi ro merge bị chặn mà không có dòng lỗi nào giải thích.
+>
+> Environment `production` **gỡ required reviewer** để CD chạy thẳng. Nhưng gỡ một mình là mở
+> `PROD_*` cho mọi nhánh: `workflow_dispatch` chạy tệp của nhánh người dùng chọn, và job mang
+> `environment: production` sẽ nhận đủ 5 secret. Nên **cùng lượt** đặt `deployment_branch_policy` chỉ
+> cho nhánh `production` — đổi một cú bấm của người lấy một ràng buộc máy đo được.
+>
+> ⚠ Hệ quả vận hành: lượt quay lui bằng `workflow_dispatch` phải chọn nhánh **`production`** trong ô
+> *"Use workflow from"*. Chọn `dev` sẽ bị environment từ chối.
 
 ### 3.1. Các mục đang nới vì đội thực chất là 1 người — bật cùng lúc khi có người thứ hai
 
@@ -227,6 +246,17 @@ JSON
 ```
 
 ### 4.2. `staging` và `production` — chỉ xác minh
+
+> ⛔⛔ **ĐỪNG chạy lại khối này nguyên trạng (cảnh báo thêm 4/9/2026).** Nó đặt
+> `required_approving_review_count: 0`, trong khi **đo bằng API ngày 4/9 cả hai nhánh đang chạy với
+> `1`** (kèm `dismiss_stale_reviews: true` và `require_last_push_approval: true` — cũng khác khối
+> dưới đây). `PUT` trên endpoint này ghi đè **toàn bộ object**, nên chạy lại là **âm thầm hạ mức bảo
+> vệ** của cả `staging` lẫn `production` xuống 0 người duyệt, và không có gì báo.
+>
+> Khối này giữ lại làm **bản ghi lịch sử của lượt áp đầu tiên**. Muốn sửa một trường thì `PATCH`
+> đúng trường ấy (§6.2), và **đo lại bằng lệnh ở §6 sau mỗi lượt ghi**. §5 và §2.6 của chính tệp này
+> khẳng định *"giữ nguyên `required_approving_review_count: 1` ở cả ba nhánh"* — tức tệp đang tự mâu
+> thuẫn, và cái đúng là con số **1**.
 
 ```bash
 for branch in staging production; do

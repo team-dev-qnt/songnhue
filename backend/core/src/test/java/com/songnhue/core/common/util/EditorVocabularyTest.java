@@ -114,6 +114,65 @@ class EditorVocabularyTest {
     }
 
     @Test
+    @DisplayName("⭐⭐ Thuộc tính của BẢNG sống sót — ô gộp mất colspan là bảng vỡ cấu trúc")
+    void thuocTinhBangSongSot() {
+        List<String> thuocTinh = docDanhSachChuoi("EDITOR_TABLE_ATTRS");
+        assertThat(thuocTinh)
+                .as("đọc hụt danh sách thì bài này xanh mà chẳng kiểm gì — và bộ đọc regex chỉ nhận "
+                        + "nháy ĐƠN, phần tử viết nháy kép bị bỏ qua im lặng")
+                .hasSize(2);
+
+        String mau = docHangChuoi("EDITOR_SAMPLE_HTML");
+
+        // ⚠⚠ HAI vế TÁCH RỜI, cùng kỷ luật với `moiTheCuaTrinhSoanThaoDeuSongSot` ở trên.
+        // "Thuộc tính không có trong kết quả" có đúng hai nguyên nhân và chỉ một là lỗi thật:
+        //   (a) mẫu chưa từng chứa nó  → lỗi của bài kiểm, không ai mất gì;
+        //   (b) bộ lọc gỡ nó đi        → lỗi production, bảng của người dùng vỡ khi mở lại.
+        // Gộp một thông báo thì lượt đỏ chỉ đường sai.
+        List<String> thieuTrongMau =
+                thuocTinh.stream().filter(t -> !mau.contains(t + "=")).toList();
+        assertThat(thieuTrongMau)
+                .as(
+                        """
+                        Những thuộc tính này khai trong EDITOR_TABLE_ATTRS nhưng KHÔNG có trong \
+                        EDITOR_SAMPLE_HTML, nên bài kiểm không chứng minh được gì về chúng. Bổ sung \
+                        một ô gộp vào bảng mẫu ở %s"""
+                                .formatted(RELATIVE_PATH))
+                .isEmpty();
+
+        String sach = HtmlSanitizer.clean(mau);
+        List<String> biGo =
+                thuocTinh.stream().filter(t -> !sach.contains(t + "=")).toList();
+        assertThat(biGo)
+                .as(
+                        """
+                        Bộ lọc GỠ những thuộc tính này. Hệ quả: bảng có ô gộp mở lại thì số ô mỗi \
+                        hàng không khớp số cột, ProseMirror tự vá bằng cách thêm ô, và người soạn \
+                        thấy bảng mọc thêm ô trống — không lỗi nào. Sửa safelist ở HtmlSanitizer, \
+                        hoặc bỏ thuộc tính khỏi hợp đồng nếu nó không còn cần.""")
+                .isEmpty();
+    }
+
+    @Test
+    @DisplayName("⛔ `colwidth` CỐ Ý bị gỡ — đường bề rộng cột đang đóng, đừng mở nhầm")
+    void colwidthCoYBiGo() {
+        // Đây là một khẳng định về **chủ đích**, không phải một lời than. TipTap phát `colwidth` trên
+        // `td`/`th` để mang bề rộng cột; jsoup `relaxed()` không có nó nên nó bị gỡ. Ta CHẤP NHẬN
+        // điều đó (T41.14) vì `colwidth` là thuộc tính TipTap tự bịa — không trình duyệt nào đọc nó,
+        // và cổng công khai không có dòng mã nào dịch nó thành bề rộng.
+        //
+        // Bài này đỏ nếu ai đó whitelist `colwidth` mà không đọc T41.14: mở nửa ĐỌC mà không mở nửa
+        // GHI (`<col width>` cho trình duyệt) là dựng lại đúng một nửa cặp đọc–ghi.
+        String sach = HtmlSanitizer.clean("<table><tbody><tr><td colwidth=\"120\">Ô</td></tr></tbody></table>");
+
+        assertThat(sach)
+                .as("bảng vẫn còn, chỉ thuộc tính bị gỡ")
+                .contains("<table")
+                .contains("Ô");
+        assertThat(sach).doesNotContain("colwidth");
+    }
+
+    @Test
     @DisplayName("⛔ Và thuộc tính `style` vẫn bị cấm — đó là lý do căn lề phải đi bằng class")
     void styleVanBiCam() {
         String sach = HtmlSanitizer.clean("<p style=\"position:fixed;top:0;left:0;width:100vw\">Phủ kín trang</p>");

@@ -194,9 +194,23 @@
   font-size: 0.95em;
 }
 
+/*
+  ⭐ Sàn bề rộng ô — phải khớp `TABLE_CELL_MIN_WIDTH_PX` của `design-tokens/editor-schema.ts`
+  (80px, đo bằng fontTools trên Noto Sans 14px: từ rộng nhất `thượng` 51,7px + đệm 24 + viền 2).
+
+  Không có nó thì `display: block` + `overflow-x: auto` ở trên **không bao giờ kích hoạt**: bảng
+  co lại vừa khung bằng cách bóp từng cột, và một bảng 7 cột trên điện thoại cho ra bảy cột rộng
+  ~45px — mỗi ô xuống dòng giữa từ, số liệu vỡ thành hai ba dòng. Cuộn ngang chỉ có nghĩa khi bảng
+  **được phép** rộng hơn khung.
+
+  ⚠ Con số này có ở HAI tệp CSS (tệp này và `richTextEditor.css` của trình soạn thảo).
+  `articleContentCss.test.ts` + `richTextEditorCss.test.ts` cùng đọc hằng ấy và đòi đúng con số —
+  quy tắc 14, chỗ nào phải nhớ hai nơi thì chỗ đó cần một phép kiểm nhớ hộ.
+*/
 .sn-article th,
 .sn-article td {
   @apply border-surface-border;
+  min-width: 80px;
   border-width: 1px;
   border-style: solid;
   padding: 0.5rem 0.75rem;

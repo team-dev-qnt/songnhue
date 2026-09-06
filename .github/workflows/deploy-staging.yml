@@ -38,90 +38,25 @@ jobs:
         run: git fetch --no-tags origin +refs/heads/dev:refs/remotes/origin/dev
 
       # ═══════════════════════════════════════════════════════════════════════
-      # Trả lời bằng CÂY TỆP, không bằng quan hệ cha–con. Hai bản trước đều vấp:
+      # Trả lời bằng CÂY TỆP, không bằng quan hệ cha–con — phép giải nay nằm ở
+      # `.github/scripts/giai-dinh-dev.sh` (đọc đầu tệp ấy để biết hai bản trước
+      # đã vấp thế nào: §10.42, và cái giá ẩn của chính bản vá ấy ở §10.72).
       #
-      #   Bản 1 tin `HEAD^2` vô điều kiện. PR bị **squash** → commit một cha → rơi
-      #   về SHA của chính staging, một SHA chưa bao giờ có trên `dev`, rồi báo
-      #   "không tìm thấy image" kèm ba bước chẩn đoán trỏ vào ba chỗ đều đang
-      #   tốt (§10.42).
+      # ⭐ Tách ra tệp riêng từ 6/9 vì nay có BA nơi cần đúng phép giải này:
+      #   tệp này, `deploy-prod.yml` (CD Production nay tự chạy trên push), và
+      #   `promotion-guard.yml` (PR staging → production hỏi check-run của commit
+      #   `dev` tương ứng, chứ không hỏi đỉnh staging — nó chưa bao giờ chạy CI).
+      #   Ba bản chép tay là ba nơi phải nhớ (luật 14).
       #
-      #   Bản 2 thử "lấy cha nào nằm trên dev". Sai êm hơn: cha thứ nhất của một
-      #   commit squash là tổ tiên chung cổ lỗ, mà nó *đúng là* nằm trên `dev`.
-      #
-      # Cây tệp trả lời thẳng câu đang hỏi và không phụ thuộc vào việc ai bấm nút
-      # merge nào.
+      # ⚠ Gọi bằng `bash <script>`, không gọi trực tiếp: miễn nhiễm với việc mất
+      #   bit exec khi tệp đi qua một lượt checkout/patch nào đó.
       # ═══════════════════════════════════════════════════════════════════════
       - name: Giải đỉnh dev theo cây tệp
         id: giai
         run: |
           set -euo pipefail
-          cay_staging="$(git rev-parse 'HEAD^{tree}')"
-          dev_tip=""
-
-          # Đường nhanh: commit `dev` mới nhất mà `staging` với tới được. Chỉ là
-          # phỏng đoán — nó vẫn phải qua đúng phép kiểm cây như mọi ứng viên khác.
-          base="$(git merge-base HEAD origin/dev 2>/dev/null || true)"
-          if [ -n "$base" ] && [ "$(git rev-parse "$base^{tree}")" = "$cay_staging" ]; then
-            dev_tip="$base"
-            echo "Đỉnh dev: $dev_tip  (merge-base, cây tệp trùng khít)"
-          fi
-
-          # Đường chung: quét ngược `dev` tìm commit có cây trùng khít.
-          if [ -z "$dev_tip" ]; then
-            dev_tip="$(git rev-list -n 200 origin/dev | while read -r c; do
-                if [ "$(git rev-parse "$c^{tree}")" = "$cay_staging" ]; then echo "$c"; break; fi
-              done)"
-            if [ -n "$dev_tip" ]; then
-              echo "::warning::Không nối được staging với dev qua merge-base — PR nhiều khả năng đã bị squash/rebase."
-              echo "Đối chiếu theo cây tệp: nội dung staging trùng khít dev@$dev_tip nên dùng image của commit đó."
-              echo "⚠ Lần sau chọn 'Create a merge commit' khi merge vào staging (docs/branch-protection.md §2.3-b)."
-
-              # ⛔⛔ Cảnh báo này ĐÃ kêu đúng lúc — 31/8 23:54:54, dòng 194 của log lượt
-              #   33452639951, gọi đúng tên nguyên nhân và nói đúng việc phải làm. Không ai
-              #   đọc, vì job XANH. Hai ngày sau nó thành 13 tệp xung đột giả trên PR đề bạt
-              #   #76, và xung đột giả ấy khoá luôn `Promotion guard` (§10.72).
-              #
-              #   Đây là cái giá ẩn của chính bản vá §10.42: đối chiếu theo cây tệp làm lượt
-              #   deploy SỐNG SÓT qua một lượt squash — đúng và cần — nhưng nó đã biến một
-              #   lần DỪNG HẲN thành một dòng ::warning:: trên một lượt chạy màu xanh. Làm
-              #   một sự cố sống sót được mà không dời chuông sang chỗ khác là **gỡ mất
-              #   chuông**. Cùng hình dạng §10.68-A, nặng hơn một bậc: lần ấy còn có màu đỏ.
-              #
-              #   Nên ghi thẳng lên trang tóm tắt của lượt chạy — chỗ người ta thật sự nhìn.
-              {
-                echo "## ⚠ Lượt đề bạt này đã bị SQUASH"
-                echo ""
-                echo "\`staging\` không nối được với \`dev\` qua merge-base. Image vẫn giải đúng"
-                echo "theo cây tệp (\`dev@$dev_tip\`) nên lượt deploy này an toàn — **nhưng gốc chung"
-                echo "của hai nhánh đã gãy**, và lượt đề bạt KẾ TIẾP sẽ đầy xung đột giả."
-                echo ""
-                echo "Chữa ngay, không đợi (§10.72):"
-                echo ""
-                echo '```bash'
-                echo "git checkout -b fix/noi-lai-goc-chung origin/dev"
-                echo "git merge -s ours origin/staging   # giữ nguyên cây của dev"
-                echo "git diff --name-only origin/dev HEAD   # PHẢI rỗng"
-                echo '```'
-                echo ""
-                echo "rồi mở PR vào \`dev\` và gộp bằng **Create a merge commit**."
-              } >> "$GITHUB_STEP_SUMMARY"
-            fi
-          fi
-
-          if [ -z "$dev_tip" ]; then
-            echo "::error::Cây tệp của staging không khớp commit nào trong 200 commit gần nhất của dev."
-            echo ""
-            echo "Nghĩa là staging đang mang mã KHÁC với mọi thứ đã dựng image trên dev — có thể vì"
-            echo "PR bị squash/rebase rồi staging còn bị sửa thêm, hoặc có người đẩy thẳng vào staging."
-            echo ""
-            echo "⛔ Không đoán tiếp. Deploy một image không tương ứng với mã đang chạy là cách chắc"
-            echo "   chắn nhất để có một môi trường không ai giải thích được."
-            echo "Cách chữa: mở lại PR dev → staging và chọn **Create a merge commit**."
-            exit 1
-          fi
-
+          dev_tip="$(bash .github/scripts/giai-dinh-dev.sh HEAD 500)"
           echo "dev_tip=$dev_tip" >> "$GITHUB_OUTPUT"
-          echo "Đỉnh dev đang đề bạt: \`$dev_tip\`" >> "$GITHUB_STEP_SUMMARY"
 
   trien-khai:
     name: Triển khai

@@ -739,7 +739,8 @@ Environment `production` phải có **required reviewer** — đó là chỗ lư
 | Việc | Cách làm |
 |---|---|
 | Đưa mã lên staging | Mở PR `dev → staging`, **merge commit** (không squash), CD tự chạy |
-| Đưa lên production | Actions → **CD Production** → nhập SHA + lý do → bấm duyệt |
+| Đưa lên production | Mở PR `staging → production`, **merge commit**, CD tự chạy (đổi 6/9/2026 — T11.86) |
+| **Quay lui production** | Actions → **CD Production** → *Use workflow from* = nhánh **`production`** → điền `commit_sha` là SHA `dev` cũ hơn + lý do |
 | Đổi cấu hình nginx / compose | Sửa trong repo, đi theo đúng luồng trên. **Đừng sửa tay trên máy chủ** — lượt deploy sau `rsync --delete` sẽ xoá mất |
 | Đổi tham số nghiệp vụ | Màn hình **Cấu hình hệ thống**, không sửa `.env` |
 | Đổi bí mật | Sửa `/opt/songnhue/.env` rồi `up -d --force-recreate app` |
@@ -749,14 +750,27 @@ Environment `production` phải có **required reviewer** — đó là chỗ lư
 
 ---
 
-## 8. Production
+## 8. Production → **`docs/deploy-production-guideline.md`**
 
-Giống hệt mục 5, đổi `compose.staging.yml` → `compose.prod.yml` và `ROBOTS_TAG=all`. Ba việc thêm:
+⛔ **Bản trước của mục này ghi *"giống hệt mục 5, đổi hai biến"*. Không giống, và cách nó khác nhau
+là cách hỏng im lặng:**
 
-1. **Đăng nhập `superadmin`, đổi mật khẩu, bật 2FA. Rồi xoá `BOOTSTRAP_ADMIN_PASSWORD` khỏi `.env`**
-   và `up -d --force-recreate app`.
-2. **Bật lịch sao lưu** ở màn hình Cấu hình hệ thống (`backup.schedule-enabled`), rồi mục 9.
-3. **Diễn tập khôi phục một lần** — mục 12.
+| | staging | production |
+|---|---|---|
+| `SEED_LOCATION` | `classpath:db/seed/portal` | ⛔ **RỖNG** — điền vào là Flyway chạy một migration mở đầu bằng `DELETE FROM articles`, tức **xoá nội dung thật của Công ty**. Migration một chiều, không có bấm xác nhận nào chặn |
+| `ROBOTS_TAG` | `noindex, nofollow` | `all` |
+| `DB_RESTORE_PASSWORD` | nên đặt | ⛔ để trống |
+| `so_bai_toi_thieu` của smoke test | 9 | 1 |
+| Thiếu secret máy chủ | cảnh báo rồi bỏ qua | **DỪNG ĐỎ** |
+| Kích hoạt CD | tự động khi push `staging` | **tự động khi push `production`** (đổi 6/9/2026 — T11.86; `workflow_dispatch` giữ lại làm đường quay lui, chạy từ nhánh `production`) |
+| Khoá `jwt-private.pem` · `AES_KEY_V1` | riêng | ⛔ **phải khác staging** |
+
+Cộng thêm mua sắm (VPS-1, tên miền chủ thể là Công ty), đặt 5 secret `PROD_*`, biến kho
+`PUBLIC_SITE_URL`, và ba việc sau lượt dựng đầu: đăng nhập `superadmin` → đổi mật khẩu → bật 2FA rồi
+**xoá `BOOTSTRAP_ADMIN_PASSWORD` khỏi `.env`** · bật `backup.schedule-enabled` · **diễn tập khôi phục
+một lần**.
+
+👉 **Toàn bộ, từ bước mua VPS-1 tới lúc CI/CD chạy đều: `docs/deploy-production-guideline.md`.**
 
 ---
 

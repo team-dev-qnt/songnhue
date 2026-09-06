@@ -11,20 +11,25 @@ import {
   OrderedListOutlined,
   PaperClipOutlined,
   PlayCircleOutlined,
+  RedoOutlined,
   StrikethroughOutlined,
   TableOutlined,
   UnderlineOutlined,
+  UndoOutlined,
   UnorderedListOutlined,
 } from '@ant-design/icons';
-import { TableKit } from '@tiptap/extension-table';
-import { EditorContent, useEditor, useEditorState } from '@tiptap/react';
-import { StarterKit } from '@tiptap/starter-kit';
+import { NodeSelection } from '@tiptap/pm/state';
+import { type Editor, EditorContent, useEditor, useEditorState } from '@tiptap/react';
 import { App, Alert, Button, Divider, Input, Modal, Segmented, Space, Tooltip } from 'antd';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { AlignClass, type AlignValue } from './AlignClass';
-import { FigureImage, type ImageWidth } from './FigureImage';
-import { VideoEmbed, toEmbedUrl } from './VideoEmbed';
+import { type AlignValue } from './AlignClass';
+import { EditorTableBar } from './EditorTableBar';
+import { EditorTableInsertModal } from './EditorTableInsertModal';
+import { EXTENSIONS_SOAN_THAO } from './editorExtensions';
+import { type ImageWidth } from './FigureImage';
+import { type LenhBang, trangThaiBang } from './tableCommands';
+import { toEmbedUrl } from './VideoEmbed';
 
 import './richTextEditor.css';
 
@@ -98,6 +103,24 @@ export interface RichTextEditorProps {
   onPickDocument?: () => Promise<{ publicId: string; text: string } | null>;
   /** Số ảnh đang tải dở — nơi gọi dùng để khoá nút Lưu. Xem `FigureImage.TransientAttrs`. */
   onPendingUploadsChange?: (count: number) => void;
+  /**
+   * Báo **một lần**, ngay khi trình soạn thảo dựng xong: HTML sau khi TipTap chuẩn hoá nội dung nạp
+   * vào — WS-41 (T41.10).
+   *
+   * <h3>Vì sao nơi gọi cần con số này</h3>
+   *
+   * Màn hình soạn bài phải trả lời *"có gì chưa lưu không"*. So `value` hiện tại với chuỗi lấy từ
+   * máy chủ là **báo động giả 100%**: `HtmlSanitizer` gọi `Jsoup.clean` với prettyPrint bật, nên
+   * HTML trong CSDL có xuống dòng và thụt lề giữa các thẻ khối, còn `editor.getHTML()` thì không.
+   * Mọi bài nhiều hơn một khối sẽ "bẩn" ngay khi vừa mở, chưa gõ chữ nào — và một cảnh báo luôn
+   * hiện là cảnh báo người dùng học cách bấm qua mà không đọc.
+   *
+   * ⚠ Đây là bản chuẩn hoá của **chính trình soạn thảo**, nên so với nó là so đúng thứ đang hiển
+   * thị. ⛔ Đừng thay bằng "lượt `onChange` đầu tiên": đo được là TipTap có bắn một lượt lúc nạp,
+   * nhưng dựa vào **thứ tự sự kiện** thì ngày nào nó thôi bắn, cú gõ đầu tiên của người dùng sẽ bị
+   * nuốt làm mốc và cảnh báo **không bao giờ hiện nữa** — im lặng.
+   */
+  onNormalized?: (html: string) => void;
   disabled?: boolean;
   minHeight?: number;
 }
@@ -126,6 +149,7 @@ export function RichTextEditor({
   onUploadImage,
   onPickDocument,
   onPendingUploadsChange,
+  onNormalized,
   disabled = false,
   minHeight = 360,
 }: RichTextEditorProps) {
@@ -136,6 +160,7 @@ export function RichTextEditor({
   const [linkNewTab, setLinkNewTab] = useState(true);
   const [videoOpen, setVideoOpen] = useState(false);
   const [videoUrl, setVideoUrl] = useState('');
+  const [bangOpen, setBangOpen] = useState(false);
   const [dangTai, setDangTai] = useState(0);
 
   /**
@@ -165,24 +190,10 @@ export function RichTextEditor({
 
   const editor = useEditor({
     editable: !disabled,
-    extensions: [
-      StarterKit.configure({
-        // Chỉ h2–h4: h1 dành cho tiêu đề bài, do trang hiển thị đặt. Cho người soạn tạo h1
-        // giữa bài là tạo ra hai tiêu đề cấp một trên cùng một trang — công cụ tìm kiếm
-        // hiểu sai cấu trúc, và trình đọc màn hình cũng vậy.
-        heading: { levels: [2, 3, 4] },
-        link: {
-          openOnClick: false,
-          // `HtmlSanitizer` chỉ nhận http/https/mailto/tel. Khai lại ở đây để người dùng
-          // biết ngay lúc dán, thay vì mất liên kết lúc lưu.
-          protocols: ['http', 'https', 'mailto', 'tel'],
-        },
-      }),
-      TableKit.configure({ table: { resizable: true } }),
-      AlignClass,
-      FigureImage,
-      VideoEmbed,
-    ],
+    // ⛔ Danh sách khai ở `editorExtensions.ts` — MỘT nguồn cho cả bản chạy thật lẫn hai tệp kiểm
+    //    (T41.2). Ba nơi khai tay trước đây đã lệch nhau: hai bản kiểm thiếu `link` config, nên
+    //    mọi khẳng định của chúng về liên kết nói về một trình soạn thảo không tồn tại.
+    extensions: EXTENSIONS_SOAN_THAO,
     content: value,
     onUpdate: ({ editor: current }) => onChange(current.getHTML()),
     editorProps: {
@@ -314,6 +325,18 @@ export function RichTextEditor({
     editor?.setEditable(!disabled);
   }, [editor, disabled]);
 
+  // Mốc chuẩn hoá — bắn ĐÚNG MỘT LẦN khi trình soạn thảo sẵn sàng. Đi qua ref để việc nơi gọi
+  // truyền hàm mũi tên mới mỗi lượt vẽ không biến nó thành một vòng bắn lặp.
+  const normalizedRef = useRef(onNormalized);
+  useEffect(() => {
+    normalizedRef.current = onNormalized;
+  }, [onNormalized]);
+  useEffect(() => {
+    if (editor) {
+      normalizedRef.current?.(editor.getHTML());
+    }
+  }, [editor]);
+
   /**
    * Trạng thái của ảnh đang được chọn.
    *
@@ -338,9 +361,70 @@ export function RichTextEditor({
     },
   });
 
+  /**
+   * Vì sao **không** chèn được bảng ngay lúc này — `null` = chèn được.
+   *
+   * ⚠ Trả **câu lý do** chứ không trả `boolean`: nút xám câm không dạy được gì, và cả hai trường
+   * hợp dưới đây đều là thứ người dùng phải *làm gì đó* mới qua được.
+   *
+   * <ul>
+   *   <li><b>Đang ở trong một bảng</b> — bảng lồng bảng dựng được thật (`tableCell.content` là
+   *       `block+`, `table.group` là `block`) và `editor.can().insertTable()` **luôn trả `true`**,
+   *       nên không có chốt chặn nào ở tầng lệnh. Một bảng lồng trong bảng thì không xoá được
+   *       bằng nút "Xoá bảng" ở lớp ngoài, và trên cổng nó thừa hưởng `display:block` của bảng cha.
+   *   <li><b>Đang chọn nguyên một nút</b> (ảnh, video) — `insertTable` dùng
+   *       `tr.replaceSelectionWith`, nên bảng **THAY THẾ** tấm ảnh đang chọn. Không hỏi, không
+   *       báo, và người dùng mất ảnh vừa chèn.
+   * </ul>
+   */
+  const lyDoKhongChenBang = useEditorState({
+    editor,
+    selector: ({ editor: current }): string | null => {
+      if (!current) {
+        return null;
+      }
+      if (current.isActive('table')) {
+        return 'Con trỏ đang ở trong một bảng — đặt con trỏ ra ngoài bảng rồi chèn';
+      }
+      if (current.state.selection instanceof NodeSelection) {
+        return 'Đang chọn một ảnh hoặc video — bấm vào một đoạn văn trước khi chèn bảng';
+      }
+      return null;
+    },
+  });
+
+  /**
+   * Trạng thái bảng tại con trỏ — `null` khi không ở trong bảng nào.
+   *
+   * ⚠ Selector là **hằng ở tầng module** (`docTrangThaiBang`), không phải hàm mũi tên viết tại chỗ.
+   * `useEditorState` ghi nhớ theo **định danh** của selector; một hàm dựng lại mỗi lượt vẽ thì phép
+   * ghi nhớ mất tác dụng. Đây là lý do đúng đắn, ⛔ không phải hiệu năng.
+   */
+  const bang = useEditorState({ editor, selector: docTrangThaiBang });
+
   if (!editor) {
     return null;
   }
+
+  /**
+   * Chạy một lệnh bảng.
+   *
+   * ⚠ `scrollIntoView: false` là bắt buộc: `focus()` mặc định kéo trang về chỗ con trỏ, nên mỗi cú
+   * bấm "Thêm hàng" sẽ giật trang và đẩy chính thanh công cụ ra khỏi màn hình — một chuyến cuộn
+   * khứ hồi cho **mỗi** lệnh. Dựng một bảng 12 hàng là hơn hai chục chuyến.
+   *
+   * ⛔ Và với `deleteRow`/`deleteColumn` thì `run()` trả `false` là chuyện **bình thường** (bảng còn
+   * một hàng), không phải lỗi — nói ra việc phải làm thay vì im lặng. `can()` không dùng được ở đây:
+   * chốt chặn của prosemirror-tables nằm trong `if (dispatch)` nên nó luôn trả `true`.
+   */
+  const chayLenhBang = (lenh: LenhBang) => {
+    const chain = editor.chain().focus(null, { scrollIntoView: false });
+    const chay = (chain as unknown as Record<LenhBang, () => typeof chain>)[lenh];
+    if (chay.call(chain).run()) {
+      return;
+    }
+    message.info(LY_DO_LENH_BANG_KHONG_CHAY[lenh] ?? 'Không thực hiện được thao tác này');
+  };
 
   const chenAnhTuThuVien = async () => {
     if (!onPickImage) {
@@ -459,6 +543,23 @@ export function RichTextEditor({
         {mode === 'soan' && (
           <>
             <Divider type="vertical" />
+            {/* ⭐ Hoàn tác/Làm lại đi CÙNG đợt với ba nút phá huỷ của thanh bảng (xoá hàng, xoá
+                cột, xoá bảng) — và cùng đợt với phím `Backspace` vốn đã xoá cả bảng khi chọn hết
+                ô. Giao công cụ phá mà không giao đường lùi là thứ tự ngược.
+                `editor.can().undo()` là trạng thái THẬT (uỷ quyền cho `prosemirror-history`). */}
+            <ToolbarButton
+              title="Hoàn tác"
+              icon={<UndoOutlined />}
+              disabled={!editor.can().undo()}
+              onClick={() => editor.chain().focus().undo().run()}
+            />
+            <ToolbarButton
+              title="Làm lại"
+              icon={<RedoOutlined />}
+              disabled={!editor.can().redo()}
+              onClick={() => editor.chain().focus().redo().run()}
+            />
+            <Divider type="vertical" />
             <ToolbarButton
               title="Đậm"
               icon={<BoldOutlined />}
@@ -556,11 +657,10 @@ export function RichTextEditor({
               onClick={() => setVideoOpen(true)}
             />
             <ToolbarButton
-              title="Chèn bảng 3×3"
+              title={lyDoKhongChenBang ?? 'Chèn bảng — chọn số hàng, số cột trên lưới hoặc nhập số'}
               icon={<TableOutlined />}
-              onClick={() =>
-                editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
-              }
+              disabled={lyDoKhongChenBang !== null}
+              onClick={() => setBangOpen(true)}
             />
           </>
         )}
@@ -610,6 +710,8 @@ export function RichTextEditor({
           </Space>
         </div>
       )}
+
+      {mode === 'soan' && bang && <EditorTableBar trangThai={bang} onLenh={chayLenhBang} />}
 
       {dangTai > 0 && (
         <Alert
@@ -690,9 +792,43 @@ export function RichTextEditor({
           Chỉ nhận YouTube và Vimeo. Đường dẫn được đổi sang dạng nhúng không đặt cookie theo dõi.
         </p>
       </Modal>
+
+      <EditorTableInsertModal
+        open={bangOpen}
+        onCancel={() => setBangOpen(false)}
+        onInsert={({ hang, cot }, coHangTieuDe) => {
+          editor
+            .chain()
+            .focus()
+            .insertTable({ rows: hang, cols: cot, withHeaderRow: coHangTieuDe })
+            .run();
+          setBangOpen(false);
+        }}
+      />
     </div>
   );
 }
+
+/**
+ * Selector của `useEditorState` — **hằng ở tầng module**, xem lý do tại nơi dùng.
+ *
+ * ⚠ `useEditorState` ghi nhớ theo định danh selector (`useSyncExternalStoreWithSelector`). Viết hàm
+ * mũi tên tại chỗ thì mỗi lượt vẽ là một selector mới, và phép ghi nhớ mất tác dụng.
+ */
+const docTrangThaiBang = ({ editor }: { editor: Editor | null }) => trangThaiBang(editor);
+
+/**
+ * Vì sao một lệnh bảng không chạy — nói ra **việc phải làm**, không chỉ nói là hỏng.
+ *
+ * ⛔ Nút xám câm không dạy được gì. Hai trường hợp dưới đây đều là thứ người dùng đang ở giữa
+ * chừng một việc hợp lý, chỉ là chưa đủ điều kiện.
+ */
+const LY_DO_LENH_BANG_KHONG_CHAY: Partial<Record<LenhBang, string>> = {
+  deleteRow: 'Bảng chỉ còn một hàng — dùng nút "Xoá bảng" nếu muốn bỏ hẳn',
+  deleteColumn: 'Bảng chỉ còn một cột — dùng nút "Xoá bảng" nếu muốn bỏ hẳn',
+  mergeCells: 'Kéo chuột qua từ hai ô trở lên (hoặc giữ Shift và bấm mũi tên) rồi bấm Gộp ô',
+  splitCell: 'Đặt con trỏ vào một ô đã gộp rồi bấm Tách ô',
+};
 
 const ALIGN_BUTTONS: { value: AlignValue; title: string; icon: React.ReactNode }[] = [
   { value: 'left', title: 'Căn trái', icon: <AlignLeftOutlined /> },
@@ -718,26 +854,47 @@ function ToolbarButton({
   icon,
   label,
   active,
+  disabled,
   onClick,
 }: {
   title: string;
   icon?: React.ReactNode;
   label?: string;
   active?: boolean;
+  disabled?: boolean;
   onClick: () => void;
 }) {
   return (
+    // ⚠ Bọc `<span>` khi nút bị vô hiệu: AntD `Button` disabled đặt `pointer-events: none`, nên
+    //   Tooltip không nhận được sự kiện chuột và **câu lý do không bao giờ hiện** — đúng lúc người
+    //   dùng cần nó nhất. Bọc ngoài thì lớp bọc vẫn nhận hover.
     <Tooltip title={title}>
-      <Button
-        size="small"
-        type={active ? 'primary' : 'text'}
-        icon={icon}
-        onClick={onClick}
-        aria-label={title}
-        aria-pressed={active}
-      >
-        {label}
-      </Button>
+      {disabled ? (
+        <span style={{ display: 'inline-block', cursor: 'not-allowed' }}>
+          <Button
+            size="small"
+            type={active ? 'primary' : 'text'}
+            icon={icon}
+            disabled
+            aria-label={title}
+            aria-pressed={active}
+            style={{ pointerEvents: 'none' }}
+          >
+            {label}
+          </Button>
+        </span>
+      ) : (
+        <Button
+          size="small"
+          type={active ? 'primary' : 'text'}
+          icon={icon}
+          onClick={onClick}
+          aria-label={title}
+          aria-pressed={active}
+        >
+          {label}
+        </Button>
+      )}
     </Tooltip>
   );
 }
