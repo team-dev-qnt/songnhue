@@ -5541,6 +5541,73 @@ kiểu API NVD phải đỏ ở đó; conventions §4.5 mục 4 ghi tên trườ
 
 ---
 
+
+---
+
+### §10.77 — Cổng bắt buộc duy nhất của chặng cuối là một cổng KHÔNG THỂ XANH (6/9)
+
+**Triệu chứng.** PR #94 (`staging → production`) mở 5/9, nằm ở `mergeStateStatus: BLOCKED`.
+`Promotion guard` — **check bắt buộc duy nhất** của `production` — đỏ với:
+
+```
+##[error]Không tìm thấy kết quả CI nào cho commit 107e315bdd49f16fdf2b8a698c71964460db5bac.
+Nhiều khả năng commit này chưa từng chạy qua pipeline ở dev.
+```
+
+**Nguyên nhân gốc.** Cổng hỏi check-run của `github.event.pull_request.head.sha` ở **cả hai** chặng.
+
+- `dev → staging`: head là đỉnh `dev` — nơi CI thật sự chạy. **Đúng.**
+- `staging → production`: head là một **merge commit nằm trên `staging`**. `ci.yml` có
+  `on: push/pull_request branches: [dev]`, nên commit ấy **không có, và không thể có**, một
+  check-run nào. **Bất khả thi, không phải hỏng lúc-được-lúc-không.**
+
+Cổng ấy tồn tại từ 15/8. Trong 22 ngày nó chưa bao giờ được thử ở chặng cuối, vì `CD Production`
+chạy bằng `workflow_dispatch` — **0 lượt trong toàn bộ lịch sử kho**. Không ai đi con đường đó, nên
+không ai gặp bức tường.
+
+**⛔ Vì sao nó đỏ một ngày mà không ai đọc.** Thông báo lỗi **đúng ngữ pháp và nghe rất hợp lý**:
+*"commit này chưa từng chạy qua pipeline ở dev"* — đó là một câu **thật**. Nó đọc như một **kết
+luận** ("PR này chưa đủ điều kiện"), không như một **khuyết tật** ("cổng đang hỏi nhầm commit").
+
+Cùng họ §10.72, và chỗ khác nhau đáng ghi:
+
+| | §10.72 | §10.77 |
+|---|---|---|
+| Cổng | **vắng mặt** (treo ở *Expected*) | **đỏ** |
+| Có gì để đọc | không một dòng nào | một dòng đỏ, nội dung nghe đúng |
+| Vì sao bỏ qua | không có tín hiệu | **có** tín hiệu, và tín hiệu ấy dỗ người đọc đi chỗ khác |
+
+⭐ Bài học mới, không trùng luật 24 (`skipped` tính là ĐẠT) hay luật 31 (cổng không chạy ≠ cổng đỏ):
+**một cổng kiểm đỏ với lý do NGHE HỢP LÝ nguy hiểm ngang một cổng không chạy.** Luật 31 dạy sự vắng
+mặt không có màu; mục này thêm: **màu đỏ cũng có thể là màu sai**, và thứ phân biệt hai trường hợp
+là câu hỏi *"cổng này đã bao giờ XANH ở đường đi này chưa?"* Nếu chưa lần nào, thì cái đỏ đầu tiên
+là bằng chứng về **cổng**, chưa phải bằng chứng về **mã**.
+
+**Bản vá (T11.86).** Với `base_ref == production`, giải head SHA về commit `dev` tương ứng bằng
+**cây tệp** rồi mới hỏi check-run — đúng phép giải mà CD Staging đã dùng từ §10.42. Tách thành
+`.github/scripts/giai-dinh-dev.sh` vì nay có **ba** nơi cần nó (luật 14), với **ba mã thoát phân
+biệt** (0 giải được · 1 đã quét không khớp · 2 không tra được — luật 9: "quên `git fetch`" và "nội
+dung lạ" đòi hai hành động khác nhau).
+
+Kiểm chứng trước khi vá, để không sửa mù: cây tệp của `107e315` (đỉnh `staging`) trùng
+`dev@f6cb2aa`, và commit đó có `Cổng kiểm CI = success`.
+
+**Hai khuyết tật im lặng bắt được trong cùng lượt rà** — cả hai ở `deploy-prod.yml`, cả hai chỉ lộ
+ra vì có người đọc lại tệp sau khi đổi trigger:
+
+1. `outputs.sha: ${{ inputs.commit_sha }}`. Trên một lượt `push` input ấy là **chuỗi rỗng**, và thân
+   chung sẽ tra `ghcr.io/…/app:` (tag rỗng) rồi in một 404 kèm ba bước chẩn đoán trỏ vào ba chỗ đều
+   đang tốt — §10.43, nhưng im lặng hơn vì lượt chạy vẫn *có vẻ* đang làm đúng việc.
+2. `${{ inputs.reason }}` **nội suy thẳng vào thân `run:`**. Biểu thức `${{ }}` được thay bằng văn
+   bản TRƯỚC khi shell chạy, nên một `reason` chứa `$(…)` là lệnh chạy được. `head_commit.message`
+   còn dễ chèn hơn.
+
+**Và một xanh giả ngay trong bước kiểm chứng ngược của chính tôi.** Lượt "làm hỏng có chủ đích" đầu
+tiên báo *bài kiểm vẫn xanh* — nhưng phép thay thế bằng `perl` **không áp được một dòng nào**, nên
+bài kiểm chạy trên script còn nguyên vẹn. Chỉ lộ ra vì mỗi bước có in một con số đo được
+(`grep -c` = 0). Đúng luật 10, lần thứ tư trong dự án: **xác nhận bản hỏng ĐÃ được nạp là một bước
+riêng, không phải một giả định.**
+
 ## §11. QUYẾT ĐỊNH KIẾN TRÚC PHASE 2 (2026-09-04)
 
 ### §11.1 — Bảng tổng hợp ngày: `quality` nằm TRONG KHOÁ (WS-34/T34.1)

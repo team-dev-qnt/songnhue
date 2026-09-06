@@ -69,7 +69,7 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 ## Trạng thái
 
 **Phase "Tài liệu hệ thống"** ✅ xong 12/8/2026 — BOQ đợt 1 (A–F) + đợt 2 (G) đã đóng và đồng bộ vào `function-spec.md` **v2.2**.
-**Phase 0 — Core Platform** ✅ 10/11 hạng mục. **WS-11 (Deploy)**: staging đã chạy thật, đường ống CD đóng (§10.50→§10.55); còn production + quay lui thật.
+**Phase 0 — Core Platform** ✅ 10/11 hạng mục. **WS-11 (Deploy)**: staging đã chạy thật, đường ống CD đóng (§10.50→§10.55). ⭐ **6/9 — đường production đã nối xong** (T11.86): CD Production nay **tự chạy trên push vào `production`**; VPS-1 `27.71.16.154` đã dựng phần host (T11.35, `deploy/host-prepare.sh` chạy thật 2 lượt); 5 secret `PROD_*` + biến kho `PUBLIC_SITE_URL=https://songnhue.com` đã đặt và đo lại (T11.7, T11.7-a). ⬜ Còn: `.env` + khoá + cluster postgres + DNS/TLS trên VPS-1 · **quay lui thật (DOD0.21)**.
 **Phase 1 — CMS & master data công trình** ✅ **xong 24/8/2026** — WS-12→WS-23 đóng đủ, **16/17 mục DoD** có phép kiểm đứng sau.
 **WS-24 — Đợt chỉnh sửa cổng theo nghiệm thu Công ty** (`docs_origin/nghiem_thu_phase1.md`, 27/8): **34/43 mã CR đóng**, 9 mã còn lại chờ đăng nhập trên cổng · nguồn dữ liệu · nhập liệu. Đã **chạy thật trên stack đầy đủ**: 17/17 đường dẫn menu trả 200. Chi tiết `master-tracking.md` WS-24 · nguyên nhân gốc §10.61.
 
@@ -139,6 +139,7 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 | 5/9 | **chuông CVE mang đúng MỘT bit** — 6 bình luận tự động cùng **732 byte**, cùng vân tay, trong khi tập CVE đi từ 12/7 lên 15/8 kèm gói mới dính. *Đỏ-như-cũ* và *đỏ-và-tệ-hơn* in ra cùng một câu. **Vá 6/9**: năm trạng thái, mốc ở body issue, "xanh" phải có bằng chứng; và bản nháp bộ lọc đọc sai trường điểm (`cvssData.baseScore` là API NVD, báo cáo thật dùng `cvssv3.baseScore`) cho `ge7=0` trên 6 mã ≥ 7 | §10.76 |
 | 5/9 | **chuông tự tắt mình đúng lúc nguy hiểm nhất** — nhánh XANH đóng issue mốc từ BẤT KỲ nhánh nào; `workflow_dispatch` xanh trên nhánh vá sẽ đóng #84 trong khi `dev` vẫn đỏ | T11.81 |
 | 5/9 | **`strings` của macOS bỏ qua 38/52 tệp `.class` mà vẫn thoát 0** — nhầm magic CAFEBABE là Mach-O fat binary; *"webauthn = 0"* là xanh giả từ một bộ dò đã chết, chỉ lộ nhờ đối chứng phải-tìm-thấy | T11.80 |
+| 6/9 | **cổng bắt buộc DUY NHẤT của `production` là cổng KHÔNG THỂ XANH** — nó hỏi CI của đỉnh `staging`, một merge commit chưa bao giờ chạy CI. Đỏ một ngày mà không ai đọc, vì lý do nó in ra *nghe rất hợp lý*. `CD Production`: **0 lượt chạy** kể từ 15/8 | §10.77 |
 | 6/9 | **một dòng nợ ⛔⛔ trong sổ tự nó sai** — T11.83 đếm `dependencies[]` (110) mà bỏ `relatedDependencies[]` (39); báo cáo thật phủ **115/121** jar runtime, khoảng trống thật là **1** jar (`jarmode-tools`, plugin chèn lúc repackage, nay đã bỏ khỏi jar). Sổ nợ cũng là dữ liệu chưa kiểm — nay cổng **tự đo phạm vi mỗi lượt** (`phu-quet-cve.sh`) | §10.75 |
 
 ⛔ Hệ quả rút ra: **"đã tick" không phải bằng chứng.** Trước khi mở một giai đoạn mới, đối chiếu với mã thật và chạy đường mà người dùng thật đi.
@@ -178,12 +179,12 @@ Gửi kèm `report-templates-proposal.md`. Chi tiết từng mục: `business-op
 | | Trạng thái đo được |
 |---|---|
 | **Nợ #45** Dependency graph | ✅ đã bật từ trước, sổ ghi sai — job *Soi phụ thuộc* chạy `success` (không `skipped`), SBOM trả về (T11.32) |
-| **Nợ #27** bảo vệ nhánh | ✅ `staging` + `production` `strict` → `false`; `dev` thêm *Vùng nào thay đổi* (T11.39) |
+| **Nợ #27** bảo vệ nhánh | ✅ `staging` + `production` `strict` → `false`. ⭐ **6/9**: `dev` hạ **1 → 0 người duyệt** (PR vẫn bắt buộc, `Cổng kiểm CI` vẫn bắt buộc; `dismiss_stale_reviews` + `require_last_push_approval` tắt cùng lúc vì chúng vô nghĩa với số 0). `staging`/`production` **không đụng** — vẫn 1 người duyệt |
 | **Nợ #46** context đóng gói image | ⚠ **Số trong sổ đã SAI từ 27/8** — đo lại bằng API 3/9: `dev` có **ĐÚNG 1** context bắt buộc là `Cổng kiểm CI`, `strict=true`. Bảy context ấy đã bị T11.48 gỡ ngay hôm sau vì chúng khoá chết mọi PR chỉ sửa tài liệu (§10.63); hai job đóng gói image nay chặn được merge vì nằm trong `needs` của `Cổng kiểm CI`. Sổ ghi `2 → 7` và không ai cập nhật khi nó bị đảo ngược. ⚠ `Gắn tag SHA cho image không đổi` cố ý ngoài danh sách context — nó **có** báo cáo ở PR (`skipping`), mà `skipped` được tính ĐẠT. ⛔ **Nhưng câu "nên nó không chặn được gì" (T22.23) ĐÃ HẾT ĐÚNG** — đo 4/9: nó nằm trong `needs` của `Cổng kiểm CI`, nên khi nó đỏ thì cổng bắt buộc DUY NHẤT đỏ theo. Chứng minh bằng lượt `33881305079`: một cú chớp mạng của ghcr.io hạ đỏ cả lượt CI trên `dev` (T11.78). *Ngoài danh sách context* ≠ *không chặn được gì* |
 | Bảo mật kho | ✅ secret scanning · push protection · non-provider patterns · Dependabot alerts + security updates — cả 5 `enabled`, `secret-scanning/alerts` trả **0** (T11.40) |
 | Cổng secret của lượt triển khai | ✅ thiếu secret ở production nay **DỪNG ĐỎ**. Trước đó cảnh báo rồi bỏ qua → lượt CD Production xanh trọn vẹn mà không byte nào chạm máy chủ (T11.7-b, §10.57) |
-| Environment `production` | ⬜ vẫn **không có secret nào** — chỉ đặt được sau khi có VPS-1 (T11.7) |
-| Biến kho `PUBLIC_SITE_URL` | ⬜ `actions/variables` vẫn RỖNG → sitemap/canonical của staging trỏ `localhost` (T11.7-a) |
+| Environment `production` | ✅ **6/9: đủ 5 secret `PROD_*`** (đo lại API `total_count: 5`) · **gỡ required reviewer** và cùng lượt đặt `deployment_branch_policy` chỉ nhánh `production` — gỡ một mình là mở `PROD_*` cho mọi nhánh (T11.7, T11.86) |
+| Biến kho `PUBLIC_SITE_URL` | ⭐ **6/9 đã đặt** = `https://songnhue.com`. ⛔ **Chưa đóng T11.7-a**: `NEXT_PUBLIC_*` nướng LÚC BUILD, nên image đang chạy vẫn mang chuỗi rỗng — chỉ đóng sau một lượt build mới trên `dev` rồi đề bạt |
 
 📌 Cùng một hình dạng: **một cổng kiểm tồn tại trong mã nhưng chưa có hiệu lực ở nơi nó phải chặn.**
 Lệnh áp nợ #27 nằm sẵn trong `branch-protection.md` §6.2 **từ 15/8** — không ai chạy, và không ai
