@@ -5362,6 +5362,185 @@ tệp — nó **tăng** theo việc mỗi nhánh tưởng mình sở hữu khái
 
 ---
 
+### §10.75 — Một dòng nợ ⛔⛔ trong sổ tự nó sai: "cổng quét CVE soi 110 jar trong khi runtime có 121" (6/9)
+
+**Triệu chứng.** T11.83 (ghi 5/9, mang ⛔⛔) khẳng định cổng quét CVE **bỏ sót 11/121 jar** của fat jar,
+nêu đích danh bảy gói "chưa từng được quét" — gồm `spring-context`/`spring-beans`, nơi `DataBinder`
+nằm — và kết luận *"mọi con số CVE trong sổ là cận dưới"*. `CLAUDE.md` chép câu ấy ở **hai** chỗ trong
+cùng ngày. Kế hoạch xử lý ghi trong dòng nợ: *"tìm vì sao `aggregate` bỏ sót 11 jar"*.
+
+**Đo lại 6/9**, trên chính báo cáo lượt `33951186299` và fat jar `songnhue-app.jar`:
+
+| | Số đo |
+|---|---|
+| `dependencies[]` (top-level) | 110 |
+| `relatedDependencies[]` — ODC gộp jar cùng nhóm/phiên bản dưới một mục cha | **39** |
+| Tên jar duy nhất báo cáo phủ | 146 |
+| Jar trong `BOOT-INF/lib` | 121 → **115 có trong báo cáo** |
+| Ngoài báo cáo | 6 = 5 module `songnhue-*` + **1** `spring-boot-jarmode-tools-3.5.16.jar` |
+
+Bảy gói "chưa từng được quét" đều CÓ trong báo cáo: `spring-context/beans/aop/tx/jdbc` dưới
+`spring-core-6.2.19.jar`, `spring-boot-autoconfigure` dưới `spring-boot-3.5.16.jar`, `logback-classic`
+dưới `logback-core-1.5.34.jar`. Khoảng trống thật là **một** jar: `jarmode-tools`, do
+`spring-boot-maven-plugin` chèn lúc repackage (`includeTools` mặc định `true`), không nằm trong đồ thị
+Maven nên `aggregate` không thể thấy — và không đường chạy nào trong kho dùng nó (`java -jar`, 0 chỗ
+`-Djarmode`/layertools).
+
+**Nguyên nhân gốc.** Người đo đếm **một tầng** của báo cáo rồi so với `BOOT-INF/lib`. Không sai ở công
+cụ, sai ở cách đọc — và ⛔ **không bộ canh nào đứng giữa một dòng nợ và sự thật**: một câu mang ⛔⛔ đi
+vào sổ với sức nặng của một kết luận, được `CLAUDE.md` nhắc lại, và sống một ngày với kế hoạch xử lý trỏ
+sai hướng (mở rộng phạm vi quét, trong khi phạm vi vốn đủ). Đây là luật 19 nhìn từ chiều ngược: *"đã
+tick" không phải bằng chứng* — và **"đã ghi nợ" cũng không**. Sổ nợ là dữ liệu chưa kiểm cho tới khi
+có phép đo lặp lại được.
+
+**Vá — ba tầng, không tầng nào là "sửa câu trong sổ" đứng một mình.**
+
+1. **Cổng tự nói ra phạm vi của mình mỗi lượt** (luật 28): `.github/scripts/phu-quet-cve.sh` chạy trong
+   job `owasp` ngay sau bước `aggregate`, `if: always()` vì bước quét đỏ là trạng thái thường trực. Nó
+   liệt kê `BOOT-INF/lib/*.jar` của fat jar **vừa dựng trong cùng lượt**, lấy tên ở **cả hai tầng** của
+   báo cáo (`fileName` top-level ∪ `relatedDependencies[].fileName`, chuẩn hoá `X.jar (shaded: …)` về
+   `X.jar`), loại module của kho bằng regex (`^songnhue-`, tham số 4) rồi ghi `runtime=N phu=M ngoai=K
+   thieu=J` + `NGOAI:`/`THIEU:` vào `phu-quet-cve.txt` (đi vào artifact và step summary). `J > 0` ⇒
+   **exit 1** — không `warn` (luật 24). ⛔ Không có danh sách ngoại lệ.
+2. **Xoá khoảng trống thật** bằng cấu hình, không bằng ngoại lệ: `<includeTools>false</includeTools>` ở
+   `app/pom.xml`. Đo: jar `121 → 120`, `unzip -Z1 … 'BOOT-INF/lib/*jarmode*'` thoát 11 (không khớp);
+   script trên jar cũ `121/115/5/1` exit 1, trên jar mới `120/115/5/0` exit 0.
+3. **Sửa sổ** cho đúng số đo, kèm ngày: T11.83, `CLAUDE.md` (hai chỗ), `docs/cicd.md` §3.3-0 — câu *"đối
+   chiếu mọi thư viện"* nay có phép đo đứng sau.
+
+#### Bộ canh
+
+`PhuQuetCveTest` **11 bài** (10 lúc đóng T11.83, P11 thêm cùng ngày sau lượt phá-để-kiểm ở §10.76), chạy
+script THẬT bằng `/bin/bash` trên fat jar giả (`ZipOutputStream`) và báo cáo giả dựng trong `@TempDir`: phủ đủ ⇒ `3/2/1/0` exit 0 · thiếu một jar ⇒ exit 1 và gọi đúng tên ·
+⭐ jar **chỉ ở `relatedDependencies`** ⇒ phủ (chính lỗi này) · tên dạng `b-2.jar (shaded: …)` /
+`a-1.jar: x.js` ⇒ khớp · tham số regex **được đọc** (hai lượt khác nhau đúng một tham số, luật 9) · thiếu
+báo cáo / thiếu jar / jar không có `BOOT-INF/lib` / JSON rác ⇒ đều đỏ (luật 7) · PATH rỗng ⇒ đỏ nêu tên
+công cụ · dây nối workflow (`always()`, upload path, `paths:`) · ⭐ **cặp đọc–ghi pom ↔ script**: khối
+`<plugin>` của `spring-boot-maven-plugin` phải chứa `<includeTools>false</includeTools>` (cắt khối theo
+cấu trúc, bỏ chú thích XML) và script không có dòng mã nào nhắc `jarmode` · tự-kiểm bộ cắt khối: thẻ ở
+plugin KHÁC hay trong chú thích không được tính (luật 2, 29) · P11 tự-kiểm bộ dò bước workflow: `always()`
+chỉ nằm trong chú thích của bước sau thì không tính.
+
+⭐ Lượt viết đầu, hai bài đỏ đúng chỗ đáng đỏ: **P4** bắt thứ tự hai phép `sub` sai (cắt `/` trước rồi
+mới cắt hậu tố ⇒ `a-1.jar: some/file.js` thành `file.js`), **P9** bắt chính thông báo lỗi của script
+nhắc tên `jarmode-tools` — một ngoại lệ chưa thành hình nhưng đã có tên trong mã. Cả hai sửa ở script,
+không sửa ở bài kiểm.
+
+Kiểm chứng ngược trên tệp thật, in `grep -c` trước và sau: xoá dòng `includeTools` ở `app/pom.xml`
+(1 → 0) ⇒ P9 đỏ đích danh, 9 bài kia xanh; khôi phục + `touch` (0 → 1) ⇒ 10/10.
+
+#### Bài học
+
+- **Trước khi trả một nợ, đo lại tiền đề của nó.** Lần này tiền đề sai đổi hẳn việc phải làm — từ "mở
+  rộng phạm vi quét" sang "sửa sổ + đo phủ mỗi lượt". Một dòng nợ viết bằng số đo (110, 121, bảy tên gói)
+  trông thuyết phục hơn một dòng nợ viết bằng cảm giác, và vì thế nguy hiểm hơn khi nó sai.
+- **Con số trong sổ có hạn dùng; con số do máy đo mỗi lượt thì không.** Cách duy nhất để "mọi thư viện"
+  không trở lại thành lời hứa là bắt cổng in phạm vi của nó ra mỗi lần chạy — đúng luật 28, nay có
+  thêm vế: *bộ canh phải đo phạm vi, không phải người viết sổ*.
+- **Khoảng trống thật thì bịt bằng cấu hình đóng gói, không bằng ngoại lệ trong bộ canh.** Một
+  allow-list trong script là chỗ mọi jar thiếu tương lai sẽ được tha.
+
+---
+
+### §10.76 — Chuông CVE mang đúng một bit, và bản nháp vá nó đọc sai trường điểm (6/9)
+
+**Triệu chứng.** Issue #84 nhận **9 bình luận tự động** từ 3/9 tới 5/9, mỗi cái đúng **732 byte**,
+cùng vân tay sau khi bỏ URL — trong khi tập CVE đi 12 → 13 → 12 → 15 → 11 mã và mã ≥ 7 đi 7 → 8 → 6.
+Lượt 4/9 14:03 (7 mã) và lượt 22:27 (8 mã, thêm `spring-data-jpa` dính) in ra **cùng một câu**. Muốn
+biết có gì đổi phải tải artifact (hết hạn 14 ngày) và tự so — không ai làm.
+
+**Nguyên nhân gốc.** `bao-dong-quet-cve.sh` (T11.58, 3/9) sinh ra để trả lời đúng một câu: *"có lượt
+đỏ không?"* — thân là heredoc cố định với một thẻ `@@URL@@`, không đọc báo cáo. Đó là câu hỏi đúng ngày
+3/9, khi vấn đề là *không ai biết*; nó thành câu hỏi sai ngay hôm sau, khi vấn đề là *có gì đổi*. Một
+chuông chỉ trả lời có/không thì mọi lượt đỏ giống nhau, và tiếng ồn giống nhau là thứ người ta thôi
+đọc — luật 9 ở dạng vận hành: hai trạng thái khác nhau cho ra cùng một hành động. Và hai lỗ cùng họ
+lộ ra khi đếm lại các trạng thái: (a) *"xanh"* không cần bằng chứng — thiếu `NVD_API_KEY` ⇒ mọi bước
+OWASP `skipped` ⇒ job `success` ⇒ chuông đóng issue trong khi chẳng quét gì (cùng hình dạng T11.81);
+(b) đỏ vì **lỗi công cụ** (timeout, NVD sập) và đỏ vì **có CVE** cho cùng một câu.
+
+**Vá — tách "đọc" khỏi "so".**
+
+- `van-tay-cve.sh` chạy trong job `owasp` (nơi có báo cáo JSON), `if: always()`, rút báo cáo thành văn
+  bản thuần **quyết định**: `ge7=`, `tong=`, `suppress=`, một dòng mỗi mã `mã<TAB>điểm<TAB>>=7|<7<TAB>jar`
+  (điểm = max v2/v3/v4 — conventions §4.5 mục 4; cột 3 ghi sẵn để chuông không so số thực trong bash
+  3.2). Tệp đi vào artifact và step summary — lượt đỏ vì CVE từng ghi **0 byte** vào summary (T11.66).
+- `bao-dong-quet-cve.sh` nhận hai tệp (`van-tay-cve.txt`, `phu-quet-cve.txt`) qua `download-artifact`
+  (`continue-on-error`, tìm theo tên vì bố cục tải về là `target/…`), **không cần `jq`**, và so với mốc
+  `<!-- van-tay-cve ge7=… tong=… suppress=… npm=… phu=… ma7=… ma=… -->` ghi trong **body** issue — một đối
+  tượng, không lớn theo tuổi issue, `gh issue view --json body` không phân trang; bình luận chỉ là nhật
+  ký thay đổi. `van_tay()` là hàm **một dòng**, điểm duy nhất mọi phép so đi qua.
+
+| # | Trạng thái | `dev` | nhánh khác |
+|---|---|---|---|
+| 1 | xanh + tệp vân tay `ge7=0` | bình luận rồi `close` | không đóng (T11.81) |
+| 2 | xanh, **không** có tệp | bình luận "không có bằng chứng", **exit 1** | như `dev` |
+| 3 | đỏ, không có tệp | bình luận nêu `owasp=/npm=`; không mốc | như `dev` |
+| 4 | đỏ, vân tay == mốc | **im lặng** (log + step summary) | im lặng |
+| 5 | đỏ, vân tay ≠ mốc | bình luận `MỐC ĐẦU/LEO THANG/GIẢM/ĐỔI` + diff + bảng; `gh issue edit` tiêu đề (mang số) + body (mốc mới) | chỉ nói khi có mã ≥ 7 **mới**; không dời mốc |
+
+Nhánh phụ không dời mốc là bắt buộc, không phải lựa chọn: một `workflow_dispatch` trên nhánh vá đưa
+6 → 4 mã mà dời mốc thì lượt theo lịch hôm sau trên `dev` báo *"LEO THANG 4 → 6"* giả.
+
+**⭐ Bẫy bắt tại trận khi vá — và nó cùng họ với thứ đang được vá.** Bộ lọc `jq` bản đầu đọc
+`cvssvX.cvssData.baseScore` — hình dạng JSON của **API NVD**. Báo cáo ODC 12.1.3 thật đặt điểm ở
+`cvssv2.score` và `cvssv3.baseScore`; bộ lọc ấy cho **`ge7=0` trên một báo cáo có 6 mã ≥ 7** — xanh giả
+hoàn hảo. Cùng lỗi đã làm một script phân tích trong chính phiên 6/9 in ra **rỗng** khi liệt kê dải
+dính, và không ai để ý vì "rỗng" trông như "không có gì để nói". Luật 25 ở dạng jq: bộ lọc theo hình
+dạng phải chạy trên dữ liệu **thật** trước khi tin, và một kết quả rỗng cần đối chứng phải-tìm-thấy
+(luật 7). Bộ lọc nay đọc cả hai hình dạng; `VanTayCveTest` V9 neo một trích đoạn báo cáo thật để bộ lọc
+kiểu API NVD phải đỏ ở đó; conventions §4.5 mục 4 ghi tên trường đo được.
+
+#### Bộ canh
+
+- `VanTayCveTest` **12 bài**: 7 vs 8 mã ⇒ vân tay khác · cùng đầu vào / đảo thứ tự ⇒ cùng byte · **bẫy
+  §4.5** v4 = 6.9 / v3 = 7.5 / `severity MEDIUM` ⇒ `>=7` · gom theo mã, hai jar một dòng · không lỗ
+  hổng ⇒ `ge7=0` **và tệp tồn tại** (xanh có bằng chứng) · báo cáo vắng / rác ⇒ đỏ **và không tạo tệp**
+  · PATH rỗng ⇒ đỏ · step summary mỗi mã một hàng · ⭐ **V9 neo hình dạng thật** · `suppress=` đếm và
+  không lọt vào danh sách · dây nối workflow (đọc đích danh dòng `if:`) · V12 tự-kiểm bộ dò bước.
+- `CanhBaoQuetCveTest` **16 → 36 bài**, `gh` giả nay trả cả `issue view` và ghi argv phân cách RS
+  (thân nhiều dòng): năm trạng thái trên `dev` và trên nhánh phụ · `MỐC ĐẦU`/`LEO THANG`/`GIẢM`/`ĐỔI`
+  · tiêu đề mang số · body mang mốc · **bất biến hai chiều** (G11: cùng tập, URL khác ⇒ thân giống
+  sau khi bỏ URL; G12: khác tập ⇒ khác) · phạm vi thiếu và `npm` đổi cũng là "đổi" · body escape
+  `<` vẫn đọc ra mốc · xanh không bằng chứng ⇒ không đóng, exit 1 · G16 **mọi** script workflow
+  gọi đều nằm trong `paths:` · G17 tên artifact hai đầu bằng nhau, `continue-on-error`, script nhận
+  tham số 3–4 · ⭐⭐ **G13 tự-kiểm-của-tự-kiểm**: chép script, thay dòng `van_tay() {…}` bằng
+  `printf 'HANG-SO'`, in `grep -c HANG-SO` 0 → 1 rồi chạy đúng ca LEO THANG — bản đột biến phải **mù**
+  (không bình luận). Không có bài này thì G2 có thể chỉ đang bắt khác nhau ở chữ.
+- Trước khi viết test: chạy khói **10 ca** dưới `/bin/bash` 3.2 với `gh` giả — 10/10 đúng hành vi.
+- Phá-để-kiểm trên workflow thật (đo `grep -c` trước/sau, khôi phục + `touch`): bỏ
+  `'.github/scripts/van-tay-cve.sh'` khỏi `paths:` ⇒ đúng **một** bài đỏ, G16 · đổi `name:` của
+  download ⇒ đúng một bài đỏ, G17 · khôi phục ⇒ 36/36.
+- ⛔ **Và một lượt phá KHÔNG đỏ, đúng luật 2 lần thứ N**: bỏ `always()` khỏi bước vân tay (`grep -c`
+  3 → 2) mà V11 **vẫn xanh**. Bộ dò cắt khối bước tới `- name:` kế tiếp, nên khối ôm cả dòng **chú
+  thích của bước sau** — và chú thích ấy giải thích vì sao bước sau cần `always()`. Một bộ canh khớp
+  chữ, xanh nhờ lời giải thích của người khác. Sửa ở cả ba lớp: `buocChua()` bỏ dòng chú thích, và
+  khẳng định đọc **đích danh dòng `if:`** (`dieuKienIf()`), kèm V12/P11 tự-kiểm với đúng hình dạng
+  ấy (chú thích có `always()`, bước thật không) và đối chứng bước có `always()` thật. Sau đó: bỏ
+  `always()` ở bước vân tay ⇒ V11 đỏ đích danh · ở bước phạm vi ⇒ P8 đỏ đích danh · khôi phục ⇒
+  xanh. Bài học cũ, chỗ mới: **chú thích giải thích một bảo đảm là chỗ dễ nhất để bộ canh khớp
+  nhầm chính bảo đảm ấy** — càng viết chú thích tốt càng phải bỏ chú thích trước khi dò.
+- **Lượt thật đầu, trên nhánh trước khi merge** (`workflow_dispatch` `34012252347`, 6/9 04:44 UTC):
+  bước quét đỏ vì CVE · `Vân tay` và `Phạm vi quét` **success** · artifact **4 tệp**; `van-tay-cve.txt`
+  = `ge7=6 tong=11 suppress=2` + 11 dòng, `phu-quet-cve.txt` = `runtime=120 phu=115 ngoai=5 thieu=0`
+  (jar do runner dựng cũng không còn `jarmode-tools`) · `Tải báo cáo` **success** — cùng lượt chạy
+  không cần `actions: read`, đúng như đặt cược, và tệp nằm ở `bao-cao-cve/target/…` như dự đoán về
+  bố cục · chuông đọc `bằng chứng=true`, mốc vắng ⇒ `MỐC ĐẦU` trên nhánh phụ ⇒ **một** bình luận
+  (1.376 byte, có tên nhánh và bảng CVE), **không** `edit`; #84 đi 9 → 10 bình luận, tiêu đề và body
+  giữ nguyên. Vế còn lại (dời mốc trên `dev`, lượt thứ hai im lặng) chỉ đo được sau merge.
+
+#### Bài học
+
+- **Một bit không phải trạng thái.** Thiết kế một cái chuông là thiết kế *cái gì được so*; câu hỏi
+  "có đỏ không" chỉ đúng cho tới lượt đỏ thứ hai.
+- **"Xanh" phải mang bằng chứng** (luật 31 + T11.81). Một lượt xanh không có tệp vân tay là sự vắng
+  mặt của phép đo, không phải kết quả của nó — và phải đỏ ở chính job chuông.
+- **Tách đọc khỏi so**: nơi có dữ liệu thì rút văn bản thuần; nơi quyết định chỉ so văn bản. Bài kiểm
+  rẻ (tệp giả vài dòng), script không thêm phụ thuộc, và hai nửa kiểm được độc lập.
+- **Bộ lọc theo hình dạng phải chạy trên dữ liệu thật trước khi tin** (luật 25), kể cả khi hình dạng
+  ấy "ai cũng biết" — API NVD và báo cáo ODC là hai hình dạng khác nhau cho cùng một con số.
+
+---
+
 ## §11. QUYẾT ĐỊNH KIẾN TRÚC PHASE 2 (2026-09-04)
 
 ### §11.1 — Bảng tổng hợp ngày: `quality` nằm TRONG KHOÁ (WS-34/T34.1)
