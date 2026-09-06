@@ -239,8 +239,9 @@ jar bằng `<includeTools>false</includeTools>` (`app/pom.xml`), không thêm ng
 | Lưu bộ nhớ đệm | `if: always()` | vì bước sau **được thiết kế để đỏ** — §3.3-a |
 | Dựng jar mọi module | `package -DskipTests` | `aggregate` cần jar liên module để giải phụ thuộc |
 | **Dependency-Check `aggregate`** | quét + áp ngưỡng CVSS ≥ 7 | §3.3-b |
+| **Vân tay CVE** (`van-tay-cve.sh`) | rút báo cáo JSON thành văn bản thuần `ge7=/tong=/suppress=` + một dòng mỗi mã | `if: always()`; điểm = **max v2/v3/v4**; cột `>=7|<7`; chuông so tệp này, không đọc JSON (T11.84) — §3.3-c |
 | **Phạm vi quét** (`phu-quet-cve.sh`) | so mọi jar trong fat jar với báo cáo | `if: always()`; thiếu jar bên thứ ba ⇒ **đỏ**; ghi `runtime/phu/ngoai/thieu` vào `phu-quet-cve.txt` (T11.83) |
-| Giữ lại báo cáo CVE | tải lên artifact | báo cáo + `phu-quet-cve.txt` — thứ đọc được sau khi job đỏ, cùng với issue mốc của chuông |
+| Giữ lại báo cáo CVE | tải lên artifact | báo cáo + `van-tay-cve.txt` + `phu-quet-cve.txt` — job `bao-dong` tải về để đọc hai tệp sau; thứ đọc được sau khi job đỏ, cùng với issue mốc |
 
 Hai nguồn dữ liệu, và chỉ một cái còn dùng:
 
@@ -319,6 +320,48 @@ Bước quét chạy với `-DautoUpdate=false` để không chạm mạng NVD l
 > **Luật rút ra**: bất cứ khi nào một bước *tốn kém nhưng ổn định* nằm chung job với một bước *rẻ
 > nhưng hay đỏ*, phải hỏi kết quả của cái sau có quyết định cái trước được giữ lại hay không. Ở đây
 > câu trả lời là có, và nó vô lý.
+
+### 3.3-c. Chuông có trạng thái — issue mốc, năm trạng thái, mốc ở body (T11.58 · T11.81 · T11.84)
+
+Job thứ ba của `security-scan.yml` là `bao-dong` (`needs: [owasp, npm]`, `if: always()`, quyền
+`issues: write` ở cấp job). Nó gọi `.github/scripts/bao-dong-quet-cve.sh` — tách khỏi `run:` để nhánh
+quyết định kiểm được bằng dữ liệu giả (`CanhBaoQuetCveTest` chạy script thật với một `gh` giả).
+
+**Vì sao là issue.** Issue có trạng thái và quan sát được bằng API; thư của scheduled workflow gửi cho
+*người tạo workflow*, không phải người commit cuối (đo 5 lượt: `quannt18` cả 5, tác giả HEAD là
+`Toclac18` ở 4/5). Một issue mốc duy nhất, nhận diện bằng nhãn `[quét-cve]` trong **tiêu đề** — không
+dùng label vì label phải tạo tay trước.
+
+**Vì sao có trạng thái (T11.84).** Từ 3/9 tới 5/9 chuông để lại 9 bình luận đúng 732 byte giống hệt
+nhau trong khi tập CVE đi 12 → 13 → 12 → 15 → 11 mã. Nó không đọc báo cáo. Nay job `owasp` rút báo cáo
+thành `van-tay-cve.txt` (xem bảng §3.3-0), job `bao-dong` tải artifact về (`continue-on-error` — artifact
+vắng là một trạng thái có tên, không phải lỗi câm) và so với **mốc ghi trong body issue**:
+
+```
+<!-- van-tay-cve ge7=6 tong=11 suppress=2 npm=success phu=ok ma7=CVE-…,… ma=CVE-…,… -->
+```
+
+| # | Trạng thái | Điều kiện | Trên `dev` | Nhánh khác |
+|---|---|---|---|---|
+| 1 | xanh-có-bằng-chứng | `xanh` + tệp vân tay `ge7=0` | bình luận rồi đóng issue | **không** đóng (T11.81) |
+| 2 | xanh-không-có-báo-cáo | `xanh` mà không có tệp vân tay | bình luận "không có bằng chứng", **không** đóng, job đỏ | như `dev` |
+| 3 | đỏ-không-có-báo-cáo | `do` mà không có tệp vân tay | bình luận nêu `owasp=/npm=` — lỗi công cụ; không dời mốc | như `dev` |
+| 4 | đỏ-như-cũ | vân tay khớp mốc | **im lặng** (chỉ log + step summary) | im lặng |
+| 5 | đỏ-và-đổi | vân tay khác mốc | bình luận `MỐC ĐẦU` / `LEO THANG` / `GIẢM` / `ĐỔI` + diff + bảng; sửa tiêu đề (mang số mã ≥ 7) và body (mốc mới) | chỉ bình luận khi có mã ≥ 7 **mới** so với mốc `dev`; **không** dời mốc |
+
+Trạng thái 2 bịt một lỗ cùng họ T11.81: thiếu `NVD_API_KEY` ⇒ mọi bước OWASP `skipped` ⇒ job
+`success` ⇒ chuông cũ đóng issue trong khi chẳng quét gì. Từ nay *"xanh"* phải mang bằng chứng.
+
+Nhánh phụ không dời mốc là bắt buộc: một `workflow_dispatch` trên nhánh vá đưa 6 → 4 mã mà dời mốc thì
+lượt theo lịch hôm sau trên `dev` báo "LEO THANG 4 → 6" giả.
+
+**Đọc kết quả ở đâu.** Danh sách issue: tiêu đề mang số (`[quét-cve] Lượt quét phụ thuộc — ĐỔ · 6 mã
+CVSS ≥ 7 · 11 mã`). Mở issue: body là trạng thái hiện tại (bảng CVE + phạm vi quét + mốc); bình luận là
+nhật ký thay đổi. Step summary của job `bao-dong`: có ở mọi trạng thái, kể cả khi im lặng.
+
+**Giới hạn (luật 28).** Chuông chứng minh dây đã nối, không chứng minh GitHub đã giao — nửa sau chỉ đo
+được bằng lượt thật. Nó không phủ trường hợp **lượt quét không chạy** (luật 31) — vế ấy là dòng nợ riêng.
+Hai lượt chạy song song trên `dev` có thể cùng thấy mốc cũ và cùng bình luận — hiếm, chấp nhận.
 
 ## 4. Chặng `staging` — tự động
 

@@ -202,12 +202,13 @@ class PhuQuetCveTest {
     void dayNoiWorkflow() {
         String than = thanJob("owasp");
         String buoc = buocChua(than, "phu-quet-cve.sh");
-        assertThat(buoc)
+        assertThat(dieuKienIf(buoc))
                 .as(
                         """
                         Bước đo phạm vi phải `if: always()`: bước quét ngay trước nó ĐỎ là trạng thái \
                         thường trực của job, không có `always()` thì phép đo bị bỏ qua đúng lúc có CVE \
-                        và `skipped` đọc như đạt (luật 24).""")
+                        và `skipped` đọc như đạt (luật 24). Dòng if đọc được: "%s\"""",
+                        dieuKienIf(buoc))
                 .contains("always()");
         assertThat(buoc).contains("backend/app/target/songnhue-app.jar");
 
@@ -289,6 +290,27 @@ class PhuQuetCveTest {
         String coThat = chiTrongChuThich.replace(
                 "<!-- nhớ bật <includeTools>false</includeTools> -->", "<includeTools>false</includeTools>");
         assertThat(khoiPlugin(coThat, "spring-boot-maven-plugin")).contains("<includeTools>false</includeTools>");
+    }
+
+    @Test
+    @DisplayName("⭐ P11 · TỰ KIỂM: `always()` chỉ nằm trong CHÚ THÍCH của khối bước thì KHÔNG được tính")
+    void tuKiemBoDocBuoc() {
+        String thanGia = "    steps:\n"
+                + "      - name: Phạm vi quét\n"
+                + "        if: steps.nvd.outputs.co_khoa == 'true'\n"
+                + "        run: .github/scripts/phu-quet-cve.sh a b c\n"
+                + "\n"
+                + "      # `always()` vì bước quét ở trên ĐỎ là trạng thái thường trực\n"
+                + "      - name: Bước kế\n"
+                + "        if: always()\n"
+                + "        run: echo\n";
+
+        String buoc = buocChua(thanGia, "phu-quet-cve.sh");
+        assertThat(buoc)
+                .as("Bộ dò còn đọc chú thích ⇒ bỏ `always()` khỏi bước thật mà P8 vẫn xanh")
+                .doesNotContain("always()");
+        assertThat(dieuKienIf(buoc)).isEqualTo("steps.nvd.outputs.co_khoa == 'true'");
+        assertThat(dieuKienIf(buocChua(thanGia, "Bước kế"))).contains("always()");
     }
 
     // ── Hạ tầng ────────────────────────────────────────────────────────────────────────────────
@@ -400,14 +422,27 @@ class PhuQuetCveTest {
         return "";
     }
 
-    /** Khối một bước (bắt đầu bằng {@code - } ở thụt 6) trong thân job có chứa chuỗi cho trước. */
+    /**
+     * Khối một bước (bắt đầu bằng {@code - } ở thụt 6) trong thân job có chứa chuỗi cho trước — đã <b>bỏ
+     * mọi dòng chú thích</b>: chú thích của bước KẾ TIẾP nằm trong cùng khối và có thể nhắc đúng chuỗi
+     * đang canh (CLAUDE.md luật 2; đo được 6/9 ở {@code VanTayCveTest}).
+     */
     private static String buocChua(String thanJob, String chuoi) {
         for (String buoc : thanJob.split("(?m)^      - ")) {
-            if (buoc.contains(chuoi)) {
-                return buoc;
+            String khongChuThich = buoc.lines()
+                    .filter(d -> !d.strip().startsWith("#"))
+                    .collect(java.util.stream.Collectors.joining("\n"));
+            if (khongChuThich.contains(chuoi)) {
+                return khongChuThich;
             }
         }
         return fail("Không có bước nào trong job chứa `%s`".formatted(chuoi));
+    }
+
+    /** Giá trị của dòng {@code if:} (thụt 8) trong một khối bước; rỗng nếu bước không có {@code if:}. */
+    private static String dieuKienIf(String buoc) {
+        Matcher m = Pattern.compile("(?m)^\\s{8}if:\\s*(.+?)\\s*$").matcher(buoc);
+        return m.find() ? m.group(1) : "";
     }
 
     /** Thân của một job: từ dòng khoá job tới dòng khoá job cấp một kế tiếp. */

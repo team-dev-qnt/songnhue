@@ -46,6 +46,7 @@ on:
       - '.github/workflows/security-scan.yml'
       - '.github/scripts/bao-dong-quet-cve.sh'
       - '.github/scripts/phu-quet-cve.sh'
+      - '.github/scripts/van-tay-cve.sh'
 
 permissions:
   contents: read
@@ -201,6 +202,18 @@ jobs:
             -Ddependency-check.data="${{ github.workspace }}/.dc-data" \
             -DautoUpdate=false
 
+      # T11.84 — VÂN TAY CVE của lượt này, viết ra văn bản thuần cho chuông so sánh: `ge7=`, `tong=`,
+      # `suppress=`, rồi một dòng mỗi mã (điểm = MAX của v2/v3/v4 — conventions.md §4.5 mục 4 — và
+      # cột `>=7|<7` để chuông không phải so số thực). Chạy ở ĐÂY vì báo cáo JSON chỉ có trong job
+      # này; chuông ở job khác đọc tệp qua artifact, không cần `jq`, và bài kiểm của nó chỉ cần một
+      # tệp giả vài dòng. `always()`: bước quét đỏ là trạng thái thường trực.
+      - name: Vân tay CVE từ báo cáo
+        if: always() && steps.nvd.outputs.co_khoa == 'true'
+        run: >
+          .github/scripts/van-tay-cve.sh
+          backend/target/dependency-check-report.json
+          backend/target/van-tay-cve.txt
+
       # T11.83 — cổng tự nói ra PHẠM VI của mình mỗi lượt (luật 28): mọi jar trong fat jar THẬT
       # vừa dựng ở bước "Dựng jar mọi module" phải có tên trong báo cáo — ở top-level HOẶC ở
       # `relatedDependencies` (đếm thiếu tầng thứ hai là đúng cái lỗi làm sổ nợ ghi "110/121").
@@ -226,11 +239,17 @@ jobs:
           # module một báo cáo ở `backend/<module>/target/`). Khai cả hai đường
           # dẫn tường minh thay vì trông vào việc `**` có khớp zero thư mục hay
           # không. Artifact này là thứ duy nhất còn đọc được sau khi job đỏ: báo
-          # cáo CVE và tệp phạm vi quét `phu-quet-cve.txt` (T11.83).
+          # cáo CVE, tệp phạm vi quét `phu-quet-cve.txt` (T11.83) và vân tay
+          # `van-tay-cve.txt` (T11.84) — job `bao-dong` tải nó về để đọc hai tệp sau.
+          #
+          # ⚠ upload-artifact gộp gốc chung của mọi đường dẫn về `backend/`, nên
+          #   tải về thì tệp nằm ở `<đích>/target/…`. Chuông tìm theo TÊN, không
+          #   ghi cứng bố cục ấy.
           path: |
             backend/target/dependency-check-report.*
             backend/*/target/dependency-check-report.*
             backend/target/phu-quet-cve.txt
+            backend/target/van-tay-cve.txt
           retention-days: 14
           # ⚠ `ignore` là sai chỗ này: glob trượt thì artifact lặng lẽ không có,
           # và người ta chỉ phát hiện lúc cần đọc báo cáo nhất. `warn` để nó nói.
@@ -284,7 +303,7 @@ jobs:
         run: npm audit --audit-level=moderate
 
   # ===========================================================================
-  # CHUÔNG — T11.58
+  # CHUÔNG — T11.58 · T11.81 · T11.84
   #
   # `needs` phải liệt kê MỌI job quét. Thiếu một cái thì lượt ấy đỏ mà chuông
   # vẫn báo xanh, và cái xanh của nó đọc như một lời bảo đảm (luật 28).
@@ -292,6 +311,15 @@ jobs:
   #
   # `if: always()` — không có nó thì job bị bỏ qua đúng lúc cần chạy nhất, và
   # `skipped` được GitHub tính là ĐẠT (luật 24).
+  #
+  # ⛔⛔ T11.84 — chuông CÓ TRẠNG THÁI, năm trạng thái thay cho một bit:
+  #   3/9→5/9 nó để lại 9 bình luận 732 byte giống hệt nhau trên issue #84 trong
+  #   khi tập CVE đi 12→13→12→15→11 mã. Nay nó đọc `van-tay-cve.txt` +
+  #   `phu-quet-cve.txt` từ artifact của chính lượt này và so với MỐC ghi trong
+  #   BODY issue: xanh-có-bằng-chứng ⇒ đóng (chỉ `dev`) · xanh-không-có-báo-cáo
+  #   ⇒ KHÔNG đóng, exit 1 (bịt lỗ thiếu NVD_API_KEY ⇒ skipped ⇒ success) ·
+  #   đỏ-không-có-báo-cáo ⇒ nói lỗi công cụ · đỏ-như-cũ ⇒ IM LẶNG · đỏ-và-đổi ⇒
+  #   bình luận diff + đổi tiêu đề/body. Nhánh phụ không bao giờ dời mốc.
   # ===========================================================================
   bao-dong:
     name: Báo động lượt quét đỏ
@@ -308,6 +336,23 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      # T11.84 — chuông đọc BẰNG CHỨNG của chính lượt này: `van-tay-cve.txt` (CVE) và
+      # `phu-quet-cve.txt` (phạm vi) nằm trong artifact mà job `owasp` tải lên.
+      #
+      # ⚠ `continue-on-error`: artifact VẮNG (job quét bị huỷ vì timeout, hoặc bị bỏ qua vì thiếu
+      #   khoá) không được làm job này đỏ câm — script nhận "không có tệp" và nói đúng trạng thái
+      #   *không có báo cáo* (luật 31: sự vắng mặt phải được gọi tên, không phải nuốt).
+      # ⚠ Tải trong CÙNG lượt chạy nên không cần `actions: read` — quyền ấy chỉ cần khi tải từ lượt
+      #   khác. Nếu điều này sai thì lượt thật đầu tiên lộ ra ngay bằng một bình luận "không có báo
+      #   cáo", không im lặng.
+      - name: Tải báo cáo CVE của chính lượt này
+        if: always()
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: dependency-check-report
+          path: bao-cao-cve
 
       - name: Gọi chuông
         env:
@@ -335,4 +380,11 @@ jobs:
               *) trang_thai=do ;;
             esac
           done
-          .github/scripts/bao-dong-quet-cve.sh "$trang_thai" "$URL_LAN_CHAY"
+          # Artifact tải về giữ cây thư mục theo gốc chung `backend/` ⇒ tệp nằm ở
+          # `bao-cao-cve/target/…`. Tìm theo TÊN thay vì ghi cứng bố cục: bố cục đổi
+          # nếu ai bỏ glob thứ hai ở bước upload, và "không thấy tệp" phải là trạng
+          # thái có tên của chuông, không phải một đường dẫn sai lặng lẽ.
+          van_tay=$(find bao-cao-cve -type f -name van-tay-cve.txt 2>/dev/null | head -n 1 || true)
+          phu_quet=$(find bao-cao-cve -type f -name phu-quet-cve.txt 2>/dev/null | head -n 1 || true)
+          echo "van-tay=${van_tay:-(không có)} · phu-quet=${phu_quet:-(không có)}"
+          .github/scripts/bao-dong-quet-cve.sh "$trang_thai" "$URL_LAN_CHAY" "${van_tay:-}" "${phu_quet:-}"
