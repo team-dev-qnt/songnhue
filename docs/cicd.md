@@ -22,9 +22,9 @@
 ```
 nhánh feature ──PR──► dev ──PR──► staging ──PR──► production
                        │           │                │
-                   CI đầy đủ   CD tự động      CD khi có lệnh
-                   + đóng gói   (không kiểm     (dừng chờ duyệt,
-                     image       lại, không      dump trước, không
+                   CI đầy đủ   CD tự động       CD tự động
+                   + đóng gói   (không kiểm     (dump trước, không
+                     image       lại, không      kiểm lại, không
                                  build lại)      build lại)
 ```
 
@@ -478,18 +478,32 @@ trong `.env`), chặn ngay trước khi trang nào kịp được đọc.
 phía máy chủ dùng (`layout.tsx`, `sitemap.ts`, `robots.ts`), nên đổi được mà không chạm bundle của
 trình duyệt. Xem `docs/deploy-guideline.md` §9.3.
 
-## 5. Chặng `production` — chỉ khi có lệnh
+## 5. Chặng `production` — tự động khi merge vào `production`
 
-`deploy-prod.yml` **không có trigger `push`**. Merge vào `production` không tự deploy: đưa lên môi
-trường thật là một quyết định vận hành có thời điểm của nó (ngoài giờ hành chính, sau khi đã báo
-Công ty), không phải hệ quả tự động của một thao tác git.
+> ⭐ **ĐỔI 6/9/2026 (T11.86).** Trước đó `deploy-prod.yml` cố ý **không có trigger `push`**, với lập
+> luận "đưa lên môi trường thật là một quyết định vận hành có thời điểm của nó". Lập luận ấy đúng,
+> nhưng nó tính giá cho một chốt an toàn mà thực tế **chưa từng được dùng một lần nào**: đo 6/9,
+> `CD Production` có **0 lượt chạy** trong toàn bộ lịch sử kho, trong khi `staging` đã đi qua 30 lượt
+> deploy. Một chốt không ai bấm không bảo vệ được gì — nó chỉ làm chặng cuối khác chặng giữa, và đầu
+> `deploy.yml` đã nói khác biệt giữa hai môi trường chính là thứ làm *"chạy tốt ở staging"* mất hết
+> ý nghĩa.
 
-Chạy bằng `workflow_dispatch`, bắt buộc nhập **commit SHA** và **lý do**. Ba lớp chặn:
+`deploy-prod.yml` chạy trên `push: branches: [production]` — merge PR đề bạt là deploy, y như staging.
+`workflow_dispatch` **vẫn còn**, và nay nó có đúng một việc: **quay lui** (§13.1 của
+`deploy-production-guideline.md`) — điền `commit_sha` là một SHA `dev` cũ hơn để dựng lại bản trước;
+để trống thì triển khai lại thứ đang ở đỉnh `production`.
 
-1. **`environment: production`** — GitHub dừng chờ người duyệt bấm nút.
-2. **Commit phải là tổ tiên của `staging`** — chặn đúng cái sai nguy hiểm nhất của deploy thủ công:
-   gõ nhầm một SHA chưa bao giờ chạy ở staging. Không có bước này thì "manual deploy" nghĩa là "ai
-   gõ gì cũng lên được".
+⚠ Lượt dispatch phải chọn nhánh **`production`** trong ô *"Use workflow from"* — xem lớp chặn 2.
+
+**Số lớp chặn không giảm, chỉ đổi thành phần:**
+
+1. **Giải theo cây tệp + tổ tiên của `staging`** — hai câu hỏi khác nhau, cần cả hai. Cây tệp trả lời
+   *"nội dung này đã dựng image chưa"* (`.github/scripts/giai-dinh-dev.sh`); `--is-ancestor` trả lời
+   *"nó đã đi qua staging chưa"*. Đây cũng là thứ chặn cái sai nguy hiểm nhất của lượt bấm tay: gõ
+   nhầm một SHA chưa bao giờ chạy ở staging.
+2. **`deployment_branch_policy` của environment `production`** — chỉ nhánh `production` deploy được
+   vào đó, nên một lượt `workflow_dispatch` từ nhánh khác **không chạm nổi** `PROD_*`. Đây là thứ
+   thay cho required reviewer đã gỡ: một ràng buộc máy đo được thay cho một cú bấm của người.
 3. **`pg_dump` ngay trước khi deploy** — điểm quay lui **duy nhất** về dữ liệu. Hệ này không có
    PITR (`architecture-review.md` §6.5), bản dump đêm trước là thứ gần nhất, nên migration hỏng lúc
    10h sáng là mất cả buổi làm việc.
@@ -508,13 +522,32 @@ kiểm hai điều:
   vào production, và không check nặng nào chặn lại vì ta đã cố ý không yêu cầu chúng ở đó.
 - **Đúng commit đang đề bạt** đã xanh CI, tra qua API check-runs của chính SHA đó — không phải
   "nhánh `dev` nói chung đang xanh". `dev` hoàn toàn có thể vừa nhận một commit đỏ.
+- **Nhánh đích không có commit riêng** (`kiem-goc-chung.sh`) — bất biến chống gãy gốc chung §10.72.
+
+> ⛔⛔ **6/9/2026 — cổng này từng KHÔNG THỂ XANH ở chặng cuối, và nó đỏ suốt một ngày mà không ai
+> đọc.** Bản cũ hỏi check-run của `pull_request.head.sha` ở **cả hai** chặng. Với `dev → staging` thì
+> đúng: head là đỉnh `dev`, nơi CI thật sự chạy. Với `staging → production` thì head là một **merge
+> commit nằm trên `staging`** — mà `ci.yml` chỉ chạy trên `dev`, nên commit ấy **không có, và không
+> thể có**, một check-run nào.
+>
+> Số đo: PR #94 (`staging → production`, mở 5/9) — `Promotion guard = FAILURE`,
+> `mergeStateStatus = BLOCKED`, log ghi `Không tìm thấy kết quả CI nào cho commit 107e315b…`; và
+> `CD Production` **0 lượt chạy** kể từ 15/8.
+>
+> **Vì sao không ai thấy:** cổng đỏ kèm một lý do *nghe rất hợp lý* — "commit này chưa từng chạy qua
+> pipeline ở dev" — nên nó đọc như một kết luận đúng, không như một khuyết tật. Cùng họ §10.72,
+> nhưng lần ấy cổng **vắng mặt**, lần này cổng **có màu** mà màu ấy nói sai chuyện.
+>
+> Nay với `base_ref == production`, cổng giải head SHA về commit `dev` tương ứng bằng **cây tệp**
+> (`giai-dinh-dev.sh` — cùng phép giải mà CD Staging đã dùng từ §10.42) rồi mới hỏi check-run.
+> Canh bởi `PromotionCheckStateTest` (4 bài mới, có phản chứng).
 
 ## 7. Secret cần đặt (WS-11)
 
 | Secret | Đặt ở | Dùng ở | Ghi chú |
 |---|---|---|---|
-| `STAGING_HOST` · `STAGING_USER` · `STAGING_SSH_KEY` · `STAGING_BASE_URL` · **`STAGING_SSH_KNOWN_HOSTS`** | environment `staging` | CD Staging | ✅ **đủ cả 5** (đo lại 3/9/2026 bằng API). Thiếu **cả năm** → cảnh báo và bỏ qua; thiếu **một số** → đỏ. ⚠ Env này còn một secret thứ sáu `PUBLIC_SITE_URL` — **đặt sai loại**, xem nợ N1/T11.7-a ở `master-tracking.md` |
-| `PROD_HOST` · `PROD_USER` · `PROD_SSH_KEY` · `PROD_BASE_URL` · **`PROD_SSH_KNOWN_HOSTS`** | environment `production` | CD Production | ⛔ **chưa có cái nào** — `total_count = 0`, đo lại 3/9/2026. Chặn bởi T11.2 (chưa có VPS-1); lệnh đặt sẵn ở `master-tracking.md` T11.7. Thiếu ở production → lượt chạy **DỪNG ĐỎ**, không bỏ qua |
+| `STAGING_HOST` · `STAGING_USER` · `STAGING_SSH_KEY` · `STAGING_BASE_URL` · **`STAGING_SSH_KNOWN_HOSTS`** | environment `staging` | CD Staging | ✅ **đúng 5, không thừa** (đo lại 6/9/2026 bằng API). Thiếu **cả năm** → cảnh báo và bỏ qua; thiếu **một số** → đỏ. ⭐ Secret thứ sáu `PUBLIC_SITE_URL` đặt sai loại **đã xoá 6/9** cùng biến trùng tên ở env này — không dòng mã nào đọc chúng (`ci.yml` đọc `vars.PUBLIC_SITE_URL` ở **cấp repo**, trong một job không có `environment:`) |
+| `PROD_HOST` · `PROD_USER` · `PROD_SSH_KEY` · `PROD_BASE_URL` · **`PROD_SSH_KNOWN_HOSTS`** | environment `production` | CD Production | ✅ **đủ cả 5 từ 6/9/2026** (T11.7 đóng) — `PROD_HOST=27.71.16.154`, `PROD_USER=songnhue`, `PROD_BASE_URL=https://songnhue.com`. Khoá host lấy bằng `cat /etc/ssh/ssh_host_ed25519_key.pub` **trên chính máy chủ** rồi đối chiếu với `known_hosts` cục bộ — khớp tuyệt đối. Thiếu ở production → lượt chạy **DỪNG ĐỎ**, không bỏ qua |
 
 ⭐ **`*_SSH_KNOWN_HOSTS` vào bộ ngày 29/8** (§10.68-C). Giá trị là **một dòng `known_hosts`** — `<host> ssh-ed25519 AAAA…`, lấy bằng `cat /etc/ssh/ssh_host_ed25519_key.pub` **trên máy chủ**, thay phần cuối `root@…` bằng địa chỉ đứng ở `*_HOST`. Trước đó workflow tự dò khoá bằng `ssh-keyscan`, và chính lượt dò ấy — 5 kết nối đóng trước xác thực — làm fail2ban của máy chủ **cấm IP runner ngay ở lệnh đầu tiên**. Ghim khoá vừa gỡ nguyên nhân, vừa đổi *tin-lần-đầu-mỗi-lượt* thành xác minh thật.
 | `NVD_API_KEY` | **repo** | `security-scan.yml` | ✅ **Đã đặt 18/8**. **Thiếu thì bỏ qua hẳn phép quét OWASP** (có cảnh báo trong Job Summary). Xin miễn phí ~2 phút: <https://nvd.nist.gov/developers/request-an-api-key> |
@@ -523,7 +556,7 @@ kiểm hai điều:
 
 | Biến | Dùng ở | Ghi chú |
 |---|---|---|
-| `PUBLIC_SITE_URL` | job `Đóng gói image frontend` | Địa chỉ **production** của cổng công khai, ví dụ `https://songnhue.vn`. Nướng vào bundle lúc build — xem §4.2. Thiếu thì sitemap/canonical trỏ về `localhost`, và Job Summary nói to điều đó |
+| `PUBLIC_SITE_URL` | job `Đóng gói image frontend` | ✅ **đặt 6/9/2026** = `https://songnhue.com` (T11.7-a đóng). Địa chỉ **production** của cổng công khai. Nướng vào bundle lúc build — xem §4.2. Thiếu thì sitemap/canonical trỏ về `localhost`, và Job Summary nói to điều đó. ⛔ Đổi giá trị **không** đổi được image đã dựng: phải có một lượt build mới trên `dev` rồi mới đề bạt. Khi cắt sang `thuyloisongnhue.vn` sau này, nhớ điều đó — sửa DNS một mình là chưa đủ |
 
 > ⚠ Đây là **biến**, không phải bí mật: nó đi vào bundle mà cả thế giới tải về được. Để nhầm vào
 > Secrets thì vẫn chạy, nhưng nó sẽ bị che trong log — và che một giá trị công khai chỉ làm việc
@@ -542,9 +575,16 @@ Cùng một cổng (`.github/scripts/kiem-secret-may-chu.sh`), ba trạng thái:
 
 | tình trạng | staging | production |
 |---|---|---|
-| đủ bốn | đi tiếp | đi tiếp |
-| thiếu **một số** | ⛔ đỏ | ⛔ đỏ |
-| thiếu **cả bốn** | cảnh báo + bỏ qua | ⛔ **đỏ** |
+| đủ **năm** | đi tiếp | đi tiếp |
+| thiếu **một số** (1–4) | ⛔ đỏ | ⛔ đỏ |
+| thiếu **cả năm** | cảnh báo + bỏ qua | ⛔ **đỏ** |
+
+> ⚠ **Sửa 4/9/2026: "bốn" → "năm".** Bảng này giữ con số 4 từ trước 29/8, khi
+> `*_SSH_KNOWN_HOSTS` chưa vào bộ (§10.68-C). Script duyệt **cả năm** biến
+> (`kiem-secret-may-chu.sh:47`) và kiểm **giá trị đã giải**, nên "chưa đặt" và "chuỗi rỗng" cùng bị
+> tính là thiếu. Ai đặt đúng 4 secret theo bảng cũ sẽ rơi vào nhánh *thiếu một số* → **cổng đỏ**,
+> không phải "đi tiếp" — và thông báo lỗi nói về một biến mà bảng này không hề nhắc tới. §7 ngay
+> bên trên đã liệt kê đủ năm tên từ lâu; đây là hai chỗ trong cùng một tệp nói hai điều khác nhau.
 
 Vì sao lệch nhau: CD Staging chạy **tự động** sau mỗi lượt merge, nên một môi trường chưa dựng mà
 nhuộm đỏ cả dòng CI của mọi người là đổi một lỗi thật lấy một lỗi phiền. CD Production chỉ chạy khi

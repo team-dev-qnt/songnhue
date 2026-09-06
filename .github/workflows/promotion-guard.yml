@@ -63,10 +63,58 @@ jobs:
         with:
           fetch-depth: 0
 
+      # `fetch-depth: 0` chỉ lấy đủ lịch sử của ref đang checkout (ở đây là
+      # `refs/pull/N/merge`), KHÔNG lấy nhánh `dev`. Thiếu bước này thì
+      # `giai-dinh-dev.sh` trả mã 2 và `production` khoá vĩnh viễn.
+      - name: Nạp nhánh dev để giải SHA mang kết quả CI
+        if: github.base_ref == 'production'
+        run: git fetch --no-tags origin +refs/heads/dev:refs/remotes/origin/dev
+
+      # ═══════════════════════════════════════════════════════════════════════
+      # ⛔⛔ SHA NÀO MANG KẾT QUẢ CI — vá 6/9/2026 (T11.86)
+      #
+      # Bản cũ hỏi check-run của `pull_request.head.sha` ở CẢ HAI chặng. Với
+      # `dev → staging` thì đúng: head là đỉnh `dev`, nơi CI thật sự chạy.
+      #
+      # Với `staging → production` thì head là **merge commit nằm trên `staging`**
+      # — mà `ci.yml` chỉ chạy trên `dev`. Commit ấy không có, và không thể có,
+      # một check-run nào. Nghĩa là cổng bắt buộc DUY NHẤT của `production` là
+      # một cổng **về nguyên tắc không thể xanh**.
+      #
+      #   Đo 6/9: PR #94 (`staging → production`, mở từ 5/9) —
+      #     `Promotion guard = FAILURE`, `mergeStateStatus = BLOCKED`,
+      #     `##[error]Không tìm thấy kết quả CI nào cho commit 107e315b…`
+      #   và `CD Production` có **0 lượt chạy** kể từ khi được tạo 15/8.
+      #
+      # ⛔ Vì sao không ai thấy suốt một ngày: cổng đỏ kèm một lý do NGHE RẤT HỢP
+      #   LÝ ("commit này chưa từng chạy qua pipeline ở dev") nên nó đọc như một
+      #   kết luận đúng, không như một khuyết tật. Cùng họ §10.72 — nhưng lần ấy
+      #   cổng VẮNG MẶT, lần này cổng CÓ MÀU mà màu ấy nói sai chuyện.
+      #
+      # ⚠ Nhánh `if` chỉ bọc chặng production: đường `dev → staging` là check bắt
+      #   buộc duy nhất của `staging` và nó đang chạy tốt — không thêm cho nó một
+      #   phụ thuộc vào `origin/dev` mà nó vốn không cần.
+      # ═══════════════════════════════════════════════════════════════════════
+      - name: SHA nào mang kết quả CI
+        id: nguon
+        env:
+          BASE: ${{ github.base_ref }}
+          SHA_PR: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          if [ "$BASE" = "production" ]; then
+            sha_ci="$(bash .github/scripts/giai-dinh-dev.sh "$SHA_PR" 500)"
+            echo "::notice::Đỉnh staging $SHA_PR chưa từng chạy CI — CI chỉ chạy ở dev."
+            echo "Hỏi kết quả CI của dev@$sha_ci (cây tệp trùng khít)."
+          else
+            sha_ci="$SHA_PR"
+          fi
+          echo "sha_ci=$sha_ci" >> "$GITHUB_OUTPUT"
+
       - name: Commit này đã xanh CI ở chặng trước chưa
         env:
           GH_TOKEN: ${{ github.token }}
-          SHA: ${{ github.event.pull_request.head.sha }}
+          SHA: ${{ steps.nguon.outputs.sha_ci }}
           REPO: ${{ github.repository }}
         run: |
           echo "Kiểm tra check-runs của $SHA"
