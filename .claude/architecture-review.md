@@ -5519,6 +5519,14 @@ kiểu API NVD phải đỏ ở đó; conventions §4.5 mục 4 ghi tên trườ
   `always()` ở bước vân tay ⇒ V11 đỏ đích danh · ở bước phạm vi ⇒ P8 đỏ đích danh · khôi phục ⇒
   xanh. Bài học cũ, chỗ mới: **chú thích giải thích một bảo đảm là chỗ dễ nhất để bộ canh khớp
   nhầm chính bảo đảm ấy** — càng viết chú thích tốt càng phải bỏ chú thích trước khi dò.
+- **Lượt thật đầu, trên nhánh trước khi merge** (`workflow_dispatch` `34012252347`, 6/9 04:44 UTC):
+  bước quét đỏ vì CVE · `Vân tay` và `Phạm vi quét` **success** · artifact **4 tệp**; `van-tay-cve.txt`
+  = `ge7=6 tong=11 suppress=2` + 11 dòng, `phu-quet-cve.txt` = `runtime=120 phu=115 ngoai=5 thieu=0`
+  (jar do runner dựng cũng không còn `jarmode-tools`) · `Tải báo cáo` **success** — cùng lượt chạy
+  không cần `actions: read`, đúng như đặt cược, và tệp nằm ở `bao-cao-cve/target/…` như dự đoán về
+  bố cục · chuông đọc `bằng chứng=true`, mốc vắng ⇒ `MỐC ĐẦU` trên nhánh phụ ⇒ **một** bình luận
+  (1.376 byte, có tên nhánh và bảng CVE), **không** `edit`; #84 đi 9 → 10 bình luận, tiêu đề và body
+  giữ nguyên. Vế còn lại (dời mốc trên `dev`, lượt thứ hai im lặng) chỉ đo được sau merge.
 
 #### Bài học
 
