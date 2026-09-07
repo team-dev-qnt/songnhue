@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,7 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.songnhue.content.application.ContactService;
+import com.songnhue.content.application.ContactInboxService;
 import com.songnhue.content.domain.Contact;
 import com.songnhue.content.domain.ContactNote;
 import com.songnhue.content.domain.ContactStatus;
@@ -38,16 +40,16 @@ import io.swagger.v3.oas.annotations.tags.Tag;
  * <h2>⛔ Nội dung liên hệ là văn bản do người lạ nhập</h2>
  *
  * Trả về nguyên văn; nơi hiển thị bắt buộc dựng thành text, không dựng thành HTML. Xem
- * {@link ContactService}.
+ * {@link ContactInboxService}.
  */
 @RestController
 @RequestMapping("/api/v1/cms/contacts")
 @Tag(name = "01-cms · Liên hệ", description = "Hộp thư tiếp nhận phản ánh từ cổng công khai")
 public class ContactController {
 
-    private final ContactService contacts;
+    private final ContactInboxService contacts;
 
-    public ContactController(ContactService contacts) {
+    public ContactController(ContactInboxService contacts) {
         this.contacts = contacts;
     }
 
@@ -138,6 +140,36 @@ public class ContactController {
     @RequirePermission("cms:contact:manage")
     public ContactView markRead(@PathVariable UUID publicId) {
         return view(contacts.danhDauDaDoc(publicId));
+    }
+
+    /**
+     * Kết xuất danh sách liên hệ ra CSV cho Excel — CN-01.4 / T36.5.
+     *
+     * <h2>⛔ Đồng bộ, ⛔ không qua hàng đợi — và đây là một quyết định có số đo</h2>
+     *
+     * <p>Khuôn kết xuất chạy nền ({@code useXuatBaoCao}, conventions.md §3) tồn tại vì BC-12 một
+     * tháng của một điểm đo là ~4.500 dòng và proxy cắt ở 60 giây. Hộp thư liên hệ ⛔ không ở thang
+     * ấy: trần {@code 10.000} dòng ≈ vài trăm KB, dựng xong trong mili-giây.
+     *
+     * <p>Đi đường nền ở đây phải trả: một mã loại việc, một handler, một chỗ lưu MinIO, một lượt
+     * dọn theo hạn, một endpoint tải, và một hook chờ ở giao diện — <b>sáu</b> bộ phận nữa có thể
+     * hỏng lặng lẽ, đổi lấy đúng con số không. Vượt trần thì {@code CMS-2022} nói thẳng, ⛔ không
+     * cắt bớt trong im lặng.
+     *
+     * <h2>⛔ ⛔ KHÔNG bọc trong envelope</h2>
+     *
+     * <p>Trả thẳng {@code ResponseEntity<byte[]>} nên bộ bọc phản hồi bỏ qua — §10.52 là chuyện
+     * envelope bọc {@code byte[]} và biến một tấm ảnh thành một chuỗi base64 ⛔ không ai giải.
+     */
+    @GetMapping("/export")
+    @Operation(summary = "Xuất danh sách liên hệ ra CSV (mở bằng Excel) — ⛔ cấm quá 10.000 dòng")
+    @RequirePermission("cms:contact:manage")
+    public ResponseEntity<byte[]> export(@RequestParam(required = false) ContactStatus status) {
+        ContactInboxService.BanXuat ban = contacts.xuatCsv(status);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("text/csv; charset=utf-8"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + ban.tenTep() + "\"")
+                .body(ban.noiDung());
     }
 
     // === Quy trình xử lý (T36.1) =============================================

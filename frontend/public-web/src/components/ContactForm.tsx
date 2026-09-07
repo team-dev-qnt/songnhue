@@ -12,11 +12,22 @@ import { useId, useState } from 'react';
  * `V202608291043` dựng bảng `contacts`, `POST /api/v1/public/contacts` nhận, và màn hình quản
  * trị đọc được. Vòng khép kín có bài kiểm đi qua HTTP đứng sau (`ContactHttpTest`).
  *
- * <h2>⛔ reCAPTCHA CHƯA có — nói ra thay vì để người đọc mã tự suy</h2>
+ * <h2>⛔ reCAPTCHA CHƯA chạy — nói ra thay vì để người đọc mã tự suy</h2>
  *
- * CN-01.4 yêu cầu reCAPTCHA v3; khoá thuộc **G13** và Công ty chưa cấp. Trong lúc chờ, chống lạm
- * dụng dựa vào `RateLimitPolicy.PUBLIC` ở backend. Đừng đọc sự vắng mặt của captcha ở đây thành
- * "đã cân nhắc và không cần".
+ * CN-01.4 yêu cầu reCAPTCHA v3. Backend đã có **chỗ cắm** (T36.6) và nó **mặc định TẮT**; khoá
+ * thuộc **G13** và Công ty chưa cấp, nên phía giao diện chưa nạp script của Google và chưa gửi
+ * `recaptchaToken`. Trong lúc chờ, chống lạm dụng dựa vào `RateLimitPolicy.PUBLIC` ở backend.
+ * Đừng đọc sự vắng mặt của captcha ở đây thành "đã cân nhắc và không cần".
+ *
+ * ⛔ Và ⛔ ĐỪNG mở CSP cho `https://www.google.com` trước khi có khoá: một dòng `script-src` cho
+ * một script ta **chưa nạp** là nới bề mặt tấn công lấy về đúng số không.
+ *
+ * <h2>⭐ Trường nào hiện, trường nào bắt buộc — do CẤU HÌNH quyết định (T36.7)</h2>
+ *
+ * Ba khoá `site.contact.field.*` đọc từ `site-config`. ⚠ Giao diện **không tự suy**: khi Công ty
+ * tắt ô Số điện thoại thì email trở thành bắt buộc, và luật ấy do **backend** suy ra
+ * (`ContactFormPolicy`) rồi trang truyền xuống. Dựng lại phép suy ở đây là bản sao thứ hai của một
+ * luật đang nằm ở backend, và bản sao ấy sẽ lệch.
  *
  * <h2>Không tự khẳng định đã gửi thành công</h2>
  *
@@ -26,7 +37,22 @@ import { useId, useState } from 'react';
 type TrangThai =
   { loai: 'nhap' } | { loai: 'dang-gui' } | { loai: 'xong' } | { loai: 'loi'; thongDiep: string };
 
-export function ContactForm() {
+export interface CauHinhBieuMau {
+  /** Có hiện ô Số điện thoại ⛔ không — `site.contact.field.phone.enabled`. */
+  hienDienThoai: boolean;
+  /** ⚠ Đã tính cả vế suy ra "tắt điện thoại ⇒ email bắt buộc". */
+  emailBatBuoc: boolean;
+  dienThoaiBatBuoc: boolean;
+}
+
+/** ⚠ Mặc định khớp giá trị seed của migration `V202609061067` — luật 14, một luật hai nơi nhớ. */
+export const CAU_HINH_MAC_DINH: CauHinhBieuMau = {
+  hienDienThoai: true,
+  emailBatBuoc: false,
+  dienThoaiBatBuoc: false,
+};
+
+export function ContactForm({ cauHinh = CAU_HINH_MAC_DINH }: { cauHinh?: CauHinhBieuMau }) {
   const id = useId();
   const [tt, datTt] = useState<TrangThai>({ loai: 'nhap' });
 
@@ -101,8 +127,24 @@ export function ContactForm() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Truong id={`${id}-ten`} name="fullName" nhan="Họ và tên" batBuoc />
         <Truong id={`${id}-cd`} name="subject" nhan="Tiêu đề" batBuoc />
-        <Truong id={`${id}-mail`} name="email" nhan="Email" kieu="email" />
-        <Truong id={`${id}-dt`} name="phone" nhan="Số điện thoại" kieu="tel" />
+        <Truong
+          id={`${id}-mail`}
+          name="email"
+          nhan="Email"
+          kieu="email"
+          batBuoc={cauHinh.emailBatBuoc}
+        />
+        {/* ⛔ Ô đã tắt thì ⛔ KHÔNG dựng input ẩn: một trường `disabled`/`hidden` vẫn nằm trong
+            `FormData` ở vài trình duyệt, và người đọc mã sau sẽ tưởng nó còn gửi gì đó. */}
+        {cauHinh.hienDienThoai ? (
+          <Truong
+            id={`${id}-dt`}
+            name="phone"
+            nhan="Số điện thoại"
+            kieu="tel"
+            batBuoc={cauHinh.dienThoaiBatBuoc}
+          />
+        ) : null}
       </div>
 
       <div className="flex flex-col gap-1.5">
@@ -119,9 +161,14 @@ export function ContactForm() {
         />
       </div>
 
+      {/* ⛔ Câu này phải NÓI ĐÚNG cấu hình đang chạy. Giữ nguyên "email hoặc số điện thoại" khi ô
+          điện thoại đã tắt là một dòng chữ NÓI DỐI — §10.69: một chú thích sai khó thấy hơn hẳn
+          một chú thích không ai đọc. */}
       <p className="text-xs leading-relaxed text-surface-textSecondary">
-        Cần ít nhất <b>một</b> cách liên hệ lại: email hoặc số điện thoại. Ý kiến được kiểm duyệt
-        trước khi chuyển tới bộ phận xử lý.
+        {cauHinh.hienDienThoai
+          ? 'Cần ít nhất một cách liên hệ lại: email hoặc số điện thoại.'
+          : 'Vui lòng để lại email để Công ty liên hệ lại.'}{' '}
+        Ý kiến được kiểm duyệt trước khi chuyển tới bộ phận xử lý.
       </p>
 
       {tt.loai === 'loi' ? (

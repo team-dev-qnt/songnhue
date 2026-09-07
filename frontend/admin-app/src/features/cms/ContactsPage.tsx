@@ -1,4 +1,4 @@
-import { DeleteOutlined, MailOutlined, TagsOutlined } from '@ant-design/icons';
+import { DeleteOutlined, DownloadOutlined, MailOutlined, TagsOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   App,
@@ -134,6 +134,22 @@ export function ContactsPage() {
     onError: (caught: unknown) => bao(caught, 'Không chuyển được đơn vị xử lý'),
   });
 
+  const xuat = useMutation({
+    mutationFn: async () => {
+      const { blob, tenTep } = await cmsApi.exportContacts(loc);
+      // ⛔ Dựng blob rồi bấm một thẻ <a> — ⛔ không `window.open` (tab mới ⛔ không mang header
+      //   `Authorization`, và người dùng nhận một tab trắng).
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = tenTep ?? 'lien-he.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+    // ⛔ CMS-2022 khi vượt trần dòng — câu chữ đến từ `error-map`, ⛔ không viết lại ở đây.
+    onError: (caught: unknown) => bao(caught, 'Không xuất được danh sách'),
+  });
+
   const xoa = useMutation({
     mutationFn: (publicId: string) => cmsApi.deleteContact(publicId),
     onSuccess: () => {
@@ -240,6 +256,16 @@ export function ContactsPage() {
       }
       extra={
         <Space>
+          <Button
+            icon={<DownloadOutlined />}
+            loading={xuat.isPending}
+            onClick={() => xuat.mutate()}
+            // ⚠ Xuất theo ĐÚNG bộ lọc đang xem — người dùng lọc "Đang xử lý" rồi bấm Xuất mà
+            //   nhận cả hộp thư là một tệp gửi đi ngoài với nhiều dữ liệu hơn họ định gửi.
+            title="Xuất danh sách đang lọc ra tệp CSV (mở bằng Excel)"
+          >
+            Xuất Excel
+          </Button>
           <Button icon={<TagsOutlined />} onClick={() => datMoDanhMuc(true)}>
             Phân loại
           </Button>

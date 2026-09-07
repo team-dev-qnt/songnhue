@@ -4,6 +4,7 @@ import { ContactForm } from '@/components/ContactForm';
 import { EmptyBlock } from '@/components/home/EmptyBlock';
 import { PageShell } from '@/components/PageShell';
 import { getSiteConfig, getSubsidiaries } from '@/lib/api';
+import { docBool } from '@/lib/settings';
 import { ROUTES } from '@/lib/routes';
 import { SITE } from '@/lib/site';
 
@@ -80,6 +81,10 @@ export default async function LienHePage() {
   const hotline = config?.['company.hotline'] ?? '';
   const gioLamViec = config?.['company.working-hours'] ?? '';
   const mapEmbed = config?.['site.footer.map-embed'] ?? '';
+
+  // T36.7 — ⛔ Mặc định `true` khi khoá vắng: biểu mẫu đang chạy hôm nay CÓ ô điện thoại, và một
+  //   khoá chưa seed ⛔ không được lặng lẽ làm biến mất một trường người dùng đang dùng.
+  const hienDienThoai = docBool(config?.['site.contact.field.phone.enabled'], true);
 
   // ⛔ Ô nào rỗng thì BIẾN MẤT khỏi danh sách, không hiện nhãn kèm dấu gạch — một dấu gạch
   //    trông như một giá trị đã kiểm chứng (quy tắc 16).
@@ -283,7 +288,17 @@ export default async function LienHePage() {
           Gửi phản ánh, kiến nghị
         </h2>
         <div className="mt-4">
-          <ContactForm />
+          {/* ⭐ Luật "tắt điện thoại ⇒ email bắt buộc" do BACKEND suy (`ContactFormPolicy`); ở đây
+              chỉ đọc lại đúng ba khoá và dựng lại đúng phép suy ấy MỘT lần, tại chỗ này. */}
+          <ContactForm
+            cauHinh={{
+              hienDienThoai: hienDienThoai,
+              emailBatBuoc:
+                docBool(config?.['site.contact.field.email.required'], false) || !hienDienThoai,
+              dienThoaiBatBuoc:
+                hienDienThoai && docBool(config?.['site.contact.field.phone.required'], false),
+            }}
+          />
         </div>
       </section>
     </PageShell>

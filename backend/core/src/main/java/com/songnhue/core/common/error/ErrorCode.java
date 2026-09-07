@@ -144,6 +144,23 @@ public enum ErrorCode {
      * cũ vẫn đọc lại được (xem {@code ContactCategory#active}).
      */
     CMS_2020("CMS-2020", HttpStatus.CONFLICT),
+    /**
+     * Biểu mẫu liên hệ ⛔ không qua được reCAPTCHA — CN-01.4 / T36.6.
+     *
+     * <p>⚠ Mã này chỉ bắn khi Google <b>trả lời là ⛔ không hợp lệ</b>. Google ⛔ không trả lời được
+     * thì {@code RecaptchaClient} <b>cho qua</b> — một sự cố mạng phía ta ⛔ không được biến thành
+     * "người dân ⛔ không báo được sạt kênh". Xem javadoc lớp ấy.
+     */
+    CMS_2021("CMS-2021", HttpStatus.UNPROCESSABLE_ENTITY),
+    /**
+     * Bản xuất danh sách liên hệ vượt trần số dòng — CN-01.4 / T36.5.
+     *
+     * <p>⛔ Cố ý <b>từ chối</b> thay vì cắt bớt trong im lặng. Một tệp Excel thiếu 4.000 dòng trông
+     * y hệt một tệp đủ, và người nhận nó ⛔ không có cách nào biết — đúng thứ CLAUDE.md gọi là
+     * "⛔ không có trần im lặng". Đường ra: lọc theo trạng thái, hoặc dựng đường kết xuất chạy nền
+     * (khuôn {@code useXuatBaoCao}) khi khối lượng thật sự tới ngưỡng ấy.
+     */
+    CMS_2022("CMS-2022", HttpStatus.UNPROCESSABLE_ENTITY),
     CMS_5001("CMS-5001", HttpStatus.BAD_GATEWAY),
 
     // ---- MOD-02 Vận hành công trình --------------------------------------------

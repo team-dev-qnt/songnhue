@@ -245,7 +245,13 @@ public class PublicPortalController {
     // ---- Liên hệ / phản ánh ---------------------------------------------------
 
     /** Thân yêu cầu của biểu mẫu liên hệ. Kiểm tra nằm ở {@link ContactService}, không ở đây. */
-    public record ContactRequest(String fullName, String email, String phone, String subject, String content) {}
+    /**
+     * ⚠ {@code recaptchaToken} có thể {@code null}: khoá reCAPTCHA thuộc <b>G13</b> và Công ty chưa
+     * cấp, nên công tắc mặc định TẮT và cổng ⛔ không gửi trường này. Bắt buộc nó ở đây là chặn
+     * chính biểu mẫu đang chạy.
+     */
+    public record ContactRequest(
+            String fullName, String email, String phone, String subject, String content, String recaptchaToken) {}
 
     /**
      * Tiếp nhận một liên hệ / phản ánh — CN-01.4.
@@ -259,16 +265,25 @@ public class PublicPortalController {
      * <h2>Chống lạm dụng</h2>
      *
      * Hạn mức tần suất do {@code RateLimitFilter} lo trên tiền tố {@code /api/v1/public}
-     * ({@code RateLimitPolicy.PUBLIC}). ⚠ reCAPTCHA v3 mà CN-01.4 yêu cầu <b>chưa dựng</b> —
-     * chặn bởi <b>G13</b> (Công ty chưa cấp khoá). Ghi ra để đây không bị đọc thành "đã đủ biện
-     * pháp chống lạm dụng".
+     * ({@code RateLimitPolicy.PUBLIC}).
+     *
+     * <p>⚠⚠ reCAPTCHA v3: <b>chỗ cắm đã dựng</b> (T36.6) và <b>mặc định TẮT</b> — khoá thuộc
+     * <b>G13</b>, Công ty chưa cấp. ⛔ Đừng đọc sự hiện diện của mã CMS-2021 thành "đã có lớp chống
+     * spam": chừng nào {@code site.contact.recaptcha.enabled} còn tắt (hoặc bật mà thiếu
+     * {@code RECAPTCHA_SECRET_KEY}) thì thứ duy nhất chặn bot vẫn là hạn mức tần suất.
      */
     @PostMapping("/contacts")
     @ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)
     @Operation(summary = "Gửi liên hệ / phản ánh từ cổng công khai")
     @PublicEndpoint(reason = "Biểu mẫu liên hệ của người dân — CN-01.4")
     public void submitContact(@RequestBody ContactRequest yeuCau) {
-        contacts.tiepNhan(yeuCau.fullName(), yeuCau.email(), yeuCau.phone(), yeuCau.subject(), yeuCau.content());
+        contacts.tiepNhan(
+                yeuCau.fullName(),
+                yeuCau.email(),
+                yeuCau.phone(),
+                yeuCau.subject(),
+                yeuCau.content(),
+                yeuCau.recaptchaToken());
     }
 
     // ---- Tệp -----------------------------------------------------------------

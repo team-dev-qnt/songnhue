@@ -1,11 +1,23 @@
-package com.songnhue.hydro.domain;
+package com.songnhue.core.common.export;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Dựng một bảng CSV cho bản kết xuất báo cáo — T34.7/T34.8.
+ * Dựng một bảng CSV cho bản kết xuất — T34.7/T34.8, chuyển sang {@code core.common} ở WS-36/T36.5.
+ *
+ * <h2>⚠⚠ Vì sao lớp này rời {@code hydro.domain} sang {@code core.common.export}</h2>
+ *
+ * <p>Hộp thư liên hệ cần đúng bộ quy ước này để xuất danh sách (T36.5), mà {@code content} ⛔ không
+ * được import {@code com.songnhue.hydro.domain} — luật {@code ModuleBoundaryTest}. Hai lựa chọn:
+ * chép một bản sang {@code content}, hoặc chuyển lên {@code core.common}.
+ *
+ * <p>⛔ Chép là sai, và ⛔ không phải vì trùng mã: {@link #boc(String)} là một <b>lớp chống tấn
+ * công</b> (CSV injection). Một bản sao của lớp chống tấn công là hai nơi phải nhớ vá — và bản dưới
+ * sẽ ⛔ không ai để ý khi bản trên đổi (luật 14). Cột <i>Nội dung</i> của bản xuất liên hệ mang chữ
+ * do <b>người lạ trên Internet</b> gõ, tức là nguy cơ ở đây <i>cao hơn</i> chỗ nó ra đời.
+ *
  *
  * <h2>⛔ T34.8: KHÔNG thêm Apache POI ở phase này</h2>
  *

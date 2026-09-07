@@ -14,15 +14,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import com.songnhue.content.domain.Contact;
-import com.songnhue.content.infra.ContactCategoryRepository;
-import com.songnhue.content.infra.ContactNoteRepository;
 import com.songnhue.content.infra.ContactRepository;
+import com.songnhue.content.infra.RecaptchaClient;
 import com.songnhue.core.common.exception.ValidationException;
 import com.songnhue.core.spi.JobPort;
 import com.songnhue.core.spi.NotificationPort;
-import com.songnhue.core.spi.OrgUnitPort;
 import com.songnhue.core.spi.SettingPort;
-import com.songnhue.core.spi.WorkflowPort;
 
 /**
  * <b>Luật kiểm tra của biểu mẫu liên hệ.</b> CN-01.4.
@@ -54,21 +51,17 @@ class ContactServiceTest {
         SettingPort thamSo = mock(SettingPort.class);
         when(thamSo.getBoolean(any(), anyBoolean())).thenReturn(true);
 
+        // ⚠ `luatBieuMau` là mock TRẦN ⇒ mọi vế bắt buộc trả `false` và captcha coi như tắt. Đó là
+        //   cấu hình MẶC ĐỊNH, đúng thứ bài này muốn canh. Hai nhánh còn lại (bật bắt buộc, bật
+        //   captcha) đi qua HTTP thật ở `ContactFormPolicyHttpTest` — luật 5.
         dichVu = new ContactService(
-                kho,
-                mock(ContactCategoryRepository.class),
-                mock(ContactNoteRepository.class),
-                mock(WorkflowPort.class),
-                mock(OrgUnitPort.class),
-                thongBao,
-                hangDoi,
-                thamSo);
+                kho, thongBao, hangDoi, thamSo, mock(ContactFormPolicy.class), mock(RecaptchaClient.class));
     }
 
     @Test
     @DisplayName("⭐ Đủ trường + có email → nhận")
     void duTruongThiNhan() {
-        Contact c = dichVu.tiepNhan("Nguyễn Văn A", "a@example.invalid", null, "Chủ đề", "Nội dung");
+        Contact c = dichVu.tiepNhan("Nguyễn Văn A", "a@example.invalid", null, "Chủ đề", "Nội dung", null);
         assertThat(c.getFullName()).isEqualTo("Nguyễn Văn A");
         verify(kho).save(any(Contact.class));
     }
@@ -76,7 +69,7 @@ class ContactServiceTest {
     @Test
     @DisplayName("⭐ Chỉ có điện thoại vẫn nhận — email KHÔNG bắt buộc")
     void chiCoDienThoaiVanNhan() {
-        Contact c = dichVu.tiepNhan("Trần Thị B", "  ", "0243354xxxx", "Chủ đề", "Nội dung");
+        Contact c = dichVu.tiepNhan("Trần Thị B", "  ", "0243354xxxx", "Chủ đề", "Nội dung", null);
         assertThat(c.getEmail()).as("chuỗi toàn khoảng trắng phải hoá null").isNull();
         assertThat(c.getPhone()).isEqualTo("0243354xxxx");
     }
@@ -84,7 +77,7 @@ class ContactServiceTest {
     @Test
     @DisplayName("⛔ Không email lẫn điện thoại → từ chối, KHÔNG ghi gì")
     void thieuCaHaiDuongLienLac() {
-        assertThatThrownBy(() -> dichVu.tiepNhan("A", null, null, "Chủ đề", "Nội dung"))
+        assertThatThrownBy(() -> dichVu.tiepNhan("A", null, null, "Chủ đề", "Nội dung", null))
                 .isInstanceOf(ValidationException.class);
         verify(kho, never()).save(any());
     }
@@ -92,11 +85,11 @@ class ContactServiceTest {
     @Test
     @DisplayName("⛔ Thiếu họ tên / tiêu đề / nội dung → từ chối từng trường một")
     void thieuTruongBatBuoc() {
-        assertThatThrownBy(() -> dichVu.tiepNhan(null, "a@example.invalid", null, "Chủ đề", "Nội dung"))
+        assertThatThrownBy(() -> dichVu.tiepNhan(null, "a@example.invalid", null, "Chủ đề", "Nội dung", null))
                 .isInstanceOf(ValidationException.class);
-        assertThatThrownBy(() -> dichVu.tiepNhan("A", "a@example.invalid", null, "   ", "Nội dung"))
+        assertThatThrownBy(() -> dichVu.tiepNhan("A", "a@example.invalid", null, "   ", "Nội dung", null))
                 .isInstanceOf(ValidationException.class);
-        assertThatThrownBy(() -> dichVu.tiepNhan("A", "a@example.invalid", null, "Chủ đề", null))
+        assertThatThrownBy(() -> dichVu.tiepNhan("A", "a@example.invalid", null, "Chủ đề", null, null))
                 .isInstanceOf(ValidationException.class);
         verify(kho, never()).save(any());
     }
@@ -105,7 +98,7 @@ class ContactServiceTest {
     @DisplayName("⛔ Nội dung quá 5.000 ký tự → từ chối; cột TEXT không tự chặn gì")
     void noiDungQuaDai() {
         String dai = "x".repeat(5_001);
-        assertThatThrownBy(() -> dichVu.tiepNhan("A", "a@example.invalid", null, "Chủ đề", dai))
+        assertThatThrownBy(() -> dichVu.tiepNhan("A", "a@example.invalid", null, "Chủ đề", dai, null))
                 .isInstanceOf(ValidationException.class);
         verify(kho, never()).save(any());
     }
@@ -113,7 +106,7 @@ class ContactServiceTest {
     @Test
     @DisplayName("⭐ Cắt ký tự điều khiển nhưng GIỮ xuống dòng và tab")
     void catKyTuDieuKhienGiuXuongDong() {
-        Contact c = dichVu.tiepNhan("A", "a@example.invalid", null, "Chủ đề", "Dòng một\nDòng hai\tcó tab ");
+        Contact c = dichVu.tiepNhan("A", "a@example.invalid", null, "Chủ đề", "Dòng một\nDòng hai\tcó tab ", null);
 
         assertThat(c.getContent())
                 .as("ký tự điều khiển làm hỏng bản xuất CSV và chèn được dòng giả vào nhật ký")
@@ -123,7 +116,7 @@ class ContactServiceTest {
     @Test
     @DisplayName("⭐ Cắt khoảng trắng hai đầu của mọi trường")
     void catKhoangTrangHaiDau() {
-        Contact c = dichVu.tiepNhan("  A  ", "  a@example.invalid  ", null, "  Chủ đề  ", "  Nội dung  ");
+        Contact c = dichVu.tiepNhan("  A  ", "  a@example.invalid  ", null, "  Chủ đề  ", "  Nội dung  ", null);
         assertThat(c.getFullName()).isEqualTo("A");
         assertThat(c.getEmail()).isEqualTo("a@example.invalid");
         assertThat(c.getSubject()).isEqualTo("Chủ đề");
@@ -135,7 +128,7 @@ class ContactServiceTest {
     @Test
     @DisplayName("⭐⭐ Nhận xong thì BÁO cán bộ và ĐẶT VIỆC gửi thư xác nhận — cùng một lượt")
     void nhanXongThiBaoVaDatViec() {
-        dichVu.tiepNhan("Nguyễn Văn A", "a@example.invalid", null, "Chủ đề", "Nội dung");
+        dichVu.tiepNhan("Nguyễn Văn A", "a@example.invalid", null, "Chủ đề", "Nội dung", null);
 
         // ⛔ `targeted` chứ ⛔ không `alert`: cộng Ban điều hành vào mỗi lượt người dân điền biểu mẫu
         //    là cách chắc chắn nhất để vài tuần sau ⛔ không ai đọc thông báo nữa.
@@ -159,7 +152,7 @@ class ContactServiceTest {
     @Test
     @DisplayName("⛔ Chỉ để lại điện thoại ⇒ vẫn báo cán bộ, nhưng ⛔ KHÔNG đặt việc gửi thư")
     void khongCoEmailThiKhongDatViecGuiThu() {
-        dichVu.tiepNhan("Trần Thị B", null, "0243354xxxx", "Chủ đề", "Nội dung");
+        dichVu.tiepNhan("Trần Thị B", null, "0243354xxxx", "Chủ đề", "Nội dung", null);
 
         verify(thongBao).notify(any(com.songnhue.core.spi.NotifyRequest.class));
         verify(hangDoi, never()).enqueue(any());

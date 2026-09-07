@@ -25,6 +25,9 @@ public interface ContactRepository extends JpaRepository<Contact, Long> {
 
     long countByStatusAndDeletedAtIsNull(ContactStatus status);
 
+    /** Đếm toàn bộ liên hệ còn sống — dùng để chặn TRƯỚC khi dựng bản xuất (T36.5). */
+    long countByDeletedAtIsNull();
+
     /**
      * Còn liên hệ nào đang gán phân loại này không — dùng trước khi xoá mềm một phân loại.
      *

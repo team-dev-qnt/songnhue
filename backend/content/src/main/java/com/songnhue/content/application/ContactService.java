@@ -1,38 +1,22 @@
 package com.songnhue.content.application;
 
-import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.songnhue.content.domain.Contact;
-import com.songnhue.content.domain.ContactCategory;
-import com.songnhue.content.domain.ContactNote;
-import com.songnhue.content.domain.ContactStatus;
-import com.songnhue.content.infra.ContactCategoryRepository;
-import com.songnhue.content.infra.ContactNoteRepository;
 import com.songnhue.content.infra.ContactRepository;
+import com.songnhue.content.infra.RecaptchaClient;
 import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.BusinessRuleException;
-import com.songnhue.core.common.exception.ResourceNotFoundException;
 import com.songnhue.core.common.exception.ValidationException;
-import com.songnhue.core.common.security.AuthContext;
-import com.songnhue.core.common.security.AuthenticatedUser;
-import com.songnhue.core.spi.AllowedAction;
 import com.songnhue.core.spi.JobPort;
 import com.songnhue.core.spi.JobRequest;
 import com.songnhue.core.spi.NotificationPort;
 import com.songnhue.core.spi.NotifyRequest;
 import com.songnhue.core.spi.NotifySeverity;
-import com.songnhue.core.spi.OrgUnitPort;
-import com.songnhue.core.spi.OrgUnitRef;
 import com.songnhue.core.spi.SettingPort;
-import com.songnhue.core.spi.WorkflowPort;
 
 /**
  * Tiếp nhận liên hệ / phản ánh từ cổng công khai — CN-01.4.
@@ -93,18 +77,6 @@ public class ContactService {
      */
     private static final int DAI_TOI_DA_NOI_DUNG = 5_000;
 
-    private static final int TRANG_TOI_DA = 100;
-
-    /**
-     * Giới hạn độ dài một ghi chú nội bộ.
-     *
-     * <p>Ngắn hơn nội dung liên hệ vì đây là chú thích thao tác, ⛔ không phải nơi chép lại hồ sơ.
-     */
-    private static final int DAI_TOI_DA_GHI_CHU = 2_000;
-
-    /** Bước chuyển "đã đọc" — khớp {@code workflow_transitions.action} của quy trình CONTACT. */
-    private static final String HANH_DONG_DOC = "READ";
-
     /**
      * Quyền gác toàn bộ hộp thư — và cũng là <b>tập người nhận</b> của thư báo có liên hệ mới.
      *
@@ -121,31 +93,25 @@ public class ContactService {
     public static final String KHOA_HAN_SLA_GIO = "cms.contact.sla-hours";
 
     private final ContactRepository contacts;
-    private final ContactCategoryRepository danhMuc;
-    private final ContactNoteRepository ghiChu;
-    private final WorkflowPort workflow;
-    private final OrgUnitPort orgUnits;
     private final NotificationPort notifications;
     private final JobPort jobs;
     private final SettingPort settings;
+    private final ContactFormPolicy luatBieuMau;
+    private final RecaptchaClient captcha;
 
     public ContactService(
             ContactRepository contacts,
-            ContactCategoryRepository danhMuc,
-            ContactNoteRepository ghiChu,
-            WorkflowPort workflow,
-            OrgUnitPort orgUnits,
             NotificationPort notifications,
             JobPort jobs,
-            SettingPort settings) {
+            SettingPort settings,
+            ContactFormPolicy luatBieuMau,
+            RecaptchaClient captcha) {
         this.contacts = contacts;
-        this.danhMuc = danhMuc;
-        this.ghiChu = ghiChu;
-        this.workflow = workflow;
-        this.orgUnits = orgUnits;
         this.notifications = notifications;
         this.jobs = jobs;
         this.settings = settings;
+        this.luatBieuMau = luatBieuMau;
+        this.captcha = captcha;
     }
 
     /**
@@ -154,7 +120,8 @@ public class ContactService {
      * @throws ValidationException khi thiếu trường bắt buộc hoặc không có đường liên lạc ngược
      */
     @Transactional
-    public Contact tiepNhan(String hoTen, String email, String dienThoai, String chuDe, String noiDung) {
+    public Contact tiepNhan(
+            String hoTen, String email, String dienThoai, String chuDe, String noiDung, String maCaptcha) {
         String ten = chuanHoa(hoTen);
         String mail = chuanHoa(email);
         String dt = chuanHoa(dienThoai);
@@ -164,6 +131,18 @@ public class ContactService {
         batBuoc(ten, "fullName");
         batBuoc(cd, "subject");
         batBuoc(nd, "content");
+
+        // --- T36.7: trường bắt buộc theo CẤU HÌNH -----------------------------
+        //
+        // ⚠ Kiểm hai khoá này TRƯỚC vế "ít nhất một" ở dưới, để thông điệp trả về nêu đúng ô mà
+        //   Công ty đã đặt là bắt buộc. Đảo thứ tự thì người dùng bỏ trống email (đang bắt buộc)
+        //   nhưng có điền điện thoại sẽ đi lọt, và lỗi chỉ hiện ra ở lượt rà dữ liệu nhiều tháng sau.
+        if (luatBieuMau.emailBatBuoc() && mail == null) {
+            throw (ValidationException) new ValidationException(ErrorCode.SYS_0003).withDetail("email", "BAT_BUOC", "");
+        }
+        if (luatBieuMau.dienThoaiBatBuoc() && dt == null) {
+            throw (ValidationException) new ValidationException(ErrorCode.SYS_0003).withDetail("phone", "BAT_BUOC", "");
+        }
 
         // Cùng luật với `ck_contacts_lien_lac`. Hai tầng chặn hai loại lỗi khác nhau: tầng này
         // trả lời được người dùng bằng tên trường cụ thể, ràng buộc CSDL bịt đường ghi thẳng.
@@ -175,6 +154,18 @@ public class ContactService {
         if (nd.length() > DAI_TOI_DA_NOI_DUNG) {
             throw (ValidationException) new ValidationException(ErrorCode.SYS_0003)
                     .withDetail("content", "QUA_DAI", String.valueOf(DAI_TOI_DA_NOI_DUNG));
+        }
+
+        // --- T36.6: reCAPTCHA, và nó đứng CUỐI có chủ đích ---------------------
+        //
+        // ⭐ Một biểu mẫu điền thiếu ⛔ không đáng một lượt gọi mạng ra Google — và người dân điền
+        //   thiếu là chuyện thường xuyên hơn nhiều so với bot. Đặt ở đây thì lượt gọi ấy chỉ xảy ra
+        //   với những gì đã hợp lệ về mặt dữ liệu.
+        //
+        // ⛔ `captchaBatBuoc()` trả `false` ở CẢ HAI trạng thái "chưa bật" và "bật mà thiếu khoá
+        //   bí mật" — nhưng chỉ trạng thái thứ hai ghi ERROR. Xem `ContactFormPolicy`.
+        if (luatBieuMau.captchaBatBuoc() && !captcha.hopLe(maCaptcha, luatBieuMau.diemToiThieuPhanTram())) {
+            throw new BusinessRuleException(ErrorCode.CMS_2021);
         }
 
         Contact daLuu = contacts.save(new Contact(ten, mail, dt, cd, nd));
@@ -227,180 +218,13 @@ public class ContactService {
                 (short) 3));
     }
 
-    @Transactional(readOnly = true)
-    public Page<Contact> danhSach(ContactStatus loc, int trang, int cor) {
-        PageRequest yeuCau = PageRequest.of(Math.max(trang, 0), Math.min(Math.max(cor, 1), TRANG_TOI_DA));
-        return loc == null
-                ? contacts.findAllByDeletedAtIsNullOrderByCreatedAtDesc(yeuCau)
-                : contacts.findAllByStatusAndDeletedAtIsNullOrderByCreatedAtDesc(loc, yeuCau);
-    }
-
-    @Transactional(readOnly = true)
-    public long demChuaDoc() {
-        return contacts.countByStatusAndDeletedAtIsNull(ContactStatus.MOI);
-    }
-
-    /**
-     * Đánh dấu đã đọc — <b>qua Workflow engine</b>, và <b>chỉ khi đang ở {@code MOI}</b>.
-     *
-     * <p>⚠ Vế {@code == MOI} ⛔ không phải tối ưu: gọi {@code execute} ở trạng thái khác ném
-     * {@code SYS-0008}, và màn hình chi tiết gọi hàm này ở <b>mỗi</b> lượt mở. Không có vế ấy thì
-     * mở lại một liên hệ đã đọc là một lỗi đỏ trên màn hình người dùng.
-     *
-     * <p>⚠ Hàm này <b>idempotent</b> và trả về bản ghi hiện tại khi ⛔ không có gì để làm — nơi gọi
-     * ⛔ không phải tự hỏi trạng thái trước.
-     */
-    @Transactional
-    public Contact danhDauDaDoc(UUID publicId) {
-        Contact c = tim(publicId);
-        if (c.getStatus() != ContactStatus.MOI) {
-            return c;
-        }
-        c.ghiDauVetDoc(nguoiDangDangNhap(), Instant.now());
-        return contacts.save(workflow.execute(c, HANH_DONG_DOC, null));
-    }
-
-    /**
-     * Thực hiện một bước chuyển bất kỳ của quy trình CONTACT.
-     *
-     * <p>⛔ ⛔ Không có {@code switch} nào ở đây, và đó là điểm chính: hành động hợp lệ, quyền cần
-     * có, và "bước này có đòi lý do không" đều nằm trong {@code workflow_transitions} — <b>dữ
-     * liệu</b>, ⛔ không phải mã. Thêm một bước chuyển là một dòng migration, ⛔ không phải một lượt
-     * deploy mã.
-     */
-    @Transactional
-    public Contact chuyenTrangThai(UUID publicId, String hanhDong, String lyDo) {
-        Contact c = tim(publicId);
-        return contacts.save(workflow.execute(c, hanhDong, null, lyDo));
-    }
-
-    /** Các nút giao diện được phép hiện — đã lọc theo quyền người đang đăng nhập. */
-    @Transactional(readOnly = true)
-    public List<AllowedAction> hanhDongChoPhep(UUID publicId) {
-        return workflow.allowedActions(tim(publicId));
-    }
-
-    // === Phân loại · chuyển đơn vị · ghi chú nội bộ (T36.2) ===================
-
-    /**
-     * Gán hoặc gỡ phân loại. {@code null} = gỡ.
-     *
-     * <p>⚠ Cho gán cả phân loại <b>đã tắt</b> ⛔ không phải sơ suất — nó ⛔ không xảy ra: ô chọn ở
-     * giao diện chỉ liệt kê phân loại đang bật. Chặn thêm ở đây nghĩa là một lượt sửa dữ liệu hàng
-     * loạt về sau ⛔ không gán lại được đúng phân loại cũ mà bản ghi vốn mang.
-     */
-    @Transactional
-    public Contact phanLoai(UUID publicId, UUID maPhanLoai) {
-        Contact c = tim(publicId);
-        if (maPhanLoai == null) {
-            c.phanLoai(null);
-        } else {
-            ContactCategory pl = danhMuc.findByPublicIdAndDeletedAtIsNull(maPhanLoai)
-                    .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
-            c.phanLoai(pl.getId());
-        }
-        return contacts.save(c);
-    }
-
-    /**
-     * Chuyển liên hệ cho một phòng ban / Xí nghiệp. {@code null} = thu hồi.
-     *
-     * <p>⭐ Đây cũng là nguồn {@code orgUnitId()} của entity, tức là nguồn <b>người nhận thông
-     * báo</b> của các bước chuyển sau. Chuyển đơn vị ⛔ không chỉ là một nhãn trên màn hình.
-     */
-    @Transactional
-    public Contact chuyenDonVi(UUID publicId, UUID maDonVi) {
-        Contact c = tim(publicId);
-        if (maDonVi == null) {
-            c.chuyenDonVi(null);
-        } else {
-            OrgUnitRef dv =
-                    orgUnits.findRef(maDonVi).orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
-            c.chuyenDonVi(dv.id());
-        }
-        return contacts.save(c);
-    }
-
-    @Transactional(readOnly = true)
-    public List<ContactNote> danhSachGhiChu(UUID publicId) {
-        return ghiChu.findAllByContactIdAndDeletedAtIsNullOrderByCreatedAtDesc(
-                tim(publicId).getId());
-    }
-
-    @Transactional
-    public ContactNote themGhiChu(UUID publicId, String noiDung) {
-        Contact c = tim(publicId);
-        String nd = chuanHoa(noiDung);
-        batBuoc(nd, "content");
-        if (nd.length() > DAI_TOI_DA_GHI_CHU) {
-            throw (ValidationException) new ValidationException(ErrorCode.SYS_0003)
-                    .withDetail("content", "QUA_DAI", String.valueOf(DAI_TOI_DA_GHI_CHU));
-        }
-        return ghiChu.save(new ContactNote(c.getId(), nd));
-    }
-
-    @Transactional
-    public void xoaGhiChu(UUID maGhiChu) {
-        ContactNote n = ghiChu.findByPublicIdAndDeletedAtIsNull(maGhiChu)
-                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
-        n.markDeleted(Instant.now());
-        ghiChu.save(n);
-    }
-
-    // === Xoá — CN-01.4 cấm đích danh ở một trạng thái ========================
-
-    /**
-     * Xoá mềm một liên hệ. ⛔ <b>Cấm</b> khi đang {@code DANG_XU_LY} (CN-01.4).
-     *
-     * <p>⚠ Ràng buộc này đặt ở <b>service</b> chứ ⛔ không ở controller, vì controller ⛔ không phải
-     * đường vào duy nhất còn lại mãi mãi (luật 12). Ở đây nó phủ mọi lời gọi, kể cả một job dọn dẹp
-     * viết vào năm sau.
-     */
-    @Transactional
-    public void xoa(UUID publicId) {
-        Contact c = tim(publicId);
-        if (c.getStatus() == ContactStatus.DANG_XU_LY) {
-            throw new BusinessRuleException(ErrorCode.CMS_2018);
-        }
-        c.markDeleted(Instant.now());
-        contacts.save(c);
-    }
-
-    /** Tra tên phân loại và tên đơn vị theo lô — chống N+1 trên màn hình danh sách. */
-    @Transactional(readOnly = true)
-    public Optional<ContactCategory> phanLoaiCua(Contact c) {
-        return c.getCategoryId() == null ? Optional.empty() : danhMuc.findById(c.getCategoryId());
-    }
-
-    @Transactional(readOnly = true)
-    public Optional<OrgUnitRef> donViCua(Contact c) {
-        return c.getAssignedOrgUnitId() == null ? Optional.empty() : orgUnits.findRefById(c.getAssignedOrgUnitId());
-    }
-
-    private Contact tim(UUID publicId) {
-        return contacts.findByPublicIdAndDeletedAtIsNull(publicId)
-                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
-    }
-
-    /** `null` khi không có phiên — không thể xảy ra sau `@RequirePermission`, nhưng không giả định. */
-    private static Long nguoiDangDangNhap() {
-        return AuthContext.current().map(AuthenticatedUser::userId).orElse(null);
-    }
-
-    /**
-     * Cắt khoảng trắng hai đầu và <b>loại ký tự điều khiển</b>; rỗng ⇒ {@code null}.
-     *
-     * <p>Ký tự điều khiển không phải chuyện thẩm mỹ: chúng làm hỏng bản xuất CSV về sau và có
-     * thể chèn dòng giả vào nhật ký. Giữ lại {@code \n} và {@code \t} vì nội dung là văn bản
-     * nhiều dòng thật.
-     */
-    private static String chuanHoa(String s) {
+    static String chuanHoa(String s) {
         if (s == null) return null;
         String sach = s.replaceAll("[\\p{Cntrl}&&[^\n\t]]", "").trim();
         return sach.isEmpty() ? null : sach;
     }
 
-    private static void batBuoc(String giaTri, String truong) {
+    static void batBuoc(String giaTri, String truong) {
         if (giaTri == null) {
             throw (ValidationException) new ValidationException(ErrorCode.SYS_0003).withDetail(truong, "BAT_BUOC", "");
         }

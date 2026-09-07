@@ -133,6 +133,21 @@ export const cmsApi = {
     return api.delete<void>(`${BASE}/contacts/notes/${notePublicId}`);
   },
 
+  /**
+   * Tải bản kết xuất CSV của hộp thư — T36.5.
+   *
+   * ⛔ **Không** `window.open`: endpoint đòi header `Authorization`, và một tab mới ⛔ không mang
+   * theo header ấy — nó sẽ trả 401 và người dùng thấy một tab trắng. Cùng bài học với
+   * `useXuatBaoCao` (conventions.md §3).
+   *
+   * ⚠ Đường này **đồng bộ** (⛔ không qua hàng đợi): hộp thư có trần 10.000 dòng, vượt thì backend
+   * trả CMS-2022 và nói thẳng — ⛔ không cắt bớt trong im lặng.
+   */
+  exportContacts(status?: string): Promise<{ blob: Blob; tenTep: string | null }> {
+    const query = status ? `?status=${encodeURIComponent(status)}` : '';
+    return api.getTep(`${BASE}/contacts/export${query}`);
+  },
+
   /** ⛔ CMS-2018 khi liên hệ đang ở `DANG_XU_LY` — CN-01.4 cấm đích danh. */
   deleteContact(publicId: string): Promise<void> {
     return api.delete<void>(`${BASE}/contacts/${publicId}`);
