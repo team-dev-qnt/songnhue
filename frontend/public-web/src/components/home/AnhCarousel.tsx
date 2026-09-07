@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 
-import { coTuChay } from '@/lib/slider';
+import { coTuChay, type HieuUngSlider } from '@/lib/slider';
 
 export interface MucCarousel {
   /** Khoá React — dùng id thật của ảnh, không dùng chỉ số mảng. */
@@ -71,6 +71,19 @@ interface AnhCarouselProps {
    * do `PortalImage` có `phuKhung` và ảnh sơ đồ hệ thống dùng `phuKhung={false}`.
    */
   phuKhung?: boolean;
+  /**
+   * Hiệu ứng chuyển ảnh — `site.slider.effect`, **T36.11**.
+   *
+   * <p>`FADE` (mặc định, hành vi đang chạy từ WS-16) chồng các ảnh lên nhau và đổi
+   * `opacity`. `SLIDE` xếp chúng thành một **dải ngang** rồi dịch dải ấy.
+   *
+   * <h2>⚠⚠ Vì sao độ dịch là `style` chứ ⛔ KHÔNG phải một lớp Tailwind</h2>
+   *
+   * Bộ quét nguồn của Tailwind **đọc mã, ⛔ không chạy mã**. Một lớp ghép lúc chạy kiểu
+   * {@code `-translate-x-[${viTri * 100}%]`} ⛔ không được sinh ra, dải đứng im ở ảnh đầu, và
+   * ⛔ **không bài kiểm nào đỏ** — đúng cái bẫy `tiLeKhung` đã ghi ở trên.
+   */
+  hieuUng?: HieuUngSlider;
   /** Ô rỗng — phải nói vì sao rỗng và ai là người nhập, không phải một khung xám. */
   khiRong: ReactNode;
 }
@@ -126,6 +139,7 @@ export function AnhCarousel({
   tiLeKhung,
   phuKhung = true,
   uuTienAnhDau = false,
+  hieuUng = 'FADE',
   khiRong,
 }: AnhCarouselProps) {
   const [viTri, datViTri] = useState(0);
@@ -175,39 +189,59 @@ export function AnhCarousel({
         data-khung-anh
         className={`relative w-full shrink-0 overflow-hidden bg-surface-bgLayout ${tiLeKhung}`}
       >
-        {muc.map((anh, i) => {
-          const dangHien = i === viTri;
-          return (
-            <div
-              key={anh.khoa}
-              role="group"
-              aria-roledescription="slide"
-              aria-label={`Ảnh ${i + 1} trên ${soAnh}`}
-              aria-hidden={!dangHien}
-              className={`absolute inset-0 transition-opacity duration-700 ease-smooth ${
-                dangHien ? 'opacity-100' : 'pointer-events-none opacity-0'
-              }`}
-            >
-              {anh.src ? (
-                <img
-                  src={anh.src}
-                  alt={anh.title}
-                  // Ảnh đầu tải ngay (nó nằm trên màn hình đầu tiên), phần còn lại chờ.
-                  loading={i === 0 && uuTienAnhDau ? 'eager' : 'lazy'}
-                  // ⭐ Ảnh đầu của slider trang chủ LÀ phần tử LCP — đo 28/08: 381 KB trên đường
-                  //   tới hạn. `eager` chỉ nói "đừng hoãn"; `fetchpriority="high"` mới nói "xếp
-                  //   trước các tài nguyên khác". DOD1.17 ghi rõ thuộc tính này chưa từng xuất
-                  //   hiện lần nào trong HTML của cổng — đây là chỗ nó phải có.
-                  fetchPriority={i === 0 && uuTienAnhDau ? 'high' : 'auto'}
-                  decoding="async"
-                  className={`h-full w-full ${phuKhung ? 'object-cover' : 'object-contain'}`}
-                />
-              ) : (
-                <div className="h-full w-full bg-gradient-to-br from-brand-primaryGradientFrom to-brand-primary" />
-              )}
-            </div>
-          );
-        })}
+        {/* ⭐ SLIDE dựng một DẢI NGANG rồi dịch cả dải; FADE giữ nguyên cách chồng ảnh của
+            WS-16. Hai nhánh cùng dựng đúng bộ thẻ `role="group"` bên trong, nên phần mũi tên,
+            chấm chỉ mục và `aria-*` ⛔ không phải biết mình đang ở hiệu ứng nào. */}
+        <div
+          className={
+            hieuUng === 'SLIDE'
+              ? 'absolute inset-0 flex transition-transform duration-700 ease-smooth'
+              : 'contents'
+          }
+          // ⚠ `style` chứ ⛔ KHÔNG phải lớp Tailwind ghép lúc chạy — xem javadoc prop `hieuUng`.
+          style={hieuUng === 'SLIDE' ? { transform: `translateX(-${viTri * 100}%)` } : undefined}
+        >
+          {muc.map((anh, i) => {
+            const dangHien = i === viTri;
+            return (
+              <div
+                key={anh.khoa}
+                role="group"
+                aria-roledescription="slide"
+                aria-label={`Ảnh ${i + 1} trên ${soAnh}`}
+                // ⛔ Ở SLIDE thì ảnh ⛔ không hiện vẫn nằm trong luồng bố cục (đó là cả cơ chế),
+                //    nhưng nó vẫn phải bị trình đọc màn hình bỏ qua — `aria-hidden` giữ nguyên
+                //    cho cả hai hiệu ứng.
+                aria-hidden={!dangHien}
+                className={
+                  hieuUng === 'SLIDE'
+                    ? 'relative h-full w-full shrink-0'
+                    : `absolute inset-0 transition-opacity duration-700 ease-smooth ${
+                        dangHien ? 'opacity-100' : 'pointer-events-none opacity-0'
+                      }`
+                }
+              >
+                {anh.src ? (
+                  <img
+                    src={anh.src}
+                    alt={anh.title}
+                    // Ảnh đầu tải ngay (nó nằm trên màn hình đầu tiên), phần còn lại chờ.
+                    loading={i === 0 && uuTienAnhDau ? 'eager' : 'lazy'}
+                    // ⭐ Ảnh đầu của slider trang chủ LÀ phần tử LCP — đo 28/08: 381 KB trên đường
+                    //   tới hạn. `eager` chỉ nói "đừng hoãn"; `fetchpriority="high"` mới nói "xếp
+                    //   trước các tài nguyên khác". DOD1.17 ghi rõ thuộc tính này chưa từng xuất
+                    //   hiện lần nào trong HTML của cổng — đây là chỗ nó phải có.
+                    fetchPriority={i === 0 && uuTienAnhDau ? 'high' : 'auto'}
+                    decoding="async"
+                    className={`h-full w-full ${phuKhung ? 'object-cover' : 'object-contain'}`}
+                  />
+                ) : (
+                  <div className="h-full w-full bg-gradient-to-br from-brand-primaryGradientFrom to-brand-primary" />
+                )}
+              </div>
+            );
+          })}
+        </div>
 
         {/* ⭐ Mũi tên HIỆN SẴN, không chờ rê chuột. Bản trước dùng `opacity-0 group-hover:…`:
             trên màn hình cảm ứng không có sự kiện rê chuột nào, nên hai nút ấy chưa từng

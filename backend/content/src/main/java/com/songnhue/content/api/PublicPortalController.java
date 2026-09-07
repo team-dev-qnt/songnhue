@@ -1,11 +1,13 @@
 package com.songnhue.content.api;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import com.songnhue.content.application.ContactService;
+import com.songnhue.content.application.FeedbackService;
 import com.songnhue.content.application.MenuService;
 import com.songnhue.content.application.PublicArticleDetail;
 import com.songnhue.content.application.PublicArticleRow;
@@ -29,6 +32,7 @@ import com.songnhue.content.domain.MenuPosition;
 import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
 import com.songnhue.core.common.security.PublicEndpoint;
+import com.songnhue.core.common.util.DateTimeUtils;
 import com.songnhue.core.common.util.HttpHeaderText;
 import com.songnhue.core.common.web.PhatTepTrucTiep;
 import com.songnhue.core.spi.AttachmentContent;
@@ -74,8 +78,11 @@ public class PublicPortalController {
 
     private final ContactService contacts;
 
-    public PublicPortalController(PublicPortalService portal, ContactService contacts) {
+    private final FeedbackService feedbacks;
+
+    public PublicPortalController(PublicPortalService portal, ContactService contacts, FeedbackService feedbacks) {
         this.contacts = contacts;
+        this.feedbacks = feedbacks;
         this.portal = portal;
     }
 
@@ -203,15 +210,44 @@ public class PublicPortalController {
 
     // ---- Bài viết ------------------------------------------------------------
 
+    /**
+     * Danh sách bài đã xuất bản.
+     *
+     * <h2>⭐ Khoảng ngày đăng — CN-01.8 / T36.10</h2>
+     *
+     * <p>{@code tuNgay} / {@code denNgay} là <b>ngày dương lịch giờ Việt Nam</b>
+     * ({@code yyyy-MM-dd}), ⛔ không phải mốc UTC. Người dùng chọn "01/09" trên lịch của họ và
+     * mong nhận mọi bài đăng trong <i>ngày 01/09 ở Việt Nam</i>.
+     *
+     * <p>⛔⛔ {@code denNgay} quy về <b>cuối ngày</b> (00:00 hôm sau, giờ VN). Nhận thẳng
+     * {@code 00:00} của chính ngày ấy thì mọi bài đăng <i>trong</i> ngày đó bị loại — và triệu
+     * chứng là "lọc tới hôm nay thì mất tin hôm nay", một thứ ⛔ không ai đọc ra được từ mã.
+     * Quy tắc 1 của dự án ở dạng cụ thể: lưu {@code timestamptz} UTC, nhận vào theo UTC+7.
+     */
     @GetMapping("/articles")
     @Operation(summary = "Danh sách bài đã xuất bản, mới nhất trước")
     @PublicEndpoint(reason = "Danh sách tin bài của cổng — CN-01.1")
     public Page<PublicArticleRow> articles(
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String q,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate tuNgay,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate denNgay,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "12") int size) {
-        return portal.articles(category, q, page, size);
+        return portal.articles(
+                category,
+                q,
+                page,
+                size,
+                tuNgay == null
+                        ? null
+                        : tuNgay.atStartOfDay(DateTimeUtils.ZONE_VN).toInstant(),
+                // ⛔ Cuối ngày, ⛔ không phải đầu ngày — xem javadoc.
+                denNgay == null
+                        ? null
+                        : denNgay.plusDays(1)
+                                .atStartOfDay(DateTimeUtils.ZONE_VN)
+                                .toInstant());
     }
 
     /**
@@ -245,7 +281,13 @@ public class PublicPortalController {
     // ---- Liên hệ / phản ánh ---------------------------------------------------
 
     /** Thân yêu cầu của biểu mẫu liên hệ. Kiểm tra nằm ở {@link ContactService}, không ở đây. */
-    public record ContactRequest(String fullName, String email, String phone, String subject, String content) {}
+    /**
+     * ⚠ {@code recaptchaToken} có thể {@code null}: khoá reCAPTCHA thuộc <b>G13</b> và Công ty chưa
+     * cấp, nên công tắc mặc định TẮT và cổng ⛔ không gửi trường này. Bắt buộc nó ở đây là chặn
+     * chính biểu mẫu đang chạy.
+     */
+    public record ContactRequest(
+            String fullName, String email, String phone, String subject, String content, String recaptchaToken) {}
 
     /**
      * Tiếp nhận một liên hệ / phản ánh — CN-01.4.
@@ -259,16 +301,93 @@ public class PublicPortalController {
      * <h2>Chống lạm dụng</h2>
      *
      * Hạn mức tần suất do {@code RateLimitFilter} lo trên tiền tố {@code /api/v1/public}
-     * ({@code RateLimitPolicy.PUBLIC}). ⚠ reCAPTCHA v3 mà CN-01.4 yêu cầu <b>chưa dựng</b> —
-     * chặn bởi <b>G13</b> (Công ty chưa cấp khoá). Ghi ra để đây không bị đọc thành "đã đủ biện
-     * pháp chống lạm dụng".
+     * ({@code RateLimitPolicy.PUBLIC}).
+     *
+     * <p>⚠⚠ reCAPTCHA v3: <b>chỗ cắm đã dựng</b> (T36.6) và <b>mặc định TẮT</b> — khoá thuộc
+     * <b>G13</b>, Công ty chưa cấp. ⛔ Đừng đọc sự hiện diện của mã CMS-2021 thành "đã có lớp chống
+     * spam": chừng nào {@code site.contact.recaptcha.enabled} còn tắt (hoặc bật mà thiếu
+     * {@code RECAPTCHA_SECRET_KEY}) thì thứ duy nhất chặn bot vẫn là hạn mức tần suất.
      */
     @PostMapping("/contacts")
     @ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)
     @Operation(summary = "Gửi liên hệ / phản ánh từ cổng công khai")
     @PublicEndpoint(reason = "Biểu mẫu liên hệ của người dân — CN-01.4")
     public void submitContact(@RequestBody ContactRequest yeuCau) {
-        contacts.tiepNhan(yeuCau.fullName(), yeuCau.email(), yeuCau.phone(), yeuCau.subject(), yeuCau.content());
+        contacts.tiepNhan(
+                yeuCau.fullName(),
+                yeuCau.email(),
+                yeuCau.phone(),
+                yeuCau.subject(),
+                yeuCau.content(),
+                yeuCau.recaptchaToken());
+    }
+
+    // ---- Góp ý / đánh giá (CN-01.6, chốt D1) ---------------------------------
+
+    public record FeedbackRequest(String fullName, String email, Short rating, String content, String recaptchaToken) {}
+
+    /**
+     * Một góp ý <b>đã duyệt</b>, dạng công bố trên cổng.
+     *
+     * <h2>⛔⛔ Bốn trường, và mỗi trường vắng mặt là một quyết định</h2>
+     *
+     * <ul>
+     *   <li>⛔ ⛔ <b>{@code moderationNote}</b> — chỗ cán bộ viết <i>về</i> người gửi. Lộ nó ra là
+     *       công bố nhận xét nội bộ dưới tên của chính người bị nhận xét.
+     *   <li>⛔ <b>{@code email}</b> — dữ liệu cá nhân (NĐ 13/2023), và người gửi ⛔ không hề đồng ý
+     *       cho công bố. Đây cũng là cách bơm địa chỉ thư cho máy quét thu hoạch.
+     *   <li>⛔ <b>{@code publicId}</b> — ⛔ không có tính năng nào cần một tay cầm vào một mục góp
+     *       ý từ phía cổng (⛔ không thích, ⛔ không trả lời, ⛔ không báo xấu — chốt D1 tắt hết).
+     *   <li>⛔ <b>{@code status}</b> — mọi mục ở đây đều {@code DA_DUYET} theo dựng của truy vấn;
+     *       in ra một cột chỉ có một giá trị là mời người sau tưởng nó lọc được.
+     * </ul>
+     *
+     * <p>⚠ {@code fullName} <b>có</b> mặt và {@code null} được: người gửi ẩn danh là hợp lệ, và
+     * nơi hiển thị nói thẳng "Người dùng cổng" thay vì bịa một cái tên.
+     *
+     * <p>⭐ {@code FeedbackHttpTest} phản chiếu {@code getRecordComponents()} của record này —
+     * khẳng định <b>tên trường</b> lẫn <b>số lượng</b> (luật 29: vế đếm ⛔ không chia sẻ giả định
+     * nào với danh sách tên, và một record rỗng làm mọi {@code doesNotContain} xanh trọn vẹn).
+     */
+    public record PublicFeedbackView(String fullName, Short rating, String content, Instant createdAt) {}
+
+    /**
+     * Gửi một góp ý / đánh giá — CN-01.6.
+     *
+     * <h2>⛔ 204 và ⛔ không thân phản hồi — cùng lý lẽ với biểu mẫu liên hệ</h2>
+     *
+     * <p>Và ở đây có thêm một lý do: mục vừa gửi đang {@code CHO_DUYET}. Trả về bất cứ mảnh nào
+     * của nó là trao cho người gửi một cách đọc lại thứ <b>chưa ai duyệt</b>.
+     *
+     * <h2>Chống lạm dụng</h2>
+     *
+     * <p>Hạn mức tần suất do {@code RateLimitFilter} lo trên tiền tố {@code /api/v1/public}; bốn
+     * bảo đảm còn lại ở {@code InboundSubmissionGate} — <b>cùng một cổng</b> với biểu mẫu liên hệ,
+     * ⛔ không phải một bản sao (luật 12).
+     */
+    @PostMapping("/feedbacks")
+    @ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)
+    @Operation(summary = "Gửi góp ý / đánh giá từ cổng công khai — vào trạng thái Chờ duyệt")
+    @PublicEndpoint(reason = "Biểu mẫu góp ý của người dùng cổng — CN-01.6")
+    public void submitFeedback(@RequestBody FeedbackRequest yeuCau) {
+        feedbacks.tiepNhan(
+                yeuCau.fullName(), yeuCau.email(), yeuCau.rating(), yeuCau.content(), yeuCau.recaptchaToken());
+    }
+
+    /**
+     * Các góp ý <b>đã duyệt</b> — CN-01.6.
+     *
+     * <p>⛔ ⛔ Trạng thái ⛔ <b>không</b> là tham số của endpoint này. Truy vấn khai
+     * {@code DA_DUYET} trong chính câu JPQL; ⛔ không có cách nào gõ ra một lượt gọi trả về mục
+     * chờ duyệt. Rỗng khi Công ty tắt {@code site.feedback.public-list.enabled}.
+     */
+    @GetMapping("/feedbacks")
+    @Operation(summary = "Góp ý đã duyệt để hiển thị trên cổng")
+    @PublicEndpoint(reason = "Khối góp ý đã kiểm duyệt trên cổng — CN-01.6")
+    public List<PublicFeedbackView> publicFeedbacks() {
+        return feedbacks.daDuyet().stream()
+                .map(f -> new PublicFeedbackView(f.getFullName(), f.getRating(), f.getContent(), f.getCreatedAt()))
+                .toList();
     }
 
     // ---- Tệp -----------------------------------------------------------------

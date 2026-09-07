@@ -16,6 +16,7 @@ import {
   LayoutOutlined,
   LineChartOutlined,
   PictureOutlined,
+  LikeOutlined,
   MailOutlined,
   QuestionCircleOutlined,
   ReadOutlined,
@@ -201,6 +202,13 @@ export const MENU: readonly MenuNode[] = [
         icon: <MailOutlined />,
         path: '/noi-dung/hop-thu-lien-he',
         permissions: ['cms:contact:manage'],
+      },
+      {
+        key: 'gop-y',
+        label: 'Góp ý & đánh giá',
+        icon: <LikeOutlined />,
+        path: '/noi-dung/gop-y',
+        permissions: ['cms:feedback:manage'],
       },
       {
         key: 'danh-muc-noi-dung',

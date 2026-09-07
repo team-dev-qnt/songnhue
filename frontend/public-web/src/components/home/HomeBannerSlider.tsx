@@ -1,5 +1,7 @@
 import type { BannerItem } from '@/lib/api';
 import { fileUrl } from '@/lib/routes';
+import { type HieuUngSlider } from '@/lib/slider';
+
 import { AnhCarousel } from './AnhCarousel';
 import { EmptyBlock } from './EmptyBlock';
 
@@ -10,6 +12,8 @@ interface HomeBannerSliderProps {
   autoplay: boolean;
   showArrows: boolean;
   showDots: boolean;
+  /** Hiệu ứng chuyển ảnh — `site.slider.effect`, T36.11. */
+  hieuUng: HieuUngSlider;
 }
 
 /**
@@ -35,6 +39,7 @@ export function HomeBannerSlider({
   autoplay,
   showArrows,
   showDots,
+  hieuUng,
 }: HomeBannerSliderProps) {
   return (
     <AnhCarousel
@@ -50,6 +55,7 @@ export function HomeBannerSlider({
       autoplay={autoplay}
       showArrows={showArrows}
       showDots={showDots}
+      hieuUng={hieuUng}
       nhan="Ảnh hoạt động của Công ty"
       // ⭐⭐ 01/09 (lượt hai): TỈ LỆ thay cho chiều cao. Lượt một sáng nay hạ
       //    `lg:min-h-[444px]` → `300px` để cái trần theo khung nhìn có hiệu lực; cả trần lẫn

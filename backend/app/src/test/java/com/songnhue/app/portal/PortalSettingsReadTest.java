@@ -107,17 +107,41 @@ class PortalSettingsReadTest {
                 .isEmpty();
     }
 
+    /**
+     * ⚠⚠ <b>Danh sách này đi từ HAI khoá xuống MỘT ở T36.11 — và lượt rút gọn ấy là một quyết
+     * định, ⛔ không phải một lượt dọn dẹp.</b>
+     *
+     * <p>{@code site.slider.effect} bị {@code V202608271032} gỡ vì đúng lý do quy tắc 15: nó bày
+     * ra trên màn hình cấu hình mà ⛔ không dòng mã nào của cổng đọc. T36.11 <b>dựng nơi đọc</b>
+     * ({@code docHieuUngSlider} → prop {@code hieuUng} của {@code AnhCarousel} → một nhánh SLIDE
+     * dựng dải ngang thật) rồi mới seed lại ở {@code V202609071069} — <b>cùng một commit</b>.
+     *
+     * <p>⇒ Từ lượt ấy khoá này thuộc về bài {@link #moiKhoaDeuCoNguoiDoc()} (phải CÓ người đọc),
+     * ⛔ không thuộc bài này nữa. Giữ nó ở đây là để một bộ canh khẳng định điều đã hết đúng — và
+     * một bộ canh nói sai thì lượt sau người ta nới nó ra thay vì đọc nó.
+     *
+     * <p>⛔ {@code site.home.blocks} thì <b>ở lại</b>: bố cục trang chủ nay LÀ cây menu, ⛔ không
+     * có khoá nào cấu hình nó.
+     */
     @Test
-    @DisplayName("⛔ Hai khoá đã gỡ không được đọc ở đâu nữa")
+    @DisplayName("⛔ Khoá đã gỡ không được đọc ở đâu nữa")
     void khoaDaGoKhongConNoiDoc() throws IOException {
         String maCong = docCaThuMuc();
         // Vế ngược của bài trên: gỡ khoá khỏi CSDL mà quên gỡ nơi đọc thì cổng lặng lẽ rơi về giá
         // trị mặc định viết trong mã — tức là tham số ấy thôi cấu hình được, mà không ai biết.
-        for (String khoa : List.of("site.home.blocks", "site.slider.effect")) {
+        for (String khoa : List.of("site.home.blocks")) {
             assertThat(maCong.contains("'" + khoa + "'"))
                     .as("`%s` đã bị DELETE ở V202608271032 nhưng mã cổng vẫn đọc nó", khoa)
                     .isFalse();
         }
+
+        // ⭐⭐ Vế đối chứng của lượt rút gọn: `site.slider.effect` phải ĐANG ĐƯỢC ĐỌC. ⛔ Không có
+        //    vế này thì rút một tên khỏi danh sách trên chỉ là bỏ một lời khẳng định — và khoá ấy
+        //    có thể được seed lại mà vẫn ⛔ không ai đọc, tức là lỗi cũ quay lại nguyên vẹn.
+        assertThat(maCong)
+                .as("⛔ `site.slider.effect` được seed lại ở V202609071069 thì mã cổng PHẢI đọc nó "
+                        + "— nếu không, ta vừa dựng lại đúng nửa cặp đọc–ghi đã xoá ở V202608271032")
+                .contains("'site.slider.effect'");
     }
 
     @Test

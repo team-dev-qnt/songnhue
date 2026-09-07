@@ -10,13 +10,13 @@ import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import com.songnhue.core.common.export.BangCsv;
 import com.songnhue.core.spi.JobContext;
 import com.songnhue.core.spi.JobHandler;
 import com.songnhue.core.spi.ReportFilePort;
 import com.songnhue.hydro.api.HydroReportDtos.BaoCaoDongBoView;
 import com.songnhue.hydro.api.HydroReportDtos.BaoCaoTongHopView;
 import com.songnhue.hydro.api.HydroReportDtos.ChiTietSoDoView;
-import com.songnhue.hydro.domain.BangCsv;
 
 /**
  * Kết xuất báo cáo thuỷ văn ra CSV — T34.7 · T34.8.

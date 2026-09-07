@@ -411,12 +411,22 @@ export function getCategories(): Promise<CategoryNode[] | null> {
 export function getArticles(params: {
   category?: string;
   q?: string;
+  /**
+   * Ngày đăng, dạng `yyyy-MM-dd` **giờ Việt Nam** — CN-01.8 / T36.10.
+   *
+   * ⚠ Backend quy `denNgay` về **cuối ngày**; ⛔ đừng tự cộng một ngày ở đây nữa, hai lần cộng
+   * là bộ lọc lấy dư trọn một ngày mà ⛔ không ai đọc ra được (luật 14 — một luật, một nơi).
+   */
+  tuNgay?: string;
+  denNgay?: string;
   page?: number;
   size?: number;
 }): Promise<PagedArticles | null> {
   const query = new URLSearchParams();
   if (params.category) query.set('category', params.category);
   if (params.q) query.set('q', params.q);
+  if (params.tuNgay) query.set('tuNgay', params.tuNgay);
+  if (params.denNgay) query.set('denNgay', params.denNgay);
   query.set('page', String(params.page ?? 0));
   query.set('size', String(params.size ?? 12));
 
@@ -566,4 +576,95 @@ export function getWaterLevels(): Promise<WaterLevelRow[] | null> {
  */
 export function getServerTime(): Promise<string | null> {
   return apiGet<string>('/now', { revalidate: 0 });
+}
+
+/**
+ * Một góp ý **đã duyệt** — CN-01.6, T36.8.
+ *
+ * ⚠ Bốn trường, và số đó là một quyết định: `email`, `moderationNote`, `publicId` và `status`
+ * **cố ý vắng mặt** ở record công khai phía backend (`PublicFeedbackView`). `FeedbackHttpTest`
+ * phản chiếu số trường của record ấy, nên thêm một trường vào đây mà backend chưa trả thì kiểu
+ * này nói dối — TypeScript ⛔ không kiểm được hình dạng JSON lúc chạy.
+ */
+export interface FeedbackRow {
+  /** `null` khi người gửi ẩn danh — nơi hiển thị nói thẳng, ⛔ không bịa một cái tên. */
+  fullName: string | null;
+  /** 1..5, `null` khi người gửi chỉ viết góp ý mà ⛔ không chấm sao. */
+  rating: number | null;
+  content: string;
+  createdAt: string;
+}
+
+/**
+ * Các góp ý **đã kiểm duyệt** để hiện trên trang `/gop-y` — CN-01.6, chốt **D1**.
+ *
+ * ⛔⛔ Trạng thái ⛔ **không** là tham số: truy vấn phía backend khai `DA_DUYET` trong chính câu
+ * JPQL, nên ⛔ không có cách nào gõ ra một lượt gọi trả về mục **chưa ai duyệt**. Đó là toàn bộ
+ * ý nghĩa của chốt D1 — ⛔ đừng thêm một tham số `status` vào hàm này.
+ *
+ * ⚠ Trả `[]` khi Công ty tắt `site.feedback.public-list.enabled`, và `null` khi backend ⛔ không
+ * trả lời. Hai trạng thái ấy khác nhau và nơi gọi phải phân biệt được (luật 9).
+ */
+export function getFeedbacks(): Promise<FeedbackRow[] | null> {
+  return apiGet<FeedbackRow[]>('/feedbacks', { tags: [CACHE_TAGS.layout] });
+}
+
+/**
+ * Một dòng kết quả **tìm kiếm công trình** — CN-01.8 / T36.10.
+ *
+ * ⚠ Hẹp hơn `ConstructionRow` của trang Danh mục có chủ đích: trang kết quả liệt kê nhiều loại
+ * đối tượng cạnh nhau, nên mỗi dòng chỉ mang thứ đủ để người đọc nhận ra và bấm vào.
+ */
+export interface ConstructionSearchRow {
+  code: string;
+  name: string;
+  constructionType: string;
+  /** `null` = chưa nhập địa chỉ. ⛔ Hiển thị nói thẳng, ⛔ không dựng một dấu gạch. */
+  location: string | null;
+  /** `null` = chưa gán đơn vị quản lý. */
+  unitName: string | null;
+}
+
+export interface PagedConstructions {
+  content: ConstructionSearchRow[];
+  totalElements: number;
+  totalPages: number;
+  number: number;
+}
+
+/**
+ * Tìm công trình theo tên hoặc mã — **phạm vi thứ hai** của trang Tìm kiếm (CN-01.8).
+ *
+ * ⛔⛔ Từ khoá rỗng trả về trang **RỖNG**, ⛔ không phải cả danh mục — bảo đảm ấy nằm ở backend
+ * (`PublicConstructionCatalogService.timKiem`), ⛔ không ở đây: một lượt `curl` thẳng vào
+ * endpoint bỏ qua toàn bộ phía trình duyệt (luật 12).
+ *
+ * ⚠ Gắn nhãn `CONSTRUCTION_TAG` — cùng nhãn với danh mục công trình, nên một lượt sửa hồ sơ
+ * công trình xoá đệm cả hai. Nhãn riêng là một nhãn thứ hai phải nhớ, và nó sẽ bị quên.
+ */
+export function getConstructionSearch(params: {
+  q?: string;
+  page?: number;
+  size?: number;
+}): Promise<PagedConstructions | null> {
+  const query = new URLSearchParams();
+  if (params.q) query.set('q', params.q);
+  query.set('page', String(params.page ?? 0));
+  query.set('size', String(params.size ?? 12));
+
+  return apiGetWithMeta<ConstructionSearchRow[]>(`/constructions/tim-kiem?${query.toString()}`, {
+    tags: [CONSTRUCTION_TAG],
+  }).then((result) => {
+    if (!result) {
+      return null;
+    }
+    const meta = result.meta;
+    return {
+      content: result.data ?? [],
+      totalElements: meta?.totalElements ?? 0,
+      totalPages: meta?.totalPages ?? 0,
+      // `meta.page` đếm từ 1, tham số `page` đếm từ 0 — quy đổi ở đúng một chỗ này.
+      number: meta ? meta.page - 1 : 0,
+    };
+  });
 }

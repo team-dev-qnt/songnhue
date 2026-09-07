@@ -200,6 +200,15 @@ app:
   # ⚠ Dấu ';' cuối mã số là MỘT PHẦN CỦA GIÁ TRỊ — thiếu nó thì nguồn trả "not.working",
   #   trông y hệt lỗi sai mã số.
   # ⛔ Không có `base-url` ở đây: địa chỉ nguồn nằm ở `api_sources.base_url` (V202608311049).
+  # ⛔⛔ Khoá BÍ MẬT reCAPTCHA v3 — CN-01.4 / T36.6, chặn bởi G13.
+  #     ⛔ KHÔNG đặt vào bảng `settings`: nhóm SITE đi thẳng ra
+  #     `GET /api/v1/public/site-config`, một endpoint không cần đăng nhập.
+  #     Khoá CÔNG KHAI (site key) thì ở `settings` — Google in nó ra trong HTML.
+  #   ⚠ Rỗng là trạng thái BÌNH THƯỜNG và lâu dài. ⛔ Không fail-fast lúc khởi
+  #     động: WS-27 đã trả giá đúng chỗ này (xem `HydroApiProperties`). Bật
+  #     captcha mà thiếu khoá ⇒ `ContactFormPolicy` coi là CHƯA BẬT và ghi ERROR.
+  recaptcha:
+    secret: ${RECAPTCHA_SECRET_KEY:}
   hydro:
     api:
       key: ${HYDRO_API_KEY:}

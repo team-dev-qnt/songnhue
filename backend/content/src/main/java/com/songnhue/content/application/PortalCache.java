@@ -80,6 +80,9 @@ public class PortalCache implements PortalCachePort {
      */
     public static final String DUONG_DAN_MUC_NUOC = "/quan-ly-van-hanh/muc-nuoc-luong-mua";
 
+    /** ⚠ Khớp từng chữ với {@code frontend/public-web/src/app/gop-y/page.tsx} — luật 14. */
+    public static final String DUONG_DAN_GOP_Y = "/gop-y";
+
     /**
      * {@inheritDoc}
      *
@@ -152,6 +155,28 @@ public class PortalCache implements PortalCachePort {
     public void layoutChanged() {
         datViec("{\"tag\":\"%s\"}".formatted(TAG_LAYOUT), "tag:" + TAG_LAYOUT);
         datViec("{\"path\":\"/\"}", "duong-dan:/");
+    }
+
+    /**
+     * Một góp ý vừa được <b>duyệt, ẩn hoặc hiện lại</b> — T36.8.
+     *
+     * <p>Chạm đúng <b>một</b> trang: {@code /gop-y}. ⛔ Không gửi kèm đường dẫn trang chủ như ba
+     * phương thức trên — khối góp ý ⛔ không có mặt ở trang chủ, và một lượt dựng lại trang chủ
+     * thừa là một lượt gọi mạng ra cổng ⛔ không đổi được một byte nào.
+     *
+     * <h2>⛔⛔ Đường ghi được gọi ở đây là KIỂM DUYỆT, ⛔ không phải lượt GỬI</h2>
+     *
+     * <p>Cùng ranh giới với {@link #hydroStationsChanged()}, chỉ khác trục: ở đó là
+     * <i>biên tập</i> vs <i>số đo</i>, ở đây là <i>quyết định công bố</i> vs <i>lượt gửi vào</i>.
+     * Một mục vừa gửi lên đang {@code CHO_DUYET} — ⛔ không có gì đổi trên cổng, nên xoá đệm ở đó
+     * là đặt một việc dựng lại trang cho <b>mỗi</b> lượt người dân bấm Gửi, kể cả lượt spam.
+     *
+     * <p>📌 Ghi ra đây vì T27.7 đã trả giá đúng chỗ này: ba điểm ghi được nối, điểm ghi <b>thứ
+     * tư</b> ra đời cùng đợt mang lại đúng lỗi cũ. Một ranh giới chỉ sống trong đầu người viết thì
+     * lời gọi tiếp theo sẽ đặt sai bên.
+     */
+    public void feedbacksChanged() {
+        datViec("{\"path\":\"%s\"}".formatted(DUONG_DAN_GOP_Y), "duong-dan:" + DUONG_DAN_GOP_Y);
     }
 
     /**

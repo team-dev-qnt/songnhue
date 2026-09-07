@@ -1,5 +1,6 @@
 import Link from 'next/link';
 
+import { DanhDauTuKhoa } from '@/components/DanhDauTuKhoa';
 import { PortalImage } from '@/components/PortalImage';
 import { ANH_BAI_VIET_MAC_DINH } from '@/lib/anhMacDinh';
 import type { ArticleRow } from '@/lib/api';
@@ -14,7 +15,14 @@ import { fileUrl, formatDate, ROUTES } from '@/lib/routes';
  * và khung kích thước cố định: thiếu hai thứ đó thì mở một trang 20 bài là tải về vài chục
  * MB ảnh gốc, và bố cục nhảy khi ảnh về (T12.7 hoãn → nợ #62).
  */
-export function ArticleCard({ article }: { article: ArticleRow }) {
+/**
+ * ⚠ `tuKhoa` chỉ có ở trang Tìm kiếm — CN-01.8 / T36.10.
+ *
+ * ⛔ Mặc định `undefined` ⇒ `DanhDauTuKhoa` trả về nguyên văn một đoạn, ⛔ không đoạn nào tô. Nhờ
+ * vậy mọi nơi gọi khác (trang chủ, trang danh mục) ⛔ không phải đổi một dòng nào, và ⛔ không có
+ * nhánh "có tô / ⛔ không tô" nào để ai đó quên.
+ */
+export function ArticleCard({ article, tuKhoa }: { article: ArticleRow; tuKhoa?: string }) {
   const cover = fileUrl(article.coverAttachmentPublicId);
 
   return (
@@ -28,11 +36,11 @@ export function ArticleCard({ article }: { article: ArticleRow }) {
         />
         <div className="flex flex-1 flex-col p-4 sm:p-5">
           <h3 className="line-clamp-2 text-justify text-sm font-bold leading-snug text-surface-textBase transition-colors duration-200 group-hover:text-brand-primary sm:text-base">
-            {article.title}
+            <DanhDauTuKhoa chu={article.title} tuKhoa={tuKhoa} />
           </h3>
           {article.summary ? (
             <p className="mt-2 line-clamp-2 text-justify text-xs text-surface-textSecondary leading-relaxed sm:text-sm">
-              {article.summary}
+              <DanhDauTuKhoa chu={article.summary} tuKhoa={tuKhoa} />
             </p>
           ) : null}
           <div className="mt-auto pt-3 flex items-center justify-between border-t border-surface-border/60 text-[11px] text-surface-textSecondary">
