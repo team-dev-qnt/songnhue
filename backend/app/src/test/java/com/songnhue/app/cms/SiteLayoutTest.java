@@ -121,15 +121,64 @@ class SiteLayoutTest extends IntegrationTestBase {
                         "site.slider.interval-seconds");
     }
 
+    /**
+     * ⚠⚠ <b>Bài này từng canh HAI khoá với HAI lý do khác nhau — và một trong hai lý do đã hết
+     * đúng ở T36.11.</b>
+     *
+     * <ul>
+     *   <li>{@code site.home.blocks} — <b>vẫn cấm</b>. Từ vựng của nó
+     *       ({@code SLIDER/FEATURED/NEWS/NOTICE}) có <i>trước</i> cây nội dung Công ty duyệt
+     *       27/08: CR-10 thay bài đinh (FEATURED) bằng slider ảnh, CR-01 bỏ mục Thông báo
+     *       (NOTICE). Bố cục trang chủ nay <b>LÀ cây menu</b>, ⛔ không có khoá nào cấu hình nó.
+     *   <li>{@code site.slider.effect} — <b>thôi cấm</b>. Lý do cũ là <i>"chưa từng có nơi
+     *       đọc"</i> (quy tắc 15), và T36.11 đã dựng nơi đọc: {@code docHieuUngSlider} → prop
+     *       {@code hieuUng} của {@code AnhCarousel} → một nhánh SLIDE dựng dải ngang thật, rồi
+     *       mới seed lại ở {@code V202609071069} — <b>cùng một commit</b>.
+     * </ul>
+     *
+     * <p>⛔⛔ Gộp hai khoá vào một khẳng định là chỗ đã suýt trả giá: khi lý do của <i>một</i>
+     * khoá hết đúng, đường rẻ nhất là gỡ cả dòng — và {@code site.home.blocks} đi theo trong im
+     * lặng. Nay hai vế tách rời, mỗi vế mang lý do của chính nó (luật 28).
+     */
     @Test
-    @DisplayName("⛔ KHÔNG còn `site.home.blocks` / `site.slider.effect` — hai công tắc không ai đọc")
+    @DisplayName("⛔ KHÔNG còn `site.home.blocks` — bố cục trang chủ LÀ cây menu")
     void khongConCongTacBoCucChet() {
         assertThat(siteConfig.list())
                 .as(
                         """
-                        Cùng luật với bài ngay trên. `site.home.blocks` liệt kê SLIDER/FEATURED/NEWS/NOTICE —                         từ vựng có TRƯỚC cây nội dung mà Công ty duyệt 27/08/2026: CR-10 đã thay bài đinh                         (FEATURED) bằng slider ảnh, CR-01 đã bỏ mục Thông báo (NOTICE) khỏi cây nội dung.                         `site.slider.effect` thì chưa từng có nơi đọc. Cả hai gỡ ở V202608271032; bài này                         canh cho chúng không quay lại qua một lượt seed nào khác.""")
+                        `site.home.blocks` liệt kê SLIDER/FEATURED/NEWS/NOTICE — từ vựng có TRƯỚC cây \
+                        nội dung mà Công ty duyệt 27/08/2026. Gỡ ở V202608271032; bài này canh cho nó \
+                        ⛔ không quay lại qua một lượt seed nào khác.""")
                 .extracting(SettingItem::key)
-                .doesNotContain("site.home.blocks", "site.slider.effect");
+                .doesNotContain("site.home.blocks");
+    }
+
+    /**
+     * ⭐⭐ Vế ĐỐI CHỨNG của lượt rút gọn ngay trên — và ⛔ không có nó thì lượt rút gọn ấy chỉ là
+     * việc bỏ đi một lời khẳng định.
+     *
+     * <p>Khoá được phép quay lại <b>vì</b> nó có nơi đọc. Nếu ai đó gỡ nơi đọc mà giữ hàng
+     * {@code settings} thì lỗi cũ trở lại nguyên vẹn — một công tắc bày trên màn hình cấu hình,
+     * người quản trị chọn "Trượt ngang", trang chủ ⛔ không đổi một pixel nào, và ⛔ không có gì
+     * đỏ. Phần "có nơi đọc" do {@code PortalSettingsReadTest} và {@code slider.test.ts} canh;
+     * phần này canh <b>hàng dữ liệu thật đang phục vụ</b>.
+     */
+    @Test
+    @DisplayName("⭐ `site.slider.effect` TRỞ LẠI ở nhóm SITE — vì T36.11 đã dựng nơi đọc trước")
+    void hieuUngSliderTroLaiCungNoiDoc() {
+        assertThat(siteConfig.list())
+                .as("⛔ Khoá này ra tới `/api/v1/public/site-config` thì `app/page.tsx` mới đọc "
+                        + "được. Ở nhóm khác là dựng lại đúng nửa cặp đọc–ghi đã xoá ở V202608271032.")
+                .extracting(SettingItem::key)
+                .contains("site.slider.effect");
+
+        assertThat(siteConfig.list())
+                .filteredOn(x -> "site.slider.effect".equals(x.key()))
+                .singleElement()
+                .extracting(SettingItem::value)
+                .as("⛔ Giá trị seed phải là FADE — hành vi ĐANG CHẠY. Seed SLIDE là đổi diện mạo "
+                        + "trang chủ bằng một lượt deploy mà ⛔ không ai bấm gì (luật 3).")
+                .isEqualTo("FADE");
     }
 
     @Test

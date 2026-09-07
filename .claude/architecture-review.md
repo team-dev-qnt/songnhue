@@ -5784,3 +5784,74 @@ agg là thứ **duy nhất** còn nói được mực nước cao nhất tháng 
 hàng agg. Đường đó đóng một cách tự nhiên (trigger chỉ bắn khi có ai GHI, mà `DROP PARTITION` ⛔
 không bắn trigger) — nhưng ⛔ **đừng thêm một job "tính lại toàn bộ lịch sử"**: nó sẽ xoá sạch đúng
 phần dữ liệu mà bảng này sinh ra để giữ.
+
+---
+
+### §10.78 — Bốn khuyết tật của lượt dựng production đầu tiên, và cả bốn đều **thoát 0** (7/9)
+
+Lượt dựng thật đầu tiên trên VPS-1. Bốn thứ hỏng, không thứ nào kêu.
+
+#### A. `host-prepare.sh` chạy hai lượt, thoát 0, và thứ nó phải bảo đảm chưa bao giờ đúng
+
+`rsync` của bước dựng thoát **23**, hai chục dòng `Permission denied`. Gốc: `/opt/songnhue` là
+`root:root`, user triển khai (uid 1001) không ghi vào được. Đối chiếu VPS-2 staging — nơi CD chạy
+được suốt — thư mục ấy là `songnhue:songnhue`.
+
+`mkdir -p /opt/songnhue/keys` tạo **thư mục cha** bằng `root`, và thư mục cha ấy **không nằm trong**
+`$THU_MUC`, nên không phép đo nào chạm tới. Ba phép `kiem_quyen` còn lại in ba dòng xanh — chúng đo
+đúng thứ chúng đo, chỉ là không đo thứ đang hỏng.
+
+⭐ Nhưng thêm `/opt/songnhue` vào danh sách `stat` **vẫn chưa đủ**: `stat` nói thư mục *mang nhãn
+gì*, câu hỏi duy nhất có nghĩa là *người triển khai có ghi vào được không*, và hai câu ấy tách nhau
+ở ACL, ở mount `ro`, ở uid trùng tên khác số. Đây là luật 9 ở dạng cụ thể nhất. Bản vá đo bằng một
+lượt `touch` **thật** dưới danh nghĩa user triển khai (`kiem_ghi_duoc`).
+
+`HostPrepareQuyenTest` canh hai bất biến — *mọi thư mục được tạo đều có phép đo đứng sau* và *thư
+mục gốc phải đo bằng ghi thật* — cộng một phép hành vi trích `kiem_ghi_duoc` ra chạy trên hai thư
+mục khác nhau đúng một điều, đòi hai kết quả khác nhau. **Nó tìm ra một lỗi thứ hai ngay lượt chạy
+đầu**: `/var/log/nginx` cũng được tạo mà chưa từng được đo.
+
+#### B. Một tham số cấu hình bị chú thích, và mặc định KHÔNG cứu
+
+Người vận hành sửa `.env` và để lại `#SMTP_PORT=587`. Compose khai `SMTP_PORT: ${SMTP_PORT}` **không
+có `:?`** ⇒ truyền vào container một **chuỗi rỗng**, không phải "vắng mặt". Mà mặc định
+`${SMTP_PORT:1025}` trong `application.yml` chỉ áp dụng khi thuộc tính **vắng**. Thư đi sai cổng,
+hỏng im lặng. Đúng luật 3 — *"rỗng" khác "chưa đặt"* — lần này ở phía tham số nghiệp vụ chứ không
+phải phía `ARG` của Docker.
+
+Bắt được không phải nhờ phép kiểm nào, mà nhờ một **phép đếm**: số khoá trong `.env` đi từ 61 xuống
+60. Một con số đếm được bắt được thứ mà việc đọc tệp bằng mắt không bắt.
+
+#### C. Quyền `.env` sai ở **cả hai** máy chủ, mỗi máy sai một kiểu ngược nhau
+
+| | Đo được 7/9 | Hậu quả |
+|---|---|---|
+| VPS-1 production | `root:root 600` | CD chạy `docker compose --env-file .env` dưới user SSH ⇒ chết ở `permission denied` |
+| VPS-2 staging | `songnhue:songnhue **664**` | **mọi user trên máy đọc được tệp bí mật**, kể cả `nobody` — CD chạy được nên không có gì kêu |
+
+Hai lỗi đối xứng: một cái **quá chặt** nên kêu to, một cái **quá lỏng** nên im. Cái im là cái sống
+lâu hơn. Mức đúng — chủ là user SSH, `600` — phân biệt được bằng hai phép đo **ngược chiều nhau**:
+`test -r` dưới user triển khai phải *được*, dưới `nobody` phải *không*. Đo một chiều là chỉ bắt được
+một trong hai lỗi.
+
+#### D. Lệnh "chỉ kiểm cấu hình" đã thực hiện quyết định KHÔNG SỬA LẠI ĐƯỢC
+
+`docker compose run --rm nginx nginx -t` kéo theo cả chuỗi `depends_on`: nó dựng `postgres`,
+`minio`, `minio-init`, `app` — tức chạy luôn lượt **`initdb` duy nhất**, ngoài §8.3 và **không đi
+qua** `kiem-collation.sh`. Cùng họ §10.56 (tham số chỉ có hiệu lực một lần), nhưng ở đây thứ kích
+hoạt nó là một lệnh **mà tên gọi hứa là chỉ đọc**.
+
+Lượt này thoát nạn vì `compose.prod.yml` đã mang tham số collation đúng từ trước — nghĩa là thứ cứu
+là **tệp cấu hình**, không phải quy trình. Bản vá: `--no-deps` trong §7.3, kèm câu phải làm gì nếu
+đã lỡ chạy thiếu nó.
+
+#### Điểm chung
+
+Cả bốn đều **thoát 0**. Không cái nào là lỗi logic — chúng là lỗi ở **chỗ đặt phép đo**: đo nhãn
+thay vì đo hành vi (A), đọc tệp thay vì đếm (B), đo một chiều thay vì hai (C), tin vào tên lệnh
+thay vì tin vào thứ nó tạo ra (D).
+
+⭐ Và một lần nữa **chính lượt kiểm chứng của tôi tự nói dối**: `rsync … | tail -15` rồi `echo $?` in
+ra `0` trong khi rsync thoát 23 — `$?` là mã của `tail`. Đây là luật 32 nguyên văn, gặp lại sau đúng
+bốn ngày, do chính người viết ra nó mắc. Chỉ lộ ra vì bước sau đếm số tệp trên máy chủ và thấy **2**.
+Kết luận không đổi: **ghi ra tệp rồi lấy `$?`, và luôn in một con số đếm được ở mỗi bước.**

@@ -238,6 +238,31 @@ export const ERROR_CATALOG = {
     handling: 'toast',
     severity: 'warning',
   },
+  'CMS-2018': {
+    message: 'Liên hệ đang ở trạng thái "Đang xử lý" nên không xoá được — đóng hoặc lưu trữ trước',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'CMS-2019': {
+    message: 'Mã phân loại đã tồn tại',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'CMS-2020': {
+    message: 'Phân loại còn liên hệ đang gán — tắt phân loại thay vì xoá',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'CMS-2021': {
+    message: 'Không xác thực được bạn là người thật — tải lại trang và gửi lại',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'CMS-2022': {
+    message: 'Danh sách vượt trần số dòng cho một lượt xuất — lọc theo trạng thái rồi xuất lại',
+    handling: 'toast',
+    severity: 'warning',
+  },
   'CMS-5001': {
     message: 'Không đăng nhập được sang hệ thống văn bản điều hành',
     handling: 'toast',

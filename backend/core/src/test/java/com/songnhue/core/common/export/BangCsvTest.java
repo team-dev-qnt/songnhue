@@ -1,4 +1,4 @@
-package com.songnhue.hydro.domain;
+package com.songnhue.core.common.export;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

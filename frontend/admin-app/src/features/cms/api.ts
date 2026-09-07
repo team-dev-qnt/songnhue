@@ -1,4 +1,4 @@
-import { type PageResult } from '@/shared/api-types';
+import { type AllowedActionView, type PageResult } from '@/shared/api-types';
 import { api } from '@/shared/apiClient';
 
 import {
@@ -14,7 +14,12 @@ import {
   type MenuNode,
   type MenuPosition,
   type MenuRequest,
+  type ContactCategoryView,
+  type ContactNoteView,
   type ContactView,
+  type FeedbackStatus,
+  type FeedbackSummary,
+  type FeedbackView,
   type SiteSettingItem,
   type VersionContent,
   type VersionSummary,
@@ -60,6 +65,9 @@ export const cmsKeys = {
   menu: (position: MenuPosition) => ['cms', 'menu', position] as const,
   siteConfig: () => ['cms', 'site-config'] as const,
   contacts: (status?: string, page = 0) => ['cms', 'contacts', status ?? 'all', page] as const,
+  feedbacks: (status?: string, page = 0) => ['cms', 'feedbacks', status ?? 'all', page] as const,
+  feedbackSummary: () => ['cms', 'feedbacks', 'summary'] as const,
+  feedbackActions: (publicId: string) => ['cms', 'feedback', publicId, 'actions'] as const,
 };
 
 export interface ArticleFilter {
@@ -92,6 +100,124 @@ export const cmsApi = {
 
   markContactRead(publicId: string): Promise<ContactView> {
     return api.patch<ContactView>(`${BASE}/contacts/${publicId}/read`, {});
+  },
+
+  /**
+   * Bước chuyển hợp lệ ở trạng thái hiện tại — **đã lọc theo quyền ở backend**.
+   *
+   * ⛔ Giao diện ⛔ không tự liệt kê nút: luật nằm ở `workflow_transitions`, và một bản sao ở FE
+   * sẽ lệch ngay lần đầu Công ty thêm một bước (conventions.md §3).
+   */
+  contactActions(publicId: string): Promise<AllowedActionView[]> {
+    return api.get<AllowedActionView[]>(`${BASE}/contacts/${publicId}/actions`);
+  },
+
+  contactTransition(publicId: string, action: string, reason?: string): Promise<ContactView> {
+    return api.post<ContactView>(`${BASE}/contacts/${publicId}/transitions`, {
+      action,
+      reason: reason ?? null,
+    });
+  },
+
+  setContactCategory(publicId: string, categoryPublicId: string | null): Promise<ContactView> {
+    return api.patch<ContactView>(`${BASE}/contacts/${publicId}/category`, { categoryPublicId });
+  },
+
+  assignContact(publicId: string, orgUnitPublicId: string | null): Promise<ContactView> {
+    return api.patch<ContactView>(`${BASE}/contacts/${publicId}/assignment`, { orgUnitPublicId });
+  },
+
+  contactNotes(publicId: string): Promise<ContactNoteView[]> {
+    return api.get<ContactNoteView[]>(`${BASE}/contacts/${publicId}/notes`);
+  },
+
+  addContactNote(publicId: string, content: string): Promise<ContactNoteView> {
+    return api.post<ContactNoteView>(`${BASE}/contacts/${publicId}/notes`, { content });
+  },
+
+  deleteContactNote(notePublicId: string): Promise<void> {
+    return api.delete<void>(`${BASE}/contacts/notes/${notePublicId}`);
+  },
+
+  /**
+   * Tải bản kết xuất CSV của hộp thư — T36.5.
+   *
+   * ⛔ **Không** `window.open`: endpoint đòi header `Authorization`, và một tab mới ⛔ không mang
+   * theo header ấy — nó sẽ trả 401 và người dùng thấy một tab trắng. Cùng bài học với
+   * `useXuatBaoCao` (conventions.md §3).
+   *
+   * ⚠ Đường này **đồng bộ** (⛔ không qua hàng đợi): hộp thư có trần 10.000 dòng, vượt thì backend
+   * trả CMS-2022 và nói thẳng — ⛔ không cắt bớt trong im lặng.
+   */
+  exportContacts(status?: string): Promise<{ blob: Blob; tenTep: string | null }> {
+    const query = status ? `?status=${encodeURIComponent(status)}` : '';
+    return api.getTep(`${BASE}/contacts/export${query}`);
+  },
+
+  /** ⛔ CMS-2018 khi liên hệ đang ở `DANG_XU_LY` — CN-01.4 cấm đích danh. */
+  deleteContact(publicId: string): Promise<void> {
+    return api.delete<void>(`${BASE}/contacts/${publicId}`);
+  },
+
+  // --- Danh mục phân loại (quy tắc 16: dữ liệu có CRUD, ⛔ không phải enum) ---
+
+  listContactCategories(): Promise<ContactCategoryView[]> {
+    return api.get<ContactCategoryView[]>(`${BASE}/contact-categories`);
+  },
+
+  createContactCategory(body: {
+    code: string;
+    name: string;
+    sortOrder: number;
+  }): Promise<ContactCategoryView> {
+    return api.post<ContactCategoryView>(`${BASE}/contact-categories`, body);
+  },
+
+  /** ⚠ `code` ⛔ không đổi được — bản xuất và báo cáo cũ tham chiếu tới nó. */
+  updateContactCategory(
+    publicId: string,
+    body: { name: string; active: boolean; sortOrder: number },
+  ): Promise<ContactCategoryView> {
+    return api.put<ContactCategoryView>(`${BASE}/contact-categories/${publicId}`, body);
+  },
+
+  deleteContactCategory(publicId: string): Promise<void> {
+    return api.delete<void>(`${BASE}/contact-categories/${publicId}`);
+  },
+
+  // ═══════════════ CN-01.6 — Góp ý / đánh giá (T36.8) ═══════════════
+
+  listFeedbacks(status?: FeedbackStatus, page = 0, size = 20): Promise<PageResult<FeedbackView>> {
+    return api.getPage<FeedbackView>(`${BASE}/feedbacks`, { status, page, size });
+  },
+
+  /** Huy hiệu "chờ duyệt" trên thanh điều hướng. */
+  pendingFeedbackCount(): Promise<number> {
+    return api.get<number>(`${BASE}/feedbacks/pending-count`);
+  },
+
+  /**
+   * ⛔⛔ Số liệu tổng hợp — điểm trung bình **luôn kèm mẫu số**.
+   *
+   * ⛔ Đừng thêm một hàm chỉ lấy mỗi `diemTrungBinh`: xem javadoc của {@link FeedbackSummary}.
+   */
+  feedbackSummary(): Promise<FeedbackSummary> {
+    return api.get<FeedbackSummary>(`${BASE}/feedbacks/summary`);
+  },
+
+  feedbackActions(publicId: string): Promise<AllowedActionView[]> {
+    return api.get<AllowedActionView[]>(`${BASE}/feedbacks/${publicId}/actions`);
+  },
+
+  feedbackTransition(publicId: string, action: string, reason?: string): Promise<FeedbackView> {
+    return api.post<FeedbackView>(`${BASE}/feedbacks/${publicId}/transitions`, {
+      action,
+      reason: reason ?? null,
+    });
+  },
+
+  deleteFeedback(publicId: string): Promise<void> {
+    return api.delete<void>(`${BASE}/feedbacks/${publicId}`);
   },
 
   getArticle(publicId: string): Promise<ArticleDetail> {

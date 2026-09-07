@@ -101,6 +101,14 @@ export const neutralColors = {
   textBase: '#1f1f1f',
   textSecondary: '#595959',
   border: '#d9d9d9',
+  /**
+   * Viền/khối trung tính đậm hơn một bậc — con trỏ thanh cuộn khi rê, đường kẻ cần nổi hơn `border`.
+   *
+   * ⚠ Thêm 07/09/2026 khi ghim `admin-global.css` vào token (T25.23). ⛔ Cố ý **không** mượn
+   * `statusColors.unknown` dù trùng giá trị: cái kia mang nghĩa *"trạng thái nghiệp vụ chưa xác
+   * định"*, và hai nghĩa dùng chung một khoá thì lượt đổi màu trạng thái sẽ kéo theo thanh cuộn.
+   */
+  borderStrong: '#8c8c8c',
   bgLayout: '#f0f2f5',
   bgContainer: '#ffffff',
   /** Nền thanh bên — tối để phân tách vùng điều hướng khỏi vùng nội dung */

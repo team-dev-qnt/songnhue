@@ -282,6 +282,24 @@ public class PublicPortalService {
      */
     @Transactional(readOnly = true)
     public Page<PublicArticleRow> articles(String categorySlug, String tuKhoa, int page, int size) {
+        return articles(categorySlug, tuKhoa, page, size, null, null);
+    }
+
+    /**
+     * Bản đầy đủ, có <b>khoảng ngày đăng</b> — CN-01.8 / T36.10.
+     *
+     * <p>⚠ Hai tham số ngày nhận {@code null} = ⛔ không lọc theo phía đó. Một khoảng <i>mở một
+     * đầu</i> (chỉ "từ ngày") là cách người ta lọc thật, nên nó phải là một trạng thái hợp lệ chứ
+     * ⛔ không phải một tổ hợp cần chặn.
+     *
+     * @param tuNgay {@code null} = ⛔ không giới hạn đầu sớm
+     * @param denNgay {@code null} = ⛔ không giới hạn đầu muộn. ⚠ Nơi gọi phải quy về <b>cuối
+     *     ngày</b> nếu người dùng chọn một NGÀY — {@code <= 00:00} của ngày ấy loại sạch mọi bài
+     *     đăng trong chính ngày đó, và ⛔ không ai đọc ra được vì sao.
+     */
+    @Transactional(readOnly = true)
+    public Page<PublicArticleRow> articles(
+            String categorySlug, String tuKhoa, int page, int size, Instant tuNgay, Instant denNgay) {
         Long categoryId = categorySlug == null || categorySlug.isBlank()
                 ? null
                 // ⚠ Dùng CÙNG một luật với `categories()`: danh mục ẩn hoặc nằm dưới một danh mục
@@ -299,8 +317,8 @@ public class PublicPortalService {
         String mau = tuKhoa == null || tuKhoa.isBlank() ? null : "%" + VietnameseUtils.normalizeForSearch(tuKhoa) + "%";
 
         int kichThuoc = Math.clamp(size, 1, TRAN_MOI_TRANG);
-        Page<PublicArticleRow> trang =
-                articles.findPublic(mau, categoryId, Instant.now(), PageRequest.of(Math.max(page, 0), kichThuoc));
+        Page<PublicArticleRow> trang = articles.findPublic(
+                mau, categoryId, Instant.now(), tuNgay, denNgay, PageRequest.of(Math.max(page, 0), kichThuoc));
         return trang.map(nhanChuyenMuc(trang.getContent()));
     }
 

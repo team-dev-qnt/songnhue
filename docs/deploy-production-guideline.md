@@ -422,7 +422,7 @@ systemctl enable --now docker
 ⚠ Đăng xuất rồi vào lại để nhóm `docker` có hiệu lực. Workflow triển khai chạy `docker` **không qua
 `sudo`** — user SSH không vào được nhóm `docker` thì mọi lượt deploy đỏ.
 
-### 4.2. Cây thư mục — ⛔ **chủ sở hữu KHÔNG phải user SSH**
+### 4.2. Cây thư mục — ⛔ **chủ sở hữu KHÔNG phải user SSH… trừ đúng một thư mục**
 
 Bản cũ của tài liệu chung ghi `chown -R songnhue:songnhue …` cho cả ba đường dẫn. **Sai, và sai theo
 kiểu làm mọi lượt deploy đỏ.** Đã trả giá trên staging ngày 25/8.
@@ -434,6 +434,13 @@ Ba danh tính khác nhau cùng dùng cây thư mục này, và **không cái nà
 | `1000` | user trong image `app` (ghim ở `backend.Dockerfile`) | đọc khoá, ghi log |
 | `999` | user `postgres` **bên trong container** | `pre-deploy-dump.sh` chạy `pg_dump` ở đó, ghi thẳng vào thư mục sao lưu |
 | user SSH (`songnhue`) | người vận hành trên host | sửa `.env`, dọn bản sao lưu cũ |
+
+⛔⛔ **Ngoại lệ, và là chỗ đã trả giá ngày 7/9:** thư mục **gốc** `/opt/songnhue` phải thuộc **user
+SSH**. `mkdir -p /opt/songnhue/keys` tạo thư mục cha bằng `root`, và lượt `rsync` của CD ghi bằng
+user SSH nên thoát **23** với hàng chục dòng `Permission denied`. Trên VPS-1 `host-prepare.sh` đã
+chạy **hai lượt, thoát 0 cả hai** trong khi thư mục vẫn `root:root` — vì cả ba phép đo lúc ấy dùng
+`stat`, mà `stat` nói thư mục *mang nhãn gì*, không nói *ai ghi vào được*. Đối chiếu VPS-2 staging,
+nơi CD chạy được suốt: `/opt/songnhue` là `songnhue:songnhue 755`.
 
 ⛔ **`chown` trong Dockerfile không có tác dụng với bind mount** — host che hoàn toàn thứ image dựng
 sẵn. Quyền phải đặt **trên máy chủ**.
@@ -449,6 +456,9 @@ APP_UID=1000; APP_GID=1000; PG_UID=999
 getent group "$APP_GID" || groupadd -g "$APP_GID" songnhue-app
 usermod -aG "$APP_GID" "$(id -un)"          # user SSH vào chung nhóm
 
+# ⛔ Thư mục GỐC thuộc user SSH — đây là chỗ DUY NHẤT chown theo TÊN là đúng.
+chown "$(id -un):$(id -un)" /opt/songnhue && chmod 755 /opt/songnhue
+
 chown -R "$APP_UID:$APP_GID" /opt/songnhue/keys /var/log/songnhue
 chmod 700 /opt/songnhue/keys && chmod 600 /opt/songnhue/keys/* 2>/dev/null
 chmod 755 /var/log/songnhue
@@ -460,8 +470,13 @@ chown -R "$PG_UID:$APP_GID" /var/lib/songnhue/backup
 chmod 2775 /var/lib/songnhue/backup
 ```
 
-> 📌 Đây vẫn là việc gõ tay — **T11.35**, `deploy/host-prepare.sh` **chưa tồn tại** (đã kiểm 4/9).
-> Ba ô này là ba thứ phải nhớ khi dựng VPS-1, và ô cuối là ô sai thì hỏng to nhất.
+> 📌 Không phải gõ tay nữa — `deploy/host-prepare.sh` làm hết (T11.35, chạy thật trên VPS-1 6/9 và
+> 7/9). Khối trên giữ lại để đọc hiểu *vì sao* từng ô như vậy.
+>
+> ⭐ **Và script ấy đo bằng cách GHI THẬT, không bằng `stat`** — `kiem_ghi_duoc` chạy một lượt
+> `touch` dưới danh nghĩa user triển khai. `HostPrepareQuyenTest` canh hai bất biến: mọi thư mục
+> được tạo đều phải có phép đo đứng sau, và thư mục gốc phải đo bằng ghi thật. Bài kiểm ấy tìm ra
+> `/var/log/nginx` chưa từng được đo, ngay lượt chạy đầu tiên.
 
 ### 4.3. `docker login ghcr.io` — làm trước, không thì `compose up` dừng ngay
 
@@ -519,8 +534,17 @@ openssl rand -base64 32          # ← chép giá trị này vào AES_KEY_V1
 ```bash
 # Chép mẫu ĐÚNG môi trường lên máy chủ (từ máy cá nhân)
 scp deploy/env/prod.env.example songnhue@<IP-VPS1>:/opt/songnhue/.env
-ssh songnhue@<IP-VPS1> 'chmod 600 /opt/songnhue/.env'
+ssh songnhue@<IP-VPS1> 'chown $(id -un):$(id -un) /opt/songnhue/.env && chmod 600 /opt/songnhue/.env'
 ```
+
+⛔ **Chủ sở hữu phải là user SSH, mode `600`.** Hai cách sai đã gặp thật, mỗi máy một kiểu:
+> * `root:root 600` (VPS-1, 7/9) — lượt CD chạy `docker compose --env-file .env` dưới user SSH và
+>   chết ngay ở `open /opt/songnhue/.env: permission denied`.
+> * `songnhue:songnhue 664` (VPS-2 staging) — **mọi user trên máy đọc được tệp bí mật**, kể cả
+>   `nobody`. CD chạy được, nên không có gì kêu.
+
+Mức đúng phân biệt được hai câu ấy: `test -r` dưới user triển khai phải **được**, dưới `nobody` phải
+**không**. Đo cả hai chiều, đừng đo một chiều.
 
 ⛔ **Không dùng `staging.env.example` rồi sửa.** Hai tệp khác nhau ở những chỗ im lặng nhất
 (`SEED_LOCATION`, `ROBOTS_TAG`, `LOG_TOTAL_SIZE_CAP`, `DB_RESTORE_PASSWORD`), và tất cả đều hỏng
@@ -833,8 +857,15 @@ $CB -d files.<ten-mien>
 
 ```bash
 cd /opt/songnhue
-docker compose --env-file .env -f compose.prod.yml run --rm nginx nginx -t
+docker compose --env-file .env -f compose.prod.yml run --rm --no-deps nginx nginx -t
 ```
+
+> ⛔⛔ **`--no-deps` không phải để chạy nhanh hơn.** Thiếu nó thì `docker compose run` kéo theo cả
+> chuỗi `depends_on` — ngày 7/9 lệnh "chỉ kiểm cấu hình" này đã dựng `postgres`, `minio`,
+> `minio-init` và `app`, tức **thực hiện luôn lượt `initdb` duy nhất** ở ngoài §8.3 và không đi qua
+> `kiem-collation.sh`. Lượt ấy may vì `compose.prod.yml` đã mang tham số collation đúng — nhưng cái
+> cứu là tệp compose, không phải quy trình. Nếu đã lỡ chạy thiếu `--no-deps`: **đo collation ngay**,
+> và nếu sai thì xoá volume `songnhue_postgres-data` dựng lại, lúc đó chưa có dữ liệu nên không mất gì.
 
 > ⚠ Phải để lệnh bắt đầu bằng `nginx`. Chạy `sh -c 'nginx -t'` thì entrypoint của image **không
 > chạy**, `envsubst` không thay biến, và `nginx -t` sẽ kiểm tệp mặc định của image chứ không phải tệp
@@ -842,9 +873,14 @@ docker compose --env-file .env -f compose.prod.yml run --rm nginx nginx -t
 
 ### 7.4. Gia hạn tự động
 
-Sau khi stack đã chạy, dùng webroot để không phải dừng nginx:
+Sau khi stack đã chạy, dùng webroot để không phải dừng nginx.
+
+⚠ **`crontab` không có sẵn** trên bản Ubuntu 24.04 của VPS — đo 7/9: `command not found` trên **cả
+hai** máy chủ. Cài trước, rồi mới đặt lịch:
 
 ```bash
+sudo apt-get install -y cron && sudo systemctl enable --now cron
+systemctl is-active cron && systemctl is-enabled cron    # phải: active · enabled
 crontab -e
 ```
 ```cron
@@ -1014,6 +1050,12 @@ curl -fsS https://$D/api/v1/public/site-config | head -c 120
 curl -si -X OPTIONS https://admin.$D/api/v1/auth/login \
      -H "Origin: https://admin.$D" \
      -H "Access-Control-Request-Method: POST" | head -1
+#    → 403. ĐÚNG, không phải hỏng: `admin-app` có nginx nội bộ chuyển tiếp `/api` sang `app` cùng
+#      origin, nên trình duyệt KHÔNG BAO GIỜ preflight và OPTIONS lạ bị từ chối. Đo 7/9: staging và
+#      production cho CÙNG 403. Phép phân biệt thật là POST thẳng — cả hai trả 401:
+curl -s -o /dev/null -w '%{http_code}\n' -X POST https://admin.$D/api/v1/auth/login \
+     -H "Origin: https://admin.$D" -H "Content-Type: application/json" \
+     -d '{"username":"khong-ton-tai","password":"x"}'      # → 401
 
 # 4. Header bảo mật có mặt trên CẢ HAI tên miền, không chỉ một
 for h in "$D" "admin.$D"; do

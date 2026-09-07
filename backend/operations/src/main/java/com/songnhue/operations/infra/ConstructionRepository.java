@@ -40,6 +40,42 @@ public interface ConstructionRepository extends JpaRepository<Construction, Long
     List<Construction> findByDeletedAtIsNull();
 
     /**
+     * <b>Tìm kiếm công trình trên cổng công khai</b> — CN-01.8 / T36.10.
+     *
+     * <h2>⛔⛔ Điều kiện vòng đời phải KHỚP {@code PublicConstructionCatalogService#catalogByUnit()}</h2>
+     *
+     * <p>Hai câu cùng trả lời một câu hỏi — <i>"công trình nào đang ở trên cổng"</i>. Lệch nhau
+     * nghĩa là tìm kiếm trả về một công trình mà bấm vào thì ⛔ không có trong danh mục, hoặc
+     * ngược lại. Cùng lý lẽ với {@link #dangCongBoTep} ngay dưới đây.
+     *
+     * <h2>⚠ {@code sn_khong_dau} + {@code CAST(:tuKhoa AS String)}</h2>
+     *
+     * <p>⛔ ⛔ Không viết hàm bỏ dấu thứ hai (§10.11) — hàm này đã có từ WS-13 và bài viết đang
+     * dùng nó. {@code CAST} ⛔ không phải trang trí: hàm do dự án tự khai nên Hibernate ⛔ không
+     * biết kiểu tham số, truyền {@code null} thì nó gửi xuống dạng {@code bytea} và PostgreSQL
+     * trả <i>"function sn_khong_dau(bytea) does not exist"</i>.
+     *
+     * <p>⚠ Nơi gọi <b>bắt buộc</b> truyền mẫu ⛔ không rỗng: khác {@code findPublic} của bài viết,
+     * câu này ⛔ không có nhánh {@code IS NULL}. Đây là một endpoint <b>tìm kiếm</b> — trả cả danh
+     * mục khi từ khoá rỗng là một chuyện khác hẳn, và đã có {@code /constructions} làm.
+     *
+     * <p>⚠ Tìm trên <b>tên</b> và <b>mã</b>. ⛔ Không tìm trên địa chỉ: một từ khoá như "Hà Đông"
+     * sẽ kéo về mọi công trình của cả một quận, và người dùng ⛔ không có cách nào biết vì sao —
+     * cột địa chỉ ⛔ không hiện trong kết quả.
+     */
+    @Query(
+            """
+            SELECT c FROM Construction c
+             WHERE c.deletedAt IS NULL
+               AND c.lifecycleState <> :daThanhLy
+               AND (sn_khong_dau(c.name) LIKE sn_khong_dau(CAST(:tuKhoa AS String))
+                    OR sn_khong_dau(c.code) LIKE sn_khong_dau(CAST(:tuKhoa AS String)))
+             ORDER BY c.name ASC
+            """)
+    Page<Construction> timCongKhai(
+            @Param("tuKhoa") String tuKhoa, @Param("daThanhLy") LifecycleState daThanhLy, Pageable pageable);
+
+    /**
      * Tệp này có đang được một công trình <b>công bố</b> trên cổng không? — CR-28.
      *
      * <p>⛔ Câu hỏi cố ý hẹp: chỉ đúng hai cột {@code operating_procedure_attachment_public_id} và

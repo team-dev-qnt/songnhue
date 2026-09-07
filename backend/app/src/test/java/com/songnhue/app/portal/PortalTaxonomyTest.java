@@ -84,12 +84,33 @@ class PortalTaxonomyTest {
                 .isEmpty();
     }
 
+    /**
+     * ⚠⚠ <b>Lối vào KHÔNG phải mục menu — và mỗi mục ở đây phải ĐO ĐƯỢC.</b>
+     *
+     * <p>Bộ canh này ra đời với giả định <i>"menu là lối vào duy nhất"</i>, và giả định ấy đúng
+     * cho bảy tuyến của CR-02/CR-05. Nó thôi đúng ở T36.8: {@code /gop-y} (CN-01.6) cố ý ⛔
+     * <b>không</b> vào menu — cây danh mục + menu nhận qua §3 văn bản nghiệm thu (G14) ⛔ không có
+     * mục "Góp ý", và menu là <b>dữ liệu có CRUD của khách</b> (quy tắc 16). Chèn một mục bằng
+     * migration là ta tự quyết hộ Công ty bố cục cổng của họ.
+     *
+     * <p>⛔⛔ Nhưng một danh sách miễn trừ TRẦN thì <b>xoá mất</b> chính điều bộ canh bảo vệ: nó
+     * biến "tôi đã nghĩ tới" thành "tôi được phép quên". Nên mỗi mục ở đây khai <b>tệp thật sự
+     * chứa lối vào</b>, và {@link #moiTuyenDuongDeuCoLoiVao()} <b>mở tệp ấy ra đọc</b>. Gỡ liên
+     * kết ở {@code lien-he} thì bài này ĐỎ — sự miễn trừ ⛔ không sống lâu hơn cái nó miễn trừ.
+     *
+     * <p>⇒ Luật 28: bộ canh phải nói ra phạm vi của chính nó. Bản trước khẳng định một điều rộng
+     * hơn thứ nó đo được.
+     */
+    private static final java.util.Map<String, String> LOI_VAO_NGOAI_MENU =
+            java.util.Map.of("/gop-y", "frontend/public-web/src/app/lien-he/page.tsx");
+
     @Test
-    @DisplayName("⛔ Mọi tuyến đường mới của ROUTES đều có một mục menu dẫn tới")
+    @DisplayName("⛔ Mọi tuyến đường mới của ROUTES đều có một lối vào — menu, hoặc một liên kết ĐO ĐƯỢC")
     void moiTuyenDuongDeuCoLoiVao() {
         Set<String> trongMenu = Set.copyOf(duongDanTrongMenu());
         List<String> khongAiDan = duongDanTrongRoutes().stream()
                 .filter(duong -> !trongMenu.contains(duong))
+                .filter(duong -> !LOI_VAO_NGOAI_MENU.containsKey(duong))
                 .toList();
 
         assertThat(khongAiDan)
@@ -98,9 +119,41 @@ class PortalTaxonomyTest {
                         Những tuyến đường này được dựng ở public-web nhưng KHÔNG mục menu nào dẫn tới: %s
 
                         Đó là một trang được viết, được kiểm, được triển khai mà không có lối vào — \
-                        loại lãng phí không ai phát hiện, vì mọi cổng kiểm đều xanh.""",
+                        loại lãng phí không ai phát hiện, vì mọi cổng kiểm đều xanh.
+
+                        Lối vào KHÔNG phải menu thì khai ở `LOI_VAO_NGOAI_MENU` kèm TỆP chứa liên \
+                        kết — bài này sẽ mở tệp ấy ra đọc.""",
                         khongAiDan)
                 .isEmpty();
+
+        // ⛔⛔ Vế chịu lực của phần miễn trừ: lối vào đã khai phải CÓ THẬT trong tệp đã khai.
+        assertThat(LOI_VAO_NGOAI_MENU)
+                .as("⚠ vế chống tập rỗng (luật 7): danh sách miễn trừ rỗng thì vòng lặp dưới chạy "
+                        + "0 lần và phần này ⛔ không khẳng định gì")
+                .isNotEmpty();
+        LOI_VAO_NGOAI_MENU.forEach((duong, tep) -> {
+            String khoa = "ROUTES." + tenKhoaRoutes(duong);
+            assertThat(doc(tep))
+                    .as(
+                            """
+                            `%s` được miễn trừ khỏi luật "phải có mục menu" với lý do là một liên kết \
+                            ở `%s` — mà tệp ấy KHÔNG còn chứa `%s`.
+
+                            Sự miễn trừ vừa sống lâu hơn cái nó miễn trừ: trang `%s` nay không có lối \
+                            vào nào, và mọi cổng kiểm vẫn xanh.""",
+                            duong, tep, khoa, duong)
+                    .contains(khoa);
+        });
+    }
+
+    /** `/gop-y` → `gopY`. ⚠ Bài này soi lời gọi `ROUTES.<khoá>`, ⛔ không soi chuỗi đường dẫn. */
+    private static String tenKhoaRoutes(String duong) {
+        String[] phan = duong.substring(1).split("-");
+        StringBuilder sb = new StringBuilder(phan[0]);
+        for (int i = 1; i < phan.length; i++) {
+            sb.append(Character.toUpperCase(phan[i].charAt(0))).append(phan[i].substring(1));
+        }
+        return sb.toString();
     }
 
     @Test

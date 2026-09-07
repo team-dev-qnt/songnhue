@@ -80,6 +80,17 @@ public interface ArticleRepository extends JpaRepository<Article, Long> {
      *
      * <p>Lọc danh mục bằng {@code EXISTS} chứ không {@code JOIN}: bài thuộc nhiều danh mục, mà join
      * thì nó xuất hiện nhiều lần và {@code Page.totalElements} đếm sai.
+     *
+     * <h2>⚠ Khoảng ngày lọc theo {@code publishedAt}, ⛔ KHÔNG theo {@code createdAt} — T36.10</h2>
+     *
+     * <p>CN-01.8 nói <i>"thời gian đăng"</i>. Hai cột lệch nhau tuỳ ý ở đây: một bài soạn từ tháng
+     * trước rồi hẹn giờ đăng hôm nay có {@code createdAt} của tháng trước. Người dân lọc <i>"tin
+     * trong tháng này"</i> mà nhận về theo ngày soạn thì kết quả sai theo cách <b>⛔ không ai kiểm
+     * chứng được</b> — {@code createdAt} ⛔ không hiện ra ở đâu trên cổng.
+     *
+     * <p>⚠ {@code search()} ở trên — đường <b>quản trị</b> — lọc theo {@code createdAt}, và đó là
+     * đúng cho nó: biên tập viên đi tìm bài <i>mình đã soạn</i>. Hai đường, hai câu hỏi khác nhau;
+     * ⛔ đừng "thống nhất" chúng.
      */
     @Query(
             """
@@ -95,12 +106,16 @@ public interface ArticleRepository extends JpaRepository<Article, Long> {
               AND (:danhMucId IS NULL
                    OR EXISTS (SELECT 1 FROM Article a2 JOIN a2.categories c
                                WHERE a2.id = a.id AND c.id = :danhMucId))
+              AND (CAST(:tuNgay AS timestamp) IS NULL OR a.publishedAt >= :tuNgay)
+              AND (CAST(:denNgay AS timestamp) IS NULL OR a.publishedAt <= :denNgay)
             ORDER BY a.publishedAt DESC
             """)
     Page<PublicArticleRow> findPublic(
             @Param("tuKhoa") String tuKhoa,
             @Param("danhMucId") Long danhMucId,
             @Param("now") Instant now,
+            @Param("tuNgay") Instant tuNgay,
+            @Param("denNgay") Instant denNgay,
             Pageable pageable);
 
     /**

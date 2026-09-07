@@ -31,6 +31,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const entries: MetadataRoute.Sitemap = [
     { url: SITE_URL, lastModified: now, changeFrequency: 'daily', priority: 1 },
+    // ⭐ `/gop-y` (CN-01.6) ⛔ KHÔNG nằm trong menu do Công ty cấu hình — xem `ROUTES.gopY`. Nếu
+    //   nó cũng vắng ở đây thì trang tồn tại mà ⛔ không có lối vào nào ngoài một liên kết duy
+    //   nhất ở `/lien-he`, và công cụ tìm kiếm ⛔ không biết nó có.
+    {
+      url: `${SITE_URL}${ROUTES.gopY}`,
+      lastModified: now,
+      changeFrequency: 'weekly',
+      priority: 0.5,
+    },
   ];
 
   for (const category of categories ?? []) {

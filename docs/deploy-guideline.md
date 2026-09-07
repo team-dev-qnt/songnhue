@@ -531,7 +531,9 @@ Chép tệp mẫu **của đúng môi trường** thành `/opt/songnhue/.env`, �
 | `MINIO_ROOT_*` | để trống | MinIO khởi động bằng tài khoản mặc định — kho tệp nhân sự mở bằng mật khẩu ai cũng biết |
 
 ```bash
-chmod 600 /opt/songnhue/.env
+chown "$(id -un):$(id -un)" /opt/songnhue/.env && chmod 600 /opt/songnhue/.env
+# ⛔ Chủ phải là user SSH: lượt CD chạy `docker compose --env-file .env` dưới danh nghĩa user ấy.
+#   `root:root 600` làm CD chết ở 'permission denied'; `664` thì mọi user trên máy đọc được.
 ```
 
 > ⚠⚠ **`MINIO_ENDPOINT` KHÔNG được điền `http://minio:9000`**, dù trực giác bảo thế cho nhanh.

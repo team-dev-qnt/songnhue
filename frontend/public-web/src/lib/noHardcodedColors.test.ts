@@ -27,15 +27,17 @@ import { boChuThich } from './boChuThich';
  * đổi token và bảy chỗ chép tay ở lại phía sau. Nguồn của một giá trị thì nhìn thấy ở mã, không
  * nhìn thấy ở ảnh (cùng lý lẽ với `noFabricatedContent.test.ts`).
  *
- * <h2>⚠ Phạm vi: CHỈ `public-web`, và đây là một giới hạn có chủ ý được ghi ra</h2>
+ * <h2>⚠ Phạm vi: CHỈ `public-web` — và giới hạn ấy đã có bộ canh song sinh từ 07/09/2026</h2>
  *
- * `admin-app` còn **25 mã hex** ở 12 tệp (đo 28/08/2026) — cùng vi phạm, cùng luật. Bộ canh này
- * không phủ nó, và im lặng về chuyện ấy sẽ tái tạo đúng lỗi vừa sửa ở `PortalSettingsReadTest`:
- * *một cơ chế canh gác có phạm vi hẹp hơn nơi nó phải chặn, và cái xanh của nó đọc như một lời
- * bảo đảm*. Món nợ ấy nằm ở `master-tracking.md` **T25.14**, không nằm ở đây dưới dạng im lặng.
+ * `admin-app` có bộ canh riêng: `admin-app/src/shared/noHardcodedColors.test.ts`. Ghi ra giới hạn
+ * là đúng (luật 28), nhưng lượt đo 07/09 cho thấy **ghi ra là chưa đủ**: câu ở đây trước hôm ấy
+ * viết *"admin-app còn 25 mã hex ở 12 tệp (đo 28/08/2026)"*, và trong 10 ngày ⛔ không có gì đỏ khi
+ * ai đó thêm màu mới bên ấy — đo lại ra **62 mã / 16 tệp**, gấp **2,4 lần**, trong đó
+ * `richTextEditor.css` mang 18 mã và ra đời ngày 04/09, tức **sau** lượt đo cũ.
  *
- * <p>Mở rộng sang `admin-app` là một lượt sửa 25 chỗ trong 12 tệp thuộc bốn màn hình chưa được
- * đụng tới ở đợt này — đúng loại thay đổi phải đi riêng để lượt rà đọc được nó.
+ * <p>⇒ Bài học: **một con số ghi trong chú thích đứng yên từ ngày viết, còn mã thì không.** Ghi
+ * giới hạn ra là để người sau biết; chặn nó lớn lên thì phải có một bộ canh. Nợ: **T25.23**.
+ * (Câu cũ trỏ nợ vào `T25.14` — mục ấy là *chân trang*, đã đóng 28/08. Một con trỏ sai.)
  *
  * ⚠ Bỏ chú thích trước khi soi — dùng chung `boChuThich` với bộ canh dữ liệu bịa. Ghi chú
  * *giải thích* một mã màu (và tệp này, và `design-tokens`) phải được phép nhắc tới nó; cấm cả

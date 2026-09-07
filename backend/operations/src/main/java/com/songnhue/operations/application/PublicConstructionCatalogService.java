@@ -9,9 +9,12 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.songnhue.core.common.util.VietnameseUtils;
 import com.songnhue.core.spi.AttachmentContent;
 import com.songnhue.core.spi.AttachmentPort;
 import com.songnhue.core.spi.OrgUnitPort;
@@ -110,6 +113,62 @@ public class PublicConstructionCatalogService {
 
     /** Một Xí nghiệp kèm danh sách công trình của nó — CR-27 yêu cầu gom theo Xí nghiệp. */
     public record UnitCatalog(String unitCode, String unitName, String unitShortName, List<CatalogRow> constructions) {}
+
+    /**
+     * Một dòng kết quả <b>tìm kiếm</b> công trình trên cổng — CN-01.8 / T36.10.
+     *
+     * <p>⚠ Hẹp hơn {@link CatalogRow} có chủ đích: trang kết quả tìm kiếm liệt kê nhiều loại đối
+     * tượng cạnh nhau (bài viết, công trình), nên mỗi dòng chỉ mang thứ đủ để người đọc <b>nhận
+     * ra và bấm vào</b>. Hai UUID tệp và toạ độ ⛔ không có việc gì ở đây — chúng thuộc trang Danh
+     * mục công trình.
+     *
+     * @param unitName {@code null} = chưa gán đơn vị quản lý. ⛔ Hiển thị nói thẳng, ⛔ không giấu
+     *     dòng đi — cùng luật với {@link #catalogByUnit()}.
+     */
+    public record SearchRow(String code, String name, String constructionType, String location, String unitName) {}
+
+    /**
+     * Tìm công trình theo từ khoá — CN-01.8 / T36.10.
+     *
+     * <h2>⛔ Từ khoá rỗng trả về trang RỖNG, ⛔ không trả cả danh mục</h2>
+     *
+     * <p>"Tìm mọi thứ" đã có {@link #catalogByUnit()} phục vụ, ở một trang riêng, có gom nhóm
+     * theo Xí nghiệp. Để một ô tìm kiếm bỏ trống đổ ra toàn bộ danh mục là hai đường khác nhau
+     * cho cùng một câu hỏi — và đường thứ hai ⛔ không ai kiểm.
+     *
+     * <p>⚠ Điều kiện vòng đời khớp {@code catalogByUnit()} và nằm trong <b>câu truy vấn</b>, ⛔
+     * không lọc ở bộ nhớ sau khi tải: lọc sau khi phân trang làm {@code totalElements} nói dối và
+     * một trang có thể ra ít dòng hơn cỡ trang mà ⛔ không ai hiểu vì sao.
+     */
+    @Transactional(readOnly = true)
+    public Page<SearchRow> timKiem(String tuKhoa, int page, int size) {
+        String sach = tuKhoa == null ? "" : tuKhoa.trim();
+        if (sach.isEmpty()) {
+            return Page.empty();
+        }
+
+        String mau = "%" + VietnameseUtils.normalizeForSearch(sach) + "%";
+        Page<Construction> trang = constructions.timCongKhai(
+                mau, LifecycleState.DA_THANH_LY, PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, 50)));
+
+        // ⚠ Tra tên đơn vị THEO LÔ cho cả trang — ⛔ không gọi trong vòng lặp (N+1).
+        Map<Long, OrgUnitRef> donVi = orgUnits.findRefsByIds(trang.getContent().stream()
+                .map(Construction::getOrgUnitId)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .toList());
+
+        return trang.map(c -> new SearchRow(
+                c.getCode(),
+                c.getName(),
+                c.getConstructionType().name(),
+                c.getAddress(),
+                c.getOrgUnitId() == null
+                        ? null
+                        : java.util.Optional.ofNullable(donVi.get(c.getOrgUnitId()))
+                                .map(OrgUnitRef::name)
+                                .orElse(null)));
+    }
 
     /**
      * Toàn bộ danh mục, gom theo Xí nghiệp quản lý.

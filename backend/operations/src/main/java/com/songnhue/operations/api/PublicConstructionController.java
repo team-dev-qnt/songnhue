@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -11,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
@@ -76,6 +78,29 @@ public class PublicConstructionController {
      * <p>⛔ Trường {@code note} và người cập nhật không có mặt trong DTO: phạm vi công bố, không
      * phải cột thiếu. Xem {@link PublicOperationStatusService}.
      */
+    /**
+     * Tìm công trình theo từ khoá — CN-01.8 / T36.10.
+     *
+     * <h2>Vì sao là một endpoint RIÊNG, ⛔ không phải một tham số của {@code GET /constructions}</h2>
+     *
+     * <p>Hai câu hỏi khác nhau và hai <b>hình dạng phản hồi</b> khác nhau: danh mục trả về cây
+     * <i>Xí nghiệp → công trình</i> (CR-27 đòi gom nhóm), còn tìm kiếm trả một <b>trang phẳng</b>
+     * xếp theo mức khớp. Nhét cả hai vào một endpoint là một tham số đổi kiểu trả về — thứ ⛔
+     * không diễn tả được trong OpenAPI và ⛔ không kiểm được ở FE.
+     *
+     * <p>⛔ Từ khoá rỗng ⇒ trang RỖNG, ⛔ không phải cả danh mục. Xem
+     * {@code PublicConstructionCatalogService#timKiem}.
+     */
+    @GetMapping("/tim-kiem")
+    @Operation(summary = "Tìm công trình theo tên hoặc mã — bỏ dấu, ⛔ từ khoá rỗng trả rỗng")
+    @PublicEndpoint(reason = "Phạm vi Công trình của trang Tìm kiếm — CN-01.8")
+    public Page<PublicConstructionCatalogService.SearchRow> timKiem(
+            @RequestParam(required = false) String q,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size) {
+        return catalog.timKiem(q, page, size);
+    }
+
     @GetMapping("/operation-statuses")
     @Operation(summary = "Tình hình vận hành hiện hành của từng công trình — 6 cột của CN-02.11")
     @PublicEndpoint(reason = "Khối Vận hành công trình trên cổng — §5.3 văn bản nghiệm thu 27/08")
@@ -94,8 +119,18 @@ public class PublicConstructionController {
      * đường ấy cho hai cột này, nên nó sẽ trả <b>404 câm</b> ngay lượt đầu có dữ liệu thật. Xem
      * {@link PublicConstructionCatalogService#publishedDocument}.
      *
-     * <p>Trả thẳng {@code ResponseEntity<byte[]>} nên không bị bọc envelope — đây là byte của một
-     * tệp, không phải tài nguyên JSON (§10.52).
+     * <p>Trả thẳng {@code ResponseEntity<StreamingResponseBody>} nên không bị bọc envelope — đây là
+     * byte của một tệp, không phải tài nguyên JSON (§10.52).
+     *
+     * <p>⭐ <b>Luồng, ⛔ không phải {@code byte[]}</b> (T28.35): đây là đường <b>không đăng nhập</b>
+     * với trần tệp 50MB, nên {@code byte[]} nghĩa là một khách vô danh giữ trọn tệp trong heap —
+     * heap của node này là <b>1.076 GB</b> và nó chạy kèm {@code -XX:+ExitOnOutOfMemoryError}, tức
+     * vài lượt tải song song là container chết chứ ⛔ không phải chậm đi.
+     *
+     * <p>⚠⚠ Câu ở đây trước 07/09/2026 ghi {@code ResponseEntity<byte[]>} trong khi chữ ký ngay
+     * dưới đã là {@code StreamingResponseBody} từ lượt vá T28.35 — chú thích **nói sai về đoạn mã
+     * cách nó bốn dòng**. §10.69: thứ khó thấy nhất ⛔ không phải một dòng không ai đọc, mà là một
+     * dòng người ta đọc và tin.
      *
      * <p>{@code attachment} chứ không phải {@code inline}: ô chọn tệp ở màn hình quản trị hứa
      * <i>"liên kết tải về"</i>, và đây là văn bản quy trình chứ không phải ảnh minh hoạ.
