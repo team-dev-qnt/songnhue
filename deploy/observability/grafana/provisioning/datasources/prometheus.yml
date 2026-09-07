@@ -1,0 +1,12 @@
+# Nguồn dữ liệu Grafana — khai bằng file để dựng lại VM-3 không phải bấm tay
+# (WS-7 / T7.9). Cấu hình bấm trên giao diện không có trong repo, và mất khi
+# volume bị xoá.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false

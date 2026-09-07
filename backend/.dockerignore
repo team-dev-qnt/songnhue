@@ -1,0 +1,13 @@
+# Không gửi vào build context — giữ context nhỏ và tránh trộn artifact của host
+# vào image (target/ build trên macOS không dùng lại được trong container Linux).
+target/
+*/target/
+*.jar
+*.log
+
+.git
+.gitignore
+.idea/
+*.iml
+.vscode/
+.DS_Store

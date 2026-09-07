@@ -1,0 +1,84 @@
+# =============================================================================
+# CD Staging — tự động khi có mã mới vào nhánh `staging` (WS-11 / T11.8)
+#
+# Tệp này chỉ làm ĐÚNG MỘT việc mà production không phải làm: trả lời câu *commit
+# nào trên `dev` đã dựng ra đúng mã đang nằm trên `staging`?* Rồi giao phần còn
+# lại cho `deploy.yml` — thân chung của cả hai môi trường.
+# =============================================================================
+name: CD Staging
+
+on:
+  push:
+    branches: [staging]
+
+# Hai lượt merge liên tiếp: để lượt sau chờ lượt trước xong. KHÔNG huỷ giữa chừng
+# như bên CI — huỷ một lượt deploy đang chạy có thể để lại môi trường nửa vời.
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  giai-dinh-dev:
+    name: Đỉnh dev tương ứng
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      sha: ${{ steps.giai.outputs.dev_tip }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # `fetch-depth: 0` lấy đủ lịch sử của NHÁNH ĐANG CHECKOUT, không lấy nhánh khác.
+      - name: Nạp thêm nhánh dev để đối chiếu
+        run: git fetch --no-tags origin +refs/heads/dev:refs/remotes/origin/dev
+
+      # ═══════════════════════════════════════════════════════════════════════
+      # Trả lời bằng CÂY TỆP, không bằng quan hệ cha–con — phép giải nay nằm ở
+      # `.github/scripts/giai-dinh-dev.sh` (đọc đầu tệp ấy để biết hai bản trước
+      # đã vấp thế nào: §10.42, và cái giá ẩn của chính bản vá ấy ở §10.72).
+      #
+      # ⭐ Tách ra tệp riêng từ 6/9 vì nay có BA nơi cần đúng phép giải này:
+      #   tệp này, `deploy-prod.yml` (CD Production nay tự chạy trên push), và
+      #   `promotion-guard.yml` (PR staging → production hỏi check-run của commit
+      #   `dev` tương ứng, chứ không hỏi đỉnh staging — nó chưa bao giờ chạy CI).
+      #   Ba bản chép tay là ba nơi phải nhớ (luật 14).
+      #
+      # ⚠ Gọi bằng `bash <script>`, không gọi trực tiếp: miễn nhiễm với việc mất
+      #   bit exec khi tệp đi qua một lượt checkout/patch nào đó.
+      # ═══════════════════════════════════════════════════════════════════════
+      - name: Giải đỉnh dev theo cây tệp
+        id: giai
+        run: |
+          set -euo pipefail
+          dev_tip="$(bash .github/scripts/giai-dinh-dev.sh HEAD 500)"
+          echo "dev_tip=$dev_tip" >> "$GITHUB_OUTPUT"
+
+  trien-khai:
+    name: Triển khai
+    needs: giai-dinh-dev
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/deploy.yml
+    with:
+      moi_truong: staging
+      commit_sha: ${{ needs.giai-dinh-dev.outputs.sha }}
+      compose_file: compose.staging.yml
+      # 4 trang tĩnh của `V202608191021` + 5 bài của bộ seed. Ngưỡng đặt ở 9 chứ
+      # không ở 1 là cố ý: quên thêm `SEED_LOCATION` vào `/opt/songnhue/.env` (tệp
+      # ấy KHÔNG được rsync) sẽ để lại đúng 4 bài, và với ngưỡng 1 thì lượt deploy
+      # vẫn xanh còn cổng vẫn thiếu nội dung — đúng §10.45.
+      so_bai_toi_thieu: 9
+    # ⛔ Workflow thân chung chỉ thấy đúng bốn secret truyền vào đây. Không có
+    #    đường nào — kể cả gõ nhầm một input — cho nó chạm tới `PROD_*`.
+    secrets:
+      HOST: ${{ secrets.STAGING_HOST }}
+      USER: ${{ secrets.STAGING_USER }}
+      SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+      BASE_URL: ${{ secrets.STAGING_BASE_URL }}
+      SSH_KNOWN_HOSTS: ${{ secrets.STAGING_SSH_KNOWN_HOSTS }}

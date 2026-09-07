@@ -1,0 +1,77 @@
+{
+  "uid": "songnhue-van-hanh",
+  "title": "Sông Nhuệ — Vận hành",
+  "description": "Bốn khối theo đúng thứ tự mất mát không hồi phục được: sao lưu, độ tươi dữ liệu, hàng đợi việc, sự kiện bảo mật. Nguồn: deploy/observability/grafana/dashboards/van-hanh.json (WS-7/T7.9).",
+  "tags": ["songnhue", "ws-7"],
+  "timezone": "Asia/Ho_Chi_Minh",
+  "editable": false,
+  "schemaVersion": 39,
+  "refresh": "1m",
+  "time": { "from": "now-24h", "to": "now" },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Tuổi bản sao lưu gần nhất",
+      "description": "-1 = CHƯA TỪNG sao lưu thành công. Không có PITR nên đây là đường phục hồi duy nhất.",
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 0 },
+      "targets": [
+        { "expr": "songnhue_backup_age_seconds", "legendFormat": "{{environment}}" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 86400 },
+              { "color": "red", "value": 93600 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Bản sao lưu ngoài máy chủ CSDL",
+      "description": "Do pull-from-prod.sh trên VM-3 ghi. Bản dump nằm cùng máy với CSDL không cứu được gì khi máy đó chết.",
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 0 },
+      "targets": [
+        { "expr": "time() - songnhue_backup_offsite_last_success_timestamp", "legendFormat": "lần kéo gần nhất" },
+        { "expr": "songnhue_backup_offsite_files", "legendFormat": "số bản đang giữ" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Độ tươi dữ liệu theo nguồn",
+      "description": "Nguồn thủy văn KHÔNG có API lịch sử (G3) — khoảng im lặng là dữ liệu mất vĩnh viễn. Phase 0 chưa có nguồn nào đăng ký; biểu đồ trống là đúng.",
+      "gridPos": { "h": 5, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        { "expr": "songnhue_data_freshness_seconds", "legendFormat": "{{source}}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Tồn đọng hàng đợi việc nền",
+      "description": "Worker chết thì thông báo, kết xuất, quét virus và CẢ SAO LƯU đều đứng — giao diện vẫn chạy bình thường, không lỗi nào báo ra.",
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 5 },
+      "targets": [
+        { "expr": "songnhue_job_queue_backlog", "legendFormat": "{{environment}}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Sự kiện bảo mật (lượt/5 phút)",
+      "description": "Nguồn: conventions.md §4.5. REFRESH_REUSE_DETECTED và DATABASE_RESTORE_* là loại phải xử lý ngay.",
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 5 },
+      "targets": [
+        {
+          "expr": "sum by (type) (increase(songnhue_security_events_total{severity=~\"DANGER|CRITICAL\"}[5m]))",
+          "legendFormat": "{{type}}"
+        }
+      ]
+    }
+  ]
+}

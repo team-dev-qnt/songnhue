@@ -1,0 +1,19 @@
+F01830;01/09/2026;10:20;value=240;<br>F01613;01/09/2026;10:20;value=198;<br>F01652;01/09/2026;10:20;value=493;<br>F01657;01/09/2026;10:20;value=249;<br>F01696;01/09/2026;10:20;value=253;<br>F01659;01/09/2026;10:20;value=260;<br>F01811;01/09/2026;10:20;value=235;<br>F01707;01/09/2026;10:20;value=273;<br>F01965;01/09/2026;10:20;value=161;<br>F01794;01/09/2026;10:20;value=271;<br>F01863;01/09/2026;10:20;value=269;<br>F01812;01/09/2026;10:20;value=95;<br>F01705;01/09/2026;10:20;value=362;<br>F01700;01/09/2026;10:20;value=79;<br>F01527;01/09/2026;10:20;value=231;<br>F01905;01/09/2026;10:20;value=231;<br>F02030;01/09/2026;10:20;value=213;<br>F01672;01/09/2026;10:20;value=157;<br>F02039;01/09/2026;10:20;value=234;<br>F01706;01/09/2026;10:20;value=200;<br>F01820;01/09/2026;10:20;value=273;<br>F01519;01/09/2026;10:20;value=192;<br>F01559;01/09/2026;10:20;value=138;<br>F01535;01/09/2026;10:20;value=177;<br>F01732;01/09/2026;10:20;value=111;<br>F01532;01/09/2026;10:20;value=439;<br>F02031;01/09/2026;10:20;value=216;<br>F01771;01/09/2026;10:20;value=161;<br>
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><title>
+
+</title></head>
+<body>
+    <form method="post" action="./getmn.aspx?key=maso-kiem-thu-0123456789%3b" id="form1">
+<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="/wEPDwULLTE2MTY2ODcyMjlkZHbKvY5h7eWj6mcPF2ejJh3GhuoU+hrUy+6bjaDAafKR" />
+
+<input type="hidden" name="__VIEWSTATEGENERATOR" id="__VIEWSTATEGENERATOR" value="774003B3" />
+    <div>
+    
+    </div>
+    </form>
+</body>
+</html>

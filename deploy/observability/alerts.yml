@@ -1,0 +1,164 @@
+# =============================================================================
+# LUẬT CẢNH BÁO (WS-7 / T7.3, T7.10, T7.11)
+#
+# Nguyên tắc chọn: hệ này chạy giờ hành chính, 200 người dùng nội bộ. Cảnh báo
+# nhiều là cảnh báo bị tắt tiếng. Danh sách dưới đây cố ý NGẮN, và mỗi luật đều
+# trả lời được câu "nếu bỏ qua thì mất cái gì không lấy lại được".
+#
+# ⚠ Ba nhóm dưới đây đều thuộc loại "đo sự VẮNG MẶT". Chúng không bắt lỗi ném
+#   ra — chúng bắt việc lẽ ra phải xảy ra mà đã ngừng xảy ra. Đó chính là kiểu
+#   hỏng đắt nhất của hệ này, và cũng là kiểu duy nhất không tự báo.
+# =============================================================================
+groups:
+
+  # ---------------------------------------------------------------------------
+  # 1. Sao lưu — architecture-review.md §6.5
+  #
+  # Kế hoạch Phase 0 ghi "một alert duy nhất". Ở đây có HAI, và đó là sai lệch
+  # có chủ đích: bản dump nằm trên chính máy chủ CSDL không cứu được gì khi máy
+  # đó chết — mà đó là kịch bản nó sinh ra để cứu. "Đã dump" và "đã đưa ra khỏi
+  # máy" là hai sự thật khác nhau, hỏng độc lập với nhau.
+  # ---------------------------------------------------------------------------
+  - name: songnhue-backup
+    rules:
+      - alert: SaoLuuQuaHan
+        # -1 = chưa từng sao lưu thành công. Cố ý bắt luôn trường hợp đó: hệ
+        # thống chưa từng được sao lưu là trạng thái đáng báo động nhất, nhưng
+        # một điều kiện "> 93600" đơn thuần lại bỏ sót nó.
+        expr: songnhue_backup_age_seconds > 93600 or songnhue_backup_age_seconds == -1
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Không có bản sao lưu nào trong 26 giờ qua"
+          description: >-
+            Hệ thống đang chạy KHÔNG có lưới an toàn. Không có PITR, không có replica —
+            bản dump đêm là đường phục hồi duy nhất. Xem docs/runbook/sao-luu-hong.md
+          runbook: docs/runbook/sao-luu-hong.md
+
+      - alert: SaoLuuChuaRaKhoiMayChu
+        # Do pull-from-prod.sh trên VM-3 ghi ra. Vắng metric (`absent`) cũng
+        # tính là hỏng: script không chạy lần nào thì không có chuỗi nào để so.
+        expr: >-
+          absent(songnhue_backup_offsite_last_success_timestamp)
+          or (time() - songnhue_backup_offsite_last_success_timestamp) > 93600
+        for: 30m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Bản sao lưu chưa được đưa ra khỏi máy chủ CSDL"
+          description: >-
+            Bản dump vẫn nằm cùng máy với CSDL nó phải cứu. Ổ đĩa hỏng là mất cả hai.
+          runbook: docs/runbook/sao-luu-hong.md
+
+  # ---------------------------------------------------------------------------
+  # 2. Dữ liệu quá hạn — rủi ro #1 của implement.md §7.2
+  #
+  # Nguồn thủy văn KHÔNG có API lịch sử (chốt G3). Poller là nơi duy nhất bắt
+  # được dữ liệu; lỡ khung nào là mất khung đó VĨNH VIỄN. Vì vậy luật này có
+  # `for` ngắn nhất trong cả file: mỗi phút chậm phát hiện là dữ liệu không bao
+  # giờ lấy lại được.
+  #
+  # Phase 0 chưa có nguồn nào đăng ký nên luật này không khớp gì cả — cố ý viết
+  # trước, xem javadoc DataFreshnessRegistry.
+  # ---------------------------------------------------------------------------
+  - name: songnhue-data-freshness
+    rules:
+      - alert: NguonDuLieuImLang
+        expr: songnhue_data_freshness_seconds > 1800 or songnhue_data_freshness_seconds == -1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Nguồn {{ $labels.source }} không có dữ liệu mới trong 30 phút"
+          description: >-
+            Nguồn ngoài không có API lịch sử — dữ liệu của khoảng thời gian này sẽ
+            KHÔNG lấy lại được. Xem docs/runbook/poller-chet.md
+          runbook: docs/runbook/poller-chet.md
+
+  # ---------------------------------------------------------------------------
+  # 3. Hàng đợi việc nền — trả nợ #21
+  #
+  # Worker chết thì thông báo không gửi, kết xuất không chạy, quét virus không
+  # xong, SAO LƯU KHÔNG CHẠY — mà giao diện vẫn hoạt động bình thường và không
+  # một lỗi nào báo ra. Hai luật: tồn đọng lớn, và tồn đọng ĐỨNG YÊN.
+  # ---------------------------------------------------------------------------
+  - name: songnhue-job-queue
+    rules:
+      - alert: HangDoiViecTonDong
+        expr: songnhue_job_queue_backlog > 50
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Hàng đợi việc nền tồn {{ $value }} việc"
+          runbook: docs/runbook/job-that-bai.md
+
+      - alert: WorkerCoVeDaChet
+        # Có việc trong hàng đợi mà con số KHÔNG nhúc nhích suốt 30 phút. Đây là
+        # luật quan trọng hơn luật trên: tồn đọng 5 việc đứng im nguy hiểm hơn
+        # tồn đọng 60 việc đang giảm dần, mà ngưỡng theo số lượng thì bỏ qua nó.
+        expr: songnhue_job_queue_backlog > 0 and delta(songnhue_job_queue_backlog[30m]) == 0
+        for: 30m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Hàng đợi không nhúc nhích trong 30 phút — worker có thể đã chết"
+          runbook: docs/runbook/job-that-bai.md
+
+  # ---------------------------------------------------------------------------
+  # 4. Sự kiện bảo mật — trả nợ #18 (conventions.md §4.5, §4.7)
+  # ---------------------------------------------------------------------------
+  - name: songnhue-security
+    rules:
+      - alert: PhatHienDungLaiRefreshToken
+        # Gần như chắc chắn refresh token đã bị đánh cắp (conventions.md §4.1).
+        # KHÔNG có `for`: một lần là đủ để báo ngay.
+        expr: increase(songnhue_security_events_total{type="REFRESH_REUSE_DETECTED"}[5m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "Phát hiện dùng lại refresh token — nghi ngờ token bị đánh cắp"
+          runbook: docs/runbook/su-kien-bao-mat.md
+
+      - alert: TruyCapNgoaiPhamViDonVi
+        # Tầng 3 phân quyền chặn (AUTH-3002). Vài lần là người dùng bấm nhầm;
+        # dồn dập là có người đang dò dữ liệu của đơn vị khác.
+        expr: increase(songnhue_security_events_total{type="ACCESS_DENIED_SCOPE"}[10m]) > 5
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $value }} lượt truy cập ngoài phạm vi đơn vị trong 10 phút"
+          runbook: docs/runbook/su-kien-bao-mat.md
+
+      - alert: DangNhapSaiDonDap
+        expr: increase(songnhue_security_events_total{type="LOGIN_FAILED"}[5m]) > 20
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $value }} lượt đăng nhập sai trong 5 phút"
+          runbook: docs/runbook/su-kien-bao-mat.md
+
+      - alert: KhoiPhucCSDL
+        # Không phải "lỗi" — nhưng ghi đè toàn bộ CSDL là việc mọi người phải
+        # biết ngay, kể cả khi đúng kế hoạch.
+        expr: increase(songnhue_security_events_total{type=~"DATABASE_RESTORE_.*"}[5m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "Có thao tác KHÔI PHỤC CSDL đang diễn ra"
+          runbook: docs/runbook/khoi-phuc-du-lieu.md
+
+  # ---------------------------------------------------------------------------
+  # 5. Ứng dụng còn sống không
+  # ---------------------------------------------------------------------------
+  - name: songnhue-availability
+    rules:
+      - alert: UngDungKhongPhanHoi
+        expr: up{job="songnhue-app"} == 0
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Không lấy được metric từ ứng dụng trong 3 phút"

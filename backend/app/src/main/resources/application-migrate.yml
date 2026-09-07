@@ -1,0 +1,50 @@
+# =============================================================================
+# Profile `migrate` — dùng cho service `migrator` ở Staging/Production
+# (architecture-review.md §9.2, conventions.md §1.2).
+#
+#   java -jar songnhue-app.jar --spring.profiles.active=migrate
+#
+# Chạy Flyway rồi THOÁT: không mở cổng HTTP, không giữ luồng nào sống, nên tiến
+# trình kết thúc ngay sau khi migration xong.
+#   • migration thành công → exit 0 → docker-compose cho `app` khởi động
+#   • migration lỗi        → context không lên được → exit ≠ 0 → `app` KHÔNG chạy
+#
+# Đây chính là điều tránh "app lên nửa vời trên schema hỏng".
+# =============================================================================
+spring:
+  main:
+    web-application-type: none
+    banner-mode: "off"
+    # ⚠ BẮT BUỘC, không phải để chạy nhanh hơn.
+    #
+    # `web-application-type: none` chỉ tắt cổng HTTP — Spring VẪN quét và dựng mọi
+    # `@RestController`, `@Service` của ứng dụng. Nghĩa là migrator kéo theo cả chuỗi
+    # AuthController → AuthService → TokenService → JwtKeyStore, và **đòi khoá ký JWT**
+    # dù việc duy nhất nó làm là chạy DDL. Ở production, chiều theo đòi hỏi đó nghĩa là
+    # đưa khoá ký cho một tiến trình không có lý do gì để cầm.
+    #
+    # Khởi tạo lười làm bean chỉ được dựng khi có ai cần tới; không request nào tới thì
+    # không controller nào được dựng. Flyway vẫn chạy vì `FlywayMigrationInitializer`
+    # nằm trong danh sách loại trừ của Spring Boot — có bài kiểm ở
+    # `MigrateProfileTest` chứng minh migration THẬT SỰ chạy dưới profile này, vì một
+    # migrator thoát 0 mà không migrate gì là kiểu hỏng tệ nhất có thể.
+    lazy-initialization: true
+  flyway:
+    # Ép bật kể cả khi env FLYWAY_ENABLED=false (giá trị dành cho service `app`)
+    enabled: true
+
+# Worker hàng đợi mở luồng riêng và chạy mãi — cũng giữ JVM sống như bộ lập lịch.
+# `SchedulingConfig` đã tắt phần `@Scheduled` bằng `@Profile("!migrate")`; hai chỗ này
+# phải tắt CÙNG NHAU, tắt một cái vẫn không thoát được.
+app:
+  worker-enabled: false
+  shedlock-enabled: false
+
+# Migrator không phục vụ request → không cần endpoint giám sát nào
+management:
+  endpoints:
+    enabled-by-default: false
+
+logging:
+  level:
+    org.flywaydb: INFO

@@ -1,3 +1,16 @@
+> ⚠⚠ **TÀI LIỆU LỊCH SỬ — ĐÃ BỊ SRS v1.0 (06/8/2026) THAY THẾ. ĐỪNG CODE THEO TỆP NÀY.**
+>
+> Đây là bản gốc đặc tả hệ thống website do khách hàng gửi ngày 20/7/2026, giữ lại **chỉ để đối chiếu lúc nghiệm thu**
+> khi có câu hỏi "chỗ này trong đặc tả gốc ghi gì". Nội dung đã được tổng hợp vào
+> `.claude/function-spec.md`, và **nhiều phần đã bị chính Công ty huỷ bỏ** ở BOQ đợt 1 và đợt 2
+> (12/8/2026): nhật ký vận hành · phiếu sự cố riêng · kế hoạch tưới tiêu/vụ mùa · diện tích tưới tiêu ·
+> trạng thái tổ máy realtime · đồng bộ danh sách văn bản điều hành.
+>
+> **Nguồn sự thật về nghiệp vụ là `.claude/function-spec.md`** (v2.2); thứ tự ưu tiên khi mâu thuẫn
+> ghi ở `CLAUDE.md` mục "Cấu trúc tài liệu". Ghi chú thêm 21/8/2026.
+
+---
+
 **HỆ THỐNG QUẢN TRỊ VẬN HÀNH CHO**
 
 **CÔNG TY ĐẦU TƯ PHÁT TRIỂN THỦY LỢI SÔNG NHUỆ**

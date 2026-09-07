@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Kiểm tra commit message theo Conventional Commits (conventions.md §1.5).
+# Bật hook: make hooks
+set -euo pipefail
+
+MSG_FILE="$1"
+FIRST_LINE=$(head -n1 "$MSG_FILE")
+
+# Bỏ qua commit tự sinh (merge, revert, fixup, squash)
+if [[ "$FIRST_LINE" =~ ^(Merge|Revert|fixup!|squash!) ]]; then
+    exit 0
+fi
+
+# <type>(<scope>): <mô tả>
+#   type  : feat|fix|docs|style|refactor|perf|test|build|ci|chore
+#   scope : module hoặc hạng mục — core, cms, ops, hyd, hr, fe, deploy, db, ws1…
+PATTERN='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore)(\([a-z0-9._-]+\))?!?: .{1,100}$'
+
+if ! [[ "$FIRST_LINE" =~ $PATTERN ]]; then
+    cat >&2 <<'EOF'
+
+  ✗ Commit message không đúng quy ước (conventions.md §1.5)
+
+    Định dạng:  <type>(<scope>): <mô tả>
+
+    type   feat | fix | docs | style | refactor | perf | test | build | ci | chore
+    scope  core | cms | ops | hyd | hr | fe | deploy | db | ws1 … (tùy chọn)
+
+    Ví dụ đúng:
+      feat(core): thêm envelope response và global exception handler
+      fix(hyd): giữ dấu ';' cuối key khi gọi getmn.aspx
+      chore(ws1): dựng Maven parent và 6 module
+
+EOF
+    echo "    Bạn đã viết: $FIRST_LINE" >&2
+    echo "" >&2
+    exit 1
+fi
+
+# Cảnh báo dòng đầu quá dài (không chặn)
+if [[ ${#FIRST_LINE} -gt 72 ]]; then
+    echo "  ⚠ Dòng đầu dài ${#FIRST_LINE} ký tự — nên ≤ 72 để hiển thị gọn trong git log." >&2
+fi

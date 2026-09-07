@@ -1,0 +1,54 @@
+# =============================================================================
+# Prometheus — chạy trên VM-3 (WS-7 / T7.9)
+#
+# ⭐ VÌ SAO ĐẶT Ở VM-3 CHỨ KHÔNG PHẢI CÙNG MÁY VỚI ỨNG DỤNG
+#   Hệ giám sát nằm chung máy với thứ nó giám sát thì chết cùng lúc với nó. Ổ
+#   đĩa VM-1 hỏng lúc 2 giờ sáng: ứng dụng chết, Prometheus chết, cảnh báo chết
+#   — và sáng ra không ai biết chuyện gì đã xảy ra, kể cả lúc nào. Đặt ở VM-3
+#   thì chuỗi giám sát SỐNG SÓT qua đúng sự cố mà nó phải báo.
+#   Đây cũng là máy giữ bản sao lưu (T7.2) — hai việc cùng một lý do.
+#
+# Lưu giữ 90 ngày: đủ để đối chiếu "tháng này chậm hơn tháng trước" khi nghiệm
+# thu NFR (99% · 200 CCU · 3s), không cần hơn.
+# =============================================================================
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+  external_labels:
+    monitor: songnhue
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            # ⬜ Alertmanager là hạng mục WS-11: cần địa chỉ email nhóm "Ban điều
+            #    hành" (G11) và cấu hình SMTP thật. Tới đó thì bỏ ghi chú dòng dưới.
+            # - alertmanager:9093
+    # Chưa có Alertmanager thì cảnh báo vẫn TÍNH và vẫn xem được ở trang Alerts
+    # của Prometheus — chỉ là không tự gửi đi. Ghi rõ để không ai tưởng đã xong.
+
+scrape_configs:
+  # Ứng dụng — nguồn của mọi chỉ số nghiệp vụ (sao lưu, hàng đợi, sự kiện bảo mật)
+  - job_name: songnhue-app
+    metrics_path: /actuator/prometheus
+    scheme: http
+    static_configs:
+      - targets: ['${PROD_APP_TARGET}']
+        labels:
+          environment: production
+      - targets: ['${STAGING_APP_TARGET}']
+        labels:
+          environment: staging
+
+  # node_exporter trên VM-3 — đọc cả tệp textfile do pull-from-prod.sh ghi ra,
+  # tức là chỉ số "bản sao lưu đã ra khỏi máy chủ CSDL chưa" (T7.2).
+  - job_name: songnhue-vm3
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']

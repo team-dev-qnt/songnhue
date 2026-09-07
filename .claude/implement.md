@@ -204,29 +204,25 @@ Quy tắc ràng buộc giữa module (giữ đúng Modular Monolith):
 
 ## 7. ĐÁNH GIÁ MỨC ĐỘ SẴN SÀNG CODE (2026-08-13)
 
-### 7.1. Môi trường máy dev — đã kiểm tra thực tế
+### 7.1. ~~Môi trường máy dev~~ — ĐÃ XOÁ 19/8/2026
 
-| Thành phần | Yêu cầu | Hiện có | |
-|---|---|---|:-:|
-| JDK | 21 | **21.0.7 LTS** | ✅ |
-| Node.js | ≥ 18 (Next.js/Vite) | **22.16.0** + npm 11.17 | ✅ |
-| Docker + Compose | PG16+PostGIS, MinIO | **29.4.0** + Compose v5.1.1 | ✅ |
-| psql client | tra cứu/migration thủ công | **17.6** | ✅ |
-| Git | | 2.49.0 | ✅ |
-| **Maven / Gradle** | build backend | ❌ **chưa cài** | ⚠ |
-
-⚠ **Chưa có Maven/Gradle trên máy** — không chặn: project sinh từ `start.spring.io` kèm sẵn `mvnw`/`gradlew` (wrapper tự tải). Chỉ cần cài nếu muốn chạy lệnh `mvn` trần.
-📌 **Repo hiện chỉ có tài liệu** (11 file tracked, 0 file mã nguồn) → Phase 0 là **greenfield**, không có nợ kỹ thuật hay migration cũ phải gánh.
+> Mục này từng liệt kê phiên bản JDK/Node/Docker trên máy dev và kết luận *"repo hiện chỉ có tài
+> liệu, 0 file mã nguồn → greenfield"*. **Cả hai điều đó nay đều sai**: Phase 0 đã dựng xong, repo
+> có 443 tệp, Maven chạy bằng wrapper `./mvnw`.
+>
+> Xoá thay vì sửa, vì một bảng phiên bản chụp tại một thời điểm thì luôn lỗi thời — điều kiện môi
+> trường thật sự nằm ở `make doctor` (kiểm công cụ + cổng trống) và `docs/setup-guideline.md`.
+> Một tài liệu tự già đi mà không ai hay là thứ nguy hiểm hơn không có tài liệu.
 
 ### 7.2. Kết luận theo từng Phase
 
 | Phase | Nội dung | Sẵn sàng? | Ghi chú |
 |---|---|:-:|---|
-| **Phase 0** — Nhóm A Core | auth/RBAC/orgunit/attachment/workflow/notification/jobs/audit/settings/backup-restore | ✅ **Bắt đầu ngay được** | **Không chứa bất kỳ điểm mở nào.** Đây là 100% khối lượng lớn nhất và mọi thứ khác phụ thuộc vào nó |
-| **Phase 1** — B (CMS) + C1 (master data công trình) | article/category/media/siteconfig · `constructions`, `maintenance_logs`, `operation_status_codes` | ✅ **Bắt đầu ngay được** | Ngoại lệ duy nhất: **CN-01.7 (lưu mã số) chặn bởi G5** → tách thành 1 task riêng, làm sau; phần còn lại của MOD-01 không ảnh hưởng |
-| **Phase 2** — C2 (`hydro`) | điểm đo, adapter, polling, rate-limit, lưu trữ, alert engine | ✅ **Bắt đầu ngay được** | Ánh xạ 19 mã đã có (G8b) → code + test với **dữ liệu thật**. Chừa khe cho G3-a (mưa) và G9-a (số mức ngưỡng) |
-| **Phase 3** — C3 (GIS/dashboard/báo cáo) + D (HRM) | | 🟨 **Code được, chốt layout sau** | Trường dữ liệu báo cáo đã chốt; **layout in ấn** chờ G10, **BCNS-07** chờ G6. Hiển thị GIS cần tọa độ (G8) |
-| **Phase 4** — hardening/NFR/go-live | | ✅ | Con số nghiệm thu đã chốt (G12) |
+| **Phase 0** — Nhóm A Core | auth/RBAC/orgunit/attachment/workflow/notification/jobs/audit/settings/backup-restore | ✅ **XONG 19/8/2026** | 12/21 mục Definition of Done đạt, 5 dở dang, **4 mục chưa xong đều phụ thuộc VM** (đo RTO thật · deploy staging · rollback). Không mục nào chặn việc viết nghiệp vụ |
+| **Phase 1** — B (CMS) + C1 (master data công trình) | article/category/media/siteconfig **+ hiển thị công khai** · `constructions`, `maintenance_logs`, `operation_status` | ✅ **XONG 22/8/2026** | Nền đã có: 6 pattern P1–P6 là shared service, ArchUnit canh ranh giới. ⚠ **WS-12 phải xong trước** (nợ #56 — `core/spi/` rỗng). ⚠ Chỉ **CN-01.7** bị chặn cứng bởi **G5** — đã tách khỏi Phase 1 |
+| **Phase 2** — C2 (`hydro`) | điểm đo, adapter, polling, rate-limit, lưu trữ, alert engine | ✅ **Bắt đầu được ngay** | Ánh xạ 19 mã đã có (G8b). Thiếu toạ độ/tuyến sông (G8) chỉ chặn phần hiển thị GIS, không chặn pipeline |
+| **Phase 3** — C3 (GIS/dashboard/báo cáo) + D (HRM) | | 🟨 **Code được, chốt layout sau** | Trường dữ liệu báo cáo đã chốt; **layout in ấn** chờ Công ty duyệt (G10). BCNS-07 chờ mẫu 2C-BNV (G6) |
+| **Phase 4** — hardening/NFR/go-live | | ✅ | Con số nghiệm thu đã chốt (G12). Gồm nốt phần deploy còn treo của Phase 0 |
 
 ### 7.3. Ba ràng buộc phải cài từ Phase 0 để hấp thụ các câu trả lời còn lại
 
@@ -236,28 +232,52 @@ Quy tắc ràng buộc giữa module (giữ đúng Modular Monolith):
 2. **Danh mục hóa thay vì enum cứng** — mức ngưỡng (G9-a), mã tình hình vận hành (G4), loại chỉ số đo (G3-a) đều là **bảng có CRUD**. Enum trong code = phải deploy lại mỗi lần khách đổi ý.
 3. **`TelemetryAdapter` đa nguồn** — không hard-code "1 nguồn = 1 endpoint mực nước", để cắm thêm nguồn lượng mưa (G3-a) mà không sửa pipeline.
 
-### 7.4. Kế hoạch chi tiết Phase 0
+### 7.4. Kế hoạch chi tiết Phase 0 → `phase0-tracking.md`
 
-📋 **Toàn bộ Phase 0 đã được break thành 11 hạng mục (WS-1→WS-11) với 107 task có ID + 21 mục Definition of Done, kèm bảng theo dõi tiến độ: [`phase0-tracking.md`](phase0-tracking.md).**
+📋 **11 hạng mục WS-1→WS-11, 107 task có ID, 21 mục Definition of Done, sổ nợ liên WS: [`phase0-tracking.md`](phase0-tracking.md).** Mỗi WS tự chứa điều kiện tiên quyết / đầu ra / cách kiểm chứng để làm độc lập tuần tự. Quyết định nền tảng (Maven multi-module, monorepo, deploy 3 VM, secrets, migration service riêng, DB roles) ở `architecture-review.md` §9.
 
-Mỗi WS tự chứa điều kiện tiên quyết / đầu ra / cách kiểm chứng để **làm độc lập tuần tự từng module**. Quyết định nền tảng (Maven multi-module, monorepo, deploy 3 VM, secrets, migration service riêng, DB roles) ghi ở `architecture-review.md` §9.
+> 📌 **Sơ đồ phụ thuộc giữa các WS đã gỡ khỏi đây (21/8/2026)** — nó là bản sao nguyên xi của mục *"Sơ đồ phụ thuộc — làm tuần tự từng module"* ở đầu `phase0-tracking.md`, mà bản kia còn kèm cảnh báo "hai việc nên làm ngay tuần 1". **Giữ hai bản của cùng một thứ là cách chắc chắn để chúng lệch nhau** — cùng lý do đã xoá §7.5.
 
-Ràng buộc thứ tự thật sự chỉ có 4 chỗ:
+### 7.5. ~~Thứ tự khởi động Phase 0~~ — ĐÃ XOÁ 19/8/2026
+
+> Mục này liệt kê 6 bước khởi động tuần 1 của Phase 0. **Phase 0 đã xong**, nên nó chỉ còn giá trị
+> lịch sử — và lịch sử ấy đã nằm đầy đủ ở `phase0-tracking.md` (11 hạng mục, nhật ký theo ngày,
+> sổ nợ liên WS). Giữ hai bản của cùng một thứ là cách chắc chắn để chúng lệch nhau.
+>
+> Thứ tự khởi động **Phase 1** sẽ nằm ở kế hoạch riêng của Phase 1, không viết chồng vào đây.
+
+### 7.6. Kế hoạch chi tiết Phase 1
+
+📋 **Toàn bộ Phase 1 đã được break thành 11 hạng mục (WS-12→WS-22) với 99 task có ID + 17 mục
+Definition of Done: [`phase1-tracking.md`](phase1-tracking.md).** Quyết định kiến trúc kèm lý do:
+`architecture-review.md` **§10**.
+
+Ba thay đổi phạm vi so với §3 của chính file này, chốt ngày 19/8/2026:
+
+| Thay đổi | Lý do |
+|---|---|
+| **Hiển thị công khai bài viết chuyển từ Phase 2 lên Phase 1** (+8 pd) | `POST /api/revalidate` đã dựng ở WS-9 "cho luồng duyệt bài Phase 1" và chưa ai đi qua — `architecture-review.md` §10.1 |
+| **Liên hệ (CN-01.4) + Phản hồi (CN-01.6) giữ nguyên ở Phase 2** | Cùng là pattern "tiếp nhận từ public → hàng đợi nội bộ", phụ thuộc reCAPTCHA key của Công ty (G13); gom một đợt |
+| **Thêm đường nhập danh mục công trình từ Excel/CSV có chạy khô** (+3 pd) | G8 đang xin file Excel của Công ty; có đường nhập thì lúc file về là dùng được ngay, và đó cũng là đường seed dữ liệu thật |
+
+Ràng buộc thứ tự thật sự:
 
 ```
-WS-1 ─► WS-2 ─► WS-3          [nền — bắt buộc trước mọi thứ]
-   └─► WS-4 ─► WS-5 ─► WS-6   [BE lõi — tuần tự, không đảo được]
-                  └─► WS-7
-   └─► WS-8                    [FE — cần API của WS-4/5/6]
-   └─► WS-9 · WS-10            [độc lập, chen vào lúc nào cũng được]
-                  └─► WS-11    [cần WS-3 + WS-7 + WS-10]
+WS-12 ─────────────────────────────────────►  [nền — CHẶN mọi thứ]
+   ├─► WS-13 ─► WS-15 ─► WS-16                [CMS + cổng công khai]
+   │      └────────────► WS-20
+   ├─► WS-14 ──────────► WS-20
+   └─► WS-17 ─► WS-18 ─► WS-19                [công trình — tuần tự]
+          └───────────────► WS-21
+                              └─► WS-22
 ```
 
-### 7.5. Thứ tự khởi động đề xuất (Phase 0, tuần 1)
+⚠ **WS-12 (mở `core/spi/`) là việc chặn, không phải việc dọn dẹp.** `core/spi/` rỗng trong khi cả
+sáu dịch vụ dùng chung nằm ở `core.application.*` → dòng mã Phase 1 đầu tiên gọi `WorkflowEngine`
+làm CI đỏ. Và nó lớn hơn "thêm sáu interface": chữ ký hiện tại trả về **entity domain**, mà module
+nghiệp vụ import `core.domain.*` là vi phạm y hệt.
 
-1. Khởi tạo monorepo + `docker-compose` (PG16+PostGIS, MinIO) + Flyway baseline + CI skeleton.
-2. **ArchUnit test ranh giới module ngay từ commit đầu** — cài sau khi đã có code là gỡ rất đau.
-3. Common Platform theo `conventions.md` §2: envelope response, exception hierarchy, error catalog, middleware chain, `CryptoService`.
-4. Auth + RBAC 3 tầng + **2FA Admin/Admin HR** (G12 đưa vào Phase 0, không để cuối).
-5. `settings` + audit log (append-only + hash chain) + Job/Scheduler.
-6. **Monitoring poller** — dựng khung cảnh báo "không có bản ghi mới quá N phút" ngay Phase 0, vì mất dữ liệu thủy văn là **không backfill được**.
+📌 **18 điểm nghiệp vụ chưa rõ trong spec đã được làm rõ** trước khi code (sửa bài đã xuất bản có
+phải duyệt lại không · bản ghi sửa chữa nhập sau khi xong bắt đầu ở trạng thái nào · tiền lưu VND
+hay triệu VND · SVG có được tải lên không…) — bảng đầy đủ kèm cột "ai quyết" ở `phase1-tracking.md`.
+Ba mục phải hỏi Công ty đã mở thành **G13 · G14 · G15**.

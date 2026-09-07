@@ -1,0 +1,56 @@
+# ==============================================================================
+# VÒNG ĐỜI PHIÊN BẢN — nguồn sự thật MÁY ĐỌC ĐƯỢC
+# ==============================================================================
+#
+# Vì sao tệp này tồn tại
+#
+#   Ngày 2/9/2026 lượt quét CVE đỏ với 4 mã ≥ 7 mà `spring-core 6.2.20` trả
+#   HTTP 404 trên Central. Suốt hai ngày, cái 404 ấy được đọc là "bản vá chưa
+#   kịp ra". Nó không phải: Spring Boot 3.5 và Spring Framework 6.2 HẾT HỖ TRỢ
+#   OSS ngày 30/6/2026, và 6.2.19 là bản vá miễn phí CUỐI CÙNG của dòng ấy.
+#
+#   404 trên Central không phải lỗi mạng — nó là ngày hết hỗ trợ nói bằng HTTP.
+#
+#   Ngày hết hỗ trợ là thứ KHÔNG suy ra được từ mã, không nằm trong `pom.xml`,
+#   và không ai nhớ. Để nó trong đầu người thì mỗi lần nó tới hạn ta lại phát
+#   hiện bằng cách bị một CVE không vá được đập vào mặt. Để nó ở đây thì
+#   `VongDoiPhienBanTest` tự đỏ TRƯỚC 90 ngày.
+#
+# ⚠ Vì sao nằm ở `deploy/` chứ không phải `.claude/`
+#
+#   Bộ lọc đường dẫn của CI là `^(backend/|frontend/|deploy/|\.github/)`
+#   (`ci.yml:141`). Đặt ở `.claude/` thì sửa tệp này KHÔNG làm job backend chạy
+#   — tức bộ canh không chạy đúng lúc nó cần chạy nhất (CLAUDE.md luật 24).
+#
+# ==============================================================================
+# CỘT
+#
+#   thanh_phan            khoá, dùng để tra sang bảng nơi-ghim trong bài kiểm
+#   dong                  dòng phát hành đang theo (3.5, 21, 1.30…)
+#   dang_dung             giá trị THẬT đang ghim trong kho — bài kiểm đối chiếu
+#                         ngược lại với mọi nơi ghim, hai chiều
+#   het_ho_tro_oss        ngày hết bản vá MIỄN PHÍ. `chua-cong-bo` nếu nhà phát
+#                         hành chưa công bố — KHÔNG được để trống, và không được
+#                         bịa một ngày (luật 16: ô rỗng phải nói ra lý do)
+#   han_hoan_tat_di_tru   chỉ điền khi đã QUÁ hạn OSS và đang di trú. Nó thay
+#                         ngày chặn, và BẮT BUỘC đi kèm một mã nợ
+#   no                    mã nợ trong `master-tracking.md` (`T<số>`)
+#   nguon                 nơi đọc ra ngày ấy — để lượt sau đo lại được
+#
+# ⛔ LUẬT
+#
+#   1. Quá `het_ho_tro_oss` mà không có `han_hoan_tat_di_tru` + `no` → CI ĐỎ.
+#   2. Còn dưới 90 ngày tới hạn → CI ĐỎ, kèm lời nhắc mở hạng mục đổi dòng.
+#   3. `han_hoan_tat_di_tru` là ĐỒNG HỒ, không phải chỗ gia hạn. Quá nó thì CI
+#      đỏ và **không được đẩy tiếp** — lý do "dòng này hết hỗ trợ" không phải
+#      một lý do hợp lệ để hoãn, nó biến một ngày hết hạn ĐÃ TỚI thành một ngày
+#      hết hạn tự đặt.
+#   4. Mọi ngày đo ngày 3/9/2026. Số đo có hạn dùng — đo lại thì sửa `nguon`.
+# ==============================================================================
+thanh_phan	dong	dang_dung	het_ho_tro_oss	han_hoan_tat_di_tru	no	nguon
+spring-boot	3.5	3.5.16	2026-06-30	2026-10-15	T11.69	endoflife.date/spring-boot · 6.2.20/6.5.12/3.5.17 đều HTTP 404 trên Central
+java	21	21	2029-12-31	-	-	endoflife.date/eclipse-temurin · LTS
+node	22	22	2027-04-30	-	-	endoflife.date/nodejs · LTS từ 2024-10-29
+postgres	16	16-3.4	2028-11-09	-	-	endoflife.date/postgresql
+nginx	1.30	1.30-alpine	chua-cong-bo	-	-	endoflife.date/nginx · dòng CHẴN là stable; 1.27 đã hết hỗ trợ 2025-06-24
+next	16	16.3.1	chua-cong-bo	-	-	endoflife.date/nextjs · 15 hết 2026-10-21

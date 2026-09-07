@@ -1,0 +1,42 @@
+# =============================================================================
+# STAGING — VPS-2 (WS-11 / T11.3)
+#
+# ⭐ TỆP NÀY CỐ Ý NGẮN. Nó `include` nguyên văn compose.prod.yml rồi chỉ ghi đè
+#    hạn mức bộ nhớ.
+#
+#    Vì sao không chép thành một tệp riêng cho dễ đọc: staging chỉ có giá trị khi
+#    nó GIỐNG production. Hai tệp song song thì chúng bắt đầu giống nhau và kết
+#    thúc khác nhau — và cái khác biệt trôi vào lúc nào không ai biết chính là
+#    thứ làm "chạy tốt ở staging" mất hết ý nghĩa. Dự án này đã trả giá đúng
+#    hình dạng đó ở chỗ khác: một bản sửa CORS sửa vào tệp không ai đọc, còn tệp
+#    env thật thì vẫn thắng.
+#
+#    Hệ quả cần nhớ: **mọi khác biệt staging ↔ production phải nằm ở `.env`**,
+#    không nằm ở đây. Thêm một service chỉ có ở staging thì được; sửa hành vi
+#    của service dùng chung thì không.
+#
+# Chạy:
+#   docker compose --env-file .env -f compose.staging.yml up -d
+# =============================================================================
+name: songnhue
+
+include:
+  - compose.prod.yml
+
+services:
+  # VPS-2 (2 vCPU · 8 GB) ít CPU hơn VPS-1 (4 vCPU · 8 GB) và còn gánh thêm kho sao lưu
+  # + Prometheus/Grafana, nên vẫn hạ trần bộ nhớ. ⚠ Con số 4 GB ở bản trước đã SAI từ
+  # 24/8 — xem T11.2-a: ngân sách RAM thật là 5,4 GB nên VPS-2 chốt 8 GB. Chỉ hạ trần bộ
+  # nhớ — không đổi image,
+  # không đổi biến, không đổi thứ tự khởi động.
+  postgres:
+    mem_limit: 1g
+
+  minio:
+    mem_limit: 512m
+
+  app:
+    mem_limit: 1536m
+
+  public-web:
+    mem_limit: 384m

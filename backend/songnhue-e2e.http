@@ -1,0 +1,107 @@
+### Login để lấy token
+POST {{host}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "username": "{{admin_username}}",
+  "password": "{{admin_password}}"
+}
+
+> {%
+    client.test("Login thành công", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+    client.global.set("auth_token", response.body.token);
+%}
+
+### Lấy danh sách cây đơn vị
+GET {{host}}/api/v1/org-units/tree
+Authorization: Bearer {{auth_token}}
+
+> {%
+    client.test("Lấy cây đơn vị thành công", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+    // Lấy orgUnitId đầu tiên (Công ty)
+    if (response.body && response.body.length > 0) {
+        client.global.set("org_unit_id", response.body[0].publicId);
+    }
+%}
+
+### Lấy thông tin user hiện tại
+GET {{host}}/api/v1/users/me
+Authorization: Bearer {{auth_token}}
+
+> {%
+    client.test("Lấy thông tin user thành công", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+%}
+
+### Lấy gợi ý mã công trình
+GET {{host}}/api/v1/ops/constructions/code-suggestion?type=TRAM_BOM&orgUnitId={{org_unit_id}}
+Authorization: Bearer {{auth_token}}
+
+> {%
+    client.test("Lấy gợi ý mã thành công", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+    client.global.set("suggested_code", response.body.code);
+%}
+
+### Tạo công trình mới
+POST {{host}}/api/v1/ops/constructions
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "code": "{{suggested_code}}",
+  "name": "Công trình test E2E từ IDEA",
+  "constructionType": "TRAM_BOM",
+  "managementLevel": "XN_QUAN_LY",
+  "orgUnitId": "{{org_unit_id}}",
+  "address": "Hà Nội"
+}
+
+> {%
+    client.test("Tạo công trình thành công", function() {
+        client.assert(response.status === 201, "Response status is not 201");
+    });
+    client.global.set("construction_id", response.body.summary.publicId);
+%}
+
+### Liệt kê công trình (kiểm tra phân trang, lọc)
+GET {{host}}/api/v1/ops/constructions?size=10
+Authorization: Bearer {{auth_token}}
+
+> {%
+    client.test("Liệt kê công trình thành công", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+%}
+
+### Đổi vòng đời công trình
+PUT {{host}}/api/v1/ops/constructions/{{construction_id}}/lifecycle
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "state": "TAM_NGUNG",
+  "reason": "Kiểm tra vòng đời E2E"
+}
+
+> {%
+    client.test("Đổi vòng đời thành công", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+%}
+
+### Xoá công trình
+DELETE {{host}}/api/v1/ops/constructions/{{construction_id}}
+Authorization: Bearer {{auth_token}}
+
+> {%
+    client.test("Xoá công trình thành công", function() {
+        client.assert(response.status === 204, "Response status is not 204");
+    });
+%}

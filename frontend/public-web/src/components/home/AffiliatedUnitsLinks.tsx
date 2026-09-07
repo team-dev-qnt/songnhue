@@ -1,0 +1,223 @@
+import Link from 'next/link';
+
+import type { MenuLink, SubsidiaryRow } from '@/lib/api';
+import { fileUrl, isExternal, menuHref, ROUTES } from '@/lib/routes';
+import { EmptyBlock } from './EmptyBlock';
+import { SectionTitle } from './SectionTitle';
+
+interface AffiliatedUnitsLinksProps {
+  /** Xí nghiệp trực thuộc — CR-19. Rỗng khi Công ty chưa nhập (OI-05 còn chờ chốt 7 hay 8 XN). */
+  subsidiaries: SubsidiaryRow[];
+  /**
+   * Liên kết sang cổng TTĐT cơ quan cấp trên — menu vị trí `LIEN_KET` (CR-21).
+   *
+   * ⛔ Trước 28/08/2026 đây là hằng số `EXTERNAL_PORTALS` viết cứng ngay trong tệp này. CR-21
+   * yêu cầu Công ty *"rà soát lại tên và đường link chính thức"* — mà rà xong thì không có cách
+   * nào sửa: đổi một cái tên là sửa mã nguồn rồi dựng lại image. Nay bốn dòng ấy nằm trong
+   * `menu_items`, sửa ở đúng màn hình Menu mà Công ty đã dùng cho menu đầu trang và chân trang.
+   */
+  portalLinks: MenuLink[];
+  /**
+   * Có hiện TÊN cơ quan dưới banner không — `site.home.lien-ket.show-label`.
+   *
+   * <p>QuanTran 01/09: *"admin cho phép bật/tắt hiển thị chữ. Vì có thể phần text sẽ bị ảnh hưởng
+   * bởi phần màu"* — tức chữ chìm vào nền của chính tấm banner.
+   *
+   * ⛔ Tắt **không** có nghĩa là gỡ nhãn khỏi cây DOM. Xem chú thích ở chỗ dựng thẻ: một liên kết
+   * chỉ có ảnh và `alt=""` là một liên kết KHÔNG CÓ TÊN — trình đọc màn hình đọc địa chỉ URL.
+   */
+  hienNhan: boolean;
+}
+
+/**
+ * Khối **ĐƠN VỊ TRỰC THUỘC &amp; MẠNG LƯỚI LIÊN KẾT** — CR-19, CR-21.
+ *
+ * <h2>CR-19: khối này đã hết "chưa được đấu nối"</h2>
+ *
+ * Nợ <b>T11.30</b> đã trả: {@code GET /api/v1/public/org-units/subsidiaries} là đường để cổng
+ * lấy danh sách Xí nghiệp từ {@code org_units}. Trước lượt này không có đường nào, nên khối
+ * chỉ có một câu báo lỗi.
+ *
+ * <p>⚠ Có đường không có nghĩa là có dữ liệu: bảng {@code org_units} cố ý <b>không seed</b>
+ * (nó là dữ liệu chịu tải — phân quyền tầng 3 neo vào id của nó), và <b>OI-05</b> còn đang hỏi
+ * Công ty chốt 7 hay 8 Xí nghiệp. Nên khối vẫn rỗng cho tới lượt nhập liệu — nhưng nay là rỗng
+ * vì <i>chưa ai nhập</i>, không phải rỗng vì <i>không có đường nào để lấy</i>. Hai câu trả lời
+ * khác nhau, và ô rỗng phải nói đúng câu của mình.
+ */
+export function AffiliatedUnitsLinks({
+  subsidiaries,
+  portalLinks,
+  hienNhan,
+}: AffiliatedUnitsLinksProps) {
+  return (
+    <section className="mt-5">
+      <SectionTitle
+        href={ROUTES.gioiThieu.xiNghiep}
+        phu={
+          subsidiaries.length > 0 ? (
+            <Link
+              href={ROUTES.gioiThieu.xiNghiep}
+              className="text-xs font-semibold text-brand-primary hover:underline"
+            >
+              Xem đầy đủ ➔
+            </Link>
+          ) : null
+        }
+      >
+        Xí nghiệp trực thuộc
+      </SectionTitle>
+
+      <div className="mt-5">
+        {subsidiaries.length === 0 ? (
+          <EmptyBlock>
+            Chưa có Xí nghiệp trực thuộc nào trong danh mục tổ chức. Danh sách này được nhập ở màn
+            hình Sơ đồ tổ chức của trang quản trị.
+          </EmptyBlock>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {subsidiaries.map((xn) => (
+              <div
+                key={xn.code}
+                className="flex h-full flex-col overflow-hidden rounded-lg border border-surface-border bg-white shadow-xs transition-colors hover:border-brand-primary"
+              >
+                {/* Dải nhận diện cao 90px — tỉ lệ thẻ logo của cổng tham chiếu. KHÔNG có ảnh
+                    logo riêng cho từng Xí nghiệp (chúng dùng chung nhận diện Công ty), nên đây
+                    là một dấu hiệu vẽ bằng SVG chứ không phải một ô ảnh rỗng chờ tệp. */}
+                <div className="flex h-[90px] shrink-0 items-center gap-3 bg-gradient-to-br from-chrome-navy800 to-chrome-navy500 px-4">
+                  <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full border-2 border-brand-gold">
+                    <svg
+                      className="h-6 w-6 text-brand-gold"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.8}
+                        d="M3 7h18M6 7v10M18 7v10M3 17h18M9 7v4h6V7"
+                      />
+                    </svg>
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-[10px] font-bold tracking-wide text-brand-gold">
+                      Xí nghiệp trực thuộc
+                    </span>
+                    <span className="mt-0.5 block text-sm font-bold leading-tight text-white">
+                      {xn.shortName || xn.name}
+                    </span>
+                  </span>
+                </div>
+                <div className="p-3.5">
+                  {/* ⛔ Bản trước có tám xí nghiệp viết cứng KÈM SỐ ĐIỆN THOẠI, tất cả bịa
+                    (§10.54). Nay mỗi ô chỉ hiện thứ thật sự có trong `org_units`; thiếu thì
+                    không có dòng nào, không có dấu gạch giả làm một giá trị. */}
+                  {xn.address ? (
+                    <p className="mt-1 line-clamp-2 text-xs text-surface-textSecondary">
+                      {xn.address}
+                    </p>
+                  ) : null}
+                  {xn.phone ? (
+                    <a
+                      href={`tel:${xn.phone.replace(/\D/g, '')}`}
+                      className="mt-1.5 inline-block text-xs font-semibold text-brand-primary hover:underline"
+                    >
+                      {xn.phone}
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ⭐ 29/08: "Liên kết website" thành MỘT MỤC RIÊNG có tiêu đề, lưới thẻ cao 90px kín bề
+          rộng — đúng dải logo 377×90 của cổng tham chiếu. Bản trước là một hàng chip nhỏ nhét
+          dưới lưới Xí nghiệp: bốn cơ quan cấp trên nằm ở cỡ chữ 12px, nhỏ hơn cả chú thích của
+          khối ngay trên nó.
+
+          ⭐ 29/08 (lượt hai): thẻ NAY CÓ logo — `menu_items.logo_attachment_public_id`, tải lên
+             ở màn hình Menu → "Liên kết cổng TTĐT" (`V202608291047`). Trước lượt ấy bảng không
+             có cột ảnh nào, nên nợ T26.60 ghi thẳng là *"không có chỗ để đặt logo"*.
+
+          ⛔ Nhưng logo là TUỲ CHỌN, và thẻ chưa có logo vẫn giữ nguyên hình dạng cũ: chữ căn
+             giữa, không khung ảnh xám. Một ô ảnh rỗng là chỗ trống nói rằng "đáng ra ở đây có
+             gì đó" — mà cho tới khi Công ty tải lên thì không thiếu gì cả (luật 16).
+
+          ⛔ Danh sách rỗng ⇒ KHÔNG render mục này. Không rơi về bốn liên kết mặc định: một dải
+             liên kết chỉ hiện đúng lúc CSDL hỏng là dải không ai soi, và nó quảng cáo những địa
+             chỉ mà không ai còn kiểm chứng (cùng cái bẫy đã gỡ khỏi `SiteHeader`, §10.54). */}
+      {portalLinks.length > 0 ? (
+        <div className="mt-9">
+          <SectionTitle>Liên kết website</SectionTitle>
+          {/* ⭐⭐ 01/09/2026 — BA cột, không phải bốn. Đây là số học, không phải thẩm mỹ:
+              (1184 − 2×20)/3 = 381px, ở chiều cao 90px cho ra một khung 381×90 — đúng tỉ lệ dải
+              logo 377×90 của cổng tham chiếu `bocongan.gov.vn` (đo 01/09). Bốn cột cho 281×90,
+              tức 3,1:1, và mọi banner tải lên sẽ méo thêm một lần nữa. */}
+          <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {portalLinks.map((muc) => {
+              const href = menuHref(muc);
+              const logo = fileUrl(muc.logoId);
+              return href ? (
+                <a
+                  key={muc.label}
+                  href={href}
+                  target={muc.openNewTab ? '_blank' : undefined}
+                  rel={isExternal(muc) ? 'noopener noreferrer' : undefined}
+                  className="group block overflow-hidden rounded-lg border border-surface-border bg-white shadow-2xs transition-all duration-200 hover:border-brand-primary hover:shadow-xs"
+                >
+                  {logo ? (
+                    <img
+                      src={logo}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                      // ⭐ `object-fill` — QuanTran chốt 01/09: *"kéo ảnh full"*. Cổng tham chiếu
+                      //   làm đúng vậy (thẻ `<img class="w-full h-full">` không khai `object-fit`,
+                      //   nên mặc định `fill`), và ảnh của họ vốn là banner 377×90.
+                      //
+                      //   ⚠⚠ Chú thích ở đây TRƯỚC 01/09 khẳng định ngược lại: *"`object-contain`,
+                      //   KHÔNG `object-cover`: logo cơ quan bị cắt là cắt nhận diện pháp nhân"*.
+                      //   Lý do ấy vẫn đúng về mặt bảo toàn thông tin — `fill` không cắt, nhưng nó
+                      //   KÉO MÉO, và một logo méo cũng là một nhận diện sai. Đây là một đánh đổi
+                      //   QuanTran đã cân và chọn, không phải một điều bị bỏ sót. Hệ quả phải nói
+                      //   ra ở chỗ người tải ảnh đọc được: mô tả của khoá `settings` và cảnh báo ở
+                      //   màn hình Menu → "Liên kết cổng TTĐT" đều dặn tải banner tỉ lệ ~4:1.
+                      className="h-[90px] w-full object-fill"
+                    />
+                  ) : null}
+                  {/* ⭐⭐ NHÃN KHÔNG BAO GIỜ RỜI KHỎI CÂY DOM — công tắc chỉ đổi việc nó có HIỆN.
+
+                      Bỏ hẳn nhãn khi tắt thì thẻ này còn đúng một `<img alt="">` bên trong một
+                      `<a>`: một liên kết **không có tên**, và trình đọc màn hình đọc địa chỉ URL
+                      thay cho tên cơ quan. Đó là lỗi WCAG (2.4.4 Link Purpose), không phải một
+                      lựa chọn trình bày — nên nhánh tắt là `sr-only`, không phải `null`.
+
+                      ⚠ Mục CHƯA có logo thì luôn hiện chữ, bất kể công tắc: tắt nhãn ở đó là để
+                        lại một ô trắng không nội dung. */}
+                  <span
+                    className={
+                      hienNhan || !logo
+                        ? 'flex items-center justify-center gap-2 px-4 py-3 text-center text-sm font-semibold text-surface-textBase transition-colors group-hover:text-brand-primary'
+                        : 'sr-only'
+                    }
+                  >
+                    <span className="line-clamp-2">{muc.label}</span>
+                    <span
+                      aria-hidden="true"
+                      className="shrink-0 text-xs text-surface-textSecondary"
+                    >
+                      ↗
+                    </span>
+                  </span>
+                </a>
+              ) : null;
+            })}
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
+}
