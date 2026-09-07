@@ -126,7 +126,10 @@ class RbacMatrixTest extends IntegrationTestBase {
             "hr:directory:view", // Danh bạ — Phase 2
             "hr:report:view", // Báo cáo HR — Phase 2
             "hr:report:export", // Xuất báo cáo HR — Phase 2
-            "cms:feedback:manage", // CMS — Phase 2
+            // ⬇ WS-36/T36.8 đã GỠ `cms:feedback:manage`: `FeedbackController` (danh sách · tổng
+            //   hợp · bước chuyển · xoá) gác bằng đúng quyền ấy, VÀ năm bước chuyển của quy trình
+            //   FEEDBACK khai nó ở `workflow_transitions.required_permission`. ⛔ Đừng thêm lại cho
+            //   hết đỏ — bài `ngoaiLeQuyenPhaseSauVanConDung()` canh đúng chiều này.
             "cms:external-doc:view", // CMS — Phase 2
             "cms:external-doc:link", // CMS — Phase 2
             "cms:external-doc:manage-flag", // CMS — Phase 2

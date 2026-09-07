@@ -567,3 +567,34 @@ export function getWaterLevels(): Promise<WaterLevelRow[] | null> {
 export function getServerTime(): Promise<string | null> {
   return apiGet<string>('/now', { revalidate: 0 });
 }
+
+/**
+ * Một góp ý **đã duyệt** — CN-01.6, T36.8.
+ *
+ * ⚠ Bốn trường, và số đó là một quyết định: `email`, `moderationNote`, `publicId` và `status`
+ * **cố ý vắng mặt** ở record công khai phía backend (`PublicFeedbackView`). `FeedbackHttpTest`
+ * phản chiếu số trường của record ấy, nên thêm một trường vào đây mà backend chưa trả thì kiểu
+ * này nói dối — TypeScript ⛔ không kiểm được hình dạng JSON lúc chạy.
+ */
+export interface FeedbackRow {
+  /** `null` khi người gửi ẩn danh — nơi hiển thị nói thẳng, ⛔ không bịa một cái tên. */
+  fullName: string | null;
+  /** 1..5, `null` khi người gửi chỉ viết góp ý mà ⛔ không chấm sao. */
+  rating: number | null;
+  content: string;
+  createdAt: string;
+}
+
+/**
+ * Các góp ý **đã kiểm duyệt** để hiện trên trang `/gop-y` — CN-01.6, chốt **D1**.
+ *
+ * ⛔⛔ Trạng thái ⛔ **không** là tham số: truy vấn phía backend khai `DA_DUYET` trong chính câu
+ * JPQL, nên ⛔ không có cách nào gõ ra một lượt gọi trả về mục **chưa ai duyệt**. Đó là toàn bộ
+ * ý nghĩa của chốt D1 — ⛔ đừng thêm một tham số `status` vào hàm này.
+ *
+ * ⚠ Trả `[]` khi Công ty tắt `site.feedback.public-list.enabled`, và `null` khi backend ⛔ không
+ * trả lời. Hai trạng thái ấy khác nhau và nơi gọi phải phân biệt được (luật 9).
+ */
+export function getFeedbacks(): Promise<FeedbackRow[] | null> {
+  return apiGet<FeedbackRow[]>('/feedbacks', { tags: [CACHE_TAGS.layout] });
+}

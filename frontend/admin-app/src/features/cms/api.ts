@@ -17,6 +17,9 @@ import {
   type ContactCategoryView,
   type ContactNoteView,
   type ContactView,
+  type FeedbackStatus,
+  type FeedbackSummary,
+  type FeedbackView,
   type SiteSettingItem,
   type VersionContent,
   type VersionSummary,
@@ -62,6 +65,9 @@ export const cmsKeys = {
   menu: (position: MenuPosition) => ['cms', 'menu', position] as const,
   siteConfig: () => ['cms', 'site-config'] as const,
   contacts: (status?: string, page = 0) => ['cms', 'contacts', status ?? 'all', page] as const,
+  feedbacks: (status?: string, page = 0) => ['cms', 'feedbacks', status ?? 'all', page] as const,
+  feedbackSummary: () => ['cms', 'feedbacks', 'summary'] as const,
+  feedbackActions: (publicId: string) => ['cms', 'feedback', publicId, 'actions'] as const,
 };
 
 export interface ArticleFilter {
@@ -177,6 +183,41 @@ export const cmsApi = {
 
   deleteContactCategory(publicId: string): Promise<void> {
     return api.delete<void>(`${BASE}/contact-categories/${publicId}`);
+  },
+
+  // ═══════════════ CN-01.6 — Góp ý / đánh giá (T36.8) ═══════════════
+
+  listFeedbacks(status?: FeedbackStatus, page = 0, size = 20): Promise<PageResult<FeedbackView>> {
+    return api.getPage<FeedbackView>(`${BASE}/feedbacks`, { status, page, size });
+  },
+
+  /** Huy hiệu "chờ duyệt" trên thanh điều hướng. */
+  pendingFeedbackCount(): Promise<number> {
+    return api.get<number>(`${BASE}/feedbacks/pending-count`);
+  },
+
+  /**
+   * ⛔⛔ Số liệu tổng hợp — điểm trung bình **luôn kèm mẫu số**.
+   *
+   * ⛔ Đừng thêm một hàm chỉ lấy mỗi `diemTrungBinh`: xem javadoc của {@link FeedbackSummary}.
+   */
+  feedbackSummary(): Promise<FeedbackSummary> {
+    return api.get<FeedbackSummary>(`${BASE}/feedbacks/summary`);
+  },
+
+  feedbackActions(publicId: string): Promise<AllowedActionView[]> {
+    return api.get<AllowedActionView[]>(`${BASE}/feedbacks/${publicId}/actions`);
+  },
+
+  feedbackTransition(publicId: string, action: string, reason?: string): Promise<FeedbackView> {
+    return api.post<FeedbackView>(`${BASE}/feedbacks/${publicId}/transitions`, {
+      action,
+      reason: reason ?? null,
+    });
+  },
+
+  deleteFeedback(publicId: string): Promise<void> {
+    return api.delete<void>(`${BASE}/feedbacks/${publicId}`);
   },
 
   getArticle(publicId: string): Promise<ArticleDetail> {

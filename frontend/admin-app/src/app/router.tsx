@@ -258,6 +258,11 @@ export const router = createBrowserRouter([
             lazyPage(() => import('@/features/cms/ContactsPage'), 'ContactsPage'),
           ),
           adminRoute(
+            '/noi-dung/gop-y',
+            'cms:feedback:manage',
+            lazyPage(() => import('@/features/cms/FeedbacksPage'), 'FeedbacksPage'),
+          ),
+          adminRoute(
             '/noi-dung/danh-muc',
             'cms:category:manage',
             lazyPage(() => import('@/features/cms/CategoriesPage'), 'CategoriesPage'),

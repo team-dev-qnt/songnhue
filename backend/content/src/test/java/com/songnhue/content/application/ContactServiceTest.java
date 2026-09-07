@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import com.songnhue.content.domain.Contact;
 import com.songnhue.content.infra.ContactRepository;
 import com.songnhue.content.infra.RecaptchaClient;
+import com.songnhue.content.infra.RecaptchaProperties;
 import com.songnhue.core.common.exception.ValidationException;
 import com.songnhue.core.spi.JobPort;
 import com.songnhue.core.spi.NotificationPort;
@@ -51,11 +52,24 @@ class ContactServiceTest {
         SettingPort thamSo = mock(SettingPort.class);
         when(thamSo.getBoolean(any(), anyBoolean())).thenReturn(true);
 
-        // ⚠ `luatBieuMau` là mock TRẦN ⇒ mọi vế bắt buộc trả `false` và captcha coi như tắt. Đó là
-        //   cấu hình MẶC ĐỊNH, đúng thứ bài này muốn canh. Hai nhánh còn lại (bật bắt buộc, bật
-        //   captcha) đi qua HTTP thật ở `ContactFormPolicyHttpTest` — luật 5.
-        dichVu = new ContactService(
-                kho, thongBao, hangDoi, thamSo, mock(ContactFormPolicy.class), mock(RecaptchaClient.class));
+        // ⚠ `luatBieuMau` là mock TRẦN ⇒ mọi vế bắt buộc trả `false`. Đó là cấu hình MẶC ĐỊNH,
+        //   đúng thứ bài này muốn canh. Hai nhánh còn lại (bật bắt buộc, bật captcha) đi qua HTTP
+        //   thật ở `ContactFormPolicyHttpTest` — luật 5.
+        //
+        // ⛔⛔ `InboundSubmissionGate` là bản THẬT, ⛔ không phải mock. Bốn bảo đảm của nó (chuẩn
+        //   hoá, bắt buộc, trần độ dài, captcha) chính là thứ bài này đang canh; một mock trần trả
+        //   `null` ở `chuanHoa` và ⛔ không ném ở `batBuoc`, tức là bài kiểm sẽ kiểm chính cái mock
+        //   — đúng thứ luật 4 gọi là "mock đặt đúng chỗ mã chạm ra ngoài là chưa kiểm gì cả".
+        //
+        // ⚠ Cổng nhận một `SettingPort` RIÊNG trả về đúng giá trị fallback: dùng chung `thamSo`
+        //   (đang trả `true` cho MỌI khoá) sẽ bật công tắc captcha lên và đẩy mọi lượt gửi vào
+        //   nhánh "bật mà thiếu khoá bí mật" — xanh, nhưng xanh vì một lý do khác.
+        SettingPort thamSoCong = mock(SettingPort.class);
+        when(thamSoCong.getBoolean(any(), anyBoolean())).thenAnswer(i -> i.getArgument(1));
+        InboundSubmissionGate cong =
+                new InboundSubmissionGate(thamSoCong, mock(RecaptchaClient.class), new RecaptchaProperties());
+
+        dichVu = new ContactService(kho, thongBao, hangDoi, thamSo, mock(ContactFormPolicy.class), cong);
     }
 
     @Test

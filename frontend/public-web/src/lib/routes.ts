@@ -44,6 +44,19 @@ export const ROUTES = {
     vanHanhCongTrinh: '/quan-ly-van-hanh/van-hanh-cong-trinh',
   },
   lienHe: '/lien-he',
+
+  /**
+   * ⚠⚠ Tuyến này ⛔ **KHÔNG** nằm trong menu do Công ty cấu hình, và đó là cố ý.
+   *
+   * Cây danh mục + menu nhận qua §3 văn bản nghiệm thu (G14) ⛔ không có mục "Góp ý". Menu là
+   * **dữ liệu có CRUD** của khách (quy tắc 16) — chèn một mục bằng migration là ta tự quyết
+   * hộ họ bố cục cổng. Trang vào được từ liên kết ở `/lien-he` và từ `sitemap.xml`; chỗ đặt
+   * trong menu là câu hỏi gửi Công ty, ⛔ không phải một dòng SQL.
+   *
+   * ⚠ Chuỗi này phải khớp `PortalCache.DUONG_DAN_GOP_Y` phía backend — hai nơi nhớ cùng một
+   * đường dẫn (luật 14), và lệch một ký tự thì lượt xoá đệm sau khi duyệt trỏ vào hư không.
+   */
+  gopY: '/gop-y',
 } as const;
 
 /**

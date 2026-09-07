@@ -24,7 +24,6 @@ import com.songnhue.content.infra.ContactRepository;
 import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.BusinessRuleException;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
-import com.songnhue.core.common.exception.ValidationException;
 import com.songnhue.core.common.export.BangCsv;
 import com.songnhue.core.common.security.AuthContext;
 import com.songnhue.core.common.security.AuthenticatedUser;
@@ -50,7 +49,7 @@ import com.songnhue.core.spi.WorkflowPort;
  *   <caption>Hai nhóm phụ thuộc rời nhau</caption>
  *   <tr><th>Đường</th><th>Ai đi</th><th>Cần gì</th></tr>
  *   <tr><td>{@link ContactService}</td><td>người dân, ẩn danh, qua {@code /api/v1/public}</td>
- *       <td>luật biểu mẫu, captcha, thông báo, hàng đợi</td></tr>
+ *       <td>luật biểu mẫu, cổng gửi vào ({@link InboundSubmissionGate}), thông báo, hàng đợi</td></tr>
  *   <tr><td>lớp này</td><td>cán bộ, đã đăng nhập, qua {@code /api/v1/cms}</td>
  *       <td>quy trình duyệt, danh mục, ghi chú, sơ đồ tổ chức</td></tr>
  * </table>
@@ -96,18 +95,21 @@ public class ContactInboxService {
     private final ContactNoteRepository ghiChu;
     private final WorkflowPort workflow;
     private final OrgUnitPort orgUnits;
+    private final InboundSubmissionGate cong;
 
     public ContactInboxService(
             ContactRepository contacts,
             ContactCategoryRepository danhMuc,
             ContactNoteRepository ghiChu,
             WorkflowPort workflow,
-            OrgUnitPort orgUnits) {
+            OrgUnitPort orgUnits,
+            InboundSubmissionGate cong) {
         this.contacts = contacts;
         this.danhMuc = danhMuc;
         this.ghiChu = ghiChu;
         this.workflow = workflow;
         this.orgUnits = orgUnits;
+        this.cong = cong;
     }
 
     @Transactional(readOnly = true)
@@ -213,12 +215,12 @@ public class ContactInboxService {
     @Transactional
     public ContactNote themGhiChu(UUID publicId, String noiDung) {
         Contact c = tim(publicId);
-        String nd = ContactService.chuanHoa(noiDung);
-        ContactService.batBuoc(nd, "content");
-        if (nd.length() > DAI_TOI_DA_GHI_CHU) {
-            throw (ValidationException) new ValidationException(ErrorCode.SYS_0003)
-                    .withDetail("content", "QUA_DAI", String.valueOf(DAI_TOI_DA_GHI_CHU));
-        }
+        // ⚠ Cán bộ đã đăng nhập, ⛔ không phải người lạ — nên ⛔ KHÔNG có captcha ở đường này. Ba
+        //   bảo đảm còn lại của `InboundSubmissionGate` thì vẫn cần: ký tự điều khiển làm hỏng bản
+        //   xuất CSV và chèn được dòng giả vào nhật ký, bất kể ai gõ ra chúng.
+        String nd = cong.chuanHoa(noiDung);
+        cong.batBuoc(nd, "content");
+        cong.gioiHanDai(nd, DAI_TOI_DA_GHI_CHU, "content");
         return ghiChu.save(new ContactNote(c.getId(), nd));
     }
 

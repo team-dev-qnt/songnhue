@@ -7,9 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.songnhue.content.domain.Contact;
 import com.songnhue.content.infra.ContactRepository;
-import com.songnhue.content.infra.RecaptchaClient;
 import com.songnhue.core.common.error.ErrorCode;
-import com.songnhue.core.common.exception.BusinessRuleException;
 import com.songnhue.core.common.exception.ValidationException;
 import com.songnhue.core.spi.JobPort;
 import com.songnhue.core.spi.JobRequest;
@@ -97,7 +95,7 @@ public class ContactService {
     private final JobPort jobs;
     private final SettingPort settings;
     private final ContactFormPolicy luatBieuMau;
-    private final RecaptchaClient captcha;
+    private final InboundSubmissionGate cong;
 
     public ContactService(
             ContactRepository contacts,
@@ -105,13 +103,13 @@ public class ContactService {
             JobPort jobs,
             SettingPort settings,
             ContactFormPolicy luatBieuMau,
-            RecaptchaClient captcha) {
+            InboundSubmissionGate cong) {
         this.contacts = contacts;
         this.notifications = notifications;
         this.jobs = jobs;
         this.settings = settings;
         this.luatBieuMau = luatBieuMau;
-        this.captcha = captcha;
+        this.cong = cong;
     }
 
     /**
@@ -122,15 +120,15 @@ public class ContactService {
     @Transactional
     public Contact tiepNhan(
             String hoTen, String email, String dienThoai, String chuDe, String noiDung, String maCaptcha) {
-        String ten = chuanHoa(hoTen);
-        String mail = chuanHoa(email);
-        String dt = chuanHoa(dienThoai);
-        String cd = chuanHoa(chuDe);
-        String nd = chuanHoa(noiDung);
+        String ten = cong.chuanHoa(hoTen);
+        String mail = cong.chuanHoa(email);
+        String dt = cong.chuanHoa(dienThoai);
+        String cd = cong.chuanHoa(chuDe);
+        String nd = cong.chuanHoa(noiDung);
 
-        batBuoc(ten, "fullName");
-        batBuoc(cd, "subject");
-        batBuoc(nd, "content");
+        cong.batBuoc(ten, "fullName");
+        cong.batBuoc(cd, "subject");
+        cong.batBuoc(nd, "content");
 
         // --- T36.7: trường bắt buộc theo CẤU HÌNH -----------------------------
         //
@@ -151,10 +149,7 @@ public class ContactService {
                     new ValidationException(ErrorCode.SYS_0003).withDetail("email", "LIEN_LAC_BAT_BUOC", "");
         }
 
-        if (nd.length() > DAI_TOI_DA_NOI_DUNG) {
-            throw (ValidationException) new ValidationException(ErrorCode.SYS_0003)
-                    .withDetail("content", "QUA_DAI", String.valueOf(DAI_TOI_DA_NOI_DUNG));
-        }
+        cong.gioiHanDai(nd, DAI_TOI_DA_NOI_DUNG, "content");
 
         // --- T36.6: reCAPTCHA, và nó đứng CUỐI có chủ đích ---------------------
         //
@@ -162,11 +157,9 @@ public class ContactService {
         //   thiếu là chuyện thường xuyên hơn nhiều so với bot. Đặt ở đây thì lượt gọi ấy chỉ xảy ra
         //   với những gì đã hợp lệ về mặt dữ liệu.
         //
-        // ⛔ `captchaBatBuoc()` trả `false` ở CẢ HAI trạng thái "chưa bật" và "bật mà thiếu khoá
-        //   bí mật" — nhưng chỉ trạng thái thứ hai ghi ERROR. Xem `ContactFormPolicy`.
-        if (luatBieuMau.captchaBatBuoc() && !captcha.hopLe(maCaptcha, luatBieuMau.diemToiThieuPhanTram())) {
-            throw new BusinessRuleException(ErrorCode.CMS_2021);
-        }
+        // ⛔ `InboundSubmissionGate.captchaBatBuoc()` trả `false` ở CẢ HAI trạng thái "chưa bật" và
+        //   "bật mà thiếu khoá bí mật" — nhưng chỉ trạng thái thứ hai ghi ERROR.
+        cong.kiemNguoiThat(maCaptcha);
 
         Contact daLuu = contacts.save(new Contact(ten, mail, dt, cd, nd));
         baoCoLienHeMoi(daLuu);
@@ -216,17 +209,5 @@ public class ContactService {
                 // ⚠ Khoá chống trùng theo chính bản ghi: một lượt gửi biểu mẫu ⇒ tối đa một thư.
                 CmsJobTypes.CONTACT_ACK_MAIL + ":" + c.getPublicId(),
                 (short) 3));
-    }
-
-    static String chuanHoa(String s) {
-        if (s == null) return null;
-        String sach = s.replaceAll("[\\p{Cntrl}&&[^\n\t]]", "").trim();
-        return sach.isEmpty() ? null : sach;
-    }
-
-    static void batBuoc(String giaTri, String truong) {
-        if (giaTri == null) {
-            throw (ValidationException) new ValidationException(ErrorCode.SYS_0003).withDetail(truong, "BAT_BUOC", "");
-        }
     }
 }

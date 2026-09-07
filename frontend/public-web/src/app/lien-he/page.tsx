@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 
 import { ContactForm } from '@/components/ContactForm';
 import { EmptyBlock } from '@/components/home/EmptyBlock';
@@ -300,6 +301,18 @@ export default async function LienHePage() {
             }}
           />
         </div>
+
+        {/* ⭐ Lối vào DUY NHẤT của `/gop-y` ngoài `sitemap.xml` — trang ấy ⛔ không nằm trong menu
+            do Công ty cấu hình (menu là dữ liệu có CRUD của khách, quy tắc 16). Bỏ liên kết này
+            là để một trang đã dựng xong ⛔ không ai tìm ra. */}
+        <p className="mt-4 border-t border-surface-border pt-4 text-xs leading-relaxed text-surface-textSecondary">
+          Biểu mẫu trên dành cho phản ánh, kiến nghị cần Công ty trả lời. Nếu bạn muốn{' '}
+          <b>đánh giá mức độ hài lòng</b> hoặc góp ý về cổng thông tin, mời dùng trang{' '}
+          <Link href={ROUTES.gopY} className="font-semibold text-brand-primary hover:underline">
+            Góp ý &amp; đánh giá
+          </Link>
+          .
+        </p>
       </section>
     </PageShell>
   );

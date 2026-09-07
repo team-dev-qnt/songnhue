@@ -124,12 +124,13 @@ class ContactFormPolicyHttpTest extends IntegrationTestBase {
     // ═══════════════ T36.6 — chỗ cắm reCAPTCHA ═══════════════
     //
     // ⚠⚠ Nhánh "bật captcha mà thiếu khoá bí mật" ⛔ KHÔNG kiểm được ở tầng này nữa, và đó là hệ
-    //    quả CÓ CHỦ ĐÍCH của một lượt sửa: ba khoá `site.contact.recaptcha.*` đã bị GỠ khỏi
+    //    quả CÓ CHỦ ĐÍCH của một lượt sửa: bộ khoá `site.recaptcha.*` (trước là
+    //    `site.contact.recaptcha.*`) đã bị GỠ khỏi
     //    migration (`PortalSettingsReadTest` đỏ đúng — ⛔ không dòng mã nào của cổng đọc chúng).
     //    Bật công tắc ấy bằng `UPDATE settings` nay tác động 0 hàng, nên một bài kiểm HTTP sẽ
     //    XANH vì captcha đang tắt — tức là xanh vì một lý do KHÁC với lý do nó khẳng định.
     //
-    // ⇒ Nhánh ấy chuyển sang `ContactFormPolicyTest` (unit, mock `SettingPort`), nơi nó là logic
+    // ⇒ Nhánh ấy chuyển sang `InboundSubmissionGateTest` (unit, mock `SettingPort`), nơi nó là logic
     //   thuần và kiểm được đúng cái nó nói. ⛔ Giữ lại ở đây là giữ một bài kiểm nói dối.
 
     /**

@@ -81,27 +81,42 @@ class RecaptchaKhoaBiMatTest {
     }
 
     /**
-     * ⭐ Và tệp T36.6 ⛔ <b>không seed một khoá reCAPTCHA nào</b>, kể cả khoá công khai.
+     * ⭐ Và ⛔ <b>không migration nào seed một khoá reCAPTCHA</b>, kể cả khoá công khai.
      *
-     * <p>Bản đầu seed cả ba, và {@code PortalSettingsReadTest.moiKhoaDeuCoNguoiDoc} đỏ ngay lượt
-     * chạy đầu — đỏ đúng: ⛔ không dòng mã nào của <b>cổng</b> đọc chúng, vì phần giao diện
-     * reCAPTCHA chưa dựng (G13 chặn). Quy tắc 15: <i>viết dòng mã đọc nó, hoặc đừng seed nó</i>.
+     * <p>Bản đầu của T36.6 seed cả ba, và {@code PortalSettingsReadTest.moiKhoaDeuCoNguoiDoc} đỏ
+     * ngay lượt chạy đầu — đỏ đúng: ⛔ không dòng mã nào của <b>cổng</b> đọc chúng, vì phần giao
+     * diện reCAPTCHA chưa dựng (G13 chặn). Quy tắc 15: <i>viết dòng mã đọc nó, hoặc đừng seed
+     * nó</i>.
+     *
+     * <p>⚠⚠ <b>Bài này soi CẢ THƯ MỤC, ⛔ không riêng tệp T36.6</b> — bản trước chỉ soi một tệp và
+     * đó là đúng hình dạng luật 28 (một bộ canh hẹp hơn nơi nó phải chặn): khoá mới sẽ được thêm
+     * bởi một tệp <b>khác</b>, và một tệp khác thì bản cũ ⛔ không nhìn thấy.
+     *
+     * <p>⚠ Tiền tố kiểm là {@code site.recaptcha} <b>lẫn</b> {@code site.contact.recaptcha} — khoá
+     * đã đổi tên ở T36.9 khi captcha chuyển sang {@code InboundSubmissionGate}, và một bộ canh chỉ
+     * biết tên cũ sẽ xanh trong khi tên mới được seed thoải mái.
      */
     @Test
-    @DisplayName("⛔ Tệp T36.6 ⛔ không seed khoá reCAPTCHA nào — chỗ cắm sống trong MÃ")
-    void tepT366KhongSeedKhoaNao() {
-        String sql = doc(MIGRATION);
+    @DisplayName("⛔ ⛔ Không migration nào seed khoá reCAPTCHA — chỗ cắm sống trong MÃ")
+    void khongMigrationNaoSeedKhoaReCaptcha() {
+        List<Path> tep = migrationCms();
+        assertThat(tep).as("⚠ vế chống tập rỗng (luật 7)").hasSizeGreaterThan(10);
 
         // Đối chứng phải-tìm-thấy: ⛔ không có nó thì một tệp bị đổi tên làm bài này xanh vô nghĩa.
-        assertThat(sql)
+        assertThat(doc(MIGRATION))
                 .as("⛔ Bộ canh đang soi một tệp ⛔ không còn seed bộ khoá biểu mẫu liên hệ")
                 .contains("site.contact.field.phone.enabled");
 
-        assertThat(sql.toLowerCase())
-                .as("⛔ Khoá VẮNG chính là \"tắt\": `ContactFormPolicy` đọc bằng "
-                        + "`getBoolean(..., false)`. Ngày G13 về thì thêm cả ba khoá CÙNG LÚC với "
-                        + "đoạn mã cổng đọc chúng — ⛔ không phải trước.")
-                .doesNotContain("'site.contact.recaptcha");
+        for (Path t : tep) {
+            assertThat(docTep(t).toLowerCase())
+                    .as(
+                            "⛔ `%s`: khoá VẮNG chính là \"tắt\" — `InboundSubmissionGate` đọc bằng "
+                                    + "`getBoolean(..., false)`. Ngày G13 về thì thêm khoá CÙNG LÚC với "
+                                    + "đoạn mã cổng đọc chúng — ⛔ không phải trước.",
+                            t.getFileName())
+                    .doesNotContain("'site.recaptcha")
+                    .doesNotContain("'site.contact.recaptcha");
+        }
     }
 
     @Test
