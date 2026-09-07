@@ -6,8 +6,7 @@
 #
 #    Đo ngày 08/09/2026 trên VPS-1 production, chạy ĐÚNG dòng cron đang cài:
 #
-#      $ docker compose --env-file .env -f compose.prod.yml --profile certbot \
-#            run --rm certbot renew --webroot -w /var/www/certbot --dry-run
+#      $ docker compose --env-file .env -f compose.prod.yml --profile certbot run --rm certbot renew --webroot -w /var/www/certbot --dry-run
 #      error while interpolating services.app.image: required variable APP_IMAGE
 #            is missing a value: Thiếu APP_IMAGE - workflow deploy phải export biến này
 #      MÃ THOÁT = 1

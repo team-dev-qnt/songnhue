@@ -234,3 +234,51 @@ Nghiệm thu: chạy **đúng dòng cron**, thoát 0, log ghi được, nginx n�
   nói rõ nhật ký trước 08/09/2026 mô tả thao tác trong giai đoạn dựng hệ.
 - ⬜ Tệp `quy-hoach-HN251109-1.webp` người dùng tải lên lúc verify: hàng CSDL bị ghi đè mất,
   **byte vẫn nằm trong MinIO** (~94 KB) và không ai trỏ tới. Kho không có job dọn rác object.
+
+---
+
+## Phần F — Lệnh chạy tay có ảnh hưởng tới CI/CD sau không?
+
+Có, và theo đúng kiểu nguy hiểm nhất: **im lặng**.
+
+CD chạy `rsync -az --delete deploy/ → /opt/songnhue/`, chỉ loại trừ `.env`, `env/`,
+`keys/`, `compose.local.yml`, `compose.infra.yml`. **Mọi tệp khác trên máy chủ mà nhánh
+đang triển khai không có đều bị xoá.**
+
+Đo bằng thử khô đúng lệnh ấy (08/09), sau khi đặt tay các script vào máy chủ:
+
+```
+*deleting gia-han-tls.sh
+*deleting .env.truoc-doi-ten-mien-20260908
+*deleting backup/khoi-phuc-qua-container.sh
+*deleting backup/chay-di-tru.sh
+```
+
+`gia-han-tls.sh` là script mà cron gia hạn TLS gọi. Xoá nó đi thì cron chạy vào một tệp
+không tồn tại, ghi một dòng lỗi vào log không ai đọc, và chứng chỉ chết vào 06/12.
+
+⇒ **Luật rút ra: mọi tệp đặt tay vào `/opt/songnhue` phải vào kho trước khi lượt CD kế
+tiếp chạy**, hoặc phải nằm ngoài đường rsync (ví dụ `/var/lib/songnhue/`). Không có cơ chế
+nào báo sự vắng mặt của một tệp — cùng họ luật 31.
+
+### Những thứ CD **không** đụng tới
+
+| | |
+|---|---|
+| `.env` | trong danh sách loại trừ — lượt đổi tên miền an toàn |
+| `/var/lib/songnhue/backup` | bind mount, ngoài đường rsync |
+| crontab, quyền `/var/log/songnhue`, chứng chỉ Let's Encrypt | không nằm trong `deploy/` |
+| dữ liệu MinIO, volume postgres | volume docker |
+| các câu `REVOKE` siết quyền append-only | đã ghi vào CSDL; `V202608131006` đã áp nên Flyway không chạy lại ⇒ không bị đảo ngược |
+
+### Đã dọn sau lượt di trú
+
+- Xoá 4 tệp trung gian (4 MB mỗi tệp) chứa `password_hash` + `secret_encrypted` dạng
+  **thuần**, quyền `644`/`664`. Đây là lỗi tự tạo; nay `khoi-phuc-qua-container.sh` và
+  `chay-di-tru.sh` đặt `umask 077` và dọn bằng `trap`.
+- Chuyển bản lùi `.env` sang `/var/lib/songnhue/backup/env-truoc-doi-ten-mien-20260908.bak`
+  (`600`) — vừa để `rsync --delete` không xoá, vừa để không nằm ở thư mục người khác liệt kê được.
+- Bỏ CSDL nháp `songnhue_thu` (33 MB).
+
+⬜ **Còn nợ**: các tệp `*.dump` trong thư mục sao lưu vẫn là `644` — mỗi tệp là toàn bộ
+CSDL. Đây là hành vi sẵn có của `pre-deploy-dump.sh`, không phải do lượt này. Xem T11.96.

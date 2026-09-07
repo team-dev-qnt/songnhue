@@ -13,17 +13,23 @@
 #     cd /opt/songnhue && ./backup/chay-di-tru.sh
 #
 #   Quay lui (nếu cần), cũng trên VPS-1:
-#     XAC_NHAN=songnhue ENV_FILE=/opt/songnhue/.env \
-#       ./backup/khoi-phuc-qua-container.sh \
-#       /var/lib/songnhue/backup/predeploy-songnhue-20260907-232828.dump
+#     XAC_NHAN=songnhue ENV_FILE=/opt/songnhue/.env ./backup/khoi-phuc-qua-container.sh /var/lib/songnhue/backup/predeploy-songnhue-20260907-232828.dump
 # =============================================================================
 set -euo pipefail
+
+# ⛔ Tệp SQL sinh ra ở các bước dưới mang TOÀN BỘ CSDL dạng THUẦN — gồm
+#    `users.password_hash` và `user_totp.secret_encrypted`. Với umask mặc định
+#    chúng ra `644`/`664`, tức MỌI user trên máy đọc được. Đo ngày 08/09/2026 sau
+#    lượt di trú: bốn tệp trung gian 4 MB nằm ở `/var/lib/songnhue/backup` với
+#    quyền 644, chứa 4 lần `password_hash` mỗi tệp.
+umask 077
 
 B="${BACKUP_DIR:-/var/lib/songnhue/backup}"
 DUMP="${1:-$B/di-tru-staging-20260907-2330.dump}"
 DANH_TINH="${DANH_TINH:-$B/danh-tinh-prod-20260907.sql}"
 KHOI_VA="${KHOI_VA:-$B/sau-khoi-phuc-production.sql}"
 GHEP="$B/.khoi-va.sql"
+trap 'rm -f "$GHEP"' EXIT   # tệp ghép chứa hash mật khẩu + bí mật TOTP; đừng để lại
 
 for f in "$DUMP" "$DANH_TINH" "$KHOI_VA"; do
     [ -r "$f" ] || { echo "✗ Không đọc được $f" >&2; exit 1; }

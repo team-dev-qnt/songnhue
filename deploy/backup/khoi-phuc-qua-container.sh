@@ -38,8 +38,13 @@
 #      ⑧ nghiệm thu bằng VAI TRÒ CỦA ỨNG DỤNG, không bằng chủ sở hữu
 #
 #   Dùng:
-#     ENV_FILE=/opt/songnhue/.env XAC_NHAN=songnhue \
-#       /opt/songnhue/backup/khoi-phuc-qua-container.sh <đường-dẫn-dump> [--sau <tệp.sql>]
+#     ENV_FILE=/opt/songnhue/.env XAC_NHAN=songnhue /opt/songnhue/backup/khoi-phuc-qua-container.sh <đường-dẫn-dump> [--sau <tệp.sql>]
+#
+#   ⚠ Ví dụ trên viết MỘT dòng dù dài: `BackupRestoreFlagsTest.khongChuThichGiuaLenhNoiDong`
+#     cấm mọi dòng kết thúc bằng `\` mà dòng sau bắt đầu bằng `#` — kể cả khi cả hai đều
+#     là chú thích (vô hại trong bash). Bộ canh bắt theo HÌNH DẠNG, và nới nó ra để cho
+#     đẹp một dòng ví dụ là đánh đổi sai: nó tồn tại vì T11.43, nơi `bash -n` xanh trong
+#     khi lệnh đã bị cắt làm đôi.
 #
 #   ⚠ XAC_NHAN thay cho câu hỏi tương tác của `restore.sh`. Không phải để cho tiện:
 #     `read` trên một phiên ssh không cấp tty nhận EOF và script tự huỷ — tức
@@ -47,6 +52,13 @@
 #     tên CSDL vẫn giữ nguyên tính chất "phải đọc dòng phía trên mới gõ được".
 # =============================================================================
 set -euo pipefail
+
+# ⛔ Tệp SQL sinh ra ở các bước dưới mang TOÀN BỘ CSDL dạng THUẦN — gồm
+#    `users.password_hash` và `user_totp.secret_encrypted`. Với umask mặc định
+#    chúng ra `644`/`664`, tức MỌI user trên máy đọc được. Đo ngày 08/09/2026 sau
+#    lượt di trú: bốn tệp trung gian 4 MB nằm ở `/var/lib/songnhue/backup` với
+#    quyền 644, chứa 4 lần `password_hash` mỗi tệp.
+umask 077
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPLOY_DIR="$(dirname "$SCRIPT_DIR")"
