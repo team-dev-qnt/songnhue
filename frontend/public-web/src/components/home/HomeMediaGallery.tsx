@@ -1,4 +1,6 @@
 import { PortalImage } from '@/components/PortalImage';
+import { type HieuUngSlider } from '@/lib/slider';
+
 import { AnhCarousel } from './AnhCarousel';
 import { EmptyBlock } from './EmptyBlock';
 import { SectionTitle } from './SectionTitle';
@@ -19,6 +21,8 @@ interface HomeMediaGalleryProps {
    */
   intervalSeconds: number;
   autoplay: boolean;
+  /** Hiệu ứng chuyển ảnh — `site.slider.effect`, T36.11. ⚠ CÙNG khoá với slider banner. */
+  hieuUng: HieuUngSlider;
   showArrows: boolean;
   showDots: boolean;
 }
@@ -73,6 +77,7 @@ export function HomeMediaGallery({
   photos = [],
   intervalSeconds,
   autoplay,
+  hieuUng,
   showArrows,
   showDots,
 }: HomeMediaGalleryProps) {
@@ -144,6 +149,7 @@ export function HomeMediaGallery({
               }))}
               intervalSeconds={intervalSeconds}
               autoplay={autoplay}
+              hieuUng={hieuUng}
               showArrows={showArrows}
               showDots={showDots}
               nhan="Ảnh thư viện của Công ty"

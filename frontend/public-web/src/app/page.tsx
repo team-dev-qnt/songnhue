@@ -23,6 +23,7 @@ import { chonKhoiChuyenMuc, nhanNhanhTin } from '@/lib/homeCategories';
 import { khoiVanHanhBat } from '@/lib/khoiVanHanh';
 import { fileUrl, buildMenuTree } from '@/lib/routes';
 import { docBool, docSo } from '@/lib/settings';
+import { docHieuUngSlider } from '@/lib/slider';
 
 /**
  * Trang chủ Cổng TTĐT Thủy lợi Sông Nhuệ — bố cục dựng lại 29/08/2026.
@@ -135,6 +136,9 @@ export default async function HomePage() {
   //   là lưới an toàn khi CSDL chưa có khoá, không phải nơi chốt giá trị.
   const soAnhSlider = docSo(config?.['site.slider.max-items'], 20);
   const nhipSlider = docSo(config?.['site.slider.interval-seconds'], 5);
+  // T36.11 — ⛔ Mặc định `FADE`: đó là hành vi ĐANG CHẠY từ WS-16. Mặc định `SLIDE` là đổi
+  //   diện mạo trang chủ bằng một lượt deploy mà ⛔ không ai bấm gì.
+  const hieuUngSlider = docHieuUngSlider(config?.['site.slider.effect']);
   const soBaiTinTuc = docSo(config?.['site.home.news-count'], 5);
   const nhipLamMoi = docSo(config?.['site.home.realtime.refresh-seconds'], 300);
   const soVanBan = docSo(config?.['site.home.documents-count'], 6);
@@ -236,6 +240,7 @@ export default async function HomePage() {
               autoplay={docBool(config?.['site.slider.autoplay'], true)}
               showArrows={docBool(config?.['site.slider.show-arrows'], true)}
               showDots={docBool(config?.['site.slider.show-dots'], true)}
+              hieuUng={hieuUngSlider}
             />
           </div>
           {tieuDeTin ? (
@@ -338,6 +343,7 @@ export default async function HomePage() {
         autoplay={docBool(config?.['site.slider.autoplay'], true)}
         showArrows={docBool(config?.['site.slider.show-arrows'], true)}
         showDots={docBool(config?.['site.slider.show-dots'], true)}
+        hieuUng={hieuUngSlider}
       />
       <CategoryServicesGrid menuTree={menuTree} />
     </div>
