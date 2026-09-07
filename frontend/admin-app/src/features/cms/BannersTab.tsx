@@ -52,11 +52,11 @@ export function BannersTab() {
   const { hasPermission } = useAuth();
 
   /**
-   * ⭐ **T27.28 — lệch tầng 1 ↔ tầng 3**, vá 04/09/2026.
+   * ⭐ **T27.28 — lệch tầng 1 ↔ tầng 3**, vá 04/09/2026, **nới đủ phạm vi 07/09/2026**.
    *
-   * Tuyến `/noi-dung/giao-dien` gác bằng `cms:layout:manage`, còn **cả bảy** endpoint ghi của
-   * `BannerController` đòi `cms:banner:manage`. Tab này có **0** lời gọi `hasPermission`, nên
-   * ⛔ không có gì đứng giữa hai mã quyền ấy.
+   * Tuyến `/noi-dung/giao-dien` gác bằng `cms:layout:manage`, còn `BannerController` đòi
+   * `cms:banner:manage`. Tab này có **0** lời gọi `hasPermission`, nên ⛔ không có gì đứng giữa
+   * hai mã quyền ấy.
    *
    * ⚠ **Hôm nay vô hại, và đó chính là lý do phải vá bây giờ**: đo trên ma trận seed 04/09, cả
    * hai mã thuộc **đúng một vai trò** (CONTENT_MANAGER), nên ⛔ chưa ai gặp. Ngày Công ty tách
@@ -64,6 +64,18 @@ export function BannersTab() {
    * Sửa · Xoá · đổi thứ tự, bấm cái nào cũng **403**, và ⛔ không màn hình nào giải thích được.
    *
    * ⛔ Đây là loại nợ ⛔ không có triệu chứng cho tới đúng ngày nó đắt nhất.
+   *
+   * <h3>⚠⚠ Bản vá 04/09 canh 5 nút, bỏ sót 2 đường ĐỌC — sửa 07/09</h3>
+   *
+   * Javadoc cũ ở đây viết *"cả **bảy** endpoint **ghi**"*. Đo lại `BannerController`: đúng là bảy
+   * endpoint và cả bảy đòi `cms:banner:manage`, nhưng **hai trong số đó là `@GetMapping`** —
+   * `GET /cms/banners` (dòng 100) và `GET /{publicId}/image-url` (dòng 139). Nên bản vá canh đúng
+   * năm nút mà **lượt tải trang vẫn bắn `GET`** ⇒ người có `cms:layout:manage` mà thiếu
+   * `cms:banner:manage` nhận **403 câm**, và thấy một bảng rỗng ⛔ không giải thích gì.
+   *
+   * ⇒ `enabled: coQuyenGhi` dưới đây là **nửa còn thiếu**: ⛔ không hỏi thì ⛔ không có 403, và ô
+   * rỗng nói ra **lý do** thay vì im lặng. Đếm sai đơn vị *(“bảy endpoint ghi” khi có hai đường
+   * đọc)* là cách một bản vá cẩn thận vẫn để hở đúng nửa nó không đếm — luật 27.
    */
   const coQuyenGhi = hasPermission('cms:banner:manage');
   const { message } = App.useApp();
@@ -71,7 +83,13 @@ export function BannersTab() {
   const [form] = Form.useForm();
   const [editing, setEditing] = useState<BannerView | null>(null);
 
-  const banners = useQuery({ queryKey: cmsKeys.banners(), queryFn: () => cmsApi.banners() });
+  // ⛔ `enabled` chứ không phải một nhánh `if` ở chỗ vẽ: thiếu quyền thì lượt gọi ⛔ KHÔNG được
+  //    xảy ra. Vẽ có điều kiện mà vẫn hỏi thì 403 vẫn bắn, chỉ là không ai thấy nó.
+  const banners = useQuery({
+    queryKey: cmsKeys.banners(),
+    queryFn: () => cmsApi.banners(),
+    enabled: coQuyenGhi,
+  });
   const invalidate = () => queryClient.invalidateQueries({ queryKey: cmsKeys.banners() });
   const baoLoi = (caught: unknown, fallback: string) =>
     message.error(caught instanceof ApiClientError ? caught.message : fallback);
@@ -131,6 +149,19 @@ export function BannersTab() {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
+      {/*
+        ⛔ Ô rỗng phải NÓI RA LÝ DO. Không có khối này thì người thiếu `cms:banner:manage` thấy một
+        danh sách rỗng và đọc nó thành "Công ty chưa đặt banner nào" — một khẳng định về DỮ LIỆU,
+        trong khi sự thật là một khẳng định về QUYỀN. Luật 16: số 0 là một câu khẳng định.
+      */}
+      {!coQuyenGhi && (
+        <Alert
+          type="info"
+          showIcon
+          message="Bạn chỉ có quyền xem trang Giao diện"
+          description={`${LY_DO_THIEU_QUYEN}. Danh sách banner vì thế không được tải — đây là giới hạn quyền, không phải "chưa có banner nào".`}
+        />
+      )}
       <Space>
         <Upload
           showUploadList={false}
@@ -158,7 +189,11 @@ export function BannersTab() {
       <List<BannerView>
         loading={banners.isLoading}
         dataSource={list}
-        locale={{ emptyText: 'Chưa có banner nào — trang chủ sẽ không hiện khối ảnh lớn' }}
+        locale={{
+          emptyText: coQuyenGhi
+            ? 'Chưa có banner nào — trang chủ sẽ không hiện khối ảnh lớn'
+            : 'Không tải được danh sách vì thiếu quyền — xem thông báo phía trên',
+        }}
         renderItem={(banner, index) => (
           <List.Item
             actions={[

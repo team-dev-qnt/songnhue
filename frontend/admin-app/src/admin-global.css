@@ -40,8 +40,8 @@ html {
 
 /* ───── Selection ───── */
 ::selection {
-  background: #e6f4ff; /* brandColors.primaryLight */
-  color: #0958d9; /* brandColors.primary */
+  background: #c8def7; /* brandColors.primaryLight */
+  color: #165bb6; /* brandColors.primary */
 }
 
 /* ───── Scrollbar — mỏng, nhẹ, không chiếm chỗ ───── */
@@ -60,13 +60,13 @@ html {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #8c8c8c;
+  background: #8c8c8c; /* neutralColors.borderStrong */
 }
 
 /* Firefox */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #d9d9d9 transparent;
+  scrollbar-color: #d9d9d9 transparent; /* neutralColors.border */
 }
 
 /* ───── Card micro-animation ───── */
@@ -160,7 +160,7 @@ html {
   .ant-layout-content {
     margin: 0 !important;
     padding: 0 !important;
-    background: #fff !important;
+    background: #ffffff !important; /* neutralColors.bgContainer */
   }
 
   /* ⭐ Bảng phải in HẾT hàng. `scroll={{ y }}` dựng một khung cuộn trong trang — trên giấy nó
@@ -195,6 +195,6 @@ html {
   .sn-o-rong::after {
     content: ' (' attr(data-ly-do) ')';
     font-size: 0.85em;
-    color: #555;
+    color: #595959; /* neutralColors.textSecondary */
   }
 }

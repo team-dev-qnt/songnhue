@@ -119,8 +119,18 @@ public class PublicConstructionController {
      * đường ấy cho hai cột này, nên nó sẽ trả <b>404 câm</b> ngay lượt đầu có dữ liệu thật. Xem
      * {@link PublicConstructionCatalogService#publishedDocument}.
      *
-     * <p>Trả thẳng {@code ResponseEntity<byte[]>} nên không bị bọc envelope — đây là byte của một
-     * tệp, không phải tài nguyên JSON (§10.52).
+     * <p>Trả thẳng {@code ResponseEntity<StreamingResponseBody>} nên không bị bọc envelope — đây là
+     * byte của một tệp, không phải tài nguyên JSON (§10.52).
+     *
+     * <p>⭐ <b>Luồng, ⛔ không phải {@code byte[]}</b> (T28.35): đây là đường <b>không đăng nhập</b>
+     * với trần tệp 50MB, nên {@code byte[]} nghĩa là một khách vô danh giữ trọn tệp trong heap —
+     * heap của node này là <b>1.076 GB</b> và nó chạy kèm {@code -XX:+ExitOnOutOfMemoryError}, tức
+     * vài lượt tải song song là container chết chứ ⛔ không phải chậm đi.
+     *
+     * <p>⚠⚠ Câu ở đây trước 07/09/2026 ghi {@code ResponseEntity<byte[]>} trong khi chữ ký ngay
+     * dưới đã là {@code StreamingResponseBody} từ lượt vá T28.35 — chú thích **nói sai về đoạn mã
+     * cách nó bốn dòng**. §10.69: thứ khó thấy nhất ⛔ không phải một dòng không ai đọc, mà là một
+     * dòng người ta đọc và tin.
      *
      * <p>{@code attachment} chứ không phải {@code inline}: ô chọn tệp ở màn hình quản trị hứa
      * <i>"liên kết tải về"</i>, và đây là văn bản quy trình chứ không phải ảnh minh hoạ.
