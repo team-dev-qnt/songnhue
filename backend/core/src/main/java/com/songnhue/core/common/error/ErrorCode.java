@@ -161,6 +161,18 @@ public enum ErrorCode {
      * (khuôn {@code useXuatBaoCao}) khi khối lượng thật sự tới ngưỡng ấy.
      */
     CMS_2022("CMS-2022", HttpStatus.UNPROCESSABLE_ENTITY),
+    /**
+     * Nội dung bài viết <b>rỗng trên thực tế</b> — T41.21.
+     *
+     * <p>⚠ {@code @NotBlank} trên trường {@code content} <b>không bắt được</b> chuyện này, và đó là
+     * lý do mã này phải tồn tại: một trình soạn thảo trống ⛔ không gửi lên chuỗi rỗng — nó gửi
+     * {@code <p></p>}, một chuỗi 7 ký tự đi lọt mọi ràng buộc độ dài. Bài được lưu, quy trình duyệt
+     * chạy bình thường, và cổng công khai đăng một trang trắng mang tiêu đề.
+     *
+     * <p>Phép đo là <i>có chữ hoặc có khối nội dung</i>, ⛔ không phải <i>chuỗi khác rỗng</i>: một
+     * bài chỉ gồm ảnh, một bảng số liệu hay một video nhúng là bài hợp lệ.
+     */
+    CMS_2023("CMS-2023", HttpStatus.UNPROCESSABLE_ENTITY),
     CMS_5001("CMS-5001", HttpStatus.BAD_GATEWAY),
 
     // ---- MOD-02 Vận hành công trình --------------------------------------------

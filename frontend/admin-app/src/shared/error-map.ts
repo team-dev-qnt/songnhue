@@ -263,6 +263,13 @@ export const ERROR_CATALOG = {
     handling: 'toast',
     severity: 'warning',
   },
+  'CMS-2023': {
+    // ⚠ Chốt chặn ở backend là lưới cuối. Người dùng thật gặp luật ở tầng biểu mẫu trước
+    //   (`Form.Item name="content"`), nên câu này chỉ hiện khi có ai gọi API ngoài màn hình soạn bài.
+    message: 'Nội dung bài viết đang trống — nhập nội dung trước khi lưu',
+    handling: 'toast',
+    severity: 'warning',
+  },
   'CMS-5001': {
     message: 'Không đăng nhập được sang hệ thống văn bản điều hành',
     handling: 'toast',
