@@ -95,6 +95,23 @@ const CHUYEN_MUC = 'section[aria-label="Tin theo chuyên mục"]';
 const KHUNG_VIDEO = '[data-khung-video]';
 const KHUNG_ANH_NHOM5 = 'section[aria-label="Ảnh thư viện của Công ty"] [data-khung-anh]';
 
+/**
+ * ⛔⛔ PHẠM VI CỦA BỘ ĐO NÀY — đọc trước khi tin vào màu xanh của nó (luật 28)
+ *
+ * Hai giới hạn, và ngày 7/9/2026 cả hai cùng có hiệu lực nên một lỗi đè thật đi thẳng lên
+ * production:
+ *
+ *   1. Bộ Playwright **không nằm trong CI** (nợ T38.10) — `grep playwright .github/workflows/`
+ *      trả về 0 dòng. Mọi bài ở đây là bài phải có người nhớ chạy tay.
+ *   2. Bài TIỀN ĐỀ ngay dưới đòi `soBai >= 8`. Nó đúng theo luật 7 — cột tin ít bài thì không đủ
+ *      cao để tràn, và phép đo chồng lấn sẽ xanh vì không có gì để chồng. Nhưng hệ quả là cả bộ
+ *      đo **chỉ chạy trên site CÓ dữ liệu**, trong khi lỗi 7/9 chỉ xuất hiện khi bảng `banners`
+ *      RỖNG: slider mất khung `aspect-[16/9]`, hàng lưới co còn ~90px, thẻ tin bị `inset-0` ép
+ *      xuống rồi vẽ đè lên khối dưới. Trạng thái làm lộ lỗi chính là trạng thái bộ đo từ chối.
+ *
+ * ⇒ Trạng thái RỖNG nay do `src/lib/boCucNhom1.test.ts` canh — chạy được trong CI vì phép quyết
+ *   định đã tách khỏi React. Bộ đo này giữ phần nó làm được: đo pixel thật trên site có dữ liệu.
+ */
 test.describe('Trang chủ — bố cục đo trên trình duyệt thật', () => {
   test('⛔ TIỀN ĐỀ: trang phải có đủ nội dung, nếu không mọi phép đo dưới đây đo tập rỗng', async ({
     page,

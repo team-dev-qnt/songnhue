@@ -8,6 +8,7 @@ import { HomeNewsColumn } from '@/components/home/HomeNewsColumn';
 import { OperationsBlock } from '@/components/home/OperationsBlock';
 import { PublishedDocumentsSection } from '@/components/home/PublishedDocumentsSection';
 import { WaterLevelBlock } from '@/components/home/WaterLevelBlock';
+import { lopCotTin } from '@/lib/boCucNhom1';
 import {
   getArticles,
   getBanners,
@@ -140,6 +141,11 @@ export default async function HomePage() {
   //   diện mạo trang chủ bằng một lượt deploy mà ⛔ không ai bấm gì.
   const hieuUngSlider = docHieuUngSlider(config?.['site.slider.effect']);
   const soBaiTinTuc = docSo(config?.['site.home.news-count'], 5);
+  // ⛔ Cắt DANH SÁCH một lần rồi dùng lại, không cắt hai lần. Câu hỏi mà bố cục cột tin phụ thuộc
+  //   vào là "slider có dựng ra một khung tỉ lệ không" — hỏi `banners.length` là hỏi sai chỗ:
+  //   `site.slider.max-items = 0` cũng cho ra một slider rỗng (xem `lib/boCucNhom1.ts`).
+  const anhSlider = (banners ?? []).slice(0, soAnhSlider);
+  const lopTin = lopCotTin(anhSlider.length > 0);
   const nhipLamMoi = docSo(config?.['site.home.realtime.refresh-seconds'], 300);
   const soVanBan = docSo(config?.['site.home.documents-count'], 6);
   const danhMucVanBan = config?.['site.home.documents-category'] ?? 'cong-bo-thong-tin';
@@ -225,6 +231,15 @@ export default async function HomePage() {
              nay và sai ngay khi một tiêu đề dài thêm một dòng. Ta lấy **hình dạng** của họ
              (8/4, ảnh 16:9, cột phải cuộn trong lòng) mà không lấy hằng số của họ.
 
+          ⛔⛔ 07/09 — MẸO NÀY NAY CÓ ĐIỀU KIỆN, và bản không-điều-kiện đã làm hỏng production.
+             Cả lập luận trên đứng trên một tiền đề không ai viết ra: *cột slider luôn dựng ra một
+             khung tỉ lệ*. Khi `banners` rỗng, `AnhCarousel` trả `khiRong` **trần** — mất luôn
+             `tiLeKhung` — nên hàng co còn chiều cao ô gạch chéo (~90px đo trên DOM thật), thẻ tin
+             bị `inset-0` ép xuống 90px trong khi cần ~200px, và **vẽ đè lên `HomeCategoryNews`**.
+             Đúng triệu chứng của lượt 01/09, khác hẳn nguyên nhân. Nay phép chọn lớp nằm ở
+             `lib/boCucNhom1.ts` và kiểm được trong CI; không banner ⇒ bỏ hẳn mẹo, hai cột chảy tự
+             nhiên và `items-stretch` vẫn cho chúng cao bằng nhau.
+
           ⚠ Dưới `lg` mọi lớp trên đều tắt ⇒ hai khối xếp chồng dọc, chiều cao tự nhiên, y như cũ.
           ⚠ `PortalNav` là `sticky z-40` nên vẫn phủ lên cột tin đang cuộn — đã kiểm, không cần
             thêm z-index nào. */}
@@ -235,7 +250,7 @@ export default async function HomePage() {
               nhánh dự phòng: bỏ mục menu là cố ý bỏ khối. */}
           <div className={tieuDeTin ? 'lg:col-span-8' : 'lg:col-span-12'}>
             <HomeBannerSlider
-              banners={(banners ?? []).slice(0, soAnhSlider)}
+              banners={anhSlider}
               intervalSeconds={nhipSlider}
               autoplay={docBool(config?.['site.slider.autoplay'], true)}
               showArrows={docBool(config?.['site.slider.show-arrows'], true)}
@@ -244,10 +259,10 @@ export default async function HomePage() {
             />
           </div>
           {tieuDeTin ? (
-            <div className="lg:relative lg:col-span-4">
+            <div className={lopTin.ngoai}>
               {/* Khối này THAY cả `HomeHotNews` lẫn `HomeLatestNewsFeed`: cùng một nguồn bài mà chia
                   hai chỗ, hai kiểu trình bày, người đọc phải quét hai lần. */}
-              <div className="lg:absolute lg:inset-0">
+              <div className={lopTin.trong}>
                 <HomeNewsColumn
                   articles={allArticles}
                   soBai={soBaiTinTuc}

@@ -5855,3 +5855,75 @@ thay vì tin vào thứ nó tạo ra (D).
 ra `0` trong khi rsync thoát 23 — `$?` là mã của `tail`. Đây là luật 32 nguyên văn, gặp lại sau đúng
 bốn ngày, do chính người viết ra nó mắc. Chỉ lộ ra vì bước sau đếm số tệp trên máy chủ và thấy **2**.
 Kết luận không đổi: **ghi ra tệp rồi lấy `$?`, và luôn in một con số đếm được ở mỗi bước.**
+
+---
+
+### §10.79 — Một mẹo bố cục đứng trên tiền đề không ai viết ra, và tiền đề ấy là DỮ LIỆU (7/9)
+
+Ảnh chụp production: cột **Tin tức – Sự kiện** vẽ đè lên khối **Tin theo chuyên mục** ngay dưới.
+Triệu chứng giống hệt lượt 01/09 (§ chú thích trong `app/page.tsx`), **nguyên nhân khác hẳn**.
+
+#### Điều phân biệt được ngay từ phép đo đầu
+
+Cùng **đúng một image** `sha256:e9e2794f…` chạy ở cả hai máy chủ — đo `docker inspect` hai đầu,
+không suy từ tag. Staging không lộ, production lộ. Nên đây không phải lỗi build, lỗi cấu hình
+image, hay lỗi CD: **nó phụ thuộc dữ liệu**, và đó chính là lý do nó đi qua mọi cổng kiểm.
+
+#### Chuỗi nhân quả
+
+Nhóm 1 cố ý cho cột tin `lg:relative` + con `lg:absolute lg:inset-0`, để ô lưới ấy **đóng góp 0**
+vào chiều cao hàng — hàng do **cột slider** định, rồi `items-stretch` + `inset-0` trả lại cho thẻ
+tin một chiều cao xác định để nó cuộn trong lòng. Lập luận ấy đúng, và javadoc dài ba mươi dòng
+giải thích rất kỹ vì sao nó đúng.
+
+Nó chỉ không viết ra tiền đề của chính nó: *cột slider luôn dựng ra một khung tỉ lệ*.
+
+`banners` trên production = **0 hàng**. `AnhCarousel:166` làm đúng thứ nó được viết để làm:
+
+```
+return <>{khiRong}</>;      // EmptyBlock TRẦN — mất luôn tiLeKhung
+```
+
+Không ảnh ⇒ không `aspect-[16/9]`. Đo trên DOM thật lấy về từ hai site:
+
+| | `lg:col-span-8` chứa |
+|---|---|
+| staging | `<section …carousel>` → `<div class="… aspect-[16/9]">` |
+| production | `<div class="… px-4 py-8 …">` — EmptyBlock trần, ~90px |
+
+Hàng 90px → thẻ tin bị `inset-0` ép xuống 90px → nội dung cần ~200px → không có `overflow:hidden`
+→ vẽ tràn xuống, đè khối dưới.
+
+#### ⭐ Bộ canh cho ĐÚNG lỗi này đã có, và nó mù theo HAI cách độc lập
+
+`e2e/boCucTrangChu.spec.ts:127` — *"Nhóm 1 KHÔNG chồng lên khối Tin theo chuyên mục"* — đo **mực
+vẽ thật** chứ không đo hộp viền, in cả con số chồng lấn ra log. Bài kiểm ấy đúng ở mọi chi tiết.
+
+1. **Nó không nằm trong CI** (T38.10): `grep playwright .github/workflows/` trả **0 dòng**.
+2. **Và bài TIỀN ĐỀ của nó đòi `soBai >= 8`.** Bài tiền đề ấy được viết ra để tuân luật 7 — cột
+   tin ít bài thì không đủ cao để tràn, phép đo chồng lấn sẽ xanh vì *không có gì để chồng*. Lý do
+   đúng. Nhưng hệ quả là cả bộ đo **chỉ chạy trên site CÓ dữ liệu**, còn lỗi này chỉ tồn tại khi
+   dữ liệu **RỖNG**.
+
+⭐ Bài học mới: **một bài TIỀN ĐỀ dựng lên để tránh luật 7 có thể tự tay loại bỏ đúng trạng thái
+cần kiểm.** "Đủ dữ liệu để phép đo có nghĩa" và "trạng thái mà lỗi xuất hiện" ở đây là hai tập
+**rời nhau**. Cách chữa không phải hạ tiền đề — mà là nhận ra rằng trạng thái rỗng cần một bộ
+canh **khác**, ở tầng khác. Cùng họ luật 28 (bộ canh phải nói ra phạm vi), thêm một vế: phạm vi
+của một bộ canh có thể bị thu hẹp bởi chính cơ chế bảo vệ nó khỏi xanh giả.
+
+#### Bản vá
+
+Phép chọn lớp tách ra `lib/boCucNhom1.ts` — một hàm thuần, kiểm được **trong CI** không cần trình
+duyệt. Không có khung ⇒ trả `{ ngoai: 'lg:col-span-4', trong: '' }`, bỏ hẳn mẹo; hai cột chảy tự
+nhiên và `items-stretch` vẫn cho chúng cao bằng nhau.
+
+⛔ **Không** chữa ở `AnhCarousel` bằng cách giữ khung 16:9 cho trạng thái rỗng: thế là trang chủ ôm
+một ô gạch chéo 785×442, tức đổi một lỗi bố cục lấy một lỗi thiết kế.
+
+⚠ Và điều kiện hỏi `anhSlider.length` — danh sách **đã cắt** theo `site.slider.max-items` — chứ
+không hỏi `banners.length`. Đặt `max-items = 0` cũng cho ra một slider rỗng; hỏi nguồn thay vì hỏi
+thứ sẽ được render là dựng sẵn lần tái phát thứ hai.
+
+`boCucNhom1.test.ts` 6 bài: hai trạng thái cho hai kết quả **khác nhau** (luật 9), `page.tsx`
+không được viết thẳng `lg:absolute` trong JSX (luật 14), và điều kiện phải hỏi danh sách đã cắt.
+Kiểm chứng ngược hai chiều, có xác nhận bản hỏng đã nạp bằng `grep -c`.
