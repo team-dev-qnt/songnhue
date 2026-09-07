@@ -265,6 +265,40 @@ export interface ContactView {
   status: ContactStatus;
   createdAt: string;
   readAt: string | null;
+  /** ⛔ `null` = chưa phân loại. Màn hình nói "Chưa phân loại", ⛔ không hiện chuỗi rỗng. */
+  categoryPublicId: string | null;
+  categoryName: string | null;
+  assignedUnitPublicId: string | null;
+  assignedUnitName: string | null;
+  /**
+   * Lý do / nội dung phản hồi của **bước chuyển gần nhất**.
+   *
+   * ⚠ Bước ⛔ không đòi lý do sẽ **xoá** giá trị cũ — cố ý. Giữ lại là để một câu giải thích của
+   * tháng trước đứng cạnh trạng thái của hôm nay.
+   */
+  resolutionNote: string | null;
+}
+
+/**
+ * Một phân loại liên hệ — danh mục **do Công ty tự vận hành** (CLAUDE.md quy tắc 16).
+ *
+ * ⛔ Danh mục ra đời **rỗng**: chưa có văn bản nào của Công ty cấp danh sách này.
+ */
+export interface ContactCategoryView {
+  publicId: string;
+  code: string;
+  name: string;
+  /** Tắt = ⛔ không hiện ở ô chọn nữa, nhưng liên hệ cũ **vẫn giữ** phân loại này. */
+  active: boolean;
+  sortOrder: number;
+}
+
+/** Một ghi chú nội bộ. ⛔⛔ ⛔ KHÔNG BAO GIỜ hiển thị ở cổng công khai. */
+export interface ContactNoteView {
+  publicId: string;
+  content: string;
+  createdAt: string;
+  createdBy: number | null;
 }
 
 export interface SiteSettingItem {

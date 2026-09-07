@@ -126,6 +126,24 @@ public enum ErrorCode {
      * {@link #SYS_0011} ở chiều tải lên.
      */
     CMS_2017("CMS-2017", HttpStatus.PAYLOAD_TOO_LARGE),
+    /**
+     * Xoá một liên hệ đang ở {@code DANG_XU_LY} — CN-01.4 cấm đích danh.
+     *
+     * <p>⚠ Đây là ràng buộc <b>nghiệp vụ</b>, ⛔ không phải kỹ thuật: bản ghi xoá được về mặt kỹ
+     * thuật ở mọi trạng thái. Lý do cấm là một việc đang dở dang thì có người đang chờ câu trả lời,
+     * và xoá nó là làm mất luôn dấu vết rằng đã từng có ai đó hỏi.
+     */
+    CMS_2018("CMS-2018", HttpStatus.CONFLICT),
+    /** Mã phân loại liên hệ trùng với một phân loại còn sống. */
+    CMS_2019("CMS-2019", HttpStatus.CONFLICT),
+    /**
+     * Xoá một phân loại còn liên hệ đang gán.
+     *
+     * <p>⛔ Cố ý ⛔ không tự gỡ phân loại khỏi các liên hệ ấy: đó là sửa dữ liệu lịch sử của người
+     * khác trong im lặng. Đường đúng là <b>tắt</b> phân loại — nó biến mất khỏi ô chọn mà bản ghi
+     * cũ vẫn đọc lại được (xem {@code ContactCategory#active}).
+     */
+    CMS_2020("CMS-2020", HttpStatus.CONFLICT),
     CMS_5001("CMS-5001", HttpStatus.BAD_GATEWAY),
 
     // ---- MOD-02 Vận hành công trình --------------------------------------------

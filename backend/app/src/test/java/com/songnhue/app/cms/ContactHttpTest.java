@@ -66,8 +66,13 @@ class ContactHttpTest extends IntegrationTestBase {
         khongQuyen = phienHttp.dangNhap(PhienHttp.taoNguoiDung(users, passwords, jdbc, "t26_zero"));
     }
 
+    /** ⚠ Từ T36.3, mỗi lượt gửi biểu mẫu còn sinh một thông báo và một việc nền — dọn cả hai. */
     @AfterEach
     void donDep() {
+        jdbc.update("DELETE FROM notification_recipients r USING notifications n "
+                + "WHERE n.id = r.notification_id AND n.event_type = 'CONTACT_RECEIVED'");
+        jdbc.update("DELETE FROM notifications WHERE event_type = 'CONTACT_RECEIVED'");
+        jdbc.update("DELETE FROM jobs WHERE job_type LIKE 'CMS_CONTACT%'");
         jdbc.update("DELETE FROM contacts");
     }
 

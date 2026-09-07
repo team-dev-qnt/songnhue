@@ -3,6 +3,7 @@ package com.songnhue.content.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -13,8 +14,15 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import com.songnhue.content.domain.Contact;
+import com.songnhue.content.infra.ContactCategoryRepository;
+import com.songnhue.content.infra.ContactNoteRepository;
 import com.songnhue.content.infra.ContactRepository;
 import com.songnhue.core.common.exception.ValidationException;
+import com.songnhue.core.spi.JobPort;
+import com.songnhue.core.spi.NotificationPort;
+import com.songnhue.core.spi.OrgUnitPort;
+import com.songnhue.core.spi.SettingPort;
+import com.songnhue.core.spi.WorkflowPort;
 
 /**
  * <b>Luật kiểm tra của biểu mẫu liên hệ.</b> CN-01.4.
@@ -26,13 +34,35 @@ import com.songnhue.core.common.exception.ValidationException;
 class ContactServiceTest {
 
     private ContactRepository kho;
+    private NotificationPort thongBao;
+    private JobPort hangDoi;
     private ContactService dichVu;
 
     @BeforeEach
     void chuanBi() {
         kho = mock(ContactRepository.class);
         when(kho.save(any(Contact.class))).thenAnswer(i -> i.getArgument(0));
-        dichVu = new ContactService(kho);
+        // ⚠ Bài này canh đúng phần QUYẾT ĐỊNH NHẬN HAY TỪ CHỐI. Phần quy trình và phần thư đi qua
+        //   HTTP/hàng đợi thật ở `ContactWorkflowHttpTest` và `ContactEmailSlaHttpTest` (luật 5):
+        //   mock một Workflow engine rồi khẳng định trạng thái đổi là kiểm chính cái mock.
+        //
+        // ⚠⚠ `settings` PHẢI là mock có hành vi: `tiepNhan` đọc công tắc thư xác nhận, và mock trần
+        //   trả `false` cho `getBoolean` — bài kiểm sẽ vẫn xanh, nhưng nó ⛔ không còn đi qua nhánh
+        //   đặt việc. Nói ra để lượt sau ⛔ không tưởng nhánh ấy đã được phủ ở đây.
+        thongBao = mock(NotificationPort.class);
+        hangDoi = mock(JobPort.class);
+        SettingPort thamSo = mock(SettingPort.class);
+        when(thamSo.getBoolean(any(), anyBoolean())).thenReturn(true);
+
+        dichVu = new ContactService(
+                kho,
+                mock(ContactCategoryRepository.class),
+                mock(ContactNoteRepository.class),
+                mock(WorkflowPort.class),
+                mock(OrgUnitPort.class),
+                thongBao,
+                hangDoi,
+                thamSo);
     }
 
     @Test
@@ -98,5 +128,40 @@ class ContactServiceTest {
         assertThat(c.getEmail()).isEqualTo("a@example.invalid");
         assertThat(c.getSubject()).isEqualTo("Chủ đề");
         assertThat(c.getContent()).isEqualTo("Nội dung");
+    }
+
+    // === T36.3 — hai chiều thư của một lượt gửi biểu mẫu ======================
+
+    @Test
+    @DisplayName("⭐⭐ Nhận xong thì BÁO cán bộ và ĐẶT VIỆC gửi thư xác nhận — cùng một lượt")
+    void nhanXongThiBaoVaDatViec() {
+        dichVu.tiepNhan("Nguyễn Văn A", "a@example.invalid", null, "Chủ đề", "Nội dung");
+
+        // ⛔ `targeted` chứ ⛔ không `alert`: cộng Ban điều hành vào mỗi lượt người dân điền biểu mẫu
+        //    là cách chắc chắn nhất để vài tuần sau ⛔ không ai đọc thông báo nữa.
+        var thu = org.mockito.ArgumentCaptor.forClass(com.songnhue.core.spi.NotifyRequest.class);
+        verify(thongBao).notify(thu.capture());
+        assertThat(thu.getValue().targetPermission()).isEqualTo(ContactService.QUYEN_XU_LY);
+        assertThat(thu.getValue().relatedOrgUnitIds())
+                .as("⛔ `targetPermission` đã khai thì `relatedOrgUnitIds` bị RecipientResolver bỏ qua "
+                        + "— để rác ở đây là mời người sau tưởng nó có tác dụng")
+                .isEmpty();
+
+        var viec = org.mockito.ArgumentCaptor.forClass(com.songnhue.core.spi.JobRequest.class);
+        verify(hangDoi).enqueue(viec.capture());
+        assertThat(viec.getValue().payload())
+                .as("⛔⛔ Payload nằm nguyên văn trong bảng `jobs` và lọt vào bản sao lưu — địa chỉ "
+                        + "email của người dân ⛔ KHÔNG được chép thêm một bản vào đó (NĐ 13/2023)")
+                .doesNotContain("a@example.invalid")
+                .contains("contactPublicId");
+    }
+
+    @Test
+    @DisplayName("⛔ Chỉ để lại điện thoại ⇒ vẫn báo cán bộ, nhưng ⛔ KHÔNG đặt việc gửi thư")
+    void khongCoEmailThiKhongDatViecGuiThu() {
+        dichVu.tiepNhan("Trần Thị B", null, "0243354xxxx", "Chủ đề", "Nội dung");
+
+        verify(thongBao).notify(any(com.songnhue.core.spi.NotifyRequest.class));
+        verify(hangDoi, never()).enqueue(any());
     }
 }

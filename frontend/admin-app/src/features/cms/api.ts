@@ -1,4 +1,4 @@
-import { type PageResult } from '@/shared/api-types';
+import { type AllowedActionView, type PageResult } from '@/shared/api-types';
 import { api } from '@/shared/apiClient';
 
 import {
@@ -14,6 +14,8 @@ import {
   type MenuNode,
   type MenuPosition,
   type MenuRequest,
+  type ContactCategoryView,
+  type ContactNoteView,
   type ContactView,
   type SiteSettingItem,
   type VersionContent,
@@ -92,6 +94,74 @@ export const cmsApi = {
 
   markContactRead(publicId: string): Promise<ContactView> {
     return api.patch<ContactView>(`${BASE}/contacts/${publicId}/read`, {});
+  },
+
+  /**
+   * Bước chuyển hợp lệ ở trạng thái hiện tại — **đã lọc theo quyền ở backend**.
+   *
+   * ⛔ Giao diện ⛔ không tự liệt kê nút: luật nằm ở `workflow_transitions`, và một bản sao ở FE
+   * sẽ lệch ngay lần đầu Công ty thêm một bước (conventions.md §3).
+   */
+  contactActions(publicId: string): Promise<AllowedActionView[]> {
+    return api.get<AllowedActionView[]>(`${BASE}/contacts/${publicId}/actions`);
+  },
+
+  contactTransition(publicId: string, action: string, reason?: string): Promise<ContactView> {
+    return api.post<ContactView>(`${BASE}/contacts/${publicId}/transitions`, {
+      action,
+      reason: reason ?? null,
+    });
+  },
+
+  setContactCategory(publicId: string, categoryPublicId: string | null): Promise<ContactView> {
+    return api.patch<ContactView>(`${BASE}/contacts/${publicId}/category`, { categoryPublicId });
+  },
+
+  assignContact(publicId: string, orgUnitPublicId: string | null): Promise<ContactView> {
+    return api.patch<ContactView>(`${BASE}/contacts/${publicId}/assignment`, { orgUnitPublicId });
+  },
+
+  contactNotes(publicId: string): Promise<ContactNoteView[]> {
+    return api.get<ContactNoteView[]>(`${BASE}/contacts/${publicId}/notes`);
+  },
+
+  addContactNote(publicId: string, content: string): Promise<ContactNoteView> {
+    return api.post<ContactNoteView>(`${BASE}/contacts/${publicId}/notes`, { content });
+  },
+
+  deleteContactNote(notePublicId: string): Promise<void> {
+    return api.delete<void>(`${BASE}/contacts/notes/${notePublicId}`);
+  },
+
+  /** ⛔ CMS-2018 khi liên hệ đang ở `DANG_XU_LY` — CN-01.4 cấm đích danh. */
+  deleteContact(publicId: string): Promise<void> {
+    return api.delete<void>(`${BASE}/contacts/${publicId}`);
+  },
+
+  // --- Danh mục phân loại (quy tắc 16: dữ liệu có CRUD, ⛔ không phải enum) ---
+
+  listContactCategories(): Promise<ContactCategoryView[]> {
+    return api.get<ContactCategoryView[]>(`${BASE}/contact-categories`);
+  },
+
+  createContactCategory(body: {
+    code: string;
+    name: string;
+    sortOrder: number;
+  }): Promise<ContactCategoryView> {
+    return api.post<ContactCategoryView>(`${BASE}/contact-categories`, body);
+  },
+
+  /** ⚠ `code` ⛔ không đổi được — bản xuất và báo cáo cũ tham chiếu tới nó. */
+  updateContactCategory(
+    publicId: string,
+    body: { name: string; active: boolean; sortOrder: number },
+  ): Promise<ContactCategoryView> {
+    return api.put<ContactCategoryView>(`${BASE}/contact-categories/${publicId}`, body);
+  },
+
+  deleteContactCategory(publicId: string): Promise<void> {
+    return api.delete<void>(`${BASE}/contact-categories/${publicId}`);
   },
 
   getArticle(publicId: string): Promise<ArticleDetail> {
