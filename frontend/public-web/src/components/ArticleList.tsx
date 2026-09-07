@@ -15,11 +15,14 @@ export function ArticleList({
   basePath,
   extraQuery = '',
   emptyText = 'Chưa có bài viết nào trong mục này.',
+  tuKhoa,
 }: {
   page: PagedArticles | null;
   basePath: string;
   extraQuery?: string;
   emptyText?: string;
+  /** ⚠ Chỉ trang Tìm kiếm truyền — xem `ArticleCard`. */
+  tuKhoa?: string;
 }) {
   if (!page || page.content.length === 0) {
     return (
@@ -46,7 +49,7 @@ export function ArticleList({
     <>
       <div className="grid gap-6 sm:grid-cols-2">
         {page.content.map((article) => (
-          <ArticleCard key={article.slug} article={article} />
+          <ArticleCard key={article.slug} article={article} tuKhoa={tuKhoa} />
         ))}
       </div>
 

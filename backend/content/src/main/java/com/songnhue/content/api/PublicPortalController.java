@@ -1,11 +1,13 @@
 package com.songnhue.content.api;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -30,6 +32,7 @@ import com.songnhue.content.domain.MenuPosition;
 import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
 import com.songnhue.core.common.security.PublicEndpoint;
+import com.songnhue.core.common.util.DateTimeUtils;
 import com.songnhue.core.common.util.HttpHeaderText;
 import com.songnhue.core.common.web.PhatTepTrucTiep;
 import com.songnhue.core.spi.AttachmentContent;
@@ -207,15 +210,44 @@ public class PublicPortalController {
 
     // ---- Bài viết ------------------------------------------------------------
 
+    /**
+     * Danh sách bài đã xuất bản.
+     *
+     * <h2>⭐ Khoảng ngày đăng — CN-01.8 / T36.10</h2>
+     *
+     * <p>{@code tuNgay} / {@code denNgay} là <b>ngày dương lịch giờ Việt Nam</b>
+     * ({@code yyyy-MM-dd}), ⛔ không phải mốc UTC. Người dùng chọn "01/09" trên lịch của họ và
+     * mong nhận mọi bài đăng trong <i>ngày 01/09 ở Việt Nam</i>.
+     *
+     * <p>⛔⛔ {@code denNgay} quy về <b>cuối ngày</b> (00:00 hôm sau, giờ VN). Nhận thẳng
+     * {@code 00:00} của chính ngày ấy thì mọi bài đăng <i>trong</i> ngày đó bị loại — và triệu
+     * chứng là "lọc tới hôm nay thì mất tin hôm nay", một thứ ⛔ không ai đọc ra được từ mã.
+     * Quy tắc 1 của dự án ở dạng cụ thể: lưu {@code timestamptz} UTC, nhận vào theo UTC+7.
+     */
     @GetMapping("/articles")
     @Operation(summary = "Danh sách bài đã xuất bản, mới nhất trước")
     @PublicEndpoint(reason = "Danh sách tin bài của cổng — CN-01.1")
     public Page<PublicArticleRow> articles(
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String q,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate tuNgay,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate denNgay,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "12") int size) {
-        return portal.articles(category, q, page, size);
+        return portal.articles(
+                category,
+                q,
+                page,
+                size,
+                tuNgay == null
+                        ? null
+                        : tuNgay.atStartOfDay(DateTimeUtils.ZONE_VN).toInstant(),
+                // ⛔ Cuối ngày, ⛔ không phải đầu ngày — xem javadoc.
+                denNgay == null
+                        ? null
+                        : denNgay.plusDays(1)
+                                .atStartOfDay(DateTimeUtils.ZONE_VN)
+                                .toInstant());
     }
 
     /**
