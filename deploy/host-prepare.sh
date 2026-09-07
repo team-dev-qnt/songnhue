@@ -75,7 +75,7 @@ do_dac "rsync --version" "$(rsync --version 2>/dev/null | awk 'NR==1' || echo 'K
 
 # ─────────────────────────────────────────────────────────────────────────────
 buoc "2 · Cây thư mục"
-THU_MUC="/opt/songnhue/keys /var/lib/songnhue/backup /var/log/songnhue /var/log/nginx"
+THU_MUC="/opt/songnhue /opt/songnhue/keys /var/lib/songnhue/backup /var/log/songnhue /var/log/nginx"
 if [ "$CHI_KIEM" -eq 0 ]; then
     # shellcheck disable=SC2086
     mkdir -p $THU_MUC
@@ -86,13 +86,25 @@ done
 
 # ─────────────────────────────────────────────────────────────────────────────
 buoc "3 · Chủ sở hữu và quyền — bằng SỐ, không bằng tên"
+# Cần ở CẢ hai chế độ: `--kiem` cũng phải biết ai là người triển khai để thử ghi.
+NGUOI_SSH="${SUDO_USER:-$(id -un)}"
 if [ "$CHI_KIEM" -eq 0 ]; then
     getent group "$APP_GID" >/dev/null 2>&1 || groupadd -g "$APP_GID" songnhue-app
     # User SSH vào chung nhóm với app để còn sửa `.env` và đọc log.
-    NGUOI_SSH="${SUDO_USER:-$(id -un)}"
     if [ "$NGUOI_SSH" != "root" ]; then
         usermod -aG "$APP_GID" "$NGUOI_SSH" 2>/dev/null || canh "không thêm được $NGUOI_SSH vào nhóm $APP_GID"
     fi
+
+    # ⛔⛔ Thư mục GỐC thuộc NGƯỜI TRIỂN KHAI, không phải root. `mkdir -p /opt/songnhue/keys`
+    #    tạo thư mục cha bằng root, và cả ba phép `kiem_quyen` bên dưới vẫn XANH — nhưng `rsync`
+    #    của CD ghi bằng user SSH nên thoát **23** với hàng chục dòng "Permission denied".
+    #    Đo được 7/9 trên VPS-1: script này chạy 2 lượt, thoát 0 cả hai, mà thư mục vẫn root:root.
+    #    Đây là chỗ DUY NHẤT trong tệp mà chown theo TÊN là đúng — đích danh user SSH, vì uid của
+    #    nó khác nhau giữa hai máy chủ (1001 ở cả hai hiện nay, nhưng không có gì bảo đảm điều đó).
+    if [ "$NGUOI_SSH" != "root" ]; then
+        chown "$NGUOI_SSH:$NGUOI_SSH" /opt/songnhue
+    fi
+    chmod 755 /opt/songnhue
 
     chown -R "$APP_UID:$APP_GID" /opt/songnhue/keys /var/log/songnhue
     chmod 700 /opt/songnhue/keys
@@ -114,9 +126,30 @@ kiem_quyen() { # đường dẫn · uid:gid mong đợi · mode mong đợi
         hong "$1 → $that   (phải là: $2 $3)"
     fi
 }
+# ⛔ Đo bằng cách GHI THẬT, không bằng `stat`. `stat` chỉ nói thư mục ĐANG mang nhãn gì; nó không
+#   trả lời được câu hỏi duy nhất có ý nghĩa ở đây — "người triển khai có ghi vào được không".
+#   Ba dòng `kiem_quyen` bên dưới xanh trọn vẹn trong khi `rsync` thoát 23 (luật 1 · luật 9).
+kiem_ghi_duoc() { # đường dẫn — thử ghi DƯỚI DANH NGHĨA người triển khai
+    thu="$1/.hp-thu-ghi-$$"
+    if [ "$(id -u)" -eq 0 ] && [ "$NGUOI_SSH" != "root" ]; then
+        runuser -u "$NGUOI_SSH" -- touch "$thu" 2>/dev/null && ket=0 || ket=1
+    else
+        touch "$thu" 2>/dev/null && ket=0 || ket=1
+    fi
+    if [ "$ket" -eq 0 ]; then
+        rm -f "$thu"
+        do_dac "$1" "$NGUOI_SSH ghi được (đã thử ghi thật)"
+    else
+        hong "$1 → $NGUOI_SSH KHÔNG ghi được — rsync của CD sẽ thoát 23"
+    fi
+}
+kiem_ghi_duoc /opt/songnhue
 kiem_quyen /opt/songnhue/keys "$APP_UID:$APP_GID" 700
 kiem_quyen /var/log/songnhue "$APP_UID:$APP_GID" 755
 kiem_quyen /var/lib/songnhue/backup "$PG_UID:$APP_GID" 2775
+# nginx chạy master bằng root nên không cần đổi chủ — nhưng thư mục vẫn phải CÓ phép đo:
+# "được tạo mà không ai đo" chính là hình dạng đã làm đỏ rsync ngày 7/9 (HostPrepareQuyenTest).
+kiem_quyen /var/log/nginx "0:0" 755
 
 # ─────────────────────────────────────────────────────────────────────────────
 buoc "4 · Docker"

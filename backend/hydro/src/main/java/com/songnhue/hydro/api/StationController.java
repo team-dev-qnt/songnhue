@@ -35,13 +35,19 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 /**
  * Danh mục điểm đo — {@code /api/v1/hyd/stations/**} (T28.3, T28.8, T28.9).
  *
- * <h2>⚠ Hai màn hình, không phải một</h2>
+ * <h2>⚠ Một endpoint, hai câu hỏi — và danh sách việc còn thiếu đi cùng mỗi dòng</h2>
  *
- * <p>{@code GET /} là danh mục. {@code GET /chua-gan-don-vi} là <b>danh sách việc còn thiếu</b>, hệ
- * quả trực tiếp của OI-05: cho tới khi nó rỗng, resolver người nhận cảnh báo (G11 tập 2) không tìm
- * được ai để gửi. Một cảnh báo không có người nhận là một cảnh báo không tồn tại, và nó không báo
- * lỗi ở đâu cả — nên phần còn thiếu phải hiện thành một con số trên màn hình, không phải một dòng
- * trong tài liệu.
+ * <p>{@code GET /} vừa là danh mục vừa là <b>danh sách việc còn thiếu</b>: cờ {@code chuaGanDonVi}
+ * đi kèm <i>mỗi</i> dòng, nên {@code StationsPage} dựng được cả hai bảng đếm trong <b>một</b> lượt
+ * gọi. Đó là hệ quả trực tiếp của OI-05 — cho tới khi phần còn thiếu rỗng, resolver người nhận cảnh
+ * báo (G11 tập 2) không tìm được ai để gửi; một cảnh báo không có người nhận là một cảnh báo không
+ * tồn tại, và nó ⛔ không báo lỗi ở đâu cả. Nên phần còn thiếu phải hiện thành một <b>con số trên
+ * màn hình</b>, ⛔ không phải một dòng trong tài liệu.
+ *
+ * <p>⚠⚠ Đoạn trên trước 07/09/2026 mô tả {@code GET /chua-gan-don-vi} như một endpoint <b>đang
+ * sống</b>, trong khi nó đã bị gỡ ngày 04/09 (nợ T28.30) — bia mộ nằm ngay dưới, cách đó 50 dòng,
+ * và <b>mâu thuẫn với chính lời mở đầu này</b>. §10.69: một dòng chú thích <i>nói dối</i> khó thấy
+ * hơn hẳn một dòng không ai đọc, vì người sau tin nó và đi tìm một thứ không tồn tại.
  */
 @RestController
 @RequestMapping("/api/v1/hyd/stations")
