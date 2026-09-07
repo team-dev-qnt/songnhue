@@ -151,9 +151,20 @@ jobs:
           #   Giá phải trả: PR chỉ sửa tài liệu nay chạy trọn job backend (~10'). Đắt, và
           #   vẫn rẻ hơn một bộ canh về nguyên tắc không bao giờ nổ. Chính khối chú thích
           #   ở đầu bước này đã chốt: **thà chạy thừa còn hơn bỏ sót.**
+          # ⚠⚠ Vế frontend bao CẢ `backend/` (8/9, T41.18) — đối xứng với vế trên, và vì
+          #   cùng một lý do đã trả giá hai lần. Ba bài kiểm FE đọc THẲNG tệp backend:
+          #
+          #      error-map.test.ts      →  backend/core/.../error-messages.properties
+          #      alertLevelColors.test.ts →  backend/hydro/.../AlertLevelService.java
+          #      noiDungCoThuc.test.ts  →  backend/content/.../ArticleService.java
+          #
+          #   Cả ba là bộ canh "hai nơi phải khớp nhau" (quy tắc 14). Bộ lọc cũ bỏ qua job
+          #   frontend đúng lúc nửa backend của cặp ấy thay đổi — tức là một PR chỉ thêm một
+          #   mã lỗi sẽ KHÔNG chạy bộ canh sinh ra để bắt đúng chuyện đó, và `skipped` được
+          #   tính là ĐẠT. `CiPathFilterTest` nay đối chiếu CẢ HAI vế, không chỉ vế backend.
           if [ -n "$changed" ]; then
             grep -qE '^(backend/|frontend/|deploy/|docs/|\.github/)'  <<< "$changed" || backend=false
-            grep -qE '^(frontend/|deploy/|\.github/workflows/)' <<< "$changed" || frontend=false
+            grep -qE '^(backend/|frontend/|deploy/|\.github/workflows/)' <<< "$changed" || frontend=false
           fi
 
           echo "backend=$backend"   >> "$GITHUB_OUTPUT"
