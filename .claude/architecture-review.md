@@ -5975,7 +5975,7 @@ postgres không publish cổng, `env/prod.env` không tồn tại ở đó. Đư
 xảy ra thảm hoạ. Cùng hình dạng quen thuộc: *một cơ chế tồn tại trong mã nhưng chưa có hiệu
 lực ở nơi nó phải chặn.*
 
-Chi tiết đầy đủ + trình tự đã chạy: `docs/runbook/di-tru-staging-len-production.md`.
+Chi tiết đầy đủ + sổ 12 sự cố: `docs/runbook/di-tru-du-lieu-giua-moi-truong.md`. Phần đổi tên miền và chứng chỉ tách sang `docs/runbook/ten-mien-va-chung-chi.md`.
 
 ### §10.81 — Cron gia hạn TLS chưa bao giờ chạy được, và cả hai vế đều hỏng (8/9)
 
