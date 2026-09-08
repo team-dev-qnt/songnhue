@@ -114,9 +114,24 @@ def sync_markdown_to_sheets() -> str:
             "Hãy KẾT NỐI LẠI máy chủ MCP (lệnh /mcp trong Claude Code) rồi đồng bộ lại."
         )
 
+    # ⛔⛔ Đường dẫn TƯƠNG ĐỐI ⇒ nó giải theo `os.getcwd()` của TIẾN TRÌNH này, tức thư mục nơi
+    #    máy chủ MCP được khởi động — ⛔ KHÔNG phải cây người dùng đang gõ lệnh. Với `git worktree`
+    #    (dự án dùng thường xuyên) hai chỗ ấy là hai tệp KHÁC NHAU, và trước 08/09 ⛔ không có gì
+    #    trong câu trả lời nói ra điều đó: nó vẫn báo "đã đồng bộ N dòng" như thường.
+    #
+    #    Đo 08/09: hai cây lệch **72 dòng** vì hai PR đang mở cùng sửa `master-tracking.md`, và
+    #    ⛔ không cây nào giữ hợp của hai bên ⇒ đồng bộ hướng nào cũng cho một bảng TRÔNG ĐẦY ĐỦ
+    #    mà thiếu một nửa (§11.16, luật 34).
+    #
+    # ⛔ Cố ý ⛔ KHÔNG khoá cứng đường dẫn theo `__file__`: đồng bộ từ một cây khác là việc hợp lệ,
+    #    người dùng có thể cố ý muốn thế. Thứ thiếu ⛔ không phải "chặn", mà là **NÓI RA cây nào** —
+    #    luật 32: in một thứ đo được ở mỗi bước thì lỗi im lặng thành lỗi nhìn thấy được.
+    duong_tracking = os.path.abspath(os.path.join(os.getcwd(), TRACKING_FILE))
+    logger.info("Đọc tracking từ: %s", duong_tracking)
+
     try:
         spreadsheet_id, sheet_name, credentials_path = _config()
-        tasks = parse_markdown_to_data(os.path.join(os.getcwd(), TRACKING_FILE))
+        tasks = parse_markdown_to_data(duong_tracking)
     except SyncError as error:
         logger.error("Dừng trước khi ghi: %s", error)
         raise
@@ -200,7 +215,13 @@ def sync_markdown_to_sheets() -> str:
     ).execute()
 
     logger.info("Đồng bộ xong %d dòng", updated_rows - 1)
-    return f"Đã đồng bộ {updated_rows - 1} công việc lên tab '{sheet_name}'."
+    # ⛔ Đường dẫn phải nằm trong CÂU TRẢ LỜI, ⛔ không chỉ trong log: người gọi công cụ này đọc
+    #    chuỗi trả về, còn log của tiến trình MCP thì gần như ⛔ không ai mở. Một cảnh báo ⛔ không
+    #    ai đọc thì bằng ⛔ không có (§10.68).
+    return (
+        f"Đã đồng bộ {updated_rows - 1} công việc lên tab '{sheet_name}'.\n"
+        f"Nguồn đã đọc: {duong_tracking}"
+    )
 
 
 if __name__ == "__main__":

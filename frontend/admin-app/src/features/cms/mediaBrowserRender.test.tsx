@@ -148,3 +148,109 @@ describe('MediaBrowser — render thật', () => {
     await waitFor(() => expect(screen.getByText('Chưa có thư mục')).toBeInTheDocument());
   });
 });
+
+/**
+ * Thao tác trên **nút cây thư mục** — T37.15.
+ *
+ * <p>Hai bài dưới đo hai thứ ⛔ không suy ra được từ nhau, và bài thứ hai là bài chịu lực.
+ */
+describe('MediaBrowser — ô thao tác của thư mục (T37.15)', () => {
+  const HAI_THU_MUC = [
+    { publicId: 'tm-1', name: 'Văn bản 2026', parentPublicId: null, depth: 0, sortOrder: 0 },
+    { publicId: 'tm-2', name: 'Ảnh công trình', parentPublicId: null, depth: 0, sortOrder: 1 },
+  ];
+
+  beforeEach(() => {
+    get.mockImplementation((...args: unknown[]) => {
+      const url = String(args[0]);
+      if (url.includes('/folders/') && url.includes('/files')) return Promise.resolve(TEP);
+      if (url.endsWith('/folders')) return Promise.resolve(HAI_THU_MUC);
+      return Promise.resolve([]);
+    });
+  });
+
+  it('⚠ tiền đề — ô thao tác hiện trên MỌI thư mục, ⛔ không chỉ thư mục đang mở', async () => {
+    dung({ renderFolderExtra: (folder) => <button>Xoá {folder.name}</button> });
+    await waitFor(() => expect(screen.getByText('Xoá Văn bản 2026')).toBeInTheDocument());
+    expect(screen.getByText('Xoá Ảnh công trình')).toBeInTheDocument();
+  });
+
+  it('⛔ ⛔ KHÔNG truyền `renderFolderExtra` ⇒ ⛔ không nút nào — vế phân biệt (luật 9)', async () => {
+    // Thiếu vế này thì một cài đặt luôn vẽ nút cũng làm bài trên xanh, và hộp CHỌN ẢNH của màn
+    // soạn bài sẽ mọc ra nút Xoá thư mục — nơi người dùng đang đi chọn ảnh, ⛔ không đi quản trị.
+    dung();
+    await waitFor(() => expect(screen.getByText('Ảnh công trình')).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: /Xoá/ })).not.toBeInTheDocument();
+  });
+
+  it('⭐⭐ bấm nút thao tác ⛔ KHÔNG đổi thư mục đang mở — `Tree` để `blockNode`', async () => {
+    // Bất biến chịu lực. `blockNode` biến CẢ DÒNG thành vùng bấm chọn, nên thiếu `stopPropagation`
+    // thì mỗi lượt bấm "Xoá" đồng thời chuyển sang thư mục đó: hộp xác nhận hiện lên trong khi
+    // lưới tệp bên phải đã đổi, và người dùng đọc số tệp của thư mục SAI rồi bấm đồng ý.
+    //
+    // ⭐ Đo bằng thứ QUAN SÁT ĐƯỢC — lượt gọi API cho thư mục thứ hai — chứ ⛔ không khẳng định
+    //    một class nội bộ của AntD (luật 2: canh cấu trúc/hành vi, ⛔ đừng canh văn bản).
+    const bam = vi.fn();
+    dung({ renderFolderExtra: (folder) => <button onClick={bam}>Xoá {folder.name}</button> });
+    await waitFor(() => expect(screen.getByText('Xoá Ảnh công trình')).toBeInTheDocument());
+
+    const truoc = get.mock.calls.filter((call) => String(call[0]).includes('tm-2')).length;
+    expect(
+      truoc,
+      'tm-1 phải là thư mục mở sẵn — nếu ⛔ không thì bài này ⛔ không đo được gì',
+    ).toBe(0);
+
+    await userEvent.click(screen.getByText('Xoá Ảnh công trình'));
+
+    expect(
+      bam,
+      'nút phải nhận được cú bấm — ⛔ không thì "0 lượt gọi tm-2" là xanh giả',
+    ).toHaveBeenCalledTimes(1);
+    const sau = get.mock.calls.filter((call) => String(call[0]).includes('tm-2')).length;
+    expect(
+      sau,
+      'Bấm nút thao tác đã kéo theo một lượt chọn thư mục — `stopPropagation` ở `MediaBrowser` ' +
+        'đã mất tác dụng.',
+    ).toBe(0);
+  });
+
+  it('⭐⭐ thư mục đang mở bị xoá ⇒ lưới tệp ⛔ THÔI hỏi id đã chết', async () => {
+    // Nửa thứ hai của T37.15, và là nợ do chính lượt này tạo ra: từ lúc có nút Xoá, `folderId`
+    // giữ trong state **sống lâu hơn** thư mục nó trỏ tới. Không lọc thì sau lượt xoá, lưới tệp
+    // vẫn hỏi một thư mục đã biến mất — cây bên trái vẽ đúng, khung bên phải báo lỗi, và triệu
+    // chứng đọc như "xoá xong thì hỏng".
+    //
+    // ⭐ Đo đúng bất biến: **⛔ không lượt gọi tệp MỚI nào mang id đã chết** sau khi danh sách
+    //    thư mục đổi. Đo cái cây có hiện tên nữa không là đo một hệ quả hiển nhiên của dữ liệu.
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MediaBrowser kho="TAI_LIEU" loai="document" />
+      </QueryClientProvider>,
+    );
+    await waitFor(() => expect(screen.getByText('Ảnh công trình')).toBeInTheDocument());
+
+    await userEvent.click(screen.getByText('Ảnh công trình'));
+    await waitFor(() =>
+      expect(get.mock.calls.some((call) => String(call[0]).includes('tm-2'))).toBe(true),
+    );
+
+    // Thư mục tm-2 vừa bị xoá ⇒ lượt nạp lại danh sách ⛔ không còn nó.
+    get.mockImplementation((...args: unknown[]) => {
+      const url = String(args[0]);
+      if (url.includes('/folders/') && url.includes('/files')) return Promise.resolve(TEP);
+      if (url.endsWith('/folders')) return Promise.resolve([HAI_THU_MUC[0]]);
+      return Promise.resolve([]);
+    });
+    get.mockClear();
+    await queryClient.invalidateQueries({ queryKey: ['cms', 'folders'] });
+
+    await waitFor(() => expect(screen.queryByText('Ảnh công trình')).not.toBeInTheDocument());
+    expect(
+      get.mock.calls.filter((call) => String(call[0]).includes('tm-2')),
+      'Lưới tệp vẫn hỏi thư mục đã bị xoá — `conTonTai` ở `MediaBrowser` đã mất tác dụng.',
+    ).toEqual([]);
+    // Vế phân biệt: nó phải chuyển sang thư mục còn sống, ⛔ không phải ngồi im trên tập rỗng.
+    expect(get.mock.calls.some((call) => String(call[0]).includes('tm-1'))).toBe(true);
+  });
+});
