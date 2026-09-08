@@ -3,7 +3,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { COT_MUC_NUOC } from '@/lib/homeDataColumns';
+import { COT_MUC_NUOC, LUOI_MUC_NUOC } from '@/lib/homeDataColumns';
 
 /**
  * Bảng "Mực nước, lượng mưa" — **T35.7**, bất biến về CẤU TRÚC.
@@ -19,6 +19,20 @@ import { COT_MUC_NUOC } from '@/lib/homeDataColumns';
  *
  * <p>Bảng nay xuất hiện ở **hai** trang (trang chủ và trang chi tiết), tức bốn lượt truyền — và
  * "hai nơi con người phải nhớ" đã thành bốn. Luật 14: chỗ đó cần một phép kiểm nhớ hộ.
+ *
+ * <h2>⭐ 08/09/2026 — bất biến này nay được ép bằng KIỂU, và bài kiểm đổi theo</h2>
+ *
+ * Bốn chuỗi ghi cứng đã được gom về hai hằng số `LUOI_MUC_NUOC` / `BE_RONG_TOI_THIEU_MUC_NUOC`
+ * trong `homeDataColumns.ts`. Bốn nơi gọi nay **⛔ không thể lệch nhau** — chúng là cùng một biến.
+ *
+ * ⛔ Nhưng ⛔ KHÔNG xoá bộ canh này đi. Bất biến cũ (*"bốn chuỗi phải bằng nhau"*) trở nên hiển
+ * nhiên, còn bất biến **thật** thì vẫn cần canh và nay khó thấy hơn: *⛔ không nơi gọi nào được
+ * quay lại ghi một chuỗi lưới THẲNG vào JSX*. Thêm một trang thứ ba, chép-dán từ trang cũ, là
+ * chuyện của một buổi chiều — và lúc ấy hằng số ⛔ không cứu được ai.
+ *
+ * ⚠ Đây là chỗ bài kiểm cũ **canh văn bản** (luật 2): nó so chuỗi trên mã nguồn, nên một lượt
+ * refactor đúng đắn cũng làm nó đỏ — và nó đã đỏ ở đúng lượt refactor ấy. Bản này canh **cấu
+ * trúc**: đếm số lượt ghi cứng (phải là 0) và đếm số lượt dùng hằng (phải đủ bốn).
  */
 
 const GOC = join(process.cwd(), 'src');
@@ -33,32 +47,35 @@ function doc(tuongDoi: string): string {
 }
 
 describe('bảng mực nước — hàng tiêu đề và hàng dữ liệu khớp lưới', () => {
-  it('⭐ mọi lượt truyền `luoi` của bảng mực nước dùng CÙNG một chuỗi grid', () => {
-    const luoi = TEP.flatMap((t) =>
-      [...doc(t).matchAll(/luoi="(grid-cols-\[[^\]]+\])"/g)].map((m) => m[1]),
-    );
+  it('⛔⛔ ⛔ KHÔNG nơi gọi nào ghi CỨNG chuỗi lưới hay bề rộng vào JSX', () => {
+    // Bất biến thay cho bài "bốn chuỗi phải bằng nhau" (nay hiển nhiên vì chúng là cùng một biến).
+    // Thứ còn hỏng được: một trang thứ ba chép-dán chuỗi cũ vào. Đếm, ⛔ không so.
+    const ghiCung = TEP.flatMap((t) => [
+      ...doc(t).matchAll(/(?:luoi|beRongToiThieu)="(?:grid-cols|min-w)-\[[^\]]+\]"/g),
+    ]);
 
-    // ⚠ Vế chống tập rỗng đứng TRƯỚC (luật 7 + 29): mẫu khớp hụt trả mảng rỗng, và
-    //   `new Set([]).size <= 1` xanh trọn vẹn trong khi ⛔ không kiểm gì cả.
-    expect(luoi.length).toBeGreaterThanOrEqual(4);
-    expect(new Set(luoi).size).toBe(1);
+    expect(ghiCung.map((m) => m[0])).toEqual([]);
   });
 
-  it('⭐ bề rộng tối thiểu cũng phải khớp — hai khối cuộn ngang trong cùng một khung', () => {
-    const beRong = TEP.flatMap((t) =>
-      [...doc(t).matchAll(/beRongToiThieu="(min-w-\[[^\]]+\])"/g)].map((m) => m[1]),
-    );
+  it('⭐ bốn lượt truyền đều đi qua HẰNG SỐ dùng chung', () => {
+    const dungHang = TEP.flatMap((t) => [
+      ...doc(t).matchAll(
+        /(?:luoi=\{LUOI_MUC_NUOC\}|beRongToiThieu=\{BE_RONG_TOI_THIEU_MUC_NUOC\})/g,
+      ),
+    ]);
 
-    expect(beRong.length).toBeGreaterThanOrEqual(4);
-    expect(new Set(beRong).size).toBe(1);
+    // ⚠ Vế chống tập rỗng (luật 7 + 29): mẫu khớp hụt trả mảng rỗng, và một bài chỉ khẳng định
+    //   "⛔ không có chuỗi ghi cứng" sẽ XANH TRỌN VẸN trên một tệp đã bị xoá sạch nội dung.
+    //   Hai bảng × hai lượt truyền × hai thuộc tính = 8.
+    expect(dungHang.length).toBeGreaterThanOrEqual(8);
   });
 
   it('số cột trong chuỗi lưới bằng đúng số tiêu đề cột đã duyệt', () => {
-    const khop = /grid-cols-\[([^\]]+)\]/.exec(doc(TEP[0]));
+    // ⭐ Nay đọc từ chính hằng số, ⛔ không đọc từ văn bản của một component.
+    const khop = /grid-cols-\[([^\]]+)\]/.exec(LUOI_MUC_NUOC);
     expect(khop).not.toBeNull();
-    const soCot = khop![1].split('_').length;
 
-    expect(soCot).toBe(COT_MUC_NUOC.length);
+    expect(khop![1].split('_')).toHaveLength(COT_MUC_NUOC.length);
   });
 
   /**

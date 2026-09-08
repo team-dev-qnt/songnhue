@@ -106,6 +106,27 @@ public class FeedbackModerationService {
      * <p>⛔⛔ Tính ở <b>backend</b> (quy tắc 3), và bằng {@link BigDecimal} (quy tắc 2): kho ⛔ không
      * trả {@code avg()} vì JPQL cho ra {@code Double}, nên ở đây là một phép chia
      * {@code tổng / số phiếu} với cả tử lẫn mẫu nhìn thấy được.
+     *
+     * <h3>⭐ T28.54 — mẫu số là mục ĐÃ DUYỆT, và đó là quyết định NGHIỆP VỤ đã chốt</h3>
+     *
+     * <p>Chốt <b>08/09/2026</b>: điểm trung bình tính trên các mục {@code DA_DUYET} có chấm điểm, và
+     * <b>trả kèm</b> {@code choDuyet}/{@code tuChoi} để phần bị loại nhìn thấy được.
+     *
+     * <p>Hai hướng đều có chỗ sai, nên đây là một <i>lựa chọn</i> chứ ⛔ không phải một mặc định:
+     *
+     * <ul>
+     *   <li><b>Tính trên đã duyệt</b> — một người kiểm duyệt loại các phiếu tiêu cực sẽ làm số liệu
+     *       đẹp lên. Đây là hướng đã chọn, và cái giá của nó trả bằng việc <b>công bố luôn số bị
+     *       loại</b>: chênh lệch giữa hai con số tự nó là thước đo mức độ kiểm duyệt.
+     *   <li><b>Tính trên tất cả</b> — spam đi thẳng vào số liệu công bố, mà reCAPTCHA còn chờ G13.
+     * </ul>
+     *
+     * <p>Cơ sở: <b>chốt D1</b> (12/8/2026) — <i>"chưa duyệt thì chưa là dữ liệu"</i>. Một con số tính
+     * trên thứ ⛔ chưa được công bố sẽ ⛔ không khớp với bất kỳ thứ gì người đọc thấy trên cổng.
+     *
+     * <p>⛔⛔ <b>ĐỪNG đổi công thức này</b> nếu ⛔ không có một lượt chốt mới: số liệu đã công bố mà
+     * đổi cách tính thì hai kỳ báo cáo ⛔ không so được với nhau, và ⛔ không gì trong dữ liệu nói ra
+     * chỗ đứt.
      */
     @Transactional(readOnly = true)
     public ThongKe tongHop() {

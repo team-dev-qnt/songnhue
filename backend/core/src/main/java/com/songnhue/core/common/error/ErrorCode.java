@@ -161,6 +161,18 @@ public enum ErrorCode {
      * (khuôn {@code useXuatBaoCao}) khi khối lượng thật sự tới ngưỡng ấy.
      */
     CMS_2022("CMS-2022", HttpStatus.UNPROCESSABLE_ENTITY),
+    /**
+     * Nội dung bài viết <b>rỗng trên thực tế</b> — T41.21.
+     *
+     * <p>⚠ {@code @NotBlank} trên trường {@code content} <b>không bắt được</b> chuyện này, và đó là
+     * lý do mã này phải tồn tại: một trình soạn thảo trống ⛔ không gửi lên chuỗi rỗng — nó gửi
+     * {@code <p></p>}, một chuỗi 7 ký tự đi lọt mọi ràng buộc độ dài. Bài được lưu, quy trình duyệt
+     * chạy bình thường, và cổng công khai đăng một trang trắng mang tiêu đề.
+     *
+     * <p>Phép đo là <i>có chữ hoặc có khối nội dung</i>, ⛔ không phải <i>chuỗi khác rỗng</i>: một
+     * bài chỉ gồm ảnh, một bảng số liệu hay một video nhúng là bài hợp lệ.
+     */
+    CMS_2023("CMS-2023", HttpStatus.UNPROCESSABLE_ENTITY),
     CMS_5001("CMS-5001", HttpStatus.BAD_GATEWAY),
 
     // ---- MOD-02 Vận hành công trình --------------------------------------------
@@ -322,7 +334,26 @@ public enum ErrorCode {
     /** Bản sao lưu không dùng được: mất tệp, hoặc checksum không khớp lúc ghi. */
     ADM_2012("ADM-2012", HttpStatus.UNPROCESSABLE_ENTITY),
     /** Khôi phục thất bại — CSDL có thể đang ở trạng thái dở dang, xem runbook. */
-    ADM_2013("ADM-2013", HttpStatus.INTERNAL_SERVER_ERROR);
+    ADM_2013("ADM-2013", HttpStatus.INTERNAL_SERVER_ERROR),
+
+    // ---- MOD-05 Ma trận phân quyền sửa được (T27.31, CN-05.2) -------------------
+    /**
+     * Vai trò hệ thống {0} — ⛔ không sửa quyền được. Người đọc <b>đầu tiên</b> của cột {@code
+     * roles.is_system}, vốn mang bảo đảm này trong một dòng chú thích SQL suốt 26 ngày mà ⛔ chưa mã
+     * nào ép.
+     */
+    ADM_2014("ADM-2014", HttpStatus.FORBIDDEN),
+    /**
+     * Mã quyền ⛔ không có trong danh mục: {0}. ⚠ Cố ý ⛔ <b>không</b> bỏ qua trong im lặng như
+     * {@code replaceRoles} — một mã gõ sai lặng lẽ biến mất tạo ra một vai trò khuyết quyền mà ⛔
+     * không ai biết thiếu từ bao giờ.
+     */
+    ADM_2015("ADM-2015", HttpStatus.UNPROCESSABLE_ENTITY),
+    /**
+     * Đang tự gỡ quyền quản trị phân quyền của chính mình khỏi vai trò {0} — thao tác này ⛔ không
+     * quay lui được bằng bất kỳ đường nào trong giao diện.
+     */
+    ADM_2016("ADM-2016", HttpStatus.UNPROCESSABLE_ENTITY);
 
     private final String code;
     private final HttpStatus status;

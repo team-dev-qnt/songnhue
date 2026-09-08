@@ -1,26 +1,16 @@
 package com.songnhue.core.api.attachment;
 
-import java.io.IOException;
-import java.time.LocalDate;
-import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.MultipartFile;
 
 import com.songnhue.core.application.attachment.AttachmentService;
 import com.songnhue.core.common.security.RequirePermission;
-import com.songnhue.core.domain.attachment.Attachment;
-import com.songnhue.core.domain.attachment.AttachmentStatus;
-import com.songnhue.core.domain.attachment.ScanStatus;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -28,30 +18,18 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 /**
  * Tệp đính kèm — {@code /api/v1/attachments/**} (pattern P3).
  *
- * <p>Endpoint tải lên nằm ở đây thay vì ở từng module: kiểm magic bytes, mã hoá lại ảnh, đặt tên
- * ngẫu nhiên và xếp việc quét virus phải giống hệt nhau ở mọi chỗ. Mỗi module tự làm một bản là một
- * chỗ có thể quên bước quét.
+ * <p>⭐ <b>Thu còn ĐÚNG MỘT endpoint ngày 08/09/2026</b> (T28.47) — xem bia mộ trong thân lớp. Bốn
+ * endpoint kia có <b>0 nơi gọi từ giao diện</b>, và bề mặt ⛔ không ai dùng là bề mặt ⛔ không ai
+ * canh: chính lớp này là nơi lỗ phân quyền A1 sống sót từ WS-6 tới 04/09/2026.
  *
- * <p>Quyền dùng {@code ops:document:upload}: Phase 0 mới có hồ sơ công trình cần đính kèm. Phase 1
- * thêm ảnh bài viết sẽ bổ sung mã quyền riêng cho CMS — cùng một endpoint, chọn quyền theo
- * {@code ownerType}.
+ * <p>⚠ Vì sao {@code DELETE} <b>ở lại</b> trong khi nó cũng ⛔ không có nơi gọi: nó là chỗ duy nhất
+ * mang bài kiểm hồi quy cho lỗ A1 ({@code AttachmentDeleteHttpTest}), và nay là một trong bốn cửa đi
+ * qua chốt {@code AttachmentUsagePort} (T40.26). Gỡ nó là gỡ luôn phép đo chứng minh lỗ ấy đã đóng.
  */
 @RestController
 @RequestMapping("/api/v1/attachments")
-@Tag(name = "00-core · Tệp đính kèm", description = "Tải lên, tải xuống và quản lý tài liệu")
+@Tag(name = "00-core · Tệp đính kèm", description = "Xoá mềm tài liệu — đường chung")
 public class AttachmentController {
-
-    /** Định dạng cho phép ở Phase 0 — ảnh và tài liệu văn phòng. */
-    private static final List<String> ALLOWED_TYPES = List.of(
-            "image/jpeg",
-            "image/png",
-            "image/gif",
-            "image/webp",
-            "application/pdf",
-            "application/msword",
-            "application/vnd.ms-excel",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
 
     private final AttachmentService attachmentService;
 
@@ -59,44 +37,32 @@ public class AttachmentController {
         this.attachmentService = attachmentService;
     }
 
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Tải tệp lên — trả về bản ghi ở trạng thái CHỜ QUÉT, chưa tải xuống được")
-    @RequirePermission("ops:document:upload")
-    public AttachmentDtos.AttachmentView upload(
-            @RequestParam String ownerType,
-            @RequestParam(required = false) Long ownerId,
-            @RequestParam(required = false) String purpose,
-            @RequestParam MultipartFile file)
-            throws IOException {
-
-        Attachment saved = attachmentService.upload(
-                ownerType, ownerId, purpose, file.getOriginalFilename(), file.getBytes(), ALLOWED_TYPES);
-        return AttachmentDtos.AttachmentView.of(saved);
-    }
-
-    @GetMapping("/{publicId}")
-    @Operation(summary = "Thông tin một tệp")
-    @RequirePermission("ops:document:view")
-    public AttachmentDtos.AttachmentView get(@PathVariable UUID publicId) {
-        return AttachmentDtos.AttachmentView.of(attachmentService.get(publicId));
-    }
-
-    @GetMapping("/{publicId}/download-url")
-    @Operation(summary = "Đường dẫn tải có hạn 10 phút — từ chối nếu tệp chưa quét xong")
-    @RequirePermission("ops:document:view")
-    public AttachmentDtos.DownloadUrl downloadUrl(@PathVariable UUID publicId) {
-        return new AttachmentDtos.DownloadUrl(attachmentService.downloadUrl(publicId));
-    }
-
-    @GetMapping
-    @Operation(summary = "Danh sách tệp của một đối tượng, bản mới nhất lên đầu")
-    @RequirePermission("ops:document:view")
-    public List<AttachmentDtos.AttachmentView> list(@RequestParam String ownerType, @RequestParam Long ownerId) {
-        return attachmentService.listOf(ownerType, ownerId).stream()
-                .map(AttachmentDtos.AttachmentView::of)
-                .toList();
-    }
+    /*
+     * ⛔⛔ BIA MỘ — bốn endpoint đã GỠ ngày 08/09/2026 (T28.47).
+     *
+     *   POST   /api/v1/attachments                     (tải lên, `ops:document:upload`)
+     *   GET    /api/v1/attachments/{publicId}          (thông tin,  `ops:document:view`)
+     *   GET    /api/v1/attachments/{publicId}/download-url
+     *   GET    /api/v1/attachments?ownerType&ownerId   (danh sách)
+     *
+     * ⚠ Lý do đo được, ⛔ không phải cảm tính: cả bốn có **0 nơi gọi từ giao diện**. Ba lượt `grep`
+     * trúng chuỗi `/api/v1/attachments` trong `frontend/` đều là **chú thích** kể lại chuyện
+     * `AttachmentPanel.tsx` bị xoá ngày 04/09. Màn hình thật đi đường riêng của từng module:
+     * `/ops/constructions/{id}/documents…` và `/cms/media/…`.
+     *
+     * ⭐ Và javadoc cũ của lớp này tự bào chữa bằng một lý do ĐÚNG nhưng ⛔ KHÔNG áp cho nó: *"kiểm
+     * magic bytes, mã hoá lại ảnh, quét virus phải giống hệt nhau ở mọi chỗ"*. Thứ bảo đảm điều ấy
+     * là {@code AttachmentService}, ⛔ không phải endpoint này — mọi module đã gọi service. Endpoint
+     * chỉ là một cửa thứ hai vào cùng một phòng, và là cửa ⛔ không ai canh.
+     *
+     * ⛔ Bề mặt ⛔ không ai dùng ⛔ không phải bề mặt vô hại: chính lớp này là nơi lỗ phân quyền A1
+     * sống sót từ WS-6 tới 04/09/2026 — `DELETE` gác nhầm `ops:document:upload` trong khi hai đường
+     * riêng gác `:delete`. Nó sống được vì tầng 1 (menu) và tầng 2 (nút) đều đúng, nên ⛔ không màn
+     * hình nào lộ ra gì; chỉ tầng 3 sai, và người khai thác ⛔ không cần giao diện.
+     *
+     * ⬜ Cần lại một trong bốn cái ấy thì thêm CÙNG với màn hình gọi nó — quy tắc 15: một endpoint
+     * ⛔ không ai gọi là một lỗi, ⛔ không phải một khoản để dành.
+     */
 
     /**
      * ⭐⭐ Gác bằng {@code ops:document:delete} — <b>sửa 04/09/2026</b>, trước đó là
@@ -133,39 +99,14 @@ public class AttachmentController {
         attachmentService.delete(publicId);
     }
 
-    /** DTO của API tệp đính kèm. */
-    public static final class AttachmentDtos {
-
-        private AttachmentDtos() {}
-
-        /** @param url có hạn ngắn và bỏ qua phân quyền — không lưu lại, không chia sẻ */
-        public record DownloadUrl(String url) {}
-
-        public record AttachmentView(
-                UUID publicId,
-                String originalName,
-                String contentType,
-                long sizeBytes,
-                int fileVersion,
-                AttachmentStatus status,
-                ScanStatus scanStatus,
-                LocalDate validFrom,
-                LocalDate validUntil,
-                boolean downloadable) {
-
-            public static AttachmentView of(Attachment a) {
-                return new AttachmentView(
-                        a.getPublicId(),
-                        a.getOriginalName(),
-                        a.getContentType(),
-                        a.getSizeBytes(),
-                        a.getFileVersion(),
-                        a.getStatus(),
-                        a.getScanStatus(),
-                        a.getValidFrom(),
-                        a.getValidUntil(),
-                        a.isDownloadable());
-            }
-        }
-    }
+    /*
+     * ⛔ BIA MỘ — lớp lồng `AttachmentDtos` (hai record `AttachmentView` và `DownloadUrl`) gỡ ngày
+     *    08/09/2026 cùng bốn endpoint ở trên. Nó chỉ phục vụ chúng, nên khi chúng đi thì nó còn
+     *    **0 nơi dùng** — một cấu trúc dữ liệu ⛔ không ai đọc là một lỗi, ⛔ không phải một khoản
+     *    để dành (quy tắc 15).
+     *
+     * ⚠ Bốn kiểu TypeScript soi gương nó (`ScanStatus` · `AttachmentStatus` · `AttachmentView` ·
+     *   `DownloadUrl`) gỡ cùng lượt ở `admin-app/src/shared/api-types.ts`. Gỡ một phía là để lại
+     *   đúng thứ T28.47 sinh ra để dọn.
+     */
 }

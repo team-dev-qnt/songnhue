@@ -165,7 +165,7 @@ class TelemetryHopDongTest {
         }
 
         @Test
-        @DisplayName("⭐ Quy tắc 2 ép ở hàm dựng: 'nguồn báo hỏng' mà vẫn có số đo ⇒ TỪ CHỐI")
+        @DisplayName("⭐ Quy tắc parse 2 ép ở hàm dựng: 'nguồn báo hỏng' mà vẫn có số đo ⇒ TỪ CHỐI")
         void nguonHongThiKhongDuocCoSoDo() {
             assertThatThrownBy(() -> new TelemetryBatch(List.of(soDo("F1")), 0, 0, true))
                     .as("một mẻ vừa 'nguồn hỏng' vừa có dữ liệu là một mẻ không ai biết phải tin nửa nào")
@@ -174,7 +174,7 @@ class TelemetryHopDongTest {
         }
 
         @Test
-        @DisplayName("⭐⭐ Quy tắc 9: dưới 50% điểm đo đang hoạt động ⇒ 'nguồn trả thiếu'")
+        @DisplayName("⭐⭐ Quy tắc parse 9: dưới 50% điểm đo đang hoạt động ⇒ 'nguồn trả thiếu'")
         void quyTac9DuoiNuaLaThieu() {
             TelemetryBatch chinBanGhi = new TelemetryBatch(
                     List.of(

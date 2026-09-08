@@ -67,6 +67,12 @@ export function WaterLevelRows({ rows, luoi, beRongToiThieu }: WaterLevelRowsPro
 
             <OSo giaTri={row.mucNuocThuongLuu} donVi={row.donVi} lyDo={row.lyDoTrong} />
             <OSo giaTri={row.mucNuocHaLuu} donVi={row.donVi} lyDo={row.lyDoTrong} />
+            {/* ⭐ Cột "Mực nước sông (m)" — DOD2.3, 08/09/2026. Trạm thuỷ văn sông (`MN_SONG`) và
+                bể hút trạm bơm (`BE_HUT`) ⛔ KHÔNG có cặp thượng/hạ lưu; trước lượt này backend
+                dồn chúng vào ô hạ lưu, nên cổng đăng mực nước SÔNG dưới tiêu đề "Mực nước hạ lưu".
+                ⚠ Cả ba ô cùng dùng `row.lyDoTrong`: một dòng chỉ có ĐÚNG MỘT giá trị, nên hai ô
+                còn lại luôn rỗng và lý do là chung cho cả dòng. */}
+            <OSo giaTri={row.mucNuocSong} donVi={row.donVi} lyDo={row.lyDoTrong} />
 
             <div className="px-3.5 py-2.5 text-right text-[13px]">
               {/* ⛔⛔ LUÔN rỗng (G3-a). ⛔ Đừng `?? 0` — `0 mm` là một khẳng định về thời tiết. */}

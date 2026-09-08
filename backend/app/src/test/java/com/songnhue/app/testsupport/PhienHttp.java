@@ -69,11 +69,39 @@ public final class PhienHttp {
      * <p>Filter đọc {@code X-Forwarded-For} và chỉ tin nó khi đứng sau nginx của mình — ở production
      * nginx <b>ghi đè</b> header này, nên không có đường nào để client thật tự cấp cho mình một IP.
      */
-    private final String ipGiaLap = "10.%d.%d.%d"
-            .formatted(SO_THU_TU.incrementAndGet() % 250, (int) (Math.random() * 250), (int) (Math.random() * 250));
+    private final String ipGiaLap = ipKeTiep();
 
     private static final java.util.concurrent.atomic.AtomicInteger SO_THU_TU =
             new java.util.concurrent.atomic.AtomicInteger();
+
+    /**
+     * IP giả lập kế tiếp — <b>suy hoàn toàn từ bộ đếm, không có một hạt ngẫu nhiên nào</b>.
+     *
+     * <p>⚠⚠ Bản trước là {@code "10.%d.%d.%d".formatted(dem % 250, random(250), random(250))}. Hai
+     * khuyết tật chồng lên nhau, và cả hai đều <b>chỉ hiện ra theo xác suất</b>:
+     *
+     * <ul>
+     *   <li>{@code % 250} khiến octet đầu <b>lặp lại</b> sau 250 thực thể — mà {@code new PhienHttp}
+     *       nằm trong {@code @BeforeEach} ở phần lớn nơi gọi, tức <b>một thực thể mỗi bài kiểm</b>,
+     *       nên một lượt chạy module {@code app} vượt 250 dễ dàng.
+     *   <li>Hai octet còn lại {@code Math.random()} ⇒ hai thực thể cùng octet đầu vẫn có thể trùng
+     *       nốt. Trùng IP nghĩa là <b>dùng chung ngân sách hạn mức</b> (đăng nhập 30 lượt / 15 phút),
+     *       và triệu chứng là một lớp <i>khác</i> đỏ ở bước đăng nhập — đúng thứ javadoc phía trên
+     *       cảnh báo, chỉ là lần này do chính bộ dựng phiên gây ra.
+     * </ul>
+     *
+     * <p>⛔ <b>Một bộ đồ gá kiểm thử có yếu tố ngẫu nhiên là một cỗ máy sinh lỗi chập chờn.</b> Nay
+     * ba octet cùng suy từ một bộ đếm ⇒ <b>không trùng cho tới 16.777.216 thực thể</b>, và mỗi lượt
+     * chạy cấp IP theo đúng một thứ tự — hỏng thì tái lập được.
+     *
+     * <p>⚠ Điều này <b>không</b> chứng minh đã vá T37.14: bài chập chờn ấy chưa tái lập được lần nào
+     * trong hai lượt {@code verify} ngày 08/09. Đây là gỡ một nguồn ngẫu nhiên <i>đã biết</i>, không
+     * phải một bản vá có bằng chứng.
+     */
+    private static String ipKeTiep() {
+        int dem = SO_THU_TU.incrementAndGet();
+        return "10.%d.%d.%d".formatted((dem >> 16) & 0xFF, (dem >> 8) & 0xFF, dem & 0xFF);
+    }
 
     public PhienHttp(TestRestTemplate http) {
         this.http = http;

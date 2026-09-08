@@ -249,7 +249,8 @@ class TelemetryIngestServiceTest {
     }
 
     @Test
-    @DisplayName("Nguồn từ chối ⇒ raw log VẪN ghi (quy tắc 18) rồi mới tới sync_logs FAILED")
+    @DisplayName(
+            "Nguồn từ chối ⇒ raw log VẪN ghi (quy tắc parse 1 — cũng là quy tắc 18 của CLAUDE.md) rồi mới tới sync_logs FAILED")
     void nguonTuChoiThiRawVanGhi() {
         adapter.fetch = new TelemetryFetch(200, 12, "not.working", SyncFailureKind.NOT_WORKING, "nguồn từ chối mã số");
 

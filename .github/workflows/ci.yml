@@ -151,9 +151,33 @@ jobs:
           #   Giá phải trả: PR chỉ sửa tài liệu nay chạy trọn job backend (~10'). Đắt, và
           #   vẫn rẻ hơn một bộ canh về nguyên tắc không bao giờ nổ. Chính khối chú thích
           #   ở đầu bước này đã chốt: **thà chạy thừa còn hơn bỏ sót.**
+          # ⚠⚠ Vế frontend bao CẢ `backend/` (8/9, T41.18) — đối xứng với vế trên, và vì
+          #   cùng một lý do đã trả giá hai lần. Ba bài kiểm FE đọc THẲNG tệp backend:
+          #
+          #      error-map.test.ts      →  backend/core/.../error-messages.properties
+          #      alertLevelColors.test.ts →  backend/hydro/.../AlertLevelService.java
+          #      noiDungCoThuc.test.ts  →  backend/content/.../ArticleService.java
+          #
+          #   Cả ba là bộ canh "hai nơi phải khớp nhau" (quy tắc 14). Bộ lọc cũ bỏ qua job
+          #   frontend đúng lúc nửa backend của cặp ấy thay đổi — tức là một PR chỉ thêm một
+          #   mã lỗi sẽ KHÔNG chạy bộ canh sinh ra để bắt đúng chuyện đó, và `skipped` được
+          #   tính là ĐẠT. `CiPathFilterTest` nay đối chiếu CẢ HAI vế, không chỉ vế backend.
+          # ⚠⚠ Vế backend bao thêm ĐÚNG MỘT tệp trong `.claude/` (8/9, T37.13):
+          #
+          #      QuyTacParseTruyVetTest  →  .claude/function-spec.md
+          #
+          #   Nó đối chiếu 10 quy tắc parse CN-03.2 với `@DisplayName` của bộ test. Thiếu
+          #   dòng này thì sửa spec KHÔNG kích hoạt job backend, nên bộ canh sinh ra để bắt
+          #   "một quy tắc mất bài kiểm" lại không chạy đúng lúc quy tắc đổi — và `skipped`
+          #   được tính là ĐẠT (luật 24).
+          #
+          # ⛔ Cố ý CHỈ tệp ấy, KHÔNG phải cả `.claude/`. `master-tracking.md` sửa gần như
+          #   mỗi PR; kéo nó vào đây là bắt mọi lượt ghi sổ chạy trọn bộ backend — đúng cái
+          #   lỗ §10.63 (bảy context bắt buộc khoá chết mọi PR chỉ sửa tài liệu). Sổ đã có
+          #   job `tracking` riêng, chạy ~10 giây và cố ý KHÔNG có bộ lọc nào.
           if [ -n "$changed" ]; then
-            grep -qE '^(backend/|frontend/|deploy/|docs/|\.github/)'  <<< "$changed" || backend=false
-            grep -qE '^(frontend/|deploy/|\.github/workflows/)' <<< "$changed" || frontend=false
+            grep -qE '^(backend/|frontend/|deploy/|docs/|\.github/|\.claude/function-spec\.md)'  <<< "$changed" || backend=false
+            grep -qE '^(backend/|frontend/|deploy/|\.github/workflows/)' <<< "$changed" || frontend=false
           fi
 
           echo "backend=$backend"   >> "$GITHUB_OUTPUT"

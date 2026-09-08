@@ -348,3 +348,143 @@ figure.sn-align-right {
   margin-right: 0;
   width: fit-content;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   T41.15 — MÀU CHỮ · MÀU NỀN CHỮ · MÀU NỀN Ô  (bản song sinh của cổng)
+
+   Phải khớp `public-web/src/app/article-content.css`: lệch nhau thì người soạn thấy một
+   màu trên màn hình soạn và một màu khác trên cổng — `articleContentCss.test.ts` và
+   `richTextEditorCss.test.ts` cùng đọc `editor-schema.ts` và đòi đủ cả 18 class.
+
+   ⚠⚠ CÓ tiền tố `.sn-editor__body`, ⛔ KHÔNG viết selector trần. Ba class `.sn-align-*` ở
+   cuối tệp này là selector trần và vì thế **rò rỉ ra toàn ứng dụng quản trị** — bất kỳ chỗ
+   nào tình cờ mang class ấy đều bị đổi theo. Đó là nợ đã đo (T25.23), ⛔ không phải khuôn
+   để bắt chước.
+
+   `.sn-editor__preview` mang CẢ HAI class trên cùng một `div` (`RichTextEditor.tsx`), nên
+   khối này áp cho cả chế độ Xem trước — vế T41.17.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Màu chữ ─────────────────────────────────────────────────────────────── */
+.sn-editor__body .sn-fg-den {
+  color: #1f1f1f; /* editorColors.fgDen */
+}
+.sn-editor__body .sn-fg-xam {
+  color: #595959; /* editorColors.fgXam */
+}
+.sn-editor__body .sn-fg-do {
+  color: #f5222d; /* editorColors.fgDo */
+}
+.sn-editor__body .sn-fg-cam {
+  color: #d46b08; /* editorColors.fgCam */
+}
+.sn-editor__body .sn-fg-luc {
+  color: #389e0d; /* editorColors.fgLuc */
+}
+.sn-editor__body .sn-fg-lam {
+  color: #165bb6; /* editorColors.fgLam */
+}
+
+/* ── Màu nền chữ (bôi vàng) ──────────────────────────────────────────────── */
+.sn-editor__body .sn-bg-vang {
+  background-color: #fff7cc; /* editorColors.bgVang */
+}
+.sn-editor__body .sn-bg-luc {
+  background-color: #e6f7d9; /* editorColors.bgLuc */
+}
+.sn-editor__body .sn-bg-lam {
+  background-color: #c8def7; /* editorColors.bgLam */
+}
+.sn-editor__body .sn-bg-hong {
+  background-color: #ffe0e0; /* editorColors.bgHong */
+}
+.sn-editor__body .sn-bg-cam {
+  background-color: #ffe8cc; /* editorColors.bgCam */
+}
+.sn-editor__body .sn-bg-xam {
+  background-color: #f0f2f5; /* editorColors.bgXam */
+}
+
+/* ── Màu nền ô bảng ──────────────────────────────────────────────────────── */
+.sn-editor__body .sn-cell-vang {
+  background-color: #fffbe6; /* editorColors.cellVang */
+}
+.sn-editor__body .sn-cell-luc {
+  background-color: #f0fae8; /* editorColors.cellLuc */
+}
+.sn-editor__body .sn-cell-lam {
+  background-color: #eaf3fd; /* editorColors.cellLam */
+}
+.sn-editor__body .sn-cell-hong {
+  background-color: #fff1f0; /* editorColors.cellHong */
+}
+.sn-editor__body .sn-cell-cam {
+  background-color: #fff4e6; /* editorColors.cellCam */
+}
+.sn-editor__body .sn-cell-xam {
+  background-color: #fafafa; /* editorColors.cellXam */
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   T41.17 — CHỮ NGHĨA KHỚP CỔNG
+
+   §10.26 ở dạng thuần khiết: *"xem trước thấy đẹp, xuất bản, và không ai mở lại trang công
+   khai để đối chiếu"*. Trước khối này, khung soạn thảo ⛔ không khai một cỡ tiêu đề nào —
+   `h2`/`h3`/`h4` hiện đúng bằng cỡ đoạn văn, nên người soạn ⛔ không thấy được cấu trúc mình
+   đang dựng, còn trên cổng thì ba cấp ấy khác nhau rõ rệt.
+
+   ⚠ Mọi con số dưới đây phải khớp `public-web/src/app/article-content.css`.
+   `xemTruocKhopCong.test.ts` đọc CẢ HAI tệp và so từng cặp — chỗ nào con người phải nhớ hai
+   nơi thì chỗ đó cần một phép kiểm nhớ hộ (quy tắc 14).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.sn-editor__body h2,
+.sn-editor__body h3,
+.sn-editor__body h4 {
+  text-align: left;
+}
+
+.sn-editor__body h2 {
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.sn-editor__body h3 {
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.sn-editor__body h4 {
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  font-size: 1.075rem;
+  font-weight: 600;
+}
+
+.sn-editor__body p {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+.sn-editor__body li {
+  margin-top: 0.375rem;
+  margin-bottom: 0.375rem;
+}
+
+/*
+  ⚠⚠ `justify` CHỈ ở chế độ Xem trước, ⛔ KHÔNG ở khung đang gõ.
+
+  Cổng căn đều hai bên lề, nên Xem trước phải căn đều — đó là toàn bộ mục đích của chế độ ấy.
+  Nhưng căn đều trong khung ĐANG SOẠN thì mỗi ký tự gõ vào làm giãn lại khoảng cách của cả
+  dòng, con trỏ nhảy, và người soạn mất dấu chỗ mình đang đứng. Hai chế độ, hai yêu cầu khác
+  nhau — gộp làm một là buộc một trong hai phải xấu.
+*/
+.sn-editor__preview {
+  text-align: justify;
+}

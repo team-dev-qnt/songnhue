@@ -606,8 +606,9 @@ class SiteLayoutTest extends IntegrationTestBase {
         // Bốn nhánh có menu con — CR-02, CR-03, CR-05, CR-06.
         assertThat(menus.tree(MenuPosition.HEADER))
                 .filteredOn(node -> node.depth() == 1)
-                .as("Giới thiệu 4 · Tin tức – Sự kiện 3 · Quản lý, vận hành 4 · Công bố thông tin 2")
-                .hasSize(13);
+                .as("Giới thiệu 4 · Tin tức – Sự kiện 3 · Quản lý, vận hành 4 · Công bố thông tin 2 "
+                        + "· Liên hệ 1 (Góp ý & đánh giá, T28.53 — 08/09/2026)")
+                .hasSize(14);
 
         assertThat(menus.tree(MenuPosition.FOOTER))
                 .as("CR-09: chân trang dùng đúng hệ phân loại của menu chính. ⚠ FOOTER KHÔNG đi "

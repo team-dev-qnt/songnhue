@@ -1,12 +1,12 @@
 import { Alert, Empty } from 'antd';
 import L from 'leaflet';
-import { mauMucCanhBao, statusColors } from 'design-tokens';
+import { neutralColors, statusColors } from 'design-tokens';
 import { useEffect, useRef } from 'react';
 
 import { CONSTRUCTION_STATUS, CONSTRUCTION_TYPE } from '@/components/business/statusVocabulary';
-import { TRANG_THAI_TIN_HIEU, VAI_TRO_VI_TRI } from '@/features/hydro/hydroVocabulary';
 import { type MapConfigView, type MapPointView, type StationMarkerView } from '@/shared/api-types';
-import { formatDateTime } from '@/shared/format';
+
+import { bieuTuongDiemDo, popupDiemDo, thoat } from './constructionMapMarkers';
 
 import 'leaflet/dist/leaflet.css';
 
@@ -179,7 +179,7 @@ function bieuTuong(diem: MapPointView): L.DivIcon {
     popupAnchor: [0, -8],
     html:
       `<span style="display:block;width:16px;height:16px;border-radius:50%;` +
-      `background:${mau};border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.35)"></span>`,
+      `background:${mau};border:2px solid ${neutralColors.bgContainer};box-shadow:0 0 0 1px rgba(0,0,0,.35)"></span>`,
   });
 }
 
@@ -197,111 +197,12 @@ function noiDungPopup(diem: MapPointView): string {
 
   return [
     `<strong>${thoat(diem.name)}</strong><br/>`,
-    `<span style="color:#595959">Mã: ${thoat(diem.code)} · ${thoat(loai)}</span><br/>`,
-    `<span style="color:#595959">Đơn vị: ${thoat(diem.orgUnitName ?? '—')}</span><br/>`,
+    `<span style="color:${neutralColors.textSecondary}">Mã: ${thoat(diem.code)} · ${thoat(loai)}</span><br/>`,
+    `<span style="color:${neutralColors.textSecondary}">Đơn vị: ${thoat(diem.orgUnitName ?? '—')}</span><br/>`,
     `<span style="color:${mauTrangThai};font-weight:600">`,
     `${thoat(trangThai?.label ?? diem.operationalStatus)}</span>`,
     // ⚠ Dòng "Số liệu thuỷ văn: chưa đấu nối (Phase 2)" đã bị GỠ ở T35.1 — từ 04/09/2026 nó là một
     //    lời nói dối: số liệu thuỷ văn nay có lớp riêng trên chính bản đồ này. §10.69 — một dòng
     //    chữ hứa sai khó thấy hơn hẳn một dòng chữ không có.
   ].join('');
-}
-
-/**
- * ⭐ Chấm **điểm đo thuỷ văn** — T35.1.
- *
- * <h3>Ba kênh thị giác, ba thông tin — ⛔ không chồng lên nhau</h3>
- *
- * <ul>
- *   <li><b>Hình</b> (vuông xoay 45° = quả trám) phân biệt <i>lớp</i>: điểm đo vs công trình (tròn).
- *       Người mù màu vẫn tách được hai lớp.
- *   <li><b>Màu</b> mang <i>mức cảnh báo</i> nếu đang có, ngược lại mang <i>trạng thái tín hiệu</i>.
- *   <li><b>Viền nét đứt</b> mang <i>chất lượng nghi ngờ</i>.
- * </ul>
- *
- * ⛔ Đừng dồn "nghi ngờ" vào màu: màu đã chở hai thứ rồi, và một kênh chở ba thông tin thì người
- * đọc ⛔ không tách ra được cái nào là cái nào.
- *
- * ⚠ Màu cảnh báo **thắng** màu trạng thái, có chủ đích: một trạm đang vượt ngưỡng thì việc nó còn
- * phát tín hiệu hay không là câu hỏi thứ hai.
- */
-function bieuTuongDiemDo(d: StationMarkerView): L.DivIcon {
-  const mau = d.khoaMauCanhBao
-    ? mauMucCanhBao(d.khoaMauCanhBao)
-    : statusColors[MAU_TIN_HIEU[d.trangThai]];
-  const vien = d.nghiNgo ? 'dashed' : 'solid';
-  return L.divIcon({
-    className: '',
-    iconSize: [15, 15],
-    iconAnchor: [7.5, 7.5],
-    popupAnchor: [0, -8],
-    html:
-      `<span style="display:block;width:15px;height:15px;transform:rotate(45deg);` +
-      `background:${mau};border:2px ${vien} #fff;box-shadow:0 0 0 1px rgba(0,0,0,.35)"></span>`,
-  });
-}
-
-/**
- * ⭐ Popup điểm đo — và ⛔ chấm XÁM vẫn hiện giá trị cuối kèm lý do, đúng yêu cầu T35.1.
- *
- * Một trạm mất tín hiệu là đúng thứ bản đồ sinh ra để chỉ ra. Ẩn số cuối của nó đi thì người trực
- * ⛔ không biết nó dừng ở mức nào — mà đó chính là thông tin cần khi đi kiểm tra hiện trường.
- */
-function popupDiemDo(d: StationMarkerView): string {
-  const tt = TRANG_THAI_TIN_HIEU[d.trangThai];
-  const vaiTro = VAI_TRO_VI_TRI[d.positionRole] ?? d.positionRole;
-  const dong = [
-    `<strong>${thoat(d.name)}</strong><br/>`,
-    `<span style="color:#595959">Mã: ${thoat(d.code)} · ${thoat(vaiTro)}</span><br/>`,
-  ];
-
-  if (d.giaTri !== null) {
-    dong.push(
-      `<span style="font-size:15px;font-weight:700">${thoat(d.giaTri)} ${thoat(d.donVi ?? '')}</span>`,
-      `<span style="color:#8c8c8c"> · ${thoat(d.tenChiSo ?? '')}</span><br/>`,
-      `<span style="color:#8c8c8c;font-size:11px">Lúc ${thoat(formatDateTime(d.mocDo) || '—')}</span><br/>`,
-    );
-  } else {
-    // ⛔ Quy tắc 16 ở tầng bản đồ: ô rỗng phải nói được VÌ SAO nó rỗng.
-    dong.push(`<span style="color:#8c8c8c">Chưa có số đo hợp lệ nào</span><br/>`);
-  }
-
-  dong.push(
-    `<span style="color:${statusColors[MAU_TIN_HIEU[d.trangThai]]};font-weight:600">`,
-    `${thoat(tt?.label ?? d.trangThai)}</span>`,
-  );
-  if (d.trangThai === 'MAT_TIN_HIEU') {
-    dong.push(`<span style="color:#8c8c8c"> — dữ liệu chưa cập nhật</span>`);
-  }
-  if (d.nghiNgo) {
-    dong.push(`<br/><span style="color:#fa8c16">⚠ Bản ghi gần nhất bị đánh dấu nghi ngờ</span>`);
-  }
-  if (d.tenMucCanhBao) {
-    dong.push(
-      `<br/><span style="color:${mauMucCanhBao(d.khoaMauCanhBao)};font-weight:600">`,
-      `⚠ ${thoat(d.tenMucCanhBao)}</span>`,
-    );
-  }
-  return dong.join('');
-}
-
-/**
- * Trạng thái tín hiệu → khoá màu chung.
- *
- * ⛔ Bảng này ⛔ không khai mã hex — nó chỉ trỏ vào `statusColors`, để lớp GIS và badge trạng thái
- * trên bảng ⛔ không bao giờ lệch màu (nợ T25.23: 29 mã màu ghi cứng đã lọt vào admin-app).
- */
-const MAU_TIN_HIEU: Record<StationMarkerView['trangThai'], keyof typeof statusColors> = {
-  HOAT_DONG: 'normal',
-  MAT_TIN_HIEU: 'unknown',
-  CHUA_CO_DU_LIEU: 'unknown',
-  NGUNG: 'inactive',
-};
-
-function thoat(gia: string): string {
-  return gia
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }

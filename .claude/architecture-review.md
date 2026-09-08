@@ -5997,3 +5997,153 @@ Hai lỗi phụ bắt được trong lúc vá, cả hai đều thuộc họ "h�
   GMT>"` không chạy dưới busybox của image Alpine. Một con số sai đọc y hệt một con số đúng,
   và nó là thứ duy nhất người ta liếc qua trong log. Nay dùng `openssl x509 -checkend` —
   phép đo nhị phân của chính OpenSSL, phân biệt được hai trạng thái mà không cần số học.
+
+### §11.12 — `sort_order` là một núm KHÔNG điều khiển gì, ở BỐN cây cùng lúc (T26.25, 8/9/2026)
+
+Bốn cây materialized path của hệ (menu, danh mục nội dung, thư mục media, đơn vị tổ chức) đọc bằng
+`ORDER BY path ASC, sort_order ASC`. Câu ấy **không bao giờ so tới `sort_order`**: `path` chứa id của
+chính nút (`MaterializedPath.childPath`), nên hai anh em **không thể** trùng path và phép so kết thúc
+ở vế đầu.
+
+**Số đo trước khi vá**: `ThuTuMenuTest` 3 bài → **2 đỏ**. Người dùng kéo–thả ở màn hình quản trị,
+giao diện vẽ lại đúng thứ tự mới, API trả **204 thành công**, cổng công khai **không đổi gì**. Không
+lỗi, không log — đúng triệu chứng của quy tắc 27, chồng lên quy tắc 15 (một núm bày ra mà không điều
+khiển gì).
+
+⚠ **Sổ nợ mô tả THIẾU, và phần thiếu đổi cả cách nghĩ.** T26.25 ghi *"thứ tự thật là thứ tự id"*. Đo
+lại: `ORDER BY path` là phép so **CHUỖI**, nên `/10/` đứng trước `/9/`. Hệ quả khác hẳn *"mục mới rơi
+xuống cuối"* — mục mới có thể rơi vào **giữa** menu, và không ai đoán được chỗ nào.
+
+**Vì sao vá ở repository chứ không ở 11 nơi gọi** (quy tắc 12): bảo đảm phải đúng ở mọi đường đọc, và
+menu có ba đường. Tên câu truy vấn cũ `...OrderByPathAscSortOrderAsc` **xoá hẳn** — nó là chỗ lời nói
+dối bắt đầu, và javadoc của `MenuItemRepository` từng viết đúng câu *"anh em đúng thứ tự"*.
+
+**Bất biến giữ được bằng cấu trúc, không bằng lời dặn**: khoá sắp của một nút là khoá của cha cộng
+đúng một đoạn ⇒ khoá cha là **tiền tố thực sự** của khoá con ⇒ phép so chuỗi tự bảo đảm *cha trước
+con*, thứ mà `buildMenuTree` ở public-web (duyệt MỘT lượt) dựa vào. Một phép sắp phẳng theo
+`sort_order` sẽ phá đúng bất biến ấy — nên nó có bài kiểm riêng.
+
+⛔⛔ **Bản vá lộ ra khuyết tật thứ hai của chính nó, và đó là phần đáng nhớ nhất.** Ba service lưu
+**hai bước**: INSERT lần đầu với path giữ chỗ `"/"` để lấy id do CSDL sinh, rồi mới ghi path thật.
+Giữa hai bước là một trạng thái **hợp lệ theo thiết kế** mà một lượt đọc cây trong cùng giao dịch
+nhìn thấy — và `sortForDisplay` bản đầu ném ở đúng đó (`MenuLogoAndMapImageTest` đỏ 2 bài).
+
+⇒ **Một phép sắp HIỂN THỊ không được là thứ làm gãy đường GHI.** Nay path chưa hợp lệ xếp cuối, còn
+đường ghi (`childPath`, `reparent`) giữ nguyên phần nghiêm khắc. Nới ở đường đọc, siết ở đường ghi —
+không nới cả hai.
+
+⭐ Và bài kiểm đơn vị bắt lỗi của **chính người viết**: javadoc hứa *"null xếp sau mọi giá trị có
+thật"* trong khi `null` và `Integer.MAX_VALUE` cho ra cùng một khoá. Sửa **mã cho khớp lời**, không
+sửa lời cho khớp mã (quy tắc 9).
+
+### §11.13 — Ba hệ đánh số cùng dùng chữ "quy tắc N" (T37.13, 8/9/2026)
+
+`function-spec.md` CN-03.2 đánh số quy tắc **parse** 1→10. `CLAUDE.md` có **hai** danh sách nữa cùng
+dùng chữ ấy, và cả hai đều có mục 18 với nghĩa khác hẳn nhau. Đo trong kho: `quy tắc 14` xuất hiện ở
+**6** `@DisplayName` và **không lượt nào** là quy tắc parse.
+
+⇒ Một mẫu `quy tắc (\d+)` **không dùng được**. Đường đúng ⛔ không phải viết một regex khôn hơn mà là
+**sửa nguồn nhập nhằng**: 19 `@DisplayName` đổi sang dạng duy nhất `quy tắc parse N`. Quy tắc parse 1
+thôi mang tên *"quy tắc 18"*.
+
+⚠⚠ **Bộ canh đỏ ngay lượt chạy đầu tiên, và đúng việc — nhưng vì một lý do không ai đoán trước.** Bản
+đầu quét theo **dòng**. Lượt đổi tên làm chuỗi dài thêm, **Spotless ngắt `@DisplayName` xuống dòng
+dưới**, và quy tắc parse 1 lập tức "biến mất" trong khi bài vẫn nằm nguyên đó.
+
+⇒ **Một bộ canh mà bộ ĐỊNH DẠNG MÃ làm cho sai sẽ đỏ giả vào một ngày không ai đoán trước** — và lượt
+sửa nó rất dễ thành *nới bộ canh cho hết đỏ*. Nay quét theo **khối chú giải**, và ca ngắt dòng thành
+một đối chứng thường trực.
+
+**Rào cản hạ tầng phải vá cùng lượt, nếu không bộ canh vừa sinh ra đã mù**: bộ lọc `ci.yml` không bao
+`.claude/` ⇒ sửa spec **không** kích hoạt job backend ⇒ bộ canh sinh ra để bắt *một quy tắc mất bài
+kiểm* lại không chạy đúng lúc quy tắc đổi, và `skipped` được tính **ĐẠT** (luật 24). Thêm **đúng một
+tệp** `.claude/function-spec.md` — ⛔ không phải cả `.claude/`, vì `master-tracking.md` sửa gần như mỗi
+PR và kéo nó vào là dựng lại đúng lỗ §10.63. `CiPathFilterTest` cũng phải thêm tiền tố `.claude`:
+**lần thứ hai trong sáu ngày** đúng hình dạng T11.71 — một bộ canh không *nhìn thấy* đường dẫn thì
+không thể báo rằng bộ lọc đang bỏ sót.
+
+### §11.14 — Một dòng nợ tự nó sai, lần thứ hai (T11.28, 8/9/2026)
+
+Sổ ghi T11.28 mở suốt 12 ngày trong khi **dòng ngay dưới nó** (T24.3) khai rõ *"đóng nợ T11.28"* từ
+27/08. Lần đầu là T11.83 (§10.75). ⇒ **Sổ nợ cũng là dữ liệu chưa kiểm** — và đọc một dòng nợ mà
+không đo lại là chép một khẳng định.
+
+Phần dư THẬT, không nằm trong mô tả dòng nợ:
+
+- **Hai biến env mồ côi × ba tệp**, 0 nơi đọc **và còn mang địa chỉ CŨ**. ⛔ Một biến mồ côi mang giá
+  trị **sai** nguy hiểm hơn một biến mồ côi rỗng: ngày có người nối nó vào là ngày CR-07 bị đảo ngược
+  mà không ai hiểu vì sao. Bia mộ để lại một **ranh giới quyết định** cho lần sau: *địa chỉ và công
+  tắc tính năng → `settings` (quy tắc 12); bí mật bên thứ 3 → env (quy tắc 11/13)*.
+- **Bộ seed cũ lệch cả hai trường** (địa chỉ + `linkType`) suốt 12 ngày, không gì báo — số đo cụ thể
+  cho câu hỏi *bỏ hay giữ đường seed thứ hai* của T11.38.
+- ⛔⛔ Chú thích `V202608271031:187` khẳng định *"`PortalDocSystemUrlTest` canh cho khỏi lệch"* mà
+  **0 tệp** mang tên ấy trong kho. §10.81 ở dạng nặng hơn: **một chú thích khẳng định CÓ cổng kiểm
+  còn tệ hơn im lặng, vì nó làm người đọc thôi đi tìm.** Và tệp migration ⛔ **không sửa được** dù chỉ
+  là chú thích (Flyway băm cả tệp — §10.65), nên lời đính chính phải đặt ở chính bộ canh thật.
+
+### §11.15 — Câu hỏi số 4 của §7.3 chưa từng có bộ canh, và nó đỏ ngay (T37.9, 8/9/2026)
+
+Checklist sáu câu hỏi *"có màn hình nào GỌI endpoint đó không"*. Ba bộ canh đã có chỉ phủ vế **cột**
+và vế **khoá `settings`**. Vế **endpoint ↔ màn hình** chưa cái nào chạm tới — đúng vế mà lượt rà 28/8
+tìm ra hai lần và T28.47 phải dọn bằng tay lần nữa.
+
+**Số đo lượt đầu: 7/62 phương thức của client CMS có 0 tham chiếu** trong toàn `admin-app/src`, kể cả
+bài kiểm. Backend có endpoint, có phân quyền, có bài kiểm HTTP xanh — và **người dùng không có nút nào
+để bấm**.
+
+⛔ **Ba đường xử lý, và hai trong ba là sai:**
+
+| Đường | Vì sao |
+|---|---|
+| Xoá client cho sạch | **Giấu** khoảng trống. `renameFolder`/`deleteFolder` là chức năng Công ty cần thật |
+| Dựng bừa giao diện | Phát minh tính năng để cứu một dòng đỏ — đúng thứ đã từ chối ở `HYD-1001` |
+| **Sổ nợ máy đọc được** | Khớp chính xác **hai chiều**: thêm endpoint quên màn hình ⇒ đỏ; dựng xong màn hình quên xoá dòng ⇒ **cũng đỏ**, danh sách buộc phải teo đi |
+
+⚠ Bộ canh tự khai phạm vi: nó soi **đúng một tệp**, vì đo được `features/cms/api.ts` là client tập
+trung **duy nhất**; 47 tệp còn lại gọi `api.*` thẳng trong component nên nơi gọi *là* màn hình. Có
+bài riêng đỏ nếu xuất hiện `api.ts` thứ hai — bộ canh ⛔ không được âm thầm hẹp lại (luật 28).
+
+⚠ Và lượt kiểm chứng ngược dạy lại **luật 10** ở một dạng mới: `git checkout --` **im lặng thất bại
+trên tệp chưa track**, nên bản khôi phục chưa từng được nạp cho tới khi in ra một con số đếm được.
+Xác nhận bản *phá* đã nạp là chưa đủ — bản *khôi phục* cũng phải đo.
+
+---
+
+### §11.16 — Công cụ đọc **đường dẫn tương đối** đọc cây của TIẾN TRÌNH, không đọc cây của bạn (8/9/2026)
+
+Lượt chuẩn bị vào Phase 3 định đồng bộ `master-tracking.md` lên Google Sheet của Công ty. Phép đo
+**trước khi bấm** chặn đúng một lượt công bố sai.
+
+`.agents/mcp/google_sheets_sync/server.py:119`:
+
+```python
+tasks = parse_markdown_to_data(os.path.join(os.getcwd(), TRACKING_FILE))
+```
+
+`os.getcwd()` của tiến trình MCP là **thư mục nó được khởi động**, tức **cây chính**. Toàn bộ đợt việc
+này sống trong một `git worktree` riêng (`songnhue-ws37`). ⇒ Công cụ đọc **một tệp khác** với tệp đang
+sửa, và ⛔ **không có gì trong đầu ra nói ra điều đó** — nó vẫn báo "đã đồng bộ N dòng".
+
+**Đo được 8/9**: hai cây cho hai md5 khác nhau, cùng 1360 dòng, lệch **72 dòng**. Nguyên nhân là **hai
+PR đang mở cùng sửa `master-tracking.md`**:
+
+| PR | Nhánh | Đóng gì |
+|---|---|---|
+| **#109** | `fix/hoan-thien-phase2` | T11.28 · T11.34 · T26.25 · T37.9 · T37.11 · T37.13 |
+| **#106** | `docs/runbook-khoi-phuc-va-di-tru` | T11.97; hạ T11.95 xuống `[~]` |
+
+⛔⛔ **Không cây nào giữ hợp của hai bên.** Đồng bộ từ cây chính ⇒ mất 6 mục vừa đóng; đồng bộ từ
+worktree (nếu ép được) ⇒ mất T11.97 và dựng lại T11.95 như thể cửa sổ nguy hiểm còn mở. **Cả hai
+hướng đều cho ra một bảng trông đầy đủ và đúng.**
+
+Cùng hình dạng **§10.67** (*bản vá sống trên đĩa mà tiến trình MCP vẫn chạy mã cũ*), đổi chỗ: lần ấy
+**mã** cũ, lần này **dữ liệu** cũ. Và cùng họ với **luật 3** — thứ có hiệu lực là giá trị **đã giải**
+(`os.getcwd()` lúc khởi động), ⛔ không phải giá trị mình *tưởng* (thư mục mình đang gõ lệnh).
+
+⇒ **Bất biến phải tôn trọng: chỉ đồng bộ Sheet từ một cây đang đứng trên `dev` đã gộp xong**, và
+⛔ không bao giờ đồng bộ khi còn PR mở đụng vào `master-tracking.md`. Thứ tự: gộp mọi PR đụng tệp ấy →
+cây chính `checkout dev && pull` → đo md5 → **rồi mới** đồng bộ.
+
+⚠ Nợ để lại: đầu ra của công cụ ⛔ không in **đường dẫn tuyệt đối** nó vừa đọc. Một dòng
+`os.path.abspath(...)` trong phần trả lời biến lỗi im lặng này thành lỗi nhìn thấy được — đúng luật 32
+(*in một con số / một sự kiện đo được ở mỗi bước*).

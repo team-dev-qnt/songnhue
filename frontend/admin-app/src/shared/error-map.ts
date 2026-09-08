@@ -193,7 +193,9 @@ export const ERROR_CATALOG = {
     severity: 'warning',
   },
   'CMS-2009': {
-    message: 'Tệp đang được bài viết sử dụng',
+    // ⭐ T40.26 — nay phủ CẢ công trình, không riêng bài viết: chốt chặn đã chuyển xuống
+    //   `AttachmentService.delete`, nơi mọi module tự khai qua `AttachmentUsagePort`.
+    message: 'Tệp đang được nơi khác sử dụng — gỡ tham chiếu trước khi xoá',
     handling: 'toast',
     severity: 'warning',
   },
@@ -260,6 +262,13 @@ export const ERROR_CATALOG = {
   },
   'CMS-2022': {
     message: 'Danh sách vượt trần số dòng cho một lượt xuất — lọc theo trạng thái rồi xuất lại',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'CMS-2023': {
+    // ⚠ Chốt chặn ở backend là lưới cuối. Người dùng thật gặp luật ở tầng biểu mẫu trước
+    //   (`Form.Item name="content"`), nên câu này chỉ hiện khi có ai gọi API ngoài màn hình soạn bài.
+    message: 'Nội dung bài viết đang trống — nhập nội dung trước khi lưu',
     handling: 'toast',
     severity: 'warning',
   },
@@ -533,6 +542,28 @@ export const ERROR_CATALOG = {
   'ADM-2013': {
     message: 'Khôi phục thất bại — CSDL có thể đang dở dang, liên hệ quản trị hệ thống',
     handling: 'toast',
+    severity: 'error',
+  },
+
+  // --- Ma trận phân quyền sửa được (T27.31, CN-05.2) ---
+  'ADM-2014': {
+    message: 'Vai trò hệ thống không sửa quyền được — đây là lối thoát cuối cùng của hệ thống',
+    handling: 'toast',
+    severity: 'error',
+  },
+  'ADM-2015': {
+    message: 'Có mã quyền không còn trong danh mục — tải lại trang rồi thử lại',
+    handling: 'toast',
+    severity: 'error',
+  },
+  'ADM-2016': {
+    // ⛔ `caller`, ⛔ không phải `toast`: đây là thao tác DUY NHẤT trong màn hình mà hậu quả ⛔ không
+    //   quay lui được bằng bất kỳ đường nào trong giao diện. Một dòng toast trôi mất sau 3 giây
+    //   ⛔ không phân biệt được với mọi lỗi nhập liệu khác người dùng vừa gặp — nên `RolesPage`
+    //   dựng một hộp thoại phải bấm mới tắt.
+    message:
+      'Bỏ quyền này là bạn tự khoá chính mình khỏi màn hình phân quyền, và không đường nào trong giao diện gỡ lại được. Nhờ một tài khoản Quản trị tối cao thao tác hộ.',
+    handling: 'caller',
     severity: 'error',
   },
 } as const satisfies Record<string, ErrorEntry>;

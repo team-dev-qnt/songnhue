@@ -71,4 +71,42 @@ public record NotifyRequest(
                 permission,
                 List.of(NotifyChannel.IN_APP, NotifyChannel.EMAIL));
     }
+
+    /**
+     * Nhắm đích theo quyền, <b>cộng người đứng đầu những đơn vị đang chịu trách nhiệm</b> — T28.51.
+     *
+     * <h3>Vì sao {@link #targeted} một mình là chưa đủ</h3>
+     *
+     * {@code targeted} ghi cứng {@code List.of()} cho {@code relatedOrgUnitIds}, nên một lượt nhắc
+     * SLA gửi cho <b>mọi</b> tài khoản có quyền xử lý — kể cả người ⛔ không liên quan tới việc đã
+     * được chuyển cho Xí nghiệp khác. Đo được: 40 thư/ngày tới người ⛔ không có việc gì phải làm,
+     * và đó đúng là cách một hộp thư học được thói quen bỏ qua cảnh báo.
+     *
+     * <p>⚠ Đây là phép <b>THU HẸP</b> chứ ⛔ không phải mở rộng: nó thêm đúng những người có trách
+     * nhiệm cụ thể, ⛔ không cộng nhóm "Ban điều hành" như {@link #alert}. Xem
+     * {@code RecipientResolver#resolve} để biết vì sao ba ca này ⛔ không gộp làm một được.
+     *
+     * @param orgUnitIds đơn vị đang chịu trách nhiệm; rỗng ⇒ hành vi giống hệt {@link #targeted}
+     */
+    public static NotifyRequest targetedWithUnits(
+            String eventType,
+            String title,
+            String body,
+            NotifySeverity severity,
+            String permission,
+            List<Long> orgUnitIds,
+            List<Long> extraUserIds) {
+        return new NotifyRequest(
+                eventType,
+                title,
+                body,
+                severity,
+                null,
+                null,
+                null,
+                orgUnitIds == null ? List.of() : orgUnitIds,
+                extraUserIds == null ? List.of() : extraUserIds,
+                permission,
+                List.of(NotifyChannel.IN_APP, NotifyChannel.EMAIL));
+    }
 }

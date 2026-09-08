@@ -126,8 +126,20 @@ public class ContactService {
         String cd = cong.chuanHoa(chuDe);
         String nd = cong.chuanHoa(noiDung);
 
-        cong.batBuoc(ten, "fullName");
-        cong.batBuoc(cd, "subject");
+        // --- T28.49: ô đã TẮT thì ⛔ không thể bắt buộc ------------------------
+        //
+        // ⛔ Bắt buộc một trường mà biểu mẫu ⛔ không còn ô để điền là dựng một cánh cửa khoá:
+        //   người dân điền xong tất cả những gì nhìn thấy rồi nhận một lỗi ⛔ không sửa được.
+        //   Cùng hình dạng `dienThoaiBatBuoc()` đã chặn ở T36.7 — chỉ đổi trường.
+        //
+        // ⚠ `content` cố ý ⛔ KHÔNG tắt được: một phản ánh ⛔ không có nội dung thì ⛔ không có gì
+        //   để xử lý. Đó ⛔ không phải "nặc danh", đó là một hàng rác.
+        if (luatBieuMau.hienHoTen()) {
+            cong.batBuoc(ten, "fullName");
+        }
+        if (luatBieuMau.hienTieuDe()) {
+            cong.batBuoc(cd, "subject");
+        }
         cong.batBuoc(nd, "content");
 
         // --- T36.7: trường bắt buộc theo CẤU HÌNH -----------------------------
