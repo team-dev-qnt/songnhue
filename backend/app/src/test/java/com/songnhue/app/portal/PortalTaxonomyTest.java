@@ -209,6 +209,21 @@ class PortalTaxonomyTest {
         return sb.toString();
     }
 
+    /**
+     * ⚠⚠ <b>Đây là bộ canh thật. {@code V202608271031:187} gọi tên một bộ canh KHÔNG TỒN TẠI.</b>
+     *
+     * <p>Chú thích trong migration ấy viết <i>"{@code PortalDocSystemUrlTest} canh cho khỏi lệch
+     * (luật 14)"</i>. Đo 08/09/2026: <b>0 tệp</b> mang tên đó trong toàn kho — nó chưa bao giờ tồn
+     * tại. Suốt 12 ngày, thứ giữ hai bảng khỏi lệch nhau là phương thức này, còn người đọc migration
+     * thì được chỉ sang một cái tên không có thật.
+     *
+     * <p>⛔ <b>Và tệp migration ấy KHÔNG được sửa</b>, kể cả chỉ sửa chú thích: Flyway băm <i>cả
+     * tệp</i>, nên đổi một ký tự là mọi môi trường đã áp bản cũ sẽ chết ở {@code validate} — §10.65,
+     * dự án đã trả giá đúng lỗi này ngày 27/8. Vì vậy lời đính chính nằm ở đây, tại bộ canh thật.
+     *
+     * <p>Bài học rộng hơn (§10.81): <b>một chú thích không phải một cổng kiểm</b> — và một chú thích
+     * <i>khẳng định</i> có cổng kiểm còn tệ hơn im lặng, vì nó làm người đọc thôi đi tìm.
+     */
     @Test
     @DisplayName("⛔ Địa chỉ hệ thống văn bản điều hành khớp giữa `settings` và `menu_items` (CR-07)")
     void diaChiHeThongVanBanKhongLech() {

@@ -335,7 +335,7 @@ export interface ChainVerification {
 // =============================================================================
 
 export type BackupStatus = 'RUNNING' | 'SUCCEEDED' | 'FAILED';
-export type BackupTrigger = 'SCHEDULED' | 'MANUAL' | 'PRE_RESTORE';
+export type BackupTrigger = 'SCHEDULED' | 'MANUAL' | 'PRE_RESTORE' | 'PRE_DEPLOY';
 
 export interface BackupView {
   id: string;

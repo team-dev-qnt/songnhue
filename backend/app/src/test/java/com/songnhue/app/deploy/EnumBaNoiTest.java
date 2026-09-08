@@ -18,6 +18,7 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import com.songnhue.core.domain.backup.BackupTrigger;
 import com.songnhue.operations.domain.ConstructionPurpose;
 import com.songnhue.operations.domain.ConstructionType;
 import com.songnhue.operations.domain.LifecycleState;
@@ -65,31 +66,56 @@ import com.songnhue.operations.domain.OperationalStatus;
  */
 class EnumBaNoiTest {
 
-    /** Một dòng = một danh sách giá trị phải khớp ở cả ba nơi. */
-    private record BoBa(Class<? extends Enum<?>> enumJava, String tenKieuTs, String tenRangBuoc) {}
+    /**
+     * Một dòng = một danh sách giá trị phải khớp ở cả ba nơi.
+     *
+     * @param tenTuVung tên hằng {@code StatusVocabulary} ở {@code statusVocabulary.ts}, hoặc
+     *     {@code null} khi enum ấy chưa được canh ở nơi thứ tư — xem phạm vi ở javadoc lớp.
+     */
+    private record BoBa(Class<? extends Enum<?>> enumJava, String tenKieuTs, String tenRangBuoc, String tenTuVung) {}
 
     private static final List<BoBa> BO_BA = List.of(
-            new BoBa(ConstructionType.class, "ConstructionType", "ck_constructions_type"),
-            new BoBa(ConstructionPurpose.class, "ConstructionPurpose", "ck_constructions_purpose"),
-            new BoBa(ManagementLevel.class, "ManagementLevel", "ck_constructions_management_level"),
-            new BoBa(LifecycleState.class, "LifecycleState", "ck_constructions_lifecycle"),
-            new BoBa(OperationalStatus.class, "OperationalStatus", "ck_constructions_operational_status"));
+            new BoBa(ConstructionType.class, "ConstructionType", "ck_constructions_type", null),
+            new BoBa(ConstructionPurpose.class, "ConstructionPurpose", "ck_constructions_purpose", null),
+            new BoBa(ManagementLevel.class, "ManagementLevel", "ck_constructions_management_level", null),
+            new BoBa(LifecycleState.class, "LifecycleState", "ck_constructions_lifecycle", null),
+            new BoBa(OperationalStatus.class, "OperationalStatus", "ck_constructions_operational_status", null),
+            // T11.34 — enum đầu tiên ngoài hồ sơ công trình, và enum đầu tiên canh đủ BỐN nơi.
+            new BoBa(BackupTrigger.class, "BackupTrigger", "ck_system_backups_trigger", "BACKUP_TRIGGER"));
 
     private static final Path API_TYPES = gocKho().resolve("frontend/admin-app/src/shared/api-types.ts");
 
-    private static final Path MIGRATION = gocKho().resolve(
-                    "backend/operations/src/main/resources/db/migration/ops/V202608211026__ops_constructions.sql");
+    private static final Path TU_VUNG =
+            gocKho().resolve("frontend/admin-app/src/components/business/statusVocabulary.ts");
+
+    /**
+     * ⚠⚠ Đọc <b>toàn bộ</b> migration, không đọc một tệp.
+     *
+     * <p>Bản trước ghim đúng một tệp {@code V202608211026__ops_constructions.sql} — hẹp hơn nơi nó
+     * phải chặn (luật 28), và ràng buộc của module khác thì vô hình với nó. Nặng hơn: một
+     * {@code CHECK} có thể được <b>dựng lại</b> ở migration sau (T11.34 làm đúng thế), nên định
+     * nghĩa đang chạy là định nghĩa ở tệp có <b>số hiệu lớn nhất</b> — đọc tệp gốc là đọc một sự thật
+     * đã hết hạn.
+     */
+    private static List<Path> moiMigration() throws IOException {
+        try (var duyet = Files.walk(gocKho().resolve("backend"))) {
+            return duyet.filter(p -> p.toString().contains("/db/migration/"))
+                    .filter(p -> p.getFileName().toString().endsWith(".sql"))
+                    .sorted(java.util.Comparator.comparing(p -> p.getFileName().toString()))
+                    .toList();
+        }
+    }
 
     @Test
     @DisplayName("⭐⭐ Enum Java ↔ union TypeScript ↔ CHECK của CSDL — ba nơi cùng một bộ giá trị")
     void baNoiCungMotBoGiaTri() throws IOException {
         String ts = Files.readString(API_TYPES, StandardCharsets.UTF_8);
-        String sql = Files.readString(MIGRATION, StandardCharsets.UTF_8);
+        List<Path> migration = moiMigration();
 
         for (BoBa bo : BO_BA) {
             Set<String> java = giaTriJava(bo.enumJava());
             Set<String> typescript = giaTriTypeScript(ts, bo.tenKieuTs());
-            Set<String> csdl = giaTriCsdl(sql, bo.tenRangBuoc());
+            Set<String> csdl = giaTriCsdlMoiNoi(migration, bo.tenRangBuoc());
 
             assertThat(typescript)
                     .as(
@@ -121,11 +147,15 @@ class EnumBaNoiTest {
         // hay đổi tên ràng buộc, hai bộ đọc văn bản trả về rỗng — bài trên sẽ đỏ vì lệch với Java,
         // nhưng bài này nói thẳng nguyên nhân thay vì bắt người đọc tự suy.
         String ts = Files.readString(API_TYPES, StandardCharsets.UTF_8);
-        String sql = Files.readString(MIGRATION, StandardCharsets.UTF_8);
+        List<Path> migration = moiMigration();
 
         assertThat(BO_BA)
                 .as("bảng đối chiếu rỗng thì bài trên không khẳng định gì")
-                .hasSize(5);
+                .hasSize(6);
+        assertThat(migration)
+                .as("bộ đọc migration không thấy tệp nào — đường dẫn đổi? Nó sẽ khiến MỌI bộ giá trị "
+                        + "CSDL về rỗng, và bài trên đỏ vì lý do sai")
+                .hasSizeGreaterThanOrEqualTo(50);
 
         for (BoBa bo : BO_BA) {
             assertThat(giaTriJava(bo.enumJava()))
@@ -134,23 +164,89 @@ class EnumBaNoiTest {
             assertThat(giaTriTypeScript(ts, bo.tenKieuTs()))
                     .as("không bóc được giá trị nào của `%s` từ %s — union đổi cách khai?", bo.tenKieuTs(), API_TYPES)
                     .isNotEmpty();
-            assertThat(giaTriCsdl(sql, bo.tenRangBuoc()))
-                    .as("không bóc được giá trị nào của `%s` từ %s — ràng buộc đổi tên?", bo.tenRangBuoc(), MIGRATION)
+            assertThat(giaTriCsdlMoiNoi(migration, bo.tenRangBuoc()))
+                    .as(
+                            "không bóc được giá trị nào của `%s` trong %d tệp migration — ràng buộc đổi tên, "
+                                    + "hay khối CHECK đổi cách xuống dòng?",
+                            bo.tenRangBuoc(), migration.size())
                     .isNotEmpty();
         }
+    }
+
+    /**
+     * Nơi thứ TƯ — bảng nhãn hiển thị {@code statusVocabulary.ts}.
+     *
+     * <p>Thiếu một nhãn thì giao diện in ra <b>mã trần</b> (`PRE_DEPLOY`) giữa những dòng tiếng
+     * Việt: không lỗi, không log, chỉ xấu và khó hiểu với người vận hành.
+     *
+     * <h2>⚠ Phạm vi tự khai (luật 28) — vì sao chỉ MỘT enum</h2>
+     *
+     * Vì đối chiếu bằng-nhau <b>sai</b> với phần còn lại, và đây là số đo chứ không phải phỏng đoán:
+     * {@code CONSTRUCTION_STATUS} <b>gộp hai enum</b> — nó chứa {@code DA_THANH_LY}, một giá trị của
+     * {@link LifecycleState}, bên cạnh năm giá trị của {@link OperationalStatus}. Ép bằng nhau ở đó
+     * là dựng một bài kiểm đỏ vĩnh viễn cho một thiết kế đúng.
+     *
+     * <p>⬜ Nợ để mở có số đo: 13 hằng {@code StatusVocabulary} tồn tại, bài này canh <b>1</b>.
+     */
+    @Test
+    @DisplayName("Nơi thứ tư: mọi giá trị enum đều có nhãn tiếng Việt trong statusVocabulary.ts")
+    void moiGiaTriDeuCoNhan() throws IOException {
+        String tuVung = Files.readString(TU_VUNG, StandardCharsets.UTF_8);
+        int daCanh = 0;
+
+        for (BoBa bo : BO_BA) {
+            if (bo.tenTuVung() == null) {
+                continue;
+            }
+            daCanh++;
+            Set<String> nhan = khoaTuVung(tuVung, bo.tenTuVung());
+            assertThat(nhan)
+                    .as("không bóc được khoá nào từ hằng `%s` — đổi cách khai?", bo.tenTuVung())
+                    .isNotEmpty();
+            assertThat(nhan)
+                    .as(
+                            """
+                            `%s`: bảng nhãn lệch enum Java.
+                              Java     : %s
+                              Nhãn TS  : %s
+                            Thiếu nhãn = giao diện in ra MÃ TRẦN giữa những dòng tiếng Việt.""",
+                            bo.tenTuVung(), giaTriJava(bo.enumJava()), nhan)
+                    .isEqualTo(giaTriJava(bo.enumJava()));
+        }
+
+        assertThat(daCanh)
+                .as("không dòng nào khai tenTuVung ⇒ bài này không khẳng định gì")
+                .isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("⛔ Bộ đọc CSDL lấy định nghĩa MỚI NHẤT, không lấy tệp gốc")
+    void docDinhNghiaMoiNhatChuKhongPhaiTepGoc() throws IOException {
+        // `ck_system_backups_trigger` được định nghĩa HAI lần trong chuỗi migration:
+        //   V202608161010  →  3 giá trị  (SCHEDULED, MANUAL, PRE_RESTORE)
+        //   V202609081072  →  4 giá trị  (+ PRE_DEPLOY, T11.34)
+        // Đây là cặp trạng thái duy nhất trong kho phân biệt được "đọc tệp gốc" với "đọc bản đang
+        // chạy". Không có khẳng định này thì một bộ đọc lấy tệp ĐẦU vẫn xanh ở mọi bài khác cho tới
+        // ngày có ai đó nới một ràng buộc — rồi đỏ, trong khi CSDL thật hoàn toàn đúng (quy tắc 9).
+        Set<String> dangChay = giaTriCsdlMoiNoi(moiMigration(), "ck_system_backups_trigger");
+
+        assertThat(dangChay)
+                .as("phải là bản 4 giá trị của V202609081072, không phải bản 3 giá trị của V202608161010")
+                .hasSize(4)
+                .contains("PRE_DEPLOY");
     }
 
     @Test
     @DisplayName("⛔ `HON_HOP` phải có ở CẢ BA nơi — đây là giá trị đã gây ra lỗi chặn")
     void honHopCoODuBaNoi() throws IOException {
         String ts = Files.readString(API_TYPES, StandardCharsets.UTF_8);
-        String sql = Files.readString(MIGRATION, StandardCharsets.UTF_8);
+        List<Path> migration = moiMigration();
 
         assertThat(giaTriJava(ConstructionPurpose.class)).contains("HON_HOP");
         assertThat(giaTriTypeScript(ts, "ConstructionPurpose"))
                 .as("gỡ khỏi TS là ô chọn không tạo ra được nhiệm vụ 'Tưới tiêu kết hợp' nữa")
                 .contains("HON_HOP");
-        assertThat(giaTriCsdl(sql, "ck_constructions_purpose")).contains("HON_HOP");
+        assertThat(giaTriCsdlMoiNoi(migration, "ck_constructions_purpose")).contains("HON_HOP");
 
         assertThat(giaTriTypeScript(ts, "ConstructionPurpose"))
                 .as("hai giá trị ma của bản cũ — chào chúng ra là 400 hỏng cả lượt lưu")
@@ -176,6 +272,43 @@ class EnumBaNoiTest {
             return Set.of();
         }
         return bocChuoiNhay(khai.group(1), '\'');
+    }
+
+    /**
+     * Giá trị của một ràng buộc, lấy từ tệp migration có <b>số hiệu lớn nhất</b> định nghĩa nó.
+     *
+     * <p>⚠ Một {@code CHECK} có thể bị bỏ rồi dựng lại ở migration sau — T11.34 nới
+     * {@code ck_system_backups_trigger} đúng như vậy. Đọc tệp gốc là đọc một sự thật đã hết hạn,
+     * và bài kiểm sẽ đỏ trong khi CSDL thật hoàn toàn đúng.
+     */
+    private static Set<String> giaTriCsdlMoiNoi(List<Path> migration, String tenRangBuoc) throws IOException {
+        Set<String> moiNhat = Set.of();
+        for (Path tep : migration) {
+            Set<String> tim = giaTriCsdl(Files.readString(tep, StandardCharsets.UTF_8), tenRangBuoc);
+            if (!tim.isEmpty()) {
+                moiNhat = tim;
+            }
+        }
+        return moiNhat;
+    }
+
+    /** Bóc các khoá của {@code export const <TEN>: StatusVocabulary = { A: {...}, B: {...} };}. */
+    private static Set<String> khoaTuVung(String noiDung, String tenHang) {
+        Matcher khai = Pattern.compile(
+                        "export\\s+const\\s+" + Pattern.quote(tenHang)
+                                + "\\s*:\\s*StatusVocabulary\\s*=\\s*\\{(.*?)\\n\\};",
+                        Pattern.DOTALL)
+                .matcher(noiDung);
+        if (!khai.find()) {
+            return Set.of();
+        }
+        Set<String> ket = new LinkedHashSet<>();
+        Matcher m = Pattern.compile("^\\s{2}([A-Z][A-Z_0-9]*)\\s*:", Pattern.MULTILINE)
+                .matcher(khai.group(1));
+        while (m.find()) {
+            ket.add(m.group(1));
+        }
+        return ket;
     }
 
     /**

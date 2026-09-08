@@ -119,10 +119,19 @@ SIZE="$(wc -c < "$ON_HOST" | tr -d ' ')"
 # tính vào cảnh báo "quá 26 giờ". Bản dump vô hình với hệ thống thì tương đương
 # không có, vì không ai biết mà dùng.
 #
-# 📌 Nợ nhỏ: cột `trigger_type` hiện chỉ nhận ('SCHEDULED','MANUAL','PRE_RESTORE')
-#    — xem V202608161010. Ghi 'MANUAL' cho đúng ràng buộc; tên tệp `predeploy-*`
-#    và `file_path` vẫn phân biệt được. Thêm 'PRE_DEPLOY' là một migration bốn
-#    dòng, gộp vào lần sửa lược đồ kế tiếp cho đỡ tốn một vòng CI.
+# ⭐ 08/09/2026 (T11.34): ghi 'PRE_DEPLOY' — giá trị THẬT, thôi mượn 'MANUAL'.
+#    Ràng buộc `ck_system_backups_trigger` nới ở V202609081072.
+#
+# ⛔ Vì sao nó KHÔNG phải "nợ nhỏ" như chú thích cũ nói: câu *"tên tệp predeploy-*
+#    và file_path vẫn phân biệt được"* đúng với NGƯỜI đọc màn hình và sai với MÁY.
+#    Mọi truy vấn lọc theo `trigger_type` — thống kê, cảnh báo "quá 26 giờ", và bất
+#    kỳ chính sách giữ/dọn nào viết sau này — đều trộn bản chụp trước deploy vào
+#    cùng rổ với bản người dùng bấm tay. Phân biệt bằng tiền tố tên tệp là một quy
+#    ước sống trong trí nhớ con người (luật 14).
+#
+# ⚠ Giá trị này phải khớp ở BỐN nơi và `EnumBaNoiTest` canh cả bốn: enum Java
+#   `BackupTrigger` · union TS `api-types.ts` · CHECK của CSDL · nhãn
+#   `statusVocabulary.ts`. Đổi một nơi mà quên ba nơi kia thì bài ấy đỏ.
 # -----------------------------------------------------------------------------
 if [ -n "${DB_MIGRATION_PASSWORD:-}" ]; then
     docker exec -i -e PGPASSWORD="$DB_MIGRATION_PASSWORD" "$CT_POSTGRES" psql \
@@ -131,7 +140,7 @@ if [ -n "${DB_MIGRATION_PASSWORD:-}" ]; then
         "INSERT INTO system_backups
             (file_name, file_path, status, trigger_type, finished_at, size_bytes, checksum_sha256)
          VALUES
-            ('$FILE_NAME', '$ON_HOST', 'SUCCEEDED', 'MANUAL', now(), $SIZE, '$CHECKSUM');" \
+            ('$FILE_NAME', '$ON_HOST', 'SUCCEEDED', 'PRE_DEPLOY', now(), $SIZE, '$CHECKSUM');" \
         >/dev/null 2>&1 \
         || echo "  ⚠ Không ghi được sổ đăng ký — bản dump vẫn hợp lệ, nhưng màn hình quản trị sẽ không thấy nó."
 fi
