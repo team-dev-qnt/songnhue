@@ -6144,6 +6144,52 @@ Cùng hình dạng **§10.67** (*bản vá sống trên đĩa mà tiến trình 
 ⛔ không bao giờ đồng bộ khi còn PR mở đụng vào `master-tracking.md`. Thứ tự: gộp mọi PR đụng tệp ấy →
 cây chính `checkout dev && pull` → đo md5 → **rồi mới** đồng bộ.
 
-⚠ Nợ để lại: đầu ra của công cụ ⛔ không in **đường dẫn tuyệt đối** nó vừa đọc. Một dòng
-`os.path.abspath(...)` trong phần trả lời biến lỗi im lặng này thành lỗi nhìn thấy được — đúng luật 32
-(*in một con số / một sự kiện đo được ở mỗi bước*).
+⭐ **Đã trả cùng ngày (T37.16)**: `os.path.abspath(...)` + dòng `Nguồn đã đọc:` nằm trong **câu trả
+lời**, ⛔ không chỉ trong log — log của tiến trình MCP gần như ⛔ không ai mở, và một cảnh báo ⛔ không
+ai đọc thì bằng ⛔ không có (§10.68). ⛔ Cố ý **không** khoá cứng đường dẫn theo `__file__`: đồng bộ từ
+một cây khác là việc **hợp lệ**; thứ thiếu ⛔ không phải một cái chặn mà là **nói ra cây nào**.
+
+⚠⚠ Và bản vá ấy làm gãy neo của một bộ canh cũ — bài học riêng, đáng giá hơn chính bản vá:
+`test_server_co_cong_chan_ma_cu` neo vào chuỗi `parse_markdown_to_data(os.path.join`, nên lượt **bóc
+đối số ra biến** khiến nó tìm không thấy và đỏ, dù bất biến nó canh (*phép so vân tay phải đứng TRƯỚC
+lượt đọc*) ⛔ **không hề đổi**. ⇒ **Một bộ canh hỏng vì mã được DỌN DẸP là một bộ canh đang canh văn
+bản** (luật 2). Neo đúng là lời gọi `parse_markdown_to_data(`, ⛔ không phải cách viết đối số của nó.
+
+---
+
+### §11.17 — Hai cái chuông phải phủ hai tập RỜI NHAU, và một bộ canh ⛔ không được ở cùng nhà với thứ nó canh (T11.67, 8/9/2026)
+
+`bao-dong-quet-cve.sh` (T11.66/T11.84) treo vào `needs: [owasp, npm]` với `if: always()`. Nó là một
+cái chuông **tốt** — và nó chỉ kêu được khi **có một lượt để mà đỏ**. Tắt Actions, xoá nhầm workflow,
+YAML vỡ, GitHub bỏ lịch cron: tất cả cho ra **im lặng tuyệt đối**, đọc y hệt *"mọi thứ đều ổn"*.
+
+Điều đáng chú ý là khoảng trống ấy **đã được ghi ra** — javadoc của `CanhBaoQuetCveTest` tự khai
+giới hạn của chính nó (luật 28). Một dòng nợ nằm trong bộ canh sống lâu hơn một dòng nợ nằm trong sổ.
+
+**Ba quyết định của lượt trả, mỗi cái là một bài học riêng:**
+
+| Quyết định | Vì sao ⛔ không làm cách kia |
+|---|---|
+| **Workflow RIÊNG**, ⛔ không phải một job thêm vào `security-scan.yml` | Chính là khuyết tật nó canh: tệp ấy vỡ thì mọi job **bên trong** cũng chết — kể cả job đi báo rằng nó chết. Có bài kiểm khẳng định `security-scan.yml` ⛔ **không** chứa `canh-cong-quet.sh` |
+| **IM LẶNG khi lượt quét `failure`** | Trạng thái ấy đã có chuông **kèm bằng chứng**. Kêu lần hai là dựng lại T11.84 — 9 bình luận giống hệt nhau, rồi ⛔ không ai đọc nữa. Hai chuông phủ **hai tập rời nhau** |
+| **Ngưỡng 30 giờ, giờ chạy 16:00 UTC** — chọn theo **số đo**, ⛔ không theo dòng cron | 6 lượt gần nhất trễ **291–726 phút** ⇒ kết quả rơi vào 07:06–14:21 UTC. Dòng cron ⛔ không phải giờ CHẠY, nó là giờ *xin* chạy — và chú thích khẳng định *"có kết quả trước giờ làm việc"* đã **sai từ 27/8** mà ⛔ không ai cập nhật |
+
+⛔⛔ **Khuyết tật của chính lượt viết bài kiểm — dạng mới, đáng ghi nhất.** Giờ ghim đặt nhầm thành
+30/08, **sớm hơn mọi fixture 9 ngày** ⇒ mọi phép trừ ra số **ÂM**. Hệ quả ⛔ không phải "mọi bài đỏ":
+
+- bài *quá hạn* (nhánh xa nhất) **đỏ** — thứ duy nhất nhìn thấy được;
+- ba bài *còn tươi* **xanh**, và xanh **vì lý do sai** — chúng chứng minh nhánh bình-thường chạy được
+  với một tuổi âm, ⛔ không nói gì về ngưỡng.
+
+⇒ **Một hằng số thời gian sai chỉ làm ĐỎ nhánh xa nhất; các nhánh gần thì XANH GIẢ.** Và cách sửa rẻ
+nhất lúc ấy — *nới ngưỡng cho bài kia hết đỏ* — là **tự tay tháo bộ canh**. Thứ chặn được là một bài
+tính lại tuổi bằng `java.time`, **nguồn khác hẳn `date` của shell**, ⛔ không chia giả định nào với
+thứ nó kiểm (luật 29).
+
+⚠ Lượt kiểm chứng ngược cũng suýt nói dối **hai lần**, cả hai đều là bẫy sổ đã ghi: `./mvnw -pl app`
+**thiếu `-am`** biên dịch với jar `core` CŨ trong m2 ⇒ **lớp chưa từng chạy** (bắt được vì đếm **số
+báo cáo surefire**, ⛔ không đọc màu — luật 32); và `rm -f <glob>` không khớp làm **zsh cắt cả chuỗi
+lệnh** (luật 20).
+
+⛔ Thêm một dạng của bẫy khôi phục ở §11.15: `git diff` trên một tệp **chưa track** luôn rỗng, nên nó
+⛔ **không phải** phép đo khôi phục. Chỉ `grep -c` mới là.
