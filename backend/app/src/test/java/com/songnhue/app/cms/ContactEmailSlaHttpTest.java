@@ -126,6 +126,12 @@ class ContactEmailSlaHttpTest extends IntegrationTestBase {
         donThongBaoCuaLienHe();
         jdbc.update("DELETE FROM jobs WHERE job_type LIKE 'CMS_CONTACT%'");
         jdbc.update("DELETE FROM contacts");
+        // ⚠ T28.51 — TRẢ `head_user_id` về NULL trước khi xoá tài khoản: khoá ngoại
+        //   `fk_org_units_head_user` chặn lượt xoá, và bài kế tiếp sẽ đỏ vì dọn dẹp chứ ⛔ không vì
+        //   thứ nó kiểm.
+        jdbc.update("UPDATE org_units SET head_user_id = NULL "
+                + "WHERE head_user_id IN (SELECT id FROM users WHERE username LIKE 't2851\\_%')");
+        jdbc.update("DELETE FROM users WHERE username LIKE 't2851\\_%'");
         datHanSla("48");
     }
 
@@ -243,6 +249,114 @@ class ContactEmailSlaHttpTest extends IntegrationTestBase {
                 .as("⛔ Một khoá `sla-enabled` riêng tạo ra trạng thái vô nghĩa `enabled=true, "
                         + "hours=0`. Một khoá, một câu hỏi (luật 14).")
                 .isZero();
+    }
+
+    // ═══════════════ T28.51 — nhắc TỚI ĐÚNG người ═══════════════
+
+    /**
+     * ⭐⭐ Người đứng đầu đơn vị <b>đang giữ việc</b> phải nhận nhắc, kể cả khi ⛔ không có
+     * {@code cms:contact:manage}.
+     *
+     * <p>Trước 08/09 lượt nhắc gửi cho <b>mọi</b> tài khoản có quyền xử lý và chỉ thế. Người phụ
+     * trách Xí nghiệp đang giữ việc ⛔ không nhận được gì; người ⛔ không liên quan nhận hết. Đó đúng
+     * là cách một hộp thư học được thói quen bỏ qua cảnh báo — và lúc ấy cảnh báo sự cố thật cũng
+     * chết theo.
+     *
+     * <p>⚠ Đường dây từng đứt ở <b>HAI</b> chỗ độc lập ({@code NotifyRequest.targeted} ghi cứng danh
+     * sách rỗng, <i>và</i> {@code RecipientResolver} bỏ qua danh sách ấy khi đã nhắm đích). Bài này
+     * đo <b>kết quả cuối</b> — ai có tên trong {@code notification_recipients} — nên nó đỏ nếu chỉ
+     * vá một trong hai.
+     */
+    @Test
+    @DisplayName("⭐⭐ T28.51 — trưởng đơn vị ĐANG GIỮ VIỆC nhận nhắc, dù ⛔ không có quyền xử lý")
+    void nhacToiCaTruongDonViDangGiuViec() {
+        Long donVi = donViCty();
+        Long truongDonVi = seedNguoiDungKhongQuyen("t2851_truong", donVi);
+        jdbc.update("UPDATE org_units SET head_user_id = ? WHERE id = ?", truongDonVi, donVi);
+
+        gui("a@example.invalid", null);
+        jdbc.update("UPDATE contacts SET created_at = now() - interval '72 hours', assigned_org_unit_id = ?", donVi);
+
+        slaHandler.handle(viecRong());
+
+        assertThat(laNguoiNhanSla(truongDonVi))
+                .as("⛔ Người đang giữ việc ⛔ không nhận được nhắc — 40 thư/ngày đi tới người ⛔ không "
+                        + "có gì phải làm, còn người phải làm thì ⛔ không biết")
+                .isTrue();
+    }
+
+    /**
+     * ⚠⚠ Vế phân biệt (luật 9) — và nó đo <b>hai</b> điều cùng lúc.
+     *
+     * <p>Nếu bài trên xanh vì {@code RecipientResolver} bỗng gửi cho <i>tất cả mọi người</i>, thì nó
+     * ⛔ không chứng minh gì. Ở đây cùng một tài khoản, cùng một lượt nhắc, chỉ khác ở chỗ liên hệ
+     * <b>chưa được chuyển cho ai</b> — và khi ấy anh ta ⛔ không được nhận.
+     *
+     * <p>⛔ Đồng thời khẳng định lượt nhắc <b>vẫn xảy ra</b>: thay nhóm-theo-quyền bằng nhóm-theo-đơn-vị
+     * là đổi một lỗ lấy một lỗ khác — việc chưa giao thì ⛔ không ai nhận.
+     */
+    @Test
+    @DisplayName("⭐⭐ Chưa chuyển cho ai ⇒ trưởng đơn vị ấy ⛔ KHÔNG nhận, mà chuông VẪN kêu")
+    void chuaChuyenChoAiThiKhongNhac() {
+        Long donVi = donViCty();
+        Long truongDonVi = seedNguoiDungKhongQuyen("t2851_ngoai", donVi);
+        jdbc.update("UPDATE org_units SET head_user_id = ? WHERE id = ?", truongDonVi, donVi);
+
+        gui("b@example.invalid", null);
+        // ⛔ KHÔNG gán `assigned_org_unit_id` — liên hệ chưa được chuyển cho ai.
+        jdbc.update("UPDATE contacts SET created_at = now() - interval '72 hours'");
+
+        slaHandler.handle(viecRong());
+
+        assertThat(demChuongSla())
+                .as("Liên hệ chưa giao cho ai vẫn phải được nhắc — nhóm giữ quyền xử lý là người phải làm")
+                .isEqualTo(1);
+        assertThat(laNguoiNhanSla(truongDonVi))
+                .as("⛔ Anh ta ⛔ không liên quan tới liên hệ này — nhận nhắc là quay lại đúng vấn đề cũ")
+                .isFalse();
+    }
+
+    /**
+     * Tài khoản ACTIVE ⛔ KHÔNG có vai trò nào ⇒ ⛔ không có {@code cms:contact:manage}.
+     *
+     * <p>⚠ Hai lượt đỏ trước khi đúng, và cả hai nói về <b>lược đồ</b> chứ ⛔ không nói gì về thứ
+     * đang kiểm — nên ghi lại để lần sau khỏi mất hai vòng:
+     *
+     * <ul>
+     *   <li>{@code org_unit_id} là {@code NOT NULL}; bản đầu bỏ hẳn cột ấy.
+     *   <li>{@code ON CONFLICT (username)} ⛔ <b>không suy ra được đích</b>: chỉ mục duy nhất là
+     *       {@code uq_users_username ON users (lower(username)) WHERE deleted_at IS NULL} — một chỉ
+     *       mục <i>biểu thức</i> và <i>có điều kiện</i>. Bỏ hẳn mệnh đề ấy là đúng: {@code @AfterEach}
+     *       xoá tài khoản sau mỗi bài, nên ⛔ không có xung đột nào để xử.
+     * </ul>
+     */
+    private Long seedNguoiDungKhongQuyen(String username, Long orgUnitId) {
+        return jdbc.queryForObject(
+                """
+                INSERT INTO users (username, email, full_name, password_hash, org_unit_id, status, created_at)
+                VALUES (?, ? || '@example.invalid', 'Trưởng đơn vị kiểm thử', '!', ?, 'ACTIVE', now())
+                RETURNING id
+                """,
+                Long.class,
+                username,
+                username,
+                orgUnitId);
+    }
+
+    private Long donViCty() {
+        return jdbc.queryForObject("SELECT id FROM org_units WHERE code = 'CTY'", Long.class);
+    }
+
+    private boolean laNguoiNhanSla(Long userId) {
+        Integer n = jdbc.queryForObject(
+                """
+                SELECT count(*) FROM notification_recipients r
+                  JOIN notifications n ON n.id = r.notification_id
+                 WHERE n.event_type = 'CONTACT_SLA_BREACH' AND r.user_id = ?
+                """,
+                Integer.class,
+                userId);
+        return n != null && n > 0;
     }
 
     // ═══════════════ Bộ canh: mã việc ↔ handler ═══════════════
