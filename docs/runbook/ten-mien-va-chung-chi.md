@@ -278,13 +278,68 @@ nginx · biến kho + secret GitHub · commit chạm `deploy/` để dựng lạ
 **Hệ quả cố ý**: `songnhue.com` không còn khối `server` nào phục vụ ⇒ TLS thất bại. Muốn giữ liên
 kết cũ sống thì phải thêm khối chuyển hướng 301 vào `default.conf.template` — **chưa làm**.
 
-⬜ **Còn treo**: `admin.` + `files.` chờ VNPT trỏ về `27.71.16.154`. Sau đó:
-```bash
-$CB certonly --webroot -w /var/www/certbot -d admin.thuyloisongnhue.vn --key-type ecdsa --non-interactive --agree-tos
-$CB certonly --webroot -w /var/www/certbot -d files.thuyloisongnhue.vn --key-type ecdsa --non-interactive --agree-tos
-# .env: ADMIN_DOMAIN=admin.thuyloisongnhue.vn · FILES_DOMAIN=files.thuyloisongnhue.vn
-# rồi §3 bước 3
+### 08/09/2026 (chặng 2) — `admin.` + `files.` sau khi VNPT sửa DNS
+
+DNS đo từ **ba nguồn** (NS uỷ quyền, resolver công cộng, 8.8.8.8): cả bốn bản ghi → `27.71.16.154`.
+
+⚠ **`FILES_DOMAIN` có một ràng buộc mà `PUBLIC_DOMAIN`/`ADMIN_DOMAIN` không có.** Nó xuất hiện ở
+**hai** service:
+
+```yaml
+app:    MINIO_ENDPOINT: https://${FILES_DOMAIN}     # app KÝ presigned URL bằng tên này
+nginx:  networks: {default: {aliases: [${FILES_DOMAIN}]}}   # để app không phải đi vòng hairpin NAT
 ```
 
-⬜ `SMTP_FROM` vẫn `no-reply@songnhue.com` — đổi trước khi xác nhận máy chủ SMTP cho phép gửi thay
-mặt miền mới là thư vào hộp rác hoặc bị từ chối thẳng.
+⇒ Phải tạo lại **cả hai cùng một lệnh**. Lệch nhau là app ký URL bằng một tên mà nginx không phục
+vụ, hoặc app không phân giải nổi endpoint của chính nó:
+
+```bash
+docker compose --env-file .env -f compose.prod.yml up -d --no-deps --force-recreate app nginx
+```
+
+**Kiểm CSP trước — và hoá ra rủi ro thấp hơn tưởng.** CSP của cổng là
+`img-src 'self' data: blob: https://tile.openstreetmap.org`, **không** có tên miền kho tệp. Ảnh cổng
+đi qua `/api/v1/public/files/<id>` — **cùng origin**, 0 tham chiếu `files.` trong HTML trang chủ. Nên
+đổi `FILES_DOMAIN` chỉ đổi tên miền của **presigned URL lúc tải tệp về**, không đụng ảnh hiển thị.
+
+**Kết quả đo:**
+
+| | |
+|---|---|
+| Chứng chỉ | `admin.thuyloisongnhue.vn` và `files.thuyloisongnhue.vn`, hạn **07/12/2026** |
+| Tạo lại `app` + `nginx` | healthy sau **40 giây** |
+| `server_name` | cả bốn đã sang miền mới |
+| Bí danh mạng nginx | `files.thuyloisongnhue.vn` |
+| `MINIO_ENDPOINT` của app | `https://files.thuyloisongnhue.vn` |
+| HTTP | apex/www/admin **200** · files **403** (đúng — MinIO đòi chữ ký) |
+| TLS | `ssl_verify_result=0` cả bốn tên |
+| ⭐ **End-to-end** | ảnh cổng trả **15.976 byte PNG thật** ⇒ app đọc được MinIO **qua endpoint mới** |
+| sitemap / robots | đã mang tên miền mới ⇒ image dựng lại đã lên production |
+
+Ba tên miền cũ (`songnhue.com`, `admin.`, `files.`) nay **không còn khối `server` nào phục vụ** —
+`curl` trả `000` (TLS thất bại). Đúng chủ ý.
+
+### ⏳ Bẫy hẹn giờ: ba chứng chỉ cũ vẫn nằm trong danh sách gia hạn
+
+`certbot renew` gia hạn **mọi** lineage trong `/etc/letsencrypt/renewal/`, kể cả ba cái không ai
+dùng nữa. Hôm nay chúng vẫn gia hạn được vì `songnhue.com` **vẫn trỏ về `27.71.16.154`** nên thử
+thách ACME đi qua khối `server_name _;`.
+
+⛔ **Ngày nào bạn gỡ bản ghi DNS của `songnhue.com`, phải xoá ba lineage ấy TRƯỚC** — nếu không
+`certbot renew` thất bại → script thoát khác 0 → **cron báo đỏ vì thứ không ai còn dùng**, và một
+cảnh báo sai là một cảnh báo người ta thôi đọc.
+
+```bash
+CB="docker run --rm -v /etc/letsencrypt:/etc/letsencrypt certbot/certbot:v5.8.0"
+$CB delete --cert-name songnhue.com --non-interactive
+$CB delete --cert-name admin.songnhue.com --non-interactive
+$CB delete --cert-name files.songnhue.com --non-interactive
+```
+
+Giữ chúng lại lúc này là cố ý: chúng là điều kiện để thêm một khối chuyển hướng 301 từ tên miền cũ,
+nếu sau này muốn.
+
+⬜ **Còn treo**: `SMTP_FROM` vẫn `no-reply@songnhue.com`. ⬜ `songnhue.com` chưa có chuyển hướng 301.
+
+> ⚠ `SMTP_FROM`: đổi **trước khi** xác nhận máy chủ SMTP cho phép gửi thay mặt miền mới là thư vào
+> hộp rác hoặc bị từ chối thẳng.
