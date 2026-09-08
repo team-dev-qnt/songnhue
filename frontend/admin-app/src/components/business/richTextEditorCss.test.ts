@@ -2,7 +2,12 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { TABLE_CELL_MIN_WIDTH_PX } from 'design-tokens/editor-schema';
+import {
+  CELL_BG_CLASSES,
+  TABLE_CELL_MIN_WIDTH_PX,
+  TEXT_BG_CLASSES,
+  TEXT_COLOR_CLASSES,
+} from 'design-tokens/editor-schema';
 import { describe, expect, it } from 'vitest';
 
 import { EXTENSIONS_SOAN_THAO } from './editorExtensions';
@@ -154,6 +159,33 @@ describe('CSS trình soạn thảo', () => {
         'số là bảng trong trình soạn thảo và bảng trên cổng cuộn ở hai ngưỡng khác nhau — người ' +
         'soạn thấy vừa khung, bạn đọc thấy tràn.',
     ).toMatch(new RegExp(`min-width\\s*:\\s*${TABLE_CELL_MIN_WIDTH_PX}px`));
+  });
+
+  it('⭐⭐ cả 18 class MÀU đều có quy tắc, và ĐỀU có tiền tố `.sn-editor__body`', () => {
+    // T41.15. Hai khẳng định trong một, cố ý:
+    //  (a) có quy tắc — thiếu thì người soạn bấm màu mà ⛔ không thấy gì đổi;
+    //  (b) có TIỀN TỐ — ba class `.sn-align-*` ở cuối tệp này là selector TRẦN nên rò rỉ ra toàn
+    //      ứng dụng quản trị (nợ T25.23). Bộ màu mới ⛔ không được dựng lại cùng hình dạng ấy.
+    const moiLop = [
+      ...TEXT_COLOR_CLASSES.map((c) => [c, 'color'] as const),
+      ...TEXT_BG_CLASSES.map((c) => [c, 'background-color'] as const),
+      ...CELL_BG_CLASSES.map((c) => [c, 'background-color'] as const),
+    ];
+    expect(moiLop).toHaveLength(18);
+
+    const thieu = moiLop.filter(
+      ([lop, tt]) => !coKhai(new RegExp(`^\\.sn-editor__body\\s+\\.${lop}$`), tt),
+    );
+    expect(
+      thieu.map(([lop]) => lop),
+      'Thiếu quy tắc, hoặc quy tắc viết bằng selector TRẦN. Cả hai đều là lỗi: cái đầu làm nút ' +
+        'màu vô tác dụng, cái sau làm class rò rỉ ra ngoài trình soạn thảo.',
+    ).toEqual([]);
+
+    // ⚠ Vế phân biệt hai trạng thái (luật 9): nếu `coKhai` khớp cả selector trần thì khẳng định
+    //   về tiền tố ở trên ⛔ không chứng minh gì.
+    expect(coKhai(/^\.sn-editor__body\s+\.sn-fg-do$/, 'color')).toBe(true);
+    expect(coKhai(/^\.sn-fg-do$/, 'color')).toBe(false);
   });
 
   it('⭐ chế độ Xem trước phải cuộn ngang y như cổng — nó KHÔNG có `.tableWrapper`', () => {

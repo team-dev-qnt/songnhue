@@ -4,9 +4,12 @@ import { fileURLToPath } from 'node:url';
 
 import {
   ALIGN_CLASSES,
+  CELL_BG_CLASSES,
   IMAGE_WIDTH_CLASSES,
   PORTAL_STYLED_TAGS,
   TABLE_CELL_MIN_WIDTH_PX,
+  TEXT_BG_CLASSES,
+  TEXT_COLOR_CLASSES,
 } from 'design-tokens/editor-schema';
 import { describe, expect, it } from 'vitest';
 
@@ -114,6 +117,37 @@ describe('CSS nội dung bài của cổng công khai', () => {
         `định, nên chúng sẽ hiển thị như chữ thường — không lỗi, không cảnh báo. Khai thêm ` +
         `trong article-content.css, hoặc bỏ khỏi PORTAL_STYLED_TAGS nếu thật sự không cần.`,
     ).toEqual([]);
+  });
+
+  it('⭐⭐ cả 18 class MÀU đều có quy tắc trên cổng — T41.15, yêu cầu ĐÃ KÝ', () => {
+    // Vế thứ ba của tam giác. Bộ khử trùng cho class đi qua và nội dung tới nơi đầy đủ, nên thiếu
+    // khối CSS này thì bài lên cổng MẤT MÀU mà ⛔ không lỗi nào — đúng cách `sn-align-*` đã hỏng ở
+    // T20.1: căn giữa đúng trong trình soạn thảo, căn trái trên cổng.
+    const thieu = [
+      ...TEXT_COLOR_CLASSES.map((c) => [c, 'color'] as const),
+      ...TEXT_BG_CLASSES.map((c) => [c, 'background-color'] as const),
+      ...CELL_BG_CLASSES.map((c) => [c, 'background-color'] as const),
+    ].filter(
+      ([lop, thuocTinh]) => !coKhai(new RegExp(`\\.sn-article\\s+\\.${lop}(\\b|$)`), thuocTinh),
+    );
+
+    expect(
+      thieu.map(([lop]) => lop),
+      'Những class màu này do trình soạn thảo sinh ra và HtmlSanitizer cho qua, nhưng cổng ' +
+        'không có quy tắc nào vẽ chúng. Khai thêm trong article-content.css — và nhớ ghim mã ' +
+        'màu vào `editorColors` bằng chú thích, đó là nơi DUY NHẤT một mã màu được viết ra.',
+    ).toEqual([]);
+  });
+
+  it('⚠ phép kiểm màu ở trên KHÔNG xanh trên tập rỗng — ba danh sách phải có đủ 6 phần tử', () => {
+    // Đọc hụt một danh sách (bộ đọc `as const` đổi cách viết chẳng hạn) thì `.filter` chạy qua mảng
+    // rỗng và bài trên xanh trọn vẹn mà ⛔ không so gì (luật 7).
+    expect(TEXT_COLOR_CLASSES).toHaveLength(6);
+    expect(TEXT_BG_CLASSES).toHaveLength(6);
+    expect(CELL_BG_CLASSES).toHaveLength(6);
+    // Và `coKhai` phải phân biệt được hai trạng thái, nếu không nó ⛔ không khẳng định gì (luật 9).
+    expect(coKhai(/\.sn-article\s+\.sn-fg-do(\b|$)/, 'color')).toBe(true);
+    expect(coKhai(/\.sn-article\s+\.sn-fg-khong-ton-tai(\b|$)/, 'color')).toBe(false);
   });
 
   it('⭐ danh sách phải có dấu đầu dòng — preflight xoá đúng thứ này', () => {

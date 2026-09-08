@@ -2,10 +2,12 @@ import {
   AlignCenterOutlined,
   AlignLeftOutlined,
   AlignRightOutlined,
+  BgColorsOutlined,
   BoldOutlined,
   CodeOutlined,
   DeleteOutlined,
   FileImageOutlined,
+  FontColorsOutlined,
   ItalicOutlined,
   LinkOutlined,
   OrderedListOutlined,
@@ -20,10 +22,22 @@ import {
 } from '@ant-design/icons';
 import { NodeSelection } from '@tiptap/pm/state';
 import { type Editor, EditorContent, useEditor, useEditorState } from '@tiptap/react';
-import { App, Alert, Button, Divider, Input, Modal, Segmented, Space, Tooltip } from 'antd';
+import {
+  App,
+  Alert,
+  Button,
+  Divider,
+  Dropdown,
+  Input,
+  Modal,
+  Segmented,
+  Space,
+  Tooltip,
+} from 'antd';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { type AlignValue } from './AlignClass';
+import { maMauCuaClass, nhanSacCuaClass, NHOM_MAU } from './editorColorPalette';
 import { EditorTableBar } from './EditorTableBar';
 import { EditorTableInsertModal } from './EditorTableInsertModal';
 import { EXTENSIONS_SOAN_THAO } from './editorExtensions';
@@ -628,6 +642,45 @@ export function RichTextEditor({
               />
             ))}
             <Divider type="vertical" />
+            {/* ⭐ T41.15 — ba nhóm màu, yêu cầu ĐÃ KÝ (đặc tả dòng 92 và 98).
+                ⚠ `bang === null` LÀ phép đo "không ở trong bảng": `trangThaiBang` cố ý ⛔ không có
+                trường `trongBang`, vì trường ấy sẽ luôn `true` ở mọi thể hiện khác `null`. */}
+            {NHOM_MAU.map((nhom) => (
+              <ColorMenuButton
+                key={nhom.ma}
+                nhom={nhom}
+                dangChon={
+                  nhom.ma === 'cell'
+                    ? ((editor.getAttributes('tableCell').cellBg as string | null) ??
+                      (editor.getAttributes('tableHeader').cellBg as string | null))
+                    : ((editor.getAttributes('textColorClass')[nhom.ma] as string | null) ?? null)
+                }
+                lyDoTat={
+                  nhom.ma === 'cell' && !bang
+                    ? 'Đặt con trỏ vào một ô bảng trước rồi mới tô màu'
+                    : null
+                }
+                onChon={(lop) => {
+                  const chuoi = editor.chain().focus();
+                  const chay =
+                    nhom.ma === 'fg'
+                      ? chuoi.setTextColor(lop as never).run()
+                      : nhom.ma === 'bg'
+                        ? chuoi.setTextBg(lop as never).run()
+                        : chuoi.setCellBg(lop as never).run();
+                  if (!chay) {
+                    // ⛔ Không im lặng: `setMark` trả `false` khi vùng chọn rỗng, và một nút bấm
+                    //    không có gì xảy ra đọc như một nút hỏng.
+                    message.warning(
+                      nhom.ma === 'cell'
+                        ? 'Đặt con trỏ vào một ô bảng, hoặc quét nhiều ô, trước khi tô màu'
+                        : 'Chọn (bôi đen) đoạn chữ trước khi đổi màu',
+                    );
+                  }
+                }}
+              />
+            ))}
+            <Divider type="vertical" />
             <ToolbarButton
               title="Liên kết"
               icon={<LinkOutlined />}
@@ -848,6 +901,83 @@ const WIDTH_BUTTONS: { value: ImageWidth | null; label: string; title: string }[
   { value: 'sn-w-1-2', label: '1/2', title: 'Một nửa bề ngang — căn lề mới thấy rõ tác dụng' },
   { value: 'sn-w-1-3', label: '1/3', title: 'Một phần ba bề ngang' },
 ];
+
+/**
+ * Nút chọn màu — T41.15.
+ *
+ * <h3>⚠ `aria-label` và `title` là BẮT BUỘC trên từng ô màu</h3>
+ *
+ * Một ô màu không có nhãn thì trình đọc màn hình đọc *"button"*, và người mù màu ⛔ không phân biệt
+ * được đỏ với lục. Nhãn tiếng Việt (`nhanSacCuaClass`) là thứ duy nhất phân biệt chúng ở hai tình
+ * huống ấy — cùng lý do đã ghi ở `ToolbarButton`.
+ *
+ * <h3>Ô "Bỏ màu" đứng riêng, ⛔ không phải một sắc thứ bảy</h3>
+ *
+ * Gộp nó vào lưới màu là để người dùng phải đoán ô trắng nghĩa là *"màu trắng"* hay *"bỏ màu"* —
+ * và một trong hai cách hiểu ấy sẽ làm chữ tàng hình.
+ */
+function ColorMenuButton({
+  nhom,
+  dangChon,
+  lyDoTat,
+  onChon,
+}: {
+  nhom: (typeof NHOM_MAU)[number];
+  dangChon: string | null;
+  lyDoTat: string | null;
+  onChon: (lop: string | null) => void;
+}) {
+  const icon = nhom.ma === 'fg' ? <FontColorsOutlined /> : <BgColorsOutlined />;
+  const tieuDe = lyDoTat ?? nhom.goiY;
+
+  if (lyDoTat) {
+    return <ToolbarButton title={tieuDe} icon={icon} disabled onClick={() => {}} />;
+  }
+
+  return (
+    <Dropdown
+      trigger={['click']}
+      menu={{
+        items: [
+          ...nhom.lop.map((lop) => ({
+            key: lop,
+            label: (
+              <Space size={8}>
+                <span
+                  aria-hidden
+                  style={{
+                    display: 'inline-block',
+                    width: 14,
+                    height: 14,
+                    borderRadius: 3,
+                    border: '1px solid currentColor',
+                    background: nhom.ma === 'fg' ? undefined : maMauCuaClass(lop),
+                    color: nhom.ma === 'fg' ? maMauCuaClass(lop) : undefined,
+                  }}
+                />
+                {nhanSacCuaClass(lop) ?? lop}
+              </Space>
+            ),
+          })),
+          { type: 'divider' as const, key: 'ngan' },
+          { key: '', label: 'Bỏ màu' },
+        ],
+        selectedKeys: dangChon ? [dangChon] : [],
+        onClick: ({ key }) => onChon(key === '' ? null : key),
+      }}
+    >
+      <Tooltip title={tieuDe}>
+        <Button
+          size="small"
+          type={dangChon ? 'primary' : 'text'}
+          icon={icon}
+          aria-label={nhom.tieuDe}
+          aria-pressed={dangChon !== null}
+        />
+      </Tooltip>
+    </Dropdown>
+  );
+}
 
 function ToolbarButton({
   title,
