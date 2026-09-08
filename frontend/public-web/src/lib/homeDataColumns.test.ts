@@ -59,7 +59,10 @@ describe('Cột của hai bảng số liệu trang chủ', () => {
     // ⚠ Khẳng định một SÀN, ⛔ không một con số chính xác: tinh chỉnh px là việc thường xuyên,
     //   còn "bảng bóp chữ thay vì cuộn ngang" là lỗi. Hai chuyện khác nhau (luật 9).
     const px = /^min-w-\[(\d+)px\]$/.exec(BE_RONG_TOI_THIEU_MUC_NUOC);
-    expect(px, `BE_RONG_TOI_THIEU_MUC_NUOC sai hình dạng: ${BE_RONG_TOI_THIEU_MUC_NUOC}`).not.toBeNull();
+    expect(
+      px,
+      `BE_RONG_TOI_THIEU_MUC_NUOC sai hình dạng: ${BE_RONG_TOI_THIEU_MUC_NUOC}`,
+    ).not.toBeNull();
     expect(Number(px![1])).toBeGreaterThanOrEqual(110 * COT_MUC_NUOC.length);
   });
 

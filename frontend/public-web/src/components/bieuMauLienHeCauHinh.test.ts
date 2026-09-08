@@ -50,7 +50,9 @@ function macDinhTrongMigration(): Record<string, boolean> {
     const sql = readFileSync(join(process.cwd(), tuongDoi), 'utf8');
 
     // Dạng 1 — hàng seed: ('site.contact.field.x', 'true', 'BOOLEAN',
-    for (const m of sql.matchAll(/\('(site\.contact\.field\.[a-z-]+\.[a-z-]+)',\s*'(true|false)',\s*'BOOLEAN'/g)) {
+    for (const m of sql.matchAll(
+      /\('(site\.contact\.field\.[a-z-]+\.[a-z-]+)',\s*'(true|false)',\s*'BOOLEAN'/g,
+    )) {
       ket[m[1]] = m[2] === 'true';
     }
 

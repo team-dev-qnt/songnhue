@@ -87,10 +87,7 @@ export function RolesPage() {
   const vaiTroDangChon = roles.data?.find((r) => r.code === selected) ?? null;
   const khoa = vaiTroDangChon?.isSystem === true;
 
-  const daChon = useMemo(
-    () => nhap ?? new Set(permissions.data ?? []),
-    [nhap, permissions.data],
-  );
+  const daChon = useMemo(() => nhap ?? new Set(permissions.data ?? []), [nhap, permissions.data]);
 
   const banGoc = useMemo(() => new Set(permissions.data ?? []), [permissions.data]);
   const coThayDoi = nhap !== null && !bangNhau(nhap, banGoc);
@@ -131,7 +128,9 @@ export function RolesPage() {
         });
         return;
       }
-      message.error(caught instanceof ApiClientError ? caught.message : 'Không lưu được phân quyền');
+      message.error(
+        caught instanceof ApiClientError ? caught.message : 'Không lưu được phân quyền',
+      );
     },
   });
 

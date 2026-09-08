@@ -59,7 +59,9 @@ describe('bảng mực nước — hàng tiêu đề và hàng dữ liệu khớ
 
   it('⭐ bốn lượt truyền đều đi qua HẰNG SỐ dùng chung', () => {
     const dungHang = TEP.flatMap((t) => [
-      ...doc(t).matchAll(/(?:luoi=\{LUOI_MUC_NUOC\}|beRongToiThieu=\{BE_RONG_TOI_THIEU_MUC_NUOC\})/g),
+      ...doc(t).matchAll(
+        /(?:luoi=\{LUOI_MUC_NUOC\}|beRongToiThieu=\{BE_RONG_TOI_THIEU_MUC_NUOC\})/g,
+      ),
     ]);
 
     // ⚠ Vế chống tập rỗng (luật 7 + 29): mẫu khớp hụt trả mảng rỗng, và một bài chỉ khẳng định

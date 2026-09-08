@@ -6,11 +6,7 @@ import { SectionNav } from '@/components/SectionNav';
 import { ColumnHeaderRow } from '@/components/home/ColumnHeaderRow';
 import { WaterLevelRows } from '@/components/home/WaterLevelRows';
 import { RealtimeFrame } from '@/components/realtime/RealtimeFrame';
-import {
-  BE_RONG_TOI_THIEU_MUC_NUOC,
-  COT_MUC_NUOC,
-  LUOI_MUC_NUOC,
-} from '@/lib/homeDataColumns';
+import { BE_RONG_TOI_THIEU_MUC_NUOC, COT_MUC_NUOC, LUOI_MUC_NUOC } from '@/lib/homeDataColumns';
 import { getServerTime, getSiteConfig, getWaterLevels } from '@/lib/api';
 import { khoiVanHanhBat } from '@/lib/khoiVanHanh';
 import { ROUTES } from '@/lib/routes';

@@ -1,11 +1,7 @@
 import Link from 'next/link';
 
 import type { WaterLevelRow } from '@/lib/api';
-import {
-  BE_RONG_TOI_THIEU_MUC_NUOC,
-  COT_MUC_NUOC,
-  LUOI_MUC_NUOC,
-} from '@/lib/homeDataColumns';
+import { BE_RONG_TOI_THIEU_MUC_NUOC, COT_MUC_NUOC, LUOI_MUC_NUOC } from '@/lib/homeDataColumns';
 import { ROUTES } from '@/lib/routes';
 import { RealtimeFrame } from '../realtime/RealtimeFrame';
 import { ColumnHeaderRow } from './ColumnHeaderRow';

@@ -167,7 +167,13 @@ describe('RolesPage — màn hình ma trận phân quyền sửa được', () =
 });
 
 const VAI_TRO = [
-  { code: 'BIEN_TAP', name: 'Biên tập viên', description: null, permissionCount: 1, isSystem: false },
+  {
+    code: 'BIEN_TAP',
+    name: 'Biên tập viên',
+    description: null,
+    permissionCount: 1,
+    isSystem: false,
+  },
   {
     code: 'SUPER_ADMIN',
     name: 'Quản trị tối cao',
