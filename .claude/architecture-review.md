@@ -5927,3 +5927,73 @@ thứ sẽ được render là dựng sẵn lần tái phát thứ hai.
 `boCucNhom1.test.ts` 6 bài: hai trạng thái cho hai kết quả **khác nhau** (luật 9), `page.tsx`
 không được viết thẳng `lg:absolute` trong JSX (luật 14), và điều kiện phải hỏi danh sách đã cắt.
 Kiểm chứng ngược hai chiều, có xác nhận bản hỏng đã nạp bằng `grep -c`.
+
+
+### §10.80 — Ba khuyết tật CHẶN của lượt di trú dữ liệu, và cả ba chỉ lộ ra khi đích ĐÃ CÓ dữ liệu (8/9)
+
+Di trú CSDL staging → production. Kế hoạch đã qua một lượt rà đối kháng 6 góc nhìn (62 phát
+hiện thô, 9 đưa ra phản biện, 4 sống sót). **Thứ chặn thật sự thì hai trong ba không nằm
+trong 62 phát hiện ấy** — chúng chỉ xuất hiện khi dựng một CSDL nháp là bản sao đúng của
+production rồi chạy thật lên đó.
+
+**(A) `pg_restore --clean` vấp bảng phân mảnh.** `ERROR: cannot drop index
+public.hydro_readings_p202708_… because index public.ix_hydro_readings_station_time
+requires it`. `--clean` phát `DROP INDEX`/`DROP CONSTRAINT` cho **từng phân mảnh**, mà
+chỉ mục của phân mảnh không xoá lẻ được khi cha còn. Kho có ba bảng phân mảnh.
+⚠ Trên đích **rỗng** những câu ấy là no-op — mà §10.58 và T11.3-b đều diễn tập trên
+cluster vừa dựng lại. **Đường hay thử thì chạy, đường dùng thật thì hỏng**; cùng họ luật 7
+(một cơ chế chưa ai đi qua thì chưa biết nó đúng hay sai), nhưng ở dạng ngược: cơ chế đã
+đi qua *nhiều lần*, chỉ là luôn ở trạng thái không thể phơi bày lỗi.
+
+**(B) Bộ lọc mục lục để lọt mục `EXTENSION` — và §10.58 đã vá nhầm chỗ.** `pg_dump` không
+ghi chủ sở hữu cho extension, nên `$NF` của dòng `2; 3079 16389 EXTENSION - postgis ` là
+*tên extension*; `awk '$NF != "postgres"'` giữ nó lại ⇒ `DROP EXTENSION` ⇒
+`must be owner of extension`. Đúng nguyên văn thông điệp mà §10.58 ghi lại và gán cho mục
+`COMMENT - EXTENSION`. **Hai trạng thái khác nhau in ra cùng một câu** (luật 9), nên bản vá
+26/8 nhắm trượt và không ai biết — vì nó chỉ được thử trên đích rỗng, nơi extension chưa có
+và `DROP … IF EXISTS` là no-op.
+
+**(C) ⛔⛔ Dữ liệu mang theo QUYỀN, và quyền của staging yếu hơn.** `songnhue_app` trên
+staging có `arwd` ở ~35 bảng mà production cố ý chỉ cho `ar`/`r`: `audit_logs` + 15 phân
+mảnh, `audit_chain_head` (production: app không có quyền nào), `audit_archive_anchors`,
+`hydro_raw_logs` + 13 phân mảnh, `security_events`, `flyway_schema_history`. `pg_dump` mang
+ACL theo dữ liệu ⇒ khôi phục nguyên trạng **âm thầm hạ cấp** production: vai trò runtime
+sửa/xoá được nhật ký kiểm toán (luật 18) và `hydro_raw_logs` (luật 8), ghi được cả sổ
+migration. Nguyên nhân: lượt khôi phục staging 26/8 chạy bản còn `--no-privileges` — đúng
+thứ §10.58 ghi là *"`ALTER DEFAULT PRIVILEGES` cứu"*. **Nó cứu app khỏi chết và cùng lúc
+xoá mọi câu `REVOKE`**, và staging đã chạy như thế suốt 13 ngày.
+
+Bài học chung: **một bản dump không chỉ là dữ liệu — nó là dữ liệu + lược đồ + ACL.** Nhân
+bản môi trường theo chiều *kém an toàn → an toàn hơn* là nhập khẩu cả phần yếu. Vá không
+phải bằng cách chép ảnh chụp ACL của production (ảnh chụp cũng có thể sai) mà bằng cách
+**tái khẳng định nguồn sự thật** — chạy lại nguyên văn phần `REVOKE` của migration.
+
+**(D) `restore.sh` không chạy được trên máy chủ nào.** Không VPS nào có
+`psql`/`pg_restore` trên host, `DB_HOST=postgres` chỉ phân giải trong mạng docker, container
+postgres không publish cổng, `env/prod.env` không tồn tại ở đó. Đường khôi phục thủ công
+**duy nhất** — chính là thứ T7.13-a đã vá — chỉ chạy được ở máy dev, tức nơi không bao giờ
+xảy ra thảm hoạ. Cùng hình dạng quen thuộc: *một cơ chế tồn tại trong mã nhưng chưa có hiệu
+lực ở nơi nó phải chặn.*
+
+Chi tiết đầy đủ + trình tự đã chạy: `docs/runbook/di-tru-staging-len-production.md`.
+
+### §10.81 — Cron gia hạn TLS chưa bao giờ chạy được, và cả hai vế đều hỏng (8/9)
+
+Chạy đúng dòng cron đang cài, chế độ thử khô: `required variable APP_IMAGE is missing a
+value`, **mã thoát 1**. Compose nội suy **toàn bộ** tệp trước khi trả lời bất cứ câu hỏi
+nào — kể cả lệnh chỉ đụng service `certbot`. Ba biến `*_IMAGE` cố ý không nằm trong `.env`
+(`deploy/lib/docker-svc.sh`). Vế sau (`docker compose exec nginx -s reload`) hỏng y hệt.
+
+Đây là lần thứ **ba** cùng một lỗi (`seed.sh`, `pre-deploy-dump.sh`, §10.48) — và lần đầu
+nó nằm trên đường giữ HTTPS còn sống. Chứng chỉ hạn 6/12/2026; cron không gửi thư đi đâu
+nên nó chỉ lộ ra vào đúng ngày ấy. ⚠ Chú thích cảnh báo đúng lỗi này **đã nằm sẵn** ở đầu
+`docker-svc.sh` từ §10.48, liệt kê hai nạn nhân trước — người viết cron vẫn mắc lần thứ ba.
+Một chú thích không phải một cổng kiểm.
+
+Hai lỗi phụ bắt được trong lúc vá, cả hai đều thuộc họ "hỏng câm":
+· `/var/log/songnhue` là `ubuntu:ubuntu 755` mà cron chạy bằng uid **1001**, container ghi
+  bằng uid **1000** ⇒ cron không ghi nổi log. Đúng bẫy uid 1000/1001 của VPS-1. Nay `2775`.
+· Bản đầu của `gia-han-tls.sh` in `còn -20703 ngày` cho **mọi** chứng chỉ: `date -d "<chuỗi
+  GMT>"` không chạy dưới busybox của image Alpine. Một con số sai đọc y hệt một con số đúng,
+  và nó là thứ duy nhất người ta liếc qua trong log. Nay dùng `openssl x509 -checkend` —
+  phép đo nhị phân của chính OpenSSL, phân biệt được hai trạng thái mà không cần số học.
