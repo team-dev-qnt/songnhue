@@ -544,6 +544,28 @@ export const ERROR_CATALOG = {
     handling: 'toast',
     severity: 'error',
   },
+
+  // --- Ma trận phân quyền sửa được (T27.31, CN-05.2) ---
+  'ADM-2014': {
+    message: 'Vai trò hệ thống không sửa quyền được — đây là lối thoát cuối cùng của hệ thống',
+    handling: 'toast',
+    severity: 'error',
+  },
+  'ADM-2015': {
+    message: 'Có mã quyền không còn trong danh mục — tải lại trang rồi thử lại',
+    handling: 'toast',
+    severity: 'error',
+  },
+  'ADM-2016': {
+    // ⛔ `caller`, ⛔ không phải `toast`: đây là thao tác DUY NHẤT trong màn hình mà hậu quả ⛔ không
+    //   quay lui được bằng bất kỳ đường nào trong giao diện. Một dòng toast trôi mất sau 3 giây
+    //   ⛔ không phân biệt được với mọi lỗi nhập liệu khác người dùng vừa gặp — nên `RolesPage`
+    //   dựng một hộp thoại phải bấm mới tắt.
+    message:
+      'Bỏ quyền này là bạn tự khoá chính mình khỏi màn hình phân quyền, và không đường nào trong giao diện gỡ lại được. Nhờ một tài khoản Quản trị tối cao thao tác hộ.',
+    handling: 'caller',
+    severity: 'error',
+  },
 } as const satisfies Record<string, ErrorEntry>;
 
 export type ErrorCode = keyof typeof ERROR_CATALOG;

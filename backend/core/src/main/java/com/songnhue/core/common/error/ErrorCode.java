@@ -334,7 +334,26 @@ public enum ErrorCode {
     /** Bản sao lưu không dùng được: mất tệp, hoặc checksum không khớp lúc ghi. */
     ADM_2012("ADM-2012", HttpStatus.UNPROCESSABLE_ENTITY),
     /** Khôi phục thất bại — CSDL có thể đang ở trạng thái dở dang, xem runbook. */
-    ADM_2013("ADM-2013", HttpStatus.INTERNAL_SERVER_ERROR);
+    ADM_2013("ADM-2013", HttpStatus.INTERNAL_SERVER_ERROR),
+
+    // ---- MOD-05 Ma trận phân quyền sửa được (T27.31, CN-05.2) -------------------
+    /**
+     * Vai trò hệ thống {0} — ⛔ không sửa quyền được. Người đọc <b>đầu tiên</b> của cột {@code
+     * roles.is_system}, vốn mang bảo đảm này trong một dòng chú thích SQL suốt 26 ngày mà ⛔ chưa mã
+     * nào ép.
+     */
+    ADM_2014("ADM-2014", HttpStatus.FORBIDDEN),
+    /**
+     * Mã quyền ⛔ không có trong danh mục: {0}. ⚠ Cố ý ⛔ <b>không</b> bỏ qua trong im lặng như
+     * {@code replaceRoles} — một mã gõ sai lặng lẽ biến mất tạo ra một vai trò khuyết quyền mà ⛔
+     * không ai biết thiếu từ bao giờ.
+     */
+    ADM_2015("ADM-2015", HttpStatus.UNPROCESSABLE_ENTITY),
+    /**
+     * Đang tự gỡ quyền quản trị phân quyền của chính mình khỏi vai trò {0} — thao tác này ⛔ không
+     * quay lui được bằng bất kỳ đường nào trong giao diện.
+     */
+    ADM_2016("ADM-2016", HttpStatus.UNPROCESSABLE_ENTITY);
 
     private final String code;
     private final HttpStatus status;

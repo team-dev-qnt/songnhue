@@ -151,6 +151,23 @@ export interface RoleSummary {
   name: string;
   description: string | null;
   permissionCount: number;
+  /**
+   * Vai trò hệ thống ⇒ ⛔ không sửa quyền được (T27.31).
+   *
+   * ⚠ Backend là nơi ÉP luật này (`ADM-2014`); trường này chỉ để màn hình khoá ô sửa **trước** khi
+   * người dùng mất công. Một ràng buộc chỉ ép ở một phía là một ràng buộc ẩn — người dùng phát
+   * hiện ra nó bằng cách va vào nó, sau khi đã tick xong và bấm lưu.
+   */
+  isSystem: boolean;
+}
+
+/** Một dòng danh mục quyền — `GET /admin/users/permissions/catalog` (T27.31). */
+export interface PermissionSummary {
+  code: string;
+  /** `cms` | `ops` | `hyd` | `hr` | `adm` — có ràng buộc CHECK ở CSDL. */
+  module: string;
+  name: string;
+  description: string | null;
 }
 
 // =============================================================================
