@@ -47,7 +47,7 @@ public class MediaService {
 
     @Transactional(readOnly = true)
     public List<MediaFolder> tree() {
-        return folders.findAllByDeletedAtIsNullOrderByPathAscSortOrderAsc();
+        return folders.findAllForDisplay();
     }
 
     @Transactional(readOnly = true)

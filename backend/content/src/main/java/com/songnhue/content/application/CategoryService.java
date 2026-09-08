@@ -36,7 +36,7 @@ public class CategoryService {
 
     @Transactional(readOnly = true)
     public List<Category> tree() {
-        return categories.findAllByDeletedAtIsNullOrderByPathAscSortOrderAsc();
+        return categories.findAllForDisplay();
     }
 
     @Transactional(readOnly = true)
@@ -117,7 +117,7 @@ public class CategoryService {
 
         // Cây con phải đi theo. Bỏ bước này thì hậu duệ giữ path cũ và biến mất khỏi mọi truy vấn
         // theo cây — trông y hệt như bị xoá, nhưng dữ liệu vẫn nằm đó.
-        for (Category descendant : categories.findAllByDeletedAtIsNullOrderByPathAscSortOrderAsc()) {
+        for (Category descendant : categories.findAllForDisplay()) {
             if (!descendant.getId().equals(category.getId())
                     && MaterializedPath.isSelfOrDescendant(descendant.getPath(), oldPrefix)) {
                 String moved = MaterializedPath.reparent(descendant.getPath(), oldPrefix, newPrefix);
