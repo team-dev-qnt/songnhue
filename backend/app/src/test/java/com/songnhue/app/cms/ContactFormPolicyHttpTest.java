@@ -45,11 +45,24 @@ class ContactFormPolicyHttpTest extends IntegrationTestBase {
     @Autowired
     private SettingService settings;
 
+    /**
+     * ⛔⛔ Khôi phục về <b>giá trị mặc định ĐANG KHAI trong CSDL</b>, ⛔ KHÔNG về một chuỗi ghi cứng.
+     *
+     * <p>Bản trước viết thẳng {@code dat(KHOA_EMAIL_BAT_BUOC, "false")}. Nó đúng đúng chừng nào mặc
+     * định của khoá ấy tình cờ là {@code 'false'} — và ngày 08/09/2026 (T28.49) mặc định đổi thành
+     * {@code 'true'}. Hậu quả đo được ngay lượt chạy đầu: lớp này để hệ thống ở <b>chính sách CŨ</b>
+     * cho mọi lớp chạy SAU nó, và {@code ContactHttpTest.chiCoDienThoaiKhongConDu()} nhận 204 thay
+     * vì 400 — <b>đỏ vì một lý do ⛔ không liên quan gì tới thứ nó đang kiểm</b>.
+     *
+     * <p>⚠ Luật 3 ở phía dọn dẹp: một lượt khôi phục ghi cứng <i>giá trị mặc định</i> là một bản
+     * sao thứ hai của mặc định, và bản sao ấy lệch trong im lặng. Đọc {@code default_value} thì
+     * ⛔ không có bản sao nào để lệch.
+     */
     @AfterEach
     void traLaiMacDinh() {
-        dat(ContactFormPolicy.KHOA_HIEN_DIEN_THOAI, "true");
-        dat(ContactFormPolicy.KHOA_EMAIL_BAT_BUOC, "false");
-        dat(ContactFormPolicy.KHOA_DIEN_THOAI_BAT_BUOC, "false");
+        veMacDinh(ContactFormPolicy.KHOA_HIEN_DIEN_THOAI);
+        veMacDinh(ContactFormPolicy.KHOA_EMAIL_BAT_BUOC);
+        veMacDinh(ContactFormPolicy.KHOA_DIEN_THOAI_BAT_BUOC);
         jdbc.update("DELETE FROM notification_recipients r USING notifications n "
                 + "WHERE n.id = r.notification_id AND n.event_type = 'CONTACT_RECEIVED'");
         jdbc.update("DELETE FROM notifications WHERE event_type = 'CONTACT_RECEIVED'");
@@ -59,9 +72,30 @@ class ContactFormPolicyHttpTest extends IntegrationTestBase {
 
     // ═══════════════ T36.7 ═══════════════
 
+    /**
+     * ⛔ <b>Đổi chiều 08/09/2026 (T28.49)</b> — tên cũ: <i>"Mặc định: chỉ có điện thoại vẫn gửi
+     * được — email ⛔ KHÔNG bắt buộc"</i>.
+     *
+     * <p>Ô Số điện thoại tắt được từ T36.7, và nay ô Họ tên với ô Tiêu đề cũng tắt được. Nếu email
+     * ⛔ không bắt buộc thì tồn tại một cấu hình <b>hợp lệ</b> trong đó Công ty nhận về những phản
+     * ánh ⛔ <b>không có cách nào trả lời</b>. Đó là lý do nghiệp vụ, ⛔ không phải một sở thích.
+     */
     @Test
-    @DisplayName("⭐ Mặc định: chỉ có điện thoại vẫn gửi được — email ⛔ KHÔNG bắt buộc")
-    void macDinhEmailKhongBatBuoc() {
+    @DisplayName("⭐ Mặc định T28.49: thiếu email là 400 — kể cả khi đã có số điện thoại")
+    void macDinhEmailBatBuoc() {
+        assertThat(gui(null, "0243354xxxx", null).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(soHang())
+                .as("⛔ bị từ chối thì ⛔ KHÔNG được để lại bản ghi nào")
+                .isZero();
+    }
+
+    @Test
+    @DisplayName("⭐ Tắt `email.required` ⇒ quay lại nhận phản ánh chỉ có số điện thoại")
+    void tatKhoaThiNhanLai() {
+        // ⚠ Đối chứng cho bài trên (luật 9): thiếu nó thì `macDinhEmailBatBuoc` xanh cả khi mã
+        //   chặn email VÔ ĐIỀU KIỆN — và khoá `email.required` trở thành một công tắc chết.
+        dat(ContactFormPolicy.KHOA_EMAIL_BAT_BUOC, "false");
+
         assertThat(gui(null, "0243354xxxx", null).getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         assertThat(soHang()).isEqualTo(1);
     }
@@ -218,6 +252,16 @@ class ContactFormPolicyHttpTest extends IntegrationTestBase {
     /** ⚠ Sửa thẳng CSDL rồi <b>xoá đệm hai tầng</b>: {@code SettingService} và {@code SiteConfigService}. */
     private void dat(String khoa, String giaTri) {
         jdbc.update("UPDATE settings SET setting_value = ? WHERE setting_key = ?", giaTri, khoa);
+        settings.invalidate(khoa);
+    }
+
+    /** Trả khoá về đúng {@code default_value} của chính nó — xem javadoc {@link #traLaiMacDinh()}. */
+    private void veMacDinh(String khoa) {
+        int soHang = jdbc.update("UPDATE settings SET setting_value = default_value WHERE setting_key = ?", khoa);
+        // ⚠ Câu UPDATE khớp hụt cập nhật 0 hàng và thoát bình thường; lúc ấy lớp này để lại một
+        //   trạng thái tuỳ tiện cho mọi lớp chạy sau, và triệu chứng là "bài kiểm đỏ theo thứ tự
+        //   chạy" — thứ tốn nhiều giờ nhất để lần ra (luật 32: in một con số đếm được).
+        assertThat(soHang).as("khoá `%s` ⛔ không có trong bảng settings", khoa).isEqualTo(1);
         settings.invalidate(khoa);
     }
 }

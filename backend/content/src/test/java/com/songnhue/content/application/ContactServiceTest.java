@@ -52,9 +52,20 @@ class ContactServiceTest {
         SettingPort thamSo = mock(SettingPort.class);
         when(thamSo.getBoolean(any(), anyBoolean())).thenReturn(true);
 
-        // ⚠ `luatBieuMau` là mock TRẦN ⇒ mọi vế bắt buộc trả `false`. Đó là cấu hình MẶC ĐỊNH,
-        //   đúng thứ bài này muốn canh. Hai nhánh còn lại (bật bắt buộc, bật captcha) đi qua HTTP
-        //   thật ở `ContactFormPolicyHttpTest` — luật 5.
+        // ⚠ `luatBieuMau` là mock, và HAI vế "hiện ô" phải khai TƯỜNG MINH `true` (T28.49).
+        //
+        // ⛔⛔ Một mock trần trả `false` cho `hienHoTen()`/`hienTieuDe()`, tức "ô đã tắt" — và ô đã
+        //    tắt thì `ContactService` thôi bắt buộc trường ấy. Hậu quả đo được ở lượt chạy đầu sau
+        //    T28.49: `thieuTruongBatBuoc()` KHÔNG còn ném, vì nó gửi `null` cho một trường mà mock
+        //    vừa bảo là ⛔ không hiện. Bài kiểm mất nghĩa mà tên nó ⛔ không đổi.
+        //
+        // ⚠ Đây là mặt trái của `false` làm mặc định Mockito: THÊM một cờ "có hiện ô ⛔ không" là
+        //   tự động TẮT nó trong mọi bài kiểm dùng mock trần, và triệu chứng là một khẳng định
+        //   thôi khẳng định gì — ⛔ không phải một lỗi biên dịch.
+        //
+        //   Hai vế bắt buộc (`emailBatBuoc`, `dienThoaiBatBuoc`) vẫn để mock trần trả `false`: đó
+        //   là cấu hình mặc định mà bài này muốn canh; hai nhánh bật đi qua HTTP thật ở
+        //   `ContactFormPolicyHttpTest` — luật 5.
         //
         // ⛔⛔ `InboundSubmissionGate` là bản THẬT, ⛔ không phải mock. Bốn bảo đảm của nó (chuẩn
         //   hoá, bắt buộc, trần độ dài, captcha) chính là thứ bài này đang canh; một mock trần trả
@@ -69,7 +80,11 @@ class ContactServiceTest {
         InboundSubmissionGate cong =
                 new InboundSubmissionGate(thamSoCong, mock(RecaptchaClient.class), new RecaptchaProperties());
 
-        dichVu = new ContactService(kho, thongBao, hangDoi, thamSo, mock(ContactFormPolicy.class), cong);
+        ContactFormPolicy luatBieuMau = mock(ContactFormPolicy.class);
+        when(luatBieuMau.hienHoTen()).thenReturn(true);
+        when(luatBieuMau.hienTieuDe()).thenReturn(true);
+
+        dichVu = new ContactService(kho, thongBao, hangDoi, thamSo, luatBieuMau, cong);
     }
 
     @Test

@@ -24,6 +24,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.app.testsupport.PhienHttp;
 import com.songnhue.content.application.CmsJobTypes;
+import com.songnhue.content.application.ContactFormPolicy;
 import com.songnhue.content.application.ContactScheduler;
 import com.songnhue.content.application.ContactService;
 import com.songnhue.content.application.ContactSlaHandler;
@@ -133,6 +134,11 @@ class ContactEmailSlaHttpTest extends IntegrationTestBase {
                 + "WHERE head_user_id IN (SELECT id FROM users WHERE username LIKE 't2851\\_%')");
         jdbc.update("DELETE FROM users WHERE username LIKE 't2851\\_%'");
         datHanSla("48");
+        // ⚠ T28.49 — trả khoá về ĐÚNG `default_value`, ⛔ không về một chuỗi ghi cứng. Một bài ở
+        //   lớp này tắt `email.required` để dựng trạng thái "⛔ không có email"; ⛔ không trả lại
+        //   thì mọi lớp chạy SAU nó đo trên chính sách CŨ, và chúng đỏ vì dọn dẹp chứ ⛔ không vì
+        //   thứ chúng kiểm — đúng cách `ContactFormPolicyHttpTest` đã mắc và vừa được vá.
+        veMacDinh(ContactFormPolicy.KHOA_EMAIL_BAT_BUOC);
     }
 
     private void donThongBaoCuaLienHe() {
@@ -181,9 +187,24 @@ class ContactEmailSlaHttpTest extends IntegrationTestBase {
                 .contains("contactPublicId");
     }
 
+    /**
+     * ⚠ Bài này kiểm bất biến <b>SLA</b> — <i>"⛔ không có email ⇒ ⛔ không đặt việc gửi thư"</i> —
+     * chứ ⛔ không kiểm chính sách bắt buộc email. Từ T28.49 (08/09/2026) email là <b>bắt buộc</b>,
+     * nên phải TẮT khoá ấy để dựng được đúng trạng thái cần kiểm.
+     *
+     * <p>⛔ Trạng thái này ⛔ <b>không</b> phải giả định: nó vẫn tới được bằng <b>hai</b> đường thật
+     * — Công ty tắt {@code email.required} trên màn hình Cấu hình, hoặc một hàng cũ có từ trước
+     * lượt chốt (dữ liệu cũ cố ý ⛔ không bị đụng, xem đầu {@code V202609081071}).
+     *
+     * <p>⛔ Và tắt ở đây <b>an toàn</b> vì {@code @AfterEach} nay khôi phục từ chính
+     * {@code settings.default_value}, ⛔ không từ một chuỗi ghi cứng — xem
+     * {@code ContactFormPolicyHttpTest.traLaiMacDinh()}.
+     */
     @Test
     @DisplayName("⛔ Chỉ để lại điện thoại ⇒ vẫn báo cán bộ, nhưng ⛔ KHÔNG đặt việc gửi thư")
     void khongCoEmailThiKhongDatViec() {
+        datKhoa(ContactFormPolicy.KHOA_EMAIL_BAT_BUOC, "false");
+
         gui(null, "0243354xxxx");
 
         assertThat(jdbc.queryForObject(
@@ -427,6 +448,20 @@ class ContactEmailSlaHttpTest extends IntegrationTestBase {
         Integer n = jdbc.queryForObject(
                 "SELECT count(*) FROM notifications WHERE event_type = 'CONTACT_SLA_BREACH'", Integer.class);
         return n == null ? 0 : n;
+    }
+
+    /** ⚠ Sửa thẳng CSDL rồi <b>xoá đệm</b> — cùng lý do đã ghi ở {@link #datHanSla(String)}. */
+    private void datKhoa(String khoa, String giaTri) {
+        int soHang = jdbc.update("UPDATE settings SET setting_value = ? WHERE setting_key = ?", giaTri, khoa);
+        assertThat(soHang).as("khoá `%s` ⛔ không có trong bảng settings", khoa).isEqualTo(1);
+        settings.invalidate(khoa);
+    }
+
+    /** Trả khoá về đúng {@code default_value} của chính nó — ⛔ KHÔNG về một hằng ghi cứng. */
+    private void veMacDinh(String khoa) {
+        int soHang = jdbc.update("UPDATE settings SET setting_value = default_value WHERE setting_key = ?", khoa);
+        assertThat(soHang).as("khoá `%s` ⛔ không có trong bảng settings", khoa).isEqualTo(1);
+        settings.invalidate(khoa);
     }
 
     /** ⚠ Sửa thẳng CSDL rồi <b>xoá đệm</b>: {@code SettingService} có Caffeine, TTL vài phút. */
