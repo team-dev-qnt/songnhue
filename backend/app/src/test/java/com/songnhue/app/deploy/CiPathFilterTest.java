@@ -49,8 +49,15 @@ class CiPathFilterTest {
      * thì bài kiểm ấy đọc {@code docs/**} mà bộ canh này <b>không biết</b>, nên nó sẽ không bao giờ
      * báo rằng bộ lọc CI bỏ sót {@code docs/} — một bộ canh hẹp hơn nơi nó phải chặn (luật 28), và
      * cái xanh của nó đọc như một lời bảo đảm.
+     *
+     * <p>⚠ {@code .claude} vào danh sách 8/9/2026 cùng {@code QuyTacParseTruyVetTest} (T37.13) — và
+     * đây là <b>lần thứ hai</b> đúng hình dạng ấy trong sáu ngày. Bài mới đọc
+     * {@code .claude/function-spec.md}; nếu tiền tố này không có ở đây thì lớp canh sẽ không nhìn
+     * thấy đường dẫn ấy, nên nó <b>không thể</b> báo rằng bộ lọc {@code ci.yml} đang bỏ sót — một bộ
+     * canh mù đúng chỗ vừa mở ra.
      */
-    private static final Pattern DUONG_DAN_NGOAI = Pattern.compile("\"((?:\\.github|deploy|frontend|docs)/[^\"]*)\"");
+    private static final Pattern DUONG_DAN_NGOAI =
+            Pattern.compile("\"((?:\\.github|\\.claude|deploy|frontend|docs)/[^\"]*)\"");
 
     /** Dòng quyết định vế `backend` trong `ci.yml`. */
     private static final Pattern BO_LOC_BACKEND =
