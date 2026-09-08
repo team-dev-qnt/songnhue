@@ -204,7 +204,15 @@ public class AttachmentService implements AttachmentPort {
             throw new BusinessRuleException(
                     ErrorCode.SYS_0009, attachment.getStatus().name());
         }
-        return storage.presignedGetUrl(attachment.getStorageBucket(), attachment.getStorageKey(), DOWNLOAD_URL_TTL);
+        // ⭐ T40.27 — truyền TÊN GỐC vào chữ ký. Khoá đối tượng trong kho là chuỗi ngẫu nhiên (chủ ý:
+        //   tên người dùng đặt có thể chứa đường dẫn hoặc ký tự điều khiển), nên thiếu tham số này
+        //   thì mọi tệp tải về mang tên `a3f9c1…` thay vì "Quyết định 123/QĐ-UBND.pdf". Người dùng
+        //   lưu năm tệp là có năm chuỗi ngẫu nhiên trong thư mục Tải về.
+        return storage.presignedGetUrl(
+                attachment.getStorageBucket(),
+                attachment.getStorageKey(),
+                DOWNLOAD_URL_TTL,
+                attachment.getOriginalName());
     }
 
     /**
