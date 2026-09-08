@@ -34,6 +34,7 @@ import com.songnhue.core.spi.AttachmentDeletedEvent;
 import com.songnhue.core.spi.AttachmentPort;
 import com.songnhue.core.spi.AttachmentRef;
 import com.songnhue.core.spi.AttachmentUploadCommand;
+import com.songnhue.core.spi.AttachmentUsagePort;
 
 /**
  * Tải lên và tra cứu tệp đính kèm — pattern P3 (T6.3).
@@ -99,19 +100,31 @@ public class AttachmentService implements AttachmentPort {
     private final JobService jobs;
     private final ApplicationEventPublisher events;
 
+    /**
+     * Mọi module tự khai "ai đang dẫn tới tệp này" — T40.26.
+     *
+     * <p>Spring gom mọi bean cài {@link AttachmentUsagePort}; cùng khuôn {@code List<JobHandler>}
+     * của {@code JobWorker}. ⚠ Danh sách <b>rỗng là hợp lệ</b> (bộ kiểm chỉ nạp {@code core} chẳng
+     * hạn) — nhưng khi ấy chốt chặn không chặn gì, nên {@code AttachmentDeleteHttpTest} khẳng định
+     * ngữ cảnh thật có ít nhất hai bên cài (luật 7).
+     */
+    private final List<AttachmentUsagePort> nguoiDangDung;
+
     public AttachmentService(
             AttachmentRepository repository,
             ObjectStorage storage,
             StorageProperties storageProperties,
             SettingService settings,
             JobService jobs,
-            ApplicationEventPublisher events) {
+            ApplicationEventPublisher events,
+            List<AttachmentUsagePort> nguoiDangDung) {
         this.repository = repository;
         this.storage = storage;
         this.storageProperties = storageProperties;
         this.settings = settings;
         this.jobs = jobs;
         this.events = events;
+        this.nguoiDangDung = nguoiDangDung;
     }
 
     /**
@@ -338,6 +351,23 @@ public class AttachmentService implements AttachmentPort {
     @Transactional
     public void delete(UUID publicId) {
         Attachment attachment = require(publicId);
+
+        // ⭐⭐ T40.26 — HỎI TRƯỚC KHI XOÁ, ở chỗ dữ liệu đi qua (quy tắc 12).
+        //
+        // ⛔ Trước bản này, 3/4 cửa xoá tệp không hỏi câu này: chỉ đường CMS tra tham chiếu, còn
+        //    `/api/v1/attachments`, tài liệu công trình và đính kèm nhật ký bảo trì xoá thẳng rồi
+        //    mới GỠ tham chiếu. Hệ quả: bài viết dẫn tệp trong HTML ⇒ liên kết trên cổng thành
+        //    404 TRẦN, và không màn hình nào lộ ra gì.
+        //
+        // ⚠ Đặt ở đây chứ không ở ba controller: ba bản sao là ba chỗ phải nhớ, và cửa thứ tư ra
+        //   đời sẽ lại quên — đúng hình dạng đã lặp năm lần với đệm cổng (§10.70).
+        List<String> dangDung = nguoiDangDung.stream()
+                .flatMap(cong -> cong.dangDuocDanBoi(publicId).stream())
+                .toList();
+        if (!dangDung.isEmpty()) {
+            throw new BusinessRuleException(ErrorCode.CMS_2009, dangDung.size(), String.join(", ", dangDung));
+        }
+
         attachment.markDeleted(Instant.now());
         repository.save(attachment);
 

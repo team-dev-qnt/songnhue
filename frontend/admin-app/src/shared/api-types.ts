@@ -421,31 +421,12 @@ export interface HealthView {
 }
 
 // =============================================================================
-// Tệp đính kèm — /api/v1/attachments
+// ⛔ BIA MỘ — bốn kiểu `ScanStatus` · `AttachmentStatus` · `AttachmentView` · `DownloadUrl` đã
+//    GỠ ngày 08/09/2026 (T28.47). Chúng mirror `/api/v1/attachments`, mà đường ấy nay chỉ còn
+//    `DELETE` và ⛔ không màn hình nào gọi. `AttachmentView`/`DownloadUrl` mỗi cái có ĐÚNG MỘT
+//    lượt xuất hiện trong toàn cây FE — chính định nghĩa của nó (quy tắc 15).
+//    Kho tài liệu và tài liệu công trình đi đường riêng: `/cms/media/…`, `/ops/constructions/…`.
 // =============================================================================
-
-export type ScanStatus = 'PENDING' | 'CLEAN' | 'INFECTED' | 'SKIPPED';
-export type AttachmentStatus = 'UPLOADING' | 'READY' | 'QUARANTINED';
-
-export interface AttachmentView {
-  publicId: string;
-  originalName: string;
-  contentType: string;
-  sizeBytes: number;
-  fileVersion: number;
-  status: AttachmentStatus;
-  scanStatus: ScanStatus;
-  /** Ngày (không giờ) — chuỗi `yyyy-MM-dd`, không phải Instant. */
-  validFrom: string | null;
-  validUntil: string | null;
-  /** Backend đã tính sẵn: còn hiệu lực + quét sạch. FE **không tự suy lại** (§1.4). */
-  downloadable: boolean;
-}
-
-export interface DownloadUrl {
-  /** Có hạn ngắn và bỏ qua phân quyền — không lưu lại, không chia sẻ. */
-  url: string;
-}
 
 // =============================================================================
 // Dashboard điều hành — /api/v1/ops/dashboard (CN-02.5, CN-02.6)

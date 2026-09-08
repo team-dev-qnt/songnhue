@@ -193,7 +193,9 @@ export const ERROR_CATALOG = {
     severity: 'warning',
   },
   'CMS-2009': {
-    message: 'Tệp đang được bài viết sử dụng',
+    // ⭐ T40.26 — nay phủ CẢ công trình, không riêng bài viết: chốt chặn đã chuyển xuống
+    //   `AttachmentService.delete`, nơi mọi module tự khai qua `AttachmentUsagePort`.
+    message: 'Tệp đang được nơi khác sử dụng — gỡ tham chiếu trước khi xoá',
     handling: 'toast',
     severity: 'warning',
   },
