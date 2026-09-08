@@ -24,10 +24,12 @@
 | Việc | Runbook |
 |---|---|
 | Khôi phục CSDL từ bản sao lưu | [khoi-phuc-du-lieu.md](khoi-phuc-du-lieu.md) |
+| **Nhân bản dữ liệu từ môi trường này sang môi trường khác** | [di-tru-du-lieu-giua-moi-truong.md](di-tru-du-lieu-giua-moi-truong.md) |
+| **Đổi tên miền · cấp / gia hạn chứng chỉ TLS** | [ten-mien-va-chung-chi.md](ten-mien-va-chung-chi.md) |
 | Diễn tập khôi phục (trước go-live, rồi theo quý) | [dien-tap-khoi-phuc.md](dien-tap-khoi-phuc.md) |
 | Xoay khoá AES / khoá ký JWT | [xoay-khoa.md](xoay-khoa.md) |
 
-## Bốn điều phải biết trước khi động vào bất cứ thứ gì
+## Sáu điều phải biết trước khi động vào bất cứ thứ gì
 
 1. **Không có PITR, không có replica.** Bản `pg_dump` đêm là đường phục hồi *duy nhất*.
    RPO ≤ 24h · RTO ≤ 4h — chốt ở [`architecture-review.md`](../../.claude/architecture-review.md) §6.5
@@ -39,5 +41,21 @@
 3. **Khoá nằm ngoài CSDL**, ở `/opt/songnhue/keys/`. Khôi phục CSDL **không** khôi phục khoá. Mất
    khoá AES là mất vĩnh viễn phần dữ liệu nhân sự đã mã hoá, dù bản sao lưu còn nguyên.
 
-4. **`audit_logs` là append-only có chuỗi hash.** Đừng sửa tay. Sau mọi thao tác khôi phục, chạy
-   `make db-verify-audit` — trả về rỗng nghĩa là chuỗi còn nguyên vẹn.
+4. **`audit_logs` là append-only có chuỗi hash.** Đừng sửa tay. Sau mọi thao tác khôi phục:
+   ```bash
+   docker exec -i songnhue-postgres psql -U postgres -d songnhue -At \
+     -c 'SELECT * FROM core_verify_audit_chain()' < /dev/null       # rỗng = nguyên vẹn
+   ```
+   ⚠ `make db-verify-audit` **chỉ chạy ở máy dev** — xem điều 5.
+
+5. ⭐ **Máy chủ KHÔNG có `psql`, `pg_dump`, `pg_restore` trên host** (đo 08/09/2026, cả hai VPS).
+   `DB_HOST=postgres` chỉ phân giải trong mạng docker và container postgres không publish cổng nào.
+   Mọi lệnh CSDL phải đi qua `docker exec songnhue-postgres …`.
+   ⛔ Hệ quả: `deploy/backup/restore.sh` **không chạy được ở nơi cần nó**. Dùng
+   [`khoi-phuc-qua-container.sh`](../../deploy/backup/khoi-phuc-qua-container.sh).
+
+6. ⭐ **Một bản dump là dữ liệu + lược đồ + ACL.** Khôi phục **thay** quyền của đích bằng quyền của
+   nguồn. Nhân bản theo chiều *kém an toàn → an toàn hơn* là nhập khẩu cả phần yếu — đo 08/09: dữ
+   liệu staging cho vai trò runtime quyền sửa/xoá trên `audit_logs`, `hydro_raw_logs` và
+   `flyway_schema_history`. Sau mọi lượt khôi phục **từ môi trường khác**, kiểm lại quyền
+   append-only: [khoi-phuc-du-lieu.md §6 phép 7](khoi-phuc-du-lieu.md).
