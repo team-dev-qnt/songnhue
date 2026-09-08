@@ -1274,10 +1274,95 @@ tả *trạng thái lúc viết* và như lời dặn việc đã làm xong.
 - [x] T37.9: ✅ **Sáu câu §7.3 nay có bộ canh cho 5/6, và câu số 4 vừa tìm ra 7 khoảng trống** | Date: 08/09/2026 | Note: Bản đồ câu ↔ bộ canh, để lần sau khỏi phải suy: **câu 1/2/5** (migration · setter có nơi gọi ngoài test · đường đọc) → `CotPhase2CoDocGhiTest` (93 cột, 1 miễn trừ) · **khoá `settings`** → `PortalSettingsReadTest` (`site.*`/`company.*`) + `HydroSettingsReadTest` (`hydro.*`, đối chiếu **hai chiều**) · **câu 4** (*có màn hình nào GỌI endpoint đó không*) → `apiKhongMoCoi.test.ts` **dựng lượt này**. ⬜ Còn **câu 3/6** ở dạng thủ công cho những thứ không đi qua bốn bộ trên. ⛔⛔ **Và câu 4 đỏ ngay lượt đo đầu tiên: 7/62 phương thức client CMS ⛔ KHÔNG màn hình nào gọi** — 0 tham chiếu ở bất kỳ đâu trong `admin-app/src`, kể cả bài kiểm. Đây đúng hình dạng lượt rà 28/8 tìm ra hai lần và T28.47 phải dọn tay lần nữa: backend có endpoint, có phân quyền, có bài kiểm HTTP xanh — và **người dùng không có nút nào để bấm**. ⇒ T37.15. ⚠ Phạm vi bộ canh mới tự khai: nó soi **đúng một tệp**, vì đo được `features/cms/api.ts` là client tập trung DUY NHẤT; 47 tệp còn lại gọi `api.*` thẳng trong component nên nơi gọi *là* màn hình. Có bài canh riêng đỏ nếu xuất hiện `api.ts` thứ hai — bộ canh ⛔ không được âm thầm hẹp lại. ⭐ Kiểm chứng ngược **hai chiều, hai mutation**: gỡ một dòng sổ nợ ⇒ đỏ (*đo được thừa*); thêm một phương thức không ai gọi ⇒ đỏ (*sổ khai thiếu*). ⚠ Và lượt khôi phục dạy lại luật 10: `git checkout --` **im lặng thất bại trên tệp chưa track**, nên bản khôi phục chưa từng được nạp cho tới khi in ra con số đếm được (7 khoá · 0 phương thức giả · 0 dòng diff)
 - [ ] T37.10: Rà bộ canh — mỗi cơ chế mới có bài **tự-kiểm-chứng**; bài kiểm chứng ngược có khẳng định **về số lượng** | Note: §10.62 — cả hai lượt kiểm chứng ngược của một phiên đều sai; thứ cứu được là `hasSizeGreaterThanOrEqualTo(3)`
 - [x] T37.11: ✅ **Ba tệp tài liệu cập nhật, số đo kèm ngày đo** | Date: 08/09/2026 | Note: `architecture-review.md` **§11.12→§11.15** (bốn nguyên nhân gốc của lượt này: `sort_order` là núm không điều khiển gì ở BỐN cây + phép sắp hiển thị làm gãy đường ghi · ba hệ đánh số cùng chữ *quy tắc N* + bộ canh hỏng vì **bộ định dạng mã** · một dòng nợ tự nó sai lần hai + chú thích khẳng định có cổng kiểm mang tên **0 tệp nào** trong kho · câu số 4 của §7.3 chưa từng có bộ canh). `CLAUDE.md`: **6 hàng mới** vào bảng lượt-rà + con trỏ §11 + **một dòng số đo có ngày 8/9** — ⛔ cố ý **không** ghi đè khối 4/9, vì khối ấy đọc từ **CI thật** còn dòng mới đọc **ở máy**; hai nguồn khác nhau thì ⛔ không trộn thành một (luật 28 + *xanh ở máy không phải bằng chứng*). `docs/coding-guide.md`: **4 hàng bẫy mới**, bảng lên **64** hàng
-- [~] T37.12: Ghi DoD Phase 2 — mỗi mục kèm **tên phép kiểm**; mục nào không có phép kiểm thì để trống, không tick | Date: 07/09/2026 | Note: 🟡 **Làm sớm phần lớn ở lượt rà 07/09** — DoD Phase 2 đi từ **3/22 → 15/22** mục có phép kiểm đứng sau. Luật đã áp: chỉ tick khi **đã đọc THÂN** bài kiểm. ⭐ Lượt đọc thân bắt được đúng một chỗ mà đọc-theo-tên sẽ tick nhầm: **`DOD2.15` chỉ có nửa ĐỌC** (danh sách "chưa cấu hình ngưỡng"), còn nửa *"⛔ không phát cảnh báo"* ⛔ chưa ai đi qua. ⭐ Đợt 07/09 đóng thêm **`DOD2.13`** và **`DOD2.17`** bằng hai bộ canh mới, mỗi cái kèm kiểm chứng ngược có số đo. ⬜ Còn **7**: `DOD2.3`·`2.15`·`2.16` (viết được từ máy dev — ba vế *chưa ai đi qua*, luật 7) · `DOD2.9` (cần **VM-3**) · `2.20` (là `T37.9`) · `2.21` (7 ngày lịch) · `2.22` (load test)
+- [~] T37.12: Ghi DoD Phase 2 — mỗi mục kèm **tên phép kiểm**; mục nào không có phép kiểm thì để trống, không tick | Date: 07/09/2026 | Note: 🟡 **Làm sớm phần lớn ở lượt rà 07/09** — DoD Phase 2 đi từ **3/22 → 15/22** mục có phép kiểm đứng sau. Luật đã áp: chỉ tick khi **đã đọc THÂN** bài kiểm. ⭐ Lượt đọc thân bắt được đúng một chỗ mà đọc-theo-tên sẽ tick nhầm: **`DOD2.15` chỉ có nửa ĐỌC** (danh sách "chưa cấu hình ngưỡng"), còn nửa *"⛔ không phát cảnh báo"* ⛔ chưa ai đi qua. ⭐ Đợt 07/09 đóng thêm **`DOD2.13`** và **`DOD2.17`** bằng hai bộ canh mới, mỗi cái kèm kiểm chứng ngược có số đo. ⬜ Còn **7**: `DOD2.3`·`2.15`·`2.16` (viết được từ máy dev — ba vế *chưa ai đi qua*, luật 7) · `DOD2.9` (cần **VM-3**) · `2.20` (là `T37.9`) · `2.21` (7 ngày lịch) · `2.22` (load test). ⭐ **Đo lại 08/09: 19/22.** Bốn mục đóng thêm trong đợt 08/09 (`DOD2.3` · `2.15` · `2.16` · `2.20`) ⇒ ba mục còn treo **⛔ không viết được từ máy dev** và ⛔ **không chặn Phase 3** — chúng chạy song song: `DOD2.9` cần VM-3 · `DOD2.21` cần **7 ngày lịch** · `DOD2.22` cần load test. Giữ `[~]` thay vì tick: mục này chỉ đóng trọn khi cả 22 mục có phép kiểm đứng sau
 - [x] T37.13: ✅ **Bộ canh truy vết 10 quy tắc parse ↔ bài kiểm — ĐÃ DỰNG** | Date: 08/09/2026 | Note: `QuyTacParseTruyVetTest` 5 bài, đọc `.claude/function-spec.md` (neo `**Quy tắc parse bắt buộc**:`, dừng ở dòng trống). ⛔⛔ **Va chạm số hiệu đo được, không suy đoán — BA hệ cùng dùng chữ "quy tắc N"**: CN-03.2 parse 1→10 · CLAUDE.md §bất-di-bất-dịch 1→18 · CLAUDE.md §luật-đã-trả-giá cũng có mục 18 nghĩa khác hẳn. `quy tắc 14` có **6** lượt trong `@DisplayName` và **không lượt nào** là quy tắc parse ⇒ mẫu `quy tắc (\d+)` vô dụng. ⇒ **Sửa nguồn nhập nhằng thay vì đoán nó**: đổi **19** `@DisplayName` sang dạng duy nhất `quy tắc parse N`; quy tắc parse 1 thôi mang tên *"quy tắc 18"*. **Đo sau đổi: 10/10 quy tắc có bài, 0 thiếu, 24 `@DisplayName` gọi tên.** ⭐⭐ **Bộ canh đỏ ngay lượt chạy ĐẦU TIÊN và đúng việc**: bản đầu quét theo DÒNG, mà lượt đổi tên làm chuỗi dài thêm nên **Spotless ngắt `@DisplayName` xuống dòng dưới** ⇒ quy tắc parse 1 *biến mất* trong khi bài vẫn nằm nguyên đó. Một bộ canh mà **bộ định dạng mã** làm cho sai sẽ đỏ giả vào một ngày không ai đoán trước, và lượt sửa nó rất dễ thành *nới cho hết đỏ*. Nay quét theo **khối chú giải** `(?s)@DisplayName\s*\(\s*"…"`, và ca ngắt dòng thành một đối chứng thường trực. ⭐ **Kiểm chứng ngược đo được**: đổi 1 chuỗi `Quy tắc parse 8` → `88` ⇒ **2 bài đỏ cùng lúc** từ MỘT mutation (*quy tắc 8 mất bài* + *quy tắc 88 không tồn tại*); khôi phục ⇒ 5/5 xanh, có in `grep -c` hai đầu để chứng minh cả bản phá lẫn bản khôi phục **đã được nạp** (quy tắc 10). ⛔⛔ **Và phải vá RÀO CẢN HẠ TẦNG, không thì bộ canh mới sinh ra đã mù**: bộ lọc `ci.yml` không bao `.claude/` ⇒ sửa spec **không** kích hoạt job backend ⇒ bộ canh sinh ra để bắt *một quy tắc mất bài kiểm* lại không chạy đúng lúc quy tắc đổi, và `skipped` được tính ĐẠT (luật 24). Thêm **đúng một tệp** `\.claude/function-spec\.md` — ⛔ **không** cả `.claude/`, vì `master-tracking.md` sửa gần như mỗi PR và kéo nó vào là dựng lại đúng lỗ §10.63. `CiPathFilterTest.DUONG_DAN_NGOAI` cũng phải thêm tiền tố `.claude` — **lần thứ hai trong sáu ngày** đúng hình dạng T11.71 (luật 28: bộ canh không nhìn thấy đường dẫn thì không thể báo bộ lọc bỏ sót)
 - [ ] T37.14: ⬜ **`UploadTooLargeResponseTest` CHẬP CHỜN — đỏ 1/2 lượt `verify` đầy đủ** | Date: 08/09/2026 | Note: `vuotTranTra413ChuKhongPhai500` đỏ ở lượt verify thứ nhất với *"đăng nhập phải thành công: Invalid CSRF token"* (403 thay vì 200), **xanh khi chạy riêng lẻ**, và **xanh ở lượt verify thứ hai trên cùng cây** ⇒ phụ thuộc thứ tự/trạng thái chung, ⛔ không phải lỗi mã. ⛔⛔ Nguy hiểm hơn một bài đỏ hẳn: một bài đỏ theo xác suất dạy người ta **chạy lại cho xanh**, và lượt chạy lại ấy che luôn một lỗi thật khi nó xuất hiện. ⬜ Chưa tìm nguyên nhân — nghi bucket rate-limit đăng nhập theo IP giả lập, hoặc một lớp khác để lại trạng thái CSRF. Việc cần: chạy `-Dtest=<lớp>,UploadTooLargeResponseTest` với vài lớp nghi ngờ để **cô lập cặp gây nhiễu**, ⛔ không sửa mò
 - [ ] T37.15: ⬜ **7 endpoint CMS đã dựng mà ⛔ không màn hình nào gọi** | Date: 08/09/2026 | Note: Đo 08/09 bởi `apiKhongMoCoi.test.ts` — 7/62 phương thức của `features/cms/api.ts` có **0 tham chiếu** trong toàn `admin-app/src`. ⛔ Đây ⛔ **không phải mã chết cần xoá** — chúng là endpoint thật, có phân quyền, có bài kiểm; thứ thiếu là nửa giao diện. Xoá client là **giấu** khoảng trống, dựng bừa giao diện là phát minh tính năng — nên chúng nằm trong một **sổ nợ máy đọc được**, khớp chính xác hai chiều: thêm endpoint quên màn hình thì đỏ, dựng xong màn hình quên xoá dòng cũng đỏ. ⭐ **Hai mục người dùng thấy được ngay**: `renameFolder` + `deleteFolder` (Công ty tạo được thư mục media mà ⛔ không đổi tên hay xoá được cái nào) và `replaceBannerImage` (đổi ảnh banner phải xoá rồi tạo lại, mất thứ tự đã kéo–thả). Năm mục còn lại nhẹ hơn: `bannerImageUrl` · `fileUrl` (URL ký sẵn, hiện lấy ảnh qua `/public/files/`) · `deleteContactNote` (ghi chú nội bộ gõ nhầm ⛔ không xoá được) · `pendingFeedbackCount` (phù hiệu chưa được vẽ). **Cần QuanTran chốt dựng cái nào**
+- [ ] T37.16: ⬜ **MCP `google_sheets_sync` ⛔ không in ra nó vừa đọc TỆP NÀO** | Date: 08/09/2026 | Note: `server.py:119` giải `os.path.join(os.getcwd(), TRACKING_FILE)` ⇒ đọc cây của **tiến trình MCP** (cây chính), ⛔ không phải worktree đang làm việc — và đầu ra vẫn báo *"đã đồng bộ N dòng"* như thường. Đo 08/09: hai cây lệch **72 dòng**, đồng bộ hướng nào cũng cho một bảng **trông đầy đủ** mà thiếu một nửa (§11.16, luật 34). ⭐ Chữa rẻ nhất là **một dòng**: in `os.path.abspath(...)` + md5 nguồn vào phần trả lời ⇒ lỗi im lặng thành lỗi nhìn thấy được (luật 32). ⚠ Chữa `os.getcwd()` thành đường dẫn theo `__file__` là **sai hướng** — người dùng có thể cố ý muốn đồng bộ từ một cây khác; thứ thiếu là **nói ra cây nào**, ⛔ không phải khoá cứng một cây
+
+## ⭐ Đánh giá sẵn sàng vào Phase 3 — đo 08/09/2026
+
+> ⛔ Khối này **cố ý không có dòng `- [ ]` nào** — nó là một lượt đo, không phải một rổ task mới.
+> Task thật vẫn nằm ở các mục WS ở trên. Mọi con số dưới đây **đọc từ mã và từ chuỗi migration của
+> kho**, ⛔ không đọc lại sổ (hình dạng đã sai 25 lần).
+
+### Kết luận: **vào được**, nhưng cửa vào là **D (HRM)**, ⛔ không phải C3
+
+`implement.md` §3 xếp Phase 3 = **C3** (GIS + Dashboard + wall 4K + Báo cáo) **+ D** (HRM, song song,
+chỉ cần Nhóm A). Lượt đo cho thấy hai nhánh ấy ở **hai trạng thái hoàn toàn khác nhau**:
+
+| | Đo được 08/09 | Vào được? |
+|---|---|:-:|
+| **D — HRM (MOD-04)** | `backend/hr/` có **6 tệp, cả 6 là `package-info.java`** ⇒ **0 dòng mã nghiệp vụ**. Mọi tiên quyết ĐÃ CÓ: `org_units` dùng chung (quy tắc 7) · `CryptoService` AES-256-GCM cho `employee_sensitive` (quy tắc 10) · Workflow engine cho `leave_requests` · Attachment service cho hồ sơ | ✅ **ngay** |
+| **C3 — GIS / wall / báo cáo** | Mã **đã dựng phần lớn** ở Phase 2, nhưng **⛔ không có dữ liệu để vẽ** | 🟨 **một phần** |
+
+### ⛔⛔ Vì sao C3 ⛔ không phải cửa vào: mã xong mà bản đồ trống
+
+Đây là chỗ dễ đọc nhầm nhất, nên ghi bằng số đo:
+
+- **19/19 điểm đo có `latitude`/`longitude`/`river_name`/`chainage` = NULL.** ⛔ Không phải sót —
+  `V202608311049:19` khai thẳng lý do: *"G8 chưa có dữ liệu"*, và `HydroCatalogueSeedTest` có một
+  khẳng định **thường trực** giữ nó ở NULL (*"⛔ Không bịa dữ liệu G8"*). Đây là quy tắc 16 + lệnh cấm
+  seed dữ liệu công trình/thuỷ văn "cho đẹp demo" đang chạy **đúng**.
+- **0 câu `INSERT INTO constructions` trong toàn bộ chuỗi migration** ⇒ lớp công trình của bản đồ
+  MOD-02 cũng ⛔ không có gì để vẽ.
+- ⇒ `StationMapService.lopDiemDo()` (WS-35, T35.1) **chạy đúng trên tập rỗng** — đúng hình dạng
+  luật 7: *một cơ chế chưa ai đi qua thì chưa biết nó đúng hay sai*.
+- **Biểu tổng hợp theo tuyến sông** — `function-spec.md:555` gọi nó là *"màn hình chính của Trực ban
+  và là **nội dung chính của wall mode**"* — nhóm theo `river_name`. Với 19 NULL thì mọi trạm rơi vào
+  một nhóm *"Chưa phân tuyến"*.
+
+⇒ **G8 ⛔ không chặn viết mã C3, nó chặn NGHIỆM THU C3.** Dựng GIS/wall trước khi có G8 là dựng một
+màn hình mà ⛔ không ai kiểm được — hình dạng đã trả giá ở §10.61 (906 bài kiểm hai phía xanh, trang
+vẫn hỏng ở lượt tải đầu trên stack thật).
+
+⭐ Phần C3 **làm được ngay, ⛔ không chờ ai**: hoàn thiện **wall mode** (khung đã có —
+`wallMode.ts` + `?mode=wall`, hiện mới đổi *theme và cỡ chữ*; còn auto-rotate 30s, kiểm fallback
+1920×1080/2560×1440, cỡ chữ đọc được ở 4–6 m — thiết bị **đã chốt B8 12/8**, ⛔ không chờ Công ty)
+và **báo cáo MOD-02** (trường dữ liệu đã chốt; chỉ **layout in ấn** chờ G10).
+
+### Phase 2 ⛔ không chặn — 3 mục DoD còn lại đều là **thời gian/môi trường**, không phải mã
+
+DoD Phase 2 nay **19/22**. Ba mục còn lại ⛔ không viết được từ máy dev và **chạy song song** với
+Phase 3:
+
+- **DOD2.9** — cần **VM-3** (3/4 phần đã có: luật `alerts.yml:67` · `HydroFreshnessRegistrar` · runbook)
+- **DOD2.21** — **7 ngày lịch liên tục**, 1008 khung 10' (`T37.1`). Hỏng giữa chừng là **đếm lại từ đầu**
+- **DOD2.22** — load test 200 CCU (`T37.2`)
+
+⇒ Đồng hồ của DOD2.21 nên **bấm sớm nhất có thể**; mỗi ngày trì hoãn là một ngày đẩy lùi nghiệm thu.
+
+### ⛔⛔ Ràng buộc thứ tự phải tôn trọng — `T11.69` hạn cứng **15/10/2026**
+
+Nâng Spring Boot **4.1.1** là đường **duy nhất** xoá được nhóm CVE ≥ 7 còn lại (T11.82 đã ghim
+`spring-security-crypto 7.1.1` xoá 4 mã). Nó là nợ **Phase 0** và là một PR lớn riêng.
+
+⛔ Nó phải xong **TRƯỚC** khi bấm giờ `T37.1`: 7 ngày quan sát phải chạy trên **đúng stack sẽ lên
+production**. Nâng Boot giữa chừng ⇒ đếm lại từ đầu. Còn **37 ngày** tính từ 08/09.
+
+### Việc phải làm ⛔ TRƯỚC khi mở Phase 3
+
+1. **Gộp #109 và #106** — cả hai đang mở và **cùng sửa** `master-tracking.md`. Xem khối ngay dưới.
+2. **Chốt `T37.15`** — 7 endpoint CMS ⛔ không màn hình nào gọi, cần QuanTran chọn dựng cái nào.
+3. **Gửi Công ty**: **G8** (chặn nghiệm thu GIS + wall) · **G6** (mẫu 2C-BNV — chặn **đúng một** báo
+   cáo `BCNS-07`, ⛔ không chặn 8 chức năng CN-04 còn lại) · **G10** (layout in báo cáo).
+
+### ⛔⛔ Bẫy đồng bộ Google Sheet — đo được, chưa từng ghi ở đâu
+
+`server.py:119` giải đường dẫn bằng `os.path.join(os.getcwd(), TRACKING_FILE)` ⇒ nó đọc
+`master-tracking.md` của **thư mục tiến trình MCP được khởi động**, tức **cây chính**, ⛔ **không phải**
+worktree đang làm việc. Đo 08/09: hai cây cho **hai md5 khác nhau**, lệch **72 dòng**, vì hai PR đang
+mở cùng sửa tệp ấy:
+
+- **#109** `fix/hoan-thien-phase2` — đóng T11.28 · T11.34 · T26.25 · T37.9 · T37.11 · T37.13
+- **#106** `docs/runbook-khoi-phuc-va-di-tru` — đóng T11.97, hạ T11.95 xuống `[~]`
+
+⇒ **⛔ Không cây nào đang giữ hợp của hai bên.** Đồng bộ lúc này là công bố **một nửa sự thật** lên
+bảng của Công ty, và bảng ấy ⛔ không có cách nào tự nói ra là nó thiếu. Cùng hình dạng §10.67 (*bản vá
+sống trên đĩa mà tiến trình MCP vẫn chạy mã cũ*), chỉ đổi chỗ: lần này **dữ liệu** cũ chứ ⛔ không phải mã.
+
+**Thứ tự đúng**: gộp #109 → gộp #106 (rebase, vì kho gộp bằng **squash** và `dev` bật
+`required_linear_history` — §10.72) → cây chính `checkout dev && pull` → **rồi mới** đồng bộ.
 
 ## DoD Phase 0
 

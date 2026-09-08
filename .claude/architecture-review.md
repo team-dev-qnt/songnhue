@@ -6106,3 +6106,44 @@ bài riêng đỏ nếu xuất hiện `api.ts` thứ hai — bộ canh ⛔ khôn
 ⚠ Và lượt kiểm chứng ngược dạy lại **luật 10** ở một dạng mới: `git checkout --` **im lặng thất bại
 trên tệp chưa track**, nên bản khôi phục chưa từng được nạp cho tới khi in ra một con số đếm được.
 Xác nhận bản *phá* đã nạp là chưa đủ — bản *khôi phục* cũng phải đo.
+
+---
+
+### §11.16 — Công cụ đọc **đường dẫn tương đối** đọc cây của TIẾN TRÌNH, không đọc cây của bạn (8/9/2026)
+
+Lượt chuẩn bị vào Phase 3 định đồng bộ `master-tracking.md` lên Google Sheet của Công ty. Phép đo
+**trước khi bấm** chặn đúng một lượt công bố sai.
+
+`.agents/mcp/google_sheets_sync/server.py:119`:
+
+```python
+tasks = parse_markdown_to_data(os.path.join(os.getcwd(), TRACKING_FILE))
+```
+
+`os.getcwd()` của tiến trình MCP là **thư mục nó được khởi động**, tức **cây chính**. Toàn bộ đợt việc
+này sống trong một `git worktree` riêng (`songnhue-ws37`). ⇒ Công cụ đọc **một tệp khác** với tệp đang
+sửa, và ⛔ **không có gì trong đầu ra nói ra điều đó** — nó vẫn báo "đã đồng bộ N dòng".
+
+**Đo được 8/9**: hai cây cho hai md5 khác nhau, cùng 1360 dòng, lệch **72 dòng**. Nguyên nhân là **hai
+PR đang mở cùng sửa `master-tracking.md`**:
+
+| PR | Nhánh | Đóng gì |
+|---|---|---|
+| **#109** | `fix/hoan-thien-phase2` | T11.28 · T11.34 · T26.25 · T37.9 · T37.11 · T37.13 |
+| **#106** | `docs/runbook-khoi-phuc-va-di-tru` | T11.97; hạ T11.95 xuống `[~]` |
+
+⛔⛔ **Không cây nào giữ hợp của hai bên.** Đồng bộ từ cây chính ⇒ mất 6 mục vừa đóng; đồng bộ từ
+worktree (nếu ép được) ⇒ mất T11.97 và dựng lại T11.95 như thể cửa sổ nguy hiểm còn mở. **Cả hai
+hướng đều cho ra một bảng trông đầy đủ và đúng.**
+
+Cùng hình dạng **§10.67** (*bản vá sống trên đĩa mà tiến trình MCP vẫn chạy mã cũ*), đổi chỗ: lần ấy
+**mã** cũ, lần này **dữ liệu** cũ. Và cùng họ với **luật 3** — thứ có hiệu lực là giá trị **đã giải**
+(`os.getcwd()` lúc khởi động), ⛔ không phải giá trị mình *tưởng* (thư mục mình đang gõ lệnh).
+
+⇒ **Bất biến phải tôn trọng: chỉ đồng bộ Sheet từ một cây đang đứng trên `dev` đã gộp xong**, và
+⛔ không bao giờ đồng bộ khi còn PR mở đụng vào `master-tracking.md`. Thứ tự: gộp mọi PR đụng tệp ấy →
+cây chính `checkout dev && pull` → đo md5 → **rồi mới** đồng bộ.
+
+⚠ Nợ để lại: đầu ra của công cụ ⛔ không in **đường dẫn tuyệt đối** nó vừa đọc. Một dòng
+`os.path.abspath(...)` trong phần trả lời biến lỗi im lặng này thành lỗi nhìn thấy được — đúng luật 32
+(*in một con số / một sự kiện đo được ở mỗi bước*).
