@@ -45,6 +45,24 @@ class PortalTaxonomyTest {
     private static final String MIGRATION =
             "backend/content/src/main/resources/db/migration/cms/V202608271031__cms_site_taxonomy_v2.sql";
 
+    /**
+     * ⛔⛔ Menu ⛔ KHÔNG chỉ nằm ở một tệp — và bộ canh này từng tin là có (luật 28).
+     *
+     * <p>{@link #MIGRATION} là tệp dựng cây menu gốc (G14, 27/08). Mọi mục thêm SAU đó nằm ở tệp
+     * khác, và {@code duongDanTrongMenu()} bản trước chỉ đọc <b>một</b> tệp ⇒ một mục menu mới ⛔
+     * không được bộ canh nhìn thấy, còn trang nó dẫn tới vẫn bị báo là <i>"⛔ không ai dẫn tới"</i>.
+     *
+     * <p>⚠ Cùng hình dạng {@code PortalSettingsReadTest} đã mắc ở §10.62 — <i>soi mỗi một tệp
+     * migration nên mọi khoá seed trước đó đi lọt</i>. Bộ canh đúng luật, hẹp hơn nơi nó phải chặn.
+     *
+     * <p>⛔ Và ⛔ KHÔNG đổi {@link #MIGRATION} thành một danh sách: {@code diaChiHeThongVanBanKhongLech()}
+     * truyền nó thẳng vào {@code doc(...)} để trích đúng <b>một</b> địa chỉ {@code EXTERNAL_DOC}.
+     * Đổi kiểu là gãy BIÊN DỊCH cả module {@code app} — mà thông báo lỗi sẽ trỏ vào một bài kiểm
+     * ⛔ không liên quan gì tới menu.
+     */
+    private static final List<String> MIGRATION_MENU_BO_SUNG =
+            List.of("backend/content/src/main/resources/db/migration/cms/V202609081070__cms_menu_gop_y.sql");
+
     private static final String SETTINGS_MIGRATION =
             "backend/content/src/main/resources/db/migration/cms/V202608271032__cms_portal_settings_v2.sql";
 
@@ -101,8 +119,21 @@ class PortalTaxonomyTest {
      * <p>⇒ Luật 28: bộ canh phải nói ra phạm vi của chính nó. Bản trước khẳng định một điều rộng
      * hơn thứ nó đo được.
      */
-    private static final java.util.Map<String, String> LOI_VAO_NGOAI_MENU =
-            java.util.Map.of("/gop-y", "frontend/public-web/src/app/lien-he/page.tsx");
+    /**
+     * Tuyến đường có lối vào <b>⛔ không phải menu</b> — khai kèm TỆP chứa liên kết ấy.
+     *
+     * <p>⭐ <b>Rỗng từ 08/09/2026 (T28.53), và rỗng là trạng thái TỐT NHẤT.</b> Mục duy nhất từng
+     * nằm đây là {@code /gop-y}, miễn trừ với lý do <i>"có một liên kết trong thân trang
+     * /lien-he"</i>. Nay nó là menu con thật của "Liên hệ", nên dòng miễn trừ ⛔ không còn đúng —
+     * và một sự miễn trừ sống lâu hơn cái nó miễn trừ chính là thứ javadoc của bài này cảnh báo.
+     *
+     * <p>⚠ Bản trước khẳng định {@code isNotEmpty()} để chống vòng lặp chạy 0 lần (luật 7). Khẳng
+     * định ấy nay <b>sai hướng</b>: nó biến trạng thái tốt nhất thành một bài kiểm đỏ, và áp lực
+     * dễ nhất để chữa là <i>giữ lại một dòng miễn trừ đã chết cho hết đỏ</i>. Thay bằng
+     * {@link #coCheMienTruVanBatDuocViPham()} — một bài <b>tự-kiểm-chứng</b> chạy cơ chế trên dữ
+     * liệu dựng sẵn, nên nó chứng minh được cơ chế mà ⛔ không đòi phải tồn tại một ngoại lệ thật.
+     */
+    private static final java.util.Map<String, String> LOI_VAO_NGOAI_MENU = java.util.Map.of();
 
     @Test
     @DisplayName("⛔ Mọi tuyến đường mới của ROUTES đều có một lối vào — menu, hoặc một liên kết ĐO ĐƯỢC")
@@ -127,10 +158,8 @@ class PortalTaxonomyTest {
                 .isEmpty();
 
         // ⛔⛔ Vế chịu lực của phần miễn trừ: lối vào đã khai phải CÓ THẬT trong tệp đã khai.
-        assertThat(LOI_VAO_NGOAI_MENU)
-                .as("⚠ vế chống tập rỗng (luật 7): danh sách miễn trừ rỗng thì vòng lặp dưới chạy "
-                        + "0 lần và phần này ⛔ không khẳng định gì")
-                .isNotEmpty();
+        //    ⚠ Danh sách nay RỖNG (T28.53) nên vòng lặp chạy 0 lần — cơ chế được chứng minh ở
+        //      `coCheMienTruVanBatDuocViPham()`, ⛔ không bằng cách giữ lại một ngoại lệ đã chết.
         LOI_VAO_NGOAI_MENU.forEach((duong, tep) -> {
             String khoa = "ROUTES." + tenKhoaRoutes(duong);
             assertThat(doc(tep))
@@ -144,6 +173,30 @@ class PortalTaxonomyTest {
                             duong, tep, khoa, duong)
                     .contains(khoa);
         });
+    }
+
+    /**
+     * ⛔⛔ Tự-kiểm-chứng: cơ chế miễn trừ <b>bắt được</b> một dòng đã chết (conventions.md §1.5).
+     *
+     * <p>Thay cho khẳng định {@code isNotEmpty()} cũ. Vấn đề của nó: khi danh sách miễn trừ rỗng —
+     * tức trạng thái <b>tốt nhất</b>, mọi trang đều có lối vào menu thật — bài kiểm ĐỎ, và cách
+     * chữa dễ nhất là giữ lại một ngoại lệ đã hết đúng. Một bộ canh tạo áp lực đi sai hướng thì
+     * tệ hơn ⛔ không có.
+     *
+     * <p>Bài này chạy đúng phép so ấy trên <b>dữ liệu dựng sẵn</b>: một tệp có chứa khoá và một
+     * tệp ⛔ không. Nó chứng minh cơ chế còn sống mà ⛔ không đòi phải tồn tại một ngoại lệ thật.
+     */
+    @Test
+    @DisplayName("⚠ Tự-kiểm-chứng: một dòng miễn trừ đã chết PHẢI bị bắt")
+    void coCheMienTruVanBatDuocViPham() {
+        assertThat(tenKhoaRoutes("/gop-y")).isEqualTo("gopY");
+        assertThat(tenKhoaRoutes("/lien-he")).isEqualTo("lienHe");
+
+        String tepCoLienKet = "<a href={ROUTES.gopY}>Góp ý</a>";
+        String tepMatLienKet = "<p>Trang này ⛔ không còn dẫn đi đâu</p>";
+
+        assertThat(tepCoLienKet).contains("ROUTES." + tenKhoaRoutes("/gop-y"));
+        assertThat(tepMatLienKet).doesNotContain("ROUTES." + tenKhoaRoutes("/gop-y"));
     }
 
     /** `/gop-y` → `gopY`. ⚠ Bài này soi lời gọi `ROUTES.<khoá>`, ⛔ không soi chuỗi đường dẫn. */
@@ -267,16 +320,24 @@ class PortalTaxonomyTest {
     }
 
     private static List<String> duongDanTrongMenu() {
-        Matcher m = Pattern.compile("'(?:URL)',\\s*'(/[a-z0-9\\-/]+)'").matcher(doc(MIGRATION));
         List<String> ket = new java.util.ArrayList<>();
-        while (m.find()) {
-            ket.add(m.group(1));
-        }
-        // Dạng thứ hai: bảng VALUES của mục con — ('Nhãn', '/duong-dan', thu_tu)
-        Matcher bang =
-                Pattern.compile("\\('[^']+',\\s*'(/[a-z0-9\\-/]+)',\\s*\\d+\\)").matcher(doc(MIGRATION));
-        while (bang.find()) {
-            ket.add(bang.group(1));
+        // ⭐ Đọc CẢ tệp gốc LẪN mọi tệp bổ sung — xem javadoc `MIGRATION_MENU_BO_SUNG`.
+        List<String> nguon = new java.util.ArrayList<>();
+        nguon.add(MIGRATION);
+        nguon.addAll(MIGRATION_MENU_BO_SUNG);
+
+        for (String tep : nguon) {
+            String noiDung = doc(tep);
+            Matcher m = Pattern.compile("'(?:URL)',\\s*'(/[a-z0-9\\-/]+)'").matcher(noiDung);
+            while (m.find()) {
+                ket.add(m.group(1));
+            }
+            // Dạng thứ hai: bảng VALUES của mục con — ('Nhãn', '/duong-dan', thu_tu)
+            Matcher bang = Pattern.compile("\\('[^']+',\\s*'(/[a-z0-9\\-/]+)',\\s*\\d+\\)")
+                    .matcher(noiDung);
+            while (bang.find()) {
+                ket.add(bang.group(1));
+            }
         }
         return ket.stream().filter(d -> !"/".equals(d)).distinct().sorted().toList();
     }
