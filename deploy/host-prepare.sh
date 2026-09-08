@@ -109,7 +109,14 @@ if [ "$CHI_KIEM" -eq 0 ]; then
     chown -R "$APP_UID:$APP_GID" /opt/songnhue/keys /var/log/songnhue
     chmod 700 /opt/songnhue/keys
     find /opt/songnhue/keys -type f -exec chmod 600 {} + 2>/dev/null || true
-    chmod 755 /var/log/songnhue
+    # ⛔ 2775, KHÔNG 755. Container ghi log bằng uid $APP_UID (1000); còn **cron
+    #    gia hạn TLS chạy bằng NGƯỜI TRIỂN KHAI**, mà trên VPS-1 người ấy là uid
+    #    1001 — khác. Với 755 thì nhóm chỉ có `r-x`, nên dòng cron
+    #    `… >> /var/log/songnhue/gia-han-tls.log` thất bại và cron hỏng CÂM: nó
+    #    không gửi thư đi đâu, nên chỉ lộ ra vào đúng ngày chứng chỉ hết hạn.
+    #    Đo trên VPS-1 ngày 08/09/2026: `drwxr-xr-x ubuntu:ubuntu` ⇒ không ghi được.
+    #    setgid (chữ số 2) giữ nhóm cho mọi tệp tạo sau, để cả hai bên đều ghi được.
+    chmod 2775 /var/log/songnhue
 
     # ⛔⛔ Thư mục sao lưu: chủ là POSTGRES (999), nhóm là app (1000), + setgid để tệp mới thừa kế
     #    nhóm. `chown -R 1000:1000` ở đây làm `pg_dump` hỏng ⇒ MỌI lượt deploy đỏ ngay bước đầu.
@@ -145,7 +152,8 @@ kiem_ghi_duoc() { # đường dẫn — thử ghi DƯỚI DANH NGHĨA người t
 }
 kiem_ghi_duoc /opt/songnhue
 kiem_quyen /opt/songnhue/keys "$APP_UID:$APP_GID" 700
-kiem_quyen /var/log/songnhue "$APP_UID:$APP_GID" 755
+kiem_quyen /var/log/songnhue "$APP_UID:$APP_GID" 2775
+kiem_ghi_duoc /var/log/songnhue
 kiem_quyen /var/lib/songnhue/backup "$PG_UID:$APP_GID" 2775
 # nginx chạy master bằng root nên không cần đổi chủ — nhưng thư mục vẫn phải CÓ phép đo:
 # "được tạo mà không ai đo" chính là hình dạng đã làm đỏ rsync ngày 7/9 (HostPrepareQuyenTest).
