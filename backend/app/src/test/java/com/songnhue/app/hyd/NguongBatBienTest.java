@@ -16,6 +16,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.songnhue.app.testsupport.IntegrationTestBase;
+import com.songnhue.core.application.notification.RecipientResolver;
+import com.songnhue.core.application.settings.SettingService;
 import com.songnhue.hydro.application.NguongAlertService;
 import com.songnhue.hydro.domain.ReadingQuality;
 
@@ -53,6 +55,9 @@ class NguongBatBienTest extends IntegrationTestBase {
     private static final String MA_API = "F97218";
     private static final String MA_MUC = "DOD216-MUC";
 
+    /** ⚠ Tên có tiền tố riêng để `donDep()` xoá đúng hàng của lớp này, ⛔ không đụng seed. */
+    private static final String TAI_KHOAN_BDH = "dod23_bdh";
+
     @Autowired
     private NguongAlertService nguongAlert;
 
@@ -61,6 +66,9 @@ class NguongBatBienTest extends IntegrationTestBase {
 
     @Autowired
     private TransactionTemplate tx;
+
+    @Autowired
+    private SettingService thamSo;
 
     private long idDiemDo;
     private long idLoaiChiSo;
@@ -210,6 +218,121 @@ class NguongBatBienTest extends IntegrationTestBase {
         return n == null ? 0 : n;
     }
 
+    // ---- DOD2.3 — vế CẢNH BÁO của điểm MN_SONG ------------------------------
+
+    /**
+     * ⭐⭐ <b>DOD2.3, vế thứ ba.</b> Một trạm thuỷ văn sông ⛔ <b>không liên kết công trình nào</b>
+     * vẫn phát được cảnh báo, và cảnh báo ấy tới được <b>nhóm Ban điều hành</b>.
+     *
+     * <h2>⛔ Nhánh này ⛔ chưa ai đi qua, và đó chính là lý do bài kiểm tồn tại (luật 7)</h2>
+     *
+     * <p>{@code AlertNotifier.ghiNhatKyThieu()} có một nhánh riêng cho {@code MN_SONG} — <i>"đúng
+     * thiết kế, chỉ nhóm cố định nhận"</i> — nhưng đo 08/09/2026: <b>0 bài kiểm nào ở module
+     * {@code app} đi qua {@code RecipientResolver} trên đường cảnh báo thuỷ văn</b>. Một cơ chế
+     * chưa ai đi qua thì chưa biết nó đúng hay sai.
+     *
+     * <p>⚠ Và nó là nhánh <b>dễ hỏng im lặng nhất</b> của cả máy cảnh báo: 4/19 điểm đo là
+     * {@code MN_SONG}. Nếu {@code RecipientResolver} rơi về <b>tập rỗng</b> thay vì nhóm cố định
+     * khi danh sách đơn vị trống, thì cảnh báo lũ của bốn trạm thuỷ văn sông <b>⛔ không tới ai
+     * cả</b> — và ⛔ không có gì để nhìn thấy: bảng {@code alert_events} vẫn có hàng, màn hình
+     * cảnh báo vẫn hiện, chỉ hộp thư là trống.
+     *
+     * <h2>⚠ Ba khẳng định, và vì sao cần cả ba (luật 9)</h2>
+     *
+     * <ol>
+     *   <li><b>Có sự kiện cảnh báo</b> — nếu ⛔ không, hai vế sau vô nghĩa;
+     *   <li><b>Có bản ghi thông báo</b> — sự kiện ⛔ không tự tới ai;
+     *   <li><b>Có người nhận thật</b> — đây là vế chịu lực. Một thông báo ⛔ không người nhận đi
+     *       qua mọi khẳng định về "đã tạo thông báo" mà ⛔ không tới hộp thư nào.
+     * </ol>
+     */
+    @Test
+    @DisplayName("⭐⭐ DOD2.3 — trạm MN_SONG ⛔ không liên kết công trình VẪN phát cảnh báo tới Ban điều hành")
+    void mnSongKhongLienKetVanPhatCanhBaoToiBanDieuHanh() {
+        // Tiền đề đo được, ⛔ không giả định: đúng vai trò MN_SONG và ⛔ KHÔNG liên kết công trình.
+        assertThat(jdbc.queryForObject("SELECT position_role FROM stations WHERE id = ?", String.class, idDiemDo))
+                .isEqualTo("MN_SONG");
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM station_constructions WHERE station_id = ?", Integer.class, idDiemDo))
+                .as("⚠ tiền đề của DOD2.3: điểm đo này ⛔ KHÔNG liên kết công trình nào")
+                .isZero();
+
+        long idNguoiNhan = themNguoiVaoBanDieuHanh();
+        taoQuyTac();
+
+        tx.executeWithoutResult(t -> nguongAlert.danhGia(
+                idDiemDo, idLoaiChiSo, Instant.now(), new BigDecimal("9.999"), ReadingQuality.HOP_LE));
+
+        assertThat(soCanhBao())
+                .as("(1) trạm ⛔ không liên kết công trình vẫn phải sinh cảnh báo")
+                .isEqualTo(1);
+
+        Integer soThongBao = jdbc.queryForObject(
+                "SELECT count(*) FROM notifications WHERE event_type = ?",
+                Integer.class,
+                NguongAlertService.SU_KIEN_VUOT_NGUONG);
+        assertThat(soThongBao).as("(2) cảnh báo phải sinh một thông báo").isEqualTo(1);
+
+        assertThat(jdbc.queryForList(
+                        """
+                        SELECT r.user_id FROM notification_recipients r
+                          JOIN notifications n ON n.id = r.notification_id
+                         WHERE n.event_type = ?
+                        """,
+                        Long.class,
+                        NguongAlertService.SU_KIEN_VUOT_NGUONG))
+                .as("(3) ⛔⛔ VẾ CHỊU LỰC — danh sách đơn vị RỖNG phải rơi về nhóm Ban điều hành, "
+                        + "⛔ KHÔNG rơi về tập rỗng. Tập rỗng nghĩa là cảnh báo lũ của 4 trạm thuỷ văn "
+                        + "sông ⛔ không tới ai, mà bảng alert_events vẫn có hàng và màn hình vẫn hiện.")
+                .contains(idNguoiNhan);
+    }
+
+    /**
+     * Đưa một tài khoản vào nhóm "Ban điều hành" — khoá {@code settings} dạng mảng JSON id.
+     *
+     * <p>⚠ Ghi thẳng CSDL rồi <b>xoá đệm</b>: {@code SettingService} có Caffeine TTL vài phút, nên
+     * thiếu lượt {@code invalidate} thì {@code RecipientResolver} đọc danh sách CŨ và bài kiểm đỏ
+     * ở một dòng ⛔ không liên quan gì tới thứ nó đang kiểm.
+     */
+    private long themNguoiVaoBanDieuHanh() {
+        Long idDonVi = jdbc.queryForObject(
+                "SELECT id FROM org_units WHERE deleted_at IS NULL ORDER BY id LIMIT 1", Long.class);
+        assertThat(idDonVi).as("⚠ vế chống tập rỗng: phải có đơn vị seed").isNotNull();
+
+        // ⛔⛔ Khoá nhóm giữ mảng `public_id` (UUID), ⛔ KHÔNG phải `id` (BIGINT). Bản đầu của
+        //    fixture này nhét `id` vào và bài kiểm ĐỎ ở đúng vế chịu lực — trong khi mã sản xuất
+        //    hoàn toàn đúng: `executiveBoard()` bắt được `IllegalArgumentException`, ghi log lỗi
+        //    kèm nguyên văn giá trị, và trả về danh sách rỗng.
+        //
+        // ⚠ Đây là luật 29 gặp lại trong cùng một ngày: một bài kiểm sai theo đúng cách mà thứ nó
+        //   kiểm CÓ THỂ sai — cả hai đều cho ra "⛔ không người nhận nào". Thứ phân biệt được hai
+        //   trạng thái ấy ⛔ không phải khẳng định, mà là lượt ĐỌC mã của `executiveBoard()`.
+        Object[] nguoi = jdbc.queryForObject(
+                """
+                INSERT INTO users (public_id, username, full_name, email, password_hash, status,
+                                   org_unit_id, must_change_password, created_at)
+                VALUES (gen_random_uuid(), ?, 'Cán bộ Ban điều hành DOD2.3', 'dod23@example.invalid',
+                        'x', 'ACTIVE', ?, FALSE, now())
+                RETURNING id, public_id
+                """,
+                (rs, n) -> new Object[] {rs.getLong("id"), rs.getObject("public_id")},
+                TAI_KHOAN_BDH,
+                idDonVi);
+        long idNguoi = (Long) nguoi[0];
+
+        int soHang = jdbc.update(
+                "UPDATE settings SET setting_value = ? WHERE setting_key = ?",
+                "[\"" + nguoi[1] + "\"]",
+                RecipientResolver.KEY_EXECUTIVE_BOARD);
+        assertThat(soHang)
+                .as(
+                        "khoá `%s` ⛔ không có trong bảng settings — nhóm Ban điều hành là danh mục có CRUD",
+                        RecipientResolver.KEY_EXECUTIVE_BOARD)
+                .isEqualTo(1);
+        thamSo.invalidate(RecipientResolver.KEY_EXECUTIVE_BOARD);
+        return idNguoi;
+    }
+
     private long taoQuyTac() {
         Long idMuc = jdbc.queryForObject(
                 "INSERT INTO alert_levels (code, name, color_token, severity_rank, active, created_at) "
@@ -279,5 +402,22 @@ class NguongBatBienTest extends IntegrationTestBase {
         jdbc.update(
                 "DELETE FROM hydro_latest WHERE station_id IN (SELECT id FROM stations WHERE code = ?)", MA_DIEM_DO);
         jdbc.update("DELETE FROM stations WHERE code = ?", MA_DIEM_DO);
+
+        // ⛔ DOD2.3 — dọn theo ĐÚNG thứ tự khoá ngoại: người nhận → thông báo → tài khoản.
+        //   Sai thứ tự thì lượt xoá đỏ, và bài KẾ TIẾP đỏ vì dọn dẹp chứ ⛔ không vì thứ nó kiểm.
+        jdbc.update(
+                "DELETE FROM notification_recipients r USING notifications n "
+                        + "WHERE n.id = r.notification_id AND n.event_type = ?",
+                NguongAlertService.SU_KIEN_VUOT_NGUONG);
+        jdbc.update("DELETE FROM notifications WHERE event_type = ?", NguongAlertService.SU_KIEN_VUOT_NGUONG);
+        jdbc.update("DELETE FROM users WHERE username = ?", TAI_KHOAN_BDH);
+
+        // ⚠ Trả khoá nhóm Ban điều hành về ĐÚNG `default_value` — ⛔ không về một hằng ghi cứng.
+        //   Cùng bài học vừa trả giá ở `ContactFormPolicyHttpTest` cùng ngày: một lượt khôi phục
+        //   ghi cứng giá trị mặc định là một BẢN SAO của mặc định, và bản sao lệch trong im lặng.
+        jdbc.update(
+                "UPDATE settings SET setting_value = default_value WHERE setting_key = ?",
+                RecipientResolver.KEY_EXECUTIVE_BOARD);
+        thamSo.invalidate(RecipientResolver.KEY_EXECUTIVE_BOARD);
     }
 }
