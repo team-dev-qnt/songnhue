@@ -40,8 +40,9 @@ import { api, ApiClientError } from '@/shared/apiClient';
  *
  * ## Ba mảnh nằm ngủ từ Phase 0, mỗi mảnh viết sẵn cho đúng màn hình này
  *
- * - `adm:role:manage` — trước T27.31 có **đúng 1** lượt xuất hiện trong toàn kho: dòng *miễn kiểm*
- *   của `RbacMatrixTest`.
+ * - `adm:role:manage` — trước T27.31 có **đúng 1** lượt xuất hiện trong **mã nguồn**: dòng *miễn
+ *   kiểm* của `RbacMatrixTest`. ⚠ Phép đếm đầu ghi *"toàn kho"* và sai — `git grep` cho 3 lượt ở 2
+ *   tệp; `rg` mặc định bỏ qua `.claude/`.
  * - `roles.is_system` — một cột ⛔ không ai đọc; bảo đảm "⛔ không sửa được" chỉ nằm trong một dòng
  *   chú thích SQL.
  * - `AuthorityLoader.invalidateAll()` — **0 nơi gọi**, javadoc ghi thẳng *"Gọi khi sửa quyền của một

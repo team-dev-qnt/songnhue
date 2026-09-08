@@ -54,6 +54,24 @@ import com.songnhue.core.common.security.RequirePermission;
  * bài kiểm canh <i>hình dạng hợp lệ</i> của ma trận, còn <i>nội dung</i> ma trận là quyết định của
  * Công ty và phải đổi được ⛔ không cần deploy (quy tắc 16).
  *
+ * <h2>⚠⚠ PHẠM VI CỦA BỘ CANH NÀY — hẹp đi kể từ T27.31 (luật 28)</h2>
+ *
+ * <p>Sáu bất biến dưới đây chạy trong CI trên một CSDL <b>vừa migrate xong</b>. Chúng canh
+ * <b>SEED</b>, ⛔ <b>không</b> canh ma trận đang chạy trên production. Trước T27.31 hai thứ ấy là
+ * một — ma trận chỉ đổi được bằng migration, nên seed <i>chính là</i> trạng thái runtime. Nay ⛔
+ * không còn: một người quản trị bấm chuột là hai thứ tách nhau, và ⛔ không lượt chạy CI nào nhìn
+ * thấy trạng thái sau cú bấm ấy.
+ *
+ * <p>⛔ Khoảng trống ấy là <b>có chủ đích</b>, ⛔ không phải sót. Ba trong sáu bất biến ở đây
+ * (<i>mọi quyền phải gán cho ≥1 vai trò</i> · <i>mọi endpoint phải có vai trò gọi được</i> · <i>vai
+ * trò ⛔ không được rỗng quyền</i>) là tiêu chuẩn <b>chất lượng của một bản seed</b>, ⛔ không phải
+ * ràng buộc an toàn. Ép chúng lúc chạy sẽ cấm Công ty làm một việc hoàn toàn hợp lệ: <i>tắt hẳn một
+ * chức năng bằng cách gỡ quyền của nó khỏi mọi vai trò</i>. Bốn bất biến ép ở service là bốn thứ
+ * <b>thật sự ⛔ không quay lui được</b> — khác hẳn về loại.
+ *
+ * <p>⇒ Cái xanh của lớp này nói: <i>"bản seed trong kho hợp lệ"</i>. Nó ⛔ <b>không</b> nói
+ * <i>"ma trận trên production hợp lệ"</i>. Ai cần câu thứ hai thì phải đo trên máy thật.
+ *
  * <p><b>Bốn kiểu sai của ma trận, và không kiểu nào tự báo:</b>
  *
  * <ul>
@@ -161,9 +179,13 @@ class RbacMatrixTest extends IntegrationTestBase {
             //   ⛔ Đừng thêm lại cho hết đỏ — bài `ngoaiLeQuyenPhaseSauVanConDung()` canh đúng chiều
             //   này, và chính nó là thứ ÉP lượt gỡ này xảy ra: quyền vừa có endpoint thật là bài ấy
             //   đỏ ngay, ⛔ không cần ai nhớ ra phải gỡ.
-            // ⭐ Trước T27.31 quyền này có ĐÚNG 1 lượt xuất hiện trong toàn kho — chính dòng miễn
+            // ⭐ Trước T27.31 quyền này có ĐÚNG 1 lượt xuất hiện trong MÃ NGUỒN — chính dòng miễn
             //   kiểm ở đây. Một quyền mà nơi duy nhất nhắc tới nó là danh sách "miễn kiểm nó" thì
             //   ⛔ không bộ canh nào còn đứng sau nó.
+            // ⚠ Đo lần đầu ghi "1 lượt trong TOÀN KHO" và con số ấy SAI: `git grep` cho **3 lượt ở
+            //   2 tệp** — hai lượt kia ở `.claude/master-tracking.md`, nơi mâu thuẫn ba chiều đã
+            //   được ghi sẵn. `rg` mặc định BỎ QUA thư mục ẩn, mà `.claude/` chính là chỗ dự án này
+            //   để nguồn sự thật. Một phép đếm hụt vẫn đọc như một phép đếm (§10.75).
             );
 
     @Autowired

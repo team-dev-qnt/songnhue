@@ -183,8 +183,10 @@ public class UserAdminService implements UserDirectoryPort {
      * <p>Đo 08/09/2026 trước khi viết một dòng nào:
      *
      * <ul>
-     *   <li>{@code adm:role:manage} có <b>đúng 1</b> lượt xuất hiện trong toàn kho — dòng miễn kiểm
-     *       {@code RbacMatrixTest:140}. Một quyền ⛔ chưa endpoint nào đòi.
+     *   <li>{@code adm:role:manage} có <b>đúng 1</b> lượt xuất hiện trong <b>mã nguồn</b> — dòng
+     *       miễn kiểm {@code RbacMatrixTest:140}. Một quyền ⛔ chưa endpoint nào đòi. ⚠ Phép đếm đầu
+     *       ghi <i>"toàn kho"</i> và sai: {@code git grep} cho <b>3 lượt ở 2 tệp</b>, hai lượt kia ở
+     *       {@code .claude/master-tracking.md} — {@code rg} mặc định bỏ qua thư mục ẩn.
      *   <li>{@code roles.is_system} là <b>một cột ⛔ không ai đọc</b> (luật 15). Bảo đảm "Admin ⛔
      *       không sửa quyền, ⛔ không xoá được" chỉ tồn tại trong <b>một dòng chú thích SQL</b>
      *       ({@code V202608131007:126}) — ⛔ chưa từng được mã nào ép. Đây là người đọc đầu tiên.

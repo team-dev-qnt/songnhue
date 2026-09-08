@@ -1,7 +1,11 @@
 import Link from 'next/link';
 
 import type { WaterLevelRow } from '@/lib/api';
-import { COT_MUC_NUOC } from '@/lib/homeDataColumns';
+import {
+  BE_RONG_TOI_THIEU_MUC_NUOC,
+  COT_MUC_NUOC,
+  LUOI_MUC_NUOC,
+} from '@/lib/homeDataColumns';
 import { ROUTES } from '@/lib/routes';
 import { RealtimeFrame } from '../realtime/RealtimeFrame';
 import { ColumnHeaderRow } from './ColumnHeaderRow';
@@ -121,8 +125,8 @@ export function WaterLevelBlock({
       {/* Hàng tiêu đề 8 cột của CN-03.4 — lược đồ của bảng, không phải dữ liệu của bảng. */}
       <ColumnHeaderRow
         cot={COT_MUC_NUOC}
-        luoi="grid-cols-[1.1fr_1.7fr_0.9fr_1fr_1fr_0.95fr_1.1fr_0.9fr]"
-        beRongToiThieu="min-w-[920px]"
+        luoi={LUOI_MUC_NUOC}
+        beRongToiThieu={BE_RONG_TOI_THIEU_MUC_NUOC}
       />
 
       <div className="p-4 sm:p-5">
@@ -138,8 +142,8 @@ export function WaterLevelBlock({
           {rows !== null && rows.length > 0 ? (
             <WaterLevelRows
               rows={rows}
-              luoi="grid-cols-[1.1fr_1.7fr_0.9fr_1fr_1fr_0.95fr_1.1fr_0.9fr]"
-              beRongToiThieu="min-w-[920px]"
+              luoi={LUOI_MUC_NUOC}
+              beRongToiThieu={BE_RONG_TOI_THIEU_MUC_NUOC}
             />
           ) : (
             /* ⛔ Rỗng THẬT — nói thẳng, ⛔ không dựng một lưới dấu gạch cho "đỡ trống" (§10.61). */

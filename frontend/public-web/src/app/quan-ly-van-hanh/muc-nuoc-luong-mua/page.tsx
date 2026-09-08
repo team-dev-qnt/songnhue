@@ -6,7 +6,11 @@ import { SectionNav } from '@/components/SectionNav';
 import { ColumnHeaderRow } from '@/components/home/ColumnHeaderRow';
 import { WaterLevelRows } from '@/components/home/WaterLevelRows';
 import { RealtimeFrame } from '@/components/realtime/RealtimeFrame';
-import { COT_MUC_NUOC } from '@/lib/homeDataColumns';
+import {
+  BE_RONG_TOI_THIEU_MUC_NUOC,
+  COT_MUC_NUOC,
+  LUOI_MUC_NUOC,
+} from '@/lib/homeDataColumns';
 import { getServerTime, getSiteConfig, getWaterLevels } from '@/lib/api';
 import { khoiVanHanhBat } from '@/lib/khoiVanHanh';
 import { ROUTES } from '@/lib/routes';
@@ -101,13 +105,13 @@ export default async function MucNuocLuongMuaPage() {
               <div className="overflow-hidden rounded-lg border border-surface-border">
                 <ColumnHeaderRow
                   cot={COT_MUC_NUOC}
-                  luoi="grid-cols-[1.1fr_1.7fr_0.9fr_1fr_1fr_0.95fr_1.1fr_0.9fr]"
-                  beRongToiThieu="min-w-[920px]"
+                  luoi={LUOI_MUC_NUOC}
+                  beRongToiThieu={BE_RONG_TOI_THIEU_MUC_NUOC}
                 />
                 <WaterLevelRows
                   rows={mucNuoc}
-                  luoi="grid-cols-[1.1fr_1.7fr_0.9fr_1fr_1fr_0.95fr_1.1fr_0.9fr]"
-                  beRongToiThieu="min-w-[920px]"
+                  luoi={LUOI_MUC_NUOC}
+                  beRongToiThieu={BE_RONG_TOI_THIEU_MUC_NUOC}
                 />
               </div>
             ) : (

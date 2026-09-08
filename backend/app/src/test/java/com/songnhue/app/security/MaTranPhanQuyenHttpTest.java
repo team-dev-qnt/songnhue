@@ -35,7 +35,10 @@ import com.songnhue.core.infra.identity.UserRepository;
  *   <li>{@code RolesPage.tsx} <b>hiện ra màn hình</b> câu ngược lại: <i>"Ma trận phân quyền là dữ
  *       liệu nền, chỉ xem"</i>.
  *   <li>Mã đứng về phía giao diện: <b>0</b> endpoint ghi, và {@code adm:role:manage} có <b>đúng
- *       1</b> lượt xuất hiện trong toàn kho — dòng <i>miễn kiểm</i> của {@link RbacMatrixTest}.
+ *       1</b> lượt xuất hiện trong <b>mã nguồn</b> — dòng <i>miễn kiểm</i> của {@link RbacMatrixTest}.
+ *       ⚠ Phép đếm đầu của tôi ghi <i>"toàn kho"</i>: sai, {@code git grep} cho <b>3 lượt ở 2 tệp</b>.
+ *       {@code rg} mặc định bỏ qua thư mục ẩn, và {@code .claude/} là nơi dự án để nguồn sự thật —
+ *       nên hai lượt ở {@code master-tracking.md} ⛔ không bao giờ vào phép đếm.
  * </ul>
  *
  * <p>Lý do được ghi lại cho quyết định khoá màn hình là: <i>"mở cho sửa là để một thao tác nhấp
