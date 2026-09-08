@@ -69,8 +69,18 @@ const HEX = /#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?\b/g;
  * <p>⚠ Hai đường hạ nó, và chúng ⛔ không tương đương: <b>ghim</b> (thêm chú thích `/* token *\/`
  * đúng giá trị) chỉ chặn trôi; <b>thay bằng token thật</b> mới xoá hẳn bản sao. Ghim là bước đệm
  * hợp lệ cho CSS thuần — nơi ⛔ không import TypeScript được.
+ *
+ * <p>⭐ **08/09/2026: 54 → 46** (T28.45). Mười lượt mã màu trong `ConstructionMap.tsx` và module
+ * marker tách ra từ nó **thay hẳn bằng token**, ⛔ không phải ghim — đường thứ hai, đường xoá được
+ * bản sao. Bốn giá trị: xám phụ, xám nhạt, cam cảnh báo, trắng viền chấm.
+ *
+ * <p>⚠⚠ Và một bài học đo được trong chính lượt dọn ấy: bản đầu chỉ hạ được **54 → 53**, vì javadoc
+ * của module mới **liệt kê ra bốn mã màu vừa gỡ** để kể chuyện. Bộ canh soi TOÀN TỆP và ⛔ không
+ * phân biệt mã trong mã nguồn với mã trong chú thích — nên kể chuyện bằng **tên token**, ⛔ đừng kể
+ * bằng giá trị. (Đó cũng là lựa chọn đúng của bộ canh: một mã trong chú thích vẫn là một bản sao
+ * người sau có thể chép ra dùng.)
  */
-const NGUONG = 54;
+const NGUONG = 46;
 
 const THU_MUC_BO_QUA = new Set(['testsupport']);
 
