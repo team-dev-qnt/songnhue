@@ -97,8 +97,25 @@ class ReportReadsAggregateTest {
      */
     private static final int SO_HANG_TOI_THIEU = 10;
 
-    private static final Pattern HANG_SQL =
-            Pattern.compile("static\\s+final\\s+String\\s+(\\w+)\\s*=\\s*\"\"\"(.*?)\"\"\";", Pattern.DOTALL);
+    /**
+     * ⛔⛔ Đuôi {@code (?:\s*\.formatted\([^;]*\))?} ⛔ KHÔNG phải trang trí — WS-46.
+     *
+     * <p>Bản trước đòi khối văn bản kết thúc <b>ngay</b> bằng {@code """;}. Khi
+     * {@code HydroChartRepository.SQL_CHUOI_24H} chuyển sang {@code """…""".formatted(TRAN_HANG)}
+     * để trần {@code LIMIT} khai <b>một chỗ</b>, mẫu này thôi khớp — và hậu quả ⛔ không phải một
+     * bài đỏ dễ hiểu: câu SQL ấy <b>biến mất khỏi tầm nhìn của bộ canh</b>, nên nó được miễn quy
+     * tắc 8 mà ⛔ không ai quyết định điều đó. Thứ bắt được là {@link #noOrphanExceptions} — bài
+     * canh <i>ngoại lệ mồ côi</i> — chứ ⛔ không phải bài chính; bài chính khi ấy xanh trên một tập
+     * NHỎ HƠN (luật 7).
+     *
+     * <p>⇒ Bài học: <b>một bộ canh đọc mã bằng regex sẽ mù đi khi mã được viết lại theo một cách
+     * hợp lệ</b> — cùng hình dạng §11.13 (Spotless ngắt dòng {@code @DisplayName}) và §11.16 (bóc
+     * đối số ra biến làm gãy neo). {@link #theScannerStillSeesTheCode} là vế chống mù, và nó chỉ
+     * chống được nếu con số sàn ở đó ĐƯỢC NÂNG mỗi khi thêm hằng.
+     */
+    private static final Pattern HANG_SQL = Pattern.compile(
+            "static\\s+final\\s+String\\s+(\\w+)\\s*=\\s*\"\"\"(.*?)\"\"\"\\s*(?:\\.formatted\\([^;]*\\))?\\s*;",
+            Pattern.DOTALL);
 
     /** {@code FROM|JOIN <bảng>} — ⛔ {@code INSERT INTO … VALUES} ⛔ không phải truy vấn đọc. */
     private static final Pattern DOC_BANG = Pattern.compile("(?i)\\b(?:from|join)\\s+(\\w+)\\b");

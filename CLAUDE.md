@@ -186,6 +186,14 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 | 9/9 | ⛔⛔ **Chú thích tôi vừa viết bị chính lượt kiểm chứng ngược BÁC** — nó nói *xoá khoá `write-dates-as-timestamps` thì ngày ra dây thành SỐ*; gỡ hẳn mà bài kiểm **vẫn xanh**, vì `DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS.enabledByDefault()` = **false** (Jackson 3 đảo mặc định). Giữ dòng ấy vì lý do THẬT: **giá trị ĐÃ GIẢI ⛔ không phải mặc định** (luật 3) | §11.20 |
 | 9/9 | **Một bộ canh đỏ mà ⛔ không nói được vì sao thì gần như ⛔ không có** — bản đầu của `FlywayAutoConfigCoMatTest` kế thừa lớp nền tích hợp nên khi hạ pom nó đỏ vì **context chết**, thông điệp chẩn đoán ⛔ không bao giờ in ra. Hạ xuống tầng **tĩnh** (JUnit trần hỏi classpath) thì đỏ đúng chỗ, đúng câu | §11.20 |
 
+| 9/9 | ⛔⛔ **Trục thời gian của biểu đồ dựng TỪ CHÍNH dữ liệu — và BA chú thích cùng khẳng định nó đã được xử lý** | T46.1 |
+| 9/9 | ⛔⛔ **`-999 cm` = −9,99 m NẰM TRONG khoảng vật lý `[-10;30]`** ⇒ mã báo lỗi thiết bị đi thẳng vào bảng chính như một mực nước; chú thích migration khai *"sentinel rơi dưới -10"* đúng **một nửa**, và bài kiểm duy nhất canh nó chỉ thử `-9999` | T46.2 |
+| 9/9 | **`contains("value":1)` KHỚP CẢ `"value":12`** — một ô KPI đi từ 1 lên 12 mà bài kiểm **⛔ không đỏ**. Phép so CHUỖI trên một CON SỐ ⛔ không phân biệt được hai trạng thái (luật 9), và 4 khẳng định cùng hình dạng nằm trong một tệp | T46.8 |
+| 9/9 | **Bộ canh đếm một CHÚ THÍCH là một đường đọc — gặp HAI lần trong cùng một đợt**, một ở backend (`geom` trong javadoc) một ở frontend (khẳng định phủ định đỏ vì tài liệu **giải thích** cấm lệnh nó canh). ⇒ Bộ canh **phạt đúng người viết tài liệu tử tế**, và bài chính của nó **im được bằng cách viết tên cột vào javadoc** | T46.7 |
+| 9/9 | **`Cống Vân Đình` có HAI tuyến sông và đó ⛔ KHÔNG phải dữ liệu lỗi** — thượng lưu *Sông Vân Đình*, hạ lưu *Sông Đáy*: một cống nằm **giữa** hai tuyến. Ép về một giá trị bằng `max()` là bịa một sự thật rồi in lên hồ sơ | T46.4 |
+| 9/9 | **Migration bản đầu của tôi ĐẢO một quyết định thiết kế trong im lặng** — nối `MN_SONG` vào công trình dù `ConstructionStatusPort` khai *"⛔ không thuộc công trình nào theo thiết kế"*; nghe rất hợp lý, ⛔ không màn hình nào báo | T46.5 |
+| 9/9 | **Dán `21.048201, 105.782500` vào `InputNumber` cho ra `21`** — mất phần thập phân, mất luôn kinh độ, ⛔ không một dòng báo lỗi. Con đường **tự nhiên nhất** để nhập toạ độ vừa im lặng vừa sai | T46.6 |
+
 ⛔ Hệ quả rút ra: **"đã tick" không phải bằng chứng.** Trước khi mở một giai đoạn mới, đối chiếu với mã thật và chạy đường mà người dùng thật đi.
 
 ⛔ Và **"xanh ở máy" cũng không phải bằng chứng**: hai job chỉ sống trên runner (quét CVE · đóng gói image) chạy trên **cây checkout sạch, không có `.env.local`**. Mọi lượt build ở máy đều nạp tệp ấy — nên một biến môi trường rỗng là trạng thái mà `make ci-local` **về nguyên tắc không dựng lại được**. Muốn kiểm trước thì phải `docker build` đúng đối số của `ci.yml`.

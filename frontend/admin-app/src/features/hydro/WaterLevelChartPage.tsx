@@ -28,11 +28,21 @@ const NHIP_LAM_MOI_MS = 2 * 60 * 1000;
  * phải giữ"* (§10.33). Phase 2 đã đến **và mang theo dữ liệu thật** — nên nó được nối, ⛔ không
  * được gia hạn thêm một lần nữa.
  *
- * <h3>⛔⛔ Khoảng trống trên đường cong là THÔNG TIN, ⛔ không phải lỗi vẽ</h3>
+ * <h3>⛔⛔ T43.13 — chú thích cũ ở ngay chỗ này đã KHẲNG ĐỊNH SAI suốt từ WS-35</h3>
  *
- * `optionDuong` đặt `connectNulls: false`, và điều đó chịu lực ở đây hơn ở bất kỳ biểu đồ nào khác:
- * một quãng trạm mất tín hiệu **phải nhìn thấy được**. Nối liền qua nó là vẽ ra một đoạn số liệu
- * **chưa từng được đo**, trên đúng màn hình mà người trực ban dùng để quyết định vận hành cống.
+ * Bản trước viết: *"`optionDuong` đặt `connectNulls: false`, và điều đó chịu lực ở đây hơn ở bất kỳ
+ * biểu đồ nào khác: một quãng trạm mất tín hiệu **phải nhìn thấy được**."* Ý định đúng, **hiệu lực
+ * thì không**: trục X được dựng bằng `moc` **lấy từ chính mảng `diem`**, nên mảng ấy ⛔ không bao
+ * giờ chứa một `null` — và `connectNulls: false` ⛔ không có gì để ngắt. Hai mốc cách nhau ba giờ
+ * vẽ ra **liền kề nhau**, đường cong nối thẳng qua quãng trạm im lặng, trên đúng màn hình mà người
+ * trực ban dùng để quyết định vận hành cống.
+ *
+ * ⇒ Backend nay trả **trục đủ 144 mốc** dựng độc lập với dữ liệu (`CheDoXemLuoi`), mốc không có số
+ * mang `giaTri: null`. `connectNulls: false` từ nay **thật sự** ngắt đường.
+ *
+ * ⛔ Ba chú thích cùng khẳng định khuyết tật này đã được xử lý — ở kho, ở service, và ở đây — và cả
+ * ba đều vô hiệu. Bài học ghi lại vì nó lặp: **một chú thích ⛔ không phải một cổng kiểm** (§10.81,
+ * §11.19).
  *
  * <h3>⛔ Biểu đồ rỗng phải nói VÌ SAO (quy tắc 16)</h3>
  *
@@ -123,7 +133,11 @@ export function WaterLevelChartPage() {
           loading={bieu.isLoading}
           // ⛔ `empty` khai TƯỜNG MINH, ⛔ không suy từ `option` — một phép đoán sai làm biểu đồ CÓ
           //    dữ liệu hiện ra chữ "không có dữ liệu", tức hỏng theo chiều nguy hiểm hơn.
-          empty={diem.length === 0}
+          //    ⛔⛔ T43.13: hỏi `soMocCoSo`, ⛔ KHÔNG hỏi `diem.length` — `diem` nay là TRỤC nên nó
+          //    luôn đủ 144 phần tử, và `diem.length === 0` là một điều kiện KHÔNG BAO GIỜ đúng.
+          //    Phép kiểm cũ để nguyên thì một trạm chưa có số sẽ vẽ ra một khung trục trắng thay vì
+          //    hiện câu giải thích — hỏng đúng theo chiều im lặng (luật 9).
+          empty={(bieu.data?.soMocCoSo ?? 0) === 0}
           emptyText={bieu.data?.lyDoTrong ?? 'Chưa có số đo hợp lệ trong 24 giờ qua'}
           option={optionDuong(
             diem.map((d) => formatDateTime(d.moc)),
@@ -135,7 +149,10 @@ export function WaterLevelChartPage() {
                 // ⚠ `Number()` chỉ ở ĐÂY, ở sát tầng vẽ: ECharts nhận số. Giá trị đi qua dây dưới
                 //   dạng chuỗi (quy tắc 2) và ⛔ không được đổi sớm hơn — đổi ở tầng API là mở đường
                 //   cho một phép cộng nào đó về sau chạy trên `double`.
-                giaTri: diem.map((d) => Number(d.giaTri)),
+                // ⛔⛔ `Number(null)` là `0`, ⛔ không phải `NaN` — nên bỏ nhánh null ở đây ⛔ không
+                //    làm gãy gì cả, nó chỉ lặng lẽ vẽ mọi khoảng mất tín hiệu **xuống đáy trục** như
+                //    một mực nước 0 m có thật. Đây đúng là quy tắc 16: số 0 là một câu khẳng định.
+                giaTri: diem.map((d) => (d.giaTri === null ? null : Number(d.giaTri))),
                 mauKhoa: 'normal',
               },
             ],
