@@ -81,7 +81,8 @@ public class HydroGridService {
      * spec §10 một tầng, và dòng này là chỗ ghi lại điều đó.
      */
     @JsonInclude(JsonInclude.Include.ALWAYS)
-    public record MetaLuoi(Instant lanLayCuoi, Instant mocDoGanNhat, String trangThaiNguon, String donVi) {
+    public record MetaLuoi(
+            Instant lanLayCuoi, Instant mocDoGanNhat, String trangThaiNguon, String donVi, String lyDoLuongMua) {
 
         /** Nguồn đang trả số đúng nhịp. */
         public static final String OK = "OK";
@@ -138,9 +139,24 @@ public class HydroGridService {
      *     {@code HydroGridRepository}
      */
     @JsonInclude(JsonInclude.Include.ALWAYS)
-    public record OLuoi(@JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal giaTri, String chatLuong, String lyDo) {
+    public record OLuoi(
+            @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal giaTri,
+            String chatLuong,
+            String lyDo,
+            String khoaMauCanhBao,
+            String tenMucCanhBao) {
 
-        static final OLuoi TRONG = new OLuoi(null, null, "Không có dữ liệu tại mốc này");
+        static final OLuoi TRONG = new OLuoi(null, null, "Không có dữ liệu tại mốc này", null, null);
+
+        /** Ô có số, chưa xét ngưỡng. */
+        static OLuoi coSo(BigDecimal giaTri, String chatLuong) {
+            return new OLuoi(giaTri, chatLuong, null, null, null);
+        }
+
+        /** Bản sao mang thêm bậc ngưỡng — §5.3. */
+        OLuoi voiMuc(String khoaMau, String tenMuc) {
+            return new OLuoi(giaTri, chatLuong, lyDo, khoaMau, tenMuc);
+        }
 
         public OLuoi {
             if ((giaTri == null) == (lyDo == null)) {
@@ -149,6 +165,16 @@ public class HydroGridService {
             }
             if ((giaTri != null) != (chatLuong != null)) {
                 throw new IllegalArgumentException("Ô có số thì phải có nhãn chất lượng đi kèm, và ngược lại");
+            }
+            // ⛔ Ô ⛔ không có số mà mang màu cảnh báo là tô một ô TRỐNG thành đỏ — người đọc sẽ tin
+            //    chỗ ấy đang vượt ngưỡng, trong khi hệ thống ⛔ không đo được gì.
+            if (giaTri == null && khoaMauCanhBao != null) {
+                throw new IllegalArgumentException("Ô ⛔ không có số thì ⛔ không được mang màu cảnh báo");
+            }
+            // Hai nửa của một nhãn: thiếu một nửa thì hoặc có màu mà ⛔ không nói được mức nào,
+            // hoặc có tên mức mà ⛔ không tô được gì (luật 27).
+            if ((khoaMauCanhBao == null) != (tenMucCanhBao == null)) {
+                throw new IllegalArgumentException("`khoaMauCanhBao` và `tenMucCanhBao` đi thành cặp");
             }
         }
     }
@@ -276,29 +302,64 @@ public class HydroGridService {
         Instant tu = moc.get(moc.size() - 1).minus(cheDo.buoc());
         int tran = Math.max(1, diemDo.size() * moc.size() * 2);
 
+        long idLoaiChiSo = diemDo.get(0).measurementTypeId();
+
+        // ⚠ Thang ngưỡng lấy MỘT LẦN cho cả bảng, ⛔ không tra lại theo từng ô: 19 điểm đo × 144
+        //   mốc = 2.736 lượt tra, và nó sẽ là một câu SQL nằm trong vòng lặp mà ⛔ không ai nhìn ra.
+        Map<Long, List<HydroGridRepository.BacNguong>> nguong = new HashMap<>();
+        for (HydroGridRepository.BacNguong b : kho.nguongTheoDiemDo(idLoaiChiSo)) {
+            nguong.computeIfAbsent(b.stationId(), k -> new ArrayList<>()).add(b);
+        }
+
         Map<Long, Map<Instant, OLuoi>> theoDiemDo = ropVaoLuoi(
                 kho.soDoTrongKhung(
-                        diemDo.stream().map(HydroGridRepository.DiemDoLuoi::id).toList(),
-                        diemDo.get(0).measurementTypeId(),
-                        tu,
-                        den,
-                        tran),
-                cheDo);
+                        diemDo.stream().map(HydroGridRepository.DiemDoLuoi::id).toList(), idLoaiChiSo, tu, den, tran),
+                cheDo,
+                nguong);
 
         return new LuoiMucNuoc(meta, moc, gopNhom(diemDo, moc, theoDiemDo), null);
     }
 
     /** Snap từng số đo vào mốc lưới gần nhất; mốc nào có hai số thì số MỚI hơn thắng. */
-    private Map<Long, Map<Instant, OLuoi>> ropVaoLuoi(List<HydroGridRepository.SoDoLuoi> soDo, CheDoXemLuoi cheDo) {
+    private Map<Long, Map<Instant, OLuoi>> ropVaoLuoi(
+            List<HydroGridRepository.SoDoLuoi> soDo,
+            CheDoXemLuoi cheDo,
+            Map<Long, List<HydroGridRepository.BacNguong>> nguong) {
+
         Map<Long, Map<Instant, OLuoi>> ket = new HashMap<>();
         for (HydroGridRepository.SoDoLuoi s : soDo) {
             if (s.moc() == null || s.giaTri() == null) {
                 continue;
             }
-            ket.computeIfAbsent(s.stationId(), k -> new HashMap<>())
-                    .put(cheDo.catXuong(s.moc()), new OLuoi(s.giaTri(), s.quality(), null));
+            OLuoi o = xetNguong(OLuoi.coSo(s.giaTri(), s.quality()), nguong.getOrDefault(s.stationId(), List.of()));
+            ket.computeIfAbsent(s.stationId(), k -> new HashMap<>()).put(cheDo.catXuong(s.moc()), o);
         }
         return ket;
+    }
+
+    /**
+     * Xếp một giá trị vào bậc ngưỡng — <b>spec §5.3</b>, phép so chạy ở <b>BE</b> (quy tắc 3).
+     *
+     * <p>⛔ Vì sao ⛔ không đẩy sang FE: <i>"ô này thuộc mức báo động nào"</i> là một <b>phép tính
+     * trên số đo</b>, ⛔ không phải một lựa chọn trình bày. Đẩy sang FE là để hai màn hình (cổng và
+     * bảng quản trị) tự so lấy, rồi chúng lệch nhau vào đúng ngày một mức ngưỡng được sửa.
+     *
+     * <p><b>Bậc cao nhất mà giá trị vượt qua</b> thắng — {@code alarm_1 ≤ v < alarm_2} ⇒ BĐ1. SQL
+     * đã sắp theo {@code severity_rank} tăng dần, nên duyệt xuôi và giữ cái cuối cùng thoả.
+     *
+     * <p>⚠ Thang <b>rỗng</b> — điểm đo chưa khai ngưỡng — trả về chính ô ấy, ⛔ không màu. §5.3 ghi
+     * rõ: <i>"⛔ không tô màu, ⛔ không dùng ngưỡng của điểm khác"</i>. Hôm nay {@code alert_levels}
+     * có <b>0 hàng</b> (cố ý, chờ G9-a) nên đây là nhánh mà <b>mọi</b> ô đang đi qua — nó phải đúng
+     * trên tập rỗng trước đã (quy tắc 7).
+     */
+    private static OLuoi xetNguong(OLuoi o, List<HydroGridRepository.BacNguong> thang) {
+        HydroGridRepository.BacNguong trung = null;
+        for (HydroGridRepository.BacNguong b : thang) {
+            if (b.nguong() != null && o.giaTri().compareTo(b.nguong()) >= 0) {
+                trung = b;
+            }
+        }
+        return trung == null ? o : o.voiMuc(trung.khoaMau(), trung.tenMuc());
     }
 
     private List<NhomTuyenSong> gopNhom(
@@ -354,11 +415,19 @@ public class HydroGridService {
                 // ⛔ Thiếu MỘT vế thì ⛔ KHÔNG có chênh lệch — spec §3.2: "chỉ tính khi cả hai giá
                 //    trị khác NULL. Không suy diễn, không gán 0." Gán 0 ở đây là công bố "hai bên
                 //    bằng nhau", một khẳng định hoàn toàn khác với "chưa đo được".
+                // ⛔ Dòng Chênh lệch KHÔNG mang màu ngưỡng — spec §6.1.2: "tô màu ngưỡng báo động
+                //    áp cho dòng Thượng lưu / Hạ lưu; ⛔ KHÔNG áp cho dòng Chênh lệch". Ngưỡng đo
+                //    ĐỘ CAO mực nước; một hiệu số 0,75 m ⛔ không có nghĩa gì trên thang ấy, và tô
+                //    nó đỏ là công bố một mức báo động chưa từng tồn tại.
                 chenh.add(
                         a == null || b == null
                                 ? new OLuoi(
-                                        null, null, "Thiếu số đo ở một trong hai phía — ⛔ không tính được chênh lệch")
-                                : new OLuoi(a.subtract(b), gopChatLuong(tl.get(i), hl.get(i)), null));
+                                        null,
+                                        null,
+                                        "Thiếu số đo ở một trong hai phía — ⛔ không tính được chênh lệch",
+                                        null,
+                                        null)
+                                : OLuoi.coSo(a.subtract(b), gopChatLuong(tl.get(i), hl.get(i))));
             }
             dong.add(new DongChiSo("Chênh lệch", LoaiDong.TINH, chenh));
         }
@@ -406,6 +475,13 @@ public class HydroGridService {
         Duration hanCu = settings.khungNguon().multipliedBy(settings.soKhungMatTinHieu());
 
         return new MetaLuoi(
-                m.lanLayCuoi(), m.mocDoGanNhat(), MetaLuoi.trangThai(m.mocDoGanNhat(), Instant.now(), hanCu), "m");
+                m.lanLayCuoi(),
+                m.mocDoGanNhat(),
+                MetaLuoi.trangThai(m.mocDoGanNhat(), Instant.now(), hanCu),
+                "m",
+                // ⛔ Lý do cột lượng mưa trống đến từ BACKEND, ⛔ không phải một chuỗi ghi ở FE:
+                //    G3-a là một sự thật về NGUỒN DỮ LIỆU, và cổng ⛔ không phải nơi biết nó. Dùng
+                //    lại đúng MỘT câu với `PublicHydroService` để hai bảng ⛔ không nói hai kiểu.
+                PublicHydroService.LY_DO_LUONG_MUA);
     }
 }

@@ -21,47 +21,6 @@
  */
 
 /**
- * Biểu tổng hợp theo tuyến sông — **CN-03.4**, 9 cột (8 tới 08/09/2026 — xem chú thích cột 6).
- *
- * ⚠ "Lượng mưa (mm)" giữ trong danh sách dù v1 chắc chắn hiển thị `-`: đặc tả ghi rõ *"Cột
- * lượng mưa hiển thị `-` ở v1 (chưa có nguồn — G3)"*. Bỏ cột đi là giấu mất một khoảng trống
- * mà Công ty cần nhìn thấy để biết còn thiếu nguồn nào.
- */
-export const COT_MUC_NUOC = [
-  'Tuyến sông',
-  'Công trình / điểm đo',
-  'Lý trình',
-  'Mực nước thượng lưu (m)',
-  'Mực nước hạ lưu (m)',
-  // ⭐ Cột thứ 9, thêm 08/09/2026 — DOD2.3. `position_role` có NĂM giá trị hợp lệ và ba trong số
-  //   đó (`MN_SONG`, `BE_HUT`, `MUA`) ⛔ không thuộc cặp thượng/hạ lưu của một cống. Backend trước
-  //   đó chia nhị phân, nên mực nước của 4 trạm thuỷ văn sông lên cổng dưới tiêu đề "Mực nước hạ
-  //   lưu (m)" — chính TÊN trạm đã tự mâu thuẫn với tiêu đề: "Trạm thuỷ văn Hà Nội — Mực nước sông".
-  'Mực nước sông (m)',
-  'Lượng mưa (mm)',
-  'Thời điểm đo',
-  'Chất lượng',
-] as const;
-
-/**
- * Lưới và bề rộng tối thiểu của bảng "Mực nước, lượng mưa" — **một chỗ khai duy nhất**.
- *
- * ⛔ Trước 08/09/2026 hai chuỗi này được ghi lặp ở **bốn** chỗ (`WaterLevelBlock` × 2 và trang
- * `/quan-ly-van-hanh/muc-nuoc-luong-mua` × 2), ngay cạnh một chú thích của `WaterLevelRows` tự
- * cảnh báo: *"phải TRÙNG với lớp truyền cho `ColumnHeaderRow`, nếu không cột lệch"*. Đó đúng là
- * luật 14 — chỗ nào con người phải nhớ ở nhiều nơi thì chỗ ấy cần một thứ nhớ hộ — và giá của nó
- * hiện ra ngay lượt thêm cột thứ 9: bốn chuỗi phải sửa, sót một là **hàng tiêu đề lệch khỏi hàng
- * dữ liệu** mà `tsc` ⛔ không thấy gì.
- *
- * ⚠ Số cột trong `grid-cols-[…]` phải bằng `COT_MUC_NUOC.length` — `homeDataColumns.test.ts` đếm
- * cả hai và so, nên lần sau thêm cột mà quên lưới thì bộ canh đỏ chứ ⛔ không phải người dùng.
- */
-export const LUOI_MUC_NUOC = 'grid-cols-[1.1fr_1.7fr_0.9fr_1fr_1fr_1fr_0.95fr_1.1fr_0.9fr]';
-
-/** ⚠ Tăng cùng lượt thêm cột: 920 → 1020px. Hẹp hơn thì bảng bóp chữ thay vì cuộn ngang. */
-export const BE_RONG_TOI_THIEU_MUC_NUOC = 'min-w-[1020px]';
-
-/**
  * Tình hình vận hành từng cống — **CN-02.11**, 6 cột.
  *
  * ⚠ Không có cột "Người cập nhật" và "Ghi chú": hai trường ấy có trong bảng
@@ -75,4 +34,31 @@ export const COT_VAN_HANH = [
   'Giá trị tham số',
   'Thời điểm hiệu lực',
   'Cập nhật lần cuối',
+] as const;
+
+/**
+ * Cột của bảng "Mực nước, lượng mưa" trên **trang chủ** — spec §5.2, CN-03.4. **T44.8**.
+ *
+ * ⛔ **Một dòng là một CÔNG TRÌNH**, nên thượng lưu và hạ lưu là hai cột cạnh nhau. Bảng trước
+ * WS-44 để một dòng một ĐIỂM ĐO, nên một trong hai cột ấy luôn rỗng ở mọi dòng.
+ *
+ * ⚠ Cột **"MN sông / Bể hút"** ⛔ không phải cột thừa: 5/14 công trình (trạm thuỷ văn Hà Nội ·
+ * Ba Thá · An Cảnh · TB Hồng Vân · TB Yên Nghĩa) ⛔ **không có** cặp thượng/hạ lưu — chỉ tiêu của
+ * chúng là `MN_SONG` hoặc `BE_HUT`. Bỏ cột này thì năm dòng ấy hiện **trống trơn**, đúng thứ
+ * bảng mới sinh ra để chữa. Bản đầu của WS-44 đã quên nó và `homeDataColumns.test.ts` bắt được.
+ *
+ * ⚠ **"Chất lượng" ⛔ không còn là một cột riêng** — nhãn nghi ngờ nay đi kèm CHÍNH Ô mang số
+ * (nền vàng + dấu ⚠ + chữ ẩn cho trình đọc màn hình), vì một ô nghi ngờ ở giữa mười ô tốt thì
+ * một cột "Chất lượng" ở cuối dòng ⛔ không nói được ô nào.
+ */
+export const COT_TRANG_CHU_MUC_NUOC = [
+  'Tuyến sông',
+  'Công trình',
+  'Lý trình',
+  'Thượng lưu',
+  'Hạ lưu',
+  'Chênh lệch',
+  'MN sông / Bể hút',
+  'Lượng mưa',
+  'Thời điểm đo',
 ] as const;

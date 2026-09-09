@@ -1,3 +1,5 @@
+import { alertLevelColors } from 'design-tokens';
+
 import type { CongTrinhLuoi, DongChiSo, LuoiMucNuoc, OLuoi } from '@/lib/api';
 
 interface BangLuoiMucNuocProps {
@@ -178,9 +180,22 @@ function O({ o, tinh }: { o: OLuoi; tinh: boolean }) {
   }
 
   const nghiNgo = o.chatLuong === 'NGHI_NGO';
+  const mau = mauNguong(o.khoaMauCanhBao);
+
+  // ⛔ Nghi ngờ THẮNG màu ngưỡng khi cả hai cùng có. Một con số hệ thống ⛔ không tin mà được tô
+  //    đỏ "Báo động III" là công bố một mức báo động dựa trên số liệu đáng ngờ — trên một trang
+  //    phòng chống thiên tai, đó là loại sai người ta ra quyết định dựa vào.
+  const tieuDe = nghiNgo
+    ? (o.lyDo ?? 'Số liệu nghi ngờ, chờ kiểm tra')
+    : (o.tenMucCanhBao ?? undefined);
+
   return (
     <td
-      title={nghiNgo ? (o.lyDo ?? 'Số liệu nghi ngờ, chờ kiểm tra') : undefined}
+      title={tieuDe}
+      // ⛔ `style` chỉ mang MÀU NỀN lấy từ design-tokens — ⛔ không phải một mã hex viết tại chỗ.
+      //    Bậc ngưỡng là danh mục có CRUD (G9-a): Công ty thêm một mức mới ⛔ không được đòi
+      //    deploy, nên màu ⛔ không thể là một lớp Tailwind tĩnh cho từng mức.
+      style={!nghiNgo && mau ? { backgroundColor: mau } : undefined}
       className={`whitespace-nowrap border-l border-surface-border px-3 py-2 text-right tabular-nums ${nen} ${
         nghiNgo ? 'bg-amber-50 font-medium text-amber-900' : 'text-surface-textBase'
       }`}
@@ -192,8 +207,26 @@ function O({ o, tinh }: { o: OLuoi; tinh: boolean }) {
       )}
       {o.giaTri}
       {nghiNgo && <span className="sr-only"> — số liệu nghi ngờ</span>}
+      {/* ⛔ Màu nền một mình ⛔ KHÔNG tới được người rối loạn sắc giác lẫn trình đọc màn hình —
+          spec §7.1 tự nêu đúng lo ngại này cho cặp đỏ/xanh. Tên mức đi kèm dưới dạng chữ ẩn. */}
+      {!nghiNgo && o.tenMucCanhBao && <span className="sr-only"> — {o.tenMucCanhBao}</span>}
     </td>
   );
+}
+
+/**
+ * Khoá màu → mã màu, qua `design-tokens`.
+ *
+ * ⛔ Khoá ⛔ không tra ra thì trả `undefined` — **⛔ không tô**, ⛔ không đoán một màu. `color_token`
+ * chỉ bị chặn bởi regex `^[a-z][a-z0-9-]*$`, nên `'banana'` đi lọt mọi tầng và tới được đây
+ * (`AlertLevelsPage` đã ghi lại đúng lỗ hổng ấy). Một ô tô màu tuỳ tiện tệ hơn một ô ⛔ không tô:
+ * nó nói rằng có một mức báo động, mà ⛔ không nói được mức nào.
+ */
+function mauNguong(khoa: string | null): string | undefined {
+  if (!khoa) {
+    return undefined;
+  }
+  return (alertLevelColors as Record<string, string>)[khoa];
 }
 
 /** Tổng số dòng của một nhóm tuyến sông — chính là `rowSpan` của ô Tuyến sông. */

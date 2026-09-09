@@ -16,7 +16,7 @@ import {
   getMenu,
   getOperationStatuses,
   getServerTime,
-  getWaterLevels,
+  getWaterLevelGrid,
   getSiteConfig,
   getSubsidiaries,
 } from '@/lib/api';
@@ -126,7 +126,7 @@ export default async function HomePage() {
     getOperationStatuses(),
     // ⭐ T35.7 — số liệu mực nước thật. Nằm TRONG `Promise.all` vì khối của nó ở nửa trên trang
     //   chủ: tách ra thành một lượt chờ nối tiếp là cộng thẳng vào TTFB (NFR-02, DOD1.17).
-    getWaterLevels(),
+    getWaterLevelGrid('PHUT', 1, true),
     getServerTime(),
   ]);
 
@@ -288,8 +288,10 @@ export default async function HomePage() {
             <WaterLevelBlock
               hotline={hotline}
               refreshSeconds={nhipLamMoi}
-              updatedAt={serverTime}
-              rows={mucNuoc}
+              /* ⛔ T43.9 — mốc lấy từ `meta.lanLayCuoi` của BACKEND (MAX synced_at, §5.1),
+                 ⛔ không phải giờ máy chủ: nguồn chết ba ngày thì giờ máy chủ vẫn nhảy số mới. */
+              updatedAt={mucNuoc?.meta.lanLayCuoi ?? null}
+              luoi={mucNuoc}
             />
             <OperationsBlock
               refreshSeconds={nhipLamMoi}

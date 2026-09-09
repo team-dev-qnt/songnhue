@@ -3,15 +3,12 @@ import { notFound } from 'next/navigation';
 
 import { PageShell } from '@/components/PageShell';
 import { SectionNav } from '@/components/SectionNav';
-import { ColumnHeaderRow } from '@/components/home/ColumnHeaderRow';
-import { WaterLevelRows } from '@/components/home/WaterLevelRows';
 import { BangLuoiMucNuoc } from '@/components/home/BangLuoiMucNuoc';
 import { RealtimeFrame } from '@/components/realtime/RealtimeFrame';
-import { BE_RONG_TOI_THIEU_MUC_NUOC, COT_MUC_NUOC, LUOI_MUC_NUOC } from '@/lib/homeDataColumns';
-import { getServerTime, getSiteConfig, getWaterLevelGrid, getWaterLevels } from '@/lib/api';
+import { getSiteConfig, getWaterLevelGrid } from '@/lib/api';
 import { khoiVanHanhBat } from '@/lib/khoiVanHanh';
-import { ROUTES, formatDateTime } from '@/lib/routes';
 import { docSo } from '@/lib/settings';
+import { ROUTES, formatDateTime } from '@/lib/routes';
 
 export const revalidate = 300;
 
@@ -65,17 +62,15 @@ export const metadata: Metadata = {
  * hỏi một cờ.
  */
 export default async function MucNuocLuongMuaPage() {
-  const [config, serverTime, mucNuoc, luoi] = await Promise.all([
-    getSiteConfig(),
-    getServerTime(),
-    getWaterLevels(),
-    getWaterLevelGrid('PHUT', 12),
-  ]);
+  const [config, luoi] = await Promise.all([getSiteConfig(), getWaterLevelGrid('PHUT', 12)]);
 
   if (!khoiVanHanhBat(config)) {
     notFound();
   }
 
+  // ⛔ Nhịp tự làm mới đọc từ `settings`, ⛔ không ghi cứng: ô nhập trên màn hình Cấu hình phải
+  //    điều khiển được một cái gì đó, nếu không nó là một công tắc ⛔ không nối đi đâu (luật 15).
+  //    `HaiNhipLamMoiTest` canh đúng điều này — và nó bắt được lượt dọn dẹp WS-44 xoá nhầm.
   const nhipLamMoi = docSo(config?.['site.home.realtime.refresh-seconds'], 300);
 
   return (
@@ -84,42 +79,6 @@ export default async function MucNuocLuongMuaPage() {
       description="Số liệu tại giờ truy cập và diễn biến 12 mốc đo gần nhất của các điểm đo đang hoạt động."
       breadcrumb={[{ label: 'Quản lý, vận hành' }, { label: 'Mực nước, lượng mưa' }]}
     >
-      <section className="rounded-xl border border-surface-border bg-white p-5 shadow-xs">
-        <h2 className="text-sm font-bold tracking-tight text-brand-primary">
-          Số liệu tại giờ truy cập
-        </h2>
-        {/* ⚠ Trang này dùng LẠI đúng hai component của trang chủ — một bộ cột, một cách hiển thị ô
-            rỗng. Dựng bảng thứ hai ở đây là mở đường cho hai con số khác nhau về cùng một mực
-            nước, và chúng sẽ lệch nhau đúng vào ngày có sự cố. */}
-        <div className="mt-4">
-          <RealtimeFrame
-            updatedAt={serverTime}
-            refreshSeconds={nhipLamMoi}
-            unavailable={mucNuoc === null}
-            unavailableReason="Chưa lấy được số liệu mực nước. Số liệu sẽ hiện lại khi kết nối tới nguồn được khôi phục."
-          >
-            {mucNuoc !== null && mucNuoc.length > 0 ? (
-              <div className="overflow-hidden rounded-lg border border-surface-border">
-                <ColumnHeaderRow
-                  cot={COT_MUC_NUOC}
-                  luoi={LUOI_MUC_NUOC}
-                  beRongToiThieu={BE_RONG_TOI_THIEU_MUC_NUOC}
-                />
-                <WaterLevelRows
-                  rows={mucNuoc}
-                  luoi={LUOI_MUC_NUOC}
-                  beRongToiThieu={BE_RONG_TOI_THIEU_MUC_NUOC}
-                />
-              </div>
-            ) : (
-              <p className="px-3.5 py-6 text-center text-[13px] text-surface-textSecondary">
-                Chưa điểm đo nào đang hoạt động để công bố số liệu.
-              </p>
-            )}
-          </RealtimeFrame>
-        </div>
-      </section>
-
       {/* ⭐ WS-44 — bảng lưới §6.1.2: nhóm theo tuyến sông, mỗi công trình một cặp thượng/hạ lưu
           kèm dòng Chênh lệch tự tính.
 
@@ -134,15 +93,17 @@ export default async function MucNuocLuongMuaPage() {
         <p className="mt-1 text-[12px] text-surface-textSecondary">
           Biểu tổng hợp theo tuyến sông — mỗi công trình một cặp thượng lưu và hạ lưu.
         </p>
-        <div className="mt-4 overflow-hidden rounded-lg border border-surface-border">
-          {luoi === null ? (
-            <p className="px-3.5 py-6 text-center text-[13px] text-surface-textSecondary">
-              Chưa lấy được số liệu diễn biến. Bảng sẽ hiện lại khi kết nối tới nguồn được khôi
-              phục.
-            </p>
-          ) : (
-            <BangLuoiMucNuoc luoi={luoi} />
-          )}
+        <div className="mt-4">
+          <RealtimeFrame
+            updatedAt={luoi?.meta.lanLayCuoi ?? null}
+            refreshSeconds={nhipLamMoi}
+            unavailable={luoi === null}
+            unavailableReason="Chưa lấy được số liệu mực nước. Số liệu sẽ hiện lại khi kết nối tới nguồn được khôi phục."
+          >
+            <div className="overflow-hidden rounded-lg border border-surface-border">
+              {luoi !== null && <BangLuoiMucNuoc luoi={luoi} />}
+            </div>
+          </RealtimeFrame>
         </div>
         {/* ⛔ Mốc lấy từ `meta.lanLayCuoi` của BACKEND, ⛔ không phải đồng hồ máy khách: nguồn chết
             ba ngày thì `new Date()` vẫn nhảy số mới mỗi lượt F5 (khuyết tật T43.9). */}

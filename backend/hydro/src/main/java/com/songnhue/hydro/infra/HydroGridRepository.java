@@ -232,6 +232,69 @@ public class HydroGridRepository {
     }
 
     /**
+     * Ngưỡng báo động của từng điểm đo — spec §5.3, để tô nền ô theo dải giá trị.
+     *
+     * <p>⛔ Đọc {@code alert_rules} + {@code alert_levels}, ⛔ <b>không</b> đọc
+     * {@code alert_events}. Hai thứ trả lời hai câu khác nhau và {@code StationMapRepository} dùng
+     * cái thứ hai:
+     *
+     * <ul>
+     *   <li>{@code alert_events} = <i>"trạm này ĐANG có cảnh báo mở nào ⛔ không"</i> — một trạng
+     *       thái của <b>trạm</b>, đúng cho chấm màu trên bản đồ;
+     *   <li>{@code alert_rules} = <i>"giá trị NÀY rơi vào dải nào"</i> — một thuộc tính của
+     *       <b>từng ô</b>, và §5.3 tô màu theo ô chứ ⛔ không theo trạm. Một bảng 12 cột có thể có
+     *       ba ô vàng và chín ô trắng trên cùng một dòng.
+     * </ul>
+     *
+     * <p>⛔ Chỉ nhận {@code condition_type = 'GT'}: §5.3 là một thang <b>vượt lên trên</b>
+     * (BĐ1 ≤ giá trị < BĐ2 …). {@code LT} / {@code OUT_OF_RANGE} / {@code RATE_OF_CHANGE} là những
+     * luật cảnh báo khác và ⛔ không xếp thành thang được — gộp chúng vào đây là tô màu một ô theo
+     * một luật ⛔ không nói gì về độ cao mực nước.
+     *
+     * <p>⚠ Trả về <b>rỗng</b> hôm nay: {@code alert_levels} cố ý 0 hàng cho tới khi Công ty đưa bộ
+     * mức thật (G9-a). Đó là một trạng thái <b>hợp lệ</b> — §5.3 ghi rõ <i>"điểm đo chưa khai báo
+     * ngưỡng: ⛔ không tô màu, ⛔ không dùng ngưỡng của điểm khác"</i>.
+     */
+    private static final String SQL_NGUONG =
+            """
+            SELECT r.station_id,
+                   r.threshold_value,
+                   al.color_token,
+                   al.name AS ten_muc,
+                   al.severity_rank
+              FROM alert_rules r
+              JOIN alert_levels al ON al.id = r.alert_level_id
+             WHERE r.deleted_at IS NULL
+               AND al.deleted_at IS NULL
+               AND r.active = TRUE
+               AND al.active = TRUE
+               AND r.condition_type = 'GT'
+               AND r.measurement_type_id = ?
+             ORDER BY r.station_id, al.severity_rank
+            """;
+
+    /**
+     * Một bậc của thang ngưỡng.
+     *
+     * @param khoaMau {@code color_token} — ⛔ một KHOÁ trong design-tokens, ⛔ không phải mã hex.
+     *     {@code ck_alert_levels_color_token} chặn hex ở tầng CSDL (nợ T25.23)
+     */
+    public record BacNguong(long stationId, BigDecimal nguong, String khoaMau, String tenMuc, int mucDo) {}
+
+    /** Thang ngưỡng của mọi điểm đo, đã sắp theo {@code severity_rank} tăng dần trong từng trạm. */
+    public List<BacNguong> nguongTheoDiemDo(long measurementTypeId) {
+        return jdbc.query(
+                SQL_NGUONG,
+                (rs, i) -> new BacNguong(
+                        rs.getLong("station_id"),
+                        rs.getBigDecimal("threshold_value"),
+                        rs.getString("color_token"),
+                        rs.getString("ten_muc"),
+                        rs.getInt("severity_rank")),
+                measurementTypeId);
+    }
+
+    /**
      * Hai mốc mà khối {@code meta} của spec §10 cần — đọc {@code hydro_latest}, ⛔ không phải
      * {@code hydro_readings}, nên câu này ⛔ không nằm trong phạm vi hai bộ canh chất lượng.
      *

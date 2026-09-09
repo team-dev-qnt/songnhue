@@ -210,6 +210,90 @@ class HydroGridHttpTest extends IntegrationTestBase {
     }
 
     // =========================================================================
+    // §5.3 — tô màu ngưỡng. DOD3.8 đòi ĐÚNG CẢ HAI phía: tập rỗng và tập có ngưỡng.
+    // =========================================================================
+
+    @Test
+    @DisplayName("⭐⭐ DOD3.8/a — `alert_levels` RỖNG thì ⛔ KHÔNG ô nào bị tô, và bảng vẫn dựng bình thường")
+    void withNoThresholdsNoCellIsColoured() {
+        // ⚠ Đây là trạng thái THẬT hôm nay: `alert_levels` cố ý 0 hàng cho tới khi Công ty đưa bộ
+        //   mức (G9-a). Nhánh này là nhánh mà MỌI ô đang đi qua — nó phải đúng trước đã (quy tắc 7).
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM alert_levels WHERE deleted_at IS NULL", Integer.class))
+                .as("⚠ Vế chống tập rỗng ĐẢO: bài này chỉ có nghĩa khi bảng ngưỡng thật sự rỗng")
+                .isZero();
+
+        String than = goi("?cheDo=PHUT&soCot=3");
+        assertThat(than).as("⚠ Vế chống tập rỗng").contains("Cống kiểm thử T43");
+        assertThat(than)
+                .as("§5.3 — điểm đo chưa khai ngưỡng thì ⛔ không tô màu, ⛔ không mượn ngưỡng điểm khác")
+                .contains("\"khoaMauCanhBao\":null");
+        assertThat(than).doesNotContain("alert-level-");
+    }
+
+    @Test
+    @DisplayName("⭐⭐ DOD3.8/b — có ngưỡng thì ô vượt bậc nào mang màu bậc ấy; dòng Chênh lệch ⛔ KHÔNG tô")
+    void cellsCarryTheHighestThresholdBandTheyExceed() {
+        long idMuc1 = taoMucCanhBao("T43-BD1", "Báo động I", "alert-level-1", 901);
+        long idMuc2 = taoMucCanhBao("T43-BD2", "Báo động II", "alert-level-2", 902);
+        // Thượng lưu đo 2.320 ⇒ vượt 2.000 (BĐ1) nhưng CHƯA tới 3.000 (BĐ2).
+        taoNguong(idTl, idMuc1, "2.000");
+        taoNguong(idTl, idMuc2, "3.000");
+        try {
+            String than = goi("?cheDo=PHUT&soCot=3");
+
+            assertThat(than).as("⚠ Vế chống tập rỗng").contains("2.320");
+            assertThat(than)
+                    .as("2.320 vượt 2.000 ⇒ mang màu BĐ1")
+                    .contains("alert-level-1")
+                    .contains("Báo động I");
+            assertThat(than)
+                    .as("⛔ 2.320 CHƯA tới 3.000 ⇒ ⛔ không được leo lên BĐ2 — bậc CAO NHẤT ĐÃ VƯỢT, "
+                            + "⛔ không phải bậc gần nhất")
+                    .doesNotContain("alert-level-2");
+
+            // Chênh lệch = 2.320 − 1.570 = 0.750, dưới mọi ngưỡng — nhưng điều cần khẳng định
+            // ⛔ không phải "nó dưới ngưỡng" mà là "nó KHÔNG BAO GIỜ được xét ngưỡng" (§6.1.2).
+            int batDau = than.indexOf("Chênh lệch");
+            assertThat(batDau)
+                    .as("⚠ Vế chống tập rỗng: dòng Chênh lệch phải có mặt")
+                    .isGreaterThan(0);
+            String khoiChenh = than.substring(batDau, Math.min(batDau + 400, than.length()));
+            assertThat(khoiChenh)
+                    .as("§6.1.2 — ngưỡng đo ĐỘ CAO mực nước; một hiệu số ⛔ không nằm trên thang ấy")
+                    .doesNotContain("alert-level-");
+        } finally {
+            jdbc.update("DELETE FROM alert_rules WHERE station_id = ?", idTl);
+            jdbc.update("DELETE FROM alert_levels WHERE id IN (?, ?)", idMuc1, idMuc2);
+        }
+    }
+
+    private long taoMucCanhBao(String ma, String ten, String khoaMau, int mucDo) {
+        jdbc.update(
+                """
+                INSERT INTO alert_levels (code, name, color_token, severity_rank, active, created_at)
+                VALUES (?, ?, ?, ?, TRUE, now())
+                """,
+                ma,
+                ten,
+                khoaMau,
+                mucDo);
+        return jdbc.queryForObject("SELECT id FROM alert_levels WHERE code = ?", Long.class, ma);
+    }
+
+    private void taoNguong(long idDiemDo, long idMuc, String nguong) {
+        jdbc.update(
+                """
+                INSERT INTO alert_rules (station_id, measurement_type_id, alert_level_id,
+                                         condition_type, threshold_value, active, created_at)
+                VALUES (?, ?, ?, 'GT', CAST(? AS NUMERIC), TRUE, now())
+                """,
+                idDiemDo,
+                idLoaiChiSo,
+                idMuc,
+                nguong);
+    }
+
+    // =========================================================================
 
     /**
      * Ba trạng thái nguồn — kiểm bằng <b>hàm thuần</b>, ⛔ không chạm CSDL.
@@ -248,7 +332,7 @@ class HydroGridHttpTest extends IntegrationTestBase {
         @Test
         @DisplayName("⛔ DOWN mà vẫn có mốc đo là HAI khẳng định trái nhau — hàm dựng phải ném")
         void downWithAMeasurementInstantIsContradictory() {
-            assertThatThrownBy(() -> new HydroGridService.MetaLuoi(bayGio, bayGio, "DOWN", "m"))
+            assertThatThrownBy(() -> new HydroGridService.MetaLuoi(bayGio, bayGio, "DOWN", "m", null))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("DOWN");
         }
@@ -256,7 +340,7 @@ class HydroGridHttpTest extends IntegrationTestBase {
         @Test
         @DisplayName("⛔ Trạng thái ngoài ba giá trị đã biết phải ném, ⛔ không lặng lẽ ra dây")
         void unknownStatusIsRejected() {
-            assertThatThrownBy(() -> new HydroGridService.MetaLuoi(bayGio, bayGio, "MAYBE", "m"))
+            assertThatThrownBy(() -> new HydroGridService.MetaLuoi(bayGio, bayGio, "MAYBE", "m", null))
                     .isInstanceOf(IllegalArgumentException.class);
         }
     }
@@ -269,7 +353,7 @@ class HydroGridHttpTest extends IntegrationTestBase {
         @Test
         @DisplayName("⛔ Một dòng thiếu ô ⇒ ném — bảng lệch cột là số đúng nằm dưới nhãn giờ SAI")
         void raggedRowIsRejected() {
-            var oCoSo = new HydroGridService.OLuoi(new java.math.BigDecimal("1.00"), "HOP_LE", null);
+            var oCoSo = new HydroGridService.OLuoi(new java.math.BigDecimal("1.00"), "HOP_LE", null, null, null);
             var dongThieu = new HydroGridService.DongChiSo("Thượng lưu", HydroGridService.LoaiDong.DO, List.of(oCoSo));
             var ct = new HydroGridService.CongTrinh("X", "Công trình X", null, false, List.of(dongThieu));
 
@@ -285,15 +369,33 @@ class HydroGridHttpTest extends IntegrationTestBase {
         @Test
         @DisplayName("⛔ Ô vừa có số vừa có lý do trống ⇒ ném (quy tắc 16)")
         void cellCannotHaveBothValueAndReason() {
-            assertThatThrownBy(() ->
-                            new HydroGridService.OLuoi(new java.math.BigDecimal("1.00"), "HOP_LE", "vừa có vừa không"))
+            assertThatThrownBy(() -> new HydroGridService.OLuoi(
+                            new java.math.BigDecimal("1.00"), "HOP_LE", "vừa có vừa không", null, null))
                     .isInstanceOf(IllegalArgumentException.class);
+        }
+
+        @Test
+        @DisplayName("⛔ Ô TRỐNG mà mang màu cảnh báo ⇒ ném — tô đỏ một ô ⛔ không đo được gì")
+        void emptyCellCannotCarryAnAlertColour() {
+            assertThatThrownBy(
+                            () -> new HydroGridService.OLuoi(null, null, "chưa có số", "alert-level-3", "Báo động III"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("màu cảnh báo");
+        }
+
+        @Test
+        @DisplayName("⛔ Có màu mà ⛔ không có tên mức ⇒ ném — hai nửa của một nhãn (luật 27)")
+        void colourAndLevelNameGoTogether() {
+            assertThatThrownBy(() -> new HydroGridService.OLuoi(
+                            new java.math.BigDecimal("9.00"), "HOP_LE", null, "alert-level-3", null))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("cặp");
         }
 
         @Test
         @DisplayName("⛔ Ô ⛔ không số và ⛔ không lý do ⇒ ném — nó sẽ bị đọc thành 'bằng không'")
         void emptyCellMustCarryAReason() {
-            assertThatThrownBy(() -> new HydroGridService.OLuoi(null, null, null))
+            assertThatThrownBy(() -> new HydroGridService.OLuoi(null, null, null, null, null))
                     .isInstanceOf(IllegalArgumentException.class);
         }
     }

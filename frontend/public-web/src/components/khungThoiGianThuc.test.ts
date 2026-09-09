@@ -47,6 +47,7 @@ function doc(tuongDoi: string): string {
 const NOI_DUNG = {
   'components/home/WaterLevelBlock.tsx': doc('components/home/WaterLevelBlock.tsx'),
   'components/home/OperationsBlock.tsx': doc('components/home/OperationsBlock.tsx'),
+  'components/home/BangTrangChuMucNuoc.tsx': doc('components/home/BangTrangChuMucNuoc.tsx'),
   'app/page.tsx': doc('app/page.tsx'),
   'app/quan-ly-van-hanh/muc-nuoc-luong-mua/page.tsx': doc(
     'app/quan-ly-van-hanh/muc-nuoc-luong-mua/page.tsx',
@@ -80,22 +81,30 @@ describe('Khung thời gian thực — sự cố phải nhìn thấy được', 
       ma,
       'Đổi thành `unavailable={false}` là một sự cố backend trông y hệt "chưa có dữ liệu", và ⛔ ' +
         'không bộ canh nào khác thấy.',
-    ).toContain('unavailable={rows === null}');
-    // Và vế `[]` phải nói một câu KHÁC — hai trạng thái, hai câu (luật 9).
-    expect(ma).toContain('Chưa điểm đo nào đang hoạt động');
+    ).toContain('unavailable={luoi === null}');
+    // ⭐ WS-44 — vế "gọi được nhưng CHƯA CÓ ĐIỂM ĐO" nay nói câu của nó ở `BangTrangChuMucNuoc`,
+    //   và câu ấy đến TỪ BACKEND (`lyDoTrong`) chứ ⛔ không phải một chuỗi ghi ở FE. Hai trạng
+    //   thái, hai câu — bất biến ⛔ không đổi, chỉ đổi chỗ (luật 9).
     expect(ma).toMatch(/unavailableReason=/);
+    expect(
+      NOI_DUNG['components/home/BangTrangChuMucNuoc.tsx'],
+      'Vế rỗng phải đọc `lyDoTrong` của backend — một câu dự phòng ở FE là §10.54.',
+    ).toContain('luoi.lyDoTrong');
   });
 
   it('⭐⭐ nơi GỌI ⛔ không được nuốt `null` bằng `?? []`', () => {
     // Đây là nửa thứ hai của đường dây, và nó ở một tệp KHÁC. Bộ canh chỉ soi component thì mù trước
     // chuyện này: `WaterLevelBlock` vẫn đúng từng dòng, mà `null` ⛔ không bao giờ tới được nó nữa.
-    for (const ten of ['app/page.tsx', 'app/quan-ly-van-hanh/muc-nuoc-luong-mua/page.tsx']) {
-      const ma = NOI_DUNG[ten as keyof typeof NOI_DUNG];
-      expect(ma, ten).toContain('rows={mucNuoc}');
-      expect(ma, `${ten}: \`mucNuoc ?? []\` xoá mất trạng thái "gọi API hỏng"`).not.toContain(
-        'rows={mucNuoc ?? []}',
-      );
-    }
+    // ⭐ WS-44 — trang chi tiết ⛔ không còn truyền qua `WaterLevelBlock`; nó dựng thẳng
+    //   `BangLuoiMucNuoc` và tự phân biệt `luoi === null`. Nên bài này soi HAI đường khác nhau.
+    expect(NOI_DUNG['app/page.tsx'], 'app/page.tsx').toContain('luoi={mucNuoc}');
+    expect(
+      NOI_DUNG['app/page.tsx'],
+      '`mucNuoc ?? ...` ở nơi gọi xoá mất trạng thái "gọi API hỏng" trước khi nó tới component.',
+    ).not.toMatch(/luoi=\{mucNuoc\s*\?\?/);
+
+    const chiTiet = NOI_DUNG['app/quan-ly-van-hanh/muc-nuoc-luong-mua/page.tsx'];
+    expect(chiTiet, 'trang chi tiết phải tự nói câu "gọi hỏng"').toContain('luoi === null');
   });
 
   it('⚠ khối Tình hình vận hành CỐ Ý gộp `null` thành `[]` — ghi ra để ⛔ không ai "sửa" nhầm', () => {

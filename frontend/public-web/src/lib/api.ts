@@ -583,6 +583,20 @@ export interface OLuoi {
   giaTri: string | null;
   chatLuong: string | null;
   lyDo: string | null;
+  /**
+   * Khoá màu của bậc ngưỡng ô này rơi vào — §5.3. `null` = ⛔ không tô.
+   *
+   * ⛔ Đây là **khoá trong design-tokens** (`alert-level-1`…`alert-level-5`), ⛔ không phải mã hex:
+   * `ck_alert_levels_color_token` chặn hex ở tầng CSDL (nợ T25.23). ⚠ Khoá lạ vẫn qua được regex
+   * (`color_token = 'banana'` đi lọt mọi tầng — xem `AlertLevelsPage`), nên FE phải **⛔ không tô**
+   * khi ⛔ không tra ra, chứ ⛔ đừng đoán một màu.
+   *
+   * ⛔ **Bậc do BACKEND quyết định** (quy tắc 3). ⛔ Đừng tự so `giaTri` với một ngưỡng nào ở FE:
+   * cổng và bảng quản trị sẽ lệch nhau vào đúng ngày một mức ngưỡng được sửa.
+   */
+  khoaMauCanhBao: string | null;
+  /** Tên mức để đọc lên (tooltip + trình đọc màn hình) — đi thành cặp với `khoaMauCanhBao`. */
+  tenMucCanhBao: string | null;
 }
 
 /** Một dòng chỉ tiêu. `TINH` = dòng tự tính (Chênh lệch) — in nghiêng, ⛔ không tô màu ngưỡng. */
@@ -623,6 +637,14 @@ export interface MetaLuoi {
   mocDoGanNhat: string | null;
   trangThaiNguon: 'OK' | 'DEGRADED' | 'DOWN';
   donVi: string;
+  /**
+   * Vì sao cột lượng mưa trống — mục **G3-a**, ⛔ chưa có nguồn.
+   *
+   * ⛔ Câu này đến từ BACKEND. Ghi cứng nó ở FE là để cổng tự khẳng định một sự thật về nguồn dữ
+   * liệu mà nó ⛔ không biết, và ngày nguồn mưa có thật thì câu ấy thành một lời nói dối ⛔ không
+   * ai nhớ để xoá.
+   */
+  lyDoLuongMua: string | null;
 }
 
 /**
