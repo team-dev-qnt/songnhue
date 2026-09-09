@@ -57,6 +57,16 @@ public class HydroGridService {
     /** Số cột mặc định của chế độ 10 phút — spec §6.1.1 (<i>"cửa sổ 12 mốc gần nhất"</i>). */
     public static final int SO_COT_MAC_DINH = 12;
 
+    /**
+     * Số mốc mặc định của <b>biểu đồ</b> — 144 = trọn một ngày ở nhịp 10 phút (§7.1).
+     *
+     * <p>⛔ Cố ý KHÁC {@link #SO_COT_MAC_DINH}. Bảng và biểu đồ trả lời hai câu hỏi khác nhau:
+     * bảng hỏi <i>"bây giờ bao nhiêu"</i> nên 12 mốc là đủ và 144 cột thì ⛔ không đọc nổi; biểu đồ
+     * hỏi <i>"nước lên từ lúc mấy giờ"</i> nên nó cần cả ngày. Dùng chung một hằng số là ép một
+     * trong hai câu hỏi phải sai.
+     */
+    public static final int SO_COT_BIEU_DO = 144;
+
     private static final String CHUA_PHAN_TUYEN = "Chưa phân tuyến";
 
     private final HydroGridRepository kho;
@@ -258,6 +268,57 @@ public class HydroGridService {
         }
     }
 
+    /**
+     * Một đường ngưỡng ngang trên biểu đồ — §7.1 (<i>"3 đường ngang đứt nét BĐ1/BĐ2/BĐ3"</i>).
+     *
+     * <p>⚠ Ngưỡng thuộc <b>từng điểm đo</b>, ⛔ không thuộc công trình: thượng lưu và hạ lưu của
+     * cùng một cống có thể khai hai bộ ngưỡng khác nhau (§5.3 — <i>"⛔ không dùng ngưỡng của điểm
+     * khác"</i>). Nên mỗi đường mang theo {@code chiTieu} của nó, và biểu đồ vẽ chúng trên đúng
+     * đường cong tương ứng.
+     */
+    @JsonInclude(JsonInclude.Include.ALWAYS)
+    public record DuongNguong(
+            String chiTieu,
+            String tenMuc,
+            @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal giaTri,
+            String khoaMau) {}
+
+    /**
+     * Dữ liệu vẽ biểu đồ diễn biến của <b>một công trình</b> — spec §7.1.
+     *
+     * <p>⛔ Dùng lại {@link CongTrinh} thay vì dựng một hình dạng riêng cho biểu đồ. Cùng một
+     * {@code dong[].o[]} đã căn theo {@code moc}, cùng nhãn chất lượng, cùng bậc ngưỡng — nên bảng
+     * và biểu đồ ⛔ không thể vẽ hai con số khác nhau về cùng một mốc. Một DTO riêng cho biểu đồ là
+     * chỗ hai đường đọc lệch nhau vào ngày ai đó sửa một bên.
+     *
+     * @param nguong đường ngưỡng của <b>mọi</b> chỉ tiêu trong công trình; rỗng khi chưa khai
+     *     (G9-a) — biểu đồ khi ấy vẽ đường cong mà ⛔ không vẽ đường ngang nào
+     */
+    @JsonInclude(JsonInclude.Include.ALWAYS)
+    public record BieuDoCongTrinh(
+            MetaLuoi meta, List<Instant> moc, CongTrinh congTrinh, List<DuongNguong> nguong, String lyDoTrong) {
+
+        public BieuDoCongTrinh {
+            moc = List.copyOf(Objects.requireNonNull(moc, "`moc` ⛔ không được null"));
+            nguong = List.copyOf(Objects.requireNonNull(nguong, "`nguong` ⛔ không được null"));
+            // ⛔ Cùng khuôn với `BieuDoMucNuoc` của T35.4: hoặc CÓ công trình, hoặc CÓ lý do trống.
+            //    §7.3 cấm vẽ một khung trục rỗng — nó trông y hệt một biểu đồ mà mọi giá trị bằng 0.
+            if ((congTrinh == null) != (lyDoTrong != null)) {
+                throw new IllegalArgumentException(
+                        "Biểu đồ: hoặc CÓ công trình, hoặc CÓ lý do trống — ⛔ không được cả hai, ⛔ không được không cái nào");
+            }
+            if (congTrinh != null) {
+                for (DongChiSo d : congTrinh.dong()) {
+                    if (d.o().size() != moc.size()) {
+                        throw new IllegalArgumentException(
+                                "Dòng '%s' có %d điểm trong khi trục thời gian có %d mốc — đường cong sẽ lệch trục"
+                                        .formatted(d.chiTieu(), d.o().size(), moc.size()));
+                    }
+                }
+            }
+        }
+    }
+
     // =========================================================================
     // Dựng bảng
     // =========================================================================
@@ -318,6 +379,71 @@ public class HydroGridService {
                 nguong);
 
         return new LuoiMucNuoc(meta, moc, gopNhom(diemDo, moc, theoDiemDo), null);
+    }
+
+    /**
+     * Dữ liệu biểu đồ diễn biến của <b>một công trình</b> — spec §7.1, <b>WS-45</b>.
+     *
+     * <p>⛔ Đi qua đúng đường dựng lưới: {@link CheDoXemLuoi#dungLuoi} sinh trục <b>trước</b>, rồi
+     * số đo được rót vào. Đó là thứ làm đường cong <b>ngắt</b> ở mốc mất dữ liệu thay vì nối liền
+     * qua nó — §7.1 ghi thẳng <i>"điểm MISSING: ngắt đường, ⛔ không nội suy"</i>, và một đường nối
+     * liền qua ba giờ mất tín hiệu là vẽ ra một đoạn số liệu chưa ai đo.
+     *
+     * <p>⚠ Cửa sổ ở đây <b>rộng hơn</b> bảng (mặc định 144 mốc = trọn một ngày, so với 12 của
+     * §6.1.1), vì một biểu đồ 12 điểm ⛔ không trả lời được câu người ta mở nó ra để hỏi —
+     * <i>"nước lên từ lúc mấy giờ"</i>. Trần vẫn là {@code 288} ở {@code dungLuoi} và
+     * {@code TRAN_HANG} ở SQL, hai lớp độc lập.
+     *
+     * @param maCongTrinh {@code structure_code}; ⛔ không tìm thấy thì trả biểu đồ rỗng <b>kèm lý
+     *     do</b>, ⛔ không phải 404 — một mã gõ sai và một công trình chưa có số cho ra hai câu khác
+     *     nhau, và cả hai đều ⛔ không phải lỗi hệ thống
+     */
+    @Transactional(readOnly = true)
+    public BieuDoCongTrinh bieuDo(String maCongTrinh, CheDoXemLuoi cheDo, int soCot) {
+        List<Instant> moc = cheDo.dungLuoi(Instant.now(), soCot <= 0 ? SO_COT_BIEU_DO : soCot);
+        MetaLuoi meta = meta();
+
+        List<HydroGridRepository.DiemDoLuoi> cua = kho.danhMucCongTrinh(MA_MUC_NUOC).stream()
+                .filter(HydroGridRepository.DiemDoLuoi::active)
+                .filter(d -> maCongTrinh.equals(d.structureCode()))
+                .toList();
+
+        if (cua.isEmpty()) {
+            return new BieuDoCongTrinh(
+                    meta, moc, null, List.of(), "⛔ Không tìm thấy công trình đang hoạt động với mã " + maCongTrinh);
+        }
+
+        long idLoaiChiSo = cua.get(0).measurementTypeId();
+        Map<Long, List<HydroGridRepository.BacNguong>> nguong = new HashMap<>();
+        for (HydroGridRepository.BacNguong b : kho.nguongTheoDiemDo(idLoaiChiSo)) {
+            nguong.computeIfAbsent(b.stationId(), k -> new ArrayList<>()).add(b);
+        }
+
+        Instant den = moc.get(0).plus(cheDo.buoc());
+        Instant tu = moc.get(moc.size() - 1).minus(cheDo.buoc());
+        Map<Long, Map<Instant, OLuoi>> soDo = ropVaoLuoi(
+                kho.soDoTrongKhung(
+                        cua.stream().map(HydroGridRepository.DiemDoLuoi::id).toList(),
+                        idLoaiChiSo,
+                        tu,
+                        den,
+                        Math.max(1, cua.size() * moc.size() * 2)),
+                cheDo,
+                nguong);
+
+        CongTrinh ct = dungCongTrinh(maCongTrinh, cua, moc, soDo);
+
+        // Đường ngưỡng đi theo TỪNG chỉ tiêu — thượng lưu và hạ lưu của cùng một cống có thể khai
+        // hai bộ ngưỡng khác nhau (§5.3). Gộp chúng làm một là vẽ ngưỡng của điểm này lên đường
+        // cong của điểm kia.
+        List<DuongNguong> duong = new ArrayList<>();
+        for (HydroGridRepository.DiemDoLuoi d : cua) {
+            for (HydroGridRepository.BacNguong b : nguong.getOrDefault(d.id(), List.of())) {
+                duong.add(new DuongNguong(nhanVaiTro(d.positionRole()), b.tenMuc(), b.nguong(), b.khoaMau()));
+            }
+        }
+
+        return new BieuDoCongTrinh(meta, moc, ct, duong, null);
     }
 
     /** Snap từng số đo vào mốc lưới gần nhất; mốc nào có hai số thì số MỚI hơn thắng. */

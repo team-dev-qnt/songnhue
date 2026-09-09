@@ -46,7 +46,8 @@ import com.songnhue.hydro.application.HydroGridService;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class HydroGridHttpTest extends IntegrationTestBase {
 
-    private static final String DUONG_DAN = "/api/v1/public/hydro/luoi-muc-nuoc";
+    /** ⚠ GỐC của nhóm, ⛔ không phải đường dẫn của một endpoint — hai endpoint dùng chung nó. */
+    private static final String GOC = "/api/v1/public/hydro";
 
     /** ⚠ Trình duyệt thật LUÔN gửi `Origin`. `curl` thì không — và nó đi lọt qua đúng bức tường CORS. */
     private static final String NGUON_GOC = "http://localhost:3000";
@@ -109,7 +110,7 @@ class HydroGridHttpTest extends IntegrationTestBase {
     @Test
     @DisplayName("⭐⭐ DOD3.1 — khách vô danh nhận 200, và lưới có công trình ĐỦ CẶP kèm dòng Chênh lệch")
     void anonymousBrowserGetsGridWithComputedDifferenceRow() {
-        String than = goi("?cheDo=PHUT&soCot=3");
+        String than = goi("/luoi-muc-nuoc?cheDo=PHUT&soCot=3");
 
         assertThat(than)
                 .as("⚠ Vế chống tập rỗng: lưới rỗng thì mọi khẳng định dưới đây xanh mà ⛔ không đo gì")
@@ -134,7 +135,7 @@ class HydroGridHttpTest extends IntegrationTestBase {
     @Test
     @DisplayName("⭐⭐ DOD3.2 — thiếu MỘT vế thì chênh lệch TRỐNG kèm lý do, ⛔ không phải 0")
     void differenceIsAbsentNotZeroWhenOneSideMissing() {
-        String than = goi("?cheDo=PHUT&soCot=3");
+        String than = goi("/luoi-muc-nuoc?cheDo=PHUT&soCot=3");
 
         assertThat(than)
                 .as("⚠ Vế chống tập rỗng: mốc chỉ-có-thượng-lưu phải thật sự nằm trong cửa sổ")
@@ -152,7 +153,7 @@ class HydroGridHttpTest extends IntegrationTestBase {
     @Test
     @DisplayName("⭐⭐ DOD3.3 — lưới CHỮ NHẬT: số ô mỗi dòng đúng bằng số cột, kể cả mốc ⛔ không có số")
     void gridIsRectangularSoMissingSlotsBecomeEmptyCellsNotSwallowedColumns() {
-        String than = goi("?cheDo=PHUT&soCot=6");
+        String than = goi("/luoi-muc-nuoc?cheDo=PHUT&soCot=6");
 
         assertThat(than).as("⚠ Vế chống tập rỗng").contains("Cống kiểm thử T43");
 
@@ -173,7 +174,7 @@ class HydroGridHttpTest extends IntegrationTestBase {
     @Test
     @DisplayName("⭐ Ô NGHI_NGO ra dây KÈM SỐ và KÈM NHÃN — lọc nó đi là biến ô nghi ngờ thành ô trống")
     void suspectCellsAreLabelledNotFiltered() {
-        String than = goi("?cheDo=PHUT&soCot=3");
+        String than = goi("/luoi-muc-nuoc?cheDo=PHUT&soCot=3");
 
         assertThat(than)
                 .as("⚠ Vế chống tập rỗng: điểm đo mang số NGHI_NGO phải có trong lưới")
@@ -188,7 +189,7 @@ class HydroGridHttpTest extends IntegrationTestBase {
     @Test
     @DisplayName("⭐ Công trình chỉ có MỘT chỉ tiêu thì ⛔ KHÔNG có dòng Chênh lệch (spec §6.1.2)")
     void singleIndicatorStructureHasNoDifferenceRow() {
-        String than = goi("?cheDo=PHUT&soCot=3");
+        String than = goi("/luoi-muc-nuoc?cheDo=PHUT&soCot=3");
         int batDau = than.indexOf("Cống lẻ T43");
         assertThat(batDau).as("⚠ Vế chống tập rỗng").isGreaterThan(0);
 
@@ -202,11 +203,84 @@ class HydroGridHttpTest extends IntegrationTestBase {
     @Test
     @DisplayName("⭐ Khối `meta` của §10 luôn ra dây — kể cả để FE chọn giữa ba trạng thái của §8")
     void metaBlockIsAlwaysPresent() {
-        String than = goi("?cheDo=PHUT&soCot=3");
+        String than = goi("/luoi-muc-nuoc?cheDo=PHUT&soCot=3");
         assertThat(than).contains("\"meta\"").contains("\"trangThaiNguon\"").contains("\"lanLayCuoi\"");
         assertThat(than)
                 .as("Đơn vị phải ra dây — spec §10 đòi `unit` trong meta")
                 .contains("\"donVi\":\"m\"");
+    }
+
+    // =========================================================================
+    // §7.1 — biểu đồ diễn biến (WS-45)
+    // =========================================================================
+
+    @Test
+    @DisplayName("⭐⭐ WS-45 — biểu đồ trả BA đường (thượng lưu · hạ lưu · chênh lệch) căn đúng trục")
+    void chartReturnsThreeSeriesAlignedToTheTimeAxis() {
+        String than = goiBieuDo(MA_CT, "?cheDo=PHUT&soCot=6");
+
+        assertThat(than).as("⚠ Vế chống tập rỗng").contains("Cống kiểm thử T43").contains("2.320");
+        assertThat(than)
+                .as("§7.1 — hai đường cong cho một công trình, cộng dải chênh lệch")
+                .contains("\"Thượng lưu\"")
+                .contains("\"Hạ lưu\"")
+                .contains("\"Chênh lệch\"");
+        assertThat(than).as("Chênh lệch tính ở BE, ⛔ không phải việc của FE").contains("0.750");
+    }
+
+    @Test
+    @DisplayName("⭐⭐ §7.1 — mốc ⛔ không có số ra dây thành điểm RỖNG, để đường cong NGẮT chứ ⛔ không nối")
+    void missingSlotsBecomeNullPointsSoTheLineBreaks() {
+        String than = goiBieuDo(MA_CT, "?cheDo=PHUT&soCot=6");
+
+        assertThat(than).as("⚠ Vế chống tập rỗng").contains("2.320");
+        assertThat(than)
+                .as("⛔⛔ Nối liền qua chỗ mất tín hiệu là vẽ ra một đoạn số liệu chưa ai đo")
+                .contains("Không có dữ liệu tại mốc này");
+
+        // Trục thời gian phải có ĐỦ 6 mốc dù chỉ 2 mốc có số — đó là điều làm đường cong ngắt
+        // được. Dựng trục TỪ dữ liệu thì 6 mốc co lại còn 2 và hai điểm cách nhau một giờ trông
+        // như hai điểm liền kề.
+        assertThat(demChuoi(than.substring(than.indexOf("\"moc\""), than.indexOf("\"congTrinh\"")), "Z\""))
+                .as("6 mốc yêu cầu ⇒ 6 mốc ra dây, ⛔ không phụ thuộc có bao nhiêu số đo")
+                .isEqualTo(6);
+    }
+
+    @Test
+    @DisplayName("⭐ §7.1 — đường ngưỡng đi theo TỪNG chỉ tiêu, ⛔ không gộp chung cho cả công trình")
+    void thresholdLinesAreScopedToTheirOwnIndicator() {
+        long idMuc = taoMucCanhBao("T45-BD1", "Báo động I", "alert-level-1", 911);
+        taoNguong(idTl, idMuc, "2.000");
+        try {
+            String than = goiBieuDo(MA_CT, "?cheDo=PHUT&soCot=6");
+
+            assertThat(than).as("⚠ Vế chống tập rỗng").contains("\"nguong\"").contains("Báo động I");
+            // Ngưỡng khai cho điểm THƯỢNG LƯU ⇒ đường ngang mang đúng chỉ tiêu ấy. §5.3: "⛔ không
+            // dùng ngưỡng của điểm khác" — vẽ nó lên đường hạ lưu là đúng thứ câu ấy cấm.
+            assertThat(than)
+                    .as("Đường ngưỡng phải nói nó thuộc chỉ tiêu nào")
+                    .contains("{\"chiTieu\":\"Thượng lưu\",\"tenMuc\":\"Báo động I\"");
+        } finally {
+            jdbc.update("DELETE FROM alert_rules WHERE station_id = ?", idTl);
+            jdbc.update("DELETE FROM alert_levels WHERE id = ?", idMuc);
+        }
+    }
+
+    @Test
+    @DisplayName("⭐ §7.3 — mã công trình lạ cho biểu đồ RỖNG kèm lý do, ⛔ không 404 và ⛔ không khung trục trống")
+    void unknownStructureGivesAnEmptyChartWithAReason() {
+        String than = goiBieuDo("KHONG-CO-THAT", "");
+        assertThat(than)
+                .as("§7.3 — ⛔ không vẽ biểu đồ trống; một khung trục rỗng trông y hệt mọi giá trị bằng 0")
+                .contains("⛔ Không tìm thấy công trình")
+                .contains("\"congTrinh\":null");
+        assertThat(than)
+                .as("Khối meta vẫn ra dây — §8.1 đòi dòng 'cập nhật gần nhất' kể cả khi ⛔ chưa có dữ liệu")
+                .contains("\"meta\"");
+    }
+
+    private String goiBieuDo(String maCongTrinh, String truyVan) {
+        return goi("/bieu-do/" + maCongTrinh + truyVan);
     }
 
     // =========================================================================
@@ -222,7 +296,7 @@ class HydroGridHttpTest extends IntegrationTestBase {
                 .as("⚠ Vế chống tập rỗng ĐẢO: bài này chỉ có nghĩa khi bảng ngưỡng thật sự rỗng")
                 .isZero();
 
-        String than = goi("?cheDo=PHUT&soCot=3");
+        String than = goi("/luoi-muc-nuoc?cheDo=PHUT&soCot=3");
         assertThat(than).as("⚠ Vế chống tập rỗng").contains("Cống kiểm thử T43");
         assertThat(than)
                 .as("§5.3 — điểm đo chưa khai ngưỡng thì ⛔ không tô màu, ⛔ không mượn ngưỡng điểm khác")
@@ -239,7 +313,7 @@ class HydroGridHttpTest extends IntegrationTestBase {
         taoNguong(idTl, idMuc1, "2.000");
         taoNguong(idTl, idMuc2, "3.000");
         try {
-            String than = goi("?cheDo=PHUT&soCot=3");
+            String than = goi("/luoi-muc-nuoc?cheDo=PHUT&soCot=3");
 
             assertThat(than).as("⚠ Vế chống tập rỗng").contains("2.320");
             assertThat(than)
@@ -402,11 +476,10 @@ class HydroGridHttpTest extends IntegrationTestBase {
 
     // =========================================================================
 
-    private String goi(String truyVan) {
+    private String goi(String duoi) {
         HttpHeaders h = new HttpHeaders();
         h.set(HttpHeaders.ORIGIN, NGUON_GOC);
-        ResponseEntity<String> ra =
-                http.exchange(DUONG_DAN + truyVan, HttpMethod.GET, new HttpEntity<>(h), String.class);
+        ResponseEntity<String> ra = http.exchange(GOC + duoi, HttpMethod.GET, new HttpEntity<>(h), String.class);
         assertThat(ra.getStatusCode())
                 .as("⛔ Bảng lưới CÔNG KHAI — khách vô danh phải nhận 200 (quyết định Q4, huỷ CR-08)")
                 .isEqualTo(HttpStatus.OK);

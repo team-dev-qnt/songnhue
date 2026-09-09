@@ -1,6 +1,9 @@
+import Link from 'next/link';
+
 import { alertLevelColors } from 'design-tokens';
 
 import type { CongTrinhLuoi, DongChiSo, LuoiMucNuoc, OLuoi } from '@/lib/api';
+import { ROUTES } from '@/lib/routes';
 
 interface BangLuoiMucNuocProps {
   luoi: LuoiMucNuoc;
@@ -87,6 +90,13 @@ export function BangLuoiMucNuoc({ luoi }: BangLuoiMucNuocProps) {
             >
               Mực nước ({luoi.meta.donVi})
             </th>
+            <th
+              scope="col"
+              rowSpan={2}
+              className="border-l border-surface-border px-3 py-2 text-center font-semibold text-surface-textBase"
+            >
+              Chi tiết
+            </th>
           </tr>
           <tr className="bg-surface-bgLayout">
             {luoi.moc.map((m) => (
@@ -147,6 +157,25 @@ export function BangLuoiMucNuoc({ luoi }: BangLuoiMucNuocProps) {
                   {dong.o.map((o, i) => (
                     <O key={luoi.moc[i]} o={o} tinh={dong.loai === 'TINH'} />
                   ))}
+
+                  {/* Nút `»»` của §6.1.2 — gộp ô theo công trình, mở trang chi tiết §6.1.3.
+                      ⛔ Một liên kết THẬT (`<Link>`), ⛔ không phải một nút mở modal: §6.1.3 cho
+                      phép cả hai, và trang riêng thì chia sẻ được đường dẫn, in được, và người
+                      dùng bấm Quay lại là về đúng chỗ cũ. */}
+                  {viTriDong === 0 && (
+                    <td
+                      rowSpan={ct.dong.length}
+                      className="border-l border-surface-border px-3 py-2 text-center align-middle"
+                    >
+                      <Link
+                        href={`${ROUTES.quanLyVanHanh.mucNuocLuongMua}/${encodeURIComponent(ct.maCongTrinh)}`}
+                        aria-label={`Xem biểu đồ diễn biến ${ct.tenCongTrinh}`}
+                        className="font-bold text-brand-primary hover:underline"
+                      >
+                        <span aria-hidden="true">»»</span>
+                      </Link>
+                    </td>
+                  )}
                 </tr>
               )),
             ),

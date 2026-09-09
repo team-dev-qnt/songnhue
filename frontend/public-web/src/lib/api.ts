@@ -681,6 +681,49 @@ export function getWaterLevelGrid(
   return apiGet<LuoiMucNuoc>(`/hydro/luoi-muc-nuoc?${truyVan}`, { tags: [HYDRO_TAG] });
 }
 
+/** Một đường ngưỡng ngang trên biểu đồ — §7.1. Thuộc TỪNG chỉ tiêu, ⛔ không dùng chung. */
+export interface DuongNguong {
+  chiTieu: string;
+  tenMuc: string;
+  giaTri: string;
+  khoaMau: string;
+}
+
+/**
+ * Dữ liệu biểu đồ diễn biến một công trình — §7.1.
+ *
+ * ⚠ Dùng lại `CongTrinhLuoi` của bảng, cố ý: cùng `dong[].o[]` đã căn theo `moc`, cùng nhãn chất
+ * lượng. Bảng và biểu đồ vì thế ⛔ **không thể** vẽ hai con số khác nhau về cùng một mốc.
+ *
+ * @property congTrinh `null` khi ⛔ không tìm thấy mã — khi ấy `lyDoTrong` mang câu chữ, và §7.3
+ *   cấm vẽ một khung trục rỗng thay cho nó.
+ */
+export interface BieuDoCongTrinh {
+  meta: MetaLuoi;
+  moc: string[];
+  congTrinh: CongTrinhLuoi | null;
+  nguong: DuongNguong[];
+  lyDoTrong: string | null;
+}
+
+/**
+ * Biểu đồ diễn biến của một công trình — **WS-45**, §7.1.
+ *
+ * @param soCot số mốc; mặc định (0) = 144 = trọn một ngày ở nhịp 10 phút. ⛔ Cố ý rộng hơn bảng:
+ *   một biểu đồ 12 điểm ⛔ không trả lời được câu người ta mở nó ra để hỏi — *"nước lên từ lúc
+ *   mấy giờ"*.
+ */
+export function getBieuDoCongTrinh(
+  maCongTrinh: string,
+  cheDo: 'PHUT' | 'GIO' = 'PHUT',
+  soCot = 0,
+): Promise<BieuDoCongTrinh | null> {
+  return apiGet<BieuDoCongTrinh>(
+    `/hydro/bieu-do/${encodeURIComponent(maCongTrinh)}?cheDo=${cheDo}&soCot=${soCot}`,
+    { tags: [HYDRO_TAG] },
+  );
+}
+
 /**
  * Giờ máy chủ — mốc cho dòng "Cập nhật lúc" của CR-35.
  *

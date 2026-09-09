@@ -1,6 +1,7 @@
 package com.songnhue.hydro.api;
 
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -55,6 +56,30 @@ public class HydroGridController {
      * @param soCot số cột thời gian; mặc định 12 theo §6.1.1
      * @param trucChinh {@code true} cho khối trang chủ §5.2; mặc định {@code false} (trang chi tiết)
      */
+    /**
+     * Dữ liệu biểu đồ diễn biến một công trình — spec §7.1, <b>WS-45</b>.
+     *
+     * <p>⚠ <b>Công khai</b>, cùng lý do với bảng lưới: spec §9 xếp biểu đồ vào nhóm "yêu cầu đăng
+     * nhập", nhưng yêu cầu ấy đã bị huỷ (quyết định Q4, 09/09/2026).
+     *
+     * <p>⚠ Trả biểu đồ <b>rỗng kèm lý do</b> khi mã công trình ⛔ không khớp — ⛔ không phải 404.
+     * Một mã gõ sai trên thanh địa chỉ ⛔ không phải một sự cố hệ thống, và §7.3 đòi hiện câu chữ
+     * chứ ⛔ không vẽ một khung trục rỗng.
+     *
+     * @param soCot số mốc; mặc định 144 = trọn một ngày ở nhịp 10 phút
+     */
+    @GetMapping("/bieu-do/{maCongTrinh}")
+    @Operation(summary = "Biểu đồ diễn biến mực nước một công trình — 2 đường thượng/hạ lưu + chênh lệch")
+    @PublicEndpoint(
+            reason = "Biểu đồ diễn biến §7.1 — dữ liệu thuỷ văn công khai toàn bộ theo quyết định "
+                    + "Q4 ngày 09/09/2026 (huỷ CR-08)")
+    public HydroGridService.BieuDoCongTrinh bieuDo(
+            @PathVariable String maCongTrinh,
+            @RequestParam(defaultValue = "PHUT") CheDoXemLuoi cheDo,
+            @RequestParam(defaultValue = "0") int soCot) {
+        return service.bieuDo(maCongTrinh, cheDo, soCot);
+    }
+
     @GetMapping("/luoi-muc-nuoc")
     @Operation(summary = "Bảng lưới mực nước — nhóm theo tuyến sông, mỗi công trình một cặp thượng/hạ lưu")
     @PublicEndpoint(
