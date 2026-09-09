@@ -145,6 +145,9 @@ class DiemGhiXoaDemTest {
         // ---- operations: công trình -------------------------------------------
         BANG_KHAI.put("ConstructionService.create", uyQuyen("bienDongCongTrinh"));
         BANG_KHAI.put("ConstructionService.update", uyQuyen("bienDongCongTrinh"));
+        // ⛔ T47.16 — đường ghi RIÊNG cho tệp nhập hàng loạt: nó đổi tên/tuyến sông/lý trình/
+        //   toạ độ, tức đúng thứ cổng công khai phục vụ. Xem javadoc `capNhatTuTepNhap`.
+        BANG_KHAI.put("ConstructionService.capNhatTuTepNhap", uyQuyen("bienDongCongTrinh"));
         BANG_KHAI.put("ConstructionService.delete", uyQuyen("bienDongCongTrinh"));
         BANG_KHAI.put("ConstructionService.changeLifecycle", uyQuyen("bienDongCongTrinh"));
         BANG_KHAI.put("ConstructionStatusService.recomputeFor", uyQuyen("recompute"));
