@@ -13,6 +13,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -108,6 +111,93 @@ class PublicHttpTest extends IntegrationTestBase {
                 .as("404 ở đây nghĩa là đường dẫn sai, tức là bài kiểm đang chứng minh nhầm chuyện")
                 .isEqualTo(HttpStatus.UNAUTHORIZED);
         assertThat(response.getBody()).contains("AUTH-0002");
+    }
+
+    @Test
+    @DisplayName("⛔⛔ T43.8-b — đổi `X-Forwarded-For` KHÔNG còn đổi được xô hạn mức")
+    void doiXForwardedForKhongConDoiDuocXoHanMuc() {
+        // ⛔⛔ KHUYẾT TẬT ĐANG ĐƯỢC CANH, đo được 10/09/2026 qua chính bài này:
+        //   `application.yml:196` đặt `server.forward-headers-strategy: framework`, nên
+        //   `ForwardedHeaderFilter` NUỐT header `X-Forwarded-For` và GHI ĐÈ `getRemoteAddr()` bằng
+        //   phần tử ĐẦU của nó. ⇒ Trước bản vá, khoá xô hạn mức là giá trị KẺ GỌI TỰ ĐẶT, dù mã
+        //   trông như đang dùng địa chỉ socket. Số đo lúc còn lỗi: 299 và 299 — HAI xô riêng.
+        //
+        // ⚠ Đo `X-RateLimit-Remaining`, ⛔ KHÔNG đo 200 vs 429: trần công khai là 300 nên hai lượt
+        //   gọi nào cũng trả 200 (luật 9).
+        //
+        // ⚠⚠ Vế này CỐ Ý ⛔ không gửi `X-Real-IP` — nó canh BẢN DỰ PHÒNG. Gửi `X-Real-IP` sẽ che
+        //    mất đúng đường đã hỏng, và bài kiểm xanh vì lý do sai.
+        HttpHeaders h1 = new HttpHeaders();
+        h1.set("X-Forwarded-For", "198.51.100.1");
+        HttpHeaders h2 = new HttpHeaders();
+        h2.set("X-Forwarded-For", "198.51.100.99"); // ⛔ ĐỔI ĐÚNG MỘT THỨ
+
+        int conLai1 = conLai(h1);
+        int conLai2 = conLai(h2);
+
+        // Vế CHỐNG TẬP RỖNG (luật 7): header vắng mặt ⇒ -1, và mọi so sánh dưới nói về thứ ⛔ không
+        // tồn tại.
+        assertThat(conLai1)
+                .as("⛔ Thiếu `X-RateLimit-Remaining` thì bài này ⛔ không đo được gì")
+                .isGreaterThanOrEqualTo(0);
+
+        assertThat(conLai2)
+                .as(
+                        """
+                        ⛔⛔ Hai lượt gọi chỉ khác nhau ở `X-Forwarded-For` PHẢI dùng chung một xô, \
+                        nên số còn lại phải GIẢM. Bằng nhau nghĩa là kẻ gọi vừa tự cấp cho mình một xô \
+                        mới bằng cách đổi một header ⇒ cả bốn hạn mức (đăng nhập · API · công khai · \
+                        xuất) đều né được, và một IP bịa ghi thẳng vào nhật ký bảo mật.""")
+                .isLessThan(conLai1);
+    }
+
+    @Test
+    @DisplayName("⭐ ĐỐI CHỨNG: `X-Real-IP` khác nhau VẪN tách xô — bản vá ⛔ không phải 'gộp tất'")
+    void doiXRealIpVanTachDuocXo() {
+        // ⚠ Vế phân biệt thứ ba (luật 9). Một bản "vá" bỏ qua MỌI header và luôn dùng địa chỉ chặng
+        //   nối cũng làm bài trên xanh — và nó gộp toàn bộ người dùng sau nginx vào MỘT xô, tức tự
+        //   gây sự cố cho cả cơ quan sau một IP NAT. Bài này ⛔ không cho phương án ấy đi lọt.
+        HttpHeaders a = new HttpHeaders();
+        a.set("X-Real-IP", "203.0.113.240");
+        HttpHeaders b = new HttpHeaders();
+        b.set("X-Real-IP", "203.0.113.241");
+
+        conLai(a);
+        int sauKhiTieuA = conLai(a);
+        int cuaB = conLai(b);
+
+        assertThat(sauKhiTieuA).as("xô A phải đếm được").isGreaterThanOrEqualTo(0);
+        assertThat(cuaB)
+                .as("⛔ Hai `X-Real-IP` khác nhau là hai máy khách khác nhau")
+                .isGreaterThan(sauKhiTieuA);
+    }
+
+    @Test
+    @DisplayName("⭐ `X-Real-IP` THẮNG `X-Forwarded-For` — kẻ gọi ⛔ không lách được bằng header thứ hai")
+    void xRealIpThangXForwardedFor() {
+        String ip = "203.0.113.250";
+        HttpHeaders h1 = new HttpHeaders();
+        h1.set("X-Real-IP", ip);
+        h1.set("X-Forwarded-For", "198.51.100.7");
+        HttpHeaders h2 = new HttpHeaders();
+        h2.set("X-Real-IP", ip);
+        h2.set("X-Forwarded-For", "198.51.100.8");
+
+        int truoc = conLai(h1);
+        int sau = conLai(h2);
+
+        assertThat(truoc).isGreaterThanOrEqualTo(0);
+        assertThat(sau)
+                .as("⛔ Cùng `X-Real-IP` là cùng một máy khách, bất kể `X-Forwarded-For` mang gì")
+                .isLessThan(truoc);
+    }
+
+    /** Số lượt còn lại của xô mà lượt gọi này rơi vào; {@code -1} khi ⛔ không có header. */
+    private int conLai(HttpHeaders headers) {
+        String v = http.exchange("/api/v1/public/articles", HttpMethod.GET, new HttpEntity<>(headers), String.class)
+                .getHeaders()
+                .getFirst("X-RateLimit-Remaining");
+        return v == null ? -1 : Integer.parseInt(v);
     }
 
     @Test
