@@ -84,3 +84,6 @@ __pycache__/
 # Playwright — kết quả chạy bộ đo bố cục, không phải mã nguồn
 frontend/public-web/test-results/
 frontend/public-web/playwright-report/
+
+# Ảnh chụp đo nguồn (tools/do-nguon) — dữ liệu đo, không phải mã nguồn
+docs/do-nguon/

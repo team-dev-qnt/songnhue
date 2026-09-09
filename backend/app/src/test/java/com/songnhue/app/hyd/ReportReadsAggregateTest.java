@@ -52,8 +52,8 @@ import org.junit.jupiter.api.Test;
 class ReportReadsAggregateTest {
 
     /** ✅ Kho truy vấn biểu đồ (T35.4) thêm vào đây <b>cùng commit</b> với tệp ấy ra đời. */
-    private static final List<String> TEP_BAO_CAO =
-            List.of("hydro/HydroReportRepository.java", "hydro/HydroChartRepository.java");
+    private static final List<String> TEP_BAO_CAO = List.of(
+            "hydro/HydroReportRepository.java", "hydro/HydroChartRepository.java", "hydro/HydroGridRepository.java");
 
     /** Bảng số đo thô — báo cáo ⛔ không được đọc, trừ ngoại lệ có tên. */
     private static final String BANG_THO = "hydro_readings";
@@ -79,7 +79,14 @@ class ReportReadsAggregateTest {
                             + "tối đa 31 ngày (HYD-2012) + phân trang.",
             "SQL_DEM_CHI_TIET",
                     "⭐ Phép đếm của BC-12 — phải soi CHÍNH XÁC tập mà SQL_CHI_TIET liệt ra, nên nó đi cùng "
-                            + "một bảng. Đọc bảng khác là tổng số trang nói một đằng, nội dung trang nói một nẻo.");
+                            + "một bảng. Đọc bảng khác là tổng số trang nói một đằng, nội dung trang nói một nẻo.",
+            "SQL_SO_DO_TRONG_KHUNG",
+                    "⭐⭐ WS-43 / T43.4 — bảng lưới §6.1.2, câu đọc NHIỀU điểm đo đầu tiên của hệ. Cùng lý do "
+                            + "với SQL_CHUOI_24H: hydro_agg_daily có MỘT hàng cho cả ngày, còn bảng này hỏi giá "
+                            + "trị TẠI TỪNG MỐC 10 phút — mỗi cột của nó là một mốc. Chi phí ĐÃ CHẶN Ở SQL bằng "
+                            + "LIMIT truyền vào, và bị HydroGridRepository.TRAN_HANG chặn thêm một lần nữa "
+                            + "(20.000 hàng ≈ 7 ngày × 19 điểm đo). ⛔ Đừng nới để phục vụ biểu nhiều ngày — "
+                            + "biểu nhiều ngày đọc hydro_agg_daily, đó là câu hỏi khác và bảng khác.");
 
     /**
      * Số hằng SQL soi được — ⛔ <b>chỉ được tăng</b>.
@@ -88,7 +95,7 @@ class ReportReadsAggregateTest {
      * theo kiểu bài này ⛔ không đọc được — cả ba đều làm khẳng định phía dưới chạy qua một tập rỗng
      * và xanh trọn vẹn. ⚠ Đếm <b>cả ngoại lệ</b>: thứ cần chứng minh là bộ tách còn nhìn thấy mã.
      */
-    private static final int SO_HANG_TOI_THIEU = 8;
+    private static final int SO_HANG_TOI_THIEU = 10;
 
     private static final Pattern HANG_SQL =
             Pattern.compile("static\\s+final\\s+String\\s+(\\w+)\\s*=\\s*\"\"\"(.*?)\"\"\";", Pattern.DOTALL);
