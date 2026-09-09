@@ -11,7 +11,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +18,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.app.testsupport.PhienHttp;
+import com.songnhue.app.testsupport.TestHttp;
 import com.songnhue.core.application.auth.PasswordPolicyService;
 import com.songnhue.core.application.settings.SettingService;
 import com.songnhue.core.infra.identity.UserRepository;
@@ -51,7 +51,7 @@ import com.songnhue.operations.application.MaintenanceLogService;
 class MaintenanceLogHttpTest extends IntegrationTestBase {
 
     @Autowired
-    private TestRestTemplate http;
+    private TestHttp http;
 
     @Autowired
     private UserRepository users;
@@ -282,7 +282,7 @@ class MaintenanceLogHttpTest extends IntegrationTestBase {
 
         ResponseEntity<String> dong = bam(quanLy, id, "RESOLVE", null);
 
-        assertThat(dong.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(dong.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
         assertThat(dong.getBody()).contains("OPS-2004");
 
         ResponseEntity<String> chiTiet = phienHttp.get(quanLy, "/api/v1/ops/maintenance-logs/" + id);

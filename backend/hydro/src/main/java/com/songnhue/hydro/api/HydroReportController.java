@@ -72,13 +72,10 @@ public class HydroReportController {
     private final HydroReportService baoCao;
     private final JobPort jobs;
     private final ReportFilePort khoTep;
-    private final com.fasterxml.jackson.databind.ObjectMapper json;
+    private final tools.jackson.databind.ObjectMapper json;
 
     public HydroReportController(
-            HydroReportService baoCao,
-            JobPort jobs,
-            ReportFilePort khoTep,
-            com.fasterxml.jackson.databind.ObjectMapper json) {
+            HydroReportService baoCao, JobPort jobs, ReportFilePort khoTep, tools.jackson.databind.ObjectMapper json) {
         this.baoCao = baoCao;
         this.jobs = jobs;
         this.khoTep = khoTep;

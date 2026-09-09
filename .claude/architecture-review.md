@@ -6295,3 +6295,89 @@ huống nó sinh ra để bắt** (luật 7).
 **⭐ Hệ quả rộng hơn, và nó đổi cách đọc cả sổ nợ.** Nếu *"sửa được trên admin portal"* là lý do một
 ô dữ liệu lệch ⛔ không phải blocker — thì **vòng khứ hồi của màn hình ấy phải có phép kiểm**. Một
 màn hình sửa được mà lượt lưu xoá mất trường bên cạnh thì lời hứa ấy sai, và nó sai **im lặng**.
+
+### §11.20 — Một lượt nâng phiên bản lớn: ba khuyết tật im lặng, và cái nặng nhất chỉ lộ vì có bài kiểm HTTP (T11.69, 9/9/2026)
+
+Di trú Spring Boot **3.5.16 → 4.1.1**. Mục tiêu là xoá **6 mã CVE ≥ 7** ở `spring-core`/`spring-web`
+6.2.19 — đường vá duy nhất còn tồn tại, vì `6.2.19` là bản **cuối cùng** của dòng 6.2 (tra
+`maven-metadata.xml`, luật 21) và bản có vá nằm ở Framework 7, thứ chỉ đi kèm Boot 4.
+
+Lượt dựng thử 07/09 đã đo trước phần đổi toạ độ Maven và đổi gói, và **đúng**: 7 tệp, ⛔ không lỗi
+logic nào. Nhưng ba khuyết tật nặng nhất **⛔ không nằm trong bản đồ ấy** — và cả ba đều thuộc loại
+*biên dịch sạch*.
+
+**(1) `ResponseEnvelopeAdvice` hỏi sai câu hỏi, và câu trả lời im lặng đổi.** Nó quyết định có bọc
+envelope hay ⛔ không bằng:
+
+    AbstractJackson2HttpMessageConverter.class.isAssignableFrom(selectedConverterType)
+
+Boot 4 chọn `JacksonJsonHttpMessageConverter` (Jackson 3), thứ **⛔ không kế thừa** lớp ấy. Lớp cũ
+**vẫn còn** trong Framework 7 (deprecated), nên mã **biên dịch sạch** — và mọi endpoint sẽ trả thân
+trần, ⛔ không envelope. Toàn bộ frontend đọc `data`/`traceId` sẽ vỡ.
+
+⭐ Thứ bắt được nó là `EnvelopeAndErrorHandlingTest` — **kiểm qua HTTP** (luật 5). Một bộ kiểm gọi
+thẳng service ⛔ không thể thấy: khuyết tật nằm ở tầng chọn converter, tầng chỉ tồn tại khi có một
+lượt gọi thật đi qua dây.
+
+**(2) `spring-boot-flyway` là artifact RIÊNG.** Boot 3.5 để `FlywayAutoConfiguration` trong
+`spring-boot-autoconfigure` — thứ luôn có mặt — nên khai `flyway-core` trần là đủ. Boot 4 dời nó ra.
+Giữ nguyên khai báo cũ thì: biên dịch sạch, ứng dụng khởi động, health xanh, **⛔ không migration nào
+chạy**.
+
+⚠ Và bộ test **về nguyên tắc ⛔ không thấy** hậu quả thật: nó chạy trên CSDL **rỗng**, nơi thiếu
+Flyway là ⛔ không có bảng nào và mọi thứ đỏ ầm ĩ. Môi trường thật có CSDL **đã đầy** — ứng dụng lên
+xanh và bản vá lược đồ mới âm thầm ⛔ không được áp. Đúng luật 30, đúng hình dạng §11.19.
+
+**(3) `TestRestTemplate` bị xoá hẳn** — 37 tệp, 55 lời gọi. Đường chính thống là `RestTestClient` với
+API fluent, nhưng đi đường ấy là **viết lại chính phần khẳng định** của bộ kiểm thử cùng lúc với đổi
+thứ được đo. ⇒ Dựng `TestHttp` giữ đúng ba phương thức đang dùng; 37 tệp chỉ đổi **tên kiểu**.
+
+#### ⛔⛔ Bài học đắt nhất: bản vá của tôi tự mang hai khuyết tật, và một khẳng định của tôi bị bác
+
+`TestHttp` bản đầu dùng `SimpleClientHttpRequestFactory` ⇒ `HttpURLConnection` **⛔ không biết
+`PATCH`** ⇒ 4 bài đỏ. Nó cũng **đi theo chuyển hướng** theo mặc định — nếu ⛔ không sửa, một endpoint
+trả `302` sẽ được đọc thành `200` và bài kiểm xanh trong khi thứ nó khẳng định đã biến mất. Nay là
+`JdkClientHttpRequestFactory` với `Redirect.NEVER` khai **tường minh**: một mặc định ⛔ không phải một
+quyết định (luật 3).
+
+Và chú thích tôi viết cho khoá cấu hình Jackson khẳng định *"xoá dòng này thì ngày ra dây thành SỐ
+epoch"*. Lượt kiểm chứng ngược **bác bỏ**: gỡ hẳn khoá đi mà bài kiểm **vẫn xanh**, vì đo trực tiếp
+trên jar 3.1.5 thì `DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS.enabledByDefault()` = **false** —
+Jackson 3 đã đảo mặc định. Bộ canh chỉ đỏ khi đặt `true`.
+
+⇒ Dòng cấu hình ấy **vẫn giữ**, nhưng vì lý do THẬT chứ ⛔ không phải lý do tôi viết ra: quy tắc 1
+của dự án (mọi timestamp ra dây là ISO-8601 UTC) ⛔ không được phép treo vào **mặc định của thư viện
+bên thứ ba** — thứ vừa đổi đúng một lần trong chính lượt di trú này. Đây là luật 3 ở dạng thuần
+khiết nhất, và là lần thứ hai trong hai ngày một lượt kiểm chứng ngược bác bỏ khẳng định của chính
+người viết bản vá (luật 29).
+
+#### Một bộ canh đỏ mà ⛔ không nói được vì sao thì gần như ⛔ không có
+
+`FlywayAutoConfigCoMatTest` bản đầu kế thừa `IntegrationTestBase` và hỏi *"bean `Flyway` có tồn tại
+⛔ không"*. Lượt kiểm chứng ngược (hạ pom về `flyway-core` trần) cho **2/2 đỏ** — nhưng đỏ vì
+**ApplicationContext chết**, nên thông điệp chẩn đoán ⛔ không bao giờ in ra; người đọc log chỉ thấy
+stack trace ⛔ không trỏ vào nguyên nhân.
+
+⇒ Hạ xuống tầng **tĩnh**: JUnit trần, hỏi lớp auto-config có trên classpath ⛔ không. Đó chính là thứ
+đổi khi ai đó sửa `app/pom.xml`; nó ⛔ không cần CSDL, chạy trong mili-giây, và khi đỏ thì câu trả lời
+nằm ngay trong thông điệp. Kèm một bài **đối chứng phải-KHÔNG-tìm-thấy** (gói Boot 3.5 phải vắng mặt)
+để cái xanh của nó ⛔ không vô nghĩa trong một thế giới mà cả hai gói cùng tồn tại (luật 9).
+
+#### Ba lần gặp lại bẫy hạ tầng cũ trong một phiên
+
+- **Spotless/Checkstyle chặn ở bước ĐẦU** ⇒ lượt chạy báo *0 lỗi biên dịch* trong khi **chưa biên
+  dịch gì**. Gặp hai lần. Đúng §10.74: *số job đỏ ⛔ không phải số khuyết tật*.
+- **Một báo cáo surefire cũ 1 phút** suýt được ghi nhận là kết quả mới, sau khi Checkstyle chặn lượt
+  chạy — chỉ lộ ra vì đối chiếu `ls -la` mốc thời gian. Luật 32 ở dạng dữ liệu thay vì mã thoát.
+- **`nohup … &` thoát 0 ngay lập tức**, và mã thoát ấy ⛔ không phải của Maven.
+
+#### Số đo để lại
+
+Phiên bản đọc bằng `dependency:list`, ⛔ không đọc tài liệu: spring-core/web **7.0.9** · tomcat
+**11.0.24** · spring-data-jpa **4.1.1** · kotlin-stdlib **2.3.21** · hibernate **7.4.5.Final** ·
+flyway **12.4.0**. **Gỡ SÁU ghim phiên bản** (bản đồ cũ nói ba): thêm `commons-lang3` — BOM khai
+**3.20.0** trong khi ta ghim 3.18.0, giữ lại là **hạ cấp**.
+
+⚠ Jackson 2 (**2.21.5**) **vẫn trên classpath**, tới từ **MinIO 8.5.17** — ⛔ không loại được. Nhưng
+sau lượt này ⛔ không dòng mã nào của ta chạm vào nó; annotation (`@JsonFormat`, `@JsonInclude`) cố ý
+ở lại `com.fasterxml.jackson.annotation`, vì chính `JacksonProperties` của Boot 4 cũng đọc gói ấy.

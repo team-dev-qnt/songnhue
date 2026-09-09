@@ -13,7 +13,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +20,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.songnhue.app.testsupport.CmsFixtures;
 import com.songnhue.app.testsupport.IntegrationTestBase;
+import com.songnhue.app.testsupport.TestHttp;
 import com.songnhue.content.application.MediaService;
 import com.songnhue.content.domain.KhoTep;
 import com.songnhue.core.application.attachment.VirusScanHandler;
@@ -52,7 +52,7 @@ import com.songnhue.core.spi.JobContext;
 class PublicHttpTest extends IntegrationTestBase {
 
     @Autowired
-    private TestRestTemplate http;
+    private TestHttp http;
 
     @Autowired
     private MediaService media;

@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 
-import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -46,7 +45,7 @@ public final class PhienHttp {
     /** Mật khẩu dùng chung cho tài khoản kiểm thử — đủ dài, đủ loại ký tự theo chính sách WS-5. */
     public static final String MAT_KHAU = "KiemThu@2026";
 
-    private final TestRestTemplate http;
+    private final TestHttp http;
 
     /**
      * ⚠⚠ IP giả lập riêng cho mỗi thực thể — <b>một lớp kiểm thử = một client</b>.
@@ -103,7 +102,7 @@ public final class PhienHttp {
         return "10.%d.%d.%d".formatted((dem >> 16) & 0xFF, (dem >> 8) & 0xFF, dem & 0xFF);
     }
 
-    public PhienHttp(TestRestTemplate http) {
+    public PhienHttp(TestHttp http) {
         this.http = http;
     }
 

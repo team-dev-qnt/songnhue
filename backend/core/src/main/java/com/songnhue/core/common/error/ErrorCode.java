@@ -35,11 +35,11 @@ public enum ErrorCode {
     /** Chế độ bảo trì đang bật (chặn ghi lúc khôi phục dữ liệu — M5.11). */
     SYS_0007("SYS-0007", HttpStatus.SERVICE_UNAVAILABLE),
     /** Vi phạm rule nghiệp vụ chưa có mã riêng — mặc định của {@code BusinessRuleException}. */
-    SYS_0008("SYS-0008", HttpStatus.UNPROCESSABLE_ENTITY),
+    SYS_0008("SYS-0008", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Tệp chưa quét virus xong hoặc đã bị cách ly — {0} là trạng thái quét. */
     SYS_0009("SYS-0009", HttpStatus.CONFLICT),
     /** Bản ghi đã dùng hết hạn mức dung lượng tệp đính kèm (CN-02.3: 500MB/công trình). */
-    SYS_0010("SYS-0010", HttpStatus.UNPROCESSABLE_ENTITY),
+    SYS_0010("SYS-0010", HttpStatus.UNPROCESSABLE_CONTENT),
     /**
      * Thân yêu cầu vượt trần multipart của máy chủ — {0} là trần tính bằng MB.
      *
@@ -52,7 +52,7 @@ public enum ErrorCode {
      * an toàn cuối và trả <b>500</b>: người dùng nhận "Lỗi hệ thống, vui lòng thử lại" cho một tệp
      * chỉ cần nén nhỏ lại. Xem {@code UploadSizeCeilingTest}.
      */
-    SYS_0011("SYS-0011", HttpStatus.PAYLOAD_TOO_LARGE),
+    SYS_0011("SYS-0011", HttpStatus.CONTENT_TOO_LARGE),
     /**
      * Tệp nhập vượt trần {@code SpreadsheetReader.MAX_ROWS} dòng dữ liệu.
      *
@@ -68,7 +68,7 @@ public enum ErrorCode {
      * <p>Tham số: {0} trần, {1} số dòng đầu tiên bị bỏ — đánh số <b>như người dùng thấy trong
      * Excel</b>, để họ mở đúng chỗ mà tách tệp.
      */
-    SYS_0012("SYS-0012", HttpStatus.UNPROCESSABLE_ENTITY),
+    SYS_0012("SYS-0012", HttpStatus.UNPROCESSABLE_CONTENT),
 
     // ---- Xác thực & phân quyền -------------------------------------------------
     /** Message cố ý mơ hồ: không tiết lộ tài khoản có tồn tại hay không (§4.1). */
@@ -80,7 +80,7 @@ public enum ErrorCode {
     /** Thiếu hoặc sai {@code X-CSRF-Token} — double-submit không khớp (§4.1). */
     AUTH_0005("AUTH-0005", HttpStatus.FORBIDDEN),
     /** Mật khẩu mới không đạt chính sách đọc từ bảng {@code settings} (M5.15). */
-    AUTH_0006("AUTH-0006", HttpStatus.UNPROCESSABLE_ENTITY),
+    AUTH_0006("AUTH-0006", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Đang bắt buộc đổi mật khẩu — chặn mọi thao tác khác cho tới khi đổi xong. */
     AUTH_0007("AUTH-0007", HttpStatus.FORBIDDEN),
     /** Phiên bị thu hồi vì phát hiện dùng lại refresh token cũ — buộc đăng nhập lại (§4.1). */
@@ -90,16 +90,16 @@ public enum ErrorCode {
     AUTH_3002("AUTH-3002", HttpStatus.FORBIDDEN),
 
     // ---- MOD-01 Cổng thông tin điện tử -----------------------------------------
-    CMS_2001("CMS-2001", HttpStatus.UNPROCESSABLE_ENTITY),
-    CMS_2002("CMS-2002", HttpStatus.UNPROCESSABLE_ENTITY),
+    CMS_2001("CMS-2001", HttpStatus.UNPROCESSABLE_CONTENT),
+    CMS_2002("CMS-2002", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Xoá danh mục còn bài viết — CN-01.2 bắt chuyển bài đi trước. */
     CMS_2003("CMS-2003", HttpStatus.CONFLICT),
     /** Xoá danh mục còn danh mục con. */
     CMS_2004("CMS-2004", HttpStatus.CONFLICT),
     /** Cây danh mục vượt quá 3 cấp. */
-    CMS_2005("CMS-2005", HttpStatus.UNPROCESSABLE_ENTITY),
+    CMS_2005("CMS-2005", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Bài viết phải thuộc ít nhất một danh mục. */
-    CMS_2006("CMS-2006", HttpStatus.UNPROCESSABLE_ENTITY),
+    CMS_2006("CMS-2006", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Sửa nội dung khi bài đang chờ duyệt — CN-01.1 khoá chỉnh sửa ở trạng thái này. */
     CMS_2007("CMS-2007", HttpStatus.CONFLICT),
     /** Xoá thư mục media còn tệp bên trong. */
@@ -107,17 +107,17 @@ public enum ErrorCode {
     /** Xoá tệp media đang được bài viết tham chiếu. */
     CMS_2009("CMS-2009", HttpStatus.CONFLICT),
     /** Cây menu vượt quá 3 cấp. */
-    CMS_2010("CMS-2010", HttpStatus.UNPROCESSABLE_ENTITY),
+    CMS_2010("CMS-2010", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Xoá mục menu còn mục con. */
     CMS_2011("CMS-2011", HttpStatus.CONFLICT),
     /** Đích của mục menu không tồn tại hoặc đã bị xoá. */
-    CMS_2012("CMS-2012", HttpStatus.UNPROCESSABLE_ENTITY),
+    CMS_2012("CMS-2012", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Mục con phải cùng vị trí (Header/Footer) với mục cha. */
-    CMS_2013("CMS-2013", HttpStatus.UNPROCESSABLE_ENTITY),
+    CMS_2013("CMS-2013", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Lịch hiển thị banner có ngày kết thúc không sau ngày bắt đầu. */
-    CMS_2014("CMS-2014", HttpStatus.UNPROCESSABLE_ENTITY),
+    CMS_2014("CMS-2014", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Tải logo cho mục menu không thuộc dải "Liên kết website" (vị trí LIEN_KET). */
-    CMS_2015("CMS-2015", HttpStatus.UNPROCESSABLE_ENTITY),
+    CMS_2015("CMS-2015", HttpStatus.UNPROCESSABLE_CONTENT),
     /**
      * Gắn vào bài viết một tệp <b>không nằm trong Kho tài liệu</b> hoặc <b>chưa quét virus xong</b>.
      *
@@ -128,7 +128,7 @@ public enum ErrorCode {
      * <p>⛔ Đường công khai {@code /public/article-documents/&#123;id&#125;} <b>không</b> dùng mã
      * này: nó trả 404 trần. Nói <i>"bài chưa xuất bản"</i> là xác nhận tệp có tồn tại.
      */
-    CMS_2016("CMS-2016", HttpStatus.UNPROCESSABLE_ENTITY),
+    CMS_2016("CMS-2016", HttpStatus.UNPROCESSABLE_CONTENT),
     /**
      * Tài liệu đính kèm vượt trần dung lượng <b>phục vụ ra cổng công khai</b>
      * ({@code KhoTep.TRAN_PHUC_VU_CONG_KHAI_MB}).
@@ -138,10 +138,10 @@ public enum ErrorCode {
      * thì tệp <i>đã</i> công khai, và biến "quá lớn" thành "không tồn tại" là để người biên tập
      * không bao giờ biết vì sao độc giả tải không được.
      *
-     * <p>413 chứ không 422: đây đúng nghĩa là {@code PAYLOAD_TOO_LARGE}, cùng họ với
+     * <p>413 chứ không 422: đây đúng nghĩa là {@code CONTENT_TOO_LARGE}, cùng họ với
      * {@link #SYS_0011} ở chiều tải lên.
      */
-    CMS_2017("CMS-2017", HttpStatus.PAYLOAD_TOO_LARGE),
+    CMS_2017("CMS-2017", HttpStatus.CONTENT_TOO_LARGE),
     /**
      * Xoá một liên hệ đang ở {@code DANG_XU_LY} — CN-01.4 cấm đích danh.
      *
@@ -167,7 +167,7 @@ public enum ErrorCode {
      * thì {@code RecaptchaClient} <b>cho qua</b> — một sự cố mạng phía ta ⛔ không được biến thành
      * "người dân ⛔ không báo được sạt kênh". Xem javadoc lớp ấy.
      */
-    CMS_2021("CMS-2021", HttpStatus.UNPROCESSABLE_ENTITY),
+    CMS_2021("CMS-2021", HttpStatus.UNPROCESSABLE_CONTENT),
     /**
      * Bản xuất danh sách liên hệ vượt trần số dòng — CN-01.4 / T36.5.
      *
@@ -176,7 +176,7 @@ public enum ErrorCode {
      * "⛔ không có trần im lặng". Đường ra: lọc theo trạng thái, hoặc dựng đường kết xuất chạy nền
      * (khuôn {@code useXuatBaoCao}) khi khối lượng thật sự tới ngưỡng ấy.
      */
-    CMS_2022("CMS-2022", HttpStatus.UNPROCESSABLE_ENTITY),
+    CMS_2022("CMS-2022", HttpStatus.UNPROCESSABLE_CONTENT),
     /**
      * Nội dung bài viết <b>rỗng trên thực tế</b> — T41.21.
      *
@@ -188,41 +188,41 @@ public enum ErrorCode {
      * <p>Phép đo là <i>có chữ hoặc có khối nội dung</i>, ⛔ không phải <i>chuỗi khác rỗng</i>: một
      * bài chỉ gồm ảnh, một bảng số liệu hay một video nhúng là bài hợp lệ.
      */
-    CMS_2023("CMS-2023", HttpStatus.UNPROCESSABLE_ENTITY),
+    CMS_2023("CMS-2023", HttpStatus.UNPROCESSABLE_CONTENT),
     CMS_5001("CMS-5001", HttpStatus.BAD_GATEWAY),
 
     // ---- MOD-02 Vận hành công trình --------------------------------------------
-    OPS_2001("OPS-2001", HttpStatus.UNPROCESSABLE_ENTITY),
-    OPS_2002("OPS-2002", HttpStatus.UNPROCESSABLE_ENTITY),
-    OPS_2003("OPS-2003", HttpStatus.UNPROCESSABLE_ENTITY),
-    OPS_2004("OPS-2004", HttpStatus.UNPROCESSABLE_ENTITY),
+    OPS_2001("OPS-2001", HttpStatus.UNPROCESSABLE_CONTENT),
+    OPS_2002("OPS-2002", HttpStatus.UNPROCESSABLE_CONTENT),
+    OPS_2003("OPS-2003", HttpStatus.UNPROCESSABLE_CONTENT),
+    OPS_2004("OPS-2004", HttpStatus.UNPROCESSABLE_CONTENT),
     OPS_2005("OPS-2005", HttpStatus.CONFLICT),
-    OPS_2006("OPS-2006", HttpStatus.UNPROCESSABLE_ENTITY),
-    OPS_2007("OPS-2007", HttpStatus.UNPROCESSABLE_ENTITY),
+    OPS_2006("OPS-2006", HttpStatus.UNPROCESSABLE_CONTENT),
+    OPS_2007("OPS-2007", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Mã công trình đã tồn tại — mã là duy nhất toàn hệ thống (CN-02.1). */
     OPS_2008("OPS-2008", HttpStatus.CONFLICT),
     /** Nhập thông số kỹ thuật không thuộc loại công trình đang lập hồ sơ. */
-    OPS_2009("OPS-2009", HttpStatus.UNPROCESSABLE_ENTITY),
+    OPS_2009("OPS-2009", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Toạ độ phải đủ cả vĩ độ và kinh độ — một nửa toạ độ là một điểm sai trên bản đồ. */
-    OPS_2010("OPS-2010", HttpStatus.UNPROCESSABLE_ENTITY),
+    OPS_2010("OPS-2010", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Lý trình sai định dạng {@code K<km>+<m>}, VD {@code K0+390}. */
-    OPS_2011("OPS-2011", HttpStatus.UNPROCESSABLE_ENTITY),
+    OPS_2011("OPS-2011", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Cụm công trình còn công trình bên trong — chuyển hết đi rồi mới xoá được. */
     OPS_2012("OPS-2012", HttpStatus.CONFLICT),
     /** Cấp quản lý "Cụm" bắt buộc chọn cụm. */
-    OPS_2013("OPS-2013", HttpStatus.UNPROCESSABLE_ENTITY),
+    OPS_2013("OPS-2013", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Mã cụm công trình đã tồn tại. */
     OPS_2014("OPS-2014", HttpStatus.CONFLICT),
     /** Tệp nhập không đọc được, hoặc thiếu cột bắt buộc. */
-    OPS_2015("OPS-2015", HttpStatus.UNPROCESSABLE_ENTITY),
+    OPS_2015("OPS-2015", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Tệp nhập còn dòng lỗi — chạy khô báo lỗi thì không dòng nào được ghi. */
-    OPS_2016("OPS-2016", HttpStatus.UNPROCESSABLE_ENTITY),
+    OPS_2016("OPS-2016", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Đơn vị thực hiện: đúng MỘT trong hai cột nội bộ / nhà thầu ngoài (điểm nghiệp vụ 17). */
-    OPS_2017("OPS-2017", HttpStatus.UNPROCESSABLE_ENTITY),
+    OPS_2017("OPS-2017", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Mã tình hình vận hành đã ẩn — {@code OPS-2007} chỉ cho ẩn, nên ẩn rồi phải hết ghi được. */
-    OPS_2018("OPS-2018", HttpStatus.UNPROCESSABLE_ENTITY),
+    OPS_2018("OPS-2018", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Lô nhập nhanh còn dòng lỗi — báo đủ theo từng dòng, và không dòng nào được ghi. */
-    OPS_2019("OPS-2019", HttpStatus.UNPROCESSABLE_ENTITY),
+    OPS_2019("OPS-2019", HttpStatus.UNPROCESSABLE_CONTENT),
     /**
      * Thời điểm hiệu lực ở tương lai — V1/V3.
      *
@@ -230,7 +230,7 @@ public enum ErrorCode {
      * <b>ghim</b> cả trạng thái dẫn xuất lẫn dòng trên cổng cho tới khi tới ngày ấy — và nó ghim
      * bằng cách <i>trông đúng</i>. Lùi ngày thì vẫn hợp lệ (bù nhật ký), chỉ chặn cận trên.
      */
-    OPS_2020("OPS-2020", HttpStatus.UNPROCESSABLE_ENTITY),
+    OPS_2020("OPS-2020", HttpStatus.UNPROCESSABLE_CONTENT),
     /**
      * {@code maintenance_logs.alert_event_public_id} trỏ vào một cảnh báo không tồn tại — T33.4.
      *
@@ -238,7 +238,7 @@ public enum ErrorCode {
      * với bất cứ thứ gì</b>: một UUID bất kỳ lưu thành công. ⛔ Không chữa bằng khoá ngoại — hai
      * module không thấy nhau, nên tính toàn vẹn do tầng dịch vụ giữ, qua {@code HydroAlertPort}.
      */
-    OPS_2021("OPS-2021", HttpStatus.UNPROCESSABLE_ENTITY),
+    OPS_2021("OPS-2021", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Trạng thái công trình là giá trị dẫn xuất — client sửa trực tiếp là từ chối. */
     OPS_3001("OPS-3001", HttpStatus.FORBIDDEN),
 
@@ -246,17 +246,17 @@ public enum ErrorCode {
     HYD_1001("HYD-1001", HttpStatus.NOT_FOUND),
     /** Trùng mã trong một danh mục thuỷ văn — {0} là mã bị trùng. */
     HYD_1002("HYD-1002", HttpStatus.CONFLICT),
-    HYD_2001("HYD-2001", HttpStatus.UNPROCESSABLE_ENTITY),
-    HYD_2002("HYD-2002", HttpStatus.UNPROCESSABLE_ENTITY),
-    HYD_2003("HYD-2003", HttpStatus.UNPROCESSABLE_ENTITY),
-    HYD_2004("HYD-2004", HttpStatus.UNPROCESSABLE_ENTITY),
+    HYD_2001("HYD-2001", HttpStatus.UNPROCESSABLE_CONTENT),
+    HYD_2002("HYD-2002", HttpStatus.UNPROCESSABLE_CONTENT),
+    HYD_2003("HYD-2003", HttpStatus.UNPROCESSABLE_CONTENT),
+    HYD_2004("HYD-2004", HttpStatus.UNPROCESSABLE_CONTENT),
     /**
      * Vai trò của liên kết CHÍNH khác vai trò chính thức của điểm đo (A2b).
      *
      * <p>Hai giá trị này lệch nhau thì biểu tổng hợp xếp điểm đo vào nhầm cột TL/HL, và không có
      * triệu chứng nào ngoài một con số nằm sai chỗ.
      */
-    HYD_2005("HYD-2005", HttpStatus.UNPROCESSABLE_ENTITY),
+    HYD_2005("HYD-2005", HttpStatus.UNPROCESSABLE_CONTENT),
     /**
      * Liên kết điểm đo ↔ công trình đã tồn tại ở đúng vai trò ấy — T28.19.
      *
@@ -271,7 +271,7 @@ public enum ErrorCode {
      * <p>Mã API là khoá nối duy nhất giữa response của nguồn và điểm đo. Đổi nó là âm thầm gán số
      * liệu của trạm này sang trạm khác; biểu đồ vẫn vẽ đẹp, chỉ là của nhầm trạm.
      */
-    HYD_2006("HYD-2006", HttpStatus.UNPROCESSABLE_ENTITY),
+    HYD_2006("HYD-2006", HttpStatus.UNPROCESSABLE_CONTENT),
     HYD_2007("HYD-2007", HttpStatus.CONFLICT),
     /**
      * Điểm đo đã có ngưỡng cho cùng (loại chỉ số × mức cảnh báo) — T33.2.
@@ -306,10 +306,10 @@ public enum ErrorCode {
      * ⛔ không phân trang. Từ chối lớn tiếng kèm con số trần thì người dùng hẹp khoảng lại; trả về
      * 69 nghìn hàng thì trình duyệt đứng và triệu chứng đọc như "hệ thống hỏng".
      */
-    HYD_2012("HYD-2012", HttpStatus.UNPROCESSABLE_ENTITY),
+    HYD_2012("HYD-2012", HttpStatus.UNPROCESSABLE_CONTENT),
 
     /** Ngày bắt đầu sau ngày kết thúc — T34.3. Khoảng rỗng trả 0 hàng, và 0 hàng đọc như "không có dữ liệu". */
-    HYD_2013("HYD-2013", HttpStatus.UNPROCESSABLE_ENTITY),
+    HYD_2013("HYD-2013", HttpStatus.UNPROCESSABLE_CONTENT),
 
     /**
      * Bản kết xuất đã quá hạn tải — T34.7.
@@ -325,30 +325,30 @@ public enum ErrorCode {
     HYD_2015("HYD-2015", HttpStatus.CONFLICT),
 
     // ---- MOD-04 Nhân sự ---------------------------------------------------------
-    HR_2001("HR-2001", HttpStatus.UNPROCESSABLE_ENTITY),
+    HR_2001("HR-2001", HttpStatus.UNPROCESSABLE_CONTENT),
 
     // ---- MOD-05 Quản trị --------------------------------------------------------
-    ADM_2001("ADM-2001", HttpStatus.UNPROCESSABLE_ENTITY),
+    ADM_2001("ADM-2001", HttpStatus.UNPROCESSABLE_CONTENT),
     ADM_2002("ADM-2002", HttpStatus.CONFLICT),
     /** Chuyển đơn vị vào chính cây con của nó — cắt rời cả nhánh khỏi cây mà dữ liệu vẫn còn. */
-    ADM_2003("ADM-2003", HttpStatus.UNPROCESSABLE_ENTITY),
+    ADM_2003("ADM-2003", HttpStatus.UNPROCESSABLE_CONTENT),
     ADM_2004("ADM-2004", HttpStatus.CONFLICT),
-    ADM_2005("ADM-2005", HttpStatus.UNPROCESSABLE_ENTITY),
+    ADM_2005("ADM-2005", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Tham số {0} không nhận giá trị này — yêu cầu: {1}. */
-    ADM_2006("ADM-2006", HttpStatus.UNPROCESSABLE_ENTITY),
+    ADM_2006("ADM-2006", HttpStatus.UNPROCESSABLE_CONTENT),
     ADM_2007("ADM-2007", HttpStatus.FORBIDDEN),
 
     // ---- MOD-05 Sao lưu & khôi phục (WS-7) --------------------------------------
     /** Sao lưu chưa cấu hình được: thiếu mật khẩu vai trò đọc, hoặc thư mục không ghi được. */
-    ADM_2008("ADM-2008", HttpStatus.UNPROCESSABLE_ENTITY),
+    ADM_2008("ADM-2008", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Đã có lượt sao lưu đang chạy — hai lượt song song chỉ tổ đọc đĩa gấp đôi. */
     ADM_2009("ADM-2009", HttpStatus.CONFLICT),
     /** Khôi phục qua UI chưa được bật (thiếu {@code DB_RESTORE_PASSWORD}) — xem BackupProperties. */
-    ADM_2010("ADM-2010", HttpStatus.UNPROCESSABLE_ENTITY),
+    ADM_2010("ADM-2010", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Chuỗi xác nhận nhiều bước không khớp (architecture-review.md §7.3). */
-    ADM_2011("ADM-2011", HttpStatus.UNPROCESSABLE_ENTITY),
+    ADM_2011("ADM-2011", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Bản sao lưu không dùng được: mất tệp, hoặc checksum không khớp lúc ghi. */
-    ADM_2012("ADM-2012", HttpStatus.UNPROCESSABLE_ENTITY),
+    ADM_2012("ADM-2012", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Khôi phục thất bại — CSDL có thể đang ở trạng thái dở dang, xem runbook. */
     ADM_2013("ADM-2013", HttpStatus.INTERNAL_SERVER_ERROR),
 
@@ -364,12 +364,12 @@ public enum ErrorCode {
      * {@code replaceRoles} — một mã gõ sai lặng lẽ biến mất tạo ra một vai trò khuyết quyền mà ⛔
      * không ai biết thiếu từ bao giờ.
      */
-    ADM_2015("ADM-2015", HttpStatus.UNPROCESSABLE_ENTITY),
+    ADM_2015("ADM-2015", HttpStatus.UNPROCESSABLE_CONTENT),
     /**
      * Đang tự gỡ quyền quản trị phân quyền của chính mình khỏi vai trò {0} — thao tác này ⛔ không
      * quay lui được bằng bất kỳ đường nào trong giao diện.
      */
-    ADM_2016("ADM-2016", HttpStatus.UNPROCESSABLE_ENTITY);
+    ADM_2016("ADM-2016", HttpStatus.UNPROCESSABLE_CONTENT);
 
     private final String code;
     private final HttpStatus status;

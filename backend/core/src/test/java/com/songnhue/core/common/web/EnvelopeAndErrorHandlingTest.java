@@ -17,10 +17,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration;
-import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
+import org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration;
+import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
+import org.springframework.boot.jdbc.autoconfigure.DataSourceTransactionManagerAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
@@ -76,9 +75,14 @@ class EnvelopeAndErrorHandlingTest {
     /**
      * Ứng dụng tối giản cho test: chỉ web + message source.
      *
-     * <p>Loại DataSource/JPA/Flyway ra khỏi auto-config — test này kiểm envelope và xử lý lỗi,
-     * không đụng tới cơ sở dữ liệu. Kéo cả tầng DB vào chỉ làm test chậm và phụ thuộc thứ không
-     * liên quan.
+     * <p>Loại DataSource/JPA ra khỏi auto-config — test này kiểm envelope và xử lý lỗi, không đụng
+     * tới cơ sở dữ liệu. Kéo cả tầng DB vào chỉ làm test chậm và phụ thuộc thứ không liên quan.
+     *
+     * <p><b>Vì sao ⛔ không còn loại {@code FlywayAutoConfiguration} (T11.69).</b> Boot 3.5 để lớp ấy
+     * trong {@code spring-boot-autoconfigure} — luôn có mặt, kể cả khi Flyway thì không — nên câu
+     * loại trừ viết được. Boot 4.1.1 dời nó sang artifact riêng {@code spring-boot-flyway}, thứ chỉ
+     * module {@code app} kéo vào. Ở {@code core} lớp ấy ⛔ không tồn tại, nên loại trừ nó là loại trừ
+     * một thứ vốn ⛔ không bao giờ được nạp.
      *
      * <p>{@code GlobalExceptionHandler} và {@code ResponseEnvelopeAdvice} nằm cùng package với lớp
      * này nên được component scan tự nhặt — đúng như khi chạy thật.
@@ -87,8 +91,7 @@ class EnvelopeAndErrorHandlingTest {
             exclude = {
                 DataSourceAutoConfiguration.class,
                 DataSourceTransactionManagerAutoConfiguration.class,
-                HibernateJpaAutoConfiguration.class,
-                FlywayAutoConfiguration.class
+                HibernateJpaAutoConfiguration.class
             })
     static class TestApp {
 

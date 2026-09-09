@@ -13,14 +13,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.songnhue.core.application.job.JobTypes;
 import com.songnhue.core.domain.attachment.Attachment;
 import com.songnhue.core.infra.attachment.AttachmentRepository;
 import com.songnhue.core.infra.storage.ObjectStorage;
 import com.songnhue.core.spi.JobContext;
 import com.songnhue.core.spi.JobHandler;
+
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Quét virus tệp vừa tải lên (conventions.md §4.4) — nợ WS-4/T4.6, trả ở T6.4.

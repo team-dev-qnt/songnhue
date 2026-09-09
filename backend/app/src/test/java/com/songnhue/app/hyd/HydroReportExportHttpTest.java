@@ -11,7 +11,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -20,6 +19,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.app.testsupport.PhienHttp;
+import com.songnhue.app.testsupport.TestHttp;
 import com.songnhue.core.application.auth.PasswordPolicyService;
 import com.songnhue.core.application.job.JobWorker;
 import com.songnhue.core.common.util.DateTimeUtils;
@@ -66,7 +66,7 @@ class HydroReportExportHttpTest extends IntegrationTestBase {
     private static final byte[] BOM = {(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
 
     @Autowired
-    private TestRestTemplate http;
+    private TestHttp http;
 
     @Autowired
     private UserRepository users;
@@ -223,7 +223,7 @@ class HydroReportExportHttpTest extends IntegrationTestBase {
 
         assertThat(qua.getStatusCode())
                 .as("⛔ Một đường xuất lỏng hơn đường xem là một cách đi vòng qua chính cái trần vừa đặt")
-                .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+                .isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
         assertThat(qua.getBody()).contains("HYD-2012").contains("31");
     }
 

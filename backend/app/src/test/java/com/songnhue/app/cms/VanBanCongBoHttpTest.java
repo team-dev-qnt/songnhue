@@ -12,13 +12,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.songnhue.app.testsupport.CmsFixtures;
 import com.songnhue.app.testsupport.IntegrationTestBase;
+import com.songnhue.app.testsupport.TestHttp;
 import com.songnhue.content.application.ArticleDraft;
 import com.songnhue.content.application.ArticleService;
 import com.songnhue.content.application.CategoryService;
@@ -53,7 +53,7 @@ class VanBanCongBoHttpTest extends IntegrationTestBase {
     private static final LocalDate NGAY_BAN_HANH = LocalDate.of(2015, 5, 4);
 
     @Autowired
-    private TestRestTemplate http;
+    private TestHttp http;
 
     @Autowired
     private ArticleService articles;

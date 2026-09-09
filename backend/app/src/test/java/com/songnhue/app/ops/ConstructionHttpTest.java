@@ -12,7 +12,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +19,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.app.testsupport.PhienHttp;
+import com.songnhue.app.testsupport.TestHttp;
 import com.songnhue.core.application.auth.PasswordPolicyService;
 import com.songnhue.core.common.importer.SpreadsheetReader;
 import com.songnhue.core.infra.identity.UserRepository;
@@ -43,7 +43,7 @@ import com.songnhue.core.infra.identity.UserRepository;
 class ConstructionHttpTest extends IntegrationTestBase {
 
     @Autowired
-    private TestRestTemplate http;
+    private TestHttp http;
 
     @Autowired
     private UserRepository users;
@@ -295,7 +295,7 @@ class ConstructionHttpTest extends IntegrationTestBase {
 
         assertThat(vuot.getStatusCode())
                 .as("⛔ 200 ở đây nghĩa là tệp vừa bị cắt cụt trong im lặng: %s", vuot.getBody())
-                .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+                .isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
         assertThat(vuot.getBody()).contains("SYS-0012");
 
         // ⚠ Bộ định dạng thông điệp nhóm hàng nghìn kiểu Việt Nam: 5002 in ra là "5.002". Bỏ dấu
@@ -362,7 +362,7 @@ class ConstructionHttpTest extends IntegrationTestBase {
 
         assertThat(xls.getStatusCode())
                 .as("⛔ 200 với 0 dòng ở đây là câu 'tệp của bạn rỗng' cho một tệp đầy dữ liệu: %s", xls.getBody())
-                .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+                .isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
     }
 
     /** {@code so} dòng dữ liệu hợp lệ + dòng tiêu đề. Mã công trình đánh số để ⛔ không trùng nhau. */

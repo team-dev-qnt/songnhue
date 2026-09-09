@@ -11,12 +11,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.songnhue.core.application.settings.SettingService;
 import com.songnhue.core.infra.identity.UserRepository;
 import com.songnhue.core.infra.org.OrgUnitRepository;
+
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Tìm người nhận cảnh báo theo <b>chốt G11</b> — T6.7.
@@ -200,7 +200,7 @@ public class RecipientResolver {
         List<UUID> publicIds;
         try {
             publicIds = List.of(objectMapper.readValue(raw, UUID[].class));
-        } catch (JsonProcessingException | IllegalArgumentException e) {
+        } catch (JacksonException | IllegalArgumentException e) {
             log.error(
                     "Tham số '{}' không phải mảng publicId (UUID) hợp lệ — bỏ qua nhóm này. Giá trị: {}",
                     KEY_EXECUTIVE_BOARD,

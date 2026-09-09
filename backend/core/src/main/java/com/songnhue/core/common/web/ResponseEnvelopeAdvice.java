@@ -3,16 +3,16 @@ package com.songnhue.core.common.web;
 import org.springframework.core.MethodParameter;
 import org.springframework.data.domain.Page;
 import org.springframework.http.MediaType;
+import org.springframework.http.converter.AbstractJacksonHttpMessageConverter;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.StringHttpMessageConverter;
-import org.springframework.http.converter.json.AbstractJackson2HttpMessageConverter;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Tự bọc mọi response của {@code /api/v1/**} vào {@link ApiResponse} (conventions.md §2.1).
@@ -74,7 +74,7 @@ public class ResponseEnvelopeAdvice implements ResponseBodyAdvice<Object> {
             response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
             try {
                 return objectMapper.writeValueAsString(ApiResponse.ok(body, traceId));
-            } catch (JsonProcessingException e) {
+            } catch (JacksonException e) {
                 throw new IllegalStateException("Không serialize được envelope cho response kiểu String", e);
             }
         }
@@ -96,7 +96,7 @@ public class ResponseEnvelopeAdvice implements ResponseBodyAdvice<Object> {
         //      SSE, protobuf. Dòng 68 ở trên đã phải chừa `StringHttpMessageConverter` ra một lần
         //      rồi; đây là lần thứ hai của đúng một hình dạng. Hỏi "converter này có ghi được
         //      `ApiResponse` không" thì mọi loại về sau tự đi đúng đường mà không ai phải nhớ.
-        if (!AbstractJackson2HttpMessageConverter.class.isAssignableFrom(selectedConverterType)) {
+        if (!AbstractJacksonHttpMessageConverter.class.isAssignableFrom(selectedConverterType)) {
             return body;
         }
 

@@ -15,7 +15,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -26,6 +25,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.app.testsupport.PhienHttp;
+import com.songnhue.app.testsupport.TestHttp;
 import com.songnhue.core.application.auth.PasswordPolicyService;
 import com.songnhue.core.infra.identity.UserRepository;
 
@@ -56,7 +56,7 @@ class ContactWorkflowHttpTest extends IntegrationTestBase {
     private static final String DANH_MUC = "/api/v1/cms/contact-categories";
 
     @Autowired
-    private TestRestTemplate http;
+    private TestHttp http;
 
     @Autowired
     private UserRepository users;
@@ -145,7 +145,7 @@ class ContactWorkflowHttpTest extends IntegrationTestBase {
     void hanhDongSaiTrangThaiThiTuChoi() {
         String id = guiMotLienHe();
         // ARCHIVE chỉ đi được từ DONG. Từ MOI thì ⛔ không có dòng nào trong `workflow_transitions`.
-        buoc(id, "ARCHIVE", null, HttpStatus.UNPROCESSABLE_ENTITY);
+        buoc(id, "ARCHIVE", null, HttpStatus.UNPROCESSABLE_CONTENT);
         assertThat(trangThai()).isEqualTo("MOI");
     }
 
