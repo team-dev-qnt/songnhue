@@ -112,8 +112,28 @@ spring:
     # Timestamp luôn là UTC ở tầng lưu trữ/API; convert UTC+7 chỉ ở tầng hiển thị
     # (CLAUDE.md quy tắc 1)
     time-zone: UTC
-    serialization:
-      write-dates-as-timestamps: false
+    # ⛔⛔ ĐƯỜNG DẪN KHOÁ ĐỔI Ở BOOT 4 (T11.69) — trước là `serialization.write-dates-as-timestamps`.
+    #
+    # Jackson 3 dời `WRITE_DATES_AS_TIMESTAMPS` khỏi `SerializationFeature` sang
+    # `tools.jackson.databind.cfg.DateTimeFeature`, và Boot ánh xạ nhóm ấy vào
+    # `spring.jackson.datatype.datetime.*`. Đọc từ `spring-configuration-metadata.json`
+    # của `spring-boot-jackson-4.1.1.jar`, ⛔ không đoán theo tài liệu.
+    #
+    # ⚠ Để nguyên khoá CŨ thì ứng dụng **⛔ không khởi động được** (đã đo: ConversionFailedException
+    #   lúc bind `JacksonProperties`) — hỏng ồn ào, đó là điều may.
+    #
+    # ⚠⚠ Còn dòng dưới đây thì **KHÔNG** gánh hành vi: đo trực tiếp trên jar 3.1.5,
+    #   `DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS.enabledByDefault()` = **false** — Jackson 3 đã
+    #   đảo mặc định so với Jackson 2. Gỡ dòng này đi thì ngày **vẫn** ra ISO.
+    #   (Bản nháp chú thích này khẳng định ngược lại; lượt kiểm chứng ngược bác bỏ nó — luật 29.)
+    #
+    #   ⇒ Giữ lại vì đây là **giá trị ĐÃ GIẢI, ⛔ không phải giá trị MẶC ĐỊNH** (luật 3): quy tắc 1
+    #   của dự án buộc mọi timestamp ra dây là ISO-8601 UTC, và một cam kết ⛔ không được phép treo
+    #   vào mặc định của thư viện bên thứ ba — thứ vừa đổi đúng một lần ở lượt di trú này.
+    #   Bộ canh: `DinhDangNgayTrenDayTest` (kiểm chứng ngược: đặt `true` ⇒ đỏ, in ra số epoch).
+    datatype:
+      datetime:
+        write-dates-as-timestamps: false
 
   # ── Trần dung lượng lúc PHÂN TÍCH multipart ───────────────────────────────────────────────
   #

@@ -8,7 +8,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -19,6 +18,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.app.testsupport.PhienHttp;
+import com.songnhue.app.testsupport.TestHttp;
 import com.songnhue.core.application.auth.PasswordPolicyService;
 import com.songnhue.core.infra.identity.UserRepository;
 
@@ -44,7 +44,7 @@ class ContactHttpTest extends IntegrationTestBase {
     private static final String QUAN_TRI = "/api/v1/cms/contacts";
 
     @Autowired
-    private TestRestTemplate http;
+    private TestHttp http;
 
     @Autowired
     private UserRepository users;
@@ -208,7 +208,7 @@ class ContactHttpTest extends IntegrationTestBase {
 
     // ─────────────── Tiện ích ───────────────
 
-    /** Bọc thân JSON kèm `Content-Type` — mặc định của `TestRestTemplate` cho `String` là text/plain. */
+    /** Bọc thân JSON kèm `Content-Type` — mặc định của `TestHttp` cho `String` là text/plain. */
     private static HttpEntity<String> json(String email, String dienThoai) {
         HttpHeaders h = new HttpHeaders();
         h.setContentType(MediaType.APPLICATION_JSON);

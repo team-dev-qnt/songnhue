@@ -15,13 +15,13 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.app.testsupport.PhienHttp;
+import com.songnhue.app.testsupport.TestHttp;
 import com.songnhue.core.application.auth.PasswordPolicyService;
 import com.songnhue.core.common.util.DateTimeUtils;
 import com.songnhue.core.infra.identity.UserRepository;
@@ -61,7 +61,7 @@ class HydroReportPerformanceTest extends IntegrationTestBase {
     private static final int KHUNG_MOI_NGAY = 144;
 
     @Autowired
-    private TestRestTemplate http;
+    private TestHttp http;
 
     @Autowired
     private UserRepository users;

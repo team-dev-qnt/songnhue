@@ -308,6 +308,13 @@ Không cần đọc thuộc — chỉ cần biết chúng tồn tại để lúc
 | Ô trống trong tệp nhập | Phải chọn **một** nghĩa và nói ra: *giữ nguyên* hay *xoá*. Tệp thường lập từng phần, nên hiểu ô trống là "xoá" khiến lượt nhập thứ hai **xoá mất** thứ lượt đầu vừa điền — im lặng (T42.20) |
 | Nhập hàng loạt theo một khoá **bất biến** | Mã ⛔ không khớp phải là **lỗi dòng**, ⛔ đừng tạo bản ghi mới: một mã gõ sai sẽ lặng lẽ sinh ra bản ghi ma ⛔ không bao giờ có dữ liệu, và ⛔ không ai biết nó từ đâu ra (T42.20) |
 | Bài kiểm ghi vào bảng có bộ canh ghim từng ô | Khôi phục trong `finally`, và **đếm số hàng chạm** khi khôi phục. Để lại dữ liệu thừa là làm đỏ một lớp khác vì lý do ⛔ không liên quan (T42.20) |
+| Nâng phiên bản lớn: lớp cũ **vẫn còn** nhưng deprecated | `ResponseEnvelopeAdvice` hỏi `AbstractJackson2HttpMessageConverter.isAssignableFrom(...)` — Boot 4 chọn converter Jackson 3 ⛔ không kế thừa lớp ấy ⇒ **mọi endpoint mất envelope**, biên dịch vẫn sạch. Hỏi *kiểu hiện tại*, đừng hỏi *kiểu cũ còn tồn tại* |
+| Auto-config tách ra artifact riêng | `flyway-core` trần ở Boot 4: khởi động bình thường, health xanh, **⛔ không migration nào chạy**. CSDL rỗng thì đỏ ầm ĩ, CSDL đã đầy thì **im lặng** — nên bộ test ⛔ không thể thấy (luật 30) |
+| `HttpURLConnection` trong client kiểm thử | `java.net.ProtocolException: Invalid HTTP method: PATCH`. Dùng `JdkClientHttpRequestFactory`, và khai `Redirect.NEVER` **tường minh** — đi theo 302 làm bài kiểm đọc 302 thành 200 |
+| Khoá cấu hình đổi **đường dẫn** giữa hai phiên bản | `spring.jackson.serialization.*` → `spring.jackson.datatype.datetime.*`. Giữ khoá cũ = ⛔ không khởi động (đỏ ồn ào, may). Đọc đường dẫn mới từ `spring-configuration-metadata.json` **trong jar**, ⛔ không đoán theo tài liệu |
+| Hằng enum đổi tên mà **giá trị ⛔ không đổi** | `UNPROCESSABLE_ENTITY`→`UNPROCESSABLE_CONTENT`, `PAYLOAD_TOO_LARGE`→`CONTENT_TOO_LARGE`. Cùng 422/413 trên dây, nhưng `isEqualTo(hằng cũ)` **đỏ** vì `valueOf()` nay trả hằng mới |
+| Bộ canh kế thừa lớp nền tích hợp để canh một chuyện **tĩnh** | Khi khuyết tật xuất hiện, ApplicationContext chết trước ⇒ **thông điệp chẩn đoán ⛔ không bao giờ in ra**. Canh classpath thì dùng JUnit trần |
+| Đọc báo cáo surefire sau một lượt chạy **bị chặn ở bước đầu** | Spotless/Checkstyle đỏ ⇒ test ⛔ không chạy, nhưng tệp XML **cũ vẫn nằm đó**. Xoá báo cáo trước, hoặc đối chiếu `ls -la` mốc thời gian |
 
 Chi tiết nguyên nhân: `architecture-review.md` §9.7, §9.8, §9.12, §10.33, §10.38.
 

@@ -11,7 +11,6 @@ import javax.imageio.ImageIO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -19,6 +18,7 @@ import org.springframework.test.context.TestPropertySource;
 
 import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.app.testsupport.PhienHttp;
+import com.songnhue.app.testsupport.TestHttp;
 import com.songnhue.content.application.SiteConfigService;
 import com.songnhue.core.application.auth.PasswordPolicyService;
 import com.songnhue.core.infra.identity.UserRepository;
@@ -54,7 +54,7 @@ import com.songnhue.core.infra.identity.UserRepository;
 class UploadTooLargeResponseTest extends IntegrationTestBase {
 
     @Autowired
-    private TestRestTemplate http;
+    private TestHttp http;
 
     @Autowired
     private JdbcTemplate jdbc;
@@ -82,7 +82,7 @@ class UploadTooLargeResponseTest extends IntegrationTestBase {
 
         assertThat(phanHoi.getStatusCode())
                 .as("thân phản hồi: %s", phanHoi.getBody())
-                .isEqualTo(HttpStatus.PAYLOAD_TOO_LARGE);
+                .isEqualTo(HttpStatus.CONTENT_TOO_LARGE);
 
         // Khẳng định cả hai chiều: có mã mới, và KHÔNG còn rơi vào lưới an toàn cuối. Chỉ khẳng
         // định vế đầu thì một ngày nào đó cả hai cùng xuất hiện mà bài kiểm vẫn xanh.

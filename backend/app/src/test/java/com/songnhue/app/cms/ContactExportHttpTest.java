@@ -10,7 +10,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -21,6 +20,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.app.testsupport.PhienHttp;
+import com.songnhue.app.testsupport.TestHttp;
 import com.songnhue.core.application.auth.PasswordPolicyService;
 import com.songnhue.core.infra.identity.UserRepository;
 
@@ -56,7 +56,7 @@ class ContactExportHttpTest extends IntegrationTestBase {
     private static final byte[] BOM = {(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
 
     @Autowired
-    private TestRestTemplate http;
+    private TestHttp http;
 
     @Autowired
     private UserRepository users;

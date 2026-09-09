@@ -58,7 +58,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * {@code notification.alert-group.executive-board} mô tả giá trị là <i>"Danh sách publicId tài
      * khoản"</i> (UUID), trong khi {@code RecipientResolver.executiveBoard()} suốt từ 13/08 lại
      * {@code readValue(raw, Long[].class)}. Admin nhập <b>đúng như nhãn dặn</b> ⇒
-     * {@code JsonProcessingException} ⇒ nuốt thành {@code log.error} ⇒ nhóm rỗng ⇒ màn hình vẫn báo
+     * {@code JacksonException} ⇒ nuốt thành {@code log.error} ⇒ nhóm rỗng ⇒ màn hình vẫn báo
      * lưu thành công. Cả hai vế "xanh", cảnh báo tới <b>0 người</b>.
      *
      * <p>⛔ Chữa ở phía <b>mã</b>, ⛔ không sửa nhãn thành "id nội bộ": id nội bộ ⛔ không được lộ ra

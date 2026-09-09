@@ -3,10 +3,10 @@ package com.songnhue.core.api.system;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import org.springframework.boot.actuate.health.CompositeHealth;
-import org.springframework.boot.actuate.health.Health;
-import org.springframework.boot.actuate.health.HealthComponent;
-import org.springframework.boot.actuate.health.HealthEndpoint;
+import org.springframework.boot.health.actuate.endpoint.CompositeHealthDescriptor;
+import org.springframework.boot.health.actuate.endpoint.HealthDescriptor;
+import org.springframework.boot.health.actuate.endpoint.HealthEndpoint;
+import org.springframework.boot.health.actuate.endpoint.IndicatedHealthDescriptor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -51,10 +51,10 @@ public class SystemHealthController {
     @Operation(summary = "Tình trạng từng thành phần, kèm chi tiết")
     @RequirePermission("adm:health:view")
     public HealthView health() {
-        HealthComponent root = healthEndpoint.health();
+        HealthDescriptor root = healthEndpoint.health();
 
         Map<String, ComponentView> components = new LinkedHashMap<>();
-        if (root instanceof CompositeHealth composite) {
+        if (root instanceof CompositeHealthDescriptor composite) {
             composite.getComponents().forEach((name, component) -> components.put(name, ComponentView.of(component)));
         }
         return new HealthView(root.getStatus().getCode(), components);
@@ -65,8 +65,12 @@ public class SystemHealthController {
 
     public record ComponentView(String status, Map<String, Object> details) {
 
-        static ComponentView of(HealthComponent component) {
-            Map<String, Object> details = component instanceof Health health ? health.getDetails() : Map.of();
+        static ComponentView of(HealthDescriptor component) {
+            // Boot 4: chi tiết nằm ở `IndicatedHealthDescriptor` (bọc một `Health`), ⛔ không còn ở
+            // `Health` trực tiếp. `CompositeHealthDescriptor.getDetails()` trả về map THÀNH PHẦN chứ
+            // không phải chi tiết — nên phải hỏi đúng kiểu này, đừng hỏi `HealthDescriptor`.
+            Map<String, Object> details =
+                    component instanceof IndicatedHealthDescriptor indicated ? indicated.getDetails() : Map.of();
             return new ComponentView(component.getStatus().getCode(), details);
         }
     }

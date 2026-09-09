@@ -13,21 +13,21 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.app.testsupport.PhienHttp;
+import com.songnhue.app.testsupport.TestHttp;
 import com.songnhue.core.application.auth.PasswordPolicyService;
 import com.songnhue.core.infra.identity.UserRepository;
 import com.songnhue.hydro.domain.SyncFailureKind;
 import com.songnhue.hydro.domain.SyncStatus;
+
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * ⭐⭐ Hai màn hình chẩn đoán đi qua HTTP thật — T31.13.
@@ -74,7 +74,7 @@ class HydroDiagnosticsHttpTest extends IntegrationTestBase {
             """;
 
     @Autowired
-    private TestRestTemplate http;
+    private TestHttp http;
 
     @Autowired
     private UserRepository users;
@@ -545,7 +545,8 @@ class HydroDiagnosticsHttpTest extends IntegrationTestBase {
 
     private static List<String> tenTruong(JsonNode node) {
         List<String> ten = new ArrayList<>();
-        node.fieldNames().forEachRemaining(ten::add);
+        // Jackson 3: fieldNames() → propertyNames(), trả Collection chứ ⛔ không phải Iterator.
+        ten.addAll(node.propertyNames());
         return ten;
     }
 

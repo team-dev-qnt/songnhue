@@ -10,7 +10,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +17,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.app.testsupport.PhienHttp;
+import com.songnhue.app.testsupport.TestHttp;
 import com.songnhue.core.application.auth.AuthorityLoader;
 import com.songnhue.core.application.auth.PasswordPolicyService;
 import com.songnhue.core.infra.identity.UserRepository;
@@ -82,7 +82,7 @@ class MaTranPhanQuyenHttpTest extends IntegrationTestBase {
     private static final String QUYEN_SUA = "adm:role:manage";
 
     @Autowired
-    private TestRestTemplate http;
+    private TestHttp http;
 
     @Autowired
     private UserRepository users;
@@ -220,7 +220,7 @@ class MaTranPhanQuyenHttpTest extends IntegrationTestBase {
     @DisplayName("⛔ Mã quyền ⛔ không có trong danh mục → ADM-2015, và ma trận cũ ĐƯỢC HOÀN NGUYÊN")
     void maQuyenKhongCoThatBiTuChoiVaRollback() {
         ResponseEntity<String> ra = put(nguoiSua, VAI_TRO_THU, List.of(QUYEN_XEM, "adm:khong:cothat"));
-        assertThat(ra.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(ra.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
         assertThat(ra.getBody()).contains("ADM-2015");
 
         // ⚠ Chỗ này phân biệt "từ chối" với "từ chối SAU KHI đã xoá". `replaceRoles` — người anh em
@@ -235,7 +235,7 @@ class MaTranPhanQuyenHttpTest extends IntegrationTestBase {
     @DisplayName("⛔⛔ Tự gỡ adm:role:manage khỏi vai trò MÌNH ĐANG MANG → ADM-2016")
     void khongTuKhoaDuocChinhMinh() {
         ResponseEntity<String> ra = put(nguoiSua, VAI_TRO_SUA, List.of(QUYEN_XEM));
-        assertThat(ra.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(ra.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
         assertThat(ra.getBody()).contains("ADM-2016");
 
         assertThat(quyenCua(VAI_TRO_SUA))

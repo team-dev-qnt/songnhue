@@ -9,11 +9,11 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 class AuditValueSerializerTest {
 
-    private final AuditValueSerializer serializer = new AuditValueSerializer(new ObjectMapper());
+    private final AuditValueSerializer serializer = new AuditValueSerializer(new JsonMapper());
 
     @Test
     @DisplayName("Ghi giá trị vô hướng dưới dạng JSON")
