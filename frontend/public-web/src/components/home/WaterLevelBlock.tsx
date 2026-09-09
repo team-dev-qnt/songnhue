@@ -1,11 +1,9 @@
 import Link from 'next/link';
 
-import type { WaterLevelRow } from '@/lib/api';
-import { BE_RONG_TOI_THIEU_MUC_NUOC, COT_MUC_NUOC, LUOI_MUC_NUOC } from '@/lib/homeDataColumns';
+import type { LuoiMucNuoc } from '@/lib/api';
 import { ROUTES } from '@/lib/routes';
 import { RealtimeFrame } from '../realtime/RealtimeFrame';
-import { ColumnHeaderRow } from './ColumnHeaderRow';
-import { WaterLevelRows } from './WaterLevelRows';
+import { BangTrangChuMucNuoc } from './BangTrangChuMucNuoc';
 
 interface WaterLevelBlockProps {
   hotline?: string;
@@ -19,7 +17,7 @@ interface WaterLevelBlockProps {
    * nhưng **chưa điểm đo nào đang hoạt động**. Hai trạng thái khác nhau và khối này nói hai câu
    * khác nhau — gộp lại là để một sự cố backend trông y hệt một hệ thống chưa có dữ liệu.
    */
-  rows: WaterLevelRow[] | null;
+  luoi: LuoiMucNuoc | null;
 }
 
 /**
@@ -54,7 +52,7 @@ export function WaterLevelBlock({
   hotline = '',
   refreshSeconds,
   updatedAt,
-  rows,
+  luoi,
 }: WaterLevelBlockProps) {
   return (
     <section
@@ -118,13 +116,6 @@ export function WaterLevelBlock({
         </div>
       </div>
 
-      {/* Hàng tiêu đề 8 cột của CN-03.4 — lược đồ của bảng, không phải dữ liệu của bảng. */}
-      <ColumnHeaderRow
-        cot={COT_MUC_NUOC}
-        luoi={LUOI_MUC_NUOC}
-        beRongToiThieu={BE_RONG_TOI_THIEU_MUC_NUOC}
-      />
-
       <div className="p-4 sm:p-5">
         {/* ⚠ `unavailable` CHỈ khi lượt gọi hỏng (`rows === null`) — T35.10: widget hỏng ⛔ không
             được làm sập trang chủ, và cũng ⛔ không được lộ lỗi kỹ thuật ra ngoài. Danh sách rỗng
@@ -132,21 +123,15 @@ export function WaterLevelBlock({
         <RealtimeFrame
           updatedAt={updatedAt}
           refreshSeconds={refreshSeconds}
-          unavailable={rows === null}
+          unavailable={luoi === null}
           unavailableReason="Chưa lấy được số liệu mực nước. Số liệu sẽ hiện lại khi kết nối tới nguồn được khôi phục."
         >
-          {rows !== null && rows.length > 0 ? (
-            <WaterLevelRows
-              rows={rows}
-              luoi={LUOI_MUC_NUOC}
-              beRongToiThieu={BE_RONG_TOI_THIEU_MUC_NUOC}
-            />
-          ) : (
-            /* ⛔ Rỗng THẬT — nói thẳng, ⛔ không dựng một lưới dấu gạch cho "đỡ trống" (§10.61). */
-            <p className="px-3.5 py-6 text-center text-[13px] text-surface-textSecondary">
-              Chưa điểm đo nào đang hoạt động để công bố số liệu.
-            </p>
-          )}
+          {/* ⭐ T44.8 — bảng §5.2: MỘT dòng một CÔNG TRÌNH, thượng lưu và hạ lưu cạnh nhau, cột
+              Tuyến sông gộp ô. Bảng cũ để một dòng một ĐIỂM ĐO nên một trong hai cột ấy luôn rỗng
+              ở mọi dòng — một bảng đủ dữ liệu trông như hỏng một nửa.
+              ⛔ Nhánh rỗng nằm TRONG `BangTrangChuMucNuoc`, đọc `lyDoTrong` của backend — ⛔ không
+              dựng một câu dự phòng ở đây. */}
+          {luoi !== null && <BangTrangChuMucNuoc luoi={luoi} />}
         </RealtimeFrame>
       </div>
     </section>
