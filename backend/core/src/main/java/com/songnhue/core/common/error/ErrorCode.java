@@ -223,6 +223,17 @@ public enum ErrorCode {
      * module không thấy nhau, nên tính toàn vẹn do tầng dịch vụ giữ, qua {@code HydroAlertPort}.
      */
     OPS_2021("OPS-2021", HttpStatus.UNPROCESSABLE_ENTITY),
+    /**
+     * Tệp nhập danh mục công trình vượt trần {@code SpreadsheetReader.MAX_ROWS} — G8.
+     *
+     * <p>⛔ Mã này thay cho một hành vi <b>cắt cụt im lặng</b> sống từ T17.9 tới 09/09/2026: vòng lặp
+     * dừng ở dòng thứ 5000 và bản báo cáo đếm <i>sau khi</i> cắt, nên một tệp 8000 dòng nhập "thành
+     * công" đúng 5000 hồ sơ mà ⛔ không có gì nói ra 3000 dòng còn lại chưa từng được đọc.
+     *
+     * <p>Tham số: {0} trần, {1} số dòng đầu tiên bị bỏ — đánh số <b>như người dùng thấy trong
+     * Excel</b>, để họ mở đúng chỗ mà tách tệp.
+     */
+    OPS_2022("OPS-2022", HttpStatus.UNPROCESSABLE_ENTITY),
     /** Trạng thái công trình là giá trị dẫn xuất — client sửa trực tiếp là từ chối. */
     OPS_3001("OPS-3001", HttpStatus.FORBIDDEN),
 

@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.BusinessRuleException;
+import com.songnhue.core.common.export.BangCsv;
 import com.songnhue.core.common.util.VietnameseUtils;
 import com.songnhue.core.spi.OrgUnitPort;
 import com.songnhue.core.spi.OrgUnitRef;
@@ -65,6 +66,61 @@ public class ConstructionImportService {
 
     /** Cột bắt buộc phải có trong tiêu đề — thiếu là từ chối cả tệp, không đọc dòng nào. */
     private static final List<String> COT_BAT_BUOC = List.of(COT_MA, COT_TEN, COT_LOAI, COT_DON_VI);
+
+    /**
+     * ⭐ Danh mục cột của tệp nhập — <b>một nguồn</b>, và nó sinh ra chính tệp mẫu.
+     *
+     * <p>Tới 09/09/2026 hộp thoại nhập nói <i>"Tải tệp Excel <b>đúng biểu mẫu</b>"</i> trong khi kho
+     * ⛔ <b>không có một tệp mẫu nào</b> và ⛔ không màn hình nào liệt kê một tên cột. Người lập tệp
+     * phải đoán — mà tên cột được chuẩn hoá về không dấu/chữ thường/gạch dưới, nên "Mã CT" và "Mã
+     * công trình" cho ra hai kết quả khác nhau và chỉ một cái chạy.
+     *
+     * <p>⛔ Tệp mẫu ⛔ KHÔNG được viết tay ở nơi khác (luật 14): danh sách này là thứ {@link #doc}
+     * đọc, nên nó cũng phải là thứ {@link #bieuMau()} in ra. Hai bản chép tay sẽ lệch đúng vào ngày
+     * ai đó thêm một cột.
+     */
+    public record CotMau(String ten, boolean batBuoc, String moTa) {}
+
+    /** ⚠ Thứ tự ở đây là thứ tự cột trong tệp mẫu. Cột bắt buộc đứng trước. */
+    public static final List<CotMau> COT_MAU = List.of(
+            new CotMau(COT_MA, true, "BẮT BUỘC · mã duy nhất, tự động viết HOA"),
+            new CotMau(COT_TEN, true, "BẮT BUỘC · tên đầy đủ của công trình"),
+            new CotMau(COT_LOAI, true, "BẮT BUỘC · Trạm bơm | Cống | Kênh mương | Đê điều | Khác"),
+            new CotMau(COT_DON_VI, true, "BẮT BUỘC · mã đơn vị quản lý, ví dụ CTY"),
+            new CotMau("nhiem_vu", false, "Tưới | Tiêu | Hỗn hợp"),
+            new CotMau("cap_quan_ly", false, "Công ty | Xí nghiệp | Cụm — bỏ trống thì mặc định Xí nghiệp"),
+            new CotMau("ma_cum", false, "Mã cụm công trình, phải có sẵn trong danh mục cụm"),
+            new CotMau("dia_chi", false, "Địa chỉ hành chính"),
+            new CotMau("vi_do", false, "Vĩ độ WGS-84, dấu chấm thập phân — ví dụ 21.023456"),
+            new CotMau("kinh_do", false, "Kinh độ WGS-84 — phải có ĐỦ CẢ HAI hoặc bỏ trống cả hai"),
+            new CotMau("tuyen_song", false, "Ví dụ: Sông Nhuệ"),
+            new CotMau("ly_trinh", false, "Dạng K<km>+<m>, ví dụ K43+750"),
+            new CotMau("luu_vuc", false, "Tên lưu vực"),
+            new CotMau("nam_xay_dung", false, "Số nguyên trong khoảng 1900–2200"),
+            new CotMau("nam_su_dung", false, "Số nguyên trong khoảng 1900–2200"),
+            new CotMau("don_vi_thiet_ke", false, "Tên đơn vị thiết kế"),
+            new CotMau("don_vi_thi_cong", false, "Tên đơn vị thi công"),
+            new CotMau("tong_von_vnd", false, "VNĐ — chấp nhận 1.500.000 hoặc 1500000"),
+            new CotMau("mo_ta", false, "Ghi chú tự do"));
+
+    /**
+     * Tệp mẫu CSV: <b>dòng tiêu đề + một dòng mô tả</b>.
+     *
+     * <p>⭐ Dòng mô tả có mặt để tệp mẫu tự nói ra quy cách từng ô — người lập tệp ⛔ không phải mở
+     * thêm tài liệu nào. Nó cũng là <b>lưới an toàn</b>: tải mẫu về rồi nhập thẳng lại thì lượt chạy
+     * khô báo lỗi ở đúng dòng 2 (<i>"Loại công trình không nhận ra"</i>, <i>"Không có đơn vị mã…"</i>)
+     * và ⛔ không hồ sơ rác nào được tạo. Một tệp mẫu gồm các dòng ví dụ <i>hợp lệ</i> thì ngược lại —
+     * nó im lặng tạo ra đúng số hồ sơ ví dụ ấy, và ⛔ không có gì nói ra điều đó.
+     *
+     * <p>⚠ BOM UTF-8 là bắt buộc: Excel bản Windows mở CSV không BOM thành tiếng Việt vỡ dấu, và
+     * người dùng sẽ sửa "lỗi phông" bằng cách lưu lại ở một bảng mã khác.
+     */
+    public static byte[] bieuMau() {
+        BangCsv b = new BangCsv();
+        b.dong(COT_MAU.stream().map(CotMau::ten).toArray(Object[]::new));
+        b.dong(COT_MAU.stream().map(CotMau::moTa).toArray(Object[]::new));
+        return b.byteUtf8Bom();
+    }
 
     /**
      * Nhãn tiếng Việt của loại công trình → enum.

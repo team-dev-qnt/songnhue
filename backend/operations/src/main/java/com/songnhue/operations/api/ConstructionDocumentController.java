@@ -1,13 +1,17 @@
 package com.songnhue.operations.api;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -118,6 +122,34 @@ public class ConstructionDocumentController {
     @RequirePermission("ops:construction:create")
     public ConstructionImportService.ImportReport applyImport(@RequestPart("file") MultipartFile file) {
         return importer.apply(doc(file));
+    }
+
+    /**
+     * ⭐ Tệp mẫu — sinh từ {@link ConstructionImportService#COT_MAU}, ⛔ không phải một tệp tĩnh.
+     *
+     * <p>Hộp thoại nhập nói <i>"đúng biểu mẫu"</i> từ T17.9 trong khi kho ⛔ không có tệp mẫu nào và
+     * ⛔ không chỗ nào liệt kê tên cột. Một tệp tĩnh đặt trong {@code public/} sẽ chữa được triệu
+     * chứng ấy hôm nay rồi lệch khỏi bộ đọc vào ngày ai đó thêm cột — nên mẫu đi ra từ chính hằng số
+     * mà {@code ConstructionImportService} đọc (luật 14).
+     *
+     * <p>⚠ Quyền: cùng {@code ops:construction:create} với hai endpoint nhập. Tệp mẫu ⛔ không chứa
+     * dữ liệu nghiệp vụ nào, nhưng nó mô tả lược đồ nhập — và người ⛔ không nhập được thì ⛔ không
+     * có việc gì với nó.
+     */
+    @GetMapping(path = "/constructions/import/template", produces = "text/csv; charset=utf-8")
+    @Operation(summary = "Tải tệp mẫu CSV — tiêu đề + một dòng mô tả quy cách từng cột")
+    @RequirePermission("ops:construction:create")
+    public ResponseEntity<byte[]> importTemplate() {
+        byte[] csv = ConstructionImportService.bieuMau();
+        return ResponseEntity.ok()
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment()
+                                .filename("mau-nhap-danh-muc-cong-trinh.csv", StandardCharsets.UTF_8)
+                                .build()
+                                .toString())
+                .contentType(MediaType.parseMediaType("text/csv; charset=utf-8"))
+                .body(csv);
     }
 
     /**

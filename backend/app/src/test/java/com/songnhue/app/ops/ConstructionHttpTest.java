@@ -2,6 +2,7 @@ package com.songnhue.app.ops;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 import org.junit.jupiter.api.AfterEach;
@@ -21,6 +22,7 @@ import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.app.testsupport.PhienHttp;
 import com.songnhue.core.application.auth.PasswordPolicyService;
 import com.songnhue.core.infra.identity.UserRepository;
+import com.songnhue.operations.application.importer.SpreadsheetReader;
 
 /**
  * Danh mục công trình <b>đi qua HTTP</b> — T17.12.
@@ -200,6 +202,181 @@ class ConstructionHttpTest extends IntegrationTestBase {
             throw new IllegalStateException("Không tìm thấy gốc repo (thư mục chứa .claude)");
         }
         return p;
+    }
+
+    // =========================================================================
+    // Nhập danh mục — G8. ⛔ Trước 09/09/2026 đường này có **0 bài kiểm HTTP**:
+    // `ConstructionImportTest` gọi thẳng service, nên nó ⛔ không thấy được phân quyền, ⛔ không
+    // thấy multipart, ⛔ không thấy envelope lỗi — đúng luật 5 của dự án.
+    // =========================================================================
+
+    /**
+     * ⭐ Tệp mẫu — thứ hộp thoại nhập đã hứa từ T17.9 (<i>"đúng biểu mẫu"</i>) mà kho ⛔ không có.
+     *
+     * <p>Ba khẳng định ⛔ không chia sẻ giả định: <b>có BOM</b> (Excel Windows mở mới ⛔ không vỡ
+     * dấu), <b>đủ số cột</b>, và <b>dòng 2 mô tả</b> — dòng ấy là lưới an toàn khiến tải mẫu rồi nhập
+     * thẳng lại ⛔ không tạo ra hồ sơ rác nào.
+     */
+    @Test
+    @DisplayName("⭐ GET tệp mẫu: có BOM, đủ 19 cột, và dòng 2 là mô tả (không phải dữ liệu hợp lệ)")
+    void importTemplateIsServedAndSelfDescribing() {
+        ResponseEntity<String> mau = phienHttp.get(duQuyen, "/api/v1/ops/constructions/import/template");
+
+        assertThat(mau.getStatusCode()).as("tệp mẫu: %s", mau.getBody()).isEqualTo(HttpStatus.OK);
+        assertThat(mau.getHeaders().getFirst("Content-Disposition"))
+                .as("⛔ thiếu Content-Disposition thì trình duyệt mở CSV trong tab thay vì tải về")
+                .contains("attachment")
+                .contains("mau-nhap-danh-muc-cong-trinh.csv");
+
+        String csv = mau.getBody();
+        assertThat(csv).as("thân tệp mẫu").isNotNull();
+        assertThat(csv.charAt(0))
+                .as("⛔ CSV không BOM ⇒ Excel bản Windows mở ra tiếng Việt vỡ dấu, và người dùng sẽ "
+                        + "'sửa lỗi phông' bằng cách lưu lại ở một bảng mã khác")
+                .isEqualTo('﻿');
+
+        String[] dong = csv.split("\r\n|\n");
+        assertThat(dong).as("tiêu đề + đúng một dòng mô tả").hasSize(2);
+        assertThat(dong[0])
+                .contains("ma_cong_trinh")
+                .contains("ten_cong_trinh")
+                .contains("loai_cong_trinh")
+                .contains("ma_don_vi")
+                .contains("vi_do")
+                .contains("ly_trinh");
+        assertThat(dong[1])
+                .as("dòng 2 phải là MÔ TẢ, ⛔ không phải một hồ sơ hợp lệ — nếu không thì tải mẫu về "
+                        + "rồi nhập thẳng lại sẽ im lặng tạo ra hồ sơ ví dụ")
+                .contains("BẮT BUỘC");
+    }
+
+    @Test
+    @DisplayName("⛔ Không có quyền ops:construction:create → 403 cả ba endpoint nhập")
+    void importEndpointsAreGuarded() {
+        assertThat(phienHttp
+                        .get(khongQuyen, "/api/v1/ops/constructions/import/template")
+                        .getStatusCode())
+                .as("tệp mẫu mô tả lược đồ nhập — người không nhập được thì không có việc gì với nó")
+                .isEqualTo(HttpStatus.FORBIDDEN);
+
+        ResponseEntity<String> xemTruoc = phienHttp.dangTep(
+                khongQuyen,
+                "/api/v1/ops/constructions/import/preview",
+                tepCsv(1).getBytes(StandardCharsets.UTF_8),
+                "a.csv");
+        assertThat(xemTruoc.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(xemTruoc.getBody()).contains("AUTH-3001");
+    }
+
+    /**
+     * ⛔⛔ Trần dòng phải <b>NÉM</b>, ⛔ không cắt cụt.
+     *
+     * <p>Tới 09/09/2026 {@code SpreadsheetReader.dungRows} dừng im lặng ở dòng thứ
+     * {@code MAX_ROWS} — ⛔ không ngoại lệ, ⛔ không một {@code RowError} — và
+     * {@code ConstructionImportService} lấy {@code tongDong = rows.size()}, tức là <b>đếm sau khi
+     * cắt</b>. Hệ quả đo được: một tệp {@code MAX_ROWS + n} dòng cho ra bản báo cáo nói
+     * <i>"tổng 5000 dòng, 0 lỗi"</i>, người dùng bấm Nhập, và {@code n} hồ sơ ⛔ không bao giờ tồn
+     * tại — ⛔ không một dòng log nào.
+     *
+     * <p>⚠ Bài kiểm này phân biệt được hai trạng thái (luật 9): bản cũ trả <b>200 kèm
+     * {@code totalRows = 5000}</b>, bản mới trả <b>422 {@code OPS-2022}</b>. Một khẳng định kiểu
+     * <i>"⛔ không 500"</i> sẽ xanh với cả hai.
+     */
+    @Test
+    @DisplayName("⛔⛔ Tệp vượt trần → 422 OPS-2022, KHÔNG phải 200 với số dòng đã bị cắt")
+    void overTheRowCapThrowsInsteadOfTruncating() {
+        int tran = SpreadsheetReader.MAX_ROWS;
+
+        ResponseEntity<String> vuot = phienHttp.dangTep(
+                duQuyen,
+                "/api/v1/ops/constructions/import/preview",
+                tepCsv(tran + 3).getBytes(StandardCharsets.UTF_8),
+                "qua-tran.csv");
+
+        assertThat(vuot.getStatusCode())
+                .as("⛔ 200 ở đây nghĩa là tệp vừa bị cắt cụt trong im lặng: %s", vuot.getBody())
+                .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(vuot.getBody()).contains("OPS-2022");
+
+        // ⚠ Bộ định dạng thông điệp nhóm hàng nghìn kiểu Việt Nam: 5002 in ra là "5.002". Bỏ dấu
+        //   nhóm trước khi so là cách khẳng định về CON SỐ chứ ⛔ không về ĐỊNH DẠNG — nếu không thì
+        //   bài kiểm sẽ đỏ vào ngày ai đó đổi locale, một lượt đỏ ⛔ không nói gì về khuyết tật.
+        String chiSo = vuot.getBody().replace(".", "").replace(",", "");
+        assertThat(chiSo)
+                .as("thông báo phải nêu SỐ DÒNG người dùng thấy trong Excel, để họ mở đúng chỗ mà tách tệp")
+                .contains(String.valueOf(tran + 2));
+    }
+
+    /**
+     * ⭐ Đúng trần thì vẫn qua — cận trên là {@code >=}, ⛔ không phải {@code >}.
+     *
+     * <p>Đặt cạnh bài trên là cố ý: hai bài lệch nhau đúng <b>một dòng</b>, nên một lỗi off-by-one ở
+     * chỗ kiểm trần sẽ làm đỏ đúng một trong hai. Một bài đơn lẻ ⛔ không phân biệt được.
+     */
+    @Test
+    @DisplayName("⭐ Đúng trần dòng → vẫn 200, và totalRows là số dòng THẬT")
+    void exactlyAtTheCapStillPasses() {
+        int tran = SpreadsheetReader.MAX_ROWS;
+
+        ResponseEntity<String> vua = phienHttp.dangTep(
+                duQuyen,
+                "/api/v1/ops/constructions/import/preview",
+                tepCsv(tran).getBytes(StandardCharsets.UTF_8),
+                "vua-tran.csv");
+
+        assertThat(vua.getStatusCode())
+                .as("đúng trần: %s", tomTat(vua.getBody()))
+                .isEqualTo(HttpStatus.OK);
+        assertThat(vua.getBody()).contains("\"totalRows\":" + tran);
+    }
+
+    /**
+     * ⛔ Hộp thoại nhận {@code .xls} suốt từ T17.9, mà bộ đọc ⛔ không đọc được nó.
+     *
+     * <p>{@code SpreadsheetReader} nhận diện XLSX bằng chữ ký ZIP {@code PK\x03\x04}; {@code .xls}
+     * cũ là OLE2 ({@code D0 CF 11 E0}) nên nó rơi xuống nhánh CSV. Nhánh ấy chặn byte {@code 0x00}
+     * nên kết cục là một lỗi — nhưng là lỗi <i>"tệp thiếu cột bắt buộc"</i>, câu dẫn người dùng đi
+     * sửa tiêu đề của một tệp hoàn toàn đúng. Bài kiểm ghim hành vi thật để lượt sửa
+     * {@code accept} ở FE có cái đối chiếu.
+     */
+    @Test
+    @DisplayName("⛔ Tệp .xls (OLE2) không đọc được → 422, không nuốt lặng lẽ thành 0 dòng")
+    void oldXlsIsRejectedNotSilentlyEmpty() {
+        byte[] ole2 = new byte[] {
+            (byte) 0xD0,
+            (byte) 0xCF,
+            0x11,
+            (byte) 0xE0,
+            (byte) 0xA1,
+            (byte) 0xB1,
+            0x1A,
+            (byte) 0xE1,
+            0x00,
+            0x00,
+            0x00,
+            0x00
+        };
+
+        ResponseEntity<String> xls =
+                phienHttp.dangTep(duQuyen, "/api/v1/ops/constructions/import/preview", ole2, "danh-muc.xls");
+
+        assertThat(xls.getStatusCode())
+                .as("⛔ 200 với 0 dòng ở đây là câu 'tệp của bạn rỗng' cho một tệp đầy dữ liệu: %s", xls.getBody())
+                .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+    }
+
+    /** {@code so} dòng dữ liệu hợp lệ + dòng tiêu đề. Mã công trình đánh số để ⛔ không trùng nhau. */
+    private static String tepCsv(int so) {
+        StringBuilder sb = new StringBuilder("ma_cong_trinh,ten_cong_trinh,loai_cong_trinh,ma_don_vi\n");
+        for (int i = 1; i <= so; i++) {
+            sb.append("TRAN-").append(i).append(",Công trình ").append(i).append(",Cống,CTY\n");
+        }
+        return sb.toString();
+    }
+
+    /** Thân phản hồi của một tệp lớn có thể rất dài — cắt bớt để thông điệp lỗi còn đọc được. */
+    private static String tomTat(String than) {
+        return than == null ? "(rỗng)" : than.substring(0, Math.min(300, than.length()));
     }
 
     @Test

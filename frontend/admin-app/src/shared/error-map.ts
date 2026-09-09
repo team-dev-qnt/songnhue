@@ -360,6 +360,11 @@ export const ERROR_CATALOG = {
     handling: 'toast',
     severity: 'warning',
   },
+  'OPS-2022': {
+    message: 'Tệp nhập vượt trần số dòng — tách thành nhiều tệp rồi nhập lần lượt',
+    handling: 'toast',
+    severity: 'error',
+  },
   'OPS-2017': {
     message:
       'Đơn vị thực hiện: chọn đơn vị nội bộ HOẶC nhập tên nhà thầu ngoài, đúng một trong hai',

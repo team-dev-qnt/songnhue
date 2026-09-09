@@ -6193,3 +6193,64 @@ lệnh** (luật 20).
 
 ⛔ Thêm một dạng của bẫy khôi phục ở §11.15: `git diff` trên một tệp **chưa track** luôn rỗng, nên nó
 ⛔ **không phải** phép đo khôi phục. Chỉ `grep -c` mới là.
+
+---
+
+### §11.18 — Một ô "chờ Công ty" che được nợ của chính mình (G6 · G8 · G10, 9/9/2026)
+
+**Hình dạng.** Ba mục BOQ nằm chung một ô *"chờ Công ty"* suốt nhiều tuần. Lượt đo 9/9 tách hai loại
+ra và tìm thấy **mười một khuyết tật ⛔ không ai chặn** nằm sau cái nhãn ấy — trong đó ba cái là bản
+kết xuất **sai nội dung** đang chờ được gửi cho khách.
+
+Cái nhãn *"chờ Công ty"* nguy hiểm hơn nhãn *"chưa làm"* ở đúng một điểm: nó **chuyển trách nhiệm ra
+ngoài**, nên không lượt rà nào mở nó ra nữa. `⛔ không làm được` và `⛔ chưa làm` đọc giống hệt nhau
+trên một dòng sổ.
+
+**Ba khuyết tật đáng nhớ nhất, cùng một họ: *cắt cụt / xuất nhầm / thiếu cột*, cả ba đều IM LẶNG.**
+
+| | Khuyết tật | Vì sao ⛔ không ai thấy |
+|---|---|---|
+| `SpreadsheetReader` | Vòng lặp dừng ở `rows.size() < MAX_ROWS`, và `tongDong = rows.size()` **đếm sau khi cắt** | Tệp 8.000 dòng báo *"tổng 5000, 0 lỗi"* rồi **"nhập thành công"** |
+| BC-13 | Xuất `chatLuong()` trong khi đặc tả mô tả `dongBo()` — trùng **2/12** cột | `dongBo()` có **0 nơi gọi**; tệp vẫn đầy dữ liệu, chỉ là **bảng khác** |
+| BC-05 | Thiếu 5 cột đặc tả | **14 cột nó *có* đều đúng** |
+
+⭐ **Bài học chung**: một bản kết xuất **sai** trông y hệt một bản kết xuất **đúng** — nó có tiêu đề,
+có dữ liệu, mở được trong Excel. Không có gì trong hệ thống phân biệt được hai trạng thái ấy trừ một
+lượt **đối chiếu với đặc tả**, và đối chiếu ấy phải là một **bài kiểm**, không phải một lượt đọc.
+
+**Vì sao các cổng kiểm đều xanh — luật 28 ở dạng đắt nhất.** `HydroReportExportHttpTest` có 4 bài;
+**đúng một** bài chạy hết vòng khép kín, và nó xuất **chỉ BC05**. Nội dung tệp của ba mã báo cáo còn
+lại **chưa từng bị ai nhìn**. Cái xanh của một bộ canh hẹp đọc như một lời bảo đảm rộng — lần thứ tư
+trong dự án.
+
+Cùng hình dạng ở phía nhập: `ConstructionImportTest` có 10 bài **gọi thẳng service** (luật 5), nên ba
+khuyết tật nằm trọn ở giao diện — `accept` chặn CSV và mời `.xls`, *"đúng biểu mẫu"* mà không có biểu
+mẫu, bảng lỗi là mã chết — về nguyên tắc ⛔ không thể lộ ra.
+
+**⭐ Chỗ hệ thống làm ĐÚNG, đáng ghi ngang với chỗ sai.** `BangCsv.dong` **ném** khi một dòng lệch số
+cột, và nó bắt được lỗi của lượt vá này ở **lần chạy đầu tiên**: khối hai tầng của BC-13 có 16 vs 12
+ô. Việc nền FAILED chứ ⛔ không cho ra một tệp xấu. Cách sửa đúng là **đệm cho đủ lưới**, ⛔ không
+phải nới bộ canh — chú thích của chính nó đã ghi lý do: *một CSV lệch cột vẫn mở được trong Excel, nó
+chỉ đẩy dữ liệu sang cột bên cạnh, im lặng*.
+
+**⚠ Hai khẳng định của lượt vá tự sai, và lượt chạy bác cả hai** (lại đúng luật 29 — người viết mã và
+người viết bài kiểm là một người, mang cùng giả định):
+
+- `SYS-0003` khai `HttpStatus.BAD_REQUEST`; tôi khẳng định 422 vì *"lỗi hợp lệ hoá thì phải là 422"*.
+- Thông điệp `OPS-2022` nhóm hàng nghìn kiểu Việt Nam (`5.002`), tôi so với `"5002"`.
+
+Cả hai được sửa thành khẳng định về **thứ đang đo** — mã lỗi, và con số sau khi bỏ dấu nhóm — chứ
+⛔ không về con số HTTP hay định dạng mà tôi đoán.
+
+**⛔ Nới một bộ canh thì phải thay bằng thứ CHẶT HƠN.** `HydroCatalogueSeedTest.khongBiaDuLieuChuaCo`
+khẳng định tuyến sông + lý trình + toạ độ **đều NULL cả 19 dòng**. Bản chụp G8 làm hai vế đầu hết
+đúng. Nới nó xuống còn toạ độ mà ⛔ không thay gì vào chỗ hai vế kia là **tự tay tháo một bộ canh**
+(§11.17 vừa trả giá đúng chuyện này). Thay bằng `khopBanChupG8` ghim **từng ô của cả 19 dòng, gồm 6 ô
+"Chưa rõ"** — vì một khẳng định kiểu *"13 dòng có tuyến sông"* vẫn xanh khi ai đó xoá tuyến của một
+điểm rồi điền cho điểm khác.
+
+**⚠ Và hai nguồn của cùng một khách hàng có thể lệch nhau.** Bảng ánh xạ 19 điểm đo tự khai là *"bảng
+Công ty cấp (chốt G8b)"*; bản chụp 9/9 lệch **đúng một dòng** (`F01519` Lương Cổ: Thượng lưu vs Hạ
+lưu). 18/19 dòng khớp tuyệt đối ⇒ ⛔ không phải hai danh sách khác nhau mà là **một dòng sai ở một
+trong hai bản**. Chữ *"đã chốt"* trong một chú thích ⛔ không làm dữ liệu đúng lên. Cách xử lý: lấy
+bản nhất quán hơn, ghi lý do vào migration, **và hỏi lại khách** — ⛔ không im lặng chọn một bên.

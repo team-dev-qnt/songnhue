@@ -109,6 +109,39 @@ Báo cáo lý lịch cán bộ phải in **đúng mẫu 2C-BNV/2008 của Bộ N
 **Cần**: file mẫu chính thức Công ty đang dùng (bản `.doc`/`.xls`), vì các đơn vị thường có biến thể riêng.
 _(Gộp chung đợt gửi file mẫu báo cáo — G10.)_
 
+⭐ **Phạm vi chặn — đo lại 09/09/2026, và nó HẸP hơn nhiều so với cách mục này hay bị đọc.**
+G6 chặn đích danh **BCNS-07**, tức **1 trong 8 báo cáo** của **CN-04.8**, tức 1 trong 9 chức năng
+CN-04. ⛔ Nó **không** chặn hồ sơ CBNV, sơ đồ tổ chức, hợp đồng, nghỉ phép, hay 7 báo cáo còn lại —
+bảng §III ở dưới (dòng CN-04.8) đã ghi đúng điều này từ đầu, nhưng dòng số 3 của bảng *"TÓM TẮT VIỆC
+CẦN CÔNG TY LÀM"* ghi hạn là *"Trước Phase HRM"*, và đọc lướt thì nó nghe như cả HRM phải chờ.
+
+⛔⛔ **Thứ thật sự chặn HRM lại CHƯA có mục nào hỏi: danh sách CBNV.**
+Không có nó thì MOD-04 lặp lại đúng hình dạng của C3 hôm nay — mã dựng xong, màn hình chạy trên một
+tập rỗng, và ⛔ không nghiệm thu được. Xem **G6-a** ngay dưới.
+
+### G6-a. 🟡 Danh sách CBNV để nhập liệu ban đầu — MỞ 09/09/2026
+
+**Cần** (Excel, một dòng một người):
+họ tên · ngày sinh · giới tính · **phòng ban/Xí nghiệp** (khớp mã đơn vị của G8/OI-05) · chức danh ·
+ngày vào Công ty · loại hợp đồng + ngày hết hạn · trình độ.
+
+🔒 **Trường nhạy cảm gửi SAU và gửi riêng** — CCCD, số BHXH, số tài khoản, lương. Chúng nằm ở bảng
+`employee_sensitive` mã hoá AES-256-GCM, khoá ngoài CSDL (NĐ 13/2023). ⛔ Đừng đưa chúng vào cùng
+tệp danh sách chung, và ⛔ đừng gửi qua email không mã hoá.
+
+⚠ **Phụ thuộc OI-05**: cột phòng ban chỉ nhập được khi đã chốt **7 hay 8 Xí nghiệp**. Hôm nay bảng
+`org_units` có **đúng 1 hàng** (`CTY`).
+
+### G6-b. ⚙ ⛔ Không phải việc của Công ty — nợ kỹ thuật, ghi ở đây để ⛔ không ai chờ nhầm
+
+Kho **⛔ chưa có bộ kết xuất PDF/XLSX nào**: `backend/core/.../common/export/` có đúng một tệp
+(`BangCsv.java`), và POI/JasperReports/OpenPDF ⛔ không xuất hiện ở bất kỳ `pom.xml` nào trong 7
+module (đo 09/09/2026). CN-04.1 đòi xuất **PNG/SVG/PDF khổ A3**, BCNS-07 đòi in đúng mẫu Bộ Nội vụ,
+BC-11 đòi bố cục hai tầng có gộp ô — ⛔ không cái nào làm được bằng CSV.
+
+⇒ Đây là việc **⛔ không ai chặn**, làm được ngay, và nó chặn cả G6 lẫn G10 ở vế *"in ra đúng
+mẫu"*. Có mặt trong sổ nợ với số đo — xem `master-tracking.md`.
+
 ### G8. 🟡 Xác nhận danh sách điểm đo & công trình ban đầu
 
 Danh sách trích từ hệ thống nguồn ngày 12/8/2026 — **cần Công ty xác nhận là danh sách chuẩn để nhập liệu ban đầu**:
@@ -275,7 +308,8 @@ Tài liệu đang mô tả hai điều khác nhau: CN-02.1 xếp **Cụm** vào 
 |---|---|---|---|
 | 1 | 🟡 **G8** | (a) **Tuyến sông + lý trình + tọa độ GPS** cho 19 điểm đo đã ánh xạ · (b) trả lời **khoảng trống API vs biểu tổng hợp** (7 điểm có trên biểu nhưng không có telemetry) · (c) xác nhận **3 cặp mã trùng giá trị** · (d) **danh mục toàn bộ công trình (Excel)** kèm mã | Trước khi nhập liệu ban đầu & nghiệm thu MOD-03 |
 | 2 | 🟡 **G10** | Duyệt `report-templates-proposal.md` + gửi **file mẫu thật** của BC-11, BC-09, BC-05, BCNS-07 | Trước Phase báo cáo |
-| 3 | 🟡 **G6** | File mẫu **2C-BNV** Công ty đang dùng (gửi kèm G10) | Trước Phase HRM |
+| 3 | 🟡 **G6** | File mẫu **2C-BNV** Công ty đang dùng (gửi kèm G10). ⚠ Chặn **đúng BCNS-07** (1/8 báo cáo của CN-04.8), ⛔ **không** chặn 8 chức năng CN-04 còn lại | Trước khi in BCNS-07, ⛔ không phải trước Phase HRM |
+| 3-a | 🟡 **G6-a** | ⭐ **Danh sách CBNV** (Excel) để nhập liệu ban đầu — trường 🔒 gửi riêng, sau. **Đây mới là thứ chặn HRM**; ⚠ cột phòng ban phụ thuộc **OI-05** | Trước khi nhập liệu MOD-04 |
 | 4 | 🟡 **G5** | Mã số hệ thống văn bản: **riêng từng người hay chung**? + đề nghị bên `bhh40.net` cấp **token/SSO** thay vì lưu mã số + kế hoạch bật **HTTPS** | Trước Phase MOD-01 |
 | 5 | 🟡 **G3-a** | Chốt cách xử lý **lượng mưa** ở v1 (PA A/B/C) | Trước Phase MOD-03 |
 | 6 | ⚪ **G9-a** | Xác nhận **bộ mức ngưỡng** cảnh báo (3 mức đề xuất hay cấp I/II/III) | Trước khi cấu hình ngưỡng thật |

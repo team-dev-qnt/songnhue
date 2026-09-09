@@ -1,4 +1,4 @@
-import { InboxOutlined } from '@ant-design/icons';
+import { DownloadOutlined, InboxOutlined } from '@ant-design/icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { App, Button, Modal, Space, Table, Typography, Upload, Alert, Tag } from 'antd';
 import { type ColumnsType } from 'antd/es/table';
@@ -41,6 +41,10 @@ export function ConstructionImportModal({ open, onClose }: Props) {
       return api.upload<ImportReport>('/ops/constructions/import', formData);
     },
     onSuccess: (data) => {
+      // ⚠ Nhánh này gần như ⛔ không bao giờ chạy: backend NÉM `OPS-2016` khi còn dòng lỗi, nên
+      //   lượt nhập có lỗi rơi vào `onError`. Giữ lại vì nó vẫn là hợp đồng đúng của kiểu trả về —
+      //   và ⛔ đừng đọc nó như "đã có màn hình cho lỗi từng dòng ở đường nhập thật": ⛔ chưa có,
+      //   phần ấy nằm ở `onError` bên dưới.
       if (data.errors.length > 0) {
         setReport(data);
         message.error(`Nhập thất bại, có ${data.errors.length} lỗi`);
@@ -50,8 +54,36 @@ export function ConstructionImportModal({ open, onClose }: Props) {
         handleClose();
       }
     },
+    // ⭐ Lượt nhập thật lập LẠI kế hoạch, ⛔ không dùng kế hoạch của lượt xem trước — cố ý, vì giữa
+    //   hai lượt có thể có người vừa thêm một công trình trùng mã. Hệ quả: xem trước sạch mà nhập
+    //   vẫn có thể đỏ, và tới 09/09/2026 người dùng chỉ nhận **một dòng toast** cho trường hợp ấy —
+    //   bảng lỗi từng dòng ngay bên dưới ⛔ không bao giờ được vẽ.
+    // ⇒ Chạy lại xem trước để bảng lỗi nói ra DÒNG NÀO. Không phải phép thử lại: nó ⛔ không ghi gì.
     onError: (caught: unknown) => {
       message.error(caught instanceof ApiClientError ? caught.message : 'Lỗi nhập dữ liệu');
+      if (file) {
+        previewMutation.mutate(file);
+      }
+    },
+  });
+
+  /**
+   * ⭐ Tệp mẫu do BACKEND sinh từ danh mục cột mà chính bộ đọc dùng.
+   *
+   * ⛔ Không `window.open`: tab mới ⛔ không mang `Authorization`, người dùng nhận một tab trắng.
+   */
+  const taiMauMutation = useMutation({
+    mutationFn: async () => {
+      const { blob, tenTep } = await api.getTep('/ops/constructions/import/template');
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = tenTep ?? 'mau-nhap-danh-muc-cong-trinh.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+    onError: (caught: unknown) => {
+      message.error(caught instanceof ApiClientError ? caught.message : 'Không tải được tệp mẫu');
     },
   });
 
@@ -84,7 +116,7 @@ export function ConstructionImportModal({ open, onClose }: Props) {
 
   return (
     <Modal
-      title="Nhập danh mục công trình từ Excel"
+      title="Nhập danh mục công trình từ tệp bảng tính"
       open={open}
       onCancel={handleClose}
       width={700}
@@ -108,12 +140,29 @@ export function ConstructionImportModal({ open, onClose }: Props) {
       ]}
     >
       <Space direction="vertical" style={{ width: '100%' }} size="large">
-        <Typography.Paragraph type="secondary">
-          Tải tệp Excel đúng biểu mẫu để nhập danh sách hồ sơ công trình vào hệ thống.
-        </Typography.Paragraph>
+        <div>
+          <Typography.Paragraph type="secondary" style={{ marginBottom: 8 }}>
+            Nhập danh sách hồ sơ công trình từ tệp bảng tính. Tải tệp mẫu về để lấy đúng tên cột —
+            dòng 2 của tệp mẫu mô tả quy cách từng ô, xoá dòng đó trước khi nhập.
+          </Typography.Paragraph>
+          <Button
+            icon={<DownloadOutlined />}
+            loading={taiMauMutation.isPending}
+            onClick={() => taiMauMutation.mutate()}
+          >
+            Tải tệp mẫu (.csv)
+          </Button>
+        </div>
 
+        {/*
+          ⛔ `.xls` KHÔNG có ở đây dù bản cũ nhận nó: `SpreadsheetReader` nhận diện XLSX bằng chữ ký
+             ZIP `PK\x03\x04`, còn `.xls` là định dạng OLE2 — nó rơi xuống nhánh đọc CSV và ra một
+             dòng ký tự rác. Nhận một đuôi tệp mà bộ đọc ⛔ không đọc được là hứa rồi thất hứa.
+          ⭐ `.csv` có ở đây vì bộ đọc xử lý CSV **đầy đủ** (RFC 4180, bỏ BOM) và tệp mẫu CHÍNH LÀ
+             CSV — bản cũ chặn đúng định dạng mà nó vừa phát ra.
+        */}
         <Upload.Dragger
-          accept=".xlsx,.xls"
+          accept=".xlsx,.csv"
           beforeUpload={() => false} // Do not auto upload
           onChange={handleFileChange}
           fileList={file ? [{ uid: '-1', name: file.name, status: 'done' }] : []}
@@ -124,7 +173,10 @@ export function ConstructionImportModal({ open, onClose }: Props) {
             <InboxOutlined />
           </p>
           <p className="ant-upload-text">Nhấp hoặc kéo thả tệp vào đây</p>
-          <p className="ant-upload-hint">Chỉ hỗ trợ tệp định dạng .xlsx, .xls</p>
+          <p className="ant-upload-hint">
+            Hỗ trợ .xlsx và .csv — tối đa 5.000 dòng dữ liệu mỗi tệp. Định dạng .xls cũ không đọc
+            được, hãy lưu lại thành .xlsx.
+          </p>
         </Upload.Dragger>
 
         {previewMutation.isPending && <Alert message="Đang kiểm tra tệp..." type="info" showIcon />}
