@@ -129,6 +129,17 @@ class DashboardHttpTest extends IntegrationTestBase {
     @Test
     @DisplayName("⭐ KPI đếm đúng công trình thật, và mẫu số là tổng số hồ sơ")
     void kpiCountsRealConstructions() {
+        // ⛔⛔ ĐO NỀN TRƯỚC — WS-46. Bản cũ khẳng định thẳng `value:2` / `total:3`, và nó đúng chỉ
+        //    vì `constructions` RỖNG trong toàn chuỗi migration. V202609091075 dựng 11 hồ sơ thật
+        //    từ dữ liệu G8 và bài kiểm cũ đỏ ngay.
+        //
+        // ⚠ Con số tuyệt đối ở đây ⛔ không phải một bất biến — nó là một ẢNH của một CSDL rỗng.
+        //   Bất biến thật là QUAN HỆ: tử số tăng 2, mẫu số tăng 3, và hồ sơ đã thanh lý ⛔ không
+        //   vào tử số. Viết theo quan hệ thì bài kiểm đúng ở mọi trạng thái CSDL — kể cả ngày Công
+        //   ty nhập nốt danh mục thật.
+        long nenHoatDong = kpiSo("construction.active", "value");
+        long nenTong = kpiSo("construction.active", "total");
+
         constructions.create(hoSo("T23D-001", "Trạm bơm một"));
         constructions.create(hoSo("T23D-002", "Trạm bơm hai"));
         UUID thanhLy = constructions.create(hoSo("T23D-003", "Trạm bơm ba")).getPublicId();
@@ -139,20 +150,60 @@ class DashboardHttpTest extends IntegrationTestBase {
 
         String than = phanHoi.getBody();
         assertThat(than).isNotNull();
-        assertThat(oKpi(than, "construction.active"))
-                .as("hai hồ sơ đang hoạt động trên tổng ba — công trình đã thanh lý không được tính vào tử số")
-                .contains("\"value\":2")
-                .contains("\"total\":3");
+        assertThat(kpiSo("construction.active", "value"))
+                .as(
+                        "⛔ Thêm 3 hồ sơ, 1 trong đó ĐÃ THANH LÝ ⇒ tử số chỉ được tăng 2. Nền đo trước "
+                                + "khi tạo là %d",
+                        nenHoatDong)
+                .isEqualTo(nenHoatDong + 2);
+        assertThat(kpiSo("construction.active", "total"))
+                .as(
+                        "⛔ Mẫu số là TỔNG hồ sơ — hồ sơ thanh lý vẫn nằm trong đó, nên nó tăng đủ 3. "
+                                + "Nền đo trước khi tạo là %d",
+                        nenTong)
+                .isEqualTo(nenTong + 3);
+        assertThat(nenTong)
+                .as("⛔ CHỐNG TẬP RỖNG (luật 7): danh mục công trình dựng từ G8 phải ĐANG CÓ ở nền. "
+                        + "Nếu nó rỗng thì phép so quan hệ ở trên vẫn xanh — và bài kiểm quay về đúng "
+                        + "trạng thái mù mà WS-46 vừa chữa")
+                .isGreaterThanOrEqualTo(11);
+    }
+
+    /**
+     * Đọc một con số trong ô KPI bằng <b>một lượt gọi mới</b> — dùng để đo NỀN trước khi tạo dữ liệu.
+     *
+     * <p>⚠ Uỷ thác cho {@link #soTrongO} chứ ⛔ không tự bóc số: hai cách đọc cùng một trường JSON là
+     * hai chỗ để lệch nhau, và chỗ lệch ấy nằm trong <i>bài kiểm</i> — nơi ⛔ không có bài kiểm nào
+     * canh nó (luật 14).
+     */
+    private long kpiSo(String maKpi, String truong) {
+        return soTrongO(oKpi(phienHttp.get(duQuyen, DUONG_DAN).getBody(), maKpi), truong);
     }
 
     @Test
     @DisplayName("Công trình chưa có toạ độ được đếm riêng — hồ sơ vắng mặt trên bản đồ thì không ai thấy")
     void withoutLocationIsCounted() {
+        // ⛔⛔⛔ Bài này ĐÃ XANH VÌ LÝ DO SAI, và nó lộ ra ở WS-46.
+        //
+        //   Bản cũ: `assertThat(oKpi(…)).contains("\"value\":1")`. Khi V202609091075 dựng 11 công
+        //   trình chưa có toạ độ, con số thật thành **12** — và chuỗi `"value":12` **CÓ CHỨA**
+        //   `"value":1`. Bài kiểm xanh trọn vẹn trong khi ô KPI đã đổi hơn một chục lần.
+        //
+        //   ⇒ Một phép so CHUỖI trên một con số ⛔ không phân biệt được `1` với `12`, `13`, `100`.
+        //   Đó đúng là luật 9: một khẳng định ⛔ không phân biệt được hai trạng thái thì ⛔ không
+        //   khẳng định gì. Phép so BẰNG trên số đã bóc thì phân biệt được.
+        long nen = kpiSo("construction.without-location", "value");
+
         constructions.create(hoSo("T23D-010", "Chưa số hoá"));
 
-        String than = phienHttp.get(duQuyen, DUONG_DAN).getBody();
-
-        assertThat(oKpi(than, "construction.without-location")).contains("\"value\":1");
+        assertThat(kpiSo("construction.without-location", "value"))
+                .as("thêm ĐÚNG một hồ sơ chưa có toạ độ ⇒ ô này tăng ĐÚNG một. Nền = %d", nen)
+                .isEqualTo(nen + 1);
+        assertThat(nen)
+                .as("⛔ CHỐNG TẬP RỖNG: 11 công trình dựng từ G8 đều chưa có toạ độ (bản chụp của "
+                        + "Công ty ⛔ không có cột ấy), nên nền phải ≥ 11. Nếu nó bằng 0 thì danh mục "
+                        + "⛔ chưa được dựng và phép so ở trên đang đo một CSDL rỗng")
+                .isGreaterThanOrEqualTo(11L);
     }
 
     @Test
@@ -192,17 +243,21 @@ class DashboardHttpTest extends IntegrationTestBase {
         String than = phienHttp.get(duQuyen, DUONG_DAN).getBody();
 
         String oCanhBao = oKpi(than, "hydro.active-alerts");
-        assertThat(oCanhBao)
-                .as("⭐ khác 0: một cảnh báo DANG_XAY_RA đã xác nhận vừa được dựng")
-                .contains("\"value\":1")
-                .doesNotContain("\"value\":null");
+        // ⚠ So BẰNG trên số đã bóc, ⛔ không `contains` — xem `withoutLocationIsCounted`:
+        //   `contains("\"value\":1")` khớp cả `"value":12`.
+        assertThat(soTrongO(oCanhBao, "value"))
+                .as("⭐ khác 0: một cảnh báo DANG_XAY_RA đã xác nhận vừa được dựng — %s", oCanhBao)
+                .isEqualTo(1L);
+        assertThat(oCanhBao).doesNotContain("\"value\":null");
 
         String oMatTinHieu = oKpi(than, "hydro.stations-offline");
-        assertThat(oMatTinHieu)
-                .as("⭐ đúng MỘT điểm đo im lặng quá ngưỡng — 19 điểm seed chưa từng có bản ghi nào "
-                        + "nên chúng là CHUA_CO_DU_LIEU, ⛔ không phải MAT_TIN_HIEU")
-                .contains("\"value\":1")
-                .doesNotContain("\"value\":null");
+        assertThat(oMatTinHieu).doesNotContain("\"value\":null");
+        assertThat(soTrongO(oMatTinHieu, "value"))
+                .as(
+                        "⭐ đúng MỘT điểm đo im lặng quá ngưỡng — 19 điểm seed chưa từng có bản ghi nào "
+                                + "nên chúng là CHUA_CO_DU_LIEU, ⛔ không phải MAT_TIN_HIEU — %s",
+                        oMatTinHieu)
+                .isEqualTo(1L);
 
         // ⚠ Mẫu số phải là số điểm đo ĐANG DÙNG, và nó phải lớn hơn tử số. Khẳng định về QUAN HỆ
         //   giữa hai số, ⛔ không phải một hằng số 20 — con số ấy đổi mỗi lần ai đó thêm một bài
@@ -238,9 +293,9 @@ class DashboardHttpTest extends IntegrationTestBase {
 
         String than = phienHttp.get(duQuyen, DUONG_DAN).getBody();
 
-        assertThat(oKpi(than, "hydro.active-alerts"))
+        assertThat(soTrongO(oKpi(than, "hydro.active-alerts"), "value"))
                 .as("dòng DANG_XAY_RA nhưng confirmed_at NULL ⇒ chưa tính là cảnh báo")
-                .contains("\"value\":0");
+                .isZero();
     }
 
     /**

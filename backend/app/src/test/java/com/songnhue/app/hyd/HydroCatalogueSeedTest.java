@@ -284,12 +284,33 @@ class HydroCatalogueSeedTest extends IntegrationTestBase {
     void diemMnSongKhongLienKetVanDocDuoc() {
         Integer soMnSong = jdbc.queryForObject(
                 "SELECT count(*) FROM stations WHERE position_role = 'MN_SONG' AND deleted_at IS NULL", Integer.class);
-        Integer soLienKet = jdbc.queryForObject("SELECT count(*) FROM station_constructions", Integer.class);
+        // ⛔⛔ ĐỔI HÌNH DẠNG ở WS-46. Bản cũ đếm `count(*) FROM station_constructions` và đòi bằng
+        //    0 — nhưng con số ấy mô tả một THIẾU SÓT (`constructions` rỗng, 0 hàng trong toàn chuỗi
+        //    migration), ⛔ không phải một bất biến. V202609091075 dựng 11 hồ sơ từ chính dữ liệu G8
+        //    và bài kiểm cũ đỏ ngay — đúng việc của nó.
+        //
+        // ⭐ Bất biến THẬT nằm bên dưới, và nó chặt hơn hẳn bản cũ: ⛔ KHÔNG điểm MN_SONG nào được
+        //    nối vào công trình (`ConstructionStatusPort`: *"MN_SONG ⛔ không thuộc công trình nào
+        //    theo thiết kế"*). Bản cũ xanh cả khi bảng liên kết rỗng vì lý do SAI — nó ⛔ không phân
+        //    biệt được "chưa ai nối" với "đã nối đúng thiết kế" (luật 9).
+        Integer soMnSongBiNoi = jdbc.queryForObject(
+                """
+                SELECT count(*) FROM station_constructions sc JOIN stations s ON s.id = sc.station_id
+                 WHERE sc.deleted_at IS NULL AND s.position_role = 'MN_SONG'
+                """,
+                Integer.class);
 
         assertThat(soMnSong).isEqualTo(4);
-        assertThat(soLienKet)
-                .as("G8 chưa có danh mục công trình — chưa liên kết được dòng nào")
+        assertThat(soMnSongBiNoi)
+                .as("⛔ Điểm MN_SONG là trạm quan trắc tham chiếu — nối nó vào một công trình là ĐẢO "
+                        + "một quyết định thiết kế đã ghi, và đảo trong im lặng")
                 .isZero();
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM station_constructions WHERE deleted_at IS NULL", Integer.class))
+                .as("⛔ CHỐNG TẬP RỖNG (luật 7): khẳng định trên xanh trọn vẹn khi bảng liên kết RỖNG. "
+                        + "Vế này đòi danh mục công trình đã được dựng — thiếu nó thì bài kiểm ⛔ không "
+                        + "khẳng định gì về thiết kế, nó chỉ đang mô tả một bảng trống")
+                .isEqualTo(15);
 
         // Truy vấn kiểu LEFT JOIN vẫn phải trả đủ 19; đổi sang INNER JOIN là rơi về 0.
         Integer docDuoc = jdbc.queryForObject(

@@ -179,6 +179,44 @@ class CotPhase2CoDocGhiTest {
                 .contains("position_role", "quality_reason");
     }
 
+    /**
+     * ⛔⛔ Luật 1 — <b>phép bỏ chú thích phải có bằng chứng nó bỏ được</b>.
+     *
+     * <p>{@link #boChuThich} là thứ mọi khẳng định của lớp này đứng lên. Một biểu thức chính quy
+     * hỏng ở đây ⛔ không làm bài nào đỏ — nó chỉ lặng lẽ đưa bộ canh về hành vi cũ (chú thích tính
+     * là mã đọc), và cái xanh khi ấy đọc như một lời bảo đảm. Bài này là chỗ duy nhất phân biệt
+     * được hai trạng thái.
+     *
+     * <p>⚠ Vế thứ ba (<i>{@code //} cuối dòng KHÔNG bị bỏ</i>) ⛔ không phải mô tả một thiếu sót cần
+     * sửa — nó <b>ghim</b> ranh giới cố ý ở javadoc của {@link #boChuThich}. Ai đó siết phép bỏ cho
+     * "kín hơn" sẽ làm bài này đỏ và phải đọc lý do trước khi đánh đổi lấy rủi ro đỏ giả.
+     */
+    @Test
+    @DisplayName("⛔ Bằng chứng cho phép BỎ CHÚ THÍCH — javadoc ⛔ không phải một đường đọc")
+    void boChuThichThucSuBoDuoc() {
+        String ma =
+                """
+                /** Javadoc nhắc tên cot_chi_trong_javadoc nhưng ⛔ không đọc nó. */
+                // cot_chi_trong_dong_chu_thich cũng vậy
+                public String doc() { return "cot_that_su_doc"; }
+                String u = "https://vi.du/khong-duoc-cat";
+                """;
+        String sach = boChuThich(ma);
+
+        assertThat(sach)
+                .as("⛔ khối javadoc phải biến mất — đây là chỗ `geom` đã đi lọt")
+                .doesNotContain("cot_chi_trong_javadoc");
+        assertThat(sach).as("⛔ dòng bắt đầu bằng `//` phải biến mất").doesNotContain("cot_chi_trong_dong_chu_thich");
+        assertThat(sach)
+                .as("⭐ ĐỐI CHỨNG: mã thật PHẢI còn lại — bỏ quá tay là sinh ra ĐỎ GIẢ, hỏng theo "
+                        + "chiều tệ hơn hẳn (luật 10)")
+                .contains("cot_that_su_doc");
+        assertThat(sach)
+                .as("⚠ GHIM ranh giới cố ý: `//` GIỮA dòng ⛔ không bị cắt, nếu không thì mọi chuỗi "
+                        + "`https://…` trong mã thật mất phần đuôi — xem javadoc `boChuThich`")
+                .contains("khong-duoc-cat");
+    }
+
     @Test
     @DisplayName("⚠⚠ Danh sách miễn trừ ⛔ không được chứa cột ĐANG có mã đọc (chiều ngược)")
     void mienTruKhongPhinhTo() {
@@ -265,7 +303,7 @@ class CotPhase2CoDocGhiTest {
         for (String thuMuc : NOI_DOC_GHI) {
             for (String duoi : List.of(".java", ".ts", ".tsx")) {
                 for (Path p : tepTrong(thuMuc, duoi)) {
-                    sb.append(doc(p)).append('\n');
+                    sb.append(boChuThich(doc(p))).append('\n');
                 }
             }
         }
@@ -308,6 +346,39 @@ class CotPhase2CoDocGhiTest {
         }
         throw new IllegalStateException(
                 "⛔ Không tìm thấy %s tính từ %s".formatted(duongDanTuongDoi, System.getProperty("user.dir")));
+    }
+
+    /**
+     * ⛔⛔ Bỏ <b>chú thích</b> trước khi tìm — WS-46, và đây là một lỗ hổng THẬT của bộ canh.
+     *
+     * <h2>Nó lộ ra thế nào</h2>
+     *
+     * <p>Cột {@code geom} nằm trong {@link #KHONG_CAN_MA_DOC} với lý do <i>"hôm nay ⛔ chưa truy vấn
+     * nào dùng tới"</i>. Bài {@link #mienTruKhongPhinhTo} bỗng đỏ sau khi một tệp <b>frontend</b>
+     * thêm một dòng javadoc nhắc tên cột ấy — {@code toaDo.ts} giải thích rằng
+     * {@code ST_MakePoint(longitude, latitude)} là chỗ duy nhất đảo thứ tự, <i>"viết đúng một lần
+     * trong cột sinh {@code geom}"</i>. ⛔ Không một dòng mã nào đọc cột ấy; chỉ có một câu văn.
+     *
+     * <h2>⭐ Vì sao vá bộ canh chứ ⛔ không viết né nó</h2>
+     *
+     * <p>Cách rẻ nhất là sửa câu văn cho hết chứa từ {@code geom}. Nhưng nó để nguyên lỗ hổng, và
+     * lỗ ấy nằm ở bài <b>chính</b> chứ ⛔ không phải bài phụ: {@link #moiCotDeuCoNoiDocHoacGhi} bắt
+     * cột <i>chỉ tồn tại trong migration</i>, và nếu một <b>chú thích</b> tính là "có mã đọc" thì bộ
+     * canh ấy <b>im được bằng cách viết tên cột vào javadoc</b> — ⛔ không cần viết một dòng mã nào.
+     * Đó đúng là luật 2: <i>canh cấu trúc, đừng canh văn bản</i>.
+     *
+     * <h2>⚠ Bỏ ÍT chứ ⛔ không bỏ NHIỀU — chiều an toàn của phép này</h2>
+     *
+     * <p>Bỏ khối {@code /* … *&#47;} (mọi javadoc/TSDoc) và dòng <b>bắt đầu bằng</b> {@code //}. ⛔ Cố
+     * ý ⛔ <b>không</b> bỏ {@code //} nằm giữa dòng: một chuỗi {@code "https://…"} trong mã thật sẽ
+     * bị cắt mất phần đuôi, và mất mã thật là tạo ra <b>đỏ giả</b> — hỏng theo chiều tệ hơn hẳn.
+     *
+     * <p>⇒ Còn sót đúng một khe: nhắc tên cột trong một chú thích {@code //} <i>cuối dòng mã</i>.
+     * Khe ấy hẹp và ⛔ không thể thu nhỏ thêm mà ⛔ không mở ra rủi ro đỏ giả — ghi ra đây thay vì
+     * để người sau tưởng phép này kín (luật 28: một bộ canh phải nói ra phạm vi của chính nó).
+     */
+    static String boChuThich(String ma) {
+        return ma.replaceAll("(?s)/\\*.*?\\*/", " ").replaceAll("(?m)^\\s*//.*$", " ");
     }
 
     private static String doc(Path p) {
