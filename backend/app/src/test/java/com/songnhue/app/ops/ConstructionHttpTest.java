@@ -21,8 +21,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.app.testsupport.PhienHttp;
 import com.songnhue.core.application.auth.PasswordPolicyService;
+import com.songnhue.core.common.importer.SpreadsheetReader;
 import com.songnhue.core.infra.identity.UserRepository;
-import com.songnhue.operations.application.importer.SpreadsheetReader;
 
 /**
  * Danh mục công trình <b>đi qua HTTP</b> — T17.12.
@@ -279,11 +279,11 @@ class ConstructionHttpTest extends IntegrationTestBase {
      * tại — ⛔ không một dòng log nào.
      *
      * <p>⚠ Bài kiểm này phân biệt được hai trạng thái (luật 9): bản cũ trả <b>200 kèm
-     * {@code totalRows = 5000}</b>, bản mới trả <b>422 {@code OPS-2022}</b>. Một khẳng định kiểu
+     * {@code totalRows = 5000}</b>, bản mới trả <b>422 {@code SYS-0012}</b>. Một khẳng định kiểu
      * <i>"⛔ không 500"</i> sẽ xanh với cả hai.
      */
     @Test
-    @DisplayName("⛔⛔ Tệp vượt trần → 422 OPS-2022, KHÔNG phải 200 với số dòng đã bị cắt")
+    @DisplayName("⛔⛔ Tệp vượt trần → 422 SYS-0012, KHÔNG phải 200 với số dòng đã bị cắt")
     void overTheRowCapThrowsInsteadOfTruncating() {
         int tran = SpreadsheetReader.MAX_ROWS;
 
@@ -296,7 +296,7 @@ class ConstructionHttpTest extends IntegrationTestBase {
         assertThat(vuot.getStatusCode())
                 .as("⛔ 200 ở đây nghĩa là tệp vừa bị cắt cụt trong im lặng: %s", vuot.getBody())
                 .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
-        assertThat(vuot.getBody()).contains("OPS-2022");
+        assertThat(vuot.getBody()).contains("SYS-0012");
 
         // ⚠ Bộ định dạng thông điệp nhóm hàng nghìn kiểu Việt Nam: 5002 in ra là "5.002". Bỏ dấu
         //   nhóm trước khi so là cách khẳng định về CON SỐ chứ ⛔ không về ĐỊNH DẠNG — nếu không thì

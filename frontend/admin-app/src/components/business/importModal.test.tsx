@@ -21,10 +21,10 @@ vi.mock('@/shared/apiClient', () => ({
   ApiClientError: GiaApiClientError,
 }));
 
-const { ConstructionImportModal } = await import('./ConstructionImportModal');
+const { ImportModal, TRAN_DONG_NHAP } = await import('./ImportModal');
 
 /**
- * **Bài kiểm ĐẦU TIÊN cho hộp thoại nhập danh mục công trình** — G8.
+ * **Bài kiểm cho hộp thoại nhập DÙNG CHUNG** — G8, và cho mọi màn hình nhập về sau.
  *
  * ## Vì sao cái xanh hiện tại chưa nói gì
  *
@@ -55,7 +55,7 @@ const { ConstructionImportModal } = await import('./ConstructionImportModal');
  * ⛔ không thấy đường dẫn thì ⛔ không thể báo bộ lọc CI đang bỏ sót.
  */
 const DUONG_READER =
-  'backend/operations/src/main/java/com/songnhue/operations/application/importer/SpreadsheetReader.java';
+  'backend/core/src/main/java/com/songnhue/core/common/importer/SpreadsheetReader.java';
 
 /**
  * ⚠ ⛔ Không dùng `import.meta.url`: Vitest chạy jsdom nên Vite đổi nó thành URL `http://`, và
@@ -92,7 +92,19 @@ function dung() {
   render(
     <QueryClientProvider client={qc}>
       <App>
-        <ConstructionImportModal open onClose={() => {}} />
+        <ImportModal
+          open
+          onClose={() => {}}
+          title="Nhập kiểm thử"
+          moTa="Mô tả kiểm thử."
+          duongDan={{
+            xemTruoc: '/ops/constructions/import/preview',
+            nhap: '/ops/constructions/import',
+            mau: '/ops/constructions/import/template',
+          }}
+          tenTepMau="mau.csv"
+          khoaCanLamMoi={['ops', 'constructions']}
+        />
       </App>
     </QueryClientProvider>,
   );
@@ -108,7 +120,7 @@ function oChonTep(): HTMLInputElement {
   return input as HTMLInputElement;
 }
 
-describe('ConstructionImportModal', () => {
+describe('ImportModal', () => {
   beforeEach(() => {
     upload.mockReset();
     upload.mockResolvedValue({
@@ -206,7 +218,7 @@ describe('ConstructionImportModal', () => {
     expect(screen.getByText('7')).toBeTruthy();
   });
 
-  it('⚠ câu "5.000 dòng" phải khớp SpreadsheetReader.MAX_ROWS — luật 14', () => {
+  it('⚠⚠ TRAN_DONG_NHAP phải khớp SpreadsheetReader.MAX_ROWS của backend — luật 14', () => {
     const nguon = docReader();
     const khop = nguon.match(/MAX_ROWS\s*=\s*(\d+)/);
 
@@ -215,12 +227,15 @@ describe('ConstructionImportModal', () => {
     const tran = Number(khop![1]);
     expect(tran).toBeGreaterThan(0);
 
-    dung();
-    // Định dạng tiếng Việt: 5000 → "5.000".
-    const nhuNguoiDung = tran.toLocaleString('vi-VN');
+    // ⭐ So với HẰNG SỐ, ⛔ không so với chuỗi đã render: hằng số là thứ mọi nơi gọi dùng lại, còn
+    //   chuỗi render chỉ chứng minh đúng một hộp thoại. Nếu ai đó thêm một màn hình nhập mới và
+    //   chép tay con số vào đó, phép so này vẫn phải là chỗ duy nhất cần đúng.
     expect(
-      document.body.textContent,
-      `hộp thoại phải nói đúng trần ${nhuNguoiDung} dòng mà backend đang ép`,
-    ).toContain(nhuNguoiDung);
+      TRAN_DONG_NHAP,
+      `backend ép trần ${tran} dòng nhưng giao diện đang nói ${TRAN_DONG_NHAP}`,
+    ).toBe(tran);
+
+    dung();
+    expect(document.body.textContent).toContain(tran.toLocaleString('vi-VN'));
   });
 });

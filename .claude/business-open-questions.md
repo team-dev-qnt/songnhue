@@ -160,6 +160,22 @@ Danh sách trích từ hệ thống nguồn ngày 12/8/2026 — **cần Công ty
 **Công trình có điểm đo mưa**: Cống Liên Mạc · TB Cầu Giát · Cống Hà Đông · TB Yên Nghĩa · TB Đại Áng · TB Xém · Cống Đồng Quan · Cống Hòa Mỹ · Cống Vân Đình · TB Ngoại Độ · Cống Nhật Tựu · Cống Lương Cổ · Cống Điệp Sơn · TB Thụy Phú II · TB Hồng Vân.
 
 ✅ **Đã có (G8b)**: bảng ánh xạ 19 mã API ↔ tên điểm đo + vai trò → `function-spec.md` CN-03.1.
+
+⭐ **Cập nhật 09/09/2026 — hai cột đã đóng, và phần còn lại nay chỉ cần một lượt upload.**
+
+- ✅ **Tuyến sông 13/19 · lý trình 10/19** vào CSDL bằng `V202609091073` (bản chụp QuanTran cấp).
+  6 mã Công ty ghi *"Chưa rõ"* giữ `NULL` — quy tắc 16, ⛔ không suy đoán.
+- ⚠ **`F01519` Lương Cổ**: hai nguồn của Công ty lệch **đúng một dòng** (Thượng lưu vs Hạ lưu),
+  18/19 dòng còn lại khớp tuyệt đối. Đang lấy theo bản chụp (Hạ lưu) — **cần Công ty xác nhận**.
+- ⚠ **`F01657` Vân Đình TL**: bản chụp ghi lý trình *"(K72+000 – sông Đáy)"* trên một dòng tuyến
+  *Sông Vân Đình* ⇒ để `NULL`, vì K72+000 gần như chắc chắn là lý trình **trên sông Đáy**.
+- ⛔⛔ **Toạ độ vẫn 0/19** ⇒ lớp GIS điểm đo RỖNG. Đây là phần G8 còn lại và nó vẫn chặn nghiệm thu C3.
+
+⭐⭐ **Nhưng nó ⛔ không còn chặn LẬP TRÌNH.** Từ 09/09 màn hình *Danh mục điểm đo* có nút
+**"Nhập vị trí từ tệp"**: tải tệp mẫu → điền `ma_api` · `tuyen_song` · `ly_trinh` · `vi_do` ·
+`kinh_do` → upload. Chạy khô liệt kê lỗi từng dòng trước khi ghi; ô để trống nghĩa là **giữ nguyên**.
+Tương tự, danh mục công trình (mục d) có nút *"Nhập từ tệp"* kèm tệp mẫu riêng.
+⇒ Công ty gửi bảng lúc nào, dữ liệu vào hệ thống lúc ấy — ⛔ không phải chờ một đợt phát triển nữa.
 ⬜ **Còn thiếu để nhập liệu ban đầu — 4 việc**:
 
 **1. Bổ sung 3 cột còn thiếu cho đúng 19 điểm đo đã ánh xạ**: `Tuyến sông | Lý trình (K..+..) | Tọa độ GPS`. Không có tọa độ thì điểm đo **không lên được bản đồ GIS** (M2.8/M3.17).
@@ -306,7 +322,7 @@ Tài liệu đang mô tả hai điều khác nhau: CN-02.1 xếp **Cụm** vào 
 
 | # | Mục | Việc cần làm | Hạn cần có |
 |---|---|---|---|
-| 1 | 🟡 **G8** | (a) **Tuyến sông + lý trình + tọa độ GPS** cho 19 điểm đo đã ánh xạ · (b) trả lời **khoảng trống API vs biểu tổng hợp** (7 điểm có trên biểu nhưng không có telemetry) · (c) xác nhận **3 cặp mã trùng giá trị** · (d) **danh mục toàn bộ công trình (Excel)** kèm mã | Trước khi nhập liệu ban đầu & nghiệm thu MOD-03 |
+| 1 | 🟡 **G8** | ✅ (a1) tuyến sông + lý trình **ĐÃ NHẬN 09/09** (13/19 · 10/19) · ⬜ (a2) **toạ độ GPS** — vẫn 0/19, và đây là thứ **duy nhất** làm bản đồ hết trống · (b) khoảng trống API vs biểu tổng hợp · (c) xác nhận **3 cặp mã trùng giá trị** · (d) **danh mục toàn bộ công trình (Excel)** kèm mã. ⭐ **(a2) và (d) nay chỉ cần UPLOAD** — có nút *Nhập vị trí từ tệp* (điểm đo) và *Nhập từ tệp* (công trình), mỗi nút kèm tệp mẫu tải về được | Trước khi nhập liệu ban đầu & nghiệm thu MOD-03 |
 | 2 | 🟡 **G10** | Duyệt `report-templates-proposal.md` + gửi **file mẫu thật** của BC-11, BC-09, BC-05, BCNS-07 | Trước Phase báo cáo |
 | 3 | 🟡 **G6** | File mẫu **2C-BNV** Công ty đang dùng (gửi kèm G10). ⚠ Chặn **đúng BCNS-07** (1/8 báo cáo của CN-04.8), ⛔ **không** chặn 8 chức năng CN-04 còn lại | Trước khi in BCNS-07, ⛔ không phải trước Phase HRM |
 | 3-a | 🟡 **G6-a** | ⭐ **Danh sách CBNV** (Excel) để nhập liệu ban đầu — trường 🔒 gửi riêng, sau. **Đây mới là thứ chặn HRM**; ⚠ cột phòng ban phụ thuộc **OI-05** | Trước khi nhập liệu MOD-04 |
@@ -334,7 +350,7 @@ Sau khi nhận confirm → cập nhật `function-spec.md`, `implement.md` và �
 | **CN-01.2** Danh mục nội dung | ✅ ~~G14~~ | 🟩 | Cây danh mục là **dữ liệu**, không phải mã. Sơ đồ chính thức nhận 27/8 (§3 văn bản nghiệm thu), dựng ở `V202608271031`; sửa tiếp qua giao diện |
 | **CN-01.5** Cấu hình giao diện | **G13** | 🟩 | Logo/màu/GA/GTM/mạng xã hội đọc từ `settings`, để trống vẫn chạy. Thiếu thì **cổng nghiệm thu bằng giá trị mặc định của lập trình viên** — không sai chức năng, sai diện mạo |
 | **CN-02.1** Cấp quản lý & Cụm công trình | ~~G15~~ | ✅ | **Đã đóng 19/8**: cụm chỉ là cách nhóm → bảng `construction_clusters` + `constructions.cluster_id` nullable. ⛔ Không thêm loại nút vào `org_units` |
-| **CN-03.1** Danh mục điểm đo | **G8** | 🟩 | Đã có tên + vai trò (G8b). Thiếu `river_name` / `chainage` / **tọa độ** của 19 điểm → cột đã có sẵn trong bảng, chỉ để `NULL` tới khi Công ty gửi |
+| **CN-03.1** Danh mục điểm đo | **G8** | 🟩 | Tên + vai trò (G8b) ✅ · tuyến sông 13/19 + lý trình 10/19 **đã vào CSDL 09/09** (`V202609091073`) · ⬜ **toạ độ 0/19**. ⭐ Đường nhập hàng loạt đã có (`/hyd/stations/import` + tệp mẫu) ⇒ ngày Công ty gửi bảng toạ độ là **upload xong ngay**, ⛔ không cần lập trình thêm |
 | **CN-03.1** Danh mục loại chỉ số | **G3-a** | 🟨 | Giữ loại chỉ số "Lượng mưa" trong danh mục dù v1 chưa có nguồn — **không xóa khỏi enum/seed**, nếu chọn PA B (nhập tay) thì dùng lại ngay |
 | **CN-03.2** Adapter & polling | **G3-a** | 🟨 | Thiếu endpoint mưa. `TelemetryAdapter` phải để **1 điểm cắm cho nguồn thứ 2**, không hard-code giả định "1 nguồn = 1 endpoint mực nước" |
 | **CN-03.4** Biểu tổng hợp / realtime | **G3-a**, **G8** | 🟨 | Cột lượng mưa render `-`; nhóm theo **tuyến sông** cần `river_name` → tạm nhóm "Chưa phân tuyến" khi `NULL`, không crash |

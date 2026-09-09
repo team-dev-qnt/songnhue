@@ -25,6 +25,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.ValidationException;
+import com.songnhue.core.common.importer.KetQuaNhap;
 import com.songnhue.core.common.security.RequirePermission;
 import com.songnhue.core.spi.AttachmentRef;
 import com.songnhue.operations.application.ConstructionDocumentService;
@@ -113,14 +114,14 @@ public class ConstructionDocumentController {
     @PostMapping(path = "/constructions/import/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Chạy khô tệp nhập — đếm sẽ thêm/sửa bao nhiêu và liệt kê lỗi từng dòng")
     @RequirePermission("ops:construction:create")
-    public ConstructionImportService.ImportReport previewImport(@RequestPart("file") MultipartFile file) {
+    public KetQuaNhap previewImport(@RequestPart("file") MultipartFile file) {
         return importer.preview(doc(file));
     }
 
     @PostMapping(path = "/constructions/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Nhập thật — còn dòng lỗi thì không dòng nào được ghi (OPS-2016)")
     @RequirePermission("ops:construction:create")
-    public ConstructionImportService.ImportReport applyImport(@RequestPart("file") MultipartFile file) {
+    public KetQuaNhap applyImport(@RequestPart("file") MultipartFile file) {
         return importer.apply(doc(file));
     }
 

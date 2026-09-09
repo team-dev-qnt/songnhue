@@ -53,6 +53,22 @@ public enum ErrorCode {
      * chỉ cần nén nhỏ lại. Xem {@code UploadSizeCeilingTest}.
      */
     SYS_0011("SYS-0011", HttpStatus.PAYLOAD_TOO_LARGE),
+    /**
+     * Tệp nhập vượt trần {@code SpreadsheetReader.MAX_ROWS} dòng dữ liệu.
+     *
+     * <p>⛔ Mã này thay cho một hành vi <b>cắt cụt im lặng</b> sống từ T17.9 tới 09/09/2026: vòng lặp
+     * dừng ở dòng thứ 5000 và bản báo cáo đếm <i>sau khi</i> cắt, nên một tệp 8000 dòng nhập "thành
+     * công" đúng 5000 bản ghi mà ⛔ không có gì nói ra 3000 dòng còn lại chưa từng được đọc.
+     *
+     * <p>⚠ Mã <b>SYS</b> chứ ⛔ không phải OPS: {@code SpreadsheetReader} nằm ở {@code core} và mọi
+     * module đều nhập tệp qua nó (danh mục công trình, vị trí điểm đo, …). Một mã mang tiền tố của
+     * một module sẽ hiện ra trên màn hình của module khác — cùng họ với {@code SYS-0011} (trần
+     * multipart), và đó là chỗ đúng của nó.
+     *
+     * <p>Tham số: {0} trần, {1} số dòng đầu tiên bị bỏ — đánh số <b>như người dùng thấy trong
+     * Excel</b>, để họ mở đúng chỗ mà tách tệp.
+     */
+    SYS_0012("SYS-0012", HttpStatus.UNPROCESSABLE_ENTITY),
 
     // ---- Xác thực & phân quyền -------------------------------------------------
     /** Message cố ý mơ hồ: không tiết lộ tài khoản có tồn tại hay không (§4.1). */
@@ -223,17 +239,6 @@ public enum ErrorCode {
      * module không thấy nhau, nên tính toàn vẹn do tầng dịch vụ giữ, qua {@code HydroAlertPort}.
      */
     OPS_2021("OPS-2021", HttpStatus.UNPROCESSABLE_ENTITY),
-    /**
-     * Tệp nhập danh mục công trình vượt trần {@code SpreadsheetReader.MAX_ROWS} — G8.
-     *
-     * <p>⛔ Mã này thay cho một hành vi <b>cắt cụt im lặng</b> sống từ T17.9 tới 09/09/2026: vòng lặp
-     * dừng ở dòng thứ 5000 và bản báo cáo đếm <i>sau khi</i> cắt, nên một tệp 8000 dòng nhập "thành
-     * công" đúng 5000 hồ sơ mà ⛔ không có gì nói ra 3000 dòng còn lại chưa từng được đọc.
-     *
-     * <p>Tham số: {0} trần, {1} số dòng đầu tiên bị bỏ — đánh số <b>như người dùng thấy trong
-     * Excel</b>, để họ mở đúng chỗ mà tách tệp.
-     */
-    OPS_2022("OPS-2022", HttpStatus.UNPROCESSABLE_ENTITY),
     /** Trạng thái công trình là giá trị dẫn xuất — client sửa trực tiếp là từ chối. */
     OPS_3001("OPS-3001", HttpStatus.FORBIDDEN),
 

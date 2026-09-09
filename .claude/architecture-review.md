@@ -6237,7 +6237,7 @@ chỉ đẩy dữ liệu sang cột bên cạnh, im lặng*.
 người viết bài kiểm là một người, mang cùng giả định):
 
 - `SYS-0003` khai `HttpStatus.BAD_REQUEST`; tôi khẳng định 422 vì *"lỗi hợp lệ hoá thì phải là 422"*.
-- Thông điệp `OPS-2022` nhóm hàng nghìn kiểu Việt Nam (`5.002`), tôi so với `"5002"`.
+- Thông điệp `OPS-2022` (nay `SYS-0012` — xem §11.20) nhóm hàng nghìn kiểu Việt Nam (`5.002`), tôi so với `"5002"`.
 
 Cả hai được sửa thành khẳng định về **thứ đang đo** — mã lỗi, và con số sau khi bỏ dấu nhóm — chứ
 ⛔ không về con số HTTP hay định dạng mà tôi đoán.
@@ -6254,3 +6254,44 @@ Công ty cấp (chốt G8b)"*; bản chụp 9/9 lệch **đúng một dòng** (`
 lưu). 18/19 dòng khớp tuyệt đối ⇒ ⛔ không phải hai danh sách khác nhau mà là **một dòng sai ở một
 trong hai bản**. Chữ *"đã chốt"* trong một chú thích ⛔ không làm dữ liệu đúng lên. Cách xử lý: lấy
 bản nhất quán hơn, ghi lý do vào migration, **và hỏi lại khách** — ⛔ không im lặng chọn một bên.
+
+---
+
+### §11.19 — Một `PUT` thiếu trường xoá dữ liệu, và nó vô hình cho tới ngày dữ liệu tồn tại (9/9/2026)
+
+**Triệu chứng.** PR #117 đỏ trên CI ở `HydroCatalogueSeedTest` — *`tuyến sông của F01771: expected
+"Sông Nhuệ" but was null`* — trong khi chạy riêng lớp ấy ở máy dev **xanh 12/12**.
+
+**Nguyên nhân.** Container Postgres của bộ kiểm là **singleton cho cả lượt JVM**, nên mọi lớp dùng
+chung một CSDL. `HydroCatalogueHttpTest.thanSua()` dựng thân `PUT` **6 trường** — thiếu `riverName`
+và `chainage` — rồi gửi lên `motDiemDo()` = `ORDER BY id LIMIT 1` = **F01771**. `PUT` là
+thay-toàn-phần nên `StationService` hiểu *"⛔ không gửi"* là *"xoá"*.
+
+⭐⭐ **Vì sao nó sống được từ WS-29 tới 9/9 mà ⛔ không ai thấy: trước bản chụp G8, cả 19 điểm đo
+đều có `river_name = NULL` sẵn.** Một lượt ghi xoá trắng một ô vốn đã trắng ⛔ không để lại dấu vết
+nào. Khuyết tật chỉ có triệu chứng **kể từ ngày ô ấy có giá trị** — tức đúng ngày dữ liệu thật về,
+đúng lúc mất nó đắt nhất.
+
+⚠ Và **chỉ CI đỏ**: surefire xếp lớp theo thứ tự hệ tệp; macOS cho `Seed` trước `Http`, runner Linux
+ngược lại. Cùng hình dạng đã đo ở chính tệp ấy cho `measurementTypeIds`.
+
+**⭐ Lần thứ HAI, cùng một tệp, cùng một hình dạng — và bài học lần đầu ĐÃ được viết ra.** Javadoc
+của `thanSua` ghi nguyên văn: *"bài kiểm dùng chung một CSDL thì mỗi lượt ghi là một tác dụng phụ
+lên bài kiểm khác — gửi **trọn** trạng thái hiện có"*. Nó ⛔ không ngăn được lần thứ hai.
+
+⇒ **Một bài học nằm trong javadoc là một lời dặn, ⛔ không phải một cổng kiểm.** Lần này nó thành
+`editingAStationKeepsItsG8Location`: đọc trước → `PUT` → đọc lại → phải bằng.
+
+**⛔ Vì sao ⛔ KHÔNG chữa bằng cách bắt buộc trường, như lần trước.** `measurementTypeIds` thành
+`@NotEmpty` vì rỗng **luôn** sai. `riverName` thì khác: NULL là trạng thái **hợp lệ** (6/19 điểm đo
+hôm nay), và `PUT` xoá trường bị bỏ trống là *đúng ngữ nghĩa của `PUT`*. Thứ phải bảo đảm là **màn
+hình gửi đủ** — và đó là một khẳng định đo được, ⛔ không phải một lời hứa.
+
+⚠ Bài kiểm chứng ngược cho bộ canh mới đỏ ở **vế chống tập rỗng** chứ ⛔ không ở vế so sánh: khi
+`thanSua` thiếu trường thì các bài chạy trước đã xoá trắng F01771, nên tới lượt bài mới thì ⛔ không
+còn gì để mất. Một bộ canh ⛔ không có vế *"dữ liệu mốc phải ĐANG CÓ"* sẽ **xanh trong đúng tình
+huống nó sinh ra để bắt** (luật 7).
+
+**⭐ Hệ quả rộng hơn, và nó đổi cách đọc cả sổ nợ.** Nếu *"sửa được trên admin portal"* là lý do một
+ô dữ liệu lệch ⛔ không phải blocker — thì **vòng khứ hồi của màn hình ấy phải có phép kiểm**. Một
+màn hình sửa được mà lượt lưu xoá mất trường bên cạnh thì lời hứa ấy sai, và nó sai **im lặng**.

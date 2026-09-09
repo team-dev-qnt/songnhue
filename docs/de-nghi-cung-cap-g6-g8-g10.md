@@ -12,15 +12,16 @@
 
 ---
 
-## Tóm tắt — 5 việc, xếp theo mức chặn
+## Tóm tắt — 6 việc, xếp theo mức chặn
 
 | # | Việc | Mục | Chặn cái gì | Mức |
 |---|---|---|---|---|
-| 1 | **Toạ độ GPS** của 19 điểm đo | G8 | **Bản đồ GIS đang trống hoàn toàn** | ⛔⛔ |
+| 1 | **Toạ độ GPS** của 19 điểm đo | G8 | **Bản đồ GIS đang trống hoàn toàn** — ⭐ nay chỉ cần upload | ⛔⛔ |
 | 2 | **Danh mục công trình** (Excel, theo mẫu đính kèm) | G8 | Bản đồ · biểu tổng hợp · hồ sơ công trình | ⛔⛔ |
 | 3 | **Chốt 7 hay 8 Xí nghiệp** + mã từng đơn vị | OI-05 | Phân quyền theo đơn vị · cột đơn vị của mọi danh mục | ⛔⛔ |
 | 4 | **Danh sách CBNV** (Excel) | G6-a | Toàn bộ phân hệ Nhân sự | ⛔ |
 | 5 | **File mẫu báo cáo** (BC-11, BC-05, BCNS-07) | G10 · G6 | Bố cục bản in — ⛔ *không* chặn số liệu | ⚠ |
+| 6 | **Xác nhận 9 mã API lạ** ngoài danh mục 19 điểm đo | G8 | Chúng đang bị ghi vào cột *"Mã lạ"* | ⚠ |
 
 ---
 
@@ -77,6 +78,13 @@ API. Lấy bằng điện thoại tại hiện trường là đủ chính xác c
 sẽ không ai phát hiện bằng mắt, và nó tệ hơn hẳn một bản đồ trống — bản đồ trống thì còn nằm trong
 danh sách việc cần làm.
 
+> ⭐ **Gửi cách nào cũng được — hệ thống đã sẵn sàng nhận.**
+> Trên phần mềm: **Dữ liệu thuỷ văn → Danh mục điểm đo → “Nhập vị trí từ tệp” → “Tải tệp mẫu”**.
+> Tệp mẫu có sẵn 5 cột `ma_api` · `tuyen_song` · `ly_trinh` · `vi_do` · `kinh_do`; điền tới đâu hay
+> tới đó — **ô để trống nghĩa là giữ nguyên giá trị hiện có, không phải xoá**. Hệ thống chạy khô
+> trước và liệt kê từng dòng sai kèm số dòng đúng như trong Excel.
+> Nếu Công ty gửi bảng ở dạng khác (Word, ảnh chụp, email), chúng tôi nhập hộ — xin cứ gửi.
+
 ---
 
 ## 2. G8 — danh mục công trình: **hệ thống đã sẵn sàng nhận, kèm tệp mẫu**
@@ -95,6 +103,10 @@ Excel, và **⛔ không ghi gì cho tới khi hết lỗi**.
 
 **Bốn cột bắt buộc**: `ma_cong_trinh` · `ten_cong_trinh` · `loai_cong_trinh` · `ma_don_vi`.
 15 cột còn lại (toạ độ, tuyến sông, lý trình, năm xây dựng, tổng vốn…) điền được tới đâu hay tới đó.
+
+⚠ Riêng cột **`ma_cum`** (nhóm công trình) chỉ nhận mã đã khai trong danh mục cụm — khai tại
+**Vận hành công trình → Cụm công trình**. Nếu Công ty chưa phân cụm thì **cứ bỏ trống**, nhập bình
+thường; phân cụm sau lúc nào cũng được.
 
 **Hỗ trợ `.xlsx` và `.csv`.** ⚠ Định dạng `.xls` (Excel 2003 trở về trước) hệ thống **⛔ không đọc
 được** — mở bằng Excel rồi *Lưu thành* `.xlsx` là được. Tối đa **5.000 dòng** mỗi tệp.
@@ -127,10 +139,13 @@ CBNV, sơ đồ tổ chức, hợp đồng lao động hay nghỉ phép.
 > họ tên · ngày sinh · giới tính · **phòng ban / Xí nghiệp** · chức danh · ngày vào Công ty ·
 > loại hợp đồng + ngày hết hạn · trình độ
 
+> ⭐ **Đã có tệp mẫu gửi kèm**: `mau-danh-sach-cbnv.csv` — 12 cột, dòng 2 mô tả quy cách từng ô.
+> Mở thẳng bằng Excel là đúng dấu tiếng Việt; xoá dòng mô tả rồi điền từ dòng 2.
+
 🔒 **Xin gửi các trường nhạy cảm SAU và GỬI RIÊNG** — số CCCD, số BHXH, số tài khoản ngân hàng,
 lương. Hệ thống lưu chúng ở một bảng riêng, **mã hoá AES-256-GCM với khoá đặt ngoài cơ sở dữ liệu**,
 theo Nghị định 13/2023/NĐ-CP. ⛔ Đề nghị **không** đưa chúng vào cùng tệp danh sách chung và **không**
-gửi qua thư điện tử thường.
+gửi qua thư điện tử thường — chúng cố ý **không** có trong tệp mẫu vì lý do đó.
 
 ⚠ Cột phòng ban cũng phụ thuộc **OI-05** như mục 2.
 
@@ -158,8 +173,9 @@ thật** để Công ty góp ý cụ thể trên đúng thứ mình sẽ nhận.
 | **BC-12** Chi tiết quan trắc | ✅ | ✅ CSV | Đầy đủ |
 | **BC-13** Nhật ký đồng bộ | ✅ | ✅ CSV | ⭐ Vừa sửa: bản cũ xuất nhầm bảng (09/09) |
 
-⛔ **Bốn báo cáo đều đang chạy trên tập dữ liệu rỗng** — nguồn thuỷ văn chưa gửi được số nào (xem
-mục 5). Bản in thử vì vậy chỉ minh hoạ **bố cục**, chưa phải số liệu thật.
+✅ **Mã số API thuỷ văn đã hoạt động từ 09/09** (xem mục 5), nên bốn báo cáo trên sẽ có số liệu
+thật ngay khi hệ thống bắt đầu thu thập. Bản in thử gửi kèm thư này dựng trên dữ liệu của những
+ngày đầu, nên số lượng dòng còn ít — **bố cục** mới là thứ xin Công ty góp ý.
 
 ⚠ Cột **"Lượng mưa"** của BC-05 và BC-11 sẽ **luôn trống**: hệ thống nguồn `bhh40.net` ⛔ không có
 API lượng mưa (mục **G3-a**). Chúng tôi ghi thẳng *"Chưa có nguồn"* vào ô thay vì để trống hoặc ghi
@@ -167,17 +183,25 @@ API lượng mưa (mục **G3-a**). Chúng tôi ghi thẳng *"Chưa có nguồn"
 
 ---
 
-## 5. ⛔⛔ Nhắc lại một mục đang chặn tất cả: **mã số truy cập API thuỷ văn**
+## 5. ✅ Mã số API thuỷ văn — **đã nhận và đã kiểm chứng** (09/09/2026)
 
-Toàn bộ đường ống dữ liệu thuỷ văn **đã dựng xong và đã kiểm thử**, nhưng tới hôm nay hệ thống
-**chưa nhận được một byte số liệu nào** từ `songnhue.bhh40.net`, vì **chưa có mã số truy cập**.
+Công ty đã cấp mã số truy cập `songnhue.bhh40.net`. Chúng tôi đã gọi thử vào nguồn thật và xác nhận:
 
-Hệ quả: 19 điểm đo hiển thị đủ tên trên màn hình, **mọi ô số liệu là dấu gạch**. Bốn báo cáo ở mục 4
-kết xuất ra tệp có tiêu đề và không có dòng dữ liệu nào.
+- ✅ Nguồn trả về **28 bản ghi mực nước**, đúng định dạng hệ thống đang chờ.
+- ✅ **19/19 điểm đo** trong danh mục của hệ thống đều có mặt trong 28 mã ấy.
+- ℹ️ 9 mã còn lại (`F01535`, `F01613`, `F01659`, `F01696`, `F01700`, `F01706`, `F01811`, `F01830`,
+  `F01863`) **không nằm trong danh mục 19 điểm đo** Công ty xác nhận ở G8b. Hệ thống ghi nhận chúng
+  vào cột *"Mã lạ"* của báo cáo BC-13 thay vì bỏ qua im lặng.
+  ⬜ **Xin Công ty cho biết**: 9 mã này có thuộc phạm vi quản lý của Công ty không? Nếu có, xin bổ
+  sung tên điểm đo và vai trò để đưa vào danh mục.
 
-⚠ **Và mỗi ngày chậm là mất vĩnh viễn**: nguồn `bhh40.net` **⛔ không có API tra cứu lịch sử**. Hệ
-thống chỉ ghi được số liệu **kể từ lúc bắt đầu kết nối**; khoảng thời gian trước đó ⛔ không lấy lại
-được bằng bất kỳ cách nào.
+⚠ **Một lưu ý kỹ thuật quan trọng, xin ghi vào biên bản**: khi mã số sai hoặc hết hạn, nguồn
+`bhh40.net` **vẫn trả mã thành công (HTTP 200)**, chỉ khác ở nội dung. Hệ thống của chúng tôi phân
+biệt được hai trạng thái này và sẽ báo động khi mã số ngừng hoạt động — nhưng nếu Công ty **đổi mã
+số** mà không báo, khoảng thời gian giữa hai lần là **mất dữ liệu vĩnh viễn**: nguồn ⛔ **không có
+API tra cứu lịch sử**, hệ thống chỉ ghi được số liệu kể từ lúc kết nối.
+
+⇒ **Đề nghị**: khi cần đổi mã số, báo trước để chúng tôi cập nhật trong cùng ngày.
 
 ---
 

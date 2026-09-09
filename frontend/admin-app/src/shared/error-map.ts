@@ -102,6 +102,11 @@ export const ERROR_CATALOG = {
     handling: 'toast',
     severity: 'warning',
   },
+  'SYS-0012': {
+    message: 'Tệp nhập vượt trần số dòng — tách thành nhiều tệp rồi nhập lần lượt',
+    handling: 'toast',
+    severity: 'error',
+  },
 
   // --- Xác thực & phân quyền -------------------------------------------------
   'AUTH-0001': {
@@ -359,11 +364,6 @@ export const ERROR_CATALOG = {
     message: 'Tệp nhập còn dòng lỗi — sửa hết lỗi rồi nhập lại, không dòng nào được ghi',
     handling: 'toast',
     severity: 'warning',
-  },
-  'OPS-2022': {
-    message: 'Tệp nhập vượt trần số dòng — tách thành nhiều tệp rồi nhập lần lượt',
-    handling: 'toast',
-    severity: 'error',
   },
   'OPS-2017': {
     message:

@@ -291,6 +291,15 @@ Không cần đọc thuộc — chỉ cần biết chúng tồn tại để lúc
 | `App.useApp()` trong bài kiểm | Ngoài `<App>` của AntD nó trả **đối tượng rỗng** ⇒ `message.error` ném `TypeError` **bên trong `onError` của mutation**, tức một unhandled rejection ở nơi khác hẳn chỗ đọc kết quả. Bọc `<App>` trong hàm dựng của bài kiểm (T42.8) |
 | Khẳng định trên **con số trong thông điệp lỗi** | Bộ định dạng nhóm hàng nghìn kiểu Việt Nam: `5002` in ra `5.002`. Bỏ dấu nhóm rồi mới so — khẳng định về **con số**, ⛔ không về **định dạng** (T42.12) |
 | Đoán mã HTTP của một `ErrorCode` | *"Lỗi hợp lệ hoá thì phải 422"* — `SYS-0003` khai `BAD_REQUEST`. Đọc `ErrorCode.java`, và khẳng định theo **mã lỗi** thay vì theo con số HTTP (T42.12) |
+| Thân `PUT` dựng tay trong bài kiểm | `PUT` là **thay-toàn-phần**: trường thiếu bị XOÁ. Bài kiểm dùng chung một CSDL ⇒ mỗi lượt ghi là tác dụng phụ lên lớp khác. Gửi **trọn** trạng thái đang có, ⛔ đừng gửi phần mình quan tâm (§11.19) |
+| Một khuyết tật trên cột **vốn đang NULL** | Nó ⛔ không có triệu chứng nào cho tới ngày cột ấy có giá trị — tức đúng ngày dữ liệu thật về, đúng lúc mất nó đắt nhất. Trước khi seed dữ liệu thật vào một cột, hỏi *"đường ghi nào chạm cột này, và nó có giữ được không"* (§11.19) |
+| Bài kiểm **xanh ở máy, đỏ trên CI** | Nghi **thứ tự chạy** trước khi nghi mã: surefire xếp lớp theo thứ tự hệ tệp, macOS và Linux ngược nhau. ⇒ **`make ci-order`** — chạy lại ở một thứ tự lớp KHÁC. ⛔ Đừng chạy một lớp đơn độc: đó chính là cách phụ thuộc thứ tự trốn thoát (§11.19) |
+| Bộ canh cho một giá trị "phải giữ nguyên" | Phải có vế **"dữ liệu mốc ĐANG CÓ giá trị"**, nếu không nó xanh trong đúng tình huống nó sinh ra để bắt — khi khuyết tật còn đó thì mốc đã bị xoá trắng từ trước (luật 7, §11.19) |
+| Nguồn ngoài trả **HTTP 200** cho khoá sai | `bhh40` trả `not.working` + 200, ⛔ không phải 401. Đọc "rỗng" thành "hôm nay ⛔ không có số" là đánh mất dữ liệu **vĩnh viễn** (quy tắc 18). Kiểm cờ hỏng **TRƯỚC** khi tách dòng, và có bài kiểm cho cả hai trạng thái (T42.17) |
+| Một tiện ích nhập/xuất đặt trong module nghiệp vụ | Module ⛔ không import nhau (luật 6) ⇒ module thứ hai cần nó sẽ **chép một bản gần giống**, và bản chép lệch ở nhánh ít chạy nhất (thường là nhánh hiện lỗi). Đặt ở `core/common/`, và mã lỗi của nó mang tiền tố `SYS` chứ ⛔ không phải tiền tố module (T42.19) |
+| Ô trống trong tệp nhập | Phải chọn **một** nghĩa và nói ra: *giữ nguyên* hay *xoá*. Tệp thường lập từng phần, nên hiểu ô trống là "xoá" khiến lượt nhập thứ hai **xoá mất** thứ lượt đầu vừa điền — im lặng (T42.20) |
+| Nhập hàng loạt theo một khoá **bất biến** | Mã ⛔ không khớp phải là **lỗi dòng**, ⛔ đừng tạo bản ghi mới: một mã gõ sai sẽ lặng lẽ sinh ra bản ghi ma ⛔ không bao giờ có dữ liệu, và ⛔ không ai biết nó từ đâu ra (T42.20) |
+| Bài kiểm ghi vào bảng có bộ canh ghim từng ô | Khôi phục trong `finally`, và **đếm số hàng chạm** khi khôi phục. Để lại dữ liệu thừa là làm đỏ một lớp khác vì lý do ⛔ không liên quan (T42.20) |
 
 Chi tiết nguyên nhân: `architecture-review.md` §9.7, §9.8, §9.12, §10.33, §10.38.
 

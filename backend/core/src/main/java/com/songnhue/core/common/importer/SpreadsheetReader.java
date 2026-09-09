@@ -1,4 +1,4 @@
-package com.songnhue.operations.application.importer;
+package com.songnhue.core.common.importer;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -56,7 +56,7 @@ public final class SpreadsheetReader {
     /**
      * Trần số dòng: tệp danh mục công trình đếm bằng trăm, không phải bằng triệu.
      *
-     * <p>⛔⛔ Chạm trần thì <b>NÉM</b> ({@code OPS-2022}), ⛔ không cắt cụt. Tới 09/09/2026 vòng lặp ở
+     * <p>⛔⛔ Chạm trần thì <b>NÉM</b> ({@code SYS-0012}), ⛔ không cắt cụt. Tới 09/09/2026 vòng lặp ở
      * {@link #dungRows} dừng im lặng ở dòng thứ 5000 — ⛔ không ngoại lệ, ⛔ không một
      * {@code RowError}, và {@code ConstructionImportService} lấy {@code tongDong = rows.size()} nên
      * bản báo cáo nói <i>"đã nhập 5000 hồ sơ"</i> cho một tệp 8000 dòng. Người nhập nhận đúng chữ
@@ -344,7 +344,7 @@ public final class SpreadsheetReader {
             // ⛔ Kiểm TRƯỚC khi thêm, và ném — xem khối chú thích ở MAX_ROWS. Số dòng báo ra là số
             //   dòng NHƯ NGƯỜI DÙNG THẤY trong Excel, để họ mở đúng chỗ mà cắt tệp.
             if (rows.size() >= MAX_ROWS) {
-                throw new ValidationException(ErrorCode.OPS_2022, MAX_ROWS, i + 1);
+                throw new ValidationException(ErrorCode.SYS_0012, MAX_ROWS, i + 1);
             }
             Map<String, String> cells = new LinkedHashMap<>();
             for (int c = 0; c < tieuDe.size(); c++) {

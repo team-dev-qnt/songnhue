@@ -21,6 +21,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.core.common.exception.BusinessRuleException;
+import com.songnhue.core.common.importer.KetQuaNhap;
 import com.songnhue.core.common.security.AuthContext;
 import com.songnhue.operations.application.ConstructionFilter;
 import com.songnhue.operations.application.ConstructionService;
@@ -67,7 +68,7 @@ class ConstructionImportTest extends IntegrationTestBase {
     void previewNeverWrites() {
         byte[] tep = csv(TIEU_DE, "T17I-001,Trạm bơm Một,Trạm bơm,CTY,20.98,105.78,Nhuệ,K0+390,1998,1500000000");
 
-        ConstructionImportService.ImportReport baoCao = importer.preview(tep);
+        KetQuaNhap baoCao = importer.preview(tep);
 
         assertThat(baoCao.applied()).isFalse();
         assertThat(baoCao.toCreate()).isEqualTo(1);
@@ -85,8 +86,8 @@ class ConstructionImportTest extends IntegrationTestBase {
                 "T17I-001,Trạm bơm Một,Trạm bơm,CTY,20.98,105.78,Nhuệ,K0+390,1998,1500000000",
                 "T17I-002,Cống Hai,Cống,CTY,,,Đáy,K2+100,2005,");
 
-        ConstructionImportService.ImportReport truoc = importer.preview(tep);
-        ConstructionImportService.ImportReport sau = importer.apply(tep);
+        KetQuaNhap truoc = importer.preview(tep);
+        KetQuaNhap sau = importer.apply(tep);
 
         assertThat(sau.applied()).isTrue();
         assertThat(sau.toCreate()).isEqualTo(truoc.toCreate()).isEqualTo(2);
@@ -100,7 +101,7 @@ class ConstructionImportTest extends IntegrationTestBase {
         importer.apply(tep);
 
         byte[] doiTen = csv(TIEU_DE, "T17I-001,Trạm bơm Một (sửa tên),Trạm bơm,CTY,20.98,105.78,Nhuệ,K0+390,1998,");
-        ConstructionImportService.ImportReport lan2 = importer.apply(doiTen);
+        KetQuaNhap lan2 = importer.apply(doiTen);
 
         assertThat(lan2.toUpdate()).isEqualTo(1);
         assertThat(lan2.toCreate()).isZero();
@@ -117,7 +118,7 @@ class ConstructionImportTest extends IntegrationTestBase {
                 "T17I-002,Cống Hai,Loại không có thật,CTY,,,Đáy,K2+100,2005,",
                 "T17I-003,Kênh Ba,Kênh mương,CTY,,,,,2010,");
 
-        ConstructionImportService.ImportReport khoSau = importer.preview(tep);
+        KetQuaNhap khoSau = importer.preview(tep);
         assertThat(khoSau.errors()).hasSize(1);
         assertThat(khoSau.errors().get(0).rowNumber())
                 .as("số dòng như người dùng thấy trong Excel")
@@ -137,7 +138,7 @@ class ConstructionImportTest extends IntegrationTestBase {
                 "T17I-001,Trạm bơm Một,Trạm bơm,CTY,,,,,,",
                 "T17I-001,Trạm bơm Một bản khác,Trạm bơm,CTY,,,,,,");
 
-        ConstructionImportService.ImportReport baoCao = importer.preview(tep);
+        KetQuaNhap baoCao = importer.preview(tep);
 
         assertThat(baoCao.errors()).hasSize(1);
         assertThat(baoCao.errors().get(0).message()).contains("nhiều lần trong tệp");
@@ -148,7 +149,7 @@ class ConstructionImportTest extends IntegrationTestBase {
     void missingRequiredColumnRejectsTheFile() {
         byte[] tep = csv("ma_cong_trinh,ten_cong_trinh", "T17I-001,Trạm bơm Một");
 
-        ConstructionImportService.ImportReport baoCao = importer.preview(tep);
+        KetQuaNhap baoCao = importer.preview(tep);
 
         assertThat(baoCao.errors()).hasSize(1);
         assertThat(baoCao.errors().get(0).message()).contains("thiếu cột bắt buộc");
@@ -182,7 +183,7 @@ class ConstructionImportTest extends IntegrationTestBase {
     void readsXlsx() {
         byte[] tep = xlsx();
 
-        ConstructionImportService.ImportReport baoCao = importer.preview(tep);
+        KetQuaNhap baoCao = importer.preview(tep);
 
         assertThat(baoCao.errors()).as("lỗi: %s", baoCao.errors()).isEmpty();
         assertThat(baoCao.toCreate()).isEqualTo(1);
