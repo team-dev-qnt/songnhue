@@ -15,19 +15,19 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.app.testsupport.PhienHttp;
+import com.songnhue.app.testsupport.TestHttp;
 import com.songnhue.core.application.auth.PasswordPolicyService;
 import com.songnhue.core.infra.identity.UserRepository;
+
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * ⭐⭐ Vòng khép kín của WS-32 đi qua <b>HTTP thật</b> — T32.5 · T32.6 · T32.7 · T32.8.
@@ -82,7 +82,7 @@ class HydroQualityHttpTest extends IntegrationTestBase {
     private static final String NGOAI_KHOANG = "493.000";
 
     @Autowired
-    private TestRestTemplate http;
+    private TestHttp http;
 
     @Autowired
     private UserRepository users;
@@ -493,7 +493,7 @@ class HydroQualityHttpTest extends IntegrationTestBase {
                 .isEmpty();
         assertThat(thaoTac(kyThuat, moc, "DUYET", null).getStatusCode())
                 .as("và chốt chặn thật vẫn là engine, ⛔ không phải danh sách nút")
-                .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+                .isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
     }
 
     /**
@@ -509,7 +509,7 @@ class HydroQualityHttpTest extends IntegrationTestBase {
         Instant moc = chenNghiNgo(10, NGOAI_KHOANG);
 
         ResponseEntity<String> ra = thaoTac(kyThuat, moc, "DUYET", null);
-        assertThat(ra.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(ra.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
         assertThat(ra.getBody())
                 .as("⭐ HYD-2001 khai từ Phase 0 và tới 02/09/2026 CHƯA lượt chạy nào ném nó — đây là "
                         + "đường chạy thật đầu tiên")
@@ -568,7 +568,7 @@ class HydroQualityHttpTest extends IntegrationTestBase {
     void nhapTayNgoaiKhoangBiTuChoi() {
         ResponseEntity<String> ra = nhapTay(kyThuat, mocGoc.plus(Duration.ofMinutes(21)), NGOAI_KHOANG, null);
 
-        assertThat(ra.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(ra.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
         assertThat(ra.getBody()).contains("HYD-2001");
         assertThat(jdbc.queryForObject(
                         "SELECT count(*) FROM hydro_readings WHERE station_id = ? AND measured_at = ?",
@@ -587,7 +587,7 @@ class HydroQualityHttpTest extends IntegrationTestBase {
         chenNghiNgo(22, "31.000");
 
         ResponseEntity<String> ra = nhapTay(kyThuat, moc, "2.500", null);
-        assertThat(ra.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(ra.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
         assertThat(ra.getBody())
                 .as("⭐ HYD-2002 khai từ Phase 0 và chưa lượt chạy nào ném nó. Một thông báo 'trùng dữ "
                         + "liệu' chung chung để người trực đứng đó không biết làm gì; mã này chỉ thẳng "

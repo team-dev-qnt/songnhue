@@ -74,12 +74,17 @@ public class MenuService {
      * giá trị cũ, hoặc tệ hơn là bấm Lưu và mục menu mất đích. Đây là loại hỏng không có thông báo
      * nào và chỉ lộ ra khi có người thật ngồi sửa menu.
      *
-     * <p>Danh sách đã sắp theo {@code path} nên cha luôn đứng trước con — giao diện dựng cây bằng một
-     * lượt duyệt.
+     * <p>Danh sách ở <b>thứ tự hiển thị</b> ({@code MenuItemRepository.findForDisplay}): cha luôn
+     * đứng trước con — giao diện dựng cây bằng một lượt duyệt — và anh em ruột theo
+     * {@code sort_order}.
+     *
+     * <p>⚠ Vế thứ hai chỉ đúng từ T26.25. Câu cũ ở đây chỉ nói vế cha–con và người đọc tự suy ra vế
+     * anh em; thực tế {@code ORDER BY path, sort_order} <b>không bao giờ so tới {@code sort_order}</b>
+     * nên kéo–thả ở màn hình quản trị không đổi được gì trên cổng.
      */
     @Transactional(readOnly = true)
     public List<MenuNode> tree(MenuPosition position) {
-        List<MenuItem> all = items.findByPositionAndDeletedAtIsNullOrderByPathAscSortOrderAsc(position);
+        List<MenuItem> all = items.findForDisplay(position);
         return toNodes(all);
     }
 

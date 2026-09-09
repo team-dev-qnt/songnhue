@@ -151,6 +151,23 @@ export interface RoleSummary {
   name: string;
   description: string | null;
   permissionCount: number;
+  /**
+   * Vai trò hệ thống ⇒ ⛔ không sửa quyền được (T27.31).
+   *
+   * ⚠ Backend là nơi ÉP luật này (`ADM-2014`); trường này chỉ để màn hình khoá ô sửa **trước** khi
+   * người dùng mất công. Một ràng buộc chỉ ép ở một phía là một ràng buộc ẩn — người dùng phát
+   * hiện ra nó bằng cách va vào nó, sau khi đã tick xong và bấm lưu.
+   */
+  isSystem: boolean;
+}
+
+/** Một dòng danh mục quyền — `GET /admin/users/permissions/catalog` (T27.31). */
+export interface PermissionSummary {
+  code: string;
+  /** `cms` | `ops` | `hyd` | `hr` | `adm` — có ràng buộc CHECK ở CSDL. */
+  module: string;
+  name: string;
+  description: string | null;
 }
 
 // =============================================================================
@@ -318,7 +335,7 @@ export interface ChainVerification {
 // =============================================================================
 
 export type BackupStatus = 'RUNNING' | 'SUCCEEDED' | 'FAILED';
-export type BackupTrigger = 'SCHEDULED' | 'MANUAL' | 'PRE_RESTORE';
+export type BackupTrigger = 'SCHEDULED' | 'MANUAL' | 'PRE_RESTORE' | 'PRE_DEPLOY';
 
 export interface BackupView {
   id: string;
@@ -421,31 +438,12 @@ export interface HealthView {
 }
 
 // =============================================================================
-// Tệp đính kèm — /api/v1/attachments
+// ⛔ BIA MỘ — bốn kiểu `ScanStatus` · `AttachmentStatus` · `AttachmentView` · `DownloadUrl` đã
+//    GỠ ngày 08/09/2026 (T28.47). Chúng mirror `/api/v1/attachments`, mà đường ấy nay chỉ còn
+//    `DELETE` và ⛔ không màn hình nào gọi. `AttachmentView`/`DownloadUrl` mỗi cái có ĐÚNG MỘT
+//    lượt xuất hiện trong toàn cây FE — chính định nghĩa của nó (quy tắc 15).
+//    Kho tài liệu và tài liệu công trình đi đường riêng: `/cms/media/…`, `/ops/constructions/…`.
 // =============================================================================
-
-export type ScanStatus = 'PENDING' | 'CLEAN' | 'INFECTED' | 'SKIPPED';
-export type AttachmentStatus = 'UPLOADING' | 'READY' | 'QUARANTINED';
-
-export interface AttachmentView {
-  publicId: string;
-  originalName: string;
-  contentType: string;
-  sizeBytes: number;
-  fileVersion: number;
-  status: AttachmentStatus;
-  scanStatus: ScanStatus;
-  /** Ngày (không giờ) — chuỗi `yyyy-MM-dd`, không phải Instant. */
-  validFrom: string | null;
-  validUntil: string | null;
-  /** Backend đã tính sẵn: còn hiệu lực + quét sạch. FE **không tự suy lại** (§1.4). */
-  downloadable: boolean;
-}
-
-export interface DownloadUrl {
-  /** Có hạn ngắn và bỏ qua phân quyền — không lưu lại, không chia sẻ. */
-  url: string;
-}
 
 // =============================================================================
 // Dashboard điều hành — /api/v1/ops/dashboard (CN-02.5, CN-02.6)
@@ -1482,6 +1480,8 @@ export interface PeriodSummaryRow {
   stationCode: string;
   stationName: string;
   riverName: string | null;
+  /** Lý trình `K43+750`. `null` = G8 chưa cấp cho điểm đo này (9/19 tính tới 09/09/2026). */
+  chainage: string | null;
   positionRole: string;
   measurementTypeCode: string;
   measurementTypeName: string;
@@ -1493,6 +1493,13 @@ export interface PeriodSummaryRow {
   giaTriMax: string | null;
   mocMax: string | null;
   giaTriTb: string | null;
+  /**
+   * Số cảnh báo **bắt đầu** trong kỳ — chỉ tiêu đặc tả của BC-05.
+   *
+   * ⚠ ⛔ Không đi cùng `lyDoTrong`: một điểm đo có thể bắn cảnh báo rồi mất tín hiệu, nên hàng
+   * "rỗng kèm lý do" vẫn có thể mang số khác 0. Đây ⛔ không phải mâu thuẫn.
+   */
+  soLanVuotNguong: number;
   lyDoTrong: string | null;
 }
 

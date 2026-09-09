@@ -10,11 +10,11 @@ import java.util.List;
 import org.springframework.scheduling.support.CronExpression;
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.ValidationException;
 import com.songnhue.core.domain.settings.Setting;
+
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Kiểm tra giá trị tham số trước khi ghi — T6.11.

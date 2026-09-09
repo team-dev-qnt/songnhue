@@ -43,13 +43,31 @@ export interface CauHinhBieuMau {
   /** ⚠ Đã tính cả vế suy ra "tắt điện thoại ⇒ email bắt buộc". */
   emailBatBuoc: boolean;
   dienThoaiBatBuoc: boolean;
+  /**
+   * Có hiện ô Họ và tên ⛔ không — `site.contact.field.full-name.enabled` (T28.49).
+   *
+   * ⛔ Tắt ô này ⛔ **không** làm liên hệ thành ẩn danh hoàn toàn: email vẫn bắt buộc, nên Công ty
+   * vẫn trả lời được. Thứ mất đi là *danh tính tự khai* — điều kiện để một người dân dám phản ánh
+   * việc họ ⛔ không muốn gắn tên mình vào.
+   */
+  hienHoTen: boolean;
+  /** Có hiện ô Tiêu đề ⛔ không — `site.contact.field.subject.enabled` (T28.49). */
+  hienTieuDe: boolean;
 }
 
-/** ⚠ Mặc định khớp giá trị seed của migration `V202609061067` — luật 14, một luật hai nơi nhớ. */
+/**
+ * ⚠ Mặc định khớp giá trị seed của migration — luật 14, một luật hai nơi nhớ.
+ *
+ * ⛔ `emailBatBuoc` đổi `false` → **`true`** ngày 08/09/2026 cùng lượt `V202609081071` đặt lại hàng
+ * seed. Để lệch là dựng đúng cái bẫy luật 3: một môi trường thiếu hàng settings sẽ lặng lẽ quay về
+ * chính sách CŨ, và biểu mẫu thôi đánh dấu Email là bắt buộc trong khi backend vẫn từ chối.
+ */
 export const CAU_HINH_MAC_DINH: CauHinhBieuMau = {
   hienDienThoai: true,
-  emailBatBuoc: false,
+  emailBatBuoc: true,
   dienThoaiBatBuoc: false,
+  hienHoTen: true,
+  hienTieuDe: true,
 };
 
 export function ContactForm({ cauHinh = CAU_HINH_MAC_DINH }: { cauHinh?: CauHinhBieuMau }) {
@@ -125,8 +143,16 @@ export function ContactForm({ cauHinh = CAU_HINH_MAC_DINH }: { cauHinh?: CauHinh
           bằng nửa màn hình. Dưới `lg` vẫn 2 cột, dưới `sm` vẫn 1 — ô nhập không bao giờ hẹp
           hơn ngưỡng bấm được bằng ngón tay. */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Truong id={`${id}-ten`} name="fullName" nhan="Họ và tên" batBuoc />
-        <Truong id={`${id}-cd`} name="subject" nhan="Tiêu đề" batBuoc />
+        {/* ⛔ Ô TẮT thì BIẾN MẤT hẳn, ⛔ không phải "hiện mà ⛔ không bắt buộc" — T28.49. Một ô
+            trống ⛔ không bắt buộc vẫn là một câu hỏi đặt ra cho người dân, và mục đích của lượt
+            tắt này là ⛔ KHÔNG hỏi. Backend cũng thôi kiểm nó (`ContactFormPolicy.hienHoTen()`),
+            nên hai phía nói cùng một câu. */}
+        {cauHinh.hienHoTen ? (
+          <Truong id={`${id}-ten`} name="fullName" nhan="Họ và tên" batBuoc />
+        ) : null}
+        {cauHinh.hienTieuDe ? (
+          <Truong id={`${id}-cd`} name="subject" nhan="Tiêu đề" batBuoc />
+        ) : null}
         <Truong
           id={`${id}-mail`}
           name="email"

@@ -1,6 +1,7 @@
 package com.songnhue.app.attachment;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 import java.util.UUID;
@@ -10,7 +11,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,8 +18,10 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.app.testsupport.PhienHttp;
+import com.songnhue.app.testsupport.TestHttp;
 import com.songnhue.core.application.attachment.AttachmentService;
 import com.songnhue.core.application.auth.PasswordPolicyService;
+import com.songnhue.core.common.exception.BusinessRuleException;
 import com.songnhue.core.infra.identity.UserRepository;
 
 /**
@@ -49,7 +51,7 @@ class AttachmentDeleteHttpTest extends IntegrationTestBase {
     private static final String MA_CONG_TRINH = "A1-CT-01";
 
     @Autowired
-    private TestRestTemplate http;
+    private TestHttp http;
 
     @Autowired
     private JdbcTemplate jdbc;
@@ -162,6 +164,11 @@ class AttachmentDeleteHttpTest extends IntegrationTestBase {
                 quyenCua(com.songnhue.core.api.attachment.AttachmentController.class, "delete", UUID.class);
         List<String> duongCongTrinh = quyenCua(
                 com.songnhue.operations.api.ConstructionDocumentController.class, "delete", UUID.class, UUID.class);
+        // ⚠ T40.26 — cửa THỨ BA. Bản trước mang tên "ba cửa" mà chỉ so HAI: `MaintenanceLogController`
+        //   ⛔ không có mặt, nên nó có thể lệch mà bài kiểm vẫn xanh. Tên bài nói ba thì phép so
+        //   phải chạm ba (luật 28: bộ canh phải nói đúng phạm vi của chính nó).
+        List<String> duongBaoTri = quyenCua(
+                com.songnhue.operations.api.MaintenanceLogController.class, "deleteAttachment", UUID.class, UUID.class);
 
         assertThat(duongChung)
                 .as(
@@ -172,6 +179,9 @@ class AttachmentDeleteHttpTest extends IntegrationTestBase {
                         duongChung, duongCongTrinh)
                 .isEqualTo(duongCongTrinh)
                 .containsExactly("ops:document:delete");
+        assertThat(duongBaoTri)
+                .as("⛔ Cửa xoá đính kèm NHẬT KÝ BẢO TRÌ đòi %s — lệch khỏi hai cửa kia", duongBaoTri)
+                .isEqualTo(duongChung);
     }
 
     /**
@@ -212,11 +222,28 @@ class AttachmentDeleteHttpTest extends IntegrationTestBase {
                 "UPDATE constructions SET operating_procedure_attachment_public_id = ? WHERE id = ?", tep, idCongTrinh);
         assertThat(troToiTep(tep)).as("tiền đề: liên kết ĐANG tồn tại").isEqualTo(1);
 
-        // ⚠ Gọi thẳng service, ⛔ không qua HTTP — xem `thePermissionIsActuallyHeldBySomeRole`: ⛔
-        //   không vai trò nào đăng nhập được bằng mật khẩu đơn thuần mà có `ops:document:delete`.
-        //   ⭐ Và điều đó ĐÚNG ở đây: bảo đảm đang kiểm nằm ở tầng SỰ KIỆN (`AttachmentDeletedEvent`
-        //   + hai người nghe), ⛔ không ở controller. Luật 5 đòi đi qua HTTP khi cam kết nằm ở
-        //   controller/filter; ép nó qua HTTP ở đây chỉ thêm một lớp không liên quan.
+        // ⭐⭐ T40.26 ĐỔI KỊCH BẢN NÀY, và đổi theo chiều tốt hơn.
+        //
+        // Từ 08/09 lượt xoá trên bị **CHẶN** ngay từ đầu: `AttachmentService.delete` hỏi mọi
+        // `AttachmentUsagePort` trước khi đánh dấu xoá, và công trình đang trỏ vào tệp là một câu
+        // trả lời "có". Nghĩa là kịch bản mà T28.34 sinh ra để dọn dẹp nay **không xảy ra được nữa**
+        // qua đường bình thường — chặn tốt hơn dọn, vì dọn nghĩa là người dùng đã mất một liên kết.
+        //
+        // ⛔ Nhưng ⛔ KHÔNG xoá người dọn: nó còn phải xử những hàng ĐÃ lỡ mất tham chiếu trước khi
+        //   có chốt chặn. Nên bài này nay khẳng định CẢ HAI vế.
+        assertThatThrownBy(() -> attachments.delete(tep))
+                .as("Chốt T40.26 phải chặn — cột này nuôi liên kết 'Quy trình vận hành' trên cổng")
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("CMS-2009");
+        assertThat(troToiTep(tep))
+                .as("lượt xoá bị chặn ⇒ liên kết phải còn NGUYÊN")
+                .isEqualTo(1);
+
+        // Vế hai — người dọn vẫn làm việc. Công trình đã thanh lý thì chốt chặn cho qua (tham chiếu
+        // chết ⛔ không được khoá kho), và khi ấy `ConstructionDocumentRefCleaner` phải gỡ cột về
+        // NULL: `ON DELETE SET NULL` khai ở năm cột mà **chưa từng bắn một lần nào**, vì xoá ở đây
+        // là xoá MỀM (quy tắc 9) — hai luật đúng riêng lẻ, loại trừ nhau khi ghép.
+        jdbc.update("UPDATE constructions SET deleted_at = now() WHERE id = ?", idCongTrinh);
         attachments.delete(tep);
 
         assertThat(troToiTep(tep))

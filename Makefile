@@ -257,12 +257,38 @@ lint-fe: ## Frontend: ESLint + Prettier check
 #
 #   ⛔ KHÔNG thay được lượt chạy CI thật: quét CVE và đóng gói image lên GHCR
 #      chỉ chạy trên runner. Lệnh này bao phủ 2 job `backend` + `frontend`.
-.PHONY: ci-local migration-manifest migration-order
+.PHONY: ci-local ci-order migration-manifest migration-order
 migration-manifest:  ## Sinh lại vân tay migration (backend/db-migration-checksums.txt)
 	@./backend/tools/sinh-vantay-migration.sh
 
 migration-order:  ## Migration mới có số hiệu lớn hơn đỉnh nhánh nền chưa?
 	@./backend/tools/kiem-thu-tu-migration.sh
+
+# =============================================================================
+# ⚠⚠ Vì sao target này phải tồn tại riêng — `ci-local` VỀ NGUYÊN TẮC không dựng
+#    lại được thứ nó kiểm (§11.19, đo 09/09/2026)
+# =============================================================================
+#
+# Bộ kiểm dùng CHUNG một container Postgres cho cả lượt JVM, nên mỗi lượt ghi
+# của một lớp là tác dụng phụ lên lớp khác. Thứ quyết định ai thấy tác dụng phụ
+# ấy là THỨ TỰ CHẠY LỚP — mà surefire mặc định xếp theo thứ tự hệ tệp:
+#
+#     macOS  →  HydroCatalogueSeedTest  trước  HydroCatalogueHttpTest   ⇒ XANH
+#     Linux  →  HydroCatalogueHttpTest  trước  HydroCatalogueSeedTest   ⇒ ĐỎ
+#
+# Ngày 09/09/2026 PR #117 đỏ trên CI với `make ci-local` thoát 0 ở máy, vì đúng
+# lý do đó: một thân `PUT` thiếu trường xoá trắng tuyến sông của điểm đo đầu
+# tiên, và ở máy thì lớp bị hại chạy TRƯỚC nên không ai thấy.
+#
+# ⛔ `alphabetical` KHÔNG phải thứ tự thật của runner (ext4 xếp theo hash), nên
+#    target này ⛔ không phải một lời bảo đảm. Nó là một thứ tự KHÁC — và chỉ cần
+#    khác là đủ để lộ ra phụ thuộc thứ tự, thứ mà một lượt chạy đơn độc giấu đi.
+ci-order: ## Chạy lại bộ kiểm backend theo THỨ TỰ LỚP KHÁC — lộ phụ thuộc thứ tự mà `ci-local` giấu
+	@echo ""
+	@echo "  Chạy bộ kiểm `app` với runOrder=alphabetical (mô phỏng thứ tự runner Linux)"
+	@cd $(BACKEND) && ./mvnw -B -ntp -am -pl app test -Dsurefire.runOrder=alphabetical
+	@echo ""
+	@echo "  ✓ Bộ kiểm xanh ở MỘT thứ tự lớp khác — phụ thuộc thứ tự (nếu có) đã lộ ra."
 
 ci-local: ## Chạy đúng trình tự cổng kiểm của CI (trừ CVE scan + đóng gói image)
 	@echo ""

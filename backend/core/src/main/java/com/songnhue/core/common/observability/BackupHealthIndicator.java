@@ -3,8 +3,8 @@ package com.songnhue.core.common.observability;
 import java.time.Duration;
 import java.util.Optional;
 
-import org.springframework.boot.actuate.health.Health;
-import org.springframework.boot.actuate.health.HealthIndicator;
+import org.springframework.boot.health.contributor.Health;
+import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.stereotype.Component;
 
 import com.songnhue.core.application.backup.BackupService;

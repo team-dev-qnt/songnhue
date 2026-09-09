@@ -27,7 +27,11 @@ interface TrangThaiViecNen {
 }
 
 export interface YeuCauXuat {
-  loai: 'BC13' | 'BC05' | 'BC12';
+  /**
+   * ⚠ `BC11` thêm 09/09/2026. Nó là ảnh chụp MỘT ngày ⇒ `tuNgay` phải bằng `denNgay`; backend ép
+   * điều đó ở `HydroReportController.kiemYeuCau` và trả `SYS-0003` nếu lệch.
+   */
+  loai: 'BC13' | 'BC05' | 'BC11' | 'BC12';
   tuNgay: string;
   denNgay: string;
   stationPublicId?: string;

@@ -44,6 +44,11 @@ export const BACKUP_TRIGGER: StatusVocabulary = {
     color: 'warning',
     hint: 'Bản chụp bắt buộc ngay trước khi ghi đè dữ liệu — đường lùi duy nhất',
   },
+  PRE_DEPLOY: {
+    label: 'Trước triển khai',
+    color: 'warning',
+    hint: 'Bản chụp tự động trước mỗi lượt deploy — điểm quay lui nếu bản mới hỏng',
+  },
 };
 
 export const JOB_STATUS: StatusVocabulary = {

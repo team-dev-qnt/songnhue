@@ -224,6 +224,51 @@ export const alertLevelColors = {
   'alert-level-5': '#520339',
 } as const;
 
+/**
+ * **Bảng màu của trình soạn thảo bài viết** — T41.15, yêu cầu ĐÃ KÝ (đặc tả dòng 92 và 98).
+ *
+ * <h3>Vì sao là một bảng CỐ ĐỊNH chứ không phải ô chọn màu tự do</h3>
+ *
+ * `HtmlSanitizer` của backend **cấm thuộc tính `style`** và chỉ cho `class` đi qua — lựa chọn đúng,
+ * vì `style` mở đường cho chữ trắng trên nền trắng để giấu nội dung trong một bài đã duyệt. Nên màu
+ * phải đi bằng class, và một class chỉ mang được một màu **đã biết trước**. Ô chọn màu tự do là bất
+ * khả về mặt kiến trúc, ⛔ không phải một thứ chưa làm.
+ *
+ * <h3>Ba nhóm, sáu màu mỗi nhóm</h3>
+ *
+ * - `fg*` — **màu chữ**. Phải đọc được trên nền trắng, nên cam và lục dùng sắc đậm hơn bản trạng
+ *   thái (`#faad14`/`#52c41a` quá nhạt cho chữ, đo trên nền trắng).
+ * - `bg*` — **màu nền chữ** (bôi vàng). Sắc rất nhạt để chữ đen giữ nguyên độ tương phản.
+ * - `cell*` — **màu nền ô bảng**. Nhạt hơn `bg*` một bậc: một ô tô kín cả vùng nên cùng sắc độ ấy
+ *   sẽ át chữ, trong khi bôi vàng chỉ phủ vài từ.
+ *
+ * ⚠ Mỗi giá trị viết ra **một lần ở đây**, và hai tệp CSS (cổng + trình soạn thảo) ghim vào nó bằng
+ * chú thích `/* editorColors.xxx *&#47;`. `noHardcodedColors.test.ts` đối chiếu từng cặp mỗi lượt CI,
+ * nên một bản sao ⛔ không trôi được nữa (quy tắc 14).
+ */
+export const editorColors = {
+  fgDen: '#1f1f1f',
+  fgXam: '#595959',
+  fgDo: '#f5222d',
+  fgCam: '#d46b08',
+  fgLuc: '#389e0d',
+  fgLam: '#165bb6',
+
+  bgVang: '#fff7cc',
+  bgLuc: '#e6f7d9',
+  bgLam: '#c8def7',
+  bgHong: '#ffe0e0',
+  bgCam: '#ffe8cc',
+  bgXam: '#f0f2f5',
+
+  cellVang: '#fffbe6',
+  cellLuc: '#f0fae8',
+  cellLam: '#eaf3fd',
+  cellHong: '#fff1f0',
+  cellCam: '#fff4e6',
+  cellXam: '#fafafa',
+} as const;
+
 export type AlertLevelColorToken = keyof typeof alertLevelColors;
 
 /** Danh sách khoá hợp lệ — nguồn sự thật cho ô chọn ở `AlertLevelsPage` và cho bài kiểm đối chiếu. */

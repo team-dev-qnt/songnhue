@@ -1,6 +1,6 @@
-import { ReloadOutlined } from '@ant-design/icons';
+import { DownloadOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
-import { Alert, Button, Card, DatePicker, Space, Typography } from 'antd';
+import { Alert, App, Button, Card, DatePicker, Space, Typography } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useState } from 'react';
 
@@ -8,7 +8,10 @@ import { type RiverBoardReport } from '@/shared/api-types';
 import { api } from '@/shared/apiClient';
 import { formatDateTime } from '@/shared/format';
 
+import { useAuth } from '@/app/auth/useAuth';
+
 import { RiverSummaryBoard } from './RiverSummaryBoard';
+import { useXuatBaoCao } from './useXuatBaoCao';
 
 /**
  * ⭐ Chu kỳ làm mới của **bảng nội bộ** — 2 phút.
@@ -29,6 +32,9 @@ const NHIP_LAM_MOI_MS = 2 * 60 * 1000;
  */
 export function RiverBoardPage() {
   const [ngay, setNgay] = useState<Dayjs>(() => dayjs());
+  const { message } = App.useApp();
+  const { hasPermission } = useAuth();
+  const { xuat, dangCho } = useXuatBaoCao();
 
   const laHomNay = ngay.isSame(dayjs(), 'day');
   const bieu = useQuery({
@@ -50,6 +56,31 @@ export function RiverBoardPage() {
               ? `Cập nhật ${formatDateTime(new Date(bieu.dataUpdatedAt).toISOString())}`
               : ''}
           </Typography.Text>
+          {/*
+            ⭐ Nút Xuất thêm 09/09/2026. Trước đó BC-11 là báo cáo DUY NHẤT ⛔ không có đường xuất
+               nào — 97 dòng, 0 nút — trong khi đặc tả gọi nó là biểu "ưu tiên cao nhất" và nó mô
+               phỏng đúng biểu Công ty đang dùng trên giấy hằng ngày.
+            ⚠ Gác bằng `hyd:report:export`, ⛔ KHÔNG bằng quyền của cả trang: xem và mang ra ngoài
+              là hai việc — cùng luật với BC-13 và BC-05.
+            ⚠ `tuNgay` = `denNgay`: BC-11 là ảnh chụp một ngày, và backend TỪ CHỐI nếu hai giá trị
+              lệch nhau (`SYS-0003`), nên ⛔ không có đường nào sinh ra một tệp mang tên sai kỳ.
+          */}
+          {hasPermission('hyd:report:export') ? (
+            <Button
+              icon={<DownloadOutlined />}
+              loading={dangCho}
+              onClick={() => {
+                const d = ngay.format('YYYY-MM-DD');
+                void xuat({ loai: 'BC11', tuNgay: d, denNgay: d })
+                  .then((ten) => message.success(`Đã tải ${ten}`))
+                  .catch((e: unknown) =>
+                    message.error(e instanceof Error ? e.message : 'Không kết xuất được'),
+                  );
+              }}
+            >
+              {dangCho ? 'Đang dựng tệp…' : 'Xuất CSV'}
+            </Button>
+          ) : null}
           <Button
             icon={<ReloadOutlined />}
             loading={bieu.isFetching}

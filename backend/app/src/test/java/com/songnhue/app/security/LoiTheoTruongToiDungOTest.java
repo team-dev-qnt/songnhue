@@ -8,7 +8,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +15,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.app.testsupport.PhienHttp;
+import com.songnhue.app.testsupport.TestHttp;
 import com.songnhue.core.application.auth.PasswordPolicyService;
 import com.songnhue.core.infra.identity.UserRepository;
 
@@ -64,7 +64,7 @@ import com.songnhue.core.infra.identity.UserRepository;
 class LoiTheoTruongToiDungOTest extends IntegrationTestBase {
 
     @Autowired
-    private TestRestTemplate http;
+    private TestHttp http;
 
     @Autowired
     private JdbcTemplate jdbc;
@@ -149,7 +149,7 @@ class LoiTheoTruongToiDungOTest extends IntegrationTestBase {
 
         ResponseEntity<String> tl = phien.goi(quanTri, HttpMethod.POST, "/api/v1/admin/users", than);
 
-        assertThat(tl.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(tl.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
         assertThat(tl.getBody()).contains("AUTH-0006");
 
         // ⭐ Khẳng định TRUNG TÂM của bài này.
@@ -176,7 +176,7 @@ class LoiTheoTruongToiDungOTest extends IntegrationTestBase {
 
         ResponseEntity<String> tl = phien.goi(quanTri, HttpMethod.POST, "/api/v1/auth/change-password", than);
 
-        assertThat(tl.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(tl.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
         assertThat(tl.getBody()).contains("AUTH-0006").contains("\"field\":\"newPassword\"");
     }
 

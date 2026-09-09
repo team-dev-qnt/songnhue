@@ -21,7 +21,15 @@ name: Quét bảo mật phụ thuộc
 
 on:
   schedule:
-    # 02:15 UTC = 09:15 giờ Việt Nam — có kết quả trước giờ làm việc.
+    # 02:15 UTC = 09:15 giờ Việt Nam.
+    #
+    # ⚠⚠ Chú thích cũ ở đây khẳng định *"có kết quả trước giờ làm việc"*. **Đã hết đúng từ 27/8** và
+    #    không ai cập nhật — đo 6 lượt `schedule` gần nhất: GitHub xếp hàng trễ **291–726 phút**, nên
+    #    kết quả thật rơi vào **07:06–14:21 UTC** (14:06–21:21 giờ VN). Dòng cron ⛔ không phải giờ
+    #    CHẠY; nó là giờ *xin* chạy.
+    #
+    # ⇒ Bộ canh `canh-cong-quet.yml` (T11.67) chạy 16:00 UTC với ngưỡng **30 giờ** — cả hai con số
+    #   ấy chọn theo số đo trên, ⛔ không theo dòng này.
     - cron: '15 2 * * *'
   workflow_dispatch:
   # Đổi khai báo phụ thuộc thì quét lại ngay, không đợi tới đêm.

@@ -14,13 +14,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.songnhue.core.spi.SettingPort;
 import com.songnhue.hydro.domain.BoQuyTacNghiNgo;
 import com.songnhue.hydro.domain.QuyTacNghiNgo;
+
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Đọc tham số vận hành của MOD-03 từ bảng {@code settings} — nửa còn thiếu của một cặp đọc–ghi.

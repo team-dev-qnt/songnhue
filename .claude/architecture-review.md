@@ -5975,7 +5975,7 @@ postgres không publish cổng, `env/prod.env` không tồn tại ở đó. Đư
 xảy ra thảm hoạ. Cùng hình dạng quen thuộc: *một cơ chế tồn tại trong mã nhưng chưa có hiệu
 lực ở nơi nó phải chặn.*
 
-Chi tiết đầy đủ + trình tự đã chạy: `docs/runbook/di-tru-staging-len-production.md`.
+Chi tiết đầy đủ + sổ 12 sự cố: `docs/runbook/di-tru-du-lieu-giua-moi-truong.md`. Phần đổi tên miền và chứng chỉ tách sang `docs/runbook/ten-mien-va-chung-chi.md`.
 
 ### §10.81 — Cron gia hạn TLS chưa bao giờ chạy được, và cả hai vế đều hỏng (8/9)
 
@@ -5997,3 +5997,410 @@ Hai lỗi phụ bắt được trong lúc vá, cả hai đều thuộc họ "h�
   GMT>"` không chạy dưới busybox của image Alpine. Một con số sai đọc y hệt một con số đúng,
   và nó là thứ duy nhất người ta liếc qua trong log. Nay dùng `openssl x509 -checkend` —
   phép đo nhị phân của chính OpenSSL, phân biệt được hai trạng thái mà không cần số học.
+
+### §11.12 — `sort_order` là một núm KHÔNG điều khiển gì, ở BỐN cây cùng lúc (T26.25, 8/9/2026)
+
+Bốn cây materialized path của hệ (menu, danh mục nội dung, thư mục media, đơn vị tổ chức) đọc bằng
+`ORDER BY path ASC, sort_order ASC`. Câu ấy **không bao giờ so tới `sort_order`**: `path` chứa id của
+chính nút (`MaterializedPath.childPath`), nên hai anh em **không thể** trùng path và phép so kết thúc
+ở vế đầu.
+
+**Số đo trước khi vá**: `ThuTuMenuTest` 3 bài → **2 đỏ**. Người dùng kéo–thả ở màn hình quản trị,
+giao diện vẽ lại đúng thứ tự mới, API trả **204 thành công**, cổng công khai **không đổi gì**. Không
+lỗi, không log — đúng triệu chứng của quy tắc 27, chồng lên quy tắc 15 (một núm bày ra mà không điều
+khiển gì).
+
+⚠ **Sổ nợ mô tả THIẾU, và phần thiếu đổi cả cách nghĩ.** T26.25 ghi *"thứ tự thật là thứ tự id"*. Đo
+lại: `ORDER BY path` là phép so **CHUỖI**, nên `/10/` đứng trước `/9/`. Hệ quả khác hẳn *"mục mới rơi
+xuống cuối"* — mục mới có thể rơi vào **giữa** menu, và không ai đoán được chỗ nào.
+
+**Vì sao vá ở repository chứ không ở 11 nơi gọi** (quy tắc 12): bảo đảm phải đúng ở mọi đường đọc, và
+menu có ba đường. Tên câu truy vấn cũ `...OrderByPathAscSortOrderAsc` **xoá hẳn** — nó là chỗ lời nói
+dối bắt đầu, và javadoc của `MenuItemRepository` từng viết đúng câu *"anh em đúng thứ tự"*.
+
+**Bất biến giữ được bằng cấu trúc, không bằng lời dặn**: khoá sắp của một nút là khoá của cha cộng
+đúng một đoạn ⇒ khoá cha là **tiền tố thực sự** của khoá con ⇒ phép so chuỗi tự bảo đảm *cha trước
+con*, thứ mà `buildMenuTree` ở public-web (duyệt MỘT lượt) dựa vào. Một phép sắp phẳng theo
+`sort_order` sẽ phá đúng bất biến ấy — nên nó có bài kiểm riêng.
+
+⛔⛔ **Bản vá lộ ra khuyết tật thứ hai của chính nó, và đó là phần đáng nhớ nhất.** Ba service lưu
+**hai bước**: INSERT lần đầu với path giữ chỗ `"/"` để lấy id do CSDL sinh, rồi mới ghi path thật.
+Giữa hai bước là một trạng thái **hợp lệ theo thiết kế** mà một lượt đọc cây trong cùng giao dịch
+nhìn thấy — và `sortForDisplay` bản đầu ném ở đúng đó (`MenuLogoAndMapImageTest` đỏ 2 bài).
+
+⇒ **Một phép sắp HIỂN THỊ không được là thứ làm gãy đường GHI.** Nay path chưa hợp lệ xếp cuối, còn
+đường ghi (`childPath`, `reparent`) giữ nguyên phần nghiêm khắc. Nới ở đường đọc, siết ở đường ghi —
+không nới cả hai.
+
+⭐ Và bài kiểm đơn vị bắt lỗi của **chính người viết**: javadoc hứa *"null xếp sau mọi giá trị có
+thật"* trong khi `null` và `Integer.MAX_VALUE` cho ra cùng một khoá. Sửa **mã cho khớp lời**, không
+sửa lời cho khớp mã (quy tắc 9).
+
+### §11.13 — Ba hệ đánh số cùng dùng chữ "quy tắc N" (T37.13, 8/9/2026)
+
+`function-spec.md` CN-03.2 đánh số quy tắc **parse** 1→10. `CLAUDE.md` có **hai** danh sách nữa cùng
+dùng chữ ấy, và cả hai đều có mục 18 với nghĩa khác hẳn nhau. Đo trong kho: `quy tắc 14` xuất hiện ở
+**6** `@DisplayName` và **không lượt nào** là quy tắc parse.
+
+⇒ Một mẫu `quy tắc (\d+)` **không dùng được**. Đường đúng ⛔ không phải viết một regex khôn hơn mà là
+**sửa nguồn nhập nhằng**: 19 `@DisplayName` đổi sang dạng duy nhất `quy tắc parse N`. Quy tắc parse 1
+thôi mang tên *"quy tắc 18"*.
+
+⚠⚠ **Bộ canh đỏ ngay lượt chạy đầu tiên, và đúng việc — nhưng vì một lý do không ai đoán trước.** Bản
+đầu quét theo **dòng**. Lượt đổi tên làm chuỗi dài thêm, **Spotless ngắt `@DisplayName` xuống dòng
+dưới**, và quy tắc parse 1 lập tức "biến mất" trong khi bài vẫn nằm nguyên đó.
+
+⇒ **Một bộ canh mà bộ ĐỊNH DẠNG MÃ làm cho sai sẽ đỏ giả vào một ngày không ai đoán trước** — và lượt
+sửa nó rất dễ thành *nới bộ canh cho hết đỏ*. Nay quét theo **khối chú giải**, và ca ngắt dòng thành
+một đối chứng thường trực.
+
+**Rào cản hạ tầng phải vá cùng lượt, nếu không bộ canh vừa sinh ra đã mù**: bộ lọc `ci.yml` không bao
+`.claude/` ⇒ sửa spec **không** kích hoạt job backend ⇒ bộ canh sinh ra để bắt *một quy tắc mất bài
+kiểm* lại không chạy đúng lúc quy tắc đổi, và `skipped` được tính **ĐẠT** (luật 24). Thêm **đúng một
+tệp** `.claude/function-spec.md` — ⛔ không phải cả `.claude/`, vì `master-tracking.md` sửa gần như mỗi
+PR và kéo nó vào là dựng lại đúng lỗ §10.63. `CiPathFilterTest` cũng phải thêm tiền tố `.claude`:
+**lần thứ hai trong sáu ngày** đúng hình dạng T11.71 — một bộ canh không *nhìn thấy* đường dẫn thì
+không thể báo rằng bộ lọc đang bỏ sót.
+
+### §11.14 — Một dòng nợ tự nó sai, lần thứ hai (T11.28, 8/9/2026)
+
+Sổ ghi T11.28 mở suốt 12 ngày trong khi **dòng ngay dưới nó** (T24.3) khai rõ *"đóng nợ T11.28"* từ
+27/08. Lần đầu là T11.83 (§10.75). ⇒ **Sổ nợ cũng là dữ liệu chưa kiểm** — và đọc một dòng nợ mà
+không đo lại là chép một khẳng định.
+
+Phần dư THẬT, không nằm trong mô tả dòng nợ:
+
+- **Hai biến env mồ côi × ba tệp**, 0 nơi đọc **và còn mang địa chỉ CŨ**. ⛔ Một biến mồ côi mang giá
+  trị **sai** nguy hiểm hơn một biến mồ côi rỗng: ngày có người nối nó vào là ngày CR-07 bị đảo ngược
+  mà không ai hiểu vì sao. Bia mộ để lại một **ranh giới quyết định** cho lần sau: *địa chỉ và công
+  tắc tính năng → `settings` (quy tắc 12); bí mật bên thứ 3 → env (quy tắc 11/13)*.
+- **Bộ seed cũ lệch cả hai trường** (địa chỉ + `linkType`) suốt 12 ngày, không gì báo — số đo cụ thể
+  cho câu hỏi *bỏ hay giữ đường seed thứ hai* của T11.38.
+- ⛔⛔ Chú thích `V202608271031:187` khẳng định *"`PortalDocSystemUrlTest` canh cho khỏi lệch"* mà
+  **0 tệp** mang tên ấy trong kho. §10.81 ở dạng nặng hơn: **một chú thích khẳng định CÓ cổng kiểm
+  còn tệ hơn im lặng, vì nó làm người đọc thôi đi tìm.** Và tệp migration ⛔ **không sửa được** dù chỉ
+  là chú thích (Flyway băm cả tệp — §10.65), nên lời đính chính phải đặt ở chính bộ canh thật.
+
+### §11.15 — Câu hỏi số 4 của §7.3 chưa từng có bộ canh, và nó đỏ ngay (T37.9, 8/9/2026)
+
+Checklist sáu câu hỏi *"có màn hình nào GỌI endpoint đó không"*. Ba bộ canh đã có chỉ phủ vế **cột**
+và vế **khoá `settings`**. Vế **endpoint ↔ màn hình** chưa cái nào chạm tới — đúng vế mà lượt rà 28/8
+tìm ra hai lần và T28.47 phải dọn bằng tay lần nữa.
+
+**Số đo lượt đầu: 7/62 phương thức của client CMS có 0 tham chiếu** trong toàn `admin-app/src`, kể cả
+bài kiểm. Backend có endpoint, có phân quyền, có bài kiểm HTTP xanh — và **người dùng không có nút nào
+để bấm**.
+
+⛔ **Ba đường xử lý, và hai trong ba là sai:**
+
+| Đường | Vì sao |
+|---|---|
+| Xoá client cho sạch | **Giấu** khoảng trống. `renameFolder`/`deleteFolder` là chức năng Công ty cần thật |
+| Dựng bừa giao diện | Phát minh tính năng để cứu một dòng đỏ — đúng thứ đã từ chối ở `HYD-1001` |
+| **Sổ nợ máy đọc được** | Khớp chính xác **hai chiều**: thêm endpoint quên màn hình ⇒ đỏ; dựng xong màn hình quên xoá dòng ⇒ **cũng đỏ**, danh sách buộc phải teo đi |
+
+⚠ Bộ canh tự khai phạm vi: nó soi **đúng một tệp**, vì đo được `features/cms/api.ts` là client tập
+trung **duy nhất**; 47 tệp còn lại gọi `api.*` thẳng trong component nên nơi gọi *là* màn hình. Có
+bài riêng đỏ nếu xuất hiện `api.ts` thứ hai — bộ canh ⛔ không được âm thầm hẹp lại (luật 28).
+
+⚠ Và lượt kiểm chứng ngược dạy lại **luật 10** ở một dạng mới: `git checkout --` **im lặng thất bại
+trên tệp chưa track**, nên bản khôi phục chưa từng được nạp cho tới khi in ra một con số đếm được.
+Xác nhận bản *phá* đã nạp là chưa đủ — bản *khôi phục* cũng phải đo.
+
+---
+
+### §11.16 — Công cụ đọc **đường dẫn tương đối** đọc cây của TIẾN TRÌNH, không đọc cây của bạn (8/9/2026)
+
+Lượt chuẩn bị vào Phase 3 định đồng bộ `master-tracking.md` lên Google Sheet của Công ty. Phép đo
+**trước khi bấm** chặn đúng một lượt công bố sai.
+
+`.agents/mcp/google_sheets_sync/server.py:119`:
+
+```python
+tasks = parse_markdown_to_data(os.path.join(os.getcwd(), TRACKING_FILE))
+```
+
+`os.getcwd()` của tiến trình MCP là **thư mục nó được khởi động**, tức **cây chính**. Toàn bộ đợt việc
+này sống trong một `git worktree` riêng (`songnhue-ws37`). ⇒ Công cụ đọc **một tệp khác** với tệp đang
+sửa, và ⛔ **không có gì trong đầu ra nói ra điều đó** — nó vẫn báo "đã đồng bộ N dòng".
+
+**Đo được 8/9**: hai cây cho hai md5 khác nhau, cùng 1360 dòng, lệch **72 dòng**. Nguyên nhân là **hai
+PR đang mở cùng sửa `master-tracking.md`**:
+
+| PR | Nhánh | Đóng gì |
+|---|---|---|
+| **#109** | `fix/hoan-thien-phase2` | T11.28 · T11.34 · T26.25 · T37.9 · T37.11 · T37.13 |
+| **#106** | `docs/runbook-khoi-phuc-va-di-tru` | T11.97; hạ T11.95 xuống `[~]` |
+
+⛔⛔ **Không cây nào giữ hợp của hai bên.** Đồng bộ từ cây chính ⇒ mất 6 mục vừa đóng; đồng bộ từ
+worktree (nếu ép được) ⇒ mất T11.97 và dựng lại T11.95 như thể cửa sổ nguy hiểm còn mở. **Cả hai
+hướng đều cho ra một bảng trông đầy đủ và đúng.**
+
+Cùng hình dạng **§10.67** (*bản vá sống trên đĩa mà tiến trình MCP vẫn chạy mã cũ*), đổi chỗ: lần ấy
+**mã** cũ, lần này **dữ liệu** cũ. Và cùng họ với **luật 3** — thứ có hiệu lực là giá trị **đã giải**
+(`os.getcwd()` lúc khởi động), ⛔ không phải giá trị mình *tưởng* (thư mục mình đang gõ lệnh).
+
+⇒ **Bất biến phải tôn trọng: chỉ đồng bộ Sheet từ một cây đang đứng trên `dev` đã gộp xong**, và
+⛔ không bao giờ đồng bộ khi còn PR mở đụng vào `master-tracking.md`. Thứ tự: gộp mọi PR đụng tệp ấy →
+cây chính `checkout dev && pull` → đo md5 → **rồi mới** đồng bộ.
+
+⭐ **Đã trả cùng ngày (T37.16)**: `os.path.abspath(...)` + dòng `Nguồn đã đọc:` nằm trong **câu trả
+lời**, ⛔ không chỉ trong log — log của tiến trình MCP gần như ⛔ không ai mở, và một cảnh báo ⛔ không
+ai đọc thì bằng ⛔ không có (§10.68). ⛔ Cố ý **không** khoá cứng đường dẫn theo `__file__`: đồng bộ từ
+một cây khác là việc **hợp lệ**; thứ thiếu ⛔ không phải một cái chặn mà là **nói ra cây nào**.
+
+⚠⚠ Và bản vá ấy làm gãy neo của một bộ canh cũ — bài học riêng, đáng giá hơn chính bản vá:
+`test_server_co_cong_chan_ma_cu` neo vào chuỗi `parse_markdown_to_data(os.path.join`, nên lượt **bóc
+đối số ra biến** khiến nó tìm không thấy và đỏ, dù bất biến nó canh (*phép so vân tay phải đứng TRƯỚC
+lượt đọc*) ⛔ **không hề đổi**. ⇒ **Một bộ canh hỏng vì mã được DỌN DẸP là một bộ canh đang canh văn
+bản** (luật 2). Neo đúng là lời gọi `parse_markdown_to_data(`, ⛔ không phải cách viết đối số của nó.
+
+---
+
+### §11.17 — Hai cái chuông phải phủ hai tập RỜI NHAU, và một bộ canh ⛔ không được ở cùng nhà với thứ nó canh (T11.67, 8/9/2026)
+
+`bao-dong-quet-cve.sh` (T11.66/T11.84) treo vào `needs: [owasp, npm]` với `if: always()`. Nó là một
+cái chuông **tốt** — và nó chỉ kêu được khi **có một lượt để mà đỏ**. Tắt Actions, xoá nhầm workflow,
+YAML vỡ, GitHub bỏ lịch cron: tất cả cho ra **im lặng tuyệt đối**, đọc y hệt *"mọi thứ đều ổn"*.
+
+Điều đáng chú ý là khoảng trống ấy **đã được ghi ra** — javadoc của `CanhBaoQuetCveTest` tự khai
+giới hạn của chính nó (luật 28). Một dòng nợ nằm trong bộ canh sống lâu hơn một dòng nợ nằm trong sổ.
+
+**Ba quyết định của lượt trả, mỗi cái là một bài học riêng:**
+
+| Quyết định | Vì sao ⛔ không làm cách kia |
+|---|---|
+| **Workflow RIÊNG**, ⛔ không phải một job thêm vào `security-scan.yml` | Chính là khuyết tật nó canh: tệp ấy vỡ thì mọi job **bên trong** cũng chết — kể cả job đi báo rằng nó chết. Có bài kiểm khẳng định `security-scan.yml` ⛔ **không** chứa `canh-cong-quet.sh` |
+| **IM LẶNG khi lượt quét `failure`** | Trạng thái ấy đã có chuông **kèm bằng chứng**. Kêu lần hai là dựng lại T11.84 — 9 bình luận giống hệt nhau, rồi ⛔ không ai đọc nữa. Hai chuông phủ **hai tập rời nhau** |
+| **Ngưỡng 30 giờ, giờ chạy 16:00 UTC** — chọn theo **số đo**, ⛔ không theo dòng cron | 6 lượt gần nhất trễ **291–726 phút** ⇒ kết quả rơi vào 07:06–14:21 UTC. Dòng cron ⛔ không phải giờ CHẠY, nó là giờ *xin* chạy — và chú thích khẳng định *"có kết quả trước giờ làm việc"* đã **sai từ 27/8** mà ⛔ không ai cập nhật |
+
+⛔⛔ **Khuyết tật của chính lượt viết bài kiểm — dạng mới, đáng ghi nhất.** Giờ ghim đặt nhầm thành
+30/08, **sớm hơn mọi fixture 9 ngày** ⇒ mọi phép trừ ra số **ÂM**. Hệ quả ⛔ không phải "mọi bài đỏ":
+
+- bài *quá hạn* (nhánh xa nhất) **đỏ** — thứ duy nhất nhìn thấy được;
+- ba bài *còn tươi* **xanh**, và xanh **vì lý do sai** — chúng chứng minh nhánh bình-thường chạy được
+  với một tuổi âm, ⛔ không nói gì về ngưỡng.
+
+⇒ **Một hằng số thời gian sai chỉ làm ĐỎ nhánh xa nhất; các nhánh gần thì XANH GIẢ.** Và cách sửa rẻ
+nhất lúc ấy — *nới ngưỡng cho bài kia hết đỏ* — là **tự tay tháo bộ canh**. Thứ chặn được là một bài
+tính lại tuổi bằng `java.time`, **nguồn khác hẳn `date` của shell**, ⛔ không chia giả định nào với
+thứ nó kiểm (luật 29).
+
+⚠ Lượt kiểm chứng ngược cũng suýt nói dối **hai lần**, cả hai đều là bẫy sổ đã ghi: `./mvnw -pl app`
+**thiếu `-am`** biên dịch với jar `core` CŨ trong m2 ⇒ **lớp chưa từng chạy** (bắt được vì đếm **số
+báo cáo surefire**, ⛔ không đọc màu — luật 32); và `rm -f <glob>` không khớp làm **zsh cắt cả chuỗi
+lệnh** (luật 20).
+
+⛔ Thêm một dạng của bẫy khôi phục ở §11.15: `git diff` trên một tệp **chưa track** luôn rỗng, nên nó
+⛔ **không phải** phép đo khôi phục. Chỉ `grep -c` mới là.
+
+---
+
+### §11.18 — Một ô "chờ Công ty" che được nợ của chính mình (G6 · G8 · G10, 9/9/2026)
+
+**Hình dạng.** Ba mục BOQ nằm chung một ô *"chờ Công ty"* suốt nhiều tuần. Lượt đo 9/9 tách hai loại
+ra và tìm thấy **mười một khuyết tật ⛔ không ai chặn** nằm sau cái nhãn ấy — trong đó ba cái là bản
+kết xuất **sai nội dung** đang chờ được gửi cho khách.
+
+Cái nhãn *"chờ Công ty"* nguy hiểm hơn nhãn *"chưa làm"* ở đúng một điểm: nó **chuyển trách nhiệm ra
+ngoài**, nên không lượt rà nào mở nó ra nữa. `⛔ không làm được` và `⛔ chưa làm` đọc giống hệt nhau
+trên một dòng sổ.
+
+**Ba khuyết tật đáng nhớ nhất, cùng một họ: *cắt cụt / xuất nhầm / thiếu cột*, cả ba đều IM LẶNG.**
+
+| | Khuyết tật | Vì sao ⛔ không ai thấy |
+|---|---|---|
+| `SpreadsheetReader` | Vòng lặp dừng ở `rows.size() < MAX_ROWS`, và `tongDong = rows.size()` **đếm sau khi cắt** | Tệp 8.000 dòng báo *"tổng 5000, 0 lỗi"* rồi **"nhập thành công"** |
+| BC-13 | Xuất `chatLuong()` trong khi đặc tả mô tả `dongBo()` — trùng **2/12** cột | `dongBo()` có **0 nơi gọi**; tệp vẫn đầy dữ liệu, chỉ là **bảng khác** |
+| BC-05 | Thiếu 5 cột đặc tả | **14 cột nó *có* đều đúng** |
+
+⭐ **Bài học chung**: một bản kết xuất **sai** trông y hệt một bản kết xuất **đúng** — nó có tiêu đề,
+có dữ liệu, mở được trong Excel. Không có gì trong hệ thống phân biệt được hai trạng thái ấy trừ một
+lượt **đối chiếu với đặc tả**, và đối chiếu ấy phải là một **bài kiểm**, không phải một lượt đọc.
+
+**Vì sao các cổng kiểm đều xanh — luật 28 ở dạng đắt nhất.** `HydroReportExportHttpTest` có 4 bài;
+**đúng một** bài chạy hết vòng khép kín, và nó xuất **chỉ BC05**. Nội dung tệp của ba mã báo cáo còn
+lại **chưa từng bị ai nhìn**. Cái xanh của một bộ canh hẹp đọc như một lời bảo đảm rộng — lần thứ tư
+trong dự án.
+
+Cùng hình dạng ở phía nhập: `ConstructionImportTest` có 10 bài **gọi thẳng service** (luật 5), nên ba
+khuyết tật nằm trọn ở giao diện — `accept` chặn CSV và mời `.xls`, *"đúng biểu mẫu"* mà không có biểu
+mẫu, bảng lỗi là mã chết — về nguyên tắc ⛔ không thể lộ ra.
+
+**⭐ Chỗ hệ thống làm ĐÚNG, đáng ghi ngang với chỗ sai.** `BangCsv.dong` **ném** khi một dòng lệch số
+cột, và nó bắt được lỗi của lượt vá này ở **lần chạy đầu tiên**: khối hai tầng của BC-13 có 16 vs 12
+ô. Việc nền FAILED chứ ⛔ không cho ra một tệp xấu. Cách sửa đúng là **đệm cho đủ lưới**, ⛔ không
+phải nới bộ canh — chú thích của chính nó đã ghi lý do: *một CSV lệch cột vẫn mở được trong Excel, nó
+chỉ đẩy dữ liệu sang cột bên cạnh, im lặng*.
+
+**⚠ Hai khẳng định của lượt vá tự sai, và lượt chạy bác cả hai** (lại đúng luật 29 — người viết mã và
+người viết bài kiểm là một người, mang cùng giả định):
+
+- `SYS-0003` khai `HttpStatus.BAD_REQUEST`; tôi khẳng định 422 vì *"lỗi hợp lệ hoá thì phải là 422"*.
+- Thông điệp `OPS-2022` (nay `SYS-0012` — xem §11.20) nhóm hàng nghìn kiểu Việt Nam (`5.002`), tôi so với `"5002"`.
+
+Cả hai được sửa thành khẳng định về **thứ đang đo** — mã lỗi, và con số sau khi bỏ dấu nhóm — chứ
+⛔ không về con số HTTP hay định dạng mà tôi đoán.
+
+**⛔ Nới một bộ canh thì phải thay bằng thứ CHẶT HƠN.** `HydroCatalogueSeedTest.khongBiaDuLieuChuaCo`
+khẳng định tuyến sông + lý trình + toạ độ **đều NULL cả 19 dòng**. Bản chụp G8 làm hai vế đầu hết
+đúng. Nới nó xuống còn toạ độ mà ⛔ không thay gì vào chỗ hai vế kia là **tự tay tháo một bộ canh**
+(§11.17 vừa trả giá đúng chuyện này). Thay bằng `khopBanChupG8` ghim **từng ô của cả 19 dòng, gồm 6 ô
+"Chưa rõ"** — vì một khẳng định kiểu *"13 dòng có tuyến sông"* vẫn xanh khi ai đó xoá tuyến của một
+điểm rồi điền cho điểm khác.
+
+**⚠ Và hai nguồn của cùng một khách hàng có thể lệch nhau.** Bảng ánh xạ 19 điểm đo tự khai là *"bảng
+Công ty cấp (chốt G8b)"*; bản chụp 9/9 lệch **đúng một dòng** (`F01519` Lương Cổ: Thượng lưu vs Hạ
+lưu). 18/19 dòng khớp tuyệt đối ⇒ ⛔ không phải hai danh sách khác nhau mà là **một dòng sai ở một
+trong hai bản**. Chữ *"đã chốt"* trong một chú thích ⛔ không làm dữ liệu đúng lên. Cách xử lý: lấy
+bản nhất quán hơn, ghi lý do vào migration, **và hỏi lại khách** — ⛔ không im lặng chọn một bên.
+
+---
+
+### §11.19 — Một `PUT` thiếu trường xoá dữ liệu, và nó vô hình cho tới ngày dữ liệu tồn tại (9/9/2026)
+
+**Triệu chứng.** PR #117 đỏ trên CI ở `HydroCatalogueSeedTest` — *`tuyến sông của F01771: expected
+"Sông Nhuệ" but was null`* — trong khi chạy riêng lớp ấy ở máy dev **xanh 12/12**.
+
+**Nguyên nhân.** Container Postgres của bộ kiểm là **singleton cho cả lượt JVM**, nên mọi lớp dùng
+chung một CSDL. `HydroCatalogueHttpTest.thanSua()` dựng thân `PUT` **6 trường** — thiếu `riverName`
+và `chainage` — rồi gửi lên `motDiemDo()` = `ORDER BY id LIMIT 1` = **F01771**. `PUT` là
+thay-toàn-phần nên `StationService` hiểu *"⛔ không gửi"* là *"xoá"*.
+
+⭐⭐ **Vì sao nó sống được từ WS-29 tới 9/9 mà ⛔ không ai thấy: trước bản chụp G8, cả 19 điểm đo
+đều có `river_name = NULL` sẵn.** Một lượt ghi xoá trắng một ô vốn đã trắng ⛔ không để lại dấu vết
+nào. Khuyết tật chỉ có triệu chứng **kể từ ngày ô ấy có giá trị** — tức đúng ngày dữ liệu thật về,
+đúng lúc mất nó đắt nhất.
+
+⚠ Và **chỉ CI đỏ**: surefire xếp lớp theo thứ tự hệ tệp; macOS cho `Seed` trước `Http`, runner Linux
+ngược lại. Cùng hình dạng đã đo ở chính tệp ấy cho `measurementTypeIds`.
+
+**⭐ Lần thứ HAI, cùng một tệp, cùng một hình dạng — và bài học lần đầu ĐÃ được viết ra.** Javadoc
+của `thanSua` ghi nguyên văn: *"bài kiểm dùng chung một CSDL thì mỗi lượt ghi là một tác dụng phụ
+lên bài kiểm khác — gửi **trọn** trạng thái hiện có"*. Nó ⛔ không ngăn được lần thứ hai.
+
+⇒ **Một bài học nằm trong javadoc là một lời dặn, ⛔ không phải một cổng kiểm.** Lần này nó thành
+`editingAStationKeepsItsG8Location`: đọc trước → `PUT` → đọc lại → phải bằng.
+
+**⛔ Vì sao ⛔ KHÔNG chữa bằng cách bắt buộc trường, như lần trước.** `measurementTypeIds` thành
+`@NotEmpty` vì rỗng **luôn** sai. `riverName` thì khác: NULL là trạng thái **hợp lệ** (6/19 điểm đo
+hôm nay), và `PUT` xoá trường bị bỏ trống là *đúng ngữ nghĩa của `PUT`*. Thứ phải bảo đảm là **màn
+hình gửi đủ** — và đó là một khẳng định đo được, ⛔ không phải một lời hứa.
+
+⚠ Bài kiểm chứng ngược cho bộ canh mới đỏ ở **vế chống tập rỗng** chứ ⛔ không ở vế so sánh: khi
+`thanSua` thiếu trường thì các bài chạy trước đã xoá trắng F01771, nên tới lượt bài mới thì ⛔ không
+còn gì để mất. Một bộ canh ⛔ không có vế *"dữ liệu mốc phải ĐANG CÓ"* sẽ **xanh trong đúng tình
+huống nó sinh ra để bắt** (luật 7).
+
+**⭐ Hệ quả rộng hơn, và nó đổi cách đọc cả sổ nợ.** Nếu *"sửa được trên admin portal"* là lý do một
+ô dữ liệu lệch ⛔ không phải blocker — thì **vòng khứ hồi của màn hình ấy phải có phép kiểm**. Một
+màn hình sửa được mà lượt lưu xoá mất trường bên cạnh thì lời hứa ấy sai, và nó sai **im lặng**.
+
+### §11.20 — Một lượt nâng phiên bản lớn: ba khuyết tật im lặng, và cái nặng nhất chỉ lộ vì có bài kiểm HTTP (T11.69, 9/9/2026)
+
+Di trú Spring Boot **3.5.16 → 4.1.1**. Mục tiêu là xoá **6 mã CVE ≥ 7** ở `spring-core`/`spring-web`
+6.2.19 — đường vá duy nhất còn tồn tại, vì `6.2.19` là bản **cuối cùng** của dòng 6.2 (tra
+`maven-metadata.xml`, luật 21) và bản có vá nằm ở Framework 7, thứ chỉ đi kèm Boot 4.
+
+Lượt dựng thử 07/09 đã đo trước phần đổi toạ độ Maven và đổi gói, và **đúng**: 7 tệp, ⛔ không lỗi
+logic nào. Nhưng ba khuyết tật nặng nhất **⛔ không nằm trong bản đồ ấy** — và cả ba đều thuộc loại
+*biên dịch sạch*.
+
+**(1) `ResponseEnvelopeAdvice` hỏi sai câu hỏi, và câu trả lời im lặng đổi.** Nó quyết định có bọc
+envelope hay ⛔ không bằng:
+
+    AbstractJackson2HttpMessageConverter.class.isAssignableFrom(selectedConverterType)
+
+Boot 4 chọn `JacksonJsonHttpMessageConverter` (Jackson 3), thứ **⛔ không kế thừa** lớp ấy. Lớp cũ
+**vẫn còn** trong Framework 7 (deprecated), nên mã **biên dịch sạch** — và mọi endpoint sẽ trả thân
+trần, ⛔ không envelope. Toàn bộ frontend đọc `data`/`traceId` sẽ vỡ.
+
+⭐ Thứ bắt được nó là `EnvelopeAndErrorHandlingTest` — **kiểm qua HTTP** (luật 5). Một bộ kiểm gọi
+thẳng service ⛔ không thể thấy: khuyết tật nằm ở tầng chọn converter, tầng chỉ tồn tại khi có một
+lượt gọi thật đi qua dây.
+
+**(2) `spring-boot-flyway` là artifact RIÊNG.** Boot 3.5 để `FlywayAutoConfiguration` trong
+`spring-boot-autoconfigure` — thứ luôn có mặt — nên khai `flyway-core` trần là đủ. Boot 4 dời nó ra.
+Giữ nguyên khai báo cũ thì: biên dịch sạch, ứng dụng khởi động, health xanh, **⛔ không migration nào
+chạy**.
+
+⚠ Và bộ test **về nguyên tắc ⛔ không thấy** hậu quả thật: nó chạy trên CSDL **rỗng**, nơi thiếu
+Flyway là ⛔ không có bảng nào và mọi thứ đỏ ầm ĩ. Môi trường thật có CSDL **đã đầy** — ứng dụng lên
+xanh và bản vá lược đồ mới âm thầm ⛔ không được áp. Đúng luật 30, đúng hình dạng §11.19.
+
+**(3) `TestRestTemplate` bị xoá hẳn** — 37 tệp, 55 lời gọi. Đường chính thống là `RestTestClient` với
+API fluent, nhưng đi đường ấy là **viết lại chính phần khẳng định** của bộ kiểm thử cùng lúc với đổi
+thứ được đo. ⇒ Dựng `TestHttp` giữ đúng ba phương thức đang dùng; 37 tệp chỉ đổi **tên kiểu**.
+
+#### ⛔⛔ Bài học đắt nhất: bản vá của tôi tự mang hai khuyết tật, và một khẳng định của tôi bị bác
+
+`TestHttp` bản đầu dùng `SimpleClientHttpRequestFactory` ⇒ `HttpURLConnection` **⛔ không biết
+`PATCH`** ⇒ 4 bài đỏ. Nó cũng **đi theo chuyển hướng** theo mặc định — nếu ⛔ không sửa, một endpoint
+trả `302` sẽ được đọc thành `200` và bài kiểm xanh trong khi thứ nó khẳng định đã biến mất. Nay là
+`JdkClientHttpRequestFactory` với `Redirect.NEVER` khai **tường minh**: một mặc định ⛔ không phải một
+quyết định (luật 3).
+
+Và chú thích tôi viết cho khoá cấu hình Jackson khẳng định *"xoá dòng này thì ngày ra dây thành SỐ
+epoch"*. Lượt kiểm chứng ngược **bác bỏ**: gỡ hẳn khoá đi mà bài kiểm **vẫn xanh**, vì đo trực tiếp
+trên jar 3.1.5 thì `DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS.enabledByDefault()` = **false** —
+Jackson 3 đã đảo mặc định. Bộ canh chỉ đỏ khi đặt `true`.
+
+⇒ Dòng cấu hình ấy **vẫn giữ**, nhưng vì lý do THẬT chứ ⛔ không phải lý do tôi viết ra: quy tắc 1
+của dự án (mọi timestamp ra dây là ISO-8601 UTC) ⛔ không được phép treo vào **mặc định của thư viện
+bên thứ ba** — thứ vừa đổi đúng một lần trong chính lượt di trú này. Đây là luật 3 ở dạng thuần
+khiết nhất, và là lần thứ hai trong hai ngày một lượt kiểm chứng ngược bác bỏ khẳng định của chính
+người viết bản vá (luật 29).
+
+#### Một bộ canh đỏ mà ⛔ không nói được vì sao thì gần như ⛔ không có
+
+`FlywayAutoConfigCoMatTest` bản đầu kế thừa `IntegrationTestBase` và hỏi *"bean `Flyway` có tồn tại
+⛔ không"*. Lượt kiểm chứng ngược (hạ pom về `flyway-core` trần) cho **2/2 đỏ** — nhưng đỏ vì
+**ApplicationContext chết**, nên thông điệp chẩn đoán ⛔ không bao giờ in ra; người đọc log chỉ thấy
+stack trace ⛔ không trỏ vào nguyên nhân.
+
+⇒ Hạ xuống tầng **tĩnh**: JUnit trần, hỏi lớp auto-config có trên classpath ⛔ không. Đó chính là thứ
+đổi khi ai đó sửa `app/pom.xml`; nó ⛔ không cần CSDL, chạy trong mili-giây, và khi đỏ thì câu trả lời
+nằm ngay trong thông điệp. Kèm một bài **đối chứng phải-KHÔNG-tìm-thấy** (gói Boot 3.5 phải vắng mặt)
+để cái xanh của nó ⛔ không vô nghĩa trong một thế giới mà cả hai gói cùng tồn tại (luật 9).
+
+#### Ba lần gặp lại bẫy hạ tầng cũ trong một phiên
+
+- **Spotless/Checkstyle chặn ở bước ĐẦU** ⇒ lượt chạy báo *0 lỗi biên dịch* trong khi **chưa biên
+  dịch gì**. Gặp hai lần. Đúng §10.74: *số job đỏ ⛔ không phải số khuyết tật*.
+- **Một báo cáo surefire cũ 1 phút** suýt được ghi nhận là kết quả mới, sau khi Checkstyle chặn lượt
+  chạy — chỉ lộ ra vì đối chiếu `ls -la` mốc thời gian. Luật 32 ở dạng dữ liệu thay vì mã thoát.
+- **`nohup … &` thoát 0 ngay lập tức**, và mã thoát ấy ⛔ không phải của Maven.
+
+#### Số đo để lại
+
+Phiên bản đọc bằng `dependency:list`, ⛔ không đọc tài liệu: spring-core/web **7.0.9** · tomcat
+**11.0.24** · spring-data-jpa **4.1.1** · kotlin-stdlib **2.3.21** · hibernate **7.4.5.Final** ·
+flyway **12.4.0**. **Gỡ SÁU ghim phiên bản** (bản đồ cũ nói ba): thêm `commons-lang3` — BOM khai
+**3.20.0** trong khi ta ghim 3.18.0, giữ lại là **hạ cấp**.
+
+⚠ Jackson 2 (**2.21.5**) **vẫn trên classpath**, tới từ **MinIO 8.5.17** — ⛔ không loại được. Nhưng
+sau lượt này ⛔ không dòng mã nào của ta chạm vào nó; annotation (`@JsonFormat`, `@JsonInclude`) cố ý
+ở lại `com.fasterxml.jackson.annotation`, vì chính `JacksonProperties` của Boot 4 cũng đọc gói ấy.
+
+#### Hậu truyện §11.20 — gỡ một ghim phiên bản vì "BOM khai số cao hơn", và số cao hơn ⛔ không có nghĩa đã vá
+
+Lượt di trú gỡ **sáu** ghim phiên bản với lập luận *"BOM 4.1.1 khai bằng hoặc cao hơn, giữ lại là ép
+sai"*. Năm cái gỡ đúng — chúng được đối chiếu bằng **giá trị BOM thật**. Cái thứ sáu,
+`tomcat.version 10.1.59`, được đối chiếu bằng **thứ tự số**: BOM khai `11.0.24`, mà `11.0.24 >
+10.1.59`, nên ghim "thành thừa".
+
+Lượt quét trên `dev` sau khi gộp bác bỏ ngay: **9 mã ≥ 7**, tất cả ở `tomcat-embed-core 11.0.24`, và
+chúng là **đúng chín mã** mà ghim cũ đã sinh ra để tránh. Đọc `versionEndExcluding` từ chính báo cáo:
+`10.1.58 · 11.0.25 · 9.0.121` — lỗ hổng nằm ở **mã nguồn Tomcat**, ⛔ không ở một dòng phát hành. Ta
+đã đổi một bản **ĐÃ VÁ** lấy một bản **CHƯA VÁ**, và lượt di trú suýt đóng lại đúng con số nó mở ra.
+
+⭐ **Bài học: một ghim phiên bản ⛔ không phải một tuỳ chọn, nó là một BẢN GHI rằng có lỗ hổng đã đo
+được ở bản thấp hơn.** Gỡ nó chỉ hợp lệ sau khi đọc lại `versionEndExcluding` của **chính những mã
+ấy** trên dòng mới. So thứ tự số giữa hai dòng lớn là một phép so ⛔ không có nghĩa về mặt CVE.
+
+⚠ Và điều đáng chú ý nhất: ⛔ **không bộ canh nào của kho bắt được** — `VongDoiPhienBanTest` chỉ hỏi
+*bảng có khớp nơi ghim ⛔ không*, ⛔ không hỏi *bản đang ghim đã vá chưa*. Thứ bắt được là **cổng quét
+CVE**, và nó bắt được **vì nó chạy trên `dev` sau lượt gộp** — tức đúng thiết kế của
+`security-scan.yml` (⛔ không chạy trên PR: nó canh *thế giới đổi*, ⛔ không canh *mã đổi*, §10.68).
+Đây là lần đầu cổng ấy bắt một khuyết tật do **chính ta vừa tạo ra**, chứ ⛔ không phải do NVD công bố
+thêm.

@@ -103,12 +103,24 @@ phải thêm một bước tra thử riêng chỉ để phân biệt hai thứ �
 | `Bộ đọc tracking` | 11 phép kiểm bộ đọc `master-tracking.md`. **Không có bộ lọc đường dẫn** — chạy ~10s, đặt bộ lọc chỉ thêm một chỗ bỏ sót |
 | `Thứ tự migration` | So số hiệu migration mới với đỉnh **nhánh nền** (`fetch-depth: 0`) — §10.66 |
 | `Backend — build, lint, test` | Spotless · Checkstyle · `mvn verify` (test đơn vị + Testcontainers + ArchUnit + cổng bao phủ) |
-| `Frontend — lint` | ESLint + `tsc --noEmit` |
+| `Frontend — lint` | ESLint + **`tsc -b`** + Vitest — ⛔ **không** `tsc --noEmit`, xem ghi chú ngay dưới bảng |
 | `Đóng gói image` | Build backend. **Dựng ở cả PR, chỉ ĐẨY** `ghcr.io/…/app:<sha>` khi push vào `dev` |
 | `Đóng gói image frontend` | Ma trận `admin-app` + `public-web`. Cùng luật: dựng ở PR, đẩy khi push |
 | `Gắn tag SHA cho image không đổi` | Chỉ khi push `dev`. Gắn thêm tag `<sha>` lên digest cũ của image lượt này không dựng lại — để mọi commit `dev` có đủ ba tag (§2.1-b) |
 | `Soi phụ thuộc PR thêm vào` | `dependency-review-action` — chỉ soi phần PR **thêm vào**, đọc Advisory Database của GitHub, vài giây |
 | **`Cổng kiểm CI`** | ⭐ **Context bắt buộc DUY NHẤT.** Gom kết quả 9 job trên; ngưỡng `so_job -lt 9` chặn trường hợp khai báo `needs` hỏng làm cổng soi trên tập rỗng. `CiGateCoverageTest` đối chiếu hai chiều |
+
+> ⛔⛔ **`tsc -b`, ⛔ KHÔNG `tsc --noEmit`** (T39.12, sửa dòng bảng 08/09/2026 — bảng này khai sai
+> từ WS-39). `admin-app/tsconfig.json` là một tệp **solution**: nó chỉ có `files: []` và
+> `references`, ⛔ không có `compilerOptions` nào. Nên `tsc --noEmit -p admin-app/tsconfig.json`
+> chạy xong, in ra **0 lỗi, và chưa từng chạm một tệp nguồn nào** — nó báo xanh trên một
+> `ArticleEditorPage.tsx` thiếu hẳn một trường bắt buộc. `tsc -b` mới đi theo `references`.
+>
+> ⚠ Hai workspace **hai hình dạng khác nhau** (`public-web/tsconfig.json` là cấu hình thật, ⛔ không
+> phải solution), và `TypecheckThucSuBienDichTest` canh đúng điều đó: nó đọc cả hai tsconfig, nhận
+> diện dạng solution, rồi đòi lệnh typecheck tương ứng phải chứa `tsc -b`. Cổng CI **đã lành từ
+> T28.42**; thứ còn sai tới hôm nay chỉ là dòng bảng ở trên — và một dòng tài liệu nói sai về cổng
+> kiểm khó thấy hơn hẳn một cổng kiểm không tồn tại (§10.69).
 
 > ⚠ **OWASP Dependency-Check đã CHUYỂN RA khỏi `ci.yml`** (18/8) sang `security-scan.yml` chạy theo lịch — xem §3.3.
 

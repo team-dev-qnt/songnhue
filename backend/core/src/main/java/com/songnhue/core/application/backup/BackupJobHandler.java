@@ -2,13 +2,13 @@ package com.songnhue.core.application.backup;
 
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.songnhue.core.application.job.JobTypes;
 import com.songnhue.core.domain.backup.BackupTrigger;
 import com.songnhue.core.spi.JobContext;
 import com.songnhue.core.spi.JobHandler;
+
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Chạy một lượt sao lưu trong hàng đợi (T7.1, T7.4).
@@ -61,7 +61,7 @@ public class BackupJobHandler implements JobHandler {
             JsonNode node = objectMapper.readTree(payload);
             JsonNode trigger = node.get("trigger");
             return trigger == null ? BackupTrigger.SCHEDULED : BackupTrigger.valueOf(trigger.asText());
-        } catch (IllegalArgumentException | com.fasterxml.jackson.core.JsonProcessingException e) {
+        } catch (IllegalArgumentException | tools.jackson.core.JacksonException e) {
             // Payload hỏng không được làm mất cả lượt sao lưu — mặc định về loại thường gặp nhất
             return BackupTrigger.SCHEDULED;
         }

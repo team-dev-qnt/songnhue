@@ -8,7 +8,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -19,6 +18,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.app.testsupport.PhienHttp;
+import com.songnhue.app.testsupport.TestHttp;
 import com.songnhue.core.application.auth.PasswordPolicyService;
 import com.songnhue.core.infra.identity.UserRepository;
 
@@ -44,7 +44,7 @@ class ContactHttpTest extends IntegrationTestBase {
     private static final String QUAN_TRI = "/api/v1/cms/contacts";
 
     @Autowired
-    private TestRestTemplate http;
+    private TestHttp http;
 
     @Autowired
     private UserRepository users;
@@ -108,13 +108,35 @@ class ContactHttpTest extends IntegrationTestBase {
                 .isZero();
     }
 
+    /**
+     * ⛔⛔ <b>Bài này đổi CHIỀU ngày 08/09/2026 — và đó là một quyết định NGHIỆP VỤ, ⛔ không phải
+     * một lượt sửa cho hết đỏ.</b>
+     *
+     * <p>Tên cũ: <i>"⭐ Chỉ có số điện thoại vẫn nhận — email KHÔNG phải trường bắt buộc"</i>. Nó
+     * mô tả đúng chính sách của T36.7: {@code site.contact.field.email.required} seed bằng
+     * {@code 'false'}, và người dân chỉ có số điện thoại vẫn gửi được phản ánh.
+     *
+     * <p>T28.49 (chốt với Công ty 08/09) đảo lại: <b>Email bắt buộc</b>, bù cho việc ô Họ tên và ô
+     * Tiêu đề nay TẮT ĐƯỢC. Lý do là một chuỗi ràng buộc, ⛔ không phải một sở thích: ô Số điện
+     * thoại vốn đã tắt được từ T36.7, nên nếu email cũng ⛔ không bắt buộc thì tồn tại một cấu hình
+     * hợp lệ trong đó Công ty nhận về những phản ánh <b>⛔ không có cách nào trả lời</b>.
+     *
+     * <p>⚠ Dữ liệu CŨ giữ nguyên: hàng chỉ có số điện thoại vẫn hợp lệ với
+     * {@code ck_contacts_lien_lac}, và migration cố ý ⛔ <b>không</b> thêm ràng buộc CSDL nào mạnh
+     * hơn — xem đầu {@code V202609081071} để biết vì sao (§10.69).
+     */
     @Test
-    @DisplayName("⭐ Chỉ có số điện thoại vẫn nhận — email KHÔNG phải trường bắt buộc")
-    void chiCoDienThoaiVanNhan() {
+    @DisplayName("⛔ Chỉ có số điện thoại KHÔNG còn đủ — email bắt buộc từ T28.49 (08/09/2026)")
+    void chiCoDienThoaiKhongConDu() {
         ResponseEntity<String> gui = http.postForEntity(CONG_KHAI, json(null, "0243354xxxx"), String.class);
-        assertThat(gui.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+
+        assertThat(gui.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(gui.getBody())
+                .as("thông điệp phải nêu ĐÚNG ô đang thiếu — người dân sửa được, ⛔ không đoán")
+                .contains("email");
         assertThat(jdbc.queryForObject("SELECT count(*) FROM contacts", Integer.class))
-                .isEqualTo(1);
+                .as("⛔ bị từ chối thì ⛔ KHÔNG được để lại bản ghi nào")
+                .isZero();
     }
 
     // ─────────────── Đường ĐỌC (quản trị, có quyền) ───────────────
@@ -186,7 +208,7 @@ class ContactHttpTest extends IntegrationTestBase {
 
     // ─────────────── Tiện ích ───────────────
 
-    /** Bọc thân JSON kèm `Content-Type` — mặc định của `TestRestTemplate` cho `String` là text/plain. */
+    /** Bọc thân JSON kèm `Content-Type` — mặc định của `TestHttp` cho `String` là text/plain. */
     private static HttpEntity<String> json(String email, String dienThoai) {
         HttpHeaders h = new HttpHeaders();
         h.setContentType(MediaType.APPLICATION_JSON);

@@ -321,3 +321,75 @@
     width: 100%;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   T41.15 — MÀU CHỮ · MÀU NỀN CHỮ · MÀU NỀN Ô  (yêu cầu ĐÃ KÝ, đặc tả dòng 92 và 98)
+
+   Ba nhóm class do trình soạn thảo sinh ra, khai ở `design-tokens/src/editor-schema.ts`.
+   Mã màu ghim vào `editorColors` bằng chú thích `/* … *\/` — đó là nơi DUY NHẤT một mã
+   màu được viết ra, và `noHardcodedColors.test.ts` đối chiếu từng cặp mỗi lượt CI.
+
+   ⚠ Thiếu khối này thì bài lên cổng MẤT MÀU trong im lặng: bộ khử trùng cho class đi qua,
+   nội dung tới nơi đầy đủ, chỉ là ⛔ không có quy tắc nào vẽ nó — đúng vế thứ ba của tam
+   giác mà `editor-schema.ts` cảnh báo, và cũng đúng lỗi `sn-align-*` đã trả giá ở T20.1.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Màu chữ ─────────────────────────────────────────────────────────────── */
+.sn-article .sn-fg-den {
+  color: #1f1f1f; /* editorColors.fgDen */
+}
+.sn-article .sn-fg-xam {
+  color: #595959; /* editorColors.fgXam */
+}
+.sn-article .sn-fg-do {
+  color: #f5222d; /* editorColors.fgDo */
+}
+.sn-article .sn-fg-cam {
+  color: #d46b08; /* editorColors.fgCam */
+}
+.sn-article .sn-fg-luc {
+  color: #389e0d; /* editorColors.fgLuc */
+}
+.sn-article .sn-fg-lam {
+  color: #165bb6; /* editorColors.fgLam */
+}
+
+/* ── Màu nền chữ (bôi vàng) ──────────────────────────────────────────────── */
+.sn-article .sn-bg-vang {
+  background-color: #fff7cc; /* editorColors.bgVang */
+}
+.sn-article .sn-bg-luc {
+  background-color: #e6f7d9; /* editorColors.bgLuc */
+}
+.sn-article .sn-bg-lam {
+  background-color: #c8def7; /* editorColors.bgLam */
+}
+.sn-article .sn-bg-hong {
+  background-color: #ffe0e0; /* editorColors.bgHong */
+}
+.sn-article .sn-bg-cam {
+  background-color: #ffe8cc; /* editorColors.bgCam */
+}
+.sn-article .sn-bg-xam {
+  background-color: #f0f2f5; /* editorColors.bgXam */
+}
+
+/* ── Màu nền ô bảng ──────────────────────────────────────────────────────── */
+.sn-article .sn-cell-vang {
+  background-color: #fffbe6; /* editorColors.cellVang */
+}
+.sn-article .sn-cell-luc {
+  background-color: #f0fae8; /* editorColors.cellLuc */
+}
+.sn-article .sn-cell-lam {
+  background-color: #eaf3fd; /* editorColors.cellLam */
+}
+.sn-article .sn-cell-hong {
+  background-color: #fff1f0; /* editorColors.cellHong */
+}
+.sn-article .sn-cell-cam {
+  background-color: #fff4e6; /* editorColors.cellCam */
+}
+.sn-article .sn-cell-xam {
+  background-color: #fafafa; /* editorColors.cellXam */
+}

@@ -545,6 +545,8 @@ export interface WaterLevelRow {
   lyTrinh: string | null;
   mucNuocThuongLuu: string | null;
   mucNuocHaLuu: string | null;
+  /** Trạm thuỷ văn sông (`MN_SONG`) / bể hút (`BE_HUT`) — ⛔ không thuộc cặp thượng/hạ lưu. */
+  mucNuocSong: string | null;
   luongMua: string | null;
   donVi: string | null;
   thoiDiemDo: string | null;

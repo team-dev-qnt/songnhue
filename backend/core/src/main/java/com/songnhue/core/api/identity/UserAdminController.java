@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.songnhue.core.application.identity.PermissionSummary;
 import com.songnhue.core.application.identity.RoleSummary;
 import com.songnhue.core.application.identity.UserAdminService;
 import com.songnhue.core.common.security.RequirePermission;
@@ -119,6 +120,34 @@ public class UserAdminController {
         return userAdminService.permissionsOfRole(roleCode);
     }
 
+    @GetMapping("/permissions/catalog")
+    @Operation(summary = "Toàn bộ danh mục quyền — nguồn dựng các ô đánh dấu của ma trận")
+    @RequirePermission("adm:role:view")
+    public List<PermissionSummary> permissionCatalog() {
+        return userAdminService.permissionCatalog();
+    }
+
+    /**
+     * Đặt lại toàn bộ quyền của một vai trò — <b>T27.31, CN-05.2</b>.
+     *
+     * <p>⛔ {@code PUT} <b>thay cả tập</b>, ⛔ không phải {@code PATCH} thêm/bớt từng quyền. Cùng lý do
+     * đã ghi ở {@link #assignRoles}: màn hình đọc trạng thái hiện tại, người dùng tick/bỏ tick, rồi
+     * gửi nguyên trạng thái ấy lên ⇒ hai người sửa cùng lúc ⛔ không ra được một kết quả lai mà ⛔
+     * không ai chọn.
+     *
+     * <p>⚠ Quyền gác ở đây là {@code adm:role:manage} — <b>khác</b> {@code adm:role:view} của ba
+     * endpoint đọc bên trên. Tách hai quyền là có chủ đích: <i>nhìn thấy ai có quyền gì</i> và
+     * <i>đổi được nó</i> là hai việc khác nhau, và ma trận seed cấp {@code :view} rộng hơn hẳn.
+     */
+    @PutMapping("/roles/{roleCode}/permissions")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Đặt lại toàn bộ quyền của một vai trò — có hiệu lực ngay")
+    @RequirePermission("adm:role:manage")
+    public void replacePermissionsOfRole(
+            @PathVariable String roleCode, @Valid @RequestBody UserDtos.PermissionsRequest request) {
+        userAdminService.replacePermissionsOfRole(roleCode, request.permissionCodes());
+    }
+
     @DeleteMapping("/{publicId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(summary = "Xoá mềm tài khoản")
@@ -147,6 +176,16 @@ public class UserAdminController {
         public record StatusRequest(@NotNull UserStatus status) {}
 
         public record RolesRequest(@NotNull List<String> roleCodes) {}
+
+        /**
+         * Tập quyền mới của một vai trò — T27.31.
+         *
+         * <p>⚠ {@code @NotNull} chứ ⛔ <b>không</b> {@code @NotEmpty}: một danh sách <b>rỗng</b> là
+         * một thao tác hợp lệ — gỡ sạch quyền của một vai trò đang chờ định nghĩa lại. Thứ ⛔ không
+         * hợp lệ là {@code null}, tức trường bị thiếu hẳn khỏi thân yêu cầu, vì lúc ấy ⛔ không phân
+         * biệt được "muốn xoá hết" với "quên gửi" (luật 9).
+         */
+        public record PermissionsRequest(@NotNull List<String> permissionCodes) {}
 
         public record UserView(
                 UUID publicId,

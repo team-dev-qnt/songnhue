@@ -5,14 +5,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -21,6 +26,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.songnhue.app.testsupport.IntegrationTestBase;
+import com.songnhue.app.testsupport.TestHttp;
 import com.songnhue.hydro.application.PublicHydroService;
 
 /**
@@ -44,7 +50,7 @@ class PublicHydroHttpTest extends IntegrationTestBase {
     private static final String NGUON_GOC = "http://localhost:3000";
 
     @Autowired
-    private TestRestTemplate http;
+    private TestHttp http;
 
     @Autowired
     private JdbcTemplate jdbc;
@@ -123,17 +129,125 @@ class PublicHydroHttpTest extends IntegrationTestBase {
                 .contains("\"lyDoTrong\":null");
     }
 
+    /**
+     * ⛔⛔ <b>Vét cạn NĂM vai trò</b> — trước 08/09/2026 bài này chỉ đi qua HAI, và đó là lý do
+     * khuyết tật sống trên cổng công khai.
+     *
+     * <p>Tên bài đặt <i>đúng</i> bất biến bị vi phạm — <i>"giá trị rơi đúng cột theo vai trò vị
+     * trí"</i> — mà thân bài chỉ chạy {@code HA_LUU} (bài anh em ở trên chạy {@code THUONG_LUU}).
+     * {@code position_role} có <b>năm</b> giá trị hợp lệ (CHECK ở {@code V202608311049:284}), nên
+     * bộ canh phủ <b>2/5</b> miền, trong khi cái xanh của nó đọc như một lời bảo đảm cho cả năm —
+     * đúng hình dạng luật 28.
+     *
+     * <p>Ba vai trò ⛔ không được đi qua chính là ba vai trò rơi vào nhánh {@code else} của phép
+     * chia nhị phân {@code thuongLuu ? gt : null, thuongLuu ? null : gt}. Mực nước của <b>4 trạm
+     * thuỷ văn sông</b> vì thế lên cổng dưới tiêu đề <i>"Mực nước hạ lưu (m)"</i>.
+     *
+     * <p>⚠ Bài này ⛔ <b>không</b> liệt kê năm vai trò bằng tay ở chỗ khẳng định: bài
+     * {@link #anhXaVaiTroPhuHetMienCuaCheckConstraint()} đối chiếu bảng ánh xạ với <b>ràng buộc
+     * CHECK trong CSDL</b>, tức một nguồn KHÁC với mã đang được kiểm (luật 29). Thêm một vai trò
+     * thứ sáu bằng migration mà quên nối cột ⇒ đỏ ngay, ⛔ không cần ai nhớ.
+     */
     @Test
-    @DisplayName("⭐ Giá trị rơi đúng cột theo vai trò vị trí; cột kia để trống")
+    @DisplayName("⭐⭐ Giá trị rơi đúng cột theo vai trò — vét cạn CẢ NĂM vai trò của CHECK")
     void theValueLandsInTheColumnMatchingThePositionRole() {
-        long id = taoDiemDo("HA_LUU");
-        ghiSoDo(id, new java.math.BigDecimal("1.200"));
+        for (Map.Entry<String, String> cap : COT_THEO_VAI_TRO.entrySet()) {
+            String vaiTro = cap.getKey();
+            String cotMongDoi = cap.getValue();
 
-        String than = doc().getBody();
-        String dong = dongCua(than, MA);
+            // ⚠ Xoá CON trước CHA: `hydro_latest` có khoá ngoại tới `stations`. Bản đầu của vòng
+            //   lặp này chỉ xoá `stations` và đỏ ngay ở vai trò thứ hai — cùng cặp câu mà `donDep()`
+            //   ngay trên kia đã phải viết, chỉ là tôi ⛔ không đọc lại nó trước khi viết vòng lặp.
+            jdbc.update("DELETE FROM hydro_latest WHERE station_id IN (SELECT id FROM stations WHERE code = ?)", MA);
+            jdbc.update("DELETE FROM stations WHERE code = ?", MA);
+            long id = taoDiemDo(vaiTro);
+            ghiSoDo(id, new java.math.BigDecimal("1.200"));
 
-        assertThat(dong).contains("\"mucNuocHaLuu\":\"1.200\"").contains("\"mucNuocThuongLuu\":null");
+            String dong = dongCua(doc().getBody(), MA);
+
+            if (KHONG_CO_COT.equals(cotMongDoi)) {
+                // ⭐ Nhánh `default` của `cotTheoVaiTro()` — vai trò CSDL cho phép mà ⛔ chưa gán
+                //    cột. Phải ra ba ô rỗng KÈM lý do NHÌN THẤY ĐƯỢC trên cổng, ⛔ không im lặng.
+                assertThat(dong)
+                        .as("vai trò %s ⛔ chưa có cột ⇒ phải nói ra, ⛔ không lặng lẽ nằm nhầm ô", vaiTro)
+                        .contains("chưa được gán cột hiển thị");
+            } else {
+                assertThat(dong)
+                        .as("vai trò %s phải đổ số vào cột %s", vaiTro, cotMongDoi)
+                        .contains("\"" + cotMongDoi + "\":\"1.200\"");
+            }
+
+            // ⛔ Và mọi cột KHÁC phải RỖNG. Thiếu vế này thì bài xanh cả khi mã đổ giá trị vào MỌI
+            //    cột — một dòng hiện ba lần cùng một số dưới ba tiêu đề khác nhau (luật 9).
+            for (String cotKhac : List.of("mucNuocThuongLuu", "mucNuocHaLuu", "mucNuocSong")) {
+                if (!cotKhac.equals(cotMongDoi)) {
+                    assertThat(dong)
+                            .as("vai trò %s ⛔ KHÔNG được đổ số vào %s", vaiTro, cotKhac)
+                            .contains("\"" + cotKhac + "\":null");
+                }
+            }
+        }
     }
+
+    @Test
+    @DisplayName("⛔⛔ Bảng ánh xạ phủ ĐỦ mọi vai trò CSDL cho phép — đọc từ CHECK, ⛔ không chép tay")
+    void anhXaVaiTroPhuHetMienCuaCheckConstraint() {
+        // ⚠ Luật 29 ở dạng cụ thể nhất: nếu danh sách vai trò của bài kiểm được CHÉP TAY từ mã sản
+        //   xuất thì nó mang đúng giả định của mã ấy — một vai trò bị bỏ quên ở cả hai chỗ sẽ ⛔
+        //   không ai bắt. Nguồn ở đây là ràng buộc CHECK, thứ mã Java ⛔ không đọc.
+        String check = jdbc.queryForObject(
+                "SELECT pg_get_constraintdef(c.oid) FROM pg_constraint c "
+                        + "JOIN pg_class t ON t.oid = c.conrelid "
+                        + "WHERE t.relname = 'stations' AND pg_get_constraintdef(c.oid) LIKE '%position_role%' "
+                        + "LIMIT 1",
+                String.class);
+
+        assertThat(check).as("⚠ vế chống tập rỗng: phải tìm được ràng buộc").isNotBlank();
+
+        Set<String> trongCsdl = new LinkedHashSet<>();
+        Matcher m = Pattern.compile("'([A-Z_]+)'").matcher(check);
+        while (m.find()) {
+            trongCsdl.add(m.group(1));
+        }
+
+        assertThat(trongCsdl)
+                .as("⚠ mẫu regex hỏng thì tập rỗng, và mọi khẳng định dưới đây xanh trọn vẹn")
+                .hasSizeGreaterThanOrEqualTo(5);
+        assertThat(COT_THEO_VAI_TRO.keySet())
+                .as("⛔ Vai trò có trong CHECK mà ⛔ không có ở đây ⇒ bộ canh cột mù trước nó, đúng "
+                        + "cách nó đã mù trước MN_SONG/BE_HUT suốt từ WS-35 tới 08/09/2026")
+                .containsExactlyInAnyOrderElementsOf(trongCsdl);
+    }
+
+    /**
+     * Vai trò hợp lệ với CSDL nhưng ⛔ chưa được gán cột nào ⇒ ba ô rỗng KÈM lý do đọc được.
+     *
+     * ⚠ Phải khai TRƯỚC {@code COT_THEO_VAI_TRO}: Java cấm tham chiếu tiến trong khởi tạo static,
+     * và thông báo lỗi ({@code illegal forward reference}) ⛔ không nói ra điều đó.
+     */
+    private static final String KHONG_CO_COT = "";
+
+    /**
+     * Vai trò vị trí → tên cột trên cổng. Nguồn đối chiếu: ràng buộc CHECK của {@code stations}.
+     *
+     * <p>⚠ {@code MUA} nằm ở đây có chủ đích: lượng mưa <b>chưa có nguồn</b> (mục G3-a) nên thực tế
+     * ⛔ không điểm đo nào mang vai trò ấy — nhưng CSDL <b>cho phép</b> nó, và
+     * {@code anhXaVaiTroPhuHetMienCuaCheckConstraint} đòi mọi giá trị của CHECK phải có mặt ở đây.
+     */
+    private static final Map<String, String> COT_THEO_VAI_TRO = new LinkedHashMap<>(Map.of(
+            "THUONG_LUU", "mucNuocThuongLuu",
+            "HA_LUU", "mucNuocHaLuu",
+            "MN_SONG", "mucNuocSong",
+            "BE_HUT", "mucNuocSong",
+            // ⛔⛔ `MUA` CỐ Ý ⛔ KHÔNG có cột mực nước — lượng mưa đo bằng **mm**, ⛔ không phải m,
+            //    và nó có cột riêng đang chờ nguồn G3-a. Xếp nó chung với MN_SONG "cho gọn" là tái
+            //    lập đúng khuyết tật vừa vá, chỉ đổi nạn nhân.
+            //
+            // ⚠ Bản đầu của bảng này ánh xạ MUA → `mucNuocSong`, và bài kiểm đỏ ngay lượt chạy đầu
+            //   — trong khi javadoc mà tôi viết CÙNG LÚC ở `cotTheoVaiTro()` nói đúng điều ngược
+            //   lại. Mã đúng, bài kiểm sai. Đây là luật 29 ở dạng thuần khiết nhất: người viết bài
+            //   kiểm và người viết mã là một, và giả định lệch nhau trong vòng vài phút.
+            "MUA", KHONG_CO_COT));
 
     /**
      * ⛔⛔ Cột lượng mưa <b>luôn rỗng</b> và luôn kèm lý do — mục <b>G3-a</b>.
@@ -207,7 +321,11 @@ class PublicHydroHttpTest extends IntegrationTestBase {
 
         assertThat(truong)
                 .as("⚠ vế chống tập rỗng: record phải CÓ trường, nếu không mọi khẳng định dưới đây vô nghĩa")
-                .hasSize(12);
+                // 12 → 13 ngày 08/09/2026: thêm `mucNuocSong` (DOD2.3). ⭐ Con số CHÍNH XÁC ở đây là
+                // có chủ đích và nó vừa làm đúng việc của mình — lượt thêm cột này bị nó chặn lại và
+                // buộc phải đi qua một lượt đọc. Một `hasSizeGreaterThan` sẽ để trường thứ mười bốn
+                // lặng lẽ ra dây, và trường ấy có thể là `apiCode`.
+                .hasSize(13);
         assertThat(truong)
                 .as("⛔ `apiCode` là khoá đối soát với nguồn bên thứ 3 — công bố nó là công bố cách "
                         + "gọi thẳng nguồn của Công ty")

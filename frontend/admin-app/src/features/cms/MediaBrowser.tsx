@@ -50,6 +50,15 @@ export interface MediaBrowserProps {
   onSelect?: (file: MediaFile) => void;
   /** Ô thao tác thêm ở mỗi dòng — màn hình quản lý cắm nút xoá vào đây. */
   renderFileExtra?: (file: MediaFile) => React.ReactNode;
+  /**
+   * Ô thao tác thêm trên mỗi **nút cây thư mục** — T37.15.
+   *
+   * ⚠ Cùng khuôn với {@link MediaBrowserProps.renderFileExtra} và cố ý vậy: hộp chọn ảnh
+   * (`MediaPickerModal`) ⛔ **không** được có nút Đổi tên/Xoá, vì ở đó người dùng đang đi chọn
+   * ảnh cho một bài viết chứ ⛔ không đi quản trị kho. Để `MediaBrowser` tự vẽ hai nút ấy là ép
+   * một màn hình mang thao tác của màn hình kia.
+   */
+  renderFolderExtra?: (folder: FolderNode) => React.ReactNode;
   height?: number;
 }
 
@@ -83,6 +92,7 @@ export function MediaBrowser({
   selectedId = null,
   onSelect,
   renderFileExtra,
+  renderFolderExtra,
   height = 420,
 }: MediaBrowserProps) {
   const { message } = App.useApp();
@@ -99,7 +109,14 @@ export function MediaBrowser({
 
   // Thư mục đầu tiên được chọn sẵn: mở ra một khung trống kèm dòng "chọn thư mục" là bắt
   // người dùng làm một thao tác mà máy tự làm được.
-  const activeFolder = folderId ?? folders.data?.[0]?.publicId ?? null;
+  //
+  // ⚠ `conTonTai` là nửa thứ hai, thêm cùng T37.15: từ lúc có nút Xoá thư mục, `folderId` giữ
+  //    trong state **sống lâu hơn** thư mục nó trỏ tới. Không lọc thì ngay sau lượt xoá, lưới tệp
+  //    vẫn hỏi một thư mục đã biến mất và trả lỗi — trong khi cây bên trái đã vẽ đúng. Triệu chứng
+  //    đọc như "xoá xong thì hỏng", mà thật ra là một id mồ côi trong bộ nhớ.
+  const conTonTai =
+    folderId !== null && (folders.data ?? []).some((folder) => folder.publicId === folderId);
+  const activeFolder = (conTonTai ? folderId : null) ?? folders.data?.[0]?.publicId ?? null;
 
   const files = useQuery({
     // ⛔ `kho` và `loai` PHẢI có trong khoá — xem javadoc `cmsKeys.files`. Thiếu chúng thì hộp
@@ -132,12 +149,31 @@ export function MediaBrowser({
   const treeData: DataNode[] = useMemo(() => {
     const toNode = (item: ReturnType<typeof buildTree<FolderNode>>[number]): DataNode => ({
       key: item.value.publicId,
-      title: item.value.name,
+      title: renderFolderExtra ? (
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {item.value.name}
+          </span>
+          {/* ⛔ `stopPropagation` là bắt buộc, ⛔ không phải phòng xa: `Tree` đặt `blockNode` nên
+              CẢ DÒNG là vùng bấm chọn thư mục. Thiếu nó thì mỗi lần bấm "Xoá" cũng đồng thời đổi
+              thư mục đang mở, và hộp xác nhận hiện lên trong khi lưới tệp bên phải vừa đổi sang
+              một thư mục khác — người dùng đọc số tệp của thư mục SAI rồi bấm đồng ý. */}
+          <span
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => event.stopPropagation()}
+            role="presentation"
+          >
+            {renderFolderExtra(item.value)}
+          </span>
+        </span>
+      ) : (
+        item.value.name
+      ),
       icon: <FolderOutlined />,
       children: item.children.map(toNode),
     });
     return buildTree(folders.data ?? []).map(toNode);
-  }, [folders.data]);
+  }, [folders.data, renderFolderExtra]);
 
   // ⚠ Bộ lọc client GIỮ NGUYÊN song song với tham số server, có chủ đích. Ở đây hai lớp thật sự
   //   ĐỘC LẬP — một ở Java, một ở trình duyệt — nên chúng không cùng hỏng vì một lý do. (Khác hẳn

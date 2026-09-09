@@ -32,6 +32,7 @@ import { ArticleDocumentsPanel } from './ArticleDocumentsPanel';
 import { ARTICLE_STATUS, visibilityHint } from './articleStatus';
 import { cmsApi, cmsKeys } from './api';
 import { useMediaPicker } from './MediaPickerModal';
+import { coNoiDungThuc } from './noiDungCoThuc';
 import { SeoInput } from './SeoField';
 import { suggestSlug } from './seo';
 import { type ArticleDetail, type ArticleDocumentView, type ArticleSaveRequest } from './types';
@@ -154,7 +155,8 @@ function ArticleForm({
   const { chonTep: chonTaiLieu, picker: pickerTaiLieu } = useMediaPicker({ kho: 'TAI_LIEU' });
 
   const [form] = Form.useForm<FormValues>();
-  const [content, setContent] = useState(data?.content ?? '');
+  // ⭐ T41.21 — ⛔ KHÔNG còn `useState` cho nội dung: biểu mẫu là nguồn sự thật duy nhất. Giữ cả hai
+  //   là dựng sẵn hai bản có thể lệch nhau, và bản nào thắng thì phụ thuộc thứ tự render.
   const [coverId, setCoverId] = useState<string | null>(data?.coverAttachmentPublicId ?? null);
   const [documents, setDocuments] = useState<ArticleDocumentView[]>(data?.documents ?? []);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -254,6 +256,7 @@ function ArticleForm({
   const initialValues: FormValues = {
     title: data?.title ?? '',
     slug: data?.slug ?? '',
+    content: data?.content ?? '',
     summary: data?.summary ?? '',
     source: data?.source ?? '',
     publishedAt: data?.publishedAt ? dayjs(data.publishedAt) : null,
@@ -281,7 +284,7 @@ function ArticleForm({
       message.success('Đã lưu bài viết');
       // Mốc mới là thứ VỪA GỬI ĐI, không phải thứ máy chủ trả về: `HtmlSanitizer` có thể lọc bớt
       // và prettyPrint thêm thụt lề, nên lấy bản máy chủ làm mốc là bẩn ngay sau khi lưu.
-      mocNoiDung.current = content;
+      mocNoiDung.current = form.getFieldValue('content') as string;
       setCoSuaChuaLuu(false);
       await invalidate();
       if (laBaiMoi) {
@@ -347,7 +350,7 @@ function ArticleForm({
       title: values.title,
       slug: values.slug || undefined,
       summary: values.summary || undefined,
-      content,
+      content: values.content,
       coverAttachmentPublicId: coverId,
       source: values.source || undefined,
       publishedAt: toApiInstant(values.publishedAt) ?? null,
@@ -544,11 +547,24 @@ function ArticleForm({
                 <Input addonBefore="/bai-viet/" onChange={() => setSlugDaSuaTay(true)} />
               </Form.Item>
 
-              <Form.Item label="Nội dung" required>
-                <RichTextEditor
-                  value={content}
-                  onChange={(html) => {
-                    setContent(html);
+              <Form.Item
+                name="content"
+                label="Nội dung"
+                required
+                rules={[
+                  {
+                    // ⛔ KHÔNG dùng `required: true`: trình soạn thảo trống trả `<p></p>` — một giá
+                    //    trị hợp lệ với AntD, y hệt cách `@NotBlank` ở backend cho nó qua. Vị từ thật
+                    //    nằm ở `coNoiDungThuc`, và bản Java của nó là chốt chặn (CMS-2023).
+                    validator: (_, value: string) =>
+                      coNoiDungThuc(value)
+                        ? Promise.resolve()
+                        : Promise.reject(new Error('Bắt buộc nhập — nội dung đang trống')),
+                  },
+                ]}
+              >
+                <RichTextBridge
+                  onDoiNoiDung={(html) => {
                     // ⚠ TipTap bắn một lượt `onUpdate` khi nạp nội dung (đã đo). So với mốc chuẩn
                     //   hoá thay vì đếm lượt: lượt ấy mang đúng chuỗi của mốc nên không tính là sửa.
                     if (mocNoiDung.current !== null && html !== mocNoiDung.current) {
@@ -772,6 +788,14 @@ function ArticleForm({
 interface FormValues {
   title: string;
   slug: string;
+  /**
+   * ⭐ T41.21 — nội dung nay là **trường thật** của biểu mẫu.
+   *
+   * Trước đây ô Nội dung nằm trong một `Form.Item` **không có `name`**, nên `validateFields()` không
+   * thấy nó và lỗi backend mang `field="content"` rơi khỏi `datLoiTheoTruong` xuống một toast chung
+   * không chỉ được ô nào.
+   */
+  content: string;
   summary: string;
   source: string;
   publishedAt: Dayjs | null;
@@ -781,6 +805,40 @@ interface FormValues {
   docNumber: string;
   docIssuedDate: Dayjs | null;
   categoryPublicIds: string[];
+}
+
+/**
+ * Nối `RichTextEditor` vào `Form.Item` của AntD — T41.21.
+ *
+ * `Form.Item` bơm `value`/`onChange` xuống con của nó, và `RichTextEditor` đã có sẵn đúng hai prop
+ * ấy với đúng chữ ký — nên phần nối dây là không có gì. Thứ cầu này thêm vào là **tác dụng phụ**:
+ * đánh dấu "có sửa chưa lưu". Không tách ra thì `onChange` phải vừa báo cho biểu mẫu vừa gọi
+ * `setCoSuaChuaLuu`, và chỗ dùng lại phải nhớ làm cả hai.
+ *
+ * ⚠ `value ?? ''` là bắt buộc: lượt render đầu của một bài MỚI chưa có giá trị nào trong biểu mẫu,
+ * và `RichTextEditor` nhận `undefined` sẽ dựng trình soạn thảo rỗng rồi bắn `onUpdate` — một lượt
+ * "sửa" giả ngay khi vừa mở trang.
+ */
+function RichTextBridge({
+  value,
+  onChange,
+  onDoiNoiDung,
+  ...con
+}: Omit<Parameters<typeof RichTextEditor>[0], 'value' | 'onChange'> & {
+  value?: string;
+  onChange?: (html: string) => void;
+  onDoiNoiDung: (html: string) => void;
+}) {
+  return (
+    <RichTextEditor
+      {...con}
+      value={value ?? ''}
+      onChange={(html) => {
+        onChange?.(html);
+        onDoiNoiDung(html);
+      }}
+    />
+  );
 }
 
 /**

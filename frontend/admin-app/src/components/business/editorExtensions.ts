@@ -3,7 +3,9 @@ import { Placeholder } from '@tiptap/extensions';
 import { StarterKit } from '@tiptap/starter-kit';
 
 import { AlignClass } from './AlignClass';
+import { CellBgClass } from './CellBgClass';
 import { FigureImage } from './FigureImage';
+import { TextColorClass } from './TextColorClass';
 import { VideoEmbed } from './VideoEmbed';
 
 /**
@@ -105,4 +107,8 @@ export const EXTENSIONS_SOAN_THAO = [
   AlignClass,
   FigureImage,
   VideoEmbed,
+  // ⭐ T41.15 — hai yêu cầu ĐÃ KÝ (đặc tả dòng 92 và 98). Cả hai đi bằng **class**, vì
+  //   `HtmlSanitizer` gỡ sạch `style`; xem javadoc của từng tệp.
+  TextColorClass,
+  CellBgClass,
 ];

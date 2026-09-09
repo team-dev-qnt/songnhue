@@ -81,7 +81,7 @@ public class OrgUnitService implements OrgUnitPort {
     /** Toàn bộ cây dạng lồng nhau, đã sắp theo {@code sort_order} trong từng cấp. */
     @Transactional(readOnly = true)
     public List<OrgUnitNode> tree() {
-        return toTree(repository.findAllByDeletedAtIsNullOrderByPathAscSortOrderAsc());
+        return toTree(repository.findAllForDisplay());
     }
 
     /** Cây con tính từ một đơn vị — dùng cho người chỉ được xem đơn vị mình và cấp dưới. */
@@ -157,7 +157,7 @@ public class OrgUnitService implements OrgUnitPort {
     /** Danh sách phẳng — cho ô chọn đơn vị, đã đủ path để FE tự thụt lề. */
     @Transactional(readOnly = true)
     public List<OrgUnit> listAll() {
-        return repository.findAllByDeletedAtIsNullOrderByPathAscSortOrderAsc();
+        return repository.findAllForDisplay();
     }
 
     // ---- Ghi ------------------------------------------------------------------

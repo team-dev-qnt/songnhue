@@ -126,6 +126,30 @@ export function BannersTab() {
     onError: (caught) => baoLoi(caught, 'Không đổi được thứ tự'),
   });
 
+  /**
+   * Đổi ảnh của một banner đã có — T37.15.
+   *
+   * <p>⛔ Trước lượt này endpoint `POST /banners/{id}/image` đã dựng đủ (có phân quyền, có bài
+   * kiểm) mà **⛔ không màn hình nào gọi**, nên đổi ảnh phải **xoá banner rồi tạo lại** — và lượt
+   * tạo lại đẩy banner xuống cuối, tức **xoá luôn thứ tự vừa sắp bằng nút lên/xuống**. Một khoảng
+   * trống im lặng đúng hình dạng luật 27, đo được bởi `apiKhongMoCoi.test.ts`.
+   *
+   * <p>⭐ `replaceImage` sinh một attachment **mới** (`BannerService:100-105` gọi
+   * `attachments.upload` rồi gán `imageAttachmentPublicId` mới) ⇒ URL ảnh đổi theo ⇒ ⛔ **không**
+   * dính bộ nhớ đệm của trình duyệt. Nếu backend từng đổi sang *ghi đè cùng id*, ô ảnh ở đây sẽ
+   * hiện ảnh CŨ sau một lượt đổi thành công — lúc ấy phải thêm tham số phá đệm, ⛔ đừng đọc lượt
+   * "không đổi gì" thành lỗi tải lên.
+   */
+  const replaceImage = useMutation({
+    mutationFn: ({ publicId, file }: { publicId: string; file: File }) =>
+      cmsApi.replaceBannerImage(publicId, file),
+    onSuccess: async () => {
+      message.success('Đã đổi ảnh banner');
+      await invalidate();
+    },
+    onError: (caught) => baoLoi(caught, 'Không đổi được ảnh banner'),
+  });
+
   const remove = useMutation({
     mutationFn: (publicId: string) => cmsApi.deleteBanner(publicId),
     onSuccess: async () => {
@@ -213,6 +237,29 @@ export function BannersTab() {
                 onClick={() => doiCho(index, 1)}
                 aria-label="Đưa xuống dưới"
               />,
+              <Upload
+                key="doi-anh"
+                showUploadList={false}
+                accept="image/png,image/jpeg,image/webp"
+                disabled={!coQuyenGhi}
+                beforeUpload={(file) => {
+                  replaceImage.mutate({ publicId: banner.publicId, file });
+                  // `false` = tự lo việc tải lên; AntD ⛔ không được tự gọi `action`, vì mọi
+                  // request phải đi qua `apiClient` để mang token và vé CSRF.
+                  return false;
+                }}
+              >
+                <Button
+                  type="link"
+                  disabled={!coQuyenGhi}
+                  loading={
+                    replaceImage.isPending && replaceImage.variables?.publicId === banner.publicId
+                  }
+                  title={coQuyenGhi ? undefined : LY_DO_THIEU_QUYEN}
+                >
+                  Đổi ảnh
+                </Button>
+              </Upload>,
               <Button
                 key="sua"
                 type="link"

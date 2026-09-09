@@ -72,13 +72,10 @@ public class HydroReportController {
     private final HydroReportService baoCao;
     private final JobPort jobs;
     private final ReportFilePort khoTep;
-    private final com.fasterxml.jackson.databind.ObjectMapper json;
+    private final tools.jackson.databind.ObjectMapper json;
 
     public HydroReportController(
-            HydroReportService baoCao,
-            JobPort jobs,
-            ReportFilePort khoTep,
-            com.fasterxml.jackson.databind.ObjectMapper json) {
+            HydroReportService baoCao, JobPort jobs, ReportFilePort khoTep, tools.jackson.databind.ObjectMapper json) {
         this.baoCao = baoCao;
         this.jobs = jobs;
         this.khoTep = khoTep;
@@ -287,7 +284,7 @@ public class HydroReportController {
      */
     private void kiemYeuCau(YeuCauXuatBaoCao yc) {
         if (yc.loai() == null
-                || !Set.of(YeuCauXuatBaoCao.BC13, YeuCauXuatBaoCao.BC05, YeuCauXuatBaoCao.BC12)
+                || !Set.of(YeuCauXuatBaoCao.BC13, YeuCauXuatBaoCao.BC05, YeuCauXuatBaoCao.BC11, YeuCauXuatBaoCao.BC12)
                         .contains(yc.loai())) {
             throw new com.songnhue.core.common.exception.ValidationException(ErrorCode.SYS_0003);
         }
@@ -299,6 +296,12 @@ public class HydroReportController {
                 yc.denNgay(),
                 chiTiet ? HydroReportService.TRAN_NGAY_CHI_TIET : HydroReportService.TRAN_SO_NGAY);
         if (chiTiet && (yc.stationPublicId() == null || yc.maLoaiChiSo() == null)) {
+            throw new com.songnhue.core.common.exception.ValidationException(ErrorCode.SYS_0003);
+        }
+        // ⛔ BC-11 là ảnh chụp MỘT ngày. Nhận một khoảng ở đây thì handler sẽ lặng lẽ lấy `denNgay`
+        //   và người dùng nhận một tệp mang tên khoảng 30 ngày chứa số liệu của đúng ngày cuối —
+        //   một tệp SAI mà ⛔ không có gì nói ra (quy tắc 16 ở dạng tên tệp).
+        if (YeuCauXuatBaoCao.BC11.equals(yc.loai()) && !java.util.Objects.equals(yc.tuNgay(), yc.denNgay())) {
             throw new com.songnhue.core.common.exception.ValidationException(ErrorCode.SYS_0003);
         }
     }

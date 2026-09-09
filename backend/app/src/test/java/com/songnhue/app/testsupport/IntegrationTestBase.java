@@ -7,6 +7,7 @@ import java.security.SecureRandom;
 import java.util.Base64;
 
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
@@ -33,6 +34,7 @@ import com.songnhue.core.testsupport.RsaKeyPairFixture;
  * </ul>
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@Import(TestHttpConfig.class)
 // ⭐⭐ `app.worker-enabled` khai ở ĐÂY chứ ⛔ không ở @DynamicPropertySource — WS-34/T34.7.
 //
 // Nó là một hằng, ⛔ không phải giá trị phải tính lúc chạy (khác cổng container, khác endpoint

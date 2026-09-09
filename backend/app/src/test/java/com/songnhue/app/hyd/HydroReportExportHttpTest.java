@@ -11,7 +11,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -20,6 +19,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.app.testsupport.PhienHttp;
+import com.songnhue.app.testsupport.TestHttp;
 import com.songnhue.core.application.auth.PasswordPolicyService;
 import com.songnhue.core.application.job.JobWorker;
 import com.songnhue.core.common.util.DateTimeUtils;
@@ -66,7 +66,7 @@ class HydroReportExportHttpTest extends IntegrationTestBase {
     private static final byte[] BOM = {(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
 
     @Autowired
-    private TestRestTemplate http;
+    private TestHttp http;
 
     @Autowired
     private UserRepository users;
@@ -223,11 +223,129 @@ class HydroReportExportHttpTest extends IntegrationTestBase {
 
         assertThat(qua.getStatusCode())
                 .as("⛔ Một đường xuất lỏng hơn đường xem là một cách đi vòng qua chính cái trần vừa đặt")
-                .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+                .isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
         assertThat(qua.getBody()).contains("HYD-2012").contains("31");
     }
 
     // =========================================================================
+    // BC-13 và BC-11 — hai bản kết xuất mà ⛔ KHÔNG bài nào đi tới byte thật trước 09/09/2026.
+    //
+    // ⛔ Các bài phía trên canh phân quyền, mã việc lạ và hạn tải; ĐÚNG MỘT bài
+    // (`theWholeExportLoopProducesRealBytes`) chạy hết vòng khép kín, và nó xuất **chỉ BC05**.
+    // Vì thế BC-13 xuất nhầm bảng suốt từ T34.7 mà mọi cổng kiểm đều xanh: nội dung tệp của hai mã
+    // báo cáo kia ⛔ chưa từng bị ai nhìn. Luật 28 — cái xanh của một bộ canh hẹp đọc như một lời
+    // bảo đảm rộng.
+    // =========================================================================
+
+    /**
+     * ⛔⛔ BC-13 phải mang <b>khối nhật ký đồng bộ</b>.
+     *
+     * <p>{@code BaoCaoDongBoView} có hai danh sách; bản kết xuất cũ chỉ in danh sách chất lượng, nên
+     * {@code dongBo()} — 13 trường, có truy vấn, có DTO, có endpoint — có <b>0 nơi gọi</b> trong toàn
+     * kho. Đối chiếu {@code report-templates-proposal.md} §2.2, bảng cũ trùng đúng <b>2/12</b> cột
+     * đặc tả.
+     *
+     * <p>⚠ Bài này khẳng định theo <b>tên cột chỉ có ở khối mới</b>, ⛔ không theo số dòng: hàng nhật
+     * ký đồng bộ chỉ có khi poller đã chạy, mà bộ kiểm ⛔ không chạy poller. Một khẳng định trên số
+     * dòng sẽ đỏ vì lý do sai. Cột thì luôn phải có — và trước đợt này chúng ⛔ không tồn tại, nên
+     * phép đo phân biệt được hai trạng thái (luật 9).
+     */
+    @Test
+    @DisplayName("⛔⛔ BC-13 kết xuất có KHỐI NHẬT KÝ ĐỒNG BỘ — bản cũ chỉ in bảng chất lượng")
+    void bc13CarriesTheSyncJournalBlock() {
+        String van = xuatRoiDocVan("BC13", ngay, ngay);
+
+        assertThat(van)
+                .as("⛔ Thiếu tiêu đề khối A nghĩa là bản kết xuất vẫn chỉ là bảng chất lượng — đúng "
+                        + "khuyết tật `dongBo()` 0 nơi gọi")
+                .contains("A. NHẬT KÝ ĐỒNG BỘ")
+                .contains("B. CHẤT LƯỢNG DỮ LIỆU");
+
+        assertThat(van)
+                .as("bốn cột chỉ có ở khối nhật ký đồng bộ — chúng ⛔ không tồn tại ở bảng chất lượng")
+                .contains("Bỏ qua (rate-limit)")
+                .contains("Số lượt gọi thật")
+                .contains("Mã lạ (không khớp điểm đo)")
+                .contains("Số trạm không có bản ghi hợp lệ");
+
+        assertThat(van)
+                .as("khối chất lượng phải còn nguyên — thay một khối bằng khối kia là đổi một bản "
+                        + "kết xuất sai lấy một bản kết xuất sai khác")
+                .contains("Khung bỏ sót");
+    }
+
+    /**
+     * ⭐⭐ BC-11 — báo cáo DUY NHẤT ⛔ không có đường xuất nào trước 09/09/2026.
+     *
+     * <p>Bài này cũng là phép đối chứng <b>độc lập</b> cho migration {@code V202609091073}: nếu bản
+     * chụp G8 ⛔ không vào được CSDL thì mọi điểm đo rơi vào nhóm "Chưa phân tuyến" và chuỗi
+     * <i>"Sông Nhuệ"</i> ⛔ không xuất hiện. Hai phép đo ⛔ không chia sẻ giả định nào —
+     * {@code HydroCatalogueSeedTest} đọc thẳng bảng, bài này đi qua HTTP → hàng đợi → kho tệp → byte.
+     */
+    @Test
+    @DisplayName("⭐⭐ BC-11 xuất ra byte thật, và tuyến sông từ bản chụp G8 có mặt trong tệp")
+    void bc11IsExportableAndCarriesRiverNames() {
+        String van = xuatRoiDocVan("BC11", ngay, ngay);
+
+        assertThat(van).contains("Tuyến sông").contains("Lý trình").contains("Trạng thái tín hiệu");
+
+        assertThat(van)
+                .as("⭐ 13/19 điểm đo có tuyến sông sau V202609091073 — chuỗi này vắng mặt nghĩa là "
+                        + "bản chụp G8 ⛔ không tới được báo cáo, dù migration có chạy")
+                .contains("Sông Nhuệ");
+
+        assertThat(van)
+                .as("⛔ 6 điểm đo bản chụp ghi 'Chưa rõ' vẫn phải CÓ MẶT — biểu này sinh ra để chỉ "
+                        + "chỗ thiếu, ⛔ không phải để ẩn chúng đi")
+                .contains("Chưa phân tuyến");
+    }
+
+    /** ⛔ BC-11 là ảnh chụp MỘT ngày — một khoảng sẽ cho ra tệp mang tên sai kỳ. */
+    @Test
+    @DisplayName("⛔ BC-11 nhận một KHOẢNG ngày → 422, không lặng lẽ lấy ngày cuối")
+    void bc11RejectsADateRange() {
+        ResponseEntity<String> dat =
+                xuat("{\"loai\":\"BC11\",\"tuNgay\":\"%s\",\"denNgay\":\"%s\"}".formatted(ngay.minusDays(3), ngay));
+
+        // ⚠ 400, ⛔ không 422: `SYS-0003` khai `HttpStatus.BAD_REQUEST` ở `ErrorCode`. Khẳng định
+        //   theo mã lỗi thay vì theo con số HTTP mà mình đoán — đây đúng là chỗ lượt viết đầu sai.
+        assertThat(dat.getStatusCode())
+                .as(
+                        "⛔ 202 ở đây nghĩa là người dùng nhận một tệp tên `BC11_<3 ngày trước>_<hôm qua>` "
+                                + "chứa số liệu của đúng một ngày: %s",
+                        dat.getBody())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(dat.getBody()).contains("SYS-0003");
+    }
+
+    /** Đặt lượt xuất → chạy hàng đợi → tải về → trả nội dung dạng văn bản UTF-8. */
+    private String xuatRoiDocVan(String loai, LocalDate tu, LocalDate den) {
+        ResponseEntity<String> dat =
+                xuat("{\"loai\":\"%s\",\"tuNgay\":\"%s\",\"denNgay\":\"%s\"}".formatted(loai, tu, den));
+        assertThat(dat.getStatusCode())
+                .as("đặt lượt xuất %s: %s", loai, dat.getBody())
+                .isEqualTo(HttpStatus.ACCEPTED);
+
+        String jobId = PhienHttp.giaTriJson(dat.getBody(), "publicId");
+        assertThat(jobId)
+                .as("⚠ chống tập rỗng: không có mã việc thì mọi khẳng định sau vô nghĩa")
+                .isNotBlank();
+
+        chayViecNen();
+
+        ResponseEntity<byte[]> tep = taiByte(jobId);
+        assertThat(tep.getStatusCode())
+                .as("⛔ tải %s hỏng — việc nền có thể đã FAILED, xem jobs.last_error", loai)
+                .isEqualTo(HttpStatus.OK);
+
+        byte[] noiDung = tep.getBody();
+        assertThat(noiDung).as("thân tệp %s", loai).isNotNull();
+        assertThat(noiDung.length)
+                .as("⚠ chống tập rỗng: một tệp chỉ có BOM trông y hệt một tệp đầy đủ trên dòng job")
+                .isGreaterThan(BOM.length + 20);
+
+        return new String(noiDung, StandardCharsets.UTF_8);
+    }
 
     private ResponseEntity<String> xuat(String than) {
         return phienHttp.goi(kyThuat, HttpMethod.POST, "/api/v1/hyd/bao-cao/xuat", than);

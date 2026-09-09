@@ -110,7 +110,7 @@
         -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-aop</artifactId>
+            <artifactId>spring-boot-starter-aspectj</artifactId>
         </dependency>
         <!--
           ShedLock — khoá phân tán cho job theo lịch. CÀI SẴN NHƯNG TẮT ở v1 (chạy 1 node):

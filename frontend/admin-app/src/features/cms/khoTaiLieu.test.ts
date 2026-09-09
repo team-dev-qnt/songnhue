@@ -34,6 +34,11 @@ const { cmsApi, cmsKeys } = await import('./api');
  * <p><b>Không</b> canh: rằng hộp thoại vẽ ra đúng, rằng bấm vào thì chèn đúng chỗ. Tới 04/09
  * <b>không bài kiểm nào render {@code MediaBrowser}</b> — ghi ra để cái xanh ở đây không đọc
  * thành một lời bảo đảm về giao diện (nợ ghi ở {@code master-tracking.md} T40.15).
+ *
+ * <p>✅ <b>08/09 — khoảng trống ấy đã lấp</b> (T40.28): {@code mediaBrowserRender.test.tsx} dựng
+ * component thật và đo <b>lớp lọc phía trình duyệt</b>, tức đúng thứ ba nhóm ở trên ⛔ không chạm
+ * tới. Fixture của nó cố ý trả về một tấm ảnh lẫn trong danh sách tài liệu — hình dạng của một
+ * backend đã lọc hỏng — và đòi màn hình phải đỡ được.
  */
 
 const goc = process.cwd();

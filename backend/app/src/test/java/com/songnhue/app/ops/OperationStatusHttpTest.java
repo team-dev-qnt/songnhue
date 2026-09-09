@@ -12,7 +12,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +19,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.app.testsupport.PhienHttp;
+import com.songnhue.app.testsupport.TestHttp;
 import com.songnhue.core.application.auth.PasswordPolicyService;
 import com.songnhue.core.infra.identity.UserRepository;
 
@@ -52,7 +52,7 @@ class OperationStatusHttpTest extends IntegrationTestBase {
     private static final String MA_DONG_KIN = "ĐK";
 
     @Autowired
-    private TestRestTemplate http;
+    private TestHttp http;
 
     @Autowired
     private UserRepository users;
@@ -202,7 +202,7 @@ class OperationStatusHttpTest extends IntegrationTestBase {
         ResponseEntity<String> phanHoi =
                 phienHttp.goi(trucBanA, HttpMethod.POST, "/api/v1/ops/operation-statuses/batch", than);
 
-        assertThat(phanHoi.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(phanHoi.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
         assertThat(phanHoi.getBody()).contains("OPS-2019");
 
         // Dòng 0 sai mã, dòng 1 gửi tham số cho mã không có tham số. Dòng 2 hợp lệ.
@@ -260,7 +260,7 @@ class OperationStatusHttpTest extends IntegrationTestBase {
                         bằng cách TRÔNG ĐÚNG: không lỗi, không cảnh báo, chỉ là một con số không chịu \
                         đổi. %s""",
                         phanHoi.getBody())
-                .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+                .isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
         assertThat(phanHoi.getBody()).contains("OPS-2020");
         assertThat(soBanGhi(congTrinhCuaA)).isZero();
     }

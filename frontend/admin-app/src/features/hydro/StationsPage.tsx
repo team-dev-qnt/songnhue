@@ -1,4 +1,4 @@
-import { ApartmentOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
+import { ApartmentOutlined, EditOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
@@ -22,6 +22,7 @@ import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { useAuth } from '@/app/auth/useAuth';
+import { ImportModal } from '@/components/business/ImportModal';
 import { OrgUnitTreeSelect } from '@/components/business/OrgUnitTreeSelect';
 import {
   type ApiSource,
@@ -60,6 +61,7 @@ export function StationsPage() {
   const [taoMoiThuCong, setTaoMoiThuCong] = useState(false);
   const [dangLienKet, setDangLienKet] = useState<Station | null>(null);
   const [boLoc, setBoLoc] = useState<BoLoc>('TAT_CA');
+  const [dangNhapViTri, setDangNhapViTri] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
 
   const coQuanLy = hasPermission('hyd:station:manage');
@@ -393,19 +395,44 @@ export function StationsPage() {
       title="Danh mục điểm đo"
       extra={
         coQuanLy ? (
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => {
-              form.resetFields();
-              setTaoMoiThuCong(true);
-            }}
-          >
-            Thêm điểm đo
-          </Button>
+          <Space wrap>
+            {/*
+              ⭐ Nhập vị trí hàng loạt — G8 phần còn lại. Tính tới 09/09/2026 toạ độ của 19/19 điểm
+                 đo vẫn NULL nên lớp GIS RỖNG, và đường sửa duy nhất là mở từng bản ghi, 19 lượt.
+                 Ngày Công ty gửi bảng toạ độ: tải mẫu → điền → upload, ⛔ không cần lập trình thêm.
+              ⚠ Cùng quyền `hyd:station:manage` với nút Thêm — đây đúng là thao tác sửa điểm đo làm
+                hàng loạt, ⛔ không phải một quyền mới.
+            */}
+            <Button icon={<UploadOutlined />} onClick={() => setDangNhapViTri(true)}>
+              Nhập vị trí từ tệp
+            </Button>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => {
+                form.resetFields();
+                setTaoMoiThuCong(true);
+              }}
+            >
+              Thêm điểm đo
+            </Button>
+          </Space>
         ) : null
       }
     >
+      <ImportModal
+        open={dangNhapViTri}
+        onClose={() => setDangNhapViTri(false)}
+        title="Nhập vị trí điểm đo từ tệp bảng tính"
+        moTa="Cập nhật tuyến sông, lý trình và toạ độ cho các điểm đo đã có. Ô để trống nghĩa là giữ nguyên giá trị hiện tại, ⛔ không phải xoá."
+        duongDan={{
+          xemTruoc: '/hyd/stations/import/preview',
+          nhap: '/hyd/stations/import',
+          mau: '/hyd/stations/import/template',
+        }}
+        tenTepMau="mau-nhap-vi-tri-diem-do.csv"
+        khoaCanLamMoi={['hyd', 'stations']}
+      />
       {maApiDatSan && !coQuanLy && (
         <Alert
           type="warning"
