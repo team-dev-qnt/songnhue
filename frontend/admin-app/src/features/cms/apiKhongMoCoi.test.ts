@@ -45,12 +45,6 @@ const GOC_MA = 'frontend/admin-app/src';
  * - dựng xong màn hình mà quên xoá dòng ở đây ⇒ **cũng đỏ**, danh sách buộc phải teo đi.
  */
 const CHUA_CO_MAN_HINH: Record<string, string> = {
-  renameFolder:
-    'PUT /media/folders/{id} — Công ty tạo được thư mục media nhưng KHÔNG đổi tên được cái nào. Khoảng trống người dùng thấy ngay khi cây thư mục lớn lên.',
-  deleteFolder:
-    'DELETE /media/folders/{id} — cùng cặp với renameFolder: thư mục tạo nhầm nằm lại vĩnh viễn trong cây chọn ảnh của mọi màn soạn bài.',
-  replaceBannerImage:
-    'POST /banners/{id}/image — muốn đổi ảnh một banner thì phải xoá rồi tạo lại, và lượt tạo lại làm mất thứ tự đã sắp bằng kéo–thả.',
   bannerImageUrl:
     'GET /banners/{id}/image-url — cặp đọc của replaceBannerImage; hiện BannersTab dựng URL ảnh theo đường khác nên nó chưa có người dùng.',
   fileUrl:
@@ -167,7 +161,8 @@ describe('Client CMS: mọi phương thức đều có màn hình gọi (luật 
     const { tatCa, moCoi } = doMoCoi();
 
     // Quy tắc 7 + quy tắc 32: một con số đếm được là thứ duy nhất phân biệt "không có vi phạm"
-    // với "bộ dò đã chết". Đo 08/09/2026: 62 phương thức, 7 mồ côi.
+    // với "bộ dò đã chết". Đo 08/09/2026: 62 phương thức, 7 mồ côi → **4** sau khi T37.15 dựng
+    // renameFolder · deleteFolder · replaceBannerImage. Danh sách phải TEO ĐI, ⛔ không phình ra.
     expect(
       tatCa.length,
       'không bóc được phương thức nào — client đổi cách khai?',

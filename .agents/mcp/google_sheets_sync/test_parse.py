@@ -279,9 +279,47 @@ def test_server_co_cong_chan_ma_cu():
         "để so."
     )
     vi_tri_gac = nguon.find("!= _VAN_TAY_LUC_NAP")
-    vi_tri_ghi = nguon.find("parse_markdown_to_data(os.path.join")
+    # ⚠ Neo vào LỜI GỌI, ⛔ không neo vào đối số của nó. Bản trước neo
+    #   `parse_markdown_to_data(os.path.join` và **gãy ngay** lượt T37.16 bóc đối số ấy ra biến —
+    #   một bộ canh nói đúng điều đúng mà hỏng vì mã được dọn dẹp (luật 2: canh cấu trúc, đừng canh
+    #   văn bản). Bất biến thật là *thứ tự*, ⛔ không phải cách viết đối số.
+    vi_tri_ghi = nguon.find("parse_markdown_to_data(")
     assert 0 < vi_tri_gac < vi_tri_ghi, (
         "Phép so phải nằm TRƯỚC lượt đọc/ghi. Đặt sau thì bảng đã bị ghi đè trước khi ai kịp dừng."
+    )
+
+
+def test_cau_tra_loi_noi_ra_no_doc_tep_nao():
+    """T37.16 — công cụ phải NÓI RA cây nào nó vừa đọc.
+
+    ⛔⛔ `TRACKING_FILE` là đường dẫn TƯƠNG ĐỐI, giải theo `os.getcwd()` của tiến trình MCP — tức
+    thư mục nơi máy chủ được khởi động, ⛔ **không phải** cây người dùng đang gõ lệnh. Dự án dùng
+    `git worktree` thường xuyên, nên hai chỗ ấy là hai tệp khác nhau; đo 08/09 chúng lệch **72
+    dòng** vì hai PR đang mở cùng sửa `master-tracking.md`.
+
+    Trước lượt này câu trả lời chỉ có *"đã đồng bộ N dòng"* ⇒ đồng bộ nhầm cây cho ra một bảng
+    **trông đầy đủ** mà thiếu một nửa, và ⛔ không ai có cách nào biết (§11.16, luật 34).
+
+    ⛔ Bài này canh **câu trả lời**, ⛔ không canh log: log của tiến trình MCP gần như ⛔ không ai
+    mở — một cảnh báo ⛔ không ai đọc thì bằng ⛔ không có (§10.68).
+    """
+    duong = os.path.join(os.path.dirname(os.path.abspath(__file__)), "server.py")
+    with open(duong, encoding="utf-8") as tep:
+        nguon = tep.read()
+
+    assert "os.path.abspath(os.path.join(os.getcwd(), TRACKING_FILE))" in nguon, (
+        "Đường dẫn tracking phải được giải TUYỆT ĐỐI trước khi dùng — một đường tương đối in ra "
+        "chẳng nói thêm gì so với không in."
+    )
+
+    # Khối `return` của hàm đồng bộ phải mang đường dẫn ấy. Cắt từ `return (` cuối cùng để ⛔ không
+    # nhặt nhầm một `return` của hàm khác.
+    vi_tri_tra_loi = nguon.rfind("Đã đồng bộ")
+    assert vi_tri_tra_loi > 0, "⛔ không tìm thấy câu trả lời của hàm đồng bộ — tệp đã đổi hình?"
+    khoi_tra_loi = nguon[vi_tri_tra_loi : vi_tri_tra_loi + 400]
+    assert "duong_tracking" in khoi_tra_loi, (
+        "Câu trả lời ⛔ không mang đường dẫn nguồn. Đồng bộ nhầm cây (worktree ≠ cây chính) sẽ ghi "
+        "một bảng TRÔNG ĐẦY ĐỦ mà thiếu một nửa, và ⛔ không có gì nói ra điều đó."
     )
 
 

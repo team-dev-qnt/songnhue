@@ -1,0 +1,53 @@
+# T11.67 — canh chuyện lượt quét bảo mật **KHÔNG CHẠY**.
+#
+# ⛔⛔ Đây là workflow RIÊNG, cố ý ⛔ không phải một job thêm vào `security-scan.yml`.
+#    Lý do là chính khuyết tật nó canh: nếu `security-scan.yml` không chạy được —
+#    YAML vỡ, bị xoá, bị tắt — thì mọi job **bên trong** nó cũng không chạy. Một
+#    bộ canh sống cùng nhà với thứ nó canh sẽ chết cùng lúc, và cái chết ấy đọc y
+#    hệt "mọi thứ đều ổn" (CLAUDE.md luật 31).
+#
+# ⚠ Giờ chạy chọn theo SỐ ĐO, ⛔ không theo dòng cron của lượt quét: 6 lượt
+#   `schedule` gần nhất trễ **291–726 phút** so với `15 2 * * *` ⇒ kết quả rơi
+#   vào 07:06–14:21 UTC. 16:00 UTC đứng sau mốc muộn nhất từng đo ~1,6 giờ.
+#   Chi tiết ngưỡng 30 giờ: đầu `.github/scripts/canh-cong-quet.sh`.
+name: Canh cổng quét CVE còn sống
+
+on:
+  schedule:
+    - cron: '0 16 * * *'
+  # ⛔ Giữ `workflow_dispatch` để chạy tay được khi cần đo — nhưng ⛔ KHÔNG cho
+  #    nó ghi vào mốc nào cả: T11.81 đã trả giá vì một lượt `workflow_dispatch`
+  #    xanh trên nhánh vá đóng mất issue trong khi `dev` vẫn đỏ.
+  workflow_dispatch:
+
+# ⛔ Mặc định hẹp nhất, nới đúng ở job cần. Thiếu `issues: write` thì
+#   `gh issue create` trả **403 trong im lặng** — đúng hình dạng §10.57.
+permissions:
+  contents: read
+
+concurrency:
+  group: canh-cong-quet
+  cancel-in-progress: false
+
+jobs:
+  canh:
+    name: Cổng quét có chạy không
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      # Cần để đọc `gh run list` của workflow khác.
+      actions: read
+      issues: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Hỏi lượt quét gần nhất
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KHO: ${{ github.repository }}
+          WORKFLOW: security-scan.yml
+          NHANH: dev
+          NGUONG_GIO: '30'
+        run: bash .github/scripts/canh-cong-quet.sh
