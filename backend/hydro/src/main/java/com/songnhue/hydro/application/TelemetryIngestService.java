@@ -20,8 +20,10 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.songnhue.hydro.domain.ApiSource;
+import com.songnhue.hydro.domain.ChanDoanChatLuong;
 import com.songnhue.hydro.domain.DiemDoDich;
 import com.songnhue.hydro.domain.KhoaSoDo;
+import com.songnhue.hydro.domain.LyDoNghiNgo;
 import com.songnhue.hydro.domain.PhanLoaiChatLuong;
 import com.songnhue.hydro.domain.RawFetch;
 import com.songnhue.hydro.domain.ReadingQuality;
@@ -118,6 +120,19 @@ public class TelemetryIngestService {
     /** Số mã lạ tối đa liệt kê ra màn hình — phần còn lại đếm được ở {@code hydro_unmapped_readings}. */
     private static final int TRAN_MA_LA_LIET_KE = 50;
 
+    /**
+     * ⛔⛔ Trần thời gian cho <b>cả chuỗi</b> gọi + thử lại của một lượt việc — T43.12.
+     *
+     * <p>Nhịp poll là <b>2 phút</b> (quy tắc 17). Đặt trần <b>90 giây</b> để một lượt việc luôn kết
+     * thúc <i>trước</i> khi lượt kế tiếp tới — hai lượt cùng gọi một nguồn là tự dựng ra tranh chấp
+     * ở đúng bảng mà quy tắc 18 nói ⛔ không được mất dữ liệu.
+     *
+     * <p>⚠ Vì sao cần trần dù đã có {@code max_retry}: ràng buộc CSDL cho phép tới <b>10</b>, và
+     * {@code timeout} cũng là một núm người dùng chỉnh được. 10 × 30 giây = <b>5 phút</b>. Một núm
+     * cấu hình ⛔ không được phép cấu hình ra một sự cố.
+     */
+    private static final Duration TRAN_THOI_GIAN_THU_LAI = Duration.ofSeconds(90);
+
     private final ApiSourceService sources;
     private final TelemetryAdapters adapters;
     private final PollerRepository poller;
@@ -206,15 +221,18 @@ public class TelemetryIngestService {
                     DoLuotGoi.CHUA_GOI);
         }
 
-        TelemetryAdapter adapter = adapters.cho(nguon.getAdapterType());
-        TelemetryFetch fetch = adapter.goi(new TelemetryCall(nguon.getBaseUrl(), maSo, thamSo.timeout()));
-        Long rawLogId = ghiRawLog(nguon, batDau, khung, fetch);
+        LuotGoiCuoi luot = goiCoThuLai(nguon, thamSo, maSo, khung);
+        TelemetryFetch fetch = luot.fetch();
+        Long rawLogId = luot.rawLogId();
 
         if (!fetch.thanhCong()) {
             return hong(bc, rawLogId, fetch.failureKind(), fetch.failureDetail(), DoLuotGoi.cua(fetch));
         }
 
-        TelemetryBatch me = adapter.boc(fetch.body());
+        // ⚠ Tra lại adapter thay vì chuyền nó ra khỏi `goiCoThuLai`: `TelemetryAdapters.cho` là một
+        //   phép tra map, và giữ một tham chiếu đi xuyên hai bước chỉ để tiết kiệm nó là mở đường
+        //   cho `goi()` và `boc()` có ngày chạy trên hai adapter khác nhau (quy tắc parse 1).
+        TelemetryBatch me = adapters.cho(nguon.getAdapterType()).boc(fetch.body());
         if (me.nguonBaoHong()) {
             // ⚠ Nhánh phòng thân, không phải nhánh chết: `Bhh40Adapter.goi()` đã bắt `not.working`
             //   và trả NOT_WORKING. Nhưng hợp đồng của `TelemetryAdapter` cho phép hai bước ấy là
@@ -240,6 +258,81 @@ public class TelemetryIngestService {
         }
 
         return ghiSoDo(bc, thamSo, rawLogId, fetch, me);
+    }
+
+    /** Kết quả lượt gọi <b>cuối cùng</b> của chuỗi thử lại, kèm id dòng raw log của chính nó. */
+    private record LuotGoiCuoi(TelemetryFetch fetch, Long rawLogId) {}
+
+    /**
+     * ⭐⭐ Gọi nguồn, <b>thử lại trong CÙNG một lượt việc</b> — T43.12.
+     *
+     * <h2>⛔⛔ Núm này trước đây ⛔ KHÔNG điều khiển gì (luật 15)</h2>
+     *
+     * <p>{@code hydro.polling.max-retry} có seed (mặc định {@code 3}), có cột riêng từng nguồn
+     * ({@code api_sources.max_retry}, CHECK {@code 0..10}), có ô nhập trên màn hình <i>Nguồn dữ
+     * liệu</i>, có cả giá trị <b>đã giải</b> hiển thị kèm cờ "dùng chung" — và <b>0 nơi đọc</b>.
+     * Nó chặn câu trả lời ĐẠT cho spec §4.1 vế <i>"số lần thử lại là tham số cấu hình"</i>.
+     *
+     * <h2>⭐ Vì sao thử lại ở ĐÂY chứ ⛔ không ở tầng job</h2>
+     *
+     * <p>{@code HydroPollJobHandler} đã đo và ghi lại: backoff của {@code JobWorker} là
+     * <b>1' → 5' → 15'</b>, trong khi lượt polling kế tiếp chỉ cách <b>2 phút</b>. Thử lại ở tầng
+     * job vì thế ⛔ không mua thêm gì mà còn <b>giữ khoá chống trùng</b> suốt thời gian backoff —
+     * tức <i>chặn</i> chính lượt polling đúng giờ. Với nguồn ⛔ không có API lịch sử, 15 phút bị
+     * chặn là một khung rưỡi mất vĩnh viễn. ⇒ {@code maxAttempts} của job vẫn là <b>1</b>, ⛔ đừng
+     * đổi; chỗ đúng của núm là <b>bên trong</b> một lượt việc, nơi nó ⛔ không đụng tới hàng đợi.
+     *
+     * <h2>⛔ Ba ràng buộc, ⛔ không phải một</h2>
+     *
+     * <ol>
+     *   <li>⛔ Chỉ thử lại kiểu hỏng <b>nhất thời</b> — {@link TelemetryFetch#dangThuLaiDuoc()}.
+     *       Thử lại một mã số sai là tự phạt mình.
+     *   <li>⭐ <b>Mỗi lượt gọi ghi một dòng {@code hydro_raw_logs} riêng</b> (quy tắc 18: ghi nguyên
+     *       văn response <i>trước</i> khi parse). Ghi đè một dòng cho cả chuỗi là xoá bằng chứng của
+     *       chính những lượt hỏng mà ta đang cố chẩn đoán.
+     *   <li>⛔⛔ <b>Trần thời gian tổng</b> {@link #TRAN_THOI_GIAN_THU_LAI}. Ràng buộc CSDL cho
+     *       {@code max_retry} tới <b>10</b>, và 10 × timeout 30 giây = <b>5 phút</b> — dài hơn nhịp
+     *       poll 2 phút, tức lượt việc này sẽ còn đang chạy khi lượt kế tiếp tới, và hai lượt cùng
+     *       gọi một nguồn. Một núm cấu hình ⛔ không được phép cấu hình ra một sự cố.
+     * </ol>
+     */
+    private LuotGoiCuoi goiCoThuLai(ApiSource nguon, ThamSoNguon thamSo, String maSo, Instant khung) {
+        TelemetryAdapter adapter = adapters.cho(nguon.getAdapterType());
+        TelemetryCall yeuCau = new TelemetryCall(nguon.getBaseUrl(), maSo, thamSo.timeout());
+        int soLuot = 1 + Math.max(0, thamSo.soLanThuLai());
+        Instant hanChot = Instant.now().plus(TRAN_THOI_GIAN_THU_LAI);
+
+        TelemetryFetch fetch = null;
+        Long rawLogId = null;
+        for (int lan = 1; lan <= soLuot; lan++) {
+            Instant mocGoi = Instant.now();
+            fetch = adapter.goi(yeuCau);
+            rawLogId = ghiRawLog(nguon, mocGoi, khung, fetch);
+
+            if (!fetch.dangThuLaiDuoc() || lan == soLuot) {
+                break;
+            }
+            if (Instant.now().isAfter(hanChot)) {
+                log.warn(
+                        "Nguồn {}: dừng thử lại ở lượt {}/{} vì đã quá trần {} — lượt polling kế tiếp "
+                                + "còn quan trọng hơn một lượt thử lại nữa.",
+                        nguon.getCode(),
+                        lan,
+                        soLuot,
+                        TRAN_THOI_GIAN_THU_LAI);
+                break;
+            }
+            log.warn(
+                    "Nguồn {}: lượt gọi {}/{} hỏng ({} — {}), thử lại. Tham số soLanThuLai={} ({}).",
+                    nguon.getCode(),
+                    lan,
+                    soLuot,
+                    fetch.failureKind(),
+                    fetch.failureDetail(),
+                    thamSo.soLanThuLai(),
+                    thamSo.thuLaiDungChung() ? "dùng chung" : "riêng của nguồn");
+        }
+        return new LuotGoiCuoi(fetch, rawLogId);
     }
 
     /**
@@ -315,7 +408,7 @@ public class TelemetryIngestService {
                     loaiChiSo,
                     r.measuredAt(),
                     r.giaTri(),
-                    phien.danhGia(dich.stationId(), r.giaTri(), r.measuredAt()),
+                    chanDoan(r, dich.stationId(), phien),
                     ReadingSource.API,
                     rawLogId));
         }
@@ -456,6 +549,31 @@ public class TelemetryIngestService {
      * (quy tắc 18) để bảo vệ một danh mục con người sửa được trong mười giây. ⇒ ghi WARN <b>kèm mã
      * điểm đo</b>, để người đọc log biết chính xác phải tích ô nào ở màn hình nào.
      */
+    /**
+     * Kết luận chất lượng cho <b>một</b> số đo vừa bóc khỏi dây.
+     *
+     * <h2>⛔⛔ T43.10 — sentinel bị chặn TRƯỚC bộ phân loại, và đó là chỗ DUY NHẤT chặn được</h2>
+     *
+     * <p>Sau khi quy đổi thì {@code -999 cm} thành {@code -9,99 m} — một con số <b>nằm trong</b>
+     * khoảng vật lý {@code [-10; 30]} mà vỏ bọc {@code hydro.quality.suspect-rule} khai, và ⛔ không
+     * còn cách nào phân biệt với một mực nước thật. Chú thích migration {@code V202609041061:233}
+     * khẳng định <i>"sentinel -999 / -9999 rơi dưới -10"</i>; đo lại thì vế ấy đúng <b>đúng một
+     * nửa</b> — chỉ {@code -9999} rơi ra ngoài.
+     *
+     * <p>⇒ {@link TelemetryReading#laGiaTriBao()} hỏi trên giá trị còn <b>nguyên đơn vị nguồn</b>,
+     * thứ chỉ tồn tại ở tầng này. {@code PhanLoaiChatLuong} nhận số đã quy đổi nên nó ⛔ không thể
+     * biết — ⛔ đừng chuyển phép kiểm này xuống đó.
+     */
+    private ChanDoanChatLuong chanDoan(TelemetryReading r, long stationId, ChatLuongSoDoService.Phien phien) {
+        if (r.laGiaTriBao()) {
+            return ChanDoanChatLuong.nghiNgo(
+                    LyDoNghiNgo.NGOAI_KHOANG_VAT_LY,
+                    "Nguồn trả %s %s — mã BÁO LỖI của thiết bị, ⛔ không phải số đo. Kiểm cảm biến."
+                            .formatted(r.giaTriTho().toPlainString(), r.donViTho()));
+        }
+        return phien.danhGia(stationId, r.giaTri(), r.measuredAt());
+    }
+
     private static void canhBaoDanhMuc(ApiSource nguon, List<String> thieuLoaiChiSo, List<String> khacNguon) {
         if (!thieuLoaiChiSo.isEmpty()) {
             log.warn(
