@@ -6381,3 +6381,26 @@ flyway **12.4.0**. **Gỡ SÁU ghim phiên bản** (bản đồ cũ nói ba): th
 ⚠ Jackson 2 (**2.21.5**) **vẫn trên classpath**, tới từ **MinIO 8.5.17** — ⛔ không loại được. Nhưng
 sau lượt này ⛔ không dòng mã nào của ta chạm vào nó; annotation (`@JsonFormat`, `@JsonInclude`) cố ý
 ở lại `com.fasterxml.jackson.annotation`, vì chính `JacksonProperties` của Boot 4 cũng đọc gói ấy.
+
+#### Hậu truyện §11.20 — gỡ một ghim phiên bản vì "BOM khai số cao hơn", và số cao hơn ⛔ không có nghĩa đã vá
+
+Lượt di trú gỡ **sáu** ghim phiên bản với lập luận *"BOM 4.1.1 khai bằng hoặc cao hơn, giữ lại là ép
+sai"*. Năm cái gỡ đúng — chúng được đối chiếu bằng **giá trị BOM thật**. Cái thứ sáu,
+`tomcat.version 10.1.59`, được đối chiếu bằng **thứ tự số**: BOM khai `11.0.24`, mà `11.0.24 >
+10.1.59`, nên ghim "thành thừa".
+
+Lượt quét trên `dev` sau khi gộp bác bỏ ngay: **9 mã ≥ 7**, tất cả ở `tomcat-embed-core 11.0.24`, và
+chúng là **đúng chín mã** mà ghim cũ đã sinh ra để tránh. Đọc `versionEndExcluding` từ chính báo cáo:
+`10.1.58 · 11.0.25 · 9.0.121` — lỗ hổng nằm ở **mã nguồn Tomcat**, ⛔ không ở một dòng phát hành. Ta
+đã đổi một bản **ĐÃ VÁ** lấy một bản **CHƯA VÁ**, và lượt di trú suýt đóng lại đúng con số nó mở ra.
+
+⭐ **Bài học: một ghim phiên bản ⛔ không phải một tuỳ chọn, nó là một BẢN GHI rằng có lỗ hổng đã đo
+được ở bản thấp hơn.** Gỡ nó chỉ hợp lệ sau khi đọc lại `versionEndExcluding` của **chính những mã
+ấy** trên dòng mới. So thứ tự số giữa hai dòng lớn là một phép so ⛔ không có nghĩa về mặt CVE.
+
+⚠ Và điều đáng chú ý nhất: ⛔ **không bộ canh nào của kho bắt được** — `VongDoiPhienBanTest` chỉ hỏi
+*bảng có khớp nơi ghim ⛔ không*, ⛔ không hỏi *bản đang ghim đã vá chưa*. Thứ bắt được là **cổng quét
+CVE**, và nó bắt được **vì nó chạy trên `dev` sau lượt gộp** — tức đúng thiết kế của
+`security-scan.yml` (⛔ không chạy trên PR: nó canh *thế giới đổi*, ⛔ không canh *mã đổi*, §10.68).
+Đây là lần đầu cổng ấy bắt một khuyết tật do **chính ta vừa tạo ra**, chứ ⛔ không phải do NVD công bố
+thêm.

@@ -99,6 +99,34 @@
           5.32.11, thấp hơn bản ta cần. Đo lại mỗi lượt nâng springdoc.
         -->
 
+        <!--
+          ⛔⛔ GHIM LẠI TOMCAT — 11.0.25, ⛔ KHÔNG để BOM quyết (BOM 4.1.1 khai **11.0.24**).
+
+          ⚠⚠ ĐÂY LÀ MỘT SAI LẦM CỦA LƯỢT T11.69, ĐÃ TRẢ GIÁ BẰNG MỘT LƯỢT QUÉT ĐỎ TRÊN `dev`.
+
+          Lúc di trú, ghim cũ `tomcat.version = 10.1.59` bị GỠ với lý do *"BOM 4.1.1 khai 11.0.24,
+          cao hơn 10.1.59 nên ghim thành thừa"*. Lý do ấy **sai hai lần**:
+
+            1. **Số hiệu giữa hai dòng lớn ⛔ KHÔNG so sánh được về mặt CVE.** 11.0.24 > 10.1.59 là
+               đúng về thứ tự, và hoàn toàn vô nghĩa về việc đã vá hay chưa.
+            2. **Chín mã mà ghim cũ sinh ra để tránh lại áp cho CẢ dòng 11.x.** Đọc từ chính báo cáo
+               lượt quét `34340340824`, cả 9 mã đều khai
+               `versionEndExcluding = 10.1.58 · 11.0.25 · 9.0.121` — tức lỗ hổng nằm ở *mã nguồn
+               Tomcat*, ⛔ không ở một dòng phát hành. Gỡ ghim là đổi một bản **ĐÃ VÁ** (10.1.59)
+               lấy một bản **CHƯA VÁ** (11.0.24).
+
+          ⇒ Chín mã ≥ 7 quay lại nguyên vẹn, và lượt di trú suýt đóng lại đúng con số nó mở ra.
+
+          ⭐ Bài học chung: **một ghim phiên bản là một BẢN GHI RẰNG CÓ LỖ HỔNG ĐÃ ĐO ĐƯỢC.** Gỡ nó
+          chỉ hợp lệ khi đọc lại `versionEndExcluding` của chính những mã ấy, ⛔ không phải khi thấy
+          BOM in ra một con số lớn hơn. Năm ghim còn lại của lượt ấy gỡ đúng — chúng được đối chiếu
+          bằng giá trị BOM thật; riêng ghim này đối chiếu bằng **thứ tự số**, và đó là chỗ hỏng.
+
+          ⚠ 11.0.25 là bản 11.0.x cao nhất trên `maven-metadata.xml` (luật 21). Lượt nâng Boot sau
+          phải ĐỌC LẠI dòng này: nếu BOM đã khai ≥ 11.0.25 thì gỡ được — nhưng chỉ sau khi kiểm
+          `versionEndExcluding`, ⛔ không phải sau khi so số.
+        -->
+        <tomcat.version>11.0.25</tomcat.version>
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
