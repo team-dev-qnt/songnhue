@@ -7,6 +7,7 @@ import { BangLuoiMucNuoc } from '@/components/home/BangLuoiMucNuoc';
 import { RealtimeFrame } from '@/components/realtime/RealtimeFrame';
 import { getSiteConfig, getWaterLevelGrid } from '@/lib/api';
 import { khoiVanHanhBat } from '@/lib/khoiVanHanh';
+import { mocSoLieu } from '@/lib/mocSoLieu';
 import { docSo } from '@/lib/settings';
 import { ROUTES, formatDateTime } from '@/lib/routes';
 
@@ -95,7 +96,7 @@ export default async function MucNuocLuongMuaPage() {
         </p>
         <div className="mt-4">
           <RealtimeFrame
-            updatedAt={luoi?.meta.lanLayCuoi ?? null}
+            updatedAt={mocSoLieu(luoi?.meta.lanLayCuoi)}
             refreshSeconds={nhipLamMoi}
             unavailable={luoi === null}
             unavailableReason="Chưa lấy được số liệu mực nước. Số liệu sẽ hiện lại khi kết nối tới nguồn được khôi phục."

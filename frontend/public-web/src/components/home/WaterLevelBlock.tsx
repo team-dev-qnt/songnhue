@@ -2,6 +2,8 @@ import Link from 'next/link';
 
 import type { LuoiMucNuoc } from '@/lib/api';
 import { ROUTES } from '@/lib/routes';
+import { type MocSoLieu } from '@/lib/mocSoLieu';
+
 import { RealtimeFrame } from '../realtime/RealtimeFrame';
 import { BangTrangChuMucNuoc } from './BangTrangChuMucNuoc';
 
@@ -9,7 +11,8 @@ interface WaterLevelBlockProps {
   hotline?: string;
   refreshSeconds: number;
   /** Mốc của số liệu. `null` khi chưa có nguồn — xem ghi chú về việc KHÔNG lấy giờ máy khách. */
-  updatedAt: string | null;
+  /** Mốc đồng bộ cuối — `meta.lanLayCuoi`. Xem `@/lib/mocSoLieu`. */
+  updatedAt: MocSoLieu | null;
   /**
    * Dòng số liệu — **T35.7**.
    *

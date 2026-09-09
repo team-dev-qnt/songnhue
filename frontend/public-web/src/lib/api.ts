@@ -517,8 +517,27 @@ export interface OperationStatusRow {
  * văn bản nghiệm thu đòi bốn trường theo ngày (trạng thái trạm, số máy chạy, lưu lượng) và cần một
  * API nguồn chưa tồn tại — **OI-02 còn mở**.
  */
-export function getOperationStatuses(): Promise<OperationStatusRow[] | null> {
-  return apiGet<OperationStatusRow[]>('/constructions/operation-statuses', {
+export interface BangVanHanh {
+  dong: OperationStatusRow[];
+  meta: {
+    /**
+     * Thời điểm bản ghi vận hành **mới nhất được ghi xuống** — `MAX(COALESCE(updated_at,
+     * created_at))` tính ở backend. `null` ⇔ `dong` rỗng (bất biến ép ở hàm dựng phía backend).
+     *
+     * ⛔⛔ **T43.9** — trước bản này cổng lấy mốc "Cập nhật lúc" từ `GET /public/now`, tức giờ
+     * máy chủ lúc dựng trang, nên trực ban ba ngày ⛔ không ghi gì thì dòng ấy **vẫn nhảy số mới
+     * mỗi lượt F5**. Một câu khẳng định sai xuất hiện đúng lúc hệ ngừng được cập nhật.
+     *
+     * ⛔ Cổng ⛔ **không tự tính được** giá trị này từ `dong`: `updatedAt` nullable và
+     * `created_at` ⛔ không nằm trong DTO công khai ⇒ một bảng toàn dòng chưa ai sửa sẽ cho
+     * `max(updatedAt) = null` và cổng in "chưa rõ" trong khi dữ liệu đang có.
+     */
+    capNhatLuc: string | null;
+  };
+}
+
+export function getOperationStatuses(): Promise<BangVanHanh | null> {
+  return apiGet<BangVanHanh>('/constructions/operation-statuses', {
     tags: [CONSTRUCTION_TAG],
   });
 }
@@ -733,9 +752,6 @@ export function getBieuDoCongTrinh(
  * **máy chủ** chứ không phải `new Date()` phía máy khách: đồng hồ máy khách sai thì cả trang
  * nói sai theo, và không ai đối chiếu được.
  */
-export function getServerTime(): Promise<string | null> {
-  return apiGet<string>('/now', { revalidate: 0 });
-}
 
 /**
  * Một góp ý **đã duyệt** — CN-01.6, T36.8.

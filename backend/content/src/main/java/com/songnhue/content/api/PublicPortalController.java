@@ -465,11 +465,19 @@ public class PublicPortalController {
                 .body(PhatTepTrucTiep.cua(tep));
     }
 
-    /** Thời điểm máy chủ trả lời — cổng dùng để hiện "cập nhật lúc" mà không phụ thuộc giờ máy khách. */
-    @GetMapping("/now")
-    @Operation(summary = "Giờ máy chủ (UTC)")
-    @PublicEndpoint(reason = "Cổng hiển thị mốc thời gian cập nhật theo giờ máy chủ")
-    public Instant now() {
-        return Instant.now();
-    }
+    // ⛔⛔ `GET /now` ĐÃ GỠ 09/09/2026 — T43.9.
+    //
+    //    Javadoc cũ của nó: *"cổng dùng để hiện 'cập nhật lúc' mà không phụ thuộc giờ máy khách"*.
+    //    Câu ấy trả lời đúng câu hỏi ĐỒNG HỒ MÁY KHÁCH vs MÁY CHỦ, nhưng nó bị dùng để trả lời một
+    //    câu hỏi KHÁC: mốc của SỐ LIỆU hay của LƯỢT DỰNG TRANG. Giờ máy chủ lúc trả lời một lượt
+    //    gọi CHÍNH LÀ mốc dựng trang ⇒ khối "Vận hành công trình" trên cổng vẫn nhảy sang giờ mới
+    //    mỗi lượt F5 kể cả khi trực ban nhiều ngày ⛔ không ghi bản ghi nào.
+    //
+    //    Nay mốc đi kèm chính dữ liệu: `PublicOperationStatusService.BangVanHanh.meta.capNhatLuc`
+    //    (= MAX COALESCE(updated_at, created_at)) và `HydroGridService` `meta.lanLayCuoi`.
+    //    ⇒ Endpoint này còn lại 0 nơi gọi. Luật 15: một thứ ⛔ không ai đọc là một LỖI, ⛔ không
+    //    phải việc để dành — và ở đây nó còn tệ hơn thế, vì nó là **một cách dễ dàng để tái lập
+    //    T43.9**: chỉ cần một lượt gọi mới là lời nói dối quay lại.
+    //
+    //    ⚠ `PortalClock` ⛔ KHÔNG bị ảnh hưởng — nó cố ý dùng đồng hồ MÁY KHÁCH, có javadoc riêng.
 }
