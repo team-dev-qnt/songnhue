@@ -215,7 +215,12 @@ export function BieuDoDienBien({ bieuDo }: BieuDoDienBienProps) {
         yAxisIndex: 1,
         connectNulls: false,
         symbol: 'none',
-        lineStyle: { width: 1, type: 'dotted' },
+        // ⛔ MÀU XÁM là đặc tả, ⛔ không phải thẩm mỹ: §7.1 ghi "trục Y phụ … vẽ dạng đường mảnh
+        //    MÀU XÁM hoặc cột nhạt ở nền". Để ECharts tự gán màu theo bảng chủ đề thì đường chênh
+        //    lệch nhận một sắc xanh-tím ⛔ không phân biệt được với đường hạ lưu — và một phép đo
+        //    pixel sẽ đếm nhầm nó thành đường hạ lưu (đúng lỗi lượt đo đầu của WS-45 tìm ra).
+        lineStyle: { width: 1, type: 'dotted', color: statusColors.unknown },
+        itemStyle: { color: statusColors.unknown },
         data: duongChinh(chenh),
       });
     }
