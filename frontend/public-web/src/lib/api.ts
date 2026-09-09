@@ -568,6 +568,98 @@ export function getWaterLevels(): Promise<WaterLevelRow[] | null> {
 }
 
 /**
+ * Một **ô** của bảng lưới — WS-44, spec §6.1.2.
+ *
+ * ⛔ **Hoặc** có `giaTri`, **hoặc** có `lyDo` — backend ép ở hàm dựng (quy tắc 16). Nên ở đây
+ * ⛔ đừng viết `giaTri ?? '0'` hay `giaTri ?? '—'`: một dấu gạch trần ⛔ không phân biệt được
+ * *"chưa tới mốc đo"* với *"mất dữ liệu"*, mà spec §6.2 nói thẳng hai trạng thái ấy **khác nhau
+ * về nghiệp vụ**.
+ *
+ * @property chatLuong `HOP_LE` | `NGHI_NGO`; `null` khi ô ⛔ không có số. Ô `NGHI_NGO` ra dây
+ *   **kèm số** để §6.1.2 tô vàng + dấu ⚠ — đó là một ngoại lệ có tên của quy tắc 14 ở backend,
+ *   ⛔ không phải một chỗ lọt lưới.
+ */
+export interface OLuoi {
+  giaTri: string | null;
+  chatLuong: string | null;
+  lyDo: string | null;
+}
+
+/** Một dòng chỉ tiêu. `TINH` = dòng tự tính (Chênh lệch) — in nghiêng, ⛔ không tô màu ngưỡng. */
+export interface DongChiSo {
+  chiTieu: string;
+  loai: 'DO' | 'TINH';
+  o: OLuoi[];
+}
+
+/** Một công trình — gộp ô 3 cột đầu ở §6.1.2, mang 1–3 dòng chỉ tiêu. */
+export interface CongTrinhLuoi {
+  maCongTrinh: string;
+  tenCongTrinh: string;
+  lyTrinh: string | null;
+  trucChinh: boolean;
+  dong: DongChiSo[];
+}
+
+/** Nhóm tuyến sông — cột được gộp ô ở §5.2. */
+export interface NhomTuyenSong {
+  tenTuyen: string;
+  congTrinh: CongTrinhLuoi[];
+}
+
+/**
+ * Khối `meta` của spec §10.
+ *
+ * ⚠ Nó nằm **trong `data`**, ⛔ không ở `meta` của envelope — quyết định Q5 ngày 09/09/2026.
+ *
+ * @property lanLayCuoi lần cuối hệ thống **lấy được** dữ liệu → dòng "Cập nhật lúc" của §5.1.
+ *   ⛔ Đừng thay bằng `new Date()` ở trình duyệt: nguồn chết ba ngày thì đồng hồ máy khách vẫn
+ *   nhảy số mới mỗi lượt F5, và dòng ấy trở thành một khẳng định SAI đúng lúc hệ đang hỏng.
+ * @property mocDoGanNhat số liệu mới nhất được **đo** lúc nào → §8.2 hiện dải cảnh báo.
+ * @property trangThaiNguon `OK` | `DEGRADED` (có dữ liệu nhưng cũ) | `DOWN` (chưa có gì)
+ */
+export interface MetaLuoi {
+  lanLayCuoi: string | null;
+  mocDoGanNhat: string | null;
+  trangThaiNguon: 'OK' | 'DEGRADED' | 'DOWN';
+  donVi: string;
+}
+
+/**
+ * Bảng lưới mực nước — cây 3 tầng `tuyến sông → công trình → chỉ tiêu`.
+ *
+ * ⚠ `moc` là **trục thời gian dựng sẵn ở backend**, mới nhất trước. Số ô của **mọi** dòng đúng
+ * bằng `moc.length` — backend ép bất biến ấy ở hàm dựng. ⛔ Đừng dựng lại trục từ dữ liệu: mốc
+ * ⛔ không có số sẽ bị **nuốt** thay vì để lại một ô trống, và khoảng mất tín hiệu ba giờ trông
+ * như hai mốc liền kề (khuyết tật T43.13).
+ */
+export interface LuoiMucNuoc {
+  meta: MetaLuoi;
+  moc: string[];
+  tuyenSong: NhomTuyenSong[];
+  lyDoTrong: string | null;
+}
+
+/**
+ * Bảng lưới mực nước — **WS-44**, spec §5.2 (trang chủ) và §6.1.2 (trang chi tiết).
+ *
+ * ⛔ Trả `null` khi gọi hỏng; khối gọi phải tự hiện trạng thái chờ dữ liệu, ⛔ **không** độn dòng
+ * nào (§10.54).
+ *
+ * @param trucChinh `true` cho khối trang chủ (chỉ cống trục chính). ⭐ Chưa điểm đo nào được tick
+ *   thì backend công bố **tất cả** — cùng quy ước với `hydro.portal.station-codes`, vì OI-C chưa
+ *   có câu trả lời và một trang chủ rỗng chỉ lộ ra trên production.
+ */
+export function getWaterLevelGrid(
+  cheDo: 'PHUT' | 'GIO' = 'PHUT',
+  soCot = 0,
+  trucChinh = false,
+): Promise<LuoiMucNuoc | null> {
+  const truyVan = `cheDo=${cheDo}&soCot=${soCot}&trucChinh=${trucChinh}`;
+  return apiGet<LuoiMucNuoc>(`/hydro/luoi-muc-nuoc?${truyVan}`, { tags: [HYDRO_TAG] });
+}
+
+/**
  * Giờ máy chủ — mốc cho dòng "Cập nhật lúc" của CR-35.
  *
  * ⛔ `revalidate: 0` là bắt buộc và là điểm khác biệt duy nhất của lượt gọi này. Một mốc thời

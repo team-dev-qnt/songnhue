@@ -5,13 +5,13 @@ import { PageShell } from '@/components/PageShell';
 import { SectionNav } from '@/components/SectionNav';
 import { ColumnHeaderRow } from '@/components/home/ColumnHeaderRow';
 import { WaterLevelRows } from '@/components/home/WaterLevelRows';
+import { BangLuoiMucNuoc } from '@/components/home/BangLuoiMucNuoc';
 import { RealtimeFrame } from '@/components/realtime/RealtimeFrame';
 import { BE_RONG_TOI_THIEU_MUC_NUOC, COT_MUC_NUOC, LUOI_MUC_NUOC } from '@/lib/homeDataColumns';
-import { getServerTime, getSiteConfig, getWaterLevels } from '@/lib/api';
+import { getServerTime, getSiteConfig, getWaterLevelGrid, getWaterLevels } from '@/lib/api';
 import { khoiVanHanhBat } from '@/lib/khoiVanHanh';
-import { ROUTES } from '@/lib/routes';
+import { ROUTES, formatDateTime } from '@/lib/routes';
 import { docSo } from '@/lib/settings';
-import { KhoaDangNhap } from '@/components/realtime/KhoaDangNhap';
 
 export const revalidate = 300;
 
@@ -65,10 +65,11 @@ export const metadata: Metadata = {
  * hỏi một cờ.
  */
 export default async function MucNuocLuongMuaPage() {
-  const [config, serverTime, mucNuoc] = await Promise.all([
+  const [config, serverTime, mucNuoc, luoi] = await Promise.all([
     getSiteConfig(),
     getServerTime(),
     getWaterLevels(),
+    getWaterLevelGrid('PHUT', 12),
   ]);
 
   if (!khoiVanHanhBat(config)) {
@@ -80,7 +81,7 @@ export default async function MucNuocLuongMuaPage() {
   return (
     <PageShell
       title="Mực nước, lượng mưa"
-      description="Số liệu tại giờ truy cập của các điểm đo đang hoạt động. Theo dõi theo tuần và tháng yêu cầu đăng nhập."
+      description="Số liệu tại giờ truy cập và diễn biến 12 mốc đo gần nhất của các điểm đo đang hoạt động."
       breadcrumb={[{ label: 'Quản lý, vận hành' }, { label: 'Mực nước, lượng mưa' }]}
     >
       <section className="rounded-xl border border-surface-border bg-white p-5 shadow-xs">
@@ -119,12 +120,40 @@ export default async function MucNuocLuongMuaPage() {
         </div>
       </section>
 
-      <div className="mt-6">
-        <KhoaDangNhap
-          tieuDe="Theo dõi theo tuần và tháng"
-          moTa="Bảng và biểu đồ diễn biến mực nước theo tuần, tháng chỉ dành cho người dùng đã đăng nhập."
-        />
-      </div>
+      {/* ⭐ WS-44 — bảng lưới §6.1.2: nhóm theo tuyến sông, mỗi công trình một cặp thượng/hạ lưu
+          kèm dòng Chênh lệch tự tính.
+
+          ⛔ Ô `KhoaDangNhap` từng đứng ở đây đã được GỠ: quyết định Q4 ngày 09/09/2026 huỷ CR-08 và
+             công bố dữ liệu thuỷ văn công khai toàn bộ. Giữ lại một ô chữ nói về một quyết định đã
+             bị huỷ là để cổng tự mô tả sai chính nó. Việc ẩn/hiện nay đi qua công tắc quản trị
+             (`khoiVanHanh`), ⛔ không qua một tầng xác thực. */}
+      <section className="mt-6 rounded-xl border border-surface-border bg-white p-5 shadow-xs">
+        <h2 className="text-sm font-bold tracking-tight text-brand-primary">
+          Diễn biến 12 mốc đo gần nhất
+        </h2>
+        <p className="mt-1 text-[12px] text-surface-textSecondary">
+          Biểu tổng hợp theo tuyến sông — mỗi công trình một cặp thượng lưu và hạ lưu.
+        </p>
+        <div className="mt-4 overflow-hidden rounded-lg border border-surface-border">
+          {luoi === null ? (
+            <p className="px-3.5 py-6 text-center text-[13px] text-surface-textSecondary">
+              Chưa lấy được số liệu diễn biến. Bảng sẽ hiện lại khi kết nối tới nguồn được khôi
+              phục.
+            </p>
+          ) : (
+            <BangLuoiMucNuoc luoi={luoi} />
+          )}
+        </div>
+        {/* ⛔ Mốc lấy từ `meta.lanLayCuoi` của BACKEND, ⛔ không phải đồng hồ máy khách: nguồn chết
+            ba ngày thì `new Date()` vẫn nhảy số mới mỗi lượt F5 (khuyết tật T43.9). */}
+        {luoi?.meta.lanLayCuoi && (
+          <p className="mt-3 text-[11px] text-surface-textSecondary">
+            Số liệu cập nhật lúc {formatDateTime(luoi.meta.lanLayCuoi)}
+            {luoi.meta.trangThaiNguon === 'DEGRADED' &&
+              ' — nguồn đang chậm, đây là số liệu gần nhất còn hợp lệ'}
+          </p>
+        )}
+      </section>
       <SectionNav duongDan={ROUTES.quanLyVanHanh.mucNuocLuongMua} />
     </PageShell>
   );
