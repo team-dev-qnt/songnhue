@@ -51,7 +51,10 @@ class HydroCatalogueSeedTest extends IntegrationTestBase {
             Map.entry("F01527", new String[] {"DO-DQUAN-HL", "HA_LUU"}),
             Map.entry("F02031", new String[] {"DO-NTUU-TL", "THUONG_LUU"}),
             Map.entry("F02030", new String[] {"DO-NTUU-HL", "HA_LUU"}),
-            Map.entry("F01519", new String[] {"DO-LCO-TL", "THUONG_LUU"}),
+            // ⚠ Sửa 09/09/2026 theo bản chụp G8 của Công ty (V202609091073). Bản seed gốc ghi
+            //   `DO-LCO-TL` / `THUONG_LUU`; bản chụp ghi Hạ lưu, và 18/19 dòng còn lại khớp tuyệt
+            //   đối giữa hai nguồn. QuanTran chốt lấy theo bản chụp.
+            Map.entry("F01519", new String[] {"DO-LCO-HL", "HA_LUU"}),
             Map.entry("F01657", new String[] {"DO-VDINH-TL", "THUONG_LUU"}),
             Map.entry("F01705", new String[] {"DO-VDINH-HL", "HA_LUU"}),
             Map.entry("F02039", new String[] {"DO-HMY-HL", "HA_LUU"}),
@@ -64,6 +67,7 @@ class HydroCatalogueSeedTest extends IntegrationTestBase {
             Map.entry("F01532", new String[] {"DO-TV-BATHA-MN", "MN_SONG"}));
 
     private static final String MIGRATION = "db/migration/hyd/V202608311049__hyd_danh_muc_diem_do.sql";
+    private static final String MIGRATION_G8 = "db/migration/hyd/V202609091073__hyd_g8_tuyen_song_ly_trinh.sql";
 
     @Autowired
     private JdbcTemplate jdbc;
@@ -123,24 +127,115 @@ class HydroCatalogueSeedTest extends IntegrationTestBase {
     }
 
     /**
-     * ⛔ G8 chưa có dữ liệu ⇒ tuyến sông, lý trình và toạ độ phải RỖNG HẾT.
+     * ⭐ Bản chụp G8 ngày 09/09/2026 — tuyến sông và lý trình, chép từ <b>bản chụp</b>.
      *
-     * <p>Bài kiểm này canh một điều dễ bị "sửa cho đẹp": ai đó thấy bản đồ trống rồi điền toạ độ
-     * phỏng đoán. Một điểm sai trên bản đồ tệ hơn hẳn một bản đồ trống — bản đồ trống thì còn nằm
-     * trong danh sách nhắc việc.
+     * <p>⚠ Chép từ {@code V202609091073} thì bài kiểm chỉ chứng minh migration bằng chính nó. Nguồn
+     * là bảng đối chiếu Công ty; bản sao đọc được của nó ở {@code business-open-questions.md} §G8.
+     *
+     * <p>{@code null} nghĩa là bản chụp ghi <i>"Chưa rõ"</i> — và đó là một khẳng định, ⛔ không phải
+     * chỗ trống chờ ai đó điền cho đẹp.
+     */
+    private static final Map<String, String[]> G8_VI_TRI = Map.ofEntries(
+            Map.entry("F01771", new String[] {"Sông Nhuệ", "K0+390"}),
+            Map.entry("F01672", new String[] {"Sông Nhuệ", null}),
+            Map.entry("F01794", new String[] {"Sông Nhuệ", "K18+100"}),
+            Map.entry("F01905", new String[] {"Sông Nhuệ", "K43+750"}),
+            Map.entry("F01527", new String[] {"Sông Nhuệ", "K43+750"}),
+            Map.entry("F02031", new String[] {"Sông Nhuệ", "K63+405"}),
+            Map.entry("F02030", new String[] {"Sông Nhuệ", "K63+405"}),
+            Map.entry("F01519", new String[] {"Sông Nhuệ", "K72+506"}),
+            // ⚠ Lý trình bản chụp ghi "(K72+000 – sông Đáy)" ⇒ NULL, xem V202609091073.
+            Map.entry("F01657", new String[] {"Sông Vân Đình", null}),
+            Map.entry("F02039", new String[] {"Sông Vân Đình", "K1+460"}),
+            Map.entry("F01705", new String[] {"Sông Đáy", "K72+000"}),
+            Map.entry("F01532", new String[] {"Sông Đáy", "K46+500"}),
+            Map.entry("F01707", new String[] {"Sông La Khê", null}),
+            // 6 mã bản chụp ghi "Chưa rõ" ở CẢ HAI cột.
+            Map.entry("F01732", new String[] {null, null}),
+            Map.entry("F01559", new String[] {null, null}),
+            Map.entry("F01812", new String[] {null, null}),
+            Map.entry("F01652", new String[] {null, null}),
+            Map.entry("F01820", new String[] {null, null}),
+            Map.entry("F01965", new String[] {null, null}));
+
+    /**
+     * ⛔⛔ Toạ độ vẫn phải RỖNG cả 19 dòng — phần G8 còn thiếu.
+     *
+     * <p>Bản chụp 09/09 đóng tuyến sông và lý trình, ⛔ <b>không</b> có cột toạ độ. Bài kiểm này canh
+     * đúng điều dễ bị "sửa cho đẹp": ai đó thấy bản đồ trống rồi điền toạ độ phỏng đoán. Một điểm sai
+     * trên bản đồ tệ hơn hẳn một bản đồ trống — bản đồ trống thì còn nằm trong danh sách nhắc việc.
+     *
+     * <p>⚠ Trước 09/09 bài kiểm này khẳng định <i>cả ba</i> nhóm cột đều NULL. Nới nó xuống còn toạ
+     * độ mà ⛔ không thay gì vào chỗ hai cột kia là tự tay tháo một bộ canh — nên phần tuyến sông và
+     * lý trình chuyển sang {@link #khopBanChupG8} với khẳng định <b>chặt hơn</b>: ghim từng ô, ⛔
+     * không chỉ "khác NULL".
      */
     @Test
-    @DisplayName("⛔ Không bịa dữ liệu G8: tuyến sông / lý trình / toạ độ đều NULL cả 19 dòng")
-    void khongBiaDuLieuChuaCo() {
-        Integer coDuLieu = jdbc.queryForObject(
+    @DisplayName("⛔ Toạ độ vẫn NULL cả 19 dòng — bản chụp G8 KHÔNG có cột toạ độ")
+    void khongBiaToaDo() {
+        Integer coToaDo = jdbc.queryForObject(
                 "SELECT count(*) FROM stations WHERE deleted_at IS NULL AND ("
-                        + "river_name IS NOT NULL OR chainage IS NOT NULL "
-                        + "OR latitude IS NOT NULL OR longitude IS NOT NULL)",
+                        + "latitude IS NOT NULL OR longitude IS NOT NULL OR geom IS NOT NULL)",
                 Integer.class);
 
-        assertThat(coDuLieu)
-                .as("G8 chưa cấp tuyến sông/lý trình/toạ độ — điền phỏng đoán là sinh điểm sai trên bản đồ")
+        assertThat(coToaDo)
+                .as("G8 chưa cấp toạ độ — điền phỏng đoán là sinh điểm sai trên bản đồ điều hành")
                 .isZero();
+    }
+
+    /**
+     * ⭐ Từng ô tuyến sông / lý trình khớp bản chụp — <b>gồm cả 6 ô "Chưa rõ"</b>.
+     *
+     * <p>Ghim cả hai chiều là chủ ý. Một khẳng định kiểu <i>"13 dòng có tuyến sông"</i> vẫn xanh khi
+     * ai đó xoá tuyến của F01771 rồi điền tuyến cho F01732 — đúng số lượng, sai dòng.
+     */
+    @Test
+    @DisplayName("⭐ 19/19 ô tuyến sông + lý trình khớp bản chụp G8 (09/09), kể cả ô 'Chưa rõ'")
+    void khopBanChupG8() {
+        for (Map.Entry<String, String[]> mong : G8_VI_TRI.entrySet()) {
+            Map<String, Object> dong = jdbc.queryForMap(
+                    "SELECT river_name, chainage FROM stations WHERE api_code = ? AND deleted_at IS NULL",
+                    mong.getKey());
+
+            assertThat(dong.get("river_name"))
+                    .as("tuyến sông của %s", mong.getKey())
+                    .isEqualTo(mong.getValue()[0]);
+            assertThat(dong.get("chainage"))
+                    .as("lý trình của %s", mong.getKey())
+                    .isEqualTo(mong.getValue()[1]);
+        }
+    }
+
+    /**
+     * ⚠ {@code chainage_m} là cột GENERATED, và nó là thứ {@code ix_stations_river} sắp theo.
+     *
+     * <p>Biểu thức sinh hỏng thì {@code chainage} vẫn hiện đúng trên mọi màn hình — chỉ <b>thứ tự</b>
+     * các điểm dọc tuyến sai, ở BC-11 và ở lớp GIS. Quá xa chỗ sai để ai đó nối lại được, nên phải
+     * đo thẳng con số.
+     */
+    @Test
+    @DisplayName("⚠ chainage_m tính đúng từ lý trình — cột GENERATED mà không màn hình nào hiện")
+    void lyTrinhSinhRaSoMet() {
+        Map<String, Integer> mong = Map.of(
+                "F01771", 390, // K0+390 — km bằng 0, bẫy nhân 1000
+                "F02039", 1460, // K1+460
+                "F01519", 72506, // K72+506 — lớn nhất trên sông Nhuệ
+                "F01532", 46500); // K46+500
+
+        for (Map.Entry<String, Integer> e : mong.entrySet()) {
+            Integer m = jdbc.queryForObject(
+                    "SELECT chainage_m FROM stations WHERE api_code = ? AND deleted_at IS NULL",
+                    Integer.class,
+                    e.getKey());
+            assertThat(m).as("chainage_m của %s", e.getKey()).isEqualTo(e.getValue());
+        }
+
+        Integer coM = jdbc.queryForObject(
+                "SELECT count(*) FROM stations WHERE deleted_at IS NULL AND chainage_m IS NOT NULL", Integer.class);
+        assertThat(coM)
+                .as("10 lý trình đọc được ⇒ đúng 10 giá trị chainage_m; lệch nghĩa là biểu thức "
+                        + "sinh từ chối im lặng một dạng lý trình nào đó")
+                .isEqualTo(10);
     }
 
     @Test
@@ -234,7 +329,7 @@ class HydroCatalogueSeedTest extends IntegrationTestBase {
     @Test
     @DisplayName("⭐⭐ Khối canh của migration BẮT ĐƯỢC vi phạm — phá rồi kiểm, rồi cuộn lại")
     void khoiCanhCuaMigrationBatDuocViPham() throws IOException {
-        String khoiCanh = docKhoiCanh();
+        String khoiCanh = docKhoiCanh(MIGRATION);
         assertThat(khoiCanh)
                 .as("không lấy được khối DO $$ trong %s — bài kiểm đang kiểm một chuỗi rỗng", MIGRATION)
                 .contains("RAISE EXCEPTION")
@@ -265,10 +360,53 @@ class HydroCatalogueSeedTest extends IntegrationTestBase {
         jdbc.execute(khoiCanh);
     }
 
+    /**
+     * ⭐⭐ Khối canh của {@code V202609091073} cũng phải BẮT ĐƯỢC vi phạm.
+     *
+     * <p>Cùng lý do với {@link #khoiCanhCuaMigrationBatDuocViPham}: migration ấy là thứ duy nhất giữ
+     * cho bản chụp G8 không bị điền thêm hay xoá bớt, và một khối canh chưa ai đi qua thì chưa biết
+     * nó canh gì (luật 7).
+     *
+     * <p>Phá bằng cách <b>xoá một tuyến sông</b> — nhánh đầu tiên của khối. Chọn F01707 (Sông La Khê,
+     * lý trình NULL) để phép phá chạm đúng một khẳng định, ⛔ không kéo theo khẳng định lý trình.
+     */
+    @Test
+    @DisplayName("⭐⭐ Khối canh V202609091073 bắt được vi phạm — xoá 1 tuyến sông rồi cuộn lại")
+    void khoiCanhBanChupG8BatDuocViPham() throws IOException {
+        String khoiCanh = docKhoiCanh(MIGRATION_G8);
+        assertThat(khoiCanh)
+                .as("không lấy được khối DO $$ trong %s — bài kiểm đang kiểm một chuỗi rỗng", MIGRATION_G8)
+                .contains("RAISE EXCEPTION")
+                .contains("13");
+
+        jdbc.execute(khoiCanh);
+
+        TransactionTemplate tx = new TransactionTemplate(transactionManager);
+        tx.executeWithoutResult(status -> {
+            int chamPhai = jdbc.update("UPDATE stations SET river_name = NULL WHERE api_code = 'F01707'");
+            assertThat(chamPhai)
+                    .as("câu phá phải chạm đúng 1 hàng, nếu không thì bước sau vô nghĩa")
+                    .isEqualTo(1);
+
+            assertThatThrownBy(() -> jdbc.execute(khoiCanh))
+                    .as("⛔ khối canh im lặng khi mất một tuyến sông = một bộ canh không canh gì")
+                    .hasMessageContaining("đang có 12");
+
+            status.setRollbackOnly();
+        });
+
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM stations WHERE deleted_at IS NULL AND river_name IS NOT NULL",
+                        Integer.class))
+                .as("transaction phải được cuộn lại, nếu không bài kiểm này phá hỏng các bài sau")
+                .isEqualTo(13);
+        jdbc.execute(khoiCanh);
+    }
+
     /** Lấy khối {@code DO $$ … $$;} cuối cùng trong tệp migration — đọc bản thật, không chép lại. */
-    private static String docKhoiCanh() throws IOException {
+    private static String docKhoiCanh(String migration) throws IOException {
         String sql =
-                new String(new ClassPathResource(MIGRATION).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+                new String(new ClassPathResource(migration).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
         int batDau = sql.lastIndexOf("DO $$");
         int ketThuc = sql.lastIndexOf("$$;");
         if (batDau < 0 || ketThuc <= batDau) {

@@ -18,6 +18,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.BusinessRuleException;
+import com.songnhue.core.common.importer.BieuMauCsv;
+import com.songnhue.core.common.importer.CotMau;
+import com.songnhue.core.common.importer.KetQuaNhap;
+import com.songnhue.core.common.importer.KetQuaNhap.LoiDong;
+import com.songnhue.core.common.importer.SpreadsheetReader;
 import com.songnhue.core.common.util.VietnameseUtils;
 import com.songnhue.core.spi.OrgUnitPort;
 import com.songnhue.core.spi.OrgUnitRef;
@@ -63,8 +68,47 @@ public class ConstructionImportService {
     private static final String COT_LOAI = "loai_cong_trinh";
     private static final String COT_DON_VI = "ma_don_vi";
 
-    /** Cột bắt buộc phải có trong tiêu đề — thiếu là từ chối cả tệp, không đọc dòng nào. */
-    private static final List<String> COT_BAT_BUOC = List.of(COT_MA, COT_TEN, COT_LOAI, COT_DON_VI);
+    /**
+     * ⭐ Danh mục cột của tệp nhập — <b>một nguồn</b>, và nó sinh ra chính tệp mẫu.
+     *
+     * <p>Lý lẽ đầy đủ ở {@link CotMau}. Ở đây chỉ giữ phần riêng của danh mục công trình:
+     * ⚠ <b>thứ tự khai là thứ tự cột trong tệp mẫu</b>, và 4 cột bắt buộc đứng trước để người lập
+     * tệp thấy ngay phần ⛔ không được bỏ trống.
+     */
+    public static final List<CotMau> COT_MAU = List.of(
+            new CotMau(COT_MA, true, "BẮT BUỘC · mã duy nhất, tự động viết HOA"),
+            new CotMau(COT_TEN, true, "BẮT BUỘC · tên đầy đủ của công trình"),
+            new CotMau(COT_LOAI, true, "BẮT BUỘC · Trạm bơm | Cống | Kênh mương | Đê điều | Khác"),
+            new CotMau(COT_DON_VI, true, "BẮT BUỘC · mã đơn vị quản lý, ví dụ CTY"),
+            new CotMau("nhiem_vu", false, "Tưới | Tiêu | Hỗn hợp"),
+            new CotMau("cap_quan_ly", false, "Công ty | Xí nghiệp | Cụm — bỏ trống thì mặc định Xí nghiệp"),
+            new CotMau("ma_cum", false, "Mã cụm công trình, phải có sẵn trong danh mục cụm"),
+            new CotMau("dia_chi", false, "Địa chỉ hành chính"),
+            new CotMau("vi_do", false, "Vĩ độ WGS-84, dấu chấm thập phân — ví dụ 21.023456"),
+            new CotMau("kinh_do", false, "Kinh độ WGS-84 — phải có ĐỦ CẢ HAI hoặc bỏ trống cả hai"),
+            new CotMau("tuyen_song", false, "Ví dụ: Sông Nhuệ"),
+            new CotMau("ly_trinh", false, "Dạng K<km>+<m>, ví dụ K43+750"),
+            new CotMau("luu_vuc", false, "Tên lưu vực"),
+            new CotMau("nam_xay_dung", false, "Số nguyên trong khoảng 1900–2200"),
+            new CotMau("nam_su_dung", false, "Số nguyên trong khoảng 1900–2200"),
+            new CotMau("don_vi_thiet_ke", false, "Tên đơn vị thiết kế"),
+            new CotMau("don_vi_thi_cong", false, "Tên đơn vị thi công"),
+            new CotMau("tong_von_vnd", false, "VNĐ — chấp nhận 1.500.000 hoặc 1500000"),
+            new CotMau("mo_ta", false, "Ghi chú tự do"));
+
+    /**
+     * Cột bắt buộc — <b>suy từ {@link #COT_MAU}</b>, ⛔ không khai lại.
+     *
+     * <p>Trước 09/09/2026 đây là một {@code List.of(...)} riêng. Hai danh sách nói cùng một điều là
+     * đúng chỗ luật 14 canh: thêm một cột bắt buộc mà quên sửa danh sách kia thì tệp mẫu và bộ đọc
+     * lệch nhau, và ⛔ không có gì nói ra.
+     */
+    private static final List<String> COT_BAT_BUOC = CotMau.tenBatBuoc(COT_MAU);
+
+    /** Tệp mẫu CSV — tiêu đề + một dòng mô tả. Xem {@link BieuMauCsv} về vì sao ⛔ không dùng dòng ví dụ. */
+    public static byte[] bieuMau() {
+        return BieuMauCsv.dung(COT_MAU);
+    }
 
     /**
      * Nhãn tiếng Việt của loại công trình → enum.
@@ -114,24 +158,9 @@ public class ConstructionImportService {
         this.orgUnits = orgUnits;
     }
 
-    /** @param column {@code null} khi lỗi thuộc cả dòng chứ không thuộc một ô */
-    public record RowError(int rowNumber, String column, String message) {}
-
-    /**
-     * @param applied {@code false} = mới chỉ chạy khô, chưa ghi gì
-     * @param toCreate số dòng sẽ thêm mới
-     * @param toUpdate số dòng sẽ cập nhật lên bản ghi đang có
-     */
-    public record ImportReport(boolean applied, int totalRows, int toCreate, int toUpdate, List<RowError> errors) {
-
-        public boolean hasErrors() {
-            return !errors.isEmpty();
-        }
-    }
-
     /** Xem trước — <b>không ghi một dòng nào</b>, kể cả khi tệp hoàn toàn hợp lệ. */
     @Transactional(readOnly = true)
-    public ImportReport preview(byte[] content) {
+    public KetQuaNhap preview(byte[] content) {
         KeHoach keHoach = lapKeHoach(content);
         return keHoach.baoCao(false);
     }
@@ -144,7 +173,7 @@ public class ConstructionImportService {
      * của họ mà không ai biết.
      */
     @Transactional
-    public ImportReport apply(byte[] content) {
+    public KetQuaNhap apply(byte[] content) {
         KeHoach keHoach = lapKeHoach(content);
         if (!keHoach.loi.isEmpty()) {
             throw new BusinessRuleException(ErrorCode.OPS_2016, keHoach.loi.size());
@@ -170,7 +199,7 @@ public class ConstructionImportService {
 
     private static final class KeHoach {
         private final List<DongKeHoach> dong = new ArrayList<>();
-        private final List<RowError> loi = new ArrayList<>();
+        private final List<LoiDong> loi = new ArrayList<>();
         private int tongDong;
 
         private int soThem() {
@@ -181,8 +210,8 @@ public class ConstructionImportService {
             return (int) dong.stream().filter(d -> d.publicIdHienCo != null).count();
         }
 
-        private ImportReport baoCao(boolean applied) {
-            return new ImportReport(applied, tongDong, soThem(), soSua(), List.copyOf(loi));
+        private KetQuaNhap baoCao(boolean applied) {
+            return new KetQuaNhap(applied, tongDong, soThem(), soSua(), List.copyOf(loi));
         }
     }
 
@@ -192,14 +221,14 @@ public class ConstructionImportService {
         keHoach.tongDong = rows.size();
 
         if (rows.isEmpty()) {
-            keHoach.loi.add(new RowError(1, null, "Tệp không có dòng dữ liệu nào"));
+            keHoach.loi.add(new LoiDong(1, null, "Tệp không có dòng dữ liệu nào"));
             return keHoach;
         }
         Set<String> cotCo = rows.get(0).cells().keySet();
         List<String> thieu =
                 COT_BAT_BUOC.stream().filter(c -> !cotCo.contains(c)).toList();
         if (!thieu.isEmpty()) {
-            keHoach.loi.add(new RowError(1, String.join(", ", thieu), "Tệp thiếu cột bắt buộc"));
+            keHoach.loi.add(new LoiDong(1, String.join(", ", thieu), "Tệp thiếu cột bắt buộc"));
             return keHoach;
         }
 
@@ -208,7 +237,7 @@ public class ConstructionImportService {
         Set<String> maDaGap = new HashSet<>();
 
         for (SpreadsheetReader.Row row : rows) {
-            List<RowError> loiDong = new ArrayList<>();
+            List<LoiDong> loiDong = new ArrayList<>();
             ConstructionForm form = doc(row, loiDong, maDaGap);
             if (loiDong.isEmpty() && form != null) {
                 keHoach.dong.add(new DongKeHoach(row.rowNumber(), form, publicIdHienCo(form.code())));
@@ -232,34 +261,34 @@ public class ConstructionImportService {
                 .orElse(null);
     }
 
-    private ConstructionForm doc(SpreadsheetReader.Row row, List<RowError> loi, Set<String> maDaGap) {
+    private ConstructionForm doc(SpreadsheetReader.Row row, List<LoiDong> loi, Set<String> maDaGap) {
         int soDong = row.rowNumber();
         String ma = row.get(COT_MA);
         String ten = row.get(COT_TEN);
 
         if (ma == null) {
-            loi.add(new RowError(soDong, COT_MA, "Thiếu mã công trình"));
+            loi.add(new LoiDong(soDong, COT_MA, "Thiếu mã công trình"));
         } else if (!maDaGap.add(ma.toUpperCase(Locale.ROOT))) {
-            loi.add(new RowError(soDong, COT_MA, "Mã '%s' xuất hiện nhiều lần trong tệp".formatted(ma)));
+            loi.add(new LoiDong(soDong, COT_MA, "Mã '%s' xuất hiện nhiều lần trong tệp".formatted(ma)));
         }
         if (ten == null) {
-            loi.add(new RowError(soDong, COT_TEN, "Thiếu tên công trình"));
+            loi.add(new LoiDong(soDong, COT_TEN, "Thiếu tên công trình"));
         }
 
         ConstructionType loai = nhan(NHAN_LOAI, row.get(COT_LOAI));
         if (loai == null) {
-            loi.add(new RowError(soDong, COT_LOAI, "Loại công trình không nhận ra: '%s'".formatted(row.get(COT_LOAI))));
+            loi.add(new LoiDong(soDong, COT_LOAI, "Loại công trình không nhận ra: '%s'".formatted(row.get(COT_LOAI))));
         }
 
         OrgUnitRef donVi = orgUnits.findRefByCode(row.get(COT_DON_VI)).orElse(null);
         if (donVi == null) {
-            loi.add(new RowError(soDong, COT_DON_VI, "Không có đơn vị mã '%s'".formatted(row.get(COT_DON_VI))));
+            loi.add(new LoiDong(soDong, COT_DON_VI, "Không có đơn vị mã '%s'".formatted(row.get(COT_DON_VI))));
         }
 
         BigDecimal viDo = so(row.get("vi_do"), soDong, "vi_do", loi);
         BigDecimal kinhDo = so(row.get("kinh_do"), soDong, "kinh_do", loi);
         if ((viDo == null) != (kinhDo == null)) {
-            loi.add(new RowError(soDong, "vi_do", "Toạ độ phải đủ cả vĩ độ và kinh độ"));
+            loi.add(new LoiDong(soDong, "vi_do", "Toạ độ phải đủ cả vĩ độ và kinh độ"));
         }
 
         UUID cum = maCum(row.get("ma_cum"), soDong, loi);
@@ -300,14 +329,14 @@ public class ConstructionImportService {
                 null);
     }
 
-    private UUID maCum(String maCum, int soDong, List<RowError> loi) {
+    private UUID maCum(String maCum, int soDong, List<LoiDong> loi) {
         if (maCum == null) {
             return null;
         }
         return clusters.findByCodeAndDeletedAtIsNull(maCum.toUpperCase(Locale.ROOT))
                 .map(c -> c.getPublicId())
                 .orElseGet(() -> {
-                    loi.add(new RowError(soDong, "ma_cum", "Không có cụm mã '%s'".formatted(maCum)));
+                    loi.add(new LoiDong(soDong, "ma_cum", "Không có cụm mã '%s'".formatted(maCum)));
                     return null;
                 });
     }
@@ -340,7 +369,7 @@ public class ConstructionImportService {
      *   <li>Còn lại → "." hoặc "," là dấu thập phân.
      * </ul>
      */
-    private static BigDecimal so(String value, int soDong, String cot, List<RowError> loi) {
+    private static BigDecimal so(String value, int soDong, String cot, List<LoiDong> loi) {
         if (value == null || value.isBlank()) {
             return null;
         }
@@ -355,12 +384,12 @@ public class ConstructionImportService {
         try {
             return new BigDecimal(sach);
         } catch (NumberFormatException e) {
-            loi.add(new RowError(soDong, cot, "Không phải số: '%s'".formatted(value)));
+            loi.add(new LoiDong(soDong, cot, "Không phải số: '%s'".formatted(value)));
             return null;
         }
     }
 
-    private static Short nam(String value, int soDong, String cot, List<RowError> loi) {
+    private static Short nam(String value, int soDong, String cot, List<LoiDong> loi) {
         if (value == null || value.isBlank()) {
             return null;
         }
@@ -368,12 +397,12 @@ public class ConstructionImportService {
             // Excel hay trả số nguyên dưới dạng "1998.0" — cắt phần thập phân trước khi đọc.
             int nam = new BigDecimal(value.trim()).intValue();
             if (nam < 1900 || nam > 2200) {
-                loi.add(new RowError(soDong, cot, "Năm ngoài khoảng hợp lệ: '%s'".formatted(value)));
+                loi.add(new LoiDong(soDong, cot, "Năm ngoài khoảng hợp lệ: '%s'".formatted(value)));
                 return null;
             }
             return (short) nam;
         } catch (NumberFormatException e) {
-            loi.add(new RowError(soDong, cot, "Không phải năm: '%s'".formatted(value)));
+            loi.add(new LoiDong(soDong, cot, "Không phải năm: '%s'".formatted(value)));
             return null;
         }
     }

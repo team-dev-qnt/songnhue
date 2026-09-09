@@ -106,6 +106,7 @@ public final class HydroReportDtos {
             String stationCode,
             String stationName,
             String riverName,
+            String chainage,
             String positionRole,
             String measurementTypeCode,
             String measurementTypeName,
@@ -117,6 +118,7 @@ public final class HydroReportDtos {
             @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal giaTriMax,
             Instant mocMax,
             @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal giaTriTb,
+            int soLanVuotNguong,
             String lyDoTrong) {
 
         public TongHopKyView {

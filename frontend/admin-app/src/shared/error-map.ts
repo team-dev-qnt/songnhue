@@ -102,6 +102,11 @@ export const ERROR_CATALOG = {
     handling: 'toast',
     severity: 'warning',
   },
+  'SYS-0012': {
+    message: 'Tệp nhập vượt trần số dòng — tách thành nhiều tệp rồi nhập lần lượt',
+    handling: 'toast',
+    severity: 'error',
+  },
 
   // --- Xác thực & phân quyền -------------------------------------------------
   'AUTH-0001': {

@@ -73,6 +73,13 @@ export const MENU: readonly MenuNode[] = [
         permissions: ['ops:construction:view'],
       },
       {
+        key: 'cum-cong-trinh',
+        label: 'Cụm công trình',
+        icon: <AppstoreOutlined />,
+        path: '/van-hanh/cum-cong-trinh',
+        permissions: ['ops:construction:view'],
+      },
+      {
         key: 'danh-muc-tinh-hinh',
         label: 'Danh mục tình trạng vận hành',
         icon: <AppstoreOutlined />,

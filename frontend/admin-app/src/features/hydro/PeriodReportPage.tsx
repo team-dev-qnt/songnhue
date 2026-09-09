@@ -98,10 +98,27 @@ export function PeriodReportPage() {
         v ?? <Typography.Text type="secondary">Chưa phân tuyến</Typography.Text>,
     },
     {
+      // ⭐ Bản chụp G8 (09/09/2026) cấp lý trình cho 10/19 điểm đo. Trước đó cột này ⛔ không tồn
+      //    tại ở đâu — kể cả trong bản kết xuất, dù đặc tả BC-05 liệt kê nó.
+      title: 'Lý trình',
+      dataIndex: 'chainage',
+      width: 120,
+      render: (v: string | null) =>
+        v ?? <Typography.Text type="secondary">Chưa có (G8)</Typography.Text>,
+    },
+    {
       title: 'Vị trí',
       dataIndex: 'positionRole',
       width: 140,
       render: (v: string) => VAI_TRO_VI_TRI[v as keyof typeof VAI_TRO_VI_TRI] ?? v,
+    },
+    {
+      // ⚠ ⛔ Không ẩn khi bằng 0: "0 lần vượt ngưỡng" là một thông tin vận hành, ⛔ không phải một
+      //   ô rỗng. Nó khác hẳn ô mực nước — ở đó 0 là một giá trị đo bịa ra, ở đây 0 là phép đếm.
+      title: 'Số lần vượt ngưỡng',
+      dataIndex: 'soLanVuotNguong',
+      width: 150,
+      align: 'right' as const,
     },
     { title: 'Chỉ số', dataIndex: 'measurementTypeName', width: 170, ellipsis: true },
     {

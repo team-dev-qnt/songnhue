@@ -2,6 +2,8 @@ package com.songnhue.app.hyd;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -448,18 +450,215 @@ class HydroCatalogueHttpTest extends IntegrationTestBase {
                 .collect(java.util.stream.Collectors.joining(","));
 
         return jdbc.queryForObject(
-                "SELECT code, name, api_code, position_role FROM stations WHERE public_id = ?",
+                """
+                SELECT code, name, api_code, position_role, river_name, chainage
+                  FROM stations WHERE public_id = ?
+                """,
                 (rs, i) ->
                         """
                         {"code":"%s","name":"%s","apiCode":"%s","apiSourceId":"%s","positionRole":"%s",\
-                        "measurementTypeIds":[%s]}"""
+                        "riverName":%s,"chainage":%s,"measurementTypeIds":[%s]}"""
                                 .formatted(
                                         rs.getString(1),
                                         rs.getString(2),
                                         rs.getString(3),
                                         nguon,
                                         rs.getString(4),
+                                        json(rs.getString(5)),
+                                        json(rs.getString(6)),
                                         loai),
                 diemDo);
+    }
+
+    /** {@code null} → {@code null} (⛔ không phải chuỗi "null"); còn lại → chuỗi JSON có nháy kép. */
+    private static String json(String v) {
+        return v == null ? "null" : "\"" + v + "\"";
+    }
+
+    /**
+     * ⭐⭐ Vòng khứ hồi của màn hình sửa điểm đo <b>⛔ KHÔNG được xoá dữ liệu G8</b>.
+     *
+     * <h2>Vì sao bài này tồn tại</h2>
+     *
+     * <p>Ngày 09/09/2026 CI đỏ ở {@code HydroCatalogueSeedTest} trong khi máy dev xanh. Nguyên nhân:
+     * lớp này {@code PUT} một thân JSON <b>thiếu</b> {@code riverName}/{@code chainage} lên
+     * {@code motDiemDo()} = {@code ORDER BY id LIMIT 1} = <b>F01771</b>, và {@code StationService}
+     * hiểu "không gửi" là "xoá" ⇒ điểm đo đầu tiên mất tuyến sông. Trước bản chụp G8 (09/09) mọi
+     * điểm đo đều NULL sẵn nên tác dụng phụ ấy <b>vô hình suốt từ WS-29</b>.
+     *
+     * <p>⚠ Đây là <b>lần thứ hai</b> cùng một hình dạng trong chính tệp này — lần đầu là
+     * {@code measurementTypeIds} (xem javadoc {@link #thanSua}). Bài học lần ấy ghi rõ: <i>gửi TRỌN
+     * trạng thái hiện có</i>. Một bài học chỉ nằm trong javadoc thì lần sau vẫn mắc lại, nên lần này
+     * nó thành một <b>phép kiểm</b>.
+     *
+     * <h2>⛔ Vì sao ⛔ KHÔNG chữa bằng cách bắt buộc {@code riverName}</h2>
+     *
+     * <p>Khác {@code measurementTypeIds} (rỗng ⇒ luôn sai), {@code riverName} NULL là trạng thái
+     * <b>hợp lệ</b> — 6/19 điểm đo hôm nay bản chụp ghi "Chưa rõ". {@code PUT} là thay-toàn-phần
+     * nên xoá một trường bị bỏ trống là <i>đúng ngữ nghĩa</i>; thứ phải bảo đảm là <b>màn hình gửi
+     * đủ</b>, và {@code StationsPage.tsx} có nạp cả hai ô ấy vào form. Bài này canh đúng lời hứa đó.
+     */
+    @Test
+    @DisplayName("⭐⭐ Sửa điểm đo rồi lưu KHÔNG xoá tuyến sông/lý trình — vòng khứ hồi của admin")
+    void editingAStationKeepsItsG8Location() {
+        UUID diemDo = motDiemDo();
+
+        String tuyenTruoc =
+                jdbc.queryForObject("SELECT river_name FROM stations WHERE public_id = ?", String.class, diemDo);
+        String lyTrinhTruoc =
+                jdbc.queryForObject("SELECT chainage FROM stations WHERE public_id = ?", String.class, diemDo);
+        assertThat(tuyenTruoc)
+                .as("⚠ Chống tập rỗng (luật 7): điểm đo mốc phải ĐANG CÓ tuyến sông, nếu không thì "
+                        + "bài kiểm này xanh mà ⛔ không chứng minh gì — đúng cách nó vô hình từ WS-29")
+                .isNotNull();
+
+        ResponseEntity<String> sua = phienHttp.goi(
+                kyThuat, HttpMethod.PUT, "/api/v1/hyd/stations/" + diemDo, thanSua(diemDo, nguonCuaDiemDo(diemDo)));
+        assertThat(sua.getStatusCode()).as("lưu: %s", sua.getBody()).isEqualTo(HttpStatus.OK);
+
+        assertThat(jdbc.queryForObject("SELECT river_name FROM stations WHERE public_id = ?", String.class, diemDo))
+                .as("⛔⛔ Lưu một lượt sửa ⛔ KHÔNG được xoá tuyến sông — dữ liệu G8 phải do Công ty "
+                        + "cấp lại, và ⛔ không có API lịch sử nào lấy lại được")
+                .isEqualTo(tuyenTruoc);
+        assertThat(jdbc.queryForObject("SELECT chainage FROM stations WHERE public_id = ?", String.class, diemDo))
+                .as("lý trình cũng vậy")
+                .isEqualTo(lyTrinhTruoc);
+    }
+
+    // =========================================================================
+    // Nhập VỊ TRÍ điểm đo từ tệp — G8 phần còn lại (09/09/2026).
+    //
+    // ⭐ Vì sao đường này tồn tại: toạ độ của 19/19 điểm đo vẫn NULL ⇒ lớp GIS RỖNG, và đường sửa
+    // duy nhất trước đây là mở từng bản ghi trên màn hình, 19 lượt. Ngày Công ty gửi bảng toạ độ,
+    // người quản trị chỉ cần tải mẫu → điền → upload.
+    // =========================================================================
+
+    /** ⚠ Mã dùng cho các bài ghi bên dưới — bản chụp G8 ghi "Chưa rõ" cả hai cột, nên khôi phục = NULL. */
+    private static final String MA_THU = "F01965";
+
+    @Test
+    @DisplayName("⭐ Tệp mẫu vị trí: có BOM, đủ 5 cột, dòng 2 là MÔ TẢ (không phải dữ liệu hợp lệ)")
+    void stationImportTemplateIsServedAndSelfDescribing() {
+        ResponseEntity<String> mau = phienHttp.get(kyThuat, "/api/v1/hyd/stations/import/template");
+
+        assertThat(mau.getStatusCode()).as("tệp mẫu: %s", mau.getBody()).isEqualTo(HttpStatus.OK);
+        assertThat(mau.getHeaders().getFirst("Content-Disposition"))
+                .contains("attachment")
+                .contains("mau-nhap-vi-tri-diem-do.csv");
+
+        String csv = mau.getBody();
+        assertThat(csv).isNotNull();
+        assertThat(csv.charAt(0))
+                .as("⛔ CSV không BOM ⇒ Excel bản Windows mở ra tiếng Việt vỡ dấu")
+                .isEqualTo('\uFEFF');
+
+        String[] dong = csv.split("\r\n|\n");
+        assertThat(dong).as("tiêu đề + đúng một dòng mô tả").hasSize(2);
+        assertThat(dong[0])
+                .contains("ma_api")
+                .contains("tuyen_song")
+                .contains("ly_trinh")
+                .contains("vi_do")
+                .contains("kinh_do");
+        assertThat(dong[1])
+                .as("dòng 2 phải là MÔ TẢ — mẫu gồm dòng ví dụ HỢP LỆ sẽ im lặng ghi đè dữ liệu thật")
+                .contains("BẮT BUỘC");
+    }
+
+    /**
+     * ⛔⛔ Đường này CHỈ cập nhật — một mã lạ phải thành <b>lỗi dòng</b>, ⛔ không phải một trạm mới.
+     *
+     * <p>{@code api_code} là khoá nối duy nhất giữa response của nguồn và điểm đo, và migration khai
+     * thẳng nó <i>bất biến sau seed</i>. Cho tệp tạo điểm đo mới là mở đường để một mã gõ sai lặng lẽ
+     * sinh ra một trạm ma — nó ⛔ không bao giờ có số liệu, và ⛔ không ai biết nó từ đâu ra.
+     */
+    @Test
+    @DisplayName("⛔⛔ Mã API lạ → lỗi dòng, KHÔNG tạo điểm đo mới")
+    void unknownApiCodeIsARowErrorNotANewStation() {
+        int truoc = jdbc.queryForObject("SELECT count(*) FROM stations WHERE deleted_at IS NULL", Integer.class);
+
+        String csv = "ma_api,tuyen_song\nF99999,Sông Bịa\n";
+        ResponseEntity<String> xem = phienHttp.dangTep(
+                kyThuat, "/api/v1/hyd/stations/import/preview", csv.getBytes(StandardCharsets.UTF_8), "la.csv");
+
+        assertThat(xem.getStatusCode()).as("xem trước: %s", xem.getBody()).isEqualTo(HttpStatus.OK);
+        assertThat(xem.getBody()).contains("Không có điểm đo mang mã");
+
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM stations WHERE deleted_at IS NULL", Integer.class))
+                .as("⛔ lượt XEM TRƯỚC ⛔ không được ghi một dòng nào")
+                .isEqualTo(truoc);
+    }
+
+    /** ⛔ Một nửa toạ độ là một điểm SAI trên bản đồ điều hành — tệ hơn hẳn chưa số hoá. */
+    @Test
+    @DisplayName("⛔ Toạ độ nửa vời và lý trình sai dạng đều bị chặn ở bước chạy khô")
+    void halfCoordinatesAndBadChainageAreRejected() {
+        String csv = "ma_api,ly_trinh,vi_do,kinh_do\n" + MA_THU + ",km 390,20.945123,\n";
+        ResponseEntity<String> xem = phienHttp.dangTep(
+                kyThuat, "/api/v1/hyd/stations/import/preview", csv.getBytes(StandardCharsets.UTF_8), "sai.csv");
+
+        assertThat(xem.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(xem.getBody())
+                .as("cả hai lỗi phải hiện ra CÙNG lúc — báo từng lỗi một bắt người dùng sửa nhiều vòng")
+                .contains("Lý trình phải có dạng")
+                .contains("ĐỦ cả vĩ độ và kinh độ");
+    }
+
+    /**
+     * ⭐⭐ Vòng khép kín: upload → ghi thật → đọc lại thấy toạ độ.
+     *
+     * <p>⚠ Bài này <b>khôi phục</b> hai cột về NULL ở cuối: {@code HydroCatalogueSeedTest} ghim từng
+     * ô của cả 19 dòng, và cả hai lớp dùng CHUNG một CSDL cho toàn lượt JVM. Để lại dữ liệu thừa là
+     * làm đỏ một lớp khác vì lý do ⛔ không liên quan — đúng cách CI đỏ ngày 09/09.
+     */
+    @Test
+    @DisplayName("⭐⭐ Upload tệp vị trí → toạ độ vào CSDL thật, rồi khôi phục nguyên trạng")
+    void uploadingLocationsActuallyWritesCoordinates() {
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM stations WHERE api_code = ? AND river_name IS NULL "
+                                + "AND latitude IS NULL AND deleted_at IS NULL",
+                        Integer.class,
+                        MA_THU))
+                .as(
+                        "⚠ Chống tập rỗng: %s phải đang RỖNG cả hai cột, nếu không bài kiểm ⛔ không "
+                                + "chứng minh được lượt ghi đã xảy ra",
+                        MA_THU)
+                .isEqualTo(1);
+
+        String csv = "ma_api,tuyen_song,ly_trinh,vi_do,kinh_do\n" + MA_THU + ",Sông Nhuệ,K1+085,20.945123,105.782456\n";
+        ResponseEntity<String> nhap = phienHttp.dangTep(
+                kyThuat, "/api/v1/hyd/stations/import", csv.getBytes(StandardCharsets.UTF_8), "vitri.csv");
+
+        try {
+            assertThat(nhap.getStatusCode()).as("nhập: %s", nhap.getBody()).isEqualTo(HttpStatus.OK);
+            assertThat(nhap.getBody())
+                    .as("đường này CHỈ cập nhật — `toCreate` phải là 0")
+                    .contains("\"toUpdate\":1")
+                    .contains("\"toCreate\":0");
+
+            Map<String, Object> sau = jdbc.queryForMap(
+                    "SELECT river_name, chainage, chainage_m, latitude, longitude, geom IS NOT NULL AS co_geom "
+                            + "FROM stations WHERE api_code = ?",
+                    MA_THU);
+
+            assertThat(sau.get("river_name")).isEqualTo("Sông Nhuệ");
+            assertThat(sau.get("chainage")).isEqualTo("K1+085");
+            assertThat(sau.get("chainage_m"))
+                    .as("cột GENERATED phải tính lại — nó là thứ ix_stations_river sắp theo")
+                    .isEqualTo(1085);
+            assertThat(sau.get("co_geom"))
+                    .as("⭐⭐ `geom` là cột GENERATED từ cặp toạ độ — đây là thứ DUY NHẤT làm lớp GIS "
+                            + "hết rỗng, và ⛔ không màn hình nào hiện nó ra để kiểm bằng mắt")
+                    .isEqualTo(true);
+        } finally {
+            // ⛔ Khôi phục nguyên trạng bản chụp G8 — xem javadoc.
+            int cham = jdbc.update(
+                    "UPDATE stations SET river_name = NULL, chainage = NULL, latitude = NULL, "
+                            + "longitude = NULL WHERE api_code = ?",
+                    MA_THU);
+            assertThat(cham)
+                    .as("câu khôi phục phải chạm đúng 1 hàng, nếu không lớp kiểm khác sẽ đỏ vì lý do sai")
+                    .isEqualTo(1);
+        }
     }
 }

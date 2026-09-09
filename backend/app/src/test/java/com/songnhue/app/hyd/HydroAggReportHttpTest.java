@@ -592,7 +592,7 @@ class HydroAggReportHttpTest extends IntegrationTestBase {
         String than = phienHttp.get(kyThuat, "/api/v1/hyd/bao-cao/tuyen-song").getBody();
 
         assertThat(than)
-                .as("⬜ `river_name` NULL là trạng thái ĐÚNG hôm nay — tuyến sông thuộc G8")
+                .as("⬜ 6/19 điểm đo bản chụp G8 (09/09) ghi \"Chưa rõ\" ⇒ nhóm này vẫn phải tồn tại")
                 .contains("\"tenTuyen\":\"Chưa phân tuyến\"")
                 .contains("\"chuaPhanTuyen\":true");
     }

@@ -1,4 +1,4 @@
-package com.songnhue.operations.application.importer;
+package com.songnhue.core.common.importer;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -53,7 +53,19 @@ public final class SpreadsheetReader {
     /** Chữ ký ZIP — mọi tệp XLSX bắt đầu bằng đúng bốn byte này. */
     private static final byte[] CHU_KY_ZIP = {0x50, 0x4B, 0x03, 0x04};
 
-    /** Trần số dòng: tệp danh mục công trình đếm bằng trăm, không phải bằng triệu. */
+    /**
+     * Trần số dòng: tệp danh mục công trình đếm bằng trăm, không phải bằng triệu.
+     *
+     * <p>⛔⛔ Chạm trần thì <b>NÉM</b> ({@code SYS-0012}), ⛔ không cắt cụt. Tới 09/09/2026 vòng lặp ở
+     * {@link #dungRows} dừng im lặng ở dòng thứ 5000 — ⛔ không ngoại lệ, ⛔ không một
+     * {@code RowError}, và {@code ConstructionImportService} lấy {@code tongDong = rows.size()} nên
+     * bản báo cáo nói <i>"đã nhập 5000 hồ sơ"</i> cho một tệp 8000 dòng. Người nhập nhận đúng chữ
+     * "thành công" và ⛔ không có gì nói ra rằng 3000 hồ sơ chưa bao giờ được đọc tới.
+     *
+     * <p>Cùng hình dạng §10.69 (trần multipart 1 MB không ai khai) và cùng luật 16 với
+     * {@code HydroReportExportHandler#TRAN_DONG_CHI_TIET}, nơi chú thích đã ghi thẳng: <i>"một tệp bị
+     * cắt cụt trông y hệt một tệp đầy đủ"</i>. Hai chỗ, cùng một câu, và chỉ một chỗ làm đúng.
+     */
     public static final int MAX_ROWS = 5000;
 
     private SpreadsheetReader() {}
@@ -324,10 +336,15 @@ public final class SpreadsheetReader {
                 grid.get(0).stream().map(SpreadsheetReader::chuanHoaCot).toList();
 
         List<Row> rows = new ArrayList<>();
-        for (int i = 1; i < grid.size() && rows.size() < MAX_ROWS; i++) {
+        for (int i = 1; i < grid.size(); i++) {
             List<String> raw = grid.get(i);
             if (raw.stream().allMatch(o -> o == null || o.isBlank())) {
                 continue; // dòng trống giữa bảng là chuyện thường trong tệp Excel người dùng gửi
+            }
+            // ⛔ Kiểm TRƯỚC khi thêm, và ném — xem khối chú thích ở MAX_ROWS. Số dòng báo ra là số
+            //   dòng NHƯ NGƯỜI DÙNG THẤY trong Excel, để họ mở đúng chỗ mà cắt tệp.
+            if (rows.size() >= MAX_ROWS) {
+                throw new ValidationException(ErrorCode.SYS_0012, MAX_ROWS, i + 1);
             }
             Map<String, String> cells = new LinkedHashMap<>();
             for (int c = 0; c < tieuDe.size(); c++) {

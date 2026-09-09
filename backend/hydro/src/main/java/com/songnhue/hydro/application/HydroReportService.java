@@ -255,6 +255,7 @@ public class HydroReportService {
                 r.stationCode(),
                 r.stationName(),
                 r.riverName(),
+                r.chainage(),
                 r.positionRole(),
                 r.measurementTypeCode(),
                 r.measurementTypeName(),
@@ -266,6 +267,10 @@ public class HydroReportService {
                 r.rong() ? null : r.giaTriMax(),
                 r.rong() ? null : r.mocMax(),
                 r.rong() ? null : r.giaTriTb(),
+                // ⚠ ⛔ KHÔNG bọc `rong() ? null :`. Số lần vượt ngưỡng độc lập với việc kỳ có bản
+                //   ghi tổng hợp hay không: một điểm đo có thể bắn cảnh báo rồi mất tín hiệu, và
+                //   khi ấy hàng "rỗng kèm lý do" vẫn phải nói ra là đã có cảnh báo.
+                r.soLanVuotNguong(),
                 lyDo);
     }
 

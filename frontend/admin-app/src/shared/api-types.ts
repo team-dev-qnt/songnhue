@@ -1480,6 +1480,8 @@ export interface PeriodSummaryRow {
   stationCode: string;
   stationName: string;
   riverName: string | null;
+  /** Lý trình `K43+750`. `null` = G8 chưa cấp cho điểm đo này (9/19 tính tới 09/09/2026). */
+  chainage: string | null;
   positionRole: string;
   measurementTypeCode: string;
   measurementTypeName: string;
@@ -1491,6 +1493,13 @@ export interface PeriodSummaryRow {
   giaTriMax: string | null;
   mocMax: string | null;
   giaTriTb: string | null;
+  /**
+   * Số cảnh báo **bắt đầu** trong kỳ — chỉ tiêu đặc tả của BC-05.
+   *
+   * ⚠ ⛔ Không đi cùng `lyDoTrong`: một điểm đo có thể bắn cảnh báo rồi mất tín hiệu, nên hàng
+   * "rỗng kèm lý do" vẫn có thể mang số khác 0. Đây ⛔ không phải mâu thuẫn.
+   */
+  soLanVuotNguong: number;
   lyDoTrong: string | null;
 }
 

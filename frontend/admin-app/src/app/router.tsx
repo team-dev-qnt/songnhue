@@ -204,6 +204,19 @@ export const router = createBrowserRouter([
             'hyd:report:view',
             lazyPage(() => import('@/features/hydro/WaterLevelChartPage'), 'WaterLevelChartPage'),
           ),
+          // ⭐ T27.30 — trước 09/09/2026 ba endpoint ghi cụm có 0 nơi gọi, tức ⛔ KHÔNG có đường
+          //    nào tạo ra một cụm; `ClusterSelect` phải tự khai *"chưa có màn hình quản lý"*.
+          // ⚠ Gác tầng 1 bằng quyền XEM, ⛔ không bằng `create`: người chỉ được sửa cũng phải vào
+          //    được trang. Từng nút tự gác bằng quyền của nó (T27.28 — lệch tầng 1 ↔ tầng 2 cho ra
+          //    một màn hình mở được rồi 403 lúc dữ liệu về).
+          adminRoute(
+            '/van-hanh/cum-cong-trinh',
+            'ops:construction:view',
+            lazyPage(
+              () => import('@/features/operations/ConstructionClustersPage'),
+              'ConstructionClustersPage',
+            ),
+          ),
           adminRoute(
             '/van-hanh/danh-muc-tinh-hinh',
             'ops:operation-status-code:manage',
