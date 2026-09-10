@@ -53,7 +53,7 @@ const GOC_MA = 'frontend/public-web/src';
  */
 const CHUA_CO_TRANG_GOI: Record<string, string> = {
   getWaterLevels:
-    'GET /hydro/muc-nuoc — bảng "Mực nước, lượng mưa" bản CŨ (CR-13 · CR-33 · T35.7). WS-44 thay bằng lưới getWaterLevelGrid() → /hydro/luoi-muc-nuoc; hàm này cùng kiểu WaterLevelRow nay ⛔ không trang nào gọi, mà endpoint backend vẫn được phục vụ và vẫn có bài kiểm HTTP xanh. ⛔ Gỡ hay giữ là một quyết định về BỀ MẶT API công khai — xem T49.6, ⛔ đừng lặng lẽ xoá ở đây.',
+    'GET /hydro/muc-nuoc — bảng "Mực nước, lượng mưa" bản CŨ (CR-13 · CR-33 · T35.7). WS-44 thay bằng lưới getWaterLevelGrid() → /hydro/luoi-muc-nuoc. ⭐ QuanTran chốt 10/09/2026: GIỮ endpoint và hàm bọc, ĐỂ DÀNH dùng về sau — đây là một quyết định, ⛔ không phải một thứ bị bỏ quên. ⛔ Đừng gỡ, và cũng đừng điều tra lại: câu hỏi đã hỏi và đã trả lời (T49.8).',
 };
 
 // ---------------------------------------------------------------------------
