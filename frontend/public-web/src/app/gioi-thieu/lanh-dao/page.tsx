@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
 
+import { SoDoToChuc } from '@/components/gioi-thieu/SoDoToChuc';
 import { EmptyBlock } from '@/components/home/EmptyBlock';
 import { PageShell } from '@/components/PageShell';
 import { SectionNav } from '@/components/SectionNav';
-import { getCompanyLeaders } from '@/lib/api';
+import { getCompanyLeaders, getOrgChart } from '@/lib/api';
 import { ROUTES } from '@/lib/routes';
+import { tenGoc, tuBanLanhDao } from '@/lib/soDoToChuc';
 
 export const revalidate = 300;
 
@@ -31,7 +33,9 @@ export const metadata: Metadata = {
  * <p>⛔ Không seed dòng nào — tên người thật và số điện thoại thật phải do Công ty nhập.
  */
 export default async function LanhDaoPage() {
-  const leaders = (await getCompanyLeaders()) ?? [];
+  const [danhSach, chart] = await Promise.all([getCompanyLeaders(), getOrgChart()]);
+  const leaders = danhSach ?? [];
+  const cay = tuBanLanhDao(tenGoc(chart ?? []), leaders);
 
   return (
     <PageShell
@@ -45,41 +49,49 @@ export default async function LanhDaoPage() {
           của trang quản trị và được công bố nguyên văn ra cổng.
         </EmptyBlock>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-surface-border bg-white shadow-xs">
-          <table className="w-full min-w-[560px] border-collapse text-sm">
-            {/* ⚠⚠ 01/09/2026 — GỠ cột "Điện thoại liên hệ".
+        <div className="space-y-6">
+          {/* ⭐ 10/09/2026 — QuanTran yêu cầu Ban lãnh đạo hiện dưới dạng SƠ ĐỒ HÌNH CÂY.
+              Sơ đồ đứng trên, bảng giữ nguyên bên dưới: bảng là cam kết CR-25 (*"đúng ba cột"*),
+              nó đọc được bằng trình đọc màn hình, sao chép được, và in ra được — ba thứ một sơ đồ
+              vẽ bằng đường kẻ ⛔ không thay thế. Thêm một cách xem, ⛔ không đổi một cách xem.
+              ⛔ Sơ đồ cố ý PHẲNG một tầng: xem `SoDoToChuc` và `soDoToChuc.test.ts`. */}
+          <SoDoToChuc nut={cay} nhan="Sơ đồ Ban lãnh đạo Công ty" />
+          <div className="overflow-x-auto rounded-xl border border-surface-border bg-white shadow-xs">
+            <table className="w-full min-w-[560px] border-collapse text-sm">
+              {/* ⚠⚠ 01/09/2026 — GỠ cột "Điện thoại liên hệ".
                 Số điện thoại của một cá nhân là dữ liệu cá nhân (NĐ 13/2023), và không cơ chế
                 nào trong hệ phân biệt được số tổng đài với số di động riêng.
                 ⛔ Gỡ ở RECORD backend (`PublicOrgDirectoryService.LeaderRow`), không chỉ ẩn ở
                 đây — ẩn ở component thì trường vẫn đi qua dây và ai mở DevTools vẫn đọc được.
                 📌 Đây là thay đổi phạm vi công bố đã thống nhất ở CR-25, phải báo lại Công ty.
                 Số tổng đài của Công ty và của từng Xí nghiệp thì GIỮ — xem trang Liên hệ. */}
-            <caption className="sr-only">Bảng lãnh đạo Công ty gồm họ và tên, chức danh</caption>
-            <thead>
-              <tr className="bg-brand-primaryLight text-left text-xs text-brand-primary">
-                <th scope="col" className="w-16 px-4 py-3 font-bold">
-                  TT
-                </th>
-                <th scope="col" className="px-4 py-3 font-bold">
-                  Họ và tên
-                </th>
-                <th scope="col" className="px-4 py-3 font-bold">
-                  Chức danh
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-surface-border">
-              {leaders.map((người, i) => (
-                <tr key={`${người.fullName}-${i}`} className="hover:bg-surface-bgLayout/60">
-                  <td className="px-4 py-3 text-surface-textSecondary">{i + 1}</td>
-                  <td className="px-4 py-3 font-semibold text-surface-textBase">
-                    {người.fullName}
-                  </td>
-                  <td className="px-4 py-3 text-surface-textBase">{người.title}</td>
+              <caption className="sr-only">Bảng lãnh đạo Công ty gồm họ và tên, chức danh</caption>
+              <thead>
+                <tr className="bg-brand-primaryLight text-left text-xs text-brand-primary">
+                  <th scope="col" className="w-16 px-4 py-3 font-bold">
+                    TT
+                  </th>
+                  <th scope="col" className="px-4 py-3 font-bold">
+                    Họ và tên
+                  </th>
+                  <th scope="col" className="px-4 py-3 font-bold">
+                    Chức danh
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-surface-border">
+                {leaders.map((người, i) => (
+                  <tr key={`${người.fullName}-${i}`} className="hover:bg-surface-bgLayout/60">
+                    <td className="px-4 py-3 text-surface-textSecondary">{i + 1}</td>
+                    <td className="px-4 py-3 font-semibold text-surface-textBase">
+                      {người.fullName}
+                    </td>
+                    <td className="px-4 py-3 text-surface-textBase">{người.title}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
       <SectionNav duongDan={ROUTES.gioiThieu.lanhDao} />

@@ -195,3 +195,106 @@ button {
   color: theme(--color-brand-primary);
   filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.35));
 }
+
+/*
+  ───── Sơ đồ tổ chức hình cây — CR-24 · CR-25 ─────
+
+  Mặc định (điện thoại): danh sách thụt lề có đường gờ bên trái.
+  ⛔ KHÔNG vẽ sơ đồ ngang ở mọi bề rộng: đo dữ liệu thật 10/09/2026 có **chín** Xí nghiệp trên
+  cùng một hàng ⇒ ~1.7 ngàn pixel. Ép người dùng điện thoại cuộn ngang để đọc một danh sách vốn
+  phẳng là đổi một thứ đọc được lấy một thứ trông đẹp trên ảnh chụp màn hình.
+
+  Từ 768px: sơ đồ cây thật — hộp nối nhau bằng đường kẻ.
+
+  ⚠ Bộ chọn neo vào `ul.sn-cay` / `ul.sn-cay-nhanh` chứ ⛔ KHÔNG dùng `.sn-cay ul`: hộp gốc có một
+  danh sách Ban lãnh đạo lồng bên trong, và một bộ chọn hậu duệ sẽ biến danh sách ấy thành một
+  tầng cây với đầy đủ đường nối. Canh cấu trúc, ⛔ không canh vị trí (luật 2).
+
+  ⚠ `width: max-content` + `min-width: 100%` là cặp bắt buộc khi khung có `overflow-x`: chỉ
+  `justify-content: center` thì phần tràn bên TRÁI ⛔ không cuộn tới được — nội dung bị cắt mất và
+  ⛔ không có thanh cuộn nào báo.
+*/
+ul.sn-cay,
+ul.sn-cay-nhanh {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+ul.sn-cay-nhanh {
+  margin-left: 0.75rem;
+  padding-left: 0.875rem;
+  border-left: 1px solid theme(--color-surface-border);
+}
+ul.sn-cay > li,
+ul.sn-cay-nhanh > li {
+  position: relative;
+  padding: 0.25rem 0;
+}
+
+@media (min-width: 768px) {
+  ul.sn-cay,
+  ul.sn-cay-nhanh {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  ul.sn-cay {
+    width: max-content;
+    min-width: 100%;
+  }
+  ul.sn-cay-nhanh {
+    position: relative;
+    margin-left: 0;
+    padding-top: 1.5rem;
+    padding-left: 0;
+    border-left: 0;
+  }
+  ul.sn-cay > li {
+    padding: 0 0.375rem;
+    text-align: center;
+  }
+  ul.sn-cay-nhanh > li {
+    padding: 1.5rem 0.375rem 0;
+    text-align: center;
+  }
+
+  /* Nửa thanh ngang bên trái + bên phải của từng hộp con, và nhánh dọc rơi xuống hộp ấy */
+  ul.sn-cay-nhanh > li::before,
+  ul.sn-cay-nhanh > li::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 50%;
+    width: 50%;
+    height: 1.5rem;
+    border-top: 1px solid theme(--color-surface-border);
+  }
+  ul.sn-cay-nhanh > li::after {
+    right: auto;
+    left: 50%;
+    border-left: 1px solid theme(--color-surface-border);
+  }
+  /* Hai đầu mút ⛔ không kéo thanh ngang ra ngoài cây */
+  ul.sn-cay-nhanh > li:first-child::before,
+  ul.sn-cay-nhanh > li:last-child::after {
+    border-top: 0;
+  }
+  ul.sn-cay-nhanh > li:last-child::before {
+    border-right: 1px solid theme(--color-surface-border);
+  }
+  /* Con một: ⛔ không có thanh ngang, chỉ còn thân dọc của `ul` */
+  ul.sn-cay-nhanh > li:only-child::before,
+  ul.sn-cay-nhanh > li:only-child::after {
+    display: none;
+  }
+
+  /* Thân dọc nối từ đáy hộp cha xuống thanh ngang */
+  ul.sn-cay-nhanh::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    height: 1.5rem;
+    border-left: 1px solid theme(--color-surface-border);
+  }
+}
