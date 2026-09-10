@@ -9,6 +9,7 @@ import {
   HeartOutlined,
   ExperimentOutlined,
   HistoryOutlined,
+  IdcardOutlined,
   InboxOutlined,
   FileTextOutlined,
   FundProjectionScreenOutlined,
@@ -22,6 +23,7 @@ import {
   ReadOutlined,
   SafetyCertificateOutlined,
   SettingOutlined,
+  SolutionOutlined,
   TeamOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
@@ -247,6 +249,30 @@ export const MENU: readonly MenuNode[] = [
         icon: <LayoutOutlined />,
         path: '/noi-dung/giao-dien',
         permissions: ['cms:layout:manage'],
+      },
+    ],
+  },
+  {
+    // ⛔ Cả hai mục gác bằng `hr:employee:view`. Danh mục chức vụ ⛔ KHÔNG được gác bằng một quyền
+    //    hẹp hơn: nó là nguồn dữ liệu cho ô "Chức vụ" của biểu mẫu hồ sơ, nên người dựng hồ sơ mà
+    //    ⛔ không mở được nó thì cũng ⛔ không kiểm tra được mã mình đang chọn (WS-28).
+    key: 'nhan-su',
+    label: 'Nhân sự',
+    icon: <TeamOutlined />,
+    children: [
+      {
+        key: 'ho-so-cbnv',
+        label: 'Hồ sơ cán bộ',
+        icon: <IdcardOutlined />,
+        path: '/nhan-su/ho-so',
+        permissions: ['hr:employee:view'],
+      },
+      {
+        key: 'chuc-vu',
+        label: 'Danh mục chức vụ',
+        icon: <SolutionOutlined />,
+        path: '/nhan-su/chuc-vu',
+        permissions: ['hr:employee:view'],
       },
     ],
   },

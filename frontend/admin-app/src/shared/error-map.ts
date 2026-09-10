@@ -500,6 +500,28 @@ export const ERROR_CATALOG = {
     handling: 'form',
     severity: 'warning',
   },
+  'HR-1001': {
+    message: 'Mã cán bộ này đã tồn tại',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'HR-1002': {
+    message: 'Mã chức vụ này đã tồn tại',
+    handling: 'form',
+    severity: 'warning',
+  },
+  // ⛔ handling 'form' để lỗi hiện ngay dưới ô CCCD trong hộp thoại trường 🔒 — người nhập cần biết
+  // ô nào sai, mà một toast thì không nói được điều đó.
+  'HR-1003': {
+    message: 'Số CCCD này đã thuộc về một hồ sơ khác',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'HR-2002': {
+    message: 'Chức vụ còn hồ sơ đang giữ — hãy chuyển họ sang chức vụ khác trước khi xoá',
+    handling: 'toast',
+    severity: 'warning',
+  },
 
   // --- MOD-05 Quản trị --------------------------------------------------------
   'ADM-2001': {

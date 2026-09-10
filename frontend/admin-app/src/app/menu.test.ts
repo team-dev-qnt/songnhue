@@ -129,6 +129,43 @@ describe('nhóm Dữ liệu thuỷ văn hiện theo đúng quyền của từng 
   });
 });
 
+/**
+ * Nhóm "Nhân sự" (WS-51) — và một điều mà bài `toHaveLength(11)` ở trên **⛔ không** nói.
+ *
+ * ⚠⚠ Con số 11 ấy đo trên một `checker` chỉ cấp quyền `adm:*`, nên nó **⛔ không đổi** khi thêm
+ * nhóm HR — và cái xanh của nó đọc như *"menu đã được canh"*. Đúng luật 28: một bộ canh phải nói
+ * ra phạm vi của chính nó, và phạm vi của bài ấy là *tám màn hình quản trị*, ⛔ không phải *toàn
+ * bộ menu*. Vế thật sự canh nhóm mới là bốn bài dưới đây.
+ */
+describe('nhóm Nhân sự hiện theo đúng quyền của từng màn hình — WS-51', () => {
+  it('người xem hồ sơ CBNV thấy CẢ danh mục chức vụ', () => {
+    const visible = leafLabels(visibleMenu(MENU, checker('hr:employee:view')));
+
+    expect(visible).toContain('Hồ sơ cán bộ');
+    // ⛔ Danh mục chức vụ KHÔNG được gác hẹp hơn: nó là nguồn dữ liệu cho ô "Chức vụ" của biểu mẫu
+    //    hồ sơ. Người dựng hồ sơ mà không mở được nó thì không kiểm được mã mình đang chọn (WS-28).
+    expect(visible).toContain('Danh mục chức vụ');
+  });
+
+  it('⛔ quyền xem trường 🔒 MỘT MÌNH ⛔ không mở được menu nào — vế phân biệt', () => {
+    // `hr:employee:view-sensitive` gác một hộp thoại BÊN TRONG trang, ⛔ không gác trang. Thiếu vế
+    // này thì bài trên xanh cả khi ai đó gộp cả nhóm về mã quyền ấy — và `V202608131007:169` cấp
+    // cho ADMIN mọi quyền TRỪ đúng nó, nên ADMIN sẽ mất cả nhóm menu nhân sự.
+    const visible = visibleMenu(MENU, checker('hr:employee:view-sensitive'));
+    expect(visible.map((node) => node.label)).not.toContain('Nhân sự');
+  });
+
+  it('không có quyền nhân sự nào thì cả nhóm biến mất, không để lại mục trống', () => {
+    const visible = visibleMenu(MENU, checker('adm:user:view'));
+    expect(visible.map((node) => node.label)).not.toContain('Nhân sự');
+  });
+
+  it('đường dẫn của hai màn hình nhân sự tô sáng đúng mục menu', () => {
+    expect(findMenuKey(MENU, '/nhan-su/ho-so')).toBe('ho-so-cbnv');
+    expect(findMenuKey(MENU, '/nhan-su/chuc-vu')).toBe('chuc-vu');
+  });
+});
+
 describe('findMenuKey', () => {
   it('chọn đường dẫn khớp dài nhất, không để "Tổng quan" sáng ở mọi màn hình', () => {
     expect(findMenuKey(MENU, '/quan-tri/sao-luu')).toBe('sao-luu');
