@@ -6,7 +6,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -182,7 +181,10 @@ public class ConstructionImportService {
             if (dong.publicIdHienCo == null) {
                 constructions.create(dong.form);
             } else {
-                constructions.update(dong.publicIdHienCo, dong.form);
+                // ⛔⛔ T47.14 — ⛔ KHÔNG gọi `update()`: nó THAY TOÀN PHẦN, mà tệp mẫu chỉ mang
+                //    19/24 trường cấp 1 và 0/26 ô thông số ⇒ mỗi lượt nhập lại xoá trắng phần còn
+                //    lại, ⛔ không một dòng log. Xem javadoc `capNhatTuTepNhap`.
+                constructions.capNhatTuTepNhap(dong.publicIdHienCo, dong.form);
             }
         }
         log.info(
@@ -302,7 +304,11 @@ public class ConstructionImportService {
                 loai,
                 nhan(NHAN_NHIEM_VU, row.get("nhiem_vu")),
                 donVi.publicId(),
-                Optional.ofNullable(nhan(NHAN_CAP, row.get("cap_quan_ly"))).orElse(ManagementLevel.XI_NGHIEP),
+                // ⛔ T47.14 — BỎ `.orElse(XI_NGHIEP)`: nó biến một ô TRỐNG thành một lệnh GHI.
+                //   11 hồ sơ đã có mang `CONG_TY` (V202609091075), nên mặc định ở đây sẽ lặng lẽ
+                //   hạ cấp quản lý của chúng ở lượt nhập kế tiếp. Đường TẠO MỚI vẫn có mặc định —
+                //   `apDung()` áp `XI_NGHIEP` khi trường này null, nên hành vi tạo ⛔ không đổi.
+                nhan(NHAN_CAP, row.get("cap_quan_ly")),
                 cum,
                 row.get("dia_chi"),
                 viDo,

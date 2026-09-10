@@ -110,6 +110,75 @@ class PublicOperationStatusServiceTest {
         return new OrgUnitRef(id, UUID.randomUUID(), maXn, ten, ten, "XI_NGHIEP", "/1/" + id + "/", 1);
     }
 
+    /**
+     * Dựng một bản ghi với mốc ghi xuống <b>đặt tay</b> — dùng cho các bài canh {@code meta}.
+     *
+     * @param updated {@code null} ⇒ bản ghi <b>chưa ai sửa</b>, đúng trạng thái mà cột
+     *     {@code updated_at timestamptz} (nullable, {@code V202608221029:30}) sinh ra
+     */
+    private static ConstructionOperationStatus banGhiCoMoc(
+            long congTrinhId, OperationStatusCode maTt, Instant created, Instant updated) {
+        ConstructionOperationStatus s = new ConstructionOperationStatus();
+        s.setConstructionId(congTrinhId);
+        s.setOperationCode(maTt);
+        s.setParameterValue(new BigDecimal("1.00"));
+        s.setEffectiveAt(OffsetDateTime.parse("2026-08-31T03:00:00Z"));
+        datTruongCoSo(s, "createdAt", created);
+        datTruongCoSo(s, "updatedAt", updated);
+        return s;
+    }
+
+    @Test
+    @DisplayName("⛔⛔ T43.9 — `meta.capNhatLuc` là mốc GHI XUỐNG mới nhất, ⛔ KHÔNG phải giờ hiện tại")
+    void mocCapNhatLaMocGhiXuongChuKhongPhaiGioHienTai() {
+        OperationStatusCode mt = ma("MT", "Mở treo", true, "m", "#1a7f37");
+        when(constructions.findByDeletedAtIsNull())
+                .thenReturn(List.of(
+                        congTrinh(1L, "C-01", "Cống A", 10L, LifecycleState.DANG_HOAT_DONG),
+                        congTrinh(2L, "C-02", "Cống B", 10L, LifecycleState.DANG_HOAT_DONG)));
+        // Cống B được ghi SAU — mốc của bảng phải là mốc của nó.
+        when(statuses.banGhiMoiNhat(1L))
+                .thenReturn(Optional.of(banGhiCoMoc(
+                        1L, mt, Instant.parse("2026-08-30T01:00:00Z"), Instant.parse("2026-08-31T02:00:00Z"))));
+        when(statuses.banGhiMoiNhat(2L))
+                .thenReturn(Optional.of(banGhiCoMoc(
+                        2L, mt, Instant.parse("2026-08-30T01:00:00Z"), Instant.parse("2026-09-01T09:30:00Z"))));
+        when(orgUnits.findRefsByIds(anyCollection())).thenReturn(Map.of(10L, xiNghiep(10L, "XN-A", "Xí nghiệp A")));
+
+        Instant moc = service.hienHanh().meta().capNhatLuc();
+
+        assertThat(moc)
+                .as(
+                        """
+                        ⛔⛔ Đây là bài phân biệt được HAI trạng thái (luật 9). Bản trước T43.9 lấy mốc từ \
+                        `GET /public/now` = `Instant.now()`, nên nó luôn ra một giờ SÁT LÚC CHẠY và bài kiểm \
+                        phải đỏ với một mốc cố định trong quá khứ. Một khẳng định kiểu `isNotNull()` sẽ xanh \
+                        ở CẢ HAI trạng thái và ⛔ không khẳng định gì.""")
+                .isEqualTo(Instant.parse("2026-09-01T09:30:00Z"));
+    }
+
+    @Test
+    @DisplayName("⛔ Bản ghi CHƯA AI SỬA vẫn có mốc — `COALESCE(updated_at, created_at)`")
+    void banGhiChuaAiSuaVanCoMoc() {
+        OperationStatusCode mt = ma("MT", "Mở treo", true, "m", "#1a7f37");
+        when(constructions.findByDeletedAtIsNull())
+                .thenReturn(List.of(congTrinh(1L, "C-01", "Cống A", 10L, LifecycleState.DANG_HOAT_DONG)));
+        when(statuses.banGhiMoiNhat(1L))
+                .thenReturn(Optional.of(banGhiCoMoc(1L, mt, Instant.parse("2026-09-02T04:15:00Z"), null)));
+        when(orgUnits.findRefsByIds(anyCollection())).thenReturn(Map.of(10L, xiNghiep(10L, "XN-A", "Xí nghiệp A")));
+
+        assertThat(service.hienHanh().meta().capNhatLuc())
+                .as(
+                        """
+                        ⛔⛔ Vì sao vế này chịu lực: `updated_at` chỉ được đặt khi có lượt SỬA, nên cả một \
+                        bảng dữ liệu mới nhập — đúng trạng thái của hệ hôm nay — mang `null` ở đó. Bỏ nhánh \
+                        `created_at` là để cổng in "chưa rõ" trong khi dữ liệu đang có, và ⛔ không ai đọc \
+                        ra vì "chưa rõ" trông y hệt "chưa có dữ liệu". \
+                        ⚠ Và đây cũng là lý do phép tính nằm ở BACKEND: `created_at` ⛔ KHÔNG có trong DTO \
+                        công khai, nên cổng về nguyên tắc ⛔ không tính nổi giá trị này.""")
+                .isEqualTo(Instant.parse("2026-09-02T04:15:00Z"));
+    }
+
     @Test
     @DisplayName("⭐ Công bố bản ghi của MỌI Xí nghiệp — đường công khai không có bộ lọc phạm vi")
     void congBoBanGhiCuaMoiXiNghiep() {
@@ -125,7 +194,8 @@ class PublicOperationStatusServiceTest {
                 .thenReturn(
                         Map.of(10L, xiNghiep(10L, "XN-A", "Xí nghiệp A"), 20L, xiNghiep(20L, "XN-B", "Xí nghiệp B")));
 
-        List<PublicOperationStatusService.OperationStatusRow> ket = service.hienHanh();
+        List<PublicOperationStatusService.OperationStatusRow> ket =
+                service.hienHanh().dong();
 
         assertThat(ket)
                 .as(
@@ -148,7 +218,7 @@ class PublicOperationStatusServiceTest {
         when(orgUnits.findRefsByIds(anyCollection())).thenReturn(Map.of(10L, xiNghiep(10L, "XN-A", "Xí nghiệp A")));
 
         PublicOperationStatusService.OperationStatusRow dong =
-                service.hienHanh().get(0);
+                service.hienHanh().dong().get(0);
 
         assertThat(dong.parameterValue())
                 .as(
@@ -172,7 +242,7 @@ class PublicOperationStatusServiceTest {
         when(statuses.banGhiMoiNhat(2L)).thenReturn(Optional.empty());
         when(orgUnits.findRefsByIds(anyCollection())).thenReturn(Map.of(10L, xiNghiep(10L, "XN-A", "Xí nghiệp A")));
 
-        assertThat(service.hienHanh())
+        assertThat(service.hienHanh().dong())
                 .as(
                         """
                         "Chưa ghi nhận" khác "mã rỗng": một dòng toàn dấu gạch trên cổng trông y hệt một \
@@ -188,7 +258,11 @@ class PublicOperationStatusServiceTest {
     void chuaCoCongTrinhTraRong() {
         when(constructions.findByDeletedAtIsNull()).thenReturn(List.of());
 
-        assertThat(service.hienHanh()).isEmpty();
+        assertThat(service.hienHanh().dong()).isEmpty();
+        assertThat(service.hienHanh().meta().capNhatLuc())
+                .as("⛔ Bảng rỗng ⇒ ⛔ KHÔNG có mốc cập nhật. Quy tắc 16 — một mốc trên chỗ ⛔ không có số liệu"
+                        + " là đúng câu khẳng định sai mà T43.9 gỡ bỏ.")
+                .isNull();
     }
 
     @Test

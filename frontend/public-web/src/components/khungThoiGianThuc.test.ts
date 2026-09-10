@@ -47,6 +47,7 @@ function doc(tuongDoi: string): string {
 const NOI_DUNG = {
   'components/home/WaterLevelBlock.tsx': doc('components/home/WaterLevelBlock.tsx'),
   'components/home/OperationsBlock.tsx': doc('components/home/OperationsBlock.tsx'),
+  'components/home/BangTrangChuMucNuoc.tsx': doc('components/home/BangTrangChuMucNuoc.tsx'),
   'app/page.tsx': doc('app/page.tsx'),
   'app/quan-ly-van-hanh/muc-nuoc-luong-mua/page.tsx': doc(
     'app/quan-ly-van-hanh/muc-nuoc-luong-mua/page.tsx',
@@ -80,29 +81,41 @@ describe('Khung thời gian thực — sự cố phải nhìn thấy được', 
       ma,
       'Đổi thành `unavailable={false}` là một sự cố backend trông y hệt "chưa có dữ liệu", và ⛔ ' +
         'không bộ canh nào khác thấy.',
-    ).toContain('unavailable={rows === null}');
-    // Và vế `[]` phải nói một câu KHÁC — hai trạng thái, hai câu (luật 9).
-    expect(ma).toContain('Chưa điểm đo nào đang hoạt động');
+    ).toContain('unavailable={luoi === null}');
+    // ⭐ WS-44 — vế "gọi được nhưng CHƯA CÓ ĐIỂM ĐO" nay nói câu của nó ở `BangTrangChuMucNuoc`,
+    //   và câu ấy đến TỪ BACKEND (`lyDoTrong`) chứ ⛔ không phải một chuỗi ghi ở FE. Hai trạng
+    //   thái, hai câu — bất biến ⛔ không đổi, chỉ đổi chỗ (luật 9).
     expect(ma).toMatch(/unavailableReason=/);
+    expect(
+      NOI_DUNG['components/home/BangTrangChuMucNuoc.tsx'],
+      'Vế rỗng phải đọc `lyDoTrong` của backend — một câu dự phòng ở FE là §10.54.',
+    ).toContain('luoi.lyDoTrong');
   });
 
   it('⭐⭐ nơi GỌI ⛔ không được nuốt `null` bằng `?? []`', () => {
     // Đây là nửa thứ hai của đường dây, và nó ở một tệp KHÁC. Bộ canh chỉ soi component thì mù trước
     // chuyện này: `WaterLevelBlock` vẫn đúng từng dòng, mà `null` ⛔ không bao giờ tới được nó nữa.
-    for (const ten of ['app/page.tsx', 'app/quan-ly-van-hanh/muc-nuoc-luong-mua/page.tsx']) {
-      const ma = NOI_DUNG[ten as keyof typeof NOI_DUNG];
-      expect(ma, ten).toContain('rows={mucNuoc}');
-      expect(ma, `${ten}: \`mucNuoc ?? []\` xoá mất trạng thái "gọi API hỏng"`).not.toContain(
-        'rows={mucNuoc ?? []}',
-      );
-    }
+    // ⭐ WS-44 — trang chi tiết ⛔ không còn truyền qua `WaterLevelBlock`; nó dựng thẳng
+    //   `BangLuoiMucNuoc` và tự phân biệt `luoi === null`. Nên bài này soi HAI đường khác nhau.
+    expect(NOI_DUNG['app/page.tsx'], 'app/page.tsx').toContain('luoi={mucNuoc}');
+    expect(
+      NOI_DUNG['app/page.tsx'],
+      '`mucNuoc ?? ...` ở nơi gọi xoá mất trạng thái "gọi API hỏng" trước khi nó tới component.',
+    ).not.toMatch(/luoi=\{mucNuoc\s*\?\?/);
+
+    const chiTiet = NOI_DUNG['app/quan-ly-van-hanh/muc-nuoc-luong-mua/page.tsx'];
+    expect(chiTiet, 'trang chi tiết phải tự nói câu "gọi hỏng"').toContain('luoi === null');
   });
 
   it('⚠ khối Tình hình vận hành CỐ Ý gộp `null` thành `[]` — ghi ra để ⛔ không ai "sửa" nhầm', () => {
     // Hai khối cạnh nhau, hai cách xử lý khác nhau. Đó là chủ đích: `OperationsBlock` đo `coDuLieu`
     // chứ ⛔ không đo `null`, vì nguồn của nó là bảng mã tình hình vận hành nhập tay — rỗng ở đó là
     // trạng thái bình thường, ⛔ không phải một sự cố.
-    expect(NOI_DUNG['app/page.tsx']).toContain('rows={tinhHinhVanHanh ?? []}');
+    // ⚠ Canh CẤU TRÚC, ⛔ không canh TÊN BIẾN (luật 2). Bản đầu ghim nguyên văn
+    //   `rows={tinhHinhVanHanh ?? []}` và đỏ ở T43.9 chỉ vì biến đổi tên thành `vanHanh` —
+    //   trong khi bất biến nó canh (*gộp `null` thành `[]`*) ⛔ không hề đổi. Một bộ canh đỏ vì
+    //   mã được ĐỔI TÊN là một bộ canh đang canh văn bản.
+    expect(NOI_DUNG['app/page.tsx']).toMatch(/rows=\{[^}]*\?\?\s*\[\]\}/);
     expect(NOI_DUNG['components/home/OperationsBlock.tsx']).toContain('unavailable={!coDuLieu}');
   });
 
@@ -111,5 +124,19 @@ describe('Khung thời gian thực — sự cố phải nhìn thấy được', 
     const ma = NOI_DUNG['components/home/WaterLevelBlock.tsx'];
     expect(ma).not.toContain('unavailable={false}');
     expect(ma).not.toContain('rows={rows ?? []}');
+  });
+
+  it('⭐ TỰ-KIỂM mẫu `rows={… ?? []}` — nới bộ canh thì phải bù bằng thứ CHẶT HƠN', () => {
+    // ⚠ T43.9 đổi phép ghim nguyên văn thành một MẪU. Một mẫu rộng hơn một chuỗi, nên phải chứng
+    //   minh nó vẫn TỪ CHỐI được các dạng hỏng — nếu không thì lượt "sửa bộ canh cho hết đỏ"
+    //   chính là lượt tháo bộ canh (§11.18).
+    const MAU = /rows=\{[^}]*\?\?\s*\[\]\}/;
+    expect(MAU.test('rows={vanHanh?.dong ?? []}'), 'phải NHẬN dạng đang dùng').toBe(true);
+    expect(MAU.test('rows={dong}'), 'phải TỪ CHỐI khi phép gộp null biến mất').toBe(false);
+    expect(MAU.test('rows={[]}'), 'phải TỪ CHỐI một mảng rỗng ghi cứng').toBe(false);
+
+    // ⛔ Và vế chịu lực nhất: nguồn của `rows` phải là DỮ LIỆU VẬN HÀNH, ⛔ không phải một biểu
+    //    thức bất kỳ thoả mẫu. `.dong` là trường của `BangVanHanh` — hợp đồng với backend.
+    expect(NOI_DUNG['app/page.tsx']).toMatch(/rows=\{vanHanh\?\.dong\s*\?\?\s*\[\]\}/);
   });
 });

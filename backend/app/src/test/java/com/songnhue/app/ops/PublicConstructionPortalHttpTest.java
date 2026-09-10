@@ -3,7 +3,11 @@ package com.songnhue.app.ops;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -215,6 +219,73 @@ class PublicConstructionPortalHttpTest extends IntegrationTestBase {
                         đối chiếu. Thân phản hồi thật: %s""",
                         body)
                 .contains("\"parameterValue\":\"2.30\"");
+    }
+
+    @Test
+    @DisplayName("⛔⛔ T43.9 — `meta.capNhatLuc` ra tới DÂY và là mốc GHI XUỐNG, ⛔ không phải giờ máy chủ")
+    void theUpdatedAtLabelReportsWhenDataWasWrittenNotWhenThePageWasBuilt() {
+        jdbc.execute(
+                """
+                INSERT INTO operation_status_codes
+                    (code, name, has_parameter, parameter_unit, color_hex, mapped_status, sort_order, created_at)
+                VALUES ('T439CU', 'Mã kiểm mốc cập nhật', FALSE, NULL, '#0ea5e9', 'BINH_THUONG', 901, now())
+                """);
+        UUID congTrinh = taoCongTrinh("T439-001", "Cống Kiểm Mốc Cập Nhật");
+        String than =
+                """
+                {"items":[{"constructionPublicId":"%s","operationCode":"T439CU",
+                           "effectiveAt":"2026-08-30T08:00:00+07:00"}]}"""
+                        .formatted(congTrinh);
+        assertThat(phienHttp
+                        .goi(trucBan, HttpMethod.POST, "/api/v1/ops/operation-statuses/batch", than)
+                        .getStatusCode())
+                .isIn(HttpStatus.OK, HttpStatus.CREATED, HttpStatus.NO_CONTENT);
+
+        // ⛔⛔ ĐẨY LÙI mốc ghi xuống về 3 ngày trước — mô phỏng đúng ca hỏng của T43.9: trực ban
+        //    ⛔ không ghi gì suốt ba ngày. Cột `updated_at` để NULL có chủ đích: nhánh
+        //    `COALESCE(updated_at, created_at)` là nhánh mà một bảng dữ liệu mới nhập đi qua.
+        int soHangLui = jdbc.update(
+                """
+                UPDATE construction_operation_status s
+                   SET created_at = now() - interval '3 days', updated_at = NULL
+                  FROM constructions c
+                 WHERE c.id = s.construction_id AND c.code = 'T439-001'
+                """);
+        // ⚠ Vế CHỐNG TẬP RỖNG (luật 7 · §11.19): nếu câu UPDATE trên khớp 0 hàng thì mọi khẳng
+        //   định dưới đây nói về một bản ghi ⛔ không tồn tại, và bài kiểm xanh vì lý do sai —
+        //   đúng hình dạng đã trả giá khi một `PUT` xoá trắng dữ liệu mốc rồi bộ canh vẫn xanh.
+        assertThat(soHangLui)
+                .as("⛔ Phải có ĐÚNG 1 bản ghi bị đẩy lùi — 0 hàng nghĩa là bài kiểm ⛔ không đo gì")
+                .isEqualTo(1);
+
+        String than2 =
+                getCongKhai("/api/v1/public/constructions/operation-statuses").getBody();
+
+        // (a) Hợp đồng TRÊN DÂY. Sau §11.20 — Boot 4 lặng lẽ bỏ bọc envelope cho MỌI endpoint mà
+        //     vẫn biên dịch sạch — hình dạng phản hồi phải được đo qua HTTP, ⛔ không suy từ record.
+        assertThat(than2).as("thân: %s", than2).contains("\"dong\"").contains("\"capNhatLuc\"");
+
+        // (b) ⛔⛔ VẾ PHÂN BIỆT (luật 9). Một khẳng định `contains("capNhatLuc")` xanh y hệt ở CẢ
+        //     HAI trạng thái. Thứ phân biệt được là TUỔI của mốc: bản trước T43.9 trả
+        //     `Instant.now()` ⇒ tuổi ≈ 0; bản đã vá trả mốc ghi xuống ⇒ tuổi ≈ 3 ngày.
+        Instant moc = mocCapNhatTuThan(than2);
+        assertThat(Duration.between(moc, Instant.now()))
+                .as(
+                        """
+                        ⛔⛔ Mốc "Cập nhật lúc" phải GIÀ ĐÚNG BẰNG dữ liệu. Nếu nó trẻ hơn 2 ngày thì \
+                        cổng đang in đồng hồ máy chủ, và trên một trang phòng chống thiên tai điều đó \
+                        nghĩa là số liệu ba ngày tuổi tự nhận là vừa cập nhật. Thân: %s""",
+                        than2)
+                .isGreaterThan(Duration.ofDays(2));
+    }
+
+    /** Bóc {@code meta.capNhatLuc} khỏi thân JSON — ⛔ không dựng lại logic phân giải ở chỗ khác. */
+    private static Instant mocCapNhatTuThan(String than) {
+        Matcher m = Pattern.compile("\"capNhatLuc\"\\s*:\\s*\"([^\"]+)\"").matcher(than);
+        assertThat(m.find())
+                .as("thân phải mang `meta.capNhatLuc` khác null. Thân: %s", than)
+                .isTrue();
+        return Instant.parse(m.group(1));
     }
 
     // === Đường 2: tệp tài liệu công bố của công trình (T27.14) ================

@@ -22,6 +22,7 @@ import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { useAuth } from '@/app/auth/useAuth';
+import { DanToaDo } from '@/components/business/DanToaDo';
 import { ImportModal } from '@/components/business/ImportModal';
 import { OrgUnitTreeSelect } from '@/components/business/OrgUnitTreeSelect';
 import {
@@ -358,6 +359,21 @@ export function StationsPage() {
         extra="Để trống được — chờ G8."
       >
         <Input placeholder="K12+300" />
+      </Form.Item>
+      {/* ⭐ WS-46 — ô DÁN đứng TRƯỚC hai ô số, cố ý.
+            G8 để lại 0/19 điểm đo có toạ độ ⇒ lớp GIS điểm đo RỖNG hoàn toàn, và
+            `StationMapService.lopDiemDo()` chạy trên tập rỗng (luật 7). Đường vào thật của
+            dữ liệu ấy là Google Maps → *Sao chép toạ độ* → dán, chứ ⛔ không phải gõ tay
+            hai số sáu chữ số cho từng trạm một.
+            ⚠ Hai ô dưới là `Input` (⛔ không phải `InputNumber`) nên dán cả chuỗi
+            `21.048, 105.782` vào chúng ⛔ KHÔNG lỗi — nó đi thẳng xuống backend rồi hỏng ở
+            một chỗ rất xa. Ô này chặn đúng chỗ đó. */}
+      <Form.Item>
+        <DanToaDo
+          onChange={(viDo, kinhDo) =>
+            form.setFieldsValue({ latitude: String(viDo), longitude: String(kinhDo) })
+          }
+        />
       </Form.Item>
       <Form.Item
         name="latitude"

@@ -1511,26 +1511,39 @@ export interface PeriodSummaryReport {
 }
 
 /**
- * T35.4 — một điểm trên đường cong 24 giờ.
+ * T35.4 — một **mốc** trên trục thời gian 24 giờ. ⛔ Không phải "một số đo".
  *
  * ⚠ `giaTri` là **chuỗi**, ⛔ không phải `number`: JSON number là `double`, và một mực nước `1.005`
  *   đi qua `double` có thể về thành `1.0049999999999999`. Quy tắc 2 của dự án cấm `float`/`double`
  *   cho mọi số đo, và ranh giới ấy ⛔ không dừng ở tầng Java.
+ *
+ * ⛔⛔ **T43.13** — `giaTri: null` nghĩa là **mốc ấy ⛔ không có số đo hợp lệ** (trạm im lặng, hoặc
+ *    mọi bản ghi của mốc bị đánh `NGHI_NGO`). Backend nay trả **trục đủ mốc** dựng độc lập với dữ
+ *    liệu, nên mảng này luôn đủ 144 phần tử; trước đây nó chỉ chứa những mốc CÓ số, và tầng vẽ dựng
+ *    trục X từ chính nó ⇒ khoảng mất tín hiệu bị **nuốt**, hai mốc cách nhau ba giờ vẽ ra liền kề.
+ *
+ * ⛔ Cấm `?? 0` và cấm `Number(null)` (= 0): mực nước `0 m` là một khẳng định về mực nước, còn
+ *    ⛔ không có số là một khẳng định về đường truyền (quy tắc 16).
  */
 export interface ChartPoint {
   moc: string;
-  giaTri: string;
+  giaTri: string | null;
 }
 
 /**
  * T35.4 — đường cong mực nước 24 giờ của **một** điểm đo.
  *
- * ⛔⛔ `diem` rỗng ⇒ `lyDoTrong` **luôn** có câu, và ngược lại — backend ép ràng buộc ấy ở hàm dựng
+ * ⛔⛔ `soMocCoSo === 0` ⇔ `lyDoTrong` có câu — backend ép ràng buộc ấy ở hàm dựng
  *    (`BieuDoMucNuoc`). ⛔ Đừng vẽ một biểu đồ trục rỗng: nó trông **y hệt** một biểu đồ mà mọi giá
  *    trị bằng 0, và cũng y hệt trường hợp quên đăng ký component ECharts. `BaseChart` có sẵn nhánh
  *    `empty` cho đúng việc này.
  *
- * ⚠ Khoảng trống giữa các điểm là **thông tin** — nó nghĩa là trạm ⛔ không gửi số về.
+ * ⚠ **Bất biến này đã ĐỔI HÌNH DẠNG ở T43.13** — bản trước là *"`diem` rỗng ⇔ có `lyDoTrong`"*, và
+ *   nó ⛔ không còn dùng được: `diem` nay là **trục**, nên nó đầy ngay cả khi ⛔ không có số đo nào.
+ *   Giữ nguyên phép kiểm cũ là giữ một điều kiện **không bao giờ đúng** — biểu đồ sẽ vẽ một đường
+ *   phẳng vô hình thay vì hiện câu giải thích (luật 9).
+ *
+ * ⚠ Khoảng trống giữa các mốc là **thông tin** — nó nghĩa là trạm ⛔ không gửi số về.
  *   `optionDuong` đặt `connectNulls: false` để chỗ ấy nhìn thấy được; ⛔ đừng nội suy.
  */
 export interface WaterLevelChart {
@@ -1541,6 +1554,14 @@ export interface WaterLevelChart {
   tu: string;
   den: string;
   diem: ChartPoint[];
+  /**
+   * Số mốc **thật sự có** số đo hợp lệ — `0` là một trạng thái hợp lệ.
+   *
+   * ⛔⛔ Đây là thứ quyết định biểu đồ có rỗng hay không, ⛔ **không phải** `diem.length`: từ T43.13
+   *    `diem` là **trục**, nên nó đầy ngay cả khi ⛔ không có lấy một số đo. Đọc `diem.length === 0`
+   *    là một phép kiểm **không bao giờ đúng** — đúng hình dạng luật 9.
+   */
+  soMocCoSo: number;
   lyDoTrong: string | null;
 }
 

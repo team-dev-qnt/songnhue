@@ -9,11 +9,11 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.songnhue.core.common.security.AuthContext;
 import com.songnhue.core.common.security.AuthenticatedUser;
+import com.songnhue.core.common.web.ClientIp;
 
 /**
  * Filter [6] — nạp {@link AuditContext} cho request hiện tại (conventions.md §2.4).
@@ -49,15 +49,14 @@ public class AuditContextFilter extends OncePerRequestFilter {
         return AuthContext.current().map(AuthenticatedUser::username).orElse(null);
     }
 
+    /**
+     * ⛔ T43.8-b — <b>ĐÃ GỠ</b> bản sao đọc {@code X-Forwarded-For} ở đây.
+     *
+     * <p>Bản cũ lấy phần tử đầu của một header do <b>chính kẻ gọi</b> đặt, nên IP ghi vào nhật ký
+     * kiểm toán là IP kẻ gọi <i>tự khai</i>. Nay dùng chung {@link ClientIp} — xem javadoc lớp ấy
+     * để biết vì sao {@code X-Real-IP} tin được còn {@code X-Forwarded-For} thì ⛔ không.
+     */
     private static String clientIp(HttpServletRequest request) {
-        String forwarded = request.getHeader("X-Forwarded-For");
-        if (StringUtils.hasText(forwarded)) {
-            int comma = forwarded.indexOf(',');
-            String first = (comma > 0 ? forwarded.substring(0, comma) : forwarded).trim();
-            if (StringUtils.hasText(first)) {
-                return first;
-            }
-        }
-        return request.getRemoteAddr();
+        return ClientIp.cua(request);
     }
 }

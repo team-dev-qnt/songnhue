@@ -41,6 +41,16 @@ class HydroChartHttpTest extends IntegrationTestBase {
     private static final String MA = "T354-001";
     private static final String MA_API = "F95001";
 
+    /**
+     * Số mốc của trục 24 giờ — <b>tính lại bằng tay</b>: {@code 24 × 60 / 10 = 144}.
+     *
+     * <p>⛔⛔ Cố ý <b>⛔ KHÔNG</b> đọc {@code HydroChartService.SO_MOC}. Một bài kiểm nhập khẩu chính
+     * hằng số nó phải canh sẽ <b>đồng ý với mọi giá trị</b>, kể cả giá trị sai — nó xanh y hệt khi
+     * ai đó đổi cửa sổ xuống 12 giờ, và cái mất là nửa đường cong (luật 3: canh giá trị ĐÃ GIẢI, và
+     * luật 9: một khẳng định ⛔ không phân biệt được hai trạng thái thì ⛔ không khẳng định gì).
+     */
+    private static final int SO_MOC_MONG_DOI = 144;
+
     @Autowired
     private JdbcTemplate jdbc;
 
@@ -179,7 +189,17 @@ class HydroChartHttpTest extends IntegrationTestBase {
         assertThat(ra.getStatusCode())
                 .as("trạm chưa có số là chuyện BÌNH THƯỜNG, ⛔ không phải 404")
                 .isEqualTo(HttpStatus.OK);
-        assertThat(ra.getBody()).contains("\"diem\":[]").doesNotContain("\"lyDoTrong\":null");
+        assertThat(ra.getBody())
+                .as(
+                        """
+                        ⛔⛔ T43.13 — khẳng định này ĐỔI HÌNH DẠNG. Bản cũ đòi `"diem":[]`, và nó nay SAI: \
+                        `diem` là TRỤC THỜI GIAN, dựng độc lập với dữ liệu, nên nó đầy đủ 144 mốc ngay cả \
+                        khi ⛔ không có lấy một số đo. Thứ nói lên "chưa có số" là `soMocCoSo`.""")
+                .contains("\"soMocCoSo\":0")
+                .doesNotContain("\"lyDoTrong\":null");
+        assertThat(demMoc(ra.getBody()))
+                .as("⛔ Trục phải ĐỦ mốc kể cả khi ⛔ không có số nào — đó là toàn bộ nội dung của T43.13")
+                .isEqualTo(SO_MOC_MONG_DOI);
     }
 
     @Test
@@ -195,8 +215,60 @@ class HydroChartHttpTest extends IntegrationTestBase {
                         ⛔ Đây là tình huống nguy hiểm nhất của màn hình: trạm ĐANG gửi số, số ĐANG bị treo, \
                         và biểu đồ trống. ⛔ Không được im lặng — người trực phải đọc được rằng có dữ liệu \
                         đang chờ duyệt ở màn hình Dữ liệu nghi ngờ.""")
-                .contains("\"diem\":[]")
+                .contains("\"soMocCoSo\":0")
                 .doesNotContain("\"lyDoTrong\":null");
+    }
+
+    /**
+     * ⛔⛔⛔ <b>T43.13</b> — bài kiểm mà khuyết tật cũ ⛔ KHÔNG THỂ đi lọt.
+     *
+     * <p>Đây là bài duy nhất phân biệt được hai cài đặt (luật 9). Với bản cũ — trả <i>đúng những
+     * hàng có trong bảng</i> — thân phản hồi có <b>2</b> mốc và <b>0</b> giá trị {@code null}; tầng
+     * vẽ dựng trục X từ chính mảng ấy, nên hai số đo cách nhau <b>ba giờ</b> hiện ra <b>liền kề
+     * nhau</b> và đường cong nối thẳng qua quãng trạm im lặng.
+     *
+     * <p>⚠ Ba khẳng định, ⛔ không phải một, vì chúng hỏng theo ba kiểu khác nhau:
+     *
+     * <ol>
+     *   <li><b>đủ mốc</b> — bắt lỗi "trục vẫn dựng từ dữ liệu";
+     *   <li><b>có ô {@code null}</b> — bắt lỗi "đã điền 0 vào chỗ trống" (quy tắc 16);
+     *   <li><b>{@code soMocCoSo} đúng bằng 2</b> — bắt lỗi "đếm cả ô rỗng thành có số", thứ sẽ làm
+     *       nhánh {@code empty} của giao diện ⛔ không bao giờ chạy.
+     * </ol>
+     */
+    @Test
+    @DisplayName("⭐⭐ T43.13 — mốc MẤT DỮ LIỆU thành ô TRỐNG trên trục, ⛔ không bị nuốt")
+    void missingMarksBecomeEmptyCellsRatherThanVanishing() {
+        ghi(Duration.ofHours(3), new BigDecimal("1.100"), "HOP_LE");
+        ghi(Duration.ofHours(1), new BigDecimal("1.500"), "HOP_LE");
+
+        String than = doc().getBody();
+
+        assertThat(than)
+                .as("tiền đề (luật 7): cả hai số đo PHẢI có mặt — thiếu thì mọi khẳng định dưới đây vô nghĩa")
+                .contains("\"1.100\"")
+                .contains("\"1.500\"");
+        assertThat(demMoc(than))
+                .as(
+                        """
+                        ⛔⛔ Trục dựng ĐỘC LẬP với dữ liệu. Bản cũ cho ra ĐÚNG 2 mốc ở đây — và 2 mốc cách \
+                        nhau ba giờ vẽ ra LIỀN KỀ NHAU, tức một đoạn đường cong chưa từng được đo.""")
+                .isEqualTo(SO_MOC_MONG_DOI);
+        assertThat(than)
+                .as(
+                        """
+                        ⛔ Ô ⛔ không có số phải ra dây là `null`, ⛔ KHÔNG phải 0: `connectNulls:false` của \
+                        tầng vẽ cần đúng giá trị này để NGẮT đường. Điền 0 là vẽ mực nước 0 m có thật \
+                        (quy tắc 16).""")
+                .contains("\"giaTri\":null");
+        assertThat(than)
+                .as("⛔ Chỉ 2 ô có số; đếm cả ô rỗng là làm nhánh `empty` của giao diện ⛔ không bao giờ chạy")
+                .contains("\"soMocCoSo\":2");
+    }
+
+    /** Đếm số mốc trên trục — {@code "moc":} xuất hiện đúng một lần mỗi phần tử của {@code diem}. */
+    private static int demMoc(String than) {
+        return than == null ? 0 : than.split("\"moc\":", -1).length - 1;
     }
 
     // -------------------------------------------------------------------------

@@ -107,6 +107,81 @@ class ConstructionImportTest extends IntegrationTestBase {
         assertThat(lan2.toCreate()).isZero();
         assertThat(demCongTrinh()).isEqualTo(1);
         assertThat(tenCua("T17I-001")).isEqualTo("Trạm bơm Một (sửa tên)");
+
+        // ⛔⛔ T47.14 — KHẲNG ĐỊNH NÀY LẼ RA PHẢI CÓ TỪ ĐẦU. Dữ liệu của chính bài này đã dựng sẵn
+        //    ca hỏng: tệp lần 1 mang `tong_von_vnd=1500000000`, tệp lần 2 để TRỐNG ô ấy. Bài cũ
+        //    khẳng định đúng bốn thứ — số dòng cập nhật, số dòng tạo, tổng bản ghi, và cái TÊN —
+        //    ⛔ không thứ nào là số tiền. ⇒ **1,5 tỷ đồng bị xoá ngay trong dữ liệu của bài kiểm và
+        //    bài kiểm XANH.** Một bộ dữ liệu dựng đúng ca hỏng mà thiếu khẳng định về nó thì tệ hơn
+        //    ⛔ không có bài kiểm: nó đọc như một bảo đảm.
+        assertThat((BigDecimal) oCua("T17I-001", "total_investment"))
+                .as("⛔ Ô để trống trong bảng tính ⛔ KHÔNG phải lệnh xoá — xem `capNhatTuTepNhap`")
+                .isEqualByComparingTo(new BigDecimal("1500000000"));
+    }
+
+    @Test
+    @DisplayName("⛔⛔ T47.14 — nhập lại tệp CHỈ có toạ độ ⛔ KHÔNG được xoá phần còn lại của hồ sơ")
+    void nhapLaiChiVoiToaDoKhongXoaPhanConLai() {
+        // ⛔⛔ Bài này mô phỏng ĐÚNG luồng đã hứa với Công ty ở T42.20: *"ngày có bảng toạ độ thì
+        //    tải tệp mẫu, điền, upload"*. Trước T47.14, người nhập điền mỗi mã + toạ độ rồi tải lên
+        //    sẽ XOÁ TRẮNG tuyến sông, lý trình, tổng vốn, năm xây dựng và toàn bộ thông số kỹ
+        //    thuật — ⛔ không một dòng log, màn hình báo "nhập thành công 1 dòng".
+        //
+        // ⚠ Và tuyến sông/lý trình của 11 hồ sơ thật đến từ bản chụp G8 (V202609091073) mà nguồn
+        //   ⛔ KHÔNG có API lịch sử: mất là mất hẳn.
+        importer.apply(csv(TIEU_DE, "T47I-001,Cống Một,Cống,CTY,20.98,105.78,Sông Nhuệ,K0+390,1998,1500000000"));
+
+        // Thông số kỹ thuật ⛔ không biểu diễn được trong CSV (0/26 ô) — đặt thẳng qua CSDL, đúng
+        // như chúng đến từ màn hình hồ sơ công trình trong đời thật.
+        Long id = jdbc.queryForObject("SELECT id FROM constructions WHERE code = 'T47I-001'", Long.class);
+        jdbc.update(
+                """
+                INSERT INTO sluice_specs (construction_id, sluice_type, bay_count, bay_width_m)
+                VALUES (?, 'VAN_PHANG', 3, 2.50)
+                """,
+                id);
+
+        // ⚠⚠ VẾ CHỐNG TẬP RỖNG (luật 7 · §11.19) — vế chịu lực nhất của bài này.
+        //    Nếu ⛔ không khẳng định dữ liệu ĐANG CÓ trước lượt nhập, thì một lượt hỏng khiến bản
+        //    ghi ⛔ không được tạo sẽ cho mọi phép so bên dưới đọc `null == null` và bài kiểm XANH
+        //    trong đúng tình huống nó sinh ra để bắt.
+        assertThat(jdbc.queryForObject(
+                        "SELECT bay_count FROM sluice_specs WHERE construction_id = ?", Integer.class, id))
+                .as("⛔ thông số phải ĐANG CÓ trước khi đo phép nhập lại")
+                .isEqualTo(3);
+        assertThat(oCua("T47I-001", "total_investment")).isNotNull();
+        assertThat(oCua("T47I-001", "river_name")).isEqualTo("Sông Nhuệ");
+
+        // Tệp thứ hai: ĐÚNG những gì người nhập điền khi chỉ có bảng toạ độ trong tay.
+        KetQuaNhap lan2 = importer.apply(csv(TIEU_DE, "T47I-001,Cống Một,Cống,CTY,21.048201,105.782500,,,,"));
+
+        assertThat(lan2.toUpdate()).isEqualTo(1);
+
+        // (a) Thứ tệp MANG được thì phải ĐỔI — nếu không thì "vá" bằng cách bỏ qua cả lượt nhập.
+        assertThat((BigDecimal) oCua("T47I-001", "latitude"))
+                .as("⛔ toạ độ mới PHẢI được ghi — đây là cả mục đích của lượt nhập")
+                .isEqualByComparingTo(new BigDecimal("21.048201"));
+
+        // (b) Thứ tệp ⛔ KHÔNG mang được, hoặc mang mà để trống, thì phải GIỮ NGUYÊN.
+        assertThat(oCua("T47I-001", "river_name"))
+                .as("⛔⛔ Tuyến sông đến từ bản chụp G8 và nguồn ⛔ KHÔNG có API lịch sử")
+                .isEqualTo("Sông Nhuệ");
+        assertThat(oCua("T47I-001", "chainage")).isEqualTo("K0+390");
+        assertThat(oCua("T47I-001", "built_year")).isEqualTo(1998);
+        // ⚠ `isEqualByComparingTo`, ⛔ KHÔNG `isEqualTo`: `BigDecimal.equals` so cả THANG ĐO, nên
+        //   `1500000000` ≠ `1500000000.00` — cùng cái bẫy T46.2 đã trả giá với `compareTo`.
+        assertThat((BigDecimal) oCua("T47I-001", "total_investment"))
+                .as("⛔ Một ô để trống trong bảng tính ⛔ KHÔNG phải một lệnh xoá 1,5 tỷ đồng")
+                .isEqualByComparingTo(new BigDecimal("1500000000"));
+        assertThat(jdbc.queryForObject(
+                        "SELECT bay_count FROM sluice_specs WHERE construction_id = ?", Integer.class, id))
+                .as("⛔⛔ Tệp mẫu có 0/26 ô thông số ⇒ nó ⛔ KHÔNG có quyền nói gì về chúng")
+                .isEqualTo(3);
+    }
+
+    /** Một ô bất kỳ của hồ sơ — tra theo mã, ⛔ không dựng lại phép ánh xạ cột ở chỗ khác. */
+    private Object oCua(String ma, String cot) {
+        return jdbc.queryForObject("SELECT %s FROM constructions WHERE code = ?".formatted(cot), Object.class, ma);
     }
 
     @Test

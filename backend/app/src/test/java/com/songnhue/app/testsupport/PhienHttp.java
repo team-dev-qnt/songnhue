@@ -65,8 +65,15 @@ public final class PhienHttp {
      * khách khác nhau, đúng như thực tế nó mô phỏng nhiều người dùng khác nhau.
      * {@code CaffeineRateLimitStoreTest} vẫn là nơi chứng minh cơ chế chặn được thật.
      *
-     * <p>Filter đọc {@code X-Forwarded-For} và chỉ tin nó khi đứng sau nginx của mình — ở production
-     * nginx <b>ghi đè</b> header này, nên không có đường nào để client thật tự cấp cho mình một IP.
+     * <p>⛔⛔ <b>T43.8-b — câu ở đây trước 10/09/2026 là SAI</b>: nó khai <i>"filter đọc
+     * {@code X-Forwarded-For} … ở production nginx <b>ghi đè</b> header này"</i>. Đo cấu hình thật
+     * thì nginx <b>NỐI THÊM</b> ({@code $proxy_add_x_forwarded_for}), nên client thật <b>có</b>
+     * đường tự cấp cho mình một IP — và cả bốn hạn mức né được bằng một header. Đây là chú thích
+     * <b>thứ ba</b> trong kho cùng khẳng định một bảo đảm chưa bao giờ đứng.
+     *
+     * <p>Nay lớp này gửi {@code X-Real-IP} — đúng header mà nginx biên <b>ghi đè</b> và là thứ
+     * duy nhất {@code ClientIp} đọc. Nhờ vậy bộ kiểm đi <b>cùng đường</b> với production thay vì
+     * đi một đường chỉ tồn tại trong bộ kiểm (luật 5).
      */
     private final String ipGiaLap = ipKeTiep();
 
@@ -149,7 +156,7 @@ public final class PhienHttp {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         // Cùng IP giả lập với mọi lượt gọi khác của lớp này — bucket đăng nhập cũng đếm theo IP.
-        headers.set("X-Forwarded-For", ipGiaLap);
+        headers.set("X-Real-IP", ipGiaLap);
 
         ResponseEntity<String> response = http.exchange(
                 "/api/v1/auth/login",
@@ -177,7 +184,7 @@ public final class PhienHttp {
         headers.setBearerAuth(phien.accessToken());
         headers.set("X-CSRF-Token", phien.csrfToken());
         headers.set(HttpHeaders.COOKIE, phien.cookie());
-        headers.set("X-Forwarded-For", ipGiaLap);
+        headers.set("X-Real-IP", ipGiaLap);
         return headers;
     }
 

@@ -101,10 +101,18 @@ public class PublicConstructionController {
         return catalog.timKiem(q, page, size);
     }
 
+    /**
+     * <b>T43.9</b> — trả về {@code {dong, meta}} chứ ⛔ không còn một mảng trần.
+     *
+     * <p>Cổng cần <b>hai</b> thứ trong <b>một</b> lượt gọi: các dòng, và mốc <i>"Cập nhật lúc"</i>
+     * của chính chúng. Trước bản này cổng lấy mốc ấy từ {@code GET /public/now} — giờ máy chủ lúc
+     * dựng trang — nên khối vẫn tự nhận là <i>vừa cập nhật</i> kể cả khi trực ban đã nhiều ngày ⛔
+     * không ghi gì. Tách thành lượt gọi thứ hai là thêm một điểm hỏng cho một nhãn.
+     */
     @GetMapping("/operation-statuses")
     @Operation(summary = "Tình hình vận hành hiện hành của từng công trình — 6 cột của CN-02.11")
     @PublicEndpoint(reason = "Khối Vận hành công trình trên cổng — §5.3 văn bản nghiệm thu 27/08")
-    public List<PublicOperationStatusService.OperationStatusRow> operationStatuses() {
+    public PublicOperationStatusService.BangVanHanh operationStatuses() {
         return operationStatuses.hienHanh();
     }
 

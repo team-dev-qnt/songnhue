@@ -11,13 +11,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
 import com.songnhue.core.common.exception.RateLimitException;
 import com.songnhue.core.common.ratelimit.RateLimitPolicy;
 import com.songnhue.core.common.ratelimit.RateLimitStore;
+import com.songnhue.core.common.web.ClientIp;
 
 /**
  * Filter [2] — chặn tần suất theo IP, <b>trước khi</b> tới bước xác thực.
@@ -106,21 +106,18 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     /**
-     * IP thật của client.
+     * Khoá của xô hạn mức — <b>T43.8-b</b>.
      *
-     * <p>Chỉ lấy phần tử ĐẦU của {@code X-Forwarded-For} và chỉ nên tin khi đứng sau nginx của mình
-     * (production luôn vậy — §4.5). Client tự đặt header này được, nên nginx phải ghi đè chứ không
-     * nối thêm; nếu không thì kẻ tấn công đổi header là thoát rate limit.
+     * <p>⛔⛔ Bản cũ lấy phần tử ĐẦU của {@code X-Forwarded-For} kèm chú thích <i>"nginx phải ghi
+     * đè chứ không nối thêm; nếu không thì kẻ tấn công đổi header là thoát rate limit"</i>. Vế
+     * "nếu không" chính là hiện trạng: nginx <b>nối thêm</b>, nên <b>cả bốn</b> xô
+     * ({@code LOGIN} 30/15' · {@code API} 100/1' · {@code PUBLIC} 300/1' · {@code EXPORT} 10/1h)
+     * đổi khoá theo từng lượt gọi nếu kẻ gọi đổi header. Một hạn mức né được là một hạn mức ⛔
+     * không tồn tại.
+     *
+     * <p>Nay neo vào {@code X-Real-IP} qua {@link ClientIp} — xem javadoc lớp ấy.
      */
     private static String clientIp(HttpServletRequest request) {
-        String forwarded = request.getHeader("X-Forwarded-For");
-        if (StringUtils.hasText(forwarded)) {
-            int comma = forwarded.indexOf(',');
-            String first = (comma > 0 ? forwarded.substring(0, comma) : forwarded).trim();
-            if (StringUtils.hasText(first)) {
-                return first;
-            }
-        }
-        return request.getRemoteAddr();
+        return ClientIp.cua(request);
     }
 }

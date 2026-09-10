@@ -3,6 +3,8 @@ import Link from 'next/link';
 import type { OperationStatusRow } from '@/lib/api';
 import { COT_VAN_HANH } from '@/lib/homeDataColumns';
 import { ROUTES } from '@/lib/routes';
+import { type MocSoLieu } from '@/lib/mocSoLieu';
+
 import { RealtimeFrame } from '../realtime/RealtimeFrame';
 import { ColumnHeaderRow } from './ColumnHeaderRow';
 import { OperationStatusRows } from './OperationStatusRows';
@@ -13,7 +15,8 @@ const BE_RONG_TOI_THIEU = 'min-w-[760px]';
 
 interface OperationsBlockProps {
   refreshSeconds: number;
-  updatedAt: string | null;
+  /** Mốc ghi xuống của bản ghi mới nhất — `BangVanHanh.meta.capNhatLuc`. Xem `@/lib/mocSoLieu`. */
+  updatedAt: MocSoLieu | null;
   /**
    * Tình hình vận hành hiện hành, từ `getOperationStatuses()`.
    *
