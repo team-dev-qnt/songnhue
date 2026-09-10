@@ -1,7 +1,7 @@
 import { Alert, Skeleton, Space, Typography } from 'antd';
 import { statusColors } from 'design-tokens';
 import { useMemo } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 
 import {
   CONSTRUCTION_STATUS,
@@ -109,11 +109,12 @@ export function OperationsDashboardPage() {
           ))}
         </div>
 
-        {/* --- Bản đồ + phân bố trạng thái --- */}
+        {/* --- Bản đồ + phân bố trạng thái & số hoá --- */}
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: boCuc.cotKhoi >= 2 ? '2fr 1fr' : '1fr',
+            gridTemplateColumns:
+              boCuc.cotKhoi >= 2 ? 'minmax(0, 2fr) minmax(0, 1fr)' : 'minmax(0, 1fr)',
             gap: wall ? 16 : 12,
           }}
         >
@@ -135,30 +136,51 @@ export function OperationsDashboardPage() {
               diemDo={lopDiemDo.data?.diemDo ?? []}
               config={data?.map}
               height={wall ? 520 : 380}
+              wall={wall}
             />
           </ChartCard>
 
-          <ChartCard title="Phân bố theo trạng thái" wall={wall}>
-            <BaseChart
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns:
+                boCuc.cotKhoi >= 2 ? '1fr' : 'repeat(auto-fit, minmax(260px, 1fr))',
+              gap: wall ? 16 : 12,
+            }}
+          >
+            <ChartCard title="Phân bố theo trạng thái" wall={wall}>
+              <BaseChart
+                wall={wall}
+                height={wall ? 260 : 190}
+                empty={!thongKe || thongKe.byStatus.length === 0}
+                option={optionTron(thongKe?.byStatus ?? [], CONSTRUCTION_STATUS)}
+                onClick={(p) => {
+                  const data = p?.data as Record<string, unknown> | undefined;
+                  if (data?.bucketKey) {
+                    navigate(`/van-hanh/cong-trinh?status=${data.bucketKey}`);
+                  }
+                }}
+              />
+            </ChartCard>
+
+            <ChartCard
+              title="Số hoá toạ độ"
               wall={wall}
-              height={wall ? 340 : 260}
-              empty={!thongKe || thongKe.byStatus.length === 0}
-              option={optionTron(thongKe?.byStatus ?? [], CONSTRUCTION_STATUS)}
-              onClick={(p) => {
-                const data = p?.data as Record<string, unknown> | undefined;
-                if (data?.bucketKey) {
-                  navigate(`/van-hanh/cong-trinh?status=${data.bucketKey}`);
-                }
-              }}
-            />
-            <BaseChart
-              wall={wall}
-              height={wall ? 200 : 160}
-              empty={tyLeSoHoa === null}
-              emptyText="Chưa có hồ sơ công trình nào"
-              option={optionDongHo(tyLeSoHoa ?? 0, 'Đã số hoá toạ độ')}
-            />
-          </ChartCard>
+              note={
+                thongKe
+                  ? `${thongKe.total - thongKe.withoutLocation}/${thongKe.total} công trình đã có toạ độ`
+                  : undefined
+              }
+            >
+              <BaseChart
+                wall={wall}
+                height={wall ? 180 : 130}
+                empty={tyLeSoHoa === null}
+                emptyText="Chưa có hồ sơ công trình nào"
+                option={optionDongHo(tyLeSoHoa ?? 0, 'Đã số hoá toạ độ')}
+              />
+            </ChartCard>
+          </div>
         </div>
 
         {/* --- Thống kê CN-02.6 --- */}
@@ -185,19 +207,6 @@ export function OperationsDashboardPage() {
             />
           </ChartCard>
 
-          <ChartCard
-            title="Theo đơn vị quản lý"
-            note="Số liệu đã lọc theo phạm vi đơn vị của tài khoản đang xem."
-            wall={wall}
-          >
-            <BaseChart
-              wall={wall}
-              height={wall ? 300 : 240}
-              empty={!thongKe || thongKe.byOrgUnit.length === 0}
-              option={optionCotNgang(thongKe?.byOrgUnit ?? [])}
-            />
-          </ChartCard>
-
           <ChartCard title="Theo cấp quản lý" wall={wall}>
             <BaseChart
               wall={wall}
@@ -212,15 +221,31 @@ export function OperationsDashboardPage() {
               }}
             />
           </ChartCard>
+
+          <ChartCard
+            title="Theo đơn vị quản lý"
+            note="Số liệu đã lọc theo phạm vi đơn vị của tài khoản đang xem."
+            wall={wall}
+            style={{
+              gridColumn: boCuc.cotKhoi === 2 ? '1 / -1' : undefined,
+            }}
+          >
+            <BaseChart
+              wall={wall}
+              height={wall ? 300 : 240}
+              empty={!thongKe || thongKe.byOrgUnit.length === 0}
+              option={optionCotNgang(thongKe?.byOrgUnit ?? [])}
+            />
+          </ChartCard>
         </div>
 
         {!wall && (
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             Cập nhật lúc {formatDateTime(data?.generatedAt)} · tự làm mới mỗi{' '}
             {Math.round((data?.autoRefreshSeconds ?? 0) / 60)} phút (sửa ở Cấu hình hệ thống) ·{' '}
-            <a href="?mode=wall" style={{ color: statusColors.normal }}>
+            <Link to="?mode=wall" style={{ color: statusColors.normal }}>
               mở chế độ màn hình lớn
-            </a>
+            </Link>
           </Typography.Text>
         )}
       </Space>

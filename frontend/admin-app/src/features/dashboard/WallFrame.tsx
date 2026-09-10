@@ -1,6 +1,8 @@
-import { ConfigProvider, theme } from 'antd';
+import { FullscreenExitOutlined } from '@ant-design/icons';
+import { Button, ConfigProvider, theme } from 'antd';
 import { statusColors, wallColors } from 'design-tokens';
 import { useEffect, useState, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { formatDateTime } from '@/shared/format';
 
@@ -26,11 +28,6 @@ import { formatDateTime } from '@/shared/format';
  * khi đó chính là con số người ta treo màn hình lên để nhìn. Ở đây khối KPI luôn nằm
  * trên, chỉ phần dưới cuộn qua lại. Không mất khối nào, và mắt vẫn có chuyển động để
  * không "chết" trên một khung hình tĩnh.
- *
- * <h3>Không thao tác chuột/bàn phím</h3>
- *
- * Màn hình treo tường không có ai ngồi bấm. Con trỏ bị khoá bằng `pointer-events: none`
- * để một cú chạm vô tình không kéo bản đồ đi rồi để nguyên như thế cả ngày.
  */
 export function WallFrame({
   capNhatLuc,
@@ -44,7 +41,18 @@ export function WallFrame({
   mat?: boolean;
   children: ReactNode;
 }) {
+  const navigate = useNavigate();
   useAutoScroll(rotateSeconds);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        navigate('/van-hanh/dieu-hanh');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [navigate]);
 
   return (
     <ConfigProvider
@@ -63,46 +71,74 @@ export function WallFrame({
         style={{
           position: 'fixed',
           inset: 0,
+          zIndex: 1000,
           background: wallColors.bg,
           color: wallColors.textBase,
           overflowY: 'auto',
           padding: 'clamp(12px, 0.8vw, 32px)',
-          // ⛔ Khoá tương tác: xem giải thích ở đầu file.
-          pointerEvents: 'none',
         }}
         data-testid="khung-wall"
       >
-        <WallHeader capNhatLuc={capNhatLuc} mat={mat} />
+        <WallHeader
+          capNhatLuc={capNhatLuc}
+          mat={mat}
+          onExit={() => navigate('/van-hanh/dieu-hanh')}
+        />
         {children}
       </div>
     </ConfigProvider>
   );
 }
 
-function WallHeader({ capNhatLuc, mat }: { capNhatLuc: string | undefined; mat: boolean }) {
+function WallHeader({
+  capNhatLuc,
+  mat,
+  onExit,
+}: {
+  capNhatLuc: string | undefined;
+  mat: boolean;
+  onExit: () => void;
+}) {
   return (
     <div
       style={{
         display: 'flex',
-        alignItems: 'baseline',
+        alignItems: 'center',
         justifyContent: 'space-between',
         gap: 16,
         marginBottom: 'clamp(8px, 0.6vw, 24px)',
       }}
     >
-      <span style={{ fontSize: 'clamp(18px, 1.1vw, 40px)', fontWeight: 700 }}>
-        Điều hành công trình thuỷ lợi
-      </span>
-      <span
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 'clamp(18px, 1.1vw, 40px)', fontWeight: 700 }}>
+          Điều hành công trình thuỷ lợi
+        </span>
+        <span
+          style={{
+            fontSize: 'clamp(12px, 0.6vw, 22px)',
+            color: mat ? statusColors.danger : wallColors.textSecondary,
+            fontWeight: mat ? 700 : 400,
+          }}
+        >
+          {mat ? 'Dữ liệu chưa cập nhật · ' : 'Cập nhật '}
+          {formatDateTime(capNhatLuc)}
+        </span>
+      </div>
+      <Button
+        type="text"
+        icon={<FullscreenExitOutlined style={{ fontSize: 16 }} />}
+        onClick={onExit}
         style={{
-          fontSize: 'clamp(12px, 0.6vw, 22px)',
-          color: mat ? statusColors.danger : wallColors.textSecondary,
-          fontWeight: mat ? 700 : 400,
+          color: wallColors.textSecondary,
+          fontSize: 'clamp(12px, 0.6vw, 18px)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
         }}
+        aria-label="Thoát chế độ toàn màn hình"
       >
-        {mat ? 'Dữ liệu chưa cập nhật · ' : 'Cập nhật '}
-        {formatDateTime(capNhatLuc)}
-      </span>
+        Thoát (Esc)
+      </Button>
     </div>
   );
 }
