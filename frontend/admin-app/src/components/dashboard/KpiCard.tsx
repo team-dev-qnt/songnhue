@@ -29,7 +29,7 @@ export function KpiCard({ kpi, wall = false }: { kpi: KpiView; wall?: boolean })
   return (
     <Card
       size={wall ? 'default' : 'small'}
-      style={{ height: '100%' }}
+      style={{ height: '100%', minWidth: 0 }}
       styles={{ body: { padding: wall ? '20px 24px' : 16 } }}
     >
       <Typography.Text

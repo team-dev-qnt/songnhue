@@ -41,6 +41,7 @@ export function ConstructionMap({
   diemDo = [],
   config,
   height = 420,
+  wall = false,
 }: {
   points: MapPointView[];
   /**
@@ -53,6 +54,7 @@ export function ConstructionMap({
   diemDo?: StationMarkerView[];
   config: MapConfigView | undefined;
   height?: number | string;
+  wall?: boolean;
 }) {
   const khungRef = useRef<HTMLDivElement>(null);
   const banDoRef = useRef<L.Map | null>(null);
@@ -125,8 +127,19 @@ export function ConstructionMap({
     //    vùng công trình sẽ ở ngoài màn hình — và người dùng ⛔ không có cách nào biết nó
     //    tồn tại, vì marker duy nhất báo điều đó lại nằm ngoài khung.
     const toaDo: [number, number][] = [
-      ...points.map((d): [number, number] => [d.latitude, d.longitude]),
-      ...diemDo.map((d): [number, number] => [Number(d.latitude), Number(d.longitude)]),
+      ...points
+        .filter((d) => Number.isFinite(d.latitude) && Number.isFinite(d.longitude))
+        .map((d): [number, number] => [d.latitude, d.longitude]),
+      ...diemDo
+        .filter(
+          (d) =>
+            d.latitude != null &&
+            d.longitude != null &&
+            Number.isFinite(Number(d.latitude)) &&
+            Number.isFinite(Number(d.longitude)) &&
+            (Number(d.latitude) !== 0 || Number(d.longitude) !== 0),
+        )
+        .map((d): [number, number] => [Number(d.latitude), Number(d.longitude)]),
     ];
     if (toaDo.length > 0) {
       banDo.fitBounds(L.latLngBounds(toaDo), { padding: [32, 32], maxZoom: 14 });
@@ -141,19 +154,38 @@ export function ConstructionMap({
       return;
     }
     lop.clearLayers();
-    diemDo.forEach((d) => {
-      L.marker([Number(d.latitude), Number(d.longitude)], { icon: bieuTuongDiemDo(d) })
-        .addTo(lop)
-        .bindPopup(popupDiemDo(d));
-    });
+    diemDo
+      .filter(
+        (d) =>
+          d.latitude != null &&
+          d.longitude != null &&
+          Number.isFinite(Number(d.latitude)) &&
+          Number.isFinite(Number(d.longitude)) &&
+          (Number(d.latitude) !== 0 || Number(d.longitude) !== 0),
+      )
+      .forEach((d) => {
+        L.marker([Number(d.latitude), Number(d.longitude)], { icon: bieuTuongDiemDo(d) })
+          .addTo(lop)
+          .bindPopup(popupDiemDo(d));
+      });
   }, [diemDo]);
 
   if (!config) {
     return <Empty description="Chưa tải được cấu hình bản đồ" />;
   }
 
+  const banDoHeight =
+    typeof height === 'number' && points.length === 0 ? Math.max(260, height - 76) : height;
+
   return (
     <>
+      {wall && (
+        <style>{`
+          .leaflet-dark-tiles .leaflet-tile-pane {
+            filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+          }
+        `}</style>
+      )}
       {points.length === 0 && (
         <Alert
           type="info"
@@ -163,7 +195,11 @@ export function ConstructionMap({
           description="Bản đồ chỉ hiện công trình đã có kinh độ/vĩ độ. Số hồ sơ còn thiếu vị trí nằm ở ô KPI 'Chưa số hoá toạ độ'."
         />
       )}
-      <div ref={khungRef} style={{ width: '100%', height, borderRadius: 6, overflow: 'hidden' }} />
+      <div
+        ref={khungRef}
+        className={wall ? 'leaflet-dark-tiles' : undefined}
+        style={{ width: '100%', height: banDoHeight, borderRadius: 6, overflow: 'hidden' }}
+      />
     </>
   );
 }
