@@ -327,6 +327,14 @@ nào — bản vá là **mã**, ⛔ không phải dữ liệu) · **1045 dòng**
 ấy vẫn thoát **0** và in 7/7 SUCCESS. ⇒ **Mọi lượt `make ci-local` phải là tiến trình maven DUY
 NHẤT trên cây này** — nếu không thì cái xanh ⛔ không còn nói được nó xanh vì cái gì (luật 32).
 
+⭐⭐ **Đo lại 10/09/2026 sau WS-56 (CN-04.1 vế 1 giải thể đơn vị) — `make ci-local` 10/10 thoát 0 VÀ
+`make ci-order` thoát 0 VÀ `make ci-image` thoát 0**, lượt chạy là tiến trình maven DUY NHẤT (⚠ số ở **MÁY**): **1751
+testcase BE** (1745 + **6** bài mới: 3 bài kiến trúc `SoDonViThamChieuTest` + 3 bài HTTP
+`GiaiTheDonViHttpTest`) · **0 đỏ** · **227 báo cáo surefire** · FE **400** test admin-app / 47 tệp +
+**392** public-web / 44 · **72 migration** (⛔ không thêm tệp nào — chốt chặn giải thể là **mã**, ⛔ không
+phải dữ liệu) · mã lỗi **110**, ⛔ không đổi (`ADM-2004` cập nhật câu lỗi mang danh sách đo tại chỗ,
+⛔ không thêm mã mới) · **1087 dòng** sổ tracking, 0 phép kiểm đỏ.
+
 ⭐⭐ **Đo lại 10/09/2026 sau WS-55 (CN-04.6 danh bạ) — `make ci-local` 10/10 thoát 0 VÀ
 `make ci-order` thoát 0**, lượt chạy là tiến trình maven DUY NHẤT (⚠ số ở **MÁY**): **1745
 testcase BE** (1734 + **11** bài của danh bạ: 8 HTTP + 3 cấu trúc) · **0 đỏ** · **225 báo cáo

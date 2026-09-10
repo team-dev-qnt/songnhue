@@ -382,6 +382,13 @@ public enum ErrorCode {
     ADM_2002("ADM-2002", HttpStatus.CONFLICT),
     /** Chuyển đơn vị vào chính cây con của nó — cắt rời cả nhánh khỏi cây mà dữ liệu vẫn còn. */
     ADM_2003("ADM-2003", HttpStatus.UNPROCESSABLE_CONTENT),
+    /**
+     * ⛔ Không giải thể được đơn vị vì còn thứ trỏ vào nó — CN-04.1.
+     *
+     * <p>{0} là <b>danh sách cụ thể</b> (<i>"3 hồ sơ cán bộ nhân viên, 2 công trình"</i>), ⛔ không
+     * phải một lời từ chối trống: người vận hành cần biết <b>phải đi chuyển cái gì</b> trước khi
+     * giải thể. Nguồn của danh sách là mọi bean cài {@code OrgUnitUsagePort} — mỗi module tự khai.
+     */
     ADM_2004("ADM-2004", HttpStatus.CONFLICT),
     ADM_2005("ADM-2005", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Tham số {0} không nhận giá trị này — yêu cầu: {1}. */

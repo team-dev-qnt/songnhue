@@ -33,6 +33,9 @@ import com.songnhue.operations.domain.MaintenanceType;
  */
 public interface MaintenanceLogRepository extends JpaRepository<MaintenanceLog, Long> {
 
+    /** Số nhật ký bảo trì còn sống thuộc một đơn vị — chốt chặn giải thể đơn vị (CN-04.1). */
+    long countByOrgUnitIdAndDeletedAtIsNull(Long orgUnitId);
+
     Optional<MaintenanceLog> findByPublicIdAndDeletedAtIsNull(UUID publicId);
 
     /**

@@ -99,4 +99,19 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
 
     /** Mọi hồ sơ trong phạm vi người gọi — nền cho phép quét chứng chỉ sắp hết hiệu lực. */
     List<Employee> findByDeletedAtIsNull();
+
+    /**
+     * Số hồ sơ còn sống thuộc một đơn vị — chốt chặn giải thể đơn vị (CN-04.1, {@code OrgUnitUsagePort}).
+     *
+     * <p>⚠ Đếm cả người <b>đã nghỉ việc</b>: hồ sơ vẫn trỏ vào đơn vị và báo cáo biến động nhân sự
+     * vẫn đọc chúng. Điều kiện duy nhất là <b>chưa xoá mềm</b>.
+     *
+     * <p>⛔⛔ Câu này đi qua bộ lọc phạm vi như mọi truy vấn JPA khác, và ở đây điều đó <b>ĐÚNG</b>
+     * một cách nguy hiểm: người gọi là {@code OrgUnitService.delete}, chạy dưới phiên của một quản
+     * trị viên. Nếu quản trị viên ấy bị giới hạn phạm vi thì phép đếm trả <b>số nhỏ hơn thật</b> ⇒
+     * chốt chặn mở ra. ⇒ Người xoá đơn vị phải là người có phạm vi bao trùm đơn vị ấy — điều đã
+     * đúng theo cây phạm vi (⛔ không ai xoá được đơn vị mình ⛔ không nhìn thấy), nhưng nó là một
+     * tiền đề <b>vay mượn</b> nên ghi ra ở đây.
+     */
+    long countByOrgUnitIdAndDeletedAtIsNull(Long orgUnitId);
 }

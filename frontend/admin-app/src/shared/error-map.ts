@@ -543,7 +543,13 @@ export const ERROR_CATALOG = {
     severity: 'warning',
   },
   'ADM-2004': {
-    message: 'Đơn vị còn đơn vị cấp dưới hoặc còn người dùng — không xóa được',
+    // ⚠ Câu ở đây chỉ là bản ĐỠ khi backend ⛔ không nói được câu nào (`messageFor` ưu tiên
+    //   `apiMessage`). Nó cố ý **⛔ không** liệt kê những gì bị chặn: từ 10/09/2026 danh sách ấy do
+    //   backend đo tại chỗ (hồ sơ CBNV · công trình · nhật ký bảo trì · cụm · điểm đo · phiếu liên
+    //   hệ, mỗi thứ kèm số lượng). Chép lại danh sách xuống đây là dựng một bản sao sẽ **nói dối**
+    //   vào ngày module thứ sáu khai thêm một `OrgUnitUsagePort` — đúng lớp lỗi §10.69.
+    message:
+      'Không giải thể được: đơn vị còn dữ liệu trực thuộc — chuyển chúng sang đơn vị khác trước',
     handling: 'toast',
     severity: 'warning',
   },
