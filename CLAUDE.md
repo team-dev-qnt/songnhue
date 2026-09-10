@@ -83,10 +83,16 @@ AES-256-GCM, khoá ngoài CSDL). Chốt luôn **T47.19** bằng phép đo: ⛔ *
 CN-04.4 timeline · CN-04.5 tài liệu + cảnh báo hết hạn · CN-04.6 danh bạ · CN-04.8 báo cáo ·
 CN-04.9 nghỉ phép. **G6** chặn **đúng một** báo cáo `BCNS-07`, ⛔ không chặn 8 chức năng còn lại;
 **G6-a** (danh sách CBNV) chặn **dữ liệu**, ⛔ không chặn mã — bảng để RỖNG là đúng.
-⛔ **Trước khi viết CN-04.9**: vá `CodingRuleTest.NoAmbientClock` — nó ⛔ không bắt `YearMonth.now()`,
-lời gọi tự nhiên nhất để tính kỳ phép năm, và nó cắt sai ranh giới kỳ **7 tiếng** trên container UTC
-(T51.11).
-⛔⛔ **C3 mã đã dựng mà bản đồ TRỐNG**: **19/19 điểm đo có toạ độ/tuyến sông NULL** (`V202608311049:19` khai thẳng *"G8 chưa có dữ liệu"*, `HydroCatalogueSeedTest` giữ nó NULL bằng một khẳng định thường trực) và **0 câu `INSERT INTO constructions`** trong toàn chuỗi migration ⇒ `StationMapService.lopDiemDo()` **chạy trên tập rỗng** (luật 7). **G8 ⛔ không chặn *viết* C3, nó chặn *nghiệm thu* C3.** ⭐ Phần C3 làm được ngay, ⛔ không chờ ai: **wall mode** (khung `wallMode.ts` + `?mode=wall` đã có, mới đổi theme/cỡ chữ; thiết bị chốt B8 12/8) và **báo cáo MOD-02** (layout in chờ G10).
+✅ **T51.11 ĐÃ TRẢ 10/09** — `NoAmbientClock` nay bắt **9 kiểu** (thêm `YearMonth`·`MonthDay`·
+`ZonedDateTime`·`OffsetDateTime`·`OffsetTime`) **+ 3 đường VÒNG** (`ZoneId.systemDefault()` ·
+`Clock.systemDefaultZone()` · `TimeZone.getDefault()` — lời gọi **có** đối số nên vế `now()` về
+nguyên tắc ⛔ không thấy, mà kết quả sai y hệt), kèm bài tự-kiểm khẳng định **từng đường một** và
+một lớp fixture **đúng chuẩn** làm vế phân biệt. ⇒ CN-04.9 viết được.
+⛔⛔ **C3 mã đã dựng mà bản đồ TRỐNG — nhưng ⛔ KHÔNG phải vì thiếu danh mục** (câu cũ ở dòng này
+sai, sửa 10/09 — T52.8). Đo trên CSDL staging cùng ngày: `constructions` **11 hàng** (dựng ở
+`V202609091075` từ chính dữ liệu Công ty), `station_constructions` **15 liên kết**, tuyến sông
+**7**, lý trình **7**. Thứ **thật sự** rỗng là **TOẠ ĐỘ**: `stations` **19 hàng / 0 toạ độ**,
+`constructions` **11 hàng / 0 toạ độ** ⇒ `geom` NULL ở cả hai bảng ⇒ **mọi lớp GIS rỗng**. **G8 ⛔ không chặn *viết* C3, nó chặn *nghiệm thu* C3.** ⭐ Phần C3 làm được ngay, ⛔ không chờ ai: **wall mode** (khung `wallMode.ts` + `?mode=wall` đã có, mới đổi theme/cỡ chữ; thiết bị chốt B8 12/8) và **báo cáo MOD-02** (layout in chờ G10).
 ✅ **Ràng buộc thứ tự ĐÃ GỠ 9/9**: `T11.69` Boot **4.1.1** xong trước hạn 15/10 ba mươi sáu ngày (`make ci-local` 10/10 + `make ci-order`, **1035/1035** ở cả hai thứ tự lớp). ⇒ `T37.1` bấm giờ được ngay sau khi bản này lên production — 7 ngày quan sát nay chạy trên **đúng stack sẽ lên production**. Ba khuyết tật im lặng của lượt nâng: §11.20.
 **WS-24 — Đợt chỉnh sửa cổng theo nghiệm thu Công ty** (`docs_origin/nghiem_thu_phase1.md`, 27/8): **34/43 mã CR đóng**, 9 mã còn lại chờ đăng nhập trên cổng · nguồn dữ liệu · nhập liệu. Đã **chạy thật trên stack đầy đủ**: 17/17 đường dẫn menu trả 200. Chi tiết `master-tracking.md` WS-24 · nguyên nhân gốc §10.61.
 
@@ -249,6 +255,13 @@ lời gọi tự nhiên nhất để tính kỳ phép năm, và nó cắt sai ra
 | 10/9 | ⛔⛔ **Một dòng SỐ ĐO trong CLAUDE.md hết hạn đã lây sang BA agent cùng lúc.** *"67 migration, đỉnh 1073"* đúng vào 09/09 rồi đứng yên; ngày 10/09 ba trong bảy agent đọc nó và cùng kết luận tệp `hr` đầu tiên mang số **1074** — số **đã có trên đĩa**, tức một lượt CI đỏ dựng sẵn (§10.66). Họ ⛔ không bịa, họ **chép một dòng sổ**. Lần thứ **năm** của hình dạng *"một dòng nợ tự nó sai"*, và lần đầu nó nhân lên | T51.0 |
 | 10/9 | ⚠ **`getAnnotationOfType(Table.class)` biên dịch SẠCH rồi ném `NoClassDefFoundError` lúc chạy** — `jakarta.persistence.*` ⛔ không nằm trên classpath test của `app`. Luật ngay bên trên trong **cùng một tệp** đã dùng dạng chuỗi vì đúng lý do ấy; tôi đọc nó rồi vẫn chép sang dạng `.class`. §10.70 một lần nữa: *"biên dịch được" ⛔ không phải "qua cổng kiểm"* | T51.4 |
 | 10/9 | ⛔⛔ **Nghe *"sơ đồ hình cây"* rất dễ đi suy ra tầng từ chuỗi chức danh.** `org_unit_leaders` ⛔ không có cột cha–con và `title` là ô **tự do**; xếp *Chủ tịch > Tổng Giám đốc > Phó TGĐ* bằng so chuỗi là dựng một sơ đồ **trông như dữ liệu** trong khi nó là phỏng đoán, và sai lặng lẽ ngay lần Công ty đổi cách viết (§11.12). Thứ tự lấy nguyên `sort_order` Công ty tự sắp; bánh cóc là một bài khẳng định cây lãnh đạo **PHẲNG** | T50.6 |
+| 10/9 | ⛔⛔⛔ **Đường ống thuỷ văn CHƯA MỘT LƯỢT NÀO thành công — `consecutive_failures = 3576`, `last_success_at = NULL`, `hydro_readings = 0`.** `base_url` mang sẵn **đường dẫn endpoint**, mà adapter còn `resolve("api/getmn.aspx")` lần nữa ⇒ `/api/**api**/getmn.aspx` ⇒ **404**. ⭐ Đo trên **nguồn thật**, hai URL hai trạng thái phân biệt được: đường đúng → **200** `not.working`, đường lặp → **404** — khớp đúng `last_failure_reason`. ⛔⛔ Người vận hành đã làm **đúng** phần khó (gỡ `?key=`, đặt mã số qua hộp thoại, đúng thứ T50.1 dặn); **T50.1 chỉ vá một nửa vấn đề nó tìm ra** — `HYD-2016` chặn *tham số bí mật* trong `base_url`, ⛔ không chặn *đường dẫn*, và nửa còn lại sinh đúng triệu chứng cũ (0 byte) qua một cơ chế khác | T52.0 |
+| 10/9 | ⛔⛔ **Vế IM LẶNG của cùng khuyết tật nặng hơn vế 404** — `URI.resolve` **nuốt đoạn cuối** khi base ⛔ không kết thúc bằng `/`: `http://host/songnhue` + `api/getmn.aspx` → `http://host/api/getmn.aspx`, **mất hẳn `/songnhue`**, trả **200** trên một đường dẫn có thật. 404 còn nằm trong `last_failure_reason`; cái này thì ⛔ không. ⚠⚠ Chú thích **ngay trên dòng `resolve`** bênh vực `resolve` *vì* vấn đề dấu `/` và ⛔ **không** phòng được vấn đề dấu `/` của **chính `resolve`**. Lập luận phòng thủ **đúng** mà **⛔ không đủ** — cùng họ T47.1 · T51.12 | T52.1 |
+| 10/9 | ⭐⭐ **Bài kiểm cũ mang đúng cái tên hứa phủ ca hỏng, mà dữ liệu của nó là hai ca vốn đã chạy.** `thieuThuaDauGachChoCungKetQua` thử `host` và `host/` — cả hai vốn đúng. Phá bản vá ⇒ **đúng 3 bài MỚI đỏ, cả 8 bài cũ xanh**. ⭐ Vế **qua HTTP** mạnh hơn hẳn vế đơn vị: bài tầng đơn vị so URI với một chuỗi **ta tự viết ra**, còn máy chủ JDK chỉ đăng ký `/api/getmn.aspx` nên nó **phán xử** — phá bản vá ⇒ máy chủ nhận **0** lượt gọi | T52.3 |
+| 10/9 | ⛔ **Bài kiểm chứng ngược đỏ ĐÚNG LÚC mà SAI CHỖ vẫn dẫn người đọc đi lạc — §11.19 lần hai.** Thu `NoAmbientClock` về 4 kiểu cũ ⇒ fixture sinh **0** vi phạm (nó chỉ chứa kiểu MỚI) ⇒ bài đỏ ở vế *chống tập rỗng* với câu *"gói fixture đổi tên?"*. ⇒ Thêm **mỏ neo** `LocalDate.now()` — kiểu mà **mọi** bản của bộ canh đều bắt — thì nó đỏ đúng vế `YearMonth` | T52.5 |
+| 10/9 | ⛔ **Hai dòng sổ về dữ liệu bản đồ tự nó sai, lần thứ SÁU cùng hình dạng.** Ghi chú đang lưu hành khai *"0 câu `INSERT INTO constructions`"*; đo lại: `V202609091075` **CÓ** dựng, staging có **11 công trình · 15 liên kết · 7 tuyến sông**. Thứ **thật sự** rỗng là **toạ độ** (19/19 và 11/11 đều NULL). Hai câu nghe giống nhau mà dẫn tới hai việc khác hẳn: *chưa có danh mục* ⇒ viết migration; *chưa có toạ độ* ⇒ **đi hỏi Công ty** | T52.8 |
+| 10/9 | ⭐⭐ **Hệ nguồn của Công ty ĐANG GIỮ toạ độ — có hẳn mục "Bản đồ Google".** Trang gốc `bhh40.net` (đọc được ⛔ không cần đăng nhập) có `pro=ketquado.songnhue-bando` + danh sách **34 mã trạm**. `getmn.aspx` ⛔ **không** trả toạ độ (chỉ `mã;ngày;giờ;value=`), nên trước nay ⛔ không ai đi tìm chỗ khác. ⇒ G8 có thể ⛔ không cần chờ Công ty gửi bảng — chỉ cần **mã số** để đọc trang ấy | T52.11 |
+| 10/9 | ⛔ **Chạy maven mục tiêu SONG SONG với `make ci-local` làm cái xanh mất nghĩa.** Lượt ấy thoát **0**, 7/7 module SUCCESS, log ghi **224** bài hydro — mà `surefire-reports` của hydro chỉ còn **1** tệp, vì lượt `-Dtest=…` của tôi `rm -rf` đúng thư mục ấy giữa chừng. Hai build ghi chung một cây `target` thì cái xanh ⛔ không còn nói được **nó xanh vì cái gì** (luật 32) | T52.12 |
 
 ⛔ Hệ quả rút ra: **"đã tick" không phải bằng chứng.** Trước khi mở một giai đoạn mới, đối chiếu với mã thật và chạy đường mà người dùng thật đi.
 
@@ -280,6 +293,15 @@ tracking, 0 phép kiểm đỏ · mã lỗi **107** (đếm độc lập hai ph�
 ⚠ **Đỉnh migration ⛔ không phải tệp cuối theo thứ tự chữ cái**: `ls | tail -1` cho
 `V202608271035__ops_…` vì nó sắp theo TÊN. Đỉnh thật phải sắp theo **số hiệu**, và đó chính là
 khoảng cách giữa *"trông đúng"* và *"đúng"* mà §10.66 đã trả giá hai lượt CD.
+
+⭐⭐ **Đo lại 10/09/2026 sau WS-52 — `make ci-local` 10/10 thoát 0, lượt chạy CHẠY MỘT MÌNH**
+(⚠ số ở **MÁY**; quét CVE và đóng gói image ⛔ vẫn chỉ sống trên runner): **1716 testcase BE**
+(1710 + **6** bài mới) · **0 đỏ** · **221 báo cáo surefire** · **70 migration** (⛔ không thêm tệp
+nào — bản vá là **mã**, ⛔ không phải dữ liệu) · **1045 dòng** sổ tracking, 0 phép kiểm đỏ.
+⛔⛔ **Và con số 1505/199 của lượt `ci-local` TRƯỚC đó ⛔ không được dùng**: tôi chạy một lượt
+`./mvnw -Dtest=…` **song song**, nó `rm -rf` đúng `hydro/target/surefire-reports` giữa chừng. Lượt
+ấy vẫn thoát **0** và in 7/7 SUCCESS. ⇒ **Mọi lượt `make ci-local` phải là tiến trình maven DUY
+NHẤT trên cây này** — nếu không thì cái xanh ⛔ không còn nói được nó xanh vì cái gì (luật 32).
 
 ⛔⛔ **Và lượt ấy vẫn đỏ trên CI, vì một lý do `make ci-local` ⛔ KHÔNG dựng lại được**: surefire xếp lớp theo **thứ tự hệ tệp**, macOS ngược Linux. Một lớp `PUT` thiếu trường đã xoá trắng dữ liệu G8 của lớp chạy sau — ở máy thì lớp bị hại chạy TRƯỚC nên xanh (§11.19). ⇒ **`make ci-order`** (thêm 09/09) chạy lại bộ kiểm ở một thứ tự lớp KHÁC. ⛔ Nó ⛔ không phải thứ tự thật của runner (ext4 xếp theo hash) — chỉ cần *khác* là đủ để lộ phụ thuộc thứ tự mà một lượt chạy đơn độc giấu đi.
 

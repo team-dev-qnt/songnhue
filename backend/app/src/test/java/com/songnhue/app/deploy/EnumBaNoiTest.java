@@ -19,6 +19,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import com.songnhue.core.domain.backup.BackupTrigger;
+import com.songnhue.hr.domain.ContractType;
+import com.songnhue.hr.domain.EmploymentStatus;
+import com.songnhue.hr.domain.Gender;
+import com.songnhue.hr.domain.MaritalStatus;
 import com.songnhue.operations.domain.ConstructionPurpose;
 import com.songnhue.operations.domain.ConstructionType;
 import com.songnhue.operations.domain.LifecycleState;
@@ -54,8 +58,8 @@ import com.songnhue.operations.domain.OperationalStatus;
  *
  * <h2>⚠ Phạm vi tự khai (luật 28)</h2>
  *
- * Bài này soi <b>đúng năm enum của hồ sơ công trình</b> đã liệt kê ở {@link #BO_BA}. Nó
- * <b>không</b> phủ:
+ * Bài này soi <b>đúng mười enum</b> đã liệt kê ở {@link #BO_BA}: năm của hồ sơ công trình,
+ * {@code BackupTrigger}, và <b>bốn của HRM</b> (T51.10a, thêm 10/09/2026). Nó <b>không</b> phủ:
  *
  * <ul>
  *   <li>{@code sluice_specs.sluice_type} và {@code gate_operation} — CSDL có {@code CHECK} liệt kê
@@ -63,6 +67,19 @@ import com.songnhue.operations.domain.OperationalStatus;
  *       đối chiếu. Gõ "Hộp" hay "van phẳng" vẫn cho ra <b>500</b>. Nợ để mở, không im lặng bỏ qua.
  *   <li>enum của các module khác ({@code cms}, {@code hyd}, {@code adm}).
  * </ul>
+ *
+ * <h2>⬜ Nợ CÓ SỐ ĐO — vì sao danh sách vẫn gõ tay (T51.10a, phần còn lại)</h2>
+ *
+ * <p>Đo 10/09/2026 trên toàn chuỗi migration: <b>39</b> ràng buộc {@code CHECK … IN (…)} <b>có tên</b>
+ * tồn tại; bảng này canh <b>10</b>. Con số 29 còn lại <b>không</b> phải 29 lỗ hổng — phần lớn là enum
+ * chỉ sống ở backend ({@code ck_jobs_status}, {@code ck_audit_logs_action}…) và ⛔ không có nơi thứ hai
+ * để mà lệch.
+ *
+ * <p>⇒ Bánh cóc đúng <b>không</b> phải "mọi CHECK phải có mặt ở đây", mà là <i>"mọi enum có
+ * <b>CẢ</b> một union TS <b>VÀ</b> một CHECK thì phải có mặt"</i> — nó đo đúng cái rủi ro (ba nơi
+ * mới lệch được). Chưa dựng vì nó cần một bộ dò union TS trên <b>cả cây</b> {@code frontend/}, và
+ * một bộ dò sai sẽ <b>đỏ oan</b> hàng loạt hoặc tệ hơn là im lặng — xem T46.7, nơi một bộ đếm nhầm
+ * chú thích là lời gọi làm bộ canh xanh trong đúng tình huống nó sinh ra để bắt.
  */
 class EnumBaNoiTest {
 
@@ -72,7 +89,35 @@ class EnumBaNoiTest {
      * @param tenTuVung tên hằng {@code StatusVocabulary} ở {@code statusVocabulary.ts}, hoặc
      *     {@code null} khi enum ấy chưa được canh ở nơi thứ tư — xem phạm vi ở javadoc lớp.
      */
-    private record BoBa(Class<? extends Enum<?>> enumJava, String tenKieuTs, String tenRangBuoc, String tenTuVung) {}
+    private static final Path API_TYPES = gocKho().resolve("frontend/admin-app/src/shared/api-types.ts");
+
+    /**
+     * ⭐ <b>T51.10(a)</b> — union TypeScript ⛔ không bắt buộc phải sống ở {@code api-types.ts}.
+     *
+     * <p>Bốn enum HR khai union ngay cạnh <b>nhãn tiếng Việt</b> của chúng trong
+     * {@code features/hr/hrVocabulary.ts}, và đó là một thiết kế <b>tốt hơn</b>: giá trị và nhãn của
+     * nó nằm cùng một tệp nên ⛔ không lệch được. Bản trước của bài này đọc <b>đúng một</b> tệp, nên
+     * cách khai ấy làm cả bốn enum <b>vô hình</b> — bộ canh xanh, mà nó ⛔ không soi gì cả.
+     *
+     * <p>⇒ Nơi khai TS là <b>một thuộc tính của từng dòng</b>, ⛔ không phải một hằng của cả lớp.
+     */
+    private static final Path HR_TU_VUNG = gocKho().resolve("frontend/admin-app/src/features/hr/hrVocabulary.ts");
+
+    /**
+     * Một dòng = một danh sách giá trị phải khớp ở cả ba nơi.
+     *
+     * @param tenTuVung tên hằng {@code StatusVocabulary} ở {@code statusVocabulary.ts}, hoặc
+     *     {@code null} khi enum ấy chưa được canh ở nơi thứ tư — xem phạm vi ở javadoc lớp.
+     * @param tepTs tệp khai union TypeScript của enum này
+     */
+    private record BoBa(
+            Class<? extends Enum<?>> enumJava, String tenKieuTs, String tenRangBuoc, String tenTuVung, Path tepTs) {
+
+        /** Dạng gọn cho enum khai union ở {@code api-types.ts} — chỗ mặc định. */
+        BoBa(Class<? extends Enum<?>> enumJava, String tenKieuTs, String tenRangBuoc, String tenTuVung) {
+            this(enumJava, tenKieuTs, tenRangBuoc, tenTuVung, API_TYPES);
+        }
+    }
 
     private static final List<BoBa> BO_BA = List.of(
             new BoBa(ConstructionType.class, "ConstructionType", "ck_constructions_type", null),
@@ -81,9 +126,12 @@ class EnumBaNoiTest {
             new BoBa(LifecycleState.class, "LifecycleState", "ck_constructions_lifecycle", null),
             new BoBa(OperationalStatus.class, "OperationalStatus", "ck_constructions_operational_status", null),
             // T11.34 — enum đầu tiên ngoài hồ sơ công trình, và enum đầu tiên canh đủ BỐN nơi.
-            new BoBa(BackupTrigger.class, "BackupTrigger", "ck_system_backups_trigger", "BACKUP_TRIGGER"));
-
-    private static final Path API_TYPES = gocKho().resolve("frontend/admin-app/src/shared/api-types.ts");
+            new BoBa(BackupTrigger.class, "BackupTrigger", "ck_system_backups_trigger", "BACKUP_TRIGGER"),
+            // ⭐ T51.10(a) — bốn enum HRM (WS-51). Trước dòng này chúng ⛔ không được nơi nào đối chiếu.
+            new BoBa(Gender.class, "Gender", "ck_employees_gender", null, HR_TU_VUNG),
+            new BoBa(MaritalStatus.class, "MaritalStatus", "ck_employees_marital", null, HR_TU_VUNG),
+            new BoBa(ContractType.class, "ContractType", "ck_employees_contract_type", null, HR_TU_VUNG),
+            new BoBa(EmploymentStatus.class, "EmploymentStatus", "ck_employees_status", null, HR_TU_VUNG));
 
     private static final Path TU_VUNG =
             gocKho().resolve("frontend/admin-app/src/components/business/statusVocabulary.ts");
@@ -109,12 +157,12 @@ class EnumBaNoiTest {
     @Test
     @DisplayName("⭐⭐ Enum Java ↔ union TypeScript ↔ CHECK của CSDL — ba nơi cùng một bộ giá trị")
     void baNoiCungMotBoGiaTri() throws IOException {
-        String ts = Files.readString(API_TYPES, StandardCharsets.UTF_8);
         List<Path> migration = moiMigration();
 
         for (BoBa bo : BO_BA) {
             Set<String> java = giaTriJava(bo.enumJava());
-            Set<String> typescript = giaTriTypeScript(ts, bo.tenKieuTs());
+            Set<String> typescript =
+                    giaTriTypeScript(Files.readString(bo.tepTs(), StandardCharsets.UTF_8), bo.tenKieuTs());
             Set<String> csdl = giaTriCsdlMoiNoi(migration, bo.tenRangBuoc());
 
             assertThat(typescript)
@@ -146,12 +194,16 @@ class EnumBaNoiTest {
         // Luật 7: một khẳng định chạy qua tập rỗng vẫn xanh trọn vẹn. Nếu ai đó đổi cách khai union
         // hay đổi tên ràng buộc, hai bộ đọc văn bản trả về rỗng — bài trên sẽ đỏ vì lệch với Java,
         // nhưng bài này nói thẳng nguyên nhân thay vì bắt người đọc tự suy.
-        String ts = Files.readString(API_TYPES, StandardCharsets.UTF_8);
         List<Path> migration = moiMigration();
 
         assertThat(BO_BA)
                 .as("bảng đối chiếu rỗng thì bài trên không khẳng định gì")
-                .hasSize(6);
+                .hasSize(10);
+        assertThat(BO_BA.stream().map(BoBa::tepTs).distinct().toList())
+                .as("⭐ T51.10(a): phải có ÍT NHẤT hai tệp TS trong bảng. Thiếu vế này thì một lượt "
+                        + "'dọn dẹp' gộp tất cả về api-types.ts sẽ làm bốn enum HR về rỗng — và bài "
+                        + "trên đỏ vì lý do SAI (lệch enum) thay vì nói ra rằng nơi khai đã đổi")
+                .hasSizeGreaterThanOrEqualTo(2);
         assertThat(migration)
                 .as("bộ đọc migration không thấy tệp nào — đường dẫn đổi? Nó sẽ khiến MỌI bộ giá trị "
                         + "CSDL về rỗng, và bài trên đỏ vì lý do sai")
@@ -161,8 +213,8 @@ class EnumBaNoiTest {
             assertThat(giaTriJava(bo.enumJava()))
                     .as("enum %s không có hằng nào", bo.tenKieuTs())
                     .isNotEmpty();
-            assertThat(giaTriTypeScript(ts, bo.tenKieuTs()))
-                    .as("không bóc được giá trị nào của `%s` từ %s — union đổi cách khai?", bo.tenKieuTs(), API_TYPES)
+            assertThat(giaTriTypeScript(Files.readString(bo.tepTs(), StandardCharsets.UTF_8), bo.tenKieuTs()))
+                    .as("không bóc được giá trị nào của `%s` từ %s — union đổi cách khai?", bo.tenKieuTs(), bo.tepTs())
                     .isNotEmpty();
             assertThat(giaTriCsdlMoiNoi(migration, bo.tenRangBuoc()))
                     .as(
