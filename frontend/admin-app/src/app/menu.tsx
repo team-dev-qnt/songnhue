@@ -5,6 +5,7 @@ import {
   AuditOutlined,
   BellOutlined,
   CloudServerOutlined,
+  ContactsOutlined,
   DashboardOutlined,
   HeartOutlined,
   ExperimentOutlined,
@@ -275,6 +276,16 @@ export const MENU: readonly MenuNode[] = [
         icon: <IdcardOutlined />,
         path: '/nhan-su/ho-so',
         permissions: ['hr:employee:view'],
+      },
+      {
+        // ⚠ Quyền ở đây là `hr:directory:view` — 11/12 vai trò có nó, trong khi `hr:employee:view`
+        //   chỉ 3. Gộp hai mục về một quyền là hỏng theo CẢ HAI chiều: gác chặt thì cả Công ty mất
+        //   danh bạ, gác lỏng thì hồ sơ nhân sự lộ cho mọi người (CN-04.6 vs CN-04.7).
+        key: 'danh-ba',
+        label: 'Danh bạ nội bộ',
+        icon: <ContactsOutlined />,
+        path: '/nhan-su/danh-ba',
+        permissions: ['hr:directory:view'],
       },
       {
         key: 'chuc-vu',

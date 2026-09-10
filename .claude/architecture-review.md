@@ -6519,3 +6519,75 @@ khẳng định đường thường ĐÚNG LÀ trả 403.
   qua hàm dựng chuẩn của `record` nhưng ⛔ không bỏ qua một hàm dựng viết tay ⇒ nó bắt **đúng thứ
   nó sinh ra để canh**. Sửa đủ 20 nơi thì cái giá đã khai ra (*"một nơi gọi production mới quên
   trường này nhận `null` trong im lặng"*) biến mất theo.
+
+---
+
+### §11.22 — Hai màn hình đọc CÙNG một bảng với hai luật ngược nhau (CN-04.6 vs CN-04.7, 10/9/2026)
+
+**Bối cảnh.** `employees` phục vụ hai màn hình có yêu cầu **đối nghịch**:
+
+| | Hồ sơ CBNV (CN-04.7 / M4.13) | Danh bạ nội bộ (CN-04.6 / M4.11) |
+|---|---|---|
+| Quyền | `hr:employee:view` — **3/12** vai trò | `hr:directory:view` — **11/12** vai trò |
+| Phạm vi đơn vị | **Cắt**; ra ngoài ⇒ `AUTH-3002` + `security_events` | ⛔ **Toàn Công ty** |
+| Trường ra API | 27 + cờ 🔒 | **9** trường liên hệ công vụ |
+
+Gán phạm vi cho danh bạ là làm nó vô dụng (⛔ không gọi được sang Xí nghiệp khác — mà đó là toàn bộ
+lý do một cuốn danh bạ tồn tại). Bỏ phạm vi ở hồ sơ là vỡ M4.13. **⛔ Không có một luật chung nào
+đúng cho cả hai.**
+
+#### ⛔⛔ Vì sao SQL viết tay, và vì sao đó là quyết định BẢO MẬT
+
+`ScopeFilterAspect` bật `@Filter` phạm vi **quanh mọi** `@Transactional`, nên **mọi** truy vấn JPA
+trên `Employee` đều bị cắt. Ba đường đi tới một danh bạ toàn Công ty, và hai đường đầu đều sai:
+
+1. ⛔ **`session.disableFilter(…)` trong service.** Nó tắt cơ chế bảo vệ phạm vi cho **cả giao
+   dịch**. Javadoc của `ScopeGuard` đã ghi chính xác cái giá: *"bỏ sót bước bật lại là mọi truy vấn
+   còn lại chạy ⛔ không có lọc phạm vi — lớp sinh ra để bảo vệ phạm vi trở thành cái chọc thủng
+   nó, và ⛔ không có lỗi nào báo ra"*. Thêm một nơi gọi thứ hai là nhân đôi rủi ro ấy.
+2. ⛔ **DTO projection bằng JPQL.** Vẫn đi qua entity ⇒ vẫn bị `@Filter` cắt. Nó **trông** như một
+   đường khác nhưng ⛔ không phải.
+3. ⭐ **JDBC thuần.** Đi một đường **⛔ không có** cơ chế ấy, thay vì tắt cơ chế ấy đi.
+
+Đường thứ ba mua thêm một tính chất quan trọng hơn: **danh sách cột viết bằng tay**. Một trường mới
+thêm vào `Employee` ⛔ **không** tự chảy ra danh bạ. Với `SELECT e` thì điều ngược lại đúng — lớp
+phòng thủ duy nhất là người dựng DTO **nhớ** ⛔ không lấy, đúng thứ quy tắc 5 cấm.
+
+> **Cái giá phải khai ra:** mất kiểm tra kiểu lúc biên dịch. Bù bằng **hai** bộ canh hỏi **hai** câu
+> khác nhau — `DanhBaKhongLoDuLieuCaNhanTest` đọc `getRecordComponents()` (*hợp đồng của kiểu*) và
+> `DanhBaHttpTest.thanJsonKhongLoDuLieuCaNhan` đo trên **byte đi ra dây** (*thứ thật sự đi ra*).
+
+#### Ba chỗ dễ đọc sai đặc tả, cả ba đều sai IM LẶNG
+
+- **"chỉ NV 'Đang làm'"** ⛔ **không** phải `status = 'DANG_LAM'`. Sáu trạng thái tồn tại; câu ấy
+  đối lập với **đã nghỉ**, ⛔ không đối lập với thử việc / thai sản / nghỉ ⛔ không lương. Đọc sai ⇒
+  người nghỉ thai sản biến khỏi danh bạ, một quyết định nhân sự ⛔ **không ai duyệt**, và triệu
+  chứng là một danh bạ **thiếu người** mà ⛔ không ai đếm được.
+- **Lọc đơn vị** phải khớp **cả nhánh con**. Khớp đúng `org_unit_id` ⇒ chọn một Xí nghiệp ra **một
+  người** (ông trưởng đơn vị) rồi người dùng tin rằng đơn vị ấy có một người. Một câu trả lời **sai
+  mà im lặng** nguy hiểm hơn một lỗi.
+- **"Đồng nghiệp cùng đơn vị"** thì **ngược lại** — khớp **đúng** `org_unit_id`, vì câu ấy nghĩa là
+  *người ngồi cùng phòng*, ⛔ không phải toàn bộ Xí nghiệp. ⇒ **Hai câu hỏi khác nhau thì hai phép
+  so khác nhau**, và cùng một từ *"đơn vị"* xuất hiện ở cả hai.
+
+#### ⛔ Một ô ⛔ không có nguồn: thà để trống còn hơn lấy đại
+
+Đặc tả vẽ thẻ danh bạ có **ảnh**. Đo: `employees` ⛔ không có cột ảnh nào, và `HoSoThuMuc.ANH` là
+*"ảnh trong hồ sơ nhân sự"* — có thể là bản chụp giấy tờ. Lấy đại một tệp trong đó đem hiện cho 200
+người là một quyết định **⛔ không ai duyệt**.
+
+⛔⛔ Bản nháp đầu của `DanhBaMuc` **có** ô `anhDaiDienId` kèm chú thích *"LUÔN null hôm nay"*. Đó
+đúng thứ **luật 15** cấm: một trường bày ra giao diện một lời hứa ⛔ không có nguồn, và nó sẽ được
+ai đó "nối cho xong" bằng nguồn gần nhất trong tầm tay. ⇒ Gỡ hẳn. Nợ T55.4 kèm hai phương án, cả
+hai đều cần **một câu trả lời của người**.
+
+#### Một luật chuẩn hoá văn bản sống ở hai nơi ⛔ không dùng chung mã được
+
+`sn_khong_dau(text)` (PL/pgSQL) quyết định **ai được tìm thấy**; `boDau()` (TypeScript) quyết định
+**phần nào được tô sáng**. Lệch nhau ⇒ backend trả **đúng người**, màn hình **⛔ không tô gì**, và
+người dùng đọc thành *"hệ thống tìm sai"*.
+
+⛔ Chỗ lệch cụ thể: `đ`/`Đ` ⛔ **không** phải `d` + dấu tổ hợp mà là ký tự Unicode độc lập, nên
+`NFD` một mình ⛔ không tách được — trong khi `unaccent` của Postgres **có**. Đây là luật 14 ở dạng
+⛔ không gỡ được bằng mã (⛔ không có cách nào chạy `unaccent` trong `vitest`) ⇒ bù bằng
+`toSang.test.tsx` ghim đúng những cặp tiếng Việt dùng hằng ngày.

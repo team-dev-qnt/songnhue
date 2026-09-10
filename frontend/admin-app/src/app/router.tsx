@@ -310,6 +310,11 @@ export const router = createBrowserRouter([
             lazyPage(() => import('@/features/hr/EmployeesPage'), 'EmployeesPage'),
           ),
           adminRoute(
+            '/nhan-su/danh-ba',
+            'hr:directory:view',
+            lazyPage(() => import('@/features/hr/DanhBaPage'), 'DanhBaPage'),
+          ),
+          adminRoute(
             '/nhan-su/chuc-vu',
             'hr:employee:view',
             lazyPage(() => import('@/features/hr/PositionsPage'), 'PositionsPage'),

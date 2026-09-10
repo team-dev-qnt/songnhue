@@ -508,3 +508,43 @@ export interface CanhBaoHetHanView {
   hopDong: MucCanhBao[];
   chungChi: MucCanhBao[];
 }
+
+// ============================================================================
+// Danh bạ nội bộ — CN-04.6
+// ============================================================================
+
+/**
+ * `HoSoConDtos.DanhBaView` — **chỉ liên hệ công vụ**.
+ *
+ * ⛔⛔ Backend gác đường này bằng `hr:directory:view` (11/12 vai trò) và cố ý **⛔ không** cắt theo
+ * phạm vi đơn vị. Nên interface này ⛔ **không được** mọc thêm ngày sinh, địa chỉ nhà, email cá
+ * nhân hay liên hệ khẩn cấp — thêm một trường ở đây là mô tả một API **công bố cho toàn Công ty**.
+ * Phía backend có `DanhBaKhongLoDuLieuCaNhanTest` đọc `getRecordComponents()` để chặn.
+ */
+export interface DanhBaView {
+  publicId: string;
+  code: string;
+  fullName: string;
+  gender: Gender | null;
+  phone: string | null;
+  workEmail: string | null;
+  jobTitle: string | null;
+  positionName: string | null;
+  orgUnitId: string;
+  orgUnitName: string;
+}
+
+/** `tong` là tổng số người khớp bộ lọc — ⛔ KHÔNG suy được từ `muc.length` (đó chỉ là một trang). */
+export interface DanhBaTrangView {
+  muc: DanhBaView[];
+  tong: number;
+  trang: number;
+  co: number;
+}
+
+/** `duongDanDonVi` = từ gốc xuống đơn vị của người này — *"vị trí trên sơ đồ"* đặc tả đòi. */
+export interface DanhBaChiTietView {
+  muc: DanhBaView;
+  duongDanDonVi: string[];
+  dongNghiep: DanhBaView[];
+}

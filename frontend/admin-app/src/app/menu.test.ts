@@ -167,6 +167,37 @@ describe('nhóm Nhân sự hiện theo đúng quyền của từng màn hình �
 });
 
 /**
+ * ⛔⛔ Danh bạ (CN-04.6) và Hồ sơ CBNV (CN-04.7) gác bằng HAI quyền khác nhau — WS-55.
+ *
+ * Đo trên ma trận seed: `hr:directory:view` cấp cho **11/12** vai trò (gồm VIEWER, CLERK,
+ * XN_OPERATOR — những người ⛔ không có một quyền `hr:employee:*` nào), còn `hr:employee:view`
+ * chỉ 3. Gộp hai mục về một quyền là hỏng theo **cả hai** chiều: gác chặt thì cả Công ty mất danh
+ * bạ, gác lỏng thì hồ sơ nhân sự lộ cho mọi người.
+ */
+describe('Danh bạ nội bộ gác bằng hr:directory:view, ⛔ không phải hr:employee:view — CN-04.6', () => {
+  it('⭐ người CHỈ có hr:directory:view thấy Danh bạ và ⛔ không thấy gì khác của nhóm Nhân sự', () => {
+    const visible = leafLabels(visibleMenu(MENU, checker('hr:directory:view')));
+
+    expect(visible).toContain('Danh bạ nội bộ');
+    expect(visible).not.toContain('Hồ sơ cán bộ');
+    expect(visible).not.toContain('Danh mục chức vụ');
+  });
+
+  it('⛔ người chỉ có hr:employee:view ⛔ KHÔNG thấy Danh bạ — vế phân biệt', () => {
+    // Thiếu vế này thì bài trên xanh cả khi ai đó gác danh bạ bằng `hr:employee:view` "cho gọn",
+    // và cả Công ty mất danh bạ mà menu vẫn trông đúng với người đi rà.
+    const visible = leafLabels(visibleMenu(MENU, checker('hr:employee:view')));
+
+    expect(visible).not.toContain('Danh bạ nội bộ');
+    expect(visible).toContain('Hồ sơ cán bộ');
+  });
+
+  it('đường dẫn tô sáng đúng mục', () => {
+    expect(findMenuKey(MENU, '/nhan-su/danh-ba')).toBe('danh-ba');
+  });
+});
+
+/**
  * ⛔⛔ "Hồ sơ của tôi" gác bằng **LIÊN KẾT**, ⛔ không bằng quyền — T51.8, CN-04.7 vế hai.
  *
  * Vế *"chính nhân viên đó"* ⛔ không biểu diễn được bằng một mã quyền: quyền gán theo **vai trò**,

@@ -280,6 +280,11 @@ sai, sửa 10/09 — T52.8). Đo trên CSDL staging cùng ngày: `constructions`
 | 10/9 | ⛔⛔⛔ **Trường "Học vấn" của WS-53 có TÁM mảnh mà ⛔ KHÔNG một đường vào lẫn đường ra** — cột `education_level`, `CHECK` 9 giá trị, chỉ mục, enum `EducationLevel` kèm `bac()`, trường trên `Employee`, nhãn `HOC_VAN`, `HOC_VAN_OPTIONS`, **và một dòng trong `EnumBaNoiTest`**. Cả tám khai một giá trị **⛔ không ai nhập được**: 0 trong `EmployeeRequest`, 0 trong `EmployeeDetail`, 0 ô trên biểu mẫu. ⛔⛔ Nặng thêm vì **bộ canh enum làm nó TRÔNG như đã nối** — nó khẳng định Java ↔ SQL ↔ TS khớp nhau, tức ba lời khai đồng thuận về một thứ chết. Một bộ canh trả lời đúng câu nó hỏi, mà câu ấy ⛔ không phải *"trường này dùng được chưa"*. Luật 27 ở cỡ lớn nhất, do **chính tôi** tạo ra một ngày trước | T54.1 |
 | 10/9 | ⛔⛔ **Dòng loại trừ ADMIN khỏi trường 🔒 đã là MỘT TỜ GIẤY từ trước — đo được, ⛔ không suy đoán.** ADMIN nhận toàn bộ danh mục quyền TRỪ `hr:employee:view-sensitive` ⇒ ADMIN **có** `adm:role:manage`; vai trò `ADMIN` khai `is_system = FALSE` ⇒ `ADM-2014` ⛔ không chặn; ⛔ không đoạn mã nào cấm gán một mã quyền cụ thể. ⇒ **Ba cú bấm là tự cấp lại đúng quyền mà đặc tả loại trừ.** Đường thứ hai: `adm:user:assign-role` ⇒ tự gán vai trò `ADMIN_HR`. Lỗ **có sẵn**, ⛔ không do WS-54 mở — nên T54.2 mới hẹp: nó bảo đảm *đường MỚI ⛔ không rộng thêm*, ⛔ không bảo đảm *ADMIN ⛔ không đọc được* | T54.4 |
 | 10/9 | ⛔ **`405` bị `GlobalExceptionHandler` gộp về `400`, nên khẳng định *"⛔ không có động từ ghi"* qua HTTP là khẳng định RỖNG** — một `@PutMapping` **có thật** mà từ chối thân yêu cầu cũng trả 400 ⇒ bài xanh ở **cả hai** trạng thái (luật 9). Vế phân biệt phải là **cấu trúc**: `getDeclaredMethods()` ⛔ không mang `@Put/@Post/@Patch/@DeleteMapping`, kèm đối chứng *"phải có đúng 1 `@GetMapping`"* | T54.7 |
+| 10/9 | ⛔⛔⛔ **Đọc *"chỉ NV 'Đang làm'"* thành `status = 'DANG_LAM'` là XOÁ người nghỉ thai sản khỏi danh bạ.** Sáu trạng thái, và câu của đặc tả đối lập với **đã nghỉ**, ⛔ không đối lập với thử việc / thai sản / nghỉ ⛔ không lương. Loại họ ra là một quyết định nhân sự ⛔ KHÔNG AI duyệt, và triệu chứng là một danh bạ **thiếu người** mà ⛔ không ai đếm. ⇒ Vị từ suy từ `EmploymentStatus.daNghi()`. ⚠ Còn **một bản chép ⛔ không tham chiếu được**: JPQL của `hopDongSapHetHan` phải viết literal vì JPQL ⛔ không gọi được phương thức Java — luật 14 ở dạng ⛔ không gỡ được bằng mã | T55.2 |
+| 10/9 | ⭐⭐ **Lọc đơn vị khớp đúng `org_unit_id` cho một câu trả lời SAI mà IM LẶNG** — chọn *Xí nghiệp A* ra **1 người** (ông trưởng đơn vị) rồi người dùng tin rằng đơn vị ấy có một người. ⇒ So theo materialized path. ⚠ Và *"đồng nghiệp cùng đơn vị"* thì **ngược lại** — khớp **đúng** `org_unit_id`, vì câu ấy nghĩa là *người ngồi cùng phòng*. **Hai câu hỏi khác nhau thì hai phép so khác nhau** | T55.3 |
+| 10/9 | ⛔ **Một trường LUÔN `null` bày ra giao diện một lời hứa ⛔ không có nguồn.** Bản nháp `DanhBaMuc` có ô `anhDaiDienId` kèm chú thích *"LUÔN null hôm nay"* — đúng thứ luật 15 cấm. Đo: `employees` ⛔ không có cột ảnh, và `HoSoThuMuc.ANH` là *"ảnh trong hồ sơ"* (có thể là bản chụp giấy tờ), ⛔ không phải ảnh chân dung để công bố cho 200 người. ⇒ Gỡ hẳn, thẻ hiện chữ cái đầu, nợ T55.4 kèm hai phương án | T55.4 |
+| 10/9 | ⭐⭐ **`RbacMatrixTest` bắt tôi ở lượt chạy TOÀN BỘ — lần thứ TÁM một bộ canh bắt chính người vừa viết mã.** `hr:directory:view` nằm trong danh sách **miễn kiểm** kèm ghi chú *"Danh bạ — Phase 3 (CN-04.6)"*; dựng xong CN-04.6 thì dòng ấy hết lý do tồn tại và bài đỏ đúng câu nó sinh ra để nói. ⚠⚠ **Chỉ lộ ở lượt chạy TOÀN BỘ**: bốn lượt `-Dtest=DanhBa*` trước đó xanh trọn vẹn, vì một bộ canh **kiểm kê cả kho** ⛔ không có cách nào lọt vào một lượt chạy nhắm mục tiêu ⇒ nhắm mục tiêu để đi nhanh thì được, nhưng ⛔ không được đọc cái xanh ấy thành *"xong"* | T55.9 |
+| 10/9 | ⚠ **ESLint bắt thứ `tsc` và `vitest` đều ⛔ không thấy** — một tệp vừa export component vừa export hàm (`react-refresh/only-export-components`, `--max-warnings 0`). Tám bài kiểm xanh trọn vẹn, typecheck sạch, cổng `[4/10]` đỏ. **Ba cổng, ba câu hỏi khác nhau** — §10.70 lần thứ ba | T55.8 |
 | 10/9 | ⭐⭐ **Bộ canh phân trang ĐỎ GIẢ trên một CHÚ THÍCH — lần thứ TƯ cùng hình dạng, và nó phạt đúng người viết tài liệu tử tế.** Nó bắt đúng `api.get<PageResult<…>>` trong mã tôi vừa viết (⭐ đúng: ô chọn sẽ **RỖNG vĩnh viễn**, ⛔ không một dòng lỗi). Vá xong, tôi viết chú thích giải thích vì sao ⛔ không được dùng dạng ấy — bộ canh khớp chuỗi **trong chú thích** rồi báo đúng tệp vừa làm đúng. ⛔ Sửa chú thích cho hết đỏ là **xoá bài học mà vẫn để bộ canh thủng** ⇒ quét trên `boChuThich(ma)`, kèm 3 bài tự-kiểm (vế cuối: mẫu nằm trong **chuỗi ký tự** vẫn phải bị bắt) | T54.8 |
 
 ⛔ Hệ quả rút ra: **"đã tick" không phải bằng chứng.** Trước khi mở một giai đoạn mới, đối chiếu với mã thật và chạy đường mà người dùng thật đi.
@@ -322,7 +327,19 @@ nào — bản vá là **mã**, ⛔ không phải dữ liệu) · **1045 dòng**
 ấy vẫn thoát **0** và in 7/7 SUCCESS. ⇒ **Mọi lượt `make ci-local` phải là tiến trình maven DUY
 NHẤT trên cây này** — nếu không thì cái xanh ⛔ không còn nói được nó xanh vì cái gì (luật 32).
 
-⭐⭐ **Đo lại 10/09/2026 sau WS-54 (T51.8) — `make ci-local` 10/10 thoát 0 VÀ `make ci-order` thoát
+⭐⭐ **Đo lại 10/09/2026 sau WS-55 (CN-04.6 danh bạ) — `make ci-local` 10/10 thoát 0 VÀ
+`make ci-order` thoát 0**, lượt chạy là tiến trình maven DUY NHẤT (⚠ số ở **MÁY**): **1745
+testcase BE** (1734 + **11** bài của danh bạ: 8 HTTP + 3 cấu trúc) · **0 đỏ** · **225 báo cáo
+surefire** · FE **400** test admin-app / 47 tệp (+11: 8 bài `toSang` + 3 bài menu) + **392**
+public-web / 44 · **72 migration** (⛔ không thêm tệp nào — danh bạ là **mã**, ⛔ không phải dữ
+liệu) · mã lỗi **110**, ⛔ không đổi.
+⚠⚠ **BA lượt `ci-local` đỏ trước lượt xanh này, và ⛔ KHÔNG lượt nào là khuyết tật của tính năng**:
+Prettier (2 lượt — tôi sửa tệp frontend bằng script **sau khi** đã chạy Prettier) · ESLint
+`react-refresh/only-export-components` · và một lượt đỏ **thật sự đáng giá**: `RbacMatrixTest` bắt
+`hr:directory:view` vẫn nằm trong danh sách miễn kiểm sau khi nó có endpoint đầu tiên — thứ **bốn
+lượt `-Dtest=DanhBa*` trước đó ⛔ không thể thấy**.
+
+⭐ **Đo 10/09/2026 sau WS-54 (T51.8) — `make ci-local` 10/10 thoát 0 VÀ `make ci-order` thoát
 0**, lượt chạy là tiến trình maven DUY NHẤT (⚠ số ở **MÁY**; quét CVE và đóng gói image ⛔ vẫn chỉ
 sống trên runner): **1734 testcase BE** (1725 + **9** bài HTTP của T51.8) · **0 đỏ** · **223 báo
 cáo surefire** · FE **389** test admin-app / 46 tệp (+8: 5 bài menu *Hồ sơ của tôi* + 3 bài tự-kiểm

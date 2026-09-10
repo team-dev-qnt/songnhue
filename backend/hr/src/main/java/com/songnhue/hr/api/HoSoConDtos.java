@@ -227,4 +227,53 @@ public final class HoSoConDtos {
      * @param truongBaoMat giá trị 🔒 đã giải mã của chính mình
      */
     public record HoSoCuaToiView(HrDtos.EmployeeDetail hoSo, HrDtos.SensitiveView truongBaoMat) {}
+
+    // === Danh bạ nội bộ (CN-04.6) ============================================
+
+    /**
+     * Một người trên danh bạ — <b>chỉ liên hệ công vụ</b>.
+     *
+     * <p>⛔⛔ Record này ra ngoài cho <b>11/12 vai trò</b> và ⛔ <b>không</b> qua bộ lọc phạm vi đơn
+     * vị. Thêm một trường vào đây là <b>công bố nó cho toàn Công ty</b>. Bất biến ấy được canh bởi
+     * {@code DanhBaKhongLoDuLieuCaNhanTest} — nó đọc {@code getRecordComponents()} chứ ⛔ không đọc
+     * mã nguồn, cùng khuôn {@code HoSoNhanSuKhongLoTruongKinTest}.
+     */
+    public record DanhBaView(
+            UUID publicId,
+            String code,
+            String fullName,
+            String gender,
+            String phone,
+            String workEmail,
+            String jobTitle,
+            String positionName,
+            UUID orgUnitId,
+            String orgUnitName) {
+
+        static DanhBaView of(com.songnhue.hr.application.DanhBaMuc m) {
+            return new DanhBaView(
+                    m.publicId(),
+                    m.code(),
+                    m.fullName(),
+                    m.gender(),
+                    m.phone(),
+                    m.workEmail(),
+                    m.jobTitle(),
+                    m.positionName(),
+                    m.orgUnitId(),
+                    m.orgUnitName());
+        }
+    }
+
+    /**
+     * @param tong tổng số người khớp bộ lọc — giao diện cần nó để nói *"tìm thấy N người"*, và
+     *     ⛔ không suy được từ {@code muc.size()} vì đó chỉ là một trang
+     */
+    public record DanhBaTrangView(List<DanhBaView> muc, long tong, int trang, int co) {}
+
+    /**
+     * @param duongDanDonVi từ gốc xuống đơn vị của người này — *"vị trí trên sơ đồ"* mà đặc tả đòi.
+     *     Dựng từ {@code org_units.path}, nên nó có <b>trước</b> CN-04.1 và ⛔ không chờ ai
+     */
+    public record DanhBaChiTietView(DanhBaView muc, List<String> duongDanDonVi, List<DanhBaView> dongNghiep) {}
 }
