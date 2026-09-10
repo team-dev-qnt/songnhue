@@ -7,7 +7,8 @@ import { ColumnHeaderRow } from '@/components/home/ColumnHeaderRow';
 import { OperationStatusRows } from '@/components/home/OperationStatusRows';
 import { KhoaDangNhap } from '@/components/realtime/KhoaDangNhap';
 import { RealtimeFrame } from '@/components/realtime/RealtimeFrame';
-import { getOperationStatuses, getServerTime, getSiteConfig } from '@/lib/api';
+import { getOperationStatuses, getSiteConfig } from '@/lib/api';
+import { mocSoLieu } from '@/lib/mocSoLieu';
 import { COT_VAN_HANH } from '@/lib/homeDataColumns';
 import { khoiVanHanhBat } from '@/lib/khoiVanHanh';
 import { ROUTES } from '@/lib/routes';
@@ -62,18 +63,14 @@ export const metadata: Metadata = {
  * lượt thứ hai chỉ để hỏi một cờ; thêm một lượt gọi là thêm một điểm hỏng.
  */
 export default async function VanHanhCongTrinhPage() {
-  const [config, tinhHinhVanHanh, serverTime] = await Promise.all([
-    getSiteConfig(),
-    getOperationStatuses(),
-    getServerTime(),
-  ]);
+  const [config, vanHanh] = await Promise.all([getSiteConfig(), getOperationStatuses()]);
 
   if (!khoiVanHanhBat(config)) {
     notFound();
   }
 
   const nhipLamMoi = docSo(config?.['site.home.realtime.refresh-seconds'], 300);
-  const dong = tinhHinhVanHanh ?? [];
+  const dong = vanHanh?.dong ?? [];
 
   return (
     <PageShell
@@ -100,7 +97,9 @@ export default async function VanHanhCongTrinhPage() {
 
         <div className="p-5">
           <RealtimeFrame
-            updatedAt={serverTime}
+            /* ⛔⛔ T43.9 — trước đây là `serverTime` (`GET /public/now`): dòng "Cập nhật lúc"
+               nhảy số mới mỗi lượt F5 kể cả khi ⛔ không ai ghi bản ghi nào suốt nhiều ngày. */
+            updatedAt={mocSoLieu(vanHanh?.meta.capNhatLuc)}
             refreshSeconds={nhipLamMoi}
             unavailable={dong.length === 0}
             unavailableReason="Chưa công trình nào được ghi nhận tình hình vận hành — danh mục công trình tổng thể thuộc G8. Số liệu tự động của trạm bơm (§5.3) vẫn chờ API nguồn — OI-02."

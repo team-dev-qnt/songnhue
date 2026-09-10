@@ -330,6 +330,116 @@ public class ConstructionService {
         return "%s%03d".formatted(tienTo, lonNhat + 1);
     }
 
+    /**
+     * Cập nhật hồ sơ từ <b>tệp nhập hàng loạt</b> — <b>T47.14</b>, sửa khuyết tật xoá dữ liệu.
+     *
+     * <h2>⛔⛔ Vì sao ⛔ KHÔNG dùng {@link #update} cho đường nhập tệp</h2>
+     *
+     * <p>{@code update()} là phép <b>thay toàn phần</b>, và điều đó ĐÚNG cho biểu mẫu quản trị: màn
+     * hình ấy nạp và gửi lại đủ 24 trường, nên một ô người dùng xoá đi <i>là</i> một lệnh xoá.
+     *
+     * <p>Tệp nhập thì ⛔ <b>không</b> mang được cả hồ sơ. Đo 10/09/2026: tệp mẫu có <b>19 cột</b>
+     * (sinh từ chính danh mục bộ đọc dùng) trong khi {@code ConstructionForm} có <b>24</b> trường
+     * cấp 1 <b>cộng 26</b> ô thông số lồng. Năm trường và toàn bộ khối thông số ⛔ <b>không biểu
+     * diễn được</b> trong CSV, nên bộ đọc truyền {@code null} cho chúng — và {@code update()} đọc
+     * {@code null} ấy thành <i>"xoá đi"</i>:
+     *
+     * <ul>
+     *   <li>2 liên kết tài liệu công bố ra cổng (Quy trình vận hành · Phương án bảo vệ — đúng hai
+     *       cột CR-28 mà §10 văn bản nghiệm thu đòi) → NULL;
+     *   <li>toàn bộ thông số kỹ thuật (9 cột cống · 9 cột bơm · 8 cột tuyến) → NULL, qua
+     *       {@code apDungThongSo(ct, form)} với cả ba khối {@code null};
+     *   <li>mọi cột cấp 1 người nhập bỏ trống (tổng vốn, đơn vị thiết kế/thi công, mô tả, lưu vực,
+     *       <b>tuyến sông, lý trình</b>…) → NULL.
+     * </ul>
+     *
+     * <p>⛔⛔ Và ⛔ không một dòng log, ⛔ không một mã lỗi: màn hình báo <i>"nhập thành công N
+     * dòng"</i>. Đây ⛔ <b>không</b> phải rủi ro tương lai — {@code constructions} có <b>11 hồ sơ
+     * thật</b> từ {@code V202609091075}, và <b>tuyến sông/lý trình của chúng đến từ bản chụp G8 mà
+     * nguồn ⛔ KHÔNG có API lịch sử</b> ({@code V202609091073}). Mất là mất hẳn.
+     *
+     * <p>⚠ Nặng nhất: đường chạy thẳng vào nó chính là luồng đã hứa với Công ty ở T42.20 —
+     * <i>"ngày có bảng toạ độ thì tải tệp mẫu, điền, upload"</i>. Người nhập điền mỗi
+     * {@code ma_cong_trinh} + {@code vi_do} + {@code kinh_do} rồi tải lên sẽ <b>xoá trắng chính dữ
+     * liệu G8 vừa nhập tuần trước</b>.
+     *
+     * <h2>Quy ước: ô TRỐNG nghĩa là "⛔ không đổi"</h2>
+     *
+     * <p>⛔ ⛔ Không phải "xoá". Một bảng tính ⛔ không phân biệt được <i>ô để trống</i> với <i>ô cố
+     * ý xoá</i>, nên đọc ô trống thành lệnh xoá là biến một thao tác nhập liệu bình thường thành
+     * một lệnh xoá hàng loạt ⛔ không ai xác nhận. Muốn xoá một giá trị thì mở hồ sơ trên màn hình
+     * quản trị — ở đó thao tác ấy <b>nhìn thấy được</b> và chỉ chạm một hồ sơ.
+     *
+     * <p>⚠ Ngoại lệ có chủ đích: <b>đổi loại công trình</b>. Thông số của loại cũ vô nghĩa với loại
+     * mới, và giữ lại là dựng đúng "dòng mồ côi" mà javadoc của {@link #apDungThongSo} đã cảnh báo
+     * — báo cáo <i>"tổng công suất trạm bơm"</i> vẫn cộng vào một hồ sơ ⛔ không còn là trạm bơm.
+     */
+    @Transactional
+    public Construction capNhatTuTepNhap(UUID publicId, ConstructionForm form) {
+        Construction ct = trongPhamVi(publicId);
+        String code = chuanHoaMa(form.code());
+        if (constructions.existsByCodeAndDeletedAtIsNullAndIdNot(code, ct.getId())) {
+            throw new ConflictException(ErrorCode.OPS_2008, code);
+        }
+        kiemToaDo(form);
+        kiemLyTrinh(form.chainage());
+
+        ConstructionType loaiCu = ct.getConstructionType();
+
+        ct.setCode(code);
+        ct.setName(chuanHoaTen(form.name()));
+        ct.setConstructionType(form.constructionType());
+        ct.setOrgUnitId(donVi(form.orgUnitPublicId()).id());
+
+        // ⚠ 19 cột của tệp mẫu, và CHỈ 19 cột ấy. Mỗi dòng dưới đây đọc như "ghi đè khi tệp có
+        //   giá trị, giữ nguyên khi ô trống" — xem javadoc trên về vì sao ô trống ⛔ không phải lệnh xoá.
+        datNeuCo(form.purpose(), ct::setPurpose);
+        datNeuCo(form.managementLevel(), ct::setManagementLevel);
+        datNeuCo(cum(ct, form), ct::setClusterId);
+        datNeuCo(form.address(), ct::setAddress);
+        datNeuCo(form.riverName(), ct::setRiverName);
+        datNeuCo(form.chainage(), ct::setChainage);
+        datNeuCo(form.basinNote(), ct::setBasinNote);
+        datNeuCo(form.builtYear(), ct::setBuiltYear);
+        datNeuCo(form.commissionedYear(), ct::setCommissionedYear);
+        datNeuCo(form.designer(), ct::setDesigner);
+        datNeuCo(form.contractor(), ct::setContractor);
+        datNeuCo(form.totalInvestment(), ct::setTotalInvestment);
+        datNeuCo(form.description(), ct::setDescription);
+
+        // Toạ độ đi theo CẶP — `kiemToaDo()` ở trên đã ném `OPS-2010` nếu tệp chỉ mang một nửa,
+        // nên tới đây chỉ còn hai trạng thái: đủ cả hai, hoặc ⛔ không cái nào. ⇒ Một nhánh
+        // "lấy nửa kia từ giá trị đang có" sẽ là mã ⛔ không bao giờ chạy tới (luật 15).
+        if (form.latitude() != null) {
+            ct.datToaDo(form.latitude(), form.longitude());
+        }
+
+        // ⛔ ĐỔI LOẠI ⇒ dọn thông số của loại cũ (xem javadoc). Cùng loại ⇒ ⛔ KHÔNG đụng tới:
+        //   tệp nhập ⛔ không mang được khối thông số nào, nên nó ⛔ không có quyền nói gì về chúng.
+        if (loaiCu != form.constructionType()) {
+            ganThongSoBom(ct, null);
+            ganThongSoCong(ct, null);
+            ganThongSoTuyen(ct, null);
+        }
+
+        trangThai.recompute(ct);
+        // ⛔⛔ Đệm cổng — `DiemGhiXoaDemTest` bắt được đúng chỗ này ở lượt chạy ĐẦU của bản vá,
+        //    và đó là **lần thứ SÁU** cùng hình dạng (§10.70: *"T27.7 trả nợ ở ba điểm ghi, điểm
+        //    ghi thứ tư ra đời cùng đợt mang lại đúng lỗi cũ"*). Một đường ghi mới đổi tên, tuyến
+        //    sông, lý trình và toạ độ công trình — đúng thứ cổng công khai đang phục vụ — nên nó
+        //    PHẢI dọn đệm y như bốn điểm ghi anh em. ⭐ Bộ canh làm được việc mà năm lượt rà của
+        //    con người ⛔ không làm được: hỏi câu ấy **mỗi lần** có điểm ghi mới.
+        bienDongCongTrinh();
+        return ct;
+    }
+
+    /** Gán khi tệp nhập CÓ giá trị; {@code null} nghĩa là ô trống ⇒ giữ nguyên. */
+    private static <T> void datNeuCo(T giaTri, java.util.function.Consumer<T> dat) {
+        if (giaTri != null) {
+            dat.accept(giaTri);
+        }
+    }
+
     // === Nội bộ ==============================================================
 
     /** Gán các trường sửa được. Cố ý không đụng tới mã, tên, loại, đơn vị — nơi gọi đã xử lý. */

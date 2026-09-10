@@ -15,12 +15,12 @@ import {
   getPhotos,
   getMenu,
   getOperationStatuses,
-  getServerTime,
   getWaterLevelGrid,
   getSiteConfig,
   getSubsidiaries,
 } from '@/lib/api';
 import { chonKhoiChuyenMuc, nhanNhanhTin } from '@/lib/homeCategories';
+import { mocSoLieu } from '@/lib/mocSoLieu';
 import { khoiVanHanhBat } from '@/lib/khoiVanHanh';
 import { fileUrl, buildMenuTree } from '@/lib/routes';
 import { docBool, docSo } from '@/lib/settings';
@@ -106,29 +106,19 @@ export const revalidate = 300;
 const SO_BAI_TIN_TUC = 24;
 
 export default async function HomePage() {
-  const [
-    config,
-    banners,
-    photos,
-    headerMenu,
-    portalLinks,
-    subsidiaries,
-    tinhHinhVanHanh,
-    mucNuoc,
-    serverTime,
-  ] = await Promise.all([
-    getSiteConfig(),
-    getBanners(),
-    getPhotos(),
-    getMenu('HEADER'),
-    getMenu('LIEN_KET'),
-    getSubsidiaries(),
-    getOperationStatuses(),
-    // ⭐ T35.7 — số liệu mực nước thật. Nằm TRONG `Promise.all` vì khối của nó ở nửa trên trang
-    //   chủ: tách ra thành một lượt chờ nối tiếp là cộng thẳng vào TTFB (NFR-02, DOD1.17).
-    getWaterLevelGrid('PHUT', 1, true),
-    getServerTime(),
-  ]);
+  const [config, banners, photos, headerMenu, portalLinks, subsidiaries, vanHanh, mucNuoc] =
+    await Promise.all([
+      getSiteConfig(),
+      getBanners(),
+      getPhotos(),
+      getMenu('HEADER'),
+      getMenu('LIEN_KET'),
+      getSubsidiaries(),
+      getOperationStatuses(),
+      // ⭐ T35.7 — số liệu mực nước thật. Nằm TRONG `Promise.all` vì khối của nó ở nửa trên trang
+      //   chủ: tách ra thành một lượt chờ nối tiếp là cộng thẳng vào TTFB (NFR-02, DOD1.17).
+      getWaterLevelGrid('PHUT', 1, true),
+    ]);
 
   const hotline = config?.['company.hotline'] ?? '';
   const menuTree = buildMenuTree(headerMenu ?? []);
@@ -290,13 +280,16 @@ export default async function HomePage() {
               refreshSeconds={nhipLamMoi}
               /* ⛔ T43.9 — mốc lấy từ `meta.lanLayCuoi` của BACKEND (MAX synced_at, §5.1),
                  ⛔ không phải giờ máy chủ: nguồn chết ba ngày thì giờ máy chủ vẫn nhảy số mới. */
-              updatedAt={mucNuoc?.meta.lanLayCuoi ?? null}
+              updatedAt={mocSoLieu(mucNuoc?.meta.lanLayCuoi)}
               luoi={mucNuoc}
             />
             <OperationsBlock
               refreshSeconds={nhipLamMoi}
-              updatedAt={serverTime}
-              rows={tinhHinhVanHanh ?? []}
+              /* ⛔⛔ T43.9 — TRƯỚC ĐÂY ô này nhận `serverTime` (`GET /public/now`). Trực ban ba
+                 ngày ⛔ không ghi bản ghi nào thì dòng "Cập nhật lúc" vẫn nhảy số mới mỗi lượt
+                 F5. Nay là mốc ghi xuống THẬT của bản ghi mới nhất, tính ở backend. */
+              updatedAt={mocSoLieu(vanHanh?.meta.capNhatLuc)}
+              rows={vanHanh?.dong ?? []}
             />
           </div>
         </>

@@ -135,14 +135,61 @@ public class PublicOperationStatusService {
      *     (danh mục công trình thuộc <b>G8</b>) — cổng phải nói thẳng, ⛔ không dựng sẵn một lưới
      *     mười cống với dấu gạch cho có (§10.54, §10.61 mục 6)
      */
+    /**
+     * Mốc "Cập nhật lúc" của khối vận hành trên cổng — <b>T43.9</b>.
+     *
+     * @param capNhatLuc thời điểm bản ghi tình hình vận hành <b>mới nhất</b> được ghi xuống, tức
+     *     {@code MAX(COALESCE(updated_at, created_at))}. {@code null} ⇔ chưa có dòng nào.
+     *     <p>⛔⛔ Đây <b>KHÔNG</b> phải {@code Instant.now()}. Trước T43.9 cổng lấy mốc này từ
+     *     {@code GET /public/now} — đồng hồ máy chủ lúc dựng trang — nên khi trực ban ba ngày ⛔
+     *     không ghi bản ghi nào, dòng <i>"Cập nhật lúc"</i> vẫn <b>nhảy sang giờ mới mỗi lượt F5</b>.
+     *     Một câu khẳng định sai xuất hiện đúng lúc hệ đang ngừng được cập nhật.
+     *     <p>⛔ Cũng ⛔ KHÔNG phải {@code MAX(effective_at)}: {@code effective_at} là mốc <i>hiệu
+     *     lực nghiệp vụ</i>, ghi lùi hoặc ghi trước đều hợp lệ, nên lấy nó có ngày in ra một mốc
+     *     cập nhật <b>ở tương lai</b> — đổi một lời nói dối lấy một lời nói dối khác.
+     */
+    public record MetaVanHanh(Instant capNhatLuc) {}
+
+    /**
+     * Bảng vận hành công bố ra cổng: các dòng <b>và</b> mốc cập nhật của chính chúng.
+     *
+     * <h2>⛔ Vì sao mốc đi kèm dữ liệu chứ ⛔ không để cổng tự tính</h2>
+     *
+     * <p>Vì cổng <b>⛔ không tính nổi</b>: {@link OperationStatusRow#updatedAt()} là
+     * <b>nullable</b> ({@code updated_at timestamptz} ở {@code V202608221029:30}) và
+     * {@code created_at} <b>⛔ không nằm trong DTO công khai</b>. Một bảng toàn dòng vừa tạo, chưa
+     * ai sửa, sẽ cho {@code max(updatedAt)} = {@code null} ⇒ cổng in <i>"chưa rõ"</i> trong khi dữ
+     * liệu đang có. Phép {@code COALESCE} chỉ thực hiện được ở nơi còn nhìn thấy {@code created_at}
+     * (luật 12 — đặt bảo đảm ở chỗ dữ liệu đi qua).
+     *
+     * <p>Hình dạng cố ý trùng đường thuỷ văn ({@code meta} nằm <b>trong</b> {@code data}, chốt Q5):
+     * hai cách trả lời cho cùng một câu hỏi <i>"số liệu này cũ tới đâu"</i> là hai nơi phải nhớ
+     * (luật 14).
+     */
+    public record BangVanHanh(List<OperationStatusRow> dong, MetaVanHanh meta) {
+
+        public BangVanHanh {
+            dong = List.copyOf(dong);
+            // ⛔ Ép ở HÀM DỰNG (quy tắc 16). Một mốc cập nhật khác null đi cùng bảng RỖNG là câu
+            //    "số liệu cập nhật lúc X" đặt trên chỗ ⛔ không có số liệu nào — đúng loại khẳng
+            //    định sai mà T43.9 sinh ra để gỡ. Chiều ngược lại cũng vậy: có dòng mà ⛔ không có
+            //    mốc nghĩa là phép COALESCE ở dưới đã hụt một nhánh.
+            if (dong.isEmpty() != (meta.capNhatLuc() == null)) {
+                throw new IllegalArgumentException(
+                        "Bảng vận hành: có dòng ⇔ có mốc cập nhật. Đang có %d dòng mà capNhatLuc=%s"
+                                .formatted(dong.size(), meta.capNhatLuc()));
+            }
+        }
+    }
+
     @Transactional(readOnly = true)
-    public List<OperationStatusRow> hienHanh() {
+    public BangVanHanh hienHanh() {
         List<Construction> congTrinh = constructions.findByDeletedAtIsNull().stream()
                 .filter(c -> c.getLifecycleState() != LifecycleState.DA_THANH_LY)
                 .sorted(Comparator.comparing(Construction::getName, TIENG_VIET))
                 .toList();
         if (congTrinh.isEmpty()) {
-            return List.of();
+            return new BangVanHanh(List.of(), new MetaVanHanh(null));
         }
 
         Map<Long, OrgUnitRef> donVi = orgUnits.findRefsByIds(congTrinh.stream()
@@ -151,10 +198,43 @@ public class PublicOperationStatusService {
                 .distinct()
                 .toList());
 
-        return congTrinh.stream()
-                .map(c -> statuses.banGhiMoiNhat(c.getId()).map(s -> thanhDong(c, s, donVi)))
+        // ⚠ MỘT lượt tra cho mỗi công trình, dùng cho CẢ dòng lẫn mốc cập nhật. Gọi
+        //   `banGhiMoiNhat` lần thứ hai chỉ để lấy mốc là nhân đôi số truy vấn của khối này —
+        //   và nó nằm trên đường dựng TRANG CHỦ (NFR-02, DOD1.17).
+        List<ConstructionOperationStatus> banGhi = congTrinh.stream()
+                .map(c -> statuses.banGhiMoiNhat(c.getId()))
                 .flatMap(Optional::stream)
                 .toList();
+
+        Map<Long, Construction> theoId =
+                congTrinh.stream().collect(java.util.stream.Collectors.toMap(Construction::getId, c -> c));
+
+        List<OperationStatusRow> dong = banGhi.stream()
+                .map(s -> thanhDong(theoId.get(s.getConstructionId()), s, donVi))
+                .toList();
+
+        return new BangVanHanh(dong, new MetaVanHanh(mocCapNhat(banGhi)));
+    }
+
+    /**
+     * {@code MAX(COALESCE(updated_at, created_at))} của các bản ghi đang công bố — <b>T43.9</b>.
+     *
+     * <p>⛔ {@code COALESCE} ⛔ không phải phòng thân: {@code updated_at} chỉ được đặt khi có lượt
+     * <i>sửa</i>, nên một bản ghi vừa tạo và chưa ai đụng tới mang {@code null} ở đó. Bỏ nhánh
+     * {@code created_at} là để cả một bảng dữ liệu mới toanh báo <i>"chưa rõ"</i>.
+     *
+     * <p>⚠ Tính trên <b>chính tập bản ghi đang được công bố</b>, ⛔ không phải {@code MAX} toàn
+     * bảng: một bản ghi của công trình đã thanh lý hoặc đã xoá mềm ⛔ không được nói hộ rằng bảng
+     * này vừa được cập nhật.
+     *
+     * @return {@code null} ⇔ danh sách rỗng — bất biến của {@link BangVanHanh} neo vào đúng điều này
+     */
+    private static Instant mocCapNhat(List<ConstructionOperationStatus> banGhi) {
+        return banGhi.stream()
+                .map(s -> s.getUpdatedAt() == null ? s.getCreatedAt() : s.getUpdatedAt())
+                .filter(Objects::nonNull)
+                .max(Comparator.naturalOrder())
+                .orElse(null);
     }
 
     private static OperationStatusRow thanhDong(
