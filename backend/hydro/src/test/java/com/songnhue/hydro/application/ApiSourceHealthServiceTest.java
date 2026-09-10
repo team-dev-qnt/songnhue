@@ -85,25 +85,121 @@ class ApiSourceHealthServiceTest {
     }
 
     @Test
-    @DisplayName("⭐⭐ Cảnh báo phát ĐÚNG MỘT LẦN — ở lượt hỏng thứ 3, ⛔ không phát ở lượt 4, 5, 6…")
-    void canhBaoPhatDungMotLanOLuotThuBa() {
-        hong(SyncFailureKind.NOT_WORKING);
-        hong(SyncFailureKind.NOT_WORKING);
+    @DisplayName("⭐⭐ Chuông kêu ở mốc 3, IM ở 4→11, rồi KÊU LẠI ở mốc 12 — T50.4")
+    void chuongKeuTheoThangLeoChuKhongChiMotLan() {
+        // ⛔⛔ Bài này TRƯỚC ĐÂY tên là `canhBaoPhatDungMotLanOLuotThuBa` và khẳng định *"phát đúng
+        // MỘT lần"* là hành vi đúng. Sự cố staging 01/09→10/09/2026 bác điều đó: nguồn hỏng 3323
+        // lượt liên tiếp trong 9 ngày và `HYDRO_SOURCE_DOWN` phát **đúng 1 lần**, ngày 04/09.
+        // Bộ đếm chỉ về 0 khi có một lượt THÀNH CÔNG, mà nguồn ⛔ không bao giờ thành công ⇒ nó
+        // ⛔ không bao giờ bằng ngưỡng lần thứ hai ⇒ chuông ⛔ không bao giờ kêu lại.
+        //
+        // ⚠ Bài mới CHẶT HƠN bài cũ, ⛔ không nới ra (§11.18): nó giữ nguyên vế chống spam (im ở
+        // 4→11) và **thêm** vế mới (kêu lại ở 12). Bản mã cũ làm bài này ĐỎ.
+        for (int i = 0; i < 2; i++) {
+            hong(SyncFailureKind.NOT_WORKING);
+        }
         verify(notifications, never()).notify(any());
 
         hong(SyncFailureKind.NOT_WORKING);
-        verify(notifications).notify(any());
+        verify(notifications, org.mockito.Mockito.times(1)).notify(any());
+
+        for (int i = 4; i <= 11; i++) {
+            hong(SyncFailureKind.NOT_WORKING);
+        }
+        assertThat(nguon.getConsecutiveFailures()).isEqualTo(11);
+        verify(notifications, org.mockito.Mockito.times(1))
+                .notify(any()); // vẫn 1 — tám lượt hỏng liên tiếp ⛔ không sinh thêm tiếng nào
 
         hong(SyncFailureKind.NOT_WORKING);
-        hong(SyncFailureKind.NOT_WORKING);
-        hong(SyncFailureKind.NOT_WORKING);
-        verifyNoMoreInteractions(notifications);
+        verify(notifications, org.mockito.Mockito.times(2)).notify(any()); // mốc thứ hai: 3 × 4 = 12
+    }
 
-        assertThat(nguon.getConsecutiveFailures())
-                .as("bộ đếm vẫn chạy tiếp — chỉ CHUÔNG là im. Poller gọi 2 phút/lần, nên 'hỏng ≥ ngưỡng "
-                        + "thì cảnh báo' là 720 thông báo mỗi ngày, và một chuông kêu liên tục vì một "
-                        + "lý do ai cũng biết là một chuông sẽ bị tắt (§10.42)")
-                .isEqualTo(6);
+    @Test
+    @DisplayName("⭐⭐ Diễn lại CHÍNH sự cố thật: 3323 lượt hỏng ⇒ 6 cảnh báo, ⛔ không phải 1 và ⛔ không phải 3323")
+    void dienLaiSuCoThatChoDungSauCanhBao() {
+        // Số đo staging 10/09/2026: consecutive_failures = 3323, và ĐÚNG MỘT cảnh báo được phát.
+        // Ngưỡng 3, poller 2 phút/lần ⇒ mốc rơi vào 3 · 12 · 48 · 192 · 768 · 3072.
+        for (int i = 0; i < 3323; i++) {
+            hong(SyncFailureKind.THIEU_MA_SO);
+        }
+
+        ArgumentCaptor<NotifyRequest> bat = ArgumentCaptor.forClass(NotifyRequest.class);
+        verify(notifications, org.mockito.Mockito.times(6)).notify(bat.capture());
+
+        assertThat(bat.getAllValues().stream().map(NotifyRequest::title).toList())
+                .as("⚠ Khẳng định về NỘI DUNG từng lượt, ⛔ không chỉ về số lượng: một bản phát 6 lần "
+                        + "cùng một câu vẫn qua được `times(6)` — và đó đúng là 'chuông một bit' của "
+                        + "§10.76, thứ ⛔ không phân biệt được 'đỏ như cũ' với 'đỏ và tệ hơn'")
+                .containsExactly(
+                        "Nguồn dữ liệu BHH40 hỏng 3 lượt liên tiếp",
+                        "Nguồn dữ liệu BHH40 hỏng 12 lượt liên tiếp",
+                        "Nguồn dữ liệu BHH40 hỏng 48 lượt liên tiếp",
+                        "Nguồn dữ liệu BHH40 hỏng 192 lượt liên tiếp",
+                        "Nguồn dữ liệu BHH40 hỏng 768 lượt liên tiếp",
+                        "Nguồn dữ liệu BHH40 hỏng 3072 lượt liên tiếp");
+
+        assertThat(bat.getAllValues().stream().map(NotifyRequest::severity).toList())
+                .as("mốc đầu là WARNING; từ mốc thứ hai trở đi sự cố đã kéo dài ⇒ CRITICAL. Một mức "
+                        + "duy nhất cho cả sáu lượt là ⛔ không phân biệt được hai trạng thái (luật 9)")
+                .containsExactly(
+                        NotifySeverity.WARNING,
+                        NotifySeverity.CRITICAL,
+                        NotifySeverity.CRITICAL,
+                        NotifySeverity.CRITICAL,
+                        NotifySeverity.CRITICAL,
+                        NotifySeverity.CRITICAL);
+    }
+
+    @Test
+    @DisplayName(
+            "⭐⭐ Nguồn CHƯA TỪNG lấy được số liệu thì thân tin nói thẳng — đó là lỗi cấu hình, ⛔ không phải nguồn chết")
+    void thanTinNoiRoNguonChuaTungChayLanNao() {
+        // Đúng ca của sự cố thật: last_success_at = NULL suốt 9 ngày vì mã số bị gõ vào ô Địa chỉ gốc.
+        // Hai tình huống này cần hai việc phải làm khác hẳn nhau, nên một câu chung cho cả hai thì
+        // ⛔ không nói gì (luật 9).
+        for (int i = 0; i < 3; i++) {
+            hong(SyncFailureKind.THIEU_MA_SO);
+        }
+
+        ArgumentCaptor<NotifyRequest> bat = ArgumentCaptor.forClass(NotifyRequest.class);
+        verify(notifications).notify(bat.capture());
+        assertThat(bat.getValue().body())
+                .contains("CHƯA TỪNG lấy được số liệu")
+                .contains("lỗi cấu hình")
+                .contains("Đã hỏng 3 lượt liên tiếp");
+    }
+
+    @Test
+    @DisplayName("⭐ Nguồn ĐÃ từng chạy thì thân tin neo vào mốc lấy được cuối cùng — đối chứng của bài trên")
+    void thanTinNeoVaoMocLayDuocCuoiCung() {
+        service.ghiNhanThanhCong(nguon, LUC);
+        for (int i = 0; i < 3; i++) {
+            hong(SyncFailureKind.TIMEOUT);
+        }
+
+        ArgumentCaptor<NotifyRequest> bat = ArgumentCaptor.forClass(NotifyRequest.class);
+        verify(notifications).notify(bat.capture());
+        assertThat(bat.getValue().body())
+                .as("⛔ hai vế phải cho ra HAI câu khác nhau — nếu ⛔ không thì bài trên xanh vì lý do sai")
+                .contains("Lần cuối lấy được số liệu")
+                .doesNotContain("CHƯA TỪNG");
+    }
+
+    @Test
+    @DisplayName("⚠ Thang mốc: 0 khi chưa tới ngưỡng, rồi tăng đúng một bậc mỗi lần nhân bốn")
+    void thangMocTangDungMotBacMoiLanNhanBon() {
+        assertThat(ApiSourceHealthService.soMocDaVuot(0, 3)).isZero();
+        assertThat(ApiSourceHealthService.soMocDaVuot(2, 3)).isZero();
+        assertThat(ApiSourceHealthService.soMocDaVuot(3, 3)).isEqualTo(1);
+        assertThat(ApiSourceHealthService.soMocDaVuot(11, 3)).isEqualTo(1);
+        assertThat(ApiSourceHealthService.soMocDaVuot(12, 3)).isEqualTo(2);
+        assertThat(ApiSourceHealthService.soMocDaVuot(3323, 3)).isEqualTo(6);
+
+        // ⛔ Ngưỡng vô nghĩa ⛔ không được biến thành vòng lặp vô tận hay chuông kêu mọi lượt.
+        assertThat(ApiSourceHealthService.soMocDaVuot(100, 0)).isZero();
+        assertThat(ApiSourceHealthService.soMocDaVuot(100, -1)).isZero();
+        // Và ⛔ không tràn số ở một sự cố rất dài: `moc` là `long` nên vòng lặp luôn kết thúc.
+        assertThat(ApiSourceHealthService.soMocDaVuot(Integer.MAX_VALUE, 1)).isEqualTo(16);
     }
 
     @Test
