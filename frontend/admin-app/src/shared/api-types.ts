@@ -88,6 +88,15 @@ export interface MeResponse {
   permissions: string[];
   mustChangePassword: boolean;
   twoFactorEnrolled: boolean;
+  /**
+   * Tài khoản này CÓ liên kết một hồ sơ CBNV hay ⛔ không — T51.8.
+   *
+   * ⛔ Cố ý là `boolean`, ⛔ không phải `employeePublicId`: giao diện chỉ cần MỘT quyết định từ
+   * trường này — có hiện mục *Hồ sơ của tôi* hay ⛔ không. Có id trong tay là mời màn hình đi gọi
+   * `/hr/employees/{id}`, endpoint mà một cán bộ bình thường ⛔ không có quyền ⇒ 403 ở đúng chỗ
+   * nó vừa tự bảo là có. Đường tự đọc ⛔ không nhận id nào cả.
+   */
+  coHoSoNhanSu: boolean;
 }
 
 export interface SessionView {
@@ -108,6 +117,13 @@ export interface SessionView {
 /** `PENDING_ACTIVATION` = đã tạo nhưng chưa đăng nhập lần nào (còn mật khẩu tạm). */
 export type UserStatus = 'PENDING_ACTIVATION' | 'ACTIVE' | 'LOCKED';
 
+/** Hồ sơ CBNV mà một tài khoản đang liên kết — T51.8. ⛔ KHÔNG trường 🔒 nào. */
+export interface HoSoNhanSuView {
+  publicId: string;
+  code: string;
+  fullName: string;
+}
+
 export interface UserView {
   publicId: string;
   username: string;
@@ -118,6 +134,8 @@ export interface UserView {
   mustChangePassword: boolean;
   twoFactorRequired: boolean;
   lastLoginAt: string | null;
+  /** `null` = chưa liên kết hồ sơ CBNV nào (T51.8). */
+  hoSoNhanSu: HoSoNhanSuView | null;
 }
 
 /**

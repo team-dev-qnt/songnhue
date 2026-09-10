@@ -295,6 +295,40 @@ export const router = createBrowserRouter([
             'cms:layout:manage',
             lazyPage(() => import('@/features/cms/SiteLayoutPage'), 'SiteLayoutPage'),
           ),
+          // ---- Nhân sự (MOD-04) ----
+          // ⚠ Cả hai tuyến gác bằng `hr:employee:view` — quyền RỘNG NHẤT của trang, ⛔ KHÔNG bằng
+          //   `:create`/`:update`/`:delete`. Riêng danh mục chức vụ thì đó còn là ràng buộc chứ
+          //   ⛔ không phải lựa chọn: `PositionController` cố ý cho đường ĐỌC dùng chung quyền ấy
+          //   vì ô "Chức vụ" của biểu mẫu hồ sơ nạp bằng đúng endpoint này — gác nó sau một quyền
+          //   khác là làm ô ấy rỗng vĩnh viễn và ⛔ không ai tạo nổi một hồ sơ đầy đủ (WS-28).
+          // ⛔ `hr:employee:view-sensitive` CỐ Ý ⛔ không có mặt ở đây: nó gác một hộp thoại bên
+          //   trong trang, ⛔ không gác cả trang. ADMIN có mọi quyền HR TRỪ quyền ấy
+          //   (`V202608131007:169`), nên đưa nó lên tuyến là khoá ADMIN ra khỏi cả màn hình.
+          adminRoute(
+            '/nhan-su/ho-so',
+            'hr:employee:view',
+            lazyPage(() => import('@/features/hr/EmployeesPage'), 'EmployeesPage'),
+          ),
+          adminRoute(
+            '/nhan-su/danh-ba',
+            'hr:directory:view',
+            lazyPage(() => import('@/features/hr/DanhBaPage'), 'DanhBaPage'),
+          ),
+          adminRoute(
+            '/nhan-su/chuc-vu',
+            'hr:employee:view',
+            lazyPage(() => import('@/features/hr/PositionsPage'), 'PositionsPage'),
+          ),
+          // ⛔⛔ `/nhan-su/ho-so-cua-toi` ⛔ KHÔNG bọc `RequirePermission` — T51.8. Vế *"chính nhân
+          //    viên đó"* của CN-04.7 ⛔ không biểu diễn được bằng một mã quyền: quyền gán theo VAI
+          //    TRÒ, còn đây là quan hệ giữa MỘT tài khoản và MỘT hàng. Gác bằng `hr:employee:view`
+          //    sẽ chặn đúng người nó phục vụ — một cán bộ vai trò VIEWER ⛔ không có quyền ấy.
+          //    Chốt chặn thật nằm ở backend: `/hr/ho-so-cua-toi` ⛔ không nhận một định danh nào,
+          //    nó suy hồ sơ từ chính token ⇒ IDOR là trạng thái ⛔ không biểu diễn được.
+          {
+            path: '/nhan-su/ho-so-cua-toi',
+            element: lazyPage(() => import('@/features/hr/HoSoCuaToiPage'), 'HoSoCuaToiPage'),
+          },
           adminRoute(
             '/quan-tri/tai-khoan',
             'adm:user:view',

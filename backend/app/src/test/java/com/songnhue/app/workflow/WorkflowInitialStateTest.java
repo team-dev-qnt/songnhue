@@ -196,7 +196,8 @@ class WorkflowInitialStateTest extends IntegrationTestBase {
                 Set.of(permissions),
                 false,
                 UUID.randomUUID(),
-                UUID.randomUUID()));
+                UUID.randomUUID(),
+                null));
     }
 
     private static WorkflowAware banGhiOTrangThai(String state) {

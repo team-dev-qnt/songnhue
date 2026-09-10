@@ -8,6 +8,7 @@ import { useAuth } from '@/app/auth/useAuth';
 import { OrgUnitTreeSelect } from '@/components/business/OrgUnitTreeSelect';
 import { StatusBadge } from '@/components/business/StatusBadge';
 import { USER_STATUS } from '@/components/business/statusVocabulary';
+import { type EmployeeRow } from '@/features/hr/hrVocabulary';
 import {
   type CreateUserRequest,
   type RoleSummary,
@@ -33,6 +34,7 @@ export function UsersPage() {
   const [editing, setEditing] = useState<UserView | null>(null);
   const [creating, setCreating] = useState(false);
   const [assigning, setAssigning] = useState<UserView | null>(null);
+  const [linking, setLinking] = useState<UserView | null>(null);
 
   const users = useQuery({
     queryKey: ['admin', 'users'],
@@ -79,9 +81,26 @@ export function UsersPage() {
       render: (value: string | null) => formatDateTime(value),
     },
     {
+      // ⭐ Nửa ĐỌC của cặp đọc–ghi mà T51.8 mở ra. Cột `users.employee_id` có 0 đường ghi suốt 28
+      //   ngày; dựng đường ghi mà ⛔ không hiện kết quả ra đây là để lại đúng một nửa vòng — người
+      //   quản trị nhìn ô trống rồi liên kết hồ sơ ấy sang một tài khoản khác (luật 27).
+      title: 'Hồ sơ CBNV',
+      key: 'ho-so-nhan-su',
+      width: 220,
+      render: (_value, row) =>
+        row.hoSoNhanSu ? (
+          <Space size={4} wrap>
+            <Tag color="blue">{row.hoSoNhanSu.code}</Tag>
+            <span>{row.hoSoNhanSu.fullName}</span>
+          </Space>
+        ) : (
+          <Tag>Chưa liên kết</Tag>
+        ),
+    },
+    {
       title: '',
       key: 'thao-tac',
-      width: 260,
+      width: 360,
       render: (_value, row) => (
         <Space size={0} wrap>
           {hasPermission('adm:user:update') && (
@@ -92,6 +111,11 @@ export function UsersPage() {
           {hasPermission('adm:user:assign-role') && (
             <Button type="link" onClick={() => setAssigning(row)}>
               Phân vai trò
+            </Button>
+          )}
+          {hasPermission('adm:user:update') && (
+            <Button type="link" onClick={() => setLinking(row)}>
+              Hồ sơ CBNV
             </Button>
           )}
           {hasPermission('adm:user:lock') && (
@@ -132,13 +156,14 @@ export function UsersPage() {
         dataSource={users.data ?? []}
         rowKey="publicId"
         loading={users.isLoading}
-        scroll={{ x: 1100 }}
+        scroll={{ x: 1420 }}
         pagination={{ pageSize: 20, showSizeChanger: true }}
       />
 
       <CreateUserModal open={creating} onClose={() => setCreating(false)} onDone={invalidate} />
       <EditUserModal user={editing} onClose={() => setEditing(null)} onDone={invalidate} />
       <AssignRolesModal user={assigning} onClose={() => setAssigning(null)} />
+      <LienKetHoSoModal user={linking} onClose={() => setLinking(null)} onDone={invalidate} />
     </Card>
   );
 }
@@ -369,6 +394,134 @@ function AssignRolesModal({ user, onClose }: { user: UserView | null; onClose: (
           label: `${role.name} (${role.permissionCount} quyền)`,
         }))}
       />
+    </Modal>
+  );
+}
+
+// =============================================================================
+// Liên kết tài khoản ↔ hồ sơ CBNV — T51.8, CN-05.1
+// =============================================================================
+
+/**
+ * ⛔⛔ Ô này quyết định **ai đọc được CCCD/lương/số tài khoản của ai** — ⛔ không phải một trường
+ * hồ sơ bình thường.
+ *
+ * Vế thứ hai của CN-04.7 (*"chính nhân viên đó xem được trường 🔒 của mình"*) suy quyền đọc thẳng
+ * từ `users.employee_id`. Backend vì thế: cấm tự liên kết chính mình (`ADM-2018`), ép mỗi hồ sơ
+ * chỉ thuộc một tài khoản (`ADM-2017` + chỉ mục `uq_users_employee_id`), ghi một dòng
+ * `security_events` mức DANGER cho mỗi lượt đổi, và xoá đệm phân quyền để lượt gỡ có hiệu lực ngay.
+ *
+ * ⚠ Hộp thoại này **⛔ không** dựng lại bất kỳ luật nào trong số đó — nó chỉ hiển thị lỗi backend
+ * trả về. Chép luật xuống giao diện là hai nơi phải nhớ cùng một điều (luật 14), và cái ở giao
+ * diện sẽ **nói dối** vào ngày backend đổi.
+ */
+function LienKetHoSoModal({
+  user,
+  onClose,
+  onDone,
+}: {
+  user: UserView | null;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const { message } = App.useApp();
+  const [chon, setChon] = useState<string | null>(null);
+  const [tuKhoa, setTuKhoa] = useState('');
+
+  // ⚠ `key={user?.publicId}` ở nơi gọi ⛔ không đủ — T51.12/T53.7 đã trả giá ba lần cho đúng chỗ
+  //   này. Ở đây trạng thái là `useState` của CHÍNH component, và `Modal destroyOnHidden` tháo cả
+  //   cây con nên nó ra đời lại rỗng mỗi lượt mở. ⛔ Không có `Form.useForm()` nào ở ngoài để rò rỉ.
+  const danhSach = useQuery({
+    queryKey: ['hr', 'employees', 'chon-lien-ket', tuKhoa],
+    // ⛔⛔ `getPage`, ⛔ KHÔNG `api.get<PageResult<…>>`. Bản đầu của tôi dùng `api.get` và
+    //   `apiPaging.test.ts` đỏ ngay lượt chạy đầu: envelope phân trang trả `data` là một MẢNG kèm
+    //   `meta` ở NGOÀI, nên `.items` là `undefined` ⇒ ô chọn RỖNG vĩnh viễn, ⛔ không một dòng lỗi.
+    //   Đây là bộ canh thứ ba của dự án bắt chính người vừa viết mã.
+    queryFn: () =>
+      api.getPage<EmployeeRow>('/hr/employees', {
+        q: tuKhoa || undefined,
+        size: 20,
+        sort: 'fullName,asc',
+      }),
+    enabled: user !== null,
+  });
+
+  const luu = useMutation({
+    mutationFn: (employeePublicId: string | null) =>
+      api.put<UserView>(`/admin/users/${user?.publicId}/ho-so-nhan-su`, { employeePublicId }),
+    onSuccess: (_data, employeePublicId) => {
+      message.success(employeePublicId ? 'Đã liên kết hồ sơ' : 'Đã gỡ liên kết');
+      onDone();
+      onClose();
+    },
+    // ⛔ Bắt buộc — `moiLuotGhiPhaiBaoLoi.test.ts` canh đúng chuyện này: một `useMutation` thiếu
+    //   `onError` là một nút bấm xong ⛔ không có gì xảy ra và ⛔ không có gì báo.
+    onError: (e: unknown) => {
+      message.error(e instanceof ApiClientError ? e.message : 'Không lưu được liên kết');
+    },
+  });
+
+  return (
+    <Modal
+      open={user !== null}
+      title={`Hồ sơ CBNV của tài khoản ${user?.username ?? ''}`}
+      onCancel={onClose}
+      destroyOnHidden
+      footer={null}
+    >
+      <Space direction="vertical" size={12} style={{ display: 'flex' }}>
+        <div>
+          Đang liên kết:{' '}
+          {user?.hoSoNhanSu ? (
+            <Tag color="blue">
+              {user.hoSoNhanSu.code} · {user.hoSoNhanSu.fullName}
+            </Tag>
+          ) : (
+            <Tag>Chưa liên kết</Tag>
+          )}
+        </div>
+
+        <Select
+          showSearch
+          allowClear
+          style={{ width: '100%' }}
+          placeholder="Gõ tên hoặc mã cán bộ để tìm"
+          value={chon}
+          onChange={setChon}
+          onSearch={setTuKhoa}
+          filterOption={false}
+          loading={danhSach.isFetching}
+          notFoundContent={danhSach.isFetching ? 'Đang tìm…' : 'Không có hồ sơ nào khớp'}
+          options={(danhSach.data?.items ?? []).map((e) => ({
+            value: e.publicId,
+            label: `${e.code} · ${e.fullName}`,
+          }))}
+        />
+
+        <Space>
+          <Button
+            type="primary"
+            disabled={!chon}
+            loading={luu.isPending}
+            onClick={() => luu.mutate(chon)}
+          >
+            Liên kết
+          </Button>
+          {user?.hoSoNhanSu ? (
+            <Popconfirm
+              title="Gỡ liên kết hồ sơ?"
+              description="Người dùng sẽ mất quyền xem thông tin bảo mật của chính mình ngay lập tức."
+              okText="Gỡ"
+              cancelText="Hủy"
+              onConfirm={() => luu.mutate(null)}
+            >
+              <Button danger loading={luu.isPending}>
+                Gỡ liên kết
+              </Button>
+            </Popconfirm>
+          ) : null}
+        </Space>
+      </Space>
     </Modal>
   );
 }

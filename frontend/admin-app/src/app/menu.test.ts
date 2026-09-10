@@ -129,6 +129,116 @@ describe('nhóm Dữ liệu thuỷ văn hiện theo đúng quyền của từng 
   });
 });
 
+/**
+ * Nhóm "Nhân sự" (WS-51) — và một điều mà bài `toHaveLength(11)` ở trên **⛔ không** nói.
+ *
+ * ⚠⚠ Con số 11 ấy đo trên một `checker` chỉ cấp quyền `adm:*`, nên nó **⛔ không đổi** khi thêm
+ * nhóm HR — và cái xanh của nó đọc như *"menu đã được canh"*. Đúng luật 28: một bộ canh phải nói
+ * ra phạm vi của chính nó, và phạm vi của bài ấy là *tám màn hình quản trị*, ⛔ không phải *toàn
+ * bộ menu*. Vế thật sự canh nhóm mới là bốn bài dưới đây.
+ */
+describe('nhóm Nhân sự hiện theo đúng quyền của từng màn hình — WS-51', () => {
+  it('người xem hồ sơ CBNV thấy CẢ danh mục chức vụ', () => {
+    const visible = leafLabels(visibleMenu(MENU, checker('hr:employee:view')));
+
+    expect(visible).toContain('Hồ sơ cán bộ');
+    // ⛔ Danh mục chức vụ KHÔNG được gác hẹp hơn: nó là nguồn dữ liệu cho ô "Chức vụ" của biểu mẫu
+    //    hồ sơ. Người dựng hồ sơ mà không mở được nó thì không kiểm được mã mình đang chọn (WS-28).
+    expect(visible).toContain('Danh mục chức vụ');
+  });
+
+  it('⛔ quyền xem trường 🔒 MỘT MÌNH ⛔ không mở được menu nào — vế phân biệt', () => {
+    // `hr:employee:view-sensitive` gác một hộp thoại BÊN TRONG trang, ⛔ không gác trang. Thiếu vế
+    // này thì bài trên xanh cả khi ai đó gộp cả nhóm về mã quyền ấy — và `V202608131007:169` cấp
+    // cho ADMIN mọi quyền TRỪ đúng nó, nên ADMIN sẽ mất cả nhóm menu nhân sự.
+    const visible = visibleMenu(MENU, checker('hr:employee:view-sensitive'));
+    expect(visible.map((node) => node.label)).not.toContain('Nhân sự');
+  });
+
+  it('không có quyền nhân sự nào thì cả nhóm biến mất, không để lại mục trống', () => {
+    const visible = visibleMenu(MENU, checker('adm:user:view'));
+    expect(visible.map((node) => node.label)).not.toContain('Nhân sự');
+  });
+
+  it('đường dẫn của hai màn hình nhân sự tô sáng đúng mục menu', () => {
+    expect(findMenuKey(MENU, '/nhan-su/ho-so')).toBe('ho-so-cbnv');
+    expect(findMenuKey(MENU, '/nhan-su/chuc-vu')).toBe('chuc-vu');
+  });
+});
+
+/**
+ * ⛔⛔ Danh bạ (CN-04.6) và Hồ sơ CBNV (CN-04.7) gác bằng HAI quyền khác nhau — WS-55.
+ *
+ * Đo trên ma trận seed: `hr:directory:view` cấp cho **11/12** vai trò (gồm VIEWER, CLERK,
+ * XN_OPERATOR — những người ⛔ không có một quyền `hr:employee:*` nào), còn `hr:employee:view`
+ * chỉ 3. Gộp hai mục về một quyền là hỏng theo **cả hai** chiều: gác chặt thì cả Công ty mất danh
+ * bạ, gác lỏng thì hồ sơ nhân sự lộ cho mọi người.
+ */
+describe('Danh bạ nội bộ gác bằng hr:directory:view, ⛔ không phải hr:employee:view — CN-04.6', () => {
+  it('⭐ người CHỈ có hr:directory:view thấy Danh bạ và ⛔ không thấy gì khác của nhóm Nhân sự', () => {
+    const visible = leafLabels(visibleMenu(MENU, checker('hr:directory:view')));
+
+    expect(visible).toContain('Danh bạ nội bộ');
+    expect(visible).not.toContain('Hồ sơ cán bộ');
+    expect(visible).not.toContain('Danh mục chức vụ');
+  });
+
+  it('⛔ người chỉ có hr:employee:view ⛔ KHÔNG thấy Danh bạ — vế phân biệt', () => {
+    // Thiếu vế này thì bài trên xanh cả khi ai đó gác danh bạ bằng `hr:employee:view` "cho gọn",
+    // và cả Công ty mất danh bạ mà menu vẫn trông đúng với người đi rà.
+    const visible = leafLabels(visibleMenu(MENU, checker('hr:employee:view')));
+
+    expect(visible).not.toContain('Danh bạ nội bộ');
+    expect(visible).toContain('Hồ sơ cán bộ');
+  });
+
+  it('đường dẫn tô sáng đúng mục', () => {
+    expect(findMenuKey(MENU, '/nhan-su/danh-ba')).toBe('danh-ba');
+  });
+});
+
+/**
+ * ⛔⛔ "Hồ sơ của tôi" gác bằng **LIÊN KẾT**, ⛔ không bằng quyền — T51.8, CN-04.7 vế hai.
+ *
+ * Vế *"chính nhân viên đó"* ⛔ không biểu diễn được bằng một mã quyền: quyền gán theo **vai trò**,
+ * còn đây là quan hệ giữa **một tài khoản** và **một hàng**. Bốn bài dưới đây canh đúng chỗ dễ
+ * hỏng nhất — ai đó "cho gọn" bằng cách thêm `permissions: ['hr:employee:view']` sẽ khoá đúng
+ * những người mục này sinh ra để phục vụ (một cán bộ vai trò VIEWER ⛔ không có quyền ấy).
+ */
+describe('mục "Hồ sơ của tôi" hiện theo LIÊN KẾT hồ sơ, ⛔ không theo mã quyền — T51.8', () => {
+  it('⛔ ⛔ Không quyền nào + CHƯA liên kết ⇒ ⛔ không thấy', () => {
+    expect(leafLabels(visibleMenu(MENU, checker(), { coHoSoNhanSu: false }))).not.toContain(
+      'Hồ sơ của tôi',
+    );
+  });
+
+  it('⭐ ⛔ Không quyền nào + ĐÃ liên kết ⇒ THẤY — đây là toàn bộ điểm của T51.8', () => {
+    expect(leafLabels(visibleMenu(MENU, checker(), { coHoSoNhanSu: true }))).toContain(
+      'Hồ sơ của tôi',
+    );
+  });
+
+  it('⛔ Có ĐỦ quyền nhân sự mà CHƯA liên kết ⇒ vẫn ⛔ không thấy — vế phân biệt', () => {
+    // Thiếu vế này thì hai bài trên xanh cả khi ai đó gác mục bằng `hr:employee:view` như hai mục
+    // anh em của nó — và cái xanh ấy đọc như "đã canh".
+    const visible = leafLabels(
+      visibleMenu(MENU, checker('hr:employee:view', 'hr:employee:view-sensitive'), {
+        coHoSoNhanSu: false,
+      }),
+    );
+    expect(visible).not.toContain('Hồ sơ của tôi');
+    expect(visible).toContain('Hồ sơ cán bộ');
+  });
+
+  it('⛔ Bỏ trống tham số hồ sơ ⇒ ẨN (fail-closed), ⛔ không phải hiện', () => {
+    expect(leafLabels(visibleMenu(MENU, checker()))).not.toContain('Hồ sơ của tôi');
+  });
+
+  it('đường dẫn tô sáng đúng mục', () => {
+    expect(findMenuKey(MENU, '/nhan-su/ho-so-cua-toi')).toBe('ho-so-cua-toi');
+  });
+});
+
 describe('findMenuKey', () => {
   it('chọn đường dẫn khớp dài nhất, không để "Tổng quan" sáng ở mọi màn hình', () => {
     expect(findMenuKey(MENU, '/quan-tri/sao-luu')).toBe('sao-luu');

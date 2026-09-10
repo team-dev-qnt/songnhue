@@ -39,4 +39,14 @@ public interface SecurityEventPort {
      * @param keyId id khoá ghi kèm bản mã, để đối chiếu với khoá đang hoạt động
      */
     void externalCredentialDecryptFailed(String sourceCode, String keyId);
+
+    /**
+     * Ai đó vừa đọc trường 🔒 của một hồ sơ nhân sự (NĐ 13/2023, CN-04.7).
+     *
+     * <p>⛔ Chỉ truyền <b>mã nhân viên</b>. Giá trị vừa đọc ⛔ không bao giờ rời khỏi chỗ giải mã —
+     * cùng luật với {@link #externalCredentialChanged}.
+     *
+     * @param employeeCode mã CBNV, ví dụ {@code NV-2019-001}
+     */
+    void hrSensitiveFieldsRead(String employeeCode);
 }

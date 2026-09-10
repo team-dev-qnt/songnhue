@@ -76,7 +76,8 @@ class ThuTuMenuTest extends IntegrationTestBase {
                 Set.of("cms:layout:manage"),
                 false,
                 UUID.randomUUID(),
-                UUID.randomUUID()));
+                UUID.randomUUID(),
+                null));
     }
 
     @AfterEach

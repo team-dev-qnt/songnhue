@@ -11,7 +11,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.songnhue.core.application.auth.AuthorityLoader;
+import com.songnhue.core.application.auth.ClientInfo;
 import com.songnhue.core.application.auth.PasswordPolicyService;
+import com.songnhue.core.application.auth.SecurityEventService;
 import com.songnhue.core.application.notification.NotificationRequest;
 import com.songnhue.core.application.notification.NotificationService;
 import com.songnhue.core.common.error.ErrorCode;
@@ -25,9 +27,12 @@ import com.songnhue.core.domain.identity.User;
 import com.songnhue.core.domain.identity.UserStatus;
 import com.songnhue.core.domain.notification.NotificationChannel;
 import com.songnhue.core.domain.notification.NotificationSeverity;
+import com.songnhue.core.domain.security.SecurityEventType;
 import com.songnhue.core.infra.identity.UserAdminRepository;
 import com.songnhue.core.infra.identity.UserRepository;
 import com.songnhue.core.infra.org.OrgUnitRepository;
+import com.songnhue.core.spi.EmployeeDirectoryPort;
+import com.songnhue.core.spi.EmployeeRef;
 import com.songnhue.core.spi.UserDirectoryPort;
 
 /**
@@ -69,6 +74,8 @@ public class UserAdminService implements UserDirectoryPort {
     private final PasswordPolicyService passwordPolicy;
     private final AuthorityLoader authorities;
     private final NotificationService notifications;
+    private final EmployeeDirectoryPort employees;
+    private final SecurityEventService securityEvents;
 
     public UserAdminService(
             UserRepository users,
@@ -76,13 +83,17 @@ public class UserAdminService implements UserDirectoryPort {
             OrgUnitRepository orgUnits,
             PasswordPolicyService passwordPolicy,
             AuthorityLoader authorities,
-            NotificationService notifications) {
+            NotificationService notifications,
+            EmployeeDirectoryPort employees,
+            SecurityEventService securityEvents) {
         this.users = users;
         this.userAdmin = userAdmin;
         this.orgUnits = orgUnits;
         this.passwordPolicy = passwordPolicy;
         this.authorities = authorities;
         this.notifications = notifications;
+        this.employees = employees;
+        this.securityEvents = securityEvents;
     }
 
     @Transactional(readOnly = true)
@@ -136,6 +147,157 @@ public class UserAdminService implements UserDirectoryPort {
         user.setEmail(email);
         user.setPhone(phone);
         return users.save(user);
+    }
+
+    /**
+     * Liên kết — hoặc gỡ liên kết — tài khoản với một hồ sơ CBNV. <b>T51.8 · CN-05.1</b>.
+     *
+     * <h2>⭐ Nửa GHI của một cặp đọc–ghi đã thiếu 28 ngày</h2>
+     *
+     * <p>Cột {@code users.employee_id} ra đời cùng lược đồ định danh ({@code V202608131002:86}), có
+     * chỉ mục, có chú thích, có getter/setter trên {@link User} — và <b>0 đường ghi trong toàn
+     * kho</b> (đo 10/09/2026). Đặc tả đặt nó đích danh ở CN-05.1: <i>"liên kết tài khoản với hồ sơ
+     * nhân viên (MOD-04, {@code users.employee_id})"</i>. Đây là câu lệnh ghi đầu tiên của nó.
+     *
+     * <h2>⛔⛔ Vì sao KHÔNG tự liên kết chính mình được ({@code ADM-2018})</h2>
+     *
+     * <p>Cột này ⛔ không phải một trường hồ sơ, nó là <b>một quyền</b>: vế thứ hai của CN-04.7 suy
+     * quyền tự đọc CCCD/lương/số tài khoản thẳng từ nó. Cửa gác ở đây là {@code adm:user:manage} —
+     * quyền mà <b>ADMIN có</b>, trong khi {@code hr:employee:view-sensitive} thì đặc tả loại trừ
+     * ADMIN <b>tường minh</b> ({@code V202608131007:169}). ⇒ Cho tự liên kết là mở một đường vòng
+     * <b>ba cú bấm</b> quanh đúng dòng loại trừ ấy.
+     *
+     * <p>⚠⚠ Điều này ⛔ <b>không</b> đóng được mọi đường: đo cùng ngày, vai trò ADMIN có
+     * {@code is_system = FALSE} và ADMIN mang {@code adm:role:manage}, nên ADMIN vẫn tự thêm được
+     * {@code hr:employee:view-sensitive} vào vai trò của chính mình — một lỗ <b>có sẵn từ trước</b>,
+     * ⛔ không do lượt này tạo ra. Ghi ở {@code master-tracking.md} T54.4 kèm số đo. Điều lượt này
+     * bảo đảm hẹp hơn và đo được: <b>đường mới mở ra ⛔ không rộng thêm một chút nào</b>.
+     *
+     * <h2>Ba thứ phải xảy ra cùng lượt, và vì sao từng thứ</h2>
+     *
+     * <ol>
+     *   <li>{@link AuthorityLoader#invalidate} — {@code employeeId} nay đi trong
+     *       {@link AuthenticatedUser}, tức nằm trong cache TTL 30 giây. Thiếu dòng này thì người vừa
+     *       bị <b>GỠ</b> liên kết vẫn đọc được trường 🔒 của hồ sơ cũ thêm nửa phút. Đúng loại lỗi
+     *       nghiệm thu <i>"gỡ quyền rồi mà vẫn làm được"</i> mà WS-5 đã trả giá.
+     *   <li>{@link SecurityEventType#ACCOUNT_EMPLOYEE_LINK_CHANGED} — {@code audit_logs} <b>có</b>
+     *       ghi lượt sửa {@link User}, nhưng một thao tác <i>cấp quyền</i> phải nằm ở nhật ký bảo
+     *       mật, nơi có chuông và có mức nguy hiểm. Nó cũng là <b>nửa còn lại</b> của
+     *       {@code HR_SENSITIVE_FIELDS_READ}: dòng "ai đọc" một mình ⛔ không nói được <i>người ấy
+     *       có quyền đọc từ bao giờ và ai cho</i>.
+     *   <li>{@code saveAndFlush} — để {@code uq_users_employee_id} nổ <b>bên trong</b> giao dịch
+     *       này. Với {@code save()} thì lượt flush rơi ra ngoài phương thức và ngoại lệ hiện ra ở
+     *       một tầng ⛔ không còn biết mình đang liên kết ai.
+     * </ol>
+     *
+     * @param employeePublicId hồ sơ cần liên kết, hoặc {@code null} để <b>gỡ</b> liên kết
+     * @return tài khoản sau khi cập nhật
+     */
+    @Transactional
+    public User lienKetHoSo(UUID userPublicId, UUID employeePublicId, ClientInfo client) {
+        User user = require(userPublicId);
+
+        AuthContext.current().ifPresent(nguoiThaoTac -> {
+            if (nguoiThaoTac.userId().equals(user.getId())) {
+                throw new PermissionDeniedException(ErrorCode.ADM_2018);
+            }
+        });
+
+        if (employeePublicId == null) {
+            return goLienKet(user, client);
+        }
+
+        // ⛔ `PermissionDeniedException` (AUTH-3002) của ScopeGuard đi thẳng ra ngoài — xem javadoc
+        //    của EmployeeDirectoryPort. Rỗng ở đây nghĩa là hồ sơ ⛔ không tồn tại.
+        EmployeeRef hoSo = employees
+                .timTheoPublicId(employeePublicId)
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
+
+        users.findByEmployeeIdAndDeletedAtIsNull(hoSo.id())
+                .filter(khac -> !khac.getId().equals(user.getId()))
+                .ifPresent(khac -> {
+                    throw new ConflictException(ErrorCode.ADM_2017, hoSo.code(), khac.getUsername());
+                });
+
+        if (hoSo.id().equals(user.getEmployeeId())) {
+            return user; // ⛔ Không ghi nhật ký bảo mật cho một lượt ⛔ không đổi gì.
+        }
+
+        user.setEmployeeId(hoSo.id());
+        User daLuu = users.saveAndFlush(user);
+
+        authorities.invalidate(daLuu.getPublicId());
+        ghiSuKienLienKet(daLuu, hoSo.code(), "GAN", client);
+        log.info("Liên kết tài khoản {} với hồ sơ CBNV {}", daLuu.getUsername(), hoSo.code());
+        return daLuu;
+    }
+
+    /**
+     * Hồ sơ CBNV mà một tài khoản đang liên kết — nửa ĐỌC, cho màn hình quản trị tài khoản.
+     *
+     * @return rỗng khi tài khoản chưa liên kết, hoặc hồ sơ đã bị xoá mềm
+     */
+    @Transactional(readOnly = true)
+    public Optional<EmployeeRef> hoSoNhanSuCua(User user) {
+        return employees.timTheoId(user.getEmployeeId());
+    }
+
+    /**
+     * Hồ sơ CBNV của <b>một danh sách</b> tài khoản — <b>một</b> câu truy vấn, ⛔ không N+1.
+     *
+     * <p>{@link #list()} trả mọi tài khoản nội bộ trong một lượt, và chốt C3 sắp đẩy con số ấy lên
+     * bằng số CBNV của Công ty. Gọi {@link #hoSoNhanSuCua(User)} trong vòng lặp render là một câu
+     * truy vấn cho mỗi hàng.
+     *
+     * @return khoá là {@code users.id}; tài khoản chưa liên kết ⛔ không có mặt trong map
+     */
+    @Transactional(readOnly = true)
+    public java.util.Map<Long, EmployeeRef> hoSoNhanSuCua(List<User> danhSach) {
+        List<Long> ids = danhSach.stream()
+                .map(User::getEmployeeId)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .toList();
+        java.util.Map<Long, EmployeeRef> theoHoSo = employees.timTheoIds(ids);
+
+        java.util.Map<Long, EmployeeRef> theoTaiKhoan = new java.util.HashMap<>();
+        for (User u : danhSach) {
+            EmployeeRef ref = u.getEmployeeId() == null ? null : theoHoSo.get(u.getEmployeeId());
+            if (ref != null) {
+                theoTaiKhoan.put(u.getId(), ref);
+            }
+        }
+        return theoTaiKhoan;
+    }
+
+    private User goLienKet(User user, ClientInfo client) {
+        Long cu = user.getEmployeeId();
+        if (cu == null) {
+            return user;
+        }
+        // ⚠ Đọc MÃ nhân viên TRƯỚC khi xoá khoá: sau lượt xoá thì ⛔ không còn đường nào đi từ tài
+        //   khoản về hồ sơ, và dòng nhật ký sẽ chỉ nói "vừa gỡ một liên kết" mà ⛔ không nói gỡ ai.
+        //   Hồ sơ có thể đã xoá mềm ⇒ `timTheoId` rỗng ⇒ ghi "(không còn hồ sơ)" thay vì bỏ trắng.
+        String ma = employees.timTheoId(cu).map(EmployeeRef::code).orElse("(không còn hồ sơ)");
+
+        user.setEmployeeId(null);
+        User daLuu = users.saveAndFlush(user);
+
+        authorities.invalidate(daLuu.getPublicId());
+        ghiSuKienLienKet(daLuu, ma, "GO", client);
+        log.info("Gỡ liên kết hồ sơ CBNV {} khỏi tài khoản {}", ma, daLuu.getUsername());
+        return daLuu;
+    }
+
+    /** ⛔ Chỉ ghi tên tài khoản và MÃ nhân viên — ⛔ không họ tên, ⛔ không một trường 🔒 nào. */
+    private void ghiSuKienLienKet(User user, String employeeCode, String hanhDong, ClientInfo client) {
+        securityEvents.record(
+                SecurityEventType.ACCOUNT_EMPLOYEE_LINK_CHANGED,
+                AuthContext.current().map(AuthenticatedUser::username).orElse(null),
+                AuthContext.current().map(AuthenticatedUser::userId).orElse(null),
+                client == null ? ClientInfo.unknown() : client,
+                "{\"targetUsername\":\"%s\",\"employeeCode\":\"%s\",\"action\":\"%s\"}"
+                        .formatted(user.getUsername(), employeeCode, hanhDong));
     }
 
     /**

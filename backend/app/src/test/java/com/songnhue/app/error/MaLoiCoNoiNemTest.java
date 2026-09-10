@@ -99,8 +99,10 @@ class MaLoiCoNoiNemTest {
                         + "HTTP — nên đường nối chưa dựng được cho tới khi Công ty trả lời G5.");
         CHUA_CO_NOI_NEM.put(
                 "HR_2001",
-                "⬜ MOD-04 (HRM) chưa dựng — module `hr` mới có 6 tệp khung. Đăng ký nghỉ phép là Phase "
-                        + "sau, và mã đã đặt sẵn cùng đợt danh mục mã lỗi.");
+                "⬜ CN-04.9 (quản lý nghỉ phép) chưa dựng. ⚠ Lý do CŨ của dòng này — `module hr mới có 6 "
+                        + "tệp khung` — ĐÃ HẾT ĐÚNG từ WS-51 (10/09/2026): module `hr` nay có hồ sơ CBNV, danh "
+                        + "mục chức vụ và trường 🔒 chạy thật. Sửa câu chữ thay vì để nguyên, vì một dòng miễn "
+                        + "trừ mang lý do đã chết là thứ lượt rà sau sẽ đọc và tin (§11.14 — đã trả giá 2 lần).");
 
         // ── Khoảng trống THẬT, cần quyết ──
         CHUA_CO_NOI_NEM.put(

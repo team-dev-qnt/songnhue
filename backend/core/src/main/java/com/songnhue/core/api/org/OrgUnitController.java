@@ -147,7 +147,7 @@ public class OrgUnitController {
 
     @DeleteMapping("/{publicId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @Operation(summary = "Xoá mềm — từ chối nếu còn cấp dưới hoặc còn người dùng trực thuộc")
+    @Operation(summary = "Giải thể (xoá mềm) — từ chối kèm DANH SÁCH cụ thể những gì còn thuộc đơn vị")
     @RequirePermission("adm:org-unit:manage")
     public void delete(@PathVariable UUID publicId) {
         service.delete(publicId);

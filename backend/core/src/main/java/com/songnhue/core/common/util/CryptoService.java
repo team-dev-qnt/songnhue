@@ -6,6 +6,7 @@ import java.security.SecureRandom;
 import java.util.Base64;
 
 import javax.crypto.Cipher;
+import javax.crypto.Mac;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
@@ -37,6 +38,13 @@ public class CryptoService {
     private static final int IV_LENGTH = 12; // 96 bit — độ dài khuyến nghị cho GCM
     private static final int TAG_LENGTH_BITS = 128;
     private static final char KEY_ID_SEPARATOR = ':';
+    private static final String MAC_ALGORITHM = "HmacSHA256";
+
+    /**
+     * Nhãn tách mục đích khoá. ⛔ Đổi chuỗi này là làm MỌI vân tay đã lưu thành vô nghĩa — phép
+     * chống trùng CCCD câm lặng, ⛔ không một dòng lỗi. Nó mang hậu tố phiên bản chính vì thế.
+     */
+    private static final String FINGERPRINT_LABEL = "songnhue:fingerprint:v1";
 
     private final CryptoProperties properties;
     private final SecureRandom secureRandom = new SecureRandom();
@@ -103,6 +111,61 @@ public class CryptoService {
             // Lỗi ở đây nghĩa là sai khoá HOẶC bản mã đã bị sửa — GCM không phân biệt hai trường
             // hợp, và đó là chủ ý: phân biệt được sẽ thành kênh rò rỉ thông tin
             throw new IllegalStateException("Giải mã thất bại với khoá " + keyId, e);
+        }
+    }
+
+    /**
+     * Vân tay XÁC ĐỊNH của một giá trị nhạy cảm — dùng để ép <b>unique</b> trên một cột đã mã hoá.
+     *
+     * <h2>⛔⛔ Vì sao {@code UNIQUE} trên cột bản mã KHÔNG làm được việc này</h2>
+     *
+     * <p>GCM sinh IV ngẫu nhiên mỗi lượt ({@link #encrypt}), nên <b>cùng một số CCCD mã hoá hai lần
+     * cho ra hai chuỗi khác nhau</b>. Một chỉ mục {@code UNIQUE (national_id)} vì thế sẽ tồn tại,
+     * đọc như một bảo đảm, và ⛔ <b>không bao giờ bắt được một bản trùng nào</b> — đúng hình dạng
+     * <i>"một cơ chế chưa ai đi qua thì chưa biết nó đúng hay sai"</i> (luật 7).
+     *
+     * <h2>Khoá riêng, dẫn xuất — ⛔ không dùng thẳng khoá AES</h2>
+     *
+     * <p>Khoá HMAC = {@code HMAC-SHA256(khoá AES, "songnhue:fingerprint:v1")}. Tách mục đích khoá
+     * là nguyên tắc cơ bản: một khoá dùng cho hai thuật toán thì điểm yếu của bên này thành điểm
+     * yếu của bên kia. Dẫn xuất thay vì thêm một biến môi trường mới là có chủ ý — thêm env bắt
+     * buộc là thêm một bước phải làm đúng trên <b>cả hai</b> máy chủ, và
+     * {@code architecture-review.md §10.78} ghi lại lượt dựng production nơi <b>bốn</b> khuyết tật
+     * cấu hình cùng thoát 0.
+     *
+     * <h2>⚠⚠ Hệ quả phải biết trước: vân tay PHỤ THUỘC KHOÁ</h2>
+     *
+     * <p>Sau một lượt xoay khoá, cùng một CCCD cho ra vân tay <b>khác</b> ⇒ phép chống trùng câm
+     * lặng: bản ghi cũ và bản ghi mới ⛔ không còn đụng nhau. Vì vậy job xoay khoá (⛔ chưa tồn tại
+     * — đo 10/09/2026: 0 tệp) <b>bắt buộc</b> tính lại cột vân tay cùng lượt với bản mã. Bất biến
+     * ấy được canh bằng một khẳng định: cả cột chỉ mang <b>một</b> {@code key_id}.
+     *
+     * @return {@code <key_id>:<64 ký tự hex>}, hoặc {@code null} khi đầu vào {@code null}
+     */
+    public String fingerprint(String plaintext) {
+        if (plaintext == null) {
+            return null;
+        }
+        String activeKeyId = properties.activeKeyId();
+        try {
+            Mac mac = Mac.getInstance(MAC_ALGORITHM);
+
+            // Bước 1 — dẫn xuất khoá vân tay từ khoá AES, tách mục đích bằng nhãn miền.
+            mac.init(new SecretKeySpec(properties.keyBytes(activeKeyId), MAC_ALGORITHM));
+            byte[] khoaVanTay = mac.doFinal(FINGERPRINT_LABEL.getBytes(StandardCharsets.UTF_8));
+
+            // Bước 2 — vân tay của chính giá trị.
+            mac.init(new SecretKeySpec(khoaVanTay, MAC_ALGORITHM));
+            byte[] tong = mac.doFinal(plaintext.getBytes(StandardCharsets.UTF_8));
+
+            StringBuilder hex = new StringBuilder(tong.length * 2);
+            for (byte b : tong) {
+                hex.append(Character.forDigit((b >> 4) & 0xF, 16)).append(Character.forDigit(b & 0xF, 16));
+            }
+            return activeKeyId + KEY_ID_SEPARATOR + hex;
+        } catch (GeneralSecurityException e) {
+            // ⛔ KHÔNG đưa plaintext vào message — nó sẽ đi thẳng vào log
+            throw new IllegalStateException("Tính vân tay thất bại với khoá " + activeKeyId, e);
         }
     }
 

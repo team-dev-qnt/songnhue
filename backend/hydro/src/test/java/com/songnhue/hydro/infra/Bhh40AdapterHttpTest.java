@@ -120,6 +120,42 @@ class Bhh40AdapterHttpTest {
 
     // ==== Đường đi thành công =================================================
 
+    /**
+     * ⛔⛔⛔ <b>T52.1 — sự cố THẬT, và bài kiểm này là vế "qua HTTP" của nó (luật 5).</b>
+     *
+     * <p>Đo trên staging 10/09/2026: {@code base_url = http://songnhue.bhh40.net/api/getmn.aspx} —
+     * người vận hành đã làm <b>đúng</b> phần khó (gỡ {@code ?key=} và đặt mã số qua hộp thoại, bản
+     * vá T50.1), nhưng để lại <b>đường dẫn</b>. {@code URI.resolve} thay đoạn cuối ⇒ poller gọi
+     * {@code /api/api/getmn.aspx}. Kết quả: {@code consecutive_failures = 3576},
+     * {@code last_success_at = NULL} — <b>chưa một lượt nào thành công, bao giờ</b> —
+     * {@code hydro_readings = 0}. Quy tắc 18: nguồn ⛔ không có API lịch sử ⇒ mất là <b>vĩnh viễn</b>.
+     *
+     * <p>⭐ Máy chủ ở bài này chỉ đăng ký context {@code /api/getmn.aspx}. Nên nếu adapter gọi lệch
+     * <b>một đoạn</b>, JDK trả <b>404</b> và bài đỏ — <i>đúng mã lỗi staging đang ghi trong</i>
+     * {@code last_failure_reason}. Đây là điều bài ở tầng đơn vị ⛔ không chứng minh được: nó so URI
+     * với một chuỗi ta tự viết ra, còn bài này để <b>máy chủ</b> phán xử.
+     */
+    @Test
+    @DisplayName("⛔⛔ base_url mang sẵn đường dẫn endpoint (trạng thái STAGING) ⇒ vẫn GET đúng, ⛔ không 404")
+    void baseUrlMangSanDuongDanVanGoiDung() {
+        String nhuStaging = "http://127.0.0.1:" + server.getAddress().getPort() + "/api/getmn.aspx";
+
+        TelemetryFetch fetch = adapter(true).goi(new TelemetryCall(nhuStaging, MA_SO, Duration.ofSeconds(5)));
+
+        assertThat(daNhan)
+                .as("⛔ Tập RỖNG nghĩa là máy chủ ⛔ không nhận được lượt gọi nào — trước bản vá, "
+                        + "/api/api/getmn.aspx ⛔ không khớp context nào nên ⛔ không dòng nào được ghi")
+                .hasSize(1);
+        assertThat(daNhan.get(0).path())
+                .as("⛔ Trước bản vá đường này là /api/api/getmn.aspx ⇒ 404 — đúng câu staging ghi "
+                        + "trong last_failure_reason")
+                .isEqualTo("/api/getmn.aspx");
+        assertThat(fetch.httpStatus()).isEqualTo(200);
+        assertThat(adapter(true).boc(fetch.body()).soDo())
+                .as("⭐ Vế cuối cùng: 28 số đo BÓC RA ĐƯỢC — chặng cuối của poller đi trọn")
+                .hasSize(28);
+    }
+
     @Test
     @DisplayName("⭐⭐ Gọi thật qua dây: GET đúng đường dẫn, bóc ra ĐÚNG 28 số đo của bản mẫu đo thật")
     void goiThatVaBocDuocBanMau() {

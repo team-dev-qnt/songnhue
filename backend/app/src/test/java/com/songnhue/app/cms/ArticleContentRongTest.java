@@ -212,7 +212,8 @@ class ArticleContentRongTest extends IntegrationTestBase {
                 Set.of(quyen),
                 false,
                 UUID.randomUUID(),
-                UUID.randomUUID()));
+                UUID.randomUUID(),
+                null));
     }
 
     /** ⚠ Thứ tự bắt buộc nằm ở {@link CmsFixtures} — menu trỏ tới cả danh mục lẫn bài viết. */

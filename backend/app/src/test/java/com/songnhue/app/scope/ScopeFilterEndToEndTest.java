@@ -208,7 +208,8 @@ class ScopeFilterEndToEndTest extends IntegrationTestBase {
                 Set.of(),
                 false,
                 UUID.randomUUID(),
-                UUID.randomUUID());
+                UUID.randomUUID(),
+                null);
     }
 
     private long insertUnit(String code, String name, Long parentId, String parentPath) {

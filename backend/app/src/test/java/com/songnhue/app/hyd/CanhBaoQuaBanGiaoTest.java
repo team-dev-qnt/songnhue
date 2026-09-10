@@ -336,7 +336,8 @@ class CanhBaoQuaBanGiaoTest extends IntegrationTestBase {
                 Set.of("ops:construction:update"),
                 false,
                 UUID.randomUUID(),
-                UUID.randomUUID());
+                UUID.randomUUID(),
+                null);
     }
 
     /** Khoá ngoại người dùng là NOT NULL — mượn một tài khoản seed có sẵn. */
