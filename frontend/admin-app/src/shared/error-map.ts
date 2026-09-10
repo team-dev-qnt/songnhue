@@ -610,6 +610,20 @@ export const ERROR_CATALOG = {
     handling: 'caller',
     severity: 'error',
   },
+  'ADM-2017': {
+    // ⛔ `caller`: đây là một xung đột người dùng PHẢI đọc kỹ — thông điệp mang TÊN tài khoản đang
+    //   giữ hồ sơ, tức chính thông tin cần để đi gỡ. Một toast trôi mất sau 3 giây làm mất luôn nó.
+    message:
+      'Hồ sơ này đã liên kết với một tài khoản khác. Mỗi hồ sơ cán bộ chỉ thuộc về một tài khoản — gỡ liên kết ở tài khoản kia trước.',
+    handling: 'caller',
+    severity: 'error',
+  },
+  'ADM-2018': {
+    message:
+      'Không tự liên kết tài khoản của chính mình tới một hồ sơ nhân viên được — liên kết này quyết định ai đọc được thông tin bảo mật của hồ sơ đó. Nhờ một tài khoản quản trị khác thao tác hộ.',
+    handling: 'toast',
+    severity: 'error',
+  },
 } as const satisfies Record<string, ErrorEntry>;
 
 export type ErrorCode = keyof typeof ERROR_CATALOG;

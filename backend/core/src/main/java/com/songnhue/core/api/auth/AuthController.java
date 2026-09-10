@@ -203,7 +203,8 @@ public class AuthController {
                 current.roles(),
                 current.permissions(),
                 current.mustChangePassword(),
-                view.twoFactorEnrolled());
+                view.twoFactorEnrolled(),
+                current.employeeId() != null);
     }
 
     /**

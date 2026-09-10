@@ -88,6 +88,37 @@ public class EmployeeService {
         return trongPhamVi(publicId);
     }
 
+    /**
+     * Hồ sơ của <b>chính người đang đăng nhập</b> — T51.8, vế thứ hai của CN-04.7.
+     *
+     * <h2>⛔⛔ Đường DUY NHẤT của lớp này ⛔ không đi qua {@code ScopeGuard} — và vì sao thế là đúng</h2>
+     *
+     * <p>Phạm vi đơn vị trả lời câu <i>"anh được xem dữ liệu của những ai"</i>. Câu ấy ⛔ không áp
+     * cho chính mình: một cán bộ Xí nghiệp 5 mà hồ sơ nhân sự lại nằm ở Xí nghiệp 3 (chuyện thường
+     * gặp khi tài khoản và hồ sơ nhập ở hai đợt khác nhau) sẽ ⛔ không mở nổi hồ sơ của <b>chính
+     * mình</b> — một lỗi khó hiểu, ⛔ không phải một bảo đảm.
+     *
+     * <p>Và nới ở đây ⛔ <b>không</b> mở rộng thứ gì: tham số là {@code employeeId} lấy từ
+     * {@link com.songnhue.core.common.security.AuthenticatedUser#employeeId()}, tức từ <b>token</b>,
+     * ⛔ không từ một trường nào của request. ⛔ Không có id để đổi thì ⛔ không có IDOR để chặn.
+     *
+     * <p>⚠⚠ Nó dựa trên một tính chất của Hibernate mà một lượt đọc lướt ⛔ không thấy:
+     * {@code @Filter} <b>⛔ không</b> áp cho {@code EntityManager.find()} tra theo khoá chính — chỉ
+     * áp cho truy vấn. Nên {@code findById} ở đây thấy được hồ sơ ngoài phạm vi, còn một câu
+     * {@code @Query} tương đương thì ⛔ không. Đó là một tính chất <b>vay mượn</b>, nên nó có bài
+     * kiểm riêng khẳng định lượt tự đọc chạy được khi hai đơn vị lệch nhau — ngày Hibernate đổi
+     * hành vi ấy, bài kiểm đỏ chứ ⛔ không phải người dùng.
+     *
+     * @return rỗng khi khoá là {@code null}, ⛔ không trỏ tới hồ sơ nào, hoặc hồ sơ đã xoá mềm
+     */
+    @Transactional(readOnly = true)
+    public Optional<Employee> cuaChinhMinh(Long employeeId) {
+        if (employeeId == null) {
+            return Optional.empty();
+        }
+        return employees.findById(employeeId).filter(e -> e.getDeletedAt() == null);
+    }
+
     /** Tên đơn vị / chức vụ cho một trang danh sách — tải hàng loạt, chống N+1. */
     @Transactional(readOnly = true)
     public Map<Long, String> tenDonVi(List<Employee> trang) {
@@ -172,6 +203,7 @@ public class EmployeeService {
         hoSo.setFullName(batBuoc(form.fullName()));
         hoSo.setDateOfBirth(form.dateOfBirth());
         hoSo.setGender(form.gender());
+        hoSo.setEducationLevel(form.educationLevel());
         hoSo.setEthnicity(rutGon(form.ethnicity()));
         hoSo.setHometown(rutGon(form.hometown()));
         hoSo.setAddress(rutGon(form.address()));

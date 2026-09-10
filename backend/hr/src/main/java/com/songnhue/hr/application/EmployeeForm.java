@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 import com.songnhue.hr.domain.ContractType;
+import com.songnhue.hr.domain.EducationLevel;
 import com.songnhue.hr.domain.EmploymentStatus;
 import com.songnhue.hr.domain.Gender;
 import com.songnhue.hr.domain.MaritalStatus;
@@ -29,6 +30,7 @@ public record EmployeeForm(
         String fullName,
         LocalDate dateOfBirth,
         Gender gender,
+        EducationLevel educationLevel,
         String ethnicity,
         String hometown,
         String address,

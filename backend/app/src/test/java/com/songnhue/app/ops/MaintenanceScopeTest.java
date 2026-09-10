@@ -353,7 +353,8 @@ class MaintenanceScopeTest extends IntegrationTestBase {
                 Set.of("ops:maintenance:update"),
                 false,
                 UUID.randomUUID(),
-                UUID.randomUUID());
+                UUID.randomUUID(),
+                null);
     }
 
     /** Khoá ngoại {@code assignee_user_id} là NOT NULL — mượn một tài khoản seed có sẵn. */

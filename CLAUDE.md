@@ -277,6 +277,10 @@ sai, sửa 10/09 — T52.8). Đo trên CSDL staging cùng ngày: `constructions`
 | 10/9 | ⛔⛔ **`EnumBaNoiTest` mù trước MỌI `CHECK` có danh sách xuống dòng — §11.13 lần hai.** Bộ đọc chặn khối bằng `(.*?)\n\s*\)`, nên với một `IN (…)` nhiều dòng thì dấu đóng ngoặc của chính nó **là** dòng ấy ⇒ phần bóc được ⛔ không còn dấu đóng ⇒ **tập rỗng** ⇒ bài chính đỏ với chẩn đoán **sai** (*"CSDL lệch enum Java"*) trong khi SQL hoàn toàn đúng. ⇒ Đếm ngoặc cân bằng thay vì so mẫu. Một bộ canh mà **cách xuống dòng** làm cho sai là bộ canh đang canh văn bản | T53.6 |
 | 10/9 | ⭐⭐ **Hai bộ canh có sẵn bắt mã tôi vừa viết ở lượt chạy ĐẦU** — 3 `useMutation` thiếu `onError` (bấm Xoá, ⛔ không có gì xảy ra và ⛔ không có gì báo) và 2 bảng thiếu `scroll.x` (cột dài nhất bóp còn một ký tự mỗi dòng). Cả hai là loại lỗi lượt rà của con người ⛔ không thấy vì màn hình *trông vẫn chạy*. Lần thứ **bảy** một bộ canh của dự án bắt chính người vừa viết ra nó | T53.9 |
 | 10/9 | ⚠ **Một dòng nợ trong sổ đếm THIẾU — lần thứ sáu.** Ghi chú khai *"hai khoá `hr.*` mồ côi"*; đo lại: **15** khoá seed từ 13/08, **cả 15 có 0 nơi đọc**. WS-53 trả **2**, còn **13 khoá `hr.leave.*`** thuộc CN-04.9. ⇒ Nợ **có số đo** thì trả được; nợ ⛔ không có số đo thì ⛔ không | T53.2 |
+| 10/9 | ⛔⛔⛔ **Trường "Học vấn" của WS-53 có TÁM mảnh mà ⛔ KHÔNG một đường vào lẫn đường ra** — cột `education_level`, `CHECK` 9 giá trị, chỉ mục, enum `EducationLevel` kèm `bac()`, trường trên `Employee`, nhãn `HOC_VAN`, `HOC_VAN_OPTIONS`, **và một dòng trong `EnumBaNoiTest`**. Cả tám khai một giá trị **⛔ không ai nhập được**: 0 trong `EmployeeRequest`, 0 trong `EmployeeDetail`, 0 ô trên biểu mẫu. ⛔⛔ Nặng thêm vì **bộ canh enum làm nó TRÔNG như đã nối** — nó khẳng định Java ↔ SQL ↔ TS khớp nhau, tức ba lời khai đồng thuận về một thứ chết. Một bộ canh trả lời đúng câu nó hỏi, mà câu ấy ⛔ không phải *"trường này dùng được chưa"*. Luật 27 ở cỡ lớn nhất, do **chính tôi** tạo ra một ngày trước | T54.1 |
+| 10/9 | ⛔⛔ **Dòng loại trừ ADMIN khỏi trường 🔒 đã là MỘT TỜ GIẤY từ trước — đo được, ⛔ không suy đoán.** ADMIN nhận toàn bộ danh mục quyền TRỪ `hr:employee:view-sensitive` ⇒ ADMIN **có** `adm:role:manage`; vai trò `ADMIN` khai `is_system = FALSE` ⇒ `ADM-2014` ⛔ không chặn; ⛔ không đoạn mã nào cấm gán một mã quyền cụ thể. ⇒ **Ba cú bấm là tự cấp lại đúng quyền mà đặc tả loại trừ.** Đường thứ hai: `adm:user:assign-role` ⇒ tự gán vai trò `ADMIN_HR`. Lỗ **có sẵn**, ⛔ không do WS-54 mở — nên T54.2 mới hẹp: nó bảo đảm *đường MỚI ⛔ không rộng thêm*, ⛔ không bảo đảm *ADMIN ⛔ không đọc được* | T54.4 |
+| 10/9 | ⛔ **`405` bị `GlobalExceptionHandler` gộp về `400`, nên khẳng định *"⛔ không có động từ ghi"* qua HTTP là khẳng định RỖNG** — một `@PutMapping` **có thật** mà từ chối thân yêu cầu cũng trả 400 ⇒ bài xanh ở **cả hai** trạng thái (luật 9). Vế phân biệt phải là **cấu trúc**: `getDeclaredMethods()` ⛔ không mang `@Put/@Post/@Patch/@DeleteMapping`, kèm đối chứng *"phải có đúng 1 `@GetMapping`"* | T54.7 |
+| 10/9 | ⭐⭐ **Bộ canh phân trang ĐỎ GIẢ trên một CHÚ THÍCH — lần thứ TƯ cùng hình dạng, và nó phạt đúng người viết tài liệu tử tế.** Nó bắt đúng `api.get<PageResult<…>>` trong mã tôi vừa viết (⭐ đúng: ô chọn sẽ **RỖNG vĩnh viễn**, ⛔ không một dòng lỗi). Vá xong, tôi viết chú thích giải thích vì sao ⛔ không được dùng dạng ấy — bộ canh khớp chuỗi **trong chú thích** rồi báo đúng tệp vừa làm đúng. ⛔ Sửa chú thích cho hết đỏ là **xoá bài học mà vẫn để bộ canh thủng** ⇒ quét trên `boChuThich(ma)`, kèm 3 bài tự-kiểm (vế cuối: mẫu nằm trong **chuỗi ký tự** vẫn phải bị bắt) | T54.8 |
 
 ⛔ Hệ quả rút ra: **"đã tick" không phải bằng chứng.** Trước khi mở một giai đoạn mới, đối chiếu với mã thật và chạy đường mà người dùng thật đi.
 
@@ -318,7 +322,20 @@ nào — bản vá là **mã**, ⛔ không phải dữ liệu) · **1045 dòng**
 ấy vẫn thoát **0** và in 7/7 SUCCESS. ⇒ **Mọi lượt `make ci-local` phải là tiến trình maven DUY
 NHẤT trên cây này** — nếu không thì cái xanh ⛔ không còn nói được nó xanh vì cái gì (luật 32).
 
-⭐⭐ **Đo lại 10/09/2026 sau WS-53 — `make ci-local` 10/10 thoát 0 VÀ `make ci-order` thoát 0**
+⭐⭐ **Đo lại 10/09/2026 sau WS-54 (T51.8) — `make ci-local` 10/10 thoát 0 VÀ `make ci-order` thoát
+0**, lượt chạy là tiến trình maven DUY NHẤT (⚠ số ở **MÁY**; quét CVE và đóng gói image ⛔ vẫn chỉ
+sống trên runner): **1734 testcase BE** (1725 + **9** bài HTTP của T51.8) · **0 đỏ** · **223 báo
+cáo surefire** · FE **389** test admin-app / 46 tệp (+8: 5 bài menu *Hồ sơ của tôi* + 3 bài tự-kiểm
+`viPhamPhanTrang`) + **392** public-web / 44 · **72 migration**, đỉnh
+`V202609101078__core_lien_ket_tai_khoan_ho_so` · mã lỗi **110** (đếm độc lập hai phía cùng ra 110) ·
+**1759 dòng** sổ tracking, 0 phép kiểm đỏ · `db-migration-checksums.txt` **72 vân tay**, `git diff`
+chỉ **+1 dòng** ⇒ ⛔ không migration cũ nào bị đụng.
+⚠⚠ **Và lượt `ci-local` ĐẦU của đợt này báo `exit 0` GIẢ ở tầng vỏ**: tôi chạy
+`make ci-local > log 2>&1; echo "MÃ THOÁT=$?"` — `$?` đọc mã của **`echo`**, ⛔ không của `make`
+(vốn thoát **1** ở bước Prettier). **Luật 32 lần thứ ba**, do chính người viết nó mắc. ⇒ Bọc cả cụm:
+`{ make ci-local; echo "MÃ THOÁT THẬT=$?"; } > log 2>&1` — con số ấy khi đó nằm **trong** log.
+
+⭐ **Đo 10/09/2026 sau WS-53 — `make ci-local` 10/10 thoát 0 VÀ `make ci-order` thoát 0**
 (⚠ số ở **MÁY**; quét CVE và đóng gói image ⛔ vẫn chỉ sống trên runner): **1725 testcase BE**
 (1716 + **9** bài HTTP của CN-04.3/04.4/04.5) · **0 đỏ** · **222 báo cáo surefire** · FE **381**
 test admin-app / 46 tệp + **392** public-web / 44 · **71 migration**, đỉnh

@@ -246,6 +246,7 @@ class VanBanCongBoHttpTest extends IntegrationTestBase {
                 quyen,
                 false,
                 UUID.randomUUID(),
-                UUID.randomUUID()));
+                UUID.randomUUID(),
+                null));
     }
 }

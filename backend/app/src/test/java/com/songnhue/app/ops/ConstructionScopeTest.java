@@ -289,7 +289,8 @@ class ConstructionScopeTest extends IntegrationTestBase {
                 Set.of(),
                 false,
                 UUID.randomUUID(),
-                UUID.randomUUID());
+                UUID.randomUUID(),
+                null);
     }
 
     private UUID publicIdOf(long orgUnitId) {

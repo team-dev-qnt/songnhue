@@ -22,10 +22,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.songnhue.core.common.security.RequirePermission;
 import com.songnhue.core.common.util.PageUtils;
-import com.songnhue.core.spi.OrgUnitPort;
 import com.songnhue.hr.application.EmployeeFilter;
 import com.songnhue.hr.application.EmployeeForm;
-import com.songnhue.hr.application.EmployeeSensitiveService;
 import com.songnhue.hr.application.EmployeeService;
 import com.songnhue.hr.domain.Employee;
 import com.songnhue.hr.domain.EmploymentStatus;
@@ -61,13 +59,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class EmployeeController {
 
     private final EmployeeService employees;
-    private final EmployeeSensitiveService sensitive;
-    private final OrgUnitPort orgUnits;
+    private final HoSoMapper mapper;
 
-    public EmployeeController(EmployeeService employees, EmployeeSensitiveService sensitive, OrgUnitPort orgUnits) {
+    public EmployeeController(EmployeeService employees, HoSoMapper mapper) {
         this.employees = employees;
-        this.sensitive = sensitive;
-        this.orgUnits = orgUnits;
+        this.mapper = mapper;
     }
 
     @GetMapping
@@ -138,47 +134,12 @@ public class EmployeeController {
         employees.delete(publicId);
     }
 
+    /**
+     * ⚠ Thân phép ánh xạ 27 trường nay ở {@link HoSoMapper} — <b>một</b> nơi cho cả màn hình quản
+     * trị lẫn màn hình <i>Hồ sơ của tôi</i> (T51.8). Chép nó là luật 14 ở chỗ đắt nhất.
+     */
     private HrDtos.EmployeeDetail toDetail(Employee e) {
-        String tenDonVi = e.getOrgUnitId() == null
-                ? null
-                : orgUnits.findRefById(e.getOrgUnitId()).map(r -> r.name()).orElse(null);
-        UUID donViPublicId = e.getOrgUnitId() == null
-                ? null
-                : orgUnits.findRefById(e.getOrgUnitId()).map(r -> r.publicId()).orElse(null);
-        Map<Long, String> chucVu = employees.tenChucVu(List.of(e));
-
-        return new HrDtos.EmployeeDetail(
-                e.getPublicId(),
-                e.getCode(),
-                e.getFullName(),
-                e.getDateOfBirth(),
-                e.getGender(),
-                e.getEthnicity(),
-                e.getHometown(),
-                e.getAddress(),
-                e.getPhone(),
-                e.getWorkEmail(),
-                e.getPersonalEmail(),
-                e.getMaritalStatus(),
-                e.getEmergencyContactName(),
-                e.getEmergencyContactPhone(),
-                donViPublicId,
-                tenDonVi,
-                chucVuPublicId(e),
-                e.getPositionId() == null ? null : chucVu.get(e.getPositionId()),
-                e.getJobTitle(),
-                e.getHiredAt(),
-                e.getContractType(),
-                e.getContractSignedAt(),
-                e.getContractExpiresAt(),
-                e.getStatus(),
-                e.getTerminatedAt(),
-                e.getTerminationReason(),
-                sensitive.tinhTrang(e));
-    }
-
-    private UUID chucVuPublicId(Employee e) {
-        return e.getPositionId() == null ? null : employees.chucVuPublicId(e.getPositionId());
+        return mapper.chiTiet(e);
     }
 
     private static EmployeeForm toForm(HrDtos.EmployeeRequest r) {
@@ -187,6 +148,7 @@ public class EmployeeController {
                 r.fullName(),
                 r.dateOfBirth(),
                 r.gender(),
+                r.educationLevel(),
                 r.ethnicity(),
                 r.hometown(),
                 r.address(),

@@ -34,15 +34,20 @@ import com.songnhue.hr.infra.EmployeeSensitiveRepository;
  *       một người mở lần lượt toàn bộ hồ sơ để chép số tài khoản ⛔ không để lại dấu vết nào.
  * </ol>
  *
- * <h2>⛔⛔ Nửa còn thiếu của CN-04.7, khai ra chứ ⛔ không giấu</h2>
+ * <h2>✅ Cả hai vế của CN-04.7 nay đều có — T51.8 đã trả nợ</h2>
  *
- * <p>Đặc tả nói trường 🔒 chỉ dành cho <i>Admin HR <b>và chính nhân viên đó</b></i>. Vế đầu có:
- * quyền {@code hr:employee:view-sensitive} chỉ gán cho SUPER_ADMIN và ADMIN_HR — ⛔ <b>kể cả ADMIN
- * cũng bị loại trừ tường minh</b> ({@code V202608131007:169}). Vế sau ⛔ <b>chưa có</b>, và ⛔
- * không phải vì quên: {@code AuthenticatedUser} ⛔ không mang {@code employeeId}, mà quan trọng hơn
- * — đo 10/09/2026 — cột {@code users.employee_id} có <b>0 đường ghi</b> trong toàn kho. Dựng vế đọc
- * trước khi có vế ghi là dựng đúng một nửa cặp đọc–ghi, hình dạng đã trả giá sáu lần (luật 27). Nợ
- * ghi ở {@code master-tracking.md} T51.9 kèm ba chỗ phải sửa cùng lượt.
+ * <p>Đặc tả nói trường 🔒 chỉ dành cho <i>Admin HR <b>và chính nhân viên đó</b></i>.
+ *
+ * <ul>
+ *   <li><b>Vế Admin HR</b> — {@link #doc(UUID)}, gác bằng {@code hr:employee:view-sensitive}, quyền
+ *       chỉ gán cho SUPER_ADMIN và ADMIN_HR (⛔ <b>kể cả ADMIN cũng bị loại trừ tường minh</b>,
+ *       {@code V202608131007:169}).
+ *   <li><b>Vế chính nhân viên</b> — {@link #docCuaChinhMinh(Employee)}, ⛔ <b>không</b> gác bằng
+ *       quyền nào cả: nó suy hồ sơ từ {@code users.employee_id} của chính token. Trước 10/09/2026
+ *       vế này ⛔ không dựng được, và ⛔ không phải vì quên — cột ấy có <b>0 đường ghi</b> trong toàn
+ *       kho, nên dựng vế đọc trước là dựng đúng một nửa cặp đọc–ghi (luật 27). Nay
+ *       {@code UserAdminService.lienKetHoSo} là nửa ghi.
+ * </ul>
  */
 @Service
 public class EmployeeSensitiveService {
@@ -77,6 +82,35 @@ public class EmployeeSensitiveService {
         Employee hoSo = employees.get(employeePublicId);
         securityEvents.hrSensitiveFieldsRead(hoSo.getCode());
 
+        return sensitive
+                .findByEmployeeIdAndDeletedAtIsNull(hoSo.getId())
+                .map(this::giaiMa)
+                .orElseGet(EmployeeSensitiveService::rong);
+    }
+
+    /**
+     * Vế thứ hai của CN-04.7 — <b>chính nhân viên đó</b> đọc trường 🔒 của mình. T51.8.
+     *
+     * <h2>⛔⛔ Vì sao tham số là {@link Employee} chứ ⛔ không phải một {@code UUID} hay một id</h2>
+     *
+     * <p>Cùng ràng buộc <b>cấu trúc</b> đã dùng ở {@link #tinhTrang(Employee)}: lớp này ⛔ <b>không
+     * có</b> đường tra riêng vào bảng 🔒, nên mọi lượt đọc đều bắt đầu từ một {@link Employee} mà
+     * <i>nơi gọi</i> đã lấy được. Nhận một {@code UUID} ở đây là mở một đường tra <b>thứ hai</b>
+     * vào bảng nhạy cảm nhất của hệ — đúng thứ mà bảo đảm thứ nhất của lớp này cấm.
+     *
+     * <p>Nơi gọi duy nhất ({@code HoSoCuaToiService}) dựng {@link Employee} ấy <b>từ chính token</b>,
+     * ⛔ không từ một tham số nào của request. ⇒ IDOR ở đường này là một trạng thái <b>⛔ không biểu
+     * diễn được</b>: ⛔ không có id nào để đổi.
+     *
+     * <p>⚠ ⛔ <b>Không có vế GHI tương ứng.</b> Tự đọc lương và số tài khoản của mình là quyền; tự
+     * <i>sửa</i> chúng thì ⛔ không. {@link #luu} vẫn đòi {@code hr:employee:view-sensitive}.
+     *
+     * <p>Vẫn để lại một dòng {@code security_events} như mọi lượt đọc khác — xem javadoc
+     * {@link #doc(UUID)} về việc vì sao ⛔ không {@code readOnly}.
+     */
+    @Transactional
+    public EmployeeSensitiveForm docCuaChinhMinh(Employee hoSo) {
+        securityEvents.hrSensitiveFieldsRead(hoSo.getCode());
         return sensitive
                 .findByEmployeeIdAndDeletedAtIsNull(hoSo.getId())
                 .map(this::giaiMa)

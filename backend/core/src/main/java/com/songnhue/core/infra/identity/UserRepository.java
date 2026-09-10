@@ -30,6 +30,16 @@ public interface UserRepository extends JpaRepository<User, Long> {
      */
     Optional<User> findByPublicIdAndDeletedAtIsNull(UUID publicId);
 
+    /**
+     * Tài khoản đang liên kết tới một hồ sơ CBNV — T51.8.
+     *
+     * <p>Sinh ra để câu trả lời cho <i>"hồ sơ này đã có tài khoản chưa"</i> mang được <b>tên tài
+     * khoản kia</b> ra tới màn hình ({@code ADM-2017}). Chỉ mục {@code uq_users_employee_id} mới là
+     * thứ <b>ép</b> tính duy nhất — câu này chỉ để lỗi đọc được, ⛔ không phải để thay chỉ mục
+     * (luật 12: bảo đảm đặt ở chỗ dữ liệu đi qua).
+     */
+    Optional<User> findByEmployeeIdAndDeletedAtIsNull(Long employeeId);
+
     /** Chặn xoá đơn vị còn người trực thuộc (T6.1) — người dùng mồ côi đơn vị thì mất luôn phạm vi. */
     boolean existsByOrgUnitIdAndDeletedAtIsNull(Long orgUnitId);
 

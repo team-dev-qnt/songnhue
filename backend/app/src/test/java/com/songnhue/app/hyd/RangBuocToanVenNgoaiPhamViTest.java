@@ -190,7 +190,8 @@ class RangBuocToanVenNgoaiPhamViTest extends IntegrationTestBase {
                 Set.of(),
                 false,
                 UUID.randomUUID(),
-                UUID.randomUUID());
+                UUID.randomUUID(),
+                null);
     }
 
     private long themDonVi(String ma, Long cha, String pathCha) {

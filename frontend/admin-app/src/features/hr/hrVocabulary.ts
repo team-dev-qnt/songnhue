@@ -315,6 +315,7 @@ export interface EmployeeDetail {
   fullName: string;
   dateOfBirth: string | null;
   gender: Gender | null;
+  educationLevel: EducationLevel | null;
   ethnicity: string | null;
   hometown: string | null;
   address: string | null;
@@ -359,6 +360,7 @@ export interface EmployeeRequest {
   fullName: string;
   dateOfBirth: string | null;
   gender: Gender | null;
+  educationLevel: EducationLevel | null;
   ethnicity: string | null;
   hometown: string | null;
   address: string | null;

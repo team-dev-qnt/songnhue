@@ -22,11 +22,13 @@ import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
 
 import {
   type ContractType,
+  type EducationLevel,
   type EmployeeDetail,
   type EmployeeRequest,
   type EmploymentStatus,
   type Gender,
   GIOI_TINH_OPTIONS,
+  HOC_VAN_OPTIONS,
   LOAI_HOP_DONG_OPTIONS,
   type MaritalStatus,
   NGAY_SINH_DEN,
@@ -206,6 +208,7 @@ interface GiaTriBieuMau {
   fullName: string;
   dateOfBirth: Dayjs | null;
   gender: Gender | null;
+  educationLevel: EducationLevel | null;
   ethnicity: string;
   hometown: string;
   address: string;
@@ -313,6 +316,19 @@ function BieuMauHoSo({
         <Col span={6}>
           <Form.Item name="maritalStatus" label="Tình trạng hôn nhân">
             <Select allowClear options={TINH_TRANG_HON_NHAN_OPTIONS} />
+          </Form.Item>
+        </Col>
+        <Col span={6}>
+          {/*
+            ⛔⛔ Ô này ra đời muộn hơn phần còn lại của trường "Học vấn" đúng một ngày, và đó là một
+            khuyết tật chứ ⛔ không phải kế hoạch. WS-53 dựng ĐỦ bảy mảnh — cột `education_level`,
+            ràng buộc CHECK 9 giá trị, chỉ mục, enum `EducationLevel`, trường trên `Employee`, nhãn
+            `HOC_VAN`, và cả một dòng trong `EnumBaNoiTest` — mà ⛔ KHÔNG một đường vào lẫn đường ra
+            nào. Bảy mảnh cùng khai một giá trị ⛔ không ai nhập được: luật 27 ở cỡ lớn nhất từng
+            gặp, và bộ canh enum làm nó TRÔNG như đã nối. Ghi ở T54.1.
+          */}
+          <Form.Item name="educationLevel" label="Học vấn">
+            <Select allowClear options={HOC_VAN_OPTIONS} />
           </Form.Item>
         </Col>
         <Col span={6}>
@@ -539,6 +555,7 @@ function dungGiaTriBanDau(d: EmployeeDetail | undefined): GiaTriBieuMau {
     fullName: d?.fullName ?? '',
     dateOfBirth: d?.dateOfBirth ? dayjs(d.dateOfBirth) : null,
     gender: d?.gender ?? null,
+    educationLevel: d?.educationLevel ?? null,
     ethnicity: d?.ethnicity ?? '',
     hometown: d?.hometown ?? '',
     address: d?.address ?? '',
@@ -577,6 +594,7 @@ function dungPayload(v: GiaTriBieuMau): EmployeeRequest {
     fullName: v.fullName.trim(),
     dateOfBirth: ngay(v.dateOfBirth),
     gender: v.gender ?? null,
+    educationLevel: v.educationLevel ?? null,
     ethnicity: chu(v.ethnicity),
     hometown: chu(v.hometown),
     address: chu(v.address),

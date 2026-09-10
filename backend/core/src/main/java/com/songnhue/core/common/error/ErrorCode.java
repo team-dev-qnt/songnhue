@@ -419,7 +419,30 @@ public enum ErrorCode {
      * Đang tự gỡ quyền quản trị phân quyền của chính mình khỏi vai trò {0} — thao tác này ⛔ không
      * quay lui được bằng bất kỳ đường nào trong giao diện.
      */
-    ADM_2016("ADM-2016", HttpStatus.UNPROCESSABLE_CONTENT);
+    ADM_2016("ADM-2016", HttpStatus.UNPROCESSABLE_CONTENT),
+
+    // ---- MOD-05 Liên kết tài khoản ↔ hồ sơ CBNV (T51.8, CN-05.1) ----------------
+    /**
+     * Hồ sơ CBNV {0} đã liên kết với tài khoản {1}. Hai tài khoản cùng trỏ một hồ sơ là hai con
+     * người cùng khai mình <i>là</i> một nhân viên — mà quyền tự đọc trường 🔒 suy thẳng từ cột ấy.
+     * Chỉ mục {@code uq_users_employee_id} ép cùng bất biến ở tầng CSDL; mã lỗi này tồn tại để người
+     * dùng đọc được <b>tên tài khoản kia</b> thay vì một lỗi ràng buộc trần.
+     */
+    ADM_2017("ADM-2017", HttpStatus.CONFLICT),
+    /**
+     * ⛔ Không tự liên kết tài khoản của CHÍNH MÌNH tới một hồ sơ CBNV.
+     *
+     * <p>Liên kết ⛔ không phải một trường hồ sơ, nó là <b>một quyền</b>: vế thứ hai của CN-04.7 suy
+     * quyền đọc CCCD/lương/số tài khoản thẳng từ {@code users.employee_id}. Tự trỏ tài khoản mình
+     * sang một hồ sơ bất kỳ là <b>tự cấp cho mình</b> quyền đọc dữ liệu cá nhân nhạy cảm của người
+     * ấy — mà quyền gác cửa ở đây ({@code adm:user:manage}) thì ADMIN <b>có</b>, trong khi
+     * {@code hr:employee:view-sensitive} thì đặc tả loại trừ ADMIN tường minh.
+     *
+     * <p>⇒ Liên kết tài khoản người khác là việc quản trị bình thường; liên kết chính mình phải nhờ
+     * một tài khoản quản trị thứ hai. Bất biến này áp <b>đều cho mọi vai trò, kể cả SUPER_ADMIN</b>:
+     * một luật miễn trừ đúng vai trò mạnh nhất là một luật trang trí.
+     */
+    ADM_2018("ADM-2018", HttpStatus.FORBIDDEN);
 
     private final String code;
     private final HttpStatus status;

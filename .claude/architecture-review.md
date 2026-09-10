@@ -6404,3 +6404,118 @@ CVE**, và nó bắt được **vì nó chạy trên `dev` sau lượt gộp** �
 `security-scan.yml` (⛔ không chạy trên PR: nó canh *thế giới đổi*, ⛔ không canh *mã đổi*, §10.68).
 Đây là lần đầu cổng ấy bắt một khuyết tật do **chính ta vừa tạo ra**, chứ ⛔ không phải do NVD công bố
 thêm.
+
+---
+
+### §11.21 — Một cột trỏ sang module khác: chỗ đặt hợp đồng do **Maven** quyết, ⛔ không do ArchUnit (T51.8, 10/9/2026)
+
+**Bối cảnh.** `users.employee_id` ra đời cùng lược đồ định danh (`V202608131002:86`) và nằm im **28
+ngày** với **0 đường ghi** trong toàn kho. Nó là căn cứ duy nhất cho vế thứ hai của CN-04.7 —
+*"chính nhân viên đó xem được trường 🔒 của mình"* — nên thiếu nó thì cả `EmployeeSensitiveService`
+lẫn CN-04.9 (nghỉ phép) đều đứng.
+
+#### Chỗ đặt hợp đồng: ArchUnit nói "được", Maven nói "không"
+
+`ModuleBoundaryTest` cho phép `core` import `com.songnhue.hr.spi.*` — nó chỉ cấm import
+`domain/`, `infra/`, `application/` của module khác. Và `hr/spi/package-info.java` tự khai mình là
+*"package DUY NHẤT được phép import chéo"*. Đọc hai thứ ấy thì `hr.spi.EmployeeDirectoryPort` là
+câu trả lời hiển nhiên: dữ liệu là của `hr`, hợp đồng nên ở `hr`.
+
+⛔⛔ **Sai — và ArchUnit về nguyên tắc ⛔ không thể báo.** `core/pom.xml` ⛔ không khai một phụ thuộc
+Maven nào; mọi module khác phụ thuộc **vào** nó. Đặt interface ở `hr.spi` là thêm `core → hr`, tức
+một **chu trình** ở tầng build. Một cây có chu trình ⛔ không bao giờ biên dịch được — mà ArchUnit
+chạy **trên bytecode đã biên dịch**. ⇒ Luật ấy ⛔ không "xanh sai", nó **⛔ không bao giờ chạy**.
+
+> **Bài học chung.** Một luật kiến trúc chỉ nói được về những cây **dựng được**. Ràng buộc mạnh hơn
+> nó — thứ tự phụ thuộc build — nằm ngoài tầm và ⛔ không có bộ canh nào. Trước khi hỏi *"ArchUnit
+> có cho ⛔ không"*, hỏi *"`pom.xml` có cho ⛔ không"*.
+
+⇒ Đi theo tiền lệ **`ConstructionLookupPort`**: hợp đồng ở `core.spi`, cài đặt ở tầng
+`application` của module **sở hữu dữ liệu** (`LayeringTest` đòi ranh giới giao dịch ở đó, ⛔ không ở
+`spi`), Spring nối hai đầu lúc dựng context. Nhờ vậy `core` gọi được `hr` mà ⛔ không có một dòng
+phụ thuộc Maven nào.
+
+⬜ Hệ quả để ngỏ: `hr.spi` vẫn **rỗng** (đúng một `package-info`). Một package rỗng mang javadoc mô
+tả một cơ chế đọc như *"cơ chế này đang chạy"*. Nếu hết Phase 3 vẫn ⛔ không có chiều
+`content → hr.spi` hay `operations → hr.spi` nào thì **xoá đi** (T54.10).
+
+#### Một cột khoá ngoại ⛔ không phải dữ liệu — nó là **một quyền**
+
+Vế hai của CN-04.7 suy quyền đọc CCCD/lương/số tài khoản **thẳng từ** `users.employee_id`. Nên mọi
+quyết định quanh cột ấy phải đọc như quyết định về phân quyền, ⛔ không như quyết định về hồ sơ:
+
+1. **Chỉ mục duy nhất từng phần** `uq_users_employee_id … WHERE employee_id IS NOT NULL AND
+   deleted_at IS NULL`. Hai tài khoản cùng trỏ một hồ sơ là hai con người cùng khai mình *là* một
+   nhân viên. Chỉ mục **thường** có sẵn (`ix_users_employee_id`) ⛔ không cấm gì — nó tăng tốc tra
+   cứu. ⚠ Vế `deleted_at IS NULL` bắt buộc: thiếu nó thì xoá một tài khoản là **khoá vĩnh viễn** hồ
+   sơ ấy, và thông báo lỗi trỏ vào một tài khoản ⛔ không còn hiện trên màn hình nào.
+2. **`ACCOUNT_EMPLOYEE_LINK_CHANGED` mức DANGER.** `audit_logs` **có** ghi lượt sửa `User`, nhưng
+   một thao tác *cấp quyền* phải nằm ở nhật ký **bảo mật**. Nó cũng là **nửa còn lại** của
+   `HR_SENSITIVE_FIELDS_READ` (§T51.6): dòng *"ai đọc"* một mình ⛔ không trả lời được câu quan
+   trọng nhất — *người ấy có quyền đọc từ bao giờ, và ai cho*.
+3. **`AuthorityLoader.invalidate` bắt buộc.** `employeeId` nay đi trong `AuthenticatedUser`, tức
+   nằm trong cache TTL **30 giây ngoài transaction**. Thiếu nó thì người vừa bị **GỠ** liên kết vẫn
+   đọc được trường 🔒 của hồ sơ cũ thêm nửa phút.
+4. **⛔ Cấm tự liên kết chính mình (`ADM-2018`), áp đều cho MỌI vai trò kể cả SUPER_ADMIN.** Cửa gác
+   là `adm:user:update` — quyền ADMIN **có**; còn `hr:employee:view-sensitive` thì
+   `V202608131007:169` loại trừ ADMIN **tường minh**. Cho tự liên kết là mở một đường vòng ba cú bấm
+   quanh đúng dòng loại trừ ấy. Một luật miễn trừ đúng vai trò mạnh nhất là một luật trang trí.
+
+#### ⛔⛔ Đo được: dòng loại trừ ADMIN **đã là một tờ giấy từ trước lượt này**
+
+Ba phép đo trên seed, ⛔ không suy đoán:
+
+| Đo | Kết quả |
+|---|---|
+| ADMIN có `adm:role:manage` ⛔ không? | **Có** — `V202608131007:165-170` cấp toàn bộ danh mục TRỪ `hr:employee:view-sensitive` |
+| Vai trò `ADMIN` là vai trò hệ thống ⛔ không? | **⛔ Không** — `is_system = FALSE` (`:132`), nên `ADM-2014` ⛔ không chặn |
+| Có đoạn mã nào cấm **gán** một mã quyền cụ thể ⛔ không? | **⛔ Không** |
+
+⇒ **ADMIN tự thêm `hr:employee:view-sensitive` vào vai trò của chính mình trong ba cú bấm.** Đường
+thứ hai ngắn hơn: ADMIN có `adm:user:assign-role` ⇒ tự gán vai trò `ADMIN_HR`.
+
+⛔ **⛔ Không phải lỗ do lượt này mở** — nó có sẵn. Chính vì thế bảo đảm của T54.2 mới **hẹp** và
+phải nói ra cho đúng: *"đường MỚI mở ra ⛔ không rộng thêm một chút nào"*, ⛔ không phải *"ADMIN ⛔
+không đọc được trường 🔒"*.
+
+⬜ **Bản vá đề xuất, chờ QuanTran quyết vì nó đổi CHÍNH SÁCH vận hành** (T54.4): bất biến RBAC nền
+*"⛔ không ai cấp được quyền mình ⛔ không có"*, áp cho **cả hai** cửa —
+`replacePermissionsOfRole` chỉ xét quyền **THÊM MỚI** (giữ nguyên quyền đã có ⛔ không phải leo
+thang, và ⛔ không xét thì ADMIN ⛔ không lưu nổi vai trò `ADMIN_HR` dù chỉ sửa một ô khác), và
+`assignRoles` xét bao đóng quyền của các vai trò **thêm mới**. Hệ quả vận hành phải khai ra:
+**ADMIN ⛔ không tự bổ nhiệm được Admin HR** — SUPER_ADMIN làm việc đó.
+
+#### Vế tự đọc: thay cổng quyền bằng một tính chất **cấu trúc**
+
+`GET /hr/ho-so-cua-toi` là endpoint **DUY NHẤT** của MOD-04 ⛔ không mang `@RequirePermission`. Đó
+⛔ không phải sơ suất: *"chính nhân viên đó"* ⛔ **không biểu diễn được** bằng một mã quyền — quyền
+gán theo **vai trò**, còn đây là quan hệ giữa **một tài khoản** và **một hàng**. Gác bằng
+`hr:employee:view` sẽ chặn đúng người nó phục vụ (một cán bộ vai trò VIEWER ⛔ không có quyền ấy).
+
+Thứ thay thế mạnh hơn một mã quyền: đường này ⛔ **không nhận một định danh nào** — ⛔ không
+`@PathVariable`, ⛔ không `@RequestParam`, ⛔ không thân yêu cầu. ⇒ **IDOR ở đây là một trạng thái
+⛔ không biểu diễn được**, ⛔ không phải một phép kiểm người viết sau phải nhớ thêm vào.
+
+⚠ Nó cũng cố ý **⛔ không đi qua `ScopeGuard`**: phạm vi đơn vị trả lời câu *"anh xem được dữ liệu
+của những AI"*, câu ấy ⛔ không áp cho chính mình — một cán bộ mà tài khoản ở XN-B còn hồ sơ ở XN-A
+sẽ ⛔ không mở nổi hồ sơ của **chính mình**.
+
+⚠⚠ **Và bảo đảm ấy đứng trên một tính chất VAY MƯỢN của Hibernate**: `@Filter` **⛔ không** áp cho
+`EntityManager.find()` tra theo khoá chính, chỉ áp cho truy vấn. Nên `findById` thấy được hồ sơ
+ngoài phạm vi, còn một câu `@Query` tương đương thì ⛔ không — hai dòng mã trông tương đương, hành
+vi ngược nhau. Một bảo đảm đứng trên hành vi thư viện mà ⛔ không có bài kiểm sẽ vỡ **im lặng** ở
+lượt nâng phiên bản kế tiếp ⇒ `hoSoNgoaiPhamViDonViVanTuDocDuoc` neo nó, **kèm vế phân biệt**
+khẳng định đường thường ĐÚNG LÀ trả 403.
+
+#### Hai bẫy của **bài kiểm**, cả hai đều làm một khẳng định trở nên rỗng
+
+- **`405` bị `GlobalExceptionHandler:111` gộp về `400`** (quyết định có sẵn của dự án). Nên khẳng
+  định *"⛔ không có động từ ghi"* bằng HTTP xanh ở **cả hai** trạng thái: một `@PutMapping` có thật
+  mà từ chối thân yêu cầu cũng trả 400 (luật 9). ⇒ Vế phân biệt phải là **cấu trúc** —
+  `getDeclaredMethods()` ⛔ không mang `@Put/@Post/@Patch/@DeleteMapping`, kèm đối chứng chống tập
+  rỗng *"phải có đúng 1 `@GetMapping`"*.
+- **Checkstyle bắt hàm dựng rút gọn 11 tham số.** `AuthenticatedUser` là `record` có 20 nơi gọi
+  trong `src/test`; bản đầu thêm một overload để né 20 lượt sửa. Luật `ParameterNumber` (≤ 8) bỏ
+  qua hàm dựng chuẩn của `record` nhưng ⛔ không bỏ qua một hàm dựng viết tay ⇒ nó bắt **đúng thứ
+  nó sinh ra để canh**. Sửa đủ 20 nơi thì cái giá đã khai ra (*"một nơi gọi production mới quên
+  trường này nhận `null` trong im lặng"*) biến mất theo.

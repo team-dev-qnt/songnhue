@@ -314,6 +314,16 @@ export const router = createBrowserRouter([
             'hr:employee:view',
             lazyPage(() => import('@/features/hr/PositionsPage'), 'PositionsPage'),
           ),
+          // ⛔⛔ `/nhan-su/ho-so-cua-toi` ⛔ KHÔNG bọc `RequirePermission` — T51.8. Vế *"chính nhân
+          //    viên đó"* của CN-04.7 ⛔ không biểu diễn được bằng một mã quyền: quyền gán theo VAI
+          //    TRÒ, còn đây là quan hệ giữa MỘT tài khoản và MỘT hàng. Gác bằng `hr:employee:view`
+          //    sẽ chặn đúng người nó phục vụ — một cán bộ vai trò VIEWER ⛔ không có quyền ấy.
+          //    Chốt chặn thật nằm ở backend: `/hr/ho-so-cua-toi` ⛔ không nhận một định danh nào,
+          //    nó suy hồ sơ từ chính token ⇒ IDOR là trạng thái ⛔ không biểu diễn được.
+          {
+            path: '/nhan-su/ho-so-cua-toi',
+            element: lazyPage(() => import('@/features/hr/HoSoCuaToiPage'), 'HoSoCuaToiPage'),
+          },
           adminRoute(
             '/quan-tri/tai-khoan',
             'adm:user:view',

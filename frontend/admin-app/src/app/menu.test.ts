@@ -166,6 +166,48 @@ describe('nhóm Nhân sự hiện theo đúng quyền của từng màn hình �
   });
 });
 
+/**
+ * ⛔⛔ "Hồ sơ của tôi" gác bằng **LIÊN KẾT**, ⛔ không bằng quyền — T51.8, CN-04.7 vế hai.
+ *
+ * Vế *"chính nhân viên đó"* ⛔ không biểu diễn được bằng một mã quyền: quyền gán theo **vai trò**,
+ * còn đây là quan hệ giữa **một tài khoản** và **một hàng**. Bốn bài dưới đây canh đúng chỗ dễ
+ * hỏng nhất — ai đó "cho gọn" bằng cách thêm `permissions: ['hr:employee:view']` sẽ khoá đúng
+ * những người mục này sinh ra để phục vụ (một cán bộ vai trò VIEWER ⛔ không có quyền ấy).
+ */
+describe('mục "Hồ sơ của tôi" hiện theo LIÊN KẾT hồ sơ, ⛔ không theo mã quyền — T51.8', () => {
+  it('⛔ ⛔ Không quyền nào + CHƯA liên kết ⇒ ⛔ không thấy', () => {
+    expect(leafLabels(visibleMenu(MENU, checker(), { coHoSoNhanSu: false }))).not.toContain(
+      'Hồ sơ của tôi',
+    );
+  });
+
+  it('⭐ ⛔ Không quyền nào + ĐÃ liên kết ⇒ THẤY — đây là toàn bộ điểm của T51.8', () => {
+    expect(leafLabels(visibleMenu(MENU, checker(), { coHoSoNhanSu: true }))).toContain(
+      'Hồ sơ của tôi',
+    );
+  });
+
+  it('⛔ Có ĐỦ quyền nhân sự mà CHƯA liên kết ⇒ vẫn ⛔ không thấy — vế phân biệt', () => {
+    // Thiếu vế này thì hai bài trên xanh cả khi ai đó gác mục bằng `hr:employee:view` như hai mục
+    // anh em của nó — và cái xanh ấy đọc như "đã canh".
+    const visible = leafLabels(
+      visibleMenu(MENU, checker('hr:employee:view', 'hr:employee:view-sensitive'), {
+        coHoSoNhanSu: false,
+      }),
+    );
+    expect(visible).not.toContain('Hồ sơ của tôi');
+    expect(visible).toContain('Hồ sơ cán bộ');
+  });
+
+  it('⛔ Bỏ trống tham số hồ sơ ⇒ ẨN (fail-closed), ⛔ không phải hiện', () => {
+    expect(leafLabels(visibleMenu(MENU, checker()))).not.toContain('Hồ sơ của tôi');
+  });
+
+  it('đường dẫn tô sáng đúng mục', () => {
+    expect(findMenuKey(MENU, '/nhan-su/ho-so-cua-toi')).toBe('ho-so-cua-toi');
+  });
+});
+
 describe('findMenuKey', () => {
   it('chọn đường dẫn khớp dài nhất, không để "Tổng quan" sáng ở mọi màn hình', () => {
     expect(findMenuKey(MENU, '/quan-tri/sao-luu')).toBe('sao-luu');

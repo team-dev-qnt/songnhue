@@ -205,4 +205,26 @@ public final class HoSoConDtos {
             return new MucCanhBao(m.hoSoPublicId(), m.maCanBo(), m.hoTen(), m.moTa(), m.hetHan(), m.soNgayCon());
         }
     }
+
+    // === Hồ sơ của tôi (CN-04.7 vế hai, T51.8) ================================
+
+    /**
+     * Hồ sơ CBNV của chính người đang đăng nhập, <b>kèm giá trị 🔒 đã giải mã</b>.
+     *
+     * <h2>⚠ Vì sao ở đây trường 🔒 đi CHUNG một phản hồi, trong khi ở màn hình quản trị thì ⛔ không</h2>
+     *
+     * <p>{@code HrDtos.SensitiveView} có một javadoc nói thẳng: nó <b>cố ý ⛔ không</b> nằm chung
+     * đường với {@code EmployeeDetail}, vì gộp lại là biến "quyền xem trường 🔒" thành một nhánh
+     * {@code if} bên trong một endpoint mà ai cũng gọi được. Lập luận ấy <b>đúng ở đó</b> và ⛔
+     * <b>không</b> áp vào đây, vì nó nói về một endpoint <b>có nhiều hạng người gọi</b>.
+     *
+     * <p>Đường này chỉ có <b>một</b> hạng người gọi: chủ nhân của hồ sơ. ⛔ Không có nhánh nào để
+     * sai — ⛔ không quyền để kiểm, ⛔ không id để so. Tách đôi ở đây chỉ tạo ra hai lượt gọi cho
+     * cùng một màn hình và hai dòng {@code security_events} cho cùng một lượt xem.
+     *
+     * @param hoSo phần hồ sơ thường — {@code sensitive} bên trong vẫn là <b>cờ ô nào có dữ liệu</b>,
+     *     ⛔ không phải giá trị; giá trị nằm ở {@code truongBaoMat}
+     * @param truongBaoMat giá trị 🔒 đã giải mã của chính mình
+     */
+    public record HoSoCuaToiView(HrDtos.EmployeeDetail hoSo, HrDtos.SensitiveView truongBaoMat) {}
 }

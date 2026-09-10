@@ -77,6 +77,16 @@ public final class AuthDtos {
     @Schema(description = "Thông tin đăng ký 2FA — hiển thị đúng một lần")
     public record EnrollResponse(String secret, String otpauthUri, List<String> recoveryCodes) {}
 
+    /**
+     * @param coHoSoNhanSu tài khoản này CÓ liên kết một hồ sơ CBNV hay ⛔ không — T51.8.
+     *     <p>⛔ Cố ý là {@code boolean}, ⛔ <b>không</b> trả {@code employeePublicId}. Giao diện chỉ
+     *     cần <b>một</b> quyết định từ trường này: có hiện mục <i>"Hồ sơ của tôi"</i> hay ⛔ không.
+     *     Trả ra id là mời giao diện đi gọi {@code /hr/employees/{id}} — endpoint mà một cán bộ bình
+     *     thường ⛔ không có quyền, nên màn hình sẽ 403 ở đúng chỗ nó vừa tự bảo là có. Đường tự đọc
+     *     ⛔ không nhận id nào cả: nó suy hồ sơ từ chính token (xem {@code HoSoCuaToiController}),
+     *     nhờ vậy IDOR ở đó là một trạng thái <b>⛔ không biểu diễn được</b>, ⛔ không phải một phép
+     *     kiểm phải nhớ viết.
+     */
     @Schema(description = "Hồ sơ người đang đăng nhập")
     public record MeResponse(
             UUID id,
@@ -86,7 +96,8 @@ public final class AuthDtos {
             Set<String> roles,
             Set<String> permissions,
             boolean mustChangePassword,
-            boolean twoFactorEnrolled) {}
+            boolean twoFactorEnrolled,
+            boolean coHoSoNhanSu) {}
 
     /**
      * @param current phiên đang dùng để gọi API này — FE tô khác để người dùng khỏi tự đăng xuất mình

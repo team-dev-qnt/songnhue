@@ -101,7 +101,27 @@ public enum SecurityEventType {
      *
      * <p>⛔ {@code detail} chỉ ghi <b>mã nhân viên</b> — ⛔ không bao giờ ghi giá trị vừa đọc.
      */
-    HR_SENSITIVE_FIELDS_READ(Severity.WARNING);
+    HR_SENSITIVE_FIELDS_READ(Severity.WARNING),
+
+    // --- Liên kết tài khoản ↔ hồ sơ CBNV (T51.8, CN-05.1) ----------------------
+    /**
+     * Một tài khoản vừa được <b>gán</b> hoặc <b>gỡ</b> liên kết tới một hồ sơ CBNV.
+     *
+     * <p><b>Vì sao DANGER, trong khi mọi lượt sửa tài khoản khác chỉ vào {@code audit_logs}:</b>
+     * cột {@code users.employee_id} ⛔ không phải một trường hồ sơ — nó là <b>một quyền</b>. Vế thứ
+     * hai của CN-04.7 suy quyền tự đọc CCCD/lương/số tài khoản <i>thẳng từ nó</i>, nên trỏ tài khoản
+     * của mình sang hồ sơ người khác là tự cấp cho mình quyền đọc dữ liệu cá nhân nhạy cảm của
+     * người ấy. Một thao tác cấp quyền phải nằm ở nhật ký <b>bảo mật</b>, ⛔ không chỉ ở nhật ký
+     * thay đổi dữ liệu.
+     *
+     * <p>⚠ Đây là <b>nửa còn lại</b> của {@link #HR_SENSITIVE_FIELDS_READ}. Dòng "ai đọc" một mình
+     * ⛔ không trả lời được câu quan trọng nhất — <i>người ấy có quyền đọc từ bao giờ, và ai cho</i>.
+     * Hai loại sự kiện ghép lại mới dựng được dòng thời gian: <b>gán liên kết</b> → <b>lượt đọc</b>.
+     *
+     * <p>⛔ {@code detail} chỉ ghi tên tài khoản và <b>mã</b> nhân viên — ⛔ không ghi họ tên, ⛔
+     * không ghi bất kỳ trường 🔒 nào.
+     */
+    ACCOUNT_EMPLOYEE_LINK_CHANGED(Severity.DANGER);
 
     private final Severity severity;
 
