@@ -1443,9 +1443,16 @@ Vế thứ hai của "gen chart data". Trước lượt này `public-web` có **
 
 ## WS-48 — Dựng lưới trước khi trèo: ba bộ canh phải có trước dòng mã HRM đầu tiên (10/09/2026)
 
-> Nhánh `feat/ws-48-luoi-truoc-hrm` **xếp chồng** lên `feat/ws-47-…` (PR #123 chưa gộp, `dev` vẫn ở
-> `696d027`). Việc chọn có chủ đích **⛔ không đụng tệp nào của #123** để nếu #123 gộp bằng squash
-> thì cắt lại từ `dev` và bê commit sang được sạch (luật 22).
+> ⚠ **Khối này đã bị chính sự việc bác — sửa lại 10/09 thay vì để nguyên** (một dòng sổ tự nó sai
+> đã cắn dự án hai lần: §11.14, T11.83). Bản đầu viết *"xếp chồng lên `feat/ws-47-…`, PR #123 chưa
+> gộp, `dev` vẫn ở `696d027`, và ⛔ không đụng tệp nào của #123"*. Đo lại:
+> — **#123 ĐÃ gộp** lúc 10/09 00:15:26Z, squash thành `2f688d4` trên `dev`. Nhánh ⛔ **không còn
+>   xếp chồng**: nó được **cắt lại từ `origin/dev`** và bê ba commit sang bằng cherry-pick, sạch —
+>   `git diff` với nhánh cũ **RỖNG** (luật 22).
+> — Câu *"⛔ không đụng tệp nào của #123"* đúng với **mã** (0 tệp chồng lấn) và **SAI với tài liệu**:
+>   `master-tracking.md` và `CLAUDE.md` thì cả hai nhánh cùng sửa. Cherry-pick nuốt trôi vì phần
+>   thêm nằm ở cuối tệp — **may, ⛔ không phải thiết kế**.
+> — Số đo trong khối này là số **SAU** lượt cắt lại, tức trên nền đã có mã của #123.
 > Lượt rà: 3 thiết kế + phản biện đối kháng — **6 agent, 0 lỗi**, và nó **bác cả ba** thiết kế.
 
 - [x] T48.1: ⭐⭐ **T47.18 — bộ canh `@Audited(excludeFields)`, đọc BYTECODE ⛔ không quét dòng** | Date: 10/09/2026 | Note: `AuditRedactionRuleTest` ở `app/architecture`, chạy trên `ProductionClasses.ALL` (nơi DUY NHẤT cả 5 module cùng trên classpath). ⛔⛔ **Vì sao ⛔ không quét mã nguồn — đo được HÔM NAY**: `grep "@Audited.*excludeFields"` trên `src/main` trả **2 dòng, CẢ HAI ở `ApiSource.java`**, và một trong hai là **javadoc**; còn `User` — entity khai **ĐÚNG** — **vô hình**, vì Spotless đã ngắt annotation từ dòng 28 xuống 34 với **ba dòng `//` chen giữa**. Một bộ canh quét dòng sẽ báo `User` thiếu (đỏ giả) và đếm `ApiSource` hai lần. §11.13 + T46.7 hiện thực hoá **cùng lúc**. ⭐ Bytecode còn cho **bộ lọc KIỂU** miễn phí (`String`/`byte[]`/`char[]`), thứ giết dương tính giả bằng **cấu trúc** thay vì bằng một dòng ngoại lệ ⇒ `NGOAI_LE` **RỖNG**
