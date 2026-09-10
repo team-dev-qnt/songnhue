@@ -107,8 +107,14 @@ class PollerChangCuoiHttpTest extends IntegrationTestBase {
     private final AtomicInteger soLuotGoi = new AtomicInteger();
     private final AtomicReference<String> than = new AtomicReference<>("");
 
+    /** Khoá `settings` CHUNG — giá trị dùng khi nguồn ⛔ không đặt riêng `api_sources.max_retry`. */
+    private static final String KHOA_THU_LAI = "hydro.polling.max-retry";
+
     @Autowired
     private JdbcTemplate jdbc;
+
+    @Autowired
+    private com.songnhue.core.application.settings.SettingService settings;
 
     @Autowired
     private ApiSourceService sources;
@@ -499,54 +505,166 @@ class PollerChangCuoiHttpTest extends IntegrationTestBase {
     @DisplayName("⭐⭐ T43.12 — `max_retry`=2 cứu được một cú chớp mạng; `max_retry`=0 thì ⛔ không")
     void soLanThuLaiThatSuDieuKhienVongGoi() {
         String ngay = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
-        than.set(thanNguon(ngay, "03:30", Map.of(F_BA_THA_MN, 210)));
+        // ⛔⛔ T47.12 — TRƯỚC bản này, hai dòng khôi phục nằm ở mã THƯỜNG sau SÁU khẳng định.
+        //    Một khẳng định đỏ ⇒ `max_retry` kẹt ở 2 hoặc 0 và `conHong503` kẹt khác 0, rò sang
+        //    MỌI lớp chạy sau — và surefire xếp lớp theo hệ tệp (macOS ngược Linux), nên hậu quả
+        //    là một lượt CI đỏ ở một bài vô can mà ở máy ⛔ không tái lập được (§11.19).
+        try {
+            than.set(thanNguon(ngay, "03:30", Map.of(F_BA_THA_MN, 210)));
 
-        // ── Lượt A: cho phép thử lại 2 lần, nguồn hỏng đúng MỘT lượt đầu ────────────────────────
-        jdbc.update("UPDATE api_sources SET max_retry = 2 WHERE code = 'PCC-BHH40'");
-        conHong503.set(1);
-        int truocA = soLuotGoi.get();
+            // ── Lượt A: cho phép thử lại 2 lần, nguồn hỏng đúng MỘT lượt đầu ────────────────────────
+            jdbc.update("UPDATE api_sources SET max_retry = 2 WHERE code = 'PCC-BHH40'");
+            conHong503.set(1);
+            int truocA = soLuotGoi.get();
 
-        chayMotLuotPoll();
+            chayMotLuotPoll();
 
-        assertThat(soLuotGoi.get() - truocA)
-                .as("⛔ 1 lượt gọi nghĩa là ⛔ không hề thử lại — đúng trạng thái trước bản vá")
-                .isEqualTo(2);
-        assertThat(syncLogMoiNhat().get("status"))
-                .as("⭐ Quy tắc 18: nguồn ⛔ không có API lịch sử, nên một cú chớp mạng ⛔ không cứu "
-                        + "được là mất VĨNH VIỄN một khung 10 phút của cả 19 trạm")
-                .isEqualTo("SUCCESS");
-        assertThat(doc(F_BA_THA_MN, "03:30").get("reading_value")).isNotNull();
+            assertThat(soLuotGoi.get() - truocA)
+                    .as("⛔ 1 lượt gọi nghĩa là ⛔ không hề thử lại — đúng trạng thái trước bản vá")
+                    .isEqualTo(2);
+            assertThat(syncLogMoiNhat().get("status"))
+                    .as("⭐ Quy tắc 18: nguồn ⛔ không có API lịch sử, nên một cú chớp mạng ⛔ không cứu "
+                            + "được là mất VĨNH VIỄN một khung 10 phút của cả 19 trạm")
+                    .isEqualTo("SUCCESS");
+            assertThat(doc(F_BA_THA_MN, "03:30").get("reading_value")).isNotNull();
 
-        // ── Lượt B: CÙNG kịch bản hỏng, chỉ đổi ĐÚNG một thứ — núm về 0 ─────────────────────────
-        jdbc.update("UPDATE api_sources SET max_retry = 0 WHERE code = 'PCC-BHH40'");
-        than.set(thanNguon(ngay, "03:40", Map.of(F_BA_THA_MN, 211)));
-        conHong503.set(1);
-        int truocB = soLuotGoi.get();
+            // ── Lượt B: CÙNG kịch bản hỏng, chỉ đổi ĐÚNG một thứ — núm về 0 ─────────────────────────
+            jdbc.update("UPDATE api_sources SET max_retry = 0 WHERE code = 'PCC-BHH40'");
+            than.set(thanNguon(ngay, "03:40", Map.of(F_BA_THA_MN, 211)));
+            conHong503.set(1);
+            int truocB = soLuotGoi.get();
 
-        // ⭐ Ném SYS-0006 là ĐÚNG hợp đồng của `HydroPollJobHandler`: lượt gọi ĐÃ xảy ra rồi hỏng ⇒
-        //   job phải đỏ. Và chính nó là vế đối xứng của lượt A — cùng một kịch bản 503, một bên
-        //   SUCCESS, một bên ném. Nuốt ngoại lệ ở đây là bỏ mất nửa phép so.
-        assertThatThrownBy(this::chayMotLuotPoll)
-                .as("⛔ ⛔ không thử lại ⇒ lượt việc phải ĐỎ, ⛔ không được im lặng trôi qua")
-                .isInstanceOf(UpstreamException.class);
+            // ⭐ Ném SYS-0006 là ĐÚNG hợp đồng của `HydroPollJobHandler`: lượt gọi ĐÃ xảy ra rồi hỏng ⇒
+            //   job phải đỏ. Và chính nó là vế đối xứng của lượt A — cùng một kịch bản 503, một bên
+            //   SUCCESS, một bên ném. Nuốt ngoại lệ ở đây là bỏ mất nửa phép so.
+            assertThatThrownBy(this::chayMotLuotPoll)
+                    .as("⛔ ⛔ không thử lại ⇒ lượt việc phải ĐỎ, ⛔ không được im lặng trôi qua")
+                    .isInstanceOf(UpstreamException.class);
 
-        assertThat(soLuotGoi.get() - truocB)
-                .as("⛔⛔ VẾ PHÂN BIỆT: với một cài đặt GHI CỨNG số lần thử lại, con số này vẫn là 2 "
-                        + "và khẳng định phía trên vẫn xanh. Chỉ dòng này nói được rằng núm ĐANG điều khiển")
+            assertThat(soLuotGoi.get() - truocB)
+                    .as("⛔⛔ VẾ PHÂN BIỆT: với một cài đặt GHI CỨNG số lần thử lại, con số này vẫn là 2 "
+                            + "và khẳng định phía trên vẫn xanh. Chỉ dòng này nói được rằng núm ĐANG điều khiển")
+                    .isEqualTo(1);
+            assertThat(jdbc.queryForObject(
+                            """
+                            SELECT count(*) FROM hydro_readings r JOIN stations s ON s.id = r.station_id
+                             WHERE s.api_code = ?
+                               AND to_char(r.measured_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'HH24:MI') = '03:40'
+                            """,
+                            Integer.class,
+                            F_BA_THA_MN))
+                    .as("núm về 0 ⇒ lượt hỏng dừng lại ở đó, ⛔ không dòng nào vào bảng")
+                    .isZero();
+
+        } finally {
+            jdbc.update("UPDATE api_sources SET max_retry = NULL WHERE code = 'PCC-BHH40'");
+            conHong503.set(0);
+        }
+    }
+
+    @Test
+    @DisplayName("⭐⭐ T47.12 — khoá `settings` CHUNG điều khiển được nguồn ⛔ KHÔNG đặt riêng `max_retry`")
+    void khoaSettingsChungDieuKhienNguonKhongDatRieng() {
+        // ⛔⛔ VẾ CÒN THIẾU CỦA LUẬT 3. T43.12 chứng minh CỘT RIÊNG (`api_sources.max_retry`) điều
+        //    khiển được. Nhưng `ApiSourceService.thamSoHieuLuc()` giải: cột NULL ⇒ lấy khoá
+        //    `settings` chung. Nhánh ấy ⛔ CHƯA có bài kiểm nào — 3 bài đi qua nó đều **mock**
+        //    `HydroSettings`, nên ⛔ không lượt nào chạm bảng `settings` thật.
+        //
+        // ⛔⛔ VÌ SAO CHỌN 1 VÀ 5, ⛔ KHÔNG CHỌN 2 HAY 3 — và vì sao `conHong503 = 4`:
+        //    Giá trị dự phòng ghi trong Java (`HydroSettings:156`, `getInt(KHOA, 3)`) TRÙNG KHÍT
+        //    giá trị seed (`V202608131009:65` = '3'). Mô phỏng vòng lặp
+        //    (`soLuot = 1 + max(0, soLanThuLai)`, dừng khi thành công):
+        //
+        //      conHong503 = 4 →  settings=1 : 2 lượt gọi, NÉM
+        //                        settings=5 : 5 lượt gọi, SUCCESS
+        //                        GHI CỨNG 3 : 4 lượt gọi, NÉM      ← khác CẢ HAI ⇒ phân biệt được
+        //
+        //      conHong503 = 1 →  settings=1 : 2 lượt, SUCCESS
+        //                        GHI CỨNG 3 : 2 lượt, SUCCESS      ← TRÙNG NHAU ⇒ ⛔ không khẳng định gì
+        //
+        //    Cặp thứ hai là cặp "tự nhiên" nhất khi viết vội, và nó cho một bài kiểm xanh vĩnh viễn
+        //    kể cả khi đường dây đứt hẳn (luật 9).
+        String cu = jdbc.queryForObject(
+                "SELECT coalesce(setting_value, default_value) FROM settings WHERE setting_key = ?",
+                String.class,
+                KHOA_THU_LAI);
+
+        // ⚠ VẾ CHỐNG TẬP RỖNG (luật 7 · §11.19): cả bài này nói về nhánh `max_retry IS NULL`. Nếu
+        //   một lớp chạy trước để lại một giá trị ở cột ấy thì bài đo nhánh CỘT RIÊNG — tức đo lại
+        //   đúng thứ T43.12 đã đo, và xanh vì lý do sai.
+        assertThat(jdbc.queryForObject("SELECT max_retry FROM api_sources WHERE code = 'PCC-BHH40'", Integer.class))
+                .as("⛔ Cột riêng PHẢI đang NULL — nếu ⛔ không, bài này đo nhầm nhánh")
+                .isNull();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM api_sources WHERE code = 'PCC-BHH40'", Integer.class))
+                .as("⛔ 0 hàng nghĩa là `@BeforeAll` đã hỏng, ⛔ KHÔNG phải `max_retry` đúng")
                 .isEqualTo(1);
         assertThat(jdbc.queryForObject(
-                        """
-                        SELECT count(*) FROM hydro_readings r JOIN stations s ON s.id = r.station_id
-                         WHERE s.api_code = ?
-                           AND to_char(r.measured_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'HH24:MI') = '03:40'
-                        """,
+                        "SELECT count(*) FROM settings WHERE setting_key = ? AND editable",
                         Integer.class,
-                        F_BA_THA_MN))
-                .as("núm về 0 ⇒ lượt hỏng dừng lại ở đó, ⛔ không dòng nào vào bảng")
-                .isZero();
+                        KHOA_THU_LAI))
+                .as("⛔ 0 nghĩa là `update()` sẽ ném SYS-0004/ADM-2007, và thông điệp ấy ⛔ không nói "
+                        + "gì về T47.12 — người đọc CI sẽ đi tìm nhầm chỗ")
+                .isEqualTo(1);
 
-        jdbc.update("UPDATE api_sources SET max_retry = NULL WHERE code = 'PCC-BHH40'");
-        conHong503.set(0);
+        // ⛔⛔ GHIM GIÁ TRỊ DỰ PHÒNG BẰNG SỐ ĐO, ⛔ không bằng hằng chép tay. Cả bài đứng trên tiền
+        //    đề "1 và 5 đều KHÁC giá trị dự phòng"; ngày ai đó đổi seed cho trùng một vế, bài phải
+        //    đỏ NGAY chứ ⛔ không lặng lẽ mất khả năng phân biệt (luật 3).
+        String duPhong = jdbc.queryForObject(
+                "SELECT default_value FROM settings WHERE setting_key = ?", String.class, KHOA_THU_LAI);
+        assertThat(duPhong)
+                .as("`HydroSettings` ghi literal 3; dòng này ghim seed khớp nó")
+                .isEqualTo("3");
+        assertThat(java.util.List.of("1", "5"))
+                .as("⛔ ⛔ Không vế nào được TRÙNG giá trị dự phòng — trùng là bài mất vế phân biệt")
+                .doesNotContain(duPhong);
+
+        String ngay = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        try {
+            // ── Lượt A: khoá chung = 1, nguồn hỏng 4 lượt ⇒ hết lượt thử trước khi nguồn tỉnh ───
+            settings.update(KHOA_THU_LAI, "1");
+            than.set(thanNguon(ngay, "05:10", Map.of(F_BA_THA_MN, 220)));
+            conHong503.set(4);
+            int truocA = soLuotGoi.get();
+
+            assertThatThrownBy(this::chayMotLuotPoll).isInstanceOf(UpstreamException.class);
+
+            assertThat(soLuotGoi.get() - truocA)
+                    .as("⛔⛔ 4 lượt nghĩa là hệ đang chạy theo giá trị GHI CỨNG 3, ⛔ không đọc `settings`")
+                    .isEqualTo(2);
+            assertThat(jdbc.queryForObject(
+                            """
+                            SELECT count(*) FROM hydro_readings r JOIN stations s ON s.id = r.station_id
+                             WHERE s.api_code = ?
+                               AND to_char(r.measured_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'HH24:MI') = '05:10'
+                            """,
+                            Integer.class,
+                            F_BA_THA_MN))
+                    .as("⛔ Hết lượt thử ⇒ ⛔ không dòng nào vào bảng. Đối xứng với vế B — thiếu nó thì "
+                            + "bài chỉ đếm lượt gọi mà ⛔ không nói gì về KẾT CỤC dữ liệu")
+                    .isZero();
+
+            // ── Lượt B: CÙNG kịch bản hỏng, đổi ĐÚNG một thứ — khoá chung lên 5 ─────────────────
+            conHong503.set(0);
+            settings.update(KHOA_THU_LAI, "5");
+            than.set(thanNguon(ngay, "05:20", Map.of(F_BA_THA_MN, 221)));
+            conHong503.set(4);
+            int truocB = soLuotGoi.get();
+
+            chayMotLuotPoll();
+
+            assertThat(soLuotGoi.get() - truocB)
+                    .as("⛔⛔ VẾ PHÂN BIỆT: với cài đặt ghi cứng 3 thì con số này là 4 và lượt poll NÉM. "
+                            + "Chỉ dòng này nói được rằng khoá `settings` CHUNG đang điều khiển thật")
+                    .isEqualTo(5);
+            assertThat(syncLogMoiNhat().get("status")).isEqualTo("SUCCESS");
+            assertThat(doc(F_BA_THA_MN, "05:20").get("reading_value")).isNotNull();
+        } finally {
+            // ⛔ BẮT BUỘC. `SettingService` giữ đệm Caffeine TOÀN TIẾN TRÌNH, nên một giá trị bỏ
+            //    quên ở đây rò sang MỌI lớp chạy sau — và surefire xếp lớp theo hệ tệp (macOS ngược
+            //    Linux), nên hậu quả sẽ là một lượt CI đỏ mà ở máy ⛔ không tái lập được (§11.19).
+            conHong503.set(0);
+            settings.update(KHOA_THU_LAI, cu);
+        }
     }
 
     @Test

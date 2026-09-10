@@ -28,8 +28,17 @@ interface WaterLevelBlockProps {
  *
  * <h2>⭐⭐ 04/09/2026 — khối này NAY CÓ NGUỒN DỮ LIỆU THẬT (T35.7)</h2>
  *
- * Số đến từ {@code GET /api/v1/public/hydro/muc-nuoc}, đọc bảng {@code hydro_latest} do poller
- * bhh40 ghi. Trả lời <b>OI-01</b>: API mực nước <b>đã đấu nối</b>.
+ * Số đến từ {@code GET /api/v1/public/hydro/luoi-muc-nuoc} ({@code getWaterLevelGrid}), đọc bảng
+ * {@code hydro_latest} do poller bhh40 ghi. Trả lời <b>OI-01</b>: API mực nước <b>đã đấu nối</b>.
+ *
+ * <p>⚠ Khối này <b>⛔ không tự gọi API</b> — nó nhận sẵn {@code LuoiMucNuoc} qua prop {@code luoi},
+ * do {@code app/page.tsx} gọi {@code getWaterLevelGrid('PHUT', 1, true)} rồi truyền xuống.
+ *
+ * <p>⛔⛔ <b>Sửa 10/09/2026</b>: hai dòng trên từng ghi {@code /hydro/muc-nuoc} — đúng lúc T35.7
+ * dựng, và <b>sai kể từ WS-44</b> đổi sang endpoint lưới. Hàm {@code getWaterLevels()} của endpoint
+ * cũ nay <b>⛔ không nơi nào gọi</b>, mà chú thích này vẫn trỏ vào nó ⇒ người sửa tiếp theo đi nhầm
+ * tầng. Đúng hình dạng T46.7: <b>một chú thích ⛔ không phải một đường đọc</b>. Bắt được nhờ
+ * {@code lib/apiKhongMoCoi.test.ts} (T47.10).
  *
  * <p>⚠ Ba giới hạn của nguồn vẫn còn nguyên và cổng phải nói ra, ⛔ không được lấp liếm:
  *

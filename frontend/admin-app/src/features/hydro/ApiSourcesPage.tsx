@@ -411,8 +411,19 @@ export function ApiSourcesPage() {
           <Form.Item name="name" label="Tên nguồn" rules={[{ required: true }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="baseUrl" label="Địa chỉ gốc" rules={[{ required: true }]}>
-            <Input />
+          {/* ⛔⛔ Ô này TRƯỚC ĐÂY không có placeholder lẫn dòng gợi ý — form "Thêm mới" thì có.
+              Sự cố staging 01/09→10/09/2026: mã số truy cập bị dán NGUYÊN URL vào đây
+              (`...getmn.aspx?key=<mã số>`), `credential` vẫn NULL ⇒ 3323 lượt hỏng liên tiếp,
+              `hydro_raw_logs` = 0, và mã số nằm nguyên văn ở một cột KHÔNG mã hoá mà API có trả ra.
+              Bảo đảm thật nằm ở backend (`ApiSourceService.diaChi` → HYD-2016, quy tắc 12); dòng
+              này chỉ để người dùng biết TRƯỚC khi bấm Lưu. */}
+          <Form.Item
+            name="baseUrl"
+            label="Địa chỉ gốc"
+            rules={[{ required: true }]}
+            extra="Chỉ phần trước dấu hỏi, ví dụ http://songnhue.bhh40.net. ⛔ Đừng dán mã số vào đây — mã số đặt ở nút “Mã số truy cập”, nó được mã hoá và không trả ra ngoài."
+          >
+            <Input placeholder="http://songnhue.bhh40.net" />
           </Form.Item>
           <Form.Item name="status" label="Trạng thái" rules={[{ required: true }]}>
             <Select

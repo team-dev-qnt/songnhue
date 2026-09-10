@@ -36,9 +36,10 @@ Quy tắc:
 - Cột chuẩn mọi bảng nghiệp vụ (BaseEntity): `created_at timestamptz`, `created_by`, `updated_at`, `updated_by`, `deleted_at` (soft delete), `version int` (optimistic lock).
 - FK: `<bảng_số_ít>_id` (`org_unit_id`); index: `ix_<bảng>_<cột>`; unique: `uq_<bảng>_<cột>`; check: `ck_<bảng>_<rule>`.
 - Enum nghiệp vụ: lưu `VARCHAR` + CHECK constraint (không dùng Postgres enum type — khó migrate).
-- Migration Flyway: `V<yyyyMMdd><nnnn>__<module>_<mô_tả>.sql` (VD `V202608311049__hyd_danh_muc_diem_do.sql`). ⛔⛔ **`<nnnn>` là SỐ THỨ TỰ CHẠY TIẾP TOÀN KHO, KHÔNG PHẢI GIỜ-PHÚT** — chuỗi `1046 → 1047 → 1048 → …` xuyên suốt cả kho, không đếm lại theo ngày; số mới phải **lớn hơn mọi số đã có**, kể cả số của một tệp mang ngày lớn hơn hôm nay. Cấm sửa migration đã merge — chỉ thêm mới (⚠ Flyway băm **cả tệp**, nên sửa một dòng CHÚ THÍCH cũng làm app không khởi động được — §10.65). Prefix `<module>`: `core`/`cms`/`ops`/`hyd`/`hr`.
+- Migration Flyway: `V<yyyyMMdd><nnnn>__<module>_<mô_tả>.sql` (VD `V202608311049__hyd_danh_muc_diem_do.sql`). ⛔⛔ **`<nnnn>` là SỐ THỨ TỰ CHẠY TIẾP TOÀN KHO, KHÔNG PHẢI GIỜ-PHÚT** — chuỗi `1046 → 1047 → 1048 → …` xuyên suốt cả kho, không đếm lại theo ngày; số mới phải **lớn hơn mọi số đã có**, kể cả số của một tệp mang ngày lớn hơn hôm nay. Cấm sửa migration đã merge — chỉ thêm mới (⚠ Flyway băm **cả tệp**, nên sửa một dòng CHÚ THÍCH cũng làm app không khởi động được — §10.65). Prefix `<module>`: `core`/`cms`/`ops`/`hyd`/`hr` — **và `seed`** cho tệp ở `db/seed/<bộ>/` (xem gạch đầu dòng *Vị trí migration* ngay dưới).
   > ⚠ Dòng này từng ghi `V<yyyyMMddHHmm>`. Hai cách viết **chỉ khác nhau ở đúng chỗ không ai nhìn** — thứ tự sắp xếp. Ngày 27/08/2026 hai migration đánh số bằng giờ-phút (`202608272320`) rơi xuống *dưới* ba migration mang ngày 28 đã áp trên staging ⇒ out-of-order ⇒ **hai lượt CD đỏ liên tiếp**, và cùng lỗi ấy làm một câu seed `UPDATE` chạm **0 hàng, không lỗi, không log** (§10.66). Bộ canh: `backend/tools/kiem-thu-tu-migration.sh` (bước 2/10 của `make ci-local` + job CI *Thứ tự migration*); chạy `make migration-order` trước mỗi PR có migration.
 - **Vị trí migration**: mỗi module tự quản trong `src/main/resources/db/migration/<prefix>/`; module `app` gộp lại qua `spring.flyway.locations=classpath:db/migration/core,…/cms,…/ops,…/hyd,…/hr`. Version là một dãy số **tăng dần toàn cục** (không phải timestamp) nên thứ tự vẫn đúng khi trộn nhiều module.
+  > ⛔⛔ **`db/seed/<bộ>/` cũng là một vị trí Flyway thật** — staging đặt `SEED_LOCATION=classpath:db/seed/portal`, và nó dùng **CHUNG** `flyway_schema_history` + **CHUNG** không gian số hiệu với `db/migration`. ⇒ Tệp seed phải theo **đúng** dãy `nnnn` tăng dần toàn kho. Ngày 10/09/2026 tìm ra `V202608251100__seed_portal_content.sql` — `nnnn = 1100` tức **11:00**, nạn nhân **thứ ba** của §10.66 — nằm im 16 ngày vì `MigrationNamingTest` chỉ quét `db/migration/<prefix>` (T47.20, luật 28). Nay bộ canh **tự đo** phạm vi: nó liệt kê mọi `<module>/src/main/resources/db` thay vì nhận danh sách người viết gõ tay.
 - **Cấu hình Flyway bắt buộc**: `cleanDisabled=true` (chặn `flyway clean` xóa sạch production do lỡ tay) · `validateOnMigrate=true` · `outOfOrder=false`.
 - **Production/Staging chạy migration ở service `migrator` riêng** trước khi app khởi động; app chạy với `flyway.enabled=false` → migration hỏng thì app không lên nửa vời (`architecture-review.md` §9.2).
 - **Phân quyền DB theo role, không chỉ theo code**: `songnhue_owner` (chỉ migrator) · `songnhue_app` (**không có DELETE** trên `audit_logs`, `security_events`, `hydro_raw_logs`) · `songnhue_archiver` (DELETE audit, chỉ job kết xuất) · `songnhue_readonly`. Xem §4.3. Role tạo ở `deploy/postgres/init/10-bootstrap.sh` (cần superuser); GRANT ở migration.
@@ -532,6 +533,34 @@ Quy tắc chung (áp dụng cả hai):
 - Người dùng tự quản mã số của mình; Admin không xem, không nhập hộ (trừ khi Công ty chốt dùng mã số chung — chờ G5).
 - Hệ thống nguồn chạy **HTTP** → chỉ gọi từ backend, **cấm** để trình duyệt người dùng gọi trực tiếp; ghi nhận là rủi ro tồn dư trong hồ sơ bàn giao.
 
+> ⛔⛔ **Một credential ⛔ không chỉ phải được BẢO VỆ ở ô của nó — nó phải bị TỪ CHỐI ở mọi ô khác.**
+> Sự cố thật, staging 01/09 → 10/09/2026: mã số truy cập bị dán **nguyên URL** vào ô *Địa chỉ gốc*
+> (`http://songnhue.bhh40.net/api/getmn.aspx?key=<mã số>`). Đo sau 9 ngày: `credential` vẫn `NULL`
+> ⇒ poller hỏng **trước khi mở HTTP**, `consecutive_failures = 3323`, **`hydro_raw_logs = 0`** —
+> ⛔ không một byte số liệu nào, mà quy tắc 18 nói *⛔ không có API lịch sử ⇒ mất dữ liệu là vĩnh
+> viễn*. Kèm theo: mã số nằm nguyên văn ở một cột ⛔ **không** mã hoá, và `ApiSourceView` **trả
+> `baseUrl` ra API** cho mọi vai trò có `hyd:station:manage` ⇒ cả ba gạch đầu dòng *"⛔ không trả ra
+> ngoài / ⛔ không log / ⛔ không vào export"* ở trên đều vỡ, chỉ vì chuỗi ấy nằm ở **ô bên cạnh**.
+>
+> ⛔ Đây ⛔ **không** phải lỗi người dùng, và cũng ⛔ không sửa được bằng một dòng hướng dẫn: có
+> **hai ô** nhận cùng một chuỗi, một ô được mã hoá và một ô ⛔ không, mà ⛔ không gì nói cho người
+> gõ biết họ chọn nhầm. Cùng họ **T46.6** (dán toạ độ vào `InputNumber` ra `21`): *con đường tự
+> nhiên nhất vừa im lặng vừa sai*.
+>
+> ⇒ **Luật**: mỗi ô văn bản tự do đi vào một lời gọi ra ngoài (URL nguồn, endpoint webhook, chuỗi
+> kết nối…) phải **từ chối** giá trị trông như credential, ở **đường dữ liệu đi qua** chứ ⛔ không ở
+> biểu mẫu (quy tắc 12) — một ô nhập chỉ đỡ được người dùng ô ấy, ⛔ không đỡ được lượt gọi API hay
+> bản nhập cấu hình. Hiện thực: `ApiSourceService.diaChi(...)` → **`HYD-2016`**, canh bởi
+> `NguonDuLieuMaSoHttpTest` (2 bài bắt + 3 đối chứng phải-được-tha).
+>
+> ⚠ **So TRỌN TÊN tham số, ⛔ đừng tìm chuỗi trong cả URL**: `url.contains("key")` đỏ oan với
+> `/api/keyword`, và cách sửa rẻ nhất lúc ấy là nới luật cho hết đỏ — tức tháo chính bộ canh
+> (luật 2 + §11.18). Tham số **rỗng** (`?key=`) thì tha: nó ⛔ không mang bí mật nào.
+>
+> ⚠ **Và một nguồn hỏng liên tiếp phải KÊU.** `consecutive_failures` chạy tới **3323** trong 9 ngày
+> mà ⛔ không ai được báo — nó chỉ được *hiển thị lên màn hình*. Quy tắc 18 xếp giám sát poller
+> **ngang backup CSDL**; một con số chỉ nằm trên màn hình ⛔ không phải một cái chuông (nợ **T50.3**).
+
 ---
 
 ## 5. DEFINITION OF DONE (mỗi PR)
@@ -571,3 +600,108 @@ trùng nhau · một dòng công việc mất mã số · khoá nhóm bị tách
 
 Cả ba đều đã xảy ra thật và đều không có triệu chứng nào cho tới lúc có phép kiểm: 310/310 dòng mất
 mã số, 29 mã số trùng trong đó 19 cặp mâu thuẫn trạng thái.
+
+---
+
+## 7. KIỂM CHỨNG MỘT LƯỢT TRIỂN KHAI ĐÃ ĐÁP XUỐNG HAY CHƯA
+
+> Thêm 10/09/2026 sau một lượt điều tra *"CD chạy chưa? migration áp đúng chưa?"* mà **cả hai giả
+> thuyết đều sai** — nguyên nhân thật nằm ở dữ liệu người dùng nhập. Bộ bốn phép đo dưới đây trả lời
+> dứt điểm câu hỏi ấy trong vài phút, và quan trọng hơn: nó **loại trừ** được hai giả thuyết đắt
+> tiền trước khi ai kịp đi sửa nhầm chỗ.
+
+⛔ **"Workflow báo success" ⛔ không phải "byte đã lên máy"** — §10.57 (cổng secret bỏ qua trong im
+lặng), §10.60 (một lệnh nuốt mất nửa cuối script). Luôn đo **độc lập qua SSH**, ⛔ đừng đọc lại lời
+của workflow.
+
+| # | Câu hỏi | Phép đo |
+|---|---|---|
+| 1 | Lượt CD có chạy ⛔ không | `gh run list --workflow="CD Staging" --limit 5 --json conclusion,headSha,createdAt` |
+| 2 | Container có được **thay** ⛔ không | `docker ps --format "{{.Names}}\t{{.CreatedAt}}"` — so với mốc CD (§10.53) |
+| 3 | Ảnh có **mới** ⛔ không | `docker image inspect -f "{{.Created}}" $(docker inspect -f "{{.Image}}" <container>)` cho **cả ba** ảnh |
+| 4 | **Mã** có trong ảnh ⛔ không | `grep -ac <TênLớpChỉCóTừBảnMới> /app/app.jar`, **kèm đối chứng** |
+
+⚠⚠ **Giờ của hai nguồn khác múi.** `gh run list` in **UTC**, `docker ps` in giờ **máy chủ (+07)**.
+Một lượt CD lúc `00:28Z` cho container tạo lúc `07:30 +07` — **khớp nhau**, ⛔ không phải lệch 7 giờ.
+Đây là chỗ dễ kết luận sai nhất, và kết luận sai theo hướng *"CD ⛔ không đáp xuống"* sẽ kéo cả cuộc
+điều tra đi lạc.
+
+⛔⛔ **`unzip -l /app/app.jar | grep <TênLớp>` cho ÂM TÍNH GIẢ.** Spring Boot fat jar để lớp của
+từng module trong **jar LỒNG** (`BOOT-INF/lib/songnhue-core-*.jar`), nên `unzip -l` của jar ngoài
+chỉ liệt kê **tên jar con** — mọi lớp nghiệp vụ đều "⛔ không tìm thấy". Đo 10/09: lệnh ấy trả `0`
+cho một lớp **thật sự có mặt**. Dùng `grep -ac <TênLớp> /app/app.jar` (tên entry trong zip ⛔ không
+bị nén) và **luôn kèm hai đối chứng**:
+
+```sh
+grep -ac SongnhueApplication /app/app.jar   # phải-TÌM-THẤY  → 2
+grep -ac ClientIp            /app/app.jar   # thứ đang hỏi   → 2
+grep -ac ChuoiKhongTonTaiXyz /app/app.jar   # phải-KHÔNG-thấy → 0
+```
+
+⛔ Thiếu đối chứng thì một bộ dò đã chết in ra `0` **giống hệt** một lớp vắng mặt — đúng vụ
+`strings` của macOS bỏ qua 38/52 tệp `.class` mà vẫn thoát 0 (T11.80).
+
+**Migration** thì so **hai chiều**, ⛔ đừng chỉ đếm:
+
+```sh
+ssh <máy chủ> 'docker exec $(docker ps -qf name=postgres|head -1) \
+  psql -U songnhue_app -d songnhue -tAc "select script from flyway_schema_history order by 1"' \
+  | tr -d " \r" | sort > /tmp/stg.txt
+find backend -path '*/src/main/resources/db/*' -name 'V*.sql' -exec basename {} \; | sort > /tmp/repo.txt
+comm -13 /tmp/stg.txt /tmp/repo.txt   # chỉ có ở REPO   = chưa áp
+comm -23 /tmp/stg.txt /tmp/repo.txt   # chỉ có ở STAGING = tệp đã biến mất khỏi repo
+```
+
+⚠ Vế thứ hai mới là vế đáng sợ: một migration **đã áp** mà ⛔ không còn trong repo sẽ làm
+`validate-on-migrate` đỏ ở lượt khởi động kế tiếp — và ⛔ không lượt đếm nào thấy nó.
+
+⭐ **Và khi cả bốn phép đo đều xanh thì đừng đi tìm phép đo thứ năm về hạ tầng — hãy đi đo DỮ LIỆU.**
+Lượt 10/09: CD đúng, ảnh đúng, mã đúng, migration khớp **69 = 69**; thứ hỏng là một chuỗi người dùng
+gõ vào **ô bên cạnh** (§4.7).
+
+### 7.1. ⛔⛔ `${BIEN:}` biến một biến VẮNG MẶT thành một biến RỖNG — và mọi cổng chặn theo "có/không" đều mù
+
+Thêm 10/09/2026 sau khi đo ra kênh email của staging **chưa từng gửi nổi một thư nào**.
+
+```yaml
+spring:
+  mail:
+    host: ${SMTP_HOST:}          # ⛔ mặc định là CHUỖI RỖNG
+```
+
+```java
+@ConditionalOnProperty(name = "spring.mail.host", matchIfMissing = false)   // ⛔ LUÔN khớp
+```
+
+Thuộc tính **luôn có mặt** (rỗng), nên điều kiện **luôn đúng**, bean **vẫn** được dựng, và Spring
+rơi về máy chủ mặc định `localhost:587`. Số đo staging:
+
+```
+notification_recipients  EMAIL → 154 FAILED · 88 SKIPPED · 0 SENT
+log                      "Kênh email BẬT — thư gửi từ địa chỉ no-reply@songnhue.com"
+err                      MailConnectException: Couldn't connect to host, port: localhost, 587
+```
+
+⛔ Và javadoc của `MailConfig` khẳng định điều **ngược lại** từ WS-6: *"không cấu hình SMTP thì
+**không** tạo bean"*. **Một chú thích không phải một cổng kiểm** — hình dạng lỗi lặp nhiều nhất
+của dự án.
+
+**Luật**: một cổng chặn dựa trên biến môi trường phải hỏi **giá trị có nội dung hay không**, ⛔ không
+hỏi **thuộc tính có tồn tại hay không**:
+
+```java
+@ConditionalOnExpression("!'${spring.mail.host:}'.trim().isEmpty()")
+```
+
+⚠ Và phải có **đối chứng phải-BẬT**: một điều kiện viết sai kiểu *"luôn luôn sai"* làm mọi bài
+"phải tắt" xanh, rồi tắt luôn kênh ở môi trường đã cấu hình đúng — đổi một khuyết tật ồn ào lấy một
+khuyết tật im lặng (`MailConfigTest`, 3 bài bắt + 1 đối chứng).
+
+⚠ **Vá mã không làm kênh chạy.** Nó chỉ khiến hệ **thôi giả vờ chạy**. Và auto-configuration của
+framework có thể dính đúng bẫy ấy ở tầng ta không với tới được (`MailSenderAutoConfiguration` vẫn
+dựng `JavaMailSender`, `MailHealthIndicator` vẫn đỏ) ⇒ ở môi trường không dùng thư, **bỏ hẳn biến
+khỏi `.env`**, ⛔ đừng để chuỗi rỗng.
+
+📌 Đây là **lần thứ ba** cùng hình dạng: §10.38 (`ARG` không truyền vẫn gán chuỗi rỗng, `??` giữ
+nguyên nó còn `||` mới đỡ) · §10.78 (`#SMTP_PORT=587` bị chú thích, mặc định `:1025` không cứu vì
+compose truyền chuỗi rỗng) · và lần này. Quy tắc 3 nói thẳng: **"rỗng" khác "chưa đặt"**.
