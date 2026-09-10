@@ -20,9 +20,12 @@ import org.junit.jupiter.api.Test;
 
 import com.songnhue.core.domain.backup.BackupTrigger;
 import com.songnhue.hr.domain.ContractType;
+import com.songnhue.hr.domain.EducationLevel;
+import com.songnhue.hr.domain.EmployeeEventType;
 import com.songnhue.hr.domain.EmploymentStatus;
 import com.songnhue.hr.domain.Gender;
 import com.songnhue.hr.domain.MaritalStatus;
+import com.songnhue.hr.domain.QualificationKind;
 import com.songnhue.operations.domain.ConstructionPurpose;
 import com.songnhue.operations.domain.ConstructionType;
 import com.songnhue.operations.domain.LifecycleState;
@@ -58,8 +61,8 @@ import com.songnhue.operations.domain.OperationalStatus;
  *
  * <h2>⚠ Phạm vi tự khai (luật 28)</h2>
  *
- * Bài này soi <b>đúng mười enum</b> đã liệt kê ở {@link #BO_BA}: năm của hồ sơ công trình,
- * {@code BackupTrigger}, và <b>bốn của HRM</b> (T51.10a, thêm 10/09/2026). Nó <b>không</b> phủ:
+ * Bài này soi <b>đúng mười ba enum</b> đã liệt kê ở {@link #BO_BA}: năm của hồ sơ công trình,
+ * {@code BackupTrigger}, bốn của hồ sơ CBNV (T51.10a) và <b>ba của lớp hồ sơ con</b> (WS-53). Nó <b>không</b> phủ:
  *
  * <ul>
  *   <li>{@code sluice_specs.sluice_type} và {@code gate_operation} — CSDL có {@code CHECK} liệt kê
@@ -71,7 +74,7 @@ import com.songnhue.operations.domain.OperationalStatus;
  * <h2>⬜ Nợ CÓ SỐ ĐO — vì sao danh sách vẫn gõ tay (T51.10a, phần còn lại)</h2>
  *
  * <p>Đo 10/09/2026 trên toàn chuỗi migration: <b>39</b> ràng buộc {@code CHECK … IN (…)} <b>có tên</b>
- * tồn tại; bảng này canh <b>10</b>. Con số 29 còn lại <b>không</b> phải 29 lỗ hổng — phần lớn là enum
+ * tồn tại (39 + 3 của WS-53 = <b>42</b>); bảng này canh <b>13</b>. Con số 29 còn lại <b>không</b> phải 29 lỗ hổng — phần lớn là enum
  * chỉ sống ở backend ({@code ck_jobs_status}, {@code ck_audit_logs_action}…) và ⛔ không có nơi thứ hai
  * để mà lệch.
  *
@@ -131,7 +134,15 @@ class EnumBaNoiTest {
             new BoBa(Gender.class, "Gender", "ck_employees_gender", null, HR_TU_VUNG),
             new BoBa(MaritalStatus.class, "MaritalStatus", "ck_employees_marital", null, HR_TU_VUNG),
             new BoBa(ContractType.class, "ContractType", "ck_employees_contract_type", null, HR_TU_VUNG),
-            new BoBa(EmploymentStatus.class, "EmploymentStatus", "ck_employees_status", null, HR_TU_VUNG));
+            new BoBa(EmploymentStatus.class, "EmploymentStatus", "ck_employees_status", null, HR_TU_VUNG),
+            // ⭐ WS-53 — ba enum của lớp hồ sơ con (CN-04.3 · CN-04.4).
+            // ⛔ `HoSoThuMuc` KHÔNG có mặt ở đây và đó ⛔ không phải sơ suất: `attachments.purpose`
+            //    là VARCHAR tự do dùng chung cho mọi module, nên nó ⛔ không có ràng buộc CHECK để
+            //    đối chiếu. Bộ ba của nó là enum ↔ union TS ↔ **bảy khoá settings**, và
+            //    `HoSoThuMucHttpTest` canh đúng bộ ba ấy.
+            new BoBa(EducationLevel.class, "EducationLevel", "ck_employees_education_level", null, HR_TU_VUNG),
+            new BoBa(QualificationKind.class, "QualificationKind", "ck_employee_qualifications_kind", null, HR_TU_VUNG),
+            new BoBa(EmployeeEventType.class, "EmployeeEventType", "ck_employee_events_type", null, HR_TU_VUNG));
 
     private static final Path TU_VUNG =
             gocKho().resolve("frontend/admin-app/src/components/business/statusVocabulary.ts");
@@ -198,7 +209,7 @@ class EnumBaNoiTest {
 
         assertThat(BO_BA)
                 .as("bảng đối chiếu rỗng thì bài trên không khẳng định gì")
-                .hasSize(10);
+                .hasSize(13);
         assertThat(BO_BA.stream().map(BoBa::tepTs).distinct().toList())
                 .as("⭐ T51.10(a): phải có ÍT NHẤT hai tệp TS trong bảng. Thiếu vế này thì một lượt "
                         + "'dọn dẹp' gộp tất cả về api-types.ts sẽ làm bốn enum HR về rỗng — và bài "
@@ -370,19 +381,56 @@ class EnumBaNoiTest {
      * {@code IN (…)} bên trong khối ràng buộc chứ không giả định ràng buộc chỉ có một mệnh đề.
      */
     private static Set<String> giaTriCsdl(String sql, String tenRangBuoc) {
-        Matcher khoi = Pattern.compile(
-                        "CONSTRAINT\\s+" + Pattern.quote(tenRangBuoc) + "\\s+CHECK\\s*\\((.*?)\\n\\s*\\)",
-                        Pattern.DOTALL)
+        Matcher moKhoi = Pattern.compile("CONSTRAINT\\s+" + Pattern.quote(tenRangBuoc) + "\\s+CHECK\\s*\\(")
                 .matcher(sql);
-        if (!khoi.find()) {
+        if (!moKhoi.find()) {
             return Set.of();
         }
-        Matcher danhSach =
-                Pattern.compile("IN\\s*\\(([^)]*)\\)", Pattern.DOTALL).matcher(khoi.group(1));
+        String than = docTrongNgoac(sql, moKhoi.end() - 1);
+        Matcher danhSach = Pattern.compile("IN\\s*\\(", Pattern.DOTALL).matcher(than);
         if (!danhSach.find()) {
             return Set.of();
         }
-        return bocChuoiNhay(danhSach.group(1), '\'');
+        return bocChuoiNhay(docTrongNgoac(than, danhSach.end() - 1), '\'');
+    }
+
+    /**
+     * Nội dung giữa cặp ngoặc <b>cân bằng</b> bắt đầu tại {@code viTriMo}.
+     *
+     * <h2>⛔⛔ Vì sao ⛔ KHÔNG cắt bằng regex — §11.13 lần thứ hai</h2>
+     *
+     * <p>Bản trước chặn khối {@code CHECK} bằng {@code (.*?)\n\s*\)}, tức <i>"tới dòng đầu tiên
+     * chỉ có dấu đóng ngoặc"</i>. Nó đúng khi danh sách {@code IN (…)} nằm gọn <b>một dòng</b> —
+     * đúng cách {@code V202609101076} trình bày. Nhưng một ràng buộc có danh sách dài xuống dòng thì
+     * dấu đóng ngoặc của {@code IN (…)} <b>chính là</b> dòng ấy, nên phần bóc được ⛔ không còn dấu
+     * đóng nào và {@code IN\s*\(([^)]*)\)} tìm không thấy ⇒ trả <b>tập rỗng</b>.
+     *
+     * <p>⚠ Tập rỗng làm bài chính đỏ với câu *"CSDL lệch enum Java"* — một chẩn đoán <b>sai</b>: SQL
+     * hoàn toàn đúng, chỉ bộ đọc mù. Đó là một bộ canh mà <b>cách xuống dòng</b> làm cho sai, đúng
+     * hình dạng §11.13 (Spotless ngắt {@code @DisplayName}) và T46.7 (đếm chú thích là lời gọi).
+     *
+     * <p>⇒ Đếm ngoặc thay vì so mẫu. Bỏ qua ngoặc nằm trong chuỗi nháy đơn — một giá trị enum ⛔
+     * không chứa ngoặc hôm nay, nhưng bộ đọc ⛔ không được phụ thuộc vào điều đó.
+     */
+    private static String docTrongNgoac(String s, int viTriMo) {
+        int sau = 0;
+        boolean trongNhay = false;
+        for (int i = viTriMo; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '\'') {
+                trongNhay = !trongNhay;
+            } else if (!trongNhay) {
+                if (c == '(') {
+                    sau++;
+                } else if (c == ')') {
+                    sau--;
+                    if (sau == 0) {
+                        return s.substring(viTriMo + 1, i);
+                    }
+                }
+            }
+        }
+        return "";
     }
 
     private static Set<String> bocChuoiNhay(String doan, char nhay) {

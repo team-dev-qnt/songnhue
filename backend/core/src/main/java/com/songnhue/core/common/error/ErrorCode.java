@@ -367,6 +367,15 @@ public enum ErrorCode {
      * hồ sơ ⛔ không lộ ra gì vì cột chức vụ đã tự về rỗng (cùng hình dạng T40.26).
      */
     HR_2002("HR-2002", HttpStatus.UNPROCESSABLE_CONTENT),
+    /**
+     * Tệp vượt hạn mức <b>riêng của thư mục</b> {0} — {1} MB, tệp gửi lên {2} MB (CN-04.5).
+     *
+     * <p>⚠ Đây ⛔ <b>không</b> trùng {@link #SYS_0010}: mã kia là hạn mức <i>tổng dung lượng một hồ
+     * sơ</i> ({@code limits.attachment.quota-mb.EMPLOYEE}), còn mã này là trần <i>mỗi tệp theo thư
+     * mục</i> (Ảnh 5MB, Hợp đồng 20MB…). Gộp hai mã là để người vận hành đọc một câu lỗi rồi đi sửa
+     * nhầm tham số.
+     */
+    HR_2003("HR-2003", HttpStatus.UNPROCESSABLE_CONTENT),
 
     // ---- MOD-05 Quản trị --------------------------------------------------------
     ADM_2001("ADM-2001", HttpStatus.UNPROCESSABLE_CONTENT),

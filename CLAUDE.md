@@ -79,9 +79,18 @@ WS-51). Đã dựng: **CN-04.2** hồ sơ CBNV + danh mục chức vụ + trư�
 AES-256-GCM, khoá ngoài CSDL). Chốt luôn **T47.19** bằng phép đo: ⛔ **không** cột `key_id` — id khoá
 đã nằm trong bản mã, còn tiền lệ "có cột riêng" (`user_totp.key_id`) đo ra là một **cột chết**
 (ghi 1 lần, đọc 0 lần, job xoay khoá 0 tệp).
-⬜ Còn lại của MOD-04: CN-04.1 sơ đồ tổ chức (UI cây + export) · CN-04.3 lý lịch/chuyên môn ·
-CN-04.4 timeline · CN-04.5 tài liệu + cảnh báo hết hạn · CN-04.6 danh bạ · CN-04.8 báo cáo ·
-CN-04.9 nghỉ phép. **G6** chặn **đúng một** báo cáo `BCNS-07`, ⛔ không chặn 8 chức năng còn lại;
+⭐ **WS-53 (10/09) dựng thêm ba: CN-04.3** lý lịch & chuyên môn · **CN-04.4** timeline 10 loại sự
+kiện · **CN-04.5** tài liệu 7 thư mục + cảnh báo hết hạn M4.9. Tài liệu ⛔ **không** có bảng riêng —
+`attachments` với `owner_type='EMPLOYEE'`, và versioning *"⛔ không ghi đè"* là **hành vi sẵn có**
+của `AttachmentService.nextVersion(owner, purpose)`. Trả **2/15** khoá `settings` nhóm `hr.*` đang
+mồ côi từ 13/08.
+⬜ Còn lại của MOD-04: **CN-04.1** sơ đồ tổ chức (UI cây + export) · **CN-04.6** danh bạ ·
+**CN-04.8** báo cáo · **CN-04.9** nghỉ phép · hai vế nhỏ của CN-04.5 (tải cả hồ sơ ZIP, xem trước
+PDF/ảnh — T53.12).
+⛔⛔ **Thứ tự bắt buộc: T51.8 → CN-04.9.** Chốt C3 đòi *"cấp tài khoản cho toàn bộ CBNV"*, nên đơn
+nghỉ phép phải biết **người gửi là CBNV nào** — cột `users.employee_id` có **0 đường ghi**. Dựng
+CN-04.9 trước là dựng một quy trình duyệt ⛔ không biết ai đang xin nghỉ. **13 khoá `hr.leave.*`
+vẫn mồ côi** cho tới lượt ấy. **G6** chặn **đúng một** báo cáo `BCNS-07`, ⛔ không chặn 8 chức năng còn lại;
 **G6-a** (danh sách CBNV) chặn **dữ liệu**, ⛔ không chặn mã — bảng để RỖNG là đúng.
 ✅ **T51.11 ĐÃ TRẢ 10/09** — `NoAmbientClock` nay bắt **9 kiểu** (thêm `YearMonth`·`MonthDay`·
 `ZonedDateTime`·`OffsetDateTime`·`OffsetTime`) **+ 3 đường VÒNG** (`ZoneId.systemDefault()` ·
@@ -262,6 +271,12 @@ sai, sửa 10/09 — T52.8). Đo trên CSDL staging cùng ngày: `constructions`
 | 10/9 | ⛔ **Hai dòng sổ về dữ liệu bản đồ tự nó sai, lần thứ SÁU cùng hình dạng.** Ghi chú đang lưu hành khai *"0 câu `INSERT INTO constructions`"*; đo lại: `V202609091075` **CÓ** dựng, staging có **11 công trình · 15 liên kết · 7 tuyến sông**. Thứ **thật sự** rỗng là **toạ độ** (19/19 và 11/11 đều NULL). Hai câu nghe giống nhau mà dẫn tới hai việc khác hẳn: *chưa có danh mục* ⇒ viết migration; *chưa có toạ độ* ⇒ **đi hỏi Công ty** | T52.8 |
 | 10/9 | ⭐⭐ **Hệ nguồn của Công ty ĐANG GIỮ toạ độ — có hẳn mục "Bản đồ Google".** Trang gốc `bhh40.net` (đọc được ⛔ không cần đăng nhập) có `pro=ketquado.songnhue-bando` + danh sách **35 mã trạm** (ta có 19, API trả 28). `getmn.aspx` ⛔ **không** trả toạ độ (chỉ `mã;ngày;giờ;value=`), nên trước nay ⛔ không ai đi tìm chỗ khác. ⇒ G8 có thể ⛔ không cần chờ Công ty gửi bảng — chỉ cần **mã số** để đọc trang ấy | T52.11 |
 | 10/9 | ⛔ **Chạy maven mục tiêu SONG SONG với `make ci-local` làm cái xanh mất nghĩa.** Lượt ấy thoát **0**, 7/7 module SUCCESS, log ghi **224** bài hydro — mà `surefire-reports` của hydro chỉ còn **1** tệp, vì lượt `-Dtest=…` của tôi `rm -rf` đúng thư mục ấy giữa chừng. Hai build ghi chung một cây `target` thì cái xanh ⛔ không còn nói được **nó xanh vì cái gì** (luật 32) | T52.12 |
+| 10/9 | ⛔⛔⛔ **T51.12 tái phát ở màn hình thứ BA — và hai bản vá đầu của tôi mỗi bản sinh một khuyết tật mới.** `clearOnDestroy` một mình: vẫn hiện tên bằng cấp của người A trong ô người B (React dựng cây con MỚI cùng lượt commit với lượt tháo cây cũ, nên `rc-field-form` áp `initialValues` với `init === false` **trước** khi lượt dọn kịp chạy). `key` thêm vào: vẫn hỏng. `key` + đặt giá trị tường minh **kèm** `clearOnDestroy`: ô ra **RỖNG** — lượt dọn của cây cũ chạy **sau** lượt đặt giá trị của cây mới. ⇒ **Ba biện pháp phòng chồng nhau ⛔ không cộng lại thành an toàn hơn**; một cơ chế tường minh có bài kiểm mới là | T53.7 |
+| 10/9 | ⛔⛔ **Bài kiểm chứng ngược đầu tiên của tôi cho ngăn kéo là XANH GIẢ.** Nó dựng `HoSoConDrawer` rồi khẳng định bảng đổi theo người; gỡ `destroyOnHidden` ⇒ **vẫn xanh**, vì ba tab đọc qua `useQuery` với `publicId` **trong khoá truy vấn**. Một bài ⛔ không thể đỏ là một bài ⛔ không canh gì (luật 1). Nhắm lại vào hộp thoại biểu mẫu ⇒ đỏ ngay trên khuyết tật thật. ⚠ Cùng lượt: javadoc của tôi khẳng định `destroyOnHidden` là *"thứ **duy nhất** ngăn…"* — **sai**, và một chú thích nói quá **nguy hiểm hơn ⛔ không có chú thích** | T53.8 |
+| 10/9 | ⛔⛔⛔ **Một tham số có mặc định KHÁC RỖNG thì *"chưa cấu hình"* ⛔ KHÔNG BIỂU DIỄN ĐƯỢC — luật 3 lần thứ tư.** `Setting.effectiveValue()` rơi về `default_value` khi giá trị rỗng, và `changeValue()` quy chuỗi rỗng về `NULL` — **cố ý**, để *"xoá ô"* và *"khôi phục mặc định"* cùng nghĩa. Hệ quả: seed một *"đề xuất tối thiểu"* làm mặc định là **khoá chết** trạng thái *"Công ty chưa quyết"*, rồi in % của một luật nhân sự ⛔ KHÔNG AI duyệt lên màn hình Ban giám đốc | T53.4 |
+| 10/9 | ⛔⛔ **`EnumBaNoiTest` mù trước MỌI `CHECK` có danh sách xuống dòng — §11.13 lần hai.** Bộ đọc chặn khối bằng `(.*?)\n\s*\)`, nên với một `IN (…)` nhiều dòng thì dấu đóng ngoặc của chính nó **là** dòng ấy ⇒ phần bóc được ⛔ không còn dấu đóng ⇒ **tập rỗng** ⇒ bài chính đỏ với chẩn đoán **sai** (*"CSDL lệch enum Java"*) trong khi SQL hoàn toàn đúng. ⇒ Đếm ngoặc cân bằng thay vì so mẫu. Một bộ canh mà **cách xuống dòng** làm cho sai là bộ canh đang canh văn bản | T53.6 |
+| 10/9 | ⭐⭐ **Hai bộ canh có sẵn bắt mã tôi vừa viết ở lượt chạy ĐẦU** — 3 `useMutation` thiếu `onError` (bấm Xoá, ⛔ không có gì xảy ra và ⛔ không có gì báo) và 2 bảng thiếu `scroll.x` (cột dài nhất bóp còn một ký tự mỗi dòng). Cả hai là loại lỗi lượt rà của con người ⛔ không thấy vì màn hình *trông vẫn chạy*. Lần thứ **bảy** một bộ canh của dự án bắt chính người vừa viết ra nó | T53.9 |
+| 10/9 | ⚠ **Một dòng nợ trong sổ đếm THIẾU — lần thứ sáu.** Ghi chú khai *"hai khoá `hr.*` mồ côi"*; đo lại: **15** khoá seed từ 13/08, **cả 15 có 0 nơi đọc**. WS-53 trả **2**, còn **13 khoá `hr.leave.*`** thuộc CN-04.9. ⇒ Nợ **có số đo** thì trả được; nợ ⛔ không có số đo thì ⛔ không | T53.2 |
 
 ⛔ Hệ quả rút ra: **"đã tick" không phải bằng chứng.** Trước khi mở một giai đoạn mới, đối chiếu với mã thật và chạy đường mà người dùng thật đi.
 
@@ -302,6 +317,17 @@ nào — bản vá là **mã**, ⛔ không phải dữ liệu) · **1045 dòng**
 `./mvnw -Dtest=…` **song song**, nó `rm -rf` đúng `hydro/target/surefire-reports` giữa chừng. Lượt
 ấy vẫn thoát **0** và in 7/7 SUCCESS. ⇒ **Mọi lượt `make ci-local` phải là tiến trình maven DUY
 NHẤT trên cây này** — nếu không thì cái xanh ⛔ không còn nói được nó xanh vì cái gì (luật 32).
+
+⭐⭐ **Đo lại 10/09/2026 sau WS-53 — `make ci-local` 10/10 thoát 0 VÀ `make ci-order` thoát 0**
+(⚠ số ở **MÁY**; quét CVE và đóng gói image ⛔ vẫn chỉ sống trên runner): **1725 testcase BE**
+(1716 + **9** bài HTTP của CN-04.3/04.4/04.5) · **0 đỏ** · **222 báo cáo surefire** · FE **381**
+test admin-app / 46 tệp + **392** public-web / 44 · **71 migration**, đỉnh
+`V202609101077__hr_ly_lich_su_kien_tai_lieu` · mã lỗi **108** (đếm độc lập hai phía cùng ra 108) ·
+**1058 dòng** sổ tracking, 0 phép kiểm đỏ.
+⚠⚠ **Lượt `ci-local` đầu của đợt này ĐỎ vì MÔI TRƯỜNG, ⛔ không vì mã** — một bài CMS vô can hết
+giờ ở 15s trong khi cả lượt FE mất **1024 giây** (bình thường ~30s): `MediaAnalysis` của macOS đang
+chiếm 100% CPU, load average **6.02**. ⇒ Trước khi đọc một lượt đỏ là *"mã hỏng"*, hãy đo `uptime`
+— một timeout dưới tải nặng và một timeout do vòng lặp vô hạn **in ra cùng một câu**.
 
 ⛔⛔ **Và lượt ấy vẫn đỏ trên CI, vì một lý do `make ci-local` ⛔ KHÔNG dựng lại được**: surefire xếp lớp theo **thứ tự hệ tệp**, macOS ngược Linux. Một lớp `PUT` thiếu trường đã xoá trắng dữ liệu G8 của lớp chạy sau — ở máy thì lớp bị hại chạy TRƯỚC nên xanh (§11.19). ⇒ **`make ci-order`** (thêm 09/09) chạy lại bộ kiểm ở một thứ tự lớp KHÁC. ⛔ Nó ⛔ không phải thứ tự thật của runner (ext4 xếp theo hash) — chỉ cần *khác* là đủ để lộ phụ thuộc thứ tự mà một lượt chạy đơn độc giấu đi.
 

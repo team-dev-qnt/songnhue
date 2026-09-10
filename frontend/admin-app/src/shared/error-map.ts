@@ -522,6 +522,13 @@ export const ERROR_CATALOG = {
     handling: 'toast',
     severity: 'warning',
   },
+  // ⚠ KHÁC SYS-0010: mã kia là hạn mức TỔNG dung lượng một hồ sơ, mã này là trần MỖI TỆP theo
+  //   thư mục (Ảnh 5MB, Hợp đồng 20MB…). Gộp hai câu là để người dùng đi sửa nhầm tham số.
+  'HR-2003': {
+    message: 'Tệp vượt dung lượng tối đa của thư mục này',
+    handling: 'toast',
+    severity: 'warning',
+  },
 
   // --- MOD-05 Quản trị --------------------------------------------------------
   'ADM-2001': {

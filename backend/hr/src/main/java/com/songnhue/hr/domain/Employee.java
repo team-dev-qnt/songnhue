@@ -58,6 +58,18 @@ public class Employee extends ScopedEntity {
     @Column(name = "gender", length = 10)
     private Gender gender;
 
+    /**
+     * Học vấn cao nhất — CN-04.3, thêm ở WS-53.
+     *
+     * <p>⛔ ⛔ Nó nằm ở {@code employees} chứ ⛔ không suy ra từ {@code employee_qualifications}: một
+     * người có thể ⛔ chưa nhập bằng cấp nào mà vẫn khai được trình độ, và BCNS-05 phải đếm được cả
+     * những hồ sơ ấy. Suy ra từ bảng con sẽ cho ra <i>"chưa có trình độ"</i> cho một kỹ sư ⛔ chỉ vì
+     * ⛔ chưa ai scan bằng của họ — một số 0 khẳng định sai (quy tắc 16).
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "education_level", length = 30)
+    private EducationLevel educationLevel;
+
     @Column(name = "ethnicity", length = 100)
     private String ethnicity;
 
@@ -148,6 +160,14 @@ public class Employee extends ScopedEntity {
 
     public void setGender(Gender gender) {
         this.gender = gender;
+    }
+
+    public EducationLevel getEducationLevel() {
+        return educationLevel;
+    }
+
+    public void setEducationLevel(EducationLevel educationLevel) {
+        this.educationLevel = educationLevel;
     }
 
     public String getEthnicity() {
