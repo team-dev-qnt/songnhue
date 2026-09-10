@@ -280,7 +280,11 @@ Format: `<PREFIX>-<4 số>` — prefix theo module: `SYS` (hệ thống), `AUTH`
 | HYD-2004 | 422 | Điểm đo đang mất tín hiệu — không dùng giá trị cũ để đánh giá ngưỡng |
 | HYD-2005 | 422 | Vai trò của liên kết chính phải trùng vai trò của điểm đo |
 | HYD-2006 | 422 | Không được đổi mã ánh xạ API của điểm đo (đang là {0}, gửi lên {1}) |
+| HR-1001 | 409 | Mã cán bộ đã tồn tại |
+| HR-1002 | 409 | Mã chức vụ đã tồn tại |
+| HR-1003 | 409 | Số CCCD đã thuộc hồ sơ khác — ép bằng cột **vân tay**, không bằng UNIQUE trên cột mã hoá |
 | HR-2001 | 422 | Số ngày đăng ký vượt số phép còn lại |
+| HR-2002 | 422 | Chức vụ còn hồ sơ đang giữ — không xoá được |
 | ADM-2001 | 422 | Kết xuất lưu trữ nhật ký thất bại — không xóa bản ghi nào |
 | ADM-2008 | 422 | Chưa cấu hình được sao lưu — thư mục lưu hoặc tài khoản đọc CSDL (WS-7) |
 | ADM-2009 | 409 | Đang có một lượt sao lưu chạy |

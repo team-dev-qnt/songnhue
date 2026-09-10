@@ -150,19 +150,23 @@ class RbacMatrixTest extends IntegrationTestBase {
             //   ma trận seed thì XN_OPERATOR và DUTY_OFFICER chỉ có `:view` — họ đọc được báo cáo
             //   trên màn hình nhưng ⛔ không mang được nó ra ngoài, và đó là quyết định của Công ty
             //   chứ ⛔ không phải một chi tiết kỹ thuật.
-            "hr:employee:create", // Nhân sự — Phase 2
-            "hr:employee:view", // Nhân sự — Phase 2
-            "hr:employee:view-sensitive", // Nhân sự — Phase 2
-            "hr:employee:update", // Nhân sự — Phase 2
-            "hr:employee:delete", // Nhân sự — Phase 2
-            "hr:contract:manage", // Hợp đồng — Phase 2
-            "hr:leave:request", // Phép — Phase 2
-            "hr:leave:approve", // Duyệt phép — Phase 2
-            "hr:leave:view-all", // Xem phép — Phase 2
-            "hr:org-chart:view", // Sơ đồ tổ chức — Phase 2
-            "hr:directory:view", // Danh bạ — Phase 2
-            "hr:report:view", // Báo cáo HR — Phase 2
-            "hr:report:export", // Xuất báo cáo HR — Phase 2
+            // ⬇ WS-51 đã GỠ NĂM dòng khỏi danh sách này — dòng mã HRM đầu tiên (10/09/2026):
+            //   `hr:employee:view` · `:create` · `:update` · `:delete` gác `EmployeeController` và
+            //   `PositionController`; `hr:employee:view-sensitive` gác `EmployeeSensitiveController`
+            //   (đường RIÊNG cho CCCD/lương/tài khoản/MST/BHXH — ⛔ không phải một nhánh `if` bên
+            //   trong endpoint chi tiết). ⛔ Đừng thêm lại cho hết đỏ — bài
+            //   `ngoaiLeQuyenPhaseSauVanConDung()` canh đúng chiều này.
+            //   ⚠ `hr:employee:view` cố ý cũng gác đường ĐỌC danh mục chức vụ: ô "Chức vụ" của biểu
+            //   mẫu hồ sơ nạp bằng endpoint ấy, và bắt nó sau một quyền khác là tái lập đúng sự cố
+            //   WS-28 — danh sách vĩnh viễn rỗng ⇒ ⛔ không tạo nổi một hồ sơ đầy đủ nào.
+            "hr:contract:manage", // Hợp đồng — Phase 3 (CN-04.5)
+            "hr:leave:request", // Phép — Phase 3 (CN-04.9)
+            "hr:leave:approve", // Duyệt phép — Phase 3 (CN-04.9)
+            "hr:leave:view-all", // Xem phép — Phase 3 (CN-04.9)
+            "hr:org-chart:view", // Sơ đồ tổ chức — Phase 3 (CN-04.1)
+            "hr:directory:view", // Danh bạ — Phase 3 (CN-04.6)
+            "hr:report:view", // Báo cáo HR — Phase 3 (CN-04.8)
+            "hr:report:export", // Xuất báo cáo HR — Phase 3 (CN-04.8)
             // ⬇ WS-36/T36.8 đã GỠ `cms:feedback:manage`: `FeedbackController` (danh sách · tổng
             //   hợp · bước chuyển · xoá) gác bằng đúng quyền ấy, VÀ năm bước chuyển của quy trình
             //   FEEDBACK khai nó ở `workflow_transitions.required_permission`. ⛔ Đừng thêm lại cho

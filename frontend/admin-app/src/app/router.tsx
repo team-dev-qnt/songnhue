@@ -295,6 +295,25 @@ export const router = createBrowserRouter([
             'cms:layout:manage',
             lazyPage(() => import('@/features/cms/SiteLayoutPage'), 'SiteLayoutPage'),
           ),
+          // ---- Nhân sự (MOD-04) ----
+          // ⚠ Cả hai tuyến gác bằng `hr:employee:view` — quyền RỘNG NHẤT của trang, ⛔ KHÔNG bằng
+          //   `:create`/`:update`/`:delete`. Riêng danh mục chức vụ thì đó còn là ràng buộc chứ
+          //   ⛔ không phải lựa chọn: `PositionController` cố ý cho đường ĐỌC dùng chung quyền ấy
+          //   vì ô "Chức vụ" của biểu mẫu hồ sơ nạp bằng đúng endpoint này — gác nó sau một quyền
+          //   khác là làm ô ấy rỗng vĩnh viễn và ⛔ không ai tạo nổi một hồ sơ đầy đủ (WS-28).
+          // ⛔ `hr:employee:view-sensitive` CỐ Ý ⛔ không có mặt ở đây: nó gác một hộp thoại bên
+          //   trong trang, ⛔ không gác cả trang. ADMIN có mọi quyền HR TRỪ quyền ấy
+          //   (`V202608131007:169`), nên đưa nó lên tuyến là khoá ADMIN ra khỏi cả màn hình.
+          adminRoute(
+            '/nhan-su/ho-so',
+            'hr:employee:view',
+            lazyPage(() => import('@/features/hr/EmployeesPage'), 'EmployeesPage'),
+          ),
+          adminRoute(
+            '/nhan-su/chuc-vu',
+            'hr:employee:view',
+            lazyPage(() => import('@/features/hr/PositionsPage'), 'PositionsPage'),
+          ),
           adminRoute(
             '/quan-tri/tai-khoan',
             'adm:user:view',

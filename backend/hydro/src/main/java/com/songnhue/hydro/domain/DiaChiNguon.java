@@ -2,8 +2,15 @@ package com.songnhue.hydro.domain;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Địa chỉ nguồn có được phép mở kết nối tới không — <b>SSRF, T30.12</b>
@@ -53,6 +60,8 @@ import java.util.Set;
  */
 public final class DiaChiNguon {
 
+    private static final Logger log = LoggerFactory.getLogger(DiaChiNguon.class);
+
     private static final Set<String> SCHEME_CHO_PHEP = Set.of("http", "https");
 
     /**
@@ -93,9 +102,113 @@ public final class DiaChiNguon {
         if (!chapNhanMayNoiBo) {
             kiemHost(host);
         }
-        // ⚠ `resolve` chứ không phải nối chuỗi: nối chuỗi thì `baseUrl` thiếu/thừa dấu `/` cho ra hai
-        //   URL khác nhau, và một trong hai trả 404 mà không ai đoán được vì sao.
-        return goc.resolve(duongDan);
+        return goc.resolve(chuanHoaGoc(goc, duongDan)).resolve(duongDan);
+    }
+
+    /**
+     * Đưa đường dẫn của {@code goc} về dạng <b>thư mục</b>, sau khi cắt phần <i>đã trùng</i> với đầu
+     * {@code duongDan} — <b>T52.1</b>.
+     *
+     * <h2>⛔⛔ Sự cố thật: 3576 lượt hỏng liên tiếp, {@code last_success_at} CHƯA BAO GIỜ</h2>
+     *
+     * <p>Đo trên staging 10/09/2026:
+     *
+     * <pre>
+     *   base_url             = http://songnhue.bhh40.net/api/getmn.aspx
+     *   credential           = ĐÃ ĐẶT, đúng chỗ, mã hoá đúng (v1:…)
+     *   consecutive_failures = 3576
+     *   last_success_at      = NULL          ← ⛔ chưa một lượt nào thành công, BAO GIỜ
+     *   last_failure_reason  = "Nguồn trả HTTP 404"
+     *   hydro_readings       = 0 · hydro_latest = 0
+     * </pre>
+     *
+     * <p>Người vận hành đã làm <b>đúng</b> phần khó: gỡ {@code ?key=…} khỏi ô <i>Địa chỉ gốc</i> và
+     * đặt mã số qua hộp thoại <i>Mã số truy cập</i> (bản vá T50.1). Thứ ở lại là <b>đường dẫn</b>
+     * {@code /api/getmn.aspx} — và {@code URI.resolve} <b>thay đoạn cuối</b> của đường dẫn gốc, nên
+     * {@code /api/getmn.aspx} + {@code api/getmn.aspx} cho ra {@code /api/api/getmn.aspx}. Đo trên
+     * nguồn thật cùng ngày: đường ấy trả <b>404</b>, còn đường đúng trả 200.
+     *
+     * <h2>⚠⚠ Vế IM LẶNG còn nặng hơn vế 404</h2>
+     *
+     * <p>{@code URI.resolve} bỏ đoạn cuối của base khi base ⛔ không kết thúc bằng {@code /}:
+     *
+     * <pre>
+     *   http://host/songnhue   + api/getmn.aspx  ->  http://host/api/getmn.aspx      ⛔ MẤT "/songnhue"
+     *   http://host/songnhue/  + api/getmn.aspx  ->  http://host/songnhue/api/…      ✅
+     * </pre>
+     *
+     * <p>Vế trên ⛔ không sinh 404 — nó gọi <b>một đường dẫn có thật trên một máy chủ có thật</b> và
+     * trả 200. Ngày Công ty dời nguồn xuống một thư mục con, poller sẽ đọc nhầm nguồn mà ⛔ không
+     * một dòng lỗi nào. Chú thích cũ ở ngay dòng {@code resolve} bênh vực {@code resolve} <i>vì</i>
+     * vấn đề dấu {@code /} — mà {@code resolve} có đúng vấn đề dấu {@code /} của riêng nó.
+     *
+     * <h2>Luật: cắt phần TRÙNG theo ĐOẠN, ⛔ không so chuỗi</h2>
+     *
+     * <p>Gọi {@code base} = các đoạn của đường dẫn gốc, {@code rel} = các đoạn của {@code duongDan}.
+     * Tìm {@code k} lớn nhất sao cho <b>k đoạn cuối của {@code base}</b> trùng <b>k đoạn đầu của
+     * {@code rel}</b>, rồi bỏ {@code k} đoạn ấy khỏi {@code base}. Phần còn lại luôn kết thúc bằng
+     * {@code /} nên {@code resolve} chỉ còn việc nối.
+     *
+     * <pre>
+     *   /api/getmn.aspx   k=2  ->  /            ->  /api/getmn.aspx            (staging, ĐÃ VÁ)
+     *   /api              k=1  ->  /            ->  /api/getmn.aspx
+     *   /songnhue         k=0  ->  /songnhue/   ->  /songnhue/api/getmn.aspx   (⛔ không còn mất)
+     *   /songnhue/api     k=1  ->  /songnhue/   ->  /songnhue/api/getmn.aspx
+     *   (rỗng)            k=0  ->  /            ->  /api/getmn.aspx            (giá trị seed)
+     * </pre>
+     *
+     * <p>⛔ So theo <b>đoạn</b> chứ ⛔ không {@code endsWith} trên chuỗi: {@code /xxxapi} kết thúc
+     * bằng {@code api} theo chuỗi nhưng ⛔ không phải theo đoạn, và cắt nó đi là hỏng một địa chỉ
+     * đang chạy được (luật 2 — canh cấu trúc, ⛔ không canh văn bản).
+     *
+     * <p>⚠ Hàm này <b>⛔ không</b> ném khi phải cắt. Quy tắc 18 của dự án: nguồn ⛔ không có API
+     * lịch sử ⇒ <b>mỗi 2 phút poller ⛔ không chạy là số đo mất vĩnh viễn</b>. Từ chối một địa chỉ
+     * mà ý định của nó ⛔ không hề mơ hồ là đổi một lỗi cấu hình sửa được lấy một khoảng trống dữ
+     * liệu ⛔ không lấy lại được. Thay vào đó nó ghi một dòng {@code WARN} nêu cả hai giá trị.
+     */
+    static String chuanHoaGoc(URI goc, String duongDan) {
+        String rawPath = goc.getRawPath() == null ? "" : goc.getRawPath();
+        int hoi = duongDan.indexOf('?');
+        String phanDuongDan = hoi < 0 ? duongDan : duongDan.substring(0, hoi);
+
+        List<String> base = doanCua(rawPath);
+        List<String> rel = doanCua(phanDuongDan);
+
+        int k = Math.min(base.size(), rel.size());
+        while (k > 0 && !base.subList(base.size() - k, base.size()).equals(rel.subList(0, k))) {
+            k--;
+        }
+        if (k > 0 && !String.valueOf(goc).equals(DA_CANH_BAO.getAndSet(String.valueOf(goc)))) {
+            log.warn(
+                    "Địa chỉ nguồn '{}' đã mang sẵn {} đoạn đầu của đường dẫn endpoint '{}' — đã cắt phần "
+                            + "trùng nên lượt gọi vẫn ĐÚNG. Nên sửa ô 'Địa chỉ gốc' về phần gốc của máy "
+                            + "chủ để giá trị hiển thị thôi gây hiểu nhầm.",
+                    goc,
+                    k,
+                    phanDuongDan);
+        }
+        String giu = base.subList(0, base.size() - k).stream().collect(Collectors.joining("/"));
+        return giu.isEmpty() ? "/" : "/" + giu + "/";
+    }
+
+    /**
+     * Địa chỉ gần nhất đã cảnh báo — <b>chống một cái chuông kêu 720 lần mỗi ngày</b>.
+     *
+     * <p>Poller gọi <b>2 phút/lần</b>. Một dòng {@code WARN} mỗi lượt là <b>720 dòng/ngày</b> cho
+     * một tình trạng mà bản vá đã làm cho <b>vô hại</b> — và §10.42 ghi lại đúng cái giá của việc
+     * ấy: một chuông kêu liên tục là một chuông <b>sẽ bị tắt</b>, rồi lần sau nó kêu thật thì ⛔
+     * không ai nghe. Ở đây mỗi giá trị chỉ kêu <b>một lần cho mỗi lượt chạy</b> của tiến trình.
+     *
+     * <p>⚠ Cố ý giữ <b>giá trị gần nhất</b> chứ ⛔ không phải một tập tích luỹ: một tập là một chỗ
+     * rò bộ nhớ chờ ngày ai đó cho phép cấu hình nhiều nguồn. Kho hôm nay có <b>một</b> nguồn
+     * {@code BHH40}, nên "gần nhất" và "đã từng" là cùng một thứ; ngày có nguồn thứ hai thì hậu quả
+     * xấu nhất là kêu lại — ⛔ không phải im.
+     */
+    private static final AtomicReference<String> DA_CANH_BAO = new AtomicReference<>();
+
+    /** Các đoạn ⛔ rỗng của một đường dẫn. {@code ""} và {@code "/"} đều cho danh sách rỗng. */
+    private static List<String> doanCua(String path) {
+        return Arrays.stream(path.split("/")).filter(d -> !d.isEmpty()).toList();
     }
 
     private static void kiemHost(String host) {

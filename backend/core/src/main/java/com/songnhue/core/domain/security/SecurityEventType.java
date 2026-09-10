@@ -81,7 +81,27 @@ public enum SecurityEventType {
      * im lặng: nguồn ngừng lấy dữ liệu, và nếu chỉ nhìn log ứng dụng thì triệu chứng giống hệt
      * "nguồn không phản hồi".
      */
-    EXTERNAL_CREDENTIAL_DECRYPT_FAILED(Severity.CRITICAL);
+    EXTERNAL_CREDENTIAL_DECRYPT_FAILED(Severity.CRITICAL),
+
+    // --- Dữ liệu cá nhân nhạy cảm (WS-51, MOD-04, NĐ 13/2023/NĐ-CP) -----------
+    /**
+     * Ai đó vừa <b>ĐỌC</b> trường 🔒 của một hồ sơ nhân sự — CCCD, lương, số tài khoản, MST, BHXH.
+     *
+     * <p><b>Vì sao ghi lượt ĐỌC, trong khi mọi nhóm sự kiện khác chỉ ghi lượt GHI:</b> NĐ 13/2023
+     * xếp các trường này vào dữ liệu cá nhân <i>nhạy cảm</i>, và nhật ký kiểm toán
+     * ({@code audit_logs}) chỉ sinh dòng khi có <b>thay đổi</b>. Một người có quyền
+     * {@code hr:employee:view-sensitive} mở lần lượt toàn bộ hồ sơ để chép số tài khoản sẽ ⛔ không
+     * để lại <b>một dòng nào</b> ở bất kỳ bảng nào — đúng thứ nguyên tắc tối thiểu (CN-04.7) cần
+     * nhìn thấy.
+     *
+     * <p>⚠ Đối chiếu có ý thức với {@link #EXTERNAL_CREDENTIAL_CHANGED}, nơi lượt "đã dùng" bị
+     * <b>cố ý bỏ</b> vì poller gọi 720 lần/ngày. Ở đây khối lượng ngược hẳn: một người mở hồ sơ vài
+     * lần một ngày, nên mỗi dòng vẫn là một dòng người đọc được. Số lượng, ⛔ không phải nguyên tắc,
+     * là thứ quyết định khác nhau giữa hai chỗ.
+     *
+     * <p>⛔ {@code detail} chỉ ghi <b>mã nhân viên</b> — ⛔ không bao giờ ghi giá trị vừa đọc.
+     */
+    HR_SENSITIVE_FIELDS_READ(Severity.WARNING);
 
     private final Severity severity;
 

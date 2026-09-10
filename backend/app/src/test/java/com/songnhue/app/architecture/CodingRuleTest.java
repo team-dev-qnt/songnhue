@@ -5,22 +5,27 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import com.tngtech.archunit.core.domain.JavaClass;
+import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.domain.JavaCodeUnit;
 import com.tngtech.archunit.core.domain.JavaConstructorCall;
 import com.tngtech.archunit.core.domain.JavaField;
 import com.tngtech.archunit.core.domain.JavaMethodCall;
+import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.EvaluationResult;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
 import com.tngtech.archunit.library.GeneralCodingRules;
+
+import com.songnhue.app.architecture.fixture.DongHoFixtures;
 
 /**
  * Ba điều cấm của {@code conventions.md} §1.1 mà formatter không bắt được, cộng luật về thời gian
@@ -146,6 +151,60 @@ class CodingRuleTest {
         CAM_DOC_DONG_HO_MUI_GIO_MAY_CHU.check(ProductionClasses.ALL);
     }
 
+    /**
+     * ⛔⛔ <b>T51.11 — bài tự-kiểm-chứng cho {@code NoAmbientClock}</b> (luật 1 · {@code conventions.md} §1.5).
+     *
+     * <p>{@link #noAmbientClockReads()} chạy trên {@code ProductionClasses.ALL} và hôm nay <b>xanh</b>
+     * — nhưng cái xanh ấy ⛔ không phân biệt được hai trạng thái: <i>"⛔ không lớp nào vi phạm"</i> và
+     * <i>"bộ canh ⛔ không nhìn thấy kiểu vi phạm ấy"</i>. Đo 10/09/2026: nó ở trạng thái thứ hai với
+     * <b>5 kiểu</b> — và một trong số đó, {@code YearMonth.now()}, là cách viết hiển nhiên nhất của
+     * <b>kỳ phép năm CN-04.9</b>, việc kế tiếp của MOD-04. Sai 7 tiếng trên container UTC, ⛔ không
+     * một dòng lỗi.
+     *
+     * <p>⚠ Khẳng định theo <b>từng đường một</b>, ⛔ không đếm tổng: một bộ canh bắt được 7/8 đường
+     * vẫn cho ra một danh sách ⛔ không rỗng, và một phép đếm sẽ xanh trong khi đúng đường còn hở là
+     * đường sắp được dùng.
+     */
+    @Test
+    @DisplayName("⛔⛔ Bộ canh đồng hồ bắt ĐỦ mọi đường đọc múi giờ máy chủ — kể cả đường VÒNG qua đối số")
+    void boCanhDongHoBatDuMoiDuongDocMuiGioMayChu() {
+        JavaClasses fixtures = new ClassFileImporter().importPackages(DongHoFixtures.class.getPackageName());
+
+        List<String> viPham = classes()
+                .should(new NoAmbientClock())
+                .evaluate(fixtures)
+                .getFailureReport()
+                .getDetails();
+
+        // Luật 7: một tập rỗng làm mọi khẳng định "chứa" ở dưới thành vô nghĩa.
+        assertThat(viPham)
+                .as("⛔ Bộ canh ⛔ không thấy fixture nào — gói fixture đổi tên, hoặc ClassFileImporter "
+                        + "⛔ không nạp được src/test")
+                .isNotEmpty();
+
+        assertThat(viPham)
+                .as("⛔ YearMonth.now() — lời gọi TỰ NHIÊN NHẤT của kỳ phép năm CN-04.9. Đây là đường "
+                        + "T51.11 mở ra và là lý do tồn tại của cả bài kiểm này.")
+                .anyMatch(d -> d.contains("YearMonth"));
+        assertThat(viPham).anyMatch(d -> d.contains("MonthDay"));
+        assertThat(viPham)
+                .as("⛔ ZonedDateTime.now() — tên kiểu có chữ 'Zoned' ⛔ không làm nó an toàn")
+                .anyMatch(d -> d.contains("ZonedDateTime"));
+        assertThat(viPham).anyMatch(d -> d.contains("OffsetDateTime"));
+        assertThat(viPham)
+                .as("⛔ ĐƯỜNG VÒNG: LocalDate.now(ZoneId.systemDefault()) CÓ đối số nên vế now() ⛔ không "
+                        + "chặn — thiếu vế này thì luật chặn được cách viết thẳng mà ⛔ không chặn cách viết vòng")
+                .anyMatch(d -> d.contains("ZoneId") && d.contains("systemDefault"));
+        assertThat(viPham).anyMatch(d -> d.contains("Clock") && d.contains("systemDefaultZone"));
+        assertThat(viPham).anyMatch(d -> d.contains("TimeZone") && d.contains("getDefault"));
+
+        // ⭐ Vế PHÂN BIỆT — thiếu nó thì một bộ canh cấm cả java.time cũng xanh trên 7 khẳng định trên.
+        assertThat(viPham)
+                .as("⛔ Instant.now() · now(ZoneId.of(...)) · Clock.systemUTC() là cách viết ĐÚNG — "
+                        + "bộ canh báo chúng là đang cấm chính thứ câu 'because' của nó khuyên dùng")
+                .noneMatch(d -> d.contains(DongHoFixtures.DungChuan.class.getSimpleName()));
+    }
+
     @Test
     @DisplayName("Không dùng SimpleDateFormat")
     void noSimpleDateFormat() {
@@ -216,8 +275,49 @@ class CodingRuleTest {
 
         private static final Set<String> LEGACY_DATE_TYPES = Set.of("java.util.Date", "java.util.GregorianCalendar");
 
-        private static final Set<String> AMBIENT_NOW_OWNERS =
-                Set.of("java.time.LocalDateTime", "java.time.LocalDate", "java.time.LocalTime", "java.time.Year");
+        /**
+         * Kiểu ngày/giờ mà {@code now()} <b>⛔ không đối số</b> đọc múi giờ máy chủ.
+         *
+         * <h2>⛔⛔ T51.11 — danh sách này thiếu 5 kiểu, và một trong số đó là lời gọi TỰ NHIÊN NHẤT
+         * của việc sắp làm</h2>
+         *
+         * <p>Bản trước chỉ có 4 kiểu. {@code YearMonth.now()} — cách viết hiển nhiên nhất để lấy
+         * <i>kỳ phép năm hiện tại</i> của CN-04.9 — đi lọt hoàn toàn, và nó cắt sai ranh giới kỳ
+         * <b>7 tiếng</b> trên container UTC: 07:00 ngày 01/01 giờ Việt Nam vẫn là 31/12 ở UTC, nên
+         * số dư phép của cả công ty rơi vào kỳ trước trong đúng khoảng ấy. ⛔ Không một dòng lỗi.
+         *
+         * <p>⚠ {@code ZonedDateTime}/{@code OffsetDateTime} nghe như đã <i>có</i> múi giờ nên dễ
+         * tưởng là an toàn — nhưng {@code now()} ⛔ không đối số của chúng lấy đúng
+         * {@code ZoneId.systemDefault()}. Cái tên kiểu ⛔ không nói gì về nguồn múi giờ.
+         *
+         * <p>⛔ {@code Instant.now()} <b>⛔ không</b> nằm đây và đó là chủ ý: nó ⛔ không có múi giờ
+         * nào để mà sai. Đó chính là lời khuyên câu {@code because} đang in ra.
+         */
+        private static final Set<String> AMBIENT_NOW_OWNERS = Set.of(
+                "java.time.LocalDateTime",
+                "java.time.LocalDate",
+                "java.time.LocalTime",
+                "java.time.Year",
+                "java.time.YearMonth",
+                "java.time.MonthDay",
+                "java.time.ZonedDateTime",
+                "java.time.OffsetDateTime",
+                "java.time.OffsetTime");
+
+        /**
+         * Lời gọi ⛔ không đối số <b>lấy thẳng múi giờ máy chủ</b> mà tên hàm ⛔ không phải
+         * {@code now()} — nên vòng lặp {@code AMBIENT_NOW_OWNERS} ở trên về nguyên tắc ⛔ không thấy.
+         *
+         * <p>Đây là đường vòng: một lớp bị luật trên chặn vẫn lấy được đúng thứ ấy bằng
+         * {@code LocalDate.now(ZoneId.systemDefault())} — <b>có</b> đối số, nên qua được — và kết quả
+         * sai y hệt. Chặn ở đây thì cả hai đường cùng đóng.
+         *
+         * <p>⛔ {@code Clock.systemUTC()} <b>⛔ không</b> bị chặn: nó cố định UTC, ⛔ không đọc máy chủ.
+         */
+        private static final Map<String, Set<String>> AMBIENT_MUI_GIO = Map.of(
+                "java.time.ZoneId", Set.of("systemDefault"),
+                "java.time.Clock", Set.of("systemDefaultZone"),
+                "java.util.TimeZone", Set.of("getDefault"));
 
         private NoAmbientClock() {
             super("không đọc đồng hồ theo múi giờ máy chủ");
@@ -240,7 +340,10 @@ class CodingRuleTest {
                         && "now".equals(call.getName())
                         && call.getTarget().getRawParameterTypes().isEmpty();
                 boolean legacyCalendar = "java.util.Calendar".equals(owner) && "getInstance".equals(call.getName());
-                if (ambientNow || legacyCalendar) {
+                boolean muiGioMayChu =
+                        AMBIENT_MUI_GIO.getOrDefault(owner, Set.of()).contains(call.getName())
+                                && call.getTarget().getRawParameterTypes().isEmpty();
+                if (ambientNow || legacyCalendar || muiGioMayChu) {
                     events.add(SimpleConditionEvent.violated(
                             item,
                             "gọi %s.%s() không kèm múi giờ tại %s"

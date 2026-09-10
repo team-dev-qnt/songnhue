@@ -348,6 +348,25 @@ public enum ErrorCode {
 
     // ---- MOD-04 Nhân sự ---------------------------------------------------------
     HR_2001("HR-2001", HttpStatus.UNPROCESSABLE_CONTENT),
+    /** Mã cán bộ {0} đã có hồ sơ khác dùng — mã NV ⛔ không đổi suốt quá trình công tác (CN-04.2). */
+    HR_1001("HR-1001", HttpStatus.CONFLICT),
+    /** Mã chức vụ {0} đã tồn tại trong danh mục. */
+    HR_1002("HR-1002", HttpStatus.CONFLICT),
+    /**
+     * Số CCCD này đã thuộc về một hồ sơ khác — CN-04.2 khai <i>"CCCD 9/12 số unique 🔒"</i>.
+     *
+     * <p>⛔⛔ Phép chống trùng ⛔ <b>không</b> đứng trên một {@code UNIQUE} của cột mã hoá: GCM dùng
+     * IV ngẫu nhiên nên cùng một số CCCD cho hai bản mã khác nhau, và một chỉ mục như vậy sẽ tồn
+     * tại, đọc như bảo đảm, mà ⛔ không bao giờ bắt được bản trùng nào (luật 7). Thứ ép được là cột
+     * vân tay {@code employee_sensitive.national_id_fingerprint} —
+     * {@code CryptoService.fingerprint()}.
+     */
+    HR_1003("HR-1003", HttpStatus.CONFLICT),
+    /**
+     * Chức vụ còn {0} hồ sơ đang giữ — xoá nó là để lại từng ấy hồ sơ trỏ vào hư không, mà màn hình
+     * hồ sơ ⛔ không lộ ra gì vì cột chức vụ đã tự về rỗng (cùng hình dạng T40.26).
+     */
+    HR_2002("HR-2002", HttpStatus.UNPROCESSABLE_CONTENT),
 
     // ---- MOD-05 Quản trị --------------------------------------------------------
     ADM_2001("ADM-2001", HttpStatus.UNPROCESSABLE_CONTENT),

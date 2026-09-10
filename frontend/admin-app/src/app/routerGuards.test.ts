@@ -115,6 +115,25 @@ describe('Guard của tuyến quản trị — sự cố 31/08', () => {
     ]);
   });
 
+  /**
+   * ⭐ WS-51 — hai tuyến Nhân sự gác bằng quyền **XEM**.
+   *
+   * Ba cách gác sai, cả ba đều nghe hợp lý và cả ba đều chôn trang sau một quyền hẹp hơn:
+   *
+   * <ul>
+   *   <li>`hr:employee:update` — người chỉ được xem hồ sơ ⛔ không vào được danh sách;
+   *   <li>`hr:employee:create` cho danh mục chức vụ — {@code PositionController} cố ý cho đường
+   *       ĐỌC dùng `hr:employee:view` vì ô "Chức vụ" của biểu mẫu hồ sơ nạp bằng đúng endpoint ấy;
+   *   <li>`hr:employee:view-sensitive` — nó gác một **hộp thoại bên trong trang**. `V202608131007`
+   *       cấp cho ADMIN mọi quyền TRỪ đúng mã này, nên đưa nó lên tuyến là khoá ADMIN ra khỏi cả
+   *       màn hình nhân sự.
+   * </ul>
+   */
+  it('⭐ hai tuyến Nhân sự gác bằng quyền XEM, ⛔ không bằng quyền ghi hay quyền trường 🔒', () => {
+    expect(quyenCuaTuyen(ma, '/nhan-su/ho-so')).toEqual(['hr:employee:view']);
+    expect(quyenCuaTuyen(ma, '/nhan-su/chuc-vu')).toEqual(['hr:employee:view']);
+  });
+
   it('⛔ và tuyến Nguồn dữ liệu vẫn chỉ MỘT quyền — vế phân biệt', () => {
     // Thiếu vế này thì bài trên xanh cả khi ai đó nới toàn bộ nhóm thuỷ văn về cùng một cặp quyền.
     expect(quyenCuaTuyen(ma, '/thuy-van/nguon-du-lieu')).toEqual(['hyd:api-source:manage']);
