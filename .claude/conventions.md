@@ -658,3 +658,50 @@ comm -23 /tmp/stg.txt /tmp/repo.txt   # chỉ có ở STAGING = tệp đã biế
 ⭐ **Và khi cả bốn phép đo đều xanh thì đừng đi tìm phép đo thứ năm về hạ tầng — hãy đi đo DỮ LIỆU.**
 Lượt 10/09: CD đúng, ảnh đúng, mã đúng, migration khớp **69 = 69**; thứ hỏng là một chuỗi người dùng
 gõ vào **ô bên cạnh** (§4.7).
+
+### 7.1. ⛔⛔ `${BIEN:}` biến một biến VẮNG MẶT thành một biến RỖNG — và mọi cổng chặn theo "có/không" đều mù
+
+Thêm 10/09/2026 sau khi đo ra kênh email của staging **chưa từng gửi nổi một thư nào**.
+
+```yaml
+spring:
+  mail:
+    host: ${SMTP_HOST:}          # ⛔ mặc định là CHUỖI RỖNG
+```
+
+```java
+@ConditionalOnProperty(name = "spring.mail.host", matchIfMissing = false)   // ⛔ LUÔN khớp
+```
+
+Thuộc tính **luôn có mặt** (rỗng), nên điều kiện **luôn đúng**, bean **vẫn** được dựng, và Spring
+rơi về máy chủ mặc định `localhost:587`. Số đo staging:
+
+```
+notification_recipients  EMAIL → 154 FAILED · 88 SKIPPED · 0 SENT
+log                      "Kênh email BẬT — thư gửi từ địa chỉ no-reply@songnhue.com"
+err                      MailConnectException: Couldn't connect to host, port: localhost, 587
+```
+
+⛔ Và javadoc của `MailConfig` khẳng định điều **ngược lại** từ WS-6: *"không cấu hình SMTP thì
+**không** tạo bean"*. **Một chú thích không phải một cổng kiểm** — hình dạng lỗi lặp nhiều nhất
+của dự án.
+
+**Luật**: một cổng chặn dựa trên biến môi trường phải hỏi **giá trị có nội dung hay không**, ⛔ không
+hỏi **thuộc tính có tồn tại hay không**:
+
+```java
+@ConditionalOnExpression("!'${spring.mail.host:}'.trim().isEmpty()")
+```
+
+⚠ Và phải có **đối chứng phải-BẬT**: một điều kiện viết sai kiểu *"luôn luôn sai"* làm mọi bài
+"phải tắt" xanh, rồi tắt luôn kênh ở môi trường đã cấu hình đúng — đổi một khuyết tật ồn ào lấy một
+khuyết tật im lặng (`MailConfigTest`, 3 bài bắt + 1 đối chứng).
+
+⚠ **Vá mã không làm kênh chạy.** Nó chỉ khiến hệ **thôi giả vờ chạy**. Và auto-configuration của
+framework có thể dính đúng bẫy ấy ở tầng ta không với tới được (`MailSenderAutoConfiguration` vẫn
+dựng `JavaMailSender`, `MailHealthIndicator` vẫn đỏ) ⇒ ở môi trường không dùng thư, **bỏ hẳn biến
+khỏi `.env`**, ⛔ đừng để chuỗi rỗng.
+
+📌 Đây là **lần thứ ba** cùng hình dạng: §10.38 (`ARG` không truyền vẫn gán chuỗi rỗng, `??` giữ
+nguyên nó còn `||` mới đỡ) · §10.78 (`#SMTP_PORT=587` bị chú thích, mặc định `:1025` không cứu vì
+compose truyền chuỗi rỗng) · và lần này. Quy tắc 3 nói thẳng: **"rỗng" khác "chưa đặt"**.
