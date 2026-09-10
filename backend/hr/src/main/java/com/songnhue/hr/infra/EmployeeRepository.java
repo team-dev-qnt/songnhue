@@ -1,5 +1,6 @@
 package com.songnhue.hr.infra;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -73,4 +74,44 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
             @Param("positionId") Long positionId,
             @Param("trangThai") EmploymentStatus trangThai,
             Pageable pageable);
+
+    /**
+     * Hợp đồng sắp/đã hết hạn — <b>vế ĐỌC còn thiếu</b> của {@code hr.contract.expiry-warning-days}
+     * (M4.9). Khoá ấy nằm trong {@code settings} từ WS-4 với <b>0 nơi đọc</b> cho tới WS-53.
+     *
+     * <p>⛔ Chỉ người <b>còn làm việc</b>: hợp đồng của một người đã nghỉ việc hết hạn là chuyện
+     * bình thường, và để nó trong danh sách cảnh báo là dạy người dùng bỏ qua danh sách ấy.
+     *
+     * <p>⚠ Đi qua bộ lọc phạm vi của {@link Employee} như mọi truy vấn khác — quản lý Xí nghiệp chỉ
+     * thấy hợp đồng đơn vị mình (CN-04.7 / M4.13).
+     */
+    @Query(
+            """
+            SELECT e FROM Employee e
+            WHERE e.deletedAt IS NULL
+              AND e.contractExpiresAt IS NOT NULL
+              AND e.contractExpiresAt <= :moc
+              AND e.status NOT IN (com.songnhue.hr.domain.EmploymentStatus.NGHI_VIEC,
+                                   com.songnhue.hr.domain.EmploymentStatus.NGHI_HUU)
+            ORDER BY e.contractExpiresAt ASC
+            """)
+    List<Employee> hopDongSapHetHan(@Param("moc") java.time.LocalDate moc);
+
+    /** Mọi hồ sơ trong phạm vi người gọi — nền cho phép quét chứng chỉ sắp hết hiệu lực. */
+    List<Employee> findByDeletedAtIsNull();
+
+    /**
+     * Số hồ sơ còn sống thuộc một đơn vị — chốt chặn giải thể đơn vị (CN-04.1, {@code OrgUnitUsagePort}).
+     *
+     * <p>⚠ Đếm cả người <b>đã nghỉ việc</b>: hồ sơ vẫn trỏ vào đơn vị và báo cáo biến động nhân sự
+     * vẫn đọc chúng. Điều kiện duy nhất là <b>chưa xoá mềm</b>.
+     *
+     * <p>⛔⛔ Câu này đi qua bộ lọc phạm vi như mọi truy vấn JPA khác, và ở đây điều đó <b>ĐÚNG</b>
+     * một cách nguy hiểm: người gọi là {@code OrgUnitService.delete}, chạy dưới phiên của một quản
+     * trị viên. Nếu quản trị viên ấy bị giới hạn phạm vi thì phép đếm trả <b>số nhỏ hơn thật</b> ⇒
+     * chốt chặn mở ra. ⇒ Người xoá đơn vị phải là người có phạm vi bao trùm đơn vị ấy — điều đã
+     * đúng theo cây phạm vi (⛔ không ai xoá được đơn vị mình ⛔ không nhìn thấy), nhưng nó là một
+     * tiền đề <b>vay mượn</b> nên ghi ra ở đây.
+     */
+    long countByOrgUnitIdAndDeletedAtIsNull(Long orgUnitId);
 }

@@ -51,6 +51,7 @@ const HO_SO: MeResponse = {
   permissions: [],
   mustChangePassword: true,
   twoFactorEnrolled: true,
+  coHoSoNhanSu: false,
 };
 
 const postGia = vi.fn();

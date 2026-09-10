@@ -338,6 +338,7 @@ class HoSoNhanSuPhamViTest extends IntegrationTestBase {
                 hoTen,
                 null,
                 null,
+                null, // educationLevel — T54.1
                 null,
                 null,
                 null,
@@ -386,7 +387,8 @@ class HoSoNhanSuPhamViTest extends IntegrationTestBase {
                 Set.of(),
                 false,
                 UUID.randomUUID(),
-                UUID.randomUUID());
+                UUID.randomUUID(),
+                null);
     }
 
     private long themDonVi(String ma, String ten, String loai, Long chaId, String pathCha) {

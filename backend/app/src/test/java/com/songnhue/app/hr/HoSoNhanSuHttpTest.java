@@ -88,6 +88,13 @@ class HoSoNhanSuHttpTest extends IntegrationTestBase {
             "fullName",
             "dateOfBirth",
             "gender",
+            // ⛔⛔ `educationLevel` vào danh sách ngày 10/09/2026 — T54.1. WS-53 dựng ĐỦ BẢY mảnh
+            //    của trường "Học vấn" (cột `education_level`, CHECK 9 giá trị, chỉ mục, enum
+            //    `EducationLevel`, trường trên `Employee`, nhãn `HOC_VAN`, một dòng trong
+            //    `EnumBaNoiTest`) mà ⛔ KHÔNG một đường vào lẫn đường ra nào — 0 trong
+            //    `EmployeeRequest`, 0 trong `EmployeeDetail`, 0 ô trên biểu mẫu. Luật 27 ở cỡ lớn
+            //    nhất từng gặp, và bộ canh enum làm nó TRÔNG như đã nối.
+            "educationLevel",
             "ethnicity",
             "hometown",
             "address",
@@ -266,7 +273,7 @@ class HoSoNhanSuHttpTest extends IntegrationTestBase {
      * một bảo đảm cho cả hai vế (luật 28).
      */
     @Test
-    @DisplayName("⭐⭐ PUT gửi nguyên văn thân GET thì ⛔ KHÔNG trường nào bị xoá — cả 21 ô còn nguyên (§11.19)")
+    @DisplayName("⭐⭐ PUT gửi nguyên văn thân GET thì ⛔ KHÔNG trường nào bị xoá — cả 22 ô còn nguyên (§11.19)")
     void resendingTheGetBodyAsPutDropsNoField() {
         UUID chucVu = taoChucVu("GN-CV", "Chuyên viên (kiểm thử)");
         UUID hoSo = taoHoSo(TIEN_TO + "GN-001", chucVu, "DANG_LAM", null);
@@ -284,7 +291,7 @@ class HoSoNhanSuHttpTest extends IntegrationTestBase {
                         "hồ sơ mốc phải ĐANG CÓ dữ liệu ở phần lớn các ô, nếu ⛔ không thì bài này ⛔ "
                                 + "không chứng minh gì. Thân GET: %s",
                         truoc)
-                .isGreaterThanOrEqualTo(12);
+                .isGreaterThanOrEqualTo(13);
 
         // Thân PUT dựng TỪ CHÍNH thân GET — ⛔ không gõ lại một trường nào. Gõ lại là chép luôn cả
         // giả định của người viết, và bài kiểm sẽ sai theo đúng cách thứ nó kiểm đang sai (luật 29).
@@ -623,7 +630,7 @@ class HoSoNhanSuHttpTest extends IntegrationTestBase {
     private String thanHoSoDayDu(String ma, UUID chucVu, String trangThai, String ngayNghi) {
         return """
                 {"code":"%s","fullName":"Nguyễn Văn Hoà","dateOfBirth":"1988-04-17","gender":"NAM",\
-                "ethnicity":"Kinh","hometown":"Xã Đại Áng, huyện Thanh Trì, Hà Nội",\
+                "educationLevel":"DAI_HOC","ethnicity":"Kinh","hometown":"Xã Đại Áng, huyện Thanh Trì, Hà Nội",\
                 "address":"Số 7 ngõ 12 phố Hồng Hà, phường Phúc Xá, Hà Nội","phone":"0912.345.678",\
                 "workEmail":"hoa.nv@songnhue.test","personalEmail":"nvhoa@vi-du.test",\
                 "maritalStatus":"DA_KET_HON","emergencyContactName":"Trần Thị Bích",\

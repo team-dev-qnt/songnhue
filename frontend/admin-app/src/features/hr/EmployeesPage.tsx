@@ -1,4 +1,10 @@
-import { DeleteOutlined, EditOutlined, LockOutlined, PlusOutlined } from '@ant-design/icons';
+import {
+  DeleteOutlined,
+  EditOutlined,
+  FolderOpenOutlined,
+  LockOutlined,
+  PlusOutlined,
+} from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
@@ -24,6 +30,7 @@ import { ApiClientError, api } from '@/shared/apiClient';
 import { EMPTY_MARK, formatDate, formatDateTime } from '@/shared/format';
 
 import { EmployeeFormModal } from './EmployeeFormModal';
+import { HoSoConDrawer } from './HoSoConDrawer';
 import { SensitiveModal } from './SensitiveModal';
 import {
   type EmployeeRow,
@@ -77,6 +84,7 @@ export function EmployeesPage() {
   const [dangSuaId, setDangSuaId] = useState<string | null>(null);
   const [bieuMauMo, setBieuMauMo] = useState(false);
   const [xemBaoMat, setXemBaoMat] = useState<EmployeeRow | null>(null);
+  const [xemHoSoCon, setXemHoSoCon] = useState<EmployeeRow | null>(null);
 
   const coThem = hasPermission('hr:employee:create');
   const coSua = hasPermission('hr:employee:update');
@@ -184,10 +192,13 @@ export function EmployeesPage() {
     {
       title: '',
       key: 'thao-tac',
-      width: 140,
+      width: 180,
       align: 'right',
       render: (_, row) => (
         <Space size={0}>
+          <Tooltip title="Lý lịch · lịch sử công tác · hồ sơ tài liệu">
+            <Button type="text" icon={<FolderOpenOutlined />} onClick={() => setXemHoSoCon(row)} />
+          </Tooltip>
           {coBaoMat && (
             <Tooltip title="Trường bảo mật (CCCD, lương, tài khoản) — mỗi lượt mở đều ghi nhật ký">
               <Button type="text" icon={<LockOutlined />} onClick={() => setXemBaoMat(row)} />
@@ -311,7 +322,7 @@ export function EmployeesPage() {
               : 'Chưa có dữ liệu cán bộ nhân viên — Công ty chưa gửi danh sách (G6-a)'
           }
           // 130+220+200+170+170+150+130+160+140 = 1470.
-          scrollX={1470}
+          scrollX={1510}
         />
       </Card>
 
@@ -320,6 +331,14 @@ export function EmployeesPage() {
         publicId={dangSuaId}
         onClose={() => setBieuMauMo(false)}
         onSaved={() => setBieuMauMo(false)}
+      />
+
+      <HoSoConDrawer
+        open={xemHoSoCon !== null}
+        publicId={xemHoSoCon?.publicId ?? null}
+        tenCanBo={xemHoSoCon ? `${xemHoSoCon.code} · ${xemHoSoCon.fullName}` : null}
+        coSua={coSua}
+        onClose={() => setXemHoSoCon(null)}
       />
 
       <SensitiveModal

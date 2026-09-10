@@ -48,6 +48,50 @@ export type EmploymentStatus =
 // Nhãn tiếng Việt
 // =============================================================================
 
+/**
+ * Học vấn cao nhất — CN-04.3.
+ *
+ * ⛔ Đây là **Khung trình độ quốc gia** (QĐ 1982/QĐ-TTg 2016) + ba bậc phổ thông, ⛔ không phải một
+ * danh mục Công ty tự đặt — nên nó là enum ba nơi chứ ⛔ không phải bảng có CRUD (quy tắc 16 nói về
+ * danh mục **do khách vận hành**). Thứ tự khai ở đây đi từ **cao xuống thấp** và trùng
+ * `EducationLevel.bac()` phía backend, nên ô chọn hiện đúng thứ tự người dùng mong đợi.
+ */
+export type EducationLevel =
+  | 'TIEN_SI'
+  | 'THAC_SI'
+  | 'DAI_HOC'
+  | 'CAO_DANG'
+  | 'TRUNG_CAP'
+  | 'SO_CAP'
+  | 'THPT'
+  | 'THCS'
+  | 'KHAC';
+
+/** Loại mục lý lịch & chuyên môn — CN-04.3. */
+export type QualificationKind = 'BANG_CAP' | 'CHUNG_CHI' | 'NGOAI_NGU' | 'TIN_HOC' | 'PHAN_MEM';
+
+/**
+ * Mười loại sự kiện timeline — CN-04.4, nguyên văn đặc tả.
+ *
+ * ⛔ `BO_NHIEM_MIEN_NHIEM` và `NGHI_VIEC_HUU` mỗi cái là **một** giá trị, đúng như đặc tả liệt kê.
+ * Tách ra "cho rõ" là làm lệch con số 10 mà bộ lọc và báo cáo đang dựa vào.
+ */
+export type EmployeeEventType =
+  | 'TUYEN_DUNG'
+  | 'HOP_DONG'
+  | 'DIEU_DONG'
+  | 'BO_NHIEM_MIEN_NHIEM'
+  | 'NANG_LUONG'
+  | 'KHEN_THUONG'
+  | 'KY_LUAT'
+  | 'DAO_TAO'
+  | 'NGHI_DAI_HAN'
+  | 'NGHI_VIEC_HUU';
+
+/** Bảy thư mục cố định của hồ sơ tài liệu — CN-04.5. */
+export type HoSoThuMuc =
+  'GIAY_TO_TUY_THAN' | 'BANG_CAP' | 'HOP_DONG' | 'QUYET_DINH' | 'ANH' | 'HO_SO_Y_TE' | 'KHAC';
+
 export const GIOI_TINH: Record<Gender, string> = {
   NAM: 'Nam',
   NU: 'Nữ',
@@ -125,6 +169,67 @@ export const TRANG_THAI_CONG_TAC_OPTIONS = (
  * mốc này, và biểu mẫu phải chặn đúng khoảng ấy. Lệch một ngày là người dùng nhận một lỗi ràng
  * buộc CSDL trần, ⛔ không chỉ được ô nào sai.
  */
+export const HOC_VAN: Record<EducationLevel, string> = {
+  TIEN_SI: 'Tiến sĩ',
+  THAC_SI: 'Thạc sĩ',
+  DAI_HOC: 'Đại học',
+  CAO_DANG: 'Cao đẳng',
+  TRUNG_CAP: 'Trung cấp',
+  SO_CAP: 'Sơ cấp',
+  THPT: 'THPT',
+  THCS: 'THCS',
+  KHAC: 'Khác',
+};
+
+export const LOAI_LY_LICH: Record<QualificationKind, string> = {
+  BANG_CAP: 'Bằng cấp',
+  CHUNG_CHI: 'Chứng chỉ',
+  NGOAI_NGU: 'Ngoại ngữ',
+  TIN_HOC: 'Tin học',
+  PHAN_MEM: 'Phần mềm chuyên dụng',
+};
+
+export const LOAI_SU_KIEN: Record<EmployeeEventType, string> = {
+  TUYEN_DUNG: 'Tuyển dụng',
+  HOP_DONG: 'Ký / gia hạn hợp đồng',
+  DIEU_DONG: 'Điều động',
+  BO_NHIEM_MIEN_NHIEM: 'Bổ nhiệm / Miễn nhiệm',
+  NANG_LUONG: 'Nâng lương',
+  KHEN_THUONG: 'Khen thưởng',
+  KY_LUAT: 'Kỷ luật',
+  DAO_TAO: 'Đào tạo',
+  NGHI_DAI_HAN: 'Nghỉ dài hạn',
+  NGHI_VIEC_HUU: 'Nghỉ việc / Nghỉ hưu',
+};
+
+export const THU_MUC_HO_SO: Record<HoSoThuMuc, string> = {
+  GIAY_TO_TUY_THAN: 'Giấy tờ tuỳ thân',
+  BANG_CAP: 'Bằng cấp',
+  HOP_DONG: 'Hợp đồng lao động',
+  QUYET_DINH: 'Quyết định nhân sự',
+  ANH: 'Ảnh',
+  HO_SO_Y_TE: 'Hồ sơ y tế',
+  KHAC: 'Khác',
+};
+
+export const HOC_VAN_OPTIONS = (Object.keys(HOC_VAN) as EducationLevel[]).map((value) => ({
+  value,
+  label: HOC_VAN[value],
+}));
+
+export const LOAI_LY_LICH_OPTIONS = (Object.keys(LOAI_LY_LICH) as QualificationKind[]).map(
+  (value) => ({ value, label: LOAI_LY_LICH[value] }),
+);
+
+export const LOAI_SU_KIEN_OPTIONS = (Object.keys(LOAI_SU_KIEN) as EmployeeEventType[]).map(
+  (value) => ({ value, label: LOAI_SU_KIEN[value] }),
+);
+
+export const THU_MUC_HO_SO_OPTIONS = (Object.keys(THU_MUC_HO_SO) as HoSoThuMuc[]).map((value) => ({
+  value,
+  label: THU_MUC_HO_SO[value],
+}));
+
 export const NGAY_SINH_TU = '1930-01-01';
 export const NGAY_SINH_DEN = '2015-12-31';
 
@@ -210,6 +315,7 @@ export interface EmployeeDetail {
   fullName: string;
   dateOfBirth: string | null;
   gender: Gender | null;
+  educationLevel: EducationLevel | null;
   ethnicity: string | null;
   hometown: string | null;
   address: string | null;
@@ -254,6 +360,7 @@ export interface EmployeeRequest {
   fullName: string;
   dateOfBirth: string | null;
   gender: Gender | null;
+  educationLevel: EducationLevel | null;
   ethnicity: string | null;
   hometown: string | null;
   address: string | null;
@@ -295,4 +402,149 @@ export interface SensitiveFields {
   bankAccount: string | null;
   taxCode: string | null;
   socialInsuranceNo: string | null;
+}
+
+// ============================================================================
+// WS-53 — CN-04.3 · CN-04.4 · CN-04.5
+// ============================================================================
+
+/** Một mục lý lịch & chuyên môn — CN-04.3. */
+export interface LyLichView {
+  publicId: string;
+  kind: QualificationKind;
+  name: string;
+  grade: string | null;
+  major: string | null;
+  institution: string | null;
+  certificateNo: string | null;
+  issuedOn: string | null;
+  /** ⛔ `null` = KHÔNG hết hiệu lực (bằng đại học) — ⛔ đừng điền một ngày xa để né null. */
+  expiresOn: string | null;
+  note: string | null;
+  updatedAt: string;
+}
+
+export interface LyLichRequest {
+  kind: QualificationKind;
+  name: string;
+  grade: string | null;
+  major: string | null;
+  institution: string | null;
+  certificateNo: string | null;
+  issuedOn: string | null;
+  expiresOn: string | null;
+  note: string | null;
+}
+
+/** Một sự kiện trên timeline công tác — CN-04.4. */
+export interface SuKienView {
+  publicId: string;
+  eventType: EmployeeEventType;
+  /** Ngày HIỆU LỰC — trục timeline. ⛔ Khác `decisionDate` (ngày ký). */
+  effectiveOn: string;
+  decisionNo: string | null;
+  decisionDate: string | null;
+  title: string;
+  detail: string | null;
+  updatedAt: string;
+}
+
+export interface SuKienRequest {
+  eventType: EmployeeEventType;
+  effectiveOn: string;
+  decisionNo: string | null;
+  decisionDate: string | null;
+  title: string;
+  detail: string | null;
+}
+
+/** Một tệp trong hồ sơ tài liệu — CN-04.5. */
+export interface TaiLieuView {
+  publicId: string;
+  /** ⛔ `null` khi `purpose` trong CSDL ⛔ không giải được (bản khôi phục cũ) — vẫn phải hiện. */
+  thuMuc: HoSoThuMuc | null;
+  tenGoc: string;
+  kieuNoiDung: string;
+  soByte: number;
+  /** Tải lại cùng thư mục ⇒ phiên bản kế tiếp, bản cũ **giữ nguyên**. */
+  phienBan: number;
+  /** `false` khi tệp chưa quét virus xong hoặc đã bị cách ly. */
+  taiDuoc: boolean;
+  hieuLucTu: string | null;
+  hetHan: string | null;
+  taiLuc: string;
+}
+
+/**
+ * Tình trạng hoàn thiện hồ sơ — CN-04.5.
+ *
+ * ⛔⛔ Đọc `daCauHinh` chứ ⛔ **đừng** viết `phanTram === null`: Jackson của backend **bỏ hẳn**
+ * trường `null` khỏi thân JSON, nên ô ấy tới đây dưới dạng `undefined`. Cờ boolean ⛔ không thể bị
+ * bỏ, nên nó là thứ duy nhất phân biệt được *"chưa cấu hình"* với *"0%"* một cách bền.
+ */
+export interface TinhTrangHoSoView {
+  daCauHinh: boolean;
+  phanTram?: number | null;
+  batBuoc: HoSoThuMuc[];
+  conThieu: HoSoThuMuc[];
+  soTepTheoThuMuc: Record<HoSoThuMuc, number>;
+  dungLuongDaDungByte: number;
+}
+
+/** @param soNgayCon **âm** nghĩa là ĐÃ hết hạn — tô đỏ. ⛔ Đừng kẹp về 0. */
+export interface MucCanhBao {
+  hoSoPublicId: string;
+  maCanBo: string;
+  hoTen: string;
+  moTa: string;
+  hetHan: string;
+  soNgayCon: number;
+}
+
+export interface CanhBaoHetHanView {
+  /** ⛔ Đọc từ API chứ ⛔ đừng ghi cứng lại con số ở giao diện — hai nơi một sự thật sẽ lệch. */
+  nguongNgayHopDong: number;
+  nguongNgayChungChi: number;
+  hopDong: MucCanhBao[];
+  chungChi: MucCanhBao[];
+}
+
+// ============================================================================
+// Danh bạ nội bộ — CN-04.6
+// ============================================================================
+
+/**
+ * `HoSoConDtos.DanhBaView` — **chỉ liên hệ công vụ**.
+ *
+ * ⛔⛔ Backend gác đường này bằng `hr:directory:view` (11/12 vai trò) và cố ý **⛔ không** cắt theo
+ * phạm vi đơn vị. Nên interface này ⛔ **không được** mọc thêm ngày sinh, địa chỉ nhà, email cá
+ * nhân hay liên hệ khẩn cấp — thêm một trường ở đây là mô tả một API **công bố cho toàn Công ty**.
+ * Phía backend có `DanhBaKhongLoDuLieuCaNhanTest` đọc `getRecordComponents()` để chặn.
+ */
+export interface DanhBaView {
+  publicId: string;
+  code: string;
+  fullName: string;
+  gender: Gender | null;
+  phone: string | null;
+  workEmail: string | null;
+  jobTitle: string | null;
+  positionName: string | null;
+  orgUnitId: string;
+  orgUnitName: string;
+}
+
+/** `tong` là tổng số người khớp bộ lọc — ⛔ KHÔNG suy được từ `muc.length` (đó chỉ là một trang). */
+export interface DanhBaTrangView {
+  muc: DanhBaView[];
+  tong: number;
+  trang: number;
+  co: number;
+}
+
+/** `duongDanDonVi` = từ gốc xuống đơn vị của người này — *"vị trí trên sơ đồ"* đặc tả đòi. */
+export interface DanhBaChiTietView {
+  muc: DanhBaView;
+  duongDanDonVi: string[];
+  dongNghiep: DanhBaView[];
 }

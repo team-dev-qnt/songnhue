@@ -367,12 +367,28 @@ public enum ErrorCode {
      * hồ sơ ⛔ không lộ ra gì vì cột chức vụ đã tự về rỗng (cùng hình dạng T40.26).
      */
     HR_2002("HR-2002", HttpStatus.UNPROCESSABLE_CONTENT),
+    /**
+     * Tệp vượt hạn mức <b>riêng của thư mục</b> {0} — {1} MB, tệp gửi lên {2} MB (CN-04.5).
+     *
+     * <p>⚠ Đây ⛔ <b>không</b> trùng {@link #SYS_0010}: mã kia là hạn mức <i>tổng dung lượng một hồ
+     * sơ</i> ({@code limits.attachment.quota-mb.EMPLOYEE}), còn mã này là trần <i>mỗi tệp theo thư
+     * mục</i> (Ảnh 5MB, Hợp đồng 20MB…). Gộp hai mã là để người vận hành đọc một câu lỗi rồi đi sửa
+     * nhầm tham số.
+     */
+    HR_2003("HR-2003", HttpStatus.UNPROCESSABLE_CONTENT),
 
     // ---- MOD-05 Quản trị --------------------------------------------------------
     ADM_2001("ADM-2001", HttpStatus.UNPROCESSABLE_CONTENT),
     ADM_2002("ADM-2002", HttpStatus.CONFLICT),
     /** Chuyển đơn vị vào chính cây con của nó — cắt rời cả nhánh khỏi cây mà dữ liệu vẫn còn. */
     ADM_2003("ADM-2003", HttpStatus.UNPROCESSABLE_CONTENT),
+    /**
+     * ⛔ Không giải thể được đơn vị vì còn thứ trỏ vào nó — CN-04.1.
+     *
+     * <p>{0} là <b>danh sách cụ thể</b> (<i>"3 hồ sơ cán bộ nhân viên, 2 công trình"</i>), ⛔ không
+     * phải một lời từ chối trống: người vận hành cần biết <b>phải đi chuyển cái gì</b> trước khi
+     * giải thể. Nguồn của danh sách là mọi bean cài {@code OrgUnitUsagePort} — mỗi module tự khai.
+     */
     ADM_2004("ADM-2004", HttpStatus.CONFLICT),
     ADM_2005("ADM-2005", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Tham số {0} không nhận giá trị này — yêu cầu: {1}. */
@@ -410,7 +426,30 @@ public enum ErrorCode {
      * Đang tự gỡ quyền quản trị phân quyền của chính mình khỏi vai trò {0} — thao tác này ⛔ không
      * quay lui được bằng bất kỳ đường nào trong giao diện.
      */
-    ADM_2016("ADM-2016", HttpStatus.UNPROCESSABLE_CONTENT);
+    ADM_2016("ADM-2016", HttpStatus.UNPROCESSABLE_CONTENT),
+
+    // ---- MOD-05 Liên kết tài khoản ↔ hồ sơ CBNV (T51.8, CN-05.1) ----------------
+    /**
+     * Hồ sơ CBNV {0} đã liên kết với tài khoản {1}. Hai tài khoản cùng trỏ một hồ sơ là hai con
+     * người cùng khai mình <i>là</i> một nhân viên — mà quyền tự đọc trường 🔒 suy thẳng từ cột ấy.
+     * Chỉ mục {@code uq_users_employee_id} ép cùng bất biến ở tầng CSDL; mã lỗi này tồn tại để người
+     * dùng đọc được <b>tên tài khoản kia</b> thay vì một lỗi ràng buộc trần.
+     */
+    ADM_2017("ADM-2017", HttpStatus.CONFLICT),
+    /**
+     * ⛔ Không tự liên kết tài khoản của CHÍNH MÌNH tới một hồ sơ CBNV.
+     *
+     * <p>Liên kết ⛔ không phải một trường hồ sơ, nó là <b>một quyền</b>: vế thứ hai của CN-04.7 suy
+     * quyền đọc CCCD/lương/số tài khoản thẳng từ {@code users.employee_id}. Tự trỏ tài khoản mình
+     * sang một hồ sơ bất kỳ là <b>tự cấp cho mình</b> quyền đọc dữ liệu cá nhân nhạy cảm của người
+     * ấy — mà quyền gác cửa ở đây ({@code adm:user:manage}) thì ADMIN <b>có</b>, trong khi
+     * {@code hr:employee:view-sensitive} thì đặc tả loại trừ ADMIN tường minh.
+     *
+     * <p>⇒ Liên kết tài khoản người khác là việc quản trị bình thường; liên kết chính mình phải nhờ
+     * một tài khoản quản trị thứ hai. Bất biến này áp <b>đều cho mọi vai trò, kể cả SUPER_ADMIN</b>:
+     * một luật miễn trừ đúng vai trò mạnh nhất là một luật trang trí.
+     */
+    ADM_2018("ADM-2018", HttpStatus.FORBIDDEN);
 
     private final String code;
     private final HttpStatus status;

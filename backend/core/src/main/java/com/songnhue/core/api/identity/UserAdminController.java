@@ -2,8 +2,10 @@ package com.songnhue.core.api.identity;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -20,12 +22,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.songnhue.core.application.auth.ClientInfo;
 import com.songnhue.core.application.identity.PermissionSummary;
 import com.songnhue.core.application.identity.RoleSummary;
 import com.songnhue.core.application.identity.UserAdminService;
 import com.songnhue.core.common.security.RequirePermission;
 import com.songnhue.core.domain.identity.User;
 import com.songnhue.core.domain.identity.UserStatus;
+import com.songnhue.core.spi.EmployeeRef;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -52,14 +56,21 @@ public class UserAdminController {
     @Operation(summary = "Danh sách tài khoản")
     @RequirePermission("adm:user:view")
     public List<UserDtos.UserView> list() {
-        return userAdminService.list().stream().map(UserDtos.UserView::of).toList();
+        List<User> danhSach = userAdminService.list();
+        // ⚠ MỘT lượt tra cho cả bảng — ⛔ không `map(u -> hoSoNhanSuCua(u))`, thứ cho ra một câu
+        //   truy vấn mỗi hàng, và số hàng là số CBNV của Công ty sau chốt C3.
+        Map<Long, EmployeeRef> hoSo = userAdminService.hoSoNhanSuCua(danhSach);
+        return danhSach.stream()
+                .map(u -> UserDtos.UserView.of(u, hoSo.get(u.getId())))
+                .toList();
     }
 
     @GetMapping("/{publicId}")
     @Operation(summary = "Chi tiết một tài khoản")
     @RequirePermission("adm:user:view")
     public UserDtos.UserView get(@PathVariable UUID publicId) {
-        return UserDtos.UserView.of(userAdminService.get(publicId));
+        User user = userAdminService.get(publicId);
+        return UserDtos.UserView.of(user, userAdminService.hoSoNhanSuCua(user).orElse(null));
     }
 
     @PostMapping
@@ -67,20 +78,24 @@ public class UserAdminController {
     @Operation(summary = "Tạo tài khoản — bắt buộc đổi mật khẩu ở lần đăng nhập đầu")
     @RequirePermission("adm:user:create")
     public UserDtos.UserView create(@Valid @RequestBody UserDtos.CreateRequest request) {
-        return UserDtos.UserView.of(userAdminService.create(
-                request.username(),
-                request.fullName(),
-                request.email(),
-                request.orgUnitPublicId(),
-                request.temporaryPassword()));
+        // `null`: tài khoản vừa ra đời ⇒ về nguyên tắc chưa liên kết hồ sơ nào. Đây là một khẳng
+        // định, ⛔ không phải một lượt tra bị bỏ.
+        return UserDtos.UserView.of(
+                userAdminService.create(
+                        request.username(),
+                        request.fullName(),
+                        request.email(),
+                        request.orgUnitPublicId(),
+                        request.temporaryPassword()),
+                null);
     }
 
     @PutMapping("/{publicId}")
     @Operation(summary = "Sửa thông tin tài khoản")
     @RequirePermission("adm:user:update")
     public UserDtos.UserView update(@PathVariable UUID publicId, @Valid @RequestBody UserDtos.UpdateRequest request) {
-        return UserDtos.UserView.of(
-                userAdminService.update(publicId, request.fullName(), request.email(), request.phone()));
+        User user = userAdminService.update(publicId, request.fullName(), request.email(), request.phone());
+        return UserDtos.UserView.of(user, userAdminService.hoSoNhanSuCua(user).orElse(null));
     }
 
     @PostMapping("/{publicId}/status")
@@ -88,7 +103,8 @@ public class UserAdminController {
     @RequirePermission("adm:user:lock")
     public UserDtos.UserView setStatus(
             @PathVariable UUID publicId, @Valid @RequestBody UserDtos.StatusRequest request) {
-        return UserDtos.UserView.of(userAdminService.setStatus(publicId, request.status()));
+        User user = userAdminService.setStatus(publicId, request.status());
+        return UserDtos.UserView.of(user, userAdminService.hoSoNhanSuCua(user).orElse(null));
     }
 
     @GetMapping("/{publicId}/roles")
@@ -148,6 +164,31 @@ public class UserAdminController {
         userAdminService.replacePermissionsOfRole(roleCode, request.permissionCodes());
     }
 
+    /**
+     * Liên kết / gỡ liên kết tài khoản với hồ sơ CBNV — <b>T51.8, CN-05.1</b>.
+     *
+     * <p>⚠ Quyền gác là {@code adm:user:update}, cùng cửa với lượt sửa thông tin tài khoản: đặc tả
+     * xếp việc này vào CN-05.1 <i>"Quản lý Tài khoản"</i>, ⛔ không vào MOD-04. Nhưng ⛔ <b>không</b>
+     * chỉ có cổng quyền canh nó — {@code UserAdminService.lienKetHoSo} còn cấm tự liên kết chính
+     * mình ({@code ADM-2018}), vì cột này quyết định ai đọc được trường 🔒 của ai.
+     *
+     * <p>{@code PUT} với thân {@code {"employeePublicId": null}} là <b>gỡ</b> liên kết. ⛔ Không
+     * dùng {@code DELETE} riêng: gán và gỡ là hai giá trị của <b>một</b> ô trên biểu mẫu, và tách
+     * đôi thì màn hình phải nhớ gọi động từ nào — đúng chỗ luật 14 nói tới.
+     *
+     * <p>⚠ {@link ClientInfo#from} truyền xuống service vì lượt này ghi một sự kiện <b>bảo mật</b>
+     * mức DANGER, và một dòng nhật ký bảo mật ⛔ không có IP thì mất nửa giá trị.
+     */
+    @PutMapping("/{publicId}/ho-so-nhan-su")
+    @Operation(summary = "Liên kết tài khoản với hồ sơ CBNV — thân rỗng là gỡ liên kết")
+    @RequirePermission("adm:user:update")
+    public UserDtos.UserView lienKetHoSo(
+            @PathVariable UUID publicId, @RequestBody UserDtos.HoSoRequest request, HttpServletRequest httpRequest) {
+
+        User user = userAdminService.lienKetHoSo(publicId, request.employeePublicId(), ClientInfo.from(httpRequest));
+        return UserDtos.UserView.of(user, userAdminService.hoSoNhanSuCua(user).orElse(null));
+    }
+
     @DeleteMapping("/{publicId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(summary = "Xoá mềm tài khoản")
@@ -187,6 +228,23 @@ public class UserAdminController {
          */
         public record PermissionsRequest(@NotNull List<String> permissionCodes) {}
 
+        /**
+         * Hồ sơ CBNV đang liên kết — T51.8.
+         *
+         * <p>⛔ Đúng ba trường, và ⛔ không một trường 🔒 nào: xem {@link EmployeeRef}. Đây là phía
+         * <b>ra API</b> của một liên kết quyết định ai đọc được CCCD/lương của ai, nên nó phải mỏng
+         * bằng đúng thứ màn hình cần vẽ.
+         */
+        public record HoSoNhanSuView(UUID publicId, String code, String fullName) {
+
+            static HoSoNhanSuView of(EmployeeRef ref) {
+                return ref == null ? null : new HoSoNhanSuView(ref.publicId(), ref.code(), ref.fullName());
+            }
+        }
+
+        /** Hồ sơ cần liên kết; {@code null} là <b>gỡ</b> liên kết — xem {@code lienKetHoSo}. */
+        public record HoSoRequest(UUID employeePublicId) {}
+
         public record UserView(
                 UUID publicId,
                 String username,
@@ -196,9 +254,19 @@ public class UserAdminController {
                 String status,
                 boolean mustChangePassword,
                 boolean twoFactorRequired,
-                Instant lastLoginAt) {
+                Instant lastLoginAt,
+                HoSoNhanSuView hoSoNhanSu) {
 
-            public static UserView of(User user) {
+            /**
+             * ⛔ <b>Không</b> có biến thể một tham số.
+             *
+             * <p>Một {@code of(User)} "cho tiện" sẽ trả {@code hoSoNhanSu = null} trong im lặng ở
+             * bất kỳ endpoint nào quên tra — và {@code null} ở đây đọc y hệt <i>"chưa liên kết"</i>.
+             * Người quản trị nhìn thấy ô trống rồi liên kết hồ sơ ấy sang một tài khoản khác. Bắt
+             * mọi nơi gọi khai tường minh {@code null} thì cái {@code null} ấy là một <b>quyết
+             * định</b>, ⛔ không phải một thứ bị quên.
+             */
+            public static UserView of(User user, EmployeeRef hoSo) {
                 return new UserView(
                         user.getPublicId(),
                         user.getUsername(),
@@ -208,7 +276,8 @@ public class UserAdminController {
                         user.getStatus(),
                         user.isMustChangePassword(),
                         user.isTwoFactorRequired(),
-                        user.getLastLoginAt());
+                        user.getLastLoginAt(),
+                        HoSoNhanSuView.of(hoSo));
             }
         }
     }

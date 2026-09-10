@@ -29,7 +29,12 @@ export function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const items = useMemo(() => visibleMenu(MENU, hasPermission), [hasPermission]);
+  // T51.8 — `coHoSoNhanSu` ⛔ không phải một mã quyền, nên nó đi bằng tham số riêng. `user` có thể
+  // là `null` trong khoảnh khắc khôi phục phiên ⇒ `?? false` ⇒ mục ẩn, fail-closed.
+  const items = useMemo(
+    () => visibleMenu(MENU, hasPermission, { coHoSoNhanSu: user?.coHoSoNhanSu ?? false }),
+    [hasPermission, user?.coHoSoNhanSu],
+  );
   const selectedKey = findMenuKey(MENU, location.pathname);
 
   const unread = useQuery({

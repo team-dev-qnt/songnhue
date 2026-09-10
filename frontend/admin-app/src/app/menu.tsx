@@ -5,6 +5,7 @@ import {
   AuditOutlined,
   BellOutlined,
   CloudServerOutlined,
+  ContactsOutlined,
   DashboardOutlined,
   HeartOutlined,
   ExperimentOutlined,
@@ -45,6 +46,15 @@ export interface MenuNode {
   path?: string;
   /** Cần **ít nhất một** quyền trong danh sách. Bỏ trống = chỉ cần đăng nhập. */
   permissions?: readonly string[];
+  /**
+   * Mục chỉ hiện khi tài khoản **có liên kết hồ sơ CBNV** — T51.8.
+   *
+   * ⛔ Đây ⛔ **không** phải một mã quyền, và cố ý ⛔ không giả làm một mã quyền. Vế *"chính nhân
+   * viên đó"* của CN-04.7 là quan hệ giữa **một tài khoản** và **một hàng**, ⛔ không phải một
+   * thuộc tính của vai trò — nhét một mã giả vào `permissions` sẽ làm nó lệch khỏi danh mục quyền
+   * thật của backend, thứ mà chính tệp này hứa là "cùng một mã quyền, ⛔ không thể lệch nhau".
+   */
+  requiresEmployeeLink?: boolean;
   children?: MenuNode[];
 }
 
@@ -268,11 +278,31 @@ export const MENU: readonly MenuNode[] = [
         permissions: ['hr:employee:view'],
       },
       {
+        // ⚠ Quyền ở đây là `hr:directory:view` — 11/12 vai trò có nó, trong khi `hr:employee:view`
+        //   chỉ 3. Gộp hai mục về một quyền là hỏng theo CẢ HAI chiều: gác chặt thì cả Công ty mất
+        //   danh bạ, gác lỏng thì hồ sơ nhân sự lộ cho mọi người (CN-04.6 vs CN-04.7).
+        key: 'danh-ba',
+        label: 'Danh bạ nội bộ',
+        icon: <ContactsOutlined />,
+        path: '/nhan-su/danh-ba',
+        permissions: ['hr:directory:view'],
+      },
+      {
         key: 'chuc-vu',
         label: 'Danh mục chức vụ',
         icon: <SolutionOutlined />,
         path: '/nhan-su/chuc-vu',
         permissions: ['hr:employee:view'],
+      },
+      {
+        // ⛔ ⛔ Không `permissions` — mục này gác bằng LIÊN KẾT, ⛔ không bằng quyền. Gác thêm
+        //    `hr:employee:view` sẽ chặn đúng đối tượng nó phục vụ: một cán bộ vai trò VIEWER ⛔
+        //    không có quyền ấy, mà đặc tả CN-04.7 nói *"chính nhân viên đó"*.
+        key: 'ho-so-cua-toi',
+        label: 'Hồ sơ của tôi',
+        icon: <IdcardOutlined />,
+        path: '/nhan-su/ho-so-cua-toi',
+        requiresEmployeeLink: true,
       },
     ],
   },
@@ -361,14 +391,28 @@ export const MENU: readonly MenuNode[] = [
  * Nhóm cha rỗng sau khi lọc thì **bỏ luôn cả nhóm** — để lại một mục "Quản trị hệ thống"
  * bấm vào không có gì bên trong thì người dùng tưởng giao diện hỏng.
  */
+/**
+ * Điều kiện hiển thị **ngoài phân quyền** — T51.8.
+ *
+ * ⚠ Bỏ trống là `false`, tức **ẩn**. Fail-closed có chủ đích: một nơi gọi quên truyền hồ sơ sẽ
+ * làm mục biến mất (khó chịu, tự lộ ra) chứ ⛔ không làm nó hiện ra cho người ⛔ không có liên kết
+ * (im lặng, và bấm vào thì 404).
+ */
+export interface HoSoNguoiDung {
+  coHoSoNhanSu?: boolean;
+}
+
 export function visibleMenu(
   nodes: readonly MenuNode[],
   hasPermission: (code: string) => boolean,
+  hoSo: HoSoNguoiDung = {},
 ): MenuNode[] {
   return nodes
     .map((node) => {
-      const children = node.children ? visibleMenu(node.children, hasPermission) : undefined;
-      const allowed = !node.permissions || node.permissions.some((code) => hasPermission(code));
+      const children = node.children ? visibleMenu(node.children, hasPermission, hoSo) : undefined;
+      const allowed =
+        (!node.permissions || node.permissions.some((code) => hasPermission(code))) &&
+        (!node.requiresEmployeeLink || hoSo.coHoSoNhanSu === true);
 
       if (node.children) {
         return children && children.length > 0 ? { ...node, children } : null;

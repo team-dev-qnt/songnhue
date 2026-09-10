@@ -10,6 +10,7 @@ import jakarta.validation.constraints.Size;
 
 import com.songnhue.hr.application.EmployeeSensitiveStatus;
 import com.songnhue.hr.domain.ContractType;
+import com.songnhue.hr.domain.EducationLevel;
 import com.songnhue.hr.domain.Employee;
 import com.songnhue.hr.domain.EmploymentStatus;
 import com.songnhue.hr.domain.Gender;
@@ -85,6 +86,7 @@ public final class HrDtos {
             @NotBlank @Size(max = 255) String fullName,
             LocalDate dateOfBirth,
             Gender gender,
+            EducationLevel educationLevel,
             @Size(max = 100) String ethnicity,
             @Size(max = 255) String hometown,
             @Size(max = 500) String address,
@@ -145,6 +147,7 @@ public final class HrDtos {
             String fullName,
             LocalDate dateOfBirth,
             Gender gender,
+            EducationLevel educationLevel,
             String ethnicity,
             String hometown,
             String address,

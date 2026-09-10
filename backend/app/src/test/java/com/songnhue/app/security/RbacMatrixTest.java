@@ -164,7 +164,10 @@ class RbacMatrixTest extends IntegrationTestBase {
             "hr:leave:approve", // Duyệt phép — Phase 3 (CN-04.9)
             "hr:leave:view-all", // Xem phép — Phase 3 (CN-04.9)
             "hr:org-chart:view", // Sơ đồ tổ chức — Phase 3 (CN-04.1)
-            "hr:directory:view", // Danh bạ — Phase 3 (CN-04.6)
+            // ⬇ WS-55 đã GỠ `hr:directory:view`: `DanhBaController` gác bằng đúng quyền ấy ở cả
+            //   hai endpoint (danh sách · chi tiết). Nó là mã quyền seed từ 13/08/2026 với **0
+            //   endpoint** suốt 28 ngày, và bài `ngoaiLeQuyenPhaseSauVanConDung()` bắt được lượt
+            //   gỡ này NGAY khi endpoint đầu tiên ra đời — ⛔ đừng thêm lại cho hết đỏ.
             "hr:report:view", // Báo cáo HR — Phase 3 (CN-04.8)
             "hr:report:export", // Xuất báo cáo HR — Phase 3 (CN-04.8)
             // ⬇ WS-36/T36.8 đã GỠ `cms:feedback:manage`: `FeedbackController` (danh sách · tổng

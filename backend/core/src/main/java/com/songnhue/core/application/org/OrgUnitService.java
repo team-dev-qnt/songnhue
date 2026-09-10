@@ -25,6 +25,7 @@ import com.songnhue.core.infra.identity.UserRepository;
 import com.songnhue.core.infra.org.OrgUnitRepository;
 import com.songnhue.core.spi.OrgUnitPort;
 import com.songnhue.core.spi.OrgUnitRef;
+import com.songnhue.core.spi.OrgUnitUsagePort;
 import com.songnhue.core.spi.PortalCachePort;
 
 /**
@@ -50,15 +51,25 @@ public class OrgUnitService implements OrgUnitPort {
     private final SettingService settings;
     private final PortalCachePort portalCache;
 
+    /**
+     * Mọi module tự khai <b>cái gì đang thuộc một đơn vị</b> — CN-04.1, {@link OrgUnitUsagePort}.
+     *
+     * <p>Spring gom mọi bean cài cổng này, nên một module mới chỉ cần thêm <b>một</b> bean và ⛔
+     * không phải sửa lớp này. Cùng khuôn {@code AttachmentUsagePort} (T40.26) và {@code JobHandler}.
+     */
+    private final List<OrgUnitUsagePort> nguoiDung;
+
     public OrgUnitService(
             OrgUnitRepository repository,
             UserRepository userRepository,
             SettingService settings,
-            PortalCachePort portalCache) {
+            PortalCachePort portalCache,
+            List<OrgUnitUsagePort> nguoiDung) {
         this.repository = repository;
         this.userRepository = userRepository;
         this.settings = settings;
         this.portalCache = portalCache;
+        this.nguoiDung = List.copyOf(nguoiDung);
     }
 
     /**
@@ -316,11 +327,28 @@ public class OrgUnitService implements OrgUnitPort {
     }
 
     /**
-     * Xoá mềm.
+     * Xoá mềm / giải thể một đơn vị.
      *
-     * <p>Từ chối khi còn đơn vị cấp dưới hoặc còn người dùng trực thuộc — xoá cha mà con còn sống
-     * thì các bản ghi con vẫn giữ path cũ chứa id đã chết, cây trở nên không dựng lại được. Bắt xoá
-     * từ dưới lên là cách duy nhất giữ cây luôn nhất quán.
+     * <h2>Vì sao phải xoá từ dưới lên</h2>
+     *
+     * <p>Xoá cha mà con còn sống thì các bản ghi con vẫn giữ path cũ chứa id đã chết, và cây trở
+     * nên ⛔ không dựng lại được.
+     *
+     * <h2>⛔⛔ Bảo đảm của đặc tả trước 10/09/2026 chỉ đúng MỘT PHẦN BA</h2>
+     *
+     * <p>{@code function-spec.md:616}: <i>"giải thể/xóa đơn vị chỉ khi ⛔ <b>không còn nhân
+     * viên/công trình liên kết</b>"</i>. Bản trước kiểm <b>đơn vị cấp dưới</b> và <b>tài khoản</b>
+     * — hai thứ đặc tả ⛔ không nêu — và ⛔ <b>không kiểm</b> hai thứ đặc tả nêu đích danh. Guard ấy
+     * viết ở Phase 0 khi {@code employees}/{@code constructions} còn chưa tồn tại: nó ⛔ không sai
+     * lúc viết, nó <b>hết đúng</b> khi kho lớn lên.
+     *
+     * <p>⚠ Xoá <b>mềm</b> nên khoá ngoại ⛔ không nổ và ⛔ không hàng nào mồ côi theo nghĩa CSDL.
+     * Triệu chứng thật: đơn vị biến khỏi cây trong khi hồ sơ và công trình vẫn trỏ vào nó ⇒ ô
+     * <i>"Đơn vị"</i> thành trống, và báo cáo <i>"nhân sự theo phòng ban"</i> <b>đếm thiếu</b> đúng
+     * những người ấy. Một con số sai mà ⛔ không dòng lỗi nào.
+     *
+     * <p>⇒ Nay hỏi <b>mọi</b> {@link OrgUnitUsagePort}, và câu lỗi mang <b>danh sách cụ thể</b>
+     * chứ ⛔ không phải một lời từ chối trống — người vận hành cần biết <b>phải đi chuyển cái gì</b>.
      */
     @Transactional
     public void delete(UUID publicId) {
@@ -328,10 +356,20 @@ public class OrgUnitService implements OrgUnitPort {
         if (unit.isRoot()) {
             throw new BusinessRuleException(ErrorCode.ADM_2003);
         }
-        if (repository.existsByParentIdAndDeletedAtIsNull(unit.getId())
-                || userRepository.existsByOrgUnitIdAndDeletedAtIsNull(unit.getId())) {
-            throw new ConflictException(ErrorCode.ADM_2004);
+        if (repository.existsByParentIdAndDeletedAtIsNull(unit.getId())) {
+            throw new ConflictException(ErrorCode.ADM_2004, "còn đơn vị cấp dưới");
         }
+        if (userRepository.existsByOrgUnitIdAndDeletedAtIsNull(unit.getId())) {
+            throw new ConflictException(ErrorCode.ADM_2004, "còn tài khoản người dùng trực thuộc");
+        }
+
+        List<String> dangDung = nguoiDung.stream()
+                .flatMap(cong -> cong.dangThuocDonVi(unit.getId()).stream())
+                .toList();
+        if (!dangDung.isEmpty()) {
+            throw new ConflictException(ErrorCode.ADM_2004, "còn " + String.join(", ", dangDung));
+        }
+
         unit.markDeleted(Instant.now());
         repository.save(unit);
         bienDongToChuc();

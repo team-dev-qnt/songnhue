@@ -522,6 +522,13 @@ export const ERROR_CATALOG = {
     handling: 'toast',
     severity: 'warning',
   },
+  // ⚠ KHÁC SYS-0010: mã kia là hạn mức TỔNG dung lượng một hồ sơ, mã này là trần MỖI TỆP theo
+  //   thư mục (Ảnh 5MB, Hợp đồng 20MB…). Gộp hai câu là để người dùng đi sửa nhầm tham số.
+  'HR-2003': {
+    message: 'Tệp vượt dung lượng tối đa của thư mục này',
+    handling: 'toast',
+    severity: 'warning',
+  },
 
   // --- MOD-05 Quản trị --------------------------------------------------------
   'ADM-2001': {
@@ -536,7 +543,13 @@ export const ERROR_CATALOG = {
     severity: 'warning',
   },
   'ADM-2004': {
-    message: 'Đơn vị còn đơn vị cấp dưới hoặc còn người dùng — không xóa được',
+    // ⚠ Câu ở đây chỉ là bản ĐỠ khi backend ⛔ không nói được câu nào (`messageFor` ưu tiên
+    //   `apiMessage`). Nó cố ý **⛔ không** liệt kê những gì bị chặn: từ 10/09/2026 danh sách ấy do
+    //   backend đo tại chỗ (hồ sơ CBNV · công trình · nhật ký bảo trì · cụm · điểm đo · phiếu liên
+    //   hệ, mỗi thứ kèm số lượng). Chép lại danh sách xuống đây là dựng một bản sao sẽ **nói dối**
+    //   vào ngày module thứ sáu khai thêm một `OrgUnitUsagePort` — đúng lớp lỗi §10.69.
+    message:
+      'Không giải thể được: đơn vị còn dữ liệu trực thuộc — chuyển chúng sang đơn vị khác trước',
     handling: 'toast',
     severity: 'warning',
   },
@@ -601,6 +614,20 @@ export const ERROR_CATALOG = {
     message:
       'Bỏ quyền này là bạn tự khoá chính mình khỏi màn hình phân quyền, và không đường nào trong giao diện gỡ lại được. Nhờ một tài khoản Quản trị tối cao thao tác hộ.',
     handling: 'caller',
+    severity: 'error',
+  },
+  'ADM-2017': {
+    // ⛔ `caller`: đây là một xung đột người dùng PHẢI đọc kỹ — thông điệp mang TÊN tài khoản đang
+    //   giữ hồ sơ, tức chính thông tin cần để đi gỡ. Một toast trôi mất sau 3 giây làm mất luôn nó.
+    message:
+      'Hồ sơ này đã liên kết với một tài khoản khác. Mỗi hồ sơ cán bộ chỉ thuộc về một tài khoản — gỡ liên kết ở tài khoản kia trước.',
+    handling: 'caller',
+    severity: 'error',
+  },
+  'ADM-2018': {
+    message:
+      'Không tự liên kết tài khoản của chính mình tới một hồ sơ nhân viên được — liên kết này quyết định ai đọc được thông tin bảo mật của hồ sơ đó. Nhờ một tài khoản quản trị khác thao tác hộ.',
+    handling: 'toast',
     severity: 'error',
   },
 } as const satisfies Record<string, ErrorEntry>;
