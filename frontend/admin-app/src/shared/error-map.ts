@@ -483,6 +483,16 @@ export const ERROR_CATALOG = {
     handling: 'toast',
     severity: 'info',
   },
+  /**
+   * ⛔⛔ `handling: 'form'` — lỗi này phải hiện NGAY DƯỚI ô "Địa chỉ gốc", ⛔ không phải một toast
+   * trôi qua. Sự cố staging 01/09→10/09/2026 mất 9 ngày dữ liệu vì người gõ ⛔ không biết mình
+   * chọn nhầm ô; một thông báo biến mất sau ba giây ⛔ không sửa được điều đó.
+   */
+  'HYD-2016': {
+    message: 'Địa chỉ gốc không được chứa mã số truy cập — mã số đặt ở nút “Mã số truy cập”',
+    handling: 'form',
+    severity: 'warning',
+  },
 
   // --- MOD-04 Nhân sự ---------------------------------------------------------
   'HR-2001': {

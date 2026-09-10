@@ -74,6 +74,12 @@ spring:
 
   # Máy chủ thư — kênh thông báo thứ hai sau in-app (T6.6, chốt B7 bỏ SMS ở v1).
   # Local trỏ vào Mailpit: thư không đi ra ngoài, xem ở http://localhost:18025.
+  # ⛔⛔ Sửa 10/09/2026 (T50.9): câu dưới đây SAI suốt từ WS-6. `${SMTP_HOST:}` mặc định là
+  # chuỗi RỖNG nên thuộc tính LUÔN có mặt ⇒ `@ConditionalOnProperty` luôn khớp ⇒ bean vẫn
+  # được tạo và Spring đâm vào `localhost:587`. Đo staging: EMAIL 154 FAILED / 0 SENT.
+  # Nay `MailConfig` hỏi chuỗi RỖNG, ⛔ không hỏi sự VẮNG MẶT (luật 3).
+  # ⚠ `MailSenderAutoConfiguration` của Boot vẫn dính bẫy ấy nên `MailHealthIndicator` vẫn
+  # đỏ — muốn sạch hẳn thì đặt SMTP_HOST thật, hoặc bỏ hẳn biến khỏi môi trường.
   # Thiếu SMTP_HOST thì bean JavaMailSender không được tạo và job gửi đánh dấu
   # SKIPPED — hệ thống vẫn chạy, thông báo trên giao diện vẫn tới nơi.
   mail:

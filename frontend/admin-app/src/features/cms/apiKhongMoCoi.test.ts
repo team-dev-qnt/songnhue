@@ -27,6 +27,13 @@ import { describe, expect, it } from 'vitest';
  *
  * <p>⛔ Ngày nào có feature thứ hai dựng client tập trung, tệp ấy phải được thêm vào {@link CLIENT} —
  * và {@link boDoThayDuTepClient} sẽ đỏ để nhắc, thay vì để bộ canh âm thầm hẹp lại.
+ *
+ * <p>⛔⛔ <b>Và `public-web` là một ứng dụng KHÁC — bài này ⛔ không soi nó.</b> Câu *"phạm vi tự
+ * khai"* ở trên nói đúng nhưng ⛔ không ai đọc nó như một khe hở: đo 10/09/2026,
+ * {@code public-web/src/lib/api.ts} có **19 hàm export** và một trong số đó
+ * ({@code getWaterLevels}) ⛔ không nơi nào gọi. Đó là lần thứ TƯ cùng hình dạng luật 28 trong kho.
+ * ⇒ Bộ canh anh em: {@code public-web/src/lib/apiKhongMoCoi.test.ts} (T47.10). Hai bài phủ hai
+ * ứng dụng RỜI NHAU; sửa một bên thì đọc lại bên kia.
  */
 
 /** Client tập trung được soi. Thêm tệp mới vào đây khi có feature thứ hai dựng client riêng. */
@@ -101,9 +108,72 @@ function phuongThucClient(nguon: string): string[] {
   return [...ten].sort();
 }
 
-/** Số lời gọi `ten(` ở mọi tệp nguồn KHÁC, đã bỏ bài kiểm. */
-function soNoiGoi(ten: string, tep: { duong: string; noiDung: string }[], boQua: string[]): number {
-  const mau = new RegExp(`\\b${ten}\\s*\\(`, 'g');
+/**
+ * Bỏ **chú thích** trước khi đếm — giữ nguyên chuỗi ký tự.
+ *
+ * ⛔⛔ Bộ canh anh em ở `public-web` **đỏ đúng ngày nó ra đời** vì lỗ này: một javadoc viết
+ * `getWaterLevels()` — kèm ngoặc — được tính là một lời gọi, và tập mồ côi tụt về 0. T46.7.
+ *
+ * ⚠ Đo 10/09/2026, ở `admin-app` chú thích **chưa che gì** (4 mồ côi giống hệt nhau ở cả hai phép
+ * đo). Vá vẫn phải làm: một lỗ chưa gây hại là một lỗ, ⛔ không phải một ngoại lệ.
+ *
+ * ⚠ Phải bỏ qua chuỗi ký tự: `'https://x'` chứa `//`, cắt thô là nuốt phần còn lại của dòng ⇒ giấu
+ * một lời gọi thật ⇒ **đỏ giả**. Hàm này nhân đôi với `public-web` vì hai workspace ⛔ không nhập
+ * khẩu chéo được; mỗi bản mang đối chứng riêng.
+ */
+export function boChuThich(nguon: string): string {
+  const ket: string[] = [];
+  let trangThai: 'ma' | 'khoi' | 'dong' | '"' | "'" | '`' = 'ma';
+  for (let i = 0; i < nguon.length; i += 1) {
+    const c = nguon[i];
+    const ke = nguon[i + 1] ?? '';
+    if (trangThai === 'ma') {
+      if (c === '/' && ke === '*') {
+        trangThai = 'khoi';
+        i += 1;
+      } else if (c === '/' && ke === '/') {
+        trangThai = 'dong';
+        i += 1;
+      } else if (c === '"' || c === "'" || c === '`') {
+        trangThai = c;
+        ket.push(c);
+      } else {
+        ket.push(c);
+      }
+    } else if (trangThai === 'khoi') {
+      if (c === '*' && ke === '/') {
+        trangThai = 'ma';
+        i += 1;
+      } else {
+        ket.push(c === '\n' ? '\n' : ' ');
+      }
+    } else if (trangThai === 'dong') {
+      if (c === '\n') {
+        trangThai = 'ma';
+        ket.push('\n');
+      }
+    } else {
+      if (c === '\\') {
+        ket.push('  ');
+        i += 1;
+      } else {
+        if (c === trangThai) {
+          trangThai = 'ma';
+        }
+        ket.push(c);
+      }
+    }
+  }
+  return ket.join('');
+}
+
+/** Số lời gọi `ten(` ở mọi tệp nguồn KHÁC, đã bỏ bài kiểm. Nhận cả `ten<Kieu>(`. */
+export function soNoiGoi(
+  ten: string,
+  tep: { duong: string; noiDung: string }[],
+  boQua: string[],
+): number {
+  const mau = new RegExp(`\\b${ten}\\s*(?:<[^<>()]*>)?\\s*\\(`, 'g');
   let dem = 0;
   for (const t of tep) {
     if (boQua.some((b) => t.duong.endsWith(b)) || /\.test\.tsx?$/.test(t.duong)) {
@@ -117,7 +187,10 @@ function soNoiGoi(ten: string, tep: { duong: string; noiDung: string }[], boQua:
 function doMoCoi(): { tatCa: string[]; moCoi: string[] } {
   const duongClient = CLIENT.map((c) => timTuGocKho(c));
   const goc = timTuGocKho(GOC_MA);
-  const tep = moiTepNguon(goc).map((duong) => ({ duong, noiDung: readFileSync(duong, 'utf8') }));
+  const tep = moiTepNguon(goc).map((duong) => ({
+    duong,
+    noiDung: boChuThich(readFileSync(duong, 'utf8')),
+  }));
 
   const tatCa = duongClient.flatMap((d) => phuongThucClient(readFileSync(d, 'utf8')));
   const moCoi = tatCa.filter((ten) => soNoiGoi(ten, tep, CLIENT) === 0).sort();
@@ -176,6 +249,24 @@ describe('Client CMS: mọi phương thức đều có màn hình gọi (luật 
       '    khongPhaiPhuongThuc() {',
     ].join('\n');
     expect(phuongThucClient(mau)).toEqual(['listArticles', 'taoBai']);
+  });
+
+  it('⛔⛔ một CHÚ THÍCH ⛔ không phải một lời gọi — và một URL ⛔ không phải một chú thích', () => {
+    // T46.7. Bộ canh anh em ở `public-web` đỏ vì đúng lỗ này ngay ngày nó ra đời.
+    expect(soNoiGoi('foo', [{ duong: 'a.ts', noiDung: boChuThich('// foo();') }], [])).toBe(0);
+    expect(
+      soNoiGoi('foo', [{ duong: 'a.ts', noiDung: boChuThich('/** {@link foo()} */') }], []),
+    ).toBe(0);
+    // Đối chứng PHẢI-ĐẾM-ĐƯỢC: cắt thô theo `//` sẽ nuốt lời gọi sau một URL ⇒ đỏ giả.
+    expect(
+      soNoiGoi(
+        'foo',
+        [{ duong: 'a.ts', noiDung: boChuThich("const u = 'https://x'; foo();") }],
+        [],
+      ),
+      'chuỗi chứa `//` ⛔ không được coi là chú thích',
+    ).toBe(1);
+    expect(soNoiGoi('foo', [{ duong: 'a.ts', noiDung: boChuThich('foo<T>();') }], [])).toBe(1);
   });
 
   it('⛔ bộ canh thấy đủ tệp client — không âm thầm hẹp lại', () => {

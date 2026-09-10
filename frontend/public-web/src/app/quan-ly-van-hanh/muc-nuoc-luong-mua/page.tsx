@@ -26,7 +26,12 @@ export const metadata: Metadata = {
  * <h2>⭐⭐ 04/09/2026 — ĐÃ CÓ NGUỒN DỮ LIỆU THẬT (T35.7)</h2>
  *
  * Trả lời <b>OI-01</b>: MOD-03 đã dựng, poller {@code songnhue.bhh40.net} đang chạy, và bảng dưới
- * đây đọc {@code hydro_latest} qua {@code GET /api/v1/public/hydro/muc-nuoc}.
+ * đây đọc {@code hydro_latest} qua {@code GET /api/v1/public/hydro/luoi-muc-nuoc}
+ * ({@code getWaterLevelGrid('PHUT', 12)}).
+ *
+ * <p>⛔⛔ <b>Sửa 10/09/2026</b>: dòng trên từng ghi {@code /hydro/muc-nuoc} — đúng lúc T35.7 dựng,
+ * và <b>sai kể từ WS-44</b> đổi sang endpoint lưới. Chú thích trỏ sai tầng thì người sửa tiếp theo
+ * đi sai chỗ (T46.7). Bắt được nhờ {@code lib/apiKhongMoCoi.test.ts} (T47.10).
  *
  * <p>⚠ Nhưng <b>ba giới hạn của nguồn vẫn còn nguyên</b>, và trang này phải nói ra chúng — chúng
  * ⛔ không biến mất chỉ vì đường dữ liệu đã thông:

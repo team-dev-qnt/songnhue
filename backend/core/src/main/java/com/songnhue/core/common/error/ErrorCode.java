@@ -324,6 +324,28 @@ public enum ErrorCode {
     /** Bản kết xuất chưa sẵn sàng — việc nền còn đang chạy hoặc đã hỏng. T34.7. */
     HYD_2015("HYD-2015", HttpStatus.CONFLICT),
 
+    /**
+     * Địa chỉ gốc của nguồn mang một <b>mã số/khoá</b> trong chuỗi truy vấn — T50.1.
+     *
+     * <h2>⛔⛔ Sự cố thật, staging 01/09 → 10/09/2026</h2>
+     *
+     * <p>Mã số truy cập bị dán nguyên URL vào ô <i>Địa chỉ gốc</i>:
+     * {@code http://songnhue.bhh40.net/api/getmn.aspx?key=<mã số>}. Hậu quả đo được sau 9 ngày:
+     *
+     * <ul>
+     *   <li>{@code credential} vẫn {@code NULL} ⇒ poller hỏng <b>trước khi mở HTTP</b>,
+     *       {@code consecutive_failures = 3323}, {@code hydro_raw_logs = 0} — ⛔ không một byte số
+     *       liệu nào, và quy tắc 18 nói <b>mất dữ liệu là vĩnh viễn</b>;
+     *   <li>mã số nằm <b>nguyên văn</b> ở một cột ⛔ không mã hoá, mà {@code ApiSourceView} trả
+     *       {@code baseUrl} ra API cho cả {@code hyd:station:manage} ⇒ vi phạm quy tắc 13.
+     * </ul>
+     *
+     * <p>⇒ Chặn ở {@code ApiSourceService.diaChi(...)} — chỗ <b>cả</b> {@code create} lẫn
+     * {@code update} đi qua (quy tắc 12), ⛔ không chặn ở biểu mẫu: một ô nhập chỉ đỡ được người
+     * dùng ô ấy, ⛔ không đỡ được lượt gọi API hay bản nhập cấu hình.
+     */
+    HYD_2016("HYD-2016", HttpStatus.UNPROCESSABLE_CONTENT),
+
     // ---- MOD-04 Nhân sự ---------------------------------------------------------
     HR_2001("HR-2001", HttpStatus.UNPROCESSABLE_CONTENT),
 

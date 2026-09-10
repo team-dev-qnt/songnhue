@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -278,8 +279,66 @@ public class ApiSourceService {
         if (!rut.startsWith("http://") && !rut.startsWith("https://")) {
             throw new ValidationException(ErrorCode.SYS_0003);
         }
+        String maSoLot = thamSoMangBiMat(rut);
+        if (maSoLot != null) {
+            throw new ValidationException(ErrorCode.HYD_2016, maSoLot);
+        }
         return rut;
     }
+
+    /**
+     * Tên tham số truy vấn trông như một <b>bí mật</b>, hoặc {@code null} nếu ⛔ không có.
+     *
+     * <h2>⛔⛔ Vì sao luật này tồn tại — sự cố thật, 9 ngày, 0 byte dữ liệu</h2>
+     *
+     * <p>Ngày 01/09/2026 mã số truy cập được dán <b>nguyên URL</b> vào ô <i>Địa chỉ gốc</i>. Đo lại
+     * ngày 10/09: {@code credential} vẫn {@code NULL}, {@code consecutive_failures = 3323},
+     * {@code hydro_raw_logs = 0} — poller hỏng <b>trước khi mở HTTP</b> nên ⛔ không lần nào gọi
+     * tới nguồn, mà quy tắc 18 nói <b>⛔ không có API lịch sử ⇒ mất dữ liệu là vĩnh viễn</b>. Kèm
+     * theo: mã số nằm nguyên văn ở một cột ⛔ không mã hoá và {@code ApiSourceView} trả
+     * {@code baseUrl} ra API — vi phạm quy tắc 13.
+     *
+     * <p>⛔ Đây ⛔ <b>không</b> phải lỗi người dùng. Có <b>hai ô</b> nhận cùng một chuỗi, một ô
+     * được mã hoá và một ô ⛔ không, và ⛔ không gì nói cho người gõ biết họ chọn nhầm ô. Cùng họ
+     * với T46.6 (dán toạ độ vào {@code InputNumber} ra {@code 21}): <b>con đường tự nhiên nhất vừa
+     * im lặng vừa sai</b>.
+     *
+     * <h2>Vì sao so theo TÊN THAM SỐ chứ ⛔ không tìm chuỗi trong cả URL</h2>
+     *
+     * <p>Tìm {@code "key"} ở bất kỳ đâu sẽ đỏ oan với một đường dẫn như {@code /api/keyword}. Ở đây
+     * cắt đúng chuỗi truy vấn, tách từng cặp, rồi so <b>trọn tên</b> tham số — nên {@code keyword}
+     * đi lọt còn {@code key} thì ⛔ không. Canh cấu trúc, ⛔ không canh văn bản (luật 2).
+     *
+     * <p>⚠ Tham số rỗng ({@code ?key=}) <b>được tha</b>: nó ⛔ không mang bí mật nào, và từ chối nó
+     * là chặn một địa chỉ vô hại.
+     */
+    private static String thamSoMangBiMat(String url) {
+        int hoi = url.indexOf('?');
+        if (hoi < 0 || hoi == url.length() - 1) {
+            return null;
+        }
+        for (String cap : url.substring(hoi + 1).split("[&;]")) {
+            int bang = cap.indexOf('=');
+            if (bang <= 0 || bang == cap.length() - 1) {
+                continue;
+            }
+            String ten = cap.substring(0, bang).trim();
+            if (TEN_THAM_SO_BI_MAT.matcher(ten).matches()) {
+                return ten;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Tên tham số bị coi là bí mật — khớp <b>trọn tên</b>, cho phép tiền tố ngăn bằng {@code _}/{@code -}.
+     *
+     * <p>Cùng họ từ khoá với {@code AuditRedactionRuleTest} (T48.1): hai bộ canh trả lời hai câu
+     * khác nhau — *"bí mật có chảy vào nhật ký ⛔ không"* và *"bí mật có bị gõ nhầm ô ⛔ không"* —
+     * nhưng cùng một định nghĩa *"thế nào là một bí mật"*.
+     */
+    private static final Pattern TEN_THAM_SO_BI_MAT = Pattern.compile(
+            "(?i)^([a-z0-9]+[_-])?(key|apikey|api_key|token|accesstoken|access_token|secret|credential|password|passphrase|pwd|maso|ma_so)$");
 
     /** {@code null} giữ nguyên là {@code null} — đó là "dùng tham số chung", không phải thiếu dữ liệu. */
     private static Integer trongKhoang(Integer value, int min, int max) {
