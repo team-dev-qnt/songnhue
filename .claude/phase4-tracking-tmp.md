@@ -28,6 +28,8 @@
 | A11 | `T61.15` | javadoc T57.7→T57.15 · xoá `hr.spi` rỗng · sửa `nghiem-thu-cong-ttdt-v1.md` | P2 | [x] |
 | A12 | `T58.18` · `T25.23` | Bộ canh N+1 · hạ trần màu ghi cứng | P2 | [ ] |
 | A13 | `T61.17` | ⛔⛔ Hạn mức khoá theo IP ⇒ 50 cán bộ sau một NAT chung 100 lượt/phút — **chờ QT xác nhận NAT + chốt hướng vá** | P0 nếu đúng | [ ] |
+| A14 | `T47.17` | Bài vòng khứ hồi biểu mẫu thay-toàn-phần — 2/17 (công trình · bài viết) | P2 | [~] |
+| A15 | `T61.18` | Lối SỬA bản ghi sửa chữa (PUT có 0 nơi gọi) + mở rộng bộ canh endpoint mồ côi | P2 | [ ] |
 
 ---
 
