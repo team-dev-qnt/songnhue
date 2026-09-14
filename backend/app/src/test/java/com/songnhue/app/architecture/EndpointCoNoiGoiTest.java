@@ -68,9 +68,6 @@ class EndpointCoNoiGoiTest {
 
     static {
         CHUA_CO_NOI_GOI.put(
-                "GET /hr/canh-bao-het-han",
-                "M4.9 cảnh báo HĐLĐ/chứng chỉ sắp hết hạn: backend tính danh sách theo ngưỡng settings, ⛔ màn hình nào hiện nó ra");
-        CHUA_CO_NOI_GOI.put(
                 "DELETE /admin/users/{publicId}",
                 "Xoá mềm tài khoản ⛔ có nút — màn hình chỉ khoá/mở; tài khoản tạo nhầm nằm mãi trong danh sách");
         CHUA_CO_NOI_GOI.put(

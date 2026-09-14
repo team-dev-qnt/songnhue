@@ -335,6 +335,11 @@ export const router = createBrowserRouter([
             lazyPage(() => import('@/features/hr/BaoCaoNhanSuPage'), 'BaoCaoNhanSuPage'),
           ),
           adminRoute(
+            '/nhan-su/canh-bao-het-han',
+            'hr:employee:view',
+            lazyPage(() => import('@/features/hr/CanhBaoHetHanPage'), 'CanhBaoHetHanPage'),
+          ),
+          adminRoute(
             '/nhan-su/chuc-vu',
             'hr:employee:view',
             lazyPage(() => import('@/features/hr/PositionsPage'), 'PositionsPage'),
