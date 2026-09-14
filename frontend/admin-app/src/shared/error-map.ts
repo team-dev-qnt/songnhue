@@ -149,6 +149,12 @@ export const ERROR_CATALOG = {
     handling: 'reauth',
     severity: 'error',
   },
+  'AUTH-0009': {
+    message:
+      'Tài khoản đã đăng ký xác thực hai bước — hãy nhập mã từ ứng dụng xác thực hoặc mã khôi phục. Mất cả hai thì nhờ quản trị viên đặt lại.',
+    handling: 'caller',
+    severity: 'warning',
+  },
   'AUTH-3001': {
     message: 'Không có quyền thực hiện thao tác này',
     handling: 'forbidden',
@@ -707,6 +713,12 @@ export const ERROR_CATALOG = {
   'ADM-2020': {
     message:
       'Không tự xoá tài khoản của chính mình được — tài khoản mất quyền ngay và giao diện không có đường khôi phục. Nhờ một tài khoản quản trị khác thao tác hộ.',
+    handling: 'toast',
+    severity: 'error',
+  },
+  'ADM-2021': {
+    message:
+      'Không tự đặt lại xác thực hai bước của chính mình được — nhờ một tài khoản quản trị khác thao tác hộ.',
     handling: 'toast',
     severity: 'error',
   },

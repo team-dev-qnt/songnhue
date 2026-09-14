@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.songnhue.core.application.auth.ClientInfo;
+import com.songnhue.core.application.identity.DatLaiHaiBuocService;
 import com.songnhue.core.application.identity.PermissionSummary;
 import com.songnhue.core.application.identity.RoleSummary;
 import com.songnhue.core.application.identity.UserAdminService;
@@ -47,9 +48,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class UserAdminController {
 
     private final UserAdminService userAdminService;
+    private final DatLaiHaiBuocService datLaiHaiBuoc;
 
-    public UserAdminController(UserAdminService userAdminService) {
+    public UserAdminController(UserAdminService userAdminService, DatLaiHaiBuocService datLaiHaiBuoc) {
         this.userAdminService = userAdminService;
+        this.datLaiHaiBuoc = datLaiHaiBuoc;
     }
 
     @GetMapping
@@ -181,6 +184,15 @@ public class UserAdminController {
 
         User user = userAdminService.lienKetHoSo(publicId, request.employeePublicId(), ClientInfo.from(httpRequest));
         return UserDtos.UserView.of(user, userAdminService.hoSoNhanSuCua(user).orElse(null));
+    }
+
+    /** T61.30 — người dùng mất cả ứng dụng xác thực lẫn mã khôi phục. */
+    @PostMapping("/{publicId}/dat-lai-2fa")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Đặt lại xác thực hai bước (xoá đăng ký, thu hồi mọi phiên)")
+    @RequirePermission("adm:user:update")
+    public void datLaiHaiBuoc(@PathVariable UUID publicId, HttpServletRequest httpRequest) {
+        datLaiHaiBuoc.datLai(publicId, ClientInfo.from(httpRequest));
     }
 
     @DeleteMapping("/{publicId}")

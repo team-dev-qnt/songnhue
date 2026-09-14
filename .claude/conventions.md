@@ -259,6 +259,7 @@ Format: `<PREFIX>-<4 số>` — prefix theo module: `SYS` (hệ thống), `AUTH`
 | **AUTH-0006** | 422 | Mật khẩu mới không đạt chính sách (M5.15) hoặc trùng mật khẩu cũ |
 | **AUTH-0007** | 403 | Đang bắt buộc đổi mật khẩu — chặn mọi thao tác khác cho tới khi đổi xong |
 | **AUTH-0008** | 401 | Phiên bị thu hồi vì **phát hiện dùng lại refresh token** — buộc đăng nhập lại |
+| AUTH-0009 | 403 | Tài khoản **đã có 2FA xác nhận** xin đăng ký lại qua vé challenge — chặn đường vượt 2FA bằng mật khẩu (T61.30) |
 | AUTH-3001 | 403 | Không có quyền thực hiện thao tác này |
 | AUTH-3002 | 403 | Dữ liệu không thuộc phạm vi đơn vị của bạn |
 | CMS-2001 | 422 | Slug đã tồn tại |
@@ -294,6 +295,7 @@ Format: `<PREFIX>-<4 số>` — prefix theo module: `SYS` (hệ thống), `AUTH`
 | ADM-2013 | 500 | Khôi phục thất bại — xem `docs/runbook/khoi-phuc-du-lieu.md` |
 | ADM-2019 | 422 | Job mã hoá lại sang khoá AES mới còn hàng chưa đổi — chưa được gỡ khoá cũ (T61.11; chỉ ở `jobs.last_error`) |
 | ADM-2020 | 403 | Tự xoá tài khoản của chính mình (T61.21) |
+| ADM-2021 | 403 | Tự đặt lại 2FA của chính mình (T61.30) |
 
 > ⚠ **Đã gỡ (12/8/2026)**: `OPS-2001` cũ ("nhập bù tối đa 3 ngày") và `OPS-2003` cũ ("lưu lượng vượt 120% thiết kế") — thuộc nhật ký vận hành đã bỏ khỏi scope. Hai mã này **đã được tái sử dụng** cho rule mới ở bảng trên; khi đọc code/log cũ phải chú ý.
 > ℹ **Không phải lỗi**: lượt polling bị bỏ qua do rate-limit (`sync_logs = SKIPPED_UP_TO_DATE`, chốt G3) **không** sinh error code, không alert — chỉ ghi log DEBUG.

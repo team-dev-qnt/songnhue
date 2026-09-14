@@ -67,6 +67,9 @@ vi.mock('@/shared/apiClient', async (importOriginal) => {
       delete: vi.fn(async (url: string) => {
         goi('DELETE', url);
       }),
+      post: vi.fn(async (url: string) => {
+        goi('POST', url);
+      }),
     },
   };
 });
@@ -118,10 +121,22 @@ describe('Nút xoá danh mục — T61.21', () => {
     await waitFor(() => expect(goi).toHaveBeenCalledWith('DELETE', '/admin/users/khac'));
   });
 
+  it('⭐⭐ T61.30 — đặt lại 2FA tài khoản khác gọi POST đúng đường; dòng của CHÍNH MÌNH ⛔ có nút', async () => {
+    const nguoiDung = userEvent.setup();
+    dung(<UsersPage />, ['adm:user:view', 'adm:user:update']);
+    await screen.findByText('taonham');
+    expect(screen.queryByRole('button', { name: 'Đặt lại 2FA của quantri' })).toBeNull();
+
+    await nguoiDung.click(screen.getByRole('button', { name: 'Đặt lại 2FA của taonham' }));
+    await nguoiDung.click(await screen.findByRole('button', { name: 'Đặt lại' }));
+    await waitFor(() => expect(goi).toHaveBeenCalledWith('POST', '/admin/users/khac/dat-lai-2fa'));
+  });
+
   it('⛔ thiếu `adm:user:update` ⇒ ⛔ có nút xoá tài khoản nào', async () => {
     dung(<UsersPage />, ['adm:user:view']);
     await screen.findByText('taonham');
     expect(screen.queryByRole('button', { name: /^Xoá tài khoản/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Đặt lại 2FA/ })).toBeNull();
   });
 
   it('⭐⭐ xoá nguồn dữ liệu gọi DELETE đúng đường sau khi xác nhận', async () => {

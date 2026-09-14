@@ -70,6 +70,20 @@ export function UsersPage() {
     },
   });
 
+  // T61.30 — đường THẬT cho người mất cả ứng dụng xác thực lẫn mã khôi phục, sau khi backend chặn
+  //   "đăng ký lại qua vé challenge" (AUTH-0009 — đường vượt 2FA của kẻ có mật khẩu). Chặn TỰ đặt lại (ADM-2021).
+  const datLai2fa = useMutation({
+    mutationFn: (publicId: string) => api.post<void>(`/admin/users/${publicId}/dat-lai-2fa`),
+    onSuccess: () => {
+      message.success('Đã đặt lại xác thực hai bước — mọi phiên của tài khoản đã bị thu hồi');
+    },
+    onError: (caught: unknown) => {
+      message.error(
+        caught instanceof ApiClientError ? caught.message : 'Không đặt lại được xác thực hai bước',
+      );
+    },
+  });
+
   const columns: ColumnsType<UserView> = [
     { title: 'Tên đăng nhập', dataIndex: 'username', width: 160 },
     { title: 'Họ tên', dataIndex: 'fullName' },
@@ -113,7 +127,7 @@ export function UsersPage() {
     {
       title: '',
       key: 'thao-tac',
-      width: 430,
+      width: 520,
       render: (_value, row) => (
         <Space size={0} wrap>
           {hasPermission('adm:user:update') && (
@@ -145,6 +159,20 @@ export function UsersPage() {
             >
               <Button type="link" danger={row.status !== 'LOCKED'}>
                 {row.status === 'LOCKED' ? 'Mở khóa' : 'Khóa'}
+              </Button>
+            </Popconfirm>
+          )}
+          {hasPermission('adm:user:update') && row.publicId !== toi?.id && (
+            <Popconfirm
+              title={`Đặt lại xác thực hai bước của ${row.username}?`}
+              description="Chỉ làm khi người dùng mất cả ứng dụng xác thực lẫn mã khôi phục, và đã xác minh đúng người. Mọi phiên của tài khoản bị thu hồi; lần đăng nhập sau họ đăng ký lại từ đầu."
+              okText="Đặt lại"
+              okButtonProps={{ danger: true }}
+              cancelText="Hủy"
+              onConfirm={() => datLai2fa.mutate(row.publicId)}
+            >
+              <Button type="link" aria-label={`Đặt lại 2FA của ${row.username}`}>
+                Đặt lại 2FA
               </Button>
             </Popconfirm>
           )}

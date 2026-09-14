@@ -85,6 +85,8 @@ public enum ErrorCode {
     AUTH_0007("AUTH-0007", HttpStatus.FORBIDDEN),
     /** Phiên bị thu hồi vì phát hiện dùng lại refresh token cũ — buộc đăng nhập lại (§4.1). */
     AUTH_0008("AUTH-0008", HttpStatus.UNAUTHORIZED),
+    /** Tài khoản đã có 2FA xác nhận — ⛔ đăng ký lại qua vé challenge (T61.30). */
+    AUTH_0009("AUTH-0009", HttpStatus.FORBIDDEN),
     AUTH_3001("AUTH-3001", HttpStatus.FORBIDDEN),
     /** Dữ liệu ngoài phạm vi đơn vị — scope filter tầng 3 chặn (§4.2). */
     AUTH_3002("AUTH-3002", HttpStatus.FORBIDDEN),
@@ -562,7 +564,9 @@ public enum ErrorCode {
      * <p>Xoá là xoá mềm mà giao diện ⛔ có đường khôi phục, và tài khoản đang thao tác mất quyền NGAY
      * (`AuthorityLoader` lọc `deleted_at`). Cùng hình dạng `ADM-2016` (tự gỡ quyền phân quyền của mình).
      */
-    ADM_2020("ADM-2020", HttpStatus.FORBIDDEN);
+    ADM_2020("ADM-2020", HttpStatus.FORBIDDEN),
+    /** Tự đặt lại 2FA của chính mình — đúng thao tác kẻ chiếm phiên muốn làm (T61.30). */
+    ADM_2021("ADM-2021", HttpStatus.FORBIDDEN);
 
     private final String code;
     private final HttpStatus status;

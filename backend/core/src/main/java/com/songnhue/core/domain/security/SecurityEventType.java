@@ -31,6 +31,10 @@ public enum SecurityEventType {
     TWO_FACTOR_ENROLLED(Severity.INFO),
     TWO_FACTOR_FAILED(Severity.WARNING),
     TWO_FACTOR_RECOVERY_USED(Severity.DANGER),
+    /** Qua bước MẬT KHẨU rồi xin đăng ký lại 2FA cho tài khoản đã có 2FA — dấu hiệu mật khẩu đã lộ (T61.30). */
+    TWO_FACTOR_REENROLL_BLOCKED(Severity.DANGER),
+    /** Quản trị viên xoá 2FA của một tài khoản khác (T61.30). */
+    TWO_FACTOR_RESET_BY_ADMIN(Severity.DANGER),
 
     // --- Phân quyền -----------------------------------------------------------
     /** Thiếu permission — tầng 2 chặn (AUTH-3001). */
