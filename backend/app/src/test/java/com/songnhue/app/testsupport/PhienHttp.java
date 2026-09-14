@@ -75,7 +75,32 @@ public final class PhienHttp {
      * duy nhất {@code ClientIp} đọc. Nhờ vậy bộ kiểm đi <b>cùng đường</b> với production thay vì
      * đi một đường chỉ tồn tại trong bộ kiểm (luật 5).
      */
-    private final String ipGiaLap = ipKeTiep();
+    private String ipGiaLap = ipKeTiep();
+
+    /**
+     * Đổi IP giả lập của phiên này sang một IP <b>chưa ai dùng</b>, giữ nguyên phiên đăng nhập.
+     *
+     * <h2>Vì sao cần — T60.9</h2>
+     *
+     * Xô {@link com.songnhue.core.common.ratelimit.RateLimitPolicy#EXPORT} là <b>10 lượt / giờ</b>.
+     * Lớp nào dựng phiên ở {@code @BeforeAll} thì <b>cả lớp dùng chung một IP</b>, nên một lớp có
+     * vài bài kết xuất là cạn ngân sách — và triệu chứng rơi vào <b>bài chạy sau</b>, thường là một
+     * bài ⛔ không liên quan gì tới kết xuất. Đúng hình dạng mà javadoc của {@link #ipGiaLap} đã mô
+     * tả cho xô đăng nhập, chỉ là ở một xô chặt hơn <b>600 lần</b>.
+     *
+     * <h2>⛔ Vì sao KHÔNG nới hạn mức ở hồ sơ kiểm thử</h2>
+     *
+     * Nới là tắt một cơ chế bảo mật thật trong CI — sau đó ⛔ không lượt chạy nào còn đi qua nó nữa.
+     * Ở đây filter vẫn chạy, vẫn đếm, vẫn chặn; chỉ là <b>mỗi bài kiểm</b> được coi là một máy khách
+     * khác nhau — đúng thứ nó mô phỏng. Cơ chế chặn được chứng minh ở
+     * {@code CaffeineRateLimitStoreTest} và ở {@link com.songnhue.app.security.HanMucKetXuatTest}.
+     *
+     * <p>⚠ Đổi IP ⛔ không cần đăng nhập lại: thẻ truy cập gắn với <b>phiên</b>, ⛔ không gắn với
+     * địa chỉ. Gọi trong {@code @BeforeEach} là đủ.
+     */
+    public void doiIp() {
+        ipGiaLap = ipKeTiep();
+    }
 
     private static final java.util.concurrent.atomic.AtomicInteger SO_THU_TU =
             new java.util.concurrent.atomic.AtomicInteger();

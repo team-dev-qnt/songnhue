@@ -226,6 +226,16 @@ export const router = createBrowserRouter([
             ),
           ),
           adminRoute(
+            '/van-hanh/lop-ban-do',
+            'ops:gis-layer:view',
+            lazyPage(() => import('@/features/operations/GisLayersPage'), 'GisLayersPage'),
+          ),
+          adminRoute(
+            '/van-hanh/bao-cao',
+            'ops:report:view',
+            lazyPage(() => import('@/features/operations/BaoCaoVanHanhPage'), 'BaoCaoVanHanhPage'),
+          ),
+          adminRoute(
             '/van-hanh/cong-trinh/tao-moi',
             'ops:construction:create',
             lazyPage(
@@ -305,6 +315,11 @@ export const router = createBrowserRouter([
           //   trong trang, ⛔ không gác cả trang. ADMIN có mọi quyền HR TRỪ quyền ấy
           //   (`V202608131007:169`), nên đưa nó lên tuyến là khoá ADMIN ra khỏi cả màn hình.
           adminRoute(
+            '/nhan-su/so-do-to-chuc',
+            'hr:org-chart:view',
+            lazyPage(() => import('@/features/hr/SoDoToChucPage'), 'SoDoToChucPage'),
+          ),
+          adminRoute(
             '/nhan-su/ho-so',
             'hr:employee:view',
             lazyPage(() => import('@/features/hr/EmployeesPage'), 'EmployeesPage'),
@@ -313,6 +328,11 @@ export const router = createBrowserRouter([
             '/nhan-su/danh-ba',
             'hr:directory:view',
             lazyPage(() => import('@/features/hr/DanhBaPage'), 'DanhBaPage'),
+          ),
+          adminRoute(
+            '/nhan-su/bao-cao',
+            'hr:report:view',
+            lazyPage(() => import('@/features/hr/BaoCaoNhanSuPage'), 'BaoCaoNhanSuPage'),
           ),
           adminRoute(
             '/nhan-su/chuc-vu',
@@ -329,6 +349,29 @@ export const router = createBrowserRouter([
             path: '/nhan-su/ho-so-cua-toi',
             element: lazyPage(() => import('@/features/hr/HoSoCuaToiPage'), 'HoSoCuaToiPage'),
           },
+          // ⛔⛔ Hai tuyến nghỉ phép dưới đây cũng ⛔ KHÔNG bọc `RequirePermission` — cùng lý lẽ
+          //    với dòng trên. `hr:leave:request` do chốt C3 cấp cho gần như mọi vai trò, nên nó
+          //    ⛔ không phân biệt được ai; điều kiện thật là **có liên kết hồ sơ CBNV**, và chốt
+          //    chặn thật nằm ở backend: `/nghi-phep/cua-toi` và `/so-du` ⛔ không nhận một định
+          //    danh nào, chúng suy hồ sơ từ token (T51.8).
+          {
+            path: '/nhan-su/nghi-phep',
+            element: lazyPage(
+              () => import('@/features/hr/NghiPhepCuaToiPage'),
+              'NghiPhepCuaToiPage',
+            ),
+          },
+          // ⛔ Đường ĐỌC của `/hr/ngay-le` chỉ đòi đăng nhập (mọi CBNV cần hiểu số ngày công của
+          //   đơn mình sắp nộp); ba nút GHI trong trang tự ẩn theo `hr:contract:manage`.
+          {
+            path: '/nhan-su/ngay-le',
+            element: lazyPage(() => import('@/features/hr/NgayLePage'), 'NgayLePage'),
+          },
+          adminRoute(
+            '/nhan-su/duyet-nghi-phep',
+            'hr:leave:approve',
+            lazyPage(() => import('@/features/hr/DuyetNghiPhepPage'), 'DuyetNghiPhepPage'),
+          ),
           adminRoute(
             '/quan-tri/tai-khoan',
             'adm:user:view',

@@ -32,13 +32,32 @@ import io.minio.MinioClient;
  *       tránh thêm một phụ thuộc nữa phải theo dõi CVE, trong khi thứ cần chỉ là "chạy image này,
  *       chờ cổng 9000 sẵn sàng".
  *   <li><b>Cùng image với {@code compose.infra.yml}</b> — đổi ở một nơi thì phải đổi cả hai. Test
- *       chạy trên một bản MinIO khác bản sẽ triển khai là kiểm chứng một hệ thống khác.
+ *       chạy trên một bản MinIO khác bản sẽ triển khai là kiểm chứng một hệ thống khác. ⭐ Câu dặn
+ *       này đứng đây từ WS-4 và <b>chưa bao giờ là một cổng kiểm</b>; nay nó là
+ *       {@link com.songnhue.app.deploy.AnhMinioDongBoTest}.
  * </ul>
+ *
+ * <h2>⛔⛔ Vì sao là {@code quay.io} chứ không phải Docker Hub — đổi 14/9/2026</h2>
+ *
+ * Lượt CI của PR Phase 3 đỏ ở <b>86 lớp</b>, tất cả là nạn nhân dây chuyền của một dòng:
+ * {@code pull access denied for minio/minio, repository does not exist}. Đo lại cùng ngày:
+ * <b>cả repository đã biến mất khỏi Docker Hub</b>, không phải một tag bị dọn —
+ * {@code hub.docker.com/v2/repositories/minio/minio/} trả {@code object not found}.
+ *
+ * <p>Ở máy vẫn xanh vì ảnh nằm sẵn trong <b>đệm Docker cục bộ</b> (kéo về 12 tháng trước), nên
+ * Testcontainers không hỏi registry lần nào. Một biến thể mới của <i>"xanh ở máy không phải bằng
+ * chứng"</i>: lần trước là {@code .env.local}, lần này là <b>đệm ảnh</b>.
+ *
+ * <p>⚠⚠ Bản {@code quay.io} chỉ có manifest <b>linux/amd64</b>. <b>Đo được</b>: máy dev Apple
+ * Silicon chạy qua giả lập ({@code docker run --platform linux/amd64 … --version} thoát 0), chậm
+ * hơn chứ không hỏng. ⛔ <b>CHƯA đo: kiến trúc hai VPS</b> — kho ⛔ không ghi nó ở đâu cả ⇒ chạy
+ * {@code uname -m} trên máy chủ TRƯỚC lượt đề bạt (T60.10).
  */
 public final class SongnhueMinio {
 
     /** Khớp {@code deploy/compose.infra.yml}. */
-    private static final DockerImageName IMAGE = DockerImageName.parse("minio/minio:RELEASE.2025-09-07T16-13-09Z");
+    private static final DockerImageName IMAGE =
+            DockerImageName.parse("quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z.hotfix.7aa24e772");
 
     private static final String ACCESS_KEY = "songnhue-test";
     private static final String SECRET_KEY = "test_only_not_a_secret";

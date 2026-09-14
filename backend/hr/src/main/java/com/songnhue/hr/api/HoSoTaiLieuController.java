@@ -1,13 +1,20 @@
 package com.songnhue.hr.api;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.Resource;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -107,6 +114,57 @@ public class HoSoTaiLieuController {
     }
 
     public record DownloadUrl(String url) {}
+
+    /**
+     * Tải <b>toàn bộ</b> tài liệu của một hồ sơ dưới dạng ZIP — CN-04.5 (T53.12).
+     *
+     * <h2>⛔ {@code StreamingResponseBody}, ⛔ KHÔNG phải {@code byte[]}</h2>
+     *
+     * <p>Bản nén ghi thẳng ra luồng phản hồi; ⛔ không có lúc nào cả tệp nằm trong heap. Xem
+     * {@code HoSoTaiLieuService.ghiZip}.
+     *
+     * <p>⛔⛔ Phân quyền chạy <b>trước</b> khi phản hồi bắt đầu — một endpoint phát luồng ⛔ không
+     * có cách nào báo lỗi sau byte đầu tiên. Xem {@code HoSoTaiLieuService.chuanBiZip}.
+     *
+     * <p>⚠ ⛔ Không đặt {@code Content-Length}: kích thước bản nén chỉ biết được sau khi nén xong.
+     * Phản hồi đi {@code chunked}, và cái giá phải khai ra là <b>trình duyệt ⛔ không hiện được
+     * thanh tiến trình</b> — đúng đánh đổi ngược với {@code readForPublic} (ở đó kích thước có sẵn
+     * trong CSDL nên đặt được).
+     *
+     * <p>⛔⛔ Quyền vẫn là {@code hr:employee:view} — <b>cùng</b> quyền với đường xem từng tệp, và
+     * đó là lựa chọn có ý thức: ZIP ⛔ không mở thêm dữ liệu nào, nó chỉ gói lại thứ người ấy vốn
+     * tải được từng cái một. Đặt một quyền riêng ở đây là dựng một hàng rào mà cửa bên cạnh đang mở.
+     * ⇒ Thứ bù lại là <b>nhật ký bảo mật</b> (`HR_DOSSIER_DOWNLOADED`), vì *gói lại* đổi hẳn quy mô
+     * của một lượt mang dữ liệu ra ngoài.
+     */
+    @GetMapping("/employees/{hoSoId}/tai-lieu/zip")
+    @Operation(summary = "Tải cả hồ sơ dạng ZIP — mỗi thư mục một cấp, ghi nhật ký bảo mật")
+    @RequirePermission("hr:employee:view")
+    public ResponseEntity<Resource> zip(@PathVariable UUID hoSoId) throws IOException {
+        // ⛔⛔ MỌI thứ chạy trên CHÍNH luồng request — ⛔ không `StreamingResponseBody`.
+        //
+        //    Thân phát luồng chạy trên một luồng khác (async dispatch), nơi `AuthContext`,
+        //    `ScopeFilterAspect` và `AuditContext` — tất cả đứng trên `ThreadLocal` — đều RỖNG.
+        //    Bản đầu làm thế và đỏ với `AUTH-0002` phát ra từ bên trong thân phát luồng; nặng hơn
+        //    một ngoại lệ, một truy vấn chạy ở đó sẽ đi qua bộ lọc phạm vi ⛔ KHÔNG CÓ phạm vi nào.
+        //    Và vì header đã gửi, `GlobalExceptionHandler` ⛔ không ghi nổi envelope JSON —
+        //    người dùng nhận một tệp ZIP HỎNG thay vì một thông báo.
+        HoSoTaiLieuService.ChuanBiZip chuanBi = taiLieu.chuanBiZip(hoSoId);
+        Path tam = taiLieu.taoZipTamThoi(chuanBi);
+
+        InputStream luong = Files.newInputStream(tam);
+        long co = Files.size(tam);
+        // ⭐ Xoá NGAY sau khi mở luồng: trên POSIX dữ liệu còn sống chừng nào còn một mô tả tệp mở,
+        //   nên tệp tạm ⛔ không bao giờ nằm lại trên đĩa — kể cả khi lượt gửi đứt giữa chừng. Dọn
+        //   trong `finally` thì phải chờ gửi xong, mà chỗ ấy nằm ngoài tầm tay của phương thức này.
+        Files.deleteIfExists(tam);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"ho-so-" + chuanBi.maHoSo() + ".zip\"")
+                .contentLength(co)
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(new InputStreamResource(luong));
+    }
 
     @DeleteMapping("/employees/{hoSoId}/tai-lieu/{tepId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)

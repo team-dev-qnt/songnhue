@@ -446,6 +446,163 @@ class HoSoConHttpTest extends IntegrationTestBase {
         return DUONG_HO_SO + "/" + hoSo + "/timeline";
     }
 
+    // =========================================================================
+    // Tải cả hồ sơ dạng ZIP — CN-04.5 (T53.12)
+    // =========================================================================
+
+    @Test
+    @DisplayName("⭐⭐ ZIP mang BYTE THẬT, mỗi thư mục một cấp, và tệp TRÙNG TÊN ⛔ không đè nhau")
+    void taiCaHoSoDangZip() throws Exception {
+        UUID hoSo = taoHoSo("ZIP-001");
+        assertThat(tai(hoSo, HoSoThuMuc.HOP_DONG, "hop-dong.pdf").getStatusCode())
+                .isEqualTo(HttpStatus.CREATED);
+        assertThat(tai(hoSo, HoSoThuMuc.QUYET_DINH, "quyet-dinh.pdf").getStatusCode())
+                .isEqualTo(HttpStatus.CREATED);
+        // ⛔⛔ CÙNG thư mục, CÙNG tên: `AttachmentService.nextVersion` giữ cả bản cũ, nên trạng thái
+        //    này CÓ THẬT. Nhiều trình giải nén **lặng lẽ ghi đè** mục sau lên mục trước ⇒ người
+        //    nhận mở ra thấy một tệp và ⛔ không biết mình vừa mất một tệp.
+        assertThat(tai(hoSo, HoSoThuMuc.HOP_DONG, "hop-dong.pdf").getStatusCode())
+                .isEqualTo(HttpStatus.CREATED);
+
+        // ⛔⛔ Tệp vừa tải lên có `status = UPLOADING` cho tới khi việc nền quét virus xong, mà
+        //    `WORKER_ENABLED = false` trong bộ kiểm. Lượt chạy ĐẦU của bài này vì thế nhận một bản
+        //    nén chỉ có `_THIEU.txt` — và đó là hành vi ĐÚNG, phát hiện được nhờ nó.
+        //    ⇒ Đẩy trạng thái thẳng ở CSDL: quét virus là cơ chế riêng, có bài kiểm riêng, ⛔ không
+        //      phải thứ lớp này đang đo.
+        datTrangThaiTep(hoSo, "READY");
+
+        long truoc = demSuKien("HR_DOSSIER_DOWNLOADED");
+
+        byte[] zip = taiZip(hoSo);
+        assertThat(zip)
+                .as("⛔ ZIP rỗng — một lượt tải trả 200 với thân rỗng trông y hệt lượt đúng")
+                .isNotEmpty();
+
+        List<String> muc = new java.util.ArrayList<>();
+        try (java.util.zip.ZipInputStream vao =
+                new java.util.zip.ZipInputStream(new java.io.ByteArrayInputStream(zip))) {
+            java.util.zip.ZipEntry e;
+            while ((e = vao.getNextEntry()) != null) {
+                assertThat(vao.readAllBytes())
+                        .as(
+                                "⛔⛔ Mục `%s` RỖNG — một bản nén đủ tên tệp mà ⛔ không byte nào trông y "
+                                        + "hệt một bản nén đúng, và người nhận chỉ biết khi mở ra",
+                                e.getName())
+                        .isNotEmpty();
+                muc.add(e.getName());
+            }
+        }
+
+        assertThat(muc)
+                .as("⛔ Bản nén PHẲNG với hai mươi tệp tên kiểu *Quyết định.pdf* là thứ người nhận "
+                        + "phải mở từng cái để biết cái nào là cái gì")
+                .contains("HOP_DONG/hop-dong.pdf", "QUYET_DINH/quyet-dinh.pdf");
+        assertThat(muc)
+                .as("⛔⛔ Tệp trùng tên phải mang số thứ tự — hai mục CÙNG tên trong một ZIP là một "
+                        + "lượt mất dữ liệu IM LẶNG ở phía người giải nén")
+                .contains("HOP_DONG/hop-dong (2).pdf");
+        assertThat(muc)
+                .as("⛔ Mọi tệp đều READY ⇒ ⛔ KHÔNG có bản kê thiếu. Một `_THIEU.txt` xuất hiện ở "
+                        + "đây nghĩa là phép phân loại đang gọi nhầm tệp lành là tệp chưa sẵn sàng")
+                .hasSize(3)
+                .doesNotHaveDuplicates()
+                .doesNotContain("_THIEU.txt");
+
+        assertThat(demSuKien("HR_DOSSIER_DOWNLOADED"))
+                .as("⛔⛔ `audit_logs` chỉ sinh dòng khi có THAY ĐỔI, nên mọi lượt ĐỌC là vô hình "
+                        + "(T51.6). Mang cả hồ sơ một con người ra khỏi hệ thống mà ⛔ không để lại "
+                        + "dấu vết ở bảng nào là đúng thứ NĐ 13/2023 hỏi tới")
+                .isEqualTo(truoc + 1);
+    }
+
+    @Test
+    @DisplayName("⭐ Hồ sơ CHƯA có tài liệu vẫn tải được — ZIP rỗng, và nhật ký VẪN ghi")
+    void hoSoRongVanTaiDuocZip() throws Exception {
+        UUID hoSo = taoHoSo("ZIP-002");
+        long truoc = demSuKien("HR_DOSSIER_DOWNLOADED");
+
+        byte[] zip = taiZip(hoSo);
+        try (java.util.zip.ZipInputStream vao =
+                new java.util.zip.ZipInputStream(new java.io.ByteArrayInputStream(zip))) {
+            assertThat(vao.getNextEntry())
+                    .as("⛔ Hồ sơ chưa có tài liệu ⇒ bản nén ⛔ không có mục nào — đó là một câu trả "
+                            + "lời ĐÚNG, ⛔ không phải một lỗi")
+                    .isNull();
+        }
+        assertThat(demSuKien("HR_DOSSIER_DOWNLOADED"))
+                .as("⛔ `soTep = 0` là một trạng thái CÓ THẬT và vẫn phải ghi: nó phân biệt *tải về "
+                        + "rỗng* với *⛔ không ai tải*")
+                .isEqualTo(truoc + 1);
+    }
+
+    @Test
+    @DisplayName("⛔⛔ Tệp CHƯA quét xong ⇒ bản nén TỰ KHAI `_THIEU.txt`, ⛔ không lặng lẽ thiếu")
+    void tepChuaSanSangThiBanNenTuKhai() throws Exception {
+        UUID hoSo = taoHoSo("ZIP-003");
+        assertThat(tai(hoSo, HoSoThuMuc.HOP_DONG, "da-quet.pdf").getStatusCode())
+                .isEqualTo(HttpStatus.CREATED);
+        datTrangThaiTep(hoSo, "READY");
+        // Tệp thứ hai để nguyên `UPLOADING` — đúng trạng thái của một tệp vừa tải lên vài giây.
+        assertThat(tai(hoSo, HoSoThuMuc.BANG_CAP, "dang-quet.pdf").getStatusCode())
+                .isEqualTo(HttpStatus.CREATED);
+
+        List<String> muc = new java.util.ArrayList<>();
+        String banKe = null;
+        try (java.util.zip.ZipInputStream vao =
+                new java.util.zip.ZipInputStream(new java.io.ByteArrayInputStream(taiZip(hoSo)))) {
+            java.util.zip.ZipEntry e;
+            while ((e = vao.getNextEntry()) != null) {
+                byte[] than = vao.readAllBytes();
+                if ("_THIEU.txt".equals(e.getName())) {
+                    banKe = new String(than, java.nio.charset.StandardCharsets.UTF_8);
+                }
+                muc.add(e.getName());
+            }
+        }
+
+        assertThat(muc).contains("HOP_DONG/da-quet.pdf");
+        assertThat(banKe)
+                .as("⛔⛔ Bỏ tệp chưa sẵn sàng kèm một dòng WARN trong log là để người nhận cầm một "
+                        + "bản nén THIẾU mà ⛔ không có cách nào biết — và họ sẽ dùng nó như một bản "
+                        + "đầy đủ. ⛔ Còn chặn cả lượt tải thì sai theo chiều kia: một tệp đang quét "
+                        + "làm hỏng thao tác của người ⛔ không liên quan")
+                .isNotNull()
+                .contains("dang-quet.pdf")
+                .contains("quét virus");
+        assertThat(muc)
+                .as("⛔ Tệp chưa sẵn sàng ⛔ KHÔNG được có mặt trong bản nén")
+                .doesNotContain("BANG_CAP/dang-quet.pdf");
+    }
+
+    /** ⚠ Đẩy trạng thái tệp thẳng ở CSDL — quét virus là cơ chế riêng, ⛔ không phải thứ đang đo. */
+    private void datTrangThaiTep(UUID hoSo, String trangThai) {
+        int so = jdbc.update(
+                "UPDATE attachments SET status = ? WHERE owner_type = 'EMPLOYEE' "
+                        + "AND owner_id = (SELECT id FROM employees WHERE public_id = ?) AND deleted_at IS NULL",
+                trangThai,
+                hoSo);
+        assertThat(so)
+                .as("⛔ Chống tập rỗng: ⛔ không cập nhật được dòng nào thì bài dưới xanh trên một " + "bản nén rỗng")
+                .isPositive();
+    }
+
+    private byte[] taiZip(UUID hoSo) {
+        org.springframework.http.ResponseEntity<byte[]> ra = http.exchange(
+                DUONG_HO_SO + "/" + hoSo + "/tai-lieu/zip",
+                HttpMethod.GET,
+                new org.springframework.http.HttpEntity<>(phienHttp.header(quanTri)),
+                byte[].class);
+        assertThat(ra.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(ra.getHeaders().getFirst("Content-Disposition"))
+                .as("⛔ Thiếu `Content-Disposition` thì trình duyệt cố MỞ tệp nén thay vì tải về")
+                .contains(".zip");
+        return ra.getBody();
+    }
+
+    private long demSuKien(String loai) {
+        return jdbc.queryForObject("SELECT count(*) FROM security_events WHERE event_type = ?", Long.class, loai);
+    }
+
     private String duongTaiLieu(UUID hoSo) {
         return DUONG_HO_SO + "/" + hoSo + "/tai-lieu";
     }

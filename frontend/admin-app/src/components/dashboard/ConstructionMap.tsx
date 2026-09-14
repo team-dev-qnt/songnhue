@@ -1,12 +1,30 @@
-import { Alert, Empty } from 'antd';
+import { Alert, Button, Empty, Space, Typography } from 'antd';
 import L from 'leaflet';
 import { neutralColors, statusColors } from 'design-tokens';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { CONSTRUCTION_STATUS, CONSTRUCTION_TYPE } from '@/components/business/statusVocabulary';
-import { type MapConfigView, type MapPointView, type StationMarkerView } from '@/shared/api-types';
+import {
+  type GisLayerView,
+  type MapConfigView,
+  type MapPointView,
+  type StationMarkerView,
+} from '@/shared/api-types';
 
+import { chieuDai, dienTich, nhanChieuDai, nhanDienTich, type Diem } from './banDoDo';
 import { bieuTuongDiemDo, popupDiemDo, thoat } from './constructionMapMarkers';
+
+/**
+ * Một lớp GIS đã tải xong nội dung, sẵn sàng vẽ.
+ *
+ * ⚠ `geojson` để kiểu `unknown` có chủ đích: nội dung do **người vận hành nạp**, và khai một kiểu
+ * cụ thể ở đây là hứa một hình dạng mà ⛔ không ai kiểm được ở tầng này. `L.geoJSON` tự bỏ qua đối
+ * tượng ⛔ không hợp lệ.
+ */
+export interface LopGisVe {
+  view: GisLayerView;
+  geojson: unknown;
+}
 
 import 'leaflet/dist/leaflet.css';
 
@@ -42,6 +60,8 @@ export function ConstructionMap({
   config,
   height = 420,
   wall = false,
+  lopGis = [],
+  coCongCuDo = false,
 }: {
   points: MapPointView[];
   /**
@@ -55,6 +75,21 @@ export function ConstructionMap({
   config: MapConfigView | undefined;
   height?: number | string;
   wall?: boolean;
+  /**
+   * Lớp bản đồ do người vận hành nạp — CN-02.4 / M2.9.
+   *
+   * ⛔ Nhận qua prop chứ ⛔ không tự gọi API: component này đã nhận `points`/`diemDo` theo cùng
+   * cách, và để nó tự nạp thì mỗi nơi đặt bản đồ lại kéo theo một lượt gọi ⛔ không ai thấy.
+   */
+  lopGis?: LopGisVe[];
+  /**
+   * Bật công cụ đo khoảng cách / diện tích — M2.12.
+   *
+   * ⛔ Mặc định **TẮT**, và wall mode phải để nguyên: CN-02.5 nói rõ màn hình treo tường *"⛔ không
+   * phụ thuộc thao tác chuột/bàn phím"*. Một công cụ cần bấm chuột trên màn hình ⛔ không ai chạm
+   * vào là một nút ⛔ không dùng được, và tệ hơn — nó bắt được cú click ⛔ không chủ đích.
+   */
+  coCongCuDo?: boolean;
 }) {
   const khungRef = useRef<HTMLDivElement>(null);
   const banDoRef = useRef<L.Map | null>(null);
@@ -63,6 +98,12 @@ export function ConstructionMap({
   //    gọi API khác nhau. Dùng chung một layerGroup thì lượt vẽ lại của lớp này xoá mất lớp kia —
   //    triệu chứng là marker công trình biến mất mỗi lần số liệu thuỷ văn cập nhật.
   const lopDiemDoRef = useRef<L.LayerGroup | null>(null);
+  // ⛔ Lớp GIS thêm TRƯỚC hai lớp kia nên nó nằm DƯỚI: một vùng ranh giới tô màu vẽ đè lên marker
+  //    công trình là che mất đúng thứ bản đồ sinh ra để hiện.
+  const lopGisRef = useRef<L.LayerGroup | null>(null);
+  const lopDoRef = useRef<L.LayerGroup | null>(null);
+  const [diemDo_Do, setDiemDoDo] = useState<Diem[]>([]);
+  const [dangDo, setDangDo] = useState(false);
 
   // Dựng bản đồ một lần. `config` chỉ đọc ở lượt dựng đầu: đổi nguồn tile giữa chừng là
   // việc của người quản trị và có hiệu lực ở lượt tải trang sau — dựng lại cả bản đồ mỗi
@@ -83,8 +124,10 @@ export function ConstructionMap({
       maxZoom: config.maxZoom,
       attribution: config.attribution,
     }).addTo(banDo);
+    lopGisRef.current = L.layerGroup().addTo(banDo);
     lopMarkerRef.current = L.layerGroup().addTo(banDo);
     lopDiemDoRef.current = L.layerGroup().addTo(banDo);
+    lopDoRef.current = L.layerGroup().addTo(banDo);
     banDoRef.current = banDo;
 
     // Leaflet đo kích thước lúc dựng; nằm trong thẻ co giãn thì lần đo đầu hay sai và
@@ -98,6 +141,8 @@ export function ConstructionMap({
       banDoRef.current = null;
       lopMarkerRef.current = null;
       lopDiemDoRef.current = null;
+      lopGisRef.current = null;
+      lopDoRef.current = null;
     };
   }, [config]);
 
@@ -170,6 +215,60 @@ export function ConstructionMap({
       });
   }, [diemDo]);
 
+  // ⭐ Lớp GIS do người vận hành nạp — M2.9. useEffect RIÊNG, cùng lý lẽ với lớp điểm đo.
+  useEffect(() => {
+    const lop = lopGisRef.current;
+    if (!lop) {
+      return;
+    }
+    lop.clearLayers();
+    lopGis.forEach((l) => {
+      // ⛔ `opacity` là phần trăm NGUYÊN 0–100 ở cả API lẫn CSDL; Leaflet nhận 0–1. Phép chia nằm
+      //    ở ĐÚNG một chỗ — hai nơi cùng đổi đơn vị là chỗ để `0.8` và `80` lẫn vào nhau.
+      const mo = l.view.opacity / 100;
+      L.geoJSON(l.geojson as never, {
+        style: () => ({ color: l.view.color, weight: 2, opacity: mo, fillOpacity: mo * 0.5 }),
+        pointToLayer: (_f, latlng) =>
+          L.circleMarker(latlng, { radius: 5, color: l.view.color, opacity: mo, fillOpacity: mo }),
+      })
+        .bindTooltip(l.view.name)
+        .addTo(lop);
+    });
+  }, [lopGis]);
+
+  // ⭐ Công cụ đo — M2.12. Vẽ lại đường/đa giác mỗi lần danh sách điểm đổi.
+  useEffect(() => {
+    const lop = lopDoRef.current;
+    if (!lop) {
+      return;
+    }
+    lop.clearLayers();
+    if (diemDo_Do.length === 0) {
+      return;
+    }
+    const toaDo = diemDo_Do.map((d): [number, number] => [d.lat, d.lng]);
+    diemDo_Do.forEach((d) => L.circleMarker([d.lat, d.lng], { radius: 4 }).addTo(lop));
+    if (diemDo_Do.length >= 3) {
+      L.polygon(toaDo, { dashArray: '4 4' }).addTo(lop);
+    } else if (diemDo_Do.length === 2) {
+      L.polyline(toaDo, { dashArray: '4 4' }).addTo(lop);
+    }
+  }, [diemDo_Do]);
+
+  // Bắt/ngắt lượt bấm khi bật/tắt công cụ đo.
+  useEffect(() => {
+    const banDo = banDoRef.current;
+    if (!banDo || !dangDo) {
+      return;
+    }
+    const bat = (e: L.LeafletMouseEvent) =>
+      setDiemDoDo((truoc) => [...truoc, { lat: e.latlng.lat, lng: e.latlng.lng }]);
+    banDo.on('click', bat);
+    return () => {
+      banDo.off('click', bat);
+    };
+  }, [dangDo]);
+
   if (!config) {
     return <Empty description="Chưa tải được cấu hình bản đồ" />;
   }
@@ -194,6 +293,47 @@ export function ConstructionMap({
           message="Chưa công trình nào được số hoá toạ độ"
           description="Bản đồ chỉ hiện công trình đã có kinh độ/vĩ độ. Số hồ sơ còn thiếu vị trí nằm ở ô KPI 'Chưa số hoá toạ độ'."
         />
+      )}
+      {/*
+        ⭐ Thanh công cụ đo — M2.12. ⛔ Chỉ hiện khi `coCongCuDo`: wall mode phải để nguyên vì
+           CN-02.5 nói màn hình treo tường *"⛔ không phụ thuộc thao tác chuột/bàn phím"*.
+        ⚠ Số đo hiện NGAY trên thanh, ⛔ không trong popup: người đo cần thấy con số **trong lúc**
+          bấm thêm điểm, ⛔ không phải sau khi bấm xong.
+      */}
+      {coCongCuDo && (
+        <Space wrap style={{ marginBottom: 8 }}>
+          <Button
+            size="small"
+            type={dangDo ? 'primary' : 'default'}
+            onClick={() => {
+              setDangDo((truoc) => !truoc);
+              if (dangDo) {
+                setDiemDoDo([]);
+              }
+            }}
+          >
+            {dangDo ? 'Tắt công cụ đo' : 'Đo khoảng cách / diện tích'}
+          </Button>
+          {dangDo && (
+            <>
+              <Button
+                size="small"
+                disabled={diemDo_Do.length === 0}
+                onClick={() => setDiemDoDo([])}
+              >
+                Xoá điểm
+              </Button>
+              <Typography.Text>
+                {diemDo_Do.length} điểm · {nhanChieuDai(chieuDai(diemDo_Do))}
+                {diemDo_Do.length >= 3 ? ` · ${nhanDienTich(dienTich(diemDo_Do))}` : ''}
+              </Typography.Text>
+              <Typography.Text type="secondary">
+                Bấm lên bản đồ để thêm điểm. Số đo theo công thức cầu — sai số dưới 0,5%, dùng để
+                ước lượng, không thay số liệu trắc địa.
+              </Typography.Text>
+            </>
+          )}
+        </Space>
       )}
       <div
         ref={khungRef}

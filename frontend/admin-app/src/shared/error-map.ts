@@ -391,6 +391,34 @@ export const ERROR_CATALOG = {
     handling: 'form',
     severity: 'warning',
   },
+
+  // --- MOD-02 Báo cáo vận hành + lớp bản đồ GIS (CN-02.10 · M2.9, WS-59) -------
+  // ⛔⛔ `OPS-2023` KHÁC `HR-2009`, và khác biệt là có thật: mã kia nói *chưa làm được* (BCNS-07
+  //    chờ G6 — **sẽ** có), mã này nói *đã bỏ vĩnh viễn* (BC-01..04 mất nguồn — **không bao giờ**
+  //    có). Gộp hai câu là để người vận hành đi chờ một thứ ⛔ không bao giờ tới.
+  // ⚠ Số hiệu nhảy từ 2021 sang 2023: `OPS-2022` đã NGHỈ HƯU (đổi thành `SYS-0012` ngày 09/09),
+  //   và dùng lại một mã đã nghỉ hưu làm mọi dòng nhật ký cũ đọc sai nghĩa.
+  'OPS-2023': {
+    message: 'Báo cáo này đã bỏ khỏi phạm vi hệ thống',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'OPS-2024': {
+    message: 'Đã có lớp bản đồ trùng tên',
+    handling: 'form',
+    severity: 'warning',
+  },
+  // ⛔ Câu chữ của backend mang tên tệp và lời khuyên chuyển sang GeoJSON — `messageFor` ưu tiên nó.
+  'OPS-2025': {
+    message: 'Hệ thống chưa đọc được tệp KML/KMZ — hãy chuyển sang GeoJSON',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'OPS-2026': {
+    message: 'Tệp không có đối tượng hình học nào',
+    handling: 'toast',
+    severity: 'warning',
+  },
   'OPS-3001': {
     message: 'Không được sửa trực tiếp trạng thái công trình — trạng thái được tính tự động',
     handling: 'toast',
@@ -495,8 +523,12 @@ export const ERROR_CATALOG = {
   },
 
   // --- MOD-04 Nhân sự ---------------------------------------------------------
+  // ⛔⛔ Mã này nằm trong danh mục từ 13/08/2026 và MỒ CÔI 32 ngày chờ CN-04.9. WS-57 suýt đúc
+  //    thêm `HR-2006` trùng nghĩa — hai mã cho MỘT trạng thái là hai câu trả lời cho cùng một câu
+  //    hỏi, và lượt rà sau ⛔ không biết mã nào thật sự bắn ra. Câu chữ nâng lên để mang hai con số.
+  // ⚠ Câu ở đây chỉ là DỰ PHÒNG: `messageFor` ưu tiên thông điệp backend đã điền {0}/{1}.
   'HR-2001': {
-    message: 'Số ngày đăng ký vượt số phép còn lại',
+    message: 'Số dư phép năm không đủ cho đơn này',
     handling: 'form',
     severity: 'warning',
   },
@@ -526,6 +558,40 @@ export const ERROR_CATALOG = {
   //   thư mục (Ảnh 5MB, Hợp đồng 20MB…). Gộp hai câu là để người dùng đi sửa nhầm tham số.
   'HR-2003': {
     message: 'Tệp vượt dung lượng tối đa của thư mục này',
+    handling: 'toast',
+    severity: 'warning',
+  },
+
+  // --- MOD-04 Nghỉ phép (CN-04.9) ---------------------------------------------
+  // ⚠ Cả bốn mã dưới đây: backend điền sẵn {0}/{1} bằng NGÀY và SỐ NGÀY thật, nên câu ở đây chỉ
+  //   chạy khi backend ⛔ không trả được thông điệp. Viết lại một bản "đầy đủ hơn" ở đây là dựng
+  //   bản sao thứ hai của cùng một câu, và bản sao ấy ⛔ không có dữ liệu để điền.
+  'HR-2004': {
+    message: 'Khoảng đã chọn không có ngày công nào — toàn bộ là cuối tuần hoặc ngày lễ',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'HR-2005': {
+    message: 'Bạn đã có đơn nghỉ khác trong khoảng này — rút đơn cũ trước',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'HR-2007': {
+    message: 'Không huỷ được đơn đã bắt đầu nghỉ',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'HR-2008': {
+    message: 'Ngày này đã có trong danh mục ngày lễ',
+    handling: 'form',
+    severity: 'warning',
+  },
+
+  // ⛔⛔ Mã RIÊNG chứ ⛔ không phải 404: báo cáo CÓ trong danh mục, chỉ chưa dựng được. Câu chữ của
+  //    backend mang nguyên văn LÝ DO (`{1}`) và `messageFor` ưu tiên nó — bản đỡ ở đây cố ý nói
+  //    CHUNG, vì chép lý do xuống đây là dựng một bản sao sẽ nói dối vào ngày G6 được trả lời.
+  'HR-2009': {
+    message: 'Báo cáo này chưa xuất được',
     handling: 'toast',
     severity: 'warning',
   },
