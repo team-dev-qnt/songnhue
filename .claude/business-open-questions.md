@@ -74,6 +74,15 @@
 
 ## PHẦN II — CÒN MỞ: CẦN CÔNG TY CUNG CẤP
 
+> ✅⭐ **CHỐT 14/09/2026 khi đóng Phase 3** (`T60.12`): **G6** (mẫu 2C-BNV cho BCNS-07) và **G10**
+> (bố cục bản in) **chỉ mở lại khi Công ty gửi TỆP MẪU THẬT**. ⛔ Cấm tự chế bố cục. Và ⛔ **đừng
+> chọn thư viện PDF/XLSX (`T42.14`) trước khi thấy mẫu** — mẫu quyết định khổ giấy, gộp ô và phông
+> tiếng Việt; chọn trước là mở thêm bề mặt CVE trên một VPS 2 nhân cho một thứ có thể phải thay.
+>
+> ⇒ Hôm nay hệ **nói thật** về chúng thay vì im lặng: `BCNS-07` khai đủ trong danh mục với
+> `khaDung = false` **kèm lý do nguyên văn**, và đường xuất trả **`HR-2009`** chứ ⛔ không phải
+> `404` — *"mã ⛔ không tồn tại"* và *"mã có thật, chưa dựng được"* dẫn tới hai việc khác hẳn nhau.
+
 > Các mục dưới đây **không chặn Phase 0, Phase 1 và không chặn việc code MOD-03**. Ảnh hưởng chủ yếu tới **dữ liệu khởi tạo** và **nghiệm thu**.
 
 ### G3-a. 🟡 Lượng mưa — chốt cách xử lý ở v1
@@ -170,6 +179,16 @@ Danh sách trích từ hệ thống nguồn ngày 12/8/2026 — **cần Công ty
 - ⚠ **`F01657` Vân Đình TL**: bản chụp ghi lý trình *"(K72+000 – sông Đáy)"* trên một dòng tuyến
   *Sông Vân Đình* ⇒ để `NULL`, vì K72+000 gần như chắc chắn là lý trình **trên sông Đáy**.
 - ⛔⛔ **Toạ độ vẫn 0/19** ⇒ lớp GIS điểm đo RỖNG. Đây là phần G8 còn lại và nó vẫn chặn nghiệm thu C3.
+
+> ✅⭐ **CHỐT 14/09/2026 — G8 thôi là việc của phía phát triển** (`T60.12`). Công ty quyết: **toạ độ
+> nhập trên MÀN HÌNH quản trị**, ⛔ không chờ một bảng gửi sang nữa. Cả hai đường đã sẵn: nút *"Nhập
+> vị trí từ tệp"* (`T42.20`) và màn hình sửa từng điểm.
+>
+> ⛔ **Hệ quả phải nói thẳng, ⛔ không lấp liếm**: tới khi có người ngồi nhập, `stations` vẫn
+> **0/19 toạ độ** và `constructions` **0/11** ⇒ **mọi lớp GIS RỖNG**. Đó là trạng thái **ĐÚNG**,
+> ⛔ không phải lỗi — quy tắc 16 (*số 0 là một câu khẳng định*) và lệnh cấm seed dữ liệu công
+> trình/thuỷ văn *"cho đẹp demo"*. ⇒ **G8 vẫn chặn NGHIỆM THU C3**, nhưng ⛔ **không còn là một
+> task mã** — đừng mở lại nó như một việc lập trình.
 
 ⭐⭐ **Nhưng nó ⛔ không còn chặn LẬP TRÌNH.** Từ 09/09 màn hình *Danh mục điểm đo* có nút
 **"Nhập vị trí từ tệp"**: tải tệp mẫu → điền `ma_api` · `tuyen_song` · `ly_trinh` · `vi_do` ·
