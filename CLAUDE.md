@@ -417,6 +417,17 @@ app **1231**) · **0 đỏ** · FE **458** admin-app / 56 tệp + **392** public
 sửa chữa, màn hình M4.9, nút xoá tài khoản/nguồn, gỡ 6 endpoint thừa. ⛔⛔ **Trước khi đề bạt: đặt `METRICS_ALLOW_IP` +
 `METRICS_BEARER_TOKEN` ở `.env` CẢ HAI máy** — khai `:?`, thiếu là nginx ⛔ lên (`phase4-tracking-tmp.md` §B6).
 
+⭐⭐ **Đo lại 15/09/2026 sau WS-61 đợt 4 — `make ci-local` thoát 0**, tiến trình maven DUY NHẤT (⚠ số ở **MÁY**): **1884 testcase BE**
+(core **302** · content 54 · hydro 225 · operations 55 · app **1248**) · **0 đỏ** · FE **459** admin-app / 56 + **395** public-web / 45 ·
+**75 migration** (`V202609151081` hạn mức kết xuất) · mã lỗi **123** (`AUTH-0009` · `ADM-2021`). Quyết định QuanTran 15/09: **T61.23** chuyển
+hướng thư staging · **T61.24** tự quét lại tệp `SKIPPED` · **T61.25/26** chuông canh healthchecks.io + chuông sao lưu chỉ production ·
+**T61.27** hạn mức kết xuất vào `settings` · **T61.28** tự đánh giá ASVS L1 + ZAP · **T61.29** Playwright 3 engine. ⛔⛔ Lượt ASVS lộ ra
+**mật khẩu một mình vượt được 2FA** (T61.30 — gỡ bản vá thì máy chủ trả `secret` mới qua HTTP) · dò TOTP ⛔ bao giờ bị khoá (T61.33) ·
+SVG chạy script ở cả 3 trình duyệt (T61.32) · `javascript:` trong href (T61.34) · thiếu `no-store` (T61.35) — cả năm đã vá, mỗi cái có lượt
+phá-bản-vá. ⚠ Hai lượt `ci-local` đỏ trước lượt xanh: bộ canh `CaffeineRateLimitStoreTest` chốt số cũ mà lượt chạy nhắm mục tiêu ⛔ chạm
+tới · 2 bài FE hết giờ khi load average **7.48** (VS Code 150% CPU) — chạy riêng 6/6 xanh. ⛔ Staging thêm biến bắt buộc
+`MAIL_REDIRECT_TO` + `HEALTHCHECKS_PING_URL` (`phase4-tracking-tmp.md` §B6).
+
 ⭐⭐ **Đo lại 14/09/2026 sau WS-60 (đối chiếu DoD Phase 3 · gỡ chốt CI) — `make ci-local` thoát 0**,
 lượt chạy là tiến trình maven DUY NHẤT (⚠ số ở **MÁY**): **1811 testcase BE** (core 283 · content 54 ·
 hydro 225 · operations 55 · app **1194**) · **0 đỏ** · FE **434** admin-app / 50 tệp + **392**
