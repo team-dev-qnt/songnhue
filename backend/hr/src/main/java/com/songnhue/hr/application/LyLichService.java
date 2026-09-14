@@ -124,7 +124,7 @@ public class LyLichService {
         return qualifications
                 .findByPublicIdAndDeletedAtIsNull(mucPublicId)
                 .filter(m -> m.getEmployeeId().equals(hoSo.getId()))
-                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004, mucPublicId));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
     }
 
     private static QualificationKind batBuocLoai(QualificationKind kind) {

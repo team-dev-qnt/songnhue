@@ -191,7 +191,7 @@ gói cron** (`is-enabled` ⇒ `not-found`). Thứ đi cảnh báo chính là th�
 | DOD4.10 | Mọi con số nghiệm thu ghi kèm **ngày đo** và **nguồn đo** (CI hay máy chủ, ⛔ không phải máy dev) |
 | DOD4.11 | Quét virus chạy **thật** trên production — một tệp EICAR ra `INFECTED`, ⛔ không `SKIPPED` (`T61.4`) |
 | DOD4.12 | Một cảnh báo Prometheus **tới được người** qua kênh đã chốt (`T61.5`) — NFR-01 |
-| DOD4.13 | Bản dump trên máy chủ ⛔ đọc được bởi user khác (`T61.8`, `stat` = `600`) |
+| DOD4.13 | Bản dump trên máy chủ ⛔ đọc được bởi user khác (`T61.8`, `stat` = `640` — ⛔ `600`: tệp tạo trong container, user deploy đọc qua nhóm) |
 
 ---
 

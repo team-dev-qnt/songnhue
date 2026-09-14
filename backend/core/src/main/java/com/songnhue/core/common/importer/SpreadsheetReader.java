@@ -197,7 +197,7 @@ public final class SpreadsheetReader {
             }
             return dungRows(docSheet(sheet, chuoiDungChung));
         } catch (IOException | XMLStreamException e) {
-            throw new ValidationException(ErrorCode.OPS_2015, e.getMessage());
+            throw new ValidationException(ErrorCode.OPS_2015, e);
         }
     }
 

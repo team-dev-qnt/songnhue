@@ -411,7 +411,7 @@ public class UserAdminService implements UserDirectoryPort {
                     && nguoiSua.hasAllPermissions(QUYEN_SUA_PHAN_QUYEN)
                     && !permissionCodes.contains(QUYEN_SUA_PHAN_QUYEN);
             if (tuGoQuyenCuaMinh) {
-                throw new BusinessRuleException(ErrorCode.ADM_2016, roleCode);
+                throw new BusinessRuleException(ErrorCode.ADM_2016);
             }
         });
 

@@ -108,7 +108,7 @@ public class HydroPollJobHandler implements JobHandler {
                 nguon.getCode(),
                 ket.loi(),
                 ket.lyDo());
-        throw new UpstreamException(nguon.getCode());
+        throw new UpstreamException();
     }
 
     /**

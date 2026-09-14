@@ -167,7 +167,7 @@ public class ConstructionDocumentController {
         try {
             return file.getBytes();
         } catch (IOException e) {
-            throw new ValidationException(ErrorCode.SYS_0003, e.getMessage());
+            throw new ValidationException(ErrorCode.SYS_0003, e);
         }
     }
 
