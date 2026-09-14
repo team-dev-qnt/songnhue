@@ -34,6 +34,10 @@ import { describe, expect, it } from 'vitest';
  * ({@code getWaterLevels}) ⛔ không nơi nào gọi. Đó là lần thứ TƯ cùng hình dạng luật 28 trong kho.
  * ⇒ Bộ canh anh em: {@code public-web/src/lib/apiKhongMoCoi.test.ts} (T47.10). Hai bài phủ hai
  * ứng dụng RỜI NHAU; sửa một bên thì đọc lại bên kia.
+ *
+ * <p>⭐ Và chiều NGƯỢC — endpoint backend ⛔ có lời gọi `api.*` nào, khớp cả ĐỘNG TỪ, trên toàn
+ * `admin-app` — là {@code backend/app/.../architecture/EndpointCoNoiGoiTest.java} (T61.18). Bài này
+ * vẫn cần: nó bắt phương thức client có khai mà ⛔ màn hình nào gọi, thứ bài kia coi là "đã gọi".
  */
 
 /** Client tập trung được soi. Thêm tệp mới vào đây khi có feature thứ hai dựng client riêng. */

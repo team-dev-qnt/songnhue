@@ -29,7 +29,10 @@
 | A12 | `T58.18` · `T25.23` | Bộ canh N+1 · hạ trần màu ghi cứng | P2 | [ ] |
 | A13 | `T61.17` | ⛔⛔ Hạn mức khoá theo IP ⇒ 50 cán bộ sau một NAT chung 100 lượt/phút — QT chốt *vá ngay*: backend ✅ (API + kết xuất theo người@IP) · nginx `api_auth` ⬜ chờ đo NAT | P0 | [~] |
 | A14 | `T47.17` | Bài vòng khứ hồi biểu mẫu thay-toàn-phần — 3/17 (công trình · bài viết · sửa chữa) | P2 | [~] |
-| A15 | `T61.18` | Lối SỬA bản ghi sửa chữa (PUT có 0 nơi gọi) ✅ + mở rộng bộ canh endpoint mồ côi ⬜ | P2 | [~] |
+| A15 | `T61.18` | Lối SỬA bản ghi sửa chữa (PUT có 0 nơi gọi) ✅ + bộ canh endpoint ↔ lời gọi khớp ĐỘNG TỪ toàn `admin-app` ✅ (15 mồ côi → T61.19–22) | P2 | [x] |
+| A16 | `T61.19` | Giao diện tệp đính kèm + nút xoá của bản ghi sửa chữa (CN-02.2 ảnh trước/sau) | P1 · nghiệm thu | [ ] |
+| A17 | `T61.20` | Màn hình cảnh báo hết hạn HĐLĐ/chứng chỉ M4.9 | P1 · nghiệm thu | [ ] |
+| A18 | `T61.21` · `T61.22` | Nút xoá 3 danh mục · gỡ 5 endpoint thừa — **chờ QT chốt từng cái** | P2 | [ ] |
 
 ---
 
