@@ -226,6 +226,16 @@ export const router = createBrowserRouter([
             ),
           ),
           adminRoute(
+            '/van-hanh/lop-ban-do',
+            'ops:gis-layer:view',
+            lazyPage(() => import('@/features/operations/GisLayersPage'), 'GisLayersPage'),
+          ),
+          adminRoute(
+            '/van-hanh/bao-cao',
+            'ops:report:view',
+            lazyPage(() => import('@/features/operations/BaoCaoVanHanhPage'), 'BaoCaoVanHanhPage'),
+          ),
+          adminRoute(
             '/van-hanh/cong-trinh/tao-moi',
             'ops:construction:create',
             lazyPage(

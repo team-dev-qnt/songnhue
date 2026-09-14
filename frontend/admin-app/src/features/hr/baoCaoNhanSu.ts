@@ -44,21 +44,6 @@ export interface TongQuanNhanSu {
 }
 
 /**
- * Một dòng của danh mục tám báo cáo BCNS.
- *
- * ⛔⛔ `khaDung = false` ⇒ `lyDoChuaCo` **bắt buộc** khác null, và giao diện phải **hiện lý do**.
- * Ẩn hẳn dòng ấy đi thì lượt nghiệm thu đếm bảy nút rồi tick đủ — và *"BCNS-07 chưa có"* trở thành
- * một sự thật ⛔ không nơi nào ghi.
- */
-export interface MucBaoCao {
-  ma: string;
-  ten: string;
-  moTa: string;
-  khaDung: boolean;
-  lyDoChuaCo: string | null;
-}
-
-/**
  * Từ điển nhãn cho hai biểu đồ cơ cấu — **dùng lại** `GIOI_TINH` / `HOC_VAN` của `hrVocabulary`.
  *
  * ⛔⛔ Bản đầu của tệp này khai lại hai bảng ấy *"cho gần chỗ dùng"*. Đó là luật 14 ở dạng rẻ nhất

@@ -73,6 +73,17 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 **Phase 0 — Core Platform** ✅ 10/11 hạng mục. **WS-11 (Deploy)**: staging đã chạy thật, đường ống CD đóng (§10.50→§10.55). ⭐ **6/9 — đường production đã nối xong** (T11.86): CD Production nay **tự chạy trên push vào `production`**; VPS-1 `27.71.16.154` đã dựng phần host (T11.35, `deploy/host-prepare.sh` chạy thật 2 lượt); 5 secret `PROD_*` + biến kho `PUBLIC_SITE_URL=https://songnhue.com` đã đặt và đo lại (T11.7, T11.7-a). ⭐ **7/9 — production ĐANG CHẠY THẬT**: `https://songnhue.com` **200**, `www` 200, `admin` 200, **6/6 container healthy**, 3 chứng chỉ TLS (apex 2 SAN, hạn 6/12), collation `icu=vi-VN` xanh, **55/55 migration** 0 hỏng, sitemap 19 URL **0 lần `localhost`** (⇒ T11.7-a đóng trọn). Nghiệm thu §9 **9/10** — phép 9 (tải tệp về, phép DUY NHẤT chứng minh `MINIO_ENDPOINT` đúng) chờ có tệp đầu tiên. ⬜ Còn: **quay lui thật (DOD0.21)** · mã số thuỷ văn (chờ Công ty) · bật lịch sao lưu · lịch gia hạn TLS cho **staging** (T11.88 — hạn 22/11, chưa có).
 **Phase 1 — CMS & master data công trình** ✅ **xong 24/8/2026** — WS-12→WS-23 đóng đủ, **16/17 mục DoD** có phép kiểm đứng sau.
 **Phase 2 — `hydro` + MOD-01 phần còn lại** ✅ **xong phần mã 8/9/2026** — DoD **19/22**. Ba mục còn lại ⛔ **không phải mã**, nên ⛔ **không chặn Phase 3**: `DOD2.9` cần **VM-3** · `DOD2.21` cần **7 ngày lịch liên tục** (T37.1) · `DOD2.22` load test 200 CCU (T37.2). ⇒ Đồng hồ DOD2.21 nên bấm sớm nhất có thể.
+✅✅ **PHASE 3 XONG PHẦN MÃ 14/09/2026.** Hai nhóm: **D (HRM)** đủ 9/9 chức năng CN-04.1→04.9, và
+**C3** (GIS · dashboard · báo cáo MOD-02) đủ phần dựng được. ⇒ **Mọi mã quyền trong danh mục nay
+đều có ít nhất một đầu nhận** — `RbacMatrixTest` ⛔ không còn một dòng miễn kiểm *"Phase 3"* nào
+(gỡ 7 dòng trong ba lượt: WS-57 bốn `hr:leave:*`+`hr:contract:manage`, WS-58 `hr:org-chart:view`
++ `hr:report:*`, WS-59 bốn `ops:gis-layer:*`+`ops:report:*`).
+⬜ **Những gì còn lại của Phase 3 ⛔ KHÔNG phải mã** — cả bảy đều chờ Công ty hoặc chờ một quyết
+định nghiệp vụ: **G8** toạ độ (0/19 điểm đo · 0/11 công trình ⇒ lớp GIS rỗng — chặn *nghiệm thu*,
+⛔ không chặn *viết*) · **G10** bố cục bản in + **T42.14** bộ kết xuất PDF/XLSX · **G6** mẫu 2C-BNV
+(BCNS-07) · **B3** uỷ quyền duyệt · **T57.16** số phép tồn đầu kỳ · **T57.17** *"cuối tuần = T7+CN"*
+trong khi Công ty có ca trực · **T59.13/14** xuất ảnh bản đồ và bộ đọc KML/KMZ.
+
 ⭐⭐ **Phase 3 ĐÃ MỞ 10/9 — cửa vào là D (HRM)** (đánh giá 8/9 ở `master-tracking.md` §*Đánh giá sẵn
 sàng vào Phase 3*; câu *"`backend/hr/` mới có 6 tệp `package-info.java`"* ⛔ **không còn đúng** kể từ
 WS-51). Đã dựng: **CN-04.2** hồ sơ CBNV + danh mục chức vụ + trường 🔒 (`employee_sensitive`,
@@ -312,6 +323,13 @@ sai, sửa 10/09 — T52.8). Đo trên CSDL staging cùng ngày: `constructions`
 | 14/9 | ⭐ **Một `read(UUID)` trần trên bảng `attachments` là một lỗ IDOR trông y hệt mã đúng** — bảng ấy dùng chung cho bài viết, công trình, hồ sơ CBNV và cấu hình cổng. ⇒ `readForOwner(ownerType, ownerId, publicId)` **tự kiểm** tệp thuộc đúng bản ghi, biến *"đoán đúng UUID của tệp người khác"* thành một trạng thái ⛔ không biểu diễn được thay vì một lời dặn từng nơi gọi phải nhớ | T58.9 |
 | 14/9 | ⭐ **Một con số trên sơ đồ tổ chức hỏng theo CẢ HAI chiều nếu chỉ có một.** Chỉ *trực tiếp* ⇒ Xí nghiệp có 4 Tổ đội hiện **0 người** khi thu gọn; chỉ *cả nhánh* ⇒ tổng nút con ⛔ không bằng nút cha và ⛔ không chỗ nào nói vì sao. ⇒ Trả **hai** và gọi tên chúng; nhãn hiện một số khi hai số bằng nhau (nút lá `2/2` là phân số vô nghĩa) | T58.0 |
 | 14/9 | ⚠ **React Compiler bỏ tối ưu cả component vì một handler bắt giá trị `useMemo`** — `react-hooks/preserve-manual-memoization` đỏ ở cổng `Frontend — lint`, mà `tsc` và `vitest` đều ⛔ không thấy. **Lần thứ TƯ** cùng hình dạng *ba cổng, ba câu hỏi khác nhau* | T58.12 |
+| 14/9 | ⛔⛔⛔ **`FileValidator.detect()` đi bằng MAGIC BYTES ⇒ ⛔ KHÔNG định dạng VĂN BẢN nào nạp lên được.** Đường nạp GeoJSON của M2.9 đỏ ở lượt chạy đầu với `FILE_TYPE_NOT_ALLOWED`, `rejectedValue = "unknown"` — tức toàn bộ cơ chế lớp bản đồ **⛔ không có đường nào chạy được**. Đúng hình dạng SVG (WS-15): *cơ chế có mặt, có bài kiểm riêng, xanh, chưa bao giờ nằm trên một đường chạy thật*. ⇒ Thêm `looksLikeJson` theo đúng tiền lệ `looksLikeSvg` **đã viết sẵn trong chính tệp ấy**, giữ nguyên lớp quyết định cuối là danh sách cho phép của nơi gọi | T59.3 |
+| 14/9 | ⛔⛔ **`readForOwner` trả RỖNG cho CẢ *chưa quét virus xong* lẫn *⛔ không tồn tại*** ⇒ giao diện nói *"lớp ⛔ không tồn tại"* về một tệp vừa nạp vài giây trước. ⇒ Tra `findRef` trước rồi trả **`SYS-0009`** — mã đã có sẵn cho đúng trạng thái ấy. ⚠ Gặp **hai lần trong một ngày** (ZIP hồ sơ CBNV và lớp bản đồ), cả hai lần đều lộ ra vì bộ kiểm chạy với `WORKER_ENABLED = false` | T59.4 · T58.8 |
+| 14/9 | ⛔⛔ **`BangCsv` NÉM khi một dòng lệch số cột — và ràng buộc ấy cứu đúng thứ nó sinh ra để cứu.** Tôi viết ba dòng lệch (kỳ báo cáo 2 ô, dòng trống 0 ô, TỔNG 11 ô). Một tệp CSV lệch cột vẫn **MỞ ĐƯỢC** trong Excel — nó chỉ đẩy dữ liệu sang cột bên cạnh từ dòng ấy trở đi, **im lặng** | T59.2 |
+| 14/9 | ⭐⭐ **Một lượt gọi PHỤ suýt hạ cả dashboard điều hành.** `(data ?? []).filter(…)` ném **trong thân render** khi phản hồi có hình dạng ⛔ không mong đợi ⇒ màn hình Trực ban dùng hằng ngày trắng. Lớp bản đồ là thứ **trang trí**; nó ⛔ không được quyền làm sập thứ chính ⇒ `Array.isArray` | T59.10 |
+| 14/9 | ⚠ **Một mã lỗi đã NGHỈ HƯU ⛔ không được dùng lại.** `OPS-2022` đổi thành `SYS-0012` ngày 09/09; đúc lại số ấy cho một nghĩa mới làm mọi dòng nhật ký, ảnh chụp màn hình và phiếu hỗ trợ cũ **đọc sai nghĩa**, và ⛔ không có gì báo. Một mã lỗi là một **định danh**, ⛔ không phải một ô trống để lấp ⇒ nhảy sang `OPS-2023` | T59.1 |
+| 14/9 | ⛔ **Ba trạng thái *"báo cáo này ⛔ không tải được"* phải có BA câu trả lời khác nhau**: `404` = gõ sai mã · `HR-2009` = có thật, **chưa** làm được (BCNS-07 chờ G6 — *sẽ* có) · `OPS-2023` = có thật, **bỏ vĩnh viễn** (BC-01..04 mất nguồn — *⛔ không bao giờ* có). Gộp chúng là để người vận hành đi chờ một thứ ⛔ không bao giờ tới. ⚠ Và bảy mã khai đủ thay vì ba: liệt kê ba mã còn sống là để câu hỏi *"BC-01 đâu?"* quay lại ở **mọi** lượt nghiệm thu | T59.0 |
+| 14/9 | ⭐ **Đo trên bản đồ bằng Pythagore sai một chiều ~7% ở vĩ độ 21°.** Một độ kinh tuyến ngắn hơn một độ vĩ tuyến chừng ấy, nên hình học phẳng cho sai số vài trăm mét trên một tuyến kênh 10 km. ⇒ Haversine + spherical excess, và phép đo **khai ra giới hạn của chính nó** trên màn hình (*"dùng để ước lượng, ⛔ không thay số liệu trắc địa"*) | T59.8 |
 
 ⛔ Hệ quả rút ra: **"đã tick" không phải bằng chứng.** Trước khi mở một giai đoạn mới, đối chiếu với mã thật và chạy đường mà người dùng thật đi.
 
@@ -352,6 +370,17 @@ nào — bản vá là **mã**, ⛔ không phải dữ liệu) · **1045 dòng**
 `./mvnw -Dtest=…` **song song**, nó `rm -rf` đúng `hydro/target/surefire-reports` giữa chừng. Lượt
 ấy vẫn thoát **0** và in 7/7 SUCCESS. ⇒ **Mọi lượt `make ci-local` phải là tiến trình maven DUY
 NHẤT trên cây này** — nếu không thì cái xanh ⛔ không còn nói được nó xanh vì cái gì (luật 32).
+
+⭐⭐ **Đo lại 14/09/2026 sau WS-59 (C3: báo cáo vận hành · lớp bản đồ GIS · công cụ đo) —
+`make ci-local` thoát 0 VÀ `make ci-order` thoát 0**, lượt chạy là tiến trình maven DUY NHẤT
+(⚠ số ở **MÁY**; quét CVE và đóng gói image ⛔ vẫn chỉ sống trên runner): **1804 testcase BE**
+(core 283 · content 54 · hydro 225 · operations **55** · app **1187**) · **0 đỏ** · **234 báo cáo
+surefire** · FE **434** test admin-app / 50 tệp + **392** public-web / 44 · **74 migration**, đỉnh
+`V202609141080__ops_gis_layers` · `db-migration-checksums.txt` **74 vân tay**, `git diff` chỉ **+1
+dòng** · mã lỗi **119** (đếm độc lập hai phía cùng ra 119) · **1144 dòng** sổ tracking đọc được (WS-58: 1128).
+⚠⚠ **Lượt `ci-local` đầu của đợt này ĐỎ ở cổng BAO PHỦ**, ⛔ không ở một bài kiểm: `operations`
+bundle domain 0,62 < 0,70 vì hai lớp domain mới có **logic thật** mà chỉ được bài HTTP chạm gián
+tiếp. ⛔ Hạ ngưỡng cho hết đỏ là tự tay tháo cổng ⇒ 10 bài đơn vị.
 
 ⭐⭐ **Đo lại 14/09/2026 sau WS-58 (CN-04.1 vế 2–5 · CN-04.8 · T53.12) — `make ci-local` thoát 0 VÀ
 `make ci-order` thoát 0 NGAY LƯỢT ĐẦU**, lượt chạy là tiến trình maven DUY NHẤT (⚠ số ở **MÁY**;

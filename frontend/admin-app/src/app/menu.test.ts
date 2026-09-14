@@ -367,3 +367,35 @@ describe('mục "Báo cáo nhân sự" gác bằng hr:report:view — CN-04.8', 
     expect(findMenuKey(MENU, '/nhan-su/bao-cao')).toBe('bao-cao-nhan-su');
   });
 });
+
+/**
+ * Lớp bản đồ GIS + Báo cáo vận hành — C3 (WS-59).
+ *
+ * ⛔⛔ Bốn mã quyền `ops:*` này là **bốn dòng miễn kiểm *Phase 3* CUỐI CÙNG** của `RbacMatrixTest`.
+ * Sau lượt này, mọi mã quyền trong danh mục đều có ít nhất một đầu nhận.
+ */
+describe('hai mục C3 gác bằng quyền ops — CN-02.4 / CN-02.10', () => {
+  it('⭐ `ops:gis-layer:view` mở mục Lớp bản đồ, ⛔ không cần `:manage`', () => {
+    // ⛔ Gác bằng `:manage` sẽ khoá người chỉ được XEM ra khỏi một màn hình họ cần đọc — ba nút
+    //   ghi trong trang đã tự ẩn theo `:manage` rồi.
+    expect(leafLabels(visibleMenu(MENU, checker('ops:gis-layer:view')))).toContain(
+      'Lớp bản đồ GIS',
+    );
+    expect(leafLabels(visibleMenu(MENU, checker('ops:gis-layer:manage')))).not.toContain(
+      'Lớp bản đồ GIS',
+    );
+  });
+
+  it('⭐ `ops:report:view` mở mục Báo cáo vận hành; `:export` một mình thì ⛔ KHÔNG', () => {
+    // Quyền xuất gác NÚT, ⛔ không gác TRANG — cùng luật với báo cáo nhân sự.
+    expect(leafLabels(visibleMenu(MENU, checker('ops:report:view')))).toContain('Báo cáo vận hành');
+    expect(leafLabels(visibleMenu(MENU, checker('ops:report:export')))).not.toContain(
+      'Báo cáo vận hành',
+    );
+  });
+
+  it('đường dẫn tô sáng đúng mục', () => {
+    expect(findMenuKey(MENU, '/van-hanh/lop-ban-do')).toBe('lop-ban-do');
+    expect(findMenuKey(MENU, '/van-hanh/bao-cao')).toBe('bao-cao-van-hanh');
+  });
+});

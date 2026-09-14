@@ -45,14 +45,14 @@ public enum MaBaoCaoNhanSu {
     private final String ten;
     private final String moTa;
     private final boolean khaDung;
-    private final String lyDoChuaCo;
+    private final String lyDo;
 
-    MaBaoCaoNhanSu(String ma, String ten, String moTa, boolean khaDung, String lyDoChuaCo) {
+    MaBaoCaoNhanSu(String ma, String ten, String moTa, boolean khaDung, String lyDo) {
         this.ma = ma;
         this.ten = ten;
         this.moTa = moTa;
         this.khaDung = khaDung;
-        this.lyDoChuaCo = lyDoChuaCo;
+        this.lyDo = lyDo;
     }
 
     public String ma() {
@@ -67,13 +67,13 @@ public enum MaBaoCaoNhanSu {
         return moTa;
     }
 
-    /** ⛔ {@code false} ⇒ {@link #lyDoChuaCo()} <b>bắt buộc</b> khác null — xem javadoc lớp. */
+    /** ⛔ {@code false} ⇒ {@link #lyDo()} <b>bắt buộc</b> khác null — xem javadoc lớp. */
     public boolean khaDung() {
         return khaDung;
     }
 
-    public String lyDoChuaCo() {
-        return lyDoChuaCo;
+    public String lyDo() {
+        return lyDo;
     }
 
     public static MaBaoCaoNhanSu tuMa(String ma) {

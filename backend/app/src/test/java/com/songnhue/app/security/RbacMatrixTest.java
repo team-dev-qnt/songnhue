@@ -119,10 +119,10 @@ class RbacMatrixTest extends IntegrationTestBase {
      * phải bị gỡ khỏi đây, không được nằm lại.
      */
     private static final Set<String> QUYEN_PHASE_SAU = Set.of(
-            "ops:gis-layer:manage", // Tầng GIS — Phase 3
-            "ops:gis-layer:view", // Xem tầng GIS — Phase 3
-            "ops:report:export", // Kết xuất báo cáo — Phase 3
-            "ops:report:view", // Xem báo cáo — Phase 3
+            // ⬇ WS-59 đã GỠ BỐN dòng: `ops:gis-layer:view`/`:manage` (`GisLayerController`) và
+            //   `ops:report:view`/`:export` (`BaoCaoVanHanhController`). Đây là **bốn dòng miễn
+            //   kiểm *Phase 3* CUỐI CÙNG** của kho — sau lượt này, mọi mã quyền trong danh mục đều
+            //   có ít nhất một đầu nhận. ⛔ Đừng thêm lại cho hết đỏ.
             // ⬇ WS-28 đã GỠ ba dòng khỏi danh sách này: `hyd:station:view`,
             //   `hyd:station:manage`, `hyd:api-source:manage`. Danh mục điểm đo / loại chỉ số /
             //   nguồn dữ liệu đã có endpoint thật, nên chúng không còn là "quyền chờ Phase sau".

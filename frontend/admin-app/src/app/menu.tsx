@@ -100,6 +100,24 @@ export const MENU: readonly MenuNode[] = [
         path: '/van-hanh/danh-muc-tinh-hinh',
         permissions: ['ops:operation-status-code:manage'],
       },
+      {
+        // ⭐ Đầu nhận ĐẦU TIÊN của `ops:gis-layer:view` — mã quyền seed từ 13/08/2026, 0 endpoint.
+        // ⛔ Gác bằng `:view`, ⛔ không `:manage`: ba nút ghi trong trang tự ẩn theo `:manage`, còn
+        //   người chỉ được xem vẫn cần biết bản đồ đang có những lớp nào.
+        key: 'lop-ban-do',
+        label: 'Lớp bản đồ GIS',
+        icon: <LayoutOutlined />,
+        path: '/van-hanh/lop-ban-do',
+        permissions: ['ops:gis-layer:view'],
+      },
+      {
+        // ⭐ Đầu nhận ĐẦU TIÊN của `ops:report:view`. Nút tải tệp gác riêng bằng `ops:report:export`.
+        key: 'bao-cao-van-hanh',
+        label: 'Báo cáo vận hành',
+        icon: <FileTextOutlined />,
+        path: '/van-hanh/bao-cao',
+        permissions: ['ops:report:view'],
+      },
     ],
   },
   {

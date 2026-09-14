@@ -239,6 +239,53 @@ public enum ErrorCode {
      * module không thấy nhau, nên tính toàn vẹn do tầng dịch vụ giữ, qua {@code HydroAlertPort}.
      */
     OPS_2021("OPS-2021", HttpStatus.UNPROCESSABLE_CONTENT),
+
+    /**
+     * Báo cáo {0} <b>có trong danh mục</b> nhưng đã <b>bỏ vĩnh viễn</b> — {1} là lý do, nguyên văn.
+     *
+     * <p>⛔⛔ Mã riêng, và nó ⛔ <b>không</b> trùng nghĩa với {@code HR-2009}. Ba trạng thái khác
+     * nhau, ba câu trả lời khác nhau:
+     *
+     * <ul>
+     *   <li><b>404</b> — mã ⛔ không tồn tại: người gọi gõ sai.
+     *   <li><b>{@code HR-2009}</b> — mã có thật, <b>chưa làm được</b> (BCNS-07 chờ G6): <i>sẽ</i> có.
+     *   <li><b>Mã này</b> — mã có thật, <b>⛔ không bao giờ làm</b>: BC-01/02/03 mất nguồn vì nhật ký
+     *       vận hành đã loại khỏi phạm vi (B1/F1, xác nhận bởi G2), BC-04 mất nguồn vì kế hoạch vụ
+     *       mùa đã loại (A1).
+     * </ul>
+     *
+     * <p>Gộp ba trạng thái thành một là để người vận hành đi chờ một thứ ⛔ không bao giờ tới.
+     *
+     * <p>⚠⚠ Số hiệu nhảy từ 2021 sang <b>2023</b>, ⛔ không dùng lại 2022 — và đó là cố ý:
+     * {@code OPS-2022} từng tồn tại (trần dòng của bộ đọc tệp) rồi <b>đổi thành {@code SYS-0012}</b>
+     * ngày 09/09/2026 khi bộ đọc dời lên {@code core}. Dùng lại một số hiệu đã nghỉ hưu làm mọi
+     * dòng nhật ký, ảnh chụp màn hình và phiếu hỗ trợ cũ mang mã ấy <b>đọc sai nghĩa</b> — và ⛔
+     * không có gì báo. Một mã lỗi là một <b>định danh</b>, ⛔ không phải một ô trống để lấp.
+     */
+    OPS_2023("OPS-2023", HttpStatus.UNPROCESSABLE_CONTENT),
+
+    // ---- MOD-02 Lớp bản đồ GIS (CN-02.4 / M2.9, WS-59) --------------------------
+    /** Tên lớp bản đồ {0} đã có — hai lớp cùng tên làm bảng chọn lớp ⛔ không phân biệt được. */
+    OPS_2024("OPS-2024", HttpStatus.CONFLICT),
+    /**
+     * Tệp {0} là <b>KML/KMZ</b> — kho <b>⛔ chưa có bộ đọc</b>.
+     *
+     * <p>⛔⛔ Từ chối ở cổng nhận, ⛔ <b>không</b> nhận rồi lưu. Nhận một tệp ⛔ không đọc được là
+     * phương án <b>tệ nhất</b> trong ba: người dùng thấy *"nạp thành công"*, lớp hiện trong danh
+     * sách, và bản đồ ⛔ không vẽ gì — họ sẽ đi báo hỏng bản đồ chứ ⛔ không báo hỏng lượt nạp.
+     *
+     * <p>⚠ KMZ là một tệp ZIP chứa KML ⇒ cần một bộ phân tích XML theo lược đồ OGC, ⛔ không phải
+     * một phép giải nén. Đo 14/09/2026: 0 phụ thuộc như vậy trong cả 7 {@code pom.xml}.
+     */
+    OPS_2025("OPS-2025", HttpStatus.UNPROCESSABLE_CONTENT),
+    /**
+     * Tệp {0} ⛔ không có đối tượng hình học nào ({1} đối tượng đọc được).
+     *
+     * <p>⛔ Một tệp JSON <b>hợp lệ</b> mà rỗng hình học vẫn nạp được về mặt kỹ thuật — và nó cho ra
+     * một lớp "đã nạp thành công" hiện một bản đồ trống. Đó đúng là câu người dùng đọc thành *"hệ
+     * thống hỏng"*.
+     */
+    OPS_2026("OPS-2026", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Trạng thái công trình là giá trị dẫn xuất — client sửa trực tiếp là từ chối. */
     OPS_3001("OPS-3001", HttpStatus.FORBIDDEN),
 

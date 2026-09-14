@@ -6861,3 +6861,120 @@ không liên quan gì tới nó.
 ⚠ Cùng lượt: tệp **trùng tên** trong cùng thư mục là trạng thái **có thật** (`nextVersion` giữ cả
 bản cũ), và nhiều trình giải nén **lặng lẽ ghi đè** mục sau lên mục trước ⇒ chèn số thứ tự trước
 phần mở rộng.
+
+---
+
+### §11.25 — Đóng C3: ba quyết định, và một cơ chế nền chưa từng chạy được với văn bản thuần (WS-59, 14/9/2026)
+
+#### Quyết định 1 — Danh mục báo cáo khai ĐỦ, kể cả mã đã bỏ vĩnh viễn
+
+Đặc tả CN-02.10 giữ **ba** mã (BC-06 · BC-09 · BC-10) và bỏ **bốn** (BC-01/02/03 mất nguồn nhật ký
+vận hành — B1/F1, xác nhận bởi G2; BC-04 mất nguồn kế hoạch vụ mùa — A1).
+
+Cách rẻ nhất là khai ba. Nhưng khi ấy *"BC-01 đã bỏ hay chưa làm?"* trở thành một sự thật **⛔ không
+nơi nào ghi trong sản phẩm**, và nó sẽ được hỏi lại ở mọi lượt nghiệm thu — mỗi lần lại phải đi tra
+tài liệu để trả lời.
+
+⇒ Khai đủ bảy; mã đã bỏ mang **lý do kèm mã chốt** (`B1/F1`, `G2`, `A1`) để người đọc tra ngược
+được.
+
+⭐ **Và nó buộc phải là một trạng thái THỨ BA.** Ba câu hỏi khác nhau, ba câu trả lời khác nhau:
+
+| Trạng thái | Trả về | Nghĩa |
+|---|---|---|
+| Mã ⛔ không tồn tại | `404` | người gọi gõ sai |
+| Mã có thật, **chưa** làm được | `HR-2009` | BCNS-07 chờ **G6** — *sẽ* có |
+| Mã có thật, **bỏ vĩnh viễn** | `OPS-2023` | BC-01..04 mất nguồn — *⛔ không bao giờ* có |
+
+⛔ Gộp hai dòng dưới thành một nhãn *"chưa có"* là để người vận hành đi chờ một thứ ⛔ không bao giờ
+tới.
+
+⚠ **Số hiệu nhảy qua `OPS-2022` — cố ý.** Mã ấy từng tồn tại (trần dòng bộ đọc tệp) rồi **đổi thành
+`SYS-0012`** ngày 09/09/2026 khi bộ đọc dời lên `core`. Dùng lại một số hiệu đã nghỉ hưu làm mọi
+dòng nhật ký, ảnh chụp màn hình và phiếu hỗ trợ cũ mang mã ấy **đọc sai nghĩa**, và ⛔ không có gì
+báo. Một mã lỗi là một **định danh**, ⛔ không phải một ô trống để lấp.
+
+#### ⛔⛔⛔ Quyết định 2 — `FileValidator` chưa từng nhận được một định dạng VĂN BẢN nào
+
+Đây là phát hiện nặng nhất của lượt này, và nó chỉ lộ ra ở **lượt chạy HTTP đầu tiên** của đường nạp
+lớp bản đồ: `FILE_TYPE_NOT_ALLOWED` với `rejectedValue = "unknown"`.
+
+Nguyên nhân: `FileValidator.detect()` nhận diện định dạng bằng **chữ ký byte**. GeoJSON là JSON
+thuần — **⛔ không có magic bytes** — nên `detect` trả `null`, và `detectAndValidate` từ chối mọi
+tệp như vậy ở **mọi** đường tải lên.
+
+⇒ Toàn bộ cơ chế lớp bản đồ (bảng, entity, service, controller, giao diện) **⛔ không có đường nào
+chạy được** cho tới khi vá.
+
+⭐ **Và tiền lệ đã nằm sẵn trong chính tệp ấy.** WS-15 từng gặp đúng hình dạng này với SVG, và
+javadoc `looksLikeSvg` đã viết ra nguyên văn:
+
+> *"Trước WS-15 hàm `detect` trả `null` cho mọi tệp SVG… Hệ quả: `SvgSanitizer` dựng ở WS-14 **⛔
+> không có đường nào chạm tới**. Đúng dạng lỗi đã lặp lại nhiều lần: cơ chế có mặt, có bài kiểm
+> riêng, xanh, và chưa bao giờ nằm trên một đường chạy thật."*
+
+⇒ Thêm `looksLikeJson` theo **đúng** khuôn ấy, kể cả phần lập luận về an toàn: đây là một phép
+**đoán**, và lớp quyết định cuối cùng vẫn là **danh sách cho phép của nơi gọi** — chỉ đường nạp lớp
+bản đồ khai `application/json`, mọi đường khác từ chối y như trước.
+
+⛔ Và **⛔ không** khai `application/octet-stream` trong danh sách ấy: mục đó nghĩa là *"⛔ không
+nhận ra định dạng gì"*, tức nó mở cửa cho **mọi** tệp nhị phân đi vào đường nạp bản đồ.
+
+#### Quyết định 3 — `readForOwner` trả rỗng cho HAI trạng thái khác nhau
+
+Một tệp vừa tải lên mang `status = UPLOADING` cho tới khi việc nền quét virus xong.
+`readForOwner` trả `Optional.empty()` cho **cả** *"⛔ không phải của bản ghi này"* lẫn *"chưa quét
+xong"*, và nơi gọi biến cả hai thành **404**.
+
+⇒ Giao diện nói *"lớp ⛔ không tồn tại"* về một lớp vừa nạp xong **vài giây trước**.
+
+⇒ Tra `findRef` trước, và trả **`SYS-0009`** — mã đã có sẵn cho đúng trạng thái ấy, với câu chữ đã
+viết sẵn. ⛔ Đúc một mã mới ở đây là dựng bản thứ hai của cùng một câu.
+
+⚠⚠ **Gặp hai lần trong một ngày**: đường ZIP hồ sơ CBNV (§11.24) và đường nội dung lớp bản đồ. Cả
+hai lần đều lộ ra vì bộ kiểm chạy với `WORKER_ENABLED = false` — tức **bộ kiểm tái lập được đúng
+trạng thái mà production chỉ có trong vài giây**, và vài giây ấy là lúc người dùng vừa bấm xong.
+
+#### Ba chốt chặn ở đường nạp tệp, và vì sao THỨ TỰ của chúng quan trọng
+
+1. Đuôi `.kmz`/`.kml` ⇒ `OPS-2025` (kho ⛔ không có bộ đọc);
+2. Kích thước ⇒ trần 20 MB;
+3. Có đối tượng hình học ⇒ `OPS-2026`.
+
+Chỉ sau **cả ba** mới gọi `attachments.upload`. Nếu ⛔ không thì một tệp bị từ chối vẫn **đã tiêu
+hạn mức dung lượng** của lớp và nằm lại trong kho.
+
+⛔⛔ **KMZ bị từ chối ở cổng nhận, ⛔ không nhận rồi lưu.** Nhận một tệp ⛔ không đọc được là phương
+án **tệ nhất** trong ba: người dùng thấy *"nạp thành công"*, lớp hiện trong danh sách, bản đồ ⛔
+không vẽ gì — và họ sẽ đi báo hỏng **bản đồ** chứ ⛔ không báo hỏng **lượt nạp**.
+
+⛔ `{"type":"FeatureCollection","features":[]}` là JSON **hoàn toàn hợp lệ**. Một phép kiểm *"parse
+được ⛔ không"* nhận nó. Chốt chặn thứ ba là thứ duy nhất phân biệt được — và nhờ nó, trạng thái *"0
+đối tượng"* **⛔ không biểu diễn được**, nên `soDoiTuong = null` chỉ có một nghĩa: *chưa nạp tệp*.
+
+#### Công cụ đo: lượng giác cầu, ⛔ không phải hình học phẳng
+
+Ở vĩ độ 21° (Hà Nội) một độ **kinh tuyến** ngắn hơn một độ **vĩ tuyến** khoảng **7%**. Đo bằng
+Pythagore trên `(lat, lng)` cho sai số vài trăm mét trên một tuyến kênh 10 km — đủ để một biên bản
+hiện trường sai.
+
+⇒ Khoảng cách bằng **haversine**, diện tích bằng **spherical excess**. ⛔ Shoelace trên `(lat, lng)`
+cho diện tích **lớn hơn thực tế ~7%** — một sai số **một chiều**, tức nó ⛔ không tự triệt tiêu khi
+đo nhiều lần.
+
+⭐ Phần tính toán tách thành `banDoDo.ts` để có bài kiểm riêng chạy trên những khoảng cách **đã biết
+đáp án** — trong đó bài quan trọng nhất khẳng định đúng cái tỉ số 0,92–0,94, tức **vế mà hình học
+phẳng làm sai**.
+
+⚠ Và phép đo **khai ra giới hạn của chính nó** ngay trên màn hình: *"sai số dưới 0,5%, dùng để ước
+lượng, ⛔ không thay số liệu trắc địa"*. Một con số trên bản đồ mà ⛔ không nói độ chính xác của nó
+sẽ được chép vào biên bản.
+
+#### Một lượt gọi PHỤ suýt hạ cả dashboard điều hành
+
+`useGisLayers` bản đầu viết `(danhSach.data ?? []).filter(…)`. Một phản hồi có hình dạng ⛔ không
+mong đợi làm `.filter` ném **trong thân render** ⇒ **màn hình Trực ban dùng hằng ngày** trắng.
+
+⇒ `Array.isArray`. Lớp bản đồ là thứ **trang trí**; nó ⛔ không được quyền làm sập thứ chính. Cùng
+họ với `BaseChart.empty` (T23.2) và với lượt bắt lỗi từng lớp trong `useGisLayers` — một lớp hỏng ⛔
+không kéo cả bản đồ theo.

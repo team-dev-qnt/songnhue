@@ -170,12 +170,12 @@ public class BaoCaoNhanSuService {
 
     /**
      * @throws IllegalStateException khi mã báo cáo <b>chưa dựng được</b> — kèm nguyên văn lý do của
-     *     {@link MaBaoCaoNhanSu#lyDoChuaCo()}, vì đó là câu người vận hành cần đọc
+     *     {@link MaBaoCaoNhanSu#lyDo()}, vì đó là câu người vận hành cần đọc
      */
     @Transactional(readOnly = true)
     public TepXuat xuat(MaBaoCaoNhanSu ma) {
         if (!ma.khaDung()) {
-            throw new IllegalStateException(ma.lyDoChuaCo());
+            throw new IllegalStateException(ma.lyDo());
         }
         LocalDate homNay = LocalDate.now(DateTimeUtils.ZONE_VN);
         BangCsv bang =

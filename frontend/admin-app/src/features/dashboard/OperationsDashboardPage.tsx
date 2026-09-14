@@ -23,6 +23,8 @@ import { useElementWidth } from '@/components/dashboard/useElementWidth';
 import { formatDateTime } from '@/shared/format';
 
 import { WallFrame } from './WallFrame';
+import { useGisLayers } from '@/features/operations/useGisLayers';
+
 import { useWallMode } from './wallMode';
 import { useDashboard, useMapPoints, useStationLayer } from './useDashboard';
 
@@ -45,6 +47,7 @@ export function OperationsDashboardPage() {
   const [thamSo] = useSearchParams();
   const navigate = useNavigate();
   const wall = useWallMode(thamSo);
+  const lopGis = useGisLayers();
 
   const { data, isLoading, isError, dataUpdatedAt } = useDashboard();
   const { data: diem } = useMapPoints();
@@ -137,6 +140,11 @@ export function OperationsDashboardPage() {
               config={data?.map}
               height={wall ? 520 : 380}
               wall={wall}
+              lopGis={lopGis}
+              // ⛔ Công cụ đo TẮT ở wall mode: CN-02.5 nói màn hình treo tường *"⛔ không phụ thuộc
+              //   thao tác chuột/bàn phím"*, và một công cụ bắt cú click trên màn hình ⛔ không ai
+              //   chạm vào chỉ có thể bắt nhầm.
+              coCongCuDo={!wall}
             />
           </ChartCard>
 

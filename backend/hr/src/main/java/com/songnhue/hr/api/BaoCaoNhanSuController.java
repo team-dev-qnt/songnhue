@@ -62,9 +62,9 @@ public class BaoCaoNhanSuController {
     }
 
     /**
-     * @param khaDung {@code false} ⇒ {@code lyDoChuaCo} <b>bắt buộc</b> khác null
+     * @param khaDung {@code false} ⇒ {@code lyDo} <b>bắt buộc</b> khác null
      */
-    public record MucBaoCao(String ma, String ten, String moTa, boolean khaDung, String lyDoChuaCo) {}
+    public record MucBaoCao(String ma, String ten, String moTa, boolean khaDung, String lyDo) {}
 
     /**
      * Danh mục <b>đủ TÁM</b> báo cáo, kèm mã nào chưa dựng được và <b>vì sao</b>.
@@ -78,7 +78,7 @@ public class BaoCaoNhanSuController {
     @RequirePermission("hr:report:view")
     public List<MucBaoCao> danhMuc() {
         return java.util.Arrays.stream(MaBaoCaoNhanSu.values())
-                .map(m -> new MucBaoCao(m.ma(), m.ten(), m.moTa(), m.khaDung(), m.lyDoChuaCo()))
+                .map(m -> new MucBaoCao(m.ma(), m.ten(), m.moTa(), m.khaDung(), m.lyDo()))
                 .toList();
     }
 
@@ -105,7 +105,7 @@ public class BaoCaoNhanSuController {
         if (!maBaoCao.khaDung()) {
             // ⛔ Mã lỗi RIÊNG, ⛔ không phải 404: báo cáo này CÓ trong danh mục, nó chỉ chưa dựng
             //   được — và câu lỗi mang nguyên văn LÝ DO để người vận hành đọc được ngay.
-            throw new BusinessRuleException(ErrorCode.HR_2009, maBaoCao.ma(), maBaoCao.lyDoChuaCo());
+            throw new BusinessRuleException(ErrorCode.HR_2009, maBaoCao.ma(), maBaoCao.lyDo());
         }
         BaoCaoNhanSuService.TepXuat tep = baoCao.xuat(maBaoCao);
         return ResponseEntity.ok()

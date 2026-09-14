@@ -22,13 +22,9 @@ import { optionCotNgang, optionDuong, optionTron } from '@/components/charts/cha
 import { ApiClientError, api } from '@/shared/apiClient';
 import { luuTep } from '@/shared/luuTep';
 
-import {
-  NHAN_GIOI_TINH,
-  NHAN_HOC_VAN,
-  toBucket,
-  type MucBaoCao,
-  type TongQuanNhanSu,
-} from './baoCaoNhanSu';
+import { type MucBaoCaoView } from '@/shared/api-types';
+
+import { NHAN_GIOI_TINH, NHAN_HOC_VAN, toBucket, type TongQuanNhanSu } from './baoCaoNhanSu';
 
 /**
  * Thống kê và báo cáo nhân sự — CN-04.8 (SRS M4.14–M4.17, WS-58).
@@ -58,7 +54,7 @@ export function BaoCaoNhanSuPage() {
 
   const danhMuc = useQuery({
     queryKey: ['hr', 'bao-cao', 'danh-muc'],
-    queryFn: () => api.get<MucBaoCao[]>('/hr/bao-cao/danh-muc'),
+    queryFn: () => api.get<MucBaoCaoView[]>('/hr/bao-cao/danh-muc'),
   });
 
   const kpi = tongQuan.data?.kpi;
@@ -257,9 +253,7 @@ export function BaoCaoNhanSuPage() {
                     <div>{muc.moTa}</div>
                     {/* ⛔⛔ Lý do hiện NGUYÊN VĂN. Một dòng bị vô hiệu mà ⛔ không nói vì sao đọc
                         như một lỗi hệ thống, và người vận hành sẽ đi báo hỏng. */}
-                    {muc.lyDoChuaCo ? (
-                      <Typography.Text type="warning">{muc.lyDoChuaCo}</Typography.Text>
-                    ) : null}
+                    {muc.lyDo ? <Typography.Text type="warning">{muc.lyDo}</Typography.Text> : null}
                   </>
                 }
               />

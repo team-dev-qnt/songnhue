@@ -391,6 +391,34 @@ export const ERROR_CATALOG = {
     handling: 'form',
     severity: 'warning',
   },
+
+  // --- MOD-02 Báo cáo vận hành + lớp bản đồ GIS (CN-02.10 · M2.9, WS-59) -------
+  // ⛔⛔ `OPS-2023` KHÁC `HR-2009`, và khác biệt là có thật: mã kia nói *chưa làm được* (BCNS-07
+  //    chờ G6 — **sẽ** có), mã này nói *đã bỏ vĩnh viễn* (BC-01..04 mất nguồn — **không bao giờ**
+  //    có). Gộp hai câu là để người vận hành đi chờ một thứ ⛔ không bao giờ tới.
+  // ⚠ Số hiệu nhảy từ 2021 sang 2023: `OPS-2022` đã NGHỈ HƯU (đổi thành `SYS-0012` ngày 09/09),
+  //   và dùng lại một mã đã nghỉ hưu làm mọi dòng nhật ký cũ đọc sai nghĩa.
+  'OPS-2023': {
+    message: 'Báo cáo này đã bỏ khỏi phạm vi hệ thống',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'OPS-2024': {
+    message: 'Đã có lớp bản đồ trùng tên',
+    handling: 'form',
+    severity: 'warning',
+  },
+  // ⛔ Câu chữ của backend mang tên tệp và lời khuyên chuyển sang GeoJSON — `messageFor` ưu tiên nó.
+  'OPS-2025': {
+    message: 'Hệ thống chưa đọc được tệp KML/KMZ — hãy chuyển sang GeoJSON',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'OPS-2026': {
+    message: 'Tệp không có đối tượng hình học nào',
+    handling: 'toast',
+    severity: 'warning',
+  },
   'OPS-3001': {
     message: 'Không được sửa trực tiếp trạng thái công trình — trạng thái được tính tự động',
     handling: 'toast',

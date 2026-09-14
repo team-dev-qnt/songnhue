@@ -30,6 +30,7 @@ import com.songnhue.hr.domain.MaritalStatus;
 import com.songnhue.hr.domain.QualificationKind;
 import com.songnhue.operations.domain.ConstructionPurpose;
 import com.songnhue.operations.domain.ConstructionType;
+import com.songnhue.operations.domain.GisGeometryType;
 import com.songnhue.operations.domain.LifecycleState;
 import com.songnhue.operations.domain.ManagementLevel;
 import com.songnhue.operations.domain.OperationalStatus;
@@ -150,7 +151,10 @@ class EnumBaNoiTest {
             //   ấy là `workflow_transitions` (quy tắc 4). Bộ canh này chỉ hỏi *ba nơi có cùng một
             //   BỘ GIÁ TRỊ ⛔ không* — một câu hỏi khác, và cả hai đều cần.
             new BoBa(LeaveType.class, "LeaveType", "ck_leave_requests_type", null, HR_TU_VUNG),
-            new BoBa(LeaveState.class, "LeaveState", "ck_leave_requests_state", null, HR_TU_VUNG));
+            new BoBa(LeaveState.class, "LeaveState", "ck_leave_requests_state", null, HR_TU_VUNG),
+            // ⭐ WS-59 — lớp bản đồ GIS (CN-02.4 / M2.9). Union khai ở `api-types.ts` như mọi enum
+            //   của `operations`.
+            new BoBa(GisGeometryType.class, "GisGeometryType", "ck_gis_layers_geometry_type", null));
 
     private static final Path TU_VUNG =
             gocKho().resolve("frontend/admin-app/src/components/business/statusVocabulary.ts");
@@ -217,7 +221,7 @@ class EnumBaNoiTest {
 
         assertThat(BO_BA)
                 .as("bảng đối chiếu rỗng thì bài trên không khẳng định gì")
-                .hasSize(15);
+                .hasSize(16);
         assertThat(BO_BA.stream().map(BoBa::tepTs).distinct().toList())
                 .as("⭐ T51.10(a): phải có ÍT NHẤT hai tệp TS trong bảng. Thiếu vế này thì một lượt "
                         + "'dọn dẹp' gộp tất cả về api-types.ts sẽ làm bốn enum HR về rỗng — và bài "
