@@ -759,6 +759,23 @@ export interface MaintenanceDetail {
   actions: AllowedActionView[];
 }
 
+/**
+ * Một tệp của bản ghi sửa chữa — biên bản nghiệm thu, ảnh trước/sau (CN-02.2, T61.19).
+ * Khớp `MaintenanceDtos.AttachmentView`; `tepSuaChuaVongKhuHoi.test.tsx` đối chiếu tên trường.
+ */
+export interface MaintenanceAttachment {
+  id: string;
+  originalName: string;
+  /** Nhãn loại tệp người dùng chọn lúc tải lên — cũng là khoá đánh số phiên bản. */
+  purpose: string;
+  contentType: string;
+  sizeBytes: number;
+  fileVersion: number;
+  /** `false` khi tệp chưa quét virus xong hoặc bị cách ly — backend quyết, giao diện ⛔ đoán. */
+  downloadable: boolean;
+  createdAt: string;
+}
+
 /** Tổng chi phí kỳ — tính ở BE (quy tắc 3), FE chỉ hiển thị. Khớp `MaintenanceLogService.CostSummary`. */
 export interface MaintenanceCostSummary {
   /** Chuỗi, không phải number: `BigDecimal` phía BE, và `number` của JS làm tròn sai tiền (quy tắc 2). */

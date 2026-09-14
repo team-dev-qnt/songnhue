@@ -68,21 +68,6 @@ class EndpointCoNoiGoiTest {
 
     static {
         CHUA_CO_NOI_GOI.put(
-                "GET /ops/maintenance-logs/{publicId}/attachments",
-                "CN-02.2 'Tài liệu, ảnh kèm — biên bản nghiệm thu, ảnh trước/sau': backend lưu được tệp cho bản ghi sửa chữa, màn hình ⛔ có tab nào xem");
-        CHUA_CO_NOI_GOI.put(
-                "POST /ops/maintenance-logs/{publicId}/attachments",
-                "Cùng CN-02.2: ⛔ có nút tải biên bản nghiệm thu / ảnh trước-sau lên một bản ghi sửa chữa");
-        CHUA_CO_NOI_GOI.put(
-                "GET /ops/maintenance-logs/{publicId}/attachments/{attachmentId}/download-url",
-                "Cùng CN-02.2: ⛔ tải về được tệp của bản ghi sửa chữa — kể cả khi ai đó đã tải lên bằng đường khác");
-        CHUA_CO_NOI_GOI.put(
-                "DELETE /ops/maintenance-logs/{publicId}/attachments/{attachmentId}",
-                "Cùng CN-02.2: tệp tải nhầm lên một bản ghi sửa chữa ⛔ gỡ được từ giao diện");
-        CHUA_CO_NOI_GOI.put(
-                "DELETE /ops/maintenance-logs/{publicId}",
-                "CN-02.2 quy tắc 'sửa/xoá bản ghi đã lưu → audit, soft delete': bản ghi nhập nhầm ⛔ xoá được — và nó vẫn đẩy trạng thái công trình");
-        CHUA_CO_NOI_GOI.put(
                 "GET /hr/canh-bao-het-han",
                 "M4.9 cảnh báo HĐLĐ/chứng chỉ sắp hết hạn: backend tính danh sách theo ngưỡng settings, ⛔ màn hình nào hiện nó ra");
         CHUA_CO_NOI_GOI.put(

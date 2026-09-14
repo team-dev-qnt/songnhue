@@ -1,6 +1,17 @@
-import { EditOutlined, PlusOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { App, Button, Card, Empty, Space, Statistic, Tag, Timeline, Typography } from 'antd';
+import {
+  App,
+  Button,
+  Card,
+  Empty,
+  Popconfirm,
+  Space,
+  Statistic,
+  Tag,
+  Timeline,
+  Typography,
+} from 'antd';
 import dayjs from 'dayjs';
 import { useState } from 'react';
 
@@ -16,6 +27,7 @@ import {
 import { ApiClientError, api } from '@/shared/apiClient';
 import { formatInvestment } from '@/shared/format';
 
+import { MaintenanceAttachmentsPanel } from './MaintenanceAttachmentsPanel';
 import { MaintenanceFormModal } from './MaintenanceFormModal';
 
 /**
@@ -91,15 +103,27 @@ export function ConstructionMaintenancePanel({
       ),
   });
 
+  // T61.19 — `DELETE` có 0 nơi gọi trước đây; bản ghi nhập nhầm vẫn đẩy trạng thái công trình (quy tắc 4).
+  const xoaBanGhi = useMutation({
+    mutationFn: (publicId: string) => api.delete<void>(`/ops/maintenance-logs/${publicId}`),
+    onSuccess: () => {
+      message.success('Đã xoá bản ghi');
+      setDangChon(null);
+      lamMoiSauKhiLuu();
+    },
+    onError: (caught: unknown) =>
+      message.error(caught instanceof ApiClientError ? caught.message : 'Không xoá được bản ghi'),
+  });
+
   const banGhi = trang?.items ?? [];
 
-  const lamMoiSauKhiLuu = () => {
+  function lamMoiSauKhiLuu() {
     // ⚠ Tiền tố `['ops','maintenance-logs']`, ⛔ `queryKey` của danh sách: khoá tổng chi phí là
     //   `[…, 'cost-summary', id]` nên ⛔ khớp tiền tố `[…, id]` — bản trước ghi một khoản chi phí mới
     //   mà ô "Tổng chi phí đã ghi nhận" đứng yên tới lượt F5.
     void queryClient.invalidateQueries({ queryKey: ['ops', 'maintenance-logs'] });
     void queryClient.invalidateQueries({ queryKey: ['ops', 'constructions'] });
-  };
+  }
 
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="middle">
@@ -167,16 +191,33 @@ export function ConstructionMaintenancePanel({
                       {/* T61.18 — trước đây `PUT` có 0 nơi gọi: sai một con số chi phí chỉ còn đường
                           xoá rồi ghi lại. Cửa sổ tác giả tự sửa (T18.9) ⛔ hiện nút vì giao diện ⛔ biết
                           ai tạo bản ghi — backend vẫn nhận nếu có ai gọi. */}
-                      {hasPermission('ops:maintenance:update') && (
-                        <Button
-                          size="small"
-                          icon={<EditOutlined />}
-                          style={{ marginBottom: 8 }}
-                          onClick={() => setDangSua(row)}
-                        >
-                          Sửa bản ghi
-                        </Button>
-                      )}
+                      <Space wrap style={{ marginBottom: 8 }}>
+                        {hasPermission('ops:maintenance:update') && (
+                          <Button
+                            size="small"
+                            icon={<EditOutlined />}
+                            onClick={() => setDangSua(row)}
+                          >
+                            Sửa bản ghi
+                          </Button>
+                        )}
+                        {hasPermission('ops:maintenance:delete') && (
+                          <Popconfirm
+                            title={`Xoá bản ghi ${row.code}?`}
+                            description="Xoá mềm, vẫn truy vết trong nhật ký. Trạng thái công trình được tính lại ngay."
+                            onConfirm={() => xoaBanGhi.mutate(row.id)}
+                          >
+                            <Button
+                              size="small"
+                              danger
+                              icon={<DeleteOutlined />}
+                              loading={xoaBanGhi.isPending}
+                            >
+                              Xoá bản ghi
+                            </Button>
+                          </Popconfirm>
+                        )}
+                      </Space>
                       <ApprovalActions
                         actions={chiTiet.actions}
                         disabled={bamNut.isPending}
@@ -184,6 +225,9 @@ export function ConstructionMaintenancePanel({
                           await bamNut.mutateAsync({ publicId: row.id, action });
                         }}
                       />
+                      <div style={{ marginTop: 12 }}>
+                        <MaintenanceAttachmentsPanel logId={row.id} />
+                      </div>
                     </div>
                   )}
                 </Space>
