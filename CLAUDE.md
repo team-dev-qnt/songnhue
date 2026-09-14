@@ -78,6 +78,16 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 đều có ít nhất một đầu nhận** — `RbacMatrixTest` ⛔ không còn một dòng miễn kiểm *"Phase 3"* nào
 (gỡ 7 dòng trong ba lượt: WS-57 bốn `hr:leave:*`+`hr:contract:manage`, WS-58 `hr:org-chart:view`
 + `hr:report:*`, WS-59 bốn `ops:gis-layer:*`+`ops:report:*`).
+⭐⭐ **WS-60 (14/09) — đối chiếu 13 mục DoD Phase 3, lần ĐẦU TIÊN.** `grep -c "DOD3"` trong sổ =
+**0** trước lượt này. Kết quả: **12/13 đạt**; `DOD3.6` ⛔ **không đạt** (4/6 endpoint kết xuất rơi
+sai xô hạn mức, rộng gấp **600 lần**, ba trong bốn do chính Phase 3 dựng — đã vá, đóng luôn T47.11);
+`DOD3.12` đạt **một phần**. Cùng lượt gỡ chốt CI: **cả repository `minio/minio` đã biến mất khỏi
+Docker Hub** ⇒ 5 nơi khai chuyển sang `quay.io`.
+⛔⛔⛔ **Và nó để lại một việc CHẶN cho Phase 4**: `compose.prod.yml` đang ghim ảnh ⛔ không kéo về
+được nữa ⇒ `docker compose pull`, dựng lại máy, **và lượt quay lui `DOD0.21`** đều hỏng. Bản vá nằm
+trong PR #132 nhưng **chỉ có hiệu lực sau khi đề bạt tới production** — phải **đo trên VPS-1** rằng
+ảnh mới kéo về được, trước khi coi `DOD0.21` là đi thử được (T60.3).
+
 ⬜ **Những gì còn lại của Phase 3 ⛔ KHÔNG phải mã** — cả bảy đều chờ Công ty hoặc chờ một quyết
 định nghiệp vụ: **G8** toạ độ (0/19 điểm đo · 0/11 công trình ⇒ lớp GIS rỗng — chặn *nghiệm thu*,
 ⛔ không chặn *viết*) · **G10** bố cục bản in + **T42.14** bộ kết xuất PDF/XLSX · **G6** mẫu 2C-BNV
@@ -330,6 +340,12 @@ sai, sửa 10/09 — T52.8). Đo trên CSDL staging cùng ngày: `constructions`
 | 14/9 | ⚠ **Một mã lỗi đã NGHỈ HƯU ⛔ không được dùng lại.** `OPS-2022` đổi thành `SYS-0012` ngày 09/09; đúc lại số ấy cho một nghĩa mới làm mọi dòng nhật ký, ảnh chụp màn hình và phiếu hỗ trợ cũ **đọc sai nghĩa**, và ⛔ không có gì báo. Một mã lỗi là một **định danh**, ⛔ không phải một ô trống để lấp ⇒ nhảy sang `OPS-2023` | T59.1 |
 | 14/9 | ⛔ **Ba trạng thái *"báo cáo này ⛔ không tải được"* phải có BA câu trả lời khác nhau**: `404` = gõ sai mã · `HR-2009` = có thật, **chưa** làm được (BCNS-07 chờ G6 — *sẽ* có) · `OPS-2023` = có thật, **bỏ vĩnh viễn** (BC-01..04 mất nguồn — *⛔ không bao giờ* có). Gộp chúng là để người vận hành đi chờ một thứ ⛔ không bao giờ tới. ⚠ Và bảy mã khai đủ thay vì ba: liệt kê ba mã còn sống là để câu hỏi *"BC-01 đâu?"* quay lại ở **mọi** lượt nghiệm thu | T59.0 |
 | 14/9 | ⭐ **Đo trên bản đồ bằng Pythagore sai một chiều ~7% ở vĩ độ 21°.** Một độ kinh tuyến ngắn hơn một độ vĩ tuyến chừng ấy, nên hình học phẳng cho sai số vài trăm mét trên một tuyến kênh 10 km. ⇒ Haversine + spherical excess, và phép đo **khai ra giới hạn của chính nó** trên màn hình (*"dùng để ước lượng, ⛔ không thay số liệu trắc địa"*) | T59.8 |
+| 14/9 | ⛔⛔⛔ **Cả repository `minio/minio` BIẾN MẤT khỏi Docker Hub — 86 lớp kiểm đỏ trên CI, 0 đỏ ở máy.** 81/86 là nạn nhân dây chuyền (`failure threshold exceeded`); lỗi gốc chỉ đọc được bằng cách **lọc ra** những lớp ⛔ không mang câu ấy (luật 23). Đo ba phía: hub API `object not found` · registry v2 `UNAUTHORIZED` · `quay.io` còn sống. ⭐ Vì sao máy xanh: ảnh nằm trong **đệm Docker cục bộ** kéo về **12 tháng trước** ⇒ Testcontainers ⛔ không hỏi registry lần nào — biến thể **MỚI** của *"xanh ở máy không phải bằng chứng"*, sau `.env.local` và biến build rỗng | T60.0 · T60.1 |
+| 14/9 | ⛔⛔⛔ **`compose.prod.yml` đang ghim một ảnh ⛔ KHÔNG kéo về được nữa — đường quay lui của kho tệp đã gãy mà ⛔ không ai biết.** Production chạy bằng ảnh **đã nằm trên đĩa** nên hôm nay ⛔ không có triệu chứng; `docker compose pull`, dựng lại máy, **và lượt quay lui `DOD0.21` (chưa chạy thật lần nào)** đều phải kéo ảnh ⇒ cả ba hỏng. MinIO là nơi **mọi tệp người dùng tải lên** đang nằm. Cùng hình dạng §10.56 và §10.81 | T60.3 |
+| 14/9 | ⛔⛔ **DOD3.6 — 4/6 endpoint kết xuất rơi sai xô hạn mức, RỘNG GẤP 600 LẦN, và BA trong bốn do chính Phase 3 dựng.** `path.contains("/export")` là chuỗi **tiếng Anh** trong kho đặt tên **tiếng Việt** (T47.11, mở từ 10/09). ⭐ Quét theo **kiểu trả về** lộ ra một endpoint mà quét theo **tên đường dẫn** ⛔ không thấy: `/bao-cao/tai/{id}`. Nặng nhất là `/tai-lieu/zip` — mỗi lượt đọc **toàn bộ tài liệu một hồ sơ CBNV**; ở 100/phút vừa là đường tự đánh sập mình, vừa là đường **rút dữ liệu cá nhân hàng loạt** (NĐ 13/2023) | T60.4 |
+| 14/9 | ⭐⭐ **Bộ canh bắt CHÍNH TÔI ở lượt chạy đầu — lần thứ CHÍN.** Regex của `AnhMinioDongBoTest` **nuốt mất `quay.io/`** (khớp trái-nhất hỏng ở vị trí 0 rồi thành công ở vị trí 8) ⇒ nó trả dạng **TRẦN** cho một tham chiếu **CÓ** kho ảnh, tức hai trạng thái nó sinh ra để phân biệt đọc **giống hệt nhau** (luật 9). ⚠⚠ Và `git checkout --` ở bước khôi phục **quay về HEAD**, gỡ luôn bản vá — chỉ lộ ra vì in `grep -c` = **0**. Luật 10 vế *"bản KHÔI PHỤC cũng phải được xác nhận"* | T60.2 |
+| 14/9 | ⭐⭐ **Ba bài đỏ sau bản vá hạn mức là BẰNG CHỨNG bản vá có hiệu lực** — cả ba là `429` ở những bài ⛔ không liên quan gì tới kết xuất, vì lớp dựng phiên ở `@BeforeAll` thì **cả lớp dùng chung một IP**. ⛔ Nới hạn mức ở hồ sơ kiểm thử là tắt một cơ chế bảo mật thật trong CI ⇒ `PhienHttp.doiIp()`: **mỗi bài kiểm là một máy khách** | T60.9 |
+| 14/9 | ⚠ **13 mục DoD Phase 3 có ĐÚNG 0 lượt nhắc trong sổ** — `grep -c "DOD3"` = 0. Chúng sống ở `phase3-plan.md` §8 và chưa lượt nào đối chiếu, đúng hình dạng §10.36. Lượt đối chiếu đầu tiên tìm ra **2 khuyết tật đang sống**. ⚠ Và 9 "endpoint mồ côi" của lượt quét là **dương tính giả của chính phép đo tôi vừa viết** (FE ghép đường dẫn bằng template literal — luật 25) | T60.7 · T60.8 |
 
 ⛔ Hệ quả rút ra: **"đã tick" không phải bằng chứng.** Trước khi mở một giai đoạn mới, đối chiếu với mã thật và chạy đường mà người dùng thật đi.
 
@@ -370,6 +386,18 @@ nào — bản vá là **mã**, ⛔ không phải dữ liệu) · **1045 dòng**
 `./mvnw -Dtest=…` **song song**, nó `rm -rf` đúng `hydro/target/surefire-reports` giữa chừng. Lượt
 ấy vẫn thoát **0** và in 7/7 SUCCESS. ⇒ **Mọi lượt `make ci-local` phải là tiến trình maven DUY
 NHẤT trên cây này** — nếu không thì cái xanh ⛔ không còn nói được nó xanh vì cái gì (luật 32).
+
+⭐⭐ **Đo lại 14/09/2026 sau WS-60 (đối chiếu DoD Phase 3 · gỡ chốt CI) — `make ci-local` thoát 0**,
+lượt chạy là tiến trình maven DUY NHẤT (⚠ số ở **MÁY**): **1811 testcase BE** (core 283 · content 54 ·
+hydro 225 · operations 55 · app **1194**) · **0 đỏ** · FE **434** admin-app / 50 tệp + **392**
+public-web / 44 · **74 migration**, ⛔ **không thêm tệp nào** (bản vá là **mã** và **cấu hình ảnh**,
+⛔ không phải dữ liệu) · mã lỗi **119**, ⛔ không đổi · **1154 dòng** sổ tracking đọc được, 0 phép
+kiểm đỏ.
+⭐ **+7 bài so với WS-59**, cả 7 là **bộ canh**: `AnhMinioDongBoTest` 4 · `HanMucKetXuatTest` 3.
+⚠⚠ **Và lượt `ci-local` GIỮA đợt này đỏ 3 bài — cả ba là `429`, cả ba là BẰNG CHỨNG bản vá hạn mức
+có hiệu lực thật**: trước đó ⛔ không lượt chạy nào của bộ kiểm chạm tới xô `EXPORT`. Cách sửa rẻ
+nhất (nới hạn mức ở hồ sơ kiểm thử) là **tắt một cơ chế bảo mật thật trong CI** ⇒ `PhienHttp.doiIp()`,
+mỗi bài kiểm là một máy khách.
 
 ⭐⭐ **Đo lại 14/09/2026 sau WS-59 (C3: báo cáo vận hành · lớp bản đồ GIS · công cụ đo) —
 `make ci-local` thoát 0 VÀ `make ci-order` thoát 0**, lượt chạy là tiến trình maven DUY NHẤT

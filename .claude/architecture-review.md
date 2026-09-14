@@ -6978,3 +6978,112 @@ mong đợi làm `.filter` ném **trong thân render** ⇒ **màn hình Trực b
 ⇒ `Array.isArray`. Lớp bản đồ là thứ **trang trí**; nó ⛔ không được quyền làm sập thứ chính. Cùng
 họ với `BaseChart.empty` (T23.2) và với lượt bắt lỗi từng lớp trong `useGisLayers` — một lớp hỏng ⛔
 không kéo cả bản đồ theo.
+
+---
+
+### §11.26 — Một ảnh Docker biến mất, một xô hạn mức rộng gấp 600 lần, và 13 mục DoD chưa ai đối chiếu (WS-60, 14/9/2026)
+
+Mở ra từ một câu hỏi hành chính — *"chuyển sang Phase 4 được chưa?"*. Đối chiếu **13 mục DoD Phase
+3** tìm ra hai khuyết tật đang sống. Cả hai đều thuộc hình dạng đặc trưng của dự án: **cơ chế có
+mặt, xanh, và chưa bao giờ nằm trên đường chạy nó phải chặn.**
+
+#### 1. Nhà cung cấp rút ảnh khỏi Docker Hub — và đệm cục bộ giấu chuyện đó 12 tháng
+
+Lượt CI đầu của PR #132 đỏ ở **86 lớp**. **81** trong số đó chỉ in
+`ApplicationContext failure threshold (1) exceeded` — nạn nhân dây chuyền. Lỗi gốc đọc được bằng
+cách **lọc ra** những lớp ⛔ *không* mang câu ấy (luật 23), và nó nằm ở lớp chạy đầu tiên:
+
+```
+NotFoundException: Status 404: pull access denied for minio/minio,
+  repository does not exist or may require 'docker login'
+```
+
+Đo ba phía, ⛔ không suy đoán: `hub.docker.com/v2/repositories/minio/minio/` trả **`object not
+found`** (mất cả **repository**, ⛔ không phải một tag bị dọn) · registry v2 ẩn danh trả
+`UNAUTHORIZED` · `quay.io/minio/minio` **còn sống**, tag mới nhất là **cùng bản phát hành** ta đang
+chạy kèm hotfix.
+
+⭐ **Vì sao `make ci-local` ở máy xanh suốt:** ảnh nằm trong **đệm Docker cục bộ**, kéo về **12 tháng
+trước**. Testcontainers ⛔ không hỏi registry lần nào. Đây là biến thể **thứ ba** của *"xanh ở máy
+không phải bằng chứng"* — trước là `.env.local` (§10.38) và biến build rỗng. Runner có checkout sạch
+**và** đệm ảnh rỗng, nên nó là chỗ **duy nhất** trạng thái này dựng lại được.
+
+⛔⛔⛔ **Hệ quả nặng hơn một lượt CI đỏ.** `compose.prod.yml` ghim đúng chuỗi ấy ở **hai** chỗ.
+Production đang chạy bằng ảnh **đã nằm trên đĩa VPS-1** nên hôm nay ⛔ không có triệu chứng — nhưng
+`docker compose pull`, dựng lại máy, **và lượt quay lui `DOD0.21` (chưa chạy thật lần nào)** đều
+phải kéo ảnh. MinIO là nơi **mọi tệp người dùng tải lên** đang nằm. Cùng hình dạng §10.56 (*tham số
+chỉ chạy một lần thì tệp cấu hình ⛔ không còn là bằng chứng*) và §10.81 (*cron TLS chưa bao giờ chạy
+được*): một đường ai cũng tin là có, mà ⛔ chưa ai đi.
+
+**Bộ canh dựng ra, và giới hạn nó tự khai.** `SongnhueMinio` mang sẵn câu dặn *"đổi ở một nơi thì
+phải đổi cả hai"* từ **WS-4** — đúng, và **chưa bao giờ là một cổng kiểm** (luật 14). Nay là
+`AnhMinioDongBoTest`: mọi nơi khai **cùng một chuỗi**, và chuỗi ấy phải **nêu kho ảnh tường minh**
+(dạng trần âm thầm nghĩa là Docker Hub — đúng chỗ ảnh ⛔ không còn ở đó). ⛔ Nó **⛔ không** canh
+*"ảnh có kéo về được không"*: đó là một sự thật của **mạng**, và nhét một lượt gọi registry vào bộ
+kiểm là dựng lại đúng T11.78 — một cú chớp mạng hạ đỏ cổng bắt buộc.
+
+⭐⭐ **Và bộ canh bắt chính người viết ra nó, lần thứ chín trong dự án.** Regex bản đầu
+(`[A-Za-z0-9._-]*(?:/[A-Za-z0-9._-]+)*` rồi mới tới `minio/minio:`) **nuốt mất `quay.io/`**: khớp
+trái-nhất thất bại ở vị trí 0 rồi thành công ở vị trí 8. Nó trả dạng **TRẦN** cho một tham chiếu
+**CÓ** kho ảnh ⇒ hai trạng thái nó sinh ra để phân biệt đọc **giống hệt nhau** (luật 9). Bài tự-kiểm
+đỏ ngay, đúng chỗ.
+
+⚠⚠ **Lượt khôi phục sau kiểm chứng ngược cũng suýt sai:** `git checkout --` đưa tệp về **HEAD** —
+tức bản Docker Hub **cũ**, gỡ luôn bản vá. Chỉ lộ ra vì in `grep -c quay.io` = **0** trước khi đọc
+kết quả. Luật 10 vế *"bản KHÔI PHỤC cũng phải được xác nhận"*, lần thứ ba.
+
+#### 2. `RateLimitPolicy.EXPORT` khớp một chuỗi tiếng Anh trong kho đặt tên tiếng Việt
+
+T47.11 mở từ 10/09 và lượt Phase 3 **làm nó rộng ra**. Đo: **6** endpoint kết xuất,
+`path.contains("/export")` bắt được **2**. Bốn cái còn lại rơi xuống `API` — **100 lượt/phút thay vì
+10 lượt/giờ, rộng gấp 600 lần** — và **ba trong bốn** do chính đợt Phase 3 dựng.
+
+⭐ **Quét theo kiểu trả về mạnh hơn quét theo tên đường dẫn.** Tìm
+`ResponseEntity<Resource|byte[]|InputStreamResource|StreamingResponseBody>` lộ ra
+`/hyd/bao-cao/tai/{jobPublicId}` — chính đường **tải tệp** báo cáo thuỷ văn, thứ mà mọi phép grep
+theo chữ *"xuat"* hay *"export"* đều ⛔ không thấy.
+
+Nặng nhất là `/hr/employees/{id}/tai-lieu/zip`: mỗi lượt đọc **toàn bộ tài liệu một hồ sơ CBNV** ra
+khỏi MinIO rồi dựng một tệp tạm. Ở 100 lượt/phút trên một VPS 2 vCPU thì đó vừa là đường **tự đánh
+sập mình**, vừa là đường **rút dữ liệu cá nhân hàng loạt** (NĐ 13/2023).
+
+⛔ **Và ⛔ không phải cứ trả tệp là `EXPORT`.** Ba đường cố ý đứng ngoài, mỗi đường một lý do đo
+được: `/gis-layers/{id}/noi-dung` — **bản đồ VẼ bằng chính lượt gọi này**, 10 lượt/giờ là màn hình
+trực ban trắng; và hai đường tải **tệp mẫu nhập liệu** vài KB. Một bộ canh chỉ nói *"mọi endpoint
+trả tệp phải là EXPORT"* sẽ đúng về hình thức và **hỏng cái quan trọng nhất**.
+
+**Thứ tự cũng đổi:** công khai xét **TRƯỚC** kết xuất. Hôm nay ⛔ không đường công khai nào mang chữ
+`/xuat`, nên nó chưa hại ai — nhưng một đường như vậy sẽ hạ **toàn bộ khách của cổng** xuống 10
+lượt/giờ.
+
+**Bộ canh có hai vế**, vì bẫy thật ⛔ không phải *"quên một endpoint hôm nay"* mà *"endpoint kết xuất
+**thứ bảy** ra đời tháng sau"*: một bảng khai 12 dòng **kèm lý do từng dòng**, và một lượt **quét mã
+nguồn** tìm mọi phương thức controller trả tệp — cái nào ⛔ không có trong bảng thì đỏ. Phạm vi do bộ
+canh **ĐO**, ⛔ không do người viết gõ (luật 28). Luật phân loại dời hẳn về
+`RateLimitPolicy.choDuongDan(String)` — **một** bản duy nhất, để bài kiểm **hỏi thẳng** thay vì chép
+lại luật sang phía nó (T51.15).
+
+⭐⭐ **Ba bài đỏ sau bản vá là bằng chứng bản vá có hiệu lực.** Cả ba là `429` ở những bài ⛔ **không**
+liên quan gì tới kết xuất (`anUnknownReportCodeIsRejectedAtTheApi` chờ 400; `bcns07TraMaLoiRiengKemLyDo`
+chờ 422), vì lớp dựng phiên ở `@BeforeAll` thì **cả lớp dùng chung một IP**. ⛔ Nới hạn mức ở hồ sơ
+kiểm thử là **tắt một cơ chế bảo mật thật trong CI** (T37.2 cấm đích danh) ⇒ `PhienHttp.doiIp()` gọi
+trong `@BeforeEach`: **mỗi bài kiểm là một máy khách**, đúng nguyên tắc `ipGiaLap` đã dựng cho xô
+đăng nhập — chỉ là ở một xô chặt hơn **600 lần**. Trước bản vá, ⛔ **không lượt chạy nào** của bộ kiểm
+chạm tới xô `EXPORT`.
+
+#### 3. 13 mục DoD Phase 3 có đúng 0 lượt nhắc trong sổ
+
+`grep -c "DOD3" .claude/master-tracking.md` = **0**. Chúng sống ở `phase3-plan.md` §8 và **chưa lượt
+nào đối chiếu** — đúng hình dạng §10.36 (*4/17 cam kết DoD ⛔ không có phép kiểm nào*). Kết quả lượt
+đối chiếu đầu tiên: **12/13 đạt**, `DOD3.6` ⛔ **không** đạt (đã vá ở trên), `DOD3.12` đạt **một
+phần**.
+
+⚠ **Và phép đo `DOD3.11` của tôi tự sai trước.** Lượt quét đầu báo **9/20 endpoint mồ côi**; đo lại
+từng cái thì **8/9 là dương tính giả** — FE ghép đường dẫn bằng template literal nên chuỗi hai đoạn
+⛔ không xuất hiện nguyên văn. Luật 25: một bộ canh theo **hình dạng** phải được thử với **dữ liệu
+thật đang dùng**. Cái còn lại (`/tai-lieu/zip`) hoá ra cũng có màn hình gọi — `HoSoConDrawer.tsx:417`,
+nút *"Tải cả hồ sơ (.zip)"*.
+
+⛔ `DOD3.12` để **một phần** thay vì tick: §4.4 khai 5 dòng sổ *"đã xong mà vẫn `[ ]`"*, và tick theo
+lời nó mà ⛔ không đo từng cái là lặp lại đúng *"một dòng nợ tự nó sai"* — thứ dự án đã mắc **sáu**
+lần.

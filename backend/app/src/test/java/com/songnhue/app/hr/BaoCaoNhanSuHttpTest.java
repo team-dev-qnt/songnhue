@@ -8,6 +8,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -75,6 +76,22 @@ class BaoCaoNhanSuHttpTest extends IntegrationTestBase {
     private long donViGocId;
     private long xnAId;
     private long xnBId;
+
+    /**
+     * ⚠ Mỗi bài kiểm là một máy khách khác nhau — T60.9.
+     *
+     * <p>Lớp này dựng phiên ở {@code @BeforeAll}, nên ⛔ không có dòng này thì <b>cả lớp dùng chung
+     * một IP</b> và chung ngân sách {@code EXPORT} = <b>10 lượt / giờ</b>. Triệu chứng rơi vào bài
+     * chạy SAU dưới dạng {@code 429}, tức người đọc log đi tìm lỗi ở đúng chỗ ⛔ không có lỗi nào.
+     *
+     * <p>⛔ ⛔ Không nới hạn mức ở hồ sơ kiểm thử — filter vẫn chạy, vẫn đếm, vẫn chặn.
+     */
+    @BeforeEach
+    void moiBaiMotMayKhach() {
+        phienXem.doiIp();
+        phienXuat.doiIp();
+        phienHoSo.doiIp();
+    }
 
     @BeforeAll
     void dungNen() {
