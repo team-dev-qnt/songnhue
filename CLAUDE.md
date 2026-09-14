@@ -76,7 +76,7 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 **Phase 2 — `hydro` + MOD-01 phần còn lại** ✅ **xong phần mã 8/9/2026** — DoD **19/22**. Ba mục còn lại ⛔ **không phải mã**, nên ⛔ **không chặn Phase 3**: `DOD2.9` cần **VM-3** · `DOD2.21` cần **7 ngày lịch liên tục** (T37.1) · `DOD2.22` load test 200 CCU (T37.2). ⇒ Đồng hồ DOD2.21 nên bấm sớm nhất có thể.
 ✅✅✅ **PHASE 3 ĐÃ GỘP VÀO `dev` 14/09/2026** — PR #132, commit `2c3b8a1` (**Squash** ⇒ 1 cha ⇒ luật 22: nhánh nguồn đã CHẾT). CI trên `dev` sau gộp `34829579535` **success**. Số đọc từ **CI thật**, ⛔ không phải ở máy: **1811 testcase BE** (core 283 · content 54 · hydro 225 · operations 55 · app 1194) · **0 đỏ** · **74 migration / 74 vân tay** · mã lỗi **119 = 119** (đếm độc lập hai phía) · **1158 dòng** sổ. ⭐ Gốc chung `dev ↔ staging` **còn nguyên** (`kiem-goc-chung.sh` thoát 0) ⇒ lượt đề bạt hợp nhất sạch — **dùng merge commit, ⛔ không squash** (§10.72).
 🟨 **PHASE 4 MỞ ĐƯỢC** — kế hoạch ở **`.claude/phase4-plan.md`**. ⛔⛔ Việc ĐẦU TIÊN ⛔ không phải viết mã mà là **chuỗi đề bạt `dev → staging → production`** (`T60.13`): production tụt **15 commit** (đo lại 14/09 tối sau `git fetch`), và một trong số đó mang bản vá poller ⇒ **quy tắc 18 — mỗi ngày chậm là một ngày mất số liệu VĨNH VIỄN**. Cọc dài nhất `T37.1` đòi **7 ngày lịch** và ⛔ không bấm giờ được trước lượt đề bạt. ⭐ **PR #133 `dev → staging` đã xanh 12/12, `MERGEABLE`**; staging mang bản vá poller **từ 11/09** mà chưa ai đo nó ghi được byte chưa (`T61.2` — đo TRƯỚC khi đề bạt production).
-⭐⭐ **WS-61 (14/09) — đối chiếu kế hoạch Phase 4 với sổ**: bản đầu liệt kê **12** việc trong khi sổ có **122** dòng mở ⇒ **26 dòng đã xong mà chưa tick** (lật kèm bằng chứng) và **9 chỗ hổng** kế hoạch ⛔ không nhắc — nặng nhất: **ClamAV ⛔ chạy ở môi trường nào** (mọi tệp tải lên, gồm hồ sơ CBNV, là `SKIPPED` — `T61.4`) · **⛔ có Alertmanager** (Prometheus tính cảnh báo mà ⛔ gửi đi đâu — `T61.5`) · **runbook xoay khoá tắt âm thầm chống trùng CCCD** (`T61.11`) · kho có **0** kịch bản load test (`T61.6`). Việc chia theo chủ ở **`.claude/phase4-tracking-tmp.md`** (tệp TẠM; §B là lệnh cụ thể cho QuanTran — phía phát triển ⛔ SSH).
+⭐⭐ **WS-61 (14/09) — đối chiếu kế hoạch Phase 4 với sổ**: bản đầu liệt kê **12** việc trong khi sổ có **122** dòng mở ⇒ **26 dòng đã xong mà chưa tick** (lật kèm bằng chứng) và **9 chỗ hổng** kế hoạch ⛔ không nhắc — nặng nhất: **ClamAV ⛔ chạy ở môi trường nào** (mọi tệp tải lên, gồm hồ sơ CBNV, là `SKIPPED` — `T61.4`) · **⛔ có Alertmanager** (Prometheus tính cảnh báo mà ⛔ gửi đi đâu — `T61.5`) · **runbook xoay khoá tắt âm thầm chống trùng CCCD** (`T61.11`) · kho có **0** kịch bản load test (`T61.6`, nay đã viết `tools/tai-thu/`) · ⛔⛔ **mọi xô hạn mức khoá theo IP** trong khi chú thích trong mã khai *"cả Công ty ra Internet qua một IP NAT"* ⇒ 50 cán bộ chung **100 lượt/phút**, tab dashboard tự gọi ~2–3 lượt/phút lúc nghỉ (`T61.17` — **chặn go-live nếu NAT là thật**, chờ QuanTran đo). Việc chia theo chủ ở **`.claude/phase4-tracking-tmp.md`** (tệp TẠM; §B là lệnh cụ thể cho QuanTran — phía phát triển ⛔ SSH).
 
 ✅✅ **PHASE 3 XONG PHẦN MÃ 14/09/2026.** Hai nhóm: **D (HRM)** đủ 9/9 chức năng CN-04.1→04.9, và
 **C3** (GIS · dashboard · báo cáo MOD-02) đủ phần dựng được. ⇒ **Mọi mã quyền trong danh mục nay
@@ -391,6 +391,13 @@ nào — bản vá là **mã**, ⛔ không phải dữ liệu) · **1045 dòng**
 `./mvnw -Dtest=…` **song song**, nó `rm -rf` đúng `hydro/target/surefire-reports` giữa chừng. Lượt
 ấy vẫn thoát **0** và in 7/7 SUCCESS. ⇒ **Mọi lượt `make ci-local` phải là tiến trình maven DUY
 NHẤT trên cây này** — nếu không thì cái xanh ⛔ không còn nói được nó xanh vì cái gì (luật 32).
+
+⭐⭐ **Đo lại 14/09/2026 sau WS-61 (Phase 4 đợt 1) — `make ci-local` thoát 0 VÀ `make ci-order` thoát 0**,
+tiến trình maven DUY NHẤT (⚠ số ở **MÁY**): **1817 testcase BE** (core **284** · content 54 · hydro 225 ·
+operations 55 · app **1199**) · **0 đỏ** · FE **438** admin-app / 51 tệp + **392** public-web / 44 ·
+**74 migration**, ⛔ thêm tệp nào · **1176 dòng** sổ tracking đọc được, 0 phép kiểm đỏ. **+6 bài BE,
++4 bài FE**, cả mười là bộ canh: `QuyenBanDumpTest` 3 · `BackupServiceTest` +1 · `IpThatTrongNhatKyHttpTest` 2 ·
+`hoSoCongTrinhVongKhuHoi.test.tsx` 4.
 
 ⭐⭐ **Đo lại 14/09/2026 sau WS-60 (đối chiếu DoD Phase 3 · gỡ chốt CI) — `make ci-local` thoát 0**,
 lượt chạy là tiến trình maven DUY NHẤT (⚠ số ở **MÁY**): **1811 testcase BE** (core 283 · content 54 ·

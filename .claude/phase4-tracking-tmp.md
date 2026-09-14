@@ -20,13 +20,14 @@
 | A3 | `T61.3` · `T61.16` | Sửa CLAUDE.md: tên miền production `.vn`, VM-3 → VPS-2, 15 commit | P0 · tài liệu | [x] |
 | A4 | `T61.12` | Bài render vòng khứ hồi `ConstructionFormPage` | P1 · dữ liệu | [x] |
 | A5 | `T61.14` | Bài HTTP khẳng định GIÁ TRỊ `ip_address` ở 3 bảng | P1 · bảo mật | [x] |
-| A6 | `T61.6` | Kịch bản load test (k6) — 200 CCU cổng · 50 users dashboard · khai tỉ lệ 429 | P1 · NFR-02 | [ ] |
+| A6 | `T61.6` | Kịch bản load test (k6) — 200 CCU cổng · 50 users dashboard · khai tỉ lệ 429 | P1 · NFR-02 | [~] viết xong, chưa chạy staging |
 | A7 | `T61.4` | Dịch vụ ClamAV trong `compose.prod.yml` + nối `APP_CLAMAV_HOST` (staging chờ quyết RAM) | P1 · bảo mật | [ ] |
 | A8 | `T61.5` | Alertmanager trong `compose.observability.yml` — cấu hình, **kênh chờ QT chọn** | P1 · NFR-01 | [ ] |
 | A9 | `T61.11` | Job tính lại `national_id_fingerprint` khi xoay khoá (T51.9, phần mã) | P1 · dữ liệu | [ ] |
 | A10 | `T61.13` | Bộ canh ĐẾM nơi ném đối số vào mã lỗi ⛔ `{n}`, rồi vá | P2 | [ ] |
-| A11 | `T61.15` | javadoc T57.7→T57.15 · xoá `hr.spi` rỗng · sửa `nghiem-thu-cong-ttdt-v1.md` | P2 | [ ] |
+| A11 | `T61.15` | javadoc T57.7→T57.15 · xoá `hr.spi` rỗng · sửa `nghiem-thu-cong-ttdt-v1.md` | P2 | [x] |
 | A12 | `T58.18` · `T25.23` | Bộ canh N+1 · hạ trần màu ghi cứng | P2 | [ ] |
+| A13 | `T61.17` | ⛔⛔ Hạn mức khoá theo IP ⇒ 50 cán bộ sau một NAT chung 100 lượt/phút — **chờ QT xác nhận NAT + chốt hướng vá** | P0 nếu đúng | [ ] |
 
 ---
 
@@ -88,6 +89,7 @@ Rồi ghi giờ bắt đầu **T37.1** (7 ngày lịch) ngay khi `hydro_readings
 | `T61.5` | **Chọn kênh cảnh báo**: email nhóm · Telegram · khác | trả lời để Dev dựng A8 |
 | `T61.4` | **Quyết RAM**: bật ClamAV ở staging (VPS-2 biên 2,7 GB) hay chỉ production | trả lời để Dev dựng A7 |
 | `T50.13` | `SMTP_HOST` staging: đặt thật hay gỡ | `.env` VPS-2 |
+| `T61.17` | **Xác nhận**: Công ty ra Internet qua MỘT IP công cộng? | từ một máy trong mạng Công ty: `curl -s https://api.ipify.org` trên 2–3 máy khác phòng — cùng một số là một NAT |
 
 ### B5. Sau khi A6/A7/A8 gộp và lên staging
 
