@@ -559,6 +559,15 @@ export const ERROR_CATALOG = {
     severity: 'warning',
   },
 
+  // ⛔⛔ Mã RIÊNG chứ ⛔ không phải 404: báo cáo CÓ trong danh mục, chỉ chưa dựng được. Câu chữ của
+  //    backend mang nguyên văn LÝ DO (`{1}`) và `messageFor` ưu tiên nó — bản đỡ ở đây cố ý nói
+  //    CHUNG, vì chép lý do xuống đây là dựng một bản sao sẽ nói dối vào ngày G6 được trả lời.
+  'HR-2009': {
+    message: 'Báo cáo này chưa xuất được',
+    handling: 'toast',
+    severity: 'warning',
+  },
+
   // --- MOD-05 Quản trị --------------------------------------------------------
   'ADM-2001': {
     message: 'Kết xuất lưu trữ nhật ký thất bại — không xóa bản ghi nào',

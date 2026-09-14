@@ -416,6 +416,18 @@ public enum ErrorCode {
     /** Ngày lễ {0} đã được khai — hai hàng cùng ngày làm phép đếm trừ hai lần cùng một ngày. */
     HR_2008("HR-2008", HttpStatus.CONFLICT),
 
+    // ---- MOD-04 Báo cáo nhân sự (CN-04.8, WS-58) --------------------------------
+    /**
+     * Báo cáo {0} <b>có trong danh mục</b> nhưng chưa dựng được — {1} là lý do, nguyên văn.
+     *
+     * <p>⛔⛔ Mã riêng chứ ⛔ <b>không</b> phải 404. Hai trạng thái khác hẳn nhau và dẫn tới hai
+     * việc khác hẳn nhau: <i>"mã ⛔ không tồn tại"</i> là người gọi gõ sai, còn <i>"mã có thật,
+     * chưa dựng được"</i> là một <b>khoảng trống đã biết</b> mà người vận hành cần đọc được lý do.
+     * Với {@code BCNS-07} lý do ấy là <b>G6</b>: mẫu 2C-BNV/2008 là biểu mẫu quy định của Bộ Nội
+     * vụ, Công ty chưa gửi tệp gốc, và đặc tả ghi rõ <i>"cấm tự chế layout"</i>.
+     */
+    HR_2009("HR-2009", HttpStatus.UNPROCESSABLE_CONTENT),
+
     // ---- MOD-05 Quản trị --------------------------------------------------------
     ADM_2001("ADM-2001", HttpStatus.UNPROCESSABLE_CONTENT),
     ADM_2002("ADM-2002", HttpStatus.CONFLICT),

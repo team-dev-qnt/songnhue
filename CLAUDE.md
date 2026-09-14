@@ -88,9 +88,16 @@ mồ côi từ 13/08.
 **CN-04.6** danh bạ · **CN-04.1 vế 1** chốt chặn giải thể đơn vị · **CN-04.9 nghỉ phép** (14/09).
 CN-04.9 trả nốt **13 khoá `hr.leave.*`** mồ côi từ 13/08 và nối **ba mã quyền** có 0 endpoint
 (`hr:leave:request` · `hr:leave:approve` · `hr:leave:view-all`) + `hr:contract:manage`.
-⬜ Còn lại của MOD-04: **CN-04.1 vế 2–5** (sơ đồ cây + kéo thả + xác nhận 2 bước + export) ·
-**CN-04.8** báo cáo · hai vế nhỏ của CN-04.5 (tải cả hồ sơ ZIP, xem trước PDF/ảnh — T53.12) · hai vế
-chờ nghiệp vụ của CN-04.9 (uỷ quyền duyệt — chốt B3; lịch nghỉ đơn vị dạng calendar — T57.18).
+⭐⭐ **WS-58 (14/09) đóng nốt MOD-04**: **CN-04.1 vế 2–5** (sơ đồ ECharts `tree` kèm quân số ·
+kéo–thả đổi nhánh · xác nhận 2 bước khi giải thể · xuất PNG/SVG) · **CN-04.8** báo cáo nhân sự
+(KPI + 3 biểu đồ + **8 mã BCNS**, xuất CSV) · **T53.12** (tải cả hồ sơ ZIP · xem trước PDF/ảnh).
+⇒ **Mọi mã quyền `hr:*` nay đều có đầu nhận** — `RbacMatrixTest` ⛔ không còn một dòng miễn trừ
+`hr:` nào.
+⬜ Còn lại của MOD-04, **cả bốn đều chờ NGHIỆP VỤ chứ ⛔ không chờ mã**: **BCNS-07** mẫu 2C-BNV
+(G6 — cấm tự chế bố cục) · **bản in PDF** của 7 báo cáo còn lại (G10 + T42.14) · **uỷ quyền duyệt**
+(chốt B3) · **lịch nghỉ đơn vị dạng calendar** (T57.18). Thêm ba nợ của CN-04.9: số phép tồn đầu kỳ
+(T57.16) · *"cuối tuần = T7+CN"* trong khi Công ty có ca trực (T57.17) · người nhận thông báo rộng
+hơn đặc tả (T57.15).
 ⛔⛔ **Thứ tự T51.8 → CN-04.9 ĐÃ TRẢ XONG** và nó đúng: chốt C3 đòi *"cấp tài khoản cho toàn bộ
 CBNV"*, nên đơn nghỉ phải biết **người gửi là CBNV nào**. **G6** chặn **đúng một** báo cáo `BCNS-07`,
 ⛔ không chặn 8 chức năng còn lại; **G6-a** (danh sách CBNV) chặn **dữ liệu**, ⛔ không chặn mã —
@@ -297,6 +304,14 @@ sai, sửa 10/09 — T52.8). Đo trên CSDL staging cùng ngày: `constructions`
 | 14/9 | ⛔ **Luật 32 lần thứ TƯ, do chính người vừa đọc nó mắc: `-Dtest='A+B'` ⇒ 0 bài chạy, `BUILD SUCCESS`, reactor 6,9 giây.** Cùng phiên còn một lượt: báo cáo surefire **cũ** (cùng thời gian `16.34 s`) bị đọc thành kết quả lượt vừa chạy — lượt ấy thật ra đỏ ở **Checkstyle** trước khi tới test. ⇒ Xoá báo cáo trước mỗi lượt đo, và **đối chiếu thời gian** trong báo cáo với lượt chạy | T57.11 |
 | 14/9 | ⭐ **Bốn thứ dựng sẵn cho CN-04.9 nằm im 32 ngày, cả bốn 0 người đọc**: bảng `holidays` · seed 8 ngày lễ pháp định · `DateTimeUtils.countWorkingDays` (javadoc ghi đích danh *"dùng cho CN-04.9"*, **0** lời gọi production) · 13 khoá `hr.leave.*`. Và bản đầu của tôi **viết lại** `countWorkingDays` thay vì gọi nó. Luật 15 nói công tắc chưa ai đọc là một **lỗi**, ⛔ không phải việc để dành — hệ quả đo được là lượt dựng sau **⛔ không tìm thấy** thứ đã có | T57.0 · T57.3 |
 | 14/9 | ⭐ **Quy tắc 13 tái diễn trong đúng lớp đang viết javadoc cảnh báo nó.** `SoDuPhepService.tinh()` bản đầu lấy *đã tiêu* bằng `SUM` lọc `BETWEEN` rồi **trừ** *đang chờ* lọc theo **chồng khoảng** — hai vị từ khác nhau, hiệu của chúng là con số ⛔ không ai định nghĩa được | T57.4 |
+| 14/9 | ⛔⛔⛔ **`StreamingResponseBody` chạy trên MỘT LUỒNG KHÁC — và mọi cơ chế nền của hệ này đứng trên `ThreadLocal`.** `AuthContext`, `ScopeFilterAspect`, `AuditContext` đều **RỖNG** ở luồng async. Hệ quả ⛔ không dừng ở một ngoại lệ (`AUTH-0002` phát ra từ bên trong thân phát luồng): một truy vấn chạy ở đó đi qua bộ lọc phạm vi **⛔ không có phạm vi nào**, tức đọc **rộng hơn** người gọi được phép. ⛔ Và nó hỏng theo chiều tệ nhất — header đã gửi, `Content-Type` đã chốt `octet-stream`, nên `GlobalExceptionHandler` ⛔ không ghi nổi envelope JSON ⇒ **người dùng nhận một tệp ZIP HỎNG thay vì một thông báo**. ⇒ Dựng ra **tệp tạm** trên chính luồng request, xoá ngay sau khi mở fd (POSIX giữ inode) | T58.7 |
+| 14/9 | ⛔⛔ **Một bản nén THIẾU tệp mà ⛔ không nói ra thì người nhận dùng nó như một bản đầy đủ.** Tệp vừa tải lên có `status = UPLOADING` cho tới khi quét virus xong; bản đầu bỏ qua kèm một dòng WARN **trong log** — nơi ⛔ không ai đọc. ⛔ Còn chặn cả lượt tải thì sai theo chiều kia: một tệp đang quét làm hỏng thao tác của người ⛔ không liên quan. ⇒ Bản nén mang `_THIEU.txt` liệt kê đúng những tệp ấy (quy tắc 16 — một tập ⛔ không đi một mình) | T58.8 |
+| 14/9 | ⭐⭐ **Cách sửa RẺ NHẤT cho một bộ canh đỏ lại chính là tháo nó.** `baySoBaoCaoDeuRaByteThat` đỏ ở BCNS-04 vì báo cáo *hợp đồng sắp hết hạn* chỉ có dòng tiêu đề — dữ liệu nền ⛔ không có hợp đồng nào sắp hết. Miễn hai mã **có điều kiện** khỏi vòng lặp là để một BCNS-04 hỏng hoàn toàn đi lọt mãi mãi. ⇒ Dựng **ĐIỀU KIỆN** (hợp đồng hết hạn sau 10 ngày, chứng chỉ sau 15 ngày), ⛔ không nới khẳng định. Cùng hình dạng §11.17 (*nới ngưỡng cho hết đỏ là tự tay tháo bộ canh*) | T58.6 |
+| 14/9 | ⛔⛔ **Bốn chức năng đọc CÙNG bảng `employees` với HAI luật phạm vi ngược nhau.** Danh bạ (CN-04.6) và sơ đồ tổ chức (CN-04.1) = **toàn Công ty**; hồ sơ (CN-04.7) và báo cáo (CN-04.8) = **cắt**. Báo cáo là *đầu ra của hồ sơ*, mà hồ sơ chịu M4.13 — một báo cáo rộng hơn nguồn của nó là một **đường vòng qua chính luật ấy**, và nó im lặng hoàn toàn. ⚠ Hệ quả phải KHAI RA trên giao diện: hai người ở hai đơn vị thấy hai bộ số và **cả hai đều đúng** | T58.1 |
+| 14/9 | ⛔ **Bảy mã báo cáo khả dụng cộng một dòng IM LẶNG thì lượt nghiệm thu đếm bảy nút rồi tick đủ.** BCNS-07 (mẫu 2C-BNV/2008, **cấm tự chế bố cục**, chờ G6) khai đủ trong danh mục với `khaDung = false` + **lý do nguyên văn**, và đường xuất trả **`HR-2009`** chứ ⛔ không phải 404 — *"mã ⛔ không tồn tại"* và *"mã có thật, chưa dựng được"* dẫn tới hai việc khác hẳn nhau | T58.4 |
+| 14/9 | ⭐ **Một `read(UUID)` trần trên bảng `attachments` là một lỗ IDOR trông y hệt mã đúng** — bảng ấy dùng chung cho bài viết, công trình, hồ sơ CBNV và cấu hình cổng. ⇒ `readForOwner(ownerType, ownerId, publicId)` **tự kiểm** tệp thuộc đúng bản ghi, biến *"đoán đúng UUID của tệp người khác"* thành một trạng thái ⛔ không biểu diễn được thay vì một lời dặn từng nơi gọi phải nhớ | T58.9 |
+| 14/9 | ⭐ **Một con số trên sơ đồ tổ chức hỏng theo CẢ HAI chiều nếu chỉ có một.** Chỉ *trực tiếp* ⇒ Xí nghiệp có 4 Tổ đội hiện **0 người** khi thu gọn; chỉ *cả nhánh* ⇒ tổng nút con ⛔ không bằng nút cha và ⛔ không chỗ nào nói vì sao. ⇒ Trả **hai** và gọi tên chúng; nhãn hiện một số khi hai số bằng nhau (nút lá `2/2` là phân số vô nghĩa) | T58.0 |
+| 14/9 | ⚠ **React Compiler bỏ tối ưu cả component vì một handler bắt giá trị `useMemo`** — `react-hooks/preserve-manual-memoization` đỏ ở cổng `Frontend — lint`, mà `tsc` và `vitest` đều ⛔ không thấy. **Lần thứ TƯ** cùng hình dạng *ba cổng, ba câu hỏi khác nhau* | T58.12 |
 
 ⛔ Hệ quả rút ra: **"đã tick" không phải bằng chứng.** Trước khi mở một giai đoạn mới, đối chiếu với mã thật và chạy đường mà người dùng thật đi.
 
@@ -337,6 +352,16 @@ nào — bản vá là **mã**, ⛔ không phải dữ liệu) · **1045 dòng**
 `./mvnw -Dtest=…` **song song**, nó `rm -rf` đúng `hydro/target/surefire-reports` giữa chừng. Lượt
 ấy vẫn thoát **0** và in 7/7 SUCCESS. ⇒ **Mọi lượt `make ci-local` phải là tiến trình maven DUY
 NHẤT trên cây này** — nếu không thì cái xanh ⛔ không còn nói được nó xanh vì cái gì (luật 32).
+
+⭐⭐ **Đo lại 14/09/2026 sau WS-58 (CN-04.1 vế 2–5 · CN-04.8 · T53.12) — `make ci-local` thoát 0 VÀ
+`make ci-order` thoát 0 NGAY LƯỢT ĐẦU**, lượt chạy là tiến trình maven DUY NHẤT (⚠ số ở **MÁY**;
+quét CVE và đóng gói image ⛔ vẫn chỉ sống trên runner): **1781 testcase BE** (core 283 · content 54 ·
+hydro 225 · operations 45 · app **1174**) · **0 đỏ** · **230 báo cáo surefire** · FE **422** test
+admin-app / 49 tệp + **392** public-web / 44 · **73 migration** (⛔ **không thêm tệp nào** — cả ba
+chức năng là **mã**, ⛔ không phải dữ liệu) · mã lỗi **115** (đếm độc lập hai phía cùng ra 115;
+`HR-2009`) · **1128 dòng** sổ tracking đọc được (WS-57: 1109).
+⭐ **Bậc thang màu ghi cứng 46 → 44** — bốn mã hex mới đi qua `theme.useToken()` thay vì
+`design-tokens`, và `xuatSoDo.ts` (⛔ không phải component) nhận màu nền làm **tham số**.
 
 ⭐⭐ **Đo lại 14/09/2026 sau WS-57 (CN-04.9 nghỉ phép) — `make ci-local` thoát 0 VÀ `make ci-order`
 thoát 0**, lượt chạy là tiến trình maven DUY NHẤT (⚠ số ở **MÁY**; quét CVE và đóng gói image ⛔ vẫn

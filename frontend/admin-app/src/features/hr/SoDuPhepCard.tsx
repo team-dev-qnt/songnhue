@@ -1,4 +1,4 @@
-import { Alert, Card, Col, Row, Statistic, Typography } from 'antd';
+import { Alert, Card, Col, Row, Statistic, Typography, theme } from 'antd';
 
 import { type SoDuPhepView } from './hrVocabulary';
 
@@ -23,6 +23,11 @@ import { type SoDuPhepView } from './hrVocabulary';
  * `NUMERIC(5,1)` mà đưa qua `Number()` là mở đúng cửa sai số mà quy tắc 2 cấm.
  */
 export function SoDuPhepCard({ soDu, dangTai }: { soDu?: SoDuPhepView; dangTai?: boolean }) {
+  // ⛔ Màu lấy từ `theme.useToken()`, ⛔ không ghi cứng mã hex — `noHardcodedColors.test.ts`
+  //   là một bậc thang CHỈ ĐƯỢC GIẢM, và một mã hex ở đây là màu của AntD chứ ⛔ không
+  //   phải màu thương hiệu nên nó cũng ⛔ không thuộc về `design-tokens`.
+  const { token } = theme.useToken();
+
   return (
     <Card title={`Số dư phép năm ${soDu?.nam ?? ''}`} loading={dangTai}>
       <Row gutter={[16, 16]}>
@@ -41,7 +46,7 @@ export function SoDuPhepCard({ soDu, dangTai }: { soDu?: SoDuPhepView; dangTai?:
             value={soDu?.conLai ?? '—'}
             suffix="ngày"
             valueStyle={
-              soDu && soDu.conLai.trim().startsWith('-') ? { color: '#cf1322' } : undefined
+              soDu && soDu.conLai.trim().startsWith('-') ? { color: token.colorError } : undefined
             }
           />
         </Col>

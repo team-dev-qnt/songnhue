@@ -1,5 +1,6 @@
 package com.songnhue.hr.application;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -17,6 +18,7 @@ import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.BusinessRuleException;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
 import com.songnhue.core.common.persistence.ScopeGuard;
+import com.songnhue.core.spi.AttachmentContent;
 import com.songnhue.core.spi.AttachmentPort;
 import com.songnhue.core.spi.AttachmentRef;
 import com.songnhue.core.spi.AttachmentUploadCommand;
@@ -81,13 +83,19 @@ public class HoSoTaiLieuService {
     private final AttachmentPort attachments;
     private final HrSettings hrSettings;
     private final ScopeGuard scopeGuard;
+    private final com.songnhue.core.spi.SecurityEventPort suKienBaoMat;
 
     public HoSoTaiLieuService(
-            EmployeeRepository employees, AttachmentPort attachments, HrSettings hrSettings, ScopeGuard scopeGuard) {
+            EmployeeRepository employees,
+            AttachmentPort attachments,
+            HrSettings hrSettings,
+            ScopeGuard scopeGuard,
+            com.songnhue.core.spi.SecurityEventPort suKienBaoMat) {
         this.employees = employees;
         this.attachments = attachments;
         this.hrSettings = hrSettings;
         this.scopeGuard = scopeGuard;
+        this.suKienBaoMat = suKienBaoMat;
     }
 
     @Transactional(readOnly = true)
@@ -181,6 +189,174 @@ public class HoSoTaiLieuService {
      * {@code purpose} lạ có thể đến từ một bản khôi phục cũ hoặc một lượt đổi tên hằng. Ném ở đây là
      * làm chết màn hình hồ sơ vì một hàng dữ liệu cũ — mà thứ người dùng cần là thấy phần còn lại.
      */
+    /**
+     * Một lượt tải cả hồ sơ <b>đã được phân quyền và đã phân loại tệp</b> — xem {@link #chuanBiZip}.
+     *
+     * @param chuaSanSang tệp <b>chưa</b> tải được (đang chờ quét virus hoặc đã bị cách ly). ⛔ Danh
+     *     sách này ⛔ không được rơi đi trong im lặng — xem {@link #ghiZip}
+     */
+    public record ChuanBiZip(
+            Long hoSoId, String maHoSo, List<AttachmentRef> sanSang, List<AttachmentRef> chuaSanSang) {}
+
+    /**
+     * Phân quyền + phân loại <b>TRƯỚC</b> khi byte đầu tiên chảy — CN-04.5 (T53.12).
+     *
+     * <h2>⛔⛔ Vì sao tách khỏi {@link #ghiZip}, và đây là một bài học đo được</h2>
+     *
+     * <p>Bản đầu làm tất cả bên trong {@code StreamingResponseBody}. Lượt chạy đầu tiên in ra:
+     * {@code HttpMessageNotWritableException: No converter for ApiResponse with preset Content-Type
+     * 'application/octet-stream'}, rồi {@code Cannot render error page — the response has already
+     * been committed}.
+     *
+     * <p>⇒ <b>Một endpoint phát luồng ⛔ KHÔNG CÓ CÁCH NÀO báo lỗi sau byte đầu tiên.</b> Header đã
+     * gửi, kiểu nội dung đã chốt là {@code application/octet-stream}, và bộ xử lý ngoại lệ chung ⛔
+     * không ghi nổi envelope JSON vào đó. Người dùng nhận một tệp ZIP <b>hỏng</b> thay vì một thông
+     * báo — và một lượt từ chối vì <i>ngoài phạm vi đơn vị</i> khi ấy trông y hệt một lỗi mạng.
+     *
+     * <p>⇒ Mọi thứ có thể ném — {@code ScopeGuard}, hồ sơ ⛔ không tồn tại — phải xảy ra ở đây, khi
+     * phản hồi còn chưa được gửi đi.
+     */
+    @Transactional(readOnly = true)
+    public ChuanBiZip chuanBiZip(UUID hoSoPublicId) {
+        Employee hoSo = trongPhamVi(hoSoPublicId);
+        List<AttachmentRef> tep = attachments.refsOf(OWNER_TYPE, hoSo.getId());
+        return new ChuanBiZip(
+                hoSo.getId(),
+                hoSo.getCode(),
+                tep.stream().filter(AttachmentRef::downloadable).toList(),
+                tep.stream().filter(ref -> !ref.downloadable()).toList());
+    }
+
+    /**
+     * Ghi bản nén ra luồng phản hồi — CN-04.5 (T53.12).
+     *
+     * <h2>⛔ Ghi thẳng ra luồng, ⛔ KHÔNG dựng {@code byte[]}</h2>
+     *
+     * <p>Một hồ sơ đủ bảy thư mục có thể vài chục MB. Dựng cả bản nén trong heap rồi mới gửi là
+     * đúng thứ VPS 2 nhân phải tiết kiệm (T28.35), và mười lượt bấm đồng thời là mười bản cùng lúc.
+     *
+     * <h2>⛔ Tên mục là {@code <Thư mục>/<tên tệp>}</h2>
+     *
+     * <p>Bản nén phẳng với hai mươi tệp tên kiểu <i>"Quyết định.pdf"</i> là thứ người nhận phải mở
+     * từng cái để biết cái nào là cái gì. ⚠ Tệp trùng tên trong cùng thư mục <b>có thật</b>
+     * (versioning của {@code AttachmentService.nextVersion} giữ cả bản cũ) ⇒ chèn số thứ tự, vì
+     * nhiều trình giải nén <b>lặng lẽ ghi đè</b> mục sau lên mục trước.
+     *
+     * <h2>⛔⛔ Tệp CHƯA tải được ⇒ bản nén TỰ KHAI, ⛔ không lặng lẽ thiếu</h2>
+     *
+     * <p>Một tệp vừa tải lên còn đang chờ quét virus có {@code downloadable = false}. Bỏ nó đi kèm
+     * một dòng WARN trong log là để người nhận cầm một bản nén <b>thiếu</b> mà ⛔ không có cách nào
+     * biết — và họ sẽ dùng nó như một bản đầy đủ.
+     *
+     * <p>⇒ Bản nén mang thêm mục {@code _THIEU.txt} liệt kê đúng những tệp ấy. ⛔ Còn <b>chặn cả
+     * lượt tải</b> thì cũng sai theo chiều kia: một tệp đang quét làm hỏng thao tác của người ⛔
+     * không liên quan gì. Cùng lý lẽ quy tắc 16 — <i>một con số (ở đây là một tập) ⛔ không đi một
+     * mình</i>.
+     *
+     * <h2>⚠ Lượt tải này ghi NHẬT KÝ BẢO MẬT</h2>
+     *
+     * <p>{@code audit_logs} chỉ sinh dòng khi có <b>thay đổi</b>, nên mọi lượt đọc là vô hình
+     * (T51.6). Mang cả hồ sơ một con người ra khỏi hệ thống mà ⛔ không để lại dấu vết ở bảng nào là
+     * đúng thứ NĐ 13/2023 hỏi tới.
+     */
+    /**
+     * Dựng bản nén ra <b>một tệp tạm</b> rồi trả đường dẫn — CN-04.5 (T53.12).
+     *
+     * <h2>⛔⛔ Vì sao ⛔ KHÔNG dùng {@code StreamingResponseBody}, dù đó là cách "đúng sách"</h2>
+     *
+     * <p>Bản đầu làm đúng thế, và lượt chạy đầu tiên đỏ với {@code AuthenticationException:
+     * AUTH-0002} phát ra từ <b>bên trong</b> thân phát luồng.
+     *
+     * <p>Nguyên nhân: {@code StreamingResponseBody} chạy trên <b>một luồng khác</b> (async
+     * dispatch). Mà gần như mọi cơ chế nền của hệ này đứng trên {@code ThreadLocal} —
+     * {@code AuthContext}, {@code ScopeFilterAspect}, {@code AuditContext}. Ở luồng ấy chúng
+     * <b>RỖNG</b>. Hệ quả ⛔ không dừng ở một ngoại lệ: một truy vấn chạy ở đó sẽ đi qua bộ lọc
+     * phạm vi <b>⛔ không có phạm vi nào</b> — tức có thể đọc <b>rộng hơn</b> người gọi được phép.
+     *
+     * <p>⛔⛔ Và nó hỏng theo chiều tệ nhất: header đã gửi, kiểu nội dung đã chốt là
+     * {@code application/octet-stream}, nên {@code GlobalExceptionHandler} ⛔ không ghi nổi envelope
+     * JSON — người dùng nhận <b>một tệp ZIP hỏng</b> thay vì một thông báo.
+     *
+     * <h2>⛔ Vì sao tệp tạm chứ ⛔ không phải {@code byte[]}</h2>
+     *
+     * <p>Hạn mức một hồ sơ là {@code limits.attachment.quota-mb.EMPLOYEE} = <b>200 MB</b> (seed
+     * 10/09). Dựng ngần ấy trong heap trên một VPS <b>2 nhân</b> là đúng thứ T28.35 đã phải tránh.
+     * Tệp tạm cũng trả lại được {@code Content-Length} ⇒ trình duyệt hiện thanh tiến trình.
+     *
+     * <p>⚠ Nơi gọi <b>phải</b> xoá tệp — xem {@code HoSoTaiLieuController.zip}.
+     */
+    public java.nio.file.Path taoZipTamThoi(ChuanBiZip chuanBi) throws java.io.IOException {
+        java.nio.file.Path tam = java.nio.file.Files.createTempFile("ho-so-", ".zip");
+        try (java.io.OutputStream ra = java.nio.file.Files.newOutputStream(tam)) {
+            ghiZip(chuanBi, ra);
+        } catch (java.io.IOException | RuntimeException hong) {
+            java.nio.file.Files.deleteIfExists(tam);
+            throw hong;
+        }
+        return tam;
+    }
+
+    void ghiZip(ChuanBiZip chuanBi, java.io.OutputStream ra) throws java.io.IOException {
+        java.util.Map<String, Integer> daDung = new java.util.HashMap<>();
+        int soChep = 0;
+        try (java.util.zip.ZipOutputStream zip = new java.util.zip.ZipOutputStream(ra, StandardCharsets.UTF_8)) {
+            for (AttachmentRef ref : chuanBi.sanSang()) {
+                java.util.Optional<AttachmentContent> noiDung =
+                        attachments.readForOwner(OWNER_TYPE, chuanBi.hoSoId(), ref.publicId());
+                if (noiDung.isEmpty()) {
+                    // Kho và CSDL đã lệch nhau — hiếm, nhưng có thật. WARN chứ ⛔ không ném: một tệp
+                    // mất trong kho ⛔ không được làm hỏng cả bản nén.
+                    log.warn(
+                            "Tệp {} của hồ sơ {} có trong CSDL mà ⛔ không đọc được từ kho",
+                            ref.publicId(),
+                            chuanBi.maHoSo());
+                    continue;
+                }
+                String thuMuc = thuMucCua(ref).map(Enum::name).orElse("KHAC");
+                zip.putNextEntry(
+                        new java.util.zip.ZipEntry(thuMuc + "/" + tenDuyNhat(daDung, thuMuc, ref.originalName())));
+                try (java.io.InputStream vao = noiDung.get().content()) {
+                    vao.transferTo(zip);
+                }
+                zip.closeEntry();
+                soChep++;
+            }
+
+            if (!chuanBi.chuaSanSang().isEmpty()) {
+                zip.putNextEntry(new java.util.zip.ZipEntry("_THIEU.txt"));
+                zip.write(banKeThieu(chuanBi.chuaSanSang()).getBytes(StandardCharsets.UTF_8));
+                zip.closeEntry();
+            }
+        }
+        // ⚠ Ghi SAU khi nén xong: `soChep` là số tệp THẬT SỰ ra khỏi hệ thống, ⛔ không phải số dòng
+        //   trong CSDL. Hai con số ấy khác nhau đúng khi kho có vấn đề — và khi đó dòng nhật ký phải
+        //   nói số nhỏ hơn.
+        suKienBaoMat.hrDossierDownloaded(chuanBi.maHoSo(), soChep);
+    }
+
+    private static String banKeThieu(List<AttachmentRef> chuaSanSang) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("BẢN NÉN NÀY THIẾU ").append(chuaSanSang.size()).append(" TỆP\n\n");
+        sb.append("Những tệp dưới đây có trong hồ sơ nhưng chưa tải xuống được — thường là do đang\n")
+                .append("chờ quét virus (vài giây sau khi tải lên), hoặc đã bị cách ly.\n")
+                .append("Hãy tải lại bản nén sau ít phút.\n\n");
+        for (AttachmentRef ref : chuaSanSang) {
+            sb.append("  - ").append(ref.originalName()).append("\n");
+        }
+        return sb.toString();
+    }
+
+    /** Tên tệp ⛔ không trùng trong cùng một thư mục của bản nén — xem javadoc {@link #ghiZip}. */
+    private static String tenDuyNhat(java.util.Map<String, Integer> daDung, String thuMuc, String ten) {
+        String khoa = thuMuc + "/" + ten;
+        int lan = daDung.merge(khoa, 1, Integer::sum);
+        if (lan == 1) {
+            return ten;
+        }
+        int cham = ten.lastIndexOf('.');
+        return cham <= 0 ? ten + " (" + lan + ")" : ten.substring(0, cham) + " (" + lan + ")" + ten.substring(cham);
+    }
+
     private static java.util.Optional<HoSoThuMuc> thuMucCua(AttachmentRef ref) {
         return java.util.Arrays.stream(HoSoThuMuc.values())
                 .filter(tm -> tm.name().equals(ref.purpose()))

@@ -164,13 +164,18 @@ class RbacMatrixTest extends IntegrationTestBase {
             //   (`NghiPhepController` + `workflow_transitions` của quy trình LEAVE_REQUEST).
             //   ⭐ Bài này bắt được lượt gỡ NGAY khi endpoint đầu tiên ra đời — lần thứ MƯỜI một bộ
             //   canh của dự án bắt chính người vừa viết mã. ⛔ Đừng thêm lại cho hết đỏ.
-            "hr:org-chart:view", // Sơ đồ tổ chức — Phase 3 (CN-04.1)
+            // ⬇ WS-58 đã GỠ `hr:org-chart:view`: `SoDoToChucController` gác bằng đúng quyền ấy.
+            //   Nó là mã quyền seed từ 13/08/2026 với **0 endpoint** suốt 32 ngày — lần thứ HAI
+            //   trong bốn ngày một dòng miễn trừ *"Phase 3"* hết lý do tồn tại đúng lúc endpoint
+            //   đầu tiên ra đời. ⛔ Đừng thêm lại cho hết đỏ.
             // ⬇ WS-55 đã GỠ `hr:directory:view`: `DanhBaController` gác bằng đúng quyền ấy ở cả
             //   hai endpoint (danh sách · chi tiết). Nó là mã quyền seed từ 13/08/2026 với **0
             //   endpoint** suốt 28 ngày, và bài `ngoaiLeQuyenPhaseSauVanConDung()` bắt được lượt
             //   gỡ này NGAY khi endpoint đầu tiên ra đời — ⛔ đừng thêm lại cho hết đỏ.
-            "hr:report:view", // Báo cáo HR — Phase 3 (CN-04.8)
-            "hr:report:export", // Xuất báo cáo HR — Phase 3 (CN-04.8)
+            // ⬇ WS-58 đã GỠ `hr:report:view` và `hr:report:export`: `BaoCaoNhanSuController` gác
+            //   bằng đúng hai quyền ấy — `:view` cho KPI/biểu đồ/danh mục, `:export` cho đường tải
+            //   tệp. ⛔ Đừng gộp chúng: **xem** số tổng hợp và **mang cả danh sách cán bộ ra khỏi
+            //   hệ thống** là hai việc khác nhau, và đặc tả đã tách sẵn.
             // ⬇ WS-36/T36.8 đã GỠ `cms:feedback:manage`: `FeedbackController` (danh sách · tổng
             //   hợp · bước chuyển · xoá) gác bằng đúng quyền ấy, VÀ năm bước chuyển của quy trình
             //   FEEDBACK khai nó ở `workflow_transitions.required_permission`. ⛔ Đừng thêm lại cho

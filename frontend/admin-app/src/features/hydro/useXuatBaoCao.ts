@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 
 import { api } from '@/shared/apiClient';
+import { luuTep } from '@/shared/luuTep';
 
 /** ⛔ Phải khớp `HydroReportExportHandler.HAN_TAI` ở backend — luật 14, một hạn dùng hai nơi nhớ. */
 const HAN_TAI_GIO = 24;
@@ -94,12 +95,7 @@ export function useXuatBaoCao() {
       const { blob, tenTep } = await api.getTep(`/hyd/bao-cao/tai/${viec.publicId}`);
       const ten = tenTep ?? `${yeuCau.loai}.csv`;
 
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = ten;
-      a.click();
-      URL.revokeObjectURL(url);
+      luuTep(blob, ten);
       return ten;
     } catch (e) {
       setLoi(e instanceof Error ? e.message : 'Không kết xuất được báo cáo');

@@ -319,3 +319,51 @@ describe('ba mục nghỉ phép gác bằng ba loại điều kiện khác nhau 
     expect(findMenuKey(MENU, '/nhan-su/ngay-le')).toBe('ngay-le');
   });
 });
+
+/**
+ * Sơ đồ tổ chức — CN-04.1 (WS-58).
+ *
+ * ⛔⛔ Mục này gác bằng `hr:org-chart:view` (3/12 vai trò), ⛔ **không** bằng `adm:org-unit:view`.
+ * Hai màn hình đọc cùng một cây với hai mục đích ngược nhau: *Quản trị › Sơ đồ đơn vị* để **SỬA**
+ * (`adm:org-unit:manage`), còn đây để **XEM** kèm quân số. Gộp chúng về một quyền hỏng theo CẢ HAI
+ * chiều — cùng hình dạng CN-04.6 vs CN-04.7 (§11.22).
+ */
+describe('mục "Sơ đồ tổ chức" gác bằng hr:org-chart:view — CN-04.1', () => {
+  it('⭐ có hr:org-chart:view ⇒ THẤY', () => {
+    expect(leafLabels(visibleMenu(MENU, checker('hr:org-chart:view')))).toContain('Sơ đồ tổ chức');
+  });
+
+  it('⛔ chỉ có adm:org-unit:view ⇒ ⛔ KHÔNG thấy — vế phân biệt', () => {
+    const visible = leafLabels(visibleMenu(MENU, checker('adm:org-unit:view')));
+    expect(visible).not.toContain('Sơ đồ tổ chức');
+    expect(visible).toContain('Sơ đồ đơn vị');
+  });
+
+  it('đường dẫn tô sáng đúng mục', () => {
+    expect(findMenuKey(MENU, '/nhan-su/so-do-to-chuc')).toBe('so-do-to-chuc');
+  });
+});
+
+/**
+ * Báo cáo nhân sự — CN-04.8 (WS-58).
+ *
+ * ⛔⛔ Mục gác bằng `hr:report:view`; nút **tải tệp** bên trong trang gác riêng bằng
+ * `hr:report:export`. Gộp hai quyền *"cho gọn"* là xoá một ranh giới khách đã vẽ: **xem** số tổng
+ * hợp và **mang cả danh sách cán bộ ra khỏi hệ thống** là hai việc khác nhau.
+ */
+describe('mục "Báo cáo nhân sự" gác bằng hr:report:view — CN-04.8', () => {
+  it('⭐ có hr:report:view ⇒ THẤY, và ⛔ không cần hr:report:export', () => {
+    expect(leafLabels(visibleMenu(MENU, checker('hr:report:view')))).toContain('Báo cáo nhân sự');
+  });
+
+  it('⛔ chỉ có hr:report:export ⇒ ⛔ KHÔNG thấy mục — vế phân biệt', () => {
+    // Quyền xuất một mình ⛔ không mở màn hình: nó gác NÚT, ⛔ không gác TRANG.
+    expect(leafLabels(visibleMenu(MENU, checker('hr:report:export')))).not.toContain(
+      'Báo cáo nhân sự',
+    );
+  });
+
+  it('đường dẫn tô sáng đúng mục', () => {
+    expect(findMenuKey(MENU, '/nhan-su/bao-cao')).toBe('bao-cao-nhan-su');
+  });
+});

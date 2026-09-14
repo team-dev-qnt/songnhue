@@ -262,6 +262,44 @@ public class AttachmentService implements AttachmentPort {
                 attachment.getSizeBytes()));
     }
 
+    /**
+     * {@link com.songnhue.core.spi.AttachmentPort#readForOwner} — xem javadoc ở cổng.
+     *
+     * <p>⛔ Phép so {@code ownerType}/{@code ownerId} ở đây là <b>chốt chặn</b>, ⛔ không phải một
+     * lượt kiểm thừa: nó biến *"đoán đúng UUID của tệp người khác"* thành một trạng thái ⛔ không
+     * biểu diễn được, thay vì một lời dặn từng nơi gọi phải nhớ.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<AttachmentContent> readForOwner(String ownerType, Long ownerId, UUID publicId) {
+        Optional<Attachment> found = repository.findByPublicIdAndDeletedAtIsNull(publicId);
+        if (found.isEmpty()) {
+            return Optional.empty();
+        }
+        Attachment attachment = found.get();
+        if (!attachment.getOwnerType().equals(ownerType)
+                || !attachment.getOwnerId().equals(ownerId)) {
+            // WARN chứ ⛔ không DEBUG: hoặc có người đang dò UUID, hoặc một nơi gọi đang truyền
+            // nhầm cặp chủ sở hữu. Cả hai đều đáng nhìn.
+            log.warn(
+                    "Từ chối đọc tệp {} cho chủ sở hữu {}#{} — tệp thuộc {}#{}",
+                    publicId,
+                    ownerType,
+                    ownerId,
+                    attachment.getOwnerType(),
+                    attachment.getOwnerId());
+            return Optional.empty();
+        }
+        if (!attachment.isDownloadable()) {
+            return Optional.empty();
+        }
+        return Optional.of(new AttachmentContent(
+                storage.openStream(attachment.getStorageBucket(), attachment.getStorageKey()),
+                attachment.getContentType(),
+                attachment.getOriginalName(),
+                attachment.getSizeBytes()));
+    }
+
     @Transactional(readOnly = true)
     public Attachment get(UUID publicId) {
         return require(publicId);

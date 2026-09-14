@@ -6746,3 +6746,118 @@ chưa ai đọc là một **lỗi**, ⛔ không phải việc để dành — h�
 ⛔⛔⛔ Nặng hơn: **phép đo đầu tiên của tôi ĐÃ IN RA bảng `holidays`** và tôi đọc nó thành *"chưa
 có"*, rồi viết `CREATE TABLE`. Migrate đỏ với `relation "holidays" already exists`. **Một phép đo
 đúng mà đọc sai thì tệ hơn ⛔ không đo** — nó mang theo cảm giác đã kiểm.
+
+---
+
+### §11.24 — Ba quyết định đóng MOD-04, và một bài học nền tảng về luồng async (WS-58, 14/9/2026)
+
+#### Quyết định 1 — Bốn chức năng, một bảng, HAI luật phạm vi ngược nhau
+
+Đây là quyết định dễ làm sai nhất của cả MOD-04, vì cả bốn đọc `employees` và cả bốn *"trông giống
+nhau"*:
+
+| Chức năng | Phạm vi | Vì sao |
+|---|---|---|
+| CN-04.6 danh bạ | **toàn Công ty** | một cuốn danh bạ chỉ thấy đơn vị mình là vô dụng; `hr:directory:view` cấp cho **11/12** vai trò |
+| CN-04.1 sơ đồ tổ chức | **toàn Công ty** | một sơ đồ tổ chức chỉ hiện nhánh của mình ⛔ không phải một sơ đồ tổ chức |
+| CN-04.7 hồ sơ | **cắt** | M4.13 nêu đích danh: *"Quản lý cấp XN chỉ xem hồ sơ NV thuộc đơn vị mình"* |
+| **CN-04.8 báo cáo** | **cắt** | báo cáo là **đầu ra của hồ sơ** — rộng hơn nguồn là một đường vòng qua chính M4.13 |
+
+⇒ Quân số của sơ đồ đi `QuanSoRepository` (JDBC thuần, ngoài tầm `@Filter`, cùng khuôn
+`DanhBaRepository`); báo cáo đi JPA nên đi qua bộ lọc như mọi câu khác.
+
+⛔⛔ **Vế phải nói ra trên giao diện**: hai người ở hai đơn vị mở màn hình báo cáo thấy **hai bộ số
+khác nhau**, và **cả hai đều đúng**. Im lặng ở đây là để họ so số rồi kết luận hệ thống sai — nên
+màn hình mở đầu bằng một dòng khai đúng điều đó.
+
+⚠ Chiều hỏng ngược lại thì **im lặng tuyệt đối**: nếu quân số của sơ đồ đi qua `@Filter`, mỗi người
+mở ra thấy một bộ số khác nhau, tất cả đều trông hợp lý, và ⛔ không có gì báo. Trưởng Xí nghiệp 3
+sẽ thấy toàn Công ty có đúng số người của Xí nghiệp 3. Bài `quanSoKhongCatTheoPhamViDonVi` canh vế
+ấy bằng cách **thu hẹp phạm vi của chính phiên đang đo** rồi khẳng định con số **⛔ không đổi**.
+
+#### Quyết định 2 — Mỗi nút sơ đồ mang HAI con số quân số
+
+Đặc tả nói một con số. Đo lại thì một con số hỏng theo **cả hai** chiều:
+
+- Chỉ **trực tiếp** ⇒ một Xí nghiệp có 4 Tổ đội hiện **0 người** khi thu gọn nhánh.
+- Chỉ **cả nhánh** ⇒ tổng các nút con ⛔ không bằng nút cha, và ⛔ không chỗ nào nói vì sao.
+
+⇒ Trả cả hai và **gọi tên** chúng. Nhãn hiện `trực tiếp / cả nhánh` khi hai số khác nhau, **một**
+số khi chúng bằng nhau — một nút lá đọc thành `2 / 2` là một phân số vô nghĩa.
+
+⚠ Phép cộng dồn tính ở **BE** (quy tắc 3): để giao diện tự cộng đệ quy là dựng bản sao thứ hai của
+phép cộng, và bản ấy lệch vào ngày ai đó lọc bớt một nhánh trước khi vẽ.
+
+⭐ Kèm theo là `soNhanSuNgoaiSoDo` — bình thường **0**. Khác 0 ⇒ có hồ sơ trỏ vào một đơn vị ⛔ không
+còn trên sơ đồ, và tổng quân số đang **thiếu** đúng những người ấy. Quy tắc 16: một con số ⛔ không
+đi một mình.
+
+#### Quyết định 3 — Tám báo cáo, và BCNS-07 CÓ MẶT kèm lý do
+
+Cách rẻ nhất là khai bảy mã: màn hình bảy nút, ⛔ không ai hỏi. Nhưng khi ấy *"BCNS-07 chưa có"* trở
+thành một sự thật **⛔ không nơi nào ghi**, và lượt nghiệm thu đếm bảy nút rồi **tick đủ**.
+
+⇒ `MaBaoCaoNhanSu` khai đủ **tám**; mã thứ bảy mang `khaDung = false` cùng **lý do nguyên văn**, và
+đường xuất trả **`HR-2009`** chứ ⛔ không phải 404.
+
+⛔ Lý do ấy ⛔ không phải chuyện kỹ thuật: mẫu **2C-BNV/2008** là biểu mẫu quy định của Bộ Nội vụ, đặc
+tả ghi rõ *"cấm tự chế layout"*, và Công ty chưa gửi tệp mẫu gốc (**G6**). Dựng một bố cục *"gần
+giống"* là in ra một văn bản hành chính **sai mẫu** mà người nhận chỉ biết khi bị trả lại.
+
+⭐ **CSV chứ ⛔ không XLSX** — quyết định T34.8 đã chốt và lượt này chỉ dùng lại: POI kéo ~12 MB phụ
+thuộc và một bề mặt CVE mới trên VPS 2 nhân, trong khi Excel mở CSV được. ⬜ **PDF vẫn chưa**
+(T42.14) và nó ⛔ không phải chuyện chọn thư viện: bố cục bản in chờ **G10**, mà mẫu quyết định khổ
+giấy, cách gộp ô và phông tiếng Việt.
+
+#### ⛔⛔⛔ Bài học nền tảng — `StreamingResponseBody` và `ThreadLocal`
+
+Đường tải cả hồ sơ dạng ZIP bản đầu dùng `StreamingResponseBody`, đúng cách sách vở khuyên cho một
+tệp lớn. Lượt chạy đầu tiên đỏ với `AuthenticationException: AUTH-0002` phát ra **bên trong** thân
+phát luồng.
+
+**Nguyên nhân**: `StreamingResponseBody` chạy trên một **luồng khác** (async dispatch). Mà gần như
+mọi cơ chế nền của hệ này đứng trên `ThreadLocal`:
+
+- `AuthContext` — ai đang gọi;
+- `ScopeFilterAspect` — phạm vi đơn vị, bật quanh **mọi** `@Transactional`;
+- `AuditContext` — thứ `AuditorAwareImpl` đọc để điền `created_by`.
+
+Ở luồng ấy cả ba đều **RỖNG**.
+
+⛔⛔ Hệ quả ⛔ **không dừng** ở một ngoại lệ. Một truy vấn chạy ở đó đi qua bộ lọc phạm vi **⛔ không
+có phạm vi nào** — tức có thể đọc **rộng hơn** người gọi được phép. Đó là một lỗ phân quyền mà
+⛔ không bài kiểm nào của tầng service thấy được, vì tầng service chạy trên luồng request.
+
+⛔⛔ Và nó hỏng theo chiều tệ nhất: header đã gửi, kiểu nội dung đã chốt là
+`application/octet-stream`, nên `GlobalExceptionHandler` ⛔ không ghi nổi envelope JSON
+(`No converter for ApiResponse with preset Content-Type`), rồi
+`Cannot render error page — the response has already been committed`. **Người dùng nhận một tệp ZIP
+hỏng thay vì một thông báo** — và một lượt từ chối vì *ngoài phạm vi đơn vị* khi ấy trông y hệt một
+lỗi mạng.
+
+⇒ **Quyết định**: dựng bản nén ra một **tệp tạm** trên chính luồng request, rồi trả
+`InputStreamResource`. Tệp tạm bị xoá **ngay sau khi mở luồng đọc** — trên POSIX dữ liệu còn sống
+chừng nào còn một mô tả tệp mở, nên nó ⛔ không bao giờ nằm lại trên đĩa, kể cả khi lượt gửi đứt.
+
+⛔ **⛔ Không dựng `byte[]`**: hạn mức một hồ sơ là `limits.attachment.quota-mb.EMPLOYEE` = **200 MB**
+(seed 10/09). Lợi thêm: có lại `Content-Length` ⇒ trình duyệt hiện thanh tiến trình.
+
+⇒ **Luật rút ra**: *một endpoint phát luồng ⛔ KHÔNG CÓ CÁCH NÀO báo lỗi sau byte đầu tiên, và ⛔
+không có cơ chế `ThreadLocal` nào của hệ còn sống ở đó.* Mọi phân quyền, mọi truy vấn có phạm vi,
+mọi thứ có thể ném — phải xảy ra **trước** khi phản hồi bắt đầu.
+
+#### Một bản nén thiếu tệp phải TỰ KHAI
+
+Tệp vừa tải lên có `status = UPLOADING` cho tới khi việc nền quét virus xong. Bản đầu **bỏ qua kèm
+một dòng WARN trong log** — nơi ⛔ không ai đọc. Người nhận cầm một bản nén **thiếu** mà ⛔ không có
+cách nào biết, rồi dùng nó như một bản đầy đủ.
+
+⛔ Còn **chặn cả lượt tải** thì sai theo chiều kia: một tệp đang quét làm hỏng thao tác của người ⛔
+không liên quan gì tới nó.
+
+⇒ Bản nén mang thêm mục `_THIEU.txt` liệt kê đúng những tệp ấy kèm lý do và lời khuyên tải lại sau
+ít phút. Cùng lý lẽ quy tắc 16 — **một tập ⛔ không đi một mình**.
+
+⚠ Cùng lượt: tệp **trùng tên** trong cùng thư mục là trạng thái **có thật** (`nextVersion` giữ cả
+bản cũ), và nhiều trình giải nén **lặng lẽ ghi đè** mục sau lên mục trước ⇒ chèn số thứ tự trước
+phần mở rộng.

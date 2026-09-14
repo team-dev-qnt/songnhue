@@ -273,6 +273,18 @@ export const MENU: readonly MenuNode[] = [
     icon: <TeamOutlined />,
     children: [
       {
+        // ⭐ Đầu nhận ĐẦU TIÊN của `hr:org-chart:view` — mã quyền seed cho 3 vai trò từ 13/08/2026
+        //   và có **0 endpoint** suốt 32 ngày (luật 15).
+        // ⛔ Trang này chỉ XEM. Kéo–thả, đổi tên, giải thể nằm ở *Quản trị › Sơ đồ đơn vị*
+        //   (`adm:org-unit:manage`) — cho ba vai trò chỉ-xem sửa cây là cho họ dựng lại tổ chức
+        //   của cả Công ty.
+        key: 'so-do-to-chuc',
+        label: 'Sơ đồ tổ chức',
+        icon: <ApartmentOutlined />,
+        path: '/nhan-su/so-do-to-chuc',
+        permissions: ['hr:org-chart:view'],
+      },
+      {
         key: 'ho-so-cbnv',
         label: 'Hồ sơ cán bộ',
         icon: <IdcardOutlined />,
@@ -288,6 +300,16 @@ export const MENU: readonly MenuNode[] = [
         icon: <ContactsOutlined />,
         path: '/nhan-su/danh-ba',
         permissions: ['hr:directory:view'],
+      },
+      {
+        // ⭐ Đầu nhận ĐẦU TIÊN của `hr:report:view` — mã quyền seed từ 13/08/2026, **0 endpoint**
+        //   suốt 32 ngày. Nút tải tệp bên trong trang gác riêng bằng `hr:report:export`: **xem**
+        //   số tổng hợp và **mang cả danh sách cán bộ ra khỏi hệ thống** là hai việc khác nhau.
+        key: 'bao-cao-nhan-su',
+        label: 'Báo cáo nhân sự',
+        icon: <LineChartOutlined />,
+        path: '/nhan-su/bao-cao',
+        permissions: ['hr:report:view'],
       },
       {
         key: 'chuc-vu',

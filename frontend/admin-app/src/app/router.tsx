@@ -305,6 +305,11 @@ export const router = createBrowserRouter([
           //   trong trang, ⛔ không gác cả trang. ADMIN có mọi quyền HR TRỪ quyền ấy
           //   (`V202608131007:169`), nên đưa nó lên tuyến là khoá ADMIN ra khỏi cả màn hình.
           adminRoute(
+            '/nhan-su/so-do-to-chuc',
+            'hr:org-chart:view',
+            lazyPage(() => import('@/features/hr/SoDoToChucPage'), 'SoDoToChucPage'),
+          ),
+          adminRoute(
             '/nhan-su/ho-so',
             'hr:employee:view',
             lazyPage(() => import('@/features/hr/EmployeesPage'), 'EmployeesPage'),
@@ -313,6 +318,11 @@ export const router = createBrowserRouter([
             '/nhan-su/danh-ba',
             'hr:directory:view',
             lazyPage(() => import('@/features/hr/DanhBaPage'), 'DanhBaPage'),
+          ),
+          adminRoute(
+            '/nhan-su/bao-cao',
+            'hr:report:view',
+            lazyPage(() => import('@/features/hr/BaoCaoNhanSuPage'), 'BaoCaoNhanSuPage'),
           ),
           adminRoute(
             '/nhan-su/chuc-vu',

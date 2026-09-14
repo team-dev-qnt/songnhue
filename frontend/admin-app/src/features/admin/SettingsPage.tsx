@@ -21,6 +21,7 @@ import { useMemo, useState } from 'react';
 import { useAuth } from '@/app/auth/useAuth';
 import { type SettingView } from '@/shared/api-types';
 import { ApiClientError, api } from '@/shared/apiClient';
+import { luuTep } from '@/shared/luuTep';
 
 /**
  * Cấu hình hệ thống — M5.3.
@@ -62,12 +63,7 @@ export function SettingsPage() {
     mutationFn: () => api.get<Record<string, string>>('/settings/export'),
     onSuccess: (data) => {
       const tep = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(tep);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `cau-hinh-songnhue-${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+      luuTep(tep, `cau-hinh-songnhue-${new Date().toISOString().slice(0, 10)}.json`);
       message.success(`Đã xuất ${Object.keys(data).length} tham số cấu hình`);
     },
     onError: (error) =>
