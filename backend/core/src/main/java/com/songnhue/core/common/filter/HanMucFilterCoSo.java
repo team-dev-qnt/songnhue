@@ -46,6 +46,11 @@ abstract class HanMucFilterCoSo extends OncePerRequestFilter {
     /** Khoá của máy khách trong xô — đã qua kiểm, ⛔ bao giờ là giá trị kẻ gọi tự khai. */
     abstract String danhTinh(HttpServletRequest request);
 
+    /** Trần của xô cho lượt gọi này — mặc định hằng số của chính sách (T61.27 ghi đè cho EXPORT). */
+    int hanMuc(RateLimitPolicy policy) {
+        return policy.limit();
+    }
+
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         // Actuator do mạng nội bộ gọi (Prometheus), không tính hạn mức
@@ -62,9 +67,10 @@ abstract class HanMucFilterCoSo extends OncePerRequestFilter {
             return;
         }
         String identity = danhTinh(request);
-        RateLimitStore.Decision decision = store.hit(policy.key(identity), policy.limit(), policy.window());
+        int tran = hanMuc(policy);
+        RateLimitStore.Decision decision = store.hit(policy.key(identity), tran, policy.window());
 
-        response.setHeader("X-RateLimit-Limit", String.valueOf(policy.limit()));
+        response.setHeader("X-RateLimit-Limit", String.valueOf(tran));
         response.setHeader("X-RateLimit-Remaining", String.valueOf(decision.remaining()));
 
         if (!decision.allowed()) {

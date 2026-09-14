@@ -27,6 +27,13 @@ route:
   group_interval: 5m
   repeat_interval: 4h
   routes:
+    # T61.25 — ĐẦU danh sách: tuyến con xét theo thứ tự, và Watchdog ⛔ mang nhãn môi trường
+    # ⇒ đứng sau là rơi vào tuyến mặc định ⇒ gửi email + Telegram mỗi 4h cho một chuông giả.
+    - matchers: ['alertname="Watchdog"']
+      receiver: watchdog
+      group_wait: 0s
+      group_interval: 1m
+      repeat_interval: 1m
     - matchers: ['environment="staging"']
       receiver: staging-slack
     - matchers: ['environment="production"', 'severity="warning"']
@@ -36,13 +43,22 @@ route:
 # năm tin nhắn. Giữ tin gốc, nén các tin ăn theo CÙNG môi trường.
 inhibit_rules:
   - source_matchers: ['alertname="UngDungKhongPhanHoi"']
-    target_matchers: ['alertname!="UngDungKhongPhanHoi"']
+    target_matchers: ['alertname!="UngDungKhongPhanHoi"', 'alertname!="Watchdog"']
     equal: [environment]
 
 templates:
   - /etc/alertmanager/songnhue.tmpl
 
 receivers:
+  # T61.25 — ping healthchecks.io. URL mang mã định danh bí mật ⇒ tệp riêng (`url_file`).
+  # ⛔⛔ `send_resolved: false`: tin "đã hết" cũng là một lượt POST, và healthchecks.io
+  #    đếm MỌI lượt POST là "còn sống" ⇒ Prometheus chết (Watchdog hết kêu) sẽ gửi đúng
+  #    một tin resolved ⇒ dịch vụ ngoài tưởng hệ còn sống thêm một chu kỳ.
+  - name: watchdog
+    webhook_configs:
+      - url_file: /tmp/am/healthchecks_url
+        send_resolved: false
+
   - name: prod-critical
     email_configs:
       - to: '__ALERT_EMAIL_TO__'

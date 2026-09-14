@@ -11,6 +11,7 @@ import com.songnhue.core.common.ratelimit.RateLimitPolicy;
 import com.songnhue.core.common.ratelimit.RateLimitStore;
 import com.songnhue.core.common.security.AccessTokenClaims;
 import com.songnhue.core.common.web.ClientIp;
+import com.songnhue.core.spi.SettingPort;
 
 /**
  * Filter [3b] — hạn mức <b>theo NGƯỜI DÙNG đã xác thực</b>: xô {@code API} và {@code EXPORT}. T61.17.
@@ -45,9 +46,26 @@ import com.songnhue.core.common.web.ClientIp;
 @Order(FilterOrder.RATE_LIMIT_NGUOI_DUNG)
 public class HanMucNguoiDungFilter extends HanMucFilterCoSo {
 
+    private final SettingPort settings;
+
     public HanMucNguoiDungFilter(
-            RateLimitStore store, @Qualifier("handlerExceptionResolver") HandlerExceptionResolver exceptionResolver) {
+            RateLimitStore store,
+            @Qualifier("handlerExceptionResolver") HandlerExceptionResolver exceptionResolver,
+            SettingPort settings) {
         super(store, exceptionResolver);
+        this.settings = settings;
+    }
+
+    /**
+     * T61.27 — trần kết xuất đọc từ {@code settings} MỖI lượt (SettingService có đệm, xoá khi sửa) ⇒ sửa
+     * trên giao diện có hiệu lực ngay, ⛔ chờ khởi động lại. Kẹp ở {@link RateLimitPolicy#kepKetXuat}.
+     */
+    @Override
+    int hanMuc(RateLimitPolicy policy) {
+        if (policy == RateLimitPolicy.EXPORT) {
+            return RateLimitPolicy.kepKetXuat(settings.getInt(RateLimitPolicy.KHOA_KET_XUAT, policy.limit()));
+        }
+        return policy.limit();
     }
 
     @Override

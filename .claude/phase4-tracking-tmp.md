@@ -109,7 +109,10 @@ grep -c '^METRICS_' /opt/songnhue/.env                       # phải: 2
 #   PROD_METRICS_HOST=<ADMIN_DOMAIN production> · PROD_METRICS_BEARER_TOKEN=<= token VPS-1>
 #   ALERT_EMAIL_TO · SLACK_WEBHOOK_URL · TELEGRAM_BOT_TOKEN · TELEGRAM_CHAT_ID
 #   SMTP_* chép từ .env VPS-1 (T50.13 — dùng chung)
-grep -cE '^(METRICS_|PROD_METRICS_|ALERT_EMAIL_TO|SLACK_WEBHOOK_URL|TELEGRAM_)' /opt/songnhue/.env   # phải: 8
+#   MAIL_REDIRECT_TO=<hộp thư nhóm phát triển>  (T61.23 — staging có SMTP mà thiếu ⇒ app ⛔ lên; ⛔ đặt ở VPS-1)
+#   HEALTHCHECKS_PING_URL=<Ping URL healthchecks.io, check Period 5' Grace 5'>  (T61.25)
+grep -cE '^(METRICS_|PROD_METRICS_|ALERT_EMAIL_TO|SLACK_WEBHOOK_URL|TELEGRAM_|MAIL_REDIRECT_TO|HEALTHCHECKS_PING_URL)' /opt/songnhue/.env   # phải: 10
+grep -c '^MAIL_REDIRECT_TO' /opt/songnhue/.env   # VPS-1 (production): phải 0
 
 # Sau khi staging lên bản mới:
 docker compose --env-file .env -f compose.observability.yml up -d
@@ -119,6 +122,9 @@ curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer $PROD_METRICS
 curl -s -o /dev/null -w '%{http_code}\n' https://<ADMIN_DOMAIN>/actuator/prometheus
 # Bắn thử — phải tới email + Slack + Telegram:
 docker exec songnhue-alertmanager amtool alert add ThuCanhBao environment=production severity=critical --annotation=summary="Thử kênh cảnh báo T61.5" --alertmanager.url=http://localhost:9093
+# Chuông canh (T61.25): trang healthchecks.io của check phải "up" sau ~5 phút; thử dừng alertmanager ⇒ ~10 phút sau có tin báo
+# Thư staging (T61.23): tạo một thông báo có email trên staging ⇒ thư về MAIL_REDIRECT_TO, tiêu đề "[CHUYỂN HƯỚNG → <gốc>]"
+# Hạn mức kết xuất (T61.27): /quan-tri/cau-hinh nhóm LIMIT → "Số lượt kết xuất báo cáo mỗi giờ" = 30
 # ClamAV (T61.4) trên staging:
 docker ps --filter name=songnhue-clamav --format '{{.Status}}'          # healthy
 q "SELECT scan_status, count(*) FROM attachments WHERE created_at > now() - interval '1 hour' GROUP BY 1"   # sau khi tải 1 tệp thử: CLEAN

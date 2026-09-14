@@ -131,8 +131,9 @@ class CanhBaoCoDuongDiTest {
                         .collect(Collectors.toMap(r -> (String) r.get("alert"), r -> r));
 
         assertThat(luat).as("chống tập rỗng").hasSizeGreaterThanOrEqualTo(10);
-        luat.forEach((ten, r) -> assertThat(((Map<String, String>) r.get("labels")).get("severity"))
-                .as("%s: severity phải là critical|warning — Alertmanager định tuyến bằng nhãn này", ten)
+        luat.entrySet().stream().filter(e -> !e.getKey().equals("Watchdog")).forEach(e -> assertThat(
+                        ((Map<String, String>) e.getValue().get("labels")).get("severity"))
+                .as("%s: severity phải là critical|warning — Alertmanager định tuyến bằng nhãn này", e.getKey())
                 .isIn("critical", "warning"));
         for (String ten : List.of("SaoLuuQuaHan", "NguonDuLieuImLang", "ChiSoProductionVangMat")) {
             assertThat(luat).containsKey(ten);
@@ -140,6 +141,74 @@ class CanhBaoCoDuongDiTest {
                     .as("%s thiếu `absent(…environment=\"production\"…)` ⇒ im VĨNH VIỄN khi ⛔ có chỉ số", ten)
                     .containsPattern("absent\\([^)]*environment=\"production\"");
         }
+    }
+
+    @Test
+    @DisplayName("⛔ Chuông sao lưu CHỈ canh production — staging ⛔ có lịch sao lưu nên chuỗi của nó luôn -1 (T61.26)")
+    @SuppressWarnings("unchecked")
+    void chuongSaoLuuChiProduction() {
+        Map<String, Object> luat = luatTheoTen().get("SaoLuuQuaHan");
+        String expr = (String) luat.get("expr");
+        long soLanDoc = Pattern.compile("songnhue_backup_age_seconds")
+                .matcher(expr)
+                .results()
+                .count();
+        long soLanCoNhan = Pattern.compile("songnhue_backup_age_seconds\\{environment=\"production\"}")
+                .matcher(expr)
+                .results()
+                .count();
+        assertThat(soLanDoc).as("chống tập rỗng").isGreaterThanOrEqualTo(3);
+        assertThat(soLanCoNhan)
+                .as(
+                        "mọi lần đọc chỉ số sao lưu phải mang {environment=\"production\"} — một vế trần là staging kêu Slack mỗi 4h")
+                .isEqualTo(soLanDoc);
+        assertThat(((Map<String, String>) luat.get("labels")).get("environment"))
+                .isEqualTo("production");
+    }
+
+    @Test
+    @DisplayName("⛔⛔ Chuông canh: Watchdog luôn kêu → tuyến ĐẦU → chỉ webhook url_file, ⛔ gửi tin resolved (T61.25)")
+    @SuppressWarnings("unchecked")
+    void chuongCanhDiDungDuong() {
+        Map<String, Object> wd = luatTheoTen().get("Watchdog");
+        assertThat(wd).as("⛔ có luật Watchdog").isNotNull();
+        assertThat(((String) wd.get("expr")).trim()).isEqualTo("vector(1)");
+        assertThat(wd)
+                .as("`for` làm chuông canh im lúc Prometheus vừa khởi động")
+                .doesNotContainKey("for");
+
+        Map<String, Object> am = new Yaml().load(doc("deploy/observability/alertmanager.yml"));
+        Map<String, Object> route = (Map<String, Object>) am.get("route");
+        List<Map<String, Object>> con = (List<Map<String, Object>>) route.get("routes");
+        assertThat((List<String>) con.get(0).get("matchers"))
+                .as("tuyến Watchdog phải ĐẦU danh sách — đứng sau thì rơi vào tuyến mặc định (email + Telegram)")
+                .containsExactly("alertname=\"Watchdog\"");
+        assertThat(con.get(0).get("repeat_interval"))
+                .as("healthchecks.io đặt Period 5 phút ⇒ lặp phải ngắn hơn hẳn")
+                .isIn("1m", "2m");
+
+        Map<String, Object> nhan = ((List<Map<String, Object>>) am.get("receivers"))
+                .stream()
+                        .filter(r -> r.get("name").equals(con.get(0).get("receiver")))
+                        .findFirst()
+                        .orElseGet(() -> fail("⛔ có receiver cho tuyến Watchdog"));
+        assertThat(nhan.keySet()).containsExactlyInAnyOrder("name", "webhook_configs");
+        Map<String, Object> webhook = ((List<Map<String, Object>>) nhan.get("webhook_configs")).get(0);
+        assertThat(webhook)
+                .as("URL ping mang mã bí mật ⇒ `url_file`, ⛔ `url`")
+                .containsKey("url_file")
+                .doesNotContainKey("url");
+        assertThat(webhook.get("send_resolved"))
+                .as("tin resolved cũng là một lượt POST ⇒ healthchecks.io đếm là CÒN SỐNG")
+                .isEqualTo(false);
+
+        assertThat(doc("deploy/observability/alertmanager.yml"))
+                .as("luật nén theo UngDungKhongPhanHoi ⛔ được nuốt Watchdog")
+                .contains("'alertname!=\"Watchdog\"'");
+        String compose = doc("deploy/compose.observability.yml");
+        assertThat(compose)
+                .contains("HEALTHCHECKS_PING_URL: ${HEALTHCHECKS_PING_URL:?")
+                .contains("bi-mat HEALTHCHECKS_PING_URL " + webhook.get("url_file"));
     }
 
     @Test
@@ -177,6 +246,15 @@ class CanhBaoCoDuongDiTest {
     }
 
     // -------------------------------------------------------------------------
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Map<String, Object>> luatTheoTen() {
+        Map<String, Object> goc = new Yaml().load(doc("deploy/observability/alerts.yml"));
+        return ((List<Map<String, Object>>) goc.get("groups"))
+                .stream()
+                        .flatMap(g -> ((List<Map<String, Object>>) g.get("rules")).stream())
+                        .collect(Collectors.toMap(r -> (String) r.get("alert"), r -> r));
+    }
 
     @SuppressWarnings("unchecked")
     private static String nhanCho(List<Map<String, Object>> routes, String boChon) {

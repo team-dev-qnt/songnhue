@@ -16,7 +16,7 @@ import com.songnhue.core.common.security.AccessTokenClaims;
 class HaiTangHanMucTest {
 
     private final RateLimitFilter theoIp = new RateLimitFilter(null, null);
-    private final HanMucNguoiDungFilter theoNguoiDung = new HanMucNguoiDungFilter(null, null);
+    private final HanMucNguoiDungFilter theoNguoiDung = new HanMucNguoiDungFilter(null, null, null);
 
     @Test
     @DisplayName("⛔⛔ Mỗi xô do ĐÚNG MỘT tầng đếm — xô mới ⛔ được rơi lọt cả hai (⛔ ai đếm)")

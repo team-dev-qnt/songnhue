@@ -84,6 +84,8 @@ services:
       SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:?Thiếu SLACK_WEBHOOK_URL}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?Thiếu TELEGRAM_BOT_TOKEN}
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:?Thiếu TELEGRAM_CHAT_ID}
+      # T61.25 — URL ping của healthchecks.io (chuông canh chính hệ giám sát).
+      HEALTHCHECKS_PING_URL: ${HEALTHCHECKS_PING_URL:?Thiếu HEALTHCHECKS_PING_URL}
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -92,6 +94,7 @@ services:
         $$d bi-mat SMTP_PASSWORD /tmp/am/smtp_password
         $$d bi-mat SLACK_WEBHOOK_URL /tmp/am/slack_webhook
         $$d bi-mat TELEGRAM_BOT_TOKEN /tmp/am/telegram_token
+        $$d bi-mat HEALTHCHECKS_PING_URL /tmp/am/healthchecks_url
         $$d /etc/alertmanager/alertmanager.mau.yml /tmp/am/alertmanager.yml \
           SMTP_HOST SMTP_PORT SMTP_FROM SMTP_USERNAME ALERT_EMAIL_TO TELEGRAM_CHAT_ID
         exec /bin/alertmanager \

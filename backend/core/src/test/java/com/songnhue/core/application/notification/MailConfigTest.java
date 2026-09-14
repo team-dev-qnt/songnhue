@@ -1,11 +1,17 @@
 package com.songnhue.core.application.notification;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 
 /**
@@ -78,5 +84,63 @@ class MailConfigTest {
         // tật ồn ào lấy một khuyết tật im lặng.
         boChay.withPropertyValues("spring.mail.host=smtp.songnhue.com")
                 .run(ctx -> assertThat(ctx).hasSingleBean(EmailSender.class));
+    }
+
+    // ------------------------------------------------------------------------- T61.23
+
+    @Test
+    @DisplayName("⛔⛔ T61.23 — MAIL_REDIRECT_TO trên PRODUCTION ⇒ DỪNG khởi động (thư 200 cán bộ dồn về một hộp)")
+    void redirectOnProductionMustFailStartup() {
+        boChay.withPropertyValues(
+                        "spring.mail.host=smtp.songnhue.com",
+                        "management.metrics.tags.environment=production",
+                        "app.notification.redirect-to=dev@songnhue.com")
+                .run(ctx -> assertThat(ctx).hasFailed().getFailure().rootCause().hasMessageContaining("PRODUCTION"));
+    }
+
+    @Test
+    @DisplayName("⛔⛔ T61.23 — staging bật SMTP mà THIẾU MAIL_REDIRECT_TO ⇒ DỪNG (dữ liệu nhân bản, hộp thư thật)")
+    void stagingWithoutRedirectMustFailStartup() {
+        boChay.withPropertyValues(
+                        "spring.mail.host=smtp.songnhue.com",
+                        "management.metrics.tags.environment=staging",
+                        "app.notification.redirect-to=  ")
+                .run(ctx ->
+                        assertThat(ctx).hasFailed().getFailure().rootCause().hasMessageContaining("MAIL_REDIRECT_TO"));
+    }
+
+    @Test
+    @DisplayName("⚠ ĐỐI CHỨNG T61.23 — production ⛔ chuyển hướng và staging CÓ chuyển hướng đều khởi động được")
+    void validCombinationsStart() {
+        boChay.withPropertyValues(
+                        "spring.mail.host=smtp.songnhue.com", "management.metrics.tags.environment=production")
+                .run(ctx -> assertThat(ctx).hasSingleBean(EmailSender.class));
+        boChay.withPropertyValues(
+                        "spring.mail.host=smtp.songnhue.com",
+                        "management.metrics.tags.environment=staging",
+                        "app.notification.redirect-to=dev@songnhue.com")
+                .run(ctx -> assertThat(ctx).hasSingleBean(EmailSender.class));
+    }
+
+    @Test
+    @DisplayName("⭐⭐ T61.23 — có chuyển hướng: thư tới ĐÚNG địa chỉ chuyển hướng, người nhận gốc nằm ở tiêu đề")
+    void redirectRewritesRecipientAndKeepsOriginalVisible() {
+        JavaMailSender may = mock(JavaMailSender.class);
+        List<SimpleMailMessage> daGui = new ArrayList<>();
+        doAnswer(inv -> daGui.add(inv.getArgument(0))).when(may).send(any(SimpleMailMessage.class));
+
+        new EmailSender(may, "no-reply@songnhue.com", " dev@songnhue.com ")
+                .send("canbo@songnhue.com", "Có đơn nghỉ phép", "Nội dung", "https://admin/x");
+        new EmailSender(may, "no-reply@songnhue.com", "")
+                .send("canbo@songnhue.com", "Có đơn nghỉ phép", "Nội dung", null);
+
+        assertThat(daGui).hasSize(2);
+        assertThat(daGui.get(0).getTo()).containsExactly("dev@songnhue.com");
+        assertThat(daGui.get(0).getSubject()).contains("canbo@songnhue.com").endsWith("Có đơn nghỉ phép");
+        assertThat(daGui.get(0).getText()).contains("canbo@songnhue.com").contains("Xem chi tiết: https://admin/x");
+        assertThat(daGui.get(1).getTo())
+                .as("đối chứng: chuỗi rỗng ⛔ phải chuyển hướng về địa chỉ rỗng")
+                .containsExactly("canbo@songnhue.com");
+        assertThat(daGui.get(1).getSubject()).isEqualTo("Có đơn nghỉ phép");
     }
 }

@@ -29,13 +29,18 @@ groups:
         # ⚠ T61.5 — thêm vế `absent(…production…)`: ứng dụng production mà KHÔNG trả
         #   chỉ số này thì luật cũ ⛔ có chuỗi nào để so ⇒ `inactive` VĨNH VIỄN. Đo
         #   14/09/2026: đúng trạng thái ấy suốt từ WS-7, vì target scrape hỏng.
+        #
+        # ⚠ T61.26 — CHỈ production (chốt 15/09/2026). Staging ⛔ có lịch sao lưu (nó là kho
+        #   chứa bản KÉO VỀ từ production), nên chuỗi staging luôn `-1` ⇒ luật cũ kêu Slack mỗi
+        #   4h vĩnh viễn — một chuông kêu thường trực là chuông bị tắt tiếng.
         expr: >-
-          songnhue_backup_age_seconds > 93600
-          or songnhue_backup_age_seconds == -1
+          songnhue_backup_age_seconds{environment="production"} > 93600
+          or songnhue_backup_age_seconds{environment="production"} == -1
           or absent(songnhue_backup_age_seconds{environment="production"})
         for: 15m
         labels:
           severity: critical
+          environment: production
         annotations:
           summary: "Không có bản sao lưu nào trong 26 giờ qua"
           description: >-
@@ -190,3 +195,22 @@ groups:
           summary: "Prometheus KHÔNG có target ứng dụng production nào — mọi chuông khác đang mù"
           description: >-
             Kiểm tra cấu hình đã điền của Prometheus (dien-cau-hinh.sh) và PROD_METRICS_HOST.
+
+  # ---------------------------------------------------------------------------
+  # 6. Chuông canh CHÍNH hệ giám sát — T61.25 (chốt 15/09/2026: healthchecks.io)
+  #
+  # Mọi luật phía trên cần Prometheus sống, Alertmanager sống và VPS-2 sống. Một trong
+  # ba chết thì ⛔ gì kêu — sự vắng mặt ⛔ tự báo (luật 31). Nên luật này LUÔN kêu, và
+  # Alertmanager đẩy nó tới healthchecks.io mỗi phút; ngừng nhận ⇒ dịch vụ NGOÀI báo.
+  #
+  # ⛔ Đừng gắn `severity`/`environment`: nó ⛔ phải là cảnh báo cho người, tuyến riêng
+  #    `watchdog` ở alertmanager.yml bắt nó bằng `alertname` và đứng ĐẦU danh sách.
+  # ---------------------------------------------------------------------------
+  - name: songnhue-watchdog
+    rules:
+      - alert: Watchdog
+        expr: vector(1)
+        labels:
+          severity: none
+        annotations:
+          summary: "Chuông canh — luôn kêu; healthchecks.io báo khi NGỪNG nhận"

@@ -1600,8 +1600,14 @@ docker compose --env-file .env -f compose.observability.yml up -d
 >   `PROD_METRICS_BEARER_TOKEN`, `ALERT_EMAIL_TO`, `SLACK_WEBHOOK_URL`, `TELEGRAM_BOT_TOKEN`,
 >   `TELEGRAM_CHAT_ID` — thiếu biến nào là container ⛔ lên, và **⛔ viết chú thích cùng dòng với giá trị
 >   rỗng** (compose lấy chú thích làm giá trị).
+> * **Chuông canh chính hệ giám sát** (T61.25, chốt 15/09): luật `Watchdog` luôn kêu, Alertmanager POST
+>   tới healthchecks.io mỗi ~2 phút. Tạo check **Period 5 phút · Grace 5 phút**, gắn email/Telegram **của
+>   tài khoản healthchecks.io**, đặt `HEALTHCHECKS_PING_URL` vào `.env` VPS-2. VPS-2 chết ⇒ dịch vụ ngoài báo.
+> * **Chuông sao lưu chỉ canh production** (T61.26) — staging ⛔ có lịch sao lưu.
+> * **Staging bật SMTP thì phải có `MAIL_REDIRECT_TO`** (T61.23) — thiếu ⇒ app staging ⛔ khởi động;
+>   production có biến ấy ⇒ app production ⛔ khởi động.
 > * Kiểm sau khi lên: `curl -s 127.0.0.1:19090/api/v1/targets` ⇒ `songnhue-app-production` **up**;
->   bắn thử một cảnh báo (lệnh ở `.claude/phase4-tracking-tmp.md` §B6).
+>   bắn thử một cảnh báo (lệnh ở `.claude/phase4-tracking-tmp.md` §B6); trang healthchecks.io hiện **up**.
 
 Grafana và Prometheus publish ra `127.0.0.1`; vào bằng đường hầm SSH, không mở cổng:
 
