@@ -239,6 +239,53 @@ public enum ErrorCode {
      * module không thấy nhau, nên tính toàn vẹn do tầng dịch vụ giữ, qua {@code HydroAlertPort}.
      */
     OPS_2021("OPS-2021", HttpStatus.UNPROCESSABLE_CONTENT),
+
+    /**
+     * Báo cáo {0} <b>có trong danh mục</b> nhưng đã <b>bỏ vĩnh viễn</b> — {1} là lý do, nguyên văn.
+     *
+     * <p>⛔⛔ Mã riêng, và nó ⛔ <b>không</b> trùng nghĩa với {@code HR-2009}. Ba trạng thái khác
+     * nhau, ba câu trả lời khác nhau:
+     *
+     * <ul>
+     *   <li><b>404</b> — mã ⛔ không tồn tại: người gọi gõ sai.
+     *   <li><b>{@code HR-2009}</b> — mã có thật, <b>chưa làm được</b> (BCNS-07 chờ G6): <i>sẽ</i> có.
+     *   <li><b>Mã này</b> — mã có thật, <b>⛔ không bao giờ làm</b>: BC-01/02/03 mất nguồn vì nhật ký
+     *       vận hành đã loại khỏi phạm vi (B1/F1, xác nhận bởi G2), BC-04 mất nguồn vì kế hoạch vụ
+     *       mùa đã loại (A1).
+     * </ul>
+     *
+     * <p>Gộp ba trạng thái thành một là để người vận hành đi chờ một thứ ⛔ không bao giờ tới.
+     *
+     * <p>⚠⚠ Số hiệu nhảy từ 2021 sang <b>2023</b>, ⛔ không dùng lại 2022 — và đó là cố ý:
+     * {@code OPS-2022} từng tồn tại (trần dòng của bộ đọc tệp) rồi <b>đổi thành {@code SYS-0012}</b>
+     * ngày 09/09/2026 khi bộ đọc dời lên {@code core}. Dùng lại một số hiệu đã nghỉ hưu làm mọi
+     * dòng nhật ký, ảnh chụp màn hình và phiếu hỗ trợ cũ mang mã ấy <b>đọc sai nghĩa</b> — và ⛔
+     * không có gì báo. Một mã lỗi là một <b>định danh</b>, ⛔ không phải một ô trống để lấp.
+     */
+    OPS_2023("OPS-2023", HttpStatus.UNPROCESSABLE_CONTENT),
+
+    // ---- MOD-02 Lớp bản đồ GIS (CN-02.4 / M2.9, WS-59) --------------------------
+    /** Tên lớp bản đồ {0} đã có — hai lớp cùng tên làm bảng chọn lớp ⛔ không phân biệt được. */
+    OPS_2024("OPS-2024", HttpStatus.CONFLICT),
+    /**
+     * Tệp {0} là <b>KML/KMZ</b> — kho <b>⛔ chưa có bộ đọc</b>.
+     *
+     * <p>⛔⛔ Từ chối ở cổng nhận, ⛔ <b>không</b> nhận rồi lưu. Nhận một tệp ⛔ không đọc được là
+     * phương án <b>tệ nhất</b> trong ba: người dùng thấy *"nạp thành công"*, lớp hiện trong danh
+     * sách, và bản đồ ⛔ không vẽ gì — họ sẽ đi báo hỏng bản đồ chứ ⛔ không báo hỏng lượt nạp.
+     *
+     * <p>⚠ KMZ là một tệp ZIP chứa KML ⇒ cần một bộ phân tích XML theo lược đồ OGC, ⛔ không phải
+     * một phép giải nén. Đo 14/09/2026: 0 phụ thuộc như vậy trong cả 7 {@code pom.xml}.
+     */
+    OPS_2025("OPS-2025", HttpStatus.UNPROCESSABLE_CONTENT),
+    /**
+     * Tệp {0} ⛔ không có đối tượng hình học nào ({1} đối tượng đọc được).
+     *
+     * <p>⛔ Một tệp JSON <b>hợp lệ</b> mà rỗng hình học vẫn nạp được về mặt kỹ thuật — và nó cho ra
+     * một lớp "đã nạp thành công" hiện một bản đồ trống. Đó đúng là câu người dùng đọc thành *"hệ
+     * thống hỏng"*.
+     */
+    OPS_2026("OPS-2026", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Trạng thái công trình là giá trị dẫn xuất — client sửa trực tiếp là từ chối. */
     OPS_3001("OPS-3001", HttpStatus.FORBIDDEN),
 
@@ -347,6 +394,24 @@ public enum ErrorCode {
     HYD_2016("HYD-2016", HttpStatus.UNPROCESSABLE_CONTENT),
 
     // ---- MOD-04 Nhân sự ---------------------------------------------------------
+    /**
+     * Số dư phép năm ⛔ không đủ: còn {0} ngày, đơn xin {1} ngày (CN-04.9).
+     *
+     * <p>⚠ Đây là một <b>chặn</b> chứ ⛔ không phải cảnh báo, và đó là lựa chọn có ý thức: đặc tả
+     * nói <i>"cảnh báo vượt phép"</i> ở màn hình nhập, còn ở đường ghi thì một đơn vượt quỹ đi lọt
+     * sẽ thành số dư ÂM mà ⛔ không ai duyệt cái âm ấy. Giao diện cảnh báo trước; backend từ chối.
+     *
+     * <h2>⛔⛔ Mã này đã nằm sẵn trong danh mục từ 13/08/2026 — và WS-57 suýt đúc thêm một mã trùng</h2>
+     *
+     * <p>Bản đầu của WS-57 đặt {@code HR-2006} với đúng nghĩa ấy, trong khi {@code HR-2001} —
+     * <i>"Số ngày đăng ký vượt số phép còn lại"</i> — đã ngồi đó chờ CN-04.9 suốt <b>32 ngày</b>,
+     * kèm một dòng miễn trừ trong {@code MaLoiCoNoiNemTest} ghi rõ <i>"chưa dựng"</i>. Hai mã cho
+     * <b>một</b> trạng thái là hai câu trả lời cho cùng một câu hỏi: lượt rà sau ⛔ không biết mã
+     * nào thật sự bắn ra, và bản đồ mã lỗi phía giao diện mang hai dòng nói cùng một điều.
+     *
+     * <p>⇒ Giữ mã CŨ, nâng <b>câu chữ</b> của nó lên để mang được hai con số. Đặt một mã mới rồi
+     * để mã cũ mồ côi là cách chắc chắn nhất để dòng miễn trừ ấy sống thêm một phase nữa.
+     */
     HR_2001("HR-2001", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Mã cán bộ {0} đã có hồ sơ khác dùng — mã NV ⛔ không đổi suốt quá trình công tác (CN-04.2). */
     HR_1001("HR-1001", HttpStatus.CONFLICT),
@@ -376,6 +441,39 @@ public enum ErrorCode {
      * nhầm tham số.
      */
     HR_2003("HR-2003", HttpStatus.UNPROCESSABLE_CONTENT),
+
+    // ---- MOD-04 Nghỉ phép (CN-04.9, WS-57) --------------------------------------
+    /**
+     * Khoảng nghỉ {0} → {1} ⛔ không có <b>ngày công nào</b> — mọi ngày trong đó là cuối tuần hoặc
+     * ngày lễ. Một đơn 0 ngày ⛔ không nghĩa lý gì, và ràng buộc
+     * {@code ck_leave_requests_working_days} là lưới cuối; mã này để người dùng đọc được lý do.
+     */
+    HR_2004("HR-2004", HttpStatus.UNPROCESSABLE_CONTENT),
+    /**
+     * Đã có đơn nghỉ khác chồng lên khoảng {0} → {1}. Hai đơn chồng ngày là đếm <b>hai lần</b> cùng
+     * những ngày ấy vào số dư — và người nộp ⛔ không cố ý, họ chỉ sửa ngày rồi nộp đơn mới thay vì
+     * rút đơn cũ.
+     */
+    HR_2005("HR-2005", HttpStatus.CONFLICT),
+    /**
+     * ⛔ Không huỷ được đơn đã <b>bắt đầu nghỉ</b> ({0}). Những ngày ấy đã trôi qua; hoàn phép cho
+     * chúng là bịa ra một ngày công ⛔ không ai làm.
+     */
+    HR_2007("HR-2007", HttpStatus.UNPROCESSABLE_CONTENT),
+    /** Ngày lễ {0} đã được khai — hai hàng cùng ngày làm phép đếm trừ hai lần cùng một ngày. */
+    HR_2008("HR-2008", HttpStatus.CONFLICT),
+
+    // ---- MOD-04 Báo cáo nhân sự (CN-04.8, WS-58) --------------------------------
+    /**
+     * Báo cáo {0} <b>có trong danh mục</b> nhưng chưa dựng được — {1} là lý do, nguyên văn.
+     *
+     * <p>⛔⛔ Mã riêng chứ ⛔ <b>không</b> phải 404. Hai trạng thái khác hẳn nhau và dẫn tới hai
+     * việc khác hẳn nhau: <i>"mã ⛔ không tồn tại"</i> là người gọi gõ sai, còn <i>"mã có thật,
+     * chưa dựng được"</i> là một <b>khoảng trống đã biết</b> mà người vận hành cần đọc được lý do.
+     * Với {@code BCNS-07} lý do ấy là <b>G6</b>: mẫu 2C-BNV/2008 là biểu mẫu quy định của Bộ Nội
+     * vụ, Công ty chưa gửi tệp gốc, và đặc tả ghi rõ <i>"cấm tự chế layout"</i>.
+     */
+    HR_2009("HR-2009", HttpStatus.UNPROCESSABLE_CONTENT),
 
     // ---- MOD-05 Quản trị --------------------------------------------------------
     ADM_2001("ADM-2001", HttpStatus.UNPROCESSABLE_CONTENT),

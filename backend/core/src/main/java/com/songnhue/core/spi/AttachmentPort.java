@@ -55,6 +55,30 @@ public interface AttachmentPort {
      */
     Optional<AttachmentContent> readForPublic(UUID publicId, List<String> allowedOwnerTypes);
 
+    /**
+     * Đọc nội dung một tệp <b>cho người dùng NỘI BỘ đã được nơi gọi phân quyền</b> — CN-04.5
+     * (tải cả hồ sơ dạng ZIP).
+     *
+     * <h2>⛔⛔ Vì sao chữ ký có {@code ownerType} và {@code ownerId} chứ ⛔ KHÔNG chỉ một UUID</h2>
+     *
+     * <p>Một {@code read(UUID)} trần sẽ đọc được <b>mọi</b> tệp trong kho: bảng {@code attachments}
+     * là bảng <b>dùng chung</b> cho bài viết, công trình, hồ sơ CBNV và cấu hình cổng. Nơi gọi kiểm
+     * quyền trên <i>bản ghi</i> rồi truyền một UUID <i>tệp</i> bất kỳ là một lỗ IDOR <b>trông y hệt
+     * mã đúng</b> — đúng câu mà {@code HoSoTaiLieuService.thuocHoSo} đã phải viết ra để tự nhắc.
+     *
+     * <p>⇒ Cổng này <b>tự kiểm</b> tệp có thuộc đúng bản ghi ấy ⛔ không. Nơi gọi đã chứng minh
+     * quyền trên {@code (ownerType, ownerId)}; phần còn lại thành một tính chất <b>cấu trúc</b>,
+     * ⛔ không phải một lời dặn.
+     *
+     * <p>⚠ Trả {@link java.util.Optional#empty()} cho <b>cả hai</b> ca *"⛔ không có"* và *"có mà
+     * ⛔ không thuộc bản ghi này"* — phân biệt được là nói cho người hỏi biết UUID nào có thật.
+     *
+     * <p>⚠⚠ Luồng trả về là luồng <b>đang mở tới kho</b>: nơi gọi phải đóng nó. Đây là lựa chọn có
+     * chủ đích thay cho {@code byte[]} — một hồ sơ CBNV đủ bảy thư mục có thể vài chục MB, và nạp
+     * trọn vào heap để nén là đúng thứ VPS 2 nhân đang phải tiết kiệm (T28.35).
+     */
+    Optional<AttachmentContent> readForOwner(String ownerType, Long ownerId, UUID publicId);
+
     /** Danh sách tệp của một bản ghi, mới nhất trước. */
     List<AttachmentRef> refsOf(String ownerType, Long ownerId);
 

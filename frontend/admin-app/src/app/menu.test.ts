@@ -267,3 +267,135 @@ describe('hiện chức năng khôi phục — điều kiện nghiệm thu WS-8'
     expect(isRestoreVisible(true, { restoreAvailable: true })).toBe(true);
   });
 });
+
+/**
+ * Ba mục nghỉ phép — CN-04.9 (WS-57).
+ *
+ * ⛔⛔ Mỗi mục gác bằng **một loại điều kiện khác nhau**, và đó ⛔ không phải tuỳ hứng:
+ *
+ * - *Nghỉ phép của tôi* — **liên kết hồ sơ**. `hr:leave:request` do chốt C3 cấp cho gần như mọi vai
+ *   trò nên nó ⛔ không phân biệt được ai; điều kiện thật là tài khoản có hồ sơ CBNV (T51.8).
+ * - *Duyệt nghỉ phép* — **mã quyền** `hr:leave:approve`, 2/12 vai trò.
+ * - *Ngày nghỉ lễ* — **chỉ cần đăng nhập**, đúng như đường đọc của backend; nút ghi tự ẩn trong
+ *   trang theo `hr:contract:manage`.
+ */
+describe('ba mục nghỉ phép gác bằng ba loại điều kiện khác nhau — CN-04.9', () => {
+  it('⭐ chưa liên kết hồ sơ ⇒ ⛔ KHÔNG thấy "Nghỉ phép của tôi", dù có hr:leave:request', () => {
+    const visible = leafLabels(
+      visibleMenu(MENU, checker('hr:leave:request'), { coHoSoNhanSu: false }),
+    );
+    expect(visible).not.toContain('Nghỉ phép của tôi');
+  });
+
+  it('⭐ đã liên kết hồ sơ ⇒ THẤY, kể cả khi ⛔ không có một mã quyền nào', () => {
+    // ⛔⛔ Đây là toàn bộ điểm của T51.8 áp cho nghỉ phép: điều kiện là một QUAN HỆ giữa tài khoản
+    //    và một hàng, ⛔ không phải một thuộc tính của vai trò.
+    const visible = leafLabels(visibleMenu(MENU, checker(), { coHoSoNhanSu: true }));
+    expect(visible).toContain('Nghỉ phép của tôi');
+    expect(visible).not.toContain('Duyệt nghỉ phép');
+  });
+
+  it('⛔ ⛔ Không có hr:leave:approve ⇒ ⛔ KHÔNG thấy "Duyệt nghỉ phép" — vế phân biệt', () => {
+    expect(
+      leafLabels(visibleMenu(MENU, checker('hr:leave:request'), { coHoSoNhanSu: true })),
+    ).not.toContain('Duyệt nghỉ phép');
+    expect(
+      leafLabels(visibleMenu(MENU, checker('hr:leave:approve'), { coHoSoNhanSu: true })),
+    ).toContain('Duyệt nghỉ phép');
+  });
+
+  it('⭐ "Ngày nghỉ lễ" gác bằng quyền của NGƯỜI NỘP ĐƠN, ⛔ không bằng quyền người sửa danh mục', () => {
+    // ⛔ Gác bằng `hr:contract:manage` (2/12 vai trò) sẽ khoá đường đọc của những người mà lịch lễ
+    //   quyết định số ngày công — và dựng lại đúng một endpoint ⛔ không màn hình nào gọi (§11.15).
+    expect(leafLabels(visibleMenu(MENU, checker('hr:leave:request')))).toContain('Ngày nghỉ lễ');
+    expect(leafLabels(visibleMenu(MENU, checker('hr:contract:manage')))).not.toContain(
+      'Ngày nghỉ lễ',
+    );
+  });
+
+  it('đường dẫn tô sáng đúng mục', () => {
+    expect(findMenuKey(MENU, '/nhan-su/nghi-phep')).toBe('nghi-phep-cua-toi');
+    expect(findMenuKey(MENU, '/nhan-su/duyet-nghi-phep')).toBe('duyet-nghi-phep');
+    expect(findMenuKey(MENU, '/nhan-su/ngay-le')).toBe('ngay-le');
+  });
+});
+
+/**
+ * Sơ đồ tổ chức — CN-04.1 (WS-58).
+ *
+ * ⛔⛔ Mục này gác bằng `hr:org-chart:view` (3/12 vai trò), ⛔ **không** bằng `adm:org-unit:view`.
+ * Hai màn hình đọc cùng một cây với hai mục đích ngược nhau: *Quản trị › Sơ đồ đơn vị* để **SỬA**
+ * (`adm:org-unit:manage`), còn đây để **XEM** kèm quân số. Gộp chúng về một quyền hỏng theo CẢ HAI
+ * chiều — cùng hình dạng CN-04.6 vs CN-04.7 (§11.22).
+ */
+describe('mục "Sơ đồ tổ chức" gác bằng hr:org-chart:view — CN-04.1', () => {
+  it('⭐ có hr:org-chart:view ⇒ THẤY', () => {
+    expect(leafLabels(visibleMenu(MENU, checker('hr:org-chart:view')))).toContain('Sơ đồ tổ chức');
+  });
+
+  it('⛔ chỉ có adm:org-unit:view ⇒ ⛔ KHÔNG thấy — vế phân biệt', () => {
+    const visible = leafLabels(visibleMenu(MENU, checker('adm:org-unit:view')));
+    expect(visible).not.toContain('Sơ đồ tổ chức');
+    expect(visible).toContain('Sơ đồ đơn vị');
+  });
+
+  it('đường dẫn tô sáng đúng mục', () => {
+    expect(findMenuKey(MENU, '/nhan-su/so-do-to-chuc')).toBe('so-do-to-chuc');
+  });
+});
+
+/**
+ * Báo cáo nhân sự — CN-04.8 (WS-58).
+ *
+ * ⛔⛔ Mục gác bằng `hr:report:view`; nút **tải tệp** bên trong trang gác riêng bằng
+ * `hr:report:export`. Gộp hai quyền *"cho gọn"* là xoá một ranh giới khách đã vẽ: **xem** số tổng
+ * hợp và **mang cả danh sách cán bộ ra khỏi hệ thống** là hai việc khác nhau.
+ */
+describe('mục "Báo cáo nhân sự" gác bằng hr:report:view — CN-04.8', () => {
+  it('⭐ có hr:report:view ⇒ THẤY, và ⛔ không cần hr:report:export', () => {
+    expect(leafLabels(visibleMenu(MENU, checker('hr:report:view')))).toContain('Báo cáo nhân sự');
+  });
+
+  it('⛔ chỉ có hr:report:export ⇒ ⛔ KHÔNG thấy mục — vế phân biệt', () => {
+    // Quyền xuất một mình ⛔ không mở màn hình: nó gác NÚT, ⛔ không gác TRANG.
+    expect(leafLabels(visibleMenu(MENU, checker('hr:report:export')))).not.toContain(
+      'Báo cáo nhân sự',
+    );
+  });
+
+  it('đường dẫn tô sáng đúng mục', () => {
+    expect(findMenuKey(MENU, '/nhan-su/bao-cao')).toBe('bao-cao-nhan-su');
+  });
+});
+
+/**
+ * Lớp bản đồ GIS + Báo cáo vận hành — C3 (WS-59).
+ *
+ * ⛔⛔ Bốn mã quyền `ops:*` này là **bốn dòng miễn kiểm *Phase 3* CUỐI CÙNG** của `RbacMatrixTest`.
+ * Sau lượt này, mọi mã quyền trong danh mục đều có ít nhất một đầu nhận.
+ */
+describe('hai mục C3 gác bằng quyền ops — CN-02.4 / CN-02.10', () => {
+  it('⭐ `ops:gis-layer:view` mở mục Lớp bản đồ, ⛔ không cần `:manage`', () => {
+    // ⛔ Gác bằng `:manage` sẽ khoá người chỉ được XEM ra khỏi một màn hình họ cần đọc — ba nút
+    //   ghi trong trang đã tự ẩn theo `:manage` rồi.
+    expect(leafLabels(visibleMenu(MENU, checker('ops:gis-layer:view')))).toContain(
+      'Lớp bản đồ GIS',
+    );
+    expect(leafLabels(visibleMenu(MENU, checker('ops:gis-layer:manage')))).not.toContain(
+      'Lớp bản đồ GIS',
+    );
+  });
+
+  it('⭐ `ops:report:view` mở mục Báo cáo vận hành; `:export` một mình thì ⛔ KHÔNG', () => {
+    // Quyền xuất gác NÚT, ⛔ không gác TRANG — cùng luật với báo cáo nhân sự.
+    expect(leafLabels(visibleMenu(MENU, checker('ops:report:view')))).toContain('Báo cáo vận hành');
+    expect(leafLabels(visibleMenu(MENU, checker('ops:report:export')))).not.toContain(
+      'Báo cáo vận hành',
+    );
+  });
+
+  it('đường dẫn tô sáng đúng mục', () => {
+    expect(findMenuKey(MENU, '/van-hanh/lop-ban-do')).toBe('lop-ban-do');
+    expect(findMenuKey(MENU, '/van-hanh/bao-cao')).toBe('bao-cao-van-hanh');
+  });
+});

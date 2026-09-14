@@ -1609,3 +1609,64 @@ export interface SyncQualityReport {
   chatLuong: SyncQualityRow[];
   dongBo: SyncDailyRow[];
 }
+
+// ============================================================================
+// Lớp bản đồ GIS — CN-02.4 / M2.9 (WS-59)
+// ============================================================================
+
+/**
+ * Loại hình học của một lớp bản đồ — khớp `GisGeometryType.java` và
+ * `ck_gis_layers_geometry_type`.
+ *
+ * ⛔ Khai ra ở bản ghi chứ ⛔ **không** suy lúc vẽ: bảng chọn kiểu vẽ phải biết **trước** khi tải
+ * nội dung về, ⛔ không thì mỗi lần bật một lớp là một lượt tải vài MB chỉ để biết nên vẽ thế nào.
+ */
+export type GisGeometryType = 'POINT' | 'LINE' | 'POLYGON' | 'HON_HOP';
+
+/**
+ * @param opacity phần trăm **NGUYÊN** 0–100, ⛔ không phải 0.0–1.0. Đặc tả nói *"opacity 0–100%"*,
+ *   thanh trượt hiện 0–100, và một phép đổi đơn vị ở giữa là một chỗ để `0.8` và `80` lẫn vào nhau.
+ * @param soDoiTuong `null` = lớp **chưa nạp tệp**. ⛔ Khác `0` — một tệp rỗng hình học bị từ chối
+ *   ngay lúc nạp (`OPS-2026`), nên số 0 ⛔ không biểu diễn được ở đây.
+ */
+export interface GisLayerView {
+  publicId: string;
+  name: string;
+  description: string | null;
+  geometryType: GisGeometryType;
+  /** `#RRGGBB` — màu của **từng lớp do người vận hành đặt**, ⛔ không phải màu thương hiệu. */
+  color: string;
+  opacity: number;
+  sortOrder: number;
+  active: boolean;
+  coTep: boolean;
+  soDoiTuong: number | null;
+}
+
+/** ⚠ Trường `null` = **giữ nguyên**, ⛔ không phải "đặt về mặc định" (§11.19). */
+export interface GisLayerRequest {
+  name: string;
+  description?: string | null;
+  color?: string | null;
+  opacity?: number | null;
+  sortOrder?: number | null;
+  active?: boolean | null;
+}
+
+/**
+ * Một dòng của danh mục báo cáo — dùng chung cho CN-02.10 và CN-04.8.
+ *
+ * ⛔⛔ `khaDung = false` mang **hai nghĩa khác nhau** tuỳ danh mục, và giao diện ⛔ **không** được
+ * trộn chúng thành một nhãn *"chưa có"*:
+ * - CN-04.8 `BCNS-07`: **chưa làm được** (chờ G6) — *sẽ* có.
+ * - CN-02.10 `BC-01..04`: **bỏ vĩnh viễn** (mất nguồn dữ liệu, chốt B1/F1/G2/A1) — *không bao giờ* có.
+ *
+ * ⇒ Câu chữ phân biệt nằm trong `lyDo`, do backend gửi nguyên văn.
+ */
+export interface MucBaoCaoView {
+  ma: string;
+  ten: string;
+  moTa: string;
+  khaDung: boolean;
+  lyDo: string | null;
+}

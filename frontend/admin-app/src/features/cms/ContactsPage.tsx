@@ -22,6 +22,7 @@ import { useAuth } from '@/app/auth/useAuth';
 import { ApprovalActions } from '@/components/business/ApprovalActions';
 import { OrgUnitTreeSelect } from '@/components/business/OrgUnitTreeSelect';
 import { ApiClientError } from '@/shared/apiClient';
+import { luuTep } from '@/shared/luuTep';
 
 import { cmsApi, cmsKeys } from './api';
 import { ContactCategoriesModal } from './ContactCategoriesModal';
@@ -138,13 +139,8 @@ export function ContactsPage() {
     mutationFn: async () => {
       const { blob, tenTep } = await cmsApi.exportContacts(loc);
       // ⛔ Dựng blob rồi bấm một thẻ <a> — ⛔ không `window.open` (tab mới ⛔ không mang header
-      //   `Authorization`, và người dùng nhận một tab trắng).
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = tenTep ?? 'lien-he.csv';
-      a.click();
-      URL.revokeObjectURL(url);
+      //   `Authorization`, và người dùng nhận một tab trắng). Xem `shared/luuTep`.
+      luuTep(blob, tenTep ?? 'lien-he.csv');
     },
     // ⛔ CMS-2022 khi vượt trần dòng — câu chữ đến từ `error-map`, ⛔ không viết lại ở đây.
     onError: (caught: unknown) => bao(caught, 'Không xuất được danh sách'),

@@ -89,7 +89,7 @@ services:
   # MinIO — kho tệp
   # ---------------------------------------------------------------------------
   minio:
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z.hotfix.7aa24e772
     container_name: songnhue-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
@@ -123,7 +123,7 @@ services:
   #    vào service đã nằm sẵn trên đường triển khai (và `app` đã `depends_on` nó)
   #    thì mỗi lượt deploy đều đi qua cả hai; một script bấm tay thì không.
   minio-init:
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z.hotfix.7aa24e772
     container_name: songnhue-minio-init
     restart: "no"
     depends_on:

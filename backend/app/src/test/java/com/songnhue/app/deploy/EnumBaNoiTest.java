@@ -24,10 +24,13 @@ import com.songnhue.hr.domain.EducationLevel;
 import com.songnhue.hr.domain.EmployeeEventType;
 import com.songnhue.hr.domain.EmploymentStatus;
 import com.songnhue.hr.domain.Gender;
+import com.songnhue.hr.domain.LeaveState;
+import com.songnhue.hr.domain.LeaveType;
 import com.songnhue.hr.domain.MaritalStatus;
 import com.songnhue.hr.domain.QualificationKind;
 import com.songnhue.operations.domain.ConstructionPurpose;
 import com.songnhue.operations.domain.ConstructionType;
+import com.songnhue.operations.domain.GisGeometryType;
 import com.songnhue.operations.domain.LifecycleState;
 import com.songnhue.operations.domain.ManagementLevel;
 import com.songnhue.operations.domain.OperationalStatus;
@@ -142,7 +145,16 @@ class EnumBaNoiTest {
             //    `HoSoThuMucHttpTest` canh đúng bộ ba ấy.
             new BoBa(EducationLevel.class, "EducationLevel", "ck_employees_education_level", null, HR_TU_VUNG),
             new BoBa(QualificationKind.class, "QualificationKind", "ck_employee_qualifications_kind", null, HR_TU_VUNG),
-            new BoBa(EmployeeEventType.class, "EmployeeEventType", "ck_employee_events_type", null, HR_TU_VUNG));
+            new BoBa(EmployeeEventType.class, "EmployeeEventType", "ck_employee_events_type", null, HR_TU_VUNG),
+            // ⭐ WS-57 — hai enum của nghỉ phép (CN-04.9).
+            // ⚠ `LeaveState` khai ở đây <b>⛔ không</b> làm nó thành nguồn sự thật của LUỒNG: nguồn
+            //   ấy là `workflow_transitions` (quy tắc 4). Bộ canh này chỉ hỏi *ba nơi có cùng một
+            //   BỘ GIÁ TRỊ ⛔ không* — một câu hỏi khác, và cả hai đều cần.
+            new BoBa(LeaveType.class, "LeaveType", "ck_leave_requests_type", null, HR_TU_VUNG),
+            new BoBa(LeaveState.class, "LeaveState", "ck_leave_requests_state", null, HR_TU_VUNG),
+            // ⭐ WS-59 — lớp bản đồ GIS (CN-02.4 / M2.9). Union khai ở `api-types.ts` như mọi enum
+            //   của `operations`.
+            new BoBa(GisGeometryType.class, "GisGeometryType", "ck_gis_layers_geometry_type", null));
 
     private static final Path TU_VUNG =
             gocKho().resolve("frontend/admin-app/src/components/business/statusVocabulary.ts");
@@ -209,7 +221,7 @@ class EnumBaNoiTest {
 
         assertThat(BO_BA)
                 .as("bảng đối chiếu rỗng thì bài trên không khẳng định gì")
-                .hasSize(13);
+                .hasSize(16);
         assertThat(BO_BA.stream().map(BoBa::tepTs).distinct().toList())
                 .as("⭐ T51.10(a): phải có ÍT NHẤT hai tệp TS trong bảng. Thiếu vế này thì một lượt "
                         + "'dọn dẹp' gộp tất cả về api-types.ts sẽ làm bốn enum HR về rỗng — và bài "
@@ -280,6 +292,20 @@ class EnumBaNoiTest {
         assertThat(daCanh)
                 .as("không dòng nào khai tenTuVung ⇒ bài này không khẳng định gì")
                 .isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("⛔⛔ Tự-kiểm: bộ đọc phải thấy giá trị có CHỮ SỐ — mẫu cũ `[A-Z_]+` thì ⛔ không")
+    void boDocThayGiaTriCoChuSo() {
+        // ⛔⛔ Ca hỏng THẬT: `CHO_DUYET_2` là giá trị đầu tiên của kho mang một chữ số. Với mẫu cũ,
+        //    nó biến mất ở CẢ BA nguồn cùng lúc ⇒ ba tập vẫn BẰNG NHAU ⇒ bài chính XANH trong khi
+        //    một cấp duyệt có thể đã biến mất khỏi một trong ba nơi (luật 7, luật 28).
+        assertThat(bocChuoiNhay("'CHO_DUYET' | 'CHO_DUYET_2' | 'DA_DUYET'", '\''))
+                .containsExactly("CHO_DUYET", "CHO_DUYET_2", "DA_DUYET");
+
+        // Vế phân biệt: ⛔ không được nuốt thứ KHÔNG phải hằng enum — chuỗi thường và số trần.
+        assertThat(bocChuoiNhay("'CHO_DUYET_2', 'abc', '2026', 'Ghi chú'", '\''))
+                .containsExactly("CHO_DUYET_2");
     }
 
     @Test
@@ -433,9 +459,25 @@ class EnumBaNoiTest {
         return "";
     }
 
+    /**
+     * Bóc mọi hằng dạng {@code 'TEN_HANG'} trong một đoạn — dùng cho <b>cả</b> union TypeScript
+     * <b>lẫn</b> danh sách {@code IN (...)} của SQL.
+     *
+     * <h2>⛔⛔ Mẫu cũ {@code [A-Z_]+} MÙ trước mọi giá trị có CHỮ SỐ</h2>
+     *
+     * <p>Đo ngày 14/09/2026: {@code LeaveState.CHO_DUYET_2} là giá trị <b>đầu tiên</b> của kho mang
+     * một chữ số, và bộ đọc ⛔ không thấy nó — ở <b>cả ba</b> nơi nó đọc. Lượt này nó đỏ đúng (TS
+     * thiếu một giá trị mà TS thật ra <b>có</b>), nhưng hãy đọc ca ngược lại: nếu <b>Java</b> mất
+     * {@code CHO_DUYET_2} trong khi TS và SQL vẫn còn, thì cả ba tập bóc ra đều thiếu nó như nhau
+     * ⇒ <b>ba tập bằng nhau</b> ⇒ bộ canh <b>XANH</b> trong đúng tình huống nó sinh ra để bắt.
+     *
+     * <p>⇒ Đây là luật 28 ở dạng tinh vi nhất: phạm vi hụt ⛔ không nằm ở <i>tệp nào được quét</i>
+     * mà ở <i>ký tự nào được nhận</i>. Chữ số ⛔ không phải một cách đặt tên lạ — mọi quy trình có
+     * <b>hai cấp duyệt</b> đều sinh ra một trạng thái như vậy.
+     */
     private static Set<String> bocChuoiNhay(String doan, char nhay) {
         Set<String> ket = new LinkedHashSet<>();
-        Matcher m = Pattern.compile(nhay + "([A-Z_]+)" + nhay).matcher(doan);
+        Matcher m = Pattern.compile(nhay + "([A-Z][A-Z0-9_]*)" + nhay).matcher(doan);
         while (m.find()) {
             ket.add(m.group(1));
         }

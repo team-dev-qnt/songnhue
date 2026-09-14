@@ -103,6 +103,19 @@ public enum SecurityEventType {
      */
     HR_SENSITIVE_FIELDS_READ(Severity.WARNING),
 
+    /**
+     * Một lượt <b>tải trọn hồ sơ tài liệu</b> của một CBNV (CN-04.5, NĐ 13/2023).
+     *
+     * <p>⛔⛔ Nặng hơn {@link #HR_SENSITIVE_FIELDS_READ} một bậc: lượt kia đọc vài trường trên màn
+     * hình, lượt này mang <b>cả</b> hợp đồng, quyết định, bằng cấp và giấy tờ tuỳ thân ra khỏi hệ
+     * thống trong một tệp — và sau đó hệ ⛔ không kiểm soát được gì nữa.
+     *
+     * <p>⛔ {@code detail} ghi <b>mã nhân viên</b> và <b>số tệp</b>. ⛔ Không bao giờ ghi tên tệp:
+     * *"Giấy khám sức khoẻ tâm thần.pdf"* tự nó đã là dữ liệu nhạy cảm, và nhật ký bảo mật có
+     * nhiều người đọc hơn chính hồ sơ.
+     */
+    HR_DOSSIER_DOWNLOADED(Severity.WARNING),
+
     // --- Liên kết tài khoản ↔ hồ sơ CBNV (T51.8, CN-05.1) ----------------------
     /**
      * Một tài khoản vừa được <b>gán</b> hoặc <b>gỡ</b> liên kết tới một hồ sơ CBNV.

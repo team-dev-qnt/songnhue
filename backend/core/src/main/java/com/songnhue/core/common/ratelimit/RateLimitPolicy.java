@@ -58,6 +58,57 @@ public enum RateLimitPolicy {
     /** Kết xuất báo cáo: 10 lượt / giờ — mỗi lượt tốn nhiều tài nguyên. */
     EXPORT("export", 10, Duration.ofHours(1));
 
+    /** Đường dẫn đăng nhập — xét trước mọi thứ khác. */
+    private static final String DUONG_DANG_NHAP = "/api/v1/auth/login";
+
+    /** Cổng công khai. Xét TRƯỚC kết xuất: ảnh nhúng trang chủ không bao giờ được rơi vào 10/giờ. */
+    private static final String TIEN_TO_CONG_KHAI = "/api/v1/public";
+
+    /**
+     * Đoạn đường dẫn đánh dấu một lượt <b>kết xuất</b> — T47.11 · DOD3.6.
+     *
+     * <p>⛔⛔ Bản cũ chỉ có {@code "/export"}, một chuỗi <b>tiếng Anh</b> trong một kho đặt tên
+     * <b>tiếng Việt</b>. Đo ngày 14/9/2026: 6 endpoint kết xuất, marker ấy bắt được <b>2</b>. Bốn
+     * cái còn lại rơi xuống {@link #API} — <b>100 lượt/phút thay vì 10 lượt/giờ, rộng gấp 600
+     * lần</b>. Ba trong bốn cái ấy do chính đợt Phase 3 dựng ra.
+     *
+     * <p>Nặng nhất là {@code /tai-lieu/zip}: mỗi lượt đọc toàn bộ tài liệu của một hồ sơ CBNV ra
+     * khỏi MinIO rồi dựng một tệp tạm. Ở 100 lượt/phút trên một VPS 2 vCPU thì đó vừa là đường tự
+     * đánh sập mình, vừa là đường rút dữ liệu cá nhân hàng loạt (NĐ 13/2023).
+     *
+     * <p>⚠ Mỗi đoạn bắt đầu bằng {@code /} nên nó khớp <b>ranh giới đoạn</b>: {@code /de-xuat}
+     * ⛔ không chứa {@code /xuat}. Còn những endpoint trả tệp mà <b>cố ý KHÔNG</b> nằm đây:
+     * {@code /gis-layers/{id}/noi-dung} (bản đồ VẼ bằng nó — 10/giờ là màn hình trực ban trắng) và
+     * hai đường tải tệp mẫu nhập liệu (vài KB).
+     */
+    private static final java.util.List<String> MOC_KET_XUAT =
+            java.util.List.of("/export", "/xuat", "/zip", "/bao-cao/tai/");
+
+    /**
+     * Chính sách cho một đường dẫn.
+     *
+     * <p>Tách khỏi filter để bài kiểm hỏi thẳng được, ⛔ không phải dựng một {@code
+     * HttpServletRequest} giả — và để chỉ có <b>một</b> bản luật, thay vì một bản trong filter và
+     * một bản chép lại trong bài kiểm (một bài kiểm chép hằng số của phía bên kia thì nó canh chính
+     * nó — T51.15).
+     */
+    public static RateLimitPolicy choDuongDan(String duongDan) {
+        if (duongDan.startsWith(DUONG_DANG_NHAP)) {
+            return LOGIN;
+        }
+        // ⚠ Công khai xét TRƯỚC kết xuất. Ngược lại thì một đường dẫn công khai lỡ mang chữ `/xuat`
+        // sẽ bị hạ xuống 10 lượt/giờ cho TOÀN BỘ khách của cổng — hỏng theo chiều không ai ngờ.
+        if (duongDan.startsWith(TIEN_TO_CONG_KHAI)) {
+            return PUBLIC;
+        }
+        for (String moc : MOC_KET_XUAT) {
+            if (duongDan.contains(moc)) {
+                return EXPORT;
+            }
+        }
+        return API;
+    }
+
     private final String prefix;
     private final int limit;
     private final Duration window;
