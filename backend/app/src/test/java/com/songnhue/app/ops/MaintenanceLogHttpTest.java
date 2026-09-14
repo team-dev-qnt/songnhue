@@ -403,6 +403,54 @@ class MaintenanceLogHttpTest extends IntegrationTestBase {
     // === Cửa sổ người nhập tự sửa — T18.9 ====================================
 
     @Test
+    @DisplayName("⭐ T61.18 — dòng trả publicId đơn vị nội bộ, và PUT dựng từ dòng ấy GIỮ NGUYÊN nghiệm thu")
+    void rowCarriesPerformerOrgUnitAndAnEditKeepsAcceptance() {
+        String tao = phienHttp
+                .goi(
+                        quanLy,
+                        HttpMethod.POST,
+                        "/api/v1/ops/maintenance-logs",
+                        """
+                        {"constructionId":"%s","workType":"BAO_TRI_DINH_KY","severity":null,"initialState":null,
+                         "startedOn":"2026-08-01","completedOn":null,"content":"Bảo trì tổ máy",
+                         "itemOrEquipment":"Tổ máy số 2","performerOrgUnitId":"%s","performerName":null,
+                         "cost":1500000,"fundingSource":"Sự nghiệp","acceptanceResult":"DANG_THEO_DOI",
+                         "acceptanceNote":"Theo dõi 30 ngày","assigneeUserId":null}"""
+                                .formatted(congTrinh, donViGoc))
+                .getBody();
+        String id = PhienHttp.giaTriJson(tao, "id");
+        assertThat(tao)
+                .as("⛔ thiếu trường này thì lối SỬA ⛔ nạp lại được ô đơn vị nội bộ ⇒ OPS-2017 hoặc đổi đơn vị")
+                .contains("\"performerOrgUnitId\":\"" + donViGoc + "\"");
+
+        // Thân dựng đúng như `dungPayloadSuaBanGhi` của admin-app: ô biểu mẫu + bốn trường giữ nguyên.
+        ResponseEntity<String> sua = phienHttp.goi(
+                quanLy,
+                HttpMethod.PUT,
+                "/api/v1/ops/maintenance-logs/" + id,
+                """
+                {"constructionId":"%s","workType":"BAO_TRI_DINH_KY","severity":null,
+                 "startedOn":"2026-08-01","completedOn":null,"content":"Bảo trì tổ máy",
+                 "itemOrEquipment":"Tổ máy số 2","performerOrgUnitId":"%s","performerName":null,
+                 "cost":"1800000","fundingSource":"Sự nghiệp","acceptanceResult":"%s",
+                 "acceptanceNote":"%s","assigneeUserId":null,"alertEventId":null}"""
+                        .formatted(
+                                congTrinh,
+                                PhienHttp.giaTriJson(tao, "performerOrgUnitId"),
+                                PhienHttp.giaTriJson(tao, "acceptanceResult"),
+                                PhienHttp.giaTriJson(tao, "acceptanceNote")));
+        assertThat(sua.getStatusCode()).as("%s", sua.getBody()).isEqualTo(HttpStatus.OK);
+        assertThat(jdbc.queryForMap(
+                        "SELECT cost, acceptance_result, acceptance_note FROM maintenance_logs WHERE public_id = ?::uuid",
+                        id))
+                .containsEntry("acceptance_result", "DANG_THEO_DOI")
+                .containsEntry("acceptance_note", "Theo dõi 30 ngày")
+                .satisfies(
+                        m -> assertThat(new java.math.BigDecimal(m.get("cost").toString()))
+                                .isEqualByComparingTo("1800000"));
+    }
+
+    @Test
     @DisplayName("⭐ Cửa sổ tự sửa mặc định TẮT → Kỹ thuật không sửa được bản ghi của chính mình")
     void theAuthorEditWindowIsOffByDefault() {
         String id = PhienHttp.giaTriJson(

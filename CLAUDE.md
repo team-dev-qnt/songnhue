@@ -399,6 +399,15 @@ operations 55 · app **1199**) · **0 đỏ** · FE **438** admin-app / 51 tệp
 +4 bài FE**, cả mười là bộ canh: `QuyenBanDumpTest` 3 · `BackupServiceTest` +1 · `IpThatTrongNhatKyHttpTest` 2 ·
 `hoSoCongTrinhVongKhuHoi.test.tsx` 4.
 
+⭐⭐ **Đo lại 14/09/2026 (tối) sau WS-61 đợt 2 — `make ci-local` thoát 0** (lượt cuối) **+ `make ci-order` thoát 0**
+(trên đỉnh T61.11), tiến trình maven DUY NHẤT (⚠ số ở **MÁY**): **1828 testcase BE** (core **286** · content 54 ·
+hydro 225 · operations 55 · app **1208**) · **0 đỏ** · FE **446** admin-app / 53 tệp + **392** public-web / 44 ·
+**74 migration**, ⛔ thêm tệp nào · mã lỗi **120** (`ADM-2019`). Ba việc: **T61.13** (bộ canh bytecode đếm
+đối số mã lỗi ⇒ 44 nơi lệch, **7 câu người dùng đọc nguyên chữ `{1}`** — năm câu CMS đánh chỗ cắm từ `{1}`)
+· **T61.11** (chống trùng CCCD so dưới MỌI khoá + job `CRYPTO_REENCRYPT` tự chạy khi khởi động) ·
+**T61.18** (`PUT` sửa bản ghi sửa chữa có 0 nơi gọi; dựng lối sửa thì lộ payload tạo mới sẽ **xoá kết quả
+nghiệm thu**). ⚠ **Mạng tới GitHub đứt suốt đợt** — các commit nằm ở máy, ⛔ chưa đẩy.
+
 ⭐⭐ **Đo lại 14/09/2026 sau WS-60 (đối chiếu DoD Phase 3 · gỡ chốt CI) — `make ci-local` thoát 0**,
 lượt chạy là tiến trình maven DUY NHẤT (⚠ số ở **MÁY**): **1811 testcase BE** (core 283 · content 54 ·
 hydro 225 · operations 55 · app **1194**) · **0 đỏ** · FE **434** admin-app / 50 tệp + **392**

@@ -1,4 +1,4 @@
-import { PlusOutlined } from '@ant-design/icons';
+import { EditOutlined, PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App, Button, Card, Empty, Space, Statistic, Tag, Timeline, Typography } from 'antd';
 import dayjs from 'dayjs';
@@ -39,6 +39,7 @@ export function ConstructionMaintenancePanel({
   const queryClient = useQueryClient();
   const [formOpen, setFormOpen] = useState(false);
   const [dangChon, setDangChon] = useState<string | null>(null);
+  const [dangSua, setDangSua] = useState<MaintenanceRow | null>(null);
 
   const queryKey = ['ops', 'maintenance-logs', constructionPublicId];
 
@@ -91,6 +92,14 @@ export function ConstructionMaintenancePanel({
   });
 
   const banGhi = trang?.items ?? [];
+
+  const lamMoiSauKhiLuu = () => {
+    // ⚠ Tiền tố `['ops','maintenance-logs']`, ⛔ `queryKey` của danh sách: khoá tổng chi phí là
+    //   `[…, 'cost-summary', id]` nên ⛔ khớp tiền tố `[…, id]` — bản trước ghi một khoản chi phí mới
+    //   mà ô "Tổng chi phí đã ghi nhận" đứng yên tới lượt F5.
+    void queryClient.invalidateQueries({ queryKey: ['ops', 'maintenance-logs'] });
+    void queryClient.invalidateQueries({ queryKey: ['ops', 'constructions'] });
+  };
 
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="middle">
@@ -155,6 +164,19 @@ export function ConstructionMaintenancePanel({
 
                   {dangChon === row.id && chiTiet && (
                     <div style={{ marginTop: 8 }} onClick={(e) => e.stopPropagation()}>
+                      {/* T61.18 — trước đây `PUT` có 0 nơi gọi: sai một con số chi phí chỉ còn đường
+                          xoá rồi ghi lại. Cửa sổ tác giả tự sửa (T18.9) ⛔ hiện nút vì giao diện ⛔ biết
+                          ai tạo bản ghi — backend vẫn nhận nếu có ai gọi. */}
+                      {hasPermission('ops:maintenance:update') && (
+                        <Button
+                          size="small"
+                          icon={<EditOutlined />}
+                          style={{ marginBottom: 8 }}
+                          onClick={() => setDangSua(row)}
+                        >
+                          Sửa bản ghi
+                        </Button>
+                      )}
                       <ApprovalActions
                         actions={chiTiet.actions}
                         disabled={bamNut.isPending}
@@ -175,11 +197,18 @@ export function ConstructionMaintenancePanel({
         constructionPublicId={constructionPublicId}
         open={formOpen}
         onClose={() => setFormOpen(false)}
-        onSaved={() => {
-          void queryClient.invalidateQueries({ queryKey });
-          void queryClient.invalidateQueries({ queryKey: ['ops', 'constructions'] });
-        }}
+        onSaved={lamMoiSauKhiLuu}
       />
+      {dangSua && (
+        <MaintenanceFormModal
+          key={dangSua.id}
+          constructionPublicId={constructionPublicId}
+          banGhi={dangSua}
+          open
+          onClose={() => setDangSua(null)}
+          onSaved={lamMoiSauKhiLuu}
+        />
+      )}
     </Space>
   );
 }

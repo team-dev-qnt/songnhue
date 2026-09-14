@@ -718,6 +718,8 @@ export interface MaintenanceRow {
   /** Đơn vị nội bộ HOẶC nhà thầu ngoài — backend đã gộp, giao diện không phải biết hai cột. */
   performer: string | null;
   performerIsInternal: boolean;
+  /** publicId đơn vị nội bộ — `null` khi thuê ngoài. Lối SỬA cần nó để nạp lại ô chọn (T61.18). */
+  performerOrgUnitId: string | null;
   cost: string | null;
   fundingSource: string | null;
   acceptanceResult: string | null;

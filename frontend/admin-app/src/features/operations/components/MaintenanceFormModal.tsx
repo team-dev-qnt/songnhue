@@ -9,18 +9,33 @@ import { type MaintenanceRow, type MaintenanceType } from '@/shared/api-types';
 import { ApiClientError, api } from '@/shared/apiClient';
 import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
 
-import { type MaintenanceFormValues, dungPayloadSuaChua } from '../constructionRules';
+import {
+  type MaintenanceFormValues,
+  dungPayloadSuaBanGhi,
+  dungPayloadSuaChua,
+  giaTriTuBanGhi,
+} from '../constructionRules';
 
+/**
+ * Ghi nhận MỚI, hoặc SỬA một bản ghi đã lưu khi có `banGhi` — T61.18.
+ *
+ * ⚠⚠ Nơi gọi PHẢI đặt `key={banGhi.id}` cho lối sửa. `Form.useForm()` sống trong component này, và
+ * `initialValues` của `rc-field-form` chỉ áp lúc mount (T51.12): ⛔ remount thì mở bản ghi A rồi B là
+ * biểu mẫu mang dữ liệu của A và `PUT` ghi nó lên B. `key` là cơ chế DUY NHẤT ở đây — ⛔ chồng thêm
+ * `setFieldsValue` trong effect (T53.7: hai biện pháp chồng nhau cho ra ô RỖNG).
+ */
 export function MaintenanceFormModal({
   constructionPublicId,
   open,
   onClose,
   onSaved,
+  banGhi,
 }: {
   constructionPublicId: string;
   open: boolean;
   onClose: () => void;
   onSaved: () => void;
+  banGhi?: MaintenanceRow | null;
 }) {
   const { hasPermission } = useAuth();
   const { message } = App.useApp();
@@ -32,6 +47,12 @@ export function MaintenanceFormModal({
 
   const luu = useMutation({
     mutationFn: (values: MaintenanceFormValues) => {
+      if (banGhi) {
+        return api.put<MaintenanceRow>(
+          `/ops/maintenance-logs/${banGhi.id}`,
+          dungPayloadSuaBanGhi(values, banGhi),
+        );
+      }
       const payload = dungPayloadSuaChua(values, constructionPublicId);
       // ⚠ Hai đường tạo, hai quyền khác nhau (ma trận §6): cán bộ vận hành CHỈ ghi nhận được sự cố,
       // không ghi được công việc bảo trì. Chọn sai đường là 403 với người đáng lẽ có quyền.
@@ -41,7 +62,7 @@ export function MaintenanceFormModal({
       );
     },
     onSuccess: () => {
-      message.success('Đã ghi nhận công việc');
+      message.success(banGhi ? 'Đã cập nhật bản ghi' : 'Đã ghi nhận công việc');
       form.resetFields();
       onSaved();
       onClose();
@@ -56,15 +77,19 @@ export function MaintenanceFormModal({
     },
   });
 
+  // Lối sửa: quyền thật (ops:maintenance:update hoặc cửa sổ tác giả) kiểm ở backend — T18.9. Lọc loại
+  // theo quyền TẠO ở đây là để một bản ghi sự cố mở ra với ô loại RỖNG ở người chỉ có quyền bảo trì.
   const loaiChoPhep = Object.entries(MAINTENANCE_TYPE).filter(([ma]) =>
-    ma === 'KHAC_PHUC_SU_CO'
-      ? hasPermission('ops:maintenance:report-incident')
-      : hasPermission('ops:maintenance:create'),
+    banGhi
+      ? true
+      : ma === 'KHAC_PHUC_SU_CO'
+        ? hasPermission('ops:maintenance:report-incident')
+        : hasPermission('ops:maintenance:create'),
   );
 
   return (
     <Modal
-      title="Ghi nhận công việc sửa chữa"
+      title={banGhi ? `Sửa bản ghi ${banGhi.code}` : 'Ghi nhận công việc sửa chữa'}
       open={open}
       onCancel={onClose}
       onOk={() => void form.validateFields().then((v) => luu.mutate(v))}
@@ -76,11 +101,15 @@ export function MaintenanceFormModal({
       <Form<MaintenanceFormValues>
         form={form}
         layout="vertical"
-        initialValues={{
-          workType: loaiChoPhep[0]?.[0] as MaintenanceType,
-          startedOn: dayjs(),
-          performerKind: 'INTERNAL',
-        }}
+        initialValues={
+          banGhi
+            ? giaTriTuBanGhi(banGhi)
+            : {
+                workType: loaiChoPhep[0]?.[0] as MaintenanceType,
+                startedOn: dayjs(),
+                performerKind: 'INTERNAL',
+              }
+        }
       >
         <Form.Item name="workType" label="Loại công việc" rules={[{ required: true }]}>
           <Select
