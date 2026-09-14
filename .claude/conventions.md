@@ -309,9 +309,10 @@ Format: `<PREFIX>-<4 số>` — prefix theo module: `SYS` (hệ thống), `AUTH`
 ```
 Request → [1] CorrelationFilter (sinh/nhận traceId, MDC cho log)
         → [1b] RequestLoggingFilter (nằm TRONG correlation, NGOÀI rate limit — để request bị chặn 429 vẫn được ghi log)
-        → [2] RateLimitFilter (bucket theo IP; login có bucket riêng)
+        → [2] RateLimitFilter (bucket THEO IP — chỉ login + cổng công khai; dò mật khẩu phải chặn trước BCrypt)
         → [2b] CsrfFilter (double-submit, chỉ với method thay đổi dữ liệu — WS-5/T5.5)
         → [3] AuthFilter (verify access token; đối chiếu sessions + token_denylist)
+        → [3b] HanMucNguoiDungFilter (API thường + kết xuất THEO NGƯỜI DÙNG ĐÃ XÁC THỰC @ IP; chưa xác thực ⇒ theo IP — T61.17)
         → [4] ScopeContextFilter (load user → role, permissions, org_unit path vào AuthContext)
         → [5] AuditContextFilter (gắn user/traceId cho audit interceptor)
         → PermissionInterceptor (tầng 2 — @RequirePermission, xem §4.2)

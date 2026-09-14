@@ -27,7 +27,7 @@
 | A10 | `T61.13` | Bộ canh ĐẾM nơi ném đối số vào mã lỗi ⛔ `{n}`, rồi vá — 44 nơi, 7 chiều THIẾU (người dùng thấy `{1}`) + `JobWorker.last_error` | P2 | [x] |
 | A11 | `T61.15` | javadoc T57.7→T57.15 · xoá `hr.spi` rỗng · sửa `nghiem-thu-cong-ttdt-v1.md` | P2 | [x] |
 | A12 | `T58.18` · `T25.23` | Bộ canh N+1 · hạ trần màu ghi cứng | P2 | [ ] |
-| A13 | `T61.17` | ⛔⛔ Hạn mức khoá theo IP ⇒ 50 cán bộ sau một NAT chung 100 lượt/phút — **chờ QT xác nhận NAT + chốt hướng vá** | P0 nếu đúng | [ ] |
+| A13 | `T61.17` | ⛔⛔ Hạn mức khoá theo IP ⇒ 50 cán bộ sau một NAT chung 100 lượt/phút — QT chốt *vá ngay*: backend ✅ (API + kết xuất theo người@IP) · nginx `api_auth` ⬜ chờ đo NAT | P0 | [~] |
 | A14 | `T47.17` | Bài vòng khứ hồi biểu mẫu thay-toàn-phần — 3/17 (công trình · bài viết · sửa chữa) | P2 | [~] |
 | A15 | `T61.18` | Lối SỬA bản ghi sửa chữa (PUT có 0 nơi gọi) ✅ + mở rộng bộ canh endpoint mồ côi ⬜ | P2 | [~] |
 
@@ -88,9 +88,9 @@ Rồi ghi giờ bắt đầu **T37.1** (7 ngày lịch) ngay khi `hydro_readings
 | `T61.9` | Bật lịch sao lưu production | `/quan-tri/cau-hinh` → `backup.schedule-enabled = true`; sáng hôm sau `ls -l /var/lib/songnhue/backup` |
 | `T11.89` | Tách khoá SSH triển khai hai môi trường | GitHub → secret `PROD_SSH_KEY` ≠ `STAGING_SSH_KEY`; đo vân tay `ssh-keygen -lf` |
 | `T11.54` | Cổng 5201 mở trên VPS-2 | VPS-2: `sudo ss -tlnp \| grep 5201` → tắt dịch vụ / `ufw deny 5201` |
-| `T61.5` | **Chọn kênh cảnh báo**: email nhóm · Telegram · khác | trả lời để Dev dựng A8 |
-| `T61.4` | **Quyết RAM**: bật ClamAV ở staging (VPS-2 biên 2,7 GB) hay chỉ production | trả lời để Dev dựng A7 |
-| `T50.13` | `SMTP_HOST` staging: đặt thật hay gỡ | `.env` VPS-2 |
+| `T61.5` | ✅ chốt 14/09: **Gmail + Slack + Telegram** — Dev dựng A8; QT tạo bot/webhook, đặt secret vào `.env` | xem A8 |
+| `T61.4` | ✅ chốt 14/09: **cả hai máy**, staging `ConcurrentDatabaseReload no` | xem A7 |
+| `T50.13` | ✅ chốt 14/09: staging **dùng chung cấu hình SMTP của production** | chép khối `SMTP_*` từ `.env` VPS-1 sang VPS-2 |
 | `T61.17` | **Xác nhận**: Công ty ra Internet qua MỘT IP công cộng? | từ một máy trong mạng Công ty: `curl -s https://api.ipify.org` trên 2–3 máy khác phòng — cùng một số là một NAT |
 
 ### B5. Sau khi A6/A7/A8 gộp và lên staging

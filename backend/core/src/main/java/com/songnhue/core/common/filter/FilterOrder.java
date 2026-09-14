@@ -5,9 +5,10 @@ package com.songnhue.core.common.filter;
  *
  * <pre>
  * [1] CorrelationFilter   sinh/nhận traceId, đưa vào MDC
- * [2] RateLimitFilter     chặn theo IP + user; login có bucket riêng
+ * [2] RateLimitFilter     hạn mức THEO IP: đăng nhập + cổng công khai
  * [3] CsrfFilter          double-submit token cho request thay đổi dữ liệu     ← WS-5
  * [4] AuthFilter          verify access token, đối chiếu sessions + denylist   ← WS-5
+ * [4b] HanMucNguoiDung    hạn mức THEO NGƯỜI DÙNG đã xác thực: API + kết xuất  ← T61.17
  * [5] ScopeContextFilter  nạp role, permission, org_unit vào AuthContext       ← WS-5
  * [6] AuditContextFilter  gắn user + traceId cho audit interceptor
  * </pre>
@@ -46,6 +47,14 @@ public final class FilterOrder {
 
     /** Xác thực access token — WS-5 / T5.1. */
     public static final int AUTH = 30;
+
+    /**
+     * Hạn mức API + kết xuất theo người dùng ĐÃ XÁC THỰC — T61.17.
+     *
+     * <p>Phải đứng <b>sau</b> {@link #AUTH} (khoá là claims đã kiểm chữ ký, ⛔ phải {@code sub} kẻ gọi
+     * tự khai) và <b>trước</b> {@link #SCOPE_CONTEXT} (lượt bị chặn ⛔ tốn một lần nạp quyền từ CSDL).
+     */
+    public static final int RATE_LIMIT_NGUOI_DUNG = 35;
 
     /** Nạp quyền và phạm vi đơn vị — WS-5 / T5.9, T5.11. */
     public static final int SCOPE_CONTEXT = 40;

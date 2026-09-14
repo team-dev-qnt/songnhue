@@ -37,15 +37,18 @@ public enum RateLimitPolicy {
      */
     LOGIN("login", 30, Duration.ofMinutes(15)),
 
-    /** API thường: 100 lượt / phút cho mỗi người dùng hoặc IP. */
+    /**
+     * API thường: 100 lượt / phút cho mỗi <b>người dùng đã xác thực trên một IP</b>; lượt gọi chưa
+     * xác thực đếm theo IP. Đếm ở {@code HanMucNguoiDungFilter}, SAU bước kiểm token — T61.17.
+     */
     API("api", 100, Duration.ofMinutes(1)),
 
     /**
      * Cổng công khai: 300 lượt / phút trên mỗi IP — <b>bucket riêng, không dùng chung với {@link
      * #API}</b>.
      *
-     * <p>Đây không phải chuyện nới tay cho khách vãng lai. Cả hai bucket đều đếm theo IP, mà <b>cả
-     * Công ty đi ra Internet qua một IP NAT</b>: gộp chung thì một con bọ tìm kiếm quét cổng thông
+     * <p>Đây không phải chuyện nới tay cho khách vãng lai. Nếu <b>cả Công ty đi ra Internet qua một IP
+     * NAT</b> (chưa đo — T61.17) thì gộp chung với khách lạ theo IP nghĩa là một con bọ tìm kiếm quét cổng thông
      * tin sẽ tiêu hết hạn mức, và người đang soạn bài trong màn hình quản trị nhận {@code SYS-0002}
      * — một sự cố ở phần công khai lan sang phần nội bộ, không dấu vết nào chỉ ra vì sao.
      *
@@ -55,7 +58,10 @@ public enum RateLimitPolicy {
      */
     PUBLIC("public", 300, Duration.ofMinutes(1)),
 
-    /** Kết xuất báo cáo: 10 lượt / giờ — mỗi lượt tốn nhiều tài nguyên. */
+    /**
+     * Kết xuất báo cáo: 10 lượt / giờ cho mỗi người dùng đã xác thực trên một IP — mỗi lượt tốn nhiều
+     * tài nguyên. Trước T61.17 khoá theo IP ⇒ sau một NAT là 10 lượt/giờ cho CẢ Công ty.
+     */
     EXPORT("export", 10, Duration.ofHours(1));
 
     /** Đường dẫn đăng nhập — xét trước mọi thứ khác. */
