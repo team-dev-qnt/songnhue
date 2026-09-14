@@ -7,6 +7,17 @@
 > Trạng thái nền đo từ **CI thật** `34829579535` trên `dev`: **1811 testcase BE** · 0 đỏ ·
 > **74 migration / 74 vân tay** · mã lỗi **119 = 119** hai phía · **1158 dòng** sổ.
 
+> ⭐⭐ **Đối chiếu lần 2 — 14/09 tối (`WS-61`, `T61.0`).** Bản đầu của tệp này liệt kê **12** việc
+> trong khi sổ có **122** dòng mở. Đối chiếu từng dòng với mã thật ⇒ **26 dòng đã xong mà chưa tick**
+> (đã lật, kèm bằng chứng) và **9 chỗ hổng ⛔ không dòng nào của kế hoạch nhắc** — ba là bảo mật / dữ
+> liệu cá nhân (`T61.4` ClamAV · `T61.8` quyền bản dump · `T61.11` xoay khoá tắt chống trùng CCCD).
+> Bốn câu của bản đầu đã **sai** và được sửa ngay tại chỗ bên dưới: *"14 commit"* (nay **15**) ·
+> *"`PUBLIC_SITE_URL=songnhue.com`"* (production là **`thuyloisongnhue.vn`** từ 08/09) · *"DOD2.9 cần
+> VM-3"* (VM-3 đã gộp vào **VPS-2**) · và *"T37.2 là việc đo"* (kho có **0** kịch bản load test).
+>
+> ⛔ **Ranh giới đã chốt**: phía phát triển ⛔ không SSH · ⛔ không gộp · ⛔ không đề bạt. Mọi phép đo
+> trên máy chủ nằm ở **`phase4-tracking-tmp.md` §B** dưới dạng **lệnh cụ thể cho QuanTran**.
+
 ---
 
 ## 1. Phase 4 đóng bằng gì
@@ -33,7 +44,13 @@ ba câu ấy — đó chính là lý do chúng còn treo từ Phase 0.
 | `origin/dev` | `goc.resolve(chuanHoaGoc(goc, duongDan)).resolve(duongDan)` |
 
 Đó **đúng** là khuyết tật `T52.0`/`T52.1` cho `hydro_readings = 0` · `consecutive_failures = 3576`.
-Production tụt **14 commit** sau `dev` và bản vá ấy nằm trong số đó.
+Production tụt **15 commit** sau `dev` (đo lại sau `git fetch` 14/09 tối; số 14 đo TRƯỚC khi gộp #132)
+và bản vá ấy nằm trong số đó. ⭐ **Staging đã mang bản vá từ 11/09** (`origin/staging:DiaChiNguon.java:105`
+= `chuanHoaGoc`) và chỉ tụt **1** commit; **PR #133 `dev → staging` đã xanh 12/12, `MERGEABLE`**.
+
+> ⛔⛔ **Phép đo nên làm TRƯỚC khi đề bạt production — `T61.2`**: staging chạy bản vá **ba ngày** mà
+> lần đo cuối (`hydro_readings = 0`) là **10/09**, trước bản vá. Hỏi staging trước là cách rẻ nhất biết
+> bản vá có chạy trên nguồn thật ⛔ — đỏ ở đó thì đề bạt production ⛔ cứu được gì.
 
 > ⛔ **Quy tắc 18: ⛔ không có API lịch sử ⇒ mỗi ngày production chạy bản cũ là một ngày mất số liệu
 > thuỷ văn VĨNH VIỄN.** Đây là mục duy nhất của Phase 4 mà **trì hoãn có giá tính bằng dữ liệu**,
@@ -52,6 +69,9 @@ Và nó chặn **cọc dài nhất**: `T37.1` đòi **7 ngày lịch liên tục
   một ảnh **⛔ không kéo về được nữa** (cả repository `minio/minio` đã rời Docker Hub) ⇒ đường dựng
   lại máy **và** đường quay lui đang gãy mà ⛔ không có triệu chứng, vì production chạy bằng ảnh đã
   nằm trên đĩa. `DOD0.21` ⛔ **không đi thử được** cho tới khi phép đo này xanh.
+- ⚠ **Ảnh MinIO đổi ở bước `migrator`, ⛔ không phải bước `up -d`** (`T61.1`): `deploy.yml:441` `$dc pull`
+  kéo **mọi** dịch vụ, và `run --rm migrator` phụ thuộc `minio-init → minio` ⇒ compose **tạo lại**
+  container MinIO ngay đó (tag đổi `…Z` → `…Z.hotfix.7aa24e772`). Đo `Created` của `minio`, ⛔ chỉ app.
 
 ### 2.2. Bẫy của chính lượt đề bạt — đã trả giá, đừng trả lại
 
@@ -80,9 +100,19 @@ T60.10  (uname -m, cả hai VPS)
 
 chạy SONG SONG, ⛔ không chờ ai:
    T11.88  lịch gia hạn TLS cho staging   ◄── ⛔ CÓ HẠN: chứng chỉ hết 22/11/2026
-   DOD2.9  bắn chuông poller THẬT + đi thử runbook  (cần VM-3)
-   T58.18 · T25.23 · T60.8   nợ kỹ thuật, ⛔ không chặn nghiệm thu
+   T61.5   Alertmanager + ping ngoài  ──► DOD2.9  bắn chuông THẬT trên VPS-2 (VM-3 đã gộp)
+   T61.9   bật lịch sao lưu + kéo về VPS-2 (cần gói cron, cùng lượt T11.88)
+              └─► T61.10  khôi phục vào máy TRẮNG, đo RTO (gộp T7.7·T7.13·DOD0.14·T37.8)
+   T61.6   viết kịch bản load test ──► T37.2
+   T61.4   ClamAV (quyết ngân sách bộ nhớ VPS-2 trước)
+
+mã, làm được NGAY từ kho (phía phát triển):
+   T61.8 quyền bản dump · T61.11 runbook xoay khoá · T61.12 vòng khứ hồi biểu mẫu công trình
+   T61.14 canh giá trị ip_address · T61.13 bộ canh đối số mã lỗi · T61.15 ba sai lệch nhỏ
+   T58.18 · T25.23   nợ kỹ thuật, ⛔ không chặn nghiệm thu
 ```
+
+⛔ **`T60.8` đã đóng** (WS-61 lật đủ 5 dòng) — gỡ khỏi nhánh song song.
 
 ⭐ **`T37.1` bấm giờ càng sớm càng tốt** — nó chiếm **7 ngày lịch**, ⛔ không phải 7 ngày công. Mọi
 việc khác của Phase 4 chạy **song song** với đồng hồ ấy.
@@ -100,14 +130,27 @@ gói cron** (`is-enabled` ⇒ `not-found`). Thứ đi cảnh báo chính là th�
 | `T60.13` | Đề bạt 3 chặng | container thật + Flyway + HTTP 200 | `T60.10` |
 | `T60.3` | Production kéo được ảnh MinIO mới | `docker compose pull` thoát 0 | `T60.13` |
 | `T37.1` | **NFR-03** — 1008 khung 10′ liên tục, sai lệch cron < 10% | cột *"số khung bỏ sót"* của **BC-13** | `T60.13` |
-| `T37.2` | **NFR-02** — 200 CCU · P95 < 3s @ 50 users | bộ load test | `T60.13` |
+| `T61.2` | Staging (có bản vá từ 11/09) ghi được byte thật chưa | `hydro_readings` + `api_sources` trên staging | — |
+| `T61.6` | Viết kịch bản load test — kho có **0** | kịch bản chạy được + tỉ lệ 429 khai riêng | — |
+| `T37.2` | **NFR-02** — 200 CCU · P95 < 3s @ 50 users | bộ load test | `T60.13` · `T61.6` |
 | `T37.3` | **DOD1.17** — trang chủ < 3s | công cụ đo trang thật, **từ máy ở VN**, cả ISR nguội | `T60.13` |
 | `DOD0.21` | Quay lui **dựng lại được một bản đã bị thay** | `Created` của container quay về mốc cũ | `T60.3` |
-| `DOD2.9` | Chuông poller bắn THẬT + runbook đã đi thử | lượt bắn thật (cần **VM-3**) | — |
+| `T61.5` | **Alertmanager + ping ngoài** — Prometheus hôm nay ⛔ gửi đi đâu | một cảnh báo tới được người | kênh QuanTran chọn |
+| `DOD2.9` | Chuông poller bắn THẬT + runbook đã đi thử | lượt bắn thật trên **VPS-2** (VM-3 đã gộp) | `T61.5` |
 | `T11.88` | Lịch gia hạn TLS cho **staging** | `systemctl is-enabled` + một lượt gia hạn khô | — ⛔ **hạn 22/11** |
+| `T61.3` | Production là **`thuyloisongnhue.vn`**: chứng chỉ `.vn` hạn **06/12**, `admin.`/`files.` còn treo | `certbot certificates` trên VPS-1 | — |
+| `T61.9` | Bật lịch sao lưu + kéo bản dump về VPS-2 | bản < 26h **trên VPS-2** | gói cron (cùng `T11.88`) |
+| `T61.10` | Khôi phục vào máy **trắng**, đo RTO < 4h | runbook `dien-tap-khoi-phuc.md` hết ô `______` | `T61.9` |
+| `T61.4` | **ClamAV** — mọi tệp tải lên đang `SKIPPED` | một tệp EICAR ra `INFECTED` | ngân sách RAM VPS-2 |
+| `T61.8` | Bản dump ghi `644` (T11.96) | bộ canh tĩnh + `stat` trên VPS-1 | — |
+| `T61.11` | Runbook xoay khoá tắt chống trùng CCCD (T51.9) | runbook dặn đúng + bài kiểm | — |
+| `T61.12` | Vòng khứ hồi biểu mẫu công trình (T42.26·T47.17·T48.10) | bài render so payload | — |
+| `T61.14` | Canh GIÁ TRỊ `ip_address` ở 3 bảng | bài HTTP | — |
+| `T61.13` | 43 nơi ném đối số vào mã lỗi ⛔ `{n}` (nợ không dòng mở) | bộ canh đếm | — |
+| `T61.7` | NFR-05 kiểm thử bảo mật · NFR-09 tương thích — ⛔ task nào | chốt phạm vi | — |
+| `T11.89` · `T11.54` | Khoá SSH dùng chung hai môi trường · cổng 5201 mở trên VPS-2 | đo trên máy | — |
 | `T58.18` | Chưa có bộ canh hình dạng N+1 | — | — |
 | `T25.23` | 44 mã màu ghi cứng ở `admin-app` | trần `NGUONG` trong bộ canh | — |
-| `T60.8` | 4 dòng sổ của `DOD3.12` chưa đo | đo từng cái | — |
 
 **Việc của người dùng, ⛔ không phải của mã**: xoay khoá API thuỷ văn với nhà cung cấp · đặt hoặc gỡ
 `SMTP_HOST` trên staging.
@@ -146,6 +189,9 @@ gói cron** (`is-enabled` ⇒ `not-found`). Thứ đi cảnh báo chính là th�
 | DOD4.8 | Lịch gia hạn TLS có ở **cả hai** máy, và đã chứng minh bằng một lượt gia hạn khô |
 | DOD4.9 | Sao lưu có **lịch đang chạy** và một lượt **khôi phục thật** đọc được |
 | DOD4.10 | Mọi con số nghiệm thu ghi kèm **ngày đo** và **nguồn đo** (CI hay máy chủ, ⛔ không phải máy dev) |
+| DOD4.11 | Quét virus chạy **thật** trên production — một tệp EICAR ra `INFECTED`, ⛔ không `SKIPPED` (`T61.4`) |
+| DOD4.12 | Một cảnh báo Prometheus **tới được người** qua kênh đã chốt (`T61.5`) — NFR-01 |
+| DOD4.13 | Bản dump trên máy chủ ⛔ đọc được bởi user khác (`T61.8`, `stat` = `600`) |
 
 ---
 
