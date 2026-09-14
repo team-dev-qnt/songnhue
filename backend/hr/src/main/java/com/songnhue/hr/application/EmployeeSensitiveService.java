@@ -146,7 +146,7 @@ public class EmployeeSensitiveService {
 
         String cccd = rutGon(form.nationalId());
         String vanTay = vanTay(cccd);
-        kiemTrung(vanTay, ban.getId());
+        kiemTrung(cccd, ban.getId());
 
         ban.setNationalId(maHoa(cccd));
         ban.setNationalIdFingerprint(vanTay);
@@ -166,9 +166,10 @@ public class EmployeeSensitiveService {
     /**
      * Mọi {@code key_id} đang có ở cột vân tay — một khẳng định thường trực, ⛔ không phải tính năng.
      *
-     * <p>⛔⛔ Vân tay <b>phụ thuộc khoá</b>. Sau một lượt xoay khoá mà job (⛔ chưa tồn tại) ⛔ không
-     * tính lại cột này, cùng một số CCCD cho hai vân tay khác nhau ⇒ phép chống trùng câm lặng, ⛔
-     * không một dòng lỗi. Tập này có nhiều hơn một phần tử chính là chữ ký của chuyện đó.
+     * <p>⛔⛔ Vân tay <b>phụ thuộc khoá</b>. Sau một lượt xoay khoá, tập này có HAI phần tử cho tới khi job
+     * {@code CRYPTO_REENCRYPT} chạy xong (T61.11) — trong khoảng ấy chỉ mục {@code UNIQUE} ⛔ bắt được trùng
+     * giữa hai nhóm, chỉ {@link #kiemTrung} (so dưới mọi khoá) còn bắt. Nhiều hơn một phần tử SAU khi job
+     * xong là chữ ký của một hàng job ⛔ đổi được.
      */
     @Transactional(readOnly = true)
     public List<String> khoaDangDungOVanTay() {
@@ -186,12 +187,23 @@ public class EmployeeSensitiveService {
         return cccd == null ? null : crypto.fingerprint(cccd);
     }
 
-    private void kiemTrung(String vanTay, Long idHienTai) {
-        if (vanTay == null) {
+    /**
+     * ⛔⛔ So với vân tay dưới <b>MỌI</b> khoá đang nạp, ⛔ chỉ khoá đang hoạt động — T61.11.
+     *
+     * <p>Sau khi đổi {@code AES_KEY_ID=v2}, bảng còn vân tay {@code v1:…} cho tới khi job
+     * {@code CRYPTO_REENCRYPT} chạy xong. Bản cũ tra đúng MỘT vân tay ({@code v2:…}) ⇒ một số CCCD đã có
+     * nhập lại lần hai đi lọt, ⛔ một dòng lỗi, và chỉ mục {@code UNIQUE} cũng ⛔ bắt vì hai chuỗi khác
+     * tiền tố. Tra theo tập thì phép chống trùng đúng NGAY sau lượt đổi khoá, ⛔ phụ thuộc job đã chạy chưa.
+     */
+    private void kiemTrung(String cccd, Long idHienTai) {
+        if (cccd == null) {
             return;
         }
-        Optional<EmployeeSensitive> trung = sensitive.findByNationalIdFingerprintAndDeletedAtIsNull(vanTay);
-        if (trung.isPresent() && !trung.get().getId().equals(idHienTai)) {
+        Optional<EmployeeSensitive> trung =
+                sensitive.findByNationalIdFingerprintInAndDeletedAtIsNull(crypto.fingerprintsForAllKeys(cccd)).stream()
+                        .filter(b -> !b.getId().equals(idHienTai))
+                        .findFirst();
+        if (trung.isPresent()) {
             // ⛔ Thông điệp lỗi ⛔ KHÔNG nói hồ sơ nào đang giữ số ấy — đó là một phép rò rỉ dữ liệu
             // cá nhân qua đúng cái cửa dựng ra để bảo vệ nó.
             throw new ConflictException(ErrorCode.HR_1003);

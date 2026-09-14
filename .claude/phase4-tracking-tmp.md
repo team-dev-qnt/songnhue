@@ -23,7 +23,7 @@
 | A6 | `T61.6` | Kịch bản load test (k6) — 200 CCU cổng · 50 users dashboard · khai tỉ lệ 429 | P1 · NFR-02 | [~] viết xong, chưa chạy staging |
 | A7 | `T61.4` | Dịch vụ ClamAV trong `compose.prod.yml` + nối `APP_CLAMAV_HOST` (staging chờ quyết RAM) | P1 · bảo mật | [ ] |
 | A8 | `T61.5` | Alertmanager trong `compose.observability.yml` — cấu hình, **kênh chờ QT chọn** | P1 · NFR-01 | [ ] |
-| A9 | `T61.11` | Job tính lại `national_id_fingerprint` khi xoay khoá (T51.9, phần mã) | P1 · dữ liệu | [ ] |
+| A9 | `T61.11` | Job `CRYPTO_REENCRYPT` + chống trùng dưới mọi khoá (T51.9, phần mã) — ⬜ diễn tập thật trên staging ở §B | P1 · dữ liệu | [x] |
 | A10 | `T61.13` | Bộ canh ĐẾM nơi ném đối số vào mã lỗi ⛔ `{n}`, rồi vá — 44 nơi, 7 chiều THIẾU (người dùng thấy `{1}`) + `JobWorker.last_error` | P2 | [x] |
 | A11 | `T61.15` | javadoc T57.7→T57.15 · xoá `hr.spi` rỗng · sửa `nghiem-thu-cong-ttdt-v1.md` | P2 | [x] |
 | A12 | `T58.18` · `T25.23` | Bộ canh N+1 · hạ trần màu ghi cứng | P2 | [ ] |
@@ -82,7 +82,7 @@ Rồi ghi giờ bắt đầu **T37.1** (7 ngày lịch) ngay khi `hydro_readings
 |---|---|---|
 | `T11.88` · `T61.9` | Cài `cron` trên VPS-2 (⛔ hạn TLS staging **22/11**) | `sudo apt-get install -y cron && sudo systemctl enable --now cron && systemctl is-enabled cron` |
 | `T61.3` | Chứng chỉ production `.vn` hạn **06/12** — có cron gia hạn chưa | VPS-1: `crontab -l \| grep gia-han-tls; echo "SO_DONG=$?"` |
-| `T61.8` | Sửa quyền bản dump CŨ (bản vá mã chỉ lo tệp MỚI) | VPS-1: `sudo find /var/lib/songnhue/backup -name '*.dump' -perm -o=r \| wc -l` → `chmod 600` → đếm lại = 0 |
+| `T61.8` | Sửa quyền bản dump CŨ (bản vá mã chỉ lo tệp MỚI) | VPS-1: `sudo find /var/lib/songnhue/backup -name '*.dump' -perm -o=r \| wc -l` → `sudo chmod 640` từng tệp (⛔ `600`: user deploy đọc qua NHÓM — `600` làm bước quay lui ⛔ đọc được bản dump) → đếm lại = 0 |
 | `T61.9` | Bật lịch sao lưu production | `/quan-tri/cau-hinh` → `backup.schedule-enabled = true`; sáng hôm sau `ls -l /var/lib/songnhue/backup` |
 | `T11.89` | Tách khoá SSH triển khai hai môi trường | GitHub → secret `PROD_SSH_KEY` ≠ `STAGING_SSH_KEY`; đo vân tay `ssh-keygen -lf` |
 | `T11.54` | Cổng 5201 mở trên VPS-2 | VPS-2: `sudo ss -tlnp \| grep 5201` → tắt dịch vụ / `ufw deny 5201` |
@@ -95,6 +95,13 @@ Rồi ghi giờ bắt đầu **T37.1** (7 ngày lịch) ngay khi `hydro_readings
 
 `T37.2` load test · `T37.3` LCP từ máy ở Việt Nam (cả lượt ISR nguội) · `DOD2.9` bắn chuông thật ·
 `T61.10` khôi phục vào máy trắng + RTO · `DOD0.21` một lượt hỏng **SAU** `up -d`.
+
+`T61.11` **diễn tập xoay khoá AES trên staging** (sau khi bản có job `CRYPTO_REENCRYPT` lên staging) —
+chỉ khi đã có bản sao lưu vừa chạy: `openssl rand -base64 32` → thêm `AES_KEY_V2`, **giữ** `AES_KEY_V1`,
+đổi `AES_KEY_ID=v2` → `docker compose -f compose.prod.yml up -d app` → đo
+`q "SELECT status, progress, last_error, result FROM jobs WHERE job_type='CRYPTO_REENCRYPT' ORDER BY id DESC LIMIT 1"`
+(kỳ vọng `SUCCEEDED|100||…"conLai": 0…`) + ba câu `split_part` ở runbook `xoay-khoa.md` ra đúng một dòng `v2`.
+⛔ Gỡ `AES_KEY_V1` trong lượt diễn tập.
 
 ---
 

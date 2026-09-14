@@ -24,29 +24,21 @@ bằng khoá nào (`CryptoService`). Bỏ khoá cũ đi là mọi bản ghi mang
 được nữa** — không có cách nào khôi phục, kể cả từ bản sao lưu, vì bản sao lưu cũng chỉ chứa dữ liệu
 đã mã hoá.
 
-### ⛔⛔ Đọc TRƯỚC khi đổi `AES_KEY_ID` — đổi khoá làm TẮT ÂM THẦM phép chống trùng CCCD
+### ⭐ Chống trùng CCCD qua lượt xoay khoá — đã có cơ chế (T61.11, 14/09/2026)
 
-Cột `employee_sensitive.national_id_fingerprint` là vân tay HMAC dẫn xuất từ khoá **đang hoạt động**,
-dạng `<key_id>:<hex>`, và chỉ mục `uq_employee_sensitive_cccd` so trên **cả chuỗi**. Đổi
-`AES_KEY_ID=v2` thì CCCD nhập mới mang `v2:…` còn CCCD cũ vẫn `v1:…` ⇒ **cùng một số CCCD nhập lại
-lần hai sẽ KHÔNG bị chặn**, ⛔ không một dòng lỗi, ⛔ không một cảnh báo (T51.9 → T61.11, đo 14/09/2026).
+Cột `employee_sensitive.national_id_fingerprint` là vân tay HMAC dẫn xuất từ khoá, dạng `<key_id>:<hex>`,
+và chỉ mục `uq_employee_sensitive_cccd` so trên **cả chuỗi**. Trước 14/09/2026, đổi `AES_KEY_ID` là **tắt
+âm thầm** phép chống trùng (CCCD cũ `v1:…`, CCCD nhập lại `v2:…`). Nay có hai lớp:
 
-⬜ **Job tính lại vân tay chưa tồn tại.** Tới khi có:
+1. **Phép kiểm trùng so dưới MỌI khoá đang nạp** (`CryptoService.fingerprintsForAllKeys`) ⇒ đúng **ngay**
+   sau khi khởi động lại, ⛔ chờ gì. Điều kiện: **khoá cũ còn nạp** — đúng thứ mục trên đã cấm gỡ.
+2. **Job `CRYPTO_REENCRYPT` tự chạy lúc khởi động** khi còn hàng mang khoá cũ: mã hoá lại mọi cột ở
+   `employee_sensitive` · `api_sources.credential` · `user_totp.secret_encrypted`, và tính lại vân tay
+   **cùng giao dịch** với bản mã của từng hàng. ⛔ Có nút bấm nào.
 
-- **Xoay định kỳ / nhân sự nghỉ việc** ⇒ ⛔ **HOÃN** nếu bảng có dữ liệu. Đo trước:
-  ```sql
-  SELECT count(*) FROM employee_sensitive WHERE deleted_at IS NULL AND national_id_fingerprint IS NOT NULL;
-  ```
-  `> 0` ⇒ hoãn và ghi lý do vào sổ vận hành.
-- **Khoá bị LỘ** ⇒ vẫn xoay ngay (lộ khoá nặng hơn mất chống trùng), rồi **đo hằng tuần** cho tới khi
-  job có — hơn một dòng là phép chống trùng đang tắt giữa các nhóm:
-  ```sql
-  SELECT split_part(national_id_fingerprint, ':', 1) AS khoa, count(*)
-    FROM employee_sensitive
-   WHERE deleted_at IS NULL AND national_id_fingerprint IS NOT NULL
-   GROUP BY 1;
-  ```
-  Tìm trùng thật giữa hai nhóm chỉ làm được bằng cách **giải mã** ⇒ việc của mã, ⛔ làm tay trên CSDL.
+⛔ Job **HỎNG** (`ADM-2019` trong `jobs.last_error`) khi còn hàng ⛔ đổi được — bản mã hỏng, hoặc hai hồ sơ
+cùng CCCD đã lọt vào **trước** bản vá (chỉ mục duy nhất chặn lượt ghi vân tay mới). ⇒ ⛔ gỡ khoá cũ; đọc log
+ứng dụng (`Mã hoá lại <bảng>#<id> không được`) để biết hàng nào.
 
 ### Các bước
 
@@ -65,6 +57,13 @@ docker compose -f compose.prod.yml up -d app
 
 Từ lúc này: ghi mới dùng `v2`; đọc dữ liệu cũ vẫn tự dùng `v1` nhờ `key_id`.
 
+```bash
+# 4. Theo dõi job tự đặt lúc khởi động (máy chủ ⛔ có psql trên host — đi qua docker exec)
+q() { docker exec -i songnhue-postgres psql -U postgres -d songnhue -At -c "$1" < /dev/null; }
+q "SELECT status, progress, last_error, result FROM jobs WHERE job_type = 'CRYPTO_REENCRYPT' ORDER BY id DESC LIMIT 1"
+# Kỳ vọng: SUCCEEDED · 100 · last_error rỗng · result có "conLai":0
+```
+
 ### Mã hoá lại dữ liệu cũ
 
 Chỉ **sau khi** toàn bộ dữ liệu cũ đã được đọc-ghi lại bằng `v2` mới được gỡ `AES_KEY_V1`. Kiểm còn
@@ -81,9 +80,9 @@ SELECT split_part(credential, ':', 1) AS khoa, count(*)
 SELECT split_part(secret_encrypted, ':', 1) AS khoa, count(*) FROM user_totp GROUP BY 1;
 ```
 
-⬜ **Công cụ mã hoá lại hàng loạt vẫn chưa có** (bản cũ hẹn *"Phase 3"* — Phase 3 đã đóng 14/09/2026 mà
-nó vẫn chưa được dựng; nợ **T61.11**). Nó phải mã hoá lại bản mã **và** tính lại
-`national_id_fingerprint` trong **cùng một giao dịch** cho từng hàng.
+Chỉ gỡ `AES_KEY_V1` khi **cả ba** câu trên ra đúng một dòng `v2` **và** job gần nhất `SUCCEEDED` với
+`"conLai":0`. Job chạy lại ở mỗi lượt khởi động nếu còn hàng khoá cũ (người dùng lưu đè bằng bản đã mở
+trước lượt xoay có thể ghi lại bản mã `v1` — vô hại khi khoá cũ còn nạp, lượt kế đổi nốt).
 
 ### Sau khi xoay
 

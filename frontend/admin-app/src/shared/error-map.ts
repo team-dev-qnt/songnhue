@@ -696,6 +696,14 @@ export const ERROR_CATALOG = {
     handling: 'toast',
     severity: 'error',
   },
+  'ADM-2019': {
+    // T61.11 — chỉ sinh ở việc nền (`jobs.last_error`), ⛔ từ một lượt bấm nút. `caller`: người đọc là
+    //   người vận hành đang quyết có gỡ khoá mã hoá cũ hay không — ⛔ được để nó trôi mất như một toast.
+    message:
+      'Mã hoá lại dữ liệu sang khoá mới chưa xong — còn bản ghi dùng khoá cũ, chưa được gỡ khoá cũ.',
+    handling: 'caller',
+    severity: 'error',
+  },
 } as const satisfies Record<string, ErrorEntry>;
 
 export type ErrorCode = keyof typeof ERROR_CATALOG;

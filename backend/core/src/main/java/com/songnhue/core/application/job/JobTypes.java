@@ -37,5 +37,13 @@ public final class JobTypes {
      */
     public static final String DB_RESTORE = "DB_RESTORE";
 
+    /**
+     * Mã hoá lại mọi cột AES sang khoá đang hoạt động + tính lại vân tay — T61.11 (nợ T51.9).
+     *
+     * <p>Tự đặt lúc khởi động khi còn hàng mang khoá cũ, ⛔ cần ai bấm: xoay khoá = thêm khoá mới, đổi
+     * {@code AES_KEY_ID}, khởi động lại. Xem {@code MaHoaLaiService}.
+     */
+    public static final String CRYPTO_REENCRYPT = "CRYPTO_REENCRYPT";
+
     private JobTypes() {}
 }

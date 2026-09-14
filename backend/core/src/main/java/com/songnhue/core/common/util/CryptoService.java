@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.List;
 
 import javax.crypto.Cipher;
 import javax.crypto.Mac;
@@ -136,17 +137,53 @@ public class CryptoService {
      * <h2>⚠⚠ Hệ quả phải biết trước: vân tay PHỤ THUỘC KHOÁ</h2>
      *
      * <p>Sau một lượt xoay khoá, cùng một CCCD cho ra vân tay <b>khác</b> ⇒ phép chống trùng câm
-     * lặng: bản ghi cũ và bản ghi mới ⛔ không còn đụng nhau. Vì vậy job xoay khoá (⛔ chưa tồn tại
-     * — đo 10/09/2026: 0 tệp) <b>bắt buộc</b> tính lại cột vân tay cùng lượt với bản mã. Bất biến
-     * ấy được canh bằng một khẳng định: cả cột chỉ mang <b>một</b> {@code key_id}.
+     * lặng: bản ghi cũ và bản ghi mới ⛔ không còn đụng nhau. Hai lớp chặn (T61.11):
+     * <ol>
+     *   <li>phép kiểm trùng so với {@link #fingerprintsForAllKeys} — vân tay dưới <b>mọi</b> khoá đang
+     *       nạp — nên nó đúng <b>ngay</b> sau khi đổi {@code AES_KEY_ID}, ⛔ phải chờ ai;
+     *   <li>job {@code CRYPTO_REENCRYPT} tính lại cột vân tay cùng lượt với bản mã, để chỉ mục
+     *       {@code UNIQUE} (so trên cả chuỗi) lại có hiệu lực và khoá cũ gỡ được.
+     * </ol>
      *
      * @return {@code <key_id>:<64 ký tự hex>}, hoặc {@code null} khi đầu vào {@code null}
      */
     public String fingerprint(String plaintext) {
+        return plaintext == null ? null : fingerprintWith(properties.activeKeyId(), plaintext);
+    }
+
+    /**
+     * Vân tay của cùng một giá trị dưới <b>mọi</b> khoá đang nạp, khoá đang hoạt động đứng đầu.
+     *
+     * <p>⛔⛔ Phép chống trùng PHẢI dùng cái này, ⛔ {@link #fingerprint}: giữa lúc đổi
+     * {@code AES_KEY_ID} và lúc job mã hoá lại chạy xong, bảng mang vân tay của HAI khoá. So chỉ với
+     * khoá mới là để một số CCCD đã có (vân tay {@code v1:…}) nhập lại lần hai (vân tay {@code v2:…})
+     * đi lọt, ⛔ một dòng lỗi — đúng khuyết tật runbook cũ tạo ra (T61.11).
+     */
+    public List<String> fingerprintsForAllKeys(String plaintext) {
         if (plaintext == null) {
-            return null;
+            return List.of();
         }
-        String activeKeyId = properties.activeKeyId();
+        return properties.keyIds().stream()
+                .map(k -> fingerprintWith(k, plaintext))
+                .toList();
+    }
+
+    /** Bản mã này đã dùng khoá đang hoạt động chưa. {@code null} (ô trống) coi là đã xong. */
+    public boolean usesActiveKey(String encoded) {
+        return encoded == null || properties.activeKeyId().equals(keyIdOf(encoded));
+    }
+
+    /**
+     * Mã hoá lại bằng khoá đang hoạt động. Ô trống hoặc bản mã đã dùng khoá hiện hành ⇒ trả NGUYÊN
+     * chuỗi cũ (⛔ sinh IV mới vô ích — một lượt ghi ⛔ đổi gì là một lượt ghi đua với người dùng).
+     *
+     * @throws IllegalStateException khi ⛔ giải mã được — sai khoá, thiếu khoá, hoặc bản mã đã bị sửa
+     */
+    public String reEncrypt(String encoded) {
+        return usesActiveKey(encoded) ? encoded : encrypt(decrypt(encoded));
+    }
+
+    private String fingerprintWith(String activeKeyId, String plaintext) {
         try {
             Mac mac = Mac.getInstance(MAC_ALGORITHM);
 

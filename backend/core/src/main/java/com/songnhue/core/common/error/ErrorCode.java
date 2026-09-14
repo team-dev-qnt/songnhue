@@ -547,7 +547,15 @@ public enum ErrorCode {
      * một tài khoản quản trị thứ hai. Bất biến này áp <b>đều cho mọi vai trò, kể cả SUPER_ADMIN</b>:
      * một luật miễn trừ đúng vai trò mạnh nhất là một luật trang trí.
      */
-    ADM_2018("ADM-2018", HttpStatus.FORBIDDEN);
+    ADM_2018("ADM-2018", HttpStatus.FORBIDDEN),
+    /**
+     * Job mã hoá lại sang khoá {0} xong {1} hàng mà <b>còn {2} hàng</b> mang khoá cũ — T61.11.
+     *
+     * <p>⛔ Job phải HỎNG, ⛔ xanh kèm một dòng log: một job xanh là lời mời gỡ khoá cũ, và gỡ khoá cũ
+     * khi còn bản mã dùng nó là mất dữ liệu vĩnh viễn (runbook {@code xoay-khoa.md} §A). Câu này nằm ở
+     * {@code jobs.last_error}, nơi {@code JobStatus.FAILED} dặn người vận hành đọc.
+     */
+    ADM_2019("ADM-2019", HttpStatus.UNPROCESSABLE_CONTENT);
 
     private final String code;
     private final HttpStatus status;
