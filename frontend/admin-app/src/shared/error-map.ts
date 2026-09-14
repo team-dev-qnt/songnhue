@@ -704,6 +704,12 @@ export const ERROR_CATALOG = {
     handling: 'caller',
     severity: 'error',
   },
+  'ADM-2020': {
+    message:
+      'Không tự xoá tài khoản của chính mình được — tài khoản mất quyền ngay và giao diện không có đường khôi phục. Nhờ một tài khoản quản trị khác thao tác hộ.',
+    handling: 'toast',
+    severity: 'error',
+  },
 } as const satisfies Record<string, ErrorEntry>;
 
 export type ErrorCode = keyof typeof ERROR_CATALOG;

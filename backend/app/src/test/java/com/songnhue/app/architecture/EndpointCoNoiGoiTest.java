@@ -68,32 +68,8 @@ class EndpointCoNoiGoiTest {
 
     static {
         CHUA_CO_NOI_GOI.put(
-                "DELETE /admin/users/{publicId}",
-                "Xoá mềm tài khoản ⛔ có nút — màn hình chỉ khoá/mở; tài khoản tạo nhầm nằm mãi trong danh sách");
-        CHUA_CO_NOI_GOI.put(
                 "DELETE /hyd/stations/{publicId}",
-                "Xoá điểm đo ⛔ có nút — điểm đo khai nhầm chỉ tắt được cờ 'Đang dùng', vẫn hiện trong mọi ô chọn");
-        CHUA_CO_NOI_GOI.put(
-                "DELETE /hyd/api-sources/{publicId}",
-                "Xoá nguồn dữ liệu (chặn khi còn điểm đo trỏ vào, HYD-1002) ⛔ có nút — nguồn khai nhầm nằm mãi trong danh mục");
-        CHUA_CO_NOI_GOI.put(
-                "GET /hyd/api-sources/{publicId}",
-                "Chi tiết một nguồn — màn hình dựng hộp thoại sửa từ hàng của danh sách, ⛔ đọc lại; nghi là endpoint thừa, chưa ai quyết gỡ");
-        CHUA_CO_NOI_GOI.put(
-                "GET /admin/users/{publicId}",
-                "Chi tiết một tài khoản — màn hình dựng hộp thoại từ hàng của danh sách, ⛔ đọc lại; nghi là endpoint thừa, chưa ai quyết gỡ");
-        CHUA_CO_NOI_GOI.put(
-                "GET /org-units",
-                "Danh sách phẳng đơn vị 'cho ô chọn' — ô chọn thật dùng /org-units/selectable (cây có phạm vi); nghi là endpoint thừa");
-        CHUA_CO_NOI_GOI.put(
-                "GET /org-units/{publicId}/subtree",
-                "Cây con của một đơn vị — ⛔ màn hình nào dùng (sơ đồ tổ chức đọc /hr/so-do-to-chuc); nghi là endpoint thừa");
-        CHUA_CO_NOI_GOI.put(
-                "GET /cms/site-config/effective",
-                "Giá trị cấu hình đang hiệu lực 'dạng cổng công khai sẽ dùng' — cổng đọc qua /public/site-config; nghi là endpoint thừa");
-        CHUA_CO_NOI_GOI.put(
-                "DELETE /attachments/{publicId}",
-                "Xoá tệp đính kèm qua đường CHUNG — mọi màn hình nay xoá qua đường riêng của chủ sở hữu (T28.47); nghi là endpoint thừa");
+                "CỐ Ý ⛔ có nút — QuanTran chốt 14/09/2026 (T61.21): điểm đo đã có số liệu thuỷ văn ⛔ xoá từ giao diện; tắt cờ Đang dùng thay thế");
     }
 
     /**

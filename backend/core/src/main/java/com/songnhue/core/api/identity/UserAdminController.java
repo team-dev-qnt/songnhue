@@ -65,13 +65,7 @@ public class UserAdminController {
                 .toList();
     }
 
-    @GetMapping("/{publicId}")
-    @Operation(summary = "Chi tiết một tài khoản")
-    @RequirePermission("adm:user:view")
-    public UserDtos.UserView get(@PathVariable UUID publicId) {
-        User user = userAdminService.get(publicId);
-        return UserDtos.UserView.of(user, userAdminService.hoSoNhanSuCua(user).orElse(null));
-    }
+    // ⛔ BIA MỘ — `GET /{publicId}` gỡ 14/09/2026 (T61.22): 0 nơi gọi, hộp thoại dựng từ hàng danh sách.
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)

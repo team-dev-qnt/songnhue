@@ -32,7 +32,7 @@
 | A15 | `T61.18` | Lối SỬA bản ghi sửa chữa (PUT có 0 nơi gọi) ✅ + bộ canh endpoint ↔ lời gọi khớp ĐỘNG TỪ toàn `admin-app` ✅ (15 mồ côi → T61.19–22) | P2 | [x] |
 | A16 | `T61.19` | Giao diện tệp đính kèm + nút xoá của bản ghi sửa chữa (CN-02.2 ảnh trước/sau) | P1 · nghiệm thu | [x] |
 | A17 | `T61.20` | Màn hình cảnh báo hết hạn HĐLĐ/chứng chỉ M4.9 | P1 · nghiệm thu | [x] |
-| A18 | `T61.21` · `T61.22` | Nút xoá 3 danh mục · gỡ 5 endpoint thừa — **chờ QT chốt từng cái** | P2 | [ ] |
+| A18 | `T61.21` · `T61.22` | Nút xoá tài khoản + nguồn dữ liệu (điểm đo cố ý ⛔) · gỡ 6 endpoint thừa kể cả `AttachmentController` — QT chốt 14/09 | P2 | [x] |
 
 ---
 

@@ -555,7 +555,14 @@ public enum ErrorCode {
      * khi còn bản mã dùng nó là mất dữ liệu vĩnh viễn (runbook {@code xoay-khoa.md} §A). Câu này nằm ở
      * {@code jobs.last_error}, nơi {@code JobStatus.FAILED} dặn người vận hành đọc.
      */
-    ADM_2019("ADM-2019", HttpStatus.UNPROCESSABLE_CONTENT);
+    ADM_2019("ADM-2019", HttpStatus.UNPROCESSABLE_CONTENT),
+    /**
+     * Tự xoá tài khoản của chính mình — T61.21.
+     *
+     * <p>Xoá là xoá mềm mà giao diện ⛔ có đường khôi phục, và tài khoản đang thao tác mất quyền NGAY
+     * (`AuthorityLoader` lọc `deleted_at`). Cùng hình dạng `ADM-2016` (tự gỡ quyền phân quyền của mình).
+     */
+    ADM_2020("ADM-2020", HttpStatus.FORBIDDEN);
 
     private final String code;
     private final HttpStatus status;

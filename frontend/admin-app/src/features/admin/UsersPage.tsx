@@ -1,4 +1,4 @@
-import { PlusOutlined } from '@ant-design/icons';
+import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App, Button, Card, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag } from 'antd';
 import { type ColumnsType } from 'antd/es/table';
@@ -30,7 +30,7 @@ import { formatDateTime } from '@/shared/format';
 export function UsersPage() {
   const { message } = App.useApp();
   const queryClient = useQueryClient();
-  const { hasPermission } = useAuth();
+  const { hasPermission, user: toi } = useAuth();
   const [editing, setEditing] = useState<UserView | null>(null);
   const [creating, setCreating] = useState(false);
   const [assigning, setAssigning] = useState<UserView | null>(null);
@@ -54,6 +54,19 @@ export function UsersPage() {
       message.error(
         caught instanceof ApiClientError ? caught.message : 'Không đổi được trạng thái',
       );
+    },
+  });
+
+  // T61.21 — `DELETE /admin/users/{id}` có 0 nơi gọi trước đây. Backend chặn TỰ xoá (ADM-2020);
+  //   giao diện ẩn nút ở dòng của chính mình để người dùng ⛔ phải bấm mới biết.
+  const xoa = useMutation({
+    mutationFn: (publicId: string) => api.delete<void>(`/admin/users/${publicId}`),
+    onSuccess: async () => {
+      message.success('Đã xoá tài khoản');
+      await invalidate();
+    },
+    onError: (caught: unknown) => {
+      message.error(caught instanceof ApiClientError ? caught.message : 'Không xoá được tài khoản');
     },
   });
 
@@ -100,7 +113,7 @@ export function UsersPage() {
     {
       title: '',
       key: 'thao-tac',
-      width: 360,
+      width: 430,
       render: (_value, row) => (
         <Space size={0} wrap>
           {hasPermission('adm:user:update') && (
@@ -132,6 +145,25 @@ export function UsersPage() {
             >
               <Button type="link" danger={row.status !== 'LOCKED'}>
                 {row.status === 'LOCKED' ? 'Mở khóa' : 'Khóa'}
+              </Button>
+            </Popconfirm>
+          )}
+          {hasPermission('adm:user:update') && row.publicId !== toi?.id && (
+            <Popconfirm
+              title={`Xoá tài khoản ${row.username}?`}
+              description="Tài khoản mất quyền đăng nhập ngay và giao diện không có đường khôi phục. Chỉ khoá nếu có thể cần lại."
+              okText="Xoá"
+              okButtonProps={{ danger: true }}
+              cancelText="Hủy"
+              onConfirm={() => xoa.mutate(row.publicId)}
+            >
+              <Button
+                type="link"
+                danger
+                icon={<DeleteOutlined />}
+                aria-label={`Xoá tài khoản ${row.username}`}
+              >
+                Xoá
               </Button>
             </Popconfirm>
           )}

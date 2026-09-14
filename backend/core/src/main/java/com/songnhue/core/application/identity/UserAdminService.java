@@ -461,6 +461,12 @@ public class UserAdminService implements UserDirectoryPort {
     @Transactional
     public void delete(UUID publicId) {
         User user = require(publicId);
+        // T61.21 — nút xoá mở ra giao diện: tự xoá mình là mất quyền NGAY và ⛔ đường nào khôi phục.
+        AuthContext.current().ifPresent(nguoiThaoTac -> {
+            if (nguoiThaoTac.userId().equals(user.getId())) {
+                throw new PermissionDeniedException(ErrorCode.ADM_2020);
+            }
+        });
         user.markDeleted(Instant.now());
         users.save(user);
         authorities.invalidate(user.getPublicId());
