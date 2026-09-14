@@ -119,6 +119,39 @@ class HaiBuocHttpTest extends IntegrationTestBase {
     }
 
     @Test
+    @DisplayName("⛔⛔ T61.33 — mã TOTP sai tính vào bộ đếm KHOÁ; đăng nhập lại bằng mật khẩu ⛔ xoá được bộ đếm")
+    void saiMaTotpBiKhoa() {
+        String ten = taoNguoiDung2fa("t6133_doan");
+        byte[] secret = dangKyLanDau(ten);
+        int tran = Integer.parseInt(jdbc.queryForObject(
+                "SELECT coalesce(nullif(setting_value, ''), default_value) FROM settings "
+                        + "WHERE setting_key = 'security.login.max-failed-attempts'",
+                String.class));
+        assertThat(tran)
+                .as("chống tập rỗng: kịch bản cần ≥ 3 lượt để chia hai lần đăng nhập")
+                .isGreaterThanOrEqualTo(3);
+        String maSai = ma(secret, 10); // ngoài dung sai ±1 bước ⇒ chắc chắn sai
+
+        String ve1 = PhienHttp.giaTriJson(dangNhap(ten).getBody(), "challengeToken");
+        for (int i = 0; i < tran - 2; i++) {
+            assertThat(xacThuc(ve1, maSai).getBody()).contains("AUTH-0004");
+        }
+        // Kẻ có mật khẩu đăng nhập LẠI để đặt bộ đếm về 0 — bản trước làm được đúng việc này
+        String ve2 = PhienHttp.giaTriJson(dangNhap(ten).getBody(), "challengeToken");
+        assertThat(xacThuc(ve2, maSai).getBody()).contains("AUTH-0004");
+        assertThat(xacThuc(ve2, maSai).getBody())
+                .as("lượt sai thứ %d (sau một lần đăng nhập lại) phải KHOÁ tài khoản", tran)
+                .contains("AUTH-0003");
+
+        assertThat(xacThuc(ve2, ma(secret, 1)).getBody())
+                .as("đã khoá thì mã ĐÚNG cũng ⛔ vào được")
+                .doesNotContain("\"stage\":\"AUTHENTICATED\"");
+        assertThat(jdbc.queryForObject(
+                        "SELECT locked_until IS NOT NULL FROM users WHERE username = ?", Boolean.class, ten))
+                .isTrue();
+    }
+
+    @Test
     @DisplayName(
             "⭐⭐ Quản trị viên đặt lại 2FA ⇒ xoá đăng ký + mã khôi phục + thu hồi phiên; lần đăng nhập sau đăng ký từ đầu")
     void quanTriDatLai() {
@@ -186,6 +219,12 @@ class HaiBuocHttpTest extends IntegrationTestBase {
     /** Mã TOTP ở bước hiện tại + {@code lech} (lệch 1 bước nằm trong dung sai máy chủ; tránh chống dùng lại). */
     private static String ma(byte[] secret, int lech) {
         return TotpGenerator.generate(secret, TotpGenerator.stepAt(Instant.now().getEpochSecond()) + lech);
+    }
+
+    private ResponseEntity<String> xacThuc(String ve, String ma) {
+        return post(
+                "/api/v1/auth/2fa/verify",
+                "{\"challengeToken\":\"%s\",\"code\":\"%s\",\"recoveryCode\":false}".formatted(ve, ma));
     }
 
     private ResponseEntity<String> dangNhap(String ten) {

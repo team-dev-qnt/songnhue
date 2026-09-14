@@ -100,14 +100,17 @@ public class AuthService {
             throw new AuthenticationException(locked ? ErrorCode.AUTH_0003 : ErrorCode.AUTH_0001);
         }
 
-        loginAttempts.recordSuccess(user.getId(), client.ipAddress(), now);
         abnormalLogins.inspectSuccessfulLogin(user, client, now);
 
         if (totp.isRequiredFor(user)) {
+            // ⛔⛔ T61.33 — ⛔ đặt lại bộ đếm sai ở đây. Bản trước gọi `recordSuccess` NGAY sau mật khẩu đúng ⇒
+            //    kẻ có mật khẩu đoán 4 mã TOTP, đăng nhập lại (bộ đếm về 0), đoán tiếp — ⛔ bao giờ bị khoá.
+            //    Bộ đếm chỉ về 0 khi qua ĐỦ các bước (verifyTwoFactor / confirmTwoFactorEnrollment).
             boolean enrolled = totp.isEnrolled(user.getId());
             return LoginOutcome.twoFactor(tokens.issueTwoFactorChallenge(user.getPublicId(), now), enrolled);
         }
 
+        loginAttempts.recordSuccess(user.getId(), client.ipAddress(), now);
         securityEvents.record(SecurityEventType.LOGIN_SUCCESS, username, user.getId(), client);
         return LoginOutcome.authenticated(issueTokens(user, client, now));
     }
@@ -121,11 +124,14 @@ public class AuthService {
             String challengeToken, String code, boolean isRecoveryCode, ClientInfo client, Instant now) {
         User user = userFromChallenge(challengeToken, now);
 
-        if (isRecoveryCode) {
-            totp.verifyRecoveryCode(user, code, client, now);
-        } else {
-            totp.verifyLoginCode(user, code, client, now);
-        }
+        demLuotSai(user, client, now, () -> {
+            if (isRecoveryCode) {
+                totp.verifyRecoveryCode(user, code, client, now);
+            } else {
+                totp.verifyLoginCode(user, code, client, now);
+            }
+        });
+        loginAttempts.recordSuccess(user.getId(), client.ipAddress(), now);
 
         securityEvents.record(
                 SecurityEventType.LOGIN_SUCCESS, user.getUsername(), user.getId(), client, "{\"twoFactor\":true}");
@@ -171,7 +177,8 @@ public class AuthService {
     public IssuedTokens confirmTwoFactorEnrollment(String challengeToken, String code, ClientInfo client, Instant now) {
         User user = userFromChallenge(challengeToken, now);
         chanDangKyLai(user, client, "confirm");
-        totp.confirmEnrollment(user, code, client, now);
+        demLuotSai(user, client, now, () -> totp.confirmEnrollment(user, code, client, now));
+        loginAttempts.recordSuccess(user.getId(), client.ipAddress(), now);
         securityEvents.record(
                 SecurityEventType.LOGIN_SUCCESS,
                 user.getUsername(),
@@ -206,6 +213,23 @@ public class AuthService {
     public void logout(AuthenticatedUser current, ClientInfo client, Instant now) {
         refreshTokens.revokeFamily(current.sessionFamilyId(), SessionRevokeReason.LOGOUT, now);
         securityEvents.record(SecurityEventType.LOGOUT, current.username(), current.userId(), client);
+    }
+
+    /**
+     * T61.33 — mã 2FA sai tính vào CÙNG bộ đếm khoá tài khoản với mật khẩu sai (M5.15: 5 lần / 15′ ⇒ khoá 15′).
+     * Trước bản vá, sai TOTP chỉ ghi sự kiện: ⛔ trần nào ngoài hạn mức theo IP — và qua tên miền công khai
+     * {@code /auth/2fa/**} chịu 100 lượt/phút mỗi IP (nginx chỉ đặt 20/phút ở tên miền quản trị).
+     */
+    private void demLuotSai(User user, ClientInfo client, Instant now, Runnable kiemMa) {
+        try {
+            kiemMa.run();
+        } catch (AuthenticationException e) {
+            if (e.errorCode() == ErrorCode.AUTH_0004
+                    && loginAttempts.recordFailure(user.getId(), user.getUsername(), client, now)) {
+                throw new AuthenticationException(ErrorCode.AUTH_0003);
+            }
+            throw e;
+        }
     }
 
     private User userFromChallenge(String challengeToken, Instant now) {
