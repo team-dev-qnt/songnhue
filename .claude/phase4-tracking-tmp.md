@@ -21,7 +21,7 @@
 | A4 | `T61.12` | Bài render vòng khứ hồi `ConstructionFormPage` | P1 · dữ liệu | [x] |
 | A5 | `T61.14` | Bài HTTP khẳng định GIÁ TRỊ `ip_address` ở 3 bảng | P1 · bảo mật | [x] |
 | A6 | `T61.6` | Kịch bản load test (k6) — 200 CCU cổng · 50 users dashboard · khai tỉ lệ 429 | P1 · NFR-02 | [~] viết xong, chưa chạy staging |
-| A7 | `T61.4` | Dịch vụ ClamAV trong `compose.prod.yml` + nối `APP_CLAMAV_HOST` (staging chờ quyết RAM) | P1 · bảo mật | [ ] |
+| A7 | `T61.4` | Dịch vụ ClamAV trong `compose.prod.yml` + nối `APP_CLAMAV_HOST` — ✅ mã (cả hai máy, `ConcurrentDatabaseReload no`, trần luồng 130M, lỗi quét ⛔ còn đọc thành nhiễm) · ⬜ đo trên staging | P1 · bảo mật | [~] |
 | A8 | `T61.5` | Alertmanager trong `compose.observability.yml` — cấu hình, **kênh chờ QT chọn** | P1 · NFR-01 | [ ] |
 | A9 | `T61.11` | Job `CRYPTO_REENCRYPT` + chống trùng dưới mọi khoá (T51.9, phần mã) — ⬜ diễn tập thật trên staging ở §B | P1 · dữ liệu | [x] |
 | A10 | `T61.13` | Bộ canh ĐẾM nơi ném đối số vào mã lỗi ⛔ `{n}`, rồi vá — 44 nơi, 7 chiều THIẾU (người dùng thấy `{1}`) + `JobWorker.last_error` | P2 | [x] |

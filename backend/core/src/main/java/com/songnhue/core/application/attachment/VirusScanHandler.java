@@ -92,7 +92,13 @@ public class VirusScanHandler implements JobHandler {
         byte[] content = storage.get(attachment.getStorageBucket(), attachment.getStorageKey());
         String verdict = scan(content);
 
-        if (verdict.contains("OK") && !verdict.contains("FOUND")) {
+        KetLuan ketLuan = phanLoai(verdict);
+        if (ketLuan == KetLuan.LOI) {
+            // Ném để worker thử lại và ghi nguyên văn vào `jobs.last_error`. Tệp giữ UPLOADING ⇒ ⛔ tải
+            // xuống được (đóng an toàn) mà cũng ⛔ bị gắn nhãn nhiễm.
+            throw new IllegalStateException("ClamAV ⛔ kết luận được tệp " + attachment.getPublicId() + ": " + verdict);
+        }
+        if (ketLuan == KetLuan.SACH) {
             attachment.markClean();
             log.info("Tệp {} sạch — chuyển sang tải xuống được", attachment.getPublicId());
         } else {
@@ -101,6 +107,33 @@ public class VirusScanHandler implements JobHandler {
             log.error("⚠ Tệp {} nhiễm mã độc, đã cách ly: {}", attachment.getPublicId(), verdict);
         }
         repository.save(attachment);
+    }
+
+    /** Ba kết cục của một lượt INSTREAM. */
+    enum KetLuan {
+        SACH,
+        NHIEM,
+        LOI
+    }
+
+    /**
+     * Đọc phản hồi của clamd — T61.4.
+     *
+     * <p>⛔⛔ Bản cũ là {@code contains("OK") && !contains("FOUND")} ⇒ MỌI thứ khác đều là "nhiễm". Đo
+     * 14/09/2026 trên {@code clamav/clamav:1.4.6-debian}: một ZIP <b>sạch</b> 115 MB (hệ cho tải lên
+     * tới 120 MB) nhận {@code INSTREAM size limit exceeded. ERROR} khi trần luồng để mặc định ⇒ tệp
+     * sạch bị cách ly kèm một dòng log <i>"nhiễm mã độc"</i>. "Máy quét ⛔ quét được" và "tệp có mã
+     * độc" là hai trạng thái khác nhau (luật 9).
+     */
+    static KetLuan phanLoai(String verdict) {
+        String v = verdict == null ? "" : verdict.strip();
+        if (v.endsWith(" FOUND")) {
+            return KetLuan.NHIEM;
+        }
+        if (v.endsWith(": OK")) {
+            return KetLuan.SACH;
+        }
+        return KetLuan.LOI;
     }
 
     /**
