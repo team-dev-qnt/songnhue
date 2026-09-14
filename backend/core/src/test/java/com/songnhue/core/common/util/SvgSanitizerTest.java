@@ -92,7 +92,7 @@ class SvgSanitizerTest {
     void catJavascriptHref() {
         String sach = khuTrung(
                 """
-                <svg xmlns="http://www.w3.org/2000/svg">
+                <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
                   <a xlink:href="javascript:alert(1)"><text>bấm</text></a>
                 </svg>
                 """);
@@ -101,16 +101,82 @@ class SvgSanitizerTest {
     }
 
     @Test
-    @DisplayName("⛔ DOCTYPE/ENTITY bị cắt — chặn đường tấn công thực thể XML")
-    void catDoctype() {
+    @DisplayName("⛔ DOCTYPE có tập con nội (ENTITY) ⇒ TỪ CHỐI cả tệp — đường tấn công thực thể XML")
+    void tuChoiDoctypeTapConNoi() {
+        // T61.32 — bản regex "cắt" DOCTYPE tới dấu `>` ĐẦU TIÊN, tức giữa chừng `[<!ENTITY …>]`, để lại rác và
+        // tham chiếu `&xxe;` treo. Một tệp mang ENTITY ⛔ phải logo của phần mềm thiết kế nào — từ chối.
+        assertThatThrownBy(
+                        () -> khuTrung(
+                                """
+                        <?xml version="1.0"?>
+                        <!DOCTYPE svg [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>
+                        <svg xmlns="http://www.w3.org/2000/svg"><text>&xxe;</text></svg>
+                        """))
+                .isInstanceOf(ValidationException.class);
+    }
+
+    @Test
+    @DisplayName("⭐ DOCTYPE NGOÀI kiểu Illustrator ⇒ gỡ, logo vẫn nhận")
+    void doctypeNgoaiDuocGo() {
         String sach = khuTrung(
                 """
-                <?xml version="1.0"?>
-                <!DOCTYPE svg [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>
-                <svg xmlns="http://www.w3.org/2000/svg"><text>&xxe;</text></svg>
+                <?xml version="1.0" encoding="UTF-8"?>
+                <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+                <svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1"/></svg>
                 """);
+        assertThat(sach).doesNotContain("DOCTYPE").contains("<rect");
+    }
 
-        assertThat(sach).doesNotContain("DOCTYPE").doesNotContain("ENTITY").doesNotContain("file:///");
+    @Test
+    @DisplayName("⛔⛔ T61.32 — thẻ LỒNG `<scr<script></script>ipt>` ⛔ ghép lại được thành script")
+    void theLongKhongGhepLai() {
+        // Bản regex một lượt: xoá cặp giữa ⇒ `<script>alert(1)</script>` trong tệp "đã khử trùng" (đo 15/09).
+        byte[] doc =
+                """
+                <svg xmlns="http://www.w3.org/2000/svg"><scr<script></script>ipt>alert(1)</script><rect/></svg>"""
+                        .getBytes(StandardCharsets.UTF_8);
+        assertThatThrownBy(() -> SvgSanitizer.sanitize(doc, "logo.svg"))
+                .as("XML hỏng ⇒ trình duyệt cũng ⛔ vẽ được ⇒ từ chối, ⛔ cố sửa")
+                .isInstanceOf(ValidationException.class);
+    }
+
+    @Test
+    @DisplayName("⛔⛔ T61.32 — script mang TIỀN TỐ namespace SVG vẫn bị gỡ")
+    void scriptCoTienTo() {
+        String sach = khuTrung(
+                """
+                <svg xmlns="http://www.w3.org/2000/svg" xmlns:s="http://www.w3.org/2000/svg">
+                  <s:script>alert(document.domain)</s:script>
+                  <s:foreignObject><div/></s:foreignObject>
+                  <circle r="4"/>
+                </svg>
+                """);
+        assertThat(sach)
+                .as("bộ đọc XML của trình duyệt coi <s:script> là script — regex `<\\s*script` ⛔ thấy")
+                .doesNotContain("script")
+                .doesNotContain("alert")
+                .doesNotContain("foreignObject")
+                .contains("<circle");
+    }
+
+    @Test
+    @DisplayName(
+            "⛔ href `&#106;avascript:` (tham chiếu ký tự) · `on*` có tiền tố · `<use>` ra ngoài bị gỡ; `<use href=\"#id\">` giữ")
+    void bienTheThuocTinh() {
+        String sach = khuTrung(
+                """
+                <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+                  <image xlink:href="&#106;avascript:alert(1)" x:onload="alert(2)" xmlns:x="urn:x"/>
+                  <use href="https://ke-gian.example/a.svg#x"/>
+                  <use href="#hinh"/>
+                  <a href="https://ke-gian.example"><text>Sông Nhuệ</text></a>
+                </svg>
+                """);
+        assertThat(sach).doesNotContain("avascript").doesNotContain("alert").doesNotContain("ke-gian");
+        assertThat(sach)
+                .as("tham chiếu nội bộ + chữ trong <a> phải còn")
+                .contains("#hinh")
+                .contains("Sông Nhuệ");
     }
 
     @Test
