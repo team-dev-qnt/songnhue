@@ -1587,6 +1587,22 @@ cd /opt/songnhue
 docker compose --env-file .env -f compose.observability.yml up -d
 ```
 
+> ⛔⛔ **Trước 14/09/2026 lệnh trên dựng một hệ giám sát ⛔ đọc được chỉ số nào của ứng dụng** (T61.5):
+> `prometheus.yml` khai target `${PROD_APP_TARGET}` mà Prometheus ⛔ thay biến ⇒ `invalid URL escape`;
+> `app` production ⛔ mở cổng nào; và ⛔ có Alertmanager. Nay:
+>
+> * **Chỉ số production** đi qua nginx VPS-1: `https://<ADMIN_DOMAIN>/actuator/prometheus`, **chỉ** IP
+>   VPS-2 (`METRICS_ALLOW_IP`) **và** token (`METRICS_BEARER_TOKEN`). Hai biến khai `:?` ⇒ thiếu là nginx
+>   ⛔ lên — **đặt vào `.env` của CẢ HAI máy TRƯỚC lượt đề bạt mang bản này** (staging: `127.0.0.1`).
+> * **Chỉ số staging**: Prometheus nối mạng `songnhue_default` ⇒ stack staging phải lên TRƯỚC.
+> * **Alertmanager** (`.env` VPS-2): prod critical → email + Slack + Telegram · prod warning → Slack +
+>   Telegram · staging → Slack. Email dùng `SMTP_*`. Biến: `PROD_METRICS_HOST`,
+>   `PROD_METRICS_BEARER_TOKEN`, `ALERT_EMAIL_TO`, `SLACK_WEBHOOK_URL`, `TELEGRAM_BOT_TOKEN`,
+>   `TELEGRAM_CHAT_ID` — thiếu biến nào là container ⛔ lên, và **⛔ viết chú thích cùng dòng với giá trị
+>   rỗng** (compose lấy chú thích làm giá trị).
+> * Kiểm sau khi lên: `curl -s 127.0.0.1:19090/api/v1/targets` ⇒ `songnhue-app-production` **up**;
+>   bắn thử một cảnh báo (lệnh ở `.claude/phase4-tracking-tmp.md` §B6).
+
 Grafana và Prometheus publish ra `127.0.0.1`; vào bằng đường hầm SSH, không mở cổng:
 
 ```bash

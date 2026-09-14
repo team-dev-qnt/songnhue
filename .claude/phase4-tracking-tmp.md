@@ -22,7 +22,7 @@
 | A5 | `T61.14` | Bài HTTP khẳng định GIÁ TRỊ `ip_address` ở 3 bảng | P1 · bảo mật | [x] |
 | A6 | `T61.6` | Kịch bản load test (k6) — 200 CCU cổng · 50 users dashboard · khai tỉ lệ 429 | P1 · NFR-02 | [~] viết xong, chưa chạy staging |
 | A7 | `T61.4` | Dịch vụ ClamAV trong `compose.prod.yml` + nối `APP_CLAMAV_HOST` — ✅ mã (cả hai máy, `ConcurrentDatabaseReload no`, trần luồng 130M, lỗi quét ⛔ còn đọc thành nhiễm) · ⬜ đo trên staging | P1 · bảo mật | [~] |
-| A8 | `T61.5` | Alertmanager trong `compose.observability.yml` — cấu hình, **kênh chờ QT chọn** | P1 · NFR-01 | [ ] |
+| A8 | `T61.5` | Alertmanager (Gmail + Slack + Telegram) + vá hệ giám sát 0 chỉ số từ WS-7 (target `${…}` ⛔ thay) + cửa nginx `/actuator/prometheus` — ✅ mã, chạy thật ở máy · ⬜ QT đặt biến + đo (§B6) | P1 · NFR-01 | [~] |
 | A9 | `T61.11` | Job `CRYPTO_REENCRYPT` + chống trùng dưới mọi khoá (T51.9, phần mã) — ⬜ diễn tập thật trên staging ở §B | P1 · dữ liệu | [x] |
 | A10 | `T61.13` | Bộ canh ĐẾM nơi ném đối số vào mã lỗi ⛔ `{n}`, rồi vá — 44 nơi, 7 chiều THIẾU (người dùng thấy `{1}`) + `JobWorker.last_error` | P2 | [x] |
 | A11 | `T61.15` | javadoc T57.7→T57.15 · xoá `hr.spi` rỗng · sửa `nghiem-thu-cong-ttdt-v1.md` | P2 | [x] |
@@ -92,6 +92,34 @@ Rồi ghi giờ bắt đầu **T37.1** (7 ngày lịch) ngay khi `hydro_readings
 | `T61.4` | ✅ chốt 14/09: **cả hai máy**, staging `ConcurrentDatabaseReload no` | xem A7 |
 | `T50.13` | ✅ chốt 14/09: staging **dùng chung cấu hình SMTP của production** | chép khối `SMTP_*` từ `.env` VPS-1 sang VPS-2 |
 | `T61.17` | **Xác nhận**: Công ty ra Internet qua MỘT IP công cộng? | từ một máy trong mạng Công ty: `curl -s https://api.ipify.org` trên 2–3 máy khác phòng — cùng một số là một NAT |
+
+### B6. ⛔ TRƯỚC lượt đề bạt mang T61.4/T61.5 — thiếu biến là nginx ⛔ lên
+
+```bash
+# VPS-1 (.env production) — IP công cộng của VPS-2 + token mới
+echo "METRICS_ALLOW_IP=<IP-VPS-2>" >> /opt/songnhue/.env
+echo "METRICS_BEARER_TOKEN=$(openssl rand -hex 32)" >> /opt/songnhue/.env
+grep -c '^METRICS_' /opt/songnhue/.env                       # phải: 2
+
+# VPS-2 (.env staging + giám sát) — ⛔ viết chú thích cùng dòng giá trị
+#   METRICS_ALLOW_IP=127.0.0.1 · METRICS_BEARER_TOKEN=<openssl rand -hex 32, KHÁC production>
+#   PROD_METRICS_HOST=<ADMIN_DOMAIN production> · PROD_METRICS_BEARER_TOKEN=<= token VPS-1>
+#   ALERT_EMAIL_TO · SLACK_WEBHOOK_URL · TELEGRAM_BOT_TOKEN · TELEGRAM_CHAT_ID
+#   SMTP_* chép từ .env VPS-1 (T50.13 — dùng chung)
+grep -cE '^(METRICS_|PROD_METRICS_|ALERT_EMAIL_TO|SLACK_WEBHOOK_URL|TELEGRAM_)' /opt/songnhue/.env   # phải: 8
+
+# Sau khi staging lên bản mới:
+docker compose --env-file .env -f compose.observability.yml up -d
+curl -s 127.0.0.1:19090/api/v1/targets | grep -o '"job":"songnhue-app-[a-z]*"[^}]*"health":"[a-z]*"'   # cả hai: up
+# (từ VPS-2) cửa nginx VPS-1: có token ⇒ 200, thiếu ⇒ 403
+curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer $PROD_METRICS_BEARER_TOKEN" https://<ADMIN_DOMAIN>/actuator/prometheus
+curl -s -o /dev/null -w '%{http_code}\n' https://<ADMIN_DOMAIN>/actuator/prometheus
+# Bắn thử — phải tới email + Slack + Telegram:
+docker exec songnhue-alertmanager amtool alert add ThuCanhBao environment=production severity=critical --annotation=summary="Thử kênh cảnh báo T61.5" --alertmanager.url=http://localhost:9093
+# ClamAV (T61.4) trên staging:
+docker ps --filter name=songnhue-clamav --format '{{.Status}}'          # healthy
+q "SELECT scan_status, count(*) FROM attachments WHERE created_at > now() - interval '1 hour' GROUP BY 1"   # sau khi tải 1 tệp thử: CLEAN
+```
 
 ### B5. Sau khi A6/A7/A8 gộp và lên staging
 

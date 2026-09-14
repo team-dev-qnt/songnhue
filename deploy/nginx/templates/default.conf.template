@@ -36,6 +36,16 @@ map $host $robots_tag {
     default "${ROBOTS_TAG}";
 }
 
+# T61.5 — token của đường chỉ số cho Prometheus trên VPS-2. So NGUYÊN chuỗi header.
+# ⚠ Biến token khai `:?` ở compose ⇒ thiếu/rỗng là nginx ⛔ lên. Nếu biến vắng mặt,
+#   envsubst để NGUYÊN chỗ cắm và kẻ gửi đúng chuỗi chỗ cắm ấy sẽ lọt — nên điều kiện
+#   "phải có giá trị" nằm ở compose, ⛔ ở đây. (Chú thích này cố ý ⛔ viết chỗ cắm:
+#   envsubst thay cả trong chú thích, và token sẽ nằm trong `nginx -T`.)
+map $http_authorization $metrics_token_ok {
+    default 0;
+    "Bearer ${METRICS_BEARER_TOKEN}" 1;
+}
+
 # ⚠ Hạn mức ở biên là lưới CHỐNG NGẬP, không phải lưới nghiệp vụ. Hạn mức thật
 #   (đăng nhập 5 lần/15', API 100/phút, kết xuất 10/giờ) nằm ở `RateLimitFilter`
 #   phía backend, nơi biết được người dùng là ai. Ở đây chỉ biết IP.
@@ -226,6 +236,25 @@ server {
     limit_conn per_ip 50;
 
     set $admin_upstream ${ADMIN_UPSTREAM};
+    set $app_upstream ${APP_UPSTREAM};
+
+    # ⭐ T61.5 — chỉ số ứng dụng cho Prometheus trên VPS-2. NGOẠI LỆ DUY NHẤT của luật
+    #   "biên ⛔ nói chuyện thẳng với backend" ở đầu tệp: luật ấy giữ cùng-origin cho
+    #   TRÌNH DUYỆT, còn đây là một máy chủ gọi một đường ⛔ phải `/api`.
+    #
+    #   `/actuator/prometheus` ⛔ đi qua phân quyền nào của ứng dụng (§9.5) ⇒ cửa ở ĐÂY là
+    #   cửa duy nhất: IP của VPS-2 VÀ token. `if … return` chạy ở pha rewrite, `deny` ở pha
+    #   access — sai một trong hai đều 403. Bộ canh: `CanhBaoCoDuongDiTest`.
+    location = /actuator/prometheus {
+        access_log off;
+        allow ${METRICS_ALLOW_IP};
+        deny all;
+        if ($metrics_token_ok = 0) {
+            return 403;
+        }
+        proxy_pass $app_upstream/actuator/prometheus;
+        proxy_set_header Host $host;
+    }
 
     location = /healthz {
         access_log off;

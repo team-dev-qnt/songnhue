@@ -1,12 +1,12 @@
 # =============================================================================
-# GIÁM SÁT — chạy trên VM-3, TÁCH KHỎI máy chạy ứng dụng (WS-7 / T7.9)
+# GIÁM SÁT — chạy trên VPS-2 (VM-3 cũ đã gộp vào), TÁCH KHỎI production (WS-7 / T7.9)
 #
 # VM-3 giữ hai thứ, cùng một lý do: kho bản sao lưu (T7.2) và hệ giám sát. Cả
 # hai đều phải sống sót đúng lúc VM-1 chết — nằm chung máy với thứ mình canh
 # gác thì chết cùng nó, và sự cố lớn nhất lại là sự cố không để lại dấu vết nào.
 #
-#   Dùng (trên VM-3):
-#     docker compose --env-file env/vm3.env -f compose.observability.yml up -d
+#   Dùng (trên VPS-2, SAU khi stack staging đã lên — Prometheus nối mạng của nó):
+#     docker compose --env-file .env -f compose.observability.yml up -d
 #
 # ⚠ Cổng KHÔNG publish ra 0.0.0.0. Grafana và Prometheus không có lớp xác thực
 #   nào trước mặt ở cấu hình này; mở ra Internet là mở toàn bộ chỉ số vận hành.
@@ -20,16 +20,33 @@ services:
     container_name: songnhue-prometheus
     restart: unless-stopped
     user: "65534:65534"
+    environment:
+      # T61.5 — tên miền QUẢN TRỊ của production (nginx VPS-1 mở /actuator/prometheus ở đó).
+      PROD_METRICS_HOST: ${PROD_METRICS_HOST:?Thiếu PROD_METRICS_HOST — tên miền quản trị production}
+      # Phải BẰNG `METRICS_BEARER_TOKEN` trong .env của VPS-1.
+      PROD_METRICS_BEARER_TOKEN: ${PROD_METRICS_BEARER_TOKEN:?Thiếu PROD_METRICS_BEARER_TOKEN}
+    # ⛔⛔ Prometheus ⛔ thay biến trong tệp cấu hình (T61.5) ⇒ điền mẫu ra /tmp rồi mới chạy.
+    entrypoint: ["/bin/sh", "-c"]
     command:
-      - --config.file=/etc/prometheus/prometheus.yml
-      - --storage.tsdb.path=/prometheus
-      # 90 ngày: đủ đối chiếu xu hướng khi nghiệm thu NFR, không cần hơn
-      - --storage.tsdb.retention.time=90d
-      - --web.enable-lifecycle
+      - |
+        set -e
+        /etc/prometheus/dien-cau-hinh.sh bi-mat PROD_METRICS_BEARER_TOKEN /tmp/prom/metrics_token
+        /etc/prometheus/dien-cau-hinh.sh /etc/prometheus/prometheus.mau.yml /tmp/prom/prometheus.yml PROD_METRICS_HOST
+        exec /bin/prometheus \
+          --config.file=/tmp/prom/prometheus.yml \
+          --storage.tsdb.path=/prometheus \
+          --storage.tsdb.retention.time=90d \
+          --web.enable-lifecycle
     volumes:
-      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.mau.yml:ro
       - ./observability/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - ./observability/dien-cau-hinh.sh:/etc/prometheus/dien-cau-hinh.sh:ro
       - prometheus-data:/prometheus
+    networks:
+      - default
+      # Stack staging cùng máy — đọc `songnhue-app:8080` ⛔ cần mở cổng nào.
+      # ⚠ Mạng NGOÀI: stack staging phải lên trước (`compose.staging.yml up -d`).
+      - staging
     ports:
       - "127.0.0.1:${OBS_PROMETHEUS_PORT:-19090}:9090"
     healthcheck:
@@ -40,11 +57,55 @@ services:
 
   # Đọc chỉ số của chính VM-3, và — quan trọng hơn — đọc tệp textfile do
   # pull-from-prod.sh ghi ra: "bản sao lưu đã ra khỏi máy chủ CSDL chưa".
-    # ⚠ VPS-2 chỉ có 4 GB và còn chạy CẢ stack staging (~3,9 GB nếu giữ nguyên
-    #   mem_limit). Ba service giám sát trước đây KHÔNG có trần nào — Prometheus
-    #   với 90 ngày dữ liệu sẽ lớn dần cho tới khi OOM-killer chọn tiến trình có
-    #   RSS lớn nhất, tức là `app` hoặc `postgres` của chính staging.
+    # ⚠ VPS-2 còn chạy CẢ stack staging (hosting_recommendations.md §8). Ba service
+    #   giám sát trước đây KHÔNG có trần nào — Prometheus với 90 ngày dữ liệu sẽ lớn
+    #   dần cho tới khi OOM-killer chọn `app` hoặc `postgres` của chính staging.
     mem_limit: 512m
+
+  # ---------------------------------------------------------------------------
+  # Alertmanager — T61.5. Trước 14/09/2026 ⛔ tồn tại: Prometheus TÍNH cảnh báo
+  # mà ⛔ gửi đi đâu. Tuyến gửi: observability/alertmanager.yml.
+  # ---------------------------------------------------------------------------
+  alertmanager:
+    image: prom/alertmanager:v0.34.0
+    container_name: songnhue-alertmanager
+    restart: unless-stopped
+    user: "65534:65534"
+    environment:
+      # Giờ trong tin cảnh báo hiển thị UTC+7 (quy tắc 1) — mẫu tin dùng `.StartsAt.Local`.
+      TZ: Asia/Ho_Chi_Minh
+      # Email dùng CHUNG SMTP của ứng dụng — chốt 14/09/2026.
+      SMTP_HOST: ${SMTP_HOST:?Thiếu SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:?Thiếu SMTP_PORT}
+      SMTP_FROM: ${SMTP_FROM:?Thiếu SMTP_FROM}
+      SMTP_USERNAME: ${SMTP_USERNAME:?Thiếu SMTP_USERNAME}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:?Thiếu SMTP_PASSWORD}
+      ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:?Thiếu ALERT_EMAIL_TO}
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:?Thiếu SLACK_WEBHOOK_URL}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?Thiếu TELEGRAM_BOT_TOKEN}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:?Thiếu TELEGRAM_CHAT_ID}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        d=/etc/alertmanager/dien-cau-hinh.sh
+        $$d bi-mat SMTP_PASSWORD /tmp/am/smtp_password
+        $$d bi-mat SLACK_WEBHOOK_URL /tmp/am/slack_webhook
+        $$d bi-mat TELEGRAM_BOT_TOKEN /tmp/am/telegram_token
+        $$d /etc/alertmanager/alertmanager.mau.yml /tmp/am/alertmanager.yml \
+          SMTP_HOST SMTP_PORT SMTP_FROM SMTP_USERNAME ALERT_EMAIL_TO TELEGRAM_CHAT_ID
+        exec /bin/alertmanager \
+          --config.file=/tmp/am/alertmanager.yml \
+          --storage.path=/alertmanager
+    volumes:
+      - ./observability/alertmanager.yml:/etc/alertmanager/alertmanager.mau.yml:ro
+      - ./observability/songnhue.tmpl:/etc/alertmanager/songnhue.tmpl:ro
+      - ./observability/dien-cau-hinh.sh:/etc/alertmanager/dien-cau-hinh.sh:ro
+      - alertmanager-data:/alertmanager
+    # ⛔ KHÔNG publish: chỉ Prometheus cùng mạng gọi. Xem trạng thái bằng SSH tunnel tới Prometheus.
+    expose:
+      - "9093"
+    mem_limit: 64m
 
   node-exporter:
     image: prom/node-exporter:v1.9.0
@@ -87,3 +148,9 @@ services:
 volumes:
   prometheus-data:
   grafana-data:
+  alertmanager-data:
+
+networks:
+  staging:
+    external: true
+    name: songnhue_default

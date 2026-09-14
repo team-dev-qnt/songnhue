@@ -25,7 +25,14 @@ groups:
         # -1 = chưa từng sao lưu thành công. Cố ý bắt luôn trường hợp đó: hệ
         # thống chưa từng được sao lưu là trạng thái đáng báo động nhất, nhưng
         # một điều kiện "> 93600" đơn thuần lại bỏ sót nó.
-        expr: songnhue_backup_age_seconds > 93600 or songnhue_backup_age_seconds == -1
+        #
+        # ⚠ T61.5 — thêm vế `absent(…production…)`: ứng dụng production mà KHÔNG trả
+        #   chỉ số này thì luật cũ ⛔ có chuỗi nào để so ⇒ `inactive` VĨNH VIỄN. Đo
+        #   14/09/2026: đúng trạng thái ấy suốt từ WS-7, vì target scrape hỏng.
+        expr: >-
+          songnhue_backup_age_seconds > 93600
+          or songnhue_backup_age_seconds == -1
+          or absent(songnhue_backup_age_seconds{environment="production"})
         for: 15m
         labels:
           severity: critical
@@ -45,6 +52,9 @@ groups:
         for: 30m
         labels:
           severity: critical
+          # Chỉ số do node-exporter của VPS-2 đọc ⇒ ⛔ mang nhãn môi trường của target
+          # ứng dụng. Nó nói về bản sao lưu PRODUCTION ⇒ gắn tường minh (T61.5).
+          environment: production
         annotations:
           summary: "Bản sao lưu chưa được đưa ra khỏi máy chủ CSDL"
           description: >-
@@ -65,7 +75,11 @@ groups:
   - name: songnhue-data-freshness
     rules:
       - alert: NguonDuLieuImLang
-        expr: songnhue_data_freshness_seconds > 1800 or songnhue_data_freshness_seconds == -1
+        # ⚠ T61.5 — vế `absent` như `SaoLuuQuaHan`: quy tắc 18 xếp poller NGANG sao lưu.
+        expr: >-
+          songnhue_data_freshness_seconds > 1800
+          or songnhue_data_freshness_seconds == -1
+          or absent(songnhue_data_freshness_seconds{environment="production"})
         for: 5m
         labels:
           severity: critical
@@ -156,9 +170,23 @@ groups:
   - name: songnhue-availability
     rules:
       - alert: UngDungKhongPhanHoi
-        expr: up{job="songnhue-app"} == 0
+        expr: up{job=~"songnhue-app-.+"} == 0
         for: 3m
         labels:
           severity: critical
         annotations:
           summary: "Không lấy được metric từ ứng dụng trong 3 phút"
+
+      - alert: ChiSoProductionVangMat
+        # T61.5 — `up == 0` chỉ kêu khi target TỒN TẠI mà gọi hỏng. Target ⛔ có trong
+        # cấu hình (điền sai, job đổi tên) thì ⛔ có chuỗi `up` nào ⇒ luật trên im. Đó
+        # đúng là trạng thái của kho từ WS-7 tới 14/09/2026.
+        expr: absent(up{job="songnhue-app-production", environment="production"})
+        for: 5m
+        labels:
+          severity: critical
+          environment: production
+        annotations:
+          summary: "Prometheus KHÔNG có target ứng dụng production nào — mọi chuông khác đang mù"
+          description: >-
+            Kiểm tra cấu hình đã điền của Prometheus (dien-cau-hinh.sh) và PROD_METRICS_HOST.

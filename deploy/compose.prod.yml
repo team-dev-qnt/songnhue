@@ -430,6 +430,10 @@ services:
       FILES_DOMAIN: ${FILES_DOMAIN}
       PUBLIC_UPSTREAM: http://public-web:3000
       ADMIN_UPSTREAM: http://admin-app:80
+      # T61.5 — CHỈ dùng cho `location = /actuator/prometheus` (Prometheus trên VPS-2).
+      APP_UPSTREAM: http://app:8080
+      METRICS_ALLOW_IP: ${METRICS_ALLOW_IP:?Thiếu METRICS_ALLOW_IP — IP công cộng của VPS-2 (staging đặt 127.0.0.1)}
+      METRICS_BEARER_TOKEN: ${METRICS_BEARER_TOKEN:?Thiếu METRICS_BEARER_TOKEN — openssl rand -hex 32}
       FILES_UPSTREAM: http://minio:9000
       # production → `all` · staging → `noindex, nofollow`. Xem lý do đầy đủ ở
       # nginx/snippets/edge-headers.conf: hai môi trường chạy CÙNG image nên
