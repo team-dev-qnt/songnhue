@@ -19,7 +19,7 @@
 | A2 | `T61.11` | Runbook xoay khoá: dặn đúng về vân tay CCCD (phần lời dặn) | P0 · dữ liệu | [x] |
 | A3 | `T61.3` · `T61.16` | Sửa CLAUDE.md: tên miền production `.vn`, VM-3 → VPS-2, 15 commit | P0 · tài liệu | [x] |
 | A4 | `T61.12` | Bài render vòng khứ hồi `ConstructionFormPage` | P1 · dữ liệu | [ ] |
-| A5 | `T61.14` | Bài HTTP khẳng định GIÁ TRỊ `ip_address` ở 3 bảng | P1 · bảo mật | [ ] |
+| A5 | `T61.14` | Bài HTTP khẳng định GIÁ TRỊ `ip_address` ở 3 bảng | P1 · bảo mật | [x] |
 | A6 | `T61.6` | Kịch bản load test (k6) — 200 CCU cổng · 50 users dashboard · khai tỉ lệ 429 | P1 · NFR-02 | [ ] |
 | A7 | `T61.4` | Dịch vụ ClamAV trong `compose.prod.yml` + nối `APP_CLAMAV_HOST` (staging chờ quyết RAM) | P1 · bảo mật | [ ] |
 | A8 | `T61.5` | Alertmanager trong `compose.observability.yml` — cấu hình, **kênh chờ QT chọn** | P1 · NFR-01 | [ ] |
