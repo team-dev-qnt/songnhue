@@ -159,10 +159,11 @@ class RbacMatrixTest extends IntegrationTestBase {
             //   ⚠ `hr:employee:view` cố ý cũng gác đường ĐỌC danh mục chức vụ: ô "Chức vụ" của biểu
             //   mẫu hồ sơ nạp bằng endpoint ấy, và bắt nó sau một quyền khác là tái lập đúng sự cố
             //   WS-28 — danh sách vĩnh viễn rỗng ⇒ ⛔ không tạo nổi một hồ sơ đầy đủ nào.
-            "hr:contract:manage", // Hợp đồng — Phase 3 (CN-04.5)
-            "hr:leave:request", // Phép — Phase 3 (CN-04.9)
-            "hr:leave:approve", // Duyệt phép — Phase 3 (CN-04.9)
-            "hr:leave:view-all", // Xem phép — Phase 3 (CN-04.9)
+            // ⬇ WS-57 đã GỠ BỐN dòng: `hr:contract:manage` (gác đường ghi danh mục ngày lễ —
+            //   `NgayLeController`), và `hr:leave:request` / `:approve` / `:view-all`
+            //   (`NghiPhepController` + `workflow_transitions` của quy trình LEAVE_REQUEST).
+            //   ⭐ Bài này bắt được lượt gỡ NGAY khi endpoint đầu tiên ra đời — lần thứ MƯỜI một bộ
+            //   canh của dự án bắt chính người vừa viết mã. ⛔ Đừng thêm lại cho hết đỏ.
             "hr:org-chart:view", // Sơ đồ tổ chức — Phase 3 (CN-04.1)
             // ⬇ WS-55 đã GỠ `hr:directory:view`: `DanhBaController` gác bằng đúng quyền ấy ở cả
             //   hai endpoint (danh sách · chi tiết). Nó là mã quyền seed từ 13/08/2026 với **0

@@ -347,6 +347,24 @@ public enum ErrorCode {
     HYD_2016("HYD-2016", HttpStatus.UNPROCESSABLE_CONTENT),
 
     // ---- MOD-04 Nhân sự ---------------------------------------------------------
+    /**
+     * Số dư phép năm ⛔ không đủ: còn {0} ngày, đơn xin {1} ngày (CN-04.9).
+     *
+     * <p>⚠ Đây là một <b>chặn</b> chứ ⛔ không phải cảnh báo, và đó là lựa chọn có ý thức: đặc tả
+     * nói <i>"cảnh báo vượt phép"</i> ở màn hình nhập, còn ở đường ghi thì một đơn vượt quỹ đi lọt
+     * sẽ thành số dư ÂM mà ⛔ không ai duyệt cái âm ấy. Giao diện cảnh báo trước; backend từ chối.
+     *
+     * <h2>⛔⛔ Mã này đã nằm sẵn trong danh mục từ 13/08/2026 — và WS-57 suýt đúc thêm một mã trùng</h2>
+     *
+     * <p>Bản đầu của WS-57 đặt {@code HR-2006} với đúng nghĩa ấy, trong khi {@code HR-2001} —
+     * <i>"Số ngày đăng ký vượt số phép còn lại"</i> — đã ngồi đó chờ CN-04.9 suốt <b>32 ngày</b>,
+     * kèm một dòng miễn trừ trong {@code MaLoiCoNoiNemTest} ghi rõ <i>"chưa dựng"</i>. Hai mã cho
+     * <b>một</b> trạng thái là hai câu trả lời cho cùng một câu hỏi: lượt rà sau ⛔ không biết mã
+     * nào thật sự bắn ra, và bản đồ mã lỗi phía giao diện mang hai dòng nói cùng một điều.
+     *
+     * <p>⇒ Giữ mã CŨ, nâng <b>câu chữ</b> của nó lên để mang được hai con số. Đặt một mã mới rồi
+     * để mã cũ mồ côi là cách chắc chắn nhất để dòng miễn trừ ấy sống thêm một phase nữa.
+     */
     HR_2001("HR-2001", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Mã cán bộ {0} đã có hồ sơ khác dùng — mã NV ⛔ không đổi suốt quá trình công tác (CN-04.2). */
     HR_1001("HR-1001", HttpStatus.CONFLICT),
@@ -376,6 +394,27 @@ public enum ErrorCode {
      * nhầm tham số.
      */
     HR_2003("HR-2003", HttpStatus.UNPROCESSABLE_CONTENT),
+
+    // ---- MOD-04 Nghỉ phép (CN-04.9, WS-57) --------------------------------------
+    /**
+     * Khoảng nghỉ {0} → {1} ⛔ không có <b>ngày công nào</b> — mọi ngày trong đó là cuối tuần hoặc
+     * ngày lễ. Một đơn 0 ngày ⛔ không nghĩa lý gì, và ràng buộc
+     * {@code ck_leave_requests_working_days} là lưới cuối; mã này để người dùng đọc được lý do.
+     */
+    HR_2004("HR-2004", HttpStatus.UNPROCESSABLE_CONTENT),
+    /**
+     * Đã có đơn nghỉ khác chồng lên khoảng {0} → {1}. Hai đơn chồng ngày là đếm <b>hai lần</b> cùng
+     * những ngày ấy vào số dư — và người nộp ⛔ không cố ý, họ chỉ sửa ngày rồi nộp đơn mới thay vì
+     * rút đơn cũ.
+     */
+    HR_2005("HR-2005", HttpStatus.CONFLICT),
+    /**
+     * ⛔ Không huỷ được đơn đã <b>bắt đầu nghỉ</b> ({0}). Những ngày ấy đã trôi qua; hoàn phép cho
+     * chúng là bịa ra một ngày công ⛔ không ai làm.
+     */
+    HR_2007("HR-2007", HttpStatus.UNPROCESSABLE_CONTENT),
+    /** Ngày lễ {0} đã được khai — hai hàng cùng ngày làm phép đếm trừ hai lần cùng một ngày. */
+    HR_2008("HR-2008", HttpStatus.CONFLICT),
 
     // ---- MOD-05 Quản trị --------------------------------------------------------
     ADM_2001("ADM-2001", HttpStatus.UNPROCESSABLE_CONTENT),

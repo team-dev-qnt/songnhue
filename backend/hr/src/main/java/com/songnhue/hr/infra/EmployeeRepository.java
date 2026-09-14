@@ -114,4 +114,19 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
      * tiền đề <b>vay mượn</b> nên ghi ra ở đây.
      */
     long countByOrgUnitIdAndDeletedAtIsNull(Long orgUnitId);
+
+    /**
+     * Quân số <b>còn làm việc</b> của một đơn vị — mẫu số của cảnh báo trùng lịch (CN-04.9).
+     *
+     * <p>⚠ Nhận danh sách trạng thái *đã nghỉ* từ nơi gọi thay vì viết literal: JPQL ⛔ không gọi
+     * được {@code EmploymentStatus.daNghi()}, và một literal thứ ba của cùng một luật là luật 14 ở
+     * dạng ⛔ không gỡ được bằng mã. Truyền vào thì ít nhất nó suy từ enum.
+     */
+    @Query(
+            """
+            SELECT count(e) FROM Employee e
+            WHERE e.deletedAt IS NULL AND e.orgUnitId = :orgUnitId
+              AND CAST(e.status AS string) NOT IN :daNghi
+            """)
+    long demConLamViec(@Param("orgUnitId") Long orgUnitId, @Param("daNghi") java.util.List<String> daNghi);
 }

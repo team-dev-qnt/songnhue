@@ -4,6 +4,8 @@ import {
   AppstoreOutlined,
   AuditOutlined,
   BellOutlined,
+  CalendarOutlined,
+  CheckSquareOutlined,
   CloudServerOutlined,
   ContactsOutlined,
   DashboardOutlined,
@@ -303,6 +305,43 @@ export const MENU: readonly MenuNode[] = [
         icon: <IdcardOutlined />,
         path: '/nhan-su/ho-so-cua-toi',
         requiresEmployeeLink: true,
+      },
+      {
+        // ⛔⛔ Gác bằng LIÊN KẾT, cùng lý lẽ với *Hồ sơ của tôi* — và ở đây nó còn là điều kiện
+        //    CẦN thật sự: `/nghi-phep/cua-toi` suy hồ sơ từ token, nên một tài khoản chưa liên kết
+        //    mở màn hình này chỉ nhận `SYS-0004` mà ⛔ không hiểu vì sao (T51.8).
+        // ⚠ ⛔ Không gác thêm `hr:leave:request`: chốt C3 cấp quyền ấy cho gần như mọi vai trò
+        //   (*"cấp tài khoản cho toàn bộ CBNV"*), nên nó ⛔ không phân biệt được ai — mà một điều
+        //   kiện ⛔ không phân biệt được hai trạng thái thì ⛔ không khẳng định gì (luật 9).
+        key: 'nghi-phep-cua-toi',
+        label: 'Nghỉ phép của tôi',
+        icon: <CalendarOutlined />,
+        path: '/nhan-su/nghi-phep',
+        requiresEmployeeLink: true,
+      },
+      {
+        key: 'duyet-nghi-phep',
+        label: 'Duyệt nghỉ phép',
+        icon: <CheckSquareOutlined />,
+        path: '/nhan-su/duyet-nghi-phep',
+        permissions: ['hr:leave:approve'],
+      },
+      {
+        // ⛔⛔ Gác bằng `hr:leave:request` — quyền của NGƯỜI NỘP ĐƠN, ⛔ không phải
+        //    `hr:contract:manage` của người sửa danh mục. Lý do: lịch lễ quyết định số ngày công
+        //    của đơn mình sắp nộp, mà một ô *"còn 8 ngày công"* ⛔ không xem được vì sao là một
+        //    con số ⛔ không ai tin. Ba nút GHI trong trang tự ẩn theo `hr:contract:manage`.
+        //
+        // ⚠⚠ Bản đầu để TRỐNG `permissions` cho khớp đúng đường đọc của backend (chỉ đòi đăng
+        //    nhập). Bộ canh `không có quyền nhân sự nào thì cả nhóm biến mất` đỏ ngay — và nó
+        //    ĐÚNG: một mục ⛔ không gác gì làm cả nhóm *Nhân sự* hiện cho mọi tài khoản, kể cả
+        //    tài khoản thuần quản trị hệ thống. ⇒ Điều kiện phải là **lý do màn hình tồn tại**,
+        //    ⛔ không phải bản sao của cổng quyền backend; hai tầng trả lời hai câu khác nhau.
+        key: 'ngay-le',
+        label: 'Ngày nghỉ lễ',
+        icon: <CalendarOutlined />,
+        path: '/nhan-su/ngay-le',
+        permissions: ['hr:leave:request'],
       },
     ],
   },

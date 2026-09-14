@@ -6591,3 +6591,158 @@ người dùng đọc thành *"hệ thống tìm sai"*.
 `NFD` một mình ⛔ không tách được — trong khi `unaccent` của Postgres **có**. Đây là luật 14 ở dạng
 ⛔ không gỡ được bằng mã (⛔ không có cách nào chạy `unaccent` trong `vitest`) ⇒ bù bằng
 `toSang.test.tsx` ghim đúng những cặp tiếng Việt dùng hằng ngày.
+
+---
+
+### §11.23 — Một hàng dữ liệu khai một thông báo **chưa bao giờ được gửi**, và ba thứ đã dựng sẵn nằm im 32 ngày (CN-04.9, 14/9/2026)
+
+#### Bối cảnh
+
+CN-04.9 (nghỉ phép) là chức năng **cuối** của MOD-04 còn bị chặn bởi **thứ tự**: chốt C3 đòi *"cấp
+tài khoản cho toàn bộ CBNV"*, nên một đơn nghỉ phải biết **người gửi là CBNV nào** — và cột
+`users.employee_id` chỉ có đường ghi kể từ T51.8 (§11.21).
+
+#### Quyết định 1 — Hàng `__NEW__` của `workflow_transitions` ⛔ KHÔNG phát thông báo được
+
+**Đây là quyết định quan trọng nhất của lượt này, và nó được rút ra từ một bài kiểm ĐỎ, ⛔ không từ
+một lượt đọc mã.**
+
+Migration bản đầu khai hàng vào đời như sau:
+
+```sql
+('__NEW__', 'SUBMIT', 'CHO_DUYET', 'hr:leave:request',
+ 'LEAVE_SUBMITTED', 'hr:leave:approve', FALSE, FALSE, 'Gửi đơn', 10),
+```
+
+Đọc rất hợp lý: *nộp đơn ⇒ báo cho người có quyền duyệt*. Javadoc của `DonNghiPhepService.nop()`
+còn khẳng định thêm rằng `resolveInitialState` là **"chốt chặn thật của đường vào đời"** vì nó kiểm
+quyền của bước `__NEW__`.
+
+**Cả hai đều sai**, và `nopDonThiNguoiDuyetNhanDuocThongBao` đo ra điều đó ở lượt chạy ĐẦU: người
+duyệt nhận **0** thông báo sau một lượt nộp thành công.
+
+Nguyên nhân nằm ở `WorkflowEngine:177`:
+
+```java
+if (requestedState == null || requestedState.equals(definition.getInitialState())) {
+    return definition.getInitialState();     // ⟵ TRẢ VỀ NGAY
+}
+```
+
+`LEAVE_REQUEST` khai `initial_state = 'CHO_DUYET'`, và service xin đúng `CHO_DUYET` ⇒ nhánh trên
+bắn ngay. Hàng `__NEW__` **⛔ không bao giờ được tra**: ⛔ không kiểm `required_permission`, ⛔ không
+gọi `notifyAfterTransition`. Cả ba cột của nó là trang trí.
+
+**⭐ Tiền lệ đã có và nó đúng.** Hai hàng `__NEW__` duy nhất có trước trong kho
+(`V202608211028`, `ops`) đều để `notify_event = NULL`. Chúng phục vụ đúng việc mà hàng `__NEW__`
+làm được: khai một đường vào đời **KHÁC** mặc định (nhập thẳng một công việc *đã hoàn thành*), nơi
+`resolveInitialState` **có** đi qua nhánh tra bảng và **có** kiểm quyền. Lượt này suýt dựng một tiền
+lệ thứ hai mâu thuẫn với nó.
+
+⇒ **Quyết định**: trả hai cột `notify_*` của hàng `__NEW__` về `NULL`, và phát thông báo **tường
+minh** ở `DonNghiPhepService.baoNguoiDuyet()` qua `NotifyRequest.targetedWithUnits`.
+
+⛔ **Vì sao ⛔ không sửa `WorkflowEngine` cho hàng `__NEW__` cũng chạy**: nhánh tra bảng hiện chỉ
+chạy cho trạng thái **khác** mặc định. Cho nó chạy với cả trạng thái mặc định nghĩa là mọi lượt tạo
+của `ops` bỗng nhiên đòi một hàng `__NEW__ → MOI` ⛔ không tồn tại ⇒ ném. Một thay đổi như vậy là
+đổi ngữ nghĩa nền tảng cho **cả bốn** module để cứu một dòng dữ liệu — đúng thứ T28.55 gọi là *phát
+minh một tính năng để cứu một mã lỗi*.
+
+⚠ **Một cột khai một thông báo ⛔ KHÔNG BAO GIỜ sinh ra nguy hiểm hơn một cột để trống**: lượt rà
+sau đọc thấy *"đã có chuông"* rồi đi tiếp. Cùng họ với T50.10 (chuông kêu đúng một lần rồi im 9
+ngày) và §11.15 (endpoint ⛔ không màn hình nào gọi).
+
+#### Quyết định 2 — Số dư phép ⛔ KHÔNG có bảng, nó TÍNH LẠI mỗi lượt đọc
+
+Phương án hiển nhiên là một bảng `leave_balances` với các cột `duoc_huong / da_dung / con_lai`. ⛔
+Bỏ, vì đó là **quy tắc 13**: một cột dẫn xuất được ghi xuống sẽ lệch vào ngày có một đường ghi quên
+cập nhật nó — và đường ghi ấy **sẽ có** (rút đơn, huỷ đơn đã duyệt, quản trị sửa tay, đổi tham số
+`hr.leave.annual-days.*`).
+
+⇒ `SoDuPhepService.tinh(hoSo, nam)` đọc **một** truy vấn (`donChiemSoDuTrongNam`) rồi chia nhóm ở
+Java. Hệ quả đo được: một đơn rút về ⛔ không cần ai đi cộng trả lại, và ⛔ **không có cột nào để
+lệch** — bài `huyDonThiTraLaiSoDu` khẳng định số dư quay về **đúng** giá trị ban đầu.
+
+⚠⚠ **Bản đầu của chính lớp ấy vi phạm đúng quy tắc nó đang viết javadoc để cảnh báo**: nó lấy *đã
+tiêu* bằng một câu `SUM` lọc `fromDate BETWEEN` rồi **trừ** *đang chờ* lấy bằng câu khác lọc theo
+**chồng khoảng**. Hai vị từ khác nhau, và hiệu của chúng là một con số ⛔ không ai định nghĩa được.
+
+#### Quyết định 3 — `working_days` ĐÓNG BĂNG lúc nộp, và đó là NGOẠI LỆ CÓ CHỦ ĐÍCH với quy tắc 3
+
+Quy tắc 3 nói *mọi giá trị tính toán tính ở BE*; nó ⛔ **không** nói *phải tính lại mỗi lượt đọc*.
+
+Ở đây con số là một **sự thật lịch sử tại thời điểm quyết định**: Công ty thêm một ngày lễ vào
+tháng sau thì đơn đã duyệt tháng trước **⛔ không được** đổi số ngày — người lao động đã nghỉ đúng
+ngần ấy ngày và số dư đã trừ đúng ngần ấy.
+
+⚠ Phân biệt với quy tắc 13: cột ở quy tắc 13 mô tả **trạng thái hiện tại** nên phải sinh; cột này
+ghi một **quyết định đã xảy ra** nên phải đóng băng.
+
+#### Quyết định 4 — *"Quản lý ĐƠN VỊ duyệt"* cần HAI cơ chế, và một trong hai ⛔ không phải mã quyền
+
+`workflow_transitions.required_permission` là một **mã quyền**; đặc tả nói một **quan hệ**.
+`hr:leave:approve` một mình cho một trưởng Xí nghiệp 3 duyệt đơn của Xí nghiệp 5.
+
+⇒ Vế còn lại là **bộ lọc phạm vi tầng 3** trên `leave_requests.org_unit_id`: người duyệt ⛔ không
+**nhìn thấy** đơn ngoài phạm vi, nên ⛔ không có gì để bấm — kể cả khi đoán đúng `publicId` (lượt
+`POST /{id}/hanh-dong` trả **404**, vì `findByPublicIdAndDeletedAtIsNull` là một **truy vấn** nên
+`@Filter` áp cho nó).
+
+⚠ `org_unit_id` của đơn là một **BẢN SAO** đơn vị của nhân viên lúc nộp, ⛔ không phải một khoá
+ngoại "sống": một người chuyển đơn vị giữa chừng ⛔ không được làm đơn cũ nhảy sang hộp duyệt của
+trưởng đơn vị mới — người đã duyệt là người cũ, và nhật ký phải khớp với ai thật sự quyết định.
+Cùng lý lẽ với `maintenance_logs.org_unit_id` (T18.2).
+
+⬜ **Vế ⛔ CHƯA hẹp: NGƯỜI NHẬN THƯ.** `RecipientResolver` giải người nhận bằng
+`findActiveIdsByPermission(permission)` — truy vấn **⛔ không có** vế đơn vị, tức toàn Công ty. Thu
+hẹp nó là đổi ngữ nghĩa cho **cả** CMS và cảnh báo vận hành công trình ⇒ nợ **T57.15**, cần một
+lượt riêng có đo trước.
+
+#### Quyết định 5 — Ngày lễ: trả **SỐ ĐÃ KHAI**, ⛔ không trả một CỜ
+
+Bản đầu định trả một cờ `daCauHinhNgayLe`. ⛔ Sai, và cái sai lộ ra khi một khẳng định khác của tôi
+bị dữ liệu bác: tôi viết `DO $$` đòi `holidays` phải **RỖNG** khi giao, trong khi `V202608131008` đã
+seed **8 hàng**.
+
+Tám hàng ấy là **LUẬT**, ⛔ không phải *"seed cho đẹp demo"*: chỉ những ngày lễ có **ngày dương lịch
+cố định** do Điều 112 BLLĐ 2019 ấn định (1/1, 30/4, 1/5, 2/9 × 2 năm), kèm chú thích nói rõ vì sao
+Tết và Giỗ Tổ — **âm lịch**, đổi ngày dương mỗi năm — ⛔ không được seed.
+
+⇒ Một cờ *"đã có ngày lễ chưa"* sẽ trả **CÓ** cho mọi năm đã seed, trong khi **Tết, kỳ nghỉ dài
+nhất năm, vẫn thiếu**. Nó nói dối đúng ở ca nguy hiểm nhất — luật 9.
+
+⇒ API trả `soNgayLeDaKhai` so với hằng `DemNgayCongService.SO_NGAY_LE_THEO_LUAT = 11`, và giao diện
+nói *"năm N mới khai X/11 ngày lễ"* kèm căn cứ pháp lý. Bài kiểm canh **đúng hai biên** 10/11 và
+11/11: một cờ ⛔ không lật được ở biên của nó là một **hằng số**, ⛔ không phải một phép tính.
+
+⚠ Và `soNgayLeItNhatTrongCacNam` lấy **min** trên mọi năm khoảng nghỉ chạm tới, ⛔ không lấy năm bắt
+đầu: một đơn vắt qua giao thừa dương lịch chạm hai năm, và năm sau thường là năm **chưa ai khai**.
+
+#### Quyết định 6 — Ngưỡng cấp duyệt 2 đọc từ `settings`, và phép đổi hành động nằm ở SERVICE
+
+Chốt C2 cho cấu hình *"≥ N ngày cần thêm cấp duyệt 2"*. Bảng `workflow_transitions` ⛔ không diễn
+đạt được điều kiện ấy — nó là một bảng **bước chuyển**, ⛔ không phải một ngôn ngữ luật.
+
+⇒ Người gọi luôn gửi `APPROVE`; `DonNghiPhepService.thucHien` mới là chỗ đổi nó thành `ESCALATE`
+khi `chinhSach.canCapHai(workingDays)`. Engine chỉ khai rằng **cả hai** đều hợp lệ từ `CHO_DUYET`.
+
+⛔ Đặt phép đổi ấy ở giao diện là biến hai khoá `settings` thành núm điều khiển **trình duyệt** thay
+vì điều khiển **quy trình**. Bài `nguongCapHaiDocTuSettings` canh đúng vế ấy: **cùng một đơn, cùng
+một hành động, hai cấu hình ⇒ HAI trạng thái khác nhau**.
+
+#### Bốn thứ đã dựng sẵn cho CN-04.9 rồi nằm im 32 ngày
+
+| Đã có từ | Số nơi đọc trước lượt này |
+|---|---|
+| bảng `holidays` (`V202608131003`, 13/08) | **0** |
+| seed 8 ngày lễ pháp định (`V202608131008`) | **0** |
+| `DateTimeUtils.countWorkingDays` — javadoc ghi *"Dùng cho tính số ngày nghỉ phép (CN-04.9)"* | **0** production |
+| 13 khoá `hr.leave.*` | **0** |
+
+⛔⛔ Và bản đầu của tôi **viết lại** `countWorkingDays` thay vì gọi nó. Luật 15 nói một công tắc
+chưa ai đọc là một **lỗi**, ⛔ không phải việc để dành — hệ quả đo được ở đây là lượt dựng sau
+**⛔ không tìm thấy** thứ đã có, rồi dựng bản thứ hai.
+
+⛔⛔⛔ Nặng hơn: **phép đo đầu tiên của tôi ĐÃ IN RA bảng `holidays`** và tôi đọc nó thành *"chưa
+có"*, rồi viết `CREATE TABLE`. Migrate đỏ với `relation "holidays" already exists`. **Một phép đo
+đúng mà đọc sai thì tệ hơn ⛔ không đo** — nó mang theo cảm giác đã kiểm.

@@ -495,8 +495,12 @@ export const ERROR_CATALOG = {
   },
 
   // --- MOD-04 Nhân sự ---------------------------------------------------------
+  // ⛔⛔ Mã này nằm trong danh mục từ 13/08/2026 và MỒ CÔI 32 ngày chờ CN-04.9. WS-57 suýt đúc
+  //    thêm `HR-2006` trùng nghĩa — hai mã cho MỘT trạng thái là hai câu trả lời cho cùng một câu
+  //    hỏi, và lượt rà sau ⛔ không biết mã nào thật sự bắn ra. Câu chữ nâng lên để mang hai con số.
+  // ⚠ Câu ở đây chỉ là DỰ PHÒNG: `messageFor` ưu tiên thông điệp backend đã điền {0}/{1}.
   'HR-2001': {
-    message: 'Số ngày đăng ký vượt số phép còn lại',
+    message: 'Số dư phép năm không đủ cho đơn này',
     handling: 'form',
     severity: 'warning',
   },
@@ -527,6 +531,31 @@ export const ERROR_CATALOG = {
   'HR-2003': {
     message: 'Tệp vượt dung lượng tối đa của thư mục này',
     handling: 'toast',
+    severity: 'warning',
+  },
+
+  // --- MOD-04 Nghỉ phép (CN-04.9) ---------------------------------------------
+  // ⚠ Cả bốn mã dưới đây: backend điền sẵn {0}/{1} bằng NGÀY và SỐ NGÀY thật, nên câu ở đây chỉ
+  //   chạy khi backend ⛔ không trả được thông điệp. Viết lại một bản "đầy đủ hơn" ở đây là dựng
+  //   bản sao thứ hai của cùng một câu, và bản sao ấy ⛔ không có dữ liệu để điền.
+  'HR-2004': {
+    message: 'Khoảng đã chọn không có ngày công nào — toàn bộ là cuối tuần hoặc ngày lễ',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'HR-2005': {
+    message: 'Bạn đã có đơn nghỉ khác trong khoảng này — rút đơn cũ trước',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'HR-2007': {
+    message: 'Không huỷ được đơn đã bắt đầu nghỉ',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'HR-2008': {
+    message: 'Ngày này đã có trong danh mục ngày lễ',
+    handling: 'form',
     severity: 'warning',
   },
 

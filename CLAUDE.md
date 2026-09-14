@@ -84,14 +84,17 @@ kiện · **CN-04.5** tài liệu 7 thư mục + cảnh báo hết hạn M4.9. T
 `attachments` với `owner_type='EMPLOYEE'`, và versioning *"⛔ không ghi đè"* là **hành vi sẵn có**
 của `AttachmentService.nextVersion(owner, purpose)`. Trả **2/15** khoá `settings` nhóm `hr.*` đang
 mồ côi từ 13/08.
-⬜ Còn lại của MOD-04: **CN-04.1** sơ đồ tổ chức (UI cây + export) · **CN-04.6** danh bạ ·
-**CN-04.8** báo cáo · **CN-04.9** nghỉ phép · hai vế nhỏ của CN-04.5 (tải cả hồ sơ ZIP, xem trước
-PDF/ảnh — T53.12).
-⛔⛔ **Thứ tự bắt buộc: T51.8 → CN-04.9.** Chốt C3 đòi *"cấp tài khoản cho toàn bộ CBNV"*, nên đơn
-nghỉ phép phải biết **người gửi là CBNV nào** — cột `users.employee_id` có **0 đường ghi**. Dựng
-CN-04.9 trước là dựng một quy trình duyệt ⛔ không biết ai đang xin nghỉ. **13 khoá `hr.leave.*`
-vẫn mồ côi** cho tới lượt ấy. **G6** chặn **đúng một** báo cáo `BCNS-07`, ⛔ không chặn 8 chức năng còn lại;
-**G6-a** (danh sách CBNV) chặn **dữ liệu**, ⛔ không chặn mã — bảng để RỖNG là đúng.
+⭐⭐ **WS-54→57 (10–14/09) đóng nốt bốn chức năng**: **T51.8** liên kết tài khoản ↔ hồ sơ ·
+**CN-04.6** danh bạ · **CN-04.1 vế 1** chốt chặn giải thể đơn vị · **CN-04.9 nghỉ phép** (14/09).
+CN-04.9 trả nốt **13 khoá `hr.leave.*`** mồ côi từ 13/08 và nối **ba mã quyền** có 0 endpoint
+(`hr:leave:request` · `hr:leave:approve` · `hr:leave:view-all`) + `hr:contract:manage`.
+⬜ Còn lại của MOD-04: **CN-04.1 vế 2–5** (sơ đồ cây + kéo thả + xác nhận 2 bước + export) ·
+**CN-04.8** báo cáo · hai vế nhỏ của CN-04.5 (tải cả hồ sơ ZIP, xem trước PDF/ảnh — T53.12) · hai vế
+chờ nghiệp vụ của CN-04.9 (uỷ quyền duyệt — chốt B3; lịch nghỉ đơn vị dạng calendar — T57.18).
+⛔⛔ **Thứ tự T51.8 → CN-04.9 ĐÃ TRẢ XONG** và nó đúng: chốt C3 đòi *"cấp tài khoản cho toàn bộ
+CBNV"*, nên đơn nghỉ phải biết **người gửi là CBNV nào**. **G6** chặn **đúng một** báo cáo `BCNS-07`,
+⛔ không chặn 8 chức năng còn lại; **G6-a** (danh sách CBNV) chặn **dữ liệu**, ⛔ không chặn mã —
+bảng để RỖNG là đúng.
 ✅ **T51.11 ĐÃ TRẢ 10/09** — `NoAmbientClock` nay bắt **9 kiểu** (thêm `YearMonth`·`MonthDay`·
 `ZonedDateTime`·`OffsetDateTime`·`OffsetTime`) **+ 3 đường VÒNG** (`ZoneId.systemDefault()` ·
 `Clock.systemDefaultZone()` · `TimeZone.getDefault()` — lời gọi **có** đối số nên vế `now()` về
@@ -286,6 +289,14 @@ sai, sửa 10/09 — T52.8). Đo trên CSDL staging cùng ngày: `constructions`
 | 10/9 | ⭐⭐ **`RbacMatrixTest` bắt tôi ở lượt chạy TOÀN BỘ — lần thứ TÁM một bộ canh bắt chính người vừa viết mã.** `hr:directory:view` nằm trong danh sách **miễn kiểm** kèm ghi chú *"Danh bạ — Phase 3 (CN-04.6)"*; dựng xong CN-04.6 thì dòng ấy hết lý do tồn tại và bài đỏ đúng câu nó sinh ra để nói. ⚠⚠ **Chỉ lộ ở lượt chạy TOÀN BỘ**: bốn lượt `-Dtest=DanhBa*` trước đó xanh trọn vẹn, vì một bộ canh **kiểm kê cả kho** ⛔ không có cách nào lọt vào một lượt chạy nhắm mục tiêu ⇒ nhắm mục tiêu để đi nhanh thì được, nhưng ⛔ không được đọc cái xanh ấy thành *"xong"* | T55.9 |
 | 10/9 | ⚠ **ESLint bắt thứ `tsc` và `vitest` đều ⛔ không thấy** — một tệp vừa export component vừa export hàm (`react-refresh/only-export-components`, `--max-warnings 0`). Tám bài kiểm xanh trọn vẹn, typecheck sạch, cổng `[4/10]` đỏ. **Ba cổng, ba câu hỏi khác nhau** — §10.70 lần thứ ba | T55.8 |
 | 10/9 | ⭐⭐ **Bộ canh phân trang ĐỎ GIẢ trên một CHÚ THÍCH — lần thứ TƯ cùng hình dạng, và nó phạt đúng người viết tài liệu tử tế.** Nó bắt đúng `api.get<PageResult<…>>` trong mã tôi vừa viết (⭐ đúng: ô chọn sẽ **RỖNG vĩnh viễn**, ⛔ không một dòng lỗi). Vá xong, tôi viết chú thích giải thích vì sao ⛔ không được dùng dạng ấy — bộ canh khớp chuỗi **trong chú thích** rồi báo đúng tệp vừa làm đúng. ⛔ Sửa chú thích cho hết đỏ là **xoá bài học mà vẫn để bộ canh thủng** ⇒ quét trên `boChuThich(ma)`, kèm 3 bài tự-kiểm (vế cuối: mẫu nằm trong **chuỗi ký tự** vẫn phải bị bắt) | T54.8 |
+| 14/9 | ⛔⛔⛔ **Thông báo khai ở hàng `__NEW__` CHƯA BAO GIỜ chạy — và javadoc của tôi khẳng định ngược lại.** `WorkflowEngine:177` trả về NGAY khi trạng thái xin bằng `workflow_definitions.initial_state`, nên nó ⛔ không tra hàng `__NEW__` nào: ⛔ không kiểm quyền, ⛔ không `notifyAfterTransition`. Với `LEAVE_REQUEST` thì `initial_state = 'CHO_DUYET'` chính là thứ ta xin ⇒ **cả ba** cột của hàng ấy là trang trí, và người duyệt nhận **0** thông báo sau một lượt nộp thành công. ⭐ Hai hàng `__NEW__` có sẵn trong kho đều để `notify_event = NULL` — **tiền lệ đúng**, tôi suýt dựng tiền lệ thứ hai mâu thuẫn. Thứ bắt được: một bài kiểm **qua HTTP** đếm dòng `notification_recipients` | T57.6 |
+| 14/9 | ⛔⛔ **Bộ canh enum ba nơi MÙ trước mọi giá trị có CHỮ SỐ — và ca hỏng ngược lại thì nó XANH.** `bocChuoiNhay` dùng `[A-Z_]+`, nên `CHO_DUYET_2` vô hình ở **cả ba** nguồn nó đọc. Lượt này nó đỏ đúng; nhưng nếu **Java** mất giá trị ấy trong khi TS và SQL còn, cả ba tập bóc ra đều thiếu nó như nhau ⇒ **ba tập bằng nhau** ⇒ **XANH** trong đúng tình huống nó sinh ra để bắt. Luật 28 ở dạng tinh vi nhất: phạm vi hụt ⛔ không ở *tệp nào được quét* mà ở **ký tự nào được nhận** — và mọi quy trình **hai cấp duyệt** đều sinh ra một trạng thái như vậy | T57.9 |
+| 14/9 | ⛔⛔ **Một mã lỗi đặt sẵn 32 ngày, và lượt dựng tính năng suýt đúc thêm một mã trùng nghĩa.** `HR-2001` (*"vượt số phép còn lại"*) mồ côi từ 13/08 kèm dòng miễn trừ *"CN-04.9 chưa dựng"*; bản đầu của WS-57 đặt `HR-2006` cùng nghĩa. Hai mã cho **một** trạng thái là hai câu trả lời cho cùng một câu hỏi — lượt rà sau ⛔ không biết mã nào thật sự bắn ra, và mã cũ sẽ mồ côi thêm một phase nữa. ⇒ Giữ mã CŨ, **nâng câu chữ** để mang hai con số | T57.7 |
+| 14/9 | ⛔⛔ **44 nơi ném truyền ĐỐI SỐ vào mã lỗi ⛔ không có chỗ cắm `{n}` — đối số biến mất trong im lặng.** Đo: **32/115** mã có `{n}`; **44** lời gọi trên **31** cặp (mã, tệp) ở cả 5 module trỏ vào mã ⛔ không có chỗ cắm nào. `MessageFormat` bỏ lặng đối số thừa ⇒ người viết tưởng mình vừa nói cho người dùng biết *cái gì* sai. Lộ ra vì chỗ của **chính tôi** làm một khẳng định HTTP đỏ; **43 chỗ còn lại là nợ có số đo** | T57.8 |
+| 14/9 | ⛔⛔ **Một phép đo ĐÚNG bị đọc SAI tệ hơn ⛔ không đo — nó mang theo cảm giác đã kiểm.** Lượt `grep` đầu của tôi **ĐÃ IN RA** bảng `holidays` (có từ 13/08); tôi đọc thành *"chưa có"* rồi viết `CREATE TABLE`, migrate đỏ. Cùng lượt: khẳng định *"`holidays` phải RỖNG khi giao"* của tôi bị dữ liệu bác — 8 hàng seed là **LUẬT** (Điều 112 BLLĐ 2019, chỉ ngày dương lịch cố định), ⛔ không phải *"seed cho đẹp demo"*. ⭐ Và cái sai ấy làm lộ khuyết tật **nặng hơn**: cờ *"đã cấu hình ngày lễ"* trả **CÓ** cho mọi năm đã seed trong khi **Tết vẫn thiếu** — nói dối đúng ở ca nguy hiểm nhất (luật 9) ⇒ trả **số đã khai X/11** thay cho một cờ | T57.0 · T57.2 |
+| 14/9 | ⛔ **Luật 32 lần thứ TƯ, do chính người vừa đọc nó mắc: `-Dtest='A+B'` ⇒ 0 bài chạy, `BUILD SUCCESS`, reactor 6,9 giây.** Cùng phiên còn một lượt: báo cáo surefire **cũ** (cùng thời gian `16.34 s`) bị đọc thành kết quả lượt vừa chạy — lượt ấy thật ra đỏ ở **Checkstyle** trước khi tới test. ⇒ Xoá báo cáo trước mỗi lượt đo, và **đối chiếu thời gian** trong báo cáo với lượt chạy | T57.11 |
+| 14/9 | ⭐ **Bốn thứ dựng sẵn cho CN-04.9 nằm im 32 ngày, cả bốn 0 người đọc**: bảng `holidays` · seed 8 ngày lễ pháp định · `DateTimeUtils.countWorkingDays` (javadoc ghi đích danh *"dùng cho CN-04.9"*, **0** lời gọi production) · 13 khoá `hr.leave.*`. Và bản đầu của tôi **viết lại** `countWorkingDays` thay vì gọi nó. Luật 15 nói công tắc chưa ai đọc là một **lỗi**, ⛔ không phải việc để dành — hệ quả đo được là lượt dựng sau **⛔ không tìm thấy** thứ đã có | T57.0 · T57.3 |
+| 14/9 | ⭐ **Quy tắc 13 tái diễn trong đúng lớp đang viết javadoc cảnh báo nó.** `SoDuPhepService.tinh()` bản đầu lấy *đã tiêu* bằng `SUM` lọc `BETWEEN` rồi **trừ** *đang chờ* lọc theo **chồng khoảng** — hai vị từ khác nhau, hiệu của chúng là con số ⛔ không ai định nghĩa được | T57.4 |
 
 ⛔ Hệ quả rút ra: **"đã tick" không phải bằng chứng.** Trước khi mở một giai đoạn mới, đối chiếu với mã thật và chạy đường mà người dùng thật đi.
 
@@ -326,6 +337,21 @@ nào — bản vá là **mã**, ⛔ không phải dữ liệu) · **1045 dòng**
 `./mvnw -Dtest=…` **song song**, nó `rm -rf` đúng `hydro/target/surefire-reports` giữa chừng. Lượt
 ấy vẫn thoát **0** và in 7/7 SUCCESS. ⇒ **Mọi lượt `make ci-local` phải là tiến trình maven DUY
 NHẤT trên cây này** — nếu không thì cái xanh ⛔ không còn nói được nó xanh vì cái gì (luật 32).
+
+⭐⭐ **Đo lại 14/09/2026 sau WS-57 (CN-04.9 nghỉ phép) — `make ci-local` thoát 0 VÀ `make ci-order`
+thoát 0**, lượt chạy là tiến trình maven DUY NHẤT (⚠ số ở **MÁY**; quét CVE và đóng gói image ⛔ vẫn
+chỉ sống trên runner): **1766 testcase BE** (core 283 · content 54 · hydro 225 · operations 45 ·
+app 1159) · **0 đỏ** · **228 báo cáo surefire** · FE **409** test admin-app / 48 tệp (+9: 5 bài menu
+nghỉ phép + 4 bài `SoDuPhepCard`) + **392** public-web / 44 · **73 migration**, đỉnh
+`V202609141079__hr_nghi_phep` · `db-migration-checksums.txt` **73 vân tay**, `git diff` chỉ **+1
+dòng** ⇒ ⛔ không migration cũ nào bị đụng · mã lỗi **114** (đếm độc lập hai phía cùng ra 114) ·
+**1109 dòng** sổ tracking đọc được (WS-56: 1087), 0 phép kiểm đỏ.
+⚠⚠ **Mã lỗi GIẢM một so với dự kiến, và đó là điều đúng**: bản đầu đặt `HR-2006` cho *"vượt số dư
+phép"*, trong khi `HR-2001` đã nằm trong danh mục từ 13/08 cho **đúng** trạng thái ấy và mồ côi 32
+ngày (T57.7). Hai mã cho một trạng thái là hai câu trả lời cho cùng một câu hỏi.
+⚠⚠ **⛔ Không đếm bài kiểm bằng `surefire-reports/*.txt`**: phép cộng ấy cho **1521**, thiếu **245**,
+vì lớp có `@Nested` ghi `0` ở dòng tóm tắt `.txt` trong khi XML liệt đủ (§10.73). Con số đáng tin là
+dòng tổng `Tests run:` của **từng module trong log**.
 
 ⭐⭐ **Đo lại 10/09/2026 sau WS-56 (CN-04.1 vế 1 giải thể đơn vị) — `make ci-local` 10/10 thoát 0 VÀ
 `make ci-order` thoát 0 VÀ `make ci-image` thoát 0**, lượt chạy là tiến trình maven DUY NHẤT (⚠ số ở **MÁY**): **1751

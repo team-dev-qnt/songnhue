@@ -267,3 +267,55 @@ describe('hiện chức năng khôi phục — điều kiện nghiệm thu WS-8'
     expect(isRestoreVisible(true, { restoreAvailable: true })).toBe(true);
   });
 });
+
+/**
+ * Ba mục nghỉ phép — CN-04.9 (WS-57).
+ *
+ * ⛔⛔ Mỗi mục gác bằng **một loại điều kiện khác nhau**, và đó ⛔ không phải tuỳ hứng:
+ *
+ * - *Nghỉ phép của tôi* — **liên kết hồ sơ**. `hr:leave:request` do chốt C3 cấp cho gần như mọi vai
+ *   trò nên nó ⛔ không phân biệt được ai; điều kiện thật là tài khoản có hồ sơ CBNV (T51.8).
+ * - *Duyệt nghỉ phép* — **mã quyền** `hr:leave:approve`, 2/12 vai trò.
+ * - *Ngày nghỉ lễ* — **chỉ cần đăng nhập**, đúng như đường đọc của backend; nút ghi tự ẩn trong
+ *   trang theo `hr:contract:manage`.
+ */
+describe('ba mục nghỉ phép gác bằng ba loại điều kiện khác nhau — CN-04.9', () => {
+  it('⭐ chưa liên kết hồ sơ ⇒ ⛔ KHÔNG thấy "Nghỉ phép của tôi", dù có hr:leave:request', () => {
+    const visible = leafLabels(
+      visibleMenu(MENU, checker('hr:leave:request'), { coHoSoNhanSu: false }),
+    );
+    expect(visible).not.toContain('Nghỉ phép của tôi');
+  });
+
+  it('⭐ đã liên kết hồ sơ ⇒ THẤY, kể cả khi ⛔ không có một mã quyền nào', () => {
+    // ⛔⛔ Đây là toàn bộ điểm của T51.8 áp cho nghỉ phép: điều kiện là một QUAN HỆ giữa tài khoản
+    //    và một hàng, ⛔ không phải một thuộc tính của vai trò.
+    const visible = leafLabels(visibleMenu(MENU, checker(), { coHoSoNhanSu: true }));
+    expect(visible).toContain('Nghỉ phép của tôi');
+    expect(visible).not.toContain('Duyệt nghỉ phép');
+  });
+
+  it('⛔ ⛔ Không có hr:leave:approve ⇒ ⛔ KHÔNG thấy "Duyệt nghỉ phép" — vế phân biệt', () => {
+    expect(
+      leafLabels(visibleMenu(MENU, checker('hr:leave:request'), { coHoSoNhanSu: true })),
+    ).not.toContain('Duyệt nghỉ phép');
+    expect(
+      leafLabels(visibleMenu(MENU, checker('hr:leave:approve'), { coHoSoNhanSu: true })),
+    ).toContain('Duyệt nghỉ phép');
+  });
+
+  it('⭐ "Ngày nghỉ lễ" gác bằng quyền của NGƯỜI NỘP ĐƠN, ⛔ không bằng quyền người sửa danh mục', () => {
+    // ⛔ Gác bằng `hr:contract:manage` (2/12 vai trò) sẽ khoá đường đọc của những người mà lịch lễ
+    //   quyết định số ngày công — và dựng lại đúng một endpoint ⛔ không màn hình nào gọi (§11.15).
+    expect(leafLabels(visibleMenu(MENU, checker('hr:leave:request')))).toContain('Ngày nghỉ lễ');
+    expect(leafLabels(visibleMenu(MENU, checker('hr:contract:manage')))).not.toContain(
+      'Ngày nghỉ lễ',
+    );
+  });
+
+  it('đường dẫn tô sáng đúng mục', () => {
+    expect(findMenuKey(MENU, '/nhan-su/nghi-phep')).toBe('nghi-phep-cua-toi');
+    expect(findMenuKey(MENU, '/nhan-su/duyet-nghi-phep')).toBe('duyet-nghi-phep');
+    expect(findMenuKey(MENU, '/nhan-su/ngay-le')).toBe('ngay-le');
+  });
+});
