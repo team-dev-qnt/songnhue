@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.songnhue.core.application.job.JobTypes;
 import com.songnhue.core.domain.attachment.Attachment;
+import com.songnhue.core.domain.attachment.ScanStatus;
 import com.songnhue.core.infra.attachment.AttachmentRepository;
 import com.songnhue.core.infra.storage.ObjectStorage;
 import com.songnhue.core.spi.JobContext;
@@ -89,8 +90,7 @@ public class VirusScanHandler implements JobHandler {
             return;
         }
 
-        byte[] content = storage.get(attachment.getStorageBucket(), attachment.getStorageKey());
-        String verdict = scan(content);
+        String verdict = quet(attachment);
 
         KetLuan ketLuan = phanLoai(verdict);
         if (ketLuan == KetLuan.LOI) {
@@ -107,6 +107,37 @@ public class VirusScanHandler implements JobHandler {
             log.error("⚠ Tệp {} nhiễm mã độc, đã cách ly: {}", attachment.getPublicId(), verdict);
         }
         repository.save(attachment);
+    }
+
+    /** T61.24 — hết lượt thử mà máy quét vẫn ⛔ kết luận được ⇒ {@code ERROR}, ⛔ kẹt {@code UPLOADING}. */
+    @Override
+    @Transactional
+    public void khiHetLuotThu(String payload, String loi) {
+        long attachmentId;
+        try {
+            attachmentId = objectMapper.readTree(payload).path("attachmentId").asLong();
+        } catch (RuntimeException e) {
+            log.error("Payload VIRUS_SCAN hỏng, ⛔ ghi được ERROR: {}", payload, e);
+            return;
+        }
+        repository.findById(attachmentId).ifPresent(a -> {
+            if (a.getScanStatus() == ScanStatus.PENDING) {
+                a.markScanError(loi);
+                repository.save(a);
+                log.error("⚠ Tệp {} quét virus hỏng hết lượt thử — ghi ERROR: {}", a.getPublicId(), loi);
+            }
+        });
+    }
+
+    /** Có máy quét để gọi không — {@code QuetLaiTepService} ⛔ đặt job khi chưa có. */
+    boolean daCauHinh() {
+        return host != null && !host.isBlank();
+    }
+
+    /** Một lượt INSTREAM trên nội dung tệp — trả nguyên văn phản hồi. */
+    String quet(Attachment attachment) throws IOException {
+        byte[] content = storage.get(attachment.getStorageBucket(), attachment.getStorageKey());
+        return scan(content);
     }
 
     /** Ba kết cục của một lượt INSTREAM. */

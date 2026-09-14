@@ -45,5 +45,11 @@ public final class JobTypes {
      */
     public static final String CRYPTO_REENCRYPT = "CRYPTO_REENCRYPT";
 
+    /**
+     * Quét lại tệp {@code SKIPPED}/{@code ERROR} khi đã có ClamAV — T61.24. Tự đặt lúc khởi động; mỗi job
+     * một đợt có hạn giờ, còn tệp thì đặt đợt kế tiếp. Xem {@code QuetLaiTepService}.
+     */
+    public static final String VIRUS_RESCAN = "VIRUS_RESCAN";
+
     private JobTypes() {}
 }

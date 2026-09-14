@@ -192,7 +192,7 @@ public class JobWorker {
         try {
             JobHandler handler = handlers.get(job.getJobType());
             if (handler == null) {
-                fail(job, "Không có handler nào nhận job loại '" + job.getJobType() + "'", false);
+                fail(job, "Không có handler nào nhận job loại '" + job.getJobType() + "'", false, null);
                 return;
             }
 
@@ -223,7 +223,7 @@ public class JobWorker {
         } catch (Exception e) {
             log.error(
                     "Job {} loại {} thất bại ở lần thử {}", job.getPublicId(), job.getJobType(), job.getAttempts(), e);
-            fail(job, moTaLoi(e, messages), true);
+            fail(job, moTaLoi(e, messages), true, handlers.get(job.getJobType()));
         } finally {
             RequestContext.clear();
         }
@@ -260,15 +260,31 @@ public class JobWorker {
      * @param retryable {@code false} cho lỗi cấu hình (không có handler) — thử lại 3 lần cũng vẫn
      *     không có handler, chỉ tổ làm nhiễu log và trì hoãn lúc người vận hành nhìn thấy vấn đề
      */
-    private void fail(Job job, String error, boolean retryable) {
-        transactions.executeWithoutResult(
-                status -> repository.findByPublicId(job.getPublicId()).ifPresent(fresh -> {
+    private void fail(Job job, String error, boolean retryable, JobHandler handler) {
+        Boolean hetLuot = transactions.execute(status -> repository
+                .findByPublicId(job.getPublicId())
+                .map(fresh -> {
                     Instant retryAt = retryable && fresh.hasAttemptsLeft()
                             ? Instant.now().plus(BACKOFF[Math.min(fresh.getAttempts() - 1, BACKOFF.length - 1)])
                             : null;
                     fresh.markFailed(error, retryAt);
                     repository.save(fresh);
-                }));
+                    return retryAt == null;
+                })
+                .orElse(false));
+        baoHetLuot(handler, job.getPayload(), error, Boolean.TRUE.equals(hetLuot));
+    }
+
+    /** T61.24 — tách để bài kiểm hỏi thẳng: hook chạy khi và chỉ khi hết lượt, và lỗi của nó ⛔ lan ra. */
+    static void baoHetLuot(JobHandler handler, String payload, String error, boolean hetLuot) {
+        if (!hetLuot || handler == null) {
+            return;
+        }
+        try {
+            handler.khiHetLuotThu(payload, error);
+        } catch (RuntimeException e) {
+            log.error("Hook hết lượt thử của {} thất bại", handler.jobType(), e);
+        }
     }
 
     @PreDestroy
