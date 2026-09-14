@@ -408,6 +408,15 @@ hydro 225 · operations 55 · app **1208**) · **0 đỏ** · FE **446** admin-a
 **T61.18** (`PUT` sửa bản ghi sửa chữa có 0 nơi gọi; dựng lối sửa thì lộ payload tạo mới sẽ **xoá kết quả
 nghiệm thu**). ⚠ **Mạng tới GitHub đứt suốt đợt** — các commit nằm ở máy, ⛔ chưa đẩy.
 
+⭐⭐ **Đo lại 15/09/2026 sau WS-61 đợt 3 — `mvnw clean` rồi `make ci-local` thoát 0**, tiến trình maven DUY NHẤT
+(⚠ số ở **MÁY**; CI runner xanh tới `eace56c`): **1857 testcase BE** (core **292** · content 54 · hydro 225 · operations 55 ·
+app **1231**) · **0 đỏ** · FE **458** admin-app / 56 tệp + **392** public-web / 44 · **74 migration** ⛔ thêm · mã lỗi **121**
+(`ADM-2020`). Việc QuanTran chốt 14/09: **T61.17** hạn mức API/kết xuất theo người dùng đã xác thực · **T61.4** ClamAV cả hai máy ·
+**T61.5** Alertmanager Gmail/Slack/Telegram — ⛔⛔ kèm phát hiện **Prometheus chưa từng đọc được chỉ số ứng dụng nào từ WS-7**
+(target `${…}` dùng nguyên văn) · **T61.18–22** bộ canh endpoint ↔ lời gọi khớp động từ (15 mồ côi → 1), tệp đính kèm bản ghi
+sửa chữa, màn hình M4.9, nút xoá tài khoản/nguồn, gỡ 6 endpoint thừa. ⛔⛔ **Trước khi đề bạt: đặt `METRICS_ALLOW_IP` +
+`METRICS_BEARER_TOKEN` ở `.env` CẢ HAI máy** — khai `:?`, thiếu là nginx ⛔ lên (`phase4-tracking-tmp.md` §B6).
+
 ⭐⭐ **Đo lại 14/09/2026 sau WS-60 (đối chiếu DoD Phase 3 · gỡ chốt CI) — `make ci-local` thoát 0**,
 lượt chạy là tiến trình maven DUY NHẤT (⚠ số ở **MÁY**): **1811 testcase BE** (core 283 · content 54 ·
 hydro 225 · operations 55 · app **1194**) · **0 đỏ** · FE **434** admin-app / 50 tệp + **392**
