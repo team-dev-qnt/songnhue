@@ -82,7 +82,7 @@ public final class PhienHttp {
      *
      * <h2>Vì sao cần — T60.9</h2>
      *
-     * Xô {@link com.songnhue.core.common.ratelimit.RateLimitPolicy#EXPORT} là <b>10 lượt / giờ</b>.
+     * Xô {@link com.songnhue.core.common.ratelimit.RateLimitPolicy#EXPORT} là <b>trần theo giờ</b> (`limits.rate.export-per-hour`, mặc định 30 — T61.27).
      * Lớp nào dựng phiên ở {@code @BeforeAll} thì <b>cả lớp dùng chung một IP</b>, nên một lớp có
      * vài bài kết xuất là cạn ngân sách — và triệu chứng rơi vào <b>bài chạy sau</b>, thường là một
      * bài ⛔ không liên quan gì tới kết xuất. Đúng hình dạng mà javadoc của {@link #ipGiaLap} đã mô
