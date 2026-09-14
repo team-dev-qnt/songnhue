@@ -1,0 +1,39 @@
+# Cấu hình quy tắc cho zap-baseline.py (-c). Mỗi dòng: <mã quy tắc> TAB <HÀNH ĐỘNG> TAB <ghi chú>
+# HÀNH ĐỘNG: IGNORE · INFO · WARN · FAIL. Quy tắc KHÔNG có mặt ở đây giữ mức mặc định WARN.
+# ⛔ Không hạ một quy tắc xuống IGNORE để lượt quét "xanh" — ghi lý do ở cột 3 và ở README §6.
+# Tra mã quy tắc: https://www.zaproxy.org/docs/alerts/<mã>/
+10003	FAIL	(ASVS 14.2.1) Thư viện JS có lỗ hổng đã biết
+10010	FAIL	(ASVS 3.4.2) Cookie thiếu HttpOnly — ⚠ XSRF-TOKEN cố ý đọc được bằng JS (double-submit), xem README §6
+10011	FAIL	(ASVS 3.4.1) Cookie thiếu Secure
+10054	FAIL	(ASVS 3.4.3) Cookie thiếu SameSite
+90033	WARN	(ASVS 3.4.5) Cookie phạm vi rộng
+10019	FAIL	(ASVS 14.4.1) Thiếu Content-Type
+10020	FAIL	(ASVS 14.4.7) Thiếu chống clickjacking (X-Frame-Options / frame-ancestors)
+10021	FAIL	(ASVS 14.4.4) Thiếu X-Content-Type-Options: nosniff
+10035	FAIL	(ASVS 14.4.5) Thiếu Strict-Transport-Security
+10038	FAIL	(ASVS 14.4.3) Thiếu Content-Security-Policy
+10055	WARN	(ASVS 14.4.3) CSP có chỉ thị yếu — cổng công khai đang có script-src 'unsafe-inline'
+10063	WARN	Thiếu Permissions-Policy
+10036	FAIL	(ASVS 14.3.3) Header Server lộ phiên bản
+10037	FAIL	(ASVS 14.3.3) Header X-Powered-By
+10023	FAIL	(ASVS 14.3.2) Lộ thông điệp lỗi debug
+90022	FAIL	(ASVS 7.4.1) Lộ lỗi ứng dụng / stack trace
+2	FAIL	(ASVS 7.4.1) Lộ IP nội bộ
+10024	FAIL	(ASVS 8.3.1) Thông tin nhạy cảm trên URL
+3	FAIL	(ASVS 3.1.1) Mã phiên trên URL
+10062	FAIL	(ASVS 8.3.4) Lộ dữ liệu cá nhân (PII)
+10097	FAIL	Lộ chuỗi băm
+10040	FAIL	(ASVS 9.1.1) Trang HTTPS nạp nội dung HTTP
+10098	FAIL	(ASVS 14.5.3) Cấu hình cross-domain (CORS) sai
+10105	FAIL	(ASVS 2.x) Phương thức xác thực yếu
+10017	WARN	(ASVS 10.3.2) Nạp script từ tên miền khác
+10025	WARN	(ASVS 8.3.1) Thông tin nhạy cảm trong Referer
+10202	WARN	(ASVS 4.2.2) Biểu mẫu thiếu token chống CSRF — API dùng header X-CSRF-Token, ZAP chỉ soi form HTML
+10015	INFO	(ASVS 8.2.1) Nên soát lại Cache-Control
+10049	INFO	Nội dung lưu đệm được
+10027	INFO	Chú thích đáng ngờ trong mã nguồn phát ra trình duyệt
+10096	INFO	Lộ dấu thời gian — JSON của hệ mang mốc thời gian nghiệp vụ có chủ đích
+10109	INFO	Nhận diện ứng dụng web hiện đại (SPA)
+10111	INFO	Nhận diện lượt xác thực
+10112	INFO	Nhận diện phản hồi quản lý phiên
+90004	INFO	Cách ly site trước Spectre (COOP/COEP/CORP)
