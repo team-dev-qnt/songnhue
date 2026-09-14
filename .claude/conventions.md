@@ -311,6 +311,7 @@ Format: `<PREFIX>-<4 số>` — prefix theo module: `SYS` (hệ thống), `AUTH`
 
 ```
 Request → [1] CorrelationFilter (sinh/nhận traceId, MDC cho log)
+        → [1a] KhongLuuDemFilter (`Cache-Control: no-store` cho `/api/v1/**` trừ `/public/**` — cả 401/429 — T61.35)
         → [1b] RequestLoggingFilter (nằm TRONG correlation, NGOÀI rate limit — để request bị chặn 429 vẫn được ghi log)
         → [2] RateLimitFilter (bucket THEO IP — chỉ login + cổng công khai; dò mật khẩu phải chặn trước BCrypt)
         → [2b] CsrfFilter (double-submit, chỉ với method thay đổi dữ liệu — WS-5/T5.5)

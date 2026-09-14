@@ -33,6 +33,9 @@ public final class FilterOrder {
      * Ghi log truy cập. Nằm TRONG correlation (đã có traceId) nhưng NGOÀI rate limit, để cả
      * request bị chặn 429 cũng được ghi lại — nếu không thì đúng lúc bị tấn công lại không có log.
      */
+    /** [1a] {@code Cache-Control: no-store} cho API riêng tư — T61.35. Trước hạn mức/xác thực để cả 401/429 mang header. */
+    public static final int KHONG_LUU_DEM = 12;
+
     public static final int REQUEST_LOG = 15;
 
     public static final int RATE_LIMIT = 20;
