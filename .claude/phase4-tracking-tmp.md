@@ -33,6 +33,15 @@
 | A16 | `T61.19` | Giao diện tệp đính kèm + nút xoá của bản ghi sửa chữa (CN-02.2 ảnh trước/sau) | P1 · nghiệm thu | [x] |
 | A17 | `T61.20` | Màn hình cảnh báo hết hạn HĐLĐ/chứng chỉ M4.9 | P1 · nghiệm thu | [x] |
 | A18 | `T61.21` · `T61.22` | Nút xoá tài khoản + nguồn dữ liệu (điểm đo cố ý ⛔) · gỡ 6 endpoint thừa kể cả `AttachmentController` — QT chốt 14/09 | P2 | [x] |
+| A19 | `T61.23` | Chuyển hướng thư staging `MAIL_REDIRECT_TO` — dừng khởi động ở cả hai chiều sai | P1 · dữ liệu | [~] QT đặt biến |
+| A20 | `T61.24` | Tự quét lại tệp `SKIPPED`/`ERROR` khi khởi động + `ScanStatus.ERROR` có nơi ghi | P1 · bảo mật | [x] |
+| A21 | `T61.25` · `T61.26` | Chuông canh healthchecks.io · chuông sao lưu chỉ production | P1 · NFR-01 | [~] QT tạo check |
+| A22 | `T61.27` | Hạn mức kết xuất vào `settings` (30/giờ, kẹp ≤ 100) | P2 | [x] |
+| A23 | `T61.28` | NFR-05 tự đánh giá ASVS L1 + ZAP baseline | P0 · NFR-05 | [~] QT chạy ZAP |
+| A24 | `T61.29` | NFR-09 Playwright 3 engine × 4 bề rộng — staging công khai 140 xanh | P1 · NFR-09 | [~] QT cấp tài khoản đo |
+| A25 | `T61.30` · `T61.33` | ⛔⛔ Vượt 2FA bằng đăng ký lại · dò TOTP ⛔ khoá — vá + nút đặt lại 2FA | P0 · bảo mật | [x] |
+| A26 | `T61.32` · `T61.34` · `T61.35` | SVG chạy script · `javascript:` trong href · `no-store` | P0/P1 · bảo mật | [x] (T61.34 vế ghi ⬜) |
+| A27 | `T54.4` · `T61.31` · `T61.36`→`T61.40` | ADMIN tự cấp quyền 🔒 · đặt lại mật khẩu · khoảng trống ASVS còn lại | P1–P3 | [ ] |
 
 ---
 
@@ -134,6 +143,9 @@ q "SELECT scan_status, count(*) FROM attachments WHERE created_at > now() - inte
 
 `T37.2` load test · `T37.3` LCP từ máy ở Việt Nam (cả lượt ISR nguội) · `DOD2.9` bắn chuông thật ·
 `T61.10` khôi phục vào máy trắng + RTO · `DOD0.21` một lượt hỏng **SAU** `up -d`.
+
+**T61.28 ZAP** (sau khi staging lên bản mới): `TARGET_URL=https://staging.songnhue.com ADMIN_URL=https://admin-staging.songnhue.com tools/zap/zap-baseline.sh` — mã thoát 4 ⛔ đọc là sạch (có 429).
+**T61.29 tương thích**: tạo một tài khoản đo trên staging ⛔ 2FA, quyền đọc các màn hình chính, rồi `TUONG_THICH_PUBLIC_URL=… TUONG_THICH_ADMIN_URL=… TUONG_THICH_ADMIN_USER=… TUONG_THICH_ADMIN_PASS=… make tuong-thich`.
 
 `T61.11` **diễn tập xoay khoá AES trên staging** (sau khi bản có job `CRYPTO_REENCRYPT` lên staging) —
 chỉ khi đã có bản sao lưu vừa chạy: `openssl rand -base64 32` → thêm `AES_KEY_V2`, **giữ** `AES_KEY_V1`,
