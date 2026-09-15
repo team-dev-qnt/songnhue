@@ -289,6 +289,48 @@ export interface SettingView {
   validation: string | null;
   editable: boolean;
   exportable: boolean;
+  /** T61.42 — nhóm nhạy cảm (SECURITY/AUDIT/BACKUP): lưu phải kèm mã 2FA nhập lại. */
+  canXacThucLai: boolean;
+}
+
+// ---- Cấu hình hệ thống — T61.41 / T61.44 ----------------------------------------------------------
+
+export type TrangThaiCauHinh = 'DAT' | 'THIEU' | 'SAI' | 'NGOAI_TAM_NHIN' | 'KHONG_AP_DUNG';
+export type MucDoCauHinh = 'CHAN' | 'CANH_BAO' | 'THONG_TIN';
+
+/** ⛔ Không trường nào mang GIÁ TRỊ cấu hình — chỉ tình trạng. */
+export interface MucCauHinhView {
+  ma: string;
+  nhom: string;
+  ten: string;
+  trangThai: TrangThaiCauHinh;
+  mucDo: MucDoCauHinh;
+  nguoiDoc: string;
+  datO: string;
+  ghiChu: string;
+}
+
+export interface TongQuanCauHinhView {
+  muc: MucCauHinhView[];
+  soChan: number;
+  soCanhBao: number;
+}
+
+export interface TomTatCauHinhView {
+  soChan: number;
+  soCanhBao: number;
+}
+
+export type LoaiBiMat = 'RECAPTCHA_SECRET_KEY';
+
+export interface BiMatTinhTrangView {
+  loai: LoaiBiMat;
+  ten: string;
+  moTa: string;
+  nguon: 'GIAO_DIEN' | 'MOI_TRUONG' | 'CHUA_CO';
+  giaiMaDuoc: boolean;
+  coGiaTriMoi: boolean;
+  capNhatLuc: string | null;
 }
 
 export interface SettingImportResult {
@@ -718,6 +760,8 @@ export interface MaintenanceRow {
   /** Đơn vị nội bộ HOẶC nhà thầu ngoài — backend đã gộp, giao diện không phải biết hai cột. */
   performer: string | null;
   performerIsInternal: boolean;
+  /** publicId đơn vị nội bộ — `null` khi thuê ngoài. Lối SỬA cần nó để nạp lại ô chọn (T61.18). */
+  performerOrgUnitId: string | null;
   cost: string | null;
   fundingSource: string | null;
   acceptanceResult: string | null;
@@ -755,6 +799,23 @@ export interface AllowedActionView {
 export interface MaintenanceDetail {
   record: MaintenanceRow;
   actions: AllowedActionView[];
+}
+
+/**
+ * Một tệp của bản ghi sửa chữa — biên bản nghiệm thu, ảnh trước/sau (CN-02.2, T61.19).
+ * Khớp `MaintenanceDtos.AttachmentView`; `tepSuaChuaVongKhuHoi.test.tsx` đối chiếu tên trường.
+ */
+export interface MaintenanceAttachment {
+  id: string;
+  originalName: string;
+  /** Nhãn loại tệp người dùng chọn lúc tải lên — cũng là khoá đánh số phiên bản. */
+  purpose: string;
+  contentType: string;
+  sizeBytes: number;
+  fileVersion: number;
+  /** `false` khi tệp chưa quét virus xong hoặc bị cách ly — backend quyết, giao diện ⛔ đoán. */
+  downloadable: boolean;
+  createdAt: string;
 }
 
 /** Tổng chi phí kỳ — tính ở BE (quy tắc 3), FE chỉ hiển thị. Khớp `MaintenanceLogService.CostSummary`. */

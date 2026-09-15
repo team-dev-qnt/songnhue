@@ -108,7 +108,7 @@ public class CategoryService {
         Category newParent = newParentPublicId == null ? null : get(newParentPublicId);
 
         if (newParent != null && MaterializedPath.wouldCreateCycle(category.getPath(), newParent.getPath())) {
-            throw new BusinessRuleException(ErrorCode.SYS_0008, "MOVE", "cha nằm trong chính cây con của nó");
+            throw new BusinessRuleException(ErrorCode.SYS_0008);
         }
 
         String oldPrefix = category.getPath();

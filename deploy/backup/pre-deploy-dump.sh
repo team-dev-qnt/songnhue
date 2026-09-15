@@ -26,6 +26,14 @@
 # =============================================================================
 set -euo pipefail
 
+# ⛔ Bản dump là TOÀN BỘ CSDL — `users.password_hash`, `user_totp.secret_encrypted`, bảng
+#    `employee_sensitive`. Đo 08/09 trên VPS-1: mọi `*.dump` ở quyền `644`, tức MỌI user trên máy
+#    đọc được (T11.96 → T61.8). `umask` ở đây chỉ lo tệp HOST tạo (`.sha256`); tệp `.dump` do
+#    `pg_dump` tạo BÊN TRONG container nên umask này ⛔ chạm tới — xem bước `chmod` sau pg_dump.
+#    ⚠ 027 chứ ⛔ 077: host đọc lại bản dump bằng user SSH qua NHÓM 1000 (setgid của thư mục),
+#    VPS-2 kéo về cũng qua nhóm ấy. 600 là mọi lượt deploy đỏ ở `sha256sum`.
+umask 027
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPLOY_DIR="$(dirname "$SCRIPT_DIR")"
 ENV_FILE="${ENV_FILE:-$DEPLOY_DIR/.env}"
@@ -107,6 +115,27 @@ fi
     echo "  Kiểm tra service postgres đã gắn $HOST_BACKUP_DIR chưa (compose.prod.yml)." >&2
     exit 1
 }
+
+# -----------------------------------------------------------------------------
+# ⛔ Hạ quyền bản dump về 640 — T61.8.
+#
+#   `docker exec` chạy bằng root của container, tiến trình mang umask 022 ⇒ tệp ra `644`. Đổi
+#   quyền phải làm BÊN TRONG container, vì ở host tệp thuộc root và user SSH ⛔ đổi được.
+#   Nhóm của tệp là 1000 nhờ setgid của thư mục (`host-prepare.sh`), nên 640 = chủ + nhóm app.
+#
+#   ⚠ Nếu sau khi hạ quyền mà host KHÔNG đọc được tệp (user SSH chưa vào nhóm 1000 — lệnh
+#     `usermod -aG` của `host-prepare.sh` chỉ có hiệu lực ở phiên đăng nhập MỚI), thì trả lại 644
+#     và nói to. Lý do chọn chiều này: tệp này là ĐIỂM QUAY LUI DỮ LIỆU DUY NHẤT của lượt deploy;
+#     một bản dump không băm được thì lượt deploy phải dừng, và dừng deploy vì quyền đọc trên một
+#     máy chỉ có hai user là đánh đổi sai chiều. Dòng cảnh báo in ra đích danh việc phải làm.
+# -----------------------------------------------------------------------------
+docker exec -i "$CT_POSTGRES" chmod 640 "$IN_CONTAINER"
+if [ ! -r "$ON_HOST" ]; then
+    docker exec -i "$CT_POSTGRES" chmod 644 "$IN_CONTAINER"
+    echo "  ⚠⚠ T61.8: user $(id -un) ⛔ đọc được bản dump ở quyền 640 — đã TRẢ LẠI 644 để giữ điểm quay lui." >&2
+    echo "     Việc phải làm trên máy: sudo usermod -aG $(stat -c %g "$HOST_BACKUP_DIR") $(id -un) rồi đăng nhập lại." >&2
+fi
+echo "  Quyền bản dump: $(stat -c '%a %U:%G' "$ON_HOST")"
 
 # Checksum đọc LẠI từ đĩa — băm cái thật sự nằm trên đĩa, không băm cái ta định
 # ghi. Đĩa đầy và ghi thiếu bị bắt đúng ở đây.

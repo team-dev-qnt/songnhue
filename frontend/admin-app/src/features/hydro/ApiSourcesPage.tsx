@@ -1,4 +1,10 @@
-import { ApiOutlined, EditOutlined, KeyOutlined, PlusOutlined } from '@ant-design/icons';
+import {
+  ApiOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  KeyOutlined,
+  PlusOutlined,
+} from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
@@ -9,6 +15,7 @@ import {
   Input,
   InputNumber,
   Modal,
+  Popconfirm,
   Select,
   Space,
   Table,
@@ -119,6 +126,18 @@ export function ApiSourcesPage() {
     },
     onError: (caught: unknown) =>
       message.error(caught instanceof ApiClientError ? caught.message : 'Không gỡ được mã số'),
+  });
+
+  // T61.21 — `DELETE /hyd/api-sources/{id}` có 0 nơi gọi trước đây. Backend chặn khi còn điểm đo trỏ
+  //   vào (HYD-1002) — câu lỗi ấy là thứ người dùng cần đọc, ⛔ nuốt thành "không xoá được".
+  const xoaNguonMutation = useMutation({
+    mutationFn: (id: string) => api.delete<void>(`/hyd/api-sources/${id}`),
+    onSuccess: () => {
+      message.success('Đã xoá nguồn dữ liệu');
+      void lamMoi();
+    },
+    onError: (caught: unknown) =>
+      message.error(caught instanceof ApiClientError ? caught.message : 'Không xoá được nguồn'),
   });
 
   /**
@@ -241,7 +260,7 @@ export function ApiSourcesPage() {
     },
     {
       title: '',
-      width: 180,
+      width: 220,
       align: 'right',
       render: (_, r) =>
         coQuanLy ? (
@@ -265,6 +284,21 @@ export function ApiSourcesPage() {
               />
             </Tooltip>
             <Button type="text" icon={<EditOutlined />} onClick={() => moSua(r)} />
+            <Popconfirm
+              title={`Xoá nguồn ${r.code}?`}
+              description="Nguồn còn điểm đo trỏ vào thì không xoá được — chuyển các điểm đo sang nguồn khác trước."
+              okText="Xoá"
+              okButtonProps={{ danger: true }}
+              cancelText="Hủy"
+              onConfirm={() => xoaNguonMutation.mutate(r.id)}
+            >
+              <Button
+                type="text"
+                danger
+                icon={<DeleteOutlined />}
+                aria-label={`Xoá nguồn ${r.code}`}
+              />
+            </Popconfirm>
           </Space>
         ) : null,
     },

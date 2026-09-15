@@ -1,0 +1,17 @@
+{{/* Mẫu tin cảnh báo — T61.5. Một nội dung cho cả ba kênh: người trực đọc Telegram và email phải thấy CÙNG một câu. */}}
+{{ define "songnhue.tieude" -}}
+[{{ if eq .Status "firing" }}KÊU{{ else }}ĐÃ HẾT{{ end }}] {{ .CommonLabels.alertname }} · {{ or .CommonLabels.environment "KHÔNG RÕ MÔI TRƯỜNG" }} · {{ .CommonLabels.severity }}
+{{- end }}
+
+{{ define "songnhue.noidung" -}}
+{{ range .Alerts -}}
+• {{ .Annotations.summary }}
+{{- if .Annotations.description }}
+  {{ .Annotations.description }}
+{{- end }}
+{{- if .Annotations.runbook }}
+  Runbook: {{ .Annotations.runbook }}
+{{- end }}
+  Từ: {{ .StartsAt.Local.Format "02/01/2006 15:04 MST" }}
+{{ end -}}
+{{- end }}

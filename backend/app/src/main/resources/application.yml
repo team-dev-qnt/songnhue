@@ -285,6 +285,9 @@ app:
     # Địa chỉ người gửi thư. Phải là miền mà máy chủ SMTP cho phép gửi thay mặt,
     # nên thuộc cấu hình môi trường chứ không phải tham số Admin sửa được.
     from: ${SMTP_FROM}
+    # T61.23 — CHỈ staging: mọi thư đi về một địa chỉ, tiêu đề mang người nhận gốc.
+    # Đặt trên production ⇒ ứng dụng DỪNG khởi động (MailConfig).
+    redirect-to: ${MAIL_REDIRECT_TO:}
 
   bootstrap:
     # Chỉ đặt ở lần dựng môi trường ĐẦU TIÊN rồi gỡ đi (WS-5 / T5.7).

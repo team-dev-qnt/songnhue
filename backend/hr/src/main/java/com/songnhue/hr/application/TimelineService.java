@@ -98,7 +98,7 @@ public class TimelineService {
     private EmployeeEvent trongHoSo(Employee hoSo, UUID suKienPublicId) {
         return events.findByPublicIdAndDeletedAtIsNull(suKienPublicId)
                 .filter(s -> s.getEmployeeId().equals(hoSo.getId()))
-                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004, suKienPublicId));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
     }
 
     private static EmployeeEventType batBuocLoai(EmployeeEventType loai) {

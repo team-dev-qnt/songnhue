@@ -101,12 +101,6 @@ public class OrgUnitService implements OrgUnitPort {
         return toTree(repository.findAllForDisplay());
     }
 
-    /** Cây con tính từ một đơn vị — dùng cho người chỉ được xem đơn vị mình và cấp dưới. */
-    @Transactional(readOnly = true)
-    public List<OrgUnitNode> subtree(UUID publicId) {
-        return toTree(repository.findSubtree(require(publicId).getPath()));
-    }
-
     // ---- Hợp đồng cho module nghiệp vụ (core.spi) -------------------------------
     //
     // Chỉ đọc, và chỉ hai phương thức: module nghiệp vụ gán đơn vị phụ trách cho bản ghi của mình
@@ -205,12 +199,6 @@ public class OrgUnitService implements OrgUnitPort {
     @Transactional(readOnly = true)
     public OrgUnit get(UUID publicId) {
         return require(publicId);
-    }
-
-    /** Danh sách phẳng — cho ô chọn đơn vị, đã đủ path để FE tự thụt lề. */
-    @Transactional(readOnly = true)
-    public List<OrgUnit> listAll() {
-        return repository.findAllForDisplay();
     }
 
     // ---- Ghi ------------------------------------------------------------------

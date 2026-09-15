@@ -12,7 +12,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -94,24 +93,46 @@ class AttachmentDeleteHttpTest extends IntegrationTestBase {
      * kể cả Quyết định phê duyệt Quy trình vận hành đang công bố trên cổng.
      */
     @Test
-    @DisplayName("⭐⭐ A1 — TECHNICIAN (có `upload`, KHÔNG có `delete`) gọi DELETE ⇒ phải 403")
-    void aTechnicianCannotDeleteThroughTheGenericPath() {
+    @DisplayName(
+            "⭐⭐ A1 — cửa xoá CHUNG /api/v1/attachments ĐÃ GỠ (T61.22): ⛔ controller nào ánh xạ, gọi vào ⛔ xoá được gì")
+    void cuaXoaChungDaGo() throws Exception {
+        // ⛔⛔ T28.47 GIỮ cửa này lại chỉ để bài hồi quy A1 còn chỗ bám. QuanTran chốt gỡ 14/09/2026: ⛔ có
+        //    cửa thì ⛔ có lỗ, và bài hồi quy chuyển sang canh SỰ VẮNG MẶT. Hai vế, vì 405 bị
+        //    `GlobalExceptionHandler` gộp về 400 nên một khẳng định mã trạng thái là rỗng (T54.7):
+        //    (1) cấu trúc — ⛔ tệp controller nào khai `@RequestMapping("/api/v1/attachments")`;
+        java.nio.file.Path goc =
+                java.nio.file.Paths.get(System.getProperty("user.dir")).toAbsolutePath();
+        while (goc != null && !java.nio.file.Files.isDirectory(goc.resolve("core/src/main/java"))) {
+            goc = goc.getParent();
+        }
+        assertThat(goc).as("⛔ tìm thấy thư mục backend").isNotNull();
+        java.util.List<String> anhXa;
+        try (java.util.stream.Stream<java.nio.file.Path> tep = java.nio.file.Files.walk(goc)) {
+            anhXa = tep.filter(t -> t.toString().endsWith("Controller.java")
+                            && t.toString().contains("/src/main/"))
+                    .filter(t -> {
+                        try {
+                            return java.nio.file.Files.readString(t)
+                                    .contains("@RequestMapping(\"/api/v1/attachments\")");
+                        } catch (java.io.IOException e) {
+                            throw new java.io.UncheckedIOException(e);
+                        }
+                    })
+                    .map(Object::toString)
+                    .toList();
+        }
+        assertThat(anhXa)
+                .as("cửa xoá CHUNG quay lại — nó từng gác nhầm `ops:document:upload` (A1) và ⛔ màn hình nào dùng")
+                .isEmpty();
+
+        //    (2) hành vi — một lượt DELETE thẳng vào đường cũ ⛔ đụng được tới bản ghi.
         UUID tep = taoTep();
-
         ResponseEntity<String> ra = xoa(kyThuat, tep);
-
-        assertThat(ra.getStatusCode())
-                .as(
-                        """
-                        ⛔ Đường CHUNG /api/v1/attachments/{id} từng gác bằng `ops:document:upload`, trong khi \
-                        hai đường RIÊNG (ConstructionDocumentController, MaintenanceLogController) gác bằng \
-                        `ops:document:delete` và giao diện cũng ẩn nút theo mã ấy. Đường rộng hơn là đường \
-                        không ai canh. Thân: %s""",
-                        ra.getBody())
-                .isEqualTo(HttpStatus.FORBIDDEN);
-
+        assertThat(ra.getStatusCode().is2xxSuccessful())
+                .as("Thân: %s", ra.getBody())
+                .isFalse();
         assertThat(conSong(tep))
-                .as("⛔ 403 phải là 403 THẬT — bản ghi ⛔ không được đụng tới")
+                .as("⛔ tệp phải còn nguyên sau lượt gọi vào đường đã gỡ")
                 .isTrue();
     }
 
@@ -158,30 +179,18 @@ class AttachmentDeleteHttpTest extends IntegrationTestBase {
      * không chứng minh chú thích ấy nằm trên đúng phương thức nào (luật 2).
      */
     @Test
-    @DisplayName("⭐⭐ Ba cửa vào cùng một hành vi XOÁ TỆP phải đòi CÙNG một quyền")
-    void allThreeDeleteDoorsRequireTheSamePermission() throws Exception {
-        List<String> duongChung =
-                quyenCua(com.songnhue.core.api.attachment.AttachmentController.class, "delete", UUID.class);
+    @DisplayName("⭐⭐ Hai cửa RIÊNG còn lại của hành vi XOÁ TỆP đòi CÙNG một quyền — `ops:document:delete`")
+    void haiCuaXoaTepDoiCungMotQuyen() throws Exception {
+        // ⚠ Trước T61.22 là BA cửa (thêm đường chung `AttachmentController`, đã gỡ — xem `cuaXoaChungDaGo`).
         List<String> duongCongTrinh = quyenCua(
                 com.songnhue.operations.api.ConstructionDocumentController.class, "delete", UUID.class, UUID.class);
-        // ⚠ T40.26 — cửa THỨ BA. Bản trước mang tên "ba cửa" mà chỉ so HAI: `MaintenanceLogController`
-        //   ⛔ không có mặt, nên nó có thể lệch mà bài kiểm vẫn xanh. Tên bài nói ba thì phép so
-        //   phải chạm ba (luật 28: bộ canh phải nói đúng phạm vi của chính nó).
         List<String> duongBaoTri = quyenCua(
                 com.songnhue.operations.api.MaintenanceLogController.class, "deleteAttachment", UUID.class, UUID.class);
 
-        assertThat(duongChung)
-                .as(
-                        "⛔ Đường CHUNG đòi %s, đường RIÊNG đòi %s. Đường rộng hơn là đường không ai canh: "
-                                + "TECHNICIAN · XN_MANAGER · XN_OPERATOR đều có `ops:document:upload` và ⛔ KHÔNG ai "
-                                + "có `ops:document:delete`, nên cái lệch này cho ba vai trò xoá bất kỳ tệp nào "
-                                + "trong hệ.",
-                        duongChung, duongCongTrinh)
-                .isEqualTo(duongCongTrinh)
-                .containsExactly("ops:document:delete");
+        assertThat(duongCongTrinh).containsExactly("ops:document:delete");
         assertThat(duongBaoTri)
-                .as("⛔ Cửa xoá đính kèm NHẬT KÝ BẢO TRÌ đòi %s — lệch khỏi hai cửa kia", duongBaoTri)
-                .isEqualTo(duongChung);
+                .as("⛔ Cửa xoá đính kèm NHẬT KÝ BẢO TRÌ đòi %s — lệch khỏi cửa tài liệu công trình", duongBaoTri)
+                .isEqualTo(duongCongTrinh);
     }
 
     /**

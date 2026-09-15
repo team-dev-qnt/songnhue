@@ -56,7 +56,7 @@ public class ObjectStorage {
                     .build());
             log.debug("Đã ghi {}/{} ({} byte)", bucket, objectKey, content.length);
         } catch (Exception e) {
-            throw new UpstreamException(ErrorCode.SYS_0006, e, "MinIO");
+            throw new UpstreamException(ErrorCode.SYS_0006, e);
         }
     }
 
@@ -64,7 +64,7 @@ public class ObjectStorage {
         try (InputStream stream = openStream(bucket, objectKey)) {
             return stream.readAllBytes();
         } catch (Exception e) {
-            throw new UpstreamException(ErrorCode.SYS_0006, e, "MinIO");
+            throw new UpstreamException(ErrorCode.SYS_0006, e);
         }
     }
 
@@ -87,7 +87,7 @@ public class ObjectStorage {
             return client.getObject(
                     GetObjectArgs.builder().bucket(bucket).object(objectKey).build());
         } catch (Exception e) {
-            throw new UpstreamException(ErrorCode.SYS_0006, e, "MinIO");
+            throw new UpstreamException(ErrorCode.SYS_0006, e);
         }
     }
 
@@ -134,7 +134,7 @@ public class ObjectStorage {
             }
             return client.getPresignedObjectUrl(tham.build());
         } catch (Exception e) {
-            throw new UpstreamException(ErrorCode.SYS_0006, e, "MinIO");
+            throw new UpstreamException(ErrorCode.SYS_0006, e);
         }
     }
 
@@ -180,7 +180,7 @@ public class ObjectStorage {
                 }
             }
         } catch (Exception e) {
-            throw new UpstreamException(ErrorCode.SYS_0006, e, "MinIO");
+            throw new UpstreamException(ErrorCode.SYS_0006, e);
         }
         return ket;
     }
@@ -190,7 +190,7 @@ public class ObjectStorage {
             client.removeObject(
                     RemoveObjectArgs.builder().bucket(bucket).object(objectKey).build());
         } catch (Exception e) {
-            throw new UpstreamException(ErrorCode.SYS_0006, e, "MinIO");
+            throw new UpstreamException(ErrorCode.SYS_0006, e);
         }
     }
 }

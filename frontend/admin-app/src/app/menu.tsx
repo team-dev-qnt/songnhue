@@ -330,6 +330,15 @@ export const MENU: readonly MenuNode[] = [
         permissions: ['hr:report:view'],
       },
       {
+        // T61.20 — M4.9. Cùng quyền với *Hồ sơ cán bộ*: danh sách mang tên + hạn hợp đồng của từng
+        //   người, tức là dữ liệu hồ sơ; backend đã cắt theo phạm vi đơn vị.
+        key: 'canh-bao-het-han',
+        label: 'Cảnh báo hết hạn',
+        icon: <AlertOutlined />,
+        path: '/nhan-su/canh-bao-het-han',
+        permissions: ['hr:employee:view'],
+      },
+      {
         key: 'chuc-vu',
         label: 'Danh mục chức vụ',
         icon: <SolutionOutlined />,
@@ -417,6 +426,13 @@ export const MENU: readonly MenuNode[] = [
         icon: <SettingOutlined />,
         path: '/quan-tri/cau-hinh',
         permissions: ['adm:setting:view'],
+      },
+      {
+        key: 'tinh-trang-cau-hinh',
+        label: 'Tình trạng cấu hình',
+        icon: <SettingOutlined />,
+        path: '/quan-tri/tinh-trang-cau-hinh',
+        permissions: ['adm:system-config:view'],
       },
       {
         key: 'nhat-ky',

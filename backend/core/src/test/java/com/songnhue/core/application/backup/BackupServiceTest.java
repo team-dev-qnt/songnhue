@@ -1,6 +1,7 @@
 package com.songnhue.core.application.backup;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -11,6 +12,7 @@ import static org.mockito.Mockito.when;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
@@ -94,6 +96,31 @@ class BackupServiceTest {
         assertThat(result.getRequestedBy()).isEqualTo(7L);
         verify(securityEvents)
                 .record(org.mockito.ArgumentMatchers.eq(SecurityEventType.BACKUP_CREATED), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("⛔ T61.8 — bản dump ra quyền 640: ⛔ user khác trên máy đọc được, nhóm (kho kéo về) vẫn đọc")
+    void banDumpKhongChoUserKhacDoc() throws Exception {
+        assumeTrue(
+                tempDir.getFileSystem().supportedFileAttributeViews().contains("posix"),
+                "Hệ tệp không POSIX — không có khái niệm quyền user khác");
+        // Giả lập đúng thứ pg_dump làm dưới umask 022 của JVM: tệp 644. Ghi RÕ quyền thay vì tin umask
+        // của máy chạy test — umask của máy dev và của runner có thể khác nhau, và bài này phải đỏ trên
+        // CẢ HAI khi bản vá bị gỡ.
+        when(toolRunner.run(any(), anyString(), any(), any())).thenAnswer(call -> {
+            Path tep = writeDumpFile(call.getArgument(0), "noi-dung-ban-dump");
+            if (tep != null) { // lời gọi hỏi phiên bản máy chủ ⛔ mang `--file=`
+                Files.setPosixFilePermissions(tep, PosixFilePermissions.fromString("rw-r--r--"));
+            }
+            return new PostgresToolRunner.ToolResult(0, "");
+        });
+
+        SystemBackup result = service.runBackup(BackupTrigger.SCHEDULED, null);
+
+        assertThat(result.getStatus()).isEqualTo(BackupStatus.SUCCEEDED);
+        assertThat(PosixFilePermissions.toString(Files.getPosixFilePermissions(Path.of(result.getFilePath()))))
+                .as("Quyền bản dump — `others` phải là ---, `group` phải đọc được (VPS-2 kéo về qua nhóm)")
+                .isEqualTo("rw-r-----");
     }
 
     @Test
@@ -192,14 +219,15 @@ class BackupServiceTest {
      * <p>Bỏ qua lệnh không có {@code --file=}: {@code BackupService} còn gọi {@code pg_dump --version}
      * để ghi lại phiên bản máy chủ, và lệnh đó không sinh tệp nào.
      */
-    private static void writeDumpFile(List<String> command, String content) throws Exception {
+    private static Path writeDumpFile(List<String> command, String content) throws Exception {
         Optional<String> target = command.stream()
                 .filter(arg -> arg.startsWith("--file="))
                 .map(arg -> arg.substring("--file=".length()))
                 .findFirst();
         if (target.isPresent()) {
-            Files.writeString(Path.of(target.get()), content);
+            return Files.writeString(Path.of(target.get()), content);
         }
+        return null;
     }
 
     /** Lệnh dump thật (có {@code --file=}), bỏ qua lệnh {@code --version}. */

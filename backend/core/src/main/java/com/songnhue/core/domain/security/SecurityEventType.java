@@ -31,6 +31,10 @@ public enum SecurityEventType {
     TWO_FACTOR_ENROLLED(Severity.INFO),
     TWO_FACTOR_FAILED(Severity.WARNING),
     TWO_FACTOR_RECOVERY_USED(Severity.DANGER),
+    /** Qua bước MẬT KHẨU rồi xin đăng ký lại 2FA cho tài khoản đã có 2FA — dấu hiệu mật khẩu đã lộ (T61.30). */
+    TWO_FACTOR_REENROLL_BLOCKED(Severity.DANGER),
+    /** Quản trị viên xoá 2FA của một tài khoản khác (T61.30). */
+    TWO_FACTOR_RESET_BY_ADMIN(Severity.DANGER),
 
     // --- Phân quyền -----------------------------------------------------------
     /** Thiếu permission — tầng 2 chặn (AUTH-3001). */
@@ -134,7 +138,28 @@ public enum SecurityEventType {
      * <p>⛔ {@code detail} chỉ ghi tên tài khoản và <b>mã</b> nhân viên — ⛔ không ghi họ tên, ⛔
      * không ghi bất kỳ trường 🔒 nào.
      */
-    ACCOUNT_EMPLOYEE_LINK_CHANGED(Severity.DANGER);
+    ACCOUNT_EMPLOYEE_LINK_CHANGED(Severity.DANGER),
+
+    // --- Cấu hình hệ thống từ giao diện (T54.4 · T61.42 · T61.44) ----------------
+    /**
+     * Một lượt cấp quyền/vai trò VƯỢT tập quyền của chính người cấp vừa bị chặn ({@code ADM-2022}).
+     *
+     * <p>WARNING chứ ⛔ DANGER: hệ đã chặn. Nhưng một tài khoản quản trị thử cấp quyền mình ⛔ có là đúng hình dạng
+     * một phiên bị chiếm đang dò đường leo thang — {@code detail} ghi mã quyền bị từ chối.
+     */
+    PERMISSION_GRANT_BLOCKED(Severity.WARNING),
+
+    /**
+     * Một tham số nhóm nhạy cảm ({@code SECURITY}, {@code AUDIT}, {@code BACKUP}) vừa đổi — đã qua xác thực lại.
+     *
+     * <p>Hạ độ dài mật khẩu, nới ngưỡng khoá tài khoản, tắt lịch sao lưu: mỗi thao tác là một bước chuẩn bị tấn công
+     * có vẻ ngoài của một lượt quản trị bình thường. ⛔ {@code detail} ghi khoá, ⛔ ghi giá trị (giá trị cũ/mới nằm ở
+     * {@code audit_logs}).
+     */
+    SECURITY_SETTING_CHANGED(Severity.DANGER),
+
+    /** Bí mật tích hợp (VD khoá bí mật reCAPTCHA) vừa ĐẶT hoặc XOÁ trên giao diện. ⛔ Không bao giờ ghi giá trị. */
+    INTEGRATION_SECRET_CHANGED(Severity.DANGER);
 
     private final Severity severity;
 

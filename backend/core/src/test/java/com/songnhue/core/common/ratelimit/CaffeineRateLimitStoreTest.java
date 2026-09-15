@@ -88,8 +88,12 @@ class CaffeineRateLimitStoreTest {
         assertThat(RateLimitPolicy.LOGIN.window()).isEqualTo(Duration.ofMinutes(15));
         assertThat(RateLimitPolicy.API.limit()).isEqualTo(100);
         assertThat(RateLimitPolicy.API.window()).isEqualTo(Duration.ofMinutes(1));
-        assertThat(RateLimitPolicy.EXPORT.limit()).isEqualTo(10);
+        // T61.27 (QuanTran chốt 15/09/2026): kết xuất đọc `limits.rate.export-per-hour`; con số trong enum là DỰ
+        //   PHÒNG khi thiếu khoá và phải trùng mặc định seed (30). Trần cứng 100 ⛔ sửa được từ giao diện.
+        assertThat(RateLimitPolicy.EXPORT.limit()).isEqualTo(30);
         assertThat(RateLimitPolicy.EXPORT.window()).isEqualTo(Duration.ofHours(1));
+        assertThat(RateLimitPolicy.TRAN_KET_XUAT).isEqualTo(100);
+        assertThat(RateLimitPolicy.KHOA_KET_XUAT).isEqualTo("limits.rate.export-per-hour");
     }
 
     @Test

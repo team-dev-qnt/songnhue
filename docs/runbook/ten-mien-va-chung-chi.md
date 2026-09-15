@@ -38,7 +38,7 @@ Tất cả đi qua env:
 | `.env` máy chủ | `PUBLIC_DOMAIN` | khi **tạo lại** nginx | `server_name` + đường dẫn chứng chỉ |
 | `.env` máy chủ | `ADMIN_DOMAIN` | như trên | |
 | `.env` máy chủ | `FILES_DOMAIN` | như trên | ⛔ đổi cuối cùng |
-| `.env` máy chủ | `APP_BASE_URL` | — | ⚠ **biến mồ côi, không dòng mã nào đọc** |
+| `.env` máy chủ | ~~`APP_BASE_URL`~~ | — | ⛔ **đã gỡ khỏi tệp mẫu 15/09/2026** (0 dòng mã đọc) — máy nào còn thì xoá dòng |
 | `.env` máy chủ | `NEXT_PUBLIC_SITE_URL` | — | ⚠ **cũng không ai đọc lúc chạy** (xem dưới) |
 | `.env` máy chủ | `SMTP_FROM` | khi tạo lại `app` | đổi sau khi xác nhận SMTP cho phép gửi thay mặt miền mới |
 | Biến kho GitHub | `PUBLIC_SITE_URL` | **lúc BUILD image** | sitemap · canonical · Open Graph |
@@ -125,9 +125,8 @@ cd /opt/songnhue
 cp -p .env /var/lib/songnhue/backup/env-truoc-doi-ten-mien-<ngày>.bak   # ⚠ ĐỂ NGOÀI /opt, xem §5
 chmod 600 /var/lib/songnhue/backup/env-truoc-doi-ten-mien-<ngày>.bak
 sed -i -e 's|^PUBLIC_DOMAIN=.*$|PUBLIC_DOMAIN=<miền mới>|' \
-       -e 's|^APP_BASE_URL=.*$|APP_BASE_URL=https://<miền mới>|' \
        -e 's|^NEXT_PUBLIC_SITE_URL=.*$|NEXT_PUBLIC_SITE_URL=https://<miền mới>|' .env
-diff <(cat /var/lib/songnhue/backup/env-truoc-doi-ten-mien-<ngày>.bak) .env | grep -c '^>'   # phải = 3
+diff <(cat /var/lib/songnhue/backup/env-truoc-doi-ten-mien-<ngày>.bak) .env | grep -c '^>'   # phải = 2
 ```
 
 ### Bước 3 — tạo lại nginx

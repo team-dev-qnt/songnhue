@@ -21,6 +21,8 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.songnhue.core.common.config.AppProperties;
+import com.songnhue.core.common.error.ErrorMessageResolver;
+import com.songnhue.core.common.exception.AppException;
 import com.songnhue.core.common.web.RequestContext;
 import com.songnhue.core.domain.job.Job;
 import com.songnhue.core.infra.job.JobRepository;
@@ -74,6 +76,7 @@ public class JobWorker {
     private static final Duration[] BACKOFF = {Duration.ofMinutes(1), Duration.ofMinutes(5), Duration.ofMinutes(15)};
 
     private final JobRepository repository;
+    private final ErrorMessageResolver messages;
     private final TransactionTemplate transactions;
     private final Map<String, JobHandler> handlers;
     private final boolean enabled;
@@ -93,9 +96,11 @@ public class JobWorker {
             JobRepository repository,
             PlatformTransactionManager transactionManager,
             List<JobHandler> handlerBeans,
-            AppProperties appProperties) {
+            AppProperties appProperties,
+            ErrorMessageResolver messages) {
 
         this.repository = repository;
+        this.messages = messages;
         this.transactions = new TransactionTemplate(transactionManager);
         this.transactions.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         this.enabled = appProperties.isWorkerEnabled();
@@ -187,7 +192,7 @@ public class JobWorker {
         try {
             JobHandler handler = handlers.get(job.getJobType());
             if (handler == null) {
-                fail(job, "Không có handler nào nhận job loại '" + job.getJobType() + "'", false);
+                fail(job, "Không có handler nào nhận job loại '" + job.getJobType() + "'", false, null);
                 return;
             }
 
@@ -218,10 +223,28 @@ public class JobWorker {
         } catch (Exception e) {
             log.error(
                     "Job {} loại {} thất bại ở lần thử {}", job.getPublicId(), job.getJobType(), job.getAttempts(), e);
-            fail(job, e.getClass().getSimpleName() + ": " + e.getMessage(), true);
+            fail(job, moTaLoi(e, messages), true, handlers.get(job.getJobType()));
         } finally {
             RequestContext.clear();
         }
+    }
+
+    /**
+     * Câu ghi vào {@code jobs.last_error} — T61.13.
+     *
+     * <p>⛔ Bản cũ ghi {@code e.getClass().getSimpleName() + ": " + e.getMessage()}, mà
+     * {@link AppException#getMessage()} CHỈ là mã ⇒ {@code "BusinessRuleException: ADM-2001"}. Đối số
+     * nơi ném truyền vào (VD <i>"chưa cấu hình DB_ARCHIVER_PASSWORD"</i>) ⛔ tới đâu cả — ⛔ vào
+     * {@code last_error}, ⛔ vào log (stack trace cũng chỉ in mã), trong khi {@code last_error} là thứ
+     * DUY NHẤT {@code JobStatus.FAILED} dặn người vận hành đọc, và giao diện xuất báo cáo hiện nó cho
+     * chính người bấm nút. ⇒ Lỗi nghiệp vụ ghi <b>mã + câu tiếng Việt đã điền tham số</b>: câu ấy vốn là
+     * câu dành cho người dùng, nên ⛔ mở thêm gì so với một phản hồi HTTP.
+     */
+    static String moTaLoi(Exception e, ErrorMessageResolver messages) {
+        if (e instanceof AppException loi) {
+            return loi.errorCode().code() + ": " + messages.resolve(loi.errorCode(), loi.messageArgs());
+        }
+        return e.getClass().getSimpleName() + ": " + e.getMessage();
     }
 
     private void succeed(Job job) {
@@ -237,15 +260,31 @@ public class JobWorker {
      * @param retryable {@code false} cho lỗi cấu hình (không có handler) — thử lại 3 lần cũng vẫn
      *     không có handler, chỉ tổ làm nhiễu log và trì hoãn lúc người vận hành nhìn thấy vấn đề
      */
-    private void fail(Job job, String error, boolean retryable) {
-        transactions.executeWithoutResult(
-                status -> repository.findByPublicId(job.getPublicId()).ifPresent(fresh -> {
+    private void fail(Job job, String error, boolean retryable, JobHandler handler) {
+        Boolean hetLuot = transactions.execute(status -> repository
+                .findByPublicId(job.getPublicId())
+                .map(fresh -> {
                     Instant retryAt = retryable && fresh.hasAttemptsLeft()
                             ? Instant.now().plus(BACKOFF[Math.min(fresh.getAttempts() - 1, BACKOFF.length - 1)])
                             : null;
                     fresh.markFailed(error, retryAt);
                     repository.save(fresh);
-                }));
+                    return retryAt == null;
+                })
+                .orElse(false));
+        baoHetLuot(handler, job.getPayload(), error, Boolean.TRUE.equals(hetLuot));
+    }
+
+    /** T61.24 — tách để bài kiểm hỏi thẳng: hook chạy khi và chỉ khi hết lượt, và lỗi của nó ⛔ lan ra. */
+    static void baoHetLuot(JobHandler handler, String payload, String error, boolean hetLuot) {
+        if (!hetLuot || handler == null) {
+            return;
+        }
+        try {
+            handler.khiHetLuotThu(payload, error);
+        } catch (RuntimeException e) {
+            log.error("Hook hết lượt thử của {} thất bại", handler.jobType(), e);
+        }
     }
 
     @PreDestroy

@@ -347,6 +347,15 @@ ci-image: ## Dựng image FE đúng đối số build của CI (bắt lỗi bi�
 	@echo "  ✓ Hai image FE dựng được với biến môi trường để trống."
 	@echo ""
 
+# --- NFR-09 tương thích (T61.29) --------------------------------------------
+# 3 engine × 4 bề rộng vào một môi trường ĐANG CHẠY. ⛔ Có URL mặc định: đo nhầm
+# production là sự cố. Tài khoản đo (⛔ 2FA) để đo màn hình sau đăng nhập; ⛔ có
+# thì khai TUONG_THICH_CHI_DANG_NHAP=1 — thiếu cả hai là ĐỎ.
+.PHONY: tuong-thich
+tuong-thich: ## NFR-09: Playwright chromium/firefox/webkit × 360/768/1440/2560 (cần TUONG_THICH_PUBLIC_URL, TUONG_THICH_ADMIN_URL)
+	@test -n "$$TUONG_THICH_PUBLIC_URL" -a -n "$$TUONG_THICH_ADMIN_URL" || { echo "✗ Thiếu TUONG_THICH_PUBLIC_URL / TUONG_THICH_ADMIN_URL"; exit 1; }
+	@cd $(FRONTEND)/public-web && npx playwright install chromium firefox webkit && npx playwright test -c playwright.tuong-thich.config.ts
+
 # --- Diễn tập triển khai (WS-11) ---------------------------------------------
 # ⭐ Chỗ DUY NHẤT ở máy chạy đúng `compose.staging.yml` và đúng lệnh CD gõ.
 #   `make ci-local` không đụng tới compose, `minio-init` hay thứ tự khởi động —

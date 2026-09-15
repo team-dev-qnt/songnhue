@@ -335,6 +335,11 @@ export const router = createBrowserRouter([
             lazyPage(() => import('@/features/hr/BaoCaoNhanSuPage'), 'BaoCaoNhanSuPage'),
           ),
           adminRoute(
+            '/nhan-su/canh-bao-het-han',
+            'hr:employee:view',
+            lazyPage(() => import('@/features/hr/CanhBaoHetHanPage'), 'CanhBaoHetHanPage'),
+          ),
+          adminRoute(
             '/nhan-su/chuc-vu',
             'hr:employee:view',
             lazyPage(() => import('@/features/hr/PositionsPage'), 'PositionsPage'),
@@ -401,6 +406,11 @@ export const router = createBrowserRouter([
             '/quan-tri/sao-luu',
             'adm:backup:view',
             lazyPage(() => import('@/features/admin/BackupPage'), 'BackupPage'),
+          ),
+          adminRoute(
+            '/quan-tri/tinh-trang-cau-hinh',
+            'adm:system-config:view',
+            lazyPage(() => import('@/features/admin/CauHinhHeThongPage'), 'CauHinhHeThongPage'),
           ),
           adminRoute(
             '/quan-tri/tinh-trang',

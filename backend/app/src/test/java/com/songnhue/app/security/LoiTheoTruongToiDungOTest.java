@@ -244,9 +244,18 @@ class LoiTheoTruongToiDungOTest extends IntegrationTestBase {
                 .as("khoá chính sách phải có trong settings, nếu không bài này không đo gì")
                 .isNotNull();
 
+        // ⚠ T61.42 (15/09/2026): nhóm SECURITY nay đòi mã 2FA nhập lại ⇒ lượt ghi đi bằng một tài khoản ĐÃ đăng ký
+        //   2FA thật (cùng vai trò), ⛔ lách bằng SQL — lý do vẫn là đệm của SettingService (đoạn trên).
+        String tenHaiBuoc = PhienHttp.taoNguoiDung(users, passwords, jdbc, "loi_truong_2fa", VAI_TRO_KIEM_THU);
+        jdbc.update("UPDATE users SET two_factor_required = TRUE WHERE username = ?", tenHaiBuoc);
+        PhienHttp.PhienHaiBuoc haiBuoc = phien.dangNhapHaiBuoc(tenHaiBuoc);
+
         try {
-            ResponseEntity<String> ghi =
-                    phien.goi(quanTri, HttpMethod.PUT, "/api/v1/settings/" + khoa, "{\"value\": \"14\"}");
+            ResponseEntity<String> ghi = phien.goi(
+                    haiBuoc.phien(),
+                    HttpMethod.PUT,
+                    "/api/v1/settings/" + khoa,
+                    "{\"value\": \"14\", \"maXacThuc\": \"%s\"}".formatted(PhienHttp.maTotp(haiBuoc.secret(), 1)));
             assertThat(ghi.getStatusCode())
                     .as("lượt ghi tham số phải thành công: %s", ghi.getBody())
                     .isEqualTo(HttpStatus.OK);
@@ -254,7 +263,20 @@ class LoiTheoTruongToiDungOTest extends IntegrationTestBase {
             ResponseEntity<String> tl = phien.get(quanTri, "/api/v1/auth/password-policy");
             assertThat(tl.getBody()).contains("\"minLength\":14");
         } finally {
-            phien.goi(quanTri, HttpMethod.PUT, "/api/v1/settings/" + khoa, "{\"value\": \"" + truoc + "\"}");
+            // Mã bước +1 đã dùng ⇒ đặt lại mốc chống dùng lại để lượt khôi phục ⛔ hỏng vì chính cơ chế ấy.
+            jdbc.update(
+                    "UPDATE user_totp SET last_used_step = NULL "
+                            + "WHERE user_id = (SELECT id FROM users WHERE username = ?)",
+                    tenHaiBuoc);
+            ResponseEntity<String> khoiPhuc = phien.goi(
+                    haiBuoc.phien(),
+                    HttpMethod.PUT,
+                    "/api/v1/settings/" + khoa,
+                    "{\"value\": \"%s\", \"maXacThuc\": \"%s\"}"
+                            .formatted(truoc, PhienHttp.maTotp(haiBuoc.secret(), 1)));
+            assertThat(khoiPhuc.getStatusCode())
+                    .as("khôi phục: %s", khoiPhuc.getBody())
+                    .isEqualTo(HttpStatus.OK);
         }
     }
 

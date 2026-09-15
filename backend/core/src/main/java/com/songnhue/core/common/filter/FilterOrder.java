@@ -5,9 +5,10 @@ package com.songnhue.core.common.filter;
  *
  * <pre>
  * [1] CorrelationFilter   sinh/nhận traceId, đưa vào MDC
- * [2] RateLimitFilter     chặn theo IP + user; login có bucket riêng
+ * [2] RateLimitFilter     hạn mức THEO IP: đăng nhập + cổng công khai
  * [3] CsrfFilter          double-submit token cho request thay đổi dữ liệu     ← WS-5
  * [4] AuthFilter          verify access token, đối chiếu sessions + denylist   ← WS-5
+ * [4b] HanMucNguoiDung    hạn mức THEO NGƯỜI DÙNG đã xác thực: API + kết xuất  ← T61.17
  * [5] ScopeContextFilter  nạp role, permission, org_unit vào AuthContext       ← WS-5
  * [6] AuditContextFilter  gắn user + traceId cho audit interceptor
  * </pre>
@@ -32,6 +33,12 @@ public final class FilterOrder {
      * Ghi log truy cập. Nằm TRONG correlation (đã có traceId) nhưng NGOÀI rate limit, để cả
      * request bị chặn 429 cũng được ghi lại — nếu không thì đúng lúc bị tấn công lại không có log.
      */
+    /** [1a] {@code Cache-Control: no-store} cho API riêng tư — T61.35. Trước hạn mức/xác thực để cả 401/429 mang header. */
+    public static final int KHONG_LUU_DEM = 12;
+
+    /** [1b] Ghi mốc Prometheus đọc {@code /actuator/prometheus} gần nhất — T61.41. Chỉ quan sát, ⛔ chặn gì. */
+    public static final int DAU_VET_CHI_SO = 13;
+
     public static final int REQUEST_LOG = 15;
 
     public static final int RATE_LIMIT = 20;
@@ -46,6 +53,14 @@ public final class FilterOrder {
 
     /** Xác thực access token — WS-5 / T5.1. */
     public static final int AUTH = 30;
+
+    /**
+     * Hạn mức API + kết xuất theo người dùng ĐÃ XÁC THỰC — T61.17.
+     *
+     * <p>Phải đứng <b>sau</b> {@link #AUTH} (khoá là claims đã kiểm chữ ký, ⛔ phải {@code sub} kẻ gọi
+     * tự khai) và <b>trước</b> {@link #SCOPE_CONTEXT} (lượt bị chặn ⛔ tốn một lần nạp quyền từ CSDL).
+     */
+    public static final int RATE_LIMIT_NGUOI_DUNG = 35;
 
     /** Nạp quyền và phạm vi đơn vị — WS-5 / T5.9, T5.11. */
     public static final int SCOPE_CONTEXT = 40;

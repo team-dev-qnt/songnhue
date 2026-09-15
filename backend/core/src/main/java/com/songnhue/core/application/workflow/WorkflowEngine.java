@@ -77,7 +77,7 @@ public class WorkflowEngine implements WorkflowPort {
         WorkflowDefinition definition = definitionOf(entity);
         WorkflowTransition transition = transitions
                 .findByDefinitionIdAndFromStateAndAction(definition.getId(), entity.currentState(), action)
-                .orElseThrow(() -> new BusinessRuleException(ErrorCode.SYS_0008, action, entity.currentState()));
+                .orElseThrow(() -> new BusinessRuleException(ErrorCode.SYS_0008));
 
         requirePermission(transition);
         requireReason(transition, reason);
@@ -183,8 +183,7 @@ public class WorkflowEngine implements WorkflowPort {
                 .stream()
                 .filter(t -> t.getToState().equals(requestedState))
                 .findFirst()
-                .orElseThrow(() ->
-                        new BusinessRuleException(ErrorCode.SYS_0008, requestedState, WorkflowPort.CREATION_STATE));
+                .orElseThrow(() -> new BusinessRuleException(ErrorCode.SYS_0008));
 
         requirePermission(entry);
         return entry.getToState();

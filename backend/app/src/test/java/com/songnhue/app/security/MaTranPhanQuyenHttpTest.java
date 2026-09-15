@@ -106,7 +106,11 @@ class MaTranPhanQuyenHttpTest extends IntegrationTestBase {
         phienHttp = new PhienHttp(http);
 
         // Người đi sửa: có CẢ `:view` lẫn `:manage`.
-        nguoiSua = phienHttp.dangNhap(taoNguoiDung("t27_sua", VAI_TRO_SUA, List.of(QUYEN_XEM, QUYEN_SUA)));
+        // T54.4 (15/09/2026): trần cấp quyền = tập quyền của chính người cấp. Người sửa phải GIỮ `adm:audit:view`
+        // thì mới cấp được nó cho vai trò đích ở `datLaiQuyenGhiXuongDayDu` — sửa ĐỒ GÁ, ⛔ sửa khẳng định.
+        // Vế "cấp quyền mình ⛔ có thì bị chặn" ở `CauHinhHeThongHttpTest.khongCapVuotQuyen`.
+        nguoiSua = phienHttp.dangNhap(
+                taoNguoiDung("t27_sua", VAI_TRO_SUA, List.of(QUYEN_XEM, QUYEN_SUA, "adm:audit:view")));
         // Người chỉ xem: chỉ `:view` — cổng quyền phải chặn lượt PUT của họ.
         nguoiChiXem = phienHttp.dangNhap(taoNguoiDung("t27_xem", VAI_TRO_XEM, List.of(QUYEN_XEM)));
         // Người mang vai trò SẼ BỊ SỬA — nhân chứng cho lượt xoá cache.

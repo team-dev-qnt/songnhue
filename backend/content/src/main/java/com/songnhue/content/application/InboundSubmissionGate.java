@@ -5,10 +5,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.songnhue.content.infra.RecaptchaClient;
-import com.songnhue.content.infra.RecaptchaProperties;
 import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.BusinessRuleException;
 import com.songnhue.core.common.exception.ValidationException;
+import com.songnhue.core.spi.BiMatTichHopPort;
+import com.songnhue.core.spi.LoaiBiMat;
 import com.songnhue.core.spi.SettingPort;
 
 /**
@@ -69,9 +70,9 @@ public class InboundSubmissionGate {
 
     private final SettingPort settings;
     private final RecaptchaClient captcha;
-    private final RecaptchaProperties khoa;
+    private final BiMatTichHopPort khoa;
 
-    public InboundSubmissionGate(SettingPort settings, RecaptchaClient captcha, RecaptchaProperties khoa) {
+    public InboundSubmissionGate(SettingPort settings, RecaptchaClient captcha, BiMatTichHopPort khoa) {
         this.settings = settings;
         this.captcha = captcha;
         this.khoa = khoa;
@@ -133,9 +134,9 @@ public class InboundSubmissionGate {
         if (!settings.getBoolean(KHOA_CAPTCHA_BAT, false)) {
             return false;
         }
-        if (!khoa.coKhoa()) {
+        if (khoa.giaTri(LoaiBiMat.RECAPTCHA_SECRET_KEY).isEmpty()) {
             log.error(
-                    "⛔ `{}` đang BẬT nhưng thiếu biến môi trường RECAPTCHA_SECRET_KEY — mọi biểu mẫu "
+                    "⛔ `{}` đang BẬT nhưng thiếu khoá bí mật reCAPTCHA (Quản trị › Cấu hình hệ thống, hoặc RECAPTCHA_SECRET_KEY) — mọi biểu mẫu "
                             + "công khai vẫn nhận (⛔ không chặn kênh phản ánh của người dân vì một lỗi cấu "
                             + "hình của ta), nhưng ⛔ KHÔNG có lớp chống spam nào ngoài hạn mức tần suất.",
                     KHOA_CAPTCHA_BAT);

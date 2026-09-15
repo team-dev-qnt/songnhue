@@ -149,6 +149,12 @@ export const ERROR_CATALOG = {
     handling: 'reauth',
     severity: 'error',
   },
+  'AUTH-0009': {
+    message:
+      'Tài khoản đã đăng ký xác thực hai bước — hãy nhập mã từ ứng dụng xác thực hoặc mã khôi phục. Mất cả hai thì nhờ quản trị viên đặt lại.',
+    handling: 'caller',
+    severity: 'warning',
+  },
   'AUTH-3001': {
     message: 'Không có quyền thực hiện thao tác này',
     handling: 'forbidden',
@@ -695,6 +701,45 @@ export const ERROR_CATALOG = {
       'Không tự liên kết tài khoản của chính mình tới một hồ sơ nhân viên được — liên kết này quyết định ai đọc được thông tin bảo mật của hồ sơ đó. Nhờ một tài khoản quản trị khác thao tác hộ.',
     handling: 'toast',
     severity: 'error',
+  },
+  'ADM-2019': {
+    // T61.11 — chỉ sinh ở việc nền (`jobs.last_error`), ⛔ từ một lượt bấm nút. `caller`: người đọc là
+    //   người vận hành đang quyết có gỡ khoá mã hoá cũ hay không — ⛔ được để nó trôi mất như một toast.
+    message:
+      'Mã hoá lại dữ liệu sang khoá mới chưa xong — còn bản ghi dùng khoá cũ, chưa được gỡ khoá cũ.',
+    handling: 'caller',
+    severity: 'error',
+  },
+  'ADM-2020': {
+    message:
+      'Không tự xoá tài khoản của chính mình được — tài khoản mất quyền ngay và giao diện không có đường khôi phục. Nhờ một tài khoản quản trị khác thao tác hộ.',
+    handling: 'toast',
+    severity: 'error',
+  },
+  'ADM-2021': {
+    message:
+      'Không tự đặt lại xác thực hai bước của chính mình được — nhờ một tài khoản quản trị khác thao tác hộ.',
+    handling: 'toast',
+    severity: 'error',
+  },
+  'ADM-2022': {
+    // T54.4 — trần cấp quyền = tập quyền của chính người cấp. Câu từ máy chủ mang danh sách quyền bị từ chối.
+    message: 'Không cấp được quyền mà chính bạn không có.',
+    handling: 'toast',
+    severity: 'error',
+  },
+  'ADM-2023': {
+    // T61.42 — `caller`: màn hình gọi mở hộp thoại nhập mã, ⛔ để một toast trôi mất.
+    message: 'Thao tác này cần nhập lại mã xác thực hai bước từ ứng dụng xác thực.',
+    handling: 'caller',
+    severity: 'warning',
+  },
+  'ADM-2024': {
+    // ⛔ 403 chứ ⛔ 401: 401 làm apiClient tưởng mất phiên, gửi lại mã sai rồi đá người dùng ra ngoài.
+    message:
+      'Mã xác thực hai bước không đúng hoặc đã dùng rồi — nhập sai nhiều lần sẽ khoá tạm tài khoản.',
+    handling: 'caller',
+    severity: 'warning',
   },
 } as const satisfies Record<string, ErrorEntry>;
 

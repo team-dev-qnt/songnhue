@@ -20,26 +20,43 @@ global:
 rule_files:
   - /etc/prometheus/alerts.yml
 
+# ⛔ Đây là MẪU: `__TÊN__` do `dien-cau-hinh.sh` điền lúc container khởi động.
+#    Prometheus ⛔ thay biến môi trường trong tệp này — bản trước viết
+#    `${PROD_APP_TARGET}` và Prometheus dùng NGUYÊN VĂN chuỗi ấy (T61.5).
+#    `CanhBaoCoDuongDiTest` đỏ nếu `${` quay lại.
 alerting:
   alertmanagers:
     - static_configs:
-        - targets:
-            # ⬜ Alertmanager là hạng mục WS-11: cần địa chỉ email nhóm "Ban điều
-            #    hành" (G11) và cấu hình SMTP thật. Tới đó thì bỏ ghi chú dòng dưới.
-            # - alertmanager:9093
-    # Chưa có Alertmanager thì cảnh báo vẫn TÍNH và vẫn xem được ở trang Alerts
-    # của Prometheus — chỉ là không tự gửi đi. Ghi rõ để không ai tưởng đã xong.
+        - targets: ['alertmanager:9093']
 
 scrape_configs:
-  # Ứng dụng — nguồn của mọi chỉ số nghiệp vụ (sao lưu, hàng đợi, sự kiện bảo mật)
-  - job_name: songnhue-app
+  # ---------------------------------------------------------------------------
+  # Ứng dụng — nguồn của mọi chỉ số nghiệp vụ (sao lưu, poller, hàng đợi, bảo mật)
+  #
+  # ⚠ Nhãn `environment` là thứ Alertmanager dùng để định tuyến. Thiếu nó thì
+  #   cảnh báo rơi vào tuyến MẶC ĐỊNH (ồn nhất) — cố ý, xem alertmanager.yml.
+  # ---------------------------------------------------------------------------
+
+  # Production (VPS-1): ⛔ cổng nào của app mở ra ngoài. Đi qua nginx biên trên
+  # HTTPS, `location = /actuator/prometheus` chỉ nhận IP của VPS-2 + token (T61.5).
+  - job_name: songnhue-app-production
+    metrics_path: /actuator/prometheus
+    scheme: https
+    authorization:
+      type: Bearer
+      credentials_file: /tmp/prom/metrics_token
+    static_configs:
+      - targets: ['__PROD_METRICS_HOST__:443']
+        labels:
+          environment: production
+
+  # Staging (cùng máy VPS-2): Prometheus nối vào mạng `songnhue_default` của stack
+  # staging (compose.observability.yml) nên gọi thẳng tên container.
+  - job_name: songnhue-app-staging
     metrics_path: /actuator/prometheus
     scheme: http
     static_configs:
-      - targets: ['${PROD_APP_TARGET}']
-        labels:
-          environment: production
-      - targets: ['${STAGING_APP_TARGET}']
+      - targets: ['songnhue-app:8080']
         labels:
           environment: staging
 

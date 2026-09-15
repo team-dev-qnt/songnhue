@@ -85,6 +85,8 @@ public enum ErrorCode {
     AUTH_0007("AUTH-0007", HttpStatus.FORBIDDEN),
     /** Phiên bị thu hồi vì phát hiện dùng lại refresh token cũ — buộc đăng nhập lại (§4.1). */
     AUTH_0008("AUTH-0008", HttpStatus.UNAUTHORIZED),
+    /** Tài khoản đã có 2FA xác nhận — ⛔ đăng ký lại qua vé challenge (T61.30). */
+    AUTH_0009("AUTH-0009", HttpStatus.FORBIDDEN),
     AUTH_3001("AUTH-3001", HttpStatus.FORBIDDEN),
     /** Dữ liệu ngoài phạm vi đơn vị — scope filter tầng 3 chặn (§4.2). */
     AUTH_3002("AUTH-3002", HttpStatus.FORBIDDEN),
@@ -547,7 +549,46 @@ public enum ErrorCode {
      * một tài khoản quản trị thứ hai. Bất biến này áp <b>đều cho mọi vai trò, kể cả SUPER_ADMIN</b>:
      * một luật miễn trừ đúng vai trò mạnh nhất là một luật trang trí.
      */
-    ADM_2018("ADM-2018", HttpStatus.FORBIDDEN);
+    ADM_2018("ADM-2018", HttpStatus.FORBIDDEN),
+    /**
+     * Job mã hoá lại sang khoá {0} xong {1} hàng mà <b>còn {2} hàng</b> mang khoá cũ — T61.11.
+     *
+     * <p>⛔ Job phải HỎNG, ⛔ xanh kèm một dòng log: một job xanh là lời mời gỡ khoá cũ, và gỡ khoá cũ
+     * khi còn bản mã dùng nó là mất dữ liệu vĩnh viễn (runbook {@code xoay-khoa.md} §A). Câu này nằm ở
+     * {@code jobs.last_error}, nơi {@code JobStatus.FAILED} dặn người vận hành đọc.
+     */
+    ADM_2019("ADM-2019", HttpStatus.UNPROCESSABLE_CONTENT),
+    /**
+     * Tự xoá tài khoản của chính mình — T61.21.
+     *
+     * <p>Xoá là xoá mềm mà giao diện ⛔ có đường khôi phục, và tài khoản đang thao tác mất quyền NGAY
+     * (`AuthorityLoader` lọc `deleted_at`). Cùng hình dạng `ADM-2016` (tự gỡ quyền phân quyền của mình).
+     */
+    ADM_2020("ADM-2020", HttpStatus.FORBIDDEN),
+    /** Tự đặt lại 2FA của chính mình — đúng thao tác kẻ chiếm phiên muốn làm (T61.30). */
+    ADM_2021("ADM-2021", HttpStatus.FORBIDDEN),
+    /**
+     * Cấp cho một vai trò/tài khoản quyền mà NGƯỜI THAO TÁC ⛔ có — T54.4.
+     *
+     * <p>ADMIN mang {@code adm:role:manage} và vai trò ADMIN {@code is_system = FALSE} ⇒ trước bản vá, ba cú bấm là
+     * tự thêm {@code hr:employee:view-sensitive} (quyền đặc tả loại trừ ADMIN tường minh). Trần cấp quyền = tập quyền
+     * của chính người cấp.
+     */
+    ADM_2022("ADM-2022", HttpStatus.FORBIDDEN),
+    /**
+     * Thao tác nhạy cảm đòi nhập lại mã xác thực hai bước NGAY LÚC NÀY — T61.42/T61.44.
+     *
+     * <p>Thiếu mã, hoặc tài khoản chưa đăng ký 2FA. Mã SAI vẫn là {@code AUTH-0004} (và bị đếm vào khoá tài khoản).
+     */
+    ADM_2023("ADM-2023", HttpStatus.FORBIDDEN),
+    /**
+     * Mã xác thực hai bước nhập lại cho thao tác nhạy cảm KHÔNG đúng — T61.42.
+     *
+     * <p>⛔⛔ Cố ý ⛔ dùng {@code AUTH-0004} (401) như bước đăng nhập: giao diện đọc MỌI 401 là "phiên hết hạn" ⇒ làm
+     * mới token rồi GỬI LẠI cùng mã sai (lượt sai bị đếm HAI lần) ⇒ 401 lần nữa ⇒ xoá phiên, đá người dùng ra màn
+     * hình đăng nhập. Đường khôi phục CSDL mang đúng khuyết tật ấy từ WS-7 tới 15/09/2026.
+     */
+    ADM_2024("ADM-2024", HttpStatus.FORBIDDEN);
 
     private final String code;
     private final HttpStatus status;

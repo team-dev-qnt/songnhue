@@ -3,6 +3,7 @@ package com.songnhue.core.api.settings;
 import java.util.List;
 import java.util.Map;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 
@@ -15,6 +16,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.songnhue.core.application.auth.ClientInfo;
+import com.songnhue.core.application.auth.XacThucLaiService;
 import com.songnhue.core.application.settings.SettingService;
 import com.songnhue.core.common.security.RequirePermission;
 import com.songnhue.core.domain.settings.Setting;
@@ -35,9 +38,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class SettingController {
 
     private final SettingService settingService;
+    private final XacThucLaiService xacThucLai;
 
-    public SettingController(SettingService settingService) {
+    public SettingController(SettingService settingService, XacThucLaiService xacThucLai) {
         this.settingService = settingService;
+        this.xacThucLai = xacThucLai;
     }
 
     @GetMapping
@@ -53,8 +58,15 @@ public class SettingController {
     @Operation(summary = "Sửa một tham số — có hiệu lực ngay, không cần khởi động lại")
     @RequirePermission("adm:setting:update")
     public SettingDtos.SettingView update(
-            @PathVariable String key, @Valid @RequestBody SettingDtos.UpdateRequest request) {
-        return SettingDtos.SettingView.of(settingService.update(key, request.value()));
+            @PathVariable String key,
+            @Valid @RequestBody SettingDtos.UpdateRequest request,
+            HttpServletRequest httpRequest) {
+        // T61.42 — nhóm nhạy cảm (SECURITY/AUDIT/BACKUP): nhập lại mã 2FA NGAY LÚC NÀY.
+        boolean nhayCam = settingService.canXacThucLai(key);
+        if (nhayCam) {
+            xacThucLai.xacThuc(request.maXacThuc(), ClientInfo.from(httpRequest));
+        }
+        return SettingDtos.SettingView.of(settingService.update(key, request.value(), nhayCam));
     }
 
     @GetMapping("/export")
@@ -67,8 +79,13 @@ public class SettingController {
     @PostMapping("/import")
     @Operation(summary = "Nhập bộ cấu hình — kiểm tra toàn bộ rồi mới áp dụng")
     @RequirePermission("adm:setting:import")
-    public SettingService.ImportResult importConfiguration(@Valid @RequestBody SettingDtos.ImportRequest request) {
-        return settingService.importConfiguration(request.values());
+    public SettingService.ImportResult importConfiguration(
+            @Valid @RequestBody SettingDtos.ImportRequest request, HttpServletRequest httpRequest) {
+        boolean nhayCam = settingService.nhapCanXacThucLai(request.values());
+        if (nhayCam) {
+            xacThucLai.xacThuc(request.maXacThuc(), ClientInfo.from(httpRequest));
+        }
+        return settingService.importConfiguration(request.values(), nhayCam);
     }
 
     /** DTO của API cấu hình. */
@@ -77,9 +94,14 @@ public class SettingController {
         private SettingDtos() {}
 
         /** Giá trị rỗng = quay về mặc định của danh mục, nên cố ý KHÔNG bắt {@code @NotBlank}. */
-        public record UpdateRequest(String value) {}
+        /**
+         * @param maXacThuc mã 2FA nhập lại — BẮT BUỘC khi khoá thuộc nhóm nhạy cảm ({@code canXacThucLai}), bỏ qua với
+         *     nhóm khác
+         */
+        public record UpdateRequest(String value, String maXacThuc) {}
 
-        public record ImportRequest(@NotEmpty Map<String, String> values) {}
+        /** @param maXacThuc bắt buộc khi bộ cấu hình ĐỔI ít nhất một khoá nhóm nhạy cảm */
+        public record ImportRequest(@NotEmpty Map<String, String> values, String maXacThuc) {}
 
         /**
          * Trả kèm {@code valueType} và {@code validation} để FE dựng đúng ô nhập và kiểm sơ bộ.
@@ -98,7 +120,8 @@ public class SettingController {
                 String description,
                 String validation,
                 boolean editable,
-                boolean exportable) {
+                boolean exportable,
+                boolean canXacThucLai) {
 
             public static SettingView of(Setting setting) {
                 return new SettingView(
@@ -112,7 +135,8 @@ public class SettingController {
                         setting.getDescription(),
                         setting.getValidation(),
                         setting.isEditable(),
-                        setting.isExportable());
+                        setting.isExportable(),
+                        SettingService.nhayCam(setting));
             }
         }
     }

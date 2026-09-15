@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { DocumentTable } from '@/components/DocumentTable';
 import type { ArticleRow } from '@/lib/api';
 import { ROUTES } from '@/lib/routes';
+import { lienKetAnToan } from '@/lib/lienKetAnToan';
 import { EmptyBlock } from './EmptyBlock';
 import { SectionTitle } from './SectionTitle';
 
@@ -116,7 +117,7 @@ export function PublishedDocumentsSection({
           </div>
         </div>
 
-        {docSystemUrl ? (
+        {lienKetAnToan(docSystemUrl) ? (
           <div className="flex flex-col lg:col-span-4">
             <SectionTitle>Hệ thống văn bản điều hành</SectionTitle>
             <div className="mt-5 flex flex-1 flex-col rounded-lg border border-surface-border bg-surface-bgLayout/60 p-5">
@@ -142,7 +143,7 @@ export function PublishedDocumentsSection({
                 (CN-01.7).
               </p>
               <a
-                href={docSystemUrl}
+                href={lienKetAnToan(docSystemUrl) ?? undefined}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-auto inline-flex items-center gap-2 self-start rounded-lg bg-brand-primary px-4 py-3 text-[13px] font-bold text-white transition-colors hover:bg-brand-primaryHover"

@@ -37,9 +37,24 @@ public class EmailSender {
      */
     private final String fromAddress;
 
+    /**
+     * <b>T61.23 — chuyển hướng thư</b> ({@code MAIL_REDIRECT_TO}, chốt 15/09/2026). Staging dùng CHUNG
+     * SMTP thật với production (T50.13) và mang dữ liệu nhân bản từ production ⇒ ⛔ chuyển hướng thì một
+     * lượt thử trên staging gửi thư tới hộp thư THẬT của cán bộ và người dân đã gửi liên hệ.
+     *
+     * <p>Đặt ở đây — chỗ MỌI thư đi qua ({@code MailDispatcher} và {@code NotificationDispatchHandler}
+     * đều gọi {@link #send}) — ⛔ ở từng nơi gọi (luật 12). {@code null} = gửi thẳng.
+     */
+    private final String redirectTo;
+
     public EmailSender(JavaMailSender mailSender, String fromAddress) {
+        this(mailSender, fromAddress, null);
+    }
+
+    public EmailSender(JavaMailSender mailSender, String fromAddress, String redirectTo) {
         this.mailSender = mailSender;
         this.fromAddress = fromAddress;
+        this.redirectTo = redirectTo == null || redirectTo.isBlank() ? null : redirectTo.trim();
     }
 
     /**
@@ -47,13 +62,21 @@ public class EmailSender {
      * @throws org.springframework.mail.MailException khi máy chủ thư từ chối — job sẽ thử lại
      */
     public void send(String toAddress, String subject, String body, String linkUrl) {
+        String than = linkUrl == null || linkUrl.isBlank() ? body : body + "\n\nXem chi tiết: " + linkUrl;
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(fromAddress);
-        message.setTo(toAddress);
-        message.setSubject(subject);
-        message.setText(linkUrl == null || linkUrl.isBlank() ? body : body + "\n\nXem chi tiết: " + linkUrl);
+        if (redirectTo == null) {
+            message.setTo(toAddress);
+            message.setSubject(subject);
+            message.setText(than);
+        } else {
+            // Người nhận gốc nằm ở TIÊU ĐỀ (nhìn thấy ngay trong hộp thư) và đầu thân thư.
+            message.setTo(redirectTo);
+            message.setSubject("[CHUYỂN HƯỚNG → " + toAddress + "] " + subject);
+            message.setText("Thư này lẽ ra gửi tới: " + toAddress + " (MAIL_REDIRECT_TO đang bật)\n\n" + than);
+        }
 
         mailSender.send(message);
-        log.debug("Đã gửi email tới {}", toAddress);
+        log.debug("Đã gửi email tới {}", redirectTo == null ? toAddress : redirectTo + " (chuyển hướng)");
     }
 }

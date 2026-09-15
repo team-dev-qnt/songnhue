@@ -82,7 +82,7 @@ public final class PhienHttp {
      *
      * <h2>Vì sao cần — T60.9</h2>
      *
-     * Xô {@link com.songnhue.core.common.ratelimit.RateLimitPolicy#EXPORT} là <b>10 lượt / giờ</b>.
+     * Xô {@link com.songnhue.core.common.ratelimit.RateLimitPolicy#EXPORT} là <b>trần theo giờ</b> (`limits.rate.export-per-hour`, mặc định 30 — T61.27).
      * Lớp nào dựng phiên ở {@code @BeforeAll} thì <b>cả lớp dùng chung một IP</b>, nên một lớp có
      * vài bài kết xuất là cạn ngân sách — và triệu chứng rơi vào <b>bài chạy sau</b>, thường là một
      * bài ⛔ không liên quan gì tới kết xuất. Đúng hình dạng mà javadoc của {@link #ipGiaLap} đã mô
@@ -200,6 +200,52 @@ public final class PhienHttp {
         List<String> setCookie = response.getHeaders().getOrEmpty(HttpHeaders.SET_COOKIE);
         return new Phien(
                 giaTriJson(response.getBody(), "accessToken"), giaTriCookie(setCookie, "XSRF-TOKEN"), gop(setCookie));
+    }
+
+    /** Phiên đã qua 2FA + secret TOTP thô để sinh mã cho các lượt xác thực lại. */
+    public record PhienHaiBuoc(Phien phien, byte[] secret) {}
+
+    /**
+     * Đăng nhập tài khoản BẮT BUỘC 2FA lần đầu: login → enroll → confirm (mã bước hiện tại) — T61.42.
+     *
+     * <p>⚠ Máy chủ chống dùng lại mã ({@code user_totp.last_used_step}): lượt xác thực lại kế tiếp phải dùng bước
+     * {@code +1}, hoặc bài kiểm đặt lại cột ấy.
+     */
+    public PhienHaiBuoc dangNhapHaiBuoc(String username) {
+        ResponseEntity<String> dn = postKhongPhien(
+                "/api/v1/auth/login", "{\"username\":\"%s\",\"password\":\"%s\"}".formatted(username, MAT_KHAU));
+        assertThat(dn.getBody()).as("tài khoản phải bị buộc đăng ký 2FA").contains("TWO_FACTOR_ENROLL_REQUIRED");
+        String ve = giaTriJson(dn.getBody(), "challengeToken");
+        ResponseEntity<String> enroll =
+                postKhongPhien("/api/v1/auth/2fa/enroll", "{\"challengeToken\":\"%s\"}".formatted(ve));
+        byte[] secret = new org.apache.commons.codec.binary.Base32().decode(giaTriJson(enroll.getBody(), "secret"));
+        ResponseEntity<String> confirm = postKhongPhien(
+                "/api/v1/auth/2fa/confirm",
+                "{\"challengeToken\":\"%s\",\"code\":\"%s\"}".formatted(ve, maTotp(secret, 0)));
+        assertThat(confirm.getBody()).as("%s", confirm.getBody()).contains("\"stage\":\"AUTHENTICATED\"");
+        List<String> setCookie = confirm.getHeaders().getOrEmpty(HttpHeaders.SET_COOKIE);
+        return new PhienHaiBuoc(
+                new Phien(
+                        giaTriJson(confirm.getBody(), "accessToken"),
+                        giaTriCookie(setCookie, "XSRF-TOKEN"),
+                        gop(setCookie)),
+                secret);
+    }
+
+    /** Mã TOTP ở bước hiện tại + {@code lech}. */
+    public static String maTotp(byte[] secret, int lech) {
+        return com.songnhue.core.common.util.TotpGenerator.generate(
+                secret,
+                com.songnhue.core.common.util.TotpGenerator.stepAt(
+                                java.time.Instant.now().getEpochSecond())
+                        + lech);
+    }
+
+    private ResponseEntity<String> postKhongPhien(String duong, String than) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("X-Real-IP", ipGiaLap);
+        return http.exchange(duong, HttpMethod.POST, new HttpEntity<>(than, headers), String.class);
     }
 
     /** Header đầy đủ như trình duyệt gửi: Bearer + vé CSRF + cookie. */

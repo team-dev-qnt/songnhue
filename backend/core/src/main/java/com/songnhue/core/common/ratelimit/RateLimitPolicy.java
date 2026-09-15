@@ -13,6 +13,12 @@ import java.time.Duration;
  * <p>Riêng chính sách khoá tài khoản (số lần sai, thời gian khoá — M5.15) <i>là</i> tham số cấu
  * hình và nằm ở bảng {@code settings}. Hai thứ khác nhau: rate limit chặn ở tầng hạ tầng theo IP,
  * lockout chặn ở tầng nghiệp vụ theo tài khoản.
+ *
+ * <p>⚠ <b>Ngoại lệ DUY NHẤT — {@link #EXPORT} (T61.27, QuanTran chốt 15/09/2026)</b>: số lượt kết xuất
+ * mỗi giờ là câu hỏi <i>nghiệp vụ</i> (người lập 8 báo cáo BCNS + báo cáo vận hành trong một buổi) nên
+ * nằm ở {@code settings} ({@link #KHOA_KET_XUAT}). Lý lẽ "Admin bị chiếm tự nới hạn mức" vẫn đúng, nên
+ * giá trị bị <b>kẹp trong mã</b> ở {@link #TRAN_KET_XUAT} — sửa trên giao diện ⛔ bao giờ mở được đường rút
+ * dữ liệu hàng loạt. {@code LOGIN}/{@code API}/{@code PUBLIC} vẫn là hằng số.
  */
 public enum RateLimitPolicy {
 
@@ -37,15 +43,18 @@ public enum RateLimitPolicy {
      */
     LOGIN("login", 30, Duration.ofMinutes(15)),
 
-    /** API thường: 100 lượt / phút cho mỗi người dùng hoặc IP. */
+    /**
+     * API thường: 100 lượt / phút cho mỗi <b>người dùng đã xác thực trên một IP</b>; lượt gọi chưa
+     * xác thực đếm theo IP. Đếm ở {@code HanMucNguoiDungFilter}, SAU bước kiểm token — T61.17.
+     */
     API("api", 100, Duration.ofMinutes(1)),
 
     /**
      * Cổng công khai: 300 lượt / phút trên mỗi IP — <b>bucket riêng, không dùng chung với {@link
      * #API}</b>.
      *
-     * <p>Đây không phải chuyện nới tay cho khách vãng lai. Cả hai bucket đều đếm theo IP, mà <b>cả
-     * Công ty đi ra Internet qua một IP NAT</b>: gộp chung thì một con bọ tìm kiếm quét cổng thông
+     * <p>Đây không phải chuyện nới tay cho khách vãng lai. Nếu <b>cả Công ty đi ra Internet qua một IP
+     * NAT</b> (chưa đo — T61.17) thì gộp chung với khách lạ theo IP nghĩa là một con bọ tìm kiếm quét cổng thông
      * tin sẽ tiêu hết hạn mức, và người đang soạn bài trong màn hình quản trị nhận {@code SYS-0002}
      * — một sự cố ở phần công khai lan sang phần nội bộ, không dấu vết nào chỉ ra vì sao.
      *
@@ -55,8 +64,27 @@ public enum RateLimitPolicy {
      */
     PUBLIC("public", 300, Duration.ofMinutes(1)),
 
-    /** Kết xuất báo cáo: 10 lượt / giờ — mỗi lượt tốn nhiều tài nguyên. */
-    EXPORT("export", 10, Duration.ofHours(1));
+    /**
+     * Kết xuất báo cáo: {@code limits.rate.export-per-hour} lượt / giờ (mặc định 30) cho mỗi người dùng
+     * đã xác thực trên một IP — mỗi lượt tốn nhiều tài nguyên. Trước T61.17 khoá theo IP ⇒ sau một NAT
+     * là 10 lượt/giờ cho CẢ Công ty. Con số trong enum là <b>dự phòng</b> khi thiếu khoá — trùng mặc định
+     * seed, nên bài kiểm núm cấu hình ⛔ được dùng 30 làm giá trị thử (T48.7).
+     */
+    EXPORT("export", 30, Duration.ofHours(1));
+
+    /** Khoá {@code settings} của {@link #EXPORT} — T61.27. */
+    public static final String KHOA_KET_XUAT = "limits.rate.export-per-hour";
+
+    /**
+     * Trần cứng của {@link #EXPORT}, ⛔ sửa được từ giao diện. Phải bằng {@code max=} ở cột
+     * {@code validation} của khoá (bài kiểm đối chiếu hai nơi — luật 14).
+     */
+    public static final int TRAN_KET_XUAT = 100;
+
+    /** Kẹp giá trị đọc từ {@code settings} vào {@code [1; TRAN_KET_XUAT]} — 0 hay số âm ⛔ được khoá chết kết xuất. */
+    public static int kepKetXuat(int caiDat) {
+        return Math.max(1, Math.min(TRAN_KET_XUAT, caiDat));
+    }
 
     /** Đường dẫn đăng nhập — xét trước mọi thứ khác. */
     private static final String DUONG_DANG_NHAP = "/api/v1/auth/login";
@@ -97,7 +125,7 @@ public enum RateLimitPolicy {
             return LOGIN;
         }
         // ⚠ Công khai xét TRƯỚC kết xuất. Ngược lại thì một đường dẫn công khai lỡ mang chữ `/xuat`
-        // sẽ bị hạ xuống 10 lượt/giờ cho TOÀN BỘ khách của cổng — hỏng theo chiều không ai ngờ.
+        // sẽ bị hạ xuống trần kết xuất theo GIỜ cho TOÀN BỘ khách của cổng — hỏng theo chiều không ai ngờ.
         if (duongDan.startsWith(TIEN_TO_CONG_KHAI)) {
             return PUBLIC;
         }

@@ -301,11 +301,11 @@ public class MaintenanceLogController {
 
     private MaintenanceDtos.MaintenanceRow toRow(
             MaintenanceLog m, Map<Long, ConstructionService.ConstructionBrief> danhMuc) {
-        String performer = m.getPerformerOrgUnitId() == null
-                ? m.getPerformerName()
-                : orgUnits.findRefById(m.getPerformerOrgUnitId())
-                        .map(ref -> ref.name())
-                        .orElse(null);
+        com.songnhue.core.spi.OrgUnitRef donVi = m.getPerformerOrgUnitId() == null
+                ? null
+                : orgUnits.findRefById(m.getPerformerOrgUnitId()).orElse(null);
+        String performer =
+                m.getPerformerOrgUnitId() == null ? m.getPerformerName() : donVi == null ? null : donVi.name();
 
         ConstructionService.ConstructionBrief ct = danhMuc.get(m.getConstructionId());
         return MaintenanceDtos.MaintenanceRow.of(
@@ -314,6 +314,7 @@ public class MaintenanceLogController {
                 ct == null ? null : ct.name(),
                 ct == null ? null : ct.publicId(),
                 performer,
+                donVi == null ? null : donVi.publicId(),
                 m.getAssigneeUserId() == null
                         ? null
                         : users.publicIdOf(m.getAssigneeUserId()).orElse(null));
@@ -326,11 +327,10 @@ public class MaintenanceLogController {
             Map<Long, UUID> userPublicIds) {
         ConstructionService.ConstructionBrief ct = danhMuc.get(m.getConstructionId());
 
-        String performer = m.getPerformerOrgUnitId() == null
-                ? m.getPerformerName()
-                : orgUnitRefs.getOrDefault(m.getPerformerOrgUnitId(), null) == null
-                        ? null
-                        : orgUnitRefs.get(m.getPerformerOrgUnitId()).name();
+        com.songnhue.core.spi.OrgUnitRef donVi =
+                m.getPerformerOrgUnitId() == null ? null : orgUnitRefs.get(m.getPerformerOrgUnitId());
+        String performer =
+                m.getPerformerOrgUnitId() == null ? m.getPerformerName() : donVi == null ? null : donVi.name();
 
         return MaintenanceDtos.MaintenanceRow.of(
                 m,
@@ -338,6 +338,7 @@ public class MaintenanceLogController {
                 ct == null ? null : ct.name(),
                 ct == null ? null : ct.publicId(),
                 performer,
+                donVi == null ? null : donVi.publicId(),
                 m.getAssigneeUserId() == null ? null : userPublicIds.get(m.getAssigneeUserId()));
     }
 
@@ -362,7 +363,7 @@ public class MaintenanceLogController {
         try {
             return file.getBytes();
         } catch (IOException e) {
-            throw new ValidationException(ErrorCode.SYS_0003, e.getMessage());
+            throw new ValidationException(ErrorCode.SYS_0003, e);
         }
     }
 }

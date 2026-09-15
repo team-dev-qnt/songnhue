@@ -16,7 +16,6 @@ import org.junit.jupiter.api.Test;
 import com.songnhue.content.domain.Contact;
 import com.songnhue.content.infra.ContactRepository;
 import com.songnhue.content.infra.RecaptchaClient;
-import com.songnhue.content.infra.RecaptchaProperties;
 import com.songnhue.core.common.exception.ValidationException;
 import com.songnhue.core.spi.JobPort;
 import com.songnhue.core.spi.NotificationPort;
@@ -78,7 +77,7 @@ class ContactServiceTest {
         SettingPort thamSoCong = mock(SettingPort.class);
         when(thamSoCong.getBoolean(any(), anyBoolean())).thenAnswer(i -> i.getArgument(1));
         InboundSubmissionGate cong =
-                new InboundSubmissionGate(thamSoCong, mock(RecaptchaClient.class), new RecaptchaProperties());
+                new InboundSubmissionGate(thamSoCong, mock(RecaptchaClient.class), loai -> java.util.Optional.empty());
 
         ContactFormPolicy luatBieuMau = mock(ContactFormPolicy.class);
         when(luatBieuMau.hienHoTen()).thenReturn(true);

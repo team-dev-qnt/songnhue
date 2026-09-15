@@ -77,25 +77,14 @@ public class OrgUnitController {
         return service.tree();
     }
 
-    @GetMapping
-    @Operation(summary = "Danh sách phẳng — dùng cho ô chọn đơn vị")
-    @RequirePermission("adm:org-unit:view")
-    public List<OrgUnitDtos.OrgUnitSummary> list() {
-        return service.listAll().stream().map(OrgUnitDtos.OrgUnitSummary::of).toList();
-    }
+    // ⛔ BIA MỘ — `GET /org-units` (danh sách phẳng) và `GET /{id}/subtree` gỡ 14/09/2026 (T61.22):
+    //    0 nơi gọi. Ô chọn đơn vị dùng `/selectable` (cây có phạm vi), sơ đồ tổ chức dùng `/tree`.
 
     @GetMapping("/{publicId}")
     @Operation(summary = "Chi tiết một đơn vị")
     @RequirePermission("adm:org-unit:view")
     public OrgUnitDtos.OrgUnitSummary get(@PathVariable UUID publicId) {
         return OrgUnitDtos.OrgUnitSummary.of(service.get(publicId));
-    }
-
-    @GetMapping("/{publicId}/subtree")
-    @Operation(summary = "Cây con tính từ một đơn vị, tính cả chính nó")
-    @RequirePermission("adm:org-unit:view")
-    public List<OrgUnitNode> subtree(@PathVariable UUID publicId) {
-        return service.subtree(publicId);
     }
 
     @PostMapping

@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,10 +20,14 @@ import org.springframework.transaction.annotation.Transactional;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 
+import com.songnhue.core.application.auth.ClientInfo;
+import com.songnhue.core.application.auth.SecurityEventService;
 import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.PermissionDeniedException;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
+import com.songnhue.core.common.security.AuthContext;
 import com.songnhue.core.common.util.HtmlSanitizer;
+import com.songnhue.core.domain.security.SecurityEventType;
 import com.songnhue.core.domain.settings.Setting;
 import com.songnhue.core.infra.settings.SettingRepository;
 import com.songnhue.core.spi.SettingAdminPort;
@@ -53,9 +58,22 @@ public class SettingService implements SettingPort, SettingAdminPort {
     private static final Duration CACHE_TTL = Duration.ofSeconds(60);
     private static final int CACHE_MAX_SIZE = 500;
 
+    /**
+     * ⛔⛔ Nhóm tham số mà sửa trên giao diện phải NHẬP LẠI mã 2FA và để lại sự kiện bảo mật — T61.42.
+     *
+     * <p>{@code SECURITY} (độ dài mật khẩu, ngưỡng khoá tài khoản, giờ hành chính của chuông đăng nhập bất thường) ·
+     * {@code AUDIT} (giữ nhật ký bao lâu) · {@code BACKUP} (lịch sao lưu). Mỗi thao tác hạ một tham số ở đây là một
+     * bước chuẩn bị tấn công có vẻ ngoài của một lượt quản trị bình thường — và ASVS 2.1.1 đo được giao diện cho hạ độ
+     * dài mật khẩu xuống 8.
+     *
+     * <p>Phân loại theo NHÓM chứ ⛔ theo khoá: khoá mới thêm vào nhóm nhạy cảm tự được bảo vệ, ⛔ ai phải nhớ.
+     */
+    public static final Set<String> NHOM_NHAY_CAM = Set.of("SECURITY", "AUDIT", "BACKUP");
+
     private final SettingRepository repository;
     private final SettingValidator validator;
     private final ApplicationEventPublisher events;
+    private final SecurityEventService securityEvents;
 
     /** Giữ cả giá trị rỗng để khoá không tồn tại cũng không phải hỏi DB lại mỗi lần. */
     private final Cache<String, Optional<String>> cache = Caffeine.newBuilder()
@@ -63,10 +81,15 @@ public class SettingService implements SettingPort, SettingAdminPort {
             .expireAfterWrite(CACHE_TTL)
             .build();
 
-    public SettingService(SettingRepository repository, SettingValidator validator, ApplicationEventPublisher events) {
+    public SettingService(
+            SettingRepository repository,
+            SettingValidator validator,
+            ApplicationEventPublisher events,
+            SecurityEventService securityEvents) {
         this.repository = repository;
         this.validator = validator;
         this.events = events;
+        this.securityEvents = securityEvents;
     }
 
     /**
@@ -137,12 +160,31 @@ public class SettingService implements SettingPort, SettingAdminPort {
      */
     @Transactional
     public Setting update(String key, String newValue) {
+        return update(key, newValue, false);
+    }
+
+    /**
+     * @param daXacThucLai nơi gọi ĐÃ bắt người dùng nhập lại mã 2FA ({@code XacThucLaiService}). Chỉ controller đặt
+     *     {@code true} — service ⛔ tự xác thực lại được vì {@code LoginAttemptService} đọc chính lớp này (vòng phụ thuộc)
+     */
+    @Transactional
+    public Setting update(String key, String newValue, boolean daXacThucLai) {
         Setting setting =
                 repository.findBySettingKey(key).orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
         if (!setting.isEditable()) {
             throw new PermissionDeniedException(ErrorCode.ADM_2007);
         }
-        return apDung(setting, newValue);
+        return apDung(setting, newValue, daXacThucLai);
+    }
+
+    /** Khoá có thuộc nhóm nhạy cảm không — controller hỏi trước để biết có phải xác thực lại. */
+    @Transactional(readOnly = true)
+    public boolean canXacThucLai(String key) {
+        return repository.findBySettingKey(key).map(SettingService::nhayCam).orElse(false);
+    }
+
+    public static boolean nhayCam(Setting setting) {
+        return NHOM_NHAY_CAM.contains(setting.getGroupCode());
     }
 
     /**
@@ -164,17 +206,32 @@ public class SettingService implements SettingPort, SettingAdminPort {
      * nơi DUY NHẤT ghi bảng settings" — đúng ở mức <i>lớp</i>, sai ở mức <i>phương thức</i>, và cái
      * sai đó không có bài kiểm nào chạm tới.
      */
-    private Setting apDung(Setting setting, String newValue) {
+    private Setting apDung(Setting setting, String newValue, boolean daXacThucLai) {
+        // ⛔⛔ Chốt chặn CUỐI của T61.42, đặt ở chỗ mọi đường ghi đi qua (luật 12). Lượt gọi từ nền (⛔ AuthContext)
+        //    ⛔ phải một người đang ngồi trước màn hình — ⛔ có gì để xác thực lại.
+        if (nhayCam(setting) && !daXacThucLai && AuthContext.current().isPresent()) {
+            throw new PermissionDeniedException(ErrorCode.ADM_2023);
+        }
         validator.validate(setting, newValue);
 
         String key = setting.getSettingKey();
-        String previous = setting.getSettingValue();
         setting.changeValue(khuTrung(setting, newValue));
         Setting saved = repository.save(setting);
         invalidate(key);
         events.publishEvent(new SettingChangedEvent(key, saved.getGroupCode()));
 
-        log.info("Đổi tham số '{}': '{}' → '{}'", key, previous, saved.getSettingValue());
+        // ⛔ T61.42: bản trước log NGUYÊN VĂN giá trị cũ → mới — tệp log có nhiều người đọc hơn màn hình cấu hình, và
+        //    ⛔ xoay vòng theo luật lưu nhật ký. Giá trị cũ/mới nay nằm ở `audit_logs` (@Audited trên Setting).
+        log.info("Đổi tham số '{}' (nhóm {})", key, saved.getGroupCode());
+        if (nhayCam(saved)) {
+            AuthContext.current()
+                    .ifPresent(ai -> securityEvents.record(
+                            SecurityEventType.SECURITY_SETTING_CHANGED,
+                            ai.username(),
+                            ai.userId(),
+                            ClientInfo.unknown(),
+                            "{\"key\":\"%s\",\"group\":\"%s\"}".formatted(key, saved.getGroupCode())));
+        }
         return saved;
     }
 
@@ -283,6 +340,21 @@ public class SettingService implements SettingPort, SettingAdminPort {
      */
     @Transactional
     public ImportResult importConfiguration(Map<String, String> incoming) {
+        return importConfiguration(incoming, false);
+    }
+
+    /** Bộ cấu hình nhập vào có ĐỔI khoá nào thuộc nhóm nhạy cảm không — controller hỏi trước khi xác thực lại. */
+    @Transactional(readOnly = true)
+    public boolean nhapCanXacThucLai(Map<String, String> incoming) {
+        return incoming.entrySet().stream().anyMatch(e -> repository
+                .findBySettingKey(e.getKey())
+                .filter(st -> st.isEditable() && st.isExportable() && nhayCam(st))
+                .filter(st -> !Objects.equals(st.getSettingValue(), e.getValue()))
+                .isPresent());
+    }
+
+    @Transactional
+    public ImportResult importConfiguration(Map<String, String> incoming, boolean daXacThucLai) {
         List<Setting> toApply = new ArrayList<>();
         List<String> skipped = new ArrayList<>();
 
@@ -303,7 +375,7 @@ public class SettingService implements SettingPort, SettingAdminPort {
             if (!Objects.equals(setting.getSettingValue(), value)) {
                 // Đi qua apDung() chứ không tự ghi: khử trùng HTML và đánh thức đệm của các module
                 // khác đều nằm trong đó. Bản trước tự ghi ở đây và mất cả hai.
-                apDung(setting, value);
+                apDung(setting, value, daXacThucLai);
                 changed++;
             }
         }

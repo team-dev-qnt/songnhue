@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.songnhue.core.application.job.JobTypes;
 import com.songnhue.core.domain.attachment.Attachment;
+import com.songnhue.core.domain.attachment.ScanStatus;
 import com.songnhue.core.infra.attachment.AttachmentRepository;
 import com.songnhue.core.infra.storage.ObjectStorage;
 import com.songnhue.core.spi.JobContext;
@@ -89,10 +90,15 @@ public class VirusScanHandler implements JobHandler {
             return;
         }
 
-        byte[] content = storage.get(attachment.getStorageBucket(), attachment.getStorageKey());
-        String verdict = scan(content);
+        String verdict = quet(attachment);
 
-        if (verdict.contains("OK") && !verdict.contains("FOUND")) {
+        KetLuan ketLuan = phanLoai(verdict);
+        if (ketLuan == KetLuan.LOI) {
+            // Ném để worker thử lại và ghi nguyên văn vào `jobs.last_error`. Tệp giữ UPLOADING ⇒ ⛔ tải
+            // xuống được (đóng an toàn) mà cũng ⛔ bị gắn nhãn nhiễm.
+            throw new IllegalStateException("ClamAV ⛔ kết luận được tệp " + attachment.getPublicId() + ": " + verdict);
+        }
+        if (ketLuan == KetLuan.SACH) {
             attachment.markClean();
             log.info("Tệp {} sạch — chuyển sang tải xuống được", attachment.getPublicId());
         } else {
@@ -101,6 +107,64 @@ public class VirusScanHandler implements JobHandler {
             log.error("⚠ Tệp {} nhiễm mã độc, đã cách ly: {}", attachment.getPublicId(), verdict);
         }
         repository.save(attachment);
+    }
+
+    /** T61.24 — hết lượt thử mà máy quét vẫn ⛔ kết luận được ⇒ {@code ERROR}, ⛔ kẹt {@code UPLOADING}. */
+    @Override
+    @Transactional
+    public void khiHetLuotThu(String payload, String loi) {
+        long attachmentId;
+        try {
+            attachmentId = objectMapper.readTree(payload).path("attachmentId").asLong();
+        } catch (RuntimeException e) {
+            log.error("Payload VIRUS_SCAN hỏng, ⛔ ghi được ERROR: {}", payload, e);
+            return;
+        }
+        repository.findById(attachmentId).ifPresent(a -> {
+            if (a.getScanStatus() == ScanStatus.PENDING) {
+                a.markScanError(loi);
+                repository.save(a);
+                log.error("⚠ Tệp {} quét virus hỏng hết lượt thử — ghi ERROR: {}", a.getPublicId(), loi);
+            }
+        });
+    }
+
+    /** Có máy quét để gọi không — {@code QuetLaiTepService} ⛔ đặt job khi chưa có. */
+    boolean daCauHinh() {
+        return host != null && !host.isBlank();
+    }
+
+    /** Một lượt INSTREAM trên nội dung tệp — trả nguyên văn phản hồi. */
+    String quet(Attachment attachment) throws IOException {
+        byte[] content = storage.get(attachment.getStorageBucket(), attachment.getStorageKey());
+        return scan(content);
+    }
+
+    /** Ba kết cục của một lượt INSTREAM. */
+    enum KetLuan {
+        SACH,
+        NHIEM,
+        LOI
+    }
+
+    /**
+     * Đọc phản hồi của clamd — T61.4.
+     *
+     * <p>⛔⛔ Bản cũ là {@code contains("OK") && !contains("FOUND")} ⇒ MỌI thứ khác đều là "nhiễm". Đo
+     * 14/09/2026 trên {@code clamav/clamav:1.4.6-debian}: một ZIP <b>sạch</b> 115 MB (hệ cho tải lên
+     * tới 120 MB) nhận {@code INSTREAM size limit exceeded. ERROR} khi trần luồng để mặc định ⇒ tệp
+     * sạch bị cách ly kèm một dòng log <i>"nhiễm mã độc"</i>. "Máy quét ⛔ quét được" và "tệp có mã
+     * độc" là hai trạng thái khác nhau (luật 9).
+     */
+    static KetLuan phanLoai(String verdict) {
+        String v = verdict == null ? "" : verdict.strip();
+        if (v.endsWith(" FOUND")) {
+            return KetLuan.NHIEM;
+        }
+        if (v.endsWith(": OK")) {
+            return KetLuan.SACH;
+        }
+        return KetLuan.LOI;
     }
 
     /**

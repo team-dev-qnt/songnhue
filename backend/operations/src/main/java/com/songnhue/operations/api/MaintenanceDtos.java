@@ -130,6 +130,11 @@ public final class MaintenanceDtos {
             String itemOrEquipment,
             String performer,
             boolean performerIsInternal,
+            /*
+             * T61.18 — publicId của đơn vị nội bộ, để lối SỬA nạp lại đúng ô chọn. Thiếu nó thì biểu mẫu
+             * sửa ⛔ có gì gửi lại cho `performerOrgUnitId` ⇒ OPS-2017 (thiếu cả hai) hoặc đổi đơn vị.
+             */
+            UUID performerOrgUnitId,
             BigDecimal cost,
             String fundingSource,
             AcceptanceResult acceptanceResult,
@@ -144,6 +149,7 @@ public final class MaintenanceDtos {
                 String constructionName,
                 UUID constructionPublicId,
                 String performerName,
+                UUID performerOrgUnitPublicId,
                 UUID assigneePublicId) {
             return new MaintenanceRow(
                     m.getPublicId(),
@@ -160,6 +166,7 @@ public final class MaintenanceDtos {
                     m.getItemOrEquipment(),
                     performerName,
                     m.getPerformerOrgUnitId() != null,
+                    performerOrgUnitPublicId,
                     m.getCost(),
                     m.getFundingSource(),
                     m.getAcceptanceResult(),
