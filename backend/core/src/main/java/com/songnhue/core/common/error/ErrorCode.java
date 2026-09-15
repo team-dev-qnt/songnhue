@@ -566,7 +566,29 @@ public enum ErrorCode {
      */
     ADM_2020("ADM-2020", HttpStatus.FORBIDDEN),
     /** Tự đặt lại 2FA của chính mình — đúng thao tác kẻ chiếm phiên muốn làm (T61.30). */
-    ADM_2021("ADM-2021", HttpStatus.FORBIDDEN);
+    ADM_2021("ADM-2021", HttpStatus.FORBIDDEN),
+    /**
+     * Cấp cho một vai trò/tài khoản quyền mà NGƯỜI THAO TÁC ⛔ có — T54.4.
+     *
+     * <p>ADMIN mang {@code adm:role:manage} và vai trò ADMIN {@code is_system = FALSE} ⇒ trước bản vá, ba cú bấm là
+     * tự thêm {@code hr:employee:view-sensitive} (quyền đặc tả loại trừ ADMIN tường minh). Trần cấp quyền = tập quyền
+     * của chính người cấp.
+     */
+    ADM_2022("ADM-2022", HttpStatus.FORBIDDEN),
+    /**
+     * Thao tác nhạy cảm đòi nhập lại mã xác thực hai bước NGAY LÚC NÀY — T61.42/T61.44.
+     *
+     * <p>Thiếu mã, hoặc tài khoản chưa đăng ký 2FA. Mã SAI vẫn là {@code AUTH-0004} (và bị đếm vào khoá tài khoản).
+     */
+    ADM_2023("ADM-2023", HttpStatus.FORBIDDEN),
+    /**
+     * Mã xác thực hai bước nhập lại cho thao tác nhạy cảm KHÔNG đúng — T61.42.
+     *
+     * <p>⛔⛔ Cố ý ⛔ dùng {@code AUTH-0004} (401) như bước đăng nhập: giao diện đọc MỌI 401 là "phiên hết hạn" ⇒ làm
+     * mới token rồi GỬI LẠI cùng mã sai (lượt sai bị đếm HAI lần) ⇒ 401 lần nữa ⇒ xoá phiên, đá người dùng ra màn
+     * hình đăng nhập. Đường khôi phục CSDL mang đúng khuyết tật ấy từ WS-7 tới 15/09/2026.
+     */
+    ADM_2024("ADM-2024", HttpStatus.FORBIDDEN);
 
     private final String code;
     private final HttpStatus status;

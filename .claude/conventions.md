@@ -296,6 +296,9 @@ Format: `<PREFIX>-<4 số>` — prefix theo module: `SYS` (hệ thống), `AUTH`
 | ADM-2019 | 422 | Job mã hoá lại sang khoá AES mới còn hàng chưa đổi — chưa được gỡ khoá cũ (T61.11; chỉ ở `jobs.last_error`) |
 | ADM-2020 | 403 | Tự xoá tài khoản của chính mình (T61.21) |
 | ADM-2021 | 403 | Tự đặt lại 2FA của chính mình (T61.30) |
+| ADM-2022 | 403 | Cấp quyền/vai trò mà chính người cấp ⛔ có (T54.4) |
+| ADM-2023 | 403 | Thao tác nhạy cảm thiếu mã 2FA nhập lại / tài khoản chưa đăng ký 2FA (T61.42) |
+| ADM-2024 | 403 | Mã 2FA nhập lại sai — ⛔ 401, xem `XacThucLaiService` (T61.42) |
 
 > ⚠ **Đã gỡ (12/8/2026)**: `OPS-2001` cũ ("nhập bù tối đa 3 ngày") và `OPS-2003` cũ ("lưu lượng vượt 120% thiết kế") — thuộc nhật ký vận hành đã bỏ khỏi scope. Hai mã này **đã được tái sử dụng** cho rule mới ở bảng trên; khi đọc code/log cũ phải chú ý.
 > ℹ **Không phải lỗi**: lượt polling bị bỏ qua do rate-limit (`sync_logs = SKIPPED_UP_TO_DATE`, chốt G3) **không** sinh error code, không alert — chỉ ghi log DEBUG.

@@ -14,6 +14,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import com.songnhue.core.spi.BiMatTichHopPort;
+import com.songnhue.core.spi.LoaiBiMat;
+
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -59,12 +62,12 @@ public class RecaptchaClient {
     /** Ngắn: người dân đang chờ nút Gửi phản hồi, ⛔ không phải một job nền. */
     private static final Duration HAN = Duration.ofSeconds(5);
 
-    private final RecaptchaProperties properties;
+    private final BiMatTichHopPort khoa;
     private final ObjectMapper objectMapper;
     private final HttpClient client;
 
-    public RecaptchaClient(RecaptchaProperties properties, ObjectMapper objectMapper) {
-        this.properties = properties;
+    public RecaptchaClient(BiMatTichHopPort khoa, ObjectMapper objectMapper) {
+        this.khoa = khoa;
         this.objectMapper = objectMapper;
         this.client = HttpClient.newBuilder()
                 .connectTimeout(HAN)
@@ -87,7 +90,9 @@ public class RecaptchaClient {
             return false;
         }
         try {
-            String than = "secret=" + URLEncoder.encode(properties.getSecret(), StandardCharsets.UTF_8) + "&response="
+            // T61.44: khoá đọc lúc DÙNG — đặt trên giao diện (mã hoá) hoặc mồi từ .env. ⛔ Giữ trong biến cục bộ.
+            String biMat = khoa.giaTri(LoaiBiMat.RECAPTCHA_SECRET_KEY).orElse("");
+            String than = "secret=" + URLEncoder.encode(biMat, StandardCharsets.UTF_8) + "&response="
                     + URLEncoder.encode(token, StandardCharsets.UTF_8);
 
             HttpResponse<String> ra = client.send(

@@ -428,6 +428,13 @@ export const MENU: readonly MenuNode[] = [
         permissions: ['adm:setting:view'],
       },
       {
+        key: 'tinh-trang-cau-hinh',
+        label: 'Tình trạng cấu hình',
+        icon: <SettingOutlined />,
+        path: '/quan-tri/tinh-trang-cau-hinh',
+        permissions: ['adm:system-config:view'],
+      },
+      {
         key: 'nhat-ky',
         label: 'Nhật ký kiểm toán',
         icon: <AuditOutlined />,

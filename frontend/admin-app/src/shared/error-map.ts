@@ -722,6 +722,25 @@ export const ERROR_CATALOG = {
     handling: 'toast',
     severity: 'error',
   },
+  'ADM-2022': {
+    // T54.4 — trần cấp quyền = tập quyền của chính người cấp. Câu từ máy chủ mang danh sách quyền bị từ chối.
+    message: 'Không cấp được quyền mà chính bạn không có.',
+    handling: 'toast',
+    severity: 'error',
+  },
+  'ADM-2023': {
+    // T61.42 — `caller`: màn hình gọi mở hộp thoại nhập mã, ⛔ để một toast trôi mất.
+    message: 'Thao tác này cần nhập lại mã xác thực hai bước từ ứng dụng xác thực.',
+    handling: 'caller',
+    severity: 'warning',
+  },
+  'ADM-2024': {
+    // ⛔ 403 chứ ⛔ 401: 401 làm apiClient tưởng mất phiên, gửi lại mã sai rồi đá người dùng ra ngoài.
+    message:
+      'Mã xác thực hai bước không đúng hoặc đã dùng rồi — nhập sai nhiều lần sẽ khoá tạm tài khoản.',
+    handling: 'caller',
+    severity: 'warning',
+  },
 } as const satisfies Record<string, ErrorEntry>;
 
 export type ErrorCode = keyof typeof ERROR_CATALOG;

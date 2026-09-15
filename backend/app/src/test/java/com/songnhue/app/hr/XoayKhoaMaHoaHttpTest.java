@@ -53,6 +53,7 @@ class XoayKhoaMaHoaHttpTest extends IntegrationTestBase {
     private static final String MA_NGUON = "KTXK_NGUON";
     private static final String MA_SO_NGUON = "ma-so-thu;";
     private static final String BI_MAT_TOTP = "JBSWY3DPEHPK3PXP";
+    private static final String BI_MAT_TICH_HOP = "khoa-bi-mat-recaptcha-xoay-khoa";
 
     @Autowired
     private TestHttp http;
@@ -152,7 +153,7 @@ class XoayKhoaMaHoaHttpTest extends IntegrationTestBase {
     }
 
     @Test
-    @DisplayName("⭐⭐ Job đổi MỌI bản mã + vân tay ở cả ba bảng sang khoá mới, giá trị giữ nguyên")
+    @DisplayName("⭐⭐ Job đổi MỌI bản mã + vân tay ở cả bốn bảng sang khoá mới, giá trị giữ nguyên")
     void jobDoiHetSangKhoaMoi() {
         UUID a = taoHoSo("JOB");
         luu(a, "001299990003", HttpStatus.NO_CONTENT);
@@ -167,16 +168,21 @@ class XoayKhoaMaHoaHttpTest extends IntegrationTestBase {
                 "INSERT INTO user_totp (user_id, secret_encrypted, key_id) VALUES (?, ?, 'v1')",
                 userId,
                 crypto.encrypt(BI_MAT_TOTP));
+        // T61.44 — bảng bí mật tích hợp khai `MaHoaLaiJdbc` thứ tư; ⛔ có hàng thì bài này ⛔ chứng minh nó được đổi.
+        jdbc.update("DELETE FROM integration_secrets WHERE secret_code = 'RECAPTCHA_SECRET_KEY'");
+        jdbc.update(
+                "INSERT INTO integration_secrets (secret_code, ciphertext) VALUES ('RECAPTCHA_SECRET_KEY', ?)",
+                crypto.encrypt(BI_MAT_TICH_HOP));
 
         datKhoa("v2");
         assertThat(maHoaLai.conKhoaCu())
-                .as("⛔ Cả BA bảng phải có người khai — thiếu một bảng thì gỡ khoá cũ làm nó ⛔ đọc lại được")
-                .containsKeys("employee_sensitive", "api_sources", "user_totp")
+                .as("⛔ Cả BỐN bảng phải có người khai — thiếu một bảng thì gỡ khoá cũ làm nó ⛔ đọc lại được")
+                .containsKeys("employee_sensitive", "api_sources", "user_totp", "integration_secrets")
                 .allSatisfy((bang, n) -> assertThat(n).as(bang).isPositive());
 
         MaHoaLaiService.KetQua kq = maHoaLai.chay(p -> {});
 
-        assertThat(kq.soDoi()).as("%s", kq).isGreaterThanOrEqualTo(3);
+        assertThat(kq.soDoi()).as("%s", kq).isGreaterThanOrEqualTo(4);
         // Hàng CỦA bài này — ⛔ khẳng định toàn cục `conLai == 0` vì bảng dùng chung với lớp khác.
         assertThat(jdbc.queryForList(
                         """
@@ -202,6 +208,13 @@ class XoayKhoaMaHoaHttpTest extends IntegrationTestBase {
                             .isEqualTo(BI_MAT_TOTP);
                     assertThat(m.get("key_id")).as("cột chết vẫn ghi cho khớp").isEqualTo("v2");
                 });
+
+        assertThat(jdbc.queryForObject(
+                        "SELECT ciphertext FROM integration_secrets WHERE secret_code = 'RECAPTCHA_SECRET_KEY'",
+                        String.class))
+                .startsWith("v2:")
+                .satisfies(c -> assertThat(crypto.decrypt(c)).isEqualTo(BI_MAT_TICH_HOP));
+        jdbc.update("DELETE FROM integration_secrets WHERE secret_code = 'RECAPTCHA_SECRET_KEY'");
 
         // Giá trị đọc qua HTTP giữ nguyên — ⛔ chỉ tiền tố đổi.
         ResponseEntity<String> doc = phienHttp.get(phien, duong(a));

@@ -599,7 +599,7 @@ Cột **fail-fast** = có dừng ứng dụng không. `⛔ im lặng` là loại
 | `APP_ENVIRONMENT` | `production` | im lặng | thiếu ⇒ metric staging và production lẫn nhau ở Prometheus |
 | `SHEDLOCK_ENABLED` | `false` | im lặng | v1 chạy 1 node; bật khi lên ≥2 node |
 | `WORKER_ENABLED` | `true` | im lặng | tắt = hàng đợi công việc không ai chạy |
-| `APP_BASE_URL` | *(bỏ qua)* | — | ⚠ **không dòng mã nào đọc** — biến mồ côi, để nguyên cũng được |
+| ~~`APP_BASE_URL`~~ | *(gỡ khỏi `.env`)* | — | ⛔ **Đã gỡ khỏi tệp mẫu 15/09/2026 (T61.45)** — 0 dòng mã đọc. Còn trên máy chủ thì xoá dòng ấy |
 
 #### PostgreSQL
 
@@ -683,7 +683,7 @@ Cột **fail-fast** = có dừng ứng dụng không. `⛔ im lặng` là loại
 | `LOG_STRUCTURED_FORMAT` | `ecs` | JSON cho bộ thu thập tập trung |
 | `LOG_MAX_HISTORY` / `LOG_TOTAL_SIZE_CAP` | `30` / `3GB` | trần cứng — **đĩa đầy thì `pg_dump` hỏng theo** |
 | `HYDRO_API_KEY` | *(Công ty cấp — có thể để trống)* | chỉ là giá trị **mồi** cho lượt triển khai đầu. Nhà thật của mã số là cột `api_sources.credential` (AES-256-GCM), sửa trên màn hình *Nguồn dữ liệu*. ⚠ **dấu `;` cuối là một phần của giá trị** |
-| `EXTERNAL_DOC_SYSTEM_URL` · `EXTERNAL_DOC_SYSTEM_ENABLED` · `GOOGLE_MAPS_API_KEY` | *(bỏ qua)* | ⚠ **không dòng mã nào đọc** — ba biến mồ côi, chờ chốt BOQ G5/G13 |
+| ~~`EXTERNAL_DOC_SYSTEM_URL` · `EXTERNAL_DOC_SYSTEM_ENABLED` · `GOOGLE_MAPS_API_KEY`~~ | *(gỡ khỏi `.env`)* | ⛔ **0 dòng mã đọc — đã gỡ khỏi tệp mẫu (08/09 và 15/09/2026)**. Còn trên máy chủ thì xoá |
 
 ⛔ **Hai công tắc nới bảo mật — KHÔNG khai ở production, kể cả với giá trị `false`:**
 `HYDRO_API_ALLOW_INTERNAL_HOST` (bật = nới SSRF cho `127.0.0.1`/`10.*`) và `HYDRO_API_MOCK` (bật =

@@ -1,6 +1,7 @@
 # Sự kiện bảo mật
 
-> Cảnh báo `PhatHienDungLaiRefreshToken` · `TruyCapNgoaiPhamViDonVi` · `DangNhapSaiDonDap`.
+> Cảnh báo `PhatHienDungLaiRefreshToken` · `TruyCapNgoaiPhamViDonVi` · `DangNhapSaiDonDap` ·
+> `DoiCauHinhBaoMat` · `CapQuyenVuotQuyenBiChan`.
 >
 > Nguồn: bảng `security_events` (append-only — `songnhue_app` **không có** `UPDATE`/`DELETE`) và
 > bộ đếm `songnhue_security_events_total`. Danh mục loại sự kiện + mức nghiêm trọng:
@@ -103,6 +104,28 @@ SELECT ip_address, count(*), count(DISTINCT username) AS so_tai_khoan_bi_thu
 Không phải "lỗi", nhưng là những thao tác cả đội phải biết ngay. Mọi thao tác khôi phục đều có `reason`
 trong `detail` — nếu không khớp với việc đã được lên kế hoạch thì xử lý như sự cố an ninh nghiêm
 trọng, và đọc [khoi-phuc-du-lieu.md](khoi-phuc-du-lieu.md).
+
+---
+
+## 4b. `SECURITY_SETTING_CHANGED` / `INTEGRATION_SECRET_CHANGED` / `PERMISSION_GRANT_BLOCKED`
+
+Thêm 15/09/2026 (T54.4 · T61.42 · T61.44). Cả ba chỉ tới từ màn hình quản trị.
+
+- **Đổi tham số nhóm Bảo mật/Nhật ký/Sao lưu, hoặc đặt/xoá bí mật tích hợp.** Người thao tác đã nhập lại mã
+  2FA — nên câu hỏi ⛔ phải "ai đó đoán mò" mà là "người giữ tài khoản ấy có định làm việc này không". Hỏi thẳng
+  người đó. ⛔ Nhận ra ⇒ xử lý như tài khoản quản trị bị chiếm: khoá tài khoản, thu hồi mọi phiên, đặt lại 2FA
+  từ một tài khoản SUPER_ADMIN khác, rồi đọc `audit_logs` (`entity_type` = `Tham số cấu hình` / `Bí mật tích hợp`)
+  để khôi phục giá trị cũ.
+- **Cấp quyền vượt quyền bị chặn** (`ADM-2022`). `detail` ghi quyền bị từ chối. Một lượt lẻ có thể là bấm nhầm
+  trên ma trận phân quyền; nhiều lượt liên tiếp nhắm `hr:employee:view-sensitive`, `adm:system-config:*` hay vai
+  trò `SUPER_ADMIN` là dò đường leo thang.
+
+```sql
+SELECT occurred_at, event_type, username, ip_address, detail
+  FROM security_events
+ WHERE event_type IN ('SECURITY_SETTING_CHANGED', 'INTEGRATION_SECRET_CHANGED', 'PERMISSION_GRANT_BLOCKED')
+ ORDER BY occurred_at DESC LIMIT 50;
+```
 
 ---
 

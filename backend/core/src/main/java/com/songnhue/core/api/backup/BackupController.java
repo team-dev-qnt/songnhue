@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,10 +15,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.songnhue.core.application.auth.ClientInfo;
-import com.songnhue.core.application.auth.TotpService;
+import com.songnhue.core.application.auth.XacThucLaiService;
 import com.songnhue.core.application.backup.BackupService;
 import com.songnhue.core.application.backup.RestoreService;
-import com.songnhue.core.application.identity.UserAdminService;
 import com.songnhue.core.application.job.JobService;
 import com.songnhue.core.application.job.JobTypes;
 import com.songnhue.core.common.config.BackupProperties;
@@ -28,7 +28,6 @@ import com.songnhue.core.common.security.AuthenticatedUser;
 import com.songnhue.core.common.security.RequirePermission;
 import com.songnhue.core.domain.backup.BackupStatus;
 import com.songnhue.core.domain.backup.SystemBackup;
-import com.songnhue.core.domain.identity.User;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -51,22 +50,19 @@ public class BackupController {
     private final RestoreService restoreService;
     private final BackupProperties properties;
     private final JobService jobService;
-    private final TotpService totpService;
-    private final UserAdminService userAdminService;
+    private final XacThucLaiService xacThucLai;
 
     public BackupController(
             BackupService backupService,
             RestoreService restoreService,
             BackupProperties properties,
             JobService jobService,
-            TotpService totpService,
-            UserAdminService userAdminService) {
+            XacThucLaiService xacThucLai) {
         this.backupService = backupService;
         this.restoreService = restoreService;
         this.properties = properties;
         this.jobService = jobService;
-        this.totpService = totpService;
-        this.userAdminService = userAdminService;
+        this.xacThucLai = xacThucLai;
     }
 
     @GetMapping("/status")
@@ -129,7 +125,9 @@ public class BackupController {
     @Operation(summary = "Khôi phục từ một bản sao lưu (M5.11) — Super Admin + mã 2FA + xác nhận")
     @RequirePermission("adm:backup:restore")
     public BackupDtos.JobAccepted restore(
-            @PathVariable java.util.UUID publicId, @Valid @RequestBody BackupDtos.RestoreRequest request) {
+            @PathVariable java.util.UUID publicId,
+            @Valid @RequestBody BackupDtos.RestoreRequest request,
+            HttpServletRequest httpRequest) {
 
         AuthenticatedUser current =
                 AuthContext.current().orElseThrow(() -> new PermissionDeniedException(ErrorCode.AUTH_3001));
@@ -138,8 +136,8 @@ public class BackupController {
             throw new PermissionDeniedException(ErrorCode.AUTH_3001);
         }
 
-        User user = userAdminService.get(current.publicId());
-        totpService.verifyLoginCode(user, request.totpCode(), ClientInfo.unknown(), java.time.Instant.now());
+        // T61.42: đếm lượt sai + 403 thay 401 — xem XacThucLaiService.
+        xacThucLai.xacThuc(request.totpCode(), ClientInfo.from(httpRequest));
 
         SystemBackup backup = restoreService.validateRequest(publicId, request.confirmation(), request.reason());
 

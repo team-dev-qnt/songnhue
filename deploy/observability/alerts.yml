@@ -169,6 +169,27 @@ groups:
           summary: "Có thao tác KHÔI PHỤC CSDL đang diễn ra"
           runbook: docs/runbook/khoi-phuc-du-lieu.md
 
+      - alert: DoiCauHinhBaoMat
+        # T61.42 / T61.44 — đổi tham số nhóm SECURITY/AUDIT/BACKUP hoặc bí mật tích hợp. Đã qua mã 2FA
+        # nhập lại, nhưng một phiên bị chiếm có mã 2FA vẫn làm được: chuông phải kêu ở kênh ⛔ nằm
+        # trong tay ứng dụng (kẻ chiếm tài khoản quản trị ⛔ tắt được Alertmanager từ giao diện).
+        expr: increase(songnhue_security_events_total{type=~"SECURITY_SETTING_CHANGED|INTEGRATION_SECRET_CHANGED"}[5m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Cấu hình bảo mật hoặc bí mật tích hợp vừa bị đổi trên giao diện"
+          runbook: docs/runbook/su-kien-bao-mat.md
+
+      - alert: CapQuyenVuotQuyenBiChan
+        # T54.4 — một tài khoản quản trị thử cấp quyền/vai trò mình ⛔ có. Hệ đã chặn (ADM-2022), nhưng đó
+        # là đúng hình dạng một phiên bị chiếm đang dò đường leo thang.
+        expr: increase(songnhue_security_events_total{type="PERMISSION_GRANT_BLOCKED"}[10m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Có lượt cấp quyền vượt quyền của chính người cấp bị chặn"
+          runbook: docs/runbook/su-kien-bao-mat.md
+
   # ---------------------------------------------------------------------------
   # 5. Ứng dụng còn sống không
   # ---------------------------------------------------------------------------

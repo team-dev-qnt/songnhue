@@ -36,6 +36,9 @@ public final class FilterOrder {
     /** [1a] {@code Cache-Control: no-store} cho API riêng tư — T61.35. Trước hạn mức/xác thực để cả 401/429 mang header. */
     public static final int KHONG_LUU_DEM = 12;
 
+    /** [1b] Ghi mốc Prometheus đọc {@code /actuator/prometheus} gần nhất — T61.41. Chỉ quan sát, ⛔ chặn gì. */
+    public static final int DAU_VET_CHI_SO = 13;
+
     public static final int REQUEST_LOG = 15;
 
     public static final int RATE_LIMIT = 20;

@@ -408,6 +408,11 @@ export const router = createBrowserRouter([
             lazyPage(() => import('@/features/admin/BackupPage'), 'BackupPage'),
           ),
           adminRoute(
+            '/quan-tri/tinh-trang-cau-hinh',
+            'adm:system-config:view',
+            lazyPage(() => import('@/features/admin/CauHinhHeThongPage'), 'CauHinhHeThongPage'),
+          ),
+          adminRoute(
             '/quan-tri/tinh-trang',
             'adm:health:view',
             lazyPage(() => import('@/features/admin/HealthPage'), 'HealthPage'),

@@ -41,7 +41,8 @@
 | A24 | `T61.29` | NFR-09 Playwright 3 engine × 4 bề rộng — staging công khai 140 xanh | P1 · NFR-09 | [~] QT cấp tài khoản đo |
 | A25 | `T61.30` · `T61.33` | ⛔⛔ Vượt 2FA bằng đăng ký lại · dò TOTP ⛔ khoá — vá + nút đặt lại 2FA | P0 · bảo mật | [x] |
 | A26 | `T61.32` · `T61.34` · `T61.35` | SVG chạy script · `javascript:` trong href · `no-store` | P0/P1 · bảo mật | [x] (T61.34 vế ghi ⬜) |
-| A27 | `T54.4` · `T61.31` · `T61.36`→`T61.40` | ADMIN tự cấp quyền 🔒 · đặt lại mật khẩu · khoảng trống ASVS còn lại | P1–P3 | [ ] |
+| A27 | `T61.31` · `T61.36`→`T61.40` | đặt lại mật khẩu · khoảng trống ASVS còn lại | P1–P3 | [ ] |
+| A28 | `T61.41`→`T61.46` | Cấu hình hệ thống từ giao diện: tình trạng + banner · xác thực lại 2FA · T54.4 · bí mật tích hợp · dọn env · script §B6 | P1 · NFR-05 | [x] |
 
 ---
 
@@ -106,6 +107,20 @@ Rồi ghi giờ bắt đầu **T37.1** (7 ngày lịch) ngay khi `hydro_readings
 | `T61.17` | **Xác nhận**: Công ty ra Internet qua MỘT IP công cộng? | từ một máy trong mạng Công ty: `curl -s https://api.ipify.org` trên 2–3 máy khác phòng — cùng một số là một NAT |
 
 ### B6. ⛔ TRƯỚC lượt đề bạt mang T61.4/T61.5 — thiếu biến là nginx ⛔ lên
+
+⭐ **15/09 — có script làm hộ phần lớn khối dưới** (`T61.46`), chạy TỪ MÁY ANH, ⛔ trên máy chủ:
+
+```bash
+tools/may-chu/dat-bien-b6.sh --thu   # chỉ đo + in việc sẽ làm
+tools/may-chu/dat-bien-b6.sh         # đặt thật: sao lưu .env, sinh token, hỏi 6 giá trị bằng ô ẩn
+# mã thoát 3 = còn thiếu (in danh sách) · chạy LẠI sau khi staging lên bản PR #135 để chép SMTP_*
+```
+
+Sau khi lên bản mới, mở **Quản trị › Tình trạng cấu hình** (SUPER_ADMIN): mục *Prometheus đọc được chỉ số*
+phải "Đã đặt" trong ~5 phút; banner đỏ trên layout biến mất khi hết mục CHẶN.
+Dọn thêm (`T61.45`): xoá các dòng `APP_BASE_URL` · `GOOGLE_MAPS_API_KEY` · `EXTERNAL_DOC_SYSTEM_*` ·
+`HYDRO_API_BASE_URL` khỏi `.env` hai máy (0 dòng mã đọc). `BOOTSTRAP_ADMIN_PASSWORD` còn trong `.env` ⇒ màn
+hình báo — gỡ đi.
 
 ```bash
 # VPS-1 (.env production) — IP công cộng của VPS-2 + token mới

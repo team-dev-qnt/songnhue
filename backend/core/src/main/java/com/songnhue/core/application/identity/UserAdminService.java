@@ -1,8 +1,11 @@
 package com.songnhue.core.application.identity;
 
 import java.time.Instant;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -328,6 +331,7 @@ public class UserAdminService implements UserDirectoryPort {
     @Transactional
     public void assignRoles(UUID publicId, List<String> roleCodes) {
         User user = require(publicId);
+        chanCapVaiTroVuotQuyen(user, roleCodes);
         userAdmin.replaceRoles(user.getId(), roleCodes, nguoiDangThaoTac());
 
         // Trả nợ WS-5: không có dòng này thì quyền mới (và quyền vừa bị gỡ) chỉ có hiệu lực sau
@@ -416,6 +420,9 @@ public class UserAdminService implements UserDirectoryPort {
         });
 
         List<String> khongTrung = permissionCodes.stream().distinct().toList();
+        // T54.4 — chỉ xét quyền THÊM MỚI: gỡ quyền mình ⛔ có khỏi vai trò là thu hẹp, ⛔ phải leo thang.
+        Set<String> dangCo = Set.copyOf(userAdmin.permissionsOfRole(roleCode));
+        chanVuotQuyen(khongTrung.stream().filter(q -> !dangCo.contains(q)).toList(), "role:" + roleCode);
         int daGan = userAdmin.replacePermissionsOfRole(roleCode, khongTrung, nguoiDangThaoTac());
         if (daGan != khongTrung.size()) {
             // ⛔ Về nguyên tắc không tới được: `maQuyenKhongCoThat` vừa chạy xong ở trên. Nếu tới
@@ -434,6 +441,57 @@ public class UserAdminService implements UserDirectoryPort {
     @Transactional(readOnly = true)
     public List<PermissionSummary> permissionCatalog() {
         return userAdmin.listPermissions();
+    }
+
+    /**
+     * ⛔⛔ T54.4 — trần cấp quyền = tập quyền của CHÍNH người cấp.
+     *
+     * <p>Đo 10/09/2026: ADMIN mang {@code adm:role:manage} + {@code adm:user:assign-role}, vai trò ADMIN
+     * {@code is_system = FALSE} ⇒ ba cú bấm là tự thêm {@code hr:employee:view-sensitive} (quyền đặc tả loại trừ ADMIN
+     * TƯỜNG MINH), hoặc tự gán vai trò {@code ADMIN_HR}. Mọi bảo đảm "vai trò X ⛔ làm được Y" khác đều đứng trên dòng
+     * này: ⛔ có nó thì người giữ quyền phân quyền là người giữ MỌI quyền.
+     *
+     * <p>Lượt gọi từ nền (⛔ {@code AuthContext}) đi qua — seed, job ⛔ phải một người đang leo thang.
+     */
+    private void chanVuotQuyen(Collection<String> quyenCanCap, String doiTuong) {
+        AuthContext.current().ifPresent(nguoiCap -> {
+            List<String> vuot = quyenCanCap.stream()
+                    .filter(q -> !nguoiCap.hasPermission(q))
+                    .distinct()
+                    .sorted()
+                    .toList();
+            if (!vuot.isEmpty()) {
+                securityEvents.record(
+                        SecurityEventType.PERMISSION_GRANT_BLOCKED,
+                        nguoiCap.username(),
+                        nguoiCap.userId(),
+                        ClientInfo.unknown(),
+                        "{\"target\":\"%s\",\"permissions\":\"%s\"}"
+                                .formatted(doiTuong.replace("\"", ""), String.join(",", vuot)));
+                throw new PermissionDeniedException(ErrorCode.ADM_2022, String.join(", ", vuot));
+            }
+        });
+    }
+
+    /**
+     * Vai trò THÊM MỚI cho tài khoản: người gán phải giữ đủ quyền của vai trò ấy, và vai trò hệ thống
+     * ({@code SUPER_ADMIN}) chỉ SUPER_ADMIN gán được — vai trò ấy là lối thoát cuối cùng của hệ (ADM-2014).
+     */
+    private void chanCapVaiTroVuotQuyen(User user, List<String> roleCodes) {
+        if (AuthContext.current().isEmpty()) {
+            return;
+        }
+        Set<String> dangCo = Set.copyOf(userAdmin.findRoleCodes(user.getId()));
+        Set<String> quyenCanCap = new LinkedHashSet<>();
+        for (String vaiTro :
+                roleCodes.stream().distinct().filter(v -> !dangCo.contains(v)).toList()) {
+            boolean heThong = userAdmin.laVaiTroHeThong(vaiTro).orElse(false);
+            if (heThong && !AuthContext.current().get().hasRole(vaiTro)) {
+                quyenCanCap.add("role:" + vaiTro);
+            }
+            quyenCanCap.addAll(userAdmin.permissionsOfRole(vaiTro));
+        }
+        chanVuotQuyen(quyenCanCap, "user:" + user.getUsername());
     }
 
     /** Id người đang thao tác cho cột {@code granted_by} — {@code null} khi lượt gọi đến từ nền. */

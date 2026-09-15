@@ -138,7 +138,28 @@ public enum SecurityEventType {
      * <p>⛔ {@code detail} chỉ ghi tên tài khoản và <b>mã</b> nhân viên — ⛔ không ghi họ tên, ⛔
      * không ghi bất kỳ trường 🔒 nào.
      */
-    ACCOUNT_EMPLOYEE_LINK_CHANGED(Severity.DANGER);
+    ACCOUNT_EMPLOYEE_LINK_CHANGED(Severity.DANGER),
+
+    // --- Cấu hình hệ thống từ giao diện (T54.4 · T61.42 · T61.44) ----------------
+    /**
+     * Một lượt cấp quyền/vai trò VƯỢT tập quyền của chính người cấp vừa bị chặn ({@code ADM-2022}).
+     *
+     * <p>WARNING chứ ⛔ DANGER: hệ đã chặn. Nhưng một tài khoản quản trị thử cấp quyền mình ⛔ có là đúng hình dạng
+     * một phiên bị chiếm đang dò đường leo thang — {@code detail} ghi mã quyền bị từ chối.
+     */
+    PERMISSION_GRANT_BLOCKED(Severity.WARNING),
+
+    /**
+     * Một tham số nhóm nhạy cảm ({@code SECURITY}, {@code AUDIT}, {@code BACKUP}) vừa đổi — đã qua xác thực lại.
+     *
+     * <p>Hạ độ dài mật khẩu, nới ngưỡng khoá tài khoản, tắt lịch sao lưu: mỗi thao tác là một bước chuẩn bị tấn công
+     * có vẻ ngoài của một lượt quản trị bình thường. ⛔ {@code detail} ghi khoá, ⛔ ghi giá trị (giá trị cũ/mới nằm ở
+     * {@code audit_logs}).
+     */
+    SECURITY_SETTING_CHANGED(Severity.DANGER),
+
+    /** Bí mật tích hợp (VD khoá bí mật reCAPTCHA) vừa ĐẶT hoặc XOÁ trên giao diện. ⛔ Không bao giờ ghi giá trị. */
+    INTEGRATION_SECRET_CHANGED(Severity.DANGER);
 
     private final Severity severity;
 

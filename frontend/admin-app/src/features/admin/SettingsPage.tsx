@@ -19,6 +19,7 @@ import { type ColumnsType } from 'antd/es/table';
 import { useMemo, useState } from 'react';
 
 import { useAuth } from '@/app/auth/useAuth';
+import { HopThoaiMaXacThuc } from '@/components/business/HopThoaiMaXacThuc';
 import { type SettingView } from '@/shared/api-types';
 import { ApiClientError, api } from '@/shared/apiClient';
 import { luuTep } from '@/shared/luuTep';
@@ -43,6 +44,35 @@ export function SettingsPage() {
   const { hasPermission } = useAuth();
   const [modalNhap, setModalNhap] = useState(false);
   const [vanBanNhap, setVanBanNhap] = useState('');
+  /**
+   * T61.42 — lượt ghi đang chờ mã 2FA. Nhóm SECURITY/AUDIT/BACKUP: mở hộp thoại TRƯỚC khi gửi (biết từ
+   * `canXacThucLai`). Nhập cấu hình: máy chủ mới biết bộ JSON có đổi khoá nhạy cảm không ⇒ mở khi nhận `ADM-2023`.
+   */
+  const [choXacThuc, setChoXacThuc] = useState<
+    | { loai: 'sua'; key: string; value: string }
+    | { loai: 'nhap'; values: Record<string, string> }
+    | null
+  >(null);
+  const [loiXacThuc, setLoiXacThuc] = useState<string | null>(null);
+
+  /** Lỗi của lượt ghi có thể là "cần mã" / "mã sai" — giữ hộp thoại mở và hiện câu lỗi ngay trong đó. */
+  const xuLyLoiGhi = (
+    caught: unknown,
+    choLai: NonNullable<typeof choXacThuc>,
+    macDinh: string,
+  ): void => {
+    if (
+      caught instanceof ApiClientError &&
+      (caught.code === 'ADM-2023' || caught.code === 'ADM-2024')
+    ) {
+      setChoXacThuc(choLai);
+      setLoiXacThuc(caught.code === 'ADM-2024' ? caught.message : null);
+      return;
+    }
+    setChoXacThuc(null);
+    setLoiXacThuc(null);
+    message.error(caught instanceof ApiClientError ? caught.message : macDinh);
+  };
 
   /**
    * Xuất bộ cấu hình ra tệp JSON — **M5.17**, và tới 31/08 nút này không tồn tại.
@@ -78,9 +108,14 @@ export function SettingsPage() {
    * nhiêu là để người vận hành tin rằng mọi thứ đã vào.
    */
   const nhap = useMutation({
-    mutationFn: (values: Record<string, string>) =>
-      api.post<{ changed: number; skippedKeys: string[] }>('/settings/import', { values }),
+    mutationFn: ({ values, maXacThuc }: { values: Record<string, string>; maXacThuc?: string }) =>
+      api.post<{ changed: number; skippedKeys: string[] }>('/settings/import', {
+        values,
+        maXacThuc,
+      }),
     onSuccess: (kq) => {
+      setChoXacThuc(null);
+      setLoiXacThuc(null);
       setModalNhap(false);
       setVanBanNhap('');
       void queryClient.invalidateQueries({ queryKey: ['settings'] });
@@ -90,8 +125,8 @@ export function SettingsPage() {
           : `Đã cập nhật ${kq.changed} tham số — bỏ qua ${kq.skippedKeys.length}: ${kq.skippedKeys.join(', ')}`,
       );
     },
-    onError: (error) =>
-      message.error(error instanceof ApiClientError ? error.message : 'Không nhập được cấu hình'),
+    onError: (error, bien) =>
+      xuLyLoiGhi(error, { loai: 'nhap', values: bien.values }, 'Không nhập được cấu hình'),
   });
   const canEdit = hasPermission('adm:setting:update');
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -102,9 +137,11 @@ export function SettingsPage() {
   });
 
   const update = useMutation({
-    mutationFn: ({ key, value }: { key: string; value: string }) =>
-      api.put<SettingView>(`/settings/${encodeURIComponent(key)}`, { value }),
+    mutationFn: ({ key, value, maXacThuc }: { key: string; value: string; maXacThuc?: string }) =>
+      api.put<SettingView>(`/settings/${encodeURIComponent(key)}`, { value, maXacThuc }),
     onSuccess: async (_result, variables) => {
+      setChoXacThuc(null);
+      setLoiXacThuc(null);
       message.success('Đã lưu — có hiệu lực ngay, không cần khởi động lại');
       setDrafts((current) => {
         const next = { ...current };
@@ -113,12 +150,25 @@ export function SettingsPage() {
       });
       await queryClient.invalidateQueries({ queryKey: ['settings'] });
     },
-    onError: (caught: unknown) => {
-      message.error(caught instanceof ApiClientError ? caught.message : 'Không lưu được tham số');
-    },
+    onError: (caught: unknown, bien) =>
+      xuLyLoiGhi(
+        caught,
+        { loai: 'sua', key: bien.key, value: bien.value },
+        'Không lưu được tham số',
+      ),
   });
 
   const groups = useMemo(() => groupByCode(settings.data ?? []), [settings.data]);
+
+  /** Nhóm nhạy cảm ⇒ hỏi mã trước; nhóm khác ⇒ gửi ngay. */
+  const luu = (row: SettingView, value: string) => {
+    if (row.canXacThucLai) {
+      setLoiXacThuc(null);
+      setChoXacThuc({ loai: 'sua', key: row.key, value });
+    } else {
+      update.mutate({ key: row.key, value });
+    }
+  };
 
   const columns: ColumnsType<SettingView> = [
     {
@@ -131,6 +181,13 @@ export function SettingsPage() {
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             {row.key}
           </Typography.Text>
+          {row.canXacThucLai && (
+            <Tooltip title="Nhóm nhạy cảm — lưu phải nhập lại mã xác thực hai bước và để lại sự kiện bảo mật">
+              <Tag color="orange" style={{ width: 'fit-content' }}>
+                Cần mã 2FA
+              </Tag>
+            </Tooltip>
+          )}
           {row.description && (
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
               {row.description}
@@ -180,7 +237,7 @@ export function SettingsPage() {
               type="link"
               disabled={!changed || !canEdit}
               loading={update.isPending}
-              onClick={() => update.mutate({ key: row.key, value: draft ?? '' })}
+              onClick={() => luu(row, draft ?? '')}
             >
               Lưu
             </Button>
@@ -188,7 +245,7 @@ export function SettingsPage() {
             <Button
               type="link"
               disabled={!canEdit || row.value === null}
-              onClick={() => update.mutate({ key: row.key, value: '' })}
+              onClick={() => luu(row, '')}
             >
               Về mặc định
             </Button>
@@ -251,7 +308,7 @@ export function SettingsPage() {
         onOk={() => {
           try {
             const doc = JSON.parse(vanBanNhap) as Record<string, string>;
-            nhap.mutate(doc);
+            nhap.mutate({ values: doc });
           } catch {
             // ⛔ Bắt ở đây thay vì để `mutate` ném: JSON hỏng là lỗi của người dán, không phải lỗi
             //    máy chủ, và một thông báo "SYS-0001" cho chuyện ấy là chỉ sai hướng.
@@ -270,6 +327,31 @@ export function SettingsPage() {
           placeholder='{"security.login.max-failed-attempts": "5", …}'
         />
       </Modal>
+
+      <HopThoaiMaXacThuc
+        open={choXacThuc !== null}
+        title={
+          choXacThuc?.loai === 'nhap' ? 'Xác nhận nhập cấu hình' : 'Xác nhận sửa tham số nhạy cảm'
+        }
+        moTa={
+          choXacThuc?.loai === 'nhap'
+            ? 'Bộ cấu hình này đổi tham số nhóm Bảo mật / Nhật ký / Sao lưu.'
+            : `Tham số "${choXacThuc?.loai === 'sua' ? choXacThuc.key : ''}" thuộc nhóm nhạy cảm.`
+        }
+        loi={loiXacThuc}
+        dangGui={update.isPending || nhap.isPending}
+        onHuy={() => {
+          setChoXacThuc(null);
+          setLoiXacThuc(null);
+        }}
+        onXacNhan={(maXacThuc) => {
+          if (choXacThuc?.loai === 'sua') {
+            update.mutate({ key: choXacThuc.key, value: choXacThuc.value, maXacThuc });
+          } else if (choXacThuc?.loai === 'nhap') {
+            nhap.mutate({ values: choXacThuc.values, maXacThuc });
+          }
+        }}
+      />
     </Card>
   );
 }
@@ -287,6 +369,9 @@ const GROUP_LABELS: Record<string, string> = {
   HR: 'Nhân sự',
   SYSTEM: 'Hệ thống',
   CMS: 'Cổng thông tin',
+  LIMIT: 'Hạn mức',
+  AUDIT: 'Nhật ký kiểm toán',
+  INTEGRATION: 'Tích hợp',
 };
 
 /** Ô nhập dựng theo `valueType` — kiểu sai thì người dùng gõ được thứ backend chắc chắn từ chối. */

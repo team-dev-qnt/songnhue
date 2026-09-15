@@ -289,6 +289,48 @@ export interface SettingView {
   validation: string | null;
   editable: boolean;
   exportable: boolean;
+  /** T61.42 — nhóm nhạy cảm (SECURITY/AUDIT/BACKUP): lưu phải kèm mã 2FA nhập lại. */
+  canXacThucLai: boolean;
+}
+
+// ---- Cấu hình hệ thống — T61.41 / T61.44 ----------------------------------------------------------
+
+export type TrangThaiCauHinh = 'DAT' | 'THIEU' | 'SAI' | 'NGOAI_TAM_NHIN' | 'KHONG_AP_DUNG';
+export type MucDoCauHinh = 'CHAN' | 'CANH_BAO' | 'THONG_TIN';
+
+/** ⛔ Không trường nào mang GIÁ TRỊ cấu hình — chỉ tình trạng. */
+export interface MucCauHinhView {
+  ma: string;
+  nhom: string;
+  ten: string;
+  trangThai: TrangThaiCauHinh;
+  mucDo: MucDoCauHinh;
+  nguoiDoc: string;
+  datO: string;
+  ghiChu: string;
+}
+
+export interface TongQuanCauHinhView {
+  muc: MucCauHinhView[];
+  soChan: number;
+  soCanhBao: number;
+}
+
+export interface TomTatCauHinhView {
+  soChan: number;
+  soCanhBao: number;
+}
+
+export type LoaiBiMat = 'RECAPTCHA_SECRET_KEY';
+
+export interface BiMatTinhTrangView {
+  loai: LoaiBiMat;
+  ten: string;
+  moTa: string;
+  nguon: 'GIAO_DIEN' | 'MOI_TRUONG' | 'CHUA_CO';
+  giaiMaDuoc: boolean;
+  coGiaTriMoi: boolean;
+  capNhatLuc: string | null;
 }
 
 export interface SettingImportResult {

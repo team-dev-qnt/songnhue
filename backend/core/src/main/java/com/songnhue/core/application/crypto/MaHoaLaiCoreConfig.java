@@ -23,4 +23,10 @@ class MaHoaLaiCoreConfig {
     MaHoaLaiPort maHoaLaiUserTotp(JdbcTemplate jdbc, PlatformTransactionManager tx, CryptoService crypto) {
         return new MaHoaLaiJdbc("user_totp", List.of("secret_encrypted"), null, null, "key_id", jdbc, tx, crypto);
     }
+
+    /** Bí mật tích hợp sửa trên giao diện — T61.44. ⛔ Quên khai ⇒ gỡ khoá cũ sau xoay khoá là mất bí mật. */
+    @Bean
+    MaHoaLaiPort maHoaLaiBiMatTichHop(JdbcTemplate jdbc, PlatformTransactionManager tx, CryptoService crypto) {
+        return new MaHoaLaiJdbc("integration_secrets", List.of("ciphertext"), null, null, null, jdbc, tx, crypto);
+    }
 }
