@@ -192,7 +192,9 @@ public class UserAdminController {
     @Operation(summary = "Liên kết tài khoản với hồ sơ CBNV — thân rỗng là gỡ liên kết")
     @RequirePermission("adm:user:update")
     public UserDtos.UserView lienKetHoSo(
-            @PathVariable UUID publicId, @RequestBody UserDtos.HoSoRequest request, HttpServletRequest httpRequest) {
+            @PathVariable UUID publicId,
+            @Valid @RequestBody UserDtos.HoSoRequest request,
+            HttpServletRequest httpRequest) {
 
         User user = userAdminService.lienKetHoSo(publicId, request.employeePublicId(), ClientInfo.from(httpRequest));
         return UserDtos.UserView.of(user, userAdminService.hoSoNhanSuCua(user).orElse(null));
@@ -247,7 +249,7 @@ public class UserAdminController {
                 @NotBlank @Size(max = 255) String fullName,
                 @Size(max = 255) String email,
                 @NotNull UUID orgUnitPublicId,
-                @NotBlank String temporaryPassword) {}
+                @NotBlank @Size(max = 200) String temporaryPassword) {}
 
         public record UpdateRequest(
                 @NotBlank @Size(max = 255) String fullName,
@@ -257,7 +259,7 @@ public class UserAdminController {
         public record StatusRequest(@NotNull UserStatus status) {}
 
         /** ⛔ {@code toString} mặc định in cả mật khẩu tạm — ghi đè để một dòng log lỡ tay ⛔ mang nó. */
-        public record DatLaiMatKhauRequest(@NotBlank String matKhauTam, String maXacThuc) {
+        public record DatLaiMatKhauRequest(@NotBlank @Size(max = 200) String matKhauTam, String maXacThuc) {
             @Override
             public String toString() {
                 return "DatLaiMatKhauRequest[đã ẩn]";

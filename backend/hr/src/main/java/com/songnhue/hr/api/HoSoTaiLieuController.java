@@ -29,6 +29,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.ValidationException;
 import com.songnhue.core.common.security.RequirePermission;
+import com.songnhue.core.common.util.HttpHeaderText;
 import com.songnhue.core.spi.AttachmentRef;
 import com.songnhue.hr.application.CanhBaoHetHanService;
 import com.songnhue.hr.application.HoSoTaiLieuService;
@@ -160,7 +161,9 @@ public class HoSoTaiLieuController {
         Files.deleteIfExists(tam);
 
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"ho-so-" + chuanBi.maHoSo() + ".zip\"")
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        HttpHeaderText.contentDisposition("ho-so-" + chuanBi.maHoSo() + ".zip"))
                 .contentLength(co)
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(new InputStreamResource(luong));

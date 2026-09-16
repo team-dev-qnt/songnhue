@@ -454,9 +454,7 @@ public class PublicPortalController {
                         .immutable())
                 // `inline` để ảnh hiện trong trang thay vì bật hộp thoại tải về. Tên gốc chỉ để
                 // người dùng thấy tên có nghĩa khi họ chủ động lưu tệp.
-                .header(
-                        HttpHeaders.CONTENT_DISPOSITION,
-                        "inline; filename=\"" + HttpHeaderText.tenTepAnToan(tep.originalName()) + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, HttpHeaderText.contentDispositionInline(tep.originalName()))
                 .body(PhatTepTrucTiep.cua(tep));
     }
 

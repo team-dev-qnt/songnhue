@@ -44,6 +44,9 @@ class KhongLuuDemHttpTest extends IntegrationTestBase {
         ResponseEntity<String> co = may.get(phien, "/api/v1/auth/me");
         assertThat(co.getStatusCode().value()).isEqualTo(200);
         assertThat(co.getHeaders().getCacheControl()).contains("no-store");
+        // T61.40 (ASVS 14.4.1) — `nosniff` cho phản hồi API: hai image FE đặt header này cho nội dung
+        //   của CHÚNG, ⛔ image nào phục vụ `/api/**`, và nginx biên cố ý ⛔ đặt hộ (một header một chủ).
+        assertThat(co.getHeaders().getFirst("X-Content-Type-Options")).isEqualTo("nosniff");
 
         HttpHeaders trong = new HttpHeaders();
         trong.set("X-Real-IP", "198.51.100.135");

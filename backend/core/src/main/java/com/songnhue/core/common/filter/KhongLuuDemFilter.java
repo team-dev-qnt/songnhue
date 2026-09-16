@@ -43,6 +43,11 @@ public class KhongLuuDemFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         response.setHeader("Cache-Control", "no-store");
         response.setHeader("Pragma", "no-cache");
+        // ⛔⛔ T61.40 (ASVS 14.4.1) — `nosniff` cho phản hồi API. Hai image FE đã đặt header này cho
+        //   nội dung của chúng, nhưng ⛔ image nào phục vụ `/api/**`: phản hồi JSON của backend đi
+        //   thẳng qua nginx (tệp `edge-headers.conf` cố ý ⛔ đặt hộ — mỗi header một nơi chịu trách
+        //   nhiệm). ⇒ Chủ của header này là chính backend, và chỗ đặt là bộ lọc đã phủ đúng phạm vi.
+        response.setHeader("X-Content-Type-Options", "nosniff");
         chain.doFilter(request, response);
     }
 }

@@ -1,4 +1,4 @@
-package com.songnhue.hr.application;
+package com.songnhue.core.common.util;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -12,22 +12,21 @@ import org.junit.jupiter.api.Test;
  * chỉ ngẫu nhiên hoá KHOÁ lưu trữ. Một tệp tên {@code ../../../../.bashrc} ⇒ mục ZIP mang đúng đường
  * dẫn ấy ⇒ một công cụ giải nén ngây thơ ghi ra NGOÀI thư mục đích trên máy người nhận.
  */
-class TenTepTrongNenTest {
+class TenTepTest {
 
     @Test
     @DisplayName("⛔⛔ Mọi đoạn đường dẫn bị bỏ — cả kiểu POSIX lẫn kiểu Windows")
     void boMoiDoanDuongDan() {
-        assertThat(HoSoTaiLieuService.tenTepTrongNen("../../../../.bashrc")).isEqualTo(".bashrc");
-        assertThat(HoSoTaiLieuService.tenTepTrongNen("..\\..\\Windows\\system32\\hosts"))
-                .isEqualTo("hosts");
-        assertThat(HoSoTaiLieuService.tenTepTrongNen("/etc/passwd")).isEqualTo("passwd");
-        assertThat(HoSoTaiLieuService.tenTepTrongNen("thu-muc/quyet-dinh.pdf")).isEqualTo("quyet-dinh.pdf");
+        assertThat(TenTep.chiPhanTen("../../../../.bashrc")).isEqualTo(".bashrc");
+        assertThat(TenTep.chiPhanTen("..\\..\\Windows\\system32\\hosts")).isEqualTo("hosts");
+        assertThat(TenTep.chiPhanTen("/etc/passwd")).isEqualTo("passwd");
+        assertThat(TenTep.chiPhanTen("thu-muc/quyet-dinh.pdf")).isEqualTo("quyet-dinh.pdf");
     }
 
     @Test
     @DisplayName("⭐ Tên thường — kể cả tiếng Việt có dấu và khoảng trắng — GIỮ NGUYÊN")
     void tenThuongGiuNguyen() {
-        assertThat(HoSoTaiLieuService.tenTepTrongNen("Quyết định bổ nhiệm 2026.pdf"))
+        assertThat(TenTep.chiPhanTen("Quyết định bổ nhiệm 2026.pdf"))
                 .as("⛔ bóp méo tên tệp của người dùng: đó là thứ họ tìm trong bản nén")
                 .isEqualTo("Quyết định bổ nhiệm 2026.pdf");
     }
@@ -35,9 +34,9 @@ class TenTepTrongNenTest {
     @Test
     @DisplayName("⛔ Các ca rỗng / chỉ có dấu chấm ⇒ một tên vô hại, ⛔ chuỗi rỗng (ZipEntry rỗng là tệp hỏng)")
     void caRongRaTenVoHai() {
-        assertThat(HoSoTaiLieuService.tenTepTrongNen(null)).isEqualTo("khong-ten");
-        assertThat(HoSoTaiLieuService.tenTepTrongNen("   ")).isEqualTo("khong-ten");
-        assertThat(HoSoTaiLieuService.tenTepTrongNen("..")).isEqualTo("khong-ten");
-        assertThat(HoSoTaiLieuService.tenTepTrongNen("a/b/")).isEqualTo("khong-ten");
+        assertThat(TenTep.chiPhanTen(null)).isEqualTo("khong-ten");
+        assertThat(TenTep.chiPhanTen("   ")).isEqualTo("khong-ten");
+        assertThat(TenTep.chiPhanTen("..")).isEqualTo("khong-ten");
+        assertThat(TenTep.chiPhanTen("a/b/")).isEqualTo("khong-ten");
     }
 }
