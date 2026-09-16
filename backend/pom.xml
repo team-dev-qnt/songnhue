@@ -133,7 +133,7 @@
 
         <!-- Thư viện không nằm trong BOM của Spring Boot -->
         <!-- 2.8.9 → 2.8.17: cùng dòng 2.8.x -->
-        <springdoc.version>3.1.0</springdoc.version>
+        <springdoc.version>3.1.1</springdoc.version>
         <!--
           Phải ghim RIÊNG, không đi theo springdoc: 2.8.17 vẫn kéo swagger-ui 5.32.2
           đóng gói DOMPurify 3.3.2 dính CVE-2026-65898. Xem `dependencyManagement`.
