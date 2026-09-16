@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { App } from 'antd';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 
@@ -134,19 +135,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * `true` → guard bật lại đúng biểu mẫu vừa gửi → người dùng tưởng thất bại, bấm gửi lần
    * nữa, và lần này backend trả **403 AUTH-0005** vì phiên đã bị thu hồi cùng vé CSRF.
    * Triệu chứng người dùng thấy là "đổi mật khẩu bị 403", trong khi việc đã xong từ đầu.
+   *
+   * <h3>⛔⛔ Thứ tư: đệm truy vấn — ASVS 8.2.3 (T63.3)</h3>
+   *
+   * `queryClient.clear()` ⛔ phải dọn dẹp cho gọn, nó là một cam kết **bảo mật**. Ba dòng
+   * trên chỉ đổi *trạng thái đăng nhập*; **dữ liệu** thì vẫn nằm trong bộ nhớ của TanStack
+   * Query, và `gcTime` mặc định là **5 phút**. Trong cửa sổ ấy, người kế tiếp đăng nhập
+   * trên cùng trình duyệt — máy dùng chung ở văn phòng là ca thường, ⛔ phải ca hiếm — sẽ
+   * thấy đệm của người trước **hiện ra ngay** rồi mới được thay bằng dữ liệu của mình, vì
+   * `staleTime: 30_000` cho phép react-query phục vụ bản đệm trước khi nạp lại.
+   *
+   * Thứ nằm trong đệm ấy ⛔ phải dữ liệu vô hại: hồ sơ CBNV, danh bạ, nhật ký kiểm toán,
+   * bản ghi lương/CCCD đã giải mã của những màn hình 🔒. Quy tắc 10 và NĐ 13/2023 nói về
+   * đúng nhóm dữ liệu này.
+   *
+   * ⚠ Đặt ở `endSession` — ⛔ phải ở `logout` — là cố ý: phiên còn kết thúc qua **đường
+   * khác** (backend thu hồi phiên ⇒ `onSessionEvent`, đổi mật khẩu, bị đăng xuất từ xa).
+   * Đặt ở nơi *dữ liệu đi qua* thay vì ở *một nơi gọi* là luật 12.
    */
+  const queryClient = useQueryClient();
   const endSession = useCallback(() => {
     clearTokens();
     setUser(null);
     setStatus('anonymous');
-  }, []);
+    queryClient.clear();
+  }, [queryClient]);
 
   const logout = useCallback(async () => {
     try {
       await api.post<void>('/auth/logout');
-    } finally {
+    } catch {
       // Dọn phía FE dù backend có trả lỗi gì: người dùng đã bấm đăng xuất thì màn hình
       // phải rời khỏi trạng thái đăng nhập, không thể "đăng xuất hỏng nên vẫn ở trong".
+      //
+      // ⚠ `catch` chứ ⛔ phải `finally` (sửa 16/09, T63.3): với `finally` thì lượt dọn CÓ
+      // chạy, nhưng lỗi vẫn **ném tiếp ra ngoài** — và nơi gọi duy nhất trong kho là
+      // `AdminLayout.tsx:134` viết `void logout()`, tức ⛔ ai bắt. Kết quả là một
+      // *Unhandled Promise Rejection* thật trong trình duyệt mỗi lần đăng xuất lúc phiên đã
+      // bị thu hồi từ xa hoặc mạng đứt. Ở đây quyết định sản phẩm đã rõ và được viết ngay
+      // dòng trên: đăng xuất **luôn thành công** dưới góc nhìn người dùng ⇒ hàm ⛔ được có
+      // đường thất bại. Lộ ra nhờ bài kiểm mô phỏng backend từ chối.
+    } finally {
       endSession();
     }
   }, [endSession]);
