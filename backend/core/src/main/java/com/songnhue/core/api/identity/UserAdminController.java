@@ -23,7 +23,9 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.songnhue.core.application.auth.ClientInfo;
+import com.songnhue.core.application.auth.XacThucLaiService;
 import com.songnhue.core.application.identity.DatLaiHaiBuocService;
+import com.songnhue.core.application.identity.DatLaiMatKhauService;
 import com.songnhue.core.application.identity.PermissionSummary;
 import com.songnhue.core.application.identity.RoleSummary;
 import com.songnhue.core.application.identity.UserAdminService;
@@ -50,7 +52,17 @@ public class UserAdminController {
     private final UserAdminService userAdminService;
     private final DatLaiHaiBuocService datLaiHaiBuoc;
 
-    public UserAdminController(UserAdminService userAdminService, DatLaiHaiBuocService datLaiHaiBuoc) {
+    private final DatLaiMatKhauService datLaiMatKhau;
+
+    private final XacThucLaiService xacThucLai;
+
+    public UserAdminController(
+            UserAdminService userAdminService,
+            DatLaiHaiBuocService datLaiHaiBuoc,
+            DatLaiMatKhauService datLaiMatKhau,
+            XacThucLaiService xacThucLai) {
+        this.datLaiMatKhau = datLaiMatKhau;
+        this.xacThucLai = xacThucLai;
         this.userAdminService = userAdminService;
         this.datLaiHaiBuoc = datLaiHaiBuoc;
     }
@@ -195,6 +207,28 @@ public class UserAdminController {
         datLaiHaiBuoc.datLai(publicId, ClientInfo.from(httpRequest));
     }
 
+    /**
+     * T61.31 · CN-05.2 — đặt lại mật khẩu một tài khoản nội bộ.
+     *
+     * <p>⚠ Quyền {@code adm:user:reset-password} có trong danh mục từ 13/08/2026 và tới 16/09 vẫn
+     * <b>0 đầu nhận</b>; đây là lời gọi đầu tiên của nó. ⛔ Dùng {@code adm:user:update} như các
+     * thao tác khác: đặt lại mật khẩu là chiếm quyền đăng nhập vào một tài khoản, ⛔ phải sửa hồ sơ.
+     *
+     * <p>⚠⚠ Đòi nhập lại mã 2FA (T61.42) — cùng lớp bảo vệ với khôi phục CSDL và bí mật tích hợp.
+     */
+    @PostMapping("/{publicId}/dat-lai-mat-khau")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Đặt lại mật khẩu tài khoản (mật khẩu tạm + buộc đổi ở lần đăng nhập tới)")
+    @RequirePermission("adm:user:reset-password")
+    public void datLaiMatKhau(
+            @PathVariable UUID publicId,
+            @Valid @RequestBody UserDtos.DatLaiMatKhauRequest request,
+            HttpServletRequest httpRequest) {
+        ClientInfo client = ClientInfo.from(httpRequest);
+        xacThucLai.xacThuc(request.maXacThuc(), client);
+        datLaiMatKhau.datLai(publicId, request.matKhauTam(), client);
+    }
+
     @DeleteMapping("/{publicId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(summary = "Xoá mềm tài khoản")
@@ -221,6 +255,14 @@ public class UserAdminController {
                 @Size(max = 30) String phone) {}
 
         public record StatusRequest(@NotNull UserStatus status) {}
+
+        /** ⛔ {@code toString} mặc định in cả mật khẩu tạm — ghi đè để một dòng log lỡ tay ⛔ mang nó. */
+        public record DatLaiMatKhauRequest(@NotBlank String matKhauTam, String maXacThuc) {
+            @Override
+            public String toString() {
+                return "DatLaiMatKhauRequest[đã ẩn]";
+            }
+        }
 
         public record RolesRequest(@NotNull List<String> roleCodes) {}
 

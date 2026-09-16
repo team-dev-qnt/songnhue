@@ -67,8 +67,10 @@ vi.mock('@/shared/apiClient', async (importOriginal) => {
       delete: vi.fn(async (url: string) => {
         goi('DELETE', url);
       }),
-      post: vi.fn(async (url: string) => {
-        goi('POST', url);
+      // ⚠ T61.31 — mock PHẢI chuyển tiếp cả THÂN yêu cầu: bản cũ chỉ ghi lại đường dẫn, nên một
+      //   lượt gửi thiếu mật khẩu tạm vẫn xanh (luật 9 — hai trạng thái ⛔ phân biệt được).
+      post: vi.fn(async (url: string, than?: unknown) => {
+        goi('POST', url, than);
       }),
     },
   };
@@ -129,7 +131,36 @@ describe('Nút xoá danh mục — T61.21', () => {
 
     await nguoiDung.click(screen.getByRole('button', { name: 'Đặt lại 2FA của taonham' }));
     await nguoiDung.click(await screen.findByRole('button', { name: 'Đặt lại' }));
-    await waitFor(() => expect(goi).toHaveBeenCalledWith('POST', '/admin/users/khac/dat-lai-2fa'));
+    await waitFor(() =>
+      expect(goi).toHaveBeenCalledWith('POST', '/admin/users/khac/dat-lai-2fa', undefined),
+    );
+  });
+
+  it('⭐⭐ T61.31 — đặt lại mật khẩu: nhập mật khẩu tạm rồi mã 2FA, POST đúng đường; dòng của CHÍNH MÌNH ⛔ có nút', async () => {
+    const nguoiDung = userEvent.setup();
+    dung(<UsersPage />, ['adm:user:view', 'adm:user:reset-password']);
+    await screen.findByText('taonham');
+    expect(screen.queryByRole('button', { name: 'Đặt lại mật khẩu của quantri' })).toBeNull();
+
+    await nguoiDung.click(screen.getByRole('button', { name: 'Đặt lại mật khẩu của taonham' }));
+    await nguoiDung.type(await screen.findByLabelText('Mật khẩu tạm'), 'MatKhauTam2026xyz');
+    // Hộp thoại mã 2FA chỉ hiện SAU bước mật khẩu — hai bước tường minh, ⛔ suy từ ô đã gõ hay chưa.
+    await nguoiDung.click(screen.getByRole('button', { name: 'Tiếp tục' }));
+    await nguoiDung.type(await screen.findByLabelText('Mã xác thực hai bước'), '123456');
+    await nguoiDung.click(screen.getByRole('button', { name: 'Xác nhận' }));
+
+    await waitFor(() =>
+      expect(goi).toHaveBeenCalledWith('POST', '/admin/users/khac/dat-lai-mat-khau', {
+        matKhauTam: 'MatKhauTam2026xyz',
+        maXacThuc: '123456',
+      }),
+    );
+  });
+
+  it('⛔ thiếu `adm:user:reset-password` ⇒ ⛔ có nút đặt lại mật khẩu', async () => {
+    dung(<UsersPage />, ['adm:user:view', 'adm:user:update']);
+    await screen.findByText('taonham');
+    expect(screen.queryByRole('button', { name: /^Đặt lại mật khẩu/ })).toBeNull();
   });
 
   it('⛔ thiếu `adm:user:update` ⇒ ⛔ có nút xoá tài khoản nào', async () => {

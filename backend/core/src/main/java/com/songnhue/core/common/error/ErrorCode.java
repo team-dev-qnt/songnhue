@@ -588,7 +588,15 @@ public enum ErrorCode {
      * mới token rồi GỬI LẠI cùng mã sai (lượt sai bị đếm HAI lần) ⇒ 401 lần nữa ⇒ xoá phiên, đá người dùng ra màn
      * hình đăng nhập. Đường khôi phục CSDL mang đúng khuyết tật ấy từ WS-7 tới 15/09/2026.
      */
-    ADM_2024("ADM-2024", HttpStatus.FORBIDDEN);
+    ADM_2024("ADM-2024", HttpStatus.FORBIDDEN),
+    /**
+     * Tự đặt lại mật khẩu của CHÍNH MÌNH qua cửa quản trị — T61.31.
+     *
+     * <p>⛔ Cửa ấy ⛔ hỏi mật khẩu cũ (đó là cả công dụng của nó), nên cho tự dùng là biến một phiên mượn được
+     * thành một lượt chiếm tài khoản vĩnh viễn — đúng thứ {@code AUTH-0001} ở đường tự đổi mật khẩu đang chặn.
+     * Cùng lý lẽ với {@code ADM-2021} ở đường đặt lại 2FA.
+     */
+    ADM_2025("ADM-2025", HttpStatus.FORBIDDEN);
 
     private final String code;
     private final HttpStatus status;

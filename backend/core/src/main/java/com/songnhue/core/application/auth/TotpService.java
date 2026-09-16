@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.songnhue.core.application.identity.CanhBaoTaiKhoanService;
 import com.songnhue.core.common.config.CryptoProperties;
 import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.AuthenticationException;
@@ -66,13 +67,18 @@ public class TotpService {
     private final CryptoProperties cryptoProperties;
     private final SecurityEventService securityEvents;
 
+    /** T61.36 — báo cho chính chủ khi có thiết bị 2FA mới. */
+    private final CanhBaoTaiKhoanService canhBao;
+
     public TotpService(
             UserTotpRepository totpRepository,
             UserRecoveryCodeRepository recoveryCodes,
             UserAuthorityRepository authorities,
             CryptoService crypto,
             CryptoProperties cryptoProperties,
-            SecurityEventService securityEvents) {
+            SecurityEventService securityEvents,
+            CanhBaoTaiKhoanService canhBao) {
+        this.canhBao = canhBao;
         this.totpRepository = totpRepository;
         this.recoveryCodes = recoveryCodes;
         this.authorities = authorities;
@@ -168,6 +174,8 @@ public class TotpService {
         totpRepository.save(entry);
 
         securityEvents.record(SecurityEventType.TWO_FACTOR_ENROLLED, user.getUsername(), user.getId(), client);
+        // T61.36 — một thiết bị 2FA MỚI là tín hiệu mạnh nhất của một lượt chiếm tài khoản.
+        canhBao.haiBuocDaDangKy(user);
     }
 
     /**

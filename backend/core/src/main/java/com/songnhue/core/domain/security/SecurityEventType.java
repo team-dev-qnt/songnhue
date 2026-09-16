@@ -36,6 +36,9 @@ public enum SecurityEventType {
     /** Quản trị viên xoá 2FA của một tài khoản khác (T61.30). */
     TWO_FACTOR_RESET_BY_ADMIN(Severity.DANGER),
 
+    /** Quản trị viên đặt lại mật khẩu của một tài khoản khác (T61.31) — ⛔ hỏi mật khẩu cũ, nên luôn là DANGER. */
+    PASSWORD_RESET_BY_ADMIN(Severity.DANGER),
+
     // --- Phân quyền -----------------------------------------------------------
     /** Thiếu permission — tầng 2 chặn (AUTH-3001). */
     ACCESS_DENIED_PERMISSION(Severity.WARNING),

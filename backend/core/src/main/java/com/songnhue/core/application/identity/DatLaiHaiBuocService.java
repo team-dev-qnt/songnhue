@@ -45,11 +45,15 @@ public class DatLaiHaiBuocService {
     private final RefreshTokenService refreshTokens;
     private final SecurityEventService securityEvents;
 
+    private final CanhBaoTaiKhoanService canhBao;
+
     public DatLaiHaiBuocService(
             UserRepository users,
             TotpService totp,
             RefreshTokenService refreshTokens,
-            SecurityEventService securityEvents) {
+            SecurityEventService securityEvents,
+            CanhBaoTaiKhoanService canhBao) {
+        this.canhBao = canhBao;
         this.users = users;
         this.totp = totp;
         this.refreshTokens = refreshTokens;
@@ -73,5 +77,6 @@ public class DatLaiHaiBuocService {
                 client,
                 "{\"nguoiLam\":%s,\"coDangKy\":%b,\"soPhienThuHoi\":%d}"
                         .formatted(nguoiLam == null ? "null" : nguoiLam, coDangKy, soPhien));
+        canhBao.haiBuocDaDatLai(user); // T61.36
     }
 }

@@ -741,6 +741,14 @@ export const ERROR_CATALOG = {
     handling: 'caller',
     severity: 'warning',
   },
+  'ADM-2025': {
+    // T61.31 — cửa đặt lại mật khẩu ⛔ hỏi mật khẩu cũ, nên tự dùng cho chính mình là đường vòng
+    // quanh AUTH-0001 của lối tự đổi mật khẩu.
+    message:
+      'Không tự đặt lại mật khẩu của chính mình được — dùng chức năng Đổi mật khẩu, hoặc nhờ một tài khoản quản trị khác.',
+    handling: 'toast',
+    severity: 'warning',
+  },
 } as const satisfies Record<string, ErrorEntry>;
 
 export type ErrorCode = keyof typeof ERROR_CATALOG;
