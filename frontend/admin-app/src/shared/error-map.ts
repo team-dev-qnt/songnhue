@@ -283,6 +283,14 @@ export const ERROR_CATALOG = {
     handling: 'toast',
     severity: 'warning',
   },
+  'CMS-2024': {
+    // ⚠ Câu này nói ra DẠNG được chấp nhận chứ ⛔ chép lại thứ người dùng vừa gõ — giá trị bị từ
+    //   chối ở đây chính là một đoạn mã tấn công, và một thông báo lỗi là nơi nó ⛔ nên đi tiếp.
+    message:
+      'Địa chỉ liên kết không hợp lệ — chỉ nhận http://, https://, mailto:, tel:, /đường-dẫn hoặc #neo',
+    handling: 'toast',
+    severity: 'warning',
+  },
   'CMS-5001': {
     message: 'Không đăng nhập được sang hệ thống văn bản điều hành',
     handling: 'toast',
