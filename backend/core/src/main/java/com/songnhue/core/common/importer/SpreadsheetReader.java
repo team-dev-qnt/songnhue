@@ -186,9 +186,9 @@ public final class SpreadsheetReader {
                 while ((entry = zip.getNextEntry()) != null) {
                     String ten = entry.getName();
                     if ("xl/sharedStrings.xml".equals(ten)) {
-                        chuoiDungChung = docSharedStrings(zip.readAllBytes());
+                        chuoiDungChung = docSharedStrings(docCoTran(zip, ten));
                     } else if ("xl/worksheets/sheet1.xml".equals(ten)) {
-                        sheet = zip.readAllBytes();
+                        sheet = docCoTran(zip, ten);
                     }
                 }
             }
@@ -364,4 +364,31 @@ public final class SpreadsheetReader {
                 .replaceAll("[^a-z0-9]+", "_")
                 .replaceAll("^_|_$", "");
     }
+    /**
+     * Trần GIẢI NÉN của một mục trong tệp xlsx — <b>T61.40</b> (ASVS 5.5.2, "zip bomb").
+     *
+     * <p>{@code readAllBytes()} trần đọc tới hết mục, mà tỉ lệ nén của XML lặp lại có thể trên
+     * <b>1000:1</b>: một tệp 2 MB đi qua trần tải lên rồi nở ra hàng GB trong heap ⇒ worker nhập liệu
+     * chết, kéo theo mọi việc nền khác. Trần tải lên chỉ chặn được phần NÉN.
+     *
+     * <p>⚠ Ném {@code SYS-0012} — cùng mã với "tệp vượt trần dòng": người dùng nhận một câu nói được
+     * rằng tệp quá lớn, ⛔ phải một lỗi hệ thống.
+     */
+    private static byte[] docCoTran(ZipInputStream zip, String ten) throws java.io.IOException {
+        java.io.ByteArrayOutputStream ra = new java.io.ByteArrayOutputStream();
+        byte[] dem = new byte[8192];
+        long tong = 0;
+        int n;
+        while ((n = zip.read(dem)) > 0) {
+            tong += n;
+            if (tong > TRAN_GIAI_NEN) {
+                throw new ValidationException(ErrorCode.SYS_0014, TRAN_GIAI_NEN / (1024 * 1024), ten);
+            }
+            ra.write(dem, 0, n);
+        }
+        return ra.toByteArray();
+    }
+
+    /** 64 MB: một bảng 5.000 dòng × 30 cột dạng XML thô chưa tới 20 MB, nên trần này ⛔ chạm người dùng thật. */
+    private static final long TRAN_GIAI_NEN = 64L * 1024 * 1024;
 }

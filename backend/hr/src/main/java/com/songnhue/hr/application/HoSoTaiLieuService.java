@@ -313,8 +313,8 @@ public class HoSoTaiLieuService {
                     continue;
                 }
                 String thuMuc = thuMucCua(ref).map(Enum::name).orElse("KHAC");
-                zip.putNextEntry(
-                        new java.util.zip.ZipEntry(thuMuc + "/" + tenDuyNhat(daDung, thuMuc, ref.originalName())));
+                zip.putNextEntry(new java.util.zip.ZipEntry(
+                        thuMuc + "/" + tenDuyNhat(daDung, thuMuc, tenTepTrongNen(ref.originalName()))));
                 try (java.io.InputStream vao = noiDung.get().content()) {
                     vao.transferTo(zip);
                 }
@@ -401,4 +401,26 @@ public class HoSoTaiLieuService {
             List<HoSoThuMuc> batBuoc,
             List<HoSoThuMuc> conThieu,
             Map<HoSoThuMuc, Long> soTepTheoThuMuc) {}
+    /**
+     * Tên một mục trong bản nén — <b>T61.40</b> (ASVS 12.3.2, zip-slip).
+     *
+     * <p>{@code attachments.original_name} lưu <b>nguyên văn</b> tên người dùng đặt lúc tải lên
+     * ({@code AttachmentService} chỉ ngẫu nhiên hoá KHOÁ lưu trữ, ⛔ đụng vào tên). Một tệp đặt tên
+     * {@code ../../../../.bashrc} ⇒ mục trong ZIP mang đúng đường dẫn ấy, và một công cụ giải nén
+     * ngây thơ trên máy đồng nghiệp sẽ ghi RA NGOÀI thư mục đích.
+     *
+     * <p>⇒ Chỉ giữ phần TÊN: bỏ mọi đoạn đường dẫn (cả {@code /} lẫn {@code \} — tệp có thể tải lên
+     * từ Windows), và {@code ..} trơ trọi thành một tên vô hại.
+     */
+    static String tenTepTrongNen(String tenGoc) {
+        if (tenGoc == null || tenGoc.isBlank()) {
+            return "khong-ten";
+        }
+        String ten = tenGoc.replace('\\', '/');
+        ten = ten.substring(ten.lastIndexOf('/') + 1).trim();
+        if (ten.isEmpty() || ".".equals(ten) || "..".equals(ten)) {
+            return "khong-ten";
+        }
+        return ten;
+    }
 }
