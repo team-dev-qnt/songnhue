@@ -458,6 +458,22 @@ giải nén — xanh cả khi đã gỡ chốt ⇒ tách `SYS-0014` + dựng l�
 ⚠ `make ci-local` ⛔ dọn `target`: một `.class` và một `jacoco.exec` CŨ của module `hr` làm hai lượt chạy đỏ vì thứ ⛔ còn
 tồn tại trong mã — `rm -rf` thư mục ấy mới đọc được kết quả thật.
 
+⭐⭐ **Đo lại 17/09/2026 sau WS-65 (Phase 4 đợt 9 — mẫu số T47.17 và bộ canh giữ danh sách) — `make ci-local` thoát 0**,
+tiến trình maven DUY NHẤT (⚠ số ở **MÁY**): **1967 testcase BE** (core 338 · content 55 · hydro 229 · operations 55 ·
+app **1290**) · **0 đỏ** · FE **480** admin-app / 62 + **399** public-web / 46 · **78 migration** ⛔ thêm · mã lỗi **130** ⛔ đổi.
+⛔⛔ **Mẫu số của một dòng nợ đo lại LẦN THỨ TƯ, và ba lượt trước sai BA KIỂU KHÁC NHAU** (`T63.10`): `[^>]*?` cắt ở dấu `>`
+bên trong generic ⇒ **34** thay vì 46 · tra `record SaveRequest` trên TOÀN KHO ⇒ bốn endpoint cùng ăn con số **25 trường** ·
+tra theo THƯ MỤC ⇒ `ArticleDtos.SaveRequest` khớp nhầm `SaveRequest` **3 trường** của `CategoryController.java` cùng chỗ ⇒
+**Article biến mất khỏi danh sách**. Lượt thứ tư tra theo **tên đủ điều kiện** và nhận cả DTO dạng `class` ⇒ mẫu số thật
+**21**, ⛔ phải 17.
+⛔⛔ **Và dòng nợ cũ ⛔ dùng được vì một dấu BA CHẤM**: nó liệt 7 cái có tên rồi bỏ lửng bằng `…`, nên **một nửa nợ ⛔ có tên
+ở bất kỳ đâu** — ⛔ truy được, ⛔ giao được cho ai, ⛔ biết bao giờ hết. ⇒ `VongKhuHoiDuPhamViTest` **ĐO** danh sách endpoint
+từ mã nguồn rồi đòi mỗi cái được xếp loại (*đã có bài kiểm* kèm đường dẫn tệp **phải tồn tại**, hoặc *khai nợ kèm lý do ≥ 40
+ký tự*). **Nợ nay tự bảo trì**: endpoint thay-toàn-phần mới ra đời là một lượt CI đỏ.
+⭐ Trả thêm biểu mẫu **nguy hiểm nhất** của nhóm: 8 trường 🔒 **đã mã hoá** (CCCD · số tài khoản · lương). `SensitiveModal`
+dựng payload bằng cách **liệt kê tay 8 khoá** — đúng hình dạng đã gây ra T63.8; phá thử bỏ `bankAccount` ⇒ đỏ gọi đích danh.
+⇒ **6/21**, còn **15 có đủ tên**.
+
 ⭐⭐ **Đo lại 16/09/2026 sau WS-64 (Phase 4 đợt 8 — mở phạm vi bộ canh · biểu mẫu Menu) — `make ci-local` thoát 0**,
 tiến trình maven DUY NHẤT (⚠ số ở **MÁY**) **VÀ `make ci-order` thoát 0** — hai thứ tự lớp cùng một bộ số:
 **1963 testcase BE** (core 338 · content 55 · hydro 229 · operations 55 · app **1286**) · **0 đỏ** · FE **478**
