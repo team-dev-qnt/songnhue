@@ -458,6 +458,37 @@ giải nén — xanh cả khi đã gỡ chốt ⇒ tách `SYS-0014` + dựng l�
 ⚠ `make ci-local` ⛔ dọn `target`: một `.class` và một `jacoco.exec` CŨ của module `hr` làm hai lượt chạy đỏ vì thứ ⛔ còn
 tồn tại trong mã — `rm -rf` thư mục ấy mới đọc được kết quả thật.
 
+⭐⭐ **Đo lại 16/09/2026 sau WS-63 (Phase 4 đợt 7 — lượt chạy THẬT đầu tiên của Dependabot) — `make ci-local` thoát 0**,
+tiến trình maven DUY NHẤT (⚠ số ở **MÁY**) **VÀ `make ci-order` thoát 0** — hai thứ tự lớp cho **cùng một bộ số**:
+**1961 testcase BE** (core **338** · content 55 · hydro 229 · operations 55 · app **1284**) · **0 đỏ** · FE **469**
+admin-app / 58 + **399** public-web / 46 · **78 migration** (`V202609161084` khoá URL kiểm lúc ghi) · mã lỗi **130**
+(`CMS-2024`), đếm độc lập hai phía cùng ra 130. ⭐ Trả nợ **T58.18**: kho nay có hạ tầng đếm truy vấn (`DemTruyVan`) và
+bộ canh N+1 canh **ĐỘ DỐC** chứ ⛔ một ngưỡng — một ngưỡng tuyệt đối đỏ vì thay đổi vô can, và cách sửa rẻ nhất khi nó
+đỏ là **nâng con số**, tức tự tay tháo bộ canh (§11.17 · T58.6). Kiểm chứng ngược dựng lại đúng vòng lặp cũ ⇒ **3 hồ sơ
+⇒ 15 câu lệnh · 30 hồ sơ ⇒ 36 câu lệnh**. ⚠ Phạm vi bộ đếm **đã khai ra**: nó mù trước `JdbcTemplate` (nợ `T63.6`).
+⛔⛔ **Một cơ chế WS-62 vừa dựng CHẠY LẦN ĐẦU và sinh ra 11 PR — 7 đỏ, 1 nếu gộp thì thay bộ token của dự án bằng mã
+người lạ** (`T63.1`). `frontend/` là **npm workspaces** với ĐÚNG MỘT lockfile ở gốc, mà `dependabot.yml` khai hai thư mục
+con ⛔ có lockfile ⇒ `npm ci` từ chối ở **7/7** PR frontend, kể cả một bump `@types/node` — vế chỉ ra lỗi nằm ở **cấu hình**
+chứ ⛔ ở phụ thuộc. Nặng hơn: PR #145 nâng `design-tokens 0.1.0 → 1.0.1` trong khi đó là gói **NỘI BỘ** của kho, còn npm
+công khai **có gói cùng tên của người khác** đúng ở `1.0.1` ⇒ gộp là npm thôi nối symlink workspace và **tải mã người lạ**
+về thay chỗ bộ token trong CẢ hai ứng dụng, ⛔ một dòng nào báo. **Dependency confusion do chính cơ chế thêm vào để TĂNG
+an toàn mở ra** — đúng hình dạng luật 7: cấu hình ⛔ sai cú pháp, nó chỉ **chưa bao giờ được chạy**, nên CI trên nhánh
+dựng nó vẫn xanh. ⇒ Bộ canh `PhuThuocNoiBoTest` ⛔ canh dòng `ignore` (một *lời dặn* gửi tới một công cụ) mà canh chỗ
+**hậu quả hiện ra**: lockfile phải ghi `"link": true`.
+⭐⭐ **Và một khe hở ASVS MỒ CÔI** (`T63.3`): mục **8.2.3** có trong bảng tự đánh giá của T61.28 nhưng rơi ra ngoài **cả
+hai** gói tiếp theo — ⛔ có trong `T61.48` (chờ quyết định) lẫn `T61.49` (chờ đo trên máy chủ). `endSession()` dọn token,
+`user`, `status` — cả ba là *trạng thái đăng nhập*; **dữ liệu** thì nằm trong đệm TanStack Query với `gcTime` **5 phút**
+và `staleTime` 30s cho phép phục vụ bản đệm TRƯỚC khi nạp lại ⇒ người kế tiếp đăng nhập trên cùng trình duyệt thấy hồ sơ
+CBNV / danh bạ / nhật ký kiểm toán / CCCD–lương vừa giải mã của người trước.
+⚠ **Ba lượt kiểm chứng ngược trong đợt này, một lượt ⛔ chạy được**: lượt phá `T63.4` đầu tiên bị **Spotless chặn trước khi
+tới bài kiểm** và in ra *⛔ có báo cáo nào* — đọc mã thoát 1 ấy thành *"bộ canh bắt được"* thì lượt kiểm chứng ⛔ chứng minh
+gì cả (T49.3, luật 10). Và phép tự canh của lượt phá `T63.3` **in sai kỳ vọng** vì `grep -c` đếm DÒNG nên javadoc nhắc tên
+hàm cũng được tính (luật 32 · T46.7).
+⭐ **Bộ canh bắt CHÍNH TÔI ở lượt chạy đầu — lần thứ MƯỜI**: `PhuThuocNoiBoTest` bản đầu đòi *mọi* gói workspace nằm trong
+`ignore`, kể cả `admin-app`/`public-web` — hai **ứng dụng** ⛔ ai phụ thuộc, tức Dependabot ⛔ bao giờ đề nghị nâng; thêm
+chúng vào là **tiếng ồn che mất dòng có nghĩa duy nhất** (luật 28). Và `DiaChiLienKetTest` bắt `String.trim()` của Java bỏ
+CẢ ký tự điều khiển ⇒ chuỗi toàn NUL trim ra RỖNG ⇒ rơi vào nhánh *"rỗng nên hợp lệ"* ⇒ **được lưu**.
+
 ⭐⭐ **Đo lại 14/09/2026 sau WS-60 (đối chiếu DoD Phase 3 · gỡ chốt CI) — `make ci-local` thoát 0**,
 lượt chạy là tiến trình maven DUY NHẤT (⚠ số ở **MÁY**): **1811 testcase BE** (core 283 · content 54 ·
 hydro 225 · operations 55 · app **1194**) · **0 đỏ** · FE **434** admin-app / 50 tệp + **392**

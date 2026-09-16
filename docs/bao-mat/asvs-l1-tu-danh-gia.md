@@ -354,12 +354,12 @@ bài kiểm, và lượt phá-bản-vá chứng minh bài kiểm bắt được 
 | Khoảng trống | Task | Trạng thái | Phép đo trước khi vá |
 |---|---|---|---|
 | 16.1 #1 — vượt 2FA bằng đăng ký lại | `T61.30` | ✅ vá · `HaiBuocHttpTest` | gỡ bản vá ⇒ máy chủ trả `secret` mới qua HTTP |
-| 16.1 #2 — ADMIN tự cấp quyền 🔒 | `T54.4` | ⬜ mở | — |
+| 16.1 #2 — ADMIN tự cấp quyền 🔒 | `T54.4` ⇒ vá ở `T61.43` | ✅ vá (15/09) · `CapQuyenVuotQuyenBiChanTest` | ADMIN có `adm:role:manage`, vai trò `ADMIN` khai `is_system = FALSE` ⇒ ba cú bấm là tự cấp lại đúng quyền đặc tả loại trừ |
 | 16.1 #3 — SVG chạy script | `T61.32` | ✅ vá (lọc trên cây XML) · `SvgSanitizerTest` | ⭐ thêm đường vượt thứ hai (tiền tố namespace) — Playwright: chạy ở chromium/firefox/webkit |
-| 16.2 #4 — liên kết `javascript:` | `T61.34` | 🟡 vế hiển thị ✅ · kiểm lúc ghi ⬜ | React 18.3.1 ⛔ chặn `javascript:` |
+| 16.2 #4 — liên kết `javascript:` | `T61.34` + `T63.4` | ✅ vá TRỌN (16/09) · hiển thị `lienKetAnToan.test.ts` · ghi `DiaChiLienKetTest` + `DiaChiLienKetChanLucGhiHttpTest` | React 18.3.1 chỉ CẢNH BÁO chứ ⛔ chặn; gỡ chốt ghi ⇒ `"success":true` kèm nguyên chuỗi `javascript:` đã lưu ở cả menu lẫn settings |
 | 16.2 #5 — thiếu `no-store` | `T61.35` | ✅ vá · `KhongLuuDemHttpTest` | 0 nơi đặt header |
 | 16.2 #8 — dò mã TOTP | `T61.33` | ✅ vá (khoá theo tài khoản) · `HaiBuocHttpTest#saiMaTotpBiKhoa` | ⭐ nặng hơn bảng ghi: mật khẩu đúng đặt bộ đếm về 0 TRƯỚC bước 2FA |
-| 16.2 #6 · #7 · #9 · #10 | `T61.36`→`T61.39` | ⬜ mở — ⚠ **chưa đối chiếu lại**, kết luận là của lượt đánh giá | — |
-| 16.3 · 16.4 · 16.5 | `T61.40` | ⬜ mở — chưa đối chiếu lại | — |
+| 16.2 #6 · #7 · #9 · #10 | `T61.36`→`T61.39` | ✅ cả bốn đã vá (16/09) · `DatLaiMatKhauHttpTest` · `BieuMauCongKhaiChongLamDungTest` · `DiaChiNguonTest` · `QuyenRiengTuHttpTest` | email biểu mẫu công khai ⛔ kiểm định dạng ⇒ `"x"` thành người nhận thư; hạn mức 300/PHÚT của đường ĐỌC dùng cho đường GHI |
+| 16.3 · 16.4 · 16.5 | `T61.40` | 🟡 **31 dòng** đo được (sổ cũ ghi 23) — đã vá ở `T61.40`+`T61.47`; còn `T61.48` (7 mục chờ QuanTran quyết) · `T61.49` (5 mục chỉ đo được trên staging) | ⚠ Một dòng của bảng này từng **mồ côi**: ASVS 8.2.3 (đăng xuất ⛔ xoá đệm truy vấn) ⛔ nằm trong T61.48 lẫn T61.49 — vá ở `T63.3` |
 
 ⚠ Phép đo trên hệ đang chạy (ZAP baseline vào staging) vẫn **chưa chạy** — việc của QuanTran, xem `tools/zap/README.md`.

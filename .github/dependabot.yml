@@ -28,29 +28,39 @@ updates:
     commit-message:
       prefix: "chore(deps)"
 
+  # ⛔⛔ MỘT mục cho CẢ `frontend`, ⛔ không phải một mục mỗi ứng dụng — T63.1.
+  #   `frontend/` là một **npm workspaces** với ĐÚNG MỘT lockfile ở gốc
+  #   (`frontend/package-lock.json`); `admin-app/` và `public-web/` ⛔ có lockfile
+  #   riêng. Bản đầu của tệp này (T61.40) khai hai thư mục con ⇒ Dependabot sửa
+  #   `package.json` con rồi ⛔ có lockfile nào để cập nhật ⇒ `npm ci` từ chối
+  #   (*"package.json and package-lock.json are not in sync"*) ⇒ **7/7 PR frontend
+  #   của lượt chạy THẬT đầu tiên đều đỏ**. Cấu hình ⛔ sai cú pháp, nó chỉ chưa
+  #   bao giờ được chạy — đúng hình dạng luật 7.
+  #
+  # ⛔⛔ `ignore` bên dưới là **chống nhầm gói**, ⛔ phải để đỡ ồn. `design-tokens`
+  #   là gói NỘI BỘ của workspace (`frontend/design-tokens`, `private: true`,
+  #   phiên bản `0.1.0`) — mà trên npm công khai **có một gói CÙNG TÊN của người
+  #   khác**, `latest = 1.0.1`. Dependabot đã mở đúng PR ấy (#145). Nếu nó được
+  #   gộp thì dải phiên bản `1.0.1` ⛔ còn khớp gói nội bộ `0.1.0` ⇒ npm quay sang
+  #   **kho công khai** ⇒ mã của người lạ thay chỗ bộ token của dự án, trong cả
+  #   `admin-app` lẫn `public-web`, ⛔ một dòng nào báo.
+  #   ⇒ Bất biến ấy có bộ canh riêng: `PhuThuocNoiBoTest` (đọc lockfile, đòi
+  #   `"link": true`) — một dòng `ignore` ⛔ phải một cổng kiểm.
   - package-ecosystem: npm
-    directory: /frontend/admin-app
+    directory: /frontend
     schedule:
       interval: weekly
       day: monday
     open-pull-requests-limit: 3
+    ignore:
+      - dependency-name: design-tokens
     groups:
       react:
         patterns: ["react", "react-dom", "@types/react*"]
       antd:
         patterns: ["antd", "@ant-design/*"]
-    commit-message:
-      prefix: "chore(deps)"
-
-  - package-ecosystem: npm
-    directory: /frontend/public-web
-    schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 3
-    groups:
       next:
-        patterns: ["next", "react", "react-dom", "@types/react*"]
+        patterns: ["next", "@next/*", "eslint-config-next"]
     commit-message:
       prefix: "chore(deps)"
 

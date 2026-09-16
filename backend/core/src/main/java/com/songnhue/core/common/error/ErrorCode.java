@@ -209,6 +209,7 @@ public enum ErrorCode {
      * bài chỉ gồm ảnh, một bảng số liệu hay một video nhúng là bài hợp lệ.
      */
     CMS_2023("CMS-2023", HttpStatus.UNPROCESSABLE_CONTENT),
+    CMS_2024("CMS-2024", HttpStatus.UNPROCESSABLE_CONTENT),
     CMS_5001("CMS-5001", HttpStatus.BAD_GATEWAY),
 
     // ---- MOD-02 Vận hành công trình --------------------------------------------
