@@ -68,7 +68,8 @@ class VongKhuHoiDuPhamViTest {
             "EmployeeSensitiveController.SensitiveRequest",
                     "frontend/admin-app/src/features/hr/truongBaoMatVongKhuHoi.test.tsx",
             "AlertRuleController.AlertRuleUpdateRequest",
-                    "frontend/admin-app/src/features/hydro/nguongCanhBaoVongKhuHoi.test.tsx"));
+                    "frontend/admin-app/src/features/hydro/nguongCanhBaoVongKhuHoi.test.tsx",
+            "BannerController.BannerRequest", "frontend/admin-app/src/features/cms/bannerVongKhuHoi.test.tsx"));
 
     /**
      * Endpoint CHƯA có bài kiểm — <b>mỗi dòng một lý do ĐO ĐƯỢC, tối thiểu 40 ký tự</b>.
@@ -90,10 +91,6 @@ class VongKhuHoiDuPhamViTest {
                     "ApiSourceController.ApiSourceRequest",
                     "8 trường. Bốn tham số nhịp (`cron`/`frameMinutes`/`timeoutSeconds`/`maxRetry`) có "
                             + "giá trị `null` MANG NGHĨA *dùng tham số chung* ⇒ đánh rơi là nguồn lặng lẽ đổi hành vi."),
-            Map.entry(
-                    "BannerController.BannerRequest",
-                    "7 trường. FE gom `startAt`/`endAt` thành MỘT ô `RangePicker` rồi tách lại lúc "
-                            + "`onOk` ⇒ phép ánh xạ ⛔ 1-1, đúng chỗ một trường rơi được mà ⛔ ai thấy."),
             Map.entry(
                     "MeasurementTypeController.MeasurementTypeRequest",
                     "7 trường. `valueScale == null ⇒ 3` và `sortOrder == null ⇒ 0` là hai mặc định LẶNG "

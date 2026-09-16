@@ -460,7 +460,7 @@ tồn tại trong mã — `rm -rf` thư mục ấy mới đọc được kết q
 
 ⭐⭐ **Đo lại 17/09/2026 sau WS-65 (Phase 4 đợt 9 — mẫu số T47.17 và bộ canh giữ danh sách) — `make ci-local` thoát 0**,
 tiến trình maven DUY NHẤT (⚠ số ở **MÁY**): **1967 testcase BE** (core 338 · content 55 · hydro 229 · operations 55 ·
-app **1290**) · **0 đỏ** · FE **482** admin-app / 63 + **399** public-web / 46 · **78 migration** ⛔ thêm · mã lỗi **130** ⛔ đổi.
+app **1290**) · **0 đỏ** · FE **484** admin-app / 64 + **399** public-web / 46 · **78 migration** ⛔ thêm · mã lỗi **130** ⛔ đổi.
 ⛔⛔ **Mẫu số của một dòng nợ đo lại LẦN THỨ TƯ, và ba lượt trước sai BA KIỂU KHÁC NHAU** (`T63.10`): `[^>]*?` cắt ở dấu `>`
 bên trong generic ⇒ **34** thay vì 46 · tra `record SaveRequest` trên TOÀN KHO ⇒ bốn endpoint cùng ăn con số **25 trường** ·
 tra theo THƯ MỤC ⇒ `ArticleDtos.SaveRequest` khớp nhầm `SaveRequest` **3 trường** của `CategoryController.java` cùng chỗ ⇒
@@ -472,8 +472,11 @@ từ mã nguồn rồi đòi mỗi cái được xếp loại (*đã có bài ki
 ký tự*). **Nợ nay tự bảo trì**: endpoint thay-toàn-phần mới ra đời là một lượt CI đỏ.
 ⭐ Trả thêm biểu mẫu **nguy hiểm nhất** của nhóm: 8 trường 🔒 **đã mã hoá** (CCCD · số tài khoản · lương). `SensitiveModal`
 dựng payload bằng cách **liệt kê tay 8 khoá** — đúng hình dạng đã gây ra T63.8; phá thử bỏ `bankAccount` ⇒ đỏ gọi đích danh.
-⇒ **7/21**, còn **14 có đủ tên** — thêm **ngưỡng cảnh báo**, biểu mẫu DUY NHẤT của nhóm có vế **AN TOÀN** chứ ⛔ chỉ mất
-dữ liệu: `active == null ⇒ true` ở service nên đánh rơi trường ấy là **BẬT LẠI một ngưỡng vừa cố ý tắt**.
+⇒ **8/21**, còn **13 có đủ tên**. ⭐ **Ba bài mới canh BA KIỂU hậu quả khác nhau — nên chúng ⛔ thay thế nhau được**:
+**🔒** mất dữ liệu cá nhân đã mã hoá · **ngưỡng cảnh báo** vế AN TOÀN (`active == null ⇒ true` ở service ⇒ đánh rơi là
+**bật lại một chuông vừa cố ý tắt**) · **banner** ⛔ mất trường nào mà **giá trị TRÔI** — giao diện gom `startAt`/`endAt`
+thành MỘT ô `RangePicker` rồi tách lại qua `dayjs`, nên lệch múi giờ là banner hẹn *"hiện từ 0h ngày 20"* bật từ **17h
+ngày 19**, thứ mà một phép so *"có đủ khoá ⛔"* hoàn toàn ⛔ thấy ⇒ bài ấy so theo **KHOẢNH KHẮC**.
 ⭐⭐ **Nợ a11y hiện ra cái giá THẬT lần thứ hai trong cùng một ngày**: bài kiểm ⛔ chọn nổi nút *Sửa* của màn hình ngưỡng
 cảnh báo vì nó ⛔ có tên nào. ⇒ Nợ ấy ⛔ phải chuyện thẩm mỹ — nó **chặn việc viết bài kiểm**, và cách vá rẻ nhất lại đúng
 là cách làm đúng. Trần `T63.9`: **36 → 34**.
