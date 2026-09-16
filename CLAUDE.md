@@ -459,8 +459,16 @@ giải nén — xanh cả khi đã gỡ chốt ⇒ tách `SYS-0014` + dựng l�
 tồn tại trong mã — `rm -rf` thư mục ấy mới đọc được kết quả thật.
 
 ⭐⭐ **Đo lại 16/09/2026 sau WS-64 (Phase 4 đợt 8 — mở phạm vi bộ canh · biểu mẫu Menu) — `make ci-local` thoát 0**,
-tiến trình maven DUY NHẤT (⚠ số ở **MÁY**): **1963 testcase BE** (core 338 · content 55 · hydro 229 · operations 55 ·
-app **1286**) · **0 đỏ** · FE **472** admin-app / 59 + **399** public-web / 46 · **78 migration** ⛔ thêm · mã lỗi **130** ⛔ đổi.
+tiến trình maven DUY NHẤT (⚠ số ở **MÁY**) **VÀ `make ci-order` thoát 0** — hai thứ tự lớp cùng một bộ số:
+**1963 testcase BE** (core 338 · content 55 · hydro 229 · operations 55 · app **1286**) · **0 đỏ** · FE **478**
+admin-app / 61 + **399** public-web / 46 · **78 migration** ⛔ thêm · mã lỗi **130** ⛔ đổi.
+⛔⛔ **36/63 nút chỉ-có-icon của `admin-app` ⛔ có TÊN đọc được** (`T63.9`) — trình đọc màn hình đọc chúng thành *"button"*
+trống rỗng. Lộ ra vì một bài kiểm cần bấm nút Sửa và **⛔ có cách nào gọi tên nó**; giao diện trông hoàn toàn bình thường
+nên ⛔ lượt rà bằng mắt nào thấy. ⛔⛔ **Và phép đo ĐẦU của tôi cho 112/129 — 87% — cả ba mẫu mở ra kiểm đều là DƯƠNG TÍNH
+GIẢ**: regex `<Button\b([^>]*?)/>` dừng ở dấu `>` **bên trong** `icon={<EditOutlined />}` nên nút CÓ CHỮ bị đọc thành nút
+chỉ-có-icon. Bài học đã nằm sẵn trong javadoc `CotPhase2CoDocGhiTest` — *một kết quả "mọi thứ đều hỏng" gần như luôn là
+một **phép đo hỏng*** — và 87% lẽ ra đã phải là dấu hiệu. ⇒ Quét **cân ngoặc**, và bộ canh mang một vế **tự chứng minh nó
+phân biệt được hai hình dạng**. ⭐ Bộ canh bắt tôi ở lượt chạy đầu: đặt trần 37 trong khi vừa vá một nút ⇒ số thật **36**.
 ⛔⛔ **Ô *"Bài viết"* trong biểu mẫu menu là một lựa chọn CHẾT, và mọi mục menu loại `ARTICLE` của seed ⛔ SỬA NỔI**
 (`T63.8`). `MenusTab` gửi `articleId: null` **ghi cứng**, `setFieldsValue` ⛔ nạp `articlePublicId`, mà ô *Loại liên kết*
 vẫn bày đủ 5 giá trị của `MO_TA_LOAI`. Seed `V202608191021` **dựng sẵn** mục `ARTICLE` (*Liên hệ*, *Giới thiệu chung*, một
