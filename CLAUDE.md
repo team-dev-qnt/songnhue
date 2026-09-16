@@ -436,7 +436,7 @@ tới · 2 bài FE hết giờ khi load average **7.48** (VS Code 150% CPU) — 
 bảo mật). Dựng **T61.41** màn hình *Tình trạng cấu hình* + banner (⛔ trả giá trị; Prometheus đo bằng mốc lượt đọc chỉ số) · **T61.44** bí mật
 tích hợp (reCAPTCHA) ghi một chiều · **T61.43 = T54.4** trần cấp quyền · **T61.42** xác thực lại 2FA — ⛔⛔ kèm phát hiện **khôi phục CSDL
 trả 401 khi mã sai** ⇒ giao diện gửi lại mã sai rồi đá người dùng ra, và lượt sai ⛔ bị đếm · **T61.46** `tools/may-chu/dat-bien-b6.sh`
-(lượt thử đầu trên máy giả bắt lỗi lặp vô hạn). ⚠ Lượt `ci-local` đầu đỏ 2 bài — cả hai là **đồ gá** chưa theo bản vá (ghi tham số SECURITY
+(lượt thử đầu trên máy giả bắt lỗi lặp vô hạn). ⭐ **16/09 chạy THẬT trên hai máy** — VPS-1 2/2, VPS-2 4/10 biến §B6, `.env` về `600`. ⛔⛔ Lượt `--thu` trên máy THẬT lộ khuyết tật `ssh` **hút sạch stdin** ⇒ vòng lặp chỉ hỏi được biến ĐẦU TIÊN rồi im (§10.60, mã thoát vẫn 3 nên đọc y hệt *người dùng bỏ qua*); và bài tự kiểm đầu của tôi **xanh trên CẢ bản hỏng** vì `ssh` giả ⛔ hút stdin như `ssh` thật (luật 1 + luật 29). ⚠ Lượt `ci-local` đầu đỏ 2 bài — cả hai là **đồ gá** chưa theo bản vá (ghi tham số SECURITY
 ⛔ mã 2FA · bảng mã hoá thứ tư ⛔ có hàng), ⛔ nới khẳng định nào.
 
 ⭐⭐ **Đo lại 14/09/2026 sau WS-60 (đối chiếu DoD Phase 3 · gỡ chốt CI) — `make ci-local` thoát 0**,

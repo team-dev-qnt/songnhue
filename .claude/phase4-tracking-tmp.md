@@ -108,6 +108,14 @@ Rồi ghi giờ bắt đầu **T37.1** (7 ngày lịch) ngay khi `hydro_readings
 
 ### B6. ⛔ TRƯỚC lượt đề bạt mang T61.4/T61.5 — thiếu biến là nginx ⛔ lên
 
+⭐ **Đã chạy 16/09/2026** (`tools/may-chu/dat-bien-b6.sh`, đo lại độc lập sau đó):
+VPS-1 **2/2** (`METRICS_ALLOW_IP=27.71.27.75` · `METRICS_BEARER_TOKEN` 64 hex) ·
+VPS-2 **4/10** (thêm `PROD_METRICS_HOST=admin.thuyloisongnhue.vn` · `PROD_METRICS_BEARER_TOKEN` = token VPS-1).
+`.env` hai máy nay `600 songnhue:songnhue`, có bản sao lưu `.env.bak-20260916193335/6`.
+⬜ Còn **6 giá trị của QuanTran** (ALERT_EMAIL_TO · SLACK_WEBHOOK_URL · TELEGRAM_BOT_TOKEN ·
+TELEGRAM_CHAT_ID · MAIL_REDIRECT_TO · HEALTHCHECKS_PING_URL) ⇒ chạy lại script, nó hỏi bằng ô nhập ẩn.
+⬜ `SMTP_*` sang VPS-2: script **cố ý bỏ qua** tới khi staging chạy bản mang T61.23.
+
 ⭐ **15/09 — có script làm hộ phần lớn khối dưới** (`T61.46`), chạy TỪ MÁY ANH, ⛔ trên máy chủ:
 
 ```bash

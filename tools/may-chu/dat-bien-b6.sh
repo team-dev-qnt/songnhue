@@ -68,7 +68,10 @@ chay() { # chay <máy> <lệnh bash> [đối số…] — lệnh đi qua `bash -
 }
 
 # Đọc một biến (dòng cuối nếu trùng — cùng luật với env_file của compose).
-doc() { chay "$1" 'sed -n "s/^$2=//p" "$1" | tail -n 1' "$2"; }
+# ⛔⛔ `</dev/null`: `ssh` ĐỌC stdin, nên một lượt `doc` bên trong vòng lặp sẽ NUỐT phần
+#    còn lại của danh sách đang được lặp (§10.60 — một lệnh nuốt stdin làm nửa cuối
+#    ⛔ chạy mà mã thoát vẫn 0). Lượt `--thu` đầu tiên hỏi ĐÚNG MỘT biến vì đúng lỗi này.
+doc() { chay "$1" 'sed -n "s/^$2=//p" "$1" | tail -n 1' "$2" </dev/null; }
 
 # Ghi một biến; giá trị đi qua STDIN (⛔ đối số dòng lệnh — `ps` thấy được).
 # Trùng khoá ⇒ dừng: gộp hộ là đổi ngầm giá trị đang có hiệu lực.
@@ -173,23 +176,25 @@ if [[ "$(doc "$STAGING_SSH" PROD_METRICS_BEARER_TOKEN)" != "$token_prod" ]]; the
   ghi "$STAGING_SSH" PROD_METRICS_BEARER_TOKEN "$token_prod"; bao "   PROD_METRICS_BEARER_TOKEN ← đồng bộ với VPS-1"
 fi
 
-# khoá | mô tả | regex | ẩn
-while IFS='|' read -r khoa mo_ta mau an; do
-  [[ -z "$khoa" ]] && continue
+# khoá | mô tả | regex | ẩn — đọc vào MẢNG trước: lặp trực tiếp trên stdin thì lượt
+# `doc`/`ghi` (ssh) bên trong nuốt mất các dòng còn lại (§10.60).
+DANH_SACH_HOI=(
+  'ALERT_EMAIL_TO|hộp thư nhận cảnh báo, nhiều địa chỉ cách dấu phẩy|^[^@[:space:],]+@[^@[:space:],]+(,[^@[:space:],]+@[^@[:space:],]+)*$|0'
+  'SLACK_WEBHOOK_URL|Slack Incoming Webhook|^https://hooks\.slack\.com/services/[A-Za-z0-9/_-]+$|1'
+  'TELEGRAM_BOT_TOKEN|token @BotFather|^[0-9]+:[A-Za-z0-9_-]{30,}$|1'
+  'TELEGRAM_CHAT_ID|chat id (nhóm là số âm)|^-?[0-9]+$|0'
+  'MAIL_REDIRECT_TO|MỘT hộp thư nhóm phát triển nhận mọi thư của staging|^[^@[:space:],]+@[^@[:space:],]+$|0'
+  'HEALTHCHECKS_PING_URL|Ping URL healthchecks.io (Period 5 phút, Grace 5 phút)|^https://hc-ping\.com/[A-Za-z0-9/_-]+$|1'
+)
+for dong in "${DANH_SACH_HOI[@]}"; do
+  IFS='|' read -r khoa mo_ta mau an <<<"$dong"
   if [[ -n "$(doc "$STAGING_SSH" "$khoa")" ]]; then bao "   $khoa đã có"; continue; fi
   (( THU )) && { bao "   [thử] sẽ hỏi $khoa"; continue; }
   # Mở nguồn nhập MỘT lần: mở lại mỗi lượt hỏi là đọc mãi dòng đầu; EOF (Ctrl-D) = bỏ qua, ⛔ lặp.
   [[ -e /dev/fd/3 ]] || exec 3<"$NHAP_TU"
   v="$(hoi "$khoa" "$mo_ta" "$mau" "$an")"
   [[ -n "$v" ]] && ghi "$STAGING_SSH" "$khoa" "$v" && bao "   $khoa ← đã đặt"
-done <<'DANH_SACH'
-ALERT_EMAIL_TO|hộp thư nhận cảnh báo, nhiều địa chỉ cách dấu phẩy|^[^@[:space:],]+@[^@[:space:],]+(,[^@[:space:],]+@[^@[:space:],]+)*$|0
-SLACK_WEBHOOK_URL|Slack Incoming Webhook|^https://hooks\.slack\.com/services/[A-Za-z0-9/_-]+$|1
-TELEGRAM_BOT_TOKEN|token @BotFather|^[0-9]+:[A-Za-z0-9_-]{30,}$|1
-TELEGRAM_CHAT_ID|chat id (nhóm là số âm)|^-?[0-9]+$|0
-MAIL_REDIRECT_TO|MỘT hộp thư nhóm phát triển nhận mọi thư của staging|^[^@[:space:],]+@[^@[:space:],]+$|0
-HEALTHCHECKS_PING_URL|Ping URL healthchecks.io (Period 5', Grace 5')|^https://hc-ping\.com/[A-Za-z0-9/_-]+$|1
-DANH_SACH
+done
 
 # --- 4. SMTP VPS-1 → VPS-2 ----------------------------------------------------
 bao "== SMTP (T50.13)"
