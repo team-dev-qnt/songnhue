@@ -67,11 +67,62 @@ import org.junit.jupiter.api.Test;
  */
 class CotPhase2CoDocGhiTest {
 
-    private static final String THU_MUC_MIGRATION = "backend/hydro/src/main/resources/db/migration/hyd";
+    /**
+     * Module <b>được phủ</b>, và bên dưới là những module <b>cố ý chưa phủ</b> kèm lý do.
+     *
+     * <p>⛔⛔ Hai tập này ⛔ phải một lời dặn — {@link #phamViPhaiDuocXepLoai()} đối chiếu chúng
+     * với <b>những gì có THẬT trên đĩa</b>, nên một module mới ra đời mà ⛔ ai xếp loại sẽ làm bộ
+     * canh đỏ thay vì lặng lẽ ở ngoài tầm quét. Đó đúng là khoảng trống T51.10(b) ghi lại: javadoc
+     * cũ tự khai <i>"mở rộng ra được, và nên mở khi có ai cần"</i>, rồi HRM ra đời với ~24 trường hồ
+     * sơ mà ⛔ ai nhớ câu ấy. <b>Phạm vi phải do bộ canh ĐO, ⛔ do người viết gõ tay</b> (luật 28,
+     * cùng cách T49.1 đã vá {@code MigrationNamingTest}).
+     */
+    private static final Set<String> MODULE_DUOC_PHU = Set.of("hydro", "hr");
+
+    /** Module chưa phủ — mỗi dòng một lý do <b>đo được</b>, tối thiểu 40 ký tự (như {@link #KHONG_CAN_MA_DOC}). */
+    private static final Map<String, String> MODULE_CHUA_PHU = new LinkedHashMap<>(Map.of(
+            "core",
+            "Bảng nền tảng của Phase 0 — `settings`, `users`, `audit_logs`, `jobs`. Phần lớn cột ở "
+                    + "đây do framework hoặc lớp cơ sở đọc (Flyway, Spring Security, @Audited) chứ ⛔ "
+                    + "phải mã nghiệp vụ, nên phép tìm theo TÊN CỘT sẽ cho một tập mồ côi khổng lồ mà "
+                    + "gần như toàn dương tính giả — mở phạm vi trước khi có cách phân biệt là dựng "
+                    + "một bộ canh ⛔ ai đọc nổi. Khoá `settings` đã có bộ canh RIÊNG.",
+            "content",
+            "Phase 1 (CMS). Nhiều cột ở đây được đọc từ `public-web` qua tên trường JSON đã ánh xạ "
+                    + "chứ ⛔ phải tên cột, nên phép tìm hai dạng snake/camel hiện tại còn hụt. Đã có "
+                    + "`PortalSettingsReadTest` phủ nhóm khoá cấu hình cổng. Mở phạm vi ở đây cần bổ "
+                    + "sung lượt đọc qua tên trường DTO trước, ⛔ thì tập mồ côi toàn dương tính giả.",
+            "operations",
+            "Phase 1 (MOD-02). Hồ sơ công trình nay đã có bộ canh MẠNH HƠN ở tầng biểu mẫu — "
+                    + "`hoSoCongTrinhVongKhuHoi.test.tsx` (T61.12) đọc thẳng DTO backend và bắt được "
+                    + "cả trường bị đánh rơi giữa đường, thứ phép tìm theo tên cột ⛔ thấy. Mở phạm vi "
+                    + "ở đây trùng lặp phần lớn với bộ canh ấy."));
+
+    /** Mọi module có thư mục migration — ĐO trên đĩa, ⛔ gõ tay. */
+    private static Set<String> moduleCoMigration() {
+        Path goc = gocKho().resolve("backend");
+        try (Stream<Path> cay = Files.list(goc)) {
+            return cay.filter(Files::isDirectory)
+                    .filter(m -> Files.isDirectory(m.resolve("src/main/resources/db/migration")))
+                    .map(m -> m.getFileName().toString())
+                    .collect(java.util.stream.Collectors.toCollection(java.util.TreeSet::new));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /** Thư mục migration của những module ĐANG được phủ. */
+    private static List<String> thuMucMigration() {
+        return MODULE_DUOC_PHU.stream()
+                .sorted()
+                .map(m -> "backend/" + m + "/src/main/resources/db/migration")
+                .toList();
+    }
 
     /** Nơi một cột có thể được đọc hoặc ghi. ⛔ Cố ý ⛔ không gồm thư mục test. */
     private static final List<String> NOI_DOC_GHI = List.of(
             "backend/hydro/src/main/java",
+            "backend/hr/src/main/java",
             "backend/core/src/main/java",
             "backend/app/src/main/java",
             "frontend/admin-app/src",
@@ -139,6 +190,61 @@ class CotPhase2CoDocGhiTest {
     }
 
     @Test
+    @DisplayName("⛔⛔ Module MỚI có migration mà ⛔ ai xếp loại phải bị BẮT, ⛔ lặng lẽ ngoài tầm quét")
+    void phamViPhaiDuocXepLoai() {
+        // ⛔⛔ Đây là vế vá T51.10(b). Bản cũ ghim cứng đúng MỘT thư mục `hydro` và javadoc tự khai
+        //    *"mở rộng ra được, và nên mở khi có ai cần"* — rồi module `hr` ra đời với ~24 trường hồ
+        //    sơ CBNV, và ⛔ ai nhớ câu ấy suốt bốn ngày. Một lời dặn ⛔ phải một cổng kiểm.
+        //
+        // ⇒ Phạm vi do bộ canh **ĐO** (liệt kê thư mục thật trên đĩa), và mỗi module phải rơi vào
+        //   MỘT trong hai tập: được phủ, hoặc chưa phủ KÈM LÝ DO. Thêm module thứ sáu mà quên xếp
+        //   loại ⇒ bài này đỏ và gọi đích danh nó.
+        Set<String> coThat = moduleCoMigration();
+        Set<String> daXepLoai = new LinkedHashSet<>(MODULE_DUOC_PHU);
+        daXepLoai.addAll(MODULE_CHUA_PHU.keySet());
+
+        List<String> chuaXepLoai =
+                coThat.stream().filter(m -> !daXepLoai.contains(m)).sorted().toList();
+        assertThat(chuaXepLoai)
+                .as(
+                        """
+                        Module `%s` có thư mục migration mà ⛔ nằm trong `MODULE_DUOC_PHU` lẫn                         `MODULE_CHUA_PHU`.
+
+                        Nghĩa là mọi cột của nó đang ở NGOÀI tầm quét của bộ canh này, và cái xanh                         của bộ canh đọc như một lời bảo đảm cho một phạm vi nó ⛔ soi (luật 28).
+
+                        Hãy CHỌN: thêm vào `MODULE_DUOC_PHU` (rồi vá những cột mồ côi nó lôi ra),                         hoặc thêm vào `MODULE_CHUA_PHU` kèm lý do ĐO ĐƯỢC ≥ 40 ký tự.                         "Chưa cần" ⛔ phải một lý do.""",
+                        chuaXepLoai)
+                .isEmpty();
+
+        // Chiều ngược: một module đã biến mất khỏi đĩa mà vẫn nằm trong danh sách ⇒ danh sách đang
+        // mô tả một kho ⛔ còn tồn tại, và người đọc sau sẽ tin nó.
+        List<String> khongConTonTai =
+                daXepLoai.stream().filter(m -> !coThat.contains(m)).sorted().toList();
+        assertThat(khongConTonTai)
+                .as("Module khai trong danh sách mà ⛔ còn thư mục migration nào: %s", khongConTonTai)
+                .isEmpty();
+
+        // Lý do phải ĐO ĐƯỢC — cùng ràng buộc độ dài đã bắt được một dòng miễn trừ 33 ký tự của
+        // chính người viết ở `MaLoiCoNoiNemTest`.
+        List<String> lyDoHoiHot = MODULE_CHUA_PHU.entrySet().stream()
+                .filter(e -> e.getValue().length() < 40)
+                .map(Map.Entry::getKey)
+                .sorted()
+                .toList();
+        assertThat(lyDoHoiHot)
+                .as(
+                        "Module miễn phủ mà lý do ngắn hơn 40 ký tự: %s — *\"chưa cần\"* đúng với MỌI "
+                                + "khoảng trống nên nó ⛔ phân biệt được *có chủ đích* với *bị bỏ quên*",
+                        lyDoHoiHot)
+                .isEmpty();
+
+        // Chống tập rỗng: nếu phép ĐO thư mục hỏng thì `coThat` rỗng và cả ba khẳng định trên xanh.
+        assertThat(coThat)
+                .as("⚠ phép đo thư mục migration hỏng ⇒ mọi khẳng định trên xanh trên tập rỗng")
+                .hasSizeGreaterThanOrEqualTo(4);
+    }
+
+    @Test
     @DisplayName("⚠ Đối chứng PHẢI-TÌM-THẤY: phép tìm còn sống, ⛔ không xanh vì khớp 0 tệp")
     void phepTimThucSuTimDuoc() {
         // ⛔⛔ Vế cứu cả lớp này. Bản nháp chạy `git grep -E` với `\\b` — ERE của git ⛔ không hỗ trợ
@@ -177,6 +283,14 @@ class CotPhase2CoDocGhiTest {
         assertThat(cot.keySet())
                 .as("phải bắt được cả cột của CREATE TABLE lẫn cột của ADD COLUMN")
                 .contains("position_role", "quality_reason");
+
+        // ⛔⛔ Neo cho phạm vi MỚI MỞ (T63.7). `hr` vào danh sách phủ mà lượt chạy ra **0 cột mồ
+        //    côi** — một kết quả đúng, nhưng nó đọc y hệt *"bộ canh ⛔ hề quét hr"*. Hai trạng thái
+        //    ấy phải phân biệt được, ⛔ thì việc mở phạm vi hôm nay có thể bị một lượt tái cấu trúc
+        //    ngày mai vô hiệu hoá trong im lặng (luật 9 · T49.3).
+        assertThat(cot.keySet())
+                .as("phạm vi phải THẬT SỰ gồm module `hr` — ⛔ thì cái xanh ở trên là xanh vì lý do sai")
+                .contains("bank_account", "contract_expires_at", "national_id_fingerprint");
     }
 
     /**
@@ -272,7 +386,9 @@ class CotPhase2CoDocGhiTest {
     /** Tên cột nghiệp vụ → tập bảng khai nó. */
     private static Map<String, Set<String>> cotNghiepVu() {
         Map<String, Set<String>> ket = new LinkedHashMap<>();
-        for (Path p : tepTrong(THU_MUC_MIGRATION, ".sql")) {
+        for (Path p : thuMucMigration().stream()
+                .flatMap(tm -> tepTrong(tm, ".sql").stream())
+                .toList()) {
             // ⛔ Bỏ chú thích TRƯỚC khi khớp (luật 2 + §10.62): một cột được nhắc trong chú thích
             //   "cột này đã bị gỡ" ⛔ không phải một cột đang sống, và mẫu ⛔ không tự biết điều đó.
             String sql = doc(p).replaceAll("--[^\n]*", "");
@@ -335,6 +451,11 @@ class CotPhase2CoDocGhiTest {
      *
      * <p>Khuôn lấy từ {@code PortalSettingsReadTest.timTuGocKho()} — leo tối đa 6 cấp cha.
      */
+    /** Gốc kho — neo vào {@code backend/} vì đó là thứ chắc chắn có ở mọi bản clone. */
+    private static Path gocKho() {
+        return timTuGocKho("backend").getParent();
+    }
+
     private static Path timTuGocKho(String duongDanTuongDoi) {
         Path hienTai = Paths.get(System.getProperty("user.dir")).toAbsolutePath();
         for (int i = 0; i < 6 && hienTai != null; i++) {
