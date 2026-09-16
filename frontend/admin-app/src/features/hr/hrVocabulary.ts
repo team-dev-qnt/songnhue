@@ -501,6 +501,13 @@ export interface MucCanhBao {
   soNgayCon: number;
 }
 
+/** Nhãn "còn lại" — đỏ khi đã quá hạn hoặc hết hôm nay, vàng khi còn trong ngưỡng (đặc tả M4.9). */
+export function nhanConLai(soNgayCon: number): { chu: string; mau: 'error' | 'warning' } {
+  if (soNgayCon < 0) return { chu: `Quá hạn ${-soNgayCon} ngày`, mau: 'error' };
+  if (soNgayCon === 0) return { chu: 'Hết hạn hôm nay', mau: 'error' };
+  return { chu: `Còn ${soNgayCon} ngày`, mau: 'warning' };
+}
+
 export interface CanhBaoHetHanView {
   /** ⛔ Đọc từ API chứ ⛔ đừng ghi cứng lại con số ở giao diện — hai nơi một sự thật sẽ lệch. */
   nguongNgayHopDong: number;

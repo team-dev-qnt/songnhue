@@ -9,6 +9,16 @@
 >
 > **Phạm vi thực hiện**: WS-24 (27/8) + WS-25 (28/8).
 
+> ⛔⛔ **BẢN CHỤP NGÀY 28/08 — HAI ĐIỂM ĐÃ ĐỔI SAU ĐÓ, đừng nộp nguyên văn cho Công ty** (ghi 14/09/2026,
+> T61.15). Các dòng bên dưới **giữ nguyên** để còn đối chiếu được với văn bản đã gửi; sự thật hiện hành:
+>
+> 1. **CR-08 · CR-14 · CR-38 (*"Đợt 3 — đăng nhập trên cổng"*) đã HUỶ ngày 09/09** — chốt **Q4** ở
+>    `.claude/phase3-plan.md`: dữ liệu thuỷ văn **công khai toàn bộ**, ẩn/hiện bằng công tắc quản trị.
+>    Mọi câu *"Đợt 3"*, *"sẽ chặn ở tầng route/API"*, và vế KMZ-sau-đăng-nhập của CR-29 ở tệp này ⛔ còn đúng.
+> 2. **OI-01 *"API mực nước: CHƯA CÓ"* đã sai từ 09/09** — mã số chạy được trên nguồn thật (**T42.17**:
+>    có `;` ⇒ 28 bản ghi) và MOD-03 đã dựng. Thứ còn chờ là **lượng mưa** (G3-a) và việc đề bạt bản vá
+>    poller lên production (`T60.13`).
+
 ---
 
 ## 1. Con số

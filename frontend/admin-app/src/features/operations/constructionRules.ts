@@ -1,7 +1,8 @@
-import type dayjs from 'dayjs';
+import dayjs from 'dayjs';
 
 import {
   type ConstructionType,
+  type MaintenanceRow,
   type MaintenanceType,
   type OperationStatusBatchItem,
 } from '@/shared/api-types';
@@ -210,5 +211,45 @@ export function dungPayloadSuaChua(values: MaintenanceFormValues, constructionPu
     performerName: noiBo ? null : (values.performerName ?? null),
     cost: trieuSangVnd(values.costTrieu),
     fundingSource: values.fundingSource || null,
+  };
+}
+
+/**
+ * Giá trị biểu mẫu nạp từ một bản ghi đã lưu — lối SỬA, T61.18.
+ *
+ * ⚠ Nhà thầu ngoài: `row.performer` CHÍNH LÀ tên đã nhập (backend chỉ gộp tên đơn vị nội bộ vào ô
+ * ấy khi `performerIsInternal`).
+ */
+export function giaTriTuBanGhi(row: MaintenanceRow): MaintenanceFormValues {
+  return {
+    workType: row.workType,
+    severity: row.severity ?? undefined,
+    startedOn: dayjs(row.startedOn),
+    completedOn: row.completedOn ? dayjs(row.completedOn) : undefined,
+    content: row.content,
+    itemOrEquipment: row.itemOrEquipment ?? undefined,
+    performerKind: row.performerIsInternal ? 'INTERNAL' : 'EXTERNAL',
+    performerOrgUnitId: row.performerOrgUnitId ?? undefined,
+    performerName: row.performerIsInternal ? undefined : (row.performer ?? undefined),
+    costTrieu: vndSangTrieu(row.cost),
+    fundingSource: row.fundingSource ?? undefined,
+  };
+}
+
+/**
+ * Payload cho `PUT /ops/maintenance-logs/{id}` — T61.18.
+ *
+ * ⛔⛔ `PUT` là **thay toàn phần**: `MaintenanceLogService.apDung` ghi đè `acceptanceResult`,
+ * `acceptanceNote`, `alertEventPublicId` và người phụ trách bằng đúng thứ thân yêu cầu mang. Biểu mẫu
+ * ⛔ có ô cho bốn trường ấy ⇒ dùng lại payload TẠO MỚI là một lượt Lưu xoá kết quả nghiệm thu và cắt
+ * liên kết tới cảnh báo ngưỡng — ⛔ một dòng lỗi (§11.19). Nên chúng đi nguyên từ bản ghi đã nạp.
+ */
+export function dungPayloadSuaBanGhi(values: MaintenanceFormValues, row: MaintenanceRow) {
+  return {
+    ...dungPayloadSuaChua(values, row.constructionId),
+    acceptanceResult: row.acceptanceResult,
+    acceptanceNote: row.acceptanceNote,
+    assigneeUserId: row.assigneeUserId,
+    alertEventId: row.alertEventId,
   };
 }

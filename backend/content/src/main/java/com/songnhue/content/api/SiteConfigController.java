@@ -2,7 +2,6 @@ package com.songnhue.content.api;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import jakarta.validation.Valid;
@@ -67,12 +66,8 @@ public class SiteConfigController {
         return siteConfig.list();
     }
 
-    @GetMapping("/effective")
-    @Operation(summary = "Chỉ khoá và giá trị đang có hiệu lực — dạng cổng công khai sẽ dùng")
-    @RequirePermission("cms:layout:manage")
-    public Map<String, String> effective() {
-        return siteConfig.effectiveValues();
-    }
+    // ⛔ BIA MỘ — `GET /effective` gỡ 14/09/2026 (T61.22): 0 nơi gọi; cổng đọc giá trị hiệu lực qua
+    //    `/public/site-config`, còn màn hình quản trị đọc `GET` ở trên (có nhãn + luật kiểm tra).
 
     @PutMapping("/{key}")
     @Operation(summary = "Sửa một tham số — có hiệu lực ngay, không chờ hết hạn bộ nhớ đệm")

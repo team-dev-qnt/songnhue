@@ -59,9 +59,9 @@ import org.junit.jupiter.api.Test;
  *     <td>client thử {@code AUTH} với chuỗi rác → hỏng toàn bộ đường gửi thư</td>
  *   </tr>
  *   <tr>
- *     <td>{@code GOOGLE_MAPS_API_KEY}</td>
- *     <td>chỉ dùng OSM</td>
- *     <td>đi đường Google Maps với khoá rác</td>
+ *     <td>{@code RECAPTCHA_SECRET_KEY}</td>
+ *     <td>chưa bật captcha (G13)</td>
+ *     <td>khoá rác được coi là đã cấu hình → mọi lượt gửi biểu mẫu bị Google từ chối</td>
  *   </tr>
  * </table>
  *
@@ -110,7 +110,7 @@ class EnvFileCommentTest {
                         """
                         Docker Compose KHÔNG cắt chú thích khi giá trị rỗng — biến vào container sẽ mang \
                         chính đoạn chú thích làm giá trị. Với những biến mà "để trống" nghĩa là "tắt tính \
-                        năng" (BOOTSTRAP_ADMIN_PASSWORD, DB_RESTORE_PASSWORD, SMTP_*, GOOGLE_MAPS_API_KEY) \
+                        năng" (BOOTSTRAP_ADMIN_PASSWORD, DB_RESTORE_PASSWORD, SMTP_*, RECAPTCHA_SECRET_KEY) \
                         thì tính năng đó bị BẬT bằng một chuỗi rác, im lặng.
 
                         Sửa: đưa chú thích lên dòng riêng phía trên, để lại `TÊN_BIẾN=` trống thật.""")

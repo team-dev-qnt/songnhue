@@ -17,6 +17,7 @@ import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.BusinessRuleException;
 import com.songnhue.core.common.exception.ConflictException;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
+import com.songnhue.core.common.util.FileValidator;
 import com.songnhue.core.spi.AttachmentContent;
 import com.songnhue.core.spi.AttachmentPort;
 import com.songnhue.core.spi.AttachmentRef;
@@ -140,10 +141,10 @@ public class GisLayerService {
         if (noiDung == null || noiDung.length == 0) {
             throw new BusinessRuleException(ErrorCode.OPS_2026, tenTep, 0);
         }
-        int soMb = (int) Math.ceil(noiDung.length / 1024.0 / 1024.0);
-        if (soMb > TRAN_MB) {
-            throw new BusinessRuleException(ErrorCode.SYS_0010, TRAN_MB);
-        }
+        // ⛔ ⛔ SYS-0010: mã ấy là hạn mức TỔNG dung lượng một bản ghi ("đã dùng {0}/{1} MB — xoá bớt tệp
+        //   cũ"), còn đây là trần MỖI TỆP. Bản cũ ném nó với một đối số ⇒ người dùng đọc "đã dùng 20/{1}
+        //   MB" rồi đi xoá tệp cũ — sai cả số lẫn việc phải làm (T61.13).
+        FileValidator.validateSize(noiDung.length, TRAN_MB * 1024L * 1024L, tenTep);
 
         DocGeoJson doc = docGeoJson(noiDung);
         if (doc.soDoiTuong() == 0) {

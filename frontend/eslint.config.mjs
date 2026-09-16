@@ -24,6 +24,8 @@ export default tseslint.config(
       // Artifact của Playwright — sinh lại mỗi lượt chạy bộ đo, git đã bỏ qua.
       '**/test-results/**',
       '**/playwright-report/**',
+      '**/test-results-tuong-thich/**',
+      '**/playwright-report-tuong-thich/**',
     ],
   },
 

@@ -92,7 +92,7 @@ class HydroReportExportHttpTest extends IntegrationTestBase {
      * ⚠ Mỗi bài kiểm là một máy khách khác nhau — T60.9.
      *
      * <p>Lớp này dựng phiên ở {@code @BeforeAll}, nên ⛔ không có dòng này thì <b>cả lớp dùng chung
-     * một IP</b> và chung ngân sách {@code EXPORT} = <b>10 lượt / giờ</b>. Triệu chứng rơi vào bài
+     * một IP</b> và chung ngân sách {@code EXPORT} = <b>trần theo giờ</b> (settings, mặc định 30 — T61.27). Triệu chứng rơi vào bài
      * chạy SAU dưới dạng {@code 429}, tức người đọc log đi tìm lỗi ở đúng chỗ ⛔ không có lỗi nào.
      *
      * <p>⛔ ⛔ Không nới hạn mức ở hồ sơ kiểm thử — filter vẫn chạy, vẫn đếm, vẫn chặn.

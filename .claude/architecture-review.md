@@ -7087,3 +7087,62 @@ nút *"Tải cả hồ sơ (.zip)"*.
 ⛔ `DOD3.12` để **một phần** thay vì tick: §4.4 khai 5 dòng sổ *"đã xong mà vẫn `[ ]`"*, và tick theo
 lời nó mà ⛔ không đo từng cái là lặp lại đúng *"một dòng nợ tự nó sai"* — thứ dự án đã mắc **sáu**
 lần.
+
+---
+
+## §12. QUYẾT ĐỊNH KIẾN TRÚC PHASE 4 (2026-09-15)
+
+### §12.1 Cấu hình nào lên giao diện, cấu hình nào ở `.env` — T61.41→T61.45
+
+**Yêu cầu (QuanTran 15/09/2026):** đưa cấu hình lên màn hình để quyền quản trị cao nhất tự sửa, thay vì
+sửa `.env` bằng tay; vẫn cảnh báo khi chưa cấu hình; *"cân nhắc kỹ để bảo đảm bảo mật tối đa"*.
+
+**Khảo sát:** kiểm kê **mọi** biến môi trường mà hai máy chủ đọc (compose · nginx · Prometheus ·
+Alertmanager · `application.yml` · build FE · script) kèm **tiến trình đọc** và **thời điểm có hiệu
+lực**. Kết luận: phần lớn biến ⛔ lên giao diện được, và lý do là **cấu trúc**, ⛔ phải khẩu vị.
+
+#### Sáu nhóm PHẢI ở `.env`
+
+| # | Nhóm | Ví dụ | Vì sao |
+|---|---|---|---|
+| 1 | Cần **trước khi có CSDL** | `DB_*` · `AES_KEY_*` · `JWT_*` · `LOG_*` · pool · `BACKUP_DIR` · `APP_ENVIRONMENT` | CSDL ⛔ giữ được khoá mở chính nó; logging và pool dựng trước khi kết nối được CSDL |
+| 2 | **Tiến trình khác** đọc | `METRICS_*` (nginx) · `PROD_METRICS_*` (Prometheus) · `REVALIDATE_SECRET` (public-web) · mật khẩu Postgres/MinIO/Grafana · `*_IMAGE` | Muốn sửa từ giao diện thì tiến trình web phải cầm quyền ghi tệp hạ tầng + socket docker ⇒ **chiếm một tài khoản quản trị = chiếm máy** |
+| 3 | **Kênh cảnh báo** | `ALERT_EMAIL_TO` · `SLACK_WEBHOOK_URL` · `TELEGRAM_*` · `HEALTHCHECKS_PING_URL` | Chuông phải kêu khi ứng dụng/CSDL đã chết (§11.17: *chuông ⛔ ở cùng nhà với thứ nó canh*); và kẻ chiếm quyền quản trị ⛔ được **tắt chuông trước khi ra tay** |
+| 4 | **Gác môi trường** | `MAIL_REDIRECT_TO` | CSDL staging nhân bản **nguyên văn** từ production, runbook ⛔ dọn `settings` ⇒ nằm trong CSDL thì mỗi lượt nhân bản xoá chuyển hướng ⇒ thư thử tới hộp thư **thật** của cán bộ |
+| 5 | **SMTP** | `SMTP_*` | (a) Alertmanager VPS-2 cũng đọc ⇒ hai nguồn lệch · (b) sửa host = ứng dụng mở kết nối tới host:port tuỳ ý (SSRF, T61.38) · (c) `CONTACT_RECEIVED` mang dữ liệu cá nhân người dân ⇒ đổi host = rút dữ liệu NĐ 13 · (d) T61.31/T61.36 sắp đưa nội dung bảo mật vào thư. Mật khẩu ứng dụng Gmail đổi vài năm/lần — ⛔ đáng đổi lấy (a)–(d) |
+| 6 | **Công tắc bảo mật** | `SECURE_COOKIE` · `HYDRO_API_ALLOW_INTERNAL_HOST` · `HYDRO_API_MOCK` · `LOG_LEVEL_APP` | Bật từ giao diện = mở SSRF / tắt cookie an toàn / ghi dữ liệu nhạy cảm vào log |
+
+#### Lên giao diện
+
+- **Đã có từ trước:** mã số thuỷ văn (`api_sources.credential`, WS-28) và mọi tham số nghiệp vụ (`settings`, quy tắc 12).
+- **Bí mật tích hợp** (`integration_secrets`, `LoaiBiMat`) — chỉ bí mật đủ **ba** điều kiện: ứng dụng là người
+  đọc **duy nhất** · ⛔ cần trước khi có CSDL · lộ ra thì thiệt hại ⛔ vượt khỏi ứng dụng. Hôm nay: **khoá bí
+  mật reCAPTCHA** (G13). Khuôn `ApiSourceService.datMaSo`: ghi một chiều, AES-256-GCM, đọc lúc dùng, ⛔ API
+  đọc lại (kể cả che một phần), sự kiện DANGER, khai với job xoay khoá. Nguồn: giao diện → giá trị mồi `.env` → rỗng.
+- **Màn hình "Tình trạng cấu hình"** — ⛔ bao giờ trả giá trị. Mỗi mục: đã đặt / thiếu / sai / **ngoài tầm nhìn**
+  / ⛔ áp dụng, ai đọc, đặt ở đâu, thiếu thì hỏng gì. Mục của Alertmanager VPS-2 ứng dụng production ⛔ thấy được
+  ⇒ ghi **ngoài tầm nhìn** kèm lệnh tự kiểm, ⛔ hiện xanh giả. Mục Prometheus thì **đo được** từ phía ứng dụng:
+  mốc lượt đọc `/actuator/prometheus` trả 200 gần nhất — phủ trọn chuỗi `METRICS_ALLOW_IP` → token → nginx →
+  Prometheus. Banner đỏ/vàng trên layout cho tài khoản có `adm:system-config:view`.
+
+#### Bốn lỗ phải vá TRƯỚC khi đưa thêm bất cứ gì lên giao diện (đo 15/09)
+
+1. **T54.4** — ADMIN tự cấp quyền mình ⛔ có ⇒ "quản trị cao nhất" chưa thật sự cao nhất. Vá: trần cấp quyền =
+   tập quyền của chính người cấp (`ADM-2022`, cả `replacePermissionsOfRole` lẫn `assignRoles`; vai trò hệ thống
+   chỉ SUPER_ADMIN gán).
+2. **Đổi `settings` ⛔ để lại dòng `audit_logs` nào**, chỉ một dòng log in nguyên văn giá trị cũ → mới. Vá:
+   `@Audited` trên `Setting`, log chỉ in khoá.
+3. **⛔ có xác thực lại** ngoài khôi phục CSDL — và bản khôi phục CSDL mang **hai** khuyết tật: mã sai ⛔ bị đếm
+   (dò 10⁶ mã ⛔ bao giờ khoá), và mã sai trả **401** ⇒ giao diện tưởng mất phiên, làm mới token, **gửi lại cùng
+   mã sai** (đếm hai lần) rồi đá người dùng ra ngoài. Vá: `XacThucLaiService` (đếm vào `LoginAttemptService`,
+   `ADM-2023` thiếu mã · `ADM-2024` mã sai, **403**) dùng chung cho khôi phục CSDL · bí mật tích hợp · tham số
+   nhóm `SECURITY`/`AUDIT`/`BACKUP` (+ `SECURITY_SETTING_CHANGED`).
+4. **Chuông:** hai luật Prometheus mới `DoiCauHinhBaoMat` + `CapQuyenVuotQuyenBiChan` — kênh ⛔ nằm trong tay ứng dụng.
+
+⚠ **Chỗ đặt xác thực lại của `settings`:** ở **controller**, vì `LoginAttemptService` đọc `SettingPort` ⇒
+đặt trong `SettingService` là vòng phụ thuộc. Service vẫn là chốt chặn cuối (`apDung` ném `ADM-2023` khi nhóm
+nhạy cảm mà nơi gọi ⛔ khai đã xác thực lại) — lượt phá "controller bỏ xác thực lại" đo được chốt ấy bắn thật.
+
+⛔ **Hệ quả cho quy tắc 11/13 của CLAUDE.md:** ⛔ đổi. *"Mọi connection đọc từ env"* vẫn nguyên; ngoại lệ duy
+nhất là credential bên thứ 3 mà ứng dụng là người đọc duy nhất — đúng loại quy tắc 13 đã cho vào CSDL mã hoá
+từ WS-28.

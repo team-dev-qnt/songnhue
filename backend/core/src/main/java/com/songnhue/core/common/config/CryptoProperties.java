@@ -75,6 +75,14 @@ public class CryptoProperties {
         return activeKeyId;
     }
 
+    /** Mọi {@code key_id} đã nạp, khoá đang hoạt động đứng ĐẦU — phục vụ chống trùng qua lượt xoay khoá. */
+    public java.util.List<String> keyIds() {
+        java.util.List<String> ket = new java.util.ArrayList<>();
+        ket.add(activeKeyId);
+        decoded.keySet().stream().filter(k -> !k.equals(activeKeyId)).forEach(ket::add);
+        return ket;
+    }
+
     /** @throws IllegalStateException khi bản ghi mang key_id không còn trong cấu hình */
     public byte[] keyBytes(String keyId) {
         byte[] key = decoded.get(keyId);

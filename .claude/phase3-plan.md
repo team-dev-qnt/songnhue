@@ -435,21 +435,31 @@ liền, HL nét đứt. `docs/ui-styles.md` có mục a11y — đọc trước.
 
 ## 8. Definition of Done — Phase 3
 
-| Mã | Nội dung |
-|---|---|
-| DOD3.1 | Bảng §6.1.2 ra **≥ 1 công trình có đủ cặp TL+HL và dòng Chênh lệch**, đo qua HTTP trên CSDL thật |
-| DOD3.2 | `delta` **không** xuất hiện khi thiếu một vế — có bài kiểm |
-| DOD3.3 | Mốc thiếu **ngắt** đường biểu đồ; có bài chứng minh mốc thiếu ⇒ `null` trong lưới |
-| DOD3.4 | `source_status` phân biệt được **cả ba** trạng thái, mỗi trạng thái một bài |
-| DOD3.5 | "Cập nhật lúc" = `MAX(synced_at)`; bài kiểm: đóng băng dữ liệu ⇒ dòng chữ **không** đổi |
-| DOD3.6 | Mọi endpoint xuất công khai qua `RateLimitFilter` — có bài đo 429 |
-| DOD3.7 | 0 mã màu ghi cứng ở `public-web` (giữ mức hiện tại); ngưỡng đi qua `color_token` |
-| DOD3.8 | Bảng chạy đúng trên **tập rỗng** `alert_levels` **và** trên tập có ngưỡng |
-| DOD3.9 | `make ci-local` **và** `make ci-order` đều thoát 0 |
-| DOD3.10 | Mỗi bộ canh mới có bài chứng minh nó **bắt được vi phạm** (luật 1) |
-| DOD3.11 | Mọi endpoint mới có **màn hình gọi** (§11.15 — 7/62 endpoint CMS từng mồ côi) |
-| DOD3.12 | 8 dòng sổ sai (§4.4) đã sửa; 2 nợ chỉ sống ở CLAUDE.md đã vào sổ |
-| DOD3.13 | HRM: `hr.*` hoặc có nơi đọc, hoặc `editable=FALSE` (T42.15) |
+> ⭐ **Đối chiếu lần ĐẦU TIÊN 14/09/2026** (WS-60). Trước lượt ấy `grep -c "DOD3"` trong
+> `master-tracking.md` = **0** — 13 mục này sống ở đây và **chưa lượt nào đem đi so với mã**, đúng
+> hình dạng §10.36 (*4/17 cam kết DoD ⛔ không có phép kiểm nào*). Lượt đối chiếu tìm ra **hai
+> khuyết tật đang sống**, một trong hai do chính đợt Phase 3 mở rộng.
+>
+> ⛔ **Luật khi tick**: chỉ tick khi **đã đọc THÂN** bài kiểm, ⛔ không tick theo tên. Mục ⛔ không
+> có phép kiểm thì **để trống**.
+
+| Mã | Nội dung | Trạng thái | Phép kiểm đứng sau |
+|---|---|:-:|---|
+| DOD3.1 | Bảng §6.1.2 ra **≥ 1 công trình có đủ cặp TL+HL và dòng Chênh lệch**, đo qua HTTP trên CSDL thật | ✅ | `HydroGridHttpTest.anonymousBrowserGetsGridWithComputedDifferenceRow` |
+| DOD3.2 | `delta` **không** xuất hiện khi thiếu một vế — có bài kiểm | ✅ | `…differenceIsAbsentNotZeroWhenOneSideMissing` — khẳng định **TRỐNG kèm lý do**, ⛔ không phải `0` |
+| DOD3.3 | Mốc thiếu **ngắt** đường biểu đồ; có bài chứng minh mốc thiếu ⇒ `null` trong lưới | ✅ | `…gridIsRectangularSoMissingSlotsBecomeEmptyCellsNotSwallowedColumns` + `…missingSlotsBecomeNullPointsSoTheLineBreaks` |
+| DOD3.4 | `source_status` phân biệt được **cả ba** trạng thái, mỗi trạng thái một bài | ✅ | `HydroGridHttpTest` lớp lồng *"DOD3.4"* — 3 trạng thái + 2 bài **từ chối** trạng thái mâu thuẫn |
+| DOD3.5 | "Cập nhật lúc" = `MAX(synced_at)`; bài kiểm: đóng băng dữ liệu ⇒ dòng chữ **không** đổi | ✅ | `PublicConstructionPortalHttpTest:225` (**có vế phân biệt**, luật 9) + `PublicOperationStatusServiceTest:132` |
+| DOD3.6 | Mọi endpoint xuất công khai qua `RateLimitFilter` — có bài đo 429 | ⚠ **ĐÃ VÁ** | ⛔ **KHÔNG đạt** lúc đối chiếu: **4/6** endpoint kết xuất rơi xuống `API` = 100/phút thay vì 10/giờ (**rộng gấp 600 lần**), **ba trong bốn** do chính Phase 3 dựng. Vá trong PR #132 ⇒ `HanMucKetXuatTest` (bảng khai 12 dòng **kèm lý do** + quét mã nguồn đo phạm vi). Đóng luôn **T47.11** |
+| DOD3.7 | 0 mã màu ghi cứng ở `public-web` (giữ mức hiện tại); ngưỡng đi qua `color_token` | ✅ | `public-web/src/lib/noHardcodedColors.test.ts` — `toEqual([])` kèm **hai** vế chống-tập-rỗng (≥30 tệp, >50.000 ký tự) |
+| DOD3.8 | Bảng chạy đúng trên **tập rỗng** `alert_levels` **và** trên tập có ngưỡng | ✅ | `…withNoThresholdsNoCellIsColoured` + `…cellsCarryTheHighestThresholdBandTheyExceed` |
+| DOD3.9 | `make ci-local` **và** `make ci-order` đều thoát 0 | ✅ | Đo 14/09: cả hai thoát **0**; CI thật trên `dev` `34829579535` **success** |
+| DOD3.10 | Mỗi bộ canh mới có bài chứng minh nó **bắt được vi phạm** (luật 1) | ✅ | ⛔ **Không** bộ canh MỚI nào trong 3 commit Phase 3 — 12 tệp kiểm mới đều là bài **hành vi**. Bộ canh được **sửa** (`EnumBaNoiTest`) có bài tự-kiểm ở dòng 298. Hai bộ canh của WS-60 đều có (`AnhMinioDongBoTest` 3 vế · `HanMucKetXuatTest` 1) |
+| DOD3.11 | Mọi endpoint mới có **màn hình gọi** (§11.15 — 7/62 endpoint CMS từng mồ côi) | ✅ | **20/20** endpoint mới có nơi gọi. ⚠ Lượt quét đầu báo 9 mồ côi — **8/9 là dương tính giả của chính phép đo** (FE ghép đường dẫn bằng template literal; luật 25) |
+| DOD3.12 | 8 dòng sổ sai (§4.4) đã sửa; 2 nợ chỉ sống ở CLAUDE.md đã vào sổ | 🟡 **một phần** | ✅ `T11.88` sửa từ `[x]` sai về `[ ]` đúng · ✅ 2 nợ đã vào sổ. ⬜ `T24.33`·`T26.24`·`T26.76`·`T38.12`·`DOD0.20` vẫn `[ ]` — ⛔ **không tick** vì ⛔ chưa đo từng cái, và §4.4 **tự nó cũng là một dòng sổ chưa kiểm** (T60.8) |
+| DOD3.13 | HRM: `hr.*` hoặc có nơi đọc, hoặc `editable=FALSE` (T42.15) | ✅ | **16** khoá `hr.*` seed, **0 mồ côi** (WS-53 trả 2 · WS-57 trả 13) |
+
+**⇒ 12/13 đạt · 1 đạt một phần · 0 mục để trống.**
 
 ---
 

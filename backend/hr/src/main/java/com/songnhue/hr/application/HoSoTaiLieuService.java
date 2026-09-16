@@ -389,7 +389,7 @@ public class HoSoTaiLieuService {
         boolean cua = attachments.refsOf(OWNER_TYPE, hoSo.getId()).stream()
                 .anyMatch(ref -> ref.publicId().equals(tepPublicId));
         if (!cua) {
-            throw new ResourceNotFoundException(ErrorCode.SYS_0004, tepPublicId);
+            throw new ResourceNotFoundException(ErrorCode.SYS_0004);
         }
     }
 

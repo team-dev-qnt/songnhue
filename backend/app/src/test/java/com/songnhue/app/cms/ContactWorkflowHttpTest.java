@@ -287,6 +287,9 @@ class ContactWorkflowHttpTest extends IntegrationTestBase {
         ResponseEntity<String> xoa = phienHttp.goi(duQuyen, HttpMethod.DELETE, DANH_MUC + "/" + maDanhMuc, null);
         assertThat(xoa.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(xoa.getBody()).contains("CMS-2020");
+        // ⭐ T61.13 — câu HIỂN THỊ, ⛔ chỉ mã. Câu cũ đánh chỗ cắm từ {1} trong khi nơi ném truyền đúng
+        //   MỘT đối số ({0}) ⇒ người dùng đọc nguyên chữ "{1}" — 200 bài kiểm so mã lỗi ⛔ thấy được.
+        assertThat(xoa.getBody()).contains("Phân loại còn 1 liên hệ đang gán").doesNotContain("{0}", "{1}");
 
         ResponseEntity<String> tat = phienHttp.goi(
                 duQuyen,
@@ -309,6 +312,10 @@ class ContactWorkflowHttpTest extends IntegrationTestBase {
                 duQuyen, HttpMethod.POST, DANH_MUC, "{\"code\":\"GOP_Y\",\"name\":\"Góp ý khác\",\"sortOrder\":1}");
         assertThat(lai.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(lai.getBody()).contains("CMS-2019");
+        assertThat(lai.getBody())
+                .as("T61.13 — người dùng phải đọc được MÃ nào trùng, ⛔ chữ \"{1}\"")
+                .contains("Mã phân loại \\\"GOP_Y\\\" đã tồn tại")
+                .doesNotContain("{0}", "{1}");
     }
 
     /**

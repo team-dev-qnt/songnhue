@@ -217,7 +217,7 @@ public class DonNghiPhepService {
      * <p>{@code targetedWithUnits} giải người nhận bằng {@code findActiveIdsByPermission} —
      * <b>toàn Công ty</b>, ⛔ không cắt theo đơn vị (cộng thêm trưởng/phó của chính đơn vị người
      * nộp). Đặc tả nói <i>"quản lý <b>đơn vị</b> duyệt"</i>, hẹp hơn thế. Vế <i>duyệt</i> thì đã
-     * hẹp đúng nhờ bộ lọc phạm vi; vế <i>nhận thư</i> thì chưa — nợ <b>T57.7</b>. ⛔ Thu hẹp nó là
+     * hẹp đúng nhờ bộ lọc phạm vi; vế <i>nhận thư</i> thì chưa — nợ <b>T57.15</b>. ⛔ Thu hẹp nó là
      * đổi ngữ nghĩa của {@code RecipientResolver} cho <b>cả</b> CMS và vận hành công trình, nên nó
      * ⛔ không phải việc của một lượt dựng tính năng.
      */

@@ -81,6 +81,16 @@ public class TotpService {
         this.securityEvents = securityEvents;
     }
 
+    /** T61.30 — xoá đăng ký 2FA + mã khôi phục (quản trị viên đặt lại). @return có đăng ký nào để xoá không */
+    @Transactional
+    public boolean xoaDangKy(Long userId) {
+        boolean co = totpRepository.findByUserId(userId).isPresent();
+        totpRepository.findByUserId(userId).ifPresent(totpRepository::delete);
+        recoveryCodes.deleteByUserId(userId);
+        totpRepository.flush();
+        return co;
+    }
+
     public boolean isEnrolled(Long userId) {
         return totpRepository.findByUserId(userId).filter(UserTotp::isConfirmed).isPresent();
     }

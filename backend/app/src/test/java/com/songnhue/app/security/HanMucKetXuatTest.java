@@ -111,7 +111,7 @@ class HanMucKetXuatTest {
                         %d endpoint rơi sai xô hạn mức:
 
                         %s
-                        ⛔ EXPORT là 10 lượt/giờ, API là 100 lượt/phút — chênh nhau 600 lần. Một \
+                        ⛔ EXPORT tính theo GIỜ (settings, ≤ 100), API là 100 lượt/phút — chênh nhau hàng trăm lần. Một \
                         endpoint kết xuất rơi xuống API ⛔ không có triệu chứng nào cho tới ngày có \
                         người gọi nó hàng nghìn lượt.""",
                         sai.size(), String.join("\n", sai))

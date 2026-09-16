@@ -599,7 +599,7 @@ Cột **fail-fast** = có dừng ứng dụng không. `⛔ im lặng` là loại
 | `APP_ENVIRONMENT` | `production` | im lặng | thiếu ⇒ metric staging và production lẫn nhau ở Prometheus |
 | `SHEDLOCK_ENABLED` | `false` | im lặng | v1 chạy 1 node; bật khi lên ≥2 node |
 | `WORKER_ENABLED` | `true` | im lặng | tắt = hàng đợi công việc không ai chạy |
-| `APP_BASE_URL` | *(bỏ qua)* | — | ⚠ **không dòng mã nào đọc** — biến mồ côi, để nguyên cũng được |
+| ~~`APP_BASE_URL`~~ | *(gỡ khỏi `.env`)* | — | ⛔ **Đã gỡ khỏi tệp mẫu 15/09/2026 (T61.45)** — 0 dòng mã đọc. Còn trên máy chủ thì xoá dòng ấy |
 
 #### PostgreSQL
 
@@ -683,7 +683,7 @@ Cột **fail-fast** = có dừng ứng dụng không. `⛔ im lặng` là loại
 | `LOG_STRUCTURED_FORMAT` | `ecs` | JSON cho bộ thu thập tập trung |
 | `LOG_MAX_HISTORY` / `LOG_TOTAL_SIZE_CAP` | `30` / `3GB` | trần cứng — **đĩa đầy thì `pg_dump` hỏng theo** |
 | `HYDRO_API_KEY` | *(Công ty cấp — có thể để trống)* | chỉ là giá trị **mồi** cho lượt triển khai đầu. Nhà thật của mã số là cột `api_sources.credential` (AES-256-GCM), sửa trên màn hình *Nguồn dữ liệu*. ⚠ **dấu `;` cuối là một phần của giá trị** |
-| `EXTERNAL_DOC_SYSTEM_URL` · `EXTERNAL_DOC_SYSTEM_ENABLED` · `GOOGLE_MAPS_API_KEY` | *(bỏ qua)* | ⚠ **không dòng mã nào đọc** — ba biến mồ côi, chờ chốt BOQ G5/G13 |
+| ~~`EXTERNAL_DOC_SYSTEM_URL` · `EXTERNAL_DOC_SYSTEM_ENABLED` · `GOOGLE_MAPS_API_KEY`~~ | *(gỡ khỏi `.env`)* | ⛔ **0 dòng mã đọc — đã gỡ khỏi tệp mẫu (08/09 và 15/09/2026)**. Còn trên máy chủ thì xoá |
 
 ⛔ **Hai công tắc nới bảo mật — KHÔNG khai ở production, kể cả với giá trị `false`:**
 `HYDRO_API_ALLOW_INTERNAL_HOST` (bật = nới SSRF cho `127.0.0.1`/`10.*`) và `HYDRO_API_MOCK` (bật =
@@ -1586,6 +1586,28 @@ quay về mốc cũ. Đó là cách duy nhất đóng ô này bằng số đo.
 cd /opt/songnhue
 docker compose --env-file .env -f compose.observability.yml up -d
 ```
+
+> ⛔⛔ **Trước 14/09/2026 lệnh trên dựng một hệ giám sát ⛔ đọc được chỉ số nào của ứng dụng** (T61.5):
+> `prometheus.yml` khai target `${PROD_APP_TARGET}` mà Prometheus ⛔ thay biến ⇒ `invalid URL escape`;
+> `app` production ⛔ mở cổng nào; và ⛔ có Alertmanager. Nay:
+>
+> * **Chỉ số production** đi qua nginx VPS-1: `https://<ADMIN_DOMAIN>/actuator/prometheus`, **chỉ** IP
+>   VPS-2 (`METRICS_ALLOW_IP`) **và** token (`METRICS_BEARER_TOKEN`). Hai biến khai `:?` ⇒ thiếu là nginx
+>   ⛔ lên — **đặt vào `.env` của CẢ HAI máy TRƯỚC lượt đề bạt mang bản này** (staging: `127.0.0.1`).
+> * **Chỉ số staging**: Prometheus nối mạng `songnhue_default` ⇒ stack staging phải lên TRƯỚC.
+> * **Alertmanager** (`.env` VPS-2): prod critical → email + Slack + Telegram · prod warning → Slack +
+>   Telegram · staging → Slack. Email dùng `SMTP_*`. Biến: `PROD_METRICS_HOST`,
+>   `PROD_METRICS_BEARER_TOKEN`, `ALERT_EMAIL_TO`, `SLACK_WEBHOOK_URL`, `TELEGRAM_BOT_TOKEN`,
+>   `TELEGRAM_CHAT_ID` — thiếu biến nào là container ⛔ lên, và **⛔ viết chú thích cùng dòng với giá trị
+>   rỗng** (compose lấy chú thích làm giá trị).
+> * **Chuông canh chính hệ giám sát** (T61.25, chốt 15/09): luật `Watchdog` luôn kêu, Alertmanager POST
+>   tới healthchecks.io mỗi ~2 phút. Tạo check **Period 5 phút · Grace 5 phút**, gắn email/Telegram **của
+>   tài khoản healthchecks.io**, đặt `HEALTHCHECKS_PING_URL` vào `.env` VPS-2. VPS-2 chết ⇒ dịch vụ ngoài báo.
+> * **Chuông sao lưu chỉ canh production** (T61.26) — staging ⛔ có lịch sao lưu.
+> * **Staging bật SMTP thì phải có `MAIL_REDIRECT_TO`** (T61.23) — thiếu ⇒ app staging ⛔ khởi động;
+>   production có biến ấy ⇒ app production ⛔ khởi động.
+> * Kiểm sau khi lên: `curl -s 127.0.0.1:19090/api/v1/targets` ⇒ `songnhue-app-production` **up**;
+>   bắn thử một cảnh báo (lệnh ở `.claude/phase4-tracking-tmp.md` §B6); trang healthchecks.io hiện **up**.
 
 Grafana và Prometheus publish ra `127.0.0.1`; vào bằng đường hầm SSH, không mở cổng:
 

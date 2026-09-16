@@ -5,6 +5,8 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
@@ -15,6 +17,7 @@ import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -177,6 +180,7 @@ public class BackupService {
                         record, "pg_dump báo thành công nhưng tệp %s rỗng hoặc không tồn tại".formatted(target));
             }
 
+            hanCheQuyenDoc(target);
             String checksum = sha256(target);
             SystemBackup saved = closeSucceeded(record, target, Files.size(target), checksum);
             log.info("Sao lưu xong: {} ({} byte, sha256={}…)", target, saved.getSizeBytes(), checksum.substring(0, 12));
@@ -337,6 +341,30 @@ public class BackupService {
             throw new BusinessRuleException(ErrorCode.ADM_2008);
         }
     }
+
+    /**
+     * Bản dump là TOÀN BỘ CSDL — {@code users.password_hash}, {@code user_totp.secret_encrypted}, bảng
+     * {@code employee_sensitive}. JVM mang umask 022 nên {@code pg_dump} tạo tệp {@code 644}: mọi user
+     * trên máy đọc được (đo 08/09 trên VPS-1, T11.96 → T61.8).
+     *
+     * <p>⚠ {@code 640} chứ ⛔ không {@code 600}: VPS-2 kéo bản dump về bằng user thuộc NHÓM của thư mục sao
+     * lưu (setgid, {@code host-prepare.sh}); {@code 600} là kho ngoài máy lặng lẽ ngừng nhận bản mới.
+     *
+     * <p>⚠ Hạ quyền hỏng thì GIỮ bản dump và ghi ERROR, ⛔ không xoá: đây là lưới an toàn duy nhất của
+     * hệ, còn rủi ro đọc trộm nằm trên một máy chỉ có hai user. Hệ tệp ⛔ POSIX (máy dev Windows) thì bỏ
+     * qua — ở đó ⛔ có khái niệm "user khác trên cùng máy chủ".
+     */
+    static void hanCheQuyenDoc(Path file) {
+        try {
+            Files.setPosixFilePermissions(file, QUYEN_BAN_DUMP);
+        } catch (UnsupportedOperationException e) {
+            log.debug("Hệ tệp không hỗ trợ quyền POSIX — bỏ qua hạ quyền {}", file);
+        } catch (IOException e) {
+            log.error("⚠ Không hạ được quyền bản dump {} về 640 — tệp vẫn đọc được bởi user khác (T61.8)", file, e);
+        }
+    }
+
+    static final Set<PosixFilePermission> QUYEN_BAN_DUMP = PosixFilePermissions.fromString("rw-r-----");
 
     static String sha256(Path file) throws IOException {
         try {

@@ -213,6 +213,40 @@ services:
         fi
 
   # ---------------------------------------------------------------------------
+  # clamav — quét virus tệp tải lên (T61.4). Backend gọi INSTREAM qua TCP 3310.
+  #
+  # ⛔⛔ Trước 14/09/2026 service này KHÔNG TỒN TẠI ở môi trường nào: `app.clamav.host`
+  #    rỗng ⇒ mọi tệp tải lên, gồm CCCD/hợp đồng trong hồ sơ CBNV, ghi `SKIPPED`.
+  #
+  # Số đo 14/09/2026 trên chính ảnh này (máy dev, cùng bộ định nghĩa):
+  #   · nghỉ ~965 MiB · nạp lại định nghĩa: mặc định ĐỈNH 1.913 MiB, `no` ĐỈNH 981 MiB
+  #     (đổi lại lượt quét giữa lúc nạp chờ ~5 giây — quét là job nền, ⛔ ai nhìn thấy).
+  #     QuanTran chốt `no` cho CẢ HAI máy: VPS-1 đã cộng 7,0 GB trần.
+  #   · ⛔⛔ `StreamMaxLength` MẶC ĐỊNH 100M < trần tải lên 120MB (`UPLOAD_MAX_FILE_MB`):
+  #     ZIP SẠCH 115 MB nhận `INSTREAM size limit exceeded. ERROR`. Nâng lên 130M thì ZIP
+  #     115 MB chứa EICAR ra `FOUND`, bản sạch ra `OK`. `ClamavTranLuongTest` canh hai con số.
+  #
+  # ⚠ `app` chỉ `depends_on` với `service_started`, ⛔ `service_healthy`: máy quét chết
+  #   ⛔ được kéo cả hệ chết theo. Clamd chưa sẵn sàng ⇒ job quét hỏng, worker thử lại,
+  #   tệp giữ UPLOADING (⛔ tải xuống được) — đóng an toàn.
+  # ---------------------------------------------------------------------------
+  clamav:
+    image: clamav/clamav:1.4.6-debian
+    container_name: songnhue-clamav
+    restart: unless-stopped
+    environment:
+      CLAMD_CONF_ConcurrentDatabaseReload: "no"
+      CLAMD_CONF_StreamMaxLength: 130M
+      CLAMD_CONF_MaxFileSize: 130M
+      CLAMD_CONF_MaxScanSize: 520M
+    volumes:
+      # Giữ bộ định nghĩa qua các lượt dựng lại — tải lại ~110 MB mỗi lượt deploy dễ bị
+      # máy chủ cập nhật của ClamAV hạn mức (429).
+      - clamav-db:/var/lib/clamav
+    # ⛔ KHÔNG mở `ports`: chỉ `app` gọi, trong mạng compose.
+    mem_limit: 1200m
+
+  # ---------------------------------------------------------------------------
   # migrator — chạy Flyway rồi THOÁT. Không phải service chạy nền.
   #
   # `docker compose run --rm migrator` chạy đồng bộ và trả mã thoát, nên
@@ -279,6 +313,9 @@ services:
       #    nhanh chậm.
       minio-init:
         condition: service_completed_successfully
+      # T61.4 — `service_started`, ⛔ `service_healthy`: xem khối `clamav` phía trên.
+      clamav:
+        condition: service_started
     env_file: [.env]
     environment:
       # Lấy từ `.env` để `compose.staging.yml` — vốn `include` chính tệp này —
@@ -293,6 +330,8 @@ services:
       APP_PORT: 8080
       # ⚠ PHẢI false — migration là việc của service `migrator` ở trên.
       FLYWAY_ENABLED: "false"
+      # T61.4 — tên service trong mạng compose. Rỗng ⇒ tệp ghi `SKIPPED` (⛔ `CLEAN`).
+      APP_CLAMAV_HOST: clamav
       SMTP_HOST: ${SMTP_HOST}
       SMTP_PORT: ${SMTP_PORT}
       # ⚠⚠ ĐÂY LÀ CHỖ DỄ SAI NHẤT CỦA CẢ TỆP NÀY.
@@ -391,6 +430,10 @@ services:
       FILES_DOMAIN: ${FILES_DOMAIN}
       PUBLIC_UPSTREAM: http://public-web:3000
       ADMIN_UPSTREAM: http://admin-app:80
+      # T61.5 — CHỈ dùng cho `location = /actuator/prometheus` (Prometheus trên VPS-2).
+      APP_UPSTREAM: http://app:8080
+      METRICS_ALLOW_IP: ${METRICS_ALLOW_IP:?Thiếu METRICS_ALLOW_IP — IP công cộng của VPS-2 (staging đặt 127.0.0.1)}
+      METRICS_BEARER_TOKEN: ${METRICS_BEARER_TOKEN:?Thiếu METRICS_BEARER_TOKEN — openssl rand -hex 32}
       FILES_UPSTREAM: http://minio:9000
       # production → `all` · staging → `noindex, nofollow`. Xem lý do đầy đủ ở
       # nginx/snippets/edge-headers.conf: hai môi trường chạy CÙNG image nên
@@ -450,4 +493,5 @@ services:
 volumes:
   postgres-data:
   minio-data:
+  clamav-db:
   certbot-webroot:
