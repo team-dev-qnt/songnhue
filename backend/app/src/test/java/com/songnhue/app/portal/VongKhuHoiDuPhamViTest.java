@@ -66,7 +66,9 @@ class VongKhuHoiDuPhamViTest {
             "MenuController.MenuRequest", "frontend/admin-app/src/features/cms/menuVongKhuHoi.test.tsx",
             "StationController.StationRequest", "frontend/admin-app/src/features/hydro/diemDoVongKhuHoi.test.tsx",
             "EmployeeSensitiveController.SensitiveRequest",
-                    "frontend/admin-app/src/features/hr/truongBaoMatVongKhuHoi.test.tsx"));
+                    "frontend/admin-app/src/features/hr/truongBaoMatVongKhuHoi.test.tsx",
+            "AlertRuleController.AlertRuleUpdateRequest",
+                    "frontend/admin-app/src/features/hydro/nguongCanhBaoVongKhuHoi.test.tsx"));
 
     /**
      * Endpoint CHƯA có bài kiểm — <b>mỗi dòng một lý do ĐO ĐƯỢC, tối thiểu 40 ký tự</b>.
@@ -96,10 +98,6 @@ class VongKhuHoiDuPhamViTest {
                     "MeasurementTypeController.MeasurementTypeRequest",
                     "7 trường. `valueScale == null ⇒ 3` và `sortOrder == null ⇒ 0` là hai mặc định LẶNG "
                             + "— đánh rơi ⛔ sinh lỗi nào, chỉ đổi số chữ số hiển thị và thứ tự danh mục."),
-            Map.entry(
-                    "AlertRuleController.AlertRuleUpdateRequest",
-                    "6 trường, có vế AN TOÀN: `active == null ⇒ true` ⇒ đánh rơi `active` là BẬT LẠI một "
-                            + "ngưỡng cảnh báo vừa cố ý tắt; `delayMinutes == null ⇒ 0` ⇒ bắn ngay mỗi lượt vượt."),
             Map.entry(
                     "AlertLevelController.AlertLevelRequest",
                     "6 trường danh mục mức ngưỡng. Cùng màn hình họ hàng với AlertRule nên gộp một lượt; "

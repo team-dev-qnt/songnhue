@@ -46,7 +46,7 @@ const GOC = join(dirname(new URL(import.meta.url).pathname), '..');
  * ⚠ Con số này là một phép ĐO ngày 16/09/2026, ⛔ phải một hạn mức ai đó chọn. Giảm nó khi dọn
  * xong một nhóm; ⛔ bao giờ tăng.
  */
-const NGUONG = 36;
+const NGUONG = 34;
 
 /** Từ vị trí `<Button`, trả về `[thuộc tính, có-tự-đóng-⛔, vị trí sau thẻ]` — quét cân `{}` và nháy. */
 function theButton(ma: string, tu: number): [string, boolean, number] {
