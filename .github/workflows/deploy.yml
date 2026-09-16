@@ -95,7 +95,7 @@ jobs:
       #    thông tin đăng nhập vào `$HOME/.docker`, trỏ biến ấy đi chỗ khác là mọi
       #    lượt tra quay về ẩn danh trong khi log vẫn in "Login Succeeded" (§10.43).
       - name: Đăng nhập GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
