@@ -307,7 +307,9 @@ public class PublicPortalController {
             @Size(max = 50) String phone,
             @Size(max = 255) String subject,
             @NotBlank @Size(max = 5000) String content,
-            @Size(max = 4000) String recaptchaToken) {}
+            @Size(max = 4000) String recaptchaToken,
+            /** T61.39 — ô đồng ý thông báo quyền riêng tư; chỉ BẮT BUỘC khi cổng đã công bố thông báo. */
+            Boolean dongY) {}
 
     /**
      * Tiếp nhận một liên hệ / phản ánh — CN-01.4.
@@ -340,7 +342,8 @@ public class PublicPortalController {
                 yeuCau.phone(),
                 yeuCau.subject(),
                 yeuCau.content(),
-                yeuCau.recaptchaToken());
+                yeuCau.recaptchaToken(),
+                yeuCau.dongY());
     }
 
     // ---- Góp ý / đánh giá (CN-01.6, chốt D1) ---------------------------------
@@ -351,7 +354,9 @@ public class PublicPortalController {
             @Email @Size(max = 255) String email,
             @Min(1) @Max(5) Short rating,
             @NotBlank @Size(max = 2000) String content,
-            @Size(max = 4000) String recaptchaToken) {}
+            @Size(max = 4000) String recaptchaToken,
+            /** T61.39 — xem {@link ContactRequest}. */
+            Boolean dongY) {}
 
     /**
      * Một góp ý <b>đã duyệt</b>, dạng công bố trên cổng.
@@ -398,7 +403,12 @@ public class PublicPortalController {
     @PublicEndpoint(reason = "Biểu mẫu góp ý của người dùng cổng — CN-01.6")
     public void submitFeedback(@Valid @RequestBody FeedbackRequest yeuCau) {
         feedbacks.tiepNhan(
-                yeuCau.fullName(), yeuCau.email(), yeuCau.rating(), yeuCau.content(), yeuCau.recaptchaToken());
+                yeuCau.fullName(),
+                yeuCau.email(),
+                yeuCau.rating(),
+                yeuCau.content(),
+                yeuCau.recaptchaToken(),
+                yeuCau.dongY());
     }
 
     /**

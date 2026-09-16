@@ -129,7 +129,13 @@ public class ContactService {
      */
     @Transactional
     public Contact tiepNhan(
-            String hoTen, String email, String dienThoai, String chuDe, String noiDung, String maCaptcha) {
+            String hoTen,
+            String email,
+            String dienThoai,
+            String chuDe,
+            String noiDung,
+            String maCaptcha,
+            Boolean dongY) {
         String ten = cong.chuanHoa(hoTen);
         String mail = cong.chuanHoa(email);
         String dt = cong.chuanHoa(dienThoai);
@@ -190,7 +196,11 @@ public class ContactService {
         //   "bật mà thiếu khoá bí mật" — nhưng chỉ trạng thái thứ hai ghi ERROR.
         cong.kiemNguoiThat(maCaptcha);
 
-        Contact daLuu = contacts.save(new Contact(ten, mail, dt, cd, nd));
+        // T61.39 — kiểm TRƯỚC khi ghi: có thông báo mà người gửi ⛔ tick thì ⛔ bản ghi nào được tạo.
+        java.time.Instant dongYLuc = cong.kiemDongY(dongY);
+        Contact moi = new Contact(ten, mail, dt, cd, nd);
+        moi.setConsentAt(dongYLuc);
+        Contact daLuu = contacts.save(moi);
         baoCoLienHeMoi(daLuu);
         datThuXacNhan(daLuu);
         return daLuu;

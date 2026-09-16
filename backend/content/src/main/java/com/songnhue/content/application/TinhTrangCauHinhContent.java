@@ -25,17 +25,47 @@ class TinhTrangCauHinhContent implements NguonTinhTrangCauHinh {
     private final SettingPort settings;
     private final BiMatTichHopPort biMat;
 
-    TinhTrangCauHinhContent(SettingPort settings, BiMatTichHopPort biMat) {
+    TinhTrangCauHinhContent(SettingPort settings, BiMatTichHopPort biMat, InboundSubmissionGate cong) {
         this.settings = settings;
         this.biMat = biMat;
+        this.cong = cong;
     }
+
+    private final InboundSubmissionGate cong;
 
     @Override
     public List<MucCauHinh> mucCauHinh() {
+        return List.of(mucCaptcha(), mucRiengTu());
+    }
+
+    /**
+     * T61.39 — thông báo quyền riêng tư NĐ 13/2023.
+     *
+     * <p>Mức CẢNH BÁO chứ ⛔ CHẶN: cổng vẫn chạy được ⛔ có nó, nhưng mỗi lượt người dân gửi biểu mẫu là
+     * một lượt thu thập dữ liệu cá nhân ⛔ thông báo — vi phạm Điều 13. Nội dung là văn bản của Công ty,
+     * nên ⛔ có cách nào "tự vá" ngoài việc nói ra rằng nó đang thiếu.
+     */
+    private MucCauHinh mucRiengTu() {
+        boolean co = cong.coThongBaoRiengTu();
+        return new MucCauHinh(
+                "QUYEN_RIENG_TU",
+                "Cổng công khai",
+                "Thông báo quyền riêng tư trên biểu mẫu (NĐ 13/2023)",
+                co ? TrangThai.DAT : TrangThai.THIEU,
+                MucDo.CANH_BAO,
+                "Ứng dụng",
+                "Cấu hình › site.privacy.notice (+ site.privacy.policy-url)",
+                co
+                        ? "Đang hiện trên biểu mẫu Liên hệ và Góp ý; ô đồng ý là BẮT BUỘC và thời điểm đồng ý được lưu."
+                        : "⛔ Chưa có thông báo ⇒ biểu mẫu ⛔ hiện ô đồng ý (tick vào một thông báo RỖNG là bằng "
+                                + "chứng đồng ý GIẢ). Nội dung do Công ty cung cấp — pháp chế.");
+    }
+
+    private MucCauHinh mucCaptcha() {
         boolean bat = settings.getBoolean(InboundSubmissionGate.KHOA_CAPTCHA_BAT, false);
         boolean coKhoa = biMat.giaTri(LoaiBiMat.RECAPTCHA_SECRET_KEY).isPresent();
         TrangThai tt = !bat ? TrangThai.KHONG_AP_DUNG : (coKhoa ? TrangThai.DAT : TrangThai.SAI);
-        return List.of(new MucCauHinh(
+        return new MucCauHinh(
                 "RECAPTCHA",
                 "Cổng công khai",
                 "Chống spam biểu mẫu liên hệ/góp ý (reCAPTCHA)",
@@ -48,6 +78,6 @@ class TinhTrangCauHinhContent implements NguonTinhTrangCauHinh {
                         "Chưa bật (G13 — Công ty chưa cấp khoá). Chỉ còn hạn mức tần suất chống spam.";
                     case DAT -> "Đang bật và có khoá bí mật.";
                     default -> "⛔ Đang BẬT mà thiếu khoá bí mật ⇒ captcha ⛔ chạy, biểu mẫu vẫn nhận mọi lượt gửi.";
-                }));
+                });
     }
 }
