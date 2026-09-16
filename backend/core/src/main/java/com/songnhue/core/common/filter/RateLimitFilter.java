@@ -12,7 +12,8 @@ import com.songnhue.core.common.ratelimit.RateLimitStore;
 import com.songnhue.core.common.web.ClientIp;
 
 /**
- * Filter [2] — hạn mức <b>theo IP, TRƯỚC xác thực</b>: chỉ xô {@code LOGIN} và {@code PUBLIC}.
+ * Filter [2] — hạn mức <b>theo IP, TRƯỚC xác thực</b>: xô {@code LOGIN}, {@code PUBLIC} và
+ * {@code BIEU_MAU_CONG_KHAI}.
  *
  * <p>Đặt trước AuthFilter là có chủ đích: một đợt dò mật khẩu phải bị chặn ngay ở cửa, không được
  * tiêu tốn tài nguyên băm BCrypt (cost ≥ 12 — cố ý chậm) của máy chủ. Cổng công khai ⛔ có người
@@ -37,7 +38,13 @@ public class RateLimitFilter extends HanMucFilterCoSo {
 
     @Override
     boolean phuTrach(RateLimitPolicy policy) {
-        return policy == RateLimitPolicy.LOGIN || policy == RateLimitPolicy.PUBLIC;
+        // ⚠⚠ T61.37 — xô mới PHẢI được khai ở đây. Bộ lọc sau xác thực chỉ đếm người dùng đã đăng
+        //   nhập, nên một xô công khai ⛔ có tên trong danh sách này thì ⛔ ai đếm nó: bản nháp đầu
+        //   của T61.37 thêm `BIEU_MAU_CONG_KHAI` vào enum mà quên dòng này, và kết quả đo được là
+        //   12/12 lượt gửi ĐỀU qua — tức hạn mức ⛔ chặt hơn, nó BIẾN MẤT (luật 7).
+        return policy == RateLimitPolicy.LOGIN
+                || policy == RateLimitPolicy.PUBLIC
+                || policy == RateLimitPolicy.BIEU_MAU_CONG_KHAI;
     }
 
     /**

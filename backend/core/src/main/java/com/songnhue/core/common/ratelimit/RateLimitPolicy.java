@@ -70,7 +70,34 @@ public enum RateLimitPolicy {
      * là 10 lượt/giờ cho CẢ Công ty. Con số trong enum là <b>dự phòng</b> khi thiếu khoá — trùng mặc định
      * seed, nên bài kiểm núm cấu hình ⛔ được dùng 30 làm giá trị thử (T48.7).
      */
-    EXPORT("export", 30, Duration.ofHours(1));
+    EXPORT("export", 30, Duration.ofHours(1)),
+
+    /**
+     * <b>Gửi biểu mẫu công khai</b> (liên hệ · góp ý): 10 lượt / giờ cho mỗi IP — <b>T61.37</b>.
+     *
+     * <h2>Vì sao {@link #PUBLIC} ⛔ đủ</h2>
+     *
+     * <p>300 lượt/phút là hạn mức của một người ĐỌC cổng (một lượt xem trang gọi nhiều endpoint).
+     * Áp cùng con số cho đường GHI nghĩa là một người lạ gửi được <b>18.000 lượt/giờ</b>, và mỗi
+     * lượt sinh: một thư xác nhận tới địa chỉ kẻ gửi tự khai, cộng một thông báo + một thư cho
+     * <b>từng cán bộ</b> giữ {@code cms:contact:manage}. Với 10 cán bộ là hệ số nhân <b>11×</b> —
+     * máy chủ thư của Công ty thành máy phát tán, và tên miền vào danh sách đen.
+     *
+     * <p>⚠ Con số 10/giờ chọn theo <b>hành vi thật</b>: một người dân gửi một lượt, hoạ hoằn gửi
+     * lại vì gõ nhầm. ⚠⚠ Nó ⛔ phủ được kẻ tấn công có nhiều IP — vế ấy thuộc về reCAPTCHA (chờ
+     * khoá G13) và về việc thư xác nhận nay ⛔ gửi khi reCAPTCHA chưa thật sự bật.
+     */
+    BIEU_MAU_CONG_KHAI("form", 10, Duration.ofHours(1));
+
+    /**
+     * Hai đường GHI công khai duy nhất của cổng.
+     *
+     * <p>⛔ ⛔ Liệt kê TƯỜNG MINH chứ ⛔ bắt mọi {@code POST} dưới {@code /api/v1/public}:
+     * {@code POST /articles/{slug}/views} là <b>bộ đếm lượt xem</b>, một lượt mỗi lần mở bài — hạ
+     * nó xuống 10/giờ là khoá đếm lượt xem của cả cổng sau mười người đọc.
+     */
+    private static final java.util.List<String> DUONG_GUI_BIEU_MAU =
+            java.util.List.of("/api/v1/public/contacts", "/api/v1/public/feedbacks");
 
     /** Khoá {@code settings} của {@link #EXPORT} — T61.27. */
     public static final String KHOA_KET_XUAT = "limits.rate.export-per-hour";
@@ -121,8 +148,26 @@ public enum RateLimitPolicy {
      * nó — T51.15).
      */
     public static RateLimitPolicy choDuongDan(String duongDan) {
+        return choYeuCau(duongDan, "GET");
+    }
+
+    /**
+     * Chính sách cho một lượt gọi — <b>phương thức cũng quyết định</b> (T61.37).
+     *
+     * <p>Cùng một tiền tố {@code /api/v1/public} mang hai loại lưu lượng khác hẳn nhau: ĐỌC (cả
+     * nghìn lượt/phút là bình thường) và GHI (một lượt mỗi người, mỗi tuần). Một con số cho cả hai
+     * thì hoặc khoá người đọc, hoặc mở cửa cho máy gửi thư rác.
+     */
+    public static RateLimitPolicy choYeuCau(String duongDan, String phuongThuc) {
         if (duongDan.startsWith(DUONG_DANG_NHAP)) {
             return LOGIN;
+        }
+        if (!"GET".equalsIgnoreCase(phuongThuc) && !"HEAD".equalsIgnoreCase(phuongThuc)) {
+            for (String d : DUONG_GUI_BIEU_MAU) {
+                if (duongDan.equals(d) || duongDan.startsWith(d + "/")) {
+                    return BIEU_MAU_CONG_KHAI;
+                }
+            }
         }
         // ⚠ Công khai xét TRƯỚC kết xuất. Ngược lại thì một đường dẫn công khai lỡ mang chữ `/xuat`
         // sẽ bị hạ xuống trần kết xuất theo GIỜ cho TOÀN BỘ khách của cổng — hỏng theo chiều không ai ngờ.

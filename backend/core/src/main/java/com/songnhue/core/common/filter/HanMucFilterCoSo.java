@@ -61,7 +61,7 @@ abstract class HanMucFilterCoSo extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 
-        RateLimitPolicy policy = RateLimitPolicy.choDuongDan(request.getRequestURI());
+        RateLimitPolicy policy = RateLimitPolicy.choYeuCau(request.getRequestURI(), request.getMethod());
         if (!phuTrach(policy)) {
             chain.doFilter(request, response);
             return;

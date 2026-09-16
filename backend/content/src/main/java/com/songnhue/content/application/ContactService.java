@@ -2,6 +2,8 @@ package com.songnhue.content.application;
 
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -67,6 +69,8 @@ import com.songnhue.core.spi.SettingPort;
 @Service
 public class ContactService {
 
+    private static final Logger log = LoggerFactory.getLogger(ContactService.class);
+
     /**
      * Giới hạn độ dài nội dung.
      *
@@ -74,6 +78,12 @@ public class ContactService {
      * thể nhét vài megabyte vào một hàng, và màn hình quản trị là nơi lãnh hậu quả.
      */
     private static final int DAI_TOI_DA_NOI_DUNG = 5_000;
+
+    /** Trần của các cột {@code varchar(255)} trong {@code contacts} — luật 14: hai nơi phải khớp. */
+    private static final int DAI_TOI_DA_TEN = 255;
+
+    /** {@code contacts.phone varchar(50)}. */
+    private static final int DAI_TOI_DA_DIEN_THOAI = 50;
 
     /**
      * Quyền gác toàn bộ hộp thư — và cũng là <b>tập người nhận</b> của thư báo có liên hệ mới.
@@ -162,6 +172,13 @@ public class ContactService {
         }
 
         cong.gioiHanDai(nd, DAI_TOI_DA_NOI_DUNG, "content");
+        // ⚠ T61.37 — bốn trường này trước đây ⛔ có trần nào ở tầng service, nên một giá trị > 255
+        //   đi thẳng vào `varchar(255)` và ra 500 thay vì 422. DTO đã khai `@Size`, nhưng đây mới là
+        //   chỗ dữ liệu ĐI QUA (luật 12): bộ nhập, seed và mọi nơi gọi khác ⛔ qua Bean Validation.
+        cong.gioiHanDai(ten, DAI_TOI_DA_TEN, "fullName");
+        cong.gioiHanDai(mail, DAI_TOI_DA_TEN, "email");
+        cong.gioiHanDai(dt, DAI_TOI_DA_DIEN_THOAI, "phone");
+        cong.gioiHanDai(cd, DAI_TOI_DA_TEN, "subject");
 
         // --- T36.6: reCAPTCHA, và nó đứng CUỐI có chủ đích ---------------------
         //
@@ -213,6 +230,18 @@ public class ContactService {
      */
     private void datThuXacNhan(Contact c) {
         if (c.getEmail() == null || !settings.getBoolean(KHOA_THU_XAC_NHAN, true)) {
+            return;
+        }
+        // ⛔⛔ T61.37 — thư xác nhận đi tới một địa chỉ do NGƯỜI GỬI tự khai, tức máy chủ thư của
+        //   Công ty gửi nội dung tới nơi kẻ gọi chỉ định. Chừng nào reCAPTCHA chưa thật sự bảo vệ
+        //   (công tắc tắt, hoặc bật mà thiếu khoá bí mật — cả hai đều cho `captchaBatBuoc() == false`)
+        //   thì thứ duy nhất đứng giữa là hạn mức tần suất, và một kẻ có nhiều IP đi qua nó dễ dàng.
+        //   ⇒ Giữ bản ghi liên hệ (người dân vẫn gửi được), CHỈ bỏ lượt thư ra ngoài.
+        if (!cong.captchaBatBuoc()) {
+            log.info(
+                    "⛔ đặt thư xác nhận cho liên hệ {} — reCAPTCHA chưa bảo vệ biểu mẫu (T61.37). "
+                            + "Bật `site.recaptcha.enabled` và đặt khoá bí mật để thư xác nhận chạy lại.",
+                    c.getPublicId());
             return;
         }
         jobs.enqueue(new JobRequest(

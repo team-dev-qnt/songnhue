@@ -81,8 +81,7 @@ class ContactHttpTest extends IntegrationTestBase {
     @Test
     @DisplayName("⭐ Khách vãng lai gửi được — và bản ghi ĐI TỚI CSDL, không chỉ trả 204")
     void khachGuiDuocVaLuuThat() {
-        ResponseEntity<String> gui =
-                http.postForEntity(CONG_KHAI, json("nguyenvana@example.invalid", null), String.class);
+        ResponseEntity<String> gui = phienHttp.dangJson(CONG_KHAI, json("nguyenvana@example.invalid", null));
 
         assertThat(gui.getStatusCode()).as("thân: %s", gui.getBody()).isEqualTo(HttpStatus.NO_CONTENT);
         assertThat(gui.getBody())
@@ -100,7 +99,7 @@ class ContactHttpTest extends IntegrationTestBase {
     @Test
     @DisplayName("⛔ Không email lẫn điện thoại → 400, không hàng nào được ghi")
     void thieuDuongLienLacNguocThiTuChoi() {
-        ResponseEntity<String> gui = http.postForEntity(CONG_KHAI, json(null, null), String.class);
+        ResponseEntity<String> gui = phienHttp.dangJson(CONG_KHAI, json(null, null));
 
         assertThat(gui.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(jdbc.queryForObject("SELECT count(*) FROM contacts", Integer.class))
@@ -128,7 +127,7 @@ class ContactHttpTest extends IntegrationTestBase {
     @Test
     @DisplayName("⛔ Chỉ có số điện thoại KHÔNG còn đủ — email bắt buộc từ T28.49 (08/09/2026)")
     void chiCoDienThoaiKhongConDu() {
-        ResponseEntity<String> gui = http.postForEntity(CONG_KHAI, json(null, "0243354xxxx"), String.class);
+        ResponseEntity<String> gui = phienHttp.dangJson(CONG_KHAI, json(null, "0243354xxxx"));
 
         assertThat(gui.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(gui.getBody())
@@ -159,7 +158,7 @@ class ContactHttpTest extends IntegrationTestBase {
     @Test
     @DisplayName("⭐⭐ Gửi bằng đường công khai → đọc lại được bằng đường quản trị (vòng khép kín)")
     void guiRoiDocLaiDuoc() {
-        http.postForEntity(CONG_KHAI, json("b@example.invalid", null), String.class);
+        phienHttp.dangJson(CONG_KHAI, json("b@example.invalid", null));
 
         ResponseEntity<String> doc = phienHttp.get(duQuyen, QUAN_TRI);
 
@@ -173,7 +172,7 @@ class ContactHttpTest extends IntegrationTestBase {
     @Test
     @DisplayName("⭐ Đánh dấu đã đọc ghi dấu MỘT lần — lần sau không đổi người đọc đầu tiên")
     void danhDauDaDocChiGhiLanDau() {
-        http.postForEntity(CONG_KHAI, json("c@example.invalid", null), String.class);
+        phienHttp.dangJson(CONG_KHAI, json("c@example.invalid", null));
         String publicId = jdbc.queryForObject("SELECT public_id FROM contacts", String.class);
 
         ResponseEntity<String> lan1 =

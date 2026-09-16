@@ -176,9 +176,7 @@ class ContactExportHttpTest extends IntegrationTestBase {
                 }
                 """
                         .formatted(oJson(hoTen), oJson(noiDung));
-        assertThat(http.postForEntity(CONG_KHAI, new HttpEntity<>(than, h), String.class)
-                        .getStatusCode())
-                .isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(phienHttp.dangJson(CONG_KHAI, than).getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
     }
 
     /** ⚠ Thoát dấu nháy kép và dấu chéo ngược — nội dung bài kiểm có ký tự đặc biệt thật. */

@@ -35,6 +35,9 @@ class ContactServiceTest {
     private JobPort hangDoi;
     private ContactService dichVu;
 
+    /** ⚠ Nâng lên trường vì bài T61.37 dựng một {@link ContactService} thứ hai dùng lại nó. */
+    private SettingPort thamSo;
+
     @BeforeEach
     void chuanBi() {
         kho = mock(ContactRepository.class);
@@ -48,7 +51,7 @@ class ContactServiceTest {
         //   đặt việc. Nói ra để lượt sau ⛔ không tưởng nhánh ấy đã được phủ ở đây.
         thongBao = mock(NotificationPort.class);
         hangDoi = mock(JobPort.class);
-        SettingPort thamSo = mock(SettingPort.class);
+        thamSo = mock(SettingPort.class);
         when(thamSo.getBoolean(any(), anyBoolean())).thenReturn(true);
 
         // ⚠ `luatBieuMau` là mock, và HAI vế "hiện ô" phải khai TƯỜNG MINH `true` (T28.49).
@@ -153,8 +156,21 @@ class ContactServiceTest {
 
     // === T36.3 — hai chiều thư của một lượt gửi biểu mẫu ======================
 
+    /**
+     * ⛔⛔ <b>Bài này đổi CHIỀU ngày 16/09/2026 (T61.37) — một quyết định an toàn, ⛔ một lượt sửa
+     * cho hết đỏ.</b>
+     *
+     * <p>Tên cũ: <i>"Nhận xong thì BÁO cán bộ và ĐẶT VIỆC gửi thư xác nhận — cùng một lượt"</i>.
+     * Thư xác nhận đi tới <b>địa chỉ do người gửi tự khai</b>, tức máy chủ thư của Công ty phát nội
+     * dung tới nơi kẻ gọi chỉ định. Chừng nào reCAPTCHA chưa thật sự bảo vệ biểu mẫu (công tắc tắt,
+     * hoặc bật mà thiếu khoá bí mật — khoá thuộc G13, Công ty chưa cấp) thì thứ duy nhất đứng giữa
+     * là hạn mức tần suất, và hạn mức theo IP ⛔ chặn nổi kẻ có nhiều IP.
+     *
+     * <p>⇒ Vế BÁO CÁN BỘ giữ nguyên (người dân vẫn gửi được, cán bộ vẫn nhận được); vế THƯ RA NGOÀI
+     * tắt. Bài kế bên canh chiều còn lại: có reCAPTCHA thì thư chạy lại.
+     */
     @Test
-    @DisplayName("⭐⭐ Nhận xong thì BÁO cán bộ và ĐẶT VIỆC gửi thư xác nhận — cùng một lượt")
+    @DisplayName("⭐⭐ Nhận xong thì BÁO cán bộ — nhưng ⛔ đặt thư xác nhận khi reCAPTCHA chưa bảo vệ")
     void nhanXongThiBaoVaDatViec() {
         dichVu.tiepNhan("Nguyễn Văn A", "a@example.invalid", null, "Chủ đề", "Nội dung", null);
 
@@ -167,6 +183,26 @@ class ContactServiceTest {
                 .as("⛔ `targetPermission` đã khai thì `relatedOrgUnitIds` bị RecipientResolver bỏ qua "
                         + "— để rác ở đây là mời người sau tưởng nó có tác dụng")
                 .isEmpty();
+
+        verify(hangDoi, org.mockito.Mockito.never()).enqueue(any());
+    }
+
+    @Test
+    @DisplayName("⭐ reCAPTCHA ĐANG bảo vệ ⇒ thư xác nhận đặt lại như cũ, payload ⛔ mang email (NĐ 13)")
+    void coCaptchaThiDatLaiThuXacNhan() {
+        SettingPort thamSoBat = mock(SettingPort.class);
+        when(thamSoBat.getBoolean(any(), anyBoolean())).thenReturn(true);
+        when(thamSoBat.getInt(any(), org.mockito.ArgumentMatchers.anyInt())).thenReturn(50);
+        RecaptchaClient captcha = mock(RecaptchaClient.class);
+        when(captcha.hopLe(any(), org.mockito.ArgumentMatchers.anyInt())).thenReturn(true);
+        InboundSubmissionGate congCoCaptcha =
+                new InboundSubmissionGate(thamSoBat, captcha, loai -> java.util.Optional.of("khoa-bi-mat"));
+        ContactFormPolicy luat = mock(ContactFormPolicy.class);
+        when(luat.hienHoTen()).thenReturn(true);
+        when(luat.hienTieuDe()).thenReturn(true);
+        ContactService coCaptcha = new ContactService(kho, thongBao, hangDoi, thamSo, luat, congCoCaptcha);
+
+        coCaptcha.tiepNhan("Nguyễn Văn A", "a@example.invalid", null, "Chủ đề", "Nội dung", "ma-captcha");
 
         var viec = org.mockito.ArgumentCaptor.forClass(com.songnhue.core.spi.JobRequest.class);
         verify(hangDoi).enqueue(viec.capture());
