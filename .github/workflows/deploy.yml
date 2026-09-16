@@ -84,7 +84,7 @@ jobs:
     environment: ${{ inputs.moi_truong }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # ⚠⚠ PHẢI đăng nhập TRƯỚC khi tra image. Gói GHCR mặc định là RIÊNG TƯ kể cả
       #    khi repo công khai — kiểm chứng 19/8: manifest ẩn danh trả 403. Tra
