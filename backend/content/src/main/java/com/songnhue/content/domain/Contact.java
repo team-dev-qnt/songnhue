@@ -72,6 +72,13 @@ public class Contact extends BaseEntity implements WorkflowReasonAware {
     @Column(name = "status", nullable = false, length = 20)
     private ContactStatus status = ContactStatus.MOI;
 
+    /**
+     * Thời điểm người gửi tick ô đồng ý với thông báo quyền riêng tư — <b>T61.39</b> (NĐ 13/2023 Điều 11
+     * đòi chứng minh được là đã có đồng ý). {@code null} = lúc gửi cổng chưa cấu hình thông báo nào.
+     */
+    @Column(name = "consent_at")
+    private Instant consentAt;
+
     @Column(name = "read_by")
     private Long readBy;
 
@@ -220,5 +227,13 @@ public class Contact extends BaseEntity implements WorkflowReasonAware {
 
     public String getResolutionNote() {
         return resolutionNote;
+    }
+    /** T61.39 — xem javadoc của trường. */
+    public Instant getConsentAt() {
+        return consentAt;
+    }
+
+    public void setConsentAt(Instant consentAt) {
+        this.consentAt = consentAt;
     }
 }

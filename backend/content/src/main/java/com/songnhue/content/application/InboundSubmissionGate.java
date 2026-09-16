@@ -130,6 +130,38 @@ public class InboundSubmissionGate {
      * <p>Công khai (⛔ không {@code private}) vì nó là câu trả lời cho <i>trạng thái cấu hình</i>,
      * và một bài kiểm cần khẳng định được cả hai nhánh.
      */
+    /** Khoá thông báo quyền riêng tư — T61.39. ⛔ seed giá trị: nội dung là văn bản pháp lý của Công ty. */
+    public static final String KHOA_THONG_BAO_RIENG_TU = "site.privacy.notice";
+
+    /**
+     * Cổng có đang công bố một thông báo quyền riêng tư ⛔ — <b>T61.39</b>.
+     *
+     * <p>⚠⚠ Đây là điều kiện để ô <i>đồng ý</i> trở thành BẮT BUỘC. Ngược lại — chưa có thông báo mà
+     * vẫn bắt tick — là dựng ra một <b>bằng chứng đồng ý giả</b>: người dân đồng ý với một trang
+     * RỖNG, và bản ghi mang một mốc thời gian trông như đã tuân thủ NĐ 13/2023.
+     */
+    public boolean coThongBaoRiengTu() {
+        return settings.getString(KHOA_THONG_BAO_RIENG_TU)
+                .filter(vb -> !vb.isBlank())
+                .isPresent();
+    }
+
+    /**
+     * Ép ô đồng ý khi — và chỉ khi — đã có thông báo.
+     *
+     * @return mốc thời gian đồng ý để lưu vào bản ghi; {@code null} khi cổng chưa có thông báo
+     * @throws ValidationException {@code SYS-0003} khi có thông báo mà người gửi ⛔ tick
+     */
+    public java.time.Instant kiemDongY(Boolean dongY) {
+        if (!coThongBaoRiengTu()) {
+            return null;
+        }
+        if (!Boolean.TRUE.equals(dongY)) {
+            throw (ValidationException) new ValidationException(ErrorCode.SYS_0003).withDetail("dongY", "BAT_BUOC", "");
+        }
+        return java.time.Instant.now();
+    }
+
     public boolean captchaBatBuoc() {
         if (!settings.getBoolean(KHOA_CAPTCHA_BAT, false)) {
             return false;

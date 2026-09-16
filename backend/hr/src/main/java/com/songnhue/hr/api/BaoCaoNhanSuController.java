@@ -17,6 +17,7 @@ import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.BusinessRuleException;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
 import com.songnhue.core.common.security.RequirePermission;
+import com.songnhue.core.common.util.HttpHeaderText;
 import com.songnhue.hr.application.BaoCaoNhanSuService;
 import com.songnhue.hr.domain.MaBaoCaoNhanSu;
 
@@ -109,7 +110,7 @@ public class BaoCaoNhanSuController {
         }
         BaoCaoNhanSuService.TepXuat tep = baoCao.xuat(maBaoCao);
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + tep.tenTep() + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, HttpHeaderText.contentDisposition(tep.tenTep()))
                 // ⚠ `text/csv` kèm charset UTF-8 — tệp đã có BOM, nhưng một trình duyệt đọc header
                 //   sai vẫn làm hỏng tiếng Việt trước khi người dùng kịp mở bằng Excel.
                 .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))

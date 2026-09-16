@@ -2,6 +2,8 @@
 
 import { useId, useState } from 'react';
 
+import { lienKetAnToan } from '@/lib/lienKetAnToan';
+
 /**
  * Biểu mẫu gửi liên hệ / phản ánh — CN-01.4.
  *
@@ -53,6 +55,16 @@ export interface CauHinhBieuMau {
   hienHoTen: boolean;
   /** Có hiện ô Tiêu đề ⛔ không — `site.contact.field.subject.enabled` (T28.49). */
   hienTieuDe: boolean;
+  /**
+   * Thông báo quyền riêng tư (`site.privacy.notice`) — T61.39, NĐ 13/2023 Điều 13.
+   *
+   * ⛔⛔ Rỗng ⇒ ⛔ hiện ô đồng ý. Bắt người dân tick vào một thông báo RỖNG là dựng **bằng chứng
+   * đồng ý giả**: bản ghi mang mốc thời gian trông như đã tuân thủ, trong khi ⛔ ai được thông báo gì.
+   * Nội dung là văn bản pháp lý của Công ty; màn hình *Tình trạng cấu hình* cảnh báo khi nó trống.
+   */
+  thongBaoRiengTu?: string;
+  /** Đường dẫn trang chính sách (`site.privacy.policy-url`) — tuỳ chọn, hiện thành liên kết. */
+  duongDanChinhSach?: string;
 }
 
 /**
@@ -73,6 +85,8 @@ export const CAU_HINH_MAC_DINH: CauHinhBieuMau = {
 export function ContactForm({ cauHinh = CAU_HINH_MAC_DINH }: { cauHinh?: CauHinhBieuMau }) {
   const id = useId();
   const [tt, datTt] = useState<TrangThai>({ loai: 'nhap' });
+  const coThongBao = (cauHinh.thongBaoRiengTu ?? '').trim() !== '';
+  const lienKetChinhSach = lienKetAnToan(cauHinh.duongDanChinhSach);
 
   async function gui(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -90,6 +104,9 @@ export function ContactForm({ cauHinh = CAU_HINH_MAC_DINH }: { cauHinh?: CauHinh
           phone: String(fd.get('phone') ?? ''),
           subject: String(fd.get('subject') ?? ''),
           content: String(fd.get('content') ?? ''),
+          // T61.39 — chỉ gửi khi cổng ĐANG công bố thông báo; ⛔ có thông báo thì trường này vắng
+          // mặt, và backend cũng ⛔ đòi (một ô đồng ý ⛔ nội dung là một ô vô nghĩa).
+          ...(coThongBao ? { dongY: fd.get('dongY') === 'on' } : {}),
         }),
       });
 
@@ -186,6 +203,29 @@ export function ContactForm({ cauHinh = CAU_HINH_MAC_DINH }: { cauHinh?: CauHinh
           className="rounded-lg border border-surface-border px-3.5 py-2.5 text-sm text-surface-textBase outline-none focus:border-brand-primary"
         />
       </div>
+
+      {coThongBao && (
+        <div className="rounded-lg border border-surface-border bg-surface-subtle px-3.5 py-3">
+          <p className="whitespace-pre-line text-xs leading-relaxed text-surface-textSecondary">
+            {cauHinh.thongBaoRiengTu}
+          </p>
+          {lienKetChinhSach && (
+            <a
+              href={lienKetChinhSach}
+              className="mt-1 inline-block text-xs font-semibold text-brand-primary underline"
+            >
+              Xem chi tiết chính sách quyền riêng tư
+            </a>
+          )}
+          <label className="mt-2 flex items-start gap-2 text-xs text-surface-textBase">
+            <input type="checkbox" name="dongY" required className="mt-0.5" />
+            <span>
+              Tôi đã đọc và đồng ý để Công ty xử lý dữ liệu cá nhân nêu trên nhằm tiếp nhận và trả
+              lời phản ánh này.
+            </span>
+          </label>
+        </div>
+      )}
 
       {/* ⛔ Câu này phải NÓI ĐÚNG cấu hình đang chạy. Giữ nguyên "email hoặc số điện thoại" khi ô
           điện thoại đã tắt là một dòng chữ NÓI DỐI — §10.69: một chú thích sai khó thấy hơn hẳn

@@ -5,6 +5,7 @@ import { type ColumnsType } from 'antd/es/table';
 import { useState } from 'react';
 
 import { useAuth } from '@/app/auth/useAuth';
+import { HopThoaiMaXacThuc } from '@/components/business/HopThoaiMaXacThuc';
 import { OrgUnitTreeSelect } from '@/components/business/OrgUnitTreeSelect';
 import { StatusBadge } from '@/components/business/StatusBadge';
 import { USER_STATUS } from '@/components/business/statusVocabulary';
@@ -35,6 +36,13 @@ export function UsersPage() {
   const [creating, setCreating] = useState(false);
   const [assigning, setAssigning] = useState<UserView | null>(null);
   const [linking, setLinking] = useState<UserView | null>(null);
+  // T61.31 — đặt lại mật khẩu đi hai bước: nhập mật khẩu tạm, rồi nhập lại mã 2FA (T61.42).
+  const [datLaiMk, setDatLaiMk] = useState<UserView | null>(null);
+  // ⛔⛔ Hai bước phải là một TRẠNG THÁI tường minh. Bản đầu suy bước từ `matKhauTam !== ''` — gõ ký tự
+  //   ĐẦU TIÊN là hộp mật khẩu tự đóng và hộp mã 2FA nhảy ra. Bài kiểm giao diện bắt ngay lượt chạy đầu.
+  const [buocDatLai, setBuocDatLai] = useState<'mat-khau' | 'ma-xac-thuc'>('mat-khau');
+  const [matKhauTam, setMatKhauTam] = useState('');
+  const [loiXacThuc, setLoiXacThuc] = useState<string | null>(null);
 
   const users = useQuery({
     queryKey: ['admin', 'users'],
@@ -80,6 +88,37 @@ export function UsersPage() {
     onError: (caught: unknown) => {
       message.error(
         caught instanceof ApiClientError ? caught.message : 'Không đặt lại được xác thực hai bước',
+      );
+    },
+  });
+
+  // T61.31 · CN-05.2 — quyền `adm:user:reset-password` có trong danh mục từ 13/08/2026 với 0 đầu
+  //   nhận; đây là màn hình đầu tiên gọi nó. Người dùng quên mật khẩu trước đây ⛔ có đường nào.
+  const datLaiMatKhau = useMutation({
+    mutationFn: ({ publicId, maXacThuc }: { publicId: string; maXacThuc: string }) =>
+      api.post<void>(`/admin/users/${publicId}/dat-lai-mat-khau`, {
+        matKhauTam,
+        maXacThuc,
+      }),
+    onSuccess: () => {
+      message.success(
+        'Đã đặt lại mật khẩu — mọi phiên bị thu hồi và người dùng phải đổi mật khẩu ở lần đăng nhập tới',
+      );
+      setDatLaiMk(null);
+      setBuocDatLai('mat-khau');
+      setMatKhauTam('');
+      setLoiXacThuc(null);
+    },
+    onError: (caught: unknown) => {
+      // Mã 2FA sai (ADM-2024) / thiếu (ADM-2023) hiện NGAY trong hộp thoại; lỗi khác ra toast.
+      const maLoi = caught instanceof ApiClientError ? caught.code : undefined;
+      if (maLoi === 'ADM-2023' || maLoi === 'ADM-2024') {
+        setLoiXacThuc(caught instanceof ApiClientError ? caught.message : 'Mã xác thực không đúng');
+        return;
+      }
+      setDatLaiMk(null);
+      message.error(
+        caught instanceof ApiClientError ? caught.message : 'Không đặt lại được mật khẩu',
       );
     },
   });
@@ -176,6 +215,20 @@ export function UsersPage() {
               </Button>
             </Popconfirm>
           )}
+          {hasPermission('adm:user:reset-password') && row.publicId !== toi?.id && (
+            <Button
+              type="link"
+              aria-label={`Đặt lại mật khẩu của ${row.username}`}
+              onClick={() => {
+                setDatLaiMk(row);
+                setBuocDatLai('mat-khau');
+                setMatKhauTam('');
+                setLoiXacThuc(null);
+              }}
+            >
+              Đặt lại mật khẩu
+            </Button>
+          )}
           {hasPermission('adm:user:update') && row.publicId !== toi?.id && (
             <Popconfirm
               title={`Xoá tài khoản ${row.username}?`}
@@ -224,6 +277,47 @@ export function UsersPage() {
       <EditUserModal user={editing} onClose={() => setEditing(null)} onDone={invalidate} />
       <AssignRolesModal user={assigning} onClose={() => setAssigning(null)} />
       <LienKetHoSoModal user={linking} onClose={() => setLinking(null)} onDone={invalidate} />
+      <Modal
+        title={`Đặt lại mật khẩu cho ${datLaiMk?.username ?? ''}`}
+        open={datLaiMk !== null && buocDatLai === 'mat-khau'}
+        okText="Tiếp tục"
+        cancelText="Hủy"
+        okButtonProps={{ disabled: matKhauTam === '' }}
+        onOk={() => setBuocDatLai('ma-xac-thuc')}
+        onCancel={() => setDatLaiMk(null)}
+      >
+        <p>
+          Đặt một mật khẩu tạm và đưa cho người dùng ngoài hệ thống. Họ buộc phải đổi ở lần đăng
+          nhập tới, và mọi phiên hiện có bị thu hồi.
+        </p>
+        <Input.Password
+          autoFocus
+          placeholder="Mật khẩu tạm"
+          aria-label="Mật khẩu tạm"
+          value={matKhauTam}
+          onChange={(e) => setMatKhauTam(e.target.value)}
+        />
+        <HuongDanMatKhau />
+      </Modal>
+
+      <HopThoaiMaXacThuc
+        open={datLaiMk !== null && buocDatLai === 'ma-xac-thuc'}
+        title="Xác nhận đặt lại mật khẩu"
+        moTa={`Thao tác này chiếm quyền đăng nhập vào tài khoản ${datLaiMk?.username ?? ''}.`}
+        loi={loiXacThuc}
+        dangGui={datLaiMatKhau.isPending}
+        onHuy={() => {
+          setDatLaiMk(null);
+          setBuocDatLai('mat-khau');
+          setMatKhauTam('');
+          setLoiXacThuc(null);
+        }}
+        onXacNhan={(maXacThuc) => {
+          if (datLaiMk) {
+            datLaiMatKhau.mutate({ publicId: datLaiMk.publicId, maXacThuc });
+          }
+        }}
+      />
     </Card>
   );
 }

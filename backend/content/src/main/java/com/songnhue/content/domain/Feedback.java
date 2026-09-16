@@ -1,5 +1,7 @@
 package com.songnhue.content.domain;
 
+import java.time.Instant;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -61,6 +63,13 @@ public class Feedback extends BaseEntity implements WorkflowReasonAware {
     /** 1..5, hoặc {@code null} khi người gửi chỉ viết góp ý. Xem javadoc lớp. */
     @Column(name = "rating")
     private Short rating;
+
+    /**
+     * Thời điểm người gửi tick ô đồng ý với thông báo quyền riêng tư — <b>T61.39</b> (NĐ 13/2023 Điều 11
+     * đòi chứng minh được là đã có đồng ý). {@code null} = lúc gửi cổng chưa cấu hình thông báo nào.
+     */
+    @Column(name = "consent_at")
+    private Instant consentAt;
 
     @Column(name = "content", nullable = false, columnDefinition = "text")
     private String content;
@@ -152,5 +161,13 @@ public class Feedback extends BaseEntity implements WorkflowReasonAware {
 
     public String getModerationNote() {
         return moderationNote;
+    }
+    /** T61.39 — xem javadoc của trường. */
+    public Instant getConsentAt() {
+        return consentAt;
+    }
+
+    public void setConsentAt(Instant consentAt) {
+        this.consentAt = consentAt;
     }
 }

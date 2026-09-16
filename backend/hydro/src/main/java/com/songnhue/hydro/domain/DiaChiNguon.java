@@ -1,7 +1,9 @@
 package com.songnhue.hydro.domain;
 
+import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
@@ -40,11 +42,26 @@ import org.slf4j.LoggerFactory;
  *       <i>DNS rebinding</i> — tên trả IP công cộng lúc kiểm và IP nội bộ lúc gọi.
  * </ul>
  *
- * <p>⛔ Đây <b>không</b> phải một bộ lọc SSRF đầy đủ, và bộ canh phải nói ra phạm vi của chính nó
- * (luật 28): một tên miền công cộng <i>trỏ vào</i> mạng nội bộ vẫn đi lọt. Vế còn lại thuộc về tầng
- * mạng (máy chủ ứng dụng không có đường ra tới dải nội bộ nào ngoài CSDL và MinIO —
- * {@code deploy-guideline.md}); ghi ở đây để lượt rà sau không đọc cái xanh này thành một lời bảo đảm
- * rộng hơn nó.
+ * <h2>⚠ Hai tầng, vì chữ viết một mình ⛔ đủ — T61.38</h2>
+ *
+ * <p>Bản đầu chỉ chặn theo <b>chữ viết</b> và tự khai (đúng, luật 28) rằng <i>một tên miền công
+ * cộng trỏ vào mạng nội bộ vẫn đi lọt</i>. Câu ấy mô tả một lỗ <b>đang mở</b>: một dòng
+ * {@code api_sources.base_url} mang {@code http://nguon.ke-gian.tld/} với bản ghi A trỏ
+ * {@code 10.0.0.x} biến poller thành cửa đọc MinIO, PostgreSQL và {@code /actuator} trong mạng
+ * compose. Kẻ đặt được dòng ấy ⛔ cần quyền quản trị — seed, bản khôi phục và một câu
+ * {@code UPDATE} lúc xử lý sự cố đều là đường vào (xem ngay trên).
+ *
+ * <p>⇒ Tầng hai: <b>phân giải tên máy rồi kiểm từng địa chỉ trả về</b>, ngay trước lượt mở socket.
+ *
+ * <p>⚠⚠ Nó ⛔ đóng được <b>DNS rebinding</b> (tên trả IP công cộng lúc kiểm, IP nội bộ lúc gọi) —
+ * java.net.http ⛔ cho xen vào giữa hai bước ấy. Nói cho đúng cỡ: rebinding đòi kẻ tấn công điều
+ * khiển được máy chủ DNS <b>và</b> thắng một cuộc đua trong cửa sổ đệm DNS của JVM, còn lỗ vừa vá
+ * chỉ đòi <b>một bản ghi A</b>. Vế cuối cùng vẫn thuộc tầng mạng (máy chủ ứng dụng ⛔ có đường ra
+ * tới dải nội bộ nào ngoài CSDL và MinIO — {@code deploy-guideline.md}).
+ *
+ * <p>⚠ Phân giải <b>hỏng</b> thì đi tiếp, ⛔ ném: lượt gọi sau đó cũng hỏng ở đúng chỗ ấy với một
+ * câu rõ hơn, và quy tắc 18 nói mỗi lượt poller ⛔ chạy là số đo mất vĩnh viễn — ⛔ đổi một trục
+ * trặc DNS tạm thời lấy một khoảng trống dữ liệu.
  *
  * <h2>⚠⚠ {@code chapNhanMayNoiBo} — công tắc duy nhất nới được, và nó mặc định TẮT</h2>
  *
@@ -79,6 +96,20 @@ public final class DiaChiNguon {
      *     vì người đọc nó là quản trị viên đang tự hỏi vì sao nguồn không gọi được
      */
     public static URI kiemVaDung(String baseUrl, String duongDan, boolean chapNhanMayNoiBo) {
+        return kiemVaDung(baseUrl, duongDan, chapNhanMayNoiBo, DiaChiNguon::phanGiaiThat);
+    }
+
+    /**
+     * Phân giải tên máy — <b>chỗ nối duy nhất</b> để bài kiểm dựng được ca <i>tên miền công cộng trỏ
+     * vào mạng nội bộ</i> mà ⛔ phải cấu hình DNS thật.
+     */
+    @FunctionalInterface
+    public interface PhanGiai {
+        InetAddress[] phanGiai(String host) throws UnknownHostException;
+    }
+
+    /** Bản đầy đủ — {@code phanGiai} chỉ thay ở bài kiểm. */
+    public static URI kiemVaDung(String baseUrl, String duongDan, boolean chapNhanMayNoiBo, PhanGiai phanGiai) {
         if (baseUrl == null || baseUrl.isBlank()) {
             throw new IllegalArgumentException("Địa chỉ nguồn rỗng");
         }
@@ -101,6 +132,7 @@ public final class DiaChiNguon {
         }
         if (!chapNhanMayNoiBo) {
             kiemHost(host);
+            kiemDiaChiDaPhanGiai(host, phanGiai);
         }
         return goc.resolve(chuanHoaGoc(goc, duongDan)).resolve(duongDan);
     }
@@ -238,5 +270,50 @@ public final class DiaChiNguon {
         if (noiBo) {
             throw new IllegalArgumentException("Địa chỉ IP nội bộ bị chặn: " + host);
         }
+    }
+
+    private static InetAddress[] phanGiaiThat(String host) throws UnknownHostException {
+        return InetAddress.getAllByName(host);
+    }
+
+    /**
+     * Tầng hai của T61.38 — kiểm <b>mọi</b> địa chỉ tên máy phân giải ra, ⛔ chỉ địa chỉ đầu.
+     *
+     * <p>Một tên trả cả địa chỉ công cộng lẫn địa chỉ nội bộ thì chọn đường nào là việc của tầng
+     * dưới, ⛔ của ta — nên đủ một địa chỉ nội bộ là từ chối (luật 9: hai trạng thái phải phân biệt
+     * được, ⛔ phụ thuộc thứ tự bản ghi DNS trả về).
+     */
+    private static void kiemDiaChiDaPhanGiai(String host, PhanGiai phanGiai) {
+        InetAddress[] dia;
+        try {
+            dia = phanGiai.phanGiai(host);
+        } catch (UnknownHostException e) {
+            log.debug("⛔ phân giải được '{}' để kiểm SSRF — để lượt gọi tự hỏng với lý do của nó", host, e);
+            return;
+        }
+        for (InetAddress d : dia) {
+            if (laNoiBo(d)) {
+                throw new IllegalArgumentException(
+                        "Tên máy '" + host + "' phân giải về địa chỉ nội bộ " + d.getHostAddress() + " — bị chặn");
+            }
+        }
+    }
+
+    /** ⚠ {@code isSiteLocalAddress} phủ 10/8 · 172.16/12 · 192.168/16, ⛔ phủ CGNAT và ULA IPv6. */
+    private static boolean laNoiBo(InetAddress d) {
+        if (d.isLoopbackAddress()
+                || d.isAnyLocalAddress()
+                || d.isLinkLocalAddress()
+                || d.isSiteLocalAddress()
+                || d.isMulticastAddress()) {
+            return true;
+        }
+        byte[] b = d.getAddress();
+        if (b.length == 4) {
+            int a0 = b[0] & 0xFF;
+            int a1 = b[1] & 0xFF;
+            return a0 == 100 && a1 >= 64 && a1 <= 127; // CGNAT, RFC 6598
+        }
+        return (b[0] & 0xFE) == 0xFC; // fc00::/7 — unique local
     }
 }

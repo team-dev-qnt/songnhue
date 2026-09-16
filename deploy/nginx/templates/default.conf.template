@@ -109,6 +109,15 @@ server {
     # Câu "nginx còn sống không" — `return 200` tĩnh, trả lời được cả khi mọi
     # upstream đã chết. Để ở cổng 80 vì lượt kiểm chạy từ bên trong container,
     # nơi không có chứng chỉ và không cần TLS.
+    # ⛔ T61.40 (ASVS 4.3.2 · 12.5.1) — mọi đường dẫn có đoạn bắt đầu bằng dấu chấm.
+    #   `/.git/config`, `/.env`, `/.well-known` (ngoại lệ ở khối riêng phía trên, đặt TRƯỚC nên thắng).
+    #   Hôm nay ⛔ thư mục tĩnh nào lộ ra chúng; luật này là để lượt cấu hình SAU ⛔ mở được cửa ấy.
+    location ~ /\. {
+        deny all;
+        access_log off;
+        return 404;
+    }
+
     location = /healthz {
         access_log off;
         add_header Content-Type text/plain;
@@ -173,6 +182,14 @@ server {
     http2 on;
     server_name ${PUBLIC_DOMAIN} www.${PUBLIC_DOMAIN};
 
+    # ⛔ T61.40 (ASVS 4.3.2 · 12.5.1) — chặn mọi đoạn đường dẫn bắt đầu bằng dấu chấm.
+    #   ⚠ `^~ /.well-known/acme-challenge/` vẫn thắng: nginx xét tiền tố `^~` TRƯỚC mọi regex.
+    location ~ /\. {
+        deny all;
+        access_log off;
+        return 404;
+    }
+
     ssl_certificate     /etc/letsencrypt/live/${PUBLIC_DOMAIN}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/${PUBLIC_DOMAIN}/privkey.pem;
     ssl_trusted_certificate /etc/letsencrypt/live/${PUBLIC_DOMAIN}/chain.pem;
@@ -227,6 +244,14 @@ server {
     listen [::]:443 ssl;
     http2 on;
     server_name ${ADMIN_DOMAIN};
+
+    # ⛔ T61.40 (ASVS 4.3.2 · 12.5.1) — chặn mọi đoạn đường dẫn bắt đầu bằng dấu chấm.
+    #   ⚠ `^~ /.well-known/acme-challenge/` vẫn thắng: nginx xét tiền tố `^~` TRƯỚC mọi regex.
+    location ~ /\. {
+        deny all;
+        access_log off;
+        return 404;
+    }
 
     ssl_certificate     /etc/letsencrypt/live/${ADMIN_DOMAIN}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/${ADMIN_DOMAIN}/privkey.pem;
@@ -327,6 +352,14 @@ server {
     listen [::]:443 ssl;
     http2 on;
     server_name ${FILES_DOMAIN};
+
+    # ⛔ T61.40 (ASVS 4.3.2 · 12.5.1) — chặn mọi đoạn đường dẫn bắt đầu bằng dấu chấm.
+    #   ⚠ `^~ /.well-known/acme-challenge/` vẫn thắng: nginx xét tiền tố `^~` TRƯỚC mọi regex.
+    location ~ /\. {
+        deny all;
+        access_log off;
+        return 404;
+    }
 
     ssl_certificate     /etc/letsencrypt/live/${FILES_DOMAIN}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/${FILES_DOMAIN}/privkey.pem;

@@ -69,6 +69,24 @@ public enum ErrorCode {
      * Excel</b>, để họ mở đúng chỗ mà tách tệp.
      */
     SYS_0012("SYS-0012", HttpStatus.UNPROCESSABLE_CONTENT),
+    /**
+     * Sai ĐỘNG TỪ HTTP — T61.40 (ASVS 14.5.1).
+     *
+     * <p>Tách khỏi {@code SYS-0003}: gộp 405 vào 400 làm người tích hợp đi soi payload thay vì động từ,
+     * và làm mọi khẳng định *"endpoint này ⛔ có động từ ghi"* thành khẳng định RỖNG (T54.7).
+     */
+    SYS_0013("SYS-0013", HttpStatus.METHOD_NOT_ALLOWED),
+    /**
+     * Tệp nhập NỞ quá trần khi giải nén — T61.40 (ASVS 5.5.2, "zip bomb").
+     *
+     * <p>⛔⛔ Mã RIÊNG chứ ⛔ dùng lại {@code SYS-0012} (vượt trần DÒNG): hai trạng thái ấy khác hẳn nhau
+     * — một cái bảo *"tách tệp ra"*, cái kia bảo *"tệp này ⛔ phải bảng tính bình thường"*. Dùng chung một
+     * mã còn làm mọi bài kiểm về trần giải nén thành khẳng định RỖNG: bản đầu của bài kiểm T61.40 XANH cả
+     * khi đã gỡ chốt, vì thứ ném ra là trần dòng (luật 9).
+     *
+     * <p>Tham số: {0} trần tính bằng MB, {1} tên mục trong tệp nén.
+     */
+    SYS_0014("SYS-0014", HttpStatus.UNPROCESSABLE_CONTENT),
 
     // ---- Xác thực & phân quyền -------------------------------------------------
     /** Message cố ý mơ hồ: không tiết lộ tài khoản có tồn tại hay không (§4.1). */
@@ -588,7 +606,15 @@ public enum ErrorCode {
      * mới token rồi GỬI LẠI cùng mã sai (lượt sai bị đếm HAI lần) ⇒ 401 lần nữa ⇒ xoá phiên, đá người dùng ra màn
      * hình đăng nhập. Đường khôi phục CSDL mang đúng khuyết tật ấy từ WS-7 tới 15/09/2026.
      */
-    ADM_2024("ADM-2024", HttpStatus.FORBIDDEN);
+    ADM_2024("ADM-2024", HttpStatus.FORBIDDEN),
+    /**
+     * Tự đặt lại mật khẩu của CHÍNH MÌNH qua cửa quản trị — T61.31.
+     *
+     * <p>⛔ Cửa ấy ⛔ hỏi mật khẩu cũ (đó là cả công dụng của nó), nên cho tự dùng là biến một phiên mượn được
+     * thành một lượt chiếm tài khoản vĩnh viễn — đúng thứ {@code AUTH-0001} ở đường tự đổi mật khẩu đang chặn.
+     * Cùng lý lẽ với {@code ADM-2021} ở đường đặt lại 2FA.
+     */
+    ADM_2025("ADM-2025", HttpStatus.FORBIDDEN);
 
     private final String code;
     private final HttpStatus status;

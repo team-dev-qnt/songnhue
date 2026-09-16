@@ -83,7 +83,7 @@ public class GisLayerController {
             Integer sortOrder,
             Boolean active) {}
 
-    public record ThuTuRequest(List<UUID> theoThuTu) {}
+    public record ThuTuRequest(@Size(max = 200) List<UUID> theoThuTu) {}
 
     /**
      * @param soDoiTuong {@code null} = lớp <b>chưa nạp tệp</b>. ⛔ Khác {@code 0} — số 0 ⛔ không
@@ -182,7 +182,7 @@ public class GisLayerController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(summary = "Sắp lại thứ tự chồng lớp — gửi TOÀN BỘ danh sách đã sắp")
     @RequirePermission("ops:gis-layer:manage")
-    public void sapThuTu(@RequestBody ThuTuRequest request) {
+    public void sapThuTu(@Valid @RequestBody ThuTuRequest request) {
         layers.sapThuTu(request.theoThuTu());
     }
 

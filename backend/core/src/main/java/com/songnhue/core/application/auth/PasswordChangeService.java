@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.songnhue.core.application.identity.CanhBaoTaiKhoanService;
 import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.AuthenticationException;
 import com.songnhue.core.common.exception.BusinessRuleException;
@@ -36,12 +37,16 @@ public class PasswordChangeService {
     private final AuthorityLoader authorityLoader;
     private final SecurityEventService securityEvents;
 
+    private final CanhBaoTaiKhoanService canhBao;
+
     public PasswordChangeService(
             UserRepository users,
             PasswordPolicyService passwords,
             RefreshTokenService refreshTokens,
             AuthorityLoader authorityLoader,
-            SecurityEventService securityEvents) {
+            SecurityEventService securityEvents,
+            CanhBaoTaiKhoanService canhBao) {
+        this.canhBao = canhBao;
         this.users = users;
         this.passwords = passwords;
         this.refreshTokens = refreshTokens;
@@ -94,5 +99,7 @@ public class PasswordChangeService {
                 user.getId(),
                 client,
                 "{\"revokedSessions\":" + revoked + "}");
+        // T61.36 — chính chủ phải được BÁO: một dòng `security_events` chỉ quản trị viên đọc.
+        canhBao.matKhauDaDoi(user, false);
     }
 }

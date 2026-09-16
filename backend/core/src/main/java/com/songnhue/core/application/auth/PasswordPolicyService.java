@@ -124,10 +124,30 @@ public class PasswordPolicyService {
             failed = true;
         }
 
+        if (rawPassword != null && rawPassword.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > TRAN_BYTE) {
+            error.withDetail(tenTruong, "MAX_BYTES_" + TRAN_BYTE, null);
+            failed = true;
+        }
         if (failed) {
             throw error;
         }
     }
+
+    /**
+     * Trần mật khẩu tính theo <b>BYTE</b>, ⛔ theo ký tự — <b>T61.40</b> (ASVS 2.1.2).
+     *
+     * <p>{@code BCrypt.hashpw} của spring-security-crypto <b>NÉM</b> {@code IllegalArgumentException}
+     * ("password cannot be more than 72 bytes") — ⛔ cắt ngắn trong im lặng như các bản cũ. Ngoại lệ ấy
+     * rơi xuống {@code GlobalExceptionHandler} thành <b>500</b> kèm *"Lỗi hệ thống, vui lòng thử lại"*.
+     *
+     * <p>⚠⚠ Và nó bắn ở ngưỡng rất DỄ CHẠM với tiếng Việt: chữ có dấu chiếm 2–3 byte UTF-8, nên một
+     * cụm mật khẩu ~30 ký tự có dấu đã vượt 72 byte. Người dùng làm đúng lời khuyên *"đặt mật khẩu
+     * dài"* là người gặp lỗi 500.
+     *
+     * <p>⇒ Kiểm ở đây, trả {@code AUTH-0006} kèm chi tiết {@code MAX_BYTES_72} để màn hình nói được
+     * yêu cầu thật. 72 byte vẫn thoả ASVS 2.1.2 (≥ 64 ký tự) cho mật khẩu ASCII.
+     */
+    public static final int TRAN_BYTE = 72;
 
     private static boolean hasLetterAndDigit(String value) {
         if (value == null) {

@@ -98,6 +98,28 @@ public final class PhienHttp {
      * <p>⚠ Đổi IP ⛔ không cần đăng nhập lại: thẻ truy cập gắn với <b>phiên</b>, ⛔ không gắn với
      * địa chỉ. Gọi trong {@code @BeforeEach} là đủ.
      */
+    /**
+     * Gửi một biểu mẫu CÔNG KHAI (⛔ đăng nhập) kèm <b>IP riêng của thực thể này</b> — T61.37.
+     *
+     * <p>⛔⛔ {@code http.postForEntity} trần ⛔ đặt {@code X-Real-IP}, nên mọi lượt gửi ẩn danh của
+     * cả module dùng CHUNG một xô hạn mức. Từ T61.37, đường gửi biểu mẫu công khai chỉ còn
+     * <b>10 lượt/giờ mỗi IP</b> ⇒ lớp thứ hai trong lượt chạy sẽ nhận {@code 429} và đỏ vì một lý do
+     * ⛔ liên quan gì tới thứ nó khẳng định. Đúng hình dạng T60.9, và cách chữa cũng vậy: <b>mỗi bài
+     * kiểm là một máy khách</b>, ⛔ nới hạn mức của hồ sơ kiểm thử (làm thế là tắt một cơ chế bảo mật
+     * thật ngay trong CI).
+     */
+    public org.springframework.http.ResponseEntity<String> dangJson(String duongDan, Object than) {
+        Object thanThat = than instanceof org.springframework.http.HttpEntity<?> e ? e.getBody() : than;
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+        headers.set("X-Real-IP", ipGiaLap);
+        return http.exchange(
+                duongDan,
+                org.springframework.http.HttpMethod.POST,
+                new org.springframework.http.HttpEntity<>(thanThat, headers),
+                String.class);
+    }
+
     public void doiIp() {
         ipGiaLap = ipKeTiep();
     }

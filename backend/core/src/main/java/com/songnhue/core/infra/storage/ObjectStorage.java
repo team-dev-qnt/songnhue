@@ -2,8 +2,6 @@ package com.songnhue.core.infra.storage;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
@@ -149,9 +147,9 @@ public class ObjectStorage {
      * nhập, và nó đang đi vào một header.
      */
     private static String contentDisposition(String tenGoi) {
-        String asciiAnToan = tenGoi.replaceAll("[\\p{Cntrl}\"\\\\]", "").replaceAll("[^\\x20-\\x7E]", "_");
-        String maHoa = URLEncoder.encode(tenGoi, StandardCharsets.UTF_8).replace("+", "%20");
-        return "attachment; filename=\"%s\"; filename*=UTF-8''%s".formatted(asciiAnToan, maHoa);
+        // ⚠ T61.40 — MỘT bản luật duy nhất: bản sao ở đây và bản ở `HttpHeaderText` là hai nơi con
+        //   người phải nhớ (luật 14), và chúng ĐÃ lệch nhau — bản kia thiếu hẳn `filename*`.
+        return com.songnhue.core.common.util.HttpHeaderText.contentDisposition(tenGoi);
     }
 
     /**

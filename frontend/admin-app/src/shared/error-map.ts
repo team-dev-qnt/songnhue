@@ -741,6 +741,27 @@ export const ERROR_CATALOG = {
     handling: 'caller',
     severity: 'warning',
   },
+  'SYS-0013': {
+    // T61.40 — sai ĐỘNG TỪ. Trước đây gộp vào SYS-0003 nên người tích hợp đi soi payload.
+    message: 'Phương thức HTTP không được hỗ trợ ở đường dẫn này.',
+    handling: 'toast',
+    severity: 'error',
+  },
+  'SYS-0014': {
+    // T61.40 — tệp nhập NỞ quá trần khi giải nén (zip bomb). Mã riêng với SYS-0012 (trần DÒNG):
+    // hai trạng thái dẫn tới hai việc khác nhau — tách tệp, so với "tệp này không phải bảng tính".
+    message: 'Tệp nhập nở quá lớn khi giải nén — tệp này không phải bảng tính bình thường.',
+    handling: 'toast',
+    severity: 'error',
+  },
+  'ADM-2025': {
+    // T61.31 — cửa đặt lại mật khẩu ⛔ hỏi mật khẩu cũ, nên tự dùng cho chính mình là đường vòng
+    // quanh AUTH-0001 của lối tự đổi mật khẩu.
+    message:
+      'Không tự đặt lại mật khẩu của chính mình được — dùng chức năng Đổi mật khẩu, hoặc nhờ một tài khoản quản trị khác.',
+    handling: 'toast',
+    severity: 'warning',
+  },
 } as const satisfies Record<string, ErrorEntry>;
 
 export type ErrorCode = keyof typeof ERROR_CATALOG;

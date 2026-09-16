@@ -2,6 +2,8 @@
 
 import { useId, useState } from 'react';
 
+import { lienKetAnToan } from '@/lib/lienKetAnToan';
+
 /**
  * Biểu mẫu gửi góp ý / đánh giá mức độ hài lòng — CN-01.6, chốt **D1**.
  *
@@ -39,8 +41,18 @@ export const DAI_TOI_DA_NOI_DUNG = 2000;
 
 const MUC_SAO = [1, 2, 3, 4, 5] as const;
 
-export function FeedbackForm() {
+export function FeedbackForm({
+  thongBaoRiengTu = '',
+  duongDanChinhSach = '',
+}: {
+  /** T61.39 — `site.privacy.notice`. Rỗng ⇒ ⛔ hiện ô đồng ý (xem `ContactForm`). */
+  thongBaoRiengTu?: string;
+  /** T61.39 — `site.privacy.policy-url`, tuỳ chọn. */
+  duongDanChinhSach?: string;
+} = {}) {
   const id = useId();
+  const coThongBao = thongBaoRiengTu.trim() !== '';
+  const lienKetChinhSach = lienKetAnToan(duongDanChinhSach);
   const [tt, datTt] = useState<TrangThai>({ loai: 'nhap' });
   const [sao, datSao] = useState<number | null>(null);
 
@@ -62,6 +74,7 @@ export function FeedbackForm() {
           //    điểm trung bình.
           rating: sao,
           content: String(fd.get('content') ?? ''),
+          ...(coThongBao ? { dongY: fd.get('dongY') === 'on' } : {}),
         }),
       });
 
@@ -182,6 +195,33 @@ export function FeedbackForm() {
           {tt.thongDiep}
         </p>
       ) : null}
+
+      {coThongBao && (
+        <div className="rounded-lg border border-surface-border bg-surface-subtle px-3.5 py-3">
+          <p className="whitespace-pre-line text-xs leading-relaxed text-surface-textSecondary">
+            {thongBaoRiengTu}
+          </p>
+
+          {lienKetChinhSach && (
+            <a
+              href={lienKetChinhSach}
+
+              className="mt-1 inline-block text-xs font-semibold text-brand-primary underline"
+            >
+              Xem chi tiết chính sách quyền riêng tư
+            </a>
+          )}
+
+          <label className="mt-2 flex items-start gap-2 text-xs text-surface-textBase">
+            <input type="checkbox" name="dongY" required className="mt-0.5" />
+
+            <span>
+              Tôi đã đọc và đồng ý để Công ty xử lý dữ liệu cá nhân nêu trên nhằm tiếp nhận góp ý
+              này.
+            </span>
+          </label>
+        </div>
+      )}
 
       <button
         type="submit"

@@ -18,6 +18,7 @@ import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.BusinessRuleException;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
 import com.songnhue.core.common.persistence.ScopeGuard;
+import com.songnhue.core.common.util.TenTep;
 import com.songnhue.core.spi.AttachmentContent;
 import com.songnhue.core.spi.AttachmentPort;
 import com.songnhue.core.spi.AttachmentRef;
@@ -313,8 +314,8 @@ public class HoSoTaiLieuService {
                     continue;
                 }
                 String thuMuc = thuMucCua(ref).map(Enum::name).orElse("KHAC");
-                zip.putNextEntry(
-                        new java.util.zip.ZipEntry(thuMuc + "/" + tenDuyNhat(daDung, thuMuc, ref.originalName())));
+                zip.putNextEntry(new java.util.zip.ZipEntry(
+                        thuMuc + "/" + tenDuyNhat(daDung, thuMuc, TenTep.chiPhanTen(ref.originalName()))));
                 try (java.io.InputStream vao = noiDung.get().content()) {
                     vao.transferTo(zip);
                 }

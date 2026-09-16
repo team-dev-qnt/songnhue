@@ -439,6 +439,25 @@ trả 401 khi mã sai** ⇒ giao diện gửi lại mã sai rồi đá người 
 (lượt thử đầu trên máy giả bắt lỗi lặp vô hạn). ⭐ **16/09 chạy THẬT trên hai máy** — VPS-1 2/2, VPS-2 4/10 biến §B6, `.env` về `600`. ⛔⛔ Lượt `--thu` trên máy THẬT lộ khuyết tật `ssh` **hút sạch stdin** ⇒ vòng lặp chỉ hỏi được biến ĐẦU TIÊN rồi im (§10.60, mã thoát vẫn 3 nên đọc y hệt *người dùng bỏ qua*); và bài tự kiểm đầu của tôi **xanh trên CẢ bản hỏng** vì `ssh` giả ⛔ hút stdin như `ssh` thật (luật 1 + luật 29). ⚠ Lượt `ci-local` đầu đỏ 2 bài — cả hai là **đồ gá** chưa theo bản vá (ghi tham số SECURITY
 ⛔ mã 2FA · bảng mã hoá thứ tư ⛔ có hàng), ⛔ nới khẳng định nào.
 
+⭐⭐ **Đo lại 16/09/2026 sau WS-62 (Phase 4 đợt 6 — nhóm ASVS còn lại) — `make ci-local` thoát 0**, tiến trình maven DUY NHẤT
+(⚠ số ở **MÁY**): **1923 testcase BE** (core **311** · content 55 · hydro 229 · operations 55 · app **1273**) · **0 đỏ** ·
+FE **466** admin-app / 58 + **399** public-web / 46 · **77 migration** (`V202609161083` quyền riêng tư) · mã lỗi **129**
+(`ADM-2025` · `SYS-0013` · `SYS-0014`). Sáu việc: **T61.38** SSRF kiểm địa chỉ ĐÃ PHÂN GIẢI (chữ viết một mình để lọt một bản
+ghi A trỏ `10.0.0.x`) · **T61.37** biểu mẫu công khai (email ⛔ kiểm định dạng ⇒ `"x"` thành người nhận thư; hạn mức 300/PHÚT
+của đường ĐỌC dùng cho đường GHI ⇒ 18.000 lượt/giờ × 11 thư mỗi lượt) · **T61.31/T61.36** đặt lại mật khẩu + báo chính chủ ·
+**T61.39** thông báo quyền riêng tư NĐ 13/2023 · **T61.40** đối chiếu ASVS — ⚠ **31 dòng đo được chứ ⛔ phải 23 như sổ ghi**
+(lần thứ TÁM của *một dòng nợ tự nó sai*) · **T61.47** `@Valid`+ràng buộc 11 chỗ · `filename*` 5 chỗ · nginx chặn tệp ẩn ·
+Dependabot · `nosniff` · mô hình đe doạ STRIDE + bảng phân loại dữ liệu.
+⛔⛔ **Bốn khuyết tật của chính các bản vá, cả bốn do bộ kiểm bắt, ⛔ do đọc lại**: xô hạn mức mới khai trong enum mà quên
+đăng ký ở `RateLimitFilter.phuTrach` ⇒ đo được **12/12 lượt đều qua** — hạn mức ⛔ chặt hơn, nó **BIẾN MẤT** (luật 7) ·
+giao diện đặt lại mật khẩu suy bước từ `matKhauTam !== ''` ⇒ gõ ký tự ĐẦU là hộp mật khẩu tự đóng · mock `api.post` cũ ⛔
+chuyển tiếp THÂN yêu cầu ⇒ một lượt gửi thiếu mật khẩu tạm vẫn xanh (luật 9) · `@NotBlank` trên một trường chỉ-đọc-lúc-tạo
+làm **mọi lượt sửa phân loại liên hệ trả 400**.
+⛔⛔ **Và một bài kiểm của tôi là XANH GIẢ**: bài zip-bomb đỏ nhờ trần **DÒNG** (dùng chung mã `SYS-0012`) chứ ⛔ nhờ trần
+giải nén — xanh cả khi đã gỡ chốt ⇒ tách `SYS-0014` + dựng lại dữ liệu thử thành MỘT dòng khổng lồ (luật 1 + luật 9).
+⚠ `make ci-local` ⛔ dọn `target`: một `.class` và một `jacoco.exec` CŨ của module `hr` làm hai lượt chạy đỏ vì thứ ⛔ còn
+tồn tại trong mã — `rm -rf` thư mục ấy mới đọc được kết quả thật.
+
 ⭐⭐ **Đo lại 14/09/2026 sau WS-60 (đối chiếu DoD Phase 3 · gỡ chốt CI) — `make ci-local` thoát 0**,
 lượt chạy là tiến trình maven DUY NHẤT (⚠ số ở **MÁY**): **1811 testcase BE** (core 283 · content 54 ·
 hydro 225 · operations 55 · app **1194**) · **0 đỏ** · FE **434** admin-app / 50 tệp + **392**

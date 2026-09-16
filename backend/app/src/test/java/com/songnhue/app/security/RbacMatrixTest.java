@@ -183,7 +183,6 @@ class RbacMatrixTest extends IntegrationTestBase {
             "cms:external-doc:view", // CMS — Phase 2
             "cms:external-doc:link", // CMS — Phase 2
             "cms:external-doc:manage-flag", // CMS — Phase 2
-            "adm:user:reset-password", // Admin — Phase 2
             "adm:session:view", // Admin — Phase 2
             "adm:session:revoke", // Admin — Phase 2
             "adm:security-event:view" // Admin — Phase 2

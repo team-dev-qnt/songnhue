@@ -21,6 +21,7 @@ import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.BusinessRuleException;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
 import com.songnhue.core.common.security.RequirePermission;
+import com.songnhue.core.common.util.HttpHeaderText;
 import com.songnhue.operations.application.BaoCaoVanHanhService;
 import com.songnhue.operations.domain.MaBaoCaoVanHanh;
 
@@ -103,7 +104,7 @@ public class BaoCaoVanHanhController {
         }
         BaoCaoVanHanhService.TepXuat tep = baoCao.xuat(maBaoCao, tu, den);
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + tep.tenTep() + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, HttpHeaderText.contentDisposition(tep.tenTep()))
                 .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
                 .body(new ByteArrayResource(tep.noiDung()));
     }

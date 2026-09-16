@@ -83,7 +83,7 @@ public class CategoryController {
     @PutMapping("/{publicId}/parent")
     @Operation(summary = "Chuyển sang danh mục cha khác — cây con đi theo")
     @RequirePermission("cms:category:manage")
-    public CategoryNode move(@PathVariable UUID publicId, @RequestBody MoveRequest request) {
+    public CategoryNode move(@PathVariable UUID publicId, @Valid @RequestBody MoveRequest request) {
         Category saved = categories.move(publicId, request.newParentId());
         return toNode(saved, categories.tree());
     }
