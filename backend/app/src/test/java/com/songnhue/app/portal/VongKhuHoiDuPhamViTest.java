@@ -86,7 +86,12 @@ class VongKhuHoiDuPhamViTest {
                     "frontend/admin-app/src/features/hydro/nguonDuLieuVongKhuHoi.test.tsx"),
             Map.entry(
                     "MeasurementTypeController.MeasurementTypeRequest",
-                    "frontend/admin-app/src/features/hydro/loaiChiSoVongKhuHoi.test.tsx")));
+                    "frontend/admin-app/src/features/hydro/loaiChiSoVongKhuHoi.test.tsx"),
+            Map.entry(
+                    "EmployeeController.EmployeeRequest",
+                    "frontend/admin-app/src/features/hr/hoSoCanBoVongKhuHoi.test.tsx"),
+            Map.entry(
+                    "LyLichController.LyLichRequest", "frontend/admin-app/src/features/hr/lyLichVongKhuHoi.test.tsx")));
 
     /**
      * Endpoint CHƯA có bài kiểm — <b>mỗi dòng một lý do ĐO ĐƯỢC, tối thiểu 40 ký tự</b>.
@@ -96,14 +101,6 @@ class VongKhuHoiDuPhamViTest {
      * Cùng ràng buộc đã bắt một dòng miễn trừ 33 ký tự của chính người viết ở {@code MaLoiCoNoiNemTest}.
      */
     private static final Map<String, String> CHUA_CO_BAI_KIEM = new TreeMap<>(Map.ofEntries(
-            Map.entry(
-                    "EmployeeController.EmployeeRequest",
-                    "24 trường hồ sơ CBNV. NẶNG: đánh rơi một trường là sửa hồ sơ nhân sự sai mà ⛔ ai "
-                            + "thấy. Cần mock `HoSoNhanSuPage` + ngăn kéo con; xếp ngay sau nhóm 🔒."),
-            Map.entry(
-                    "LyLichController.LyLichRequest",
-                    "9 trường lý lịch & chuyên môn (CN-04.3). Cùng ngăn kéo với hồ sơ CBNV nên dựng "
-                            + "chung một lượt với `EmployeeController` sẽ rẻ hơn dựng rời."),
             Map.entry(
                     "AlertLevelController.AlertLevelRequest",
                     "6 trường danh mục mức ngưỡng. Cùng màn hình họ hàng với AlertRule nên gộp một lượt; "
