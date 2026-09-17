@@ -468,6 +468,44 @@ jobs:
             #
             #   Triển khai là lúc ĐẶT image đã khai vào container đang chạy. Đó là một mệnh
             #   lệnh, không phải một gợi ý để compose cân nhắc.
+            # ═══════════════════════════════════════════════════════════════
+            # ⛔⛔ KIỂM CẤU HÌNH NGINX TRƯỚC KHI THAY NÓ — T63.19 (17/09/2026)
+            #
+            #   Lượt CD Staging \`35236229504\`: mọi bước ở trên XANH TRỌN VẸN —
+            #   \`app\` **Healthy**, \`nginx\` **Started**, ba dịch vụ đúng image — rồi
+            #   smoke test in **30 dòng** \`curl: (7) Failed to connect ... port 443\`,
+            #   và lượt quay lui in thêm 18 dòng y hệt.
+            #
+            #   ⭐ \`Started\` nghĩa là *tiến trình container đã khởi động*, ⛔ phải
+            #   *nginx đang phục vụ*. Với \`restart: unless-stopped\`, một nginx chết
+            #   vì cấu hình sẽ **quay vòng mãi** mà compose vẫn in đúng một dòng
+            #   \`Started\`. Luật 9 nguyên văn: hai trạng thái ⛔ phân biệt được thì
+            #   dòng ấy ⛔ khẳng định gì.
+            #
+            #   ⚠ Nó thành lỗi CHẶN từ lượt này vì T61.5 đưa vào template hai giá
+            #   trị đọc từ \`.env\` (\`METRICS_ALLOW_IP\` · \`METRICS_BEARER_TOKEN\`).
+            #   \`:?\` của compose chỉ bảo đảm **⛔ rỗng**; nó ⛔ nói gì về việc
+            #   \`allow <giá trị>;\` có phải cú pháp nginx hợp lệ ⛔ — một chú thích
+            #   viết CÙNG DÒNG trong \`.env\` đủ để \`nginx -t\` ném \`[emerg]\`.
+            #
+            # ⚠⚠ \`--no-deps\` là BẮT BUỘC: \`docker compose run nginx\` trần sẽ dựng cả
+            #    \`depends_on\` — đúng tai nạn §10.78, khi một lệnh "chỉ kiểm cấu hình"
+            #    dựng luôn cluster ngoài quy trình.
+            #
+            # ⚠ Giữ entrypoint MẶC ĐỊNH, chỉ đổi *command*: \`envsubst\` chạy trong
+            #   \`/docker-entrypoint.d/\`, nên \`--entrypoint nginx\` sẽ kiểm bản template
+            #   CHƯA thay biến — xanh trên một tệp ⛔ bao giờ được nạp (luật 10).
+            # ═══════════════════════════════════════════════════════════════
+            if ! \$dc run --rm --no-deps nginx nginx -t; then
+                echo "::error::Cấu hình nginx ⛔ hợp lệ — DỪNG TRƯỚC khi thay container."
+                echo "Site cũ vẫn đang phục vụ, chưa có gì bị hỏng. Đọc dòng [emerg] ngay trên."
+                echo "Hay gặp nhất: một giá trị trong .env mà nginx ⛔ phân tích được"
+                echo "(allow chỉ nhận IP/CIDR/all). Kiểm chú thích viết CÙNG DÒNG giá trị:"
+                echo "    grep -nE '^(METRICS_|PROD_METRICS_)' /opt/songnhue/.env"
+                exit 1
+            fi
+            echo "✓ Cấu hình nginx đã thay biến xong và nginx -t chấp nhận"
+
             \$dc up -d --force-recreate app admin-app public-web nginx
 
             # ⭐⭐ ĐO LẠI: container đang chạy có ĐÚNG là image vừa triển khai không.
@@ -506,6 +544,26 @@ jobs:
                 fi
             done
             [ "\$loi" -eq 0 ]
+
+            # ⛔⛔ Vòng lặp trên đo *container chạy đúng image*; nó ⛔ hỏi nginx có
+            #    nhận kết nối ⛔. \`nginx -t\` bắt lỗi cú pháp, nhưng chứng chỉ thiếu,
+            #    cổng bị chiếm hay một lượt OOM thì chỉ lộ ra LÚC CHẠY. nginx đã có
+            #    healthcheck trong compose — dùng nó, thay vì để smoke test ở runner
+            #    phát hiện hộ bằng 30 dòng \`curl: (7)\` ⛔ nói được nguyên nhân (T63.19).
+            ct_nginx="\$(container_cua nginx)" || exit 1
+            tt=khong-ro
+            for lan in \$(seq 1 30); do
+                tt="\$(docker inspect --format '{{.State.Health.Status}}' "\$ct_nginx" 2>/dev/null || echo khong-ro)"
+                [ "\$tt" = healthy ] && break
+                sleep 5
+            done
+            if [ "\$tt" != healthy ]; then
+                echo "::error::nginx ⛔ phục vụ sau 150 giây (trạng thái: \$tt)."
+                echo "Nhật ký nginx — dòng [emerg]/[alert] ĐẦU TIÊN là nguyên nhân:"
+                docker logs --tail 40 "\$ct_nginx" 2>&1 || true
+                exit 1
+            fi
+            echo "✓ nginx đang phục vụ (healthcheck khoẻ)"
 
             # Dọn image cũ để đĩa không đầy dần sau vài chục lượt deploy. Đĩa đầy
             # làm pg_dump hỏng theo, và mất sao lưu là mất lưới an toàn duy nhất.
@@ -684,9 +742,32 @@ jobs:
             sleep 10
           done
 
+          # ⛔⛔ ĐỪNG ĐOÁN NGUYÊN NHÂN Ở ĐÂY — T63.19.
+          #
+          #   Bản cũ in thẳng *"nhiều khả năng migration đã đổi lược đồ và bản cũ ⛔
+          #   chạy được trên đó"* rồi trỏ sang runbook **khôi phục CSDL**. Lượt
+          #   `35236229504` chứng minh câu ấy sai, và sai theo chiều ĐẮT NHẤT: log
+          #   của chính lượt quay lui ghi `Container songnhue-app Healthy` trên ảnh
+          #   CŨ ⇒ bản cũ **chạy được** trên lược đồ đã migrate. Thứ chết là tầng
+          #   biên. Một câu đoán mò đã đẩy người trực tới thao tác **phá huỷ nhất**
+          #   của cả hệ — cùng hình dạng §10.77: cổng đỏ kèm lý do *nghe rất hợp lý*
+          #   nên ⛔ ai đi kiểm lại.
+          #
+          # ⇒ Nói ra ba khả năng và PHÉP ĐO tách chúng, đừng chọn hộ một khả năng.
           echo "::error::Quay lui rồi mà dịch vụ vẫn không trả lời sau 3 phút."
-          echo "Nhiều khả năng migration đã đổi lược đồ và bản cũ không chạy được trên đó."
-          echo "Đi tiếp theo docs/runbook/khoi-phuc-du-lieu.md — khôi phục từ bản chụp predeploy-*."
+          echo ""
+          echo "⛔ ĐỪNG khôi phục CSDL trước khi đo. Chạy trên máy chủ:"
+          echo "    cd /opt/songnhue"
+          echo "    docker compose --env-file .env -f \$COMPOSE ps"
+          echo "    docker compose --env-file .env -f \$COMPOSE logs --tail=40 nginx"
+          echo ""
+          echo "Rồi đọc theo bảng này:"
+          echo "  app KHÔNG healthy            ⇒ bản cũ ⛔ chạy được trên lược đồ đã migrate."
+          echo "                                 KHI ĐÓ mới tới docs/runbook/khoi-phuc-du-lieu.md."
+          echo "  app healthy, nginx KHÔNG     ⇒ CSDL và ứng dụng ĐỀU ỔN. ⛔ KHÔI PHỤC CSDL —"
+          echo "                                 nó ⛔ chữa gì và xoá mất dữ liệu mới. Đọc dòng"
+          echo "                                 [emerg] đầu tiên trong log nginx."
+          echo "  cả hai healthy               ⇒ tầng ngoài container: DNS, chứng chỉ TLS, tường lửa."
           exit 1
 
       # ⚠ Gắn tag SAU khi smoke test xanh. Gắn trước thì tag môi trường trỏ vào một
