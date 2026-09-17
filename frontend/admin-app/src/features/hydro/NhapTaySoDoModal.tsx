@@ -5,6 +5,7 @@ import { useLayoutEffect } from 'react';
 
 import { type ManualEntryRequest, type Station } from '@/shared/api-types';
 import { ApiClientError, api } from '@/shared/apiClient';
+import { APP_TIMEZONE } from '@/shared/format';
 import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
 
 /**
@@ -28,6 +29,26 @@ import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
  * `2.300` gửi đi dưới dạng số JSON thành `2.3`, và với mực nước thì chữ số thập phân thứ ba là
  * **milimét**. Ô nhập vì thế là `<Input>` chữ, ⛔ không phải `<InputNumber>` — quy tắc 2.
  */
+/**
+ * ⛔⛔ Giờ hiện tại theo **UTC+7**, ⛔ theo múi giờ của máy đang mở trình duyệt — T63.18.
+ *
+ * <p>Bản trước gọi {@code dayjs()} trần. Nó đúng trên mọi máy đặt đúng múi giờ, nên ⛔ lượt rà
+ * nào ở máy thấy được — lượt CI (runner chạy <b>UTC</b>) đỏ với
+ * {@code expected '16/09/2026 20:00' to contain '17/09/2026 03:00'}: lệch **đúng 7 giờ**.
+ *
+ * <p>⚠ Cái giá ⛔ nằm ở ô bày sẵn mà ở ô người dùng <b>SỬA</b>: {@code DatePicker} đọc và ghi theo
+ * múi giờ của chính giá trị {@code Dayjs} nó đang giữ. Với {@code dayjs()} trần, một máy trạm đặt
+ * lệch múi giờ khiến thao tác *"số đo này đo lúc 05:00"* gửi lên một mốc UTC khác hẳn — và quy tắc
+ * 18 nói nguồn ⛔ có API lịch sử, nên một số đo đóng vào sai khung 10 phút là **sai VĨNH VIỄN**.
+ *
+ * <p>{@code shared/format.ts} đã khai đúng lý do này từ trước: <i>"Máy trạm trong đơn vị hay bị
+ * lệch múi giờ sau khi cài lại Windows, nên 'để hệ điều hành lo' là đúng về lý thuyết mà sai trên
+ * thực địa."</i> Tiền lệ dùng được nằm ở {@code DateRangeFilter} — ⛔ phát minh cách thứ hai.
+ */
+function bayGioTheoGioVN(): Dayjs {
+  return dayjs().tz(APP_TIMEZONE);
+}
+
 export function NhapTaySoDoModal({
   open,
   diemDo,
@@ -79,7 +100,7 @@ export function NhapTaySoDoModal({
   useLayoutEffect(() => {
     if (!open) return;
     form.resetFields();
-    form.setFieldsValue({ mocDo: dayjs() });
+    form.setFieldsValue({ mocDo: bayGioTheoGioVN() });
   }, [open, form]);
 
   const ghi = useMutation({

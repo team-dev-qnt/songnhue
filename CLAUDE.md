@@ -573,6 +573,17 @@ mang **cả** đường lấy số liệu hỏng **lẫn** cái chuông lẽ ra 
 **9 ngày / 3323 lượt hỏng / 0 byte** trôi qua lần trước.
 ⚠ Bộ kiểm FE phải chạy **từ trong** `admin-app`: `--root admin-app` đổi root của vitest mà **⛔ đổi `process.cwd()`**
 ⇒ 8 lớp kiểm đọc tệp theo đường dẫn tương đối **đỏ giả**.
+⛔⛔⛔ **T63.18 — lượt CI của PR #153 đỏ ở một bài mà `ci-local` ⛔ thể đỏ: `dayjs()` TRẦN đọc giờ của MÁY.**
+`expected '16/09/2026 20:00' to contain '17/09/2026 03:00'` — lệch **đúng 7 giờ** (runner **UTC**, máy tôi **+07**).
+Kiểm chứng ngược đo **cả hai chiều trên cùng một bản phá**: `TZ=UTC` ⇒ **ĐỎ** · `TZ=Asia/Ho_Chi_Minh` ⇒ **XANH**
+⇒ biến thể **MỚI** của *"xanh ở máy ⛔ phải bằng chứng"*, sau `.env.local` và biến build rỗng — và là biến thể khó nhất,
+vì máy người viết mã đặt **đúng** múi giờ sản phẩm nên nó ⛔ bao giờ dựng lại được điều kiện của runner.
+⛔ ⛔ Không phải lỗi bài kiểm: `shared/format.ts` đã khai luật **từ trước** kèm lý do thực địa — *"máy trạm trong đơn vị hay bị
+lệch múi giờ sau khi cài lại Windows"* — và `NhapTaySoDoModal` là **đường ghi tay duy nhất** khi API gián đoạn (quy tắc 18 ⇒
+một số đo đóng vào sai khung 10 phút là **sai vĩnh viễn**). Vá theo **tiền lệ có sẵn** `DateRangeFilter` (`dayjs().tz(APP_TIMEZONE)`).
+⭐⭐ **Bánh cóc: ghim `env: { TZ: 'UTC' }`** ở `admin-app/vite.config.ts` + `public-web/vitest.config.mts` ⇒ lượt chạy ở máy
+**dựng lại được** điều kiện runner; đo được là có hiệu lực (cùng bản phá, chạy ở `TZ=+07` nay **ĐỎ**). ⛔ Ghim `Asia/Ho_Chi_Minh` —
+ghim vào đúng múi giờ của sản phẩm là làm lớp lỗi ấy **vô hình trở lại**. ⬜ Còn **12** nơi `dayjs()` trần / 8 tệp (trần chỉ-được-giảm).
 
 
 ⭐⭐ **Đo lại 16/09/2026 sau WS-64 (Phase 4 đợt 8 — mở phạm vi bộ canh · biểu mẫu Menu) — `make ci-local` thoát 0**,
