@@ -242,7 +242,7 @@ export function AlertLevelsPage() {
         onCancel={() => setModalVisible(false)}
         onOk={() => form.submit()}
         confirmLoading={createMutation.isPending || updateMutation.isPending}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form
           form={form}

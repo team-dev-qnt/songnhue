@@ -95,7 +95,7 @@ export function MaintenanceFormModal({
       onOk={() => void form.validateFields().then((v) => luu.mutate(v))}
       confirmLoading={luu.isPending}
       width={720}
-      destroyOnClose
+      destroyOnHidden
       afterClose={() => form.resetFields()}
     >
       <Form<MaintenanceFormValues>

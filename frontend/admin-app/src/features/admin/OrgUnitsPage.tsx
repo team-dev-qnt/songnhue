@@ -416,7 +416,7 @@ function CreateOrgUnitModal({
       confirmLoading={create.isPending}
       onCancel={onClose}
       onOk={() => void form.submit()}
-      destroyOnClose
+      destroyOnHidden
     >
       <Form<CreateOrgUnitRequest>
         form={form}

@@ -245,7 +245,7 @@ export function OperationStatusCodesPage() {
         onCancel={() => setModalVisible(false)}
         onOk={handleSubmit}
         confirmLoading={createMutation.isPending || updateMutation.isPending}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical">
           <Form.Item

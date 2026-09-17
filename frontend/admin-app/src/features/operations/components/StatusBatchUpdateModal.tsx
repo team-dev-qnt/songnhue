@@ -205,7 +205,7 @@ export function StatusBatchUpdateModal({ open, onClose }: { open: boolean; onClo
       okText={items.length > 0 ? `Ghi nhận ${items.length} công trình` : 'Ghi nhận'}
       confirmLoading={save.isPending}
       width={1100}
-      destroyOnClose
+      destroyOnHidden
       afterClose={donNhap}
     >
       <Space direction="vertical" style={{ width: '100%' }} size="middle">

@@ -51,7 +51,7 @@ import { AuthContext, type AuthContextValue } from '@/app/auth/AuthContext';
  *
  * {@code LeaderModal} giữ {@code Form.useForm()} ở component **NGOÀI** {@code Modal} và được
  * {@code OrgUnitLeadersPanel} render **vô điều kiện**. Đúng hình dạng T51.12. Ở đây có hai biện
- * pháp phòng ({@code destroyOnClose} + {@code preserve={false}}), mà T53.7 đo được rằng **biện pháp
+ * pháp phòng ({@code destroyOnHidden} + {@code preserve={false}}), mà T53.7 đo được rằng **biện pháp
  * phòng chồng nhau ⛔ cộng lại thành an toàn** ⇒ vế này phải được **ĐO**, ⛔ suy từ việc đọc mã.
  */
 

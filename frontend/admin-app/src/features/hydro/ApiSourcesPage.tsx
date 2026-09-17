@@ -394,7 +394,7 @@ export function ApiSourcesPage() {
           createMutation.mutate(values);
         }}
         confirmLoading={createMutation.isPending}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={formTao} layout="vertical">
           <Form.Item name="code" label="Mã nguồn" rules={[{ required: true }]}>
@@ -439,7 +439,7 @@ export function ApiSourcesPage() {
           if (dangSua) updateMutation.mutate({ id: dangSua.id, payload: values });
         }}
         confirmLoading={updateMutation.isPending}
-        destroyOnClose
+        destroyOnHidden
       >
         <Alert
           type="info"
@@ -518,7 +518,7 @@ export function ApiSourcesPage() {
             {nut}
           </Space>
         )}
-        destroyOnClose
+        destroyOnHidden
       >
         <Alert
           type="warning"
@@ -550,7 +550,7 @@ export function ApiSourcesPage() {
         title={`Kết quả gọi thử — ${ketQuaGoiThu?.nguon.name ?? ''}`}
         onCancel={() => setKetQuaGoiThu(null)}
         footer={<Button onClick={() => setKetQuaGoiThu(null)}>Đóng</Button>}
-        destroyOnClose
+        destroyOnHidden
       >
         {ketQuaGoiThu && <BangKetQuaGoiThu kq={ketQuaGoiThu.kq} />}
       </Modal>

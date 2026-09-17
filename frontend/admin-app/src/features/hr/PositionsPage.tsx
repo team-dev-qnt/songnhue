@@ -245,7 +245,7 @@ export function PositionsPage() {
         onOk={() => void luu()}
         onCancel={() => setModalMo(false)}
         confirmLoading={createMutation.isPending || updateMutation.isPending}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical">
           <Form.Item

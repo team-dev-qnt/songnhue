@@ -226,7 +226,7 @@ export function MeasurementTypesPage() {
         onOk={luu}
         onCancel={() => setModalVisible(false)}
         confirmLoading={createMutation.isPending || updateMutation.isPending}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical">
           <Form.Item

@@ -29,7 +29,7 @@ import { AuthContext, type AuthContextValue } from '@/app/auth/AuthContext';
  * có thể bày dữ liệu của **A** trong ô của **B**, rồi một lượt Lưu ghi hồ sơ A đè lên B kèm thông
  * báo *"Đã cập nhật đơn vị"*.
  *
- * <p>⚠ Ở đây {@code destroyOnClose} + {@code preserve={false}} là **hai** biện pháp phòng, và
+ * <p>⚠ Ở đây {@code destroyOnHidden} + {@code preserve={false}} là **hai** biện pháp phòng, và
  * T53.7 đo được rằng **ba biện pháp phòng chồng nhau ⛔ cộng lại thành an toàn**. Nên vế này phải
  * được **ĐO**, ⛔ suy ra từ việc đọc mã: bài kiểm đi đúng đường người dùng đi.
  *

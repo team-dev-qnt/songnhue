@@ -247,7 +247,7 @@ function LeaderModal({
       confirmLoading={luu.isPending}
       onCancel={onClose}
       onOk={() => void form.submit()}
-      destroyOnClose
+      destroyOnHidden
     >
       <BieuMauDanhBa
         // ⛔ `key` ép React dựng lại thân biểu mẫu ngay khi đổi dòng — xem javadoc của nó.
@@ -271,8 +271,8 @@ function LeaderModal({
  * {@code Modal.onOk} gọi được {@code submit}). Nên kho giá trị sống lâu hơn hộp thoại, còn
  * {@code rc-field-form} chỉ áp {@code initialValues} khi {@code init}.
  *
- * <p>⚠ {@code destroyOnClose} + {@code preserve={false}} là <b>hai</b> biện pháp phòng và chúng
- * <b>⛔ cộng lại thành an toàn</b> (T53.7): {@code destroyOnClose} chỉ tháo cây con <b>sau khi hoạt
+ * <p>⚠ {@code destroyOnHidden} + {@code preserve={false}} là <b>hai</b> biện pháp phòng và chúng
+ * <b>⛔ cộng lại thành an toàn</b> (T53.7): {@code destroyOnHidden} chỉ tháo cây con <b>sau khi hoạt
  * ảnh đóng chạy xong</b>, nên mở lại trước lúc ấy là kho giá trị còn nguyên của dòng TRƯỚC. Đo được
  * trước lượt vá này (bài {@code danhBaLanhDaoVongKhuHoi.test.tsx}, vế A → đóng → B): ô <i>Điện
  * thoại liên hệ</i> của <i>Trần Thị Hoà</i> vẫn hiện số của <i>Nguyễn Văn Thắng</i>, và một lượt Lưu

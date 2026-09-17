@@ -254,7 +254,7 @@ export function PeriodReportPage() {
             ? `BC-12 — ${chiTiet.stationName} · ${chiTiet.measurementTypeName}`
             : 'Chi tiết bản ghi'
         }
-        destroyOnClose
+        destroyOnHidden
       >
         {chiTiet ? (
           <ChiTietSoDo

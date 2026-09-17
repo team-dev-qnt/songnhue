@@ -20,7 +20,7 @@ import type * as ApiClientModule from '@/shared/apiClient';
  *
  * <p>`rc-field-form` áp `initialValues` bằng `setInitialValues(values, init)` với
  * `init = !this.initialized`. Lượt mở thứ hai có `init === false` ⇒ nó **ghi nhớ** giá trị ban đầu
- * mới nhưng ⛔ **không** ghi đè kho — và `preserve` mặc định `true` nên `destroyOnClose` cũng ⛔
+ * mới nhưng ⛔ **không** ghi đè kho — và `preserve` mặc định `true` nên `destroyOnHidden` cũng ⛔
  * không dọn.
  *
  * <h2>⛔⛔ Vì sao đây ⛔ KHÔNG phải một lỗi giao diện</h2>
