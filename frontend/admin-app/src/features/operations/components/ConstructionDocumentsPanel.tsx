@@ -21,7 +21,7 @@ import { useState } from 'react';
 import { useAuth } from '@/app/auth/useAuth';
 import { type ConstructionDocument, type ConstructionDocumentList } from '@/shared/api-types';
 import { ApiClientError, api } from '@/shared/apiClient';
-import { formatBytes, formatDateTime } from '@/shared/format';
+import { formatBytes, formatDateTime, ngayHomNay } from '@/shared/format';
 
 /**
  * Tài liệu của một công trình — CN-02.3, T21.4.
@@ -129,7 +129,9 @@ export function ConstructionDocumentsPanel({ publicId }: { publicId: string }) {
       width: 130,
       render: (ngay: string | null) => {
         if (!ngay) return '—';
-        const hetHan = dayjs(ngay).isBefore(dayjs(), 'day');
+        // `expiryDate` là một NGÀY do backend trả (`YYYY-MM-DD`), ⛔ phải một thời điểm —
+        // so chuỗi với hôm nay theo UTC+7 thay vì dựng hai `Dayjs` hai offset (T63.18).
+        const hetHan = ngay.slice(0, 10) < ngayHomNay();
         return (
           <Typography.Text type={hetHan ? 'danger' : undefined}>
             {dayjs(ngay).format('DD/MM/YYYY')}

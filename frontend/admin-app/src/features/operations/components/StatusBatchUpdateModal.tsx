@@ -11,7 +11,9 @@ import {
   Tag,
   Typography,
 } from 'antd';
-import dayjs from 'dayjs';
+import type dayjs from 'dayjs';
+
+import { bayGio } from '@/shared/format';
 import { useMemo, useState } from 'react';
 
 import {
@@ -47,7 +49,8 @@ export function StatusBatchUpdateModal({ open, onClose }: { open: boolean; onClo
   const [draft, setDraft] = useState<
     Record<string, { code?: string; value?: string; note?: string }>
   >({});
-  const [effectiveAt, setEffectiveAt] = useState<dayjs.Dayjs>(dayjs());
+  // Mốc hiệu lực đi thẳng vào CSDL qua `.toISOString()` ở dưới — ⛔ `dayjs()` trần (T63.18).
+  const [effectiveAt, setEffectiveAt] = useState<dayjs.Dayjs>(bayGio);
 
   const { data: constructions, isLoading } = useQuery({
     queryKey: ['ops', 'constructions', 'all'],
@@ -74,7 +77,7 @@ export function StatusBatchUpdateModal({ open, onClose }: { open: boolean; onClo
   // thân effect làm React dựng lại cây thêm một lượt, và eslint chặn đúng chỗ đó.
   const donNhap = () => {
     setDraft({});
-    setEffectiveAt(dayjs());
+    setEffectiveAt(bayGio());
   };
 
   const capNhat = (publicId: string, field: 'code' | 'value' | 'note', value?: string) => {

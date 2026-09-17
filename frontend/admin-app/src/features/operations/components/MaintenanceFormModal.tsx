@@ -1,6 +1,8 @@
 import { useMutation } from '@tanstack/react-query';
 import { App, DatePicker, Form, Input, InputNumber, Modal, Radio, Select } from 'antd';
-import dayjs from 'dayjs';
+import type dayjs from 'dayjs';
+
+import { bayGio } from '@/shared/format';
 
 import { useAuth } from '@/app/auth/useAuth';
 import { OrgUnitTreeSelect } from '@/components/business/OrgUnitTreeSelect';
@@ -106,7 +108,9 @@ export function MaintenanceFormModal({
             ? giaTriTuBanGhi(banGhi)
             : {
                 workType: loaiChoPhep[0]?.[0] as MaintenanceType,
-                startedOn: dayjs(),
+                // ⛔ `dayjs()` trần: ngày này được GHI XUỐNG CSDL. Trên máy trạm lệch múi giờ,
+                // quanh nửa đêm nó lệch CẢ MỘT NGÀY và ⛔ có gì báo — T63.18.
+                startedOn: bayGio(),
                 performerKind: 'INTERNAL',
               }
         }

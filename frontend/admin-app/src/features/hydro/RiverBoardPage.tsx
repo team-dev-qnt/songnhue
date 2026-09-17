@@ -1,12 +1,12 @@
 import { DownloadOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { Alert, App, Button, Card, DatePicker, Space, Typography } from 'antd';
-import dayjs, { type Dayjs } from 'dayjs';
+import { type Dayjs } from 'dayjs';
 import { useState } from 'react';
 
 import { type RiverBoardReport } from '@/shared/api-types';
 import { api } from '@/shared/apiClient';
-import { formatDateTime } from '@/shared/format';
+import { bayGio, formatDateTime, ngayHomNay, ngayLich } from '@/shared/format';
 
 import { useAuth } from '@/app/auth/useAuth';
 
@@ -31,12 +31,16 @@ const NHIP_LAM_MOI_MS = 2 * 60 * 1000;
  * số khác nhau về cùng một mực nước, và chúng sẽ lệch đúng vào ngày có sự cố.
  */
 export function RiverBoardPage() {
-  const [ngay, setNgay] = useState<Dayjs>(() => dayjs());
+  // Ngày xem mặc định = hôm nay theo UTC+7; nó thành `?ngay=` của truy vấn (T63.18).
+  const [ngay, setNgay] = useState<Dayjs>(bayGio);
   const { message } = App.useApp();
   const { hasPermission } = useAuth();
   const { xuat, dangCho } = useXuatBaoCao();
 
-  const laHomNay = ngay.isSame(dayjs(), 'day');
+  // ⛔ `ngay.isSame(bayGio(), 'day')`: `isSame(…,'day')` cắt `startOf('day')` theo offset
+  // RIÊNG của từng vế, nên trộn giá trị giờ-máy từ `DatePicker` với một giá trị đã `.tz()`
+  // là dựng lại đúng lớp lỗi vừa vá — chỉ khác là nó nấp sau một lời gọi trông đã sửa.
+  const laHomNay = ngayLich(ngay) === ngayHomNay();
   const bieu = useQuery({
     queryKey: ['hyd', 'bao-cao', 'tuyen-song', ngay.format('YYYY-MM-DD')],
     queryFn: () =>
@@ -92,7 +96,7 @@ export function RiverBoardPage() {
             allowClear={false}
             value={ngay}
             onChange={(v) => v && setNgay(v)}
-            disabledDate={(d) => d.isAfter(dayjs(), 'day')}
+            disabledDate={(d) => ngayLich(d) > ngayHomNay()}
           />
         </Space>
       }

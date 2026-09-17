@@ -25,7 +25,7 @@ import {
   type MaintenanceRow,
 } from '@/shared/api-types';
 import { ApiClientError, api } from '@/shared/apiClient';
-import { formatInvestment } from '@/shared/format';
+import { bayGio, formatInvestment } from '@/shared/format';
 
 import { MaintenanceAttachmentsPanel } from './MaintenanceAttachmentsPanel';
 import { MaintenanceFormModal } from './MaintenanceFormModal';
@@ -87,7 +87,9 @@ export function ConstructionMaintenancePanel({
         action: input.action,
         // Ngày hoàn thành để backend tự quyết: chuyển sang "Đã xử lý" mà thiếu ngày thì OPS-2004,
         // và người dùng đang đứng ở màn hình lịch sử chứ không phải biểu mẫu nhập.
-        completedOn: dayjs().format('YYYY-MM-DD'),
+        // ⛔ `dayjs()` trần — xem T63.18: `.format('YYYY-MM-DD')` trên giờ MÁY lệch cả ngày
+        // quanh nửa đêm, và ngày hoàn thành là thứ đi vào hồ sơ công trình.
+        completedOn: bayGio().format('YYYY-MM-DD'),
       }),
     onSuccess: () => {
       message.success('Đã chuyển trạng thái bản ghi');

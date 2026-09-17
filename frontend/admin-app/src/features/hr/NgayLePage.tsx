@@ -17,6 +17,8 @@ import {
 } from 'antd';
 import { type ColumnsType } from 'antd/es/table';
 import dayjs, { type Dayjs } from 'dayjs';
+
+import { bayGio } from '@/shared/format';
 import { useState } from 'react';
 
 import { useAuth } from '@/app/auth/useAuth';
@@ -175,7 +177,8 @@ export function NgayLePage() {
     },
   ];
 
-  const namNay = dayjs().year();
+  // Quanh giao thừa, `dayjs().year()` trên máy lệch múi giờ đếm ngày lễ của năm KIA (T63.18).
+  const namNay = bayGio().year();
   const soNamNay = (query.data ?? []).filter((n) => dayjs(n.holidayDate).year() === namNay).length;
 
   return (

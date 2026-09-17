@@ -1,11 +1,11 @@
 import { useMutation } from '@tanstack/react-query';
 import { Alert, App, DatePicker, Form, Input, Modal, Select } from 'antd';
-import dayjs, { type Dayjs } from 'dayjs';
+import type { Dayjs } from 'dayjs';
 import { useLayoutEffect } from 'react';
 
 import { type ManualEntryRequest, type Station } from '@/shared/api-types';
 import { ApiClientError, api } from '@/shared/apiClient';
-import { APP_TIMEZONE } from '@/shared/format';
+import { bayGio } from '@/shared/format';
 import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
 
 /**
@@ -45,10 +45,6 @@ import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
  * lệch múi giờ sau khi cài lại Windows, nên 'để hệ điều hành lo' là đúng về lý thuyết mà sai trên
  * thực địa."</i> Tiền lệ dùng được nằm ở {@code DateRangeFilter} — ⛔ phát minh cách thứ hai.
  */
-function bayGioTheoGioVN(): Dayjs {
-  return dayjs().tz(APP_TIMEZONE);
-}
-
 export function NhapTaySoDoModal({
   open,
   diemDo,
@@ -100,7 +96,7 @@ export function NhapTaySoDoModal({
   useLayoutEffect(() => {
     if (!open) return;
     form.resetFields();
-    form.setFieldsValue({ mocDo: bayGioTheoGioVN() });
+    form.setFieldsValue({ mocDo: bayGio() });
   }, [open, form]);
 
   const ghi = useMutation({

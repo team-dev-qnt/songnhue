@@ -49,6 +49,48 @@ export function formatDate(value: DateLike): string {
   return toZoned(value)?.format(DATE_FORMAT) ?? EMPTY_MARK;
 }
 
+/**
+ * "Bây giờ" theo **UTC+7**, ⛔ theo múi giờ của máy đang mở trình duyệt.
+ *
+ * <h3>Vì sao phải có hàm này thay vì gọi {@code dayjs()}</h3>
+ *
+ * {@code dayjs()} trần đọc đồng hồ **và múi giờ** của hệ điều hành. Trên một máy trạm
+ * đặt sai múi giờ — chuyện thường gặp sau khi cài lại Windows, xem lý do thực địa ở
+ * {@link APP_TIMEZONE} — thao tác *"số đo này đo lúc 05:00"* gửi lên một mốc UTC khác
+ * hẳn thứ người nhập định nói. Với dữ liệu thuỷ văn thì quy tắc 18 (⛔ có API lịch sử)
+ * biến cái sai ấy thành **vĩnh viễn**.
+ *
+ * ⛔⛔ Và lớp lỗi này **vô hình với mọi lượt chạy ở máy người viết mã**, vì máy ấy đặt
+ * ĐÚNG múi giờ sản phẩm. Nó chỉ lộ ra trên runner (UTC) — T63.18, biến thể thứ ba của
+ * *"xanh ở máy ⛔ phải bằng chứng"*. Hai tệp cấu hình bộ kiểm nay ghim {@code TZ=UTC}
+ * để lượt chạy ở máy **dựng lại được** điều kiện ấy.
+ */
+export function bayGio(): Dayjs {
+  return dayjs().tz(APP_TIMEZONE);
+}
+
+/** Hôm nay theo UTC+7, dạng {@code YYYY-MM-DD}. Vế phải của mọi phép so theo NGÀY. */
+export function ngayHomNay(): string {
+  return bayGio().format('YYYY-MM-DD');
+}
+
+/**
+ * Ngày lịch của một giá trị người dùng **chọn trên lịch**, dạng {@code YYYY-MM-DD}.
+ *
+ * ⚠⚠ ⛔ đổi múi giờ, và đó là chủ ý: người dùng bấm vào ô *17/09* thì ý họ là ngày ấy,
+ * ⛔ phải một mốc thời điểm cần quy đổi.
+ *
+ * <h3>Vì sao so CHUỖI chứ ⛔ {@code a.isSame(b, 'day')}</h3>
+ *
+ * {@code isSame(b,'day')} cắt {@code startOf('day')} theo offset **riêng của từng vế**.
+ * Trộn một {@code Dayjs} giờ máy (từ {@code DatePicker}) với một {@code Dayjs} đã
+ * {@code .tz()} là dựng lại đúng lớp lỗi đang vá — chỉ khác là nay nó nấp sau một lời
+ * gọi trông đã được sửa. So chuỗi ISO date là so **từ điển**, ⛔ phụ thuộc offset nào.
+ */
+export function ngayLich(value: Dayjs): string {
+  return value.format('YYYY-MM-DD');
+}
+
 /** Đổi giá trị người dùng chọn trên lịch (giờ địa phương của trình duyệt) sang ISO UTC để gửi API. */
 export function toApiInstant(value: Dayjs | null | undefined): string | undefined {
   return value ? value.toISOString() : undefined;
