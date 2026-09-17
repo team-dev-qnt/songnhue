@@ -12,6 +12,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,6 +31,11 @@ import tools.jackson.databind.ObjectMapper;
  * công khai <b>có một gói CÙNG TÊN của người khác</b> — {@code design-tokens}, {@code latest =
  * 1.0.1}, tác giả {@code alex-e-leon}. Dependabot đã mở đúng PR nâng {@code 0.1.0 → 1.0.1} (#145).
  *
+ * <p>⭐ <b>18/09 (T63.2): gói nội bộ đã đổi tên sang {@code @songnhue/design-tokens}</b> — xem phần
+ * cuối javadoc này. Đoạn trên giữ nguyên vì nó kể trạng thái <b>lúc khuyết tật xảy ra</b>; bộ canh
+ * thì ⛔ đọc tên nào cả, nó <b>ĐO</b> tên gói từ {@code package.json} của từng thư mục workspace
+ * nên tự đi theo.
+ *
  * <p>Nếu PR ấy được gộp thì dải phiên bản {@code 1.0.1} <b>⛔ không còn khớp</b> gói nội bộ
  * {@code 0.1.0} ⇒ npm thôi nối vào workspace và quay sang <b>tải gói của người lạ</b> ⇒ mã bên thứ
  * ba thay chỗ bộ token của dự án trong CẢ HAI ứng dụng, và ⛔ không một dòng nào báo: cài đặt thành
@@ -43,10 +50,26 @@ import tools.jackson.databind.ObjectMapper;
  * (§11.19). Bộ canh này đứng ở chỗ <b>hậu quả hiện ra</b> — bản lockfile đã giải — nên nó bắt được
  * mọi con đường dẫn tới cùng trạng thái ấy, ⛔ không chỉ con đường Dependabot.
  *
- * <p>⚠ Nó ⛔ không thay được cách vá tận gốc là <b>đổi gói nội bộ sang tên có phạm vi</b>
- * ({@code @songnhue/design-tokens}) — một phạm vi ta sở hữu thì ⛔ không ai chiếm tên được, và lỗi
- * sẽ là một lượt cài <b>đỏ</b> thay vì một lượt cài im lặng sai. Lượt đổi tên ấy đụng <b>73 tệp</b>
- * nên nó là một quyết định của QuanTran, ghi ở dòng nợ T63.2.
+ * <h2>Cách vá tận gốc — ĐÃ LÀM 18/09 (T63.2)</h2>
+ *
+ * Bộ canh này đứng ở chỗ hậu quả hiện ra, nhưng nó vẫn là <b>phòng thủ SAU khi ai đó viết sai</b>.
+ * Cách làm trạng thái sai ấy <b>⛔ biểu diễn được</b> là đổi gói nội bộ sang một phạm vi ta sở hữu:
+ * {@code @songnhue/design-tokens}. Khi ấy một lượt cài sai là một lượt cài <b>ĐỎ</b>, ⛔ phải một
+ * lượt cài im lặng kéo mã người lạ về. Đây là luật 12 (<i>đặt bảo đảm ở chỗ dữ liệu đi qua</i>) và
+ * cùng họ {@code MocSoLieu} ở T47.2 — <i>cách chặn tái phát rẻ nhất ⛔ phải một bài kiểm, là một
+ * KIỂU</i>.
+ *
+ * <p>⚠⚠ Và một chỗ mà một lượt {@code sed} nhắm {@code from '...'} sẽ <b>bỏ sót</b>:
+ * {@code public-web/next.config.ts} khai {@code transpilePackages: ['design-tokens']}. Gói nội bộ
+ * xuất thẳng TypeScript nên thiếu dòng ấy thì {@code public-web} <b>⛔ build được</b> — mà nó ⛔
+ * phải một lời gọi {@code import} nên mọi phép quét theo specifier đều mù trước nó.
+ *
+ * <p>⚠ {@code frontend/package.json} khai {@code workspaces: ["design-tokens", …]} — đó là
+ * <b>đường dẫn THƯ MỤC</b>, ⛔ phải tên gói, nên nó <b>⛔ được đổi</b>. Cùng lý do với ba dòng
+ * {@code "design-tokens"} còn lại trong lockfile: chúng là chỗ npm trỏ vào thư mục workspace.
+ *
+ * <p>⛔ Phép đo sau lượt đổi: {@code node_modules/@songnhue/design-tokens → link: true,
+ * resolved: design-tokens}, và {@code node_modules/design-tokens} <b>⛔ còn tồn tại</b>.
  */
 class PhuThuocNoiBoTest {
 
@@ -116,9 +139,10 @@ class PhuThuocNoiBoTest {
         Set<String> noiBo = goiNoiBoDuocPhuThuoc();
         String yml = doc(timTuGocKho(".github/dependabot.yml"));
 
+        Set<String> daBo = tenTrongIgnore(yml);
         Set<String> thieu = new TreeSet<>();
         for (String ten : noiBo) {
-            if (!yml.contains("dependency-name: " + ten)) {
+            if (!daBo.contains(ten)) {
                 thieu.add(ten);
             }
         }
@@ -133,6 +157,34 @@ class PhuThuocNoiBoTest {
                         của người lạ — và PR ấy trông y hệt một lượt nâng phụ thuộc bình thường.""",
                         thieu)
                 .isEmpty();
+    }
+
+    @Test
+    @DisplayName("⭐ TỰ KIỂM — `tenTrongIgnore` bóc được cả ba dạng nháy, và ⛔ khớp nhầm tên chỉ trùng tiền tố")
+    void tenTrongIgnoreBocDungGiaTri() {
+        String yml =
+                """
+                    ignore:
+                      - dependency-name: design-tokens
+                      - dependency-name: "@songnhue/design-tokens"
+                      - dependency-name: '@songnhue/mot-goi-khac'
+                """;
+
+        Set<String> ra = tenTrongIgnore(yml);
+
+        // Ba dạng nháy đều bóc ra đúng giá trị — dạng có phạm vi BẮT BUỘC nháy trong YAML.
+        assertThat(ra)
+                .as("phải bóc được cả trần, nháy kép và nháy đơn")
+                .containsExactlyInAnyOrder("design-tokens", "@songnhue/design-tokens", "@songnhue/mot-goi-khac");
+
+        // ⛔ Vế PHÂN BIỆT: một tên chỉ TRÙNG TIỀN TỐ ⛔ được tính là đã khai. Thiếu vế này thì
+        //    một bộ canh "nới cho hết đỏ" sẽ xanh với `@songnhue/design-tokens-khac` — tức nó
+        //    khẳng định gói đã được bỏ qua trong khi thật ra chưa (luật 9).
+        assertThat(ra)
+                .as("⛔ được khớp nhầm một tên khác chỉ vì chung tiền tố")
+                .doesNotContain("@songnhue/design-tokens-khac");
+        assertThat(tenTrongIgnore("      - dependency-name: \"@songnhue/design-tokens-khac\""))
+                .doesNotContain("@songnhue/design-tokens");
     }
 
     @Test
@@ -227,6 +279,34 @@ class PhuThuocNoiBoTest {
      * có ý nghĩa. Thứ cần chặn là gói <b>bị phụ thuộc</b>, vì chỉ nó mới có một dải phiên bản để
      * Dependabot đi nâng.
      */
+    /**
+     * Mọi tên gói khai sau {@code dependency-name:} trong {@code dependabot.yml}, đã BÓC dấu nháy.
+     *
+     * <h3>⛔⛔ Vì sao ⛔ so chuỗi thô được — bản đầu của bộ canh này làm vậy và nó ĐỎ GIẢ</h3>
+     *
+     * Bản đầu hỏi {@code yml.contains("dependency-name: " + ten)}. Nó chạy đúng suốt chừng nào tên
+     * gói còn là {@code design-tokens}; lượt T63.2 đổi sang {@code @songnhue/design-tokens} thì nó
+     * đỏ ngay — <b>và nó đỏ đúng lúc mà sai lý do</b>: dòng {@code ignore} ĐÃ có tên mới, chỉ là
+     * viết trong dấu nháy.
+     *
+     * <p>Dấu nháy ấy ⛔ phải tuỳ thích: trong YAML {@code @} là <b>ký tự dành riêng</b> ở đầu một
+     * scalar, nên mọi tên gói có phạm vi <b>BẮT BUỘC</b> phải nháy. Tức bản cũ ⛔ thể xanh với bất
+     * kỳ gói {@code @scope/*} nào — nó cấm đúng cái cách vá tận gốc mà chính javadoc của nó khuyên.
+     *
+     * <p>⇒ Đọc <b>giá trị</b> chứ ⛔ so văn bản (luật 2). Và vế phân biệt phải giữ: một tên KHÁC mà
+     * chỉ trùng tiền tố ({@code @songnhue/design-tokens-khac}) <b>⛔ được</b> tính là đã khai.
+     */
+    private static Set<String> tenTrongIgnore(String yml) {
+        Pattern p = Pattern.compile("dependency-name:\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s#]+))");
+        Matcher m = p.matcher(yml);
+        Set<String> ra = new TreeSet<>();
+        while (m.find()) {
+            String v = m.group(1) != null ? m.group(1) : m.group(2) != null ? m.group(2) : m.group(3);
+            ra.add(v.trim());
+        }
+        return ra;
+    }
+
     private static Set<String> goiNoiBoDuocPhuThuoc() {
         ObjectMapper om = new ObjectMapper();
         Set<String> tatCa = tenGoiNoiBo();

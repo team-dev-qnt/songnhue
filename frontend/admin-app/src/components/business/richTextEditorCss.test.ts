@@ -7,7 +7,7 @@ import {
   TABLE_CELL_MIN_WIDTH_PX,
   TEXT_BG_CLASSES,
   TEXT_COLOR_CLASSES,
-} from 'design-tokens/editor-schema';
+} from '@songnhue/design-tokens/editor-schema';
 import { describe, expect, it } from 'vitest';
 
 import { EXTENSIONS_SOAN_THAO } from './editorExtensions';

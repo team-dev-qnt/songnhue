@@ -1,6 +1,6 @@
 import { Alert, Button, Empty, Space, Typography } from 'antd';
 import L from 'leaflet';
-import { neutralColors, statusColors } from 'design-tokens';
+import { neutralColors, statusColors } from '@songnhue/design-tokens';
 import { useEffect, useRef, useState } from 'react';
 
 import { CONSTRUCTION_STATUS, CONSTRUCTION_TYPE } from '@/components/business/statusVocabulary';

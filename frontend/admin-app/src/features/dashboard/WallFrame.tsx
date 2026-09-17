@@ -1,6 +1,6 @@
 import { FullscreenExitOutlined } from '@ant-design/icons';
 import { Button, ConfigProvider, theme } from 'antd';
-import { statusColors, wallColors } from 'design-tokens';
+import { statusColors, wallColors } from '@songnhue/design-tokens';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 

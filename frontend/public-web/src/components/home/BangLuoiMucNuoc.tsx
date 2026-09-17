@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-import { alertLevelColors } from 'design-tokens';
+import { alertLevelColors } from '@songnhue/design-tokens';
 
 import type { CongTrinhLuoi, DongChiSo, LuoiMucNuoc, OLuoi } from '@/lib/api';
 import { ROUTES } from '@/lib/routes';

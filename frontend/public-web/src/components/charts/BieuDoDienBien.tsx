@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 
-import { brandColors, neutralColors, statusColors } from 'design-tokens';
+import { brandColors, neutralColors, statusColors } from '@songnhue/design-tokens';
 
 import type { BieuDoCongTrinh, OLuoi } from '@/lib/api';
 

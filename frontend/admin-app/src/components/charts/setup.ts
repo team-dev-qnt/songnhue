@@ -8,7 +8,7 @@ import {
 } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer, SVGRenderer } from 'echarts/renderers';
-import { echartsTheme, echartsWallTheme } from 'design-tokens';
+import { echartsTheme, echartsWallTheme } from '@songnhue/design-tokens';
 
 /**
  * Nạp ECharts theo **kiểu chọn lọc** — T23.3.

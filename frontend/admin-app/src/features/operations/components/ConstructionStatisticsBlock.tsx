@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Card, Col, Row, Statistic } from 'antd';
-import { statusColors } from 'design-tokens';
+import { statusColors } from '@songnhue/design-tokens';
 
 import { CONSTRUCTION_STATUS, CONSTRUCTION_TYPE } from '@/components/business/statusVocabulary';
 import { type ConstructionStatisticsView } from '@/shared/api-types';

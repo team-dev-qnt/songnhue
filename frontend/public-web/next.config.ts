@@ -63,7 +63,7 @@ const nextConfig: NextConfig = {
 
   // `design-tokens` xuất thẳng mã TypeScript (không có bước biên dịch riêng), nên Next
   // phải được bảo là hãy transpile nó như mã nguồn của mình.
-  transpilePackages: ['design-tokens'],
+  transpilePackages: ['@songnhue/design-tokens'],
 
   // Ẩn `X-Powered-By: Next.js` — bớt một manh mối miễn phí cho người dò phiên bản
   // (conventions.md §4.5).

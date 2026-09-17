@@ -1,4 +1,4 @@
-import { statusColors } from 'design-tokens';
+import { statusColors } from '@songnhue/design-tokens';
 import { describe, expect, it } from 'vitest';
 
 import { CONSTRUCTION_STATUS, CONSTRUCTION_TYPE } from '@/components/business/statusVocabulary';
