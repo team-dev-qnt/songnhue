@@ -458,6 +458,43 @@ giải nén — xanh cả khi đã gỡ chốt ⇒ tách `SYS-0014` + dựng l�
 ⚠ `make ci-local` ⛔ dọn `target`: một `.class` và một `jacoco.exec` CŨ của module `hr` làm hai lượt chạy đỏ vì thứ ⛔ còn
 tồn tại trong mã — `rm -rf` thư mục ấy mới đọc được kết quả thật.
 
+⭐⭐ **Đo lại 17/09/2026 (đợt 10 — đóng T47.17 · trả T63.6) — `make ci-local` thoát 0 VÀ `make ci-order` thoát 0**,
+tiến trình maven DUY NHẤT (⚠ số ở **MÁY**): **1971 testcase BE** (core 338 · content 55 · hydro 229 · operations 55 ·
+app **1294**) · **0 đỏ** · FE **522** admin-app / 77 tệp + **399** public-web / 46 · **78 migration** ⛔ thêm · mã lỗi **130** ⛔ đổi.
+✅✅ **`T47.17` ĐÓNG — 21/21 biểu mẫu thay-toàn-phần có bài vòng khứ hồi**, dòng nợ mở từ 10/09 và từng chỉ là *"còn 14 …"*
+với bảy mục giấu sau một dấu ba chấm. ⇒ `CHUA_CO_BAI_KIEM` nay **RỖNG**, và **đúng lúc ấy bộ canh tự sinh ra một luật-7**:
+bài *"lý do khai nợ ≥ 40 ký tự"* chạy trên tập rỗng thì xanh mà ⛔ nói gì — endpoint tiếp theo sẽ gặp một dòng mã đã **mục**
+chứ ⛔ phải một bộ canh đang sống ⇒ thêm bài **tự-kiểm** chạy phép kiểm ấy trên dữ liệu GIẢ.
+⛔⛔⛔ **T51.12 lần thứ NĂM — và nó nằm NGAY TRONG trang vừa vá cùng buổi sáng** (`T63.12` → `T63.13`): hộp thoại sửa đơn vị
+trộn dữ liệu giữa hai Xí nghiệp, vá xong; `OrgUnitLeadersPanel` — render **bên trong chính `OrgUnitsPage`** — hỏng y hệt mà
+⛔ ai nhìn xuống. Cả hai đổ thẳng ra **cổng công khai** (CR-25 · CR-26), nên hậu quả là **đăng số điện thoại của người này
+dưới tên người kia**. ⇒ Khi một hình dạng đã tái phát **năm** lần thì việc phải làm ⛔ phải *"vá chỗ vừa thấy"* mà là **quét
+toàn bộ** — số đo để quét: **33 nơi** còn dùng `destroyOnClose`. ⭐ Đo được vì sao hai biện pháp phòng ⛔ đủ: `destroyOnClose`
+chỉ tháo cây con **sau khi hoạt ảnh đóng chạy xong** — chờ 3 giây trong bộ kiểm, `<input>` **chưa bao giờ** unmount.
+⭐⭐ **Thứ tự đúng của kiểm chứng, lặp lại T51.13**: bài kiểm viết TRƯỚC và **đỏ trên khuyết tật thật** (in ra nguyên văn địa
+chỉ của Xí nghiệp A trong biểu mẫu của B) — mạnh hơn hẳn phá-sau-khi-vá, vì nó ⛔ thể xanh vì lý do sai.
+⛔⛔ **Một vế A→B của chính tôi là XANH GIẢ**: `rerender` bằng một `QueryClientProvider` MỚI ⇒ cả cây unmount ⇒ gỡ hẳn
+`key={publicId}` mà bài **vẫn xanh** (luật 9). Sửa thành giữ nguyên provider; và lượt phá sau đó đo ra **phạm vi thật** của
+bài — gỡ `clearOnDestroy` ⇒ đỏ, gỡ `key` ⇒ **vẫn xanh** vì màn hình có lượt unmount THỨ HAI che nó ⇒ javadoc khai thẳng
+*⛔ đọc cái xanh của nó thành "`key` còn tác dụng"* (luật 28).
+⭐ **`T63.6` trả**: bộ đếm truy vấn nay thấy **cả** đường `JdbcTemplate`. Mẫu số của dòng nợ ấy tự nó nhẹ đi — nó viết như một
+lớp lẻ (*"`QuanSoRepository` là JDBC thuần"*), đo lại = **33 tệp** `src/main`, gồm TOÀN BỘ `hydro/infra` và `hr/infra`. ⛔⛔
+Bản nháp `JdbcTemplateDem extends JdbcTemplate` **đếm ra 0 dù bean ĐÃ bị thay** (`queryForObject` đi qua một overload
+**private**), và phương án *"bọc riêng `DataSource` của `JdbcTemplate`"* **tệ hơn cả hỏng** — Spring bind connection theo
+**danh tính `DataSource`**, nên nó cho service chạy **ngoài giao dịch đang mở**: bộ đo làm đổi ngữ nghĩa của chính thứ nó đo.
+⚠ `dem()` lấy **max** chứ ⛔ cộng (một câu lệnh Hibernate nay được cả hai bộ đếm ghi nhận).
+⭐ **Nợ a11y `T63.9`: 34 → 16** — mười lăm nút có tên trong đợt này, **tất cả** lộ ra vì cùng một lý do: bài vòng khứ hồi cần
+bấm nút *Sửa* và ⛔ có cách nào gọi tên nó. Nợ ấy ⛔ phải chuyện thẩm mỹ — nó **chặn việc viết bài kiểm**.
+⬜⬜ **`T63.11` — QuanTran đang soạn tài liệu BÁO CÁO + TƯỚI TIÊU (17/09), PENDING.** ⛔ đoán trước, ⛔ tự chế bố cục. ⛔⛔ Vế
+**tưới tiêu ⛔ phải một khoảng trống — nó là vùng đã bị CẮT có chủ đích** (chốt **A1 · B5 · F3 · G2**), và kho đang khai điều
+ngược lại ở **năm** chỗ đo được (`BC_04` `khaDung=false` + `OPS-2023` *"bỏ vĩnh viễn"* · `BC-07` bỏ · trường *Diện tích tưới
+tiêu (ha)* bỏ · khu tưới/lưu vực chỉ là **trường văn bản tự do**, ⛔ CRUD ⛔ bảng `irrigation_zones` ⛔ GIS · chỉ tiêu giờ
+chạy máy/điện năng/m³ bơm ⛔ cần). ⇒ Khi tài liệu về, việc ĐẦU TIÊN ⛔ phải viết mã mà là **đối chiếu với bốn chốt ấy và nói
+rõ chốt nào bị đảo** — đảo một chốt là mở lại **bảng dữ liệu**, tức migration + danh mục + phân quyền + báo cáo. ⬜ Vế **báo
+cáo** là phần *"đã làm theo custom requirement"* cần UPDATE: **17 mã** đang chạy có bố cục **do phía phát triển tự đề xuất**
+(`docs/report-templates-proposal.md`), ⛔ mẫu nào của Công ty duyệt, và cả 17 mới chỉ xuất **CSV** (bản in chờ **G10**;
+**T42.14** — kho ⛔ có bộ kết xuất PDF/XLSX nào — vẫn mở). ⇒ Đối chiếu **từng cột của từng mã**, mở task **theo mã**.
+
 ⭐⭐ **Đo lại 17/09/2026 sau WS-65 (Phase 4 đợt 9 — mẫu số T47.17 và bộ canh giữ danh sách) — `make ci-local` thoát 0**,
 tiến trình maven DUY NHẤT (⚠ số ở **MÁY**): **1967 testcase BE** (core 338 · content 55 · hydro 229 · operations 55 ·
 app **1290**) · **0 đỏ** · FE **484** admin-app / 64 + **399** public-web / 46 · **78 migration** ⛔ thêm · mã lỗi **130** ⛔ đổi.
