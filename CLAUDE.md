@@ -494,6 +494,13 @@ rõ chốt nào bị đảo** — đảo một chốt là mở lại **bảng d�
 cáo** là phần *"đã làm theo custom requirement"* cần UPDATE: **17 mã** đang chạy có bố cục **do phía phát triển tự đề xuất**
 (`docs/report-templates-proposal.md`), ⛔ mẫu nào của Công ty duyệt, và cả 17 mới chỉ xuất **CSV** (bản in chờ **G10**;
 **T42.14** — kho ⛔ có bộ kết xuất PDF/XLSX nào — vẫn mở). ⇒ Đối chiếu **từng cột của từng mã**, mở task **theo mã**.
+⚠⚠ **Lượt `ci-local` SAU commit T48.11 thoát 2, và nguyên nhân nằm NGOÀI kho** (`T63.14`): ba lượt chạy lại cho **ba tệp
+đỏ KHÁC NHAU** — `importModal` → `dangXuatXoaDemTruyVan` → `soanBaiVongKhuHoi` — cả ba `Test timed out in 15000ms`, ⛔ tệp
+nào thuộc thay đổi của đợt. ⇒ **Một khuyết tật thật đỏ ở CÙNG một chỗ; đói tài nguyên đỏ ở chỗ nào cũng được.** Số đo:
+`import` của vitest **9933 giây** (bình thường ~2s) · **12** lượt worker chết · load **7.76 → 9.52** · **17** tiến trình
+Spotlight đang index; vế phân biệt: chạy riêng đúng tệp vừa đỏ ⇒ **3/3 xanh trong 2,71 giây** trong khi ở lượt đầy đủ
+chính nó treo **907 giây**. ⛔ Cách sửa rẻ nhất — nới `testTimeout` — là **tự tay tháo một cổng kiểm**. ⬜ Phép đo sạch
+cho `ws-65` phải đợi **runner**: `ci.yml` chỉ chạy trên PR, mà nhánh này ⛔ mở PR được cho tới khi **#152** gộp.
 
 ⭐⭐ **Đo lại 17/09/2026 sau WS-65 (Phase 4 đợt 9 — mẫu số T47.17 và bộ canh giữ danh sách) — `make ci-local` thoát 0**,
 tiến trình maven DUY NHẤT (⚠ số ở **MÁY**): **1967 testcase BE** (core 338 · content 55 · hydro 229 · operations 55 ·
