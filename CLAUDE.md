@@ -547,6 +547,34 @@ là cách làm đúng. Trần `T63.9`: **36 → 34**.
 khoảng trống nằm im — `CotPhase2CoDocGhiTest` (module) · `VongKhuHoiDuPhamViTest` (endpoint) · `nutIconCoTen` (trần
 chỉ-được-giảm) · `PhuThuocNoiBoTest` (lockfile). ⛔ Cái nào dựa vào một danh sách gõ tay ở vế trái.
 
+⭐⭐ **Đo lại 17/09/2026 sau WS-65 (Phase 4 đợt 9–11) — `make ci-local` thoát 0**, tiến trình maven DUY NHẤT
+(⚠ số ở **MÁY**): **1983 testcase BE** (core 338 · content 55 · hydro 229 · operations 55 · app **1306**) · **0 đỏ** ·
+FE **536** admin-app / 82 tệp + **399** public-web / 46 · **78 migration** ⛔ thêm · **0 dòng mã production** ở phần T48.11.
+Phép cộng khép kín: `1300 + 5` (T48.11) `+ 1` (#154 vào qua rebase — `PromotionCheckStateTest` thêm đúng 1 `@Test`) = **1306**.
+Ba dòng nợ đóng: **T47.17** 21/21 vòng khứ hồi · **T48.11** 10/10 khoá `hydro.*` · **T63.9** trần nút icon **16 → 0**
+(bộ canh đổi vai từ *đồng hồ đếm nợ* thành **cổng chặn**). Mở **T63.17** (quét nốt 22 tệp `destroyOnClose`).
+⛔⛔ **Lý do khai nợ của `hydro.polling.cron` TỰ NÓ SAI — lần thứ MƯỜI của hình dạng *một dòng nợ tự nó sai***:
+nó khai *"đăng ký một lần lúc khởi động"*, trong khi `HydroPollScheduler` **cố ý ⛔ dùng `SchedulingConfigurer`**
+(`@ConditionalOnMissingBean` của Boot sẽ làm bean `taskScheduler` biến mất cho **toàn hệ**), chạy nhịp tim **10 giây**
+và đọc lại cron **mỗi nhịp** — javadoc của chính lớp ấy chép nguyên văn yêu cầu ngược lại. **Một lý do khai nợ cũng là
+dữ liệu chưa kiểm**, và nó chặn đúng khoá **dễ đo nhất** trong năm, suốt 7 ngày.
+⛔⛔⛔ **Bốn khuyết tật T51.12 ĐANG SỐNG ở đợt quét cuối** — ⛔ phải rủi ro lý thuyết: `UsersPage` gửi `fullName` của A
+lên `/admin/users/u-b` (⇒ thư đặt lại mật khẩu của B đi tới địa chỉ của A) · `BackupPage` giữ nguyên **cả ba ô xác nhận**
+của bản A khi mở bản B ⇒ ba lớp chặn của lệnh **ghi đè toàn bộ CSDL** bị tháo, mã 2FA nằm lại trong DOM ·
+`LienKetCongTrinhModal` ghi `role:'THUONG_LUU'` cho điểm hạ lưu · `NhapTaySoDoModal` đóng băng `mocDo` ⇒ số đo 05:00 mang
+mốc 03:00 (quy tắc 18 — **sai vĩnh viễn**). 18 tệp còn lại chỉ đổi tên prop, **mỗi tệp một lý do ĐO ĐƯỢC**.
+⚠ **Và một chỗ ⛔ theo khuôn, đã khai ra thay vì giấu**: ở `LienKetCongTrinhModal` gỡ `key` mà bài kiểm **vẫn 4/4 xanh**
+⇒ javadoc nói thẳng, để lượt rà sau ⛔ đọc cái xanh ấy thành *"`key` đang che chở"*.
+⚠⚠ **Lượt rà hôm nay SUÝT BÁC NHẦM `T60.13`**: đo `Bhh40Adapter.java` (ba nhánh **giống hệt**) rồi **suy** ra
+*"production đã được vá poller"* — phép nối đường dẫn ⛔ nằm ở adapter mà ở `DiaChiNguon` (`production:98` còn
+`goc.resolve(duongDan)`). **Một phép đo ĐÚNG bị đọc SAI tệ hơn ⛔ đo** (T57.0). ⭐ Bù lại nó lôi ra khoảng trống **THỨ HAI**:
+`grep -c soMocDaVuot` ⇒ **production 0 · staging 3 · dev 3** ⇒ production thiếu luôn **thang leo chuông** (T50.11), tức nó
+mang **cả** đường lấy số liệu hỏng **lẫn** cái chuông lẽ ra báo rằng nó hỏng — hai thứ che nhau, đúng cơ chế đã cho
+**9 ngày / 3323 lượt hỏng / 0 byte** trôi qua lần trước.
+⚠ Bộ kiểm FE phải chạy **từ trong** `admin-app`: `--root admin-app` đổi root của vitest mà **⛔ đổi `process.cwd()`**
+⇒ 8 lớp kiểm đọc tệp theo đường dẫn tương đối **đỏ giả**.
+
+
 ⭐⭐ **Đo lại 16/09/2026 sau WS-64 (Phase 4 đợt 8 — mở phạm vi bộ canh · biểu mẫu Menu) — `make ci-local` thoát 0**,
 tiến trình maven DUY NHẤT (⚠ số ở **MÁY**) **VÀ `make ci-order` thoát 0** — hai thứ tự lớp cùng một bộ số:
 **1963 testcase BE** (core 338 · content 55 · hydro 229 · operations 55 · app **1286**) · **0 đỏ** · FE **478**
