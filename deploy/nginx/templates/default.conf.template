@@ -36,16 +36,6 @@ map $host $robots_tag {
     default "${ROBOTS_TAG}";
 }
 
-# T61.5 — token của đường chỉ số cho Prometheus trên VPS-2. So NGUYÊN chuỗi header.
-# ⚠ Biến token khai `:?` ở compose ⇒ thiếu/rỗng là nginx ⛔ lên. Nếu biến vắng mặt,
-#   envsubst để NGUYÊN chỗ cắm và kẻ gửi đúng chuỗi chỗ cắm ấy sẽ lọt — nên điều kiện
-#   "phải có giá trị" nằm ở compose, ⛔ ở đây. (Chú thích này cố ý ⛔ viết chỗ cắm:
-#   envsubst thay cả trong chú thích, và token sẽ nằm trong `nginx -T`.)
-map $http_authorization $metrics_token_ok {
-    default 0;
-    "Bearer ${METRICS_BEARER_TOKEN}" 1;
-}
-
 # ⚠ Hạn mức ở biên là lưới CHỐNG NGẬP, không phải lưới nghiệp vụ. Hạn mức thật
 #   (đăng nhập 5 lần/15', API 100/phút, kết xuất 10/giờ) nằm ở `RateLimitFilter`
 #   phía backend, nơi biết được người dùng là ai. Ở đây chỉ biết IP.
@@ -274,7 +264,33 @@ server {
         access_log off;
         allow ${METRICS_ALLOW_IP};
         deny all;
-        if ($metrics_token_ok = 0) {
+        # ⛔⛔⛔ SO TRỰC TIẾP, ⛔ QUA `map` — T63.19 (17/09/2026)
+        #
+        #   Bản T61.5 dựng `map $http_authorization $metrics_token_ok` với khoá
+        #   `"Bearer <token>"`. §B6 dặn sinh token bằng `openssl rand -hex 32`
+        #   ⇒ **64 ký tự** ⇒ khoá map dài `7 + 64 = 71` byte, vượt
+        #   `map_hash_bucket_size` mặc định **64**. nginx từ chối dựng bảng băm:
+        #
+        #       nginx: [emerg] could not build map_hash,
+        #              you should increase map_hash_bucket_size: 64
+        #
+        #   ⇒ nginx **⛔ khởi động nổi**, và `restart: unless-stopped` biến nó
+        #   thành vòng quay vô tận. Đo trên VPS-2 ngày 17/09: mọi container khác
+        #   `healthy`, riêng nginx `Restarting (1)`, ⛔ gì lắng nghe ở 80/443.
+        #
+        # ⛔ Đây ⛔ phải một giá trị đặt sai — **chính quy trình đã ghi trong §B6
+        #   sinh ra trạng thái hỏng**, nên nó sẽ lặp lại y hệt trên MỌI máy làm
+        #   đúng hướng dẫn, production nằm trong số đó.
+        #
+        # ⇒ Nâng `map_hash_bucket_size` cũng chữa được, nhưng chỉ đẩy trần đi xa
+        #   hơn: một token dài hơn nữa lại hạ site lần nữa. So trực tiếp thì
+        #   **độ dài token thôi là một tham số của cấu hình** — trạng thái hỏng
+        #   ⛔ còn biểu diễn được (luật 12: đặt bảo đảm ở chỗ dữ liệu đi qua).
+        #
+        # ⚠ `if … return` là một trong hai cách dùng `if` được nginx bảo đảm an
+        #   toàn; khối này ⛔ chứa gì ngoài `return`.
+        # ⚠ Header vắng ⇒ `$http_authorization` rỗng ⇒ ⛔ khớp ⇒ 403. Đúng ý.
+        if ($http_authorization != "Bearer ${METRICS_BEARER_TOKEN}") {
             return 403;
         }
         proxy_pass $app_upstream/actuator/prometheus;

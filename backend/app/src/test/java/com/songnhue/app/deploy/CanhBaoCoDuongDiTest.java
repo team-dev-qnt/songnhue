@@ -211,6 +211,78 @@ class CanhBaoCoDuongDiTest {
                 .contains("bi-mat HEALTHCHECKS_PING_URL " + webhook.get("url_file"));
     }
 
+    /**
+     * Bóc phần KHOÁ của một dòng trong khối {@code map} của nginx.
+     *
+     * <p>Cú pháp là {@code <khoá> <giá trị>;}. Khoá có thể được đặt trong nháy — và khi ấy nó
+     * chứa khoảng trắng ({@code "Bearer <token>"}), nên tách theo khoảng trắng là sai.
+     */
+    private static String khoaCuaDong(String dong) {
+        String t = dong.trim();
+        if (t.endsWith(";")) {
+            t = t.substring(0, t.length() - 1).trim();
+        }
+        if (t.startsWith("\"") || t.startsWith("'")) {
+            char nhay = t.charAt(0);
+            int dong2 = t.indexOf(nhay, 1);
+            return dong2 < 0 ? t : t.substring(0, dong2 + 1);
+        }
+        int cach = t.indexOf(' ');
+        return cach < 0 ? t : t.substring(0, cach);
+    }
+
+    @Test
+    @DisplayName("⛔⛔⛔ T63.19 — KHOÁ của một `map` nginx ⛔ được chứa chỗ cắm `${...}`")
+    void khoaMapKhongDuocMangChoCam() {
+        String tpl = doc("deploy/nginx/templates/default.conf.template");
+
+        // Bóc từng khối `map <nguồn> <đích> { ... }` rồi soi các dòng KHOÁ bên trong.
+        Matcher m = Pattern.compile("^map\\s+\\S+\\s+\\S+\\s*\\{(.*?)^}", Pattern.DOTALL | Pattern.MULTILINE)
+                .matcher(tpl);
+        List<String> viPham = new ArrayList<>();
+        int soKhoi = 0;
+        while (m.find()) {
+            soKhoi++;
+            for (String dong : m.group(1).split("\n")) {
+                String t = dong.trim();
+                if (t.isEmpty() || t.startsWith("#")) {
+                    continue;
+                }
+                // ⚠⚠ Chỉ soi KHOÁ, ⛔ soi cả dòng. `map_hash_bucket_size` giới hạn **khoá**;
+                //    giá trị ⛔ vào bảng băm. Bản đầu của bộ canh này quét cả dòng nên nó
+                //    đỏ ngay lượt chạy đầu ở `map $host $robots_tag { default "${ROBOTS_TAG}"; }`
+                //    — một **dương tính giả**, vì chỗ cắm ấy nằm ở giá trị và hoàn toàn an toàn.
+                //    Một bộ canh ⛔ phân biệt được khoá với giá trị sẽ phạt đúng dòng ⛔ có tội.
+                String khoa = khoaCuaDong(t);
+                if (khoa.contains("${")) {
+                    viPham.add(t);
+                }
+            }
+        }
+
+        // ⛔ Chống tập rỗng (luật 7): regex hỏng thì bài này xanh mà ⛔ canh gì. Kho có
+        //   sẵn hai `map` ⛔ tranh cãi (`$http_upgrade`, `$host`) làm mỏ neo.
+        assertThat(soKhoi)
+                .as("⛔ bóc được khối `map` nào — regex hỏng, hay template đã đổi cấu trúc?")
+                .isGreaterThanOrEqualTo(2);
+
+        assertThat(viPham)
+                .as(
+                        """
+                        Khoá của `map` nginx đi vào một BẢNG BĂM có trần `map_hash_bucket_size`                         (mặc định 64 byte). Một chỗ cắm `${...}` mang giá trị **⛔ biết trước độ                         dài**, nên nó biến trần ấy thành một quả mìn hẹn giờ:
+
+                          nginx: [emerg] could not build map_hash,                         you should increase map_hash_bucket_size: 64
+
+                        ⇒ nginx ⛔ KHỞI ĐỘNG NỔI, và `restart: unless-stopped` biến đó thành vòng                         quay vô tận. Ngày 17/09/2026 chuyện này hạ **toàn bộ staging**: mọi                         container `healthy`, riêng nginx `Restarting (1)`, ⛔ gì lắng nghe ở                         80/443 — và lượt CD vẫn in `Container songnhue-nginx Started` (T63.19).
+
+                        ⛔ Nâng `map_hash_bucket_size` chỉ đẩy trần đi xa hơn; một giá trị dài hơn                         nữa lại hạ site lần nữa. Hãy SO TRỰC TIẾP trong `location`:
+
+                          if ($http_authorization != "Bearer ${MOT_BIEN}") { return 403; }
+
+                        thì độ dài của giá trị thôi ⛔ còn là một tham số của việc nginx có sống                         hay ⛔ (luật 12).""")
+                .isEmpty();
+    }
+
     @Test
     @DisplayName("⛔⛔ nginx mở /actuator/prometheus với HAI lớp khoá: IP và token, cả hai bắt buộc")
     void cuaNginxHaiLopKhoa() {
@@ -220,9 +292,13 @@ class CanhBaoCoDuongDiTest {
         assertThat(khoi.find())
                 .as("⛔ tìm thấy `location = /actuator/prometheus`")
                 .isTrue();
+        // ⚠ Canh BẤT BIẾN (có lớp IP + lớp token + đường từ chối), ⛔ canh nguyên văn một
+        //   biểu thức: bản cũ ghim chuỗi `if ($metrics_token_ok = 0)` nên nó đỏ khi T63.19
+        //   đổi CÁCH so token, dù cam kết "hai lớp khoá" ⛔ hề đổi (luật 2 · §11.16).
+        assertThat(khoi.group(1)).contains("allow ${METRICS_ALLOW_IP};", "deny all;", "return 403;");
         assertThat(khoi.group(1))
-                .contains("allow ${METRICS_ALLOW_IP};", "deny all;", "if ($metrics_token_ok = 0)", "return 403;");
-        assertThat(tpl).contains("\"Bearer ${METRICS_BEARER_TOKEN}\" 1;");
+                .as("lớp token phải so NGUYÊN chuỗi header Authorization với token đã giải")
+                .containsPattern("\\$http_authorization\\s*!=\\s*\"Bearer \\$\\{METRICS_BEARER_TOKEN}\"");
         assertThat(Pattern.compile("location[^{]*actuator")
                         .matcher(tpl)
                         .results()
