@@ -154,7 +154,12 @@ export function ConstructionDocumentsPanel({ publicId }: { publicId: string }) {
           {/* `downloadable` do backend quyết định — tệp chưa quét virus xong thì chưa cho tải.
               Ẩn nút thay vì để bấm rồi nhận lỗi. */}
           {row.downloadable && hasPermission('ops:document:view') && (
-            <Button type="text" icon={<DownloadOutlined />} onClick={() => void taiVe(row)} />
+            <Button
+              type="text"
+              icon={<DownloadOutlined />}
+              aria-label={`Tải tệp ${row.originalName}`}
+              onClick={() => void taiVe(row)}
+            />
           )}
           {hasPermission('ops:document:delete') && (
             <Popconfirm
@@ -162,7 +167,12 @@ export function ConstructionDocumentsPanel({ publicId }: { publicId: string }) {
               description="Tệp được xoá mềm, vẫn truy vết được trong nhật ký."
               onConfirm={() => xoa.mutate(row.publicId)}
             >
-              <Button type="text" danger icon={<DeleteOutlined />} />
+              <Button
+                type="text"
+                danger
+                icon={<DeleteOutlined />}
+                aria-label={`Xoá tài liệu ${row.originalName}`}
+              />
             </Popconfirm>
           )}
         </Space>

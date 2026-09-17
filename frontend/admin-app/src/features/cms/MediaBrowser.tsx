@@ -231,6 +231,7 @@ export function MediaBrowser({
           </Upload>
           <Button
             icon={<ReloadOutlined />}
+            aria-label="Tải lại danh sách tệp"
             onClick={() =>
               void queryClient.invalidateQueries({
                 queryKey: cmsKeys.files(activeFolder, kho, loai),
