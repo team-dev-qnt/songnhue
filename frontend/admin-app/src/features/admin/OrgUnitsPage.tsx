@@ -8,6 +8,7 @@ import {
   Col,
   Empty,
   Form,
+  type FormInstance,
   Input,
   Modal,
   Row,
@@ -17,7 +18,7 @@ import {
   Tree,
   Typography,
 } from 'antd';
-import { useMemo, useState } from 'react';
+import { useLayoutEffect, useMemo, useState } from 'react';
 
 import { useAuth } from '@/app/auth/useAuth';
 import { OrgUnitTreeSelect } from '@/components/business/OrgUnitTreeSelect';
@@ -415,7 +416,7 @@ function CreateOrgUnitModal({
       confirmLoading={create.isPending}
       onCancel={onClose}
       onOk={() => void form.submit()}
-      destroyOnClose
+      destroyOnHidden
     >
       <Form<CreateOrgUnitRequest>
         form={form}
@@ -535,45 +536,96 @@ function EditOrgUnitModal({
       confirmLoading={update.isPending}
       onCancel={onClose}
       onOk={() => void form.submit()}
-      destroyOnClose
+      destroyOnHidden
     >
-      <Form<UpdateOrgUnitRequest>
+      {/* ⛔⛔ `key` ⛔ KHÔNG thừa — xem javadoc của `BieuMauSuaDonVi` ngay dưới. Nó tạo ra lượt
+          unmount mà phép đặt giá trị tường minh cần, khi người dùng đổi đơn vị mà ⛔ đóng trang. */}
+      <BieuMauSuaDonVi
+        key={unit.publicId}
+        khoa={unit.publicId}
         form={form}
-        layout="vertical"
-        preserve={false}
-        initialValues={{
-          name: unit.name,
-          shortName: unit.shortName ?? undefined,
-          unitType: unit.unitType,
-          address: unit.address ?? undefined,
-          phone: unit.phone ?? undefined,
-          email: unit.email ?? undefined,
-        }}
+        donVi={unit}
         onFinish={(values) => update.mutate(values)}
-      >
-        {/* Mã đơn vị KHÔNG sửa được: nó là khoá nghiệp vụ, đã in trên văn bản và dùng làm mã tra
-            cứu ở tệp nhập công trình. Đổi mã là đổi danh tính, không phải sửa một lỗi gõ. */}
-        <Form.Item label="Mã đơn vị">
-          <Input value={unit.code} disabled />
-        </Form.Item>
-        <Form.Item name="name" label="Tên đơn vị" rules={[{ required: true, message: 'Bắt buộc' }]}>
-          <Input />
-        </Form.Item>
-        <Form.Item name="shortName" label="Tên viết tắt">
-          <Input />
-        </Form.Item>
-        <Form.Item
-          name="unitType"
-          label="Loại đơn vị"
-          rules={[{ required: true, message: 'Bắt buộc' }]}
-        >
-          <Select
-            options={Object.entries(UNIT_TYPE_LABELS).map(([value, label]) => ({ value, label }))}
-          />
-        </Form.Item>
-        <OTruongLienHe />
-      </Form>
+      />
     </Modal>
+  );
+}
+
+/**
+ * Thân biểu mẫu sửa đơn vị — tách ra để {@code key} ép dựng lại khi đổi bản ghi.
+ *
+ * <h2>⛔⛔⛔ Vì sao ⛔ để {@code initialValues} một mình — T51.12 lần thứ TƯ</h2>
+ *
+ * <p>Nơi gọi render {@code <EditOrgUnitModal open={editing} unit={selected} …/>} <b>vô điều
+ * kiện</b>, và {@code Form.useForm()} nằm ở component NGOÀI {@code Modal} (AntD đòi vậy để
+ * {@code Modal.onOk} gọi được {@code submit}). Nên kho giá trị sống lâu hơn hộp thoại, còn
+ * {@code rc-field-form} chỉ áp {@code initialValues} khi {@code init}.
+ *
+ * <p>⚠ {@code destroyOnHidden} + {@code preserve={false}} là <b>hai</b> biện pháp phòng và chúng
+ * <b>⛔ cộng lại thành an toàn</b> (T53.7). Đo được trước lượt vá này: mở <i>XN Hà Đông</i> → Huỷ →
+ * chọn <i>XN Thanh Trì</i> → Sửa ⇒ ô <i>Địa chỉ</i> vẫn hiện <i>"Số 1 Quang Trung, Hà Đông"</i>, và
+ * một lượt Lưu ghi địa chỉ/điện thoại/email của đơn vị A đè lên B kèm thông báo
+ * <i>"Đã cập nhật đơn vị"</i>. Ba cột ấy đổ thẳng ra bảng <i>Xí nghiệp trực thuộc</i> của cổng công
+ * khai (CR-26).
+ *
+ * <p>⇒ {@code useLayoutEffect} đặt giá trị <b>tường minh</b>: {@code resetFields()} gỡ cờ *đã chạm*
+ * và lỗi hợp lệ hoá của lượt trước, rồi {@code setFieldsValue} ghi đè bằng đơn vị hiện tại.
+ * {@code useLayoutEffect} chứ ⛔ {@code useEffect} — nó chạy TRƯỚC lượt vẽ nên người dùng ⛔ bao giờ
+ * thấy một khung hình mang dữ liệu của đơn vị khác.
+ *
+ * <p>⛔⛔ Và ⛔ thêm {@code clearOnDestroy}: lượt dọn của cây con CŨ chạy <b>sau</b>
+ * {@code useLayoutEffect} của cây con MỚI ⇒ ô ra RỖNG (T53.7 đã trả giá đủ ba lượt). MỘT cơ chế,
+ * tường minh, có bài kiểm — ⛔ ba cơ chế chồng nhau.
+ */
+function BieuMauSuaDonVi({
+  khoa,
+  form,
+  donVi,
+  onFinish,
+}: {
+  khoa: string;
+  form: FormInstance<UpdateOrgUnitRequest>;
+  donVi: OrgUnitNode;
+  onFinish: (values: UpdateOrgUnitRequest) => void;
+}) {
+  useLayoutEffect(() => {
+    form.resetFields();
+    form.setFieldsValue({
+      name: donVi.name,
+      shortName: donVi.shortName ?? undefined,
+      unitType: donVi.unitType,
+      address: donVi.address ?? undefined,
+      phone: donVi.phone ?? undefined,
+      email: donVi.email ?? undefined,
+    });
+    // `khoa` là danh tính bản ghi; `donVi` là object dựng lại mỗi lượt render nên ⛔ đưa vào deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [khoa, form]);
+
+  return (
+    <Form<UpdateOrgUnitRequest> form={form} layout="vertical" preserve={false} onFinish={onFinish}>
+      {/* Mã đơn vị KHÔNG sửa được: nó là khoá nghiệp vụ, đã in trên văn bản và dùng làm mã tra
+          cứu ở tệp nhập công trình. Đổi mã là đổi danh tính, không phải sửa một lỗi gõ. */}
+      <Form.Item label="Mã đơn vị">
+        <Input value={donVi.code} disabled />
+      </Form.Item>
+      <Form.Item name="name" label="Tên đơn vị" rules={[{ required: true, message: 'Bắt buộc' }]}>
+        <Input />
+      </Form.Item>
+      <Form.Item name="shortName" label="Tên viết tắt">
+        <Input />
+      </Form.Item>
+      <Form.Item
+        name="unitType"
+        label="Loại đơn vị"
+        rules={[{ required: true, message: 'Bắt buộc' }]}
+      >
+        <Select
+          options={Object.entries(UNIT_TYPE_LABELS).map(([value, label]) => ({ value, label }))}
+        />
+      </Form.Item>
+      <OTruongLienHe />
+    </Form>
   );
 }
 

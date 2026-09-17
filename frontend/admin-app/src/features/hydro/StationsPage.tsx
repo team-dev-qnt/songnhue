@@ -520,7 +520,7 @@ export function StationsPage() {
         }}
         confirmLoading={createMutation.isPending}
         width={640}
-        destroyOnClose
+        destroyOnHidden
       >
         {maApiDatSan && (
           <Alert
@@ -531,9 +531,14 @@ export function StationsPage() {
             description="Số đo của mã này đã được giữ lại từ trước. ⛔ Chỉ khai khi đã biết chắc nó là trạm nào — hệ thống không tự suy được, và một mã gán nhầm là toàn bộ lịch sử đi vào biểu đồ của trạm khác."
           />
         )}
-        {/* ⚠ `initialValues` chứ không `setFieldsValue` trước khi mở: Form nằm trong Modal có
-            `destroyOnClose` nên nó gắn lại mỗi lượt mở, và giá trị đặt lúc chưa gắn là giá trị đặt
-            vào một chỗ chưa tồn tại. */}
+        {/* ⚠⚠ Chú thích cũ ở đây SAI, sửa 17/09 (T63.17) — nó khai *"giá trị đặt lúc Form chưa
+            gắn là giá trị đặt vào một chỗ chưa tồn tại"*. Đo trong `rc-field-form@2.7.1`: kho giá
+            trị sống trong chính `Form.useForm()`, ⛔ trong cây DOM, nên `setFieldsValue` gọi lúc
+            chưa gắn **vẫn ghi được**; và lượt gắn sau đó chạy `merge(initialValues, this.store)`,
+            tức **kho THẮNG `initialValues`**. ⇒ Cái đúng là chiều ngược lại: `initialValues` ở đây
+            chỉ có hiệu lực vì `moTaoMoi` gọi `form.resetFields()` ngay trước khi mở, và
+            `resetFields()` đặt `store = merge(this.initialValues)` — một phép THAY TOÀN PHẦN.
+            ⛔ Gỡ lời gọi ấy thì ba ô dưới mang giá trị của điểm đo vừa SỬA, ⛔ một dòng báo nào. */}
         <Form
           form={form}
           layout="vertical"
@@ -558,7 +563,7 @@ export function StationsPage() {
         }}
         confirmLoading={updateMutation.isPending}
         width={640}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical">
           {truongChung(true)}

@@ -91,7 +91,15 @@ export function EnrollTwoFactorPage() {
               title: 'Quét mã và lưu mã khôi phục',
               description: (
                 <Space direction="vertical" style={{ width: '100%' }}>
-                  <div style={{ background: '#fff', padding: 8, width: 'fit-content' }}>
+                  {/* ⚠ Nền mã QR phải TRẮNG THẬT, ⛔ theo token: máy quét đọc bằng độ tương phản,
+                      nên một nền "trắng theo chủ đề" ở chế độ tối làm mã ⛔ quét được. Ghim cố ý. */}
+                  <div
+                    style={{
+                      background: '#ffffff' /* neutralColors.bgContainer */,
+                      padding: 8,
+                      width: 'fit-content',
+                    }}
+                  >
                     <QRCodeSVG value={enrollment.otpauthUri} size={168} />
                   </div>
 

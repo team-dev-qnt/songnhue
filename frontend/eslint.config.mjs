@@ -114,6 +114,30 @@ export default tseslint.config(
       ...react.configs.flat['jsx-runtime'].rules,
       ...reactHooks.configs['recommended-latest'].rules,
 
+      // ═══ T63.18 — `dayjs()` TRẦN đọc múi giờ của MÁY ═══════════════════════
+      // Hệ này lưu `timestamptz` UTC và hiển thị UTC+7 (CLAUDE.md quy tắc 1). Một
+      // `dayjs()` không đối số lấy đồng hồ VÀ múi giờ của hệ điều hành, nên trên máy
+      // trạm đặt sai múi giờ — chuyện thường gặp sau khi cài lại Windows — thao tác
+      // "số đo này đo lúc 05:00" gửi lên một mốc UTC khác hẳn. Với dữ liệu thuỷ văn
+      // thì quy tắc 18 (KHÔNG có API lịch sử) biến cái sai ấy thành VĨNH VIỄN.
+      //
+      // Vì sao là một RULE chứ không phải một dòng dặn trong conventions: lớp lỗi này
+      // vô hình với mọi lượt chạy ở máy người viết mã, vì máy ấy đặt ĐÚNG múi giờ sản
+      // phẩm. Nó chỉ lộ trên runner (UTC), và chỉ khi tình cờ có bài kiểm chạm tới —
+      // ngày 17/09 nó lọt qua 5 lớp kiểm rồi đỏ ở CI của PR #153.
+      //
+      // Rule chạy trên AST nên KHÔNG bị lừa bởi chú thích nhắc tên hàm — đúng khe hở
+      // đã làm ba bộ canh grep trước đây đỏ giả (T46.7) hoặc xanh giả (T49.6).
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "CallExpression[callee.name='dayjs'][arguments.length=0]",
+          message:
+            'Dùng bayGio() trong @/shared/format thay cho dayjs() trần — dayjs() đọc múi giờ của MÁY, ' +
+            'còn hệ này chốt UTC+7 (T63.18). So theo NGÀY thì dùng ngayHomNay()/ngayLich().',
+        },
+      ],
+
       // Chỉ component RichContent (đã sanitize phía máy chủ) mới được dựng HTML thô —
       // conventions.md §4.4. Nội dung bài viết CMS đến từ trình soạn thảo, tức là đúng
       // đường một payload XSS đi vào nếu chỗ nào đó lỡ tay.
@@ -142,6 +166,16 @@ export default tseslint.config(
     files: ['public-web/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-globals': 'off',
+    },
+  },
+
+  // `shared/format.ts` là NHÀ của bayGio()/ngayHomNay() — nơi duy nhất được phép gọi
+  // `dayjs()` trần, vì chính nó là chỗ gắn `.tz(APP_TIMEZONE)` vào. Ngoại lệ hẹp tới
+  // mức một tệp: nới rộng hơn là trả lại đúng lỗ hổng T63.18 vừa bịt.
+  {
+    files: ['**/shared/format.ts'],
+    rules: {
+      'no-restricted-syntax': 'off',
     },
   },
 

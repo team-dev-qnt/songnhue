@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Col, Form, Input, InputNumber, Row, Select } from 'antd';
+import { brandColors } from 'design-tokens';
 import { useParams } from 'react-router-dom';
 
 import { type ConstructionDocumentList } from '@/shared/api-types';
@@ -55,7 +56,7 @@ export function StepFinance() {
             name="totalInvestment"
             label="Tổng mức đầu tư (VNĐ)"
             extra={
-              <span style={{ color: '#165bb6', fontWeight: 500 }}>
+              <span style={{ color: brandColors.primary, fontWeight: 500 }}>
                 {renderInvestmentHelper(totalInvestment)}
               </span>
             }

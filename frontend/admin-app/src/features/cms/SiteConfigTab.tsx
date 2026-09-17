@@ -1,5 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { App, Button, Descriptions, Image, Input, Space, Switch, Typography, Upload } from 'antd';
+import {
+  App,
+  Button,
+  Descriptions,
+  Image,
+  Input,
+  Space,
+  Switch,
+  theme,
+  Typography,
+  Upload,
+} from 'antd';
 import { useState } from 'react';
 
 import { ApiClientError } from '@/shared/apiClient';
@@ -26,6 +37,8 @@ import { type SiteSettingItem } from './types';
  */
 export function SiteConfigTab() {
   const { message } = App.useApp();
+  // ⛔ Màu lấy từ `theme.useToken()` — bảng màu AntD, ⛔ màu thương hiệu (T25.23).
+  const { token } = theme.useToken();
   const queryClient = useQueryClient();
 
   const config = useQuery({ queryKey: cmsKeys.siteConfig(), queryFn: () => cmsApi.siteConfig() });
@@ -70,7 +83,7 @@ export function SiteConfigTab() {
                   src={`/api/v1/public/files/${item.effectiveValue}`}
                   alt={item.label}
                   height={64}
-                  style={{ objectFit: 'contain', background: '#fafafa', padding: 4 }}
+                  style={{ objectFit: 'contain', background: token.colorFillAlter, padding: 4 }}
                 />
               ) : (
                 <Typography.Text type="secondary">Chưa đặt</Typography.Text>

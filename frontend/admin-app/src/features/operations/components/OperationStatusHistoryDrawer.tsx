@@ -106,7 +106,7 @@ export function OperationStatusHistoryDrawer({ publicId, constructionName, open,
       width={800}
       open={open}
       onClose={onClose}
-      destroyOnClose
+      destroyOnHidden
     >
       <Alert
         type="info"

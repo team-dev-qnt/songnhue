@@ -23,6 +23,7 @@
 
 | Việc | Runbook |
 |---|---|
+| **Deploy xong mà site ⛔ trả lời — CD đỏ ở Smoke test** | [deploy-hong.md](deploy-hong.md) |
 | Khôi phục CSDL từ bản sao lưu | [khoi-phuc-du-lieu.md](khoi-phuc-du-lieu.md) |
 | **Nhân bản dữ liệu từ môi trường này sang môi trường khác** | [di-tru-du-lieu-giua-moi-truong.md](di-tru-du-lieu-giua-moi-truong.md) |
 | **Đổi tên miền · cấp / gia hạn chứng chỉ TLS** | [ten-mien-va-chung-chi.md](ten-mien-va-chung-chi.md) |

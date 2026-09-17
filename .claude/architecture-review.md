@@ -7146,3 +7146,163 @@ nhạy cảm mà nơi gọi ⛔ khai đã xác thực lại) — lượt phá "c
 ⛔ **Hệ quả cho quy tắc 11/13 của CLAUDE.md:** ⛔ đổi. *"Mọi connection đọc từ env"* vẫn nguyên; ngoại lệ duy
 nhất là credential bên thứ 3 mà ứng dụng là người đọc duy nhất — đúng loại quy tắc 13 đã cho vào CSDL mã hoá
 từ WS-28.
+
+### §11.27 — Một lượt deploy XANH TRỌN VẸN hạ cả site, và bản vá viết ra để chữa nó tái lập một tai nạn cũ (T63.18 · T63.19, 17/9/2026)
+
+Ba khuyết tật, ba tầng khác nhau, và điểm chung nằm ở chỗ **không cái nào `make ci-local`
+có thể thấy** — hai cái vì máy làm việc được cấu hình *đúng*, một cái vì nó chỉ tồn tại
+trên máy chủ thật.
+
+#### 1. `Started` ⛔ phải `đang phục vụ` — và `restart: unless-stopped` làm hai thứ ấy in ra giống hệt nhau
+
+Lượt `CD Staging 35236229504` (ngay sau khi gộp #133) đỏ theo kiểu khó đọc nhất: **mọi
+bước đều xanh**.
+
+```
+migrator                      xong
+Container songnhue-app        Healthy
+Container songnhue-nginx      Started
+✓ app / admin-app / public-web đang chạy đúng image vừa triển khai
+──────────────────────────────────────────────────────────────────
+Smoke test        30 × curl: (7) Failed to connect to staging…:443
+Quay lui bản cũ   18 × curl: (7) …   (trên ảnh CŨ, cũng với app Healthy)
+```
+
+`Started` nghĩa là *tiến trình container đã khởi động*. Nó ⛔ nói gì về việc nginx có nhận
+kết nối ⛔ — và với `restart: unless-stopped`, một nginx chết vì cấu hình **quay vòng mãi**
+trong khi compose vẫn in **đúng một dòng** `Started`. Luật 9 nguyên văn: hai trạng thái ⛔
+phân biệt được thì dòng ấy ⛔ khẳng định gì.
+
+Phạm vi của khoảng trống, đo được:
+
+```
+grep -c "nginx -t" .github/workflows/deploy.yml   →   0
+```
+
+Đường triển khai **chưa bao giờ** canh cấu hình nginx — dù kho có **5** lớp kiểm đọc
+`default.conf.template`. Chúng canh **nội dung tệp trong kho**; ⛔ cái nào canh bản **đã
+thay biến** đang chạy trên máy chủ. Luật 28 ở dạng tinh vi: phạm vi hụt ⛔ ở *tệp nào được
+quét* mà ở **thời điểm nào được quét** — trước hay sau `envsubst`.
+
+#### 2. Nguyên nhân gốc: **chính quy trình thành văn sinh ra trạng thái hỏng**
+
+Đo trên VPS-2 (QuanTran mở quyền SSH cho lượt điều tra này):
+
+```
+docker ps            →  mọi container healthy, riêng songnhue-nginx: Restarting (1)
+ss -ltn              →  ⛔ gì lắng nghe ở 80/443  (cổng 22 vẫn mở ⇒ "máy bật mà site chết")
+docker logs nginx    →  nginx: [emerg] could not build map_hash,
+                        you should increase map_hash_bucket_size: 64
+```
+
+Số học khép kín:
+
+| | |
+|---|---|
+| §B6 dặn sinh token bằng | `openssl rand -hex 32` |
+| ⇒ độ dài token đo được | **64 ký tự** |
+| ⇒ khoá `map` là | `"Bearer " + 64` = **71 byte** |
+| trần `map_hash_bucket_size` mặc định | **64** |
+| số lần khai `map_hash_bucket_size` | **0** |
+
+⛔⛔⛔ Đây ⛔ phải một giá trị đặt sai. **Làm ĐÚNG hướng dẫn là sinh ra trạng thái hỏng**, nên
+nó lặp lại trên *mọi* máy tuân thủ — production nằm trong số đó, và `compose.staging.yml`
+`include` nguyên văn `compose.prod.yml` nên cơ chế là **một**. Đây là một hình dạng rủi ro
+chưa từng có tên trong dự án: trước nay tài liệu sai vì **hết hạn** (§11.20, dòng số đo
+migration) hoặc vì **chép mà ⛔ đo** (chín lượt *"một dòng nợ tự nó sai"*); lần này tài liệu
+⛔ sai — nó **đúng và vẫn dẫn tới sự cố**.
+
+⚠ Giả thuyết đầu của tôi — *"chú thích viết cùng dòng trong `.env` làm `allow` sai cú pháp"* —
+**sai**; đo thật thì `METRICS_ALLOW_IP` dài **9 ký tự**, dạng số-và-chấm hợp lệ. Giả thuyết ấy
+nghe rất hợp lý vì §B6 **có** dặn đúng chuyện đó. Một lời dặn có thật làm một giả thuyết sai
+trông như đã được xác nhận.
+
+⚠ Máy có lượt reboot **22:31**, tức **SAU** lượt CD hỏng lúc 21:50. Reboot ⛔ phải nguyên nhân —
+và nó còn cho thêm một phép đo: sau reboot mọi container tự lên khoẻ, **chỉ nginx quay vòng**
+⇒ khuyết tật ở cấu hình, ⛔ ở máy.
+
+#### 3. Vá: nâng trần chỉ **dời quả mìn**, ⛔ tháo nó
+
+Bỏ hẳn khối `map`, so trực tiếp trong `location`:
+
+```nginx
+if ($http_authorization != "Bearer ${METRICS_BEARER_TOKEN}") { return 403; }
+```
+
+`map_hash_bucket_size 128;` cũng chữa được lượt này — và để lại nguyên cấu trúc, để một token
+dài hơn nữa hạ site lần sau. So trực tiếp thì **độ dài token thôi ⛔ còn là một tham số của
+việc nginx có sống hay ⛔**: trạng thái hỏng trở nên **⛔ biểu diễn được** (luật 12, cùng họ
+với `MocSoLieu` ở T47.2 — *cách chặn tái phát rẻ nhất thường ⛔ phải một bài kiểm, mà là một
+kiểu / một cấu trúc*).
+
+Bánh cóc `khoaMapKhongDuocMangChoCam`: **KHOÁ** của mọi `map` ⛔ được chứa chỗ cắm `${...}` —
+vì một giá trị thay lúc render **⛔ có bảo đảm độ dài nào**. Kiểm chứng ngược: dựng lại đúng
+khối cũ ⇒ đỏ, gọi đích danh `"Bearer ${METRICS_BEARER_TOKEN}" 1;`.
+
+⚠⚠ **Bản đầu của bộ canh ấy đỏ ngay lượt chạy đầu — dương tính giả của chính nó**: nó quét
+**cả dòng** nên bắt nhầm `map $host $robots_tag { default "${ROBOTS_TAG}"; }`, nơi chỗ cắm nằm
+ở **GIÁ TRỊ** và hoàn toàn an toàn — `map_hash_bucket_size` chỉ giới hạn **KHOÁ**. ⇒ `khoaCuaDong()`
+bóc đúng phần khoá, kể cả khoá đặt trong nháy (vốn chứa khoảng trắng nên tách theo khoảng
+trắng là sai).
+
+#### 4. Một thông điệp chẩn đoán ĐOÁN MÒ là một khuyết tật — và nó đoán về phía phá huỷ nhất
+
+Nhánh quay lui khẳng định:
+
+> *"Nhiều khả năng migration đã đổi lược đồ và bản cũ ⛔ chạy được trên đó."* → runbook **khôi phục CSDL**
+
+Log của **chính lượt ấy** bác nó: `Container songnhue-app Healthy` **trên ảnh CŨ** ⇒ bản cũ
+chạy được trên lược đồ đã migrate. Khôi phục CSDL ở đây **⛔ chữa gì** và **xoá mất dữ liệu
+mới** — thao tác phá huỷ nhất của cả hệ, được một câu đoán mò chỉ đường tới.
+
+Cùng hình dạng §10.77 (*cổng đỏ kèm lý do nghe rất hợp lý nên ⛔ ai kiểm lại*), nhưng nặng hơn
+một bậc: ở đó cái giá là **một ngày ⛔ ai đọc**; ở đây cái giá là **một lượt ghi đè CSDL**.
+
+⇒ Thông điệp nay in **ba** khả năng kèm phép đo tách chúng, và trỏ sang runbook mới
+`docs/runbook/deploy-hong.md` — trước lượt này kho **⛔ có** runbook nào cho *"deploy xong mà
+site ⛔ trả lời"*, nên chỗ duy nhất để trỏ tới lại là chỗ sai.
+
+#### 5. Bộ canh cũ bắt bản vá ở lượt chạy đầu — và nó chặn đúng tai nạn nó sinh ra để chặn
+
+`DeployRemoteStdinTest` đỏ: **16 dòng** chú thích vừa viết nằm trong heredoc `<<REMOTE`
+**⛔ nháy**, nên **46 dấu huyền** trong đó là **thay thế lệnh do RUNNER khai triển trước khi
+gửi đi** — kể cả khi nằm sau dấu `#`. Dòng nặng nhất:
+
+```
+# ⚠⚠ `--no-deps` là BẮT BUỘC: `docker compose run nginx` trần sẽ dựng cả …
+```
+
+`docker compose run nginx` — **đúng lệnh** đã gây ra §10.66 ngày 27/8. Bản vá viết ra để chữa
+một sự cố deploy suýt tái lập nguyên văn một sự cố deploy cũ. **Một chú thích trong heredoc
+⛔ nháy là mã chạy được.**
+
+Cùng lượt, `CanhBaoCoDuongDiTest` đỏ vì **canh VĂN BẢN**: nó ghim nguyên văn
+`if ($metrics_token_ok = 0)` nên vỡ khi đổi **cách** so token, dù cam kết *hai lớp khoá* ⛔ hề
+đổi (luật 2 · §11.16). Chuyển sang khẳng định **bất biến** (có `allow`, có `deny all`, có
+`return 403`, và lớp token so nguyên chuỗi `Authorization`).
+
+#### 6. Vế song song: máy làm việc được cấu hình ĐÚNG là thứ giấu cả một lớp lỗi (T63.18)
+
+Cùng ngày, CI đỏ ở một bài mà `ci-local` **về nguyên tắc ⛔ thể** làm đỏ:
+
+```
+expected '16/09/2026 20:00' to contain '17/09/2026 03:00'     ← lệch ĐÚNG 7 giờ
+```
+
+Runner chạy **UTC**, máy làm việc **+07**. Kiểm chứng ngược đo **cả hai chiều trên cùng một
+bản phá**: `TZ=UTC` ⇒ **ĐỎ** · `TZ=Asia/Ho_Chi_Minh` ⇒ **XANH**.
+
+⇒ Biến thể **MỚI** của *"xanh ở máy ⛔ phải bằng chứng"*, sau `.env.local` và biến build rỗng —
+và là biến thể khó nhất, vì nguyên nhân nó vô hình là máy người viết mã đặt **đúng** múi giờ
+của sản phẩm. Thứ *đúng* lại là thứ che.
+
+⛔ Và ⛔ phải lỗi bài kiểm: `shared/format.ts` đã khai luật từ trước kèm lý do thực địa —
+*"máy trạm trong đơn vị hay bị lệch múi giờ sau khi cài lại Windows"* — trong khi
+`NhapTaySoDoModal` (đường ghi tay **duy nhất** khi API gián đoạn) bày sẵn mốc đo bằng `dayjs()`
+trần. Quy tắc 18: nguồn ⛔ có API lịch sử ⇒ một số đo đóng vào sai khung 10 phút là **sai
+vĩnh viễn**.
+
+Bánh cóc: ghim `env: { TZ: 'UTC' }` ở cả hai cấu hình vitest ⇒ lượt chạy ở máy **dựng lại được**
+điều kiện runner; đo được là có hiệu lực (cùng bản phá, chạy ở `TZ=+07` nay **ĐỎ**). ⛔ Cố ý
+**⛔ ghim `Asia/Ho_Chi_Minh`**: ghim vào đúng múi giờ của sản phẩm là làm cả lớp lỗi ấy **vô
+hình trở lại**.

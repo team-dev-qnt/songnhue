@@ -17,8 +17,9 @@ import {
   Tooltip,
   Typography,
 } from 'antd';
+import type { FormInstance } from 'antd';
 import { type ColumnsType } from 'antd/es/table';
-import { useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 
 import { useAuth } from '@/app/auth/useAuth';
 import { StatusBadge } from '@/components/business/StatusBadge';
@@ -275,7 +276,7 @@ function RestoreModal({ backup, onClose }: { backup: BackupView | null; onClose:
       onCancel={onClose}
       onOk={() => void form.submit()}
       width={620}
-      destroyOnClose
+      destroyOnHidden
     >
       <Alert
         type="error"
@@ -295,51 +296,96 @@ function RestoreModal({ backup, onClose }: { backup: BackupView | null; onClose:
         </Descriptions>
       )}
 
-      <Form<RestoreForm>
+      <BieuMauKhoiPhuc
+        // ⛔ `key` ép dựng lại thân biểu mẫu ngay khi đổi bản sao lưu — xem javadoc của nó.
+        key={backup?.id ?? 'chua-chon'}
+        khoa={backup?.id ?? 'chua-chon'}
         form={form}
-        layout="vertical"
-        preserve={false}
         onFinish={(values) => restore.mutate(values)}
-      >
-        <Form.Item
-          name="confirmation"
-          label={`Gõ chính xác "${CONFIRMATION_PHRASE}" để xác nhận`}
-          rules={[
-            {
-              validator: (_rule, value: string) =>
-                value === CONFIRMATION_PHRASE
-                  ? Promise.resolve()
-                  : Promise.reject(new Error(`Phải gõ đúng "${CONFIRMATION_PHRASE}"`)),
-            },
-          ]}
-        >
-          <Input autoComplete="off" placeholder={CONFIRMATION_PHRASE} />
-        </Form.Item>
-
-        <Form.Item
-          name="reason"
-          label="Lý do khôi phục"
-          extra="Nội dung này đi vào nhật ký bảo mật và không sửa lại được"
-          rules={[
-            {
-              required: true,
-              min: REASON_MIN_LENGTH,
-              message: `Tối thiểu ${REASON_MIN_LENGTH} ký tự`,
-            },
-          ]}
-        >
-          <Input.TextArea rows={3} />
-        </Form.Item>
-
-        <Form.Item
-          name="totpCode"
-          label="Mã xác thực hai bước"
-          extra="Nhập mã đang hiển thị trên ứng dụng xác thực"
-          rules={[{ required: true, message: 'Bắt buộc' }]}
-        >
-          <Input inputMode="numeric" autoComplete="one-time-code" placeholder="123456" />
-        </Form.Item>
-      </Form>
+      />
     </Modal>
+  );
+}
+
+/**
+ * Thân biểu mẫu khôi phục — tách ra để {@code key} ép dựng lại khi đổi bản sao lưu.
+ *
+ * <h2>⛔⛔⛔ Ba ô này LÀ ba lớp chặn — mang chúng sang bản khác là tháo cả ba (T63.17)</h2>
+ *
+ * <p>{@code BackupPage} render {@code <RestoreModal backup={restoring} …/>} <b>vô điều kiện</b>,
+ * {@code Form.useForm()} nằm NGOÀI {@code Modal}, và {@code onCancel} <b>⛔ gọi
+ * {@code resetFields()}</b> — chỉ {@code onClose}. Đo được trước lượt vá này
+ * ({@code khoiPhucVongKhuHoi.test.tsx}): gõ đủ cụm {@code SONGNHUE} + lý do + mã 2FA cho bản sao
+ * lưu A, bấm <i>Hủy</i>, mở bản <b>B</b> ⇒ <b>cả ba ô còn nguyên</b>, nút <i>Khôi phục</i> chỉ
+ * còn một cú bấm. Ba lớp chặn dựng cho bản A đứng ra bảo lãnh cho bản B — thao tác <b>ghi đè toàn
+ * bộ cơ sở dữ liệu</b>.
+ *
+ * <p>⚠ {@code preserve={false}} ⛔ cứu được: nó dọn kho <b>khi Form unmount</b>, mà T53.7 đo được
+ * {@code destroyOnHidden} chỉ tháo cây con <b>sau khi hoạt ảnh đóng chạy xong</b> ⇒ một cuộc đua,
+ * ⛔ một bảo đảm (luật 7).
+ *
+ * <p>⚠⚠ Riêng {@code totpCode} còn một lý do thứ hai: nó là bí mật <b>một lần</b>, ⛔ phải một giá
+ * trị biểu mẫu bình thường — để nó nằm lại trong DOM sau khi đóng hộp thoại là giữ một bí mật quá
+ * hạn dùng của nó.
+ *
+ * <p>⇒ {@code useLayoutEffect} dọn <b>tường minh</b>, chạy TRƯỚC lượt vẽ. ⛔⛔ Và ⛔ thêm
+ * {@code clearOnDestroy} (T53.7). MỘT cơ chế, tường minh, có bài kiểm.
+ */
+function BieuMauKhoiPhuc({
+  khoa,
+  form,
+  onFinish,
+}: {
+  khoa: string;
+  form: FormInstance<RestoreForm>;
+  onFinish: (values: RestoreForm) => void;
+}) {
+  useLayoutEffect(() => {
+    // ⛔ Biểu mẫu này ⛔ có giá trị ban đầu nào theo bản ghi — mọi ô phải RỖNG ở mỗi lượt mở.
+    //   `resetFields()` đặt kho về `initialValues` (ở đây là `{}`), tức xoá trắng.
+    form.resetFields();
+  }, [khoa, form]);
+
+  return (
+    <Form<RestoreForm> form={form} layout="vertical" preserve={false} onFinish={onFinish}>
+      <Form.Item
+        name="confirmation"
+        label={`Gõ chính xác "${CONFIRMATION_PHRASE}" để xác nhận`}
+        rules={[
+          {
+            validator: (_rule, value: string) =>
+              value === CONFIRMATION_PHRASE
+                ? Promise.resolve()
+                : Promise.reject(new Error(`Phải gõ đúng "${CONFIRMATION_PHRASE}"`)),
+          },
+        ]}
+      >
+        <Input autoComplete="off" placeholder={CONFIRMATION_PHRASE} />
+      </Form.Item>
+
+      <Form.Item
+        name="reason"
+        label="Lý do khôi phục"
+        extra="Nội dung này đi vào nhật ký bảo mật và không sửa lại được"
+        rules={[
+          {
+            required: true,
+            min: REASON_MIN_LENGTH,
+            message: `Tối thiểu ${REASON_MIN_LENGTH} ký tự`,
+          },
+        ]}
+      >
+        <Input.TextArea rows={3} />
+      </Form.Item>
+
+      <Form.Item
+        name="totpCode"
+        label="Mã xác thực hai bước"
+        extra="Nhập mã đang hiển thị trên ứng dụng xác thực"
+        rules={[{ required: true, message: 'Bắt buộc' }]}
+      >
+        <Input inputMode="numeric" autoComplete="one-time-code" placeholder="123456" />
+      </Form.Item>
+    </Form>
   );
 }

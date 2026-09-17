@@ -212,9 +212,18 @@ export function AlertRulesPage() {
       render: (_, row) =>
         coQuanLy ? (
           <Space>
-            <Button type="text" icon={<EditOutlined />} onClick={() => moSua(row)} />
+            <Tooltip title="Sửa">
+              <Button
+                type="text"
+                aria-label="Sửa"
+                icon={<EditOutlined />}
+                onClick={() => moSua(row)}
+              />
+            </Tooltip>
             <Popconfirm title="Xoá ngưỡng này?" onConfirm={() => deleteMutation.mutate(row.id)}>
-              <Button type="text" danger icon={<DeleteOutlined />} />
+              <Tooltip title="Xoá">
+                <Button type="text" danger aria-label="Xoá" icon={<DeleteOutlined />} />
+              </Tooltip>
             </Popconfirm>
           </Space>
         ) : null,
@@ -288,7 +297,7 @@ export function AlertRulesPage() {
         onCancel={() => setModalVisible(false)}
         onOk={() => form.submit()}
         confirmLoading={createMutation.isPending || updateMutation.isPending}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form
           form={form}

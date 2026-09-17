@@ -14,7 +14,7 @@ import {
   message,
 } from 'antd';
 import { type ColumnsType } from 'antd/es/table';
-import dayjs, { type Dayjs } from 'dayjs';
+import { type Dayjs } from 'dayjs';
 import { useState } from 'react';
 
 import {
@@ -25,7 +25,7 @@ import {
 } from '@/shared/api-types';
 import { api } from '@/shared/apiClient';
 import { useAuth } from '@/app/auth/useAuth';
-import { formatDateTime } from '@/shared/format';
+import { bayGio, formatDateTime } from '@/shared/format';
 
 import { useXuatBaoCao } from './useXuatBaoCao';
 
@@ -47,7 +47,11 @@ import { useXuatBaoCao } from './useXuatBaoCao';
 export function SyncQualityReportPage() {
   const { hasPermission } = useAuth();
   const { xuat, dangCho, hanTaiGio } = useXuatBaoCao();
-  const [khoang, setKhoang] = useState<[Dayjs, Dayjs]>(() => [dayjs().subtract(6, 'day'), dayjs()]);
+  // Bảy ngày gần nhất tính theo lịch Việt Nam — hai giá trị này thành tham số truy vấn (T63.18).
+  const [khoang, setKhoang] = useState<[Dayjs, Dayjs]>(() => {
+    const gio = bayGio();
+    return [gio.subtract(6, 'day'), gio];
+  });
   const [diemDo, setDiemDo] = useState<string | undefined>();
 
   const tuNgay = khoang[0].format('YYYY-MM-DD');

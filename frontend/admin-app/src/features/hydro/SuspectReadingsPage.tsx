@@ -279,7 +279,7 @@ export function SuspectReadingsPage() {
           form.resetFields();
         }}
         footer={null}
-        destroyOnClose
+        destroyOnHidden
       >
         {dangXuLy && (
           <>

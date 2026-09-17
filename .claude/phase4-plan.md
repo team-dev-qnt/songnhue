@@ -133,7 +133,7 @@ gói cron** (`is-enabled` ⇒ `not-found`). Thứ đi cảnh báo chính là th�
 | `T61.2` | Staging (có bản vá từ 11/09) ghi được byte thật chưa | `hydro_readings` + `api_sources` trên staging | — |
 | `T61.6` | Viết kịch bản load test — kho có **0** | kịch bản chạy được + tỉ lệ 429 khai riêng | — |
 | `T37.2` | **NFR-02** — 200 CCU · P95 < 3s @ 50 users | bộ load test | `T60.13` · `T61.6` |
-| `T37.3` | **DOD1.17** — trang chủ < 3s | công cụ đo trang thật, **từ máy ở VN**, cả ISR nguội | `T60.13` |
+| `T37.3` | **DOD1.17** — trang chủ < 3s | công cụ đo trang thật, **từ máy ở VN**, cả ISR nguội. ⚠ Đo trên **`https://thuyloisongnhue.vn`** — ⛔ `songnhue.com`: tên miền cũ ⛔ còn khối `server` nào phục vụ từ 08/09, nên một lượt đo ở đó ⛔ cho ra *chậm*, nó cho ra *hỏng* (T61.3) | `T60.13` |
 | `DOD0.21` | Quay lui **dựng lại được một bản đã bị thay** | `Created` của container quay về mốc cũ | `T60.3` |
 | `T61.5` | **Alertmanager + ping ngoài** — Prometheus hôm nay ⛔ gửi đi đâu | một cảnh báo tới được người | kênh QuanTran chọn |
 | `DOD2.9` | Chuông poller bắn THẬT + runbook đã đi thử | lượt bắn thật trên **VPS-2** (VM-3 đã gộp) | `T61.5` |
@@ -186,7 +186,7 @@ gói cron** (`is-enabled` ⇒ `not-found`). Thứ đi cảnh báo chính là th�
 | DOD4.5 | `DOD1.17` xanh — trang chủ < 3s đo **từ máy ở Việt Nam**, gồm **cả lượt ISR nguội** |
 | DOD4.6 | `DOD0.21` xanh — một lượt hỏng **SAU** `up -d` rồi `Created` quay về mốc cũ |
 | DOD4.7 | `DOD2.9` xanh — chuông bắn **thật**, và có người **đi hết** runbook |
-| DOD4.8 | Lịch gia hạn TLS có ở **cả hai** máy, và đã chứng minh bằng một lượt gia hạn khô |
+| DOD4.8 | Lịch gia hạn TLS có ở **cả hai** máy, và đã chứng minh bằng một lượt gia hạn khô. ⚠ Production nay là **`.vn`** (hạn **06/12/2026**) — mục này phủ **cả production**, ⛔ chỉ staging (T61.3) |
 | DOD4.9 | Sao lưu có **lịch đang chạy** và một lượt **khôi phục thật** đọc được |
 | DOD4.10 | Mọi con số nghiệm thu ghi kèm **ngày đo** và **nguồn đo** (CI hay máy chủ, ⛔ không phải máy dev) |
 | DOD4.11 | Quét virus chạy **thật** trên production — một tệp EICAR ra `INFECTED`, ⛔ không `SKIPPED` (`T61.4`) |
