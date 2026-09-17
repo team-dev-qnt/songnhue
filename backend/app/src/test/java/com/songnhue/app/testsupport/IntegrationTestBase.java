@@ -34,7 +34,7 @@ import com.songnhue.core.testsupport.RsaKeyPairFixture;
  * </ul>
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Import(TestHttpConfig.class)
+@Import({TestHttpConfig.class, DemTruyVanJdbc.class})
 // ⭐⭐ `app.worker-enabled` khai ở ĐÂY chứ ⛔ không ở @DynamicPropertySource — WS-34/T34.7.
 //
 // Nó là một hằng, ⛔ không phải giá trị phải tính lúc chạy (khác cổng container, khác endpoint
