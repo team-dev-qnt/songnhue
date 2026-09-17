@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Alert, Card, Col, Row, Space, Statistic, Tag, Typography } from 'antd';
+import { Alert, Card, Col, Row, Space, Statistic, Tag, theme, Typography } from 'antd';
 import { Link } from 'react-router-dom';
 
 import { useAuth } from '@/app/auth/useAuth';
@@ -21,13 +21,18 @@ import { statusColors } from 'design-tokens';
  * trước khi gọi, thay vì để cả trang đỏ vì một ô 403.
  */
 export function DashboardPage() {
+  // ⛔ Màu lấy từ `theme.useToken()` — bảng màu AntD (T25.23).
+  const { token } = theme.useToken();
+
   const { user, hasPermission } = useAuth();
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
       <Card
         style={{
-          background: 'linear-gradient(135deg, #e6f4ff 0%, #f0f2f5 100%)',
+          // ⛔ Dải chào mừng: sắc nhạt của màu chính + nền khung, cả hai lấy từ token AntD để
+          //   nó đi theo chủ đề thay vì khoá cứng hai mã (T25.23).
+          background: `linear-gradient(135deg, ${token.colorPrimaryBg} 0%, ${token.colorBgLayout} 100%)`,
           border: 'none',
         }}
       >

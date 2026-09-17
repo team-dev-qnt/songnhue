@@ -9,6 +9,7 @@ import {
   List,
   Progress,
   Space,
+  theme,
   Tree,
   Typography,
   Upload,
@@ -96,6 +97,9 @@ export function MediaBrowser({
   height = 420,
 }: MediaBrowserProps) {
   const { message } = App.useApp();
+  // ⛔ Màu lấy từ `theme.useToken()` — bốn giá trị dưới là bảng màu AntD, ⛔ màu thương hiệu,
+  // nên chỗ của chúng ⛔ phải `design-tokens` (T25.23).
+  const { token } = theme.useToken();
   const queryClient = useQueryClient();
   const [folderId, setFolderId] = useState<string | null>(null);
   const [keyword, setKeyword] = useState('');
@@ -185,7 +189,12 @@ export function MediaBrowser({
   return (
     <div style={{ display: 'flex', gap: 16, height, minHeight: 0 }}>
       <div
-        style={{ width: 220, overflow: 'auto', borderRight: '1px solid #f0f0f0', paddingRight: 8 }}
+        style={{
+          width: 220,
+          overflow: 'auto',
+          borderRight: `1px solid ${token.colorBorderSecondary}`,
+          paddingRight: 8,
+        }}
       >
         {folders.isLoading ? (
           <Typography.Text type="secondary">Đang tải thư mục…</Typography.Text>
@@ -279,7 +288,7 @@ export function MediaBrowser({
                       }
                     }}
                     style={{
-                      border: `2px solid ${dangChon ? '#1677ff' : '#f0f0f0'}`,
+                      border: `2px solid ${dangChon ? token.colorPrimary : token.colorBorderSecondary}`,
                       borderRadius: 6,
                       padding: 6,
                       cursor: onSelect ? 'pointer' : 'default',
@@ -301,9 +310,9 @@ export function MediaBrowser({
                           height: 90,
                           display: 'grid',
                           placeItems: 'center',
-                          background: '#fafafa',
+                          background: token.colorFillAlter,
                           fontSize: 12,
-                          color: '#8c8c8c',
+                          color: token.colorTextTertiary,
                         }}
                       >
                         {file.contentType.split('/').pop()}

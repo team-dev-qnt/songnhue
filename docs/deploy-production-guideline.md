@@ -1703,9 +1703,9 @@ nó mock đúng chỗ mã chạm ra ngoài.
 | Mã | Nội dung | Ai làm | Chặn ở đâu |
 |---|---|---|---|
 | ~~**T11.2**~~ | ✅ **đóng 6/9/2026** — VPS-1 `27.71.16.154`: Ubuntu 24.04.3 · 8 vCPU · 15 GiB RAM · 118G đĩa · Docker 29.8.0 + Compose v5.5.1 · ufw 22/80/443 · fail2ban active | — | — |
-| **T11.2-b** | Chưa mua tên miền `.vn`, chủ thể phải là Công ty | Công ty | §1.2, §7. ⭐ **Không còn chặn go-live**: production dùng `songnhue.com` trước (chốt 6/9), cắt sang `.vn` sau. ⛔ Lúc cắt phải **đặt lại biến kho + DỰNG LẠI image**, sửa DNS một mình là chưa đủ |
+| **T11.2-b** | Chưa mua tên miền `.vn`, chủ thể phải là Công ty | Công ty | §1.2, §7. ⭐ **Không còn chặn go-live**: production dùng `songnhue.com` trước (chốt 6/9) — ✅ **đã cắt sang `thuyloisongnhue.vn` ngày 08/09**. ⛔ Lúc cắt phải **đặt lại biến kho + DỰNG LẠI image**, sửa DNS một mình là chưa đủ |
 | ~~**T11.7**~~ | ✅ **đóng 6/9/2026** — đo lại bằng API: `total_count: 5`. Khoá host lấy từ `/etc/ssh/ssh_host_ed25519_key.pub` **trên máy chủ**, đối chiếu khớp với `known_hosts` cục bộ | — | — |
-| ~~**T11.7-a**~~ | ✅ **đóng 6/9/2026** — biến kho `PUBLIC_SITE_URL = https://songnhue.com`. ⚠ **Chưa đủ**: image `public-web` đang chạy vẫn nướng chuỗi rỗng, phải có **một lượt build mới trên `dev`** rồi mới đề bạt (checklist #23) | — | — |
+| ~~**T11.7-a**~~ | ✅ **đóng 6/9/2026** — biến kho `PUBLIC_SITE_URL`, ⚠ **giá trị đổi 07/09** thành `https://thuyloisongnhue.vn`. ⚠ **Chưa đủ**: image `public-web` đang chạy vẫn nướng chuỗi rỗng, phải có **một lượt build mới trên `dev`** rồi mới đề bạt (checklist #23) | — | — |
 | ~~**T11.35**~~ | ✅ **đóng 6/9/2026** — `deploy/host-prepare.sh` có, idempotent, đã chạy thật trên VPS-1 (2 lượt, cùng kết quả, thoát 0). Nó cài `rsync` (**thiếu trên máy mới** — bước rsync của CD sẽ chết), dựng 4 thư mục và đặt quyền **bằng số**: keys `1000:1000 700` · log `1000:1000 755` · backup **`999:1000 2775`** | — | — |
 | **T11.36** | `docker login ghcr.io` là thao tác tay bằng PAT | người dựng VPS-1 | §4.3 — chưa làm thì `compose up` dừng ở `unauthorized` |
 | **T7.13 / DOD0.14** | **Chưa diễn tập khôi phục lần nào**; `RTO thật: ______` | QuanTran + vận hành | checklist #20 |

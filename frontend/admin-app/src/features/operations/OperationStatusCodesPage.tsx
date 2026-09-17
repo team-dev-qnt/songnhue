@@ -14,6 +14,7 @@ import {
   Switch,
   Table,
   Tag,
+  theme,
   Typography,
   message,
 } from 'antd';
@@ -31,6 +32,8 @@ import { ApiClientError, api } from '@/shared/apiClient';
 import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
 
 export function OperationStatusCodesPage() {
+  // ⛔ Màu lấy từ `theme.useToken()` — bảng màu AntD (T25.23).
+  const { token } = theme.useToken();
   const { hasPermission } = useAuth();
   const queryClient = useQueryClient();
   const [form] = Form.useForm<OperationStatusCodeCreateRequest>();
@@ -151,7 +154,7 @@ export function OperationStatusCodesPage() {
               width: 16,
               height: 16,
               backgroundColor: val,
-              border: '1px solid #d9d9d9',
+              border: `1px solid ${token.colorBorder}`,
               borderRadius: 2,
             }}
           />
