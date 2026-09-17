@@ -435,6 +435,55 @@ Nay:
 
 Câu 2 và 3 chỉ có nghĩa vì bộ seed nội dung nay nằm trong chuỗi migration — xem `deploy/seed/README.md`.
 
+### 4.1-b2. ⛔⛔ Hai cổng quanh `up -d`: cấu hình nginx TRƯỚC, và nginx CÓ PHỤC VỤ SAU (17/9)
+
+Smoke test ở §4.1-b hỏi **từ ngoài vào**, nên nó phát hiện được mọi kiểu hỏng — nhưng nó phát
+hiện **muộn** và **⛔ nói được nguyên nhân**. Ngày 17/09 lượt `CD Staging 35236229504` cho đúng
+hình dạng ấy: mọi bước xanh (`migrator` xong · `app Healthy` · `nginx Started` · ba dịch vụ đúng
+image), rồi **30 dòng** `curl: (7) Failed to connect …:443`, và lượt quay lui in thêm **18 dòng y
+hệt**. Toàn bộ staging chết trong khi log deploy ⛔ có một dòng nào nói vì sao.
+
+**Vì sao `Started` ⛔ đủ.** Nó nghĩa là *tiến trình container đã khởi động*. Với
+`restart: unless-stopped`, một nginx chết vì cấu hình **quay vòng mãi** mà compose vẫn in **đúng
+một dòng** `Started` — hai trạng thái ⛔ phân biệt được (luật 9). Và
+`grep -c "nginx -t" deploy.yml` khi ấy = **0**: đường triển khai chưa bao giờ canh cấu hình nginx,
+dù kho có **5** lớp kiểm đọc `default.conf.template` — chúng soi bản **trước** `envsubst`, ⛔ soi
+bản đang chạy.
+
+Nay có hai cổng:
+
+**(a) Trước `up -d` — cấu hình phải hợp lệ**
+
+```bash
+$dc run --rm --no-deps nginx nginx -t
+```
+
+Hỏng thì **dừng khi bản cũ vẫn đang phục vụ**. Cái giá của một preflight đỏ giả là *một lượt
+deploy hỏng*, ⛔ phải *một site sập* — đó là lý do nó đứng trước chứ ⛔ sau.
+
+- ⚠⚠ `--no-deps` **bắt buộc**: thiếu nó `docker compose run` dựng cả chuỗi `depends_on` — đúng tai
+  nạn §10.78, khi một lệnh *"chỉ kiểm cấu hình"* dựng luôn cluster ngoài quy trình.
+- ⚠ Giữ **entrypoint mặc định**, chỉ đổi *command*. `envsubst` chạy trong `/docker-entrypoint.d/`,
+  nên `--entrypoint nginx` kiểm bản template **chưa thay biến** — xanh trên một tệp ⛔ bao giờ
+  được nạp (luật 10).
+
+**(b) Sau `up -d` — nginx phải ĐANG PHỤC VỤ**
+
+Chờ `.State.Health.Status` = `healthy` (healthcheck vốn **đã có sẵn** trong `compose.prod.yml` mà
+⛔ ai đọc), tối đa 150 giây; hết giờ thì **in 40 dòng `docker logs nginx`** rồi đỏ. Nguyên nhân vì
+thế có tên **trong log CD**, thay vì bắt người trực SSH vào mới biết.
+
+**(c) Và nhánh quay lui thôi ĐOÁN nguyên nhân**
+
+Bản cũ khẳng định *"nhiều khả năng migration đã đổi lược đồ"* rồi trỏ sang runbook **khôi phục
+CSDL** — trong khi log của **chính lượt ấy** ghi `app Healthy` trên ảnh CŨ, tức bản cũ chạy được
+trên lược đồ đã migrate. Khôi phục CSDL ở đó **⛔ chữa gì** và **xoá mất dữ liệu mới**. Nay nó in
+**ba** khả năng kèm phép đo tách chúng, và trỏ sang **`docs/runbook/deploy-hong.md`** — runbook
+sinh ra sau sự cố này, vì trước đó kho **⛔ có** tệp nào cho tình huống *"deploy xong mà site ⛔
+trả lời"*.
+
+Nguyên nhân gốc đầy đủ: `architecture-review.md` §11.27.
+
 ### 4.1-c. Triển khai theo DIGEST, và có đường quay lui (25/8)
 
 **Digest, không phải tag.** Bước xác định image giải `:<sha>` thành `@sha256:…` rồi triển khai bằng

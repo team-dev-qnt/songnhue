@@ -130,6 +130,15 @@ Dọn thêm (`T61.45`): xoá các dòng `APP_BASE_URL` · `GOOGLE_MAPS_API_KEY` 
 `HYDRO_API_BASE_URL` khỏi `.env` hai máy (0 dòng mã đọc). `BOOTSTRAP_ADMIN_PASSWORD` còn trong `.env` ⇒ màn
 hình báo — gỡ đi.
 
+⭐⭐ **17/09 — độ dài token thôi ⛔ còn quan trọng, và đây là lý do phải ghi lại.** Bản T61.5 nhúng
+token vào **KHOÁ** của một `map` nginx, nên `openssl rand -hex 32` (**64 ký tự**) cho khoá
+`"Bearer " + 64` = **71 byte**, vượt `map_hash_bucket_size` mặc định **64** ⇒ `[emerg]` ⇒ nginx ⛔
+khởi động nổi ⇒ **toàn bộ staging chết**. Tức **làm ĐÚNG hướng dẫn ngay bên dưới là tạo ra sự cố**
+(§11.27 · luật 36). Đã vá bằng cách bỏ `map`, so trực tiếp trong `location` ⇒ độ dài thôi ⛔ còn là
+một tham số. ⛔ Nếu về sau ai đưa một giá trị `.env` vào khoá `map` lần nữa thì bộ canh
+`khoaMapKhongDuocMangChoCam` sẽ đỏ — **đừng nâng `map_hash_bucket_size` cho hết đỏ**, nâng trần chỉ
+dời quả mìn đi xa hơn.
+
 ```bash
 # VPS-1 (.env production) — IP công cộng của VPS-2 + token mới
 echo "METRICS_ALLOW_IP=<IP-VPS-2>" >> /opt/songnhue/.env
