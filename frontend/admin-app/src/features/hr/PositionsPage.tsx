@@ -169,7 +169,17 @@ export function PositionsPage() {
       align: 'right',
       render: (_, record) => (
         <Space size={0}>
-          {coSua && <Button type="text" icon={<EditOutlined />} onClick={() => moSua(record)} />}
+          {coSua && (
+            <Button
+              type="text"
+              // ⛔ Nút chỉ có icon: thiếu nhãn thì trình đọc màn hình đọc thành "button" trống
+              //    rỗng, và ba nút liền nhau trong cột thao tác ⛔ phân biệt được (T63.9). Nhãn
+              //    mang cả MÃ chức vụ vì bảng có nhiều dòng — "Sửa" một mình ⛔ nói dòng nào.
+              aria-label={`Sửa chức vụ ${record.code}`}
+              icon={<EditOutlined />}
+              onClick={() => moSua(record)}
+            />
+          )}
           {coXoa && (
             <Popconfirm
               title="Xoá chức vụ này?"
@@ -178,7 +188,12 @@ export function PositionsPage() {
               cancelText="Huỷ"
               onConfirm={() => deleteMutation.mutate(record.publicId)}
             >
-              <Button type="text" danger icon={<DeleteOutlined />} />
+              <Button
+                type="text"
+                danger
+                aria-label={`Xoá chức vụ ${record.code}`}
+                icon={<DeleteOutlined />}
+              />
             </Popconfirm>
           )}
         </Space>

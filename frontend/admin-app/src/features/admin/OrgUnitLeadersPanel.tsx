@@ -5,6 +5,7 @@ import {
   Button,
   Card,
   Form,
+  type FormInstance,
   Input,
   InputNumber,
   Modal,
@@ -14,7 +15,7 @@ import {
   Table,
   Typography,
 } from 'antd';
-import { useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 
 import { useAuth } from '@/app/auth/useAuth';
 import { type OrgUnitLeaderRow } from '@/shared/api-types';
@@ -151,8 +152,13 @@ export function OrgUnitLeadersPanel({ orgUnitPublicId }: { orgUnitPublicId: stri
                   width: 88,
                   render: (_: unknown, row: OrgUnitLeaderRow) => (
                     <Space size={4}>
+                      {/* ⛔ Nút chỉ có icon thiếu nhãn được trình đọc màn hình đọc thành
+                          "button" — trống rỗng, và hai nút liền nhau ⛔ phân biệt được (T63.9).
+                          Nhãn mang cả HỌ TÊN vì bảng nhiều dòng: "Sửa" một mình ⛔ nói dòng nào,
+                          mà nhầm dòng ở đây là sửa hồ sơ một người khác. */}
                       <Button
                         size="small"
+                        aria-label={`Sửa dòng danh bạ ${row.fullName}`}
                         icon={<EditOutlined />}
                         onClick={() => setEditing(row)}
                       />
@@ -162,7 +168,12 @@ export function OrgUnitLeadersPanel({ orgUnitPublicId }: { orgUnitPublicId: stri
                         cancelText="Huỷ"
                         onConfirm={() => xoa.mutate(row.publicId)}
                       >
-                        <Button size="small" danger icon={<DeleteOutlined />} />
+                        <Button
+                          size="small"
+                          danger
+                          aria-label={`Xoá dòng danh bạ ${row.fullName}`}
+                          icon={<DeleteOutlined />}
+                        />
                       </Popconfirm>
                     </Space>
                   ),
@@ -238,55 +249,110 @@ function LeaderModal({
       onOk={() => void form.submit()}
       destroyOnClose
     >
-      <Form<LeaderForm>
+      <BieuMauDanhBa
+        // ⛔ `key` ép React dựng lại thân biểu mẫu ngay khi đổi dòng — xem javadoc của nó.
+        key={row?.publicId ?? 'moi'}
+        khoa={row?.publicId ?? 'moi'}
         form={form}
-        layout="vertical"
-        preserve={false}
-        // ⚠ Nạp ĐỦ mọi trường của dòng đang sửa. Biểu mẫu nạp thiếu một trường thì mỗi lượt Lưu
-        //   ghi đè giá trị đang có bằng rỗng, và không có thông báo nào — xem ghi chú cùng loại ở
-        //   `OrgUnitNode` phía backend.
-        initialValues={
-          row
-            ? {
-                fullName: row.fullName,
-                title: row.title,
-                phone: row.phone ?? undefined,
-                email: row.email ?? undefined,
-                sortOrder: row.sortOrder,
-              }
-            : { sortOrder: 0 }
-        }
+        row={row}
         onFinish={(values) => luu.mutate(values)}
-      >
-        <Form.Item
-          name="fullName"
-          label="Họ và tên"
-          rules={[{ required: true, message: 'Bắt buộc' }]}
-        >
-          <Input />
-        </Form.Item>
-        <Form.Item
-          name="title"
-          label="Chức danh"
-          rules={[{ required: true, message: 'Bắt buộc' }]}
-          extra="Hiện nguyên văn ở cột 2 bảng Lãnh đạo Công ty trên cổng"
-        >
-          <Input />
-        </Form.Item>
-        <Form.Item name="phone" label="Điện thoại liên hệ">
-          <Input />
-        </Form.Item>
-        <Form.Item
-          name="email"
-          label="Email"
-          rules={[{ type: 'email', message: 'Email không hợp lệ' }]}
-        >
-          <Input />
-        </Form.Item>
-        <Form.Item name="sortOrder" label="Thứ tự hiển thị" extra="Số nhỏ đứng trước">
-          <InputNumber min={0} style={{ width: '100%' }} />
-        </Form.Item>
-      </Form>
+      />
     </Modal>
+  );
+}
+
+/**
+ * Thân biểu mẫu danh bạ — tách ra để {@code key} ép dựng lại khi đổi dòng.
+ *
+ * <h2>⛔⛔⛔ Vì sao ⛔ để {@code initialValues} một mình — T51.12 lần thứ NĂM</h2>
+ *
+ * <p>{@code OrgUnitLeadersPanel} render {@code <LeaderModal open={…} row={editing} …/>} <b>vô điều
+ * kiện</b>, và {@code Form.useForm()} nằm ở component NGOÀI {@code Modal} (AntD đòi vậy để
+ * {@code Modal.onOk} gọi được {@code submit}). Nên kho giá trị sống lâu hơn hộp thoại, còn
+ * {@code rc-field-form} chỉ áp {@code initialValues} khi {@code init}.
+ *
+ * <p>⚠ {@code destroyOnClose} + {@code preserve={false}} là <b>hai</b> biện pháp phòng và chúng
+ * <b>⛔ cộng lại thành an toàn</b> (T53.7): {@code destroyOnClose} chỉ tháo cây con <b>sau khi hoạt
+ * ảnh đóng chạy xong</b>, nên mở lại trước lúc ấy là kho giá trị còn nguyên của dòng TRƯỚC. Đo được
+ * trước lượt vá này (bài {@code danhBaLanhDaoVongKhuHoi.test.tsx}, vế A → đóng → B): ô <i>Điện
+ * thoại liên hệ</i> của <i>Trần Thị Hoà</i> vẫn hiện số của <i>Nguyễn Văn Thắng</i>, và một lượt Lưu
+ * ghi tên/chức danh/điện thoại của người A đè lên bản ghi của người B.
+ *
+ * <p>⛔⛔ Hậu quả ở màn hình này ⛔ dừng trong nội bộ: {@code org_unit_leaders} là nguồn <b>duy
+ * nhất</b> của trang <i>Lãnh đạo Công ty</i> (CR-25) và cột <i>"Giám đốc XN"</i> (CR-26) trên
+ * <b>cổng công khai</b> — một lượt trộn là cổng đăng sai chức danh và số điện thoại của một người
+ * có thật, dưới tên Công ty, sau tối đa 5 phút.
+ *
+ * <p>⇒ {@code useLayoutEffect} đặt giá trị <b>tường minh</b>: {@code resetFields()} gỡ cờ *đã chạm*
+ * và lỗi hợp lệ hoá của lượt trước, rồi {@code setFieldsValue} ghi đè bằng dòng hiện tại.
+ * {@code useLayoutEffect} chứ ⛔ {@code useEffect} — nó chạy TRƯỚC lượt vẽ nên người dùng ⛔ bao giờ
+ * thấy một khung hình mang dữ liệu của người khác.
+ *
+ * <p>⛔⛔ Và ⛔ thêm {@code clearOnDestroy}: lượt dọn của cây con CŨ chạy <b>sau</b>
+ * {@code useLayoutEffect} của cây con MỚI ⇒ ô ra RỖNG (T53.7 đã trả giá đủ ba lượt). MỘT cơ chế,
+ * tường minh, có bài kiểm — ⛔ ba cơ chế chồng nhau.
+ */
+function BieuMauDanhBa({
+  khoa,
+  form,
+  row,
+  onFinish,
+}: {
+  khoa: string;
+  form: FormInstance<LeaderForm>;
+  row: OrgUnitLeaderRow | null;
+  onFinish: (values: LeaderForm) => void;
+}) {
+  // ⚠ Nạp ĐỦ mọi trường của dòng đang sửa. Biểu mẫu nạp thiếu một trường thì mỗi lượt Lưu ghi đè
+  //   giá trị đang có bằng rỗng, và ⛔ có thông báo nào — `ganTruong` quy rỗng về NULL, nên ô điện
+  //   thoại **biến khỏi cổng** và người đọc hiểu là "chưa công bố số" (luật 16 ở chiều ngược).
+  useLayoutEffect(() => {
+    form.resetFields();
+    form.setFieldsValue(
+      row
+        ? {
+            fullName: row.fullName,
+            title: row.title,
+            phone: row.phone ?? undefined,
+            email: row.email ?? undefined,
+            sortOrder: row.sortOrder,
+          }
+        : { sortOrder: 0 },
+    );
+    // `khoa` là danh tính dòng; `row` là object dựng lại mỗi lượt render nên ⛔ đưa vào deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [khoa, form]);
+
+  return (
+    <Form<LeaderForm> form={form} layout="vertical" preserve={false} onFinish={onFinish}>
+      <Form.Item
+        name="fullName"
+        label="Họ và tên"
+        rules={[{ required: true, message: 'Bắt buộc' }]}
+      >
+        <Input />
+      </Form.Item>
+      <Form.Item
+        name="title"
+        label="Chức danh"
+        rules={[{ required: true, message: 'Bắt buộc' }]}
+        extra="Hiện nguyên văn ở cột 2 bảng Lãnh đạo Công ty trên cổng"
+      >
+        <Input />
+      </Form.Item>
+      <Form.Item name="phone" label="Điện thoại liên hệ">
+        <Input />
+      </Form.Item>
+      <Form.Item
+        name="email"
+        label="Email"
+        rules={[{ type: 'email', message: 'Email không hợp lệ' }]}
+      >
+        <Input />
+      </Form.Item>
+      <Form.Item name="sortOrder" label="Thứ tự hiển thị" extra="Số nhỏ đứng trước">
+        <InputNumber min={0} style={{ width: '100%' }} />
+      </Form.Item>
+    </Form>
   );
 }

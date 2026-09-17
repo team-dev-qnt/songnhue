@@ -63,6 +63,10 @@ const MUC = {
   issuedOn: '2023-06-15',
   expiresOn: '2028-06-15',
   note: 'Gia hạn trước 3 tháng theo quy định',
+  // ⛔ `LyLichView` đòi trường này; thiếu nó thì cổng `Frontend — lint` đỏ ở `tsc` trong khi
+  //    `vitest` xanh trọn vẹn — ba cổng, ba câu hỏi khác nhau (T51.14 · §10.70).
+  //    ⛔ Nó ⛔ thuộc `LyLichRequest`, nên phép so trường của bài kiểm ⛔ đụng tới.
+  updatedAt: '2026-09-10T02:15:00Z',
 };
 
 let duongCuoi = '';

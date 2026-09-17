@@ -159,6 +159,7 @@ export function GisLayersPage() {
               type="text"
               size="small"
               icon={<ArrowUpOutlined />}
+              aria-label="Đưa lớp lên một bậc"
               disabled={i === 0 || thuTuMutation.isPending}
               onClick={() => dichChuyen(i, -1)}
             />
@@ -166,6 +167,7 @@ export function GisLayersPage() {
               type="text"
               size="small"
               icon={<ArrowDownOutlined />}
+              aria-label="Đưa lớp xuống một bậc"
               disabled={i >= ds.length - 1 || thuTuMutation.isPending}
               onClick={() => dichChuyen(i, 1)}
             />
@@ -247,9 +249,20 @@ export function GisLayersPage() {
                   });
               }}
             >
-              <Button type="text" size="small" icon={<UploadOutlined />} />
+              <Button
+                type="text"
+                size="small"
+                icon={<UploadOutlined />}
+                aria-label={`Nạp tệp GeoJSON cho lớp ${l.name}`}
+              />
             </Upload>
-            <Button type="text" size="small" icon={<EditOutlined />} onClick={() => moSua(l)} />
+            <Button
+              type="text"
+              size="small"
+              icon={<EditOutlined />}
+              aria-label={`Sửa lớp ${l.name}`}
+              onClick={() => moSua(l)}
+            />
             <Popconfirm
               title="Xoá lớp này?"
               description="Lớp bị gỡ khỏi bản đồ; tệp GeoJSON vẫn giữ trong kho."
@@ -257,7 +270,13 @@ export function GisLayersPage() {
               cancelText="Huỷ"
               onConfirm={() => xoaMutation.mutate(l.publicId)}
             >
-              <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+              <Button
+                type="text"
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                aria-label={`Xoá lớp ${l.name}`}
+              />
             </Popconfirm>
           </Space>
         ) : null,

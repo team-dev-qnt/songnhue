@@ -90,8 +90,30 @@ class VongKhuHoiDuPhamViTest {
             Map.entry(
                     "EmployeeController.EmployeeRequest",
                     "frontend/admin-app/src/features/hr/hoSoCanBoVongKhuHoi.test.tsx"),
+            Map.entry("LyLichController.LyLichRequest", "frontend/admin-app/src/features/hr/lyLichVongKhuHoi.test.tsx"),
             Map.entry(
-                    "LyLichController.LyLichRequest", "frontend/admin-app/src/features/hr/lyLichVongKhuHoi.test.tsx")));
+                    "AlertLevelController.AlertLevelRequest",
+                    "frontend/admin-app/src/features/hydro/mucCanhBaoVongKhuHoi.test.tsx"),
+            Map.entry(
+                    "GisLayerController.LayerRequest",
+                    "frontend/admin-app/src/features/operations/lopBanDoVongKhuHoi.test.tsx"),
+            Map.entry(
+                    "OperationStatusCodeController.OperationStatusCodeUpdateRequest",
+                    "frontend/admin-app/src/features/operations/maTinhHinhVanHanhVongKhuHoi.test.tsx"),
+            Map.entry(
+                    "ConstructionClusterController.ClusterRequest",
+                    "frontend/admin-app/src/features/operations/cumCongTrinhVongKhuHoi.test.tsx"),
+            Map.entry(
+                    "TimelineController.SuKienRequest", "frontend/admin-app/src/features/hr/suKienVongKhuHoi.test.tsx"),
+            Map.entry(
+                    "PositionController.PositionRequest",
+                    "frontend/admin-app/src/features/hr/chucVuVongKhuHoi.test.tsx"),
+            Map.entry(
+                    "OrgUnitLeaderController.LeaderRequest",
+                    "frontend/admin-app/src/features/admin/danhBaLanhDaoVongKhuHoi.test.tsx"),
+            Map.entry(
+                    "ContactCategoryController.CategoryForm",
+                    "frontend/admin-app/src/features/cms/danhMucVongKhuHoi.test.tsx")));
 
     /**
      * Endpoint CHƯA có bài kiểm — <b>mỗi dòng một lý do ĐO ĐƯỢC, tối thiểu 40 ký tự</b>.
@@ -100,39 +122,10 @@ class VongKhuHoiDuPhamViTest {
      * với MỌI khoảng trống và vì thế ⛔ phân biệt được <i>có thứ tự ưu tiên</i> với <i>bị bỏ quên</i>.
      * Cùng ràng buộc đã bắt một dòng miễn trừ 33 ký tự của chính người viết ở {@code MaLoiCoNoiNemTest}.
      */
-    private static final Map<String, String> CHUA_CO_BAI_KIEM = new TreeMap<>(Map.ofEntries(
-            Map.entry(
-                    "AlertLevelController.AlertLevelRequest",
-                    "6 trường danh mục mức ngưỡng. Cùng màn hình họ hàng với AlertRule nên gộp một lượt; "
-                            + "ảnh hưởng màu và thứ tự hiển thị cảnh báo trên dashboard trực ban."),
-            Map.entry(
-                    "OrgUnitLeaderController.LeaderRequest",
-                    "5 trường lãnh đạo đơn vị. Hiển thị trên cổng công khai; `org_unit_leaders` từng có "
-                            + "ĐƯỜNG ĐỌC mà ⛔ đường ghi suốt một đợt (§10.62) nên nhóm này có tiền sử."),
-            Map.entry(
-                    "TimelineController.SuKienRequest",
-                    "6 trường mốc sự kiện nhân sự (CN-04.4). Dữ liệu điều động/bổ nhiệm là căn cứ của "
-                            + "báo cáo BCNS — sai một mốc là sai cả biểu đồ biến động 12 tháng."),
-            Map.entry(
-                    "PositionController.PositionRequest",
-                    "6 trường danh mục chức vụ. Danh mục do khách vận hành (quy tắc 16) nên nó bị sửa "
-                            + "thường xuyên hơn hẳn các bảng khác — tần suất sửa là tần suất rơi."),
-            Map.entry(
-                    "GisLayerController.LayerRequest",
-                    "6 trường lớp bản đồ GIS. Đánh rơi cấu hình lớp là bản đồ điều hành hiển thị sai "
-                            + "nền hoặc mất lớp, mà lớp bản đồ là thứ TRANG TRÍ nên ⛔ ai đi đối chiếu."),
-            Map.entry(
-                    "ConstructionClusterController.ClusterRequest",
-                    "5 trường cụm công trình. Cụm là khoá gom của báo cáo MOD-02; đổi sai một trường "
-                            + "làm số liệu tổng hợp lệch mà từng dòng chi tiết vẫn đúng."),
-            Map.entry(
-                    "ContactCategoryController.CategoryForm",
-                    "4 trường phân loại liên hệ. Vừa có một khuyết tật THẬT ở đúng biểu mẫu này (T61.47: "
-                            + "`@NotBlank` trên trường chỉ-đọc-lúc-tạo làm MỌI lượt sửa trả 400)."),
-            Map.entry(
-                    "OperationStatusCodeController.OperationStatusCodeUpdateRequest",
-                    "6 trường, và là DTO dạng `class` chứ ⛔ `record` — bộ đọc phải nhận cả hai dạng. "
-                            + "Mã tình hình vận hành quyết định TRẠNG THÁI DẪN XUẤT của công trình (quy tắc 4).")));
+    /** Độ dài tối thiểu của một lý do khai nợ — xem javadoc {@link #lyDoMienPhaiDoDuoc()}. */
+    private static final int DAI_TOI_THIEU = 40;
+
+    private static final Map<String, String> CHUA_CO_BAI_KIEM = new TreeMap<>(Map.ofEntries());
 
     /** Ngưỡng: DTO từ ngần này trường trở lên mới đủ chỗ cho một trường lặng lẽ biến mất. */
     private static final int TRUONG_TOI_THIEU = 4;
@@ -194,12 +187,34 @@ class VongKhuHoiDuPhamViTest {
     @Test
     @DisplayName("Lý do miễn phải ĐO ĐƯỢC — *\"chưa làm\"* đúng với mọi khoảng trống nên nó ⛔ phải lý do")
     void lyDoMienPhaiDoDuoc() {
-        List<String> hoiHot = CHUA_CO_BAI_KIEM.entrySet().stream()
-                .filter(e -> e.getValue().length() < 40)
+        assertThat(lyDoHoiHot(CHUA_CO_BAI_KIEM))
+                .as("Lý do ngắn hơn %d ký tự: %s", DAI_TOI_THIEU, lyDoHoiHot(CHUA_CO_BAI_KIEM))
+                .isEmpty();
+    }
+
+    @Test
+    @DisplayName("⚠ tự-kiểm: ràng buộc ≥ 40 ký tự vẫn BẮT được, kể cả khi danh sách nợ đã RỖNG")
+    void rangBuocLyDoVanConHieuLuc() {
+        // ⛔⛔ Từ 17/09 `CHUA_CO_BAI_KIEM` **rỗng** — 21/21 endpoint đã có bài kiểm. Một khẳng định
+        //    chạy trên tập rỗng thì XANH mà ⛔ nói gì (luật 7), nên nó ⛔ còn chứng minh được rằng
+        //    ràng buộc còn sống. Endpoint thay-toàn-phần TIẾP THEO ra đời sẽ lại cần đúng ràng buộc
+        //    ấy, và người viết nó phải gặp một bộ canh ĐANG hoạt động chứ ⛔ phải một dòng mã đã mục.
+        //    ⇒ Vế này chạy phép kiểm trên dữ liệu GIẢ, ⛔ phụ thuộc danh sách thật.
+        assertThat(lyDoHoiHot(Map.of("X.Y", "chưa làm")))
+                .as("⛔ Phép kiểm ⛔ bắt được một lý do 8 ký tự ⇒ nó đã chết")
+                .containsExactly("X.Y");
+
+        assertThat(lyDoHoiHot(Map.of("X.Y", "Một lý do đo được, dài hơn bốn mươi ký tự để đi lọt.")))
+                .as("⛔ Phép kiểm báo vi phạm cho một lý do ĐẠT ⇒ nó ⛔ phân biệt được hai trạng thái")
+                .isEmpty();
+    }
+
+    private static List<String> lyDoHoiHot(Map<String, String> danhSach) {
+        return danhSach.entrySet().stream()
+                .filter(e -> e.getValue().length() < DAI_TOI_THIEU)
                 .map(Map.Entry::getKey)
                 .sorted()
                 .toList();
-        assertThat(hoiHot).as("Lý do ngắn hơn 40 ký tự: %s", hoiHot).isEmpty();
     }
 
     @Test
