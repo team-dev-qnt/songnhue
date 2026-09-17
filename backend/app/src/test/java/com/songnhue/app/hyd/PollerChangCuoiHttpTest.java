@@ -110,6 +110,23 @@ class PollerChangCuoiHttpTest extends IntegrationTestBase {
     /** Khoá `settings` CHUNG — giá trị dùng khi nguồn ⛔ không đặt riêng `api_sources.max_retry`. */
     private static final String KHOA_THU_LAI = "hydro.polling.max-retry";
 
+    /** Khoá `settings` CHUNG — thời gian chờ tối đa một lượt gọi. Mặc định + seed: <b>30</b> giây. */
+    private static final String KHOA_TIMEOUT = "hydro.polling.timeout-seconds";
+
+    /** Khoá `settings` CHUNG — biểu thức cron của lượt polling. Mặc định + seed: {@code 45 1/2 * * * *}. */
+    private static final String KHOA_CRON = "hydro.polling.cron";
+
+    /**
+     * Máy chủ giả giữ kết nối bao lâu trước khi trả lời — <b>0 nghĩa là trả ngay</b>.
+     *
+     * <p>⚠ Mặc định 0 để mọi bài khác của lớp ⛔ đổi hành vi; bài dùng nó phải tự đặt lại 0 trong
+     * {@code finally} (T48.8 — dọn ở CUỐI phương thức là rò trạng thái sang mọi lớp chạy sau).
+     */
+    private final AtomicInteger treoGiay = new AtomicInteger();
+
+    /** Trễ của máy chủ giả, giây — nằm <b>trên</b> cả hai timeout của bài dưới (5 và 6), dưới mặc định 30. */
+    private static final int TREO_GIAY = 7;
+
     @Autowired
     private JdbcTemplate jdbc;
 
@@ -121,6 +138,9 @@ class PollerChangCuoiHttpTest extends IntegrationTestBase {
 
     @Autowired
     private HydroPollJobHandler pollHandler;
+
+    @Autowired
+    private com.songnhue.hydro.application.HydroPollScheduler lichPoll;
 
     private UUID nguon;
 
@@ -189,6 +209,18 @@ class PollerChangCuoiHttpTest extends IntegrationTestBase {
 
     private void traLoi(HttpExchange ex) throws IOException {
         soLuotGoi.incrementAndGet();
+        // ⭐ T48.11 — nhánh "nguồn TRẢ LỜI CHẬM". ⛔ Không có nó thì khoá `hydro.polling.timeout-seconds`
+        //   ⛔ có cách nào đo được: một máy chủ trả lời tức thì cho ra cùng một kết quả với MỌI giá trị
+        //   timeout, tức hai trạng thái ⛔ phân biệt được (luật 9).
+        int treo = treoGiay.get();
+        if (treo > 0) {
+            try {
+                Thread.sleep(treo * 1000L);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
         if (conHong503.get() > 0) {
             conHong503.decrementAndGet();
             ex.sendResponseHeaders(503, -1);
@@ -665,6 +697,171 @@ class PollerChangCuoiHttpTest extends IntegrationTestBase {
             conHong503.set(0);
             settings.update(KHOA_THU_LAI, cu);
         }
+    }
+
+    /**
+     * ⭐⭐ <b>T48.11 — {@code hydro.polling.timeout-seconds} quyết định lượt gọi bị cắt lúc nào</b>.
+     *
+     * <h2>Vì sao khoá này cần một máy chủ giả TRẢ LỜI CHẬM</h2>
+     *
+     * <p>Mọi bài khác của lớp chạy trên một máy chủ trả lời tức thì, nên chúng cho ra <b>cùng một
+     * kết quả với mọi giá trị timeout</b> — kể cả khi {@code HydroSettings.timeoutGoiNguon()} bị
+     * thay bằng một hằng số. Đó đúng là trạng thái T47.12 đã đo được ở {@code max-retry}: có hàm
+     * đọc, có ô nhập, có bài kiểm đi qua nhánh — mà <b>0 lượt nào chạm bảng {@code settings}</b>.
+     *
+     * <h2>⭐ Vế phân biệt nằm ở CON SỐ trong câu lý do, ⛔ chỉ ở chỗ "hỏng hay ⛔ hỏng"</h2>
+     *
+     * <p>{@code Bhh40Adapter} ghi {@code "Nguồn không trả lời trong " + yeuCau.timeout()} vào
+     * {@code api_sources.last_failure_reason}, tức <b>giá trị đã giải được in ra nguyên văn</b>.
+     * Hai lượt dưới đây đặt 5 rồi 6 giây trên cùng một máy chủ treo {@value #TREO_GIAY} giây và đòi
+     * đúng hai câu khác nhau ({@code PT5S} · {@code PT6S}).
+     *
+     * <p>⚠ <b>Cả hai đều KHÁC mặc định 30</b> — và đó là vế chịu lực: với 30 giây thì máy chủ treo 7
+     * giây <b>trả lời kịp</b> ⇒ cả hai khẳng định đỏ. Một vế trùng mặc định thì bài xanh cả khi khoá
+     * {@code settings} ⛔ được đọc lần nào (luật 3 · T48.7 · T48.9).
+     *
+     * <p>⚠ Hạ {@code max-retry} về <b>0</b> trong suốt bài: timeout là lỗi <i>thử lại được</i>, nên
+     * với giá trị seed (3) mỗi lượt sẽ treo gấp bốn lần — và bài kiểm khi ấy đo lòng kiên nhẫn của
+     * runner chứ ⛔ đo khoá nào cả.
+     */
+    @Test
+    @DisplayName("⭐⭐ T48.11 — timeout đọc từ `settings`: cùng một máy chủ chậm, hai giá trị, hai câu lý do")
+    void timeoutTuCauHinhCatLuotGoi() {
+        String timeoutCu = settings.getString(KHOA_TIMEOUT).orElse(null);
+        String thuLaiCu = settings.getString(KHOA_THU_LAI).orElse(null);
+
+        // ⛔⛔ GHIM GIÁ TRỊ DỰ PHÒNG BẰNG SỐ ĐO, ⛔ không bằng hằng chép tay — cùng lý lẽ với
+        //    `khoaSettingsChungDieuKhienSoLanThuLai`: cả bài đứng trên tiền đề "5 và 6 đều KHÁC giá
+        //    trị dự phòng", nên ngày ai đó hạ seed xuống 5 thì bài phải đỏ NGAY (luật 3).
+        String duPhong = jdbc.queryForObject(
+                "SELECT default_value FROM settings WHERE setting_key = ?", String.class, KHOA_TIMEOUT);
+        assertThat(duPhong)
+                .as("`HydroSettings.timeoutGoiNguon` ghi literal 30; dòng này ghim seed khớp nó")
+                .isEqualTo("30");
+        assertThat(java.util.List.of("5", "6"))
+                .as("⛔ ⛔ Không vế nào được TRÙNG giá trị dự phòng — trùng là bài mất vế phân biệt")
+                .doesNotContain(duPhong);
+        assertThat(Integer.parseInt(duPhong))
+                .as("⛔ Máy chủ giả phải treo NGẮN hơn mặc định: treo lâu hơn thì mặc định cũng hỏng "
+                        + "và hai trạng thái lại ⛔ phân biệt được")
+                .isGreaterThan(TREO_GIAY);
+
+        String ngay = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        try {
+            settings.update(KHOA_THU_LAI, "0");
+            than.set(thanNguon(ngay, "03:10", Map.of(F_BA_THA_MN, 200)));
+            treoGiay.set(TREO_GIAY);
+
+            for (String giay : java.util.List.of("5", "6")) {
+                settings.update(KHOA_TIMEOUT, giay);
+                int truoc = soLuotGoi.get();
+
+                // ⚠⚠ Mô tả truyền vào CHÍNH `assertThatThrownBy`, ⛔ nối bằng `.as(...)` phía sau —
+                //    đo được ở lượt kiểm chứng ngược 17/09: `.as(...)` chỉ gắn vào khẳng định về
+                //    ngoại lệ ĐÃ BẮT, nên khi ⛔ có ngoại lệ nào (đúng ca hỏng này bắt) AssertJ in
+                //    trần một câu *"Expecting code to raise a throwable"* và bài học biến mất. Một
+                //    bộ canh đỏ mà ⛔ nói được vì sao thì gần như ⛔ có (§11.20).
+                assertThatThrownBy(
+                                this::chayMotLuotPoll,
+                                "⛔ Máy chủ treo %d giây mà lượt poll với timeout %s giây vẫn THÀNH CÔNG ⇒ giá "
+                                        + "trị đã giải ⛔ tới được adapter (mặc định %s giây mới cho kết quả ấy)",
+                                TREO_GIAY,
+                                giay,
+                                duPhong)
+                        .isInstanceOf(UpstreamException.class);
+
+                assertThat(soLuotGoi.get() - truoc)
+                        .as("⚠ Vế chống tập rỗng: 0 lượt gọi nghĩa là adapter dừng TRƯỚC khi mở HTTP, và "
+                                + "khi ấy câu lý do dưới đây nói về một nhánh thoát khác hẳn")
+                        .isEqualTo(1);
+
+                assertThat(jdbc.queryForObject(
+                                "SELECT last_failure_reason FROM api_sources WHERE code = 'PCC-BHH40'", String.class))
+                        .as(
+                                "⛔ Câu lý do phải mang ĐÚNG con số vừa đặt — `PT%sS`. Đây là vế duy nhất phân "
+                                        + "biệt được 'có timeout' với 'timeout ĐỌC TỪ settings'",
+                                giay)
+                        .contains("PT" + giay + "S");
+
+                assertThat(syncLogMoiNhat().get("status"))
+                        .as("⛔ `SUCCESS` ở đây nghĩa là hệ đọc 'nguồn treo' thành 'hôm nay không có số'")
+                        .isNotEqualTo("SUCCESS");
+            }
+        } finally {
+            // ⛔ BẮT BUỘC, và ở `finally` chứ ⛔ ở cuối phương thức: một khẳng định đỏ mà bỏ lại
+            //    `treoGiay` = 7 làm MỌI bài sau của lớp treo 7 giây, và một giá trị `settings` bỏ
+            //    quên rò sang mọi LỚP chạy sau (T48.8 · §11.19).
+            treoGiay.set(0);
+            settings.update(KHOA_TIMEOUT, timeoutCu);
+            settings.update(KHOA_THU_LAI, thuLaiCu);
+        }
+    }
+
+    /**
+     * ⭐⭐ <b>T48.11 — {@code hydro.polling.cron} quyết định lượt polling kế tiếp có được đặt ⛔</b>.
+     *
+     * <h2>⚠⚠ Dòng nợ cũ nói khoá này *"đăng ký một lần lúc khởi động"* — ĐO LẠI THÌ SAI</h2>
+     *
+     * <p>{@code HydroPollScheduler} cố ý <b>⛔ không</b> dùng {@code SchedulingConfigurer}: nó chạy
+     * một nhịp tim cố định 10 giây và <b>mỗi nhịp</b> gọi {@code thamSoHieuLuc(nguon)} rồi tự chấm
+     * cron. Javadoc của chính lớp ấy khai yêu cầu nguyên văn: <i>"đổi {@code hydro.polling.cron}
+     * trên màn hình thì lượt gọi kế tiếp đi theo giá trị mới, ⛔ không phải khởi động lại"</i>. ⇒
+     * Khoá này <b>đo được</b>, và lý do miễn kiểm cũ ⛔ đứng được.
+     *
+     * <h2>⭐ Vì sao bài này ⛔ đua với nhịp tim chạy nền</h2>
+     *
+     * <p>{@code @EnableScheduling} bật trong bộ kiểm, nên một nhịp nền có thể chen vào giữa. Nó
+     * <b>vô hại</b>, vì nó đọc <i>cùng một khoá</i> mà bài vừa ghi: ở vế "cron xa" nó cũng ⛔ tìm
+     * thấy mốc nào, còn ở vế "mỗi giây" nó chỉ làm khẳng định {@code > 0} đúng thêm một lần. Đó là
+     * lý do bài xoá hàng đợi <b>sau</b> khi đã đặt cron xa, ⛔ trước.
+     *
+     * <p>⚠ Cả hai biểu thức đều <b>khác</b> mặc định {@code 45 1/2 * * * *}; với mặc định thì vế đầu
+     * (chờ 1,5 giây) gần như luôn ⛔ có mốc — nên vế chịu lực là vế thứ hai.
+     */
+    @Test
+    @DisplayName("⭐⭐ T48.11 — cron đọc lại MỖI nhịp: `0 0 3 1 1 *` ⇒ 0 lượt, `* * * * * *` ⇒ có lượt")
+    void cronTuCauHinhQuyetDinhLuotDatViec() throws InterruptedException {
+        String cu = settings.getString(KHOA_CRON).orElse(null);
+        long mocId = jdbc.queryForObject("SELECT coalesce(max(id), 0) FROM jobs", Long.class);
+        try {
+            // ── Vế A: một mốc cron cách đây hàng tháng ⇒ ⛔ nhịp nào đặt việc ──────────────────
+            settings.update(KHOA_CRON, "0 0 3 1 1 *");
+            xoaHangDoiPoll();
+            lichPoll.nhipTim();
+            Thread.sleep(1500);
+            lichPoll.nhipTim();
+
+            assertThat(demHangDoiPoll())
+                    .as("⛔ Có việc trong hàng đợi với cron `0 0 3 1 1 *` ⇒ bộ lập lịch ⛔ đọc khoá "
+                            + "`hydro.polling.cron` (mặc định `45 1/2 * * * *` mới cho kết quả ấy)")
+                    .isZero();
+
+            // ── Vế B: ĐỔI ĐÚNG MỘT THỨ — cron mỗi giây ────────────────────────────────────────
+            settings.update(KHOA_CRON, "* * * * * *");
+            lichPoll.nhipTim();
+            Thread.sleep(1500);
+            lichPoll.nhipTim();
+
+            assertThat(demHangDoiPoll())
+                    .as("⛔⛔ VẾ PHÂN BIỆT: cron mỗi giây mà hàng đợi vẫn rỗng ⇒ giá trị mới ⛔ có hiệu "
+                            + "lực cho tới lượt khởi động sau — đúng thứ `HydroPollScheduler` sinh ra để tránh")
+                    .isPositive();
+        } finally {
+            settings.update(KHOA_CRON, cu);
+            // ⚠ Xoá theo MỐC id, ⛔ theo mã nguồn: vế B bật cron mỗi giây cho MỌI nguồn đang hoạt
+            //   động, nên nhịp nền có thể đã đặt việc cho nguồn seed. Để lại là truyền một hàng đợi
+            //   bẩn sang mọi lớp chạy sau.
+            jdbc.update("DELETE FROM jobs WHERE job_type = ? AND id > ?", HydroJobTypes.POLL, mocId);
+        }
+    }
+
+    private int demHangDoiPoll() {
+        return jdbc.queryForObject(
+                "SELECT count(*) FROM jobs WHERE dedup_key = ?", Integer.class, HydroJobTypes.POLL + ":PCC-BHH40");
+    }
+
+    private void xoaHangDoiPoll() {
+        jdbc.update("DELETE FROM jobs WHERE dedup_key = ?", HydroJobTypes.POLL + ":PCC-BHH40");
     }
 
     @Test

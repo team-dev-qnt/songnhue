@@ -61,14 +61,37 @@ class KhoaHydroDieuKhienHanhViTest {
      * <p>⛔ Một dòng trỏ vào tệp ⛔ tồn tại là một khoá được miễn kiểm <b>trong im lặng</b>, mà lại
      * ĐỌC NHƯ một lời bảo đảm — nguy hiểm hơn hẳn việc ⛔ khai gì.
      */
-    private static final Map<String, String> CO_BANG_CHUNG = new LinkedHashMap<>(Map.of(
-            "hydro.polling.max-retry", "backend/app/src/test/java/com/songnhue/app/hyd/PollerChangCuoiHttpTest.java",
-            "hydro.retention-years", "backend/app/src/test/java/com/songnhue/app/hyd/HanLuuTheoCauHinhTest.java",
-            "hydro.raw-retention-days", "backend/app/src/test/java/com/songnhue/app/hyd/HanLuuTheoCauHinhTest.java",
-            "hydro.source.alert-after-failures",
-                    "backend/app/src/test/java/com/songnhue/app/hyd/NguongChuongNguonTheoCauHinhTest.java",
-            "hydro.portal.station-codes",
-                    "backend/app/src/test/java/com/songnhue/app/portal/HydroPortalCacheSplitTest.java"));
+    private static final Map<String, String> CO_BANG_CHUNG = new LinkedHashMap<>(Map.ofEntries(
+            Map.entry(
+                    "hydro.polling.max-retry",
+                    "backend/app/src/test/java/com/songnhue/app/hyd/PollerChangCuoiHttpTest.java"),
+            Map.entry(
+                    "hydro.polling.cron",
+                    "backend/app/src/test/java/com/songnhue/app/hyd/PollerChangCuoiHttpTest.java"),
+            Map.entry(
+                    "hydro.polling.timeout-seconds",
+                    "backend/app/src/test/java/com/songnhue/app/hyd/PollerChangCuoiHttpTest.java"),
+            Map.entry(
+                    "hydro.retention-years",
+                    "backend/app/src/test/java/com/songnhue/app/hyd/HanLuuTheoCauHinhTest.java"),
+            Map.entry(
+                    "hydro.raw-retention-days",
+                    "backend/app/src/test/java/com/songnhue/app/hyd/HanLuuTheoCauHinhTest.java"),
+            Map.entry(
+                    "hydro.source.alert-after-failures",
+                    "backend/app/src/test/java/com/songnhue/app/hyd/NguongChuongNguonTheoCauHinhTest.java"),
+            Map.entry(
+                    "hydro.portal.station-codes",
+                    "backend/app/src/test/java/com/songnhue/app/portal/HydroPortalCacheSplitTest.java"),
+            Map.entry(
+                    "hydro.polling.source-frame-minutes",
+                    "backend/app/src/test/java/com/songnhue/app/hyd/PublicHydroHttpTest.java"),
+            Map.entry(
+                    "hydro.station.signal-loss-frames",
+                    "backend/app/src/test/java/com/songnhue/app/hyd/PublicHydroHttpTest.java"),
+            Map.entry(
+                    "hydro.quality.suspect-rule",
+                    "backend/app/src/test/java/com/songnhue/app/hyd/HydroQualityHttpTest.java")));
 
     /**
      * Khoá CHƯA có — <b>mỗi dòng một lý do ĐO ĐƯỢC, tối thiểu 40 ký tự</b>.
@@ -76,23 +99,21 @@ class KhoaHydroDieuKhienHanhViTest {
      * <p>⚠ Ràng buộc độ dài ⛔ phải hình thức: nó chặn kiểu miễn trừ <i>"chưa làm"</i> — một câu
      * đúng với MỌI khoảng trống, nên nó ⛔ phân biệt được <i>có thứ tự ưu tiên</i> với <i>bị bỏ
      * quên</i>.
+     *
+     * <h2>⭐⭐ 17/09/2026 — danh sách này RỖNG, và chính lúc ấy nó sinh ra một luật-7</h2>
+     *
+     * <p>Nợ T48.11 đã trả trọn: <b>10/10</b> khoá {@code hydro.*} có bằng chứng hành vi. Nhưng một
+     * phép kiểm chạy qua <b>tập rỗng</b> thì xanh trọn vẹn mà ⛔ khẳng định gì (luật 7) — khoá
+     * {@code hydro.*} tiếp theo sẽ gặp một dòng mã đã <b>mục</b> chứ ⛔ một bộ canh đang sống. ⇒
+     * {@link #lyDoKhaiNoPhaiDoDuoc} có một bài <b>tự-kiểm</b> chạy đúng phép kiểm ấy trên dữ liệu
+     * GIẢ. Cùng khuôn với {@code VongKhuHoiDuPhamViTest} khi {@code CHUA_CO_BAI_KIEM} rỗng đi.
+     *
+     * <p>⚠⚠ Và lượt trả nợ ấy <b>bác một trong năm lý do cũ</b>: {@code hydro.polling.cron} từng
+     * được miễn kiểm vì <i>"đăng ký một lần lúc khởi động"</i>. Đo lại {@code HydroPollScheduler}:
+     * nó chạy nhịp tim cố định 10 giây và <b>đọc lại cron mỗi nhịp</b> — javadoc của chính lớp ấy
+     * nói ra yêu cầu ngược lại. Một lý do khai nợ cũng là dữ liệu chưa kiểm.
      */
-    private static final Map<String, String> CHUA_CO_BANG_CHUNG = new TreeMap<>(Map.of(
-            "hydro.polling.cron",
-            "Cron đăng ký một lần lúc khởi động qua `ApiSourceService`, nên đổi giá trị lúc chạy ⛔ dựng "
-                    + "lại lịch — bài kiểm phải đo ở tầng đăng ký chứ ⛔ ở một lượt chạy.",
-            "hydro.polling.source-frame-minutes",
-            "Khung nguồn vào phép rate-limit ở 10 nơi; muốn đo phải dựng đủ bản ghi của một khung rồi "
-                    + "chứng minh lượt poll kế tiếp BỊ BỎ — dựng chung với bài poller sẽ rẻ hơn dựng rời.",
-            "hydro.polling.timeout-seconds",
-            "Đo được nhưng phải có một nguồn giả TRẢ LỜI CHẬM hơn timeout; máy chủ giả hiện tại trả ngay, "
-                    + "nên cần thêm một nhánh giữ kết nối — và nó làm bộ kiểm chậm đúng bằng timeout.",
-            "hydro.station.signal-loss-frames",
-            "`HydroSignalLossHandlerTest` có 4 mock và 0 lượt ghi `settings` ⇒ nó canh LOGIC chứ ⛔ canh "
-                    + "giá trị đã giải; cần bài tích hợp đặt số khung rồi đo trạng thái điểm đo đổi theo.",
-            "hydro.quality.suspect-rule",
-            "Quy tắc là một khối JSON nhiều nhánh, nên bài kiểm phải nạp số đo vượt ngưỡng RỒI đọc cột "
-                    + "`quality` — và phải chọn giá trị ⛔ trùng bộ quy tắc seed, nếu ⛔ thì hai vế bằng nhau."));
+    private static final Map<String, String> CHUA_CO_BANG_CHUNG = new TreeMap<>();
 
     // =========================================================================
 
@@ -197,5 +218,32 @@ class KhoaHydroDieuKhienHanhViTest {
                 .sorted()
                 .toList();
         assertThat(hoiHot).as("Lý do ngắn hơn 40 ký tự: %s", hoiHot).isEmpty();
+    }
+
+    /**
+     * ⭐⭐ <b>Tự-kiểm: phép kiểm ngay trên còn phân biệt được hai trạng thái ⛔</b>.
+     *
+     * <p>{@link #CHUA_CO_BANG_CHUNG} nay <b>RỖNG</b> (T48.11 đã trả trọn), nên
+     * {@link #lyDoKhaiNoPhaiDoDuoc} chạy qua một tập rỗng và xanh <b>vì ⛔ có gì để xét</b> — đúng
+     * luật 7. Bài này chạy cùng vị từ ấy trên dữ liệu GIẢ để chứng minh nó vẫn <b>bắt được</b> một
+     * lý do hời hợt vào ngày ai đó khai nợ khoá {@code hydro.*} thứ mười một.
+     */
+    @Test
+    @DisplayName("⭐ TỰ-KIỂM — luật *\"lý do ≥ 40 ký tự\"* vẫn bắt được vi phạm dù danh sách nợ đã RỖNG")
+    void luatLyDoVanBatDuocViPham() {
+        Map<String, String> gia = new TreeMap<>(Map.of(
+                "hydro.gia.qua-ngan", "chưa làm",
+                "hydro.gia.du-dai", "Cần một nguồn giả TRẢ LỜI CHẬM hơn timeout mới đo được khoá này."));
+
+        List<String> hoiHot = gia.entrySet().stream()
+                .filter(e -> e.getValue().length() < 40)
+                .map(Map.Entry::getKey)
+                .sorted()
+                .toList();
+
+        assertThat(hoiHot)
+                .as("⛔ Vị từ ⛔ còn phân biệt được *\"chưa làm\"* với một lý do đo được ⇒ dòng khai nợ "
+                        + "tiếp theo sẽ đi lọt, và {@code lyDoKhaiNoPhaiDoDuoc} xanh vì lý do sai")
+                .containsExactly("hydro.gia.qua-ngan");
     }
 }
