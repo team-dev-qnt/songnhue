@@ -458,6 +458,25 @@ giải nén — xanh cả khi đã gỡ chốt ⇒ tách `SYS-0014` + dựng l�
 ⚠ `make ci-local` ⛔ dọn `target`: một `.class` và một `jacoco.exec` CŨ của module `hr` làm hai lượt chạy đỏ vì thứ ⛔ còn
 tồn tại trong mã — `rm -rf` thư mục ấy mới đọc được kết quả thật.
 
+⭐⭐ **Đo lại 17/09/2026 (đợt 11 — gộp 6 PR Dependabot vào #152) — `make ci-local` thoát 0 VÀ `make ci-order` thoát 0**,
+tiến trình maven DUY NHẤT (⚠ số ở **MÁY**): **1977 testcase BE** (core 338 · content 55 · hydro 229 · operations 55 ·
+app **1300**) · **0 đỏ** · FE **522** admin-app / 77 tệp + **399** public-web / 46 · **78 migration** ⛔ thêm.
+⛔⛔ **"PR 137→151" nghe như MỘT loại; đo ra là BỐN nhóm với bốn quyết định khác nhau** (`T63.15`) — 6 gộp được · 6 phải
+đóng · 2 là **major bump** phải tách đợt riêng (react **18→19**, antd **5→6**; `#149` đỏ thật với *"Objects are not valid
+as a React child"* = chữ ký **hai bản sao React**, tức antd 5 ⛔ chạy được trên React 19) · và 1 trong nhóm phải đóng là
+`#145` — bấm Merge là **thay bộ token của dự án bằng mã người lạ**.
+⭐⭐ **Hai thứ chỉ lộ ra vì ĐO, ⛔ vì đọc tiêu đề**: (1) `#151` **đỏ ở job BACKEND** dù chỉ đụng `next` — bộ canh
+`VongDoiPhienBanTest` bắt bảng vòng đời còn ghi `16.3.3`, đúng bài học **T42.31** lặp lại (*bump phụ thuộc ⛔ chỉ là sửa
+`package.json`; bảng vòng đời là nửa thứ hai của cặp*); (2) commit maven-wrapper của Dependabot đưa `mvnw.cmd` **CRLF
+thẳng vào blob** trong khi `.gitattributes` đòi **LF** ⇒ cây bẩn ngay sau **mọi** lượt checkout và **mọi** lượt rebase bị
+chặn — một tệp **189 dòng đổi mà ⛔ nội dung nào đổi**. ⚠ Đo trước khi vứt (`--ignore-cr-at-eol` ⇒ 0 khác biệt) rồi
+`git add --renormalize`, ⛔ `git checkout --` (nó chỉ dựng lại đúng trạng thái bẩn ấy).
+⚠ **Và với hai PR nâng ACTION (`#138`/`#139`) phải hỏi job nào SKIPPED trước khi đọc cái xanh** (luật 24): cả ba job
+*Đóng gói image* **SUCCESS thật** ⇒ `checkout@7` + `login-action@4` đã chạy; `checkout@7` còn xoá luôn cảnh báo
+*Node 20 deprecated* mà log đang in.
+⭐ Sau khi gộp, `ci-local` trên **ws-64** cho **đúng bộ số cũ** (BE 1963 · FE 478 + 399) ⇒ sáu lượt bump ⛔ đổi hành vi nào;
+`npm ci` dựng lại được từ lockfile; `npm audit --omit=dev` = **0 lỗ hổng**.
+
 ⭐⭐ **Đo lại 17/09/2026 (đợt 10 — đóng T47.17 · trả T63.6) — `make ci-local` thoát 0 VÀ `make ci-order` thoát 0**,
 tiến trình maven DUY NHẤT (⚠ số ở **MÁY**): **1971 testcase BE** (core 338 · content 55 · hydro 229 · operations 55 ·
 app **1294**) · **0 đỏ** · FE **522** admin-app / 77 tệp + **399** public-web / 46 · **78 migration** ⛔ thêm · mã lỗi **130** ⛔ đổi.
