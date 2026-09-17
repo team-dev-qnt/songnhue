@@ -57,20 +57,36 @@ import org.junit.jupiter.api.Test;
 class VongKhuHoiDuPhamViTest {
 
     /** Endpoint ĐÃ có bài kiểm giữ-nguyên → tệp bài kiểm ấy (phải tồn tại trên đĩa). */
-    private static final Map<String, String> DA_CO_BAI_KIEM = new LinkedHashMap<>(Map.of(
-            "ConstructionController.SaveRequest",
-                    "frontend/admin-app/src/features/operations/hoSoCongTrinhVongKhuHoi.test.tsx",
-            "ArticleController.SaveRequest", "frontend/admin-app/src/features/cms/soanBaiVongKhuHoi.test.tsx",
-            "MaintenanceLogController.SaveRequest",
-                    "frontend/admin-app/src/features/operations/suaBanGhiSuaChuaVongKhuHoi.test.tsx",
-            "MenuController.MenuRequest", "frontend/admin-app/src/features/cms/menuVongKhuHoi.test.tsx",
-            "StationController.StationRequest", "frontend/admin-app/src/features/hydro/diemDoVongKhuHoi.test.tsx",
-            "EmployeeSensitiveController.SensitiveRequest",
-                    "frontend/admin-app/src/features/hr/truongBaoMatVongKhuHoi.test.tsx",
-            "AlertRuleController.AlertRuleUpdateRequest",
-                    "frontend/admin-app/src/features/hydro/nguongCanhBaoVongKhuHoi.test.tsx",
-            "BannerController.BannerRequest", "frontend/admin-app/src/features/cms/bannerVongKhuHoi.test.tsx",
-            "OrgUnitController.UpdateRequest", "frontend/admin-app/src/features/admin/donViVongKhuHoi.test.tsx"));
+    private static final Map<String, String> DA_CO_BAI_KIEM = new LinkedHashMap<>(Map.ofEntries(
+            Map.entry(
+                    "ConstructionController.SaveRequest",
+                    "frontend/admin-app/src/features/operations/hoSoCongTrinhVongKhuHoi.test.tsx"),
+            Map.entry(
+                    "ArticleController.SaveRequest", "frontend/admin-app/src/features/cms/soanBaiVongKhuHoi.test.tsx"),
+            Map.entry(
+                    "MaintenanceLogController.SaveRequest",
+                    "frontend/admin-app/src/features/operations/suaBanGhiSuaChuaVongKhuHoi.test.tsx"),
+            Map.entry("MenuController.MenuRequest", "frontend/admin-app/src/features/cms/menuVongKhuHoi.test.tsx"),
+            Map.entry(
+                    "StationController.StationRequest",
+                    "frontend/admin-app/src/features/hydro/diemDoVongKhuHoi.test.tsx"),
+            Map.entry(
+                    "EmployeeSensitiveController.SensitiveRequest",
+                    "frontend/admin-app/src/features/hr/truongBaoMatVongKhuHoi.test.tsx"),
+            Map.entry(
+                    "AlertRuleController.AlertRuleUpdateRequest",
+                    "frontend/admin-app/src/features/hydro/nguongCanhBaoVongKhuHoi.test.tsx"),
+            Map.entry(
+                    "BannerController.BannerRequest", "frontend/admin-app/src/features/cms/bannerVongKhuHoi.test.tsx"),
+            Map.entry(
+                    "OrgUnitController.UpdateRequest",
+                    "frontend/admin-app/src/features/admin/donViVongKhuHoi.test.tsx"),
+            Map.entry(
+                    "ApiSourceController.ApiSourceRequest",
+                    "frontend/admin-app/src/features/hydro/nguonDuLieuVongKhuHoi.test.tsx"),
+            Map.entry(
+                    "MeasurementTypeController.MeasurementTypeRequest",
+                    "frontend/admin-app/src/features/hydro/loaiChiSoVongKhuHoi.test.tsx")));
 
     /**
      * Endpoint CHƯA có bài kiểm — <b>mỗi dòng một lý do ĐO ĐƯỢC, tối thiểu 40 ký tự</b>.
@@ -88,14 +104,6 @@ class VongKhuHoiDuPhamViTest {
                     "LyLichController.LyLichRequest",
                     "9 trường lý lịch & chuyên môn (CN-04.3). Cùng ngăn kéo với hồ sơ CBNV nên dựng "
                             + "chung một lượt với `EmployeeController` sẽ rẻ hơn dựng rời."),
-            Map.entry(
-                    "ApiSourceController.ApiSourceRequest",
-                    "8 trường. Bốn tham số nhịp (`cron`/`frameMinutes`/`timeoutSeconds`/`maxRetry`) có "
-                            + "giá trị `null` MANG NGHĨA *dùng tham số chung* ⇒ đánh rơi là nguồn lặng lẽ đổi hành vi."),
-            Map.entry(
-                    "MeasurementTypeController.MeasurementTypeRequest",
-                    "7 trường. `valueScale == null ⇒ 3` và `sortOrder == null ⇒ 0` là hai mặc định LẶNG "
-                            + "— đánh rơi ⛔ sinh lỗi nào, chỉ đổi số chữ số hiển thị và thứ tự danh mục."),
             Map.entry(
                     "AlertLevelController.AlertLevelRequest",
                     "6 trường danh mục mức ngưỡng. Cùng màn hình họ hàng với AlertRule nên gộp một lượt; "

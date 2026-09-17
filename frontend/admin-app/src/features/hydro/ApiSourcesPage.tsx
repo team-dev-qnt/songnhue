@@ -269,6 +269,7 @@ export function ApiSourcesPage() {
               <Button
                 type="text"
                 icon={<ApiOutlined />}
+                aria-label={`Gọi thử nguồn ${r.code}`}
                 loading={goiThuMutation.isPending && goiThuMutation.variables?.id === r.id}
                 onClick={() => goiThuMutation.mutate(r)}
               />
@@ -277,13 +278,19 @@ export function ApiSourcesPage() {
               <Button
                 type="text"
                 icon={<KeyOutlined />}
+                aria-label={`Đặt mã số truy cập cho nguồn ${r.code}`}
                 onClick={() => {
                   formMaSo.resetFields();
                   setDatMaSoCho(r);
                 }}
               />
             </Tooltip>
-            <Button type="text" icon={<EditOutlined />} onClick={() => moSua(r)} />
+            <Button
+              type="text"
+              icon={<EditOutlined />}
+              aria-label={`Sửa nguồn ${r.code}`}
+              onClick={() => moSua(r)}
+            />
             <Popconfirm
               title={`Xoá nguồn ${r.code}?`}
               description="Nguồn còn điểm đo trỏ vào thì không xoá được — chuyển các điểm đo sang nguồn khác trước."
