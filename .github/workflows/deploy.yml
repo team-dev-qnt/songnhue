@@ -84,7 +84,7 @@ jobs:
     environment: ${{ inputs.moi_truong }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # ⚠⚠ PHẢI đăng nhập TRƯỚC khi tra image. Gói GHCR mặc định là RIÊNG TƯ kể cả
       #    khi repo công khai — kiểm chứng 19/8: manifest ẩn danh trả 403. Tra
@@ -95,7 +95,7 @@ jobs:
       #    thông tin đăng nhập vào `$HOME/.docker`, trỏ biến ấy đi chỗ khác là mọi
       #    lượt tra quay về ẩn danh trong khi log vẫn in "Login Succeeded" (§10.43).
       - name: Đăng nhập GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}

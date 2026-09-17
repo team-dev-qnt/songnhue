@@ -68,7 +68,7 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Cài JDK 21
         uses: actions/setup-java@v4
@@ -269,7 +269,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v4
         with:
@@ -343,7 +343,7 @@ jobs:
       issues: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # T11.84 — chuông đọc BẰNG CHỨNG của chính lượt này: `van-tay-cve.txt` (CVE) và
       # `phu-quet-cve.txt` (phạm vi) nằm trong artifact mà job `owasp` tải lên.

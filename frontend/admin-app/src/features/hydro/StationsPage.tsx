@@ -251,7 +251,14 @@ export function StationsPage() {
             <Tooltip title="Liên kết công trình">
               <Button type="text" icon={<ApartmentOutlined />} onClick={() => setDangLienKet(r)} />
             </Tooltip>
-            <Button type="text" icon={<EditOutlined />} onClick={() => moSua(r)} />
+            <Tooltip title="Sửa">
+              <Button
+                type="text"
+                aria-label="Sửa"
+                icon={<EditOutlined />}
+                onClick={() => moSua(r)}
+              />
+            </Tooltip>
           </Space>
         ) : null,
     },

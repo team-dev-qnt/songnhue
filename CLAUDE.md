@@ -458,6 +458,36 @@ giải nén — xanh cả khi đã gỡ chốt ⇒ tách `SYS-0014` + dựng l�
 ⚠ `make ci-local` ⛔ dọn `target`: một `.class` và một `jacoco.exec` CŨ của module `hr` làm hai lượt chạy đỏ vì thứ ⛔ còn
 tồn tại trong mã — `rm -rf` thư mục ấy mới đọc được kết quả thật.
 
+⭐⭐ **Đo lại 16/09/2026 sau WS-64 (Phase 4 đợt 8 — mở phạm vi bộ canh · biểu mẫu Menu) — `make ci-local` thoát 0**,
+tiến trình maven DUY NHẤT (⚠ số ở **MÁY**) **VÀ `make ci-order` thoát 0** — hai thứ tự lớp cùng một bộ số:
+**1963 testcase BE** (core 338 · content 55 · hydro 229 · operations 55 · app **1286**) · **0 đỏ** · FE **478**
+admin-app / 61 + **399** public-web / 46 · **78 migration** ⛔ thêm · mã lỗi **130** ⛔ đổi.
+⛔⛔ **36/63 nút chỉ-có-icon của `admin-app` ⛔ có TÊN đọc được** (`T63.9`) — trình đọc màn hình đọc chúng thành *"button"*
+trống rỗng. Lộ ra vì một bài kiểm cần bấm nút Sửa và **⛔ có cách nào gọi tên nó**; giao diện trông hoàn toàn bình thường
+nên ⛔ lượt rà bằng mắt nào thấy. ⛔⛔ **Và phép đo ĐẦU của tôi cho 112/129 — 87% — cả ba mẫu mở ra kiểm đều là DƯƠNG TÍNH
+GIẢ**: regex `<Button\b([^>]*?)/>` dừng ở dấu `>` **bên trong** `icon={<EditOutlined />}` nên nút CÓ CHỮ bị đọc thành nút
+chỉ-có-icon. Bài học đã nằm sẵn trong javadoc `CotPhase2CoDocGhiTest` — *một kết quả "mọi thứ đều hỏng" gần như luôn là
+một **phép đo hỏng*** — và 87% lẽ ra đã phải là dấu hiệu. ⇒ Quét **cân ngoặc**, và bộ canh mang một vế **tự chứng minh nó
+phân biệt được hai hình dạng**. ⭐ Bộ canh bắt tôi ở lượt chạy đầu: đặt trần 37 trong khi vừa vá một nút ⇒ số thật **36**.
+⛔⛔ **Ô *"Bài viết"* trong biểu mẫu menu là một lựa chọn CHẾT, và mọi mục menu loại `ARTICLE` của seed ⛔ SỬA NỔI**
+(`T63.8`). `MenusTab` gửi `articleId: null` **ghi cứng**, `setFieldsValue` ⛔ nạp `articlePublicId`, mà ô *Loại liên kết*
+vẫn bày đủ 5 giá trị của `MO_TA_LOAI`. Seed `V202608191021` **dựng sẵn** mục `ARTICLE` (*Liên hệ*, *Giới thiệu chung*, một
+vòng mục con) ⇒ đổi nhãn một mục ấy cũng bị `CMS-2012` *"Đích của mục menu ⛔ tồn tại hoặc đã bị xoá"* — một câu dẫn người
+quản trị đi tìm xem mình lỡ xoá bài nào.
+⚠⚠ **Lượt rà tự động kết luận SAI một vế** (*"đứt liên kết trên cổng, im lặng"*); đo lại `applyTarget` thì nhánh `ARTICLE`
+gọi `requireId(...)` rồi **NÉM** ⇒ dữ liệu ⛔ mất, đây là lỗi *⛔ dùng được* chứ ⛔ phải xoá trắng như §11.19. **Chép lời một
+lượt rà mà ⛔ đo lại là cách một dòng nợ sai ra đời.**
+⚠⚠ **Và lượt kiểm chứng ngược ĐẦU đỏ vì LÝ DO SAI**: tôi chỉ gỡ phần gửi payload mà giữ ô chọn có `required` ⇒ biểu mẫu
+chặn ở bước hợp lệ hoá, thông điệp đỏ thành *"expected vi.fn() to be called"* — một câu ⛔ nói gì về khuyết tật thật. ⇒
+**Bản phá phải là trạng thái TRƯỚC, ⛔ phải một trạng thái đỏ nào cũng được** (luật 10).
+⭐ **T51.10 trả trọn** (`T63.7`): phạm vi `CotPhase2CoDocGhiTest` nay **ĐO trên đĩa**, mỗi module phải được **xếp loại** —
+module mới mà quên xếp là đỏ và bị gọi đích danh, thay vì lặng lẽ ngoài tầm quét như `hr` đã nằm bốn ngày. ⚠ Vế (a) đo lại
+thì **vốn đã trả từ trước mà sổ ⛔ lật** — lần thứ CHÍN của *một dòng nợ tự nó sai*.
+⛔⛔ **Và lần này nó là MẪU SỐ của cả một dòng nợ**: ba con số trong `T47.17` đo lại đều sai — `@PutMapping|@PatchMapping`
+toàn kho là **46** ⛔ phải 34 (nên phép trừ ra *"18 endpoint"* ⇒ *"mẫu số 17"* ⛔ còn đứng được) · bài *"vòng khứ hồi"* ở
+backend là **3** ⛔ phải 1 · và dòng cũ liệt **7 biểu mẫu có tên** rồi bỏ lửng bằng `…` trong khi khai *"còn 14"* — bảy cái
+ẩn sau dấu ba chấm **⛔ có tên ở bất kỳ đâu**. ⇒ Lượt đóng nốt phải **đo lại mẫu số trước**, ⛔ chép con số 17.
+
 ⭐⭐ **Đo lại 16/09/2026 sau WS-63 (Phase 4 đợt 7 — lượt chạy THẬT đầu tiên của Dependabot) — `make ci-local` thoát 0**,
 tiến trình maven DUY NHẤT (⚠ số ở **MÁY**) **VÀ `make ci-order` thoát 0** — hai thứ tự lớp cho **cùng một bộ số**:
 **1961 testcase BE** (core **338** · content 55 · hydro 229 · operations 55 · app **1284**) · **0 đỏ** · FE **469**

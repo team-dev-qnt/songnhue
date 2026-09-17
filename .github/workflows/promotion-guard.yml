@@ -59,7 +59,7 @@ jobs:
       # Vì vậy kiểm đúng SHA sắp được đề bạt, không kiểm "nhánh dev nói chung".
       # ⚠ Cần checkout TRƯỚC bước này: nó chạy script trong `.github/scripts/`.
       #   Lịch sử đầy đủ là yêu cầu của bước cuối, không phải của bước này.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
