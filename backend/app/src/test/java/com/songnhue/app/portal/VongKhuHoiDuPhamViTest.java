@@ -69,7 +69,8 @@ class VongKhuHoiDuPhamViTest {
                     "frontend/admin-app/src/features/hr/truongBaoMatVongKhuHoi.test.tsx",
             "AlertRuleController.AlertRuleUpdateRequest",
                     "frontend/admin-app/src/features/hydro/nguongCanhBaoVongKhuHoi.test.tsx",
-            "BannerController.BannerRequest", "frontend/admin-app/src/features/cms/bannerVongKhuHoi.test.tsx"));
+            "BannerController.BannerRequest", "frontend/admin-app/src/features/cms/bannerVongKhuHoi.test.tsx",
+            "OrgUnitController.UpdateRequest", "frontend/admin-app/src/features/admin/donViVongKhuHoi.test.tsx"));
 
     /**
      * Endpoint CHƯA có bài kiểm — <b>mỗi dòng một lý do ĐO ĐƯỢC, tối thiểu 40 ký tự</b>.
@@ -99,10 +100,6 @@ class VongKhuHoiDuPhamViTest {
                     "AlertLevelController.AlertLevelRequest",
                     "6 trường danh mục mức ngưỡng. Cùng màn hình họ hàng với AlertRule nên gộp một lượt; "
                             + "ảnh hưởng màu và thứ tự hiển thị cảnh báo trên dashboard trực ban."),
-            Map.entry(
-                    "OrgUnitController.UpdateRequest",
-                    "6 trường. `address`/`phone`/`email` là BA CỘT DUY NHẤT nuôi bảng *Xí nghiệp trực "
-                            + "thuộc* của CR-26 trên cổng công khai — mất là bảng công khai trống lần nữa."),
             Map.entry(
                     "OrgUnitLeaderController.LeaderRequest",
                     "5 trường lãnh đạo đơn vị. Hiển thị trên cổng công khai; `org_unit_leaders` từng có "
