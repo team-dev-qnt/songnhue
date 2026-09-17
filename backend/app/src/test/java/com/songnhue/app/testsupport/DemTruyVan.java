@@ -38,12 +38,13 @@ import org.hibernate.stat.Statistics;
  *       nào đó có, bộ canh này phải đổi cách đo chứ ⛔ được nới.
  *   <li>Đếm {@code prepareStatementCount} chứ ⛔ {@code queryExecutionCount}: vế sau chỉ tính truy
  *       vấn HQL/Criteria, nên một vòng lặp gọi native query qua Hibernate sẽ <b>vô hình</b>.
- *   <li>⛔⛔ <b>Phạm vi của bộ đếm này: chỉ những câu lệnh đi qua Hibernate.</b> Đo được ở lượt dựng:
- *       một vòng lặp {@code JdbcTemplate.queryForObject} cho ra <b>0</b>. Nghĩa là một N+1 viết bằng
- *       {@code JdbcTemplate} — kho CÓ đường ấy, {@code QuanSoRepository} là JDBC thuần — thì bộ canh
- *       này <b>⛔ thấy</b>, và cái xanh của nó sẽ đọc như một lời bảo đảm cho phạm vi nó ⛔ soi
- *       (luật 28). Muốn phủ nốt thì phải đổi sang {@code datasource-proxy} bọc {@code DataSource},
- *       ⛔ phải nới bộ canh này. Ghi thành nợ <b>T63.6</b>.
+ *   <li>⭐ <b>Phạm vi: câu lệnh qua Hibernate CỘNG câu lệnh qua {@code JdbcTemplate}</b> — nợ T63.6
+ *       đã trả 17/09. Bản đầu chỉ đọc {@code Statistics} nên một vòng lặp
+ *       {@code JdbcTemplate.queryForObject} cho ra <b>0</b>, trong khi đo được <b>33 tệp</b> ở
+ *       {@code src/main} dùng {@code JdbcTemplate} — gồm TOÀN BỘ {@code hydro/infra} và
+ *       {@code hr/infra}, tức tầng đọc nặng nhất của hệ, đúng nơi một N+1 gây hại nhất. Nửa thứ hai
+ *       nằm ở {@link DemTruyVanJdbc}; phần <b>còn chưa phủ</b> — SQL trên một {@code Connection} lấy
+ *       thẳng từ {@code DataSource} — khai ở javadoc lớp ấy kèm số đo: hôm nay <b>0</b> đường.
  * </ul>
  */
 public final class DemTruyVan {
@@ -58,10 +59,18 @@ public final class DemTruyVan {
         this.thongKe.setStatisticsEnabled(true);
     }
 
-    /** Số câu lệnh JDBC mà {@code hanhDong} sinh ra. */
+    /**
+     * Số câu lệnh JDBC mà {@code hanhDong} sinh ra — <b>cả hai đường</b>.
+     *
+     * <p>⚠ Lấy {@code max} chứ ⛔ CỘNG: từ T63.6 bộ đếm JDBC bọc chính {@code DataSource} mà
+     * Hibernate cũng dùng, nên một câu lệnh của Hibernate được **cả hai** bộ đếm ghi nhận — cộng
+     * lại là đếm đôi. Vế Hibernate giữ nguyên để làm đối chứng: con số JDBC phải luôn ≥ nó, và
+     * ngày nào nó nhỏ hơn thì bọc {@code DataSource} đã tuột khỏi một đường nào đó.
+     */
     public long dem(Runnable hanhDong) {
         thongKe.clear();
+        DemTruyVanJdbc.datLai();
         hanhDong.run();
-        return thongKe.getPrepareStatementCount();
+        return Math.max(thongKe.getPrepareStatementCount(), DemTruyVanJdbc.daDem());
     }
 }

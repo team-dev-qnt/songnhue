@@ -81,6 +81,21 @@ class HydroQualityHttpTest extends IntegrationTestBase {
     /** Khớp vỏ bọc seed ở {@code V202609041061}: {@code {"MUC_NUOC":{"min":-10,"max":30}}}. */
     private static final String NGOAI_KHOANG = "493.000";
 
+    /** Khoá `settings` giữ vỏ bọc ấy — nợ T48.11. */
+    private static final String KHOA_QUY_TAC = "hydro.quality.suspect-rule";
+
+    /** Vỏ bọc RỘNG — ⚠ khác seed, và nó NHẬN một con số mà seed từ chối. */
+    private static final String VO_RONG = "{\"MUC_NUOC\":{\"min\":-100,\"max\":100}}";
+
+    /** Vỏ bọc HẸP — ⚠ khác seed, và nó TỪ CHỐI một con số mà seed nhận. */
+    private static final String VO_HEP = "{\"MUC_NUOC\":{\"min\":-1,\"max\":2}}";
+
+    /** Trong vỏ rộng (&lt; 100) nhưng NGOÀI vỏ seed (&gt; 30). */
+    private static final String TRONG_VO_RONG = "55.000";
+
+    /** Ngoài vỏ hẹp (&gt; 2) nhưng TRONG vỏ seed (&lt; 30). */
+    private static final String NGOAI_VO_HEP = "20.000";
+
     @Autowired
     private TestHttp http;
 
@@ -95,6 +110,9 @@ class HydroQualityHttpTest extends IntegrationTestBase {
 
     @Autowired
     private ObjectMapper json;
+
+    @Autowired
+    private com.songnhue.core.application.settings.SettingService settings;
 
     private PhienHttp phienHttp;
     private PhienHttp.Phien kyThuat;
@@ -578,6 +596,78 @@ class HydroQualityHttpTest extends IntegrationTestBase {
                 .as("⛔ Số đo của MÁY thì quý và không lấy lại được nên vẫn ghi kèm cờ; số đo của NGƯỜI "
                         + "ngoài khoảng vật lý gần như chắc chắn là lỗi gõ, và người gõ đang ngồi ngay đó")
                 .isZero();
+    }
+
+    /**
+     * ⭐⭐ <b>Vỏ bọc vật lý đến từ {@code settings}, ⛔ không từ một hằng số trong Java</b> — nợ
+     * T48.11, khoá {@code hydro.quality.suspect-rule}.
+     *
+     * <h2>Vì sao {@link #nhapTayNgoaiKhoangBiTuChoi} ⛔ trả lời được câu này</h2>
+     *
+     * <p>Bài ấy dùng {@link #NGOAI_KHOANG} = 493, một con số vượt vỏ bọc <b>seed</b>. Nó chứng minh
+     * <i>có một vỏ bọc đang chạy</i>, ⛔ chứng minh vỏ bọc ấy <b>đọc từ bảng {@code settings}</b>:
+     * một bản ghi cứng {@code [-10; 30]} trong Java cho ra kết quả y hệt (luật 3 + luật 9). Đó đúng
+     * là trạng thái T47.12 đã đo được ở {@code hydro.polling.max-retry}.
+     *
+     * <h2>Hai vế, và vế nào cũng khác câu trả lời của MẶC ĐỊNH</h2>
+     *
+     * <ul>
+     *   <li><b>{@value #TRONG_VO_RONG}</b> với vỏ {@code [-100; 100]} ⇒ <b>nhận</b>. Vỏ bọc seed
+     *       ({@code max = 30}) sẽ <b>từ chối</b> ⇒ vế này phân biệt được "đọc settings" với "dùng
+     *       vỏ seed/mặc định";
+     *   <li><b>{@value #NGOAI_VO_HEP}</b> với vỏ {@code [-1; 2]} ⇒ <b>HYD-2001</b>. Vỏ bọc seed sẽ
+     *       <b>nhận</b> ⇒ vế này cũng phân biệt được, theo chiều ngược lại.
+     * </ul>
+     *
+     * <p>⇒ Cả hai vỏ đều <b>khác</b> giá trị seed, và cả hai giá trị đo đều rơi vào chỗ mà hai vỏ
+     * nói hai điều ngược nhau. Ghi cứng vỏ bọc, hay {@code SettingService} trả rỗng, đều làm <b>cả
+     * hai</b> khẳng định đỏ.
+     *
+     * <p>⛔⛔ Ghi qua {@code SettingService.update} chứ ⛔ {@code UPDATE settings} thẳng: service dọn
+     * đệm Caffeine và phát sự kiện sau commit (§10.67). {@code finally} khôi phục là bắt buộc —
+     * đệm ấy rò sang mọi lớp chạy sau và surefire xếp lớp theo hệ tệp (T48.8 · §11.19).
+     */
+    @Test
+    @DisplayName("⭐⭐ T48.11 — vỏ bọc vật lý đọc từ `settings`: cùng một con số, hai vỏ, hai câu trả lời")
+    void voBocVatLyDenTuCauHinh() {
+        String cu = settings.getString(KHOA_QUY_TAC).orElse(null);
+        Instant mocRong = mocGoc.plus(Duration.ofMinutes(31));
+        Instant mocHep = mocGoc.plus(Duration.ofMinutes(32));
+        try {
+            settings.update(KHOA_QUY_TAC, VO_RONG);
+            ResponseEntity<String> nhan = nhapTay(kyThuat, mocRong, TRONG_VO_RONG, null);
+            assertThat(nhan.getStatusCode())
+                    .as(
+                            "⛔ %s bị từ chối dù vỏ bọc đang đặt %s ⇒ ô nhập trên màn hình Cấu hình hệ thống "
+                                    + "⛔ điều khiển gì — vỏ seed [-10; 30] mới cho ra kết quả này",
+                            TRONG_VO_RONG, VO_RONG)
+                    .isEqualTo(HttpStatus.CREATED);
+
+            settings.update(KHOA_QUY_TAC, VO_HEP);
+            ResponseEntity<String> tuChoi = nhapTay(kyThuat, mocHep, NGOAI_VO_HEP, null);
+            assertThat(tuChoi.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
+            assertThat(tuChoi.getBody())
+                    .as(
+                            "⛔ %s được nhận dù vỏ bọc đang đặt %s ⇒ giá trị ĐÃ GIẢI ⛔ tới được bộ phân "
+                                    + "loại — vỏ seed [-10; 30] sẽ nhận con số này",
+                            NGOAI_VO_HEP, VO_HEP)
+                    .contains("HYD-2001");
+            assertThat(jdbc.queryForObject(
+                            "SELECT count(*) FROM hydro_readings WHERE station_id = ? AND measured_at = ?",
+                            Integer.class,
+                            idDiemDo,
+                            Timestamp.from(mocHep)))
+                    .as("⛔ Bị HYD-2001 mà vẫn ghi xuống thì lời từ chối chỉ là một câu trên màn hình")
+                    .isZero();
+        } finally {
+            settings.update(KHOA_QUY_TAC, cu);
+            jdbc.update(
+                    "DELETE FROM hydro_readings WHERE station_id = ? AND measured_at IN (?, ?)",
+                    idDiemDo,
+                    Timestamp.from(mocRong),
+                    Timestamp.from(mocHep));
+            jdbc.update("DELETE FROM hydro_latest WHERE station_id = ?", idDiemDo);
+        }
     }
 
     @Test

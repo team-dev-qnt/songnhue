@@ -159,13 +159,23 @@ export function MeasurementTypesPage() {
       render: (_, record) =>
         coQuanLy ? (
           <Space>
-            <Button type="text" icon={<EditOutlined />} onClick={() => moSua(record)} />
+            <Button
+              type="text"
+              icon={<EditOutlined />}
+              aria-label={`Sửa loại chỉ số ${record.code}`}
+              onClick={() => moSua(record)}
+            />
             <Popconfirm
               title="Xoá loại chỉ số này?"
               description="Chặn nếu còn điểm đo đang gắn."
               onConfirm={() => deleteMutation.mutate(record.id)}
             >
-              <Button type="text" danger icon={<DeleteOutlined />} />
+              <Button
+                type="text"
+                danger
+                icon={<DeleteOutlined />}
+                aria-label={`Xoá loại chỉ số ${record.code}`}
+              />
             </Popconfirm>
           </Space>
         ) : null,
@@ -216,7 +226,7 @@ export function MeasurementTypesPage() {
         onOk={luu}
         onCancel={() => setModalVisible(false)}
         confirmLoading={createMutation.isPending || updateMutation.isPending}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical">
           <Form.Item

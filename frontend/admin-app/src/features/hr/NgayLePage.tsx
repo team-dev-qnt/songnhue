@@ -150,7 +150,12 @@ export function NgayLePage() {
       render: (_, record) =>
         coGhi ? (
           <Space size={0}>
-            <Button type="text" icon={<EditOutlined />} onClick={() => moSua(record)} />
+            <Button
+              type="text"
+              icon={<EditOutlined />}
+              aria-label={`Sửa ngày lễ ${record.name}`}
+              onClick={() => moSua(record)}
+            />
             <Popconfirm
               title="Xoá ngày lễ này?"
               description="Đơn nghỉ đã nộp giữ nguyên số ngày công đã tính."
@@ -158,7 +163,12 @@ export function NgayLePage() {
               cancelText="Huỷ"
               onConfirm={() => xoaMutation.mutate(record.publicId)}
             >
-              <Button type="text" danger icon={<DeleteOutlined />} />
+              <Button
+                type="text"
+                danger
+                icon={<DeleteOutlined />}
+                aria-label={`Xoá ngày lễ ${record.name}`}
+              />
             </Popconfirm>
           </Space>
         ) : null,

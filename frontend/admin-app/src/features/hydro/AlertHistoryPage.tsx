@@ -239,7 +239,7 @@ export function AlertHistoryPage() {
           })
         }
         confirmLoading={dongMutation.isPending}
-        destroyOnClose
+        destroyOnHidden
       >
         <Typography.Paragraph type="secondary">
           {dangDong?.baoDongGia

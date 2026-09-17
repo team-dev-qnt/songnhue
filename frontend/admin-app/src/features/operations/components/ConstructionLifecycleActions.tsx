@@ -102,7 +102,7 @@ export function ConstructionLifecycleActions({ publicId, name, lifecycleState }:
         okText="Cập nhật"
         confirmLoading={doiVongDoi.isPending}
         onOk={() => form.submit()}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form
           form={form}

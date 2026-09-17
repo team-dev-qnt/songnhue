@@ -24,6 +24,13 @@ import { describe, expect, it } from 'vitest';
  * thành *"tôi được phép quên"***. Một con số thì ⛔ quên được: mỗi nút icon mới ⛔ nhãn là một lượt
  * CI đỏ.
  *
+ * <p>⭐ **Nợ đã trả hết 17/09/2026 (T63.17): trần về 0.** Cách trả rẻ hơn hẳn dự tính vì mỗi nhãn
+ * là một dòng, và ⛔ nhãn nào là chữ trống: chúng **gọi tên hàng** (`Xoá ngày lễ ${record.name}`,
+ * `Tải tệp ${row.originalName}`). Ba nút liền nhau trong một cột thao tác mà cùng đọc là
+ * *"Xoá"* thì người dùng bàn phím vẫn ⛔ biết mình đang xoá dòng nào — một nhãn chung chung chỉ
+ * đổi khuyết tật từ *"⛔ có tên"* sang *"có tên mà vô nghĩa"*, và bộ canh này ⛔ phân biệt được hai
+ * thứ ấy (luật 9). Đó là giới hạn ĐÃ KHAI của phép đo, ⛔ phải một chỗ hổng ⛔ ai biết.
+ *
  * <h2>⛔⛔ Phép dò: quét CÂN NGOẶC, ⛔ một biểu thức chính quy</h2>
  *
  * Bản đầu của phép đo này dùng `/<Button\b([^>]*?)\/>/` và cho ra **112/129 nút thiếu nhãn** — 87%.
@@ -43,10 +50,18 @@ const GOC = join(dirname(new URL(import.meta.url).pathname), '..');
 /**
  * Trần hiện tại — **chỉ được giảm**.
  *
- * ⚠ Con số này là một phép ĐO ngày 16/09/2026, ⛔ phải một hạn mức ai đó chọn. Giảm nó khi dọn
- * xong một nhóm; ⛔ bao giờ tăng.
+ * ⚠ Con số này là một phép ĐO, ⛔ phải một hạn mức ai đó chọn. Giảm nó khi dọn xong một nhóm;
+ * ⛔ bao giờ tăng.
+ *
+ * <p>Đường đi: **37** (16/09, phép đo đầu sau khi vá regex) → **36** (vá nút Sửa điểm đo) →
+ * **16** (16/09) → **0** (17/09, T63.17 — dọn nốt 16 nút cuối ở `ArticleDocumentsPanel` 3 ·
+ * `HoSoConDrawer` 6 · `NgayLePage` 2 · `ConstructionDocumentsPanel` 2 · `MediaBrowser` 1 ·
+ * `EmployeesPage` 1 · `LienKetCongTrinhModal` 1).
+ *
+ * <p>⭐ Từ 0 trở đi bộ canh này đổi vai: nó ⛔ còn là một đồng hồ đếm nợ mà là một **cổng chặn**
+ * — mỗi nút chỉ-có-icon mới thiếu nhãn là một lượt CI đỏ ngay ở PR sinh ra nó.
  */
-const NGUONG = 36;
+const NGUONG = 0;
 
 /** Từ vị trí `<Button`, trả về `[thuộc tính, có-tự-đóng-⛔, vị trí sau thẻ]` — quét cân `{}` và nháy. */
 function theButton(ma: string, tu: number): [string, boolean, number] {
@@ -121,6 +136,10 @@ describe('Nút chỉ có icon phải có tên đọc được', () => {
   it('⚠ trần phải BÁM SÁT số thật — ⛔ để nó nới rộng ra rồi ⛔ ai biết', () => {
     // Dọn xong một nhóm mà quên hạ trần thì bộ canh lại có chỗ trống cho nợ mới chui vào,
     // và nó xanh suốt thời gian ấy. Đây là vế ép hạ trần ngay khi dọn.
+    //
+    // ⚠ Ở `NGUONG = 0` vế này trùng với bài chính (0 ≥ 0 và 0 ≤ 0 cùng nghĩa "đúng bằng 0").
+    //   Giữ nguyên chứ ⛔ xoá: nó là thứ ép hạ trần trở lại nếu có ai nâng NGUONG lên để cho hết
+    //   đỏ — lúc ấy hai bài mâu thuẫn nhau và ⛔ có cách nào làm cả hai cùng xanh trừ khi dọn thật.
     expect(
       nutThieuTen().length,
       `Đã dọn bớt rồi — hãy hạ NGUONG xuống đúng số thật (${nutThieuTen().length}).`,

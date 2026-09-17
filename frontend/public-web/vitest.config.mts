@@ -23,5 +23,13 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.ts'],
     environment: 'node',
+    // ⛔⛔ Ghim múi giờ — T63.18. Cổng công khai hiển thị mốc thuỷ văn theo UTC+7 và khai
+    //    `timeZone: 'Asia/Ho_Chi_Minh'` tường minh ở 4 chỗ; một chỗ thứ năm quên khai sẽ
+    //    đọc giờ MÁY, và bộ kiểm chạy trên máy đặt đúng +07 thì ⛔ bao giờ thấy.
+    //    `admin-app` vừa trả giá đúng chuyện ấy (xem vite.config.ts của nó): cùng một bản
+    //    phá cho ĐỎ dưới `TZ=UTC` và XANH dưới `TZ=Asia/Ho_Chi_Minh`.
+    //    ⇒ Ghim `UTC`, ⛔ ghim `Asia/Ho_Chi_Minh` — ghim vào đúng múi giờ của sản phẩm là
+    //    làm lớp lỗi ấy vô hình trở lại.
+    env: { TZ: 'UTC' },
   },
 });

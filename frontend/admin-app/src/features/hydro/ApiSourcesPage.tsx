@@ -269,6 +269,7 @@ export function ApiSourcesPage() {
               <Button
                 type="text"
                 icon={<ApiOutlined />}
+                aria-label={`Gọi thử nguồn ${r.code}`}
                 loading={goiThuMutation.isPending && goiThuMutation.variables?.id === r.id}
                 onClick={() => goiThuMutation.mutate(r)}
               />
@@ -277,13 +278,19 @@ export function ApiSourcesPage() {
               <Button
                 type="text"
                 icon={<KeyOutlined />}
+                aria-label={`Đặt mã số truy cập cho nguồn ${r.code}`}
                 onClick={() => {
                   formMaSo.resetFields();
                   setDatMaSoCho(r);
                 }}
               />
             </Tooltip>
-            <Button type="text" icon={<EditOutlined />} onClick={() => moSua(r)} />
+            <Button
+              type="text"
+              icon={<EditOutlined />}
+              aria-label={`Sửa nguồn ${r.code}`}
+              onClick={() => moSua(r)}
+            />
             <Popconfirm
               title={`Xoá nguồn ${r.code}?`}
               description="Nguồn còn điểm đo trỏ vào thì không xoá được — chuyển các điểm đo sang nguồn khác trước."
@@ -387,7 +394,7 @@ export function ApiSourcesPage() {
           createMutation.mutate(values);
         }}
         confirmLoading={createMutation.isPending}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={formTao} layout="vertical">
           <Form.Item name="code" label="Mã nguồn" rules={[{ required: true }]}>
@@ -432,7 +439,7 @@ export function ApiSourcesPage() {
           if (dangSua) updateMutation.mutate({ id: dangSua.id, payload: values });
         }}
         confirmLoading={updateMutation.isPending}
-        destroyOnClose
+        destroyOnHidden
       >
         <Alert
           type="info"
@@ -511,7 +518,7 @@ export function ApiSourcesPage() {
             {nut}
           </Space>
         )}
-        destroyOnClose
+        destroyOnHidden
       >
         <Alert
           type="warning"
@@ -543,7 +550,7 @@ export function ApiSourcesPage() {
         title={`Kết quả gọi thử — ${ketQuaGoiThu?.nguon.name ?? ''}`}
         onCancel={() => setKetQuaGoiThu(null)}
         footer={<Button onClick={() => setKetQuaGoiThu(null)}>Đóng</Button>}
-        destroyOnClose
+        destroyOnHidden
       >
         {ketQuaGoiThu && <BangKetQuaGoiThu kq={ketQuaGoiThu.kq} />}
       </Modal>
