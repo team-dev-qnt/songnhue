@@ -7,6 +7,7 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -86,6 +87,20 @@ class HydroReportExportHttpTest extends IntegrationTestBase {
     private PhienHttp.Phien kyThuat;
 
     private LocalDate ngay;
+
+    /**
+     * ⚠ Mỗi bài kiểm là một máy khách khác nhau — T60.9.
+     *
+     * <p>Lớp này dựng phiên ở {@code @BeforeAll}, nên ⛔ không có dòng này thì <b>cả lớp dùng chung
+     * một IP</b> và chung ngân sách {@code EXPORT} = <b>trần theo giờ</b> (settings, mặc định 30 — T61.27). Triệu chứng rơi vào bài
+     * chạy SAU dưới dạng {@code 429}, tức người đọc log đi tìm lỗi ở đúng chỗ ⛔ không có lỗi nào.
+     *
+     * <p>⛔ ⛔ Không nới hạn mức ở hồ sơ kiểm thử — filter vẫn chạy, vẫn đếm, vẫn chặn.
+     */
+    @BeforeEach
+    void moiBaiMotMayKhach() {
+        phienHttp.doiIp();
+    }
 
     @BeforeAll
     void dungDuLieu() {

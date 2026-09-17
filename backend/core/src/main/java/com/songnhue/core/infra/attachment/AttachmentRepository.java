@@ -10,11 +10,27 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.songnhue.core.domain.attachment.Attachment;
+import com.songnhue.core.domain.attachment.ScanStatus;
 
 @Repository
 public interface AttachmentRepository extends JpaRepository<Attachment, Long> {
 
     Optional<Attachment> findByPublicIdAndDeletedAtIsNull(UUID publicId);
+
+    /** T61.24 — số tệp chưa có kết luận quét thật ({@code SKIPPED}/{@code ERROR}). */
+    long countByScanStatusInAndDeletedAtIsNull(List<ScanStatus> trangThai);
+
+    /** T61.24 — một lô id kế tiếp sau con trỏ, theo thứ tự id (con trỏ tăng ⇒ ⛔ quét vòng). */
+    @Query(
+            """
+            SELECT a.id FROM Attachment a
+             WHERE a.scanStatus IN :trangThai AND a.deletedAt IS NULL AND a.id > :sau
+             ORDER BY a.id
+            """)
+    List<Long> idCanQuetLai(
+            @Param("trangThai") List<ScanStatus> trangThai,
+            @Param("sau") long sau,
+            org.springframework.data.domain.Limit gioiHan);
 
     /** Bản mới nhất lên đầu — màn hình tài liệu hiển thị phiên bản hiện hành trước. */
     List<Attachment> findByOwnerTypeAndOwnerIdAndDeletedAtIsNullOrderByFileVersionDesc(String ownerType, Long ownerId);

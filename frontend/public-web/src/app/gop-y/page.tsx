@@ -74,7 +74,10 @@ export default async function GopYPage() {
           </h2>
           <div className="mt-4">
             {nhanGopY ? (
-              <FeedbackForm />
+              <FeedbackForm
+                thongBaoRiengTu={config?.['site.privacy.notice'] ?? ''}
+                duongDanChinhSach={config?.['site.privacy.policy-url'] ?? ''}
+              />
             ) : (
               <EmptyBlock>
                 Công ty đang tạm ngừng tiếp nhận góp ý qua cổng. Bạn vẫn gửi được phản ánh, kiến

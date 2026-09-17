@@ -10,6 +10,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 
+import com.songnhue.core.common.audit.Audited;
+
 /**
  * Tham số nghiệp vụ sửa được trên UI (bảng {@code settings}) — quy tắc 12 của dự án.
  *
@@ -21,6 +23,9 @@ import jakarta.persistence.Version;
  */
 @Entity
 @Table(name = "settings")
+// T61.42 — trước bản này đổi tham số ⛔ để lại dòng nào ở `audit_logs`, chỉ một dòng log in nguyên văn giá trị. Bảng
+// này ⛔ chứa bí mật (bí mật tích hợp ở `integration_secrets`), nên ⛔ trường nào phải loại trừ.
+@Audited(module = "adm", entityType = "Tham số cấu hình")
 public class Setting {
 
     @Id

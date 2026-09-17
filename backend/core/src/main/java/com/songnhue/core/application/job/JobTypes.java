@@ -37,5 +37,19 @@ public final class JobTypes {
      */
     public static final String DB_RESTORE = "DB_RESTORE";
 
+    /**
+     * Mã hoá lại mọi cột AES sang khoá đang hoạt động + tính lại vân tay — T61.11 (nợ T51.9).
+     *
+     * <p>Tự đặt lúc khởi động khi còn hàng mang khoá cũ, ⛔ cần ai bấm: xoay khoá = thêm khoá mới, đổi
+     * {@code AES_KEY_ID}, khởi động lại. Xem {@code MaHoaLaiService}.
+     */
+    public static final String CRYPTO_REENCRYPT = "CRYPTO_REENCRYPT";
+
+    /**
+     * Quét lại tệp {@code SKIPPED}/{@code ERROR} khi đã có ClamAV — T61.24. Tự đặt lúc khởi động; mỗi job
+     * một đợt có hạn giờ, còn tệp thì đặt đợt kế tiếp. Xem {@code QuetLaiTepService}.
+     */
+    public static final String VIRUS_RESCAN = "VIRUS_RESCAN";
+
     private JobTypes() {}
 }

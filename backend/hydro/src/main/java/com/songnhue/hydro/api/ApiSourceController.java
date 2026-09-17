@@ -80,12 +80,7 @@ public class ApiSourceController {
         return sources.list().stream().map(this::toView).toList();
     }
 
-    @GetMapping("/{publicId}")
-    @Operation(summary = "Chi tiết nguồn — kèm tham số nhịp ĐÃ GIẢI")
-    @RequirePermission("hyd:api-source:manage")
-    public HydroCatalogDtos.ApiSourceView get(@PathVariable UUID publicId) {
-        return toView(sources.get(publicId));
-    }
+    // ⛔ BIA MỘ — `GET /{publicId}` gỡ 14/09/2026 (T61.22): 0 nơi gọi, hộp thoại sửa dựng từ hàng danh sách.
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)

@@ -7,7 +7,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -15,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.songnhue.app.testsupport.IntegrationTestBase;
+import com.songnhue.app.testsupport.PhienHttp;
 import com.songnhue.app.testsupport.TestHttp;
 import com.songnhue.content.application.ContactFormPolicy;
 import com.songnhue.core.application.settings.SettingService;
@@ -38,6 +38,9 @@ class ContactFormPolicyHttpTest extends IntegrationTestBase {
 
     @Autowired
     private TestHttp http;
+
+    /** ⚠ T61.37 — lượt gửi công khai phải mang IP riêng, xem {@code PhienHttp.dangJson}. */
+    private PhienHttp phienHttp;
 
     @Autowired
     private JdbcTemplate jdbc;
@@ -237,7 +240,7 @@ class ContactFormPolicyHttpTest extends IntegrationTestBase {
                 }
                 """
                         .formatted(oChuoi(email), oChuoi(dienThoai), oChuoi(maCaptcha));
-        return http.postForEntity(CONG_KHAI, new HttpEntity<>(than, h), String.class);
+        return phienHttp().dangJson(CONG_KHAI, than);
     }
 
     private static String oChuoi(String s) {
@@ -263,5 +266,12 @@ class ContactFormPolicyHttpTest extends IntegrationTestBase {
         //   chạy" — thứ tốn nhiều giờ nhất để lần ra (luật 32: in một con số đếm được).
         assertThat(soHang).as("khoá `%s` ⛔ không có trong bảng settings", khoa).isEqualTo(1);
         settings.invalidate(khoa);
+    }
+    /** Lười khởi tạo: mỗi lớp một thực thể ⇒ một IP, đủ để tách khỏi các lớp khác. */
+    private PhienHttp phienHttp() {
+        if (phienHttp == null) {
+            phienHttp = new PhienHttp(http);
+        }
+        return phienHttp;
     }
 }

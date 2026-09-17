@@ -5,6 +5,8 @@ import java.time.LocalDate;
 import java.util.Set;
 import java.util.UUID;
 
+import jakarta.validation.Valid;
+
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
@@ -23,6 +25,7 @@ import com.songnhue.core.common.exception.ConflictException;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
 import com.songnhue.core.common.security.RequirePermission;
 import com.songnhue.core.common.util.DateTimeUtils;
+import com.songnhue.core.common.util.HttpHeaderText;
 import com.songnhue.core.common.util.PageUtils;
 import com.songnhue.core.spi.JobPort;
 import com.songnhue.core.spi.JobRef;
@@ -200,7 +203,7 @@ public class HydroReportController {
             summary = "Đặt lượt kết xuất CSV — 202 kèm mã việc, tải về ở /bao-cao/tai/{jobId}",
             description = "Tệp CSV mã hoá UTF-8 có BOM, phân tách bằng dấu chấm phẩy, số dùng dấu phẩy "
                     + "thập phân — để Excel bản tiếng Việt đọc đúng ngay khi mở. Bản kết xuất có hạn tải 24 giờ")
-    public ResponseEntity<JobRef> xuat(@RequestBody YeuCauXuatBaoCao yeuCau) throws Exception {
+    public ResponseEntity<JobRef> xuat(@Valid @RequestBody YeuCauXuatBaoCao yeuCau) throws Exception {
         kiemYeuCau(yeuCau);
 
         // ⚠ Khoá chống trùng mang TOÀN BỘ tham số: hai khoảng ngày khác nhau là hai việc khác nhau,
@@ -271,7 +274,7 @@ public class HydroReportController {
         String tenTep = khoa.substring(khoa.lastIndexOf('/') + 1);
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType("text/csv; charset=utf-8"))
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + tenTep + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, HttpHeaderText.contentDisposition(tenTep))
                 .body(noiDung);
     }
 

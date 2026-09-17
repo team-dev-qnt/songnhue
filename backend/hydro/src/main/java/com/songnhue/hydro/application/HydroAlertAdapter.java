@@ -1,10 +1,13 @@
 package com.songnhue.hydro.application;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.songnhue.core.spi.AlertEventRef;
 import com.songnhue.core.spi.HydroAlertPort;
 import com.songnhue.hydro.infra.AlertEventQueryRepository;
 
@@ -74,4 +77,44 @@ public class HydroAlertAdapter implements HydroAlertPort {
     public boolean alertEventExists(UUID alertEventPublicId) {
         return alertEventPublicId != null && events.suKienTonTai(alertEventPublicId);
     }
+
+    /**
+     * {@link com.songnhue.core.spi.HydroAlertPort#suKienTrongKy} — nguồn cảnh báo của <b>BC-06</b>.
+     *
+     * <p>⛔ Dùng lại {@code trang(...)} có sẵn với {@code limit} bằng {@link #TRAN_BC06} thay vì
+     * viết một câu thứ hai: hai câu cùng trả lời một câu hỏi là hai chỗ phải nhớ cùng một luật lọc
+     * (luật 14), và luật lọc ở đây <b>⛔ không hiển nhiên</b> — nó lọc theo {@code started_at}, tức
+     * *lượt phát sinh trong kỳ*, ⛔ không phải *còn đang xảy ra trong kỳ*.
+     *
+     * <p>⚠⚠ {@code limit} là một <b>trần</b>, và một bản kết xuất bị cắt cụt IM LẶNG là đúng khuyết
+     * tật T42.4 đã trả giá (tệp 8.000 dòng nhập *"thành công"* 5.000 dòng). ⇒ Nơi gọi
+     * ({@code BaoCaoVanHanhService}) so số dòng nhận được với trần và <b>nói ra</b> khi chạm.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<AlertEventRef> suKienTrongKy(Instant tu, Instant den) {
+        return events.trang(null, null, tu, den, TRAN_BC06, 0).stream()
+                .map(r -> new AlertEventRef(
+                        r.id(),
+                        r.stationName(),
+                        r.stationCode(),
+                        r.measurementTypeName(),
+                        r.levelName(),
+                        r.status().name(),
+                        r.startedAt(),
+                        r.endedAt(),
+                        r.triggerValue(),
+                        r.peakValue(),
+                        r.reason()))
+                .toList();
+    }
+
+    /**
+     * Trần số lượt cảnh báo một bản BC-06 mang theo.
+     *
+     * <p>⚠ Con số này là một <b>lựa chọn</b>, ⛔ không phải một hằng vô nghĩa: 19 điểm đo × 4 mức
+     * cảnh báo × một kỳ báo cáo (tháng) thì 5.000 lượt là mức ⛔ không đạt tới trong vận hành bình
+     * thường — nếu chạm thì bản thân con số ấy là tin đáng đọc. Nơi gọi phải nói ra khi chạm trần.
+     */
+    static final int TRAN_BC06 = 5_000;
 }

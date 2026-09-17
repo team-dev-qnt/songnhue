@@ -5,6 +5,10 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -81,7 +85,7 @@ public class FeedbackController {
         }
     }
 
-    public record TransitionForm(String action, String reason) {}
+    public record TransitionForm(@NotBlank @Size(max = 64) String action, @Size(max = 2000) String reason) {}
 
     /**
      * Số liệu tổng hợp — ⚠ {@code diemTrungBinh} ⛔ <b>không bao giờ</b> đi một mình.
@@ -135,7 +139,7 @@ public class FeedbackController {
     @PostMapping("/{publicId}/transitions")
     @Operation(summary = "Duyệt / từ chối / ẩn / hiện lại; bước đòi lý do mà thiếu là SYS-0003")
     @RequirePermission("cms:feedback:manage")
-    public FeedbackView transition(@PathVariable UUID publicId, @RequestBody TransitionForm form) {
+    public FeedbackView transition(@PathVariable UUID publicId, @Valid @RequestBody TransitionForm form) {
         return FeedbackView.of(feedbacks.chuyenTrangThai(publicId, form.action(), form.reason()));
     }
 

@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 
 import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.ValidationException;
+import com.songnhue.core.common.util.DiaChiLienKet;
 import com.songnhue.core.domain.settings.Setting;
 
 import tools.jackson.databind.ObjectMapper;
@@ -60,6 +61,7 @@ public class SettingValidator {
                 case "DURATION" -> Duration.parse(value);
                 case "JSON" -> objectMapper.readTree(value);
                 case "CRON" -> requireCron(value);
+                case "URL" -> requireLienKetAnToan(value);
                 default -> {
                     // STRING, TEXT, HTML, HTML_EMBED — không có ràng buộc kiểu ở đây.
                     // ⚠ Hai kiểu HTML KHÔNG được kiểm ở tầng này một cách cố ý: chúng không "sai
@@ -81,6 +83,21 @@ public class SettingValidator {
         // đúng kiểu sai mà không ai biết cho tới khi tính năng tương ứng không chạy.
         if (!"true".equalsIgnoreCase(value) && !"false".equalsIgnoreCase(value)) {
             throw new ValidationException(ErrorCode.ADM_2006, "boolean", "true/false");
+        }
+    }
+
+    private static void requireLienKetAnToan(String value) {
+        // ⛔⛔ T63.4. Những khoá mang kiểu này đi thẳng vào `href` ở cổng công khai, và React 18.3.1
+        //    chỉ CẢNH BÁO chứ ⛔ chặn `javascript:` (chặn từ React 19) ⇒ bấm là chạy.
+        //
+        // ⚠ Thông điệp KHÔNG chép lại giá trị người dùng nhập. Mọi nhánh khác ở lớp này đều chép
+        //   (`cron`, `boolean`) và điều đó hợp lý với chúng — còn ở đây giá trị bị từ chối CHÍNH LÀ
+        //   một đoạn mã tấn công, nên ném nó qua lớp thông báo, lớp nhật ký và màn hình quản trị là
+        //   chở nó đi xa hơn chứ ⛔ phải chặn nó lại. Người quản trị ⛔ cần đọc lại thứ họ vừa gõ;
+        //   họ cần biết *dạng nào được chấp nhận*.
+        if (!DiaChiLienKet.anToan(value)) {
+            throw new ValidationException(
+                    ErrorCode.ADM_2006, "địa chỉ liên kết", "http://, https://, mailto:, tel:, /đường-dẫn hoặc #neo");
         }
     }
 

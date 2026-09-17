@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import type { ArticleRow } from '@/lib/api';
+import { lienKetAnToan } from '@/lib/lienKetAnToan';
 import { formatDate, ROUTES } from '@/lib/routes';
 import { EmptyBlock } from './home/EmptyBlock';
 
@@ -148,10 +149,10 @@ export function PortalSidebar({
              thật đứng sau (§2: một hệ phân loại dùng chung).
         */}
         <ul className="mt-3.5 space-y-2 text-xs">
-          {docSystemUrl ? (
+          {lienKetAnToan(docSystemUrl) ? (
             <li>
               <a
-                href={docSystemUrl}
+                href={lienKetAnToan(docSystemUrl) ?? undefined}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-between rounded-lg border border-surface-border p-2.5 font-semibold text-surface-textBase transition-colors hover:border-brand-primary hover:bg-brand-primaryLight hover:text-brand-primary"

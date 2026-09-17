@@ -259,6 +259,7 @@ Format: `<PREFIX>-<4 số>` — prefix theo module: `SYS` (hệ thống), `AUTH`
 | **AUTH-0006** | 422 | Mật khẩu mới không đạt chính sách (M5.15) hoặc trùng mật khẩu cũ |
 | **AUTH-0007** | 403 | Đang bắt buộc đổi mật khẩu — chặn mọi thao tác khác cho tới khi đổi xong |
 | **AUTH-0008** | 401 | Phiên bị thu hồi vì **phát hiện dùng lại refresh token** — buộc đăng nhập lại |
+| AUTH-0009 | 403 | Tài khoản **đã có 2FA xác nhận** xin đăng ký lại qua vé challenge — chặn đường vượt 2FA bằng mật khẩu (T61.30) |
 | AUTH-3001 | 403 | Không có quyền thực hiện thao tác này |
 | AUTH-3002 | 403 | Dữ liệu không thuộc phạm vi đơn vị của bạn |
 | CMS-2001 | 422 | Slug đã tồn tại |
@@ -292,6 +293,12 @@ Format: `<PREFIX>-<4 số>` — prefix theo module: `SYS` (hệ thống), `AUTH`
 | ADM-2011 | 422 | Chuỗi xác nhận khôi phục không đúng (M5.11) |
 | ADM-2012 | 422 | Bản sao lưu không dùng được: thiếu tệp hoặc checksum không khớp |
 | ADM-2013 | 500 | Khôi phục thất bại — xem `docs/runbook/khoi-phuc-du-lieu.md` |
+| ADM-2019 | 422 | Job mã hoá lại sang khoá AES mới còn hàng chưa đổi — chưa được gỡ khoá cũ (T61.11; chỉ ở `jobs.last_error`) |
+| ADM-2020 | 403 | Tự xoá tài khoản của chính mình (T61.21) |
+| ADM-2021 | 403 | Tự đặt lại 2FA của chính mình (T61.30) |
+| ADM-2022 | 403 | Cấp quyền/vai trò mà chính người cấp ⛔ có (T54.4) |
+| ADM-2023 | 403 | Thao tác nhạy cảm thiếu mã 2FA nhập lại / tài khoản chưa đăng ký 2FA (T61.42) |
+| ADM-2024 | 403 | Mã 2FA nhập lại sai — ⛔ 401, xem `XacThucLaiService` (T61.42) |
 
 > ⚠ **Đã gỡ (12/8/2026)**: `OPS-2001` cũ ("nhập bù tối đa 3 ngày") và `OPS-2003` cũ ("lưu lượng vượt 120% thiết kế") — thuộc nhật ký vận hành đã bỏ khỏi scope. Hai mã này **đã được tái sử dụng** cho rule mới ở bảng trên; khi đọc code/log cũ phải chú ý.
 > ℹ **Không phải lỗi**: lượt polling bị bỏ qua do rate-limit (`sync_logs = SKIPPED_UP_TO_DATE`, chốt G3) **không** sinh error code, không alert — chỉ ghi log DEBUG.
@@ -307,10 +314,12 @@ Format: `<PREFIX>-<4 số>` — prefix theo module: `SYS` (hệ thống), `AUTH`
 
 ```
 Request → [1] CorrelationFilter (sinh/nhận traceId, MDC cho log)
+        → [1a] KhongLuuDemFilter (`Cache-Control: no-store` cho `/api/v1/**` trừ `/public/**` — cả 401/429 — T61.35)
         → [1b] RequestLoggingFilter (nằm TRONG correlation, NGOÀI rate limit — để request bị chặn 429 vẫn được ghi log)
-        → [2] RateLimitFilter (bucket theo IP; login có bucket riêng)
+        → [2] RateLimitFilter (bucket THEO IP — chỉ login + cổng công khai; dò mật khẩu phải chặn trước BCrypt)
         → [2b] CsrfFilter (double-submit, chỉ với method thay đổi dữ liệu — WS-5/T5.5)
         → [3] AuthFilter (verify access token; đối chiếu sessions + token_denylist)
+        → [3b] HanMucNguoiDungFilter (API thường + kết xuất THEO NGƯỜI DÙNG ĐÃ XÁC THỰC @ IP; chưa xác thực ⇒ theo IP — T61.17)
         → [4] ScopeContextFilter (load user → role, permissions, org_unit path vào AuthContext)
         → [5] AuditContextFilter (gắn user/traceId cho audit interceptor)
         → PermissionInterceptor (tầng 2 — @RequirePermission, xem §4.2)
@@ -447,7 +456,7 @@ Tầng 3 — Repository scope filter (org_unit)     → chặn dữ liệu (IDOR
 ### 4.5. Hạ tầng & headers
 
 - Nginx: HSTS, CSP (default-src 'self'; script chỉ từ self + GA/GTM đã khai báo), `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`; ẩn version server; giới hạn body size theo route upload.
-- Rate limit 2 lớp: Nginx (thô, theo IP) + app filter (theo user/token, giá trị theo nhóm endpoint: **login 30/15'**, API thường 100/phút, export 10/giờ).
+- Rate limit 2 lớp: Nginx (thô, theo IP) + app filter (theo user/token, giá trị theo nhóm endpoint: **login 30/15'**, API thường 100/phút, export **`limits.rate.export-per-hour`** trong `settings`, mặc định 30/giờ, kẹp cứng ≤ 100 trong mã — T61.27).
   - ⚠ **`login 30/15'` chứ không phải 5/15'** — con số này phải rộng hơn hẳn ngưỡng khoá tài khoản (5 lần, §4.1). Lý do đầy đủ ở §4.1; tóm tắt: đặt bằng nhau thì rate limit ở filter luôn chặn trước nên `AUTH-0003` không bao giờ kích hoạt được, và cả Công ty ra Internet qua một IP NAT. `CaffeineRateLimitStoreTest` chặn ở CI nếu ai đó hạ xuống bằng ngưỡng khoá.
 - Secrets: env/Vault; khác nhau mỗi môi trường; xoay key AES + JWT signing key có quy trình (key_id versioning); cấm secrets trong log/config commit.
 - Log: mask dữ liệu nhạy cảm (MaskUtils); security event riêng (login fail, refresh reuse, 403 scope, đổi quyền) → dashboard Grafana + alert.

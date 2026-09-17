@@ -17,6 +17,7 @@ Khi mâu thuẫn: `architecture-review.md` > `function-spec.md` / `implement.md`
 | `.claude/conventions.md` | **Luật** khi viết code + đặc tả Common Platform (envelope, exception, mã lỗi, RBAC 3 tầng, chống giả mạo) |
 | `.claude/master-tracking.md` | **Nguồn DUY NHẤT** của task và nợ (§6). Đồng bộ lên Google Sheet qua MCP `google_sheets_sync` |
 | `.claude/implement.md` | Kế hoạch implement — 4 nhóm A/B/C/D, thứ tự phase, cấu trúc code |
+| `.claude/phase2-plan.md` · `phase3-plan.md` · **`phase4-plan.md`** | Kế hoạch từng phase. ⭐ `phase3-plan.md` **§8** có bảng DoD **đã đối chiếu 14/09** (12/13 đạt, mỗi mục kèm tên phép kiểm). ⭐ **`phase4-plan.md` là cửa vào Phase 4** — thứ tự, đồ thị phụ thuộc, DoD 10 mục, và 4 cái bẫy riêng của việc chạy trên **máy chủ**. ⛔ Chúng là **kế hoạch**, ⛔ không phải sổ: mọi task trỏ ID về `master-tracking.md` |
 | `.claude/business-open-questions.md` | BOQ đợt 1+2 đã đóng · **7 mục còn mở** (G14 đóng 27/8 bằng văn bản nghiệm thu) · truy vết chức năng nào còn điểm chưa chốt |
 | `.claude/phase0-tracking.md` · `phase1-tracking.md` | **Lưu trữ, cấm sửa.** Phase 1 có mục "18 điểm nghiệp vụ đã làm rõ trước khi code" |
 | `.claude/report-templates-proposal.md` | Đề xuất format báo cáo gửi Công ty duyệt |
@@ -70,9 +71,34 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 ## Trạng thái
 
 **Phase "Tài liệu hệ thống"** ✅ xong 12/8/2026 — BOQ đợt 1 (A–F) + đợt 2 (G) đã đóng và đồng bộ vào `function-spec.md` **v2.2**.
-**Phase 0 — Core Platform** ✅ 10/11 hạng mục. **WS-11 (Deploy)**: staging đã chạy thật, đường ống CD đóng (§10.50→§10.55). ⭐ **6/9 — đường production đã nối xong** (T11.86): CD Production nay **tự chạy trên push vào `production`**; VPS-1 `27.71.16.154` đã dựng phần host (T11.35, `deploy/host-prepare.sh` chạy thật 2 lượt); 5 secret `PROD_*` + biến kho `PUBLIC_SITE_URL=https://songnhue.com` đã đặt và đo lại (T11.7, T11.7-a). ⭐ **7/9 — production ĐANG CHẠY THẬT**: `https://songnhue.com` **200**, `www` 200, `admin` 200, **6/6 container healthy**, 3 chứng chỉ TLS (apex 2 SAN, hạn 6/12), collation `icu=vi-VN` xanh, **55/55 migration** 0 hỏng, sitemap 19 URL **0 lần `localhost`** (⇒ T11.7-a đóng trọn). Nghiệm thu §9 **9/10** — phép 9 (tải tệp về, phép DUY NHẤT chứng minh `MINIO_ENDPOINT` đúng) chờ có tệp đầu tiên. ⬜ Còn: **quay lui thật (DOD0.21)** · mã số thuỷ văn (chờ Công ty) · bật lịch sao lưu · lịch gia hạn TLS cho **staging** (T11.88 — hạn 22/11, chưa có).
+**Phase 0 — Core Platform** ✅ 10/11 hạng mục. **WS-11 (Deploy)**: staging đã chạy thật, đường ống CD đóng (§10.50→§10.55). ⭐ **6/9 — đường production đã nối xong** (T11.86): CD Production nay **tự chạy trên push vào `production`**; VPS-1 `27.71.16.154` đã dựng phần host (T11.35, `deploy/host-prepare.sh` chạy thật 2 lượt); 5 secret `PROD_*` + biến kho `PUBLIC_SITE_URL` đã đặt và đo lại (T11.7, T11.7-a). ⚠ **Từ 08/09 production là `https://thuyloisongnhue.vn`** (T11.94; `gh variable list` 14/09 ⇒ `PUBLIC_SITE_URL=https://thuyloisongnhue.vn`) — các số đo `songnhue.com` bên dưới là của ngày 7/9. ⭐ **7/9 — production ĐANG CHẠY THẬT**: `https://songnhue.com` **200**, `www` 200, `admin` 200, **6/6 container healthy**, 3 chứng chỉ TLS (apex 2 SAN, hạn 6/12), collation `icu=vi-VN` xanh, **55/55 migration** 0 hỏng, sitemap 19 URL **0 lần `localhost`** (⇒ T11.7-a đóng trọn). Nghiệm thu §9 **9/10** — phép 9 (tải tệp về, phép DUY NHẤT chứng minh `MINIO_ENDPOINT` đúng) chờ có tệp đầu tiên. ⬜ Còn: **quay lui thật (DOD0.21)** · mã số thuỷ văn (chờ Công ty) · bật lịch sao lưu · lịch gia hạn TLS cho **staging** (T11.88 — hạn 22/11, chưa có).
 **Phase 1 — CMS & master data công trình** ✅ **xong 24/8/2026** — WS-12→WS-23 đóng đủ, **16/17 mục DoD** có phép kiểm đứng sau.
 **Phase 2 — `hydro` + MOD-01 phần còn lại** ✅ **xong phần mã 8/9/2026** — DoD **19/22**. Ba mục còn lại ⛔ **không phải mã**, nên ⛔ **không chặn Phase 3**: `DOD2.9` cần **VM-3** · `DOD2.21` cần **7 ngày lịch liên tục** (T37.1) · `DOD2.22` load test 200 CCU (T37.2). ⇒ Đồng hồ DOD2.21 nên bấm sớm nhất có thể.
+✅✅✅ **PHASE 3 ĐÃ GỘP VÀO `dev` 14/09/2026** — PR #132, commit `2c3b8a1` (**Squash** ⇒ 1 cha ⇒ luật 22: nhánh nguồn đã CHẾT). CI trên `dev` sau gộp `34829579535` **success**. Số đọc từ **CI thật**, ⛔ không phải ở máy: **1811 testcase BE** (core 283 · content 54 · hydro 225 · operations 55 · app 1194) · **0 đỏ** · **74 migration / 74 vân tay** · mã lỗi **119 = 119** (đếm độc lập hai phía) · **1158 dòng** sổ. ⭐ Gốc chung `dev ↔ staging` **còn nguyên** (`kiem-goc-chung.sh` thoát 0) ⇒ lượt đề bạt hợp nhất sạch — **dùng merge commit, ⛔ không squash** (§10.72).
+🟨 **PHASE 4 MỞ ĐƯỢC** — kế hoạch ở **`.claude/phase4-plan.md`**. ⛔⛔ Việc ĐẦU TIÊN ⛔ không phải viết mã mà là **chuỗi đề bạt `dev → staging → production`** (`T60.13`): production tụt **15 commit** (đo lại 14/09 tối sau `git fetch`), và một trong số đó mang bản vá poller ⇒ **quy tắc 18 — mỗi ngày chậm là một ngày mất số liệu VĨNH VIỄN**. Cọc dài nhất `T37.1` đòi **7 ngày lịch** và ⛔ không bấm giờ được trước lượt đề bạt. ⭐ **PR #133 `dev → staging` đã xanh 12/12, `MERGEABLE`**; staging mang bản vá poller **từ 11/09** mà chưa ai đo nó ghi được byte chưa (`T61.2` — đo TRƯỚC khi đề bạt production).
+⭐⭐ **WS-61 (14/09) — đối chiếu kế hoạch Phase 4 với sổ**: bản đầu liệt kê **12** việc trong khi sổ có **122** dòng mở ⇒ **26 dòng đã xong mà chưa tick** (lật kèm bằng chứng) và **9 chỗ hổng** kế hoạch ⛔ không nhắc — nặng nhất: **ClamAV ⛔ chạy ở môi trường nào** (mọi tệp tải lên, gồm hồ sơ CBNV, là `SKIPPED` — `T61.4`) · **⛔ có Alertmanager** (Prometheus tính cảnh báo mà ⛔ gửi đi đâu — `T61.5`) · **runbook xoay khoá tắt âm thầm chống trùng CCCD** (`T61.11`) · kho có **0** kịch bản load test (`T61.6`, nay đã viết `tools/tai-thu/`) · ⛔⛔ **mọi xô hạn mức khoá theo IP** trong khi chú thích trong mã khai *"cả Công ty ra Internet qua một IP NAT"* ⇒ 50 cán bộ chung **100 lượt/phút**, tab dashboard tự gọi ~2–3 lượt/phút lúc nghỉ (`T61.17` — **chặn go-live nếu NAT là thật**, chờ QuanTran đo). Việc chia theo chủ ở **`.claude/phase4-tracking-tmp.md`** (tệp TẠM; §B là lệnh cụ thể cho QuanTran — phía phát triển ⛔ SSH).
+
+✅✅ **PHASE 3 XONG PHẦN MÃ 14/09/2026.** Hai nhóm: **D (HRM)** đủ 9/9 chức năng CN-04.1→04.9, và
+**C3** (GIS · dashboard · báo cáo MOD-02) đủ phần dựng được. ⇒ **Mọi mã quyền trong danh mục nay
+đều có ít nhất một đầu nhận** — `RbacMatrixTest` ⛔ không còn một dòng miễn kiểm *"Phase 3"* nào
+(gỡ 7 dòng trong ba lượt: WS-57 bốn `hr:leave:*`+`hr:contract:manage`, WS-58 `hr:org-chart:view`
++ `hr:report:*`, WS-59 bốn `ops:gis-layer:*`+`ops:report:*`).
+⭐⭐ **WS-60 (14/09) — đối chiếu 13 mục DoD Phase 3, lần ĐẦU TIÊN.** `grep -c "DOD3"` trong sổ =
+**0** trước lượt này. Kết quả: **12/13 đạt**; `DOD3.6` ⛔ **không đạt** (4/6 endpoint kết xuất rơi
+sai xô hạn mức, rộng gấp **600 lần**, ba trong bốn do chính Phase 3 dựng — đã vá, đóng luôn T47.11);
+`DOD3.12` đạt **một phần**. Cùng lượt gỡ chốt CI: **cả repository `minio/minio` đã biến mất khỏi
+Docker Hub** ⇒ 5 nơi khai chuyển sang `quay.io`.
+⛔⛔⛔ **Và nó để lại một việc CHẶN cho Phase 4**: `compose.prod.yml` đang ghim ảnh ⛔ không kéo về
+được nữa ⇒ `docker compose pull`, dựng lại máy, **và lượt quay lui `DOD0.21`** đều hỏng. Bản vá nằm
+trong PR #132 nhưng **chỉ có hiệu lực sau khi đề bạt tới production** — phải **đo trên VPS-1** rằng
+ảnh mới kéo về được, trước khi coi `DOD0.21` là đi thử được (T60.3).
+
+⬜ **Những gì còn lại của Phase 3 ⛔ KHÔNG phải mã** — cả bảy đều chờ Công ty hoặc chờ một quyết
+định nghiệp vụ: **G8** toạ độ (0/19 điểm đo · 0/11 công trình ⇒ lớp GIS rỗng — chặn *nghiệm thu*,
+⛔ không chặn *viết*) · **G10** bố cục bản in + **T42.14** bộ kết xuất PDF/XLSX · **G6** mẫu 2C-BNV
+(BCNS-07) · **B3** uỷ quyền duyệt · **T57.16** số phép tồn đầu kỳ · **T57.17** *"cuối tuần = T7+CN"*
+trong khi Công ty có ca trực · **T59.13/14** xuất ảnh bản đồ và bộ đọc KML/KMZ.
+
 ⭐⭐ **Phase 3 ĐÃ MỞ 10/9 — cửa vào là D (HRM)** (đánh giá 8/9 ở `master-tracking.md` §*Đánh giá sẵn
 sàng vào Phase 3*; câu *"`backend/hr/` mới có 6 tệp `package-info.java`"* ⛔ **không còn đúng** kể từ
 WS-51). Đã dựng: **CN-04.2** hồ sơ CBNV + danh mục chức vụ + trường 🔒 (`employee_sensitive`,
@@ -84,14 +110,24 @@ kiện · **CN-04.5** tài liệu 7 thư mục + cảnh báo hết hạn M4.9. T
 `attachments` với `owner_type='EMPLOYEE'`, và versioning *"⛔ không ghi đè"* là **hành vi sẵn có**
 của `AttachmentService.nextVersion(owner, purpose)`. Trả **2/15** khoá `settings` nhóm `hr.*` đang
 mồ côi từ 13/08.
-⬜ Còn lại của MOD-04: **CN-04.1** sơ đồ tổ chức (UI cây + export) · **CN-04.6** danh bạ ·
-**CN-04.8** báo cáo · **CN-04.9** nghỉ phép · hai vế nhỏ của CN-04.5 (tải cả hồ sơ ZIP, xem trước
-PDF/ảnh — T53.12).
-⛔⛔ **Thứ tự bắt buộc: T51.8 → CN-04.9.** Chốt C3 đòi *"cấp tài khoản cho toàn bộ CBNV"*, nên đơn
-nghỉ phép phải biết **người gửi là CBNV nào** — cột `users.employee_id` có **0 đường ghi**. Dựng
-CN-04.9 trước là dựng một quy trình duyệt ⛔ không biết ai đang xin nghỉ. **13 khoá `hr.leave.*`
-vẫn mồ côi** cho tới lượt ấy. **G6** chặn **đúng một** báo cáo `BCNS-07`, ⛔ không chặn 8 chức năng còn lại;
-**G6-a** (danh sách CBNV) chặn **dữ liệu**, ⛔ không chặn mã — bảng để RỖNG là đúng.
+⭐⭐ **WS-54→57 (10–14/09) đóng nốt bốn chức năng**: **T51.8** liên kết tài khoản ↔ hồ sơ ·
+**CN-04.6** danh bạ · **CN-04.1 vế 1** chốt chặn giải thể đơn vị · **CN-04.9 nghỉ phép** (14/09).
+CN-04.9 trả nốt **13 khoá `hr.leave.*`** mồ côi từ 13/08 và nối **ba mã quyền** có 0 endpoint
+(`hr:leave:request` · `hr:leave:approve` · `hr:leave:view-all`) + `hr:contract:manage`.
+⭐⭐ **WS-58 (14/09) đóng nốt MOD-04**: **CN-04.1 vế 2–5** (sơ đồ ECharts `tree` kèm quân số ·
+kéo–thả đổi nhánh · xác nhận 2 bước khi giải thể · xuất PNG/SVG) · **CN-04.8** báo cáo nhân sự
+(KPI + 3 biểu đồ + **8 mã BCNS**, xuất CSV) · **T53.12** (tải cả hồ sơ ZIP · xem trước PDF/ảnh).
+⇒ **Mọi mã quyền `hr:*` nay đều có đầu nhận** — `RbacMatrixTest` ⛔ không còn một dòng miễn trừ
+`hr:` nào.
+⬜ Còn lại của MOD-04, **cả bốn đều chờ NGHIỆP VỤ chứ ⛔ không chờ mã**: **BCNS-07** mẫu 2C-BNV
+(G6 — cấm tự chế bố cục) · **bản in PDF** của 7 báo cáo còn lại (G10 + T42.14) · **uỷ quyền duyệt**
+(chốt B3) · **lịch nghỉ đơn vị dạng calendar** (T57.18). Thêm ba nợ của CN-04.9: số phép tồn đầu kỳ
+(T57.16) · *"cuối tuần = T7+CN"* trong khi Công ty có ca trực (T57.17) · người nhận thông báo rộng
+hơn đặc tả (T57.15).
+⛔⛔ **Thứ tự T51.8 → CN-04.9 ĐÃ TRẢ XONG** và nó đúng: chốt C3 đòi *"cấp tài khoản cho toàn bộ
+CBNV"*, nên đơn nghỉ phải biết **người gửi là CBNV nào**. **G6** chặn **đúng một** báo cáo `BCNS-07`,
+⛔ không chặn 8 chức năng còn lại; **G6-a** (danh sách CBNV) chặn **dữ liệu**, ⛔ không chặn mã —
+bảng để RỖNG là đúng.
 ✅ **T51.11 ĐÃ TRẢ 10/09** — `NoAmbientClock` nay bắt **9 kiểu** (thêm `YearMonth`·`MonthDay`·
 `ZonedDateTime`·`OffsetDateTime`·`OffsetTime`) **+ 3 đường VÒNG** (`ZoneId.systemDefault()` ·
 `Clock.systemDefaultZone()` · `TimeZone.getDefault()` — lời gọi **có** đối số nên vế `now()` về
@@ -113,7 +149,7 @@ sai, sửa 10/09 — T52.8). Đo trên CSDL staging cùng ngày: `constructions`
 
 **WS-25 — Đầu trang thân thiện + kiểm kê "cấu hình được từ admin"** ✅ **28/8** (§10.62). Thanh điều hướng **đo được là tràn 1454/1192px trên mọi màn hình** (`flex-wrap` che đi) và mục cấp 1 kiểu `NONE` là nút không hành vi → không mở được menu con trên máy tính bảng — cả hai nằm trong §10 checklist *"Responsive"*. Kiểm kê tìm ra **6 cột/khoá/tham số thiếu một nửa cặp đọc–ghi** (4 trong số đó do WS-24 tạo ra **một ngày trước**) + 4 khoá `settings` không ai đọc. **21/24 task đóng**; 3 nợ có số đo: T25.22 (cache cổng không xoá được từ `core`/`operations` — trễ 5') · T25.23 (25 hex ở admin-app) · ~~T25.24~~ đã đóng 27/8.
 
-⬜ **DoD còn treo**: **DOD1.17** trang chủ < 3s (NFR-02) — nay đo được trên staging có nội dung thật · **DOD0.21** quay lui — chưa lượt deploy nào đi qua đường quay lui thành công.
+⬜ **DoD còn treo**: **DOD1.17** trang chủ < 3s (NFR-02) — nay đo được trên staging có nội dung thật · **DOD0.21** quay lui — ⚠ **câu cũ ở đây thiếu chính xác** (sửa 14/09): đường quay lui **ĐÃ chạy thật và thoát success** ngày 27/8 (run 33086135148), nhưng đó là một lượt **⛔ không có gì để quay lui** — `migrator` chạy TRƯỚC `up -d` nên deploy dừng trước khi chạm container nào. Nó chứng minh **đường đi thông**, ⛔ chưa chứng minh nó **dựng lại được một bản đã bị thay**. Muốn đóng: một lượt hỏng **SAU** bước `up -d` rồi đo `Created` của container quay về mốc cũ.
 
 ✅ **Staging đã dựng lại cluster 26/8** (T11.3-b) — `i | collate=C.UTF-8 | icu=vi-VN`, vân tay số dòng khớp từng bảng, 6/6 container healthy, 4/4 smoke test xanh trên site thật, trang chủ 11 liên kết đều là slug thật. Lượt khôi phục ấy tìm ra **T7.13-a** — đường quay lui dữ liệu duy nhất của hệ vốn khôi phục ra một CSDL ứng dụng không đọc nổi (§10.58).
 
@@ -286,6 +322,35 @@ sai, sửa 10/09 — T52.8). Đo trên CSDL staging cùng ngày: `constructions`
 | 10/9 | ⭐⭐ **`RbacMatrixTest` bắt tôi ở lượt chạy TOÀN BỘ — lần thứ TÁM một bộ canh bắt chính người vừa viết mã.** `hr:directory:view` nằm trong danh sách **miễn kiểm** kèm ghi chú *"Danh bạ — Phase 3 (CN-04.6)"*; dựng xong CN-04.6 thì dòng ấy hết lý do tồn tại và bài đỏ đúng câu nó sinh ra để nói. ⚠⚠ **Chỉ lộ ở lượt chạy TOÀN BỘ**: bốn lượt `-Dtest=DanhBa*` trước đó xanh trọn vẹn, vì một bộ canh **kiểm kê cả kho** ⛔ không có cách nào lọt vào một lượt chạy nhắm mục tiêu ⇒ nhắm mục tiêu để đi nhanh thì được, nhưng ⛔ không được đọc cái xanh ấy thành *"xong"* | T55.9 |
 | 10/9 | ⚠ **ESLint bắt thứ `tsc` và `vitest` đều ⛔ không thấy** — một tệp vừa export component vừa export hàm (`react-refresh/only-export-components`, `--max-warnings 0`). Tám bài kiểm xanh trọn vẹn, typecheck sạch, cổng `[4/10]` đỏ. **Ba cổng, ba câu hỏi khác nhau** — §10.70 lần thứ ba | T55.8 |
 | 10/9 | ⭐⭐ **Bộ canh phân trang ĐỎ GIẢ trên một CHÚ THÍCH — lần thứ TƯ cùng hình dạng, và nó phạt đúng người viết tài liệu tử tế.** Nó bắt đúng `api.get<PageResult<…>>` trong mã tôi vừa viết (⭐ đúng: ô chọn sẽ **RỖNG vĩnh viễn**, ⛔ không một dòng lỗi). Vá xong, tôi viết chú thích giải thích vì sao ⛔ không được dùng dạng ấy — bộ canh khớp chuỗi **trong chú thích** rồi báo đúng tệp vừa làm đúng. ⛔ Sửa chú thích cho hết đỏ là **xoá bài học mà vẫn để bộ canh thủng** ⇒ quét trên `boChuThich(ma)`, kèm 3 bài tự-kiểm (vế cuối: mẫu nằm trong **chuỗi ký tự** vẫn phải bị bắt) | T54.8 |
+| 14/9 | ⛔⛔⛔ **Thông báo khai ở hàng `__NEW__` CHƯA BAO GIỜ chạy — và javadoc của tôi khẳng định ngược lại.** `WorkflowEngine:177` trả về NGAY khi trạng thái xin bằng `workflow_definitions.initial_state`, nên nó ⛔ không tra hàng `__NEW__` nào: ⛔ không kiểm quyền, ⛔ không `notifyAfterTransition`. Với `LEAVE_REQUEST` thì `initial_state = 'CHO_DUYET'` chính là thứ ta xin ⇒ **cả ba** cột của hàng ấy là trang trí, và người duyệt nhận **0** thông báo sau một lượt nộp thành công. ⭐ Hai hàng `__NEW__` có sẵn trong kho đều để `notify_event = NULL` — **tiền lệ đúng**, tôi suýt dựng tiền lệ thứ hai mâu thuẫn. Thứ bắt được: một bài kiểm **qua HTTP** đếm dòng `notification_recipients` | T57.6 |
+| 14/9 | ⛔⛔ **Bộ canh enum ba nơi MÙ trước mọi giá trị có CHỮ SỐ — và ca hỏng ngược lại thì nó XANH.** `bocChuoiNhay` dùng `[A-Z_]+`, nên `CHO_DUYET_2` vô hình ở **cả ba** nguồn nó đọc. Lượt này nó đỏ đúng; nhưng nếu **Java** mất giá trị ấy trong khi TS và SQL còn, cả ba tập bóc ra đều thiếu nó như nhau ⇒ **ba tập bằng nhau** ⇒ **XANH** trong đúng tình huống nó sinh ra để bắt. Luật 28 ở dạng tinh vi nhất: phạm vi hụt ⛔ không ở *tệp nào được quét* mà ở **ký tự nào được nhận** — và mọi quy trình **hai cấp duyệt** đều sinh ra một trạng thái như vậy | T57.9 |
+| 14/9 | ⛔⛔ **Một mã lỗi đặt sẵn 32 ngày, và lượt dựng tính năng suýt đúc thêm một mã trùng nghĩa.** `HR-2001` (*"vượt số phép còn lại"*) mồ côi từ 13/08 kèm dòng miễn trừ *"CN-04.9 chưa dựng"*; bản đầu của WS-57 đặt `HR-2006` cùng nghĩa. Hai mã cho **một** trạng thái là hai câu trả lời cho cùng một câu hỏi — lượt rà sau ⛔ không biết mã nào thật sự bắn ra, và mã cũ sẽ mồ côi thêm một phase nữa. ⇒ Giữ mã CŨ, **nâng câu chữ** để mang hai con số | T57.7 |
+| 14/9 | ⛔⛔ **44 nơi ném truyền ĐỐI SỐ vào mã lỗi ⛔ không có chỗ cắm `{n}` — đối số biến mất trong im lặng.** Đo: **32/115** mã có `{n}`; **44** lời gọi trên **31** cặp (mã, tệp) ở cả 5 module trỏ vào mã ⛔ không có chỗ cắm nào. `MessageFormat` bỏ lặng đối số thừa ⇒ người viết tưởng mình vừa nói cho người dùng biết *cái gì* sai. Lộ ra vì chỗ của **chính tôi** làm một khẳng định HTTP đỏ; **43 chỗ còn lại là nợ có số đo** | T57.8 |
+| 14/9 | ⛔⛔ **Một phép đo ĐÚNG bị đọc SAI tệ hơn ⛔ không đo — nó mang theo cảm giác đã kiểm.** Lượt `grep` đầu của tôi **ĐÃ IN RA** bảng `holidays` (có từ 13/08); tôi đọc thành *"chưa có"* rồi viết `CREATE TABLE`, migrate đỏ. Cùng lượt: khẳng định *"`holidays` phải RỖNG khi giao"* của tôi bị dữ liệu bác — 8 hàng seed là **LUẬT** (Điều 112 BLLĐ 2019, chỉ ngày dương lịch cố định), ⛔ không phải *"seed cho đẹp demo"*. ⭐ Và cái sai ấy làm lộ khuyết tật **nặng hơn**: cờ *"đã cấu hình ngày lễ"* trả **CÓ** cho mọi năm đã seed trong khi **Tết vẫn thiếu** — nói dối đúng ở ca nguy hiểm nhất (luật 9) ⇒ trả **số đã khai X/11** thay cho một cờ | T57.0 · T57.2 |
+| 14/9 | ⛔ **Luật 32 lần thứ TƯ, do chính người vừa đọc nó mắc: `-Dtest='A+B'` ⇒ 0 bài chạy, `BUILD SUCCESS`, reactor 6,9 giây.** Cùng phiên còn một lượt: báo cáo surefire **cũ** (cùng thời gian `16.34 s`) bị đọc thành kết quả lượt vừa chạy — lượt ấy thật ra đỏ ở **Checkstyle** trước khi tới test. ⇒ Xoá báo cáo trước mỗi lượt đo, và **đối chiếu thời gian** trong báo cáo với lượt chạy | T57.11 |
+| 14/9 | ⭐ **Bốn thứ dựng sẵn cho CN-04.9 nằm im 32 ngày, cả bốn 0 người đọc**: bảng `holidays` · seed 8 ngày lễ pháp định · `DateTimeUtils.countWorkingDays` (javadoc ghi đích danh *"dùng cho CN-04.9"*, **0** lời gọi production) · 13 khoá `hr.leave.*`. Và bản đầu của tôi **viết lại** `countWorkingDays` thay vì gọi nó. Luật 15 nói công tắc chưa ai đọc là một **lỗi**, ⛔ không phải việc để dành — hệ quả đo được là lượt dựng sau **⛔ không tìm thấy** thứ đã có | T57.0 · T57.3 |
+| 14/9 | ⭐ **Quy tắc 13 tái diễn trong đúng lớp đang viết javadoc cảnh báo nó.** `SoDuPhepService.tinh()` bản đầu lấy *đã tiêu* bằng `SUM` lọc `BETWEEN` rồi **trừ** *đang chờ* lọc theo **chồng khoảng** — hai vị từ khác nhau, hiệu của chúng là con số ⛔ không ai định nghĩa được | T57.4 |
+| 14/9 | ⛔⛔⛔ **`StreamingResponseBody` chạy trên MỘT LUỒNG KHÁC — và mọi cơ chế nền của hệ này đứng trên `ThreadLocal`.** `AuthContext`, `ScopeFilterAspect`, `AuditContext` đều **RỖNG** ở luồng async. Hệ quả ⛔ không dừng ở một ngoại lệ (`AUTH-0002` phát ra từ bên trong thân phát luồng): một truy vấn chạy ở đó đi qua bộ lọc phạm vi **⛔ không có phạm vi nào**, tức đọc **rộng hơn** người gọi được phép. ⛔ Và nó hỏng theo chiều tệ nhất — header đã gửi, `Content-Type` đã chốt `octet-stream`, nên `GlobalExceptionHandler` ⛔ không ghi nổi envelope JSON ⇒ **người dùng nhận một tệp ZIP HỎNG thay vì một thông báo**. ⇒ Dựng ra **tệp tạm** trên chính luồng request, xoá ngay sau khi mở fd (POSIX giữ inode) | T58.7 |
+| 14/9 | ⛔⛔ **Một bản nén THIẾU tệp mà ⛔ không nói ra thì người nhận dùng nó như một bản đầy đủ.** Tệp vừa tải lên có `status = UPLOADING` cho tới khi quét virus xong; bản đầu bỏ qua kèm một dòng WARN **trong log** — nơi ⛔ không ai đọc. ⛔ Còn chặn cả lượt tải thì sai theo chiều kia: một tệp đang quét làm hỏng thao tác của người ⛔ không liên quan. ⇒ Bản nén mang `_THIEU.txt` liệt kê đúng những tệp ấy (quy tắc 16 — một tập ⛔ không đi một mình) | T58.8 |
+| 14/9 | ⭐⭐ **Cách sửa RẺ NHẤT cho một bộ canh đỏ lại chính là tháo nó.** `baySoBaoCaoDeuRaByteThat` đỏ ở BCNS-04 vì báo cáo *hợp đồng sắp hết hạn* chỉ có dòng tiêu đề — dữ liệu nền ⛔ không có hợp đồng nào sắp hết. Miễn hai mã **có điều kiện** khỏi vòng lặp là để một BCNS-04 hỏng hoàn toàn đi lọt mãi mãi. ⇒ Dựng **ĐIỀU KIỆN** (hợp đồng hết hạn sau 10 ngày, chứng chỉ sau 15 ngày), ⛔ không nới khẳng định. Cùng hình dạng §11.17 (*nới ngưỡng cho hết đỏ là tự tay tháo bộ canh*) | T58.6 |
+| 14/9 | ⛔⛔ **Bốn chức năng đọc CÙNG bảng `employees` với HAI luật phạm vi ngược nhau.** Danh bạ (CN-04.6) và sơ đồ tổ chức (CN-04.1) = **toàn Công ty**; hồ sơ (CN-04.7) và báo cáo (CN-04.8) = **cắt**. Báo cáo là *đầu ra của hồ sơ*, mà hồ sơ chịu M4.13 — một báo cáo rộng hơn nguồn của nó là một **đường vòng qua chính luật ấy**, và nó im lặng hoàn toàn. ⚠ Hệ quả phải KHAI RA trên giao diện: hai người ở hai đơn vị thấy hai bộ số và **cả hai đều đúng** | T58.1 |
+| 14/9 | ⛔ **Bảy mã báo cáo khả dụng cộng một dòng IM LẶNG thì lượt nghiệm thu đếm bảy nút rồi tick đủ.** BCNS-07 (mẫu 2C-BNV/2008, **cấm tự chế bố cục**, chờ G6) khai đủ trong danh mục với `khaDung = false` + **lý do nguyên văn**, và đường xuất trả **`HR-2009`** chứ ⛔ không phải 404 — *"mã ⛔ không tồn tại"* và *"mã có thật, chưa dựng được"* dẫn tới hai việc khác hẳn nhau | T58.4 |
+| 14/9 | ⭐ **Một `read(UUID)` trần trên bảng `attachments` là một lỗ IDOR trông y hệt mã đúng** — bảng ấy dùng chung cho bài viết, công trình, hồ sơ CBNV và cấu hình cổng. ⇒ `readForOwner(ownerType, ownerId, publicId)` **tự kiểm** tệp thuộc đúng bản ghi, biến *"đoán đúng UUID của tệp người khác"* thành một trạng thái ⛔ không biểu diễn được thay vì một lời dặn từng nơi gọi phải nhớ | T58.9 |
+| 14/9 | ⭐ **Một con số trên sơ đồ tổ chức hỏng theo CẢ HAI chiều nếu chỉ có một.** Chỉ *trực tiếp* ⇒ Xí nghiệp có 4 Tổ đội hiện **0 người** khi thu gọn; chỉ *cả nhánh* ⇒ tổng nút con ⛔ không bằng nút cha và ⛔ không chỗ nào nói vì sao. ⇒ Trả **hai** và gọi tên chúng; nhãn hiện một số khi hai số bằng nhau (nút lá `2/2` là phân số vô nghĩa) | T58.0 |
+| 14/9 | ⚠ **React Compiler bỏ tối ưu cả component vì một handler bắt giá trị `useMemo`** — `react-hooks/preserve-manual-memoization` đỏ ở cổng `Frontend — lint`, mà `tsc` và `vitest` đều ⛔ không thấy. **Lần thứ TƯ** cùng hình dạng *ba cổng, ba câu hỏi khác nhau* | T58.12 |
+| 14/9 | ⛔⛔⛔ **`FileValidator.detect()` đi bằng MAGIC BYTES ⇒ ⛔ KHÔNG định dạng VĂN BẢN nào nạp lên được.** Đường nạp GeoJSON của M2.9 đỏ ở lượt chạy đầu với `FILE_TYPE_NOT_ALLOWED`, `rejectedValue = "unknown"` — tức toàn bộ cơ chế lớp bản đồ **⛔ không có đường nào chạy được**. Đúng hình dạng SVG (WS-15): *cơ chế có mặt, có bài kiểm riêng, xanh, chưa bao giờ nằm trên một đường chạy thật*. ⇒ Thêm `looksLikeJson` theo đúng tiền lệ `looksLikeSvg` **đã viết sẵn trong chính tệp ấy**, giữ nguyên lớp quyết định cuối là danh sách cho phép của nơi gọi | T59.3 |
+| 14/9 | ⛔⛔ **`readForOwner` trả RỖNG cho CẢ *chưa quét virus xong* lẫn *⛔ không tồn tại*** ⇒ giao diện nói *"lớp ⛔ không tồn tại"* về một tệp vừa nạp vài giây trước. ⇒ Tra `findRef` trước rồi trả **`SYS-0009`** — mã đã có sẵn cho đúng trạng thái ấy. ⚠ Gặp **hai lần trong một ngày** (ZIP hồ sơ CBNV và lớp bản đồ), cả hai lần đều lộ ra vì bộ kiểm chạy với `WORKER_ENABLED = false` | T59.4 · T58.8 |
+| 14/9 | ⛔⛔ **`BangCsv` NÉM khi một dòng lệch số cột — và ràng buộc ấy cứu đúng thứ nó sinh ra để cứu.** Tôi viết ba dòng lệch (kỳ báo cáo 2 ô, dòng trống 0 ô, TỔNG 11 ô). Một tệp CSV lệch cột vẫn **MỞ ĐƯỢC** trong Excel — nó chỉ đẩy dữ liệu sang cột bên cạnh từ dòng ấy trở đi, **im lặng** | T59.2 |
+| 14/9 | ⭐⭐ **Một lượt gọi PHỤ suýt hạ cả dashboard điều hành.** `(data ?? []).filter(…)` ném **trong thân render** khi phản hồi có hình dạng ⛔ không mong đợi ⇒ màn hình Trực ban dùng hằng ngày trắng. Lớp bản đồ là thứ **trang trí**; nó ⛔ không được quyền làm sập thứ chính ⇒ `Array.isArray` | T59.10 |
+| 14/9 | ⚠ **Một mã lỗi đã NGHỈ HƯU ⛔ không được dùng lại.** `OPS-2022` đổi thành `SYS-0012` ngày 09/09; đúc lại số ấy cho một nghĩa mới làm mọi dòng nhật ký, ảnh chụp màn hình và phiếu hỗ trợ cũ **đọc sai nghĩa**, và ⛔ không có gì báo. Một mã lỗi là một **định danh**, ⛔ không phải một ô trống để lấp ⇒ nhảy sang `OPS-2023` | T59.1 |
+| 14/9 | ⛔ **Ba trạng thái *"báo cáo này ⛔ không tải được"* phải có BA câu trả lời khác nhau**: `404` = gõ sai mã · `HR-2009` = có thật, **chưa** làm được (BCNS-07 chờ G6 — *sẽ* có) · `OPS-2023` = có thật, **bỏ vĩnh viễn** (BC-01..04 mất nguồn — *⛔ không bao giờ* có). Gộp chúng là để người vận hành đi chờ một thứ ⛔ không bao giờ tới. ⚠ Và bảy mã khai đủ thay vì ba: liệt kê ba mã còn sống là để câu hỏi *"BC-01 đâu?"* quay lại ở **mọi** lượt nghiệm thu | T59.0 |
+| 14/9 | ⭐ **Đo trên bản đồ bằng Pythagore sai một chiều ~7% ở vĩ độ 21°.** Một độ kinh tuyến ngắn hơn một độ vĩ tuyến chừng ấy, nên hình học phẳng cho sai số vài trăm mét trên một tuyến kênh 10 km. ⇒ Haversine + spherical excess, và phép đo **khai ra giới hạn của chính nó** trên màn hình (*"dùng để ước lượng, ⛔ không thay số liệu trắc địa"*) | T59.8 |
+| 14/9 | ⛔⛔⛔ **Cả repository `minio/minio` BIẾN MẤT khỏi Docker Hub — 86 lớp kiểm đỏ trên CI, 0 đỏ ở máy.** 81/86 là nạn nhân dây chuyền (`failure threshold exceeded`); lỗi gốc chỉ đọc được bằng cách **lọc ra** những lớp ⛔ không mang câu ấy (luật 23). Đo ba phía: hub API `object not found` · registry v2 `UNAUTHORIZED` · `quay.io` còn sống. ⭐ Vì sao máy xanh: ảnh nằm trong **đệm Docker cục bộ** kéo về **12 tháng trước** ⇒ Testcontainers ⛔ không hỏi registry lần nào — biến thể **MỚI** của *"xanh ở máy không phải bằng chứng"*, sau `.env.local` và biến build rỗng | T60.0 · T60.1 |
+| 14/9 | ⛔⛔⛔ **`compose.prod.yml` đang ghim một ảnh ⛔ KHÔNG kéo về được nữa — đường quay lui của kho tệp đã gãy mà ⛔ không ai biết.** Production chạy bằng ảnh **đã nằm trên đĩa** nên hôm nay ⛔ không có triệu chứng; `docker compose pull`, dựng lại máy, **và lượt quay lui `DOD0.21` (chưa chạy thật lần nào)** đều phải kéo ảnh ⇒ cả ba hỏng. MinIO là nơi **mọi tệp người dùng tải lên** đang nằm. Cùng hình dạng §10.56 và §10.81 | T60.3 |
+| 14/9 | ⛔⛔ **DOD3.6 — 4/6 endpoint kết xuất rơi sai xô hạn mức, RỘNG GẤP 600 LẦN, và BA trong bốn do chính Phase 3 dựng.** `path.contains("/export")` là chuỗi **tiếng Anh** trong kho đặt tên **tiếng Việt** (T47.11, mở từ 10/09). ⭐ Quét theo **kiểu trả về** lộ ra một endpoint mà quét theo **tên đường dẫn** ⛔ không thấy: `/bao-cao/tai/{id}`. Nặng nhất là `/tai-lieu/zip` — mỗi lượt đọc **toàn bộ tài liệu một hồ sơ CBNV**; ở 100/phút vừa là đường tự đánh sập mình, vừa là đường **rút dữ liệu cá nhân hàng loạt** (NĐ 13/2023) | T60.4 |
+| 14/9 | ⭐⭐ **Bộ canh bắt CHÍNH TÔI ở lượt chạy đầu — lần thứ CHÍN.** Regex của `AnhMinioDongBoTest` **nuốt mất `quay.io/`** (khớp trái-nhất hỏng ở vị trí 0 rồi thành công ở vị trí 8) ⇒ nó trả dạng **TRẦN** cho một tham chiếu **CÓ** kho ảnh, tức hai trạng thái nó sinh ra để phân biệt đọc **giống hệt nhau** (luật 9). ⚠⚠ Và `git checkout --` ở bước khôi phục **quay về HEAD**, gỡ luôn bản vá — chỉ lộ ra vì in `grep -c` = **0**. Luật 10 vế *"bản KHÔI PHỤC cũng phải được xác nhận"* | T60.2 |
+| 14/9 | ⭐⭐ **Ba bài đỏ sau bản vá hạn mức là BẰNG CHỨNG bản vá có hiệu lực** — cả ba là `429` ở những bài ⛔ không liên quan gì tới kết xuất, vì lớp dựng phiên ở `@BeforeAll` thì **cả lớp dùng chung một IP**. ⛔ Nới hạn mức ở hồ sơ kiểm thử là tắt một cơ chế bảo mật thật trong CI ⇒ `PhienHttp.doiIp()`: **mỗi bài kiểm là một máy khách** | T60.9 |
+| 14/9 | ⚠ **13 mục DoD Phase 3 có ĐÚNG 0 lượt nhắc trong sổ** — `grep -c "DOD3"` = 0. Chúng sống ở `phase3-plan.md` §8 và chưa lượt nào đối chiếu, đúng hình dạng §10.36. Lượt đối chiếu đầu tiên tìm ra **2 khuyết tật đang sống**. ⚠ Và 9 "endpoint mồ côi" của lượt quét là **dương tính giả của chính phép đo tôi vừa viết** (FE ghép đường dẫn bằng template literal — luật 25) | T60.7 · T60.8 |
 
 ⛔ Hệ quả rút ra: **"đã tick" không phải bằng chứng.** Trước khi mở một giai đoạn mới, đối chiếu với mã thật và chạy đường mà người dùng thật đi.
 
@@ -326,6 +391,181 @@ nào — bản vá là **mã**, ⛔ không phải dữ liệu) · **1045 dòng**
 `./mvnw -Dtest=…` **song song**, nó `rm -rf` đúng `hydro/target/surefire-reports` giữa chừng. Lượt
 ấy vẫn thoát **0** và in 7/7 SUCCESS. ⇒ **Mọi lượt `make ci-local` phải là tiến trình maven DUY
 NHẤT trên cây này** — nếu không thì cái xanh ⛔ không còn nói được nó xanh vì cái gì (luật 32).
+
+⭐⭐ **Đo lại 14/09/2026 sau WS-61 (Phase 4 đợt 1) — `make ci-local` thoát 0 VÀ `make ci-order` thoát 0**,
+tiến trình maven DUY NHẤT (⚠ số ở **MÁY**): **1817 testcase BE** (core **284** · content 54 · hydro 225 ·
+operations 55 · app **1199**) · **0 đỏ** · FE **438** admin-app / 51 tệp + **392** public-web / 44 ·
+**74 migration**, ⛔ thêm tệp nào · **1176 dòng** sổ tracking đọc được, 0 phép kiểm đỏ. **+6 bài BE,
++4 bài FE**, cả mười là bộ canh: `QuyenBanDumpTest` 3 · `BackupServiceTest` +1 · `IpThatTrongNhatKyHttpTest` 2 ·
+`hoSoCongTrinhVongKhuHoi.test.tsx` 4.
+
+⭐⭐ **Đo lại 14/09/2026 (tối) sau WS-61 đợt 2 — `make ci-local` thoát 0** (lượt cuối) **+ `make ci-order` thoát 0**
+(trên đỉnh T61.11), tiến trình maven DUY NHẤT (⚠ số ở **MÁY**): **1828 testcase BE** (core **286** · content 54 ·
+hydro 225 · operations 55 · app **1208**) · **0 đỏ** · FE **446** admin-app / 53 tệp + **392** public-web / 44 ·
+**74 migration**, ⛔ thêm tệp nào · mã lỗi **120** (`ADM-2019`). Ba việc: **T61.13** (bộ canh bytecode đếm
+đối số mã lỗi ⇒ 44 nơi lệch, **7 câu người dùng đọc nguyên chữ `{1}`** — năm câu CMS đánh chỗ cắm từ `{1}`)
+· **T61.11** (chống trùng CCCD so dưới MỌI khoá + job `CRYPTO_REENCRYPT` tự chạy khi khởi động) ·
+**T61.18** (`PUT` sửa bản ghi sửa chữa có 0 nơi gọi; dựng lối sửa thì lộ payload tạo mới sẽ **xoá kết quả
+nghiệm thu**). ⚠ **Mạng tới GitHub đứt suốt đợt** — các commit nằm ở máy, ⛔ chưa đẩy.
+
+⭐⭐ **Đo lại 15/09/2026 sau WS-61 đợt 3 — `mvnw clean` rồi `make ci-local` thoát 0**, tiến trình maven DUY NHẤT
+(⚠ số ở **MÁY**; CI runner xanh tới `eace56c`): **1857 testcase BE** (core **292** · content 54 · hydro 225 · operations 55 ·
+app **1231**) · **0 đỏ** · FE **458** admin-app / 56 tệp + **392** public-web / 44 · **74 migration** ⛔ thêm · mã lỗi **121**
+(`ADM-2020`). Việc QuanTran chốt 14/09: **T61.17** hạn mức API/kết xuất theo người dùng đã xác thực · **T61.4** ClamAV cả hai máy ·
+**T61.5** Alertmanager Gmail/Slack/Telegram — ⛔⛔ kèm phát hiện **Prometheus chưa từng đọc được chỉ số ứng dụng nào từ WS-7**
+(target `${…}` dùng nguyên văn) · **T61.18–22** bộ canh endpoint ↔ lời gọi khớp động từ (15 mồ côi → 1), tệp đính kèm bản ghi
+sửa chữa, màn hình M4.9, nút xoá tài khoản/nguồn, gỡ 6 endpoint thừa. ⛔⛔ **Trước khi đề bạt: đặt `METRICS_ALLOW_IP` +
+`METRICS_BEARER_TOKEN` ở `.env` CẢ HAI máy** — khai `:?`, thiếu là nginx ⛔ lên (`phase4-tracking-tmp.md` §B6).
+
+⭐⭐ **Đo lại 15/09/2026 sau WS-61 đợt 4 — `make ci-local` thoát 0**, tiến trình maven DUY NHẤT (⚠ số ở **MÁY**): **1884 testcase BE**
+(core **302** · content 54 · hydro 225 · operations 55 · app **1248**) · **0 đỏ** · FE **459** admin-app / 56 + **395** public-web / 45 ·
+**75 migration** (`V202609151081` hạn mức kết xuất) · mã lỗi **123** (`AUTH-0009` · `ADM-2021`). Quyết định QuanTran 15/09: **T61.23** chuyển
+hướng thư staging · **T61.24** tự quét lại tệp `SKIPPED` · **T61.25/26** chuông canh healthchecks.io + chuông sao lưu chỉ production ·
+**T61.27** hạn mức kết xuất vào `settings` · **T61.28** tự đánh giá ASVS L1 + ZAP · **T61.29** Playwright 3 engine. ⛔⛔ Lượt ASVS lộ ra
+**mật khẩu một mình vượt được 2FA** (T61.30 — gỡ bản vá thì máy chủ trả `secret` mới qua HTTP) · dò TOTP ⛔ bao giờ bị khoá (T61.33) ·
+SVG chạy script ở cả 3 trình duyệt (T61.32) · `javascript:` trong href (T61.34) · thiếu `no-store` (T61.35) — cả năm đã vá, mỗi cái có lượt
+phá-bản-vá. ⚠ Hai lượt `ci-local` đỏ trước lượt xanh: bộ canh `CaffeineRateLimitStoreTest` chốt số cũ mà lượt chạy nhắm mục tiêu ⛔ chạm
+tới · 2 bài FE hết giờ khi load average **7.48** (VS Code 150% CPU) — chạy riêng 6/6 xanh. ⛔ Staging thêm biến bắt buộc
+`MAIL_REDIRECT_TO` + `HEALTHCHECKS_PING_URL` (`phase4-tracking-tmp.md` §B6).
+
+⭐⭐ **Đo lại 15/09/2026 sau WS-61 đợt 5 (cấu hình hệ thống từ giao diện) — `make ci-local` thoát 0**, tiến trình maven DUY NHẤT
+(⚠ số ở **MÁY**): **1889 testcase BE** (core 302 · content 54 · hydro 225 · operations 55 · app **1253**) · **0 đỏ** · FE **464** admin-app / 57
++ **395** public-web / 45 · **76 migration** (`V202609151082` bí mật tích hợp + 2 quyền `adm:system-config:*` chỉ SUPER_ADMIN) · mã lỗi **126**
+(`ADM-2022` · `ADM-2023` · `ADM-2024`). QuanTran 15/09 muốn *"đưa cấu hình lên UI"* ⇒ kiểm kê mọi biến env theo **tiến trình đọc** ⇒
+`architecture-review.md` **§12.1**: 6 nhóm PHẢI ở `.env` (trước CSDL · tiến trình khác đọc · kênh cảnh báo · gác môi trường · SMTP · công tắc
+bảo mật). Dựng **T61.41** màn hình *Tình trạng cấu hình* + banner (⛔ trả giá trị; Prometheus đo bằng mốc lượt đọc chỉ số) · **T61.44** bí mật
+tích hợp (reCAPTCHA) ghi một chiều · **T61.43 = T54.4** trần cấp quyền · **T61.42** xác thực lại 2FA — ⛔⛔ kèm phát hiện **khôi phục CSDL
+trả 401 khi mã sai** ⇒ giao diện gửi lại mã sai rồi đá người dùng ra, và lượt sai ⛔ bị đếm · **T61.46** `tools/may-chu/dat-bien-b6.sh`
+(lượt thử đầu trên máy giả bắt lỗi lặp vô hạn). ⭐ **16/09 chạy THẬT trên hai máy** — VPS-1 2/2, VPS-2 4/10 biến §B6, `.env` về `600`. ⛔⛔ Lượt `--thu` trên máy THẬT lộ khuyết tật `ssh` **hút sạch stdin** ⇒ vòng lặp chỉ hỏi được biến ĐẦU TIÊN rồi im (§10.60, mã thoát vẫn 3 nên đọc y hệt *người dùng bỏ qua*); và bài tự kiểm đầu của tôi **xanh trên CẢ bản hỏng** vì `ssh` giả ⛔ hút stdin như `ssh` thật (luật 1 + luật 29). ⚠ Lượt `ci-local` đầu đỏ 2 bài — cả hai là **đồ gá** chưa theo bản vá (ghi tham số SECURITY
+⛔ mã 2FA · bảng mã hoá thứ tư ⛔ có hàng), ⛔ nới khẳng định nào.
+
+⭐⭐ **Đo lại 16/09/2026 sau WS-62 (Phase 4 đợt 6 — nhóm ASVS còn lại) — `make ci-local` thoát 0**, tiến trình maven DUY NHẤT
+(⚠ số ở **MÁY**): **1923 testcase BE** (core **311** · content 55 · hydro 229 · operations 55 · app **1273**) · **0 đỏ** ·
+FE **466** admin-app / 58 + **399** public-web / 46 · **77 migration** (`V202609161083` quyền riêng tư) · mã lỗi **129**
+(`ADM-2025` · `SYS-0013` · `SYS-0014`). Sáu việc: **T61.38** SSRF kiểm địa chỉ ĐÃ PHÂN GIẢI (chữ viết một mình để lọt một bản
+ghi A trỏ `10.0.0.x`) · **T61.37** biểu mẫu công khai (email ⛔ kiểm định dạng ⇒ `"x"` thành người nhận thư; hạn mức 300/PHÚT
+của đường ĐỌC dùng cho đường GHI ⇒ 18.000 lượt/giờ × 11 thư mỗi lượt) · **T61.31/T61.36** đặt lại mật khẩu + báo chính chủ ·
+**T61.39** thông báo quyền riêng tư NĐ 13/2023 · **T61.40** đối chiếu ASVS — ⚠ **31 dòng đo được chứ ⛔ phải 23 như sổ ghi**
+(lần thứ TÁM của *một dòng nợ tự nó sai*) · **T61.47** `@Valid`+ràng buộc 11 chỗ · `filename*` 5 chỗ · nginx chặn tệp ẩn ·
+Dependabot · `nosniff` · mô hình đe doạ STRIDE + bảng phân loại dữ liệu.
+⛔⛔ **Bốn khuyết tật của chính các bản vá, cả bốn do bộ kiểm bắt, ⛔ do đọc lại**: xô hạn mức mới khai trong enum mà quên
+đăng ký ở `RateLimitFilter.phuTrach` ⇒ đo được **12/12 lượt đều qua** — hạn mức ⛔ chặt hơn, nó **BIẾN MẤT** (luật 7) ·
+giao diện đặt lại mật khẩu suy bước từ `matKhauTam !== ''` ⇒ gõ ký tự ĐẦU là hộp mật khẩu tự đóng · mock `api.post` cũ ⛔
+chuyển tiếp THÂN yêu cầu ⇒ một lượt gửi thiếu mật khẩu tạm vẫn xanh (luật 9) · `@NotBlank` trên một trường chỉ-đọc-lúc-tạo
+làm **mọi lượt sửa phân loại liên hệ trả 400**.
+⛔⛔ **Và một bài kiểm của tôi là XANH GIẢ**: bài zip-bomb đỏ nhờ trần **DÒNG** (dùng chung mã `SYS-0012`) chứ ⛔ nhờ trần
+giải nén — xanh cả khi đã gỡ chốt ⇒ tách `SYS-0014` + dựng lại dữ liệu thử thành MỘT dòng khổng lồ (luật 1 + luật 9).
+⚠ `make ci-local` ⛔ dọn `target`: một `.class` và một `jacoco.exec` CŨ của module `hr` làm hai lượt chạy đỏ vì thứ ⛔ còn
+tồn tại trong mã — `rm -rf` thư mục ấy mới đọc được kết quả thật.
+
+⭐⭐ **Đo lại 16/09/2026 sau WS-64 (Phase 4 đợt 8 — mở phạm vi bộ canh · biểu mẫu Menu) — `make ci-local` thoát 0**,
+tiến trình maven DUY NHẤT (⚠ số ở **MÁY**) **VÀ `make ci-order` thoát 0** — hai thứ tự lớp cùng một bộ số:
+**1963 testcase BE** (core 338 · content 55 · hydro 229 · operations 55 · app **1286**) · **0 đỏ** · FE **478**
+admin-app / 61 + **399** public-web / 46 · **78 migration** ⛔ thêm · mã lỗi **130** ⛔ đổi.
+⛔⛔ **36/63 nút chỉ-có-icon của `admin-app` ⛔ có TÊN đọc được** (`T63.9`) — trình đọc màn hình đọc chúng thành *"button"*
+trống rỗng. Lộ ra vì một bài kiểm cần bấm nút Sửa và **⛔ có cách nào gọi tên nó**; giao diện trông hoàn toàn bình thường
+nên ⛔ lượt rà bằng mắt nào thấy. ⛔⛔ **Và phép đo ĐẦU của tôi cho 112/129 — 87% — cả ba mẫu mở ra kiểm đều là DƯƠNG TÍNH
+GIẢ**: regex `<Button\b([^>]*?)/>` dừng ở dấu `>` **bên trong** `icon={<EditOutlined />}` nên nút CÓ CHỮ bị đọc thành nút
+chỉ-có-icon. Bài học đã nằm sẵn trong javadoc `CotPhase2CoDocGhiTest` — *một kết quả "mọi thứ đều hỏng" gần như luôn là
+một **phép đo hỏng*** — và 87% lẽ ra đã phải là dấu hiệu. ⇒ Quét **cân ngoặc**, và bộ canh mang một vế **tự chứng minh nó
+phân biệt được hai hình dạng**. ⭐ Bộ canh bắt tôi ở lượt chạy đầu: đặt trần 37 trong khi vừa vá một nút ⇒ số thật **36**.
+⛔⛔ **Ô *"Bài viết"* trong biểu mẫu menu là một lựa chọn CHẾT, và mọi mục menu loại `ARTICLE` của seed ⛔ SỬA NỔI**
+(`T63.8`). `MenusTab` gửi `articleId: null` **ghi cứng**, `setFieldsValue` ⛔ nạp `articlePublicId`, mà ô *Loại liên kết*
+vẫn bày đủ 5 giá trị của `MO_TA_LOAI`. Seed `V202608191021` **dựng sẵn** mục `ARTICLE` (*Liên hệ*, *Giới thiệu chung*, một
+vòng mục con) ⇒ đổi nhãn một mục ấy cũng bị `CMS-2012` *"Đích của mục menu ⛔ tồn tại hoặc đã bị xoá"* — một câu dẫn người
+quản trị đi tìm xem mình lỡ xoá bài nào.
+⚠⚠ **Lượt rà tự động kết luận SAI một vế** (*"đứt liên kết trên cổng, im lặng"*); đo lại `applyTarget` thì nhánh `ARTICLE`
+gọi `requireId(...)` rồi **NÉM** ⇒ dữ liệu ⛔ mất, đây là lỗi *⛔ dùng được* chứ ⛔ phải xoá trắng như §11.19. **Chép lời một
+lượt rà mà ⛔ đo lại là cách một dòng nợ sai ra đời.**
+⚠⚠ **Và lượt kiểm chứng ngược ĐẦU đỏ vì LÝ DO SAI**: tôi chỉ gỡ phần gửi payload mà giữ ô chọn có `required` ⇒ biểu mẫu
+chặn ở bước hợp lệ hoá, thông điệp đỏ thành *"expected vi.fn() to be called"* — một câu ⛔ nói gì về khuyết tật thật. ⇒
+**Bản phá phải là trạng thái TRƯỚC, ⛔ phải một trạng thái đỏ nào cũng được** (luật 10).
+⭐ **T51.10 trả trọn** (`T63.7`): phạm vi `CotPhase2CoDocGhiTest` nay **ĐO trên đĩa**, mỗi module phải được **xếp loại** —
+module mới mà quên xếp là đỏ và bị gọi đích danh, thay vì lặng lẽ ngoài tầm quét như `hr` đã nằm bốn ngày. ⚠ Vế (a) đo lại
+thì **vốn đã trả từ trước mà sổ ⛔ lật** — lần thứ CHÍN của *một dòng nợ tự nó sai*.
+⛔⛔ **Và lần này nó là MẪU SỐ của cả một dòng nợ**: ba con số trong `T47.17` đo lại đều sai — `@PutMapping|@PatchMapping`
+toàn kho là **46** ⛔ phải 34 (nên phép trừ ra *"18 endpoint"* ⇒ *"mẫu số 17"* ⛔ còn đứng được) · bài *"vòng khứ hồi"* ở
+backend là **3** ⛔ phải 1 · và dòng cũ liệt **7 biểu mẫu có tên** rồi bỏ lửng bằng `…` trong khi khai *"còn 14"* — bảy cái
+ẩn sau dấu ba chấm **⛔ có tên ở bất kỳ đâu**. ⇒ Lượt đóng nốt phải **đo lại mẫu số trước**, ⛔ chép con số 17.
+
+⭐⭐ **Đo lại 16/09/2026 sau WS-63 (Phase 4 đợt 7 — lượt chạy THẬT đầu tiên của Dependabot) — `make ci-local` thoát 0**,
+tiến trình maven DUY NHẤT (⚠ số ở **MÁY**) **VÀ `make ci-order` thoát 0** — hai thứ tự lớp cho **cùng một bộ số**:
+**1961 testcase BE** (core **338** · content 55 · hydro 229 · operations 55 · app **1284**) · **0 đỏ** · FE **469**
+admin-app / 58 + **399** public-web / 46 · **78 migration** (`V202609161084` khoá URL kiểm lúc ghi) · mã lỗi **130**
+(`CMS-2024`), đếm độc lập hai phía cùng ra 130. ⭐ Trả nợ **T58.18**: kho nay có hạ tầng đếm truy vấn (`DemTruyVan`) và
+bộ canh N+1 canh **ĐỘ DỐC** chứ ⛔ một ngưỡng — một ngưỡng tuyệt đối đỏ vì thay đổi vô can, và cách sửa rẻ nhất khi nó
+đỏ là **nâng con số**, tức tự tay tháo bộ canh (§11.17 · T58.6). Kiểm chứng ngược dựng lại đúng vòng lặp cũ ⇒ **3 hồ sơ
+⇒ 15 câu lệnh · 30 hồ sơ ⇒ 36 câu lệnh**. ⚠ Phạm vi bộ đếm **đã khai ra**: nó mù trước `JdbcTemplate` (nợ `T63.6`).
+⛔⛔ **Một cơ chế WS-62 vừa dựng CHẠY LẦN ĐẦU và sinh ra 11 PR — 7 đỏ, 1 nếu gộp thì thay bộ token của dự án bằng mã
+người lạ** (`T63.1`). `frontend/` là **npm workspaces** với ĐÚNG MỘT lockfile ở gốc, mà `dependabot.yml` khai hai thư mục
+con ⛔ có lockfile ⇒ `npm ci` từ chối ở **7/7** PR frontend, kể cả một bump `@types/node` — vế chỉ ra lỗi nằm ở **cấu hình**
+chứ ⛔ ở phụ thuộc. Nặng hơn: PR #145 nâng `design-tokens 0.1.0 → 1.0.1` trong khi đó là gói **NỘI BỘ** của kho, còn npm
+công khai **có gói cùng tên của người khác** đúng ở `1.0.1` ⇒ gộp là npm thôi nối symlink workspace và **tải mã người lạ**
+về thay chỗ bộ token trong CẢ hai ứng dụng, ⛔ một dòng nào báo. **Dependency confusion do chính cơ chế thêm vào để TĂNG
+an toàn mở ra** — đúng hình dạng luật 7: cấu hình ⛔ sai cú pháp, nó chỉ **chưa bao giờ được chạy**, nên CI trên nhánh
+dựng nó vẫn xanh. ⇒ Bộ canh `PhuThuocNoiBoTest` ⛔ canh dòng `ignore` (một *lời dặn* gửi tới một công cụ) mà canh chỗ
+**hậu quả hiện ra**: lockfile phải ghi `"link": true`.
+⭐⭐ **Và một khe hở ASVS MỒ CÔI** (`T63.3`): mục **8.2.3** có trong bảng tự đánh giá của T61.28 nhưng rơi ra ngoài **cả
+hai** gói tiếp theo — ⛔ có trong `T61.48` (chờ quyết định) lẫn `T61.49` (chờ đo trên máy chủ). `endSession()` dọn token,
+`user`, `status` — cả ba là *trạng thái đăng nhập*; **dữ liệu** thì nằm trong đệm TanStack Query với `gcTime` **5 phút**
+và `staleTime` 30s cho phép phục vụ bản đệm TRƯỚC khi nạp lại ⇒ người kế tiếp đăng nhập trên cùng trình duyệt thấy hồ sơ
+CBNV / danh bạ / nhật ký kiểm toán / CCCD–lương vừa giải mã của người trước.
+⚠ **Ba lượt kiểm chứng ngược trong đợt này, một lượt ⛔ chạy được**: lượt phá `T63.4` đầu tiên bị **Spotless chặn trước khi
+tới bài kiểm** và in ra *⛔ có báo cáo nào* — đọc mã thoát 1 ấy thành *"bộ canh bắt được"* thì lượt kiểm chứng ⛔ chứng minh
+gì cả (T49.3, luật 10). Và phép tự canh của lượt phá `T63.3` **in sai kỳ vọng** vì `grep -c` đếm DÒNG nên javadoc nhắc tên
+hàm cũng được tính (luật 32 · T46.7).
+⭐ **Bộ canh bắt CHÍNH TÔI ở lượt chạy đầu — lần thứ MƯỜI**: `PhuThuocNoiBoTest` bản đầu đòi *mọi* gói workspace nằm trong
+`ignore`, kể cả `admin-app`/`public-web` — hai **ứng dụng** ⛔ ai phụ thuộc, tức Dependabot ⛔ bao giờ đề nghị nâng; thêm
+chúng vào là **tiếng ồn che mất dòng có nghĩa duy nhất** (luật 28). Và `DiaChiLienKetTest` bắt `String.trim()` của Java bỏ
+CẢ ký tự điều khiển ⇒ chuỗi toàn NUL trim ra RỖNG ⇒ rơi vào nhánh *"rỗng nên hợp lệ"* ⇒ **được lưu**.
+
+⭐⭐ **Đo lại 14/09/2026 sau WS-60 (đối chiếu DoD Phase 3 · gỡ chốt CI) — `make ci-local` thoát 0**,
+lượt chạy là tiến trình maven DUY NHẤT (⚠ số ở **MÁY**): **1811 testcase BE** (core 283 · content 54 ·
+hydro 225 · operations 55 · app **1194**) · **0 đỏ** · FE **434** admin-app / 50 tệp + **392**
+public-web / 44 · **74 migration**, ⛔ **không thêm tệp nào** (bản vá là **mã** và **cấu hình ảnh**,
+⛔ không phải dữ liệu) · mã lỗi **119**, ⛔ không đổi · **1154 dòng** sổ tracking đọc được, 0 phép
+kiểm đỏ.
+⭐ **+7 bài so với WS-59**, cả 7 là **bộ canh**: `AnhMinioDongBoTest` 4 · `HanMucKetXuatTest` 3.
+⚠⚠ **Và lượt `ci-local` GIỮA đợt này đỏ 3 bài — cả ba là `429`, cả ba là BẰNG CHỨNG bản vá hạn mức
+có hiệu lực thật**: trước đó ⛔ không lượt chạy nào của bộ kiểm chạm tới xô `EXPORT`. Cách sửa rẻ
+nhất (nới hạn mức ở hồ sơ kiểm thử) là **tắt một cơ chế bảo mật thật trong CI** ⇒ `PhienHttp.doiIp()`,
+mỗi bài kiểm là một máy khách.
+
+⭐⭐ **Đo lại 14/09/2026 sau WS-59 (C3: báo cáo vận hành · lớp bản đồ GIS · công cụ đo) —
+`make ci-local` thoát 0 VÀ `make ci-order` thoát 0**, lượt chạy là tiến trình maven DUY NHẤT
+(⚠ số ở **MÁY**; quét CVE và đóng gói image ⛔ vẫn chỉ sống trên runner): **1804 testcase BE**
+(core 283 · content 54 · hydro 225 · operations **55** · app **1187**) · **0 đỏ** · **234 báo cáo
+surefire** · FE **434** test admin-app / 50 tệp + **392** public-web / 44 · **74 migration**, đỉnh
+`V202609141080__ops_gis_layers` · `db-migration-checksums.txt` **74 vân tay**, `git diff` chỉ **+1
+dòng** · mã lỗi **119** (đếm độc lập hai phía cùng ra 119) · **1144 dòng** sổ tracking đọc được (WS-58: 1128).
+⚠⚠ **Lượt `ci-local` đầu của đợt này ĐỎ ở cổng BAO PHỦ**, ⛔ không ở một bài kiểm: `operations`
+bundle domain 0,62 < 0,70 vì hai lớp domain mới có **logic thật** mà chỉ được bài HTTP chạm gián
+tiếp. ⛔ Hạ ngưỡng cho hết đỏ là tự tay tháo cổng ⇒ 10 bài đơn vị.
+
+⭐⭐ **Đo lại 14/09/2026 sau WS-58 (CN-04.1 vế 2–5 · CN-04.8 · T53.12) — `make ci-local` thoát 0 VÀ
+`make ci-order` thoát 0 NGAY LƯỢT ĐẦU**, lượt chạy là tiến trình maven DUY NHẤT (⚠ số ở **MÁY**;
+quét CVE và đóng gói image ⛔ vẫn chỉ sống trên runner): **1781 testcase BE** (core 283 · content 54 ·
+hydro 225 · operations 45 · app **1174**) · **0 đỏ** · **230 báo cáo surefire** · FE **422** test
+admin-app / 49 tệp + **392** public-web / 44 · **73 migration** (⛔ **không thêm tệp nào** — cả ba
+chức năng là **mã**, ⛔ không phải dữ liệu) · mã lỗi **115** (đếm độc lập hai phía cùng ra 115;
+`HR-2009`) · **1128 dòng** sổ tracking đọc được (WS-57: 1109).
+⭐ **Bậc thang màu ghi cứng 46 → 44** — bốn mã hex mới đi qua `theme.useToken()` thay vì
+`design-tokens`, và `xuatSoDo.ts` (⛔ không phải component) nhận màu nền làm **tham số**.
+
+⭐⭐ **Đo lại 14/09/2026 sau WS-57 (CN-04.9 nghỉ phép) — `make ci-local` thoát 0 VÀ `make ci-order`
+thoát 0**, lượt chạy là tiến trình maven DUY NHẤT (⚠ số ở **MÁY**; quét CVE và đóng gói image ⛔ vẫn
+chỉ sống trên runner): **1766 testcase BE** (core 283 · content 54 · hydro 225 · operations 45 ·
+app 1159) · **0 đỏ** · **228 báo cáo surefire** · FE **409** test admin-app / 48 tệp (+9: 5 bài menu
+nghỉ phép + 4 bài `SoDuPhepCard`) + **392** public-web / 44 · **73 migration**, đỉnh
+`V202609141079__hr_nghi_phep` · `db-migration-checksums.txt` **73 vân tay**, `git diff` chỉ **+1
+dòng** ⇒ ⛔ không migration cũ nào bị đụng · mã lỗi **114** (đếm độc lập hai phía cùng ra 114) ·
+**1109 dòng** sổ tracking đọc được (WS-56: 1087), 0 phép kiểm đỏ.
+⚠⚠ **Mã lỗi GIẢM một so với dự kiến, và đó là điều đúng**: bản đầu đặt `HR-2006` cho *"vượt số dư
+phép"*, trong khi `HR-2001` đã nằm trong danh mục từ 13/08 cho **đúng** trạng thái ấy và mồ côi 32
+ngày (T57.7). Hai mã cho một trạng thái là hai câu trả lời cho cùng một câu hỏi.
+⚠⚠ **⛔ Không đếm bài kiểm bằng `surefire-reports/*.txt`**: phép cộng ấy cho **1521**, thiếu **245**,
+vì lớp có `@Nested` ghi `0` ở dòng tóm tắt `.txt` trong khi XML liệt đủ (§10.73). Con số đáng tin là
+dòng tổng `Tests run:` của **từng module trong log**.
 
 ⭐⭐ **Đo lại 10/09/2026 sau WS-56 (CN-04.1 vế 1 giải thể đơn vị) — `make ci-local` 10/10 thoát 0 VÀ
 `make ci-order` thoát 0 VÀ `make ci-image` thoát 0**, lượt chạy là tiến trình maven DUY NHẤT (⚠ số ở **MÁY**): **1751
@@ -396,6 +636,12 @@ Không mục nào **chặn code**, chỉ chặn **dữ liệu khởi tạo và n
 
 **G3-a** lượng mưa · **G5** mã số hệ thống văn bản (+ xin SSO) · **G6** mẫu 2C-BNV · **G8** tuyến sông/lý trình/toạ độ + danh mục công trình · **G9-a** bộ mức ngưỡng · **G10** duyệt format báo cáo · **G13** bộ nhận diện cổng (logo/màu/GA/GTM/reCAPTCHA).
 
+✅⭐ **Chốt 14/09/2026 (`T60.12`) — ba mục ĐỔI BẢN CHẤT, vẫn mở nhưng thôi là việc của mã:**
+**G8** toạ độ ⇒ Công ty **nhập trên màn hình quản trị** (đường nhập sẵn từ `T42.20`); ⛔ đừng mở
+lại như một task lập trình, và tới khi có người nhập thì **lớp GIS RỖNG là trạng thái ĐÚNG**
+(quy tắc 16 + cấm seed *"cho đẹp demo"*). **G6** + **G10** ⇒ chỉ mở lại khi có **tệp mẫu THẬT**;
+⛔ cấm tự chế bố cục, và ⛔ đừng chọn thư viện PDF/XLSX (**T42.14**) trước khi thấy mẫu.
+
 ⭐ **Đợt 9/9 (WS-42) trả xong phần việc của TA cho G6/G8/G10** — ba mục vẫn MỞ, nhưng ngày dữ liệu về
 là **nhập được ngay**. Thư gửi Công ty gộp cả ba: `docs/de-nghi-cung-cap-g6-g8-g10.md`.
 - **G8**: bản chụp của Công ty đã vào CSDL (`V202609091073`) — **tuyến sông 13/19 · lý trình 10/19**;
@@ -443,7 +689,7 @@ Gửi kèm `report-templates-proposal.md`. Chi tiết từng mục: `business-op
 | Bảo mật kho | ✅ secret scanning · push protection · non-provider patterns · Dependabot alerts + security updates — cả 5 `enabled`, `secret-scanning/alerts` trả **0** (T11.40) |
 | Cổng secret của lượt triển khai | ✅ thiếu secret ở production nay **DỪNG ĐỎ**. Trước đó cảnh báo rồi bỏ qua → lượt CD Production xanh trọn vẹn mà không byte nào chạm máy chủ (T11.7-b, §10.57) |
 | Environment `production` | ✅ **6/9: đủ 5 secret `PROD_*`** (đo lại API `total_count: 5`) · **gỡ required reviewer** và cùng lượt đặt `deployment_branch_policy` chỉ nhánh `production` — gỡ một mình là mở `PROD_*` cho mọi nhánh (T11.7, T11.86) |
-| Biến kho `PUBLIC_SITE_URL` | ⭐ **6/9 đã đặt** = `https://songnhue.com`. ⛔ **Chưa đóng T11.7-a**: `NEXT_PUBLIC_*` nướng LÚC BUILD, nên image đang chạy vẫn mang chuỗi rỗng — chỉ đóng sau một lượt build mới trên `dev` rồi đề bạt |
+| Biến kho `PUBLIC_SITE_URL` | ⭐ **6/9 đã đặt** = `https://songnhue.com` → ⚠ **08/09 đổi sang `https://thuyloisongnhue.vn`** (T11.94, đo lại 14/09). ⛔ **Chưa đóng T11.7-a**: `NEXT_PUBLIC_*` nướng LÚC BUILD, nên image đang chạy vẫn mang chuỗi rỗng — chỉ đóng sau một lượt build mới trên `dev` rồi đề bạt |
 
 📌 Cùng một hình dạng: **một cổng kiểm tồn tại trong mã nhưng chưa có hiệu lực ở nơi nó phải chặn.**
 Lệnh áp nợ #27 nằm sẵn trong `branch-protection.md` §6.2 **từ 15/8** — không ai chạy, và không ai

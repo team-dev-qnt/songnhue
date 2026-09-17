@@ -104,11 +104,27 @@ public class GlobalExceptionHandler {
         return validationResponse(details);
     }
 
+    /**
+     * Sai ĐỘNG TỪ thì trả <b>405</b>, ⛔ gộp vào 400 — <b>T61.40</b> (ASVS 14.5.1).
+     *
+     * <p>Bản cũ ném {@code HttpRequestMethodNotSupportedException} chung vào nhánh *"dữ liệu ⛔ hợp
+     * lệ"* ⇒ người tích hợp gửi {@code PUT} vào một endpoint {@code POST} nhận câu *"dữ liệu ⛔ hợp
+     * lệ"* rồi đi soi payload, trong khi payload ⛔ hề sai.
+     *
+     * <p>⚠⚠ Nó còn làm một lớp khẳng định BẢO MẬT thành khẳng định RỖNG: bài canh *"endpoint này ⛔
+     * có động từ ghi"* so mã 400, mà một {@code @PutMapping} CÓ THẬT từ chối thân yêu cầu cũng trả
+     * 400 ⇒ bài xanh ở cả hai trạng thái (T54.7 đã phải chuyển sang đọc annotation vì lý do này).
+     */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
+        log.debug("[{}] Sai động từ: {}", RequestContext.traceId(), ex.getMessage());
+        return build(ErrorCode.SYS_0013);
+    }
+
     @ExceptionHandler({
         MissingServletRequestParameterException.class,
         MethodArgumentTypeMismatchException.class,
         HttpMessageNotReadableException.class,
-        HttpRequestMethodNotSupportedException.class,
         HttpMediaTypeNotSupportedException.class
     })
     public ResponseEntity<ApiResponse<Void>> handleMalformedRequest(Exception ex) {
@@ -155,10 +171,11 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleDataIntegrity(DataIntegrityViolationException ex) {
         // ⚠ Message của Postgres chứa tên bảng, tên constraint và có thể cả giá trị dữ liệu.
         //   Log lại để dev tra được, nhưng người dùng chỉ nhận câu chung.
-        log.warn(
-                "[{}] Vi phạm ràng buộc dữ liệu: {}",
-                RequestContext.traceId(),
-                ex.getMostSpecificCause().getMessage());
+        // ⛔⛔ T61.40 (ASVS 7.1.2) — bản cũ ghi NGUYÊN VĂN message của Postgres, thứ mang cả giá trị:
+        //   `Key (username)=(nguyenvana) already exists`. Nhật ký ứng dụng có nhiều người đọc hơn bảng
+        //   gốc và giữ 30 ngày, nên nó vừa biến một lỗi 409 thành một lượt rò dữ liệu cá nhân.
+        //   ⇒ Chỉ giữ TÊN ràng buộc — đủ để dev tra ra chỗ hỏng, ⛔ mang giá trị nào.
+        log.warn("[{}] Vi phạm ràng buộc dữ liệu: {}", RequestContext.traceId(), tenRangBuoc(ex));
         return build(ErrorCode.SYS_0005);
     }
 
@@ -210,4 +227,21 @@ public class GlobalExceptionHandler {
                 .annotationType()
                 .getSimpleName();
     }
+    /**
+     * Tên ràng buộc bị vi phạm, ⛔ kèm giá trị — T61.40.
+     *
+     * <p>Postgres đặt tên ràng buộc trong dấu nháy kép: {@code duplicate key value violates unique
+     * constraint "uq_users_username"}. Lấy đúng phần ấy; ⛔ khớp được thì trả tên lớp ngoại lệ —
+     * <b>⛔ bao giờ</b> trả message gốc (luật 9: hai nhánh phải phân biệt được, và nhánh dự phòng ⛔
+     * được là chính thứ ta đang tránh).
+     */
+    private static String tenRangBuoc(DataIntegrityViolationException ex) {
+        Throwable goc = ex.getMostSpecificCause();
+        String msg = goc.getMessage() == null ? "" : goc.getMessage();
+        java.util.regex.Matcher m = MAU_RANG_BUOC.matcher(msg);
+        return m.find() ? m.group(1) : goc.getClass().getSimpleName();
+    }
+
+    private static final java.util.regex.Pattern MAU_RANG_BUOC =
+            java.util.regex.Pattern.compile("constraint \"([a-zA-Z0-9_]+)\"");
 }

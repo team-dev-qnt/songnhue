@@ -1,4 +1,5 @@
 import type { MenuLink } from '@/lib/api';
+import { lienKetAnToan } from '@/lib/lienKetAnToan';
 import { API_BASE_URL } from '@/lib/site';
 
 /**
@@ -144,7 +145,7 @@ export function menuHref(item: MenuLink): string | null {
       return item.articleSlug ? ROUTES.article(item.articleSlug) : null;
     case 'URL':
     case 'EXTERNAL_DOC':
-      return item.url ?? null;
+      return lienKetAnToan(item.url);
     case 'NONE':
       return null;
     default:

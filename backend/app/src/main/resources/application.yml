@@ -285,6 +285,9 @@ app:
     # Địa chỉ người gửi thư. Phải là miền mà máy chủ SMTP cho phép gửi thay mặt,
     # nên thuộc cấu hình môi trường chứ không phải tham số Admin sửa được.
     from: ${SMTP_FROM}
+    # T61.23 — CHỈ staging: mọi thư đi về một địa chỉ, tiêu đề mang người nhận gốc.
+    # Đặt trên production ⇒ ứng dụng DỪNG khởi động (MailConfig).
+    redirect-to: ${MAIL_REDIRECT_TO:}
 
   bootstrap:
     # Chỉ đặt ở lần dựng môi trường ĐẦU TIÊN rồi gỡ đi (WS-5 / T5.7).
@@ -341,9 +344,16 @@ app:
 #
 # ⛔ Đừng chuyển hai đường dẫn dưới vào dưới `/api/` mà không đọc snippet ấy trước.
 springdoc:
+  # ⛔⛔ T61.40 (ASVS 14.2.2) — TẮT theo mặc định, bật lại ở `application-local.yml`.
+  #   Trước bản vá, thứ duy nhất giữ bản đồ API khỏi Internet là một `include` trong cấu hình nginx
+  #   (`chan-tai-lieu-api.conf`). Một `server{}` mới quên dòng include ấy — hoặc một front-end khác
+  #   đứng trước — là phát nguyên danh mục endpoint ra ngoài, và ứng dụng sẽ vui vẻ phục vụ.
+  #   Hai lớp: biên chặn, và ứng dụng ⛔ có gì để chặn.
   api-docs:
+    enabled: ${SWAGGER_ENABLED:false}
     path: /v3/api-docs
   swagger-ui:
+    enabled: ${SWAGGER_ENABLED:false}
     path: /swagger-ui.html
     display-request-duration: true
 

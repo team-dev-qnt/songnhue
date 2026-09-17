@@ -31,6 +31,13 @@ public enum SecurityEventType {
     TWO_FACTOR_ENROLLED(Severity.INFO),
     TWO_FACTOR_FAILED(Severity.WARNING),
     TWO_FACTOR_RECOVERY_USED(Severity.DANGER),
+    /** Qua bước MẬT KHẨU rồi xin đăng ký lại 2FA cho tài khoản đã có 2FA — dấu hiệu mật khẩu đã lộ (T61.30). */
+    TWO_FACTOR_REENROLL_BLOCKED(Severity.DANGER),
+    /** Quản trị viên xoá 2FA của một tài khoản khác (T61.30). */
+    TWO_FACTOR_RESET_BY_ADMIN(Severity.DANGER),
+
+    /** Quản trị viên đặt lại mật khẩu của một tài khoản khác (T61.31) — ⛔ hỏi mật khẩu cũ, nên luôn là DANGER. */
+    PASSWORD_RESET_BY_ADMIN(Severity.DANGER),
 
     // --- Phân quyền -----------------------------------------------------------
     /** Thiếu permission — tầng 2 chặn (AUTH-3001). */
@@ -103,6 +110,19 @@ public enum SecurityEventType {
      */
     HR_SENSITIVE_FIELDS_READ(Severity.WARNING),
 
+    /**
+     * Một lượt <b>tải trọn hồ sơ tài liệu</b> của một CBNV (CN-04.5, NĐ 13/2023).
+     *
+     * <p>⛔⛔ Nặng hơn {@link #HR_SENSITIVE_FIELDS_READ} một bậc: lượt kia đọc vài trường trên màn
+     * hình, lượt này mang <b>cả</b> hợp đồng, quyết định, bằng cấp và giấy tờ tuỳ thân ra khỏi hệ
+     * thống trong một tệp — và sau đó hệ ⛔ không kiểm soát được gì nữa.
+     *
+     * <p>⛔ {@code detail} ghi <b>mã nhân viên</b> và <b>số tệp</b>. ⛔ Không bao giờ ghi tên tệp:
+     * *"Giấy khám sức khoẻ tâm thần.pdf"* tự nó đã là dữ liệu nhạy cảm, và nhật ký bảo mật có
+     * nhiều người đọc hơn chính hồ sơ.
+     */
+    HR_DOSSIER_DOWNLOADED(Severity.WARNING),
+
     // --- Liên kết tài khoản ↔ hồ sơ CBNV (T51.8, CN-05.1) ----------------------
     /**
      * Một tài khoản vừa được <b>gán</b> hoặc <b>gỡ</b> liên kết tới một hồ sơ CBNV.
@@ -121,7 +141,28 @@ public enum SecurityEventType {
      * <p>⛔ {@code detail} chỉ ghi tên tài khoản và <b>mã</b> nhân viên — ⛔ không ghi họ tên, ⛔
      * không ghi bất kỳ trường 🔒 nào.
      */
-    ACCOUNT_EMPLOYEE_LINK_CHANGED(Severity.DANGER);
+    ACCOUNT_EMPLOYEE_LINK_CHANGED(Severity.DANGER),
+
+    // --- Cấu hình hệ thống từ giao diện (T54.4 · T61.42 · T61.44) ----------------
+    /**
+     * Một lượt cấp quyền/vai trò VƯỢT tập quyền của chính người cấp vừa bị chặn ({@code ADM-2022}).
+     *
+     * <p>WARNING chứ ⛔ DANGER: hệ đã chặn. Nhưng một tài khoản quản trị thử cấp quyền mình ⛔ có là đúng hình dạng
+     * một phiên bị chiếm đang dò đường leo thang — {@code detail} ghi mã quyền bị từ chối.
+     */
+    PERMISSION_GRANT_BLOCKED(Severity.WARNING),
+
+    /**
+     * Một tham số nhóm nhạy cảm ({@code SECURITY}, {@code AUDIT}, {@code BACKUP}) vừa đổi — đã qua xác thực lại.
+     *
+     * <p>Hạ độ dài mật khẩu, nới ngưỡng khoá tài khoản, tắt lịch sao lưu: mỗi thao tác là một bước chuẩn bị tấn công
+     * có vẻ ngoài của một lượt quản trị bình thường. ⛔ {@code detail} ghi khoá, ⛔ ghi giá trị (giá trị cũ/mới nằm ở
+     * {@code audit_logs}).
+     */
+    SECURITY_SETTING_CHANGED(Severity.DANGER),
+
+    /** Bí mật tích hợp (VD khoá bí mật reCAPTCHA) vừa ĐẶT hoặc XOÁ trên giao diện. ⛔ Không bao giờ ghi giá trị. */
+    INTEGRATION_SECRET_CHANGED(Severity.DANGER);
 
     private final Severity severity;
 

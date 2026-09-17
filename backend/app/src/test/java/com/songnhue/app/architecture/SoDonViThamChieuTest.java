@@ -52,7 +52,11 @@ class SoDonViThamChieuTest {
             "maintenance_logs.org_unit_id", "operations · CongTrinhThuocDonVi",
             "construction_clusters.org_unit_id", "operations · CongTrinhThuocDonVi",
             "stations.org_unit_id", "hydro · DiemDoThuocDonVi",
-            "contacts.assigned_org_unit_id", "content · LienHeGiaoChoDonVi");
+            "contacts.assigned_org_unit_id", "content · LienHeGiaoChoDonVi",
+            // ⭐ Cột thứ 14 — và bộ canh này bắt được nó ở lượt chạy ĐẦU TIÊN sau khi nó ra đời
+            //   (WS-57, 14/09). Đó đúng là điều nó được dựng để làm: một cột FK mới ở một module
+            //   khác, người viết ⛔ không có lý do gì để nhớ tới `OrgUnitService` ở `core`.
+            "leave_requests.org_unit_id", "hr · HoSoThuocDonVi (chỉ đơn ĐANG CHỜ)");
 
     /**
      * Cột <b>cố ý ⛔ không</b> chặn — mỗi dòng phải mang một lý do đọc được.

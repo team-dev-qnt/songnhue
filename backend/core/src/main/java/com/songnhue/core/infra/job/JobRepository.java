@@ -91,6 +91,9 @@ public interface JobRepository extends JpaRepository<Job, Long> {
             nativeQuery = true)
     int deleteFinishedBefore(@Param("cutoff") Instant cutoff);
 
+    /** T61.24 — có job cùng loại đang chờ/đang chạy không (chuỗi đợt mang khoá chống trùng khác nhau). */
+    boolean existsByJobTypeAndStatusIn(String jobType, List<JobStatus> statuses);
+
     long countByStatusIn(List<JobStatus> statuses);
 
     /**

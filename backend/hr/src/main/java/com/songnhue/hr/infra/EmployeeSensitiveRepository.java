@@ -22,6 +22,9 @@ public interface EmployeeSensitiveRepository extends JpaRepository<EmployeeSensi
 
     Optional<EmployeeSensitive> findByNationalIdFingerprintAndDeletedAtIsNull(String fingerprint);
 
+    /** Vân tay dưới MỌI khoá đang nạp — xem {@code EmployeeSensitiveService.kiemTrung} (T61.11). */
+    List<EmployeeSensitive> findByNationalIdFingerprintInAndDeletedAtIsNull(java.util.Collection<String> fingerprints);
+
     /**
      * Mọi {@code key_id} đang có mặt ở cột vân tay — dùng cho một khẳng định thường trực.
      *

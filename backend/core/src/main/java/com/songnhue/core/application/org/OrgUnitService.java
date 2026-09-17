@@ -3,6 +3,7 @@ package com.songnhue.core.application.org;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -22,6 +23,7 @@ import com.songnhue.core.common.tree.TreeBuilder;
 import com.songnhue.core.domain.org.OrgUnit;
 import com.songnhue.core.domain.org.OrgUnitType;
 import com.songnhue.core.infra.identity.UserRepository;
+import com.songnhue.core.infra.org.OrgUnitLeaderRepository;
 import com.songnhue.core.infra.org.OrgUnitRepository;
 import com.songnhue.core.spi.OrgUnitPort;
 import com.songnhue.core.spi.OrgUnitRef;
@@ -59,17 +61,21 @@ public class OrgUnitService implements OrgUnitPort {
      */
     private final List<OrgUnitUsagePort> nguoiDung;
 
+    private final OrgUnitLeaderRepository lanhDaoRepository;
+
     public OrgUnitService(
             OrgUnitRepository repository,
             UserRepository userRepository,
             SettingService settings,
             PortalCachePort portalCache,
-            List<OrgUnitUsagePort> nguoiDung) {
+            List<OrgUnitUsagePort> nguoiDung,
+            OrgUnitLeaderRepository lanhDaoRepository) {
         this.repository = repository;
         this.userRepository = userRepository;
         this.settings = settings;
         this.portalCache = portalCache;
         this.nguoiDung = List.copyOf(nguoiDung);
+        this.lanhDaoRepository = lanhDaoRepository;
     }
 
     /**
@@ -93,12 +99,6 @@ public class OrgUnitService implements OrgUnitPort {
     @Transactional(readOnly = true)
     public List<OrgUnitNode> tree() {
         return toTree(repository.findAllForDisplay());
-    }
-
-    /** Cây con tính từ một đơn vị — dùng cho người chỉ được xem đơn vị mình và cấp dưới. */
-    @Transactional(readOnly = true)
-    public List<OrgUnitNode> subtree(UUID publicId) {
-        return toTree(repository.findSubtree(require(publicId).getPath()));
     }
 
     // ---- Hợp đồng cho module nghiệp vụ (core.spi) -------------------------------
@@ -148,6 +148,42 @@ public class OrgUnitService implements OrgUnitPort {
                 .collect(java.util.stream.Collectors.toMap(OrgUnit::getId, OrgUnitService::toRef));
     }
 
+    /**
+     * Cây phẳng + người đứng đầu — {@link com.songnhue.core.spi.OrgUnitPort#cayPhang()}.
+     *
+     * <p>⭐ <b>Hai truy vấn</b>, ⛔ không phải N+1: một lượt lấy toàn bộ đơn vị, một lượt lấy toàn
+     * bộ người đứng đầu của <b>mọi</b> đơn vị ấy rồi gom nhóm ở Java. Với ~30 đơn vị thì N+1 nghĩa
+     * là 31 lượt gọi cho một màn hình chỉ có một sơ đồ.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<com.songnhue.core.spi.OrgUnitTreeRef> cayPhang() {
+        List<OrgUnit> donVi = repository.findAllForDisplay();
+        if (donVi.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, List<com.songnhue.core.spi.OrgUnitLeaderRef>> lanhDaoTheoDonVi = lanhDaoRepository
+                .findByOrgUnitIdInAndActiveTrueAndDeletedAtIsNullOrderBySortOrderAscIdAsc(
+                        donVi.stream().map(OrgUnit::getId).toList())
+                .stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                        com.songnhue.core.domain.org.OrgUnitLeader::getOrgUnitId,
+                        java.util.LinkedHashMap::new,
+                        java.util.stream.Collectors.mapping(
+                                l -> new com.songnhue.core.spi.OrgUnitLeaderRef(
+                                        l.getFullName(), l.getTitle(), l.getSortOrder()),
+                                java.util.stream.Collectors.toList())));
+
+        return donVi.stream()
+                .map(u -> new com.songnhue.core.spi.OrgUnitTreeRef(
+                        toRef(u),
+                        u.getParentId(),
+                        u.getSortOrder(),
+                        u.isActive(),
+                        lanhDaoTheoDonVi.getOrDefault(u.getId(), List.of())))
+                .toList();
+    }
+
     private static OrgUnitRef toRef(OrgUnit unit) {
         return new OrgUnitRef(
                 unit.getId(),
@@ -163,12 +199,6 @@ public class OrgUnitService implements OrgUnitPort {
     @Transactional(readOnly = true)
     public OrgUnit get(UUID publicId) {
         return require(publicId);
-    }
-
-    /** Danh sách phẳng — cho ô chọn đơn vị, đã đủ path để FE tự thụt lề. */
-    @Transactional(readOnly = true)
-    public List<OrgUnit> listAll() {
-        return repository.findAllForDisplay();
     }
 
     // ---- Ghi ------------------------------------------------------------------

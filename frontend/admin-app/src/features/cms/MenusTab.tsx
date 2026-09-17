@@ -22,7 +22,7 @@ import { useMemo, useState } from 'react';
 
 import { ApiClientError } from '@/shared/apiClient';
 
-import { cmsApi, cmsKeys } from './api';
+import { cmsApi, cmsKeys, type ArticleFilter } from './api';
 import { buildTree, canDropInto } from './tree';
 import { type MenuLinkType, type MenuNode, type MenuPosition } from './types';
 
@@ -50,6 +50,27 @@ export function MenusTab() {
   const categories = useQuery({
     queryKey: cmsKeys.categories(),
     queryFn: () => cmsApi.categories(),
+  });
+
+  /**
+   * Bài viết để gắn vào mục menu loại `ARTICLE` — T63.8.
+   *
+   * ⛔⛔ Trước bản này ⛔ có ô chọn nào, mà `MO_TA_LOAI` vẫn bày *"Bài viết"* ra ô Loại liên kết và
+   * `onOk` gửi `articleId: null` **ghi cứng**. Hai hậu quả đo được:
+   *
+   * 1. Chọn *"Bài viết"* ⇒ backend `MenuService.applyTarget` ném `CMS-2012` ⇒ một lựa chọn **CHẾT**
+   *    trong ô Select (luật 15).
+   * 2. Nặng hơn: seed `V202608191021` **dựng sẵn** mục menu loại `ARTICLE` (*Liên hệ*, *Giới thiệu
+   *    chung*, và một vòng mục con) ⇒ những mục ấy **⛔ sửa nổi** — kể cả chỉ đổi nhãn hay tắt/bật —
+   *    vì mọi lượt Lưu đều gửi `articleId: null`. Và câu lỗi người dùng đọc được là *"Đích của mục
+   *    menu ⛔ tồn tại hoặc đã bị xoá"*, dẫn họ đi tìm xem mình lỡ xoá bài nào.
+   *
+   * ⚠ Backend CHẶN được nên dữ liệu ⛔ mất — đây là lỗi **⛔ dùng được**, ⛔ phải lỗi mất dữ liệu.
+   */
+  const LOC_BAI_VIET: ArticleFilter = { size: 200, sort: 'title,asc' };
+  const baiViet = useQuery({
+    queryKey: cmsKeys.articles(LOC_BAI_VIET),
+    queryFn: () => cmsApi.searchArticles(LOC_BAI_VIET),
   });
 
   const items = useMemo(() => menu.data ?? [], [menu.data]);
@@ -140,6 +161,7 @@ export function MenusTab() {
                 label: item.value.label,
                 linkType: item.value.linkType,
                 categoryId: item.value.categoryPublicId,
+                articleId: item.value.articlePublicId,
                 url: item.value.url,
                 openNewTab: item.value.openNewTab,
                 active: item.value.active,
@@ -303,7 +325,7 @@ export function MenusTab() {
             linkType: values.linkType as MenuLinkType,
             parentId: editing ? editing.parentPublicId : (creatingUnder?.publicId ?? null),
             categoryId: values.categoryId ?? null,
-            articleId: null,
+            articleId: values.articleId ?? null,
             url: values.url ?? null,
             openNewTab: Boolean(values.openNewTab),
             active: values.active !== false,
@@ -344,6 +366,25 @@ export function MenusTab() {
                       options={(categories.data ?? []).map((c) => ({
                         value: c.publicId,
                         label: `${'  '.repeat(c.depth)}${c.name}`,
+                      }))}
+                    />
+                  </Form.Item>
+                );
+              }
+              if (loai === 'ARTICLE') {
+                return (
+                  <Form.Item
+                    name="articleId"
+                    label="Bài viết"
+                    rules={[{ required: true, message: 'Chọn bài viết' }]}
+                  >
+                    <Select
+                      showSearch
+                      optionFilterProp="label"
+                      loading={baiViet.isLoading}
+                      options={(baiViet.data?.items ?? []).map((a) => ({
+                        value: a.publicId,
+                        label: a.title,
                       }))}
                     />
                   </Form.Item>

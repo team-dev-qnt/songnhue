@@ -155,6 +155,33 @@ public interface MaintenanceLogRepository extends JpaRepository<MaintenanceLog, 
     // CHECKSTYLE.ON: ParameterNumber
 
     /**
+     * Mọi bản ghi <b>bắt đầu trong kỳ</b> — nguồn của <b>BC-09</b> và nửa sự cố của <b>BC-06</b>.
+     *
+     * <h2>⚠ Lọc theo {@code startedOn}, ⛔ KHÔNG theo "còn mở trong kỳ"</h2>
+     *
+     * <p>Cùng vị từ với {@code sumCost} và {@code countInPeriod} ngay trên — và đó là điều kiện để
+     * ba con số của cùng một bản báo cáo <b>cộng khớp nhau</b>. Trộn hai vị từ là đúng hình dạng
+     * <b>quy tắc 13</b>: một công việc bắt đầu tháng trước, kéo sang tháng này, sẽ được đếm ở
+     * <b>cả hai</b> kỳ nếu hỏi theo <i>chồng khoảng</i> ⇒ tổng mười hai tháng ⛔ không bằng tổng năm.
+     *
+     * <p>⚠ Đi qua bộ lọc phạm vi như mọi câu JPA khác — đúng ý: báo cáo vận hành <b>cắt</b> theo
+     * đơn vị, cùng luật với báo cáo nhân sự (CN-04.8).
+     */
+    @Query(
+            """
+            SELECT m FROM MaintenanceLog m
+            WHERE m.deletedAt IS NULL
+              AND (:loai IS NULL OR m.workType = :loai)
+              AND (CAST(:tuNgay AS LocalDate) IS NULL OR m.startedOn >= :tuNgay)
+              AND (CAST(:denNgay AS LocalDate) IS NULL OR m.startedOn <= :denNgay)
+            ORDER BY m.startedOn ASC, m.id ASC
+            """)
+    List<MaintenanceLog> trongKy(
+            @Param("loai") MaintenanceType loai,
+            @Param("tuNgay") LocalDate tuNgay,
+            @Param("denNgay") LocalDate denNgay);
+
+    /**
      * "Sự cố chưa xử lý" (T18.8) — nguồn của ô KPI cùng tên trên dashboard điều hành.
      *
      * <p>Đã lọc theo phạm vi đơn vị, và đó là hành vi đúng ở đây: đây là <i>danh sách việc phải

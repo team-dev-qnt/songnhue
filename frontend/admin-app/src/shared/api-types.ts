@@ -289,6 +289,48 @@ export interface SettingView {
   validation: string | null;
   editable: boolean;
   exportable: boolean;
+  /** T61.42 — nhóm nhạy cảm (SECURITY/AUDIT/BACKUP): lưu phải kèm mã 2FA nhập lại. */
+  canXacThucLai: boolean;
+}
+
+// ---- Cấu hình hệ thống — T61.41 / T61.44 ----------------------------------------------------------
+
+export type TrangThaiCauHinh = 'DAT' | 'THIEU' | 'SAI' | 'NGOAI_TAM_NHIN' | 'KHONG_AP_DUNG';
+export type MucDoCauHinh = 'CHAN' | 'CANH_BAO' | 'THONG_TIN';
+
+/** ⛔ Không trường nào mang GIÁ TRỊ cấu hình — chỉ tình trạng. */
+export interface MucCauHinhView {
+  ma: string;
+  nhom: string;
+  ten: string;
+  trangThai: TrangThaiCauHinh;
+  mucDo: MucDoCauHinh;
+  nguoiDoc: string;
+  datO: string;
+  ghiChu: string;
+}
+
+export interface TongQuanCauHinhView {
+  muc: MucCauHinhView[];
+  soChan: number;
+  soCanhBao: number;
+}
+
+export interface TomTatCauHinhView {
+  soChan: number;
+  soCanhBao: number;
+}
+
+export type LoaiBiMat = 'RECAPTCHA_SECRET_KEY';
+
+export interface BiMatTinhTrangView {
+  loai: LoaiBiMat;
+  ten: string;
+  moTa: string;
+  nguon: 'GIAO_DIEN' | 'MOI_TRUONG' | 'CHUA_CO';
+  giaiMaDuoc: boolean;
+  coGiaTriMoi: boolean;
+  capNhatLuc: string | null;
 }
 
 export interface SettingImportResult {
@@ -718,6 +760,8 @@ export interface MaintenanceRow {
   /** Đơn vị nội bộ HOẶC nhà thầu ngoài — backend đã gộp, giao diện không phải biết hai cột. */
   performer: string | null;
   performerIsInternal: boolean;
+  /** publicId đơn vị nội bộ — `null` khi thuê ngoài. Lối SỬA cần nó để nạp lại ô chọn (T61.18). */
+  performerOrgUnitId: string | null;
   cost: string | null;
   fundingSource: string | null;
   acceptanceResult: string | null;
@@ -755,6 +799,23 @@ export interface AllowedActionView {
 export interface MaintenanceDetail {
   record: MaintenanceRow;
   actions: AllowedActionView[];
+}
+
+/**
+ * Một tệp của bản ghi sửa chữa — biên bản nghiệm thu, ảnh trước/sau (CN-02.2, T61.19).
+ * Khớp `MaintenanceDtos.AttachmentView`; `tepSuaChuaVongKhuHoi.test.tsx` đối chiếu tên trường.
+ */
+export interface MaintenanceAttachment {
+  id: string;
+  originalName: string;
+  /** Nhãn loại tệp người dùng chọn lúc tải lên — cũng là khoá đánh số phiên bản. */
+  purpose: string;
+  contentType: string;
+  sizeBytes: number;
+  fileVersion: number;
+  /** `false` khi tệp chưa quét virus xong hoặc bị cách ly — backend quyết, giao diện ⛔ đoán. */
+  downloadable: boolean;
+  createdAt: string;
 }
 
 /** Tổng chi phí kỳ — tính ở BE (quy tắc 3), FE chỉ hiển thị. Khớp `MaintenanceLogService.CostSummary`. */
@@ -1608,4 +1669,65 @@ export interface SyncQualityReport {
   khungPhut: number;
   chatLuong: SyncQualityRow[];
   dongBo: SyncDailyRow[];
+}
+
+// ============================================================================
+// Lớp bản đồ GIS — CN-02.4 / M2.9 (WS-59)
+// ============================================================================
+
+/**
+ * Loại hình học của một lớp bản đồ — khớp `GisGeometryType.java` và
+ * `ck_gis_layers_geometry_type`.
+ *
+ * ⛔ Khai ra ở bản ghi chứ ⛔ **không** suy lúc vẽ: bảng chọn kiểu vẽ phải biết **trước** khi tải
+ * nội dung về, ⛔ không thì mỗi lần bật một lớp là một lượt tải vài MB chỉ để biết nên vẽ thế nào.
+ */
+export type GisGeometryType = 'POINT' | 'LINE' | 'POLYGON' | 'HON_HOP';
+
+/**
+ * @param opacity phần trăm **NGUYÊN** 0–100, ⛔ không phải 0.0–1.0. Đặc tả nói *"opacity 0–100%"*,
+ *   thanh trượt hiện 0–100, và một phép đổi đơn vị ở giữa là một chỗ để `0.8` và `80` lẫn vào nhau.
+ * @param soDoiTuong `null` = lớp **chưa nạp tệp**. ⛔ Khác `0` — một tệp rỗng hình học bị từ chối
+ *   ngay lúc nạp (`OPS-2026`), nên số 0 ⛔ không biểu diễn được ở đây.
+ */
+export interface GisLayerView {
+  publicId: string;
+  name: string;
+  description: string | null;
+  geometryType: GisGeometryType;
+  /** `#RRGGBB` — màu của **từng lớp do người vận hành đặt**, ⛔ không phải màu thương hiệu. */
+  color: string;
+  opacity: number;
+  sortOrder: number;
+  active: boolean;
+  coTep: boolean;
+  soDoiTuong: number | null;
+}
+
+/** ⚠ Trường `null` = **giữ nguyên**, ⛔ không phải "đặt về mặc định" (§11.19). */
+export interface GisLayerRequest {
+  name: string;
+  description?: string | null;
+  color?: string | null;
+  opacity?: number | null;
+  sortOrder?: number | null;
+  active?: boolean | null;
+}
+
+/**
+ * Một dòng của danh mục báo cáo — dùng chung cho CN-02.10 và CN-04.8.
+ *
+ * ⛔⛔ `khaDung = false` mang **hai nghĩa khác nhau** tuỳ danh mục, và giao diện ⛔ **không** được
+ * trộn chúng thành một nhãn *"chưa có"*:
+ * - CN-04.8 `BCNS-07`: **chưa làm được** (chờ G6) — *sẽ* có.
+ * - CN-02.10 `BC-01..04`: **bỏ vĩnh viễn** (mất nguồn dữ liệu, chốt B1/F1/G2/A1) — *không bao giờ* có.
+ *
+ * ⇒ Câu chữ phân biệt nằm trong `lyDo`, do backend gửi nguyên văn.
+ */
+export interface MucBaoCaoView {
+  ma: string;
+  ten: string;
+  moTa: string;
+  khaDung: boolean;
+  lyDo: string | null;
 }

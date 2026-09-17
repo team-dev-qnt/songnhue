@@ -1,123 +1,60 @@
 package com.songnhue.core.common.filter;
 
-import java.io.IOException;
-
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
-import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
-import com.songnhue.core.common.exception.RateLimitException;
 import com.songnhue.core.common.ratelimit.RateLimitPolicy;
 import com.songnhue.core.common.ratelimit.RateLimitStore;
 import com.songnhue.core.common.web.ClientIp;
 
 /**
- * Filter [2] — chặn tần suất theo IP, <b>trước khi</b> tới bước xác thực.
+ * Filter [2] — hạn mức <b>theo IP, TRƯỚC xác thực</b>: xô {@code LOGIN}, {@code PUBLIC} và
+ * {@code BIEU_MAU_CONG_KHAI}.
  *
  * <p>Đặt trước AuthFilter là có chủ đích: một đợt dò mật khẩu phải bị chặn ngay ở cửa, không được
- * tiêu tốn tài nguyên băm BCrypt (cost ≥ 12 — cố ý chậm) của máy chủ.
+ * tiêu tốn tài nguyên băm BCrypt (cost ≥ 12 — cố ý chậm) của máy chủ. Cổng công khai ⛔ có người
+ * dùng nào để đếm, nên IP là khoá duy nhất có nghĩa.
  *
- * <p>Đây là lớp thứ hai; nginx đã chặn thô theo IP ở lớp ngoài (§4.5). Lớp trong này biết đường dẫn
- * nên phân biệt được đăng nhập / API thường / kết xuất.
+ * <p>⛔⛔ <b>T61.17 — xô {@code API} và {@code EXPORT} ⛔ còn ở đây.</b> Bản cũ đếm cả bốn xô theo IP,
+ * trong khi {@code conventions.md} §4.5 hứa <i>"app filter theo user/token"</i> và chú thích trong
+ * chính lớp này khai <i>"cả Công ty ra Internet qua một IP NAT"</i>. Nếu câu ấy đúng thì 50 cán bộ
+ * chung <b>100 lượt/phút</b> — tải nền của một tab quản trị lúc ⛔ ai bấm gì đã là ~2–3 lượt/phút —
+ * và <b>10 lượt kết xuất/giờ cho cả Công ty</b>. Hai xô ấy nay ở {@link HanMucNguoiDungFilter}.
  *
- * <p>Exception được đẩy qua {@link HandlerExceptionResolver} chứ không tự ghi response: nhờ vậy lỗi
- * 429 vẫn đi qua {@code GlobalExceptionHandler} và có đúng envelope + traceId như mọi lỗi khác
- * (DoD #9).
+ * <p>Đây là lớp thứ hai; nginx đã chặn thô theo IP ở lớp ngoài (§4.5).
  */
 @Component
 @Order(FilterOrder.RATE_LIMIT)
-public class RateLimitFilter extends OncePerRequestFilter {
-
-    private static final Logger log = LoggerFactory.getLogger(RateLimitFilter.class);
-
-    private static final String LOGIN_PATH = "/api/v1/auth/login";
-    private static final String EXPORT_MARKER = "/export";
-    private static final String API_PREFIX = "/api/v1";
-    private static final String PUBLIC_PREFIX = "/api/v1/public";
-
-    private final RateLimitStore store;
-    private final HandlerExceptionResolver exceptionResolver;
+public class RateLimitFilter extends HanMucFilterCoSo {
 
     public RateLimitFilter(
-            RateLimitStore store,
-            @org.springframework.beans.factory.annotation.Qualifier("handlerExceptionResolver")
-                    HandlerExceptionResolver exceptionResolver) {
-        this.store = store;
-        this.exceptionResolver = exceptionResolver;
+            RateLimitStore store, @Qualifier("handlerExceptionResolver") HandlerExceptionResolver exceptionResolver) {
+        super(store, exceptionResolver);
     }
 
     @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) {
-        // Actuator do mạng nội bộ gọi (Prometheus trên VM-3), không tính hạn mức
-        return !request.getRequestURI().startsWith(API_PREFIX);
-    }
-
-    @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
-            throws ServletException, IOException {
-
-        RateLimitPolicy policy = policyFor(request);
-        String identity = clientIp(request);
-        RateLimitStore.Decision decision = store.hit(policy.key(identity), policy.limit(), policy.window());
-
-        response.setHeader("X-RateLimit-Limit", String.valueOf(policy.limit()));
-        response.setHeader("X-RateLimit-Remaining", String.valueOf(decision.remaining()));
-
-        if (!decision.allowed()) {
-            long retryAfterSeconds = Math.max(1, decision.retryAfter().toSeconds());
-            response.setHeader("Retry-After", String.valueOf(retryAfterSeconds));
-            // Ghi WARN: dồn dập bất thường là tín hiệu cần nhìn, không phải chuyện thường ngày
-            log.warn(
-                    "Chặn theo hạn mức {} — IP {} · {} {}",
-                    policy,
-                    identity,
-                    request.getMethod(),
-                    request.getRequestURI());
-            exceptionResolver.resolveException(request, response, null, new RateLimitException());
-            return;
-        }
-
-        chain.doFilter(request, response);
-    }
-
-    private static RateLimitPolicy policyFor(HttpServletRequest request) {
-        String path = request.getRequestURI();
-        if (path.startsWith(LOGIN_PATH)) {
-            return RateLimitPolicy.LOGIN;
-        }
-        if (path.contains(EXPORT_MARKER)) {
-            return RateLimitPolicy.EXPORT;
-        }
-        // Cổng công khai đếm riêng: gộp chung với API quản trị thì một con bọ tìm kiếm quét cổng sẽ
-        // khoá luôn người đang soạn bài — cả hai bucket đều đếm theo IP, mà cả Công ty ra Internet
-        // qua một IP NAT.
-        if (path.startsWith(PUBLIC_PREFIX)) {
-            return RateLimitPolicy.PUBLIC;
-        }
-        return RateLimitPolicy.API;
+    boolean phuTrach(RateLimitPolicy policy) {
+        // ⚠⚠ T61.37 — xô mới PHẢI được khai ở đây. Bộ lọc sau xác thực chỉ đếm người dùng đã đăng
+        //   nhập, nên một xô công khai ⛔ có tên trong danh sách này thì ⛔ ai đếm nó: bản nháp đầu
+        //   của T61.37 thêm `BIEU_MAU_CONG_KHAI` vào enum mà quên dòng này, và kết quả đo được là
+        //   12/12 lượt gửi ĐỀU qua — tức hạn mức ⛔ chặt hơn, nó BIẾN MẤT (luật 7).
+        return policy == RateLimitPolicy.LOGIN
+                || policy == RateLimitPolicy.PUBLIC
+                || policy == RateLimitPolicy.BIEU_MAU_CONG_KHAI;
     }
 
     /**
      * Khoá của xô hạn mức — <b>T43.8-b</b>.
      *
-     * <p>⛔⛔ Bản cũ lấy phần tử ĐẦU của {@code X-Forwarded-For} kèm chú thích <i>"nginx phải ghi
-     * đè chứ không nối thêm; nếu không thì kẻ tấn công đổi header là thoát rate limit"</i>. Vế
-     * "nếu không" chính là hiện trạng: nginx <b>nối thêm</b>, nên <b>cả bốn</b> xô
-     * ({@code LOGIN} 30/15' · {@code API} 100/1' · {@code PUBLIC} 300/1' · {@code EXPORT} 10/1h)
-     * đổi khoá theo từng lượt gọi nếu kẻ gọi đổi header. Một hạn mức né được là một hạn mức ⛔
-     * không tồn tại.
-     *
-     * <p>Nay neo vào {@code X-Real-IP} qua {@link ClientIp} — xem javadoc lớp ấy.
+     * <p>⛔⛔ Bản cũ lấy phần tử ĐẦU của {@code X-Forwarded-For}; nginx <b>nối thêm</b> header ấy nên kẻ
+     * gọi đổi header là đổi xô. Nay neo vào {@code X-Real-IP} qua {@link ClientIp} — xem javadoc lớp ấy.
      */
-    private static String clientIp(HttpServletRequest request) {
+    @Override
+    String danhTinh(HttpServletRequest request) {
         return ClientIp.cua(request);
     }
 }

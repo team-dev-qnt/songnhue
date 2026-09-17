@@ -111,6 +111,38 @@ public class EmployeeService {
      *
      * @return rỗng khi khoá là {@code null}, ⛔ không trỏ tới hồ sơ nào, hoặc hồ sơ đã xoá mềm
      */
+    /**
+     * Quân số <b>còn làm việc</b> của một đơn vị — mẫu số của cảnh báo trùng lịch (CN-04.9).
+     *
+     * <p>⛔⛔ Dùng lại đúng vị từ *"còn làm việc"* của danh bạ ({@link com.songnhue.hr.domain.EmploymentStatus#daNghi()}),
+     * ⛔ không viết một định nghĩa thứ ba. Một người đã nghỉ việc vẫn nằm trong bảng; đếm họ vào
+     * quân số là <b>hạ tỉ lệ</b> xuống và làm cảnh báo trùng lịch im lặng đúng lúc cần kêu.
+     *
+     * <p>⚠ ⛔ Không đếm cả nhánh con: cảnh báo hỏi *"phòng này còn ai trực ⛔ không"*, và một Xí
+     * nghiệp có bốn Tổ đội thì tỉ lệ gộp cả bốn sẽ loãng tới mức ⛔ không bao giờ chạm ngưỡng.
+     */
+    /**
+     * Tra nhiều hồ sơ theo khoá nội bộ — <b>chống N+1</b> ở màn hình danh sách đơn nghỉ.
+     *
+     * <p>⚠ ⛔ Không lọc phạm vi: nơi gọi đang dựng phản hồi cho một trang đơn <b>đã qua</b> bộ lọc
+     * phạm vi của chính nó. Lọc lần thứ hai ở đây sẽ làm ô *Họ tên* trống rỗng cho đúng những dòng
+     * người dùng vừa được phép nhìn thấy.
+     */
+    @Transactional(readOnly = true)
+    public java.util.Map<Long, Employee> theoIds(java.util.Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return java.util.Map.of();
+        }
+        return employees.findAllById(ids).stream()
+                .filter(e -> e.getDeletedAt() == null)
+                .collect(java.util.stream.Collectors.toMap(Employee::getId, e -> e, (a, b) -> a));
+    }
+
+    @Transactional(readOnly = true)
+    public long soNguoiConLamViec(Long orgUnitId) {
+        return employees.demConLamViec(orgUnitId, EmploymentStatus.tenCacTrangThaiDaNghi());
+    }
+
     @Transactional(readOnly = true)
     public Optional<Employee> cuaChinhMinh(Long employeeId) {
         if (employeeId == null) {

@@ -1,13 +1,22 @@
-import { DeleteOutlined, EditOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
+import {
+  DeleteOutlined,
+  DownloadOutlined,
+  EditOutlined,
+  EyeOutlined,
+  PlusOutlined,
+  UploadOutlined,
+} from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
   Button,
   Drawer,
   Empty,
+  Modal,
   Popconfirm,
   Progress,
   Select,
+  Skeleton,
   Space,
   Table,
   Tabs,
@@ -22,6 +31,7 @@ import { useState } from 'react';
 
 import { ApiClientError, api } from '@/shared/apiClient';
 import { EMPTY_MARK, formatDate, formatDateTime } from '@/shared/format';
+import { luuTep } from '@/shared/luuTep';
 
 import { LyLichFormModal } from './LyLichFormModal';
 import { SuKienFormModal } from './SuKienFormModal';
@@ -395,7 +405,23 @@ function TabTaiLieu({ publicId, coSua }: { publicId: string; coSua: boolean }) {
   const qc = useQueryClient();
   const [homNay] = useState(() => Date.now());
   const [thuMuc, setThuMuc] = useState<HoSoThuMuc>('GIAY_TO_TUY_THAN');
+  const [xemTruoc, setXemTruoc] = useState<TaiLieuView | null>(null);
+  const [dangNen, setDangNen] = useState(false);
   const duong = `/hr/employees/${publicId}/tai-lieu`;
+
+  const taiCaHoSo = async () => {
+    setDangNen(true);
+    try {
+      // ⛔ Tên tệp lấy từ `Content-Disposition` — backend đặt theo MÃ CBNV, thứ giao diện ⛔ không
+      //   có sẵn ở đây (nó chỉ có `publicId`). Tự đặt tên là cho ra `ho-so-<uuid>.zip`.
+      const { blob, tenTep } = await api.getTep(`${duong}/zip`);
+      luuTep(blob, tenTep ?? 'ho-so.zip');
+    } catch (caught: unknown) {
+      message.error(caught instanceof ApiClientError ? caught.message : 'Không tải được hồ sơ');
+    } finally {
+      setDangNen(false);
+    }
+  };
 
   const danhSach = useQuery({
     queryKey: ['hr', 'tai-lieu', publicId],
@@ -445,6 +471,30 @@ function TabTaiLieu({ publicId, coSua }: { publicId: string; coSua: boolean }) {
             description="Quản trị › Cấu hình hệ thống › nhóm Nhân sự › “Thư mục tài liệu BẮT BUỘC”. Chưa khai thì hệ thống không tính % hoàn thiện — nó không giả định thay Công ty."
           />
         ))}
+
+      {/*
+        ⭐ Tải CẢ hồ sơ — CN-04.5 (T53.12). Nút ở ngoài khối `coSua`: quyền tải là
+           `hr:employee:view`, **cùng** quyền với đường xem từng tệp. ZIP ⛔ không mở thêm dữ liệu
+           nào, nó chỉ gói lại thứ người ấy vốn tải được từng cái một — đặt một hàng rào ở đây là
+           dựng rào mà cửa bên cạnh đang mở. Thứ bù lại là nhật ký bảo mật ở backend.
+
+        ⚠ Vô hiệu khi hồ sơ CHƯA có tệp nào: một bản nén rỗng tải về được, nhưng nó làm người dùng
+          đi tìm xem mình vừa tải cái gì.
+      */}
+      <Space wrap>
+        <Button
+          icon={<DownloadOutlined />}
+          loading={dangNen}
+          disabled={(danhSach.data ?? []).length === 0}
+          onClick={() => void taiCaHoSo()}
+        >
+          Tải cả hồ sơ (.zip)
+        </Button>
+        <Typography.Text type="secondary">
+          Tệp đang chờ quét virus sẽ không nằm trong bản nén — bản nén kèm một danh sách những tệp
+          ấy.
+        </Typography.Text>
+      </Space>
 
       {coSua && (
         <Space wrap>
@@ -541,6 +591,18 @@ function TabTaiLieu({ publicId, coSua }: { publicId: string; coSua: boolean }) {
                     Tải
                   </Button>
                 </Tooltip>
+                {/* ⛔⛔ Nút *Xem trước* chỉ hiện với định dạng TRÌNH DUYỆT DỰNG ĐƯỢC. Mở một tệp
+                    .docx trong `<iframe>` cho ra một khung trắng hoặc một hộp tải về — người dùng
+                    đọc đó là *"hệ thống hỏng"*. Danh sách kiểu do `xemTruocDuoc` quyết, ⛔ không
+                    đoán theo đuôi tên tệp: `contentType` là thứ máy chủ thật sự sẽ gửi. */}
+                {xemTruocDuoc(row) && (
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<EyeOutlined />}
+                    onClick={() => setXemTruoc(row)}
+                  />
+                )}
                 {coSua && (
                   <Popconfirm
                     title="Xoá tài liệu này?"
@@ -556,6 +618,74 @@ function TabTaiLieu({ publicId, coSua }: { publicId: string; coSua: boolean }) {
           },
         ]}
       />
+
+      {xemTruoc ? (
+        <XemTruocTaiLieu duong={duong} tep={xemTruoc} onDong={() => setXemTruoc(null)} />
+      ) : null}
     </Space>
+  );
+}
+
+/** Định dạng trình duyệt dựng được trong một khung — ⛔ đừng đoán theo đuôi tên tệp. */
+function xemTruocDuoc(tep: TaiLieuView): boolean {
+  if (!tep.taiDuoc) {
+    return false;
+  }
+  const loai = (tep.kieuNoiDung ?? '').toLowerCase();
+  return loai === 'application/pdf' || loai.startsWith('image/');
+}
+
+/**
+ * Xem trước một tài liệu — CN-04.5 (T53.12).
+ *
+ * <h2>⛔⛔ Hộp thoại chỉ TỒN TẠI khi đang mở</h2>
+ *
+ * Nơi gọi dựng nó bằng `xemTruoc ? <…/> : null`, nên đường dẫn có hạn của tệp trước ⛔ không sống
+ * sót sang lượt mở sau — cùng cơ chế tường minh đã dùng cho `NopDonModal` (T51.12 · T53.7).
+ *
+ * <h2>⚠ Đường dẫn có hạn 10 phút, và nó nằm trong DOM</h2>
+ *
+ * `download-url` trả một presigned URL sống 10 phút. Nó ⛔ không đi kèm phiên đăng nhập, nên ai có
+ * chuỗi ấy trong 10 phút đều mở được — đó là đánh đổi đã chốt của cơ chế này (`AttachmentPort`).
+ * ⇒ Đóng hộp thoại là tháo luôn `<iframe>`, ⛔ không giữ URL lại trong state của trang.
+ */
+function XemTruocTaiLieu({
+  duong,
+  tep,
+  onDong,
+}: {
+  duong: string;
+  tep: TaiLieuView;
+  onDong: () => void;
+}) {
+  const url = useQuery({
+    queryKey: ['hr', 'tai-lieu', 'xem-truoc', tep.publicId],
+    queryFn: () => api.get<{ url: string }>(`${duong}/${tep.publicId}/download-url`),
+    // ⛔ ⛔ Không giữ lại: đường dẫn hết hạn sau 10 phút, và một bản nằm trong đệm của
+    //   react-query sẽ được dùng lại ở lượt mở sau rồi cho ra một khung trắng.
+    gcTime: 0,
+    staleTime: 0,
+  });
+
+  const anh = (tep.kieuNoiDung ?? '').toLowerCase().startsWith('image/');
+
+  return (
+    <Modal open title={tep.tenGoc} onCancel={onDong} footer={null} width={900} destroyOnHidden>
+      {url.isLoading ? (
+        <Skeleton active />
+      ) : url.data ? (
+        anh ? (
+          <img src={url.data.url} alt={tep.tenGoc} style={{ width: '100%' }} />
+        ) : (
+          <iframe
+            src={url.data.url}
+            title={tep.tenGoc}
+            style={{ width: '100%', height: '70vh', border: 0 }}
+          />
+        )
+      ) : (
+        <Empty description="Không mở được tệp để xem trước" />
+      )}
+    </Modal>
   );
 }

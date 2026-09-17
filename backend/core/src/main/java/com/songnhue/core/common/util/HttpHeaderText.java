@@ -34,4 +34,39 @@ public final class HttpHeaderText {
         }
         return originalName.replaceAll(KY_TU_PHA_HEADER, "_");
     }
+
+    /**
+     * Giá trị {@code Content-Disposition} đầy đủ — <b>hai dạng tên</b>, T61.40 (ASVS 12.3.4, RFC 5987).
+     *
+     * <h2>Vì sao ⛔ chỉ {@code filename="…"}</h2>
+     *
+     * <p>Header HTTP là ASCII. Một tên tệp tiếng Việt đặt trần vào {@code filename=} sẽ bị máy khách
+     * đọc sai hoặc bị ta thay bằng {@code _} ⇒ người dùng nhận về {@code Quy_t____nh_2026.pdf}. Năm
+     * đường phát tệp TRỰC TIẾP của hệ (bản kết xuất liên hệ, báo cáo nhân sự, báo cáo thuỷ văn, ZIP hồ
+     * sơ, tệp cổng công khai) đều đang như vậy, trong khi đường đi qua MinIO presigned thì ⛔ —
+     * {@code ObjectStorage} đã làm đúng từ đầu. Hai đường tải cùng một hệ, hai kết quả khác nhau.
+     *
+     * <p>⇒ Dạng ASCII cho máy khách cũ, {@code filename*=UTF-8''…} cho mọi trình duyệt còn lại; trình
+     * duyệt hiện đại ưu tiên dạng sau.
+     */
+    public static String contentDisposition(String tenGoi) {
+        return contentDisposition("attachment", tenGoi);
+    }
+
+    /**
+     * Dạng {@code inline} — ảnh/PDF hiện TRONG trang thay vì bật hộp thoại tải về.
+     *
+     * <p>⚠ Vẫn cần {@code filename*}: người dùng bấm *"Lưu ảnh"* thì tên gợi ý lấy từ đây.
+     */
+    public static String contentDispositionInline(String tenGoi) {
+        return contentDisposition("inline", tenGoi);
+    }
+
+    private static String contentDisposition(String kieu, String tenGoi) {
+        String ten = tenTepAnToan(tenGoi);
+        String ascii = ten.replaceAll("[^\\x20-\\x7E]", "_");
+        String maHoa = java.net.URLEncoder.encode(ten, java.nio.charset.StandardCharsets.UTF_8)
+                .replace("+", "%20");
+        return "%s; filename=\"%s\"; filename*=UTF-8''%s".formatted(kieu, ascii, maHoa);
+    }
 }

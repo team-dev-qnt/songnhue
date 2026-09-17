@@ -23,6 +23,9 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.songnhue.core.application.auth.ClientInfo;
+import com.songnhue.core.application.auth.XacThucLaiService;
+import com.songnhue.core.application.identity.DatLaiHaiBuocService;
+import com.songnhue.core.application.identity.DatLaiMatKhauService;
 import com.songnhue.core.application.identity.PermissionSummary;
 import com.songnhue.core.application.identity.RoleSummary;
 import com.songnhue.core.application.identity.UserAdminService;
@@ -47,9 +50,21 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class UserAdminController {
 
     private final UserAdminService userAdminService;
+    private final DatLaiHaiBuocService datLaiHaiBuoc;
 
-    public UserAdminController(UserAdminService userAdminService) {
+    private final DatLaiMatKhauService datLaiMatKhau;
+
+    private final XacThucLaiService xacThucLai;
+
+    public UserAdminController(
+            UserAdminService userAdminService,
+            DatLaiHaiBuocService datLaiHaiBuoc,
+            DatLaiMatKhauService datLaiMatKhau,
+            XacThucLaiService xacThucLai) {
+        this.datLaiMatKhau = datLaiMatKhau;
+        this.xacThucLai = xacThucLai;
         this.userAdminService = userAdminService;
+        this.datLaiHaiBuoc = datLaiHaiBuoc;
     }
 
     @GetMapping
@@ -65,13 +80,7 @@ public class UserAdminController {
                 .toList();
     }
 
-    @GetMapping("/{publicId}")
-    @Operation(summary = "Chi tiết một tài khoản")
-    @RequirePermission("adm:user:view")
-    public UserDtos.UserView get(@PathVariable UUID publicId) {
-        User user = userAdminService.get(publicId);
-        return UserDtos.UserView.of(user, userAdminService.hoSoNhanSuCua(user).orElse(null));
-    }
+    // ⛔ BIA MỘ — `GET /{publicId}` gỡ 14/09/2026 (T61.22): 0 nơi gọi, hộp thoại dựng từ hàng danh sách.
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -183,10 +192,43 @@ public class UserAdminController {
     @Operation(summary = "Liên kết tài khoản với hồ sơ CBNV — thân rỗng là gỡ liên kết")
     @RequirePermission("adm:user:update")
     public UserDtos.UserView lienKetHoSo(
-            @PathVariable UUID publicId, @RequestBody UserDtos.HoSoRequest request, HttpServletRequest httpRequest) {
+            @PathVariable UUID publicId,
+            @Valid @RequestBody UserDtos.HoSoRequest request,
+            HttpServletRequest httpRequest) {
 
         User user = userAdminService.lienKetHoSo(publicId, request.employeePublicId(), ClientInfo.from(httpRequest));
         return UserDtos.UserView.of(user, userAdminService.hoSoNhanSuCua(user).orElse(null));
+    }
+
+    /** T61.30 — người dùng mất cả ứng dụng xác thực lẫn mã khôi phục. */
+    @PostMapping("/{publicId}/dat-lai-2fa")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Đặt lại xác thực hai bước (xoá đăng ký, thu hồi mọi phiên)")
+    @RequirePermission("adm:user:update")
+    public void datLaiHaiBuoc(@PathVariable UUID publicId, HttpServletRequest httpRequest) {
+        datLaiHaiBuoc.datLai(publicId, ClientInfo.from(httpRequest));
+    }
+
+    /**
+     * T61.31 · CN-05.2 — đặt lại mật khẩu một tài khoản nội bộ.
+     *
+     * <p>⚠ Quyền {@code adm:user:reset-password} có trong danh mục từ 13/08/2026 và tới 16/09 vẫn
+     * <b>0 đầu nhận</b>; đây là lời gọi đầu tiên của nó. ⛔ Dùng {@code adm:user:update} như các
+     * thao tác khác: đặt lại mật khẩu là chiếm quyền đăng nhập vào một tài khoản, ⛔ phải sửa hồ sơ.
+     *
+     * <p>⚠⚠ Đòi nhập lại mã 2FA (T61.42) — cùng lớp bảo vệ với khôi phục CSDL và bí mật tích hợp.
+     */
+    @PostMapping("/{publicId}/dat-lai-mat-khau")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Đặt lại mật khẩu tài khoản (mật khẩu tạm + buộc đổi ở lần đăng nhập tới)")
+    @RequirePermission("adm:user:reset-password")
+    public void datLaiMatKhau(
+            @PathVariable UUID publicId,
+            @Valid @RequestBody UserDtos.DatLaiMatKhauRequest request,
+            HttpServletRequest httpRequest) {
+        ClientInfo client = ClientInfo.from(httpRequest);
+        xacThucLai.xacThuc(request.maXacThuc(), client);
+        datLaiMatKhau.datLai(publicId, request.matKhauTam(), client);
     }
 
     @DeleteMapping("/{publicId}")
@@ -207,7 +249,7 @@ public class UserAdminController {
                 @NotBlank @Size(max = 255) String fullName,
                 @Size(max = 255) String email,
                 @NotNull UUID orgUnitPublicId,
-                @NotBlank String temporaryPassword) {}
+                @NotBlank @Size(max = 200) String temporaryPassword) {}
 
         public record UpdateRequest(
                 @NotBlank @Size(max = 255) String fullName,
@@ -215,6 +257,14 @@ public class UserAdminController {
                 @Size(max = 30) String phone) {}
 
         public record StatusRequest(@NotNull UserStatus status) {}
+
+        /** ⛔ {@code toString} mặc định in cả mật khẩu tạm — ghi đè để một dòng log lỡ tay ⛔ mang nó. */
+        public record DatLaiMatKhauRequest(@NotBlank @Size(max = 200) String matKhauTam, String maXacThuc) {
+            @Override
+            public String toString() {
+                return "DatLaiMatKhauRequest[đã ẩn]";
+            }
+        }
 
         public record RolesRequest(@NotNull List<String> roleCodes) {}
 

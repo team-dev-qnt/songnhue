@@ -13,7 +13,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -65,6 +64,9 @@ class ContactEmailSlaHttpTest extends IntegrationTestBase {
 
     @Autowired
     private TestHttp http;
+
+    /** ⚠ T61.37 — lượt gửi công khai phải mang IP riêng, xem {@code PhienHttp.dangJson}. */
+    private PhienHttp phienHttp;
 
     @Autowired
     private UserRepository users;
@@ -168,23 +170,34 @@ class ContactEmailSlaHttpTest extends IntegrationTestBase {
                         + "Đây là vế mà một bài unit test có mock ⛔ không thể phân biệt được.")
                 .isPositive();
 
-        assertThat(demViec(CmsJobTypes.CONTACT_ACK_MAIL)).isEqualTo(1);
+        // ⛔⛔ T61.37 (16/09/2026) — vế THỨ HAI của bài này đổi chiều: thư xác nhận ⛔ được đặt khi
+        //   reCAPTCHA chưa bảo vệ biểu mẫu (khoá thuộc G13, Công ty chưa cấp ⇒ công tắc tắt). Thư ấy
+        //   đi tới địa chỉ do NGƯỜI GỬI tự khai, nên để nó chạy là cho phép bất kỳ ai khiến máy chủ
+        //   thư của Công ty phát nội dung tới nơi họ chỉ định.
+        //
+        // ⚠ Nhánh ngược lại (captcha BẬT ⇒ thư đặt lại, payload ⛔ mang email) canh ở
+        //   `ContactServiceTest.coCaptchaThiDatLaiThuXacNhan` — tầng đơn vị, vì bật captcha ở tầng
+        //   HTTP kéo theo một lượt gọi THẬT ra Google (5 giây, và trả `success:false` với khoá giả).
+        assertThat(demViec(CmsJobTypes.CONTACT_ACK_MAIL))
+                .as("chưa có reCAPTCHA ⇒ ⛔ thư ra ngoài; bản ghi liên hệ thì vẫn lưu")
+                .isZero();
     }
 
+    /**
+     * ⚠ Bài cũ ({@code payloadKhongMangDiaChiEmail}) đọc {@code payload} của việc gửi thư để khẳng
+     * định nó ⛔ mang địa chỉ email (NĐ 13/2023). Từ T61.37 ⛔ còn việc nào được đặt ở nhánh này,
+     * nên khẳng định ấy <b>chuyển xuống</b> {@code ContactServiceTest.coCaptchaThiDatLaiThuXacNhan}
+     * — nơi captcha bật được bằng mock. Ở đây giữ vế đo được của tầng HTTP: hàng đợi RỖNG.
+     */
     @Test
-    @DisplayName("⛔⛔ Payload việc gửi thư ⛔ KHÔNG chứa địa chỉ email — NĐ 13/2023")
-    void payloadKhongMangDiaChiEmail() {
+    @DisplayName("⛔⛔ Chưa có reCAPTCHA ⇒ hàng đợi thư xác nhận RỖNG — ⛔ chỉ là payload sạch")
+    void chuaCoCaptchaThiHangDoiThuRong() {
         gui("nguoidan@example.invalid", null);
 
-        String payload = jdbc.queryForObject(
-                "SELECT payload::text FROM jobs WHERE job_type = ?", String.class, CmsJobTypes.CONTACT_ACK_MAIL);
-
-        assertThat(payload)
-                .as("⛔ `JobRequest` nói rõ: payload nằm NGUYÊN VĂN trong bảng `jobs` và lọt vào mọi "
-                        + "bản sao lưu. Địa chỉ đã có ở `contacts` — chép thêm một bản vào hàng đợi "
-                        + "là nhân đôi phạm vi mà ⛔ không đổi lấy gì.")
-                .doesNotContain("nguoidan@example.invalid")
-                .contains("contactPublicId");
+        assertThat(demViec(CmsJobTypes.CONTACT_ACK_MAIL)).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM contacts", Integer.class))
+                .as("người dân vẫn gửi được")
+                .isEqualTo(1);
     }
 
     /**
@@ -431,7 +444,7 @@ class ContactEmailSlaHttpTest extends IntegrationTestBase {
                 }
                 """
                         .formatted(oChuoi(email), oChuoi(dienThoai));
-        ResponseEntity<String> r = http.postForEntity(CONG_KHAI, new HttpEntity<>(than, h), String.class);
+        ResponseEntity<String> r = phienHttp().dangJson(CONG_KHAI, than);
         assertThat(r.getStatusCode()).as("thân: %s", r.getBody()).isEqualTo(HttpStatus.NO_CONTENT);
     }
 
@@ -490,5 +503,12 @@ class ContactEmailSlaHttpTest extends IntegrationTestBase {
                         + "WHERE u.username = ? AND r.code = 'T36_MAIL_PROBE' ON CONFLICT DO NOTHING",
                 username);
         return username;
+    }
+    /** Lười khởi tạo: mỗi lớp một thực thể ⇒ một IP, đủ để tách khỏi các lớp khác. */
+    private PhienHttp phienHttp() {
+        if (phienHttp == null) {
+            phienHttp = new PhienHttp(http);
+        }
+        return phienHttp;
     }
 }

@@ -127,6 +127,18 @@ public class Attachment extends BaseEntity {
         this.scanResult = reason;
     }
 
+    /**
+     * Máy quét ⛔ kết luận được sau khi hết lượt thử — T61.24. {@code FAILED} ⇒ ⛔ tải xuống được (đóng an
+     * toàn), và ⛔ gắn nhãn nhiễm: "máy quét hỏng" và "tệp có mã độc" là hai trạng thái (luật 9). Lượt quét
+     * lại lúc khởi động ({@code QuetLaiTepService}) nhặt lại tệp này.
+     */
+    public void markScanError(String detail) {
+        this.scanStatus = ScanStatus.ERROR;
+        this.status = AttachmentStatus.FAILED;
+        this.scanAt = Instant.now();
+        this.scanResult = detail == null || detail.length() <= 255 ? detail : detail.substring(0, 255);
+    }
+
     public boolean isDownloadable() {
         return status == AttachmentStatus.READY;
     }

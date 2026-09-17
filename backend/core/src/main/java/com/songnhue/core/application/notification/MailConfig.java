@@ -56,9 +56,34 @@ public class MailConfig {
 
     private static final Logger log = LoggerFactory.getLogger(MailConfig.class);
 
+    /**
+     * ⛔⛔ T61.23 — {@code MAIL_REDIRECT_TO} ở PRODUCTION là DỪNG khởi động (luật 11): mọi thông báo của
+     * 200 cán bộ lặng lẽ dồn về một hộp thư, ⛔ một dòng lỗi nào — đúng hình dạng T50.12 (kênh email
+     * "BẬT" mà ⛔ ai nhận được). Nhận diện production bằng chính nhãn chỉ số {@code APP_ENVIRONMENT}.
+     */
     @Bean
-    public EmailSender emailSender(JavaMailSender mailSender, @Value("${app.notification.from}") String fromAddress) {
-        log.info("Kênh email BẬT — thư gửi từ địa chỉ {}", fromAddress);
-        return new EmailSender(mailSender, fromAddress);
+    public EmailSender emailSender(
+            JavaMailSender mailSender,
+            @Value("${app.notification.from}") String fromAddress,
+            @Value("${app.notification.redirect-to:}") String redirectTo,
+            @Value("${management.metrics.tags.environment:local}") String environment) {
+        boolean chuyenHuong = redirectTo != null && !redirectTo.isBlank();
+        String moiTruong = environment.trim();
+        if (chuyenHuong && "production".equalsIgnoreCase(moiTruong)) {
+            throw new IllegalStateException(
+                    "MAIL_REDIRECT_TO được đặt trên PRODUCTION — mọi thư sẽ dồn về một hộp thư. Gỡ biến này khỏi .env.");
+        }
+        if (!chuyenHuong && "staging".equalsIgnoreCase(moiTruong)) {
+            // Chiều ngược lại cũng DỪNG: một dòng dặn trong staging.env.example ⛔ phải cổng kiểm.
+            throw new IllegalStateException(
+                    "Staging bật SMTP mà THIẾU MAIL_REDIRECT_TO — dữ liệu nhân bản từ production, thư thử sẽ tới hộp thư"
+                            + " thật của cán bộ (T61.23). Đặt MAIL_REDIRECT_TO trong .env.");
+        }
+        if (chuyenHuong) {
+            log.warn("Kênh email BẬT — ⚠ CHUYỂN HƯỚNG mọi thư về {} (môi trường {})", redirectTo.trim(), environment);
+        } else {
+            log.info("Kênh email BẬT — thư gửi từ địa chỉ {}", fromAddress);
+        }
+        return new EmailSender(mailSender, fromAddress, redirectTo);
     }
 }

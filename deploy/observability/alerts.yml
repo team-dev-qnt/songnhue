@@ -25,10 +25,22 @@ groups:
         # -1 = chưa từng sao lưu thành công. Cố ý bắt luôn trường hợp đó: hệ
         # thống chưa từng được sao lưu là trạng thái đáng báo động nhất, nhưng
         # một điều kiện "> 93600" đơn thuần lại bỏ sót nó.
-        expr: songnhue_backup_age_seconds > 93600 or songnhue_backup_age_seconds == -1
+        #
+        # ⚠ T61.5 — thêm vế `absent(…production…)`: ứng dụng production mà KHÔNG trả
+        #   chỉ số này thì luật cũ ⛔ có chuỗi nào để so ⇒ `inactive` VĨNH VIỄN. Đo
+        #   14/09/2026: đúng trạng thái ấy suốt từ WS-7, vì target scrape hỏng.
+        #
+        # ⚠ T61.26 — CHỈ production (chốt 15/09/2026). Staging ⛔ có lịch sao lưu (nó là kho
+        #   chứa bản KÉO VỀ từ production), nên chuỗi staging luôn `-1` ⇒ luật cũ kêu Slack mỗi
+        #   4h vĩnh viễn — một chuông kêu thường trực là chuông bị tắt tiếng.
+        expr: >-
+          songnhue_backup_age_seconds{environment="production"} > 93600
+          or songnhue_backup_age_seconds{environment="production"} == -1
+          or absent(songnhue_backup_age_seconds{environment="production"})
         for: 15m
         labels:
           severity: critical
+          environment: production
         annotations:
           summary: "Không có bản sao lưu nào trong 26 giờ qua"
           description: >-
@@ -45,6 +57,9 @@ groups:
         for: 30m
         labels:
           severity: critical
+          # Chỉ số do node-exporter của VPS-2 đọc ⇒ ⛔ mang nhãn môi trường của target
+          # ứng dụng. Nó nói về bản sao lưu PRODUCTION ⇒ gắn tường minh (T61.5).
+          environment: production
         annotations:
           summary: "Bản sao lưu chưa được đưa ra khỏi máy chủ CSDL"
           description: >-
@@ -65,7 +80,11 @@ groups:
   - name: songnhue-data-freshness
     rules:
       - alert: NguonDuLieuImLang
-        expr: songnhue_data_freshness_seconds > 1800 or songnhue_data_freshness_seconds == -1
+        # ⚠ T61.5 — vế `absent` như `SaoLuuQuaHan`: quy tắc 18 xếp poller NGANG sao lưu.
+        expr: >-
+          songnhue_data_freshness_seconds > 1800
+          or songnhue_data_freshness_seconds == -1
+          or absent(songnhue_data_freshness_seconds{environment="production"})
         for: 5m
         labels:
           severity: critical
@@ -150,15 +169,69 @@ groups:
           summary: "Có thao tác KHÔI PHỤC CSDL đang diễn ra"
           runbook: docs/runbook/khoi-phuc-du-lieu.md
 
+      - alert: DoiCauHinhBaoMat
+        # T61.42 / T61.44 — đổi tham số nhóm SECURITY/AUDIT/BACKUP hoặc bí mật tích hợp. Đã qua mã 2FA
+        # nhập lại, nhưng một phiên bị chiếm có mã 2FA vẫn làm được: chuông phải kêu ở kênh ⛔ nằm
+        # trong tay ứng dụng (kẻ chiếm tài khoản quản trị ⛔ tắt được Alertmanager từ giao diện).
+        expr: increase(songnhue_security_events_total{type=~"SECURITY_SETTING_CHANGED|INTEGRATION_SECRET_CHANGED"}[5m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Cấu hình bảo mật hoặc bí mật tích hợp vừa bị đổi trên giao diện"
+          runbook: docs/runbook/su-kien-bao-mat.md
+
+      - alert: CapQuyenVuotQuyenBiChan
+        # T54.4 — một tài khoản quản trị thử cấp quyền/vai trò mình ⛔ có. Hệ đã chặn (ADM-2022), nhưng đó
+        # là đúng hình dạng một phiên bị chiếm đang dò đường leo thang.
+        expr: increase(songnhue_security_events_total{type="PERMISSION_GRANT_BLOCKED"}[10m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Có lượt cấp quyền vượt quyền của chính người cấp bị chặn"
+          runbook: docs/runbook/su-kien-bao-mat.md
+
   # ---------------------------------------------------------------------------
   # 5. Ứng dụng còn sống không
   # ---------------------------------------------------------------------------
   - name: songnhue-availability
     rules:
       - alert: UngDungKhongPhanHoi
-        expr: up{job="songnhue-app"} == 0
+        expr: up{job=~"songnhue-app-.+"} == 0
         for: 3m
         labels:
           severity: critical
         annotations:
           summary: "Không lấy được metric từ ứng dụng trong 3 phút"
+
+      - alert: ChiSoProductionVangMat
+        # T61.5 — `up == 0` chỉ kêu khi target TỒN TẠI mà gọi hỏng. Target ⛔ có trong
+        # cấu hình (điền sai, job đổi tên) thì ⛔ có chuỗi `up` nào ⇒ luật trên im. Đó
+        # đúng là trạng thái của kho từ WS-7 tới 14/09/2026.
+        expr: absent(up{job="songnhue-app-production", environment="production"})
+        for: 5m
+        labels:
+          severity: critical
+          environment: production
+        annotations:
+          summary: "Prometheus KHÔNG có target ứng dụng production nào — mọi chuông khác đang mù"
+          description: >-
+            Kiểm tra cấu hình đã điền của Prometheus (dien-cau-hinh.sh) và PROD_METRICS_HOST.
+
+  # ---------------------------------------------------------------------------
+  # 6. Chuông canh CHÍNH hệ giám sát — T61.25 (chốt 15/09/2026: healthchecks.io)
+  #
+  # Mọi luật phía trên cần Prometheus sống, Alertmanager sống và VPS-2 sống. Một trong
+  # ba chết thì ⛔ gì kêu — sự vắng mặt ⛔ tự báo (luật 31). Nên luật này LUÔN kêu, và
+  # Alertmanager đẩy nó tới healthchecks.io mỗi phút; ngừng nhận ⇒ dịch vụ NGOÀI báo.
+  #
+  # ⛔ Đừng gắn `severity`/`environment`: nó ⛔ phải là cảnh báo cho người, tuyến riêng
+  #    `watchdog` ở alertmanager.yml bắt nó bằng `alertname` và đứng ĐẦU danh sách.
+  # ---------------------------------------------------------------------------
+  - name: songnhue-watchdog
+    rules:
+      - alert: Watchdog
+        expr: vector(1)
+        labels:
+          severity: none
+        annotations:
+          summary: "Chuông canh — luôn kêu; healthchecks.io báo khi NGỪNG nhận"

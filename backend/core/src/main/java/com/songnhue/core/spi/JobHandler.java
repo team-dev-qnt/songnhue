@@ -36,4 +36,17 @@ public interface JobHandler {
     default short maxAttempts() {
         return 3;
     }
+
+    /**
+     * Gọi ĐÚNG MỘT LẦN khi job đã hết lượt thử — T61.24.
+     *
+     * <p>⛔ Trước hook này, thứ duy nhất ghi nhận "hết lượt" là {@code jobs.status = FAILED}; bản ghi nghiệp
+     * vụ mà job phục vụ thì đứng yên ở trạng thái trung gian VĨNH VIỄN (tệp quét virus hỏng 3 lần kẹt
+     * {@code UPLOADING}, {@code ScanStatus.ERROR} có trong enum + CHECK mà 0 nơi ghi). Lỗi trong hook bị
+     * worker nuốt kèm log — ⛔ được làm hỏng việc ghi {@code FAILED}.
+     *
+     * @param payload payload nguyên văn của job
+     * @param loi câu đã ghi vào {@code jobs.last_error}
+     */
+    default void khiHetLuotThu(String payload, String loi) {}
 }

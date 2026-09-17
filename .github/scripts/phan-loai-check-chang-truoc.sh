@@ -40,10 +40,36 @@ set -uo pipefail
 sha="${1:-<không rõ>}"
 
 vao="$(cat)"
+# ═══════════════════════════════════════════════════════════════════════════
+# ⛔⛔ TẬP RỖNG CŨNG CÓ HAI NGHĨA — vá 17/09/2026 (T63.16)
+#
+#   Bản cũ `exit 1` ngay khi ⛔ đọc được check-run nào, với câu "nhiều khả năng
+#   commit này chưa từng chạy qua pipeline". Câu ấy đúng MỘT trong hai trạng
+#   thái, và trạng thái kia xảy ra thật:
+#
+#     17/09 12:50:35 — PR #152 gộp vào `dev`
+#     17/09 12:50:57 — `Promotion guard` của PR đề bạt #133 chạy (22 GIÂY sau)
+#                      ⇒ `dev@0c01b26` chưa kịp có một check-run nào
+#                      ⇒ cổng ĐỎ, PR đề bạt BLOCKED
+#     đo lại sau đó  — CI của chính commit ấy `in_progress`, phần còn lại `success`
+#
+#   ⭐ ĐÂY LÀ LUẬT 9, LẶP LẠI NGAY TRONG BẢN VÁ VIẾT RA ĐỂ CHỮA LUẬT 9. Tệp này
+#     sinh ra ngày 01/09 để tách `null` (chờ) khỏi `failure` (hỏng) — và bỏ sót
+#     đúng cùng một hình dạng ở nhánh tập rỗng: *chưa kịp bắt đầu* và *chưa bao
+#     giờ chạy* dẫn tới hai việc khác hẳn nhau (đợi vs đi sửa) mà in ra một câu.
+#
+#   ⚠ Và nó là CÙNG MỘT CUỘC ĐUA đã trả giá ngày 01/09 (§10.72, 19 giây), chỉ
+#     khác chỗ rơi: lần ấy check-run ĐÃ có với `conclusion: null`, lần này chưa
+#     có check-run nào. Vá một nhánh của cuộc đua rồi dừng là để nguyên nhánh kia.
+#
+# ⇒ Trả mã 2 (CHƯA XONG) để nơi gọi ĐỢI. Luật 7 vẫn nguyên: tập rỗng ⛔ BAO GIỜ
+#   cho mã 0. Hết vòng chờ mà vẫn rỗng thì `promotion-guard.yml` đỏ — thà chậm
+#   10 phút còn hơn chặn nhầm một lượt đề bạt, và thà đỏ còn hơn đề bạt một
+#   commit chưa ai kiểm.
+# ═══════════════════════════════════════════════════════════════════════════
 if [ -z "$(printf '%s' "$vao" | tr -d '[:space:]')" ]; then
-    echo "::error::Không tìm thấy kết quả CI nào cho commit $sha."
-    echo "Nhiều khả năng commit này chưa từng chạy qua pipeline ở dev."
-    exit 1
+    echo "  ⏳ chưa có check-run nào cho $sha — CI của chặng trước có thể vừa mới bắt đầu"
+    exit 2
 fi
 
 hong=0

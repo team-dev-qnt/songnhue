@@ -75,7 +75,54 @@ public final class PhienHttp {
      * duy nhất {@code ClientIp} đọc. Nhờ vậy bộ kiểm đi <b>cùng đường</b> với production thay vì
      * đi một đường chỉ tồn tại trong bộ kiểm (luật 5).
      */
-    private final String ipGiaLap = ipKeTiep();
+    private String ipGiaLap = ipKeTiep();
+
+    /**
+     * Đổi IP giả lập của phiên này sang một IP <b>chưa ai dùng</b>, giữ nguyên phiên đăng nhập.
+     *
+     * <h2>Vì sao cần — T60.9</h2>
+     *
+     * Xô {@link com.songnhue.core.common.ratelimit.RateLimitPolicy#EXPORT} là <b>trần theo giờ</b> (`limits.rate.export-per-hour`, mặc định 30 — T61.27).
+     * Lớp nào dựng phiên ở {@code @BeforeAll} thì <b>cả lớp dùng chung một IP</b>, nên một lớp có
+     * vài bài kết xuất là cạn ngân sách — và triệu chứng rơi vào <b>bài chạy sau</b>, thường là một
+     * bài ⛔ không liên quan gì tới kết xuất. Đúng hình dạng mà javadoc của {@link #ipGiaLap} đã mô
+     * tả cho xô đăng nhập, chỉ là ở một xô chặt hơn <b>600 lần</b>.
+     *
+     * <h2>⛔ Vì sao KHÔNG nới hạn mức ở hồ sơ kiểm thử</h2>
+     *
+     * Nới là tắt một cơ chế bảo mật thật trong CI — sau đó ⛔ không lượt chạy nào còn đi qua nó nữa.
+     * Ở đây filter vẫn chạy, vẫn đếm, vẫn chặn; chỉ là <b>mỗi bài kiểm</b> được coi là một máy khách
+     * khác nhau — đúng thứ nó mô phỏng. Cơ chế chặn được chứng minh ở
+     * {@code CaffeineRateLimitStoreTest} và ở {@link com.songnhue.app.security.HanMucKetXuatTest}.
+     *
+     * <p>⚠ Đổi IP ⛔ không cần đăng nhập lại: thẻ truy cập gắn với <b>phiên</b>, ⛔ không gắn với
+     * địa chỉ. Gọi trong {@code @BeforeEach} là đủ.
+     */
+    /**
+     * Gửi một biểu mẫu CÔNG KHAI (⛔ đăng nhập) kèm <b>IP riêng của thực thể này</b> — T61.37.
+     *
+     * <p>⛔⛔ {@code http.postForEntity} trần ⛔ đặt {@code X-Real-IP}, nên mọi lượt gửi ẩn danh của
+     * cả module dùng CHUNG một xô hạn mức. Từ T61.37, đường gửi biểu mẫu công khai chỉ còn
+     * <b>10 lượt/giờ mỗi IP</b> ⇒ lớp thứ hai trong lượt chạy sẽ nhận {@code 429} và đỏ vì một lý do
+     * ⛔ liên quan gì tới thứ nó khẳng định. Đúng hình dạng T60.9, và cách chữa cũng vậy: <b>mỗi bài
+     * kiểm là một máy khách</b>, ⛔ nới hạn mức của hồ sơ kiểm thử (làm thế là tắt một cơ chế bảo mật
+     * thật ngay trong CI).
+     */
+    public org.springframework.http.ResponseEntity<String> dangJson(String duongDan, Object than) {
+        Object thanThat = than instanceof org.springframework.http.HttpEntity<?> e ? e.getBody() : than;
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+        headers.set("X-Real-IP", ipGiaLap);
+        return http.exchange(
+                duongDan,
+                org.springframework.http.HttpMethod.POST,
+                new org.springframework.http.HttpEntity<>(thanThat, headers),
+                String.class);
+    }
+
+    public void doiIp() {
+        ipGiaLap = ipKeTiep();
+    }
 
     private static final java.util.concurrent.atomic.AtomicInteger SO_THU_TU =
             new java.util.concurrent.atomic.AtomicInteger();
@@ -175,6 +222,52 @@ public final class PhienHttp {
         List<String> setCookie = response.getHeaders().getOrEmpty(HttpHeaders.SET_COOKIE);
         return new Phien(
                 giaTriJson(response.getBody(), "accessToken"), giaTriCookie(setCookie, "XSRF-TOKEN"), gop(setCookie));
+    }
+
+    /** Phiên đã qua 2FA + secret TOTP thô để sinh mã cho các lượt xác thực lại. */
+    public record PhienHaiBuoc(Phien phien, byte[] secret) {}
+
+    /**
+     * Đăng nhập tài khoản BẮT BUỘC 2FA lần đầu: login → enroll → confirm (mã bước hiện tại) — T61.42.
+     *
+     * <p>⚠ Máy chủ chống dùng lại mã ({@code user_totp.last_used_step}): lượt xác thực lại kế tiếp phải dùng bước
+     * {@code +1}, hoặc bài kiểm đặt lại cột ấy.
+     */
+    public PhienHaiBuoc dangNhapHaiBuoc(String username) {
+        ResponseEntity<String> dn = postKhongPhien(
+                "/api/v1/auth/login", "{\"username\":\"%s\",\"password\":\"%s\"}".formatted(username, MAT_KHAU));
+        assertThat(dn.getBody()).as("tài khoản phải bị buộc đăng ký 2FA").contains("TWO_FACTOR_ENROLL_REQUIRED");
+        String ve = giaTriJson(dn.getBody(), "challengeToken");
+        ResponseEntity<String> enroll =
+                postKhongPhien("/api/v1/auth/2fa/enroll", "{\"challengeToken\":\"%s\"}".formatted(ve));
+        byte[] secret = new org.apache.commons.codec.binary.Base32().decode(giaTriJson(enroll.getBody(), "secret"));
+        ResponseEntity<String> confirm = postKhongPhien(
+                "/api/v1/auth/2fa/confirm",
+                "{\"challengeToken\":\"%s\",\"code\":\"%s\"}".formatted(ve, maTotp(secret, 0)));
+        assertThat(confirm.getBody()).as("%s", confirm.getBody()).contains("\"stage\":\"AUTHENTICATED\"");
+        List<String> setCookie = confirm.getHeaders().getOrEmpty(HttpHeaders.SET_COOKIE);
+        return new PhienHaiBuoc(
+                new Phien(
+                        giaTriJson(confirm.getBody(), "accessToken"),
+                        giaTriCookie(setCookie, "XSRF-TOKEN"),
+                        gop(setCookie)),
+                secret);
+    }
+
+    /** Mã TOTP ở bước hiện tại + {@code lech}. */
+    public static String maTotp(byte[] secret, int lech) {
+        return com.songnhue.core.common.util.TotpGenerator.generate(
+                secret,
+                com.songnhue.core.common.util.TotpGenerator.stepAt(
+                                java.time.Instant.now().getEpochSecond())
+                        + lech);
+    }
+
+    private ResponseEntity<String> postKhongPhien(String duong, String than) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("X-Real-IP", ipGiaLap);
+        return http.exchange(duong, HttpMethod.POST, new HttpEntity<>(than, headers), String.class);
     }
 
     /** Header đầy đủ như trình duyệt gửi: Bearer + vé CSRF + cookie. */

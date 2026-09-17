@@ -3,6 +3,10 @@ package com.songnhue.content.api;
 import java.util.List;
 import java.util.UUID;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -49,7 +53,12 @@ public class ContactCategoryController {
     }
 
     /** ⚠ {@code code} chỉ đọc lúc tạo — xem {@code ContactCategoryService#capNhat}. */
-    public record CategoryForm(String code, String name, Boolean active, Integer sortOrder) {}
+    public record CategoryForm(
+            // ⚠⚠ ⛔ `@NotBlank`: `code` chỉ đọc LÚC TẠO, và biểu mẫu SỬA cố ý ⛔ gửi nó (xem
+            //   `ContactCategoryService#capNhat`). Bản vá T61.47 đặt `@NotBlank` ở đây và làm mọi lượt
+            //   sửa phân loại trả 400 — `ContactWorkflowHttpTest` bắt ngay ở lượt `ci-local` kế tiếp.
+            //   Ràng buộc BẮT BUỘC của đường tạo nằm ở service, nơi phân biệt được tạo với sửa.
+            @Size(max = 50) String code, @NotBlank @Size(max = 255) String name, Boolean active, Integer sortOrder) {}
 
     @GetMapping
     @Operation(summary = "Danh sách phân loại, gồm cả phân loại đã tắt")
@@ -61,14 +70,14 @@ public class ContactCategoryController {
     @PostMapping
     @Operation(summary = "Thêm một phân loại")
     @RequirePermission("cms:contact:manage")
-    public CategoryView create(@RequestBody CategoryForm form) {
+    public CategoryView create(@Valid @RequestBody CategoryForm form) {
         return CategoryView.of(danhMuc.tao(form.code(), form.name(), form.sortOrder() == null ? 0 : form.sortOrder()));
     }
 
     @PutMapping("/{publicId}")
     @Operation(summary = "Sửa tên, thứ tự, bật/tắt — ⛔ không đổi được mã")
     @RequirePermission("cms:contact:manage")
-    public CategoryView update(@PathVariable UUID publicId, @RequestBody CategoryForm form) {
+    public CategoryView update(@PathVariable UUID publicId, @Valid @RequestBody CategoryForm form) {
         return CategoryView.of(danhMuc.capNhat(
                 publicId,
                 form.name(),

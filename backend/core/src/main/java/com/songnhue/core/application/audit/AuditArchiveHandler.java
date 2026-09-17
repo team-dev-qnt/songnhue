@@ -99,7 +99,7 @@ public class AuditArchiveHandler implements JobHandler {
         ArchiverJdbc archiver = archiverJdbc.getIfAvailable();
         if (archiver == null) {
             throw new BusinessRuleException(
-                    ErrorCode.ADM_2001, "chưa cấu hình DB_ARCHIVER_PASSWORD — không có quyền xoá nhật ký");
+                    ErrorCode.ADM_2001, "chưa cấu hình DB_ARCHIVER_PASSWORD, không có quyền xoá nhật ký");
         }
 
         org.springframework.jdbc.core.JdbcTemplate jdbc = archiver.jdbc();
@@ -129,8 +129,7 @@ public class AuditArchiveHandler implements JobHandler {
         // Đọc ngược về từ kho, không tin vào việc "ghi không báo lỗi tức là ghi thành công".
         String storedChecksum = HashUtils.sha256Hex(storage.get(bucket, objectKey));
         if (!checksum.equals(storedChecksum)) {
-            throw new BusinessRuleException(
-                    ErrorCode.ADM_2001, "checksum bản kết xuất không khớp — KHÔNG xoá bản ghi nào");
+            throw new BusinessRuleException(ErrorCode.ADM_2001, "checksum bản kết xuất không khớp");
         }
 
         jdbc.update(

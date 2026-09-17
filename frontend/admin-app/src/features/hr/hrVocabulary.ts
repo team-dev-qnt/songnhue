@@ -501,6 +501,13 @@ export interface MucCanhBao {
   soNgayCon: number;
 }
 
+/** Nhãn "còn lại" — đỏ khi đã quá hạn hoặc hết hôm nay, vàng khi còn trong ngưỡng (đặc tả M4.9). */
+export function nhanConLai(soNgayCon: number): { chu: string; mau: 'error' | 'warning' } {
+  if (soNgayCon < 0) return { chu: `Quá hạn ${-soNgayCon} ngày`, mau: 'error' };
+  if (soNgayCon === 0) return { chu: 'Hết hạn hôm nay', mau: 'error' };
+  return { chu: `Còn ${soNgayCon} ngày`, mau: 'warning' };
+}
+
 export interface CanhBaoHetHanView {
   /** ⛔ Đọc từ API chứ ⛔ đừng ghi cứng lại con số ở giao diện — hai nơi một sự thật sẽ lệch. */
   nguongNgayHopDong: number;
@@ -548,3 +555,138 @@ export interface DanhBaChiTietView {
   duongDanDonVi: string[];
   dongNghiep: DanhBaView[];
 }
+
+// ============================================================================
+// Nghỉ phép — CN-04.9
+// ============================================================================
+
+/**
+ * Năm loại nghỉ — khớp `LeaveType.java` và `ck_leave_requests_type`.
+ *
+ * ⛔⛔ **⛔ Không có `KHONG_LUONG`.** Nghe rất thiếu, nhưng chốt C1 liệt kê đích danh năm loại và
+ * mỗi loại đặc biệt có **một khoá `settings` tương ứng**. Thêm loại thứ sáu ở đây là dựng một hạn
+ * mức ⛔ không ai duyệt — và `EnumBaNoiTest` đỏ vì Java ↔ TS ↔ `CHECK` lệch nhau.
+ */
+export type LeaveType = 'PHEP_NAM' | 'THAI_SAN' | 'CUOI' | 'TANG' | 'KHAM_SUC_KHOE';
+
+/**
+ * Nhãn tiếng Việt — và đồng thời là **nguồn của danh sách** {@link LOAI_NGHI}.
+ *
+ * ⭐ `Record<LeaveType, string>` là một ràng buộc ở tầng **KIỂU**: thêm một giá trị vào union mà
+ * quên nhãn ⇒ `tsc` đỏ ngay, ⛔ không cần một bài kiểm nào. Khai một mảng hằng **song song** với
+ * union thì hai thứ lệch được trong im lặng — đúng nửa cặp đọc–ghi mà luật 27 nói tới.
+ */
+export const LOAI_NGHI_LABEL: Record<LeaveType, string> = {
+  PHEP_NAM: 'Phép năm',
+  THAI_SAN: 'Thai sản',
+  CUOI: 'Nghỉ cưới',
+  TANG: 'Nghỉ tang',
+  KHAM_SUC_KHOE: 'Khám sức khoẻ',
+};
+
+export const LOAI_NGHI = Object.keys(LOAI_NGHI_LABEL) as LeaveType[];
+
+/** Khớp `LeaveState.java` và `ck_leave_requests_state`. */
+export type LeaveState = 'CHO_DUYET' | 'CHO_DUYET_2' | 'DA_DUYET' | 'TU_CHOI' | 'DA_HUY';
+
+/**
+ * Nhãn + màu của trạng thái đơn.
+ *
+ * ⛔ **⛔ Đừng suy nút bấm từ bảng này** — nút do backend trả trong `allowedActions`
+ * (`ApprovalActions`). Bảng này chỉ để *hiển thị* một trạng thái đã có, cùng lý lẽ với
+ * `cms/articleStatus.ts`: thêm một bước duyệt vào `workflow_transitions` ⛔ không được đòi sửa
+ * giao diện.
+ */
+export const TRANG_THAI_DON_META: Record<LeaveState, { label: string; color: string }> = {
+  CHO_DUYET: { label: 'Chờ duyệt', color: 'gold' },
+  CHO_DUYET_2: { label: 'Chờ duyệt cấp 2', color: 'orange' },
+  DA_DUYET: { label: 'Đã duyệt', color: 'green' },
+  TU_CHOI: { label: 'Từ chối', color: 'red' },
+  DA_HUY: { label: 'Đã huỷ', color: 'default' },
+};
+
+export const TRANG_THAI_DON = Object.keys(TRANG_THAI_DON_META) as LeaveState[];
+
+export interface NgayLeView {
+  publicId: string;
+  holidayDate: string;
+  name: string;
+  note: string | null;
+}
+
+export interface NgayLeRequest {
+  holidayDate: string;
+  name: string;
+  note?: string;
+}
+
+/** `employeePublicId` **null** = nộp cho chính mình; khác null = nộp hộ (chốt C3). */
+export interface DonNghiRequest {
+  employeePublicId?: string | null;
+  leaveType: LeaveType;
+  fromDate: string;
+  toDate: string;
+  reason?: string;
+}
+
+export interface DonNghiView {
+  publicId: string;
+  employeePublicId: string | null;
+  employeeCode: string | null;
+  employeeName: string | null;
+  leaveType: LeaveType;
+  fromDate: string;
+  toDate: string;
+  /** ⛔ **Chuỗi**, ⛔ không phải `number`: `NUMERIC(5,1)` phía CSDL (quy tắc 2). */
+  workingDays: string;
+  reason: string | null;
+  state: LeaveState;
+  /** Đơn do **người khác nộp hộ** — chốt C3; giao diện hiện nhãn. */
+  noHo: boolean;
+  decidedAt: string | null;
+}
+
+export interface DonNghiTrangView {
+  muc: DonNghiView[];
+  tong: number;
+  trang: number;
+  co: number;
+}
+
+/**
+ * @param namTruocCoDuLieu `false` ⇒ `chuyenTuNamTruoc` là **0 vì CHƯA BIẾT**, ⛔ không phải vì đã
+ *   dùng hết. Hai trạng thái khác nhau, và quy tắc 16 nói **số 0 là một khẳng định** — giao diện
+ *   phải nói ra khác biệt ấy thay vì in một số 0 trần.
+ * @param conLai **âm được**, và cố ý ⛔ không kẹp về 0.
+ */
+export interface SoDuPhepView {
+  nam: number;
+  duocHuong: string;
+  theoThamNien: string;
+  chuyenTuNamTruoc: string;
+  daDung: string;
+  dangChoDuyet: string;
+  conLai: string;
+  namTruocCoDuLieu: boolean;
+}
+
+/**
+ * @param duNgayLeTheoLuat `false` ⇒ giao diện **PHẢI** nói *"năm N mới khai X/11 ngày lễ"*.
+ *   ⚠ Seed đặt sẵn 4 ngày dương lịch cố định mỗi năm, nên một cờ *"đã có ngày lễ nào chưa"* sẽ nói
+ *   CÓ trong khi **Tết vẫn thiếu** — đúng ca nguy hiểm nhất (luật 9).
+ * @param canhBaoTrungLich `null` = dưới ngưỡng. Là **cảnh báo**, ⛔ không phải chặn.
+ */
+export interface XemTruocDonView {
+  soNgayCong: string;
+  soNgayLeTru: number;
+  soNgayLeDaKhai: number;
+  duNgayLeTheoLuat: boolean;
+  soDu: SoDuPhepView;
+  vuotPhep: boolean;
+  canCapHaiDuyet: boolean;
+  soNguoiNghiCungLuc: number;
+  canhBaoTrungLich: string | null;
+}
+
+/** Số ngày lễ Điều 112 BLLĐ 2019 — khớp `DemNgayCongService.SO_NGAY_LE_THEO_LUAT`. */
+export const SO_NGAY_LE_THEO_LUAT = 11;

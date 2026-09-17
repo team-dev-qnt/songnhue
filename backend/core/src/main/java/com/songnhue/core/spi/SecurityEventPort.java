@@ -49,4 +49,24 @@ public interface SecurityEventPort {
      * @param employeeCode mã CBNV, ví dụ {@code NV-2019-001}
      */
     void hrSensitiveFieldsRead(String employeeCode);
+
+    /**
+     * Ai đó vừa <b>tải trọn hồ sơ tài liệu</b> của một CBNV dạng ZIP (NĐ 13/2023, CN-04.5).
+     *
+     * <h2>⛔⛔ Vì sao một lượt TẢI TỆP lại là sự kiện BẢO MẬT</h2>
+     *
+     * <p>{@code audit_logs} chỉ sinh dòng khi có <b>thay đổi</b>, nên mọi lượt <i>đọc</i> là vô
+     * hình — T51.6 đã trả giá cho đúng chuyện này ở trường 🔒. Ở đây còn nặng hơn một bậc: một
+     * lượt bấm mang **cả** hợp đồng, quyết định, bằng cấp và giấy tờ tuỳ thân của một con người ra
+     * khỏi hệ thống, trong một tệp. Sau khi tệp rời máy chủ thì hệ ⛔ không kiểm soát được gì nữa.
+     *
+     * <p>⚠ Đối chiếu có ý thức với {@code EXTERNAL_CREDENTIAL_CHANGED}, nơi lượt *"đã dùng"* bị bỏ
+     * vì poller gọi 720 lần/ngày: ở đây <b>số lượng</b> ngược hẳn — một hồ sơ được tải trọn vài lần
+     * một năm. Chính số lượng, ⛔ không phải nguyên tắc, quyết định khác nhau giữa hai chỗ.
+     *
+     * @param employeeCode mã CBNV
+     * @param soTep số tệp trong bản nén — ⛔ {@code 0} là một trạng thái CÓ THẬT (hồ sơ chưa có tài
+     *     liệu nào) và vẫn phải ghi: nó phân biệt *"tải về rỗng"* với *"⛔ không ai tải"*
+     */
+    void hrDossierDownloaded(String employeeCode, int soTep);
 }
