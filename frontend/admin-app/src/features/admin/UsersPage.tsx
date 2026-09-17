@@ -1,8 +1,9 @@
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App, Button, Card, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag } from 'antd';
+import type { FormInstance } from 'antd';
 import { type ColumnsType } from 'antd/es/table';
-import { useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 
 import { useAuth } from '@/app/auth/useAuth';
 import { HopThoaiMaXacThuc } from '@/components/business/HopThoaiMaXacThuc';
@@ -364,7 +365,7 @@ function CreateUserModal({
       confirmLoading={create.isPending}
       onCancel={onClose}
       onOk={() => void form.submit()}
-      destroyOnClose
+      destroyOnHidden
     >
       <Form<CreateUserRequest>
         form={form}
@@ -459,38 +460,91 @@ function EditUserModal({
       confirmLoading={update.isPending}
       onCancel={onClose}
       onOk={() => void form.submit()}
-      destroyOnClose
+      destroyOnHidden
     >
-      <Form<UpdateUserRequest>
+      <BieuMauSuaTaiKhoan
+        // ⛔ `key` ép dựng lại thân biểu mẫu ngay khi đổi tài khoản — xem javadoc của nó.
+        key={user?.publicId ?? 'chua-chon'}
+        khoa={user?.publicId ?? 'chua-chon'}
         form={form}
-        layout="vertical"
-        preserve={false}
-        initialValues={{
-          fullName: user?.fullName ?? '',
-          email: user?.email ?? undefined,
-          phone: user?.phone ?? undefined,
-        }}
+        user={user}
         onFinish={(values) => update.mutate(values)}
-      >
-        <Form.Item
-          name="fullName"
-          label="Họ và tên"
-          rules={[{ required: true, message: 'Bắt buộc' }]}
-        >
-          <Input />
-        </Form.Item>
-        <Form.Item
-          name="email"
-          label="Email"
-          rules={[{ type: 'email', message: 'Email không hợp lệ' }]}
-        >
-          <Input />
-        </Form.Item>
-        <Form.Item name="phone" label="Điện thoại">
-          <Input />
-        </Form.Item>
-      </Form>
+      />
     </Modal>
+  );
+}
+
+/**
+ * Thân biểu mẫu sửa tài khoản — tách ra để {@code key} ép dựng lại khi đổi tài khoản.
+ *
+ * <h2>⛔⛔⛔ Vì sao {@code initialValues} + {@code preserve={false}} ⛔ ĐỦ — T63.17</h2>
+ *
+ * <p>{@code UsersPage} render {@code <EditUserModal user={editing} …/>} <b>vô điều kiện</b>, và
+ * {@code Form.useForm()} nằm ở component NGOÀI {@code Modal}. {@code rc-field-form@2.7.1} áp
+ * {@code setInitialValues(iv, init)} bằng {@code merge(initialValues, this.store)} ⇒ <b>kho giá
+ * trị THẮNG {@code initialValues}</b>.
+ *
+ * <p>{@code preserve={false}} <i>về nguyên tắc</i> cứu được: khi Form unmount, rc-field-form ghi
+ * các trường vào {@code prevWithoutPreserves} và lượt {@code init} sau lấy chúng từ
+ * {@code initialValues} thay vì từ kho. Nhưng nó đứng trên tiền đề <b>Form ĐÃ unmount</b>, mà
+ * T53.7 đo được: {@code destroyOnHidden} chỉ tháo cây con <b>sau khi hoạt ảnh đóng chạy xong</b>
+ * (chờ 3 giây trong bộ kiểm, {@code <input>} <b>chưa bao giờ</b> unmount). ⇒ một <b>cuộc đua</b>,
+ * ⛔ một bảo đảm — và đo được là nó THUA: {@code suaTaiKhoanVongKhuHoi.test.tsx} trước lượt vá này
+ * gửi {@code fullName: "Nguyễn Văn Thắng"} lên {@code /admin/users/u-b}.
+ *
+ * <p>⛔⛔ {@code PUT /admin/users/{id}} là <b>thay toàn phần</b> ba trường danh tính ⇒ email
+ * nhận cảnh báo và thư đặt lại mật khẩu của người B bị thay bằng của người A, kèm thông báo
+ * <i>"Đã cập nhật"</i>.
+ *
+ * <p>⇒ {@code useLayoutEffect} đặt giá trị <b>tường minh</b>, chạy TRƯỚC lượt vẽ nên người dùng
+ * ⛔ bao giờ thấy một khung hình mang danh tính của người khác. ⛔⛔ Và ⛔ thêm
+ * {@code clearOnDestroy} (T53.7: lượt dọn của cây CŨ chạy SAU {@code useLayoutEffect} của cây MỚI
+ * ⇒ ô ra RỖNG). MỘT cơ chế, tường minh, có bài kiểm.
+ */
+function BieuMauSuaTaiKhoan({
+  khoa,
+  form,
+  user,
+  onFinish,
+}: {
+  khoa: string;
+  form: FormInstance<UpdateUserRequest>;
+  user: UserView | null;
+  onFinish: (values: UpdateUserRequest) => void;
+}) {
+  useLayoutEffect(() => {
+    form.resetFields();
+    // ⚠ Đặt ĐỦ ba trường của `UpdateUserRequest`. Thiếu một trường là để nó mang giá trị của tài
+    //   khoản mở TRƯỚC — đúng khuyết tật này, chỉ hẹp lại còn một ô.
+    form.setFieldsValue({
+      fullName: user?.fullName ?? '',
+      email: user?.email ?? undefined,
+      phone: user?.phone ?? undefined,
+    });
+    // `khoa` là danh tính tài khoản; `user` là object dựng lại mỗi lượt render nên ⛔ đưa vào deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [khoa, form]);
+
+  return (
+    <Form<UpdateUserRequest> form={form} layout="vertical" preserve={false} onFinish={onFinish}>
+      <Form.Item
+        name="fullName"
+        label="Họ và tên"
+        rules={[{ required: true, message: 'Bắt buộc' }]}
+      >
+        <Input />
+      </Form.Item>
+      <Form.Item
+        name="email"
+        label="Email"
+        rules={[{ type: 'email', message: 'Email không hợp lệ' }]}
+      >
+        <Input />
+      </Form.Item>
+      <Form.Item name="phone" label="Điện thoại">
+        <Input />
+      </Form.Item>
+    </Form>
   );
 }
 
