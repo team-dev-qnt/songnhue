@@ -87,14 +87,53 @@ class PromotionCheckStateTest {
     }
 
     @Test
-    @DisplayName("⛔ Không có check nào ⇒ ĐỎ, không phải xanh (luật 7: tập rỗng)")
-    void tapRongPhaiDo() throws Exception {
+    @DisplayName("⛔⛔ Không có check nào ⇒ mã 2 (CHỜ) — ⛔ bao giờ mã 0, và ⛔ phải mã 1 (T63.16)")
+    void tapRongPhaiCho() throws Exception {
         KetQua kq = chay("");
 
+        // ⛔⛔ Vế BẤT BIẾN, ⛔ được nới đi: tập rỗng ⛔ BAO GIỜ là ĐẠT (luật 7). Một commit chưa
+        //    ai kiểm mà đi lọt cổng đề bạt là thứ tệ nhất tệp này có thể gây ra.
         assertThat(kq.maThoat())
-                .as("Đầu vào rỗng cho ra mã 0 nghĩa là commit chưa từng chạy CI vẫn được đề bạt")
-                .isEqualTo(1);
-        assertThat(kq.dauRa()).contains("Không tìm thấy kết quả CI nào");
+                .as("⛔ Đầu vào rỗng cho ra mã 0 ⇒ commit chưa từng chạy CI vẫn được đề bạt")
+                .isNotZero();
+
+        // ⭐ Vế ĐỔI ngày 17/09: rỗng nghĩa là CHƯA BIẾT, ⛔ phải BIẾT-LÀ-HỎNG.
+        //
+        //   Đo được: 12:50:35 PR #152 gộp vào `dev` → 12:50:57 `Promotion guard` của PR đề bạt
+        //   #133 chạy (22 GIÂY sau) → `dev@0c01b26` chưa kịp có check-run nào → cổng ĐỎ và PR đề
+        //   bạt BLOCKED; đo lại ngay sau đó thì CI của chính commit ấy đang `in_progress`.
+        //
+        //   ⇒ Mã 2 đẩy quyết định sang vòng chờ của `promotion-guard.yml` (20 lần × 30s), và
+        //   HẾT vòng ấy mà vẫn rỗng thì workflow đỏ — xem {@link #hetVongChoThiDo()}. Luật 7 giữ
+        //   nguyên nhờ vế `isNotZero()` ở trên.
+        assertThat(kq.maThoat()).as("%s", kq.dauRa()).isEqualTo(2);
+        assertThat(kq.dauRa())
+                .as("Thông điệp phải nói CHƯA BIẾT chứ ⛔ khẳng định commit chưa từng chạy CI — "
+                        + "hai trạng thái ấy dẫn tới hai việc khác hẳn nhau (đợi vs đi tìm nguyên nhân)")
+                .contains("chưa có check-run nào")
+                .doesNotContain("chưa từng chạy qua pipeline");
+    }
+
+    @Test
+    @DisplayName("⭐⭐ HẾT vòng chờ mà vẫn chưa biết ⇒ workflow ĐỎ, và nói ra CẢ HAI khả năng")
+    void hetVongChoThiDo() throws Exception {
+        String wf = Files.readString(timTuGocKho(".github/workflows/promotion-guard.yml"), StandardCharsets.UTF_8);
+
+        // ⛔ Vế này là thứ giữ cho bản vá T63.16 ⛔ biến cổng thành một cái cổng ⛔ bao giờ đỏ:
+        //   mã 2 chỉ hoãn quyết định, và chỗ DUY NHẤT biến hoãn thành đỏ là dòng `exit 1` sau
+        //   vòng lặp. Mất nó thì tập rỗng chờ 10 phút rồi... đi tiếp.
+        String sauVongLap = wf.substring(wf.indexOf("Sau 10 phút"));
+        assertThat(sauVongLap)
+                .as("⛔ Hết vòng chờ mà workflow ⛔ `exit 1` ⇒ cổng đề bạt ⛔ chặn được gì nữa")
+                .contains("exit 1");
+
+        // ⚠ Và nó phải nói ra cả hai khả năng: từ T63.16, rỗng cũng rơi vào vòng chờ này, nên một
+        //   thông điệp chỉ nhắc "CI còn đang chạy" sẽ dẫn người đọc đi chạy lại job mãi mãi trong
+        //   khi nguyên nhân thật là `ci.yml` ⛔ kích hoạt trên `dev`.
+        assertThat(sauVongLap)
+                .as("Thông điệp hết-vòng-chờ chỉ nói MỘT khả năng ⇒ ca nguy hiểm hơn ⛔ ai đọc ra")
+                .contains("còn đang chạy")
+                .contains("CHƯA TỪNG chạy qua pipeline");
     }
 
     @Test
@@ -126,12 +165,13 @@ class PromotionCheckStateTest {
                         Workflow không có vòng chờ. Bắt được `null` mà vẫn đỏ ngay thì chỉ đổi \
                         câu thông báo chứ không chữa được cuộc đua đã chặn PR #76.""")
                 .contains("sleep 30");
-        assertThat(yml)
-                .as(
-                        """
-                        Vòng chờ phải có CHỐT và hết chốt thì ĐỎ. Một cổng đề bạt bỏ qua vì \
-                        "chờ mãi không thấy" đúng bằng không có cổng.""")
-                .contains("Sau 10 phút vẫn còn phép kiểm");
+        // ⚠⚠ Vế "hết vòng chờ thì ĐỎ" TRƯỚC ĐÂY khẳng định một CÂU CHỮ —
+        //    `contains("Sau 10 phút vẫn còn phép kiểm")`. Nó đỏ ở lượt vá T63.16 dù bất biến nó
+        //    canh ⛔ hề đổi: tôi chỉ sửa thông điệp cho nói ra cả hai khả năng. Đúng hình dạng
+        //    §11.16 — *một bộ canh hỏng vì mã được DỌN DẸP là một bộ canh đang canh văn bản*
+        //    (luật 2). ⇒ Vế ấy chuyển sang {@link #hetVongChoThiDo()}, nơi nó khẳng định
+        //    **cấu trúc**: đoạn SAU vòng lặp phải có `exit 1`. Chặt hơn, và ⛔ vỡ vì một lượt
+        //    sửa câu chữ.
     }
 
     // =========================================================================

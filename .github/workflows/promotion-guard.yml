@@ -176,9 +176,15 @@ jobs:
             fi
           done
 
-          echo "::error::Sau 10 phút vẫn còn phép kiểm của $SHA chưa kết thúc."
-          echo "Cổng đề bạt KHÔNG đi tiếp khi chưa biết kết quả — chạy lại job này"
-          echo "sau khi CI của \`dev\` xong."
+          # ⛔ Hết vòng chờ mà vẫn chưa biết kết quả ⇒ ĐỎ. Hai khả năng, nói ra CẢ HAI:
+          #   — CI của chặng trước còn đang chạy (chờ thêm rồi chạy lại job này), hoặc
+          #   — commit ấy CHƯA TỪNG chạy qua pipeline ở `dev` (đi tìm vì sao, đừng chạy lại).
+          #   Từ T63.16 tập rỗng cũng rơi vào vòng chờ này, nên câu cũ — vốn chỉ nói vế
+          #   thứ nhất — sẽ dẫn người đọc đi sai đường ở đúng ca nguy hiểm hơn.
+          echo "::error::Sau 10 phút vẫn chưa biết kết quả CI của $SHA."
+          echo "Hoặc CI của \`dev\` còn đang chạy — chờ nó xong rồi chạy lại job này;"
+          echo "hoặc commit ấy CHƯA TỪNG chạy qua pipeline — khi đó chạy lại cũng vô ích,"
+          echo "phải đi tìm vì sao \`ci.yml\` không kích hoạt trên \`dev\`."
           exit 1
 
       # ⚠ Bước checkout ở trên PHẢI có `fetch-depth: 0`. Bản clone nông làm
