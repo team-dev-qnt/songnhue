@@ -8,7 +8,7 @@ import {
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 
-import { echartsTheme } from 'design-tokens';
+import { echartsTheme } from '@songnhue/design-tokens';
 
 /**
  * Đăng ký ECharts cho **cổng công khai** — WS-45.

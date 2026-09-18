@@ -1,10 +1,13 @@
-import { Col, Form, Input, InputNumber, Row, Typography } from 'antd';
+import { Col, Form, Input, InputNumber, Row, theme, Typography } from 'antd';
 
 import { DanToaDo } from '@/components/business/DanToaDo';
 import { hopLeLyTrinh } from '../../constructionRules';
 import { LocationPickerMap } from '../LocationPickerMap';
 
 export function StepLocation() {
+  // ⛔ Màu lấy từ `theme.useToken()` — đây là bảng màu AntD, ⛔ màu thương hiệu (T25.23).
+  const { token } = theme.useToken();
+
   const form = Form.useFormInstance();
   const lat = Form.useWatch('latitude', form);
   const lng = Form.useWatch('longitude', form);
@@ -78,7 +81,7 @@ export function StepLocation() {
         </Col>
       </Row>
 
-      <div style={{ border: '1px solid #d9d9d9', borderRadius: 6, padding: 4 }}>
+      <div style={{ border: `1px solid ${token.colorBorder}`, borderRadius: 6, padding: 4 }}>
         <LocationPickerMap
           latitude={lat}
           longitude={lng}

@@ -14,7 +14,7 @@ import {
   message,
 } from 'antd';
 import { type ColumnsType } from 'antd/es/table';
-import dayjs, { type Dayjs } from 'dayjs';
+import { type Dayjs } from 'dayjs';
 import { useState } from 'react';
 
 import {
@@ -25,7 +25,7 @@ import {
 } from '@/shared/api-types';
 import { api } from '@/shared/apiClient';
 import { useAuth } from '@/app/auth/useAuth';
-import { formatDateTime } from '@/shared/format';
+import { bayGio, formatDateTime } from '@/shared/format';
 
 import { CHAT_LUONG_SO_DO, NGUON_SO_DO, VAI_TRO_VI_TRI } from './hydroVocabulary';
 import { useXuatBaoCao } from './useXuatBaoCao';
@@ -53,10 +53,14 @@ const TRAN_NGAY_CHI_TIET = 31;
 export function PeriodReportPage() {
   const { hasPermission } = useAuth();
   const { xuat, dangCho } = useXuatBaoCao();
-  const [khoang, setKhoang] = useState<[Dayjs, Dayjs]>(() => [
-    dayjs().startOf('month'),
-    dayjs().endOf('month').isAfter(dayjs()) ? dayjs() : dayjs().endOf('month'),
-  ]);
+  // Kỳ mặc định phải là tháng theo LỊCH VIỆT NAM: hai dòng dưới thành `tuNgay`/`denNgay`
+  // của truy vấn báo cáo, nên một máy lệch múi giờ mở trang ngày mùng 1 sẽ xin tháng TRƯỚC
+  // và nhận về một bộ số đúng-về-kỹ-thuật cho một kỳ ⛔ ai hỏi — T63.18.
+  const [khoang, setKhoang] = useState<[Dayjs, Dayjs]>(() => {
+    const gio = bayGio();
+    const cuoiThang = gio.endOf('month');
+    return [gio.startOf('month'), cuoiThang.isAfter(gio) ? gio : cuoiThang];
+  });
   const [chiTiet, setChiTiet] = useState<PeriodSummaryRow | null>(null);
 
   const tuNgay = khoang[0].format('YYYY-MM-DD');
@@ -254,7 +258,7 @@ export function PeriodReportPage() {
             ? `BC-12 — ${chiTiet.stationName} · ${chiTiet.measurementTypeName}`
             : 'Chi tiết bản ghi'
         }
-        destroyOnClose
+        destroyOnHidden
       >
         {chiTiet ? (
           <ChiTietSoDo

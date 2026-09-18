@@ -1,7 +1,12 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
-import { alertLevelColorTokens, laKhoaMauHopLe, mauMucCanhBao, statusColors } from 'design-tokens';
+import {
+  alertLevelColorTokens,
+  laKhoaMauHopLe,
+  mauMucCanhBao,
+  statusColors,
+} from '@songnhue/design-tokens';
 import { describe, expect, it } from 'vitest';
 
 /**

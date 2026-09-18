@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Empty, Spin } from 'antd';
+import { brandColors } from '@songnhue/design-tokens';
 import L from 'leaflet';
 import { useEffect, useRef } from 'react';
 
@@ -81,7 +82,9 @@ export function LocationPickerMap({
         className: '',
         iconSize: [16, 16],
         iconAnchor: [8, 8],
-        html: `<span style="display:block;width:16px;height:16px;border-radius:50%;background:#165bb6;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.35)"></span>`,
+        // ⛔ Chấm định vị mang màu THƯƠNG HIỆU nên nhà của nó là `design-tokens`, ⛔ `theme.useToken()`
+        //   (T25.23). Đây là chuỗi HTML giao cho Leaflet dựng — ⛔ React element, nên phải nội suy.
+        html: `<span style="display:block;width:16px;height:16px;border-radius:50%;background:${brandColors.primary};border:2px solid #ffffff;box-shadow:0 0 0 1px rgba(0,0,0,.35)"></span>`,
       });
       L.marker([latitude, longitude], { icon }).addTo(lop);
     }

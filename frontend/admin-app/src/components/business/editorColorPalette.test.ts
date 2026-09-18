@@ -1,5 +1,9 @@
 import { Editor, getSchema } from '@tiptap/core';
-import { CELL_BG_CLASSES, TEXT_BG_CLASSES, TEXT_COLOR_CLASSES } from 'design-tokens/editor-schema';
+import {
+  CELL_BG_CLASSES,
+  TEXT_BG_CLASSES,
+  TEXT_COLOR_CLASSES,
+} from '@songnhue/design-tokens/editor-schema';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { CELL_BG_TYPES } from './CellBgClass';

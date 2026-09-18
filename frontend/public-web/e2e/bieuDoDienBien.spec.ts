@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { brandColors, statusColors } from 'design-tokens';
+import { brandColors, statusColors } from '@songnhue/design-tokens';
 
 /**
  * Biểu đồ diễn biến §7.1 — đo **PIXEL ĐÃ VẼ**, ⛔ không đọc chuỗi class và ⛔ không hỏi "có hiển

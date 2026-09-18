@@ -1,4 +1,4 @@
-import { alertLevelColors } from 'design-tokens';
+import { alertLevelColors } from '@songnhue/design-tokens';
 
 import type { CongTrinhLuoi, LuoiMucNuoc, OLuoi } from '@/lib/api';
 

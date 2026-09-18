@@ -32,6 +32,7 @@ import {
   Modal,
   Segmented,
   Space,
+  theme,
   Tooltip,
 } from 'antd';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -168,6 +169,8 @@ export function RichTextEditor({
   minHeight = 360,
 }: RichTextEditorProps) {
   const { message } = App.useApp();
+  // ⛔ Màu lấy từ `theme.useToken()` — bảng màu AntD, ⛔ màu thương hiệu (T25.23).
+  const { token } = theme.useToken();
   const [mode, setMode] = useState<Mode>('soan');
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
@@ -820,7 +823,7 @@ export function RichTextEditor({
           >
             {linkNewTab ? '✓ Mở tab mới' : 'Mở trong tab hiện tại'}
           </Button>
-          <span style={{ color: '#8c8c8c', fontSize: 12 }}>
+          <span style={{ color: token.colorTextTertiary, fontSize: 12 }}>
             Để trống rồi bấm Áp dụng để bỏ liên kết.
           </span>
         </Space>
@@ -841,7 +844,7 @@ export function RichTextEditor({
           placeholder="https://www.youtube.com/watch?v=… hoặc https://vimeo.com/…"
           autoFocus
         />
-        <p style={{ color: '#8c8c8c', fontSize: 12, marginTop: 8 }}>
+        <p style={{ color: token.colorTextTertiary, fontSize: 12, marginTop: 8 }}>
           Chỉ nhận YouTube và Vimeo. Đường dẫn được đổi sang dạng nhúng không đặt cookie theo dõi.
         </p>
       </Modal>

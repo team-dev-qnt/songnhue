@@ -46,6 +46,19 @@ class PublicHydroHttpTest extends IntegrationTestBase {
     private static final String MA = "T35P-001";
     private static final String MA_API = "F97001";
 
+    /** Khoá `settings` — độ dài một khung cập nhật của nguồn, phút. Mặc định + seed: <b>10</b>. */
+    private static final String KHOA_KHUNG_NGUON = "hydro.polling.source-frame-minutes";
+
+    /** Khoá `settings` — số khung liên tiếp vắng bản ghi thì coi là mất tín hiệu. Mặc định: <b>3</b>. */
+    private static final String KHOA_KHUNG_MAT = "hydro.station.signal-loss-frames";
+
+    /**
+     * Tuổi của số đo thử, phút — chọn để nằm <b>giữa</b> ba ngưỡng của
+     * {@link #nguongMatTinHieuDoCauHinhQuyetDinh} (40' · 90' · 360') và <b>vượt</b> ngưỡng mặc định
+     * 30', tức mỗi tổ hợp cho một câu trả lời khác nhau.
+     */
+    private static final int TUOI_PHUT = 200;
+
     /** ⚠ Trình duyệt thật LUÔN gửi `Origin`. `curl` thì không — và nó đi lọt qua đúng bức tường CORS. */
     private static final String NGUON_GOC = "http://localhost:3000";
 
@@ -76,6 +89,12 @@ class PublicHydroHttpTest extends IntegrationTestBase {
      */
     private void datDanhSachCong(String giaTri) {
         settings.update("hydro.portal.station-codes", giaTri);
+    }
+
+    /** Đặt cả hai khoá của ngưỡng mất tín hiệu — ⚠ qua service, ⛔ không `UPDATE` thẳng. */
+    private void datNguong(String khungPhut, String soKhung) {
+        settings.update(KHOA_KHUNG_NGUON, khungPhut);
+        settings.update(KHOA_KHUNG_MAT, soKhung);
     }
 
     // === 1. Đường công khai đi được, và đi bằng đường TRÌNH DUYỆT ============
@@ -289,6 +308,88 @@ class PublicHydroHttpTest extends IntegrationTestBase {
                 .as("⛔ số cuối của một trạm đã chết ⛔ KHÔNG được công bố như mực nước hiện tại")
                 .contains("\"mucNuocThuongLuu\":null")
                 .doesNotContain("2.000");
+    }
+
+    /**
+     * ⭐⭐ <b>Hai khoá {@code settings} quyết định lúc nào một trạm bị coi là mất tín hiệu</b> — nợ
+     * T48.11, hai mục cuối cùng của nhóm {@code hydro.*}.
+     *
+     * <h2>Vì sao *"có hàm đọc"* ⛔ đủ, và vì sao bài này nằm ở đường CÔNG KHAI</h2>
+     *
+     * <p>{@code HydroSettingsReadTest} (T27.5) canh <b>cấu trúc</b>: mỗi khoá đã seed có một hàm
+     * đọc. Nó ⛔ trả lời được câu <i>"giá trị người vận hành gõ vào có đổi điều gì ⛔"</i> — T47.12
+     * đã đo được rằng hai câu ấy tách rời nhau.
+     *
+     * <p>Hậu quả của một ô nhập trang trí ở đây là thứ nặng nhất trong cả nhóm: ngưỡng mất tín hiệu
+     * quyết định <b>cổng công khai có công bố số cuối của một trạm đã chết hay không</b>
+     * ({@link #aSilentStationStaysOnTheTableWithAReason} — một mực nước THẬT đặt sai thì hiện tại,
+     * trên một trang phòng chống thiên tai).
+     *
+     * <h2>⚠ Ba tổ hợp, và mỗi khoá được TÁCH RA một vế riêng</h2>
+     *
+     * <p>Ngưỡng là {@code khungNguon × soKhungMatTinHieu}, nên một bài chỉ đổi <i>tích</i> của hai số
+     * sẽ xanh cả khi một trong hai vế bị ghi cứng (luật 9). Ba tổ hợp dưới đây trên cùng một trạm
+     * <b>{@value #TUOI_PHUT} phút tuổi</b>:
+     *
+     * <ol>
+     *   <li>{@code khung=45 · khung mất=8} ⇒ 360' ⇒ <b>CÒN SỐ</b> — và mặc định (10×3 = 30') sẽ cho
+     *       ra <i>mất tín hiệu</i>, nên vế này phân biệt được "đọc settings" với "dùng mặc định";
+     *   <li>{@code khung=45 · khung mất=2} ⇒ 90' ⇒ mất tín hiệu — chỉ {@code soKhungMatTinHieu} đổi
+     *       so với (1) ⇒ <b>cô lập khoá {@code signal-loss-frames}</b>;
+     *   <li>{@code khung=5 · khung mất=8} ⇒ 40' ⇒ mất tín hiệu — chỉ {@code khungNguon} đổi so với
+     *       (1) ⇒ <b>cô lập khoá {@code source-frame-minutes}</b>.
+     * </ol>
+     *
+     * <p>⚠ <b>Cả sáu con số đều KHÁC mặc định</b> (10 phút / 3 khung): một vế trùng mặc định thì nó
+     * xanh cả khi khoá {@code settings} ⛔ được đọc lần nào (T48.7 · T48.9 · luật 3).
+     *
+     * <p>⛔⛔ Ghi qua {@link com.songnhue.core.application.settings.SettingService#update} chứ ⛔
+     * {@code UPDATE settings} thẳng — xem {@link #datDanhSachCong}. Và {@code finally} khôi phục là
+     * <b>bắt buộc</b>: đệm Caffeine rò sang mọi lớp chạy sau, mà surefire xếp lớp theo hệ tệp
+     * (macOS ngược Linux) ⇒ một lượt CI đỏ ở một bài vô can, ⛔ tái lập được ở máy (T48.8 · §11.19).
+     */
+    @Test
+    @DisplayName("⭐⭐ T48.11 — ngưỡng mất tín hiệu do `settings` quyết định, và MỖI khoá có vế riêng")
+    void nguongMatTinHieuDoCauHinhQuyetDinh() {
+        long id = taoDiemDo("THUONG_LUU");
+        ghiSoDoCu(id, Duration.ofMinutes(TUOI_PHUT));
+
+        String khungCu = settings.getString(KHOA_KHUNG_NGUON).orElse(null);
+        String soKhungCu = settings.getString(KHOA_KHUNG_MAT).orElse(null);
+        try {
+            // ⚠ Tiền đề: dòng số đo ĐANG CÓ. Thiếu vế này thì một bài chạy trên dữ liệu đã bị lớp
+            //   khác xoá vẫn "xanh" ở khẳng định *mất tín hiệu* — đúng hình dạng §11.19.
+            assertThat(dongCua(doc().getBody(), MA))
+                    .as("⛔ Dữ liệu thử ⛔ vào được CSDL ⇒ mọi khẳng định dưới đây nói về tập RỖNG")
+                    .contains(MA);
+
+            datNguong("45", "8");
+            assertThat(dongCua(doc().getBody(), MA))
+                    .as(
+                            "⛔ Trạm %d phút tuổi bị coi là mất tín hiệu dù ngưỡng đang đặt 45×8 = 360 phút "
+                                    + "⇒ hai ô nhập trên màn hình Cấu hình hệ thống ⛔ điều khiển gì (mặc định "
+                                    + "10×3 = 30 phút mới cho ra kết quả này)",
+                            TUOI_PHUT)
+                    .contains("\"mucNuocThuongLuu\":\"2.000\"")
+                    .doesNotContain("mất tín hiệu");
+
+            datNguong("45", "2");
+            assertThat(dongCua(doc().getBody(), MA))
+                    .as("⛔ CÔ LẬP `hydro.station.signal-loss-frames`: chỉ số khung đổi 8 → 2 (360' → 90') "
+                            + "mà kết quả ⛔ đổi ⇒ khoá ấy bị ghi cứng ở đâu đó")
+                    .contains("mất tín hiệu")
+                    .contains("\"mucNuocThuongLuu\":null");
+
+            datNguong("5", "8");
+            assertThat(dongCua(doc().getBody(), MA))
+                    .as("⛔ CÔ LẬP `hydro.polling.source-frame-minutes`: chỉ độ dài khung đổi 45 → 5 "
+                            + "(360' → 40') mà kết quả ⛔ đổi ⇒ khoá ấy bị ghi cứng ở đâu đó")
+                    .contains("mất tín hiệu")
+                    .contains("\"mucNuocThuongLuu\":null");
+        } finally {
+            settings.update(KHOA_KHUNG_NGUON, khungCu);
+            settings.update(KHOA_KHUNG_MAT, soKhungCu);
+        }
     }
 
     @Test

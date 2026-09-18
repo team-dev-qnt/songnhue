@@ -19,7 +19,7 @@ import { useAuth } from '@/app/auth/useAuth';
 import { MENU, findMenuKey, visibleMenu, type MenuNode } from '@/app/menu';
 import { type TomTatCauHinhView } from '@/shared/api-types';
 import { api } from '@/shared/apiClient';
-import { neutralColors, sizing } from 'design-tokens';
+import { neutralColors, sizing } from '@songnhue/design-tokens';
 
 const { Header, Sider, Content } = Layout;
 
@@ -77,7 +77,9 @@ export function AdminLayout() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#fff',
+            // ⚠ Chữ trên dải gradient thương hiệu (xanh đậm) — phải TRẮNG THẬT, ⛔ theo chủ đề:
+            //   một `colorTextLightSolid` đổi theo theme sẽ làm chữ chìm vào nền ở chế độ tối.
+            color: neutralColors.bgContainer,
             fontWeight: 700,
             letterSpacing: 0.5,
             background: 'linear-gradient(180deg, rgba(255,255,255,0.08) 0%, transparent 100%)',

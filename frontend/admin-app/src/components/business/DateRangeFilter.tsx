@@ -1,7 +1,7 @@
 import { DatePicker, Space, Tag } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 
-import { APP_TIMEZONE, toApiInstant } from '@/shared/format';
+import { APP_TIMEZONE, bayGio, toApiInstant } from '@/shared/format';
 
 /**
  * Bộ lọc khoảng thời gian dùng chung.
@@ -37,7 +37,7 @@ export function DateRangeFilter({
       : null;
 
   const applyDays = (days: number) => {
-    const to = dayjs().tz(APP_TIMEZONE);
+    const to = bayGio();
     onChange({ from: toApiInstant(to.subtract(days, 'day').startOf('day')), to: toApiInstant(to) });
   };
 

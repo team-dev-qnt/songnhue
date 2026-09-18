@@ -1,5 +1,5 @@
 import { Extension, isNodeActive } from '@tiptap/react';
-import { ALIGN_CLASSES } from 'design-tokens/editor-schema';
+import { ALIGN_CLASSES } from '@songnhue/design-tokens/editor-schema';
 
 /**
  * Căn lề bằng **class**, không bằng thuộc tính `style` — T20.1.

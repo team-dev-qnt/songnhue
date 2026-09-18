@@ -167,7 +167,7 @@ export function EmployeeFormModal({
       okButtonProps={{ disabled: !sanSang }}
       confirmLoading={createMutation.isPending || updateMutation.isPending}
       width={860}
-      destroyOnClose
+      destroyOnHidden
     >
       {chiTiet.isError && (
         <Alert
@@ -256,7 +256,7 @@ function BieuMauHoSo({
       //    `Form.useForm()` sống ở component NGOÀI nên nó ⛔ không unmount theo
       //    `key`; `rc-field-form` áp `initialValues` bằng `setInitialValues(v, init)`
       //    với `init = !initialized`, nên lượt mở THỨ HAI ⛔ không ghi đè kho giá trị,
-      //    và `preserve` mặc định `true` khiến `destroyOnClose` cũng ⛔ không dọn.
+      //    và `preserve` mặc định `true` khiến `destroyOnHidden` cũng ⛔ không dọn.
       //    ⛔ `afterClose + resetFields()` ⛔ KHÔNG chữa được: `resetFields` đưa kho về
       //    `initialValues` của lượt TRƯỚC. Đo được ở `hoSoKhongTronDuLieu.test.tsx`:
       //    mở A → đóng → mở B cho ra "Nguyễn Văn A" trong ô của B.

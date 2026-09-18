@@ -221,6 +221,7 @@ function TabLyLich({ publicId, coSua }: { publicId: string; coSua: boolean }) {
                       <Button
                         type="text"
                         icon={<EditOutlined />}
+                        aria-label={`Sửa mục lý lịch ${row.name}`}
                         onClick={() => {
                           setDangSua(row);
                           setMoBieuMau(true);
@@ -232,7 +233,12 @@ function TabLyLich({ publicId, coSua }: { publicId: string; coSua: boolean }) {
                         cancelText="Huỷ"
                         onConfirm={() => xoa.mutate(row.publicId)}
                       >
-                        <Button type="text" danger icon={<DeleteOutlined />} />
+                        <Button
+                          type="text"
+                          danger
+                          icon={<DeleteOutlined />}
+                          aria-label={`Xoá mục lý lịch ${row.name}`}
+                        />
                       </Popconfirm>
                     </Space>
                   ),
@@ -354,6 +360,7 @@ function TabTimeline({ publicId, coSua }: { publicId: string; coSua: boolean }) 
                         size="small"
                         type="text"
                         icon={<EditOutlined />}
+                        aria-label={`Sửa sự kiện ${s.title}`}
                         onClick={() => {
                           setDangSua(s);
                           setMoBieuMau(true);
@@ -365,7 +372,13 @@ function TabTimeline({ publicId, coSua }: { publicId: string; coSua: boolean }) 
                         cancelText="Huỷ"
                         onConfirm={() => xoa.mutate(s.publicId)}
                       >
-                        <Button size="small" type="text" danger icon={<DeleteOutlined />} />
+                        <Button
+                          size="small"
+                          type="text"
+                          danger
+                          icon={<DeleteOutlined />}
+                          aria-label={`Xoá sự kiện ${s.title}`}
+                        />
                       </Popconfirm>
                     </>
                   )}
@@ -600,6 +613,7 @@ function TabTaiLieu({ publicId, coSua }: { publicId: string; coSua: boolean }) {
                     type="text"
                     size="small"
                     icon={<EyeOutlined />}
+                    aria-label={`Xem trước ${row.tenGoc}`}
                     onClick={() => setXemTruoc(row)}
                   />
                 )}
@@ -610,7 +624,13 @@ function TabTaiLieu({ publicId, coSua }: { publicId: string; coSua: boolean }) {
                     cancelText="Huỷ"
                     onConfirm={() => xoa.mutate(row.publicId)}
                   >
-                    <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+                    <Button
+                      type="text"
+                      size="small"
+                      danger
+                      icon={<DeleteOutlined />}
+                      aria-label={`Xoá tài liệu ${row.tenGoc}`}
+                    />
                   </Popconfirm>
                 )}
               </Space>

@@ -23,7 +23,7 @@
     "antd": "5.29.3",
     "axios": "1.19.0",
     "dayjs": "1.11.22",
-    "design-tokens": "0.1.0",
+    "@songnhue/design-tokens": "0.1.0",
     "echarts": "6.1.0",
     "leaflet": "1.9.4",
     "qrcode.react": "4.2.0",

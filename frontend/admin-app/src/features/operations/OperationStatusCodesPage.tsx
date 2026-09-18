@@ -14,6 +14,7 @@ import {
   Switch,
   Table,
   Tag,
+  theme,
   Typography,
   message,
 } from 'antd';
@@ -31,6 +32,8 @@ import { ApiClientError, api } from '@/shared/apiClient';
 import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
 
 export function OperationStatusCodesPage() {
+  // ⛔ Màu lấy từ `theme.useToken()` — bảng màu AntD (T25.23).
+  const { token } = theme.useToken();
   const { hasPermission } = useAuth();
   const queryClient = useQueryClient();
   const [form] = Form.useForm<OperationStatusCodeCreateRequest>();
@@ -151,7 +154,7 @@ export function OperationStatusCodesPage() {
               width: 16,
               height: 16,
               backgroundColor: val,
-              border: '1px solid #d9d9d9',
+              border: `1px solid ${token.colorBorder}`,
               borderRadius: 2,
             }}
           />
@@ -189,13 +192,23 @@ export function OperationStatusCodesPage() {
         <Space>
           {hasPermission('ops:operation-status-code:manage') && (
             <>
-              <Button type="text" icon={<EditOutlined />} onClick={() => openEditModal(record)} />
+              <Button
+                type="text"
+                icon={<EditOutlined />}
+                aria-label={`Sửa mã tình hình vận hành ${record.code}`}
+                onClick={() => openEditModal(record)}
+              />
               <Popconfirm
                 title="Xác nhận xoá?"
                 description="Bạn có chắc chắn muốn xoá mã này không?"
                 onConfirm={() => deleteMutation.mutate(record.publicId)}
               >
-                <Button type="text" danger icon={<DeleteOutlined />} />
+                <Button
+                  type="text"
+                  danger
+                  icon={<DeleteOutlined />}
+                  aria-label={`Xoá mã tình hình vận hành ${record.code}`}
+                />
               </Popconfirm>
             </>
           )}
@@ -235,7 +248,7 @@ export function OperationStatusCodesPage() {
         onCancel={() => setModalVisible(false)}
         onOk={handleSubmit}
         confirmLoading={createMutation.isPending || updateMutation.isPending}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical">
           <Form.Item

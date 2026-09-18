@@ -147,7 +147,14 @@ export function ConstructionClustersPage() {
       align: 'right',
       render: (_, cum) => (
         <Space size={0}>
-          {coSua && <Button type="text" icon={<EditOutlined />} onClick={() => moSua(cum)} />}
+          {coSua && (
+            <Button
+              type="text"
+              icon={<EditOutlined />}
+              aria-label={`Sửa cụm ${cum.code}`}
+              onClick={() => moSua(cum)}
+            />
+          )}
           {coXoa && (
             <Popconfirm
               title="Xoá cụm công trình?"
@@ -158,7 +165,12 @@ export function ConstructionClustersPage() {
               cancelText="Huỷ"
               onConfirm={() => xoa.mutate(cum.publicId)}
             >
-              <Button type="text" danger icon={<DeleteOutlined />} />
+              <Button
+                type="text"
+                danger
+                icon={<DeleteOutlined />}
+                aria-label={`Xoá cụm ${cum.code}`}
+              />
             </Popconfirm>
           )}
         </Space>

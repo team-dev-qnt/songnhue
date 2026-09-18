@@ -1,5 +1,9 @@
-import { editorColors } from 'design-tokens';
-import { CELL_BG_CLASSES, TEXT_BG_CLASSES, TEXT_COLOR_CLASSES } from 'design-tokens/editor-schema';
+import { editorColors } from '@songnhue/design-tokens';
+import {
+  CELL_BG_CLASSES,
+  TEXT_BG_CLASSES,
+  TEXT_COLOR_CLASSES,
+} from '@songnhue/design-tokens/editor-schema';
 
 /**
  * **Bảng màu của thanh công cụ** — T41.15.

@@ -1,6 +1,6 @@
 import { Tag, Tooltip } from 'antd';
 
-import { statusColors } from 'design-tokens';
+import { statusColors } from '@songnhue/design-tokens';
 
 import { type StatusVocabulary } from './statusVocabulary';
 

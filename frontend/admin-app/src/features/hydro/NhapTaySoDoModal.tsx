@@ -1,9 +1,11 @@
 import { useMutation } from '@tanstack/react-query';
 import { Alert, App, DatePicker, Form, Input, Modal, Select } from 'antd';
-import dayjs, { type Dayjs } from 'dayjs';
+import type { Dayjs } from 'dayjs';
+import { useLayoutEffect } from 'react';
 
 import { type ManualEntryRequest, type Station } from '@/shared/api-types';
 import { ApiClientError, api } from '@/shared/apiClient';
+import { bayGio } from '@/shared/format';
 import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
 
 /**
@@ -26,6 +28,22 @@ import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
  *
  * `2.300` gửi đi dưới dạng số JSON thành `2.3`, và với mực nước thì chữ số thập phân thứ ba là
  * **milimét**. Ô nhập vì thế là `<Input>` chữ, ⛔ không phải `<InputNumber>` — quy tắc 2.
+ */
+/**
+ * ⛔⛔ Giờ hiện tại theo **UTC+7**, ⛔ theo múi giờ của máy đang mở trình duyệt — T63.18.
+ *
+ * <p>Bản trước gọi {@code dayjs()} trần. Nó đúng trên mọi máy đặt đúng múi giờ, nên ⛔ lượt rà
+ * nào ở máy thấy được — lượt CI (runner chạy <b>UTC</b>) đỏ với
+ * {@code expected '16/09/2026 20:00' to contain '17/09/2026 03:00'}: lệch **đúng 7 giờ**.
+ *
+ * <p>⚠ Cái giá ⛔ nằm ở ô bày sẵn mà ở ô người dùng <b>SỬA</b>: {@code DatePicker} đọc và ghi theo
+ * múi giờ của chính giá trị {@code Dayjs} nó đang giữ. Với {@code dayjs()} trần, một máy trạm đặt
+ * lệch múi giờ khiến thao tác *"số đo này đo lúc 05:00"* gửi lên một mốc UTC khác hẳn — và quy tắc
+ * 18 nói nguồn ⛔ có API lịch sử, nên một số đo đóng vào sai khung 10 phút là **sai VĨNH VIỄN**.
+ *
+ * <p>{@code shared/format.ts} đã khai đúng lý do này từ trước: <i>"Máy trạm trong đơn vị hay bị
+ * lệch múi giờ sau khi cài lại Windows, nên 'để hệ điều hành lo' là đúng về lý thuyết mà sai trên
+ * thực địa."</i> Tiền lệ dùng được nằm ở {@code DateRangeFilter} — ⛔ phát minh cách thứ hai.
  */
 export function NhapTaySoDoModal({
   open,
@@ -53,6 +71,33 @@ export function NhapTaySoDoModal({
   // ⚠ Đơn vị đi kèm NHÃN Ô NHẬP, không chỉ nằm trong danh sách chọn: người gõ nhìn vào ô, không
   //   nhìn lại ô phía trên. Nguồn trả cm còn hệ thống lưu m — thiếu nhãn là sai đúng 100 lần.
   const donVi = tramDangChon?.measurementTypes.find((t) => t.code === loaiDangChon)?.unit;
+
+  /**
+   * ⛔⛔⛔ Đặt giá trị ban đầu TƯỜNG MINH ở mỗi lượt mở — T63.17, cùng cơ chế T51.12.
+   *
+   * Bản trước khai {@code initialValues={{ mocDo: dayjs() }}}. {@code SuspectReadingsPage} render
+   * hộp thoại này **vô điều kiện** và {@code Form.useForm()} sống ở đây — NGOÀI {@code Modal} —
+   * nên kho giá trị sống lâu hơn hộp thoại. {@code rc-field-form@2.7.1} áp
+   * {@code setInitialValues(iv, init)} bằng {@code merge(initialValues, this.store)} ⇒ **kho
+   * THẮNG `initialValues`**, và {@code resetFields()} ở {@code onCancel} ⛔ cứu được vì nó đưa kho
+   * về đúng {@code this.initialValues} — chính cái {@code dayjs()} cũ.
+   *
+   * ⇒ Đo được ({@code nhapTaySoDoVongKhuHoi.test.tsx}, đồng hồ giả): mở lúc 03:00 → Đóng → mở lúc
+   * 05:00 thì ô *Thời điểm đo* vẫn bày **17/09/2026 03:00**.
+   *
+   * ⛔⛔ Nặng vì đây là **đường ghi tay duy nhất** khi API gián đoạn, và chính hộp thoại khai
+   * *"⛔ ghi đè được số đo đã có"*. Quy tắc 18: nguồn ⛔ có API lịch sử ⇒ một số đo đóng vào sai
+   * khung 10 phút là **sai vĩnh viễn**.
+   *
+   * ⚠ Ở đây ⛔ tách component con mang {@code key} như {@code LienKetCongTrinhModal}: biểu mẫu này
+   * ⛔ có **bản ghi** nào để lấy danh tính — danh tính duy nhất là *lượt mở*, và {@code open} đã
+   * là nó. MỘT cơ chế, tường minh, có bài kiểm; ⛔ chồng {@code clearOnDestroy} (T53.7).
+   */
+  useLayoutEffect(() => {
+    if (!open) return;
+    form.resetFields();
+    form.setFieldsValue({ mocDo: bayGio() });
+  }, [open, form]);
 
   const ghi = useMutation({
     mutationFn: (body: ManualEntryRequest) => api.post('/hyd/so-do/nhap-tay', body),
@@ -94,7 +139,7 @@ export function NhapTaySoDoModal({
           }),
         )
       }
-      destroyOnClose
+      destroyOnHidden
     >
       <Alert
         type="info"
@@ -105,7 +150,7 @@ export function NhapTaySoDoModal({
         // ⚠ Câu này phải đúng: §10.69 — một dòng chữ hứa điều mã không làm còn tệ hơn không có dòng nào.
       />
 
-      <Form form={form} layout="vertical" initialValues={{ mocDo: dayjs() }}>
+      <Form form={form} layout="vertical" preserve={false}>
         <Form.Item
           name="diemDoId"
           label="Điểm đo"

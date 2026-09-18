@@ -217,7 +217,12 @@ export function EmployeesPage() {
               cancelText="Huỷ"
               onConfirm={() => xoaMutation.mutate(row.publicId)}
             >
-              <Button type="text" danger icon={<DeleteOutlined />} />
+              <Button
+                type="text"
+                danger
+                icon={<DeleteOutlined />}
+                aria-label={`Xoá hồ sơ ${row.fullName}`}
+              />
             </Popconfirm>
           )}
         </Space>

@@ -1,10 +1,13 @@
-import { Col, Form, Input, InputNumber, Row } from 'antd';
+import { Col, Form, Input, InputNumber, Row, theme } from 'antd';
 import { type ConstructionType } from '@/shared/api-types';
 
 export function StepTechnical({ type }: { type?: ConstructionType }) {
+  // ⛔ Màu lấy từ `theme.useToken()` — đây là bảng màu AntD, ⛔ màu thương hiệu (T25.23).
+  const { token } = theme.useToken();
+
   if (!type || type === 'KHAC') {
     return (
-      <div style={{ color: '#595959', padding: '24px 0' }}>
+      <div style={{ color: token.colorTextSecondary, padding: '24px 0' }}>
         Không có thông số kỹ thuật đặc thù cho loại công trình này.
       </div>
     );
