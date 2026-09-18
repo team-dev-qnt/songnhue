@@ -2,6 +2,7 @@ package com.songnhue.core.spi;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -43,4 +44,22 @@ public interface HydroSnapshotPort {
      *     {@code giaTriM = null}, để nơi gọi ⛔ phải đoán "vắng" nghĩa là gì
      */
     List<MucNuoc> mucNuocTaiThoiDiem(List<String> apiCodes, Instant thoiDiem);
+
+    /**
+     * Một liên kết điểm đo ↔ công trình ở vế THƯỢNG LƯU / HẠ LƯU — Bảng 3 suy ra điểm đo của từng cống
+     * từ đây thay vì một danh sách mã ghi trong mã nguồn (18/09/2026).
+     *
+     * @param vaiTro {@code THUONG_LUU} | {@code HA_LUU}
+     * @param chinh {@code station_constructions.is_primary}
+     */
+    record DiemDoVe(Long constructionId, String vaiTro, String apiCode, boolean chinh) {}
+
+    /**
+     * Mọi điểm đo (có mã API, chưa xoá) gắn vào các công trình đã cho ở vai trò THƯỢNG LƯU / HẠ LƯU.
+     *
+     * <p>⛔ lọc phạm vi đơn vị — Báo cáo nhanh là văn bản cấp Công ty (cùng lý do
+     * {@code ConstructionLookupPort.timTheoIds}). Một vế có nhiều điểm đo thì trả ĐỦ — chọn cái nào là
+     * việc của nơi gọi, và nơi gọi phải nói ra khi ⛔ chọn được.
+     */
+    List<DiemDoVe> diemDoMucNuocCuaCongTrinh(Collection<Long> constructionIds);
 }

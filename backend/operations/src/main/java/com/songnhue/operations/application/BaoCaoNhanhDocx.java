@@ -89,7 +89,7 @@ public final class BaoCaoNhanhDocx {
         muc1VaBang1(f, c);
         bang2(f, c);
         bang3(f, c);
-        bang4(f);
+        bang4(f, c);
         muc3VaBang5(f, c);
         return f.ghi();
     }
@@ -199,16 +199,16 @@ public final class BaoCaoNhanhDocx {
     // ==== Bảng 3 + Bảng 4 ===================================================
 
     private static void bang3(DocxFiller f, BaoCaoNhanhService.ChiTiet c) {
-        List<BaoCaoNhanhService.DongBang3> ds = c.bang3();
+        List<CauHinhBaoCaoNhanhService.DongBang3> ds = c.bang3();
         for (int i = 0; i < ds.size(); i++) {
-            BaoCaoNhanhService.DongBang3 d = ds.get(i);
+            CauHinhBaoCaoNhanhService.DongBang3 d = ds.get(i);
             f.datO(BANG_3, B3_DONG_DAU + 2 * i, B3_O_GIA_TRI, oMucNuoc(d.tl()));
             f.datO(BANG_3, B3_DONG_DAU + 2 * i + 1, B3_O_GIA_TRI, oMucNuoc(d.hl()));
         }
     }
 
     /** {@code 1,40} — kèm {@code (15h50)} khi số đo ⛔ trùng đúng mốc báo cáo. */
-    static String oMucNuoc(BaoCaoNhanhService.OBang3 o) {
+    static String oMucNuoc(CauHinhBaoCaoNhanhService.OBang3 o) {
         HydroSnapshotPort.MucNuoc m = o.mucNuoc();
         if (o.apiCode() == null || m == null || m.giaTriM() == null) {
             return null;
@@ -221,10 +221,23 @@ public final class BaoCaoNhanhDocx {
         return "%s (%dh%02d)".formatted(so, z.getHour(), z.getMinute());
     }
 
-    /** Bảng 4 để TRỐNG (chốt 18/09, G3-a) — xoá số minh hoạ của mẫu ở mọi dòng. */
-    private static void bang4(DocxFiller f) {
+    /**
+     * Bảng 4 — xoá số minh hoạ của mẫu ở MỌI dòng, rồi điền lượng mưa đã nhập của 8 điểm Sông Nhuệ.
+     *
+     * <p>Dòng = STT của mẫu (dòng 0 là tiêu đề). ⛔ ghi trước khi đối chiếu tên: ghi số của điểm này vào
+     * dòng của điểm khác là SAI mà ⛔ ai thấy — cùng luật Bảng 5.
+     */
+    private static void bang4(DocxFiller f, BaoCaoNhanhService.ChiTiet c) {
         for (int dong = 1; dong < f.soDong(BANG_4); dong++) {
             f.datO(BANG_4, dong, 2, null);
+        }
+        for (SoLieuNhapTayService.DongLuongMua d : c.bang4()) {
+            String tenMau = f.docO(BANG_4, d.thuTu(), 1).trim();
+            if (!tenMau.equals(d.ten())) {
+                throw new IllegalStateException(
+                        "Bảng 4 dòng %d của mẫu là \"%s\", danh mục nói \"%s\"".formatted(d.thuTu(), tenMau, d.ten()));
+            }
+            f.datO(BANG_4, d.thuTu(), 2, SoVanBan.thapPhan(d.luongMuaMm()));
         }
     }
 

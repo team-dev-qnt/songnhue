@@ -33,14 +33,6 @@ import java.util.UUID;
  */
 public final class TinhBaoCaoNhanh {
 
-    /**
-     * Mã công trình của Trạm bơm Yên Nghĩa — dòng ghi chú BẮT BUỘC của mẫu (spec §3.4).
-     *
-     * <p>⚠ Hằng số là CỐ Ý: câu ghi chú là một phần CỐ ĐỊNH của mẫu Word, gọi đích danh một trạm;
-     * mã {@code TB-YNGHIA} dựng ở {@code V202609091075} từ chính danh mục điểm đo của Công ty.
-     */
-    public static final String MA_TRAM_YEN_NGHIA = "TB-YNGHIA";
-
     private static final BigDecimal GIAY_MOI_GIO = BigDecimal.valueOf(3600);
 
     private TinhBaoCaoNhanh() {}
@@ -70,7 +62,9 @@ public final class TinhBaoCaoNhanh {
     public record Muc1(Integer tongTram, Integer tongMay, BigDecimal tongLuuLuongM3h) {}
 
     public enum TrangThaiYenNghia {
-        /** Danh mục máy bơm ⛔ có Yên Nghĩa — ⛔ được khẳng định gì. */
+        /** Chưa gắn công trình vào vị trí "Yên Nghĩa" (màn hình cấu hình Báo cáo nhanh). */
+        CHUA_GAN_TRAM,
+        /** Đã gắn trạm, nhưng danh mục máy bơm ⛔ có nhóm máy nào của trạm ấy — ⛔ được khẳng định gì. */
         CHUA_CO_TRONG_DANH_MUC,
         /** Có trong danh mục, chưa ai nhập số máy chạy. */
         CHUA_NHAP,
@@ -81,7 +75,7 @@ public final class TinhBaoCaoNhanh {
     /**
      * Ghi chú Yên Nghĩa.
      *
-     * @param cau câu in ra văn bản; {@code null} ở hai trạng thái CHƯA — bản Word giữ nguyên dấu "…"
+     * @param cau câu in ra văn bản; {@code null} ở ba trạng thái CHƯA — bản Word giữ nguyên dấu "…"
      *     của mẫu, ⛔ bịa một câu
      * @param luuLuongM3s ⚠ m³/<b>s</b> — đơn vị KHÁC mọi bảng còn lại (spec §3.4, OI-BC5)
      */
@@ -145,10 +139,18 @@ public final class TinhBaoCaoNhanh {
                 : new Muc1(songNhue.tongTram(), songNhue.tongMay(), songNhue.tongLuuLuongM3h());
     }
 
-    /** Ghi chú Yên Nghĩa — xem {@link GhiChuYenNghia}. */
-    public static GhiChuYenNghia yenNghia(List<DongVanHanh> dong) {
+    /**
+     * Ghi chú Yên Nghĩa — xem {@link GhiChuYenNghia}.
+     *
+     * @param tramYenNghia công trình Công ty gắn vào vị trí {@code YEN_NGHIA}; {@code null} = chưa gắn.
+     *     ⛔ tra theo mã hay tên: danh mục có HAI công trình tên "Yên Nghĩa" (trạm bơm và cống tiêu).
+     */
+    public static GhiChuYenNghia yenNghia(List<DongVanHanh> dong, Long tramYenNghia) {
+        if (tramYenNghia == null) {
+            return new GhiChuYenNghia(TrangThaiYenNghia.CHUA_GAN_TRAM, null, null, null);
+        }
         List<DongVanHanh> yn = dong.stream()
-                .filter(d -> MA_TRAM_YEN_NGHIA.equals(d.nhom().maCongTrinh()))
+                .filter(d -> tramYenNghia.equals(d.nhom().constructionId()))
                 .toList();
         if (yn.isEmpty()) {
             return new GhiChuYenNghia(TrangThaiYenNghia.CHUA_CO_TRONG_DANH_MUC, null, null, null);

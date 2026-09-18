@@ -459,6 +459,11 @@ export const ERROR_CATALOG = {
     handling: 'toast',
     severity: 'warning',
   },
+  'OPS-2032': {
+    message: 'Công trình không đúng loại mà vị trí này của mẫu báo cáo cần',
+    handling: 'toast',
+    severity: 'warning',
+  },
   'OPS-3001': {
     message: 'Không được sửa trực tiếp trạng thái công trình — trạng thái được tính tự động',
     handling: 'toast',

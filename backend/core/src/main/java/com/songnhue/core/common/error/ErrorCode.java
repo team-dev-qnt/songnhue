@@ -326,6 +326,11 @@ public enum ErrorCode {
     OPS_2030("OPS-2030", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Biên cỡ máy ⛔ liền nhau: {0}. Có khe thì Q rơi ra ngoài; có chồng thì Bảng 1 đếm hai lần. */
     OPS_2031("OPS-2031", HttpStatus.UNPROCESSABLE_CONTENT),
+    /**
+     * Công trình {0} khác loại mà vị trí {1} của mẫu Báo cáo nhanh đòi — danh mục có HAI công trình tên
+     * "Yên Nghĩa" (trạm bơm và cống tiêu), gắn nhầm thì ghi chú luôn trống mà ⛔ ai hiểu vì sao.
+     */
+    OPS_2032("OPS-2032", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Trạng thái công trình là giá trị dẫn xuất — client sửa trực tiếp là từ chối. */
     OPS_3001("OPS-3001", HttpStatus.FORBIDDEN),
 

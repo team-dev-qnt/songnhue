@@ -88,16 +88,20 @@ class BaoCaoNhanhDomainTest {
     }
 
     @Test
-    @DisplayName("Bảng 3 mục 11: 7 cống × 2 vế, đúng 3 ô ⛔ có điểm đo (OI-BC14), F01519 ở vế TL")
+    @DisplayName("Bảng 3 mục 11: 7 cống, mã vị trí duy nhất — khớp 7 hàng B3_* seed ở V202609181088")
     void bang3SongNhue() {
         assertThat(Bang3SongNhue.DONG).hasSize(7);
-        long thieu = Bang3SongNhue.DONG.stream()
-                .flatMap(d -> java.util.stream.Stream.of(d.apiTl(), d.apiHl()))
-                .filter(java.util.Objects::isNull)
-                .count();
-        assertThat(thieu).isEqualTo(3);
-        assertThat(Bang3SongNhue.DONG.get(6).apiTl()).isEqualTo("F01519");
-        assertThat(Bang3SongNhue.DONG.get(6).apiHl()).isNull();
+        assertThat(Bang3SongNhue.DONG.stream().map(Bang3SongNhue.Dong::maViTri))
+                .doesNotHaveDuplicates()
+                .allMatch(m -> m.startsWith("B3_"))
+                .containsExactly(
+                        "B3_LIEN_MAC",
+                        "B3_HA_DONG",
+                        "B3_DONG_QUAN",
+                        "B3_HOA_MY",
+                        "B3_VAN_DINH",
+                        "B3_NHAT_TUU",
+                        "B3_LUONG_CO");
     }
 
     @Test

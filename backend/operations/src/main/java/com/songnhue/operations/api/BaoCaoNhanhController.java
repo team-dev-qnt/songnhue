@@ -29,11 +29,13 @@ import com.songnhue.core.common.util.PageUtils;
 import com.songnhue.operations.api.BaoCaoNhanhDtos.ChiTietView;
 import com.songnhue.operations.api.BaoCaoNhanhDtos.KhungRequest;
 import com.songnhue.operations.api.BaoCaoNhanhDtos.KyView;
+import com.songnhue.operations.api.BaoCaoNhanhDtos.LuongMuaRequest;
 import com.songnhue.operations.api.BaoCaoNhanhDtos.MoLaiRequest;
 import com.songnhue.operations.api.BaoCaoNhanhDtos.NgapUngRequest;
 import com.songnhue.operations.api.BaoCaoNhanhDtos.VanHanhRequest;
 import com.songnhue.operations.application.BaoCaoNhanhDocx;
 import com.songnhue.operations.application.BaoCaoNhanhService;
+import com.songnhue.operations.application.SoLieuNhapTayService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -112,8 +114,20 @@ public class BaoCaoNhanhController {
         service.luuNgapUng(
                 publicId,
                 request.dong().stream()
-                        .map(d -> new BaoCaoNhanhService.NhapNgapUng(
+                        .map(d -> new SoLieuNhapTayService.NhapNgapUng(
                                 d.xaPublicId(), d.ngapTrangLua(), d.ngapTrangRau(), d.sauNuocLua(), d.sauNuocRau()))
+                        .toList());
+        return ChiTietView.of(service.chiTiet(publicId));
+    }
+
+    @PutMapping("/{publicId}/luong-mua")
+    @Operation(summary = "Nhập Bảng 4 — lượng mưa (mm) 8 điểm của Sông Nhuệ; nguồn tự động (G3-a) chưa có")
+    @RequirePermission("ops:quick-report:manage")
+    public ChiTietView luuLuongMua(@PathVariable UUID publicId, @Valid @RequestBody LuongMuaRequest request) {
+        service.luuLuongMua(
+                publicId,
+                request.o().stream()
+                        .map(o -> new SoLieuNhapTayService.NhapLuongMua(o.diemMuaPublicId(), o.luongMuaMm()))
                         .toList());
         return ChiTietView.of(service.chiTiet(publicId));
     }

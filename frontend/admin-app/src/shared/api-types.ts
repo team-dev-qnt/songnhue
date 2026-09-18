@@ -1805,7 +1805,8 @@ export interface BcnMuc1View {
 }
 
 export interface BcnYenNghiaView {
-  trangThai: 'CHUA_CO_TRONG_DANH_MUC' | 'CHUA_NHAP' | 'KHONG_VAN_HANH' | 'VAN_HANH';
+  trangThai:
+    'CHUA_GAN_TRAM' | 'CHUA_CO_TRONG_DANH_MUC' | 'CHUA_NHAP' | 'KHONG_VAN_HANH' | 'VAN_HANH';
   cau: string | null;
   soMay: number | null;
   luuLuongM3s: number | null;
@@ -1826,6 +1827,14 @@ export interface BcnDongBang3View {
   lyTrinh: string;
   tl: BcnMucNuocView;
   hl: BcnMucNuocView;
+}
+
+/** Một điểm mưa Bảng 4 — lượng mưa NHẬP TAY (mm); `null` = chưa nhập, ⛔ 0. */
+export interface BcnDongBang4View {
+  diemMuaPublicId: string;
+  ten: string;
+  thuTu: number;
+  luongMuaMm: number | null;
 }
 
 /** Chín ô một dòng Bảng 5 — ô trống là `null`, ⛔ 0. */
@@ -1857,8 +1866,33 @@ export interface BaoCaoNhanhChiTiet {
   muc1: BcnMuc1View;
   ghiChuYenNghia: BcnYenNghiaView;
   bang3: BcnDongBang3View[];
-  bang4LyDo: string;
+  bang4: BcnDongBang4View[];
   bang5: BcnDongBang5View[];
   bang5CongTy: BcnChinO;
   muc3: BcnChinO;
+}
+
+/** Công trình để gắn vào một vị trí của mẫu Báo cáo nhanh. */
+export interface BcnCongTrinhView {
+  publicId: string;
+  ma: string;
+  ten: string;
+}
+
+/** Vế thượng/hạ lưu SUY RA từ liên kết điểm đo–công trình — đúng một trong hai khác null. */
+export interface BcnVeView {
+  apiCode: string | null;
+  lyDo: string | null;
+}
+
+/** Một vị trí CỐ ĐỊNH của mẫu (7 cống Bảng 3 + trạm Yên Nghĩa) — Công ty gắn công trình trên UI. */
+export interface BcnViTriView {
+  publicId: string;
+  ma: string;
+  nhan: string;
+  loaiCongTrinh: 'CONG' | 'TRAM_BOM';
+  congTrinh: BcnCongTrinhView | null;
+  /** `null` ở vị trí ⛔ thuộc Bảng 3 (Yên Nghĩa). */
+  tl: BcnVeView | null;
+  hl: BcnVeView | null;
 }

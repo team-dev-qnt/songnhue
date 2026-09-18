@@ -1,5 +1,6 @@
 package com.songnhue.operations.infra;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -42,8 +43,29 @@ public class BaoCaoNhanhQuery {
              ORDER BY sort_order
             """;
 
+    private static final String SQL_DIEM_MUA =
+            """
+            SELECT id, public_id, ten, sort_order
+              FROM diem_mua_bao_cao_nhanh
+             WHERE deleted_at IS NULL
+             ORDER BY sort_order
+            """;
+
+    private static final String SQL_CONG_TRINH =
+            """
+            SELECT id, public_id, code, name, construction_type
+              FROM constructions
+             WHERE deleted_at IS NULL
+            """;
+
     /** Một xã của Bảng 5. */
     public record Xa(Long id, UUID publicId, String ten, int thuTu) {}
+
+    /** Một điểm mưa của Bảng 4 — {@code thuTu} = STT in ra bản Word. */
+    public record DiemMua(Long id, UUID publicId, String ten, int thuTu) {}
+
+    /** Công trình để gắn vào một vị trí của mẫu — đọc TOÀN Công ty, ⛔ lọc phạm vi. */
+    public record CongTrinh(Long id, UUID publicId, String ma, String ten, String loai) {}
 
     private final JdbcTemplate jdbc;
 
@@ -81,5 +103,49 @@ public class BaoCaoNhanhQuery {
                         rs.getString("ten"),
                         rs.getInt("sort_order")),
                 congTy);
+    }
+
+    /** 8 điểm mưa của Sông Nhuệ, đúng thứ tự Bảng 4. */
+    public List<DiemMua> diemMua() {
+        return jdbc.query(
+                SQL_DIEM_MUA,
+                (rs, i) -> new DiemMua(
+                        rs.getLong("id"),
+                        rs.getObject("public_id", UUID.class),
+                        rs.getString("ten"),
+                        rs.getInt("sort_order")));
+    }
+
+    /** Công trình theo loại hình, sắp theo tên — nguồn ô chọn của màn hình cấu hình. */
+    public List<CongTrinh> congTrinhTheoLoai(String loai) {
+        return jdbc.query(
+                SQL_CONG_TRINH + " AND construction_type = ? ORDER BY name, id", BaoCaoNhanhQuery::congTrinh, loai);
+    }
+
+    public List<CongTrinh> congTrinhTheoPublicId(UUID publicId) {
+        return jdbc.query(SQL_CONG_TRINH + " AND public_id = ?", BaoCaoNhanhQuery::congTrinh, publicId);
+    }
+
+    /** Tải hàng loạt theo khoá nội bộ — công trình đã xoá mềm ⛔ có mặt. */
+    public List<CongTrinh> congTrinhTheoIds(Collection<Long> ids) {
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        return jdbc.query(
+                con -> {
+                    var ps = con.prepareStatement(SQL_CONG_TRINH + " AND id = ANY (?)");
+                    ps.setArray(1, con.createArrayOf("bigint", ids.toArray()));
+                    return ps;
+                },
+                BaoCaoNhanhQuery::congTrinh);
+    }
+
+    private static CongTrinh congTrinh(java.sql.ResultSet rs, int i) throws java.sql.SQLException {
+        return new CongTrinh(
+                rs.getLong("id"),
+                rs.getObject("public_id", UUID.class),
+                rs.getString("code"),
+                rs.getString("name"),
+                rs.getString("construction_type"));
     }
 }

@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 import org.junit.jupiter.api.AfterEach;
@@ -59,8 +61,14 @@ class BaoCaoNhanhHttpTest extends IntegrationTestBase {
     private PhienHttp.Phien kyThuat;
     private PhienHttp.Phien quanTri;
 
+    /** Cấu hình vị trí lúc giao (seed V202609181088) — bài nào đổi thì {@link #don} trả lại. */
+    private final Map<String, Long> viTriGoc = new HashMap<>();
+
     @BeforeAll
     void dangNhap() {
+        jdbc.query("SELECT ma, construction_id FROM bao_cao_nhanh_vi_tri", rs -> {
+            viTriGoc.put(rs.getString("ma"), (Long) rs.getObject("construction_id", Long.class));
+        });
         phienHttp = new PhienHttp(http);
         kyThuat = phienHttp.dangNhap(PhienHttp.taoNguoiDung(users, passwords, jdbc, "tbcn_kythuat", "TECHNICIAN"));
         // ⚠ ADMIN bị BUỘC 2FA (T61.30) — đăng nhập trần sẽ dừng ở bước đăng ký mã.
@@ -73,6 +81,10 @@ class BaoCaoNhanhHttpTest extends IntegrationTestBase {
     void don() {
         jdbc.update("DELETE FROM bao_cao_nhanh_van_hanh");
         jdbc.update("DELETE FROM bao_cao_nhanh_ngap_ung");
+        jdbc.update("DELETE FROM bao_cao_nhanh_luong_mua");
+        jdbc.update("DELETE FROM bao_cao_nhanh_vi_tri_ky");
+        viTriGoc.forEach(
+                (ma, ct) -> jdbc.update("UPDATE bao_cao_nhanh_vi_tri SET construction_id = ? WHERE ma = ?", ct, ma));
         jdbc.update("DELETE FROM bao_cao_nhanh");
         jdbc.update("DELETE FROM nhom_may_bom");
         jdbc.update(
@@ -111,6 +123,36 @@ class BaoCaoNhanhHttpTest extends IntegrationTestBase {
                 HttpMethod.PUT,
                 GOC + "/" + ky + "/van-hanh",
                 "{\"o\":[{\"nhomMayPublicId\":\"%s\",\"soMayVanHanh\":%s}]}".formatted(nhom, so));
+    }
+
+    private UUID viTri(String ma) {
+        return jdbc.queryForObject("SELECT public_id FROM bao_cao_nhanh_vi_tri WHERE ma = ?", UUID.class, ma);
+    }
+
+    private UUID congTrinh(String ma) {
+        return jdbc.queryForObject(
+                "SELECT public_id FROM constructions WHERE code = ? AND deleted_at IS NULL", UUID.class, ma);
+    }
+
+    private ResponseEntity<String> gan(String viTri, UUID congTrinh) {
+        return phienHttp.goi(
+                kyThuat,
+                HttpMethod.PUT,
+                GOC + "/cau-hinh/vi-tri/" + viTri(viTri),
+                congTrinh == null
+                        ? "{\"constructionPublicId\":null}"
+                        : "{\"constructionPublicId\":\"%s\"}".formatted(congTrinh));
+    }
+
+    private void chenMucNuocLuongCo() {
+        jdbc.update(
+                """
+                INSERT INTO hydro_readings (measured_at, station_id, measurement_type_id, reading_value, quality, source)
+                SELECT ?, s.id, mt.id, 1.40, 'HOP_LE', 'API'
+                  FROM stations s, measurement_types mt
+                 WHERE s.api_code = 'F01519' AND mt.code = 'MUC_NUOC'
+                """,
+                Timestamp.from(DEN.minusSeconds(600)));
     }
 
     private static final String DANH_MUC = "ma_cong_trinh,so_may,q_mot_may_m3h\n"
@@ -157,8 +199,9 @@ class BaoCaoNhanhHttpTest extends IntegrationTestBase {
                 .contains("\"tongLuuLuongM3h\":221250")
                 .contains("Trạm bơm Yên Nghĩa vận hành 5 máy bơm với tổng lưu lượng bơm 60 m3/s.");
         assertThat(r.getBody())
-                .as("Bảng 4 để TRỐNG kèm lý do (chốt 18/09) — cùng câu với cổng công khai")
-                .contains("G3-a");
+                .as("Bảng 4 nhập tay — giao đi RỖNG: 8 điểm, chưa điểm nào có số")
+                .contains("\"bang4\":[{")
+                .contains("\"ten\":\"Điệp Sơn\",\"thuTu\":12,\"luongMuaMm\":null");
     }
 
     @Test
@@ -244,21 +287,15 @@ class BaoCaoNhanhHttpTest extends IntegrationTestBase {
     void bang3MucNuocTaiThoiDiem() {
         nhapDanhMuc(DANH_MUC);
         String ky = taoKy();
-        jdbc.update(
-                """
-                INSERT INTO hydro_readings (measured_at, station_id, measurement_type_id, reading_value, quality, source)
-                SELECT ?, s.id, mt.id, 1.40, 'HOP_LE', 'API'
-                  FROM stations s, measurement_types mt
-                 WHERE s.api_code = 'F01519' AND mt.code = 'MUC_NUOC'
-                """,
-                Timestamp.from(DEN.minusSeconds(600)));
+        chenMucNuocLuongCo();
 
         String than = phienHttp.get(kyThuat, GOC + "/" + ky).getBody();
         assertThat(than)
                 .as("Lương Cổ TL = F01519 (V202609181085), số lúc 15:50 +07 ⇒ ⛔ đúng mốc")
                 .contains("\"apiCode\":\"F01519\",\"giaTriM\":1.4")
                 .contains("\"dungMoc\":false")
-                .contains("Cống chưa có điểm đo ở vế này (OI-BC14)")
+                .as("điểm đo SUY RA từ liên kết điểm đo–công trình; vế thiếu nói đích danh công trình")
+                .contains("Cống Lương Cổ chưa liên kết điểm đo hạ lưu (OI-BC14)")
                 .contains("Không có số đo hợp lệ trong 24 giờ trước mốc báo cáo");
     }
 
@@ -276,14 +313,14 @@ class BaoCaoNhanhHttpTest extends IntegrationTestBase {
                 HttpMethod.PUT,
                 GOC + "/" + ky + "/ngap-ung",
                 "{\"dong\":[{\"xaPublicId\":\"%s\",\"sauNuocLua\":115,\"sauNuocRau\":20}]}".formatted(thuongPhuc));
-        jdbc.update(
-                """
-                INSERT INTO hydro_readings (measured_at, station_id, measurement_type_id, reading_value, quality, source)
-                SELECT ?, s.id, mt.id, 1.40, 'HOP_LE', 'API'
-                  FROM stations s, measurement_types mt
-                 WHERE s.api_code = 'F01519' AND mt.code = 'MUC_NUOC'
-                """,
-                Timestamp.from(DEN.minusSeconds(600)));
+        chenMucNuocLuongCo();
+        ResponseEntity<String> mua = phienHttp.goi(
+                kyThuat,
+                HttpMethod.PUT,
+                GOC + "/" + ky + "/luong-mua",
+                "{\"o\":[{\"diemMuaPublicId\":\"%s\",\"luongMuaMm\":15},{\"diemMuaPublicId\":\"%s\",\"luongMuaMm\":12.5}]}"
+                        .formatted(diemMua("Liên Mạc"), diemMua("Điệp Sơn")));
+        assertThat(mua.getStatusCode()).as("%s", mua.getBody()).isEqualTo(HttpStatus.OK);
 
         ResponseEntity<byte[]> tai = http.exchange(
                 GOC + "/" + ky + "/xuat", HttpMethod.GET, new HttpEntity<>(phienHttp.header(kyThuat)), byte[].class);
@@ -317,8 +354,13 @@ class BaoCaoNhanhHttpTest extends IntegrationTestBase {
         assertThat(doc.docO(6, 25, 3))
                 .as("số minh hoạ '200' của mẫu phải bị xoá")
                 .isEmpty();
-        // Bảng 4 TRỐNG (G3-a) — số minh hoạ của mẫu bị xoá.
-        assertThat(doc.docO(7, 5, 2)).isEmpty();
+        // Bảng 4: hai điểm đã nhập; mọi dòng khác TRỐNG — số minh hoạ của mẫu bị xoá.
+        assertThat(doc.docO(7, 5, 2)).as("Liên Mạc").isEqualTo("15");
+        assertThat(doc.docO(7, 12, 2)).as("Điệp Sơn").isEqualTo("12,5");
+        assertThat(doc.docO(7, 6, 2))
+                .as("Hà Đông — mẫu in '12', kỳ này chưa nhập")
+                .isEmpty();
+        assertThat(doc.docO(7, 1, 2)).as("Đông Anh — công ty khác").isEmpty();
         // Bảng 5 + Mục 3: Thượng Phúc (TT 55) + dòng III; công ty khác TRỐNG.
         assertThat(doc.docO(8, 60, 1).trim()).isEqualTo("Thượng Phúc");
         assertThat(doc.docO(8, 60, 5)).isEqualTo("115");
@@ -336,6 +378,125 @@ class BaoCaoNhanhHttpTest extends IntegrationTestBase {
                 .contains("ngày 15 tháng 6 năm 2019")
                 .contains("Ghi chú: Trạm bơm Yên Nghĩa vận hành 5 máy bơm với tổng lưu lượng bơm 60 m3/s.")
                 .doesNotContain("24/8/2026");
+    }
+
+    private UUID diemMua(String ten) {
+        return jdbc.queryForObject("SELECT public_id FROM diem_mua_bao_cao_nhanh WHERE ten = ?", UUID.class, ten);
+    }
+
+    @Test
+    @DisplayName("⭐⭐ Cấu hình trên UI: gắn/gỡ công trình đổi Bảng 3 + Yên Nghĩa; sai loại ⇒ OPS-2032")
+    void cauHinhViTri() {
+        ResponseEntity<String> ds = phienHttp.get(kyThuat, GOC + "/cau-hinh/vi-tri");
+        assertThat(ds.getStatusCode()).as("%s", ds.getBody()).isEqualTo(HttpStatus.OK);
+        assertThat(ds.getBody())
+                .as("8 vị trí; Lương Cổ TL suy ra F01519 từ liên kết điểm đo–công trình")
+                .contains("\"ma\":\"B3_LUONG_CO\"")
+                .contains("\"ma\":\"YEN_NGHIA\"")
+                .contains("\"apiCode\":\"F01519\"");
+
+        assertThat(phienHttp
+                        .get(kyThuat, GOC + "/cau-hinh/cong-trinh?loai=TRAM_BOM")
+                        .getBody())
+                .contains("TB-YNGHIA")
+                .doesNotContain("CTTC-YNGHIA");
+        assertThat(phienHttp
+                        .get(kyThuat, GOC + "/cau-hinh/cong-trinh?loai=KHAC")
+                        .getBody())
+                .contains("SYS-0003");
+
+        // Danh mục có HAI "Yên Nghĩa" — gắn nhầm cống tiêu vào ghi chú trạm bơm bị chặn.
+        ResponseEntity<String> nham = gan("YEN_NGHIA", congTrinh("CTTC-YNGHIA"));
+        assertThat(nham.getBody()).contains("OPS-2032").contains("Yên Nghĩa");
+
+        nhapDanhMuc(DANH_MUC);
+        String ky = taoKy();
+        nhapVanHanh(kyThuat, ky, nhom("TB-YNGHIA", 43200), 5);
+        chenMucNuocLuongCo();
+
+        assertThat(gan("YEN_NGHIA", null).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(gan("B3_LUONG_CO", null).getStatusCode()).isEqualTo(HttpStatus.OK);
+        String sau = phienHttp.get(kyThuat, GOC + "/" + ky).getBody();
+        assertThat(sau)
+                .as("gỡ trạm ⇒ ghi chú ⛔ đoán theo mã 'TB-YNGHIA' dù nhóm máy mang mã ấy vẫn chạy")
+                .contains("\"trangThai\":\"CHUA_GAN_TRAM\"")
+                .doesNotContain("Trạm bơm Yên Nghĩa vận hành")
+                .as("gỡ cống ⇒ Bảng 3 TRỐNG kèm lý do chỉ đường")
+                .contains("Chưa gắn công trình vào dòng này")
+                .doesNotContain("\"apiCode\":\"F01519\"");
+
+        // Gắn lại ⇒ số quay về, ⛔ cần deploy.
+        gan("YEN_NGHIA", congTrinh("TB-YNGHIA"));
+        gan("B3_LUONG_CO", congTrinh("LCO"));
+        assertThat(phienHttp.get(kyThuat, GOC + "/" + ky).getBody())
+                .contains("Trạm bơm Yên Nghĩa vận hành 5 máy bơm")
+                .contains("\"apiCode\":\"F01519\",\"giaTriM\":1.4");
+    }
+
+    @Test
+    @DisplayName("⭐⭐ Kỳ đã chốt đọc ẢNH CHỤP cấu hình — gỡ công trình SAU chốt ⛔ đổi văn bản đã gửi")
+    void chotChupCauHinh() {
+        nhapDanhMuc(DANH_MUC);
+        String ky = taoKy();
+        nhapVanHanh(kyThuat, ky, nhom("TB-YNGHIA", 43200), 5);
+        chenMucNuocLuongCo();
+        assertThat(phienHttp
+                        .goi(kyThuat, HttpMethod.POST, GOC + "/" + ky + "/chot", null)
+                        .getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM bao_cao_nhanh_vi_tri_ky WHERE deleted_at IS NULL", Integer.class))
+                .as("chụp đủ 8 vị trí")
+                .isEqualTo(8);
+
+        gan("YEN_NGHIA", null);
+        gan("B3_LUONG_CO", null);
+        assertThat(phienHttp.get(kyThuat, GOC + "/" + ky).getBody())
+                .contains("Trạm bơm Yên Nghĩa vận hành 5 máy bơm")
+                .contains("\"apiCode\":\"F01519\",\"giaTriM\":1.4")
+                .as("vế ⛔ có điểm đo LÚC CHỐT nói đúng như vậy")
+                .contains("Lúc chốt kỳ, công trình chưa có điểm đo ở vế này");
+    }
+
+    @Test
+    @DisplayName("⭐ Bảng 4 nhập tay: số âm bị từ chối; null xoá về 'chưa nhập'; kỳ đã chốt ⇒ OPS-2029")
+    void bang4NhapTay() {
+        String ky = taoKy();
+        String duong = GOC + "/" + ky + "/luong-mua";
+        UUID lienMac = diemMua("Liên Mạc");
+
+        ResponseEntity<String> am = phienHttp.goi(
+                kyThuat,
+                HttpMethod.PUT,
+                duong,
+                "{\"o\":[{\"diemMuaPublicId\":\"%s\",\"luongMuaMm\":-1}]}".formatted(lienMac));
+        assertThat(am.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+
+        ResponseEntity<String> co = phienHttp.goi(
+                kyThuat,
+                HttpMethod.PUT,
+                duong,
+                "{\"o\":[{\"diemMuaPublicId\":\"%s\",\"luongMuaMm\":0}]}".formatted(lienMac));
+        assertThat(co.getBody())
+                .as("0 mm là một số ĐÃ NHẬP — khác ô trống")
+                .contains("\"ten\":\"Liên Mạc\",\"thuTu\":5,\"luongMuaMm\":0");
+
+        ResponseEntity<String> xoa = phienHttp.goi(
+                kyThuat,
+                HttpMethod.PUT,
+                duong,
+                "{\"o\":[{\"diemMuaPublicId\":\"%s\",\"luongMuaMm\":null}]}".formatted(lienMac));
+        assertThat(xoa.getBody()).contains("\"ten\":\"Liên Mạc\",\"thuTu\":5,\"luongMuaMm\":null");
+
+        phienHttp.goi(kyThuat, HttpMethod.POST, GOC + "/" + ky + "/chot", null);
+        assertThat(phienHttp
+                        .goi(
+                                kyThuat,
+                                HttpMethod.PUT,
+                                duong,
+                                "{\"o\":[{\"diemMuaPublicId\":\"%s\",\"luongMuaMm\":3}]}".formatted(lienMac))
+                        .getBody())
+                .contains("OPS-2029");
     }
 
     /** Toàn văn {@code document.xml} bỏ thẻ — đọc cả đoạn bị Word cắt vụn run. */

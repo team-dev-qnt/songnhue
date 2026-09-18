@@ -421,6 +421,7 @@ describe('Báo cáo nhanh + Danh mục máy bơm — 18/09/2026', () => {
   it('⛔ `/van-hanh/bao-cao-nhanh/…` tô sáng Báo cáo nhanh, ⛔ Báo cáo vận hành (tiền tố chung)', () => {
     expect(findMenuKey(MENU, '/van-hanh/bao-cao-nhanh')).toBe('bao-cao-nhanh');
     expect(findMenuKey(MENU, '/van-hanh/bao-cao-nhanh/3f2a')).toBe('bao-cao-nhanh');
+    expect(findMenuKey(MENU, '/van-hanh/bao-cao-nhanh/cau-hinh')).toBe('bao-cao-nhanh');
     expect(findMenuKey(MENU, '/van-hanh/bao-cao')).toBe('bao-cao-van-hanh');
     expect(findMenuKey(MENU, '/van-hanh/may-bom')).toBe('may-bom');
   });

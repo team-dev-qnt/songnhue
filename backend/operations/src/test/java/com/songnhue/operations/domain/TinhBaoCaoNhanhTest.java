@@ -26,6 +26,9 @@ class TinhBaoCaoNhanhTest {
 
     private static long idNhom = 1;
 
+    /** Công trình Công ty gắn vào vị trí "Yên Nghĩa" — khoá nội bộ, ⛔ mã (danh mục có hai "Yên Nghĩa"). */
+    private static final long YEN_NGHIA = 5;
+
     private static DongVanHanh dong(long ct, String ma, int thietKe, int q, Integer chay) {
         return new DongVanHanh(
                 new DongNhomMay(
@@ -50,7 +53,7 @@ class TinhBaoCaoNhanhTest {
                 dong(3, "TB-DANG", 4, 4000, 3),
                 dong(3, "TB-DANG", 1, 1950, 1),
                 dong(4, "TB-SQUAN", 5, 2500, null),
-                dong(5, TinhBaoCaoNhanh.MA_TRAM_YEN_NGHIA, 10, 43200, yenNghia));
+                dong(YEN_NGHIA, "TB-YNGHIA", 10, 43200, yenNghia));
     }
 
     @Test
@@ -83,22 +86,31 @@ class TinhBaoCaoNhanhTest {
     }
 
     @Test
-    @DisplayName("⭐⭐ Bất biến 4 — Yên Nghĩa X=0 ra câu KHÁC HẲN; chưa nhập ⛔ bịa câu")
+    @DisplayName("⭐⭐ Bất biến 4 — Yên Nghĩa X=0 ra câu KHÁC HẲN; chưa nhập / chưa gắn trạm ⛔ bịa câu")
     void yenNghiaBaTrangThai() {
-        TinhBaoCaoNhanh.GhiChuYenNghia chay = TinhBaoCaoNhanh.yenNghia(mau(5));
+        TinhBaoCaoNhanh.GhiChuYenNghia chay = TinhBaoCaoNhanh.yenNghia(mau(5), YEN_NGHIA);
         assertThat(chay.cau()).isEqualTo("Trạm bơm Yên Nghĩa vận hành 5 máy bơm với tổng lưu lượng bơm 60 m3/s.");
 
-        TinhBaoCaoNhanh.GhiChuYenNghia dung = TinhBaoCaoNhanh.yenNghia(mau(0));
+        TinhBaoCaoNhanh.GhiChuYenNghia dung = TinhBaoCaoNhanh.yenNghia(mau(0), YEN_NGHIA);
         assertThat(dung.cau()).isEqualTo("Trạm bơm Yên Nghĩa không vận hành.").doesNotContain("0 máy");
 
-        TinhBaoCaoNhanh.GhiChuYenNghia chuaNhap = TinhBaoCaoNhanh.yenNghia(mau(null));
+        TinhBaoCaoNhanh.GhiChuYenNghia chuaNhap = TinhBaoCaoNhanh.yenNghia(mau(null), YEN_NGHIA);
         assertThat(chuaNhap.trangThai()).isEqualTo(TinhBaoCaoNhanh.TrangThaiYenNghia.CHUA_NHAP);
         assertThat(chuaNhap.cau())
                 .as("⛔ 'không vận hành' khi CHƯA AI NHẬP là một câu sai")
                 .isNull();
 
-        TinhBaoCaoNhanh.GhiChuYenNghia vang = TinhBaoCaoNhanh.yenNghia(List.of(dong(1, "TB-DMY", 24, 1100, 1)));
+        TinhBaoCaoNhanh.GhiChuYenNghia vang =
+                TinhBaoCaoNhanh.yenNghia(List.of(dong(1, "TB-DMY", 24, 1100, 1)), YEN_NGHIA);
         assertThat(vang.trangThai()).isEqualTo(TinhBaoCaoNhanh.TrangThaiYenNghia.CHUA_CO_TRONG_DANH_MUC);
+
+        // Chưa gắn trạm ⇒ ⛔ đoán theo mã/tên, dù danh mục CÓ nhóm máy mang mã "TB-YNGHIA".
+        TinhBaoCaoNhanh.GhiChuYenNghia chuaGan = TinhBaoCaoNhanh.yenNghia(mau(5), null);
+        assertThat(chuaGan.trangThai()).isEqualTo(TinhBaoCaoNhanh.TrangThaiYenNghia.CHUA_GAN_TRAM);
+        assertThat(chuaGan.cau()).isNull();
+
+        // Gắn một công trình KHÁC ⇒ ghi chú đọc đúng công trình ấy, ⛔ theo mã "TB-YNGHIA".
+        assertThat(TinhBaoCaoNhanh.yenNghia(mau(5), 1L).soMay()).isEqualTo(1);
     }
 
     @Test

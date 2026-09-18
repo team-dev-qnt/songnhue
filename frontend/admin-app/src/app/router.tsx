@@ -241,6 +241,14 @@ export const router = createBrowserRouter([
             lazyPage(() => import('@/features/operations/BaoCaoNhanhPage'), 'BaoCaoNhanhPage'),
           ),
           adminRoute(
+            '/van-hanh/bao-cao-nhanh/cau-hinh',
+            'ops:report:view',
+            lazyPage(
+              () => import('@/features/operations/CauHinhBaoCaoNhanhPage'),
+              'CauHinhBaoCaoNhanhPage',
+            ),
+          ),
+          adminRoute(
             '/van-hanh/bao-cao-nhanh/:publicId',
             'ops:report:view',
             lazyPage(

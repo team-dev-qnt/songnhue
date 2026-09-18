@@ -1,4 +1,9 @@
-import { ClockCircleOutlined, DownloadOutlined, SaveOutlined } from '@ant-design/icons';
+import {
+  ClockCircleOutlined,
+  DownloadOutlined,
+  SaveOutlined,
+  SettingOutlined,
+} from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
@@ -20,13 +25,14 @@ import {
 import { type ColumnsType } from 'antd/es/table';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 
 import { useAuth } from '@/app/auth/useAuth';
 import { ApprovalActions } from '@/components/business/ApprovalActions';
 import {
   type BaoCaoNhanhChiTiet,
   type BcnChinO,
+  type BcnDongBang4View,
   type BcnDongBang5View,
   type BcnMucNuocView,
   type BcnNhomView,
@@ -47,6 +53,7 @@ import {
   giaTriVanHanh,
   locBang2,
   nhapXaTu,
+  payloadLuongMua,
   payloadNgapUng,
   payloadVanHanh,
   type NhapVanHanh,
@@ -191,7 +198,14 @@ export function BaoCaoNhanhChiTietPage() {
           {
             key: 'bang3',
             label: 'Mực nước & lượng mưa (Bảng 3–4)',
-            children: <TabMucNuoc c={c} />,
+            children: (
+              <TabMucNuoc
+                key={`${publicId}-${c.ky.trangThai}`}
+                c={c}
+                coNhap={coNhap}
+                onLuu={capNhat}
+              />
+            ),
           },
           { key: 'xem', label: 'Xem trước', children: <TabXemTruoc c={c} /> },
         ]}
@@ -575,10 +589,20 @@ function TabNgapUng({
 }
 
 // =============================================================================
-// Tab 3 — Bảng 3 + Bảng 4 (chỉ đọc)
+// Tab 3 — Bảng 3 (tự động) + Bảng 4 (nhập tay)
 // =============================================================================
 
-function TabMucNuoc({ c }: { c: BaoCaoNhanhChiTiet }) {
+const DUONG_CAU_HINH = '/van-hanh/bao-cao-nhanh/cau-hinh';
+
+function TabMucNuoc({
+  c,
+  coNhap,
+  onLuu,
+}: {
+  c: BaoCaoNhanhChiTiet;
+  coNhap: boolean;
+  onLuu: (moi: BaoCaoNhanhChiTiet) => void;
+}) {
   type Dong = { key: string; cong: string; lyTrinh: string; o: BcnMucNuocView };
   const dong: Dong[] = c.bang3.flatMap((d, i) => [
     { key: `${i}tl`, cong: d.nhanCong, lyTrinh: d.lyTrinh, o: d.tl },
@@ -611,10 +635,19 @@ function TabMucNuoc({ c }: { c: BaoCaoNhanhChiTiet }) {
   ];
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-      <Card title="Bảng 3 — Mực nước hệ thống sông Nhuệ (cống)">
+      <Card
+        title="Bảng 3 — Mực nước hệ thống sông Nhuệ (cống)"
+        extra={
+          <Link to={DUONG_CAU_HINH}>
+            <SettingOutlined /> Cấu hình cống & điểm đo
+          </Link>
+        }
+      >
         <Typography.Paragraph type="secondary">
           Giá trị tức thời tại giờ kết thúc kỳ — số đo HỢP LỆ gần nhất trước mốc, trong vòng 24 giờ.
-          Tự động từ dữ liệu thuỷ văn, không nhập tay.
+          Tự động từ dữ liệu thuỷ văn, không nhập tay. Ô trống thì cột “Ghi chú” nói vì sao — gắn
+          công trình cho cống ở màn hình Cấu hình, liên kết điểm đo với công trình ở màn hình Điểm
+          đo.
         </Typography.Paragraph>
         <Table
           rowKey="key"
@@ -625,15 +658,88 @@ function TabMucNuoc({ c }: { c: BaoCaoNhanhChiTiet }) {
           scroll={{ x: 940 }}
         />
       </Card>
-      <Card title="Bảng 4 — Lượng mưa">
-        <Alert
-          type="info"
-          showIcon
-          message="Bảng 4 để trống trong bản Word"
-          description={c.bang4LyDo}
-        />
-      </Card>
+      <Bang4 c={c} coNhap={coNhap} onLuu={onLuu} />
     </Space>
+  );
+}
+
+/**
+ * Bảng 4 — lượng mưa NHẬP TAY (mm) của 8 điểm Sông Nhuệ. Nguồn tự động (G3-a) chưa có; ô để trống
+ * thì bản Word để trống, ⛔ in 0.
+ */
+function Bang4({
+  c,
+  coNhap,
+  onLuu,
+}: {
+  c: BaoCaoNhanhChiTiet;
+  coNhap: boolean;
+  onLuu: (moi: BaoCaoNhanhChiTiet) => void;
+}) {
+  const { message } = App.useApp();
+  const [nhap, setNhap] = useState<Record<string, number | null>>({});
+  const payload = payloadLuongMua(c.bang4, nhap);
+
+  const luu = useMutation({
+    mutationFn: () => api.put<BaoCaoNhanhChiTiet>(`${GOC}/${c.ky.publicId}/luong-mua`, payload),
+    onSuccess: (moi) => {
+      setNhap({});
+      onLuu(moi);
+      message.success('Đã lưu Bảng 4');
+    },
+    onError: (caught: unknown) =>
+      message.error(caught instanceof ApiClientError ? caught.message : 'Không lưu được Bảng 4'),
+  });
+
+  const cot: ColumnsType<BcnDongBang4View> = [
+    { title: 'STT', dataIndex: 'thuTu', width: 60 },
+    { title: 'Điểm đo mưa', dataIndex: 'ten', width: 200 },
+    {
+      title: `Lượng mưa ${formatDateTime(c.ky.tuThoiDiem)} → ${formatDateTime(c.ky.denThoiDiem)} (mm)`,
+      key: 'mm',
+      width: 320,
+      render: (_, d) => (
+        <InputNumber
+          aria-label={`Lượng mưa (mm) — ${d.ten}`}
+          min={0}
+          step={0.1}
+          precision={1}
+          disabled={!coNhap}
+          title={coNhap ? undefined : THIEU_QUYEN_NHAP}
+          value={d.diemMuaPublicId in nhap ? nhap[d.diemMuaPublicId] : d.luongMuaMm}
+          onChange={(v) => setNhap((cu) => ({ ...cu, [d.diemMuaPublicId]: v ?? null }))}
+        />
+      ),
+    },
+  ];
+
+  return (
+    <Card title="Bảng 4 — Lượng mưa (nhập tay)">
+      <Space style={{ marginBottom: 12 }} wrap>
+        <Button
+          type="primary"
+          icon={<SaveOutlined />}
+          disabled={!coNhap || payload.o.length === 0}
+          title={coNhap ? undefined : THIEU_QUYEN_NHAP}
+          loading={luu.isPending}
+          onClick={() => luu.mutate()}
+        >
+          Lưu {payload.o.length > 0 ? `(${payload.o.length} điểm)` : ''}
+        </Button>
+        <Typography.Text type="secondary">
+          Chưa có nguồn lượng mưa tự động (G3-a) — nhập tay theo kỳ. Ô để trống thì bản Word để
+          trống; 30 điểm của ba công ty còn lại để trống.
+        </Typography.Text>
+      </Space>
+      <Table
+        rowKey="diemMuaPublicId"
+        size="small"
+        columns={cot}
+        dataSource={c.bang4}
+        pagination={false}
+        scroll={{ x: 580 }}
+      />
+    </Card>
   );
 }
 
@@ -701,7 +807,9 @@ function TabXemTruoc({ c }: { c: BaoCaoNhanhChiTiet }) {
             <Typography.Text type="warning">
               {yn.trangThai === 'CHUA_NHAP'
                 ? 'Chưa nhập số máy chạy của Trạm bơm Yên Nghĩa — bản Word giữ nguyên dấu “…” của mẫu.'
-                : 'Danh mục máy bơm chưa có Trạm bơm Yên Nghĩa (mã TB-YNGHIA) — bản Word giữ nguyên dấu “…”.'}
+                : yn.trangThai === 'CHUA_GAN_TRAM'
+                  ? 'Chưa chọn công trình cho Trạm bơm Yên Nghĩa (màn hình Cấu hình) — bản Word giữ nguyên dấu “…”.'
+                  : 'Danh mục máy bơm chưa có nhóm máy nào của trạm gắn cho Yên Nghĩa — bản Word giữ nguyên dấu “…”.'}
             </Typography.Text>
           )}
         </Typography.Paragraph>

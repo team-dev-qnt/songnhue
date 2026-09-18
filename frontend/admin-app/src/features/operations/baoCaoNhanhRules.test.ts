@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { type BcnDongBang5View, type BcnKhoiView } from '@/shared/api-types';
+import { type BcnDongBang4View, type BcnDongBang5View, type BcnKhoiView } from '@/shared/api-types';
 
-import { locBang2, payloadNgapUng, payloadVanHanh, tramDangHoatDong } from './baoCaoNhanhRules';
+import {
+  locBang2,
+  payloadLuongMua,
+  payloadNgapUng,
+  payloadVanHanh,
+  tramDangHoatDong,
+} from './baoCaoNhanhRules';
 
 const nhom = (id: string, soMayVanHanh: number | null) => ({
   nhomMayPublicId: id,
@@ -84,5 +90,18 @@ describe('Báo cáo nhanh — luật màn hình', () => {
         x1: { ngapTrangLua: null, ngapTrangRau: null, sauNuocLua: 115, sauNuocRau: 20 },
       }).dong,
     ).toEqual([]);
+  });
+
+  it('Bảng 4: chỉ gửi điểm ĐÃ ĐỔI; xoá trắng gửi `null` (⛔ 0), gõ lại đúng số cũ ⛔ gửi', () => {
+    const bang4: BcnDongBang4View[] = [
+      { diemMuaPublicId: 'lm', ten: 'Liên Mạc', thuTu: 5, luongMuaMm: 15 },
+      { diemMuaPublicId: 'hd', ten: 'Hà Đông', thuTu: 6, luongMuaMm: null },
+      { diemMuaPublicId: 'ds', ten: 'Điệp Sơn', thuTu: 12, luongMuaMm: 3 },
+    ];
+    expect(payloadLuongMua(bang4, {}).o).toEqual([]);
+    expect(payloadLuongMua(bang4, { lm: null, hd: 0, ds: 3 }).o).toEqual([
+      { diemMuaPublicId: 'lm', luongMuaMm: null },
+      { diemMuaPublicId: 'hd', luongMuaMm: 0 },
+    ]);
   });
 });

@@ -1,4 +1,4 @@
-import { PlusOutlined } from '@ant-design/icons';
+import { PlusOutlined, SettingOutlined } from '@ant-design/icons';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { App, Button, Card, DatePicker, Modal, Space, Table, Tag, Typography } from 'antd';
 import { type ColumnsType } from 'antd/es/table';
@@ -88,18 +88,26 @@ export function BaoCaoNhanhPage() {
     <Card
       title="Báo cáo nhanh — ứng phó ngập lụt, úng"
       extra={
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          disabled={!coLap}
-          title={coLap ? undefined : 'Thiếu quyền ops:quick-report:manage'}
-          onClick={() => {
-            setKhung(khungMacDinh());
-            setMoTao(true);
-          }}
-        >
-          Tạo kỳ báo cáo
-        </Button>
+        <Space wrap>
+          <Button
+            icon={<SettingOutlined />}
+            onClick={() => void navigate('/van-hanh/bao-cao-nhanh/cau-hinh')}
+          >
+            Cấu hình
+          </Button>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            disabled={!coLap}
+            title={coLap ? undefined : 'Thiếu quyền ops:quick-report:manage'}
+            onClick={() => {
+              setKhung(khungMacDinh());
+              setMoTao(true);
+            }}
+          >
+            Tạo kỳ báo cáo
+          </Button>
+        </Space>
       }
     >
       <Table

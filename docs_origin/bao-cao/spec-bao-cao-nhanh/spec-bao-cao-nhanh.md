@@ -209,8 +209,9 @@ Phần trên giữ nguyên văn bản BA. Những chỗ dưới đây **đo đư
 | §2 nguồn Bảng 2 | "211 trạm, 1.011 máy" | con số ấy đọc từ sheet `Trạm bơm` (tự lệch: cộng dòng ra 1.025). Bảng 2 của mẫu khớp 1:1 sheet **`TB Tiêu (KH)`** — 178 trạm / 830 máy | nhập theo `TB Tiêu (KH)` (OI-BC9) |
 | §4.1 phân cỡ | `Sheet3` là "bảng phân loại chuẩn" | `Sheet3` **rỗng**; 35/830 máy ⛔ thuộc cột nào theo nhãn | 9 cỡ biên đề xuất, sửa được (OI-BC8) |
 | §4.2 loại dòng | 2 loại | 3 loại — dòng ⛔ số TT mà **có tên** là một trạm khác (`Ngọ Xá II`, `Xém (mới)`…) | mỗi trạm một công trình |
-| §6 Bảng 4 | "lấy tự động" | ⛔ điểm đo mưa nào (G3-a) | để TRỐNG kèm lý do (OI-BC15) |
+| §6 Bảng 4 | "lấy tự động" | ⛔ điểm đo mưa nào (G3-a) | **nhập tay theo kỳ** 8 điểm Sông Nhuệ, để trống = ô trống (đổi 18/09 tối; ngày G3-a về thì nguồn tự động THAY ô nhập) |
 | tên bảng | `wl_reading` · `rain_reading` · `hydro_station` | ⛔ tồn tại | `hydro_readings` · `stations` (lọc `HOP_LE`) |
 | Bảng 3 Lương Cổ | — | mẫu ghi TL có số | `F01519` đổi về Thượng lưu (`V202609181085`) |
+| Bảng 3 điểm đo · ghi chú Yên Nghĩa | mã cố định | 3/14 vế ⛔ có điểm đo (OI-BC14); danh mục có HAI công trình tên "Yên Nghĩa" | Công ty **chọn công trình** cho 7 cống + trạm Yên Nghĩa trên màn hình *Cấu hình Báo cáo nhanh*; điểm đo từng vế suy từ liên kết điểm đo–công trình (`V202609181088`) |
 
 Open issue mới: OI-BC8 → OI-BC16 ở `.claude/master-tracking.md` T66.8.

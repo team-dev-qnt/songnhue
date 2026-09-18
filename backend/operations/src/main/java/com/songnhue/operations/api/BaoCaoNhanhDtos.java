@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -18,9 +19,11 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.songnhue.core.spi.AllowedAction;
 import com.songnhue.core.spi.HydroSnapshotPort;
 import com.songnhue.operations.application.BaoCaoNhanhService;
+import com.songnhue.operations.application.CauHinhBaoCaoNhanhService;
 import com.songnhue.operations.domain.BangCoMayBom;
 import com.songnhue.operations.domain.BaoCaoNhanh;
 import com.songnhue.operations.domain.TinhBaoCaoNhanh;
+import com.songnhue.operations.infra.BaoCaoNhanhQuery;
 
 /**
  * DTO của Báo cáo nhanh.
@@ -53,7 +56,16 @@ public final class BaoCaoNhanhDtos {
     /** Bảng 5 — mỗi xã gửi lên là thay TOÀN PHẦN bốn ô của xã ấy. */
     public record NgapUngRequest(@NotNull @Size(max = 100) List<@Valid ONgapUng> dong) {}
 
+    public record OLuongMua(
+            @NotNull UUID diemMuaPublicId, @DecimalMin("0") @Digits(integer = 7, fraction = 1) BigDecimal luongMuaMm) {}
+
+    /** Bảng 4 — gửi các ô ĐÃ ĐỔI; {@code luongMuaMm = null} xoá số đã nhập. */
+    public record LuongMuaRequest(@NotNull @Size(max = 100) List<@Valid OLuongMua> o) {}
+
     public record MoLaiRequest(@NotBlank @Size(max = 1000) String lyDo) {}
+
+    /** Gắn công trình vào một vị trí của mẫu — {@code null} gỡ ra. */
+    public record GanCongTrinhRequest(UUID constructionPublicId) {}
 
     // ==== Phản hồi ==========================================================
 
@@ -104,6 +116,10 @@ public final class BaoCaoNhanhDtos {
 
     public record DongBang3View(String nhanCong, String lyTrinh, OMucNuocView tl, OMucNuocView hl) {}
 
+    /** Một điểm mưa Bảng 4 — {@code luongMuaMm = null} = chưa nhập. */
+    @JsonInclude(JsonInclude.Include.ALWAYS)
+    public record DongBang4View(UUID diemMuaPublicId, String ten, int thuTu, BigDecimal luongMuaMm) {}
+
     @JsonInclude(JsonInclude.Include.ALWAYS)
     public record DongBang5View(UUID xaPublicId, String ten, int thuTu, TinhBaoCaoNhanh.ChinO o) {}
 
@@ -112,7 +128,7 @@ public final class BaoCaoNhanhDtos {
      *
      * @param coMay nhãn 9 cột Bảng 1 — thứ tự của {@code bang1SongNhue.theoCo}
      * @param bang1SongNhue {@code null} = chưa ô nào của Bảng 2 được nhập
-     * @param bang4LyDo Bảng 4 (lượng mưa) để TRỐNG kèm lý do — chốt 18/09, G3-a
+     * @param bang4 lượng mưa NHẬP TAY — nguồn tự động (G3-a) chưa có
      * @param muc3 COPY dòng III của Bảng 5 — cùng giá trị {@code bang5CongTy}, khai riêng để giao diện
      *     ⛔ phải biết luật copy
      */
@@ -126,7 +142,7 @@ public final class BaoCaoNhanhDtos {
             Muc1View muc1,
             YenNghiaView ghiChuYenNghia,
             List<DongBang3View> bang3,
-            String bang4LyDo,
+            List<DongBang4View> bang4,
             List<DongBang5View> bang5,
             TinhBaoCaoNhanh.ChinO bang5CongTy,
             TinhBaoCaoNhanh.ChinO muc3) {
@@ -173,7 +189,9 @@ public final class BaoCaoNhanhDtos {
                                     oMucNuoc(d.nhanTl(), d.tl()),
                                     oMucNuoc(d.nhanHl(), d.hl())))
                             .toList(),
-                    HydroSnapshotPort.LY_DO_LUONG_MUA,
+                    c.bang4().stream()
+                            .map(d -> new DongBang4View(d.diemMuaPublicId(), d.ten(), d.thuTu(), d.luongMuaMm()))
+                            .toList(),
                     c.bang5().stream()
                             .map(d -> new DongBang5View(d.xa().xaPublicId(), d.xa().ten(), d.xa().thuTu(), d.o()))
                             .toList(),
@@ -181,9 +199,9 @@ public final class BaoCaoNhanhDtos {
                     c.bang5CongTy());
         }
 
-        private static OMucNuocView oMucNuoc(String nhan, BaoCaoNhanhService.OBang3 o) {
+        private static OMucNuocView oMucNuoc(String nhan, CauHinhBaoCaoNhanhService.OBang3 o) {
             if (o.apiCode() == null) {
-                return new OMucNuocView(nhan, null, null, null, null, LY_DO_KHONG_CO_DIEM_DO);
+                return new OMucNuocView(nhan, null, null, null, null, o.lyDoThieu());
             }
             HydroSnapshotPort.MucNuoc m = o.mucNuoc();
             if (m == null || m.giaTriM() == null) {
@@ -193,6 +211,47 @@ public final class BaoCaoNhanhDtos {
         }
     }
 
-    static final String LY_DO_KHONG_CO_DIEM_DO = "Cống chưa có điểm đo ở vế này (OI-BC14)";
     static final String LY_DO_KHONG_CO_SO_DO = "Không có số đo hợp lệ trong 24 giờ trước mốc báo cáo";
+
+    // ==== Cấu hình ==========================================================
+
+    public record CongTrinhView(UUID publicId, String ma, String ten) {
+
+        static CongTrinhView of(BaoCaoNhanhQuery.CongTrinh c) {
+            return c == null ? null : new CongTrinhView(c.publicId(), c.ma(), c.ten());
+        }
+    }
+
+    /** Vế đã giải — đúng một trong hai: mã điểm đo, hoặc lý do ô sẽ TRỐNG. */
+    @JsonInclude(JsonInclude.Include.ALWAYS)
+    public record VeView(String apiCode, String lyDo) {}
+
+    /**
+     * Một vị trí của mẫu.
+     *
+     * @param congTrinh {@code null} = chưa gắn
+     * @param tl điểm đo thượng lưu suy ra — {@code null} ở vị trí ⛔ thuộc Bảng 3 (Yên Nghĩa)
+     */
+    @JsonInclude(JsonInclude.Include.ALWAYS)
+    public record ViTriView(
+            UUID publicId,
+            String ma,
+            String nhan,
+            String loaiCongTrinh,
+            CongTrinhView congTrinh,
+            VeView tl,
+            VeView hl) {
+
+        static ViTriView of(CauHinhBaoCaoNhanhService.ViTri v) {
+            boolean bang3 = v.viTri().getMa().startsWith("B3_");
+            return new ViTriView(
+                    v.viTri().getPublicId(),
+                    v.viTri().getMa(),
+                    v.viTri().getNhan(),
+                    v.viTri().getLoaiCongTrinh(),
+                    CongTrinhView.of(v.congTrinh()),
+                    bang3 ? new VeView(v.tl().apiCode(), v.tl().lyDo()) : null,
+                    bang3 ? new VeView(v.hl().apiCode(), v.hl().lyDo()) : null);
+        }
+    }
 }

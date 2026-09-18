@@ -1,6 +1,7 @@
 package com.songnhue.hydro.application;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -31,6 +32,14 @@ public class HydroSnapshotAdapter implements HydroSnapshotPort {
                             ? new MucNuoc(ma, null, null, false)
                             : new MucNuoc(ma, d.giaTriM(), d.mocDo(), d.mocDo().equals(thoiDiem));
                 })
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DiemDoVe> diemDoMucNuocCuaCongTrinh(Collection<Long> constructionIds) {
+        return repository.diemDoCuaCongTrinh(constructionIds).stream()
+                .map(l -> new DiemDoVe(l.constructionId(), l.vaiTro(), l.apiCode(), l.chinh()))
                 .toList();
     }
 }

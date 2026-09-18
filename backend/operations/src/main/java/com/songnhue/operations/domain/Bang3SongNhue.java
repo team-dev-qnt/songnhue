@@ -5,26 +5,26 @@ import java.util.List;
 /**
  * Mục 11 *"Hệ thống sông Nhuệ (cống)"* của Bảng 3 — 7 cống × {TL, HL}, đúng thứ tự dòng của mẫu Word.
  *
- * <p>Nhãn (tên cống, lý trình, *"TL (hồng)"*…) chép NGUYÊN VĂN mẫu; mã API theo danh mục điểm đo
- * ({@code V202608311049}, F01519 về Thượng lưu ở {@code V202609181085}). {@code null} = cống ⛔ có
- * điểm đo ở vế ấy — 3/14 ô (Hà Đông HL · Hòa Mỹ TL · Lương Cổ HL), OI-BC14: ô TRỐNG là trạng thái ĐÚNG.
+ * <p>Lớp này chỉ giữ phần CỐ ĐỊNH của mẫu: nhãn (tên cống, lý trình, *"TL (hồng)"*…) chép NGUYÊN VĂN, và
+ * mã vị trí nối sang {@code bao_cao_nhanh_vi_tri}. Công trình gắn vào từng cống và điểm đo từng vế là
+ * DỮ LIỆU Công ty chọn trên giao diện (18/09/2026) — trước đó 14 mã điểm đo nằm ngay trong lớp này, đổi
+ * một điểm đo là phải deploy (quy tắc 16).
  *
- * <p>⚠ Mã API là định danh BẤT BIẾN sau seed ({@code stations.api_code}) ⇒ an toàn để khai ở đây. Đổi
- * mẫu Word ⇒ đổi lớp này cùng bộ canh vân tay mẫu.
+ * <p>Đổi mẫu Word ⇒ đổi lớp này cùng bộ canh vân tay mẫu.
  */
 public final class Bang3SongNhue {
 
-    public record Dong(String nhanCong, String lyTrinh, String nhanTl, String apiTl, String nhanHl, String apiHl) {}
+    public record Dong(String maViTri, String nhanCong, String lyTrinh, String nhanTl, String nhanHl) {}
 
     /** ⛔ ĐỪNG sắp lại — thứ tự = thứ tự dòng của Bảng 3 trong mẫu. */
     public static final List<Dong> DONG = List.of(
-            new Dong("Liên Mạc", "H-K53+450", "TL (hồng)", "F01771", "HL (nhuệ)", "F01672"),
-            new Dong("Hà Đông", "K18+182", "TL (nhuệ)", "F01794", "HL (nhuệ)", null),
-            new Dong("Đồng Quan", "K43+694", "TL (nhuệ)", "F01905", "HL (nhuệ)", "F01527"),
-            new Dong("Hòa Mỹ", "K1+446", "TL (nhuệ)", null, "HL (v.đình)", "F02039"),
-            new Dong("Vân Đình", "Đ-K65+348", "TL (v.đình)", "F01657", "HL (đáy)", "F01705"),
-            new Dong("Nhật Tựu", "K63+405", "TL (nhuệ)", "F02031", "HL (nhuệ)", "F02030"),
-            new Dong("Lương Cổ", "K72+506", "TL (nhuệ)", "F01519", "HL (đáy)", null));
+            new Dong("B3_LIEN_MAC", "Liên Mạc", "H-K53+450", "TL (hồng)", "HL (nhuệ)"),
+            new Dong("B3_HA_DONG", "Hà Đông", "K18+182", "TL (nhuệ)", "HL (nhuệ)"),
+            new Dong("B3_DONG_QUAN", "Đồng Quan", "K43+694", "TL (nhuệ)", "HL (nhuệ)"),
+            new Dong("B3_HOA_MY", "Hòa Mỹ", "K1+446", "TL (nhuệ)", "HL (v.đình)"),
+            new Dong("B3_VAN_DINH", "Vân Đình", "Đ-K65+348", "TL (v.đình)", "HL (đáy)"),
+            new Dong("B3_NHAT_TUU", "Nhật Tựu", "K63+405", "TL (nhuệ)", "HL (nhuệ)"),
+            new Dong("B3_LUONG_CO", "Lương Cổ", "K72+506", "TL (nhuệ)", "HL (đáy)"));
 
     private Bang3SongNhue() {}
 }

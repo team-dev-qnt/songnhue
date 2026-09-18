@@ -1,6 +1,5 @@
 package com.songnhue.operations.application;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -19,20 +18,15 @@ import com.songnhue.core.common.exception.BusinessRuleException;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
 import com.songnhue.core.common.exception.ValidationException;
 import com.songnhue.core.spi.AllowedAction;
-import com.songnhue.core.spi.HydroSnapshotPort;
 import com.songnhue.core.spi.OrgUnitPort;
 import com.songnhue.core.spi.OrgUnitTreeRef;
 import com.songnhue.core.spi.WorkflowPort;
-import com.songnhue.operations.domain.Bang3SongNhue;
 import com.songnhue.operations.domain.BangCoMayBom;
 import com.songnhue.operations.domain.BaoCaoNhanh;
-import com.songnhue.operations.domain.BaoCaoNhanhNgapUng;
 import com.songnhue.operations.domain.BaoCaoNhanhVanHanh;
 import com.songnhue.operations.domain.DongNhomMay;
 import com.songnhue.operations.domain.TinhBaoCaoNhanh;
-import com.songnhue.operations.domain.TinhBaoCaoNhanh.DongNgapUng;
 import com.songnhue.operations.domain.TinhBaoCaoNhanh.DongVanHanh;
-import com.songnhue.operations.infra.BaoCaoNhanhNgapUngRepository;
 import com.songnhue.operations.infra.BaoCaoNhanhQuery;
 import com.songnhue.operations.infra.BaoCaoNhanhRepository;
 import com.songnhue.operations.infra.BaoCaoNhanhVanHanhRepository;
@@ -54,6 +48,9 @@ import com.songnhue.operations.infra.BaoCaoNhanhVanHanhRepository;
  * <h2>⛔ Kiểm nghiệp vụ TRƯỚC {@code workflow.execute}</h2>
  *
  * <p>Engine ghi thông báo ⇒ flush ⇒ CHECK của CSDL bắn trước mã lỗi nghiệp vụ (coding-guide §4).
+ *
+ * <p>Bảng 4/5 (nhập tay) ở {@link SoLieuNhapTayService}; vị trí gắn công trình + Bảng 3 ở
+ * {@link CauHinhBaoCaoNhanhService}. Lớp này giữ vòng đời kỳ và gác {@code OPS-2029} cho MỌI lượt ghi.
  */
 @Service
 public class BaoCaoNhanhService {
@@ -63,19 +60,6 @@ public class BaoCaoNhanhService {
 
     /** Một ô nhập của Bảng 2 — {@code soMayVanHanh = null} xoá số đã nhập (về "chưa nhập"). */
     public record NhapVanHanh(UUID nhomMayPublicId, Integer soMayVanHanh) {}
-
-    /** Một dòng nhập của Bảng 5 — thay TOÀN PHẦN bốn ô của xã. */
-    public record NhapNgapUng(
-            UUID xaPublicId,
-            BigDecimal ngapTrangLua,
-            BigDecimal ngapTrangRau,
-            BigDecimal sauNuocLua,
-            BigDecimal sauNuocRau) {}
-
-    /** Một ô Bảng 3. {@code apiCode == null} ⇒ ⛔ có điểm đo (OI-BC14). */
-    public record OBang3(String apiCode, HydroSnapshotPort.MucNuoc mucNuoc) {}
-
-    public record DongBang3(String nhanCong, String lyTrinh, String nhanTl, OBang3 tl, String nhanHl, OBang3 hl) {}
 
     /** Toàn bộ nội dung một kỳ — số do BE tính, FE và bản Word chỉ hiển thị (quy tắc 3). */
     public record ChiTiet(
@@ -87,36 +71,37 @@ public class BaoCaoNhanhService {
             TinhBaoCaoNhanh.DongBang1 bang1SongNhue,
             TinhBaoCaoNhanh.Muc1 muc1,
             TinhBaoCaoNhanh.GhiChuYenNghia ghiChuYenNghia,
-            List<DongBang3> bang3,
+            List<CauHinhBaoCaoNhanhService.DongBang3> bang3,
+            List<SoLieuNhapTayService.DongLuongMua> bang4,
             List<TinhBaoCaoNhanh.DongBang5> bang5,
             TinhBaoCaoNhanh.ChinO bang5CongTy) {}
 
     private final BaoCaoNhanhRepository baoCao;
     private final BaoCaoNhanhVanHanhRepository vanHanh;
-    private final BaoCaoNhanhNgapUngRepository ngapUng;
     private final BaoCaoNhanhQuery query;
     private final DanhMucMayBomService danhMuc;
     private final WorkflowPort workflow;
     private final OrgUnitPort orgUnits;
-    private final HydroSnapshotPort hydro;
+    private final SoLieuNhapTayService nhapTay;
+    private final CauHinhBaoCaoNhanhService cauHinh;
 
     public BaoCaoNhanhService(
             BaoCaoNhanhRepository baoCao,
             BaoCaoNhanhVanHanhRepository vanHanh,
-            BaoCaoNhanhNgapUngRepository ngapUng,
             BaoCaoNhanhQuery query,
             DanhMucMayBomService danhMuc,
             WorkflowPort workflow,
             OrgUnitPort orgUnits,
-            HydroSnapshotPort hydro) {
+            SoLieuNhapTayService nhapTay,
+            CauHinhBaoCaoNhanhService cauHinh) {
         this.baoCao = baoCao;
         this.vanHanh = vanHanh;
-        this.ngapUng = ngapUng;
         this.query = query;
         this.danhMuc = danhMuc;
         this.workflow = workflow;
         this.orgUnits = orgUnits;
-        this.hydro = hydro;
+        this.nhapTay = nhapTay;
+        this.cauHinh = cauHinh;
     }
 
     // ==== Kỳ báo cáo ========================================================
@@ -190,28 +175,14 @@ public class BaoCaoNhanhService {
 
     /** Ghi Bảng 5 — thay TOÀN PHẦN bốn ô của mỗi xã gửi lên. Chỉ xã của Sông Nhuệ. */
     @Transactional
-    public void luuNgapUng(UUID publicId, List<NhapNgapUng> nhap) {
-        BaoCaoNhanh bc = choPhepSua(publicId);
-        Map<UUID, BaoCaoNhanhQuery.Xa> xa = query.xa(CONG_TY).stream()
-                .collect(Collectors.toMap(BaoCaoNhanhQuery.Xa::publicId, Function.identity()));
-        Map<Long, BaoCaoNhanhNgapUng> daCo = ngapUng.findByBaoCaoIdAndDeletedAtIsNull(bc.getId()).stream()
-                .collect(Collectors.toMap(BaoCaoNhanhNgapUng::getDonViHanhChinhId, Function.identity()));
+    public void luuNgapUng(UUID publicId, List<SoLieuNhapTayService.NhapNgapUng> nhap) {
+        nhapTay.luuNgapUng(choPhepSua(publicId).getId(), nhap);
+    }
 
-        for (NhapNgapUng o : nhap) {
-            BaoCaoNhanhQuery.Xa x = xa.get(o.xaPublicId());
-            if (x == null) {
-                // ⛔ Xã của công ty khác (hoặc id bịa) — hệ ⛔ nhập hộ ba công ty kia (OI-BC1).
-                throw new ValidationException(ErrorCode.SYS_0003).withDetail("xaPublicId", "NOT_FOUND", o.xaPublicId());
-            }
-            for (BigDecimal v : new BigDecimal[] {o.ngapTrangLua(), o.ngapTrangRau(), o.sauNuocLua(), o.sauNuocRau()}) {
-                if (v != null && v.signum() < 0) {
-                    throw new ValidationException(ErrorCode.SYS_0003).withDetail("dienTich", "MIN", v);
-                }
-            }
-            BaoCaoNhanhNgapUng dong = daCo.computeIfAbsent(x.id(), id -> new BaoCaoNhanhNgapUng(bc.getId(), id));
-            dong.ghi(o.ngapTrangLua(), o.ngapTrangRau(), o.sauNuocLua(), o.sauNuocRau());
-            ngapUng.save(dong);
-        }
+    /** Ghi Bảng 4 — lượng mưa (mm) của các điểm mưa gửi lên. */
+    @Transactional
+    public void luuLuongMua(UUID publicId, List<SoLieuNhapTayService.NhapLuongMua> nhap) {
+        nhapTay.luuLuongMua(choPhepSua(publicId).getId(), nhap);
     }
 
     // ==== Chốt / mở lại =====================================================
@@ -244,6 +215,7 @@ public class BaoCaoNhanhService {
             d.markDeleted(com.songnhue.core.common.util.DateTimeUtils.nowUtc());
             vanHanh.save(d);
         });
+        cauHinh.chup(bc);
         return workflow.execute(bc, "CHOT", "Chốt Báo cáo nhanh");
     }
 
@@ -272,7 +244,8 @@ public class BaoCaoNhanhService {
         }
 
         TinhBaoCaoNhanh.DongBang1 b1 = TinhBaoCaoNhanh.bang1(dong, bang);
-        List<TinhBaoCaoNhanh.DongBang5> b5 = TinhBaoCaoNhanh.bang5(ngapUngCua(bc.getId()));
+        List<TinhBaoCaoNhanh.DongBang5> b5 = TinhBaoCaoNhanh.bang5(nhapTay.ngapUngCua(bc.getId()));
+        CauHinhBaoCaoNhanhService.CauHinhKy ch = cauHinh.cauHinhKy(bc);
 
         return new ChiTiet(
                 bc,
@@ -282,8 +255,9 @@ public class BaoCaoNhanhService {
                 ten,
                 b1,
                 TinhBaoCaoNhanh.muc1(b1),
-                TinhBaoCaoNhanh.yenNghia(dong),
-                bang3(bc.getDenThoiDiem()),
+                TinhBaoCaoNhanh.yenNghia(dong, ch.tramYenNghia()),
+                cauHinh.bang3(ch, bc.getDenThoiDiem()),
+                nhapTay.luongMuaCua(bc.getId()),
                 b5,
                 TinhBaoCaoNhanh.dongCongTy(b5));
     }
@@ -298,44 +272,6 @@ public class BaoCaoNhanhService {
                     Short so = daNhap.get(n.nhomId());
                     return new DongVanHanh(n, so == null ? null : so.intValue());
                 })
-                .toList();
-    }
-
-    private List<DongNgapUng> ngapUngCua(Long baoCaoId) {
-        Map<Long, BaoCaoNhanhNgapUng> daNhap = ngapUng.findByBaoCaoIdAndDeletedAtIsNull(baoCaoId).stream()
-                .collect(Collectors.toMap(BaoCaoNhanhNgapUng::getDonViHanhChinhId, Function.identity()));
-        return query.xa(CONG_TY).stream()
-                .map(x -> {
-                    BaoCaoNhanhNgapUng n = daNhap.get(x.id());
-                    return new DongNgapUng(
-                            x.id(),
-                            x.publicId(),
-                            x.ten(),
-                            x.thuTu(),
-                            n == null ? null : n.getNgapTrangLua(),
-                            n == null ? null : n.getNgapTrangRau(),
-                            n == null ? null : n.getSauNuocLua(),
-                            n == null ? null : n.getSauNuocRau());
-                })
-                .toList();
-    }
-
-    /** Bảng 3 mục 11 — giá trị TẠI {@code den_thoi_diem}; ô ⛔ có điểm đo giữ {@code apiCode = null}. */
-    private List<DongBang3> bang3(Instant den) {
-        List<String> ma = Bang3SongNhue.DONG.stream()
-                .flatMap(d -> java.util.stream.Stream.of(d.apiTl(), d.apiHl()))
-                .filter(java.util.Objects::nonNull)
-                .toList();
-        Map<String, HydroSnapshotPort.MucNuoc> so = hydro.mucNuocTaiThoiDiem(ma, den).stream()
-                .collect(Collectors.toMap(HydroSnapshotPort.MucNuoc::apiCode, Function.identity()));
-        return Bang3SongNhue.DONG.stream()
-                .map(d -> new DongBang3(
-                        d.nhanCong(),
-                        d.lyTrinh(),
-                        d.nhanTl(),
-                        new OBang3(d.apiTl(), d.apiTl() == null ? null : so.get(d.apiTl())),
-                        d.nhanHl(),
-                        new OBang3(d.apiHl(), d.apiHl() == null ? null : so.get(d.apiHl()))))
                 .toList();
     }
 

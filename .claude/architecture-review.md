@@ -7335,3 +7335,21 @@ bất biến trên chính ảnh chụp; kỳ đang nhập đọc danh mục số
 **(d) Q lưu m³/h, ⛔ tái dùng `flow_per_pump_m3s`.** Vòng khứ hồi qua m³/s ba lẻ làm sai 801/830 máy,
 trong khi tổng chỉ lệch −240/2.554.152 vì sai số **triệt tiêu nhau** ⇒ một phép kiểm "tổng có khớp
 ⛔" ⛔ bao giờ đỏ. Đơn vị nào là đơn vị của **văn bản** thì lưu đúng đơn vị ấy.
+
+**(e) Mục chờ Công ty ⇒ DỮ LIỆU nhập trên giao diện, ⛔ hằng số trong mã (18/09 tối, `V202609181088`).**
+QuanTran chốt: *mục nào chờ Công ty thì để trống, cho Công ty nhập trên UI để khỏi chờ.* Đo lại những gì
+bản sáng còn ghi cứng: 14 mã điểm đo Bảng 3 (`Bang3SongNhue`) và mã trạm Yên Nghĩa `TB-YNGHIA`. Cái thứ
+hai là một **quy ước ngầm** — đổi mã trạm trên màn hình Công trình thì ghi chú lặng lẽ về *"chưa có
+trong danh mục"*, và danh mục có **hai** công trình tên "Yên Nghĩa" (trạm bơm · cống tiêu tự chảy).
+⇒ Bảng `bao_cao_nhanh_vi_tri`: 8 chỗ CỐ ĐỊNH của mẫu, Công ty chọn công trình; gắn sai loại ⇒ `OPS-2032`.
+Điểm đo từng vế **suy ra** từ `station_constructions.role` qua `HydroSnapshotPort` — ⛔ lưu mã điểm đo
+lần thứ hai (luật 14); OI-BC14 nay Công ty tự lấp bằng màn hình Điểm đo. Seed rút theo mã từ danh mục
+có sẵn ⇒ hành vi ngày deploy ⛔ đổi. Kỳ đã chốt đọc **ảnh chụp** cấu hình (`bao_cao_nhanh_vi_tri_ky`),
+cùng lý lẽ (c).
+
+**(f) ĐẢO chốt sáng 18/09: Bảng 4 lượng mưa NHẬP TAY theo kỳ.** Chốt sáng: *để trống kèm lý do, ⛔
+nhập tay* — vì G3-a chưa có nguồn. Cùng ngày QuanTran chốt lại theo nguyên tắc (e): Công ty CÓ số mưa
+lúc lập báo cáo, chờ G3-a là để văn bản gửi UBND thiếu Bảng 4 vô thời hạn. 8 điểm Sông Nhuệ (STT 5–12,
+tên chép nguyên văn mẫu để bộ điền đối chiếu dòng); `NULL` = ô trống, khác 0 mm. ⚠ Ngày G3-a về: nguồn
+tự động **THAY** ô nhập — ⛔ trộn hai nguồn trong một kỳ, vì một văn bản mà nửa số đo máy, nửa số gõ tay
+thì ⛔ ai trả lời được *"số này từ đâu"*.

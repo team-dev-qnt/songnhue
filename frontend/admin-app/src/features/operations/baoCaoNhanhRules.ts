@@ -1,6 +1,7 @@
 import {
   type BaoCaoNhanhKyView,
   type BcnChinO,
+  type BcnDongBang4View,
   type BcnDongBang5View,
   type BcnKhoiView,
   type BcnTramView,
@@ -136,6 +137,27 @@ export function payloadNgapUng(
     }
   }
   return { dong };
+}
+
+/**
+ * Payload `PUT /luong-mua` — chỉ những điểm mưa ĐÃ ĐỔI so với số đã lưu. `null` = xoá về "chưa nhập"
+ * (khác 0 mm — quy tắc 16), nên một ô xoá trắng vẫn phải được gửi đi.
+ */
+export function payloadLuongMua(
+  bang4: readonly BcnDongBang4View[],
+  nhap: Record<string, number | null>,
+): { o: { diemMuaPublicId: string; luongMuaMm: number | null }[] } {
+  const o: { diemMuaPublicId: string; luongMuaMm: number | null }[] = [];
+  for (const d of bang4) {
+    if (!(d.diemMuaPublicId in nhap)) {
+      continue;
+    }
+    const moi = nhap[d.diemMuaPublicId] ?? null;
+    if (moi !== d.luongMuaMm) {
+      o.push({ diemMuaPublicId: d.diemMuaPublicId, luongMuaMm: moi });
+    }
+  }
+  return { o };
 }
 
 function boDau(s: string): string {

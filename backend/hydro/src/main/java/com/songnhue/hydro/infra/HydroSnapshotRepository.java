@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,7 +40,22 @@ public class HydroSnapshotRepository {
              ORDER BY s.api_code, r.measured_at DESC
             """;
 
+    /** Điểm đo THƯỢNG/HẠ LƯU của một tập công trình — thứ tự ổn định để kết quả ⛔ đổi theo lượt đọc. */
+    static final String SQL_DIEM_DO_CUA_CONG_TRINH =
+            """
+            SELECT sc.construction_id, sc.role, s.api_code, sc.is_primary
+              FROM station_constructions sc
+              JOIN stations s ON s.id = sc.station_id AND s.deleted_at IS NULL
+             WHERE sc.deleted_at IS NULL
+               AND sc.construction_id = ANY (?)
+               AND sc.role IN ('THUONG_LUU', 'HA_LUU')
+               AND s.api_code IS NOT NULL
+             ORDER BY sc.construction_id, sc.role, sc.is_primary DESC, s.api_code
+            """;
+
     public record Dong(BigDecimal giaTriM, Instant mocDo) {}
+
+    public record LienKet(Long constructionId, String vaiTro, String apiCode, boolean chinh) {}
 
     private final JdbcTemplate jdbc;
 
@@ -70,5 +86,22 @@ public class HydroSnapshotRepository {
                                             .toInstant()));
                 });
         return ket;
+    }
+
+    public List<LienKet> diemDoCuaCongTrinh(Collection<Long> constructionIds) {
+        if (constructionIds.isEmpty()) {
+            return List.of();
+        }
+        return jdbc.query(
+                con -> {
+                    var ps = con.prepareStatement(SQL_DIEM_DO_CUA_CONG_TRINH);
+                    ps.setArray(1, con.createArrayOf("bigint", constructionIds.toArray()));
+                    return ps;
+                },
+                (rs, i) -> new LienKet(
+                        rs.getLong("construction_id"),
+                        rs.getString("role"),
+                        rs.getString("api_code"),
+                        rs.getBoolean("is_primary")));
     }
 }
