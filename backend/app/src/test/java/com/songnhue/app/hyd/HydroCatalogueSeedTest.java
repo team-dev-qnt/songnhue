@@ -51,10 +51,11 @@ class HydroCatalogueSeedTest extends IntegrationTestBase {
             Map.entry("F01527", new String[] {"DO-DQUAN-HL", "HA_LUU"}),
             Map.entry("F02031", new String[] {"DO-NTUU-TL", "THUONG_LUU"}),
             Map.entry("F02030", new String[] {"DO-NTUU-HL", "HA_LUU"}),
-            // ⚠ Sửa 09/09/2026 theo bản chụp G8 của Công ty (V202609091073). Bản seed gốc ghi
-            //   `DO-LCO-TL` / `THUONG_LUU`; bản chụp ghi Hạ lưu, và 18/19 dòng còn lại khớp tuyệt
-            //   đối giữa hai nguồn. QuanTran chốt lấy theo bản chụp.
-            Map.entry("F01519", new String[] {"DO-LCO-HL", "HA_LUU"}),
+            // ⚠ Hai lượt đổi, cả hai có nguồn:
+            //   09/09 — bản chụp G8 ghi Hạ lưu ⇒ V202609091073 đổi TL → HL.
+            //   18/09 — mẫu Báo cáo nhanh của Công ty (nguồn THỨ BA) ghi `TL (nhuệ)` có số, `HL (đáy)`
+            //           trống ⇒ QuanTran chốt về lại Thượng lưu, V202609181085. Hai nguồn trên ba nói TL.
+            Map.entry("F01519", new String[] {"DO-LCO-TL", "THUONG_LUU"}),
             Map.entry("F01657", new String[] {"DO-VDINH-TL", "THUONG_LUU"}),
             Map.entry("F01705", new String[] {"DO-VDINH-HL", "HA_LUU"}),
             Map.entry("F02039", new String[] {"DO-HMY-HL", "HA_LUU"}),
@@ -68,6 +69,7 @@ class HydroCatalogueSeedTest extends IntegrationTestBase {
 
     private static final String MIGRATION = "db/migration/hyd/V202608311049__hyd_danh_muc_diem_do.sql";
     private static final String MIGRATION_G8 = "db/migration/hyd/V202609091073__hyd_g8_tuyen_song_ly_trinh.sql";
+    private static final String MIGRATION_F01519 = "db/migration/hyd/V202609181085__hyd_f01519_thuong_luu.sql";
 
     @Autowired
     private JdbcTemplate jdbc;
@@ -400,10 +402,17 @@ class HydroCatalogueSeedTest extends IntegrationTestBase {
                 .contains("RAISE EXCEPTION")
                 .contains("13");
 
-        jdbc.execute(khoiCanh);
-
+        // ⚠ Khối của V1073 khẳng định F01519 = HẠ LƯU — đúng TẠI THỜI ĐIỂM nó chạy. V202609181085 đã
+        //   đổi về Thượng lưu, nên khối ấy chỉ còn chạy được trên trạng thái của chính nó: dựng lại
+        //   trạng thái ấy TRONG giao dịch cuộn lại. ⛔ Sửa khối cũ — migration đã phát hành (§10.65).
         TransactionTemplate tx = new TransactionTemplate(transactionManager);
         tx.executeWithoutResult(status -> {
+            assertThat(jdbc.update("UPDATE stations SET code = 'DO-LCO-HL', name = 'Lương Cổ — Hạ lưu', "
+                            + "position_role = 'HA_LUU' WHERE api_code = 'F01519' AND deleted_at IS NULL"))
+                    .as("dựng lại trạng thái V1073 phải chạm đúng 1 hàng")
+                    .isEqualTo(1);
+            jdbc.execute(khoiCanh);
+
             int chamPhai = jdbc.update("UPDATE stations SET river_name = NULL WHERE api_code = 'F01707'");
             assertThat(chamPhai)
                     .as("câu phá phải chạm đúng 1 hàng, nếu không thì bước sau vô nghĩa")
@@ -421,6 +430,45 @@ class HydroCatalogueSeedTest extends IntegrationTestBase {
                         Integer.class))
                 .as("transaction phải được cuộn lại, nếu không bài kiểm này phá hỏng các bài sau")
                 .isEqualTo(13);
+        assertThat(jdbc.queryForObject(
+                        "SELECT position_role FROM stations WHERE api_code = 'F01519' AND deleted_at IS NULL",
+                        String.class))
+                .as("trạng thái V1073 dựng tạm phải được cuộn lại")
+                .isEqualTo("THUONG_LUU");
+    }
+
+    /**
+     * ⭐⭐ Khối canh của {@code V202609181085} (F01519 về Thượng lưu) cũng phải BẮT ĐƯỢC vi phạm.
+     *
+     * <p>Phá ở vế dễ quên nhất: <b>liên kết</b> {@code station_constructions.role}. Sửa riêng {@code
+     * stations} là để lại một liên kết chính lệch vai trò — hai cột nói hai điều, ⛔ màn hình nào báo.
+     */
+    @Test
+    @DisplayName("⭐⭐ Khối canh V202609181085 bắt được liên kết lệch vai trò — phá rồi cuộn lại")
+    void khoiCanhF01519BatDuocLienKetLechVaiTro() throws IOException {
+        String khoiCanh = docKhoiCanh(MIGRATION_F01519);
+        assertThat(khoiCanh)
+                .as("không lấy được khối DO $$ trong %s — bài kiểm đang kiểm một chuỗi rỗng", MIGRATION_F01519)
+                .contains("RAISE EXCEPTION")
+                .contains("THUONG_LUU");
+
+        jdbc.execute(khoiCanh);
+
+        TransactionTemplate tx = new TransactionTemplate(transactionManager);
+        tx.executeWithoutResult(status -> {
+            int chamPhai = jdbc.update("UPDATE station_constructions sc SET role = 'HA_LUU' FROM stations s "
+                    + "WHERE s.id = sc.station_id AND s.api_code = 'F01519' AND sc.is_primary");
+            assertThat(chamPhai)
+                    .as("câu phá phải chạm đúng 1 hàng, nếu không thì bước sau vô nghĩa")
+                    .isEqualTo(1);
+
+            assertThatThrownBy(() -> jdbc.execute(khoiCanh))
+                    .as("⛔ khối canh im lặng khi liên kết lệch vai trò = một bộ canh không canh gì")
+                    .hasMessageContaining("lệch vai trò");
+
+            status.setRollbackOnly();
+        });
+
         jdbc.execute(khoiCanh);
     }
 
