@@ -45,6 +45,43 @@ public class SecurityEventPortAdapter implements SecurityEventPort {
                 chiTiet(sourceCode, "keyId", keyId));
     }
 
+    @Override
+    public void hrSensitiveFieldsRead(String employeeCode) {
+        // ⚠ Ở đây username/userId KHÔNG được để null như hai sự kiện credential: câu hỏi của dòng
+        // nhật ký này chính là "AI đọc". Bối cảnh lấy từ phiên đang chạy — luôn có, vì endpoint gác
+        // bằng `hr:employee:view-sensitive` nên ⛔ không có đường vô danh nào tới được.
+        events.record(
+                SecurityEventType.HR_SENSITIVE_FIELDS_READ,
+                nguoiDangDangNhap(),
+                idNguoiDangDangNhap(),
+                ClientInfo.unknown(),
+                "{\"employeeCode\":\"" + thoat(employeeCode) + "\"}");
+    }
+
+    @Override
+    public void hrDossierDownloaded(String employeeCode, int soTep) {
+        // ⚠ Cùng lý lẽ với `hrSensitiveFieldsRead`: câu hỏi của dòng này là **AI** đã mang cả hồ sơ
+        //   ra khỏi hệ thống, nên username/userId ⛔ không được để trống.
+        events.record(
+                SecurityEventType.HR_DOSSIER_DOWNLOADED,
+                nguoiDangDangNhap(),
+                idNguoiDangDangNhap(),
+                ClientInfo.unknown(),
+                "{\"employeeCode\":\"" + thoat(employeeCode) + "\",\"soTep\":" + soTep + "}");
+    }
+
+    private static String nguoiDangDangNhap() {
+        return com.songnhue.core.common.security.AuthContext.current()
+                .map(com.songnhue.core.common.security.AuthenticatedUser::username)
+                .orElse(null);
+    }
+
+    private static Long idNguoiDangDangNhap() {
+        return com.songnhue.core.common.security.AuthContext.current()
+                .map(com.songnhue.core.common.security.AuthenticatedUser::userId)
+                .orElse(null);
+    }
+
     /**
      * Dựng {@code detail} dạng JSON.
      *

@@ -20,6 +20,12 @@ import java.util.UUID;
  * @param mustChangePassword đang bị chặn cho tới khi đổi mật khẩu
  * @param sessionFamilyId family của phiên, để đăng xuất và thu hồi
  * @param tokenId {@code jti} của access token, để đưa vào denylist khi thu hồi
+ * @param employeeId hồ sơ CBNV mà tài khoản này ĐANG liên kết ({@code users.employee_id}), hoặc
+ *     {@code null} khi chưa liên kết — T51.8. Đây là căn cứ DUY NHẤT cho vế thứ hai của CN-04.7
+ *     (<i>"chính nhân viên đó xem được trường 🔒 của mình"</i>), nên nó đi cùng phạm vi và quyền
+ *     trong cùng một {@code record} bất biến: một tài khoản ⛔ không thể tự đổi mình thành người
+ *     khác giữa chừng. ⛔ Là khoá NỘI BỘ, ⛔ không bao giờ ra API — {@code /auth/me} chỉ trả một
+ *     {@code boolean} nói CÓ liên kết hay ⛔ không
  */
 public record AuthenticatedUser(
         Long userId,
@@ -32,7 +38,8 @@ public record AuthenticatedUser(
         Set<String> permissions,
         boolean mustChangePassword,
         UUID sessionFamilyId,
-        UUID tokenId) {
+        UUID tokenId,
+        Long employeeId) {
 
     /**
      * Vai trò buộc phải bật 2FA (chốt G12).

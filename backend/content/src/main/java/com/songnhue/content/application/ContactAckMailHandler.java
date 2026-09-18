@@ -9,8 +9,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.songnhue.content.domain.Contact;
 import com.songnhue.content.infra.ContactRepository;
 import com.songnhue.core.common.util.DateTimeUtils;
@@ -18,6 +16,8 @@ import com.songnhue.core.spi.JobContext;
 import com.songnhue.core.spi.JobHandler;
 import com.songnhue.core.spi.MailPort;
 import com.songnhue.core.spi.SettingPort;
+
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Thư xác nhận gửi cho <b>người dân</b> vừa điền biểu mẫu liên hệ — CN-01.4 / T36.3.

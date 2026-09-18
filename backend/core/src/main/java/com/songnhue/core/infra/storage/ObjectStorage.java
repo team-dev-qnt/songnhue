@@ -54,7 +54,7 @@ public class ObjectStorage {
                     .build());
             log.debug("Đã ghi {}/{} ({} byte)", bucket, objectKey, content.length);
         } catch (Exception e) {
-            throw new UpstreamException(ErrorCode.SYS_0006, e, "MinIO");
+            throw new UpstreamException(ErrorCode.SYS_0006, e);
         }
     }
 
@@ -62,7 +62,7 @@ public class ObjectStorage {
         try (InputStream stream = openStream(bucket, objectKey)) {
             return stream.readAllBytes();
         } catch (Exception e) {
-            throw new UpstreamException(ErrorCode.SYS_0006, e, "MinIO");
+            throw new UpstreamException(ErrorCode.SYS_0006, e);
         }
     }
 
@@ -85,7 +85,7 @@ public class ObjectStorage {
             return client.getObject(
                     GetObjectArgs.builder().bucket(bucket).object(objectKey).build());
         } catch (Exception e) {
-            throw new UpstreamException(ErrorCode.SYS_0006, e, "MinIO");
+            throw new UpstreamException(ErrorCode.SYS_0006, e);
         }
     }
 
@@ -101,16 +101,55 @@ public class ObjectStorage {
      * tay hoặc lọt vào lịch sử trình duyệt.
      */
     public String presignedGetUrl(String bucket, String objectKey, Duration ttl) {
+        return presignedGetUrl(bucket, objectKey, ttl, null);
+    }
+
+    /**
+     * Đường dẫn tải có hạn, <b>giữ được tên tệp gốc</b> — T40.27.
+     *
+     * <h3>Vì sao cần tham số này</h3>
+     *
+     * Khoá đối tượng trong kho là một chuỗi ngẫu nhiên (đặt tên ngẫu nhiên là chủ ý — tên người dùng
+     * đặt có thể chứa đường dẫn, ký tự điều khiển, hoặc chính nó là thông tin nhạy cảm). Nên tệp tải
+     * về qua presigned URL mang tên <i>{@code a3f9c1…}</i> thay vì <i>"Quyết định 123/QĐ-UBND.pdf"</i>
+     * — người dùng lưu năm tệp là có năm chuỗi ngẫu nhiên trong thư mục Tải về.
+     *
+     * <p>{@code response-content-disposition} là tham số truy vấn <b>được ký cùng chữ ký</b>, nên nó
+     * ⛔ không sửa được từ phía trình duyệt: đổi tên trong URL là chữ ký hỏng và MinIO từ chối.
+     *
+     * @param tenGoi tên tệp muốn hiện ở hộp thoại lưu; {@code null} = giữ hành vi cũ (hiện trong
+     *     trình duyệt, tên theo khoá đối tượng)
+     */
+    public String presignedGetUrl(String bucket, String objectKey, Duration ttl, String tenGoi) {
         try {
-            return client.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
+            GetPresignedObjectUrlArgs.Builder tham = GetPresignedObjectUrlArgs.builder()
                     .method(Method.GET)
                     .bucket(bucket)
                     .object(objectKey)
-                    .expiry((int) ttl.toSeconds(), TimeUnit.SECONDS)
-                    .build());
+                    .expiry((int) ttl.toSeconds(), TimeUnit.SECONDS);
+            if (tenGoi != null && !tenGoi.isBlank()) {
+                tham.extraQueryParams(Map.of("response-content-disposition", contentDisposition(tenGoi)));
+            }
+            return client.getPresignedObjectUrl(tham.build());
         } catch (Exception e) {
-            throw new UpstreamException(ErrorCode.SYS_0006, e, "MinIO");
+            throw new UpstreamException(ErrorCode.SYS_0006, e);
         }
+    }
+
+    /**
+     * {@code attachment; filename="…"; filename*=UTF-8''…} — RFC 5987.
+     *
+     * <p>⚠ Phải có <b>cả hai</b> dạng. {@code filename=} thuần ASCII là bản dự phòng cho trình duyệt
+     * cũ; {@code filename*=} mang tên thật. Tên tệp ở đây gần như luôn có dấu tiếng Việt, nên bỏ
+     * dạng thứ hai là mọi tệp tải về mang tên đã rụng hết dấu — hoặc tệ hơn, một chuỗi mojibake.
+     *
+     * <p>⛔ Nháy kép và ký tự điều khiển bị gỡ khỏi dạng ASCII: một tên tệp là dữ liệu người dùng
+     * nhập, và nó đang đi vào một header.
+     */
+    private static String contentDisposition(String tenGoi) {
+        // ⚠ T61.40 — MỘT bản luật duy nhất: bản sao ở đây và bản ở `HttpHeaderText` là hai nơi con
+        //   người phải nhớ (luật 14), và chúng ĐÃ lệch nhau — bản kia thiếu hẳn `filename*`.
+        return com.songnhue.core.common.util.HttpHeaderText.contentDisposition(tenGoi);
     }
 
     /**
@@ -139,7 +178,7 @@ public class ObjectStorage {
                 }
             }
         } catch (Exception e) {
-            throw new UpstreamException(ErrorCode.SYS_0006, e, "MinIO");
+            throw new UpstreamException(ErrorCode.SYS_0006, e);
         }
         return ket;
     }
@@ -149,7 +188,7 @@ public class ObjectStorage {
             client.removeObject(
                     RemoveObjectArgs.builder().bucket(bucket).object(objectKey).build());
         } catch (Exception e) {
-            throw new UpstreamException(ErrorCode.SYS_0006, e, "MinIO");
+            throw new UpstreamException(ErrorCode.SYS_0006, e);
         }
     }
 }

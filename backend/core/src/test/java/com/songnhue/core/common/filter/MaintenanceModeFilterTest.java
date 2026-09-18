@@ -177,6 +177,7 @@ class MaintenanceModeFilterTest {
                 Set.of(),
                 false,
                 UUID.randomUUID(),
-                UUID.randomUUID());
+                UUID.randomUUID(),
+                null);
     }
 }

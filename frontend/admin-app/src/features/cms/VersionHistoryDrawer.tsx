@@ -1,5 +1,17 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { App, Alert, Button, Drawer, List, Popconfirm, Select, Space, Tag, Typography } from 'antd';
+import {
+  App,
+  Alert,
+  Button,
+  Drawer,
+  List,
+  Popconfirm,
+  Select,
+  Space,
+  Tag,
+  Typography,
+  theme,
+} from 'antd';
 import { useMemo, useState } from 'react';
 
 import { ApiClientError } from '@/shared/apiClient';
@@ -32,6 +44,10 @@ export function VersionHistoryDrawer({
   onRestored: (detail: ArticleDetail) => Promise<void> | void;
 }) {
   const { message } = App.useApp();
+  // ⛔ Màu lấy từ `theme.useToken()` chứ ⛔ ghi cứng mã hex: cả sáu giá trị dưới đây LÀ bảng
+  // màu của AntD, nên chép chúng vào `design-tokens` là dựng một bản sao sẽ lệch đi ở lượt
+  // nâng antd kế tiếp (T25.23 — `noHardcodedColors.test.ts` canh trần này).
+  const { token } = theme.useToken();
   const [leftId, setLeftId] = useState<string | null>(null);
   const [rightId, setRightId] = useState<string | null>(null);
 
@@ -131,7 +147,7 @@ export function VersionHistoryDrawer({
             </Space>
             <div
               style={{
-                border: '1px solid #f0f0f0',
+                border: `1px solid ${token.colorBorderSecondary}`,
                 borderRadius: 6,
                 maxHeight: 380,
                 overflow: 'auto',
@@ -144,18 +160,18 @@ export function VersionHistoryDrawer({
                     padding: '6px 12px',
                     background:
                       row.kind === 'them'
-                        ? '#f6ffed'
+                        ? token.colorSuccessBg
                         : row.kind === 'bot'
-                          ? '#fff1f0'
+                          ? token.colorErrorBg
                           : 'transparent',
                     borderLeft: `3px solid ${
                       row.kind === 'them'
-                        ? '#52c41a'
+                        ? token.colorSuccess
                         : row.kind === 'bot'
-                          ? '#f5222d'
+                          ? token.colorError
                           : 'transparent'
                     }`,
-                    color: row.kind === 'giu' ? '#8c8c8c' : undefined,
+                    color: row.kind === 'giu' ? token.colorTextTertiary : undefined,
                     fontSize: 13,
                   }}
                 >

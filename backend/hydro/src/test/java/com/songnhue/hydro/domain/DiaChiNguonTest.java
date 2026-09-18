@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.List;
 
 import org.junit.jupiter.api.DisplayName;
@@ -20,10 +22,20 @@ class DiaChiNguonTest {
 
     private static final String DUONG_DAN = "api/getmn.aspx?key=x;";
 
+    /**
+     * Bộ phân giải GIẢ trả một địa chỉ công cộng — ⛔ bài nào ở đây được chạm DNS thật.
+     *
+     * <p>Tầng hai của T61.38 phân giải tên máy ngay trong {@code kiemVaDung}. Để mặc định thì mỗi bài
+     * ở đây là một lượt gọi DNS: chậm, và <b>đỏ theo môi trường</b> — một nhà mạng trả IP nội bộ cho
+     * tên ⛔ tồn tại (captive portal) sẽ làm cả lớp này đỏ ở một máy, xanh ở máy khác.
+     */
+    private static final DiaChiNguon.PhanGiai CONG_CONG =
+            host -> new InetAddress[] {InetAddress.getByAddress(host, new byte[] {(byte) 203, 0, 113, 9})};
+
     @Test
     @DisplayName("⭐ Địa chỉ nguồn THẬT của Công ty đi qua được — bộ chặn không được chặn chính thứ nó phục vụ")
     void diaChiThatCuaCongTyDiQuaDuoc() {
-        assertThat(DiaChiNguon.kiemVaDung("http://songnhue.bhh40.net/", DUONG_DAN, false))
+        assertThat(DiaChiNguon.kiemVaDung("http://songnhue.bhh40.net/", DUONG_DAN, false, CONG_CONG))
                 .as("⚠ Nguồn của Công ty chỉ có http:// — ép https ở đây là chặn toàn bộ MOD-03")
                 .hasToString("http://songnhue.bhh40.net/api/getmn.aspx?key=x;");
     }
@@ -33,10 +45,106 @@ class DiaChiNguonTest {
     void thieuThuaDauGachChoCungKetQua() {
         String mongDoi = "http://songnhue.bhh40.net/api/getmn.aspx?key=x;";
 
-        assertThat(DiaChiNguon.kiemVaDung("http://songnhue.bhh40.net", DUONG_DAN, false))
+        assertThat(DiaChiNguon.kiemVaDung("http://songnhue.bhh40.net", DUONG_DAN, false, CONG_CONG))
                 .hasToString(mongDoi);
-        assertThat(DiaChiNguon.kiemVaDung("http://songnhue.bhh40.net/", DUONG_DAN, false))
+        assertThat(DiaChiNguon.kiemVaDung("http://songnhue.bhh40.net/", DUONG_DAN, false, CONG_CONG))
                 .hasToString(mongDoi);
+    }
+
+    /**
+     * ⛔⛔⛔ <b>T52.1 — sự cố THẬT, đo trên staging 10/09/2026.</b>
+     *
+     * <pre>
+     *   base_url = http://songnhue.bhh40.net/api/getmn.aspx   (mã số ĐÃ đặt đúng chỗ, mã hoá đúng)
+     *   consecutive_failures = 3576 · last_success_at = NULL · hydro_readings = 0
+     *   last_failure_reason  = "Nguồn trả HTTP 404"
+     * </pre>
+     *
+     * <p>Đối chứng trên <b>nguồn thật</b> cùng ngày — hai URL, hai trạng thái phân biệt được:
+     *
+     * <pre>
+     *   GET /api/getmn.aspx      -> HTTP 200, thân "not.working"   (đường ĐÚNG, thiếu mã số)
+     *   GET /api/api/getmn.aspx  -> HTTP 404                       (đường LẶP, poller đang gọi)
+     * </pre>
+     *
+     * <p>⚠ Bài {@code thieuThuaDauGachChoCungKetQua} ngay trên mang tên <i>"thiếu / thừa dấu '/'"</i>
+     * — một lời hứa rộng — nhưng dữ liệu của nó là <b>đúng hai ca vốn đã chạy</b>
+     * ({@code host} và {@code host/}). Luật 7 + luật 28: cái xanh của nó đọc như một bảo đảm cho
+     * một phạm vi nó ⛔ không soi.
+     */
+    @Test
+    @DisplayName("⛔⛔ Base URL mang sẵn ĐƯỜNG DẪN endpoint ⇒ vẫn ra URL ĐÚNG, ⛔ không lặp thành /api/api/")
+    void baseMangSanDuongDanEndpointThiKhongLap() {
+        String dung = "http://songnhue.bhh40.net/api/getmn.aspx?key=x;";
+
+        assertThat(DiaChiNguon.kiemVaDung("http://songnhue.bhh40.net/api/getmn.aspx", DUONG_DAN, false, CONG_CONG))
+                .as("⛔ ĐÂY là giá trị staging đang mang — trước bản vá nó cho /api/api/getmn.aspx ⇒ 404")
+                .hasToString(dung);
+        assertThat(DiaChiNguon.kiemVaDung("http://songnhue.bhh40.net/api/getmn.aspx/", DUONG_DAN, false, CONG_CONG))
+                .hasToString(dung);
+        assertThat(DiaChiNguon.kiemVaDung("http://songnhue.bhh40.net/api", DUONG_DAN, false, CONG_CONG))
+                .hasToString(dung);
+        assertThat(DiaChiNguon.kiemVaDung("http://songnhue.bhh40.net/api/", DUONG_DAN, false, CONG_CONG))
+                .as("⚠ Trước bản vá ca này cũng cho /api/api/ — dấu '/' cuối ⛔ không cứu được")
+                .hasToString(dung);
+    }
+
+    /**
+     * ⛔⛔ Vế <b>IM LẶNG</b>, và nó nặng hơn vế 404.
+     *
+     * <p>{@code URI.resolve} bỏ đoạn cuối của base khi base ⛔ không kết thúc bằng {@code /}. Nên
+     * một nguồn đặt trong thư mục con bị gọi <b>ở gốc máy chủ</b> — một đường dẫn có thật, trả 200,
+     * ⛔ không một dòng lỗi nào. 404 còn nằm trong {@code last_failure_reason}; cái này thì ⛔ không.
+     */
+    @Test
+    @DisplayName("⛔⛔ Base có thư mục con ⇒ GIỮ được thư mục ấy — trước bản vá nó bị NUỐT trong im lặng")
+    void baseCoThuMucConThiKhongBiNuot() {
+        String dung = "http://songnhue.bhh40.net/songnhue/api/getmn.aspx?key=x;";
+
+        assertThat(DiaChiNguon.kiemVaDung("http://songnhue.bhh40.net/songnhue", DUONG_DAN, false, CONG_CONG))
+                .as("⛔ Trước bản vá: http://songnhue.bhh40.net/api/getmn.aspx — mất hẳn '/songnhue'")
+                .hasToString(dung);
+        assertThat(DiaChiNguon.kiemVaDung("http://songnhue.bhh40.net/songnhue/", DUONG_DAN, false, CONG_CONG))
+                .hasToString(dung);
+        assertThat(DiaChiNguon.kiemVaDung("http://songnhue.bhh40.net/songnhue/api", DUONG_DAN, false, CONG_CONG))
+                .as("Thư mục con + một nửa đường dẫn endpoint: cắt phần trùng, GIỮ thư mục con")
+                .hasToString(dung);
+    }
+
+    /**
+     * ⚠ Trạng thái <b>production</b> theo T50.1: {@code base_url} mang <b>cả</b> đường dẫn endpoint
+     * <b>lẫn</b> một {@code ?key=} cũ đã lộ.
+     *
+     * <p>Bản vá T50.1 chặn giá trị ấy ở <i>đường ghi</i> ({@code HYD-2016}), nhưng nó ⛔ không dọn
+     * hàng đã nằm sẵn trong CSDL — và {@code api_sources} còn <b>ba</b> đường vào khác ⛔ không đi
+     * qua validator (seed · khôi phục từ sao lưu · một câu {@code UPDATE} tay lúc xử lý sự cố), đúng
+     * ba đường javadoc của {@link DiaChiNguon} đã liệt kê.
+     *
+     * <p>⇒ Khẳng định ở đây là: mã số cũ trong {@code base_url} <b>bị THAY</b>, ⛔ không nối chồng.
+     * Nếu nó nối chồng thì mã số đã lộ vẫn tiếp tục được gửi đi mỗi 2 phút.
+     */
+    @Test
+    @DisplayName("⚠ base_url mang cả đường dẫn LẪN ?key= cũ ⇒ mã số cũ bị THAY, ⛔ không nối chồng")
+    void maSoCuTrongBaseUrlBiThayChuKhongNoiChong() {
+        assertThat(DiaChiNguon.kiemVaDung(
+                        "http://songnhue.bhh40.net/api/getmn.aspx?key=MA_SO_CU_DA_LO;", DUONG_DAN, false, CONG_CONG))
+                .as("⛔ Mã số cũ ⛔ không được sống sót — nó là giá trị đã lộ, phải bị mã số thật thay hẳn")
+                .hasToString("http://songnhue.bhh40.net/api/getmn.aspx?key=x;");
+    }
+
+    /**
+     * ⛔ Phép cắt so theo <b>ĐOẠN</b>, ⛔ không {@code endsWith} trên chuỗi (luật 2).
+     *
+     * <p>Thiếu vế này thì một bản cài đặt "gọn hơn" bằng {@code path.endsWith("api")} vẫn xanh ở cả
+     * hai bài trên, trong khi nó <b>cắt hỏng</b> một địa chỉ đang chạy được. Đây là vế phân biệt —
+     * ⛔ không có nó thì hai bài trên ⛔ không nói được cách cài đặt nào là đúng (luật 9).
+     */
+    @Test
+    @DisplayName("⛔ '/xxxapi' kết thúc bằng 'api' theo CHUỖI nhưng ⛔ không theo ĐOẠN ⇒ ⛔ không bị cắt")
+    void catTheoDoanChuKhongTheoChuoi() {
+        assertThat(DiaChiNguon.kiemVaDung("http://songnhue.bhh40.net/xxxapi", DUONG_DAN, false, CONG_CONG))
+                .as("⛔ Cắt theo chuỗi sẽ cho /api/getmn.aspx và giết một nguồn hợp lệ")
+                .hasToString("http://songnhue.bhh40.net/xxxapi/api/getmn.aspx?key=x;");
     }
 
     @Test
@@ -59,7 +167,7 @@ class DiaChiNguonTest {
                 "http://[fd00::1]/");
 
         for (String url : chan) {
-            assertThatThrownBy(() -> DiaChiNguon.kiemVaDung(url, DUONG_DAN, false))
+            assertThatThrownBy(() -> DiaChiNguon.kiemVaDung(url, DUONG_DAN, false, CONG_CONG))
                     .as("một nguồn trỏ %s biến poller thành công cụ gõ cửa mạng nội bộ", url)
                     .isInstanceOf(IllegalArgumentException.class);
         }
@@ -72,11 +180,11 @@ class DiaChiNguonTest {
     @Test
     @DisplayName("⚠ 172.15 và 172.32 KHÔNG bị chặn — dải riêng chỉ là 172.16–172.31, chặn rộng là chặn nhầm")
     void bienCuaDai172ChinhXac() {
-        assertThatCode(() -> DiaChiNguon.kiemVaDung("http://172.15.0.1/", DUONG_DAN, false))
+        assertThatCode(() -> DiaChiNguon.kiemVaDung("http://172.15.0.1/", DUONG_DAN, false, CONG_CONG))
                 .doesNotThrowAnyException();
-        assertThatCode(() -> DiaChiNguon.kiemVaDung("http://172.32.0.1/", DUONG_DAN, false))
+        assertThatCode(() -> DiaChiNguon.kiemVaDung("http://172.32.0.1/", DUONG_DAN, false, CONG_CONG))
                 .doesNotThrowAnyException();
-        assertThatThrownBy(() -> DiaChiNguon.kiemVaDung("http://172.16.0.1/", DUONG_DAN, false))
+        assertThatThrownBy(() -> DiaChiNguon.kiemVaDung("http://172.16.0.1/", DUONG_DAN, false, CONG_CONG))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -84,7 +192,7 @@ class DiaChiNguonTest {
     @DisplayName("Scheme ngoài http/https bị chặn — file:/gopher: là ba đường kinh điển đọc tệp máy chủ")
     void schemeLaBiChan() {
         for (String url : List.of("file:///etc/passwd", "gopher://x/", "jar:file:///a.jar!/b", "ftp://x/")) {
-            assertThatThrownBy(() -> DiaChiNguon.kiemVaDung(url, DUONG_DAN, false))
+            assertThatThrownBy(() -> DiaChiNguon.kiemVaDung(url, DUONG_DAN, false, CONG_CONG))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("http/https");
         }
@@ -93,7 +201,8 @@ class DiaChiNguonTest {
     @Test
     @DisplayName("userinfo bị chặn — dạng http://ai-do@host/ để đánh lừa người đọc về host thật")
     void userinfoBiChan() {
-        assertThatThrownBy(() -> DiaChiNguon.kiemVaDung("http://songnhue.bhh40.net@evil.tld/", DUONG_DAN, false))
+        assertThatThrownBy(() ->
+                        DiaChiNguon.kiemVaDung("http://songnhue.bhh40.net@evil.tld/", DUONG_DAN, false, CONG_CONG))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("userinfo");
     }
@@ -102,7 +211,7 @@ class DiaChiNguonTest {
     @DisplayName("Rỗng / không phải URI / không có host ⇒ từ chối, ⛔ không im lặng đi tiếp")
     void diaChiKhongDungDuocThiTuChoi() {
         for (String url : new String[] {null, "", "   ", "khong phai uri", "http://"}) {
-            assertThatThrownBy(() -> DiaChiNguon.kiemVaDung(url, DUONG_DAN, false))
+            assertThatThrownBy(() -> DiaChiNguon.kiemVaDung(url, DUONG_DAN, false, CONG_CONG))
                     .isInstanceOf(IllegalArgumentException.class);
         }
     }
@@ -110,12 +219,57 @@ class DiaChiNguonTest {
     @Test
     @DisplayName("⭐ Công tắc BẬT: đúng những địa chỉ trên đi qua được — cửa nới có thật và hẹp đúng chỗ")
     void congTacBatThiMayNoiBoDiQuaDuoc() {
-        assertThatCode(() -> DiaChiNguon.kiemVaDung("http://127.0.0.1:9999/", DUONG_DAN, true))
+        assertThatCode(() -> DiaChiNguon.kiemVaDung("http://127.0.0.1:9999/", DUONG_DAN, true, CONG_CONG))
                 .doesNotThrowAnyException();
 
-        assertThatThrownBy(() -> DiaChiNguon.kiemVaDung("file:///etc/passwd", DUONG_DAN, true))
+        assertThatThrownBy(() -> DiaChiNguon.kiemVaDung("file:///etc/passwd", DUONG_DAN, true, CONG_CONG))
                 .as("⛔ Công tắc chỉ nới TÊN MÁY. Nới cả scheme là biến một tiện ích phát triển thành "
                         + "một lỗ đọc tệp — và đó là thứ không ai đọc lại khi công tắc bật nhầm ở prod.")
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("⛔⛔ T61.38 — tên miền CÔNG CỘNG phân giải về địa chỉ nội bộ bị chặn (chữ viết ⛔ thấy)")
+    void tenMienTroVaoMangNoiBoBiChan() {
+        // Đây là ca mà bản chỉ-kiểm-chữ-viết để lọt: host hợp lệ về mọi mặt hình thức.
+        for (String ip :
+                List.of("10.0.0.5", "127.0.0.1", "172.20.0.3", "192.168.1.7", "169.254.169.254", "100.100.0.1")) {
+            DiaChiNguon.PhanGiai gia = h -> new InetAddress[] {InetAddress.getByName(ip)};
+            assertThatThrownBy(() -> DiaChiNguon.kiemVaDung("http://nguon.ke-gian.tld/", DUONG_DAN, false, gia))
+                    .as("%s", ip)
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("nội bộ");
+        }
+    }
+
+    @Test
+    @DisplayName("⛔ Một địa chỉ nội bộ trong TẬP trả về là đủ để chặn — ⛔ phụ thuộc thứ tự bản ghi DNS")
+    void motDiaChiNoiBoTrongTapLaDuDeChan() {
+        DiaChiNguon.PhanGiai tron = h -> new InetAddress[] {
+            InetAddress.getByAddress(h, new byte[] {(byte) 203, 0, 113, 9}), InetAddress.getByName("10.1.2.3")
+        };
+        assertThatThrownBy(() -> DiaChiNguon.kiemVaDung("http://nguon.ke-gian.tld/", DUONG_DAN, false, tron))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("10.1.2.3");
+    }
+
+    @Test
+    @DisplayName("⭐ Phân giải HỎNG thì đi tiếp — quy tắc 18: ⛔ đổi trục trặc DNS lấy khoảng trống số liệu")
+    void phanGiaiHongThiDiTiep() {
+        DiaChiNguon.PhanGiai hong = h -> {
+            throw new UnknownHostException(h);
+        };
+        assertThatCode(() -> DiaChiNguon.kiemVaDung("http://songnhue.bhh40.net/", DUONG_DAN, false, hong))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("⭐ Công tắc máy nội bộ BẬT thì ⛔ phân giải — bài kiểm dùng máy chủ thật ở 127.0.0.1")
+    void congTacBatThiKhongPhanGiai() {
+        DiaChiNguon.PhanGiai nem = h -> {
+            throw new AssertionError("⛔ được phân giải khi công tắc BẬT");
+        };
+        assertThatCode(() -> DiaChiNguon.kiemVaDung("http://127.0.0.1:8080/", DUONG_DAN, true, nem))
+                .doesNotThrowAnyException();
     }
 }

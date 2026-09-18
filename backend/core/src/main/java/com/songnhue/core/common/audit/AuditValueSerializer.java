@@ -10,8 +10,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Biến giá trị trường của entity thành JSON để lưu vào {@code audit_logs.old_value/new_value}.
@@ -61,7 +61,7 @@ public class AuditValueSerializer {
         }
         try {
             return objectMapper.writeValueAsString(map);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             // Không ném: hỏng ở khâu biểu diễn giá trị không đáng để làm hỏng cả thao tác nghiệp vụ,
             // và dòng nhật ký vẫn còn (ai, lúc nào, sửa đối tượng nào) — chỉ thiếu chi tiết trường.
             log.warn("Không tuần tự hoá được giá trị cho nhật ký kiểm toán", e);

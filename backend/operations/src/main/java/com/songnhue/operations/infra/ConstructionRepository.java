@@ -29,6 +29,9 @@ import com.songnhue.operations.domain.OperationalStatus;
  */
 public interface ConstructionRepository extends JpaRepository<Construction, Long> {
 
+    /** Số công trình còn sống thuộc một đơn vị — chốt chặn giải thể đơn vị (CN-04.1). */
+    long countByOrgUnitIdAndDeletedAtIsNull(Long orgUnitId);
+
     Optional<Construction> findByPublicIdAndDeletedAtIsNull(UUID publicId);
 
     /**

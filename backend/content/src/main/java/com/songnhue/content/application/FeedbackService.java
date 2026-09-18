@@ -116,7 +116,7 @@ public class FeedbackService {
      * @throws ValidationException {@code SYS-0003} khi thiếu nội dung, quá dài, hoặc điểm ngoài dải
      */
     @Transactional
-    public Feedback tiepNhan(String hoTen, String email, Short diem, String noiDung, String maCaptcha) {
+    public Feedback tiepNhan(String hoTen, String email, Short diem, String noiDung, String maCaptcha, Boolean dongY) {
         if (!dangNhanGopY()) {
             throw (ValidationException) new ValidationException(ErrorCode.SYS_0003).withDetail("content", "DA_TAT", "");
         }
@@ -141,7 +141,10 @@ public class FeedbackService {
         //   ra Google, và người dân điền thiếu là chuyện thường xuyên hơn nhiều so với bot.
         cong.kiemNguoiThat(maCaptcha);
 
-        Feedback daLuu = feedbacks.save(new Feedback(ten, mail, diem, nd));
+        java.time.Instant dongYLuc = cong.kiemDongY(dongY); // T61.39
+        Feedback moi = new Feedback(ten, mail, diem, nd);
+        moi.setConsentAt(dongYLuc);
+        Feedback daLuu = feedbacks.save(moi);
         baoCoGopYMoi();
         return daLuu;
     }

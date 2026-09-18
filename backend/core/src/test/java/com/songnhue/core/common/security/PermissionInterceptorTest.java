@@ -208,7 +208,8 @@ class PermissionInterceptorTest {
                 permissions,
                 mustChangePassword,
                 UUID.randomUUID(),
-                UUID.randomUUID());
+                UUID.randomUUID(),
+                null);
     }
 
     private static HandlerMethod handler(String methodName) {

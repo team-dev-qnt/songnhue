@@ -14,8 +14,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import com.songnhue.content.infra.RecaptchaClient;
-import com.songnhue.content.infra.RecaptchaProperties;
 import com.songnhue.core.common.exception.ValidationException;
+import com.songnhue.core.spi.LoaiBiMat;
 import com.songnhue.core.spi.SettingPort;
 
 /**
@@ -35,18 +35,19 @@ import com.songnhue.core.spi.SettingPort;
 class InboundSubmissionGateTest {
 
     private SettingPort settings;
-    private RecaptchaProperties khoa;
+    private final java.util.Map<LoaiBiMat, String> khoa = new java.util.EnumMap<>(LoaiBiMat.class);
     private InboundSubmissionGate cong;
 
     @BeforeEach
     void chuanBi() {
         settings = mock(SettingPort.class);
-        khoa = new RecaptchaProperties();
+        khoa.clear();
         when(settings.getBoolean(org.mockito.ArgumentMatchers.anyString(), anyBoolean()))
                 .thenAnswer(i -> i.getArgument(1));
         when(settings.getInt(org.mockito.ArgumentMatchers.anyString(), anyInt()))
                 .thenAnswer(i -> i.getArgument(1));
-        cong = new InboundSubmissionGate(settings, mock(RecaptchaClient.class), khoa);
+        cong = new InboundSubmissionGate(
+                settings, mock(RecaptchaClient.class), loai -> java.util.Optional.ofNullable(khoa.get(loai)));
     }
 
     @Test
@@ -108,7 +109,7 @@ class InboundSubmissionGateTest {
     void duCaHaiThiBat() {
         when(settings.getBoolean(eq(InboundSubmissionGate.KHOA_CAPTCHA_BAT), anyBoolean()))
                 .thenReturn(true);
-        khoa.setSecret("khoa-gia-cho-bai-kiem");
+        khoa.put(LoaiBiMat.RECAPTCHA_SECRET_KEY, "khoa-gia-cho-bai-kiem");
 
         // ⭐ ⛔ Không có vế này thì `captchaBatBuoc()` trả `false` ở MỌI đầu vào cũng xanh trọn vẹn —
         //    một khẳng định ⛔ không phân biệt được hai trạng thái thì ⛔ không khẳng định gì (luật 9).

@@ -2,12 +2,12 @@ package com.songnhue.content.application;
 
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.songnhue.content.infra.PortalRevalidateClient;
 import com.songnhue.core.spi.JobContext;
 import com.songnhue.core.spi.JobHandler;
+
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Bắn yêu cầu dựng lại trang tới cổng công khai — T16.5.

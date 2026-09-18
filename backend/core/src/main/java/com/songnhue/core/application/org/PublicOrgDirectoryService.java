@@ -116,9 +116,8 @@ public class PublicOrgDirectoryService {
      */
     @Transactional(readOnly = true)
     public List<OrgChartNode> orgChart() {
-        List<OrgUnit> tatCa = orgUnits.findAllByDeletedAtIsNullOrderByPathAscSortOrderAsc().stream()
-                .filter(OrgUnit::isActive)
-                .toList();
+        List<OrgUnit> tatCa =
+                orgUnits.findAllForDisplay().stream().filter(OrgUnit::isActive).toList();
 
         Map<Long, List<OrgUnit>> theoCha = tatCa.stream()
                 .filter(u -> u.getParentId() != null)
@@ -176,7 +175,7 @@ public class PublicOrgDirectoryService {
      */
     @Transactional(readOnly = true)
     public List<SubsidiaryRow> subsidiaries() {
-        List<OrgUnit> xiNghiep = orgUnits.findAllByDeletedAtIsNullOrderByPathAscSortOrderAsc().stream()
+        List<OrgUnit> xiNghiep = orgUnits.findAllForDisplay().stream()
                 .filter(OrgUnit::isActive)
                 .filter(u -> u.getUnitType() == OrgUnitType.XI_NGHIEP)
                 .toList();

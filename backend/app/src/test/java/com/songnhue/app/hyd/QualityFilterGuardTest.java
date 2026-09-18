@@ -112,54 +112,77 @@ class QualityFilterGuardTest {
      * {@code hydro_readings} mà không lọc chất lượng. Thêm một mục là một quyết định phải đi qua
      * review — đó chính là điều bài này muốn.
      */
-    private static final Map<String, String> NGOAI_LE = Map.of(
-            "HydroLatestRecomputer#SQL_MOC_GAN_NHAT",
-            "⭐ Câu trả lời 'trạm còn phát tín hiệu không' — cố ý nhận CẢ bản ghi NGHI_NGO "
-                    + "(`quality <> 'XOA'`). Một trạm chỉ trả số nghi ngờ VẪN đang phát; lọc HOP_LE ở "
-                    + "đây là tự dựng ra một trạm mất tín hiệu giả, rồi job mất tín hiệu báo động về "
-                    + "một sự cố không có thật.",
-            "SuspectReadingRepository#TU_BANG",
-            "⭐ Màn hình 'Dữ liệu nghi ngờ' — nó tồn tại ĐỂ đọc những dòng mà quy tắc 14 loại ra. "
-                    + "Lọc HOP_LE ở đây là làm hàng chờ duyệt LUÔN RỖNG, và một hàng chờ luôn rỗng "
-                    + "trông y hệt một hệ thống không có dữ liệu xấu. Vế `quality = ?` nằm ở "
-                    + "`dieuKien()` và bị chặn hẹp lại bởi `chanHopLe()`.",
-            "HydroTimeSeriesWriter#SQL_O_DA_CO_GI",
-            "⭐ Không trả về số liệu — nó hỏi 'ô (điểm đo × chỉ số × mốc) này có ai ngồi chưa, và "
-                    + "người ấy đang ở trạng thái nào'. PHẢI thấy cả NGHI_NGO lẫn XOA: lọc HOP_LE ở "
-                    + "đây báo 'trống' cho một ô đang bị chiếm, rồi lượt INSERT nhập tay nổ bằng một "
-                    + "lỗi ràng buộc thô thay vì HYD-2002 chỉ đường sang màn hình Dữ liệu nghi ngờ.",
-            "HydroAggRepository#SQL_DUNG_LAI",
-            "⭐⭐ Chính bộ dựng bảng tổng hợp — T34.1. Bảng đích giữ `quality` TRONG KHOÁ, nên câu "
-                    + "này phải thấy cả ba nhóm để sinh ra ba hàng. Lọc HOP_LE ở đây làm BC-13 mù trước "
-                    + "đúng những ngày tồi tệ nhất, tức mù đúng lúc nó cần nhìn. Bộ lọc nghiệp vụ nằm ở "
-                    + "NƠI ĐỌC bảng agg, ⛔ không ở nơi dựng nó.",
-            "HydroAggRepository#SQL_CAM_LAI_CO_GAN_DAY",
-            "⭐ Lưới an toàn hằng ngày: cắm lại cờ bẩn cho hai ngày gần nhất. Nó ⛔ không đọc một "
-                    + "giá trị đo nào — chỉ liệt kê những kỳ CÓ số đo. Một ngày chỉ toàn bản ghi nghi "
-                    + "ngờ vẫn là một kỳ phải tổng hợp; lọc HOP_LE ở đây bỏ quên đúng nhóm ấy.",
-            "HydroAggRepository#SQL_XOA_KY",
-            "⭐ Xoá TRỌN kỳ (cả ba mức chất lượng) trước khi dựng lại — T34.1. Lọc `quality` ở đây "
-                    + "để lại đúng những hàng cần biến mất: một bản ghi được duyệt NGHI_NGO → HOP_LE "
-                    + "sẽ để lại hàng agg NGHI_NGO cũ, và BC-13 báo có dữ liệu nghi ngờ VĨNH VIỄN dù "
-                    + "không còn cái nào. Đó là luật 27 ở tầng bảng tổng hợp.",
-            "HydroReportRepository#SQL_CHAT_LUONG_NGAY",
-            "⭐⭐ BC-13 — báo cáo tồn tại ĐỂ ĐẾM dữ liệu xấu, nên nó đọc cả ba nhóm chất lượng. "
-                    + "⚠ Câu này CÓ `FILTER (WHERE quality = 'HOP_LE')`, và bản TRƯỚC của bộ canh đã "
-                    + "cho nó đi lọt vì chuỗi ấy có mặt — lỗ hổng được bịt ở chính đợt WS-34 "
-                    + "(`boFilterGop`), và câu đầu tiên nó bắt được là câu này. FILTER lọc cho MỘT "
-                    + "hàm gộp, ⛔ không lọc cho câu.",
-            "HydroReportRepository#SQL_CHI_TIET",
-            "⭐⭐ BC-12 — ngoại lệ hợp lệ DUY NHẤT của cả quy tắc 8 lẫn quy tắc 14. Nó là nơi duy nhất "
-                    + "được phép hiện bản ghi NGHI_NGO/XOA, và nó ĐÁNH ĐỔI bộ lọc lấy hai cột: Chất lượng "
-                    + "và Nguồn. Người đọc biết chính xác mình đang nhìn gì, nên số nghi ngờ ⛔ không thể "
-                    + "bị nhầm thành số liệu chính thức — đó mới là thứ bộ lọc kia bảo vệ. Giữ an toàn bằng "
-                    + "khoảng ngày tối đa 31 ngày + phân trang.",
-            "HydroReportRepository#SQL_DEM_CHI_TIET",
-            "⭐ Phép đếm của BC-12 — phải khớp CHÍNH XÁC tập mà SQL_CHI_TIET liệt ra. Lọc HOP_LE ở đây "
-                    + "mà không lọc ở câu kia là tổng số trang nói một đằng, nội dung trang nói một nẻo.",
-            "V202609041063__hyd_agg_daily.sql#" + CAU_NAP_CO_BAN,
-            "⭐ §9 của migration — nạp cờ bẩn cho số đo ĐÃ CÓ để lượt tổng hợp đầu tiên tính được "
-                    + "cả lịch sử. ⛔ Không tạo ra một con số nào; cùng lý do với SQL_CAM_LAI_CO_GAN_DAY.");
+    // ⚠ `Map.of` chỉ nhận tối đa 10 cặp, và mục thứ 11 (WS-43) làm tràn — nên khối này dùng
+    //    `Map.ofEntries`. ⛔ Đừng đổi ngược về `Map.of`: nó hỏng lúc BIÊN DỊCH nên ⛔ không nguy
+    //    hiểm, nhưng người sau sẽ tưởng phải XOÁ một ngoại lệ để nhét ngoại lệ mới vào — và xoá
+    //    một mục ở đây là lặng lẽ bắt một câu SQL phải lọc, hoặc lặng lẽ để nó đi lọt.
+    private static final Map<String, String> NGOAI_LE = Map.ofEntries(
+            Map.entry(
+                    "HydroLatestRecomputer#SQL_MOC_GAN_NHAT",
+                    "⭐ Câu trả lời 'trạm còn phát tín hiệu không' — cố ý nhận CẢ bản ghi NGHI_NGO "
+                            + "(`quality <> 'XOA'`). Một trạm chỉ trả số nghi ngờ VẪN đang phát; lọc HOP_LE ở "
+                            + "đây là tự dựng ra một trạm mất tín hiệu giả, rồi job mất tín hiệu báo động về "
+                            + "một sự cố không có thật."),
+            Map.entry(
+                    "SuspectReadingRepository#TU_BANG",
+                    "⭐ Màn hình 'Dữ liệu nghi ngờ' — nó tồn tại ĐỂ đọc những dòng mà quy tắc 14 loại ra. "
+                            + "Lọc HOP_LE ở đây là làm hàng chờ duyệt LUÔN RỖNG, và một hàng chờ luôn rỗng "
+                            + "trông y hệt một hệ thống không có dữ liệu xấu. Vế `quality = ?` nằm ở "
+                            + "`dieuKien()` và bị chặn hẹp lại bởi `chanHopLe()`."),
+            Map.entry(
+                    "HydroTimeSeriesWriter#SQL_O_DA_CO_GI",
+                    "⭐ Không trả về số liệu — nó hỏi 'ô (điểm đo × chỉ số × mốc) này có ai ngồi chưa, và "
+                            + "người ấy đang ở trạng thái nào'. PHẢI thấy cả NGHI_NGO lẫn XOA: lọc HOP_LE ở "
+                            + "đây báo 'trống' cho một ô đang bị chiếm, rồi lượt INSERT nhập tay nổ bằng một "
+                            + "lỗi ràng buộc thô thay vì HYD-2002 chỉ đường sang màn hình Dữ liệu nghi ngờ."),
+            Map.entry(
+                    "HydroAggRepository#SQL_DUNG_LAI",
+                    "⭐⭐ Chính bộ dựng bảng tổng hợp — T34.1. Bảng đích giữ `quality` TRONG KHOÁ, nên câu "
+                            + "này phải thấy cả ba nhóm để sinh ra ba hàng. Lọc HOP_LE ở đây làm BC-13 mù trước "
+                            + "đúng những ngày tồi tệ nhất, tức mù đúng lúc nó cần nhìn. Bộ lọc nghiệp vụ nằm ở "
+                            + "NƠI ĐỌC bảng agg, ⛔ không ở nơi dựng nó."),
+            Map.entry(
+                    "HydroAggRepository#SQL_CAM_LAI_CO_GAN_DAY",
+                    "⭐ Lưới an toàn hằng ngày: cắm lại cờ bẩn cho hai ngày gần nhất. Nó ⛔ không đọc một "
+                            + "giá trị đo nào — chỉ liệt kê những kỳ CÓ số đo. Một ngày chỉ toàn bản ghi nghi "
+                            + "ngờ vẫn là một kỳ phải tổng hợp; lọc HOP_LE ở đây bỏ quên đúng nhóm ấy."),
+            Map.entry(
+                    "HydroAggRepository#SQL_XOA_KY",
+                    "⭐ Xoá TRỌN kỳ (cả ba mức chất lượng) trước khi dựng lại — T34.1. Lọc `quality` ở đây "
+                            + "để lại đúng những hàng cần biến mất: một bản ghi được duyệt NGHI_NGO → HOP_LE "
+                            + "sẽ để lại hàng agg NGHI_NGO cũ, và BC-13 báo có dữ liệu nghi ngờ VĨNH VIỄN dù "
+                            + "không còn cái nào. Đó là luật 27 ở tầng bảng tổng hợp."),
+            Map.entry(
+                    "HydroReportRepository#SQL_CHAT_LUONG_NGAY",
+                    "⭐⭐ BC-13 — báo cáo tồn tại ĐỂ ĐẾM dữ liệu xấu, nên nó đọc cả ba nhóm chất lượng. "
+                            + "⚠ Câu này CÓ `FILTER (WHERE quality = 'HOP_LE')`, và bản TRƯỚC của bộ canh đã "
+                            + "cho nó đi lọt vì chuỗi ấy có mặt — lỗ hổng được bịt ở chính đợt WS-34 "
+                            + "(`boFilterGop`), và câu đầu tiên nó bắt được là câu này. FILTER lọc cho MỘT "
+                            + "hàm gộp, ⛔ không lọc cho câu."),
+            Map.entry(
+                    "HydroReportRepository#SQL_CHI_TIET",
+                    "⭐⭐ BC-12 — ngoại lệ hợp lệ DUY NHẤT của cả quy tắc 8 lẫn quy tắc 14. Nó là nơi duy nhất "
+                            + "được phép hiện bản ghi NGHI_NGO/XOA, và nó ĐÁNH ĐỔI bộ lọc lấy hai cột: Chất lượng "
+                            + "và Nguồn. Người đọc biết chính xác mình đang nhìn gì, nên số nghi ngờ ⛔ không thể "
+                            + "bị nhầm thành số liệu chính thức — đó mới là thứ bộ lọc kia bảo vệ. Giữ an toàn bằng "
+                            + "khoảng ngày tối đa 31 ngày + phân trang."),
+            Map.entry(
+                    "HydroReportRepository#SQL_DEM_CHI_TIET",
+                    "⭐ Phép đếm của BC-12 — phải khớp CHÍNH XÁC tập mà SQL_CHI_TIET liệt ra. Lọc HOP_LE ở đây "
+                            + "mà không lọc ở câu kia là tổng số trang nói một đằng, nội dung trang nói một nẻo."),
+            Map.entry(
+                    "V202609041063__hyd_agg_daily.sql#" + CAU_NAP_CO_BAN,
+                    "⭐ §9 của migration — nạp cờ bẩn cho số đo ĐÃ CÓ để lượt tổng hợp đầu tiên tính được "
+                            + "cả lịch sử. ⛔ Không tạo ra một con số nào; cùng lý do với SQL_CAM_LAI_CO_GAN_DAY."),
+            Map.entry(
+                    "HydroGridRepository#SQL_SO_DO_TRONG_KHUNG",
+                    "⭐⭐ WS-43 / T43.4 — bảng lưới mực nước §6.1.2. Nó ĐÁNH ĐỔI bộ lọc lấy hai cột đi kèm "
+                            + "TỪNG Ô: `quality` và `quality_reason`, đúng khuôn BC-12. Vì sao phải đổi: spec "
+                            + "§6.1.2 đòi 'ô SUSPECT in màu vàng kèm dấu ⚠ và tooltip lý do' — lọc HOP_LE ở "
+                            + "đây biến ô nghi ngờ thành ô TRỐNG, mà trống ⛔ không phân biệt được với 'trạm "
+                            + "không gửi số' (quy tắc 16). ⛔ Ranh giới: bảng trình bày TỪNG Ô kèm nhãn thì "
+                            + "được; mọi phép cộng/trung bình/so ngưỡng thì KHÔNG — một số trung bình ⛔ không "
+                            + "mang theo được nhãn 'trong này có số nghi ngờ'."));
 
     /** Câu SQL có ít nhất một trong các cụm này thì mới là truy vấn <b>đọc</b> bảng đang canh. */
     private static final Pattern DOC_BANG = Pattern.compile("(?i)\\b(?:from|join|update)\\s+(\\w+)\\b");
@@ -197,7 +220,11 @@ class QualityFilterGuardTest {
      * qua một tập rỗng và xanh trọn vẹn. ⚠ Nó đếm <b>cả ngoại lệ</b>: thứ cần chứng minh là bộ tách
      * còn nhìn thấy mã, không phải là còn bao nhiêu câu tuân thủ.
      */
-    private static final int SO_CAU_TOI_THIEU = 12;
+    private static final int SO_CAU_TOI_THIEU = 16;
+
+    // ⚠ 09/09/2026 (WS-43): siết 12 → 16. Con số cũ là 12 trong khi phép đo thật cho 15 TRƯỚC
+    //    lượt này — tức cái chốt đã TRÔI ba nấc mà ⛔ không ai thấy, vì nó là sàn `>=` nên càng
+    //    trôi càng xanh. Một cái chốt chỉ giữ được thứ nó đang chạm; đo lại mỗi lượt thêm câu SQL.
 
     // =========================================================================
     // Bộ tách — bóc chú thích TRƯỚC khi khớp (§10.62)

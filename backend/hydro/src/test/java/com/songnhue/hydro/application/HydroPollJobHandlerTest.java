@@ -139,8 +139,9 @@ class HydroPollJobHandlerTest {
         assertThatThrownBy(this::chay).isInstanceOf(UpstreamException.class).satisfies(e -> assertThat(
                         ((UpstreamException) e).messageArgs())
                 .as("`lyDo` tuy đã qua bộ che mã số vẫn là văn bản của nguồn — nó đã nằm ở sync_logs, ở "
-                        + "last_failure_reason và ở log, ba nơi có phân quyền")
-                .containsExactly("BHH40"));
+                        + "last_failure_reason và ở log, ba nơi có phân quyền. ⚠ T61.13: cả MÃ NGUỒN cũng "
+                        + "⛔ còn ở đây — câu SYS-0006 ⛔ có chỗ cắm nên đối số ấy chưa từng tới ai")
+                .isEmpty());
     }
 
     @Test

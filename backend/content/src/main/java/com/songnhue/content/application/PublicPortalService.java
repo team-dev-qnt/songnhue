@@ -249,7 +249,7 @@ public class PublicPortalService {
      */
     @Transactional(readOnly = true)
     public List<Category> categories() {
-        return hienTrenCong(categories.findAllByDeletedAtIsNullOrderByPathAscSortOrderAsc());
+        return hienTrenCong(categories.findAllForDisplay());
     }
 
     /**
@@ -306,7 +306,7 @@ public class PublicPortalService {
                 //   ẩn đều không phục vụ bài. Lọc bằng `isVisible()` một mình thì một nhánh đã rút
                 //   khỏi điều hướng vẫn mở được bằng địa chỉ trực tiếp — hai câu trả lời cho cùng
                 //   một câu hỏi "danh mục này còn trên cổng không".
-                : hienTrenCong(categories.findAllByDeletedAtIsNullOrderByPathAscSortOrderAsc()).stream()
+                : hienTrenCong(categories.findAllForDisplay()).stream()
                         .filter(c -> categorySlug.equals(c.getSlug()))
                         .findFirst()
                         .map(Category::getId)

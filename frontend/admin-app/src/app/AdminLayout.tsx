@@ -17,8 +17,9 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '@/app/auth/useAuth';
 import { MENU, findMenuKey, visibleMenu, type MenuNode } from '@/app/menu';
+import { type TomTatCauHinhView } from '@/shared/api-types';
 import { api } from '@/shared/apiClient';
-import { neutralColors, sizing } from 'design-tokens';
+import { neutralColors, sizing } from '@songnhue/design-tokens';
 
 const { Header, Sider, Content } = Layout;
 
@@ -29,8 +30,25 @@ export function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const items = useMemo(() => visibleMenu(MENU, hasPermission), [hasPermission]);
+  // T51.8 — `coHoSoNhanSu` ⛔ không phải một mã quyền, nên nó đi bằng tham số riêng. `user` có thể
+  // là `null` trong khoảnh khắc khôi phục phiên ⇒ `?? false` ⇒ mục ẩn, fail-closed.
+  const items = useMemo(
+    () => visibleMenu(MENU, hasPermission, { coHoSoNhanSu: user?.coHoSoNhanSu ?? false }),
+    [hasPermission, user?.coHoSoNhanSu],
+  );
   const selectedKey = findMenuKey(MENU, location.pathname);
+
+  // T61.41 — "vẫn hiện cảnh báo nếu chưa cấu hình": chỉ tài khoản có quyền xem tình trạng cấu hình (SUPER_ADMIN)
+  //   mới hỏi, và hỏi thưa (5 phút) — mỗi lượt máy chủ còn PING máy quét virus.
+  const coQuyenCauHinh = hasPermission('adm:system-config:view');
+  const tomTatCauHinh = useQuery({
+    queryKey: ['system', 'cau-hinh', 'tom-tat'],
+    queryFn: () => api.get<TomTatCauHinhView>('/system/cau-hinh/tom-tat'),
+    enabled: coQuyenCauHinh,
+    refetchInterval: 300_000,
+  });
+  const soChanCauHinh = tomTatCauHinh.data?.soChan ?? 0;
+  const soCanhBaoCauHinh = tomTatCauHinh.data?.soCanhBao ?? 0;
 
   const unread = useQuery({
     queryKey: ['notifications', 'unread-count'],
@@ -59,7 +77,9 @@ export function AdminLayout() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#fff',
+            // ⚠ Chữ trên dải gradient thương hiệu (xanh đậm) — phải TRẮNG THẬT, ⛔ theo chủ đề:
+            //   một `colorTextLightSolid` đổi theo theme sẽ làm chữ chìm vào nền ở chế độ tối.
+            color: neutralColors.bgContainer,
             fontWeight: 700,
             letterSpacing: 0.5,
             background: 'linear-gradient(180deg, rgba(255,255,255,0.08) 0%, transparent 100%)',
@@ -139,6 +159,22 @@ export function AdminLayout() {
               description="Đang khôi phục dữ liệu — mọi thao tác thay đổi dữ liệu tạm thời bị chặn. Xem lại sau khi có thông báo hoàn tất."
             />
           )}
+          {coQuyenCauHinh &&
+            (soChanCauHinh > 0 || soCanhBaoCauHinh > 0) &&
+            location.pathname !== '/quan-tri/tinh-trang-cau-hinh' && (
+              <Alert
+                type={soChanCauHinh > 0 ? 'error' : 'warning'}
+                showIcon
+                banner
+                style={{ marginBottom: 16, borderRadius: 8 }}
+                message={
+                  soChanCauHinh > 0
+                    ? `Cấu hình hệ thống: ${soChanCauHinh} mục CHẶN${soCanhBaoCauHinh > 0 ? `, ${soCanhBaoCauHinh} mục cần chú ý` : ''}`
+                    : `Cấu hình hệ thống: ${soCanhBaoCauHinh} mục cần chú ý`
+                }
+                action={<Link to="/quan-tri/tinh-trang-cau-hinh">Xem chi tiết</Link>}
+              />
+            )}
           <div className="sn-page-enter">
             <Outlet />
           </div>

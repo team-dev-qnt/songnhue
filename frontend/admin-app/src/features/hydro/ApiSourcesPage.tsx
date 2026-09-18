@@ -1,4 +1,10 @@
-import { ApiOutlined, EditOutlined, KeyOutlined, PlusOutlined } from '@ant-design/icons';
+import {
+  ApiOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  KeyOutlined,
+  PlusOutlined,
+} from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
@@ -9,6 +15,7 @@ import {
   Input,
   InputNumber,
   Modal,
+  Popconfirm,
   Select,
   Space,
   Table,
@@ -119,6 +126,18 @@ export function ApiSourcesPage() {
     },
     onError: (caught: unknown) =>
       message.error(caught instanceof ApiClientError ? caught.message : 'Không gỡ được mã số'),
+  });
+
+  // T61.21 — `DELETE /hyd/api-sources/{id}` có 0 nơi gọi trước đây. Backend chặn khi còn điểm đo trỏ
+  //   vào (HYD-1002) — câu lỗi ấy là thứ người dùng cần đọc, ⛔ nuốt thành "không xoá được".
+  const xoaNguonMutation = useMutation({
+    mutationFn: (id: string) => api.delete<void>(`/hyd/api-sources/${id}`),
+    onSuccess: () => {
+      message.success('Đã xoá nguồn dữ liệu');
+      void lamMoi();
+    },
+    onError: (caught: unknown) =>
+      message.error(caught instanceof ApiClientError ? caught.message : 'Không xoá được nguồn'),
   });
 
   /**
@@ -241,7 +260,7 @@ export function ApiSourcesPage() {
     },
     {
       title: '',
-      width: 180,
+      width: 220,
       align: 'right',
       render: (_, r) =>
         coQuanLy ? (
@@ -250,6 +269,7 @@ export function ApiSourcesPage() {
               <Button
                 type="text"
                 icon={<ApiOutlined />}
+                aria-label={`Gọi thử nguồn ${r.code}`}
                 loading={goiThuMutation.isPending && goiThuMutation.variables?.id === r.id}
                 onClick={() => goiThuMutation.mutate(r)}
               />
@@ -258,13 +278,34 @@ export function ApiSourcesPage() {
               <Button
                 type="text"
                 icon={<KeyOutlined />}
+                aria-label={`Đặt mã số truy cập cho nguồn ${r.code}`}
                 onClick={() => {
                   formMaSo.resetFields();
                   setDatMaSoCho(r);
                 }}
               />
             </Tooltip>
-            <Button type="text" icon={<EditOutlined />} onClick={() => moSua(r)} />
+            <Button
+              type="text"
+              icon={<EditOutlined />}
+              aria-label={`Sửa nguồn ${r.code}`}
+              onClick={() => moSua(r)}
+            />
+            <Popconfirm
+              title={`Xoá nguồn ${r.code}?`}
+              description="Nguồn còn điểm đo trỏ vào thì không xoá được — chuyển các điểm đo sang nguồn khác trước."
+              okText="Xoá"
+              okButtonProps={{ danger: true }}
+              cancelText="Hủy"
+              onConfirm={() => xoaNguonMutation.mutate(r.id)}
+            >
+              <Button
+                type="text"
+                danger
+                icon={<DeleteOutlined />}
+                aria-label={`Xoá nguồn ${r.code}`}
+              />
+            </Popconfirm>
           </Space>
         ) : null,
     },
@@ -353,7 +394,7 @@ export function ApiSourcesPage() {
           createMutation.mutate(values);
         }}
         confirmLoading={createMutation.isPending}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={formTao} layout="vertical">
           <Form.Item name="code" label="Mã nguồn" rules={[{ required: true }]}>
@@ -398,7 +439,7 @@ export function ApiSourcesPage() {
           if (dangSua) updateMutation.mutate({ id: dangSua.id, payload: values });
         }}
         confirmLoading={updateMutation.isPending}
-        destroyOnClose
+        destroyOnHidden
       >
         <Alert
           type="info"
@@ -411,8 +452,19 @@ export function ApiSourcesPage() {
           <Form.Item name="name" label="Tên nguồn" rules={[{ required: true }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="baseUrl" label="Địa chỉ gốc" rules={[{ required: true }]}>
-            <Input />
+          {/* ⛔⛔ Ô này TRƯỚC ĐÂY không có placeholder lẫn dòng gợi ý — form "Thêm mới" thì có.
+              Sự cố staging 01/09→10/09/2026: mã số truy cập bị dán NGUYÊN URL vào đây
+              (`...getmn.aspx?key=<mã số>`), `credential` vẫn NULL ⇒ 3323 lượt hỏng liên tiếp,
+              `hydro_raw_logs` = 0, và mã số nằm nguyên văn ở một cột KHÔNG mã hoá mà API có trả ra.
+              Bảo đảm thật nằm ở backend (`ApiSourceService.diaChi` → HYD-2016, quy tắc 12); dòng
+              này chỉ để người dùng biết TRƯỚC khi bấm Lưu. */}
+          <Form.Item
+            name="baseUrl"
+            label="Địa chỉ gốc"
+            rules={[{ required: true }]}
+            extra="Chỉ phần trước dấu hỏi, ví dụ http://songnhue.bhh40.net. ⛔ Đừng dán mã số vào đây — mã số đặt ở nút “Mã số truy cập”, nó được mã hoá và không trả ra ngoài."
+          >
+            <Input placeholder="http://songnhue.bhh40.net" />
           </Form.Item>
           <Form.Item name="status" label="Trạng thái" rules={[{ required: true }]}>
             <Select
@@ -466,7 +518,7 @@ export function ApiSourcesPage() {
             {nut}
           </Space>
         )}
-        destroyOnClose
+        destroyOnHidden
       >
         <Alert
           type="warning"
@@ -498,7 +550,7 @@ export function ApiSourcesPage() {
         title={`Kết quả gọi thử — ${ketQuaGoiThu?.nguon.name ?? ''}`}
         onCancel={() => setKetQuaGoiThu(null)}
         footer={<Button onClick={() => setKetQuaGoiThu(null)}>Đóng</Button>}
-        destroyOnClose
+        destroyOnHidden
       >
         {ketQuaGoiThu && <BangKetQuaGoiThu kq={ketQuaGoiThu.kq} />}
       </Modal>

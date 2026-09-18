@@ -47,7 +47,7 @@ public class MediaService {
 
     @Transactional(readOnly = true)
     public List<MediaFolder> tree() {
-        return folders.findAllByDeletedAtIsNullOrderByPathAscSortOrderAsc();
+        return folders.findAllForDisplay();
     }
 
     @Transactional(readOnly = true)
@@ -191,18 +191,29 @@ public class MediaService {
     }
 
     /**
-     * Xoá tệp — chặn khi còn bài viết tham chiếu.
+     * Xoá tệp — chặn khi còn nơi tham chiếu.
      *
      * <p>⚠ Phép dò tham chiếu là <b>lưới cảnh báo, không phải ràng buộc toàn vẹn</b>: ảnh chèn giữa
      * bài nằm trong chuỗi HTML nên chỉ dò được bằng so khớp chuỗi. Nó bắt phần lớn tai nạn thường
      * gặp; thứ lọt qua vẫn cứu được vì xoá ở đây là xoá mềm.
+     *
+     * <h3>⭐ T40.26 — phép tra ĐÃ CHUYỂN xuống {@code AttachmentService.delete}</h3>
+     *
+     * Bản trước tra ngay tại đây rồi mới gọi {@code attachments.delete}. Nó đúng cho <b>một</b>
+     * trong bốn cửa xoá tệp — ba cửa còn lại ({@code /api/v1/attachments}, tài liệu công trình,
+     * đính kèm nhật ký bảo trì) xoá thẳng, nên một tệp đang được bài viết dẫn vẫn biến mất và liên
+     * kết trên cổng thành <b>404 trần</b>.
+     *
+     * <p>Nay chốt chặn nằm ở chỗ dữ liệu đi qua (quy tắc 12), và mỗi module tự khai phần của mình
+     * qua {@code AttachmentUsagePort}. Giữ thêm một bản sao ở đây là dựng lại đúng thứ quy tắc 14
+     * cấm: hai nơi phải nhớ, và bản nào lạc hậu thì lạc hậu <b>âm thầm</b>.
+     *
+     * <p>⚠ {@link #articlesUsing} <b>vẫn còn</b> — nó phục vụ {@code GET …/usages}, tức đường
+     * <i>hỏi trước</i> để giao diện hiện <i>"3 bài đang dùng ảnh này"</i> thay vì bấm Xoá rồi mới
+     * biết.
      */
     @Transactional
     public void deleteFile(UUID attachmentPublicId) {
-        List<String> dangDung = articlesUsing(attachmentPublicId);
-        if (!dangDung.isEmpty()) {
-            throw new BusinessRuleException(ErrorCode.CMS_2009, dangDung.size(), String.join(", ", dangDung));
-        }
         attachments.delete(attachmentPublicId);
     }
 }

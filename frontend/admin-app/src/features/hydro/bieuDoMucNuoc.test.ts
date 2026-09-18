@@ -4,6 +4,21 @@ import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 /**
+ * Bỏ chú thích khối và chú thích **cả dòng** trước khi soi mã.
+ *
+ * ⚠ Bỏ ÍT chứ ⛔ không bỏ NHIỀU: `//` nằm **giữa** dòng ⛔ không bị cắt, vì một chuỗi
+ * `'https://…'` trong mã thật sẽ mất phần đuôi — và mất mã thật thì sinh **đỏ giả**, hỏng theo
+ * chiều tệ hơn hẳn. Còn sót đúng một khe: nhắc tên trong chú thích `//` **cuối dòng mã**. Ghi ra
+ * đây thay vì để người sau tưởng phép này kín (luật 28).
+ *
+ * ⛔ Bản sao của `CotPhase2CoDocGhiTest.boChuThich` ở backend — hai kho, ⛔ không dùng chung mã
+ * được. Sửa một bên thì đọc lại bên kia.
+ */
+function boChuThich(ma: string): string {
+  return ma.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
+}
+
+/**
  * **`optionDuong` đã có nơi gọi THẬT** — đóng §10.33 bằng một con số. T35.4.
  *
  * <h3>⛔ Vì sao đây là một bài kiểm chứ không phải một dòng ghi chú</h3>
@@ -89,11 +104,48 @@ describe('optionDuong — chuỗi thời gian đầu tiên của hệ (T35.4)', 
    * bản hiển thị (luật 2: `includes('.sn-align-center')` vẫn xanh sau khi thuộc tính đã bị xoá hẳn).
    */
   it('⛔ trang biểu đồ giữ ba quyết định: empty tường minh · lý do từ backend · nhịp 2 phút', () => {
-    const trang = readFileSync(join(GOC, 'features/hydro/WaterLevelChartPage.tsx'), 'utf8');
-
-    expect(trang, '`empty` phải khai TƯỜNG MINH — BaseChart ⛔ không suy từ `option`').toContain(
-      'empty={diem.length === 0}',
+    // ⛔⛔ BỎ CHÚ THÍCH TRƯỚC KHI SOI — và đây là bài học phải trả giá HAI LẦN trong cùng một đợt.
+    //
+    //   Lần một: `CotPhase2CoDocGhiTest` (backend) đỏ vì một javadoc ở `toaDo.ts` nhắc tên cột
+    //   `geom` — ⛔ không dòng mã nào đọc cột ấy, chỉ có một câu văn.
+    //   Lần hai: chính khẳng định PHỦ ĐỊNH ngay bên dưới đỏ vì chú thích trong
+    //   `WaterLevelChartPage.tsx` **giải thích** vì sao ⛔ không được dùng `diem.length === 0` —
+    //   tức nó đỏ vì tài liệu mô tả đúng cấm lệnh mà nó canh.
+    //
+    //   ⇒ Một khẳng định phủ định trên **văn bản thô** ⛔ không phân biệt được *mã vi phạm* với
+    //   *chú thích nói về vi phạm*, và nó phạt đúng người viết tài liệu tử tế (luật 2).
+    const trang = boChuThich(
+      readFileSync(join(GOC, 'features/hydro/WaterLevelChartPage.tsx'), 'utf8'),
     );
+
+    // ⭐ Khai TƯỜNG MINH — `BaseChart` ⛔ không suy `empty` từ `option`.
+    expect(trang, '`empty` phải khai TƯỜNG MINH — BaseChart ⛔ không suy từ `option`').toMatch(
+      /empty=\{/,
+    );
+    // ⛔⛔ T43.13 — VẾ CHỊU LỰC, và nó là một khẳng định PHỦ ĐỊNH có chủ đích.
+    //
+    //   Bản trước ghim nguyên văn `empty={diem.length === 0}` — tức nó ghim CHÍNH BIỂU THỨC HỎNG.
+    //   Từ khi backend trả **trục đủ 144 mốc** (dựng độc lập với dữ liệu), `diem` ⛔ không bao giờ
+    //   rỗng, nên `diem.length === 0` là một điều kiện **KHÔNG BAO GIỜ ĐÚNG**: trạm chưa có số sẽ
+    //   vẽ ra một khung trục trắng thay vì hiện câu giải thích — hỏng theo chiều im lặng (luật 9).
+    //
+    //   ⇒ Ghim điều kiện ĐÚNG (`soMocCoSo`) và **cấm** điều kiện cũ quay lại. Cấm lệnh phủ định là
+    //   thứ duy nhất chặn được một lượt "dọn dẹp" đưa `diem.length` trở lại — nó đọc rất tự nhiên.
+    expect(
+      trang,
+      '⛔ `empty` phải hỏi `soMocCoSo` — số MỐC CÓ SỐ, ⛔ không phải độ dài mảng `diem` (nay là TRỤC)',
+    ).toContain('soMocCoSo');
+    expect(
+      trang,
+      '⛔⛔ `diem.length === 0` là điều kiện KHÔNG BAO GIỜ ĐÚNG kể từ T43.13 — trục dựng độc lập với ' +
+        'dữ liệu nên nó luôn đủ 144 phần tử. Dùng lại nó là tắt nhánh `empty` trong im lặng.',
+    ).not.toContain('diem.length === 0');
+    // ⛔ Và ô trống phải ra dây là `null`, ⛔ không được `Number(null)` → 0: mực nước 0 m là một
+    //    khẳng định về mực nước (quy tắc 16).
+    expect(
+      trang,
+      '⛔ Mốc ⛔ không có số phải vào ECharts dưới dạng `null` để `connectNulls:false` NGẮT được đường',
+    ).toContain('d.giaTri === null ? null');
     expect(
       trang,
       '⛔ Lý do biểu đồ rỗng đến TỪ BACKEND — ⛔ không được viết cứng một câu ở đây, vì backend là nơi ' +
@@ -103,6 +155,26 @@ describe('optionDuong — chuỗi thời gian đầu tiên của hệ (T35.4)', 
       trang,
       '⛔ Nhịp nội bộ 2 phút bám chu kỳ poller (chốt G3) — ⛔ KHÔNG gộp với nhịp 5 phút của cổng (OI-09)',
     ).toMatch(/const NHIP_LAM_MOI_MS = 2 \* 60 \* 1000/);
+  });
+
+  it('⛔ bằng chứng cho phép BỎ CHÚ THÍCH — nếu không, khẳng định phủ định ở trên vô nghĩa', () => {
+    const ma = [
+      '/** javadoc nhắc diem.length === 0 nhưng ⛔ không dùng nó */',
+      '// dong_chu_thich_rieng cũng vậy',
+      'const x = maThatSuChay();',
+      "const u = 'https://vi.du/khong-duoc-cat';",
+    ].join('\n');
+    const sach = boChuThich(ma);
+
+    expect(sach, '⛔ khối javadoc phải biến mất').not.toContain('diem.length === 0');
+    expect(sach, '⛔ dòng bắt đầu bằng `//` phải biến mất').not.toContain('dong_chu_thich_rieng');
+    expect(sach, '⭐ ĐỐI CHỨNG: mã thật PHẢI còn — bỏ quá tay là sinh ĐỎ GIẢ (luật 10)').toContain(
+      'maThatSuChay',
+    );
+    expect(
+      sach,
+      '⚠ GHIM ranh giới: `//` GIỮA dòng ⛔ không bị cắt, nếu không mọi `https://` mất đuôi',
+    ).toContain('khong-duoc-cat');
   });
 
   it('⚠ tự kiểm: bộ quét ĐỌC ĐƯỢC tệp thật và ⛔ không khớp một tên bịa', () => {

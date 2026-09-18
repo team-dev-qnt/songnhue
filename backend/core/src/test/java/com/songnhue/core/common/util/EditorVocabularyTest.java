@@ -113,6 +113,68 @@ class EditorVocabularyTest {
         }
     }
 
+    /**
+     * ⭐⭐ Ba nhóm class MÀU sống sót — T41.15, yêu cầu ĐÃ KÝ (đặc tả dòng 92 và 98).
+     *
+     * <p>⚠ Mỗi nhóm đặt trên <b>đúng thẻ nó thật sự xuất hiện</b>, ⛔ không gộp tất cả lên
+     * {@code <figure>} cho gọn. Bộ khử trùng có safelist <i>theo thẻ</i>: {@code class} được cho qua
+     * ở mức {@code :all} hôm nay, nhưng nếu ai đó siết lại theo từng thẻ thì phép kiểm chạy trên
+     * {@code figure} sẽ vẫn xanh trong khi màu chữ (trên {@code span}) và màu nền ô (trên {@code td})
+     * bị gỡ sạch — đúng hình dạng "một bộ canh hẹp hơn nơi nó phải chặn" (luật 28).
+     *
+     * <p>Hỏng ở đây là hỏng im lặng và <b>đắt</b>: người soạn tô màu một bảng số liệu, thấy màu hiện
+     * lên, bấm Lưu, hệ thống báo thành công — và bài lên cổng trắng trơn.
+     */
+    @Test
+    @DisplayName("⭐⭐ Class MÀU sống sót trên đúng thẻ mang nó — span cho chữ, td cho ô bảng")
+    void classMauSongSot() {
+        List<String> mauChu = docDanhSachChuoi("TEXT_COLOR_CLASSES");
+        List<String> mauNenChu = docDanhSachChuoi("TEXT_BG_CLASSES");
+        List<String> mauNenO = docDanhSachChuoi("CELL_BG_CLASSES");
+
+        // Chống xanh-trên-tập-rỗng, và nhắc lại cái bẫy: bộ đọc regex chỉ nhận nháy ĐƠN.
+        assertThat(mauChu)
+                .as("đọc hụt TEXT_COLOR_CLASSES thì bài này xanh mà chẳng kiểm gì")
+                .hasSize(6);
+        assertThat(mauNenChu).hasSize(6);
+        assertThat(mauNenO).hasSize(6);
+
+        StringBuilder html = new StringBuilder();
+        for (String c : mauChu) {
+            html.append("<p><span class=\"%s\">chữ</span></p>".formatted(c));
+        }
+        for (String c : mauNenChu) {
+            html.append("<p><span class=\"%s\">chữ</span></p>".formatted(c));
+        }
+        for (String c : mauNenO) {
+            html.append("<table><tbody><tr><td class=\"%s\">ô</td></tr></tbody></table>".formatted(c));
+        }
+
+        String sach = HtmlSanitizer.clean(html.toString());
+        for (String c : mauChu) {
+            assertThat(sach)
+                    .as("màu chữ `%s` bị gỡ — bài lên cổng sẽ mất màu trong im lặng", c)
+                    .contains(c);
+        }
+        for (String c : mauNenChu) {
+            assertThat(sach).as("màu nền chữ `%s` bị gỡ", c).contains(c);
+        }
+        for (String c : mauNenO) {
+            assertThat(sach)
+                    .as("màu nền ô `%s` bị gỡ — cả bảng số liệu sẽ trắng trơn", c)
+                    .contains(c);
+        }
+
+        // ⭐ Và `span` phải còn là `span`: bộ lọc gỡ thẻ mà giữ chữ thì phép so `contains` ở trên
+        //   vẫn xanh (class nằm trong chuỗi ở chỗ khác), nên phải khẳng định riêng.
+        assertThat(sach)
+                .as("thẻ `span` bị gỡ ⇒ class màu chữ không còn chỗ bám")
+                .contains("<span class=");
+        assertThat(sach)
+                .as("thẻ `td` bị gỡ ⇒ class màu nền ô không còn chỗ bám")
+                .contains("<td class=");
+    }
+
     @Test
     @DisplayName("⭐⭐ Thuộc tính của BẢNG sống sót — ô gộp mất colspan là bảng vỡ cấu trúc")
     void thuocTinhBangSongSot() {

@@ -14,7 +14,7 @@ import {
   message,
 } from 'antd';
 import { type ColumnsType } from 'antd/es/table';
-import dayjs, { type Dayjs } from 'dayjs';
+import { type Dayjs } from 'dayjs';
 import { useState } from 'react';
 
 import {
@@ -25,7 +25,7 @@ import {
 } from '@/shared/api-types';
 import { api } from '@/shared/apiClient';
 import { useAuth } from '@/app/auth/useAuth';
-import { formatDateTime } from '@/shared/format';
+import { bayGio, formatDateTime } from '@/shared/format';
 
 import { CHAT_LUONG_SO_DO, NGUON_SO_DO, VAI_TRO_VI_TRI } from './hydroVocabulary';
 import { useXuatBaoCao } from './useXuatBaoCao';
@@ -53,10 +53,14 @@ const TRAN_NGAY_CHI_TIET = 31;
 export function PeriodReportPage() {
   const { hasPermission } = useAuth();
   const { xuat, dangCho } = useXuatBaoCao();
-  const [khoang, setKhoang] = useState<[Dayjs, Dayjs]>(() => [
-    dayjs().startOf('month'),
-    dayjs().endOf('month').isAfter(dayjs()) ? dayjs() : dayjs().endOf('month'),
-  ]);
+  // Kỳ mặc định phải là tháng theo LỊCH VIỆT NAM: hai dòng dưới thành `tuNgay`/`denNgay`
+  // của truy vấn báo cáo, nên một máy lệch múi giờ mở trang ngày mùng 1 sẽ xin tháng TRƯỚC
+  // và nhận về một bộ số đúng-về-kỹ-thuật cho một kỳ ⛔ ai hỏi — T63.18.
+  const [khoang, setKhoang] = useState<[Dayjs, Dayjs]>(() => {
+    const gio = bayGio();
+    const cuoiThang = gio.endOf('month');
+    return [gio.startOf('month'), cuoiThang.isAfter(gio) ? gio : cuoiThang];
+  });
   const [chiTiet, setChiTiet] = useState<PeriodSummaryRow | null>(null);
 
   const tuNgay = khoang[0].format('YYYY-MM-DD');
@@ -98,10 +102,27 @@ export function PeriodReportPage() {
         v ?? <Typography.Text type="secondary">Chưa phân tuyến</Typography.Text>,
     },
     {
+      // ⭐ Bản chụp G8 (09/09/2026) cấp lý trình cho 10/19 điểm đo. Trước đó cột này ⛔ không tồn
+      //    tại ở đâu — kể cả trong bản kết xuất, dù đặc tả BC-05 liệt kê nó.
+      title: 'Lý trình',
+      dataIndex: 'chainage',
+      width: 120,
+      render: (v: string | null) =>
+        v ?? <Typography.Text type="secondary">Chưa có (G8)</Typography.Text>,
+    },
+    {
       title: 'Vị trí',
       dataIndex: 'positionRole',
       width: 140,
       render: (v: string) => VAI_TRO_VI_TRI[v as keyof typeof VAI_TRO_VI_TRI] ?? v,
+    },
+    {
+      // ⚠ ⛔ Không ẩn khi bằng 0: "0 lần vượt ngưỡng" là một thông tin vận hành, ⛔ không phải một
+      //   ô rỗng. Nó khác hẳn ô mực nước — ở đó 0 là một giá trị đo bịa ra, ở đây 0 là phép đếm.
+      title: 'Số lần vượt ngưỡng',
+      dataIndex: 'soLanVuotNguong',
+      width: 150,
+      align: 'right' as const,
     },
     { title: 'Chỉ số', dataIndex: 'measurementTypeName', width: 170, ellipsis: true },
     {
@@ -237,7 +258,7 @@ export function PeriodReportPage() {
             ? `BC-12 — ${chiTiet.stationName} · ${chiTiet.measurementTypeName}`
             : 'Chi tiết bản ghi'
         }
-        destroyOnClose
+        destroyOnHidden
       >
         {chiTiet ? (
           <ChiTietSoDo

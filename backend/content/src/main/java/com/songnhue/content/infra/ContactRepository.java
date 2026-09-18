@@ -17,6 +17,9 @@ import com.songnhue.content.domain.ContactStatus;
 /** Truy vấn liên hệ — CN-01.4. */
 public interface ContactRepository extends JpaRepository<Contact, Long> {
 
+    /** Số liên hệ còn sống đang GIAO cho một đơn vị — chốt chặn giải thể đơn vị (CN-04.1). */
+    long countByAssignedOrgUnitIdAndDeletedAtIsNull(Long orgUnitId);
+
     Optional<Contact> findByPublicIdAndDeletedAtIsNull(UUID publicId);
 
     Page<Contact> findAllByDeletedAtIsNullOrderByCreatedAtDesc(Pageable pageable);

@@ -1,5 +1,5 @@
 import { Card, Tag, Tooltip, Typography } from 'antd';
-import { statusColors } from 'design-tokens';
+import { statusColors } from '@songnhue/design-tokens';
 
 import { KPI_TONE } from '@/components/business/statusVocabulary';
 import { formatNumber } from '@/shared/format';
@@ -29,7 +29,7 @@ export function KpiCard({ kpi, wall = false }: { kpi: KpiView; wall?: boolean })
   return (
     <Card
       size={wall ? 'default' : 'small'}
-      style={{ height: '100%' }}
+      style={{ height: '100%', minWidth: 0 }}
       styles={{ body: { padding: wall ? '20px 24px' : 16 } }}
     >
       <Typography.Text

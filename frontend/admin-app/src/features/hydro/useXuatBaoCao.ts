@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 
 import { api } from '@/shared/apiClient';
+import { luuTep } from '@/shared/luuTep';
 
 /** ⛔ Phải khớp `HydroReportExportHandler.HAN_TAI` ở backend — luật 14, một hạn dùng hai nơi nhớ. */
 const HAN_TAI_GIO = 24;
@@ -27,7 +28,11 @@ interface TrangThaiViecNen {
 }
 
 export interface YeuCauXuat {
-  loai: 'BC13' | 'BC05' | 'BC12';
+  /**
+   * ⚠ `BC11` thêm 09/09/2026. Nó là ảnh chụp MỘT ngày ⇒ `tuNgay` phải bằng `denNgay`; backend ép
+   * điều đó ở `HydroReportController.kiemYeuCau` và trả `SYS-0003` nếu lệch.
+   */
+  loai: 'BC13' | 'BC05' | 'BC11' | 'BC12';
   tuNgay: string;
   denNgay: string;
   stationPublicId?: string;
@@ -90,12 +95,7 @@ export function useXuatBaoCao() {
       const { blob, tenTep } = await api.getTep(`/hyd/bao-cao/tai/${viec.publicId}`);
       const ten = tenTep ?? `${yeuCau.loai}.csv`;
 
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = ten;
-      a.click();
-      URL.revokeObjectURL(url);
+      luuTep(blob, ten);
       return ten;
     } catch (e) {
       setLoi(e instanceof Error ? e.message : 'Không kết xuất được báo cáo');

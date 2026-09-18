@@ -746,11 +746,15 @@ async function stage4_menus() {
   // 5. Văn bản điều hành
   await apiRequest('POST', '/api/v1/cms/menus/HEADER', {
     label: 'Văn bản điều hành',
-    linkType: 'URL',
+    // ⚠ Phải khớp `settings['site.external.doc-system-url']` và menu seed ở
+    //   `V202608271031` — CÙNG MỘT SỰ THẬT nằm ở ba nơi. Đo 08/09/2026: bộ seed này đã
+    //   lệch cả hai trường (địa chỉ của NGUỒN API THUỶ VĂN + `linkType: 'URL'`) suốt từ
+    //   T24.3 ngày 27/08 mà không gì báo — đúng cái giá của hai đường seed song song (T11.38).
+    linkType: 'EXTERNAL_DOC',
     parentId: null,
     categoryId: null,
     articleId: null,
-    url: 'http://songnhue.bhh40.net',
+    url: 'https://quanlyvanban.hanoi.gov.vn/qlvbdh/main?lang=vi',
     openNewTab: true,
     active: true,
   });

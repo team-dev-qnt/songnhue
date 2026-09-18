@@ -61,6 +61,20 @@ public class PublicHydroService {
      *     điểm đo nào (mục <b>G3-a</b>). ⛔ Đừng {@code ?? 0}: {@code 0 mm} là một câu khẳng định về
      *     thời tiết, và nó sai.
      * @param lyDoTrong vì sao ô số liệu trống; {@code null} khi có số. ⛔ Quy tắc 16 ép ở hàm dựng.
+     * @param mucNuocSong mực nước của điểm đo <b>⛔ không thuộc cặp thượng/hạ lưu của một cống</b> —
+     *     trạm thuỷ văn sông ({@code MN_SONG}) và bể hút trạm bơm ({@code BE_HUT}). <b>Thêm
+     *     08/09/2026 — DOD2.3.</b>
+     *     <p>⛔⛔ Trước đó cột này ⛔ không tồn tại, và {@code position_role} có <b>năm</b> giá trị
+     *     ({@code THUONG_LUU · HA_LUU · BE_HUT · MN_SONG · MUA} — ràng buộc CHECK ở
+     *     {@code V202608311049:284}) trong khi mã chia <b>nhị phân</b>:
+     *     {@code thuongLuu ? gt : null, thuongLuu ? null : gt}. Ba trên năm vai trò rơi hết vào
+     *     nhánh {@code else} ⇒ cổng công khai đăng mực nước của <b>4 trạm thuỷ văn sông</b> dưới
+     *     tiêu đề <i>"Mực nước hạ lưu (m)"</i>. Chính tên trạm đã tự mâu thuẫn với tiêu đề mà ⛔
+     *     không ai đọc ra: <i>"Trạm thuỷ văn Hà Nội — Mực nước sông"</i>.
+     *     <p>⚠ Bất biến {@code coSo} ngay dưới đây <b>lẽ ra bắt được</b> — nhưng ⛔ không, vì giá
+     *     trị vẫn <i>có mặt</i>, chỉ là ở sai ô. Một bất biến canh <i>có hay ⛔ không có số</i> ⛔
+     *     không phân biệt được <i>số đúng chỗ</i> với <i>số sai chỗ</i> (luật 9). Thứ phân biệt
+     *     được là <b>ánh xạ tường minh</b>: xem khối {@code switch} ở {@link #mucNuoc()}.
      */
     @JsonInclude(JsonInclude.Include.ALWAYS)
     public record MucNuocRow(
@@ -70,6 +84,7 @@ public class PublicHydroService {
             String lyTrinh,
             @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal mucNuocThuongLuu,
             @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal mucNuocHaLuu,
+            @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal mucNuocSong,
             @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal luongMua,
             String donVi,
             Instant thoiDiemDo,
@@ -81,7 +96,9 @@ public class PublicHydroService {
             // ⛔ Ép ở HÀM DỰNG, ⛔ không ở lời dặn (quy tắc 16): ô không có số mà không nói được vì
             //    sao sẽ bị đọc thành "bằng không". Dòng thứ hai mươi — thêm bởi người khác, tháng
             //    sau — cũng phải đi qua đúng ràng buộc này mà ⛔ không cần ai nhớ.
-            boolean coSo = mucNuocThuongLuu != null || mucNuocHaLuu != null;
+            // ⚠ `mucNuocSong` PHẢI có mặt ở phép hợp này. Quên nó thì mọi dòng MN_SONG có số đo
+            //   đều ném — bất biến đọc chúng thành "⛔ không có số mà cũng ⛔ không có lý do".
+            boolean coSo = mucNuocThuongLuu != null || mucNuocHaLuu != null || mucNuocSong != null;
             if (coSo == (lyDoTrong != null)) {
                 throw new IllegalArgumentException(
                         "Dòng '%s': hoặc CÓ số đo, hoặc CÓ lý do trống — ⛔ không được cả hai, ⛔ không được không cái nào"
@@ -94,6 +111,56 @@ public class PublicHydroService {
                         "Cột lượng mưa chưa có nguồn (G3-a) ⇒ phải rỗng KÈM lý do — xem javadoc");
             }
         }
+    }
+
+    /**
+     * Ba ô mực nước của một dòng — <b>chỉ MỘT ô có số</b>, hai ô kia {@code null}.
+     *
+     * @param lyDoChuaGanCot khác {@code null} khi vai trò ⛔ chưa được gán cột nào; lúc ấy cả ba ô
+     *     đều rỗng và người đọc trên cổng <b>nhìn thấy được</b> chỗ thiếu
+     */
+    private record BaCot(BigDecimal thuongLuu, BigDecimal haLuu, BigDecimal song, String lyDoChuaGanCot) {}
+
+    /**
+     * ⛔⛔ Ánh xạ <b>tường minh</b> vai trò vị trí → cột hiển thị. ⛔ KHÔNG có nhánh {@code else}
+     * nào nuốt phần còn lại — <b>DOD2.3, 08/09/2026</b>.
+     *
+     * <h3>Vì sao khối này tồn tại</h3>
+     *
+     * <p>Bản trước là hai biểu thức ba ngôi ngay trong lời gọi hàm dựng:
+     * {@code thuongLuu ? gt : null, thuongLuu ? null : gt}. {@code position_role} có <b>năm</b> giá
+     * trị hợp lệ (CHECK ở {@code V202608311049:284}) và <b>ba</b> trong số đó rơi vào nhánh
+     * {@code else} ⇒ mực nước của <b>4 trạm thuỷ văn sông</b> lên cổng công khai dưới tiêu đề
+     * <i>"Mực nước hạ lưu (m)"</i>. Trên một trang thông tin phòng chống thiên tai, một mực nước
+     * SÔNG bị đọc thành mực nước HẠ LƯU của một cống là con số người ta ra quyết định dựa vào.
+     *
+     * <p>⚠ Chính TÊN trạm đã tự mâu thuẫn với tiêu đề cột — <i>"Trạm thuỷ văn Hà Nội — Mực nước
+     * sông"</i> — và suốt từ WS-35 tới 08/09 ⛔ không ai đọc ra, vì bảng <i>trông</i> hoàn toàn
+     * bình thường: có số, có đơn vị, có mốc thời gian.
+     *
+     * <h3>⚠ Vì sao {@code default} ⛔ KHÔNG ném</h3>
+     *
+     * <p>Danh mục vai trò là <b>dữ liệu</b> (quy tắc 16) — Công ty thêm một vai trò bằng migration,
+     * ⛔ không bằng deploy. Ném ở đây biến một dòng dữ liệu mới thành <b>500 cho cả trang chủ</b>.
+     * Thay vào đó: ba ô rỗng kèm một lý do đọc được ngay trên cổng. Khác biệt giữa <i>hỏng ồn
+     * ào</i> và <i>hỏng im lặng</i>; cổng công khai chỉ chịu được loại thứ nhất.
+     *
+     * <p>⛔ Và đó cũng là lý do ⛔ không gộp {@code MUA} vào {@code MN_SONG} cho gọn: lượng mưa có
+     * <b>đơn vị khác</b> (mm, ⛔ không phải m) và một cột riêng đang chờ nguồn G3-a. Xếp nó vào cột
+     * mực nước là tái lập đúng khuyết tật vừa vá, chỉ đổi nạn nhân.
+     */
+    private static BaCot cotTheoVaiTro(String vaiTro, BigDecimal giaTri) {
+        return switch (vaiTro == null ? "" : vaiTro) {
+            case "THUONG_LUU" -> new BaCot(giaTri, null, null, null);
+            case "HA_LUU" -> new BaCot(null, giaTri, null, null);
+            case "MN_SONG", "BE_HUT" -> new BaCot(null, null, giaTri, null);
+            default ->
+                new BaCot(
+                        null,
+                        null,
+                        null,
+                        giaTri == null ? null : "Vai trò điểm đo '%s' chưa được gán cột hiển thị".formatted(vaiTro));
+        };
     }
 
     /** Lý do cột lượng mưa trống — một chỗ khai, để cổng và báo cáo nói cùng một câu. */
@@ -149,7 +216,6 @@ public class PublicHydroService {
             }
             daGap.add(ma);
 
-            boolean thuongLuu = "THUONG_LUU".equals(r.positionRole());
             BigDecimal gt = r.giaTri();
             String lyDo = null;
 
@@ -177,14 +243,21 @@ public class PublicHydroService {
                         : "Chưa có số đo hợp lệ";
             }
 
+            BaCot cot = cotTheoVaiTro(r.positionRole(), gt);
+            if (cot.lyDoChuaGanCot() != null) {
+                lyDo = cot.lyDoChuaGanCot();
+                gt = null;
+            }
+
             ket.add(new MucNuocRow(
                     // ⛔ `river_name` NULL là G8 chưa về, ⛔ không phải một tuyến tên rỗng.
                     r.riverName() == null || r.riverName().isBlank() ? CHUA_PHAN_TUYEN : r.riverName(),
                     r.name(),
                     r.code(),
                     r.chainage(),
-                    thuongLuu ? gt : null,
-                    thuongLuu ? null : gt,
+                    cot.thuongLuu(),
+                    cot.haLuu(),
+                    cot.song(),
                     null,
                     r.donVi(),
                     r.mocDo(),

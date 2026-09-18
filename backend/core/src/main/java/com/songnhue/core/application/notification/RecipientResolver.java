@@ -11,12 +11,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.songnhue.core.application.settings.SettingService;
 import com.songnhue.core.infra.identity.UserRepository;
 import com.songnhue.core.infra.org.OrgUnitRepository;
+
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Tìm người nhận cảnh báo theo <b>chốt G11</b> — T6.7.
@@ -95,6 +95,20 @@ public class RecipientResolver {
      * <p>Nên khi có {@code targetPermission}, nhóm suy ra <b>thay thế</b> Ban điều hành chứ không
      * cộng dồn.
      *
+     * <h3>⭐ Ca THỨ BA (T28.51, 08/09/2026) — nhắm đích <i>và</i> nêu đích danh đơn vị</h3>
+     *
+     * Nhắc SLA liên hệ cần cả hai: nhóm giữ quyền xử lý (cho việc <b>chưa</b> giao cho ai) <b>và</b>
+     * người đứng đầu đơn vị <b>đang</b> giữ việc. Đó là phép <b>thu hẹp</b> — thêm đúng người có
+     * trách nhiệm cụ thể — chứ ⛔ không phải nới lỏng luật ở trên, vốn nói về việc cộng cả một nhóm
+     * mà ⛔ không ai trong đó có việc phải làm.
+     *
+     * <p>⚠ Vì thế điều kiện đổi từ <i>"⛔ không nhắm đích"</i> sang <i>"có đơn vị được nêu"</i>. Phép
+     * đổi ấy <b>giữ nguyên</b> mọi hành vi cũ: {@code NotifyRequest.targeted} ghi cứng
+     * {@code List.of()}, nên nhánh này chưa từng chạy cho quy trình duyệt và nay vẫn vậy.
+     *
+     * <p>⛔ Và công tắc {@link #KEY_AUTO_INCLUDE_OWNER} ⛔ <b>không</b> áp cho ca này: nó nói về phép
+     * <i>đoán</i> của G11, ⛔ không nói về một danh sách mà nơi gọi đưa ra tường minh.
+     *
      * @param targetPermission mã quyền; {@code null} = giữ nguyên luật G11
      */
     @Transactional(readOnly = true)
@@ -108,8 +122,21 @@ public class RecipientResolver {
         Set<Long> derived =
                 new LinkedHashSet<>(nhamDich ? users.findActiveIdsByPermission(targetPermission) : executiveBoard());
 
-        boolean includeOwner = !nhamDich && settings.getBoolean(KEY_AUTO_INCLUDE_OWNER, true);
-        if (includeOwner && relatedOrgUnitIds != null && !relatedOrgUnitIds.isEmpty()) {
+        // ⭐⭐ T40/T28.51 — ca THỨ BA, và nó ⛔ không phải một ngoại lệ của luật trên.
+        //
+        // Hai ca cũ: `alert` (G11 — hệ thống ĐOÁN ai nên biết, nên cộng Ban điều hành và cấu hình
+        // tắt được) và `targeted` (quy trình duyệt — nơi gọi biết chính xác, nên nhóm suy ra THAY
+        // THẾ Ban điều hành). Cả hai đều để `relatedOrgUnitIds` rỗng ở nhánh nhắm đích.
+        //
+        // Ca mới: nhắm đích theo quyền **VÀ** nêu đích danh đơn vị đang chịu trách nhiệm. Đó là
+        // phép THU HẸP người nhận, ⛔ không phải mở rộng — và cấu hình `auto-include-owner` ⛔ không
+        // áp cho nó, vì nó nói về phép ĐOÁN của G11 chứ ⛔ không nói về một danh sách nơi gọi đưa ra.
+        //
+        // ⚠ Đổi từ `!nhamDich` sang "có đơn vị được nêu" GIỮ NGUYÊN mọi hành vi cũ: `targeted()`
+        //   ghi cứng `List.of()`, nên nhánh này chưa từng chạy cho quy trình duyệt và nay vẫn vậy.
+        boolean coDonViDuocNeu = relatedOrgUnitIds != null && !relatedOrgUnitIds.isEmpty();
+        boolean themNguoiDungDau = coDonViDuocNeu && (nhamDich || settings.getBoolean(KEY_AUTO_INCLUDE_OWNER, true));
+        if (themNguoiDungDau) {
             derived.addAll(orgUnits.findActiveHeadAndDeputyUserIds(relatedOrgUnitIds));
         }
         derived.removeAll(named);
@@ -173,7 +200,7 @@ public class RecipientResolver {
         List<UUID> publicIds;
         try {
             publicIds = List.of(objectMapper.readValue(raw, UUID[].class));
-        } catch (JsonProcessingException | IllegalArgumentException e) {
+        } catch (JacksonException | IllegalArgumentException e) {
             log.error(
                     "Tham số '{}' không phải mảng publicId (UUID) hợp lệ — bỏ qua nhóm này. Giá trị: {}",
                     KEY_EXECUTIVE_BOARD,

@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.songnhue.content.domain.Category;
+import com.songnhue.core.common.tree.MaterializedPath;
 
 /** Truy vấn danh mục nội dung — CN-01.2. */
 public interface CategoryRepository extends JpaRepository<Category, Long> {
@@ -17,7 +18,19 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
 
     Optional<Category> findBySlugAndDeletedAtIsNull(String slug);
 
-    List<Category> findAllByDeletedAtIsNullOrderByPathAscSortOrderAsc();
+    List<Category> findAllByDeletedAtIsNullOrderByPathAsc();
+
+    /**
+     * Thứ tự <b>hiển thị</b>: cha trước con, anh em theo {@code sort_order} — T26.25.
+     *
+     * <p>Đặt phép sắp ở đây chứ không ở từng nơi gọi (quy tắc 12). Xem
+     * {@link MaterializedPath#sortForDisplay} để biết vì sao {@code ORDER BY path, sort_order} của
+     * SQL không bao giờ so tới {@code sort_order}.
+     */
+    default List<Category> findAllForDisplay() {
+        return MaterializedPath.sortForDisplay(
+                findAllByDeletedAtIsNullOrderByPathAsc(), Category::getPath, Category::getSortOrder);
+    }
 
     /**
      * Đếm bài viết còn nằm trong danh mục — nguồn cho luật chặn xoá (T13.9).

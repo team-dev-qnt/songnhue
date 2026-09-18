@@ -229,6 +229,8 @@ class AuthServiceLoginTest {
             assertThat(outcome.tokens()).isNull();
             // Đây là điểm mấu chốt: qua mật khẩu chưa phải là đã đăng nhập
             verify(refreshTokens, never()).openSession(any(), any(), any());
+            // T61.33 — và CHƯA được xoá bộ đếm sai: đăng nhập lại để né khoá khi đoán mã TOTP
+            verify(loginAttempts, never()).recordSuccess(any(), any(), any());
         }
 
         @Test

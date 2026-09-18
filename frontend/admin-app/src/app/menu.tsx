@@ -4,11 +4,15 @@ import {
   AppstoreOutlined,
   AuditOutlined,
   BellOutlined,
+  CalendarOutlined,
+  CheckSquareOutlined,
   CloudServerOutlined,
+  ContactsOutlined,
   DashboardOutlined,
   HeartOutlined,
   ExperimentOutlined,
   HistoryOutlined,
+  IdcardOutlined,
   InboxOutlined,
   FileTextOutlined,
   FundProjectionScreenOutlined,
@@ -22,6 +26,7 @@ import {
   ReadOutlined,
   SafetyCertificateOutlined,
   SettingOutlined,
+  SolutionOutlined,
   TeamOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
@@ -43,6 +48,15 @@ export interface MenuNode {
   path?: string;
   /** Cần **ít nhất một** quyền trong danh sách. Bỏ trống = chỉ cần đăng nhập. */
   permissions?: readonly string[];
+  /**
+   * Mục chỉ hiện khi tài khoản **có liên kết hồ sơ CBNV** — T51.8.
+   *
+   * ⛔ Đây ⛔ **không** phải một mã quyền, và cố ý ⛔ không giả làm một mã quyền. Vế *"chính nhân
+   * viên đó"* của CN-04.7 là quan hệ giữa **một tài khoản** và **một hàng**, ⛔ không phải một
+   * thuộc tính của vai trò — nhét một mã giả vào `permissions` sẽ làm nó lệch khỏi danh mục quyền
+   * thật của backend, thứ mà chính tệp này hứa là "cùng một mã quyền, ⛔ không thể lệch nhau".
+   */
+  requiresEmployeeLink?: boolean;
   children?: MenuNode[];
 }
 
@@ -73,11 +87,36 @@ export const MENU: readonly MenuNode[] = [
         permissions: ['ops:construction:view'],
       },
       {
+        key: 'cum-cong-trinh',
+        label: 'Cụm công trình',
+        icon: <AppstoreOutlined />,
+        path: '/van-hanh/cum-cong-trinh',
+        permissions: ['ops:construction:view'],
+      },
+      {
         key: 'danh-muc-tinh-hinh',
         label: 'Danh mục tình trạng vận hành',
         icon: <AppstoreOutlined />,
         path: '/van-hanh/danh-muc-tinh-hinh',
         permissions: ['ops:operation-status-code:manage'],
+      },
+      {
+        // ⭐ Đầu nhận ĐẦU TIÊN của `ops:gis-layer:view` — mã quyền seed từ 13/08/2026, 0 endpoint.
+        // ⛔ Gác bằng `:view`, ⛔ không `:manage`: ba nút ghi trong trang tự ẩn theo `:manage`, còn
+        //   người chỉ được xem vẫn cần biết bản đồ đang có những lớp nào.
+        key: 'lop-ban-do',
+        label: 'Lớp bản đồ GIS',
+        icon: <LayoutOutlined />,
+        path: '/van-hanh/lop-ban-do',
+        permissions: ['ops:gis-layer:view'],
+      },
+      {
+        // ⭐ Đầu nhận ĐẦU TIÊN của `ops:report:view`. Nút tải tệp gác riêng bằng `ops:report:export`.
+        key: 'bao-cao-van-hanh',
+        label: 'Báo cáo vận hành',
+        icon: <FileTextOutlined />,
+        path: '/van-hanh/bao-cao',
+        permissions: ['ops:report:view'],
       },
     ],
   },
@@ -244,6 +283,118 @@ export const MENU: readonly MenuNode[] = [
     ],
   },
   {
+    // ⛔ Cả hai mục gác bằng `hr:employee:view`. Danh mục chức vụ ⛔ KHÔNG được gác bằng một quyền
+    //    hẹp hơn: nó là nguồn dữ liệu cho ô "Chức vụ" của biểu mẫu hồ sơ, nên người dựng hồ sơ mà
+    //    ⛔ không mở được nó thì cũng ⛔ không kiểm tra được mã mình đang chọn (WS-28).
+    key: 'nhan-su',
+    label: 'Nhân sự',
+    icon: <TeamOutlined />,
+    children: [
+      {
+        // ⭐ Đầu nhận ĐẦU TIÊN của `hr:org-chart:view` — mã quyền seed cho 3 vai trò từ 13/08/2026
+        //   và có **0 endpoint** suốt 32 ngày (luật 15).
+        // ⛔ Trang này chỉ XEM. Kéo–thả, đổi tên, giải thể nằm ở *Quản trị › Sơ đồ đơn vị*
+        //   (`adm:org-unit:manage`) — cho ba vai trò chỉ-xem sửa cây là cho họ dựng lại tổ chức
+        //   của cả Công ty.
+        key: 'so-do-to-chuc',
+        label: 'Sơ đồ tổ chức',
+        icon: <ApartmentOutlined />,
+        path: '/nhan-su/so-do-to-chuc',
+        permissions: ['hr:org-chart:view'],
+      },
+      {
+        key: 'ho-so-cbnv',
+        label: 'Hồ sơ cán bộ',
+        icon: <IdcardOutlined />,
+        path: '/nhan-su/ho-so',
+        permissions: ['hr:employee:view'],
+      },
+      {
+        // ⚠ Quyền ở đây là `hr:directory:view` — 11/12 vai trò có nó, trong khi `hr:employee:view`
+        //   chỉ 3. Gộp hai mục về một quyền là hỏng theo CẢ HAI chiều: gác chặt thì cả Công ty mất
+        //   danh bạ, gác lỏng thì hồ sơ nhân sự lộ cho mọi người (CN-04.6 vs CN-04.7).
+        key: 'danh-ba',
+        label: 'Danh bạ nội bộ',
+        icon: <ContactsOutlined />,
+        path: '/nhan-su/danh-ba',
+        permissions: ['hr:directory:view'],
+      },
+      {
+        // ⭐ Đầu nhận ĐẦU TIÊN của `hr:report:view` — mã quyền seed từ 13/08/2026, **0 endpoint**
+        //   suốt 32 ngày. Nút tải tệp bên trong trang gác riêng bằng `hr:report:export`: **xem**
+        //   số tổng hợp và **mang cả danh sách cán bộ ra khỏi hệ thống** là hai việc khác nhau.
+        key: 'bao-cao-nhan-su',
+        label: 'Báo cáo nhân sự',
+        icon: <LineChartOutlined />,
+        path: '/nhan-su/bao-cao',
+        permissions: ['hr:report:view'],
+      },
+      {
+        // T61.20 — M4.9. Cùng quyền với *Hồ sơ cán bộ*: danh sách mang tên + hạn hợp đồng của từng
+        //   người, tức là dữ liệu hồ sơ; backend đã cắt theo phạm vi đơn vị.
+        key: 'canh-bao-het-han',
+        label: 'Cảnh báo hết hạn',
+        icon: <AlertOutlined />,
+        path: '/nhan-su/canh-bao-het-han',
+        permissions: ['hr:employee:view'],
+      },
+      {
+        key: 'chuc-vu',
+        label: 'Danh mục chức vụ',
+        icon: <SolutionOutlined />,
+        path: '/nhan-su/chuc-vu',
+        permissions: ['hr:employee:view'],
+      },
+      {
+        // ⛔ ⛔ Không `permissions` — mục này gác bằng LIÊN KẾT, ⛔ không bằng quyền. Gác thêm
+        //    `hr:employee:view` sẽ chặn đúng đối tượng nó phục vụ: một cán bộ vai trò VIEWER ⛔
+        //    không có quyền ấy, mà đặc tả CN-04.7 nói *"chính nhân viên đó"*.
+        key: 'ho-so-cua-toi',
+        label: 'Hồ sơ của tôi',
+        icon: <IdcardOutlined />,
+        path: '/nhan-su/ho-so-cua-toi',
+        requiresEmployeeLink: true,
+      },
+      {
+        // ⛔⛔ Gác bằng LIÊN KẾT, cùng lý lẽ với *Hồ sơ của tôi* — và ở đây nó còn là điều kiện
+        //    CẦN thật sự: `/nghi-phep/cua-toi` suy hồ sơ từ token, nên một tài khoản chưa liên kết
+        //    mở màn hình này chỉ nhận `SYS-0004` mà ⛔ không hiểu vì sao (T51.8).
+        // ⚠ ⛔ Không gác thêm `hr:leave:request`: chốt C3 cấp quyền ấy cho gần như mọi vai trò
+        //   (*"cấp tài khoản cho toàn bộ CBNV"*), nên nó ⛔ không phân biệt được ai — mà một điều
+        //   kiện ⛔ không phân biệt được hai trạng thái thì ⛔ không khẳng định gì (luật 9).
+        key: 'nghi-phep-cua-toi',
+        label: 'Nghỉ phép của tôi',
+        icon: <CalendarOutlined />,
+        path: '/nhan-su/nghi-phep',
+        requiresEmployeeLink: true,
+      },
+      {
+        key: 'duyet-nghi-phep',
+        label: 'Duyệt nghỉ phép',
+        icon: <CheckSquareOutlined />,
+        path: '/nhan-su/duyet-nghi-phep',
+        permissions: ['hr:leave:approve'],
+      },
+      {
+        // ⛔⛔ Gác bằng `hr:leave:request` — quyền của NGƯỜI NỘP ĐƠN, ⛔ không phải
+        //    `hr:contract:manage` của người sửa danh mục. Lý do: lịch lễ quyết định số ngày công
+        //    của đơn mình sắp nộp, mà một ô *"còn 8 ngày công"* ⛔ không xem được vì sao là một
+        //    con số ⛔ không ai tin. Ba nút GHI trong trang tự ẩn theo `hr:contract:manage`.
+        //
+        // ⚠⚠ Bản đầu để TRỐNG `permissions` cho khớp đúng đường đọc của backend (chỉ đòi đăng
+        //    nhập). Bộ canh `không có quyền nhân sự nào thì cả nhóm biến mất` đỏ ngay — và nó
+        //    ĐÚNG: một mục ⛔ không gác gì làm cả nhóm *Nhân sự* hiện cho mọi tài khoản, kể cả
+        //    tài khoản thuần quản trị hệ thống. ⇒ Điều kiện phải là **lý do màn hình tồn tại**,
+        //    ⛔ không phải bản sao của cổng quyền backend; hai tầng trả lời hai câu khác nhau.
+        key: 'ngay-le',
+        label: 'Ngày nghỉ lễ',
+        icon: <CalendarOutlined />,
+        path: '/nhan-su/ngay-le',
+        permissions: ['hr:leave:request'],
+      },
+    ],
+  },
+  {
     key: 'quan-tri',
     label: 'Quản trị hệ thống',
     icon: <SafetyCertificateOutlined />,
@@ -275,6 +426,13 @@ export const MENU: readonly MenuNode[] = [
         icon: <SettingOutlined />,
         path: '/quan-tri/cau-hinh',
         permissions: ['adm:setting:view'],
+      },
+      {
+        key: 'tinh-trang-cau-hinh',
+        label: 'Tình trạng cấu hình',
+        icon: <SettingOutlined />,
+        path: '/quan-tri/tinh-trang-cau-hinh',
+        permissions: ['adm:system-config:view'],
       },
       {
         key: 'nhat-ky',
@@ -328,14 +486,28 @@ export const MENU: readonly MenuNode[] = [
  * Nhóm cha rỗng sau khi lọc thì **bỏ luôn cả nhóm** — để lại một mục "Quản trị hệ thống"
  * bấm vào không có gì bên trong thì người dùng tưởng giao diện hỏng.
  */
+/**
+ * Điều kiện hiển thị **ngoài phân quyền** — T51.8.
+ *
+ * ⚠ Bỏ trống là `false`, tức **ẩn**. Fail-closed có chủ đích: một nơi gọi quên truyền hồ sơ sẽ
+ * làm mục biến mất (khó chịu, tự lộ ra) chứ ⛔ không làm nó hiện ra cho người ⛔ không có liên kết
+ * (im lặng, và bấm vào thì 404).
+ */
+export interface HoSoNguoiDung {
+  coHoSoNhanSu?: boolean;
+}
+
 export function visibleMenu(
   nodes: readonly MenuNode[],
   hasPermission: (code: string) => boolean,
+  hoSo: HoSoNguoiDung = {},
 ): MenuNode[] {
   return nodes
     .map((node) => {
-      const children = node.children ? visibleMenu(node.children, hasPermission) : undefined;
-      const allowed = !node.permissions || node.permissions.some((code) => hasPermission(code));
+      const children = node.children ? visibleMenu(node.children, hasPermission, hoSo) : undefined;
+      const allowed =
+        (!node.permissions || node.permissions.some((code) => hasPermission(code))) &&
+        (!node.requiresEmployeeLink || hoSo.coHoSoNhanSu === true);
 
       if (node.children) {
         return children && children.length > 0 ? { ...node, children } : null;

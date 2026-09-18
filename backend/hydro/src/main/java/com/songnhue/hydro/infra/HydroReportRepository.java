@@ -157,14 +157,14 @@ public class HydroReportRepository {
             """
             WITH cap AS (
                 SELECT s.id AS station_id, s.code AS station_code, s.name AS station_name,
-                       s.river_name, s.position_role,
+                       s.river_name, s.chainage, s.position_role,
                        m.id AS type_id, m.code AS type_code, m.name AS type_name, m.unit
                   FROM station_measurement_types smt
                   JOIN stations s ON s.id = smt.station_id AND s.deleted_at IS NULL
                   JOIN measurement_types m ON m.id = smt.measurement_type_id AND m.deleted_at IS NULL
                  WHERE (?::bigint IS NULL OR s.id = ?::bigint)
             )
-            SELECT c.station_code, c.station_name, c.river_name, c.position_role,
+            SELECT c.station_code, c.station_name, c.river_name, c.chainage, c.position_role,
                    c.type_code, c.type_name, c.unit,
                    coalesce(sum(a.reading_count), 0) AS so_ban_ghi,
                    count(a.id) AS so_ngay_co_du_lieu,
@@ -174,7 +174,24 @@ public class HydroReportRepository {
                    (array_agg(a.max_at ORDER BY a.max_value DESC, a.max_at ASC))[1] AS moc_max,
                    CASE WHEN coalesce(sum(a.reading_count), 0) > 0
                         THEN round(sum(a.sum_value) / sum(a.reading_count), 3)
-                   END AS gia_tri_tb
+                   END AS gia_tri_tb,
+                   -- ⭐ "Số lần vượt ngưỡng" — chỉ tiêu ĐẶC TẢ của BC-05 (proposal §2.2), tới
+                   --    09/09/2026 ⛔ không có ở bất kỳ bản kết xuất nào.
+                   -- ⚠ Đếm theo `started_at` chứ ⛔ không theo `confirmed_at`: một cảnh báo bắt đầu
+                   --   trong kỳ là một lần vượt ngưỡng của kỳ ấy, kể cả khi nó còn đang mở lúc kỳ
+                   --   kết thúc. Đếm theo `ended_at` thì đợt lũ đang diễn ra biến mất khỏi báo cáo.
+                   -- ⚠ Đếm SUBQUERY chứ ⛔ không JOIN vào cùng khối GROUP BY: một cảnh báo kéo dài
+                   --   nhiều ngày sẽ nhân bản mọi hàng `hydro_agg_daily` của điểm đo ấy, và cả
+                   --   `sum(reading_count)` lẫn trung bình kỳ sẽ sai theo mà ⛔ không có gì báo.
+                   (SELECT count(*) FROM alert_events ev
+                     WHERE ev.station_id = c.station_id
+                       AND ev.measurement_type_id = c.type_id
+                       -- ⛔ ⛔ KHÔNG `::timestamptz` trần: nó cắt theo múi giờ PHIÊN. `hyd_dau_ngay_vn`
+                       --    là MỘT chỗ duy nhất trong hệ biết 'Asia/Ho_Chi_Minh' (V202609041063), và
+                       --    chú thích của nó đã ghi cái giá: cắt theo UTC đẩy 42/144 khung mỗi ngày
+                       --    sang hôm trước, im lặng.
+                       AND ev.started_at >= hyd_dau_ngay_vn(?::date)
+                       AND ev.started_at < hyd_dau_ngay_vn((?::date) + 1)) AS so_lan_vuot_nguong
               FROM cap c
               LEFT JOIN hydro_agg_daily a
                      ON a.station_id = c.station_id
@@ -182,8 +199,8 @@ public class HydroReportRepository {
                     AND a.agg_date >= ?
                     AND a.agg_date <= ?
                     AND a.quality = 'HOP_LE'
-             GROUP BY c.station_code, c.station_name, c.river_name, c.position_role,
-                      c.type_code, c.type_name, c.unit
+             GROUP BY c.station_id, c.station_code, c.station_name, c.river_name, c.chainage,
+                      c.position_role, c.type_id, c.type_code, c.type_name, c.unit
              ORDER BY c.station_code, c.type_code
             """;
 
@@ -377,6 +394,7 @@ public class HydroReportRepository {
                         rs.getString("station_code"),
                         rs.getString("station_name"),
                         rs.getString("river_name"),
+                        rs.getString("chainage"),
                         rs.getString("position_role"),
                         rs.getString("type_code"),
                         rs.getString("type_name"),
@@ -387,9 +405,15 @@ public class HydroReportRepository {
                         moc(rs, "moc_min"),
                         rs.getBigDecimal("gia_tri_max"),
                         moc(rs, "moc_max"),
-                        rs.getBigDecimal("gia_tri_tb")),
+                        rs.getBigDecimal("gia_tri_tb"),
+                        rs.getInt("so_lan_vuot_nguong")),
+                // ⚠ Thứ tự tham số đi theo VỊ TRÍ VĂN BẢN trong câu, ⛔ không theo thứ tự mệnh đề
+                //   logic: subquery đếm cảnh báo nằm trong SELECT nên hai tham số ngày của nó đứng
+                //   TRƯỚC hai tham số ngày của LEFT JOIN.
                 stationId,
                 stationId,
+                Date.valueOf(tuNgay),
+                Date.valueOf(denNgay),
                 Date.valueOf(tuNgay),
                 Date.valueOf(denNgay));
     }

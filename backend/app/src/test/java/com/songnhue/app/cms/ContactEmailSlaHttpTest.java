@@ -13,8 +13,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -23,7 +21,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.app.testsupport.PhienHttp;
+import com.songnhue.app.testsupport.TestHttp;
 import com.songnhue.content.application.CmsJobTypes;
+import com.songnhue.content.application.ContactFormPolicy;
 import com.songnhue.content.application.ContactScheduler;
 import com.songnhue.content.application.ContactService;
 import com.songnhue.content.application.ContactSlaHandler;
@@ -63,7 +63,10 @@ class ContactEmailSlaHttpTest extends IntegrationTestBase {
     private static final String CONG_KHAI = "/api/v1/public/contacts";
 
     @Autowired
-    private TestRestTemplate http;
+    private TestHttp http;
+
+    /** ⚠ T61.37 — lượt gửi công khai phải mang IP riêng, xem {@code PhienHttp.dangJson}. */
+    private PhienHttp phienHttp;
 
     @Autowired
     private UserRepository users;
@@ -126,7 +129,18 @@ class ContactEmailSlaHttpTest extends IntegrationTestBase {
         donThongBaoCuaLienHe();
         jdbc.update("DELETE FROM jobs WHERE job_type LIKE 'CMS_CONTACT%'");
         jdbc.update("DELETE FROM contacts");
+        // ⚠ T28.51 — TRẢ `head_user_id` về NULL trước khi xoá tài khoản: khoá ngoại
+        //   `fk_org_units_head_user` chặn lượt xoá, và bài kế tiếp sẽ đỏ vì dọn dẹp chứ ⛔ không vì
+        //   thứ nó kiểm.
+        jdbc.update("UPDATE org_units SET head_user_id = NULL "
+                + "WHERE head_user_id IN (SELECT id FROM users WHERE username LIKE 't2851\\_%')");
+        jdbc.update("DELETE FROM users WHERE username LIKE 't2851\\_%'");
         datHanSla("48");
+        // ⚠ T28.49 — trả khoá về ĐÚNG `default_value`, ⛔ không về một chuỗi ghi cứng. Một bài ở
+        //   lớp này tắt `email.required` để dựng trạng thái "⛔ không có email"; ⛔ không trả lại
+        //   thì mọi lớp chạy SAU nó đo trên chính sách CŨ, và chúng đỏ vì dọn dẹp chứ ⛔ không vì
+        //   thứ chúng kiểm — đúng cách `ContactFormPolicyHttpTest` đã mắc và vừa được vá.
+        veMacDinh(ContactFormPolicy.KHOA_EMAIL_BAT_BUOC);
     }
 
     private void donThongBaoCuaLienHe() {
@@ -156,28 +170,54 @@ class ContactEmailSlaHttpTest extends IntegrationTestBase {
                         + "Đây là vế mà một bài unit test có mock ⛔ không thể phân biệt được.")
                 .isPositive();
 
-        assertThat(demViec(CmsJobTypes.CONTACT_ACK_MAIL)).isEqualTo(1);
+        // ⛔⛔ T61.37 (16/09/2026) — vế THỨ HAI của bài này đổi chiều: thư xác nhận ⛔ được đặt khi
+        //   reCAPTCHA chưa bảo vệ biểu mẫu (khoá thuộc G13, Công ty chưa cấp ⇒ công tắc tắt). Thư ấy
+        //   đi tới địa chỉ do NGƯỜI GỬI tự khai, nên để nó chạy là cho phép bất kỳ ai khiến máy chủ
+        //   thư của Công ty phát nội dung tới nơi họ chỉ định.
+        //
+        // ⚠ Nhánh ngược lại (captcha BẬT ⇒ thư đặt lại, payload ⛔ mang email) canh ở
+        //   `ContactServiceTest.coCaptchaThiDatLaiThuXacNhan` — tầng đơn vị, vì bật captcha ở tầng
+        //   HTTP kéo theo một lượt gọi THẬT ra Google (5 giây, và trả `success:false` với khoá giả).
+        assertThat(demViec(CmsJobTypes.CONTACT_ACK_MAIL))
+                .as("chưa có reCAPTCHA ⇒ ⛔ thư ra ngoài; bản ghi liên hệ thì vẫn lưu")
+                .isZero();
     }
 
+    /**
+     * ⚠ Bài cũ ({@code payloadKhongMangDiaChiEmail}) đọc {@code payload} của việc gửi thư để khẳng
+     * định nó ⛔ mang địa chỉ email (NĐ 13/2023). Từ T61.37 ⛔ còn việc nào được đặt ở nhánh này,
+     * nên khẳng định ấy <b>chuyển xuống</b> {@code ContactServiceTest.coCaptchaThiDatLaiThuXacNhan}
+     * — nơi captcha bật được bằng mock. Ở đây giữ vế đo được của tầng HTTP: hàng đợi RỖNG.
+     */
     @Test
-    @DisplayName("⛔⛔ Payload việc gửi thư ⛔ KHÔNG chứa địa chỉ email — NĐ 13/2023")
-    void payloadKhongMangDiaChiEmail() {
+    @DisplayName("⛔⛔ Chưa có reCAPTCHA ⇒ hàng đợi thư xác nhận RỖNG — ⛔ chỉ là payload sạch")
+    void chuaCoCaptchaThiHangDoiThuRong() {
         gui("nguoidan@example.invalid", null);
 
-        String payload = jdbc.queryForObject(
-                "SELECT payload::text FROM jobs WHERE job_type = ?", String.class, CmsJobTypes.CONTACT_ACK_MAIL);
-
-        assertThat(payload)
-                .as("⛔ `JobRequest` nói rõ: payload nằm NGUYÊN VĂN trong bảng `jobs` và lọt vào mọi "
-                        + "bản sao lưu. Địa chỉ đã có ở `contacts` — chép thêm một bản vào hàng đợi "
-                        + "là nhân đôi phạm vi mà ⛔ không đổi lấy gì.")
-                .doesNotContain("nguoidan@example.invalid")
-                .contains("contactPublicId");
+        assertThat(demViec(CmsJobTypes.CONTACT_ACK_MAIL)).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM contacts", Integer.class))
+                .as("người dân vẫn gửi được")
+                .isEqualTo(1);
     }
 
+    /**
+     * ⚠ Bài này kiểm bất biến <b>SLA</b> — <i>"⛔ không có email ⇒ ⛔ không đặt việc gửi thư"</i> —
+     * chứ ⛔ không kiểm chính sách bắt buộc email. Từ T28.49 (08/09/2026) email là <b>bắt buộc</b>,
+     * nên phải TẮT khoá ấy để dựng được đúng trạng thái cần kiểm.
+     *
+     * <p>⛔ Trạng thái này ⛔ <b>không</b> phải giả định: nó vẫn tới được bằng <b>hai</b> đường thật
+     * — Công ty tắt {@code email.required} trên màn hình Cấu hình, hoặc một hàng cũ có từ trước
+     * lượt chốt (dữ liệu cũ cố ý ⛔ không bị đụng, xem đầu {@code V202609081071}).
+     *
+     * <p>⛔ Và tắt ở đây <b>an toàn</b> vì {@code @AfterEach} nay khôi phục từ chính
+     * {@code settings.default_value}, ⛔ không từ một chuỗi ghi cứng — xem
+     * {@code ContactFormPolicyHttpTest.traLaiMacDinh()}.
+     */
     @Test
     @DisplayName("⛔ Chỉ để lại điện thoại ⇒ vẫn báo cán bộ, nhưng ⛔ KHÔNG đặt việc gửi thư")
     void khongCoEmailThiKhongDatViec() {
+        datKhoa(ContactFormPolicy.KHOA_EMAIL_BAT_BUOC, "false");
+
         gui(null, "0243354xxxx");
 
         assertThat(jdbc.queryForObject(
@@ -245,6 +285,114 @@ class ContactEmailSlaHttpTest extends IntegrationTestBase {
                 .isZero();
     }
 
+    // ═══════════════ T28.51 — nhắc TỚI ĐÚNG người ═══════════════
+
+    /**
+     * ⭐⭐ Người đứng đầu đơn vị <b>đang giữ việc</b> phải nhận nhắc, kể cả khi ⛔ không có
+     * {@code cms:contact:manage}.
+     *
+     * <p>Trước 08/09 lượt nhắc gửi cho <b>mọi</b> tài khoản có quyền xử lý và chỉ thế. Người phụ
+     * trách Xí nghiệp đang giữ việc ⛔ không nhận được gì; người ⛔ không liên quan nhận hết. Đó đúng
+     * là cách một hộp thư học được thói quen bỏ qua cảnh báo — và lúc ấy cảnh báo sự cố thật cũng
+     * chết theo.
+     *
+     * <p>⚠ Đường dây từng đứt ở <b>HAI</b> chỗ độc lập ({@code NotifyRequest.targeted} ghi cứng danh
+     * sách rỗng, <i>và</i> {@code RecipientResolver} bỏ qua danh sách ấy khi đã nhắm đích). Bài này
+     * đo <b>kết quả cuối</b> — ai có tên trong {@code notification_recipients} — nên nó đỏ nếu chỉ
+     * vá một trong hai.
+     */
+    @Test
+    @DisplayName("⭐⭐ T28.51 — trưởng đơn vị ĐANG GIỮ VIỆC nhận nhắc, dù ⛔ không có quyền xử lý")
+    void nhacToiCaTruongDonViDangGiuViec() {
+        Long donVi = donViCty();
+        Long truongDonVi = seedNguoiDungKhongQuyen("t2851_truong", donVi);
+        jdbc.update("UPDATE org_units SET head_user_id = ? WHERE id = ?", truongDonVi, donVi);
+
+        gui("a@example.invalid", null);
+        jdbc.update("UPDATE contacts SET created_at = now() - interval '72 hours', assigned_org_unit_id = ?", donVi);
+
+        slaHandler.handle(viecRong());
+
+        assertThat(laNguoiNhanSla(truongDonVi))
+                .as("⛔ Người đang giữ việc ⛔ không nhận được nhắc — 40 thư/ngày đi tới người ⛔ không "
+                        + "có gì phải làm, còn người phải làm thì ⛔ không biết")
+                .isTrue();
+    }
+
+    /**
+     * ⚠⚠ Vế phân biệt (luật 9) — và nó đo <b>hai</b> điều cùng lúc.
+     *
+     * <p>Nếu bài trên xanh vì {@code RecipientResolver} bỗng gửi cho <i>tất cả mọi người</i>, thì nó
+     * ⛔ không chứng minh gì. Ở đây cùng một tài khoản, cùng một lượt nhắc, chỉ khác ở chỗ liên hệ
+     * <b>chưa được chuyển cho ai</b> — và khi ấy anh ta ⛔ không được nhận.
+     *
+     * <p>⛔ Đồng thời khẳng định lượt nhắc <b>vẫn xảy ra</b>: thay nhóm-theo-quyền bằng nhóm-theo-đơn-vị
+     * là đổi một lỗ lấy một lỗ khác — việc chưa giao thì ⛔ không ai nhận.
+     */
+    @Test
+    @DisplayName("⭐⭐ Chưa chuyển cho ai ⇒ trưởng đơn vị ấy ⛔ KHÔNG nhận, mà chuông VẪN kêu")
+    void chuaChuyenChoAiThiKhongNhac() {
+        Long donVi = donViCty();
+        Long truongDonVi = seedNguoiDungKhongQuyen("t2851_ngoai", donVi);
+        jdbc.update("UPDATE org_units SET head_user_id = ? WHERE id = ?", truongDonVi, donVi);
+
+        gui("b@example.invalid", null);
+        // ⛔ KHÔNG gán `assigned_org_unit_id` — liên hệ chưa được chuyển cho ai.
+        jdbc.update("UPDATE contacts SET created_at = now() - interval '72 hours'");
+
+        slaHandler.handle(viecRong());
+
+        assertThat(demChuongSla())
+                .as("Liên hệ chưa giao cho ai vẫn phải được nhắc — nhóm giữ quyền xử lý là người phải làm")
+                .isEqualTo(1);
+        assertThat(laNguoiNhanSla(truongDonVi))
+                .as("⛔ Anh ta ⛔ không liên quan tới liên hệ này — nhận nhắc là quay lại đúng vấn đề cũ")
+                .isFalse();
+    }
+
+    /**
+     * Tài khoản ACTIVE ⛔ KHÔNG có vai trò nào ⇒ ⛔ không có {@code cms:contact:manage}.
+     *
+     * <p>⚠ Hai lượt đỏ trước khi đúng, và cả hai nói về <b>lược đồ</b> chứ ⛔ không nói gì về thứ
+     * đang kiểm — nên ghi lại để lần sau khỏi mất hai vòng:
+     *
+     * <ul>
+     *   <li>{@code org_unit_id} là {@code NOT NULL}; bản đầu bỏ hẳn cột ấy.
+     *   <li>{@code ON CONFLICT (username)} ⛔ <b>không suy ra được đích</b>: chỉ mục duy nhất là
+     *       {@code uq_users_username ON users (lower(username)) WHERE deleted_at IS NULL} — một chỉ
+     *       mục <i>biểu thức</i> và <i>có điều kiện</i>. Bỏ hẳn mệnh đề ấy là đúng: {@code @AfterEach}
+     *       xoá tài khoản sau mỗi bài, nên ⛔ không có xung đột nào để xử.
+     * </ul>
+     */
+    private Long seedNguoiDungKhongQuyen(String username, Long orgUnitId) {
+        return jdbc.queryForObject(
+                """
+                INSERT INTO users (username, email, full_name, password_hash, org_unit_id, status, created_at)
+                VALUES (?, ? || '@example.invalid', 'Trưởng đơn vị kiểm thử', '!', ?, 'ACTIVE', now())
+                RETURNING id
+                """,
+                Long.class,
+                username,
+                username,
+                orgUnitId);
+    }
+
+    private Long donViCty() {
+        return jdbc.queryForObject("SELECT id FROM org_units WHERE code = 'CTY'", Long.class);
+    }
+
+    private boolean laNguoiNhanSla(Long userId) {
+        Integer n = jdbc.queryForObject(
+                """
+                SELECT count(*) FROM notification_recipients r
+                  JOIN notifications n ON n.id = r.notification_id
+                 WHERE n.event_type = 'CONTACT_SLA_BREACH' AND r.user_id = ?
+                """,
+                Integer.class,
+                userId);
+        return n != null && n > 0;
+    }
+
     // ═══════════════ Bộ canh: mã việc ↔ handler ═══════════════
 
     /**
@@ -296,7 +444,7 @@ class ContactEmailSlaHttpTest extends IntegrationTestBase {
                 }
                 """
                         .formatted(oChuoi(email), oChuoi(dienThoai));
-        ResponseEntity<String> r = http.postForEntity(CONG_KHAI, new HttpEntity<>(than, h), String.class);
+        ResponseEntity<String> r = phienHttp().dangJson(CONG_KHAI, than);
         assertThat(r.getStatusCode()).as("thân: %s", r.getBody()).isEqualTo(HttpStatus.NO_CONTENT);
     }
 
@@ -313,6 +461,20 @@ class ContactEmailSlaHttpTest extends IntegrationTestBase {
         Integer n = jdbc.queryForObject(
                 "SELECT count(*) FROM notifications WHERE event_type = 'CONTACT_SLA_BREACH'", Integer.class);
         return n == null ? 0 : n;
+    }
+
+    /** ⚠ Sửa thẳng CSDL rồi <b>xoá đệm</b> — cùng lý do đã ghi ở {@link #datHanSla(String)}. */
+    private void datKhoa(String khoa, String giaTri) {
+        int soHang = jdbc.update("UPDATE settings SET setting_value = ? WHERE setting_key = ?", giaTri, khoa);
+        assertThat(soHang).as("khoá `%s` ⛔ không có trong bảng settings", khoa).isEqualTo(1);
+        settings.invalidate(khoa);
+    }
+
+    /** Trả khoá về đúng {@code default_value} của chính nó — ⛔ KHÔNG về một hằng ghi cứng. */
+    private void veMacDinh(String khoa) {
+        int soHang = jdbc.update("UPDATE settings SET setting_value = default_value WHERE setting_key = ?", khoa);
+        assertThat(soHang).as("khoá `%s` ⛔ không có trong bảng settings", khoa).isEqualTo(1);
+        settings.invalidate(khoa);
     }
 
     /** ⚠ Sửa thẳng CSDL rồi <b>xoá đệm</b>: {@code SettingService} có Caffeine, TTL vài phút. */
@@ -341,5 +503,12 @@ class ContactEmailSlaHttpTest extends IntegrationTestBase {
                         + "WHERE u.username = ? AND r.code = 'T36_MAIL_PROBE' ON CONFLICT DO NOTHING",
                 username);
         return username;
+    }
+    /** Lười khởi tạo: mỗi lớp một thực thể ⇒ một IP, đủ để tách khỏi các lớp khác. */
+    private PhienHttp phienHttp() {
+        if (phienHttp == null) {
+            phienHttp = new PhienHttp(http);
+        }
+        return phienHttp;
     }
 }

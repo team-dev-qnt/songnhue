@@ -6,7 +6,7 @@
 
 | | Máy | Cấu hình | Chạy gì |
 |---|---|---|---|
-| **VPS-1** | Production | 4 vCPU · 8 GB · 160 GB SSD · Ubuntu 24.04 | nginx · app · postgres · minio · admin-app · public-web |
+| **VPS-1** | Production | 4 vCPU · 8 GB · 160 GB SSD · Ubuntu 24.04 | nginx · app · postgres · minio · clamav · admin-app · public-web |
 | **VPS-2** | Staging | **2 vCPU · 8 GB · 80 GB** | cùng stack (nhỏ hơn) **+ kho sao lưu + Prometheus/Grafana** |
 | — | Kho ngoài | B2 / R2, **nhà cung cấp khác** | bản sao lưu đã mã hoá |
 
@@ -159,11 +159,20 @@ Cộng đúng những gì `compose.staging.yml` và `compose.observability.yml` 
 | public-web | 384 MB | hạ từ 512 MB |
 | admin-app | 256 MB | **kế thừa production, không hạ** |
 | nginx | 256 MB | **kế thừa production, không hạ** |
-| **Cộng stack staging** | **3.968 MB** | |
+| clamav | 1.200 MB | ⭐ **thêm 14/09/2026 (T61.4)** — kế thừa production, `ConcurrentDatabaseReload no` |
+| **Cộng stack staging** | **5.168 MB** | |
 | prometheus · grafana · node-exporter | 928 MB | trần mới đặt 24/8; trước đó **không giới hạn** |
-| **Cộng cả máy** | **4.896 MB** | |
+| **Cộng cả máy** | **6.096 MB** | |
 | Hệ điều hành + Docker daemon | ~450–600 MB | |
-| **Tổng thực tế** | **≈ 5,4 GB** | |
+| **Tổng thực tế** | **≈ 6,6 GB** | |
+
+> ⚠ **14/09/2026 — ClamAV ăn gần nửa biên.** Đo trên chính ảnh `clamav/clamav:1.4.6-debian`: nghỉ
+> ~965 MiB; lượt nạp lại định nghĩa (freshclam kéo bản mới vài lần mỗi ngày) **đỉnh 1.913 MiB** ở chế
+> độ mặc định vì clamd giữ hai bộ định nghĩa cùng lúc, **981 MiB** với `ConcurrentDatabaseReload no`
+> (đổi lại lượt quét giữa lúc nạp chờ ~5 giây — quét là job nền nên ⛔ ai thấy). QuanTran chốt `no`
+> cho **cả hai** máy. Biên còn lại của VPS-2: 8.192 − 6.096 ≈ **2,1 GB** trước hệ điều hành. Trên
+> VPS-1 trần các container nay cộng **8,2 GB** — trần là giới hạn trên, ⛔ phải mức dùng thật; đo
+> `docker stats --no-stream` sau lượt đề bạt đầu tiên mang ClamAV.
 
 **Trên máy 4 GB con số này không vừa, và nó hỏng theo kiểu tệ nhất.** Hết bộ nhớ thì OOM-killer chọn
 tiến trình có RSS lớn nhất — gần như luôn là `app` hoặc `postgres`. `app` có
@@ -180,7 +189,7 @@ Quyết định ngày 24/8. Hai phương án còn lại giữ lại đây để 
 | B | 6 GB + hạ tiếp trần staging | Vừa đủ, **không còn biên**. Lượt `pg_restore` khi diễn tập khôi phục ăn thêm bộ nhớ đúng lúc cả hai stack đang chạy — và diễn tập khôi phục là mục nghiệm thu bắt buộc (DOD0.14), không phải việc tuỳ chọn |
 | C | Giữ 4 GB, chuyển giám sát sang VPS-1 | Phá đúng lý do dựng ra nó: **giám sát phải sống khi production chết**. Đặt chung máy với thứ mình canh gác là canh gác vô nghĩa |
 
-**8 GB để lại biên bao nhiêu:** 8.192 − 5.408 = **2.784 MB**. Biên đó không thừa, nó có ba việc cụ
+**8 GB để lại biên bao nhiêu:** 8.192 − 5.408 = **2.784 MB** *(số trước ClamAV — nay ≈ 1,6 GB sau hệ điều hành, xem khối ⚠ ngay trên)*. Biên đó không thừa, nó có ba việc cụ
 thể — `pg_restore` lúc diễn tập khôi phục · bộ đệm trang của Postgres (thứ quyết định staging chạy
 nhanh hay ì) · và lượt `docker compose pull` giữ đồng thời image cũ lẫn image mới.
 

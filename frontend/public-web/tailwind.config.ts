@@ -6,7 +6,7 @@ import {
   shadow,
   sizing,
   statusColors,
-} from 'design-tokens';
+} from '@songnhue/design-tokens';
 import type { Config } from 'tailwindcss';
 
 /**

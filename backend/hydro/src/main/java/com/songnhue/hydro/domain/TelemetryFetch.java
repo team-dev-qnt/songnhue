@@ -72,6 +72,34 @@ public record TelemetryFetch(
         }
     }
 
+    /**
+     * Lượt gọi này có <b>đáng thử lại ngay</b> không — T43.12.
+     *
+     * <h2>⛔ Hai nhóm hỏng, và chỉ một nhóm thử lại có nghĩa</h2>
+     *
+     * <ul>
+     *   <li>⭐ <b>Nguồn ⛔ chưa trả lời gì</b> ({@code httpStatus == null}: timeout, đứt mạng, DNS)
+     *       hoặc trả <b>5xx</b> — đây là hỏng <i>nhất thời</i>. Với một nguồn ⛔ không có API lịch sử,
+     *       một cú chớp mạng ⛔ không thử lại là <b>mất vĩnh viễn</b> một khung 10 phút của 19 trạm
+     *       (quy tắc 18).
+     *   <li>⛔ <b>4xx</b>, {@code not.working}, thân rỗng — thử lại chỉ nhận đúng câu trả lời ấy
+     *       thêm vài lần. Mã số sai ⛔ không tự đúng lên sau 2 giây, và định dạng nguồn ⛔ không tự
+     *       đổi lại. Thử lại ở đây là <b>tự phạt mình</b>: nó ăn hết cửa sổ 2 phút của lượt polling
+     *       kế tiếp — thứ mà {@code HydroPollJobHandler} đã tính toán để tránh.
+     * </ul>
+     */
+    public boolean dangThuLaiDuoc() {
+        if (thanhCong()) {
+            return false;
+        }
+        if (failureKind() == SyncFailureKind.TIMEOUT) {
+            return true;
+        }
+        // ⚠ `httpStatus == null` ⇒ CHƯA nhận được phản hồi nào. Đọc nó thành "0" hay "không rõ nên
+        //   thôi" là bỏ mất đúng nhóm đáng thử lại nhất.
+        return failureKind() == SyncFailureKind.HTTP_ERROR && (httpStatus() == null || httpStatus() >= 500);
+    }
+
     public boolean thanhCong() {
         return failureKind == null;
     }

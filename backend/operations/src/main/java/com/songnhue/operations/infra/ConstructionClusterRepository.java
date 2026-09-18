@@ -11,6 +11,9 @@ import com.songnhue.operations.domain.ConstructionCluster;
 /** Danh mục cụm công trình — T17.11. */
 public interface ConstructionClusterRepository extends JpaRepository<ConstructionCluster, Long> {
 
+    /** Số cụm công trình còn sống thuộc một đơn vị — chốt chặn giải thể đơn vị (CN-04.1). */
+    long countByOrgUnitIdAndDeletedAtIsNull(Long orgUnitId);
+
     Optional<ConstructionCluster> findByPublicIdAndDeletedAtIsNull(UUID publicId);
 
     Optional<ConstructionCluster> findByCodeAndDeletedAtIsNull(String code);

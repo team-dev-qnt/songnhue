@@ -5,10 +5,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.songnhue.content.infra.RecaptchaClient;
-import com.songnhue.content.infra.RecaptchaProperties;
 import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.BusinessRuleException;
 import com.songnhue.core.common.exception.ValidationException;
+import com.songnhue.core.spi.BiMatTichHopPort;
+import com.songnhue.core.spi.LoaiBiMat;
 import com.songnhue.core.spi.SettingPort;
 
 /**
@@ -69,9 +70,9 @@ public class InboundSubmissionGate {
 
     private final SettingPort settings;
     private final RecaptchaClient captcha;
-    private final RecaptchaProperties khoa;
+    private final BiMatTichHopPort khoa;
 
-    public InboundSubmissionGate(SettingPort settings, RecaptchaClient captcha, RecaptchaProperties khoa) {
+    public InboundSubmissionGate(SettingPort settings, RecaptchaClient captcha, BiMatTichHopPort khoa) {
         this.settings = settings;
         this.captcha = captcha;
         this.khoa = khoa;
@@ -129,13 +130,45 @@ public class InboundSubmissionGate {
      * <p>Công khai (⛔ không {@code private}) vì nó là câu trả lời cho <i>trạng thái cấu hình</i>,
      * và một bài kiểm cần khẳng định được cả hai nhánh.
      */
+    /** Khoá thông báo quyền riêng tư — T61.39. ⛔ seed giá trị: nội dung là văn bản pháp lý của Công ty. */
+    public static final String KHOA_THONG_BAO_RIENG_TU = "site.privacy.notice";
+
+    /**
+     * Cổng có đang công bố một thông báo quyền riêng tư ⛔ — <b>T61.39</b>.
+     *
+     * <p>⚠⚠ Đây là điều kiện để ô <i>đồng ý</i> trở thành BẮT BUỘC. Ngược lại — chưa có thông báo mà
+     * vẫn bắt tick — là dựng ra một <b>bằng chứng đồng ý giả</b>: người dân đồng ý với một trang
+     * RỖNG, và bản ghi mang một mốc thời gian trông như đã tuân thủ NĐ 13/2023.
+     */
+    public boolean coThongBaoRiengTu() {
+        return settings.getString(KHOA_THONG_BAO_RIENG_TU)
+                .filter(vb -> !vb.isBlank())
+                .isPresent();
+    }
+
+    /**
+     * Ép ô đồng ý khi — và chỉ khi — đã có thông báo.
+     *
+     * @return mốc thời gian đồng ý để lưu vào bản ghi; {@code null} khi cổng chưa có thông báo
+     * @throws ValidationException {@code SYS-0003} khi có thông báo mà người gửi ⛔ tick
+     */
+    public java.time.Instant kiemDongY(Boolean dongY) {
+        if (!coThongBaoRiengTu()) {
+            return null;
+        }
+        if (!Boolean.TRUE.equals(dongY)) {
+            throw (ValidationException) new ValidationException(ErrorCode.SYS_0003).withDetail("dongY", "BAT_BUOC", "");
+        }
+        return java.time.Instant.now();
+    }
+
     public boolean captchaBatBuoc() {
         if (!settings.getBoolean(KHOA_CAPTCHA_BAT, false)) {
             return false;
         }
-        if (!khoa.coKhoa()) {
+        if (khoa.giaTri(LoaiBiMat.RECAPTCHA_SECRET_KEY).isEmpty()) {
             log.error(
-                    "⛔ `{}` đang BẬT nhưng thiếu biến môi trường RECAPTCHA_SECRET_KEY — mọi biểu mẫu "
+                    "⛔ `{}` đang BẬT nhưng thiếu khoá bí mật reCAPTCHA (Quản trị › Cấu hình hệ thống, hoặc RECAPTCHA_SECRET_KEY) — mọi biểu mẫu "
                             + "công khai vẫn nhận (⛔ không chặn kênh phản ánh của người dân vì một lỗi cấu "
                             + "hình của ta), nhưng ⛔ KHÔNG có lớp chống spam nào ngoài hạn mức tần suất.",
                     KHOA_CAPTCHA_BAT);

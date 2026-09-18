@@ -133,6 +133,62 @@ export const ALIGN_CLASSES = ['sn-align-left', 'sn-align-center', 'sn-align-righ
 export const IMAGE_WIDTH_CLASSES = ['sn-w-full', 'sn-w-1-2', 'sn-w-1-3'] as const;
 
 /**
+ * **Màu chữ** — T41.15, đặc tả đã ký dòng 92 (*"in đậm, in nghiêng, gạch chân, màu chữ, màu nền,
+ * căn lề"*).
+ *
+ * <h3>Vì sao class chứ không phải `style`</h3>
+ *
+ * Cùng lý do với {@link ALIGN_CLASSES}, và ở đây lý do ấy **nặng hơn**: `style="color:#fff"` trên
+ * nền trắng là chữ tàng hình. Một bài đã qua duyệt có thể mang một đoạn không ai đọc thấy trên màn
+ * hình duyệt mà công cụ tìm kiếm vẫn đọc được. Bảng màu cố định đóng hẳn đường ấy — mọi màu trong
+ * danh sách đều có độ tương phản đã chọn trước.
+ *
+ * ⚠ Giá trị màu ⛔ KHÔNG nằm ở đây mà ở `editorColors` của `design-tokens/src/index.ts`. Tệp này khai
+ * **từ vựng** (thứ bộ khử trùng phải cho qua), tệp kia khai **hình thức** (thứ CSS vẽ ra).
+ */
+export const TEXT_COLOR_CLASSES = [
+  'sn-fg-den',
+  'sn-fg-xam',
+  'sn-fg-do',
+  'sn-fg-cam',
+  'sn-fg-luc',
+  'sn-fg-lam',
+] as const;
+
+/**
+ * **Màu nền chữ** (bôi vàng) — cùng dòng 92 của đặc tả.
+ *
+ * Tách khỏi {@link CELL_BG_CLASSES} dù cả hai đều đặt `background-color`: bôi vàng phủ vài từ nên
+ * chịu được sắc đậm, còn một ô bảng tô kín cả vùng thì cùng sắc độ ấy sẽ át chữ. Hai mục đích khác
+ * nhau ⇒ hai thang màu khác nhau, và gộp làm một là buộc một trong hai phải xấu.
+ */
+export const TEXT_BG_CLASSES = [
+  'sn-bg-vang',
+  'sn-bg-luc',
+  'sn-bg-lam',
+  'sn-bg-hong',
+  'sn-bg-cam',
+  'sn-bg-xam',
+] as const;
+
+/**
+ * **Màu nền ô bảng** — T41.15, đặc tả đã ký dòng 98 (*"Chèn bảng biểu (Table) với tùy chỉnh số hàng,
+ * số cột, màu nền ô"*).
+ *
+ * ⚠ Đây là thuộc tính của **nút** {@code tableCell}/{@code tableHeader}, ⛔ không phải một mark trên
+ * chữ — nên nó đi bằng {@code addGlobalAttributes} chứ không bằng {@code Mark.create}. Đặt nhầm tầng
+ * thì class rơi vào một {@code <span>} bên trong ô, và ô vẫn trắng.
+ */
+export const CELL_BG_CLASSES = [
+  'sn-cell-vang',
+  'sn-cell-luc',
+  'sn-cell-lam',
+  'sn-cell-hong',
+  'sn-cell-cam',
+  'sn-cell-xam',
+] as const;
+
+/**
  * **Sàn bề rộng một ô bảng, tính bằng px** — WS-41 (T41.1, T41.4).
  *
  * <h3>Vì sao cần một con số, và vì sao nó phải nằm ở đây</h3>

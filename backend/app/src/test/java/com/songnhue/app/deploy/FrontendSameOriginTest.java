@@ -82,10 +82,51 @@ class FrontendSameOriginTest {
                 .as("có `location /api/` mà không `proxy_pass` thì nginx trả 404 cho mọi lượt gọi API")
                 .containsPattern(Pattern.compile("location /api/\\s*\\{[\\s\\S]{0,400}?proxy_pass"));
 
+        // ⛔⛔ T43.8-b — HAI NƠI CON NGƯỜI PHẢI NHỚ, NAY CÓ MỘT PHÉP KIỂM NHỚ HỘ (luật 14).
+        //
+        //   `ClientIp` (backend) tin `X-Real-IP` vì tin rằng chặng BIÊN ghi đè nó và các chặng
+        //   TRONG chuyển tiếp nguyên vẹn. Cả hai vế ấy sống trong tệp CẤU HÌNH, ⛔ không trong mã
+        //   Java — nên trước bản này ⛔ không có gì so hai vế. Cái giá đã trả: javadoc của BA lớp
+        //   Java khẳng định "nginx ghi đè X-Forwarded-For" trong khi cấu hình NỐI THÊM, và cả bốn
+        //   hạn mức né được bằng một header suốt từ WS-7.
         assertThat(dockerfile)
-                .as("thiếu X-Forwarded-For thì mọi lượt đăng nhập trông như đến từ nginx: một người "
-                        + "gõ sai mật khẩu sẽ khoá hạn mức theo IP của cả cơ quan")
-                .contains("X-Forwarded-For");
+                .as("⛔ Chặng TRONG phải CHUYỂN TIẾP `X-Real-IP` của chặng biên. Đặt "
+                        + "`X-Real-IP $remote_addr` ở đây là ghi đè bằng ip của chính nginx biên ⇒ "
+                        + "mọi máy khách nhận CÙNG một khoá hạn mức, và nhật ký bảo mật mất ip thật.")
+                .contains("proxy_set_header X-Real-IP $http_x_real_ip");
+
+        assertThat(dockerfile)
+                .as("⛔ `$remote_addr` ở chặng TRONG là ip của nginx biên — ⛔ không phải của máy khách")
+                .doesNotContain("proxy_set_header X-Real-IP $remote_addr");
+
+        String proxyCommon = doc("deploy/nginx/snippets/proxy-common.conf");
+        assertThat(proxyCommon)
+                .as("⛔ Chặng BIÊN phải GHI ĐÈ `X-Real-IP` bằng `$remote_addr`. Đó là điều kiện DUY "
+                        + "NHẤT làm header này ⛔ không giả mạo được — và là điều kiện `ClientIp` đang "
+                        + "dựa vào. Đổi nó sang `$http_x_real_ip` là mở lại lỗ hổng T43.8-b.")
+                .containsPattern(Pattern.compile("proxy_set_header\\s+X-Real-IP\\s+\\$remote_addr"));
+
+        // ⚠ Vế PHÂN BIỆT (luật 9): ba khẳng định trên xanh y hệt nếu backend quay lại đọc
+        //   `X-Forwarded-For`. Nên canh luôn vế Java — bất biến thật là "⛔ không nơi nào định danh
+        //   máy khách bằng một header mà kẻ gọi đặt được".
+        String maClientIp = doc("backend/core/src/main/java/com/songnhue/core/common/web/ClientIp.java");
+        assertThat(maClientIp).as("`ClientIp` phải neo vào X-Real-IP").contains("HEADER = \"X-Real-IP\"");
+        assertThat(boChuThichJava(maClientIp))
+                .as("⛔⛔ ⛔ KHÔNG dòng MÃ nào của `ClientIp` được đọc `X-Forwarded-For`. Bỏ chú thích "
+                        + "trước khi soi, vì javadoc của lớp GIẢI THÍCH vì sao cấm header ấy — một bộ "
+                        + "canh phạt đúng người viết tài liệu tử tế là một bộ canh sai (T46.7).")
+                .doesNotContain("X-Forwarded-For");
+
+        // ⛔⛔ T43.8-b, vế thứ hai của luật 14: phép bóc `ServletRequestWrapper` trong `ClientIp`
+        //   đúng CHỈ VÌ `framework` là một FILTER (bọc request, để nguyên Tomcat bên dưới).
+        //   `native` thì `RemoteIpValve` sửa thẳng ở tầng Tomcat — dưới cả request gốc — nên phép
+        //   bóc trả về đúng giá trị đã bị ghi đè, và bản dự phòng lại giả mạo được. Đổi một dòng
+        //   cấu hình sẽ mở lại lỗ hổng mà ⛔ không một bài kiểm hành vi nào đỏ, vì production luôn
+        //   có `X-Real-IP` che mất nhánh ấy.
+        String appYml = doc("backend/app/src/main/resources/application.yml");
+        assertThat(appYml)
+                .as("⛔ `ClientIp.diaChiChangNoi()` chỉ chống giả mạo được dưới chiến lược `framework`")
+                .containsPattern(Pattern.compile("forward-headers-strategy:\\s*framework"));
 
         // ⚠⚠ Đo thật ở lượt dựng đầu: `proxy_pass http://app:8080` trực tiếp làm nginx phân giải
         // DNS LÚC NẠP CẤU HÌNH, backend chưa lên là `[emerg] host not found in upstream "app"` và
@@ -213,6 +254,54 @@ class FrontendSameOriginTest {
                     .doesNotContainPattern(Pattern.compile(bien + "=\"?\\$?\\{?\\$?https?://"))
                     .doesNotContainPattern(Pattern.compile(bien + "=\"\\$\\$api\""));
         }
+    }
+
+    /**
+     * Bỏ chú thích Java trước khi soi mã — <b>T43.8-b</b>, cùng cơ chế T46.7 đã dựng ở
+     * {@code CotPhase2CoDocGhiTest}.
+     *
+     * <p>⛔ Vì sao cần: bất biến được canh là <i>"⛔ không dòng MÃ nào đọc {@code X-Forwarded-For}"</i>.
+     * Nhưng javadoc của {@code ClientIp} <b>phải</b> nhắc tên header ấy — cả lớp tồn tại để giải
+     * thích vì sao cấm nó. Soi nguyên văn thì bộ canh <b>phạt đúng người viết tài liệu tử tế</b>.
+     *
+     * <p>⚠ Phép cắt theo ký tự, ⛔ không phải parser (giới hạn đã biết: T28.41 — một chuỗi ký tự
+     * chứa {@code /*} sẽ bị cắt nhầm). Chấp nhận được ở đây vì đối tượng soi là một tệp 90 dòng ⛔
+     * không có chuỗi nào như vậy, và bài tự-kiểm ngay dưới có vế ĐỐI CHỨNG bắt được nếu cắt quá tay.
+     *
+     * <p>⛔ Cố ý ⛔ KHÔNG bỏ {@code //} giữa dòng: làm vậy sẽ nuốt phần đuôi của mọi {@code https://}.
+     */
+    static String boChuThichJava(String ma) {
+        return ma.replaceAll("(?s)/\\*.*?\\*/", " ").replaceAll("(?m)^\\s*//.*$", " ");
+    }
+
+    @Test
+    @DisplayName("⭐ TỰ-KIỂM: `boChuThichJava` thật sự bỏ được chú thích VÀ giữ nguyên mã (luật 1)")
+    void boChuThichJavaThucSuLamViec() {
+        String mau =
+                """
+                /** javadoc nhắc X-Forwarded-For để giải thích vì sao cấm. */
+                public final class X {
+                    // chú thích dòng cũng nhắc X-Forwarded-For
+                    static final String H = "X-Real-IP";
+                    static final String URL = "https://vi-du/a";
+                }
+                """;
+        String sach = boChuThichJava(mau);
+
+        assertThat(sach)
+                .as("⛔ Nếu phép bỏ ⛔ không hoạt động thì khẳng định `doesNotContain` ở bài chính "
+                        + "sẽ ĐỎ GIẢ mỗi khi ai đó viết tài liệu tử tế")
+                .doesNotContain("X-Forwarded-For");
+
+        // ⚠ ĐỐI CHỨNG — bỏ QUÁ TAY hỏng theo chiều TỆ HƠN: nó làm bài chính xanh trong khi một
+        //   dòng mã thật vẫn đang đọc header cấm. Hai khẳng định dưới đây là vế phân biệt (luật 9).
+        assertThat(sach)
+                .as("mã thật phải SỐNG SÓT qua phép bỏ chú thích")
+                .contains("static final String H = \"X-Real-IP\";")
+                .contains("public final class X");
+        assertThat(sach)
+                .as("⛔ `//` giữa dòng KHÔNG bị bỏ — nếu bỏ thì mọi `https://` mất đuôi (T46.7)")
+                .contains("https://vi-du/a");
     }
 
     @Test

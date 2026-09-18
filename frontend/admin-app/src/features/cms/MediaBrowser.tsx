@@ -9,6 +9,7 @@ import {
   List,
   Progress,
   Space,
+  theme,
   Tree,
   Typography,
   Upload,
@@ -50,6 +51,15 @@ export interface MediaBrowserProps {
   onSelect?: (file: MediaFile) => void;
   /** Ô thao tác thêm ở mỗi dòng — màn hình quản lý cắm nút xoá vào đây. */
   renderFileExtra?: (file: MediaFile) => React.ReactNode;
+  /**
+   * Ô thao tác thêm trên mỗi **nút cây thư mục** — T37.15.
+   *
+   * ⚠ Cùng khuôn với {@link MediaBrowserProps.renderFileExtra} và cố ý vậy: hộp chọn ảnh
+   * (`MediaPickerModal`) ⛔ **không** được có nút Đổi tên/Xoá, vì ở đó người dùng đang đi chọn
+   * ảnh cho một bài viết chứ ⛔ không đi quản trị kho. Để `MediaBrowser` tự vẽ hai nút ấy là ép
+   * một màn hình mang thao tác của màn hình kia.
+   */
+  renderFolderExtra?: (folder: FolderNode) => React.ReactNode;
   height?: number;
 }
 
@@ -83,9 +93,13 @@ export function MediaBrowser({
   selectedId = null,
   onSelect,
   renderFileExtra,
+  renderFolderExtra,
   height = 420,
 }: MediaBrowserProps) {
   const { message } = App.useApp();
+  // ⛔ Màu lấy từ `theme.useToken()` — bốn giá trị dưới là bảng màu AntD, ⛔ màu thương hiệu,
+  // nên chỗ của chúng ⛔ phải `design-tokens` (T25.23).
+  const { token } = theme.useToken();
   const queryClient = useQueryClient();
   const [folderId, setFolderId] = useState<string | null>(null);
   const [keyword, setKeyword] = useState('');
@@ -99,7 +113,14 @@ export function MediaBrowser({
 
   // Thư mục đầu tiên được chọn sẵn: mở ra một khung trống kèm dòng "chọn thư mục" là bắt
   // người dùng làm một thao tác mà máy tự làm được.
-  const activeFolder = folderId ?? folders.data?.[0]?.publicId ?? null;
+  //
+  // ⚠ `conTonTai` là nửa thứ hai, thêm cùng T37.15: từ lúc có nút Xoá thư mục, `folderId` giữ
+  //    trong state **sống lâu hơn** thư mục nó trỏ tới. Không lọc thì ngay sau lượt xoá, lưới tệp
+  //    vẫn hỏi một thư mục đã biến mất và trả lỗi — trong khi cây bên trái đã vẽ đúng. Triệu chứng
+  //    đọc như "xoá xong thì hỏng", mà thật ra là một id mồ côi trong bộ nhớ.
+  const conTonTai =
+    folderId !== null && (folders.data ?? []).some((folder) => folder.publicId === folderId);
+  const activeFolder = (conTonTai ? folderId : null) ?? folders.data?.[0]?.publicId ?? null;
 
   const files = useQuery({
     // ⛔ `kho` và `loai` PHẢI có trong khoá — xem javadoc `cmsKeys.files`. Thiếu chúng thì hộp
@@ -132,12 +153,31 @@ export function MediaBrowser({
   const treeData: DataNode[] = useMemo(() => {
     const toNode = (item: ReturnType<typeof buildTree<FolderNode>>[number]): DataNode => ({
       key: item.value.publicId,
-      title: item.value.name,
+      title: renderFolderExtra ? (
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {item.value.name}
+          </span>
+          {/* ⛔ `stopPropagation` là bắt buộc, ⛔ không phải phòng xa: `Tree` đặt `blockNode` nên
+              CẢ DÒNG là vùng bấm chọn thư mục. Thiếu nó thì mỗi lần bấm "Xoá" cũng đồng thời đổi
+              thư mục đang mở, và hộp xác nhận hiện lên trong khi lưới tệp bên phải vừa đổi sang
+              một thư mục khác — người dùng đọc số tệp của thư mục SAI rồi bấm đồng ý. */}
+          <span
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => event.stopPropagation()}
+            role="presentation"
+          >
+            {renderFolderExtra(item.value)}
+          </span>
+        </span>
+      ) : (
+        item.value.name
+      ),
       icon: <FolderOutlined />,
       children: item.children.map(toNode),
     });
     return buildTree(folders.data ?? []).map(toNode);
-  }, [folders.data]);
+  }, [folders.data, renderFolderExtra]);
 
   // ⚠ Bộ lọc client GIỮ NGUYÊN song song với tham số server, có chủ đích. Ở đây hai lớp thật sự
   //   ĐỘC LẬP — một ở Java, một ở trình duyệt — nên chúng không cùng hỏng vì một lý do. (Khác hẳn
@@ -149,7 +189,12 @@ export function MediaBrowser({
   return (
     <div style={{ display: 'flex', gap: 16, height, minHeight: 0 }}>
       <div
-        style={{ width: 220, overflow: 'auto', borderRight: '1px solid #f0f0f0', paddingRight: 8 }}
+        style={{
+          width: 220,
+          overflow: 'auto',
+          borderRight: `1px solid ${token.colorBorderSecondary}`,
+          paddingRight: 8,
+        }}
       >
         {folders.isLoading ? (
           <Typography.Text type="secondary">Đang tải thư mục…</Typography.Text>
@@ -195,6 +240,7 @@ export function MediaBrowser({
           </Upload>
           <Button
             icon={<ReloadOutlined />}
+            aria-label="Tải lại danh sách tệp"
             onClick={() =>
               void queryClient.invalidateQueries({
                 queryKey: cmsKeys.files(activeFolder, kho, loai),
@@ -242,7 +288,7 @@ export function MediaBrowser({
                       }
                     }}
                     style={{
-                      border: `2px solid ${dangChon ? '#1677ff' : '#f0f0f0'}`,
+                      border: `2px solid ${dangChon ? token.colorPrimary : token.colorBorderSecondary}`,
                       borderRadius: 6,
                       padding: 6,
                       cursor: onSelect ? 'pointer' : 'default',
@@ -264,9 +310,9 @@ export function MediaBrowser({
                           height: 90,
                           display: 'grid',
                           placeItems: 'center',
-                          background: '#fafafa',
+                          background: token.colorFillAlter,
                           fontSize: 12,
-                          color: '#8c8c8c',
+                          color: token.colorTextTertiary,
                         }}
                       >
                         {file.contentType.split('/').pop()}

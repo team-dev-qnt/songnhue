@@ -99,6 +99,15 @@ server {
     # Câu "nginx còn sống không" — `return 200` tĩnh, trả lời được cả khi mọi
     # upstream đã chết. Để ở cổng 80 vì lượt kiểm chạy từ bên trong container,
     # nơi không có chứng chỉ và không cần TLS.
+    # ⛔ T61.40 (ASVS 4.3.2 · 12.5.1) — mọi đường dẫn có đoạn bắt đầu bằng dấu chấm.
+    #   `/.git/config`, `/.env`, `/.well-known` (ngoại lệ ở khối riêng phía trên, đặt TRƯỚC nên thắng).
+    #   Hôm nay ⛔ thư mục tĩnh nào lộ ra chúng; luật này là để lượt cấu hình SAU ⛔ mở được cửa ấy.
+    location ~ /\. {
+        deny all;
+        access_log off;
+        return 404;
+    }
+
     location = /healthz {
         access_log off;
         add_header Content-Type text/plain;
@@ -163,6 +172,14 @@ server {
     http2 on;
     server_name ${PUBLIC_DOMAIN} www.${PUBLIC_DOMAIN};
 
+    # ⛔ T61.40 (ASVS 4.3.2 · 12.5.1) — chặn mọi đoạn đường dẫn bắt đầu bằng dấu chấm.
+    #   ⚠ `^~ /.well-known/acme-challenge/` vẫn thắng: nginx xét tiền tố `^~` TRƯỚC mọi regex.
+    location ~ /\. {
+        deny all;
+        access_log off;
+        return 404;
+    }
+
     ssl_certificate     /etc/letsencrypt/live/${PUBLIC_DOMAIN}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/${PUBLIC_DOMAIN}/privkey.pem;
     ssl_trusted_certificate /etc/letsencrypt/live/${PUBLIC_DOMAIN}/chain.pem;
@@ -218,6 +235,14 @@ server {
     http2 on;
     server_name ${ADMIN_DOMAIN};
 
+    # ⛔ T61.40 (ASVS 4.3.2 · 12.5.1) — chặn mọi đoạn đường dẫn bắt đầu bằng dấu chấm.
+    #   ⚠ `^~ /.well-known/acme-challenge/` vẫn thắng: nginx xét tiền tố `^~` TRƯỚC mọi regex.
+    location ~ /\. {
+        deny all;
+        access_log off;
+        return 404;
+    }
+
     ssl_certificate     /etc/letsencrypt/live/${ADMIN_DOMAIN}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/${ADMIN_DOMAIN}/privkey.pem;
     ssl_trusted_certificate /etc/letsencrypt/live/${ADMIN_DOMAIN}/chain.pem;
@@ -226,6 +251,51 @@ server {
     limit_conn per_ip 50;
 
     set $admin_upstream ${ADMIN_UPSTREAM};
+    set $app_upstream ${APP_UPSTREAM};
+
+    # ⭐ T61.5 — chỉ số ứng dụng cho Prometheus trên VPS-2. NGOẠI LỆ DUY NHẤT của luật
+    #   "biên ⛔ nói chuyện thẳng với backend" ở đầu tệp: luật ấy giữ cùng-origin cho
+    #   TRÌNH DUYỆT, còn đây là một máy chủ gọi một đường ⛔ phải `/api`.
+    #
+    #   `/actuator/prometheus` ⛔ đi qua phân quyền nào của ứng dụng (§9.5) ⇒ cửa ở ĐÂY là
+    #   cửa duy nhất: IP của VPS-2 VÀ token. `if … return` chạy ở pha rewrite, `deny` ở pha
+    #   access — sai một trong hai đều 403. Bộ canh: `CanhBaoCoDuongDiTest`.
+    location = /actuator/prometheus {
+        access_log off;
+        allow ${METRICS_ALLOW_IP};
+        deny all;
+        # ⛔⛔⛔ SO TRỰC TIẾP, ⛔ QUA `map` — T63.19 (17/09/2026)
+        #
+        #   Bản T61.5 dựng `map $http_authorization $metrics_token_ok` với khoá
+        #   `"Bearer <token>"`. §B6 dặn sinh token bằng `openssl rand -hex 32`
+        #   ⇒ **64 ký tự** ⇒ khoá map dài `7 + 64 = 71` byte, vượt
+        #   `map_hash_bucket_size` mặc định **64**. nginx từ chối dựng bảng băm:
+        #
+        #       nginx: [emerg] could not build map_hash,
+        #              you should increase map_hash_bucket_size: 64
+        #
+        #   ⇒ nginx **⛔ khởi động nổi**, và `restart: unless-stopped` biến nó
+        #   thành vòng quay vô tận. Đo trên VPS-2 ngày 17/09: mọi container khác
+        #   `healthy`, riêng nginx `Restarting (1)`, ⛔ gì lắng nghe ở 80/443.
+        #
+        # ⛔ Đây ⛔ phải một giá trị đặt sai — **chính quy trình đã ghi trong §B6
+        #   sinh ra trạng thái hỏng**, nên nó sẽ lặp lại y hệt trên MỌI máy làm
+        #   đúng hướng dẫn, production nằm trong số đó.
+        #
+        # ⇒ Nâng `map_hash_bucket_size` cũng chữa được, nhưng chỉ đẩy trần đi xa
+        #   hơn: một token dài hơn nữa lại hạ site lần nữa. So trực tiếp thì
+        #   **độ dài token thôi là một tham số của cấu hình** — trạng thái hỏng
+        #   ⛔ còn biểu diễn được (luật 12: đặt bảo đảm ở chỗ dữ liệu đi qua).
+        #
+        # ⚠ `if … return` là một trong hai cách dùng `if` được nginx bảo đảm an
+        #   toàn; khối này ⛔ chứa gì ngoài `return`.
+        # ⚠ Header vắng ⇒ `$http_authorization` rỗng ⇒ ⛔ khớp ⇒ 403. Đúng ý.
+        if ($http_authorization != "Bearer ${METRICS_BEARER_TOKEN}") {
+            return 403;
+        }
+        proxy_pass $app_upstream/actuator/prometheus;
+        proxy_set_header Host $host;
+    }
 
     location = /healthz {
         access_log off;
@@ -298,6 +368,14 @@ server {
     listen [::]:443 ssl;
     http2 on;
     server_name ${FILES_DOMAIN};
+
+    # ⛔ T61.40 (ASVS 4.3.2 · 12.5.1) — chặn mọi đoạn đường dẫn bắt đầu bằng dấu chấm.
+    #   ⚠ `^~ /.well-known/acme-challenge/` vẫn thắng: nginx xét tiền tố `^~` TRƯỚC mọi regex.
+    location ~ /\. {
+        deny all;
+        access_log off;
+        return 404;
+    }
 
     ssl_certificate     /etc/letsencrypt/live/${FILES_DOMAIN}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/${FILES_DOMAIN}/privkey.pem;

@@ -102,6 +102,11 @@ export const ERROR_CATALOG = {
     handling: 'toast',
     severity: 'warning',
   },
+  'SYS-0012': {
+    message: 'Tệp nhập vượt trần số dòng — tách thành nhiều tệp rồi nhập lần lượt',
+    handling: 'toast',
+    severity: 'error',
+  },
 
   // --- Xác thực & phân quyền -------------------------------------------------
   'AUTH-0001': {
@@ -143,6 +148,12 @@ export const ERROR_CATALOG = {
     message: 'Phiên đăng nhập đã bị thu hồi vì lý do an toàn, vui lòng đăng nhập lại',
     handling: 'reauth',
     severity: 'error',
+  },
+  'AUTH-0009': {
+    message:
+      'Tài khoản đã đăng ký xác thực hai bước — hãy nhập mã từ ứng dụng xác thực hoặc mã khôi phục. Mất cả hai thì nhờ quản trị viên đặt lại.',
+    handling: 'caller',
+    severity: 'warning',
   },
   'AUTH-3001': {
     message: 'Không có quyền thực hiện thao tác này',
@@ -193,7 +204,9 @@ export const ERROR_CATALOG = {
     severity: 'warning',
   },
   'CMS-2009': {
-    message: 'Tệp đang được bài viết sử dụng',
+    // ⭐ T40.26 — nay phủ CẢ công trình, không riêng bài viết: chốt chặn đã chuyển xuống
+    //   `AttachmentService.delete`, nơi mọi module tự khai qua `AttachmentUsagePort`.
+    message: 'Tệp đang được nơi khác sử dụng — gỡ tham chiếu trước khi xoá',
     handling: 'toast',
     severity: 'warning',
   },
@@ -260,6 +273,21 @@ export const ERROR_CATALOG = {
   },
   'CMS-2022': {
     message: 'Danh sách vượt trần số dòng cho một lượt xuất — lọc theo trạng thái rồi xuất lại',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'CMS-2023': {
+    // ⚠ Chốt chặn ở backend là lưới cuối. Người dùng thật gặp luật ở tầng biểu mẫu trước
+    //   (`Form.Item name="content"`), nên câu này chỉ hiện khi có ai gọi API ngoài màn hình soạn bài.
+    message: 'Nội dung bài viết đang trống — nhập nội dung trước khi lưu',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'CMS-2024': {
+    // ⚠ Câu này nói ra DẠNG được chấp nhận chứ ⛔ chép lại thứ người dùng vừa gõ — giá trị bị từ
+    //   chối ở đây chính là một đoạn mã tấn công, và một thông báo lỗi là nơi nó ⛔ nên đi tiếp.
+    message:
+      'Địa chỉ liên kết không hợp lệ — chỉ nhận http://, https://, mailto:, tel:, /đường-dẫn hoặc #neo',
     handling: 'toast',
     severity: 'warning',
   },
@@ -377,6 +405,34 @@ export const ERROR_CATALOG = {
     handling: 'form',
     severity: 'warning',
   },
+
+  // --- MOD-02 Báo cáo vận hành + lớp bản đồ GIS (CN-02.10 · M2.9, WS-59) -------
+  // ⛔⛔ `OPS-2023` KHÁC `HR-2009`, và khác biệt là có thật: mã kia nói *chưa làm được* (BCNS-07
+  //    chờ G6 — **sẽ** có), mã này nói *đã bỏ vĩnh viễn* (BC-01..04 mất nguồn — **không bao giờ**
+  //    có). Gộp hai câu là để người vận hành đi chờ một thứ ⛔ không bao giờ tới.
+  // ⚠ Số hiệu nhảy từ 2021 sang 2023: `OPS-2022` đã NGHỈ HƯU (đổi thành `SYS-0012` ngày 09/09),
+  //   và dùng lại một mã đã nghỉ hưu làm mọi dòng nhật ký cũ đọc sai nghĩa.
+  'OPS-2023': {
+    message: 'Báo cáo này đã bỏ khỏi phạm vi hệ thống',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'OPS-2024': {
+    message: 'Đã có lớp bản đồ trùng tên',
+    handling: 'form',
+    severity: 'warning',
+  },
+  // ⛔ Câu chữ của backend mang tên tệp và lời khuyên chuyển sang GeoJSON — `messageFor` ưu tiên nó.
+  'OPS-2025': {
+    message: 'Hệ thống chưa đọc được tệp KML/KMZ — hãy chuyển sang GeoJSON',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'OPS-2026': {
+    message: 'Tệp không có đối tượng hình học nào',
+    handling: 'toast',
+    severity: 'warning',
+  },
   'OPS-3001': {
     message: 'Không được sửa trực tiếp trạng thái công trình — trạng thái được tính tự động',
     handling: 'toast',
@@ -469,11 +525,88 @@ export const ERROR_CATALOG = {
     handling: 'toast',
     severity: 'info',
   },
+  /**
+   * ⛔⛔ `handling: 'form'` — lỗi này phải hiện NGAY DƯỚI ô "Địa chỉ gốc", ⛔ không phải một toast
+   * trôi qua. Sự cố staging 01/09→10/09/2026 mất 9 ngày dữ liệu vì người gõ ⛔ không biết mình
+   * chọn nhầm ô; một thông báo biến mất sau ba giây ⛔ không sửa được điều đó.
+   */
+  'HYD-2016': {
+    message: 'Địa chỉ gốc không được chứa mã số truy cập — mã số đặt ở nút “Mã số truy cập”',
+    handling: 'form',
+    severity: 'warning',
+  },
 
   // --- MOD-04 Nhân sự ---------------------------------------------------------
+  // ⛔⛔ Mã này nằm trong danh mục từ 13/08/2026 và MỒ CÔI 32 ngày chờ CN-04.9. WS-57 suýt đúc
+  //    thêm `HR-2006` trùng nghĩa — hai mã cho MỘT trạng thái là hai câu trả lời cho cùng một câu
+  //    hỏi, và lượt rà sau ⛔ không biết mã nào thật sự bắn ra. Câu chữ nâng lên để mang hai con số.
+  // ⚠ Câu ở đây chỉ là DỰ PHÒNG: `messageFor` ưu tiên thông điệp backend đã điền {0}/{1}.
   'HR-2001': {
-    message: 'Số ngày đăng ký vượt số phép còn lại',
+    message: 'Số dư phép năm không đủ cho đơn này',
     handling: 'form',
+    severity: 'warning',
+  },
+  'HR-1001': {
+    message: 'Mã cán bộ này đã tồn tại',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'HR-1002': {
+    message: 'Mã chức vụ này đã tồn tại',
+    handling: 'form',
+    severity: 'warning',
+  },
+  // ⛔ handling 'form' để lỗi hiện ngay dưới ô CCCD trong hộp thoại trường 🔒 — người nhập cần biết
+  // ô nào sai, mà một toast thì không nói được điều đó.
+  'HR-1003': {
+    message: 'Số CCCD này đã thuộc về một hồ sơ khác',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'HR-2002': {
+    message: 'Chức vụ còn hồ sơ đang giữ — hãy chuyển họ sang chức vụ khác trước khi xoá',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  // ⚠ KHÁC SYS-0010: mã kia là hạn mức TỔNG dung lượng một hồ sơ, mã này là trần MỖI TỆP theo
+  //   thư mục (Ảnh 5MB, Hợp đồng 20MB…). Gộp hai câu là để người dùng đi sửa nhầm tham số.
+  'HR-2003': {
+    message: 'Tệp vượt dung lượng tối đa của thư mục này',
+    handling: 'toast',
+    severity: 'warning',
+  },
+
+  // --- MOD-04 Nghỉ phép (CN-04.9) ---------------------------------------------
+  // ⚠ Cả bốn mã dưới đây: backend điền sẵn {0}/{1} bằng NGÀY và SỐ NGÀY thật, nên câu ở đây chỉ
+  //   chạy khi backend ⛔ không trả được thông điệp. Viết lại một bản "đầy đủ hơn" ở đây là dựng
+  //   bản sao thứ hai của cùng một câu, và bản sao ấy ⛔ không có dữ liệu để điền.
+  'HR-2004': {
+    message: 'Khoảng đã chọn không có ngày công nào — toàn bộ là cuối tuần hoặc ngày lễ',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'HR-2005': {
+    message: 'Bạn đã có đơn nghỉ khác trong khoảng này — rút đơn cũ trước',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'HR-2007': {
+    message: 'Không huỷ được đơn đã bắt đầu nghỉ',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'HR-2008': {
+    message: 'Ngày này đã có trong danh mục ngày lễ',
+    handling: 'form',
+    severity: 'warning',
+  },
+
+  // ⛔⛔ Mã RIÊNG chứ ⛔ không phải 404: báo cáo CÓ trong danh mục, chỉ chưa dựng được. Câu chữ của
+  //    backend mang nguyên văn LÝ DO (`{1}`) và `messageFor` ưu tiên nó — bản đỡ ở đây cố ý nói
+  //    CHUNG, vì chép lý do xuống đây là dựng một bản sao sẽ nói dối vào ngày G6 được trả lời.
+  'HR-2009': {
+    message: 'Báo cáo này chưa xuất được',
+    handling: 'toast',
     severity: 'warning',
   },
 
@@ -490,7 +623,13 @@ export const ERROR_CATALOG = {
     severity: 'warning',
   },
   'ADM-2004': {
-    message: 'Đơn vị còn đơn vị cấp dưới hoặc còn người dùng — không xóa được',
+    // ⚠ Câu ở đây chỉ là bản ĐỠ khi backend ⛔ không nói được câu nào (`messageFor` ưu tiên
+    //   `apiMessage`). Nó cố ý **⛔ không** liệt kê những gì bị chặn: từ 10/09/2026 danh sách ấy do
+    //   backend đo tại chỗ (hồ sơ CBNV · công trình · nhật ký bảo trì · cụm · điểm đo · phiếu liên
+    //   hệ, mỗi thứ kèm số lượng). Chép lại danh sách xuống đây là dựng một bản sao sẽ **nói dối**
+    //   vào ngày module thứ sáu khai thêm một `OrgUnitUsagePort` — đúng lớp lỗi §10.69.
+    message:
+      'Không giải thể được: đơn vị còn dữ liệu trực thuộc — chuyển chúng sang đơn vị khác trước',
     handling: 'toast',
     severity: 'warning',
   },
@@ -534,6 +673,102 @@ export const ERROR_CATALOG = {
     message: 'Khôi phục thất bại — CSDL có thể đang dở dang, liên hệ quản trị hệ thống',
     handling: 'toast',
     severity: 'error',
+  },
+
+  // --- Ma trận phân quyền sửa được (T27.31, CN-05.2) ---
+  'ADM-2014': {
+    message: 'Vai trò hệ thống không sửa quyền được — đây là lối thoát cuối cùng của hệ thống',
+    handling: 'toast',
+    severity: 'error',
+  },
+  'ADM-2015': {
+    message: 'Có mã quyền không còn trong danh mục — tải lại trang rồi thử lại',
+    handling: 'toast',
+    severity: 'error',
+  },
+  'ADM-2016': {
+    // ⛔ `caller`, ⛔ không phải `toast`: đây là thao tác DUY NHẤT trong màn hình mà hậu quả ⛔ không
+    //   quay lui được bằng bất kỳ đường nào trong giao diện. Một dòng toast trôi mất sau 3 giây
+    //   ⛔ không phân biệt được với mọi lỗi nhập liệu khác người dùng vừa gặp — nên `RolesPage`
+    //   dựng một hộp thoại phải bấm mới tắt.
+    message:
+      'Bỏ quyền này là bạn tự khoá chính mình khỏi màn hình phân quyền, và không đường nào trong giao diện gỡ lại được. Nhờ một tài khoản Quản trị tối cao thao tác hộ.',
+    handling: 'caller',
+    severity: 'error',
+  },
+  'ADM-2017': {
+    // ⛔ `caller`: đây là một xung đột người dùng PHẢI đọc kỹ — thông điệp mang TÊN tài khoản đang
+    //   giữ hồ sơ, tức chính thông tin cần để đi gỡ. Một toast trôi mất sau 3 giây làm mất luôn nó.
+    message:
+      'Hồ sơ này đã liên kết với một tài khoản khác. Mỗi hồ sơ cán bộ chỉ thuộc về một tài khoản — gỡ liên kết ở tài khoản kia trước.',
+    handling: 'caller',
+    severity: 'error',
+  },
+  'ADM-2018': {
+    message:
+      'Không tự liên kết tài khoản của chính mình tới một hồ sơ nhân viên được — liên kết này quyết định ai đọc được thông tin bảo mật của hồ sơ đó. Nhờ một tài khoản quản trị khác thao tác hộ.',
+    handling: 'toast',
+    severity: 'error',
+  },
+  'ADM-2019': {
+    // T61.11 — chỉ sinh ở việc nền (`jobs.last_error`), ⛔ từ một lượt bấm nút. `caller`: người đọc là
+    //   người vận hành đang quyết có gỡ khoá mã hoá cũ hay không — ⛔ được để nó trôi mất như một toast.
+    message:
+      'Mã hoá lại dữ liệu sang khoá mới chưa xong — còn bản ghi dùng khoá cũ, chưa được gỡ khoá cũ.',
+    handling: 'caller',
+    severity: 'error',
+  },
+  'ADM-2020': {
+    message:
+      'Không tự xoá tài khoản của chính mình được — tài khoản mất quyền ngay và giao diện không có đường khôi phục. Nhờ một tài khoản quản trị khác thao tác hộ.',
+    handling: 'toast',
+    severity: 'error',
+  },
+  'ADM-2021': {
+    message:
+      'Không tự đặt lại xác thực hai bước của chính mình được — nhờ một tài khoản quản trị khác thao tác hộ.',
+    handling: 'toast',
+    severity: 'error',
+  },
+  'ADM-2022': {
+    // T54.4 — trần cấp quyền = tập quyền của chính người cấp. Câu từ máy chủ mang danh sách quyền bị từ chối.
+    message: 'Không cấp được quyền mà chính bạn không có.',
+    handling: 'toast',
+    severity: 'error',
+  },
+  'ADM-2023': {
+    // T61.42 — `caller`: màn hình gọi mở hộp thoại nhập mã, ⛔ để một toast trôi mất.
+    message: 'Thao tác này cần nhập lại mã xác thực hai bước từ ứng dụng xác thực.',
+    handling: 'caller',
+    severity: 'warning',
+  },
+  'ADM-2024': {
+    // ⛔ 403 chứ ⛔ 401: 401 làm apiClient tưởng mất phiên, gửi lại mã sai rồi đá người dùng ra ngoài.
+    message:
+      'Mã xác thực hai bước không đúng hoặc đã dùng rồi — nhập sai nhiều lần sẽ khoá tạm tài khoản.',
+    handling: 'caller',
+    severity: 'warning',
+  },
+  'SYS-0013': {
+    // T61.40 — sai ĐỘNG TỪ. Trước đây gộp vào SYS-0003 nên người tích hợp đi soi payload.
+    message: 'Phương thức HTTP không được hỗ trợ ở đường dẫn này.',
+    handling: 'toast',
+    severity: 'error',
+  },
+  'SYS-0014': {
+    // T61.40 — tệp nhập NỞ quá trần khi giải nén (zip bomb). Mã riêng với SYS-0012 (trần DÒNG):
+    // hai trạng thái dẫn tới hai việc khác nhau — tách tệp, so với "tệp này không phải bảng tính".
+    message: 'Tệp nhập nở quá lớn khi giải nén — tệp này không phải bảng tính bình thường.',
+    handling: 'toast',
+    severity: 'error',
+  },
+  'ADM-2025': {
+    // T61.31 — cửa đặt lại mật khẩu ⛔ hỏi mật khẩu cũ, nên tự dùng cho chính mình là đường vòng
+    // quanh AUTH-0001 của lối tự đổi mật khẩu.
+    message:
+      'Không tự đặt lại mật khẩu của chính mình được — dùng chức năng Đổi mật khẩu, hoặc nhờ một tài khoản quản trị khác.',
+    handling: 'toast',
+    severity: 'warning',
   },
 } as const satisfies Record<string, ErrorEntry>;
 

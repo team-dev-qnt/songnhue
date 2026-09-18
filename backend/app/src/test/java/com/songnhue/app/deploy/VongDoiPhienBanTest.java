@@ -115,7 +115,7 @@ class VongDoiPhienBanTest {
                 continue;
             }
             for (String t : tep) {
-                String noiDung = doc(timTuGocKho(t));
+                String noiDung = boChuThich(doc(timTuGocKho(t)));
                 if (!noiDung.contains(d.dangDung())) {
                     loi.add("`%s`: bảng nói `%s` nhưng `%s` KHÔNG chứa giá trị ấy"
                             .formatted(d.thanhPhan(), d.dangDung(), t));
@@ -372,6 +372,67 @@ class VongDoiPhienBanTest {
     private static String khac(String o) {
         String s = o.strip();
         return s.isEmpty() || "-".equals(s) ? null : s;
+    }
+
+    @Test
+    @DisplayName("⭐⭐ TỰ KIỂM: một phiên bản chỉ còn trong CHÚ THÍCH thì KHÔNG được tính là đang ghim")
+    void chuThichKhongDuocTinhLaGhim() {
+        // ⛔ Đây là bài kiểm chứng ngược cho chính khuyết tật đã bắt được ngày 9/9/2026 (T11.69):
+        //   pom ghim 4.1.1, chú thích còn nhắc 3.5.16, và `contains()` trần đọc chú thích ấy thành
+        //   một lời khẳng định. Thiếu bài này thì bản vá `boChuThich` chỉ là một lời hứa.
+        String pomGia =
+                """
+                <project>
+                    <!-- 3.5.3 → 3.5.16 (18/8): lịch sử vì sao từng nâng lên bản ấy -->
+                    <parent>
+                        <artifactId>spring-boot-starter-parent</artifactId>
+                        <version>4.1.1</version>
+                    </parent>
+                </project>
+                """;
+        String daBoc = boChuThich(pomGia);
+
+        assertThat(daBoc)
+                .as("⛔ `3.5.16` chỉ nằm trong chú thích — để lọt là bộ canh này canh văn bản, không canh hiệu lực")
+                .doesNotContain("3.5.16");
+
+        // ⛔ Đối chứng PHẢI-TÌM-THẤY: nếu phép bóc ăn luôn cả thân tệp thì mọi dòng của bảng sẽ
+        //   "không khớp" và bài trên đỏ ầm ĩ — nhưng một phép bóc quá tay cũng có thể làm
+        //   `contains` luôn sai theo chiều ngược. Khẳng định cả hai chiều (luật 9).
+        assertThat(daBoc).as("phiên bản ĐANG GHIM phải sống sót qua phép bóc").contains("4.1.1");
+
+        // Chú thích kiểu `#` (YAML/Dockerfile/TSV) cũng phải bị bóc, và dòng thật thì không.
+        String ymlGia = "# image: postgres:15-3.3   ← bản cũ\n    image: postgres:16-3.4\n";
+        assertThat(boChuThich(ymlGia)).doesNotContain("15-3.3").contains("16-3.4");
+    }
+
+    /**
+     * ⛔⛔ Bóc chú thích TRƯỚC khi so — nếu ⛔ không, bộ canh này canh <b>văn bản</b> chứ ⛔ không canh
+     * <b>thứ đang có hiệu lực</b> (CLAUDE.md luật 2).
+     *
+     * <p><b>Đã trả giá ngày 9/9/2026, đúng ở dòng này.</b> Lượt di trú T11.69 đổi
+     * {@code spring-boot-starter-parent} từ {@code 3.5.16} sang {@code 4.1.1}. Bảng vòng đời vẫn ghi
+     * {@code 3.5.16}, tức bảng và kho đã nói hai điều khác nhau — <b>đúng thứ bài kiểm này sinh ra
+     * để bắt</b>. Nó vẫn <b>XANH</b>, vì ba dòng <i>chú thích</i> trong {@code backend/pom.xml} còn
+     * nhắc chuỗi {@code 3.5.16} (lịch sử vì sao từng nâng lên bản ấy), và {@code contains()} ⛔ không
+     * phân biệt được một giá trị đang ghim với một kỷ niệm về nó.
+     *
+     * <p>Nguy hiểm gấp đôi vì bảng ấy còn giữ {@code han_hoan_tat_di_tru = 2026-10-15}: đồng hồ vẫn
+     * chạy cho một lượt di trú <b>đã xong</b>, và ngày nó reo thì lý do in ra sẽ hoàn toàn sai.
+     *
+     * <p>⛔ Cách bóc cố ý <b>thô</b> và chỉ dùng cho phép {@code contains} này: khối {@code <!-- -->}
+     * của XML, và phần sau {@code #} ở đầu dòng cho YAML/Dockerfile/TSV/.nvmrc. Nó ⛔ không cần là
+     * một bộ phân tích cú pháp đúng đắn — nó chỉ cần ⛔ không để một chuỗi trong chú thích trả lời
+     * thay cho một chuỗi đang có hiệu lực.
+     */
+    private static String boChuThich(String noiDung) {
+        String khongXml = noiDung.replaceAll("(?s)<!--.*?-->", " ");
+        StringBuilder ra = new StringBuilder(khongXml.length());
+        for (String dong : khongXml.split("\n", -1)) {
+            String cat = dong.stripLeading().startsWith("#") ? "" : dong;
+            ra.append(cat).append('\n');
+        }
+        return ra.toString();
     }
 
     private static String doc(Path duongDan) {

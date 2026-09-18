@@ -76,7 +76,14 @@ public class AuthorityLoader {
                         a.permissions(),
                         a.mustChangePassword(),
                         sessionFamilyId,
-                        tokenId));
+                        tokenId,
+                        // T51.8 — nơi dựng `AuthenticatedUser` DUY NHẤT trong mã production. Liên
+                        // kết hồ sơ CBNV đi cùng đường với quyền và phạm vi, nên nó cũng hưởng
+                        // trọn `invalidate()`: đổi liên kết là có hiệu lực ngay, ⛔ không chờ hết
+                        // TTL 30 giây. Đây là lý do `UserAdminService.lienKetHoSo` phải gọi
+                        // `invalidate` — thiếu nó thì người vừa bị GỠ liên kết vẫn đọc được trường
+                        // 🔒 của hồ sơ cũ thêm nửa phút nữa.
+                        a.employeeId()));
     }
 
     /** Gọi sau khi đổi vai trò/quyền của một người dùng để thay đổi có hiệu lực ngay. */
@@ -117,7 +124,8 @@ public class AuthorityLoader {
                 orgUnitPath,
                 new LinkedHashSet<>(authorities.findRoleCodes(user.getId())),
                 new LinkedHashSet<>(authorities.findPermissionCodes(user.getId())),
-                user.isMustChangePassword()));
+                user.isMustChangePassword(),
+                user.getEmployeeId()));
     }
 
     private record Authorities(
@@ -128,5 +136,6 @@ public class AuthorityLoader {
             String orgUnitPath,
             Set<String> roles,
             Set<String> permissions,
-            boolean mustChangePassword) {}
+            boolean mustChangePassword,
+            Long employeeId) {}
 }

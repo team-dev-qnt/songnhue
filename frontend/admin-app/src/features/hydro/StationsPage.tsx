@@ -1,4 +1,4 @@
-import { ApartmentOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
+import { ApartmentOutlined, EditOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
@@ -22,6 +22,8 @@ import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { useAuth } from '@/app/auth/useAuth';
+import { DanToaDo } from '@/components/business/DanToaDo';
+import { ImportModal } from '@/components/business/ImportModal';
 import { OrgUnitTreeSelect } from '@/components/business/OrgUnitTreeSelect';
 import {
   type ApiSource,
@@ -60,6 +62,7 @@ export function StationsPage() {
   const [taoMoiThuCong, setTaoMoiThuCong] = useState(false);
   const [dangLienKet, setDangLienKet] = useState<Station | null>(null);
   const [boLoc, setBoLoc] = useState<BoLoc>('TAT_CA');
+  const [dangNhapViTri, setDangNhapViTri] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
 
   const coQuanLy = hasPermission('hyd:station:manage');
@@ -248,7 +251,14 @@ export function StationsPage() {
             <Tooltip title="Liên kết công trình">
               <Button type="text" icon={<ApartmentOutlined />} onClick={() => setDangLienKet(r)} />
             </Tooltip>
-            <Button type="text" icon={<EditOutlined />} onClick={() => moSua(r)} />
+            <Tooltip title="Sửa">
+              <Button
+                type="text"
+                aria-label="Sửa"
+                icon={<EditOutlined />}
+                onClick={() => moSua(r)}
+              />
+            </Tooltip>
           </Space>
         ) : null,
     },
@@ -357,6 +367,21 @@ export function StationsPage() {
       >
         <Input placeholder="K12+300" />
       </Form.Item>
+      {/* ⭐ WS-46 — ô DÁN đứng TRƯỚC hai ô số, cố ý.
+            G8 để lại 0/19 điểm đo có toạ độ ⇒ lớp GIS điểm đo RỖNG hoàn toàn, và
+            `StationMapService.lopDiemDo()` chạy trên tập rỗng (luật 7). Đường vào thật của
+            dữ liệu ấy là Google Maps → *Sao chép toạ độ* → dán, chứ ⛔ không phải gõ tay
+            hai số sáu chữ số cho từng trạm một.
+            ⚠ Hai ô dưới là `Input` (⛔ không phải `InputNumber`) nên dán cả chuỗi
+            `21.048, 105.782` vào chúng ⛔ KHÔNG lỗi — nó đi thẳng xuống backend rồi hỏng ở
+            một chỗ rất xa. Ô này chặn đúng chỗ đó. */}
+      <Form.Item>
+        <DanToaDo
+          onChange={(viDo, kinhDo) =>
+            form.setFieldsValue({ latitude: String(viDo), longitude: String(kinhDo) })
+          }
+        />
+      </Form.Item>
       <Form.Item
         name="latitude"
         label="Vĩ độ"
@@ -393,19 +418,44 @@ export function StationsPage() {
       title="Danh mục điểm đo"
       extra={
         coQuanLy ? (
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => {
-              form.resetFields();
-              setTaoMoiThuCong(true);
-            }}
-          >
-            Thêm điểm đo
-          </Button>
+          <Space wrap>
+            {/*
+              ⭐ Nhập vị trí hàng loạt — G8 phần còn lại. Tính tới 09/09/2026 toạ độ của 19/19 điểm
+                 đo vẫn NULL nên lớp GIS RỖNG, và đường sửa duy nhất là mở từng bản ghi, 19 lượt.
+                 Ngày Công ty gửi bảng toạ độ: tải mẫu → điền → upload, ⛔ không cần lập trình thêm.
+              ⚠ Cùng quyền `hyd:station:manage` với nút Thêm — đây đúng là thao tác sửa điểm đo làm
+                hàng loạt, ⛔ không phải một quyền mới.
+            */}
+            <Button icon={<UploadOutlined />} onClick={() => setDangNhapViTri(true)}>
+              Nhập vị trí từ tệp
+            </Button>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => {
+                form.resetFields();
+                setTaoMoiThuCong(true);
+              }}
+            >
+              Thêm điểm đo
+            </Button>
+          </Space>
         ) : null
       }
     >
+      <ImportModal
+        open={dangNhapViTri}
+        onClose={() => setDangNhapViTri(false)}
+        title="Nhập vị trí điểm đo từ tệp bảng tính"
+        moTa="Cập nhật tuyến sông, lý trình và toạ độ cho các điểm đo đã có. Ô để trống nghĩa là giữ nguyên giá trị hiện tại, ⛔ không phải xoá."
+        duongDan={{
+          xemTruoc: '/hyd/stations/import/preview',
+          nhap: '/hyd/stations/import',
+          mau: '/hyd/stations/import/template',
+        }}
+        tenTepMau="mau-nhap-vi-tri-diem-do.csv"
+        khoaCanLamMoi={['hyd', 'stations']}
+      />
       {maApiDatSan && !coQuanLy && (
         <Alert
           type="warning"
@@ -470,7 +520,7 @@ export function StationsPage() {
         }}
         confirmLoading={createMutation.isPending}
         width={640}
-        destroyOnClose
+        destroyOnHidden
       >
         {maApiDatSan && (
           <Alert
@@ -481,9 +531,14 @@ export function StationsPage() {
             description="Số đo của mã này đã được giữ lại từ trước. ⛔ Chỉ khai khi đã biết chắc nó là trạm nào — hệ thống không tự suy được, và một mã gán nhầm là toàn bộ lịch sử đi vào biểu đồ của trạm khác."
           />
         )}
-        {/* ⚠ `initialValues` chứ không `setFieldsValue` trước khi mở: Form nằm trong Modal có
-            `destroyOnClose` nên nó gắn lại mỗi lượt mở, và giá trị đặt lúc chưa gắn là giá trị đặt
-            vào một chỗ chưa tồn tại. */}
+        {/* ⚠⚠ Chú thích cũ ở đây SAI, sửa 17/09 (T63.17) — nó khai *"giá trị đặt lúc Form chưa
+            gắn là giá trị đặt vào một chỗ chưa tồn tại"*. Đo trong `rc-field-form@2.7.1`: kho giá
+            trị sống trong chính `Form.useForm()`, ⛔ trong cây DOM, nên `setFieldsValue` gọi lúc
+            chưa gắn **vẫn ghi được**; và lượt gắn sau đó chạy `merge(initialValues, this.store)`,
+            tức **kho THẮNG `initialValues`**. ⇒ Cái đúng là chiều ngược lại: `initialValues` ở đây
+            chỉ có hiệu lực vì `moTaoMoi` gọi `form.resetFields()` ngay trước khi mở, và
+            `resetFields()` đặt `store = merge(this.initialValues)` — một phép THAY TOÀN PHẦN.
+            ⛔ Gỡ lời gọi ấy thì ba ô dưới mang giá trị của điểm đo vừa SỬA, ⛔ một dòng báo nào. */}
         <Form
           form={form}
           layout="vertical"
@@ -508,7 +563,7 @@ export function StationsPage() {
         }}
         confirmLoading={updateMutation.isPending}
         width={640}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical">
           {truongChung(true)}

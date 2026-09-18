@@ -1,5 +1,5 @@
 import { Card, Typography } from 'antd';
-import { type ReactNode } from 'react';
+import { type CSSProperties, type ReactNode } from 'react';
 
 /**
  * Khung thẻ chứa một biểu đồ — T23.4.
@@ -17,18 +17,20 @@ export function ChartCard({
   note,
   extra,
   wall = false,
+  style,
   children,
 }: {
   title: string;
   note?: string;
   extra?: ReactNode;
   wall?: boolean;
+  style?: CSSProperties;
   children: ReactNode;
 }) {
   return (
     <Card
       size={wall ? 'default' : 'small'}
-      style={{ height: '100%' }}
+      style={{ height: '100%', minWidth: 0, ...style }}
       title={<span style={{ fontSize: wall ? 'clamp(15px, 0.75vw, 26px)' : 14 }}>{title}</span>}
       extra={extra}
       styles={{ body: { padding: wall ? 16 : 12 } }}

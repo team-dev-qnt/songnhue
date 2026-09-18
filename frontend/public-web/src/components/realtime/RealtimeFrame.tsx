@@ -3,11 +3,19 @@
 import { useEffect, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 
+import { type MocSoLieu } from '@/lib/mocSoLieu';
 import { formatDateTime } from '@/lib/routes';
 
 interface RealtimeFrameProps {
-  /** Mốc thời gian của **số liệu**, không phải của lượt dựng trang. `null` = chưa có nguồn. */
-  updatedAt: string | null;
+  /**
+   * Mốc thời gian của **số liệu**, không phải của lượt dựng trang. `null` = chưa có nguồn.
+   *
+   * ⛔⛔ Kiểu là `MocSoLieu`, ⛔ không phải `string`, và đó là **cổng kiểm** chứ không phải trang
+   * trí: câu trên đã đứng ở đây từ WS-24 mà **2/4 nơi gọi vẫn truyền giờ máy chủ** suốt tới
+   * 09/09/2026 (T43.9). Nay truyền một `string` trần vào đây là **lỗi biên dịch**. Nguồn hợp lệ
+   * phải đi qua `mocSoLieu()` — xem `@/lib/mocSoLieu`.
+   */
+  updatedAt: MocSoLieu | null;
   /** Chu kỳ tự làm mới, giây. `0` = tắt, chỉ còn nút bấm tay. Đọc từ `settings`. */
   refreshSeconds: number;
   /**
@@ -63,9 +71,15 @@ export function RealtimeFrame({
   }, [refreshSeconds, router]);
 
   // ⚠ Mốc hiển thị đến từ MÁY CHỦ, không phải `new Date()` phía máy khách: đồng hồ máy khách
-  //   sai thì cả trang nói sai theo và không ai đối chiếu được. Đó cũng là lý do `getServerTime`
-  //   gọi với `revalidate: 0` — một mốc "cập nhật lúc" nằm trong bộ đệm 5 phút thì nó nói dối
-  //   đúng 5 phút, mà cả lý do tồn tại của dòng này là để người xem biết số liệu mới đến bao giờ.
+  //   sai thì cả trang nói sai theo và không ai đối chiếu được.
+  //
+  // ⛔⛔ T43.9 — chú thích trên ĐÚNG nhưng nó trả lời một câu hỏi KHÁC, và suốt từ WS-24 nó bị
+  //   đọc thành lời bênh vực cho việc truyền `getServerTime()` vào đây. Hai câu hỏi tách bạch:
+  //     (a) đồng hồ MÁY KHÁCH hay MÁY CHỦ  → đáp: máy chủ (đoạn trên);
+  //     (b) mốc của SỐ LIỆU hay của LƯỢT DỰNG TRANG → đáp: **số liệu**, và giờ máy chủ trả lời
+  //         một lượt gọi CHÍNH LÀ mốc dựng trang, nên nó sai ở vế (b) dù đúng ở vế (a).
+  //   Bản trước lấy mốc từ `GET /public/now`: nguồn chết ba ngày thì dòng này vẫn nhảy số mới
+  //   mỗi lượt F5. Nay kiểu `MocSoLieu` chặn ở tầng biên dịch (`@/lib/mocSoLieu`).
   const mocThoiGian = formatDateTime(updatedAt);
 
   return (

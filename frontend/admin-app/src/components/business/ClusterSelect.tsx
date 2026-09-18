@@ -54,16 +54,20 @@ export function ClusterSelect({
       optionFilterProp="label"
       // ⛔ Chưa có cụm nào thì nói thẳng là chưa có, đừng để ô rỗng trông như đang tải.
       //
-      // ⚠⚠ T27.30 — và câu này phải nói ra VÌ SAO nó rỗng, ⛔ không chỉ RẰNG nó rỗng. Đo 04/09:
+      // ⚠⚠ T27.30 — câu này phải nói ra VÌ SAO nó rỗng, ⛔ không chỉ RẰNG nó rỗng. Đo 04/09:
       //    `construction_clusters` ⛔ không có seed và ba endpoint ghi
       //    (`POST`/`PUT`/`DELETE /ops/construction-clusters`) có 0 nơi gọi ⇒ ⛔ KHÔNG có đường nào
-      //    tạo ra một cụm. Danh sách này vì thế rỗng **vĩnh viễn** cho tới khi có màn hình quản lý.
+      //    tạo ra một cụm, và danh sách này rỗng **vĩnh viễn**. Bản cũ vì thế phải nói
+      //    *"chưa có màn hình quản lý cụm công trình"* — một ô nhập tự khai mình vô dụng.
       //
-      // ⛔ "Chưa khai báo cụm nào" đọc như *"bạn đi khai đi"* — một lời hướng dẫn tới một màn hình
-      //    ⛔ KHÔNG tồn tại. Đó là quy tắc 16 ở tầng câu chữ: ô rỗng phải nói được lý do THẬT, nếu
-      //    không người vận hành đi tìm một chức năng không có và kết luận là hệ thống hỏng.
+      // ⭐ **Đóng 09/09/2026**: đã có `ConstructionClustersPage` (`/van-hanh/cum-cong-trinh`), nên
+      //    câu chữ đổi từ *lời thú nhận* sang **lời hướng dẫn tới một màn hình CÓ THẬT**.
+      //    ⚠ Quy tắc 16 ở tầng câu chữ vẫn áp: sửa được hành vi thì phải sửa cả câu mô tả nó, nếu
+      //    không người vận hành đọc một dòng đã hết đúng và kết luận sai về hệ thống.
       notFoundContent={
-        isLoading ? 'Đang tải…' : 'Chưa có màn hình quản lý cụm công trình — bỏ trống ô này'
+        isLoading
+          ? 'Đang tải…'
+          : 'Chưa khai cụm nào — vào Vận hành công trình › Cụm công trình để thêm'
       }
       options={(data ?? [])
         .filter((cum) => cum.active)

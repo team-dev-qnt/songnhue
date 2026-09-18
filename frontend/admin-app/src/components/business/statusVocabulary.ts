@@ -1,4 +1,4 @@
-import { type StatusColorKey } from 'design-tokens';
+import { type StatusColorKey } from '@songnhue/design-tokens';
 
 /**
  * Bộ từ vựng trạng thái — **một nơi duy nhất** dịch enum của backend sang nhãn + màu.
@@ -43,6 +43,11 @@ export const BACKUP_TRIGGER: StatusVocabulary = {
     label: 'Trước khôi phục',
     color: 'warning',
     hint: 'Bản chụp bắt buộc ngay trước khi ghi đè dữ liệu — đường lùi duy nhất',
+  },
+  PRE_DEPLOY: {
+    label: 'Trước triển khai',
+    color: 'warning',
+    hint: 'Bản chụp tự động trước mỗi lượt deploy — điểm quay lui nếu bản mới hỏng',
   },
 };
 

@@ -1,6 +1,7 @@
 package com.songnhue.app.attachment;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 import java.util.UUID;
@@ -10,16 +11,16 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.app.testsupport.PhienHttp;
+import com.songnhue.app.testsupport.TestHttp;
 import com.songnhue.core.application.attachment.AttachmentService;
 import com.songnhue.core.application.auth.PasswordPolicyService;
+import com.songnhue.core.common.exception.BusinessRuleException;
 import com.songnhue.core.infra.identity.UserRepository;
 
 /**
@@ -49,7 +50,7 @@ class AttachmentDeleteHttpTest extends IntegrationTestBase {
     private static final String MA_CONG_TRINH = "A1-CT-01";
 
     @Autowired
-    private TestRestTemplate http;
+    private TestHttp http;
 
     @Autowired
     private JdbcTemplate jdbc;
@@ -92,24 +93,46 @@ class AttachmentDeleteHttpTest extends IntegrationTestBase {
      * kể cả Quyết định phê duyệt Quy trình vận hành đang công bố trên cổng.
      */
     @Test
-    @DisplayName("⭐⭐ A1 — TECHNICIAN (có `upload`, KHÔNG có `delete`) gọi DELETE ⇒ phải 403")
-    void aTechnicianCannotDeleteThroughTheGenericPath() {
+    @DisplayName(
+            "⭐⭐ A1 — cửa xoá CHUNG /api/v1/attachments ĐÃ GỠ (T61.22): ⛔ controller nào ánh xạ, gọi vào ⛔ xoá được gì")
+    void cuaXoaChungDaGo() throws Exception {
+        // ⛔⛔ T28.47 GIỮ cửa này lại chỉ để bài hồi quy A1 còn chỗ bám. QuanTran chốt gỡ 14/09/2026: ⛔ có
+        //    cửa thì ⛔ có lỗ, và bài hồi quy chuyển sang canh SỰ VẮNG MẶT. Hai vế, vì 405 bị
+        //    `GlobalExceptionHandler` gộp về 400 nên một khẳng định mã trạng thái là rỗng (T54.7):
+        //    (1) cấu trúc — ⛔ tệp controller nào khai `@RequestMapping("/api/v1/attachments")`;
+        java.nio.file.Path goc =
+                java.nio.file.Paths.get(System.getProperty("user.dir")).toAbsolutePath();
+        while (goc != null && !java.nio.file.Files.isDirectory(goc.resolve("core/src/main/java"))) {
+            goc = goc.getParent();
+        }
+        assertThat(goc).as("⛔ tìm thấy thư mục backend").isNotNull();
+        java.util.List<String> anhXa;
+        try (java.util.stream.Stream<java.nio.file.Path> tep = java.nio.file.Files.walk(goc)) {
+            anhXa = tep.filter(t -> t.toString().endsWith("Controller.java")
+                            && t.toString().contains("/src/main/"))
+                    .filter(t -> {
+                        try {
+                            return java.nio.file.Files.readString(t)
+                                    .contains("@RequestMapping(\"/api/v1/attachments\")");
+                        } catch (java.io.IOException e) {
+                            throw new java.io.UncheckedIOException(e);
+                        }
+                    })
+                    .map(Object::toString)
+                    .toList();
+        }
+        assertThat(anhXa)
+                .as("cửa xoá CHUNG quay lại — nó từng gác nhầm `ops:document:upload` (A1) và ⛔ màn hình nào dùng")
+                .isEmpty();
+
+        //    (2) hành vi — một lượt DELETE thẳng vào đường cũ ⛔ đụng được tới bản ghi.
         UUID tep = taoTep();
-
         ResponseEntity<String> ra = xoa(kyThuat, tep);
-
-        assertThat(ra.getStatusCode())
-                .as(
-                        """
-                        ⛔ Đường CHUNG /api/v1/attachments/{id} từng gác bằng `ops:document:upload`, trong khi \
-                        hai đường RIÊNG (ConstructionDocumentController, MaintenanceLogController) gác bằng \
-                        `ops:document:delete` và giao diện cũng ẩn nút theo mã ấy. Đường rộng hơn là đường \
-                        không ai canh. Thân: %s""",
-                        ra.getBody())
-                .isEqualTo(HttpStatus.FORBIDDEN);
-
+        assertThat(ra.getStatusCode().is2xxSuccessful())
+                .as("Thân: %s", ra.getBody())
+                .isFalse();
         assertThat(conSong(tep))
-                .as("⛔ 403 phải là 403 THẬT — bản ghi ⛔ không được đụng tới")
+                .as("⛔ tệp phải còn nguyên sau lượt gọi vào đường đã gỡ")
                 .isTrue();
     }
 
@@ -156,22 +179,18 @@ class AttachmentDeleteHttpTest extends IntegrationTestBase {
      * không chứng minh chú thích ấy nằm trên đúng phương thức nào (luật 2).
      */
     @Test
-    @DisplayName("⭐⭐ Ba cửa vào cùng một hành vi XOÁ TỆP phải đòi CÙNG một quyền")
-    void allThreeDeleteDoorsRequireTheSamePermission() throws Exception {
-        List<String> duongChung =
-                quyenCua(com.songnhue.core.api.attachment.AttachmentController.class, "delete", UUID.class);
+    @DisplayName("⭐⭐ Hai cửa RIÊNG còn lại của hành vi XOÁ TỆP đòi CÙNG một quyền — `ops:document:delete`")
+    void haiCuaXoaTepDoiCungMotQuyen() throws Exception {
+        // ⚠ Trước T61.22 là BA cửa (thêm đường chung `AttachmentController`, đã gỡ — xem `cuaXoaChungDaGo`).
         List<String> duongCongTrinh = quyenCua(
                 com.songnhue.operations.api.ConstructionDocumentController.class, "delete", UUID.class, UUID.class);
+        List<String> duongBaoTri = quyenCua(
+                com.songnhue.operations.api.MaintenanceLogController.class, "deleteAttachment", UUID.class, UUID.class);
 
-        assertThat(duongChung)
-                .as(
-                        "⛔ Đường CHUNG đòi %s, đường RIÊNG đòi %s. Đường rộng hơn là đường không ai canh: "
-                                + "TECHNICIAN · XN_MANAGER · XN_OPERATOR đều có `ops:document:upload` và ⛔ KHÔNG ai "
-                                + "có `ops:document:delete`, nên cái lệch này cho ba vai trò xoá bất kỳ tệp nào "
-                                + "trong hệ.",
-                        duongChung, duongCongTrinh)
-                .isEqualTo(duongCongTrinh)
-                .containsExactly("ops:document:delete");
+        assertThat(duongCongTrinh).containsExactly("ops:document:delete");
+        assertThat(duongBaoTri)
+                .as("⛔ Cửa xoá đính kèm NHẬT KÝ BẢO TRÌ đòi %s — lệch khỏi cửa tài liệu công trình", duongBaoTri)
+                .isEqualTo(duongCongTrinh);
     }
 
     /**
@@ -212,11 +231,28 @@ class AttachmentDeleteHttpTest extends IntegrationTestBase {
                 "UPDATE constructions SET operating_procedure_attachment_public_id = ? WHERE id = ?", tep, idCongTrinh);
         assertThat(troToiTep(tep)).as("tiền đề: liên kết ĐANG tồn tại").isEqualTo(1);
 
-        // ⚠ Gọi thẳng service, ⛔ không qua HTTP — xem `thePermissionIsActuallyHeldBySomeRole`: ⛔
-        //   không vai trò nào đăng nhập được bằng mật khẩu đơn thuần mà có `ops:document:delete`.
-        //   ⭐ Và điều đó ĐÚNG ở đây: bảo đảm đang kiểm nằm ở tầng SỰ KIỆN (`AttachmentDeletedEvent`
-        //   + hai người nghe), ⛔ không ở controller. Luật 5 đòi đi qua HTTP khi cam kết nằm ở
-        //   controller/filter; ép nó qua HTTP ở đây chỉ thêm một lớp không liên quan.
+        // ⭐⭐ T40.26 ĐỔI KỊCH BẢN NÀY, và đổi theo chiều tốt hơn.
+        //
+        // Từ 08/09 lượt xoá trên bị **CHẶN** ngay từ đầu: `AttachmentService.delete` hỏi mọi
+        // `AttachmentUsagePort` trước khi đánh dấu xoá, và công trình đang trỏ vào tệp là một câu
+        // trả lời "có". Nghĩa là kịch bản mà T28.34 sinh ra để dọn dẹp nay **không xảy ra được nữa**
+        // qua đường bình thường — chặn tốt hơn dọn, vì dọn nghĩa là người dùng đã mất một liên kết.
+        //
+        // ⛔ Nhưng ⛔ KHÔNG xoá người dọn: nó còn phải xử những hàng ĐÃ lỡ mất tham chiếu trước khi
+        //   có chốt chặn. Nên bài này nay khẳng định CẢ HAI vế.
+        assertThatThrownBy(() -> attachments.delete(tep))
+                .as("Chốt T40.26 phải chặn — cột này nuôi liên kết 'Quy trình vận hành' trên cổng")
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("CMS-2009");
+        assertThat(troToiTep(tep))
+                .as("lượt xoá bị chặn ⇒ liên kết phải còn NGUYÊN")
+                .isEqualTo(1);
+
+        // Vế hai — người dọn vẫn làm việc. Công trình đã thanh lý thì chốt chặn cho qua (tham chiếu
+        // chết ⛔ không được khoá kho), và khi ấy `ConstructionDocumentRefCleaner` phải gỡ cột về
+        // NULL: `ON DELETE SET NULL` khai ở năm cột mà **chưa từng bắn một lần nào**, vì xoá ở đây
+        // là xoá MỀM (quy tắc 9) — hai luật đúng riêng lẻ, loại trừ nhau khi ghép.
+        jdbc.update("UPDATE constructions SET deleted_at = now() WHERE id = ?", idCongTrinh);
         attachments.delete(tep);
 
         assertThat(troToiTep(tep))

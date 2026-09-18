@@ -1,5 +1,5 @@
 import { Editor, getSchema } from '@tiptap/core';
-import { ALIGN_CLASSES } from 'design-tokens/editor-schema';
+import { ALIGN_CLASSES } from '@songnhue/design-tokens/editor-schema';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { ALIGN_TYPES } from './AlignClass';

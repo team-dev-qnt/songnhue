@@ -1,4 +1,5 @@
 import type { MenuLink } from '@/lib/api';
+import { lienKetAnToan } from '@/lib/lienKetAnToan';
 import { API_BASE_URL } from '@/lib/site';
 
 /**
@@ -144,7 +145,7 @@ export function menuHref(item: MenuLink): string | null {
       return item.articleSlug ? ROUTES.article(item.articleSlug) : null;
     case 'URL':
     case 'EXTERNAL_DOC':
-      return item.url ?? null;
+      return lienKetAnToan(item.url);
     case 'NONE':
       return null;
     default:
@@ -161,8 +162,15 @@ export function isExternal(item: MenuLink): boolean {
 /**
  * Dựng cây menu hai cấp từ danh sách phẳng.
  *
- * Backend đã sắp theo `path` nên cha luôn đứng trước con — một lượt duyệt là đủ, không cần
- * sắp lại.
+ * Backend trả sẵn **thứ tự hiển thị** — cha luôn đứng trước con, anh em ruột theo `sort_order` —
+ * nên một lượt duyệt là đủ và ở đây **không sắp lại**.
+ *
+ * ⚠ Vế "anh em theo `sort_order`" chỉ đúng từ T26.25. Câu cũ ở đây nói "backend đã sắp theo `path`"
+ * — đúng chữ, nhưng `ORDER BY path, sort_order` không bao giờ so tới `sort_order` (path chứa id của
+ * chính mục), nên suốt trước đó thứ tự menu trên cổng là thứ tự id **so theo chuỗi**.
+ *
+ * ⛔ Sắp lại ở đây **không phải** cách chữa: nó dựng một nguồn sự thật thứ hai về thứ tự, và hai
+ * nguồn sẽ lệch nhau đúng lúc ai đó đổi một bên.
  */
 export function buildMenuTree(items: MenuLink[]): { item: MenuLink; children: MenuLink[] }[] {
   const roots: { item: MenuLink; children: MenuLink[] }[] = [];

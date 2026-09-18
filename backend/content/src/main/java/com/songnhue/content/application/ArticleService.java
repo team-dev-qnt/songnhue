@@ -5,6 +5,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
@@ -197,6 +198,45 @@ public class ArticleService {
 
     // ---- Ghi -----------------------------------------------------------------
 
+    /** Thẻ tự nó <b>là</b> nội dung — bài chỉ gồm một tấm ảnh hoặc một bảng số liệu là bài hợp lệ. */
+    private static final Pattern KHOI_CO_NOI_DUNG =
+            Pattern.compile("<(?:img|iframe|table|hr)\\b", Pattern.CASE_INSENSITIVE);
+
+    /**
+     * Khử trùng nội dung <b>và</b> từ chối bài rỗng trên thực tế — T41.21.
+     *
+     * <h3>Vì sao {@code @NotBlank} trên DTO là chưa đủ</h3>
+     *
+     * Trình soạn thảo trống ⛔ không gửi lên chuỗi rỗng — nó gửi {@code <p></p>}. Chuỗi ấy dài 7 ký
+     * tự nên {@code @NotBlank} cho qua, bài được lưu, quy trình duyệt chạy bình thường, và cổng công
+     * khai đăng một trang trắng mang tiêu đề. Bộ canh ở tầng biểu mẫu (admin-app) bắt được lượt bấm
+     * Lưu của người dùng thật, nhưng nó là bộ canh của <i>một</i> nơi gọi — chốt chặn phải nằm ở
+     * chỗ dữ liệu đi qua (quy tắc 12).
+     *
+     * <h3>Vì sao một hàm cho cả hai đường ghi</h3>
+     *
+     * {@code create} và {@code update} là hai chỗ duy nhất đặt nội dung, và trước bản này cả hai đều
+     * gọi {@code HtmlSanitizer.clean} rời nhau — hai nơi con người phải nhớ, nên cần một hàm nhớ hộ
+     * (quy tắc 14). Thêm đường ghi thứ ba mà quên gọi hàm này thì
+     * {@code ArticleContentRongTest#chiCoMotDuongDatNoiDung} đỏ.
+     *
+     * <p>⚠ Đo trên chuỗi <b>đã khử trùng</b>, ⛔ không đo chuỗi gửi lên: một bài chỉ gồm thẻ bị cấm
+     * sẽ rỗng <i>sau</i> khi lọc, và đó mới là bài thật sự rỗng.
+     */
+    private static String lamSachNoiDung(String html) {
+        String sach = HtmlSanitizer.clean(html);
+        String chu = sach.replaceAll("<[^>]*>", " ")
+                .replace("&nbsp;", " ")
+                // ⚠ Khoảng trắng KHÔNG NGẮT viết bằng escape, ⛔ không dán ký tự thật: dán vào
+                //   thì nó trông y hệt dấu cách thường và cả dòng đọc như một lệnh không làm gì.
+                .replace("\u00A0", " ")
+                .trim();
+        if (chu.isEmpty() && !KHOI_CO_NOI_DUNG.matcher(sach).find()) {
+            throw new BusinessRuleException(ErrorCode.CMS_2023);
+        }
+        return sach;
+    }
+
     @Transactional
     public Article create(ArticleDraft draft) {
         requireCategories(draft.categoryPublicIds());
@@ -205,7 +245,7 @@ public class ArticleService {
         Article article = new Article(
                 draft.title(),
                 requireUniqueSlug(draft.slug(), draft.title(), null),
-                HtmlSanitizer.clean(draft.content()),
+                lamSachNoiDung(draft.content()),
                 author);
         applyEditableFields(article, draft);
 
@@ -238,7 +278,7 @@ public class ArticleService {
         // ⛔ Khử trùng lúc GHI, không lúc đọc. Ghi sạch một lần thì mọi nơi đọc đều an toàn —
         // cổng công khai, màn hình xem trước của admin-app, bản chụp phiên bản, và cả bản
         // xuất dữ liệu về sau. Khử trùng lúc đọc là phải nhớ làm ở từng nơi đọc.
-        article.setContent(HtmlSanitizer.clean(draft.content()));
+        article.setContent(lamSachNoiDung(draft.content()));
         applyEditableFields(article, draft);
         if (draft.authorUserId() != null) {
             article.setAuthorUserId(draft.authorUserId());
@@ -341,9 +381,25 @@ public class ArticleService {
         return article;
     }
 
+    /**
+     * Xoá mềm một bài viết — và <b>xoá đệm cổng ngay trong lượt ấy</b>.
+     *
+     * <p>⚠ Điểm ghi này bị bỏ sót từ WS-12 tới WS-41. Hai điểm ghi kia đều gọi
+     * {@link PortalCache#articleChanged(String)}: {@code update()} khi người có quyền xuất bản sửa
+     * một bài đang chạy, và {@code execute()} cho <i>mọi</i> hành động duyệt. Riêng đây thì không —
+     * nên gỡ một bài đăng nhầm xong, cổng vẫn phục vụ nó cho tới lượt dựng lại theo chu kỳ
+     * (đệm 5 phút). Đó đúng là thứ người ta bấm Xoá để tránh.
+     *
+     * <p>⭐ Đây là <b>lần thứ năm</b> cùng một hình dạng (§10.70, T27.7): nợ đệm cổng được trả ở
+     * những điểm ghi đã biết, rồi điểm ghi tiếp theo ra đời mà không ai nối — và triệu chứng luôn
+     * giống nhau, luôn im lặng: màn hình báo <i>thành công</i>, cổng không đổi gì. Bộ canh
+     * {@code DiemGhiXoaDemTest} sinh ra để chặn lần thứ sáu.
+     */
     @Transactional
     public void delete(UUID publicId) {
-        get(publicId).markDeleted(Instant.now());
+        Article article = get(publicId);
+        article.markDeleted(Instant.now());
+        portalCache.articleChanged(article.getSlug());
     }
 
     // -------------------------------------------------------------------------

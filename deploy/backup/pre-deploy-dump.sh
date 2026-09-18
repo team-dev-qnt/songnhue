@@ -26,6 +26,14 @@
 # =============================================================================
 set -euo pipefail
 
+# ⛔ Bản dump là TOÀN BỘ CSDL — `users.password_hash`, `user_totp.secret_encrypted`, bảng
+#    `employee_sensitive`. Đo 08/09 trên VPS-1: mọi `*.dump` ở quyền `644`, tức MỌI user trên máy
+#    đọc được (T11.96 → T61.8). `umask` ở đây chỉ lo tệp HOST tạo (`.sha256`); tệp `.dump` do
+#    `pg_dump` tạo BÊN TRONG container nên umask này ⛔ chạm tới — xem bước `chmod` sau pg_dump.
+#    ⚠ 027 chứ ⛔ 077: host đọc lại bản dump bằng user SSH qua NHÓM 1000 (setgid của thư mục),
+#    VPS-2 kéo về cũng qua nhóm ấy. 600 là mọi lượt deploy đỏ ở `sha256sum`.
+umask 027
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPLOY_DIR="$(dirname "$SCRIPT_DIR")"
 ENV_FILE="${ENV_FILE:-$DEPLOY_DIR/.env}"
@@ -108,6 +116,27 @@ fi
     exit 1
 }
 
+# -----------------------------------------------------------------------------
+# ⛔ Hạ quyền bản dump về 640 — T61.8.
+#
+#   `docker exec` chạy bằng root của container, tiến trình mang umask 022 ⇒ tệp ra `644`. Đổi
+#   quyền phải làm BÊN TRONG container, vì ở host tệp thuộc root và user SSH ⛔ đổi được.
+#   Nhóm của tệp là 1000 nhờ setgid của thư mục (`host-prepare.sh`), nên 640 = chủ + nhóm app.
+#
+#   ⚠ Nếu sau khi hạ quyền mà host KHÔNG đọc được tệp (user SSH chưa vào nhóm 1000 — lệnh
+#     `usermod -aG` của `host-prepare.sh` chỉ có hiệu lực ở phiên đăng nhập MỚI), thì trả lại 644
+#     và nói to. Lý do chọn chiều này: tệp này là ĐIỂM QUAY LUI DỮ LIỆU DUY NHẤT của lượt deploy;
+#     một bản dump không băm được thì lượt deploy phải dừng, và dừng deploy vì quyền đọc trên một
+#     máy chỉ có hai user là đánh đổi sai chiều. Dòng cảnh báo in ra đích danh việc phải làm.
+# -----------------------------------------------------------------------------
+docker exec -i "$CT_POSTGRES" chmod 640 "$IN_CONTAINER"
+if [ ! -r "$ON_HOST" ]; then
+    docker exec -i "$CT_POSTGRES" chmod 644 "$IN_CONTAINER"
+    echo "  ⚠⚠ T61.8: user $(id -un) ⛔ đọc được bản dump ở quyền 640 — đã TRẢ LẠI 644 để giữ điểm quay lui." >&2
+    echo "     Việc phải làm trên máy: sudo usermod -aG $(stat -c %g "$HOST_BACKUP_DIR") $(id -un) rồi đăng nhập lại." >&2
+fi
+echo "  Quyền bản dump: $(stat -c '%a %U:%G' "$ON_HOST")"
+
 # Checksum đọc LẠI từ đĩa — băm cái thật sự nằm trên đĩa, không băm cái ta định
 # ghi. Đĩa đầy và ghi thiếu bị bắt đúng ở đây.
 CHECKSUM="$(sha256sum "$ON_HOST" | awk '{print $1}')"
@@ -119,10 +148,19 @@ SIZE="$(wc -c < "$ON_HOST" | tr -d ' ')"
 # tính vào cảnh báo "quá 26 giờ". Bản dump vô hình với hệ thống thì tương đương
 # không có, vì không ai biết mà dùng.
 #
-# 📌 Nợ nhỏ: cột `trigger_type` hiện chỉ nhận ('SCHEDULED','MANUAL','PRE_RESTORE')
-#    — xem V202608161010. Ghi 'MANUAL' cho đúng ràng buộc; tên tệp `predeploy-*`
-#    và `file_path` vẫn phân biệt được. Thêm 'PRE_DEPLOY' là một migration bốn
-#    dòng, gộp vào lần sửa lược đồ kế tiếp cho đỡ tốn một vòng CI.
+# ⭐ 08/09/2026 (T11.34): ghi 'PRE_DEPLOY' — giá trị THẬT, thôi mượn 'MANUAL'.
+#    Ràng buộc `ck_system_backups_trigger` nới ở V202609081072.
+#
+# ⛔ Vì sao nó KHÔNG phải "nợ nhỏ" như chú thích cũ nói: câu *"tên tệp predeploy-*
+#    và file_path vẫn phân biệt được"* đúng với NGƯỜI đọc màn hình và sai với MÁY.
+#    Mọi truy vấn lọc theo `trigger_type` — thống kê, cảnh báo "quá 26 giờ", và bất
+#    kỳ chính sách giữ/dọn nào viết sau này — đều trộn bản chụp trước deploy vào
+#    cùng rổ với bản người dùng bấm tay. Phân biệt bằng tiền tố tên tệp là một quy
+#    ước sống trong trí nhớ con người (luật 14).
+#
+# ⚠ Giá trị này phải khớp ở BỐN nơi và `EnumBaNoiTest` canh cả bốn: enum Java
+#   `BackupTrigger` · union TS `api-types.ts` · CHECK của CSDL · nhãn
+#   `statusVocabulary.ts`. Đổi một nơi mà quên ba nơi kia thì bài ấy đỏ.
 # -----------------------------------------------------------------------------
 if [ -n "${DB_MIGRATION_PASSWORD:-}" ]; then
     docker exec -i -e PGPASSWORD="$DB_MIGRATION_PASSWORD" "$CT_POSTGRES" psql \
@@ -131,7 +169,7 @@ if [ -n "${DB_MIGRATION_PASSWORD:-}" ]; then
         "INSERT INTO system_backups
             (file_name, file_path, status, trigger_type, finished_at, size_bytes, checksum_sha256)
          VALUES
-            ('$FILE_NAME', '$ON_HOST', 'SUCCEEDED', 'MANUAL', now(), $SIZE, '$CHECKSUM');" \
+            ('$FILE_NAME', '$ON_HOST', 'SUCCEEDED', 'PRE_DEPLOY', now(), $SIZE, '$CHECKSUM');" \
         >/dev/null 2>&1 \
         || echo "  ⚠ Không ghi được sổ đăng ký — bản dump vẫn hợp lệ, nhưng màn hình quản trị sẽ không thấy nó."
 fi

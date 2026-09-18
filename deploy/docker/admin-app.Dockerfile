@@ -164,10 +164,18 @@ server {
         proxy_pass $api_upstream;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        # Backend đọc IP thật từ đây để ghi security event và tính hạn mức theo
-        # IP. Thiếu thì mọi lượt đăng nhập trông như đến từ chính nginx, và một
-        # người gõ sai mật khẩu sẽ khoá hạn mức của cả cơ quan.
+        # ⛔⛔ T43.8-b — CHUYỂN TIẾP giá trị của chặng BIÊN, ⛔ KHÔNG ghi đè bằng
+        #    `$remote_addr`. Ở đây `$remote_addr` là ip của chính nginx biên (chặng
+        #    ngay trước), nên bản cũ xoá mất ip thật rồi đưa cho backend một giá trị
+        #    GIỐNG NHAU cho mọi máy khách — mọi hạn mức gộp về một xô.
+        #    Chặng biên đặt `X-Real-IP $remote_addr` bằng phép GHI ĐÈ (proxy-common.conf),
+        #    nên giá trị đi tới đây ⛔ không thể do client tự cấp. Đó là điều kiện duy
+        #    nhất làm `ClientIp` (backend/core/.../common/web/ClientIp.java) tin được.
+        #    ⚠ nginx BỎ HẲN header có giá trị rỗng, nên lượt gọi ⛔ không qua biên sẽ
+        #      ⛔ không mang header này và backend rơi về `getRemoteAddr()` — đúng ý.
+        proxy_set_header X-Real-IP $http_x_real_ip;
+        # ⚠ `X-Forwarded-For` vẫn gửi để đọc log thấy cả chuỗi chặng, nhưng nó ⛔ KHÔNG
+        #   còn quyết định gì: nó NỐI THÊM nên phần tử đầu là thứ client tự đặt.
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         # Tải tệp đính kèm: 0 = không giới hạn ở tầng nginx, để hạn mức thật

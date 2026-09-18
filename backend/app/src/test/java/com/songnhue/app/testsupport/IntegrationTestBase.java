@@ -7,6 +7,7 @@ import java.security.SecureRandom;
 import java.util.Base64;
 
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
@@ -33,6 +34,7 @@ import com.songnhue.core.testsupport.RsaKeyPairFixture;
  * </ul>
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@Import({TestHttpConfig.class, DemTruyVanJdbc.class})
 // ⭐⭐ `app.worker-enabled` khai ở ĐÂY chứ ⛔ không ở @DynamicPropertySource — WS-34/T34.7.
 //
 // Nó là một hằng, ⛔ không phải giá trị phải tính lúc chạy (khác cổng container, khác endpoint
@@ -84,6 +86,9 @@ public abstract class IntegrationTestBase {
 
         registry.add("app.crypto.active-key-id", () -> "v1");
         registry.add("app.crypto.keys.v1", IntegrationTestBase::randomAesKey);
+        // T61.11 — khoá THỨ HAI nạp sẵn (⛔ hoạt động): bài xoay khoá đổi `activeKeyId` tại chỗ thay vì
+        //   dựng một Spring context riêng. Nạp thừa một khoá ⛔ đổi hành vi nào khác — mã hoá mới vẫn dùng v1.
+        registry.add("app.crypto.keys.v2", IntegrationTestBase::randomAesKey);
 
         // ⭐ MinIO THẬT từ WS-14 — trước đó là `http://minio.invalid:9000`, một địa chỉ không tồn
         //   tại. MinioClient không mở kết nối lúc dựng bean nên context vẫn lên và mọi bài kiểm vẫn

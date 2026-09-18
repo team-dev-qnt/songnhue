@@ -295,9 +295,17 @@ export default async function LienHePage() {
             cauHinh={{
               hienDienThoai: hienDienThoai,
               emailBatBuoc:
-                docBool(config?.['site.contact.field.email.required'], false) || !hienDienThoai,
+                docBool(config?.['site.contact.field.email.required'], true) || !hienDienThoai,
               dienThoaiBatBuoc:
                 hienDienThoai && docBool(config?.['site.contact.field.phone.required'], false),
+              // T28.49 — hai ô tắt được. ⛔ Mặc định `true` khi khoá vắng, cùng lý do đã ghi ở
+              // `hienDienThoai`: một khoá chưa seed ⛔ không được lặng lẽ làm biến mất một trường
+              // người dùng đang dùng.
+              hienHoTen: docBool(config?.['site.contact.field.full-name.enabled'], true),
+              hienTieuDe: docBool(config?.['site.contact.field.subject.enabled'], true),
+              // T61.39 — NĐ 13/2023. ⛔ có giá trị thì biểu mẫu ⛔ hiện ô đồng ý (xem javadoc prop).
+              thongBaoRiengTu: config?.['site.privacy.notice'] ?? '',
+              duongDanChinhSach: config?.['site.privacy.policy-url'] ?? '',
             }}
           />
         </div>

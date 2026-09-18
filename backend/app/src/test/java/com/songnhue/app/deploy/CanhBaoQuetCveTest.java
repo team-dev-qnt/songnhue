@@ -58,8 +58,13 @@ import org.junit.jupiter.api.io.TempDir;
  * <h2>⛔ Giới hạn của chính bài kiểm này (luật 28)</h2>
  *
  * Nó chứng minh <b>dây đã nối</b>. Nó KHÔNG chứng minh <b>GitHub đã giao</b> — nửa sau chỉ đo được
- * bằng một lượt chạy thật. Và nó không phủ trường hợp <b>lượt quét không chạy</b> (luật 31 — thứ nguy
- * hiểm là sự vắng mặt).
+ * bằng một lượt chạy thật.
+ *
+ * <p>⭐ <b>Đã trả 08/09 (T11.67):</b> trường hợp <b>lượt quét không chạy</b> — luật 31, thứ nguy hiểm
+ * là sự vắng mặt — nay có bộ canh RIÊNG: {@link CanhCongQuetTest} +
+ * {@code .github/workflows/canh-cong-quet.yml}. Hai chuông phủ hai tập <b>rời nhau</b>: chuông ở đây
+ * lo lượt quét <b>ĐỎ</b> (kèm bằng chứng), chuông kia lo lượt quét <b>KHÔNG TỒN TẠI / quá hạn / kết
+ * cục lạ</b> và <b>im lặng</b> trước {@code failure}. Chồng lấn là dựng lại đúng lỗi T11.84 đã vá.
  */
 class CanhBaoQuetCveTest {
 

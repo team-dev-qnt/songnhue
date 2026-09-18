@@ -1,6 +1,6 @@
 import { theme, type ThemeConfig } from 'antd';
 
-import { brandColors, neutralColors, shadow, sizing, statusColors } from 'design-tokens';
+import { brandColors, neutralColors, shadow, sizing, statusColors } from '@songnhue/design-tokens';
 
 /**
  * Theme AntD dựng **từ** `tokens.ts` — không có màu nào tự khai ở đây.

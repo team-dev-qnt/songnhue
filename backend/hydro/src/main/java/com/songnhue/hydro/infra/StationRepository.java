@@ -20,6 +20,9 @@ import com.songnhue.hydro.domain.Station;
  */
 public interface StationRepository extends JpaRepository<Station, Long> {
 
+    /** Số điểm đo còn sống thuộc một đơn vị — chốt chặn giải thể đơn vị (CN-04.1). */
+    long countByOrgUnitIdAndDeletedAtIsNull(Long orgUnitId);
+
     /** ⚠ Nạp kèm loại chỉ số — xem javadoc của {@link #findByDeletedAtIsNullOrderByCodeAsc()}. */
     @EntityGraph(attributePaths = "measurementTypes")
     Optional<Station> findByPublicIdAndDeletedAtIsNull(UUID publicId);

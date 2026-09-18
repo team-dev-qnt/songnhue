@@ -129,13 +129,16 @@ public class AuthController {
      *
      * <p>Chỉ gọi được khi đang giữ vé challenge, tức là vừa nhập đúng mật khẩu. Không có ràng buộc
      * đó thì bất kỳ ai chiếm được phiên cũng tự đăng ký lại 2FA cho mình và khoá chủ nhân ra ngoài.
+     *
+     * <p>⛔ Và vé challenge một mình ⛔ đủ: tài khoản đã có 2FA xác nhận ⇒ {@code AUTH-0009} (T61.30).
      */
     @PostMapping("/2fa/enroll")
     @PublicEndpoint(reason = "Đăng ký 2FA bắt buộc ngay sau bước mật khẩu, chưa có access token")
     @Operation(summary = "Sinh secret 2FA + mã khôi phục (hiển thị đúng một lần)")
-    public AuthDtos.EnrollResponse enrollTwoFactor(@Valid @RequestBody AuthDtos.EnrollRequest request) {
-        TotpService.Enrollment enrollment =
-                authService.enrollTwoFactor(request.challengeToken(), jwtProperties.getIssuer(), Instant.now());
+    public AuthDtos.EnrollResponse enrollTwoFactor(
+            @Valid @RequestBody AuthDtos.EnrollRequest request, HttpServletRequest httpRequest) {
+        TotpService.Enrollment enrollment = authService.enrollTwoFactor(
+                request.challengeToken(), jwtProperties.getIssuer(), ClientInfo.from(httpRequest), Instant.now());
         return new AuthDtos.EnrollResponse(enrollment.secret(), enrollment.otpauthUri(), enrollment.recoveryCodes());
     }
 
@@ -203,7 +206,8 @@ public class AuthController {
                 current.roles(),
                 current.permissions(),
                 current.mustChangePassword(),
-                view.twoFactorEnrolled());
+                view.twoFactorEnrolled(),
+                current.employeeId() != null);
     }
 
     /**

@@ -637,6 +637,16 @@ Người dùng: Quản trị nhân sự (Admin HR), Ban giám đốc, Quản lý
 ### CN-04.6. Danh bạ Nội bộ (Cao) — *SRS M4.11, UC4.6*
 - Mọi nhân viên tra cứu; chỉ hiện thông tin liên hệ công vụ (không lộ dữ liệu nhạy cảm); chỉ NV 'Đang làm'.
 - Grid/List; card: ảnh, tên, chức vụ, đơn vị, SĐT, email nội bộ. Full-text search (có/không dấu) debounce 300ms, highlight; lọc multi-select đơn vị/chức vụ/giới tính; chi tiết: gọi/email, vị trí sơ đồ, đồng nghiệp cùng đơn vị.
+> ✅ **Dựng 10/09/2026 (WS-55).** Ba điểm phải đọc cho đúng, ghi lại vì cả ba đều sai **im lặng**:
+> - **"chỉ NV 'Đang làm'"** = **đối lập với ĐÃ NGHỈ** (`NGHI_VIEC` · `NGHI_HUU`), ⛔ **không** phải
+>   `status = 'DANG_LAM'`. Người **thử việc · nghỉ thai sản · nghỉ không lương** vẫn là người của
+>   Công ty và vẫn phải có mặt trong danh bạ — loại họ ra là một quyết định nhân sự ⛔ không ai duyệt.
+> - **Quyền** là `hr:directory:view` (11/12 vai trò), và danh bạ **⛔ không** cắt theo phạm vi đơn
+>   vị — khác hẳn CN-04.7 (M4.13). Đó là hai màn hình, hai luật; gộp chúng là hỏng theo cả hai chiều.
+> - ⛔⛔ **"ảnh" trên thẻ CHƯA CÓ NGUỒN**: `employees` ⛔ không có cột ảnh, và thư mục `ANH` của hồ
+>   sơ là *"ảnh trong hồ sơ"* (có thể là bản chụp giấy tờ), ⛔ không phải ảnh chân dung để công bố
+>   cho toàn Công ty. Thẻ hiện **chữ cái đầu**. ⬜ Cần Công ty quyết: cấp ảnh chân dung riêng, hay
+>   cho phép công bố thư mục `ANH`. (Nợ T55.4)
 
 ### CN-04.7. Tìm kiếm & Phân quyền Hồ sơ (Cao) — *SRS M4.12, M4.13, UC4.5*
 - Tìm kiếm/lọc hồ sơ theo tên, mã NV, phòng ban, chức vụ, trình độ.

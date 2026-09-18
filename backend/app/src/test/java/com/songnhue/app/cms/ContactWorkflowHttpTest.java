@@ -15,7 +15,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -26,6 +25,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.app.testsupport.PhienHttp;
+import com.songnhue.app.testsupport.TestHttp;
 import com.songnhue.core.application.auth.PasswordPolicyService;
 import com.songnhue.core.infra.identity.UserRepository;
 
@@ -56,7 +56,7 @@ class ContactWorkflowHttpTest extends IntegrationTestBase {
     private static final String DANH_MUC = "/api/v1/cms/contact-categories";
 
     @Autowired
-    private TestRestTemplate http;
+    private TestHttp http;
 
     @Autowired
     private UserRepository users;
@@ -145,7 +145,7 @@ class ContactWorkflowHttpTest extends IntegrationTestBase {
     void hanhDongSaiTrangThaiThiTuChoi() {
         String id = guiMotLienHe();
         // ARCHIVE chỉ đi được từ DONG. Từ MOI thì ⛔ không có dòng nào trong `workflow_transitions`.
-        buoc(id, "ARCHIVE", null, HttpStatus.UNPROCESSABLE_ENTITY);
+        buoc(id, "ARCHIVE", null, HttpStatus.UNPROCESSABLE_CONTENT);
         assertThat(trangThai()).isEqualTo("MOI");
     }
 
@@ -287,6 +287,9 @@ class ContactWorkflowHttpTest extends IntegrationTestBase {
         ResponseEntity<String> xoa = phienHttp.goi(duQuyen, HttpMethod.DELETE, DANH_MUC + "/" + maDanhMuc, null);
         assertThat(xoa.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(xoa.getBody()).contains("CMS-2020");
+        // ⭐ T61.13 — câu HIỂN THỊ, ⛔ chỉ mã. Câu cũ đánh chỗ cắm từ {1} trong khi nơi ném truyền đúng
+        //   MỘT đối số ({0}) ⇒ người dùng đọc nguyên chữ "{1}" — 200 bài kiểm so mã lỗi ⛔ thấy được.
+        assertThat(xoa.getBody()).contains("Phân loại còn 1 liên hệ đang gán").doesNotContain("{0}", "{1}");
 
         ResponseEntity<String> tat = phienHttp.goi(
                 duQuyen,
@@ -309,6 +312,10 @@ class ContactWorkflowHttpTest extends IntegrationTestBase {
                 duQuyen, HttpMethod.POST, DANH_MUC, "{\"code\":\"GOP_Y\",\"name\":\"Góp ý khác\",\"sortOrder\":1}");
         assertThat(lai.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(lai.getBody()).contains("CMS-2019");
+        assertThat(lai.getBody())
+                .as("T61.13 — người dùng phải đọc được MÃ nào trùng, ⛔ chữ \"{1}\"")
+                .contains("Mã phân loại \\\"GOP_Y\\\" đã tồn tại")
+                .doesNotContain("{0}", "{1}");
     }
 
     /**

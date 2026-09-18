@@ -1,17 +1,18 @@
 import Link from 'next/link';
 
-import type { WaterLevelRow } from '@/lib/api';
-import { COT_MUC_NUOC } from '@/lib/homeDataColumns';
+import type { LuoiMucNuoc } from '@/lib/api';
 import { ROUTES } from '@/lib/routes';
+import { type MocSoLieu } from '@/lib/mocSoLieu';
+
 import { RealtimeFrame } from '../realtime/RealtimeFrame';
-import { ColumnHeaderRow } from './ColumnHeaderRow';
-import { WaterLevelRows } from './WaterLevelRows';
+import { BangTrangChuMucNuoc } from './BangTrangChuMucNuoc';
 
 interface WaterLevelBlockProps {
   hotline?: string;
   refreshSeconds: number;
   /** Mốc của số liệu. `null` khi chưa có nguồn — xem ghi chú về việc KHÔNG lấy giờ máy khách. */
-  updatedAt: string | null;
+  /** Mốc đồng bộ cuối — `meta.lanLayCuoi`. Xem `@/lib/mocSoLieu`. */
+  updatedAt: MocSoLieu | null;
   /**
    * Dòng số liệu — **T35.7**.
    *
@@ -19,7 +20,7 @@ interface WaterLevelBlockProps {
    * nhưng **chưa điểm đo nào đang hoạt động**. Hai trạng thái khác nhau và khối này nói hai câu
    * khác nhau — gộp lại là để một sự cố backend trông y hệt một hệ thống chưa có dữ liệu.
    */
-  rows: WaterLevelRow[] | null;
+  luoi: LuoiMucNuoc | null;
 }
 
 /**
@@ -27,8 +28,17 @@ interface WaterLevelBlockProps {
  *
  * <h2>⭐⭐ 04/09/2026 — khối này NAY CÓ NGUỒN DỮ LIỆU THẬT (T35.7)</h2>
  *
- * Số đến từ {@code GET /api/v1/public/hydro/muc-nuoc}, đọc bảng {@code hydro_latest} do poller
- * bhh40 ghi. Trả lời <b>OI-01</b>: API mực nước <b>đã đấu nối</b>.
+ * Số đến từ {@code GET /api/v1/public/hydro/luoi-muc-nuoc} ({@code getWaterLevelGrid}), đọc bảng
+ * {@code hydro_latest} do poller bhh40 ghi. Trả lời <b>OI-01</b>: API mực nước <b>đã đấu nối</b>.
+ *
+ * <p>⚠ Khối này <b>⛔ không tự gọi API</b> — nó nhận sẵn {@code LuoiMucNuoc} qua prop {@code luoi},
+ * do {@code app/page.tsx} gọi {@code getWaterLevelGrid('PHUT', 1, true)} rồi truyền xuống.
+ *
+ * <p>⛔⛔ <b>Sửa 10/09/2026</b>: hai dòng trên từng ghi {@code /hydro/muc-nuoc} — đúng lúc T35.7
+ * dựng, và <b>sai kể từ WS-44</b> đổi sang endpoint lưới. Hàm {@code getWaterLevels()} của endpoint
+ * cũ nay <b>⛔ không nơi nào gọi</b>, mà chú thích này vẫn trỏ vào nó ⇒ người sửa tiếp theo đi nhầm
+ * tầng. Đúng hình dạng T46.7: <b>một chú thích ⛔ không phải một đường đọc</b>. Bắt được nhờ
+ * {@code lib/apiKhongMoCoi.test.ts} (T47.10).
  *
  * <p>⚠ Ba giới hạn của nguồn vẫn còn nguyên và cổng phải nói ra, ⛔ không được lấp liếm:
  *
@@ -54,7 +64,7 @@ export function WaterLevelBlock({
   hotline = '',
   refreshSeconds,
   updatedAt,
-  rows,
+  luoi,
 }: WaterLevelBlockProps) {
   return (
     <section
@@ -118,13 +128,6 @@ export function WaterLevelBlock({
         </div>
       </div>
 
-      {/* Hàng tiêu đề 8 cột của CN-03.4 — lược đồ của bảng, không phải dữ liệu của bảng. */}
-      <ColumnHeaderRow
-        cot={COT_MUC_NUOC}
-        luoi="grid-cols-[1.1fr_1.7fr_0.9fr_1fr_1fr_0.95fr_1.1fr_0.9fr]"
-        beRongToiThieu="min-w-[920px]"
-      />
-
       <div className="p-4 sm:p-5">
         {/* ⚠ `unavailable` CHỈ khi lượt gọi hỏng (`rows === null`) — T35.10: widget hỏng ⛔ không
             được làm sập trang chủ, và cũng ⛔ không được lộ lỗi kỹ thuật ra ngoài. Danh sách rỗng
@@ -132,21 +135,15 @@ export function WaterLevelBlock({
         <RealtimeFrame
           updatedAt={updatedAt}
           refreshSeconds={refreshSeconds}
-          unavailable={rows === null}
+          unavailable={luoi === null}
           unavailableReason="Chưa lấy được số liệu mực nước. Số liệu sẽ hiện lại khi kết nối tới nguồn được khôi phục."
         >
-          {rows !== null && rows.length > 0 ? (
-            <WaterLevelRows
-              rows={rows}
-              luoi="grid-cols-[1.1fr_1.7fr_0.9fr_1fr_1fr_0.95fr_1.1fr_0.9fr]"
-              beRongToiThieu="min-w-[920px]"
-            />
-          ) : (
-            /* ⛔ Rỗng THẬT — nói thẳng, ⛔ không dựng một lưới dấu gạch cho "đỡ trống" (§10.61). */
-            <p className="px-3.5 py-6 text-center text-[13px] text-surface-textSecondary">
-              Chưa điểm đo nào đang hoạt động để công bố số liệu.
-            </p>
-          )}
+          {/* ⭐ T44.8 — bảng §5.2: MỘT dòng một CÔNG TRÌNH, thượng lưu và hạ lưu cạnh nhau, cột
+              Tuyến sông gộp ô. Bảng cũ để một dòng một ĐIỂM ĐO nên một trong hai cột ấy luôn rỗng
+              ở mọi dòng — một bảng đủ dữ liệu trông như hỏng một nửa.
+              ⛔ Nhánh rỗng nằm TRONG `BangTrangChuMucNuoc`, đọc `lyDoTrong` của backend — ⛔ không
+              dựng một câu dự phòng ở đây. */}
+          {luoi !== null && <BangTrangChuMucNuoc luoi={luoi} />}
         </RealtimeFrame>
       </div>
     </section>

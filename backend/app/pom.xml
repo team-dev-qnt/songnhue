@@ -82,9 +82,23 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-jdbc</artifactId>
         </dependency>
+        <!--
+          ⛔⛔ PHẢI là STARTER, ⛔ không phải `flyway-core` trần (đổi ở T11.69).
+
+          Boot 3.5 để `FlywayAutoConfiguration` trong `spring-boot-autoconfigure`, thứ
+          luôn có mặt — nên khai `flyway-core` trần là đủ. Boot 4.1.1 **dời nó sang
+          artifact riêng** `spring-boot-flyway` (gói `org.springframework.boot.flyway
+          .autoconfigure`), và starter này là đường kéo nó vào.
+
+          ⚠ Hỏng kiểu IM LẶNG nếu quên: `flyway-core` trần vẫn biên dịch, vẫn khởi
+          động, chỉ là **⛔ không migration nào chạy**. Trên CSDL rỗng thì lộ ra ngay
+          (mất bảng), nhưng trên CSDL ĐÃ CÓ dữ liệu thì ứng dụng lên bình thường và
+          bản vá lược đồ mới **âm thầm không được áp** — đúng hình dạng §11.19.
+          Bộ canh: `FlywayAutoConfigCoMatTest`.
+        -->
         <dependency>
-            <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-core</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-flyway</artifactId>
         </dependency>
         <dependency>
             <groupId>org.flywaydb</groupId>
@@ -125,12 +139,12 @@
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
-            <artifactId>postgresql</artifactId>
+            <artifactId>testcontainers-postgresql</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
-            <artifactId>junit-jupiter</artifactId>
+            <artifactId>testcontainers-junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

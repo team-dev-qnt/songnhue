@@ -1,4 +1,4 @@
-import { FolderAddOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EditOutlined, FolderAddOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App, Button, Card, Form, Input, Modal, Space, Typography } from 'antd';
 import { useState } from 'react';
@@ -8,7 +8,7 @@ import { ApiClientError } from '@/shared/apiClient';
 
 import { cmsApi, cmsKeys } from './api';
 import { MediaBrowser } from './MediaBrowser';
-import { type KhoTep, type MediaFile } from './types';
+import { type FolderNode, type KhoTep, type MediaFile } from './types';
 
 /**
  * Thư viện media và **Kho tài liệu** — T20.7, CN-01.3, WS-40.
@@ -34,8 +34,12 @@ export function MediaPage({ kho = 'MEDIA' }: { kho?: KhoTep } = {}) {
 
   const [form] = Form.useForm<{ name: string }>();
   const [creatingFolder, setCreatingFolder] = useState(false);
+  const [renaming, setRenaming] = useState<FolderNode | null>(null);
+  const [renameForm] = Form.useForm<{ name: string }>();
 
   const folders = useQuery({ queryKey: cmsKeys.folders(), queryFn: () => cmsApi.folders() });
+
+  const lamMoiThuMuc = () => queryClient.invalidateQueries({ queryKey: cmsKeys.folders() });
 
   const createFolder = useMutation({
     mutationFn: (name: string) => cmsApi.createFolder({ name }),
@@ -43,11 +47,66 @@ export function MediaPage({ kho = 'MEDIA' }: { kho?: KhoTep } = {}) {
       message.success('Đã tạo thư mục');
       setCreatingFolder(false);
       form.resetFields();
-      await queryClient.invalidateQueries({ queryKey: cmsKeys.folders() });
+      await lamMoiThuMuc();
     },
     onError: (caught: unknown) =>
       message.error(caught instanceof ApiClientError ? caught.message : 'Không tạo được thư mục'),
   });
+
+  const renameFolder = useMutation({
+    mutationFn: ({ publicId, name }: { publicId: string; name: string }) =>
+      cmsApi.renameFolder(publicId, name),
+    onSuccess: async () => {
+      message.success('Đã đổi tên thư mục');
+      setRenaming(null);
+      renameForm.resetFields();
+      await lamMoiThuMuc();
+    },
+    onError: (caught: unknown) =>
+      message.error(caught instanceof ApiClientError ? caught.message : 'Không đổi được tên'),
+  });
+
+  const deleteFolder = useMutation({
+    mutationFn: (publicId: string) => cmsApi.deleteFolder(publicId),
+    onSuccess: async () => {
+      message.success('Đã xoá thư mục');
+      await lamMoiThuMuc();
+    },
+    // ⛔ Cố ý để nguyên văn thông điệp của backend: `CMS-2004` ("còn thư mục con") và `CMS-2008`
+    //    ("còn tệp bên trong") nói ra ĐÚNG thứ chặn, còn một câu chung chung thì bắt người dùng
+    //    đoán. Fallback chỉ dùng khi lỗi ⛔ không phải lỗi nghiệp vụ (mất mạng, 500).
+    onError: (caught: unknown) =>
+      message.error(caught instanceof ApiClientError ? caught.message : 'Không xoá được thư mục'),
+  });
+
+  /**
+   * ⛔⛔ **Cố ý ⛔ KHÔNG đếm trước ở client rồi mới hỏi** — khác hẳn cách làm của {@link xacNhanXoa}
+   * cho tệp, và khác có lý do đo được.
+   *
+   * Một thư mục giữ được **cả hai kho** cùng lúc: `owner_id` của `MEDIA_FOLDER` lẫn `TAI_LIEU` đều
+   * trỏ vào chính nó (xem `MediaService.deleteFolder`). Màn hình này chỉ nạp danh sách của **một**
+   * kho, nên một phép đếm ở client sẽ nói *"thư mục rỗng"* trong khi backend từ chối vì còn tài
+   * liệu ở kho kia. Một khẳng định ⛔ không phân biệt được hai trạng thái thì ⛔ không khẳng định gì
+   * (luật 9) — và ở đây nó còn tệ hơn im lặng, vì nó **hứa** một điều rồi thất hứa.
+   *
+   * ⇒ Backend là **nơi duy nhất** biết đủ. Hộp thoại chỉ nói ra luật, còn lượt từ chối mang theo
+   * lý do chính xác (luật 12: đặt bảo đảm ở chỗ dữ liệu đi qua).
+   */
+  const xacNhanXoaThuMuc = (folder: FolderNode) => {
+    modal.confirm({
+      title: `Xoá thư mục "${folder.name}"?`,
+      okText: 'Xoá',
+      okButtonProps: { danger: true },
+      cancelText: 'Huỷ',
+      content: (
+        <Typography.Text>
+          Chỉ xoá được thư mục <strong>rỗng</strong> — còn tệp hoặc thư mục con thì lượt xoá sẽ bị
+          từ chối kèm lý do.
+        </Typography.Text>
+      ),
+      onOk: () => deleteFolder.mutate(folder.publicId),
+    });
+  };
 
   const remove = useMutation({
     mutationFn: (publicId: string) => cmsApi.deleteFile(publicId),
@@ -141,6 +200,32 @@ export function MediaPage({ kho = 'MEDIA' }: { kho?: KhoTep } = {}) {
         kho={kho}
         loai={laTaiLieu ? 'document' : undefined}
         height={560}
+        renderFolderExtra={
+          coQuyen
+            ? (folder) => (
+                <Space size={2}>
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<EditOutlined />}
+                    aria-label={`Đổi tên thư mục ${folder.name}`}
+                    onClick={() => {
+                      setRenaming(folder);
+                      renameForm.setFieldsValue({ name: folder.name });
+                    }}
+                  />
+                  <Button
+                    type="text"
+                    size="small"
+                    danger
+                    icon={<DeleteOutlined />}
+                    aria-label={`Xoá thư mục ${folder.name}`}
+                    onClick={() => xacNhanXoaThuMuc(folder)}
+                  />
+                </Space>
+              )
+            : undefined
+        }
         renderFileExtra={
           coQuyen
             ? (file) => (
@@ -180,6 +265,39 @@ export function MediaPage({ kho = 'MEDIA' }: { kho?: KhoTep } = {}) {
             label="Tên thư mục"
             rules={[{ required: true, message: 'Nhập tên thư mục' }]}
             extra={`Đang có ${folders.data?.length ?? 0} thư mục. Cây media sâu tối đa 3 cấp.`}
+          >
+            <Input autoFocus />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        open={renaming !== null}
+        title={`Đổi tên "${renaming?.name ?? ''}"`}
+        okText="Lưu"
+        cancelText="Huỷ"
+        confirmLoading={renameFolder.isPending}
+        onCancel={() => {
+          setRenaming(null);
+          renameForm.resetFields();
+        }}
+        onOk={async () => {
+          const values = await renameForm.validateFields();
+          if (renaming) {
+            renameFolder.mutate({ publicId: renaming.publicId, name: values.name });
+          }
+        }}
+        destroyOnHidden
+      >
+        <Form form={renameForm} layout="vertical">
+          <Form.Item
+            name="name"
+            label="Tên thư mục"
+            rules={[{ required: true, message: 'Nhập tên thư mục' }]}
+            // ⚠ Nói ra điều đổi tên KHÔNG làm: đường dẫn tệp trong MinIO neo vào id, ⛔ không neo
+            //    vào tên — nên mọi liên kết đã chèn vào bài viết vẫn sống. Không viết ra thì người
+            //    vận hành sẽ ngại đổi tên một thư mục đặt sai, và cây cứ thế mang tên sai mãi.
+            extra="Chỉ đổi nhãn hiển thị — liên kết tới các tệp bên trong không đổi."
           >
             <Input autoFocus />
           </Form.Item>

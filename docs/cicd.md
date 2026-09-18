@@ -103,12 +103,24 @@ phải thêm một bước tra thử riêng chỉ để phân biệt hai thứ �
 | `Bộ đọc tracking` | 11 phép kiểm bộ đọc `master-tracking.md`. **Không có bộ lọc đường dẫn** — chạy ~10s, đặt bộ lọc chỉ thêm một chỗ bỏ sót |
 | `Thứ tự migration` | So số hiệu migration mới với đỉnh **nhánh nền** (`fetch-depth: 0`) — §10.66 |
 | `Backend — build, lint, test` | Spotless · Checkstyle · `mvn verify` (test đơn vị + Testcontainers + ArchUnit + cổng bao phủ) |
-| `Frontend — lint` | ESLint + `tsc --noEmit` |
+| `Frontend — lint` | ESLint + **`tsc -b`** + Vitest — ⛔ **không** `tsc --noEmit`, xem ghi chú ngay dưới bảng |
 | `Đóng gói image` | Build backend. **Dựng ở cả PR, chỉ ĐẨY** `ghcr.io/…/app:<sha>` khi push vào `dev` |
 | `Đóng gói image frontend` | Ma trận `admin-app` + `public-web`. Cùng luật: dựng ở PR, đẩy khi push |
 | `Gắn tag SHA cho image không đổi` | Chỉ khi push `dev`. Gắn thêm tag `<sha>` lên digest cũ của image lượt này không dựng lại — để mọi commit `dev` có đủ ba tag (§2.1-b) |
 | `Soi phụ thuộc PR thêm vào` | `dependency-review-action` — chỉ soi phần PR **thêm vào**, đọc Advisory Database của GitHub, vài giây |
 | **`Cổng kiểm CI`** | ⭐ **Context bắt buộc DUY NHẤT.** Gom kết quả 9 job trên; ngưỡng `so_job -lt 9` chặn trường hợp khai báo `needs` hỏng làm cổng soi trên tập rỗng. `CiGateCoverageTest` đối chiếu hai chiều |
+
+> ⛔⛔ **`tsc -b`, ⛔ KHÔNG `tsc --noEmit`** (T39.12, sửa dòng bảng 08/09/2026 — bảng này khai sai
+> từ WS-39). `admin-app/tsconfig.json` là một tệp **solution**: nó chỉ có `files: []` và
+> `references`, ⛔ không có `compilerOptions` nào. Nên `tsc --noEmit -p admin-app/tsconfig.json`
+> chạy xong, in ra **0 lỗi, và chưa từng chạm một tệp nguồn nào** — nó báo xanh trên một
+> `ArticleEditorPage.tsx` thiếu hẳn một trường bắt buộc. `tsc -b` mới đi theo `references`.
+>
+> ⚠ Hai workspace **hai hình dạng khác nhau** (`public-web/tsconfig.json` là cấu hình thật, ⛔ không
+> phải solution), và `TypecheckThucSuBienDichTest` canh đúng điều đó: nó đọc cả hai tsconfig, nhận
+> diện dạng solution, rồi đòi lệnh typecheck tương ứng phải chứa `tsc -b`. Cổng CI **đã lành từ
+> T28.42**; thứ còn sai tới hôm nay chỉ là dòng bảng ở trên — và một dòng tài liệu nói sai về cổng
+> kiểm khó thấy hơn hẳn một cổng kiểm không tồn tại (§10.69).
 
 > ⚠ **OWASP Dependency-Check đã CHUYỂN RA khỏi `ci.yml`** (18/8) sang `security-scan.yml` chạy theo lịch — xem §3.3.
 
@@ -423,6 +435,55 @@ Nay:
 
 Câu 2 và 3 chỉ có nghĩa vì bộ seed nội dung nay nằm trong chuỗi migration — xem `deploy/seed/README.md`.
 
+### 4.1-b2. ⛔⛔ Hai cổng quanh `up -d`: cấu hình nginx TRƯỚC, và nginx CÓ PHỤC VỤ SAU (17/9)
+
+Smoke test ở §4.1-b hỏi **từ ngoài vào**, nên nó phát hiện được mọi kiểu hỏng — nhưng nó phát
+hiện **muộn** và **⛔ nói được nguyên nhân**. Ngày 17/09 lượt `CD Staging 35236229504` cho đúng
+hình dạng ấy: mọi bước xanh (`migrator` xong · `app Healthy` · `nginx Started` · ba dịch vụ đúng
+image), rồi **30 dòng** `curl: (7) Failed to connect …:443`, và lượt quay lui in thêm **18 dòng y
+hệt**. Toàn bộ staging chết trong khi log deploy ⛔ có một dòng nào nói vì sao.
+
+**Vì sao `Started` ⛔ đủ.** Nó nghĩa là *tiến trình container đã khởi động*. Với
+`restart: unless-stopped`, một nginx chết vì cấu hình **quay vòng mãi** mà compose vẫn in **đúng
+một dòng** `Started` — hai trạng thái ⛔ phân biệt được (luật 9). Và
+`grep -c "nginx -t" deploy.yml` khi ấy = **0**: đường triển khai chưa bao giờ canh cấu hình nginx,
+dù kho có **5** lớp kiểm đọc `default.conf.template` — chúng soi bản **trước** `envsubst`, ⛔ soi
+bản đang chạy.
+
+Nay có hai cổng:
+
+**(a) Trước `up -d` — cấu hình phải hợp lệ**
+
+```bash
+$dc run --rm --no-deps nginx nginx -t
+```
+
+Hỏng thì **dừng khi bản cũ vẫn đang phục vụ**. Cái giá của một preflight đỏ giả là *một lượt
+deploy hỏng*, ⛔ phải *một site sập* — đó là lý do nó đứng trước chứ ⛔ sau.
+
+- ⚠⚠ `--no-deps` **bắt buộc**: thiếu nó `docker compose run` dựng cả chuỗi `depends_on` — đúng tai
+  nạn §10.78, khi một lệnh *"chỉ kiểm cấu hình"* dựng luôn cluster ngoài quy trình.
+- ⚠ Giữ **entrypoint mặc định**, chỉ đổi *command*. `envsubst` chạy trong `/docker-entrypoint.d/`,
+  nên `--entrypoint nginx` kiểm bản template **chưa thay biến** — xanh trên một tệp ⛔ bao giờ
+  được nạp (luật 10).
+
+**(b) Sau `up -d` — nginx phải ĐANG PHỤC VỤ**
+
+Chờ `.State.Health.Status` = `healthy` (healthcheck vốn **đã có sẵn** trong `compose.prod.yml` mà
+⛔ ai đọc), tối đa 150 giây; hết giờ thì **in 40 dòng `docker logs nginx`** rồi đỏ. Nguyên nhân vì
+thế có tên **trong log CD**, thay vì bắt người trực SSH vào mới biết.
+
+**(c) Và nhánh quay lui thôi ĐOÁN nguyên nhân**
+
+Bản cũ khẳng định *"nhiều khả năng migration đã đổi lược đồ"* rồi trỏ sang runbook **khôi phục
+CSDL** — trong khi log của **chính lượt ấy** ghi `app Healthy` trên ảnh CŨ, tức bản cũ chạy được
+trên lược đồ đã migrate. Khôi phục CSDL ở đó **⛔ chữa gì** và **xoá mất dữ liệu mới**. Nay nó in
+**ba** khả năng kèm phép đo tách chúng, và trỏ sang **`docs/runbook/deploy-hong.md`** — runbook
+sinh ra sau sự cố này, vì trước đó kho **⛔ có** tệp nào cho tình huống *"deploy xong mà site ⛔
+trả lời"*.
+
+Nguyên nhân gốc đầy đủ: `architecture-review.md` §11.27.
+
 ### 4.1-c. Triển khai theo DIGEST, và có đường quay lui (25/8)
 
 **Digest, không phải tag.** Bước xác định image giải `:<sha>` thành `@sha256:…` rồi triển khai bằng
@@ -547,7 +608,7 @@ kiểm hai điều:
 | Secret | Đặt ở | Dùng ở | Ghi chú |
 |---|---|---|---|
 | `STAGING_HOST` · `STAGING_USER` · `STAGING_SSH_KEY` · `STAGING_BASE_URL` · **`STAGING_SSH_KNOWN_HOSTS`** | environment `staging` | CD Staging | ✅ **đúng 5, không thừa** (đo lại 6/9/2026 bằng API). Thiếu **cả năm** → cảnh báo và bỏ qua; thiếu **một số** → đỏ. ⭐ Secret thứ sáu `PUBLIC_SITE_URL` đặt sai loại **đã xoá 6/9** cùng biến trùng tên ở env này — không dòng mã nào đọc chúng (`ci.yml` đọc `vars.PUBLIC_SITE_URL` ở **cấp repo**, trong một job không có `environment:`) |
-| `PROD_HOST` · `PROD_USER` · `PROD_SSH_KEY` · `PROD_BASE_URL` · **`PROD_SSH_KNOWN_HOSTS`** | environment `production` | CD Production | ✅ **đủ cả 5 từ 6/9/2026** (T11.7 đóng) — `PROD_HOST=27.71.16.154`, `PROD_USER=songnhue`, `PROD_BASE_URL=https://songnhue.com`. Khoá host lấy bằng `cat /etc/ssh/ssh_host_ed25519_key.pub` **trên chính máy chủ** rồi đối chiếu với `known_hosts` cục bộ — khớp tuyệt đối. Thiếu ở production → lượt chạy **DỪNG ĐỎ**, không bỏ qua |
+| `PROD_HOST` · `PROD_USER` · `PROD_SSH_KEY` · `PROD_BASE_URL` · **`PROD_SSH_KNOWN_HOSTS`** | environment `production` | CD Production | ✅ **đủ cả 5 từ 6/9/2026** (T11.7 đóng) — `PROD_HOST=27.71.16.154`, `PROD_USER=songnhue`, `PROD_BASE_URL=` ⚠ **đổi 07/09 17:36Z** cùng lượt đổi tên miền — giá trị của một secret ⛔ đọc lại được, nhưng `gh api …/environments/production/secrets` cho thấy **⛔ nó** mang `updated_at = 2026-09-07T17:36:43Z` trong khi bốn secret còn lại đứng nguyên ở 06/09 ⇒ nó **đã** được sửa riêng, đúng phút `PUBLIC_SITE_URL` đổi sang `.vn`. ⛔⛔ Đây là một **suy luận từ dấu thời gian**, ⛔ phải một phép đo giá trị: nếu nó vẫn trỏ `songnhue.com` thì **smoke test của CD Production sẽ đỏ** ở lượt đề bạt kế tiếp, vì tên miền cũ ⛔ còn khối `server` nào phục vụ (`runbook/ten-mien-va-chung-chi.md` §08/09). ⇒ Phép đo tách hai trạng thái, chạy được ⛔ cần lộ secret: `gh workflow run` một lượt CD Production và đọc bước smoke test. Khoá host lấy bằng `cat /etc/ssh/ssh_host_ed25519_key.pub` **trên chính máy chủ** rồi đối chiếu với `known_hosts` cục bộ — khớp tuyệt đối. Thiếu ở production → lượt chạy **DỪNG ĐỎ**, không bỏ qua |
 
 ⭐ **`*_SSH_KNOWN_HOSTS` vào bộ ngày 29/8** (§10.68-C). Giá trị là **một dòng `known_hosts`** — `<host> ssh-ed25519 AAAA…`, lấy bằng `cat /etc/ssh/ssh_host_ed25519_key.pub` **trên máy chủ**, thay phần cuối `root@…` bằng địa chỉ đứng ở `*_HOST`. Trước đó workflow tự dò khoá bằng `ssh-keyscan`, và chính lượt dò ấy — 5 kết nối đóng trước xác thực — làm fail2ban của máy chủ **cấm IP runner ngay ở lệnh đầu tiên**. Ghim khoá vừa gỡ nguyên nhân, vừa đổi *tin-lần-đầu-mỗi-lượt* thành xác minh thật.
 | `NVD_API_KEY` | **repo** | `security-scan.yml` | ✅ **Đã đặt 18/8**. **Thiếu thì bỏ qua hẳn phép quét OWASP** (có cảnh báo trong Job Summary). Xin miễn phí ~2 phút: <https://nvd.nist.gov/developers/request-an-api-key> |
@@ -556,7 +617,7 @@ kiểm hai điều:
 
 | Biến | Dùng ở | Ghi chú |
 |---|---|---|
-| `PUBLIC_SITE_URL` | job `Đóng gói image frontend` | ✅ **đặt 6/9/2026** = `https://songnhue.com` (T11.7-a đóng). Địa chỉ **production** của cổng công khai. Nướng vào bundle lúc build — xem §4.2. Thiếu thì sitemap/canonical trỏ về `localhost`, và Job Summary nói to điều đó. ⛔ Đổi giá trị **không** đổi được image đã dựng: phải có một lượt build mới trên `dev` rồi mới đề bạt. Khi cắt sang `thuyloisongnhue.vn` sau này, nhớ điều đó — sửa DNS một mình là chưa đủ |
+| `PUBLIC_SITE_URL` | job `Đóng gói image frontend` | ✅ **đặt 6/9/2026**, ⚠ **đổi 07/09** = `https://thuyloisongnhue.vn` (đo lại bằng `gh variable list` ngày 14/09; Công ty yêu cầu vì văn bản hành chính dùng tên `.vn`). Địa chỉ **production** của cổng công khai. Nướng vào bundle lúc build — xem §4.2. Thiếu thì sitemap/canonical trỏ về `localhost`, và Job Summary nói to điều đó. ⛔ Đổi giá trị **không** đổi được image đã dựng: phải có một lượt build mới trên `dev` rồi mới đề bạt. Khi cắt sang `thuyloisongnhue.vn` sau này, nhớ điều đó — sửa DNS một mình là chưa đủ |
 
 > ⚠ Đây là **biến**, không phải bí mật: nó đi vào bundle mà cả thế giới tải về được. Để nhầm vào
 > Secrets thì vẫn chạy, nhưng nó sẽ bị che trong log — và che một giá trị công khai chỉ làm việc

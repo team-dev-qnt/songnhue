@@ -10,10 +10,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.songnhue.core.common.exception.ValidationException;
 import com.songnhue.core.domain.settings.Setting;
+
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Giá trị rác lọt qua đây sẽ không gây lỗi lúc lưu — nó gây lỗi lúc đọc, mà nơi đọc đã chọn cách
@@ -21,7 +21,7 @@ import com.songnhue.core.domain.settings.Setting;
  */
 class SettingValidatorTest {
 
-    private final SettingValidator validator = new SettingValidator(new ObjectMapper());
+    private final SettingValidator validator = new SettingValidator(new JsonMapper());
 
     /** Dựng {@link Setting} bằng reflection — entity cố ý không có setter công khai. */
     private static Setting setting(String key, String type, String validation) {

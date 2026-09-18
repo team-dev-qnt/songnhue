@@ -32,6 +32,9 @@ import { defineConfig } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './e2e',
+  // T61.29 — bộ tương thích có config riêng (12 dự án, cần URL môi trường): playwright.tuong-thich.config.ts
+  // T63.22 — bộ đo LCP cũng vậy (chromium thôi, cần URL + bí mật revalidate): playwright.hieu-nang.config.ts
+  testIgnore: ['tuong-thich/**', 'hieu-nang/**'],
   fullyParallel: false,
   reporter: [['list']],
   use: {

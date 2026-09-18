@@ -4,6 +4,8 @@ import jakarta.servlet.http.HttpServletRequest;
 
 import org.springframework.util.StringUtils;
 
+import com.songnhue.core.common.web.ClientIp;
+
 /**
  * Thông tin về nơi phát ra request — đi vào {@code sessions} và {@code security_events}.
  *
@@ -30,22 +32,18 @@ public record ClientInfo(String ipAddress, String userAgent, String deviceLabel)
     }
 
     /**
-     * IP thật của client.
+     * IP thật của client — <b>T43.8-b</b>.
      *
-     * <p>Chỉ lấy phần tử đầu của {@code X-Forwarded-For} và chỉ tin được khi đứng sau nginx của mình
-     * (§4.5) — nginx phải <b>ghi đè</b> header này chứ không nối thêm, nếu không thì client tự đặt
-     * header là ghi được IP giả vào nhật ký bảo mật.
+     * <p>⛔⛔ Chú thích cũ ở đây khẳng định <i>"nginx phải ghi đè header này chứ không nối thêm,
+     * nếu không thì client tự đặt header là ghi được IP giả vào nhật ký bảo mật"</i>. Đo 10/09/2026:
+     * nginx <b>nối thêm</b> ({@code $proxy_add_x_forwarded_for}) ⇒ vế "nếu không" đã đúng suốt từ
+     * WS-7, và giá trị ghi vào nhật ký bảo mật đúng là IP do kẻ gọi <b>tự khai</b>.
+     *
+     * <p>Nay đi qua {@link ClientIp} — một nơi duy nhất, neo vào {@code X-Real-IP} mà nginx biên
+     * <b>ghi đè</b> thật.
      */
     private static String clientIp(HttpServletRequest request) {
-        String forwarded = request.getHeader("X-Forwarded-For");
-        if (StringUtils.hasText(forwarded)) {
-            int comma = forwarded.indexOf(',');
-            String first = (comma > 0 ? forwarded.substring(0, comma) : forwarded).trim();
-            if (StringUtils.hasText(first)) {
-                return first;
-            }
-        }
-        return request.getRemoteAddr();
+        return ClientIp.cua(request);
     }
 
     /**

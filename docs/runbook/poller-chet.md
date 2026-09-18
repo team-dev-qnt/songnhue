@@ -212,3 +212,70 @@ SELECT setting_value FROM settings WHERE setting_key = 'hydro.quality.suspect-ru
 Grafana → *Độ tươi dữ liệu theo nguồn*: đường phải **về gần 0 và ở đó**. Về 0 rồi leo lên lại nghĩa
 là poller chạy được một lượt rồi chết tiếp — tệ hơn chết hẳn, vì cảnh báo cứ bật tắt liên tục và sẽ
 bị bỏ qua.
+
+---
+
+## Bật poller lần đầu — thứ tự BẮT BUỘC (09/09/2026)
+
+> ⭐ Mã số API đã được Công ty cấp và **đã kiểm chứng trên nguồn thật** ngày 09/09/2026: có dấu `;`
+> ⇒ 28 bản ghi; thiếu `;` ⇒ `not.working`. Đường ống đã đủ mã và đủ cấu hình (T42.30).
+
+### ⛔⛔ Bước 0 — ĐỀ BẠT TRƯỚC, bật poller SAU
+
+Kiểm trước khi làm bất cứ việc gì khác:
+
+```bash
+git grep -c mucNuocSong origin/<nhánh> -- frontend/public-web/src
+```
+
+Phải ra **khác 0** trên nhánh của môi trường sắp bật. Nếu ra **0** thì `DOD2.3` chưa tới môi trường
+ấy, và hệ quả rất cụ thể: `position_role` có **5** giá trị mà bản cũ chia **nhị phân**, nên mực nước
+của **4 trạm `MN_SONG`** sẽ đăng lên cổng công khai dưới tiêu đề *"Mực nước hạ lưu (m)"* — ngay ở
+lượt poll đầu tiên.
+
+⚠ Bảng **trông** bình thường khi ấy. Chính tên trạm mới tự mâu thuẫn với tiêu đề, và ⛔ không có
+cảnh báo nào — xem `DOD2.3` trong `master-tracking.md`.
+
+### Bước 1 — đặt mã số
+
+⛔ **Đường đúng là giao diện**, ⛔ không phải biến môi trường: *Quản trị › Nguồn dữ liệu › BHH40 ›
+Đặt mã số*. Mã số được mã hoá **AES-256-GCM** với khoá nằm ngoài CSDL và ⛔ không endpoint nào trả
+nó ra, kể cả cho Admin (`conventions.md` §4.7).
+
+`HYDRO_API_KEY` chỉ là **giá trị mồi** cho lần triển khai đầu — `ApiSourceCredentialBootstrap` đọc
+nó lúc khởi động và ghi vào **nếu cột đang rỗng**. Sau lần đó CSDL là nguồn sự thật duy nhất; đổi
+mã số bằng cách sửa biến môi trường sẽ **⛔ không có tác dụng**, và đó là một tiếng đồng hồ đi tìm
+nguyên nhân sai chỗ.
+
+⚠⚠ **Dấu `;` ở cuối là MỘT PHẦN CỦA MÃ SỐ.** Thiếu nó, nguồn trả `not.working` — và trả kèm
+**HTTP 200**, ⛔ không phải 401.
+
+### Bước 2 — xác nhận có byte thật về
+
+```bash
+# Trên máy chủ, sau ~2 phút (cron: 45 1/2 * * * *)
+docker exec -i songnhue-postgres psql -U songnhue_app -d songnhue -c \
+  "SELECT status, received_count, written_count, unmapped_count, started_at
+     FROM sync_logs ORDER BY id DESC LIMIT 3"
+```
+
+Đọc **ba cột**, ⛔ đừng đọc mỗi `status`:
+
+| Thấy gì | Nghĩa là |
+|---|---|
+| `SUCCESS` · `received=28` · `written=19` · `unmapped=9` | ✅ Đúng như đo ngày 09/09 |
+| `written = 0` mà `received > 0` | ⛔ Mã tra ⛔ không ra điểm đo — kiểm `stations.api_code` |
+| `status` ≠ `SUCCESS`, lý do `NOT_WORKING` | ⛔ Mã số sai **hoặc thiếu dấu `;`** |
+| ⛔ **0 dòng nào** | Poller chưa chạy — kiểm `WORKER_ENABLED` và `api_sources.status` |
+
+⚠ **`unmapped_count = 9` là BÌNH THƯỜNG**, ⛔ không phải lỗi: nguồn trả **28 mã** trong khi danh mục
+của hệ có **19** (chốt G8b). Chín mã lạ — `F01535` `F01613` `F01659` `F01696` `F01700` `F01706`
+`F01811` `F01830` `F01863` — được **giữ nguyên văn** trong `hydro_raw_logs` và đếm vào cột *"Mã lạ"*
+của BC-13, ⛔ không bị vứt: nguồn ⛔ không có API lịch sử nên bỏ đi là bỏ vĩnh viễn (quy tắc 18).
+Đã hỏi Công ty chúng có thuộc phạm vi quản lý không — xem `docs/de-nghi-cung-cap-g6-g8-g10.md` §5.
+
+### Bước 3 — xác nhận số liệu lên đúng cột trên cổng
+
+Mở cổng công khai và đối chiếu **một trạm `MN_SONG`** (ví dụ *Trạm thuỷ văn Ba Thá*): giá trị của nó
+phải nằm ở cột **"Mực nước sông (m)"**, ⛔ không phải *"Mực nước hạ lưu (m)"*. Đây là vế kiểm bằng
+mắt cho bước 0 — và là vế duy nhất chứng minh bản vá `DOD2.3` **đã thật sự tới môi trường ấy**.

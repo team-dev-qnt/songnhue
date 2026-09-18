@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 
-import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -46,7 +45,7 @@ public final class PhienHttp {
     /** Mật khẩu dùng chung cho tài khoản kiểm thử — đủ dài, đủ loại ký tự theo chính sách WS-5. */
     public static final String MAT_KHAU = "KiemThu@2026";
 
-    private final TestRestTemplate http;
+    private final TestHttp http;
 
     /**
      * ⚠⚠ IP giả lập riêng cho mỗi thực thể — <b>một lớp kiểm thử = một client</b>.
@@ -66,16 +65,98 @@ public final class PhienHttp {
      * khách khác nhau, đúng như thực tế nó mô phỏng nhiều người dùng khác nhau.
      * {@code CaffeineRateLimitStoreTest} vẫn là nơi chứng minh cơ chế chặn được thật.
      *
-     * <p>Filter đọc {@code X-Forwarded-For} và chỉ tin nó khi đứng sau nginx của mình — ở production
-     * nginx <b>ghi đè</b> header này, nên không có đường nào để client thật tự cấp cho mình một IP.
+     * <p>⛔⛔ <b>T43.8-b — câu ở đây trước 10/09/2026 là SAI</b>: nó khai <i>"filter đọc
+     * {@code X-Forwarded-For} … ở production nginx <b>ghi đè</b> header này"</i>. Đo cấu hình thật
+     * thì nginx <b>NỐI THÊM</b> ({@code $proxy_add_x_forwarded_for}), nên client thật <b>có</b>
+     * đường tự cấp cho mình một IP — và cả bốn hạn mức né được bằng một header. Đây là chú thích
+     * <b>thứ ba</b> trong kho cùng khẳng định một bảo đảm chưa bao giờ đứng.
+     *
+     * <p>Nay lớp này gửi {@code X-Real-IP} — đúng header mà nginx biên <b>ghi đè</b> và là thứ
+     * duy nhất {@code ClientIp} đọc. Nhờ vậy bộ kiểm đi <b>cùng đường</b> với production thay vì
+     * đi một đường chỉ tồn tại trong bộ kiểm (luật 5).
      */
-    private final String ipGiaLap = "10.%d.%d.%d"
-            .formatted(SO_THU_TU.incrementAndGet() % 250, (int) (Math.random() * 250), (int) (Math.random() * 250));
+    private String ipGiaLap = ipKeTiep();
+
+    /**
+     * Đổi IP giả lập của phiên này sang một IP <b>chưa ai dùng</b>, giữ nguyên phiên đăng nhập.
+     *
+     * <h2>Vì sao cần — T60.9</h2>
+     *
+     * Xô {@link com.songnhue.core.common.ratelimit.RateLimitPolicy#EXPORT} là <b>trần theo giờ</b> (`limits.rate.export-per-hour`, mặc định 30 — T61.27).
+     * Lớp nào dựng phiên ở {@code @BeforeAll} thì <b>cả lớp dùng chung một IP</b>, nên một lớp có
+     * vài bài kết xuất là cạn ngân sách — và triệu chứng rơi vào <b>bài chạy sau</b>, thường là một
+     * bài ⛔ không liên quan gì tới kết xuất. Đúng hình dạng mà javadoc của {@link #ipGiaLap} đã mô
+     * tả cho xô đăng nhập, chỉ là ở một xô chặt hơn <b>600 lần</b>.
+     *
+     * <h2>⛔ Vì sao KHÔNG nới hạn mức ở hồ sơ kiểm thử</h2>
+     *
+     * Nới là tắt một cơ chế bảo mật thật trong CI — sau đó ⛔ không lượt chạy nào còn đi qua nó nữa.
+     * Ở đây filter vẫn chạy, vẫn đếm, vẫn chặn; chỉ là <b>mỗi bài kiểm</b> được coi là một máy khách
+     * khác nhau — đúng thứ nó mô phỏng. Cơ chế chặn được chứng minh ở
+     * {@code CaffeineRateLimitStoreTest} và ở {@link com.songnhue.app.security.HanMucKetXuatTest}.
+     *
+     * <p>⚠ Đổi IP ⛔ không cần đăng nhập lại: thẻ truy cập gắn với <b>phiên</b>, ⛔ không gắn với
+     * địa chỉ. Gọi trong {@code @BeforeEach} là đủ.
+     */
+    /**
+     * Gửi một biểu mẫu CÔNG KHAI (⛔ đăng nhập) kèm <b>IP riêng của thực thể này</b> — T61.37.
+     *
+     * <p>⛔⛔ {@code http.postForEntity} trần ⛔ đặt {@code X-Real-IP}, nên mọi lượt gửi ẩn danh của
+     * cả module dùng CHUNG một xô hạn mức. Từ T61.37, đường gửi biểu mẫu công khai chỉ còn
+     * <b>10 lượt/giờ mỗi IP</b> ⇒ lớp thứ hai trong lượt chạy sẽ nhận {@code 429} và đỏ vì một lý do
+     * ⛔ liên quan gì tới thứ nó khẳng định. Đúng hình dạng T60.9, và cách chữa cũng vậy: <b>mỗi bài
+     * kiểm là một máy khách</b>, ⛔ nới hạn mức của hồ sơ kiểm thử (làm thế là tắt một cơ chế bảo mật
+     * thật ngay trong CI).
+     */
+    public org.springframework.http.ResponseEntity<String> dangJson(String duongDan, Object than) {
+        Object thanThat = than instanceof org.springframework.http.HttpEntity<?> e ? e.getBody() : than;
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+        headers.set("X-Real-IP", ipGiaLap);
+        return http.exchange(
+                duongDan,
+                org.springframework.http.HttpMethod.POST,
+                new org.springframework.http.HttpEntity<>(thanThat, headers),
+                String.class);
+    }
+
+    public void doiIp() {
+        ipGiaLap = ipKeTiep();
+    }
 
     private static final java.util.concurrent.atomic.AtomicInteger SO_THU_TU =
             new java.util.concurrent.atomic.AtomicInteger();
 
-    public PhienHttp(TestRestTemplate http) {
+    /**
+     * IP giả lập kế tiếp — <b>suy hoàn toàn từ bộ đếm, không có một hạt ngẫu nhiên nào</b>.
+     *
+     * <p>⚠⚠ Bản trước là {@code "10.%d.%d.%d".formatted(dem % 250, random(250), random(250))}. Hai
+     * khuyết tật chồng lên nhau, và cả hai đều <b>chỉ hiện ra theo xác suất</b>:
+     *
+     * <ul>
+     *   <li>{@code % 250} khiến octet đầu <b>lặp lại</b> sau 250 thực thể — mà {@code new PhienHttp}
+     *       nằm trong {@code @BeforeEach} ở phần lớn nơi gọi, tức <b>một thực thể mỗi bài kiểm</b>,
+     *       nên một lượt chạy module {@code app} vượt 250 dễ dàng.
+     *   <li>Hai octet còn lại {@code Math.random()} ⇒ hai thực thể cùng octet đầu vẫn có thể trùng
+     *       nốt. Trùng IP nghĩa là <b>dùng chung ngân sách hạn mức</b> (đăng nhập 30 lượt / 15 phút),
+     *       và triệu chứng là một lớp <i>khác</i> đỏ ở bước đăng nhập — đúng thứ javadoc phía trên
+     *       cảnh báo, chỉ là lần này do chính bộ dựng phiên gây ra.
+     * </ul>
+     *
+     * <p>⛔ <b>Một bộ đồ gá kiểm thử có yếu tố ngẫu nhiên là một cỗ máy sinh lỗi chập chờn.</b> Nay
+     * ba octet cùng suy từ một bộ đếm ⇒ <b>không trùng cho tới 16.777.216 thực thể</b>, và mỗi lượt
+     * chạy cấp IP theo đúng một thứ tự — hỏng thì tái lập được.
+     *
+     * <p>⚠ Điều này <b>không</b> chứng minh đã vá T37.14: bài chập chờn ấy chưa tái lập được lần nào
+     * trong hai lượt {@code verify} ngày 08/09. Đây là gỡ một nguồn ngẫu nhiên <i>đã biết</i>, không
+     * phải một bản vá có bằng chứng.
+     */
+    private static String ipKeTiep() {
+        int dem = SO_THU_TU.incrementAndGet();
+        return "10.%d.%d.%d".formatted((dem >> 16) & 0xFF, (dem >> 8) & 0xFF, dem & 0xFF);
+    }
+
+    public PhienHttp(TestHttp http) {
         this.http = http;
     }
 
@@ -122,7 +203,7 @@ public final class PhienHttp {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         // Cùng IP giả lập với mọi lượt gọi khác của lớp này — bucket đăng nhập cũng đếm theo IP.
-        headers.set("X-Forwarded-For", ipGiaLap);
+        headers.set("X-Real-IP", ipGiaLap);
 
         ResponseEntity<String> response = http.exchange(
                 "/api/v1/auth/login",
@@ -143,6 +224,52 @@ public final class PhienHttp {
                 giaTriJson(response.getBody(), "accessToken"), giaTriCookie(setCookie, "XSRF-TOKEN"), gop(setCookie));
     }
 
+    /** Phiên đã qua 2FA + secret TOTP thô để sinh mã cho các lượt xác thực lại. */
+    public record PhienHaiBuoc(Phien phien, byte[] secret) {}
+
+    /**
+     * Đăng nhập tài khoản BẮT BUỘC 2FA lần đầu: login → enroll → confirm (mã bước hiện tại) — T61.42.
+     *
+     * <p>⚠ Máy chủ chống dùng lại mã ({@code user_totp.last_used_step}): lượt xác thực lại kế tiếp phải dùng bước
+     * {@code +1}, hoặc bài kiểm đặt lại cột ấy.
+     */
+    public PhienHaiBuoc dangNhapHaiBuoc(String username) {
+        ResponseEntity<String> dn = postKhongPhien(
+                "/api/v1/auth/login", "{\"username\":\"%s\",\"password\":\"%s\"}".formatted(username, MAT_KHAU));
+        assertThat(dn.getBody()).as("tài khoản phải bị buộc đăng ký 2FA").contains("TWO_FACTOR_ENROLL_REQUIRED");
+        String ve = giaTriJson(dn.getBody(), "challengeToken");
+        ResponseEntity<String> enroll =
+                postKhongPhien("/api/v1/auth/2fa/enroll", "{\"challengeToken\":\"%s\"}".formatted(ve));
+        byte[] secret = new org.apache.commons.codec.binary.Base32().decode(giaTriJson(enroll.getBody(), "secret"));
+        ResponseEntity<String> confirm = postKhongPhien(
+                "/api/v1/auth/2fa/confirm",
+                "{\"challengeToken\":\"%s\",\"code\":\"%s\"}".formatted(ve, maTotp(secret, 0)));
+        assertThat(confirm.getBody()).as("%s", confirm.getBody()).contains("\"stage\":\"AUTHENTICATED\"");
+        List<String> setCookie = confirm.getHeaders().getOrEmpty(HttpHeaders.SET_COOKIE);
+        return new PhienHaiBuoc(
+                new Phien(
+                        giaTriJson(confirm.getBody(), "accessToken"),
+                        giaTriCookie(setCookie, "XSRF-TOKEN"),
+                        gop(setCookie)),
+                secret);
+    }
+
+    /** Mã TOTP ở bước hiện tại + {@code lech}. */
+    public static String maTotp(byte[] secret, int lech) {
+        return com.songnhue.core.common.util.TotpGenerator.generate(
+                secret,
+                com.songnhue.core.common.util.TotpGenerator.stepAt(
+                                java.time.Instant.now().getEpochSecond())
+                        + lech);
+    }
+
+    private ResponseEntity<String> postKhongPhien(String duong, String than) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("X-Real-IP", ipGiaLap);
+        return http.exchange(duong, HttpMethod.POST, new HttpEntity<>(than, headers), String.class);
+    }
+
     /** Header đầy đủ như trình duyệt gửi: Bearer + vé CSRF + cookie. */
     public HttpHeaders header(Phien phien) {
         HttpHeaders headers = new HttpHeaders();
@@ -150,7 +277,7 @@ public final class PhienHttp {
         headers.setBearerAuth(phien.accessToken());
         headers.set("X-CSRF-Token", phien.csrfToken());
         headers.set(HttpHeaders.COOKIE, phien.cookie());
-        headers.set("X-Forwarded-For", ipGiaLap);
+        headers.set("X-Real-IP", ipGiaLap);
         return headers;
     }
 

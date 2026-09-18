@@ -135,7 +135,8 @@ public class ConstructionLookupAdapter implements ConstructionLookupPort {
         }
 
         Map<Long, TinhHinhVanHanhRef> ket = new HashMap<>();
-        for (PublicOperationStatusService.OperationStatusRow r : tinhHinh.hienHanh()) {
+        for (PublicOperationStatusService.OperationStatusRow r :
+                tinhHinh.hienHanh().dong()) {
             Long id = idTheoMa.get(r.constructionCode());
             if (id != null) {
                 ket.put(

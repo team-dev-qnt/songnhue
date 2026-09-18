@@ -204,6 +204,19 @@ export const router = createBrowserRouter([
             'hyd:report:view',
             lazyPage(() => import('@/features/hydro/WaterLevelChartPage'), 'WaterLevelChartPage'),
           ),
+          // ⭐ T27.30 — trước 09/09/2026 ba endpoint ghi cụm có 0 nơi gọi, tức ⛔ KHÔNG có đường
+          //    nào tạo ra một cụm; `ClusterSelect` phải tự khai *"chưa có màn hình quản lý"*.
+          // ⚠ Gác tầng 1 bằng quyền XEM, ⛔ không bằng `create`: người chỉ được sửa cũng phải vào
+          //    được trang. Từng nút tự gác bằng quyền của nó (T27.28 — lệch tầng 1 ↔ tầng 2 cho ra
+          //    một màn hình mở được rồi 403 lúc dữ liệu về).
+          adminRoute(
+            '/van-hanh/cum-cong-trinh',
+            'ops:construction:view',
+            lazyPage(
+              () => import('@/features/operations/ConstructionClustersPage'),
+              'ConstructionClustersPage',
+            ),
+          ),
           adminRoute(
             '/van-hanh/danh-muc-tinh-hinh',
             'ops:operation-status-code:manage',
@@ -211,6 +224,16 @@ export const router = createBrowserRouter([
               () => import('@/features/operations/OperationStatusCodesPage'),
               'OperationStatusCodesPage',
             ),
+          ),
+          adminRoute(
+            '/van-hanh/lop-ban-do',
+            'ops:gis-layer:view',
+            lazyPage(() => import('@/features/operations/GisLayersPage'), 'GisLayersPage'),
+          ),
+          adminRoute(
+            '/van-hanh/bao-cao',
+            'ops:report:view',
+            lazyPage(() => import('@/features/operations/BaoCaoVanHanhPage'), 'BaoCaoVanHanhPage'),
           ),
           adminRoute(
             '/van-hanh/cong-trinh/tao-moi',
@@ -282,6 +305,78 @@ export const router = createBrowserRouter([
             'cms:layout:manage',
             lazyPage(() => import('@/features/cms/SiteLayoutPage'), 'SiteLayoutPage'),
           ),
+          // ---- Nhân sự (MOD-04) ----
+          // ⚠ Cả hai tuyến gác bằng `hr:employee:view` — quyền RỘNG NHẤT của trang, ⛔ KHÔNG bằng
+          //   `:create`/`:update`/`:delete`. Riêng danh mục chức vụ thì đó còn là ràng buộc chứ
+          //   ⛔ không phải lựa chọn: `PositionController` cố ý cho đường ĐỌC dùng chung quyền ấy
+          //   vì ô "Chức vụ" của biểu mẫu hồ sơ nạp bằng đúng endpoint này — gác nó sau một quyền
+          //   khác là làm ô ấy rỗng vĩnh viễn và ⛔ không ai tạo nổi một hồ sơ đầy đủ (WS-28).
+          // ⛔ `hr:employee:view-sensitive` CỐ Ý ⛔ không có mặt ở đây: nó gác một hộp thoại bên
+          //   trong trang, ⛔ không gác cả trang. ADMIN có mọi quyền HR TRỪ quyền ấy
+          //   (`V202608131007:169`), nên đưa nó lên tuyến là khoá ADMIN ra khỏi cả màn hình.
+          adminRoute(
+            '/nhan-su/so-do-to-chuc',
+            'hr:org-chart:view',
+            lazyPage(() => import('@/features/hr/SoDoToChucPage'), 'SoDoToChucPage'),
+          ),
+          adminRoute(
+            '/nhan-su/ho-so',
+            'hr:employee:view',
+            lazyPage(() => import('@/features/hr/EmployeesPage'), 'EmployeesPage'),
+          ),
+          adminRoute(
+            '/nhan-su/danh-ba',
+            'hr:directory:view',
+            lazyPage(() => import('@/features/hr/DanhBaPage'), 'DanhBaPage'),
+          ),
+          adminRoute(
+            '/nhan-su/bao-cao',
+            'hr:report:view',
+            lazyPage(() => import('@/features/hr/BaoCaoNhanSuPage'), 'BaoCaoNhanSuPage'),
+          ),
+          adminRoute(
+            '/nhan-su/canh-bao-het-han',
+            'hr:employee:view',
+            lazyPage(() => import('@/features/hr/CanhBaoHetHanPage'), 'CanhBaoHetHanPage'),
+          ),
+          adminRoute(
+            '/nhan-su/chuc-vu',
+            'hr:employee:view',
+            lazyPage(() => import('@/features/hr/PositionsPage'), 'PositionsPage'),
+          ),
+          // ⛔⛔ `/nhan-su/ho-so-cua-toi` ⛔ KHÔNG bọc `RequirePermission` — T51.8. Vế *"chính nhân
+          //    viên đó"* của CN-04.7 ⛔ không biểu diễn được bằng một mã quyền: quyền gán theo VAI
+          //    TRÒ, còn đây là quan hệ giữa MỘT tài khoản và MỘT hàng. Gác bằng `hr:employee:view`
+          //    sẽ chặn đúng người nó phục vụ — một cán bộ vai trò VIEWER ⛔ không có quyền ấy.
+          //    Chốt chặn thật nằm ở backend: `/hr/ho-so-cua-toi` ⛔ không nhận một định danh nào,
+          //    nó suy hồ sơ từ chính token ⇒ IDOR là trạng thái ⛔ không biểu diễn được.
+          {
+            path: '/nhan-su/ho-so-cua-toi',
+            element: lazyPage(() => import('@/features/hr/HoSoCuaToiPage'), 'HoSoCuaToiPage'),
+          },
+          // ⛔⛔ Hai tuyến nghỉ phép dưới đây cũng ⛔ KHÔNG bọc `RequirePermission` — cùng lý lẽ
+          //    với dòng trên. `hr:leave:request` do chốt C3 cấp cho gần như mọi vai trò, nên nó
+          //    ⛔ không phân biệt được ai; điều kiện thật là **có liên kết hồ sơ CBNV**, và chốt
+          //    chặn thật nằm ở backend: `/nghi-phep/cua-toi` và `/so-du` ⛔ không nhận một định
+          //    danh nào, chúng suy hồ sơ từ token (T51.8).
+          {
+            path: '/nhan-su/nghi-phep',
+            element: lazyPage(
+              () => import('@/features/hr/NghiPhepCuaToiPage'),
+              'NghiPhepCuaToiPage',
+            ),
+          },
+          // ⛔ Đường ĐỌC của `/hr/ngay-le` chỉ đòi đăng nhập (mọi CBNV cần hiểu số ngày công của
+          //   đơn mình sắp nộp); ba nút GHI trong trang tự ẩn theo `hr:contract:manage`.
+          {
+            path: '/nhan-su/ngay-le',
+            element: lazyPage(() => import('@/features/hr/NgayLePage'), 'NgayLePage'),
+          },
+          adminRoute(
+            '/nhan-su/duyet-nghi-phep',
+            'hr:leave:approve',
+            lazyPage(() => import('@/features/hr/DuyetNghiPhepPage'), 'DuyetNghiPhepPage'),
+          ),
           adminRoute(
             '/quan-tri/tai-khoan',
             'adm:user:view',
@@ -311,6 +406,11 @@ export const router = createBrowserRouter([
             '/quan-tri/sao-luu',
             'adm:backup:view',
             lazyPage(() => import('@/features/admin/BackupPage'), 'BackupPage'),
+          ),
+          adminRoute(
+            '/quan-tri/tinh-trang-cau-hinh',
+            'adm:system-config:view',
+            lazyPage(() => import('@/features/admin/CauHinhHeThongPage'), 'CauHinhHeThongPage'),
           ),
           adminRoute(
             '/quan-tri/tinh-trang',

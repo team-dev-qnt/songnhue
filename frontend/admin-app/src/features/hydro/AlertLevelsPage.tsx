@@ -19,7 +19,12 @@ import {
   message,
 } from 'antd';
 import { type ColumnsType } from 'antd/es/table';
-import { alertLevelColorTokens, laKhoaMauHopLe, mauMucCanhBao, neutralColors } from 'design-tokens';
+import {
+  alertLevelColorTokens,
+  laKhoaMauHopLe,
+  mauMucCanhBao,
+  neutralColors,
+} from '@songnhue/design-tokens';
 import { useState } from 'react';
 
 import { useAuth } from '@/app/auth/useAuth';
@@ -169,13 +174,23 @@ export function AlertLevelsPage() {
       render: (_, row) =>
         coQuanLy ? (
           <Space>
-            <Button type="text" icon={<EditOutlined />} onClick={() => moSua(row)} />
+            <Button
+              type="text"
+              icon={<EditOutlined />}
+              aria-label={`Sửa mức cảnh báo ${row.code}`}
+              onClick={() => moSua(row)}
+            />
             <Popconfirm
               title="Xoá mức cảnh báo này?"
               description="Không xoá được nếu còn ngưỡng đang trỏ vào nó."
               onConfirm={() => deleteMutation.mutate(row.id)}
             >
-              <Button type="text" danger icon={<DeleteOutlined />} />
+              <Button
+                type="text"
+                danger
+                icon={<DeleteOutlined />}
+                aria-label={`Xoá mức cảnh báo ${row.code}`}
+              />
             </Popconfirm>
           </Space>
         ) : null,
@@ -232,7 +247,7 @@ export function AlertLevelsPage() {
         onCancel={() => setModalVisible(false)}
         onOk={() => form.submit()}
         confirmLoading={createMutation.isPending || updateMutation.isPending}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form
           form={form}

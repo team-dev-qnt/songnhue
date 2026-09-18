@@ -6,6 +6,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.CacheControl;
@@ -286,8 +293,23 @@ public class PublicPortalController {
      * cấp, nên công tắc mặc định TẮT và cổng ⛔ không gửi trường này. Bắt buộc nó ở đây là chặn
      * chính biểu mẫu đang chạy.
      */
+    /**
+     * ⚠⚠ <b>T61.37</b> — mọi trường có trần độ dài và email phải đúng định dạng.
+     *
+     * <p>Bản trước ⛔ khai một ràng buộc nào và endpoint ⛔ mang {@code @Valid}, nên: một cái tên
+     * 300 ký tự đi thẳng vào {@code varchar(255)} và ra <b>500</b> (⛔ phải 422 — người gửi ⛔ biết
+     * mình sai ở đâu), còn {@code email = "x"} được nhận rồi trở thành <b>người nhận thư xác
+     * nhận</b>. Trần ở đây khớp đúng DDL của bảng {@code contacts}.
+     */
     public record ContactRequest(
-            String fullName, String email, String phone, String subject, String content, String recaptchaToken) {}
+            @Size(max = 255) String fullName,
+            @Email @Size(max = 255) String email,
+            @Size(max = 50) String phone,
+            @Size(max = 255) String subject,
+            @NotBlank @Size(max = 5000) String content,
+            @Size(max = 4000) String recaptchaToken,
+            /** T61.39 — ô đồng ý thông báo quyền riêng tư; chỉ BẮT BUỘC khi cổng đã công bố thông báo. */
+            Boolean dongY) {}
 
     /**
      * Tiếp nhận một liên hệ / phản ánh — CN-01.4.
@@ -300,31 +322,41 @@ public class PublicPortalController {
      *
      * <h2>Chống lạm dụng</h2>
      *
-     * Hạn mức tần suất do {@code RateLimitFilter} lo trên tiền tố {@code /api/v1/public}
-     * ({@code RateLimitPolicy.PUBLIC}).
+     * Hạn mức tần suất: <b>{@code RateLimitPolicy.BIEU_MAU_CONG_KHAI} — 10 lượt/giờ mỗi IP</b>
+     * (T61.37). ⛔ Không còn dùng chung 300 lượt/phút của đường ĐỌC: đường ghi này sinh thư ra
+     * ngoài, nên hạn mức của nó phải theo hành vi người gửi thật, ⛔ theo hành vi người đọc trang.
      *
      * <p>⚠⚠ reCAPTCHA v3: <b>chỗ cắm đã dựng</b> (T36.6) và <b>mặc định TẮT</b> — khoá thuộc
      * <b>G13</b>, Công ty chưa cấp. ⛔ Đừng đọc sự hiện diện của mã CMS-2021 thành "đã có lớp chống
-     * spam": chừng nào {@code site.contact.recaptcha.enabled} còn tắt (hoặc bật mà thiếu
+     * spam": chừng nào {@code site.recaptcha.enabled} còn tắt (hoặc bật mà thiếu
      * {@code RECAPTCHA_SECRET_KEY}) thì thứ duy nhất chặn bot vẫn là hạn mức tần suất.
      */
     @PostMapping("/contacts")
     @ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)
     @Operation(summary = "Gửi liên hệ / phản ánh từ cổng công khai")
     @PublicEndpoint(reason = "Biểu mẫu liên hệ của người dân — CN-01.4")
-    public void submitContact(@RequestBody ContactRequest yeuCau) {
+    public void submitContact(@Valid @RequestBody ContactRequest yeuCau) {
         contacts.tiepNhan(
                 yeuCau.fullName(),
                 yeuCau.email(),
                 yeuCau.phone(),
                 yeuCau.subject(),
                 yeuCau.content(),
-                yeuCau.recaptchaToken());
+                yeuCau.recaptchaToken(),
+                yeuCau.dongY());
     }
 
     // ---- Góp ý / đánh giá (CN-01.6, chốt D1) ---------------------------------
 
-    public record FeedbackRequest(String fullName, String email, Short rating, String content, String recaptchaToken) {}
+    /** Trần độ dài + định dạng email — T61.37, cùng lý lẽ với {@link ContactRequest}. */
+    public record FeedbackRequest(
+            @Size(max = 255) String fullName,
+            @Email @Size(max = 255) String email,
+            @Min(1) @Max(5) Short rating,
+            @NotBlank @Size(max = 2000) String content,
+            @Size(max = 4000) String recaptchaToken,
+            /** T61.39 — xem {@link ContactRequest}. */
+            Boolean dongY) {}
 
     /**
      * Một góp ý <b>đã duyệt</b>, dạng công bố trên cổng.
@@ -369,9 +401,14 @@ public class PublicPortalController {
     @ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)
     @Operation(summary = "Gửi góp ý / đánh giá từ cổng công khai — vào trạng thái Chờ duyệt")
     @PublicEndpoint(reason = "Biểu mẫu góp ý của người dùng cổng — CN-01.6")
-    public void submitFeedback(@RequestBody FeedbackRequest yeuCau) {
+    public void submitFeedback(@Valid @RequestBody FeedbackRequest yeuCau) {
         feedbacks.tiepNhan(
-                yeuCau.fullName(), yeuCau.email(), yeuCau.rating(), yeuCau.content(), yeuCau.recaptchaToken());
+                yeuCau.fullName(),
+                yeuCau.email(),
+                yeuCau.rating(),
+                yeuCau.content(),
+                yeuCau.recaptchaToken(),
+                yeuCau.dongY());
     }
 
     /**
@@ -417,9 +454,7 @@ public class PublicPortalController {
                         .immutable())
                 // `inline` để ảnh hiện trong trang thay vì bật hộp thoại tải về. Tên gốc chỉ để
                 // người dùng thấy tên có nghĩa khi họ chủ động lưu tệp.
-                .header(
-                        HttpHeaders.CONTENT_DISPOSITION,
-                        "inline; filename=\"" + HttpHeaderText.tenTepAnToan(tep.originalName()) + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, HttpHeaderText.contentDispositionInline(tep.originalName()))
                 .body(PhatTepTrucTiep.cua(tep));
     }
 
@@ -465,11 +500,19 @@ public class PublicPortalController {
                 .body(PhatTepTrucTiep.cua(tep));
     }
 
-    /** Thời điểm máy chủ trả lời — cổng dùng để hiện "cập nhật lúc" mà không phụ thuộc giờ máy khách. */
-    @GetMapping("/now")
-    @Operation(summary = "Giờ máy chủ (UTC)")
-    @PublicEndpoint(reason = "Cổng hiển thị mốc thời gian cập nhật theo giờ máy chủ")
-    public Instant now() {
-        return Instant.now();
-    }
+    // ⛔⛔ `GET /now` ĐÃ GỠ 09/09/2026 — T43.9.
+    //
+    //    Javadoc cũ của nó: *"cổng dùng để hiện 'cập nhật lúc' mà không phụ thuộc giờ máy khách"*.
+    //    Câu ấy trả lời đúng câu hỏi ĐỒNG HỒ MÁY KHÁCH vs MÁY CHỦ, nhưng nó bị dùng để trả lời một
+    //    câu hỏi KHÁC: mốc của SỐ LIỆU hay của LƯỢT DỰNG TRANG. Giờ máy chủ lúc trả lời một lượt
+    //    gọi CHÍNH LÀ mốc dựng trang ⇒ khối "Vận hành công trình" trên cổng vẫn nhảy sang giờ mới
+    //    mỗi lượt F5 kể cả khi trực ban nhiều ngày ⛔ không ghi bản ghi nào.
+    //
+    //    Nay mốc đi kèm chính dữ liệu: `PublicOperationStatusService.BangVanHanh.meta.capNhatLuc`
+    //    (= MAX COALESCE(updated_at, created_at)) và `HydroGridService` `meta.lanLayCuoi`.
+    //    ⇒ Endpoint này còn lại 0 nơi gọi. Luật 15: một thứ ⛔ không ai đọc là một LỖI, ⛔ không
+    //    phải việc để dành — và ở đây nó còn tệ hơn thế, vì nó là **một cách dễ dàng để tái lập
+    //    T43.9**: chỉ cần một lượt gọi mới là lời nói dối quay lại.
+    //
+    //    ⚠ `PortalClock` ⛔ KHÔNG bị ảnh hưởng — nó cố ý dùng đồng hồ MÁY KHÁCH, có javadoc riêng.
 }

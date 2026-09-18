@@ -270,7 +270,7 @@ public class MaintenanceLogService {
         //    dữ liệu vào phạm vi của Xí nghiệp khác, đội lốt một lượt sửa. Muốn vậy thì xoá rồi lập
         //    lại, để nhật ký có đủ hai vết.
         if (!ct.getId().equals(banGhi.getConstructionId())) {
-            throw new BusinessRuleException(ErrorCode.SYS_0008, "đổi công trình", banGhi.getStatus());
+            throw new BusinessRuleException(ErrorCode.SYS_0008);
         }
 
         MaintenanceType loai = yeuCau(form.workType());

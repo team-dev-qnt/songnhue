@@ -37,11 +37,24 @@ class ContactFormPolicyTest {
         luat = new ContactFormPolicy(settings);
     }
 
+    /**
+     * ⛔ <b>Đổi 08/09/2026 — T28.49.</b> Tên cũ: <i>"⛔ không trường nào bắt buộc"</i>.
+     *
+     * <p>Mock ở lớp này trả về <b>đối số thứ hai</b> của {@code getBoolean(khoá, mặcĐịnh)}, tức nó
+     * đo đúng <b>mặc định trong MÃ</b> — trạng thái khi khoá ⛔ chưa seed. Mặc định của
+     * {@code email.required} đổi {@code false} → {@code true} cùng lượt {@code V202609081071} đặt
+     * lại hàng seed, để hai bên ⛔ không nói hai câu khác nhau (luật 3).
+     */
     @Test
-    @DisplayName("⭐ Mặc định: hiện ô điện thoại, ⛔ không trường nào bắt buộc")
+    @DisplayName("⭐ Mặc định T28.49: hiện đủ ba ô, và EMAIL bắt buộc")
     void macDinh() {
         assertThat(luat.hienDienThoai()).isTrue();
-        assertThat(luat.emailBatBuoc()).isFalse();
+        assertThat(luat.hienHoTen()).isTrue();
+        assertThat(luat.hienTieuDe()).isTrue();
+        assertThat(luat.emailBatBuoc())
+                .as("mặc định trong MÃ phải khớp `default_value` của hàng seed — lệch nhau thì một "
+                        + "môi trường thiếu hàng settings lặng lẽ quay về chính sách CŨ")
+                .isTrue();
         assertThat(luat.dienThoaiBatBuoc()).isFalse();
     }
 

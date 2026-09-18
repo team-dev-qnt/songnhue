@@ -3,6 +3,7 @@ package com.songnhue.core.application.org;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -22,9 +23,11 @@ import com.songnhue.core.common.tree.TreeBuilder;
 import com.songnhue.core.domain.org.OrgUnit;
 import com.songnhue.core.domain.org.OrgUnitType;
 import com.songnhue.core.infra.identity.UserRepository;
+import com.songnhue.core.infra.org.OrgUnitLeaderRepository;
 import com.songnhue.core.infra.org.OrgUnitRepository;
 import com.songnhue.core.spi.OrgUnitPort;
 import com.songnhue.core.spi.OrgUnitRef;
+import com.songnhue.core.spi.OrgUnitUsagePort;
 import com.songnhue.core.spi.PortalCachePort;
 
 /**
@@ -50,15 +53,29 @@ public class OrgUnitService implements OrgUnitPort {
     private final SettingService settings;
     private final PortalCachePort portalCache;
 
+    /**
+     * Mọi module tự khai <b>cái gì đang thuộc một đơn vị</b> — CN-04.1, {@link OrgUnitUsagePort}.
+     *
+     * <p>Spring gom mọi bean cài cổng này, nên một module mới chỉ cần thêm <b>một</b> bean và ⛔
+     * không phải sửa lớp này. Cùng khuôn {@code AttachmentUsagePort} (T40.26) và {@code JobHandler}.
+     */
+    private final List<OrgUnitUsagePort> nguoiDung;
+
+    private final OrgUnitLeaderRepository lanhDaoRepository;
+
     public OrgUnitService(
             OrgUnitRepository repository,
             UserRepository userRepository,
             SettingService settings,
-            PortalCachePort portalCache) {
+            PortalCachePort portalCache,
+            List<OrgUnitUsagePort> nguoiDung,
+            OrgUnitLeaderRepository lanhDaoRepository) {
         this.repository = repository;
         this.userRepository = userRepository;
         this.settings = settings;
         this.portalCache = portalCache;
+        this.nguoiDung = List.copyOf(nguoiDung);
+        this.lanhDaoRepository = lanhDaoRepository;
     }
 
     /**
@@ -81,13 +98,7 @@ public class OrgUnitService implements OrgUnitPort {
     /** Toàn bộ cây dạng lồng nhau, đã sắp theo {@code sort_order} trong từng cấp. */
     @Transactional(readOnly = true)
     public List<OrgUnitNode> tree() {
-        return toTree(repository.findAllByDeletedAtIsNullOrderByPathAscSortOrderAsc());
-    }
-
-    /** Cây con tính từ một đơn vị — dùng cho người chỉ được xem đơn vị mình và cấp dưới. */
-    @Transactional(readOnly = true)
-    public List<OrgUnitNode> subtree(UUID publicId) {
-        return toTree(repository.findSubtree(require(publicId).getPath()));
+        return toTree(repository.findAllForDisplay());
     }
 
     // ---- Hợp đồng cho module nghiệp vụ (core.spi) -------------------------------
@@ -137,6 +148,42 @@ public class OrgUnitService implements OrgUnitPort {
                 .collect(java.util.stream.Collectors.toMap(OrgUnit::getId, OrgUnitService::toRef));
     }
 
+    /**
+     * Cây phẳng + người đứng đầu — {@link com.songnhue.core.spi.OrgUnitPort#cayPhang()}.
+     *
+     * <p>⭐ <b>Hai truy vấn</b>, ⛔ không phải N+1: một lượt lấy toàn bộ đơn vị, một lượt lấy toàn
+     * bộ người đứng đầu của <b>mọi</b> đơn vị ấy rồi gom nhóm ở Java. Với ~30 đơn vị thì N+1 nghĩa
+     * là 31 lượt gọi cho một màn hình chỉ có một sơ đồ.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<com.songnhue.core.spi.OrgUnitTreeRef> cayPhang() {
+        List<OrgUnit> donVi = repository.findAllForDisplay();
+        if (donVi.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, List<com.songnhue.core.spi.OrgUnitLeaderRef>> lanhDaoTheoDonVi = lanhDaoRepository
+                .findByOrgUnitIdInAndActiveTrueAndDeletedAtIsNullOrderBySortOrderAscIdAsc(
+                        donVi.stream().map(OrgUnit::getId).toList())
+                .stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                        com.songnhue.core.domain.org.OrgUnitLeader::getOrgUnitId,
+                        java.util.LinkedHashMap::new,
+                        java.util.stream.Collectors.mapping(
+                                l -> new com.songnhue.core.spi.OrgUnitLeaderRef(
+                                        l.getFullName(), l.getTitle(), l.getSortOrder()),
+                                java.util.stream.Collectors.toList())));
+
+        return donVi.stream()
+                .map(u -> new com.songnhue.core.spi.OrgUnitTreeRef(
+                        toRef(u),
+                        u.getParentId(),
+                        u.getSortOrder(),
+                        u.isActive(),
+                        lanhDaoTheoDonVi.getOrDefault(u.getId(), List.of())))
+                .toList();
+    }
+
     private static OrgUnitRef toRef(OrgUnit unit) {
         return new OrgUnitRef(
                 unit.getId(),
@@ -152,12 +199,6 @@ public class OrgUnitService implements OrgUnitPort {
     @Transactional(readOnly = true)
     public OrgUnit get(UUID publicId) {
         return require(publicId);
-    }
-
-    /** Danh sách phẳng — cho ô chọn đơn vị, đã đủ path để FE tự thụt lề. */
-    @Transactional(readOnly = true)
-    public List<OrgUnit> listAll() {
-        return repository.findAllByDeletedAtIsNullOrderByPathAscSortOrderAsc();
     }
 
     // ---- Ghi ------------------------------------------------------------------
@@ -316,11 +357,28 @@ public class OrgUnitService implements OrgUnitPort {
     }
 
     /**
-     * Xoá mềm.
+     * Xoá mềm / giải thể một đơn vị.
      *
-     * <p>Từ chối khi còn đơn vị cấp dưới hoặc còn người dùng trực thuộc — xoá cha mà con còn sống
-     * thì các bản ghi con vẫn giữ path cũ chứa id đã chết, cây trở nên không dựng lại được. Bắt xoá
-     * từ dưới lên là cách duy nhất giữ cây luôn nhất quán.
+     * <h2>Vì sao phải xoá từ dưới lên</h2>
+     *
+     * <p>Xoá cha mà con còn sống thì các bản ghi con vẫn giữ path cũ chứa id đã chết, và cây trở
+     * nên ⛔ không dựng lại được.
+     *
+     * <h2>⛔⛔ Bảo đảm của đặc tả trước 10/09/2026 chỉ đúng MỘT PHẦN BA</h2>
+     *
+     * <p>{@code function-spec.md:616}: <i>"giải thể/xóa đơn vị chỉ khi ⛔ <b>không còn nhân
+     * viên/công trình liên kết</b>"</i>. Bản trước kiểm <b>đơn vị cấp dưới</b> và <b>tài khoản</b>
+     * — hai thứ đặc tả ⛔ không nêu — và ⛔ <b>không kiểm</b> hai thứ đặc tả nêu đích danh. Guard ấy
+     * viết ở Phase 0 khi {@code employees}/{@code constructions} còn chưa tồn tại: nó ⛔ không sai
+     * lúc viết, nó <b>hết đúng</b> khi kho lớn lên.
+     *
+     * <p>⚠ Xoá <b>mềm</b> nên khoá ngoại ⛔ không nổ và ⛔ không hàng nào mồ côi theo nghĩa CSDL.
+     * Triệu chứng thật: đơn vị biến khỏi cây trong khi hồ sơ và công trình vẫn trỏ vào nó ⇒ ô
+     * <i>"Đơn vị"</i> thành trống, và báo cáo <i>"nhân sự theo phòng ban"</i> <b>đếm thiếu</b> đúng
+     * những người ấy. Một con số sai mà ⛔ không dòng lỗi nào.
+     *
+     * <p>⇒ Nay hỏi <b>mọi</b> {@link OrgUnitUsagePort}, và câu lỗi mang <b>danh sách cụ thể</b>
+     * chứ ⛔ không phải một lời từ chối trống — người vận hành cần biết <b>phải đi chuyển cái gì</b>.
      */
     @Transactional
     public void delete(UUID publicId) {
@@ -328,10 +386,20 @@ public class OrgUnitService implements OrgUnitPort {
         if (unit.isRoot()) {
             throw new BusinessRuleException(ErrorCode.ADM_2003);
         }
-        if (repository.existsByParentIdAndDeletedAtIsNull(unit.getId())
-                || userRepository.existsByOrgUnitIdAndDeletedAtIsNull(unit.getId())) {
-            throw new ConflictException(ErrorCode.ADM_2004);
+        if (repository.existsByParentIdAndDeletedAtIsNull(unit.getId())) {
+            throw new ConflictException(ErrorCode.ADM_2004, "còn đơn vị cấp dưới");
         }
+        if (userRepository.existsByOrgUnitIdAndDeletedAtIsNull(unit.getId())) {
+            throw new ConflictException(ErrorCode.ADM_2004, "còn tài khoản người dùng trực thuộc");
+        }
+
+        List<String> dangDung = nguoiDung.stream()
+                .flatMap(cong -> cong.dangThuocDonVi(unit.getId()).stream())
+                .toList();
+        if (!dangDung.isEmpty()) {
+            throw new ConflictException(ErrorCode.ADM_2004, "còn " + String.join(", ", dangDung));
+        }
+
         unit.markDeleted(Instant.now());
         repository.save(unit);
         bienDongToChuc();

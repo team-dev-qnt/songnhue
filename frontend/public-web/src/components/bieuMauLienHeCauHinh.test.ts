@@ -30,6 +30,44 @@ import { CAU_HINH_MAC_DINH } from './ContactForm';
  */
 const CONTACT_FORM = readFileSync(join(process.cwd(), 'src/components/ContactForm.tsx'), 'utf8');
 
+/**
+ * Migration seed/đổi các khoá `site.contact.field.*`, theo THỨ TỰ ÁP DỤNG.
+ *
+ * ⚠ Danh sách chứ ⛔ không một tệp: `V202609061067` seed ba khoá, `V202609081071` thêm hai khoá và
+ * **đổi mặc định** của `email.required`. Đọc một tệp là đúng lỗ hổng phạm vi §10.62 —
+ * `PortalSettingsReadTest` soi mỗi một migration nên mọi khoá seed sau đó đi lọt (luật 28).
+ */
+const MIGRATION_LIEN_HE = [
+  '../../backend/content/src/main/resources/db/migration/cms/V202609061067__cms_contact_form_va_recaptcha.sql',
+  '../../backend/content/src/main/resources/db/migration/cms/V202609081071__cms_contact_truong_tat_duoc.sql',
+];
+
+/** Giá trị mặc định CUỐI CÙNG của mỗi khoá sau khi áp lần lượt mọi migration. */
+function macDinhTrongMigration(): Record<string, boolean> {
+  const ket: Record<string, boolean> = {};
+
+  for (const tuongDoi of MIGRATION_LIEN_HE) {
+    const sql = readFileSync(join(process.cwd(), tuongDoi), 'utf8');
+
+    // Dạng 1 — hàng seed: ('site.contact.field.x', 'true', 'BOOLEAN',
+    for (const m of sql.matchAll(
+      /\('(site\.contact\.field\.[a-z-]+\.[a-z-]+)',\s*'(true|false)',\s*'BOOLEAN'/g,
+    )) {
+      ket[m[1]] = m[2] === 'true';
+    }
+
+    // Dạng 2 — đổi mặc định: UPDATE … SET … default_value = 'true' … WHERE setting_key = '…'
+    for (const khoi of sql.split(/\bUPDATE\s+settings\b/).slice(1)) {
+      const giaTri = /default_value\s*=\s*'(true|false)'/.exec(khoi);
+      const khoa = /setting_key\s*=\s*'(site\.contact\.field\.[a-z-]+\.[a-z-]+)'/.exec(khoi);
+      if (giaTri && khoa) {
+        ket[khoa[1]] = giaTri[1] === 'true';
+      }
+    }
+  }
+  return ket;
+}
+
 /** Mọi nơi dựng `ContactForm`. Thêm nơi thứ hai thì thêm vào đây. */
 const NOI_GOI: { ten: string; nguon: string }[] = [
   {
@@ -38,11 +76,20 @@ const NOI_GOI: { ten: string; nguon: string }[] = [
   },
 ];
 
-/** Ba khoá phải khớp từng chữ với migration `V202609061067` và với `ContactFormPolicy`. */
+/**
+ * Năm khoá phải khớp từng chữ với migration (`V202609061067` + `V202609081071`) và với
+ * `ContactFormPolicy`.
+ *
+ * ⭐ Hai khoá cuối thêm 08/09/2026 (T28.49). ⚠ Danh sách này là chỗ luật 27 dễ hở nhất: thêm một
+ * khoá vào migration mà quên thêm vào đây thì bộ canh vẫn XANH cho một trường ⛔ không ai điều
+ * khiển — đúng thứ nó sinh ra để chặn.
+ */
 const KHOA = [
   'site.contact.field.phone.enabled',
   'site.contact.field.email.required',
   'site.contact.field.phone.required',
+  'site.contact.field.full-name.enabled',
+  'site.contact.field.subject.enabled',
 ];
 
 describe('Biểu mẫu liên hệ — trường hiện/bắt buộc do cấu hình quyết định', () => {
@@ -50,7 +97,7 @@ describe('Biểu mẫu liên hệ — trường hiện/bắt buộc do cấu hì
     expect(NOI_GOI.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('⭐⭐ Nơi gọi đọc ĐỦ ba khoá `site.contact.field.*` — thiếu một là một trường không ai điều khiển', () => {
+  it('⭐⭐ Nơi gọi đọc ĐỦ năm khoá `site.contact.field.*` — thiếu một là một trường không ai điều khiển', () => {
     for (const { ten, nguon } of NOI_GOI) {
       for (const khoa of KHOA) {
         expect(
@@ -85,14 +132,31 @@ describe('Biểu mẫu liên hệ — trường hiện/bắt buộc do cấu hì
     }
   });
 
-  it('⭐ Mặc định của giao diện khớp giá trị SEED của migration', () => {
-    // ⚠ Luật 14: cùng một mặc định nằm ở hai nơi (migration và mã FE). Bài này là nơi nhớ hộ.
-    //   `V202609061067` seed: phone.enabled = true, email.required = false, phone.required = false.
-    expect(CAU_HINH_MAC_DINH).toEqual({
-      hienDienThoai: true,
-      emailBatBuoc: false,
-      dienThoaiBatBuoc: false,
-    });
+  /**
+   * ⛔⛔ Bài này ĐỌC migration, ⛔ KHÔNG chép lại giá trị của nó.
+   *
+   * Bản trước khẳng định `toEqual({ emailBatBuoc: false, … })` kèm một chú thích *"`V202609061067`
+   * seed: email.required = false"*. Đó ⛔ không phải một phép đối chiếu — đó là **bản sao thứ hai**
+   * của cùng một giá trị, và một bản sao thì lệch trong im lặng. Nó đúng cho tới 08/09/2026, khi
+   * `V202609081071` đổi mặc định thành `true` (T28.49); lúc ấy bài đỏ và **⛔ không nói được nguồn
+   * sự thật nằm ở đâu** — người sửa dễ nhất là đổi con số trong bài kiểm cho hết đỏ.
+   *
+   * ⚠ Đây là luật 14 làm nửa vời: nó nhớ hộ *một con số*, thay vì nhớ hộ *quan hệ giữa hai nguồn*.
+   * Bản này trích thẳng từ SQL, nên thêm một migration đổi mặc định là bài tự cập nhật theo — và
+   * quên đổi mã FE thì đỏ, kèm tên khoá cụ thể.
+   */
+  it('⭐⭐ Mặc định của giao diện khớp giá trị SEED ĐỌC TỪ migration', () => {
+    const seed = macDinhTrongMigration();
+
+    // Vế chống tập rỗng (luật 7 + 29) đứng TRƯỚC: regex khớp hụt trả map rỗng, và mọi so sánh
+    // dưới đây sẽ `undefined === undefined` — xanh trọn vẹn mà ⛔ không canh gì.
+    expect(Object.keys(seed).sort()).toEqual([...KHOA].sort());
+
+    expect(CAU_HINH_MAC_DINH.hienDienThoai).toBe(seed['site.contact.field.phone.enabled']);
+    expect(CAU_HINH_MAC_DINH.emailBatBuoc).toBe(seed['site.contact.field.email.required']);
+    expect(CAU_HINH_MAC_DINH.dienThoaiBatBuoc).toBe(seed['site.contact.field.phone.required']);
+    expect(CAU_HINH_MAC_DINH.hienHoTen).toBe(seed['site.contact.field.full-name.enabled']);
+    expect(CAU_HINH_MAC_DINH.hienTieuDe).toBe(seed['site.contact.field.subject.enabled']);
   });
 
   it('⛔ Câu hướng dẫn ⛔ KHÔNG ghi cứng "email hoặc số điện thoại"', () => {

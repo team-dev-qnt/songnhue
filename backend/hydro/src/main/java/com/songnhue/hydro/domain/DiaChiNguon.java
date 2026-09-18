@@ -1,9 +1,18 @@
 package com.songnhue.hydro.domain;
 
+import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.UnknownHostException;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Địa chỉ nguồn có được phép mở kết nối tới không — <b>SSRF, T30.12</b>
@@ -33,11 +42,26 @@ import java.util.Set;
  *       <i>DNS rebinding</i> — tên trả IP công cộng lúc kiểm và IP nội bộ lúc gọi.
  * </ul>
  *
- * <p>⛔ Đây <b>không</b> phải một bộ lọc SSRF đầy đủ, và bộ canh phải nói ra phạm vi của chính nó
- * (luật 28): một tên miền công cộng <i>trỏ vào</i> mạng nội bộ vẫn đi lọt. Vế còn lại thuộc về tầng
- * mạng (máy chủ ứng dụng không có đường ra tới dải nội bộ nào ngoài CSDL và MinIO —
- * {@code deploy-guideline.md}); ghi ở đây để lượt rà sau không đọc cái xanh này thành một lời bảo đảm
- * rộng hơn nó.
+ * <h2>⚠ Hai tầng, vì chữ viết một mình ⛔ đủ — T61.38</h2>
+ *
+ * <p>Bản đầu chỉ chặn theo <b>chữ viết</b> và tự khai (đúng, luật 28) rằng <i>một tên miền công
+ * cộng trỏ vào mạng nội bộ vẫn đi lọt</i>. Câu ấy mô tả một lỗ <b>đang mở</b>: một dòng
+ * {@code api_sources.base_url} mang {@code http://nguon.ke-gian.tld/} với bản ghi A trỏ
+ * {@code 10.0.0.x} biến poller thành cửa đọc MinIO, PostgreSQL và {@code /actuator} trong mạng
+ * compose. Kẻ đặt được dòng ấy ⛔ cần quyền quản trị — seed, bản khôi phục và một câu
+ * {@code UPDATE} lúc xử lý sự cố đều là đường vào (xem ngay trên).
+ *
+ * <p>⇒ Tầng hai: <b>phân giải tên máy rồi kiểm từng địa chỉ trả về</b>, ngay trước lượt mở socket.
+ *
+ * <p>⚠⚠ Nó ⛔ đóng được <b>DNS rebinding</b> (tên trả IP công cộng lúc kiểm, IP nội bộ lúc gọi) —
+ * java.net.http ⛔ cho xen vào giữa hai bước ấy. Nói cho đúng cỡ: rebinding đòi kẻ tấn công điều
+ * khiển được máy chủ DNS <b>và</b> thắng một cuộc đua trong cửa sổ đệm DNS của JVM, còn lỗ vừa vá
+ * chỉ đòi <b>một bản ghi A</b>. Vế cuối cùng vẫn thuộc tầng mạng (máy chủ ứng dụng ⛔ có đường ra
+ * tới dải nội bộ nào ngoài CSDL và MinIO — {@code deploy-guideline.md}).
+ *
+ * <p>⚠ Phân giải <b>hỏng</b> thì đi tiếp, ⛔ ném: lượt gọi sau đó cũng hỏng ở đúng chỗ ấy với một
+ * câu rõ hơn, và quy tắc 18 nói mỗi lượt poller ⛔ chạy là số đo mất vĩnh viễn — ⛔ đổi một trục
+ * trặc DNS tạm thời lấy một khoảng trống dữ liệu.
  *
  * <h2>⚠⚠ {@code chapNhanMayNoiBo} — công tắc duy nhất nới được, và nó mặc định TẮT</h2>
  *
@@ -52,6 +76,8 @@ import java.util.Set;
  * không tệp {@code deploy/env/*} nào của staging/prod đặt nó.
  */
 public final class DiaChiNguon {
+
+    private static final Logger log = LoggerFactory.getLogger(DiaChiNguon.class);
 
     private static final Set<String> SCHEME_CHO_PHEP = Set.of("http", "https");
 
@@ -70,6 +96,20 @@ public final class DiaChiNguon {
      *     vì người đọc nó là quản trị viên đang tự hỏi vì sao nguồn không gọi được
      */
     public static URI kiemVaDung(String baseUrl, String duongDan, boolean chapNhanMayNoiBo) {
+        return kiemVaDung(baseUrl, duongDan, chapNhanMayNoiBo, DiaChiNguon::phanGiaiThat);
+    }
+
+    /**
+     * Phân giải tên máy — <b>chỗ nối duy nhất</b> để bài kiểm dựng được ca <i>tên miền công cộng trỏ
+     * vào mạng nội bộ</i> mà ⛔ phải cấu hình DNS thật.
+     */
+    @FunctionalInterface
+    public interface PhanGiai {
+        InetAddress[] phanGiai(String host) throws UnknownHostException;
+    }
+
+    /** Bản đầy đủ — {@code phanGiai} chỉ thay ở bài kiểm. */
+    public static URI kiemVaDung(String baseUrl, String duongDan, boolean chapNhanMayNoiBo, PhanGiai phanGiai) {
         if (baseUrl == null || baseUrl.isBlank()) {
             throw new IllegalArgumentException("Địa chỉ nguồn rỗng");
         }
@@ -92,10 +132,115 @@ public final class DiaChiNguon {
         }
         if (!chapNhanMayNoiBo) {
             kiemHost(host);
+            kiemDiaChiDaPhanGiai(host, phanGiai);
         }
-        // ⚠ `resolve` chứ không phải nối chuỗi: nối chuỗi thì `baseUrl` thiếu/thừa dấu `/` cho ra hai
-        //   URL khác nhau, và một trong hai trả 404 mà không ai đoán được vì sao.
-        return goc.resolve(duongDan);
+        return goc.resolve(chuanHoaGoc(goc, duongDan)).resolve(duongDan);
+    }
+
+    /**
+     * Đưa đường dẫn của {@code goc} về dạng <b>thư mục</b>, sau khi cắt phần <i>đã trùng</i> với đầu
+     * {@code duongDan} — <b>T52.1</b>.
+     *
+     * <h2>⛔⛔ Sự cố thật: 3576 lượt hỏng liên tiếp, {@code last_success_at} CHƯA BAO GIỜ</h2>
+     *
+     * <p>Đo trên staging 10/09/2026:
+     *
+     * <pre>
+     *   base_url             = http://songnhue.bhh40.net/api/getmn.aspx
+     *   credential           = ĐÃ ĐẶT, đúng chỗ, mã hoá đúng (v1:…)
+     *   consecutive_failures = 3576
+     *   last_success_at      = NULL          ← ⛔ chưa một lượt nào thành công, BAO GIỜ
+     *   last_failure_reason  = "Nguồn trả HTTP 404"
+     *   hydro_readings       = 0 · hydro_latest = 0
+     * </pre>
+     *
+     * <p>Người vận hành đã làm <b>đúng</b> phần khó: gỡ {@code ?key=…} khỏi ô <i>Địa chỉ gốc</i> và
+     * đặt mã số qua hộp thoại <i>Mã số truy cập</i> (bản vá T50.1). Thứ ở lại là <b>đường dẫn</b>
+     * {@code /api/getmn.aspx} — và {@code URI.resolve} <b>thay đoạn cuối</b> của đường dẫn gốc, nên
+     * {@code /api/getmn.aspx} + {@code api/getmn.aspx} cho ra {@code /api/api/getmn.aspx}. Đo trên
+     * nguồn thật cùng ngày: đường ấy trả <b>404</b>, còn đường đúng trả 200.
+     *
+     * <h2>⚠⚠ Vế IM LẶNG còn nặng hơn vế 404</h2>
+     *
+     * <p>{@code URI.resolve} bỏ đoạn cuối của base khi base ⛔ không kết thúc bằng {@code /}:
+     *
+     * <pre>
+     *   http://host/songnhue   + api/getmn.aspx  ->  http://host/api/getmn.aspx      ⛔ MẤT "/songnhue"
+     *   http://host/songnhue/  + api/getmn.aspx  ->  http://host/songnhue/api/…      ✅
+     * </pre>
+     *
+     * <p>Vế trên ⛔ không sinh 404 — nó gọi <b>một đường dẫn có thật trên một máy chủ có thật</b> và
+     * trả 200. Ngày Công ty dời nguồn xuống một thư mục con, poller sẽ đọc nhầm nguồn mà ⛔ không
+     * một dòng lỗi nào. Chú thích cũ ở ngay dòng {@code resolve} bênh vực {@code resolve} <i>vì</i>
+     * vấn đề dấu {@code /} — mà {@code resolve} có đúng vấn đề dấu {@code /} của riêng nó.
+     *
+     * <h2>Luật: cắt phần TRÙNG theo ĐOẠN, ⛔ không so chuỗi</h2>
+     *
+     * <p>Gọi {@code base} = các đoạn của đường dẫn gốc, {@code rel} = các đoạn của {@code duongDan}.
+     * Tìm {@code k} lớn nhất sao cho <b>k đoạn cuối của {@code base}</b> trùng <b>k đoạn đầu của
+     * {@code rel}</b>, rồi bỏ {@code k} đoạn ấy khỏi {@code base}. Phần còn lại luôn kết thúc bằng
+     * {@code /} nên {@code resolve} chỉ còn việc nối.
+     *
+     * <pre>
+     *   /api/getmn.aspx   k=2  ->  /            ->  /api/getmn.aspx            (staging, ĐÃ VÁ)
+     *   /api              k=1  ->  /            ->  /api/getmn.aspx
+     *   /songnhue         k=0  ->  /songnhue/   ->  /songnhue/api/getmn.aspx   (⛔ không còn mất)
+     *   /songnhue/api     k=1  ->  /songnhue/   ->  /songnhue/api/getmn.aspx
+     *   (rỗng)            k=0  ->  /            ->  /api/getmn.aspx            (giá trị seed)
+     * </pre>
+     *
+     * <p>⛔ So theo <b>đoạn</b> chứ ⛔ không {@code endsWith} trên chuỗi: {@code /xxxapi} kết thúc
+     * bằng {@code api} theo chuỗi nhưng ⛔ không phải theo đoạn, và cắt nó đi là hỏng một địa chỉ
+     * đang chạy được (luật 2 — canh cấu trúc, ⛔ không canh văn bản).
+     *
+     * <p>⚠ Hàm này <b>⛔ không</b> ném khi phải cắt. Quy tắc 18 của dự án: nguồn ⛔ không có API
+     * lịch sử ⇒ <b>mỗi 2 phút poller ⛔ không chạy là số đo mất vĩnh viễn</b>. Từ chối một địa chỉ
+     * mà ý định của nó ⛔ không hề mơ hồ là đổi một lỗi cấu hình sửa được lấy một khoảng trống dữ
+     * liệu ⛔ không lấy lại được. Thay vào đó nó ghi một dòng {@code WARN} nêu cả hai giá trị.
+     */
+    static String chuanHoaGoc(URI goc, String duongDan) {
+        String rawPath = goc.getRawPath() == null ? "" : goc.getRawPath();
+        int hoi = duongDan.indexOf('?');
+        String phanDuongDan = hoi < 0 ? duongDan : duongDan.substring(0, hoi);
+
+        List<String> base = doanCua(rawPath);
+        List<String> rel = doanCua(phanDuongDan);
+
+        int k = Math.min(base.size(), rel.size());
+        while (k > 0 && !base.subList(base.size() - k, base.size()).equals(rel.subList(0, k))) {
+            k--;
+        }
+        if (k > 0 && !String.valueOf(goc).equals(DA_CANH_BAO.getAndSet(String.valueOf(goc)))) {
+            log.warn(
+                    "Địa chỉ nguồn '{}' đã mang sẵn {} đoạn đầu của đường dẫn endpoint '{}' — đã cắt phần "
+                            + "trùng nên lượt gọi vẫn ĐÚNG. Nên sửa ô 'Địa chỉ gốc' về phần gốc của máy "
+                            + "chủ để giá trị hiển thị thôi gây hiểu nhầm.",
+                    goc,
+                    k,
+                    phanDuongDan);
+        }
+        String giu = base.subList(0, base.size() - k).stream().collect(Collectors.joining("/"));
+        return giu.isEmpty() ? "/" : "/" + giu + "/";
+    }
+
+    /**
+     * Địa chỉ gần nhất đã cảnh báo — <b>chống một cái chuông kêu 720 lần mỗi ngày</b>.
+     *
+     * <p>Poller gọi <b>2 phút/lần</b>. Một dòng {@code WARN} mỗi lượt là <b>720 dòng/ngày</b> cho
+     * một tình trạng mà bản vá đã làm cho <b>vô hại</b> — và §10.42 ghi lại đúng cái giá của việc
+     * ấy: một chuông kêu liên tục là một chuông <b>sẽ bị tắt</b>, rồi lần sau nó kêu thật thì ⛔
+     * không ai nghe. Ở đây mỗi giá trị chỉ kêu <b>một lần cho mỗi lượt chạy</b> của tiến trình.
+     *
+     * <p>⚠ Cố ý giữ <b>giá trị gần nhất</b> chứ ⛔ không phải một tập tích luỹ: một tập là một chỗ
+     * rò bộ nhớ chờ ngày ai đó cho phép cấu hình nhiều nguồn. Kho hôm nay có <b>một</b> nguồn
+     * {@code BHH40}, nên "gần nhất" và "đã từng" là cùng một thứ; ngày có nguồn thứ hai thì hậu quả
+     * xấu nhất là kêu lại — ⛔ không phải im.
+     */
+    private static final AtomicReference<String> DA_CANH_BAO = new AtomicReference<>();
+
+    /** Các đoạn ⛔ rỗng của một đường dẫn. {@code ""} và {@code "/"} đều cho danh sách rỗng. */
+    private static List<String> doanCua(String path) {
+        return Arrays.stream(path.split("/")).filter(d -> !d.isEmpty()).toList();
     }
 
     private static void kiemHost(String host) {
@@ -125,5 +270,50 @@ public final class DiaChiNguon {
         if (noiBo) {
             throw new IllegalArgumentException("Địa chỉ IP nội bộ bị chặn: " + host);
         }
+    }
+
+    private static InetAddress[] phanGiaiThat(String host) throws UnknownHostException {
+        return InetAddress.getAllByName(host);
+    }
+
+    /**
+     * Tầng hai của T61.38 — kiểm <b>mọi</b> địa chỉ tên máy phân giải ra, ⛔ chỉ địa chỉ đầu.
+     *
+     * <p>Một tên trả cả địa chỉ công cộng lẫn địa chỉ nội bộ thì chọn đường nào là việc của tầng
+     * dưới, ⛔ của ta — nên đủ một địa chỉ nội bộ là từ chối (luật 9: hai trạng thái phải phân biệt
+     * được, ⛔ phụ thuộc thứ tự bản ghi DNS trả về).
+     */
+    private static void kiemDiaChiDaPhanGiai(String host, PhanGiai phanGiai) {
+        InetAddress[] dia;
+        try {
+            dia = phanGiai.phanGiai(host);
+        } catch (UnknownHostException e) {
+            log.debug("⛔ phân giải được '{}' để kiểm SSRF — để lượt gọi tự hỏng với lý do của nó", host, e);
+            return;
+        }
+        for (InetAddress d : dia) {
+            if (laNoiBo(d)) {
+                throw new IllegalArgumentException(
+                        "Tên máy '" + host + "' phân giải về địa chỉ nội bộ " + d.getHostAddress() + " — bị chặn");
+            }
+        }
+    }
+
+    /** ⚠ {@code isSiteLocalAddress} phủ 10/8 · 172.16/12 · 192.168/16, ⛔ phủ CGNAT và ULA IPv6. */
+    private static boolean laNoiBo(InetAddress d) {
+        if (d.isLoopbackAddress()
+                || d.isAnyLocalAddress()
+                || d.isLinkLocalAddress()
+                || d.isSiteLocalAddress()
+                || d.isMulticastAddress()) {
+            return true;
+        }
+        byte[] b = d.getAddress();
+        if (b.length == 4) {
+            int a0 = b[0] & 0xFF;
+            int a1 = b[1] & 0xFF;
+            return a0 == 100 && a1 >= 64 && a1 <= 127; // CGNAT, RFC 6598
+        }
+        return (b[0] & 0xFE) == 0xFC; // fc00::/7 — unique local
     }
 }

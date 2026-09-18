@@ -37,6 +37,18 @@ export interface ArticleDocumentsPanelProps {
   disabled?: boolean;
 }
 
+/**
+ * Tên gọi được của một tài liệu đính kèm — dùng cho `aria-label` của ba nút chỉ-có-icon (T63.9).
+ *
+ * ⚠ `label` là *"tên gợi nhớ, `null` = chưa đặt"* (xem `ArticleDocumentView`), nên rơi về
+ * `originalName` đúng như cổng công khai làm. ⛔ Sinh một nhãn mặc định kiểu *"Tài liệu 1"*: trình
+ * đọc màn hình sẽ đọc ba nút của ba hàng khác nhau thành ba câu ⛔ phân biệt được — tức đúng cái
+ * khuyết tật T63.9 sinh ra để bắt, chỉ đổi từ *"⛔ có tên"* sang *"có tên mà vô nghĩa"*.
+ */
+function tenTaiLieu(doc: ArticleDocumentView): string {
+  return doc.label ?? doc.originalName;
+}
+
 export function ArticleDocumentsPanel({
   documents,
   onChange,
@@ -138,12 +150,13 @@ export function ArticleDocumentsPanel({
             {
               title: '',
               width: 110,
-              render: (_: unknown, __, index) => (
+              render: (_: unknown, row: ArticleDocumentView, index) => (
                 <Space size={0}>
                   <Button
                     type="text"
                     size="small"
                     icon={<ArrowUpOutlined />}
+                    aria-label={`Đưa "${tenTaiLieu(row)}" lên trên`}
                     disabled={disabled || index === 0}
                     onClick={() => doiCho(index, -1)}
                   />
@@ -151,6 +164,7 @@ export function ArticleDocumentsPanel({
                     type="text"
                     size="small"
                     icon={<ArrowDownOutlined />}
+                    aria-label={`Đưa "${tenTaiLieu(row)}" xuống dưới`}
                     disabled={disabled || index === documents.length - 1}
                     onClick={() => doiCho(index, 1)}
                   />
@@ -159,6 +173,7 @@ export function ArticleDocumentsPanel({
                     size="small"
                     danger
                     icon={<DeleteOutlined />}
+                    aria-label={`Gỡ "${tenTaiLieu(row)}" khỏi bài viết`}
                     disabled={disabled}
                     onClick={() => onChange(documents.filter((_, i) => i !== index))}
                   />

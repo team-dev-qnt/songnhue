@@ -19,7 +19,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +26,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.app.testsupport.PhienHttp;
+import com.songnhue.app.testsupport.TestHttp;
 import com.songnhue.core.application.auth.PasswordPolicyService;
 import com.songnhue.core.common.util.DateTimeUtils;
 import com.songnhue.core.infra.identity.UserRepository;
@@ -69,7 +69,7 @@ class HydroAggReportHttpTest extends IntegrationTestBase {
     private static final String MA_API_IM = "F97342";
 
     @Autowired
-    private TestRestTemplate http;
+    private TestHttp http;
 
     @Autowired
     private UserRepository users;
@@ -379,12 +379,12 @@ class HydroAggReportHttpTest extends IntegrationTestBase {
     void theTwoDateRangeErrorsAreDistinct() {
         ResponseEntity<String> nguoc =
                 phienHttp.get(kyThuat, "/api/v1/hyd/bao-cao/dong-bo?tuNgay=2026-09-10&denNgay=2026-09-01");
-        assertThat(nguoc.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(nguoc.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
         assertThat(nguoc.getBody()).contains("HYD-2013");
 
         ResponseEntity<String> qua =
                 phienHttp.get(kyThuat, "/api/v1/hyd/bao-cao/dong-bo?tuNgay=2020-01-01&denNgay=2026-09-01");
-        assertThat(qua.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(qua.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
         assertThat(qua.getBody())
                 .as("⛔ 19 điểm đo × 2 chỉ số × 5 năm = 69 nghìn hàng đổ vào một bảng ⛔ không phân trang")
                 .contains("HYD-2012")
@@ -535,7 +535,7 @@ class HydroAggReportHttpTest extends IntegrationTestBase {
         assertThat(qua.getStatusCode())
                 .as("⛔ BC-12 là báo cáo DUY NHẤT quét bảng gốc: 144 bản ghi/ngày × 40 ngày là đúng lượt "
                         + "quét mà bảng tổng hợp sinh ra để tránh")
-                .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+                .isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
         assertThat(qua.getBody()).contains("HYD-2012").contains("31");
     }
 
@@ -592,7 +592,7 @@ class HydroAggReportHttpTest extends IntegrationTestBase {
         String than = phienHttp.get(kyThuat, "/api/v1/hyd/bao-cao/tuyen-song").getBody();
 
         assertThat(than)
-                .as("⬜ `river_name` NULL là trạng thái ĐÚNG hôm nay — tuyến sông thuộc G8")
+                .as("⬜ 6/19 điểm đo bản chụp G8 (09/09) ghi \"Chưa rõ\" ⇒ nhóm này vẫn phải tồn tại")
                 .contains("\"tenTuyen\":\"Chưa phân tuyến\"")
                 .contains("\"chuaPhanTuyen\":true");
     }

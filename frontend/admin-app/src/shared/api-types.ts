@@ -88,6 +88,15 @@ export interface MeResponse {
   permissions: string[];
   mustChangePassword: boolean;
   twoFactorEnrolled: boolean;
+  /**
+   * Tài khoản này CÓ liên kết một hồ sơ CBNV hay ⛔ không — T51.8.
+   *
+   * ⛔ Cố ý là `boolean`, ⛔ không phải `employeePublicId`: giao diện chỉ cần MỘT quyết định từ
+   * trường này — có hiện mục *Hồ sơ của tôi* hay ⛔ không. Có id trong tay là mời màn hình đi gọi
+   * `/hr/employees/{id}`, endpoint mà một cán bộ bình thường ⛔ không có quyền ⇒ 403 ở đúng chỗ
+   * nó vừa tự bảo là có. Đường tự đọc ⛔ không nhận id nào cả.
+   */
+  coHoSoNhanSu: boolean;
 }
 
 export interface SessionView {
@@ -108,6 +117,13 @@ export interface SessionView {
 /** `PENDING_ACTIVATION` = đã tạo nhưng chưa đăng nhập lần nào (còn mật khẩu tạm). */
 export type UserStatus = 'PENDING_ACTIVATION' | 'ACTIVE' | 'LOCKED';
 
+/** Hồ sơ CBNV mà một tài khoản đang liên kết — T51.8. ⛔ KHÔNG trường 🔒 nào. */
+export interface HoSoNhanSuView {
+  publicId: string;
+  code: string;
+  fullName: string;
+}
+
 export interface UserView {
   publicId: string;
   username: string;
@@ -118,6 +134,8 @@ export interface UserView {
   mustChangePassword: boolean;
   twoFactorRequired: boolean;
   lastLoginAt: string | null;
+  /** `null` = chưa liên kết hồ sơ CBNV nào (T51.8). */
+  hoSoNhanSu: HoSoNhanSuView | null;
 }
 
 /**
@@ -151,6 +169,23 @@ export interface RoleSummary {
   name: string;
   description: string | null;
   permissionCount: number;
+  /**
+   * Vai trò hệ thống ⇒ ⛔ không sửa quyền được (T27.31).
+   *
+   * ⚠ Backend là nơi ÉP luật này (`ADM-2014`); trường này chỉ để màn hình khoá ô sửa **trước** khi
+   * người dùng mất công. Một ràng buộc chỉ ép ở một phía là một ràng buộc ẩn — người dùng phát
+   * hiện ra nó bằng cách va vào nó, sau khi đã tick xong và bấm lưu.
+   */
+  isSystem: boolean;
+}
+
+/** Một dòng danh mục quyền — `GET /admin/users/permissions/catalog` (T27.31). */
+export interface PermissionSummary {
+  code: string;
+  /** `cms` | `ops` | `hyd` | `hr` | `adm` — có ràng buộc CHECK ở CSDL. */
+  module: string;
+  name: string;
+  description: string | null;
 }
 
 // =============================================================================
@@ -254,6 +289,48 @@ export interface SettingView {
   validation: string | null;
   editable: boolean;
   exportable: boolean;
+  /** T61.42 — nhóm nhạy cảm (SECURITY/AUDIT/BACKUP): lưu phải kèm mã 2FA nhập lại. */
+  canXacThucLai: boolean;
+}
+
+// ---- Cấu hình hệ thống — T61.41 / T61.44 ----------------------------------------------------------
+
+export type TrangThaiCauHinh = 'DAT' | 'THIEU' | 'SAI' | 'NGOAI_TAM_NHIN' | 'KHONG_AP_DUNG';
+export type MucDoCauHinh = 'CHAN' | 'CANH_BAO' | 'THONG_TIN';
+
+/** ⛔ Không trường nào mang GIÁ TRỊ cấu hình — chỉ tình trạng. */
+export interface MucCauHinhView {
+  ma: string;
+  nhom: string;
+  ten: string;
+  trangThai: TrangThaiCauHinh;
+  mucDo: MucDoCauHinh;
+  nguoiDoc: string;
+  datO: string;
+  ghiChu: string;
+}
+
+export interface TongQuanCauHinhView {
+  muc: MucCauHinhView[];
+  soChan: number;
+  soCanhBao: number;
+}
+
+export interface TomTatCauHinhView {
+  soChan: number;
+  soCanhBao: number;
+}
+
+export type LoaiBiMat = 'RECAPTCHA_SECRET_KEY';
+
+export interface BiMatTinhTrangView {
+  loai: LoaiBiMat;
+  ten: string;
+  moTa: string;
+  nguon: 'GIAO_DIEN' | 'MOI_TRUONG' | 'CHUA_CO';
+  giaiMaDuoc: boolean;
+  coGiaTriMoi: boolean;
+  capNhatLuc: string | null;
 }
 
 export interface SettingImportResult {
@@ -318,7 +395,7 @@ export interface ChainVerification {
 // =============================================================================
 
 export type BackupStatus = 'RUNNING' | 'SUCCEEDED' | 'FAILED';
-export type BackupTrigger = 'SCHEDULED' | 'MANUAL' | 'PRE_RESTORE';
+export type BackupTrigger = 'SCHEDULED' | 'MANUAL' | 'PRE_RESTORE' | 'PRE_DEPLOY';
 
 export interface BackupView {
   id: string;
@@ -421,31 +498,12 @@ export interface HealthView {
 }
 
 // =============================================================================
-// Tệp đính kèm — /api/v1/attachments
+// ⛔ BIA MỘ — bốn kiểu `ScanStatus` · `AttachmentStatus` · `AttachmentView` · `DownloadUrl` đã
+//    GỠ ngày 08/09/2026 (T28.47). Chúng mirror `/api/v1/attachments`, mà đường ấy nay chỉ còn
+//    `DELETE` và ⛔ không màn hình nào gọi. `AttachmentView`/`DownloadUrl` mỗi cái có ĐÚNG MỘT
+//    lượt xuất hiện trong toàn cây FE — chính định nghĩa của nó (quy tắc 15).
+//    Kho tài liệu và tài liệu công trình đi đường riêng: `/cms/media/…`, `/ops/constructions/…`.
 // =============================================================================
-
-export type ScanStatus = 'PENDING' | 'CLEAN' | 'INFECTED' | 'SKIPPED';
-export type AttachmentStatus = 'UPLOADING' | 'READY' | 'QUARANTINED';
-
-export interface AttachmentView {
-  publicId: string;
-  originalName: string;
-  contentType: string;
-  sizeBytes: number;
-  fileVersion: number;
-  status: AttachmentStatus;
-  scanStatus: ScanStatus;
-  /** Ngày (không giờ) — chuỗi `yyyy-MM-dd`, không phải Instant. */
-  validFrom: string | null;
-  validUntil: string | null;
-  /** Backend đã tính sẵn: còn hiệu lực + quét sạch. FE **không tự suy lại** (§1.4). */
-  downloadable: boolean;
-}
-
-export interface DownloadUrl {
-  /** Có hạn ngắn và bỏ qua phân quyền — không lưu lại, không chia sẻ. */
-  url: string;
-}
 
 // =============================================================================
 // Dashboard điều hành — /api/v1/ops/dashboard (CN-02.5, CN-02.6)
@@ -702,6 +760,8 @@ export interface MaintenanceRow {
   /** Đơn vị nội bộ HOẶC nhà thầu ngoài — backend đã gộp, giao diện không phải biết hai cột. */
   performer: string | null;
   performerIsInternal: boolean;
+  /** publicId đơn vị nội bộ — `null` khi thuê ngoài. Lối SỬA cần nó để nạp lại ô chọn (T61.18). */
+  performerOrgUnitId: string | null;
   cost: string | null;
   fundingSource: string | null;
   acceptanceResult: string | null;
@@ -739,6 +799,23 @@ export interface AllowedActionView {
 export interface MaintenanceDetail {
   record: MaintenanceRow;
   actions: AllowedActionView[];
+}
+
+/**
+ * Một tệp của bản ghi sửa chữa — biên bản nghiệm thu, ảnh trước/sau (CN-02.2, T61.19).
+ * Khớp `MaintenanceDtos.AttachmentView`; `tepSuaChuaVongKhuHoi.test.tsx` đối chiếu tên trường.
+ */
+export interface MaintenanceAttachment {
+  id: string;
+  originalName: string;
+  /** Nhãn loại tệp người dùng chọn lúc tải lên — cũng là khoá đánh số phiên bản. */
+  purpose: string;
+  contentType: string;
+  sizeBytes: number;
+  fileVersion: number;
+  /** `false` khi tệp chưa quét virus xong hoặc bị cách ly — backend quyết, giao diện ⛔ đoán. */
+  downloadable: boolean;
+  createdAt: string;
 }
 
 /** Tổng chi phí kỳ — tính ở BE (quy tắc 3), FE chỉ hiển thị. Khớp `MaintenanceLogService.CostSummary`. */
@@ -1482,6 +1559,8 @@ export interface PeriodSummaryRow {
   stationCode: string;
   stationName: string;
   riverName: string | null;
+  /** Lý trình `K43+750`. `null` = G8 chưa cấp cho điểm đo này (9/19 tính tới 09/09/2026). */
+  chainage: string | null;
   positionRole: string;
   measurementTypeCode: string;
   measurementTypeName: string;
@@ -1493,6 +1572,13 @@ export interface PeriodSummaryRow {
   giaTriMax: string | null;
   mocMax: string | null;
   giaTriTb: string | null;
+  /**
+   * Số cảnh báo **bắt đầu** trong kỳ — chỉ tiêu đặc tả của BC-05.
+   *
+   * ⚠ ⛔ Không đi cùng `lyDoTrong`: một điểm đo có thể bắn cảnh báo rồi mất tín hiệu, nên hàng
+   * "rỗng kèm lý do" vẫn có thể mang số khác 0. Đây ⛔ không phải mâu thuẫn.
+   */
+  soLanVuotNguong: number;
   lyDoTrong: string | null;
 }
 
@@ -1504,26 +1590,39 @@ export interface PeriodSummaryReport {
 }
 
 /**
- * T35.4 — một điểm trên đường cong 24 giờ.
+ * T35.4 — một **mốc** trên trục thời gian 24 giờ. ⛔ Không phải "một số đo".
  *
  * ⚠ `giaTri` là **chuỗi**, ⛔ không phải `number`: JSON number là `double`, và một mực nước `1.005`
  *   đi qua `double` có thể về thành `1.0049999999999999`. Quy tắc 2 của dự án cấm `float`/`double`
  *   cho mọi số đo, và ranh giới ấy ⛔ không dừng ở tầng Java.
+ *
+ * ⛔⛔ **T43.13** — `giaTri: null` nghĩa là **mốc ấy ⛔ không có số đo hợp lệ** (trạm im lặng, hoặc
+ *    mọi bản ghi của mốc bị đánh `NGHI_NGO`). Backend nay trả **trục đủ mốc** dựng độc lập với dữ
+ *    liệu, nên mảng này luôn đủ 144 phần tử; trước đây nó chỉ chứa những mốc CÓ số, và tầng vẽ dựng
+ *    trục X từ chính nó ⇒ khoảng mất tín hiệu bị **nuốt**, hai mốc cách nhau ba giờ vẽ ra liền kề.
+ *
+ * ⛔ Cấm `?? 0` và cấm `Number(null)` (= 0): mực nước `0 m` là một khẳng định về mực nước, còn
+ *    ⛔ không có số là một khẳng định về đường truyền (quy tắc 16).
  */
 export interface ChartPoint {
   moc: string;
-  giaTri: string;
+  giaTri: string | null;
 }
 
 /**
  * T35.4 — đường cong mực nước 24 giờ của **một** điểm đo.
  *
- * ⛔⛔ `diem` rỗng ⇒ `lyDoTrong` **luôn** có câu, và ngược lại — backend ép ràng buộc ấy ở hàm dựng
+ * ⛔⛔ `soMocCoSo === 0` ⇔ `lyDoTrong` có câu — backend ép ràng buộc ấy ở hàm dựng
  *    (`BieuDoMucNuoc`). ⛔ Đừng vẽ một biểu đồ trục rỗng: nó trông **y hệt** một biểu đồ mà mọi giá
  *    trị bằng 0, và cũng y hệt trường hợp quên đăng ký component ECharts. `BaseChart` có sẵn nhánh
  *    `empty` cho đúng việc này.
  *
- * ⚠ Khoảng trống giữa các điểm là **thông tin** — nó nghĩa là trạm ⛔ không gửi số về.
+ * ⚠ **Bất biến này đã ĐỔI HÌNH DẠNG ở T43.13** — bản trước là *"`diem` rỗng ⇔ có `lyDoTrong`"*, và
+ *   nó ⛔ không còn dùng được: `diem` nay là **trục**, nên nó đầy ngay cả khi ⛔ không có số đo nào.
+ *   Giữ nguyên phép kiểm cũ là giữ một điều kiện **không bao giờ đúng** — biểu đồ sẽ vẽ một đường
+ *   phẳng vô hình thay vì hiện câu giải thích (luật 9).
+ *
+ * ⚠ Khoảng trống giữa các mốc là **thông tin** — nó nghĩa là trạm ⛔ không gửi số về.
  *   `optionDuong` đặt `connectNulls: false` để chỗ ấy nhìn thấy được; ⛔ đừng nội suy.
  */
 export interface WaterLevelChart {
@@ -1534,6 +1633,14 @@ export interface WaterLevelChart {
   tu: string;
   den: string;
   diem: ChartPoint[];
+  /**
+   * Số mốc **thật sự có** số đo hợp lệ — `0` là một trạng thái hợp lệ.
+   *
+   * ⛔⛔ Đây là thứ quyết định biểu đồ có rỗng hay không, ⛔ **không phải** `diem.length`: từ T43.13
+   *    `diem` là **trục**, nên nó đầy ngay cả khi ⛔ không có lấy một số đo. Đọc `diem.length === 0`
+   *    là một phép kiểm **không bao giờ đúng** — đúng hình dạng luật 9.
+   */
+  soMocCoSo: number;
   lyDoTrong: string | null;
 }
 
@@ -1562,4 +1669,65 @@ export interface SyncQualityReport {
   khungPhut: number;
   chatLuong: SyncQualityRow[];
   dongBo: SyncDailyRow[];
+}
+
+// ============================================================================
+// Lớp bản đồ GIS — CN-02.4 / M2.9 (WS-59)
+// ============================================================================
+
+/**
+ * Loại hình học của một lớp bản đồ — khớp `GisGeometryType.java` và
+ * `ck_gis_layers_geometry_type`.
+ *
+ * ⛔ Khai ra ở bản ghi chứ ⛔ **không** suy lúc vẽ: bảng chọn kiểu vẽ phải biết **trước** khi tải
+ * nội dung về, ⛔ không thì mỗi lần bật một lớp là một lượt tải vài MB chỉ để biết nên vẽ thế nào.
+ */
+export type GisGeometryType = 'POINT' | 'LINE' | 'POLYGON' | 'HON_HOP';
+
+/**
+ * @param opacity phần trăm **NGUYÊN** 0–100, ⛔ không phải 0.0–1.0. Đặc tả nói *"opacity 0–100%"*,
+ *   thanh trượt hiện 0–100, và một phép đổi đơn vị ở giữa là một chỗ để `0.8` và `80` lẫn vào nhau.
+ * @param soDoiTuong `null` = lớp **chưa nạp tệp**. ⛔ Khác `0` — một tệp rỗng hình học bị từ chối
+ *   ngay lúc nạp (`OPS-2026`), nên số 0 ⛔ không biểu diễn được ở đây.
+ */
+export interface GisLayerView {
+  publicId: string;
+  name: string;
+  description: string | null;
+  geometryType: GisGeometryType;
+  /** `#RRGGBB` — màu của **từng lớp do người vận hành đặt**, ⛔ không phải màu thương hiệu. */
+  color: string;
+  opacity: number;
+  sortOrder: number;
+  active: boolean;
+  coTep: boolean;
+  soDoiTuong: number | null;
+}
+
+/** ⚠ Trường `null` = **giữ nguyên**, ⛔ không phải "đặt về mặc định" (§11.19). */
+export interface GisLayerRequest {
+  name: string;
+  description?: string | null;
+  color?: string | null;
+  opacity?: number | null;
+  sortOrder?: number | null;
+  active?: boolean | null;
+}
+
+/**
+ * Một dòng của danh mục báo cáo — dùng chung cho CN-02.10 và CN-04.8.
+ *
+ * ⛔⛔ `khaDung = false` mang **hai nghĩa khác nhau** tuỳ danh mục, và giao diện ⛔ **không** được
+ * trộn chúng thành một nhãn *"chưa có"*:
+ * - CN-04.8 `BCNS-07`: **chưa làm được** (chờ G6) — *sẽ* có.
+ * - CN-02.10 `BC-01..04`: **bỏ vĩnh viễn** (mất nguồn dữ liệu, chốt B1/F1/G2/A1) — *không bao giờ* có.
+ *
+ * ⇒ Câu chữ phân biệt nằm trong `lyDo`, do backend gửi nguyên văn.
+ */
+export interface MucBaoCaoView {
+  ma: string;
+  ten: string;
+  moTa: string;
+  khaDung: boolean;
+  lyDo: string | null;
 }

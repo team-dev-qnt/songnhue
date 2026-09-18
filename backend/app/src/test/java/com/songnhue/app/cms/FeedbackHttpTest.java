@@ -20,17 +20,14 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.app.testsupport.PhienHttp;
+import com.songnhue.app.testsupport.TestHttp;
 import com.songnhue.content.api.PublicPortalController;
 import com.songnhue.core.application.auth.PasswordPolicyService;
 import com.songnhue.core.application.settings.SettingService;
@@ -63,7 +60,7 @@ class FeedbackHttpTest extends IntegrationTestBase {
     private static final String QUAN_TRI = "/api/v1/cms/feedbacks";
 
     @Autowired
-    private TestRestTemplate http;
+    private TestHttp http;
 
     @Autowired
     private UserRepository users;
@@ -450,10 +447,14 @@ class FeedbackHttpTest extends IntegrationTestBase {
         assertThat(guiRaw(than).getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
     }
 
+    /**
+     * ⚠⚠ T61.37 — <b>mỗi lượt gửi là một máy khách</b>. Đường gửi biểu mẫu công khai nay bị kẹp
+     * 10 lượt/giờ mỗi IP; lớp này gửi hơn chục lượt, nên dùng chung một IP là tự nhận {@code 429}
+     * ở những bài ⛔ liên quan gì tới hạn mức (đo được: 12/16 bài đỏ). Đúng hình dạng T60.9 —
+     * ⛔ nới hạn mức trong hồ sơ kiểm thử, vì làm thế là tắt một cơ chế bảo mật thật ngay trong CI.
+     */
     private ResponseEntity<String> guiRaw(String than) {
-        HttpHeaders h = new HttpHeaders();
-        h.setContentType(MediaType.APPLICATION_JSON);
-        return http.postForEntity(GUI, new HttpEntity<>(than, h), String.class);
+        return new PhienHttp(http).dangJson(GUI, than);
     }
 
     private static String oJson(String s) {

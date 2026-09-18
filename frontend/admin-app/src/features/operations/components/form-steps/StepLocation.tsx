@@ -1,9 +1,13 @@
-import { Col, Form, Input, InputNumber, Row } from 'antd';
+import { Col, Form, Input, InputNumber, Row, theme, Typography } from 'antd';
 
+import { DanToaDo } from '@/components/business/DanToaDo';
 import { hopLeLyTrinh } from '../../constructionRules';
 import { LocationPickerMap } from '../LocationPickerMap';
 
 export function StepLocation() {
+  // ⛔ Màu lấy từ `theme.useToken()` — đây là bảng màu AntD, ⛔ màu thương hiệu (T25.23).
+  const { token } = theme.useToken();
+
   const form = Form.useFormInstance();
   const lat = Form.useWatch('latitude', form);
   const lng = Form.useWatch('longitude', form);
@@ -44,6 +48,21 @@ export function StepLocation() {
         <Input.TextArea rows={2} />
       </Form.Item>
 
+      {/* ⭐ WS-46 — BA đường vào cho cùng một cặp số, và đó là chủ ý:
+            · dán chuỗi từ Google Maps  ← đường người vận hành thật sự dùng
+            · trỏ chuột lên bản đồ      ← khi ⛔ không biết toạ độ, chỉ biết chỗ
+            · gõ tay hai ô số            ← khi hiệu đính một chữ số
+          ⛔ Đừng bỏ ô "Dán": trước bản này nó ⛔ không tồn tại, và dán
+             `21.048201, 105.782500` vào ô `InputNumber` cho ra `21` — mất phần
+             thập phân, mất luôn kinh độ, ⛔ không một dòng báo lỗi. */}
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col span={24}>
+          <DanToaDo
+            onChange={(viDo, kinhDo) => form.setFieldsValue({ latitude: viDo, longitude: kinhDo })}
+          />
+        </Col>
+      </Row>
+
       <Row gutter={16} align="middle" style={{ marginBottom: 16 }}>
         <Col span={8}>
           <Form.Item name="latitude" label="Vĩ độ (Latitude)">
@@ -56,13 +75,13 @@ export function StepLocation() {
           </Form.Item>
         </Col>
         <Col span={8}>
-          <span style={{ color: '#595959', fontSize: 13 }}>
-            * Nhấp vào bản đồ để chọn toạ độ tự động
-          </span>
+          <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+            * Hoặc nhấp thẳng lên bản đồ bên dưới
+          </Typography.Text>
         </Col>
       </Row>
 
-      <div style={{ border: '1px solid #d9d9d9', borderRadius: 6, padding: 4 }}>
+      <div style={{ border: `1px solid ${token.colorBorder}`, borderRadius: 6, padding: 4 }}>
         <LocationPickerMap
           latitude={lat}
           longitude={lng}

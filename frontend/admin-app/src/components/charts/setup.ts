@@ -1,4 +1,4 @@
-import { BarChart, GaugeChart, LineChart, PieChart } from 'echarts/charts';
+import { BarChart, GaugeChart, LineChart, PieChart, TreeChart } from 'echarts/charts';
 import {
   DatasetComponent,
   GridComponent,
@@ -7,8 +7,8 @@ import {
   TooltipComponent,
 } from 'echarts/components';
 import * as echarts from 'echarts/core';
-import { CanvasRenderer } from 'echarts/renderers';
-import { echartsTheme, echartsWallTheme } from 'design-tokens';
+import { CanvasRenderer, SVGRenderer } from 'echarts/renderers';
+import { echartsTheme, echartsWallTheme } from '@songnhue/design-tokens';
 
 /**
  * Nạp ECharts theo **kiểu chọn lọc** — T23.3.
@@ -24,23 +24,38 @@ import { echartsTheme, echartsWallTheme } from 'design-tokens';
  * Đó là lý do `BaseChart` có trạng thái rỗng tường minh: một biểu đồ trắng trơn phải là
  * câu "không có dữ liệu", không được là triệu chứng của việc thiếu import.
  *
- * <h3>Bộ vẽ Canvas, không phải SVG</h3>
+ * <h3>Bộ vẽ Canvas cho MÀN HÌNH, SVG chỉ cho lượt KẾT XUẤT</h3>
  *
  * Wall mode 4K vẽ lại toàn bộ biểu đồ mỗi chu kỳ làm mới và chạy liên tục nhiều giờ.
  * Canvas giữ số lượng nút DOM không đổi; SVG sinh một nút cho mỗi phần tử đồ hoạ, và ở
  * độ phân giải đó là hàng nghìn nút phải dựng lại mỗi lượt.
+ *
+ * ⚠⚠ `SVGRenderer` thêm 14/09/2026 cho **CN-04.1 xuất sơ đồ tổ chức** — và nó ⛔ **không**
+ * đổi cách vẽ của một biểu đồ nào đang chạy: `BaseChart` gọi `echarts.init` ⛔ không truyền
+ * `renderer`, nên mặc định vẫn là Canvas. Bộ vẽ SVG chỉ được dùng ở **một** chỗ: một thực
+ * thể tạm, ngoài màn hình, sống đúng một lượt `renderToSVGString()` rồi `dispose()`
+ * (`xuatSoDo.ts`). Ghi ra đây vì câu ở trên trước đó khẳng định kho **không** nạp SVG —
+ * một chú thích nói quá nguy hiểm hơn không có chú thích.
+ *
+ * <h3>`TreeChart` — thêm 14/09/2026 (CN-04.1)</h3>
+ *
+ * Sơ đồ tổ chức là loại biểu đồ thứ năm, và nó đi đúng con đường mà đoạn trên mô tả: **một
+ * dòng import, nhìn thấy được trong diff**. ⚠ Quên dòng ấy thì ECharts ⛔ không ném lỗi —
+ * nó vẽ một khung trắng, đúng thứ `BaseChart.empty` sinh ra để phân biệt.
  */
 echarts.use([
   BarChart,
   LineChart,
   PieChart,
   GaugeChart,
+  TreeChart,
   GridComponent,
   TooltipComponent,
   LegendComponent,
   TitleComponent,
   DatasetComponent,
   CanvasRenderer,
+  SVGRenderer,
 ]);
 
 export const THEME_SANG = 'songnhue';

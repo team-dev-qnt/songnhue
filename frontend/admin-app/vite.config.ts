@@ -69,6 +69,30 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/testsupport/setup.ts'],
     css: false,
+    // ═════════════════════════════════════════════════════════════════════════
+    // ⛔⛔ MÚI GIỜ GHIM — T63.18 (17/09/2026)
+    //
+    //   `NhapTaySoDoModal` bày sẵn mốc đo bằng `dayjs()` TRẦN, tức giờ của MÁY
+    //   đang mở trình duyệt. `shared/format.ts` đã khai từ lâu rằng hệ này phải
+    //   hiển thị UTC+7 bất kể máy, kèm lý do thực địa: *"máy trạm trong đơn vị
+    //   hay bị lệch múi giờ sau khi cài lại Windows"*.
+    //
+    //   Bài kiểm bắt được nó — nhưng CHỈ KHI máy chạy ở múi giờ khác +07. Đo
+    //   được, cả hai chiều, trên cùng một bản phá:
+    //
+    //     TZ=UTC                 ⇒ ĐỎ  `expected '16/09/2026 20:00' to contain '17/09/2026 03:00'`
+    //     TZ=Asia/Ho_Chi_Minh    ⇒ XANH
+    //
+    //   ⇒ Máy của người viết mã đặt đúng múi giờ Việt Nam, nên bộ kiểm ở máy
+    //   **về nguyên tắc** ⛔ thấy được lớp lỗi này; chỉ runner (UTC) thấy. Đó là
+    //   một biến thể MỚI của *"xanh ở máy không phải bằng chứng"*, sau `.env.local`
+    //   và biến build rỗng.
+    //
+    // ⇒ Ghim TZ để lượt chạy ở máy DỰNG LẠI ĐƯỢC điều kiện của runner. Giá trị
+    //   là `UTC` chứ ⛔ phải `Asia/Ho_Chi_Minh`: ghim vào đúng múi giờ của sản
+    //   phẩm thì mọi lỗi "dùng giờ máy" lại vô hình — đúng cái bẫy vừa trả giá.
+    // ═════════════════════════════════════════════════════════════════════════
+    env: { TZ: 'UTC' },
     // ⭐⭐ T11.85 — ngưỡng này TRƯỚC ĐÂY không ai khai, tức mặc định 5000ms của vitest đang
     //    quyết định một cổng kiểm bắt buộc. Đúng luật 3: canh giá trị ĐÃ GIẢI, đừng canh giá
     //    trị MẶC ĐỊNH — mặc định là thứ của người khác, đổi theo bản nâng cấp và không ai báo.

@@ -1,6 +1,17 @@
-import { PlusOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { App, Button, Card, Empty, Space, Statistic, Tag, Timeline, Typography } from 'antd';
+import {
+  App,
+  Button,
+  Card,
+  Empty,
+  Popconfirm,
+  Space,
+  Statistic,
+  Tag,
+  Timeline,
+  Typography,
+} from 'antd';
 import dayjs from 'dayjs';
 import { useState } from 'react';
 
@@ -14,8 +25,9 @@ import {
   type MaintenanceRow,
 } from '@/shared/api-types';
 import { ApiClientError, api } from '@/shared/apiClient';
-import { formatInvestment } from '@/shared/format';
+import { bayGio, formatInvestment } from '@/shared/format';
 
+import { MaintenanceAttachmentsPanel } from './MaintenanceAttachmentsPanel';
 import { MaintenanceFormModal } from './MaintenanceFormModal';
 
 /**
@@ -39,6 +51,7 @@ export function ConstructionMaintenancePanel({
   const queryClient = useQueryClient();
   const [formOpen, setFormOpen] = useState(false);
   const [dangChon, setDangChon] = useState<string | null>(null);
+  const [dangSua, setDangSua] = useState<MaintenanceRow | null>(null);
 
   const queryKey = ['ops', 'maintenance-logs', constructionPublicId];
 
@@ -74,7 +87,9 @@ export function ConstructionMaintenancePanel({
         action: input.action,
         // Ngày hoàn thành để backend tự quyết: chuyển sang "Đã xử lý" mà thiếu ngày thì OPS-2004,
         // và người dùng đang đứng ở màn hình lịch sử chứ không phải biểu mẫu nhập.
-        completedOn: dayjs().format('YYYY-MM-DD'),
+        // ⛔ `dayjs()` trần — xem T63.18: `.format('YYYY-MM-DD')` trên giờ MÁY lệch cả ngày
+        // quanh nửa đêm, và ngày hoàn thành là thứ đi vào hồ sơ công trình.
+        completedOn: bayGio().format('YYYY-MM-DD'),
       }),
     onSuccess: () => {
       message.success('Đã chuyển trạng thái bản ghi');
@@ -90,7 +105,27 @@ export function ConstructionMaintenancePanel({
       ),
   });
 
+  // T61.19 — `DELETE` có 0 nơi gọi trước đây; bản ghi nhập nhầm vẫn đẩy trạng thái công trình (quy tắc 4).
+  const xoaBanGhi = useMutation({
+    mutationFn: (publicId: string) => api.delete<void>(`/ops/maintenance-logs/${publicId}`),
+    onSuccess: () => {
+      message.success('Đã xoá bản ghi');
+      setDangChon(null);
+      lamMoiSauKhiLuu();
+    },
+    onError: (caught: unknown) =>
+      message.error(caught instanceof ApiClientError ? caught.message : 'Không xoá được bản ghi'),
+  });
+
   const banGhi = trang?.items ?? [];
+
+  function lamMoiSauKhiLuu() {
+    // ⚠ Tiền tố `['ops','maintenance-logs']`, ⛔ `queryKey` của danh sách: khoá tổng chi phí là
+    //   `[…, 'cost-summary', id]` nên ⛔ khớp tiền tố `[…, id]` — bản trước ghi một khoản chi phí mới
+    //   mà ô "Tổng chi phí đã ghi nhận" đứng yên tới lượt F5.
+    void queryClient.invalidateQueries({ queryKey: ['ops', 'maintenance-logs'] });
+    void queryClient.invalidateQueries({ queryKey: ['ops', 'constructions'] });
+  }
 
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="middle">
@@ -155,6 +190,36 @@ export function ConstructionMaintenancePanel({
 
                   {dangChon === row.id && chiTiet && (
                     <div style={{ marginTop: 8 }} onClick={(e) => e.stopPropagation()}>
+                      {/* T61.18 — trước đây `PUT` có 0 nơi gọi: sai một con số chi phí chỉ còn đường
+                          xoá rồi ghi lại. Cửa sổ tác giả tự sửa (T18.9) ⛔ hiện nút vì giao diện ⛔ biết
+                          ai tạo bản ghi — backend vẫn nhận nếu có ai gọi. */}
+                      <Space wrap style={{ marginBottom: 8 }}>
+                        {hasPermission('ops:maintenance:update') && (
+                          <Button
+                            size="small"
+                            icon={<EditOutlined />}
+                            onClick={() => setDangSua(row)}
+                          >
+                            Sửa bản ghi
+                          </Button>
+                        )}
+                        {hasPermission('ops:maintenance:delete') && (
+                          <Popconfirm
+                            title={`Xoá bản ghi ${row.code}?`}
+                            description="Xoá mềm, vẫn truy vết trong nhật ký. Trạng thái công trình được tính lại ngay."
+                            onConfirm={() => xoaBanGhi.mutate(row.id)}
+                          >
+                            <Button
+                              size="small"
+                              danger
+                              icon={<DeleteOutlined />}
+                              loading={xoaBanGhi.isPending}
+                            >
+                              Xoá bản ghi
+                            </Button>
+                          </Popconfirm>
+                        )}
+                      </Space>
                       <ApprovalActions
                         actions={chiTiet.actions}
                         disabled={bamNut.isPending}
@@ -162,6 +227,9 @@ export function ConstructionMaintenancePanel({
                           await bamNut.mutateAsync({ publicId: row.id, action });
                         }}
                       />
+                      <div style={{ marginTop: 12 }}>
+                        <MaintenanceAttachmentsPanel logId={row.id} />
+                      </div>
                     </div>
                   )}
                 </Space>
@@ -175,11 +243,18 @@ export function ConstructionMaintenancePanel({
         constructionPublicId={constructionPublicId}
         open={formOpen}
         onClose={() => setFormOpen(false)}
-        onSaved={() => {
-          void queryClient.invalidateQueries({ queryKey });
-          void queryClient.invalidateQueries({ queryKey: ['ops', 'constructions'] });
-        }}
+        onSaved={lamMoiSauKhiLuu}
       />
+      {dangSua && (
+        <MaintenanceFormModal
+          key={dangSua.id}
+          constructionPublicId={constructionPublicId}
+          banGhi={dangSua}
+          open
+          onClose={() => setDangSua(null)}
+          onSaved={lamMoiSauKhiLuu}
+        />
+      )}
     </Space>
   );
 }

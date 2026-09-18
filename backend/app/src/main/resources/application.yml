@@ -74,6 +74,12 @@ spring:
 
   # Máy chủ thư — kênh thông báo thứ hai sau in-app (T6.6, chốt B7 bỏ SMS ở v1).
   # Local trỏ vào Mailpit: thư không đi ra ngoài, xem ở http://localhost:18025.
+  # ⛔⛔ Sửa 10/09/2026 (T50.9): câu dưới đây SAI suốt từ WS-6. `${SMTP_HOST:}` mặc định là
+  # chuỗi RỖNG nên thuộc tính LUÔN có mặt ⇒ `@ConditionalOnProperty` luôn khớp ⇒ bean vẫn
+  # được tạo và Spring đâm vào `localhost:587`. Đo staging: EMAIL 154 FAILED / 0 SENT.
+  # Nay `MailConfig` hỏi chuỗi RỖNG, ⛔ không hỏi sự VẮNG MẶT (luật 3).
+  # ⚠ `MailSenderAutoConfiguration` của Boot vẫn dính bẫy ấy nên `MailHealthIndicator` vẫn
+  # đỏ — muốn sạch hẳn thì đặt SMTP_HOST thật, hoặc bỏ hẳn biến khỏi môi trường.
   # Thiếu SMTP_HOST thì bean JavaMailSender không được tạo và job gửi đánh dấu
   # SKIPPED — hệ thống vẫn chạy, thông báo trên giao diện vẫn tới nơi.
   mail:
@@ -112,8 +118,28 @@ spring:
     # Timestamp luôn là UTC ở tầng lưu trữ/API; convert UTC+7 chỉ ở tầng hiển thị
     # (CLAUDE.md quy tắc 1)
     time-zone: UTC
-    serialization:
-      write-dates-as-timestamps: false
+    # ⛔⛔ ĐƯỜNG DẪN KHOÁ ĐỔI Ở BOOT 4 (T11.69) — trước là `serialization.write-dates-as-timestamps`.
+    #
+    # Jackson 3 dời `WRITE_DATES_AS_TIMESTAMPS` khỏi `SerializationFeature` sang
+    # `tools.jackson.databind.cfg.DateTimeFeature`, và Boot ánh xạ nhóm ấy vào
+    # `spring.jackson.datatype.datetime.*`. Đọc từ `spring-configuration-metadata.json`
+    # của `spring-boot-jackson-4.1.1.jar`, ⛔ không đoán theo tài liệu.
+    #
+    # ⚠ Để nguyên khoá CŨ thì ứng dụng **⛔ không khởi động được** (đã đo: ConversionFailedException
+    #   lúc bind `JacksonProperties`) — hỏng ồn ào, đó là điều may.
+    #
+    # ⚠⚠ Còn dòng dưới đây thì **KHÔNG** gánh hành vi: đo trực tiếp trên jar 3.1.5,
+    #   `DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS.enabledByDefault()` = **false** — Jackson 3 đã
+    #   đảo mặc định so với Jackson 2. Gỡ dòng này đi thì ngày **vẫn** ra ISO.
+    #   (Bản nháp chú thích này khẳng định ngược lại; lượt kiểm chứng ngược bác bỏ nó — luật 29.)
+    #
+    #   ⇒ Giữ lại vì đây là **giá trị ĐÃ GIẢI, ⛔ không phải giá trị MẶC ĐỊNH** (luật 3): quy tắc 1
+    #   của dự án buộc mọi timestamp ra dây là ISO-8601 UTC, và một cam kết ⛔ không được phép treo
+    #   vào mặc định của thư viện bên thứ ba — thứ vừa đổi đúng một lần ở lượt di trú này.
+    #   Bộ canh: `DinhDangNgayTrenDayTest` (kiểm chứng ngược: đặt `true` ⇒ đỏ, in ra số epoch).
+    datatype:
+      datetime:
+        write-dates-as-timestamps: false
 
   # ── Trần dung lượng lúc PHÂN TÍCH multipart ───────────────────────────────────────────────
   #
@@ -259,6 +285,9 @@ app:
     # Địa chỉ người gửi thư. Phải là miền mà máy chủ SMTP cho phép gửi thay mặt,
     # nên thuộc cấu hình môi trường chứ không phải tham số Admin sửa được.
     from: ${SMTP_FROM}
+    # T61.23 — CHỈ staging: mọi thư đi về một địa chỉ, tiêu đề mang người nhận gốc.
+    # Đặt trên production ⇒ ứng dụng DỪNG khởi động (MailConfig).
+    redirect-to: ${MAIL_REDIRECT_TO:}
 
   bootstrap:
     # Chỉ đặt ở lần dựng môi trường ĐẦU TIÊN rồi gỡ đi (WS-5 / T5.7).
@@ -315,9 +344,16 @@ app:
 #
 # ⛔ Đừng chuyển hai đường dẫn dưới vào dưới `/api/` mà không đọc snippet ấy trước.
 springdoc:
+  # ⛔⛔ T61.40 (ASVS 14.2.2) — TẮT theo mặc định, bật lại ở `application-local.yml`.
+  #   Trước bản vá, thứ duy nhất giữ bản đồ API khỏi Internet là một `include` trong cấu hình nginx
+  #   (`chan-tai-lieu-api.conf`). Một `server{}` mới quên dòng include ấy — hoặc một front-end khác
+  #   đứng trước — là phát nguyên danh mục endpoint ra ngoài, và ứng dụng sẽ vui vẻ phục vụ.
+  #   Hai lớp: biên chặn, và ứng dụng ⛔ có gì để chặn.
   api-docs:
+    enabled: ${SWAGGER_ENABLED:false}
     path: /v3/api-docs
   swagger-ui:
+    enabled: ${SWAGGER_ENABLED:false}
     path: /swagger-ui.html
     display-request-duration: true
 

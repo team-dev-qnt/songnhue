@@ -13,24 +13,24 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.app.testsupport.PhienHttp;
+import com.songnhue.app.testsupport.TestHttp;
 import com.songnhue.core.application.auth.PasswordPolicyService;
 import com.songnhue.core.infra.identity.UserRepository;
 import com.songnhue.core.spi.JobContext;
 import com.songnhue.hydro.application.ApiSourceService;
 import com.songnhue.hydro.application.HydroJobTypes;
 import com.songnhue.hydro.application.HydroPollJobHandler;
+
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * ⭐⭐ <b>Gọi thử</b> nguồn đi qua HTTP — WS-30, lượt đi <b>trọn vòng</b> đầu tiên của adapter.
@@ -79,7 +79,7 @@ class TelemetryProbeHttpTest extends IntegrationTestBase {
     private static final String VAI_TRO_TAM = "KIEMTRA_GOI_THU";
 
     @Autowired
-    private TestRestTemplate http;
+    private TestHttp http;
 
     @Autowired
     private UserRepository users;
@@ -321,7 +321,8 @@ class TelemetryProbeHttpTest extends IntegrationTestBase {
 
         JsonNode than = doc(goiThu(quanTri, nguon)).path("data");
         List<String> truong = new ArrayList<>();
-        than.fieldNames().forEachRemaining(truong::add);
+        // Jackson 3: fieldNames() → propertyNames(), trả Collection chứ ⛔ không phải Iterator.
+        truong.addAll(than.propertyNames());
 
         // ⚠ Envelope bỏ hẳn trường null, nên đây là tập trường CÓ MẶT ở một lượt THÀNH CÔNG. Danh
         //   sách này phải trùng khít `KetQuaDongBo` trong `frontend/admin-app/src/shared/api-types.ts`

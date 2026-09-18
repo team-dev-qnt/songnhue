@@ -91,7 +91,7 @@ class PublicOrgDirectoryServiceTest {
     @Test
     @DisplayName("Dựng cây lồng nhau từ danh sách phẳng, và ĐƠN VỊ ĐÃ TẮT không ra cổng")
     void soDoToChucLocDonViTat() {
-        when(orgUnits.findAllByDeletedAtIsNullOrderByPathAscSortOrderAsc())
+        when(orgUnits.findAllForDisplay())
                 .thenReturn(List.of(
                         donVi(1L, "CT", "Công ty", OrgUnitType.CONG_TY, "/1/", true),
                         donVi(2L, "P-KT", "Phòng Kỹ thuật", OrgUnitType.PHONG_BAN, "/1/2/", true),
@@ -112,7 +112,7 @@ class PublicOrgDirectoryServiceTest {
     @Test
     @DisplayName("Chưa nhập cơ cấu tổ chức thì trả rỗng — org_units cố ý không seed")
     void soDoToChucRong() {
-        when(orgUnits.findAllByDeletedAtIsNullOrderByPathAscSortOrderAsc()).thenReturn(List.of());
+        when(orgUnits.findAllForDisplay()).thenReturn(List.of());
 
         assertThat(service.orgChart()).isEmpty();
     }
@@ -152,7 +152,7 @@ class PublicOrgDirectoryServiceTest {
         xnA.setAddress("Phường Hà Đông");
         xnA.setPhone("(024) 3222 2222");
         xnA.setEmail("xna@example.test");
-        when(orgUnits.findAllByDeletedAtIsNullOrderByPathAscSortOrderAsc())
+        when(orgUnits.findAllForDisplay())
                 .thenReturn(List.of(
                         donVi(1L, "CT", "Công ty", OrgUnitType.CONG_TY, "/1/", true),
                         donVi(2L, "P-KT", "Phòng Kỹ thuật", OrgUnitType.PHONG_BAN, "/1/2/", true),
@@ -192,7 +192,7 @@ class PublicOrgDirectoryServiceTest {
     @Test
     @DisplayName("Chưa có Xí nghiệp nào thì trả rỗng và KHÔNG hỏi bảng danh bạ")
     void chuaCoXiNghiepNao() {
-        when(orgUnits.findAllByDeletedAtIsNullOrderByPathAscSortOrderAsc())
+        when(orgUnits.findAllForDisplay())
                 .thenReturn(List.of(donVi(1L, "CT", "Công ty", OrgUnitType.CONG_TY, "/1/", true)));
 
         assertThat(service.subsidiaries()).isEmpty();

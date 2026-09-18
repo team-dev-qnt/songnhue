@@ -164,7 +164,8 @@ class StationScopeTest extends IntegrationTestBase {
                 Set.of(),
                 false,
                 UUID.randomUUID(),
-                UUID.randomUUID());
+                UUID.randomUUID(),
+                null);
     }
 
     private void insertStation(String code, String apiCode, Long orgUnitId) {

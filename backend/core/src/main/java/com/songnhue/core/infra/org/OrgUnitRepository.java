@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import com.songnhue.core.common.tree.MaterializedPath;
 import com.songnhue.core.domain.org.OrgUnit;
 
 @Repository
@@ -22,7 +23,19 @@ public interface OrgUnitRepository extends JpaRepository<OrgUnit, Long> {
 
     boolean existsByCodeAndDeletedAtIsNull(String code);
 
-    List<OrgUnit> findAllByDeletedAtIsNullOrderByPathAscSortOrderAsc();
+    List<OrgUnit> findAllByDeletedAtIsNullOrderByPathAsc();
+
+    /**
+     * Thứ tự <b>hiển thị</b>: cha trước con, anh em theo {@code sort_order} — T26.25.
+     *
+     * <p>Đặt phép sắp ở đây chứ không ở từng nơi gọi (quy tắc 12). Xem
+     * {@link MaterializedPath#sortForDisplay} để biết vì sao {@code ORDER BY path, sort_order} của
+     * SQL không bao giờ so tới {@code sort_order}.
+     */
+    default List<OrgUnit> findAllForDisplay() {
+        return MaterializedPath.sortForDisplay(
+                findAllByDeletedAtIsNullOrderByPathAsc(), OrgUnit::getPath, OrgUnit::getSortOrder);
+    }
 
     /** Đơn vị gốc — dùng khi cần path gốc mà chưa biết id. */
     Optional<OrgUnit> findFirstByParentIdIsNullAndDeletedAtIsNull();

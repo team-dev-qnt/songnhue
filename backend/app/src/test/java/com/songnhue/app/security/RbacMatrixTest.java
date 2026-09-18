@@ -32,8 +32,45 @@ import com.songnhue.core.common.security.RequirePermission;
  * ô; dựng phiên đăng nhập cho từng vai trò rồi gọi từng endpoint sẽ mất hàng phút mỗi lần chạy CI, và
  * một bài kiểm chậm là một bài kiểm sớm muộn bị bỏ qua. Cơ chế chặn (tầng 2) đã có
  * {@code PermissionInterceptorTest} và {@code DenyByDefaultTest} lo; cái còn thiếu là <b>bản thân
- * ma trận</b> — 334 dòng phân quyền dịch tay từ {@code function-spec.md} §6, nơi mỗi lỗi gõ đều im
- * lặng.
+ * ma trận</b> — hàng trăm dòng phân quyền dịch tay từ {@code function-spec.md} §6, nơi mỗi lỗi gõ
+ * đều im lặng.
+ *
+ * <h2>⛔⛔ Bài kiểm này canh BẤT BIẾN, ⛔ KHÔNG đối chiếu từng dòng — đọc nhầm chỗ này là nguy hiểm</h2>
+ *
+ * <p>Trước T27.31 (08/09/2026) có <b>ba</b> nơi trong kho khẳng định bài này *"đối chiếu lại từng
+ * dòng"* của ma trận, kèm con số <b>334</b> ghi cứng trong văn xuôi: javadoc ở đây, javadoc
+ * {@code RolesPage.tsx}, và một dòng trong sổ. Cả ba đều <b>sai</b>. Thứ duy nhất chạm tới số lượng
+ * là {@link #matrixIsNotDegenerate()}, và nó khẳng định một <b>SÀN</b> — {@code >= 300} — chứ ⛔
+ * không phải một con số chính xác; mục đích của nó là chặn kiểu hỏng tệ nhất (<i>seed ⛔ không chạy,
+ * mọi bài ở trên xanh trên bảng rỗng</i>), ⛔ không phải khoá ma trận lại.
+ *
+ * <p>Sai lệch ấy ⛔ không vô hại: nó chính là lý do màn hình Vai trò & phân quyền bị để <b>chỉ
+ * xem</b> suốt Phase 0–1 — <i>"mở cho sửa là để một thao tác nhấp chuột phá vỡ thứ mà cả một bộ
+ * kiểm thử đang canh"</i>. Bộ kiểm thử ⛔ không canh thứ ấy, và ⛔ chưa từng canh. Một quyết định
+ * thiết kế đứng trên một lời mô tả sai về một bài kiểm.
+ *
+ * <p>⇒ Sửa ma trận từ giao diện ⛔ <b>không</b> làm bài nào ở đây đỏ, miễn là bốn bất biến còn đúng
+ * (xem {@code UserAdminService#replacePermissionsOfRole}). Đó là thiết kế, ⛔ không phải lỗ hổng:
+ * bài kiểm canh <i>hình dạng hợp lệ</i> của ma trận, còn <i>nội dung</i> ma trận là quyết định của
+ * Công ty và phải đổi được ⛔ không cần deploy (quy tắc 16).
+ *
+ * <h2>⚠⚠ PHẠM VI CỦA BỘ CANH NÀY — hẹp đi kể từ T27.31 (luật 28)</h2>
+ *
+ * <p>Sáu bất biến dưới đây chạy trong CI trên một CSDL <b>vừa migrate xong</b>. Chúng canh
+ * <b>SEED</b>, ⛔ <b>không</b> canh ma trận đang chạy trên production. Trước T27.31 hai thứ ấy là
+ * một — ma trận chỉ đổi được bằng migration, nên seed <i>chính là</i> trạng thái runtime. Nay ⛔
+ * không còn: một người quản trị bấm chuột là hai thứ tách nhau, và ⛔ không lượt chạy CI nào nhìn
+ * thấy trạng thái sau cú bấm ấy.
+ *
+ * <p>⛔ Khoảng trống ấy là <b>có chủ đích</b>, ⛔ không phải sót. Ba trong sáu bất biến ở đây
+ * (<i>mọi quyền phải gán cho ≥1 vai trò</i> · <i>mọi endpoint phải có vai trò gọi được</i> · <i>vai
+ * trò ⛔ không được rỗng quyền</i>) là tiêu chuẩn <b>chất lượng của một bản seed</b>, ⛔ không phải
+ * ràng buộc an toàn. Ép chúng lúc chạy sẽ cấm Công ty làm một việc hoàn toàn hợp lệ: <i>tắt hẳn một
+ * chức năng bằng cách gỡ quyền của nó khỏi mọi vai trò</i>. Bốn bất biến ép ở service là bốn thứ
+ * <b>thật sự ⛔ không quay lui được</b> — khác hẳn về loại.
+ *
+ * <p>⇒ Cái xanh của lớp này nói: <i>"bản seed trong kho hợp lệ"</i>. Nó ⛔ <b>không</b> nói
+ * <i>"ma trận trên production hợp lệ"</i>. Ai cần câu thứ hai thì phải đo trên máy thật.
  *
  * <p><b>Bốn kiểu sai của ma trận, và không kiểu nào tự báo:</b>
  *
@@ -82,10 +119,10 @@ class RbacMatrixTest extends IntegrationTestBase {
      * phải bị gỡ khỏi đây, không được nằm lại.
      */
     private static final Set<String> QUYEN_PHASE_SAU = Set.of(
-            "ops:gis-layer:manage", // Tầng GIS — Phase 3
-            "ops:gis-layer:view", // Xem tầng GIS — Phase 3
-            "ops:report:export", // Kết xuất báo cáo — Phase 3
-            "ops:report:view", // Xem báo cáo — Phase 3
+            // ⬇ WS-59 đã GỠ BỐN dòng: `ops:gis-layer:view`/`:manage` (`GisLayerController`) và
+            //   `ops:report:view`/`:export` (`BaoCaoVanHanhController`). Đây là **bốn dòng miễn
+            //   kiểm *Phase 3* CUỐI CÙNG** của kho — sau lượt này, mọi mã quyền trong danh mục đều
+            //   có ít nhất một đầu nhận. ⛔ Đừng thêm lại cho hết đỏ.
             // ⬇ WS-28 đã GỠ ba dòng khỏi danh sách này: `hyd:station:view`,
             //   `hyd:station:manage`, `hyd:api-source:manage`. Danh mục điểm đo / loại chỉ số /
             //   nguồn dữ liệu đã có endpoint thật, nên chúng không còn là "quyền chờ Phase sau".
@@ -113,19 +150,32 @@ class RbacMatrixTest extends IntegrationTestBase {
             //   ma trận seed thì XN_OPERATOR và DUTY_OFFICER chỉ có `:view` — họ đọc được báo cáo
             //   trên màn hình nhưng ⛔ không mang được nó ra ngoài, và đó là quyết định của Công ty
             //   chứ ⛔ không phải một chi tiết kỹ thuật.
-            "hr:employee:create", // Nhân sự — Phase 2
-            "hr:employee:view", // Nhân sự — Phase 2
-            "hr:employee:view-sensitive", // Nhân sự — Phase 2
-            "hr:employee:update", // Nhân sự — Phase 2
-            "hr:employee:delete", // Nhân sự — Phase 2
-            "hr:contract:manage", // Hợp đồng — Phase 2
-            "hr:leave:request", // Phép — Phase 2
-            "hr:leave:approve", // Duyệt phép — Phase 2
-            "hr:leave:view-all", // Xem phép — Phase 2
-            "hr:org-chart:view", // Sơ đồ tổ chức — Phase 2
-            "hr:directory:view", // Danh bạ — Phase 2
-            "hr:report:view", // Báo cáo HR — Phase 2
-            "hr:report:export", // Xuất báo cáo HR — Phase 2
+            // ⬇ WS-51 đã GỠ NĂM dòng khỏi danh sách này — dòng mã HRM đầu tiên (10/09/2026):
+            //   `hr:employee:view` · `:create` · `:update` · `:delete` gác `EmployeeController` và
+            //   `PositionController`; `hr:employee:view-sensitive` gác `EmployeeSensitiveController`
+            //   (đường RIÊNG cho CCCD/lương/tài khoản/MST/BHXH — ⛔ không phải một nhánh `if` bên
+            //   trong endpoint chi tiết). ⛔ Đừng thêm lại cho hết đỏ — bài
+            //   `ngoaiLeQuyenPhaseSauVanConDung()` canh đúng chiều này.
+            //   ⚠ `hr:employee:view` cố ý cũng gác đường ĐỌC danh mục chức vụ: ô "Chức vụ" của biểu
+            //   mẫu hồ sơ nạp bằng endpoint ấy, và bắt nó sau một quyền khác là tái lập đúng sự cố
+            //   WS-28 — danh sách vĩnh viễn rỗng ⇒ ⛔ không tạo nổi một hồ sơ đầy đủ nào.
+            // ⬇ WS-57 đã GỠ BỐN dòng: `hr:contract:manage` (gác đường ghi danh mục ngày lễ —
+            //   `NgayLeController`), và `hr:leave:request` / `:approve` / `:view-all`
+            //   (`NghiPhepController` + `workflow_transitions` của quy trình LEAVE_REQUEST).
+            //   ⭐ Bài này bắt được lượt gỡ NGAY khi endpoint đầu tiên ra đời — lần thứ MƯỜI một bộ
+            //   canh của dự án bắt chính người vừa viết mã. ⛔ Đừng thêm lại cho hết đỏ.
+            // ⬇ WS-58 đã GỠ `hr:org-chart:view`: `SoDoToChucController` gác bằng đúng quyền ấy.
+            //   Nó là mã quyền seed từ 13/08/2026 với **0 endpoint** suốt 32 ngày — lần thứ HAI
+            //   trong bốn ngày một dòng miễn trừ *"Phase 3"* hết lý do tồn tại đúng lúc endpoint
+            //   đầu tiên ra đời. ⛔ Đừng thêm lại cho hết đỏ.
+            // ⬇ WS-55 đã GỠ `hr:directory:view`: `DanhBaController` gác bằng đúng quyền ấy ở cả
+            //   hai endpoint (danh sách · chi tiết). Nó là mã quyền seed từ 13/08/2026 với **0
+            //   endpoint** suốt 28 ngày, và bài `ngoaiLeQuyenPhaseSauVanConDung()` bắt được lượt
+            //   gỡ này NGAY khi endpoint đầu tiên ra đời — ⛔ đừng thêm lại cho hết đỏ.
+            // ⬇ WS-58 đã GỠ `hr:report:view` và `hr:report:export`: `BaoCaoNhanSuController` gác
+            //   bằng đúng hai quyền ấy — `:view` cho KPI/biểu đồ/danh mục, `:export` cho đường tải
+            //   tệp. ⛔ Đừng gộp chúng: **xem** số tổng hợp và **mang cả danh sách cán bộ ra khỏi
+            //   hệ thống** là hai việc khác nhau, và đặc tả đã tách sẵn.
             // ⬇ WS-36/T36.8 đã GỠ `cms:feedback:manage`: `FeedbackController` (danh sách · tổng
             //   hợp · bước chuyển · xoá) gác bằng đúng quyền ấy, VÀ năm bước chuyển của quy trình
             //   FEEDBACK khai nó ở `workflow_transitions.required_permission`. ⛔ Đừng thêm lại cho
@@ -133,11 +183,21 @@ class RbacMatrixTest extends IntegrationTestBase {
             "cms:external-doc:view", // CMS — Phase 2
             "cms:external-doc:link", // CMS — Phase 2
             "cms:external-doc:manage-flag", // CMS — Phase 2
-            "adm:user:reset-password", // Admin — Phase 2
             "adm:session:view", // Admin — Phase 2
             "adm:session:revoke", // Admin — Phase 2
-            "adm:security-event:view", // Admin — Phase 2
-            "adm:role:manage" // Admin — Phase 2
+            "adm:security-event:view" // Admin — Phase 2
+            // ⬇ T27.31 đã GỠ `adm:role:manage`: `PUT /admin/users/roles/{roleCode}/permissions` gác
+            //   bằng đúng quyền ấy, và màn hình Vai trò & phân quyền nay sửa được (CN-05.2).
+            //   ⛔ Đừng thêm lại cho hết đỏ — bài `ngoaiLeQuyenPhaseSauVanConDung()` canh đúng chiều
+            //   này, và chính nó là thứ ÉP lượt gỡ này xảy ra: quyền vừa có endpoint thật là bài ấy
+            //   đỏ ngay, ⛔ không cần ai nhớ ra phải gỡ.
+            // ⭐ Trước T27.31 quyền này có ĐÚNG 1 lượt xuất hiện trong MÃ NGUỒN — chính dòng miễn
+            //   kiểm ở đây. Một quyền mà nơi duy nhất nhắc tới nó là danh sách "miễn kiểm nó" thì
+            //   ⛔ không bộ canh nào còn đứng sau nó.
+            // ⚠ Đo lần đầu ghi "1 lượt trong TOÀN KHO" và con số ấy SAI: `git grep` cho **3 lượt ở
+            //   2 tệp** — hai lượt kia ở `.claude/master-tracking.md`, nơi mâu thuẫn ba chiều đã
+            //   được ghi sẵn. `rg` mặc định BỎ QUA thư mục ẩn, mà `.claude/` chính là chỗ dự án này
+            //   để nguồn sự thật. Một phép đếm hụt vẫn đọc như một phép đếm (§10.75).
             );
 
     @Autowired

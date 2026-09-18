@@ -36,9 +36,10 @@ Quy tắc:
 - Cột chuẩn mọi bảng nghiệp vụ (BaseEntity): `created_at timestamptz`, `created_by`, `updated_at`, `updated_by`, `deleted_at` (soft delete), `version int` (optimistic lock).
 - FK: `<bảng_số_ít>_id` (`org_unit_id`); index: `ix_<bảng>_<cột>`; unique: `uq_<bảng>_<cột>`; check: `ck_<bảng>_<rule>`.
 - Enum nghiệp vụ: lưu `VARCHAR` + CHECK constraint (không dùng Postgres enum type — khó migrate).
-- Migration Flyway: `V<yyyyMMdd><nnnn>__<module>_<mô_tả>.sql` (VD `V202608311049__hyd_danh_muc_diem_do.sql`). ⛔⛔ **`<nnnn>` là SỐ THỨ TỰ CHẠY TIẾP TOÀN KHO, KHÔNG PHẢI GIỜ-PHÚT** — chuỗi `1046 → 1047 → 1048 → …` xuyên suốt cả kho, không đếm lại theo ngày; số mới phải **lớn hơn mọi số đã có**, kể cả số của một tệp mang ngày lớn hơn hôm nay. Cấm sửa migration đã merge — chỉ thêm mới (⚠ Flyway băm **cả tệp**, nên sửa một dòng CHÚ THÍCH cũng làm app không khởi động được — §10.65). Prefix `<module>`: `core`/`cms`/`ops`/`hyd`/`hr`.
+- Migration Flyway: `V<yyyyMMdd><nnnn>__<module>_<mô_tả>.sql` (VD `V202608311049__hyd_danh_muc_diem_do.sql`). ⛔⛔ **`<nnnn>` là SỐ THỨ TỰ CHẠY TIẾP TOÀN KHO, KHÔNG PHẢI GIỜ-PHÚT** — chuỗi `1046 → 1047 → 1048 → …` xuyên suốt cả kho, không đếm lại theo ngày; số mới phải **lớn hơn mọi số đã có**, kể cả số của một tệp mang ngày lớn hơn hôm nay. Cấm sửa migration đã merge — chỉ thêm mới (⚠ Flyway băm **cả tệp**, nên sửa một dòng CHÚ THÍCH cũng làm app không khởi động được — §10.65). Prefix `<module>`: `core`/`cms`/`ops`/`hyd`/`hr` — **và `seed`** cho tệp ở `db/seed/<bộ>/` (xem gạch đầu dòng *Vị trí migration* ngay dưới).
   > ⚠ Dòng này từng ghi `V<yyyyMMddHHmm>`. Hai cách viết **chỉ khác nhau ở đúng chỗ không ai nhìn** — thứ tự sắp xếp. Ngày 27/08/2026 hai migration đánh số bằng giờ-phút (`202608272320`) rơi xuống *dưới* ba migration mang ngày 28 đã áp trên staging ⇒ out-of-order ⇒ **hai lượt CD đỏ liên tiếp**, và cùng lỗi ấy làm một câu seed `UPDATE` chạm **0 hàng, không lỗi, không log** (§10.66). Bộ canh: `backend/tools/kiem-thu-tu-migration.sh` (bước 2/10 của `make ci-local` + job CI *Thứ tự migration*); chạy `make migration-order` trước mỗi PR có migration.
 - **Vị trí migration**: mỗi module tự quản trong `src/main/resources/db/migration/<prefix>/`; module `app` gộp lại qua `spring.flyway.locations=classpath:db/migration/core,…/cms,…/ops,…/hyd,…/hr`. Version là một dãy số **tăng dần toàn cục** (không phải timestamp) nên thứ tự vẫn đúng khi trộn nhiều module.
+  > ⛔⛔ **`db/seed/<bộ>/` cũng là một vị trí Flyway thật** — staging đặt `SEED_LOCATION=classpath:db/seed/portal`, và nó dùng **CHUNG** `flyway_schema_history` + **CHUNG** không gian số hiệu với `db/migration`. ⇒ Tệp seed phải theo **đúng** dãy `nnnn` tăng dần toàn kho. Ngày 10/09/2026 tìm ra `V202608251100__seed_portal_content.sql` — `nnnn = 1100` tức **11:00**, nạn nhân **thứ ba** của §10.66 — nằm im 16 ngày vì `MigrationNamingTest` chỉ quét `db/migration/<prefix>` (T47.20, luật 28). Nay bộ canh **tự đo** phạm vi: nó liệt kê mọi `<module>/src/main/resources/db` thay vì nhận danh sách người viết gõ tay.
 - **Cấu hình Flyway bắt buộc**: `cleanDisabled=true` (chặn `flyway clean` xóa sạch production do lỡ tay) · `validateOnMigrate=true` · `outOfOrder=false`.
 - **Production/Staging chạy migration ở service `migrator` riêng** trước khi app khởi động; app chạy với `flyway.enabled=false` → migration hỏng thì app không lên nửa vời (`architecture-review.md` §9.2).
 - **Phân quyền DB theo role, không chỉ theo code**: `songnhue_owner` (chỉ migrator) · `songnhue_app` (**không có DELETE** trên `audit_logs`, `security_events`, `hydro_raw_logs`) · `songnhue_archiver` (DELETE audit, chỉ job kết xuất) · `songnhue_readonly`. Xem §4.3. Role tạo ở `deploy/postgres/init/10-bootstrap.sh` (cần superuser); GRANT ở migration.
@@ -101,6 +102,12 @@ admin-app/src/
 - ⚠⚠ **Bộ chọn không khớp gì thì bộ test xanh trọn vẹn trên TẬP RỖNG** — luật 7 ở dạng cụ thể nhất. `-Dtest='A+B'` sai cú pháp surefire (phải là dấu phẩy) nên chỉ một lớp chạy, Maven vẫn thoát `0`, và **không có gì trong output nói điều đó**. Cách rẻ nhất: đếm thứ ĐÃ SINH RA — `ls target/surefire-reports/*<Tên>*.txt | wc -l` phải bằng số lớp mong đợi.
 - ⚠ **Lời khuyên chữa lỗi in ra từ một bộ canh cũng là mã — phải đối chiếu với cấu hình ĐANG CHẠY.** Bản đầu của `kiem-goc-chung.sh` khuyên `merge -s ours` rồi mở PR vào `dev`; `dev` đặt `required_linear_history: true` nên đường ấy **bất khả**. Lỗi ở thứ tự: viết lời khuyên trước, đọc `branches/dev/protection` sau.
 - ⚠⚠ **Đổi một thiết lập bảo vệ nhánh thì phải chứng minh vòng tắt–bật KHÔNG mất mát TRƯỚC khi dựa vào nó.** `DELETE /branches/{b}/protection/required_linear_history` trả **404** trong khi dòng log của tôi in "TẮT"; phép đo ngay sau đó cho `true` — **không có gì đổi cả**. Thiết lập này chỉ đổi qua `PUT` **toàn bộ** object, nên một lượt ghi hụt trường sẽ **xoá âm thầm** phần bảo vệ khác. Quy trình bắt buộc: sao lưu JSON đầy đủ → dựng hai payload khác nhau đúng MỘT trường → tắt (đo = false) → làm việc → bật (đo = true) → **diff toàn bộ JSON với bản sao lưu**, tất cả bọc trong `trap` khôi phục ở mọi đường thoát.
+- ⚠⚠⚠ **Một bước triển khai phải khẳng định thứ nó hứa, ĐO Ở TẦNG PHỤC VỤ NGƯỜI DÙNG.** `docker compose up` in `Container … Started` nghĩa là *tiến trình container đã khởi động* — nó ⛔ nói gì về việc dịch vụ có nhận kết nối ⛔. Và `restart: unless-stopped` làm hai trạng thái ấy in ra **giống hệt nhau**: một container chết ngay lúc khởi động sẽ quay vòng mãi mà log deploy vẫn đúng một dòng `Started`. Ngày 17/09 chuyện này hạ **toàn bộ staging** trong khi mọi bước của `CD Staging` đều xanh; thứ phát hiện ra lại là smoke test ở runner, bằng **30 dòng `curl: (7)`** ⛔ nói được nguyên nhân (§11.27).
+  - Bất biến: sau `up -d`, **chờ `.State.Health.Status` = `healthy`** cho dịch vụ biên, và khi hết giờ thì **in log của chính nó** — nguyên nhân phải có tên trong log CD, đừng bắt người trực SSH vào mới biết.
+  - Và kiểm cấu hình **TRƯỚC** khi thay container: `docker compose run --rm --no-deps nginx nginx -t`. Cấu hình hỏng thì dừng khi bản cũ **vẫn đang phục vụ** — một preflight đỏ giả làm hỏng **một lượt deploy**, ⛔ làm **sập site**.
+  - ⚠⚠ `--no-deps` **bắt buộc** — thiếu nó `compose run` dựng cả chuỗi `depends_on`, đúng tai nạn §10.78 khi một lệnh *"chỉ kiểm cấu hình"* dựng luôn cluster ngoài quy trình. ⚠ Giữ **entrypoint mặc định**, chỉ đổi *command*: `envsubst` chạy trong `/docker-entrypoint.d/`, nên `--entrypoint nginx` kiểm bản template **chưa thay biến** — xanh trên một tệp ⛔ bao giờ được nạp (luật 10).
+  - ⚠ Bộ canh đọc tệp cấu hình **trong kho** ⛔ thay thế được phép kiểm này: nó soi bản **trước** `envsubst`. Kho có **5** lớp kiểm đọc `default.conf.template` và ⛔ cái nào thấy được sự cố 17/09. Luật 28 ở dạng tinh vi — phạm vi hụt ⛔ ở *tệp nào được quét* mà ở **thời điểm nào**.
+- ⚠⚠⚠ **Thông điệp chẩn đoán của một bước tự động ⛔ được ĐOÁN nguyên nhân — và tuyệt đối ⛔ đoán về phía thao tác phá huỷ.** Nhánh quay lui của `deploy.yml` khẳng định *"nhiều khả năng migration đã đổi lược đồ"* rồi trỏ sang runbook **khôi phục CSDL**; log của **chính lượt ấy** ghi `app Healthy` trên ảnh cũ ⇒ câu ấy sai, và nó chỉ đường tới một lượt ghi đè CSDL ⛔ chữa gì mà xoá mất dữ liệu mới. Cùng hình dạng §10.77, nặng hơn một bậc: ở đó cái giá là *một ngày ⛔ ai đọc*, ở đây là *một lượt khôi phục CSDL*. ⇒ In **các khả năng** kèm **phép đo tách chúng**, rồi trỏ sang runbook — `docs/runbook/deploy-hong.md`. Luật 33 nói *lời khuyên in ra cũng là mã*; luật này nói thêm: **một lời khuyên chưa đo là một lời khuyên sai đang chờ đến lượt**.
 - PR bắt buộc: 1 reviewer, CI xanh (unit + integration Testcontainers + ArchUnit + lint), không merge khi coverage domain layer giảm.
   - Thi hành: `.github/workflows/ci.yml` (**10 job**, đo 3/9/2026: `changes` · `tracking` · `thu-tu-migration` · `backend` · `frontend` · `image` · `image-frontend` · `gan-tag-sha` · `dependency-review` · `cong-kiem`) + `security-scan.yml` (quét CVE **theo lịch**, không gắn vào PR — `docs/cicd.md` §3.3) + `docs/branch-protection.md`. ⚠ Branch protection là **cấu hình phía GitHub, không nằm trong repo** — tắt đi không để lại dấu vết nào trong mã nguồn, nên trạng thái của nó phải được ghi ra thay vì giả định.
   - Cổng bao phủ: JaCoCo `check` ở phase `verify`, **chỉ soi gói `domain`**. Ngưỡng hiện tại (`jacoco.domain.line.coverage`) là **mức đo được**, không phải mục tiêu — nâng dần khi Phase 1 đưa logic nghiệp vụ thật vào `domain`, và không bao giờ hạ.
@@ -112,7 +119,32 @@ admin-app/src/
 - ⛔⛔ **Một cơ chế canh gác KHÔNG CHẠY ĐƯỢC phải nói ra bằng mã thoát khác 0. Cấm `exit 0` ở nhánh "thiếu công cụ".** *"Không kiểm được"* và *"kiểm rồi, sạch"* là hai kết luận khác nhau và phải trông khác nhau — một nhánh thoát 0 làm nơi gọi coi là ĐẠT và đi tiếp. Ba lần đã trả giá, cùng một hình dạng: `test_parse.py` `ImportError → sys.exit(0)` chạy xanh mà không kiểm gì trên mọi máy chưa dựng venv (T11.49) · `verify-no-keys.sh` thiếu `pg_restore` → `exit 0`, mà VPS staging không cài postgresql-client nên **mọi lượt triển khai từ 26/8** đều bỏ qua phép kiểm bảo mật duy nhất canh bản dump (T11.41) · `NginxSecurityHeadersTest` soi mỗi `admin-app` nên cổng công khai chạy không CSP (§10.61). Nếu buộc phải bỏ qua thì phải là một **quyết định có tên**, khai tường minh ở nơi gọi, không phải một nhánh im lặng trong script.
 - ⭐ **Thêm một job vào `ci.yml` thì phải thêm nó vào `needs` của `Cổng kiểm CI` và nâng ngưỡng `so_job`.** `dev` chỉ có **một** context bắt buộc là `Cổng kiểm CI` (§10.63 — bảy context khoá chết mọi PR chỉ sửa tài liệu), nên một job không nằm trong `needs` của nó là một job **không chặn được gì**. Đây không phải việc phải nhớ: `CiGateCoverageTest` đối chiếu **hai chiều** giữa danh sách job có thật và `needs`, và ngưỡng `so_job` chặn trường hợp khai báo hỏng làm cổng soi trên tập rỗng. Nghĩa là quên thì CI đỏ ngay — đừng hạ ngưỡng cho qua.
 
+### 1.5-c. Một con số nghiệm thu phải khai NGÀY ĐO và NGUỒN ĐO
+
+`DOD4.10`. Sổ ở **`docs/nghiem-thu-nfr.md`**, cổng là **`NghiemThuCoNguonDoTest`**.
+
+- **Nguồn hợp lệ**: `CI <run-id>` · `VPS-1` · `VPS-2` · `nguồn ngoài` · `CHƯA ĐO`.
+- ⛔⛔ **`máy dev` ⛔ phải một nguồn nghiệm thu.** `make ci-local` là cổng để *⛔ đẩy mã hỏng lên*,
+  ⛔ phải một phép đo. Ba thứ ở máy dev ⛔ dựng lại được điều kiện thật, và **cả ba đã gây sự cố**:
+  hai job chỉ sống trên runner (quét CVE · đóng gói image) · `.env.local` chỉ có ở máy · và **múi
+  giờ máy dev đúng bằng múi giờ sản phẩm** nên nó **giấu** hẳn một lớp lỗi (§11.27).
+- **Có số đo thì bắt buộc có ngày.** Một con số ⛔ ngày là con số ⛔ ai biết còn đúng ⛔ — `T51.0`:
+  một dòng số đo hết hạn trong `CLAUDE.md` lây sang **ba** agent cùng lúc, mỗi agent dựng sẵn một
+  lượt CI đỏ; họ ⛔ bịa, họ **chép một dòng sổ**.
+- **`CHƯA ĐO` là một câu khẳng định hợp lệ** (quy tắc 16) — thứ ⛔ hợp lệ là một hàng **im lặng**
+  về nguồn của nó.
+
+⚠ Bộ canh này bắt **chính người viết ra nó** ở lượt chạy đầu, theo **hai** cách khác nhau: bộ đọc
+bảng split thô theo `|` nên một ô ghi chú chứa `\|` của Markdown làm **mọi cột sau nó lệch một
+bậc** ⇒ nó tố cáo một hàng hoàn toàn đúng (luật 2 — *canh cấu trúc, đừng canh văn bản*); và sau khi
+vá xong, nó bắt một hàng **sai thật** mà chính tôi vừa viết — ô ghi chú nói *"con số này chỉ có ở
+máy dev nên ⛔ được ghi là đã đo"* trong khi ô Số đo vẫn mang con số ấy.
+
 ### 1.6. Cấu hình & kết nối — bắt buộc qua env
+
+- ⚠⚠⚠ **`${BIEN:?}` chỉ bảo đảm ⛔ RỖNG — nó ⛔ nói gì về ĐỊNH DẠNG lẫn ĐỘ DÀI.** Mọi chỗ giá trị ấy được nhúng vào một tệp cấu hình có **trần** đều là một quả mìn hẹn giờ. Ngày 17/09: `METRICS_BEARER_TOKEN` sinh đúng theo hướng dẫn (`openssl rand -hex 32` ⇒ **64 ký tự**) làm khoá `map` của nginx dài `"Bearer " + 64` = **71 byte**, vượt `map_hash_bucket_size` mặc định **64** ⇒ `[emerg]` ⇒ nginx ⛔ khởi động nổi ⇒ **cả site chết** (§11.27).
+  - ⛔ **Nâng trần chỉ DỜI quả mìn, ⛔ tháo nó** — một giá trị dài hơn nữa lại hạ site lần sau. Hãy đặt lại cấu trúc để **độ dài thôi ⛔ còn là một tham số**: ở đây là bỏ `map`, so trực tiếp `if ($http_authorization != "Bearer ${TOKEN}") { return 403; }`. Luật 12 — đặt bảo đảm ở chỗ dữ liệu đi qua, và làm trạng thái hỏng **⛔ biểu diễn được**.
+  - ⛔⛔ **Một QUY TRÌNH thành văn cũng có thể tự sinh ra trạng thái hỏng.** Đây ⛔ phải *"ai đó đặt sai giá trị"*: làm **đúng** hướng dẫn §B6 là tạo ra sự cố, nên nó lặp lại trên **mọi** máy tuân thủ. Trước nay tài liệu của dự án sai vì **hết hạn** (§11.20) hoặc vì **chép mà ⛔ đo** (chín lượt *"một dòng nợ tự nó sai"*); hình dạng này khác hẳn — tài liệu **đúng** và vẫn dẫn tới sự cố. ⇒ Khi viết một hướng dẫn sinh giá trị, hãy hỏi *giá trị này sẽ được nhúng vào đâu, chỗ đó có trần ⛔*.
 
 - **Mọi connection và setup (DB, MinIO, SMTP, SMS, telemetry API, Google Maps key, base URL...) phải đọc từ biến môi trường / file env — cấm hardcode trong code hoặc `application.yml` commit lên repo.**
 - BE: `application.yml` chỉ chứa placeholder `${DB_URL}`, `${REDIS_HOST}`...; giá trị thật nằm ở env theo môi trường (Dev/Staging/Prod). FE: qua `import.meta.env.VITE_*` / `process.env.NEXT_PUBLIC_*`, build-time inject.
@@ -258,6 +290,7 @@ Format: `<PREFIX>-<4 số>` — prefix theo module: `SYS` (hệ thống), `AUTH`
 | **AUTH-0006** | 422 | Mật khẩu mới không đạt chính sách (M5.15) hoặc trùng mật khẩu cũ |
 | **AUTH-0007** | 403 | Đang bắt buộc đổi mật khẩu — chặn mọi thao tác khác cho tới khi đổi xong |
 | **AUTH-0008** | 401 | Phiên bị thu hồi vì **phát hiện dùng lại refresh token** — buộc đăng nhập lại |
+| AUTH-0009 | 403 | Tài khoản **đã có 2FA xác nhận** xin đăng ký lại qua vé challenge — chặn đường vượt 2FA bằng mật khẩu (T61.30) |
 | AUTH-3001 | 403 | Không có quyền thực hiện thao tác này |
 | AUTH-3002 | 403 | Dữ liệu không thuộc phạm vi đơn vị của bạn |
 | CMS-2001 | 422 | Slug đã tồn tại |
@@ -279,7 +312,11 @@ Format: `<PREFIX>-<4 số>` — prefix theo module: `SYS` (hệ thống), `AUTH`
 | HYD-2004 | 422 | Điểm đo đang mất tín hiệu — không dùng giá trị cũ để đánh giá ngưỡng |
 | HYD-2005 | 422 | Vai trò của liên kết chính phải trùng vai trò của điểm đo |
 | HYD-2006 | 422 | Không được đổi mã ánh xạ API của điểm đo (đang là {0}, gửi lên {1}) |
+| HR-1001 | 409 | Mã cán bộ đã tồn tại |
+| HR-1002 | 409 | Mã chức vụ đã tồn tại |
+| HR-1003 | 409 | Số CCCD đã thuộc hồ sơ khác — ép bằng cột **vân tay**, không bằng UNIQUE trên cột mã hoá |
 | HR-2001 | 422 | Số ngày đăng ký vượt số phép còn lại |
+| HR-2002 | 422 | Chức vụ còn hồ sơ đang giữ — không xoá được |
 | ADM-2001 | 422 | Kết xuất lưu trữ nhật ký thất bại — không xóa bản ghi nào |
 | ADM-2008 | 422 | Chưa cấu hình được sao lưu — thư mục lưu hoặc tài khoản đọc CSDL (WS-7) |
 | ADM-2009 | 409 | Đang có một lượt sao lưu chạy |
@@ -287,6 +324,12 @@ Format: `<PREFIX>-<4 số>` — prefix theo module: `SYS` (hệ thống), `AUTH`
 | ADM-2011 | 422 | Chuỗi xác nhận khôi phục không đúng (M5.11) |
 | ADM-2012 | 422 | Bản sao lưu không dùng được: thiếu tệp hoặc checksum không khớp |
 | ADM-2013 | 500 | Khôi phục thất bại — xem `docs/runbook/khoi-phuc-du-lieu.md` |
+| ADM-2019 | 422 | Job mã hoá lại sang khoá AES mới còn hàng chưa đổi — chưa được gỡ khoá cũ (T61.11; chỉ ở `jobs.last_error`) |
+| ADM-2020 | 403 | Tự xoá tài khoản của chính mình (T61.21) |
+| ADM-2021 | 403 | Tự đặt lại 2FA của chính mình (T61.30) |
+| ADM-2022 | 403 | Cấp quyền/vai trò mà chính người cấp ⛔ có (T54.4) |
+| ADM-2023 | 403 | Thao tác nhạy cảm thiếu mã 2FA nhập lại / tài khoản chưa đăng ký 2FA (T61.42) |
+| ADM-2024 | 403 | Mã 2FA nhập lại sai — ⛔ 401, xem `XacThucLaiService` (T61.42) |
 
 > ⚠ **Đã gỡ (12/8/2026)**: `OPS-2001` cũ ("nhập bù tối đa 3 ngày") và `OPS-2003` cũ ("lưu lượng vượt 120% thiết kế") — thuộc nhật ký vận hành đã bỏ khỏi scope. Hai mã này **đã được tái sử dụng** cho rule mới ở bảng trên; khi đọc code/log cũ phải chú ý.
 > ℹ **Không phải lỗi**: lượt polling bị bỏ qua do rate-limit (`sync_logs = SKIPPED_UP_TO_DATE`, chốt G3) **không** sinh error code, không alert — chỉ ghi log DEBUG.
@@ -302,10 +345,12 @@ Format: `<PREFIX>-<4 số>` — prefix theo module: `SYS` (hệ thống), `AUTH`
 
 ```
 Request → [1] CorrelationFilter (sinh/nhận traceId, MDC cho log)
+        → [1a] KhongLuuDemFilter (`Cache-Control: no-store` cho `/api/v1/**` trừ `/public/**` — cả 401/429 — T61.35)
         → [1b] RequestLoggingFilter (nằm TRONG correlation, NGOÀI rate limit — để request bị chặn 429 vẫn được ghi log)
-        → [2] RateLimitFilter (bucket theo IP; login có bucket riêng)
+        → [2] RateLimitFilter (bucket THEO IP — chỉ login + cổng công khai; dò mật khẩu phải chặn trước BCrypt)
         → [2b] CsrfFilter (double-submit, chỉ với method thay đổi dữ liệu — WS-5/T5.5)
         → [3] AuthFilter (verify access token; đối chiếu sessions + token_denylist)
+        → [3b] HanMucNguoiDungFilter (API thường + kết xuất THEO NGƯỜI DÙNG ĐÃ XÁC THỰC @ IP; chưa xác thực ⇒ theo IP — T61.17)
         → [4] ScopeContextFilter (load user → role, permissions, org_unit path vào AuthContext)
         → [5] AuditContextFilter (gắn user/traceId cho audit interceptor)
         → PermissionInterceptor (tầng 2 — @RequirePermission, xem §4.2)
@@ -442,7 +487,7 @@ Tầng 3 — Repository scope filter (org_unit)     → chặn dữ liệu (IDOR
 ### 4.5. Hạ tầng & headers
 
 - Nginx: HSTS, CSP (default-src 'self'; script chỉ từ self + GA/GTM đã khai báo), `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`; ẩn version server; giới hạn body size theo route upload.
-- Rate limit 2 lớp: Nginx (thô, theo IP) + app filter (theo user/token, giá trị theo nhóm endpoint: **login 30/15'**, API thường 100/phút, export 10/giờ).
+- Rate limit 2 lớp: Nginx (thô, theo IP) + app filter (theo user/token, giá trị theo nhóm endpoint: **login 30/15'**, API thường 100/phút, export **`limits.rate.export-per-hour`** trong `settings`, mặc định 30/giờ, kẹp cứng ≤ 100 trong mã — T61.27).
   - ⚠ **`login 30/15'` chứ không phải 5/15'** — con số này phải rộng hơn hẳn ngưỡng khoá tài khoản (5 lần, §4.1). Lý do đầy đủ ở §4.1; tóm tắt: đặt bằng nhau thì rate limit ở filter luôn chặn trước nên `AUTH-0003` không bao giờ kích hoạt được, và cả Công ty ra Internet qua một IP NAT. `CaffeineRateLimitStoreTest` chặn ở CI nếu ai đó hạ xuống bằng ngưỡng khoá.
 - Secrets: env/Vault; khác nhau mỗi môi trường; xoay key AES + JWT signing key có quy trình (key_id versioning); cấm secrets trong log/config commit.
 - Log: mask dữ liệu nhạy cảm (MaskUtils); security event riêng (login fail, refresh reuse, 403 scope, đổi quyền) → dashboard Grafana + alert.
@@ -532,6 +577,34 @@ Quy tắc chung (áp dụng cả hai):
 - Người dùng tự quản mã số của mình; Admin không xem, không nhập hộ (trừ khi Công ty chốt dùng mã số chung — chờ G5).
 - Hệ thống nguồn chạy **HTTP** → chỉ gọi từ backend, **cấm** để trình duyệt người dùng gọi trực tiếp; ghi nhận là rủi ro tồn dư trong hồ sơ bàn giao.
 
+> ⛔⛔ **Một credential ⛔ không chỉ phải được BẢO VỆ ở ô của nó — nó phải bị TỪ CHỐI ở mọi ô khác.**
+> Sự cố thật, staging 01/09 → 10/09/2026: mã số truy cập bị dán **nguyên URL** vào ô *Địa chỉ gốc*
+> (`http://songnhue.bhh40.net/api/getmn.aspx?key=<mã số>`). Đo sau 9 ngày: `credential` vẫn `NULL`
+> ⇒ poller hỏng **trước khi mở HTTP**, `consecutive_failures = 3323`, **`hydro_raw_logs = 0`** —
+> ⛔ không một byte số liệu nào, mà quy tắc 18 nói *⛔ không có API lịch sử ⇒ mất dữ liệu là vĩnh
+> viễn*. Kèm theo: mã số nằm nguyên văn ở một cột ⛔ **không** mã hoá, và `ApiSourceView` **trả
+> `baseUrl` ra API** cho mọi vai trò có `hyd:station:manage` ⇒ cả ba gạch đầu dòng *"⛔ không trả ra
+> ngoài / ⛔ không log / ⛔ không vào export"* ở trên đều vỡ, chỉ vì chuỗi ấy nằm ở **ô bên cạnh**.
+>
+> ⛔ Đây ⛔ **không** phải lỗi người dùng, và cũng ⛔ không sửa được bằng một dòng hướng dẫn: có
+> **hai ô** nhận cùng một chuỗi, một ô được mã hoá và một ô ⛔ không, mà ⛔ không gì nói cho người
+> gõ biết họ chọn nhầm. Cùng họ **T46.6** (dán toạ độ vào `InputNumber` ra `21`): *con đường tự
+> nhiên nhất vừa im lặng vừa sai*.
+>
+> ⇒ **Luật**: mỗi ô văn bản tự do đi vào một lời gọi ra ngoài (URL nguồn, endpoint webhook, chuỗi
+> kết nối…) phải **từ chối** giá trị trông như credential, ở **đường dữ liệu đi qua** chứ ⛔ không ở
+> biểu mẫu (quy tắc 12) — một ô nhập chỉ đỡ được người dùng ô ấy, ⛔ không đỡ được lượt gọi API hay
+> bản nhập cấu hình. Hiện thực: `ApiSourceService.diaChi(...)` → **`HYD-2016`**, canh bởi
+> `NguonDuLieuMaSoHttpTest` (2 bài bắt + 3 đối chứng phải-được-tha).
+>
+> ⚠ **So TRỌN TÊN tham số, ⛔ đừng tìm chuỗi trong cả URL**: `url.contains("key")` đỏ oan với
+> `/api/keyword`, và cách sửa rẻ nhất lúc ấy là nới luật cho hết đỏ — tức tháo chính bộ canh
+> (luật 2 + §11.18). Tham số **rỗng** (`?key=`) thì tha: nó ⛔ không mang bí mật nào.
+>
+> ⚠ **Và một nguồn hỏng liên tiếp phải KÊU.** `consecutive_failures` chạy tới **3323** trong 9 ngày
+> mà ⛔ không ai được báo — nó chỉ được *hiển thị lên màn hình*. Quy tắc 18 xếp giám sát poller
+> **ngang backup CSDL**; một con số chỉ nằm trên màn hình ⛔ không phải một cái chuông (nợ **T50.3**).
+
 ---
 
 ## 5. DEFINITION OF DONE (mỗi PR)
@@ -571,3 +644,108 @@ trùng nhau · một dòng công việc mất mã số · khoá nhóm bị tách
 
 Cả ba đều đã xảy ra thật và đều không có triệu chứng nào cho tới lúc có phép kiểm: 310/310 dòng mất
 mã số, 29 mã số trùng trong đó 19 cặp mâu thuẫn trạng thái.
+
+---
+
+## 7. KIỂM CHỨNG MỘT LƯỢT TRIỂN KHAI ĐÃ ĐÁP XUỐNG HAY CHƯA
+
+> Thêm 10/09/2026 sau một lượt điều tra *"CD chạy chưa? migration áp đúng chưa?"* mà **cả hai giả
+> thuyết đều sai** — nguyên nhân thật nằm ở dữ liệu người dùng nhập. Bộ bốn phép đo dưới đây trả lời
+> dứt điểm câu hỏi ấy trong vài phút, và quan trọng hơn: nó **loại trừ** được hai giả thuyết đắt
+> tiền trước khi ai kịp đi sửa nhầm chỗ.
+
+⛔ **"Workflow báo success" ⛔ không phải "byte đã lên máy"** — §10.57 (cổng secret bỏ qua trong im
+lặng), §10.60 (một lệnh nuốt mất nửa cuối script). Luôn đo **độc lập qua SSH**, ⛔ đừng đọc lại lời
+của workflow.
+
+| # | Câu hỏi | Phép đo |
+|---|---|---|
+| 1 | Lượt CD có chạy ⛔ không | `gh run list --workflow="CD Staging" --limit 5 --json conclusion,headSha,createdAt` |
+| 2 | Container có được **thay** ⛔ không | `docker ps --format "{{.Names}}\t{{.CreatedAt}}"` — so với mốc CD (§10.53) |
+| 3 | Ảnh có **mới** ⛔ không | `docker image inspect -f "{{.Created}}" $(docker inspect -f "{{.Image}}" <container>)` cho **cả ba** ảnh |
+| 4 | **Mã** có trong ảnh ⛔ không | `grep -ac <TênLớpChỉCóTừBảnMới> /app/app.jar`, **kèm đối chứng** |
+
+⚠⚠ **Giờ của hai nguồn khác múi.** `gh run list` in **UTC**, `docker ps` in giờ **máy chủ (+07)**.
+Một lượt CD lúc `00:28Z` cho container tạo lúc `07:30 +07` — **khớp nhau**, ⛔ không phải lệch 7 giờ.
+Đây là chỗ dễ kết luận sai nhất, và kết luận sai theo hướng *"CD ⛔ không đáp xuống"* sẽ kéo cả cuộc
+điều tra đi lạc.
+
+⛔⛔ **`unzip -l /app/app.jar | grep <TênLớp>` cho ÂM TÍNH GIẢ.** Spring Boot fat jar để lớp của
+từng module trong **jar LỒNG** (`BOOT-INF/lib/songnhue-core-*.jar`), nên `unzip -l` của jar ngoài
+chỉ liệt kê **tên jar con** — mọi lớp nghiệp vụ đều "⛔ không tìm thấy". Đo 10/09: lệnh ấy trả `0`
+cho một lớp **thật sự có mặt**. Dùng `grep -ac <TênLớp> /app/app.jar` (tên entry trong zip ⛔ không
+bị nén) và **luôn kèm hai đối chứng**:
+
+```sh
+grep -ac SongnhueApplication /app/app.jar   # phải-TÌM-THẤY  → 2
+grep -ac ClientIp            /app/app.jar   # thứ đang hỏi   → 2
+grep -ac ChuoiKhongTonTaiXyz /app/app.jar   # phải-KHÔNG-thấy → 0
+```
+
+⛔ Thiếu đối chứng thì một bộ dò đã chết in ra `0` **giống hệt** một lớp vắng mặt — đúng vụ
+`strings` của macOS bỏ qua 38/52 tệp `.class` mà vẫn thoát 0 (T11.80).
+
+**Migration** thì so **hai chiều**, ⛔ đừng chỉ đếm:
+
+```sh
+ssh <máy chủ> 'docker exec $(docker ps -qf name=postgres|head -1) \
+  psql -U songnhue_app -d songnhue -tAc "select script from flyway_schema_history order by 1"' \
+  | tr -d " \r" | sort > /tmp/stg.txt
+find backend -path '*/src/main/resources/db/*' -name 'V*.sql' -exec basename {} \; | sort > /tmp/repo.txt
+comm -13 /tmp/stg.txt /tmp/repo.txt   # chỉ có ở REPO   = chưa áp
+comm -23 /tmp/stg.txt /tmp/repo.txt   # chỉ có ở STAGING = tệp đã biến mất khỏi repo
+```
+
+⚠ Vế thứ hai mới là vế đáng sợ: một migration **đã áp** mà ⛔ không còn trong repo sẽ làm
+`validate-on-migrate` đỏ ở lượt khởi động kế tiếp — và ⛔ không lượt đếm nào thấy nó.
+
+⭐ **Và khi cả bốn phép đo đều xanh thì đừng đi tìm phép đo thứ năm về hạ tầng — hãy đi đo DỮ LIỆU.**
+Lượt 10/09: CD đúng, ảnh đúng, mã đúng, migration khớp **69 = 69**; thứ hỏng là một chuỗi người dùng
+gõ vào **ô bên cạnh** (§4.7).
+
+### 7.1. ⛔⛔ `${BIEN:}` biến một biến VẮNG MẶT thành một biến RỖNG — và mọi cổng chặn theo "có/không" đều mù
+
+Thêm 10/09/2026 sau khi đo ra kênh email của staging **chưa từng gửi nổi một thư nào**.
+
+```yaml
+spring:
+  mail:
+    host: ${SMTP_HOST:}          # ⛔ mặc định là CHUỖI RỖNG
+```
+
+```java
+@ConditionalOnProperty(name = "spring.mail.host", matchIfMissing = false)   // ⛔ LUÔN khớp
+```
+
+Thuộc tính **luôn có mặt** (rỗng), nên điều kiện **luôn đúng**, bean **vẫn** được dựng, và Spring
+rơi về máy chủ mặc định `localhost:587`. Số đo staging:
+
+```
+notification_recipients  EMAIL → 154 FAILED · 88 SKIPPED · 0 SENT
+log                      "Kênh email BẬT — thư gửi từ địa chỉ no-reply@songnhue.com"
+err                      MailConnectException: Couldn't connect to host, port: localhost, 587
+```
+
+⛔ Và javadoc của `MailConfig` khẳng định điều **ngược lại** từ WS-6: *"không cấu hình SMTP thì
+**không** tạo bean"*. **Một chú thích không phải một cổng kiểm** — hình dạng lỗi lặp nhiều nhất
+của dự án.
+
+**Luật**: một cổng chặn dựa trên biến môi trường phải hỏi **giá trị có nội dung hay không**, ⛔ không
+hỏi **thuộc tính có tồn tại hay không**:
+
+```java
+@ConditionalOnExpression("!'${spring.mail.host:}'.trim().isEmpty()")
+```
+
+⚠ Và phải có **đối chứng phải-BẬT**: một điều kiện viết sai kiểu *"luôn luôn sai"* làm mọi bài
+"phải tắt" xanh, rồi tắt luôn kênh ở môi trường đã cấu hình đúng — đổi một khuyết tật ồn ào lấy một
+khuyết tật im lặng (`MailConfigTest`, 3 bài bắt + 1 đối chứng).
+
+⚠ **Vá mã không làm kênh chạy.** Nó chỉ khiến hệ **thôi giả vờ chạy**. Và auto-configuration của
+framework có thể dính đúng bẫy ấy ở tầng ta không với tới được (`MailSenderAutoConfiguration` vẫn
+dựng `JavaMailSender`, `MailHealthIndicator` vẫn đỏ) ⇒ ở môi trường không dùng thư, **bỏ hẳn biến
+khỏi `.env`**, ⛔ đừng để chuỗi rỗng.
+
+📌 Đây là **lần thứ ba** cùng hình dạng: §10.38 (`ARG` không truyền vẫn gán chuỗi rỗng, `??` giữ
+nguyên nó còn `||` mới đỡ) · §10.78 (`#SMTP_PORT=587` bị chú thích, mặc định `:1025` không cứu vì
+compose truyền chuỗi rỗng) · và lần này. Quy tắc 3 nói thẳng: **"rỗng" khác "chưa đặt"**.

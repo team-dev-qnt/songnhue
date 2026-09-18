@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
-import * as tokens from 'design-tokens';
+import * as tokens from '@songnhue/design-tokens';
 import { describe, expect, it } from 'vitest';
 
 import { boChuThich } from '../testsupport/boChuThich';
@@ -69,8 +69,54 @@ const HEX = /#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?\b/g;
  * <p>⚠ Hai đường hạ nó, và chúng ⛔ không tương đương: <b>ghim</b> (thêm chú thích `/* token *\/`
  * đúng giá trị) chỉ chặn trôi; <b>thay bằng token thật</b> mới xoá hẳn bản sao. Ghim là bước đệm
  * hợp lệ cho CSS thuần — nơi ⛔ không import TypeScript được.
+ *
+ * <p>⭐⭐ **18/09/2026: 44 → 21** (T25.23, lượt dọn lớn nhất từ trước tới nay — **23 mã**). Mười
+ * hai tệp `.tsx`, và ⛔ một lượt `sed` nào: mỗi mã phải trả lời **hai câu khác nhau** trước khi
+ * biết nó đi đâu.
+ *
+ * <ul>
+ *   <li><b>Màu của bảng AntD</b> (`#f0f0f0` `#8c8c8c` `#fafafa` `#d9d9d9` `#595959` `#52c41a`
+ *       `#f5222d` `#f6ffed` `#fff1f0` `#1677ff` `#e6f4ff` `#f0f2f5`) ⇒ `theme.useToken()`.
+ *       ⛔ **Đừng chép chúng vào `design-tokens`**: đó là dựng một bản sao sẽ lệch ở lượt nâng
+ *       antd kế tiếp, và lệch **im lặng**.</li>
+ *   <li><b>Màu THƯƠNG HIỆU</b> (`#165bb6` ở `LocationPickerMap` và `StepFinance`) ⇒ `brandColors`
+ *       của `design-tokens`. Hai chỗ ấy **chép tay đúng giá trị của token** — tức bản sao đã tồn
+ *       tại sẵn, chỉ là chưa ai nhìn thấy.</li>
+ *   <li><b>Trắng THẬT</b> (`AdminLayout` chữ trên dải gradient, `EnrollTwoFactorPage` nền mã QR)
+ *       ⇒ **ghim** `#ffffff` vào `neutralColors.bgContainer`. ⛔ Đây ⛔ phải lười: một
+ *       `colorTextLightSolid` đổi theo chủ đề làm chữ chìm vào nền ở chế độ tối, còn nền QR đổi
+ *       màu thì **máy quét ⛔ đọc được** — nó đọc bằng độ tương phản. Ghim mang **lý do**, ⛔ phải
+ *       một lối thoát.</li>
+ * </ul>
+ *
+ * <p>⬜ **21 mã còn lại, và chúng ⛔ cùng một loại nợ** — ghi ra để lượt sau ⛔ phải đo lại:
+ * <b>17</b> nằm trong `richTextEditor.css` (**CSS thuần**, ⛔ import TypeScript được ⇒ cần CSS
+ * variable hoặc `cssVar` của antd, là một quyết định kiến trúc chứ ⛔ một lượt thay chuỗi) ·
+ * `chartOptions.ts` (**⛔ phải component** ⇒ màu thành **tham số**, theo đúng tiền lệ `xuatSoDo.ts`
+ * ngay bên dưới) · `AuthShell` `#e6f0fa` (sắc giữa của dải gradient đăng nhập — ⛔ có token nào
+ * mang nó, thêm token là một quyết định thiết kế) · và `OperationStatusCodesPage` `#1890ff`, thứ
+ * ⛔⛔ **⛔ phải màu giao diện**: nó là **giá trị khởi tạo của ô người dùng chọn màu** cho mã tình
+ * hình vận hành, tức **dữ liệu**. Đổi nó theo chủ đề là đổi dữ liệu người dùng sắp lưu.
+ *
+ * <p>⭐ **14/09/2026: 46 → 44** (WS-58). Bậc thang này đỏ khi màn hình sơ đồ tổ chức và báo cáo
+ * nhân sự thêm bốn mã hex (số dư âm · hai ô cảnh báo hết hạn · nền ảnh PNG). ⛔ Cả bốn là màu
+ * **của AntD**, ⛔ không phải màu thương hiệu — nên chúng đi qua `theme.useToken()`
+ * (`colorError`/`colorWarning`/`colorBgContainer`), ⛔ **không** được chép vào `design-tokens`.
+ * ⚠ Riêng `xuatSoDo.ts` ⛔ không phải component nên ⛔ không gọi hook được: màu nền thành **tham
+ * số**, và nơi gọi đọc token — bản PNG nhờ đó cũng đúng ở giao diện tối, thứ một hằng trắng sẽ sai
+ * mà ⛔ không ai phát hiện cho tới lúc dán ảnh vào văn bản.
+ *
+ * <p>⭐ **08/09/2026: 54 → 46** (T28.45). Mười lượt mã màu trong `ConstructionMap.tsx` và module
+ * marker tách ra từ nó **thay hẳn bằng token**, ⛔ không phải ghim — đường thứ hai, đường xoá được
+ * bản sao. Bốn giá trị: xám phụ, xám nhạt, cam cảnh báo, trắng viền chấm.
+ *
+ * <p>⚠⚠ Và một bài học đo được trong chính lượt dọn ấy: bản đầu chỉ hạ được **54 → 53**, vì javadoc
+ * của module mới **liệt kê ra bốn mã màu vừa gỡ** để kể chuyện. Bộ canh soi TOÀN TỆP và ⛔ không
+ * phân biệt mã trong mã nguồn với mã trong chú thích — nên kể chuyện bằng **tên token**, ⛔ đừng kể
+ * bằng giá trị. (Đó cũng là lựa chọn đúng của bộ canh: một mã trong chú thích vẫn là một bản sao
+ * người sau có thể chép ra dùng.)
  */
-const NGUONG = 54;
+const NGUONG = 21;
 
 const THU_MUC_BO_QUA = new Set(['testsupport']);
 

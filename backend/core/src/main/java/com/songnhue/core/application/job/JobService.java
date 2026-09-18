@@ -179,6 +179,11 @@ public class JobService implements JobPort {
         return repository.findFirstByDedupKeyAndStatusIn(dedupKey, ACTIVE_STATUSES);
     }
 
+    /** T61.24 — có job loại {@code jobType} đang chờ hoặc đang chạy. */
+    public boolean coViecDangCho(String jobType) {
+        return repository.existsByJobTypeAndStatusIn(jobType, ACTIVE_STATUSES);
+    }
+
     /** Số việc đang tồn đọng — nguồn cho metric và health-check (WS-7). */
     @Transactional(readOnly = true)
     public long backlogSize() {

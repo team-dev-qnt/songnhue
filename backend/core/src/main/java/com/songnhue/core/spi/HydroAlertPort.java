@@ -43,4 +43,25 @@ public interface HydroAlertPort {
      * @return {@code false} khi UUID không trỏ tới sự kiện nào, kể cả khi nó đúng định dạng
      */
     boolean alertEventExists(UUID alertEventPublicId);
+
+    /**
+     * Các lượt cảnh báo <b>bắt đầu trong khoảng</b> {@code [tu, den]} — CN-02.10, báo cáo
+     * <b>BC-06</b> (*Cảnh báo &amp; sự cố*).
+     *
+     * <h2>⚠ Lọc theo {@code started_at}, ⛔ KHÔNG theo "còn đang xảy ra trong kỳ"</h2>
+     *
+     * <p>Hai vị từ ấy cho hai con số khác nhau, và trộn chúng là đúng hình dạng <b>quy tắc 13</b>:
+     * một đợt cảnh báo bắt đầu tháng trước và kéo sang tháng này sẽ được đếm ở <b>cả hai</b> kỳ nếu
+     * hỏi theo <i>chồng khoảng</i>, nên tổng mười hai tháng ⛔ không bằng tổng năm. Báo cáo của
+     * Công ty đếm <b>lượt phát sinh</b>, nên mốc là lúc nó bắt đầu.
+     *
+     * <p>⛔ Cổng này mỏng là cố ý — thêm phương thức khi có <b>chỗ gọi thật</b>. Chỗ gọi thật là
+     * {@code operations.application.BaoCaoVanHanhService}: BC-06 gộp cảnh báo ngưỡng
+     * ({@code hydro}) với bản ghi khắc phục sự cố ({@code operations}), và {@code operations} ⛔
+     * không được đọc repository của {@code hydro} (quy tắc 6).
+     *
+     * @param tu {@code null} = ⛔ không chặn dưới
+     * @param den {@code null} = ⛔ không chặn trên
+     */
+    java.util.List<AlertEventRef> suKienTrongKy(java.time.Instant tu, java.time.Instant den);
 }

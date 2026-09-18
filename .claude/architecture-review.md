@@ -5975,7 +5975,7 @@ postgres không publish cổng, `env/prod.env` không tồn tại ở đó. Đư
 xảy ra thảm hoạ. Cùng hình dạng quen thuộc: *một cơ chế tồn tại trong mã nhưng chưa có hiệu
 lực ở nơi nó phải chặn.*
 
-Chi tiết đầy đủ + trình tự đã chạy: `docs/runbook/di-tru-staging-len-production.md`.
+Chi tiết đầy đủ + sổ 12 sự cố: `docs/runbook/di-tru-du-lieu-giua-moi-truong.md`. Phần đổi tên miền và chứng chỉ tách sang `docs/runbook/ten-mien-va-chung-chi.md`.
 
 ### §10.81 — Cron gia hạn TLS chưa bao giờ chạy được, và cả hai vế đều hỏng (8/9)
 
@@ -5997,3 +5997,1312 @@ Hai lỗi phụ bắt được trong lúc vá, cả hai đều thuộc họ "h�
   GMT>"` không chạy dưới busybox của image Alpine. Một con số sai đọc y hệt một con số đúng,
   và nó là thứ duy nhất người ta liếc qua trong log. Nay dùng `openssl x509 -checkend` —
   phép đo nhị phân của chính OpenSSL, phân biệt được hai trạng thái mà không cần số học.
+
+### §11.12 — `sort_order` là một núm KHÔNG điều khiển gì, ở BỐN cây cùng lúc (T26.25, 8/9/2026)
+
+Bốn cây materialized path của hệ (menu, danh mục nội dung, thư mục media, đơn vị tổ chức) đọc bằng
+`ORDER BY path ASC, sort_order ASC`. Câu ấy **không bao giờ so tới `sort_order`**: `path` chứa id của
+chính nút (`MaterializedPath.childPath`), nên hai anh em **không thể** trùng path và phép so kết thúc
+ở vế đầu.
+
+**Số đo trước khi vá**: `ThuTuMenuTest` 3 bài → **2 đỏ**. Người dùng kéo–thả ở màn hình quản trị,
+giao diện vẽ lại đúng thứ tự mới, API trả **204 thành công**, cổng công khai **không đổi gì**. Không
+lỗi, không log — đúng triệu chứng của quy tắc 27, chồng lên quy tắc 15 (một núm bày ra mà không điều
+khiển gì).
+
+⚠ **Sổ nợ mô tả THIẾU, và phần thiếu đổi cả cách nghĩ.** T26.25 ghi *"thứ tự thật là thứ tự id"*. Đo
+lại: `ORDER BY path` là phép so **CHUỖI**, nên `/10/` đứng trước `/9/`. Hệ quả khác hẳn *"mục mới rơi
+xuống cuối"* — mục mới có thể rơi vào **giữa** menu, và không ai đoán được chỗ nào.
+
+**Vì sao vá ở repository chứ không ở 11 nơi gọi** (quy tắc 12): bảo đảm phải đúng ở mọi đường đọc, và
+menu có ba đường. Tên câu truy vấn cũ `...OrderByPathAscSortOrderAsc` **xoá hẳn** — nó là chỗ lời nói
+dối bắt đầu, và javadoc của `MenuItemRepository` từng viết đúng câu *"anh em đúng thứ tự"*.
+
+**Bất biến giữ được bằng cấu trúc, không bằng lời dặn**: khoá sắp của một nút là khoá của cha cộng
+đúng một đoạn ⇒ khoá cha là **tiền tố thực sự** của khoá con ⇒ phép so chuỗi tự bảo đảm *cha trước
+con*, thứ mà `buildMenuTree` ở public-web (duyệt MỘT lượt) dựa vào. Một phép sắp phẳng theo
+`sort_order` sẽ phá đúng bất biến ấy — nên nó có bài kiểm riêng.
+
+⛔⛔ **Bản vá lộ ra khuyết tật thứ hai của chính nó, và đó là phần đáng nhớ nhất.** Ba service lưu
+**hai bước**: INSERT lần đầu với path giữ chỗ `"/"` để lấy id do CSDL sinh, rồi mới ghi path thật.
+Giữa hai bước là một trạng thái **hợp lệ theo thiết kế** mà một lượt đọc cây trong cùng giao dịch
+nhìn thấy — và `sortForDisplay` bản đầu ném ở đúng đó (`MenuLogoAndMapImageTest` đỏ 2 bài).
+
+⇒ **Một phép sắp HIỂN THỊ không được là thứ làm gãy đường GHI.** Nay path chưa hợp lệ xếp cuối, còn
+đường ghi (`childPath`, `reparent`) giữ nguyên phần nghiêm khắc. Nới ở đường đọc, siết ở đường ghi —
+không nới cả hai.
+
+⭐ Và bài kiểm đơn vị bắt lỗi của **chính người viết**: javadoc hứa *"null xếp sau mọi giá trị có
+thật"* trong khi `null` và `Integer.MAX_VALUE` cho ra cùng một khoá. Sửa **mã cho khớp lời**, không
+sửa lời cho khớp mã (quy tắc 9).
+
+### §11.13 — Ba hệ đánh số cùng dùng chữ "quy tắc N" (T37.13, 8/9/2026)
+
+`function-spec.md` CN-03.2 đánh số quy tắc **parse** 1→10. `CLAUDE.md` có **hai** danh sách nữa cùng
+dùng chữ ấy, và cả hai đều có mục 18 với nghĩa khác hẳn nhau. Đo trong kho: `quy tắc 14` xuất hiện ở
+**6** `@DisplayName` và **không lượt nào** là quy tắc parse.
+
+⇒ Một mẫu `quy tắc (\d+)` **không dùng được**. Đường đúng ⛔ không phải viết một regex khôn hơn mà là
+**sửa nguồn nhập nhằng**: 19 `@DisplayName` đổi sang dạng duy nhất `quy tắc parse N`. Quy tắc parse 1
+thôi mang tên *"quy tắc 18"*.
+
+⚠⚠ **Bộ canh đỏ ngay lượt chạy đầu tiên, và đúng việc — nhưng vì một lý do không ai đoán trước.** Bản
+đầu quét theo **dòng**. Lượt đổi tên làm chuỗi dài thêm, **Spotless ngắt `@DisplayName` xuống dòng
+dưới**, và quy tắc parse 1 lập tức "biến mất" trong khi bài vẫn nằm nguyên đó.
+
+⇒ **Một bộ canh mà bộ ĐỊNH DẠNG MÃ làm cho sai sẽ đỏ giả vào một ngày không ai đoán trước** — và lượt
+sửa nó rất dễ thành *nới bộ canh cho hết đỏ*. Nay quét theo **khối chú giải**, và ca ngắt dòng thành
+một đối chứng thường trực.
+
+**Rào cản hạ tầng phải vá cùng lượt, nếu không bộ canh vừa sinh ra đã mù**: bộ lọc `ci.yml` không bao
+`.claude/` ⇒ sửa spec **không** kích hoạt job backend ⇒ bộ canh sinh ra để bắt *một quy tắc mất bài
+kiểm* lại không chạy đúng lúc quy tắc đổi, và `skipped` được tính **ĐẠT** (luật 24). Thêm **đúng một
+tệp** `.claude/function-spec.md` — ⛔ không phải cả `.claude/`, vì `master-tracking.md` sửa gần như mỗi
+PR và kéo nó vào là dựng lại đúng lỗ §10.63. `CiPathFilterTest` cũng phải thêm tiền tố `.claude`:
+**lần thứ hai trong sáu ngày** đúng hình dạng T11.71 — một bộ canh không *nhìn thấy* đường dẫn thì
+không thể báo rằng bộ lọc đang bỏ sót.
+
+### §11.14 — Một dòng nợ tự nó sai, lần thứ hai (T11.28, 8/9/2026)
+
+Sổ ghi T11.28 mở suốt 12 ngày trong khi **dòng ngay dưới nó** (T24.3) khai rõ *"đóng nợ T11.28"* từ
+27/08. Lần đầu là T11.83 (§10.75). ⇒ **Sổ nợ cũng là dữ liệu chưa kiểm** — và đọc một dòng nợ mà
+không đo lại là chép một khẳng định.
+
+Phần dư THẬT, không nằm trong mô tả dòng nợ:
+
+- **Hai biến env mồ côi × ba tệp**, 0 nơi đọc **và còn mang địa chỉ CŨ**. ⛔ Một biến mồ côi mang giá
+  trị **sai** nguy hiểm hơn một biến mồ côi rỗng: ngày có người nối nó vào là ngày CR-07 bị đảo ngược
+  mà không ai hiểu vì sao. Bia mộ để lại một **ranh giới quyết định** cho lần sau: *địa chỉ và công
+  tắc tính năng → `settings` (quy tắc 12); bí mật bên thứ 3 → env (quy tắc 11/13)*.
+- **Bộ seed cũ lệch cả hai trường** (địa chỉ + `linkType`) suốt 12 ngày, không gì báo — số đo cụ thể
+  cho câu hỏi *bỏ hay giữ đường seed thứ hai* của T11.38.
+- ⛔⛔ Chú thích `V202608271031:187` khẳng định *"`PortalDocSystemUrlTest` canh cho khỏi lệch"* mà
+  **0 tệp** mang tên ấy trong kho. §10.81 ở dạng nặng hơn: **một chú thích khẳng định CÓ cổng kiểm
+  còn tệ hơn im lặng, vì nó làm người đọc thôi đi tìm.** Và tệp migration ⛔ **không sửa được** dù chỉ
+  là chú thích (Flyway băm cả tệp — §10.65), nên lời đính chính phải đặt ở chính bộ canh thật.
+
+### §11.15 — Câu hỏi số 4 của §7.3 chưa từng có bộ canh, và nó đỏ ngay (T37.9, 8/9/2026)
+
+Checklist sáu câu hỏi *"có màn hình nào GỌI endpoint đó không"*. Ba bộ canh đã có chỉ phủ vế **cột**
+và vế **khoá `settings`**. Vế **endpoint ↔ màn hình** chưa cái nào chạm tới — đúng vế mà lượt rà 28/8
+tìm ra hai lần và T28.47 phải dọn bằng tay lần nữa.
+
+**Số đo lượt đầu: 7/62 phương thức của client CMS có 0 tham chiếu** trong toàn `admin-app/src`, kể cả
+bài kiểm. Backend có endpoint, có phân quyền, có bài kiểm HTTP xanh — và **người dùng không có nút nào
+để bấm**.
+
+⛔ **Ba đường xử lý, và hai trong ba là sai:**
+
+| Đường | Vì sao |
+|---|---|
+| Xoá client cho sạch | **Giấu** khoảng trống. `renameFolder`/`deleteFolder` là chức năng Công ty cần thật |
+| Dựng bừa giao diện | Phát minh tính năng để cứu một dòng đỏ — đúng thứ đã từ chối ở `HYD-1001` |
+| **Sổ nợ máy đọc được** | Khớp chính xác **hai chiều**: thêm endpoint quên màn hình ⇒ đỏ; dựng xong màn hình quên xoá dòng ⇒ **cũng đỏ**, danh sách buộc phải teo đi |
+
+⚠ Bộ canh tự khai phạm vi: nó soi **đúng một tệp**, vì đo được `features/cms/api.ts` là client tập
+trung **duy nhất**; 47 tệp còn lại gọi `api.*` thẳng trong component nên nơi gọi *là* màn hình. Có
+bài riêng đỏ nếu xuất hiện `api.ts` thứ hai — bộ canh ⛔ không được âm thầm hẹp lại (luật 28).
+
+⚠ Và lượt kiểm chứng ngược dạy lại **luật 10** ở một dạng mới: `git checkout --` **im lặng thất bại
+trên tệp chưa track**, nên bản khôi phục chưa từng được nạp cho tới khi in ra một con số đếm được.
+Xác nhận bản *phá* đã nạp là chưa đủ — bản *khôi phục* cũng phải đo.
+
+---
+
+### §11.16 — Công cụ đọc **đường dẫn tương đối** đọc cây của TIẾN TRÌNH, không đọc cây của bạn (8/9/2026)
+
+Lượt chuẩn bị vào Phase 3 định đồng bộ `master-tracking.md` lên Google Sheet của Công ty. Phép đo
+**trước khi bấm** chặn đúng một lượt công bố sai.
+
+`.agents/mcp/google_sheets_sync/server.py:119`:
+
+```python
+tasks = parse_markdown_to_data(os.path.join(os.getcwd(), TRACKING_FILE))
+```
+
+`os.getcwd()` của tiến trình MCP là **thư mục nó được khởi động**, tức **cây chính**. Toàn bộ đợt việc
+này sống trong một `git worktree` riêng (`songnhue-ws37`). ⇒ Công cụ đọc **một tệp khác** với tệp đang
+sửa, và ⛔ **không có gì trong đầu ra nói ra điều đó** — nó vẫn báo "đã đồng bộ N dòng".
+
+**Đo được 8/9**: hai cây cho hai md5 khác nhau, cùng 1360 dòng, lệch **72 dòng**. Nguyên nhân là **hai
+PR đang mở cùng sửa `master-tracking.md`**:
+
+| PR | Nhánh | Đóng gì |
+|---|---|---|
+| **#109** | `fix/hoan-thien-phase2` | T11.28 · T11.34 · T26.25 · T37.9 · T37.11 · T37.13 |
+| **#106** | `docs/runbook-khoi-phuc-va-di-tru` | T11.97; hạ T11.95 xuống `[~]` |
+
+⛔⛔ **Không cây nào giữ hợp của hai bên.** Đồng bộ từ cây chính ⇒ mất 6 mục vừa đóng; đồng bộ từ
+worktree (nếu ép được) ⇒ mất T11.97 và dựng lại T11.95 như thể cửa sổ nguy hiểm còn mở. **Cả hai
+hướng đều cho ra một bảng trông đầy đủ và đúng.**
+
+Cùng hình dạng **§10.67** (*bản vá sống trên đĩa mà tiến trình MCP vẫn chạy mã cũ*), đổi chỗ: lần ấy
+**mã** cũ, lần này **dữ liệu** cũ. Và cùng họ với **luật 3** — thứ có hiệu lực là giá trị **đã giải**
+(`os.getcwd()` lúc khởi động), ⛔ không phải giá trị mình *tưởng* (thư mục mình đang gõ lệnh).
+
+⇒ **Bất biến phải tôn trọng: chỉ đồng bộ Sheet từ một cây đang đứng trên `dev` đã gộp xong**, và
+⛔ không bao giờ đồng bộ khi còn PR mở đụng vào `master-tracking.md`. Thứ tự: gộp mọi PR đụng tệp ấy →
+cây chính `checkout dev && pull` → đo md5 → **rồi mới** đồng bộ.
+
+⭐ **Đã trả cùng ngày (T37.16)**: `os.path.abspath(...)` + dòng `Nguồn đã đọc:` nằm trong **câu trả
+lời**, ⛔ không chỉ trong log — log của tiến trình MCP gần như ⛔ không ai mở, và một cảnh báo ⛔ không
+ai đọc thì bằng ⛔ không có (§10.68). ⛔ Cố ý **không** khoá cứng đường dẫn theo `__file__`: đồng bộ từ
+một cây khác là việc **hợp lệ**; thứ thiếu ⛔ không phải một cái chặn mà là **nói ra cây nào**.
+
+⚠⚠ Và bản vá ấy làm gãy neo của một bộ canh cũ — bài học riêng, đáng giá hơn chính bản vá:
+`test_server_co_cong_chan_ma_cu` neo vào chuỗi `parse_markdown_to_data(os.path.join`, nên lượt **bóc
+đối số ra biến** khiến nó tìm không thấy và đỏ, dù bất biến nó canh (*phép so vân tay phải đứng TRƯỚC
+lượt đọc*) ⛔ **không hề đổi**. ⇒ **Một bộ canh hỏng vì mã được DỌN DẸP là một bộ canh đang canh văn
+bản** (luật 2). Neo đúng là lời gọi `parse_markdown_to_data(`, ⛔ không phải cách viết đối số của nó.
+
+---
+
+### §11.17 — Hai cái chuông phải phủ hai tập RỜI NHAU, và một bộ canh ⛔ không được ở cùng nhà với thứ nó canh (T11.67, 8/9/2026)
+
+`bao-dong-quet-cve.sh` (T11.66/T11.84) treo vào `needs: [owasp, npm]` với `if: always()`. Nó là một
+cái chuông **tốt** — và nó chỉ kêu được khi **có một lượt để mà đỏ**. Tắt Actions, xoá nhầm workflow,
+YAML vỡ, GitHub bỏ lịch cron: tất cả cho ra **im lặng tuyệt đối**, đọc y hệt *"mọi thứ đều ổn"*.
+
+Điều đáng chú ý là khoảng trống ấy **đã được ghi ra** — javadoc của `CanhBaoQuetCveTest` tự khai
+giới hạn của chính nó (luật 28). Một dòng nợ nằm trong bộ canh sống lâu hơn một dòng nợ nằm trong sổ.
+
+**Ba quyết định của lượt trả, mỗi cái là một bài học riêng:**
+
+| Quyết định | Vì sao ⛔ không làm cách kia |
+|---|---|
+| **Workflow RIÊNG**, ⛔ không phải một job thêm vào `security-scan.yml` | Chính là khuyết tật nó canh: tệp ấy vỡ thì mọi job **bên trong** cũng chết — kể cả job đi báo rằng nó chết. Có bài kiểm khẳng định `security-scan.yml` ⛔ **không** chứa `canh-cong-quet.sh` |
+| **IM LẶNG khi lượt quét `failure`** | Trạng thái ấy đã có chuông **kèm bằng chứng**. Kêu lần hai là dựng lại T11.84 — 9 bình luận giống hệt nhau, rồi ⛔ không ai đọc nữa. Hai chuông phủ **hai tập rời nhau** |
+| **Ngưỡng 30 giờ, giờ chạy 16:00 UTC** — chọn theo **số đo**, ⛔ không theo dòng cron | 6 lượt gần nhất trễ **291–726 phút** ⇒ kết quả rơi vào 07:06–14:21 UTC. Dòng cron ⛔ không phải giờ CHẠY, nó là giờ *xin* chạy — và chú thích khẳng định *"có kết quả trước giờ làm việc"* đã **sai từ 27/8** mà ⛔ không ai cập nhật |
+
+⛔⛔ **Khuyết tật của chính lượt viết bài kiểm — dạng mới, đáng ghi nhất.** Giờ ghim đặt nhầm thành
+30/08, **sớm hơn mọi fixture 9 ngày** ⇒ mọi phép trừ ra số **ÂM**. Hệ quả ⛔ không phải "mọi bài đỏ":
+
+- bài *quá hạn* (nhánh xa nhất) **đỏ** — thứ duy nhất nhìn thấy được;
+- ba bài *còn tươi* **xanh**, và xanh **vì lý do sai** — chúng chứng minh nhánh bình-thường chạy được
+  với một tuổi âm, ⛔ không nói gì về ngưỡng.
+
+⇒ **Một hằng số thời gian sai chỉ làm ĐỎ nhánh xa nhất; các nhánh gần thì XANH GIẢ.** Và cách sửa rẻ
+nhất lúc ấy — *nới ngưỡng cho bài kia hết đỏ* — là **tự tay tháo bộ canh**. Thứ chặn được là một bài
+tính lại tuổi bằng `java.time`, **nguồn khác hẳn `date` của shell**, ⛔ không chia giả định nào với
+thứ nó kiểm (luật 29).
+
+⚠ Lượt kiểm chứng ngược cũng suýt nói dối **hai lần**, cả hai đều là bẫy sổ đã ghi: `./mvnw -pl app`
+**thiếu `-am`** biên dịch với jar `core` CŨ trong m2 ⇒ **lớp chưa từng chạy** (bắt được vì đếm **số
+báo cáo surefire**, ⛔ không đọc màu — luật 32); và `rm -f <glob>` không khớp làm **zsh cắt cả chuỗi
+lệnh** (luật 20).
+
+⛔ Thêm một dạng của bẫy khôi phục ở §11.15: `git diff` trên một tệp **chưa track** luôn rỗng, nên nó
+⛔ **không phải** phép đo khôi phục. Chỉ `grep -c` mới là.
+
+---
+
+### §11.18 — Một ô "chờ Công ty" che được nợ của chính mình (G6 · G8 · G10, 9/9/2026)
+
+**Hình dạng.** Ba mục BOQ nằm chung một ô *"chờ Công ty"* suốt nhiều tuần. Lượt đo 9/9 tách hai loại
+ra và tìm thấy **mười một khuyết tật ⛔ không ai chặn** nằm sau cái nhãn ấy — trong đó ba cái là bản
+kết xuất **sai nội dung** đang chờ được gửi cho khách.
+
+Cái nhãn *"chờ Công ty"* nguy hiểm hơn nhãn *"chưa làm"* ở đúng một điểm: nó **chuyển trách nhiệm ra
+ngoài**, nên không lượt rà nào mở nó ra nữa. `⛔ không làm được` và `⛔ chưa làm` đọc giống hệt nhau
+trên một dòng sổ.
+
+**Ba khuyết tật đáng nhớ nhất, cùng một họ: *cắt cụt / xuất nhầm / thiếu cột*, cả ba đều IM LẶNG.**
+
+| | Khuyết tật | Vì sao ⛔ không ai thấy |
+|---|---|---|
+| `SpreadsheetReader` | Vòng lặp dừng ở `rows.size() < MAX_ROWS`, và `tongDong = rows.size()` **đếm sau khi cắt** | Tệp 8.000 dòng báo *"tổng 5000, 0 lỗi"* rồi **"nhập thành công"** |
+| BC-13 | Xuất `chatLuong()` trong khi đặc tả mô tả `dongBo()` — trùng **2/12** cột | `dongBo()` có **0 nơi gọi**; tệp vẫn đầy dữ liệu, chỉ là **bảng khác** |
+| BC-05 | Thiếu 5 cột đặc tả | **14 cột nó *có* đều đúng** |
+
+⭐ **Bài học chung**: một bản kết xuất **sai** trông y hệt một bản kết xuất **đúng** — nó có tiêu đề,
+có dữ liệu, mở được trong Excel. Không có gì trong hệ thống phân biệt được hai trạng thái ấy trừ một
+lượt **đối chiếu với đặc tả**, và đối chiếu ấy phải là một **bài kiểm**, không phải một lượt đọc.
+
+**Vì sao các cổng kiểm đều xanh — luật 28 ở dạng đắt nhất.** `HydroReportExportHttpTest` có 4 bài;
+**đúng một** bài chạy hết vòng khép kín, và nó xuất **chỉ BC05**. Nội dung tệp của ba mã báo cáo còn
+lại **chưa từng bị ai nhìn**. Cái xanh của một bộ canh hẹp đọc như một lời bảo đảm rộng — lần thứ tư
+trong dự án.
+
+Cùng hình dạng ở phía nhập: `ConstructionImportTest` có 10 bài **gọi thẳng service** (luật 5), nên ba
+khuyết tật nằm trọn ở giao diện — `accept` chặn CSV và mời `.xls`, *"đúng biểu mẫu"* mà không có biểu
+mẫu, bảng lỗi là mã chết — về nguyên tắc ⛔ không thể lộ ra.
+
+**⭐ Chỗ hệ thống làm ĐÚNG, đáng ghi ngang với chỗ sai.** `BangCsv.dong` **ném** khi một dòng lệch số
+cột, và nó bắt được lỗi của lượt vá này ở **lần chạy đầu tiên**: khối hai tầng của BC-13 có 16 vs 12
+ô. Việc nền FAILED chứ ⛔ không cho ra một tệp xấu. Cách sửa đúng là **đệm cho đủ lưới**, ⛔ không
+phải nới bộ canh — chú thích của chính nó đã ghi lý do: *một CSV lệch cột vẫn mở được trong Excel, nó
+chỉ đẩy dữ liệu sang cột bên cạnh, im lặng*.
+
+**⚠ Hai khẳng định của lượt vá tự sai, và lượt chạy bác cả hai** (lại đúng luật 29 — người viết mã và
+người viết bài kiểm là một người, mang cùng giả định):
+
+- `SYS-0003` khai `HttpStatus.BAD_REQUEST`; tôi khẳng định 422 vì *"lỗi hợp lệ hoá thì phải là 422"*.
+- Thông điệp `OPS-2022` (nay `SYS-0012` — xem §11.20) nhóm hàng nghìn kiểu Việt Nam (`5.002`), tôi so với `"5002"`.
+
+Cả hai được sửa thành khẳng định về **thứ đang đo** — mã lỗi, và con số sau khi bỏ dấu nhóm — chứ
+⛔ không về con số HTTP hay định dạng mà tôi đoán.
+
+**⛔ Nới một bộ canh thì phải thay bằng thứ CHẶT HƠN.** `HydroCatalogueSeedTest.khongBiaDuLieuChuaCo`
+khẳng định tuyến sông + lý trình + toạ độ **đều NULL cả 19 dòng**. Bản chụp G8 làm hai vế đầu hết
+đúng. Nới nó xuống còn toạ độ mà ⛔ không thay gì vào chỗ hai vế kia là **tự tay tháo một bộ canh**
+(§11.17 vừa trả giá đúng chuyện này). Thay bằng `khopBanChupG8` ghim **từng ô của cả 19 dòng, gồm 6 ô
+"Chưa rõ"** — vì một khẳng định kiểu *"13 dòng có tuyến sông"* vẫn xanh khi ai đó xoá tuyến của một
+điểm rồi điền cho điểm khác.
+
+**⚠ Và hai nguồn của cùng một khách hàng có thể lệch nhau.** Bảng ánh xạ 19 điểm đo tự khai là *"bảng
+Công ty cấp (chốt G8b)"*; bản chụp 9/9 lệch **đúng một dòng** (`F01519` Lương Cổ: Thượng lưu vs Hạ
+lưu). 18/19 dòng khớp tuyệt đối ⇒ ⛔ không phải hai danh sách khác nhau mà là **một dòng sai ở một
+trong hai bản**. Chữ *"đã chốt"* trong một chú thích ⛔ không làm dữ liệu đúng lên. Cách xử lý: lấy
+bản nhất quán hơn, ghi lý do vào migration, **và hỏi lại khách** — ⛔ không im lặng chọn một bên.
+
+---
+
+### §11.19 — Một `PUT` thiếu trường xoá dữ liệu, và nó vô hình cho tới ngày dữ liệu tồn tại (9/9/2026)
+
+**Triệu chứng.** PR #117 đỏ trên CI ở `HydroCatalogueSeedTest` — *`tuyến sông của F01771: expected
+"Sông Nhuệ" but was null`* — trong khi chạy riêng lớp ấy ở máy dev **xanh 12/12**.
+
+**Nguyên nhân.** Container Postgres của bộ kiểm là **singleton cho cả lượt JVM**, nên mọi lớp dùng
+chung một CSDL. `HydroCatalogueHttpTest.thanSua()` dựng thân `PUT` **6 trường** — thiếu `riverName`
+và `chainage` — rồi gửi lên `motDiemDo()` = `ORDER BY id LIMIT 1` = **F01771**. `PUT` là
+thay-toàn-phần nên `StationService` hiểu *"⛔ không gửi"* là *"xoá"*.
+
+⭐⭐ **Vì sao nó sống được từ WS-29 tới 9/9 mà ⛔ không ai thấy: trước bản chụp G8, cả 19 điểm đo
+đều có `river_name = NULL` sẵn.** Một lượt ghi xoá trắng một ô vốn đã trắng ⛔ không để lại dấu vết
+nào. Khuyết tật chỉ có triệu chứng **kể từ ngày ô ấy có giá trị** — tức đúng ngày dữ liệu thật về,
+đúng lúc mất nó đắt nhất.
+
+⚠ Và **chỉ CI đỏ**: surefire xếp lớp theo thứ tự hệ tệp; macOS cho `Seed` trước `Http`, runner Linux
+ngược lại. Cùng hình dạng đã đo ở chính tệp ấy cho `measurementTypeIds`.
+
+**⭐ Lần thứ HAI, cùng một tệp, cùng một hình dạng — và bài học lần đầu ĐÃ được viết ra.** Javadoc
+của `thanSua` ghi nguyên văn: *"bài kiểm dùng chung một CSDL thì mỗi lượt ghi là một tác dụng phụ
+lên bài kiểm khác — gửi **trọn** trạng thái hiện có"*. Nó ⛔ không ngăn được lần thứ hai.
+
+⇒ **Một bài học nằm trong javadoc là một lời dặn, ⛔ không phải một cổng kiểm.** Lần này nó thành
+`editingAStationKeepsItsG8Location`: đọc trước → `PUT` → đọc lại → phải bằng.
+
+**⛔ Vì sao ⛔ KHÔNG chữa bằng cách bắt buộc trường, như lần trước.** `measurementTypeIds` thành
+`@NotEmpty` vì rỗng **luôn** sai. `riverName` thì khác: NULL là trạng thái **hợp lệ** (6/19 điểm đo
+hôm nay), và `PUT` xoá trường bị bỏ trống là *đúng ngữ nghĩa của `PUT`*. Thứ phải bảo đảm là **màn
+hình gửi đủ** — và đó là một khẳng định đo được, ⛔ không phải một lời hứa.
+
+⚠ Bài kiểm chứng ngược cho bộ canh mới đỏ ở **vế chống tập rỗng** chứ ⛔ không ở vế so sánh: khi
+`thanSua` thiếu trường thì các bài chạy trước đã xoá trắng F01771, nên tới lượt bài mới thì ⛔ không
+còn gì để mất. Một bộ canh ⛔ không có vế *"dữ liệu mốc phải ĐANG CÓ"* sẽ **xanh trong đúng tình
+huống nó sinh ra để bắt** (luật 7).
+
+**⭐ Hệ quả rộng hơn, và nó đổi cách đọc cả sổ nợ.** Nếu *"sửa được trên admin portal"* là lý do một
+ô dữ liệu lệch ⛔ không phải blocker — thì **vòng khứ hồi của màn hình ấy phải có phép kiểm**. Một
+màn hình sửa được mà lượt lưu xoá mất trường bên cạnh thì lời hứa ấy sai, và nó sai **im lặng**.
+
+### §11.20 — Một lượt nâng phiên bản lớn: ba khuyết tật im lặng, và cái nặng nhất chỉ lộ vì có bài kiểm HTTP (T11.69, 9/9/2026)
+
+Di trú Spring Boot **3.5.16 → 4.1.1**. Mục tiêu là xoá **6 mã CVE ≥ 7** ở `spring-core`/`spring-web`
+6.2.19 — đường vá duy nhất còn tồn tại, vì `6.2.19` là bản **cuối cùng** của dòng 6.2 (tra
+`maven-metadata.xml`, luật 21) và bản có vá nằm ở Framework 7, thứ chỉ đi kèm Boot 4.
+
+Lượt dựng thử 07/09 đã đo trước phần đổi toạ độ Maven và đổi gói, và **đúng**: 7 tệp, ⛔ không lỗi
+logic nào. Nhưng ba khuyết tật nặng nhất **⛔ không nằm trong bản đồ ấy** — và cả ba đều thuộc loại
+*biên dịch sạch*.
+
+**(1) `ResponseEnvelopeAdvice` hỏi sai câu hỏi, và câu trả lời im lặng đổi.** Nó quyết định có bọc
+envelope hay ⛔ không bằng:
+
+    AbstractJackson2HttpMessageConverter.class.isAssignableFrom(selectedConverterType)
+
+Boot 4 chọn `JacksonJsonHttpMessageConverter` (Jackson 3), thứ **⛔ không kế thừa** lớp ấy. Lớp cũ
+**vẫn còn** trong Framework 7 (deprecated), nên mã **biên dịch sạch** — và mọi endpoint sẽ trả thân
+trần, ⛔ không envelope. Toàn bộ frontend đọc `data`/`traceId` sẽ vỡ.
+
+⭐ Thứ bắt được nó là `EnvelopeAndErrorHandlingTest` — **kiểm qua HTTP** (luật 5). Một bộ kiểm gọi
+thẳng service ⛔ không thể thấy: khuyết tật nằm ở tầng chọn converter, tầng chỉ tồn tại khi có một
+lượt gọi thật đi qua dây.
+
+**(2) `spring-boot-flyway` là artifact RIÊNG.** Boot 3.5 để `FlywayAutoConfiguration` trong
+`spring-boot-autoconfigure` — thứ luôn có mặt — nên khai `flyway-core` trần là đủ. Boot 4 dời nó ra.
+Giữ nguyên khai báo cũ thì: biên dịch sạch, ứng dụng khởi động, health xanh, **⛔ không migration nào
+chạy**.
+
+⚠ Và bộ test **về nguyên tắc ⛔ không thấy** hậu quả thật: nó chạy trên CSDL **rỗng**, nơi thiếu
+Flyway là ⛔ không có bảng nào và mọi thứ đỏ ầm ĩ. Môi trường thật có CSDL **đã đầy** — ứng dụng lên
+xanh và bản vá lược đồ mới âm thầm ⛔ không được áp. Đúng luật 30, đúng hình dạng §11.19.
+
+**(3) `TestRestTemplate` bị xoá hẳn** — 37 tệp, 55 lời gọi. Đường chính thống là `RestTestClient` với
+API fluent, nhưng đi đường ấy là **viết lại chính phần khẳng định** của bộ kiểm thử cùng lúc với đổi
+thứ được đo. ⇒ Dựng `TestHttp` giữ đúng ba phương thức đang dùng; 37 tệp chỉ đổi **tên kiểu**.
+
+#### ⛔⛔ Bài học đắt nhất: bản vá của tôi tự mang hai khuyết tật, và một khẳng định của tôi bị bác
+
+`TestHttp` bản đầu dùng `SimpleClientHttpRequestFactory` ⇒ `HttpURLConnection` **⛔ không biết
+`PATCH`** ⇒ 4 bài đỏ. Nó cũng **đi theo chuyển hướng** theo mặc định — nếu ⛔ không sửa, một endpoint
+trả `302` sẽ được đọc thành `200` và bài kiểm xanh trong khi thứ nó khẳng định đã biến mất. Nay là
+`JdkClientHttpRequestFactory` với `Redirect.NEVER` khai **tường minh**: một mặc định ⛔ không phải một
+quyết định (luật 3).
+
+Và chú thích tôi viết cho khoá cấu hình Jackson khẳng định *"xoá dòng này thì ngày ra dây thành SỐ
+epoch"*. Lượt kiểm chứng ngược **bác bỏ**: gỡ hẳn khoá đi mà bài kiểm **vẫn xanh**, vì đo trực tiếp
+trên jar 3.1.5 thì `DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS.enabledByDefault()` = **false** —
+Jackson 3 đã đảo mặc định. Bộ canh chỉ đỏ khi đặt `true`.
+
+⇒ Dòng cấu hình ấy **vẫn giữ**, nhưng vì lý do THẬT chứ ⛔ không phải lý do tôi viết ra: quy tắc 1
+của dự án (mọi timestamp ra dây là ISO-8601 UTC) ⛔ không được phép treo vào **mặc định của thư viện
+bên thứ ba** — thứ vừa đổi đúng một lần trong chính lượt di trú này. Đây là luật 3 ở dạng thuần
+khiết nhất, và là lần thứ hai trong hai ngày một lượt kiểm chứng ngược bác bỏ khẳng định của chính
+người viết bản vá (luật 29).
+
+#### Một bộ canh đỏ mà ⛔ không nói được vì sao thì gần như ⛔ không có
+
+`FlywayAutoConfigCoMatTest` bản đầu kế thừa `IntegrationTestBase` và hỏi *"bean `Flyway` có tồn tại
+⛔ không"*. Lượt kiểm chứng ngược (hạ pom về `flyway-core` trần) cho **2/2 đỏ** — nhưng đỏ vì
+**ApplicationContext chết**, nên thông điệp chẩn đoán ⛔ không bao giờ in ra; người đọc log chỉ thấy
+stack trace ⛔ không trỏ vào nguyên nhân.
+
+⇒ Hạ xuống tầng **tĩnh**: JUnit trần, hỏi lớp auto-config có trên classpath ⛔ không. Đó chính là thứ
+đổi khi ai đó sửa `app/pom.xml`; nó ⛔ không cần CSDL, chạy trong mili-giây, và khi đỏ thì câu trả lời
+nằm ngay trong thông điệp. Kèm một bài **đối chứng phải-KHÔNG-tìm-thấy** (gói Boot 3.5 phải vắng mặt)
+để cái xanh của nó ⛔ không vô nghĩa trong một thế giới mà cả hai gói cùng tồn tại (luật 9).
+
+#### Ba lần gặp lại bẫy hạ tầng cũ trong một phiên
+
+- **Spotless/Checkstyle chặn ở bước ĐẦU** ⇒ lượt chạy báo *0 lỗi biên dịch* trong khi **chưa biên
+  dịch gì**. Gặp hai lần. Đúng §10.74: *số job đỏ ⛔ không phải số khuyết tật*.
+- **Một báo cáo surefire cũ 1 phút** suýt được ghi nhận là kết quả mới, sau khi Checkstyle chặn lượt
+  chạy — chỉ lộ ra vì đối chiếu `ls -la` mốc thời gian. Luật 32 ở dạng dữ liệu thay vì mã thoát.
+- **`nohup … &` thoát 0 ngay lập tức**, và mã thoát ấy ⛔ không phải của Maven.
+
+#### Số đo để lại
+
+Phiên bản đọc bằng `dependency:list`, ⛔ không đọc tài liệu: spring-core/web **7.0.9** · tomcat
+**11.0.24** · spring-data-jpa **4.1.1** · kotlin-stdlib **2.3.21** · hibernate **7.4.5.Final** ·
+flyway **12.4.0**. **Gỡ SÁU ghim phiên bản** (bản đồ cũ nói ba): thêm `commons-lang3` — BOM khai
+**3.20.0** trong khi ta ghim 3.18.0, giữ lại là **hạ cấp**.
+
+⚠ Jackson 2 (**2.21.5**) **vẫn trên classpath**, tới từ **MinIO 8.5.17** — ⛔ không loại được. Nhưng
+sau lượt này ⛔ không dòng mã nào của ta chạm vào nó; annotation (`@JsonFormat`, `@JsonInclude`) cố ý
+ở lại `com.fasterxml.jackson.annotation`, vì chính `JacksonProperties` của Boot 4 cũng đọc gói ấy.
+
+#### Hậu truyện §11.20 — gỡ một ghim phiên bản vì "BOM khai số cao hơn", và số cao hơn ⛔ không có nghĩa đã vá
+
+Lượt di trú gỡ **sáu** ghim phiên bản với lập luận *"BOM 4.1.1 khai bằng hoặc cao hơn, giữ lại là ép
+sai"*. Năm cái gỡ đúng — chúng được đối chiếu bằng **giá trị BOM thật**. Cái thứ sáu,
+`tomcat.version 10.1.59`, được đối chiếu bằng **thứ tự số**: BOM khai `11.0.24`, mà `11.0.24 >
+10.1.59`, nên ghim "thành thừa".
+
+Lượt quét trên `dev` sau khi gộp bác bỏ ngay: **9 mã ≥ 7**, tất cả ở `tomcat-embed-core 11.0.24`, và
+chúng là **đúng chín mã** mà ghim cũ đã sinh ra để tránh. Đọc `versionEndExcluding` từ chính báo cáo:
+`10.1.58 · 11.0.25 · 9.0.121` — lỗ hổng nằm ở **mã nguồn Tomcat**, ⛔ không ở một dòng phát hành. Ta
+đã đổi một bản **ĐÃ VÁ** lấy một bản **CHƯA VÁ**, và lượt di trú suýt đóng lại đúng con số nó mở ra.
+
+⭐ **Bài học: một ghim phiên bản ⛔ không phải một tuỳ chọn, nó là một BẢN GHI rằng có lỗ hổng đã đo
+được ở bản thấp hơn.** Gỡ nó chỉ hợp lệ sau khi đọc lại `versionEndExcluding` của **chính những mã
+ấy** trên dòng mới. So thứ tự số giữa hai dòng lớn là một phép so ⛔ không có nghĩa về mặt CVE.
+
+⚠ Và điều đáng chú ý nhất: ⛔ **không bộ canh nào của kho bắt được** — `VongDoiPhienBanTest` chỉ hỏi
+*bảng có khớp nơi ghim ⛔ không*, ⛔ không hỏi *bản đang ghim đã vá chưa*. Thứ bắt được là **cổng quét
+CVE**, và nó bắt được **vì nó chạy trên `dev` sau lượt gộp** — tức đúng thiết kế của
+`security-scan.yml` (⛔ không chạy trên PR: nó canh *thế giới đổi*, ⛔ không canh *mã đổi*, §10.68).
+Đây là lần đầu cổng ấy bắt một khuyết tật do **chính ta vừa tạo ra**, chứ ⛔ không phải do NVD công bố
+thêm.
+
+---
+
+### §11.21 — Một cột trỏ sang module khác: chỗ đặt hợp đồng do **Maven** quyết, ⛔ không do ArchUnit (T51.8, 10/9/2026)
+
+**Bối cảnh.** `users.employee_id` ra đời cùng lược đồ định danh (`V202608131002:86`) và nằm im **28
+ngày** với **0 đường ghi** trong toàn kho. Nó là căn cứ duy nhất cho vế thứ hai của CN-04.7 —
+*"chính nhân viên đó xem được trường 🔒 của mình"* — nên thiếu nó thì cả `EmployeeSensitiveService`
+lẫn CN-04.9 (nghỉ phép) đều đứng.
+
+#### Chỗ đặt hợp đồng: ArchUnit nói "được", Maven nói "không"
+
+`ModuleBoundaryTest` cho phép `core` import `com.songnhue.hr.spi.*` — nó chỉ cấm import
+`domain/`, `infra/`, `application/` của module khác. Và `hr/spi/package-info.java` tự khai mình là
+*"package DUY NHẤT được phép import chéo"*. Đọc hai thứ ấy thì `hr.spi.EmployeeDirectoryPort` là
+câu trả lời hiển nhiên: dữ liệu là của `hr`, hợp đồng nên ở `hr`.
+
+⛔⛔ **Sai — và ArchUnit về nguyên tắc ⛔ không thể báo.** `core/pom.xml` ⛔ không khai một phụ thuộc
+Maven nào; mọi module khác phụ thuộc **vào** nó. Đặt interface ở `hr.spi` là thêm `core → hr`, tức
+một **chu trình** ở tầng build. Một cây có chu trình ⛔ không bao giờ biên dịch được — mà ArchUnit
+chạy **trên bytecode đã biên dịch**. ⇒ Luật ấy ⛔ không "xanh sai", nó **⛔ không bao giờ chạy**.
+
+> **Bài học chung.** Một luật kiến trúc chỉ nói được về những cây **dựng được**. Ràng buộc mạnh hơn
+> nó — thứ tự phụ thuộc build — nằm ngoài tầm và ⛔ không có bộ canh nào. Trước khi hỏi *"ArchUnit
+> có cho ⛔ không"*, hỏi *"`pom.xml` có cho ⛔ không"*.
+
+⇒ Đi theo tiền lệ **`ConstructionLookupPort`**: hợp đồng ở `core.spi`, cài đặt ở tầng
+`application` của module **sở hữu dữ liệu** (`LayeringTest` đòi ranh giới giao dịch ở đó, ⛔ không ở
+`spi`), Spring nối hai đầu lúc dựng context. Nhờ vậy `core` gọi được `hr` mà ⛔ không có một dòng
+phụ thuộc Maven nào.
+
+⬜ Hệ quả để ngỏ: `hr.spi` vẫn **rỗng** (đúng một `package-info`). Một package rỗng mang javadoc mô
+tả một cơ chế đọc như *"cơ chế này đang chạy"*. Nếu hết Phase 3 vẫn ⛔ không có chiều
+`content → hr.spi` hay `operations → hr.spi` nào thì **xoá đi** (T54.10).
+
+#### Một cột khoá ngoại ⛔ không phải dữ liệu — nó là **một quyền**
+
+Vế hai của CN-04.7 suy quyền đọc CCCD/lương/số tài khoản **thẳng từ** `users.employee_id`. Nên mọi
+quyết định quanh cột ấy phải đọc như quyết định về phân quyền, ⛔ không như quyết định về hồ sơ:
+
+1. **Chỉ mục duy nhất từng phần** `uq_users_employee_id … WHERE employee_id IS NOT NULL AND
+   deleted_at IS NULL`. Hai tài khoản cùng trỏ một hồ sơ là hai con người cùng khai mình *là* một
+   nhân viên. Chỉ mục **thường** có sẵn (`ix_users_employee_id`) ⛔ không cấm gì — nó tăng tốc tra
+   cứu. ⚠ Vế `deleted_at IS NULL` bắt buộc: thiếu nó thì xoá một tài khoản là **khoá vĩnh viễn** hồ
+   sơ ấy, và thông báo lỗi trỏ vào một tài khoản ⛔ không còn hiện trên màn hình nào.
+2. **`ACCOUNT_EMPLOYEE_LINK_CHANGED` mức DANGER.** `audit_logs` **có** ghi lượt sửa `User`, nhưng
+   một thao tác *cấp quyền* phải nằm ở nhật ký **bảo mật**. Nó cũng là **nửa còn lại** của
+   `HR_SENSITIVE_FIELDS_READ` (§T51.6): dòng *"ai đọc"* một mình ⛔ không trả lời được câu quan
+   trọng nhất — *người ấy có quyền đọc từ bao giờ, và ai cho*.
+3. **`AuthorityLoader.invalidate` bắt buộc.** `employeeId` nay đi trong `AuthenticatedUser`, tức
+   nằm trong cache TTL **30 giây ngoài transaction**. Thiếu nó thì người vừa bị **GỠ** liên kết vẫn
+   đọc được trường 🔒 của hồ sơ cũ thêm nửa phút.
+4. **⛔ Cấm tự liên kết chính mình (`ADM-2018`), áp đều cho MỌI vai trò kể cả SUPER_ADMIN.** Cửa gác
+   là `adm:user:update` — quyền ADMIN **có**; còn `hr:employee:view-sensitive` thì
+   `V202608131007:169` loại trừ ADMIN **tường minh**. Cho tự liên kết là mở một đường vòng ba cú bấm
+   quanh đúng dòng loại trừ ấy. Một luật miễn trừ đúng vai trò mạnh nhất là một luật trang trí.
+
+#### ⛔⛔ Đo được: dòng loại trừ ADMIN **đã là một tờ giấy từ trước lượt này**
+
+Ba phép đo trên seed, ⛔ không suy đoán:
+
+| Đo | Kết quả |
+|---|---|
+| ADMIN có `adm:role:manage` ⛔ không? | **Có** — `V202608131007:165-170` cấp toàn bộ danh mục TRỪ `hr:employee:view-sensitive` |
+| Vai trò `ADMIN` là vai trò hệ thống ⛔ không? | **⛔ Không** — `is_system = FALSE` (`:132`), nên `ADM-2014` ⛔ không chặn |
+| Có đoạn mã nào cấm **gán** một mã quyền cụ thể ⛔ không? | **⛔ Không** |
+
+⇒ **ADMIN tự thêm `hr:employee:view-sensitive` vào vai trò của chính mình trong ba cú bấm.** Đường
+thứ hai ngắn hơn: ADMIN có `adm:user:assign-role` ⇒ tự gán vai trò `ADMIN_HR`.
+
+⛔ **⛔ Không phải lỗ do lượt này mở** — nó có sẵn. Chính vì thế bảo đảm của T54.2 mới **hẹp** và
+phải nói ra cho đúng: *"đường MỚI mở ra ⛔ không rộng thêm một chút nào"*, ⛔ không phải *"ADMIN ⛔
+không đọc được trường 🔒"*.
+
+⬜ **Bản vá đề xuất, chờ QuanTran quyết vì nó đổi CHÍNH SÁCH vận hành** (T54.4): bất biến RBAC nền
+*"⛔ không ai cấp được quyền mình ⛔ không có"*, áp cho **cả hai** cửa —
+`replacePermissionsOfRole` chỉ xét quyền **THÊM MỚI** (giữ nguyên quyền đã có ⛔ không phải leo
+thang, và ⛔ không xét thì ADMIN ⛔ không lưu nổi vai trò `ADMIN_HR` dù chỉ sửa một ô khác), và
+`assignRoles` xét bao đóng quyền của các vai trò **thêm mới**. Hệ quả vận hành phải khai ra:
+**ADMIN ⛔ không tự bổ nhiệm được Admin HR** — SUPER_ADMIN làm việc đó.
+
+#### Vế tự đọc: thay cổng quyền bằng một tính chất **cấu trúc**
+
+`GET /hr/ho-so-cua-toi` là endpoint **DUY NHẤT** của MOD-04 ⛔ không mang `@RequirePermission`. Đó
+⛔ không phải sơ suất: *"chính nhân viên đó"* ⛔ **không biểu diễn được** bằng một mã quyền — quyền
+gán theo **vai trò**, còn đây là quan hệ giữa **một tài khoản** và **một hàng**. Gác bằng
+`hr:employee:view` sẽ chặn đúng người nó phục vụ (một cán bộ vai trò VIEWER ⛔ không có quyền ấy).
+
+Thứ thay thế mạnh hơn một mã quyền: đường này ⛔ **không nhận một định danh nào** — ⛔ không
+`@PathVariable`, ⛔ không `@RequestParam`, ⛔ không thân yêu cầu. ⇒ **IDOR ở đây là một trạng thái
+⛔ không biểu diễn được**, ⛔ không phải một phép kiểm người viết sau phải nhớ thêm vào.
+
+⚠ Nó cũng cố ý **⛔ không đi qua `ScopeGuard`**: phạm vi đơn vị trả lời câu *"anh xem được dữ liệu
+của những AI"*, câu ấy ⛔ không áp cho chính mình — một cán bộ mà tài khoản ở XN-B còn hồ sơ ở XN-A
+sẽ ⛔ không mở nổi hồ sơ của **chính mình**.
+
+⚠⚠ **Và bảo đảm ấy đứng trên một tính chất VAY MƯỢN của Hibernate**: `@Filter` **⛔ không** áp cho
+`EntityManager.find()` tra theo khoá chính, chỉ áp cho truy vấn. Nên `findById` thấy được hồ sơ
+ngoài phạm vi, còn một câu `@Query` tương đương thì ⛔ không — hai dòng mã trông tương đương, hành
+vi ngược nhau. Một bảo đảm đứng trên hành vi thư viện mà ⛔ không có bài kiểm sẽ vỡ **im lặng** ở
+lượt nâng phiên bản kế tiếp ⇒ `hoSoNgoaiPhamViDonViVanTuDocDuoc` neo nó, **kèm vế phân biệt**
+khẳng định đường thường ĐÚNG LÀ trả 403.
+
+#### Hai bẫy của **bài kiểm**, cả hai đều làm một khẳng định trở nên rỗng
+
+- **`405` bị `GlobalExceptionHandler:111` gộp về `400`** (quyết định có sẵn của dự án). Nên khẳng
+  định *"⛔ không có động từ ghi"* bằng HTTP xanh ở **cả hai** trạng thái: một `@PutMapping` có thật
+  mà từ chối thân yêu cầu cũng trả 400 (luật 9). ⇒ Vế phân biệt phải là **cấu trúc** —
+  `getDeclaredMethods()` ⛔ không mang `@Put/@Post/@Patch/@DeleteMapping`, kèm đối chứng chống tập
+  rỗng *"phải có đúng 1 `@GetMapping`"*.
+- **Checkstyle bắt hàm dựng rút gọn 11 tham số.** `AuthenticatedUser` là `record` có 20 nơi gọi
+  trong `src/test`; bản đầu thêm một overload để né 20 lượt sửa. Luật `ParameterNumber` (≤ 8) bỏ
+  qua hàm dựng chuẩn của `record` nhưng ⛔ không bỏ qua một hàm dựng viết tay ⇒ nó bắt **đúng thứ
+  nó sinh ra để canh**. Sửa đủ 20 nơi thì cái giá đã khai ra (*"một nơi gọi production mới quên
+  trường này nhận `null` trong im lặng"*) biến mất theo.
+
+---
+
+### §11.22 — Hai màn hình đọc CÙNG một bảng với hai luật ngược nhau (CN-04.6 vs CN-04.7, 10/9/2026)
+
+**Bối cảnh.** `employees` phục vụ hai màn hình có yêu cầu **đối nghịch**:
+
+| | Hồ sơ CBNV (CN-04.7 / M4.13) | Danh bạ nội bộ (CN-04.6 / M4.11) |
+|---|---|---|
+| Quyền | `hr:employee:view` — **3/12** vai trò | `hr:directory:view` — **11/12** vai trò |
+| Phạm vi đơn vị | **Cắt**; ra ngoài ⇒ `AUTH-3002` + `security_events` | ⛔ **Toàn Công ty** |
+| Trường ra API | 27 + cờ 🔒 | **9** trường liên hệ công vụ |
+
+Gán phạm vi cho danh bạ là làm nó vô dụng (⛔ không gọi được sang Xí nghiệp khác — mà đó là toàn bộ
+lý do một cuốn danh bạ tồn tại). Bỏ phạm vi ở hồ sơ là vỡ M4.13. **⛔ Không có một luật chung nào
+đúng cho cả hai.**
+
+#### ⛔⛔ Vì sao SQL viết tay, và vì sao đó là quyết định BẢO MẬT
+
+`ScopeFilterAspect` bật `@Filter` phạm vi **quanh mọi** `@Transactional`, nên **mọi** truy vấn JPA
+trên `Employee` đều bị cắt. Ba đường đi tới một danh bạ toàn Công ty, và hai đường đầu đều sai:
+
+1. ⛔ **`session.disableFilter(…)` trong service.** Nó tắt cơ chế bảo vệ phạm vi cho **cả giao
+   dịch**. Javadoc của `ScopeGuard` đã ghi chính xác cái giá: *"bỏ sót bước bật lại là mọi truy vấn
+   còn lại chạy ⛔ không có lọc phạm vi — lớp sinh ra để bảo vệ phạm vi trở thành cái chọc thủng
+   nó, và ⛔ không có lỗi nào báo ra"*. Thêm một nơi gọi thứ hai là nhân đôi rủi ro ấy.
+2. ⛔ **DTO projection bằng JPQL.** Vẫn đi qua entity ⇒ vẫn bị `@Filter` cắt. Nó **trông** như một
+   đường khác nhưng ⛔ không phải.
+3. ⭐ **JDBC thuần.** Đi một đường **⛔ không có** cơ chế ấy, thay vì tắt cơ chế ấy đi.
+
+Đường thứ ba mua thêm một tính chất quan trọng hơn: **danh sách cột viết bằng tay**. Một trường mới
+thêm vào `Employee` ⛔ **không** tự chảy ra danh bạ. Với `SELECT e` thì điều ngược lại đúng — lớp
+phòng thủ duy nhất là người dựng DTO **nhớ** ⛔ không lấy, đúng thứ quy tắc 5 cấm.
+
+> **Cái giá phải khai ra:** mất kiểm tra kiểu lúc biên dịch. Bù bằng **hai** bộ canh hỏi **hai** câu
+> khác nhau — `DanhBaKhongLoDuLieuCaNhanTest` đọc `getRecordComponents()` (*hợp đồng của kiểu*) và
+> `DanhBaHttpTest.thanJsonKhongLoDuLieuCaNhan` đo trên **byte đi ra dây** (*thứ thật sự đi ra*).
+
+#### Ba chỗ dễ đọc sai đặc tả, cả ba đều sai IM LẶNG
+
+- **"chỉ NV 'Đang làm'"** ⛔ **không** phải `status = 'DANG_LAM'`. Sáu trạng thái tồn tại; câu ấy
+  đối lập với **đã nghỉ**, ⛔ không đối lập với thử việc / thai sản / nghỉ ⛔ không lương. Đọc sai ⇒
+  người nghỉ thai sản biến khỏi danh bạ, một quyết định nhân sự ⛔ **không ai duyệt**, và triệu
+  chứng là một danh bạ **thiếu người** mà ⛔ không ai đếm được.
+- **Lọc đơn vị** phải khớp **cả nhánh con**. Khớp đúng `org_unit_id` ⇒ chọn một Xí nghiệp ra **một
+  người** (ông trưởng đơn vị) rồi người dùng tin rằng đơn vị ấy có một người. Một câu trả lời **sai
+  mà im lặng** nguy hiểm hơn một lỗi.
+- **"Đồng nghiệp cùng đơn vị"** thì **ngược lại** — khớp **đúng** `org_unit_id`, vì câu ấy nghĩa là
+  *người ngồi cùng phòng*, ⛔ không phải toàn bộ Xí nghiệp. ⇒ **Hai câu hỏi khác nhau thì hai phép
+  so khác nhau**, và cùng một từ *"đơn vị"* xuất hiện ở cả hai.
+
+#### ⛔ Một ô ⛔ không có nguồn: thà để trống còn hơn lấy đại
+
+Đặc tả vẽ thẻ danh bạ có **ảnh**. Đo: `employees` ⛔ không có cột ảnh nào, và `HoSoThuMuc.ANH` là
+*"ảnh trong hồ sơ nhân sự"* — có thể là bản chụp giấy tờ. Lấy đại một tệp trong đó đem hiện cho 200
+người là một quyết định **⛔ không ai duyệt**.
+
+⛔⛔ Bản nháp đầu của `DanhBaMuc` **có** ô `anhDaiDienId` kèm chú thích *"LUÔN null hôm nay"*. Đó
+đúng thứ **luật 15** cấm: một trường bày ra giao diện một lời hứa ⛔ không có nguồn, và nó sẽ được
+ai đó "nối cho xong" bằng nguồn gần nhất trong tầm tay. ⇒ Gỡ hẳn. Nợ T55.4 kèm hai phương án, cả
+hai đều cần **một câu trả lời của người**.
+
+#### Một luật chuẩn hoá văn bản sống ở hai nơi ⛔ không dùng chung mã được
+
+`sn_khong_dau(text)` (PL/pgSQL) quyết định **ai được tìm thấy**; `boDau()` (TypeScript) quyết định
+**phần nào được tô sáng**. Lệch nhau ⇒ backend trả **đúng người**, màn hình **⛔ không tô gì**, và
+người dùng đọc thành *"hệ thống tìm sai"*.
+
+⛔ Chỗ lệch cụ thể: `đ`/`Đ` ⛔ **không** phải `d` + dấu tổ hợp mà là ký tự Unicode độc lập, nên
+`NFD` một mình ⛔ không tách được — trong khi `unaccent` của Postgres **có**. Đây là luật 14 ở dạng
+⛔ không gỡ được bằng mã (⛔ không có cách nào chạy `unaccent` trong `vitest`) ⇒ bù bằng
+`toSang.test.tsx` ghim đúng những cặp tiếng Việt dùng hằng ngày.
+
+---
+
+### §11.23 — Một hàng dữ liệu khai một thông báo **chưa bao giờ được gửi**, và ba thứ đã dựng sẵn nằm im 32 ngày (CN-04.9, 14/9/2026)
+
+#### Bối cảnh
+
+CN-04.9 (nghỉ phép) là chức năng **cuối** của MOD-04 còn bị chặn bởi **thứ tự**: chốt C3 đòi *"cấp
+tài khoản cho toàn bộ CBNV"*, nên một đơn nghỉ phải biết **người gửi là CBNV nào** — và cột
+`users.employee_id` chỉ có đường ghi kể từ T51.8 (§11.21).
+
+#### Quyết định 1 — Hàng `__NEW__` của `workflow_transitions` ⛔ KHÔNG phát thông báo được
+
+**Đây là quyết định quan trọng nhất của lượt này, và nó được rút ra từ một bài kiểm ĐỎ, ⛔ không từ
+một lượt đọc mã.**
+
+Migration bản đầu khai hàng vào đời như sau:
+
+```sql
+('__NEW__', 'SUBMIT', 'CHO_DUYET', 'hr:leave:request',
+ 'LEAVE_SUBMITTED', 'hr:leave:approve', FALSE, FALSE, 'Gửi đơn', 10),
+```
+
+Đọc rất hợp lý: *nộp đơn ⇒ báo cho người có quyền duyệt*. Javadoc của `DonNghiPhepService.nop()`
+còn khẳng định thêm rằng `resolveInitialState` là **"chốt chặn thật của đường vào đời"** vì nó kiểm
+quyền của bước `__NEW__`.
+
+**Cả hai đều sai**, và `nopDonThiNguoiDuyetNhanDuocThongBao` đo ra điều đó ở lượt chạy ĐẦU: người
+duyệt nhận **0** thông báo sau một lượt nộp thành công.
+
+Nguyên nhân nằm ở `WorkflowEngine:177`:
+
+```java
+if (requestedState == null || requestedState.equals(definition.getInitialState())) {
+    return definition.getInitialState();     // ⟵ TRẢ VỀ NGAY
+}
+```
+
+`LEAVE_REQUEST` khai `initial_state = 'CHO_DUYET'`, và service xin đúng `CHO_DUYET` ⇒ nhánh trên
+bắn ngay. Hàng `__NEW__` **⛔ không bao giờ được tra**: ⛔ không kiểm `required_permission`, ⛔ không
+gọi `notifyAfterTransition`. Cả ba cột của nó là trang trí.
+
+**⭐ Tiền lệ đã có và nó đúng.** Hai hàng `__NEW__` duy nhất có trước trong kho
+(`V202608211028`, `ops`) đều để `notify_event = NULL`. Chúng phục vụ đúng việc mà hàng `__NEW__`
+làm được: khai một đường vào đời **KHÁC** mặc định (nhập thẳng một công việc *đã hoàn thành*), nơi
+`resolveInitialState` **có** đi qua nhánh tra bảng và **có** kiểm quyền. Lượt này suýt dựng một tiền
+lệ thứ hai mâu thuẫn với nó.
+
+⇒ **Quyết định**: trả hai cột `notify_*` của hàng `__NEW__` về `NULL`, và phát thông báo **tường
+minh** ở `DonNghiPhepService.baoNguoiDuyet()` qua `NotifyRequest.targetedWithUnits`.
+
+⛔ **Vì sao ⛔ không sửa `WorkflowEngine` cho hàng `__NEW__` cũng chạy**: nhánh tra bảng hiện chỉ
+chạy cho trạng thái **khác** mặc định. Cho nó chạy với cả trạng thái mặc định nghĩa là mọi lượt tạo
+của `ops` bỗng nhiên đòi một hàng `__NEW__ → MOI` ⛔ không tồn tại ⇒ ném. Một thay đổi như vậy là
+đổi ngữ nghĩa nền tảng cho **cả bốn** module để cứu một dòng dữ liệu — đúng thứ T28.55 gọi là *phát
+minh một tính năng để cứu một mã lỗi*.
+
+⚠ **Một cột khai một thông báo ⛔ KHÔNG BAO GIỜ sinh ra nguy hiểm hơn một cột để trống**: lượt rà
+sau đọc thấy *"đã có chuông"* rồi đi tiếp. Cùng họ với T50.10 (chuông kêu đúng một lần rồi im 9
+ngày) và §11.15 (endpoint ⛔ không màn hình nào gọi).
+
+#### Quyết định 2 — Số dư phép ⛔ KHÔNG có bảng, nó TÍNH LẠI mỗi lượt đọc
+
+Phương án hiển nhiên là một bảng `leave_balances` với các cột `duoc_huong / da_dung / con_lai`. ⛔
+Bỏ, vì đó là **quy tắc 13**: một cột dẫn xuất được ghi xuống sẽ lệch vào ngày có một đường ghi quên
+cập nhật nó — và đường ghi ấy **sẽ có** (rút đơn, huỷ đơn đã duyệt, quản trị sửa tay, đổi tham số
+`hr.leave.annual-days.*`).
+
+⇒ `SoDuPhepService.tinh(hoSo, nam)` đọc **một** truy vấn (`donChiemSoDuTrongNam`) rồi chia nhóm ở
+Java. Hệ quả đo được: một đơn rút về ⛔ không cần ai đi cộng trả lại, và ⛔ **không có cột nào để
+lệch** — bài `huyDonThiTraLaiSoDu` khẳng định số dư quay về **đúng** giá trị ban đầu.
+
+⚠⚠ **Bản đầu của chính lớp ấy vi phạm đúng quy tắc nó đang viết javadoc để cảnh báo**: nó lấy *đã
+tiêu* bằng một câu `SUM` lọc `fromDate BETWEEN` rồi **trừ** *đang chờ* lấy bằng câu khác lọc theo
+**chồng khoảng**. Hai vị từ khác nhau, và hiệu của chúng là một con số ⛔ không ai định nghĩa được.
+
+#### Quyết định 3 — `working_days` ĐÓNG BĂNG lúc nộp, và đó là NGOẠI LỆ CÓ CHỦ ĐÍCH với quy tắc 3
+
+Quy tắc 3 nói *mọi giá trị tính toán tính ở BE*; nó ⛔ **không** nói *phải tính lại mỗi lượt đọc*.
+
+Ở đây con số là một **sự thật lịch sử tại thời điểm quyết định**: Công ty thêm một ngày lễ vào
+tháng sau thì đơn đã duyệt tháng trước **⛔ không được** đổi số ngày — người lao động đã nghỉ đúng
+ngần ấy ngày và số dư đã trừ đúng ngần ấy.
+
+⚠ Phân biệt với quy tắc 13: cột ở quy tắc 13 mô tả **trạng thái hiện tại** nên phải sinh; cột này
+ghi một **quyết định đã xảy ra** nên phải đóng băng.
+
+#### Quyết định 4 — *"Quản lý ĐƠN VỊ duyệt"* cần HAI cơ chế, và một trong hai ⛔ không phải mã quyền
+
+`workflow_transitions.required_permission` là một **mã quyền**; đặc tả nói một **quan hệ**.
+`hr:leave:approve` một mình cho một trưởng Xí nghiệp 3 duyệt đơn của Xí nghiệp 5.
+
+⇒ Vế còn lại là **bộ lọc phạm vi tầng 3** trên `leave_requests.org_unit_id`: người duyệt ⛔ không
+**nhìn thấy** đơn ngoài phạm vi, nên ⛔ không có gì để bấm — kể cả khi đoán đúng `publicId` (lượt
+`POST /{id}/hanh-dong` trả **404**, vì `findByPublicIdAndDeletedAtIsNull` là một **truy vấn** nên
+`@Filter` áp cho nó).
+
+⚠ `org_unit_id` của đơn là một **BẢN SAO** đơn vị của nhân viên lúc nộp, ⛔ không phải một khoá
+ngoại "sống": một người chuyển đơn vị giữa chừng ⛔ không được làm đơn cũ nhảy sang hộp duyệt của
+trưởng đơn vị mới — người đã duyệt là người cũ, và nhật ký phải khớp với ai thật sự quyết định.
+Cùng lý lẽ với `maintenance_logs.org_unit_id` (T18.2).
+
+⬜ **Vế ⛔ CHƯA hẹp: NGƯỜI NHẬN THƯ.** `RecipientResolver` giải người nhận bằng
+`findActiveIdsByPermission(permission)` — truy vấn **⛔ không có** vế đơn vị, tức toàn Công ty. Thu
+hẹp nó là đổi ngữ nghĩa cho **cả** CMS và cảnh báo vận hành công trình ⇒ nợ **T57.15**, cần một
+lượt riêng có đo trước.
+
+#### Quyết định 5 — Ngày lễ: trả **SỐ ĐÃ KHAI**, ⛔ không trả một CỜ
+
+Bản đầu định trả một cờ `daCauHinhNgayLe`. ⛔ Sai, và cái sai lộ ra khi một khẳng định khác của tôi
+bị dữ liệu bác: tôi viết `DO $$` đòi `holidays` phải **RỖNG** khi giao, trong khi `V202608131008` đã
+seed **8 hàng**.
+
+Tám hàng ấy là **LUẬT**, ⛔ không phải *"seed cho đẹp demo"*: chỉ những ngày lễ có **ngày dương lịch
+cố định** do Điều 112 BLLĐ 2019 ấn định (1/1, 30/4, 1/5, 2/9 × 2 năm), kèm chú thích nói rõ vì sao
+Tết và Giỗ Tổ — **âm lịch**, đổi ngày dương mỗi năm — ⛔ không được seed.
+
+⇒ Một cờ *"đã có ngày lễ chưa"* sẽ trả **CÓ** cho mọi năm đã seed, trong khi **Tết, kỳ nghỉ dài
+nhất năm, vẫn thiếu**. Nó nói dối đúng ở ca nguy hiểm nhất — luật 9.
+
+⇒ API trả `soNgayLeDaKhai` so với hằng `DemNgayCongService.SO_NGAY_LE_THEO_LUAT = 11`, và giao diện
+nói *"năm N mới khai X/11 ngày lễ"* kèm căn cứ pháp lý. Bài kiểm canh **đúng hai biên** 10/11 và
+11/11: một cờ ⛔ không lật được ở biên của nó là một **hằng số**, ⛔ không phải một phép tính.
+
+⚠ Và `soNgayLeItNhatTrongCacNam` lấy **min** trên mọi năm khoảng nghỉ chạm tới, ⛔ không lấy năm bắt
+đầu: một đơn vắt qua giao thừa dương lịch chạm hai năm, và năm sau thường là năm **chưa ai khai**.
+
+#### Quyết định 6 — Ngưỡng cấp duyệt 2 đọc từ `settings`, và phép đổi hành động nằm ở SERVICE
+
+Chốt C2 cho cấu hình *"≥ N ngày cần thêm cấp duyệt 2"*. Bảng `workflow_transitions` ⛔ không diễn
+đạt được điều kiện ấy — nó là một bảng **bước chuyển**, ⛔ không phải một ngôn ngữ luật.
+
+⇒ Người gọi luôn gửi `APPROVE`; `DonNghiPhepService.thucHien` mới là chỗ đổi nó thành `ESCALATE`
+khi `chinhSach.canCapHai(workingDays)`. Engine chỉ khai rằng **cả hai** đều hợp lệ từ `CHO_DUYET`.
+
+⛔ Đặt phép đổi ấy ở giao diện là biến hai khoá `settings` thành núm điều khiển **trình duyệt** thay
+vì điều khiển **quy trình**. Bài `nguongCapHaiDocTuSettings` canh đúng vế ấy: **cùng một đơn, cùng
+một hành động, hai cấu hình ⇒ HAI trạng thái khác nhau**.
+
+#### Bốn thứ đã dựng sẵn cho CN-04.9 rồi nằm im 32 ngày
+
+| Đã có từ | Số nơi đọc trước lượt này |
+|---|---|
+| bảng `holidays` (`V202608131003`, 13/08) | **0** |
+| seed 8 ngày lễ pháp định (`V202608131008`) | **0** |
+| `DateTimeUtils.countWorkingDays` — javadoc ghi *"Dùng cho tính số ngày nghỉ phép (CN-04.9)"* | **0** production |
+| 13 khoá `hr.leave.*` | **0** |
+
+⛔⛔ Và bản đầu của tôi **viết lại** `countWorkingDays` thay vì gọi nó. Luật 15 nói một công tắc
+chưa ai đọc là một **lỗi**, ⛔ không phải việc để dành — hệ quả đo được ở đây là lượt dựng sau
+**⛔ không tìm thấy** thứ đã có, rồi dựng bản thứ hai.
+
+⛔⛔⛔ Nặng hơn: **phép đo đầu tiên của tôi ĐÃ IN RA bảng `holidays`** và tôi đọc nó thành *"chưa
+có"*, rồi viết `CREATE TABLE`. Migrate đỏ với `relation "holidays" already exists`. **Một phép đo
+đúng mà đọc sai thì tệ hơn ⛔ không đo** — nó mang theo cảm giác đã kiểm.
+
+---
+
+### §11.24 — Ba quyết định đóng MOD-04, và một bài học nền tảng về luồng async (WS-58, 14/9/2026)
+
+#### Quyết định 1 — Bốn chức năng, một bảng, HAI luật phạm vi ngược nhau
+
+Đây là quyết định dễ làm sai nhất của cả MOD-04, vì cả bốn đọc `employees` và cả bốn *"trông giống
+nhau"*:
+
+| Chức năng | Phạm vi | Vì sao |
+|---|---|---|
+| CN-04.6 danh bạ | **toàn Công ty** | một cuốn danh bạ chỉ thấy đơn vị mình là vô dụng; `hr:directory:view` cấp cho **11/12** vai trò |
+| CN-04.1 sơ đồ tổ chức | **toàn Công ty** | một sơ đồ tổ chức chỉ hiện nhánh của mình ⛔ không phải một sơ đồ tổ chức |
+| CN-04.7 hồ sơ | **cắt** | M4.13 nêu đích danh: *"Quản lý cấp XN chỉ xem hồ sơ NV thuộc đơn vị mình"* |
+| **CN-04.8 báo cáo** | **cắt** | báo cáo là **đầu ra của hồ sơ** — rộng hơn nguồn là một đường vòng qua chính M4.13 |
+
+⇒ Quân số của sơ đồ đi `QuanSoRepository` (JDBC thuần, ngoài tầm `@Filter`, cùng khuôn
+`DanhBaRepository`); báo cáo đi JPA nên đi qua bộ lọc như mọi câu khác.
+
+⛔⛔ **Vế phải nói ra trên giao diện**: hai người ở hai đơn vị mở màn hình báo cáo thấy **hai bộ số
+khác nhau**, và **cả hai đều đúng**. Im lặng ở đây là để họ so số rồi kết luận hệ thống sai — nên
+màn hình mở đầu bằng một dòng khai đúng điều đó.
+
+⚠ Chiều hỏng ngược lại thì **im lặng tuyệt đối**: nếu quân số của sơ đồ đi qua `@Filter`, mỗi người
+mở ra thấy một bộ số khác nhau, tất cả đều trông hợp lý, và ⛔ không có gì báo. Trưởng Xí nghiệp 3
+sẽ thấy toàn Công ty có đúng số người của Xí nghiệp 3. Bài `quanSoKhongCatTheoPhamViDonVi` canh vế
+ấy bằng cách **thu hẹp phạm vi của chính phiên đang đo** rồi khẳng định con số **⛔ không đổi**.
+
+#### Quyết định 2 — Mỗi nút sơ đồ mang HAI con số quân số
+
+Đặc tả nói một con số. Đo lại thì một con số hỏng theo **cả hai** chiều:
+
+- Chỉ **trực tiếp** ⇒ một Xí nghiệp có 4 Tổ đội hiện **0 người** khi thu gọn nhánh.
+- Chỉ **cả nhánh** ⇒ tổng các nút con ⛔ không bằng nút cha, và ⛔ không chỗ nào nói vì sao.
+
+⇒ Trả cả hai và **gọi tên** chúng. Nhãn hiện `trực tiếp / cả nhánh` khi hai số khác nhau, **một**
+số khi chúng bằng nhau — một nút lá đọc thành `2 / 2` là một phân số vô nghĩa.
+
+⚠ Phép cộng dồn tính ở **BE** (quy tắc 3): để giao diện tự cộng đệ quy là dựng bản sao thứ hai của
+phép cộng, và bản ấy lệch vào ngày ai đó lọc bớt một nhánh trước khi vẽ.
+
+⭐ Kèm theo là `soNhanSuNgoaiSoDo` — bình thường **0**. Khác 0 ⇒ có hồ sơ trỏ vào một đơn vị ⛔ không
+còn trên sơ đồ, và tổng quân số đang **thiếu** đúng những người ấy. Quy tắc 16: một con số ⛔ không
+đi một mình.
+
+#### Quyết định 3 — Tám báo cáo, và BCNS-07 CÓ MẶT kèm lý do
+
+Cách rẻ nhất là khai bảy mã: màn hình bảy nút, ⛔ không ai hỏi. Nhưng khi ấy *"BCNS-07 chưa có"* trở
+thành một sự thật **⛔ không nơi nào ghi**, và lượt nghiệm thu đếm bảy nút rồi **tick đủ**.
+
+⇒ `MaBaoCaoNhanSu` khai đủ **tám**; mã thứ bảy mang `khaDung = false` cùng **lý do nguyên văn**, và
+đường xuất trả **`HR-2009`** chứ ⛔ không phải 404.
+
+⛔ Lý do ấy ⛔ không phải chuyện kỹ thuật: mẫu **2C-BNV/2008** là biểu mẫu quy định của Bộ Nội vụ, đặc
+tả ghi rõ *"cấm tự chế layout"*, và Công ty chưa gửi tệp mẫu gốc (**G6**). Dựng một bố cục *"gần
+giống"* là in ra một văn bản hành chính **sai mẫu** mà người nhận chỉ biết khi bị trả lại.
+
+⭐ **CSV chứ ⛔ không XLSX** — quyết định T34.8 đã chốt và lượt này chỉ dùng lại: POI kéo ~12 MB phụ
+thuộc và một bề mặt CVE mới trên VPS 2 nhân, trong khi Excel mở CSV được. ⬜ **PDF vẫn chưa**
+(T42.14) và nó ⛔ không phải chuyện chọn thư viện: bố cục bản in chờ **G10**, mà mẫu quyết định khổ
+giấy, cách gộp ô và phông tiếng Việt.
+
+#### ⛔⛔⛔ Bài học nền tảng — `StreamingResponseBody` và `ThreadLocal`
+
+Đường tải cả hồ sơ dạng ZIP bản đầu dùng `StreamingResponseBody`, đúng cách sách vở khuyên cho một
+tệp lớn. Lượt chạy đầu tiên đỏ với `AuthenticationException: AUTH-0002` phát ra **bên trong** thân
+phát luồng.
+
+**Nguyên nhân**: `StreamingResponseBody` chạy trên một **luồng khác** (async dispatch). Mà gần như
+mọi cơ chế nền của hệ này đứng trên `ThreadLocal`:
+
+- `AuthContext` — ai đang gọi;
+- `ScopeFilterAspect` — phạm vi đơn vị, bật quanh **mọi** `@Transactional`;
+- `AuditContext` — thứ `AuditorAwareImpl` đọc để điền `created_by`.
+
+Ở luồng ấy cả ba đều **RỖNG**.
+
+⛔⛔ Hệ quả ⛔ **không dừng** ở một ngoại lệ. Một truy vấn chạy ở đó đi qua bộ lọc phạm vi **⛔ không
+có phạm vi nào** — tức có thể đọc **rộng hơn** người gọi được phép. Đó là một lỗ phân quyền mà
+⛔ không bài kiểm nào của tầng service thấy được, vì tầng service chạy trên luồng request.
+
+⛔⛔ Và nó hỏng theo chiều tệ nhất: header đã gửi, kiểu nội dung đã chốt là
+`application/octet-stream`, nên `GlobalExceptionHandler` ⛔ không ghi nổi envelope JSON
+(`No converter for ApiResponse with preset Content-Type`), rồi
+`Cannot render error page — the response has already been committed`. **Người dùng nhận một tệp ZIP
+hỏng thay vì một thông báo** — và một lượt từ chối vì *ngoài phạm vi đơn vị* khi ấy trông y hệt một
+lỗi mạng.
+
+⇒ **Quyết định**: dựng bản nén ra một **tệp tạm** trên chính luồng request, rồi trả
+`InputStreamResource`. Tệp tạm bị xoá **ngay sau khi mở luồng đọc** — trên POSIX dữ liệu còn sống
+chừng nào còn một mô tả tệp mở, nên nó ⛔ không bao giờ nằm lại trên đĩa, kể cả khi lượt gửi đứt.
+
+⛔ **⛔ Không dựng `byte[]`**: hạn mức một hồ sơ là `limits.attachment.quota-mb.EMPLOYEE` = **200 MB**
+(seed 10/09). Lợi thêm: có lại `Content-Length` ⇒ trình duyệt hiện thanh tiến trình.
+
+⇒ **Luật rút ra**: *một endpoint phát luồng ⛔ KHÔNG CÓ CÁCH NÀO báo lỗi sau byte đầu tiên, và ⛔
+không có cơ chế `ThreadLocal` nào của hệ còn sống ở đó.* Mọi phân quyền, mọi truy vấn có phạm vi,
+mọi thứ có thể ném — phải xảy ra **trước** khi phản hồi bắt đầu.
+
+#### Một bản nén thiếu tệp phải TỰ KHAI
+
+Tệp vừa tải lên có `status = UPLOADING` cho tới khi việc nền quét virus xong. Bản đầu **bỏ qua kèm
+một dòng WARN trong log** — nơi ⛔ không ai đọc. Người nhận cầm một bản nén **thiếu** mà ⛔ không có
+cách nào biết, rồi dùng nó như một bản đầy đủ.
+
+⛔ Còn **chặn cả lượt tải** thì sai theo chiều kia: một tệp đang quét làm hỏng thao tác của người ⛔
+không liên quan gì tới nó.
+
+⇒ Bản nén mang thêm mục `_THIEU.txt` liệt kê đúng những tệp ấy kèm lý do và lời khuyên tải lại sau
+ít phút. Cùng lý lẽ quy tắc 16 — **một tập ⛔ không đi một mình**.
+
+⚠ Cùng lượt: tệp **trùng tên** trong cùng thư mục là trạng thái **có thật** (`nextVersion` giữ cả
+bản cũ), và nhiều trình giải nén **lặng lẽ ghi đè** mục sau lên mục trước ⇒ chèn số thứ tự trước
+phần mở rộng.
+
+---
+
+### §11.25 — Đóng C3: ba quyết định, và một cơ chế nền chưa từng chạy được với văn bản thuần (WS-59, 14/9/2026)
+
+#### Quyết định 1 — Danh mục báo cáo khai ĐỦ, kể cả mã đã bỏ vĩnh viễn
+
+Đặc tả CN-02.10 giữ **ba** mã (BC-06 · BC-09 · BC-10) và bỏ **bốn** (BC-01/02/03 mất nguồn nhật ký
+vận hành — B1/F1, xác nhận bởi G2; BC-04 mất nguồn kế hoạch vụ mùa — A1).
+
+Cách rẻ nhất là khai ba. Nhưng khi ấy *"BC-01 đã bỏ hay chưa làm?"* trở thành một sự thật **⛔ không
+nơi nào ghi trong sản phẩm**, và nó sẽ được hỏi lại ở mọi lượt nghiệm thu — mỗi lần lại phải đi tra
+tài liệu để trả lời.
+
+⇒ Khai đủ bảy; mã đã bỏ mang **lý do kèm mã chốt** (`B1/F1`, `G2`, `A1`) để người đọc tra ngược
+được.
+
+⭐ **Và nó buộc phải là một trạng thái THỨ BA.** Ba câu hỏi khác nhau, ba câu trả lời khác nhau:
+
+| Trạng thái | Trả về | Nghĩa |
+|---|---|---|
+| Mã ⛔ không tồn tại | `404` | người gọi gõ sai |
+| Mã có thật, **chưa** làm được | `HR-2009` | BCNS-07 chờ **G6** — *sẽ* có |
+| Mã có thật, **bỏ vĩnh viễn** | `OPS-2023` | BC-01..04 mất nguồn — *⛔ không bao giờ* có |
+
+⛔ Gộp hai dòng dưới thành một nhãn *"chưa có"* là để người vận hành đi chờ một thứ ⛔ không bao giờ
+tới.
+
+⚠ **Số hiệu nhảy qua `OPS-2022` — cố ý.** Mã ấy từng tồn tại (trần dòng bộ đọc tệp) rồi **đổi thành
+`SYS-0012`** ngày 09/09/2026 khi bộ đọc dời lên `core`. Dùng lại một số hiệu đã nghỉ hưu làm mọi
+dòng nhật ký, ảnh chụp màn hình và phiếu hỗ trợ cũ mang mã ấy **đọc sai nghĩa**, và ⛔ không có gì
+báo. Một mã lỗi là một **định danh**, ⛔ không phải một ô trống để lấp.
+
+#### ⛔⛔⛔ Quyết định 2 — `FileValidator` chưa từng nhận được một định dạng VĂN BẢN nào
+
+Đây là phát hiện nặng nhất của lượt này, và nó chỉ lộ ra ở **lượt chạy HTTP đầu tiên** của đường nạp
+lớp bản đồ: `FILE_TYPE_NOT_ALLOWED` với `rejectedValue = "unknown"`.
+
+Nguyên nhân: `FileValidator.detect()` nhận diện định dạng bằng **chữ ký byte**. GeoJSON là JSON
+thuần — **⛔ không có magic bytes** — nên `detect` trả `null`, và `detectAndValidate` từ chối mọi
+tệp như vậy ở **mọi** đường tải lên.
+
+⇒ Toàn bộ cơ chế lớp bản đồ (bảng, entity, service, controller, giao diện) **⛔ không có đường nào
+chạy được** cho tới khi vá.
+
+⭐ **Và tiền lệ đã nằm sẵn trong chính tệp ấy.** WS-15 từng gặp đúng hình dạng này với SVG, và
+javadoc `looksLikeSvg` đã viết ra nguyên văn:
+
+> *"Trước WS-15 hàm `detect` trả `null` cho mọi tệp SVG… Hệ quả: `SvgSanitizer` dựng ở WS-14 **⛔
+> không có đường nào chạm tới**. Đúng dạng lỗi đã lặp lại nhiều lần: cơ chế có mặt, có bài kiểm
+> riêng, xanh, và chưa bao giờ nằm trên một đường chạy thật."*
+
+⇒ Thêm `looksLikeJson` theo **đúng** khuôn ấy, kể cả phần lập luận về an toàn: đây là một phép
+**đoán**, và lớp quyết định cuối cùng vẫn là **danh sách cho phép của nơi gọi** — chỉ đường nạp lớp
+bản đồ khai `application/json`, mọi đường khác từ chối y như trước.
+
+⛔ Và **⛔ không** khai `application/octet-stream` trong danh sách ấy: mục đó nghĩa là *"⛔ không
+nhận ra định dạng gì"*, tức nó mở cửa cho **mọi** tệp nhị phân đi vào đường nạp bản đồ.
+
+#### Quyết định 3 — `readForOwner` trả rỗng cho HAI trạng thái khác nhau
+
+Một tệp vừa tải lên mang `status = UPLOADING` cho tới khi việc nền quét virus xong.
+`readForOwner` trả `Optional.empty()` cho **cả** *"⛔ không phải của bản ghi này"* lẫn *"chưa quét
+xong"*, và nơi gọi biến cả hai thành **404**.
+
+⇒ Giao diện nói *"lớp ⛔ không tồn tại"* về một lớp vừa nạp xong **vài giây trước**.
+
+⇒ Tra `findRef` trước, và trả **`SYS-0009`** — mã đã có sẵn cho đúng trạng thái ấy, với câu chữ đã
+viết sẵn. ⛔ Đúc một mã mới ở đây là dựng bản thứ hai của cùng một câu.
+
+⚠⚠ **Gặp hai lần trong một ngày**: đường ZIP hồ sơ CBNV (§11.24) và đường nội dung lớp bản đồ. Cả
+hai lần đều lộ ra vì bộ kiểm chạy với `WORKER_ENABLED = false` — tức **bộ kiểm tái lập được đúng
+trạng thái mà production chỉ có trong vài giây**, và vài giây ấy là lúc người dùng vừa bấm xong.
+
+#### Ba chốt chặn ở đường nạp tệp, và vì sao THỨ TỰ của chúng quan trọng
+
+1. Đuôi `.kmz`/`.kml` ⇒ `OPS-2025` (kho ⛔ không có bộ đọc);
+2. Kích thước ⇒ trần 20 MB;
+3. Có đối tượng hình học ⇒ `OPS-2026`.
+
+Chỉ sau **cả ba** mới gọi `attachments.upload`. Nếu ⛔ không thì một tệp bị từ chối vẫn **đã tiêu
+hạn mức dung lượng** của lớp và nằm lại trong kho.
+
+⛔⛔ **KMZ bị từ chối ở cổng nhận, ⛔ không nhận rồi lưu.** Nhận một tệp ⛔ không đọc được là phương
+án **tệ nhất** trong ba: người dùng thấy *"nạp thành công"*, lớp hiện trong danh sách, bản đồ ⛔
+không vẽ gì — và họ sẽ đi báo hỏng **bản đồ** chứ ⛔ không báo hỏng **lượt nạp**.
+
+⛔ `{"type":"FeatureCollection","features":[]}` là JSON **hoàn toàn hợp lệ**. Một phép kiểm *"parse
+được ⛔ không"* nhận nó. Chốt chặn thứ ba là thứ duy nhất phân biệt được — và nhờ nó, trạng thái *"0
+đối tượng"* **⛔ không biểu diễn được**, nên `soDoiTuong = null` chỉ có một nghĩa: *chưa nạp tệp*.
+
+#### Công cụ đo: lượng giác cầu, ⛔ không phải hình học phẳng
+
+Ở vĩ độ 21° (Hà Nội) một độ **kinh tuyến** ngắn hơn một độ **vĩ tuyến** khoảng **7%**. Đo bằng
+Pythagore trên `(lat, lng)` cho sai số vài trăm mét trên một tuyến kênh 10 km — đủ để một biên bản
+hiện trường sai.
+
+⇒ Khoảng cách bằng **haversine**, diện tích bằng **spherical excess**. ⛔ Shoelace trên `(lat, lng)`
+cho diện tích **lớn hơn thực tế ~7%** — một sai số **một chiều**, tức nó ⛔ không tự triệt tiêu khi
+đo nhiều lần.
+
+⭐ Phần tính toán tách thành `banDoDo.ts` để có bài kiểm riêng chạy trên những khoảng cách **đã biết
+đáp án** — trong đó bài quan trọng nhất khẳng định đúng cái tỉ số 0,92–0,94, tức **vế mà hình học
+phẳng làm sai**.
+
+⚠ Và phép đo **khai ra giới hạn của chính nó** ngay trên màn hình: *"sai số dưới 0,5%, dùng để ước
+lượng, ⛔ không thay số liệu trắc địa"*. Một con số trên bản đồ mà ⛔ không nói độ chính xác của nó
+sẽ được chép vào biên bản.
+
+#### Một lượt gọi PHỤ suýt hạ cả dashboard điều hành
+
+`useGisLayers` bản đầu viết `(danhSach.data ?? []).filter(…)`. Một phản hồi có hình dạng ⛔ không
+mong đợi làm `.filter` ném **trong thân render** ⇒ **màn hình Trực ban dùng hằng ngày** trắng.
+
+⇒ `Array.isArray`. Lớp bản đồ là thứ **trang trí**; nó ⛔ không được quyền làm sập thứ chính. Cùng
+họ với `BaseChart.empty` (T23.2) và với lượt bắt lỗi từng lớp trong `useGisLayers` — một lớp hỏng ⛔
+không kéo cả bản đồ theo.
+
+---
+
+### §11.26 — Một ảnh Docker biến mất, một xô hạn mức rộng gấp 600 lần, và 13 mục DoD chưa ai đối chiếu (WS-60, 14/9/2026)
+
+Mở ra từ một câu hỏi hành chính — *"chuyển sang Phase 4 được chưa?"*. Đối chiếu **13 mục DoD Phase
+3** tìm ra hai khuyết tật đang sống. Cả hai đều thuộc hình dạng đặc trưng của dự án: **cơ chế có
+mặt, xanh, và chưa bao giờ nằm trên đường chạy nó phải chặn.**
+
+#### 1. Nhà cung cấp rút ảnh khỏi Docker Hub — và đệm cục bộ giấu chuyện đó 12 tháng
+
+Lượt CI đầu của PR #132 đỏ ở **86 lớp**. **81** trong số đó chỉ in
+`ApplicationContext failure threshold (1) exceeded` — nạn nhân dây chuyền. Lỗi gốc đọc được bằng
+cách **lọc ra** những lớp ⛔ *không* mang câu ấy (luật 23), và nó nằm ở lớp chạy đầu tiên:
+
+```
+NotFoundException: Status 404: pull access denied for minio/minio,
+  repository does not exist or may require 'docker login'
+```
+
+Đo ba phía, ⛔ không suy đoán: `hub.docker.com/v2/repositories/minio/minio/` trả **`object not
+found`** (mất cả **repository**, ⛔ không phải một tag bị dọn) · registry v2 ẩn danh trả
+`UNAUTHORIZED` · `quay.io/minio/minio` **còn sống**, tag mới nhất là **cùng bản phát hành** ta đang
+chạy kèm hotfix.
+
+⭐ **Vì sao `make ci-local` ở máy xanh suốt:** ảnh nằm trong **đệm Docker cục bộ**, kéo về **12 tháng
+trước**. Testcontainers ⛔ không hỏi registry lần nào. Đây là biến thể **thứ ba** của *"xanh ở máy
+không phải bằng chứng"* — trước là `.env.local` (§10.38) và biến build rỗng. Runner có checkout sạch
+**và** đệm ảnh rỗng, nên nó là chỗ **duy nhất** trạng thái này dựng lại được.
+
+⛔⛔⛔ **Hệ quả nặng hơn một lượt CI đỏ.** `compose.prod.yml` ghim đúng chuỗi ấy ở **hai** chỗ.
+Production đang chạy bằng ảnh **đã nằm trên đĩa VPS-1** nên hôm nay ⛔ không có triệu chứng — nhưng
+`docker compose pull`, dựng lại máy, **và lượt quay lui `DOD0.21` (chưa chạy thật lần nào)** đều
+phải kéo ảnh. MinIO là nơi **mọi tệp người dùng tải lên** đang nằm. Cùng hình dạng §10.56 (*tham số
+chỉ chạy một lần thì tệp cấu hình ⛔ không còn là bằng chứng*) và §10.81 (*cron TLS chưa bao giờ chạy
+được*): một đường ai cũng tin là có, mà ⛔ chưa ai đi.
+
+**Bộ canh dựng ra, và giới hạn nó tự khai.** `SongnhueMinio` mang sẵn câu dặn *"đổi ở một nơi thì
+phải đổi cả hai"* từ **WS-4** — đúng, và **chưa bao giờ là một cổng kiểm** (luật 14). Nay là
+`AnhMinioDongBoTest`: mọi nơi khai **cùng một chuỗi**, và chuỗi ấy phải **nêu kho ảnh tường minh**
+(dạng trần âm thầm nghĩa là Docker Hub — đúng chỗ ảnh ⛔ không còn ở đó). ⛔ Nó **⛔ không** canh
+*"ảnh có kéo về được không"*: đó là một sự thật của **mạng**, và nhét một lượt gọi registry vào bộ
+kiểm là dựng lại đúng T11.78 — một cú chớp mạng hạ đỏ cổng bắt buộc.
+
+⭐⭐ **Và bộ canh bắt chính người viết ra nó, lần thứ chín trong dự án.** Regex bản đầu
+(`[A-Za-z0-9._-]*(?:/[A-Za-z0-9._-]+)*` rồi mới tới `minio/minio:`) **nuốt mất `quay.io/`**: khớp
+trái-nhất thất bại ở vị trí 0 rồi thành công ở vị trí 8. Nó trả dạng **TRẦN** cho một tham chiếu
+**CÓ** kho ảnh ⇒ hai trạng thái nó sinh ra để phân biệt đọc **giống hệt nhau** (luật 9). Bài tự-kiểm
+đỏ ngay, đúng chỗ.
+
+⚠⚠ **Lượt khôi phục sau kiểm chứng ngược cũng suýt sai:** `git checkout --` đưa tệp về **HEAD** —
+tức bản Docker Hub **cũ**, gỡ luôn bản vá. Chỉ lộ ra vì in `grep -c quay.io` = **0** trước khi đọc
+kết quả. Luật 10 vế *"bản KHÔI PHỤC cũng phải được xác nhận"*, lần thứ ba.
+
+#### 2. `RateLimitPolicy.EXPORT` khớp một chuỗi tiếng Anh trong kho đặt tên tiếng Việt
+
+T47.11 mở từ 10/09 và lượt Phase 3 **làm nó rộng ra**. Đo: **6** endpoint kết xuất,
+`path.contains("/export")` bắt được **2**. Bốn cái còn lại rơi xuống `API` — **100 lượt/phút thay vì
+10 lượt/giờ, rộng gấp 600 lần** — và **ba trong bốn** do chính đợt Phase 3 dựng.
+
+⭐ **Quét theo kiểu trả về mạnh hơn quét theo tên đường dẫn.** Tìm
+`ResponseEntity<Resource|byte[]|InputStreamResource|StreamingResponseBody>` lộ ra
+`/hyd/bao-cao/tai/{jobPublicId}` — chính đường **tải tệp** báo cáo thuỷ văn, thứ mà mọi phép grep
+theo chữ *"xuat"* hay *"export"* đều ⛔ không thấy.
+
+Nặng nhất là `/hr/employees/{id}/tai-lieu/zip`: mỗi lượt đọc **toàn bộ tài liệu một hồ sơ CBNV** ra
+khỏi MinIO rồi dựng một tệp tạm. Ở 100 lượt/phút trên một VPS 2 vCPU thì đó vừa là đường **tự đánh
+sập mình**, vừa là đường **rút dữ liệu cá nhân hàng loạt** (NĐ 13/2023).
+
+⛔ **Và ⛔ không phải cứ trả tệp là `EXPORT`.** Ba đường cố ý đứng ngoài, mỗi đường một lý do đo
+được: `/gis-layers/{id}/noi-dung` — **bản đồ VẼ bằng chính lượt gọi này**, 10 lượt/giờ là màn hình
+trực ban trắng; và hai đường tải **tệp mẫu nhập liệu** vài KB. Một bộ canh chỉ nói *"mọi endpoint
+trả tệp phải là EXPORT"* sẽ đúng về hình thức và **hỏng cái quan trọng nhất**.
+
+**Thứ tự cũng đổi:** công khai xét **TRƯỚC** kết xuất. Hôm nay ⛔ không đường công khai nào mang chữ
+`/xuat`, nên nó chưa hại ai — nhưng một đường như vậy sẽ hạ **toàn bộ khách của cổng** xuống 10
+lượt/giờ.
+
+**Bộ canh có hai vế**, vì bẫy thật ⛔ không phải *"quên một endpoint hôm nay"* mà *"endpoint kết xuất
+**thứ bảy** ra đời tháng sau"*: một bảng khai 12 dòng **kèm lý do từng dòng**, và một lượt **quét mã
+nguồn** tìm mọi phương thức controller trả tệp — cái nào ⛔ không có trong bảng thì đỏ. Phạm vi do bộ
+canh **ĐO**, ⛔ không do người viết gõ (luật 28). Luật phân loại dời hẳn về
+`RateLimitPolicy.choDuongDan(String)` — **một** bản duy nhất, để bài kiểm **hỏi thẳng** thay vì chép
+lại luật sang phía nó (T51.15).
+
+⭐⭐ **Ba bài đỏ sau bản vá là bằng chứng bản vá có hiệu lực.** Cả ba là `429` ở những bài ⛔ **không**
+liên quan gì tới kết xuất (`anUnknownReportCodeIsRejectedAtTheApi` chờ 400; `bcns07TraMaLoiRiengKemLyDo`
+chờ 422), vì lớp dựng phiên ở `@BeforeAll` thì **cả lớp dùng chung một IP**. ⛔ Nới hạn mức ở hồ sơ
+kiểm thử là **tắt một cơ chế bảo mật thật trong CI** (T37.2 cấm đích danh) ⇒ `PhienHttp.doiIp()` gọi
+trong `@BeforeEach`: **mỗi bài kiểm là một máy khách**, đúng nguyên tắc `ipGiaLap` đã dựng cho xô
+đăng nhập — chỉ là ở một xô chặt hơn **600 lần**. Trước bản vá, ⛔ **không lượt chạy nào** của bộ kiểm
+chạm tới xô `EXPORT`.
+
+#### 3. 13 mục DoD Phase 3 có đúng 0 lượt nhắc trong sổ
+
+`grep -c "DOD3" .claude/master-tracking.md` = **0**. Chúng sống ở `phase3-plan.md` §8 và **chưa lượt
+nào đối chiếu** — đúng hình dạng §10.36 (*4/17 cam kết DoD ⛔ không có phép kiểm nào*). Kết quả lượt
+đối chiếu đầu tiên: **12/13 đạt**, `DOD3.6` ⛔ **không** đạt (đã vá ở trên), `DOD3.12` đạt **một
+phần**.
+
+⚠ **Và phép đo `DOD3.11` của tôi tự sai trước.** Lượt quét đầu báo **9/20 endpoint mồ côi**; đo lại
+từng cái thì **8/9 là dương tính giả** — FE ghép đường dẫn bằng template literal nên chuỗi hai đoạn
+⛔ không xuất hiện nguyên văn. Luật 25: một bộ canh theo **hình dạng** phải được thử với **dữ liệu
+thật đang dùng**. Cái còn lại (`/tai-lieu/zip`) hoá ra cũng có màn hình gọi — `HoSoConDrawer.tsx:417`,
+nút *"Tải cả hồ sơ (.zip)"*.
+
+⛔ `DOD3.12` để **một phần** thay vì tick: §4.4 khai 5 dòng sổ *"đã xong mà vẫn `[ ]`"*, và tick theo
+lời nó mà ⛔ không đo từng cái là lặp lại đúng *"một dòng nợ tự nó sai"* — thứ dự án đã mắc **sáu**
+lần.
+
+---
+
+## §12. QUYẾT ĐỊNH KIẾN TRÚC PHASE 4 (2026-09-15)
+
+### §12.1 Cấu hình nào lên giao diện, cấu hình nào ở `.env` — T61.41→T61.45
+
+**Yêu cầu (QuanTran 15/09/2026):** đưa cấu hình lên màn hình để quyền quản trị cao nhất tự sửa, thay vì
+sửa `.env` bằng tay; vẫn cảnh báo khi chưa cấu hình; *"cân nhắc kỹ để bảo đảm bảo mật tối đa"*.
+
+**Khảo sát:** kiểm kê **mọi** biến môi trường mà hai máy chủ đọc (compose · nginx · Prometheus ·
+Alertmanager · `application.yml` · build FE · script) kèm **tiến trình đọc** và **thời điểm có hiệu
+lực**. Kết luận: phần lớn biến ⛔ lên giao diện được, và lý do là **cấu trúc**, ⛔ phải khẩu vị.
+
+#### Sáu nhóm PHẢI ở `.env`
+
+| # | Nhóm | Ví dụ | Vì sao |
+|---|---|---|---|
+| 1 | Cần **trước khi có CSDL** | `DB_*` · `AES_KEY_*` · `JWT_*` · `LOG_*` · pool · `BACKUP_DIR` · `APP_ENVIRONMENT` | CSDL ⛔ giữ được khoá mở chính nó; logging và pool dựng trước khi kết nối được CSDL |
+| 2 | **Tiến trình khác** đọc | `METRICS_*` (nginx) · `PROD_METRICS_*` (Prometheus) · `REVALIDATE_SECRET` (public-web) · mật khẩu Postgres/MinIO/Grafana · `*_IMAGE` | Muốn sửa từ giao diện thì tiến trình web phải cầm quyền ghi tệp hạ tầng + socket docker ⇒ **chiếm một tài khoản quản trị = chiếm máy** |
+| 3 | **Kênh cảnh báo** | `ALERT_EMAIL_TO` · `SLACK_WEBHOOK_URL` · `TELEGRAM_*` · `HEALTHCHECKS_PING_URL` | Chuông phải kêu khi ứng dụng/CSDL đã chết (§11.17: *chuông ⛔ ở cùng nhà với thứ nó canh*); và kẻ chiếm quyền quản trị ⛔ được **tắt chuông trước khi ra tay** |
+| 4 | **Gác môi trường** | `MAIL_REDIRECT_TO` | CSDL staging nhân bản **nguyên văn** từ production, runbook ⛔ dọn `settings` ⇒ nằm trong CSDL thì mỗi lượt nhân bản xoá chuyển hướng ⇒ thư thử tới hộp thư **thật** của cán bộ |
+| 5 | **SMTP** | `SMTP_*` | (a) Alertmanager VPS-2 cũng đọc ⇒ hai nguồn lệch · (b) sửa host = ứng dụng mở kết nối tới host:port tuỳ ý (SSRF, T61.38) · (c) `CONTACT_RECEIVED` mang dữ liệu cá nhân người dân ⇒ đổi host = rút dữ liệu NĐ 13 · (d) T61.31/T61.36 sắp đưa nội dung bảo mật vào thư. Mật khẩu ứng dụng Gmail đổi vài năm/lần — ⛔ đáng đổi lấy (a)–(d) |
+| 6 | **Công tắc bảo mật** | `SECURE_COOKIE` · `HYDRO_API_ALLOW_INTERNAL_HOST` · `HYDRO_API_MOCK` · `LOG_LEVEL_APP` | Bật từ giao diện = mở SSRF / tắt cookie an toàn / ghi dữ liệu nhạy cảm vào log |
+
+#### Lên giao diện
+
+- **Đã có từ trước:** mã số thuỷ văn (`api_sources.credential`, WS-28) và mọi tham số nghiệp vụ (`settings`, quy tắc 12).
+- **Bí mật tích hợp** (`integration_secrets`, `LoaiBiMat`) — chỉ bí mật đủ **ba** điều kiện: ứng dụng là người
+  đọc **duy nhất** · ⛔ cần trước khi có CSDL · lộ ra thì thiệt hại ⛔ vượt khỏi ứng dụng. Hôm nay: **khoá bí
+  mật reCAPTCHA** (G13). Khuôn `ApiSourceService.datMaSo`: ghi một chiều, AES-256-GCM, đọc lúc dùng, ⛔ API
+  đọc lại (kể cả che một phần), sự kiện DANGER, khai với job xoay khoá. Nguồn: giao diện → giá trị mồi `.env` → rỗng.
+- **Màn hình "Tình trạng cấu hình"** — ⛔ bao giờ trả giá trị. Mỗi mục: đã đặt / thiếu / sai / **ngoài tầm nhìn**
+  / ⛔ áp dụng, ai đọc, đặt ở đâu, thiếu thì hỏng gì. Mục của Alertmanager VPS-2 ứng dụng production ⛔ thấy được
+  ⇒ ghi **ngoài tầm nhìn** kèm lệnh tự kiểm, ⛔ hiện xanh giả. Mục Prometheus thì **đo được** từ phía ứng dụng:
+  mốc lượt đọc `/actuator/prometheus` trả 200 gần nhất — phủ trọn chuỗi `METRICS_ALLOW_IP` → token → nginx →
+  Prometheus. Banner đỏ/vàng trên layout cho tài khoản có `adm:system-config:view`.
+
+#### Bốn lỗ phải vá TRƯỚC khi đưa thêm bất cứ gì lên giao diện (đo 15/09)
+
+1. **T54.4** — ADMIN tự cấp quyền mình ⛔ có ⇒ "quản trị cao nhất" chưa thật sự cao nhất. Vá: trần cấp quyền =
+   tập quyền của chính người cấp (`ADM-2022`, cả `replacePermissionsOfRole` lẫn `assignRoles`; vai trò hệ thống
+   chỉ SUPER_ADMIN gán).
+2. **Đổi `settings` ⛔ để lại dòng `audit_logs` nào**, chỉ một dòng log in nguyên văn giá trị cũ → mới. Vá:
+   `@Audited` trên `Setting`, log chỉ in khoá.
+3. **⛔ có xác thực lại** ngoài khôi phục CSDL — và bản khôi phục CSDL mang **hai** khuyết tật: mã sai ⛔ bị đếm
+   (dò 10⁶ mã ⛔ bao giờ khoá), và mã sai trả **401** ⇒ giao diện tưởng mất phiên, làm mới token, **gửi lại cùng
+   mã sai** (đếm hai lần) rồi đá người dùng ra ngoài. Vá: `XacThucLaiService` (đếm vào `LoginAttemptService`,
+   `ADM-2023` thiếu mã · `ADM-2024` mã sai, **403**) dùng chung cho khôi phục CSDL · bí mật tích hợp · tham số
+   nhóm `SECURITY`/`AUDIT`/`BACKUP` (+ `SECURITY_SETTING_CHANGED`).
+4. **Chuông:** hai luật Prometheus mới `DoiCauHinhBaoMat` + `CapQuyenVuotQuyenBiChan` — kênh ⛔ nằm trong tay ứng dụng.
+
+⚠ **Chỗ đặt xác thực lại của `settings`:** ở **controller**, vì `LoginAttemptService` đọc `SettingPort` ⇒
+đặt trong `SettingService` là vòng phụ thuộc. Service vẫn là chốt chặn cuối (`apDung` ném `ADM-2023` khi nhóm
+nhạy cảm mà nơi gọi ⛔ khai đã xác thực lại) — lượt phá "controller bỏ xác thực lại" đo được chốt ấy bắn thật.
+
+⛔ **Hệ quả cho quy tắc 11/13 của CLAUDE.md:** ⛔ đổi. *"Mọi connection đọc từ env"* vẫn nguyên; ngoại lệ duy
+nhất là credential bên thứ 3 mà ứng dụng là người đọc duy nhất — đúng loại quy tắc 13 đã cho vào CSDL mã hoá
+từ WS-28.
+
+### §11.27 — Một lượt deploy XANH TRỌN VẸN hạ cả site, và bản vá viết ra để chữa nó tái lập một tai nạn cũ (T63.18 · T63.19, 17/9/2026)
+
+Ba khuyết tật, ba tầng khác nhau, và điểm chung nằm ở chỗ **không cái nào `make ci-local`
+có thể thấy** — hai cái vì máy làm việc được cấu hình *đúng*, một cái vì nó chỉ tồn tại
+trên máy chủ thật.
+
+#### 1. `Started` ⛔ phải `đang phục vụ` — và `restart: unless-stopped` làm hai thứ ấy in ra giống hệt nhau
+
+Lượt `CD Staging 35236229504` (ngay sau khi gộp #133) đỏ theo kiểu khó đọc nhất: **mọi
+bước đều xanh**.
+
+```
+migrator                      xong
+Container songnhue-app        Healthy
+Container songnhue-nginx      Started
+✓ app / admin-app / public-web đang chạy đúng image vừa triển khai
+──────────────────────────────────────────────────────────────────
+Smoke test        30 × curl: (7) Failed to connect to staging…:443
+Quay lui bản cũ   18 × curl: (7) …   (trên ảnh CŨ, cũng với app Healthy)
+```
+
+`Started` nghĩa là *tiến trình container đã khởi động*. Nó ⛔ nói gì về việc nginx có nhận
+kết nối ⛔ — và với `restart: unless-stopped`, một nginx chết vì cấu hình **quay vòng mãi**
+trong khi compose vẫn in **đúng một dòng** `Started`. Luật 9 nguyên văn: hai trạng thái ⛔
+phân biệt được thì dòng ấy ⛔ khẳng định gì.
+
+Phạm vi của khoảng trống, đo được:
+
+```
+grep -c "nginx -t" .github/workflows/deploy.yml   →   0
+```
+
+Đường triển khai **chưa bao giờ** canh cấu hình nginx — dù kho có **5** lớp kiểm đọc
+`default.conf.template`. Chúng canh **nội dung tệp trong kho**; ⛔ cái nào canh bản **đã
+thay biến** đang chạy trên máy chủ. Luật 28 ở dạng tinh vi: phạm vi hụt ⛔ ở *tệp nào được
+quét* mà ở **thời điểm nào được quét** — trước hay sau `envsubst`.
+
+#### 2. Nguyên nhân gốc: **chính quy trình thành văn sinh ra trạng thái hỏng**
+
+Đo trên VPS-2 (QuanTran mở quyền SSH cho lượt điều tra này):
+
+```
+docker ps            →  mọi container healthy, riêng songnhue-nginx: Restarting (1)
+ss -ltn              →  ⛔ gì lắng nghe ở 80/443  (cổng 22 vẫn mở ⇒ "máy bật mà site chết")
+docker logs nginx    →  nginx: [emerg] could not build map_hash,
+                        you should increase map_hash_bucket_size: 64
+```
+
+Số học khép kín:
+
+| | |
+|---|---|
+| §B6 dặn sinh token bằng | `openssl rand -hex 32` |
+| ⇒ độ dài token đo được | **64 ký tự** |
+| ⇒ khoá `map` là | `"Bearer " + 64` = **71 byte** |
+| trần `map_hash_bucket_size` mặc định | **64** |
+| số lần khai `map_hash_bucket_size` | **0** |
+
+⛔⛔⛔ Đây ⛔ phải một giá trị đặt sai. **Làm ĐÚNG hướng dẫn là sinh ra trạng thái hỏng**, nên
+nó lặp lại trên *mọi* máy tuân thủ — production nằm trong số đó, và `compose.staging.yml`
+`include` nguyên văn `compose.prod.yml` nên cơ chế là **một**. Đây là một hình dạng rủi ro
+chưa từng có tên trong dự án: trước nay tài liệu sai vì **hết hạn** (§11.20, dòng số đo
+migration) hoặc vì **chép mà ⛔ đo** (chín lượt *"một dòng nợ tự nó sai"*); lần này tài liệu
+⛔ sai — nó **đúng và vẫn dẫn tới sự cố**.
+
+⚠ Giả thuyết đầu của tôi — *"chú thích viết cùng dòng trong `.env` làm `allow` sai cú pháp"* —
+**sai**; đo thật thì `METRICS_ALLOW_IP` dài **9 ký tự**, dạng số-và-chấm hợp lệ. Giả thuyết ấy
+nghe rất hợp lý vì §B6 **có** dặn đúng chuyện đó. Một lời dặn có thật làm một giả thuyết sai
+trông như đã được xác nhận.
+
+⚠ Máy có lượt reboot **22:31**, tức **SAU** lượt CD hỏng lúc 21:50. Reboot ⛔ phải nguyên nhân —
+và nó còn cho thêm một phép đo: sau reboot mọi container tự lên khoẻ, **chỉ nginx quay vòng**
+⇒ khuyết tật ở cấu hình, ⛔ ở máy.
+
+#### 3. Vá: nâng trần chỉ **dời quả mìn**, ⛔ tháo nó
+
+Bỏ hẳn khối `map`, so trực tiếp trong `location`:
+
+```nginx
+if ($http_authorization != "Bearer ${METRICS_BEARER_TOKEN}") { return 403; }
+```
+
+`map_hash_bucket_size 128;` cũng chữa được lượt này — và để lại nguyên cấu trúc, để một token
+dài hơn nữa hạ site lần sau. So trực tiếp thì **độ dài token thôi ⛔ còn là một tham số của
+việc nginx có sống hay ⛔**: trạng thái hỏng trở nên **⛔ biểu diễn được** (luật 12, cùng họ
+với `MocSoLieu` ở T47.2 — *cách chặn tái phát rẻ nhất thường ⛔ phải một bài kiểm, mà là một
+kiểu / một cấu trúc*).
+
+Bánh cóc `khoaMapKhongDuocMangChoCam`: **KHOÁ** của mọi `map` ⛔ được chứa chỗ cắm `${...}` —
+vì một giá trị thay lúc render **⛔ có bảo đảm độ dài nào**. Kiểm chứng ngược: dựng lại đúng
+khối cũ ⇒ đỏ, gọi đích danh `"Bearer ${METRICS_BEARER_TOKEN}" 1;`.
+
+⚠⚠ **Bản đầu của bộ canh ấy đỏ ngay lượt chạy đầu — dương tính giả của chính nó**: nó quét
+**cả dòng** nên bắt nhầm `map $host $robots_tag { default "${ROBOTS_TAG}"; }`, nơi chỗ cắm nằm
+ở **GIÁ TRỊ** và hoàn toàn an toàn — `map_hash_bucket_size` chỉ giới hạn **KHOÁ**. ⇒ `khoaCuaDong()`
+bóc đúng phần khoá, kể cả khoá đặt trong nháy (vốn chứa khoảng trắng nên tách theo khoảng
+trắng là sai).
+
+#### 4. Một thông điệp chẩn đoán ĐOÁN MÒ là một khuyết tật — và nó đoán về phía phá huỷ nhất
+
+Nhánh quay lui khẳng định:
+
+> *"Nhiều khả năng migration đã đổi lược đồ và bản cũ ⛔ chạy được trên đó."* → runbook **khôi phục CSDL**
+
+Log của **chính lượt ấy** bác nó: `Container songnhue-app Healthy` **trên ảnh CŨ** ⇒ bản cũ
+chạy được trên lược đồ đã migrate. Khôi phục CSDL ở đây **⛔ chữa gì** và **xoá mất dữ liệu
+mới** — thao tác phá huỷ nhất của cả hệ, được một câu đoán mò chỉ đường tới.
+
+Cùng hình dạng §10.77 (*cổng đỏ kèm lý do nghe rất hợp lý nên ⛔ ai kiểm lại*), nhưng nặng hơn
+một bậc: ở đó cái giá là **một ngày ⛔ ai đọc**; ở đây cái giá là **một lượt ghi đè CSDL**.
+
+⇒ Thông điệp nay in **ba** khả năng kèm phép đo tách chúng, và trỏ sang runbook mới
+`docs/runbook/deploy-hong.md` — trước lượt này kho **⛔ có** runbook nào cho *"deploy xong mà
+site ⛔ trả lời"*, nên chỗ duy nhất để trỏ tới lại là chỗ sai.
+
+#### 5. Bộ canh cũ bắt bản vá ở lượt chạy đầu — và nó chặn đúng tai nạn nó sinh ra để chặn
+
+`DeployRemoteStdinTest` đỏ: **16 dòng** chú thích vừa viết nằm trong heredoc `<<REMOTE`
+**⛔ nháy**, nên **46 dấu huyền** trong đó là **thay thế lệnh do RUNNER khai triển trước khi
+gửi đi** — kể cả khi nằm sau dấu `#`. Dòng nặng nhất:
+
+```
+# ⚠⚠ `--no-deps` là BẮT BUỘC: `docker compose run nginx` trần sẽ dựng cả …
+```
+
+`docker compose run nginx` — **đúng lệnh** đã gây ra §10.66 ngày 27/8. Bản vá viết ra để chữa
+một sự cố deploy suýt tái lập nguyên văn một sự cố deploy cũ. **Một chú thích trong heredoc
+⛔ nháy là mã chạy được.**
+
+Cùng lượt, `CanhBaoCoDuongDiTest` đỏ vì **canh VĂN BẢN**: nó ghim nguyên văn
+`if ($metrics_token_ok = 0)` nên vỡ khi đổi **cách** so token, dù cam kết *hai lớp khoá* ⛔ hề
+đổi (luật 2 · §11.16). Chuyển sang khẳng định **bất biến** (có `allow`, có `deny all`, có
+`return 403`, và lớp token so nguyên chuỗi `Authorization`).
+
+#### 6. Vế song song: máy làm việc được cấu hình ĐÚNG là thứ giấu cả một lớp lỗi (T63.18)
+
+Cùng ngày, CI đỏ ở một bài mà `ci-local` **về nguyên tắc ⛔ thể** làm đỏ:
+
+```
+expected '16/09/2026 20:00' to contain '17/09/2026 03:00'     ← lệch ĐÚNG 7 giờ
+```
+
+Runner chạy **UTC**, máy làm việc **+07**. Kiểm chứng ngược đo **cả hai chiều trên cùng một
+bản phá**: `TZ=UTC` ⇒ **ĐỎ** · `TZ=Asia/Ho_Chi_Minh` ⇒ **XANH**.
+
+⇒ Biến thể **MỚI** của *"xanh ở máy ⛔ phải bằng chứng"*, sau `.env.local` và biến build rỗng —
+và là biến thể khó nhất, vì nguyên nhân nó vô hình là máy người viết mã đặt **đúng** múi giờ
+của sản phẩm. Thứ *đúng* lại là thứ che.
+
+⛔ Và ⛔ phải lỗi bài kiểm: `shared/format.ts` đã khai luật từ trước kèm lý do thực địa —
+*"máy trạm trong đơn vị hay bị lệch múi giờ sau khi cài lại Windows"* — trong khi
+`NhapTaySoDoModal` (đường ghi tay **duy nhất** khi API gián đoạn) bày sẵn mốc đo bằng `dayjs()`
+trần. Quy tắc 18: nguồn ⛔ có API lịch sử ⇒ một số đo đóng vào sai khung 10 phút là **sai
+vĩnh viễn**.
+
+Bánh cóc: ghim `env: { TZ: 'UTC' }` ở cả hai cấu hình vitest ⇒ lượt chạy ở máy **dựng lại được**
+điều kiện runner; đo được là có hiệu lực (cùng bản phá, chạy ở `TZ=+07` nay **ĐỎ**). ⛔ Cố ý
+**⛔ ghim `Asia/Ho_Chi_Minh`**: ghim vào đúng múi giờ của sản phẩm là làm cả lớp lỗi ấy **vô
+hình trở lại**.

@@ -24,3 +24,10 @@ logging:
   level:
     # Thấy được câu lệnh migration khi schema chưa như mong đợi
     org.flywaydb: INFO
+
+# T61.40 — tài liệu API chỉ bật ở môi trường cục bộ (mặc định TẮT ở `application.yml`).
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true

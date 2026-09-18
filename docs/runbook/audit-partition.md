@@ -56,14 +56,19 @@ COMMIT;
 > ⚠ Bước 3 đi qua bảng cha nên **trigger `trg_audit_logs_chain` sẽ cấp lại
 > `seq`/`hash` mới và làm gãy chuỗi**. Phải tắt trigger trong lúc chuyển:
 > `ALTER TABLE audit_logs DISABLE TRIGGER trg_audit_logs_chain;` … và bật lại
-> sau `COMMIT`. Chạy `make db-verify-audit` để xác nhận chuỗi còn nguyên vẹn.
+> sau `COMMIT`. Xác nhận chuỗi còn nguyên vẹn:
+> ```bash
+> docker exec -i songnhue-postgres psql -U postgres -d songnhue -At \
+>   -c 'SELECT * FROM core_verify_audit_chain()' < /dev/null      # rỗng = nguyên vẹn
+> ```
+> ⚠ `make db-verify-audit` chỉ chạy ở **máy dev** — máy chủ không có `psql` trên host.
 
 ## Sau khi gỡ
 
 1. Chạy `SELECT core_ensure_audit_partitions(12);` để dựng lại runway.
 2. Tìm nguyên nhân job chết (bảng `jobs`, `status = 'FAILED'`, `job_type` bảo
    trì partition) — đây mới là lỗi gốc.
-3. `make db-verify-audit` phải trả về **0 dòng**.
+3. `SELECT * FROM core_verify_audit_chain()` phải trả về **0 dòng** (chạy qua `docker exec`, xem trên).
 
 ## Quyền trên partition
 

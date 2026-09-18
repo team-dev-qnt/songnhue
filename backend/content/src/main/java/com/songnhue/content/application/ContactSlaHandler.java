@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Objects;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,12 +38,22 @@ import com.songnhue.core.spi.SettingPort;
  *
  * <h2>⚠ Phạm vi tự khai (luật 28): nhắc ai</h2>
  *
- * <p>Nhắc <b>mọi tài khoản có {@code cms:contact:manage}</b> — ⛔ <b>không</b> nhắc riêng đơn vị đã
- * được chuyển xử lý. Lý do đo được: {@code OrgUnitPort} (cổng duy nhất module này có tới sơ đồ tổ
- * chức) ⛔ không có phương thức tra người đứng đầu một đơn vị, và {@code NotifyRequest} bỏ qua
- * {@code relatedOrgUnitIds} khi đã khai {@code targetPermission} (xem
- * {@code RecipientResolver#resolve}). Nới cổng ra chỉ vì tính năng này là mở một phương thức SPI ⛔
- * chưa có nơi gọi thứ hai. Ghi lại ở đây thay vì để cái xanh của nó đọc như một lời bảo đảm.
+ * <p>✅ <b>Từ 08/09/2026 (T28.51)</b>: nhắc mọi tài khoản có {@code cms:contact:manage}
+ * <b>cộng người đứng đầu những đơn vị đang giữ việc</b> ({@code contacts.assigned_org_unit_id}).
+ *
+ * <p>⚠ Đường dây ấy từng đứt ở <b>HAI</b> chỗ độc lập, và vá một chỗ ⛔ không đủ:
+ * {@code NotifyRequest.targeted} ghi cứng {@code List.of()} cho {@code relatedOrgUnitIds}, <i>và</i>
+ * {@code RecipientResolver} bỏ qua danh sách ấy khi đã khai {@code targetPermission}. Nay có
+ * {@code targetedWithUnits}, và bộ giải người nhận tôn trọng đơn vị <b>được nêu đích danh</b> —
+ * xem javadoc ở đó để biết vì sao đây là phép <b>thu hẹp</b>, ⛔ không phải nới lỏng luật G11.
+ *
+ * <p>⛔ <b>Vẫn giữ nguyên nhóm theo quyền</b>, ⛔ không thay thế: liên hệ chưa chuyển cho ai thì
+ * người phải xử lý chính là nhóm ấy. Thay thế là biến một lỗ (không ai đúng nhận được) thành một
+ * lỗ khác (việc chưa giao thì ⛔ không ai nhận).
+ *
+ * <p>⚠ Ghi chú cũ ở đây khai rằng {@code OrgUnitPort} ⛔ không có phương thức tra người đứng đầu —
+ * <b>đúng</b>, và nay vẫn đúng: bộ giải người nhận nằm ở {@code core} nên nó dùng thẳng
+ * {@code OrgUnitRepository.findActiveHeadAndDeputyUserIds}, ⛔ không phải nới SPI ra cho một nơi gọi.
  *
  * <h2>⛔ Job này ⛔ KHÔNG đổi trạng thái bản ghi nào</h2>
  *
@@ -130,12 +141,28 @@ public class ContactSlaHandler implements JobHandler {
         }
         than.append("\nMở Quản trị nội dung › Hộp thư liên hệ để xử lý.");
 
-        notifications.notify(NotifyRequest.targeted(
+        // ⭐⭐ T28.51 — nhắc TỚI CẢ đơn vị đã được chuyển xử lý.
+        //
+        // Bản trước gửi cho **mọi** tài khoản có `cms:contact:manage` và chỉ thế. Người phụ trách
+        // Xí nghiệp đang giữ việc thì ⛔ không nhận được gì, còn người ⛔ không liên quan thì nhận
+        // hết — đúng cách một hộp thư học được thói quen bỏ qua cảnh báo.
+        //
+        // ⚠ Lọc `null`: liên hệ CHƯA chuyển cho ai vẫn phải được nhắc, và người nhận của nó chính
+        //   là nhóm giữ quyền xử lý. Bỏ vế lọc thì `findActiveHeadAndDeputyUserIds` nhận một danh
+        //   sách có `null` và câu truy vấn hỏng — im lặng, vì lượt nhắc chạy trong job nền.
+        List<Long> donViDangGiu = quaHan.stream()
+                .map(Contact::getAssignedOrgUnitId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+
+        notifications.notify(NotifyRequest.targetedWithUnits(
                 "CONTACT_SLA_BREACH",
                 tieuDe,
                 than.toString(),
                 NotifySeverity.WARNING,
                 ContactService.QUYEN_XU_LY,
+                donViDangGiu,
                 List.of()));
 
         log.info("Đã nhắc {} liên hệ quá hạn {} giờ", quaHan.size(), soGio);

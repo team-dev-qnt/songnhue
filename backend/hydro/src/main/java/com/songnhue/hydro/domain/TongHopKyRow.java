@@ -21,6 +21,11 @@ import java.time.Instant;
  * buộc kèm lý do được ép ở <b>hàm dựng</b> của {@code HydroReportDtos.TongHopKyView}.
  *
  * @param soBanGhi tổng số bản ghi <b>hợp lệ</b> trong kỳ — {@code 0} là hợp lệ và có nghĩa
+ * @param chainage lý trình như Công ty ghi ({@code K43+750}); {@code null} khi G8 chưa cấp. Đặc tả
+ *     BC-05 (proposal §2.2) ghép nó với {@code riverName} thành một cột <i>"Tuyến sông – Lý trình"</i>
+ * @param soLanVuotNguong số cảnh báo <b>bắt đầu</b> trong kỳ ({@code alert_events.started_at}). ⚠ Đếm
+ *     theo lúc bắt đầu là chủ ý: một đợt còn đang mở lúc kỳ kết thúc vẫn phải được kể tới, và đếm
+ *     theo {@code ended_at} sẽ giấu đúng đợt đang diễn ra
  * @param soNgayCoDuLieu số ngày có ít nhất một bản ghi hợp lệ. ⭐ Cùng với {@code soBanGhi}, nó cho
  *     người đọc biết trung bình kỳ đang dựa trên bao nhiêu quan sát — một trung bình của 12 bản ghi
  *     và một trung bình của 4320 bản ghi trông y hệt nhau nếu ⛔ không nói ra
@@ -29,6 +34,7 @@ public record TongHopKyRow(
         String stationCode,
         String stationName,
         String riverName,
+        String chainage,
         String positionRole,
         String measurementTypeCode,
         String measurementTypeName,
@@ -39,7 +45,8 @@ public record TongHopKyRow(
         Instant mocMin,
         BigDecimal giaTriMax,
         Instant mocMax,
-        BigDecimal giaTriTb) {
+        BigDecimal giaTriTb,
+        int soLanVuotNguong) {
 
     /** ⛔ Kỳ ⛔ không có bản ghi hợp lệ nào — ô số liệu phải rỗng KÈM LÝ DO. */
     public boolean rong() {

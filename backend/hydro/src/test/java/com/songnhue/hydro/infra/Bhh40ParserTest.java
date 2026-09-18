@@ -62,7 +62,7 @@ class Bhh40ParserTest {
     // ==== Quy tắc 3 — cắt HTML, tách <br> =====================================
 
     @Test
-    @DisplayName("⭐⭐ Quy tắc 3+4: bản mẫu ĐO THẬT cho ra ĐÚNG 28 bản ghi, 0 dòng rác")
+    @DisplayName("⭐⭐ Quy tắc parse 3 + quy tắc parse 4: bản mẫu ĐO THẬT cho ra ĐÚNG 28 bản ghi, 0 dòng rác")
     void banMauThatChoDung28BanGhi() {
         TelemetryBatch me = Bhh40Parser.boc(mau);
 
@@ -80,7 +80,7 @@ class Bhh40ParserTest {
     }
 
     @Test
-    @DisplayName("⭐ Quy tắc 3: trang HTML ở đuôi bị cắt — không dòng nào của nó lọt vào bộ đếm rác")
+    @DisplayName("⭐ Quy tắc parse 3: trang HTML ở đuôi bị cắt — không dòng nào của nó lọt vào bộ đếm rác")
     void catTrangHtmlODuoi() {
         assertThat(mau).contains("<!DOCTYPE").contains("__VIEWSTATE").contains("</html>");
 
@@ -96,7 +96,7 @@ class Bhh40ParserTest {
     }
 
     @Test
-    @DisplayName("Quy tắc 3: <!doctype chữ thường cũng bị cắt — HTML không phân biệt hoa thường")
+    @DisplayName("Quy tắc parse 3: <!doctype chữ thường cũng bị cắt — HTML không phân biệt hoa thường")
     void catCaDoctypeChuThuong() {
         String than = "F01527;01/09/2026;10:20;value=231;<br>\n<!doctype html><html><body>x</body></html>";
 
@@ -107,7 +107,8 @@ class Bhh40ParserTest {
     }
 
     @Test
-    @DisplayName("⚠ Quy tắc 3: nhận cả <BR>, <br/>, <br /> — một lượt nâng cấp phía nguồn không được làm mất cả mẻ")
+    @DisplayName(
+            "⚠ Quy tắc parse 3: nhận cả <BR>, <br/>, <br /> — một lượt nâng cấp phía nguồn không được làm mất cả mẻ")
     void nhanMoiBienTheCuaTheNgatDong() {
         String than = "F01527;01/09/2026;10:20;value=231;<BR>"
                 + "F01519;01/09/2026;10:20;value=192;<br/>"
@@ -126,7 +127,7 @@ class Bhh40ParserTest {
     // ==== Quy tắc 4 — regex, dòng rác =========================================
 
     @Test
-    @DisplayName("⭐⭐ Quy tắc 4: MỘT dòng rác KHÔNG làm hỏng cả mẻ — 3 dòng tốt vẫn về, rác đếm riêng")
+    @DisplayName("⭐⭐ Quy tắc parse 4: MỘT dòng rác KHÔNG làm hỏng cả mẻ — 3 dòng tốt vẫn về, rác đếm riêng")
     void dongRacKhongLamHongCaMe() {
         String than = "F01527;01/09/2026;10:20;value=231;<br>"
                 + "rác hoàn toàn không theo định dạng nào<br>"
@@ -143,7 +144,7 @@ class Bhh40ParserTest {
     }
 
     @Test
-    @DisplayName("⭐ Quy tắc 4: dòng KHỚP regex nhưng mốc không tồn tại (32/13) vẫn là rác, ⛔ không ném")
+    @DisplayName("⭐ Quy tắc parse 4: dòng KHỚP regex nhưng mốc không tồn tại (32/13) vẫn là rác, ⛔ không ném")
     void mocThoiGianKhongTonTaiLaRacChuKhongPhaiNgoaiLe() {
         String than = "F01527;32/13/2026;10:20;value=231;<br>"
                 + "F01519;01/09/2026;25:70;value=192;<br>"
@@ -161,7 +162,7 @@ class Bhh40ParserTest {
     }
 
     @Test
-    @DisplayName("⛔ Quy tắc 4: regex GIỮ ^[A-Z]\\d+ của spec — mã ngoài dạng F##### vẫn phải bóc được")
+    @DisplayName("⛔ Quy tắc parse 4: regex GIỮ ^[A-Z]\\d+ của spec — mã ngoài dạng F##### vẫn phải bóc được")
     void khongThatRegexThanhFNamChuSo() {
         String than = "F01527;01/09/2026;10:20;value=231;<br>"
                 + "M0152;01/09/2026;10:20;value=100;<br>" // chữ cái khác, ít chữ số hơn
@@ -184,7 +185,7 @@ class Bhh40ParserTest {
     }
 
     @Test
-    @DisplayName("Quy tắc 4: nhận giá trị âm và giá trị thập phân — spec khai vậy, dấu ',' đọc như dấu '.'")
+    @DisplayName("Quy tắc parse 4: nhận giá trị âm và giá trị thập phân — spec khai vậy, dấu ',' đọc như dấu '.'")
     void nhanSoAmVaSoThapPhan() {
         String than = "F01527;01/09/2026;10:20;value=-15;<br>" + "F01519;01/09/2026;10:20;value=4,93;<br>"
                 + "F01532;01/09/2026;10:20;value=4.93;<br>";
@@ -203,7 +204,7 @@ class Bhh40ParserTest {
     // ==== Quy tắc 2 — not.working =============================================
 
     @Test
-    @DisplayName("⭐⭐ Quy tắc 2: not.working ⇒ 0 bản ghi, cờ nguồn hỏng bật — ⛔ không ghi reading nào")
+    @DisplayName("⭐⭐ Quy tắc parse 2: not.working ⇒ 0 bản ghi, cờ nguồn hỏng bật — ⛔ không ghi reading nào")
     void notWorkingKhongChoRaBanGhiNao() {
         TelemetryBatch me = Bhh40Parser.boc("not.working");
 
@@ -212,7 +213,7 @@ class Bhh40ParserTest {
     }
 
     @Test
-    @DisplayName("⚠ Quy tắc 2 thắng: body vừa có not.working VỪA có dòng số đo ⇒ vẫn KHÔNG lấy dòng nào")
+    @DisplayName("⚠ Quy tắc parse 2 thắng: body vừa có not.working VỪA có dòng số đo ⇒ vẫn KHÔNG lấy dòng nào")
     void notWorkingThangCaKhiCoDongSoDo() {
         String than = "F01527;01/09/2026;10:20;value=231;<br>not.working";
 
@@ -226,7 +227,7 @@ class Bhh40ParserTest {
     }
 
     @Test
-    @DisplayName("Quy tắc 2: nhận diện không phân biệt hoa thường, và một chỗ nhận biết DUY NHẤT")
+    @DisplayName("Quy tắc parse 2: nhận diện không phân biệt hoa thường, và một chỗ nhận biết DUY NHẤT")
     void nhanDienNguonHongKhongPhanBietHoaThuong() {
         assertThat(Bhh40Parser.nguonBaoHong("NOT.WORKING")).isTrue();
         assertThat(Bhh40Parser.nguonBaoHong("<html>Not.Working</html>")).isTrue();
@@ -237,7 +238,7 @@ class Bhh40ParserTest {
     // ==== Quy tắc 6 — múi giờ =================================================
 
     @Test
-    @DisplayName("⭐⭐ Quy tắc 6: '01/09/2026 10:20' giờ VN = 03:20 UTC — lệch 7 tiếng, ⛔ không lưu giờ địa phương")
+    @DisplayName("⭐⭐ Quy tắc parse 6: '01/09/2026 10:20' giờ VN = 03:20 UTC — lệch 7 tiếng, ⛔ không lưu giờ địa phương")
     void mocThoiGianDoiVeUtc() {
         TelemetryBatch me = Bhh40Parser.boc(mau);
 
@@ -250,7 +251,7 @@ class Bhh40ParserTest {
     }
 
     @Test
-    @DisplayName("⚠ Quy tắc 6: cả 28 dòng cùng MỘT mốc — đó là mốc KHUNG của nguồn, ⛔ không phải giờ ta gọi")
+    @DisplayName("⚠ Quy tắc parse 6: cả 28 dòng cùng MỘT mốc — đó là mốc KHUNG của nguồn, ⛔ không phải giờ ta gọi")
     void caMeCungMotMocKhung() {
         List<Instant> moc = Bhh40Parser.boc(mau).soDo().stream()
                 .map(TelemetryReading::measuredAt)
@@ -266,7 +267,7 @@ class Bhh40ParserTest {
     // ==== Quy tắc 7 — đơn vị ==================================================
 
     @Test
-    @DisplayName("⭐⭐ Quy tắc 7: 493 cm ⇒ 4.930 m — giá trị THẬT của F01652, BigDecimal scale 3")
+    @DisplayName("⭐⭐ Quy tắc parse 7: 493 cm ⇒ 4.930 m — giá trị THẬT của F01652, BigDecimal scale 3")
     void quyDoiCmSangMetTheoGiaTriThat() {
         List<TelemetryReading> soDo = Bhh40Parser.boc(mau).soDo();
 
@@ -281,7 +282,7 @@ class Bhh40ParserTest {
     // ==== Quy tắc 8 — chống trùng =============================================
 
     @Test
-    @DisplayName("⭐ Quy tắc 8: cùng (mã, mốc) hai lần trong MỘT response ⇒ giữ bản đầu, đếm riêng")
+    @DisplayName("⭐ Quy tắc parse 8: cùng (mã, mốc) hai lần trong MỘT response ⇒ giữ bản đầu, đếm riêng")
     void bocTrungTrongCungMotResponse() {
         String than = "F01527;01/09/2026;10:20;value=231;<br>"
                 + "F01527;01/09/2026;10:20;value=999;<br>" // trùng khoá, khác giá trị
@@ -300,7 +301,7 @@ class Bhh40ParserTest {
     // ==== Vế ngược của quy tắc 5 ==============================================
 
     @Test
-    @DisplayName("⛔ Quy tắc 5 KHÔNG thuộc parser: mã lạ vẫn được trả về đủ, việc lọc là của poller")
+    @DisplayName("⛔ Quy tắc parse 5 KHÔNG thuộc parser: mã lạ vẫn được trả về đủ, việc lọc là của poller")
     void parserKhongTuLocMaLa() {
         List<String> ma = Bhh40Parser.boc(mau).soDo().stream()
                 .map(TelemetryReading::apiCode)

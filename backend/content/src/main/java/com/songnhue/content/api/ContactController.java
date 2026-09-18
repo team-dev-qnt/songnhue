@@ -4,6 +4,10 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -23,6 +27,7 @@ import com.songnhue.content.domain.Contact;
 import com.songnhue.content.domain.ContactNote;
 import com.songnhue.content.domain.ContactStatus;
 import com.songnhue.core.common.security.RequirePermission;
+import com.songnhue.core.common.util.HttpHeaderText;
 import com.songnhue.core.spi.AllowedAction;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -83,13 +88,14 @@ public class ContactController {
         }
     }
 
-    public record TransitionForm(String action, String reason) {}
+    /** ⚠ T61.40 — trần khớp `contact_notes.content` / cột lý do; thiếu ràng buộc là 500 từ CSDL. */
+    public record TransitionForm(@NotBlank @Size(max = 64) String action, @Size(max = 2000) String reason) {}
 
     public record CategoryForm(UUID categoryPublicId) {}
 
     public record AssignForm(UUID orgUnitPublicId) {}
 
-    public record NoteForm(String content) {}
+    public record NoteForm(@NotBlank @Size(max = 5000) String content) {}
 
     /**
      * Dựng {@link ContactView} kèm hai cái tên đã tra.
@@ -168,7 +174,7 @@ public class ContactController {
         ContactInboxService.BanXuat ban = contacts.xuatCsv(status);
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType("text/csv; charset=utf-8"))
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + ban.tenTep() + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, HttpHeaderText.contentDisposition(ban.tenTep()))
                 .body(ban.noiDung());
     }
 
@@ -191,7 +197,7 @@ public class ContactController {
     @PostMapping("/{publicId}/transitions")
     @Operation(summary = "Thực hiện một bước chuyển; bước nào đòi lý do thì thiếu lý do là SYS-0003")
     @RequirePermission("cms:contact:manage")
-    public ContactView transition(@PathVariable UUID publicId, @RequestBody TransitionForm form) {
+    public ContactView transition(@PathVariable UUID publicId, @Valid @RequestBody TransitionForm form) {
         return view(contacts.chuyenTrangThai(publicId, form.action(), form.reason()));
     }
 
@@ -200,14 +206,14 @@ public class ContactController {
     @PatchMapping("/{publicId}/category")
     @Operation(summary = "Gán hoặc gỡ phân loại — thân rỗng/`null` là gỡ")
     @RequirePermission("cms:contact:manage")
-    public ContactView setCategory(@PathVariable UUID publicId, @RequestBody CategoryForm form) {
+    public ContactView setCategory(@PathVariable UUID publicId, @Valid @RequestBody CategoryForm form) {
         return view(contacts.phanLoai(publicId, form.categoryPublicId()));
     }
 
     @PatchMapping("/{publicId}/assignment")
     @Operation(summary = "Chuyển phòng ban/Xí nghiệp xử lý — `null` là thu hồi")
     @RequirePermission("cms:contact:manage")
-    public ContactView assign(@PathVariable UUID publicId, @RequestBody AssignForm form) {
+    public ContactView assign(@PathVariable UUID publicId, @Valid @RequestBody AssignForm form) {
         return view(contacts.chuyenDonVi(publicId, form.orgUnitPublicId()));
     }
 
@@ -221,7 +227,7 @@ public class ContactController {
     @PostMapping("/{publicId}/notes")
     @Operation(summary = "Thêm một ghi chú nội bộ")
     @RequirePermission("cms:contact:manage")
-    public NoteView addNote(@PathVariable UUID publicId, @RequestBody NoteForm form) {
+    public NoteView addNote(@PathVariable UUID publicId, @Valid @RequestBody NoteForm form) {
         return NoteView.of(contacts.themGhiChu(publicId, form.content()));
     }
 

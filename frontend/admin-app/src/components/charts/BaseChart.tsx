@@ -100,5 +100,5 @@ export function BaseChart({
       </div>
     );
   }
-  return <div ref={khungRef} style={{ width: '100%', height }} />;
+  return <div ref={khungRef} style={{ width: '100%', height, minWidth: 0 }} />;
 }

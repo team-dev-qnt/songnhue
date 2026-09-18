@@ -100,9 +100,9 @@ Gồm: MOD-05 + toàn bộ shared services rút ra từ P1–P6.
 - Org chart: dùng lại `org_units` của Core (thêm UI tree + export).
 - `employees` (+ bảng `employee_sensitive` cho trường 🔒 — mã hóa cột, chỉ Admin HR), `positions`, `employee_events` (timeline — 1 bảng event type + JSON payload), `qualifications` (bằng cấp/chứng chỉ, `valid_until` → quét hạn cron P5).
 - Tài liệu hồ sơ: Attachment service + 7 folder cố định + % hoàn thiện.
-- Danh bạ: view/API đọc `employees` (cột công khai) + full-text (tên không dấu).
+- Danh bạ: ✅ **dựng 10/09 (WS-55)**. ⛔⛔ ⛔ Không phải "view/API đọc `employees`" thêm một tầng — nó là **câu SQL viết tay** ở `DanhBaRepository`, vì hai lý do BẢO MẬT: (a) `@Filter` phạm vi bật quanh **mọi** `@Transactional` nên mọi truy vấn JPA đều bị cắt theo đơn vị, mà danh bạ phải thấy **toàn Công ty** — và đường vòng *sai* là `disableFilter()` (tắt bảo vệ cho cả giao dịch) · (b) danh sách cột **viết tay** khiến một trường mới trên `Employee` ⛔ không tự chảy ra danh bạ. Chi tiết `architecture-review.md` §11.22.
 - Nghỉ phép: `leave_policies`, `leave_requests` (Workflow engine), `leave_balances` (tính lại bằng service), `holidays`.
-- Liên kết `users.employee_id`.
+- Liên kết `users.employee_id`: ✅ **dựng 10/09 (WS-54 / T51.8)** — đặt ở **CN-05.1** theo đúng `function-spec.md:668`, hợp đồng tra cứu ở `core.spi.EmployeeDirectoryPort` (⛔ không ở `hr.spi`: `core/pom.xml` ⛔ không phụ thuộc module nào, nên đặt ở đó là **chu trình build** — thứ ArchUnit ⛔ không thấy vì nó ⛔ không biên dịch được để mà kiểm).
 
 ---
 
@@ -220,9 +220,9 @@ Quy tắc ràng buộc giữa module (giữ đúng Modular Monolith):
 |---|---|:-:|---|
 | **Phase 0** — Nhóm A Core | auth/RBAC/orgunit/attachment/workflow/notification/jobs/audit/settings/backup-restore | ✅ **XONG 19/8/2026** | 12/21 mục Definition of Done đạt, 5 dở dang, **4 mục chưa xong đều phụ thuộc VM** (đo RTO thật · deploy staging · rollback). Không mục nào chặn việc viết nghiệp vụ |
 | **Phase 1** — B (CMS) + C1 (master data công trình) | article/category/media/siteconfig **+ hiển thị công khai** · `constructions`, `maintenance_logs`, `operation_status` | ✅ **XONG 22/8/2026** | Nền đã có: 6 pattern P1–P6 là shared service, ArchUnit canh ranh giới. ⚠ **WS-12 phải xong trước** (nợ #56 — `core/spi/` rỗng). ⚠ Chỉ **CN-01.7** bị chặn cứng bởi **G5** — đã tách khỏi Phase 1 |
-| **Phase 2** — C2 (`hydro`) | điểm đo, adapter, polling, rate-limit, lưu trữ, alert engine | ✅ **Bắt đầu được ngay** | Ánh xạ 19 mã đã có (G8b). Thiếu toạ độ/tuyến sông (G8) chỉ chặn phần hiển thị GIS, không chặn pipeline |
-| **Phase 3** — C3 (GIS/dashboard/báo cáo) + D (HRM) | | 🟨 **Code được, chốt layout sau** | Trường dữ liệu báo cáo đã chốt; **layout in ấn** chờ Công ty duyệt (G10). BCNS-07 chờ mẫu 2C-BNV (G6) |
-| **Phase 4** — hardening/NFR/go-live | | ✅ | Con số nghiệm thu đã chốt (G12). Gồm nốt phần deploy còn treo của Phase 0 |
+| **Phase 2** — C2 (`hydro`) | điểm đo, adapter, polling, rate-limit, lưu trữ, alert engine | ✅ **XONG phần mã 08/9/2026** | DoD **19/22**. Ba mục còn lại ⛔ **không phải mã** — `DOD2.9` cần VM-3 · `DOD2.21` cần **7 ngày lịch** · `DOD2.22` cần load test ⇒ chúng **chạy song song** với Phase 3, ⛔ không chặn |
+| **Phase 3** — C3 (GIS/dashboard/báo cáo) + D (HRM) | | ✅ **XONG phần mã 14/09/2026 — đã gộp vào `dev` (`2c3b8a1`, PR #132)** | **D (HRM) đủ 9/9** chức năng CN-04.1→04.9 · **C3** đủ phần dựng được (báo cáo vận hành 7 mã · lớp bản đồ GIS · công cụ đo · wall mode). ⇒ **Mọi mã quyền trong danh mục nay đều có ít nhất một đầu nhận** — `RbacMatrixTest` ⛔ không còn một dòng miễn kiểm *"Phase 3"* nào (gỡ 7 dòng). ⭐ **DoD 12/13 đạt** (`phase3-plan.md` §8): `DOD3.6` từng ⛔ **không** đạt và đã vá trong chính PR ấy; `DOD3.12` đạt **một phần**. ⬜ Phần còn lại ⛔ **KHÔNG phải mã** — **G8** toạ độ (Công ty chốt 14/09: **nhập trên màn hình quản trị**, đường nhập đã sẵn T42.20) · **G6** mẫu 2C-BNV + **G10**/**T42.14** bản in PDF (chờ Công ty gửi mẫu) · **B3** uỷ quyền duyệt · **T57.16/17** · **T59.13/14** |
+| **Phase 4** — hardening/NFR/go-live | | 🟨 **MỞ ĐƯỢC 14/09/2026** | Con số nghiệm thu đã chốt (G12). Gồm nốt phần deploy còn treo của Phase 0. ⛔⛔ **Việc ĐẦU TIÊN ⛔ không phải viết mã — là chuỗi đề bạt `dev → staging → production`**: đo 14/09 thì production tụt **14 commit** sau `dev`, và một trong số đó là bản vá poller (`DiaChiNguon`), nên mỗi ngày production chạy bản cũ là một ngày **mất số liệu thuỷ văn vĩnh viễn** (quy tắc 18). ⇒ Cọc dài nhất là **T37.1** (NFR-03, **7 ngày lịch liên tục**) và đồng hồ ấy ⛔ không bấm được trước lượt đề bạt. Kế hoạch: `phase4-plan.md` |
 
 ### 7.3. Ba ràng buộc phải cài từ Phase 0 để hấp thụ các câu trả lời còn lại
 

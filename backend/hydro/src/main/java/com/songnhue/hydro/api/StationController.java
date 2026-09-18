@@ -1,12 +1,17 @@
 package com.songnhue.hydro.api;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 import jakarta.validation.Valid;
 
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -14,9 +19,14 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
+import com.songnhue.core.common.error.ErrorCode;
+import com.songnhue.core.common.exception.ValidationException;
+import com.songnhue.core.common.importer.KetQuaNhap;
 import com.songnhue.core.common.security.RequirePermission;
 import com.songnhue.core.spi.ConstructionRef;
 import com.songnhue.core.spi.OrgUnitPort;
@@ -25,6 +35,7 @@ import com.songnhue.hydro.application.StationConstructionService;
 import com.songnhue.hydro.application.StationForm;
 import com.songnhue.hydro.application.StationMapService;
 import com.songnhue.hydro.application.StationService;
+import com.songnhue.hydro.application.importer.StationLocationImportService;
 import com.songnhue.hydro.domain.ApiSource;
 import com.songnhue.hydro.domain.Station;
 import com.songnhue.hydro.domain.StationConstruction;
@@ -58,16 +69,19 @@ public class StationController {
     private final StationConstructionService lienKets;
     private final OrgUnitPort orgUnits;
     private final StationMapService banDo;
+    private final StationLocationImportService viTri;
 
     public StationController(
             StationService stations,
             StationConstructionService lienKets,
             OrgUnitPort orgUnits,
-            StationMapService banDo) {
+            StationMapService banDo,
+            StationLocationImportService viTri) {
         this.stations = stations;
         this.lienKets = lienKets;
         this.orgUnits = orgUnits;
         this.banDo = banDo;
+        this.viTri = viTri;
     }
 
     /**
@@ -247,5 +261,62 @@ public class StationController {
                 ct == null ? null : ct.name(),
                 l.getRole(),
                 l.isPrimary());
+    }
+
+    // === Nhập vị trí hàng loạt — G8 phần còn lại =============================
+
+    /**
+     * ⭐⭐ Chạy khô tệp vị trí — ⛔ <b>không ghi một dòng nào</b>.
+     *
+     * <p>Tính tới 09/09/2026 toạ độ của <b>19/19</b> điểm đo vẫn NULL ⇒ lớp GIS RỖNG. Đường sửa duy
+     * nhất trước đây là mở màn hình điểm đo và sửa từng bản ghi, 19 lượt. Ngày Công ty gửi bảng toạ
+     * độ, người quản trị chỉ cần <b>tải mẫu → điền → upload</b>, ⛔ không cần thêm một đợt lập trình.
+     *
+     * <p>⚠ Quyền {@code hyd:station:manage} — cùng quyền với sửa một điểm đo, vì đây đúng là thao
+     * tác ấy làm hàng loạt.
+     */
+    @PostMapping(path = "/import/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Chạy khô tệp vị trí điểm đo — liệt kê lỗi từng dòng, ⛔ không ghi gì")
+    @RequirePermission("hyd:station:manage")
+    public KetQuaNhap previewImport(@RequestPart("file") MultipartFile file) {
+        return viTri.preview(doc(file));
+    }
+
+    @PostMapping(path = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Nhập thật — còn dòng lỗi thì ⛔ không dòng nào được ghi (OPS-2016)")
+    @RequirePermission("hyd:station:manage")
+    public KetQuaNhap applyImport(@RequestPart("file") MultipartFile file) {
+        return viTri.apply(doc(file));
+    }
+
+    /** Tệp mẫu, sinh từ chính danh mục cột mà bộ đọc dùng — ⛔ không phải một tệp tĩnh (luật 14). */
+    @GetMapping(path = "/import/template", produces = "text/csv; charset=utf-8")
+    @Operation(summary = "Tải tệp mẫu CSV — tiêu đề + một dòng mô tả quy cách từng cột")
+    @RequirePermission("hyd:station:manage")
+    public ResponseEntity<byte[]> importTemplate() {
+        return ResponseEntity.ok()
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment()
+                                .filename("mau-nhap-vi-tri-diem-do.csv", StandardCharsets.UTF_8)
+                                .build()
+                                .toString())
+                .contentType(MediaType.parseMediaType("text/csv; charset=utf-8"))
+                .body(StationLocationImportService.bieuMau());
+    }
+
+    /**
+     * Đọc nội dung tệp tải lên.
+     *
+     * <p>Lỗi đọc quy về {@code SYS-0003} chứ ⛔ không để {@link java.io.IOException} chui ra: một tệp
+     * hỏng giữa chừng là lỗi của dữ liệu vào, ⛔ không phải sự cố hệ thống, và trả 500 cho nó sẽ làm
+     * cảnh báo vận hành kêu vì chuyện người dùng gửi nhầm tệp.
+     */
+    private static byte[] doc(MultipartFile file) {
+        try {
+            return file.getBytes();
+        } catch (java.io.IOException e) {
+            throw new ValidationException(ErrorCode.SYS_0003, e);
+        }
     }
 }

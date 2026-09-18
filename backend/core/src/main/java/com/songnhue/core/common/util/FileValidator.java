@@ -61,6 +61,15 @@ public final class FileValidator {
     private static final int SVG_SNIFF_BYTES = 1024;
 
     /**
+     * MIME của tệp JSON/GeoJSON — <b>trường hợp thứ HAI ⛔ không có magic bytes</b> (WS-59).
+     *
+     * <p>⚠ Dùng {@code application/json} chứ ⛔ không {@code application/geo+json}: {@link #detect}
+     * nhìn <b>byte</b>, và một tệp GeoJSON ⛔ không khác một tệp JSON thường ở byte nào. Khai
+     * {@code geo+json} ở đây là hứa một phép phân biệt ⛔ không tồn tại.
+     */
+    public static final String MIME_JSON = "application/json";
+
+    /**
      * Kiểm tra nội dung tệp khớp với một định dạng được phép.
      *
      * @param content vài KB đầu là đủ, nhưng phải là dữ liệu thật của tệp
@@ -96,7 +105,10 @@ public final class FileValidator {
                 return signature.mimeType();
             }
         }
-        return looksLikeSvg(content) ? SvgSanitizer.MIME : null;
+        if (looksLikeSvg(content)) {
+            return SvgSanitizer.MIME;
+        }
+        return looksLikeJson(content) ? MIME_JSON : null;
     }
 
     /**
@@ -122,6 +134,36 @@ public final class FileValidator {
                 .stripLeading();
         // Bắt buộc mở đầu bằng một thẻ: chặn "tệp văn bản bất kỳ có nhắc tới <svg ở giữa"
         return dau.startsWith("<") && dau.toLowerCase(Locale.ROOT).contains("<svg");
+    }
+
+    /**
+     * JSON — <b>trường hợp thứ HAI ⛔ không có magic bytes</b>, thêm 14/09/2026 cho lớp bản đồ GIS.
+     *
+     * <h2>⛔⛔ Vì sao PHẢI thêm, chứ ⛔ không phải "cho tiện"</h2>
+     *
+     * <p>{@link #detect} đi bằng <b>chữ ký byte</b>, nên nó trả {@code null} cho <b>mọi</b> định
+     * dạng văn bản thuần. Hệ quả đo được ở WS-59: đường nạp GeoJSON của M2.9 bị
+     * {@code FILE_TYPE_NOT_ALLOWED} với {@code rejectedValue = "unknown"} — tức toàn bộ cơ chế lớp
+     * bản đồ <b>⛔ không có đường nào chạy được</b>. Đây đúng hình dạng đã trả giá ở SVG (WS-15):
+     * cơ chế có mặt, có bài kiểm riêng, xanh, và chưa bao giờ nằm trên một đường chạy thật.
+     *
+     * <h2>⚠ Đây là ĐOÁN, ⛔ không phải xác thực — và lớp quyết định vẫn là DANH SÁCH CHO PHÉP</h2>
+     *
+     * <p>Mọi tệp văn bản mở đầu bằng {@code &#123;} hoặc {@code [} đều lọt qua đây. Chấp nhận được
+     * vì thứ quyết định cuối cùng là danh sách của <b>nơi gọi</b>: chỉ đường nạp lớp bản đồ khai
+     * {@code application/json}, mọi đường khác vẫn từ chối y như trước. Và tệp nạp được vẫn phải
+     * qua chốt *"có đối tượng hình học ⛔ không"* ({@code OPS-2026}).
+     *
+     * <p>⛔ Bắt buộc mở đầu bằng {@code &#123;}/{@code [}: chặn *"tệp văn bản bất kỳ có nhắc tới
+     * JSON ở giữa"*, cùng lý lẽ với {@link #looksLikeSvg}.
+     */
+    private static boolean looksLikeJson(byte[] content) {
+        int soLuong = Math.min(content.length, SVG_SNIFF_BYTES);
+        String dau = new String(content, 0, soLuong, StandardCharsets.UTF_8)
+                // BOM của UTF-8 nằm trước cả dấu ngoặc — ⛔ không bỏ thì mọi tệp do Windows lưu đều trượt.
+                .replace("\uFEFF", "")
+                .stripLeading();
+        return dau.startsWith("{") || dau.startsWith("[");
     }
 
     public static void validateSize(long sizeBytes, long maxBytes, String originalName) {

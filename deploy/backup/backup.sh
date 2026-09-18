@@ -19,6 +19,11 @@
 # =============================================================================
 set -euo pipefail
 
+# ⛔ Bản dump là TOÀN BỘ CSDL (gồm `password_hash` và bảng `employee_sensitive`). `pg_dump` ở đây
+#    chạy trên HOST nên umask này quyết định quyền tệp: 027 ⇒ `640`, ⛔ user khác đọc được (T61.8).
+#    ⚠ ⛔ 077: VPS-2 kéo bản dump về bằng user thuộc NHÓM của thư mục sao lưu.
+umask 027
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPLOY_DIR="$(dirname "$SCRIPT_DIR")"
 ENV="${ENV:-local}"

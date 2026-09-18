@@ -97,9 +97,19 @@ public class SiteConfigService {
      * chạy mà không lỗi nào — nên phải có bài kiểm giữ hộ.
      *
      * <p>⚠ 04/09: câu trên trước đây trỏ vào {@code SiteConfigHtmlTypeTest}, <b>một tệp không tồn
-     * tại trong kho</b>. ⬜ Và phần *"khẳng định hai dòng settings vẫn mang HTML / HTML_EMBED"*
-     * thì <b>chưa bài nào làm</b> — nợ ghi ở {@code master-tracking.md} WS-40. Ghi ra khoảng
-     * trống còn hơn để một tên bài kiểm không tồn tại lấp chỗ nó (quy tắc 28).
+     * tại trong kho</b>. Ghi ra khoảng trống còn hơn để một tên bài kiểm không tồn tại lấp chỗ nó
+     * (quy tắc 28).
+     *
+     * <p>✅ <b>08/09 — khoảng trống ấy ĐÃ ĐƯỢC LẤP, và chính câu này là thứ lạc hậu</b> (T40.22).
+     * Phép khẳng định *"hai dòng settings vẫn mang HTML / HTML_EMBED"* nằm ở
+     * {@code SettingHtmlSanitizeTest#giuDungKieuGiaTri}. Nó tra {@code value_type} thật trong CSDL
+     * cho cả {@link #KEY_FOOTER_INFO} và {@link #KEY_FOOTER_MAP}.
+     *
+     * <p>⛔⛔ Bài học đáng giữ hơn cả nợ: <b>một dòng chú thích nói mình còn thiếu cũng là dữ liệu
+     * chưa kiểm</b>. Câu "chưa bài nào làm" ở đây và dòng nợ tương ứng trong sổ cùng sai suốt bốn
+     * ngày, và cả hai đều đọc như một lời khai thận trọng — đúng hình dạng §10.69, chỉ ngược chiều:
+     * lần trước chú thích khoe một bảo đảm ⛔ không có, lần này nó phủ nhận một bảo đảm ĐANG có.
+     * Sổ nợ ấy còn dùng tên hằng {@code KEY_FOOTER_EMBED} — một cái tên ⛔ chưa từng tồn tại.
      */
     public static final String KEY_FOOTER_INFO = "site.footer.company-info";
 
