@@ -36,8 +36,10 @@ import org.junit.jupiter.api.Test;
  *   <li><b>Biến người dùng nội suy thẳng vào {@code run:}</b> — {@code ${{ inputs.reason }}} chứa
  *       {@code $(…)} sẽ được shell CHẠY. {@code head_commit.message} còn dễ chèn hơn vì nó đến từ một
  *       thông điệp commit.</li>
- *   <li><b>Mất bất biến "đã qua staging"</b> — cây tệp khớp trả lời câu <i>nội dung</i>, không trả lời câu
- *       <i>đã đi qua chặng trước chưa</i>. Cần cả hai.</li>
+ *   <li><s>Mất bất biến "đã qua staging"</s> — <b>gỡ CÓ CHỦ Ý 18/09/2026</b>: {@code production} nay nhận
+ *       PR thẳng từ {@code dev} (Promotion guard ép nguồn = {@code dev} + CI xanh). Giữ phép kiểm tổ tiên
+ *       {@code origin/staging} là chặn đúng luồng vừa cho phép — bài {@link #khongConDoiQuaStaging()} canh
+ *       chiều ngược lại.</li>
  * </ol>
  */
 class DeployProdTriggerTest {
@@ -145,25 +147,52 @@ class DeployProdTriggerTest {
     // =========================================================================
 
     @Test
-    @DisplayName("⛔ Giữ bất biến 'đã qua staging' và nạp đủ hai nhánh để kiểm được nó")
-    void giuBatBienToTienVaFetchDu() {
-        String yml = doc(WORKFLOW);
+    @DisplayName("⭐ 18/09 · ⛔ còn đòi 'đã qua staging' — production nhận thẳng từ dev")
+    void khongConDoiQuaStaging() {
+        // Soi trên bản ĐÃ BỎ chú thích: chú thích đầu tệp cố ý nhắc lại lệnh đã gỡ để giải thích vì
+        // sao, và một bộ canh khớp chữ trong chú thích sẽ phạt đúng người viết tài liệu (T46.7).
+        String ma = boChuThich(doc(WORKFLOW));
 
-        assertThat(yml)
+        assertThat(ma)
                 .as(
                         """
-                        Mất phép kiểm `--is-ancestor … origin/staging`.
+                        `deploy-prod.yml` vẫn kiểm `--is-ancestor … origin/staging`.
 
-                        Cây tệp khớp chỉ trả lời câu "nội dung này đã dựng image chưa", KHÔNG trả lời \
-                        câu "nó đã đi qua staging chưa". Hai câu khác nhau; luồng đã chốt đòi cả hai.""")
-                .containsPattern("is-ancestor[^\\n]*origin/staging");
+                        Từ 18/09 `production` nhận PR thẳng từ `dev`; phép kiểm tổ tiên staging sẽ làm \
+                        đỏ mọi lượt đề bạt `dev → production` chưa đi qua staging — đúng luồng vừa cho phép.""")
+                .doesNotContainPattern("is-ancestor[^\\n]*origin/staging")
+                .doesNotContain("+refs/heads/staging:");
 
-        assertThat(yml)
+        assertThat(ma)
                 .as("Thiếu refspec `dev` — phép giải theo cây tệp sẽ trả 'không tra được' (mã 2)")
                 .contains("+refs/heads/dev:refs/remotes/origin/dev");
-        assertThat(yml)
-                .as("Thiếu refspec `staging` — phép kiểm tổ tiên sẽ chết vì ref không giải được")
-                .contains("+refs/heads/staging:refs/remotes/origin/staging");
+        assertThat(ma)
+                .as("Mất phép giải theo cây tệp — đỉnh `production` là merge commit, ⛔ có image mang SHA ấy")
+                .contains("giai-dinh-dev.sh");
+    }
+
+    @Test
+    @DisplayName("⭐ TỰ KIỂM: `boChuThich` phải giữ lệnh thật và bỏ lệnh nằm trong chú thích")
+    void tuKiemBoChuThich() {
+        String gia =
+                """
+                # đã gỡ: git merge-base --is-ancestor "$SHA" origin/staging
+                      run: |
+                        if ! git merge-base --is-ancestor "$SHA" origin/staging; then # vẫn chạy
+                """;
+        String ma = boChuThich(gia);
+        assertThat(ma)
+                .as("Dòng lệnh thật bị bỏ mất — bài `khongConDoiQuaStaging` sẽ xanh trên mọi bản")
+                .containsPattern("is-ancestor[^\\n]*origin/staging");
+        assertThat(ma.lines().filter(d -> d.contains("is-ancestor")).count())
+                .as("Dòng chú thích không bị bỏ — bài phủ định sẽ đỏ giả vì tài liệu")
+                .isEqualTo(1);
+    }
+
+    /** Bỏ các dòng mà ký tự đầu tiên (sau khoảng trắng) là {@code #}; giữ nguyên mọi dòng khác. */
+    private static String boChuThich(String yml) {
+        return String.join(
+                "\n", yml.lines().filter(d -> !d.stripLeading().startsWith("#")).toList());
     }
 
     @Test
