@@ -86,6 +86,7 @@ frontend/public-web/test-results/
 frontend/public-web/playwright-report/
 frontend/public-web/test-results-tuong-thich/
 frontend/public-web/playwright-report-tuong-thich/
+frontend/public-web/test-results-hieu-nang/
 
 # Ảnh chụp đo nguồn (tools/do-nguon) — dữ liệu đo, không phải mã nguồn
 docs/do-nguon/

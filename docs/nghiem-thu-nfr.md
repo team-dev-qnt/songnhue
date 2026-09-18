@@ -40,8 +40,8 @@ hỏng lên**, ⛔ phải phép đo nghiệm thu. Bộ canh từ chối chuỗi 
 | Mã | Ngưỡng phải đạt | Số đo | Ngày đo | Nguồn đo | Ghi chú |
 |---|---|---|---|---|---|
 | NFR-01 | Uptime ≥ 99%, cảnh báo khi downtime > 15′ | — | — | CHƯA ĐO | Cần Alertmanager bắn thật (`DOD4.12` · `T61.5`) |
-| NFR-02a | Trang chủ < 3s | — | — | CHƯA ĐO | Kho có **0** công cụ đo LCP (`git ls-files \| grep -ic lighthouse` = 0) — xem `DOD4.5` |
-| NFR-02b | ≥ 200 người dùng đồng thời | — | — | CHƯA ĐO | Kịch bản đã có: `tools/tai-thu/` — chờ chạy trên staging (`DOD4.4`) |
+| NFR-02a | Trang chủ < 3s | — | — | CHƯA ĐO | Công cụ đo nay CÓ (`T63.22`): `frontend/public-web/playwright.hieu-nang.config.ts` — LCP bằng Chromium thật, đo **cả lượt ISR nguội**. Còn thiếu đúng một lượt chạy **từ máy ở VN** |
+| NFR-02b | ≥ 200 người dùng đồng thời | — | — | CHƯA ĐO | Kịch bản đã có: `tools/tai-thu/`, chiều **ĐỎ** đã kiểm chứng 18/09 (4/4 ca, `tu-kiem-tim-kiem-rong.sh`) — chờ chạy trên staging (`DOD4.4`) |
 | NFR-03 | Sai lệch cron < 10%, ⛔ bỏ sót khung 10′ | — | — | CHƯA ĐO | Đòi **7 ngày lịch liên tục** = 1008 khung (`T37.1`); đồng hồ ⛔ bấm được trước `DOD4.1` |
 | NFR-04 | Báo cáo tháng < 60s | — | — | CHƯA ĐO | — |
 | NFR-05 | ⛔ mật khẩu/credential dạng thô; 2FA bắt buộc Admin | 31 dòng ASVS L1 đối chiếu | 16/09/2026 | CI | `T61.40`; ⚠ sổ từng ghi **23**, đo lại là **31** |
@@ -59,8 +59,8 @@ hỏng lên**, ⛔ phải phép đo nghiệm thu. Bộ canh từ chối chuỗi 
 | DOD4.1 | `dev → staging → production` đi trọn, đo trên container thật | production tụt **22** commit | 18/09/2026 | CI | QuanTran — ⛔ phải việc mã |
 | DOD4.2 | Poller production ghi byte thật | `DiaChiNguon:98` vẫn `goc.resolve(duongDan)` ⇒ **chưa có bản vá** | 18/09/2026 | CI | QuanTran (quy tắc 18 — mỗi ngày chậm là một ngày mất số liệu **vĩnh viễn**) |
 | DOD4.3 | 1008 khung 10′ liên tục, sai lệch < 10% | — | — | CHƯA ĐO | 7 ngày **lịch**; dụng cụ đo đã có (BC-13) |
-| DOD4.4 | 200 CCU, P95 dashboard < 3s @ 50 users | — | — | CHƯA ĐO | QuanTran chạy; kịch bản `tools/tai-thu/` đã có |
-| DOD4.5 | Trang chủ < 3s từ máy ở VN, **gồm ISR nguội** | — | — | CHƯA ĐO | ⬜ còn một đuôi mã: kho chưa có bài đo LCP nào |
+| DOD4.4 | 200 CCU, P95 dashboard < 3s @ 50 users | — | — | CHƯA ĐO | QuanTran chạy. ⭐ Đuôi mã đã trả (`T63.21`): 4 ngưỡng nay **phân biệt được bốn trạng thái** trên máy chủ giả, và lỗ *tập rỗng* của vế tìm kiếm đã bịt |
+| DOD4.5 | Trang chủ < 3s từ máy ở VN, **gồm ISR nguội** | — | — | CHƯA ĐO | ⭐ Đuôi mã ĐÃ TRẢ 18/09 (`T63.22`). Còn lại là một lượt chạy: `HIEU_NANG_URL=… REVALIDATE_SECRET=… npx playwright test -c playwright.hieu-nang.config.ts` — QuanTran |
 | DOD4.6 | Một lượt hỏng **SAU** `up -d` rồi `Created` quay về mốc cũ | 2 lượt quay lui đã chạy đều dừng ở `migrator` ⇒ **⛔ có gì bị thay** | 14/09/2026 | CI | ⬜ cần một công tắc diễn tập — **hỏi QuanTran trước**, đó là đường cố tình hạ site |
 | DOD4.7 | Chuông bắn **thật**, có người **đi hết** runbook | 3/4 phần đã có (`alerts.yml` · registrar · runbook 214 dòng) | 14/09/2026 | CI | QuanTran |
 | DOD4.8 | Lịch gia hạn TLS ở **cả hai** máy + một lượt gia hạn khô | VPS-1 `--dry-run` thoát **0**; VPS-2 `cron` = `not-found` | 07/09 · 10/09/2026 | VPS-1 · VPS-2 | QuanTran (`sudo`). ⚠ **Hạn cứng**: staging **22/11**, production `.vn` **06/12** |
