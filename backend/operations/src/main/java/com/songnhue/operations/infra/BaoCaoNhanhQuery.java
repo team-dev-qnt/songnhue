@@ -7,6 +7,7 @@ import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import com.songnhue.operations.domain.CongTrinhGan;
 import com.songnhue.operations.domain.DongNhomMay;
 import com.songnhue.operations.domain.TinhBaoCaoNhanh.DongVanHanh;
 
@@ -64,9 +65,6 @@ public class BaoCaoNhanhQuery {
     /** Một điểm mưa của Bảng 4 — {@code thuTu} = STT in ra bản Word. */
     public record DiemMua(Long id, UUID publicId, String ten, int thuTu) {}
 
-    /** Công trình để gắn vào một vị trí của mẫu — đọc TOÀN Công ty, ⛔ lọc phạm vi. */
-    public record CongTrinh(Long id, UUID publicId, String ma, String ten, String loai) {}
-
     private final JdbcTemplate jdbc;
 
     public BaoCaoNhanhQuery(JdbcTemplate jdbc) {
@@ -117,17 +115,17 @@ public class BaoCaoNhanhQuery {
     }
 
     /** Công trình theo loại hình, sắp theo tên — nguồn ô chọn của màn hình cấu hình. */
-    public List<CongTrinh> congTrinhTheoLoai(String loai) {
+    public List<CongTrinhGan> congTrinhTheoLoai(String loai) {
         return jdbc.query(
                 SQL_CONG_TRINH + " AND construction_type = ? ORDER BY name, id", BaoCaoNhanhQuery::congTrinh, loai);
     }
 
-    public List<CongTrinh> congTrinhTheoPublicId(UUID publicId) {
+    public List<CongTrinhGan> congTrinhTheoPublicId(UUID publicId) {
         return jdbc.query(SQL_CONG_TRINH + " AND public_id = ?", BaoCaoNhanhQuery::congTrinh, publicId);
     }
 
     /** Tải hàng loạt theo khoá nội bộ — công trình đã xoá mềm ⛔ có mặt. */
-    public List<CongTrinh> congTrinhTheoIds(Collection<Long> ids) {
+    public List<CongTrinhGan> congTrinhTheoIds(Collection<Long> ids) {
         if (ids.isEmpty()) {
             return List.of();
         }
@@ -140,8 +138,8 @@ public class BaoCaoNhanhQuery {
                 BaoCaoNhanhQuery::congTrinh);
     }
 
-    private static CongTrinh congTrinh(java.sql.ResultSet rs, int i) throws java.sql.SQLException {
-        return new CongTrinh(
+    private static CongTrinhGan congTrinh(java.sql.ResultSet rs, int i) throws java.sql.SQLException {
+        return new CongTrinhGan(
                 rs.getLong("id"),
                 rs.getObject("public_id", UUID.class),
                 rs.getString("code"),

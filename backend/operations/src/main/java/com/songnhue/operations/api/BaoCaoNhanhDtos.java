@@ -22,8 +22,8 @@ import com.songnhue.operations.application.BaoCaoNhanhService;
 import com.songnhue.operations.application.CauHinhBaoCaoNhanhService;
 import com.songnhue.operations.domain.BangCoMayBom;
 import com.songnhue.operations.domain.BaoCaoNhanh;
+import com.songnhue.operations.domain.CongTrinhGan;
 import com.songnhue.operations.domain.TinhBaoCaoNhanh;
-import com.songnhue.operations.infra.BaoCaoNhanhQuery;
 
 /**
  * DTO của Báo cáo nhanh.
@@ -217,7 +217,7 @@ public final class BaoCaoNhanhDtos {
 
     public record CongTrinhView(UUID publicId, String ma, String ten) {
 
-        static CongTrinhView of(BaoCaoNhanhQuery.CongTrinh c) {
+        static CongTrinhView of(CongTrinhGan c) {
             return c == null ? null : new CongTrinhView(c.publicId(), c.ma(), c.ten());
         }
     }

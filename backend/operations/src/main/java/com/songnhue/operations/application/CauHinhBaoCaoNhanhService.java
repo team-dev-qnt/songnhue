@@ -22,6 +22,7 @@ import com.songnhue.operations.domain.Bang3SongNhue;
 import com.songnhue.operations.domain.BaoCaoNhanh;
 import com.songnhue.operations.domain.BaoCaoNhanhViTri;
 import com.songnhue.operations.domain.BaoCaoNhanhViTriKy;
+import com.songnhue.operations.domain.CongTrinhGan;
 import com.songnhue.operations.infra.BaoCaoNhanhQuery;
 import com.songnhue.operations.infra.BaoCaoNhanhViTriKyRepository;
 import com.songnhue.operations.infra.BaoCaoNhanhViTriRepository;
@@ -62,7 +63,7 @@ public class CauHinhBaoCaoNhanhService {
     }
 
     /** Một vị trí đã giải — {@code congTrinh == null} = chưa gắn. */
-    public record ViTri(BaoCaoNhanhViTri viTri, BaoCaoNhanhQuery.CongTrinh congTrinh, VeDiemDo tl, VeDiemDo hl) {}
+    public record ViTri(BaoCaoNhanhViTri viTri, CongTrinhGan congTrinh, VeDiemDo tl, VeDiemDo hl) {}
 
     /** Cấu hình dùng cho MỘT kỳ — sống (đang nhập) hoặc ảnh chụp (đã chốt). */
     public record CauHinhKy(Long tramYenNghia, Map<String, VeDiemDo[]> bang3) {}
@@ -96,7 +97,7 @@ public class CauHinhBaoCaoNhanhService {
     }
 
     @Transactional(readOnly = true)
-    public List<BaoCaoNhanhQuery.CongTrinh> congTrinhTheoLoai(String loai) {
+    public List<CongTrinhGan> congTrinhTheoLoai(String loai) {
         return query.congTrinhTheoLoai(loai);
     }
 
@@ -113,7 +114,7 @@ public class CauHinhBaoCaoNhanhService {
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
         Long id = null;
         if (constructionPublicId != null) {
-            BaoCaoNhanhQuery.CongTrinh ct = query.congTrinhTheoPublicId(constructionPublicId).stream()
+            CongTrinhGan ct = query.congTrinhTheoPublicId(constructionPublicId).stream()
                     .findFirst()
                     .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
             if (!vt.getLoaiCongTrinh().equals(ct.loai())) {
@@ -213,14 +214,14 @@ public class CauHinhBaoCaoNhanhService {
                 .filter(Objects::nonNull)
                 .distinct()
                 .toList();
-        Map<Long, BaoCaoNhanhQuery.CongTrinh> ct = query.congTrinhTheoIds(ids).stream()
-                .collect(Collectors.toMap(BaoCaoNhanhQuery.CongTrinh::id, Function.identity()));
+        Map<Long, CongTrinhGan> ct =
+                query.congTrinhTheoIds(ids).stream().collect(Collectors.toMap(CongTrinhGan::id, Function.identity()));
         Map<Long, List<HydroSnapshotPort.DiemDoVe>> lienKet = hydro.diemDoMucNuocCuaCongTrinh(ids).stream()
                 .collect(Collectors.groupingBy(HydroSnapshotPort.DiemDoVe::constructionId));
         return ds.stream()
                 .map(v -> {
                     // Công trình đã xoá mềm ⇒ vắng khỏi `ct` ⇒ coi như chưa gắn.
-                    BaoCaoNhanhQuery.CongTrinh c = v.getConstructionId() == null ? null : ct.get(v.getConstructionId());
+                    CongTrinhGan c = v.getConstructionId() == null ? null : ct.get(v.getConstructionId());
                     if (c == null) {
                         return new ViTri(v, null, VeDiemDo.thieu(LY_DO_CHUA_GAN), VeDiemDo.thieu(LY_DO_CHUA_GAN));
                     }
@@ -234,7 +235,7 @@ public class CauHinhBaoCaoNhanhService {
      * Điểm đo của một vế: đúng một liên kết ⇒ nó; nhiều ⇒ liên kết CHÍNH nếu có đúng một; còn lại ⇒ ô
      * trống kèm lý do. ⛔ chọn bừa theo thứ tự — hai điểm đo cùng vế là một câu hỏi cho Công ty.
      */
-    static VeDiemDo chonVe(BaoCaoNhanhQuery.CongTrinh c, List<HydroSnapshotPort.DiemDoVe> lk, String vaiTro) {
+    static VeDiemDo chonVe(CongTrinhGan c, List<HydroSnapshotPort.DiemDoVe> lk, String vaiTro) {
         String ve = "THUONG_LUU".equals(vaiTro) ? "thượng lưu" : "hạ lưu";
         List<HydroSnapshotPort.DiemDoVe> cung =
                 lk.stream().filter(l -> vaiTro.equals(l.vaiTro())).toList();

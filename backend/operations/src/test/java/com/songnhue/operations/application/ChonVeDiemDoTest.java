@@ -9,13 +9,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import com.songnhue.core.spi.HydroSnapshotPort.DiemDoVe;
-import com.songnhue.operations.infra.BaoCaoNhanhQuery;
+import com.songnhue.operations.domain.CongTrinhGan;
 
 /** Điểm đo của một vế Bảng 3 suy ra từ liên kết điểm đo–công trình — {@link CauHinhBaoCaoNhanhService#chonVe}. */
 class ChonVeDiemDoTest {
 
-    private static final BaoCaoNhanhQuery.CongTrinh CONG =
-            new BaoCaoNhanhQuery.CongTrinh(7L, UUID.randomUUID(), "LCO", "Cống Lương Cổ", "CONG");
+    private static final CongTrinhGan CONG = new CongTrinhGan(7L, UUID.randomUUID(), "LCO", "Cống Lương Cổ", "CONG");
 
     @Test
     @DisplayName("Một liên kết đúng vai trò ⇒ dùng nó; vai trò KHÁC ⛔ được mượn")
