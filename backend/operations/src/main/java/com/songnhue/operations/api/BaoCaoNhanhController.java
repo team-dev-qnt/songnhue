@@ -1,12 +1,18 @@
 package com.songnhue.operations.api;
 
+import java.nio.charset.StandardCharsets;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.UUID;
 
 import jakarta.validation.Valid;
 
 import org.springframework.data.domain.Page;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,6 +24,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.songnhue.core.common.security.RequirePermission;
+import com.songnhue.core.common.util.DateTimeUtils;
 import com.songnhue.core.common.util.PageUtils;
 import com.songnhue.operations.api.BaoCaoNhanhDtos.ChiTietView;
 import com.songnhue.operations.api.BaoCaoNhanhDtos.KhungRequest;
@@ -25,6 +32,7 @@ import com.songnhue.operations.api.BaoCaoNhanhDtos.KyView;
 import com.songnhue.operations.api.BaoCaoNhanhDtos.MoLaiRequest;
 import com.songnhue.operations.api.BaoCaoNhanhDtos.NgapUngRequest;
 import com.songnhue.operations.api.BaoCaoNhanhDtos.VanHanhRequest;
+import com.songnhue.operations.application.BaoCaoNhanhDocx;
 import com.songnhue.operations.application.BaoCaoNhanhService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -43,6 +51,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class BaoCaoNhanhController {
 
     private static final List<String> SAP_XEP = List.of("denThoiDiem", "createdAt");
+
+    private static final String DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
     private final BaoCaoNhanhService service;
 
@@ -114,6 +124,31 @@ public class BaoCaoNhanhController {
     public ChiTietView chot(@PathVariable UUID publicId) {
         service.chot(publicId);
         return ChiTietView.of(service.chiTiet(publicId));
+    }
+
+    /**
+     * Tải bản Word — điền thẳng vào mẫu của Công ty ({@link BaoCaoNhanhDocx}).
+     *
+     * <p>⚠ Đường dẫn mang {@code /xuat} ⇒ xô hạn mức EXPORT ({@code RateLimitPolicy}), khai ở
+     * {@code HanMucKetXuatTest.BAN_KHAI}. Tải được cả kỳ ĐANG NHẬP (bản nháp để rà) lẫn kỳ đã chốt.
+     */
+    @GetMapping("/{publicId}/xuat")
+    @Operation(summary = "Tải Báo cáo nhanh dạng Word (.docx) theo mẫu của Công ty")
+    @RequirePermission("ops:report:export")
+    public ResponseEntity<byte[]> xuat(@PathVariable UUID publicId) {
+        BaoCaoNhanhService.ChiTiet c = service.chiTiet(publicId);
+        ZonedDateTime den = DateTimeUtils.toVietnamTime(c.baoCao().getDenThoiDiem());
+        String ten = "bao-cao-nhanh-%04d%02d%02d-%02d%02d.docx"
+                .formatted(den.getYear(), den.getMonthValue(), den.getDayOfMonth(), den.getHour(), den.getMinute());
+        return ResponseEntity.ok()
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment()
+                                .filename(ten, StandardCharsets.UTF_8)
+                                .build()
+                                .toString())
+                .contentType(MediaType.parseMediaType(DOCX))
+                .body(BaoCaoNhanhDocx.dung(c));
     }
 
     @PostMapping("/{publicId}/mo-lai")

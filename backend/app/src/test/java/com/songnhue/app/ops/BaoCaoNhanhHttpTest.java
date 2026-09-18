@@ -13,6 +13,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +23,7 @@ import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.app.testsupport.PhienHttp;
 import com.songnhue.app.testsupport.TestHttp;
 import com.songnhue.core.application.auth.PasswordPolicyService;
+import com.songnhue.core.common.export.DocxFiller;
 import com.songnhue.core.infra.identity.UserRepository;
 
 /**
@@ -258,5 +260,97 @@ class BaoCaoNhanhHttpTest extends IntegrationTestBase {
                 .contains("\"dungMoc\":false")
                 .contains("Cống chưa có điểm đo ở vế này (OI-BC14)")
                 .contains("Không có số đo hợp lệ trong 24 giờ trước mốc báo cáo");
+    }
+
+    @Test
+    @DisplayName("⭐⭐ Khứ hồi ra BYTE THẬT: tải .docx, mở lại, đọc đúng số ở từng toạ độ ô của mẫu Công ty")
+    void xuatWordKhuHoi() throws Exception {
+        nhapDanhMuc(DANH_MUC);
+        String ky = taoKy();
+        nhapVanHanh(kyThuat, ky, nhom("TB-HVAN", 1100), 3);
+        nhapVanHanh(kyThuat, ky, nhom("TB-YNGHIA", 43200), 5);
+        UUID thuongPhuc =
+                jdbc.queryForObject("SELECT public_id FROM don_vi_hanh_chinh WHERE ten = 'Thượng Phúc'", UUID.class);
+        phienHttp.goi(
+                kyThuat,
+                HttpMethod.PUT,
+                GOC + "/" + ky + "/ngap-ung",
+                "{\"dong\":[{\"xaPublicId\":\"%s\",\"sauNuocLua\":115,\"sauNuocRau\":20}]}".formatted(thuongPhuc));
+        jdbc.update(
+                """
+                INSERT INTO hydro_readings (measured_at, station_id, measurement_type_id, reading_value, quality, source)
+                SELECT ?, s.id, mt.id, 1.40, 'HOP_LE', 'API'
+                  FROM stations s, measurement_types mt
+                 WHERE s.api_code = 'F01519' AND mt.code = 'MUC_NUOC'
+                """,
+                Timestamp.from(DEN.minusSeconds(600)));
+
+        ResponseEntity<byte[]> tai = http.exchange(
+                GOC + "/" + ky + "/xuat", HttpMethod.GET, new HttpEntity<>(phienHttp.header(kyThuat)), byte[].class);
+        assertThat(tai.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(tai.getHeaders().getContentDisposition().getFilename())
+                .isEqualTo("bao-cao-nhanh-20190615-1600.docx");
+
+        // Để lại một bản trong target/ — mở bằng Word để rà bằng mắt (plan §10 bước 4), ⛔ commit.
+        java.nio.file.Files.write(java.nio.file.Path.of("target", "bao-cao-nhanh-khu-hoi.docx"), tai.getBody());
+
+        DocxFiller doc = DocxFiller.mo(tai.getBody());
+        // Mục 1 + Bảng 1: dòng Sông Nhuệ có số; "Tổng cộng" TRỐNG (mẫu in sẵn 0).
+        assertThat(doc.docO(1, 4, 2)).isEqualTo("2");
+        assertThat(doc.docO(1, 4, 3)).isEqualTo("8");
+        assertThat(doc.docO(1, 4, 4)).as("5×43.200 + 3×1.100").isEqualTo("219.300");
+        assertThat(doc.docO(1, 2, 2)).as("⛔ '0' ở dòng Tổng cộng là câu sai").isEmpty();
+        assertThat(doc.docO(4, 4, 3)).isEqualTo("8");
+        assertThat(doc.docO(4, 4, 4)).as("cột '43'").isEqualTo("5");
+        assertThat(doc.docO(4, 4, 10)).as("cột '1,1 ÷1,9'").isEqualTo("3");
+        assertThat(doc.docO(4, 4, 6)).as("cột '12' — 0 máy ⇒ TRỐNG như mẫu").isEmpty();
+        assertThat(doc.docO(4, 4, 13)).isEqualTo("219.300");
+        // Bảng 2: 1 khối + 2 trạm (Hồng Vân 2 nhóm, Yên Nghĩa 1 nhóm) = 4 dòng dữ liệu + 2 dòng tiêu đề.
+        assertThat(doc.soDong(5)).isEqualTo(6);
+        assertThat(doc.docO(5, 2, 0)).isEqualTo("I");
+        assertThat(doc.docO(5, 3, 1)).isEqualTo("Trạm bơm Hồng Vân");
+        assertThat(doc.docO(5, 3, 3)).isEqualTo("1.100");
+        assertThat(doc.docO(5, 3, 4)).isEqualTo("3");
+        // Bảng 3: Lương Cổ TL (F01519) có số lúc 15h50 ⇒ ghi kèm giờ; HL ⛔ có điểm đo ⇒ trống.
+        assertThat(doc.docO(6, 37, 3)).isEqualTo("1,40 (15h50)");
+        assertThat(doc.docO(6, 38, 3)).isEmpty();
+        assertThat(doc.docO(6, 25, 3))
+                .as("số minh hoạ '200' của mẫu phải bị xoá")
+                .isEmpty();
+        // Bảng 4 TRỐNG (G3-a) — số minh hoạ của mẫu bị xoá.
+        assertThat(doc.docO(7, 5, 2)).isEmpty();
+        // Bảng 5 + Mục 3: Thượng Phúc (TT 55) + dòng III; công ty khác TRỐNG.
+        assertThat(doc.docO(8, 60, 1).trim()).isEqualTo("Thượng Phúc");
+        assertThat(doc.docO(8, 60, 5)).isEqualTo("115");
+        assertThat(doc.docO(8, 60, 7)).isEqualTo("135");
+        assertThat(doc.docO(8, 51, 7)).isEqualTo("135");
+        assertThat(doc.docO(8, 3, 2)).as("Sông Tích — mẫu in '0'").isEmpty();
+        assertThat(doc.docO(2, 4, 7)).as("Mục 3 = dòng III").isEqualTo("135");
+
+        String van = vanBan(tai.getBody());
+        assertThat(van)
+                .contains("(Từ 6h ngày 15/6/2019 đến 16h ngày 15/6/2019)")
+                .contains("Tính đến 16h ngày 15/6/2019, công tác vận hành")
+                .contains("Mực nước hồi 16h ngày 15/6/2019")
+                .contains("Lượng mưa từ 6h ngày 15/6/2019 đến 16h ngày 15/6/2019")
+                .contains("ngày 15 tháng 6 năm 2019")
+                .contains("Ghi chú: Trạm bơm Yên Nghĩa vận hành 5 máy bơm với tổng lưu lượng bơm 60 m3/s.")
+                .doesNotContain("24/8/2026");
+    }
+
+    /** Toàn văn {@code document.xml} bỏ thẻ — đọc cả đoạn bị Word cắt vụn run. */
+    private static String vanBan(byte[] docx) throws java.io.IOException {
+        try (java.util.zip.ZipInputStream z =
+                new java.util.zip.ZipInputStream(new java.io.ByteArrayInputStream(docx))) {
+            java.util.zip.ZipEntry e;
+            while ((e = z.getNextEntry()) != null) {
+                if (e.getName().equals("word/document.xml")) {
+                    return new String(z.readAllBytes(), StandardCharsets.UTF_8)
+                            .replaceAll("</w:p>", "\n")
+                            .replaceAll("<[^>]+>", "");
+                }
+            }
+        }
+        return "";
     }
 }

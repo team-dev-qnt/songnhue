@@ -65,6 +65,9 @@ class HanMucKetXuatTest {
         BAN_KHAI.put("/api/v1/cms/contacts/export", new String[] {"EXPORT", "Kết xuất danh sách liên hệ — quét bảng"});
         BAN_KHAI.put("/api/v1/hr/bao-cao/xuat/BCNS-01", new String[] {"EXPORT", "Báo cáo nhân sự — CN-04.8"});
         BAN_KHAI.put("/api/v1/ops/bao-cao/xuat/BC-06", new String[] {"EXPORT", "Báo cáo vận hành — C3"});
+        BAN_KHAI.put(
+                "/api/v1/ops/bao-cao-nhanh/9a8b/xuat",
+                new String[] {"EXPORT", "Báo cáo nhanh — dựng .docx từ mẫu Công ty (Bảng 2 ~230 dòng)"});
         BAN_KHAI.put("/api/v1/hyd/bao-cao/xuat", new String[] {"EXPORT", "Đặt lệnh kết xuất thuỷ văn — dựng báo cáo"});
         BAN_KHAI.put("/api/v1/hyd/bao-cao/tai/2f1c/", new String[] {"EXPORT", "Tải tệp báo cáo thuỷ văn đã dựng xong"});
         BAN_KHAI.put("/api/v1/hr/employees/7/tai-lieu/zip", new String[] {
