@@ -145,6 +145,41 @@ public final class DocxFiller {
     }
 
     /**
+     * Gộp DỌC các ô ở những cột đã cho, từ dòng {@code tuDong} tới {@code denDong} (gồm cả hai) —
+     * {@code <w:vMerge w:val="restart"/>} ở dòng đầu, {@code <w:vMerge/>} ở các dòng sau, đúng cách mẫu
+     * Word của Công ty gộp một trạm nhiều nhóm máy. Chữ nằm ở ô ĐẦU; ô nối tiếp nên để trống.
+     *
+     * <p>⚠ {@code vMerge} phải đứng SAU {@code tcW}/{@code gridSpan}/{@code hMerge} trong {@code tcPr}
+     * (thứ tự của lược đồ OOXML) — Word báo tệp hỏng khi sai thứ tự, LibreOffice thì lặng lẽ bỏ qua.
+     */
+    public void gopDoc(int bang, int tuDong, int denDong, int... cot) {
+        if (denDong <= tuDong) {
+            return;
+        }
+        for (int dong = tuDong; dong <= denDong; dong++) {
+            for (int o : cot) {
+                datVMerge(oCua(bang, dong, o), dong == tuDong);
+            }
+        }
+    }
+
+    /**
+     * Trạng thái gộp dọc của một ô — {@code "restart"} (ô đầu), {@code "continue"} (ô nối tiếp) hoặc
+     * {@code null} (⛔ gộp). Cho bài kiểm khứ hồi đọc lại tệp đã sinh.
+     */
+    public String gopDocCua(int bang, int dong, int o) {
+        List<Element> pr = con(oCua(bang, dong, o), "tcPr");
+        if (pr.isEmpty()) {
+            return null;
+        }
+        List<Element> vm = con(pr.get(0), "vMerge");
+        if (vm.isEmpty()) {
+            return null;
+        }
+        return "restart".equals(vm.get(0).getAttributeNS(W, "val")) ? "restart" : "continue";
+    }
+
+    /**
      * Thay một cụm chữ trong các ĐOẠN VĂN (kể cả đoạn trong ô), ghép qua ranh giới run.
      *
      * <p>Phần ngoài cụm giữ nguyên run của nó; cụm mới nằm trong run chứa ký tự ĐẦU của cụm cũ.
@@ -238,6 +273,37 @@ public final class DocxFiller {
         t.setAttributeNS(XML_NS, "xml:space", "preserve");
         t.setTextContent(text);
         run.appendChild(t);
+    }
+
+    private void datVMerge(Element tc, boolean dau) {
+        List<Element> prs = con(tc, "tcPr");
+        Element pr;
+        if (prs.isEmpty()) {
+            pr = doc.createElementNS(W, "w:tcPr");
+            tc.insertBefore(pr, tc.getFirstChild());
+        } else {
+            pr = prs.get(0);
+        }
+        for (Element cu : con(pr, "vMerge")) {
+            pr.removeChild(cu);
+        }
+        Element vm = doc.createElementNS(W, "w:vMerge");
+        if (dau) {
+            vm.setAttributeNS(W, "w:val", "restart");
+        }
+        Node sau = null;
+        for (Node n = pr.getFirstChild(); n != null; n = n.getNextSibling()) {
+            String ten = n.getLocalName();
+            if (n instanceof Element
+                    && !"cnfStyle".equals(ten)
+                    && !"tcW".equals(ten)
+                    && !"gridSpan".equals(ten)
+                    && !"hMerge".equals(ten)) {
+                sau = n;
+                break;
+            }
+        }
+        pr.insertBefore(vm, sau);
     }
 
     private void lamRongDoan(Element p) {

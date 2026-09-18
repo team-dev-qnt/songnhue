@@ -99,6 +99,29 @@ class DocxFillerTest {
     }
 
     @Test
+    @DisplayName("⭐ Gộp dọc — restart ở dòng đầu, nối tiếp ở dòng sau; vMerge đứng SAU tcW trong tcPr")
+    void gopDoc() throws IOException {
+        String xml = DOCUMENT.replace(
+                "<w:tc><w:p><w:r><w:rPr><w:b/>",
+                "<w:tc><w:tcPr><w:tcW w:w=\"500\"/><w:shd w:val=\"clear\"/></w:tcPr><w:p><w:r><w:rPr><w:b/>");
+        DocxFiller f = DocxFiller.mo(docx(xml));
+        var khuon = f.khuonDong(0, 0);
+        f.themDong(0, khuon, "x", "y");
+        f.themDong(0, khuon, null, "z");
+        f.gopDoc(0, 1, 2, 0);
+        assertThat(f.gopDocCua(0, 1, 0)).isEqualTo("restart");
+        assertThat(f.gopDocCua(0, 2, 0)).isEqualTo("continue");
+        assertThat(f.gopDocCua(0, 1, 1)).as("cột ⛔ khai thì ⛔ gộp").isNull();
+        assertThat(f.gopDocCua(0, 0, 0)).as("dòng ngoài khoảng ⛔ gộp").isNull();
+
+        f.gopDoc(0, 0, 0, 1);
+        assertThat(f.gopDocCua(0, 0, 1)).as("một dòng thì ⛔ có gì để gộp").isNull();
+
+        String ra = documentXmlCua(f.ghi());
+        assertThat(ra).contains("<w:tcW w:w=\"500\"/><w:vMerge w:val=\"restart\"/><w:shd");
+    }
+
+    @Test
     @DisplayName("⛔ DOCTYPE bị từ chối (XXE)")
     void chanDoctype() throws IOException {
         String doc = "<?xml version=\"1.0\"?><!DOCTYPE x [<!ENTITY e SYSTEM \"file:///etc/passwd\">]>" + "<w:document "

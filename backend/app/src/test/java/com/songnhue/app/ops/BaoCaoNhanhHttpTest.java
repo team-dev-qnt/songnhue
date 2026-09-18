@@ -197,7 +197,7 @@ class BaoCaoNhanhHttpTest extends IntegrationTestBase {
                 .contains("\"theoCo\":[5,0,0,0,0,0,4,0,0]")
                 // 3×1100 + 1×1950 + 5×43200
                 .contains("\"tongLuuLuongM3h\":221250")
-                .contains("Trạm bơm Yên Nghĩa vận hành 5 máy bơm với tổng lưu lượng bơm 60 m3/s.");
+                .contains("Trạm bơm Yên Nghĩa vận hành 5 máy bơm với tổng lưu lượng bơm 60 m³/s.");
         assertThat(r.getBody())
                 .as("Bảng 4 nhập tay — giao đi RỖNG: 8 điểm, chưa điểm nào có số")
                 .contains("\"bang4\":[{")
@@ -348,6 +348,11 @@ class BaoCaoNhanhHttpTest extends IntegrationTestBase {
         assertThat(doc.docO(5, 3, 1)).isEqualTo("Trạm bơm Hồng Vân");
         assertThat(doc.docO(5, 3, 3)).isEqualTo("1.100");
         assertThat(doc.docO(5, 3, 4)).isEqualTo("3");
+        // Hồng Vân 2 nhóm máy ⇒ TT · tên · nguồn tưới gộp DỌC, đúng cách mẫu viết "Đại Áng (tiêu)".
+        assertThat(doc.gopDocCua(5, 3, 1)).isEqualTo("restart");
+        assertThat(doc.gopDocCua(5, 4, 1)).isEqualTo("continue");
+        assertThat(doc.gopDocCua(5, 4, 3)).as("Q của nhóm thứ hai ⛔ gộp").isNull();
+        assertThat(doc.gopDocCua(5, 5, 1)).as("Yên Nghĩa một nhóm ⛔ gộp").isNull();
         // Bảng 3: Lương Cổ TL (F01519) có số lúc 15h50 ⇒ ghi kèm giờ; HL ⛔ có điểm đo ⇒ trống.
         assertThat(doc.docO(6, 37, 3)).isEqualTo("1,40 (15h50)");
         assertThat(doc.docO(6, 38, 3)).isEmpty();
@@ -376,7 +381,7 @@ class BaoCaoNhanhHttpTest extends IntegrationTestBase {
                 .contains("Mực nước hồi 16h ngày 15/6/2019")
                 .contains("Lượng mưa từ 6h ngày 15/6/2019 đến 16h ngày 15/6/2019")
                 .contains("ngày 15 tháng 6 năm 2019")
-                .contains("Ghi chú: Trạm bơm Yên Nghĩa vận hành 5 máy bơm với tổng lưu lượng bơm 60 m3/s.")
+                .contains("Ghi chú: Trạm bơm Yên Nghĩa vận hành 5 máy bơm với tổng lưu lượng bơm 60 m³/s.")
                 .doesNotContain("24/8/2026");
     }
 

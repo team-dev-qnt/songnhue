@@ -56,6 +56,9 @@ public final class BaoCaoNhanhDocx {
 
     static final int B2_KHUON_DONG = 3;
 
+    /** Bảng 2: cột TT · tên công trình · nguồn tưới — gộp dọc khi một trạm có nhiều nhóm máy. */
+    static final int[] B2_COT_GOP = {0, 1, 5};
+
     /** Bảng 3: dòng TL của cống đầu tiên (Liên Mạc) trong mục 11; mỗi cống 2 dòng. */
     static final int B3_DONG_DAU = 25;
 
@@ -115,7 +118,9 @@ public final class BaoCaoNhanhDocx {
 
         String cau = c.ghiChuYenNghia().cau();
         if (cau != null) {
-            // Chưa nhập / chưa có trong danh mục ⇒ GIỮ dấu "…" của mẫu, ⛔ bịa câu.
+            // Chưa nhập / chưa gắn trạm / chưa có trong danh mục ⇒ GIỮ dấu "…" của mẫu, ⛔ bịa câu.
+            // ⚠ Cụm tìm viết "m3/s" vì mẫu tách chữ "3" thành run CHỈ SỐ TRÊN; câu mới mang "m³/s"
+            //   (ký tự ³) vì lượt thay dồn cả cụm vào run ĐẦU — viết "m3" sẽ mất chỉ số trên của mẫu.
             dung(f, "Trạm bơm Yên Nghĩa vận hành... máy bơm với tổng lưu lượng bơm… m3/s.", cau, 1);
         }
     }
@@ -178,6 +183,7 @@ public final class BaoCaoNhanhDocx {
             k++;
             int tt = 1;
             for (TinhBaoCaoNhanh.TramBang2 tram : khoi.tram()) {
+                int dongDau = f.soDong(BANG_2);
                 boolean dau = true;
                 for (TinhBaoCaoNhanh.DongVanHanh d : tram.nhom()) {
                     f.themDong(
@@ -191,6 +197,8 @@ public final class BaoCaoNhanhDocx {
                             dau ? tram.nguonTuoiHuongTieu() : null);
                     dau = false;
                 }
+                // Trạm nhiều nhóm máy: gộp dọc TT · tên · nguồn tưới — đúng cách mẫu viết "Đại Áng (tiêu)".
+                f.gopDoc(BANG_2, dongDau, f.soDong(BANG_2) - 1, B2_COT_GOP);
                 tt++;
             }
         }

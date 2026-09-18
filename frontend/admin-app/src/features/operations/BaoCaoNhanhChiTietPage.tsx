@@ -480,6 +480,7 @@ function TabNgapUng({
       <InputNumber
         aria-label={`${nhan} — ${x.ten}`}
         min={0}
+        decimalSeparator=","
         disabled={!coNhap}
         title={coNhap ? undefined : THIEU_QUYEN_NHAP}
         value={ban[truong]}
@@ -703,7 +704,7 @@ function Bang4({
           aria-label={`Lượng mưa (mm) — ${d.ten}`}
           min={0}
           step={0.1}
-          precision={1}
+          decimalSeparator=","
           disabled={!coNhap}
           title={coNhap ? undefined : THIEU_QUYEN_NHAP}
           value={d.diemMuaPublicId in nhap ? nhap[d.diemMuaPublicId] : d.luongMuaMm}
@@ -776,7 +777,7 @@ function TabXemTruoc({ c }: { c: BaoCaoNhanhChiTiet }) {
       children: c.coMay.map((nhan, i) => ({
         title: nhan,
         key: `co${i}`,
-        width: 70,
+        width: 60,
         align: 'right' as const,
         render: (_: unknown, d: Dong1) => d.co[i],
       })),
@@ -823,7 +824,7 @@ function TabXemTruoc({ c }: { c: BaoCaoNhanhChiTiet }) {
           columns={cotBang1}
           dataSource={dongBang1}
           pagination={false}
-          scroll={{ x: 1120 }}
+          scroll={{ x: 1030 }}
         />
         <Typography.Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0 }}>
           Ba công ty thuỷ lợi còn lại và dòng “Tổng cộng” để trống — hệ thống chỉ có số của Sông

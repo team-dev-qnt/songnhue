@@ -172,7 +172,7 @@ public final class TinhBaoCaoNhanh {
         BigDecimal y = m3h.divide(GIAY_MOI_GIO, 2, RoundingMode.HALF_UP);
         return new GhiChuYenNghia(
                 TrangThaiYenNghia.VAN_HANH,
-                "Trạm bơm Yên Nghĩa vận hành %d máy bơm với tổng lưu lượng bơm %s m3/s."
+                "Trạm bơm Yên Nghĩa vận hành %d máy bơm với tổng lưu lượng bơm %s m³/s."
                         .formatted(x, SoVanBan.thapPhan(y)),
                 x,
                 y);

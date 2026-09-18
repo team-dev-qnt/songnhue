@@ -89,7 +89,7 @@ class TinhBaoCaoNhanhTest {
     @DisplayName("⭐⭐ Bất biến 4 — Yên Nghĩa X=0 ra câu KHÁC HẲN; chưa nhập / chưa gắn trạm ⛔ bịa câu")
     void yenNghiaBaTrangThai() {
         TinhBaoCaoNhanh.GhiChuYenNghia chay = TinhBaoCaoNhanh.yenNghia(mau(5), YEN_NGHIA);
-        assertThat(chay.cau()).isEqualTo("Trạm bơm Yên Nghĩa vận hành 5 máy bơm với tổng lưu lượng bơm 60 m3/s.");
+        assertThat(chay.cau()).isEqualTo("Trạm bơm Yên Nghĩa vận hành 5 máy bơm với tổng lưu lượng bơm 60 m³/s.");
 
         TinhBaoCaoNhanh.GhiChuYenNghia dung = TinhBaoCaoNhanh.yenNghia(mau(0), YEN_NGHIA);
         assertThat(dung.cau()).isEqualTo("Trạm bơm Yên Nghĩa không vận hành.").doesNotContain("0 máy");

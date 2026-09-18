@@ -113,7 +113,12 @@ export function DanhMucMayBomPage() {
   const cotCo: ColumnsType<CoMayView> = [
     { title: 'Cột Bảng 1 (1.000 m³/h)', dataIndex: 'nhan', width: 180 },
     { title: 'Từ Q (m³/h, gồm)', key: 'tu', width: 200, render: (_, c) => oBien(c, 'qTu') },
-    { title: 'Đến Q (m³/h, ⛔ gồm)', key: 'den', width: 200, render: (_, c) => oBien(c, 'qDen') },
+    {
+      title: 'Đến Q (m³/h, không gồm)',
+      key: 'den',
+      width: 200,
+      render: (_, c) => oBien(c, 'qDen'),
+    },
   ];
 
   const cotNhom: ColumnsType<NhomMayView> = [
