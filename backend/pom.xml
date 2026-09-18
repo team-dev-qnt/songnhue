@@ -176,7 +176,7 @@
           ArchUnit — canh ranh giới kiến trúc trong CI (T10.2). Đặt ở module `app` vì chỉ ở đó cả 5
           module nghiệp vụ mới cùng nằm trên classpath để soi lẫn nhau.
         -->
-        <archunit.version>1.4.1</archunit.version>
+        <archunit.version>1.5.0</archunit.version>
 
         <!--
           `mvn -pl app -am spring-boot:run` kéo cả POM cha và module `core` vào reactor, và goal
