@@ -80,9 +80,8 @@ export function CauHinhBaoCaoNhanhPage() {
           <Select
             aria-label={`Công trình cho ${v.nhan}`}
             style={{ width: '100%' }}
-            showSearch
+            showSearch={{ optionFilterProp: 'label' }}
             allowClear
-            optionFilterProp="label"
             placeholder="Chưa gắn — ô tương ứng để trống"
             disabled={!coSua}
             title={coSua ? undefined : THIEU_QUYEN}
@@ -105,11 +104,11 @@ export function CauHinhBaoCaoNhanhPage() {
       title="Cấu hình Báo cáo nhanh"
       extra={<Link to="/van-hanh/bao-cao-nhanh">Về danh sách kỳ báo cáo</Link>}
     >
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
         <Alert
           type="info"
           showIcon
-          message="Chọn công trình cho từng vị trí cố định của mẫu Word"
+          title="Chọn công trình cho từng vị trí cố định của mẫu Word"
           description={
             <>
               Điểm đo thượng/hạ lưu của mỗi cống lấy từ liên kết điểm đo – công trình ở màn hình{' '}

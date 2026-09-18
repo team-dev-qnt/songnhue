@@ -50,8 +50,7 @@ export function ClusterSelect({
       disabled={disabled}
       allowClear={allowClear}
       loading={isLoading}
-      showSearch
-      optionFilterProp="label"
+      showSearch={{ optionFilterProp: 'label' }}
       // ⛔ Chưa có cụm nào thì nói thẳng là chưa có, đừng để ô rỗng trông như đang tải.
       //
       // ⚠⚠ T27.30 — câu này phải nói ra VÌ SAO nó rỗng, ⛔ không chỉ RẰNG nó rỗng. Đo 04/09:

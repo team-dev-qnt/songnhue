@@ -155,7 +155,7 @@ export function AdminLayout() {
               showIcon
               banner
               style={{ marginBottom: 16, borderRadius: 8 }}
-              message="Hệ thống đang bảo trì"
+              title="Hệ thống đang bảo trì"
               description="Đang khôi phục dữ liệu — mọi thao tác thay đổi dữ liệu tạm thời bị chặn. Xem lại sau khi có thông báo hoàn tất."
             />
           )}
@@ -167,7 +167,7 @@ export function AdminLayout() {
                 showIcon
                 banner
                 style={{ marginBottom: 16, borderRadius: 8 }}
-                message={
+                title={
                   soChanCauHinh > 0
                     ? `Cấu hình hệ thống: ${soChanCauHinh} mục CHẶN${soCanhBaoCauHinh > 0 ? `, ${soCanhBaoCauHinh} mục cần chú ý` : ''}`
                     : `Cấu hình hệ thống: ${soCanhBaoCauHinh} mục cần chú ý`

@@ -123,7 +123,7 @@ export function BaoCaoNhanhChiTietPage() {
   const coXuat = hasPermission('ops:report:export');
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       <Card
         title={
           <Space wrap>
@@ -156,7 +156,7 @@ export function BaoCaoNhanhChiTietPage() {
           <Alert
             type="success"
             showIcon
-            message="Kỳ đã chốt — mọi ô nhập đã khoá. Văn bản giữ đúng số của lúc chốt, kể cả khi danh mục máy bơm đổi sau đó."
+            title="Kỳ đã chốt — mọi ô nhập đã khoá. Văn bản giữ đúng số của lúc chốt, kể cả khi danh mục máy bơm đổi sau đó."
           />
         ) : null}
         {c.ky.lyDoMoLai ? (
@@ -164,7 +164,7 @@ export function BaoCaoNhanhChiTietPage() {
             style={{ marginTop: 8 }}
             type="warning"
             showIcon
-            message={`Kỳ này đã được MỞ LẠI sau khi chốt — lý do: ${c.ky.lyDoMoLai}`}
+            title={`Kỳ này đã được MỞ LẠI sau khi chốt — lý do: ${c.ky.lyDoMoLai}`}
           />
         ) : null}
       </Card>
@@ -635,7 +635,7 @@ function TabMucNuoc({
     },
   ];
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       <Card
         title="Bảng 3 — Mực nước hệ thống sông Nhuệ (cống)"
         extra={
@@ -789,7 +789,7 @@ function TabXemTruoc({ c }: { c: BaoCaoNhanhChiTiet }) {
   const muc3 = c.muc3;
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       <Card title="Mục 1 — Tình hình vận hành trạm bơm (dòng Sông Nhuệ, lấy từ Bảng 1)">
         <Descriptions size="small" column={{ xs: 1, md: 3 }} bordered>
           <Descriptions.Item label="Tổng số trạm">

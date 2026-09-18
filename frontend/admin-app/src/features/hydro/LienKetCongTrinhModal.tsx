@@ -92,7 +92,7 @@ export function LienKetCongTrinhModal({
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
-          message={`Điểm đo vai trò “${VAI_TRO_VI_TRI[diemDo!.positionRole]}” không bắt buộc liên kết công trình`}
+          title={`Điểm đo vai trò “${VAI_TRO_VI_TRI[diemDo!.positionRole]}” không bắt buộc liên kết công trình`}
           description="Đây là trạm thuỷ văn tham chiếu — “chưa liên kết” là dữ liệu ĐỦ, không phải dữ liệu thiếu. Vẫn khai được nếu Công ty muốn gắn nó vào một công trình cụ thể."
         />
       )}
@@ -246,8 +246,7 @@ function BieuMauLienKet({
         extra="Gõ để tìm theo mã hoặc tên. Danh mục công trình đang chờ dữ liệu của Công ty (G8) — ô này rỗng là vì vậy, không phải vì lỗi."
       >
         <Select
-          showSearch
-          optionFilterProp="label"
+          showSearch={{ optionFilterProp: 'label' }}
           loading={dangTaiCongTrinh}
           placeholder="Chọn công trình"
           options={congTrinh}

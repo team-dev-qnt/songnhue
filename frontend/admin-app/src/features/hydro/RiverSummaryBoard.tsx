@@ -42,7 +42,7 @@ export function RiverSummaryBoard({
       dataIndex: 'stationName',
       ellipsis: true,
       render: (_, row) => (
-        <Space direction="vertical" size={0}>
+        <Space orientation="vertical" size={0}>
           <span>{row.stationName}</span>
           <Typography.Text type="secondary" style={{ fontSize: wall ? 14 : 12 }}>
             {VAI_TRO_VI_TRI[row.positionRole as keyof typeof VAI_TRO_VI_TRI] ?? row.positionRole}
@@ -60,7 +60,7 @@ export function RiverSummaryBoard({
         v === null ? (
           oRong(row.lyDoTrong)
         ) : (
-          <Space direction="vertical" size={0} align="end">
+          <Space orientation="vertical" size={0} align="end">
             <b style={{ fontSize: wall ? 22 : 14 }}>
               {v} {row.unit}
             </b>
@@ -120,7 +120,7 @@ export function RiverSummaryBoard({
         v === null ? (
           oRong(row.lyDoTinhHinh)
         ) : (
-          <Space direction="vertical" size={0}>
+          <Space orientation="vertical" size={0}>
             {/* ⛔ Màu đến TỪ DỮ LIỆU (danh mục mã có CRUD, chốt G4) — ⛔ không có bảng ánh xạ
                 mã → màu thứ hai ở FE, vì thêm mã mới không được đòi deploy. */}
             <Tag color={v.mau}>{v.ten}</Tag>

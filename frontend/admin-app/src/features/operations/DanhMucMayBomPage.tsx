@@ -178,7 +178,7 @@ export function DanhMucMayBomPage() {
   ];
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       <Card
         title="Cỡ máy — 9 cột của Bảng 1 Báo cáo nhanh"
         loading={coMay.isLoading}
@@ -210,7 +210,7 @@ export function DanhMucMayBomPage() {
           type="info"
           showIcon
           style={{ marginBottom: 12 }}
-          message="Nhãn cột là cỡ máy danh định đã làm tròn — ví dụ máy 43.200 m³/h in ở cột “43”"
+          title="Nhãn cột là cỡ máy danh định đã làm tròn — ví dụ máy 43.200 m³/h in ở cột “43”"
           description="Máy có Q nằm giữa hai nhãn được xếp theo biên dưới đây (Công ty xác nhận 19/09/2026). Biên phải liền nhau: cận dưới của cỡ trên = cận trên của cỡ dưới; cỡ lớn nhất để trống cận trên, cỡ nhỏ nhất để trống cận dưới."
         />
         <Table

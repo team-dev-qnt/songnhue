@@ -140,7 +140,7 @@ export function MaintenanceAttachmentsPanel({ logId }: { logId: string }) {
   ];
 
   return (
-    <Space direction="vertical" size="small" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="small" style={{ width: '100%' }}>
       <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>
         <Typography.Text strong>Biên bản, ảnh trước / sau</Typography.Text>
         {hasPermission('ops:document:upload') && (

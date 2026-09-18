@@ -117,7 +117,7 @@ export function ConstructionChangeLogDrawer({ publicId, open, onClose }: Props) 
     <Drawer
       title="Nhật ký thay đổi hồ sơ"
       placement="right"
-      width={800}
+      size={800}
       onClose={onClose}
       open={open}
     >

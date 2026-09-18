@@ -9,6 +9,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
+  App,
   Button,
   Drawer,
   Empty,
@@ -25,7 +26,6 @@ import {
   Tooltip,
   Typography,
   Upload,
-  message,
 } from 'antd';
 import { useState } from 'react';
 
@@ -83,7 +83,7 @@ export function HoSoConDrawer({
       title={tenCanBo ? `Hồ sơ chi tiết — ${tenCanBo}` : 'Hồ sơ chi tiết'}
       open={open}
       onClose={onClose}
-      width={920}
+      size={920}
       // ⛔⛔ Xem javadoc trên. ⛔ Đừng đổi thành `false` "cho mượt".
       destroyOnHidden
     >
@@ -121,6 +121,7 @@ function NoiDung({ publicId, coSua }: { publicId: string; coSua: boolean }) {
 // ============================================================================
 
 function TabLyLich({ publicId, coSua }: { publicId: string; coSua: boolean }) {
+  const { message } = App.useApp();
   const qc = useQueryClient();
   // ⚠ Chụp MỘT LẦN mỗi lượt mở — ⛔ không đọc đồng hồ trong thân render (react-hooks/purity).
   const [homNay] = useState(() => Date.now());
@@ -146,7 +147,7 @@ function TabLyLich({ publicId, coSua }: { publicId: string; coSua: boolean }) {
   });
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       {coSua && (
         <Button
           type="primary"
@@ -292,6 +293,7 @@ function HanSuDung({ ngay, homNay }: { ngay: string; homNay: number }) {
 // ============================================================================
 
 function TabTimeline({ publicId, coSua }: { publicId: string; coSua: boolean }) {
+  const { message } = App.useApp();
   const qc = useQueryClient();
   const [loc, setLoc] = useState<string | undefined>();
   const [dangSua, setDangSua] = useState<SuKienView | null>(null);
@@ -316,7 +318,7 @@ function TabTimeline({ publicId, coSua }: { publicId: string; coSua: boolean }) 
   const muc = danhSach.data ?? [];
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       <Space wrap>
         {coSua && (
           <Button
@@ -348,9 +350,9 @@ function TabTimeline({ publicId, coSua }: { publicId: string; coSua: boolean }) 
           items={muc.map((s) => ({
             // ⛔ Nhãn là ngày HIỆU LỰC, ⛔ không phải ngày ký hay ngày nhập — đó là trục của
             //    timeline theo đặc tả, và ba mốc ấy khác nhau.
-            label: formatDate(s.effectiveOn),
-            children: (
-              <Space direction="vertical" size={2}>
+            title: formatDate(s.effectiveOn),
+            content: (
+              <Space orientation="vertical" size={2}>
                 <Space wrap>
                   <Tag>{LOAI_SU_KIEN[s.eventType]}</Tag>
                   <Typography.Text strong>{s.title}</Typography.Text>
@@ -415,6 +417,7 @@ function TabTimeline({ publicId, coSua }: { publicId: string; coSua: boolean }) 
 // ============================================================================
 
 function TabTaiLieu({ publicId, coSua }: { publicId: string; coSua: boolean }) {
+  const { message } = App.useApp();
   const qc = useQueryClient();
   const [homNay] = useState(() => Date.now());
   const [thuMuc, setThuMuc] = useState<HoSoThuMuc>('GIAY_TO_TUY_THAN');
@@ -462,12 +465,12 @@ function TabTaiLieu({ publicId, coSua }: { publicId: string; coSua: boolean }) {
   const tt = tinhTrang.data;
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       {/* ⛔⛔ HAI câu cho HAI trạng thái. `daCauHinh === false` nghĩa là Công ty CHƯA khai thư mục
           nào bắt buộc — hiện "0%" ở đó là công bố một con số dựa trên một luật không ai duyệt. */}
       {tt &&
         (tt.daCauHinh ? (
-          <Space direction="vertical" size={4} style={{ width: '100%' }}>
+          <Space orientation="vertical" size={4} style={{ width: '100%' }}>
             <Typography.Text type="secondary">Mức hoàn thiện hồ sơ</Typography.Text>
             <Progress percent={tt.phanTram ?? 0} size="small" />
             {tt.conThieu.length > 0 && (
@@ -480,7 +483,7 @@ function TabTaiLieu({ publicId, coSua }: { publicId: string; coSua: boolean }) {
           <Alert
             type="info"
             showIcon
-            message="Chưa cấu hình danh sách tài liệu bắt buộc"
+            title="Chưa cấu hình danh sách tài liệu bắt buộc"
             description="Quản trị › Cấu hình hệ thống › nhóm Nhân sự › “Thư mục tài liệu BẮT BUỘC”. Chưa khai thì hệ thống không tính % hoàn thiện — nó không giả định thay Công ty."
           />
         ))}

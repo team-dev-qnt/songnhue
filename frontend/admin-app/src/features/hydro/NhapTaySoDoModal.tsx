@@ -145,7 +145,7 @@ export function NhapTaySoDoModal({
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="Dùng khi API gián đoạn"
+        title="Dùng khi API gián đoạn"
         description="Dòng ghi ở đây mang tên người nhập và được đánh dấu nguồn Nhập tay — nhờ vậy về sau vẫn phân biệt được 'poller chết' với 'nguồn không phát'. ⛔ Không ghi đè được số đo đã có."
         // ⚠ Câu này phải đúng: §10.69 — một dòng chữ hứa điều mã không làm còn tệ hơn không có dòng nào.
       />
@@ -157,8 +157,7 @@ export function NhapTaySoDoModal({
           rules={[{ required: true, message: 'Chọn điểm đo' }]}
         >
           <Select
-            showSearch
-            optionFilterProp="label"
+            showSearch={{ optionFilterProp: 'label' }}
             placeholder="Chọn điểm đo"
             options={diemDo.map((s) => ({ value: s.id, label: `${s.code} — ${s.name}` }))}
             onChange={() => form.setFieldValue('maLoaiChiSo', undefined)}

@@ -1,6 +1,7 @@
 import { CheckCircleOutlined, StopOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  App,
   Button,
   Card,
   Input,
@@ -11,7 +12,6 @@ import {
   Tag,
   Tooltip,
   Typography,
-  message,
 } from 'antd';
 import { type ColumnsType } from 'antd/es/table';
 import { useState } from 'react';
@@ -51,6 +51,7 @@ import { LOAI_DIEU_KIEN_NGUONG, TRANG_THAI_CANH_BAO } from './hydroVocabulary';
  * một `alertEventId` không trỏ vào cảnh báo nào (T33.4).
  */
 export function AlertHistoryPage() {
+  const { message } = App.useApp();
   const { hasPermission } = useAuth();
   const queryClient = useQueryClient();
   const [loc, setLoc] = useState<'tat-ca' | 'dang-mo' | 'da-dong'>('dang-mo');

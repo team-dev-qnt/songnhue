@@ -172,7 +172,7 @@ export function BannersTab() {
   };
 
   return (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+    <Space orientation="vertical" size={16} style={{ width: '100%' }}>
       {/*
         ⛔ Ô rỗng phải NÓI RA LÝ DO. Không có khối này thì người thiếu `cms:banner:manage` thấy một
         danh sách rỗng và đọc nó thành "Công ty chưa đặt banner nào" — một khẳng định về DỮ LIỆU,
@@ -182,7 +182,7 @@ export function BannersTab() {
         <Alert
           type="info"
           showIcon
-          message="Bạn chỉ có quyền xem trang Giao diện"
+          title="Bạn chỉ có quyền xem trang Giao diện"
           description={`${LY_DO_THIEU_QUYEN}. Danh sách banner vì thế không được tải — đây là giới hạn quyền, không phải "chưa có banner nào".`}
         />
       )}
@@ -325,7 +325,7 @@ export function BannersTab() {
                 </Space>
               }
               description={
-                <Space direction="vertical" size={0}>
+                <Space orientation="vertical" size={0}>
                   {banner.description && <span>{banner.description}</span>}
                   {banner.linkUrl && (
                     <Typography.Text type="secondary" style={{ fontSize: 12 }}>
@@ -375,7 +375,7 @@ export function BannersTab() {
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
-          message="Để trống khoảng lịch = hiện liên tục khi đang bật"
+          title="Để trống khoảng lịch = hiện liên tục khi đang bật"
         />
         <Form form={form} layout="vertical">
           <Form.Item

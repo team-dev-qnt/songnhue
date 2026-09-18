@@ -239,7 +239,7 @@ export function EmployeesPage() {
     !coLoc && !danhSach.isError && (danhSach.data?.meta.totalElements ?? 0) === 0;
 
   return (
-    <Space direction="vertical" style={{ width: '100%' }} size="large">
+    <Space orientation="vertical" style={{ width: '100%' }} size="large">
       <Typography.Title level={4} style={{ margin: 0 }}>
         Hồ sơ cán bộ nhân viên
       </Typography.Title>
@@ -248,7 +248,7 @@ export function EmployeesPage() {
         <Alert
           type="info"
           showIcon
-          message="Chưa có dữ liệu cán bộ nhân viên"
+          title="Chưa có dữ liệu cán bộ nhân viên"
           description={
             <>
               Công ty chưa cung cấp danh sách CBNV (mục <b>G6-a</b>). Hệ thống ⛔ <b>không</b> tạo

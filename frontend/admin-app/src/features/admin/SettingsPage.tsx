@@ -176,7 +176,7 @@ export function SettingsPage() {
       dataIndex: 'label',
       width: '32%',
       render: (label: string, row) => (
-        <Space direction="vertical" size={0}>
+        <Space orientation="vertical" size={0}>
           <Typography.Text strong>{label}</Typography.Text>
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             {row.key}
@@ -401,7 +401,7 @@ function SettingEditor({
   if (setting.valueType === 'INTEGER' || setting.valueType === 'DECIMAL') {
     const bounds = parseBounds(setting.validation);
     return (
-      <Space direction="vertical" size={2} style={{ width: '100%' }}>
+      <Space orientation="vertical" size={2} style={{ width: '100%' }}>
         <InputNumber
           value={value === '' ? null : Number(value)}
           disabled={disabled}

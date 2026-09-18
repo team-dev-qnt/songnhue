@@ -102,7 +102,7 @@ export function EditorTableInsertModal({ open, onCancel, onInsert }: EditorTable
 
   return (
     <Modal open={open} title="Chèn bảng" footer={null} onCancel={dong} width={420} destroyOnHidden>
-      <Space direction="vertical" size={16} style={{ width: '100%' }}>
+      <Space orientation="vertical" size={16} style={{ width: '100%' }}>
         <div
           role="grid"
           aria-label="Chọn nhanh kích thước bảng"

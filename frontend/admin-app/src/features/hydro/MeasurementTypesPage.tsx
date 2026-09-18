@@ -2,6 +2,7 @@ import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
+  App,
   Button,
   Card,
   Form,
@@ -14,7 +15,6 @@ import {
   Table,
   Tag,
   Typography,
-  message,
 } from 'antd';
 import { type ColumnsType } from 'antd/es/table';
 import { useState } from 'react';
@@ -33,6 +33,7 @@ import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
  * là chỗ hiểu nhầm rẻ nhất để tránh và đắt nhất để phát hiện.
  */
 export function MeasurementTypesPage() {
+  const { message } = App.useApp();
   const { hasPermission } = useAuth();
   const queryClient = useQueryClient();
   const [form] = Form.useForm<MeasurementTypeRequest>();
@@ -197,7 +198,7 @@ export function MeasurementTypesPage() {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="Đơn vị ở đây là đơn vị hệ thống LƯU, không phải đơn vị nguồn trả về"
+        title="Đơn vị ở đây là đơn vị hệ thống LƯU, không phải đơn vị nguồn trả về"
         description={
           <>
             Nguồn <code>bhh40.net</code> trả mực nước bằng <b>cm</b>; hệ thống quy đổi và lưu bằng{' '}

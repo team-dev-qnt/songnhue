@@ -84,12 +84,12 @@ export function OperationsDashboardPage() {
 
   const noiDung = (
     <div ref={ref}>
-      <Space direction="vertical" size={wall ? 'large' : 'middle'} style={{ width: '100%' }}>
+      <Space orientation="vertical" size={wall ? 'large' : 'middle'} style={{ width: '100%' }}>
         {isError && (
           <Alert
             type="warning"
             showIcon
-            message="Dữ liệu chưa cập nhật"
+            title="Dữ liệu chưa cập nhật"
             description={
               dataUpdatedAt > 0
                 ? `Không gọi được máy chủ. Số liệu đang hiện là của lúc ${formatDateTime(new Date(dataUpdatedAt).toISOString())}.`

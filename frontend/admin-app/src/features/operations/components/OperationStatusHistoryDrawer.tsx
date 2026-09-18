@@ -103,7 +103,7 @@ export function OperationStatusHistoryDrawer({ publicId, constructionName, open,
           : 'Lịch sử tình hình vận hành'
       }
       placement="right"
-      width={800}
+      size={800}
       open={open}
       onClose={onClose}
       destroyOnHidden
@@ -112,7 +112,7 @@ export function OperationStatusHistoryDrawer({ publicId, constructionName, open,
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="Bản ghi mới nhất là thứ hiển thị trên cổng công khai"
+        title="Bản ghi mới nhất là thứ hiển thị trên cổng công khai"
         description="Bảng này ghi nhận theo thời điểm hiệu lực và không sửa/xoá được — muốn đính chính thì nhập một bản ghi mới với thời điểm hiệu lực mới hơn (nút “Nhập nhanh” ở danh sách công trình)."
       />
 

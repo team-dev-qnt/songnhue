@@ -241,7 +241,7 @@ export function MenusTab() {
   }, [items, form, remove, position, uploadLogo, removeLogo]);
 
   return (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+    <Space orientation="vertical" size={16} style={{ width: '100%' }}>
       <Space wrap>
         <Segmented<MenuPosition>
           value={position}
@@ -269,7 +269,7 @@ export function MenusTab() {
       <Alert
         type="info"
         showIcon
-        message={
+        title={
           position === 'LIEN_KET'
             ? 'Dải "Liên kết website" ở cuối trang chủ'
             : 'Menu đầu trang và chân trang là hai cây riêng'
@@ -360,8 +360,7 @@ export function MenusTab() {
                     rules={[{ required: true, message: 'Chọn danh mục' }]}
                   >
                     <Select
-                      showSearch
-                      optionFilterProp="label"
+                      showSearch={{ optionFilterProp: 'label' }}
                       loading={categories.isLoading}
                       options={(categories.data ?? []).map((c) => ({
                         value: c.publicId,
@@ -379,8 +378,7 @@ export function MenusTab() {
                     rules={[{ required: true, message: 'Chọn bài viết' }]}
                   >
                     <Select
-                      showSearch
-                      optionFilterProp="label"
+                      showSearch={{ optionFilterProp: 'label' }}
                       loading={baiViet.isLoading}
                       options={(baiViet.data?.items ?? []).map((a) => ({
                         value: a.publicId,
@@ -405,7 +403,7 @@ export function MenusTab() {
                 <Alert
                   type="info"
                   showIcon
-                  message="Mục này chỉ để mở menu con, bấm vào không đi đâu cả"
+                  title="Mục này chỉ để mở menu con, bấm vào không đi đâu cả"
                   style={{ marginBottom: 16 }}
                 />
               );

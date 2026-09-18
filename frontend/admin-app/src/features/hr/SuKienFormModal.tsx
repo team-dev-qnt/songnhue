@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { DatePicker, Form, type FormInstance, Input, Modal, Select, message } from 'antd';
+import { App, DatePicker, Form, type FormInstance, Input, Modal, Select } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useLayoutEffect } from 'react';
 
@@ -42,6 +42,7 @@ export function SuKienFormModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { message } = App.useApp();
   const [form] = Form.useForm<GiaTriBieuMau>();
   const laSua = suKien !== null;
   const duong = `/hr/employees/${hoSoId}/timeline`;

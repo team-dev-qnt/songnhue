@@ -54,8 +54,7 @@ export function OrgUnitTreeSelect({
       placeholder={placeholder}
       disabled={disabled}
       allowClear={allowClear}
-      showSearch
-      treeNodeFilterProp="title"
+      showSearch={{ treeNodeFilterProp: 'title' }}
       treeDefaultExpandAll
       style={{ width: '100%' }}
     />

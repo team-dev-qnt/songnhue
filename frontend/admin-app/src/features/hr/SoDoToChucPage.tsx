@@ -61,7 +61,7 @@ export function SoDoToChucPage() {
   };
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       <Card>
         <Row gutter={[16, 16]}>
           <Col xs={12} md={6}>
@@ -80,7 +80,7 @@ export function SoDoToChucPage() {
         <Alert
           type="error"
           showIcon
-          message={`${query.data.soNhanSuNgoaiSoDo} hồ sơ đang thuộc một đơn vị không còn trên sơ đồ`}
+          title={`${query.data.soNhanSuNgoaiSoDo} hồ sơ đang thuộc một đơn vị không còn trên sơ đồ`}
           description={
             <>
               Tổng quân số ở trên <b>chưa tính</b> những người này. Nguyên nhân thường gặp: một đơn

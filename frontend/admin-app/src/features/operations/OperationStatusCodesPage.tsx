@@ -1,6 +1,7 @@
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  App,
   Button,
   Card,
   ColorPicker,
@@ -16,7 +17,6 @@ import {
   Tag,
   theme,
   Typography,
-  message,
 } from 'antd';
 import { type ColumnsType } from 'antd/es/table';
 import { useState } from 'react';
@@ -32,6 +32,7 @@ import { ApiClientError, api } from '@/shared/apiClient';
 import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
 
 export function OperationStatusCodesPage() {
+  const { message } = App.useApp();
   // ⛔ Màu lấy từ `theme.useToken()` — bảng màu AntD (T25.23).
   const { token } = theme.useToken();
   const { hasPermission } = useAuth();
@@ -218,7 +219,7 @@ export function OperationStatusCodesPage() {
   ];
 
   return (
-    <Space direction="vertical" style={{ width: '100%' }} size="large">
+    <Space orientation="vertical" style={{ width: '100%' }} size="large">
       <Typography.Title level={4} style={{ margin: 0 }}>
         Danh mục Tình trạng Vận hành
       </Typography.Title>

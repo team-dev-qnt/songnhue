@@ -60,7 +60,7 @@ export function HoSoCuaToiPage() {
       <Card>
         <Empty
           description={
-            <Space direction="vertical" size={4}>
+            <Space orientation="vertical" size={4}>
               <Typography.Text strong>
                 Tài khoản của bạn chưa được liên kết với hồ sơ cán bộ
               </Typography.Text>
@@ -79,7 +79,7 @@ export function HoSoCuaToiPage() {
   const trangThai = TRANG_THAI_CONG_TAC[chiTiet.status];
 
   return (
-    <Space direction="vertical" size={16} style={{ display: 'flex' }}>
+    <Space orientation="vertical" size={16} style={{ display: 'flex' }}>
       <Card
         title={
           <Space>
@@ -142,7 +142,7 @@ export function HoSoCuaToiPage() {
           type="info"
           showIcon
           style={{ marginBottom: 12 }}
-          message="Chỉ mình bạn và Quản trị nhân sự xem được mục này"
+          title="Chỉ mình bạn và Quản trị nhân sự xem được mục này"
           description={
             'Mỗi lượt mở đều được ghi vào nhật ký bảo mật (Nghị định 13/2023/NĐ-CP). ' +
             'Cần sửa thông tin ở đây thì đề nghị phòng Tổ chức — Hành chính cập nhật hộ.'

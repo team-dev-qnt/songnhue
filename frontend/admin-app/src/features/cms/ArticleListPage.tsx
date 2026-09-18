@@ -97,7 +97,7 @@ export function ArticleListPage() {
       dataIndex: 'title',
       sorter: true,
       render: (title: string, row) => (
-        <Space direction="vertical" size={0}>
+        <Space orientation="vertical" size={0}>
           <Typography.Link onClick={() => navigate(`/noi-dung/bai-viet/${row.publicId}`)}>
             {title}
           </Typography.Link>
@@ -198,8 +198,7 @@ export function ArticleListPage() {
         />
         <Select
           allowClear
-          showSearch
-          optionFilterProp="label"
+          showSearch={{ optionFilterProp: 'label' }}
           placeholder="Mọi danh mục"
           style={{ width: 220 }}
           value={filter.categoryId}

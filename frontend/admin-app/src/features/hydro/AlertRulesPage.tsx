@@ -2,6 +2,7 @@ import { DeleteOutlined, EditOutlined, PlusOutlined, WarningOutlined } from '@an
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
+  App,
   Button,
   Card,
   Form,
@@ -16,7 +17,6 @@ import {
   Tag,
   Tooltip,
   Typography,
-  message,
 } from 'antd';
 import { type ColumnsType } from 'antd/es/table';
 import { useState } from 'react';
@@ -51,6 +51,7 @@ import { LOAI_DIEU_KIEN_NGUONG } from './hydroVocabulary';
  * đều nạp được.
  */
 export function AlertRulesPage() {
+  const { message } = App.useApp();
   const { hasPermission } = useAuth();
   const queryClient = useQueryClient();
   const [form] = Form.useForm<AlertRuleRequest>();
@@ -249,7 +250,7 @@ export function AlertRulesPage() {
           type="warning"
           showIcon
           style={{ marginBottom: 16 }}
-          message="Chưa khai mức cảnh báo nào — chưa cấu hình được ngưỡng"
+          title="Chưa khai mức cảnh báo nào — chưa cấu hình được ngưỡng"
           description="Mỗi ngưỡng phải thuộc về một mức cảnh báo. Vào Dữ liệu thuỷ văn → Mức cảnh báo để khai bộ mức Công ty đã duyệt (G9-a)."
         />
       )}
@@ -260,7 +261,7 @@ export function AlertRulesPage() {
           showIcon
           icon={<WarningOutlined />}
           style={{ marginBottom: 16 }}
-          message={`${chuaCauHinh.length} điểm đo đang hoạt động chưa cấu hình ngưỡng nào`}
+          title={`${chuaCauHinh.length} điểm đo đang hoạt động chưa cấu hình ngưỡng nào`}
           description={
             <>
               Những điểm này ⛔ không phát cảnh báo nào, dù số liệu vẫn về đầy đủ. Đây là trạng thái
@@ -316,8 +317,7 @@ export function AlertRulesPage() {
             }
           >
             <Select
-              showSearch
-              optionFilterProp="label"
+              showSearch={{ optionFilterProp: 'label' }}
               disabled={!!editingId}
               loading={stationsQuery.isLoading}
               placeholder="Chọn điểm đo"

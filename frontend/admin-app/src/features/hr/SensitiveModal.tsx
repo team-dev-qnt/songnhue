@@ -134,7 +134,7 @@ export function SensitiveModal({
         <Alert
           type="warning"
           showIcon
-          message="Không có quyền xem trường bảo mật"
+          title="Không có quyền xem trường bảo mật"
           description="Chỉ Super Admin và Quản trị nhân sự đọc được nhóm trường này (NĐ 13/2023 — nguyên tắc tối thiểu). Quản trị hệ thống cố ý KHÔNG có quyền ấy."
         />
       )}
@@ -143,7 +143,7 @@ export function SensitiveModal({
         <Alert
           type="error"
           showIcon
-          message="Không đọc được trường bảo mật"
+          title="Không đọc được trường bảo mật"
           description={
             query.error instanceof ApiClientError
               ? query.error.message
@@ -160,7 +160,7 @@ export function SensitiveModal({
             type="info"
             showIcon
             style={{ marginBottom: 16 }}
-            message="Lượt mở này đã được ghi vào nhật ký bảo mật"
+            title="Lượt mở này đã được ghi vào nhật ký bảo mật"
             description={
               <>
                 Mỗi lượt đọc nhóm trường này để lại một dòng <code>security_events</code> kèm mã cán

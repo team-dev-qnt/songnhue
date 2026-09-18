@@ -47,7 +47,7 @@ export function ConstructionStatisticsBlock() {
           <Statistic
             title={CONSTRUCTION_STATUS['CANH_BAO']?.label ?? 'Cảnh báo'}
             value={warningCount}
-            valueStyle={{ color: warningCount > 0 ? statusColors.warning : undefined }}
+            styles={{ content: { color: warningCount > 0 ? statusColors.warning : undefined } }}
           />
         </Card>
       </Col>
@@ -56,7 +56,7 @@ export function ConstructionStatisticsBlock() {
           <Statistic
             title={CONSTRUCTION_STATUS['SU_CO']?.label ?? 'Sự cố'}
             value={incidentCount}
-            valueStyle={{ color: incidentCount > 0 ? statusColors.danger : undefined }}
+            styles={{ content: { color: incidentCount > 0 ? statusColors.danger : undefined } }}
           />
         </Card>
       </Col>
@@ -65,7 +65,7 @@ export function ConstructionStatisticsBlock() {
           <Statistic
             title={CONSTRUCTION_STATUS['BAO_TRI']?.label ?? 'Bảo trì'}
             value={maintenanceCount}
-            valueStyle={{ color: maintenanceCount > 0 ? statusColors.warning : undefined }}
+            styles={{ content: { color: maintenanceCount > 0 ? statusColors.warning : undefined } }}
           />
         </Card>
       </Col>

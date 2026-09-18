@@ -226,7 +226,7 @@ export function SyncLogsPage() {
                     ? formatDateTimeWithSeconds(tongHop.mocGanNhat)
                     : 'Chưa có lượt nào'
                 }
-                valueStyle={{ fontSize: 16 }}
+                styles={{ content: { fontSize: 16 } }}
               />
             </Col>
           </Row>
@@ -238,7 +238,7 @@ export function SyncLogsPage() {
           type="error"
           showIcon
           style={{ marginBottom: 16 }}
-          message={`Không có lượt polling nào trong ${tongHop.soGio} giờ qua`}
+          title={`Không có lượt polling nào trong ${tongHop.soGio} giờ qua`}
           description="Poller đang không chạy, hoặc không nguồn nào ở trạng thái Đang hoạt động. Đây là triệu chứng nặng hơn mọi con số lỗi — nguồn KHÔNG có API lịch sử, mất khung nào là mất vĩnh viễn."
         />
       )}
@@ -247,7 +247,7 @@ export function SyncLogsPage() {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="“Bỏ qua — đã đủ” là kết cục BÌNH THƯỜNG của phần lớn lượt chạy"
+        title="“Bỏ qua — đã đủ” là kết cục BÌNH THƯỜNG của phần lớn lượt chạy"
         description="Poller gọi 2 phút một lần trên nguồn cập nhật 10 phút một lần, nên khi toàn bộ điểm đo đã có bản ghi của khung hiện tại thì lượt gọi được bỏ qua có chủ đích. Tương tự, “Ghi mới = 0” không phải lỗi — dữ liệu trùng là chuyện thường."
       />
 

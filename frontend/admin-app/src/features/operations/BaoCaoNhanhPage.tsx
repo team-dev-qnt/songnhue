@@ -135,7 +135,7 @@ export function BaoCaoNhanhPage() {
         onOk={() => khung && tao.mutate(khung)}
         onCancel={() => setMoTao(false)}
       >
-        <Space direction="vertical" style={{ width: '100%' }}>
+        <Space orientation="vertical" style={{ width: '100%' }}>
           <Typography.Text>
             Từ … đến … (giờ Việt Nam) — in vào tiêu đề báo cáo, Bảng 3 lấy mực nước tại giờ kết
             thúc.

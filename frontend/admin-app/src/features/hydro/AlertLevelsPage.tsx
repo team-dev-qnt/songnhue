@@ -2,6 +2,7 @@ import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
+  App,
   Button,
   Card,
   Form,
@@ -16,7 +17,6 @@ import {
   Tag,
   Tooltip,
   Typography,
-  message,
 } from 'antd';
 import { type ColumnsType } from 'antd/es/table';
 import {
@@ -54,6 +54,7 @@ import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
  * (`design-tokens` + `AlertLevelService.java`); `alertLevelColors.test.ts` canh đúng điều đó.
  */
 export function AlertLevelsPage() {
+  const { message } = App.useApp();
   const { hasPermission } = useAuth();
   const queryClient = useQueryClient();
   const [form] = Form.useForm<AlertLevelRequest>();
@@ -213,7 +214,7 @@ export function AlertLevelsPage() {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="Bộ mức cảnh báo do Công ty quyết định (mục G9-a)"
+        title="Bộ mức cảnh báo do Công ty quyết định (mục G9-a)"
         description={
           <>
             Danh sách để trống là đúng — hệ thống ⛔ không tự đặt sẵn mức nào, vì mỗi mức đi kèm

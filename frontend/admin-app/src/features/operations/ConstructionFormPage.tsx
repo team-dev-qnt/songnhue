@@ -187,7 +187,7 @@ export function ConstructionFormPage() {
             type="info"
             showIcon
             style={{ marginBottom: 16 }}
-            message="Bạn đang xem hồ sơ ở chế độ chỉ đọc"
+            title="Bạn đang xem hồ sơ ở chế độ chỉ đọc"
             description="Tài khoản của bạn không có quyền sửa hồ sơ công trình (ops:construction:update). Các tab Tài liệu đính kèm và Lịch sử sửa chữa vẫn dùng được bình thường."
           />
         ) : null}

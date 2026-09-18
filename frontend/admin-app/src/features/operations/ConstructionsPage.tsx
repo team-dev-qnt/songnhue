@@ -146,7 +146,7 @@ export function ConstructionsPage() {
   ];
 
   return (
-    <Space direction="vertical" style={{ width: '100%' }} size="large">
+    <Space orientation="vertical" style={{ width: '100%' }} size="large">
       <Typography.Title level={4} style={{ margin: 0 }}>
         Hồ sơ công trình
       </Typography.Title>

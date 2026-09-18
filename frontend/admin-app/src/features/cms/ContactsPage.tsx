@@ -162,7 +162,7 @@ export function ContactsPage() {
       dataIndex: 'fullName',
       key: 'fullName',
       render: (ten: string, r: ContactView) => (
-        <Space direction="vertical" size={0}>
+        <Space orientation="vertical" size={0}>
           <Typography.Text strong>{ten}</Typography.Text>
           {/* ⛔ Không ghép email và điện thoại bằng dấu gạch khi một bên rỗng — một dấu gạch
               trông như một giá trị. */}
@@ -386,7 +386,7 @@ function ChiTietLienHe({
   });
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       <Descriptions column={1} size="small" bordered>
         <Descriptions.Item label="Nội dung">
           {/* Xuống dòng giữ nguyên; nội dung vẫn là TEXT — React escape. */}
@@ -409,7 +409,7 @@ function ChiTietLienHe({
       </Descriptions>
 
       <Space wrap align="start" size="large">
-        <Space direction="vertical" size={4}>
+        <Space orientation="vertical" size={4}>
           <Typography.Text type="secondary">Phân loại</Typography.Text>
           <Select
             style={{ width: 240 }}
@@ -425,7 +425,7 @@ function ChiTietLienHe({
             options={danhMuc.map((c) => ({ value: c.publicId, label: c.name }))}
           />
         </Space>
-        <Space direction="vertical" size={4}>
+        <Space orientation="vertical" size={4}>
           <Typography.Text type="secondary">Đơn vị xử lý</Typography.Text>
           <div style={{ width: 280 }}>
             <OrgUnitTreeSelect
@@ -445,7 +445,7 @@ function ChiTietLienHe({
         disabled={!coQuyenGhi}
       />
 
-      <Divider orientation="left" style={{ margin: '4px 0' }}>
+      <Divider titlePlacement="left" style={{ margin: '4px 0' }}>
         Ghi chú nội bộ
       </Divider>
       <List
@@ -455,7 +455,7 @@ function ChiTietLienHe({
         locale={{ emptyText: 'Chưa có ghi chú nào' }}
         renderItem={(n) => (
           <List.Item>
-            <Space direction="vertical" size={0} style={{ width: '100%' }}>
+            <Space orientation="vertical" size={0} style={{ width: '100%' }}>
               <Typography.Text style={{ whiteSpace: 'pre-line' }}>{n.content}</Typography.Text>
               <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                 {gio(n.createdAt)}
