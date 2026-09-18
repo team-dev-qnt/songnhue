@@ -433,6 +433,32 @@ export const ERROR_CATALOG = {
     handling: 'toast',
     severity: 'warning',
   },
+  // ⛔ Báo cáo nhanh — câu chữ của backend mang Q / tên trạm / cặp cỡ lệch, `messageFor` ưu tiên nó.
+  'OPS-2027': {
+    message: 'Lưu lượng Q không thuộc cỡ máy nào — kiểm lại biên cỡ máy',
+    handling: 'toast',
+    severity: 'error',
+  },
+  'OPS-2028': {
+    message: 'Số máy vận hành vượt số máy thiết kế',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'OPS-2029': {
+    message: 'Kỳ báo cáo đã chốt — cần mở lại trước khi sửa',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'OPS-2030': {
+    message: 'Thời điểm "đến" phải sau thời điểm "từ"',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'OPS-2031': {
+    message: 'Biên cỡ máy không liền nhau',
+    handling: 'toast',
+    severity: 'warning',
+  },
   'OPS-3001': {
     message: 'Không được sửa trực tiếp trạng thái công trình — trạng thái được tính tự động',
     handling: 'toast',

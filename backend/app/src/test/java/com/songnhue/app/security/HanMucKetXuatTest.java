@@ -81,6 +81,9 @@ class HanMucKetXuatTest {
                 "/api/v1/hyd/stations/mau-nhap",
                 new String[] {"API", "Tệp mẫu nhập liệu, vài KB — ⛔ không phải lượt quét bảng"});
         BAN_KHAI.put(
+                "/api/v1/ops/may-bom/nhom-may/mau-nhap",
+                new String[] {"API", "Tệp mẫu nhập nhóm máy bơm, vài trăm byte — ⛔ phải lượt quét bảng"});
+        BAN_KHAI.put(
                 "/api/v1/ops/constructions/mau-nhap",
                 new String[] {"API", "Tệp mẫu nhập liệu, vài KB — ⛔ không phải lượt quét bảng"});
         BAN_KHAI.put(

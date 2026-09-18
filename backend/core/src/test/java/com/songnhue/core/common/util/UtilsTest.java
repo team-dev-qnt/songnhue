@@ -103,6 +103,22 @@ class UtilsTest {
             assertThat(NumericUtils.scale(new BigDecimal("2.5"), 0)).isEqualByComparingTo("3");
             assertThat(NumericUtils.scale(new BigDecimal("1.2345"), 3)).isEqualByComparingTo("1.235");
         }
+
+        @Test
+        @DisplayName("⭐ docSoNhapTay — phân biệt hàng nghìn và thập phân theo HÌNH DẠNG, ⛔ theo ngôn ngữ")
+        void docSoNhapTayTheoHinhDang() {
+            // Lưu lượng máy bơm của danh mục Công ty: "." là hàng nghìn.
+            assertThat(NumericUtils.docSoNhapTay("1.100")).isEqualByComparingTo("1100");
+            assertThat(NumericUtils.docSoNhapTay("43.200")).isEqualByComparingTo("43200");
+            assertThat(NumericUtils.docSoNhapTay("1.500.000")).isEqualByComparingTo("1500000");
+            // ⛔⛔ Toạ độ GPS: "." là thập phân — "bỏ hết dấu chấm" cho ra 21023456.
+            assertThat(NumericUtils.docSoNhapTay("21.023456")).isEqualByComparingTo("21.023456");
+            assertThat(NumericUtils.docSoNhapTay("1.500.000,5")).isEqualByComparingTo("1500000.5");
+            assertThat(NumericUtils.docSoNhapTay("4,93")).isEqualByComparingTo("4.93");
+            assertThat(NumericUtils.docSoNhapTay(" 980 ")).isEqualByComparingTo("980");
+            assertThat(NumericUtils.docSoNhapTay("  ")).isNull();
+            assertThatThrownBy(() -> NumericUtils.docSoNhapTay("abc")).isInstanceOf(NumberFormatException.class);
+        }
     }
 
     @Nested

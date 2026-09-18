@@ -307,6 +307,25 @@ public enum ErrorCode {
      * thống hỏng"*.
      */
     OPS_2026("OPS-2026", HttpStatus.UNPROCESSABLE_CONTENT),
+    /**
+     * Q = {0} m³/h ⛔ thuộc cỡ máy nào — Báo cáo nhanh, Bảng 1.
+     *
+     * <p>⛔ Bỏ im lặng một nhóm máy là để tổng 9 cột lệch "Tổng số máy" trên cùng một dòng của văn bản
+     * gửi UBND. Xem {@code BangCoMayBom}.
+     */
+    OPS_2027("OPS-2027", HttpStatus.UNPROCESSABLE_CONTENT),
+    /** Trạm {0}: số máy vận hành {1} vượt số máy thiết kế {2} (spec Báo cáo nhanh §4.2). */
+    OPS_2028("OPS-2028", HttpStatus.UNPROCESSABLE_CONTENT),
+    /**
+     * Kỳ báo cáo đã chốt — ⛔ sửa được. Mở lại bằng quyền {@code ops:quick-report:reopen} kèm lý do.
+     *
+     * <p>Kỳ đã chốt là văn bản ĐÃ GỬI đi; sửa lặng lẽ là để bản lưu và bản UBND nhận nói hai điều.
+     */
+    OPS_2029("OPS-2029", HttpStatus.CONFLICT),
+    /** Khung giờ báo cáo ⛔ hợp lệ: "đến" phải sau "từ". */
+    OPS_2030("OPS-2030", HttpStatus.UNPROCESSABLE_CONTENT),
+    /** Biên cỡ máy ⛔ liền nhau: {0}. Có khe thì Q rơi ra ngoài; có chồng thì Bảng 1 đếm hai lần. */
+    OPS_2031("OPS-2031", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Trạng thái công trình là giá trị dẫn xuất — client sửa trực tiếp là từ chối. */
     OPS_3001("OPS-3001", HttpStatus.FORBIDDEN),
 
