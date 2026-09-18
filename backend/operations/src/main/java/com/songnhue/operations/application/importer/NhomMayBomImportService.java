@@ -183,8 +183,7 @@ public class NhomMayBomImportService {
             }
 
             if (keHoach.loi.size() == soLoiTruoc) {
-                NhomMayBom hienCo = nhomMay.timTheoKhoa(ct.getId(), q)
-                        .orElse(null);
+                NhomMayBom hienCo = nhomMay.timTheoKhoa(ct.getId(), q).orElse(null);
                 keHoach.dong.add(new DongKeHoach(ct.getId(), soMay, q, soDong, hienCo));
             }
         }

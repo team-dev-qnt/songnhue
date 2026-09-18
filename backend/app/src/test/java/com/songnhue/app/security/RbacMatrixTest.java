@@ -105,6 +105,7 @@ class RbacMatrixTest extends IntegrationTestBase {
             "restore",
             "backup",
             "close",
+            "reopen",
             "verify");
 
     /** Vai trò chỉ được xem — đối chiếu {@code function-spec.md} §6. */
