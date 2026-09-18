@@ -1,5 +1,5 @@
 import { Mark, mergeAttributes } from '@tiptap/react';
-import { TEXT_BG_CLASSES, TEXT_COLOR_CLASSES } from 'design-tokens/editor-schema';
+import { TEXT_BG_CLASSES, TEXT_COLOR_CLASSES } from '@songnhue/design-tokens/editor-schema';
 
 /**
  * Màu chữ và màu nền chữ bằng **class** — T41.15, yêu cầu ĐÃ KÝ (đặc tả dòng 92).

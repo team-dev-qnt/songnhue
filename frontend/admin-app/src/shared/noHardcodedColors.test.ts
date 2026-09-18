@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
-import * as tokens from 'design-tokens';
+import * as tokens from '@songnhue/design-tokens';
 import { describe, expect, it } from 'vitest';
 
 import { boChuThich } from '../testsupport/boChuThich';

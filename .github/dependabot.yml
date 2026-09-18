@@ -37,6 +37,11 @@ updates:
   #   của lượt chạy THẬT đầu tiên đều đỏ**. Cấu hình ⛔ sai cú pháp, nó chỉ chưa
   #   bao giờ được chạy — đúng hình dạng luật 7.
   #
+  # ⭐ 18/09 (T63.2): gói nội bộ đã đổi tên sang `@songnhue/design-tokens` — một phạm
+  #   vi ta sở hữu, nên npm ⛔ thể tìm thấy gói cùng tên trên kho công khai và một lượt
+  #   cài sai là lượt cài ĐỎ. Dòng `ignore` bên dưới **vẫn giữ**: nó chặn Dependabot đề
+  #   nghị nâng chính gói của ta, việc ấy ⛔ liên quan tới chuyện đổi tên.
+  #
   # ⛔⛔ `ignore` bên dưới là **chống nhầm gói**, ⛔ phải để đỡ ồn. `design-tokens`
   #   là gói NỘI BỘ của workspace (`frontend/design-tokens`, `private: true`,
   #   phiên bản `0.1.0`) — mà trên npm công khai **có một gói CÙNG TÊN của người
@@ -53,7 +58,7 @@ updates:
       day: monday
     open-pull-requests-limit: 3
     ignore:
-      - dependency-name: design-tokens
+      - dependency-name: "@songnhue/design-tokens"
     groups:
       react:
         patterns: ["react", "react-dom", "@types/react*"]

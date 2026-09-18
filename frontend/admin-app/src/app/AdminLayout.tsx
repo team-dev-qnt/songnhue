@@ -19,7 +19,7 @@ import { useAuth } from '@/app/auth/useAuth';
 import { MENU, findMenuKey, visibleMenu, type MenuNode } from '@/app/menu';
 import { type TomTatCauHinhView } from '@/shared/api-types';
 import { api } from '@/shared/apiClient';
-import { neutralColors, sizing } from 'design-tokens';
+import { neutralColors, sizing } from '@songnhue/design-tokens';
 
 const { Header, Sider, Content } = Layout;
 

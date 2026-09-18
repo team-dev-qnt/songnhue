@@ -176,7 +176,17 @@ jobs:
           #   lỗ §10.63 (bảy context bắt buộc khoá chết mọi PR chỉ sửa tài liệu). Sổ đã có
           #   job `tracking` riêng, chạy ~10 giây và cố ý KHÔNG có bộ lọc nào.
           if [ -n "$changed" ]; then
-            grep -qE '^(backend/|frontend/|deploy/|docs/|\.github/|\.claude/function-spec\.md)'  <<< "$changed" || backend=false
+          # ⚠⚠ Vế backend bao CẢ `tools/` (18/9, T63.21):
+          #
+          #      KichBanTaiThuTest  →  tools/tai-thu/*.js
+          #
+          #   Nó canh *mọi chỉ số khai trong kịch bản tải phải có một NGƯỠNG* — vì k6 chỉ
+          #   thoát 99 khi một NGƯỠNG bị vượt, nên một chỉ số không ngưỡng không bao giờ
+          #   làm lượt đo đỏ trong khi đọc lên thì y hệt một cam kết đang được canh.
+          #   Thiếu `tools/` ở đây thì sửa chính kịch bản tải KHÔNG kích hoạt job backend,
+          #   tức bộ canh không chạy đúng lúc thứ nó canh thay đổi — và `skipped` được tính
+          #   là ĐẠT (luật 24). Đây là lần thứ SÁU cùng hình dạng luật 28 trong dự án.
+            grep -qE '^(backend/|frontend/|deploy/|docs/|tools/|\.github/|\.claude/function-spec\.md)'  <<< "$changed" || backend=false
             grep -qE '^(backend/|frontend/|deploy/|\.github/workflows/)' <<< "$changed" || frontend=false
           fi
 

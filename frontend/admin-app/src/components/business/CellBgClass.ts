@@ -1,5 +1,5 @@
 import { Extension } from '@tiptap/react';
-import { CELL_BG_CLASSES } from 'design-tokens/editor-schema';
+import { CELL_BG_CLASSES } from '@songnhue/design-tokens/editor-schema';
 
 /**
  * Màu nền ô bảng bằng **class** — T41.15, yêu cầu ĐÃ KÝ (đặc tả dòng 98).

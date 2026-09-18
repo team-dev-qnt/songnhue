@@ -19,7 +19,12 @@ import {
   message,
 } from 'antd';
 import { type ColumnsType } from 'antd/es/table';
-import { alertLevelColorTokens, laKhoaMauHopLe, mauMucCanhBao, neutralColors } from 'design-tokens';
+import {
+  alertLevelColorTokens,
+  laKhoaMauHopLe,
+  mauMucCanhBao,
+  neutralColors,
+} from '@songnhue/design-tokens';
 import { useState } from 'react';
 
 import { useAuth } from '@/app/auth/useAuth';

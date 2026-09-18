@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Empty, Spin } from 'antd';
-import { brandColors } from 'design-tokens';
+import { brandColors } from '@songnhue/design-tokens';
 import L from 'leaflet';
 import { useEffect, useRef } from 'react';
 

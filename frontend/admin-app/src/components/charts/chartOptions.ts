@@ -1,4 +1,4 @@
-import { statusColors, type StatusColorKey } from 'design-tokens';
+import { statusColors, type StatusColorKey } from '@songnhue/design-tokens';
 
 import { type StatusVocabulary } from '@/components/business/statusVocabulary';
 

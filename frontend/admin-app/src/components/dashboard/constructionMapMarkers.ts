@@ -1,5 +1,10 @@
 import L from 'leaflet';
-import { alertLevelColors, mauMucCanhBao, neutralColors, statusColors } from 'design-tokens';
+import {
+  alertLevelColors,
+  mauMucCanhBao,
+  neutralColors,
+  statusColors,
+} from '@songnhue/design-tokens';
 
 import { TRANG_THAI_TIN_HIEU, VAI_TRO_VI_TRI } from '@/features/hydro/hydroVocabulary';
 import { type StationMarkerView } from '@/shared/api-types';

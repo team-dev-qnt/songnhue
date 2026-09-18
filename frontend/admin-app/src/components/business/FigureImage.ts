@@ -1,6 +1,6 @@
 import { type Node as ProseMirrorNode } from '@tiptap/pm/model';
 import { Node, mergeAttributes } from '@tiptap/react';
-import { IMAGE_WIDTH_CLASSES } from 'design-tokens/editor-schema';
+import { IMAGE_WIDTH_CLASSES } from '@songnhue/design-tokens/editor-schema';
 
 /**
  * Ảnh trong bài **kèm chú thích** — CN-01.1 yêu cầu "ảnh inline (căn lề, caption)".

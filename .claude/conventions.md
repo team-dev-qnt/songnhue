@@ -119,6 +119,27 @@ admin-app/src/
 - ⛔⛔ **Một cơ chế canh gác KHÔNG CHẠY ĐƯỢC phải nói ra bằng mã thoát khác 0. Cấm `exit 0` ở nhánh "thiếu công cụ".** *"Không kiểm được"* và *"kiểm rồi, sạch"* là hai kết luận khác nhau và phải trông khác nhau — một nhánh thoát 0 làm nơi gọi coi là ĐẠT và đi tiếp. Ba lần đã trả giá, cùng một hình dạng: `test_parse.py` `ImportError → sys.exit(0)` chạy xanh mà không kiểm gì trên mọi máy chưa dựng venv (T11.49) · `verify-no-keys.sh` thiếu `pg_restore` → `exit 0`, mà VPS staging không cài postgresql-client nên **mọi lượt triển khai từ 26/8** đều bỏ qua phép kiểm bảo mật duy nhất canh bản dump (T11.41) · `NginxSecurityHeadersTest` soi mỗi `admin-app` nên cổng công khai chạy không CSP (§10.61). Nếu buộc phải bỏ qua thì phải là một **quyết định có tên**, khai tường minh ở nơi gọi, không phải một nhánh im lặng trong script.
 - ⭐ **Thêm một job vào `ci.yml` thì phải thêm nó vào `needs` của `Cổng kiểm CI` và nâng ngưỡng `so_job`.** `dev` chỉ có **một** context bắt buộc là `Cổng kiểm CI` (§10.63 — bảy context khoá chết mọi PR chỉ sửa tài liệu), nên một job không nằm trong `needs` của nó là một job **không chặn được gì**. Đây không phải việc phải nhớ: `CiGateCoverageTest` đối chiếu **hai chiều** giữa danh sách job có thật và `needs`, và ngưỡng `so_job` chặn trường hợp khai báo hỏng làm cổng soi trên tập rỗng. Nghĩa là quên thì CI đỏ ngay — đừng hạ ngưỡng cho qua.
 
+### 1.5-c. Một con số nghiệm thu phải khai NGÀY ĐO và NGUỒN ĐO
+
+`DOD4.10`. Sổ ở **`docs/nghiem-thu-nfr.md`**, cổng là **`NghiemThuCoNguonDoTest`**.
+
+- **Nguồn hợp lệ**: `CI <run-id>` · `VPS-1` · `VPS-2` · `nguồn ngoài` · `CHƯA ĐO`.
+- ⛔⛔ **`máy dev` ⛔ phải một nguồn nghiệm thu.** `make ci-local` là cổng để *⛔ đẩy mã hỏng lên*,
+  ⛔ phải một phép đo. Ba thứ ở máy dev ⛔ dựng lại được điều kiện thật, và **cả ba đã gây sự cố**:
+  hai job chỉ sống trên runner (quét CVE · đóng gói image) · `.env.local` chỉ có ở máy · và **múi
+  giờ máy dev đúng bằng múi giờ sản phẩm** nên nó **giấu** hẳn một lớp lỗi (§11.27).
+- **Có số đo thì bắt buộc có ngày.** Một con số ⛔ ngày là con số ⛔ ai biết còn đúng ⛔ — `T51.0`:
+  một dòng số đo hết hạn trong `CLAUDE.md` lây sang **ba** agent cùng lúc, mỗi agent dựng sẵn một
+  lượt CI đỏ; họ ⛔ bịa, họ **chép một dòng sổ**.
+- **`CHƯA ĐO` là một câu khẳng định hợp lệ** (quy tắc 16) — thứ ⛔ hợp lệ là một hàng **im lặng**
+  về nguồn của nó.
+
+⚠ Bộ canh này bắt **chính người viết ra nó** ở lượt chạy đầu, theo **hai** cách khác nhau: bộ đọc
+bảng split thô theo `|` nên một ô ghi chú chứa `\|` của Markdown làm **mọi cột sau nó lệch một
+bậc** ⇒ nó tố cáo một hàng hoàn toàn đúng (luật 2 — *canh cấu trúc, đừng canh văn bản*); và sau khi
+vá xong, nó bắt một hàng **sai thật** mà chính tôi vừa viết — ô ghi chú nói *"con số này chỉ có ở
+máy dev nên ⛔ được ghi là đã đo"* trong khi ô Số đo vẫn mang con số ấy.
+
 ### 1.6. Cấu hình & kết nối — bắt buộc qua env
 
 - ⚠⚠⚠ **`${BIEN:?}` chỉ bảo đảm ⛔ RỖNG — nó ⛔ nói gì về ĐỊNH DẠNG lẫn ĐỘ DÀI.** Mọi chỗ giá trị ấy được nhúng vào một tệp cấu hình có **trần** đều là một quả mìn hẹn giờ. Ngày 17/09: `METRICS_BEARER_TOKEN` sinh đúng theo hướng dẫn (`openssl rand -hex 32` ⇒ **64 ký tự**) làm khoá `map` của nginx dài `"Bearer " + 64` = **71 byte**, vượt `map_hash_bucket_size` mặc định **64** ⇒ `[emerg]` ⇒ nginx ⛔ khởi động nổi ⇒ **cả site chết** (§11.27).

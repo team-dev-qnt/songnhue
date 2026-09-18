@@ -55,9 +55,13 @@ class CiPathFilterTest {
      * {@code .claude/function-spec.md}; nếu tiền tố này không có ở đây thì lớp canh sẽ không nhìn
      * thấy đường dẫn ấy, nên nó <b>không thể</b> báo rằng bộ lọc {@code ci.yml} đang bỏ sót — một bộ
      * canh mù đúng chỗ vừa mở ra.
+     *
+     * <p>⚠ {@code tools} vào danh sách 18/9/2026 cùng {@code KichBanTaiThuTest} (T63.21) — <b>lần thứ
+     * ba</b> đúng hình dạng ấy. Trước lượt này lớp canh mù trước cả thư mục {@code tools/}, trong đó có
+     * bộ đo tải NFR-02 và các script chạy trên máy chủ.
      */
     private static final Pattern DUONG_DAN_NGOAI =
-            Pattern.compile("\"((?:\\.github|\\.claude|deploy|frontend|docs)/[^\"]*)\"");
+            Pattern.compile("\"((?:\\.github|\\.claude|deploy|frontend|docs|tools)/[^\"]*)\"");
 
     /** Dòng quyết định vế `backend` trong `ci.yml`. */
     private static final Pattern BO_LOC_BACKEND =

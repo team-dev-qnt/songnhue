@@ -137,7 +137,7 @@
   cố ý KHÔNG được import — ta khai đúng phần đang dùng thay vì kéo cả tệp có `.column-resize-handle`
   cho một plugin không còn nạp.)
 
-  `min-width` đọc từ `TABLE_CELL_MIN_WIDTH_PX` của `design-tokens/editor-schema` — 80px, đo bằng
+  `min-width` đọc từ `TABLE_CELL_MIN_WIDTH_PX` của `@songnhue/design-tokens/editor-schema` — 80px, đo bằng
   fontTools trên Noto Sans 14px. `richTextEditorCss.test.ts` đòi con số ở đây khớp đúng hằng ấy.
 */
 .sn-editor__body th,

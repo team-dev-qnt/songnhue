@@ -1,5 +1,5 @@
 import { Editor } from '@tiptap/core';
-import { EDITOR_SAMPLE_HTML, EDITOR_TAGS } from 'design-tokens/editor-schema';
+import { EDITOR_SAMPLE_HTML, EDITOR_TAGS } from '@songnhue/design-tokens/editor-schema';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { EXTENSIONS_SOAN_THAO } from './editorExtensions';

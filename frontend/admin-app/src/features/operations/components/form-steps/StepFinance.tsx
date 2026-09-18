@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Col, Form, Input, InputNumber, Row, Select } from 'antd';
-import { brandColors } from 'design-tokens';
+import { brandColors } from '@songnhue/design-tokens';
 import { useParams } from 'react-router-dom';
 
 import { type ConstructionDocumentList } from '@/shared/api-types';

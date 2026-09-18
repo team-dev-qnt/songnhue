@@ -8,7 +8,7 @@ import { HEALTH_STATUS } from '@/components/business/statusVocabulary';
 import { type BackupStatusView, type HealthView } from '@/shared/api-types';
 import { api } from '@/shared/apiClient';
 import { formatAge, formatDateTime } from '@/shared/format';
-import { statusColors } from 'design-tokens';
+import { statusColors } from '@songnhue/design-tokens';
 
 /**
  * Trang chủ quản trị.

@@ -1,5 +1,5 @@
 import { Card, Tag, Tooltip, Typography } from 'antd';
-import { statusColors } from 'design-tokens';
+import { statusColors } from '@songnhue/design-tokens';
 
 import { KPI_TONE } from '@/components/business/statusVocabulary';
 import { formatNumber } from '@/shared/format';
