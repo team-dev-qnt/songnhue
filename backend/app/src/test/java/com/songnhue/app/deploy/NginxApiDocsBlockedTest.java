@@ -236,7 +236,7 @@ class NginxApiDocsBlockedTest {
     /**
      * Khai báo {@code location} của tệp chặn, tách thành {@code [bổ-từ, mẫu]}.
      *
-     * <p>Đọc được CẢ hai dạng — {@code location ~ <mẫu> {} và {@code location <tiền-tố> {} — vì bài
+     * <p>Đọc được CẢ hai dạng — {@code location ~ <mẫu> {}} và {@code location <tiền-tố> {}} — vì bài
      * tự kiểm phải dựng ra dạng thứ hai rồi chứng minh bộ canh từ chối nó. Bổ từ rỗng nghĩa là
      * tiền tố.
      */

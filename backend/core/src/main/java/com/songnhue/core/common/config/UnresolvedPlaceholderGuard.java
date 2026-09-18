@@ -41,7 +41,7 @@ public class UnresolvedPlaceholderGuard implements BeanPostProcessor, Ordered {
     /**
      * Chỉ khớp khi <b>toàn bộ</b> giá trị là một placeholder chưa thay thế.
      *
-     * <p>Cố ý không dùng {@code contains("${")}: mật khẩu hay chuỗi kết nối hoàn toàn có thể chứa ký
+     * <p>Cố ý không dùng <code>contains("${")</code>: mật khẩu hay chuỗi kết nối hoàn toàn có thể chứa ký
      * tự {@code $} một cách hợp lệ, chặn nhầm thì người dùng không hiểu vì sao app không lên. Còn
      * placeholder <i>có</i> giá trị mặc định ({@code ${FOO:8080}}) thì đã được thay thế từ trước nên
      * không lọt tới đây — thứ còn sót lại luôn là biến bắt buộc mà chưa ai đặt.

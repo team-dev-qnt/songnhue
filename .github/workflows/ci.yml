@@ -272,7 +272,7 @@ jobs:
       #   trước khi có gì được biên dịch, với thông báo trỏ vào `spotless:check`
       #   — một bước hoàn toàn vô can (§10.47).
       - name: Đệm bản phân phối Maven
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.m2/wrapper
           key: mvnw-${{ runner.os }}-${{ hashFiles('backend/.mvn/wrapper/maven-wrapper.properties') }}
