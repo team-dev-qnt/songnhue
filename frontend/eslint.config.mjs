@@ -208,6 +208,27 @@ export default tseslint.config(
     },
   },
 
+  // ⛔⛔ API bị KHAI TỬ — WS-67 (antd 5 → 6). Luật này cần THÔNG TIN KIỂU (`projectService`),
+  // nên nó biết `message` của `<Alert>` là khai tử còn `message` của thứ khác thì ⛔ — thứ mà
+  // mọi phép grep đều ⛔ phân biệt được. Chính nó đã đo ra phạm vi thật của lượt nâng: 252 chỗ /
+  // 88 tệp / 15 loại, trong khi hai lượt khảo sát bằng grep trước đó sót cả `optionFilterProp`
+  // (16) lẫn `type` của Divider (11). Sau lượt nâng: 0 — và luật giữ nó ở 0, để prop khai tử
+  // ⛔ lặng lẽ tích lại tới ngày antd 7 GỠ chúng.
+  //
+  // ⚠ Giới hạn (luật 28): luật ⛔ thấy KHOÁ trong đối tượng (VD `items={[{ label, children }]}`
+  //   của Timeline — khai tử ở antd 6 mà ⛔ báo); lượt nâng đã sửa tay 4 chỗ ấy. Chỉ phủ
+  //   `admin-app`: `public-web` ⛔ dùng antd.
+  // ⚠ Giá: lint chậm hơn vì phải dựng chương trình TypeScript — đo 18/09 ở commit WS-67 · C.
+  {
+    files: ['admin-app/src/**/*.{ts,tsx}'],
+    languageOptions: {
+      parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname + '/admin-app' },
+    },
+    rules: {
+      '@typescript-eslint/no-deprecated': 'error',
+    },
+  },
+
   // Đặt cuối cùng: tắt các rule style xung đột với Prettier
   prettier,
 );

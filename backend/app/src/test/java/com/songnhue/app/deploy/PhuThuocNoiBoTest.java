@@ -70,8 +70,85 @@ import tools.jackson.databind.ObjectMapper;
  *
  * <p>⛔ Phép đo sau lượt đổi: {@code node_modules/@songnhue/design-tokens → link: true,
  * resolved: design-tokens}, và {@code node_modules/design-tokens} <b>⛔ còn tồn tại</b>.
+ *
+ * <h2>⛔⛔ Hình dạng thứ hai cùng nằm ở lockfile — HAI bản React (WS-67)</h2>
+ *
+ * PR #149 (React 18 → 19, CI #322) đỏ 44/83 tệp kiểm với <i>"Objects are not valid as a React
+ * child"</i>. Mã ứng dụng ⛔ sai dòng nào: lockfile giữ {@code node_modules/react} 18.3.1 ở gốc (cờ
+ * {@code peer}) và lồng 19.3.0 dưới từng app, nên mọi gói hoist ở gốc — {@code @testing-library/react},
+ * {@code react-router}, {@code react-query} — vẽ bằng React 18 những phần tử React 19 dựng ra. Lượt
+ * {@code npm install} đầu của WS-67 <b>tái hiện đúng hình dạng ấy</b>, và cả hai lần nó đều lặng lẽ
+ * ở tầng cài đặt: {@code npm install} thoát 0.
+ *
+ * <p>⇒ {@link #moiGoiLoiChiMotBan()} đòi mỗi gói trong {@link #GOI_MOT_BAN} có <b>đúng một</b> khoá
+ * trong lockfile, và khoá ấy ở gốc. {@code @ant-design/cssinjs} có mặt vì một lý do riêng: bộ kiểm
+ * FE bọc {@code StyleProvider} của nó (xem {@code admin-app/src/testsupport/setup.ts}), mà hai bản
+ * thì context của bản này antd ⛔ đọc — bọc vẫn chạy, ⛔ tác dụng gì.
  */
 class PhuThuocNoiBoTest {
+
+    /** Gói mà HAI bản cùng lúc là khuyết tật — ⛔ phải "trùng lặp cho nặng máy". */
+    private static final List<String> GOI_MOT_BAN =
+            List.of("react", "react-dom", "scheduler", "@types/react", "@types/react-dom", "@ant-design/cssinjs");
+
+    @Test
+    @DisplayName("⭐⭐ React, react-dom, @types/react… mỗi gói ĐÚNG MỘT bản trong lockfile, ở gốc (WS-67 · #149)")
+    void moiGoiLoiChiMotBan() {
+        String lock = doc(timTuGocKho("frontend/package-lock.json"));
+
+        assertThat(goiNhieuBan(lock, GOI_MOT_BAN))
+                .as(
+                        """
+                        Những gói sau ⛔ có đúng một bản ở gốc `frontend/node_modules`:
+
+                        %s
+
+                        Hai bản React là chữ ký của PR #149 (CI #322): phần tử React 19 do ứng dụng \
+                        dựng bị React 18 của các gói hoist ở gốc vẽ ⇒ "Objects are not valid as a React \
+                        child". Cách sửa: nâng CÙNG MỘT phiên bản ở mọi workspace trong một lượt, rồi \
+                        `npm dedupe` ở `frontend/`. Nếu dedupe báo ERESOLVE thì có một lệch peer khác \
+                        đang chặn (WS-67 gặp đúng chuyện ấy với @tiptap/*).""",
+                        String.join("\n", goiNhieuBan(lock, GOI_MOT_BAN)))
+                .isEmpty();
+    }
+
+    @Test
+    @DisplayName("⭐ Tự kiểm chứng: lockfile HAI bản React đúng hình dạng #149 PHẢI bị bắt; một bản thì sạch")
+    void tuKiemMotBan() {
+        // Đúng hình dạng npm ghi ra ở #149 và ở lượt `npm install` đầu của WS-67.
+        String lockHaiBan =
+                """
+                {
+                  "packages": {
+                    "node_modules/react": { "version": "18.3.1", "peer": true },
+                    "admin-app/node_modules/react": { "version": "19.3.0" },
+                    "public-web/node_modules/react": { "version": "19.3.0" },
+                    "node_modules/react-dom": { "version": "19.3.0" }
+                  }
+                }
+                """;
+        Set<String> batDuoc = goiNhieuBan(lockHaiBan, List.of("react", "react-dom"));
+        assertThat(batDuoc)
+                .as("Lockfile mang ba khoá react mà phép phân tích ⛔ bắt")
+                .hasSize(1);
+        assertThat(batDuoc.iterator().next())
+                .as("react-dom có đúng một bản ở gốc — ⛔ được bị gọi tên")
+                .startsWith("react — ");
+
+        // Vế đối chứng (luật 9): một bản ở gốc ⇒ sạch.
+        String lockMotBan =
+                """
+                { "packages": { "node_modules/react": { "version": "19.3.0" } } }
+                """;
+        assertThat(goiNhieuBan(lockMotBan, List.of("react"))).isEmpty();
+
+        // Vế thứ ba: một bản mà chỉ LỒNG, ⛔ ở gốc — vẫn là ca hỏng (gói hoist ở gốc ⛔ thấy nó).
+        String lockChiLong =
+                """
+                { "packages": { "admin-app/node_modules/react": { "version": "19.3.0" } } }
+                """;
+        assertThat(goiNhieuBan(lockChiLong, List.of("react"))).hasSize(1);
+    }
 
     @Test
     @DisplayName(
@@ -263,6 +340,30 @@ class PhuThuocNoiBoTest {
             // thái ta muốn, nên cả hai rơi vào cùng một nhánh.
             if (!muc.path("link").asBoolean(false)) {
                 lech.add(ten);
+            }
+        }
+        return lech;
+    }
+
+    /**
+     * Gói trong {@code ten} mà lockfile ⛔ giữ đúng một khoá ở gốc — mỗi dòng mang danh sách khoá thật.
+     *
+     * <p>So theo <b>khoá</b> của {@code packages} (đường dẫn cài đặt), ⛔ theo phiên bản: hai khoá cùng
+     * phiên bản vẫn là hai bản React trong bộ nhớ.
+     */
+    private static Set<String> goiNhieuBan(String lockJson, List<String> ten) {
+        JsonNode goi = new ObjectMapper().readTree(lockJson).path("packages");
+        Set<String> lech = new TreeSet<>();
+        for (String t : ten) {
+            List<String> khoa = new ArrayList<>();
+            for (String k : goi.propertyNames()) {
+                if (("node_modules/" + t).equals(k) || k.endsWith("/node_modules/" + t)) {
+                    khoa.add("%s@%s".formatted(k, goi.path(k).path("version").asString("?")));
+                }
+            }
+            boolean motBanOGoc = khoa.size() == 1 && khoa.get(0).startsWith("node_modules/" + t + "@");
+            if (!motBanOGoc) {
+                lech.add("%s — %s".formatted(t, khoa.isEmpty() ? "⛔ vắng mặt" : String.join(" · ", khoa)));
             }
         }
         return lech;

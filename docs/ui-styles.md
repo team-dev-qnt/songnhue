@@ -1,7 +1,7 @@
 # Quy chuẩn UI Styles — Sông Nhuệ
 
 > Tài liệu này là **nguồn tham chiếu duy nhất** khi viết hoặc sửa CSS/theme/styling cho cả
-> `admin-app` (Vite + AntD 5) lẫn `public-web` (Next.js + Tailwind 4). Mọi quyết định
+> `admin-app` (Vite + AntD 6) lẫn `public-web` (Next.js + Tailwind 4). Mọi quyết định
 > về màu sắc, font, spacing, animation và cấu trúc layout đều phải nhất quán với các quy tắc dưới đây.
 
 ---

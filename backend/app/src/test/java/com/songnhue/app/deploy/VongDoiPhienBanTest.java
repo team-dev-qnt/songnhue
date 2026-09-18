@@ -89,6 +89,9 @@ class VongDoiPhienBanTest {
                         "backend/app/src/test/java/com/songnhue/app/testsupport/SongnhuePostgres.java"));
         m.put("nginx", List.of("deploy/compose.prod.yml", "deploy/docker/admin-app.Dockerfile"));
         m.put("next", List.of("frontend/public-web/package.json"));
+        // WS-67: React ghim ở CẢ HAI app — lệch nhau là đúng hình dạng hai bản React của PR #149.
+        m.put("react", List.of("frontend/admin-app/package.json", "frontend/public-web/package.json"));
+        m.put("antd", List.of("frontend/admin-app/package.json"));
         return m;
     }
 
