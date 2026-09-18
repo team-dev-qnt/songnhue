@@ -128,6 +128,14 @@ public class BaoCaoNhanhService {
 
     @Transactional(readOnly = true)
     public BaoCaoNhanh get(UUID publicId) {
+        return tim(publicId);
+    }
+
+    /**
+     * ⛔ KHÔNG {@code @Transactional}: mọi hàm trong lớp gọi hàm này, ⛔ gọi {@link #get} — tự gọi một
+     * hàm {@code @Transactional} của chính lớp mình đi vòng qua proxy (SilentFailureRuleTest).
+     */
+    private BaoCaoNhanh tim(UUID publicId) {
         return baoCao.findByPublicIdAndDeletedAtIsNull(publicId)
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
     }
@@ -242,7 +250,7 @@ public class BaoCaoNhanhService {
     /** Mở lại — {@code requires_reason = TRUE}: thiếu lý do thì engine ném {@code SYS-0003}. */
     @Transactional
     public BaoCaoNhanh moLai(UUID publicId, String lyDo) {
-        BaoCaoNhanh bc = get(publicId);
+        BaoCaoNhanh bc = tim(publicId);
         return workflow.execute(bc, "MO_LAI", "Mở lại Báo cáo nhanh", lyDo);
     }
 
@@ -250,7 +258,7 @@ public class BaoCaoNhanhService {
 
     @Transactional(readOnly = true)
     public ChiTiet chiTiet(UUID publicId) {
-        BaoCaoNhanh bc = get(publicId);
+        BaoCaoNhanh bc = tim(publicId);
         BangCoMayBom bang = danhMuc.bangCo();
 
         List<DongVanHanh> dong = bc.daChot() ? query.anhChup(bc.getId()) : dongSong(bc.getId());
@@ -334,7 +342,7 @@ public class BaoCaoNhanhService {
     // ==== Nội bộ ============================================================
 
     private BaoCaoNhanh choPhepSua(UUID publicId) {
-        BaoCaoNhanh bc = get(publicId);
+        BaoCaoNhanh bc = tim(publicId);
         if (bc.daChot()) {
             throw new BusinessRuleException(ErrorCode.OPS_2029);
         }

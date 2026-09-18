@@ -512,6 +512,9 @@ Bản nháp `JdbcTemplateDem extends JdbcTemplate` **đếm ra 0 dù bean ĐÃ b
 ⚠ `dem()` lấy **max** chứ ⛔ cộng (một câu lệnh Hibernate nay được cả hai bộ đếm ghi nhận).
 ⭐ **Nợ a11y `T63.9`: 34 → 16** — mười lăm nút có tên trong đợt này, **tất cả** lộ ra vì cùng một lý do: bài vòng khứ hồi cần
 bấm nút *Sửa* và ⛔ có cách nào gọi tên nó. Nợ ấy ⛔ phải chuyện thẩm mỹ — nó **chặn việc viết bài kiểm**.
+⭐⭐ **18/09: vế BÁO CÁO NHANH của `T63.11` dựng xong — WS-66** (danh mục máy bơm · kỳ báo cáo chốt/mở lại ·
+xuất Word điền thẳng vào mẫu Công ty, 0 phụ thuộc mới). Tài liệu về ⛔ đảo chốt nào ⇒ **vế tưới tiêu vẫn
+PENDING**. Open issue gửi Công ty: `T66.8`.
 ⬜⬜ **`T63.11` — QuanTran đang soạn tài liệu BÁO CÁO + TƯỚI TIÊU (17/09), PENDING.** ⛔ đoán trước, ⛔ tự chế bố cục. ⛔⛔ Vế
 **tưới tiêu ⛔ phải một khoảng trống — nó là vùng đã bị CẮT có chủ đích** (chốt **A1 · B5 · F3 · G2**), và kho đang khai điều
 ngược lại ở **năm** chỗ đo được (`BC_04` `khaDung=false` + `OPS-2023` *"bỏ vĩnh viễn"* · `BC-07` bỏ · trường *Diện tích tưới
@@ -784,6 +787,8 @@ là **nhập được ngay**. Thư gửi Công ty gộp cả ba: `docs/de-nghi-c
   6 mã Công ty ghi *"Chưa rõ"* giữ NULL. ⛔⛔ **Toạ độ vẫn 0/19** (bản chụp không có cột ấy) ⇒ **lớp
   GIS điểm đo vẫn RỖNG** và G8 vẫn chặn **nghiệm thu** C3. ⚠ `F01519` Lương Cổ đổi **TL → HL** theo
   bản chụp (hai nguồn của Công ty lệch đúng 1/19 dòng — đã đưa vào thư hỏi lại).
+  ⛔ **Đính chính 18/09/2026: câu trên HẾT ĐÚNG** — mẫu Báo cáo nhanh là nguồn thứ ba và ghi TL;
+  QuanTran chốt đổi về **THƯỢNG LƯU** (`V202609181085`, `architecture-review.md` §12.2).
   ⭐ **Nhưng nó ⛔ không còn chặn LẬP TRÌNH**: có nút *"Nhập vị trí từ tệp"* (`/hyd/stations/import`)
   kèm tệp mẫu ⇒ ngày Công ty gửi bảng toạ độ là **upload xong ngay** (T42.20).
 - ⭐ **Mã số API thuỷ văn ĐÃ CHẠY** (đo 09/09 trên nguồn thật): có `;` ⇒ **28 bản ghi**, thiếu `;` ⇒

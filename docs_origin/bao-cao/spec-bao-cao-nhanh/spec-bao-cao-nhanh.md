@@ -197,3 +197,20 @@ Tương tự: bảng chung toàn Thành phố (37 điểm đo), Công ty Sông N
 - [ ] Phụ lục 2 (Bảng 3, 4) chỉ điền đúng phần dữ liệu thuộc Công ty Sông Nhuệ, không tự bịa số cho hệ thống sông của công ty khác.
 - [ ] Bảng 3 lấy đúng giá trị tức thời tại giờ kết thúc kỳ báo cáo (không cộng dồn); Bảng 4 lấy đúng tổng cộng dồn trong cả khung giờ báo cáo (không phải giá trị tức thời) — không lẫn 2 cách tính.
 - [ ] Không dùng số liệu mẫu trong file `Mẫu Báo cáo nhanh.docx` (97 trạm/396 máy, 15mm mưa, 20/20/40ha...) làm dữ liệu thật ở bất kỳ đâu trong code hay dữ liệu test cuối cùng.
+
+---
+
+## Phụ lục — Đối chiếu với kho mã (18/09/2026, WS-66)
+
+Phần trên giữ nguyên văn bản BA. Những chỗ dưới đây **đo được là lệch** khi dựng; bản dựng đi theo cột "Kho làm":
+
+| Mục spec | Spec ghi | Đo được | Kho làm |
+|---|---|---|---|
+| §2 nguồn Bảng 2 | "211 trạm, 1.011 máy" | con số ấy đọc từ sheet `Trạm bơm` (tự lệch: cộng dòng ra 1.025). Bảng 2 của mẫu khớp 1:1 sheet **`TB Tiêu (KH)`** — 178 trạm / 830 máy | nhập theo `TB Tiêu (KH)` (OI-BC9) |
+| §4.1 phân cỡ | `Sheet3` là "bảng phân loại chuẩn" | `Sheet3` **rỗng**; 35/830 máy ⛔ thuộc cột nào theo nhãn | 9 cỡ biên đề xuất, sửa được (OI-BC8) |
+| §4.2 loại dòng | 2 loại | 3 loại — dòng ⛔ số TT mà **có tên** là một trạm khác (`Ngọ Xá II`, `Xém (mới)`…) | mỗi trạm một công trình |
+| §6 Bảng 4 | "lấy tự động" | ⛔ điểm đo mưa nào (G3-a) | để TRỐNG kèm lý do (OI-BC15) |
+| tên bảng | `wl_reading` · `rain_reading` · `hydro_station` | ⛔ tồn tại | `hydro_readings` · `stations` (lọc `HOP_LE`) |
+| Bảng 3 Lương Cổ | — | mẫu ghi TL có số | `F01519` đổi về Thượng lưu (`V202609181085`) |
+
+Open issue mới: OI-BC8 → OI-BC16 ở `.claude/master-tracking.md` T66.8.

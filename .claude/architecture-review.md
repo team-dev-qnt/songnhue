@@ -7306,3 +7306,32 @@ Bánh cóc: ghim `env: { TZ: 'UTC' }` ở cả hai cấu hình vitest ⇒ lượ
 điều kiện runner; đo được là có hiệu lực (cùng bản phá, chạy ở `TZ=+07` nay **ĐỎ**). ⛔ Cố ý
 **⛔ ghim `Asia/Ho_Chi_Minh`**: ghim vào đúng múi giờ của sản phẩm là làm cả lớp lỗi ấy **vô
 hình trở lại**.
+
+### §12.2 Báo cáo nhanh — ba quyết định và một quyết định bị đảo (WS-66, 18/9/2026)
+
+**(a) F01519 Lương Cổ về THƯỢNG LƯU — đảo chốt 09/09 (`V202609091073` → `V202609181085`).** Ngày
+09/09 hai nguồn của Công ty lệch nhau đúng một dòng và ta lấy bản chụp (HA_LUU). Mẫu Báo cáo nhanh
+18/09 là **nguồn thứ ba**: dòng `TL (nhuệ)` có số, `HL (đáy)` trống. Và bản chụp **tự mâu thuẫn trong
+cùng một hàng** — nó gắn `Sông Nhuệ` cho một vế hạ lưu, trong khi hạ lưu cống Lương Cổ đổ ra sông
+Đáy. ⇒ Đổi về TL, giữ `river_name`/lý trình (vốn đúng với vế TL). ⚠ Bài học lặp lại §11.18: chữ
+*"đã chốt"* trong một migration ⛔ làm dữ liệu đúng lên; và đổi vai trò điểm đo phải đổi **cả**
+`station_constructions.role` (bản ghi chính trùng `position_role` — A2b), nếu không hai cột nói hai
+điều mà ⛔ màn hình nào báo.
+
+**(b) Xuất .docx bằng JDK, ⛔ thư viện — trả lời T42.14 cho RIÊNG mẫu Word này.** Mẫu có sẵn dàn
+trang (379 ô gộp, khối ký, phông); việc là *đặt chữ vào ô cố định*, ⛔ *sinh văn bản*. `DocxFiller`
+(`core/common/export`) mở ZIP, sửa đúng `word/document.xml`, chép nguyên byte mọi entry khác. Định vị
+ô theo **chỉ số** (Word cắt một cụm ngày giờ thành tới 12 run tuỳ lịch sử soạn thảo ⇒ tìm theo chuỗi
+sẽ trượt im lặng); ngày giờ ngoài ô thì thay ở mức **đoạn**, và mỗi cụm khẳng định **đúng số lần
+thay** ⇒ mẫu đổi thì đỏ. Toạ độ ô gắn với một bản mẫu ⇒ bộ canh vân tay SHA-256 + hình học. PDF/XLSX
+vẫn chờ mẫu thật — ⛔ suy từ quyết định này ra "đã chọn xong bộ kết xuất".
+
+**(c) Kỳ đã chốt là ẢNH CHỤP, ⛔ khoá ngoại ghép.** Bản nháp plan ép "vận hành ≤ thiết kế" bằng khoá
+ngoại ghép `(nhom_may_id, so_may)` sang danh mục. Nó đúng về ràng buộc mà sai về vòng đời: Công ty
+sửa số máy của một trạm ⇒ mọi kỳ cũ trỏ vào chặn lượt sửa; và nếu nới bằng `ON UPDATE CASCADE` thì
+văn bản **đã gửi UBND** lặng lẽ đổi số. ⇒ Lượt CHỐT chụp số thiết kế + Q vào bảng của kỳ, CHECK ép
+bất biến trên chính ảnh chụp; kỳ đang nhập đọc danh mục sống.
+
+**(d) Q lưu m³/h, ⛔ tái dùng `flow_per_pump_m3s`.** Vòng khứ hồi qua m³/s ba lẻ làm sai 801/830 máy,
+trong khi tổng chỉ lệch −240/2.554.152 vì sai số **triệt tiêu nhau** ⇒ một phép kiểm "tổng có khớp
+⛔" ⛔ bao giờ đỏ. Đơn vị nào là đơn vị của **văn bản** thì lưu đúng đơn vị ấy.

@@ -1731,3 +1731,134 @@ export interface MucBaoCaoView {
   khaDung: boolean;
   lyDo: string | null;
 }
+
+// =============================================================================
+// Báo cáo nhanh (18/09/2026) — khớp `DanhMucMayBomController` + `BaoCaoNhanhDtos` từng trường
+// =============================================================================
+
+/** Một cỡ máy của Bảng 1 — nửa mở `[qTu, qDen)` m³/h; `null` = vô cực. */
+export interface CoMayView {
+  publicId: string;
+  nhan: string;
+  qTu: number | null;
+  qDen: number | null;
+  thuTu: number;
+}
+
+/** Một nhóm máy của một trạm bơm — `coMay` do BE xếp (quy tắc 3). */
+export interface NhomMayView {
+  publicId: string;
+  constructionPublicId: string;
+  maCongTrinh: string;
+  tenCongTrinh: string;
+  tenDonVi: string | null;
+  nguonTuoiHuongTieu: string | null;
+  soMay: number;
+  qMotMayM3h: number;
+  coMay: string;
+}
+
+export type TrangThaiBaoCaoNhanh = 'NHAP' | 'DA_CHOT';
+
+export interface BaoCaoNhanhKyView {
+  publicId: string;
+  tuThoiDiem: string;
+  denThoiDiem: string;
+  trangThai: TrangThaiBaoCaoNhanh;
+  lyDoMoLai?: string | null;
+  createdAt: string;
+}
+
+/** `soMayVanHanh = null` = CHƯA NHẬP — khác 0 (quy tắc 16). */
+export interface BcnNhomView {
+  nhomMayPublicId: string;
+  soMayThietKe: number;
+  qMotMayM3h: number;
+  coMay: string;
+  soMayVanHanh: number | null;
+}
+
+export interface BcnTramView {
+  constructionPublicId: string;
+  ten: string;
+  nguonTuoiHuongTieu: string | null;
+  nhom: BcnNhomView[];
+}
+
+export interface BcnKhoiView {
+  tenDonVi: string | null;
+  tongMayThietKe: number;
+  tram: BcnTramView[];
+}
+
+export interface BcnBang1View {
+  tongTram: number;
+  tongMay: number;
+  theoCo: number[];
+  tongLuuLuongM3h: number;
+}
+
+export interface BcnMuc1View {
+  tongTram: number | null;
+  tongMay: number | null;
+  tongLuuLuongM3h: number | null;
+}
+
+export interface BcnYenNghiaView {
+  trangThai: 'CHUA_CO_TRONG_DANH_MUC' | 'CHUA_NHAP' | 'KHONG_VAN_HANH' | 'VAN_HANH';
+  cau: string | null;
+  soMay: number | null;
+  luuLuongM3s: number | null;
+}
+
+/** `lyDo` khác null ⇔ ô trống — nói VÌ SAO (⛔ có điểm đo / ⛔ có số đo 24h). */
+export interface BcnMucNuocView {
+  nhan: string;
+  apiCode: string | null;
+  giaTriM: number | null;
+  mocDo: string | null;
+  dungMoc: boolean | null;
+  lyDo: string | null;
+}
+
+export interface BcnDongBang3View {
+  nhanCong: string;
+  lyTrinh: string;
+  tl: BcnMucNuocView;
+  hl: BcnMucNuocView;
+}
+
+/** Chín ô một dòng Bảng 5 — ô trống là `null`, ⛔ 0. */
+export interface BcnChinO {
+  ngapTrangLua: number | null;
+  ngapTrangRau: number | null;
+  ngapTrangCong: number | null;
+  sauNuocLua: number | null;
+  sauNuocRau: number | null;
+  sauNuocCong: number | null;
+  tongLua: number | null;
+  tongRau: number | null;
+  tongCong: number | null;
+}
+
+export interface BcnDongBang5View {
+  xaPublicId: string;
+  ten: string;
+  thuTu: number;
+  o: BcnChinO;
+}
+
+export interface BaoCaoNhanhChiTiet {
+  ky: BaoCaoNhanhKyView;
+  hanhDong: AllowedActionView[];
+  coMay: string[];
+  bang2: BcnKhoiView[];
+  bang1SongNhue: BcnBang1View | null;
+  muc1: BcnMuc1View;
+  ghiChuYenNghia: BcnYenNghiaView;
+  bang3: BcnDongBang3View[];
+  bang4LyDo: string;
+  bang5: BcnDongBang5View[];
+  bang5CongTy: BcnChinO;
+  muc3: BcnChinO;
+}

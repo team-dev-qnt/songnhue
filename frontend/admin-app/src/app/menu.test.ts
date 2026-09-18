@@ -399,3 +399,29 @@ describe('hai mục C3 gác bằng quyền ops — CN-02.4 / CN-02.10', () => {
     expect(findMenuKey(MENU, '/van-hanh/bao-cao')).toBe('bao-cao-van-hanh');
   });
 });
+
+describe('Báo cáo nhanh + Danh mục máy bơm — 18/09/2026', () => {
+  it('⭐ `ops:report:view` mở Báo cáo nhanh; `ops:quick-report:manage` một mình thì ⛔ KHÔNG', () => {
+    // Quyền nhập/chốt gác NÚT (tầng 2), ⛔ gác TRANG — người chỉ được xem vẫn đọc được văn bản.
+    expect(leafLabels(visibleMenu(MENU, checker('ops:report:view')))).toContain('Báo cáo nhanh');
+    expect(leafLabels(visibleMenu(MENU, checker('ops:quick-report:manage')))).not.toContain(
+      'Báo cáo nhanh',
+    );
+  });
+
+  it('`ops:construction:view` mở Danh mục máy bơm', () => {
+    expect(leafLabels(visibleMenu(MENU, checker('ops:construction:view')))).toContain(
+      'Danh mục máy bơm',
+    );
+    expect(leafLabels(visibleMenu(MENU, checker('ops:report:view')))).not.toContain(
+      'Danh mục máy bơm',
+    );
+  });
+
+  it('⛔ `/van-hanh/bao-cao-nhanh/…` tô sáng Báo cáo nhanh, ⛔ Báo cáo vận hành (tiền tố chung)', () => {
+    expect(findMenuKey(MENU, '/van-hanh/bao-cao-nhanh')).toBe('bao-cao-nhanh');
+    expect(findMenuKey(MENU, '/van-hanh/bao-cao-nhanh/3f2a')).toBe('bao-cao-nhanh');
+    expect(findMenuKey(MENU, '/van-hanh/bao-cao')).toBe('bao-cao-van-hanh');
+    expect(findMenuKey(MENU, '/van-hanh/may-bom')).toBe('may-bom');
+  });
+});

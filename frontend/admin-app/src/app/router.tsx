@@ -236,6 +236,24 @@ export const router = createBrowserRouter([
             lazyPage(() => import('@/features/operations/BaoCaoVanHanhPage'), 'BaoCaoVanHanhPage'),
           ),
           adminRoute(
+            '/van-hanh/bao-cao-nhanh',
+            'ops:report:view',
+            lazyPage(() => import('@/features/operations/BaoCaoNhanhPage'), 'BaoCaoNhanhPage'),
+          ),
+          adminRoute(
+            '/van-hanh/bao-cao-nhanh/:publicId',
+            'ops:report:view',
+            lazyPage(
+              () => import('@/features/operations/BaoCaoNhanhChiTietPage'),
+              'BaoCaoNhanhChiTietPage',
+            ),
+          ),
+          adminRoute(
+            '/van-hanh/may-bom',
+            'ops:construction:view',
+            lazyPage(() => import('@/features/operations/DanhMucMayBomPage'), 'DanhMucMayBomPage'),
+          ),
+          adminRoute(
             '/van-hanh/cong-trinh/tao-moi',
             'ops:construction:create',
             lazyPage(
