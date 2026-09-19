@@ -3,6 +3,7 @@
 > Lập ngày 2026-08-12. Căn cứ: Công ty phản hồi *"Đề xuất format mẫu báo cáo để công ty xây dựng"* (BOQ E3).
 > **Mức độ chi tiết**: đây là **khung + danh mục + trường dữ liệu** đủ để Công ty duyệt và dựng file mẫu. **Layout chi tiết (căn lề, font, vị trí ô, công thức Excel) sẽ làm khi vào Phase phát triển module tương ứng** — không làm trước để tránh phải sửa lại khi nghiệp vụ thay đổi.
 > Trạng thái: ⬜ **chờ Công ty duyệt** (câu hỏi G10 trong `business-open-questions.md`).
+> ⚠ **Ngoài đề xuất này (18/9/2026)**: *Báo cáo nhanh chống úng* đi theo **mẫu Word thật của Công ty**, ⛔ theo khung ở đây — `function-spec.md` CN-02.12. Nó ⛔ đóng G10: các mã dưới đây vẫn chờ duyệt/mẫu.
 
 ---
 

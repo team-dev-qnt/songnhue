@@ -7357,9 +7357,9 @@ thì ⛔ ai trả lời được *"số này từ đâu"*.
 **(g) Công ty trả lời open issue (19/09/2026, `docs_origin/bao-cao/spec-bao-cao-nhanh/xacnhan.md`).**
 Tám mục đồng ý phương án đang chạy (OI-BC1 · 2 · 5 · 6 · 7 · 12 · 15 · 16) ⇒ ⛔ đổi mã. Ba mục đổi thứ
 khác ngoài mã:
-- **OI-BC10** — Bảng 2 chia theo **7 Xí nghiệp của sheet `Trạm bơm`**, trạm vẫn lấy từ `TB Tiêu (KH)`
-  (OI-BC9). Khối Bảng 2 vốn đã suy từ đơn vị quản lý của công trình và xếp theo cây tổ chức ⇒ đây là
-  việc **nhập liệu** của Công ty, ⛔ phải mã.
+- **OI-BC10** — Bảng 2 chia theo **7 nhóm của sheet `Trạm bơm`**, trạm vẫn lấy từ `TB Tiêu (KH)`
+  (OI-BC9). Khối Bảng 2 suy từ đơn vị quản lý của công trình (`org_units`) — ⚠ **chỉ là việc nhập liệu
+  NẾU 7 nhóm ấy chính là 7 Xí nghiệp chính thức** (xem (h)).
 - **OI-BC11** — `F01771` thuộc **Sông Nhuệ** ⇒ dữ liệu điểm đo đứng nguyên; nhãn `TL (hồng)` trong mẫu
   là chữ của Công ty, ⛔ sửa.
 - **OI-BC17** — Công ty **cho nới** cột "Lúa" nhóm Tổng cộng ở Bảng 5. Chỗ nới đặt trong **mã xuất**
@@ -7379,3 +7379,25 @@ kia — nhãn là **cận dưới** (làm tròn xuống) — đổi cột của 
 ("4" → "2÷3", 11 máy). Biên là dữ liệu CRUD ⇒ nếu cách đọc sai thì Công ty sửa trên màn hình *Danh mục
 máy bơm*, ⛔ đợi deploy.
 OI-BC13 ⛔ được trả lời ⇒ giữ nguyên chữ của mẫu ở cả hai chỗ.
+
+**(h) Đính chính 19/09 — OI-BC10 cho một danh sách Xí nghiệp THỨ BA, và nó đụng quy tắc 7.** Đo ba
+nguồn của Công ty:
+
+| Nguồn | Danh sách |
+|---|---|
+| Bố cục cổng (OI-05, 27/08) | Liên Mạc · Từ Liêm · Hà Đông · Thanh Trì · Hồng Vân · Phú Xuyên · Ứng Hoà (7) |
+| Danh mục công trình (OI-05) | 7 ở trên + Nhật Tựu (8) |
+| Sheet `Trạm bơm` (OI-BC10, 19/09) | Thanh Trì · Thường Tín · Phú Xuyên · Ứng Hoà · Bắc Từ Liêm · Nam Từ Liêm · Hoài Đức (7) |
+
+Trùng nhau đúng 3 tên. Bốn tên còn lại của sheet `Trạm bơm` là **tên huyện** (Hồng Vân nằm ở Thường
+Tín; Yên Nghĩa của XNTL Hà Đông được xếp vào Hoài Đức; Từ Liêm tách đôi theo quận). ⇒ Hai khả năng, dẫn
+tới hai việc khác hẳn nhau:
+- **7 nhóm ấy LÀ Xí nghiệp chính thức** (tổ chức đã đổi) ⇒ OI-05 đóng bằng danh sách này, Công ty nhập
+  `org_units` theo nó, ⛔ đổi mã.
+- **7 nhóm ấy là ĐỊA BÀN để in Bảng 2**, Xí nghiệp thật vẫn là danh sách của bố cục ⇒ ⛔ được nhập 7
+  nhóm vào `org_units`: bảng ấy dùng chung cho HRM, cổng ("Đơn vị trực thuộc" CR-19) và **phạm vi dữ
+  liệu** (quy tắc 5, 7) — nhập "Bắc Từ Liêm" như một đơn vị là tách quyền của một Xí nghiệp làm đôi.
+  Khi ấy nhóm của Bảng 2 phải là một thuộc tính RIÊNG của trạm (danh mục có CRUD, quy tắc 16) — một
+  migration + màn hình, ⛔ phải nhập liệu.
+Chưa đủ dữ kiện để chọn ⇒ `T66.14`. Trong lúc chờ, ⛔ nhập Xí nghiệp nào vào `org_units` cho Báo cáo
+nhanh (T66.13 bước 1 chặn theo).
