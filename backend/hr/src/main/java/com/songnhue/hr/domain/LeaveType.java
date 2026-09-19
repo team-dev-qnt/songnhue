@@ -36,7 +36,8 @@ public enum LeaveType {
      * Khoá {@code settings} chứa hạn mức năm của loại nghỉ <b>đặc biệt</b> này.
      *
      * <p>⛔ Ném cho {@link #PHEP_NAM}: hạn mức phép năm ⛔ không phải một con số, nó là một
-     * <b>hàm của thâm niên</b> (ba khoá {@code hr.leave.annual-days.*}) cộng số chuyển từ năm
+     * <b>hàm của thâm niên</b> (ba khoá {@code hr.leave.annual-days.*} — cơ sở Điều 113 + bậc Điều 114, T68.10)
+     * cộng số chuyển từ năm
      * trước. Trả một khoá duy nhất ở đây là mời người gọi sau đọc nhầm nó thành "12 ngày cho tất
      * cả mọi người".
      */

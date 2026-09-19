@@ -548,7 +548,8 @@ public class UserAdminService implements UserDirectoryPort {
                 List.of(),
                 List.of(user.getId()),
                 null,
-                List.of(NotificationChannel.IN_APP, NotificationChannel.EMAIL)));
+                List.of(NotificationChannel.IN_APP, NotificationChannel.EMAIL),
+                false));
     }
 
     // ---- Hợp đồng cho module nghiệp vụ (core.spi) ----------------------------

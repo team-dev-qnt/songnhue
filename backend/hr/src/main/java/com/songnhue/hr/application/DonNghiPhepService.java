@@ -216,17 +216,16 @@ public class DonNghiPhepService {
      * <i>Chờ duyệt</i> mà ⛔ không có chuông là một màn hình <b>⛔ không ai mở</b> — đúng hình dạng
      * đã trả giá ở T50.4 (<i>một con số trên màn hình ⛔ không phải một cái chuông</i>).
      *
-     * <h2>⚠ Người nhận rộng hơn đặc tả, và điều đó được KHAI RA</h2>
+     * <h2>⭐ Người nhận = người DUYỆT được đơn — T57.15 (20/09/2026)</h2>
      *
-     * <p>{@code targetedWithUnits} giải người nhận bằng {@code findActiveIdsByPermission} —
-     * <b>toàn Công ty</b>, ⛔ không cắt theo đơn vị (cộng thêm trưởng/phó của chính đơn vị người
-     * nộp). Đặc tả nói <i>"quản lý <b>đơn vị</b> duyệt"</i>, hẹp hơn thế. Vế <i>duyệt</i> thì đã
-     * hẹp đúng nhờ bộ lọc phạm vi; vế <i>nhận thư</i> thì chưa — nợ <b>T57.15</b>. ⛔ Thu hẹp nó là
-     * đổi ngữ nghĩa của {@code RecipientResolver} cho <b>cả</b> CMS và vận hành công trình, nên nó
-     * ⛔ không phải việc của một lượt dựng tính năng.
+     * <p>Bản trước dùng {@code targetedWithUnits}: <b>mọi</b> người có {@code hr:leave:approve} trên toàn Công ty
+     * (seed cấp cho 4/12 vai trò ⇒ quản lý của MỌI Xí nghiệp) cộng trưởng/phó đơn vị — trong khi bộ lọc phạm vi
+     * chỉ cho quản lý của đơn vị người nộp duyệt. Nay {@code targetedInUnitScope}: chỉ ai phạm vi dữ liệu PHỦ
+     * đơn vị của đơn. Ba ca cũ của {@code RecipientResolver} (CMS, cảnh báo vận hành) ⛔ đổi.
+     * {@code NghiPhepHttpTest#nguoiNhanThongBaoLaNguoiDuyetDuoc} canh tương ứng *nhận thư ⇔ thấy đơn*.
      */
     private void baoNguoiDuyet(LeaveRequest don, Employee hoSo) {
-        thongBao.notify(NotifyRequest.targetedWithUnits(
+        thongBao.notify(NotifyRequest.targetedInUnitScope(
                 "LEAVE_SUBMITTED",
                 "Đơn nghỉ phép mới chờ duyệt",
                 "%s (%s) xin nghỉ %s từ %s đến %s — %s ngày công"

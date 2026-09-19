@@ -8133,3 +8133,42 @@ trang Liên hệ là để tra số điện thoại.
 
 **⚠ Phạm vi — nói ra (luật 28).** Vé chặn máy gửi thẳng vào API và máy gửi ngay khi tải trang. Một
 trình duyệt tự động chạy chính mã cổng thì cũng chờ như người — lớp ấy thuộc reCAPTCHA (chờ khoá G13).
+
+### §12.10 Phép năm đúng Điều 114 · "biết năm trước" là tham số · thư duyệt đi theo phạm vi (WS-74, 20/9/2026)
+
+**Phép năm (T68.10).** Chốt C1 ghi *"mặc định theo Điều 113: <5 năm = 12; 5–10 = 13; >10 = 14"* — đọc thiếu
+**Điều 114** (*"cứ đủ 05 năm làm việc … tăng thêm tương ứng 01 ngày"*). Mô hình 3 bậc ⛔ biểu diễn được luật:
+đủ 10 năm được 13 (luật 14), đủ 15 năm kẹt ở 14 (luật 15), đủ 20 năm vẫn 14 (luật 16). Thay bằng ba tham số
+`hr.leave.annual-days.base` · `…seniority-step-years` · `…seniority-step-days` (12 · 5 · 1):
+`phép = cơ sở + (thâm niên ÷ số năm mỗi bậc) × số ngày mỗi bậc`. Mô hình mới biểu diễn được luật **và** mọi
+chính sách hào phóng hơn luật (bậc 3 năm, +2 ngày); nó ⛔ biểu diễn được chính sách **dưới** luật — đúng ý.
+
+- Migration `V202609201091` giữ CƠ SỞ người vận hành đang dùng, và **dừng** (RAISE) nếu hai bậc trên đã bị
+  sửa khỏi dạng cơ sở/+1/+2: ánh xạ một chính sách tuỳ biến là quyết định nhân sự. Lượt deploy dừng ở bước
+  migrate, bản cũ vẫn phục vụ (cùng tiền lệ `V202609181085`). `PhepNamMigrationTest` chạy lại khối ấy trên
+  cả hai trạng thái — trên CSDL kiểm thử nhánh RAISE về nguyên tắc ⛔ lượt nào đi qua (luật 7).
+- ⬜ Còn hỏi Công ty (G16-c): cơ sở 14/16 ngày cho công việc nặng nhọc, độc hại (Điều 113 khoản 1 b/c) —
+  mô hình hiện có MỘT cơ sở cho mọi người.
+
+**"Biết năm trước" (T57.16).** Số phép chuyển sang năm Y+1 suy được từ dữ liệu của hệ chỉ khi hệ ghi nhận ĐỦ
+năm Y. Bản cũ đoán bằng *"người ấy có ≥ 1 đơn năm Y"* — sai cả hai chiều: một đơn 2026 ⇒ coi như biết cả
+năm ⇒ **cấp thừa** (đơn giấy tháng 01–09 ⛔ nằm trong hệ); năm đã ghi đủ mà một người ⛔ nghỉ ngày nào ⇒ coi
+như chưa biết ⇒ **mất** số chuyển. Nay là tham số `hr.leave.first-fully-recorded-year` (2027). Đường nhập số
+dư đầu kỳ 2026→2027 vẫn chờ G16-a.
+
+**Thư duyệt đi theo phạm vi (T57.15).** Luật mới: thông báo gửi cho **một quyền** về **một bản ghi có phạm
+vi** chỉ tới người có quyền mà phạm vi dữ liệu PHỦ đơn vị của bản ghi — tức đúng người bộ lọc tầng 3 cho
+THẤY nó. Vị từ là vị từ của `ScopedEntity.ORG_UNIT_FILTER_CONDITION`, soi từ phía tài khoản.
+
+- Ca thứ tư của `RecipientResolver` (`NotifyRequest.targetedInUnitScope`), ⛔ đổi ba ca cũ. `WorkflowEngine`
+  bật nó khi bản ghi là `ScopedEntity` và bước chuyển khai `notify_permission` — đo trên seed: `LEAVE_ESCALATED`
+  và `LEAVE_CANCELLED`; ba hàng `ARTICLE_SUBMITTED` ⛔ có phạm vi nên giữ luật cũ.
+- ⛔ Lấy đơn vị từ `WorkflowAware.orgUnitId()`: mặc định null, `LeaveRequest`/`MaintenanceLog` ⛔ ghi đè, và
+  ghi đè nó sẽ cộng trưởng/phó vào mọi thư chỉ-báo-chủ-đơn qua nhánh G11.
+- Khẳng định là một **tương ứng**: với từng người duyệt, *nhận thư* ⇔ *thấy đơn trong hộp chờ duyệt*
+  (`NghiPhepHttpTest#nguoiNhanThongBaoLaNguoiDuyetDuoc`) — hai luật ⛔ được lệch nhau về sau.
+
+**⚠ Phát hiện kèm, ⛔ vá ở đây (T74.7 → WS-75).** Bước chuyển chỉ báo chủ bản ghi (`notify_owner`, ⛔
+`notify_permission`: `LEAVE_APPROVED`, `LEAVE_REJECTED`, `ARTICLE_APPROVED`…) đi vào nhánh G11 của
+`RecipientResolver` ⇒ **cộng Ban điều hành**. Hôm nay nhóm ấy rỗng nên ⛔ ai thấy; ngày H24 cấu hình nó, Ban
+điều hành nhận thư mỗi đơn nghỉ được duyệt của mọi người.

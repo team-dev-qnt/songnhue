@@ -159,7 +159,8 @@ class NotificationPortTest extends IntegrationTestBase {
                 List.of(),
                 extraUserIds,
                 null,
-                List.of(NotifyChannel.IN_APP, NotifyChannel.EMAIL));
+                List.of(NotifyChannel.IN_APP, NotifyChannel.EMAIL),
+                false);
     }
 
     /**
