@@ -2,6 +2,9 @@
 
 **Ngày lập**: 18/09/2026 · **Gửi**: Công ty TNHH MTV ĐTPT Thủy lợi Sông Nhuệ · **Đơn vị lập**: nhóm phát triển
 
+> ✅ **Công ty đã trả lời ngày 19/09/2026** — bản có trả lời: `docs_origin/bao-cao/spec-bao-cao-nhanh/xacnhan.md`;
+> kết quả áp vào hệ thống ghi ở phụ lục của `spec-bao-cao-nhanh.md` cùng thư mục.
+
 Chức năng **Báo cáo nhanh** đã dựng xong: nhập số liệu theo kỳ, chốt kỳ, xuất thẳng ra mẫu Word của Công ty.
 Với mỗi điểm chưa rõ dưới đây, hệ thống **đang chạy theo phương án đề xuất** (cột *Đang làm*).
 Công ty chỉ cần đánh dấu **Đồng ý** hoặc ghi phương án khác vào cột *Trả lời*.

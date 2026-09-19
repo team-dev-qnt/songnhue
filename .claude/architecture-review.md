@@ -7353,3 +7353,29 @@ lúc lập báo cáo, chờ G3-a là để văn bản gửi UBND thiếu Bảng 
 tên chép nguyên văn mẫu để bộ điền đối chiếu dòng); `NULL` = ô trống, khác 0 mm. ⚠ Ngày G3-a về: nguồn
 tự động **THAY** ô nhập — ⛔ trộn hai nguồn trong một kỳ, vì một văn bản mà nửa số đo máy, nửa số gõ tay
 thì ⛔ ai trả lời được *"số này từ đâu"*.
+
+**(g) Công ty trả lời open issue (19/09/2026, `docs_origin/bao-cao/spec-bao-cao-nhanh/xacnhan.md`).**
+Tám mục đồng ý phương án đang chạy (OI-BC1 · 2 · 5 · 6 · 7 · 12 · 15 · 16) ⇒ ⛔ đổi mã. Ba mục đổi thứ
+khác ngoài mã:
+- **OI-BC10** — Bảng 2 chia theo **7 Xí nghiệp của sheet `Trạm bơm`**, trạm vẫn lấy từ `TB Tiêu (KH)`
+  (OI-BC9). Khối Bảng 2 vốn đã suy từ đơn vị quản lý của công trình và xếp theo cây tổ chức ⇒ đây là
+  việc **nhập liệu** của Công ty, ⛔ phải mã.
+- **OI-BC11** — `F01771` thuộc **Sông Nhuệ** ⇒ dữ liệu điểm đo đứng nguyên; nhãn `TL (hồng)` trong mẫu
+  là chữ của Công ty, ⛔ sửa.
+- **OI-BC17** — Công ty **cho nới** cột "Lúa" nhóm Tổng cộng ở Bảng 5. Chỗ nới đặt trong **mã xuất**
+  (`DocxFiller.chiaDeuHaiCot`, gọi ở `BaoCaoNhanhDocx`), ⛔ sửa tệp mẫu: tệp trong jar vẫn **trùng byte**
+  bản Công ty gửi (SHA-256 = `docs_origin/…/Mẫu Báo cáo nhanh.docx`), nên ngày Công ty gửi mẫu mới thì
+  thay tệp là đủ, và mọi chỗ ta chỉnh bố cục có TÊN trong mã thay vì chìm trong một tệp nhị phân. Chia
+  đều **tổng** hai cột (631 + 990 → 810 + 811 twip) ⇒ bảng ⛔ rộng thêm, ⛔ cột khác xê dịch; ô gộp phủ
+  một cột của cặp kèm cột khác ⇒ NÉM thay vì sinh bảng méo.
+
+⚠ **OI-BC8 — một câu trả lời hai cách đọc, đã chọn một và nói ra.** Nguyên văn: *"bảng bị thiếu, công
+suất thực tế là 43,5 họ đang làm tròn thành 43, giữ nguyên bảng và tính theo công thức tôi chỉ định"*.
+Đọc là: nhãn cột là cỡ **danh định đã làm tròn**, giữ 9 cột, xếp theo **biên đã gửi** — công thức duy
+nhất trong văn bản ⇒ ⛔ đổi biên. Cách đọc ấy tự nhất quán: biên đã gửi chính là **điểm giữa hai nhãn
+liền kề** (32.500 · 17.000 · 10.000 · 6.000 · 3.500), tức *"làm tròn tới nhãn gần nhất"*; ca hoà duy nhất
+trong dữ liệu (1.950, giữa 1,9 và 2) xếp XUỐNG — đúng chiều *"43,5 → 43"* của chính câu trả lời. Cách đọc
+kia — nhãn là **cận dưới** (làm tròn xuống) — đổi cột của **15 máy**: 7.300 ("8" → "4", 4 máy) và 3.700
+("4" → "2÷3", 11 máy). Biên là dữ liệu CRUD ⇒ nếu cách đọc sai thì Công ty sửa trên màn hình *Danh mục
+máy bơm*, ⛔ đợi deploy.
+OI-BC13 ⛔ được trả lời ⇒ giữ nguyên chữ của mẫu ở cả hai chỗ.

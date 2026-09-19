@@ -121,6 +121,41 @@ class DocxFillerTest {
         assertThat(ra).contains("<w:tcW w:w=\"500\"/><w:vMerge w:val=\"restart\"/><w:shd");
     }
 
+    /** Lưới 3 cột; dòng 0 gộp ngang cột 0–1, dòng 1 đủ 3 ô. {@code tcW} kiểu {@code pct} như mẫu Công ty. */
+    private static final String BANG_LUOI = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><w:document " + W + "><w:body>"
+            + "<w:tbl><w:tblGrid><w:gridCol w:w=\"600\"/><w:gridCol w:w=\"1000\"/><w:gridCol w:w=\"400\"/></w:tblGrid>"
+            + "<w:tr><w:tc><w:tcPr><w:tcW w:w=\"3000\" w:type=\"pct\"/><w:gridSpan w:val=\"2\"/></w:tcPr><w:p/></w:tc>"
+            + "<w:tc><w:tcPr><w:tcW w:w=\"2000\" w:type=\"pct\"/></w:tcPr><w:p/></w:tc></w:tr>"
+            + "<w:tr><w:tc><w:tcPr><w:tcW w:w=\"1150\" w:type=\"pct\"/></w:tcPr><w:p/></w:tc>"
+            + "<w:tc><w:tcPr><w:tcW w:w=\"1851\" w:type=\"pct\"/></w:tcPr><w:p/></w:tc>"
+            + "<w:tc><w:tcPr><w:tcW w:w=\"2000\" w:type=\"pct\"/></w:tcPr><w:p/></w:tc></w:tr>"
+            + "</w:tbl></w:body></w:document>";
+
+    @Test
+    @DisplayName("⭐ Chia đều hai cột: lưới + tcW của ô phủ đúng một cột; tổng giữ nguyên; ô gộp cả hai ⛔ đổi")
+    void chiaDeuHaiCot() throws IOException {
+        DocxFiller f = DocxFiller.mo(docx(BANG_LUOI));
+        f.chiaDeuHaiCot(0, 0, 1);
+        DocxFiller ra = DocxFiller.mo(f.ghi());
+
+        assertThat(ra.rongCot(0, 0)).isEqualTo(800);
+        assertThat(ra.rongCot(0, 1)).isEqualTo(800);
+        assertThat(ra.rongCot(0, 2)).as("cột ngoài cặp ⛔ xê dịch").isEqualTo(400);
+        assertThat(ra.rongO(0, 1, 0)).isEqualTo(1500);
+        assertThat(ra.rongO(0, 1, 1))
+                .as("tổng lẻ ⇒ phần dư về cột sau, tổng 3001 giữ nguyên")
+                .isEqualTo(1501);
+        assertThat(ra.rongO(0, 1, 2)).isEqualTo(2000);
+        assertThat(ra.rongO(0, 0, 0)).as("ô gộp ngang CẢ HAI cột ⛔ đổi").isEqualTo(3000);
+    }
+
+    @Test
+    @DisplayName("⛔ Ô gộp ngang qua MỘT cột của cặp kèm cột khác ⇒ NÉM, ⛔ sinh bảng méo")
+    void chiaDeuHaiCotNemKhiLechGop() throws IOException {
+        DocxFiller f = DocxFiller.mo(docx(BANG_LUOI));
+        assertThatThrownBy(() -> f.chiaDeuHaiCot(0, 1, 2)).hasMessageContaining("dòng 0 ô 0 gộp ngang");
+    }
+
     @Test
     @DisplayName("⛔ DOCTYPE bị từ chối (XXE)")
     void chanDoctype() throws IOException {

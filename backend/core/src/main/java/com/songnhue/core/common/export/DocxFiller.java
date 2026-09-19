@@ -180,6 +180,71 @@ public final class DocxFiller {
     }
 
     /**
+     * Chia ĐỀU tổng bề rộng của hai cột lưới {@code cotA}, {@code cotB} — tổng bề rộng bảng ⛔ đổi, nên ⛔
+     * cột nào khác xê dịch và khổ giấy của mẫu vẫn đúng.
+     *
+     * <p>Sửa cả hai nơi Word/LibreOffice đọc bề rộng: {@code w:tblGrid/w:gridCol} và {@code w:tcW} của
+     * từng ô phủ ĐÚNG một trong hai cột (đơn vị của ô giữ nguyên — mẫu Công ty dùng {@code pct}). Ô phủ
+     * CẢ HAI cột ⛔ đổi, vì tổng của nó giữ nguyên.
+     *
+     * @throws IllegalStateException một ô phủ một trong hai cột KÈM cột khác — chia khi ấy làm lệch ô ấy,
+     *     nên dừng thay vì sinh một bảng méo
+     */
+    public void chiaDeuHaiCot(int bang, int cotA, int cotB) {
+        Element tbl = con(body, "tbl").get(bang);
+        // Dò hết các dòng TRƯỚC rồi mới ghi: ném giữa chừng thì bảng ⛔ bị sửa dở.
+        List<Element[]> cap = new ArrayList<>();
+        List<Element> dong = con(tbl, "tr");
+        for (int d = 0; d < dong.size(); d++) {
+            Element oA = null;
+            Element oB = null;
+            int cot = gridBefore(dong.get(d));
+            List<Element> o = con(dong.get(d), "tc");
+            for (int i = 0; i < o.size(); i++) {
+                int span = gridSpan(o.get(i));
+                boolean phuA = cot <= cotA && cotA < cot + span;
+                boolean phuB = cot <= cotB && cotB < cot + span;
+                if (phuA != phuB && span != 1) {
+                    throw new IllegalStateException("Bảng %d dòng %d ô %d gộp ngang qua cột %d/%d — ⛔ chia đều được"
+                            .formatted(bang, d, i, cotA, cotB));
+                }
+                if (phuA && !phuB) {
+                    oA = o.get(i);
+                }
+                if (phuB && !phuA) {
+                    oB = o.get(i);
+                }
+                cot += span;
+            }
+            Element wA = oA == null ? null : tcW(oA);
+            Element wB = oB == null ? null : tcW(oB);
+            if (wA != null && wB != null) {
+                cap.add(new Element[] {wA, wB});
+            }
+        }
+
+        List<Element> luoi = con(con(tbl, "tblGrid").get(0), "gridCol");
+        cap.add(new Element[] {luoi.get(cotA), luoi.get(cotB)});
+        for (Element[] ab : cap) {
+            int tong = rong(ab[0]) + rong(ab[1]);
+            ab[0].setAttributeNS(W, "w:w", String.valueOf(tong / 2));
+            ab[1].setAttributeNS(W, "w:w", String.valueOf(tong - tong / 2));
+        }
+    }
+
+    /** Bề rộng một cột lưới ({@code w:gridCol/@w:w}, twip) — cho bài kiểm khứ hồi. */
+    public int rongCot(int bang, int cot) {
+        return rong(con(con(con(body, "tbl").get(bang), "tblGrid").get(0), "gridCol")
+                .get(cot));
+    }
+
+    /** Bề rộng khai ở {@code w:tcW} của một ô, theo đơn vị của chính ô ấy; ⛔ khai ⇒ {@code -1}. */
+    public int rongO(int bang, int dong, int o) {
+        Element w = tcW(oCua(bang, dong, o));
+        return w == null ? -1 : rong(w);
+    }
+
+    /**
      * Thay một cụm chữ trong các ĐOẠN VĂN (kể cả đoạn trong ô), ghép qua ranh giới run.
      *
      * <p>Phần ngoài cụm giữ nguyên run của nó; cụm mới nằm trong run chứa ký tự ĐẦU của cụm cũ.
@@ -304,6 +369,32 @@ public final class DocxFiller {
             }
         }
         pr.insertBefore(vm, sau);
+    }
+
+    private static int rong(Element el) {
+        return Integer.parseInt(el.getAttributeNS(W, "w"));
+    }
+
+    private static Element tcW(Element tc) {
+        List<Element> pr = con(tc, "tcPr");
+        if (pr.isEmpty()) {
+            return null;
+        }
+        List<Element> w = con(pr.get(0), "tcW");
+        return w.isEmpty() ? null : w.get(0);
+    }
+
+    private static int gridSpan(Element tc) {
+        List<Element> pr = con(tc, "tcPr");
+        List<Element> gs = pr.isEmpty() ? List.of() : con(pr.get(0), "gridSpan");
+        return gs.isEmpty() ? 1 : Integer.parseInt(gs.get(0).getAttributeNS(W, "val"));
+    }
+
+    /** Số cột lưới bị bỏ trống ở đầu dòng ({@code w:trPr/w:gridBefore}). */
+    private static int gridBefore(Element tr) {
+        List<Element> pr = con(tr, "trPr");
+        List<Element> gb = pr.isEmpty() ? List.of() : con(pr.get(0), "gridBefore");
+        return gb.isEmpty() ? 0 : Integer.parseInt(gb.get(0).getAttributeNS(W, "val"));
     }
 
     private void lamRongDoan(Element p) {

@@ -30,8 +30,9 @@ const GOC = '/ops/may-bom';
  * ~830 máy / 178 trạm, và ba sheet trong tệp gốc mâu thuẫn nhau — người nhập phải chọn sheet
  * `TB Tiêu (KH)` (OI-BC9).
  *
- * ⛔ Cỡ máy chỉ SỬA BIÊN, ⛔ thêm/xoá: số cột cố định theo mẫu Word. Biên hiện tại là đề xuất chờ Công
- * ty xác nhận (OI-BC8).
+ * ⛔ Cỡ máy chỉ SỬA BIÊN, ⛔ thêm/xoá: số cột cố định theo mẫu Word. Công ty trả lời OI-BC8 ngày
+ * 19/09/2026: nhãn cột là cỡ danh định ĐÃ LÀM TRÒN (máy 43.200 m³/h in ở cột "43"), giữ nguyên 9 cột và
+ * xếp theo biên đã gửi — máy có Q nằm giữa hai nhãn (25.200 · 7.300 · 1.950) rơi vào cột theo biên ấy.
  */
 export function DanhMucMayBomPage() {
   const { hasPermission } = useAuth();
@@ -206,11 +207,11 @@ export function DanhMucMayBomPage() {
         }
       >
         <Alert
-          type="warning"
+          type="info"
           showIcon
           style={{ marginBottom: 12 }}
-          message="Biên cỡ máy là ĐỀ XUẤT, chờ Công ty xác nhận (OI-BC8)"
-          description="Mẫu Word chỉ ghi nhãn cột. Biên phải liền nhau: cận dưới của cỡ trên = cận trên của cỡ dưới; cỡ lớn nhất để trống cận trên, cỡ nhỏ nhất để trống cận dưới."
+          message="Nhãn cột là cỡ máy danh định đã làm tròn — ví dụ máy 43.200 m³/h in ở cột “43”"
+          description="Máy có Q nằm giữa hai nhãn được xếp theo biên dưới đây (Công ty xác nhận 19/09/2026). Biên phải liền nhau: cận dưới của cỡ trên = cận trên của cỡ dưới; cỡ lớn nhất để trống cận trên, cỡ nhỏ nhất để trống cận dưới."
         />
         <Table
           rowKey="publicId"

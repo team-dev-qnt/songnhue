@@ -214,4 +214,19 @@ Phần trên giữ nguyên văn bản BA. Những chỗ dưới đây **đo đư
 | Bảng 3 Lương Cổ | — | mẫu ghi TL có số | `F01519` đổi về Thượng lưu (`V202609181085`) |
 | Bảng 3 điểm đo · ghi chú Yên Nghĩa | mã cố định | 3/14 vế ⛔ có điểm đo (OI-BC14); danh mục có HAI công trình tên "Yên Nghĩa" | Công ty **chọn công trình** cho 7 cống + trạm Yên Nghĩa trên màn hình *Cấu hình Báo cáo nhanh*; điểm đo từng vế suy từ liên kết điểm đo–công trình (`V202609181088`) |
 
-Open issue mới: OI-BC8 → OI-BC16 ở `.claude/master-tracking.md` T66.8.
+Open issue mới: OI-BC8 → OI-BC17 ở `.claude/master-tracking.md` T66.8.
+
+### Công ty trả lời (19/09/2026 — `xacnhan.md` cùng thư mục)
+
+| Mã | Trả lời | Kho làm |
+|---|---|---|
+| OI-BC1 · 2 · 5 · 6 · 7 · 12 · 15 · 16 | Đồng ý phương án đang chạy | ⛔ đổi |
+| OI-BC4 · OI-BC10 | Bảng 2 chia theo **7 Xí nghiệp của sheet `Trạm bơm`** (Thanh Trì · Thường Tín · Phú Xuyên · Ứng Hoà · Bắc Từ Liêm · Nam Từ Liêm · Hoài Đức) | ⛔ đổi mã: khối Bảng 2 lấy từ đơn vị quản lý của công trình, thứ tự theo cây tổ chức ⇒ Công ty nhập 7 Xí nghiệp rồi gán trạm |
+| OI-BC8 | Nhãn cột là cỡ danh định **đã làm tròn** (43.200 in ở "43"); giữ nguyên 9 cột, tính theo biên đã gửi | ⛔ đổi biên; ghi chú trên màn hình *Danh mục máy bơm* đổi từ "đề xuất" sang "đã xác nhận" |
+| OI-BC9 | Đồng ý `TB Tiêu (KH)` | ⛔ đổi |
+| OI-BC11 | `F01771` thuộc **Sông Nhuệ** | ⛔ đổi dữ liệu điểm đo |
+| OI-BC13 | ⛔ trả lời | giữ nguyên chữ của mẫu ở cả hai chỗ |
+| OI-BC14 | Chưa có điểm đo ở 3 vế | 3 ô để trống kèm lý do |
+| OI-BC17 | **Cho nới** cột "Lúa" nhóm Tổng cộng ở Bảng 5 | bản xuất chia đều bề rộng "Lúa"/"Rau, màu" của nhóm ấy (631 + 990 → 810 + 811 twip, tổng ⛔ đổi); tệp mẫu trong kho vẫn trùng byte bản Công ty gửi |
+
+OI-BC3 (lệch Km) thuộc màn hình biểu đồ mặt cắt — ⛔ phải phạm vi Báo cáo nhanh, vẫn mở.

@@ -1,6 +1,7 @@
 package com.songnhue.app.ops;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
@@ -27,6 +28,7 @@ import com.songnhue.app.testsupport.TestHttp;
 import com.songnhue.core.application.auth.PasswordPolicyService;
 import com.songnhue.core.common.export.DocxFiller;
 import com.songnhue.core.infra.identity.UserRepository;
+import com.songnhue.operations.application.BaoCaoNhanhDocx;
 
 /**
  * Báo cáo nhanh — vòng đời một kỳ đi QUA HTTP: tạo → nhập Bảng 2/5 → chốt → sửa bị chặn → mở lại.
@@ -373,6 +375,16 @@ class BaoCaoNhanhHttpTest extends IntegrationTestBase {
         assertThat(doc.docO(8, 51, 7)).isEqualTo("135");
         assertThat(doc.docO(8, 3, 2)).as("Sông Tích — mẫu in '0'").isEmpty();
         assertThat(doc.docO(2, 4, 7)).as("Mục 3 = dòng III").isEqualTo("135");
+        // OI-BC17: cột "Lúa" nhóm Tổng cộng của Bảng 5 được nới — chia đều với "Rau, màu", tổng giữ nguyên.
+        DocxFiller mau = DocxFiller.mo(BaoCaoNhanhDocx.docMau());
+        assertThat(mau.rongCot(8, 8))
+                .as("tiền đề: mẫu gốc để cột Lúa hẹp hơn Rau")
+                .isLessThan(mau.rongCot(8, 9));
+        // 631 + 990 = 1621 lẻ ⇒ 810 / 811: "chia đều" là lệch nhau tối đa 1 twip.
+        assertThat(doc.rongCot(8, 8)).isCloseTo(doc.rongCot(8, 9), within(1)).isGreaterThan(mau.rongCot(8, 8));
+        assertThat(doc.rongCot(8, 8) + doc.rongCot(8, 9)).isEqualTo(mau.rongCot(8, 8) + mau.rongCot(8, 9));
+        assertThat(doc.rongO(8, 1, 8)).as("tcW tiêu đề 'Lúa'").isEqualTo(doc.rongO(8, 1, 9));
+        assertThat(doc.rongO(8, 0, 4)).as("ô gộp 'Tổng cộng (ha)' ⛔ đổi").isEqualTo(mau.rongO(8, 0, 4));
 
         String van = vanBan(tai.getBody());
         assertThat(van)

@@ -70,6 +70,17 @@ public final class BaoCaoNhanhDocx {
     static final int B5_DONG_SONG_NHUE = 51;
     static final int B5_TT_XA_DAU = 47;
 
+    /**
+     * Bảng 5: cột lưới "Lúa" và "Rau, màu" của nhóm "Tổng cộng" — chia đều bề rộng (OI-BC17).
+     *
+     * <p>Mẫu gốc để "Lúa" 631 twip cạnh "Rau, màu" 990 twip, nên số 3 chữ số xuống dòng và chính tiêu đề
+     * vỡ thành "Lú"/"a". Công ty cho nới (19/09/2026). Tổng hai cột giữ nguyên ⇒ bảng ⛔ rộng thêm; tệp mẫu
+     * trong jar vẫn TRÙNG BYTE bản Công ty gửi — chỗ nới nằm ở đây, có tên, ⛔ giấu trong tệp mẫu.
+     */
+    static final int B5_COT_LUA_TONG = 8;
+
+    static final int B5_COT_RAU_TONG = 9;
+
     private static final String[] LA_MA = {"I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"};
 
     private BaoCaoNhanhDocx() {}
@@ -252,6 +263,7 @@ public final class BaoCaoNhanhDocx {
     // ==== Mục 3 + Bảng 5 ====================================================
 
     private static void muc3VaBang5(DocxFiller f, BaoCaoNhanhService.ChiTiet c) {
+        f.chiaDeuHaiCot(BANG_5, B5_COT_LUA_TONG, B5_COT_RAU_TONG);
         for (int o = 2; o <= 10; o++) {
             f.datO(BANG_MUC3, DONG_TONG, o, null);
             f.datO(BANG_5, DONG_TONG, o, null);
