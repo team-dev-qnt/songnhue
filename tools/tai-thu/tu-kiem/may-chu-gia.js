@@ -13,12 +13,14 @@
 //   kiểm chứng ⛔ chạy lại được thì lượt sau phải tin vào một dòng ghi chép — mà dự án
 //   này đã mười lần đo ra rằng **một dòng sổ cũng là dữ liệu chưa kiểm**.
 //
-// Bốn chế độ, mỗi chế độ dựng ĐÚNG MỘT trạng thái mà kịch bản phải phân biệt được:
+// Năm chế độ, mỗi chế độ dựng ĐÚNG MỘT trạng thái mà kịch bản phải phân biệt được:
 //
-//   binh-thuong      mọi lượt tìm kiếm có kết quả            ⇒ k6 phải thoát 0
-//   rong-duoi-tai    mốc CÓ kết quả, lượt dưới tải thì RỖNG  ⇒ `tim_kiem_rong` ĐỎ
-//   moc-rong         ⛔ từ khoá nào có kết quả, kể cả lúc mốc ⇒ `thieu_moc_tim_kiem` ĐỎ
-//   chan-429         mọi lượt trả 429                        ⇒ `bi_chan_429` ĐỎ
+//   binh-thuong             mọi lượt tìm kiếm có kết quả             ⇒ k6 phải thoát 0
+//   rong-duoi-tai           mốc CÓ kết quả, lượt dưới tải thì RỖNG   ⇒ `tim_kiem_rong` ĐỎ
+//   khong-tra-loi-duoi-tai  mốc CÓ kết quả, lượt dưới tải "Chưa tra
+//                           cứu được" (429 phía SSR — T61.17)        ⇒ `tim_kiem_khong_tra_loi` ĐỎ
+//   moc-rong                ⛔ từ khoá nào có kết quả, kể cả lúc mốc ⇒ `thieu_moc_tim_kiem` ĐỎ
+//   chan-429                mọi lượt trả 429                         ⇒ `bi_chan_429` ĐỎ
 //
 // Máy giả này CŨNG là đích của lượt tự kiểm bộ đo LCP (T63.22): nó trả đầu
 // `x-nextjs-cache` và nhận `POST /api/revalidate` y như `public-web` thật, nên bài đo có thể
@@ -32,7 +34,7 @@ const http = require('node:http');
 
 const CHE_DO = process.env.CHE_DO || 'binh-thuong';
 const CONG = Number(process.env.CONG || 18099);
-const HOP_LE = ['binh-thuong', 'rong-duoi-tai', 'moc-rong', 'chan-429'];
+const HOP_LE = ['binh-thuong', 'rong-duoi-tai', 'khong-tra-loi-duoi-tai', 'moc-rong', 'chan-429'];
 if (!HOP_LE.includes(CHE_DO)) {
   console.error(`CHE_DO='${CHE_DO}' ⛔ hợp lệ. Chọn một trong: ${HOP_LE.join(' · ')}`);
   process.exit(2);
@@ -40,6 +42,12 @@ if (!HOP_LE.includes(CHE_DO)) {
 
 /** Câu mà `tim-kiem/page.tsx` in ra khi ⛔ có kết quả — kịch bản k6 dò đúng chuỗi này. */
 const CHU_RONG = 'Không tìm thấy bài viết';
+
+/**
+ * Dấu hiệu khối "Chưa tra cứu được" — `THUOC_TINH_KHONG_TRA_LOI` ở `frontend/public-web/src/lib/traCuu.ts`.
+ * `KichBanTaiThuTest` đòi ba nơi (trang · kịch bản · máy giả này) mang CÙNG một chuỗi.
+ */
+const DAU_KHONG_TRA_LOI = 'data-tra-cuu="khong-tra-loi"';
 
 /**
  * ⚠ Kịch bản khẳng định `trang chủ có nội dung (> 20 KB)` — cố ý, vì một trang LỖI cũng
@@ -77,8 +85,13 @@ const may = http.createServer((req, res) => {
   if (url.pathname === '/tim-kiem') {
     const laMoc = url.searchParams.get('moc') === '1';
     // `moc-rong`: rỗng ở MỌI lượt ⇒ `setup()` loại hết từ khoá ⇒ vế tìm kiếm ⛔ được đo.
-    // `rong-duoi-tai`: mốc có kết quả, lượt dưới tải rỗng ⇒ đúng triệu chứng 429 phía SSR
-    //                  mà `lib/api.ts` biến thành `null` trong im lặng.
+    // `rong-duoi-tai`: mốc có kết quả, lượt dưới tải backend trả lời RỖNG — trước T61.17 đây cũng là
+    //                  hình dạng của 429 phía SSR; nay 429 có khối riêng (chế độ kế tiếp).
+    // `khong-tra-loi-duoi-tai`: mốc có kết quả, lượt dưới tải backend ⛔ trả lời ⇒ khối "Chưa tra cứu
+    //                  được" mang dấu hiệu cấu trúc, đúng thứ `tim-kiem/page.tsx` dựng khi nhận `null`.
+    if (CHE_DO === 'khong-tra-loi-duoi-tai' && !laMoc) {
+      return tra(res, 200, `<html><body><div role="status" ${DAU_KHONG_TRA_LOI}><p>Chưa tra cứu được lúc này</p></div></body></html>`);
+    }
     const rong = CHE_DO === 'moc-rong' || (CHE_DO === 'rong-duoi-tai' && !laMoc);
     const than = rong
       ? `<html><body><p>${CHU_RONG} nào khớp từ khoá.</p></body></html>`

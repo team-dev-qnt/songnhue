@@ -487,7 +487,7 @@ Tầng 3 — Repository scope filter (org_unit)     → chặn dữ liệu (IDOR
 ### 4.5. Hạ tầng & headers
 
 - Nginx: HSTS, CSP (default-src 'self'; script chỉ từ self + GA/GTM đã khai báo), `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`; ẩn version server; giới hạn body size theo route upload.
-- Rate limit 2 lớp: Nginx (thô, theo IP) + app filter (theo user/token, giá trị theo nhóm endpoint: **login 30/15'**, API thường 100/phút, export **`limits.rate.export-per-hour`** trong `settings`, mặc định 30/giờ, kẹp cứng ≤ 100 trong mã — T61.27).
+- Rate limit 2 lớp: Nginx (thô, theo IP; chặn trả **429**, ⛔ 503 — WS-72) + app filter (theo user/token, giá trị theo nhóm endpoint: **login 30/15' theo IP, chỉ tính lượt ⛔ đúng mật khẩu** — lượt đúng được trả lại, `architecture-review.md` §12.8, API thường 100/phút, export **`limits.rate.export-per-hour`** trong `settings`, mặc định 30/giờ, kẹp cứng ≤ 100 trong mã — T61.27).
   - ⚠ **`login 30/15'` chứ không phải 5/15'** — con số này phải rộng hơn hẳn ngưỡng khoá tài khoản (5 lần, §4.1). Lý do đầy đủ ở §4.1; tóm tắt: đặt bằng nhau thì rate limit ở filter luôn chặn trước nên `AUTH-0003` không bao giờ kích hoạt được, và cả Công ty ra Internet qua một IP NAT. `CaffeineRateLimitStoreTest` chặn ở CI nếu ai đó hạ xuống bằng ngưỡng khoá.
 - Secrets: env/Vault; khác nhau mỗi môi trường; xoay key AES + JWT signing key có quy trình (key_id versioning); cấm secrets trong log/config commit.
 - Log: mask dữ liệu nhạy cảm (MaskUtils); security event riêng (login fail, refresh reuse, 403 scope, đổi quyền) → dashboard Grafana + alert.

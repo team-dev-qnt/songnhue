@@ -46,7 +46,7 @@ import org.junit.jupiter.api.Test;
  *       18/09/2026 với một tên gõ sai: k6 thoát <b>104</b> kèm
  *       {@code invalid threshold defined on …; reason: no metric name … found}. Dựng thêm một bộ canh
  *       cho chiều ấy là một câu trả lời thứ hai cho câu hỏi đã có câu trả lời.
- *   <li>Nó ⛔ nói gì về việc ngưỡng ĐẶT ĐÚNG CHỖ ⛔ — thứ chứng minh điều đó là lượt tự kiểm bốn ca
+ *   <li>Nó ⛔ nói gì về việc ngưỡng ĐẶT ĐÚNG CHỖ ⛔ — thứ chứng minh điều đó là lượt tự kiểm năm ca
  *       trên máy chủ giả, nơi mỗi ca đòi <b>đúng</b> ngưỡng tương ứng phải đỏ.
  * </ul>
  */
@@ -175,6 +175,31 @@ class KichBanTaiThuTest {
 
         Set<String> coNguong = tenChiSoCoNguong(khoaNguong(gia));
         assertThat(coNguong).contains("co_nguong", "co_nguong_kem_tag").doesNotContain("khong_nguong");
+    }
+
+    /**
+     * T61.17 (WS-72): khối "Chưa tra cứu được" của trang tìm kiếm mang một dấu hiệu CẤU TRÚC, và bộ tải thử đếm
+     * đúng dấu hiệu ấy thành {@code tim_kiem_khong_tra_loi}. Ba nơi phải mang cùng một chuỗi (quy tắc 14): trang
+     * đổi dấu hiệu mà kịch bản ⛔ đổi thì 429 phía SSR biến mất khỏi bộ đo — đo 19/09/2026: chạy bộ tự kiểm trên
+     * kịch bản TRƯỚC bản vá thì ca {@code khong-tra-loi-duoi-tai} thoát <b>0</b> ({@code tim_kiem_rong} 0/118). Máy
+     * chủ giả lệch thì bộ tự kiểm chứng minh một chuỗi khác với chuỗi trang in ra.
+     */
+    @Test
+    @DisplayName("⛔ Dấu hiệu 'chưa tra cứu được' khớp ở ba nơi: trang tìm kiếm · kịch bản tải · máy chủ giả")
+    void dauHieuKhongTraLoiKhopBaNoi() {
+        Matcher m = Pattern.compile("THUOC_TINH_KHONG_TRA_LOI\\s*=\\s*\\{\\s*'([a-z-]+)'\\s*:\\s*'([a-z-]+)'\\s*\\}")
+                .matcher(doc(timTuGocKho("frontend/public-web/src/lib/traCuu.ts")));
+        assertThat(m.find())
+                .as("chống tập rỗng (luật 7): phải bóc được THUOC_TINH_KHONG_TRA_LOI từ traCuu.ts")
+                .isTrue();
+        String khaiBao = "const DAU_KHONG_TRA_LOI = '%s=\"%s\"';".formatted(m.group(1), m.group(2));
+
+        assertThat(boChuThich(doc(timTuGocKho(THU_MUC + "/cong-cong-khai.js"))))
+                .as("kịch bản tải phải dò đúng dấu hiệu trang in ra")
+                .contains(khaiBao);
+        assertThat(boChuThich(doc(timTuGocKho(THU_MUC + "/tu-kiem/may-chu-gia.js"))))
+                .as("máy chủ giả phải phát đúng dấu hiệu ấy — lệch thì bộ tự kiểm chứng minh một chuỗi khác")
+                .contains(khaiBao);
     }
 
     // ------------------------------------------------------------------ bộ đọc

@@ -17,7 +17,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
  * giải thích cho người vận hành ("5 lần trong 15 phút") và rẻ.
  *
  * <p>Nhược điểm đã biết: ngay ranh giới hai cửa sổ có thể cho qua tối đa 2×limit. Với hạn mức đăng
- * nhập 5/15 phút thì cùng lắm là 10 lần trong khoảnh khắc chuyển cửa sổ — vẫn quá xa mức đủ để dò
+ * nhập 30/15 phút thì cùng lắm là 60 lần trong khoảnh khắc chuyển cửa sổ — vẫn quá xa mức đủ để dò
  * mật khẩu, nên không đáng đổi lấy độ phức tạp của sliding window.
  *
  * <p>Cache tự dọn theo thời gian sống nên không rò rỉ bộ nhớ dù khoá sinh ra từ IP tuỳ ý.
@@ -58,8 +58,15 @@ public class CaffeineRateLimitStore implements RateLimitStore {
     }
 
     @Override
-    public void reset(String key) {
-        windows.invalidate(key);
+    public void hoanLai(String key) {
+        Instant now = Instant.now();
+        // computeIfPresent: khoá vắng thì ⛔ dựng cửa sổ nào (một cửa sổ mở bằng lượt trả lại sẽ mang số âm).
+        windows.asMap().computeIfPresent(key, (k, existing) -> {
+            if (now.isBefore(existing.resetAt())) {
+                existing.counter().updateAndGet(n -> n > 0 ? n - 1 : 0);
+            }
+            return existing;
+        });
     }
 
     private record Window(Instant resetAt, AtomicInteger counter) {}

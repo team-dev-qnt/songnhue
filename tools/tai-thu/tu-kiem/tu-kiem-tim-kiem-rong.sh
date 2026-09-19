@@ -7,14 +7,15 @@
 # (luật 1), và nếu nó đi qua một **tập rỗng** thì nó còn xanh trong đúng tình huống
 # nó sinh ra để bắt (luật 7).
 #
-# Bốn ca — mỗi ca dựng MỘT trạng thái và đòi ĐÚNG ngưỡng tương ứng phải đỏ. Ca đầu là
-# **vế đối chứng**: ⛔ có nó thì một kịch bản đỏ-với-mọi-thứ cũng "đạt" cả ba ca sau
+# Năm ca — mỗi ca dựng MỘT trạng thái và đòi ĐÚNG ngưỡng tương ứng phải đỏ. Ca đầu là
+# **vế đối chứng**: ⛔ có nó thì một kịch bản đỏ-với-mọi-thứ cũng "đạt" cả bốn ca sau
 # (luật 9 — một khẳng định ⛔ phân biệt được hai trạng thái thì ⛔ khẳng định gì).
 #
-#   binh-thuong    ⇒ thoát 0
-#   rong-duoi-tai  ⇒ thoát 99 · `tim_kiem_rong`      (chiều ĐỎ, món nợ của dòng này)
-#   moc-rong       ⇒ thoát 99 · `thieu_moc_tim_kiem` (vế chống tập rỗng)
-#   chan-429       ⇒ thoát 99 · `bi_chan_429`
+#   binh-thuong             ⇒ thoát 0
+#   rong-duoi-tai           ⇒ thoát 99 · `tim_kiem_rong`          (chiều ĐỎ, món nợ của dòng này)
+#   khong-tra-loi-duoi-tai  ⇒ thoát 99 · `tim_kiem_khong_tra_loi` (429 phía SSR — T61.17, WS-72)
+#   moc-rong                ⇒ thoát 99 · `thieu_moc_tim_kiem`     (vế chống tập rỗng)
+#   chan-429                ⇒ thoát 99 · `bi_chan_429`
 #
 # Chạy:  tools/tai-thu/tu-kiem/tu-kiem-tim-kiem-rong.sh
 #
@@ -69,7 +70,7 @@ thu_mot_ca() {
   PID_MAY=""
 
   # ⛔ Đọc mã thoát MỘT MÌNH (luật 9): 99 chỉ nói "một ngưỡng nào đó đỏ". Ngưỡng NÀO đỏ mới là
-  #   thứ phân biệt được bốn ca này với nhau — k6 in tên nó ở dòng `thresholds on metrics '…'`.
+  #   thứ phân biệt được năm ca này với nhau — k6 in tên nó ở dòng `thresholds on metrics '…'`.
   # ⚠ `|| true` là BẮT BUỘC, ⛔ phải cho chắc: script bật `pipefail`, nên ở ca XANH (⛔ ngưỡng nào
   #   đỏ) `grep` ⛔ khớp gì và thoát 1 ⇒ cả phép gán thoát 1 ⇒ `set -e` giết script **trước** dòng
   #   in kết quả. Đo được ở lượt chạy đầu: nó dừng sau ca 1 mà ⛔ in một chữ nào (luật 32).
@@ -86,9 +87,10 @@ thu_mot_ca() {
   fi
 }
 
-echo "── Bốn ca ─────────────────────────────────────────────"
-thu_mot_ca binh-thuong    0  ''
-thu_mot_ca rong-duoi-tai  99 'tim_kiem_rong'
-thu_mot_ca moc-rong       99 'thieu_moc_tim_kiem'
-thu_mot_ca chan-429       99 'bi_chan_429'
-echo "✓ 4/4 ca đúng — kịch bản phân biệt được bốn trạng thái, ⛔ chỉ 'có đỏ hay ⛔'."
+echo "── Năm ca ─────────────────────────────────────────────"
+thu_mot_ca binh-thuong             0  ''
+thu_mot_ca rong-duoi-tai           99 'tim_kiem_rong'
+thu_mot_ca khong-tra-loi-duoi-tai  99 'tim_kiem_khong_tra_loi'
+thu_mot_ca moc-rong                99 'thieu_moc_tim_kiem'
+thu_mot_ca chan-429                99 'bi_chan_429'
+echo "✓ 5/5 ca đúng — kịch bản phân biệt được năm trạng thái, ⛔ chỉ 'có đỏ hay ⛔'."

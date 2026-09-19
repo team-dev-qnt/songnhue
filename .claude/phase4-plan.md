@@ -143,7 +143,7 @@ gói cron** (`is-enabled` ⇒ `not-found`). Thứ đi cảnh báo chính là th�
 | `T60.3` | Production kéo được ảnh MinIO mới — ✅ 18/09 (`Pulled`, run `35367590642`) | `docker compose pull` thoát 0 | — |
 | `T37.1` | **NFR-03** — 1008 khung 10′ liên tục, sai lệch cron < 10% | cột *"số khung bỏ sót"* của **BC-13** | `T61.2` (DOD4.2 xanh) |
 | `T61.2` | Staging **và production** (bản vá lên production 18/09) ghi được byte thật chưa | `hydro_readings` (`measured_at`, `source='API'`) + `api_sources` trên cả hai máy | — |
-| `T61.6` | Kịch bản load test — đã có `tools/tai-thu/` (còn sửa README §2 theo T61.17) | kịch bản chạy được + tỉ lệ 429 khai riêng | — |
+| `T61.6` | Kịch bản load test — đã có `tools/tai-thu/`; README §2 sửa theo T61.17 ở WS-72 (19/09) | kịch bản chạy được + tỉ lệ 429 khai riêng | — |
 | `T37.2` | **NFR-02** — 200 CCU · P95 < 3s @ 50 users | bộ load test | `T60.13` · `T61.6` |
 | `T37.3` | **DOD1.17** — trang chủ < 3s | công cụ đo trang thật, **từ máy ở VN**, cả ISR nguội. ⚠ Đo trên **`https://thuyloisongnhue.vn`** — ⛔ `songnhue.com`: tên miền cũ ⛔ còn khối `server` nào phục vụ từ 08/09, nên một lượt đo ở đó ⛔ cho ra *chậm*, nó cho ra *hỏng* (T61.3) | `T60.13` |
 | `DOD0.21` | Quay lui **dựng lại được một bản đã bị thay** | ID ảnh = ID đã ghi + nginx healthy + trang chủ 200 (⛔ `Created` — container tạo lại luôn mang `Created` mới) | `T11.9` (quay lui trả cả cấu hình) |
