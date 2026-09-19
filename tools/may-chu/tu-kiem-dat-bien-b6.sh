@@ -81,6 +81,17 @@ kiem() { # kiem <mô tả> <biểu thức đúng>
   if eval "$2"; then printf '   ✓ %s\n' "$1"; else printf '   ✗ %s\n' "$1"; hong=1; fi
 }
 
+# Quyền dạng số của MỘT đường dẫn — chọn cú pháp một lần: GNU (`stat -c %a`, runner Linux) hay BSD
+# (`stat -f %Lp`, macOS). ⛔ nối `stat -f %Lp X 2>/dev/null || stat -c %a X`: GNU hiểu `-f` là "hệ tệp",
+# in thông tin HỆ TỆP của X ra STDOUT rồi mới thoát 1 ⇒ `||` chạy vế sau nhưng chuỗi đã lẫn rác, và
+# `2>/dev/null` chỉ nuốt stderr. Đúng lý do lượt CI đầu của PR #175 đỏ trên runner trong khi macOS xanh
+# (T71.8) — máy làm việc ⛔ dựng lại được điều kiện của runner, cùng họ T63.18.
+if stat -c %a / >/dev/null 2>&1; then
+  quyen() { stat -c %a "$1"; }
+else
+  quyen() { stat -f %Lp "$1"; }
+fi
+
 echo "== Tự kiểm dat-bien-b6.sh (mã thoát: $ma)"
 for k in SLACK_WEBHOOK_URL TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID MAIL_REDIRECT_TO HEALTHCHECKS_PING_URL; do
   kiem "$k được ghi vào .env staging" "grep -q '^$k=.\\+' '$SAN/staging.env'"
@@ -102,7 +113,7 @@ kiem "mã thoát 3 (còn thiếu SMTP_*)" "[ $ma -eq 3 ]"
 # sao lưu (tài khoản kéo chép thư mục ấy sang VPS-2). Thư mục 700, tệp 600, cả hai máy.
 for may in prod staging; do
   kiem "sao lưu .env $may nằm ở ~/.songnhue-env-bak, tệp 600, thư mục 700" \
-    "[ \"\$(ls \"$SAN/nha-$may/.songnhue-env-bak\" 2>/dev/null | grep -c '^env\\.bak-[0-9]\\{14\\}\$')\" = 1 ] && [ \"\$(stat -f %Lp \"$SAN/nha-$may/.songnhue-env-bak\" 2>/dev/null || stat -c %a \"$SAN/nha-$may/.songnhue-env-bak\")\" = 700 ] && [ \"\$(stat -f %Lp \"$SAN/nha-$may/.songnhue-env-bak\"/env.bak-* 2>/dev/null || stat -c %a \"$SAN/nha-$may/.songnhue-env-bak\"/env.bak-*)\" = 600 ]"
+    "[ \"\$(ls \"$SAN/nha-$may/.songnhue-env-bak\" 2>/dev/null | grep -c '^env\\.bak-[0-9]\\{14\\}\$')\" = 1 ] && [ \"\$(quyen \"$SAN/nha-$may/.songnhue-env-bak\")\" = 700 ] && [ \"\$(quyen \"$SAN/nha-$may/.songnhue-env-bak\"/env.bak-*)\" = 600 ]"
 done
 kiem "⛔ bản sao .env nào nằm cạnh .env giả (vị trí CŨ, rsync sẽ xoá)" "[ \"\$(ls \"$SAN\" | grep -c '\\.env\\.bak-')\" = 0 ]"
 
