@@ -1,8 +1,12 @@
 package com.songnhue.core.application.backup;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import com.songnhue.core.application.job.JobTypes;
+import com.songnhue.core.common.error.ErrorCode;
+import com.songnhue.core.common.exception.BusinessRuleException;
 import com.songnhue.core.domain.backup.BackupTrigger;
 import com.songnhue.core.spi.JobContext;
 import com.songnhue.core.spi.JobHandler;
@@ -26,6 +30,8 @@ import tools.jackson.databind.ObjectMapper;
  */
 @Component
 public class BackupJobHandler implements JobHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(BackupJobHandler.class);
 
     private final BackupService backupService;
     private final ObjectMapper objectMapper;
@@ -52,7 +58,17 @@ public class BackupJobHandler implements JobHandler {
 
         // Kết quả (thành hay bại) đã nằm trong system_backups + security_events.
         // Xem javadoc lớp về việc cố ý không ném lại khi FAILED.
-        backupService.runBackup(trigger, context.requestedBy());
+        try {
+            backupService.runBackup(trigger, context.requestedBy());
+        } catch (BusinessRuleException e) {
+            // T68.4 — lượt ĐÊM gặp một lượt khác đang chạy (thường là lượt tay bấm lúc khuya): bỏ qua
+            // có ghi, vì lượt đang chạy chính là bản sao lưu mới đêm nay. ⛔ Nuốt với lượt TAY: người
+            // bấm phải thấy việc của mình ⛔ chạy (job hỏng kèm ADM-2009), ⛔ thấy một job xanh rỗng.
+            if (e.errorCode() != ErrorCode.ADM_2009 || trigger != BackupTrigger.SCHEDULED) {
+                throw e;
+            }
+            log.warn("Bỏ lượt sao lưu đêm: đang có một lượt khác chạy — bản mới sẽ do lượt ấy tạo (ADM-2009)");
+        }
         context.progress(100);
     }
 

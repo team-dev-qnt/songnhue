@@ -65,7 +65,8 @@ class MaLoiCoNoiNemTest {
     private static final String[] MODULE = {"core", "content", "operations", "hydro", "hr", "app"};
 
     /**
-     * Mã <b>chưa có nơi ném</b>, và <b>vì sao</b> — đo 08/09/2026, đúng 7 mục.
+     * Mã <b>chưa có nơi ném</b>, và <b>vì sao</b> — đo 08/09/2026 ra 7; 19/09/2026 còn <b>5</b> (câu
+     * cũ ghi *"đúng 7"* trong khi danh sách đã 6 — T68.41; ADM-2009 nối ở T68.4).
      *
      * <p>⚠ Mỗi dòng ở đây là một mã được miễn kiểm. Danh sách phình lên là chuyện dễ xảy ra — thêm
      * một dòng cho hết đỏ là thao tác một dòng — nên {@link #dongMienTruVanConDung()} canh chiều
@@ -99,11 +100,8 @@ class MaLoiCoNoiNemTest {
                         + "HTTP — nên đường nối chưa dựng được cho tới khi Công ty trả lời G5.");
 
         // ── Khoảng trống THẬT, cần quyết ──
-        CHUA_CO_NOI_NEM.put(
-                "ADM_2009",
-                "⬜ 'Đang có một lượt sao lưu chạy'. `BackupService` CÓ trạng thái RUNNING nhưng ⛔ không "
-                        + "từ chối lượt thứ hai bằng mã này. Hai lượt `pg_dump` song song trên một máy 2 vCPU "
-                        + "là một sự cố tài nguyên im lặng. ⇒ Nối hoặc gỡ, ⛔ đừng để lửng.");
+        // ✅ ADM_2009 ra khỏi danh sách 19/09/2026 (T68.4): nối ở BackupService.runBackup (cờ trong JVM)
+        //    + BackupController.create + RestoreService — xem BackupServiceTest.luotThuHaiChongLenBiTuChoi.
         CHUA_CO_NOI_NEM.put(
                 "HYD_1001",
                 "⬜⬜ 'Điểm đo chưa ánh xạ nguồn API bên thứ 3' — trạng thái này ⛔ KHÔNG BIỂU DIỄN ĐƯỢC "

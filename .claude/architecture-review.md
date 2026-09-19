@@ -5965,6 +5965,9 @@ migration. Nguyên nhân: lượt khôi phục staging 26/8 chạy bản còn `-
 thứ §10.58 ghi là *"`ALTER DEFAULT PRIVILEGES` cứu"*. **Nó cứu app khỏi chết và cùng lúc
 xoá mọi câu `REVOKE`**, và staging đã chạy như thế suốt 13 ngày.
 
+> ⚠ **Đo lại 19/09/2026 — vế *"`--no-privileges`"* SAI cơ chế, xem §12.7.** Khôi phục ĐÈ lên một
+> CSDL đã migrate **tự nó** sinh ra đúng danh sách trên (72 quyền), nguồn đúng, ⛔ có cờ ấy.
+
 Bài học chung: **một bản dump không chỉ là dữ liệu — nó là dữ liệu + lược đồ + ACL.** Nhân
 bản môi trường theo chiều *kém an toàn → an toàn hơn* là nhập khẩu cả phần yếu. Vá không
 phải bằng cách chép ảnh chụp ACL của production (ảnh chụp cũng có thể sai) mà bằng cách
@@ -8033,3 +8036,37 @@ chạy sẽ ⛔ được sinh ra và CSS hỏng **trong im lặng**.
 | migration quên cột `default_value` | **Flyway** chặn ngay: `Chờ đúng 1 hàng … rỗng cả hai cột, đo được 0` ⇒ bản hỏng ⛔ khởi động nổi, ⛔ đợi tới lượt chạy bài kiểm |
 | `cotBangVanBan` ghim `'lg:col-span-8'` | 3/5 bài, gồm bài bất biến ⟺ |
 | component tự ghi `lg:col-span-8` vào JSX | bài *"hai tên lớp chỉ sống ở MỘT nơi"* |
+### §12.7 Khôi phục ĐÈ hạ quyền append-only — cơ chế THẬT của §10.80 (C) (WS-69, 19/9/2026)
+
+**Hiện tượng đo được.** Bài `KhoiPhucVaoCsdlTrangTest` viết TRƯỚC bản vá, chạy trên Postgres 16 thật:
+dump bằng đúng cờ của job sao lưu (⛔ `--no-privileges`), khôi phục vào CSDL trắng ⇒ ACL của
+`songnhue_app` khớp nguồn từng bảng; khôi phục **lần hai, ĐÈ lên chính CSDL ấy** ⇒ **72 quyền thừa**,
+0 quyền thiếu — `audit_logs` + 15 phân mảnh, `hydro_raw_logs` + 13 phân mảnh (UPDATE, DELETE),
+`security_events`, `audit_archive_anchors`, `audit_chain_head` (nguồn: app ⛔ quyền nào ⇒ đích: đủ
+bốn), `flyway_schema_history`. Đúng từng tên với bảng `arwd` của staging ghi ở §10.80 (C).
+
+**Cơ chế.** `--clean` DROP rồi CREATE lại từng bảng bằng vai trò đang nạp (`songnhue_owner`), nên
+bảng mới nhận `ALTER DEFAULT PRIVILEGES` của **đích** — `V202608131006` cấp `SELECT, INSERT, UPDATE,
+DELETE ON TABLES TO songnhue_app`. Phần ACL của bản dump chỉ là GRANT so với `acldefault` (quyền
+chủ sở hữu); nó ⛔ bao giờ phát REVOKE cho quyền mà mặc định cấp thêm. Mục `DEFAULT ACL` của bản
+dump nằm ở lượt ACL cuối cùng, tức SAU khi mọi bảng đã dựng xong. ⇒ Đích trắng (⛔ quyền mặc định)
+thì đúng; đích đã migrate thì sai — lại đúng hình dạng §10.80: **đường hay được thử (máy trắng) thì
+chạy, đường dùng thật (khôi phục đè sau sự cố, nút M5.11) thì hỏng**, và ⛔ một dòng lỗi nào.
+
+**Vì sao bản ghi cũ sai.** §10.80 (C) và ba tài liệu chép theo quy cho `--no-privileges` vì lượt
+26/8 CÓ cờ ấy — một đồng hiện bị đọc thành nhân quả. Gỡ cờ ấy (T7.13-a) ⛔ chặn được gì: lượt di trú
+08/09 ⛔ có cờ vẫn sinh `arwd`, và production thoát chỉ nhờ khối ⑥ của `--sau` REVOKE tay.
+
+**Quyết định.** Khối `KeHoachKhoiPhuc.khoiTruocKhiNap()` (bản sao từng byte ở
+`deploy/backup/truoc-khi-nap.sql`, canh bằng `BackupRestoreFlagsTest`) gỡ quyền mặc định **cấp
+schema** của chính vai trò đang nạp, trong CÙNG giao dịch với phần nạp; bản dump đặt lại chúng ở
+lượt ACL cuối. ⛔ Chọn *"REVOKE lại danh sách bảng append-only sau khi nạp"*: đó là một danh sách gõ
+tay sẽ mục ngay bảng append-only thứ tám (luật 28), và nó sửa triệu chứng chứ ⛔ sửa cơ chế. Phạm vi
+khai ra: mục toàn cục (⛔ `IN SCHEMA`) ⛔ đụng — nó gồm cả quyền chủ sở hữu, kho ⛔ khai loại ấy; loại
+đối tượng lạ thì NÉM. Kèm hai chim hoàng yến đo ở tầng phục vụ (luật 35): `RestoreService` và cả hai
+script hỏi `has_table_privilege(current_user, 'public.audit_logs', 'UPDATE')` bằng **vai trò ứng
+dụng** sau khi nạp — đỏ thì báo THẤT BẠI kèm câu *"dữ liệu ĐÃ nạp"*, ⛔ báo XONG.
+
+⚠ **Hệ quả cho khôi phục chéo môi trường**: sau bản vá, khôi phục cho ra **đúng ACL của nguồn** ⇒
+nguồn yếu thì đích vẫn yếu theo — khối ⑥ của `sau-khoi-phuc-production.sql` vẫn bắt buộc khi nguồn
+là staging.
