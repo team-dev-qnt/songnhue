@@ -10,10 +10,14 @@
 #   giữa, và §4 của `deploy.yml` đã nói khác biệt giữa hai môi trường là thứ làm
 #   "chạy tốt ở staging" mất hết ý nghĩa.
 #
-# ⛔ SỐ LỚP CHẶN KHÔNG GIẢM — chỉ đổi thành phần. Nay là:
+# ⭐ ĐỔI 18/09/2026: ⛔ còn đòi "đã qua staging". `production` nhận PR thẳng từ
+#   `dev` (Promotion guard ép nguồn = `dev` + CI xanh), nên bước kiểm
+#   `--is-ancestor … origin/staging` đã gỡ — nó sẽ chặn đúng luồng vừa cho phép.
+#
+# Các lớp chặn còn lại:
 #   1. Commit đem triển khai phải giải được từ CÂY TỆP của đỉnh `production` về
-#      một commit trên `dev` (nơi duy nhất đóng gói image), và commit ấy phải là
-#      **tổ tiên của `staging`** — kiểm ở đây, hai lớp.
+#      một commit trên `dev` (nơi duy nhất đóng gói image) — không giải được thì
+#      đỏ trước khi chạm máy chủ.
 #   2. `deployment_branch_policy` khoá environment `production` vào đúng nhánh
 #      `production`, nên `workflow_dispatch` từ nhánh khác **không** chạm được
 #      `PROD_*`. (Thay cho required reviewer đã gỡ — một ràng buộc máy kiểm được
@@ -62,7 +66,7 @@ permissions:
 
 jobs:
   kiem-moc:
-    name: Mốc đề bạt đã qua staging chưa
+    name: Chốt commit dev sẽ triển khai
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
@@ -79,11 +83,8 @@ jobs:
           fetch-depth: 0
 
       # `fetch-depth: 0` lấy đủ lịch sử của NHÁNH ĐANG CHECKOUT, không lấy nhánh khác.
-      - name: Nạp thêm dev và staging để đối chiếu
-        run: |
-          git fetch --no-tags origin \
-            +refs/heads/dev:refs/remotes/origin/dev \
-            +refs/heads/staging:refs/remotes/origin/staging
+      - name: Nạp thêm dev để đối chiếu
+        run: git fetch --no-tags origin +refs/heads/dev:refs/remotes/origin/dev
 
       - name: Chốt commit sẽ triển khai
         id: moc
@@ -106,27 +107,13 @@ jobs:
           fi
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
-      # ⚠ Chặn đúng cái sai nguy hiểm nhất: đưa lên production một commit chưa
-      #   bao giờ chạy ở staging. Với lượt `push` thì cây tệp đã khớp một commit
-      #   `dev`, nhưng "khớp nội dung" chưa trả lời câu "đã đi qua chặng trước
-      #   chưa" — hai câu khác nhau, cần cả hai.
-      - name: Commit này đã qua staging chưa
+      - name: Ghi mốc triển khai
         env:
           SHA: ${{ steps.moc.outputs.sha }}
           LY_DO: ${{ inputs.reason }}
           THONG_DIEP: ${{ github.event.head_commit.message }}
         run: |
           set -euo pipefail
-
-          if ! git merge-base --is-ancestor "$SHA" origin/staging; then
-            echo "::error::Commit $SHA KHÔNG nằm trong lịch sử của nhánh staging."
-            echo "Luồng đã chốt: dev → staging → production. Chỉ đưa lên production thứ đã chạy thật ở staging."
-            echo ""
-            echo "⚠ Nếu SHA này vừa được GIẢI THEO CÂY TỆP thì nguyên nhân gần như chắc chắn là"
-            echo "  lượt merge dev → staging đã bị SQUASH: nội dung khớp, quan hệ cha thì không."
-            exit 1
-          fi
-          echo "✓ $SHA đã có trong staging"
 
           # `${VAR%%$'\n'*}` chứ không `| head -1`: dưới `pipefail`, `head` đóng
           # ống sớm làm lệnh bên trái ăn SIGPIPE và cả bước đỏ vì một lý do không

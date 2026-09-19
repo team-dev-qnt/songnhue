@@ -7306,3 +7306,76 @@ Bánh cóc: ghim `env: { TZ: 'UTC' }` ở cả hai cấu hình vitest ⇒ lượ
 điều kiện runner; đo được là có hiệu lực (cùng bản phá, chạy ở `TZ=+07` nay **ĐỎ**). ⛔ Cố ý
 **⛔ ghim `Asia/Ho_Chi_Minh`**: ghim vào đúng múi giờ của sản phẩm là làm cả lớp lỗi ấy **vô
 hình trở lại**.
+
+### §12.2 Báo cáo nhanh — ba quyết định và một quyết định bị đảo (WS-66, 18/9/2026)
+
+**(a) F01519 Lương Cổ về THƯỢNG LƯU — đảo chốt 09/09 (`V202609091073` → `V202609181085`).** Ngày
+09/09 hai nguồn của Công ty lệch nhau đúng một dòng và ta lấy bản chụp (HA_LUU). Mẫu Báo cáo nhanh
+18/09 là **nguồn thứ ba**: dòng `TL (nhuệ)` có số, `HL (đáy)` trống. Và bản chụp **tự mâu thuẫn trong
+cùng một hàng** — nó gắn `Sông Nhuệ` cho một vế hạ lưu, trong khi hạ lưu cống Lương Cổ đổ ra sông
+Đáy. ⇒ Đổi về TL, giữ `river_name`/lý trình (vốn đúng với vế TL). ⚠ Bài học lặp lại §11.18: chữ
+*"đã chốt"* trong một migration ⛔ làm dữ liệu đúng lên; và đổi vai trò điểm đo phải đổi **cả**
+`station_constructions.role` (bản ghi chính trùng `position_role` — A2b), nếu không hai cột nói hai
+điều mà ⛔ màn hình nào báo.
+
+**(b) Xuất .docx bằng JDK, ⛔ thư viện — trả lời T42.14 cho RIÊNG mẫu Word này.** Mẫu có sẵn dàn
+trang (379 ô gộp, khối ký, phông); việc là *đặt chữ vào ô cố định*, ⛔ *sinh văn bản*. `DocxFiller`
+(`core/common/export`) mở ZIP, sửa đúng `word/document.xml`, chép nguyên byte mọi entry khác. Định vị
+ô theo **chỉ số** (Word cắt một cụm ngày giờ thành tới 12 run tuỳ lịch sử soạn thảo ⇒ tìm theo chuỗi
+sẽ trượt im lặng); ngày giờ ngoài ô thì thay ở mức **đoạn**, và mỗi cụm khẳng định **đúng số lần
+thay** ⇒ mẫu đổi thì đỏ. Toạ độ ô gắn với một bản mẫu ⇒ bộ canh vân tay SHA-256 + hình học. PDF/XLSX
+vẫn chờ mẫu thật — ⛔ suy từ quyết định này ra "đã chọn xong bộ kết xuất".
+
+**(c) Kỳ đã chốt là ẢNH CHỤP, ⛔ khoá ngoại ghép.** Bản nháp plan ép "vận hành ≤ thiết kế" bằng khoá
+ngoại ghép `(nhom_may_id, so_may)` sang danh mục. Nó đúng về ràng buộc mà sai về vòng đời: Công ty
+sửa số máy của một trạm ⇒ mọi kỳ cũ trỏ vào chặn lượt sửa; và nếu nới bằng `ON UPDATE CASCADE` thì
+văn bản **đã gửi UBND** lặng lẽ đổi số. ⇒ Lượt CHỐT chụp số thiết kế + Q vào bảng của kỳ, CHECK ép
+bất biến trên chính ảnh chụp; kỳ đang nhập đọc danh mục sống.
+
+**(d) Q lưu m³/h, ⛔ tái dùng `flow_per_pump_m3s`.** Vòng khứ hồi qua m³/s ba lẻ làm sai 801/830 máy,
+trong khi tổng chỉ lệch −240/2.554.152 vì sai số **triệt tiêu nhau** ⇒ một phép kiểm "tổng có khớp
+⛔" ⛔ bao giờ đỏ. Đơn vị nào là đơn vị của **văn bản** thì lưu đúng đơn vị ấy.
+
+**(e) Mục chờ Công ty ⇒ DỮ LIỆU nhập trên giao diện, ⛔ hằng số trong mã (18/09 tối, `V202609181088`).**
+QuanTran chốt: *mục nào chờ Công ty thì để trống, cho Công ty nhập trên UI để khỏi chờ.* Đo lại những gì
+bản sáng còn ghi cứng: 14 mã điểm đo Bảng 3 (`Bang3SongNhue`) và mã trạm Yên Nghĩa `TB-YNGHIA`. Cái thứ
+hai là một **quy ước ngầm** — đổi mã trạm trên màn hình Công trình thì ghi chú lặng lẽ về *"chưa có
+trong danh mục"*, và danh mục có **hai** công trình tên "Yên Nghĩa" (trạm bơm · cống tiêu tự chảy).
+⇒ Bảng `bao_cao_nhanh_vi_tri`: 8 chỗ CỐ ĐỊNH của mẫu, Công ty chọn công trình; gắn sai loại ⇒ `OPS-2032`.
+Điểm đo từng vế **suy ra** từ `station_constructions.role` qua `HydroSnapshotPort` — ⛔ lưu mã điểm đo
+lần thứ hai (luật 14); OI-BC14 nay Công ty tự lấp bằng màn hình Điểm đo. Seed rút theo mã từ danh mục
+có sẵn ⇒ hành vi ngày deploy ⛔ đổi. Kỳ đã chốt đọc **ảnh chụp** cấu hình (`bao_cao_nhanh_vi_tri_ky`),
+cùng lý lẽ (c).
+
+**(f) ĐẢO chốt sáng 18/09: Bảng 4 lượng mưa NHẬP TAY theo kỳ.** Chốt sáng: *để trống kèm lý do, ⛔
+nhập tay* — vì G3-a chưa có nguồn. Cùng ngày QuanTran chốt lại theo nguyên tắc (e): Công ty CÓ số mưa
+lúc lập báo cáo, chờ G3-a là để văn bản gửi UBND thiếu Bảng 4 vô thời hạn. 8 điểm Sông Nhuệ (STT 5–12,
+tên chép nguyên văn mẫu để bộ điền đối chiếu dòng); `NULL` = ô trống, khác 0 mm. ⚠ Ngày G3-a về: nguồn
+tự động **THAY** ô nhập — ⛔ trộn hai nguồn trong một kỳ, vì một văn bản mà nửa số đo máy, nửa số gõ tay
+thì ⛔ ai trả lời được *"số này từ đâu"*.
+
+**(g) Công ty trả lời open issue (19/09/2026, `docs_origin/bao-cao/spec-bao-cao-nhanh/xacnhan.md`).**
+Tám mục đồng ý phương án đang chạy (OI-BC1 · 2 · 5 · 6 · 7 · 12 · 15 · 16) ⇒ ⛔ đổi mã. Ba mục đổi thứ
+khác ngoài mã:
+- **OI-BC10** — Bảng 2 chia theo **7 Xí nghiệp của sheet `Trạm bơm`**, trạm vẫn lấy từ `TB Tiêu (KH)`
+  (OI-BC9). Khối Bảng 2 vốn đã suy từ đơn vị quản lý của công trình và xếp theo cây tổ chức ⇒ đây là
+  việc **nhập liệu** của Công ty, ⛔ phải mã.
+- **OI-BC11** — `F01771` thuộc **Sông Nhuệ** ⇒ dữ liệu điểm đo đứng nguyên; nhãn `TL (hồng)` trong mẫu
+  là chữ của Công ty, ⛔ sửa.
+- **OI-BC17** — Công ty **cho nới** cột "Lúa" nhóm Tổng cộng ở Bảng 5. Chỗ nới đặt trong **mã xuất**
+  (`DocxFiller.chiaDeuHaiCot`, gọi ở `BaoCaoNhanhDocx`), ⛔ sửa tệp mẫu: tệp trong jar vẫn **trùng byte**
+  bản Công ty gửi (SHA-256 = `docs_origin/…/Mẫu Báo cáo nhanh.docx`), nên ngày Công ty gửi mẫu mới thì
+  thay tệp là đủ, và mọi chỗ ta chỉnh bố cục có TÊN trong mã thay vì chìm trong một tệp nhị phân. Chia
+  đều **tổng** hai cột (631 + 990 → 810 + 811 twip) ⇒ bảng ⛔ rộng thêm, ⛔ cột khác xê dịch; ô gộp phủ
+  một cột của cặp kèm cột khác ⇒ NÉM thay vì sinh bảng méo.
+
+⚠ **OI-BC8 — một câu trả lời hai cách đọc, đã chọn một và nói ra.** Nguyên văn: *"bảng bị thiếu, công
+suất thực tế là 43,5 họ đang làm tròn thành 43, giữ nguyên bảng và tính theo công thức tôi chỉ định"*.
+Đọc là: nhãn cột là cỡ **danh định đã làm tròn**, giữ 9 cột, xếp theo **biên đã gửi** — công thức duy
+nhất trong văn bản ⇒ ⛔ đổi biên. Cách đọc ấy tự nhất quán: biên đã gửi chính là **điểm giữa hai nhãn
+liền kề** (32.500 · 17.000 · 10.000 · 6.000 · 3.500), tức *"làm tròn tới nhãn gần nhất"*; ca hoà duy nhất
+trong dữ liệu (1.950, giữa 1,9 và 2) xếp XUỐNG — đúng chiều *"43,5 → 43"* của chính câu trả lời. Cách đọc
+kia — nhãn là **cận dưới** (làm tròn xuống) — đổi cột của **15 máy**: 7.300 ("8" → "4", 4 máy) và 3.700
+("4" → "2÷3", 11 máy). Biên là dữ liệu CRUD ⇒ nếu cách đọc sai thì Công ty sửa trên màn hình *Danh mục
+máy bơm*, ⛔ đợi deploy.
+OI-BC13 ⛔ được trả lời ⇒ giữ nguyên chữ của mẫu ở cả hai chỗ.

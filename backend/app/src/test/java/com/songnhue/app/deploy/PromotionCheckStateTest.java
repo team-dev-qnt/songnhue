@@ -175,95 +175,95 @@ class PromotionCheckStateTest {
     }
 
     // =========================================================================
-    //  T11.86 · SHA nào được đem đi hỏi check-run
+    //  18/09/2026 · Nguồn = `dev` cho CẢ HAI đích, và hỏi CI của `head.sha`
     //
-    //  ⛔⛔ Bản trước hỏi check-run của `pull_request.head.sha` ở CẢ HAI chặng. Với `dev → staging` thì
-    //  đúng — head là đỉnh `dev`, nơi CI thật sự chạy. Với `staging → production` thì head là một
-    //  **merge commit nằm trên `staging`**, mà `ci.yml` chỉ chạy trên `dev`: commit ấy không có, và
-    //  không thể có, một check-run nào. Cổng bắt buộc DUY NHẤT của `production` vì thế là một cổng
-    //  **về nguyên tắc không thể xanh**.
+    //  Luồng đơn giản hoá: ⛔ còn thứ tự `staging` trước `production`. Cả hai đích nhận PR từ `dev`,
+    //  nên head của PR LUÔN là đỉnh `dev` — commit mang check-run của lượt push `dev`. Bản T11.86
+    //  (06/09) phải giải cây tệp vì PR `staging → production` có head là merge commit trên `staging`,
+    //  thứ chưa từng chạy CI (PR #94 — cổng "về nguyên tắc không thể xanh"). Nguồn ấy nay bị chặn ngay
+    //  bước đầu, nên phép giải thành thừa — và giữ thứ thừa là giữ một chỗ có thể hỏng.
     //
-    //  Số đo 06/09/2026: PR #94 (`staging → production`, mở từ 05/09) — `Promotion guard = FAILURE`,
-    //  `mergeStateStatus = BLOCKED`, log ghi `Không tìm thấy kết quả CI nào cho commit 107e315b…`;
-    //  và `CD Production` có **0 lượt chạy** kể từ khi được tạo 15/08.
-    //
-    //  ⛔ Vì sao không ai thấy: cổng đỏ kèm một lý do NGHE RẤT HỢP LÝ ("commit này chưa từng chạy qua
-    //  pipeline ở dev") nên nó đọc như một kết luận đúng, không như một khuyết tật. Cùng họ §10.72 —
-    //  nhưng lần ấy cổng VẮNG MẶT, lần này cổng CÓ MÀU mà màu ấy nói sai chuyện.
+    //  ⚠ Cặp bất biến phải đi CÙNG nhau: nếu bước kiểm nguồn lại nhận `staging` cho `production` mà
+    //  bước hỏi CI vẫn dùng `head.sha`, thì T11.86 quay về nguyên vẹn. Hai bài dưới canh hai nửa.
     // =========================================================================
 
     @Test
-    @DisplayName("⭐⭐ T11.86 · Hỏi CI của SHA ĐÃ GIẢI, không hỏi head.sha của PR")
-    void hoiCiCuaShaDaGiai() {
-        assertThat(envBuocHoiCi(doc(WORKFLOW)))
+    @DisplayName("⭐⭐ Nguồn của PR vào `staging` VÀ `production` đều phải là `dev`")
+    void nguonPhaiLaDevChoCaHaiDich() {
+        String buoc = buocKiemNguon(doc(WORKFLOW));
+
+        assertThat(buoc)
                 .as(
                         """
-                        Bước hỏi check-run vẫn lấy thẳng `pull_request.head.sha`.
+                        Bước kiểm nguồn không ép `dev` cho cả hai đích.
 
-                        Với PR `staging → production`, SHA ấy là merge commit trên `staging` — chưa \
-                        bao giờ chạy CI, nên cổng bắt buộc duy nhất của `production` không thể xanh. \
-                        Đo được trên PR #94, và `CD Production` chưa từng chạy một lượt nào.""")
-                .contains("steps.nguon.outputs.sha_ci")
-                .doesNotContain("pull_request.head.sha");
+                        Bước hỏi CI dùng thẳng `head.sha` — chỉ đúng khi head là đỉnh `dev`. Nhận PR \
+                        `staging → production` là dựng lại cổng "không thể xanh" của PR #94 (T11.86).""")
+                .containsPattern("staging\\s*\\|\\s*production\\)\\s*expected=\"dev\"")
+                .doesNotContain("expected=\"staging\"");
+    }
+
+    @Test
+    @DisplayName("⭐⭐ Hỏi CI của `pull_request.head.sha` — ⛔ còn bước giải cây tệp")
+    void hoiCiCuaHeadSha() {
+        String yml = doc(WORKFLOW);
+
+        assertThat(envBuocHoiCi(yml))
+                .as("Bước hỏi check-run không lấy `pull_request.head.sha` — nó đang hỏi SHA nào?")
+                .contains("SHA: ${{ github.event.pull_request.head.sha }}");
+        assertThat(yml)
+                .as(
+                        """
+                        `promotion-guard.yml` vẫn gọi `giai-dinh-dev.sh`. Từ 18/09 nguồn luôn là `dev` \
+                        nên head đã là SHA mang CI; giải thêm một lần là thêm một đường trả mã 2 \
+                        (chưa fetch `dev`) khoá cứng nhánh đích.""")
+                .doesNotContain("giai-dinh-dev.sh");
     }
 
     @Test
     @DisplayName("⭐ TỰ KIỂM: phép trích `env:` phải phân biệt được bản thật với một bản YAML giả")
     void tuKiemTrichEnvBuocHoiCi() {
-        // Luật 29: người viết bộ canh và người viết phản chứng là cùng một người. Nếu phép trích bắt
-        // hụt khối `env:` thì bài trên xanh trên một chuỗi rỗng (luật 7) — chính xác kiểu xanh giả mà
-        // `tuKiemBoLoc` sinh ra để chặn.
+        // Luật 29: nếu phép trích bắt hụt khối `env:` thì bài trên xanh/đỏ trên một chuỗi rỗng (luật 7).
         String gia =
                 """
                       - name: Commit này đã xanh CI ở chặng trước chưa
                         env:
                           GH_TOKEN: ${{ github.token }}
-                          SHA: ${{ github.event.pull_request.head.sha }}
+                          SHA: ${{ steps.nguon.outputs.sha_ci }}
                           REPO: ${{ github.repository }}
                         run: |
                           echo x
                 """;
 
         assertThat(envBuocHoiCi(gia))
-                .as("Phép trích không thấy `head.sha` trong một bản giả CÓ nó — nó đang soi nhầm chỗ")
-                .contains("pull_request.head.sha");
+                .as("Phép trích không thấy SHA giải sẵn trong một bản giả CÓ nó — nó đang soi nhầm chỗ")
+                .contains("steps.nguon.outputs.sha_ci")
+                .doesNotContain("pull_request.head.sha");
         assertThat(envBuocHoiCi(doc(WORKFLOW)))
-                .as("Phép trích trả về rỗng trên bản thật — bài `hoiCiCuaShaDaGiai` sẽ xanh trên tập rỗng")
+                .as("Phép trích trả về rỗng trên bản thật — bài `hoiCiCuaHeadSha` sẽ đo trên tập rỗng")
                 .isNotBlank();
+        assertThat(buocKiemNguon(doc(WORKFLOW)))
+                .as("Phép trích bước kiểm nguồn trả rỗng — bài `nguonPhaiLaDevChoCaHaiDich` đo trên tập rỗng")
+                .contains("case \"$target\" in");
     }
 
-    @Test
-    @DisplayName("⛔ Chỉ giải SHA khi đích là `production` — đường staging đang chạy tốt, đừng thêm phụ thuộc")
-    void chiGiaiKhiDichLaProduction() {
-        // `dev → staging` là check bắt buộc DUY NHẤT của `staging` và nó đang xanh. Cho nó một phụ
-        // thuộc mới vào `origin/dev` mà nó vốn không cần là mở một đường hỏng mới, không đóng đường nào.
-        assertThat(doc(WORKFLOW))
-                .as("Bước nạp nhánh dev không có điều kiện `base_ref == production`")
-                .contains("if: github.base_ref == 'production'");
-    }
-
-    @Test
-    @DisplayName("⛔ Phải `git fetch` nhánh dev trước khi giải — thiếu là `production` khoá vĩnh viễn")
-    void phaiFetchDevTruocKhiGiai() {
-        // `actions/checkout` với `fetch-depth: 0` chỉ lấy đủ lịch sử của ref đang checkout — ở đây là
-        // `refs/pull/N/merge`, KHÔNG phải nhánh `dev`. Thiếu bước fetch thì `giai-dinh-dev.sh` trả mã 2
-        // ở mọi lượt, và không PR nào vào `production` merge được nữa.
-        assertThat(doc(WORKFLOW))
-                .as("Không có refspec nạp nhánh dev — phép giải sẽ luôn trả 'không tra được'")
-                .contains("+refs/heads/dev:refs/remotes/origin/dev");
-    }
-
-    /**
-     * Trích khối {@code env:} của riêng bước "Commit này đã xanh CI…" — không soi cả tệp, vì
-     * {@code pull_request.head.sha} vẫn xuất hiện hợp lệ ở bước GIẢI (nó là đầu vào của phép giải).
-     * Soi cả tệp là một bộ canh không phân biệt được hai chỗ dùng khác hẳn nhau (luật 9).
-     */
+    /** Trích khối {@code env:} của riêng bước "Commit này đã xanh CI…" (tới {@code run: |}). */
     private static String envBuocHoiCi(String yml) {
         int dau = yml.indexOf("Commit này đã xanh CI");
         if (dau < 0) {
             return "";
         }
         int cuoi = yml.indexOf("run: |", dau);
+        return cuoi < 0 ? yml.substring(dau) : yml.substring(dau, cuoi);
+    }
+
+    /** Trích thân bước "Nhánh nguồn phải đúng chặng trước" (tới bước kế tiếp). */
+    private static String buocKiemNguon(String yml) {
+        int dau = yml.indexOf("Nhánh nguồn phải đúng chặng trước");
+        if (dau < 0) {
+            return "";
+        }
+        int cuoi = yml.indexOf("- uses:", dau);
         return cuoi < 0 ? yml.substring(dau) : yml.substring(dau, cuoi);
     }
 

@@ -147,7 +147,10 @@ dev-docker: ## [QA / demo] TOÀN BỘ stack trong Docker (FE gọi backend DOCKE
 
 .PHONY: dev-native
 dev-native: ## Chạy backend NATIVE từ máy (cần `make dev-infra` trước)
-	cd $(BACKEND) && ./mvnw -pl app -am spring-boot:run
+	$(call need_local_env)
+	@# ⛔ Nạp `local.env` — bản cũ chạy trần nên chết ngay ở `Could not resolve placeholder 'DB_HOST'`
+	@#    (đo 18/09/2026). Tệp ấy đã có sẵn giá trị cho tiến trình NATIVE (localhost:15432…).
+	@set -a; . "$(LOCAL_ENV)"; set +a; cd $(BACKEND) && ./mvnw -pl app -am spring-boot:run
 
 .PHONY: build-images
 build-images: ## Build lại image backend từ mã nguồn local (không chạy)

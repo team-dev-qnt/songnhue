@@ -53,7 +53,10 @@ class ReportReadsAggregateTest {
 
     /** ✅ Kho truy vấn biểu đồ (T35.4) thêm vào đây <b>cùng commit</b> với tệp ấy ra đời. */
     private static final List<String> TEP_BAO_CAO = List.of(
-            "hydro/HydroReportRepository.java", "hydro/HydroChartRepository.java", "hydro/HydroGridRepository.java");
+            "hydro/HydroReportRepository.java",
+            "hydro/HydroChartRepository.java",
+            "hydro/HydroGridRepository.java",
+            "hydro/HydroSnapshotRepository.java");
 
     /** Bảng số đo thô — báo cáo ⛔ không được đọc, trừ ngoại lệ có tên. */
     private static final String BANG_THO = "hydro_readings";
@@ -66,6 +69,11 @@ class ReportReadsAggregateTest {
      * này muốn.
      */
     private static final Map<String, String> NGOAI_LE = Map.of(
+            "SQL_MUC_NUOC_TAI_THOI_DIEM",
+                    "⭐⭐ Báo cáo nhanh, Bảng 3 — mẫu Word ghi 'Mực nước HỒI 16h ngày …': MỘT số đo tức thời "
+                            + "tại một mốc. Bảng tổng hợp THEO NGÀY ⛔ trả lời được câu ấy về nguyên tắc. Chi phí "
+                            + "ĐÃ CHẶN Ở SQL: ≤ 14 mã API × cửa sổ 24 giờ (≤ 144 dòng mỗi mã), DISTINCT ON lấy "
+                            + "đúng một dòng mỗi mã. ⛔ Đừng nới cửa sổ — số đo cũ hơn 24h in vào cột 'hồi 16h' là SAI.",
             "SQL_CHUOI_24H",
                     "⭐⭐ T35.4 — đường cong 24 giờ. Bảng tổng hợp THEO NGÀY có đúng MỘT hàng cho hôm nay, "
                             + "nên nó ⛔ không trả lời được 'nước lên từ lúc mấy giờ' — thứ người ta mở biểu đồ "

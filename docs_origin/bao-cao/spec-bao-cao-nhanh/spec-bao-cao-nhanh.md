@@ -197,3 +197,36 @@ Tương tự: bảng chung toàn Thành phố (37 điểm đo), Công ty Sông N
 - [ ] Phụ lục 2 (Bảng 3, 4) chỉ điền đúng phần dữ liệu thuộc Công ty Sông Nhuệ, không tự bịa số cho hệ thống sông của công ty khác.
 - [ ] Bảng 3 lấy đúng giá trị tức thời tại giờ kết thúc kỳ báo cáo (không cộng dồn); Bảng 4 lấy đúng tổng cộng dồn trong cả khung giờ báo cáo (không phải giá trị tức thời) — không lẫn 2 cách tính.
 - [ ] Không dùng số liệu mẫu trong file `Mẫu Báo cáo nhanh.docx` (97 trạm/396 máy, 15mm mưa, 20/20/40ha...) làm dữ liệu thật ở bất kỳ đâu trong code hay dữ liệu test cuối cùng.
+
+---
+
+## Phụ lục — Đối chiếu với kho mã (18/09/2026, WS-66)
+
+Phần trên giữ nguyên văn bản BA. Những chỗ dưới đây **đo được là lệch** khi dựng; bản dựng đi theo cột "Kho làm":
+
+| Mục spec | Spec ghi | Đo được | Kho làm |
+|---|---|---|---|
+| §2 nguồn Bảng 2 | "211 trạm, 1.011 máy" | con số ấy đọc từ sheet `Trạm bơm` (tự lệch: cộng dòng ra 1.025). Bảng 2 của mẫu khớp 1:1 sheet **`TB Tiêu (KH)`** — 178 trạm / 830 máy | nhập theo `TB Tiêu (KH)` (OI-BC9) |
+| §4.1 phân cỡ | `Sheet3` là "bảng phân loại chuẩn" | `Sheet3` **rỗng**; 35/830 máy ⛔ thuộc cột nào theo nhãn | 9 cỡ biên đề xuất, sửa được (OI-BC8) |
+| §4.2 loại dòng | 2 loại | 3 loại — dòng ⛔ số TT mà **có tên** là một trạm khác (`Ngọ Xá II`, `Xém (mới)`…) | mỗi trạm một công trình |
+| §6 Bảng 4 | "lấy tự động" | ⛔ điểm đo mưa nào (G3-a) | **nhập tay theo kỳ** 8 điểm Sông Nhuệ, để trống = ô trống (đổi 18/09 tối; ngày G3-a về thì nguồn tự động THAY ô nhập) |
+| tên bảng | `wl_reading` · `rain_reading` · `hydro_station` | ⛔ tồn tại | `hydro_readings` · `stations` (lọc `HOP_LE`) |
+| Bảng 3 Lương Cổ | — | mẫu ghi TL có số | `F01519` đổi về Thượng lưu (`V202609181085`) |
+| Bảng 3 điểm đo · ghi chú Yên Nghĩa | mã cố định | 3/14 vế ⛔ có điểm đo (OI-BC14); danh mục có HAI công trình tên "Yên Nghĩa" | Công ty **chọn công trình** cho 7 cống + trạm Yên Nghĩa trên màn hình *Cấu hình Báo cáo nhanh*; điểm đo từng vế suy từ liên kết điểm đo–công trình (`V202609181088`) |
+
+Open issue mới: OI-BC8 → OI-BC17 ở `.claude/master-tracking.md` T66.8.
+
+### Công ty trả lời (19/09/2026 — `xacnhan.md` cùng thư mục)
+
+| Mã | Trả lời | Kho làm |
+|---|---|---|
+| OI-BC1 · 2 · 5 · 6 · 7 · 12 · 15 · 16 | Đồng ý phương án đang chạy | ⛔ đổi |
+| OI-BC4 · OI-BC10 | Bảng 2 chia theo **7 Xí nghiệp của sheet `Trạm bơm`** (Thanh Trì · Thường Tín · Phú Xuyên · Ứng Hoà · Bắc Từ Liêm · Nam Từ Liêm · Hoài Đức) | ⛔ đổi mã: khối Bảng 2 lấy từ đơn vị quản lý của công trình, thứ tự theo cây tổ chức ⇒ Công ty nhập 7 Xí nghiệp rồi gán trạm |
+| OI-BC8 | Nhãn cột là cỡ danh định **đã làm tròn** (43.200 in ở "43"); giữ nguyên 9 cột, tính theo biên đã gửi | ⛔ đổi biên; ghi chú trên màn hình *Danh mục máy bơm* đổi từ "đề xuất" sang "đã xác nhận" |
+| OI-BC9 | Đồng ý `TB Tiêu (KH)` | ⛔ đổi |
+| OI-BC11 | `F01771` thuộc **Sông Nhuệ** | ⛔ đổi dữ liệu điểm đo |
+| OI-BC13 | ⛔ trả lời | giữ nguyên chữ của mẫu ở cả hai chỗ |
+| OI-BC14 | Chưa có điểm đo ở 3 vế | 3 ô để trống kèm lý do |
+| OI-BC17 | **Cho nới** cột "Lúa" nhóm Tổng cộng ở Bảng 5 | bản xuất chia đều bề rộng "Lúa"/"Rau, màu" của nhóm ấy (631 + 990 → 810 + 811 twip, tổng ⛔ đổi); tệp mẫu trong kho vẫn trùng byte bản Công ty gửi |
+
+OI-BC3 (lệch Km) thuộc màn hình biểu đồ mặt cắt — ⛔ phải phạm vi Báo cáo nhanh, vẫn mở.
