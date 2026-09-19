@@ -147,7 +147,10 @@ dev-docker: ## [QA / demo] TOÀN BỘ stack trong Docker (FE gọi backend DOCKE
 
 .PHONY: dev-native
 dev-native: ## Chạy backend NATIVE từ máy (cần `make dev-infra` trước)
-	cd $(BACKEND) && ./mvnw -pl app -am spring-boot:run
+	$(call need_local_env)
+	@# ⛔ Nạp `local.env` — bản cũ chạy trần nên chết ngay ở `Could not resolve placeholder 'DB_HOST'`
+	@#    (đo 18/09/2026). Tệp ấy đã có sẵn giá trị cho tiến trình NATIVE (localhost:15432…).
+	@set -a; . "$(LOCAL_ENV)"; set +a; cd $(BACKEND) && ./mvnw -pl app -am spring-boot:run
 
 .PHONY: build-images
 build-images: ## Build lại image backend từ mã nguồn local (không chạy)
@@ -297,6 +300,11 @@ ci-local: ## Chạy đúng trình tự cổng kiểm của CI (trừ CVE scan + 
 	@echo "  [2/10] Thứ tự migration so với nhánh nền"
 	@./backend/tools/kiem-thu-tu-migration.sh
 	@echo "  [3/10] Backend — Spotless + Checkstyle"
+	@# ⛔⛔ Xoá đệm checkstyle TRƯỚC khi kiểm (T63.23). `target/checkstyle-cachefile` sống qua lượt
+	@#    nâng phiên bản checkstyle, nên tệp ⛔ đổi bị BỎ QUA: đo 18/09 trên cùng một cây, có đệm ⇒
+	@#    thoát 0, xoá đệm ⇒ thoát 1 với 4 vi phạm mà runner (checkout sạch, ⛔ có đệm) bắt ngay.
+	@#    Biến thể thứ tư của "xanh ở máy ⛔ phải bằng chứng". Cái giá: vài giây mỗi lượt.
+	@rm -f $(BACKEND)/*/target/checkstyle-cachefile
 	@cd $(BACKEND) && ./mvnw -B -ntp spotless:check checkstyle:check -q
 	@echo "  [4/10] Frontend — ESLint"
 	@cd $(FRONTEND) && npm run lint --silent

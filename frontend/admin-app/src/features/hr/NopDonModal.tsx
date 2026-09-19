@@ -189,7 +189,7 @@ function NopDonNoiDung({ onDong, onXong }: { onDong: () => void; onXong: () => v
               type="warning"
               showIcon
               style={{ marginTop: 12 }}
-              message={`Danh mục ngày lễ mới khai ${xt.soNgayLeDaKhai}/${SO_NGAY_LE_THEO_LUAT} ngày`}
+              title={`Danh mục ngày lễ mới khai ${xt.soNgayLeDaKhai}/${SO_NGAY_LE_THEO_LUAT} ngày`}
               description={
                 <>
                   Điều 112 Bộ luật Lao động 2019 quy định <b>{SO_NGAY_LE_THEO_LUAT}</b> ngày nghỉ lễ
@@ -207,7 +207,7 @@ function NopDonNoiDung({ onDong, onXong }: { onDong: () => void; onXong: () => v
               type="error"
               showIcon
               style={{ marginTop: 12 }}
-              message="Vượt số dư phép năm"
+              title="Vượt số dư phép năm"
               description="Đơn này xin nhiều hơn số ngày còn lại — hệ thống sẽ từ chối khi gửi."
             />
           ) : null}
@@ -217,7 +217,7 @@ function NopDonNoiDung({ onDong, onXong }: { onDong: () => void; onXong: () => v
               type="warning"
               showIcon
               style={{ marginTop: 12 }}
-              message="Trùng lịch nghỉ trong đơn vị"
+              title="Trùng lịch nghỉ trong đơn vị"
               description={`${xt.canhBaoTrungLich}. Đây là cảnh báo để người duyệt cân nhắc, không phải một lệnh chặn.`}
             />
           ) : null}

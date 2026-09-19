@@ -97,11 +97,11 @@ export function BaoCaoNhanSuPage() {
   };
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       <Alert
         type="info"
         showIcon
-        message="Số liệu trên màn hình này giới hạn trong phạm vi đơn vị của bạn"
+        title="Số liệu trên màn hình này giới hạn trong phạm vi đơn vị của bạn"
         description={
           <>
             Khác với <b>Danh bạ nội bộ</b> và <b>Sơ đồ tổ chức</b> (toàn Công ty), báo cáo nhân sự
@@ -132,7 +132,7 @@ export function BaoCaoNhanSuPage() {
               <Statistic
                 title="Tỷ lệ nghỉ việc"
                 value="Chưa đủ dữ liệu"
-                valueStyle={{ fontSize: 16 }}
+                styles={{ content: { fontSize: 16 } }}
               />
             )}
           </Col>
@@ -140,18 +140,20 @@ export function BaoCaoNhanSuPage() {
             <Statistic
               title={`Hợp đồng hết hạn ≤ ${kpi?.nguongNgayHopDong ?? '—'} ngày`}
               value={kpi?.hopDongSapHetHan ?? '—'}
-              valueStyle={
-                kpi && kpi.hopDongSapHetHan > 0 ? { color: token.colorWarning } : undefined
-              }
+              styles={{
+                content:
+                  kpi && kpi.hopDongSapHetHan > 0 ? { color: token.colorWarning } : undefined,
+              }}
             />
           </Col>
           <Col xs={12} md={6}>
             <Statistic
               title={`Chứng chỉ hết hiệu lực ≤ ${kpi?.nguongNgayChungChi ?? '—'} ngày`}
               value={kpi?.chungChiSapHetHan ?? '—'}
-              valueStyle={
-                kpi && kpi.chungChiSapHetHan > 0 ? { color: token.colorWarning } : undefined
-              }
+              styles={{
+                content:
+                  kpi && kpi.chungChiSapHetHan > 0 ? { color: token.colorWarning } : undefined,
+              }}
             />
           </Col>
         </Row>

@@ -24,7 +24,7 @@ Khi mâu thuẫn: `architecture-review.md` > `function-spec.md` / `implement.md`
 | `docs/coding-guide.md` | **Đường đi** — công thức viết một chức năng (migration → entity → workflow → service → controller → quyền → mã lỗi → test) + bẫy đã trả giá |
 | `docs/ui-styles.md` | Quy chuẩn UI — màu qua `design-tokens`, Noto Sans, spacing, animation, a11y. Đọc trước khi sửa styling |
 | `hosting_recommendations.md` | **Mua gì và vì sao** — 2 VPS không PaaS (5 bảo đảm phải tháo), pháp lý DLCN, ngân sách bộ nhớ §8, tên miền §9, cắt chi phí §10 |
-| `docs/cicd.md` | Luồng 3 chặng `dev → staging → production`, cổng đề bạt, secret cần đặt |
+| `docs/cicd.md` | Luồng CI/CD, cổng đề bạt, secret cần đặt. ⭐ **Đơn giản hoá 18/09** (T66.9): test **chỉ ở PR** vào `dev` · image **chỉ ở push `dev`** · PR `dev → staging` và `dev → production` **độc lập** (⛔ còn bắt đi qua staging), **0 người duyệt**, guard = nguồn `dev` + CI xanh + gốc chung · vẫn merge commit khi đề bạt |
 | `docs/runbook/` | **12 runbook vận hành** — mỗi tệp trả lời một câu "chuông vừa kêu, làm gì bây giờ". ⭐ Ba tệp cập nhật 8/9 sau lượt khôi phục THẬT đầu tiên: `khoi-phuc-du-lieu.md` (bản cũ mô tả một đường **không chạy được trên máy chủ**) · `di-tru-du-lieu-giua-moi-truong.md` (nhân bản môi trường + **sổ 12 sự cố**) · `ten-mien-va-chung-chi.md` (đổi tên miền, cấp/gia hạn TLS). ⭐ **Mới 17/09: `deploy-hong.md`** — *deploy xong mà site ⛔ trả lời*; trước lượt ấy kho **⛔ có** runbook nào cho tình huống này, nên thông điệp của bước quay lui trỏ sang **khôi phục CSDL** (sai, và sai về phía phá huỷ nhất — §11.27). ⛔ **Máy chủ không có `psql`/`pg_dump`/`pg_restore` trên host** — mọi lệnh CSDL đi qua `docker exec` |
 | `docs/nghiem-thu-nfr.md` | **Sổ số đo nghiệm thu — `DOD4.10` sống ở đây.** 22 hàng: NFR-01→09 + DOD4.1→4.13, mỗi hàng `số \| ngày đo \| nguồn đo`. ⛔⛔ **`máy dev` ⛔ phải một nguồn hợp lệ** — `make ci-local` là cổng để *⛔ đẩy mã hỏng lên*, ⛔ phải một phép đo nghiệm thu. Cổng: `NghiemThuCoNguonDoTest`; luật: `conventions.md` §1.5-c |
 | `docs/deploy-guideline.md` | Dựng máy, khoá, `.env`, DNS/TLS, lượt deploy tay đầu tiên, checklist nghiệm thu — **chung cho cả hai môi trường** |
@@ -46,7 +46,7 @@ Khi mâu thuẫn: `architecture-review.md` > `function-spec.md` / `implement.md`
 
 ## Tech stack (đã chốt — không tự ý đổi)
 
-PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) + React/Vite/AntD 5 (admin) · **Không Redis (v1)** — cache in-process (Caffeine) + bảng `hydro_latest`; denylist ở DB · **DB-backed job queue + ShedLock (giữ sẵn, bật khi ≥2 node)** · **Worker in-process (v1)** · MinIO · ECharts · Leaflet/MapLibre + OSM · Flyway · Auth: access token 30' + refresh rotation httpOnly cookie · **Modular Monolith 1 node (v1), stateless để thêm node = đổi cấu hình** · ArchUnit enforce boundary.
+PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) + React 19/Vite/AntD 6 (admin — nâng 18/09/2026, WS-67) · **Không Redis (v1)** — cache in-process (Caffeine) + bảng `hydro_latest`; denylist ở DB · **DB-backed job queue + ShedLock (giữ sẵn, bật khi ≥2 node)** · **Worker in-process (v1)** · MinIO · ECharts · Leaflet/MapLibre + OSM · Flyway · Auth: access token 30' + refresh rotation httpOnly cookie · **Modular Monolith 1 node (v1), stateless để thêm node = đổi cấu hình** · ArchUnit enforce boundary.
 
 ## Quy tắc bất di bất dịch khi code
 
@@ -356,6 +356,9 @@ sai, sửa 10/09 — T52.8). Đo trên CSDL staging cùng ngày: `constructions`
 | 17/9 | ⛔⛔ **Một thông điệp chẩn đoán ĐOÁN MÒ, và đoán về phía phá huỷ nhất** — nhánh quay lui khẳng định *"migration đã đổi lược đồ"* rồi trỏ sang **khôi phục CSDL**, trong khi log của chính lượt ấy ghi `app Healthy` trên ảnh CŨ. Khôi phục CSDL ở đó ⛔ chữa gì mà **xoá mất dữ liệu mới** | §11.27 |
 | 17/9 | ⛔⛔ **CI đỏ ở một bài `ci-local` VỀ NGUYÊN TẮC ⛔ thể làm đỏ** — lệch **đúng 7 giờ** (runner UTC · máy +07). Cùng một bản phá: `TZ=UTC` ⇒ ĐỎ · `TZ=Asia/Ho_Chi_Minh` ⇒ XANH ⇒ thứ giấu lỗi chính là **máy người viết mã đặt ĐÚNG múi giờ sản phẩm**. Bánh cóc: ghim `TZ=UTC` cho bộ kiểm — ⛔ ghim `Asia/Ho_Chi_Minh`, ghim vào múi giờ sản phẩm là làm lớp lỗi ấy **vô hình trở lại** | §11.27 |
 | 17/9 | ⭐ **Bộ canh cũ bắt bản vá ở lượt chạy đầu — lần thứ MƯỜI MỘT, và nó chặn đúng tai nạn nó sinh ra để chặn**: 16 dòng chú thích trong heredoc `<<REMOTE` ⛔ nháy ⇒ **46 dấu huyền** là thay thế lệnh do runner khai triển, trong đó có `docker compose run nginx` — **đúng lệnh** đã gây ra §10.66. Một chú thích trong heredoc ⛔ nháy là **mã chạy được** | §11.27 |
+| 19/9 | ⛔⛔⛔ **Trình soạn thảo bài viết SẬP khi mở trên bản dựng production (staging/production chạy đúng tiptap ấy) — mọi bài kiểm dựng nó THẬT (T41.12) đều xanh.** React Router 7 dựng trang trong `startTransition` (render cắt lát); tiptap dựng editor NGAY TRONG render kèm hẹn giờ huỷ 1 ms ⇒ hẹn giờ bắn trước commit ⇒ effect cầm editor đã huỷ ⇒ `reading 'cached'`. Bài kiểm render NGOÀI transition nên về nguyên tắc ⛔ thấy. ⚠ Bài đầu của tôi dựng lại cuộc đua bằng giờ thật trong jsdom thì **XANH trên mã chưa vá**; bản vá đầu kiểm `isDestroyed` LÚC RENDER — vô dụng. Bài đúng dựng TRẠNG THÁI (huỷ trong `useLayoutEffect`) và phân biệt được ba trạng thái | T67.6 |
+| 19/9 | ⛔⛔ **Wall mode CHƯA TỪNG hiện ra — T23.10 tick ✅ từ phase 1.** `.sn-page-enter` (bọc mọi trang) chạy hoạt ảnh `fill-mode: both`, khung cuối `translateY(0)` ⇒ giữ `matrix(1,0,0,1,0,0)` mãi ⇒ phần tử thành KHỐI CHỨA của mọi con cháu `position: fixed` ⇒ khung wall `inset: 0` cao **24 px**. ⚠ Bản vá đầu (`transform: none` ở khung cuối) VẪN ra ma trận — nội suy bằng hàm đồng nhất — và bộ canh bản đầu **tha** nó. Thứ phải bỏ là việc GIỮ khung cuối (`backwards`). Mở khung ra thì lộ tiếp nhãn KPI vô hình (T67.8) | T67.7 |
+| 19/9 | ⚠ **Khảo sát phạm vi lượt nâng antd bằng `grep` sót 27 chỗ, và bộ đếm lời gọi `message` tĩnh tính cả CHÚ THÍCH** — `no-deprecated` (có thông tin kiểu) đo ra **252 chỗ / 88 tệp / 15 loại**. Cùng lượt: bộ kiểm FE chậm 15× trên antd 6 ⛔ vì máy — CSS variables luôn bật làm `getComputedStyle` của jsdom mất **5 926 ms**/bài (antd 5: 71 ms); chạy riêng thì xanh nên rất dễ đọc thành đói tài nguyên (T63.14) | T67.1 |
 | 14/9 | ⚠ **13 mục DoD Phase 3 có ĐÚNG 0 lượt nhắc trong sổ** — `grep -c "DOD3"` = 0. Chúng sống ở `phase3-plan.md` §8 và chưa lượt nào đối chiếu, đúng hình dạng §10.36. Lượt đối chiếu đầu tiên tìm ra **2 khuyết tật đang sống**. ⚠ Và 9 "endpoint mồ côi" của lượt quét là **dương tính giả của chính phép đo tôi vừa viết** (FE ghép đường dẫn bằng template literal — luật 25) | T60.7 · T60.8 |
 
 ⛔ Hệ quả rút ra: **"đã tick" không phải bằng chứng.** Trước khi mở một giai đoạn mới, đối chiếu với mã thật và chạy đường mà người dùng thật đi.
@@ -512,7 +515,21 @@ Bản nháp `JdbcTemplateDem extends JdbcTemplate` **đếm ra 0 dù bean ĐÃ b
 ⚠ `dem()` lấy **max** chứ ⛔ cộng (một câu lệnh Hibernate nay được cả hai bộ đếm ghi nhận).
 ⭐ **Nợ a11y `T63.9`: 34 → 16** — mười lăm nút có tên trong đợt này, **tất cả** lộ ra vì cùng một lý do: bài vòng khứ hồi cần
 bấm nút *Sửa* và ⛔ có cách nào gọi tên nó. Nợ ấy ⛔ phải chuyện thẩm mỹ — nó **chặn việc viết bài kiểm**.
-⬜⬜ **`T63.11` — QuanTran đang soạn tài liệu BÁO CÁO + TƯỚI TIÊU (17/09), PENDING.** ⛔ đoán trước, ⛔ tự chế bố cục. ⛔⛔ Vế
+⭐⭐ **18/09: vế BÁO CÁO NHANH của `T63.11` dựng xong — WS-66** (danh mục máy bơm · kỳ báo cáo chốt/mở lại ·
+xuất Word điền thẳng vào mẫu Công ty, 0 phụ thuộc mới). Tài liệu về ⛔ đảo chốt nào ⇒ **vế tưới tiêu vẫn
+PENDING**. ✅ **Gộp `dev` 19/09** (#167, `43c525d`) · Công ty **trả lời open issue 19/09** ⇒ `function-spec.md`
+**CN-02.12** + `business-open-questions.md` **Phần I-C** (⛔ nghiệm thu mở lại các dòng ✅ ở đó). ⬜ Còn: nhập liệu
+(T66.13) chặn theo **T66.14** — OI-BC10 cho danh sách Xí nghiệp THỨ BA, khác cả hai danh sách của OI-05.
+⭐⭐ **18–19/09: WS-67 — React 18 → 19 · antd 5 → 6** (PR **#169**, thay Dependabot #149/#150; **rebase lên `dev` sau
+#167/#170 ngày 19/09**). 252 chỗ API khai tử → **0**, đo bằng `@typescript-eslint/no-deprecated` (nay là luật lint của
+`admin-app`) · lockfile **MỘT** bản React (`PhuThuocNoiBoTest`) · bộ kiểm FE 170 s → 76 s. ⛔⛔ **Đi đường người dùng thật
+(22 màn hình) lộ BA khuyết tật CÓ SẴN, mã của cả ba đang chạy ở staging/production**: trình soạn thảo bài viết **SẬP khi
+mở** (T67.6 — bản dựng production của `dev` trước #165 sập y hệt ở máy; ⚠ **chưa ai mở thử trên production thật** — việc của
+QuanTran) · **wall mode CHƯA TỪNG hiện ra** dù T23.10 đã tick từ phase 1 (T67.7) · nhãn KPI
+của wall vô hình (T67.8). Bản vá nằm trong #169 ⇒ **chỉ hết trên staging/production sau lượt đề bạt**. ⬜ `T67.4` (`List`,
+8 tệp) · lượt đo đa trình duyệt vế quản trị trên staging thuộc `T61.29`. `make ci-local` sau rebase thoát **0** (⚠ số ở MÁY):
+BE **2050** (core 348 · content 55 · hydro 229 · operations 80 · app 1338) · 0 đỏ · FE **558**/88 + **399**/46.
+⬜⬜ **`T63.11` — QuanTran đang soạn tài liệu BÁO CÁO + TƯỚI TIÊU (17/09), PENDING** *(vế Báo cáo nhanh chống úng đã xong — dòng ngay trên; còn tưới tiêu · 17 mã cũ · Báo cáo nhanh chống hạn T66.16)*. ⛔ đoán trước, ⛔ tự chế bố cục. ⛔⛔ Vế
 **tưới tiêu ⛔ phải một khoảng trống — nó là vùng đã bị CẮT có chủ đích** (chốt **A1 · B5 · F3 · G2**), và kho đang khai điều
 ngược lại ở **năm** chỗ đo được (`BC_04` `khaDung=false` + `OPS-2023` *"bỏ vĩnh viễn"* · `BC-07` bỏ · trường *Diện tích tưới
 tiêu (ha)* bỏ · khu tưới/lưu vực chỉ là **trường văn bản tự do**, ⛔ CRUD ⛔ bảng `irrigation_zones` ⛔ GIS · chỉ tiêu giờ
@@ -784,6 +801,8 @@ là **nhập được ngay**. Thư gửi Công ty gộp cả ba: `docs/de-nghi-c
   6 mã Công ty ghi *"Chưa rõ"* giữ NULL. ⛔⛔ **Toạ độ vẫn 0/19** (bản chụp không có cột ấy) ⇒ **lớp
   GIS điểm đo vẫn RỖNG** và G8 vẫn chặn **nghiệm thu** C3. ⚠ `F01519` Lương Cổ đổi **TL → HL** theo
   bản chụp (hai nguồn của Công ty lệch đúng 1/19 dòng — đã đưa vào thư hỏi lại).
+  ⛔ **Đính chính 18/09/2026: câu trên HẾT ĐÚNG** — mẫu Báo cáo nhanh là nguồn thứ ba và ghi TL;
+  QuanTran chốt đổi về **THƯỢNG LƯU** (`V202609181085`, `architecture-review.md` §12.2).
   ⭐ **Nhưng nó ⛔ không còn chặn LẬP TRÌNH**: có nút *"Nhập vị trí từ tệp"* (`/hyd/stations/import`)
   kèm tệp mẫu ⇒ ngày Công ty gửi bảng toạ độ là **upload xong ngay** (T42.20).
 - ⭐ **Mã số API thuỷ văn ĐÃ CHẠY** (đo 09/09 trên nguồn thật): có `;` ⇒ **28 bản ghi**, thiếu `;` ⇒
@@ -811,7 +830,7 @@ là **nhập được ngay**. Thư gửi Công ty gộp cả ba: `docs/de-nghi-c
 
 ✅ **G14 đóng 27/8** — cây danh mục + menu nhận qua §3 văn bản nghiệm thu, dựng ở `V202608271031`.
 
-⬜ **Mở mới 27/8 — `OI-01`→`OI-10`** (§9 của `docs_origin/nghiem_thu_phase1.md`). Tài liệu đề nghị phía phát triển trả lời **ngay trong tuần** ba mục kỹ thuật `OI-01`/`OI-02`/`OI-07`; câu trả lời đo được đã có ở `master-tracking.md` T24.23→T24.25. Chặn nghiệm thu nặng nhất: **`OI-03`** (danh sách 10 cống trục chính) · **`OI-05`** (7 hay 8 Xí nghiệp — Bố cục ghi 7, danh mục công trình có 8).
+⬜ **Mở mới 27/8 — `OI-01`→`OI-10`** (§9 của `docs_origin/nghiem_thu_phase1.md`). Tài liệu đề nghị phía phát triển trả lời **ngay trong tuần** ba mục kỹ thuật `OI-01`/`OI-02`/`OI-07`; câu trả lời đo được đã có ở `master-tracking.md` T24.23→T24.25. Chặn nghiệm thu nặng nhất: **`OI-03`** (danh sách 10 cống trục chính) · **`OI-05`** (7 hay 8 Xí nghiệp — Bố cục ghi 7, danh mục công trình có 8; ⚠ 19/09 thêm danh sách thứ ba từ Báo cáo nhanh — T66.14). ✅ **`OI-10` đóng một nửa 19/09**: Form 2 chống úng = nhập trực tuyến (CN-02.12); Form 1 chống hạn chờ mẫu (T66.16).
 
 Gửi kèm `report-templates-proposal.md`. Chi tiết từng mục: `business-open-questions.md` Phần II.
 

@@ -8,6 +8,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
+  App,
   Button,
   Card,
   Descriptions,
@@ -22,7 +23,6 @@ import {
   Tag,
   Tooltip,
   Typography,
-  message,
 } from 'antd';
 import { type ColumnsType } from 'antd/es/table';
 import { useState } from 'react';
@@ -50,6 +50,7 @@ import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
  * trống không nói gì sẽ khiến người vận hành kết luận nhầm.
  */
 export function ApiSourcesPage() {
+  const { message } = App.useApp();
   const { hasPermission } = useAuth();
   const queryClient = useQueryClient();
   const [formSua] = Form.useForm<ApiSourceRequest>();
@@ -230,7 +231,7 @@ export function ApiSourcesPage() {
       title: 'Đang chạy theo',
       width: 260,
       render: (_, r) => (
-        <Space direction="vertical" size={0}>
+        <Space orientation="vertical" size={0}>
           <span>
             <Typography.Text code>{r.cronHieuLuc}</Typography.Text>{' '}
             {r.cronDungChung ? <Tag>tham số chung</Tag> : <Tag color="blue">riêng</Tag>}
@@ -337,7 +338,7 @@ export function ApiSourcesPage() {
           type="warning"
           showIcon
           style={{ marginBottom: 16 }}
-          message={`${chuaCoMaSo.length} nguồn chưa có mã số — lượt lấy dữ liệu sẽ KHÔNG chạy`}
+          title={`${chuaCoMaSo.length} nguồn chưa có mã số — lượt lấy dữ liệu sẽ KHÔNG chạy`}
           description={
             <>
               Nguồn thiếu mã số thì hệ thống từ chối gọi và ghi rõ lý do, thay vì gọi bằng một mã
@@ -445,7 +446,7 @@ export function ApiSourcesPage() {
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
-          message="Để TRỐNG một ô tham số = dùng tham số chung ở Cấu hình hệ thống"
+          title="Để TRỐNG một ô tham số = dùng tham số chung ở Cấu hình hệ thống"
           description="Chỉ điền khi nguồn này thật sự cần nhịp khác các nguồn còn lại."
         />
         <Form form={formSua} layout="vertical">
@@ -524,7 +525,7 @@ export function ApiSourcesPage() {
           type="warning"
           showIcon
           style={{ marginBottom: 16 }}
-          message="Hệ thống không hiển thị lại mã số sau khi lưu"
+          title="Hệ thống không hiển thị lại mã số sau khi lưu"
           description={
             <>
               Mã số được mã hoá trước khi ghi vào cơ sở dữ liệu và không có đường nào đọc ngược ra
@@ -581,7 +582,7 @@ function BangKetQuaGoiThu({ kq }: { kq: KetQuaDongBo }) {
       <Alert
         type="error"
         showIcon
-        message={kq.lyDo ?? 'Lượt gọi hỏng'}
+        title={kq.lyDo ?? 'Lượt gọi hỏng'}
         description={
           <>
             {kq.loi ? VIEC_PHAI_LAM[kq.loi] : null}
@@ -603,11 +604,11 @@ function BangKetQuaGoiThu({ kq }: { kq: KetQuaDongBo }) {
   }
 
   return (
-    <Space direction="vertical" size={12} style={{ width: '100%' }}>
+    <Space orientation="vertical" size={12} style={{ width: '100%' }}>
       <Alert
         type="success"
         showIcon
-        message={`Nguồn trả về ${kq.soBanGhi} số đo trong ${kq.durationMs} ms — ghi mới ${kq.soGhiMoi} dòng`}
+        title={`Nguồn trả về ${kq.soBanGhi} số đo trong ${kq.durationMs} ms — ghi mới ${kq.soGhiMoi} dòng`}
       />
       <Descriptions column={1} size="small" bordered>
         <Descriptions.Item label="Số đo bóc được">{kq.soBanGhi}</Descriptions.Item>
@@ -653,7 +654,7 @@ function BangKetQuaGoiThu({ kq }: { kq: KetQuaDongBo }) {
         <Alert
           type="warning"
           showIcon
-          message={`${kq.soThieuLoaiChiSo} điểm đo nhận số đo mà chưa tích loại chỉ số "Mực nước"`}
+          title={`${kq.soThieuLoaiChiSo} điểm đo nhận số đo mà chưa tích loại chỉ số "Mực nước"`}
           description="Số đo VẪN được ghi — bảng station_measurement_types nuôi biểu mẫu và báo cáo, nó không phải cái van của đường ingest. Nhưng báo cáo sẽ không khớp cho tới khi tích ô Loại chỉ số ở màn hình Điểm đo. Mã điểm đo cụ thể nằm trong log của máy chủ."
         />
       )}
@@ -662,7 +663,7 @@ function BangKetQuaGoiThu({ kq }: { kq: KetQuaDongBo }) {
         <Alert
           type="warning"
           showIcon
-          message={`${kq.soKhacNguon} điểm đo được nguồn này trả về nhưng hồ sơ khai thuộc nguồn khác`}
+          title={`${kq.soKhacNguon} điểm đo được nguồn này trả về nhưng hồ sơ khai thuộc nguồn khác`}
           description="Số đo vẫn được ghi vì mã API là duy nhất toàn hệ thống — nhưng đây là dấu hiệu cấu hình nguồn cần đối chiếu lại."
         />
       )}
@@ -671,7 +672,7 @@ function BangKetQuaGoiThu({ kq }: { kq: KetQuaDongBo }) {
         <Alert
           type="warning"
           showIcon
-          message="Nguồn trả dưới một nửa số điểm đo đang hoạt động"
+          title="Nguồn trả dưới một nửa số điểm đo đang hoạt động"
           description="Không hẳn là lỗi: nguồn cập nhật rải trong cửa sổ x1:30 → x8:30 nên một lượt gọi sớm được phép thiếu trạm. Gọi lại sau vài phút; còn thiếu thì mới đáng hỏi phía nguồn."
         />
       )}
@@ -680,7 +681,7 @@ function BangKetQuaGoiThu({ kq }: { kq: KetQuaDongBo }) {
         <Alert
           type="info"
           showIcon
-          message={`${kq.maChuaKhai.length} mã nguồn trả về mà chưa khai điểm đo`}
+          title={`${kq.maChuaKhai.length} mã nguồn trả về mà chưa khai điểm đo`}
           description={
             <>
               <Space size={4} wrap style={{ marginBottom: 8 }}>

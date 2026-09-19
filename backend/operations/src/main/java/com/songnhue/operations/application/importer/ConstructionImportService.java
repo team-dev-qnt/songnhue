@@ -8,7 +8,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -354,9 +353,6 @@ public class ConstructionImportService {
         return bang.get(VietnameseUtils.removeDiacritics(value.trim()).toLowerCase(Locale.ROOT));
     }
 
-    /** Nhóm hàng nghìn kiểu Việt Nam: {@code 1.500.000}. Dùng để phân biệt với số thập phân. */
-    private static final Pattern NHOM_HANG_NGHIN = Pattern.compile("^\\d{1,3}(\\.\\d{3})+$");
-
     /**
      * Đọc số từ ô do người dùng gõ.
      *
@@ -376,19 +372,8 @@ public class ConstructionImportService {
      * </ul>
      */
     private static BigDecimal so(String value, int soDong, String cot, List<LoiDong> loi) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        String sach = value.replaceAll("[\\s\\u00a0]", "");
-        if (sach.contains(".") && sach.contains(",")) {
-            sach = sach.replace(".", "").replace(",", ".");
-        } else if (NHOM_HANG_NGHIN.matcher(sach).matches()) {
-            sach = sach.replace(".", "");
-        } else {
-            sach = sach.replace(",", ".");
-        }
         try {
-            return new BigDecimal(sach);
+            return com.songnhue.core.common.util.NumericUtils.docSoNhapTay(value);
         } catch (NumberFormatException e) {
             loi.add(new LoiDong(soDong, cot, "Không phải số: '%s'".formatted(value)));
             return null;

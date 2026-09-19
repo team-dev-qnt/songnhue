@@ -141,7 +141,7 @@ class GhcrLookupAuthTest {
 
     // -------------------------------------------------------------------------
 
-    /** Cắt khối YAML của job có `uses: <thân chung>` — từ tên job tới job kế tiếp cùng mức. */
+    /** Cắt khối YAML của job có {@code uses: <thân chung>} — từ tên job tới job kế tiếp cùng mức. */
     private static String khoiJobGoi(String noiDung) {
         Matcher khop = Pattern.compile(
                         "^  [a-z][a-z0-9-]*:$(?:(?!^  [a-z]).)*?" + Pattern.quote(THAN_CHUNG) + "(?:(?!^  [a-z]).)*",

@@ -128,18 +128,18 @@ export function ConstructionMaintenancePanel({
   }
 
   return (
-    <Space direction="vertical" style={{ width: '100%' }} size="middle">
+    <Space orientation="vertical" style={{ width: '100%' }} size="middle">
       <Space size="large" align="start" style={{ width: '100%', justifyContent: 'space-between' }}>
         <Space size="large">
           <Statistic
             title="Tổng chi phí đã ghi nhận"
             value={chiPhi ? (formatInvestment(Number(chiPhi.total)) ?? '—') : '—'}
-            valueStyle={{ fontSize: 20 }}
+            styles={{ content: { fontSize: 20 } }}
           />
           <Statistic
             title="Số bản ghi"
             value={trang?.meta.totalElements ?? 0}
-            valueStyle={{ fontSize: 20 }}
+            styles={{ content: { fontSize: 20 } }}
           />
         </Space>
 
@@ -163,8 +163,8 @@ export function ConstructionMaintenancePanel({
                   ? 'green'
                   : 'red'
                 : 'blue',
-            label: row.startedOn ? dayjs(row.startedOn).format('DD/MM/YYYY') : '—',
-            children: (
+            title: row.startedOn ? dayjs(row.startedOn).format('DD/MM/YYYY') : '—',
+            content: (
               <Card
                 size="small"
                 onClick={() => setDangChon(row.id)}
@@ -179,7 +179,7 @@ export function ConstructionMaintenancePanel({
                 }
                 extra={row.cost ? formatInvestment(Number(row.cost)) : null}
               >
-                <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                <Space orientation="vertical" size={2} style={{ width: '100%' }}>
                   <Typography.Text>{row.content}</Typography.Text>
                   <Typography.Text type="secondary">
                     {row.performer}

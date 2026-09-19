@@ -35,7 +35,7 @@ export function HopThoaiMaXacThuc({
       onCancel={onHuy}
       footer={null}
       destroyOnHidden
-      maskClosable={!dangGui}
+      mask={{ closable: !dangGui }}
     >
       <NoiDung moTa={moTa} loi={loi} dangGui={dangGui} onXacNhan={onXacNhan} onHuy={onHuy} />
     </Modal>
@@ -69,7 +69,7 @@ function NoiDung({
       }}
     >
       {moTa && <Typography.Paragraph type="secondary">{moTa}</Typography.Paragraph>}
-      {loi && <Alert type="error" showIcon message={loi} style={{ marginBottom: 12 }} />}
+      {loi && <Alert type="error" showIcon title={loi} style={{ marginBottom: 12 }} />}
       <Typography.Text>Mã xác thực hai bước</Typography.Text>
       <Input
         aria-label="Mã xác thực hai bước"

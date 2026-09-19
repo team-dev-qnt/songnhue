@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { DownloadOutlined } from '@ant-design/icons';
 import {
   Alert,
+  App,
   Button,
   Card,
   DatePicker,
@@ -11,7 +12,6 @@ import {
   Tag,
   Tooltip,
   Typography,
-  message,
 } from 'antd';
 import { type ColumnsType } from 'antd/es/table';
 import { type Dayjs } from 'dayjs';
@@ -45,6 +45,7 @@ import { useXuatBaoCao } from './useXuatBaoCao';
  * *số liệu nào không về*; bảng dưới là (nguồn × ngày) — *vì sao*. Trộn lại là mất nghĩa cả hai.
  */
 export function SyncQualityReportPage() {
+  const { message } = App.useApp();
   const { hasPermission } = useAuth();
   const { xuat, dangCho, hanTaiGio } = useXuatBaoCao();
   // Bảy ngày gần nhất tính theo lịch Việt Nam — hai giá trị này thành tham số truy vấn (T63.18).
@@ -198,7 +199,7 @@ export function SyncQualityReportPage() {
   ];
 
   return (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+    <Space orientation="vertical" size={16} style={{ width: '100%' }}>
       <Card
         title="BC-13 — Nhật ký đồng bộ & chất lượng dữ liệu"
         extra={
@@ -227,8 +228,7 @@ export function SyncQualityReportPage() {
             />
             <Select
               allowClear
-              showSearch
-              optionFilterProp="label"
+              showSearch={{ optionFilterProp: 'label' }}
               placeholder="Mọi điểm đo"
               style={{ minWidth: 260 }}
               value={diemDo}
@@ -245,7 +245,7 @@ export function SyncQualityReportPage() {
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
-          message={`Một khung là ${khungPhut} phút — mỗi ngày trọn vẹn có ${Math.round(1440 / khungPhut)} khung`}
+          title={`Một khung là ${khungPhut} phút — mỗi ngày trọn vẹn có ${Math.round(1440 / khungPhut)} khung`}
           description={
             <>
               Bản kết xuất mở thẳng được bằng Excel (dấu tách <code>;</code>, số dùng dấu phẩy thập

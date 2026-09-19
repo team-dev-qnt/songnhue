@@ -18,7 +18,7 @@
 | 7 | Backup | Dump hàng ngày, retention 30 ngày | **Giữ dump hàng đêm; RPO ≤ 24h, RTO ≤ 4h** ⚠ *(đảo lại 13/8/2026)* | Bản chốt 2026-07-20 từng thêm WAL/PITR (RPO 15'). Rà lại quy mô thật (200 CCU nội bộ, giờ hành chính, vài nghìn bản ghi/ngày) → **PITR là over-engineer**, đã gỡ. Chi tiết + rủi ro chấp nhận: §6.5 |
 | 8 | Chart | "ECharts hoặc Highcharts" | **ECharts** | Highcharts tính phí license thương mại; ECharts đủ tính năng (zoom, threshold line, export) |
 | 9 | Base map | "Google Maps / OSM" | **OSM (default) + Google Maps optional** | Google Maps JS API tính phí theo usage; OSM tile miễn phí đủ cho bài toán marker + layer nội bộ. Để config switch được |
-| 10 | Admin UI | Không quy định | **Ant Design 5 + design tokens** | Hệ nặng Table/Form/Tree/Dashboard — AntD mạnh nhất mảng này, giảm lượng component tự viết |
+| 10 | Admin UI | Không quy định | **Ant Design 6 + design tokens** (5 → 6 ngày 18/09/2026, WS-67) | Hệ nặng Table/Form/Tree/Dashboard — AntD mạnh nhất mảng này, giảm lượng component tự viết |
 | 11 | Public web | "React SSR" (chung chung) | **Next.js (SSR/ISR) + Tailwind, tách app riêng** | Trang tin tức cần SEO thật; ISR cache trang bài viết → nhanh + giảm tải BE |
 | 12 | Mã hóa dữ liệu nhạy cảm | "AES-256" (chung chung) | **AES-256-GCM tầng app, key ngoài DB (env/Vault), tách bảng `employee_sensitive`** | GCM có authentication (chống sửa trộm); key không nằm cùng DB backup; tách bảng để phân quyền + audit riêng |
 
@@ -77,7 +77,7 @@ Giữ nguyên (đã đúng): **Modular Monolith** (đúng cỡ dự án, đúng 
 |---|---|
 | Kiến trúc | Modular Monolith (Spring Modulith-style), Layered; ArchUnit enforce boundary |
 | Public web | Next.js (SSR/ISR) + Tailwind CSS |
-| Admin app | React 18 + Vite + Ant Design 5 + TypeScript; ECharts |
+| Admin app | React 19 + Vite + Ant Design 6 + TypeScript; ECharts (React 18→19 · AntD 5→6 ngày 18/09/2026, WS-67) |
 | Backend | Spring Boot 3 (Java 21), springdoc-openapi, Flyway |
 | Auth | Access token 30' + Refresh rotation (httpOnly cookie), BCrypt, denylist bảng DB |
 | Database | PostgreSQL 16 + PostGIS; partition theo tháng cho time-series; `unaccent` full-text |
@@ -95,7 +95,7 @@ Giữ nguyên (đã đúng): **Modular Monolith** (đúng cỡ dự án, đúng 
 
 ## 4. DESIGN SYSTEM (chốt cho FE)
 
-- **Nền tảng**: Ant Design 5 (admin) — theme token hóa theo bộ nhận diện công ty (primary/secondary color từ CN-01.5 site config).
+- **Nền tảng**: Ant Design 6 (admin — từ 18/09/2026, WS-67) — theme token hóa theo bộ nhận diện công ty (primary/secondary color từ CN-01.5 site config).
 - **Design tokens chung 2 app**: màu trạng thái thống nhất toàn hệ thống (đã có trong Phụ lục function-spec: xanh/vàng/đỏ/xám/đen) — định nghĩa 1 lần trong tokens, AntD theme + Tailwind config + ECharts theme cùng đọc.
 - **Bộ component nghiệp vụ dùng chung** (xây trên AntD, đặt trong `admin-app/src/components/business/`): `StatusBadge` (màu trạng thái), `ThresholdValue` (số liệu đổi màu theo ngưỡng), `ApprovalActions` (nút theo workflow engine), `OrgUnitTreeSelect`, `AttachmentPanel` (upload/version/hạn), `DateRangeFilter`, `ExportButton` (gọi async job + theo dõi trạng thái).
 - **Màn hình lớn Phòng điều hành**: chế độ hiển thị riêng của Dashboard (route `?mode=wall`): font/marker to, auto-rotate giữa các tab, dark theme, không thao tác — không xây app riêng.
@@ -1809,7 +1809,9 @@ luận nhầm là "cấu hình rồi mà không chạy". Nên header để riên
 **CSP — hai lựa chọn có chủ đích, cả hai đã đo:**
 
 - `style-src` **phải** có `'unsafe-inline'`. AntD 5 dùng cssinjs, chèn `<style data-css-hash=…>` lúc
-  chạy (đã kiểm trong bundle đã dựng). Với `style-src 'self'` thì giao diện quản trị hiện ra **không
+  chạy (đã kiểm trong bundle đã dựng). ⭐ **Vẫn đúng ở antd 6** (WS-67, 19/09/2026): CSS variables ⛔ đổi
+  chỗ chèn — vế đối chứng của `khongChenCssAntd.test.tsx` khẳng định cấu hình mặc định vẫn chèn
+  `style[data-css-hash]` / `style[data-token-hash]`. Với `style-src 'self'` thì giao diện quản trị hiện ra **không
   còn định dạng nào**. Đường thoát duy nhất là `StyleProvider` + nonce theo từng request, mà bundle
   Vite là tĩnh do nginx phục vụ nên không có chỗ sinh nonce. Đây là **cái giá của việc chọn AntD**,
   ghi ra để WS-11 không siết rồi mới phát hiện lúc đã lên staging.
@@ -7306,3 +7308,100 @@ Bánh cóc: ghim `env: { TZ: 'UTC' }` ở cả hai cấu hình vitest ⇒ lượ
 điều kiện runner; đo được là có hiệu lực (cùng bản phá, chạy ở `TZ=+07` nay **ĐỎ**). ⛔ Cố ý
 **⛔ ghim `Asia/Ho_Chi_Minh`**: ghim vào đúng múi giờ của sản phẩm là làm cả lớp lỗi ấy **vô
 hình trở lại**.
+
+### §12.2 Báo cáo nhanh — ba quyết định và một quyết định bị đảo (WS-66, 18/9/2026)
+
+**(a) F01519 Lương Cổ về THƯỢNG LƯU — đảo chốt 09/09 (`V202609091073` → `V202609181085`).** Ngày
+09/09 hai nguồn của Công ty lệch nhau đúng một dòng và ta lấy bản chụp (HA_LUU). Mẫu Báo cáo nhanh
+18/09 là **nguồn thứ ba**: dòng `TL (nhuệ)` có số, `HL (đáy)` trống. Và bản chụp **tự mâu thuẫn trong
+cùng một hàng** — nó gắn `Sông Nhuệ` cho một vế hạ lưu, trong khi hạ lưu cống Lương Cổ đổ ra sông
+Đáy. ⇒ Đổi về TL, giữ `river_name`/lý trình (vốn đúng với vế TL). ⚠ Bài học lặp lại §11.18: chữ
+*"đã chốt"* trong một migration ⛔ làm dữ liệu đúng lên; và đổi vai trò điểm đo phải đổi **cả**
+`station_constructions.role` (bản ghi chính trùng `position_role` — A2b), nếu không hai cột nói hai
+điều mà ⛔ màn hình nào báo.
+
+**(b) Xuất .docx bằng JDK, ⛔ thư viện — trả lời T42.14 cho RIÊNG mẫu Word này.** Mẫu có sẵn dàn
+trang (379 ô gộp, khối ký, phông); việc là *đặt chữ vào ô cố định*, ⛔ *sinh văn bản*. `DocxFiller`
+(`core/common/export`) mở ZIP, sửa đúng `word/document.xml`, chép nguyên byte mọi entry khác. Định vị
+ô theo **chỉ số** (Word cắt một cụm ngày giờ thành tới 12 run tuỳ lịch sử soạn thảo ⇒ tìm theo chuỗi
+sẽ trượt im lặng); ngày giờ ngoài ô thì thay ở mức **đoạn**, và mỗi cụm khẳng định **đúng số lần
+thay** ⇒ mẫu đổi thì đỏ. Toạ độ ô gắn với một bản mẫu ⇒ bộ canh vân tay SHA-256 + hình học. PDF/XLSX
+vẫn chờ mẫu thật — ⛔ suy từ quyết định này ra "đã chọn xong bộ kết xuất".
+
+**(c) Kỳ đã chốt là ẢNH CHỤP, ⛔ khoá ngoại ghép.** Bản nháp plan ép "vận hành ≤ thiết kế" bằng khoá
+ngoại ghép `(nhom_may_id, so_may)` sang danh mục. Nó đúng về ràng buộc mà sai về vòng đời: Công ty
+sửa số máy của một trạm ⇒ mọi kỳ cũ trỏ vào chặn lượt sửa; và nếu nới bằng `ON UPDATE CASCADE` thì
+văn bản **đã gửi UBND** lặng lẽ đổi số. ⇒ Lượt CHỐT chụp số thiết kế + Q vào bảng của kỳ, CHECK ép
+bất biến trên chính ảnh chụp; kỳ đang nhập đọc danh mục sống.
+
+**(d) Q lưu m³/h, ⛔ tái dùng `flow_per_pump_m3s`.** Vòng khứ hồi qua m³/s ba lẻ làm sai 801/830 máy,
+trong khi tổng chỉ lệch −240/2.554.152 vì sai số **triệt tiêu nhau** ⇒ một phép kiểm "tổng có khớp
+⛔" ⛔ bao giờ đỏ. Đơn vị nào là đơn vị của **văn bản** thì lưu đúng đơn vị ấy.
+
+**(e) Mục chờ Công ty ⇒ DỮ LIỆU nhập trên giao diện, ⛔ hằng số trong mã (18/09 tối, `V202609181088`).**
+QuanTran chốt: *mục nào chờ Công ty thì để trống, cho Công ty nhập trên UI để khỏi chờ.* Đo lại những gì
+bản sáng còn ghi cứng: 14 mã điểm đo Bảng 3 (`Bang3SongNhue`) và mã trạm Yên Nghĩa `TB-YNGHIA`. Cái thứ
+hai là một **quy ước ngầm** — đổi mã trạm trên màn hình Công trình thì ghi chú lặng lẽ về *"chưa có
+trong danh mục"*, và danh mục có **hai** công trình tên "Yên Nghĩa" (trạm bơm · cống tiêu tự chảy).
+⇒ Bảng `bao_cao_nhanh_vi_tri`: 8 chỗ CỐ ĐỊNH của mẫu, Công ty chọn công trình; gắn sai loại ⇒ `OPS-2032`.
+Điểm đo từng vế **suy ra** từ `station_constructions.role` qua `HydroSnapshotPort` — ⛔ lưu mã điểm đo
+lần thứ hai (luật 14); OI-BC14 nay Công ty tự lấp bằng màn hình Điểm đo. Seed rút theo mã từ danh mục
+có sẵn ⇒ hành vi ngày deploy ⛔ đổi. Kỳ đã chốt đọc **ảnh chụp** cấu hình (`bao_cao_nhanh_vi_tri_ky`),
+cùng lý lẽ (c).
+
+**(f) ĐẢO chốt sáng 18/09: Bảng 4 lượng mưa NHẬP TAY theo kỳ.** Chốt sáng: *để trống kèm lý do, ⛔
+nhập tay* — vì G3-a chưa có nguồn. Cùng ngày QuanTran chốt lại theo nguyên tắc (e): Công ty CÓ số mưa
+lúc lập báo cáo, chờ G3-a là để văn bản gửi UBND thiếu Bảng 4 vô thời hạn. 8 điểm Sông Nhuệ (STT 5–12,
+tên chép nguyên văn mẫu để bộ điền đối chiếu dòng); `NULL` = ô trống, khác 0 mm. ⚠ Ngày G3-a về: nguồn
+tự động **THAY** ô nhập — ⛔ trộn hai nguồn trong một kỳ, vì một văn bản mà nửa số đo máy, nửa số gõ tay
+thì ⛔ ai trả lời được *"số này từ đâu"*.
+
+**(g) Công ty trả lời open issue (19/09/2026, `docs_origin/bao-cao/spec-bao-cao-nhanh/xacnhan.md`).**
+Chín mục đồng ý phương án đang chạy (OI-BC1 · 2 · 5 · 6 · 7 · 9 · 12 · 15 · 16) ⇒ ⛔ đổi mã; OI-BC14 xác nhận
+*chưa có điểm đo* ⇒ ba ô trống kèm lý do đứng nguyên *(đính chính 19/09: bản đầu của đoạn này ghi "Tám" và sót
+OI-BC9 · OI-BC14 — `business-open-questions.md` Phần I-C và dòng sổ T66.8 vốn đúng)*. Ba mục đổi thứ
+khác ngoài mã:
+- **OI-BC10** — Bảng 2 chia theo **7 nhóm của sheet `Trạm bơm`**, trạm vẫn lấy từ `TB Tiêu (KH)`
+  (OI-BC9). Khối Bảng 2 suy từ đơn vị quản lý của công trình (`org_units`) — ⚠ **chỉ là việc nhập liệu
+  NẾU 7 nhóm ấy chính là 7 Xí nghiệp chính thức** (xem (h)).
+- **OI-BC11** — `F01771` thuộc **Sông Nhuệ** ⇒ dữ liệu điểm đo đứng nguyên; nhãn `TL (hồng)` trong mẫu
+  là chữ của Công ty, ⛔ sửa.
+- **OI-BC17** — Công ty **cho nới** cột "Lúa" nhóm Tổng cộng ở Bảng 5. Chỗ nới đặt trong **mã xuất**
+  (`DocxFiller.chiaDeuHaiCot`, gọi ở `BaoCaoNhanhDocx`), ⛔ sửa tệp mẫu: tệp trong jar vẫn **trùng byte**
+  bản Công ty gửi (SHA-256 = `docs_origin/…/Mẫu Báo cáo nhanh.docx`), nên ngày Công ty gửi mẫu mới thì
+  thay tệp là đủ, và mọi chỗ ta chỉnh bố cục có TÊN trong mã thay vì chìm trong một tệp nhị phân. Chia
+  đều **tổng** hai cột (631 + 990 → 810 + 811 twip) ⇒ bảng ⛔ rộng thêm, ⛔ cột khác xê dịch; ô gộp phủ
+  một cột của cặp kèm cột khác ⇒ NÉM thay vì sinh bảng méo.
+
+⚠ **OI-BC8 — một câu trả lời hai cách đọc, đã chọn một và nói ra.** Nguyên văn: *"bảng bị thiếu, công
+suất thực tế là 43,5 họ đang làm tròn thành 43, giữ nguyên bảng và tính theo công thức tôi chỉ định"*.
+Đọc là: nhãn cột là cỡ **danh định đã làm tròn**, giữ 9 cột, xếp theo **biên đã gửi** — công thức duy
+nhất trong văn bản ⇒ ⛔ đổi biên. Cách đọc ấy tự nhất quán: biên đã gửi chính là **điểm giữa hai nhãn
+liền kề** (32.500 · 17.000 · 10.000 · 6.000 · 3.500), tức *"làm tròn tới nhãn gần nhất"*; ca hoà duy nhất
+trong dữ liệu (1.950, giữa 1,9 và 2) xếp XUỐNG — đúng chiều *"43,5 → 43"* của chính câu trả lời. Cách đọc
+kia — nhãn là **cận dưới** (làm tròn xuống) — đổi cột của **15 máy**: 7.300 ("8" → "4", 4 máy) và 3.700
+("4" → "2÷3", 11 máy). Biên là dữ liệu CRUD ⇒ nếu cách đọc sai thì Công ty sửa trên màn hình *Danh mục
+máy bơm*, ⛔ đợi deploy.
+OI-BC13 ⛔ được trả lời ⇒ giữ nguyên chữ của mẫu ở cả hai chỗ.
+
+**(h) Đính chính 19/09 — OI-BC10 cho một danh sách Xí nghiệp THỨ BA, và nó đụng quy tắc 7.** Đo ba
+nguồn của Công ty:
+
+| Nguồn | Danh sách |
+|---|---|
+| Bố cục cổng (OI-05, 27/08) | Liên Mạc · Từ Liêm · Hà Đông · Thanh Trì · Hồng Vân · Phú Xuyên · Ứng Hoà (7) |
+| Danh mục công trình (OI-05) | 7 ở trên + Nhật Tựu (8) |
+| Sheet `Trạm bơm` (OI-BC10, 19/09) | Thanh Trì · Thường Tín · Phú Xuyên · Ứng Hoà · Bắc Từ Liêm · Nam Từ Liêm · Hoài Đức (7) |
+
+Trùng nhau đúng 3 tên. Bốn tên còn lại của sheet `Trạm bơm` là **tên huyện** (Hồng Vân nằm ở Thường
+Tín; Yên Nghĩa của XNTL Hà Đông được xếp vào Hoài Đức; Từ Liêm tách đôi theo quận). ⇒ Hai khả năng, dẫn
+tới hai việc khác hẳn nhau:
+- **7 nhóm ấy LÀ Xí nghiệp chính thức** (tổ chức đã đổi) ⇒ OI-05 đóng bằng danh sách này, Công ty nhập
+  `org_units` theo nó, ⛔ đổi mã.
+- **7 nhóm ấy là ĐỊA BÀN để in Bảng 2**, Xí nghiệp thật vẫn là danh sách của bố cục ⇒ ⛔ được nhập 7
+  nhóm vào `org_units`: bảng ấy dùng chung cho HRM, cổng ("Đơn vị trực thuộc" CR-19) và **phạm vi dữ
+  liệu** (quy tắc 5, 7) — nhập "Bắc Từ Liêm" như một đơn vị là tách quyền của một Xí nghiệp làm đôi.
+  Khi ấy nhóm của Bảng 2 phải là một thuộc tính RIÊNG của trạm (danh mục có CRUD, quy tắc 16) — một
+  migration + màn hình, ⛔ phải nhập liệu.
+Chưa đủ dữ kiện để chọn ⇒ `T66.14`. Trong lúc chờ, ⛔ nhập Xí nghiệp nào vào `org_units` cho Báo cáo
+nhanh (T66.13 bước 1 chặn theo).

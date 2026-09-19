@@ -97,7 +97,7 @@ export function DuyetNghiPhepPage() {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="Danh sách đã cắt theo đơn vị của bạn"
+        title="Danh sách đã cắt theo đơn vị của bạn"
         description={
           <>
             Quyền duyệt một mình ⛔ không đủ để diễn đạt <i>“quản lý đơn vị mình duyệt”</i> — vế còn
@@ -119,7 +119,7 @@ export function DuyetNghiPhepPage() {
           expandedRowKeys: dangMo ? [dangMo] : [],
           onExpand: (mo, don) => setDangMo(mo ? don.publicId : null),
           expandedRowRender: (don) => (
-            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+            <Space orientation="vertical" size="small" style={{ width: '100%' }}>
               <Typography.Text type="secondary">
                 {don.reason ? `Lý do: ${don.reason}` : 'Người nộp không ghi lý do.'}
               </Typography.Text>

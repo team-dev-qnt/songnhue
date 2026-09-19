@@ -181,9 +181,15 @@ Tương tự: bảng chung toàn Thành phố (37 điểm đo), Công ty Sông N
 | OI-BC6 | Công tắc "chỉ hiện trạm đang hoạt động" ở Bảng 2 — mặc định bật hay tắt | Ảnh hưởng trải nghiệm nhập liệu hàng ngày |
 | OI-BC7 | Bản báo cáo chính thức xuất ra (gửi UBND TP) có áp dụng ẩn trạm không hoạt động hay luôn liệt kê đủ toàn bộ danh mục | Ảnh hưởng tính đầy đủ của văn bản hành chính chính thức |
 
+> **Trạng thái 19/9/2026** (bảng trên giữ nguyên văn BA): Công ty đã trả lời OI-BC1 · 2 · 4 · 5 · 6 · 7 cùng OI-BC8→17 —
+> xem phụ lục *Công ty trả lời*. Còn mở: **OI-BC3** (thuộc màn hình biểu đồ mặt cắt, `T66.15`) · **OI-BC4/10** trả lời xong
+> nhưng đụng OI-05 (`T66.14`) · OI-BC13 chưa đánh dấu.
+
 ---
 
 ## 9. Định nghĩa "Done"
+
+> Đối chiếu từng mục với phép kiểm: phụ lục *Đối chiếu Định nghĩa Done (§9)* — ô `[ ]` dưới đây là văn bản BA, ⛔ phải trạng thái.
 
 - [ ] Toàn bộ ô "Tổng cộng"/"Cộng" trong mọi bảng (Bảng 1, Bảng 2 phần đầu, thân báo cáo mục 1 & 3, Bảng 5) là công thức tự tính, không cho nhập tay.
 - [ ] Bảng 2 Phụ lục 1 giữ granularity 1 dòng/1 nhóm máy cùng Q (không gộp như catalog `danh-muc-tram-bom`).
@@ -197,3 +203,57 @@ Tương tự: bảng chung toàn Thành phố (37 điểm đo), Công ty Sông N
 - [ ] Phụ lục 2 (Bảng 3, 4) chỉ điền đúng phần dữ liệu thuộc Công ty Sông Nhuệ, không tự bịa số cho hệ thống sông của công ty khác.
 - [ ] Bảng 3 lấy đúng giá trị tức thời tại giờ kết thúc kỳ báo cáo (không cộng dồn); Bảng 4 lấy đúng tổng cộng dồn trong cả khung giờ báo cáo (không phải giá trị tức thời) — không lẫn 2 cách tính.
 - [ ] Không dùng số liệu mẫu trong file `Mẫu Báo cáo nhanh.docx` (97 trạm/396 máy, 15mm mưa, 20/20/40ha...) làm dữ liệu thật ở bất kỳ đâu trong code hay dữ liệu test cuối cùng.
+
+---
+
+## Phụ lục — Đối chiếu với kho mã (18/09/2026, WS-66)
+
+Phần trên giữ nguyên văn bản BA. Những chỗ dưới đây **đo được là lệch** khi dựng; bản dựng đi theo cột "Kho làm":
+
+| Mục spec | Spec ghi | Đo được | Kho làm |
+|---|---|---|---|
+| §2 nguồn Bảng 2 | "211 trạm, 1.011 máy" | con số ấy đọc từ sheet `Trạm bơm` (tự lệch: cộng dòng ra 1.025). Bảng 2 của mẫu khớp 1:1 sheet **`TB Tiêu (KH)`** — 178 trạm / 830 máy | nhập theo `TB Tiêu (KH)` (OI-BC9) |
+| §4.1 phân cỡ | `Sheet3` là "bảng phân loại chuẩn" | `Sheet3` **rỗng**; 35/830 máy ⛔ thuộc cột nào theo nhãn | 9 cỡ biên đề xuất, sửa được (OI-BC8) |
+| §4.2 loại dòng | 2 loại | 3 loại — dòng ⛔ số TT mà **có tên** là một trạm khác (`Ngọ Xá II`, `Xém (mới)`…) | mỗi trạm một công trình |
+| §6 Bảng 4 | "lấy tự động" | ⛔ điểm đo mưa nào (G3-a) | **nhập tay theo kỳ** 8 điểm Sông Nhuệ, để trống = ô trống (đổi 18/09 tối; ngày G3-a về thì nguồn tự động THAY ô nhập) |
+| tên bảng | `wl_reading` · `rain_reading` · `hydro_station` | ⛔ tồn tại | `hydro_readings` · `stations` (lọc `HOP_LE`) |
+| Bảng 3 Lương Cổ | — | mẫu ghi TL có số | `F01519` đổi về Thượng lưu (`V202609181085`) |
+| Bảng 3 điểm đo · ghi chú Yên Nghĩa | mã cố định | 3/14 vế ⛔ có điểm đo (OI-BC14); danh mục có HAI công trình tên "Yên Nghĩa" | Công ty **chọn công trình** cho 7 cống + trạm Yên Nghĩa trên màn hình *Cấu hình Báo cáo nhanh*; điểm đo từng vế suy từ liên kết điểm đo–công trình (`V202609181088`) |
+
+Open issue mới: OI-BC8 → OI-BC17 ở `.claude/master-tracking.md` T66.8.
+
+### Công ty trả lời (19/09/2026 — `xacnhan.md` cùng thư mục)
+
+| Mã | Trả lời | Kho làm |
+|---|---|---|
+| OI-BC1 · 2 · 5 · 6 · 7 · 12 · 15 · 16 | Đồng ý phương án đang chạy | ⛔ đổi |
+| OI-BC4 · OI-BC10 | Bảng 2 chia theo **7 nhóm của sheet `Trạm bơm`** (Thanh Trì · Thường Tín · Phú Xuyên · Ứng Hoà · Bắc Từ Liêm · Nam Từ Liêm · Hoài Đức) | ⚠ Khối Bảng 2 lấy từ đơn vị quản lý của công trình (`org_units`). Danh sách này là danh sách **thứ ba**, khác cả hai danh sách của OI-05 ⇒ chưa nhập Xí nghiệp cho tới khi chốt MỘT danh sách (`T66.14`, `architecture-review.md` §12.2 h) |
+| OI-BC8 | Nhãn cột là cỡ danh định **đã làm tròn** (43.200 in ở "43"); giữ nguyên 9 cột, tính theo biên đã gửi | ⛔ đổi biên; ghi chú trên màn hình *Danh mục máy bơm* đổi từ "đề xuất" sang "đã xác nhận" |
+| OI-BC9 | Đồng ý `TB Tiêu (KH)` | ⛔ đổi |
+| OI-BC11 | `F01771` thuộc **Sông Nhuệ** | ⛔ đổi dữ liệu điểm đo |
+| OI-BC13 | ⛔ trả lời | giữ nguyên chữ của mẫu ở cả hai chỗ |
+| OI-BC14 | Chưa có điểm đo ở 3 vế | 3 ô để trống kèm lý do |
+| OI-BC17 | **Cho nới** cột "Lúa" nhóm Tổng cộng ở Bảng 5 | bản xuất chia đều bề rộng "Lúa"/"Rau, màu" của nhóm ấy (631 + 990 → 810 + 811 twip, tổng ⛔ đổi); tệp mẫu trong kho vẫn trùng byte bản Công ty gửi |
+
+OI-BC3 (lệch Km) thuộc màn hình biểu đồ mặt cắt — ⛔ phải phạm vi Báo cáo nhanh, vẫn mở.
+
+### Đối chiếu Định nghĩa Done (§9) — 19/9/2026
+
+Mỗi dòng trỏ tới phép kiểm đang chạy trong CI (`BaoCaoNhanhHttpTest` qua HTTP · `TinhBaoCaoNhanhTest` JUnit trần ·
+`baoCaoNhanhRules.test.ts` FE). ⛔ Đánh dấu ✅ theo lời khai — mỗi ✅ có tên bài kiểm.
+
+| # | Mục §9 | Trạng thái | Bằng chứng |
+|---|---|---|---|
+| 1 | Ô "Tổng cộng"/"Cộng" tự tính, ⛔ nhập tay | ✅ | `TinhBaoCaoNhanhTest` bất biến 5 · màn hình chỉ đọc, số từ BE |
+| 2 | Bảng 2 một dòng = một nhóm máy cùng Q | ✅ | `nhom_may_bom` duy nhất theo (trạm, Q) · `xuatWordKhuHoi` (trạm 2 nhóm ⇒ 2 dòng, gộp dọc) |
+| 3 | Tổng số trạm = trạm có ≥ 1 máy chạy | ✅ | `TinhBaoCaoNhanhTest` bất biến 3 |
+| 4 | Tổng số máy + 9 cột = số đang chạy theo cỡ | ✅ | `TinhBaoCaoNhanhTest` bất biến 1 + 3 |
+| 5 | Mục 1 chép đúng dòng Sông Nhuệ của Bảng 1 | ✅ | `TinhBaoCaoNhanhTest` bất biến 2 · `chuoiTinhMotChieu` |
+| 6 | Công tắc ẩn theo cả trạm, ⛔ mất dữ liệu | ✅ | `baoCaoNhanhRules.test.ts` "trạm hoạt động ⇔ ít nhất một nhóm > 0" · Bảng 1 tính trên dữ liệu, ⛔ trên bộ lọc |
+| 7 | Số máy vận hành lưu riêng theo kỳ | ✅ | bảng `bao_cao_nhanh_van_hanh` · `chotVaMoLai` (danh mục đổi sau chốt ⛔ đổi văn bản) |
+| 8 | Ghi chú Yên Nghĩa đúng câu, cả ca ⛔ vận hành, m³/s | ✅ | `TinhBaoCaoNhanhTest` bất biến 4 · `xuatWordKhuHoi` |
+| 9 | Nhập theo luồng gõ tên trạm → nhóm máy → số đang chạy | ✅ | `baoCaoNhanhRules.test.ts` "tìm theo tên trạm" · kiểm tay trên trình duyệt T66.7 |
+| 10 | Phụ lục 2 chỉ điền phần Sông Nhuệ | ✅ | `xuatWordKhuHoi` (Bảng 4 công ty khác trống) |
+| 11 | Bảng 3 giá trị tức thời tại giờ kết thúc; Bảng 4 cộng dồn | ✅ Bảng 3 · 🔄 Bảng 4 | Bảng 3: `bang3MucNuocTaiThoiDiem`. Bảng 4 **đổi**: nhập tay theo kỳ (OI-BC15) — phép cộng dồn chỉ có khi nguồn mưa tự động về (G3-a) |
+| 12 | ⛔ dùng số liệu mẫu làm dữ liệu thật | ✅ | `xuatWordKhuHoi` khẳng định số minh hoạ của mẫu ("200", "12", các số 0) bị xoá · ⛔ seed trạm/máy nào |
+

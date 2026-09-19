@@ -4,6 +4,9 @@
 > `staging`, `production` đều có bảo vệ; environment `production` đã có người duyệt.
 > Kết quả kiểm chứng từng mục: **§6**.
 >
+> ⭐ **18/9/2026**: `staging` + `production` về **0 người duyệt**, `production` nhận PR **từ `dev`**
+> (⛔ còn từ `staging`) — §3.0. Bảng §3 là trạng thái hiện hành; các mục cũ hơn giữ làm lịch sử.
+>
 > ⚠ **Bản đầu của tài liệu này có hai lỗi, đã sửa ở §4** — cấu hình áp theo bản cũ vẫn còn hai chỗ
 > phải chỉnh: `strict` ở staging/production (§2.4) và thiếu một context ở `dev` (§2.5). Lệnh sửa
 > nằm ở **§6.2**.
@@ -158,14 +161,35 @@ Bản trước của bảng này sai ở ba ô và không ai cập nhật khi ch
 | | `dev` | `staging` | `production` |
 |---|---|---|---|
 | Check bắt buộc | `Cổng kiểm CI` (**đúng một** — xem §7) | `Promotion guard` | `Promotion guard` |
-| Nguồn hợp lệ | nhánh feature bất kỳ | chỉ `dev` | chỉ `staging` |
-| Số người duyệt | **0** — hạ 6/9/2026, PR vẫn bắt buộc | **1** | **1** |
+| Nguồn hợp lệ | nhánh feature bất kỳ | chỉ `dev` | chỉ **`dev`** (⭐ 18/9 — trước: chỉ `staging`) |
+| Số người duyệt | **0** — hạ 6/9/2026, PR vẫn bắt buộc | ⭐ **0** — hạ 18/9 (lệnh §3.0) | ⭐ **0** — hạ 18/9 (lệnh §3.0) |
 | `strict` (bắt cập nhật với base) | ✅ | ❌ — xem §2.4 | ❌ — xem §2.4 |
 | `required_linear_history` | ✅ | ❌ — xem §2.3 | ❌ |
 | Cách merge | Squash / Rebase | **Create a merge commit** — xem §3.2 | **Create a merge commit** |
 | Force push / xoá nhánh | cấm | cấm | cấm |
 | `enforce_admins` | false | false | **bật khi đội ≥ 2 người** |
 | Environment GitHub | — | `staging`, không rào | `production`: **không còn người duyệt**, thay bằng `deployment_branch_policy` chỉ cho nhánh `production` (6/9/2026) |
+
+### 3.0. ⭐ 18/9/2026 — bỏ người duyệt ở `staging` + `production`, `production` nhận thẳng từ `dev`
+
+Luồng đơn giản hoá (`docs/cicd.md` đầu tệp). Cổng duy nhất của hai nhánh là `Promotion guard`
+(nguồn = `dev` · CI xanh · gốc chung) — một cú tự duyệt của đội 2–3 người ⛔ thêm bảo đảm nào.
+Đo trước khi đổi (18/9, API): `staging` 1 · `production` 1.
+
+```bash
+# Endpoint CON — chỉ đổi đúng trường số người duyệt, ⛔ PUT cả object (luật 33)
+for b in staging production; do
+  gh api -X PATCH "repos/{owner}/{repo}/branches/$b/protection/required_pull_request_reviews" \
+    -F required_approving_review_count=0 \
+    -F dismiss_stale_reviews=false \
+    -F require_last_push_approval=false
+done
+# Đo lại — ĐẠT = 0 ở cả hai, và contexts vẫn là ["Promotion guard"]
+for b in staging production; do
+  gh api "repos/{owner}/{repo}/branches/$b/protection" \
+    --jq "{b: \"$b\", reviews: .required_pull_request_reviews.required_approving_review_count, contexts: .required_status_checks.contexts}"
+done
+```
 
 > ⭐ **6/9/2026 — hai thay đổi đi cùng nhau, và thứ tự lập luận quan trọng.**
 >

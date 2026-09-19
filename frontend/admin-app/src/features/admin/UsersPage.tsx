@@ -596,7 +596,7 @@ function AssignRolesModal({ user, onClose }: { user: UserView | null; onClose: (
         loading={catalog.isLoading || current.isLoading}
         value={selected ?? current.data ?? []}
         onChange={setSelected}
-        optionFilterProp="label"
+        showSearch={{ optionFilterProp: 'label' }}
         options={(catalog.data ?? []).map((role) => ({
           value: role.code,
           label: `${role.name} (${role.permissionCount} quyền)`,
@@ -677,7 +677,7 @@ function LienKetHoSoModal({
       destroyOnHidden
       footer={null}
     >
-      <Space direction="vertical" size={12} style={{ display: 'flex' }}>
+      <Space orientation="vertical" size={12} style={{ display: 'flex' }}>
         <div>
           Đang liên kết:{' '}
           {user?.hoSoNhanSu ? (
@@ -690,14 +690,12 @@ function LienKetHoSoModal({
         </div>
 
         <Select
-          showSearch
+          showSearch={{ onSearch: setTuKhoa, filterOption: false }}
           allowClear
           style={{ width: '100%' }}
           placeholder="Gõ tên hoặc mã cán bộ để tìm"
           value={chon}
           onChange={setChon}
-          onSearch={setTuKhoa}
-          filterOption={false}
           loading={danhSach.isFetching}
           notFoundContent={danhSach.isFetching ? 'Đang tìm…' : 'Không có hồ sơ nào khớp'}
           options={(danhSach.data?.items ?? []).map((e) => ({

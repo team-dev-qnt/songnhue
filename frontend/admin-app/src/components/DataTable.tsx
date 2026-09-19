@@ -54,7 +54,7 @@ export function DataTable<T extends object>({
       <Alert
         type="error"
         showIcon
-        message="Không tải được dữ liệu"
+        title="Không tải được dữ liệu"
         description={
           <>
             {apiError?.message ?? 'Lỗi không xác định'}

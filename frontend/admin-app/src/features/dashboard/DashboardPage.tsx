@@ -27,7 +27,7 @@ export function DashboardPage() {
   const { user, hasPermission } = useAuth();
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       <Card
         style={{
           // ⛔ Dải chào mừng: sắc nhạt của màu chính + nền khung, cả hai lấy từ token AntD để
@@ -65,7 +65,7 @@ export function DashboardPage() {
         <Alert
           type="info"
           showIcon
-          message="Chưa có thông tin tổng quan cho tài khoản này"
+          title="Chưa có thông tin tổng quan cho tài khoản này"
           description="Các chức năng nghiệp vụ (vận hành công trình, thủy văn, nhân sự) sẽ bổ sung ở giai đoạn tiếp theo."
         />
       )}
@@ -85,7 +85,7 @@ function BackupCard() {
       <Statistic
         title="Thành công gần nhất"
         value={formatAge(data?.ageSeconds)}
-        valueStyle={{ color: data?.stale ? statusColors.danger : statusColors.normal }}
+        styles={{ content: { color: data?.stale ? statusColors.danger : statusColors.normal } }}
       />
       <Typography.Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0 }}>
         {data?.lastSuccess
@@ -97,7 +97,7 @@ function BackupCard() {
           type="error"
           showIcon
           style={{ marginTop: 12 }}
-          message={`Quá ngưỡng ${data.staleThresholdHours} giờ — không có bản khôi phục nào đủ mới`}
+          title={`Quá ngưỡng ${data.staleThresholdHours} giờ — không có bản khôi phục nào đủ mới`}
         />
       )}
     </Card>
@@ -120,7 +120,7 @@ function HealthCard() {
       loading={isLoading}
       extra={<Link to="/quan-tri/tinh-trang">Chi tiết</Link>}
     >
-      <Space direction="vertical" style={{ width: '100%' }}>
+      <Space orientation="vertical" style={{ width: '100%' }}>
         <StatusBadge value={data?.status} vocabulary={HEALTH_STATUS} />
         {down.length === 0 ? (
           <Typography.Text type="secondary">
@@ -130,7 +130,7 @@ function HealthCard() {
           <Alert
             type="error"
             showIcon
-            message="Thành phần đang có vấn đề"
+            title="Thành phần đang có vấn đề"
             description={down.map(([name]) => name).join(', ')}
           />
         )}

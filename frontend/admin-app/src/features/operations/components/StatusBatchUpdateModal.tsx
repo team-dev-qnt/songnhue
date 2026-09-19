@@ -180,7 +180,7 @@ export function StatusBatchUpdateModal({ open, onClose }: { open: boolean; onClo
             onChange={(val) =>
               capNhat(row.publicId, 'value', val == null ? undefined : String(val))
             }
-            addonAfter={ma.parameterUnit ?? undefined}
+            suffix={ma.parameterUnit ?? undefined}
           />
         );
       },
@@ -211,7 +211,7 @@ export function StatusBatchUpdateModal({ open, onClose }: { open: boolean; onClo
       destroyOnHidden
       afterClose={donNhap}
     >
-      <Space direction="vertical" style={{ width: '100%' }} size="middle">
+      <Space orientation="vertical" style={{ width: '100%' }} size="middle">
         <Space>
           <span>Thời điểm có hiệu lực:</span>
           <DatePicker

@@ -43,4 +43,4 @@ là đưa chúng ra khỏi mọi lớp bảo vệ ấy **trước khi** chúng k
   mở thẳng bằng Excel là đúng dấu tiếng Việt, ⛔ không cần thao tác nào.
 - **Dòng 2 là MÔ TẢ quy cách**, ⛔ không phải một bản ghi ví dụ. Xoá dòng ấy trước khi điền.
   (Mẫu gồm dòng ví dụ *hợp lệ* thì tới ngày nhập, nó sẽ im lặng tạo ra đúng bản ghi ví dụ ấy.)
-- Cột `ma_don_vi` phải khớp danh mục đơn vị trong hệ thống — phụ thuộc **OI-05** (7 hay 8 Xí nghiệp).
+- Cột `ma_don_vi` phải khớp danh mục đơn vị trong hệ thống — phụ thuộc **OI-05** (7 hay 8 Xí nghiệp; từ 19/09 thêm danh sách thứ ba của Báo cáo nhanh — `master-tracking.md` T66.14).

@@ -118,6 +118,22 @@ export const MENU: readonly MenuNode[] = [
         path: '/van-hanh/bao-cao',
         permissions: ['ops:report:view'],
       },
+      {
+        // Báo cáo nhanh (18/09/2026) — kỳ báo cáo có vòng đời, ⛔ một mã trong danh mục ở trên.
+        // Gác bằng `:view`; nút nhập/chốt tự khoá theo `ops:quick-report:manage` (tầng 2).
+        key: 'bao-cao-nhanh',
+        label: 'Báo cáo nhanh',
+        icon: <FileTextOutlined />,
+        path: '/van-hanh/bao-cao-nhanh',
+        permissions: ['ops:report:view'],
+      },
+      {
+        key: 'may-bom',
+        label: 'Danh mục máy bơm',
+        icon: <AppstoreOutlined />,
+        path: '/van-hanh/may-bom',
+        permissions: ['ops:construction:view'],
+      },
     ],
   },
   {

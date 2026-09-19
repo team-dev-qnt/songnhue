@@ -8,6 +8,16 @@
 # Thứ tự các bước xếp theo "cái nào phát hiện lỗi sớm và rẻ nhất thì chạy trước":
 #   format/lint (giây)  →  test đơn vị (giây)  →  test tích hợp có DB (phút)
 # Nhờ vậy một PR sai định dạng biết ngay trong 30 giây thay vì chờ hết 5 phút.
+#
+# ⭐ ĐƠN GIẢN HOÁ 18/09/2026 — mỗi việc nặng chạy ĐÚNG MỘT lần:
+#   · PR vào `dev`   : lint + test (backend, frontend). ⛔ KHÔNG dựng image.
+#   · push vào `dev` : ⛔ KHÔNG test lại — chỉ job nhẹ + dựng/đẩy 3 image + gắn tag.
+#   Lý do bỏ test ở push: `dev` bật `strict=true` (PR phải up-to-date) + squash ⇒
+#   cây tệp sau merge TRÙNG KHÍT cây đã test ở PR. Đo 18/09 lượt push `dev`
+#   35346347718: 9' = test 6' + image 2–3' + gắn tag.
+#   ⚠ Cái giá đã chấp nhận: Dockerfile / `ARG` rỗng chỉ lộ ra SAU khi merge (push
+#   `dev` đỏ). `Cổng kiểm CI` của đỉnh `dev` đỏ ⇒ `Promotion guard` chặn đề bạt ⇒
+#   image hỏng không tới được staging/production.
 # =============================================================================
 name: CI
 
@@ -55,6 +65,8 @@ jobs:
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
+      image_backend: ${{ steps.filter.outputs.image_backend }}
+      image_frontend: ${{ steps.filter.outputs.image_frontend }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -74,6 +86,8 @@ jobs:
             echo "Không xác định được mốc so sánh — chạy toàn bộ."
             echo "backend=true"  >> "$GITHUB_OUTPUT"
             echo "frontend=true" >> "$GITHUB_OUTPUT"
+            echo "image_backend=true"  >> "$GITHUB_OUTPUT"
+            echo "image_frontend=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -86,6 +100,8 @@ jobs:
           #   ĐẠT**, nên PR merge được trong khi bộ kiểm chưa từng chạy.
           backend=true
           frontend=true
+          image_backend=true
+          image_frontend=true
 
           # ⚠ Here-string, KHÔNG dùng `echo "$changed" | grep -q`.
           #
@@ -188,15 +204,24 @@ jobs:
           #   là ĐẠT (luật 24). Đây là lần thứ SÁU cùng hình dạng luật 28 trong dự án.
             grep -qE '^(backend/|frontend/|deploy/|docs/|tools/|\.github/|\.claude/function-spec\.md)'  <<< "$changed" || backend=false
             grep -qE '^(backend/|frontend/|deploy/|\.github/workflows/)' <<< "$changed" || frontend=false
+          # ⭐ Bộ lọc IMAGE hẹp hơn hẳn bộ lọc test, và đó là đúng: bối cảnh build chỉ là
+          #   `backend/` hoặc `frontend/` cộng Dockerfile của chính nó (Dockerfile tự chạy
+          #   `mvnw`/`npm ci`, ⛔ dùng artifact nào của job khác). Một lượt merge chỉ sửa
+          #   `docs/` thì ⛔ có lý do dựng lại image — `gan-tag-sha` gắn SHA mới lên digest cũ.
+          #   `ci.yml` nằm ở cả hai: sửa chính pipeline dựng image thì phải dựng lại để thử.
+            grep -qE '^(backend/|deploy/docker/backend\.Dockerfile|\.github/workflows/ci\.yml)' <<< "$changed" || image_backend=false
+            grep -qE '^(frontend/|deploy/docker/(admin-app|public-web)\.Dockerfile|\.github/workflows/ci\.yml)' <<< "$changed" || image_frontend=false
           fi
 
           echo "backend=$backend"   >> "$GITHUB_OUTPUT"
           echo "frontend=$frontend" >> "$GITHUB_OUTPUT"
+          echo "image_backend=$image_backend"   >> "$GITHUB_OUTPUT"
+          echo "image_frontend=$image_frontend" >> "$GITHUB_OUTPUT"
 
           # In quyết định ra, để đọc được ở mọi lượt chạy thay vì phải suy ngược
           # từ việc job nào biến mất khỏi danh sách.
-          echo "→ backend=$backend · frontend=$frontend"
-          echo "Vùng chạy lần này: backend=\`$backend\` · frontend=\`$frontend\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "→ backend=$backend · frontend=$frontend · image_backend=$image_backend · image_frontend=$image_frontend"
+          echo "Vùng chạy lần này: backend=\`$backend\` · frontend=\`$frontend\` · image_backend=\`$image_backend\` · image_frontend=\`$image_frontend\` (test chỉ chạy ở PR, image chỉ dựng ở push \`dev\`)" >> "$GITHUB_STEP_SUMMARY"
 
   # ===========================================================================
   # Bộ đọc tracking — KHÔNG có bộ lọc đường dẫn, và đó là cố ý.
@@ -251,7 +276,8 @@ jobs:
   backend:
     name: Backend — build, lint, test
     needs: changes
-    if: needs.changes.outputs.backend == 'true'
+    # Chỉ ở PR — push `dev` ⛔ test lại (xem đầu tệp).
+    if: github.event_name == 'pull_request' && needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
 
@@ -272,7 +298,7 @@ jobs:
       #   trước khi có gì được biên dịch, với thông báo trỏ vào `spotless:check`
       #   — một bước hoàn toàn vô can (§10.47).
       - name: Đệm bản phân phối Maven
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.m2/wrapper
           key: mvnw-${{ runner.os }}-${{ hashFiles('backend/.mvn/wrapper/maven-wrapper.properties') }}
@@ -329,7 +355,8 @@ jobs:
     # §4.1). Đổi tên là mọi PR đang mở chờ một context không bao giờ tới.
     name: Frontend — lint
     needs: changes
-    if: needs.changes.outputs.frontend == 'true'
+    # Chỉ ở PR — push `dev` ⛔ test lại (xem đầu tệp).
+    if: github.event_name == 'pull_request' && needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -412,25 +439,21 @@ jobs:
   # thống, thời điểm build). Đóng gói một lần thì thứ chạy trên production đúng
   # là thứ đã qua 226 bài kiểm.
   #
-  # ⚠⚠ DỰNG ở cả PR, chỉ ĐẨY khi push vào dev (đổi 24/8, §10.38).
+  # ⭐ CHỈ DỰNG khi push vào `dev` (đổi 18/09/2026 — trước đó dựng thử ở cả PR, §10.38).
   #
-  #   Bản trước bỏ qua hẳn job này ở PR. Hệ quả: lượt dựng image đầu tiên của
-  #   một thay đổi diễn ra SAU KHI đã merge — nên chỗ duy nhất nó có thể đỏ là
-  #   `dev`. Đúng chuyện đã xảy ra với PR #10: mọi cổng kiểm ở PR xanh, merge
-  #   xong thì `dev` đỏ ngay ở bước dựng image `public-web`.
+  #   Cái giá, nói thẳng: image là chỗ DUY NHẤT thấy được những gì chỉ tồn tại lúc
+  #   build container — biến `ARG` để trống, tệp `.env.local` vắng mặt, tầng
+  #   runtime chép hụt. Bỏ lượt dựng ở PR thì loại lỗi ấy lộ ra SAU merge (đúng
+  #   chuyện PR #10). Đổi lại mỗi PR bớt ~2–3'. Lưới đỡ: `Cổng kiểm CI` của đỉnh
+  #   `dev` đỏ ⇒ `Promotion guard` chặn mọi PR đề bạt ⇒ image hỏng ⛔ lên máy chủ.
   #
-  #   Và đây không phải lỗi hiếm gặp: image là chỗ DUY NHẤT thấy được những gì
-  #   chỉ tồn tại lúc build container — biến `ARG` để trống, tệp `.env.local`
-  #   vắng mặt, tầng runtime chép hụt. Không thứ nào trong đó có mặt ở
-  #   `npm run build` hay `mvn verify`.
-  #
-  #   `push: false` ở PR là bắt buộc: đẩy lên GHCR từ một nhánh chưa duyệt thì
-  #   tag `dev` trỏ vào mã chưa ai xem.
+  #   ⛔ Không `needs: backend` — push `dev` không còn chạy test (xem đầu tệp),
+  #   nên phụ thuộc vào một job luôn `skipped` sẽ kéo job này skipped theo.
   # ---------------------------------------------------------------------------
   image:
     name: Đóng gói image
-    needs: [changes, backend]
-    if: needs.changes.outputs.backend == 'true'
+    needs: [changes]
+    if: github.event_name == 'push' && needs.changes.outputs.image_backend == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -443,7 +466,6 @@ jobs:
       - uses: docker/setup-buildx-action@v3
 
       - name: Đăng nhập GHCR
-        if: github.event_name == 'push'
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
@@ -458,7 +480,7 @@ jobs:
         with:
           context: backend
           file: deploy/docker/backend.Dockerfile
-          push: ${{ github.event_name == 'push' }}
+          push: true
           tags: |
             ghcr.io/${{ github.repository }}/app:${{ github.sha }}
             ghcr.io/${{ github.repository }}/app:dev
@@ -467,14 +489,10 @@ jobs:
 
       - name: Ghi tóm tắt
         run: |
-          if [ "${{ github.event_name }}" = "push" ]; then
-            echo "### Image đã đóng gói" >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-            echo "ghcr.io/${{ github.repository }}/app:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "### Image dựng thử — **chưa đẩy** lên GHCR (lượt PR)" >> "$GITHUB_STEP_SUMMARY"
-          fi
+          echo "### Image đã đóng gói" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "ghcr.io/${{ github.repository }}/app:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
 
   # ---------------------------------------------------------------------------
   # Đóng gói image FRONTEND
@@ -499,13 +517,14 @@ jobs:
   #   tuyệt đối vào đây là dựng lại đúng cấu hình đã chặn toàn bộ giao diện quản
   #   trị suốt WS-8→WS-20.
   # ---------------------------------------------------------------------------
-  # ⚠⚠ Cũng DỰNG ở PR, chỉ ĐẨY khi push vào dev — xem lý do đầy đủ ở job `image`.
+  # ⭐ CHỈ DỰNG khi push vào `dev` — xem lý do và cái giá ở job `image`.
   #    Job này là chỗ duy nhất `NEXT_PUBLIC_*` được giải trên một cây checkout
-  #    SẠCH (không có `.env.local`), nên nó là chỗ duy nhất bắt được biến rỗng.
+  #    SẠCH (không có `.env.local`), nên nó là chỗ duy nhất bắt được biến rỗng —
+  #    nay bắt được SAU merge, ⛔ còn ở PR.
   image-frontend:
     name: Đóng gói image frontend
-    needs: [changes, frontend]
-    if: needs.changes.outputs.frontend == 'true'
+    needs: [changes]
+    if: github.event_name == 'push' && needs.changes.outputs.image_frontend == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -529,7 +548,6 @@ jobs:
       - uses: docker/setup-buildx-action@v3
 
       - name: Đăng nhập GHCR
-        if: github.event_name == 'push'
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
@@ -544,7 +562,7 @@ jobs:
           # phụ thuộc của chính chúng.
           context: frontend
           file: ${{ matrix.dockerfile }}
-          push: ${{ github.event_name == 'push' }}
+          push: true
           tags: |
             ghcr.io/${{ github.repository }}/${{ matrix.name }}:${{ github.sha }}
             ghcr.io/${{ github.repository }}/${{ matrix.name }}:dev
@@ -557,14 +575,10 @@ jobs:
 
       - name: Ghi tóm tắt
         run: |
-          if [ "${{ github.event_name }}" = "push" ]; then
-            echo "### Image frontend: ${{ matrix.name }}" >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-            echo "ghcr.io/${{ github.repository }}/${{ matrix.name }}:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "### Image frontend \`${{ matrix.name }}\` dựng thử — **chưa đẩy** lên GHCR (lượt PR)" >> "$GITHUB_STEP_SUMMARY"
-          fi
+          echo "### Image frontend: ${{ matrix.name }}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "ghcr.io/${{ github.repository }}/${{ matrix.name }}:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
           # ⚠ Cảnh báo này từng mô tả sai thực tế: nó nói "sẽ trỏ về localhost", ngụ ý có
           #   một giá trị mặc định đang đỡ. Không có — biến rỗng đi thẳng vào `new URL('')`
           #   và giết build, cho tới khi `site.ts` đổi `??` thành `||` (§10.38).

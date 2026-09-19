@@ -98,7 +98,7 @@ export function ConstructionDocumentsPanel({ publicId }: { publicId: string }) {
       title: 'Tên tệp',
       dataIndex: 'originalName',
       render: (ten: string, row) => (
-        <Space direction="vertical" size={0}>
+        <Space orientation="vertical" size={0}>
           <span>{ten}</span>
           {row.fileVersion > 1 && <Tag color="blue">Phiên bản {row.fileVersion}</Tag>}
         </Space>
@@ -183,9 +183,9 @@ export function ConstructionDocumentsPanel({ publicId }: { publicId: string }) {
   ];
 
   return (
-    <Space direction="vertical" style={{ width: '100%' }} size="middle">
+    <Space orientation="vertical" style={{ width: '100%' }} size="middle">
       <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
-        <Space direction="vertical" size={0} style={{ minWidth: 260 }}>
+        <Space orientation="vertical" size={0} style={{ minWidth: 260 }}>
           <Typography.Text type="secondary">
             Đã dùng {formatBytes(daDung)} / {formatBytes(HAN_MUC_BYTE)}
           </Typography.Text>

@@ -81,7 +81,7 @@ Gồm: MOD-05 + toàn bộ shared services rút ra từ P1–P6.
 - ⭐ **Rate-limit trước khi mở HTTP (G3)**: tính `frame = floor(now / 10')`; nếu **toàn bộ** điểm đo đang hoạt động đã có bản ghi thuộc `frame` → **skip**, ghi `sync_logs = SKIPPED_UP_TO_DATE` (DEBUG, không tính lỗi). ⚠ Điều kiện dừng là *đủ toàn bộ trạm*, **không** phải "đã nhận bản ghi đầu tiên" — nguồn trả rải rác trong cửa sổ `x1:30 → x8:30`. Viết test cho đúng nhánh này.
 - ⭐ **Phát hiện trạm mất tín hiệu (G3)**: job phụ đánh dấu `stations.status = MAT_TIN_HIEU` khi không có bản ghi mới quá N khung (mặc định 3 ≈ 30', config) → GIS marker **xám**, badge bảng realtime, loại khỏi đánh giá ngưỡng; có dữ liệu lại → tự phục hồi + ghi log. Phân biệt rõ với **lỗi nguồn toàn phần** (`not.working`/timeout → alert về nguồn, không đánh dấu từng trạm).
 - ⛔ **Nguồn KHÔNG có API lịch sử** (Công ty đã chấp nhận rủi ro — G3) → `hydro_raw_logs` phải ghi **nguyên văn response trước khi parse**; poller là điểm bắt dữ liệu duy nhất, mất là mất vĩnh viễn. Bổ sung **alert khi không có bản ghi mới quá N phút** vào hạng mục monitoring Phase 0. Nhịp 2' ⇒ ~720 response/ngày → `hydro_raw_logs` **partition tháng + retention riêng ngắn hơn `hydro_readings`**.
-- ⬜ **Lượng mưa**: v1 **không có nguồn** (API chỉ có `getmn.aspx`). Giữ `measurement_types` có "Lượng mưa" + chừa chỗ cắm adapter; cột báo cáo hiển thị `-`. Chờ **G3-a** trước khi làm màn hình nhập tay.
+- ⬜ **Lượng mưa**: v1 **không có nguồn** (API chỉ có `getmn.aspx`). Giữ `measurement_types` có "Lượng mưa" + chừa chỗ cắm adapter; cột báo cáo hiển thị `-`. Chờ **G3-a** trước khi làm màn hình nhập tay. ⚠ **Ngoại lệ duy nhất (18/9/2026)**: Bảng 4 của Báo cáo nhanh (CN-02.12) nhập tay 8 điểm theo kỳ — riêng cho văn bản ấy, ⛔ phải màn hình lượng mưa chung; G3-a vẫn mở.
 - Màn hình **"Dữ liệu nghi ngờ"**: danh sách bản ghi `NGHI_NGO` + Duyệt/Xóa (audit) + thông báo cho Quản trị khi phát sinh.
 - **Alert engine**: `alert_rules` (theo điểm đo × chỉ số, mức, delay) + `alert_events`; đánh giá ngay sau ghi reading; phát qua Notification service. ⭐ **G9**: **màn hình cấu hình ngưỡng đầy đủ là hạng mục nghiệm thu** (Công ty tự nhập số liệu thật) — điểm đo chưa cấu hình → nhãn "chưa cấu hình ngưỡng" + **không phát cảnh báo**; có danh sách "Điểm đo chưa cấu hình ngưỡng". Số mức ngưỡng thiết kế dạng **danh mục**, không enum cứng (chờ G9-a).
 - Báo cáo thủy văn (định kỳ/theo yêu cầu/mùa vụ — dùng Job queue).
@@ -94,6 +94,7 @@ Gồm: MOD-05 + toàn bộ shared services rút ra từ P1–P6.
 - ⭐ **BC-11 "Biểu tổng hợp mực nước theo tuyến sông"** dùng chung layout với **wall mode 4K** — làm 1 lần, dùng 2 nơi. Ưu tiên cao vì đây là màn hình Trực ban đang dùng hằng ngày. Gồm **cột tình hình vận hành** đọc từ `construction_operation_status` (badge màu theo danh mục — G4); cột lượng mưa hiển thị `-` ở v1.
 - GIS: `gis_layers` (file qua Attachment) + API GeoJSON; công cụ đo + xuất bản đồ (M2.12/M2.13); marker đọc `constructions` + trạng thái dẫn xuất + `hydro_latest`; **marker điểm đo xám khi `MAT_TIN_HIEU`** (G3).
 - Dashboard: view tổng hợp — đọc agg + alert + `maintenance_logs` (sự cố đang mở) + `hydro_latest`, không logic mới.
+- ✅ **Báo cáo nhanh ứng phó ngập úng (CN-02.12, WS-66 — gộp `dev` 19/9/2026, PR #167)**: `co_may_bom` + `nhom_may_bom` (bảng con `constructions`, Q m³/h) · kỳ `bao_cao_nhanh` + Bảng 2/4/5 nhập theo kỳ · workflow `QUICK_REPORT` chốt/mở lại + ảnh chụp lúc chốt · Bảng 3 đọc `hydro` qua `HydroSnapshotPort` (lọc `HOP_LE`) · xuất Word điền thẳng mẫu Công ty (`DocxFiller`, 0 phụ thuộc). ⬜ Còn: Công ty nhập dữ liệu (T66.13) · danh sách Xí nghiệp của Bảng 2 ↔ OI-05 (T66.14).
 
 ### NHÓM D — HR (MOD-04) — độc lập nhất, làm song song sau khi Core xong
 
@@ -185,12 +186,12 @@ Quy tắc ràng buộc giữa module (giữ đúng Modular Monolith):
 4. ✅ Chart: **ECharts**.
 5. ✅ Base map: **OSM mặc định** (Leaflet/MapLibre), Google Maps optional. ⬜ Shapefile (SRS §4.6) — chốt ở thiết kế chi tiết (F7).
 6. ✅ Database: **PostgreSQL 16 + PostGIS**.
-7. ✅ Admin UI: **Ant Design 5**; Public web: **Next.js + Tailwind**.
+7. ✅ Admin UI: **Ant Design 6** (5 → 6 ngày 18/09/2026, WS-67); Public web: **Next.js + Tailwind**.
 8. ✅ **Quy mô triển khai: CONFIRMED** — v1 1 node, bỏ Redis, worker in-process, ShedLock giữ sẵn. **Backup bản tối giản: `pg_dump` hàng đêm, RPO ≤ 24h, RTO ≤ 4h, không PITR/replica** (chốt 13/8/2026). Xem `architecture-review.md` §6.5.
 9. ✅ **Restore UI: CONFIRMED (2026-08-06)** — làm nút restore (M5.11) + bảo vệ nhiều lớp (`architecture-review.md` §7.3).
 10. ✅ **Scope phần mở rộng: ĐÃ ĐÓNG HOÀN TOÀN (12/8/2026)** — **bỏ nhật ký vận hành + phiếu sự cố riêng + BC-01/02/03/04/07/08**, thay bằng **Lịch sử sửa chữa/khắc phục sự cố (CN-02.2)** + BC-06/BC-09/BC-10. **Không còn hạng mục 🔷 nào.**
 11. ✅ **Tích hợp hệ thống văn bản: CONFIRMED** — không SSO/API/CSDL; lưu credential người dùng + auto-login (CN-01.7). ⬜ Còn chi tiết: mã số riêng hay chung, ai nhập — G5.
-12. ⬜ **Mẫu báo cáo**: đã soạn đề xuất format (`report-templates-proposal.md`), chờ Công ty duyệt + gửi 4 file mẫu trọng yếu — G10.
+12. ⬜ **Mẫu báo cáo**: đã soạn đề xuất format (`report-templates-proposal.md`), chờ Công ty duyệt + gửi 4 file mẫu trọng yếu — G10. ✅ **Mẫu thật ĐẦU TIÊN đã về và đã dựng (18/9/2026)**: Báo cáo nhanh chống úng (CN-02.12) — xuất Word điền thẳng vào mẫu; PDF/XLSX (`T42.14`) vẫn chờ mẫu.
 13. ✅ **Quan hệ điểm đo↔công trình: CONFIRMED** (A2b). ✅ **Kế hoạch vụ mùa: BỎ** (A1).
 14. ✅ **Bảng ánh xạ mã API ↔ điểm đo: CONFIRMED (G8b)** — đủ 19/19 mã, đã thành seed data ở `function-spec.md` CN-03.1. ⬜ Còn thiếu **tuyến sông / lý trình / tọa độ GPS** + danh mục công trình tổng thể (G8) — chặn hiển thị GIS, không chặn pipeline.
 15. ✅ **Tình hình vận hành cống: CONFIRMED (G4)** — **không** có trong API, nhập tay qua CN-02.11; danh mục mã **CRUD** + màu + ánh xạ trạng thái, seed 4 mã.

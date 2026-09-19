@@ -174,7 +174,7 @@ export function EmployeeFormModal({
           type="error"
           showIcon
           style={{ marginBottom: 16 }}
-          message="Không tải được hồ sơ"
+          title="Không tải được hồ sơ"
           description={
             chiTiet.error instanceof ApiClientError
               ? chiTiet.error.message
@@ -262,7 +262,7 @@ function BieuMauHoSo({
       //    mở A → đóng → mở B cho ra "Nguyễn Văn A" trong ô của B.
       clearOnDestroy
     >
-      <Divider orientation="left">Thông tin cá nhân</Divider>
+      <Divider titlePlacement="left">Thông tin cá nhân</Divider>
       <Row gutter={16}>
         <Col span={8}>
           <Form.Item
@@ -398,7 +398,7 @@ function BieuMauHoSo({
         </Col>
       </Row>
 
-      <Divider orientation="left">Thông tin công tác</Divider>
+      <Divider titlePlacement="left">Thông tin công tác</Divider>
       <Row gutter={16}>
         <Col span={12}>
           <Form.Item
@@ -416,8 +416,7 @@ function BieuMauHoSo({
           <Form.Item name="positionId" label="Chức vụ">
             <Select
               allowClear
-              showSearch
-              optionFilterProp="label"
+              showSearch={{ optionFilterProp: 'label' }}
               loading={dangTaiChucVu}
               placeholder="Chọn chức vụ trong danh mục"
               options={dsChucVu.map((c) => ({
@@ -447,7 +446,7 @@ function BieuMauHoSo({
         </Col>
       </Row>
 
-      <Divider orientation="left">Hợp đồng lao động</Divider>
+      <Divider titlePlacement="left">Hợp đồng lao động</Divider>
       <Row gutter={16}>
         <Col span={8}>
           <Form.Item name="contractType" label="Loại hợp đồng">
@@ -484,7 +483,7 @@ function BieuMauHoSo({
         </Col>
       </Row>
 
-      <Divider orientation="left">Trạng thái công tác</Divider>
+      <Divider titlePlacement="left">Trạng thái công tác</Divider>
       <Row gutter={16}>
         <Col span={8}>
           <Form.Item
@@ -521,7 +520,7 @@ function BieuMauHoSo({
         <Alert
           type="warning"
           showIcon
-          message="Hồ sơ chuyển sang trạng thái đã nghỉ"
+          title="Hồ sơ chuyển sang trạng thái đã nghỉ"
           description="Hồ sơ vẫn nằm nguyên trong hệ thống và vẫn tra cứu được — chỉ thôi được tính vào quân số đang làm việc."
         />
       )}

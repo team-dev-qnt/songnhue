@@ -221,7 +221,7 @@ class DeploySshMultiplexTest {
 
     // -------------------------------------------------------------------------
 
-    /** Thân `run:` của một bước, cắt từ dòng `- name: <tên>` tới dòng `- name:` kế tiếp. */
+    /** Thân `run:` của một bước, cắt từ dòng {@code - name: <tên>} tới dòng `- name:` kế tiếp. */
     private static String thanBuoc(String ten) {
         String w = doc(timTuGocKho(".github/workflows/deploy.yml"));
         int dau = w.indexOf("- name: " + ten);

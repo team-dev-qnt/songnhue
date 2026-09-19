@@ -32,7 +32,7 @@ import org.yaml.snakeyaml.Yaml;
  * {@code SaoLuuQuaHan} nằm {@code inactive} <b>vĩnh viễn</b> vì ⛔ có chuỗi nào để so, còn
  * {@code UngDungKhongPhanHoi} kêu thường trực. Và ⛔ có Alertmanager nào để gửi đi.
  *
- * <p>Năm mắt xích, mỗi mắt một bài: cấu hình ⛔ mang {@code ${} · mọi chỗ cắm được điền và thiếu là dừng
+ * <p>Năm mắt xích, mỗi mắt một bài: cấu hình ⛔ mang <code>${</code> · mọi chỗ cắm được điền và thiếu là dừng
  * · luật cho production có vế <i>vắng mặt</i> · tuyến gửi đúng như đã chốt · cửa nginx có hai lớp khoá.
  *
  * <p>⚠ Giới hạn (luật 28): bài này đọc TỆP. Tuyến gửi và cửa nginx đã được chạy thật ở máy ngày

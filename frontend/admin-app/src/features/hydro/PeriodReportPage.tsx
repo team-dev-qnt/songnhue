@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { DownloadOutlined } from '@ant-design/icons';
 import {
   Alert,
+  App,
   Button,
   Card,
   DatePicker,
@@ -11,7 +12,6 @@ import {
   Tag,
   Tooltip,
   Typography,
-  message,
 } from 'antd';
 import { type ColumnsType } from 'antd/es/table';
 import { type Dayjs } from 'dayjs';
@@ -51,6 +51,7 @@ const TRAN_NGAY_CHI_TIET = 31;
  * ngày lại thay vì để người dùng nhận một lỗi họ ⛔ không gây ra.
  */
 export function PeriodReportPage() {
+  const { message } = App.useApp();
   const { hasPermission } = useAuth();
   const { xuat, dangCho } = useXuatBaoCao();
   // Kỳ mặc định phải là tháng theo LỊCH VIỆT NAM: hai dòng dưới thành `tuNgay`/`denNgay`
@@ -215,7 +216,7 @@ export function PeriodReportPage() {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="Mọi con số ở đây chỉ tính trên bản ghi HỢP LỆ"
+        title="Mọi con số ở đây chỉ tính trên bản ghi HỢP LỆ"
         description={
           <>
             Bản ghi <b>nghi ngờ</b> và <b>đã xoá</b> ⛔ không tham gia max / min / trung bình. Muốn
@@ -250,7 +251,7 @@ export function PeriodReportPage() {
       />
 
       <Drawer
-        width={880}
+        size={880}
         open={chiTiet !== null}
         onClose={() => setChiTiet(null)}
         title={
@@ -297,6 +298,7 @@ function ChiTietSoDo({
   denNgay: Dayjs;
   dsDiemDo: Station[];
 }) {
+  const { message } = App.useApp();
   const [trang, setTrang] = useState(1);
   const { hasPermission } = useAuth();
   const { xuat, dangCho } = useXuatBaoCao();
@@ -335,7 +337,7 @@ function ChiTietSoDo({
       <Alert
         type="warning"
         showIcon
-        message="Không tra được điểm đo"
+        title="Không tra được điểm đo"
         description={`Mã ${stationCode} không nằm trong 100 điểm đo đầu của danh mục — chi tiết chưa mở được từ đây.`}
       />
     );
@@ -381,7 +383,7 @@ function ChiTietSoDo({
       //   (`reviewNote`), NGƯỜI nhập ghi chú (`note`). Gộp để hiển thị thì phải nói rõ cái nào là
       //   cái nào — ⛔ đừng để người đọc tưởng máy viết ra câu của người.
       render: (_, row) => (
-        <Space direction="vertical" size={0}>
+        <Space orientation="vertical" size={0}>
           {row.qualityReason ? (
             <Typography.Text type="secondary">Máy: {row.qualityReason}</Typography.Text>
           ) : null}
@@ -393,12 +395,12 @@ function ChiTietSoDo({
   ];
 
   return (
-    <Space direction="vertical" size={12} style={{ width: '100%' }}>
+    <Space orientation="vertical" size={12} style={{ width: '100%' }}>
       {daKep ? (
         <Alert
           type="info"
           showIcon
-          message={`Chi tiết chỉ hiện ${TRAN_NGAY_CHI_TIET} ngày cuối của kỳ (${batDau.format('DD/MM/YYYY')} – ${denNgay.format('DD/MM/YYYY')})`}
+          title={`Chi tiết chỉ hiện ${TRAN_NGAY_CHI_TIET} ngày cuối của kỳ (${batDau.format('DD/MM/YYYY')} – ${denNgay.format('DD/MM/YYYY')})`}
           description="Báo cáo chi tiết là báo cáo duy nhất đọc thẳng bảng số đo — mỗi điểm đo sinh 144 bản ghi một ngày, nên khoảng ngày phải có cận."
         />
       ) : null}

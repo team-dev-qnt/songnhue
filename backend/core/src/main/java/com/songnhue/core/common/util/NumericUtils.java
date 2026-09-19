@@ -105,6 +105,48 @@ public final class NumericUtils {
         return total.divide(BigDecimal.valueOf(present.size()), scale, ROUNDING);
     }
 
+    /** Nhóm hàng nghìn kiểu Việt Nam: {@code 1.500.000}. Dùng để phân biệt với số thập phân. */
+    private static final java.util.regex.Pattern NHOM_HANG_NGHIN =
+            java.util.regex.Pattern.compile("^\\d{1,3}(\\.\\d{3})+$");
+
+    /**
+     * Đọc một số do người dùng GÕ TAY (ô Excel/CSV) — MỘT chỗ duy nhất cho mọi đường nhập tệp.
+     *
+     * <p>⚠⚠ <b>Dấu chấm là chỗ nguy hiểm nhất.</b> Tiếng Việt dùng "." ngăn hàng nghìn, trong khi toạ
+     * độ GPS viết "21.023456" với "." là dấu thập phân. Quy tắc "bỏ hết dấu chấm" biến vĩ độ 21,023456
+     * thành <b>21023456</b>. Phân biệt bằng <i>hình dạng</i>, ⛔ đoán theo ngôn ngữ:
+     *
+     * <ul>
+     *   <li>Có cả "." và "," → "." là hàng nghìn, "," là thập phân.
+     *   <li>Chỉ có "." và khớp dạng {@code 1.500.000} → hàng nghìn.
+     *   <li>Còn lại → "." hoặc "," là dấu thập phân.
+     * </ul>
+     *
+     * <p>⚠ Hệ quả phải biết: {@code "1.100"} đọc thành <b>1100</b> (hàng nghìn), ⛔ 1,1. Đúng với lưu
+     * lượng máy bơm của danh mục Công ty ({@code 1.100}, {@code 43.200} m³/h), và toạ độ ⛔ bao giờ có
+     * đúng 3 chữ số sau dấu chấm.
+     *
+     * <p>Trước 18/09/2026 thân hàm này có HAI bản chép (nhập công trình · nhập vị trí điểm đo); đường
+     * nhập thứ ba (nhóm máy bơm) là lúc gom về đây, thay vì chép bản thứ ba (conventions.md §2.5).
+     *
+     * @return {@code null} khi ô trống
+     * @throws NumberFormatException khi ⛔ phải số — nơi gọi đổi thành lỗi DÒNG của tệp nhập
+     */
+    public static BigDecimal docSoNhapTay(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String sach = value.replaceAll("[\\s\\u00a0]", "");
+        if (sach.contains(".") && sach.contains(",")) {
+            sach = sach.replace(".", "").replace(",", ".");
+        } else if (NHOM_HANG_NGHIN.matcher(sach).matches()) {
+            sach = sach.replace(".", "");
+        } else {
+            sach = sach.replace(",", ".");
+        }
+        return new BigDecimal(sach);
+    }
+
     /** Đổi cm sang m (nguồn thủy văn trả cm — phụ lục function-spec.md, chốt B6). */
     public static BigDecimal centimetersToMeters(BigDecimal centimeters) {
         return centimeters == null ? null : measurement(centimeters.movePointLeft(2));

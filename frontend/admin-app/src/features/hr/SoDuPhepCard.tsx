@@ -45,9 +45,12 @@ export function SoDuPhepCard({ soDu, dangTai }: { soDu?: SoDuPhepView; dangTai?:
             title="Còn lại"
             value={soDu?.conLai ?? '—'}
             suffix="ngày"
-            valueStyle={
-              soDu && soDu.conLai.trim().startsWith('-') ? { color: token.colorError } : undefined
-            }
+            styles={{
+              content:
+                soDu && soDu.conLai.trim().startsWith('-')
+                  ? { color: token.colorError }
+                  : undefined,
+            }}
           />
         </Col>
       </Row>
@@ -70,7 +73,7 @@ export function SoDuPhepCard({ soDu, dangTai }: { soDu?: SoDuPhepView; dangTai?:
           type="info"
           showIcon
           style={{ marginTop: 12 }}
-          message={`Hệ thống chưa có dữ liệu nghỉ phép của năm ${soDu.nam - 1}`}
+          title={`Hệ thống chưa có dữ liệu nghỉ phép của năm ${soDu.nam - 1}`}
           description={
             <>
               Vì thế ô <b>chuyển từ năm trước</b> đang là 0 — nghĩa là <b>chưa biết</b>, ⛔ không

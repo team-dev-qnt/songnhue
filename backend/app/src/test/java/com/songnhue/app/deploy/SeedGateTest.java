@@ -512,7 +512,7 @@ class SeedGateTest {
         return (cat.find() ? con.substring(0, cat.start()) : con).trim();
     }
 
-    /** Cắt lấy khối YAML của một service — từ dòng `  <tên>:` tới service kế tiếp cùng mức. */
+    /** Cắt lấy khối YAML của một service — từ dòng {@code   <tên>:} tới service kế tiếp cùng mức. */
     private static String khoiService(String compose, String ten) {
         Matcher khop = Pattern.compile(
                         "^  " + ten + ":$(.*?)(?=^  [a-z][a-z0-9-]*:$)", Pattern.MULTILINE | Pattern.DOTALL)

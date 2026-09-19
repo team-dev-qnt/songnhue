@@ -168,7 +168,7 @@ songnhue/
 │   └── app/                 bootstrap: main, application*.yml, Dockerfile
 ├── frontend/                npm workspaces — MỘT lockfile, MỘT eslint.config.mjs
 │   ├── design-tokens/       màu + kích thước dùng chung, xuất thẳng .ts (không build)
-│   ├── admin-app/           Vite + React 18 + AntD 5
+│   ├── admin-app/           Vite + React 19 + AntD 6
 │   └── public-web/          Next.js + Tailwind
 ├── deploy/
 │   ├── compose.infra.yml    PG+PostGIS, MinIO, Mailpit  (nền, được include lại)

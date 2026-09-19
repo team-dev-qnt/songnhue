@@ -329,17 +329,34 @@ export function RichTextEditor({
     xuLyTep.current = (files, viTri) => void nhanTepAnh(files, viTri);
   }, [nhanTepAnh]);
 
+  // ⛔⛔ Mọi effect dưới đây phải bỏ qua một editor ĐÃ HUỶ — T67.6 (WS-67), đo 19/09/2026.
+  //
+  // `useEditor` dựng editor NGAY TRONG render rồi hẹn giờ huỷ sau 1 ms nếu component chưa kịp
+  // commit. React Router 7 dựng trang trong `startTransition`, render bị cắt lát ⇒ hẹn giờ bắn trước
+  // lượt commit ⇒ editor bị huỷ (`schema = null`), tiptap dựng editor MỚI trong effect của nó — nhưng
+  // CÙNG lượt commit ấy, các effect này vẫn cầm editor cũ. Gọi `getHTML()` vào đó là
+  // `Cannot read properties of null (reading 'cached')` và cả trang soạn bài sập (có sẵn trên bản
+  // production của `dev`, tiptap 3.31.0). Bỏ qua là ĐÚNG ngữ nghĩa, ⛔ phải nuốt lỗi: editor mới tới
+  // ngay lượt render sau, và vì `[editor]` đổi nên các effect chạy lại với nó.
+  //
+  // ⚠ Kiểm bằng `isDestroyed` của tiptap (API công khai), và kiểm BÊN TRONG effect — lúc effect
+  //   THỰC THI. Kiểm lúc render là vô dụng: editor bị huỷ SAU render, TRƯỚC effect. Bản vá đầu của
+  //   tôi kiểm lúc render và vẫn sập; bài canh `soanThaoTrongTransition.test.tsx` huỷ đúng vào khe ấy.
+  const song = (e: Editor | null): e is Editor => e !== null && !e.isDestroyed;
+
   // Nội dung đến từ bên ngoài (nạp bài, phục hồi phiên bản cũ) — đồng bộ vào trình soạn thảo.
   // ⚠ Điều kiện so sánh là bắt buộc: thiếu nó thì mỗi lượt gõ sẽ nạp lại nội dung và con trỏ
   // nhảy về đầu bài sau mỗi ký tự.
   useEffect(() => {
-    if (editor && value !== editor.getHTML()) {
+    if (song(editor) && value !== editor.getHTML()) {
       editor.commands.setContent(value, { emitUpdate: false });
     }
   }, [editor, value]);
 
   useEffect(() => {
-    editor?.setEditable(!disabled);
+    if (song(editor)) {
+      editor.setEditable(!disabled);
+    }
   }, [editor, disabled]);
 
   // Mốc chuẩn hoá — bắn ĐÚNG MỘT LẦN khi trình soạn thảo sẵn sàng. Đi qua ref để việc nơi gọi
@@ -349,7 +366,7 @@ export function RichTextEditor({
     normalizedRef.current = onNormalized;
   }, [onNormalized]);
   useEffect(() => {
-    if (editor) {
+    if (song(editor)) {
       normalizedRef.current?.(editor.getHTML());
     }
   }, [editor]);
@@ -559,7 +576,7 @@ export function RichTextEditor({
 
         {mode === 'soan' && (
           <>
-            <Divider type="vertical" />
+            <Divider orientation="vertical" />
             {/* ⭐ Hoàn tác/Làm lại đi CÙNG đợt với ba nút phá huỷ của thanh bảng (xoá hàng, xoá
                 cột, xoá bảng) — và cùng đợt với phím `Backspace` vốn đã xoá cả bảng khi chọn hết
                 ô. Giao công cụ phá mà không giao đường lùi là thứ tự ngược.
@@ -576,7 +593,7 @@ export function RichTextEditor({
               disabled={!editor.can().redo()}
               onClick={() => editor.chain().focus().redo().run()}
             />
-            <Divider type="vertical" />
+            <Divider orientation="vertical" />
             <ToolbarButton
               title="Đậm"
               icon={<BoldOutlined />}
@@ -601,7 +618,7 @@ export function RichTextEditor({
               active={editor.isActive('strike')}
               onClick={() => editor.chain().focus().toggleStrike().run()}
             />
-            <Divider type="vertical" />
+            <Divider orientation="vertical" />
             {([2, 3, 4] as const).map((level) => (
               <ToolbarButton
                 key={level}
@@ -611,7 +628,7 @@ export function RichTextEditor({
                 onClick={() => editor.chain().focus().toggleHeading({ level }).run()}
               />
             ))}
-            <Divider type="vertical" />
+            <Divider orientation="vertical" />
             <ToolbarButton
               title="Gạch đầu dòng"
               icon={<UnorderedListOutlined />}
@@ -630,7 +647,7 @@ export function RichTextEditor({
               active={editor.isActive('codeBlock')}
               onClick={() => editor.chain().focus().toggleCodeBlock().run()}
             />
-            <Divider type="vertical" />
+            <Divider orientation="vertical" />
             {ALIGN_BUTTONS.map(({ value, title, icon }) => (
               <ToolbarButton
                 key={value}
@@ -644,7 +661,7 @@ export function RichTextEditor({
                 }}
               />
             ))}
-            <Divider type="vertical" />
+            <Divider orientation="vertical" />
             {/* ⭐ T41.15 — ba nhóm màu, yêu cầu ĐÃ KÝ (đặc tả dòng 92 và 98).
                 ⚠ `bang === null` LÀ phép đo "không ở trong bảng": `trangThaiBang` cố ý ⛔ không có
                 trường `trongBang`, vì trường ấy sẽ luôn `true` ở mọi thể hiện khác `null`. */}
@@ -683,7 +700,7 @@ export function RichTextEditor({
                 }}
               />
             ))}
-            <Divider type="vertical" />
+            <Divider orientation="vertical" />
             <ToolbarButton
               title="Liên kết"
               icon={<LinkOutlined />}
@@ -774,7 +791,7 @@ export function RichTextEditor({
           type="info"
           showIcon
           banner
-          message={`Đang tải ${dangTai} ảnh lên — chưa lưu được bài cho tới khi xong`}
+          title={`Đang tải ${dangTai} ảnh lên — chưa lưu được bài cho tới khi xong`}
         />
       )}
 
@@ -809,7 +826,7 @@ export function RichTextEditor({
         onCancel={() => setLinkOpen(false)}
         onOk={apDungLienKet}
       >
-        <Space direction="vertical" style={{ width: '100%' }}>
+        <Space orientation="vertical" style={{ width: '100%' }}>
           <Input
             value={linkUrl}
             onChange={(event) => setLinkUrl(event.target.value)}

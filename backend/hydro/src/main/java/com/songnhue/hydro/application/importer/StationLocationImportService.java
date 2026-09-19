@@ -81,9 +81,6 @@ public class StationLocationImportService {
 
     private static final Pattern DANG_MA_API = Pattern.compile("^[Ff][0-9]{5}$");
 
-    /** Nhóm hàng nghìn kiểu Việt Nam — xem {@link #so}. */
-    private static final Pattern NHOM_HANG_NGHIN = Pattern.compile("^\\d{1,3}(\\.\\d{3})+$");
-
     private final StationRepository stations;
 
     public StationLocationImportService(StationRepository stations) {
@@ -242,19 +239,8 @@ public class StationLocationImportService {
      * {@code ConstructionImportService.so} — <b>theo hình dạng</b>, ⛔ không theo ngôn ngữ.
      */
     private static BigDecimal so(String value, int soDong, String cot, List<LoiDong> loi) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        String sach = value.replaceAll("[\\s\\u00a0]", "");
-        if (sach.contains(".") && sach.contains(",")) {
-            sach = sach.replace(".", "").replace(",", ".");
-        } else if (NHOM_HANG_NGHIN.matcher(sach).matches()) {
-            sach = sach.replace(".", "");
-        } else {
-            sach = sach.replace(",", ".");
-        }
         try {
-            return new BigDecimal(sach);
+            return com.songnhue.core.common.util.NumericUtils.docSoNhapTay(value);
         } catch (NumberFormatException e) {
             loi.add(new LoiDong(soDong, cot, "Không phải số: '%s'".formatted(value)));
             return null;
