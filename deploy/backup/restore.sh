@@ -14,6 +14,11 @@
 # =============================================================================
 set -euo pipefail
 
+# ⛔ Tệp SQL sinh ra bên dưới mang TOÀN BỘ CSDL dạng thuần — gồm `password_hash` và
+#    `user_totp.secret_encrypted`. Umask mặc định cho ra 644, tức mọi user trên máy
+#    đọc được (đo 08/09 ở `khoi-phuc-qua-container.sh`).
+umask 077
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPLOY_DIR="$(dirname "$SCRIPT_DIR")"
 ENV="${ENV:-local}"
@@ -88,9 +93,9 @@ ENV="$ENV" "$SCRIPT_DIR/backup.sh" || {
 }
 
 # -----------------------------------------------------------------------------
-# Ngắt kết nối khác. pg_restore --clean phải DROP từng đối tượng, mà DROP chờ
-# vô hạn khi còn phiên khác giữ khoá. Nối vào `postgres`, không nối vào CSDL
-# đích — nếu không thì chính phiên này nằm trong danh sách bị ngắt.
+# Ngắt kết nối khác. `--clean` phải DROP từng đối tượng, mà DROP chờ vô hạn khi
+# còn phiên khác giữ khoá. Nối vào `postgres`, không nối vào CSDL đích — nếu
+# không thì chính phiên này nằm trong danh sách bị ngắt.
 # -----------------------------------------------------------------------------
 echo "→ Ngắt các kết nối khác tới $DB_NAME"
 PGPASSWORD="$DB_MIGRATION_PASSWORD" psql \
@@ -100,49 +105,119 @@ PGPASSWORD="$DB_MIGRATION_PASSWORD" psql \
       WHERE datname = '$DB_NAME' AND pid <> pg_backend_pid();" >/dev/null
 
 # -----------------------------------------------------------------------------
-# Lọc mục lục — BẮT BUỘC khi khôi phục vào một cluster MỚI (T7.7: diễn tập sang
-# máy khác, và mọi lượt khôi phục thảm hoạ thật).
+# Lọc mục lục — BA vế, cùng thứ tự với `khoi-phuc-qua-container.sh` và
+# `KeHoachKhoiPhuc.locMucLuc` (nút M5.11):
 #
-# ⚠⚠ Ba nhóm mục sau thuộc về EXTENSION, không thuộc về ta, và `pg_restore` chạy
-#    bằng `songnhue_owner` sẽ ĐỎ ở chúng — đo trên staging 26/8 (§10.58):
+#   ① bỏ `COMMENT - EXTENSION …`  → ERROR: must be owner of extension pg_trgm
+#   ② bỏ chính dòng `EXTENSION`   → ERROR: must be owner of extension postgis
+#   ③ bỏ mục có chủ sở hữu `postgres` (spatial_ref_sys và ACL của nó)
 #
-#      COMMENT - EXTENSION pg_trgm     → ERROR: must be owner of extension pg_trgm
-#      TABLE DATA … spatial_ref_sys    → ERROR: permission denied for table spatial_ref_sys
-#      (và ACL của các đối tượng ấy)
+# ⚠ Vế ② thêm ngày 19/09/2026 (T68.3). Bản cũ chỉ có ① và ③ — đúng bộ lọc mà
+#   script container đã phải vá ngày 08/09 sau khi ĐO trên bản dump thật: pg_dump
+#   KHÔNG ghi chủ sở hữu cho extension, nên `$NF` của dòng ấy là TÊN extension và
+#   `awk '$NF != "postgres"'` giữ nó lại. §10.58 quy lỗi ấy cho mục COMMENT và
+#   vá nhầm chỗ: hai trạng thái khác nhau in ra cùng một câu.
 #
-#    Cả ba đều do `CREATE EXTENSION` dựng lại rồi — `spatial_ref_sys` ở cluster mới
-#    đã có đủ 8500 dòng trước khi ta nạp gì. Bỏ chúng KHÔNG mất dữ liệu.
-#
-# Luật lọc: bỏ mục nào có **chủ sở hữu là `postgres`** (tức do superuser tạo qua
-# extension) và mọi `COMMENT - EXTENSION`. Lọc theo chủ sở hữu thay vì liệt kê tên
-# bảng: liệt kê tên là một danh sách sẽ mục ngay khi thêm extension thứ tư.
+# Cả ba nhóm đều do `CREATE EXTENSION` dựng lại rồi — bỏ chúng KHÔNG mất dữ liệu.
+# Lọc theo chủ sở hữu thay vì liệt kê tên bảng: liệt kê tên là một danh sách sẽ
+# mục ngay khi thêm extension thứ tư.
 # -----------------------------------------------------------------------------
 TOC="$(mktemp)"
-trap 'rm -f "$TOC"' EXIT
-PGPASSWORD="$DB_MIGRATION_PASSWORD" pg_restore --list "$SOURCE" \
-    | grep -v "COMMENT - EXTENSION" \
-    | awk '$NF != "postgres"' > "$TOC"
+SQL_THAN="$(mktemp)"
+SQL_NAP="$(mktemp)"
+# Tệp SQL mang TOÀN BỘ CSDL dạng thuần (gồm `password_hash`) ⇒ umask 077 ở đầu
+# tệp + xoá khi thoát, kể cả thoát vì lỗi.
+trap 'rm -f "$TOC" "$TOC.day-du" "$SQL_THAN" "$SQL_NAP"' EXIT
 
-BO="$(( $(PGPASSWORD="$DB_MIGRATION_PASSWORD" pg_restore --list "$SOURCE" | grep -c .) - $(grep -c . "$TOC") ))"
-echo "→ Mục lục: bỏ $BO mục thuộc extension (do CREATE EXTENSION dựng lại)"
+pg_restore --list "$SOURCE" > "$TOC.day-du"
+grep -v "COMMENT - EXTENSION" "$TOC.day-du" \
+  | grep -vE '^[0-9]+; +[0-9]+ +[0-9]+ EXTENSION ' \
+  | awk '$NF != "postgres"' > "$TOC"
 
 # ⚠ `grep -c .` chứ không `wc -l`: mục lục có dòng chú thích và dòng trống.
-[ "$(grep -c . "$TOC")" -gt 100 ] || {
-    echo "✗ Mục lục sau khi lọc chỉ còn $(grep -c . "$TOC") mục — bộ lọc đã ăn quá tay. DỪNG." >&2
+TONG="$(grep -c . "$TOC.day-du")"
+CON="$(grep -c . "$TOC")"
+echo "→ Mục lục: $TONG mục → bỏ $(( TONG - CON )) mục thuộc extension → còn $CON"
+[ "$CON" -gt 100 ] || {
+    echo "✗ Mục lục sau khi lọc chỉ còn $CON mục — bộ lọc đã ăn quá tay. DỪNG." >&2
     exit 1
 }
 
-echo "→ pg_restore"
+# Phép chốt của chính bộ lọc — đo trên THỨ sẽ được truyền cho pg_restore.
+# `|| true` bắt buộc: `grep -c` thoát 1 khi đếm 0, và `set -e` sẽ giết script.
+SO_EXT="$(grep -cE '^[0-9]+; +[0-9]+ +[0-9]+ EXTENSION ' "$TOC" || true)"
+[ "$SO_EXT" -eq 0 ] || {
+    echo "✗ Mục lục còn $SO_EXT mục EXTENSION — pg_restore sẽ phát DROP EXTENSION và đỏ. DỪNG." >&2
+    exit 1
+}
+
+# Bỏ mục EXTENSION nghĩa là TIN rằng đích đã có sẵn chúng — tiền đề phải ĐO.
+SO_CO="$(PGPASSWORD="$DB_MIGRATION_PASSWORD" psql \
+    --host="$DB_HOST" --port="$DB_PORT" --username="$OWNER" --dbname="$DB_NAME" \
+    --no-password -At -c \
+    "SELECT count(*) FROM pg_extension WHERE extname IN ('postgis','unaccent','pg_trgm')")"
+[ "$SO_CO" = "3" ] || {
+    echo "✗ Đích chỉ có $SO_CO/3 extension (postgis, unaccent, pg_trgm) — bản dump đã lọc" >&2
+    echo "  mục EXTENSION nên KHÔNG tạo lại được chúng. Chạy 10-bootstrap.sh trước." >&2
+    exit 1
+}
+
+# -----------------------------------------------------------------------------
+# ⛔⛔ KHÔNG `pg_restore --clean` thẳng vào CSDL — sinh SQL ra TỆP, ghép khối
+#    `truoc-khi-nap.sql` lên TRƯỚC, rồi nạp CẢ HAI bằng psql trong MỘT giao dịch.
+#
+#    Khối ấy làm hai việc, cả hai chỉ lộ ra khi đích ĐÃ CÓ dữ liệu — tức đúng lúc
+#    khôi phục thật, không phải lúc diễn tập trên cluster vừa dựng lại:
+#      · bỏ bảng phân mảnh — `--clean` phát DROP INDEX cho từng phân mảnh, mà chỉ
+#        mục phân mảnh không xoá lẻ được khi bảng cha còn (§10.80);
+#      · gỡ quyền MẶC ĐỊNH của vai trò đang nạp — bảng dựng lại nhận
+#        `ALTER DEFAULT PRIVILEGES` của đích (arwd cho songnhue_app), mà ACL của bản
+#        dump chỉ GRANT, không REVOKE ⇒ đo 19/09: 72 quyền thừa trên đúng các bảng
+#        append-only (audit_logs, hydro_raw_logs, security_events …).
+#
 # ⚠ KHÔNG `--no-privileges`: GRANT cấp bảng do migration Flyway cấp, mà Flyway
 #   không chạy lại trên một CSDL vừa khôi phục (`flyway_schema_history` nói đã áp
 #   đủ). Tước ACL khỏi bản dump là khôi phục ra một CSDL `songnhue_app` không đọc
 #   nổi — app chết ở `permission denied for table users` (§10.58).
-PGPASSWORD="$DB_MIGRATION_PASSWORD" pg_restore \
+# -----------------------------------------------------------------------------
+TRUOC_NAP="$SCRIPT_DIR/truoc-khi-nap.sql"
+[ -r "$TRUOC_NAP" ] || { echo "✗ Thiếu $TRUOC_NAP — DỪNG trước khi đụng vào dữ liệu." >&2; exit 1; }
+
+echo "→ Sinh SQL khôi phục ra tệp"
+pg_restore --clean --if-exists --no-owner --use-list="$TOC" --file="$SQL_THAN" "$SOURCE"
+cat "$TRUOC_NAP" "$SQL_THAN" > "$SQL_NAP"
+echo "   ✓ $(grep -c . "$SQL_NAP") dòng SQL"
+
+echo "→ Nạp trong MỘT giao dịch (ON_ERROR_STOP, single-transaction)"
+PGPASSWORD="$DB_MIGRATION_PASSWORD" psql \
     --host="$DB_HOST" --port="$DB_PORT" --username="$OWNER" --dbname="$DB_NAME" \
-    --no-password --clean --if-exists --no-owner \
-    --use-list="$TOC" \
-    --exit-on-error --single-transaction \
-    "$SOURCE"
+    --no-password --single-transaction -v ON_ERROR_STOP=1 -q -f "$SQL_NAP"
+
+# -----------------------------------------------------------------------------
+# NGHIỆM THU — bằng VAI TRÒ CỦA ỨNG DỤNG, không bằng chủ sở hữu. Chủ sở hữu luôn
+# đọc được, nên hỏi bằng chủ sở hữu KHÔNG phân biệt được hai trạng thái (§10.58).
+# Và hỏi luôn nó có SỬA được nhật ký kiểm toán không — lỗi quyền mặc định ở trên
+# không in ra một dòng lỗi nào.
+# -----------------------------------------------------------------------------
+APP_ROLE="${DB_USER:-songnhue_app}"
+: "${DB_PASSWORD:?Thiếu DB_PASSWORD — không nghiệm thu được bằng vai trò ứng dụng}"
+echo "→ Đọc thử bằng vai trò ứng dụng ($APP_ROLE)"
+KQ="$(PGPASSWORD="$DB_PASSWORD" psql \
+    --host="$DB_HOST" --port="$DB_PORT" --username="$APP_ROLE" --dbname="$DB_NAME" \
+    --no-password -At -c \
+    "SELECT count(*) || ' ' || CASE WHEN has_table_privilege(current_user, 'public.audit_logs', 'UPDATE')
+              THEN 'sua-duoc' ELSE 'chi-ghi-them' END FROM users" 2>&1 || true)"
+case "$KQ" in
+    # ⚠ Nhãn tường minh, ⛔ `t`/`f`: `boolean || text` ra `true`/`false` chứ ⛔ phải
+    #   dạng hiển thị của psql — mẫu `* f)` sẽ ⛔ bao giờ khớp và mọi lượt đều đỏ giả.
+    *[0-9]\ chi-ghi-them) echo "   ✓ $APP_ROLE đọc được users (${KQ% chi-ghi-them} hàng) và KHÔNG sửa được audit_logs" ;;
+    *[0-9]\ sua-duoc) echo "✗ $APP_ROLE SỬA được audit_logs — quyền append-only đã bị hạ. Dữ liệu ĐÃ nạp." >&2
+                      echo "  Tái khẳng định REVOKE theo V202608131006 trước khi mở lại hệ." >&2
+                      exit 1 ;;
+    *) echo "✗ $APP_ROLE KHÔNG đọc nổi bảng users: $KQ" >&2
+       echo "  Đây là đúng hình dạng §10.58 — CSDL đầy dữ liệu mà app chết lúc khởi động." >&2
+       exit 1 ;;
+esac
 
 echo "✓ Khôi phục xong từ $(basename "$SOURCE")"
 echo ""
@@ -151,8 +226,3 @@ echo "   1. Tắt chế độ bảo trì nếu đang bật, rồi KHỞI ĐỘNG
 echo "      (cache Caffeine của bảng settings còn giữ giá trị trước khi ghi đè)."
 echo "   2. Đối chiếu số bản ghi các bảng trọng yếu với kỳ vọng."
 echo "   3. Kiểm chuỗi hash nhật ký:  make db-verify-audit"
-echo "   4. ⚠ ĐỌC THỬ BẰNG VAI TRÒ CỦA ỨNG DỤNG, không chỉ bằng chủ sở hữu:"
-echo "        psql -U songnhue_app -d $DB_NAME -c 'SELECT count(*) FROM users'"
-echo "      Khôi phục vào cluster MỚI mà thiếu GRANT thì mọi bảng đều có dữ liệu"
-echo "      và app vẫn chết ngay lúc khởi động (§10.58). Chủ sở hữu luôn đọc được,"
-echo "      nên hỏi bằng chủ sở hữu KHÔNG phân biệt được hai trạng thái."

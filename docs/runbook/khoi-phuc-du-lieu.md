@@ -39,13 +39,27 @@ awk -F= '/^DB_RESTORE_PASSWORD=/{v=$2; gsub(/[[:space:]]+$/,"",v); print "độ 
 ⛔ **Đo trên production 08/09: độ dài = 0.** Tức nút khôi phục **đang tắt** (`ADM-2010`), và đường
 duy nhất là mục 2. Đừng mở giao diện lên tìm nút; nó sẽ không có ở đó.
 
-⛔⛔ **Và ngay cả khi bật, đường này mang một khuyết tật chưa vá.** `RestoreService.restoreCommand()`
-dùng `pg_restore --clean --if-exists --single-transaction` và **luôn** nạp vào một CSDL đang có dữ
-liệu — tức đúng cảnh làm lộ lỗi ở mục 3.1. Nút này **chưa ai chạy thật bao giờ**. Xem nợ T11.92.
+⛔⛔ **Tới 19/09 đường này mang bốn khuyết tật** — `pg_restore --clean --no-privileges` nạp thẳng vào một
+CSDL đang có dữ liệu (mục 3.1, 3.2, và quyền append-only bị hạ ở mục 4). ✅ **Vá ở WS-69 (T68.3)** —
+có hiệu lực **sau khi bản ấy được đề bạt** tới máy đang dùng: nút nay đi cùng khuôn với
+`khoi-phuc-qua-container.sh` và đọc CÙNG khối SQL (`deploy/backup/truoc-khi-nap.sql`). ⚠ Nút vẫn
+**chưa ai bấm thật** — lượt đầu tiên phải ở staging (T68.3).
 
 Nếu vẫn dùng: Quản trị → **Sao lưu & khôi phục** → chọn bản → **Khôi phục** → nhập chuỗi xác nhận
 `SONGNHUE` · lý do (≥ 10 ký tự) · **mã TOTP hiện tại**. Hệ thống bật chế độ bảo trì → đối chiếu
-checksum → chụp `PRE_RESTORE` → ngắt kết nối → `pg_restore` → tắt bảo trì. Bấm xong thì để yên.
+checksum → chụp `PRE_RESTORE` → kiểm đủ 3 extension → ngắt kết nối → lọc mục lục → sinh SQL → nạp
+MỘT giao dịch → đọc thử bằng `songnhue_app` → hỏi nó có SỬA được `audit_logs` không → tắt bảo trì.
+Bấm xong thì để yên. Hỏng ở bước nào thì nhật ký ứng dụng có dòng `Khôi phục THẤT BẠI` kèm đầu ra.
+
+**Nút báo `ADM-2013` — CSDL đã đổi hay chưa?** ⛔ Đừng bấm khôi phục lần nữa trước khi đọc dòng
+`Khôi phục THẤT BẠI` trong nhật ký ứng dụng (`docker logs <container app> 2>&1 | grep -A3 'Khôi phục THẤT BẠI'`):
+
+| Dòng tiếp theo bắt đầu bằng | CSDL | Làm gì |
+|---|---|---|
+| `Đích ⛔ có đủ 3 extension` · `Mục lục sau khi lọc` · `Bước "liệt kê mục lục"` · `Bước "sinh SQL khôi phục"` | **CHƯA đổi** — hỏng trước khi nạp | sửa nguyên nhân theo mục 3 rồi mới thử lại |
+| `Bước "nạp trong một giao dịch"` | **CHƯA đổi** — cả khối nạp lùi về (`--single-transaction`) | đọc lỗi Postgres trong dòng ấy, tra mục 3 |
+| `Vai trò ứng dụng ⛔ đọc nổi bảng users` | **ĐÃ đổi** — dữ liệu về, quyền ⛔ về | GRANT theo mục 3.3 · đối chiếu mục 6 |
+| `Dữ liệu ĐÃ nạp nhưng vai trò ứng dụng SỬA được audit_logs` | **ĐÃ đổi** — quyền append-only bị hạ | chạy khối ⑥ của `sau-khoi-phuc-production.sql` · kiểm mục 6 phép 7 |
 
 ---
 
@@ -84,7 +98,8 @@ thật trong mọi lượt CD:
 ③ bắt xác nhận bằng **tên CSDL** qua `XAC_NHAN=` (không phải `read`, vì `read` trên ssh không tty
 nhận EOF và script tự huỷ — hỏng đúng lúc người ta chạy nó từ xa) · ④ tự chụp `PRE_RESTORE` ·
 ⑤ ngắt kết nối khác · ⑥ lọc mục lục theo chủ sở hữu **và loại mục `EXTENSION`** · ⑦ bỏ bảng phân
-mảnh trong **cùng giao dịch** với lượt nạp · ⑧ nghiệm thu bằng **vai trò của ứng dụng**.
+mảnh **và gỡ quyền MẶC ĐỊNH** trong **cùng giao dịch** với lượt nạp (khối `truoc-khi-nap.sql`, thêm
+19/09) · ⑧ nghiệm thu bằng **vai trò của ứng dụng**, và hỏi nó có SỬA được `audit_logs` không.
 
 Chạy khối SQL vá kèm theo (nếu có): thêm `--sau <tệp.sql>`.
 
@@ -142,6 +157,7 @@ extension**, vì bản dump đã lọc thì không tạo lại được chúng.
 | Thông báo | Nguyên nhân | Xử lý |
 |---|---|---|
 | `permission denied for schema public` | CSDL đích thiếu `GRANT` cấp schema | `GRANT ALL ON SCHEMA public TO songnhue_owner; GRANT USAGE … TO songnhue_app, songnhue_archiver, songnhue_readonly;` |
+| `permission denied for table users` — hoặc bước nghiệm thu báo *KHÔNG đọc nổi bảng users* | bản dump **tước ACL**: mọi bản do job sao lưu trong ứng dụng tạo TRƯỚC khi bản vá WS-69 lên máy (T37.8). Đo: `pg_restore --list <dump> \| grep -c ' ACL '` = `0` | chạy lại mục **1** rồi mục **2** của `V202608131006__core_db_role_grants.sql` bằng `songnhue_owner`, rồi khối ⑥ của `sau-khoi-phuc-production.sql`; kiểm mục 6 phép 7. ⛔ Trông vào quyền mặc định mà bỏ mục 2 — bảng append-only sẽ mang `arwd` (§12.3) |
 | `must be owner of table …` | chạy bằng vai trò không phải chủ sở hữu | dùng `songnhue_owner` (`DB_MIGRATION_USER`) |
 | `unsupported version … in file header` | dump sinh bởi máy chủ **mới hơn** client | chạy qua container ⇒ không thể gặp; nếu gặp là đang dùng công cụ ngoài |
 | `database … is being accessed by other users` | còn phiên khác giữ khoá | script tự ngắt; nếu vẫn còn thì dừng `songnhue-app` trước |
@@ -152,9 +168,15 @@ extension**, vì bản dump đã lọc thì không tạo lại được chúng.
 
 ## 4. ⛔ Nếu bản dump đến từ MÔI TRƯỜNG KHÁC
 
-Bản dump mang theo **dữ liệu + lược đồ + ACL**. Khôi phục **thay** quyền của đích bằng quyền của
-nguồn. Đo 08/09: dữ liệu staging cho `songnhue_app` quyền `arwd` trên ~35 bảng mà production cố ý chỉ
-cho `ar`/`r` — gồm `audit_logs`, `audit_chain_head`, `hydro_raw_logs`, `flyway_schema_history`.
+Bản dump mang theo **dữ liệu + lược đồ + ACL**. Đo 08/09: dữ liệu staging cho `songnhue_app` quyền
+`arwd` trên ~35 bảng mà production cố ý chỉ cho `ar`/`r` — gồm `audit_logs`, `audit_chain_head`,
+`hydro_raw_logs`, `flyway_schema_history`.
+
+⚠ **Đo lại 19/09/2026 (T68.3, `architecture-review.md` §12.3)** — câu cũ *"khôi phục THAY quyền của đích
+bằng quyền của nguồn"* sai cơ chế. Trước bản vá WS-69, khôi phục ĐÈ lên một CSDL đã migrate tự nó sinh
+ra **đúng** danh sách `arwd` ấy (72 quyền, đo trên Postgres 16), kể cả khi nguồn đúng và ⛔ có
+`--no-privileges`: bảng dựng lại nhận quyền MẶC ĐỊNH của đích, còn ACL của bản dump chỉ GRANT, ⛔
+REVOKE. Sau bản vá, khôi phục cho ra **đúng ACL của nguồn** — nên nguồn yếu thì đích vẫn yếu theo.
 
 ⇒ Sau khôi phục **bắt buộc** chạy phần tái khẳng định quyền append-only (mục ⑥ của
 [`sau-khoi-phuc-production.sql`](../../deploy/backup/di-tru/sau-khoi-phuc-production.sql)), và kiểm

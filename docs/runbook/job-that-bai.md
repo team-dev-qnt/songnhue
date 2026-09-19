@@ -86,7 +86,7 @@ Riêng sao lưu thì chạy tay nhanh hơn: `ENV=prod deploy/backup/backup.sh`.
 |---|---|---|
 | `DB_BACKUP` | Hết đĩa, thiếu `pg_dump` | [sao-luu-hong.md](sao-luu-hong.md) |
 | `NOTIFICATION_DISPATCH` | SMTP từ chối / hết hạn kết nối | Kiểm `SMTP_*`; job tự thử lại 3 lần |
-| `VIRUS_SCAN` | Chưa dựng ClamAV (nợ #20) | Đang là `SKIPPED` — đúng thiết kế tạm thời |
+| `VIRUS_SCAN` | clamd ⛔ trả lời / hết bộ nhớ | ClamAV chạy trên staging từ 17/09, production từ 18/09 (`T61.4`); clamd ⛔ trả lời thì tệp giữ `UPLOADING` (fail-closed), host RỖNG mới ra `SKIPPED`. Kiểm `docker ps --filter name=clamav` + mục CLAMAV ở *Tình trạng cấu hình*; tệp `SKIPPED`/`ERROR` được quét lại khi khởi động (`T61.24`). ⚠ Sửa 19/09: bản cũ ghi *"chưa dựng ClamAV"* |
 | `AUDIT_ARCHIVE` | Thiếu `DB_ARCHIVER_PASSWORD` | Đặt biến; **không dòng nhật ký nào bị xoá khi lỗi** (G7) |
 | `AUDIT_PARTITION` | Quyền tạo partition | Hàm chạy `SECURITY DEFINER`; kiểm chủ sở hữu hàm |
 

@@ -188,6 +188,14 @@ END $$;
 -- bản `restore.sh` còn `--no-privileges` — đúng thứ §10.58 ghi là "ALTER DEFAULT
 -- PRIVILEGES cứu". Nó cứu app khỏi chết, và cùng lúc xoá mọi câu REVOKE.
 --
+-- ⚠ ĐO LẠI 19/09/2026 (T68.3, architecture-review §12.3): vế "--no-privileges"
+--   SAI cơ chế. Khôi phục ĐÈ lên một CSDL đã migrate TỰ NÓ sinh ra đúng danh sách
+--   `arwd` trên — bảng dựng lại nhận quyền MẶC ĐỊNH của đích, ACL của bản dump chỉ
+--   GRANT, ⛔ REVOKE — kể cả khi nguồn đúng và ⛔ có --no-privileges (72 quyền, đo
+--   trên Postgres 16). Tức lượt di trú này cần khối ⑥ vì CHÍNH nó, ⛔ chỉ vì dữ liệu
+--   staging. Từ WS-69 `deploy/backup/truoc-khi-nap.sql` gỡ quyền mặc định trước khi
+--   nạp; khối ⑥ vẫn giữ — nguồn yếu thì bản khôi phục đúng vẫn yếu theo.
+--
 -- ⭐ Khối dưới đây chép NGUYÊN VĂN phần "2. Siết các bảng append-only" của
 --    V202608131006__core_db_role_grants.sql, cộng phần tương ứng của
 --    V202609041059__hyd_time_series.sql. Tái khẳng định NGUỒN SỰ THẬT, không
