@@ -12,7 +12,10 @@
 #   tools/may-chu/dat-bien-b6.sh --thu    # chỉ đo + in việc SẼ làm, ⛔ ghi gì
 #
 # Script làm:
-#   1. Sao lưu `.env` cả hai máy (`.env.bak-<giờ>`, quyền 600).
+#   1. Sao lưu `.env` cả hai máy vào `~/.songnhue-env-bak/env.bak-<giờ>` (thư mục 700, tệp 600)
+#      của người triển khai — ⛔ trong /opt/songnhue: `rsync --delete` của CD từng xoá bản sao nằm
+#      cạnh `.env` (T11.95); ⛔ trong /var/lib/songnhue/backup: tài khoản kéo sao lưu (T61.9) chép
+#      cả thư mục ấy sang VPS-2, tức mang bí mật production đi theo.
 #   2. VPS-1: `METRICS_ALLOW_IP` = IP ra Internet ĐO trên VPS-2 · `METRICS_BEARER_TOKEN`
 #      sinh ngẫu nhiên nếu chưa có.
 #   3. VPS-2: `METRICS_ALLOW_IP=127.0.0.1` · `METRICS_BEARER_TOKEN` riêng ·
@@ -126,7 +129,7 @@ done
 if (( ! THU )); then
   bao "== Sao lưu .env"
   for may in "$PROD_SSH" "$STAGING_SSH"; do
-    chay "$may" 'b="$1.bak-$(date +%Y%m%d%H%M%S)"; cp -p "$1" "$b"; chmod 600 "$b"; echo "$b"' >&2
+    chay "$may" 'd="$HOME/.songnhue-env-bak"; mkdir -p "$d"; chmod 700 "$d"; b="$d/env.bak-$(date +%Y%m%d%H%M%S)"; cp -p "$1" "$b"; chmod 600 "$b"; echo "$b"' >&2
   done
 fi
 

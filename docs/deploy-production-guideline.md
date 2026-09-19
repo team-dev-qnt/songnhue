@@ -1328,6 +1328,9 @@ nằm ở environment nữa.
 3. `commit_sha` = một SHA trên `dev` **cũ hơn**, vẫn phải là tổ tiên của `origin/staging`. Để trống
    thì triển khai lại đúng thứ đang ở đỉnh `production`.
 4. `reason` bắt buộc — nó là thứ tạo ra nhật ký cho lượt bấm tay.
+5. ⭐ Từ WS-71 (19/09/2026) lượt ấy dùng `deploy/` **của chính SHA đã chọn** (bước *Lấy deploy/ của đúng
+   commit triển khai*), ⛔ `deploy/` của đỉnh `production` — trước đó quay lui tay dựng ảnh cũ trên cấu
+   hình mới, đúng tổ hợp đã giữ staging chết ngày 17/09.
 
 ```bash
 # tìm SHA đang chạy và các bản trước nó
@@ -1561,10 +1564,14 @@ volume có tên, nên nó **không kiểm được quyền thư mục**.
 > ⚠ **Mỗi migration đổi lược đồ phải kèm ghi chú quay lui trong PR.** Không có PITR nghĩa là câu
 > "quay lui thế nào" phải được trả lời **trước** khi merge, không phải lúc đang hỏng.
 
-### 13.2. ⛔ Quay lui tự động chỉ khôi phục **MÃ NGUỒN**
+### 13.2. ⛔ Quay lui tự động khôi phục **MÃ NGUỒN + CẤU HÌNH** — ⛔ khôi phục DỮ LIỆU
 
 Bước *Quay lui bản cũ* chạy khi `failure()` **và** bước *Ghi lại bản đang chạy* đọc được đủ ba
-container. Nó dựng lại ba image cũ rồi hỏi lại đúng câu 2 của smoke test, 18 vòng × 10 giây.
+container. ⭐ Từ WS-71 (19/09/2026): nó trả `/opt/songnhue` về bản chụp `.ban-truoc/` chụp ở đầu
+ĐÚNG lượt ấy (trừ `.env*`/`env/`/`keys/`) → `nginx -t` → tạo lại cả bốn container → so ID ảnh → chờ
+nginx `healthy`, rồi mới hỏi lại câu 2 của smoke test, 18 vòng × 10 giây. Trước đó nó chỉ dựng lại ba
+ảnh, và ngày 17/09 điều ấy KHÔNG cứu được một lỗi nằm ở cấu hình nginx (T11.9). Đọc log:
+`docs/runbook/deploy-hong.md` mục 0.
 
 `migrator` đã chạy **xong trước đó**, và migration là **một chiều**: nếu nó đã đổi lược đồ thì mã cũ
 có thể không chạy được trên lược đồ mới, và bước này **không cứu được gì**. Kể cả khi thành công,
