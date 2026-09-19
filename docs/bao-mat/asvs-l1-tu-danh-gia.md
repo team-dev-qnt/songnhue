@@ -373,4 +373,16 @@ bài kiểm, và lượt phá-bản-vá chứng minh bài kiểm bắt được 
 | 14.4.3 — CSP cổng còn `script-src 'unsafe-inline'` | `T73.7` | ⬜ mở | `next.config.ts` — chính chỉ thị làm 5.2.7/5.3.3 chạy được khi lớp khác hở |
 | Mọi mã ở §16 có dòng sổ giữ | `T73.4` | ✅ bộ canh ở job `tracking` (chạy mọi PR) | **24/57** mã ⛔ dòng sổ nào nhắc đúng mã |
 
+### 18.2 Cập nhật 20/09/2026 — WS-73b
+
+| Khoảng trống | Task | Trạng thái | Phép đo trước khi vá |
+|---|---|---|---|
+| 16.3 #24 — 2.3.1 mật khẩu tạm ⛔ hết hạn | `T73.8` | ✅ vế **hết hạn**: cột `users.temp_password_expires_at` + `security.password.temp-ttl-hours` (72 giờ) · đăng nhập bằng mật khẩu tạm quá hạn ⇒ `AUTH-0010` · `DatLaiMatKhauHttpTest` · `MatKhauTamMotCuaRuleTest` | hai đường phát đặt `must_change_password` mà ⛔ cột hạn nào |
+| 16.3 #24 — 2.3.1 mật khẩu tạm do **hệ** sinh ngẫu nhiên | `T73.11` | ⬜ chờ QuanTran chọn: nút sinh ở giao diện (⛔ ép) hay máy chủ sinh và trả một lần (đổi hợp đồng API) | quản trị viên tự gõ, chỉ chịu chính sách độ mạnh |
+| 16.4 — 11.1.2 chỉ xử lý ở tốc độ con người | `T73.9` | ✅ biểu mẫu liên hệ/góp ý đòi **vé** do máy chủ ký, ≥ `security.form.min-fill-seconds` (3 giây) và ≤ 24 giờ ⇒ `CMS-2025`; cổng tự chờ đủ tuổi · `VeBieuMauHttpTest` · `veBieuMau.test.ts` | chỉ có hạn mức IP 10/giờ; một máy gửi thẳng vào API, ⛔ tải trang, vẫn qua |
+
+⚠ Phạm vi của 11.1.2 (luật 28): vé chặn máy gửi thẳng vào API và máy gửi ngay khi tải trang. Trình duyệt tự động
+chạy chính mã cổng thì cũng chờ như người — lớp ấy thuộc reCAPTCHA (chờ khoá G13). Luồng có đăng nhập dựa vào xác
+thực + hạn mức theo người dùng (T61.17).
+
 ⚠ Phép đo trên hệ đang chạy (ZAP baseline vào staging) vẫn **chưa chạy** — việc của QuanTran, xem `tools/zap/README.md`.

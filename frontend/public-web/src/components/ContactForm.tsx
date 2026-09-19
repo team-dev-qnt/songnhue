@@ -3,6 +3,7 @@
 import { useId, useState } from 'react';
 
 import { lienKetAnToan } from '@/lib/lienKetAnToan';
+import { laLoiVe, taoNguoiGiuVe, THONG_DIEP_VE } from '@/lib/veBieuMau';
 
 /**
  * Biểu mẫu gửi liên hệ / phản ánh — CN-01.4.
@@ -18,7 +19,8 @@ import { lienKetAnToan } from '@/lib/lienKetAnToan';
  *
  * CN-01.4 yêu cầu reCAPTCHA v3. Backend đã có **chỗ cắm** (T36.6) và nó **mặc định TẮT**; khoá
  * thuộc **G13** và Công ty chưa cấp, nên phía giao diện chưa nạp script của Google và chưa gửi
- * `recaptchaToken`. Trong lúc chờ, chống lạm dụng dựa vào `RateLimitPolicy.PUBLIC` ở backend.
+ * `recaptchaToken`. Trong lúc chờ, chống lạm dụng dựa vào `RateLimitPolicy.PUBLIC` ở backend và
+ * **vé biểu mẫu** (T73.9, `lib/veBieuMau.ts`): lượt gửi phải mang vé do máy chủ ký, đủ vài giây tuổi.
  * Đừng đọc sự vắng mặt của captcha ở đây thành "đã cân nhắc và không cần".
  *
  * ⛔ Và ⛔ ĐỪNG mở CSP cho `https://www.google.com` trước khi có khoá: một dòng `script-src` cho
@@ -85,6 +87,7 @@ export const CAU_HINH_MAC_DINH: CauHinhBieuMau = {
 export function ContactForm({ cauHinh = CAU_HINH_MAC_DINH }: { cauHinh?: CauHinhBieuMau }) {
   const id = useId();
   const [tt, datTt] = useState<TrangThai>({ loai: 'nhap' });
+  const [giuVe] = useState(() => taoNguoiGiuVe());
   const coThongBao = (cauHinh.thongBaoRiengTu ?? '').trim() !== '';
   const lienKetChinhSach = lienKetAnToan(cauHinh.duongDanChinhSach);
 
@@ -95,6 +98,8 @@ export function ContactForm({ cauHinh = CAU_HINH_MAC_DINH }: { cauHinh?: CauHinh
     datTt({ loai: 'dang-gui' });
 
     try {
+      // T73.9 — vé đủ tuổi: bấm quá nhanh thì `lay()` tự CHỜ nốt, nút đứng ở "Đang gửi…".
+      const ve = await giuVe.lay();
       const res = await fetch('/api/v1/public/contacts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -104,6 +109,7 @@ export function ContactForm({ cauHinh = CAU_HINH_MAC_DINH }: { cauHinh?: CauHinh
           phone: String(fd.get('phone') ?? ''),
           subject: String(fd.get('subject') ?? ''),
           content: String(fd.get('content') ?? ''),
+          ve,
           // T61.39 — chỉ gửi khi cổng ĐANG công bố thông báo; ⛔ có thông báo thì trường này vắng
           // mặt, và backend cũng ⛔ đòi (một ô đồng ý ⛔ nội dung là một ô vô nghĩa).
           ...(coThongBao ? { dongY: fd.get('dongY') === 'on' } : {}),
@@ -113,6 +119,12 @@ export function ContactForm({ cauHinh = CAU_HINH_MAC_DINH }: { cauHinh?: CauHinh
       if (res.status === 204) {
         form.reset();
         datTt({ loai: 'xong' });
+        return;
+      }
+      // T73.9 — vé quá hạn (trang mở qua đêm) hoặc ⛔ xin được: bỏ vé, lượt bấm sau tự xin vé mới.
+      if (await laLoiVe(res)) {
+        giuVe.bo();
+        datTt({ loai: 'loi', thongDiep: THONG_DIEP_VE });
         return;
       }
       // ⚠ 429 có thông điệp riêng: "thử lại sau" khác hẳn "bạn nhập sai", và gộp hai cái vào một
@@ -154,7 +166,8 @@ export function ContactForm({ cauHinh = CAU_HINH_MAC_DINH }: { cauHinh?: CauHinh
   const dangGui = tt.loai === 'dang-gui';
 
   return (
-    <form onSubmit={gui} className="flex flex-col gap-3">
+    // T73.9 — xin vé khi người dùng BẮT ĐẦU điền (focus nổi bọt từ mọi ô), ⛔ lúc tải trang.
+    <form onSubmit={gui} onFocus={giuVe.batDau} className="flex flex-col gap-3">
       {/* Bốn ô một hàng từ `lg`: từ 29/08 biểu mẫu này chiếm TRỌN bề rộng ở cả trang chủ lẫn
           trang Liên hệ, và bốn ô xếp 2×2 trên một khung rộng 1200px để lại một khoảng trống
           bằng nửa màn hình. Dưới `lg` vẫn 2 cột, dưới `sm` vẫn 1 — ô nhập không bao giờ hẹp

@@ -135,7 +135,8 @@ public class ContactService {
             String chuDe,
             String noiDung,
             String maCaptcha,
-            Boolean dongY) {
+            Boolean dongY,
+            String veBieuMau) {
         String ten = cong.chuanHoa(hoTen);
         String mail = cong.chuanHoa(email);
         String dt = cong.chuanHoa(dienThoai);
@@ -194,7 +195,7 @@ public class ContactService {
         //
         // ⛔ `InboundSubmissionGate.captchaBatBuoc()` trả `false` ở CẢ HAI trạng thái "chưa bật" và
         //   "bật mà thiếu khoá bí mật" — nhưng chỉ trạng thái thứ hai ghi ERROR.
-        cong.kiemNguoiThat(maCaptcha);
+        cong.kiemNguoiThat(maCaptcha, veBieuMau);
 
         // T61.39 — kiểm TRƯỚC khi ghi: có thông báo mà người gửi ⛔ tick thì ⛔ bản ghi nào được tạo.
         java.time.Instant dongYLuc = cong.kiemDongY(dongY);

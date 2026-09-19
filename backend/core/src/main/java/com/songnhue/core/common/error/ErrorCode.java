@@ -105,6 +105,8 @@ public enum ErrorCode {
     AUTH_0008("AUTH-0008", HttpStatus.UNAUTHORIZED),
     /** Tài khoản đã có 2FA xác nhận — ⛔ đăng ký lại qua vé challenge (T61.30). */
     AUTH_0009("AUTH-0009", HttpStatus.FORBIDDEN),
+    /** Mật khẩu tạm do quản trị phát đã quá hạn — T73.8 (ASVS 2.3.1). Chỉ nói ra sau khi mật khẩu ĐÚNG. */
+    AUTH_0010("AUTH-0010", HttpStatus.FORBIDDEN),
     AUTH_3001("AUTH-3001", HttpStatus.FORBIDDEN),
     /** Dữ liệu ngoài phạm vi đơn vị — scope filter tầng 3 chặn (§4.2). */
     AUTH_3002("AUTH-3002", HttpStatus.FORBIDDEN),
@@ -210,6 +212,8 @@ public enum ErrorCode {
      */
     CMS_2023("CMS-2023", HttpStatus.UNPROCESSABLE_CONTENT),
     CMS_2024("CMS-2024", HttpStatus.UNPROCESSABLE_CONTENT),
+    /** Vé biểu mẫu công khai thiếu/giả/quá hạn, hoặc gửi quá nhanh — T73.9 (ASVS 11.1.2). Một mã cho mọi nhánh. */
+    CMS_2025("CMS-2025", HttpStatus.UNPROCESSABLE_CONTENT),
     CMS_5001("CMS-5001", HttpStatus.BAD_GATEWAY),
 
     // ---- MOD-02 Vận hành công trình --------------------------------------------

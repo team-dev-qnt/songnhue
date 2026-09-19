@@ -79,8 +79,11 @@ class ContactServiceTest {
         //   nhánh "bật mà thiếu khoá bí mật" — xanh, nhưng xanh vì một lý do khác.
         SettingPort thamSoCong = mock(SettingPort.class);
         when(thamSoCong.getBoolean(any(), anyBoolean())).thenAnswer(i -> i.getArgument(1));
-        InboundSubmissionGate cong =
-                new InboundSubmissionGate(thamSoCong, mock(RecaptchaClient.class), loai -> java.util.Optional.empty());
+        InboundSubmissionGate cong = new InboundSubmissionGate(
+                thamSoCong,
+                mock(RecaptchaClient.class),
+                loai -> java.util.Optional.empty(),
+                mock(com.songnhue.core.spi.VeBieuMauPort.class));
 
         ContactFormPolicy luatBieuMau = mock(ContactFormPolicy.class);
         when(luatBieuMau.hienHoTen()).thenReturn(true);
@@ -92,7 +95,7 @@ class ContactServiceTest {
     @Test
     @DisplayName("⭐ Đủ trường + có email → nhận")
     void duTruongThiNhan() {
-        Contact c = dichVu.tiepNhan("Nguyễn Văn A", "a@example.invalid", null, "Chủ đề", "Nội dung", null, null);
+        Contact c = dichVu.tiepNhan("Nguyễn Văn A", "a@example.invalid", null, "Chủ đề", "Nội dung", null, null, null);
         assertThat(c.getFullName()).isEqualTo("Nguyễn Văn A");
         verify(kho).save(any(Contact.class));
     }
@@ -100,7 +103,7 @@ class ContactServiceTest {
     @Test
     @DisplayName("⭐ Chỉ có điện thoại vẫn nhận — email KHÔNG bắt buộc")
     void chiCoDienThoaiVanNhan() {
-        Contact c = dichVu.tiepNhan("Trần Thị B", "  ", "0243354xxxx", "Chủ đề", "Nội dung", null, null);
+        Contact c = dichVu.tiepNhan("Trần Thị B", "  ", "0243354xxxx", "Chủ đề", "Nội dung", null, null, null);
         assertThat(c.getEmail()).as("chuỗi toàn khoảng trắng phải hoá null").isNull();
         assertThat(c.getPhone()).isEqualTo("0243354xxxx");
     }
@@ -108,7 +111,7 @@ class ContactServiceTest {
     @Test
     @DisplayName("⛔ Không email lẫn điện thoại → từ chối, KHÔNG ghi gì")
     void thieuCaHaiDuongLienLac() {
-        assertThatThrownBy(() -> dichVu.tiepNhan("A", null, null, "Chủ đề", "Nội dung", null, null))
+        assertThatThrownBy(() -> dichVu.tiepNhan("A", null, null, "Chủ đề", "Nội dung", null, null, null))
                 .isInstanceOf(ValidationException.class);
         verify(kho, never()).save(any());
     }
@@ -116,11 +119,12 @@ class ContactServiceTest {
     @Test
     @DisplayName("⛔ Thiếu họ tên / tiêu đề / nội dung → từ chối từng trường một")
     void thieuTruongBatBuoc() {
-        assertThatThrownBy(() -> dichVu.tiepNhan(null, "a@example.invalid", null, "Chủ đề", "Nội dung", null, null))
+        assertThatThrownBy(
+                        () -> dichVu.tiepNhan(null, "a@example.invalid", null, "Chủ đề", "Nội dung", null, null, null))
                 .isInstanceOf(ValidationException.class);
-        assertThatThrownBy(() -> dichVu.tiepNhan("A", "a@example.invalid", null, "   ", "Nội dung", null, null))
+        assertThatThrownBy(() -> dichVu.tiepNhan("A", "a@example.invalid", null, "   ", "Nội dung", null, null, null))
                 .isInstanceOf(ValidationException.class);
-        assertThatThrownBy(() -> dichVu.tiepNhan("A", "a@example.invalid", null, "Chủ đề", null, null, null))
+        assertThatThrownBy(() -> dichVu.tiepNhan("A", "a@example.invalid", null, "Chủ đề", null, null, null, null))
                 .isInstanceOf(ValidationException.class);
         verify(kho, never()).save(any());
     }
@@ -129,7 +133,7 @@ class ContactServiceTest {
     @DisplayName("⛔ Nội dung quá 5.000 ký tự → từ chối; cột TEXT không tự chặn gì")
     void noiDungQuaDai() {
         String dai = "x".repeat(5_001);
-        assertThatThrownBy(() -> dichVu.tiepNhan("A", "a@example.invalid", null, "Chủ đề", dai, null, null))
+        assertThatThrownBy(() -> dichVu.tiepNhan("A", "a@example.invalid", null, "Chủ đề", dai, null, null, null))
                 .isInstanceOf(ValidationException.class);
         verify(kho, never()).save(any());
     }
@@ -137,8 +141,8 @@ class ContactServiceTest {
     @Test
     @DisplayName("⭐ Cắt ký tự điều khiển nhưng GIỮ xuống dòng và tab")
     void catKyTuDieuKhienGiuXuongDong() {
-        Contact c =
-                dichVu.tiepNhan("A", "a@example.invalid", null, "Chủ đề", "Dòng một\nDòng hai\tcó tab ", null, null);
+        Contact c = dichVu.tiepNhan(
+                "A", "a@example.invalid", null, "Chủ đề", "Dòng một\nDòng hai\tcó tab ", null, null, null);
 
         assertThat(c.getContent())
                 .as("ký tự điều khiển làm hỏng bản xuất CSV và chèn được dòng giả vào nhật ký")
@@ -148,7 +152,8 @@ class ContactServiceTest {
     @Test
     @DisplayName("⭐ Cắt khoảng trắng hai đầu của mọi trường")
     void catKhoangTrangHaiDau() {
-        Contact c = dichVu.tiepNhan("  A  ", "  a@example.invalid  ", null, "  Chủ đề  ", "  Nội dung  ", null, null);
+        Contact c =
+                dichVu.tiepNhan("  A  ", "  a@example.invalid  ", null, "  Chủ đề  ", "  Nội dung  ", null, null, null);
         assertThat(c.getFullName()).isEqualTo("A");
         assertThat(c.getEmail()).isEqualTo("a@example.invalid");
         assertThat(c.getSubject()).isEqualTo("Chủ đề");
@@ -173,7 +178,7 @@ class ContactServiceTest {
     @Test
     @DisplayName("⭐⭐ Nhận xong thì BÁO cán bộ — nhưng ⛔ đặt thư xác nhận khi reCAPTCHA chưa bảo vệ")
     void nhanXongThiBaoVaDatViec() {
-        dichVu.tiepNhan("Nguyễn Văn A", "a@example.invalid", null, "Chủ đề", "Nội dung", null, null);
+        dichVu.tiepNhan("Nguyễn Văn A", "a@example.invalid", null, "Chủ đề", "Nội dung", null, null, null);
 
         // ⛔ `targeted` chứ ⛔ không `alert`: cộng Ban điều hành vào mỗi lượt người dân điền biểu mẫu
         //    là cách chắc chắn nhất để vài tuần sau ⛔ không ai đọc thông báo nữa.
@@ -196,14 +201,17 @@ class ContactServiceTest {
         when(thamSoBat.getInt(any(), org.mockito.ArgumentMatchers.anyInt())).thenReturn(50);
         RecaptchaClient captcha = mock(RecaptchaClient.class);
         when(captcha.hopLe(any(), org.mockito.ArgumentMatchers.anyInt())).thenReturn(true);
-        InboundSubmissionGate congCoCaptcha =
-                new InboundSubmissionGate(thamSoBat, captcha, loai -> java.util.Optional.of("khoa-bi-mat"));
+        InboundSubmissionGate congCoCaptcha = new InboundSubmissionGate(
+                thamSoBat,
+                captcha,
+                loai -> java.util.Optional.of("khoa-bi-mat"),
+                mock(com.songnhue.core.spi.VeBieuMauPort.class));
         ContactFormPolicy luat = mock(ContactFormPolicy.class);
         when(luat.hienHoTen()).thenReturn(true);
         when(luat.hienTieuDe()).thenReturn(true);
         ContactService coCaptcha = new ContactService(kho, thongBao, hangDoi, thamSo, luat, congCoCaptcha);
 
-        coCaptcha.tiepNhan("Nguyễn Văn A", "a@example.invalid", null, "Chủ đề", "Nội dung", "ma-captcha", null);
+        coCaptcha.tiepNhan("Nguyễn Văn A", "a@example.invalid", null, "Chủ đề", "Nội dung", "ma-captcha", null, null);
 
         var viec = org.mockito.ArgumentCaptor.forClass(com.songnhue.core.spi.JobRequest.class);
         verify(hangDoi).enqueue(viec.capture());
@@ -217,7 +225,7 @@ class ContactServiceTest {
     @Test
     @DisplayName("⛔ Chỉ để lại điện thoại ⇒ vẫn báo cán bộ, nhưng ⛔ KHÔNG đặt việc gửi thư")
     void khongCoEmailThiKhongDatViecGuiThu() {
-        dichVu.tiepNhan("Trần Thị B", null, "0243354xxxx", "Chủ đề", "Nội dung", null, null);
+        dichVu.tiepNhan("Trần Thị B", null, "0243354xxxx", "Chủ đề", "Nội dung", null, null, null);
 
         verify(thongBao).notify(any(com.songnhue.core.spi.NotifyRequest.class));
         verify(hangDoi, never()).enqueue(any());

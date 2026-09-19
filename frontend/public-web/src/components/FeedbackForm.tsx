@@ -3,6 +3,7 @@
 import { useId, useState } from 'react';
 
 import { lienKetAnToan } from '@/lib/lienKetAnToan';
+import { laLoiVe, taoNguoiGiuVe, THONG_DIEP_VE } from '@/lib/veBieuMau';
 
 /**
  * Biểu mẫu gửi góp ý / đánh giá mức độ hài lòng — CN-01.6, chốt **D1**.
@@ -24,7 +25,8 @@ import { lienKetAnToan } from '@/lib/lienKetAnToan';
  *
  * Backend có **chỗ cắm** (`InboundSubmissionGate`) và nó **mặc định TẮT**; khoá thuộc **G13** và
  * Công ty chưa cấp, nên phía giao diện chưa nạp script của Google và chưa gửi `recaptchaToken`.
- * Trong lúc chờ, chống lạm dụng dựa vào `RateLimitPolicy.PUBLIC`.
+ * Trong lúc chờ, chống lạm dụng dựa vào `RateLimitPolicy.PUBLIC` và **vé biểu mẫu** (T73.9,
+ * `lib/veBieuMau.ts`) — cùng một cổng `InboundSubmissionGate` với biểu mẫu Liên hệ.
  *
  * ⛔ Và ⛔ ĐỪNG mở CSP cho `https://www.google.com` trước khi có khoá: một dòng `script-src` cho
  * một script ta **chưa nạp** là nới bề mặt tấn công lấy về đúng số không.
@@ -55,6 +57,7 @@ export function FeedbackForm({
   const lienKetChinhSach = lienKetAnToan(duongDanChinhSach);
   const [tt, datTt] = useState<TrangThai>({ loai: 'nhap' });
   const [sao, datSao] = useState<number | null>(null);
+  const [giuVe] = useState(() => taoNguoiGiuVe());
 
   async function gui(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -63,6 +66,8 @@ export function FeedbackForm({
     datTt({ loai: 'dang-gui' });
 
     try {
+      // T73.9 — vé đủ tuổi: bấm quá nhanh thì `lay()` tự CHỜ nốt, nút đứng ở "Đang gửi…".
+      const ve = await giuVe.lay();
       const res = await fetch('/api/v1/public/feedbacks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -74,6 +79,7 @@ export function FeedbackForm({
           //    điểm trung bình.
           rating: sao,
           content: String(fd.get('content') ?? ''),
+          ve,
           ...(coThongBao ? { dongY: fd.get('dongY') === 'on' } : {}),
         }),
       });
@@ -82,6 +88,12 @@ export function FeedbackForm({
         form.reset();
         datSao(null);
         datTt({ loai: 'xong' });
+        return;
+      }
+      // T73.9 — vé quá hạn (trang mở qua đêm) hoặc ⛔ xin được: bỏ vé, lượt bấm sau tự xin vé mới.
+      if (await laLoiVe(res)) {
+        giuVe.bo();
+        datTt({ loai: 'loi', thongDiep: THONG_DIEP_VE });
         return;
       }
       // ⚠ 429 có thông điệp riêng: "thử lại sau" khác hẳn "bạn nhập sai", và gộp hai cái vào một
@@ -126,7 +138,8 @@ export function FeedbackForm({
   const dangGui = tt.loai === 'dang-gui';
 
   return (
-    <form onSubmit={gui} className="flex flex-col gap-3">
+    // T73.9 — xin vé khi người dùng BẮT ĐẦU điền (focus nổi bọt từ mọi ô), ⛔ lúc tải trang.
+    <form onSubmit={gui} onFocus={giuVe.batDau} className="flex flex-col gap-3">
       <fieldset className="flex flex-col gap-1.5">
         <legend className="text-xs font-semibold text-surface-textSecondary">
           Mức độ hài lòng (không bắt buộc)

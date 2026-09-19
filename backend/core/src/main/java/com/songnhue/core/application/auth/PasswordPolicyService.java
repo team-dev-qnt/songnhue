@@ -1,5 +1,8 @@
 package com.songnhue.core.application.auth;
 
+import java.time.Duration;
+import java.time.Instant;
+
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -8,6 +11,7 @@ import com.songnhue.core.application.settings.SettingKeys;
 import com.songnhue.core.application.settings.SettingService;
 import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.BusinessRuleException;
+import com.songnhue.core.domain.identity.User;
 
 /**
  * Băm mật khẩu và kiểm chính sách độ mạnh (T5.7, M5.15).
@@ -49,6 +53,32 @@ public class PasswordPolicyService {
     public boolean matches(String rawPassword, String storedHash) {
         return encoder.matches(rawPassword, storedHash);
     }
+
+    /**
+     * Gán một MẬT KHẨU TẠM do quản trị phát — T73.8 (ASVS 2.3.1).
+     *
+     * <p>Một nơi cho cả bốn trường: hash · mốc đổi · cờ buộc đổi · HẠN. Hai đường phát mật khẩu tạm (tạo tài khoản ·
+     * đặt lại) cùng gọi đây, để đường thứ ba ra đời ⛔ quên hạn (luật 12). Trước bản vá mật khẩu tạm ⛔ có hạn: đo
+     * 19/09/2026, một mật khẩu tạm phát từ 30 ngày trước vẫn đăng nhập được.
+     *
+     * <p>⛔ Bootstrap {@code superadmin} cố ý ⛔ đi qua đây ({@code AdminBootstrapRunner}): hết hạn ở đó thì ⛔ còn ai
+     * đặt lại được. Người gọi phải {@link #validate} trước — hàm này ⛔ kiểm độ mạnh.
+     */
+    public void ganMatKhauTam(User user, String matKhauTam, Instant now) {
+        user.setPasswordHash(hash(matKhauTam));
+        user.setPasswordChangedAt(now);
+        user.setMustChangePassword(true);
+        user.setTempPasswordExpiresAt(now.plus(hanDungMatKhauTam()));
+    }
+
+    /** Số giờ ở {@code security.password.temp-ttl-hours}, kẹp {@code [1; 720]} như cột {@code validation} của khoá. */
+    public Duration hanDungMatKhauTam() {
+        int gio = settings.getInt(SettingKeys.PASSWORD_TEMP_TTL_HOURS, SettingKeys.DEFAULT_PASSWORD_TEMP_TTL_HOURS);
+        return Duration.ofHours(Math.max(1, Math.min(TRAN_GIO_MAT_KHAU_TAM, gio)));
+    }
+
+    /** Trần của {@link #hanDungMatKhauTam} — phải bằng {@code max=} ở cột {@code validation} của khoá (V202609201091). */
+    public static final int TRAN_GIO_MAT_KHAU_TAM = 720;
 
     /** Tiêu tốn đúng lượng thời gian như một lần kiểm mật khẩu thật, rồi trả về sai. */
     public void wasteTimeToHideMissingUser(String rawPassword) {

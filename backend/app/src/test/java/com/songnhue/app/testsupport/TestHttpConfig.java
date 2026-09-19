@@ -1,8 +1,11 @@
 package com.songnhue.app.testsupport;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.env.Environment;
+
+import com.songnhue.core.application.auth.VeBieuMauService;
 
 /**
  * Đăng ký {@link TestHttp} làm bean để lớp kiểm thử tiêm bằng {@code @Autowired} — giữ nguyên cách
@@ -16,7 +19,7 @@ import org.springframework.core.env.Environment;
 public class TestHttpConfig {
 
     @Bean
-    TestHttp testHttp(Environment environment) {
-        return new TestHttp(environment);
+    TestHttp testHttp(Environment environment, ObjectProvider<VeBieuMauService> veBieuMau) {
+        return new TestHttp(environment, veBieuMau);
     }
 }

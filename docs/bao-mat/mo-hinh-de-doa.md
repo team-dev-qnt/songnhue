@@ -39,6 +39,7 @@ Xếp theo hậu quả khi mất, ⛔ theo thứ tự trong mã.
 | Giả IP để né hạn mức | `ClientIp` bóc tới request gốc, ⛔ tin `X-Forwarded-For` | `IpThatTrongNhatKyHttpTest` | — |
 | Mượn phiên đang mở trên máy ⛔ khoá | Thao tác nhạy cảm đòi nhập lại mã 2FA (khôi phục CSDL · bí mật tích hợp · tham số bảo mật · đặt lại mật khẩu) | `CauHinhHeThongHttpTest`, `DatLaiMatKhauHttpTest` | **Gán vai trò ⛔ đòi** (T61.48 #4) |
 | Chuỗi refresh token bị trộm | Phát hiện dùng lại ⇒ thu hồi cả chuỗi | `RefreshTokenService`, luật Prometheus `REFRESH_REUSE_DETECTED` | **⛔ có trần tuyệt đối** ⇒ chuỗi sống mãi nếu dùng đều (T61.48 #1) |
+| Mật khẩu tạm lộ ra (tin nhắn, giấy nhớ, hộp thư người đã nghỉ) | Hết hạn sau `security.password.temp-ttl-hours` (72 giờ) ⇒ `AUTH-0010`; chặn SAU khi mật khẩu đúng nên người đoán ⛔ học được gì (T73.8) | `DatLaiMatKhauHttpTest`, `MatKhauTamMotCuaRuleTest` | Mật khẩu tạm vẫn do quản trị tự gõ (T73.11) |
 
 ## 2. T — Tampering (sửa trái phép)
 
@@ -77,6 +78,7 @@ Xếp theo hậu quả khi mất, ⛔ theo thứ tự trong mã.
 | Dồn lượt gọi | 4 xô hạn mức; đường ghi công khai riêng 10 lượt/giờ/IP (T61.37) | Một NAT chung vẫn là một xô — T61.17 vế nginx chờ đo |
 | Tệp nén nở ra hàng GB | Trần giải nén 64 MB cho xlsx (T61.40) | — |
 | Kết xuất nặng | Xô `EXPORT` theo người dùng, trần trong `settings` | — |
+| Máy gửi biểu mẫu liên hệ/góp ý hàng loạt | Vé do máy chủ ký, phải đủ `security.form.min-fill-seconds` tuổi (3 giây) và ≤ 24 giờ (T73.9) + xô 10 lượt/giờ/IP (T61.37) | Trình duyệt tự động chạy chính mã cổng cũng chờ như người — chờ reCAPTCHA (G13) |
 | **Máy chủ thư thành máy phát tán** | Thư xác nhận chỉ gửi khi reCAPTCHA đang bảo vệ (T61.37) | Chờ khoá G13 để bật lại thư xác nhận |
 | Poller chết ⇒ mất số liệu | Thang leo cảnh báo + chuông healthchecks.io | Chờ QuanTran đặt biến (§B6) |
 

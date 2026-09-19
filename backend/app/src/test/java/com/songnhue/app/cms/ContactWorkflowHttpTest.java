@@ -402,9 +402,11 @@ class ContactWorkflowHttpTest extends IntegrationTestBase {
                           "email": "tranthib@example.invalid",
                           "phone": null,
                           "subject": "Phản ánh cống Liên Mạc",
-                          "content": "Cống rò rỉ, đề nghị Công ty kiểm tra."
+                          "content": "Cống rò rỉ, đề nghị Công ty kiểm tra.",
+                          "ve": "%s"
                         }
-                        """,
+                        """
+                                .formatted(http.veDaChin()),
                         h),
                 String.class);
         assertThat(gui.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
