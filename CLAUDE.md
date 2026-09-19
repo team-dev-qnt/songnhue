@@ -514,8 +514,10 @@ Bản nháp `JdbcTemplateDem extends JdbcTemplate` **đếm ra 0 dù bean ĐÃ b
 bấm nút *Sửa* và ⛔ có cách nào gọi tên nó. Nợ ấy ⛔ phải chuyện thẩm mỹ — nó **chặn việc viết bài kiểm**.
 ⭐⭐ **18/09: vế BÁO CÁO NHANH của `T63.11` dựng xong — WS-66** (danh mục máy bơm · kỳ báo cáo chốt/mở lại ·
 xuất Word điền thẳng vào mẫu Công ty, 0 phụ thuộc mới). Tài liệu về ⛔ đảo chốt nào ⇒ **vế tưới tiêu vẫn
-PENDING**. Open issue gửi Công ty: `T66.8`.
-⬜⬜ **`T63.11` — QuanTran đang soạn tài liệu BÁO CÁO + TƯỚI TIÊU (17/09), PENDING.** ⛔ đoán trước, ⛔ tự chế bố cục. ⛔⛔ Vế
+PENDING**. ✅ **Gộp `dev` 19/09** (#167, `43c525d`) · Công ty **trả lời open issue 19/09** ⇒ `function-spec.md`
+**CN-02.12** + `business-open-questions.md` **Phần I-C** (⛔ nghiệm thu mở lại các dòng ✅ ở đó). ⬜ Còn: nhập liệu
+(T66.13) chặn theo **T66.14** — OI-BC10 cho danh sách Xí nghiệp THỨ BA, khác cả hai danh sách của OI-05.
+⬜⬜ **`T63.11` — QuanTran đang soạn tài liệu BÁO CÁO + TƯỚI TIÊU (17/09), PENDING** *(vế Báo cáo nhanh chống úng đã xong — dòng ngay trên; còn tưới tiêu · 17 mã cũ · Báo cáo nhanh chống hạn T66.16)*. ⛔ đoán trước, ⛔ tự chế bố cục. ⛔⛔ Vế
 **tưới tiêu ⛔ phải một khoảng trống — nó là vùng đã bị CẮT có chủ đích** (chốt **A1 · B5 · F3 · G2**), và kho đang khai điều
 ngược lại ở **năm** chỗ đo được (`BC_04` `khaDung=false` + `OPS-2023` *"bỏ vĩnh viễn"* · `BC-07` bỏ · trường *Diện tích tưới
 tiêu (ha)* bỏ · khu tưới/lưu vực chỉ là **trường văn bản tự do**, ⛔ CRUD ⛔ bảng `irrigation_zones` ⛔ GIS · chỉ tiêu giờ
@@ -816,7 +818,7 @@ là **nhập được ngay**. Thư gửi Công ty gộp cả ba: `docs/de-nghi-c
 
 ✅ **G14 đóng 27/8** — cây danh mục + menu nhận qua §3 văn bản nghiệm thu, dựng ở `V202608271031`.
 
-⬜ **Mở mới 27/8 — `OI-01`→`OI-10`** (§9 của `docs_origin/nghiem_thu_phase1.md`). Tài liệu đề nghị phía phát triển trả lời **ngay trong tuần** ba mục kỹ thuật `OI-01`/`OI-02`/`OI-07`; câu trả lời đo được đã có ở `master-tracking.md` T24.23→T24.25. Chặn nghiệm thu nặng nhất: **`OI-03`** (danh sách 10 cống trục chính) · **`OI-05`** (7 hay 8 Xí nghiệp — Bố cục ghi 7, danh mục công trình có 8).
+⬜ **Mở mới 27/8 — `OI-01`→`OI-10`** (§9 của `docs_origin/nghiem_thu_phase1.md`). Tài liệu đề nghị phía phát triển trả lời **ngay trong tuần** ba mục kỹ thuật `OI-01`/`OI-02`/`OI-07`; câu trả lời đo được đã có ở `master-tracking.md` T24.23→T24.25. Chặn nghiệm thu nặng nhất: **`OI-03`** (danh sách 10 cống trục chính) · **`OI-05`** (7 hay 8 Xí nghiệp — Bố cục ghi 7, danh mục công trình có 8; ⚠ 19/09 thêm danh sách thứ ba từ Báo cáo nhanh — T66.14). ✅ **`OI-10` đóng một nửa 19/09**: Form 2 chống úng = nhập trực tuyến (CN-02.12); Form 1 chống hạn chờ mẫu (T66.16).
 
 Gửi kèm `report-templates-proposal.md`. Chi tiết từng mục: `business-open-questions.md` Phần II.
 

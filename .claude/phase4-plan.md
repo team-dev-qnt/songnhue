@@ -168,6 +168,8 @@ gói cron** (`is-enabled` ⇒ `not-found`). Thứ đi cảnh báo chính là th�
 - **G6 (mẫu 2C-BNV → BCNS-07)** và **G10 (bố cục bản in)** chỉ mở lại khi có **tệp mẫu thật**.
   ⛔ Cấm tự chế bố cục; và ⛔ **đừng chọn thư viện PDF/XLSX (`T42.14`) trước khi thấy mẫu** — mẫu
   quyết định khổ giấy, gộp ô và phông tiếng Việt.
+  ⭐ **18/9: mẫu thật đầu tiên đã về và đã dựng** — *Báo cáo nhanh chống úng* (WS-66, CN-02.12), xuất Word
+  điền thẳng vào mẫu bằng JDK (`DocxFiller`). ⛔ Suy ra *"T42.14 xong"*: PDF/XLSX vẫn chờ mẫu của từng mã.
 
 ⇒ Ba mục ấy chặn **nghiệm thu**, ⛔ không chặn Phase 4.
 

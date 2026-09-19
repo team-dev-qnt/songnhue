@@ -1,4 +1,4 @@
-> Cập nhật **2026-08-21** (bản 4 — **nén Phần I-A**; xem lý do ngay đầu phần đó. Bản 3 ngày 19/8 mở 3 mục mới khi lập kế hoạch Phase 1: **G13, G14, G15**; **G15 đóng ngay trong ngày**).
+> Cập nhật **2026-09-19** (bản 5 — thêm **Phần I-C** Báo cáo nhanh; đối chiếu OI-05/OI-10/G3-a/G8/G10). Bản 4 **2026-08-21** (**nén Phần I-A**; xem lý do ngay đầu phần đó. Bản 3 ngày 19/8 mở 3 mục mới khi lập kế hoạch Phase 1: **G13, G14, G15**; **G15 đóng ngay trong ngày**).
 > ⛔ **Phần I-B KHÔNG nén và không được nén**: câu trả lời đợt 2 nhận **qua trao đổi trực tiếp**, không có văn bản gốc — đây là **bản ghi duy nhất** của những gì Công ty đã chốt.
 > ✅ **ĐỢT 1 (mục A–F) ĐÃ ĐÓNG** — Công ty trả lời đầy đủ ngày 12/8/2026 (`docs_origin/Trả lời Business Open Questions 12.8.2026.docx.md`), đã đồng bộ vào `function-spec.md`, `implement.md`, `architecture-review.md` §8.
 > ✅ **ĐỢT 2 — ĐÃ ĐÓNG 9/12 mục**: **G1, G2, G3 (phần lớn), G4, G7, G8b, G9, G11, G12** → xem **Phần I-B**, đã đồng bộ vào `function-spec.md` v2.2.
@@ -6,6 +6,7 @@
 > ✅ **G14 đóng 27/8/2026** — Công ty ban hành *"YÊU CẦU CHỈNH SỬA WEBSITE" v1.0* (`docs_origin/nghiem_thu_phase1.md`) với cây nội dung chuẩn 7 mục cấp 1 ở §3. Đã dựng vào CSDL ở `V202608271031`; xem `master-tracking.md` WS-24.
 > ⬜ **MỞ MỚI 27/8 — 10 mục `OI-01`→`OI-10`** ở §9 của chính tài liệu ấy. Chúng KHÔNG chặn code (khung đã dựng đủ theo §7) nhưng chặn **đấu nối dữ liệu và nghiệm thu**: `OI-01`/`OI-02` API mực nước & vận hành trạm bơm · `OI-03` danh sách 10 cống trục chính · `OI-05` 7 hay 8 Xí nghiệp · `OI-07` KMZ cho tải hay nhúng viewer. Phía phát triển đã trả lời `OI-01`/`OI-02`/`OI-07` — xem WS-24 T24.23→T24.25.
 > ✅ **G15 đóng 19/8/2026** — cụm công trình chỉ là cách nhóm, không phải đơn vị tổ chức.
+> ⭐ **18–19/9/2026 — Báo cáo nhanh (mẫu thật ĐẦU TIÊN của Công ty)**: 17 mục `OI-BC1`→`OI-BC17`, Công ty trả lời 19/9 → **Phần I-C** (đã đóng). Hệ quả sang mục cũ: **OI-10** đóng một nửa (Form 2 chống úng = nhập trực tuyến + tổng hợp, CN-02.12) · **OI-05** thêm một danh sách Xí nghiệp THỨ BA — chưa đóng được (`T66.14`) · **G8** `F01519` đóng (Thượng lưu), `F01771` thuộc Sông Nhuệ · **G10** có mẫu thật đầu tiên đã dựng · **G3-a** vẫn mở (Bảng 4 nhập tay chỉ riêng Báo cáo nhanh).
 > ✅ **KHÔNG CÒN MỤC NÀO CHẶN CODE.** G8b — mục chặn cuối cùng của MOD-03 — đã đóng ngày 12/8/2026. G13 chặn **nghiệm thu** cổng TTĐT chứ không chặn code; G14 đã đóng.
 > Ký hiệu: 🔴 chặn thiết kế/code · 🟡 cần trước khi làm module liên quan · ⚪ chốt sau được.
 
@@ -72,6 +73,36 @@
 
 ---
 
+## PHẦN I-C — BÁO CÁO NHANH: CÔNG TY ĐÃ TRẢ LỜI (đóng 19/9/2026)
+
+> Nguồn: câu hỏi `docs/de-nghi-xac-nhan-bao-cao-nhanh.md` (gửi 18/9) · bản có trả lời
+> `docs_origin/bao-cao/spec-bao-cao-nhanh/xacnhan.md` · chức năng **CN-02.12** · quyết định
+> `architecture-review.md` §12.2 (g)(h). ⛔ **Nghiệm thu ⛔ mở lại các dòng ✅ dưới đây** — chúng đã có văn
+> bản trả lời và đã chạy trong hệ thống; đổi ý là một yêu cầu MỚI, ⛔ phải lỗi.
+
+| Mã | Hỏi | Công ty trả lời | Trạng thái |
+|---|---|---|---|
+| OI-BC1 | Xuất cả bảng 4 công ty hay chỉ phần Sông Nhuệ | Đồng ý: xuất cả bảng, 3 công ty kia để trống (⛔ ghi 0) | ✅ đang chạy |
+| OI-BC2 | Ai nhập Bảng 4/5, tần suất | Đồng ý: người có quyền lập báo cáo, mỗi kỳ; ô chưa nhập để trống | ✅ đang chạy |
+| OI-BC3 | Lệch Km giữa mẫu và biểu đồ mặt cắt | — (thuộc màn hình biểu đồ mặt cắt, ⛔ Báo cáo nhanh) | ⬜ mở cùng `T66.15` |
+| OI-BC4 · OI-BC10 | Bảng 2 chia theo Xí nghiệp nào | **7 nhóm của sheet `Trạm bơm`** | ⚠ trả lời xong nhưng **đụng OI-05** ⇒ `T66.14` |
+| OI-BC5 | Ghi chú Yên Nghĩa m³/s | Đồng ý m³/s | ✅ |
+| OI-BC6 | Công tắc "chỉ trạm đang hoạt động" mặc định | Tắt | ✅ |
+| OI-BC7 | Bản Word liệt kê đủ trạm (kể cả 0 máy) | Đồng ý: đủ toàn bộ | ✅ |
+| OI-BC8 | Biên 9 cột cỡ máy | Nhãn là cỡ danh định đã làm tròn; giữ 9 cột, tính theo biên đã gửi | ✅ (biên sửa được trên màn hình) |
+| OI-BC9 | Sheet danh mục chính thức | Đồng ý `TB Tiêu (KH)` (178 trạm, 830 máy) | ✅ |
+| OI-BC11 | `F01771` Liên Mạc TL thuộc sông nào | **Sông Nhuệ** | ✅ dữ liệu đứng nguyên |
+| OI-BC12 | Ô "Tổng lưu lượng" Mục 1 | Đồng ý: chép từ Bảng 1 | ✅ |
+| OI-BC13 | Nhãn "Rau, màu, thuỷ sản" vs "Rau, màu" | ⛔ đánh dấu | ⬜ giữ nguyên chữ của mẫu ở cả hai chỗ |
+| OI-BC14 | 3/14 vế Bảng 3 chưa có điểm đo | Chưa có điểm đo | ✅ ô trống kèm lý do |
+| OI-BC15 | Bảng 4 khi chưa có nguồn mưa | Đồng ý: nhập tay theo kỳ | ✅ |
+| OI-BC16 | Bỏ tô màu ô tự điền; mực nước mét 2 lẻ | Đồng ý | ✅ |
+| OI-BC17 | Nới cột "Lúa" nhóm Tổng cộng Bảng 5 | Cho nới | ✅ (bản xuất nới, tệp mẫu giữ nguyên) |
+
+⬜ **Còn lại của Báo cáo nhanh ⛔ phải mã**: Công ty nhập dữ liệu (`T66.13` — chặn theo `T66.14`).
+
+---
+
 ## PHẦN II — CÒN MỞ: CẦN CÔNG TY CUNG CẤP
 
 > ✅⭐ **CHỐT 14/09/2026 khi đóng Phase 3** (`T60.12`): **G6** (mẫu 2C-BNV cho BCNS-07) và **G10**
@@ -100,6 +131,8 @@
 | C | **Bỏ hẳn** lượng mưa khỏi v1 (gỡ cả cột khỏi biểu tổng hợp và báo cáo) | Giảm nhẹ |
 
 👉 Nếu Công ty vẫn cần theo dõi lượng mưa hằng ngày ngay từ v1 thì phải chọn **B**; PA A chỉ phù hợp nếu chấp nhận trống cột tới khi có endpoint.
+
+⭐ **18–19/9/2026 — một ngoại lệ đã chốt, ⛔ đóng G3-a**: Bảng 4 của **Báo cáo nhanh** (CN-02.12) nhập tay lượng mưa 8 điểm theo kỳ (QuanTran chốt 18/9, Công ty đồng ý OI-BC15 ngày 19/9). Nó chỉ phục vụ văn bản ấy — biểu tổng hợp, BC-05, dashboard vẫn hiển thị `-`. Câu hỏi PA A/B/C cho phần còn lại **vẫn mở**; ngày có nguồn tự động thì nguồn ấy THAY ô nhập của Báo cáo nhanh.
 
 ### G5. 🟡 Liên kết hệ thống văn bản điều hành — chi tiết cách đăng nhập
 
@@ -139,7 +172,8 @@ ngày vào Công ty · loại hợp đồng + ngày hết hạn · trình độ.
 tệp danh sách chung, và ⛔ đừng gửi qua email không mã hoá.
 
 ⚠ **Phụ thuộc OI-05**: cột phòng ban chỉ nhập được khi đã chốt **7 hay 8 Xí nghiệp**. Hôm nay bảng
-`org_units` có **đúng 1 hàng** (`CTY`).
+`org_units` có **đúng 1 hàng** (`CTY`). ⚠ **19/9**: câu trả lời OI-BC10 đưa ra danh sách **thứ ba** (sheet
+`Trạm bơm`, tên theo huyện) — OI-05 phải chọn MỘT danh sách cho cả ba nơi (`T66.14`).
 
 ### G6-b. ⚙ ⛔ Không phải việc của Công ty — nợ kỹ thuật, ghi ở đây để ⛔ không ai chờ nhầm
 
@@ -174,8 +208,10 @@ Danh sách trích từ hệ thống nguồn ngày 12/8/2026 — **cần Công ty
 
 - ✅ **Tuyến sông 13/19 · lý trình 10/19** vào CSDL bằng `V202609091073` (bản chụp QuanTran cấp).
   6 mã Công ty ghi *"Chưa rõ"* giữ `NULL` — quy tắc 16, ⛔ không suy đoán.
-- ⚠ **`F01519` Lương Cổ**: hai nguồn của Công ty lệch **đúng một dòng** (Thượng lưu vs Hạ lưu),
-  18/19 dòng còn lại khớp tuyệt đối. Đang lấy theo bản chụp (Hạ lưu) — **cần Công ty xác nhận**.
+- ✅ ~~**`F01519` Lương Cổ**: hai nguồn lệch đúng một dòng (Thượng lưu vs Hạ lưu), đang lấy Hạ lưu.~~
+  **ĐÓNG 18/9/2026 → THƯỢNG LƯU** (`V202609181085`): mẫu Báo cáo nhanh là nguồn thứ ba, ghi số ở dòng
+  `TL (nhuệ)`; Công ty không phản đối khi nhận thông báo 18/9 (`xacnhan.md` mục C).
+- ✅ **`F01771` Liên Mạc TL thuộc Sông Nhuệ** (OI-BC11, 19/9) — mẫu ghi `TL (hồng)` là chữ của Công ty, dữ liệu điểm đo giữ nguyên.
 - ⚠ **`F01657` Vân Đình TL**: bản chụp ghi lý trình *"(K72+000 – sông Đáy)"* trên một dòng tuyến
   *Sông Vân Đình* ⇒ để `NULL`, vì K72+000 gần như chắc chắn là lý trình **trên sông Đáy**.
 - ⛔⛔ **Toạ độ vẫn 0/19** ⇒ lớp GIS điểm đo RỖNG. Đây là phần G8 còn lại và nó vẫn chặn nghiệm thu C3.
@@ -233,6 +269,8 @@ Tương tự, danh mục công trình (mục d) có nút *"Nhập từ tệp"* k
 
 Đã soạn `report-templates-proposal.md` gồm: khung cấu trúc chuẩn 5 khối, quy ước trình bày, danh mục báo cáo còn lại sau khi cắt scope (BC-05, BC-09, BC-10, BC-11, BC-12, BC-13, BCNS-01..08, BCQT-01..03) và trường dữ liệu từng báo cáo.
 **Cần Công ty**: (1) duyệt danh mục — bỏ/thêm báo cáo; (2) gửi **file mẫu thật** cho 4 báo cáo trọng yếu: **BC-11 biểu tổng hợp mực nước**, **BC-09 tổng hợp sửa chữa**, **BC-05 thủy văn tháng**, **BCNS-07 mẫu 2C-BNV**; (3) xác nhận khối chữ ký & thể thức; (4) cho biết báo cáo nào phải nộp cấp trên (phải theo mẫu quy định).
+
+⭐ **18/9/2026 — mẫu thật ĐẦU TIÊN đã về và đã dựng**: *Báo cáo nhanh* chống úng (gửi UBND Thành phố) — CN-02.12, xuất Word điền thẳng vào mẫu (Phần I-C). Nó ⛔ nằm trong 17 mã của `report-templates-proposal.md`, nên ⛔ đóng mục này: 4 mẫu trọng yếu ở trên **vẫn chờ**, và **Form 1 chống hạn** của `OI-10` chưa có mẫu.
 
 ---
 
@@ -342,11 +380,12 @@ Tài liệu đang mô tả hai điều khác nhau: CN-02.1 xếp **Cụm** vào 
 | # | Mục | Việc cần làm | Hạn cần có |
 |---|---|---|---|
 | 1 | 🟡 **G8** | ✅ (a1) tuyến sông + lý trình **ĐÃ NHẬN 09/09** (13/19 · 10/19) · ⬜ (a2) **toạ độ GPS** — vẫn 0/19, và đây là thứ **duy nhất** làm bản đồ hết trống · (b) khoảng trống API vs biểu tổng hợp · (c) xác nhận **3 cặp mã trùng giá trị** · (d) **danh mục toàn bộ công trình (Excel)** kèm mã. ⭐ **(a2) và (d) nay chỉ cần UPLOAD** — có nút *Nhập vị trí từ tệp* (điểm đo) và *Nhập từ tệp* (công trình), mỗi nút kèm tệp mẫu tải về được | Trước khi nhập liệu ban đầu & nghiệm thu MOD-03 |
-| 2 | 🟡 **G10** | Duyệt `report-templates-proposal.md` + gửi **file mẫu thật** của BC-11, BC-09, BC-05, BCNS-07 | Trước Phase báo cáo |
+| 2 | 🟡 **G10** | Duyệt `report-templates-proposal.md` + gửi **file mẫu thật** của BC-11, BC-09, BC-05, BCNS-07 · mẫu **Báo cáo nhanh chống hạn** (OI-10 Form 1). ✅ Báo cáo nhanh chống úng đã nhận + dựng 18/9 | Trước Phase báo cáo |
+| 2-a | 🟡 **OI-05 × OI-BC10** | Chốt **một** danh sách Xí nghiệp: bố cục (7, có Liên Mạc/Hồng Vân/Hà Đông) · danh mục công trình (8, thêm Nhật Tựu) · sheet `Trạm bơm` (7, theo huyện). Nếu sheet `Trạm bơm` chỉ là **địa bàn in Bảng 2** thì nói rõ để tách khỏi `org_units` | ⛔ Trước khi nhập Xí nghiệp + 178 trạm bơm |
 | 3 | 🟡 **G6** | File mẫu **2C-BNV** Công ty đang dùng (gửi kèm G10). ⚠ Chặn **đúng BCNS-07** (1/8 báo cáo của CN-04.8), ⛔ **không** chặn 8 chức năng CN-04 còn lại | Trước khi in BCNS-07, ⛔ không phải trước Phase HRM |
 | 3-a | 🟡 **G6-a** | ⭐ **Danh sách CBNV** (Excel) để nhập liệu ban đầu — trường 🔒 gửi riêng, sau. **Đây mới là thứ chặn HRM**; ⚠ cột phòng ban phụ thuộc **OI-05** | Trước khi nhập liệu MOD-04 |
 | 4 | 🟡 **G5** | Mã số hệ thống văn bản: **riêng từng người hay chung**? + đề nghị bên `bhh40.net` cấp **token/SSO** thay vì lưu mã số + kế hoạch bật **HTTPS** | Trước Phase MOD-01 |
-| 5 | 🟡 **G3-a** | Chốt cách xử lý **lượng mưa** ở v1 (PA A/B/C) | Trước Phase MOD-03 |
+| 5 | 🟡 **G3-a** | Chốt cách xử lý **lượng mưa** ở v1 (PA A/B/C) — ⭐ riêng Bảng 4 Báo cáo nhanh đã chốt nhập tay (19/9) | Trước Phase MOD-03 |
 | 6 | ⚪ **G9-a** | Xác nhận **bộ mức ngưỡng** cảnh báo (3 mức đề xuất hay cấp I/II/III) | Trước khi cấu hình ngưỡng thật |
 | 7 | 🟡 **G13** | **Bộ nhận diện cổng**: logo, favicon, màu, thông tin chân trang, liên kết mạng xã hội, GA/GTM, reCAPTCHA key | **Trước nghiệm thu cổng TTĐT (Phase 1)** |
 | 8 | ✅ ~~**G14**~~ | ~~Cây danh mục + menu cổng + nội dung 4 trang tĩnh~~ **đóng 27/8** bằng §3 của văn bản nghiệm thu. ⬜ Còn lại: **số tài khoản biên tập cần cấp** → gộp vào `OI-06` | Đã dựng vào `V202608271031` |
@@ -381,6 +420,7 @@ Sau khi nhận confirm → cập nhật `function-spec.md`, `implement.md` và �
 | **CN-02.5** Dashboard & wall mode | **G3-a** | 🟨 | Bỏ/ẩn widget lượng mưa ở v1; layout phải chịu được việc thiếu 1 khối |
 | **CN-02.11** Tình hình vận hành — *giá trị seed* | **G4** (đã đóng) | 🟩 | ⚠ **Chức năng đã chốt trọn vẹn ở G4, nhưng 4 giá trị seed thì chưa ai duyệt.** Migration `V202608221029` seed `MT / ĐK / ĐTTL / ĐTHL` kèm cột `mapped_status` do phía phát triển tự đặt — G4 chỉ nói "seed 4 mã", không nói mã nào ánh xạ sang trạng thái nào. Hai chỗ cần Công ty xác nhận trước nghiệm thu: (a) **`ĐK` (Đóng kín) → `NGUNG_MUA_VU`** — đóng cống là ngừng mùa vụ, hay chỉ là một thao tác vận hành bình thường? (b) **`ĐTHL`** đang mang tên *"Đóng xả thuỷ điện"* trong khi chữ viết tắt gợi *"Đóng tiêu hạ lưu"*. Sửa được qua giao diện danh mục, **không cần deploy** |
 | **CN-02.10** Báo cáo công trình | **G10** | 🟨 | BC-06/09/10: trường dữ liệu **đã chốt**, chỉ layout in ấn chờ duyệt |
+| **CN-02.12** Báo cáo nhanh | **OI-05** (qua OI-BC10) | 🟩 | Mã + bố cục **đã chốt** (Phần I-C, mẫu thật). Còn: danh sách Xí nghiệp in Bảng 2 (`T66.14`) + nhập liệu (`T66.13`) |
 | **CN-04.8** Báo cáo nhân sự | **G6**, **G10** | 🟨 | **BCNS-07 mẫu 2C-BNV chưa có file gốc** → làm 7 báo cáo còn lại trước, BCNS-07 để cuối. Đây là mẫu Bộ Nội vụ, **cấm tự chế** |
 | **CN-05.3** Cấu hình hệ thống | **G9-a**, **G5**, **G3-a** | 🟨 | Bảng `settings` phải mở đủ để thêm tham số sau mà **không cần migration** (key-value có type) — đây chính là cách hấp thụ mọi câu trả lời còn lại |
 

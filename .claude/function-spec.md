@@ -2,6 +2,7 @@
 
 > Tài liệu đặc tả chức năng cô đọng cho team dev. Tổng hợp từ "Tổng quan HT PM Quản lý điều hành TLSN", "Đặc tả hệ thống Website Thủy Lợi Sông Nhuệ" và **SRS_QuanTriDieuHanh_TLSN ver 06.8.2026** (SRS v1.0, 23/07/2026).
 > Phiên bản: **2.2** — Cập nhật: 2026-08-12 (áp dụng confirm **đợt 2 — mục G**: G1, G2, G3 (một phần), G4, G7, G9, G11, G12)
+> ⭐ **Bổ sung 19/9/2026 (v2.3)**: **CN-02.12 Báo cáo nhanh ứng phó ngập úng** — theo mẫu Word thật của Công ty và câu trả lời open issue OI-BC1→17 (`business-open-questions.md` Phần I-C).
 >
 > ⚠ **Thay đổi v2.2** (theo confirm đợt 2 của Công ty): **G1 = PA A** — bỏ phiếu sự cố riêng, **gộp sự cố vào Lịch sử sửa chữa** (CN-02.2) · **G2** — Công ty **không cần** chỉ tiêu giờ chạy máy/điện năng/m³ bơm → đóng vĩnh viễn, không mở lại màn hình nhập · **G3** — chấp nhận không có API lịch sử (hệ thống tự fetch & lưu), **chu kỳ polling chốt: 2 phút/lần vào các phút lẻ**, có **rate-limit theo khung cập nhật**; trạm trục trặc → **GIS màu xám** · **G4** — tình hình vận hành cống **không có trong API**, nhập tay qua màn hình Admin, **danh mục mã có CRUD** + ánh xạ trạng thái + màu (CN-02.11 mới) · **G7** — audit log giữ **5 năm** rồi kết xuất lưu trữ · **G9** — Admin tự cấu hình ngưỡng, hệ thống chạy với ngưỡng mặc định tới khi có số liệu thật · **G11** — người nhận cảnh báo = nhóm "Ban điều hành" + auto người phụ trách công trình liên quan · **G12** — chốt con số NFR nghiệm thu. Chi tiết ở `business-open-questions.md` Phần I-B.
 >
@@ -47,7 +48,7 @@ Hợp nhất từ nhóm vai trò tổng quát của SRS §2.2 và các actor chi
 | Biên tập viên | Soạn thảo bài viết, media (MOD-01) — không tự xuất bản |
 | Quản trị nội dung | Duyệt/xuất bản bài viết, danh mục, banner, liên hệ, phản hồi (MOD-01) |
 | Cán bộ văn thư | Đánh dấu văn bản điều hành công khai phía hệ thống nguồn (MOD-01 tích hợp) |
-| Cán bộ kỹ thuật | Hồ sơ công trình, số hóa GIS, điểm đo thủy văn, cấu hình ngưỡng, ghi nhận & khắc phục sự cố (CN-02.2), cập nhật tình hình vận hành cống (CN-02.11) |
+| Cán bộ kỹ thuật | Hồ sơ công trình, số hóa GIS, điểm đo thủy văn, cấu hình ngưỡng, ghi nhận & khắc phục sự cố (CN-02.2), cập nhật tình hình vận hành cống (CN-02.11), lập Báo cáo nhanh (CN-02.12) |
 | Cán bộ vận hành (Xí nghiệp) | Xem công trình + dữ liệu thủy văn thuộc XN mình; ghi nhận sự cố (CN-02.2) và cập nhật tình hình vận hành cống khi được phân quyền. *(Vai trò "Operator nhập nhật ký vận hành" đã bị loại khỏi scope 12/8/2026)* |
 | Quản lý công trình / Quản lý XN | Duyệt hồ sơ/nhật ký, đóng cảnh báo/sự cố, báo cáo XN mình |
 | Trực ban điều hành | Nhận cảnh báo ngưỡng thủy văn, theo dõi dashboard màn hình lớn |
@@ -60,7 +61,7 @@ Hợp nhất từ nhóm vai trò tổng quát của SRS §2.2 và các actor chi
 | Mã | Module (SRS) | Nội dung chính |
 |---|---|---|
 | MOD-01 | Cổng thông tin điện tử (E-Portal) | Bài viết, danh mục, media, banner, liên hệ, phản hồi, cấu hình giao diện, tìm kiếm, **tích hợp hệ thống văn bản điều hành** (M1.8) |
-| MOD-02 | Quản lý & vận hành công trình thủy lợi (GIS) | Danh mục công trình, thông số kỹ thuật, tài liệu, bản đồ GIS nhiều lớp, dashboard điều hành, thống kê, nhật ký thay đổi hồ sơ, **lịch sử sửa chữa/bảo trì — bao gồm cả ghi nhận & khắc phục sự cố** (thay thế nhật ký vận hành đã bỏ; chốt G1 = PA A), **tình hình vận hành cống** (CN-02.11, nhập tay) |
+| MOD-02 | Quản lý & vận hành công trình thủy lợi (GIS) | Danh mục công trình, thông số kỹ thuật, tài liệu, bản đồ GIS nhiều lớp, dashboard điều hành, thống kê, nhật ký thay đổi hồ sơ, **lịch sử sửa chữa/bảo trì — bao gồm cả ghi nhận & khắc phục sự cố** (thay thế nhật ký vận hành đã bỏ; chốt G1 = PA A), **tình hình vận hành cống** (CN-02.11, nhập tay), **Báo cáo nhanh ứng phó ngập úng** (CN-02.12, theo mẫu Công ty) |
 | MOD-03 | Quản lý dữ liệu thủy văn | Danh mục điểm đo & loại chỉ số, kết nối API bên thứ 3 (polling), bóc tách/chuẩn hóa/validate, lưu time-series, giám sát realtime, biểu đồ, báo cáo thủy văn, cảnh báo ngưỡng, hiển thị lên GIS |
 | MOD-04 | Quản lý nhân sự (HRM) | Sơ đồ tổ chức, hồ sơ CBNV, lý lịch, lịch sử công tác, tài liệu, danh bạ, thống kê, nghỉ phép |
 | MOD-05 | Quản trị hệ thống, tài khoản & phân quyền | Tài khoản, RBAC chi tiết theo màn hình, cấu hình hệ thống, audit log, backup/**restore**, giám sát health-check, thông báo hệ thống, quản lý phiên, cảnh báo đăng nhập bất thường, xuất/nhập cấu hình |
@@ -335,6 +336,53 @@ Danh mục BC-01..08 cũ **không còn khả thi** vì mất nguồn dữ liệu
 - **Nhập nhanh hàng loạt**: 1 màn hình dạng bảng liệt kê toàn bộ cống/trạm bơm, chọn mã + nhập giá trị + lưu 1 lần — phục vụ trực ban cập nhật đầu ca.
 - **Hiển thị**: cột "Tình hình vận hành" trên biểu tổng hợp theo tuyến sông (CN-03.4), popup GIS (CN-02.4), dashboard + wall mode (CN-02.5) — dạng badge màu theo cấu hình.
 - Mọi thay đổi ghi audit old/new.
+
+### CN-02.12. Báo cáo nhanh ứng phó ngập úng (Cao) — ⭐ **MỚI 18/9/2026, theo mẫu thật của Công ty (WS-66)**
+
+**Nguồn**: `docs_origin/bao-cao/` (mẫu Word, danh mục trạm bơm, spec BA) · câu trả lời open issue của Công ty
+19/9/2026 (`docs_origin/bao-cao/spec-bao-cao-nhanh/xacnhan.md`) · quyết định: `architecture-review.md` §12.2.
+Đây là **Form 2 (chống úng)** của `OI-10`; Form 1 (chống hạn) chưa có mẫu. ⛔ **Không** đảo chốt A1/B5/F3/G2:
+*diện tích ngập úng* là số nhập tay theo xã, ⛔ phải diện tích tưới tiêu; *số máy đang chạy* là số tại một
+thời điểm, ⛔ phải chỉ tiêu giờ chạy/điện năng.
+
+**(a) Danh mục máy bơm** — `nhom_may_bom` (bảng con của `constructions`, 1 dòng = 1 nhóm máy cùng Q, Q lưu
+**m³/h** nguyên bản) + `co_may_bom` (9 cỡ của Bảng 1, nhãn nguyên văn mẫu, biên nửa mở `[từ, đến)` sửa
+được — CRUD, quy tắc 16). Nhóm máy vào bằng **nhập tệp**, nguồn là sheet `TB Tiêu (KH)` (OI-BC9). Nhãn cỡ là
+cỡ danh định đã làm tròn; máy có Q giữa hai nhãn xếp theo biên (OI-BC8).
+
+**(b) Kỳ báo cáo** — `bao_cao_nhanh` (khung `từ`–`đến`, `timestamptz`). Nhập theo kỳ:
+- **Bảng 2** số máy đang vận hành từng nhóm máy (≤ số thiết kế — `OPS-2028`; `NULL` = chưa nhập ≠ 0).
+- **Bảng 5** diện tích ngập trắng / sâu nước × lúa / rau màu cho 20 xã của Sông Nhuệ (ha).
+- **Bảng 4** lượng mưa 8 điểm của Sông Nhuệ (mm) — **nhập tay** tới khi có nguồn tự động G3-a; khi có thì
+  nguồn tự động THAY ô nhập, ⛔ trộn hai nguồn trong một kỳ (OI-BC15).
+- Ai nhập: người có `ops:quick-report:manage`, mỗi kỳ; ô chưa nhập để trống (OI-BC2).
+
+**(c) Tự tính ở BE** (quy tắc 3) — Bảng 2 → Bảng 1 → Mục 1, một chiều:
+- Tổng số trạm = đếm **trạm** có ≥ 1 máy đang chạy · Tổng số máy và 9 cột cỡ = cộng số **đang chạy**
+  (⛔ số thiết kế) · Tổng lưu lượng = Σ(số máy chạy × Q). Bất biến: tổng 9 cột = Tổng số máy.
+- Mục 1 và Mục 3 **chép** dòng Sông Nhuệ của Bảng 1 / dòng III của Bảng 5, ⛔ công thức riêng (OI-BC12).
+- Ghi chú Yên Nghĩa: số máy + lưu lượng **m³/s** (OI-BC5); ⛔ vận hành ⇒ câu khác hẳn.
+- **Bảng 3** mực nước 7 cống × thượng/hạ lưu = số đo **HỢP LỆ** gần nhất tại hoặc trước giờ kết thúc kỳ
+  (quy tắc 14), in mét 2 chữ số thập phân (OI-BC16); vế ⛔ có điểm đo ⇒ ô trống kèm lý do (OI-BC14).
+- Chỉ dòng/cột của **Sông Nhuệ** có số; ba công ty kia và dòng "Tổng cộng" toàn Thành phố để TRỐNG, ⛔ ghi 0 (OI-BC1).
+
+**(d) Cấu hình** — 7 cống của Bảng 3 + trạm Yên Nghĩa là 8 **vị trí cố định** của mẫu; Công ty chọn công trình
+cho từng vị trí trên màn hình (sai loại ⇒ `OPS-2032`). Điểm đo từng vế suy từ liên kết điểm đo–công trình.
+
+**(e) Chốt / mở lại** — qua Workflow engine (quy tắc 4), luồng `QUICK_REPORT`: `NHAP --CHOT--> DA_CHOT
+--MO_LAI (bắt buộc lý do)--> NHAP`. Kỳ đã chốt ⛔ sửa được (`OPS-2029`) và đọc **ảnh chụp** danh mục + cấu hình
+lúc chốt — danh mục đổi sau ⛔ đổi văn bản đã gửi.
+
+**(f) Xuất Word** — điền thẳng vào mẫu của Công ty (`DocxFiller`, 0 phụ thuộc mới); tệp mẫu giữ nguyên byte.
+Bảng 2 liệt kê **đủ** danh mục kể cả trạm 0 máy (OI-BC7); trạm nhiều nhóm máy gộp dọc như mẫu. Cột "Lúa"
+nhóm Tổng cộng của Bảng 5 được nới (OI-BC17). Công tắc "Chỉ hiện trạm đang hoạt động" chỉ lọc màn hình nhập,
+mặc định TẮT (OI-BC6).
+
+**Mã lỗi**: `OPS-2027` Q ⛔ thuộc cỡ nào · `OPS-2028` vượt số thiết kế · `OPS-2029` kỳ đã chốt · `OPS-2030` khung
+giờ ngược · `OPS-2031` biên cỡ máy ⛔ liền nhau · `OPS-2032` sai loại công trình.
+
+⬜ **Còn mở** (`master-tracking.md` WS-66): Công ty nhập dữ liệu (T66.13) · danh sách Xí nghiệp của Bảng 2
+khớp OI-05 (T66.14) · OI-BC13 chưa trả lời (giữ chữ của mẫu).
 
 ---
 
@@ -796,6 +844,8 @@ Bảng riêng `password_reset_tokens`: chỉ lưu **băm SHA-256** của mã, `e
 | Xóa/sửa bản ghi sửa chữa đã lưu | ✔ | ✔ (XN mình) | ✘ | ✘ |
 | **Cập nhật tình hình vận hành cống (CN-02.11)** | ✔ | ✔ | ✔ | ✔ (XN mình) |
 | **Quản lý danh mục mã tình hình vận hành** | ✔ | ✘ | ✘ | ✘ |
+| **Báo cáo nhanh — tạo kỳ, nhập, chốt, cấu hình vị trí (CN-02.12)** | ✔ | ✔ | ✔ | ✘ *(`ops:quick-report:manage`)* |
+| **Báo cáo nhanh — mở lại kỳ đã chốt** | ✔ | ✘ | ✘ | ✘ *(`ops:quick-report:reopen`, bắt buộc lý do)* |
 | Upload tài liệu công trình | ✔ | ✔ | ✔ | ✔ (XN mình) |
 | Quản lý điểm đo (MOD-03) | ✔ | ✘ | ✔ | ✘ |
 | Cấu hình API nguồn dữ liệu | ✔ | ✘ | ✘ | ✘ |
@@ -879,13 +929,13 @@ Quản trị (MOD-05): chỉ Admin/Super Admin; restore + xuất/nhập cấu h�
 | M2.16–M2.17 | CN-02.6 | | M4.12–M4.13 | CN-04.7 |
 | M2.18 | CN-02.7 | | M4.14–M4.17 | CN-04.8 |
 | — (đã bỏ 12/8) | ❌ CN-02.8 / ❌ CN-02.9 | | M5.1 | CN-05.1 |
-| — (ngoài SRS, đã chốt scope) | ✅ CN-02.10 báo cáo · ✅ CN-02.11 tình hình vận hành (G4) | | | |
+| — (ngoài SRS, đã chốt scope) | ✅ CN-02.10 báo cáo · ✅ CN-02.11 tình hình vận hành (G4) · ✅ CN-02.12 Báo cáo nhanh (mẫu Công ty 18/9, OI-10 Form 2) | | | |
 | M5.2–M5.3 | CN-05.2 | | M5.4–M5.6, M5.17 | CN-05.3 |
 | M5.7–M5.8 | CN-05.4 | | M5.9–M5.11 | CN-05.5 |
 | M5.12–M5.13 | CN-05.6 | | M5.14–M5.16 | CN-05.7 |
 
 ❌ = đã loại khỏi scope 12/8/2026: nhật ký vận hành (CN-02.8), **phiếu sự cố riêng (CN-02.9 — chốt G1 PA A, gộp vào CN-02.2)**, kế hoạch vụ mùa, BC-01/02/03/04/07/08.
-✅ = phần ngoài SRS v1.0 nhưng **đã chốt nằm trong scope**: CN-02.10 (BC-06/09/10) và CN-02.11 (tình hình vận hành cống — G4).
+✅ = phần ngoài SRS v1.0 nhưng **đã chốt nằm trong scope**: CN-02.10 (BC-06/09/10), CN-02.11 (tình hình vận hành cống — G4) và CN-02.12 (Báo cáo nhanh ứng phó ngập úng — Công ty gửi mẫu 18/9/2026).
 **Không còn hạng mục 🔷 nào trong MOD-02.**
 
 ---
