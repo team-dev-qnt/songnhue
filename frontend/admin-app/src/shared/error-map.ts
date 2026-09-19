@@ -701,7 +701,10 @@ export const ERROR_CATALOG = {
     severity: 'error',
   },
   'ADM-2013': {
-    message: 'Khôi phục thất bại — CSDL có thể đang dở dang, liên hệ quản trị hệ thống',
+    // ⛔ Câu cũ "CSDL có thể đang dở dang" đoán về phía phá huỷ (luật 37): lượt nạp chạy trong MỘT giao dịch
+    //   nên hỏng ở bước nạp thì CSDL giữ nguyên, còn hỏng ở phép kiểm quyền thì dữ liệu ĐÃ về (T68.3).
+    message:
+      'Khôi phục thất bại — đừng bấm lại ngay, liên hệ quản trị hệ thống để đọc nhật ký ứng dụng',
     handling: 'toast',
     severity: 'error',
   },

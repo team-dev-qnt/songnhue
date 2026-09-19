@@ -92,7 +92,7 @@ mục 1.3 (tên miền, cần hồ sơ Công ty) mất nhiều tuần nhất, n�
 | # | Việc | Chốt cụ thể | Ai làm |
 |---|---|---|---|
 | 1.1 | **Tên miền `.vn`** — chủ thể đăng ký **là Công ty** | §1.2 dưới | Công ty (pháp nhân) + QuanTran |
-| 1.2 | **VPS-1** | **4 vCPU · 8 GB RAM · 160 GB SSD · Ubuntu 24.04 LTS**, đặt tại Việt Nam | QuanTran |
+| 1.2 | **VPS-1** | **4 vCPU · 8 GB RAM · 160 GB SSD · Ubuntu 24.04 LTS · x86_64 (amd64)**, đặt tại Việt Nam. ⛔ ARM: ảnh MinIO (`quay.io`) chỉ có manifest `linux/amd64` (T60.0) ⇒ kéo ảnh đỏ | QuanTran |
 | 1.3 | **Email trung tính** của Công ty (`it@…`) để mở mọi tài khoản | ⛔ không dùng Gmail cá nhân | Công ty |
 | 1.4 | **Tài khoản SMTP** gửi thư thật | nhà cung cấp trong nước, hoặc Amazon SES / Postmark | QuanTran |
 | 1.5 | **Kho lưu trữ ngoài** — Backblaze B2 hoặc Cloudflare R2 | phải **khác nhà cung cấp** với hai VPS | QuanTran |
@@ -881,18 +881,24 @@ hai** máy chủ. Cài trước, rồi mới đặt lịch:
 ```bash
 sudo apt-get install -y cron && sudo systemctl enable --now cron
 systemctl is-active cron && systemctl is-enabled cron    # phải: active · enabled
-crontab -e
+test -w /var/log/songnhue && echo GHI_DUOC               # ⛔ thì: sudo bash /opt/songnhue/host-prepare.sh
+crontab -e                                               # với USER TRIỂN KHAI, ⛔ root
 ```
 ```cron
-17 3 * * 1 cd /opt/songnhue && docker compose --env-file .env -f compose.prod.yml --profile certbot run --rm certbot renew --webroot -w /var/www/certbot --quiet && docker compose --env-file .env -f compose.prod.yml exec nginx nginx -s reload
+17 3 * * 1 /opt/songnhue/gia-han-tls.sh >> /var/log/songnhue/gia-han-tls.log 2>&1
 ```
 
-**Kiểm chứng ngay, đừng đợi 60 ngày nữa mới biết:**
+⛔⛔ **Sửa 19/09/2026 (WS-68, `T11.88`)**: bản cũ của mục này đặt dòng cron `cd /opt/songnhue && docker compose …
+--profile certbot run --rm certbot renew … && docker compose … exec nginx nginx -s reload`. Đo 08/09 trên VPS-1 (T11.93):
+**thoát 1** — compose nội suy TOÀN BỘ tệp, mà ba biến `*_IMAGE` cố ý ⛔ nằm trong `.env` (§10.81). Làm đúng hướng dẫn
+cũ là cài một cron **hỏng câm**. Bản đúng là `deploy/gia-han-tls.sh` (`docker run` + `docker exec`, ⛔ compose) —
+chi tiết và hai lỗi phụ ở [`runbook/ten-mien-va-chung-chi.md` §4](runbook/ten-mien-va-chung-chi.md).
+
+**Kiểm chứng ngay, đừng đợi 60 ngày nữa mới biết** — chạy **đúng dòng cron**, ⛔ một biến thể:
 
 ```bash
-cd /opt/songnhue
-docker compose --env-file .env -f compose.prod.yml --profile certbot \
-  run --rm certbot renew --webroot -w /var/www/certbot --dry-run
+/opt/songnhue/gia-han-tls.sh >> /var/log/songnhue/gia-han-tls.log 2>&1; echo "MÃ THOÁT = $?"   # phải 0
+tail -5 /var/log/songnhue/gia-han-tls.log                                                       # có "── đã nạp lại nginx"
 ```
 
 ⚠ Khối `location ^~ /.well-known/acme-challenge/` phải đứng **trước** lệnh chuyển hướng sang HTTPS —
@@ -911,8 +917,9 @@ hỏng âm thầm cho tới đúng ngày hết hạn.
 | `resolver` + biến trong `proxy_pass` | **bắt buộc**: viết thẳng `proxy_pass http://app:8080` thì nginx phân giải lúc nạp cấu hình, backend chưa lên là nginx **từ chối khởi động** và cả trang trắng |
 | TLS 1.2 giữ lại | **có chủ đích** — bỏ là khoá cửa với Windows 10 bản cũ, Android < 10 và một phần máy trạm cơ quan nhà nước |
 
-⛔ **Chưa có nén (gzip/brotli) ở bất kỳ đâu** — đã kiểm toàn bộ `deploy/nginx/` và hai image FE: 0 dòng
-cấu hình nén. Ghi ra đây để không ai tưởng đã có khi đo DOD1.17 (trang chủ < 3s).
+⚠ **Nén — sửa 19/09/2026 (WS-68)**: bản cũ ghi *"chưa có nén ở bất kỳ đâu"*. Đo `curl` 19/09: HTML trang chủ
+production **251.766 B**, gửi kèm `Accept-Encoding: gzip` còn **30.444 B** — Next tự nén. `deploy/nginx/` vẫn 0 dòng cấu
+hình nén, nên tài nguyên tĩnh nginx tự phục vụ (nếu có) ⛔ được nén; đo lại khi làm DOD1.17 (trang chủ < 3s).
 
 📌 **Có sẵn nhưng đang tắt**: giới hạn giao diện quản trị theo dải IP nằm sẵn trong template, đang bị
 chú thích, chờ Công ty cấp dải IP cố định (BOQ G13). ⛔ Đừng bật khi chưa có dải IP thật — tự khoá
@@ -1086,9 +1093,9 @@ id=$(curl -fsS "https://$D/api/v1/public/articles?page=0&size=100" \
 [ -n "$id" ] && curl -fsS -o /dev/null -w '%{content_type}\n' "https://$D/api/v1/public/files/$id"
 #    → image/…    (rỗng $id nghĩa là CHƯA kiểm được, không phải đã đạt)
 
-# 10. Gia hạn chứng chỉ
-ssh songnhue@<IP-VPS1> 'cd /opt/songnhue && docker compose --env-file .env -f compose.prod.yml \
-   --profile certbot run --rm certbot renew --webroot -w /var/www/certbot --dry-run'
+# 10. Gia hạn chứng chỉ — chạy ĐÚNG dòng cron (⛔ bản compose: thoát 1, §10.81 · T11.88)
+ssh songnhue@<IP-VPS1> '/opt/songnhue/gia-han-tls.sh >> /var/log/songnhue/gia-han-tls.log 2>&1; echo "MÃ THOÁT = $?"; tail -3 /var/log/songnhue/gia-han-tls.log'
+#    → MÃ THOÁT = 0 · có dòng "── đã nạp lại nginx"
 ```
 
 > ⛔ **Phép 9 không bỏ được**, và **phép 8 cũng vậy**. Phép 8 là thứ duy nhất phân biệt "cổng trống vì
@@ -1321,6 +1328,9 @@ nằm ở environment nữa.
 3. `commit_sha` = một SHA trên `dev` **cũ hơn**, vẫn phải là tổ tiên của `origin/staging`. Để trống
    thì triển khai lại đúng thứ đang ở đỉnh `production`.
 4. `reason` bắt buộc — nó là thứ tạo ra nhật ký cho lượt bấm tay.
+5. ⭐ Từ WS-71 (19/09/2026) lượt ấy dùng `deploy/` **của chính SHA đã chọn** (bước *Lấy deploy/ của đúng
+   commit triển khai*), ⛔ `deploy/` của đỉnh `production` — trước đó quay lui tay dựng ảnh cũ trên cấu
+   hình mới, đúng tổ hợp đã giữ staging chết ngày 17/09.
 
 ```bash
 # tìm SHA đang chạy và các bản trước nó
@@ -1488,10 +1498,14 @@ Phép đo thật là dòng `· Soi bằng pg_restore của: <host|container …>
 make backup-verify ENV=prod
 ```
 
-### 12.4. ⛔ Diễn tập khôi phục — **bắt buộc trước go-live, và chưa từng chạy lần nào**
+### 12.4. ⛔ Diễn tập khôi phục — **bắt buộc trước go-live; cảnh máy TRẮNG chưa chạy lần nào**
 
-Nhật ký ở `docs/runbook/dien-tap-khoi-phuc.md` còn **bảy ô trống**, gồm `RTO thật: ______ phút`
-(nợ **T7.13** / **DOD0.14**). Cam kết RTO ≤ 4h hiện **chưa có con số đo nào chống lưng**.
+⚠ **Sửa 19/09/2026 (WS-68)**: bản cũ ghi *"chưa từng chạy lần nào"* và *"bảy ô trống"* — nhật ký
+`docs/runbook/dien-tap-khoi-phuc.md` đã có **2 lượt một phần** (26/08 đích rỗng · 08/09 đích có dữ liệu); các ô `______`
+là **mẫu in ra**, ⛔ phải chỗ điền. Thứ CHƯA có: một lượt vào **cluster TRẮNG** từ bản kéo ra khỏi VPS-1, kèm **RTO bằng
+phút** (nợ **T61.10**, gộp T7.7 · T7.13 · DOD0.14 · T37.8). Cam kết RTO ≤ 4h hiện **chưa có con số đo nào chống lưng**.
+⛔ Và `restore.sh` bên dưới gọi `pg_restore` **trên host** — máy chủ ⛔ có công cụ ấy; đường chạy được là
+`deploy/backup/khoi-phuc-qua-container.sh` (`docs/runbook/khoi-phuc-du-lieu.md`).
 
 Làm trên **VPS-2**, không bao giờ trên production. Chọn **bản đã kéo về VPS-2**, không phải bản trên
 VPS-1 — kéo về là mắt xích chưa được thử.
@@ -1550,10 +1564,14 @@ volume có tên, nên nó **không kiểm được quyền thư mục**.
 > ⚠ **Mỗi migration đổi lược đồ phải kèm ghi chú quay lui trong PR.** Không có PITR nghĩa là câu
 > "quay lui thế nào" phải được trả lời **trước** khi merge, không phải lúc đang hỏng.
 
-### 13.2. ⛔ Quay lui tự động chỉ khôi phục **MÃ NGUỒN**
+### 13.2. ⛔ Quay lui tự động khôi phục **MÃ NGUỒN + CẤU HÌNH** — ⛔ khôi phục DỮ LIỆU
 
 Bước *Quay lui bản cũ* chạy khi `failure()` **và** bước *Ghi lại bản đang chạy* đọc được đủ ba
-container. Nó dựng lại ba image cũ rồi hỏi lại đúng câu 2 của smoke test, 18 vòng × 10 giây.
+container. ⭐ Từ WS-71 (19/09/2026): nó trả `/opt/songnhue` về bản chụp `.ban-truoc/` chụp ở đầu
+ĐÚNG lượt ấy (trừ `.env*`/`env/`/`keys/`) → `nginx -t` → tạo lại cả bốn container → so ID ảnh → chờ
+nginx `healthy`, rồi mới hỏi lại câu 2 của smoke test, 18 vòng × 10 giây. Trước đó nó chỉ dựng lại ba
+ảnh, và ngày 17/09 điều ấy KHÔNG cứu được một lỗi nằm ở cấu hình nginx (T11.9). Đọc log:
+`docs/runbook/deploy-hong.md` mục 0.
 
 `migrator` đã chạy **xong trước đó**, và migration là **một chiều**: nếu nó đã đổi lược đồ thì mã cũ
 có thể không chạy được trên lược đồ mới, và bước này **không cứu được gì**. Kể cả khi thành công,
@@ -1574,8 +1592,14 @@ deploy dừng trước khi chạm container nào; ba container vẫn nguyên, `C
 sẽ mãi dừng ở đó**. Bằng chứng cho DOD0.21 chỉ đến từ một lỗi ở **tầng ứng dụng** (smoke test đỏ) sau
 bước `up -d` — nếu chờ nó xảy ra tự nhiên thì có thể chờ mãi.
 
-⇒ **Nên dựng một lượt hỏng có chủ đích trên staging trước go-live**, rồi đo `Created` của container
-quay về mốc cũ. Đó là cách duy nhất đóng ô này bằng số đo.
+⇒ **Nên dựng một lượt hỏng có chủ đích trên staging trước go-live**, rồi đo **ID ảnh** của container quay về
+đúng ID đã ghi ở bước *Ghi lại bản đang chạy* + nginx healthy + trang chủ 200. Đó là cách duy nhất đóng ô này
+bằng số đo.
+
+⚠ **Sửa 19/09/2026 (WS-68)**: tiêu chí cũ *"`Created` quay về mốc cũ"* ⛔ đo được — container tạo lại luôn mang
+`Created` MỚI. Và *"có thể chờ mãi"* đã hết đúng: lượt 17/09 (run `35236229504`, sự cố nginx §11.27) hỏng **SAU**
+`up -d` — quay lui chỉ tạo lại 3 container, nginx chỉ *Starting*, site ⛔ hồi ⇒ **quay lui THẤT BẠI** vì nó ⛔ trả
+lại cấu hình `deploy/` đã rsync (`T11.9`). Phải vá điều ấy TRƯỚC khi diễn tập.
 
 ---
 
@@ -1683,7 +1707,7 @@ nó mock đúng chỗ mã chạm ra ngoài.
 | 18 | Ping ngoài đã dựng và **đã thử bằng cách tắt nginx** | — | ☐ |
 | 19 | `BOOTSTRAP_ADMIN_PASSWORD` đã **xoá** khỏi `.env`, và **không có chú thích cùng dòng** | `grep '^BOOTSTRAP' /opt/songnhue/.env` | ☐ |
 | 20 | **Diễn tập khôi phục thật**, đọc được bằng vai `songnhue_app`, **ghi con số RTO thật vào runbook** | §12.4 | ☐ |
-| 21 | Đã quay lui thử một lần ở staging, đo `Created` của container quay về mốc cũ | §13.3 | ☐ |
+| 21 | Đã quay lui thử một lần ở staging: **ID ảnh** quay về ID đã ghi + nginx healthy + trang chủ 200 (⛔ `Created` — sửa 19/09) | §13.3 | ☐ |
 | 22 | 5 secret `PROD_*` đã đặt và **đo lại bằng API** ra đúng 5 | §10.1 | ☐ |
 | 23 | Biến kho `PUBLIC_SITE_URL` đã đặt **và đã có lượt build mới** sau đó | §10.3 | ☐ |
 | 24 | Bảo vệ nhánh `production` đo lại vẫn còn **1 approval** + `Promotion guard`; environment **không còn reviewer** nhưng **có** `deployment_branch_policy` đúng một nhánh `production` | §10.5 | ☐ |
@@ -1702,8 +1726,8 @@ nó mock đúng chỗ mã chạm ra ngoài.
 
 | Mã | Nội dung | Ai làm | Chặn ở đâu |
 |---|---|---|---|
-| ~~**T11.2**~~ | ✅ **đóng 6/9/2026** — VPS-1 `27.71.16.154`: Ubuntu 24.04.3 · 8 vCPU · 15 GiB RAM · 118G đĩa · Docker 29.8.0 + Compose v5.5.1 · ufw 22/80/443 · fail2ban active | — | — |
-| **T11.2-b** | Chưa mua tên miền `.vn`, chủ thể phải là Công ty | Công ty | §1.2, §7. ⭐ **Không còn chặn go-live**: production dùng `songnhue.com` trước (chốt 6/9) — ✅ **đã cắt sang `thuyloisongnhue.vn` ngày 08/09**. ⛔ Lúc cắt phải **đặt lại biến kho + DỰNG LẠI image**, sửa DNS một mình là chưa đủ |
+| ~~**T11.2**~~ | ✅ **đóng 6/9/2026** — VPS-1 `27.71.16.154`: Ubuntu 24.04.3 · 8 vCPU · 15 GiB RAM · 118G đĩa · Docker 29.8.0 + Compose v5.5.1 · ufw 22/80/443 · fail2ban active · **x86_64** (T60.10 — SUY từ số đo: ảnh MinIO chỉ-có-`amd64` chạy Healthy trên cả hai máy sau lượt đề bạt 17–19/09; `uname -m` chưa đo trực tiếp) | — | — |
+| **T11.2-b** | Tên miền `.vn` — ĐÃ mua, production dùng từ 08/09; còn xác nhận chủ thể (whois) là Công ty + bật tự gia hạn | Công ty | §1.2, §7. ⭐ **Không còn chặn go-live**: production dùng `songnhue.com` trước (chốt 6/9) — ✅ **đã cắt sang `thuyloisongnhue.vn` ngày 08/09**. ⛔ Lúc cắt phải **đặt lại biến kho + DỰNG LẠI image**, sửa DNS một mình là chưa đủ |
 | ~~**T11.7**~~ | ✅ **đóng 6/9/2026** — đo lại bằng API: `total_count: 5`. Khoá host lấy từ `/etc/ssh/ssh_host_ed25519_key.pub` **trên máy chủ**, đối chiếu khớp với `known_hosts` cục bộ | — | — |
 | ~~**T11.7-a**~~ | ✅ **đóng 6/9/2026** — biến kho `PUBLIC_SITE_URL`, ⚠ **giá trị đổi 07/09** thành `https://thuyloisongnhue.vn`. ⚠ **Chưa đủ**: image `public-web` đang chạy vẫn nướng chuỗi rỗng, phải có **một lượt build mới trên `dev`** rồi mới đề bạt (checklist #23) | — | — |
 | ~~**T11.35**~~ | ✅ **đóng 6/9/2026** — `deploy/host-prepare.sh` có, idempotent, đã chạy thật trên VPS-1 (2 lượt, cùng kết quả, thoát 0). Nó cài `rsync` (**thiếu trên máy mới** — bước rsync của CD sẽ chết), dựng 4 thư mục và đặt quyền **bằng số**: keys `1000:1000 700` · log `1000:1000 755` · backup **`999:1000 2775`** | — | — |

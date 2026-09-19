@@ -22,6 +22,7 @@ import com.songnhue.core.application.job.JobService;
 import com.songnhue.core.application.job.JobTypes;
 import com.songnhue.core.common.config.BackupProperties;
 import com.songnhue.core.common.error.ErrorCode;
+import com.songnhue.core.common.exception.BusinessRuleException;
 import com.songnhue.core.common.exception.PermissionDeniedException;
 import com.songnhue.core.common.security.AuthContext;
 import com.songnhue.core.common.security.AuthenticatedUser;
@@ -95,6 +96,12 @@ public class BackupController {
     @Operation(summary = "Sao lưu theo yêu cầu (M5.10) — chạy nền, trả về jobId để theo dõi")
     @RequirePermission("adm:backup:create")
     public BackupDtos.JobAccepted create() {
+        // T68.4 — từ chối SỚM: người bấm phải biết ngay, ⛔ nhận "đã nhận yêu cầu" rồi vài phút sau
+        // mới thấy job hỏng. Lượt chen giữa khoảnh khắc này và lúc worker chạy vẫn bị chặn ở
+        // BackupService.runBackup (cùng mã).
+        if (backupService.dangCoLuotChay()) {
+            throw new BusinessRuleException(ErrorCode.ADM_2009);
+        }
         var job = jobService.enqueue(
                 JobTypes.DB_BACKUP,
                 "{\"trigger\":\"MANUAL\"}",

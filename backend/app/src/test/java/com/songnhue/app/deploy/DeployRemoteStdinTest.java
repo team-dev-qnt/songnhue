@@ -113,9 +113,14 @@ class DeployRemoteStdinTest {
                     .contains("chay-tu-xa.sh");
         }
         // Chặn xanh-trên-tập-rỗng: đổi tên dấu kết thúc heredoc thì bài này phải ĐỎ, không phải im lặng đạt.
+        // ⚠ Số ĐÚNG, ⛔ "≥": thêm/bớt một khối từ xa là việc phải ai đó nhìn thấy. 4 → 5 ở WS-71 (19/09) khi
+        //   bước "Chụp cấu hình đang chạy" ra đời (T11.9).
         assertThat(dem)
-                .as("Không tìm thấy khối heredoc nào — regex đã lỗi thời, SỬA bài kiểm")
-                .isEqualTo(4);
+                .as(
+                        "Đếm được %d khối heredoc REMOTE, kỳ vọng 5 (chup-cau-hinh · pg-dump · trien-khai · collation ·"
+                                + " quay-lui). 0 ⇒ regex đã lỗi thời, SỬA bài kiểm; số khác ⇒ cập nhật danh sách này",
+                        dem)
+                .isEqualTo(5);
     }
 
     @Test
