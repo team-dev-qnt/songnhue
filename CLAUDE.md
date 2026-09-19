@@ -46,7 +46,7 @@ Khi mâu thuẫn: `architecture-review.md` > `function-spec.md` / `implement.md`
 
 ## Tech stack (đã chốt — không tự ý đổi)
 
-PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) + React 19/Vite/AntD 6 (admin — nâng 18/09/2026, WS-67) · **Không Redis (v1)** — cache in-process (Caffeine) + bảng `hydro_latest`; denylist ở DB · **DB-backed job queue + ShedLock (giữ sẵn, bật khi ≥2 node)** · **Worker in-process (v1)** · MinIO · ECharts · Leaflet/MapLibre + OSM · Flyway · Auth: access token 30' + refresh rotation httpOnly cookie · **Modular Monolith 1 node (v1), stateless để thêm node = đổi cấu hình** · ArchUnit enforce boundary.
+PostgreSQL 16 + PostGIS · Spring Boot 4.1.1 (Java 21 — nâng từ 3.x ngày 09/09/2026, T11.69) · Next.js (public, SSR/ISR) + React 19/Vite/AntD 6 (admin — nâng 18/09/2026, WS-67) · **Không Redis (v1)** — cache in-process (Caffeine) + bảng `hydro_latest`; denylist ở DB · **DB-backed job queue + ShedLock (giữ sẵn, bật khi ≥2 node)** · **Worker in-process (v1)** · MinIO · ECharts · Leaflet/MapLibre + OSM · Flyway · Auth: access token 30' + refresh rotation httpOnly cookie · **Modular Monolith 1 node (v1), stateless để thêm node = đổi cấu hình** · ArchUnit enforce boundary.
 
 ## Quy tắc bất di bất dịch khi code
 
@@ -74,9 +74,10 @@ PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) 
 **Phase "Tài liệu hệ thống"** ✅ xong 12/8/2026 — BOQ đợt 1 (A–F) + đợt 2 (G) đã đóng và đồng bộ vào `function-spec.md` **v2.2**.
 **Phase 0 — Core Platform** ✅ 10/11 hạng mục. **WS-11 (Deploy)**: staging đã chạy thật, đường ống CD đóng (§10.50→§10.55). ⭐ **6/9 — đường production đã nối xong** (T11.86): CD Production nay **tự chạy trên push vào `production`**; VPS-1 `27.71.16.154` đã dựng phần host (T11.35, `deploy/host-prepare.sh` chạy thật 2 lượt); 5 secret `PROD_*` + biến kho `PUBLIC_SITE_URL` đã đặt và đo lại (T11.7, T11.7-a). ⚠ **Từ 08/09 production là `https://thuyloisongnhue.vn`** (T11.94; `gh variable list` 14/09 ⇒ `PUBLIC_SITE_URL=https://thuyloisongnhue.vn`) — các số đo `songnhue.com` bên dưới là của ngày 7/9. ⭐ **7/9 — production ĐANG CHẠY THẬT**: `https://songnhue.com` **200**, `www` 200, `admin` 200, **6/6 container healthy**, 3 chứng chỉ TLS (apex 2 SAN, hạn 6/12), collation `icu=vi-VN` xanh, **55/55 migration** 0 hỏng, sitemap 19 URL **0 lần `localhost`** (⇒ T11.7-a đóng trọn). Nghiệm thu §9 **9/10** — phép 9 (tải tệp về, phép DUY NHẤT chứng minh `MINIO_ENDPOINT` đúng) chờ có tệp đầu tiên. ⬜ Còn: **quay lui thật (DOD0.21)** · mã số thuỷ văn (chờ Công ty) · bật lịch sao lưu · lịch gia hạn TLS cho **staging** (T11.88 — hạn 22/11, chưa có).
 **Phase 1 — CMS & master data công trình** ✅ **xong 24/8/2026** — WS-12→WS-23 đóng đủ, **16/17 mục DoD** có phép kiểm đứng sau.
-**Phase 2 — `hydro` + MOD-01 phần còn lại** ✅ **xong phần mã 8/9/2026** — DoD **19/22**. Ba mục còn lại ⛔ **không phải mã**, nên ⛔ **không chặn Phase 3**: `DOD2.9` cần **VM-3** · `DOD2.21` cần **7 ngày lịch liên tục** (T37.1) · `DOD2.22` load test 200 CCU (T37.2). ⇒ Đồng hồ DOD2.21 nên bấm sớm nhất có thể.
+**Phase 2 — `hydro` + MOD-01 phần còn lại** ✅ **xong phần mã 8/9/2026** — DoD **19/22**. Ba mục còn lại ⛔ **không phải mã**, nên ⛔ **không chặn Phase 3**: `DOD2.9` cần một lượt bắn chuông thật trên **VPS-2** (VM-3 đã gộp vào VPS-2 — T61.16) · `DOD2.21` cần **7 ngày lịch liên tục** (T37.1) · `DOD2.22` load test 200 CCU (T37.2). ⇒ Đồng hồ DOD2.21 nên bấm sớm nhất có thể.
 ✅✅✅ **PHASE 3 ĐÃ GỘP VÀO `dev` 14/09/2026** — PR #132, commit `2c3b8a1` (**Squash** ⇒ 1 cha ⇒ luật 22: nhánh nguồn đã CHẾT). CI trên `dev` sau gộp `34829579535` **success**. Số đọc từ **CI thật**, ⛔ không phải ở máy: **1811 testcase BE** (core 283 · content 54 · hydro 225 · operations 55 · app 1194) · **0 đỏ** · **74 migration / 74 vân tay** · mã lỗi **119 = 119** (đếm độc lập hai phía) · **1158 dòng** sổ. ⭐ Gốc chung `dev ↔ staging` **còn nguyên** (`kiem-goc-chung.sh` thoát 0) ⇒ lượt đề bạt hợp nhất sạch — **dùng merge commit, ⛔ không squash** (§10.72).
-🟨 **PHASE 4 MỞ ĐƯỢC** — kế hoạch ở **`.claude/phase4-plan.md`**. ⛔⛔ Việc ĐẦU TIÊN ⛔ không phải viết mã mà là **chuỗi đề bạt `dev → staging → production`** (`T60.13`): production tụt **15 commit** (đo lại 14/09 tối sau `git fetch`), và một trong số đó mang bản vá poller ⇒ **quy tắc 18 — mỗi ngày chậm là một ngày mất số liệu VĨNH VIỄN**. Cọc dài nhất `T37.1` đòi **7 ngày lịch** và ⛔ không bấm giờ được trước lượt đề bạt. ⭐ **PR #133 `dev → staging` đã xanh 12/12, `MERGEABLE`**; staging mang bản vá poller **từ 11/09** mà chưa ai đo nó ghi được byte chưa (`T61.2` — đo TRƯỚC khi đề bạt production).
+⭐⭐ **19/09 (WS-68) — lượt đề bạt dưới đây ĐÃ CHẠY**: #133 → staging 17/09 · #168 → production 18/09 · #171 → staging 19/09; production nay tụt **4** commit (#167 · #170 · #169 + một bump) ⇒ chặng kế tiếp là `T68.2`. ⛔⛔ Việc gấp nhất nay là **ĐO** poller production (`T61.2` · DOD4.2) — bản vá chạy từ 18/09 mà chưa ai đo. Đối chiếu toàn sổ 19/09: **93/110** dòng mở mang ít nhất một câu đã sai, 44 nợ ẩn mở dòng `T68.x` (khối WS-68 của sổ); kế hoạch trả WS-69 → WS-78, mỗi WS đo lại trên `origin/dev` trước khi viết.
+🟨 **PHASE 4 MỞ ĐƯỢC** — kế hoạch ở **`.claude/phase4-plan.md`**. ⛔⛔ Việc ĐẦU TIÊN ⛔ không phải viết mã mà là **chuỗi đề bạt `dev → staging → production`** (`T60.13`): production tụt **15 commit** (số 14/09 — ⚠ hết hạn, xem dòng trên), và một trong số đó mang bản vá poller ⇒ **quy tắc 18 — mỗi ngày chậm là một ngày mất số liệu VĨNH VIỄN**. Cọc dài nhất `T37.1` đòi **7 ngày lịch** và ⛔ không bấm giờ được trước lượt đề bạt. ⭐ **PR #133 `dev → staging` đã xanh 12/12, `MERGEABLE`**; staging mang bản vá poller **từ 11/09** mà chưa ai đo nó ghi được byte chưa (`T61.2` — đo TRƯỚC khi đề bạt production).
 ⭐⭐ **WS-61 (14/09) — đối chiếu kế hoạch Phase 4 với sổ**: bản đầu liệt kê **12** việc trong khi sổ có **122** dòng mở ⇒ **26 dòng đã xong mà chưa tick** (lật kèm bằng chứng) và **9 chỗ hổng** kế hoạch ⛔ không nhắc — nặng nhất: **ClamAV ⛔ chạy ở môi trường nào** (mọi tệp tải lên, gồm hồ sơ CBNV, là `SKIPPED` — `T61.4`) · **⛔ có Alertmanager** (Prometheus tính cảnh báo mà ⛔ gửi đi đâu — `T61.5`) · **runbook xoay khoá tắt âm thầm chống trùng CCCD** (`T61.11`) · kho có **0** kịch bản load test (`T61.6`, nay đã viết `tools/tai-thu/`) · ⛔⛔ **mọi xô hạn mức khoá theo IP** trong khi chú thích trong mã khai *"cả Công ty ra Internet qua một IP NAT"* ⇒ 50 cán bộ chung **100 lượt/phút**, tab dashboard tự gọi ~2–3 lượt/phút lúc nghỉ (`T61.17` — **chặn go-live nếu NAT là thật**, chờ QuanTran đo). Việc chia theo chủ ở **`.claude/phase4-tracking-tmp.md`** (tệp TẠM; §B là lệnh cụ thể cho QuanTran — phía phát triển ⛔ SSH).
 
 ✅✅ **PHASE 3 XONG PHẦN MÃ 14/09/2026.** Hai nhóm: **D (HRM)** đủ 9/9 chức năng CN-04.1→04.9, và
@@ -150,7 +151,7 @@ sai, sửa 10/09 — T52.8). Đo trên CSDL staging cùng ngày: `constructions`
 
 **WS-25 — Đầu trang thân thiện + kiểm kê "cấu hình được từ admin"** ✅ **28/8** (§10.62). Thanh điều hướng **đo được là tràn 1454/1192px trên mọi màn hình** (`flex-wrap` che đi) và mục cấp 1 kiểu `NONE` là nút không hành vi → không mở được menu con trên máy tính bảng — cả hai nằm trong §10 checklist *"Responsive"*. Kiểm kê tìm ra **6 cột/khoá/tham số thiếu một nửa cặp đọc–ghi** (4 trong số đó do WS-24 tạo ra **một ngày trước**) + 4 khoá `settings` không ai đọc. **21/24 task đóng**; 3 nợ có số đo: T25.22 (cache cổng không xoá được từ `core`/`operations` — trễ 5') · T25.23 (25 hex ở admin-app) · ~~T25.24~~ đã đóng 27/8.
 
-⬜ **DoD còn treo**: **DOD1.17** trang chủ < 3s (NFR-02) — nay đo được trên staging có nội dung thật · **DOD0.21** quay lui — ⚠ **câu cũ ở đây thiếu chính xác** (sửa 14/09): đường quay lui **ĐÃ chạy thật và thoát success** ngày 27/8 (run 33086135148), nhưng đó là một lượt **⛔ không có gì để quay lui** — `migrator` chạy TRƯỚC `up -d` nên deploy dừng trước khi chạm container nào. Nó chứng minh **đường đi thông**, ⛔ chưa chứng minh nó **dựng lại được một bản đã bị thay**. Muốn đóng: một lượt hỏng **SAU** bước `up -d` rồi đo `Created` của container quay về mốc cũ.
+⬜ **DoD còn treo**: **DOD1.17** trang chủ < 3s (NFR-02) — nay đo được trên staging có nội dung thật · **DOD0.21** quay lui — ⚠ **câu cũ ở đây thiếu chính xác** (sửa 14/09): đường quay lui **ĐÃ chạy thật và thoát success** ngày 27/8 (run 33086135148), nhưng đó là một lượt **⛔ không có gì để quay lui** — `migrator` chạy TRƯỚC `up -d` nên deploy dừng trước khi chạm container nào. Nó chứng minh **đường đi thông**, ⛔ chưa chứng minh nó **dựng lại được một bản đã bị thay**. Muốn đóng: một lượt hỏng **SAU** bước `up -d` rồi đo **ID ảnh** quay về ID đã ghi + nginx healthy + trang chủ 200 (⚠ sửa 19/09: *"`Created` quay về mốc cũ"* ⛔ đo được — container tạo lại luôn mang `Created` MỚI). ⛔⛔ Lượt 17/09 chính là phép thử ấy và quay lui **THẤT BẠI**: nó chỉ đổi ảnh, ⛔ trả lại cấu hình `deploy/` đã rsync (`T11.9`) — phải vá trước khi diễn tập.
 
 ✅ **Staging đã dựng lại cluster 26/8** (T11.3-b) — `i | collate=C.UTF-8 | icu=vi-VN`, vân tay số dòng khớp từng bảng, 6/6 container healthy, 4/4 smoke test xanh trên site thật, trang chủ 11 liên kết đều là slug thật. Lượt khôi phục ấy tìm ra **T7.13-a** — đường quay lui dữ liệu duy nhất của hệ vốn khôi phục ra một CSDL ứng dụng không đọc nổi (§10.58).
 
@@ -519,7 +520,7 @@ bấm nút *Sửa* và ⛔ có cách nào gọi tên nó. Nợ ấy ⛔ phải c
 xuất Word điền thẳng vào mẫu Công ty, 0 phụ thuộc mới). Tài liệu về ⛔ đảo chốt nào ⇒ **vế tưới tiêu vẫn
 PENDING**. ✅ **Gộp `dev` 19/09** (#167, `43c525d`) · Công ty **trả lời open issue 19/09** ⇒ `function-spec.md`
 **CN-02.12** + `business-open-questions.md` **Phần I-C** (⛔ nghiệm thu mở lại các dòng ✅ ở đó). ⬜ Còn: nhập liệu
-(T66.13) chặn theo **T66.14** — OI-BC10 cho danh sách Xí nghiệp THỨ BA, khác cả hai danh sách của OI-05.
+(T66.13). ✅ **T66.14 đóng 20/09** — danh sách Xí nghiệp là dữ liệu Công ty tự nhập trên `/quan-tri/don-vi`, ⛔ còn chặn bước nào.
 ⭐⭐ **18–19/09: WS-67 — React 18 → 19 · antd 5 → 6** (PR **#169**, thay Dependabot #149/#150; **rebase lên `dev` sau
 #167/#170 ngày 19/09**). 252 chỗ API khai tử → **0**, đo bằng `@typescript-eslint/no-deprecated` (nay là luật lint của
 `admin-app`) · lockfile **MỘT** bản React (`PhuThuocNoiBoTest`) · bộ kiểm FE 170 s → 76 s. ⛔⛔ **Đi đường người dùng thật
@@ -529,14 +530,14 @@ QuanTran) · **wall mode CHƯA TỪNG hiện ra** dù T23.10 đã tick từ phas
 của wall vô hình (T67.8). Bản vá nằm trong #169 ⇒ **chỉ hết trên staging/production sau lượt đề bạt**. ⬜ `T67.4` (`List`,
 8 tệp) · lượt đo đa trình duyệt vế quản trị trên staging thuộc `T61.29`. `make ci-local` sau rebase thoát **0** (⚠ số ở MÁY):
 BE **2050** (core 348 · content 55 · hydro 229 · operations 80 · app 1338) · 0 đỏ · FE **558**/88 + **399**/46.
-⬜⬜ **`T63.11` — QuanTran đang soạn tài liệu BÁO CÁO + TƯỚI TIÊU (17/09), PENDING** *(vế Báo cáo nhanh chống úng đã xong — dòng ngay trên; còn tưới tiêu · 17 mã cũ · Báo cáo nhanh chống hạn T66.16)*. ⛔ đoán trước, ⛔ tự chế bố cục. ⛔⛔ Vế
+⬜⬜ **`T63.11` — QuanTran đang soạn tài liệu BÁO CÁO + TƯỚI TIÊU (17/09), PENDING** *(vế Báo cáo nhanh chống úng đã xong — dòng ngay trên; còn tưới tiêu · 14 mã cũ (đếm lại 19/09 — dòng dưới) · Báo cáo nhanh chống hạn T66.16)*. ⛔ đoán trước, ⛔ tự chế bố cục. ⛔⛔ Vế
 **tưới tiêu ⛔ phải một khoảng trống — nó là vùng đã bị CẮT có chủ đích** (chốt **A1 · B5 · F3 · G2**), và kho đang khai điều
 ngược lại ở **năm** chỗ đo được (`BC_04` `khaDung=false` + `OPS-2023` *"bỏ vĩnh viễn"* · `BC-07` bỏ · trường *Diện tích tưới
 tiêu (ha)* bỏ · khu tưới/lưu vực chỉ là **trường văn bản tự do**, ⛔ CRUD ⛔ bảng `irrigation_zones` ⛔ GIS · chỉ tiêu giờ
 chạy máy/điện năng/m³ bơm ⛔ cần). ⇒ Khi tài liệu về, việc ĐẦU TIÊN ⛔ phải viết mã mà là **đối chiếu với bốn chốt ấy và nói
 rõ chốt nào bị đảo** — đảo một chốt là mở lại **bảng dữ liệu**, tức migration + danh mục + phân quyền + báo cáo. ⬜ Vế **báo
-cáo** là phần *"đã làm theo custom requirement"* cần UPDATE: **17 mã** đang chạy có bố cục **do phía phát triển tự đề xuất**
-(`docs/report-templates-proposal.md`), ⛔ mẫu nào của Công ty duyệt, và cả 17 mới chỉ xuất **CSV** (bản in chờ **G10**;
+cáo** là phần *"đã làm theo custom requirement"* cần UPDATE: **14 mã** đang chạy (đếm lại 19/09: BC-05 · 06 · 09 · 10 · 11 · 12 · 13 + BCNS-01→06 · 08; BC-01→04 và BCNS-07 là `khaDung=false`) có bố cục **do phía phát triển tự đề xuất**
+(`.claude/report-templates-proposal.md`), ⛔ mẫu nào của Công ty duyệt, và cả 14 mới chỉ xuất **CSV** (bản in chờ **G10**;
 **T42.14** — kho ⛔ có bộ kết xuất PDF/XLSX nào — vẫn mở). ⇒ Đối chiếu **từng cột của từng mã**, mở task **theo mã**.
 ⚠⚠ **Lượt `ci-local` SAU commit T48.11 thoát 2, và nguyên nhân nằm NGOÀI kho** (`T63.14`): ba lượt chạy lại cho **ba tệp
 đỏ KHÁC NHAU** — `importModal` → `dangXuatXoaDemTruyVan` → `soanBaiVongKhuHoi` — cả ba `Test timed out in 15000ms`, ⛔ tệp
@@ -608,7 +609,7 @@ lệch múi giờ sau khi cài lại Windows"* — và `NhapTaySoDoModal` là **
 một số đo đóng vào sai khung 10 phút là **sai vĩnh viễn**). Vá theo **tiền lệ có sẵn** `DateRangeFilter` (`dayjs().tz(APP_TIMEZONE)`).
 ⭐⭐ **Bánh cóc: ghim `env: { TZ: 'UTC' }`** ở `admin-app/vite.config.ts` + `public-web/vitest.config.mts` ⇒ lượt chạy ở máy
 **dựng lại được** điều kiện runner; đo được là có hiệu lực (cùng bản phá, chạy ở `TZ=+07` nay **ĐỎ**). ⛔ Ghim `Asia/Ho_Chi_Minh` —
-ghim vào đúng múi giờ của sản phẩm là làm lớp lỗi ấy **vô hình trở lại**. ⬜ Còn **12** nơi `dayjs()` trần / 8 tệp (trần chỉ-được-giảm).
+ghim vào đúng múi giờ của sản phẩm là làm lớp lỗi ấy **vô hình trở lại**. ✅ Đo 19/09: **0** lời gọi `dayjs()` trần trong mã sản phẩm ngoài chính hàm gốc `shared/format.ts:69` (`dayjs().tz(APP_TIMEZONE)`) — luật ESLint `frontend/eslint.config.mjs:134` chặn tái phát.
 
 
 ⭐⭐ **Đo lại 16/09/2026 sau WS-64 (Phase 4 đợt 8 — mở phạm vi bộ canh · biểu mẫu Menu) — `make ci-local` thoát 0**,
@@ -830,7 +831,7 @@ là **nhập được ngay**. Thư gửi Công ty gộp cả ba: `docs/de-nghi-c
 
 ✅ **G14 đóng 27/8** — cây danh mục + menu nhận qua §3 văn bản nghiệm thu, dựng ở `V202608271031`.
 
-⬜ **Mở mới 27/8 — `OI-01`→`OI-10`** (§9 của `docs_origin/nghiem_thu_phase1.md`). Tài liệu đề nghị phía phát triển trả lời **ngay trong tuần** ba mục kỹ thuật `OI-01`/`OI-02`/`OI-07`; câu trả lời đo được đã có ở `master-tracking.md` T24.23→T24.25. Chặn nghiệm thu nặng nhất: **`OI-03`** (danh sách 10 cống trục chính) · **`OI-05`** (7 hay 8 Xí nghiệp — Bố cục ghi 7, danh mục công trình có 8; ⚠ 19/09 thêm danh sách thứ ba từ Báo cáo nhanh — T66.14). ✅ **`OI-10` đóng một nửa 19/09**: Form 2 chống úng = nhập trực tuyến (CN-02.12); Form 1 chống hạn chờ mẫu (T66.16).
+⬜ **Mở mới 27/8 — `OI-01`→`OI-10`** (§9 của `docs_origin/nghiem_thu_phase1.md`). Tài liệu đề nghị phía phát triển trả lời **ngay trong tuần** ba mục kỹ thuật `OI-01`/`OI-02`/`OI-07`; câu trả lời đo được đã có ở `master-tracking.md` **T24.28→T24.30** (⚠ sửa 19/09: bản cũ trỏ sai ID T24.23→T24.25). Chặn nghiệm thu nặng nhất nay còn **`OI-03`** (danh sách 10 cống trục chính); ✅ **`OI-05` ĐÓNG 20/09** — danh sách Xí nghiệp là **dữ liệu động** có CRUD, ⛔ phải quyết định của mã (T66.14). ✅ **`OI-10` đóng một nửa 19/09**: Form 2 chống úng = nhập trực tuyến (CN-02.12); Form 1 chống hạn chờ mẫu (T66.16).
 
 Gửi kèm `report-templates-proposal.md`. Chi tiết từng mục: `business-open-questions.md` Phần II.
 
@@ -844,7 +845,7 @@ Gửi kèm `report-templates-proposal.md`. Chi tiết từng mục: `business-op
 | Bảo mật kho | ✅ secret scanning · push protection · non-provider patterns · Dependabot alerts + security updates — cả 5 `enabled`, `secret-scanning/alerts` trả **0** (T11.40) |
 | Cổng secret của lượt triển khai | ✅ thiếu secret ở production nay **DỪNG ĐỎ**. Trước đó cảnh báo rồi bỏ qua → lượt CD Production xanh trọn vẹn mà không byte nào chạm máy chủ (T11.7-b, §10.57) |
 | Environment `production` | ✅ **6/9: đủ 5 secret `PROD_*`** (đo lại API `total_count: 5`) · **gỡ required reviewer** và cùng lượt đặt `deployment_branch_policy` chỉ nhánh `production` — gỡ một mình là mở `PROD_*` cho mọi nhánh (T11.7, T11.86) |
-| Biến kho `PUBLIC_SITE_URL` | ⭐ **6/9 đã đặt** = `https://songnhue.com` → ⚠ **08/09 đổi sang `https://thuyloisongnhue.vn`** (T11.94, đo lại 14/09). ⛔ **Chưa đóng T11.7-a**: `NEXT_PUBLIC_*` nướng LÚC BUILD, nên image đang chạy vẫn mang chuỗi rỗng — chỉ đóng sau một lượt build mới trên `dev` rồi đề bạt |
+| Biến kho `PUBLIC_SITE_URL` | ⭐ **6/9 đã đặt** = `https://songnhue.com` → ⚠ **08/09 đổi sang `https://thuyloisongnhue.vn`** (T11.94, đo lại 14/09). ✅ T11.7-a đã đóng (sitemap production 0 lần `localhost`). ⚠ Nhưng `SITE_URL` vẫn nướng LÚC BUILD và ảnh dùng chung ⇒ robots/sitemap/canonical của **staging** tự nhận là production (đo 19/09) — `T68.12` |
 
 📌 Cùng một hình dạng: **một cổng kiểm tồn tại trong mã nhưng chưa có hiệu lực ở nơi nó phải chặn.**
 Lệnh áp nợ #27 nằm sẵn trong `branch-protection.md` §6.2 **từ 15/8** — không ai chạy, và không ai
