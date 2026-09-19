@@ -116,6 +116,7 @@ cáo nhanh (WS-66).
 | `T61.4` | ✅ chốt 14/09: **cả hai máy**, staging `ConcurrentDatabaseReload no` | xem A7 |
 | `T50.13` | ✅ chốt 14/09: staging **dùng chung cấu hình SMTP của production** | chép khối `SMTP_*` từ `.env` VPS-1 sang VPS-2 |
 | `T69.6` | ⛔ **Quyền append-only trên CẢ HAI máy** — staging rất có thể vẫn cho `songnhue_app` SỬA/XOÁ nhật ký kiểm toán từ lượt khôi phục 26/08 (đo 08/09 ra `arwd`; sổ ⛔ dòng nào ghi đã siết lại). Cơ chế: `architecture-review.md` §12.3 | mỗi máy: `q "SELECT has_table_privilege('songnhue_app','audit_logs','UPDATE'), has_table_privilege('songnhue_app','audit_logs','DELETE'), has_table_privilege('songnhue_app','hydro_raw_logs','UPDATE'), has_table_privilege('songnhue_app','audit_logs','INSERT')"` ⇒ đạt là `f\|f\|f\|t`. Lệch ⇒ cắt ĐÚNG khối ⑥ (tự chứa: REVOKE + phép chốt RAISE) rồi nạp một giao dịch bằng `songnhue_owner`: `sed -n '/^-- ⑥ /,/^-- ⑦ /p' /opt/songnhue/backup/di-tru/sau-khoi-phuc-production.sql > /tmp/khoi6.sql && grep -c 'REVOKE' /tmp/khoi6.sql` (≥ 6) → `docker exec -i -e PGPASSWORD="$(grep '^DB_MIGRATION_PASSWORD=' /opt/songnhue/.env \| cut -d= -f2-)" songnhue-postgres psql -U songnhue_owner -d songnhue --single-transaction -v ON_ERROR_STOP=1 -f - < /tmp/khoi6.sql` (phải in `⑥ moi bang append-only da dung quyen`) → `rm /tmp/khoi6.sql` → đo lại |
+| `T71.7` · `T11.95` | Bản sao `.env` cũ nằm cạnh `.env` — `rsync --delete` của CD xoá chúng; bản mới của `dat-bien-b6.sh` ghi vào `~/.songnhue-env-bak/` | cả hai máy: `ls -la /opt/songnhue/.env.bak-* 2>/dev/null` (ghi số tệp — có thể đã mất ở lượt CD 17–19/09) → còn thì `mkdir -m 700 -p ~/.songnhue-env-bak && mv /opt/songnhue/.env.bak-* ~/.songnhue-env-bak/ && chmod 600 ~/.songnhue-env-bak/*` · ⛔ để bản sao nào trong `/var/lib/songnhue/backup` (tài khoản kéo T61.9 chép thư mục ấy sang VPS-2) |
 | `T61.17` | **Xác nhận**: Công ty ra Internet qua MỘT IP công cộng? | từ một máy trong mạng Công ty: `curl -s https://api.ipify.org` trên 2–3 máy khác phòng — cùng một số là một NAT |
 
 ### B6. ⛔ TRƯỚC lượt đề bạt mang T61.4/T61.5 — thiếu biến là nginx ⛔ lên
@@ -188,7 +189,7 @@ q "SELECT scan_status, count(*) FROM attachments WHERE created_at > now() - inte
 ### B5. Sau khi A6/A7/A8 gộp và lên staging
 
 `T37.2` load test · `T37.3` LCP từ máy ở Việt Nam (cả lượt ISR nguội) · `DOD2.9` bắn chuông thật ·
-`T61.10` khôi phục vào máy trắng + RTO · `DOD0.21` một lượt hỏng **SAU** `up -d`.
+`T61.10` khôi phục vào máy trắng + RTO · `DOD0.21` một lượt hỏng **SAU** `up -d` — ⭐ từ WS-71 làm được: biến `DIEN_TAP_QUAY_LUI=true` ở environment `staging` → gộp một PR đề bạt → đọc bước quay lui theo `docs/runbook/deploy-hong.md` mục 0 → **xoá biến** (`T71.6`).
 
 **T61.28 ZAP** (sau khi staging lên bản mới): `TARGET_URL=https://staging.songnhue.com ADMIN_URL=https://admin-staging.songnhue.com tools/zap/zap-baseline.sh` — mã thoát 4 ⛔ đọc là sạch (có 429).
 **T61.29 tương thích**: tạo một tài khoản đo trên staging ⛔ 2FA, quyền đọc các màn hình chính, rồi `TUONG_THICH_PUBLIC_URL=… TUONG_THICH_ADMIN_URL=… TUONG_THICH_ADMIN_USER=… TUONG_THICH_ADMIN_PASS=… make tuong-thich`.

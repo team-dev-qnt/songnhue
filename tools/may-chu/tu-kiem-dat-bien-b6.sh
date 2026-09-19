@@ -44,6 +44,10 @@ lenh="$*"
 [[ "$lenh" == *app.jar* ]] && { echo "1 0"; exit 0; }
 # Lệnh thật mang sẵn đối số đường dẫn `.env`; đổi nó sang tệp giả rồi chạy nguyên văn.
 lenh="${lenh//\/opt\/songnhue\/.env/$tep}"
+# ⛔ `$HOME` của máy giả nằm TRONG hộp cát: lệnh sao lưu ghi vào `~/.songnhue-env-bak` — để nguyên
+#   HOME thật là mỗi lượt tự kiểm rải một bản sao `.env` giả vào thư mục nhà của người chạy.
+export HOME="$SAN/nha-$(basename "$tep" .env)"
+mkdir -p "$HOME"
 eval "$lenh"
 # ⛔⛔ `ssh` THẬT hút sạch stdin của nơi gọi (nó chuyển tiếp sang máy ở xa). Máy giả PHẢI
 #    làm đúng thế, nếu ⛔ thì bài này xanh trên cả bản script mang lỗi §10.60 — đo được:
@@ -94,6 +98,13 @@ kiem "METRICS_ALLOW_IP VPS-1 = IP đo trên VPS-2" "grep -q '^METRICS_ALLOW_IP=2
 kiem "⛔ chép SMTP khi bản staging chưa biết chuyển hướng thư" "! grep -q '^SMTP_PASSWORD=' '$SAN/staging.env'"
 kiem "⛔ in secret ra màn hình" "! grep -qE 'mat-khau-ung-dung-that|hooks.slack.com/services|hc-ping.com/' '$SAN/ra'"
 kiem "mã thoát 3 (còn thiếu SMTP_*)" "[ $ma -eq 3 ]"
+# T11.95 — bản sao `.env` nằm NGOÀI /opt/songnhue (rsync --delete của CD từng xoá nó) và ⛔ trong thư mục
+# sao lưu (tài khoản kéo chép thư mục ấy sang VPS-2). Thư mục 700, tệp 600, cả hai máy.
+for may in prod staging; do
+  kiem "sao lưu .env $may nằm ở ~/.songnhue-env-bak, tệp 600, thư mục 700" \
+    "[ \"\$(ls \"$SAN/nha-$may/.songnhue-env-bak\" 2>/dev/null | grep -c '^env\\.bak-[0-9]\\{14\\}\$')\" = 1 ] && [ \"\$(stat -f %Lp \"$SAN/nha-$may/.songnhue-env-bak\" 2>/dev/null || stat -c %a \"$SAN/nha-$may/.songnhue-env-bak\")\" = 700 ] && [ \"\$(stat -f %Lp \"$SAN/nha-$may/.songnhue-env-bak\"/env.bak-* 2>/dev/null || stat -c %a \"$SAN/nha-$may/.songnhue-env-bak\"/env.bak-*)\" = 600 ]"
+done
+kiem "⛔ bản sao .env nào nằm cạnh .env giả (vị trí CŨ, rsync sẽ xoá)" "[ \"\$(ls \"$SAN\" | grep -c '\\.env\\.bak-')\" = 0 ]"
 
 (( hong )) && { echo; sed 's/^/   | /' "$SAN/ra"; echo "⛔ TỰ KIỂM ĐỎ"; exit 1; }
 echo "   ✅ tự kiểm xanh"
