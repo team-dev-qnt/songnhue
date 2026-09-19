@@ -26,11 +26,9 @@ import com.songnhue.hydro.domain.PhanLoaiChatLuong;
 import com.songnhue.hydro.domain.QuyTacNghiNgo;
 import com.songnhue.hydro.domain.ReadingQuality;
 import com.songnhue.hydro.domain.SoDoNghiNgo;
-import com.songnhue.hydro.domain.Station;
 import com.songnhue.hydro.infra.HydroLatestRecomputer;
 import com.songnhue.hydro.infra.HydroReadingRepository;
 import com.songnhue.hydro.infra.MeasurementTypeRepository;
-import com.songnhue.hydro.infra.StationRepository;
 import com.songnhue.hydro.infra.SuspectReadingRepository;
 
 /**
@@ -72,7 +70,9 @@ public class HydroReviewService {
     private final SuspectReadingRepository danhSach;
     private final HydroLatestRecomputer latest;
     private final MeasurementTypeRepository loaiChiSo;
-    private final StationRepository stations;
+    /** T73.1 — tra điểm đo qua {@link StationService#get}: một cửa, có {@code ScopeGuard} (403 + dấu vết). */
+    private final StationService stations;
+
     private final HydroSettings settings;
     private final WorkflowPort workflow;
     private final NguongAlertService nguongAlert;
@@ -85,7 +85,7 @@ public class HydroReviewService {
             SuspectReadingRepository danhSach,
             HydroLatestRecomputer latest,
             MeasurementTypeRepository loaiChiSo,
-            StationRepository stations,
+            StationService stations,
             HydroSettings settings,
             WorkflowPort workflow,
             NguongAlertService nguongAlert) {
@@ -276,9 +276,7 @@ public class HydroReviewService {
     public record KhoaBanGhi(UUID diemDoId, String maLoaiChiSo, Instant mocDo) {}
 
     private HydroReading nap(KhoaBanGhi khoa) {
-        Long stationId = stations.findByPublicIdAndDeletedAtIsNull(khoa.diemDoId())
-                .map(Station::getId)
-                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
+        Long stationId = stations.get(khoa.diemDoId()).getId();
         Long typeId = loaiChiSo
                 .findByCodeAndDeletedAtIsNull(khoa.maLoaiChiSo())
                 .map(MeasurementType::getId)

@@ -323,6 +323,54 @@ def test_cau_tra_loi_noi_ra_no_doc_tep_nao():
     )
 
 
+
+# ⭐ T73.4 (WS-73) — mỗi mã ASVS ở §16 của bản tự đánh giá phải có ÍT NHẤT một dòng sổ giữ.
+#
+#   Vì sao ở ĐÂY chứ ⛔ ở bộ kiểm backend: job `tracking` chạy ở MỌI PR (⛔ bộ lọc đường dẫn), còn vế backend
+#   của bộ lọc CI cố ý ⛔ bao `master-tracking.md` (§10.63). Đặt ở backend là bộ canh ⛔ chạy đúng lúc một
+#   dòng sổ bị sửa mất mã — và `skipped` được tính là ĐẠT (luật 24).
+#
+#   Vì sao cần: ASVS 8.2.3 từng MỒ CÔI (⛔ nằm trong T61.48 lẫn T61.49 — vá muộn ở T63.3); WS-68 đếm thêm 6
+#   mã ⛔ dòng nào giữ (T68.40); đo lại lúc dựng bộ canh này: 24/57 mã ⛔ dòng sổ nào nhắc ĐÚNG MÃ (sổ viết
+#   "2.1.x", hoặc tả việc mà ⛔ ghi mã). Một khoảng trống ⛔ có dòng sổ là một khoảng trống ⛔ ai làm.
+ASVS_DOC = os.path.join(_repo_root(), "docs", "bao-mat", "asvs-l1-tu-danh-gia.md")
+MA_ASVS = re.compile(r"(?<![\d.])(\d{1,2}\.\d{1,2}\.\d{1,2})(?![\d.])")
+DONG_TASK = re.compile(r"^- \[[ x~]\] ")
+
+
+def _ma_mo_coi(van_ban_asvs, van_ban_so):
+    """Mã ASVS ở §16 mà ⛔ dòng task nào của sổ nhắc đúng mã ấy. Trả (tập mã §16, danh sách mồ côi)."""
+    i = van_ban_asvs.index("## 16.")
+    j = van_ban_asvs.index("## 17.", i)
+    ma = sorted(set(MA_ASVS.findall(van_ban_asvs[i:j])))
+    dong = [d for d in van_ban_so.split("\n") if DONG_TASK.match(d)]
+    da_nhac = set()
+    for d in dong:
+        da_nhac.update(MA_ASVS.findall(d))
+    return ma, [m for m in ma if m not in da_nhac]
+
+
+def test_moi_ma_asvs_muc_16_co_dong_so_giu():
+    with open(ASVS_DOC, encoding="utf-8") as f:
+        asvs = f.read()
+    with open(TRACKING_FILE_ABS, encoding="utf-8") as f:
+        so = f.read()
+    ma, mo_coi = _ma_mo_coi(asvs, so)
+    assert len(ma) >= 50, f"chống tập rỗng (luật 7): §16 chỉ bóc được {len(ma)} mã ASVS — đổi tiêu đề mục?"
+    assert not mo_coi, (
+        f"{len(mo_coi)} mã ASVS ở §16 ⛔ dòng sổ nào giữ: {', '.join(mo_coi)} — ghi ĐÚNG MÃ vào dòng task đang "
+        "xử lý nó, hoặc mở dòng mới"
+    )
+
+
+def test_tu_kiem_ma_mo_coi():
+    """Luật 1 — bộ canh phải phân biệt được hai trạng thái, và ⛔ nhận nhầm tiền tố số (5.2.2 ⛔ khớp 15.2.2)."""
+    asvs = "## 16. Khoảng trống\n- **5.2.2** · **15.2.2** · 2.1.1\n## 17. Giới hạn\n- 9.9.9 ngoài phạm vi\n"
+    so = "- [ ] T1.1: việc | Note: 15.2.2 và 2.1.1\n  câu thường 5.2.2 ⛔ phải dòng task\n"
+    ma, mo_coi = _ma_mo_coi(asvs, so)
+    assert ma == ["15.2.2", "2.1.1", "5.2.2"], ma
+    assert mo_coi == ["5.2.2"], mo_coi
+
 if __name__ == "__main__":
     that_bai = 0
     for ten, ham in sorted(globals().items()):
