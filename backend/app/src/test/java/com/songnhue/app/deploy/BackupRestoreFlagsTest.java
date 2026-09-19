@@ -15,6 +15,8 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import com.songnhue.core.application.backup.KeHoachKhoiPhuc;
+
 /**
  * <b>Bản dump phải mang theo GRANT, và lượt khôi phục phải bỏ được các mục của extension.</b>
  *
@@ -46,14 +48,27 @@ class BackupRestoreFlagsTest {
     /** Ghép từ hai mảnh để chính tệp này không tự khớp vào bộ quét (đã mắc ba lượt trong dự án). */
     private static final String CO_CAM = "--no-" + "privileges";
 
-    private static final List<String> SCRIPT =
-            List.of("deploy/backup/backup.sh", "deploy/backup/pre-deploy-dump.sh", "deploy/backup/restore.sh");
+    private static final List<String> SCRIPT = List.of(
+            "deploy/backup/backup.sh",
+            "deploy/backup/pre-deploy-dump.sh",
+            "deploy/backup/restore.sh",
+            "deploy/backup/khoi-phuc-qua-container.sh");
 
+    /**
+     * ⚠ Phạm vi cũ là {@link #SCRIPT} gõ tay — ba tệp, trong khi {@code khoi-phuc-qua-container.sh} (đường
+     * khôi phục DUY NHẤT chạy được trên máy chủ, T11.92) ⛔ nằm trong đó từ 07/09 tới 19/09. Nay phạm vi do
+     * bộ canh ĐO: mọi script {@code deploy/} gọi {@code pg_dump}/{@code pg_restore} ở dòng mã (luật 28).
+     */
     @Test
-    @DisplayName("⭐⭐ Không script sao lưu/khôi phục nào được dùng `--no-privileges`")
+    @DisplayName("⭐⭐ Không script nào gọi pg_dump/pg_restore với `--no-privileges` — phạm vi ĐO, ⛔ gõ tay")
     void khongScriptNaoTuocAcl() {
-        for (String ten : SCRIPT) {
-            assertThat(boChuThich(doc(timTuGocKho(ten))))
+        List<Path> tep = scriptGoiCongCuPostgres();
+        assertThat(tep)
+                .as("chống tập rỗng + phạm vi: phải thấy đủ các script sao lưu/khôi phục đã biết")
+                .extracting(p -> p.getFileName().toString())
+                .contains("backup.sh", "pre-deploy-dump.sh", "restore.sh", "khoi-phuc-qua-container.sh");
+        for (Path p : tep) {
+            assertThat(boChuThich(doc(p)))
                     .as(
                             """
                             `%s` dùng `%s`.
@@ -64,8 +79,166 @@ class BackupRestoreFlagsTest {
                             `permission denied for table users`.
 
                             Đây là đường quay lui DỮ LIỆU duy nhất của hệ (không có PITR).""",
-                            ten, CO_CAM)
+                            p.getFileName(), CO_CAM)
                     .doesNotContain(CO_CAM);
+        }
+    }
+
+    /**
+     * ⛔⛔ T68.3 — khối nạp TRƯỚC phần thân có HAI nơi: {@code KeHoachKhoiPhuc.khoiTruocKhiNap()} (nút M5.11,
+     * chạy trong ảnh app) và {@code deploy/backup/truoc-khi-nap.sql} (hai script shell, chạy trên máy). Ảnh app
+     * ⛔ đọc được tệp trong {@code deploy/}, script ⛔ đọc được lớp Java — nên phải có một phép kiểm nhớ hộ
+     * (luật 14). So TỪNG BYTE: một khác biệt nào cũng là hai đường khôi phục cho hai CSDL khác nhau.
+     */
+    @Test
+    @DisplayName("⛔⛔ `truoc-khi-nap.sql` trùng TỪNG BYTE với KeHoachKhoiPhuc.khoiTruocKhiNap()")
+    void sqlTruocKhiNapTrungJava() {
+        assertThat(doc(timTuGocKho("deploy/backup/truoc-khi-nap.sql")))
+                .as(
+                        """
+                        `deploy/backup/truoc-khi-nap.sql` lệch `KeHoachKhoiPhuc.khoiTruocKhiNap()`.
+
+                        Nút khôi phục M5.11 và hai script shell sẽ nạp hai khối khác nhau. Sinh lại tệp từ lớp \
+                        Java (jshell), ⛔ sửa tay một bên.""")
+                .isEqualTo(KeHoachKhoiPhuc.khoiTruocKhiNap());
+    }
+
+    @Test
+    @DisplayName("⛔⛔ Hai script khôi phục: lọc 3 vế · khối chung · psql MỘT giao dịch · ⛔ pg_restore thẳng vào CSDL")
+    void haiScriptKhoiPhucNapQuaKhoiChung() {
+        for (String ten : List.of("deploy/backup/restore.sh", "deploy/backup/khoi-phuc-qua-container.sh")) {
+            String than = boChuThich(doc(timTuGocKho(ten)));
+            assertThat(than)
+                    .as("`%s` — thiếu một bước của khuôn khôi phục (T68.3)", ten)
+                    .contains("truoc-khi-nap.sql")
+                    .contains("grep -vE '^[0-9]+; +[0-9]+ +[0-9]+ EXTENSION '")
+                    .contains("--single-transaction")
+                    .contains("ON_ERROR_STOP=1")
+                    .contains("has_table_privilege(current_user, 'public.audit_logs', 'UPDATE')");
+            List<String> napThang = lenhNoiDong(than).stream()
+                    .filter(l -> l.contains("pg_restore"))
+                    .filter(l -> l.contains("--dbname") || l.matches(".*\\s-d\\s.*"))
+                    .toList();
+            assertThat(napThang)
+                    .as(
+                            """
+                            `%s` gọi pg_restore THẲNG vào CSDL:
+                            %s
+
+                            `--clean` vấp chỉ mục phân mảnh khi đích đã có dữ liệu (§10.80), và bảng dựng lại \
+                            nhận quyền MẶC ĐỊNH của đích (72 quyền thừa, T68.3). Sinh SQL ra tệp, ghép \
+                            `truoc-khi-nap.sql`, nạp bằng psql trong MỘT giao dịch.""",
+                            ten, String.join("\n", napThang))
+                    .isEmpty();
+        }
+    }
+
+    @Test
+    @DisplayName("Tự kiểm (luật 1): bộ nối dòng thấy `--dbname` nằm ở dòng CON của một lệnh pg_restore nối bằng `\\`")
+    void tuKiemNoiDong() {
+        String cu =
+                """
+                PGPASSWORD="$P" pg_restore \\
+                    --host="$DB_HOST" --port="$DB_PORT" --username="$OWNER" --dbname="$DB_NAME" \\
+                    --no-password --clean --if-exists --no-owner \\
+                    "$SOURCE"
+                echo xong
+                """;
+        assertThat(lenhNoiDong(cu))
+                .as("dạng CŨ của restore.sh (trước 19/09) phải bị thấy là MỘT lệnh mang --dbname")
+                .anyMatch(l -> l.contains("pg_restore") && l.contains("--dbname"))
+                .hasSize(2);
+    }
+
+    /** Ghép các dòng nối bằng {@code \} thành MỘT lệnh — lệnh nhiều dòng thì cờ nằm ở dòng con (luật 2). */
+    static List<String> lenhNoiDong(String than) {
+        List<String> lenh = new ArrayList<>();
+        StringBuilder dang = new StringBuilder();
+        for (String dong : than.split("\n", -1)) {
+            String gon = dong.stripTrailing();
+            if (gon.endsWith("\\")) {
+                dang.append(gon, 0, gon.length() - 1).append(' ');
+                continue;
+            }
+            dang.append(gon);
+            if (!dang.toString().isBlank()) {
+                lenh.add(dang.toString());
+            }
+            dang.setLength(0);
+        }
+        return lenh;
+    }
+
+    private static List<Path> scriptGoiCongCuPostgres() {
+        return scriptTrongDeploy().stream()
+                .filter(p -> {
+                    String than = boChuThich(doc(p));
+                    return than.contains("pg_dump") || than.contains("pg_restore");
+                })
+                .toList();
+    }
+
+    /**
+     * ⛔⛔ T37.8 · T68.3 — phạm vi CŨ của bộ canh này là 3 script, trong khi hai lớp Java cũng dựng lệnh
+     * {@code pg_dump}/{@code pg_restore}: {@code BackupService} (bản sao lưu ĐÊM — chính bản mà lượt khôi
+     * phục thảm hoạ sẽ dùng) và {@code RestoreService} (nút M5.11). Cả hai mang {@code --no-privileges}
+     * suốt tới 19/09/2026, và bộ canh xanh vì ⛔ nhìn thấy chúng — luật 28 đúng hình dạng.
+     *
+     * <p>Phạm vi nay do bộ canh ĐO: mọi tệp {@code src/main/java} có gọi đường dẫn công cụ Postgres.
+     */
+    @Test
+    @DisplayName("⭐⭐ Không lớp Java nào dựng lệnh pg_dump/pg_restore với `--no-privileges` — phạm vi ĐO, ⛔ gõ tay")
+    void khongLopJavaNaoTuocAcl() {
+        List<Path> lop = lopDungLenhPostgres();
+        assertThat(lop)
+                .as("chống tập rỗng: phải thấy ít nhất BackupService + RestoreService")
+                .hasSizeGreaterThanOrEqualTo(2)
+                .anyMatch(p -> p.endsWith("BackupService.java"))
+                .anyMatch(p -> p.endsWith("RestoreService.java"));
+        for (Path tep : lop) {
+            assertThat(viPhamJava(doc(tep)))
+                    .as(
+                            """
+                            `%s` dựng lệnh Postgres với chuỗi `"%s"`.
+
+                            Bản dump tước ACL khôi phục ra một CSDL mà `songnhue_app` ⛔ đọc nổi (§10.58), \
+                            và bản sao lưu ĐÊM của job trong ứng dụng là bản mà lượt khôi phục thảm hoạ sẽ \
+                            dùng. Cờ phải đọc từ `BackupService.CO_DUMP` / `KeHoachKhoiPhuc.CO_SINH_SQL`.""",
+                            tep.getFileName(), CO_CAM)
+                    .isFalse();
+        }
+    }
+
+    @Test
+    @DisplayName("Tự kiểm (luật 1): bộ quét Java BẮT chuỗi trong mã, ⛔ bắt nó trong chú thích / javadoc")
+    void tuKiemQuetJava() {
+        assertThat(viPhamJava("        command.add(\"" + CO_CAM + "\");")).isTrue();
+        assertThat(viPhamJava("List.of(\"--format=custom\", \"" + CO_CAM + "\")"))
+                .isTrue();
+        assertThat(viPhamJava("        // ⛔ " + CO_CAM + " — đã gỡ ngày 19/09")).isFalse();
+        assertThat(viPhamJava("     * <p>⛔ <b>KHÔNG {@code " + CO_CAM + "}</b> (T37.8)"))
+                .isFalse();
+    }
+
+    /** Một chuỗi ký tự Java đúng bằng cờ cấm — chú thích/javadoc nhắc tên cờ ⛔ tính (T46.7). */
+    static boolean viPhamJava(String ma) {
+        return ma.contains("\"" + CO_CAM + "\"");
+    }
+
+    private static List<Path> lopDungLenhPostgres() {
+        Path goc = timTuGocKho("backend");
+        try (Stream<Path> cay = Files.walk(goc)) {
+            return cay.filter(Files::isRegularFile)
+                    .filter(p -> p.toString().endsWith(".java"))
+                    .filter(p -> p.toString().contains("/src/main/java/"))
+                    .filter(p -> {
+                        String noiDung = doc(p);
+                        return noiDung.contains("getPgDumpPath()") || noiDung.contains("getPgRestorePath()");
+                    })
+                    .sorted()
+                    .toList();
+        } catch (IOException e) {
+            throw new IllegalStateException("Không quét được " + goc, e);
         }
     }
 
@@ -143,8 +316,8 @@ class BackupRestoreFlagsTest {
     }
 
     @Test
-    @DisplayName("Ba script đều tồn tại — chặn xanh-trên-tập-rỗng")
-    void baScriptDeuTonTai() {
+    @DisplayName("Bốn script sao lưu/khôi phục đều tồn tại — chặn xanh-trên-tập-rỗng")
+    void cacScriptDeuTonTai() {
         for (String ten : SCRIPT) {
             assertThat(doc(timTuGocKho(ten))).as("`%s` phải có nội dung", ten).hasSizeGreaterThan(500);
         }
