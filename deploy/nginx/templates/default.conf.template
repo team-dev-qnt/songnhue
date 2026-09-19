@@ -45,8 +45,9 @@ map $host $robots_tag {
 }
 
 # ⚠ Hạn mức ở biên là lưới CHỐNG NGẬP, không phải lưới nghiệp vụ. Hạn mức thật
-#   (đăng nhập 5 lần/15', API 100/phút, kết xuất 10/giờ) nằm ở `RateLimitFilter`
-#   phía backend, nơi biết được người dùng là ai. Ở đây chỉ biết IP.
+#   nằm phía backend, nơi biết được người dùng là ai: đăng nhập 30 lượt ⛔ đúng
+#   mật khẩu/15' theo IP (`RateLimitFilter`), API 100/phút và kết xuất 30/giờ
+#   theo người dùng@IP (`HanMucNguoiDungFilter`). Ở đây chỉ biết IP.
 #
 #   ⛔ Cố ý KHÔNG áp hạn mức lên tệp tĩnh. Một trang của cổng công khai kéo hàng
 #      chục tệp cùng lúc, và cả Công ty có thể đi chung MỘT địa chỉ IP công cộng
@@ -56,6 +57,16 @@ map $host $robots_tag {
 limit_req_zone  $binary_remote_addr zone=api_general:10m rate=30r/s;
 limit_req_zone  $binary_remote_addr zone=api_auth:5m     rate=20r/m;
 limit_conn_zone $binary_remote_addr zone=per_ip:10m;
+
+# ⛔ T61.17 (WS-72) — lượt bị chặn theo hạn mức trả 429, ⛔ 503 (mặc định của
+#   nginx). 503 nói "máy chủ ⛔ phục vụ được": lượt tải thử đếm nó vào lỗi 5xx
+#   thay vì vào bi_chan_429 (tools/tai-thu/README.md §2), người đọc log đi tìm
+#   một sự cố ⛔ có thật, và hai biểu mẫu công khai (có thông điệp riêng cho
+#   429) in câu lỗi chung. Đặt ở tầng http để phủ MỌI khối server. Đo 19/09 trên
+#   nginx:1.30-alpine: limit_req và limit_conn đều ra 429 ở cả hai khối server;
+#   bản đối chứng ⛔ có hai dòng này ra 503. NginxHanMucTra429Test canh chỗ đặt.
+limit_req_status  429;
+limit_conn_status 429;
 
 # Log có thời gian phản hồi để về sau còn truy được chậm ở đâu.
 log_format songnhue '$remote_addr - $host "$request" $status $body_bytes_sent '

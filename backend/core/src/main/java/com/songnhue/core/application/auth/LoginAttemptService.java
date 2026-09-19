@@ -12,6 +12,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import com.songnhue.core.application.settings.SettingKeys;
 import com.songnhue.core.application.settings.SettingService;
+import com.songnhue.core.common.ratelimit.RateLimitPolicy;
+import com.songnhue.core.common.ratelimit.RateLimitStore;
 import com.songnhue.core.domain.identity.User;
 import com.songnhue.core.domain.security.SecurityEventType;
 import com.songnhue.core.infra.identity.UserRepository;
@@ -36,16 +38,19 @@ public class LoginAttemptService {
     private final UserRepository users;
     private final SettingService settings;
     private final SecurityEventService securityEvents;
+    private final RateLimitStore hanMuc;
     private final TransactionTemplate requiresNew;
 
     public LoginAttemptService(
             UserRepository users,
             SettingService settings,
             SecurityEventService securityEvents,
+            RateLimitStore hanMuc,
             PlatformTransactionManager transactionManager) {
         this.users = users;
         this.settings = settings;
         this.securityEvents = securityEvents;
+        this.hanMuc = hanMuc;
         this.requiresNew = new TransactionTemplate(transactionManager);
         this.requiresNew.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
@@ -82,6 +87,32 @@ public class LoginAttemptService {
     /** Đăng nhập sai với tên tài khoản không tồn tại — không có gì để đếm, nhưng vẫn phải ghi vết. */
     public void recordFailureForUnknownUser(String username, ClientInfo client) {
         securityEvents.record(SecurityEventType.LOGIN_FAILED, username, null, client, "{\"unknownUser\":true}");
+    }
+
+    /**
+     * Mật khẩu ĐÚNG ⇒ trả lại lượt mà {@code RateLimitFilter} đã tính vào xô {@code LOGIN} của IP này — T61.17
+     * (WS-72).
+     *
+     * <p>⛔⛔ Trước bản vá, xô ấy (30 lượt / 15′ theo IP) đếm MỌI lượt gọi {@code /auth/login}. Chính
+     * {@link RateLimitPolicy#LOGIN} khai <i>"cả Công ty ra Internet qua một IP NAT"</i>, nên người thứ 31 đăng nhập
+     * ĐÚNG trong 15 phút đầu giờ nhận 429 tới hết cửa sổ. Tức là lưới chống dò mật khẩu khoá cả cơ quan.
+     *
+     * <h2>Vì sao TRẢ LẠI chứ ⛔ để bộ lọc chỉ đọc rồi đếm lượt sai ở đây</h2>
+     *
+     * Bộ lọc tăng bộ đếm NGUYÊN TỬ ({@code compute}) trước khi cho đi, nên số lượt ⛔ đúng mật khẩu lọt qua trong
+     * một cửa sổ ⛔ bao giờ vượt trần, kể cả khi hàng trăm lượt tới cùng lúc. Cách "đọc trước, đếm sau khi sai" để
+     * mọi lượt đang băm BCrypt cùng qua cửa (vì chưa lượt nào kịp bị đếm), nên trần thật là {@code trần + số lượt
+     * đồng thời}.
+     *
+     * <p>Giá phải trả: một lượt đúng đang xử lý vẫn chiếm một chỗ cho tới khi trả lại. Muốn 30 lượt đúng cùng băm
+     * BCrypt trong một khoảnh khắc từ một IP thì ⛔ phải là người dùng thật.
+     *
+     * <p>Khoá phải trùng từng ký tự với khoá bộ lọc đã dùng: {@link ClientInfo#from} và bộ lọc cùng đọc
+     * {@code ClientIp.cua(request)}. Lệch khoá thì lượt trả lại rơi vào một khoá vắng và ⛔ làm gì
+     * ({@code DangNhapSauNatHttpTest} đỏ ở lượt 31).
+     */
+    public void hoanLuotDangNhapDung(ClientInfo client) {
+        hanMuc.hoanLai(RateLimitPolicy.LOGIN.key(client.ipAddress()));
     }
 
     /** Đăng nhập thành công → xoá bộ đếm, mở khoá tạm nếu còn. */

@@ -7443,3 +7443,30 @@ dụng** sau khi nạp — đỏ thì báo THẤT BẠI kèm câu *"dữ liệu 
 ⚠ **Hệ quả cho khôi phục chéo môi trường**: sau bản vá, khôi phục cho ra **đúng ACL của nguồn** ⇒
 nguồn yếu thì đích vẫn yếu theo — khối ⑥ của `sau-khoi-phuc-production.sql` vẫn bắt buộc khi nguồn
 là staging.
+
+### §12.4 Xô đăng nhập theo IP: tính TRƯỚC, trả lại lượt đúng — ⛔ "chỉ đọc rồi đếm lượt sai" (WS-72, 19/9/2026)
+
+**Hiện tượng đo được.** `DangNhapSauNatHttpTest`, viết TRƯỚC bản vá: 31 lượt đăng nhập ĐÚNG từ một
+IP ⇒ lượt 31 nhận 429. Xô `LOGIN` (30 lượt / 15′ theo IP) tính MỌI lượt gọi `/auth/login`, trong khi
+chính javadoc của nó khai *"cả Công ty ra Internet qua một IP NAT"* ⇒ lưới chống dò khoá cả cơ quan
+vào 8h sáng. `RateLimitStore.reset` mang javadoc *"dùng khi đăng nhập thành công"* mà 0 nơi gọi.
+
+**Quyết định.** Bộ lọc giữ nguyên: tăng bộ đếm NGUYÊN TỬ trước khi cho đi. Mật khẩu đúng thì
+`LoginAttemptService.hoanLuotDangNhapDung` trả lại ĐÚNG lượt ấy (`RateLimitStore.hoanLai`, sàn 0),
+đặt SAU mọi phép kiểm tài khoản. Hai phương án bị loại, vì mỗi cái mở một đường vòng:
+
+- **Bộ lọc chỉ đọc, bộ xác thực đếm lượt sai.** Lượt đang băm BCrypt chưa bị đếm, nên N lượt tới cùng
+  lúc đều qua cửa ⇒ trần thật là `trần + số lượt đồng thời`. Tính trước rồi trả lại thì số lượt ⛔
+  đúng mật khẩu lọt qua trong một cửa sổ ⛔ bao giờ vượt trần. Giá: một lượt đúng đang xử lý chiếm một
+  chỗ tới khi trả — 30 lượt đúng cùng băm BCrypt trong một khoảnh khắc từ một IP thì ⛔ phải người thật.
+- **Nối `reset` vào nhánh đăng nhập đúng** (ý đồ cũ của javadoc). Ai có MỘT tài khoản thật xen đăng
+  nhập đúng giữa các lượt đoán là xô về 0 ⇒ dò mật khẩu người khác ⛔ giới hạn. `reset` bị gỡ hẳn —
+  giữ nó là để lượt sửa sau nối nó vào đúng chỗ ấy.
+
+**Kèm theo.** nginx trả **429** thay 503 khi chặn theo `limit_req`/`limit_conn` (khai ở tầng http,
+đo trên `nginx:1.30-alpine`): 503 đọc thành *"máy chủ ⛔ phục vụ được"*, lượt tải thử đếm nó vào lỗi
+5xx. Và trang tìm kiếm thôi đổi *backend chưa trả lời* thành *"Không tìm thấy…"* (quy tắc 16).
+
+**⛔ Chưa quyết.** nginx `api_auth` (20 lượt/phút, burst 10, theo IP, trên tên miền quản trị) — nới
+hay ⛔ chờ phép đo NAT của QuanTran (T61.17). Sau WS-72 đó là chốt DUY NHẤT còn đếm lượt đăng nhập
+đúng theo IP.

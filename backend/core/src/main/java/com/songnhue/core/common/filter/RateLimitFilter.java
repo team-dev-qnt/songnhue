@@ -25,6 +25,11 @@ import com.songnhue.core.common.web.ClientIp;
  * chung <b>100 lượt/phút</b> — tải nền của một tab quản trị lúc ⛔ ai bấm gì đã là ~2–3 lượt/phút —
  * và <b>10 lượt kết xuất/giờ cho cả Công ty</b>. Hai xô ấy nay ở {@link HanMucNguoiDungFilter}.
  *
+ * <p>⛔ <b>T61.17 (WS-72) — xô {@code LOGIN} tính MỌI lượt ở đây</b>, nguyên tử, trước khi cho đi. Lượt đúng mật
+ * khẩu được trả lại chỗ sau khi xác thực ({@code LoginAttemptService#hoanLuotDangNhapDung}), nên xô chỉ còn giữ
+ * lượt ⛔ đúng. ⛔ Đổi sang "chỉ đọc ở đây, đếm lượt sai ở bộ xác thực": mọi lượt đang băm BCrypt sẽ cùng lọt qua
+ * trước khi lượt nào kịp bị đếm.
+ *
  * <p>Đây là lớp thứ hai; nginx đã chặn thô theo IP ở lớp ngoài (§4.5).
  */
 @Component
