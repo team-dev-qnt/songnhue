@@ -16,8 +16,10 @@ duy nhất giữ tệp mẫu ⛔ **không lệch** khỏi bộ đọc vào ngày
 
 ## ⚠ `mau-danh-sach-cbnv.csv` — tệp tĩnh, và nó CÓ HẠN DÙNG
 
-Phân hệ Nhân sự (MOD-04) **chưa dựng**: `backend/hr/` hôm nay có 6 tệp và cả 6 là `package-info.java`.
-⇒ ⛔ Chưa có bộ đọc nào để sinh tệp mẫu từ đó.
+⚠ **Sửa 19/09/2026 (WS-68)**: câu cũ *"MOD-04 chưa dựng, `backend/hr/` có 6 tệp `package-info.java`"* đã hết đúng —
+MOD-04 dựng xong ở Phase 3 (`backend/hr/src/main/java` **79** tệp `.java`), nhưng **vẫn chưa có bộ nhập CBNV**
+(`COT_MAU` ⛔ có trong `backend/hr`) ⇒ ⛔ chưa có bộ đọc nào để sinh tệp mẫu từ đó (`T68.23`). Và tệp tĩnh này ĐÃ lệch
+lược đồ: `loai_hop_dong` có *Thời vụ* mà CSDL ⛔ nhận; `trinh_do` có *Sau đại học* trong khi hệ tách Tiến sĩ / Thạc sĩ.
 
 Tệp này tồn tại vì **Công ty cần bắt đầu điền từ bây giờ** — thu thập danh sách CBNV của cả Công ty
 mất nhiều tuần, và chờ tới khi MOD-04 dựng xong mới hỏi là mất trắng khoảng thời gian ấy (mục
