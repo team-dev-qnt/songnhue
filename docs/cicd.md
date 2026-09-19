@@ -524,6 +524,13 @@ truy ra được, đúng loại lỗi không điều tra được sau đó.
 (`docker inspect` trên container, không đọc tệp compose) và ghi lại ba digest. Smoke test đỏ →
 dựng lại ba image cũ → hỏi lại câu 1.
 
+⭐ **Từ WS-71 (19/09/2026) quay lui trả CẢ cấu hình.** Trước khi đồng bộ, workflow chụp `/opt/songnhue`
+vào `.ban-truoc/` (mốc = số lượt chạy); hỏng thì trả bản chụp → `nginx -t` → `--force-recreate` →
+so ID ảnh → chờ nginx `healthy` (T11.9 — ngày 17/09 quay lui chỉ-ảnh ⛔ cứu được lỗi cấu hình nginx).
+Thử khô rsync trước khi đồng bộ và DỪNG nếu `--delete` sắp xoá tệp mà crontab/systemd đang gọi
+(T11.95). Quay lui tay dùng `deploy/` của chính SHA đã chọn. Diễn tập DOD0.21: biến
+`DIEN_TAP_QUAY_LUI=true` ở environment `staging` — `docs/runbook/deploy-hong.md` mục 0.
+
 ⛔ **Đây là quay lui về MÃ NGUỒN, không phải về DỮ LIỆU.** `migrator` đã chạy xong trước đó và
 migration là một chiều: nếu nó đã đổi lược đồ thì mã cũ có thể không chạy nổi trên lược đồ mới, và
 bước quay lui **không cứu được gì**. Đường quay lui về dữ liệu là bản chụp `predeploy-*` sinh ra ở

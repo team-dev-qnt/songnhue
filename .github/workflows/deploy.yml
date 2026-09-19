@@ -86,6 +86,36 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # ═══════════════════════════════════════════════════════════════════════
+      # ⛔⛔ `deploy/` phải là của ĐÚNG commit đang triển khai — T11.9 (WS-71).
+      #
+      #   Checkout ở trên là đỉnh NHÁNH gọi (staging/production). Lượt thường thì
+      #   cây `deploy/` của nó TRÙNG cây của `commit_sha` (phép giải đỉnh `dev` so
+      #   CÂY), nên bước này ⛔ đổi gì. Nhưng lượt QUAY LUI bấm tay (`deploy-prod.yml`
+      #   với một SHA cũ) trước đây dựng ẢNH cũ trên CẤU HÌNH mới của đỉnh nhánh —
+      #   đúng tổ hợp đã giữ staging chết ngày 17/09 (§11.27): cấu hình nginx mới
+      #   hỏng, quay lui chỉ đổi ảnh. Lấy `deploy/` từ chính SHA ấy thì ảnh và cấu
+      #   hình luôn đi cùng một bản.
+      #
+      # ⚠ Chỉ thay `deploy/`, ⛔ thay `.github/`: workflow này và các script của nó
+      #   phải là bản của nhánh gọi — bản cũ có thể thiếu bước mà YAML này gọi.
+      # ═══════════════════════════════════════════════════════════════════════
+      - name: Lấy deploy/ của đúng commit triển khai
+        env:
+          SHA: ${{ inputs.commit_sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "$SHA"
+          if git diff --quiet HEAD "$SHA" -- deploy/; then
+            echo "✓ deploy/ của $SHA trùng cây đang checkout — ⛔ đổi gì"
+          else
+            echo "::warning::deploy/ của $SHA KHÁC đỉnh nhánh — dùng bản của $SHA (lượt quay lui tay?)"
+            git diff --stat HEAD "$SHA" -- deploy/ | tail -25
+            rm -rf deploy
+            git checkout "$SHA" -- deploy/
+          fi
+          echo "deploy/ đang dùng: cây $(git rev-parse "$SHA:deploy")"
+
       # ⚠⚠ PHẢI đăng nhập TRƯỚC khi tra image. Gói GHCR mặc định là RIÊNG TƯ kể cả
       #    khi repo công khai — kiểm chứng 19/8: manifest ẩn danh trả 403. Tra
       #    trước khi đăng nhập thì luôn trượt, và thông báo lỗi sẽ đổ cho "chưa
@@ -312,6 +342,72 @@ jobs:
           echo "Chi tiết: docs/deploy-guideline.md §2.2-b."
           exit 1
 
+      # ═══════════════════════════════════════════════════════════════════════
+      # ⛔⛔ Chụp CẤU HÌNH đang chạy TRƯỚC khi đồng bộ — T11.9 (WS-71).
+      #
+      #   Bước quay lui cũ chỉ trả ẢNH; cấu hình `deploy/` vừa rsync (compose,
+      #   template nginx…) ở lại trên máy. Ngày 17/09 cấu hình nginx mới hỏng ⇒
+      #   quay lui dựng ảnh cũ trên cấu hình mới ⇒ vẫn chết (run 35236229504).
+      #
+      #   Bản chụp nằm TRONG /opt/songnhue — người triển khai sở hữu thư mục ấy, ⛔
+      #   cần quyền ở /opt — và được loại khỏi MỌI lượt rsync bằng `.ban-truoc*`.
+      #   Mốc `.ban-truoc.moc` mang số lượt chạy: bước quay lui CHỈ trả bản chụp của
+      #   ĐÚNG lượt này; bản chụp của một lượt trước là cấu hình SAI. Chụp vào thư
+      #   mục tạm rồi mới đổi tên ⇒ một lượt chụp hỏng giữa chừng ⛔ để lại bản dở.
+      #   Chụp hỏng ⇒ ⛔ dừng lượt deploy, chỉ cảnh báo: quay lui khi ấy trả ảnh như
+      #   trước — ⛔ tệ hơn hôm nay.
+      #
+      # ⚠ Danh sách `--exclude` phải TRÙNG ở bốn nơi (chụp · thử khô · đồng bộ ·
+      #   trả) — `QuayLuiTraCauHinhTest` đối chiếu (luật 14). `.env*` ⛔ phải `.env`:
+      #   bản sao `.env.bak-*` từng nằm cạnh `.env` và `--delete` xoá nó (T11.95).
+      # ═══════════════════════════════════════════════════════════════════════
+      - name: Chụp cấu hình đang chạy
+        if: steps.target.outputs.ready == 'true'
+        env:
+          HOST: ${{ secrets.HOST }}
+          USER: ${{ secrets.USER }}
+          LUOT: ${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          .github/scripts/chay-tu-xa.sh "chup-cau-hinh" <<REMOTE
+            cd /opt/songnhue
+            rm -rf .ban-truoc.moi .ban-truoc.moc
+            if rsync -a --delete --exclude '.env*' --exclude 'env/' --exclude 'keys/' --exclude '.ban-truoc*' --exclude 'compose.local.yml' --exclude 'compose.infra.yml' ./ .ban-truoc.moi/; then
+                rm -rf .ban-truoc
+                mv .ban-truoc.moi .ban-truoc
+                echo "$LUOT" > .ban-truoc.moc
+                echo "✓ đã chụp \$(find .ban-truoc -type f | wc -l | tr -d ' ') tệp cấu hình — mốc $LUOT"
+            else
+                rm -rf .ban-truoc.moi .ban-truoc
+                echo "::warning::⛔ chụp được cấu hình đang chạy — nếu lượt này hỏng, quay lui CHỈ trả được ảnh."
+            fi
+          REMOTE
+
+      # ═══════════════════════════════════════════════════════════════════════
+      # ⛔ Thử khô đồng bộ — chặn `--delete` xoá tệp mà máy chủ ĐANG GỌI (T11.95).
+      #
+      #   Đo 08/09: thử khô đúng lệnh CD cho thấy lượt production kế tiếp sẽ xoá
+      #   `gia-han-tls.sh` — script mà cron gia hạn TLS gọi ⇒ hỏng câm, chứng chỉ
+      #   chết 06/12. Lệnh rsync dưới đây TRÙNG lệnh ở bước "Đồng bộ" (chỉ thêm
+      #   `--dry-run --itemize-changes`) — thử khô một lệnh khác là đo một thứ khác.
+      # ⚠ Phạm vi: crontab của người triển khai + /etc/cron.d + unit systemd; crontab
+      #   của root cần sudo nên ⛔ thấy (ghi ở đầu `kiem-xoa-dong-bo.sh`).
+      # ═══════════════════════════════════════════════════════════════════════
+      - name: Thử khô đồng bộ
+        if: steps.target.outputs.ready == 'true'
+        env:
+          HOST: ${{ secrets.HOST }}
+          USER: ${{ secrets.USER }}
+        run: |
+          set -euo pipefail
+          rsync -az --delete --dry-run --itemize-changes \
+            --exclude '.env*' --exclude 'env/' --exclude 'keys/' --exclude '.ban-truoc*' \
+            --exclude 'compose.local.yml' --exclude 'compose.infra.yml' \
+            deploy/ "$USER@$HOST:/opt/songnhue/" > "$RUNNER_TEMP/thu-kho.txt"
+          ssh "$USER@$HOST" '{ crontab -l 2>/dev/null; cat /etc/cron.d/* /etc/systemd/system/*.service /etc/systemd/system/*.timer 2>/dev/null; } || true' \
+            > "$RUNNER_TEMP/dang-goi.txt"
+          bash .github/scripts/kiem-xoa-dong-bo.sh "$RUNNER_TEMP/thu-kho.txt" "$RUNNER_TEMP/dang-goi.txt"
+
       # ⚠⚠ ĐỒNG BỘ CẤU HÌNH TRƯỚC KHI TRIỂN KHAI — bước này ngăn một kiểu trôi
       #    hoàn toàn câm. `compose.*.yml`, cấu hình nginx, script sao lưu, byte của
       #    bộ seed đều nằm trong repo nhưng CHẠY từ đĩa máy chủ. Không có bước này
@@ -329,7 +425,7 @@ jobs:
         run: |
           set -euo pipefail
           rsync -az --delete \
-            --exclude '.env' --exclude 'env/' --exclude 'keys/' \
+            --exclude '.env*' --exclude 'env/' --exclude 'keys/' --exclude '.ban-truoc*' \
             --exclude 'compose.local.yml' --exclude 'compose.infra.yml' \
             deploy/ "$USER@$HOST:/opt/songnhue/"
           # ⚠ `find`, không phải `chmod +x backup/*.sh`: mỗi lần thêm một script ở thư
@@ -570,6 +666,28 @@ jobs:
             docker image prune -f --filter "until=168h" || true
           REMOTE
 
+      # ═══════════════════════════════════════════════════════════════════════
+      # DIỄN TẬP QUAY LUI — DOD0.21, CHỈ staging (WS-71)
+      #
+      #   DOD0.21 đòi một lượt hỏng SAU `up -d`, để bước quay lui có một bản ĐÃ BỊ
+      #   THAY mà dựng lại. `migrator` chạy trước `up -d` là thiết kế, nên mọi lỗi
+      #   migration dừng TRƯỚC — chờ một lượt hỏng đúng chỗ tự nhiên là chờ mãi (hai
+      #   lượt 27/8 đều dừng ở migrator).
+      #
+      #   Bật: biến `DIEN_TAP_QUAY_LUI=true` ở ENVIRONMENT `staging` (⛔ ở cấp kho),
+      #   rồi gộp một PR đề bạt vào `staging` — bản MỚI lên, bước này đỏ, bước quay
+      #   lui dựng lại bản CŨ. Xoá biến ngay sau lượt ấy.
+      #   ⛔⛔ `moi_truong == 'staging'` nằm TRONG `if`: một biến bỏ quên ⛔ bao giờ làm
+      #   production hỏng có chủ đích.
+      # ═══════════════════════════════════════════════════════════════════════
+      - name: Diễn tập quay lui (chỉ staging)
+        if: steps.target.outputs.ready == 'true' && inputs.moi_truong == 'staging' && vars.DIEN_TAP_QUAY_LUI == 'true'
+        run: |
+          echo "::error::DIỄN TẬP (DOD0.21) — hỏng có chủ đích SAU up -d để đi qua bước quay lui."
+          echo "Đạt khi bước 'Quay lui bản cũ' thoát 0: cấu hình trả về bản chụp · ID ảnh = bản ghi ở bước"
+          echo "'Ghi lại bản đang chạy' · nginx healthy · site trả lời. Nhớ XOÁ biến DIEN_TAP_QUAY_LUI."
+          exit 1
+
       # ---------------------------------------------------------------------
       # Smoke test — bốn câu, và câu nào cũng phân biệt được hai trạng thái
       #
@@ -715,16 +833,68 @@ jobs:
           ADMIN_IMAGE: ${{ steps.hien_tai.outputs.admin_app_image }}
           PUBLIC_IMAGE: ${{ steps.hien_tai.outputs.public_web_image }}
           BASE_URL: ${{ secrets.BASE_URL }}
+          LUOT: ${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           set -euo pipefail
-          echo "::warning::Lượt triển khai hỏng — đang dựng lại bản trước đó."
+          echo "::warning::Lượt triển khai hỏng — đang dựng lại bản trước đó: CẤU HÌNH rồi ẢNH."
 
+          # ⛔⛔ Bản cũ chỉ `up -d` ba ảnh cũ, ⛔ trả cấu hình, ⛔ `--force-recreate`
+          #    (T11.9). Ngày 17/09 lỗi nằm ở CẤU HÌNH nginx mới ⇒ quay lui dựng ảnh cũ
+          #    trên cấu hình hỏng ⇒ site vẫn chết, và nginx (template gắn bind mount)
+          #    ⛔ được tạo lại vì compose ⛔ thấy tệp đổi. Nay: trả cấu hình về bản chụp
+          #    của ĐÚNG lượt này · `nginx -t` · tạo lại cả bốn · đo ID ảnh · chờ nginx
+          #    healthy — cùng bốn phép đo mà bước Triển khai đòi (luật 35).
           .github/scripts/chay-tu-xa.sh "quay-lui" <<REMOTE
             cd /opt/songnhue
             export APP_IMAGE="$APP_IMAGE"
             export ADMIN_IMAGE="$ADMIN_IMAGE"
             export PUBLIC_IMAGE="$PUBLIC_IMAGE"
-            docker compose --env-file .env -f $COMPOSE up -d app admin-app public-web nginx
+            dc="docker compose --env-file .env -f $COMPOSE"
+
+            if [ -d .ban-truoc ] && [ "\$(cat .ban-truoc.moc 2>/dev/null || true)" = "$LUOT" ]; then
+                rsync -a --delete --exclude '.env*' --exclude 'env/' --exclude 'keys/' --exclude '.ban-truoc*' --exclude 'compose.local.yml' --exclude 'compose.infra.yml' .ban-truoc/ ./
+                echo "✓ đã trả CẤU HÌNH về bản chụp đầu lượt $LUOT"
+            else
+                echo "::warning::⛔ có bản chụp cấu hình của lượt $LUOT — quay lui CHỈ trả ẢNH, cấu hình của lượt hỏng vẫn nằm trên máy."
+            fi
+
+            if ! \$dc run --rm --no-deps nginx nginx -t; then
+                echo "::error::Cấu hình nginx sau khi trả về vẫn ⛔ hợp lệ — đọc dòng [emerg] ngay trên; docs/runbook/deploy-hong.md"
+                exit 1
+            fi
+
+            \$dc up -d --force-recreate app admin-app public-web nginx
+
+            . lib/docker-svc.sh
+            loi=0
+            for cap in "app:\$APP_IMAGE" "admin-app:\$ADMIN_IMAGE" "public-web:\$PUBLIC_IMAGE"; do
+                dv="\${cap%%:*}"
+                ref="\${cap#*:}"
+                can="\$(docker image inspect --format '{{.Id}}' "\$ref" 2>/dev/null || true)"
+                ct="\$(container_cua "\$dv")" || { loi=1; continue; }
+                dang="\$(docker inspect --format '{{.Image}}' "\$ct")"
+                if [ -n "\$can" ] && [ "\$dang" = "\$can" ]; then
+                    echo "✓ \$dv đã quay về đúng ảnh cũ"
+                else
+                    echo "::error::\$dv KHÔNG chạy ảnh cũ (cần '\$can', đang '\$dang')."
+                    loi=1
+                fi
+            done
+            [ "\$loi" -eq 0 ]
+
+            ct_nginx="\$(container_cua nginx)" || exit 1
+            tt=khong-ro
+            for lan in \$(seq 1 30); do
+                tt="\$(docker inspect --format '{{.State.Health.Status}}' "\$ct_nginx" 2>/dev/null || echo khong-ro)"
+                [ "\$tt" = healthy ] && break
+                sleep 5
+            done
+            if [ "\$tt" != healthy ]; then
+                echo "::error::nginx ⛔ phục vụ sau 150 giây quay lui (trạng thái: \$tt)."
+                docker logs --tail 40 "\$ct_nginx" 2>&1 || true
+                exit 1
+            fi
+            echo "✓ nginx đang phục vụ sau quay lui"
           REMOTE
 
           # Hỏi lại đúng câu đầu tiên của smoke test. Không hỏi ba câu: câu 2 và 3
@@ -812,6 +982,7 @@ jobs:
             echo ""
             if [ "${{ steps.hien_tai.outputs.co_du }}" = "true" ]; then
               echo "Bản trước đó (đích quay lui): \`${{ steps.hien_tai.outputs.app_image }}\`"
+              echo "Cấu hình \`deploy/\` của bản ấy được chụp ở \`/opt/songnhue/.ban-truoc\` (mốc lượt \`${{ github.run_id }}-${{ github.run_attempt }}\`) — quay lui trả CẢ cấu hình lẫn ảnh."
             else
               echo "⚠ Lượt này **không có đường quay lui tự động** — chưa đủ ba container đang chạy."
             fi
