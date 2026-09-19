@@ -2,6 +2,7 @@ package com.songnhue.core.common.util;
 
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
+import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.List;
@@ -46,6 +47,12 @@ public class CryptoService {
      * chống trùng CCCD câm lặng, ⛔ không một dòng lỗi. Nó mang hậu tố phiên bản chính vì thế.
      */
     private static final String FINGERPRINT_LABEL = "songnhue:fingerprint:v1";
+
+    /**
+     * Nhãn của khoá ký VÉ biểu mẫu công khai — T73.9 (ASVS 11.1.2). Khác nhãn vân tay: một khoá cho hai mục đích thì
+     * điểm yếu của bên này thành điểm yếu của bên kia (xem {@link #fingerprint}).
+     */
+    private static final String VE_BIEU_MAU_LABEL = "songnhue:ve-bieu-mau:v1";
 
     private final CryptoProperties properties;
     private final SecureRandom secureRandom = new SecureRandom();
@@ -148,7 +155,31 @@ public class CryptoService {
      * @return {@code <key_id>:<64 ký tự hex>}, hoặc {@code null} khi đầu vào {@code null}
      */
     public String fingerprint(String plaintext) {
-        return plaintext == null ? null : fingerprintWith(properties.activeKeyId(), plaintext);
+        return plaintext == null ? null : macWith(properties.activeKeyId(), FINGERPRINT_LABEL, plaintext);
+    }
+
+    /**
+     * Chữ ký của một VÉ biểu mẫu công khai — T73.9 (ASVS 11.1.2). Khoá HMAC DẪN XUẤT từ khoá AES đang hoạt động với nhãn
+     * riêng ({@code songnhue:ve-bieu-mau:v1}) — ⛔ thêm biến môi trường nào, cùng lý lẽ với {@link #fingerprint}.
+     *
+     * @return {@code <key_id>:<64 ký tự hex>}
+     */
+    public String kyVeBieuMau(String noiDung) {
+        return macWith(properties.activeKeyId(), VE_BIEU_MAU_LABEL, noiDung);
+    }
+
+    /**
+     * Chữ ký có đúng cho nội dung ⛔ — so dưới khoá mà CHÍNH chữ ký khai (còn nạp), so hằng thời gian. Vé ký trước một
+     * lượt xoay khoá vẫn hợp lệ tới khi khoá cũ bị gỡ.
+     */
+    public boolean dungChuKyVeBieuMau(String noiDung, String chuKy) {
+        String keyId = keyIdOf(chuKy);
+        if (noiDung == null || keyId == null || !properties.keyIds().contains(keyId)) {
+            return false;
+        }
+        return MessageDigest.isEqual(
+                macWith(keyId, VE_BIEU_MAU_LABEL, noiDung).getBytes(StandardCharsets.UTF_8),
+                chuKy.getBytes(StandardCharsets.UTF_8));
     }
 
     /**
@@ -164,7 +195,7 @@ public class CryptoService {
             return List.of();
         }
         return properties.keyIds().stream()
-                .map(k -> fingerprintWith(k, plaintext))
+                .map(k -> macWith(k, FINGERPRINT_LABEL, plaintext))
                 .toList();
     }
 
@@ -183,13 +214,13 @@ public class CryptoService {
         return usesActiveKey(encoded) ? encoded : encrypt(decrypt(encoded));
     }
 
-    private String fingerprintWith(String activeKeyId, String plaintext) {
+    private String macWith(String activeKeyId, String nhan, String plaintext) {
         try {
             Mac mac = Mac.getInstance(MAC_ALGORITHM);
 
-            // Bước 1 — dẫn xuất khoá vân tay từ khoá AES, tách mục đích bằng nhãn miền.
+            // Bước 1 — dẫn xuất khoá riêng từ khoá AES, tách mục đích bằng nhãn miền.
             mac.init(new SecretKeySpec(properties.keyBytes(activeKeyId), MAC_ALGORITHM));
-            byte[] khoaVanTay = mac.doFinal(FINGERPRINT_LABEL.getBytes(StandardCharsets.UTF_8));
+            byte[] khoaVanTay = mac.doFinal(nhan.getBytes(StandardCharsets.UTF_8));
 
             // Bước 2 — vân tay của chính giá trị.
             mac.init(new SecretKeySpec(khoaVanTay, MAC_ALGORITHM));

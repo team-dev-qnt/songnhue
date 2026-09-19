@@ -104,6 +104,18 @@ public class AuthService {
         //   nhánh 2FA: mã 2FA sai đã có bộ đếm khoá tài khoản riêng (T61.33).
         loginAttempts.hoanLuotDangNhapDung(client);
 
+        // ⛔⛔ T73.8 (ASVS 2.3.1) — mật khẩu tạm QUÁ HẠN. Kiểm SAU khi mật khẩu đúng: hạn chỉ được nói ra cho người
+        //   đã chứng minh biết mật khẩu, người đoán vẫn chỉ thấy AUTH-0001. Lối ra: quản trị viên phát mật khẩu mới.
+        if (user.matKhauTamDaHetHan(now)) {
+            securityEvents.record(
+                    SecurityEventType.LOGIN_FAILED,
+                    username,
+                    user.getId(),
+                    client,
+                    "{\"reason\":\"temp_password_expired\"}");
+            throw new AuthenticationException(ErrorCode.AUTH_0010);
+        }
+
         abnormalLogins.inspectSuccessfulLogin(user, client, now);
 
         if (totp.isRequiredFor(user)) {

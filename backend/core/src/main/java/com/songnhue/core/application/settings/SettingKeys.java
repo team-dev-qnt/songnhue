@@ -16,6 +16,8 @@ public final class SettingKeys {
     public static final String PASSWORD_MIN_LENGTH = "security.password.min-length";
     public static final String PASSWORD_REQUIRE_LETTER_AND_DIGIT = "security.password.require-letter-and-digit";
     public static final String PASSWORD_MAX_AGE_DAYS = "security.password.max-age-days";
+    /** T73.8 (ASVS 2.3.1) — số giờ một mật khẩu tạm do quản trị phát còn hiệu lực. */
+    public static final String PASSWORD_TEMP_TTL_HOURS = "security.password.temp-ttl-hours";
 
     // --- Khoá tài khoản khi đăng nhập sai (§4.1) ------------------------------
     public static final String LOGIN_MAX_FAILED_ATTEMPTS = "security.login.max-failed-attempts";
@@ -43,6 +45,7 @@ public final class SettingKeys {
 
     // --- Giá trị dự phòng, khớp đúng seed migration ---------------------------
     public static final int DEFAULT_PASSWORD_MIN_LENGTH = 10;
+    public static final int DEFAULT_PASSWORD_TEMP_TTL_HOURS = 72;
     public static final int DEFAULT_MAX_FAILED_ATTEMPTS = 5;
     public static final int DEFAULT_FAILED_WINDOW_MINUTES = 15;
     public static final int DEFAULT_LOCKOUT_MINUTES = 15;

@@ -148,6 +148,8 @@ export interface UserView {
 export interface PasswordPolicyResponse {
   minLength: number;
   requireLetterAndDigit: boolean;
+  /** T73.8 — số giờ mật khẩu tạm do quản trị phát còn hiệu lực (`security.password.temp-ttl-hours`). */
+  tempPasswordTtlHours: number;
 }
 
 export interface CreateUserRequest {

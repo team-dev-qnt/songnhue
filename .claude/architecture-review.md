@@ -8097,3 +8097,39 @@ vào 8h sáng. `RateLimitStore.reset` mang javadoc *"dùng khi đăng nhập th�
 **⛔ Chưa quyết.** nginx `api_auth` (20 lượt/phút, burst 10, theo IP, trên tên miền quản trị) — nới
 hay ⛔ chờ phép đo NAT của QuanTran (T61.17). Sau WS-72 đó là chốt DUY NHẤT còn đếm lượt đăng nhập
 đúng theo IP.
+
+### §12.9 Hai chốt ASVS mang trạng thái: hạn mật khẩu tạm · vé biểu mẫu công khai (WS-73b, 20/9/2026)
+
+**Hạn mật khẩu tạm (T73.8 · ASVS 2.3.1).** Cột riêng `users.temp_password_expires_at`, ⛔ suy từ
+`password_changed_at + N giờ`. Suy ra là **khoá ngược** mọi tài khoản đang giữ mật khẩu tạm cũ ngay
+lượt deploy, và đổi N trong `settings` về sau sẽ đổi hạn của mật khẩu **đã phát**. Cột riêng: bản ghi
+cũ NULL = ⛔ hạn (như trước T73.8), hạn chốt lúc phát (`security.password.temp-ttl-hours`, mặc định 72).
+
+- Chặn ở `AuthService.login` **SAU** khi mật khẩu đúng: người đoán ⛔ học được *"tài khoản này đang
+  giữ mật khẩu tạm hết hạn"*. Và **sau** lượt trả lại xô `LOGIN` (§12.8): người thật gõ đúng mật khẩu
+  tạm đã hết hạn ⛔ bị đếm là một lượt dò. Mã `AUTH-0010` (403) hiện ngay trong thẻ đăng nhập.
+- Bootstrap `superadmin` để NULL: hết hạn ở đó thì ⛔ còn ai đặt lại được.
+- Một cửa ghi: chỉ `PasswordPolicyService.ganMatKhauTam` · `PasswordChangeService` ·
+  `AdminBootstrapRunner` gọi được hai setter (`MatKhauTamMotCuaRuleTest`) — đường phát thứ ba quên
+  đặt hạn là một lượt CI đỏ, ⛔ một mật khẩu tạm sống mãi.
+- ⬜ Vế còn lại của 2.3.1 — mật khẩu tạm do **hệ** sinh ngẫu nhiên — đổi hợp đồng API (máy chủ trả
+  mật khẩu MỘT lần) ⇒ `T73.11` chờ quyết.
+
+**Vé biểu mẫu công khai (T73.9 · ASVS 11.1.2).** `GET /public/bieu-mau/ve` phát
+`v1.<epoch>.<keyId>:<hmac>`, ký bằng khoá dẫn xuất từ khoá AES (nhãn `songnhue:ve-bieu-mau:v1`) —
+⛔ biến môi trường mới, ⛔ bảng mới. Lượt gửi liên hệ/góp ý phải mang vé ≥ `security.form.min-fill-seconds`
+tuổi (mặc định 3, trần 60) và ≤ 24 giờ. Ba phương án bị loại:
+
+- **Mốc do máy khách tự khai** — gửi mốc của mười phút trước là qua.
+- **Vé dùng một lần** — phải lưu trạng thái (bảng hoặc đệm dùng chung giữa các node) cho đúng vế mà
+  hạn mức IP 10/giờ (T61.37) đã phủ: lượt lặp.
+- **Gắn vé với IP/phiên** — cổng dựng trang từ IP của container (T61.17) ⇒ gắn IP là khoá oan người thật.
+
+Một mã `CMS-2025` cho mọi nhánh hỏng (thiếu · giả · quá nhanh · quá hạn): phân biệt chúng chỉ giúp máy
+biết phải sửa gì. Giao diện **tự chờ** đủ tuổi — máy chủ trả kèm `tuoiToiThieuGiay`, nên người điền
+nhanh thấy *"Đang gửi…"* thêm một nhịp thay vì một câu lỗi về thứ họ ⛔ làm sai; và hai phía ⛔ phải
+cùng nhớ một con số (luật 14). Vé xin ở `onFocus` của biểu mẫu, ⛔ lúc tải trang: phần lớn lượt xem
+trang Liên hệ là để tra số điện thoại.
+
+**⚠ Phạm vi — nói ra (luật 28).** Vé chặn máy gửi thẳng vào API và máy gửi ngay khi tải trang. Một
+trình duyệt tự động chạy chính mã cổng thì cũng chờ như người — lớp ấy thuộc reCAPTCHA (chờ khoá G13).

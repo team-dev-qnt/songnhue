@@ -155,6 +155,11 @@ export const ERROR_CATALOG = {
     handling: 'caller',
     severity: 'warning',
   },
+  'AUTH-0010': {
+    message: 'Mật khẩu tạm đã hết hạn — nhờ quản trị viên đặt lại mật khẩu',
+    handling: 'caller',
+    severity: 'error',
+  },
   'AUTH-3001': {
     message: 'Không có quyền thực hiện thao tác này',
     handling: 'forbidden',
@@ -288,6 +293,13 @@ export const ERROR_CATALOG = {
     //   chối ở đây chính là một đoạn mã tấn công, và một thông báo lỗi là nơi nó ⛔ nên đi tiếp.
     message:
       'Địa chỉ liên kết không hợp lệ — chỉ nhận http://, https://, mailto:, tel:, /đường-dẫn hoặc #neo',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'CMS-2025': {
+    // T73.9 (ASVS 11.1.2) — vé biểu mẫu công khai. Chỉ cổng công khai gặp mã này; khai ở đây để ba nơi đếm khớp.
+    message:
+      'Biểu mẫu chưa sẵn sàng hoặc đã quá hạn — vui lòng đợi vài giây rồi gửi lại; nếu vẫn lỗi, hãy tải lại trang',
     handling: 'toast',
     severity: 'warning',
   },

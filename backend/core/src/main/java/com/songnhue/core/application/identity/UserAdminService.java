@@ -134,8 +134,8 @@ public class UserAdminService implements UserDirectoryPort {
         user.setFullName(fullName);
         user.setEmail(email);
         user.setOrgUnitId(orgUnitId);
-        user.setPasswordHash(passwordPolicy.hash(temporaryPassword));
-        user.setMustChangePassword(true);
+        // T73.8 — hash · mốc đổi · cờ buộc đổi · HẠN của mật khẩu tạm, một chỗ cho cả hai đường phát.
+        passwordPolicy.ganMatKhauTam(user, temporaryPassword, Instant.now());
         user.setStatus(UserStatus.ACTIVE);
 
         User saved = users.save(user);

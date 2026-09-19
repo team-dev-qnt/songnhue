@@ -60,11 +60,11 @@ class DatLaiMatKhauHttpTest extends IntegrationTestBase {
                 "INSERT INTO roles (code, name, is_system) VALUES (?, 'Kiểm thử đặt lại mật khẩu', FALSE)", VAI_TRO);
         int so = jdbc.update(
                 "INSERT INTO role_permissions (role_id, permission_id) SELECT r.id, p.id FROM roles r, permissions p "
-                        + "WHERE r.code = ? AND p.code IN ('adm:user:view', 'adm:user:reset-password')",
+                        + "WHERE r.code = ? AND p.code IN ('adm:user:view', 'adm:user:reset-password', 'adm:user:create')",
                 VAI_TRO);
         assertThat(so)
-                .as("chống tập rỗng: `adm:user:reset-password` phải CÓ trong danh mục (seed 13/08)")
-                .isEqualTo(2);
+                .as("chống tập rỗng: `adm:user:reset-password` + `adm:user:create` phải CÓ trong danh mục (seed 13/08)")
+                .isEqualTo(3);
 
         phienHttp = new PhienHttp(http);
         tenQuanTri = PhienHttp.taoNguoiDung(users, passwords, jdbc, "t6131_qt", VAI_TRO);
@@ -197,5 +197,127 @@ class DatLaiMatKhauHttpTest extends IntegrationTestBase {
 
         assertThat(tl.getStatusCode().value()).as("%s", tl.getBody()).isEqualTo(422);
         assertThat(tl.getBody()).contains("matKhauTam");
+    }
+
+    // =========================================================================
+    // T73.8 (ASVS 2.3.1) — mật khẩu tạm có HẠN
+    // =========================================================================
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.songnhue.core.application.settings.SettingService settingService;
+
+    private static final String KHOA_HAN = "security.password.temp-ttl-hours";
+
+    private java.time.Instant hanCua(String username) {
+        return jdbc.queryForObject(
+                "SELECT temp_password_expires_at FROM users WHERE username = ?", java.time.Instant.class, username);
+    }
+
+    /**
+     * ⛔⛔ Đo 19/09/2026 trên mã cũ: một tài khoản mang mật khẩu tạm phát từ 30 ngày trước (`must_change_password`,
+     * `password_changed_at` lùi 30 ngày) đăng nhập được — 200. Mật khẩu tạm chưa ai dùng sống mãi: trong tin nhắn, trên
+     * giấy nhớ, trong hộp thư của người đã nghỉ.
+     */
+    @Test
+    @DisplayName("⛔⛔ T73.8 — mật khẩu tạm ĐẶT LẠI có hạn; quá hạn ⇒ 403 AUTH-0010 — sai mật khẩu vẫn chỉ AUTH-0001")
+    void matKhauTamCoHanVaQuaHanThiBiChan() {
+        String nanNhan = PhienHttp.taoNguoiDung(users, passwords, jdbc, "t738_han");
+        java.time.Instant truoc = java.time.Instant.now();
+        assertThat(datLai(publicIdCua(nanNhan), MAT_KHAU_MOI, maMoi())
+                        .getStatusCode()
+                        .value())
+                .isEqualTo(204);
+
+        assertThat(hanCua(nanNhan))
+                .as("hạn = lúc đặt lại + 72 giờ (seed `%s`)", KHOA_HAN)
+                .isBetween(truoc.plus(java.time.Duration.ofHours(71)), truoc.plus(java.time.Duration.ofHours(73)));
+
+        jdbc.update(
+                "UPDATE users SET temp_password_expires_at = now() - interval '1 minute' WHERE username = ?", nanNhan);
+        ResponseEntity<String> quaHan = phienHttp.dangJson(
+                "/api/v1/auth/login", "{\"username\":\"%s\",\"password\":\"%s\"}".formatted(nanNhan, MAT_KHAU_MOI));
+        assertThat(quaHan.getStatusCode().value()).as("%s", quaHan.getBody()).isEqualTo(403);
+        assertThat(quaHan.getBody()).contains("AUTH-0010");
+
+        // ⛔ Vế phân biệt: hạn chỉ được nói ra cho người ĐÃ đúng mật khẩu — người đoán ⛔ học được gì.
+        ResponseEntity<String> sai = phienHttp.dangJson(
+                "/api/v1/auth/login", "{\"username\":\"%s\",\"password\":\"SaiMatKhau2026xyz\"}".formatted(nanNhan));
+        assertThat(sai.getStatusCode().value()).isEqualTo(401);
+        assertThat(sai.getBody()).contains("AUTH-0001").doesNotContain("AUTH-0010");
+
+        // Lối ra: quản trị viên phát mật khẩu tạm MỚI ⇒ hạn mới ⇒ vào được.
+        assertThat(datLai(publicIdCua(nanNhan), MAT_KHAU_MOI, maMoi())
+                        .getStatusCode()
+                        .value())
+                .isEqualTo(204);
+        assertThat(phienHttp
+                        .dangJson(
+                                "/api/v1/auth/login",
+                                "{\"username\":\"%s\",\"password\":\"%s\"}".formatted(nanNhan, MAT_KHAU_MOI))
+                        .getStatusCode()
+                        .value())
+                .isEqualTo(200);
+    }
+
+    /**
+     * Đường phát mật khẩu tạm THỨ HAI (tạo tài khoản) cũng mang hạn — và hạn đọc từ `settings`. Giá trị thử là 5 giờ,
+     * ⛔ trùng dự phòng trong mã (72) — trùng thì một hạn ghi cứng cũng xanh (T48.7).
+     */
+    @Test
+    @DisplayName("⛔ T73.8 — TẠO tài khoản cũng có hạn, và số giờ đọc từ settings (thử 5 ≠ mặc định 72)")
+    void taoTaiKhoanCoHanDocTuSettings() {
+        String ten = "kiemtra_t738_tao";
+        jdbc.update("DELETE FROM users WHERE username = ?", ten);
+        String goc = jdbc.queryForObject("SELECT public_id::text FROM org_units WHERE parent_id IS NULL", String.class);
+        jdbc.update("UPDATE settings SET setting_value = '5' WHERE setting_key = ?", KHOA_HAN);
+        settingService.invalidate(KHOA_HAN);
+        try {
+            java.time.Instant truoc = java.time.Instant.now();
+            ResponseEntity<String> tao = phienHttp.goi(
+                    quanTri.phien(),
+                    HttpMethod.POST,
+                    "/api/v1/admin/users",
+                    ("{\"username\":\"%s\",\"fullName\":\"Người thử T73.8\",\"orgUnitPublicId\":\"%s\","
+                                    + "\"temporaryPassword\":\"%s\"}")
+                            .formatted(ten, goc, MAT_KHAU_MOI));
+            assertThat(tao.getStatusCode().value()).as("%s", tao.getBody()).isEqualTo(201);
+            assertThat(hanCua(ten))
+                    .isBetween(truoc.plus(java.time.Duration.ofHours(4)), truoc.plus(java.time.Duration.ofHours(6)));
+
+            ResponseEntity<String> chinhSach = phienHttp.get(quanTri.phien(), "/api/v1/auth/password-policy");
+            assertThat(chinhSach.getBody())
+                    .as("màn hình phát mật khẩu tạm đọc số giờ ở đây — cùng nguồn settings với hạn thật")
+                    .contains("\"tempPasswordTtlHours\":5");
+        } finally {
+            jdbc.update("UPDATE settings SET setting_value = '72' WHERE setting_key = ?", KHOA_HAN);
+            settingService.invalidate(KHOA_HAN);
+            jdbc.update("DELETE FROM users WHERE username = ?", ten);
+        }
+    }
+
+    @Test
+    @DisplayName("T73.8 — người dùng TỰ đổi mật khẩu ⇒ hạn mật khẩu tạm bị xoá (NULL)")
+    void tuDoiMatKhauXoaHan() {
+        String nanNhan = PhienHttp.taoNguoiDung(users, passwords, jdbc, "t738_doi");
+        // Mật khẩu tạm = mật khẩu kiểm thử chung ⇒ `dangNhap` dùng được như mọi lớp khác.
+        assertThat(datLai(publicIdCua(nanNhan), PhienHttp.MAT_KHAU, maMoi())
+                        .getStatusCode()
+                        .value())
+                .isEqualTo(204);
+        assertThat(hanCua(nanNhan)).isNotNull();
+
+        PhienHttp phienNanNhan = new PhienHttp(http);
+        PhienHttp.Phien phien = phienNanNhan.dangNhap(nanNhan);
+        ResponseEntity<String> doi = phienNanNhan.goi(
+                phien,
+                HttpMethod.POST,
+                "/api/v1/auth/change-password",
+                "{\"currentPassword\":\"%s\",\"newPassword\":\"MatKhauRieng2026abc\"}".formatted(PhienHttp.MAT_KHAU));
+        assertThat(doi.getStatusCode().is2xxSuccessful())
+                .as("%s", doi.getBody())
+                .isTrue();
+        assertThat(hanCua(nanNhan))
+                .as("mật khẩu do CHÍNH người dùng đặt ⛔ có hạn của mật khẩu tạm")
+                .isNull();
     }
 }
