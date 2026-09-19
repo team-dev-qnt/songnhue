@@ -47,6 +47,8 @@ public interface SystemBackupRepository extends JpaRepository<SystemBackup, Long
             """)
     List<SystemBackup> findExpired(@Param("cutoff") Instant cutoff);
 
-    /** Lượt đang chạy — chặn hai lượt sao lưu chồng nhau (đọc đĩa gấp đôi, không được gì). */
-    boolean existsByStatus(BackupStatus status);
+    // ⛔ T68.4 — từng có `existsByStatus(BackupStatus)` kèm javadoc *"chặn hai lượt sao lưu chồng nhau"*
+    //   mà 0 nơi gọi. Dùng nó thật thì còn tệ hơn: bản ghi RUNNING được GIỮ LẠI làm dấu vết khi tiến
+    //   trình chết giữa chừng, nên câu hỏi ấy khoá sao lưu VĨNH VIỄN sau lần sập đầu tiên. Chốt chồng
+    //   lượt nay là cờ trong JVM ở `BackupService` — xem javadoc `dangSaoLuu`.
 }

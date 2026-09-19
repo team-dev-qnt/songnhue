@@ -456,7 +456,7 @@ liền, HL nét đứt. `docs/ui-styles.md` có mục a11y — đọc trước.
 | DOD3.9 | `make ci-local` **và** `make ci-order` đều thoát 0 | ✅ | Đo 14/09: cả hai thoát **0**; CI thật trên `dev` `34829579535` **success** |
 | DOD3.10 | Mỗi bộ canh mới có bài chứng minh nó **bắt được vi phạm** (luật 1) | ✅ | ⛔ **Không** bộ canh MỚI nào trong 3 commit Phase 3 — 12 tệp kiểm mới đều là bài **hành vi**. Bộ canh được **sửa** (`EnumBaNoiTest`) có bài tự-kiểm ở dòng 298. Hai bộ canh của WS-60 đều có (`AnhMinioDongBoTest` 3 vế · `HanMucKetXuatTest` 1) |
 | DOD3.11 | Mọi endpoint mới có **màn hình gọi** (§11.15 — 7/62 endpoint CMS từng mồ côi) | ✅ | **20/20** endpoint mới có nơi gọi. ⚠ Lượt quét đầu báo 9 mồ côi — **8/9 là dương tính giả của chính phép đo** (FE ghép đường dẫn bằng template literal; luật 25) |
-| DOD3.12 | 8 dòng sổ sai (§4.4) đã sửa; 2 nợ chỉ sống ở CLAUDE.md đã vào sổ | 🟡 **một phần** | ✅ `T11.88` sửa từ `[x]` sai về `[ ]` đúng · ✅ 2 nợ đã vào sổ. ⬜ `T24.33`·`T26.24`·`T26.76`·`T38.12`·`DOD0.20` vẫn `[ ]` — ⛔ **không tick** vì ⛔ chưa đo từng cái, và §4.4 **tự nó cũng là một dòng sổ chưa kiểm** (T60.8) |
+| DOD3.12 | 8 dòng sổ sai (§4.4) đã sửa; 2 nợ chỉ sống ở CLAUDE.md đã vào sổ | 🟡 **một phần** | ✅ `T11.88` sửa từ `[x]` sai về `[ ]` đúng · ✅ 2 nợ đã vào sổ. ⬜ `T24.33`·`T26.24`·`T26.76`·`T38.12`·`DOD0.20` vẫn `[ ]` — ⛔ **không tick** vì ⛔ chưa đo từng cái, và §4.4 **tự nó cũng là một dòng sổ chưa kiểm** (T60.8). ⚠ **Đo 19/09 (WS-68)**: cả năm nay đã `[x]` trong sổ (lật ở WS-61) ⇒ vế này hết lý do treo |
 | DOD3.13 | HRM: `hr.*` hoặc có nơi đọc, hoặc `editable=FALSE` (T42.15) | ✅ | **16** khoá `hr.*` seed, **0 mồ côi** (WS-53 trả 2 · WS-57 trả 13) |
 
 **⇒ 12/13 đạt · 1 đạt một phần · 0 mục để trống.**

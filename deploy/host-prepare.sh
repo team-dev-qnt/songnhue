@@ -56,18 +56,39 @@ hong()  { printf '   ✗ %s\n' "$*"; loi=$((loi + 1)); }
 
 # ─────────────────────────────────────────────────────────────────────────────
 buoc "1 · Công cụ bắt buộc trên host"
-# `rsync` là thứ `deploy.yml` gọi thẳng; `curl`/`ca-certificates` để tra được GHCR và Let's Encrypt.
-for goi in rsync curl ca-certificates; do
-    if command -v "$goi" >/dev/null 2>&1 || dpkg -s "$goi" >/dev/null 2>&1; then
+# `rsync` là thứ `deploy.yml` gọi thẳng; `curl`/`ca-certificates` để tra được GHCR và Let's Encrypt;
+# `cron` chạy lịch gia hạn TLS ở bước 6 — ⛔ có sẵn trên Ubuntu 24.04 tối giản (T11.88: đo 07/09 và 10/09,
+# CẢ HAI máy `crontab: command not found`, `systemctl is-enabled cron` ⇒ `not-found`).
+hau_qua() {
+    case "$1" in
+        rsync) echo "bước rsync của CD sẽ chết ở đây" ;;
+        cron) echo "lịch gia hạn TLS ⛔ bao giờ chạy — chứng chỉ hết hạn trong im lặng (T11.88)" ;;
+        *) echo "⛔ tra được GHCR / Let's Encrypt" ;;
+    esac
+}
+# ⚠ Đo CÓ GÓI bằng cả `command -v` LẪN `dpkg -s`: `ca-certificates` ⛔ phải một lệnh, nên phép đo sau-khi-cài
+#   bản cũ (chỉ `command -v`) báo "cài không được" cho một gói ĐÃ vào.
+co_goi() { command -v "$1" >/dev/null 2>&1 || dpkg -s "$1" >/dev/null 2>&1; }
+for goi in rsync curl ca-certificates cron; do
+    if co_goi "$goi"; then
         do_dac "$goi" "đã có"
     elif [ "$CHI_KIEM" -eq 1 ]; then
-        hong "$goi CHƯA CÀI — bước rsync của CD sẽ chết ở đây"
+        hong "$goi CHƯA CÀI — $(hau_qua "$goi")"
     else
         do_dac "$goi" "đang cài…"
         apt-get update -qq && apt-get install -y -qq "$goi" >/dev/null
-        command -v "$goi" >/dev/null 2>&1 && do_dac "$goi" "đã cài xong" || hong "$goi cài không được"
+        co_goi "$goi" && do_dac "$goi" "đã cài xong" || hong "$goi cài không được — $(hau_qua "$goi")"
     fi
 done
+# Cài gói chưa đủ: dịch vụ phải BẬT và ĐANG CHẠY — đo trạng thái của tiến trình, ⛔ đọc tệp đơn vị.
+if [ "$CHI_KIEM" -eq 0 ] && command -v systemctl >/dev/null 2>&1; then
+    systemctl enable --now cron >/dev/null 2>&1 || canh "không bật được dịch vụ cron"
+fi
+if systemctl is-active --quiet cron 2>/dev/null; then
+    do_dac "dịch vụ cron" "active"
+else
+    hong "dịch vụ cron KHÔNG chạy — $(hau_qua cron)"
+fi
 # ⚠ `awk NR==1`, KHÔNG `head -1`: dưới `pipefail`, `head` đóng ống sớm làm `rsync` ăn SIGPIPE, lệnh
 #   thay thế trả mã khác 0, và nhánh `|| echo` chạy THÊM — in ra cả phiên bản lẫn "KHÔNG CÓ". Đã tự
 #   mắc đúng bẫy ấy ở lượt chạy thật đầu tiên trên VPS-1. `awk` đọc hết đầu vào nên không có SIGPIPE.
@@ -228,7 +249,46 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-buoc "6 · Tường lửa"
+buoc "6 · Lịch gia hạn chứng chỉ TLS — T11.88"
+# ⛔⛔ ĐÚNG MỘT dòng, khai ở ĐÂY. Hai tài liệu triển khai, runbook tên miền và đầu `gia-han-tls.sh` chép lại
+#    nguyên văn — `HostPrepareLichVaCongTest` đối chiếu cả bốn. ⛔ Dòng cũ dạng `docker compose … --profile
+#    certbot` mà sổ từng dặn: compose nội suy CẢ tệp mà thiếu `*_IMAGE` ⇒ thoát 1 ở MỌI lượt (§10.81), và
+#    cron hỏng câm. Staging hết hạn chứng chỉ 22/11/2026 — certbot chỉ gia hạn khi còn < 30 ngày.
+DONG_CRON_TLS='17 3 * * 1 /opt/songnhue/gia-han-tls.sh >> /var/log/songnhue/gia-han-tls.log 2>&1'
+crontab_cua() { # crontab của NGƯỜI TRIỂN KHAI — cron gia hạn chạy bằng người ấy, ⛔ bằng root
+    if [ "$(id -u)" -eq 0 ]; then
+        crontab -u "$NGUOI_SSH" -l 2>/dev/null || true
+    else
+        crontab -l 2>/dev/null || true
+    fi
+}
+if [ "$CHI_KIEM" -eq 0 ] && [ "$NGUOI_SSH" != "root" ] && command -v crontab >/dev/null 2>&1; then
+    if ! crontab_cua | grep -qF 'gia-han-tls.sh'; then
+        { crontab_cua; echo "$DONG_CRON_TLS"; } | crontab -u "$NGUOI_SSH" -
+    fi
+fi
+# Đo thứ cron ĐANG NẠP, ⛔ đọc lại tài liệu (luật 17).
+so_dong_tls="$(crontab_cua | grep -cF 'gia-han-tls.sh' || true)"
+if [ "$so_dong_tls" = "1" ] && crontab_cua | grep -qxF "$DONG_CRON_TLS"; then
+    do_dac "crontab $NGUOI_SSH" "có đúng dòng gia hạn TLS"
+elif [ "$so_dong_tls" = "0" ]; then
+    hong "crontab $NGUOI_SSH ⛔ có dòng gia hạn TLS — $(hau_qua cron)"
+else
+    hong "crontab $NGUOI_SSH có $so_dong_tls dòng nhắc gia-han-tls.sh, hoặc KHÁC dòng chuẩn — sửa: crontab -e"
+fi
+if crontab_cua | grep -q -- '--profile certbot'; then
+    # ⚠ Câu báo ⛔ viết nguyên tên lệnh compose: `ScriptDockerLookupTest` cấm chuỗi ấy trong MỌI dòng mã của
+    #   deploy/ và cố ý ⛔ có ngoại lệ (xem bước 4) — gọi tên dòng cũ bằng đúng thứ `grep` bên trên tìm.
+    hong "crontab $NGUOI_SSH còn dòng CŨ dạng compose (\`… --profile certbot\`) — thoát 1 ở mọi lượt (§10.81); gỡ: crontab -e"
+fi
+if [ -x /opt/songnhue/gia-han-tls.sh ]; then
+    do_dac "/opt/songnhue/gia-han-tls.sh" "có, chạy được"
+else
+    canh "/opt/songnhue/gia-han-tls.sh chưa có — lượt CD đầu tiên đồng bộ nó; chạy lại --kiem sau lượt ấy"
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+buoc "7 · Tường lửa và cổng đang nghe"
 if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q 'Status: active'; then
     do_dac "ufw" "active"
     for cong in 22 80 443; do
@@ -237,9 +297,34 @@ if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q 'Status: a
 else
     canh "ufw không chạy — kiểm tường lửa của nhà cung cấp thay vào đó"
 fi
+# ⛔ T11.54 — đo ổ ĐANG NGHE, ⛔ đọc cấu hình tường lửa: VPS-2 ⛔ cài ufw, và cổng 5201 (iperf3) mở ra
+#   Internet mà ⛔ dịch vụ nào của dự án dùng (đo 28/08 từ ngoài). Máy chủ chỉ publish 80/443 qua nginx; mọi
+#   cổng giám sát bám 127.0.0.1. Ổ nghe loopback được bỏ qua — nó ⛔ ra được Internet.
+CONG_DUOC_PHEP="${CONG_DUOC_PHEP:-22 80 443}"
+kiem_cong_nghe() { # stdin: đầu ra `ss -Htln` (cột 4 = địa chỉ:cổng cục bộ)
+    local dia_chi cong da_thay=" "
+    while read -r _ _ _ dia_chi _; do
+        case "$dia_chi" in
+            '' | 127.* | '[::1]:'* | '[::ffff:127.'*) continue ;;
+        esac
+        cong="${dia_chi##*:}"
+        # Một cổng nghe cả IPv4 lẫn IPv6 là MỘT mục, ⛔ hai.
+        case "$da_thay" in *" $cong "*) continue ;; esac
+        da_thay="$da_thay$cong "
+        case " $CONG_DUOC_PHEP " in
+            *" $cong "*) do_dac "  nghe $dia_chi" "được phép" ;;
+            *) hong "cổng $cong nghe từ bên ngoài ($dia_chi) — ⛔ nằm trong: $CONG_DUOC_PHEP (T11.54). Tìm tiến trình: sudo ss -tlnp | grep ':$cong '" ;;
+        esac
+    done
+}
+if command -v ss >/dev/null 2>&1; then
+    kiem_cong_nghe < <(ss -Htln 2>/dev/null)
+else
+    hong "không có \`ss\` — ⛔ kiểm kê được cổng đang nghe"
+fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-buoc "7 · Những thứ script này CỐ Ý không làm"
+buoc "8 · Những thứ script này CỐ Ý không làm"
 canh "\`.env\` và \`keys/*.pem\` — §5. Chúng bị loại khỏi rsync nên KHÔNG ai điền hộ được."
 canh "Cluster postgres — §6. \`POSTGRES_INITDB_ARGS\` chỉ có hiệu lực MỘT LẦN lúc initdb (§10.56)."
 canh "DNS + TLS — §7. Bốn bản ghi A, ba chứng chỉ."

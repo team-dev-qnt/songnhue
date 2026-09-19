@@ -12,6 +12,7 @@ import org.testcontainers.containers.Container;
 
 import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.app.testsupport.SongnhuePostgres;
+import com.songnhue.core.application.backup.BackupService;
 
 /**
  * Vai trò {@code songnhue_readonly} <b>dump được toàn bộ schema</b> — bằng {@code pg_dump} thật.
@@ -40,8 +41,15 @@ import com.songnhue.app.testsupport.SongnhuePostgres;
  */
 class BackupRoleTest extends IntegrationTestBase {
 
-    /** Y hệt tham số production — `BackupService.dumpCommand()` và `deploy/backup/backup.sh`. */
-    private static final String DUMP_FLAGS = "--format=custom --compress=6 --no-password --no-owner --no-privileges";
+    /**
+     * Cờ production — đọc thẳng từ {@link BackupService#CO_DUMP}, ⛔ chép lại.
+     *
+     * <p>⚠ Sửa 19/09/2026 (T37.8): hằng cũ ở đây là một chuỗi CHÉP TAY kèm chú thích *"y hệt
+     * `backup.sh`"* — trong khi {@code backup.sh} đã bỏ {@code --no-privileges} từ 26/08. Một bài kiểm chép
+     * hằng số của phía bên kia thì chỉ canh chính nó (T51.15): nó xanh suốt thời gian bản sao lưu đêm
+     * tước ACL.
+     */
+    private static final String DUMP_FLAGS = String.join(" ", BackupService.CO_DUMP);
 
     @Autowired
     private JdbcTemplate jdbc;
