@@ -101,6 +101,11 @@
 
 ⬜ **Còn lại của Báo cáo nhanh ⛔ phải mã**: Công ty nhập dữ liệu (`T66.13` — chặn theo `T66.14`).
 
+⚠ **Chú thích trong migration còn ghi trạng thái NGÀY VIẾT** — `V202609181086` (*"Biên là ĐỀ XUẤT chờ Công ty
+(OI-BC8)"*, cả trong `COMMENT ON TABLE co_may_bom` nên nằm luôn trong lược đồ CSDL) · `V202609181087` (*"OI-BC2 chưa
+chốt"*). ⛔ Sửa được: Flyway băm cả tệp (`architecture-review.md` §10.65). ⇒ Trạng thái đọc ở **bảng trên**; ⛔ mở lại
+câu hỏi với Công ty vì đọc thấy chú thích ấy.
+
 ---
 
 ## PHẦN II — CÒN MỞ: CẦN CÔNG TY CUNG CẤP

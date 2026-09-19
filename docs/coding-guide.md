@@ -315,6 +315,11 @@ Không cần đọc thuộc — chỉ cần biết chúng tồn tại để lúc
 | Hằng enum đổi tên mà **giá trị ⛔ không đổi** | `UNPROCESSABLE_ENTITY`→`UNPROCESSABLE_CONTENT`, `PAYLOAD_TOO_LARGE`→`CONTENT_TOO_LARGE`. Cùng 422/413 trên dây, nhưng `isEqualTo(hằng cũ)` **đỏ** vì `valueOf()` nay trả hằng mới |
 | Bộ canh kế thừa lớp nền tích hợp để canh một chuyện **tĩnh** | Khi khuyết tật xuất hiện, ApplicationContext chết trước ⇒ **thông điệp chẩn đoán ⛔ không bao giờ in ra**. Canh classpath thì dùng JUnit trần |
 | Đọc báo cáo surefire sau một lượt chạy **bị chặn ở bước đầu** | Spotless/Checkstyle đỏ ⇒ test ⛔ không chạy, nhưng tệp XML **cũ vẫn nằm đó**. Xoá báo cáo trước, hoặc đối chiếu `ls -la` mốc thời gian |
+| `useEditor` của tiptap trên trang mà React Router dựng trong `startTransition` | Editor bị HUỶ trước lượt commit (hẹn giờ 1 ms của tiptap bắn giữa lượt render cắt lát) ⇒ effect cầm editor đã huỷ ⇒ `reading 'cached'`, **cả trang sập**. Kiểm `!editor.isDestroyed` **BÊN TRONG** effect — kiểm lúc render vô dụng. Bài kiểm render ngoài transition ⛔ thấy (T67.6) |
+| Hoạt ảnh `animation-fill-mode: both`/`forwards` mà khung cuối có `transform` | Trình duyệt GIỮ `matrix(1,0,0,1,0,0)` sau hoạt ảnh — kể cả khi khung cuối viết `none` — ⇒ phần tử thành **khối chứa** của mọi con cháu `position: fixed` ⇒ khung toàn màn hình bị nhốt trong div ấy. Dùng `backwards`; bộ canh `hieuUngVaoTrang.test.ts` (T67.7) |
+| `ConfigProvider` lồng để đổi chủ đề (VD nền tối) | Nó thừa kế **hạt giống** của chủ đề ngoài, và token phái sinh (`colorTextDescription`…) tính từ hạt giống ⇒ chữ tối trên nền tối. Đặt lại `colorTextBase` + `colorBgLayout`, ⛔ chỉ vài token lẻ (T67.8) |
+| antd 6 trong jsdom | CSS variables luôn bật ⇒ `getComputedStyle` chậm ~80× ⇒ bài mở hộp thoại chạm hạn 15 s ở lượt chạy ĐẦY ĐỦ mà chạy riêng thì xanh — trông y hệt đói tài nguyên (T63.14) mà là mã. `testsupport/setup.ts` đã bọc `render` bằng `StyleProvider container={nút rời}`; setup kiểm thử mới phải theo, ⛔ nới `testTimeout` (T67.1) |
+| Khảo sát phạm vi một lượt nâng thư viện bằng `grep` | Sót (VD `optionFilterProp`, `type` của `Divider`) và đếm cả CHÚ THÍCH. Đo bằng công cụ có **thông tin kiểu** — `@typescript-eslint/no-deprecated` đã bật trong `eslint.config.mjs` cho `admin-app` (T67.1, T67.3) |
 
 Chi tiết nguyên nhân: `architecture-review.md` §9.7, §9.8, §9.12, §10.33, §10.38.
 

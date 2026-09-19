@@ -1809,7 +1809,9 @@ luận nhầm là "cấu hình rồi mà không chạy". Nên header để riên
 **CSP — hai lựa chọn có chủ đích, cả hai đã đo:**
 
 - `style-src` **phải** có `'unsafe-inline'`. AntD 5 dùng cssinjs, chèn `<style data-css-hash=…>` lúc
-  chạy (đã kiểm trong bundle đã dựng). Với `style-src 'self'` thì giao diện quản trị hiện ra **không
+  chạy (đã kiểm trong bundle đã dựng). ⭐ **Vẫn đúng ở antd 6** (WS-67, 19/09/2026): CSS variables ⛔ đổi
+  chỗ chèn — vế đối chứng của `khongChenCssAntd.test.tsx` khẳng định cấu hình mặc định vẫn chèn
+  `style[data-css-hash]` / `style[data-token-hash]`. Với `style-src 'self'` thì giao diện quản trị hiện ra **không
   còn định dạng nào**. Đường thoát duy nhất là `StyleProvider` + nonce theo từng request, mà bundle
   Vite là tĩnh do nginx phục vụ nên không có chỗ sinh nonce. Đây là **cái giá của việc chọn AntD**,
   ghi ra để WS-11 không siết rồi mới phát hiện lúc đã lên staging.
@@ -7355,7 +7357,9 @@ tự động **THAY** ô nhập — ⛔ trộn hai nguồn trong một kỳ, vì
 thì ⛔ ai trả lời được *"số này từ đâu"*.
 
 **(g) Công ty trả lời open issue (19/09/2026, `docs_origin/bao-cao/spec-bao-cao-nhanh/xacnhan.md`).**
-Tám mục đồng ý phương án đang chạy (OI-BC1 · 2 · 5 · 6 · 7 · 12 · 15 · 16) ⇒ ⛔ đổi mã. Ba mục đổi thứ
+Chín mục đồng ý phương án đang chạy (OI-BC1 · 2 · 5 · 6 · 7 · 9 · 12 · 15 · 16) ⇒ ⛔ đổi mã; OI-BC14 xác nhận
+*chưa có điểm đo* ⇒ ba ô trống kèm lý do đứng nguyên *(đính chính 19/09: bản đầu của đoạn này ghi "Tám" và sót
+OI-BC9 · OI-BC14 — `business-open-questions.md` Phần I-C và dòng sổ T66.8 vốn đúng)*. Ba mục đổi thứ
 khác ngoài mã:
 - **OI-BC10** — Bảng 2 chia theo **7 nhóm của sheet `Trạm bơm`**, trạm vẫn lấy từ `TB Tiêu (KH)`
   (OI-BC9). Khối Bảng 2 suy từ đơn vị quản lý của công trình (`org_units`) — ⚠ **chỉ là việc nhập liệu
