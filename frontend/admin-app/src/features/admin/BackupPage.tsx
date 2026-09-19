@@ -153,7 +153,7 @@ export function BackupPage() {
   ];
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       <Card title="Tình trạng sao lưu" loading={status.isLoading}>
         {data?.stale && (
           <Alert
@@ -161,7 +161,7 @@ export function BackupPage() {
             showIcon
             icon={<WarningOutlined />}
             style={{ marginBottom: 16 }}
-            message="Bản sao lưu gần nhất đã quá hạn"
+            title="Bản sao lưu gần nhất đã quá hạn"
             description={`Ngưỡng đang đặt là ${data.staleThresholdHours} giờ. Hệ thống không có PITR — bản dump đêm là đường phục hồi duy nhất. Kiểm tra ngay theo docs/runbook/sao-luu-hong.md.`}
           />
         )}
@@ -170,7 +170,7 @@ export function BackupPage() {
             type="warning"
             showIcon
             style={{ marginBottom: 16 }}
-            message="Sao lưu tự động đang TẮT"
+            title="Sao lưu tự động đang TẮT"
             description="Hệ thống đang chạy không có lưới an toàn. Bật lại ở màn hình Cấu hình, tham số backup.schedule-enabled."
           />
         )}
@@ -180,7 +180,9 @@ export function BackupPage() {
             <Statistic
               title="Sao lưu thành công gần nhất"
               value={formatAge(data?.ageSeconds)}
-              valueStyle={{ color: data?.stale ? statusColors.danger : statusColors.normal }}
+              styles={{
+                content: { color: data?.stale ? statusColors.danger : statusColors.normal },
+              }}
             />
           </Col>
           <Col xs={24} sm={8}>
@@ -282,7 +284,7 @@ function RestoreModal({ backup, onClose }: { backup: BackupView | null; onClose:
         type="error"
         showIcon
         style={{ marginBottom: 16 }}
-        message="Thao tác này GHI ĐÈ toàn bộ cơ sở dữ liệu hiện tại"
+        title="Thao tác này GHI ĐÈ toàn bộ cơ sở dữ liệu hiện tại"
         description="Mọi dữ liệu phát sinh sau thời điểm của bản sao lưu sẽ mất. Hệ thống tự chụp một bản trước khi ghi đè để còn đường lùi."
       />
 

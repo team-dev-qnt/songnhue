@@ -25,7 +25,7 @@ Xây dựng hệ thống quản trị và điều hành công trình thủy lợ
 |---|---|
 | Kiến trúc | Modular Monolith, Layered; ArchUnit enforce ranh giới module |
 | Public web | Next.js (SSR/ISR) + Tailwind — tách app riêng, phục vụ SEO |
-| Admin app | React 18 + Vite + TypeScript + Ant Design 5; ECharts |
+| Admin app | React 19 + Vite + TypeScript + Ant Design 6; ECharts (React 18→19 · AntD 5→6 ngày 18/09/2026, WS-67) |
 | Backend | Spring Boot 3 (Java 21); springdoc-openapi; Flyway migration |
 | Auth | Access token 30' + Refresh token rotation (httpOnly cookie); BCrypt; denylist bảng DB |
 | Database | PostgreSQL 16 + PostGIS; partition tháng cho time-series; full-text `unaccent` tiếng Việt |

@@ -87,15 +87,13 @@ export function SessionsPage() {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="Thấy thiết bị lạ trong danh sách? Đăng xuất nó ngay rồi đổi mật khẩu."
+        title="Thấy thiết bị lạ trong danh sách? Đăng xuất nó ngay rồi đổi mật khẩu."
       />
       {error ? (
         <Alert
           type="error"
           showIcon
-          message={
-            error instanceof ApiClientError ? error.message : 'Không tải được danh sách phiên'
-          }
+          title={error instanceof ApiClientError ? error.message : 'Không tải được danh sách phiên'}
         />
       ) : (
         <Table<SessionView>

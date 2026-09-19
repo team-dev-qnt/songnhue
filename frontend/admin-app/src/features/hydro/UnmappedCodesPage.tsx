@@ -122,7 +122,7 @@ export function UnmappedCodesPage() {
         type="warning"
         showIcon
         style={{ marginBottom: 16 }}
-        message={`${chuaKhai.length} mã nguồn đang gửi số liệu về mà chưa có điểm đo nào nhận`}
+        title={`${chuaKhai.length} mã nguồn đang gửi số liệu về mà chưa có điểm đo nào nhận`}
         description={
           <>
             Số đo của chúng <b>vẫn được giữ lại</b> — nguồn không có API lịch sử, bỏ hai tháng là
@@ -140,7 +140,7 @@ export function UnmappedCodesPage() {
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
-          message={`${daKhaiConLichSu.length} mã đã được khai nhưng lịch sử cũ vẫn nằm ở đây`}
+          title={`${daKhaiConLichSu.length} mã đã được khai nhưng lịch sử cũ vẫn nằm ở đây`}
           description="Số đo mới của chúng đã vào bảng số liệu. Phần lịch sử tích trước lúc khai chưa được chuyển sang — biểu đồ của những trạm ấy sẽ bắt đầu từ ngày khai, không phải từ ngày đầu tiên có số đo."
         />
       )}
@@ -157,7 +157,7 @@ export function UnmappedCodesPage() {
       />
 
       <Typography.Paragraph type="secondary" style={{ marginTop: 12, marginBottom: 0 }}>
-        <Space direction="vertical" size={2}>
+        <Space orientation="vertical" size={2}>
           <span>
             Danh sách này <b>teo dần</b> theo tiến độ khai báo — rỗng nghĩa là mọi mã nguồn phát đều
             đã có điểm đo nhận.

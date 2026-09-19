@@ -197,9 +197,9 @@ export function NgayLePage() {
         type={soNamNay >= SO_NGAY_LE_THEO_LUAT ? 'success' : 'warning'}
         showIcon
         style={{ marginBottom: 16 }}
-        message={`Năm ${namNay} đã khai ${soNamNay}/${SO_NGAY_LE_THEO_LUAT} ngày nghỉ lễ`}
+        title={`Năm ${namNay} đã khai ${soNamNay}/${SO_NGAY_LE_THEO_LUAT} ngày nghỉ lễ`}
         description={
-          <Space direction="vertical" size={4} style={{ width: '100%' }}>
+          <Space orientation="vertical" size={4} style={{ width: '100%' }}>
             <Progress
               percent={Math.round((soNamNay * 100) / SO_NGAY_LE_THEO_LUAT)}
               status={soNamNay >= SO_NGAY_LE_THEO_LUAT ? 'success' : 'active'}

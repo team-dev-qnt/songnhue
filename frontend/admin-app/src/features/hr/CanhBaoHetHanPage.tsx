@@ -26,7 +26,7 @@ export function CanhBaoHetHanPage() {
   });
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       <div>
         <Typography.Title level={4} style={{ margin: 0 }}>
           Cảnh báo hết hạn
@@ -39,9 +39,9 @@ export function CanhBaoHetHanPage() {
       <Alert
         type="info"
         showIcon
-        message="Danh sách đã lọc theo phạm vi đơn vị của tài khoản đang đăng nhập."
+        title="Danh sách đã lọc theo phạm vi đơn vị của tài khoản đang đăng nhập."
       />
-      {isError && <Alert type="error" showIcon message="Không tải được danh sách cảnh báo" />}
+      {isError && <Alert type="error" showIcon title="Không tải được danh sách cảnh báo" />}
       <BangCanhBao
         tieuDe={
           data

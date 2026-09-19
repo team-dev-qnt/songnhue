@@ -39,7 +39,7 @@ export function HealthPage() {
       <Alert
         type="error"
         showIcon
-        message={
+        title={
           error instanceof ApiClientError ? error.message : 'Không đọc được tình trạng hệ thống'
         }
       />
@@ -49,7 +49,7 @@ export function HealthPage() {
   const components = Object.entries(data?.components ?? {});
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       <Card loading={isLoading}>
         <Space align="center" size="middle">
           <Typography.Title level={5} style={{ margin: 0 }}>

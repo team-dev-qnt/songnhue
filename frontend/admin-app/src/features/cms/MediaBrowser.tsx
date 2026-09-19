@@ -250,7 +250,7 @@ export function MediaBrowser({
         </Space>
 
         {Object.entries(progress).length > 0 && (
-          <Space direction="vertical" size={2} style={{ marginBottom: 8 }}>
+          <Space orientation="vertical" size={2} style={{ marginBottom: 8 }}>
             {Object.entries(progress).map(([uid, percent]) => (
               <Progress
                 key={uid}

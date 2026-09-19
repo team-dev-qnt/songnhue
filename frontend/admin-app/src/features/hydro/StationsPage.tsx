@@ -2,6 +2,7 @@ import { ApartmentOutlined, EditOutlined, PlusOutlined, UploadOutlined } from '@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
+  App,
   Button,
   Card,
   Form,
@@ -15,7 +16,6 @@ import {
   Tag,
   Tooltip,
   Typography,
-  message,
 } from 'antd';
 import { type ColumnsType } from 'antd/es/table';
 import { useMemo, useState } from 'react';
@@ -55,6 +55,7 @@ type BoLoc = 'TAT_CA' | 'CHUA_GAN_DON_VI' | 'THIEU_LIEN_KET';
  * cụm Liên Mạc có cả "Cống Liên Mạc" lẫn "Liên Mạc 2" — trực ban nhìn tên trần sẽ nhầm.
  */
 export function StationsPage() {
+  const { message } = App.useApp();
   const { hasPermission } = useAuth();
   const queryClient = useQueryClient();
   const [form] = Form.useForm<StationRequest>();
@@ -187,7 +188,7 @@ export function StationsPage() {
       dataIndex: 'name',
       width: 260,
       render: (name: string, r) => (
-        <Space direction="vertical" size={0}>
+        <Space orientation="vertical" size={0}>
           <span>{name}</span>
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             mã API <Typography.Text code>{r.apiCode}</Typography.Text>
@@ -461,7 +462,7 @@ export function StationsPage() {
           type="warning"
           showIcon
           style={{ marginBottom: 16 }}
-          message={`Không mở được biểu mẫu cho mã ${maApiDatSan.toUpperCase()}`}
+          title={`Không mở được biểu mẫu cho mã ${maApiDatSan.toUpperCase()}`}
           description="Khai điểm đo cần quyền quản lý danh mục điểm đo. Không có nó thì trang này chỉ xem được — nói ra vì một nút bấm không phản ứng đọc như giao diện hỏng."
         />
       )}
@@ -471,7 +472,7 @@ export function StationsPage() {
           type="warning"
           showIcon
           style={{ marginBottom: 16 }}
-          message={`${soChuaGan} điểm đo chưa gán đơn vị phụ trách`}
+          title={`${soChuaGan} điểm đo chưa gán đơn vị phụ trách`}
           description="Cảnh báo vượt ngưỡng của những điểm đo này chưa có người nhận — hệ thống sẽ không gửi cho ai, và cũng không báo lỗi. Gán đơn vị để đóng lại phần còn thiếu."
           action={
             <Button size="small" onClick={() => setBoLoc('CHUA_GAN_DON_VI')}>
@@ -527,7 +528,7 @@ export function StationsPage() {
             type="info"
             showIcon
             style={{ marginBottom: 16 }}
-            message={`Mã ${maApiDatSan.toUpperCase()} lấy từ danh sách Mã lạ từ nguồn`}
+            title={`Mã ${maApiDatSan.toUpperCase()} lấy từ danh sách Mã lạ từ nguồn`}
             description="Số đo của mã này đã được giữ lại từ trước. ⛔ Chỉ khai khi đã biết chắc nó là trạm nào — hệ thống không tự suy được, và một mã gán nhầm là toàn bộ lịch sử đi vào biểu đồ của trạm khác."
           />
         )}

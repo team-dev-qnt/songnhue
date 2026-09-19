@@ -8,7 +8,6 @@ import {
   Col,
   Empty,
   List,
-  Modal,
   Row,
   Space,
   Spin,
@@ -59,7 +58,7 @@ import { api, ApiClientError } from '@/shared/apiClient';
  *    nói ra lý do. Sửa hộ trong im lặng là làm người dùng tin họ đã lưu một thứ khác thứ đã lưu.
  */
 export function RolesPage() {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const { hasPermission } = useAuth();
   const queryClient = useQueryClient();
 
@@ -121,7 +120,7 @@ export function RolesPage() {
       //   một dòng toast trôi mất sau 3 giây ⛔ không phân biệt được với mọi lỗi nhập liệu khác.
       //   Đây là thao tác DUY NHẤT của màn hình mà hậu quả ⛔ không quay lui được từ giao diện.
       if (caught instanceof ApiClientError && caught.code === 'ADM-2016') {
-        Modal.error({
+        modal.error({
           title: 'Thao tác này không gỡ lại được',
           content: caught.message,
           okText: 'Đã hiểu',
@@ -159,7 +158,7 @@ export function RolesPage() {
               type="info"
               showIcon
               style={{ marginBottom: 16 }}
-              message="Bạn đang xem ma trận phân quyền"
+              title="Bạn đang xem ma trận phân quyền"
               description="Sửa được ma trận cần quyền adm:role:manage. Việc gán vai trò cho từng người nằm ở màn hình Tài khoản."
             />
           )}
@@ -210,7 +209,7 @@ export function RolesPage() {
               type="warning"
               showIcon
               style={{ marginBottom: 16 }}
-              message="Vai trò hệ thống — không sửa quyền được"
+              title="Vai trò hệ thống — không sửa quyền được"
               description="Đây là lối thoát cuối cùng của hệ thống: nếu mọi vai trò khác đều bị gỡ mất quyền quản trị, tài khoản mang vai trò này vẫn vào được để gỡ lại."
             />
           )}
@@ -225,7 +224,7 @@ export function RolesPage() {
                       <Typography.Text strong>{MODULE_LABELS[module] ?? module}</Typography.Text>
                     }
                     description={
-                      <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                      <Space orientation="vertical" size={2} style={{ width: '100%' }}>
                         {items.map((quyen) => (
                           <Checkbox
                             key={quyen.code}

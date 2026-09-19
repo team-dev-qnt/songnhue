@@ -1,7 +1,7 @@
 # Quy chuẩn UI Styles — Sông Nhuệ
 
 > Tài liệu này là **nguồn tham chiếu duy nhất** khi viết hoặc sửa CSS/theme/styling cho cả
-> `admin-app` (Vite + AntD 5) lẫn `public-web` (Next.js + Tailwind 4). Mọi quyết định
+> `admin-app` (Vite + AntD 6) lẫn `public-web` (Next.js + Tailwind 4). Mọi quyết định
 > về màu sắc, font, spacing, animation và cấu trúc layout đều phải nhất quán với các quy tắc dưới đây.
 
 ---
@@ -276,7 +276,7 @@ Tất cả các trang con (`danh-muc/[slug]`, `bai-viet/[slug]`, `tim-kiem`) đ�
 
 | Tên hiệu ứng | CSS / Keyframes | Sử dụng cho |
 |---|---|---|
-| **Fade In** | `@keyframes sn-fade-in { 0% { opacity: 0; transform: translateY(8px); } 100% { opacity: 1; transform: translateY(0); } }` | Trang tải nội dung, Modal mở |
+| **Fade In** | `@keyframes sn-fade-in { 0% { opacity: 0; transform: translateY(8px); } 100% { opacity: 1; transform: translateY(0); } }` | Trang tải nội dung, Modal mở. ⛔ `fill-mode` **`backwards`** — `both`/`forwards` giữ `transform` sau hoạt ảnh và nhốt mọi con cháu `position: fixed` (wall mode, T67.7) |
 | **Hover Lift** | `transition: transform 300ms ease, box-shadow 300ms ease; transform: translateY(-4px);` | Card tin tức, Card danh mục, Button |
 | **Image Zoom** | `transition: transform 500ms cubic-bezier(0.4, 0, 0.2, 1); transform: scale(1.05);` | Ảnh bìa bài viết khi hover |
 | **Backdrop Blur** | `backdrop-filter: blur(8px);` | Sticky Navbar, Frosted Badges |
@@ -290,6 +290,7 @@ Tất cả các trang con (`danh-muc/[slug]`, `bai-viet/[slug]`, `tim-kiem`) đ�
 - [ ] **Fallback**: Menu Header và Footer có giá trị fallback dự phòng, không bị trắng khi mất kết nối backend.
 - [ ] **Typography**: Sử dụng Noto Sans **tự host** (`@fontsource/noto-sans`), import ở đầu tệp CSS. ⛔ Không `@import url(...)` ra CDN — CSP `default-src 'self'` sẽ chặn, và trang rơi về font hệ thống mà không báo lỗi.
 - [ ] **Contrast**: Độ tương phản chữ đạt chuẩn WCAG AA trên cả nền xanh lẫn nền sáng.
-- [ ] **Motion**: Đã kiểm tra `prefers-reduced-motion` không gây lỗi layout.
+- [ ] **Motion**: Đã kiểm tra `prefers-reduced-motion` không gây lỗi layout. Hoạt ảnh giữ khung cuối ⛔ mang `transform` ở khung ấy (bộ canh `hieuUngVaoTrang.test.ts`).
+- [ ] **Chủ đề lồng**: `ConfigProvider` đổi nền (tối/sáng) đặt lại HẠT GIỐNG `colorTextBase`/`colorBgLayout`, ⛔ chỉ token lẻ (T67.8).
 - [ ] **Mobile Responsive**: Header, Footer và Card co giãn mượt mà trên màn hình nhỏ (< 640px).
 

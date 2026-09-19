@@ -77,20 +77,20 @@ export function EnrollTwoFactorPage() {
       title="Thiết lập xác thực hai bước"
       subtitle="Tài khoản quản trị bắt buộc dùng xác thực hai bước."
     >
-      {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
+      {error && <Alert type="error" showIcon title={error} style={{ marginBottom: 16 }} />}
 
       {!enrollment ? (
         <Spin />
       ) : (
         <Steps
-          direction="vertical"
+          orientation="vertical"
           size="small"
           current={saved ? 1 : 0}
           items={[
             {
               title: 'Quét mã và lưu mã khôi phục',
-              description: (
-                <Space direction="vertical" style={{ width: '100%' }}>
+              content: (
+                <Space orientation="vertical" style={{ width: '100%' }}>
                   {/* ⚠ Nền mã QR phải TRẮNG THẬT, ⛔ theo token: máy quét đọc bằng độ tương phản,
                       nên một nền "trắng theo chủ đề" ở chế độ tối làm mã ⛔ quét được. Ghim cố ý. */}
                   <div
@@ -113,7 +113,7 @@ export function EnrollTwoFactorPage() {
                   <Alert
                     type="warning"
                     showIcon
-                    message="Mã khôi phục — chỉ hiển thị một lần"
+                    title="Mã khôi phục — chỉ hiển thị một lần"
                     description={
                       <>
                         <Typography.Paragraph style={{ marginBottom: 8 }}>
@@ -137,7 +137,7 @@ export function EnrollTwoFactorPage() {
             },
             {
               title: 'Xác nhận bằng mã đầu tiên',
-              description: saved ? (
+              content: saved ? (
                 <Form<{ code: string }>
                   layout="vertical"
                   onFinish={(values) => void onConfirm(values)}

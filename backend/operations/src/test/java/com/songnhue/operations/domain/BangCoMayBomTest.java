@@ -16,7 +16,8 @@ import org.junit.jupiter.api.Test;
 import com.songnhue.core.common.exception.BusinessRuleException;
 
 /**
- * 9 cỡ máy của Bảng 1 Báo cáo nhanh — biên đề xuất ở {@code V202609181086}.
+ * 9 cỡ máy của Bảng 1 Báo cáo nhanh — biên đề xuất ở {@code V202609181086}, Công ty chấp nhận
+ * 19/09/2026 (OI-BC8 — trạng thái ở {@code business-open-questions.md} Phần I-C).
  *
  * <p>⭐ Dữ liệu là PHÂN BỐ THẬT của sheet {@code TB Tiêu (KH)} (830 máy, 27 cỡ Q), ⛔ số bịa: bài kiểm
  * phải chứng minh biên đề xuất cho mọi máy của danh mục Công ty một nhà, và cột "12" ra 0 — khớp ô

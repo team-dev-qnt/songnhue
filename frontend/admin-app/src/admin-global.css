@@ -113,8 +113,16 @@ html {
   }
 }
 
+/* ⛔⛔ `backwards`, ⛔ `both`/`forwards` — T67.7 (WS-67), đo 19/09/2026 trên Chrome.
+   `both` GIỮ khung cuối mãi sau khi hoạt ảnh xong ⇒ phần tử mang `matrix(1, 0, 0, 1, 0, 0)` — ⛔ phải
+   `none` — và một `transform` khác `none` biến nó thành KHỐI CHỨA của mọi con cháu `position: fixed`.
+   Hệ quả đo được: khung wall mode (`WallFrame`, `position: fixed; inset: 0`) bị nhốt trong div này,
+   cao 24–31 px, nội dung biến mất — ở cả 1440 lẫn 1920 px, từ phase 1.
+   ⚠ Đổi khung cuối thành `transform: none` ⛔ chữa được: trình duyệt NỘI SUY `translateY(8px)` → `none`
+   bằng hàm đồng nhất nên giá trị giữ lại vẫn là ma trận (đo được — bản vá đầu của tôi). Thứ phải bỏ là
+   việc GIỮ khung cuối. Độ trễ = 0 nên `backwards` cho hình ảnh y hệt. Bài canh: `hieuUngVaoTrang.test.ts`. */
 .sn-page-enter {
-  animation: sn-fade-in 0.35s cubic-bezier(0.4, 0, 0.2, 1) both;
+  animation: sn-fade-in 0.35s cubic-bezier(0.4, 0, 0.2, 1) backwards;
 }
 
 /* ───── Accessibility: tôn trọng người dùng yêu cầu giảm chuyển động ───── */

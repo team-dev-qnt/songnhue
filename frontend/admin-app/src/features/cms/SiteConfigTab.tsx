@@ -71,12 +71,12 @@ export function SiteConfigTab() {
   const thamSo = items.filter((item) => !item.key.endsWith('.attachment-id'));
 
   return (
-    <Space direction="vertical" size={24} style={{ width: '100%' }}>
+    <Space orientation="vertical" size={24} style={{ width: '100%' }}>
       <div>
         <Typography.Title level={5}>Ảnh nhận diện</Typography.Title>
         <Space wrap size={24}>
           {anhNhanDien.map((item) => (
-            <Space key={item.key} direction="vertical" align="center">
+            <Space key={item.key} orientation="vertical" align="center">
               <Typography.Text strong>{item.label}</Typography.Text>
               {item.effectiveValue ? (
                 <Image
@@ -112,7 +112,7 @@ export function SiteConfigTab() {
             <Descriptions.Item
               key={item.key}
               label={
-                <Space direction="vertical" size={0}>
+                <Space orientation="vertical" size={0}>
                   <span>{item.label}</span>
                   {item.description && (
                     <Typography.Text type="secondary" style={{ fontSize: 12 }}>

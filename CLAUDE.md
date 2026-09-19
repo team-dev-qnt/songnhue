@@ -46,7 +46,7 @@ Khi mâu thuẫn: `architecture-review.md` > `function-spec.md` / `implement.md`
 
 ## Tech stack (đã chốt — không tự ý đổi)
 
-PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) + React/Vite/AntD 5 (admin) · **Không Redis (v1)** — cache in-process (Caffeine) + bảng `hydro_latest`; denylist ở DB · **DB-backed job queue + ShedLock (giữ sẵn, bật khi ≥2 node)** · **Worker in-process (v1)** · MinIO · ECharts · Leaflet/MapLibre + OSM · Flyway · Auth: access token 30' + refresh rotation httpOnly cookie · **Modular Monolith 1 node (v1), stateless để thêm node = đổi cấu hình** · ArchUnit enforce boundary.
+PostgreSQL 16 + PostGIS · Spring Boot 3 (Java 21) · Next.js (public, SSR/ISR) + React 19/Vite/AntD 6 (admin — nâng 18/09/2026, WS-67) · **Không Redis (v1)** — cache in-process (Caffeine) + bảng `hydro_latest`; denylist ở DB · **DB-backed job queue + ShedLock (giữ sẵn, bật khi ≥2 node)** · **Worker in-process (v1)** · MinIO · ECharts · Leaflet/MapLibre + OSM · Flyway · Auth: access token 30' + refresh rotation httpOnly cookie · **Modular Monolith 1 node (v1), stateless để thêm node = đổi cấu hình** · ArchUnit enforce boundary.
 
 ## Quy tắc bất di bất dịch khi code
 
@@ -356,6 +356,9 @@ sai, sửa 10/09 — T52.8). Đo trên CSDL staging cùng ngày: `constructions`
 | 17/9 | ⛔⛔ **Một thông điệp chẩn đoán ĐOÁN MÒ, và đoán về phía phá huỷ nhất** — nhánh quay lui khẳng định *"migration đã đổi lược đồ"* rồi trỏ sang **khôi phục CSDL**, trong khi log của chính lượt ấy ghi `app Healthy` trên ảnh CŨ. Khôi phục CSDL ở đó ⛔ chữa gì mà **xoá mất dữ liệu mới** | §11.27 |
 | 17/9 | ⛔⛔ **CI đỏ ở một bài `ci-local` VỀ NGUYÊN TẮC ⛔ thể làm đỏ** — lệch **đúng 7 giờ** (runner UTC · máy +07). Cùng một bản phá: `TZ=UTC` ⇒ ĐỎ · `TZ=Asia/Ho_Chi_Minh` ⇒ XANH ⇒ thứ giấu lỗi chính là **máy người viết mã đặt ĐÚNG múi giờ sản phẩm**. Bánh cóc: ghim `TZ=UTC` cho bộ kiểm — ⛔ ghim `Asia/Ho_Chi_Minh`, ghim vào múi giờ sản phẩm là làm lớp lỗi ấy **vô hình trở lại** | §11.27 |
 | 17/9 | ⭐ **Bộ canh cũ bắt bản vá ở lượt chạy đầu — lần thứ MƯỜI MỘT, và nó chặn đúng tai nạn nó sinh ra để chặn**: 16 dòng chú thích trong heredoc `<<REMOTE` ⛔ nháy ⇒ **46 dấu huyền** là thay thế lệnh do runner khai triển, trong đó có `docker compose run nginx` — **đúng lệnh** đã gây ra §10.66. Một chú thích trong heredoc ⛔ nháy là **mã chạy được** | §11.27 |
+| 19/9 | ⛔⛔⛔ **Trình soạn thảo bài viết SẬP khi mở trên bản dựng production (staging/production chạy đúng tiptap ấy) — mọi bài kiểm dựng nó THẬT (T41.12) đều xanh.** React Router 7 dựng trang trong `startTransition` (render cắt lát); tiptap dựng editor NGAY TRONG render kèm hẹn giờ huỷ 1 ms ⇒ hẹn giờ bắn trước commit ⇒ effect cầm editor đã huỷ ⇒ `reading 'cached'`. Bài kiểm render NGOÀI transition nên về nguyên tắc ⛔ thấy. ⚠ Bài đầu của tôi dựng lại cuộc đua bằng giờ thật trong jsdom thì **XANH trên mã chưa vá**; bản vá đầu kiểm `isDestroyed` LÚC RENDER — vô dụng. Bài đúng dựng TRẠNG THÁI (huỷ trong `useLayoutEffect`) và phân biệt được ba trạng thái | T67.6 |
+| 19/9 | ⛔⛔ **Wall mode CHƯA TỪNG hiện ra — T23.10 tick ✅ từ phase 1.** `.sn-page-enter` (bọc mọi trang) chạy hoạt ảnh `fill-mode: both`, khung cuối `translateY(0)` ⇒ giữ `matrix(1,0,0,1,0,0)` mãi ⇒ phần tử thành KHỐI CHỨA của mọi con cháu `position: fixed` ⇒ khung wall `inset: 0` cao **24 px**. ⚠ Bản vá đầu (`transform: none` ở khung cuối) VẪN ra ma trận — nội suy bằng hàm đồng nhất — và bộ canh bản đầu **tha** nó. Thứ phải bỏ là việc GIỮ khung cuối (`backwards`). Mở khung ra thì lộ tiếp nhãn KPI vô hình (T67.8) | T67.7 |
+| 19/9 | ⚠ **Khảo sát phạm vi lượt nâng antd bằng `grep` sót 27 chỗ, và bộ đếm lời gọi `message` tĩnh tính cả CHÚ THÍCH** — `no-deprecated` (có thông tin kiểu) đo ra **252 chỗ / 88 tệp / 15 loại**. Cùng lượt: bộ kiểm FE chậm 15× trên antd 6 ⛔ vì máy — CSS variables luôn bật làm `getComputedStyle` của jsdom mất **5 926 ms**/bài (antd 5: 71 ms); chạy riêng thì xanh nên rất dễ đọc thành đói tài nguyên (T63.14) | T67.1 |
 | 14/9 | ⚠ **13 mục DoD Phase 3 có ĐÚNG 0 lượt nhắc trong sổ** — `grep -c "DOD3"` = 0. Chúng sống ở `phase3-plan.md` §8 và chưa lượt nào đối chiếu, đúng hình dạng §10.36. Lượt đối chiếu đầu tiên tìm ra **2 khuyết tật đang sống**. ⚠ Và 9 "endpoint mồ côi" của lượt quét là **dương tính giả của chính phép đo tôi vừa viết** (FE ghép đường dẫn bằng template literal — luật 25) | T60.7 · T60.8 |
 
 ⛔ Hệ quả rút ra: **"đã tick" không phải bằng chứng.** Trước khi mở một giai đoạn mới, đối chiếu với mã thật và chạy đường mà người dùng thật đi.
@@ -517,6 +520,15 @@ xuất Word điền thẳng vào mẫu Công ty, 0 phụ thuộc mới). Tài li
 PENDING**. ✅ **Gộp `dev` 19/09** (#167, `43c525d`) · Công ty **trả lời open issue 19/09** ⇒ `function-spec.md`
 **CN-02.12** + `business-open-questions.md` **Phần I-C** (⛔ nghiệm thu mở lại các dòng ✅ ở đó). ⬜ Còn: nhập liệu
 (T66.13) chặn theo **T66.14** — OI-BC10 cho danh sách Xí nghiệp THỨ BA, khác cả hai danh sách của OI-05.
+⭐⭐ **18–19/09: WS-67 — React 18 → 19 · antd 5 → 6** (PR **#169**, thay Dependabot #149/#150; **rebase lên `dev` sau
+#167/#170 ngày 19/09**). 252 chỗ API khai tử → **0**, đo bằng `@typescript-eslint/no-deprecated` (nay là luật lint của
+`admin-app`) · lockfile **MỘT** bản React (`PhuThuocNoiBoTest`) · bộ kiểm FE 170 s → 76 s. ⛔⛔ **Đi đường người dùng thật
+(22 màn hình) lộ BA khuyết tật CÓ SẴN, mã của cả ba đang chạy ở staging/production**: trình soạn thảo bài viết **SẬP khi
+mở** (T67.6 — bản dựng production của `dev` trước #165 sập y hệt ở máy; ⚠ **chưa ai mở thử trên production thật** — việc của
+QuanTran) · **wall mode CHƯA TỪNG hiện ra** dù T23.10 đã tick từ phase 1 (T67.7) · nhãn KPI
+của wall vô hình (T67.8). Bản vá nằm trong #169 ⇒ **chỉ hết trên staging/production sau lượt đề bạt**. ⬜ `T67.4` (`List`,
+8 tệp) · lượt đo đa trình duyệt vế quản trị trên staging thuộc `T61.29`. `make ci-local` sau rebase thoát **0** (⚠ số ở MÁY):
+BE **2050** (core 348 · content 55 · hydro 229 · operations 80 · app 1338) · 0 đỏ · FE **558**/88 + **399**/46.
 ⬜⬜ **`T63.11` — QuanTran đang soạn tài liệu BÁO CÁO + TƯỚI TIÊU (17/09), PENDING** *(vế Báo cáo nhanh chống úng đã xong — dòng ngay trên; còn tưới tiêu · 17 mã cũ · Báo cáo nhanh chống hạn T66.16)*. ⛔ đoán trước, ⛔ tự chế bố cục. ⛔⛔ Vế
 **tưới tiêu ⛔ phải một khoảng trống — nó là vùng đã bị CẮT có chủ đích** (chốt **A1 · B5 · F3 · G2**), và kho đang khai điều
 ngược lại ở **năm** chỗ đo được (`BC_04` `khaDung=false` + `OPS-2023` *"bỏ vĩnh viễn"* · `BC-07` bỏ · trường *Diện tích tưới

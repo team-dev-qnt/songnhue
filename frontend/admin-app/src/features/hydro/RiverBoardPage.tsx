@@ -105,7 +105,7 @@ export function RiverBoardPage() {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message={
+        title={
           laHomNay
             ? `Cột "Hiện tại" là giá trị HỢP LỆ mới nhất — tự làm mới ${NHIP_LAM_MOI_MS / 60000} phút một lần`
             : 'Đang xem một ngày trong quá khứ — cột "Hiện tại" vẫn là giá trị mới nhất của điểm đo, ⛔ không phải giá trị cuối ngày ấy'

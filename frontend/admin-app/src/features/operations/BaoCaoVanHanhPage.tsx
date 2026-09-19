@@ -50,11 +50,11 @@ export function BaoCaoVanHanhPage() {
 
   return (
     <Card title="Báo cáo vận hành công trình" loading={danhMuc.isLoading}>
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
         <Alert
           type="info"
           showIcon
-          message="Bốn báo cáo đã bỏ khỏi phạm vi vẫn hiện ở đây"
+          title="Bốn báo cáo đã bỏ khỏi phạm vi vẫn hiện ở đây"
           description={
             <>
               BC-01/02/03 và BC-04 <b>mất nguồn dữ liệu</b> sau khi nhật ký vận hành và kế hoạch vụ

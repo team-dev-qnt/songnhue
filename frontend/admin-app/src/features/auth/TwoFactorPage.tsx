@@ -56,7 +56,7 @@ export function TwoFactorPage() {
       title="Xác thực hai bước"
       subtitle="Mở ứng dụng xác thực trên điện thoại và nhập mã 6 chữ số đang hiển thị."
     >
-      {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
+      {error && <Alert type="error" showIcon title={error} style={{ marginBottom: 16 }} />}
 
       <Form<TwoFactorForm>
         layout="vertical"

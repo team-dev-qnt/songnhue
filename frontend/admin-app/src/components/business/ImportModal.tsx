@@ -176,7 +176,7 @@ export function ImportModal({
         </Button>,
       ]}
     >
-      <Space direction="vertical" style={{ width: '100%' }} size="large">
+      <Space orientation="vertical" style={{ width: '100%' }} size="large">
         <div>
           <Typography.Paragraph type="secondary" style={{ marginBottom: 8 }}>
             {moTa} Tải tệp mẫu về để lấy đúng tên cột — dòng 2 của tệp mẫu mô tả quy cách từng ô,
@@ -215,7 +215,7 @@ export function ImportModal({
           </p>
         </Upload.Dragger>
 
-        {xemTruoc.isPending && <Alert message="Đang kiểm tra tệp..." type="info" showIcon />}
+        {xemTruoc.isPending && <Alert title="Đang kiểm tra tệp..." type="info" showIcon />}
 
         {!xemTruoc.isPending && report && (
           <div>
@@ -231,7 +231,7 @@ export function ImportModal({
               <>
                 <Alert
                   type="error"
-                  message={`Không thể nhập dữ liệu vì có ${report.errors.length} lỗi`}
+                  title={`Không thể nhập dữ liệu vì có ${report.errors.length} lỗi`}
                   showIcon
                   style={{ marginBottom: 16 }}
                 />
@@ -245,7 +245,7 @@ export function ImportModal({
                 />
               </>
             ) : (
-              <Alert type="success" message="Tệp hợp lệ, sẵn sàng để nhập." showIcon />
+              <Alert type="success" title="Tệp hợp lệ, sẵn sàng để nhập." showIcon />
             )}
           </div>
         )}

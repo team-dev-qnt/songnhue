@@ -237,8 +237,7 @@ export function SuspectReadingsPage() {
         />
         <Select
           allowClear
-          showSearch
-          optionFilterProp="label"
+          showSearch={{ optionFilterProp: 'label' }}
           placeholder="Mọi điểm đo"
           style={{ width: 280 }}
           value={diemDoId}
@@ -287,7 +286,7 @@ export function SuspectReadingsPage() {
               type="info"
               showIcon
               style={{ marginBottom: 16 }}
-              message={`${dangXuLy.diemDoName} · ${dangXuLy.giaTri} ${dangXuLy.donVi}`}
+              title={`${dangXuLy.diemDoName} · ${dangXuLy.giaTri} ${dangXuLy.donVi}`}
               description={dangXuLy.lyDoMay}
             />
             <Form form={form} layout="vertical">

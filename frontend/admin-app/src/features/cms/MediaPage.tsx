@@ -139,7 +139,7 @@ export function MediaPage({ kho = 'MEDIA' }: { kho?: KhoTep } = {}) {
         dangDung.length === 0 ? (
           <Typography.Text>Không bài viết nào đang dùng tệp này.</Typography.Text>
         ) : (
-          <Space direction="vertical">
+          <Space orientation="vertical">
             <Typography.Text strong type="danger">
               {dangDung.length} bài viết đang dùng tệp này:
             </Typography.Text>

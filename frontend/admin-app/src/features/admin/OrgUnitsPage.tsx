@@ -256,7 +256,7 @@ export function OrgUnitsPage() {
           {!selected ? (
             <Empty description="Chọn một đơn vị trên cây" />
           ) : (
-            <Space direction="vertical" style={{ width: '100%' }}>
+            <Space orientation="vertical" style={{ width: '100%' }}>
               <Typography.Title level={5} style={{ marginBottom: 0 }}>
                 {selected.name}
               </Typography.Title>
@@ -275,7 +275,7 @@ export function OrgUnitsPage() {
                    công khai trống. Trước 28/08/2026 ba cột ấy ĐỌC ĐƯỢC MÀ KHÔNG GHI ĐƯỢC —
                    không biểu mẫu nào có ô nhập.
               */}
-              <Space direction="vertical" size={2} style={{ marginTop: 8 }}>
+              <Space orientation="vertical" size={2} style={{ marginTop: 8 }}>
                 <Typography.Text>
                   <Typography.Text type="secondary">Địa chỉ: </Typography.Text>
                   {selected.address ?? <Typography.Text type="warning">Chưa nhập</Typography.Text>}
@@ -673,11 +673,11 @@ function XacNhanGiaiThe({
       onCancel={onDong}
       destroyOnHidden
     >
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
         <Alert
           type="warning"
           showIcon
-          message="Thao tác này bị từ chối nếu đơn vị còn dữ liệu"
+          title="Thao tác này bị từ chối nếu đơn vị còn dữ liệu"
           description={
             <>
               Hệ thống sẽ kiểm hồ sơ cán bộ, công trình, nhật ký bảo trì, điểm đo, phiếu liên hệ và

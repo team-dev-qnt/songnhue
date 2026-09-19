@@ -216,7 +216,7 @@ export function CategoriesPage() {
         style={{ marginBottom: 16 }}
         type="info"
         showIcon
-        message="Kéo thả để đổi cấp và thứ tự"
+        title="Kéo thả để đổi cấp và thứ tự"
         description="Thứ tự ở đây quyết định thứ tự hiển thị trên cổng. Không kéo được một danh mục vào chính nhánh con của nó."
       />
 
@@ -282,7 +282,8 @@ export function CategoriesPage() {
             <Input autoFocus />
           </Form.Item>
           <Form.Item name="slug" label="Đường dẫn" extra="Bỏ trống để hệ thống tự sinh từ tên">
-            <Input addonBefore="/danh-muc/" />
+            {/* `prefix` chứ ⛔ `Space.Compact` — xem ghi chú cùng chỗ ở ArticleEditorPage (WS-67). */}
+            <Input prefix="/danh-muc/" />
           </Form.Item>
         </Form>
       </Modal>

@@ -186,7 +186,7 @@ Quy tắc ràng buộc giữa module (giữ đúng Modular Monolith):
 4. ✅ Chart: **ECharts**.
 5. ✅ Base map: **OSM mặc định** (Leaflet/MapLibre), Google Maps optional. ⬜ Shapefile (SRS §4.6) — chốt ở thiết kế chi tiết (F7).
 6. ✅ Database: **PostgreSQL 16 + PostGIS**.
-7. ✅ Admin UI: **Ant Design 5**; Public web: **Next.js + Tailwind**.
+7. ✅ Admin UI: **Ant Design 6** (5 → 6 ngày 18/09/2026, WS-67); Public web: **Next.js + Tailwind**.
 8. ✅ **Quy mô triển khai: CONFIRMED** — v1 1 node, bỏ Redis, worker in-process, ShedLock giữ sẵn. **Backup bản tối giản: `pg_dump` hàng đêm, RPO ≤ 24h, RTO ≤ 4h, không PITR/replica** (chốt 13/8/2026). Xem `architecture-review.md` §6.5.
 9. ✅ **Restore UI: CONFIRMED (2026-08-06)** — làm nút restore (M5.11) + bảo vệ nhiều lớp (`architecture-review.md` §7.3).
 10. ✅ **Scope phần mở rộng: ĐÃ ĐÓNG HOÀN TOÀN (12/8/2026)** — **bỏ nhật ký vận hành + phiếu sự cố riêng + BC-01/02/03/04/07/08**, thay bằng **Lịch sử sửa chữa/khắc phục sự cố (CN-02.2)** + BC-06/BC-09/BC-10. **Không còn hạng mục 🔷 nào.**

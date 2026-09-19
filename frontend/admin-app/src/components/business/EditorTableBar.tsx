@@ -91,11 +91,11 @@ export function EditorTableBar({ trangThai, onLenh }: EditorTableBarProps) {
     <div className="sn-editor__tablebar" role="toolbar" aria-label="Công cụ bảng">
       <Space wrap size={4}>
         {NHOM_HANG.map(nut)}
-        <Divider type="vertical" />
+        <Divider orientation="vertical" />
         {NHOM_COT.map(nut)}
-        <Divider type="vertical" />
+        <Divider orientation="vertical" />
         {NHOM_O.map(nut)}
-        <Divider type="vertical" />
+        <Divider orientation="vertical" />
 
         {/* Hai nút trạng thái: `aria-pressed` phản ánh HÌNH HỌC của bảng, không phải vị trí con
             trỏ — xem `tieuDeTheoHinhHoc`. Đọc sai chỗ này thì bấm "bật" lại thành tắt. */}
@@ -118,7 +118,7 @@ export function EditorTableBar({ trangThai, onLenh }: EditorTableBarProps) {
           Cột tiêu đề
         </Button>
 
-        <Divider type="vertical" />
+        <Divider orientation="vertical" />
         <Popconfirm
           title="Xoá cả bảng?"
           description="Toàn bộ nội dung trong bảng sẽ mất. Có thể Hoàn tác ngay sau đó."
