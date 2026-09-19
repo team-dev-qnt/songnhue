@@ -514,8 +514,10 @@ mỗi tệp chứa 4 lần `password_hash` và `secret_encrypted` **dạng thu�
 
 **Vá** `umask 077` ở đầu script + `trap 'rm -f "$GHEP"' EXIT`.
 
-⬜ **Nợ còn lại (T11.96)**: các tệp `*.dump` vẫn là `644` — mỗi tệp là **toàn bộ CSDL**. Hành vi sẵn
-có của `pre-deploy-dump.sh`, mâu thuẫn với chính chuẩn của dự án (`.env` bắt buộc `600`).
+⬜ **Nợ còn lại (T11.96)**: các tệp `*.dump` CŨ vẫn có thể là `644` — mỗi tệp là **toàn bộ CSDL**. ⚠ **Sửa
+19/09 (WS-68)**: hành vi của script ĐÃ vá và đã lên production (`pre-deploy-dump.sh` umask 027 + `chmod 640`,
+`QuyenBanDumpTest`) — tệp MỚI là `640`. Còn đúng việc sửa quyền tệp CŨ trên hai máy, lọc MỌI tệp thường chứ ⛔ chỉ
+`*.dump` (`phase4-tracking-tmp.md` §B4).
 
 ### 7.11 zsh không tách từ
 
