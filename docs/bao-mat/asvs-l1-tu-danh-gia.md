@@ -362,4 +362,15 @@ bài kiểm, và lượt phá-bản-vá chứng minh bài kiểm bắt được 
 | 16.2 #6 · #7 · #9 · #10 | `T61.36`→`T61.39` | ✅ cả bốn đã vá (16/09) · `DatLaiMatKhauHttpTest` · `BieuMauCongKhaiChongLamDungTest` · `DiaChiNguonTest` · `QuyenRiengTuHttpTest` | email biểu mẫu công khai ⛔ kiểm định dạng ⇒ `"x"` thành người nhận thư; hạn mức 300/PHÚT của đường ĐỌC dùng cho đường GHI |
 | 16.3 · 16.4 · 16.5 | `T61.40` | 🟡 **31 dòng** đo được (sổ cũ ghi 23) — đã vá ở `T61.40`+`T61.47`; còn `T61.48` (7 mục chờ QuanTran quyết) · `T61.49` (5 mục chỉ đo được trên staging) | ⚠ Một dòng của bảng này từng **mồ côi**: ASVS 8.2.3 (đăng xuất ⛔ xoá đệm truy vấn) ⛔ nằm trong T61.48 lẫn T61.49 — vá ở `T63.3` |
 
+### 18.1 Cập nhật 19/09/2026 — WS-73
+
+| Khoảng trống | Task | Trạng thái | Phép đo trước khi vá |
+|---|---|---|---|
+| 16.3 #22 — 4.2.1 chống IDOR ở module có phạm vi | `T73.1` | ✅ 6 lượt tra theo `publicId` nay qua `ScopeGuard` · `TraCuuNgoaiPhamViHttpTest` + luật bytecode `TraCuuPhamViRuleTest` | đơn vị khác ⇒ **404** `SYS-0004`, 0 dòng `security_events`; luật báo đúng **6** vi phạm trên mã gốc (sổ chỉ ghi 5 — `DonNghiPhepService.get` lộ ra khi đo toàn kho) |
+| 16.2 #4 — `javascript:` qua đường ghi THỨ BA: banner | `T73.2` | ✅ chặn lúc ghi (`CMS-2024`, cùng `DiaChiLienKet` của menu) + bọc lúc hiển thị (`AnhCarousel`, `HomeBannerSlider`) | `PUT` banner với `javascript:` ⇒ **200** |
+| 16.4 — 14.4.2 `Content-Disposition` cho API | `T73.3` | ✅ `ResponseEnvelopeAdvice` — mọi thân JSON, kể cả lỗi · `TenTepApiHttpTest` | 0 phản hồi JSON mang header |
+| 16.4 — 14.4.1 `charset` cho JSON | `T73.3` | ⚪ **Không áp dụng** — 14.4.1 chỉ đòi bộ ký tự cho `text/*`, `*/+xml`, `application/xml`; RFC 8259 §11: `application/json` ⛔ định nghĩa tham số `charset` | nhãn trong mã từng gán `nosniff` cho 14.4.1 — thật ra là 14.4.4, đã sửa |
+| 14.4.3 — CSP cổng còn `script-src 'unsafe-inline'` | `T73.7` | ⬜ mở | `next.config.ts` — chính chỉ thị làm 5.2.7/5.3.3 chạy được khi lớp khác hở |
+| Mọi mã ở §16 có dòng sổ giữ | `T73.4` | ✅ bộ canh ở job `tracking` (chạy mọi PR) | **24/57** mã ⛔ dòng sổ nào nhắc đúng mã |
+
 ⚠ Phép đo trên hệ đang chạy (ZAP baseline vào staging) vẫn **chưa chạy** — việc của QuanTran, xem `tools/zap/README.md`.

@@ -2,6 +2,7 @@ package com.songnhue.core.common.web;
 
 import org.springframework.core.MethodParameter;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.AbstractJacksonHttpMessageConverter;
 import org.springframework.http.converter.HttpMessageConverter;
@@ -56,6 +57,8 @@ public class ResponseEnvelopeAdvice implements ResponseBodyAdvice<Object> {
             ServerHttpRequest request,
             ServerHttpResponse response) {
 
+        datTenTepApi(selectedConverterType, request, response);
+
         // Đã là envelope rồi thì trả nguyên — GlobalExceptionHandler tự dựng sẵn ApiResponse,
         // bọc thêm lần nữa sẽ biến response lỗi thành success=true với lỗi nằm trong `data`.
         if (body instanceof ApiResponse<?>) {
@@ -104,5 +107,31 @@ public class ResponseEnvelopeAdvice implements ResponseBodyAdvice<Object> {
             return ApiResponse.ofPage(page, traceId);
         }
         return ApiResponse.ok(body, traceId);
+    }
+
+    /**
+     * T73.3 (ASVS 14.4.2) — phản hồi JSON của API mang {@code Content-Disposition: attachment; filename="api.json"}:
+     * mở thẳng một URL API trên thanh địa chỉ thì trình duyệt TẢI tệp chứ ⛔ hiển thị nó — lớp thứ hai sau
+     * {@code nosniff} ({@code KhongLuuDemFilter}). {@code fetch}/XHR bỏ qua header này.
+     *
+     * <p>Đặt ở ĐẦU {@link #beforeBodyWrite} để phản hồi LỖI ({@code ApiResponse} dựng sẵn, trả sớm) cũng mang nó.
+     *
+     * <p>⛔ Đặt ở {@code KhongLuuDemFilter} cùng {@code nosniff}: đo 19/09/2026 bằng lượt phá (dời header vào filter)
+     * — phản hồi LỖI 401 MẤT header ấy (đường giải lỗi dựng lại phản hồi), và filter ấy cố ý bỏ qua
+     * {@code /api/v1/public/**}. Advice này là chỗ MỌI thân JSON của API đi qua, kể cả lỗi (luật 12). Chỉ converter
+     * JSON được đặt; endpoint nào tự khai header (tải tệp) thì giữ nguyên ({@code TenTepApiHttpTest}).
+     */
+    private static void datTenTepApi(
+            Class<? extends HttpMessageConverter<?>> converter,
+            ServerHttpRequest request,
+            ServerHttpResponse response) {
+        if (!request.getURI().getPath().startsWith(API_PREFIX)) {
+            return;
+        }
+        boolean json = AbstractJacksonHttpMessageConverter.class.isAssignableFrom(converter)
+                || StringHttpMessageConverter.class.isAssignableFrom(converter);
+        if (json && response.getHeaders().getFirst(HttpHeaders.CONTENT_DISPOSITION) == null) {
+            response.getHeaders().set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"api.json\"");
+        }
     }
 }

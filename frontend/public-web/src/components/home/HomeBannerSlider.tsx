@@ -1,4 +1,5 @@
 import type { BannerItem } from '@/lib/api';
+import { lienKetAnToan } from '@/lib/lienKetAnToan';
 import { fileUrl } from '@/lib/routes';
 import { type HieuUngSlider } from '@/lib/slider';
 
@@ -48,7 +49,8 @@ export function HomeBannerSlider({
         src: fileUrl(b.imageId),
         title: b.title,
         description: b.description,
-        linkUrl: b.linkUrl,
+        // T73.2 — chữ do người sửa banner nhập ⇒ lọc ngay chỗ dữ liệu vào cây component.
+        linkUrl: lienKetAnToan(b.linkUrl),
         openNewTab: b.openNewTab,
       }))}
       intervalSeconds={intervalSeconds}

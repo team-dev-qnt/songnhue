@@ -19,6 +19,7 @@ import com.songnhue.core.common.exception.BusinessRuleException;
 import com.songnhue.core.common.exception.ConflictException;
 import com.songnhue.core.common.exception.PermissionDeniedException;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
+import com.songnhue.core.common.persistence.ScopeGuard;
 import com.songnhue.core.common.security.AuthContext;
 import com.songnhue.core.common.security.AuthenticatedUser;
 import com.songnhue.core.common.util.DateTimeUtils;
@@ -72,6 +73,7 @@ public class DonNghiPhepService {
     private final ChinhSachPhep chinhSach;
     private final WorkflowPort workflow;
     private final NotificationPort thongBao;
+    private final ScopeGuard scopeGuard;
 
     public DonNghiPhepService(
             LeaveRequestRepository donNghi,
@@ -80,7 +82,8 @@ public class DonNghiPhepService {
             SoDuPhepService soDu,
             ChinhSachPhep chinhSach,
             WorkflowPort workflow,
-            NotificationPort thongBao) {
+            NotificationPort thongBao,
+            ScopeGuard scopeGuard) {
         this.donNghi = donNghi;
         this.employees = employees;
         this.demNgayCong = demNgayCong;
@@ -88,6 +91,7 @@ public class DonNghiPhepService {
         this.chinhSach = chinhSach;
         this.workflow = workflow;
         this.thongBao = thongBao;
+        this.scopeGuard = scopeGuard;
     }
 
     /**
@@ -258,10 +262,13 @@ public class DonNghiPhepService {
         return donNghi.findByEmployeeIdAndDeletedAtIsNullOrderByFromDateDesc(hoSo.getId(), pageable);
     }
 
+    /**
+     * T73.1 — đơn của đơn vị khác ⇒ 403 {@code AUTH-3002} + một dòng {@code ACCESS_DENIED_SCOPE}, ⛔ 404 im lặng
+     * (M5.16). {@code LeaveRequest} là {@code ScopedEntity}: bộ lọc đã giấu nó, {@link ScopeGuard} nói ra vì sao.
+     */
     @Transactional(readOnly = true)
     public LeaveRequest get(UUID publicId) {
-        return donNghi.findByPublicIdAndDeletedAtIsNull(publicId)
-                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
+        return scopeGuard.require(donNghi.findByPublicIdAndDeletedAtIsNull(publicId), LeaveRequest.class, publicId);
     }
 
     /** Nút giao diện được phép hiện — đã lọc theo quyền của người đang đăng nhập. */

@@ -16,6 +16,7 @@ import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.ConflictException;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
 import com.songnhue.core.common.exception.ValidationException;
+import com.songnhue.core.common.persistence.ScopeGuard;
 import com.songnhue.hydro.domain.AlertConditionType;
 import com.songnhue.hydro.domain.AlertLevel;
 import com.songnhue.hydro.domain.AlertRule;
@@ -49,17 +50,20 @@ public class AlertRuleService {
     private final AlertRuleRepository rules;
     private final AlertLevelRepository levels;
     private final StationRepository stations;
+    private final ScopeGuard scopeGuard;
     private final MeasurementTypeRepository types;
 
     public AlertRuleService(
             AlertRuleRepository rules,
             AlertLevelRepository levels,
             StationRepository stations,
-            MeasurementTypeRepository types) {
+            MeasurementTypeRepository types,
+            ScopeGuard scopeGuard) {
         this.rules = rules;
         this.levels = levels;
         this.stations = stations;
         this.types = types;
+        this.scopeGuard = scopeGuard;
     }
 
     @Transactional(readOnly = true)
@@ -196,9 +200,13 @@ public class AlertRuleService {
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
     }
 
+    /**
+     * T73.1 — điểm đo của đơn vị khác ⇒ 403 {@code AUTH-3002} + một dòng {@code ACCESS_DENIED_SCOPE}, ⛔ 404 im
+     * lặng. Bộ lọc phạm vi đã giấu bản ghi; {@link ScopeGuard} phân biệt <i>"⛔ có"</i> với <i>"có, của đơn vị
+     * khác"</i> (M5.16).
+     */
     private Station timDiemDo(UUID publicId) {
-        return stations.findByPublicIdAndDeletedAtIsNull(publicId)
-                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
+        return scopeGuard.require(stations.findByPublicIdAndDeletedAtIsNull(publicId), Station.class, publicId);
     }
 
     private MeasurementType timLoaiChiSo(String ma) {
