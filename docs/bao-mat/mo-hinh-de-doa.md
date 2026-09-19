@@ -68,7 +68,7 @@ Xếp theo hậu quả khi mất, ⛔ theo thứ tự trong mã.
 | Nhật ký mang dữ liệu | Log ràng buộc chỉ giữ TÊN ràng buộc (T61.40) | `rejectedValue` vẫn ra response ở vài chỗ |
 | Bí mật trong bản sao lưu | Credential mã hoá AES-GCM; payload job ⛔ mang email | — |
 | **SSRF** đọc mạng nội bộ | Chặn theo chữ viết **và** theo địa chỉ đã phân giải (T61.38) | DNS rebinding (khai trong javadoc) |
-| Phạm vi đơn vị bị vượt | `ScopeGuard` ở `operations` + `hr` | **`content` và `hydro` ⛔ có** (T61.48 #7) |
+| Phạm vi đơn vị bị vượt | `ScopeGuard` ở `operations` + `hr` + `hydro` (từ WS-28; 6 lượt tra còn sót vá ở T73.1, luật bytecode `TraCuuPhamViRuleTest` giữ từ nay) | `content` ⛔ có entity phạm vi nào — ⛔ áp dụng, trừ khi Công ty chia nội dung theo đơn vị (T61.48 #7) |
 
 ## 5. D — Denial of service
 

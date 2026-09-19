@@ -12,6 +12,7 @@ import com.songnhue.content.infra.BannerRepository;
 import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.BusinessRuleException;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
+import com.songnhue.core.common.util.DiaChiLienKet;
 import com.songnhue.core.spi.AttachmentPort;
 import com.songnhue.core.spi.AttachmentRef;
 import com.songnhue.core.spi.AttachmentUploadCommand;
@@ -84,6 +85,13 @@ public class BannerService {
 
         if (startAt != null && endAt != null && !endAt.isAfter(startAt)) {
             throw new BusinessRuleException(ErrorCode.CMS_2014);
+        }
+        // ⛔⛔ T73.2 — `linkUrl` đi thẳng vào `href` của ảnh bìa trang chủ. Menu và cài đặt đã chặn
+        //   `javascript:` lúc ghi từ T63.4; banner là đường ghi thứ ba mang địa chỉ ra cổng và nó
+        //   thiếu chốt này. Chặn ở đây để chuỗi xấu ⛔ vào CSDL — người quản trị nhận lời báo NGAY
+        //   LÚC LƯU; vế hiển thị (`AnhCarousel` → `lienKetAnToan`) là lớp thứ hai.
+        if (!DiaChiLienKet.anToan(linkUrl)) {
+            throw new BusinessRuleException(ErrorCode.CMS_2024);
         }
         Banner banner = get(publicId);
         banner.setTitle(title);

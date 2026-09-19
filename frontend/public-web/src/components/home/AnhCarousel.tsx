@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 
+import { lienKetAnToan } from '@/lib/lienKetAnToan';
 import { coTuChay, type HieuUngSlider } from '@/lib/slider';
 
 export interface MucCarousel {
@@ -170,6 +171,10 @@ export function AnhCarousel({
   //   trong lúc trang đang mở, mảng ngắn lại trước khi `useEffect` kịp chạy. `?? muc[0]` là
   //   lưới an toàn, không phải phòng xa — đọc `.title` của `undefined` là cả trang chủ trắng.
   const hienTai = muc[viTri] ?? muc[0];
+  // ⛔⛔ T73.2 — `linkUrl` là chữ do người sửa banner nhập, đi thẳng vào `href`. Backend chặn
+  //   `javascript:` lúc ghi (cùng `DiaChiLienKet` của menu); đây là lớp thứ hai, cho bản ghi CŨ
+  //   đã lưu trước bản vá. ⛔ an toàn ⇒ `null` ⇒ ảnh hiện như ảnh ⛔ có liên kết.
+  const lienKet = lienKetAnToan(hienTai.linkUrl);
 
   return (
     <section
@@ -296,13 +301,13 @@ export function AnhCarousel({
           //   một liên kết trỏ về `#` cho đủ hình dạng.
           <h2
             className={`text-lg font-bold leading-snug lg:text-xl ${
-              hienTai.linkUrl ? 'text-brand-primary' : 'text-surface-textBase'
+              lienKet ? 'text-brand-primary' : 'text-surface-textBase'
             }`}
           >
             {/* Ảnh KHÔNG bắt buộc có liên kết. Chỉ bọc thẻ <a> khi có đường dẫn thật. */}
-            {hienTai.linkUrl ? (
+            {lienKet ? (
               <a
-                href={hienTai.linkUrl}
+                href={lienKet}
                 target={hienTai.openNewTab ? '_blank' : undefined}
                 rel={hienTai.openNewTab ? 'noopener noreferrer' : undefined}
                 className="transition-opacity duration-200 after:absolute after:inset-0 hover:opacity-80"
@@ -313,11 +318,11 @@ export function AnhCarousel({
               hienTai.title
             )}
           </h2>
-        ) : hienTai.linkUrl ? (
+        ) : lienKet ? (
           // Ảnh có liên kết mà chưa có tiêu đề: vùng bấm vẫn phải phủ cả thẻ, nhưng KHÔNG bịa
           // một nhãn ("Xem chi tiết") — trình đọc màn hình đọc đúng vị trí ảnh.
           <a
-            href={hienTai.linkUrl}
+            href={lienKet}
             target={hienTai.openNewTab ? '_blank' : undefined}
             rel={hienTai.openNewTab ? 'noopener noreferrer' : undefined}
             className="after:absolute after:inset-0"

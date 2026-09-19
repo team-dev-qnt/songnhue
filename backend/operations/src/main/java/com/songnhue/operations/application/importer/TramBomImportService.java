@@ -24,6 +24,7 @@ import com.songnhue.core.common.importer.CotMau;
 import com.songnhue.core.common.importer.KetQuaNhap;
 import com.songnhue.core.common.importer.KetQuaNhap.LoiDong;
 import com.songnhue.core.common.importer.SpreadsheetReader;
+import com.songnhue.core.common.persistence.ScopeGuard;
 import com.songnhue.core.common.util.NumericUtils;
 import com.songnhue.core.spi.OrgUnitPort;
 import com.songnhue.core.spi.OrgUnitRef;
@@ -138,18 +139,21 @@ public class TramBomImportService {
     private final NhomMayBomRepository nhomMay;
     private final DanhMucMayBomService danhMuc;
     private final OrgUnitPort orgUnits;
+    private final ScopeGuard scopeGuard;
 
     public TramBomImportService(
             ConstructionRepository constructions,
             ConstructionService constructionService,
             NhomMayBomRepository nhomMay,
             DanhMucMayBomService danhMuc,
-            OrgUnitPort orgUnits) {
+            OrgUnitPort orgUnits,
+            ScopeGuard scopeGuard) {
         this.constructions = constructions;
         this.constructionService = constructionService;
         this.nhomMay = nhomMay;
         this.danhMuc = danhMuc;
         this.orgUnits = orgUnits;
+        this.scopeGuard = scopeGuard;
     }
 
     /** Xem trước — <b>⛔ ghi một dòng nào</b>, kể cả khi tệp hoàn toàn hợp lệ. */
@@ -520,11 +524,20 @@ public class TramBomImportService {
                 null);
     }
 
+    /**
+     * Id nội bộ của một trạm ĐÃ CÓ — <b>qua {@link ScopeGuard#require}</b> (T73.1).
+     *
+     * <p>{@code publicId} ở đây luôn là hồ sơ vừa tra ra ở {@code lapKeHoach}, tức đã đi qua bộ lọc
+     * phạm vi ⇒ lượt tra này về nguyên tắc luôn thấy. Nhưng {@code .orElse(null)} biến trạng thái
+     * <i>"⛔ thuộc phạm vi"</i> thành một {@code null} lặng lẽ: {@code timTheoKhoa(null, q)} đọc nó
+     * thành <i>"nhóm máy này chưa có"</i> ⇒ bản xem trước đếm sai, và ⛔ một dòng
+     * {@code security_events} nào. {@code require} ném {@code AUTH-3002} kèm nhật ký bảo mật —
+     * <b>một trạng thái ⛔ biểu diễn được</b> thay cho một lời dặn.
+     */
     private Long idCua(UUID publicId) {
-        return constructions
-                .findByPublicIdAndDeletedAtIsNull(publicId)
-                .map(Construction::getId)
-                .orElse(null);
+        return scopeGuard
+                .require(constructions.findByPublicIdAndDeletedAtIsNull(publicId), Construction.class, publicId)
+                .getId();
     }
 
     /**

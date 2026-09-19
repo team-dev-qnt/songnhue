@@ -466,11 +466,15 @@ class NghiPhepHttpTest extends IntegrationTestBase {
                 HttpMethod.POST,
                 "/api/v1/hr/nghi-phep/" + donId + "/hanh-dong",
                 "{\"action\":\"APPROVE\"}");
+        // ⚠ T73.1 — bản trước ghim 404 (*"không nhìn thấy thì không có gì để bấm"*). Ý chính giữ nguyên:
+        //   ⛔ duyệt được, đơn vẫn CHO_DUYET. Mã đổi sang 403 AUTH-3002 như hồ sơ CBNV (HoSoNhanSuPhamViTest):
+        //   404 giấu luôn lượt thử — một người dò publicId của đơn vị khác ⛔ để lại dấu vết nào (M5.16).
         assertThat(duyetLen.getStatusCode())
                 .as(
-                        "⛔ ⛔ Không nhìn thấy thì ⛔ không có gì để bấm — kể cả khi đoán đúng publicId: %s",
+                        "⛔ ⛔ Đoán đúng publicId của đơn vị khác vẫn ⛔ bấm được — và lượt thử phải để lại dấu vết: %s",
                         duyetLen.getBody())
-                .isEqualTo(HttpStatus.NOT_FOUND);
+                .isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(duyetLen.getBody()).contains("AUTH-3002");
         assertThat(jdbc.queryForObject("SELECT state FROM leave_requests WHERE public_id = ?", String.class, donId))
                 .isEqualTo("CHO_DUYET");
 
