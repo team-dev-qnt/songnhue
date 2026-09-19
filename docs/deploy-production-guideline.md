@@ -92,7 +92,7 @@ mục 1.3 (tên miền, cần hồ sơ Công ty) mất nhiều tuần nhất, n�
 | # | Việc | Chốt cụ thể | Ai làm |
 |---|---|---|---|
 | 1.1 | **Tên miền `.vn`** — chủ thể đăng ký **là Công ty** | §1.2 dưới | Công ty (pháp nhân) + QuanTran |
-| 1.2 | **VPS-1** | **4 vCPU · 8 GB RAM · 160 GB SSD · Ubuntu 24.04 LTS**, đặt tại Việt Nam | QuanTran |
+| 1.2 | **VPS-1** | **4 vCPU · 8 GB RAM · 160 GB SSD · Ubuntu 24.04 LTS · x86_64 (amd64)**, đặt tại Việt Nam. ⛔ ARM: ảnh MinIO (`quay.io`) chỉ có manifest `linux/amd64` (T60.0) ⇒ kéo ảnh đỏ | QuanTran |
 | 1.3 | **Email trung tính** của Công ty (`it@…`) để mở mọi tài khoản | ⛔ không dùng Gmail cá nhân | Công ty |
 | 1.4 | **Tài khoản SMTP** gửi thư thật | nhà cung cấp trong nước, hoặc Amazon SES / Postmark | QuanTran |
 | 1.5 | **Kho lưu trữ ngoài** — Backblaze B2 hoặc Cloudflare R2 | phải **khác nhà cung cấp** với hai VPS | QuanTran |
@@ -1719,7 +1719,7 @@ nó mock đúng chỗ mã chạm ra ngoài.
 
 | Mã | Nội dung | Ai làm | Chặn ở đâu |
 |---|---|---|---|
-| ~~**T11.2**~~ | ✅ **đóng 6/9/2026** — VPS-1 `27.71.16.154`: Ubuntu 24.04.3 · 8 vCPU · 15 GiB RAM · 118G đĩa · Docker 29.8.0 + Compose v5.5.1 · ufw 22/80/443 · fail2ban active | — | — |
+| ~~**T11.2**~~ | ✅ **đóng 6/9/2026** — VPS-1 `27.71.16.154`: Ubuntu 24.04.3 · 8 vCPU · 15 GiB RAM · 118G đĩa · Docker 29.8.0 + Compose v5.5.1 · ufw 22/80/443 · fail2ban active · **x86_64** (T60.10 — SUY từ số đo: ảnh MinIO chỉ-có-`amd64` chạy Healthy trên cả hai máy sau lượt đề bạt 17–19/09; `uname -m` chưa đo trực tiếp) | — | — |
 | **T11.2-b** | Tên miền `.vn` — ĐÃ mua, production dùng từ 08/09; còn xác nhận chủ thể (whois) là Công ty + bật tự gia hạn | Công ty | §1.2, §7. ⭐ **Không còn chặn go-live**: production dùng `songnhue.com` trước (chốt 6/9) — ✅ **đã cắt sang `thuyloisongnhue.vn` ngày 08/09**. ⛔ Lúc cắt phải **đặt lại biến kho + DỰNG LẠI image**, sửa DNS một mình là chưa đủ |
 | ~~**T11.7**~~ | ✅ **đóng 6/9/2026** — đo lại bằng API: `total_count: 5`. Khoá host lấy từ `/etc/ssh/ssh_host_ed25519_key.pub` **trên máy chủ**, đối chiếu khớp với `known_hosts` cục bộ | — | — |
 | ~~**T11.7-a**~~ | ✅ **đóng 6/9/2026** — biến kho `PUBLIC_SITE_URL`, ⚠ **giá trị đổi 07/09** thành `https://thuyloisongnhue.vn`. ⚠ **Chưa đủ**: image `public-web` đang chạy vẫn nướng chuỗi rỗng, phải có **một lượt build mới trên `dev`** rồi mới đề bạt (checklist #23) | — | — |

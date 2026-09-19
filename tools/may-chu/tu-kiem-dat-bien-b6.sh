@@ -53,13 +53,20 @@ GIA
 chmod +x "$SAN/ssh-gia"
 
 # Sáu dòng nhập: ALERT_EMAIL_TO đã có ⇒ ⛔ hỏi lại; năm dòng còn lại theo đúng thứ tự.
-cat > "$SAN/nhap" <<'NHAP'
-https://hooks.slack.com/services/T000/B000/xxxxxxxxxxxxxxxxxxxxxxxx
-123456789:AAaaBBbbCCccDDddEEeeFFffGGgghhhhiii
--1001234567890
-doi-phat-trien@goapps.team
-https://hc-ping.com/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
-NHAP
+#
+# ⛔⛔ Giá trị GIẢ dựng LÚC CHẠY, ⛔ viết liền trong tệp (T68.37). Bộ quét bí mật của GitHub khớp theo
+#    HÌNH DẠNG: bản cũ viết liền một token Telegram giả `<9 chữ số>:<35 ký tự>` ⇒ cảnh báo secret
+#    scanning #1 (16/09, `publicly_leaked`) mở mà ⛔ ai đọc — một chuông giả mỗi lượt quét, và chuông giả
+#    dạy người ta bỏ qua chuông thật. Giá trị dựng ra vẫn qua ĐÚNG mẫu hợp lệ của `dat-bien-b6.sh`
+#    (`^[0-9]+:[A-Za-z0-9_-]{30,}$` …) nhưng cố ý LỆCH mẫu nhà cung cấp: 7 chữ số, 30 ký tự.
+#    Bộ canh `KhongChuoiHinhDangBiMatTest` quét mọi tệp git theo dõi để đồ gá sau ⛔ đưa lại.
+lap() { printf "%${2}s" '' | tr ' ' "$1"; } # lap <ký tự> <số lần>
+printf '%s\n' \
+  "https://hooks.slack.com/services/T000/B000/$(lap x 24)" \
+  "$(lap 7 7):$(lap a 30)" \
+  "-1001234567890" \
+  "doi-phat-trien@goapps.team" \
+  "https://hc-ping.com/$(lap a 8)-$(lap b 4)-$(lap c 4)-$(lap d 4)-$(lap e 12)" > "$SAN/nhap"
 
 ma=0
 SAN="$SAN" SSH_BIN="$SAN/ssh-gia" SSH_KEY=/dev/null NHAP_TU="$SAN/nhap" \
