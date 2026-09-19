@@ -124,7 +124,9 @@ public class AlertNotifier {
                 List.copyOf(bc.donViIds()),
                 List.of(),
                 null,
-                List.of(com.songnhue.core.spi.NotifyChannel.IN_APP, com.songnhue.core.spi.NotifyChannel.EMAIL)));
+                List.of(com.songnhue.core.spi.NotifyChannel.IN_APP, com.songnhue.core.spi.NotifyChannel.EMAIL),
+                // G11 — cảnh báo ngưỡng ⛔ nhắm đích theo quyền (targetPermission = null) nên cờ phạm vi ⛔ áp dụng.
+                false));
         ghiNhatKyThieu(bc);
     }
 

@@ -113,14 +113,45 @@ public class RecipientResolver {
      */
     @Transactional(readOnly = true)
     public List<Long> resolve(List<Long> relatedOrgUnitIds, List<Long> extraUserIds, String targetPermission) {
+        return resolve(relatedOrgUnitIds, extraUserIds, targetPermission, false);
+    }
+
+    /**
+     * ⭐ Ca THỨ TƯ (T57.15, 20/09/2026) — nhắm đích theo quyền <b>trong phạm vi đơn vị</b>.
+     *
+     * <p>Người nhận = người có {@code targetPermission} mà phạm vi dữ liệu (đơn vị của tài khoản) PHỦ một trong
+     * {@code relatedOrgUnitIds} — đúng người bộ lọc phạm vi tầng 3 cho THẤY bản ghi. ⛔ Cộng trưởng/phó riêng:
+     * họ có quyền và phạm vi thì đã nằm trong tập, ⛔ có thì nhận thư về việc họ ⛔ làm được. Ba ca cũ ⛔ đổi
+     * hành vi — cờ này chỉ bật qua {@code NotifyRequest.targetedInUnitScope}.
+     *
+     * @param trongPhamVi {@code true} ⇒ ca thứ tư; ⛔ có {@code targetPermission} thì cờ vô nghĩa và bị bỏ qua
+     */
+    @Transactional(readOnly = true)
+    public List<Long> resolve(
+            List<Long> relatedOrgUnitIds, List<Long> extraUserIds, String targetPermission, boolean trongPhamVi) {
         boolean nhamDich = targetPermission != null && !targetPermission.isBlank();
 
         // LinkedHashSet: khử trùng lặp mà vẫn giữ thứ tự — thứ tự ổn định làm log dễ đối chiếu và
         // test không phụ thuộc thứ tự ngẫu nhiên của HashSet.
         // Hai nguồn, hai luật lọc khác nhau — xem ghi chú ở dưới.
         Set<Long> named = new LinkedHashSet<>(extraUserIds == null ? List.of() : extraUserIds);
-        Set<Long> derived =
-                new LinkedHashSet<>(nhamDich ? users.findActiveIdsByPermission(targetPermission) : executiveBoard());
+        boolean coDonViDuocNeu = relatedOrgUnitIds != null && !relatedOrgUnitIds.isEmpty();
+        Set<Long> derived;
+        if (nhamDich && trongPhamVi) {
+            derived = new LinkedHashSet<>(
+                    coDonViDuocNeu
+                            ? users.findActiveIdsByPermissionCoveringOrgUnits(targetPermission, relatedOrgUnitIds)
+                            : List.of());
+        } else {
+            derived = new LinkedHashSet<>(
+                    nhamDich ? users.findActiveIdsByPermission(targetPermission) : executiveBoard());
+            themNguoiDungDau(derived, relatedOrgUnitIds, coDonViDuocNeu, nhamDich);
+        }
+        return locNguoiNhan(named, derived, nhamDich, targetPermission);
+    }
+
+    private void themNguoiDungDau(
+            Set<Long> derived, List<Long> relatedOrgUnitIds, boolean coDonViDuocNeu, boolean nhamDich) {
 
         // ⭐⭐ T40/T28.51 — ca THỨ BA, và nó ⛔ không phải một ngoại lệ của luật trên.
         //
@@ -134,11 +165,17 @@ public class RecipientResolver {
         //
         // ⚠ Đổi từ `!nhamDich` sang "có đơn vị được nêu" GIỮ NGUYÊN mọi hành vi cũ: `targeted()`
         //   ghi cứng `List.of()`, nên nhánh này chưa từng chạy cho quy trình duyệt và nay vẫn vậy.
-        boolean coDonViDuocNeu = relatedOrgUnitIds != null && !relatedOrgUnitIds.isEmpty();
+        //
+        // ⚠⚠ Đính chính 20/09/2026 (T74.6): "THU HẸP" ở trên nghĩa là *thêm ÍT người có trách nhiệm*,
+        //   ⛔ phải *bớt người* — tập suy ra vẫn là MỌI người có quyền trên toàn Công ty, cộng trưởng/phó.
+        //   Ca cần BỚT người (chỉ ai phạm vi phủ đơn vị) là ca thứ tư, `trongPhamVi` (T57.15).
         boolean themNguoiDungDau = coDonViDuocNeu && (nhamDich || settings.getBoolean(KEY_AUTO_INCLUDE_OWNER, true));
         if (themNguoiDungDau) {
             derived.addAll(orgUnits.findActiveHeadAndDeputyUserIds(relatedOrgUnitIds));
         }
+    }
+
+    private List<Long> locNguoiNhan(Set<Long> named, Set<Long> derived, boolean nhamDich, String targetPermission) {
         derived.removeAll(named);
 
         if (named.isEmpty() && derived.isEmpty()) {

@@ -28,17 +28,21 @@ import com.songnhue.hr.domain.LeaveType;
  *
  * <p>T48.7/T48.9 đã trả giá: nếu dự phòng trùng seed thì một bài kiểm <i>"đổi settings ⇒ hành vi
  * đổi"</i> <b>xanh y hệt</b> trên một hệ ghi cứng. Ở đây dự phòng cố ý lệch seed, và
- * {@code ChinhSachPhepHttpTest} chứng minh vế đọc bằng cách <b>đổi giá trị trong CSDL rồi đo lại
- * ranh giới</b> — ⛔ không so với hằng số nào trong tệp này.
+ * {@code NghiPhepHttpTest#phepNamDocTuSettings} chứng minh vế đọc bằng cách <b>đổi giá trị trong CSDL
+ * rồi đo lại</b> — ⛔ so với hằng số nào trong tệp này.
+ *
+ * <p>⚠ Câu này từng trỏ tới {@code ChinhSachPhepHttpTest} — một lớp <b>⛔ tệp nào trong kho mang</b>
+ * (đo 20/09/2026, T74.4). Một chú thích khẳng định có bộ canh ⛔ tồn tại đọc y hệt một bảo đảm.
  */
 @Component
 public class ChinhSachPhep {
 
     private static final Logger log = LoggerFactory.getLogger(ChinhSachPhep.class);
 
-    static final String KHOA_DUOI_5 = "hr.leave.annual-days.under-5-years";
-    static final String KHOA_5_DEN_10 = "hr.leave.annual-days.5-to-10-years";
-    static final String KHOA_TREN_10 = "hr.leave.annual-days.over-10-years";
+    static final String KHOA_CO_SO = "hr.leave.annual-days.base";
+    static final String KHOA_BUOC_NAM = "hr.leave.annual-days.seniority-step-years";
+    static final String KHOA_BUOC_NGAY = "hr.leave.annual-days.seniority-step-days";
+    static final String KHOA_NAM_GHI_NHAN_DU = "hr.leave.first-fully-recorded-year";
     static final String KHOA_CHUYEN_NAM = "hr.leave.carry-over-max-days";
     static final String KHOA_LAM_TRON = "hr.leave.prorata-rounding-step";
     static final String KHOA_MOC_THAM_NIEN = "hr.leave.seniority-base";
@@ -47,16 +51,20 @@ public class ChinhSachPhep {
     static final String KHOA_NGUONG_TRUNG_LICH = "hr.leave.overlap-warning-percent";
 
     /**
-     * ⛔ Dự phòng <b>lệch seed</b> có chủ đích (seed: 12 · 13 · 14 · 5 · 30) — xem javadoc lớp.
+     * ⛔ Dự phòng <b>lệch seed</b> có chủ đích (seed: cơ sở 12 · mỗi 5 năm · +1 ngày · chuyển 5 · năm ghi
+     * nhận đủ 2027) — xem javadoc lớp.
      *
      * <p>⚠ Lệch <b>xuống</b>, ⛔ không lệch lên: một khoá bị xoá khỏi CSDL thì hệ cấp <b>ít</b> phép
      * hơn chứ ⛔ không cấp thừa. Cấp thừa rồi đòi lại là một cuộc nói chuyện ⛔ không ai muốn có với
      * người lao động.
      */
-    private static final int DP_DUOI_5 = 10;
+    private static final int DP_CO_SO = 10;
 
-    private static final int DP_5_DEN_10 = 11;
-    private static final int DP_TREN_10 = 12;
+    private static final int DP_BUOC_NAM = 10;
+    private static final int DP_BUOC_NGAY = 0;
+    /** ⛔ năm nào được coi là ghi nhận đủ ⇒ số chuyển năm luôn là *chưa biết* (0) — lệch xuống. */
+    private static final int DP_NAM_GHI_NHAN_DU = 9999;
+
     private static final int DP_CHUYEN_NAM = 0;
     private static final int DP_SO_CAP_DUYET = 1;
     private static final int DP_NGUONG_CAP_2 = 0;
@@ -70,22 +78,34 @@ public class ChinhSachPhep {
     }
 
     /**
-     * Số ngày phép năm theo thâm niên — Điều 113 BLLĐ 2019.
+     * Số ngày phép năm theo thâm niên — <b>Điều 113</b> (cơ sở) + <b>Điều 114</b> BLLĐ 2019 (cứ <b>đủ</b> 5
+     * năm làm việc thì cộng 1 ngày): {@code cơ sở + (thâm niên ÷ số năm mỗi bậc) × số ngày mỗi bậc}, chia
+     * lấy phần nguyên.
      *
-     * <p>⛔⛔ Ranh giới đọc <b>đúng nhãn của khoá</b>: {@code under-5-years} là <b>dưới</b> 5,
-     * {@code 5-to-10-years} là <b>từ 5 tới 10</b> (bao gồm cả hai đầu), {@code over-10-years} là
-     * <b>trên</b> 10. Người đúng 5 năm và người đúng 10 năm <b>đều</b> rơi vào khoảng giữa — một
-     * dấu {@code <} viết nhầm thành {@code <=} là cấp sai một ngày phép cho đúng những người đã gắn
-     * bó lâu nhất, và ⛔ không màn hình nào báo.
+     * <p>⛔⛔ T68.10 — bản trước chia 3 bậc ({@code under-5} · {@code 5-to-10} · {@code over-10} = 12/13/14)
+     * và mang nhãn <i>"Điều 113"</i>. Mô hình ấy ⛔ biểu diễn được luật: đủ 10 năm được 13 (luật 14), đủ
+     * 15 năm kẹt ở 14 (luật 15), đủ 20 năm vẫn 14 (luật 16) — thiếu đúng ở những người gắn bó lâu nhất,
+     * và ⛔ màn hình nào báo. {@code NghiPhepHttpTest#phepNamTheoDieu114} canh các biên 4 · 5 · 9 · 10 ·
+     * 14 · 15 · 20 năm.
+     *
+     * <p>⚠ Số năm mỗi bậc kẹp ≥ 1 (chia cho 0 là sập màn hình nghỉ phép vì một ô cấu hình); số ngày mỗi
+     * bậc kẹp ≥ 0. Ràng buộc {@code min=} ở cột {@code validation} là chốt chặn thật ở đường ghi.
      */
     public int soNgayPhepNam(int namThamNien) {
-        if (namThamNien < 5) {
-            return settings.getInt(KHOA_DUOI_5, DP_DUOI_5);
-        }
-        if (namThamNien <= 10) {
-            return settings.getInt(KHOA_5_DEN_10, DP_5_DEN_10);
-        }
-        return settings.getInt(KHOA_TREN_10, DP_TREN_10);
+        int coSo = settings.getInt(KHOA_CO_SO, DP_CO_SO);
+        int buocNam = Math.max(1, settings.getInt(KHOA_BUOC_NAM, DP_BUOC_NAM));
+        int buocNgay = Math.max(0, settings.getInt(KHOA_BUOC_NGAY, DP_BUOC_NGAY));
+        return coSo + (Math.max(0, namThamNien) / buocNam) * buocNgay;
+    }
+
+    /**
+     * Năm đầu tiên hệ ghi nhận <b>đủ</b> đơn nghỉ của cả năm — T57.16.
+     *
+     * <p>Số phép chuyển sang năm {@code Y + 1} chỉ suy được từ dữ liệu của hệ khi {@code Y ≥} giá trị này.
+     * Xem {@code SoDuPhepService#tinh}.
+     */
+    public int namGhiNhanDuDauTien() {
+        return settings.getInt(KHOA_NAM_GHI_NHAN_DU, DP_NAM_GHI_NHAN_DU);
     }
 
     /**
