@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,6 +83,23 @@ public class BackupService {
     private static final int CHECKSUM_BUFFER = 64 * 1024;
     private static final int HISTORY_LIMIT = 100;
 
+    /**
+     * Cờ {@code pg_dump} của bản sao lưu — <b>một nguồn</b> cho {@link #dumpCommand} và cho bài kiểm
+     * khôi phục thật ({@code KhoiPhucVaoCsdlTrangTest}); bài kiểm chép lại chuỗi cờ thì chỉ canh chính
+     * nó (T51.15).
+     *
+     * <p>⛔⛔ <b>KHÔNG {@code --no-privileges}</b> (T37.8, §10.58). GRANT cấp bảng do migration Flyway
+     * cấp, mà trên một CSDL vừa khôi phục Flyway ⛔ chạy lại (lịch sử của nó nằm ngay trong bản dump) ⇒
+     * bản dump tước ACL khôi phục ra một CSDL {@code songnhue_app} ⛔ đọc nổi bảng nào, app chết ở
+     * {@code permission denied for table users}. {@code backup.sh} bỏ cờ ấy từ 26/08; bản đêm do job này
+     * tạo thì vẫn mang nó tới 19/09 — và đó là bản mà lượt khôi phục thảm hoạ sẽ dùng.
+     *
+     * <p>{@code --no-owner} giữ nguyên: vai trò dump chỉ đọc ⛔ sở hữu bảng nào; chủ sở hữu do vai trò
+     * nạp đặt lại.
+     */
+    public static final List<String> CO_DUMP =
+            List.of("--format=custom", "--compress=6", "--no-password", "--no-owner");
+
     private final BackupProperties properties;
     private final SystemBackupRepository repository;
     private final PostgresToolRunner toolRunner;
@@ -97,6 +115,17 @@ public class BackupService {
      * ra để giữ.
      */
     private final TransactionTemplate requiresNew;
+
+    /**
+     * Một lượt sao lưu đang chạy trong JVM này — chặn hai lượt {@code pg_dump} chồng nhau (T68.4).
+     *
+     * <p>⚠ Cố ý ⛔ dựa vào bản ghi {@code RUNNING} trong CSDL: bản ghi ấy được GIỮ LẠI làm dấu vết khi
+     * tiến trình chết giữa chừng (mất điện, OOM-kill — javadoc {@link SystemBackup}), nên hỏi
+     * {@code existsByStatus(RUNNING)} là khoá sao lưu VĨNH VIỄN sau lần sập đầu tiên. Cờ trong JVM tự
+     * mất khi tiến trình mất. ⚠ Phạm vi: v1 là MỘT node; khi ≥ 2 node thì chuyển sang khoá ShedLock (đã
+     * có sẵn, `SHEDLOCK_ENABLED`) — cờ này ⛔ nhìn thấy node khác.
+     */
+    private final AtomicBoolean dangSaoLuu = new AtomicBoolean(false);
 
     public BackupService(
             BackupProperties properties,
@@ -155,6 +184,24 @@ public class BackupService {
      */
     public SystemBackup runBackup(BackupTrigger trigger, Long requestedBy) {
         requireDumpConfigured();
+        // ADM-2009: hai pg_dump song song đọc đĩa gấp đôi, ghi hai tệp, và lượt khôi phục (PRE_RESTORE)
+        // chen vào giữa một lượt đêm thì ⛔ ai biết bản nào là bản "ngay trước khi ghi đè".
+        if (!dangSaoLuu.compareAndSet(false, true)) {
+            throw new BusinessRuleException(ErrorCode.ADM_2009);
+        }
+        try {
+            return chayMotLuot(trigger, requestedBy);
+        } finally {
+            dangSaoLuu.set(false);
+        }
+    }
+
+    /** Có một lượt sao lưu đang chạy trong JVM này không — để từ chối SỚM (controller, khôi phục). */
+    public boolean dangCoLuotChay() {
+        return dangSaoLuu.get();
+    }
+
+    private SystemBackup chayMotLuot(BackupTrigger trigger, Long requestedBy) {
 
         String fileName = "songnhue-%s-%s.dump"
                 .formatted(
@@ -206,15 +253,9 @@ public class BackupService {
         command.add("--port=" + properties.getPort());
         command.add("--username=" + properties.getDumpUsername());
         command.add("--dbname=" + properties.getDatabase());
-        // -Fc: định dạng custom, đã nén sẵn, khôi phục chọn lọc được
-        command.add("--format=custom");
-        command.add("--compress=6");
-        // Không hỏi mật khẩu trên terminal: chạy nền thì lời nhắc đó là treo vĩnh viễn
-        command.add("--no-password");
-        // Vai trò readonly không sở hữu bảng nào; giữ lệnh gán chủ sở hữu trong bản dump sẽ làm
-        // pg_restore báo lỗi quyền ở môi trường đích. Chủ sở hữu do migration đặt lại.
-        command.add("--no-owner");
-        command.add("--no-privileges");
+        // -Fc nén sẵn + khôi phục chọn lọc được · ⛔ hỏi mật khẩu (chạy nền thì lời nhắc là treo vĩnh
+        // viễn) · ⛔ lệnh gán chủ sở hữu · GIỮ ACL — lý do từng cờ ở javadoc CO_DUMP.
+        command.addAll(CO_DUMP);
         command.add("--file=" + target.toAbsolutePath());
         return command;
     }

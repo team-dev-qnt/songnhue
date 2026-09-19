@@ -34,8 +34,15 @@
 #      ④ ngắt các kết nối khác trước khi DROP
 #      ⑤ lọc mục lục theo CHỦ SỞ HỮU (bỏ mục của `postgres` do extension dựng)
 #      ⑥ KHÔNG `--no-privileges` — giữ ACL, nếu không app không đọc nổi (§10.58)
-#      ⑦ `--exit-on-error --single-transaction` — được ăn cả, ngã về không
-#      ⑧ nghiệm thu bằng VAI TRÒ CỦA ỨNG DỤNG, không bằng chủ sở hữu
+#      ⑦ nạp bằng psql trong MỘT giao dịch, ON_ERROR_STOP — được ăn cả, ngã về không
+#      ⑧ nghiệm thu bằng VAI TRÒ CỦA ỨNG DỤNG, không bằng chủ sở hữu — và hỏi nó
+#        có SỬA được audit_logs không (T68.3)
+#
+#   ⛔⛔ Bản đo ngày 08/09 còn thiếu MỘT bảo đảm, đo ra ngày 19/09 (T68.3): khôi
+#      phục ĐÈ lên CSDL đã migrate làm bảng dựng lại nhận `ALTER DEFAULT PRIVILEGES`
+#      của đích ⇒ 72 quyền thừa trên đúng các bảng append-only. Lượt di trú 08/09
+#      thoát nhờ khối ⑥ của `--sau`, ⛔ nhờ script. Nay khối `truoc-khi-nap.sql`
+#      gỡ quyền mặc định trước khi nạp — xem bước ⑥⑦.
 #
 #   Dùng:
 #     ENV_FILE=/opt/songnhue/.env XAC_NHAN=songnhue /opt/songnhue/backup/khoi-phuc-qua-container.sh <đường-dẫn-dump> [--sau <tệp.sql>]
@@ -86,6 +93,9 @@ done
 [ -n "$SOURCE" ] || { echo "✗ Thiếu đường dẫn bản dump" >&2; exit 1; }
 [ -r "$SOURCE" ] || { echo "✗ Không đọc được $SOURCE" >&2; exit 1; }
 [ -z "$SAU_SQL" ] || [ -r "$SAU_SQL" ] || { echo "✗ Không đọc được tệp --sau: $SAU_SQL" >&2; exit 1; }
+# Khối nạp trước phần thân — kiểm NGAY, trước khi đụng vào bất cứ thứ gì.
+TRUOC_NAP="$SCRIPT_DIR/truoc-khi-nap.sql"
+[ -r "$TRUOC_NAP" ] || { echo "✗ Thiếu $TRUOC_NAP — DỪNG trước khi đụng vào dữ liệu." >&2; exit 1; }
 
 # shellcheck disable=SC1090
 . "$SCRIPT_DIR/../lib/docker-svc.sh"
@@ -236,9 +246,16 @@ echo "   ✓ đích có đủ 3 extension"
 #      (§10.58, T11.3-b) đều chạy trên cluster VỪA DỰNG LẠI, tức đích rỗng — nơi
 #      những câu DROP ấy là no-op. Đường hay thử thì chạy; đường dùng thật thì hỏng.
 #
-# ⭐ Cách làm: sinh SQL ra TỆP, ghép một khối bỏ-bảng-phân-mảnh lên TRƯỚC, rồi nạp
+# ⭐ Cách làm: sinh SQL ra TỆP, ghép khối `truoc-khi-nap.sql` lên TRƯỚC, rồi nạp
 #    CẢ HAI trong MỘT giao dịch. Nếu tách hai giao dịch thì một lượt pg_restore
 #    hỏng sẽ để lại CSDL production KHÔNG CÒN bảng phân mảnh nào.
+#
+# ⛔⛔ Khối ấy còn làm việc THỨ HAI, thêm 19/09/2026 sau khi ĐO (T68.3): gỡ quyền
+#    MẶC ĐỊNH của vai trò đang nạp. `--clean` dựng lại từng bảng bằng songnhue_owner,
+#    nên bảng mới nhận `ALTER DEFAULT PRIVILEGES` của ĐÍCH (arwd cho songnhue_app),
+#    mà ACL của bản dump chỉ GRANT, không REVOKE ⇒ 72 quyền thừa trên audit_logs,
+#    hydro_raw_logs, security_events … Nội dung khối là
+#    `KeHoachKhoiPhuc.khoiTruocKhiNap()` (nút M5.11) — sửa một nơi là đỏ CI.
 SQL_NAP="$HOST_BACKUP_DIR/.nap-$$.sql"
 trap 'rm -f "$TOC" "$SQL_NAP"' EXIT
 
@@ -250,21 +267,7 @@ trong pg_restore \
     "$DUMP_ABS"
 echo "   ✓ $(grep -c . "$SQL_NAP.than") dòng SQL"
 
-{
-    printf '%s\n' \
-      "DO \$\$" \
-      "DECLARE r record; n int := 0;" \
-      "BEGIN" \
-      "    FOR r IN SELECT c.relname FROM pg_class c JOIN pg_namespace ns ON ns.oid = c.relnamespace" \
-      "              WHERE ns.nspname = 'public' AND c.relkind = 'p'" \
-      "    LOOP" \
-      "        EXECUTE format('DROP TABLE IF EXISTS public.%I CASCADE', r.relname);" \
-      "        n := n + 1;" \
-      "    END LOOP;" \
-      "    RAISE NOTICE 'da bo % bang phan manh truoc khi nap', n;" \
-      "END \$\$;"
-    cat "$SQL_NAP.than"
-} > "$SQL_NAP"
+cat "$TRUOC_NAP" "$SQL_NAP.than" > "$SQL_NAP"
 rm -f "$SQL_NAP.than"
 
 echo "→ Nạp trong MỘT giao dịch (ON_ERROR_STOP, single-transaction)"
@@ -288,14 +291,21 @@ fi
 # -----------------------------------------------------------------------------
 : "${DB_PASSWORD:?Thiếu DB_PASSWORD — không nghiệm thu được bằng vai trò ứng dụng}"
 echo "→ Đọc thử bằng vai trò ứng dụng ($APP_ROLE)"
+# ⚠ Hỏi luôn vai trò ấy có SỬA được audit_logs không — lỗi quyền mặc định (bước
+#   ⑥⑦) ⛔ in ra một dòng lỗi nào. Nhãn tường minh, ⛔ `t`/`f`: `boolean || text` ra
+#   `true`/`false`, và một mẫu `* f)` sẽ ⛔ bao giờ khớp (đo 19/09 trên psql 16).
 DOC_DUOC="$(docker exec -i -e PGPASSWORD="$DB_PASSWORD" "$CT" \
     psql -U "$APP_ROLE" -d "$DB_NAME" -At \
-    -c "SELECT count(*) FROM users" < /dev/null 2>&1 || true)"
+    -c "SELECT count(*) || ' ' || CASE WHEN has_table_privilege(current_user, 'public.audit_logs', 'UPDATE')
+              THEN 'sua-duoc' ELSE 'chi-ghi-them' END FROM users" < /dev/null 2>&1 || true)"
 case "$DOC_DUOC" in
-    ''|*[!0-9]*) echo "✗ $APP_ROLE KHÔNG đọc nổi bảng users: $DOC_DUOC" >&2
-                 echo "  Đây là đúng hình dạng §10.58 — CSDL đầy dữ liệu mà app chết lúc khởi động." >&2
-                 exit 1 ;;
-    *) echo "   ✓ $APP_ROLE đọc được users: $DOC_DUOC hàng" ;;
+    *[0-9]\ chi-ghi-them) echo "   ✓ $APP_ROLE đọc được users (${DOC_DUOC% chi-ghi-them} hàng) và KHÔNG sửa được audit_logs" ;;
+    *[0-9]\ sua-duoc) echo "✗ $APP_ROLE SỬA được audit_logs — quyền append-only đã bị hạ. Dữ liệu ĐÃ nạp." >&2
+                      echo "  Tái khẳng định REVOKE theo V202608131006 trước khi mở lại hệ." >&2
+                      exit 1 ;;
+    *) echo "✗ $APP_ROLE KHÔNG đọc nổi bảng users: $DOC_DUOC" >&2
+       echo "  Đây là đúng hình dạng §10.58 — CSDL đầy dữ liệu mà app chết lúc khởi động." >&2
+       exit 1 ;;
 esac
 
 echo ""
