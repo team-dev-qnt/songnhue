@@ -40,6 +40,11 @@ public enum RateLimitPolicy {
      *
      * <p>Vai trò của lớp này là <b>chặn khối lượng</b> (một máy dò hàng nghìn lượt), còn việc bảo vệ
      * từng tài khoản là của lockout theo tài khoản — nó đếm đúng người, không đếm nhầm hàng xóm.
+     *
+     * <p>⛔⛔ <b>T61.17 (WS-72) — 30 là trần lượt ⛔ ĐÚNG mật khẩu, ⛔ phải trần mọi lượt.</b> Bộ lọc vẫn tính mọi
+     * lượt trước khi cho đi; lượt đúng mật khẩu được trả lại ở {@code LoginAttemptService#hoanLuotDangNhapDung}.
+     * Bản trước tính cả lượt đúng, nên với lý do NAT nêu ngay trên, người thứ 31 đăng nhập ĐÚNG trong 15 phút đầu
+     * giờ nhận 429 tới hết cửa sổ. Hai vế đo qua HTTP ở {@code DangNhapSauNatHttpTest}.
      */
     LOGIN("login", 30, Duration.ofMinutes(15)),
 

@@ -912,7 +912,7 @@ hỏng âm thầm cho tới đúng ngày hết hạn.
 | Gõ thẳng IP → **từ chối ở tầng TLS** | server block 443 mặc định, `ssl_reject_handshake on` |
 | Chặn `/swagger-ui/` và `/v3/api-docs/` | `snippets/chan-tai-lieu-api.conf`, include vào **cả** khối public lẫn admin |
 | HSTS, CSP, X-Frame-Options, X-Robots-Tag | `snippets/edge-headers.conf` (`preload` của HSTS **cố ý chưa bật**) |
-| Hạn mức chống ngập | `api_general 30r/s` · `api_auth 20r/m` (chỉ áp cho `/auth/login|refresh|2fa`) · `limit_conn per_ip 50` |
+| Hạn mức chống ngập | `api_general 30r/s` · `api_auth 20r/m` (chỉ áp cho `/auth/login|refresh|2fa`) · `limit_conn per_ip 50` · chặn trả **429** (`limit_req_status`/`limit_conn_status`, WS-72 — trước là 503, mặc định của nginx) |
 | Tải tệp không bị chặn ở biên | `client_max_body_size 0` trong `/api/` và trên khối `files` — hạn mức thật nằm ở bảng `settings` có UI sửa |
 | `resolver` + biến trong `proxy_pass` | **bắt buộc**: viết thẳng `proxy_pass http://app:8080` thì nginx phân giải lúc nạp cấu hình, backend chưa lên là nginx **từ chối khởi động** và cả trang trắng |
 | TLS 1.2 giữ lại | **có chủ đích** — bỏ là khoá cửa với Windows 10 bản cũ, Android < 10 và một phần máy trạm cơ quan nhà nước |

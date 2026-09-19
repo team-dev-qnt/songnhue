@@ -20,14 +20,14 @@
 | A3 | `T61.3` · `T61.16` | Sửa CLAUDE.md: tên miền production `.vn`, VM-3 → VPS-2, 15 commit | P0 · tài liệu | [x] |
 | A4 | `T61.12` | Bài render vòng khứ hồi `ConstructionFormPage` | P1 · dữ liệu | [x] |
 | A5 | `T61.14` | Bài HTTP khẳng định GIÁ TRỊ `ip_address` ở 3 bảng | P1 · bảo mật | [x] |
-| A6 | `T61.6` | Kịch bản load test (k6) — 200 CCU cổng · 50 users dashboard · khai tỉ lệ 429 | P1 · NFR-02 | [~] viết xong, chưa chạy staging |
+| A6 | `T61.6` | Kịch bản load test (k6) — 200 CCU cổng · 50 users dashboard · khai tỉ lệ 429 | P1 · NFR-02 | [x] kho xong 19/09 (WS-72: README §2 theo T61.17 · bẫy 503 nginx · ca `tim_kiem_khong_tra_loi`); lượt chạy staging ⇒ `T37.2` |
 | A7 | `T61.4` | Dịch vụ ClamAV trong `compose.prod.yml` + nối `APP_CLAMAV_HOST` — ✅ mã (cả hai máy, `ConcurrentDatabaseReload no`, trần luồng 130M, lỗi quét ⛔ còn đọc thành nhiễm) · ⬜ đo trên staging | P1 · bảo mật | [~] |
 | A8 | `T61.5` | Alertmanager (Gmail + Slack + Telegram) + vá hệ giám sát 0 chỉ số từ WS-7 (target `${…}` ⛔ thay) + cửa nginx `/actuator/prometheus` — ✅ mã, chạy thật ở máy · ⬜ QT đặt biến + đo (§B6) | P1 · NFR-01 | [~] |
 | A9 | `T61.11` | Job `CRYPTO_REENCRYPT` + chống trùng dưới mọi khoá (T51.9, phần mã) — ⬜ diễn tập thật trên staging ở §B | P1 · dữ liệu | [x] |
 | A10 | `T61.13` | Bộ canh ĐẾM nơi ném đối số vào mã lỗi ⛔ `{n}`, rồi vá — 44 nơi, 7 chiều THIẾU (người dùng thấy `{1}`) + `JobWorker.last_error` | P2 | [x] |
 | A11 | `T61.15` | javadoc T57.7→T57.15 · xoá `hr.spi` rỗng · sửa `nghiem-thu-cong-ttdt-v1.md` | P2 | [x] |
 | A12 | `T58.18` · `T25.23` | Bộ canh N+1 · hạ trần màu ghi cứng | P2 | [~] T58.18 ✅ · T25.23 còn 21 mã |
-| A13 | `T61.17` | ⛔⛔ Hạn mức khoá theo IP ⇒ 50 cán bộ sau một NAT chung 100 lượt/phút — QT chốt *vá ngay*: backend ✅ (API + kết xuất theo người@IP) · nginx `api_auth` ⬜ chờ đo NAT | P0 | [~] |
+| A13 | `T61.17` | ⛔⛔ Hạn mức khoá theo IP ⇒ 50 cán bộ sau một NAT chung 100 lượt/phút — QT chốt *vá ngay*: backend ✅ (API + kết xuất theo người@IP) · xô LOGIN ✅ chỉ giữ lượt ⛔ đúng mật khẩu (WS-72) · nginx trả 429 ✅ (WS-72) · tìm kiếm có trạng thái *chưa tra cứu được* ✅ (WS-72) · nginx `api_auth` ⬜ chờ đo NAT | P0 | [~] |
 | A14 | `T47.17` | Bài vòng khứ hồi biểu mẫu thay-toàn-phần — ✅ **21/21** (đóng 17/09) | P2 | [x] |
 | A15 | `T61.18` | Lối SỬA bản ghi sửa chữa (PUT có 0 nơi gọi) ✅ + bộ canh endpoint ↔ lời gọi khớp ĐỘNG TỪ toàn `admin-app` ✅ (15 mồ côi → T61.19–22) | P2 | [x] |
 | A16 | `T61.19` | Giao diện tệp đính kèm + nút xoá của bản ghi sửa chữa (CN-02.2 ảnh trước/sau) | P1 · nghiệm thu | [x] |
@@ -38,7 +38,7 @@
 | A21 | `T61.25` · `T61.26` | Chuông canh healthchecks.io · chuông sao lưu chỉ production | P1 · NFR-01 | [~] QT tạo check |
 | A22 | `T61.27` | Hạn mức kết xuất vào `settings` (30/giờ, kẹp ≤ 100) | P2 | [x] |
 | A23 | `T61.28` | NFR-05 tự đánh giá ASVS L1 + ZAP baseline | P0 · NFR-05 | [~] QT chạy ZAP |
-| A24 | `T61.29` | NFR-09 Playwright 3 engine × 4 bề rộng — staging công khai 140 xanh | P1 · NFR-09 | [~] QT cấp tài khoản đo |
+| A24 | `T61.29` | NFR-09 Playwright 3 engine × 4 bề rộng — staging công khai 140 xanh · quản trị đăng nhập MỘT lần mỗi dự án ✅ (WS-72) | P1 · NFR-09 | [~] QT cấp tài khoản đo |
 | A25 | `T61.30` · `T61.33` | ⛔⛔ Vượt 2FA bằng đăng ký lại · dò TOTP ⛔ khoá — vá + nút đặt lại 2FA | P0 · bảo mật | [x] |
 | A26 | `T61.32` · `T61.34` · `T61.35` | SVG chạy script · `javascript:` trong href · `no-store` | P0/P1 · bảo mật | [x] |
 | A27 | `T61.31` · `T61.36`→`T61.40` | đặt lại mật khẩu · khoảng trống ASVS còn lại — T61.31 · T61.36–39 ✅; T61.40 còn 6 dòng mồ côi ⇒ `T68.40` | P1–P3 | [~] |
