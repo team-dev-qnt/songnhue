@@ -6,7 +6,8 @@
 //
 // ⛔⛔ ĐỌC TRƯỚC KHI TIN MỘT CON SỐ XANH — tools/tai-thu/README.md §2
 //
-//   Mọi xô hạn mức của hệ khoá theo IP (RateLimitFilter · nginx `limit_req`). Bắn từ MỘT máy là
+//   Mọi xô hạn mức mà cổng công khai chạm tới đều khoá theo IP (`PUBLIC` 300/phút ở RateLimitFilter ·
+//   nginx `limit_req`/`limit_conn` — từ WS-72 hai chốt nginx trả 429, ⛔ còn 503). Bắn từ MỘT máy là
 //   200 "người" chung MỘT IP ⇒ đo được là tốc độ trả 429, ⛔ phải hiệu năng. Kịch bản này vì vậy:
 //     · đếm 429 thành chỉ số RIÊNG (`bi_chan_429`) và ĐỎ khi có bất kỳ lượt nào — một P95 nhanh
 //       nhờ trả 429 sớm là một P95 nói dối;
@@ -14,8 +15,10 @@
 //
 //   ⚠ Trang TÌM KIẾM là chỗ hạn mức cắn NGƯỜI DÙNG THẬT chứ ⛔ chỉ cắn bài đo: mỗi từ khoá khác
 //     nhau là một lượt `public-web` gọi backend từ IP CỦA CONTAINER — mọi khách chung một xô
-//     PUBLIC 300/phút — và `lib/api.ts` biến 429 thành `null` ⇒ trang in "Không tìm thấy…" trong
-//     im lặng. Chỉ số `tim_kiem_rong` đo đúng triệu chứng ấy.
+//     PUBLIC 300/phút — và `lib/api.ts` biến 429 thành `null`. Trước T61.17 (WS-72) trang in
+//     "Không tìm thấy…" trong im lặng; nay nó in khối "Chưa tra cứu được" mang dấu hiệu
+//     `data-tra-cuu="khong-tra-loi"` ⇒ chỉ số `tim_kiem_khong_tra_loi`. `tim_kiem_rong` vẫn giữ:
+//     từ khoá CÓ kết quả lúc không tải mà dưới tải lại "Không tìm thấy" là một khuyết tật KHÁC.
 //
 // ⭐ Chiều ĐỎ của kịch bản này đã được thử trên máy chủ giả — `tu-kiem/tu-kiem-tim-kiem-rong.sh`
 //    (T63.21). Trước 18/09/2026 nó CHƯA từng được thử, nên `tim_kiem_rong: rate==0` là một ngưỡng
@@ -60,6 +63,8 @@ export const options = {
     // ⛔ Bất kỳ 429 nào cũng làm lượt đo MẤT GIÁ TRỊ — xem đầu tệp.
     bi_chan_429: ['rate==0'],
     tim_kiem_rong: ['rate==0'],
+    // T61.17 (WS-72): backend ⛔ trả lời lúc dựng trang tìm kiếm (429 · 5xx) — xem đầu tệp.
+    tim_kiem_khong_tra_loi: ['rate==0'],
     // ⛔⛔ Vế CHỐNG TẬP RỖNG (luật 7). `tim_kiem_rong` chỉ nhận mẫu khi `setup()` tìm được ít
     //     nhất một từ khoá CÓ kết quả; ⛔ có từ khoá nào thì nó đi qua một tập rỗng và XANH —
     //     xanh trong đúng tình huống *"vế tìm kiếm ⛔ được đo"*. Chỉ số này nhận mẫu ở MỌI lượt
@@ -73,6 +78,7 @@ export const options = {
 
 const biChan429 = new Rate('bi_chan_429');
 const timKiemRong = new Rate('tim_kiem_rong');
+const timKiemKhongTraLoi = new Rate('tim_kiem_khong_tra_loi');
 const thieuMocTimKiem = new Rate('thieu_moc_tim_kiem');
 const kichThuocTrangChu = new Trend('trang_chu_byte');
 const loiMayChu = new Counter('loi_5xx');
@@ -83,6 +89,11 @@ const UNG_VIEN = (__ENV.TU_KHOA || 'sông,trạm bơm,cống,vận hành,thông 
   .map((s) => s.trim())
   .filter(Boolean);
 const CHU_RONG = 'Không tìm thấy bài viết';
+/**
+ * Dấu hiệu CẤU TRÚC của khối "Chưa tra cứu được" — `THUOC_TINH_KHONG_TRA_LOI` ở
+ * `frontend/public-web/src/lib/traCuu.ts`. `KichBanTaiThuTest` đối chiếu hai nơi (quy tắc 14).
+ */
+const DAU_KHONG_TRA_LOI = 'data-tra-cuu="khong-tra-loi"';
 
 function goi(duong, trang) {
   const r = http.get(`${BASE_URL}${duong}`, { tags: { trang }, redirects: 0 });
@@ -112,7 +123,9 @@ export function setup() {
   }
   const coKetQua = UNG_VIEN.filter((q) => {
     const r = http.get(`${BASE_URL}/tim-kiem?q=${encodeURIComponent(q)}&moc=1`, { tags: { trang: 'moc' } });
-    return r.status === 200 && !(r.body || '').includes(CHU_RONG);
+    const than = r.body || '';
+    // ⚠ Lượt mốc tự nó gặp 429 thì thân ⛔ có CHU_RONG — ⛔ được đếm nó là "có kết quả".
+    return r.status === 200 && !than.includes(CHU_RONG) && !than.includes(DAU_KHONG_TRA_LOI);
   });
   console.log(`Mốc tìm kiếm: ${coKetQua.length}/${UNG_VIEN.length} từ khoá có kết quả — [${coKetQua.join(', ')}]`);
   if (coKetQua.length === 0) {
@@ -146,8 +159,12 @@ export default function (moc) {
     const q = moc.tuKhoa[Math.floor(Math.random() * moc.tuKhoa.length)];
     const tim = goi(`/tim-kiem?q=${encodeURIComponent(q)}`, 'tim-kiem');
     check(tim, { 'tìm kiếm 200': (r) => r.status === 200 });
-    // Từ khoá này CÓ kết quả lúc không tải (setup) ⇒ "Không tìm thấy" bây giờ là triệu chứng 429 phía SSR.
-    timKiemRong.add(tim.status === 200 && (tim.body || '').includes(CHU_RONG));
+    // Từ khoá này CÓ kết quả lúc không tải (setup). Dưới tải:
+    //   · "Chưa tra cứu được" ⇒ backend ⛔ trả lời lúc dựng trang (429 phía SSR) — T61.17;
+    //   · "Không tìm thấy"    ⇒ backend TRẢ LỜI rỗng cho một từ khoá vốn có kết quả — khuyết tật khác.
+    const thanTim = tim.body || '';
+    timKiemKhongTraLoi.add(tim.status === 200 && thanTim.includes(DAU_KHONG_TRA_LOI));
+    timKiemRong.add(tim.status === 200 && thanTim.includes(CHU_RONG));
     nghi();
   }
 }

@@ -100,6 +100,10 @@ public class AuthService {
             throw new AuthenticationException(locked ? ErrorCode.AUTH_0003 : ErrorCode.AUTH_0001);
         }
 
+        // T61.17 (WS-72): mật khẩu ĐÚNG ⇒ lượt này ⛔ phải dò, trả lại chỗ trong xô LOGIN của IP. Đặt ở ĐÂY, trước
+        //   nhánh 2FA: mã 2FA sai đã có bộ đếm khoá tài khoản riêng (T61.33).
+        loginAttempts.hoanLuotDangNhapDung(client);
+
         abnormalLogins.inspectSuccessfulLogin(user, client, now);
 
         if (totp.isRequiredFor(user)) {

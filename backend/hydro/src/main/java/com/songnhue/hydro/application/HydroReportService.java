@@ -40,7 +40,6 @@ import com.songnhue.hydro.domain.TongHopKyRow;
 import com.songnhue.hydro.domain.TuyenSongRow;
 import com.songnhue.hydro.infra.HydroReportRepository;
 import com.songnhue.hydro.infra.MeasurementTypeRepository;
-import com.songnhue.hydro.infra.StationRepository;
 
 /**
  * Báo cáo thuỷ văn — WS-34.
@@ -77,14 +76,16 @@ public class HydroReportService {
     public static final int TRAN_NGAY_CHI_TIET = 31;
 
     private final HydroReportRepository kho;
-    private final StationRepository diemDo;
+    /** T73.1 — tra điểm đo qua {@link StationService#get}: một cửa, có {@code ScopeGuard} (403 + dấu vết). */
+    private final StationService diemDo;
+
     private final MeasurementTypeRepository loaiChiSo;
     private final ConstructionLookupPort congTrinh;
     private final HydroSettings thamSo;
 
     public HydroReportService(
             HydroReportRepository kho,
-            StationRepository diemDo,
+            StationService diemDo,
             MeasurementTypeRepository loaiChiSo,
             ConstructionLookupPort congTrinh,
             HydroSettings thamSo) {
@@ -226,8 +227,7 @@ public class HydroReportService {
             UUID stationPublicId, String maLoaiChiSo, LocalDate tuNgay, LocalDate denNgay, Pageable trang) {
         kiemKhoang(tuNgay, denNgay, TRAN_NGAY_CHI_TIET);
 
-        Station tram = diemDo.findByPublicIdAndDeletedAtIsNull(stationPublicId)
-                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
+        Station tram = diemDo.get(stationPublicId);
         long idLoai = loaiChiSo
                 .findByCodeAndDeletedAtIsNull(maLoaiChiSo)
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004))
@@ -344,9 +344,7 @@ public class HydroReportService {
         if (stationPublicId == null) {
             return null;
         }
-        return diemDo.findByPublicIdAndDeletedAtIsNull(stationPublicId)
-                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004))
-                .getId();
+        return diemDo.get(stationPublicId).getId();
     }
 
     /**

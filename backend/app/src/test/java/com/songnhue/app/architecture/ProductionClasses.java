@@ -37,7 +37,20 @@ final class ProductionClasses {
      */
     static final JavaClasses ALL = new ClassFileImporter()
             .withImportOption(new ImportOption.DoNotIncludeTests())
+            .withImportOption(ProductionClasses::khongPhaiTestJar)
             .importPackages("com.songnhue");
+
+    /**
+     * ⛔⛔ T73.5 — loại {@code *-tests.jar}. {@code app} phụ thuộc test-jar của {@code core} (đồ dùng chung như
+     * {@code RsaKeyPairFixture}); {@link ImportOption.DoNotIncludeTests} chỉ nhận ra thư mục
+     * {@code /test-classes/}. Ở lượt chạy nhắm mục tiêu, reactor trỏ vào thư mục ấy ⇒ bị loại đúng; ở lượt
+     * {@code verify} đầy đủ, nó là một JAR ⇒ <b>lọt</b>, và mọi luật ở gói này soi cả lớp KIỂM của {@code core}.
+     * Lộ ra khi luật gửi thư đỏ vì {@code MailConfigTest} chỉ ở lượt chạy toàn bộ (T55.9); câu "đã loại
+     * {@code src/test}" ở trên sai từ ngày có test-jar. {@code ImportedScopeTest} canh vế này.
+     */
+    static boolean khongPhaiTestJar(com.tngtech.archunit.core.importer.Location viTri) {
+        return !viTri.contains("-tests.jar");
+    }
 
     private ProductionClasses() {}
 }

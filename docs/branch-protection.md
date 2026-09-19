@@ -4,8 +4,10 @@
 > `staging`, `production` đều có bảo vệ; environment `production` đã có người duyệt.
 > Kết quả kiểm chứng từng mục: **§6**.
 >
-> ⭐ **18/9/2026**: `staging` + `production` về **0 người duyệt**, `production` nhận PR **từ `dev`**
-> (⛔ còn từ `staging`) — §3.0. Bảng §3 là trạng thái hiện hành; các mục cũ hơn giữ làm lịch sử.
+> ⭐ **18/9/2026**: chốt hạ `staging` + `production` về **0 người duyệt**, `production` nhận PR **từ `dev`**
+> (⛔ còn từ `staging`) — lệnh ở §3.0. ⚠ **Đo 19/09/2026 (WS-68) bằng API: cả hai nhánh VẪN `1` người duyệt** —
+> lệnh §3.0 **chưa chạy** (`T66.10`, việc của QuanTran — cần quyền admin). Bảng §3 ghi đích đến; cột *Số người duyệt*
+> ghi rõ số đo.
 >
 > ⚠ **Bản đầu của tài liệu này có hai lỗi, đã sửa ở §4** — cấu hình áp theo bản cũ vẫn còn hai chỗ
 > phải chỉnh: `strict` ở staging/production (§2.4) và thiếu một context ở `dev` (§2.5). Lệnh sửa
@@ -162,7 +164,7 @@ Bản trước của bảng này sai ở ba ô và không ai cập nhật khi ch
 |---|---|---|---|
 | Check bắt buộc | `Cổng kiểm CI` (**đúng một** — xem §7) | `Promotion guard` | `Promotion guard` |
 | Nguồn hợp lệ | nhánh feature bất kỳ | chỉ `dev` | chỉ **`dev`** (⭐ 18/9 — trước: chỉ `staging`) |
-| Số người duyệt | **0** — hạ 6/9/2026, PR vẫn bắt buộc | ⭐ **0** — hạ 18/9 (lệnh §3.0) | ⭐ **0** — hạ 18/9 (lệnh §3.0) |
+| Số người duyệt | **0** — hạ 6/9/2026, PR vẫn bắt buộc | đích **0** (lệnh §3.0) · ⚠ đo 19/09: **1** — chưa áp (`T66.10`) | đích **0** (lệnh §3.0) · ⚠ đo 19/09: **1** — chưa áp (`T66.10`) |
 | `strict` (bắt cập nhật với base) | ✅ | ❌ — xem §2.4 | ❌ — xem §2.4 |
 | `required_linear_history` | ✅ | ❌ — xem §2.3 | ❌ |
 | Cách merge | Squash / Rebase | **Create a merge commit** — xem §3.2 | **Create a merge commit** |

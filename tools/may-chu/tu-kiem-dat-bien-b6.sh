@@ -44,6 +44,10 @@ lenh="$*"
 [[ "$lenh" == *app.jar* ]] && { echo "1 0"; exit 0; }
 # Lệnh thật mang sẵn đối số đường dẫn `.env`; đổi nó sang tệp giả rồi chạy nguyên văn.
 lenh="${lenh//\/opt\/songnhue\/.env/$tep}"
+# ⛔ `$HOME` của máy giả nằm TRONG hộp cát: lệnh sao lưu ghi vào `~/.songnhue-env-bak` — để nguyên
+#   HOME thật là mỗi lượt tự kiểm rải một bản sao `.env` giả vào thư mục nhà của người chạy.
+export HOME="$SAN/nha-$(basename "$tep" .env)"
+mkdir -p "$HOME"
 eval "$lenh"
 # ⛔⛔ `ssh` THẬT hút sạch stdin của nơi gọi (nó chuyển tiếp sang máy ở xa). Máy giả PHẢI
 #    làm đúng thế, nếu ⛔ thì bài này xanh trên cả bản script mang lỗi §10.60 — đo được:
@@ -53,13 +57,20 @@ GIA
 chmod +x "$SAN/ssh-gia"
 
 # Sáu dòng nhập: ALERT_EMAIL_TO đã có ⇒ ⛔ hỏi lại; năm dòng còn lại theo đúng thứ tự.
-cat > "$SAN/nhap" <<'NHAP'
-https://hooks.slack.com/services/T000/B000/xxxxxxxxxxxxxxxxxxxxxxxx
-123456789:AAaaBBbbCCccDDddEEeeFFffGGgghhhhiii
--1001234567890
-doi-phat-trien@goapps.team
-https://hc-ping.com/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
-NHAP
+#
+# ⛔⛔ Giá trị GIẢ dựng LÚC CHẠY, ⛔ viết liền trong tệp (T68.37). Bộ quét bí mật của GitHub khớp theo
+#    HÌNH DẠNG: bản cũ viết liền một token Telegram giả `<9 chữ số>:<35 ký tự>` ⇒ cảnh báo secret
+#    scanning #1 (16/09, `publicly_leaked`) mở mà ⛔ ai đọc — một chuông giả mỗi lượt quét, và chuông giả
+#    dạy người ta bỏ qua chuông thật. Giá trị dựng ra vẫn qua ĐÚNG mẫu hợp lệ của `dat-bien-b6.sh`
+#    (`^[0-9]+:[A-Za-z0-9_-]{30,}$` …) nhưng cố ý LỆCH mẫu nhà cung cấp: 7 chữ số, 30 ký tự.
+#    Bộ canh `KhongChuoiHinhDangBiMatTest` quét mọi tệp git theo dõi để đồ gá sau ⛔ đưa lại.
+lap() { printf "%${2}s" '' | tr ' ' "$1"; } # lap <ký tự> <số lần>
+printf '%s\n' \
+  "https://hooks.slack.com/services/T000/B000/$(lap x 24)" \
+  "$(lap 7 7):$(lap a 30)" \
+  "-1001234567890" \
+  "doi-phat-trien@goapps.team" \
+  "https://hc-ping.com/$(lap a 8)-$(lap b 4)-$(lap c 4)-$(lap d 4)-$(lap e 12)" > "$SAN/nhap"
 
 ma=0
 SAN="$SAN" SSH_BIN="$SAN/ssh-gia" SSH_KEY=/dev/null NHAP_TU="$SAN/nhap" \
@@ -69,6 +80,17 @@ hong=0
 kiem() { # kiem <mô tả> <biểu thức đúng>
   if eval "$2"; then printf '   ✓ %s\n' "$1"; else printf '   ✗ %s\n' "$1"; hong=1; fi
 }
+
+# Quyền dạng số của MỘT đường dẫn — chọn cú pháp một lần: GNU (`stat -c %a`, runner Linux) hay BSD
+# (`stat -f %Lp`, macOS). ⛔ nối `stat -f %Lp X 2>/dev/null || stat -c %a X`: GNU hiểu `-f` là "hệ tệp",
+# in thông tin HỆ TỆP của X ra STDOUT rồi mới thoát 1 ⇒ `||` chạy vế sau nhưng chuỗi đã lẫn rác, và
+# `2>/dev/null` chỉ nuốt stderr. Đúng lý do lượt CI đầu của PR #175 đỏ trên runner trong khi macOS xanh
+# (T71.8) — máy làm việc ⛔ dựng lại được điều kiện của runner, cùng họ T63.18.
+if stat -c %a / >/dev/null 2>&1; then
+  quyen() { stat -c %a "$1"; }
+else
+  quyen() { stat -f %Lp "$1"; }
+fi
 
 echo "== Tự kiểm dat-bien-b6.sh (mã thoát: $ma)"
 for k in SLACK_WEBHOOK_URL TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID MAIL_REDIRECT_TO HEALTHCHECKS_PING_URL; do
@@ -87,6 +109,13 @@ kiem "METRICS_ALLOW_IP VPS-1 = IP đo trên VPS-2" "grep -q '^METRICS_ALLOW_IP=2
 kiem "⛔ chép SMTP khi bản staging chưa biết chuyển hướng thư" "! grep -q '^SMTP_PASSWORD=' '$SAN/staging.env'"
 kiem "⛔ in secret ra màn hình" "! grep -qE 'mat-khau-ung-dung-that|hooks.slack.com/services|hc-ping.com/' '$SAN/ra'"
 kiem "mã thoát 3 (còn thiếu SMTP_*)" "[ $ma -eq 3 ]"
+# T11.95 — bản sao `.env` nằm NGOÀI /opt/songnhue (rsync --delete của CD từng xoá nó) và ⛔ trong thư mục
+# sao lưu (tài khoản kéo chép thư mục ấy sang VPS-2). Thư mục 700, tệp 600, cả hai máy.
+for may in prod staging; do
+  kiem "sao lưu .env $may nằm ở ~/.songnhue-env-bak, tệp 600, thư mục 700" \
+    "[ \"\$(ls \"$SAN/nha-$may/.songnhue-env-bak\" 2>/dev/null | grep -c '^env\\.bak-[0-9]\\{14\\}\$')\" = 1 ] && [ \"\$(quyen \"$SAN/nha-$may/.songnhue-env-bak\")\" = 700 ] && [ \"\$(quyen \"$SAN/nha-$may/.songnhue-env-bak\"/env.bak-*)\" = 600 ]"
+done
+kiem "⛔ bản sao .env nào nằm cạnh .env giả (vị trí CŨ, rsync sẽ xoá)" "[ \"\$(ls \"$SAN\" | grep -c '\\.env\\.bak-')\" = 0 ]"
 
 (( hong )) && { echo; sed 's/^/   | /' "$SAN/ra"; echo "⛔ TỰ KIỂM ĐỎ"; exit 1; }
 echo "   ✅ tự kiểm xanh"

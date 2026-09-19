@@ -573,9 +573,10 @@ thì fail-fast không hoạt động, và một biến điền sai sẽ chỉ l�
 | `songnhue.vn` · `www` · `admin` · `files` | A | IP của **VPS-1** |
 | `staging` · `admin-staging` · `files-staging` | A | IP của **VPS-2** |
 
-> ⚠⚠ **Bảng trên là KẾ HOẠCH, không phải hiện trạng — T11.53.** Tên miền `.vn` chưa mua: chủ thể
-> đăng ký phải là Công ty (`hosting_recommendations.md` §9, nợ **T11.2-b**). Đo 28/8 và 3/9/2026:
-> `https://staging.songnhue.vn` trả **HTTP 000, không phân giải được**.
+> ⚠⚠ **Bảng trên là KẾ HOẠCH CŨ, không phải hiện trạng — T11.53.** ⭐ **Sửa 19/09/2026 (WS-68)**: tên miền `.vn`
+> ĐÃ mua — nhưng là **`thuyloisongnhue.vn`** (production chạy trên đó từ 08/09, T11.94), ⛔ `songnhue.vn`. Còn lại của
+> **T11.2-b**: xác nhận chủ thể đăng ký (whois) là Công ty + bật tự gia hạn, và QuanTran chốt tên miền staging.
+> Đo 28/8 và 3/9/2026: `https://staging.songnhue.vn` trả **HTTP 000, không phân giải được**.
 >
 > **Staging đang chạy thật ở `staging.songnhue.com` / `admin-staging.songnhue.com`** (HTTP 200).
 > Mọi lệnh kiểm chứng trong tài liệu này dùng tên miền ĐANG CHẠY. Khi có `.vn`, đổi một lượt và
@@ -623,21 +624,26 @@ docker run --rm -p 80:80 -v /etc/letsencrypt:/etc/letsencrypt \
 Sau khi stack đã chạy, dùng webroot để không phải dừng nginx:
 
 ```bash
-crontab -e
+crontab -e          # với USER TRIỂN KHAI; /var/log/songnhue phải ghi được (host-prepare.sh tạo)
 ```
 ```cron
-17 3 * * 1 cd /opt/songnhue && docker compose --env-file .env -f compose.prod.yml --profile certbot run --rm certbot renew --webroot -w /var/www/certbot --quiet && docker compose --env-file .env -f compose.prod.yml exec nginx nginx -s reload
+17 3 * * 1 /opt/songnhue/gia-han-tls.sh >> /var/log/songnhue/gia-han-tls.log 2>&1
 ```
+
+> ⛔⛔ **Sửa 19/09/2026 (WS-68, `T11.88`)**: bản cũ đặt dòng cron `docker compose … --profile certbot run --rm certbot renew
+> … && docker compose … exec nginx nginx -s reload` — đo 08/09 trên VPS-1: **thoát 1** (compose nội suy cả tệp, thiếu
+> `*_IMAGE` — §10.81). Làm đúng hướng dẫn cũ là cài một cron **hỏng câm**. Bản đúng: `deploy/gia-han-tls.sh`
+> (`docker run` + `docker exec`) — chi tiết ở `docs/runbook/ten-mien-va-chung-chi.md` §4.
 
 > ⚠ Khối `location ^~ /.well-known/acme-challenge/` phải đứng **trước** lệnh chuyển hướng sang
 > HTTPS trong `default.conf.template` — nó đã đứng đúng chỗ. Đảo thứ tự là certbot bị đẩy sang
 > HTTPS và **không gia hạn được**, hỏng âm thầm cho tới đúng ngày hết hạn.
 
-**Kiểm chứng ngay, đừng đợi 60 ngày nữa mới biết:**
+**Kiểm chứng ngay, đừng đợi 60 ngày nữa mới biết** — chạy **đúng dòng cron**, ⛔ một biến thể:
 
 ```bash
-docker compose --env-file .env -f compose.prod.yml --profile certbot \
-  run --rm certbot renew --webroot -w /var/www/certbot --dry-run
+/opt/songnhue/gia-han-tls.sh >> /var/log/songnhue/gia-han-tls.log 2>&1; echo "MÃ THOÁT = $?"   # phải 0
+tail -5 /var/log/songnhue/gia-han-tls.log                                                       # có "── đã nạp lại nginx"
 ```
 
 ### 4.4. Kiểm cấu hình nginx trước khi bật
