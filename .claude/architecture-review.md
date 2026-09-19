@@ -5965,6 +5965,9 @@ migration. Nguyên nhân: lượt khôi phục staging 26/8 chạy bản còn `-
 thứ §10.58 ghi là *"`ALTER DEFAULT PRIVILEGES` cứu"*. **Nó cứu app khỏi chết và cùng lúc
 xoá mọi câu `REVOKE`**, và staging đã chạy như thế suốt 13 ngày.
 
+> ⚠ **Đo lại 19/09/2026 — vế *"`--no-privileges`"* SAI cơ chế, xem §12.3.** Khôi phục ĐÈ lên một
+> CSDL đã migrate **tự nó** sinh ra đúng danh sách trên (72 quyền), nguồn đúng, ⛔ có cờ ấy.
+
 Bài học chung: **một bản dump không chỉ là dữ liệu — nó là dữ liệu + lược đồ + ACL.** Nhân
 bản môi trường theo chiều *kém an toàn → an toàn hơn* là nhập khẩu cả phần yếu. Vá không
 phải bằng cách chép ảnh chụp ACL của production (ảnh chụp cũng có thể sai) mà bằng cách
@@ -7405,3 +7408,65 @@ tới hai việc khác hẳn nhau:
   migration + màn hình, ⛔ phải nhập liệu.
 Chưa đủ dữ kiện để chọn ⇒ `T66.14`. Trong lúc chờ, ⛔ nhập Xí nghiệp nào vào `org_units` cho Báo cáo
 nhanh (T66.13 bước 1 chặn theo).
+
+### §12.3 Khôi phục ĐÈ hạ quyền append-only — cơ chế THẬT của §10.80 (C) (WS-69, 19/9/2026)
+
+**Hiện tượng đo được.** Bài `KhoiPhucVaoCsdlTrangTest` viết TRƯỚC bản vá, chạy trên Postgres 16 thật:
+dump bằng đúng cờ của job sao lưu (⛔ `--no-privileges`), khôi phục vào CSDL trắng ⇒ ACL của
+`songnhue_app` khớp nguồn từng bảng; khôi phục **lần hai, ĐÈ lên chính CSDL ấy** ⇒ **72 quyền thừa**,
+0 quyền thiếu — `audit_logs` + 15 phân mảnh, `hydro_raw_logs` + 13 phân mảnh (UPDATE, DELETE),
+`security_events`, `audit_archive_anchors`, `audit_chain_head` (nguồn: app ⛔ quyền nào ⇒ đích: đủ
+bốn), `flyway_schema_history`. Đúng từng tên với bảng `arwd` của staging ghi ở §10.80 (C).
+
+**Cơ chế.** `--clean` DROP rồi CREATE lại từng bảng bằng vai trò đang nạp (`songnhue_owner`), nên
+bảng mới nhận `ALTER DEFAULT PRIVILEGES` của **đích** — `V202608131006` cấp `SELECT, INSERT, UPDATE,
+DELETE ON TABLES TO songnhue_app`. Phần ACL của bản dump chỉ là GRANT so với `acldefault` (quyền
+chủ sở hữu); nó ⛔ bao giờ phát REVOKE cho quyền mà mặc định cấp thêm. Mục `DEFAULT ACL` của bản
+dump nằm ở lượt ACL cuối cùng, tức SAU khi mọi bảng đã dựng xong. ⇒ Đích trắng (⛔ quyền mặc định)
+thì đúng; đích đã migrate thì sai — lại đúng hình dạng §10.80: **đường hay được thử (máy trắng) thì
+chạy, đường dùng thật (khôi phục đè sau sự cố, nút M5.11) thì hỏng**, và ⛔ một dòng lỗi nào.
+
+**Vì sao bản ghi cũ sai.** §10.80 (C) và ba tài liệu chép theo quy cho `--no-privileges` vì lượt
+26/8 CÓ cờ ấy — một đồng hiện bị đọc thành nhân quả. Gỡ cờ ấy (T7.13-a) ⛔ chặn được gì: lượt di trú
+08/09 ⛔ có cờ vẫn sinh `arwd`, và production thoát chỉ nhờ khối ⑥ của `--sau` REVOKE tay.
+
+**Quyết định.** Khối `KeHoachKhoiPhuc.khoiTruocKhiNap()` (bản sao từng byte ở
+`deploy/backup/truoc-khi-nap.sql`, canh bằng `BackupRestoreFlagsTest`) gỡ quyền mặc định **cấp
+schema** của chính vai trò đang nạp, trong CÙNG giao dịch với phần nạp; bản dump đặt lại chúng ở
+lượt ACL cuối. ⛔ Chọn *"REVOKE lại danh sách bảng append-only sau khi nạp"*: đó là một danh sách gõ
+tay sẽ mục ngay bảng append-only thứ tám (luật 28), và nó sửa triệu chứng chứ ⛔ sửa cơ chế. Phạm vi
+khai ra: mục toàn cục (⛔ `IN SCHEMA`) ⛔ đụng — nó gồm cả quyền chủ sở hữu, kho ⛔ khai loại ấy; loại
+đối tượng lạ thì NÉM. Kèm hai chim hoàng yến đo ở tầng phục vụ (luật 35): `RestoreService` và cả hai
+script hỏi `has_table_privilege(current_user, 'public.audit_logs', 'UPDATE')` bằng **vai trò ứng
+dụng** sau khi nạp — đỏ thì báo THẤT BẠI kèm câu *"dữ liệu ĐÃ nạp"*, ⛔ báo XONG.
+
+⚠ **Hệ quả cho khôi phục chéo môi trường**: sau bản vá, khôi phục cho ra **đúng ACL của nguồn** ⇒
+nguồn yếu thì đích vẫn yếu theo — khối ⑥ của `sau-khoi-phuc-production.sql` vẫn bắt buộc khi nguồn
+là staging.
+
+### §12.4 Xô đăng nhập theo IP: tính TRƯỚC, trả lại lượt đúng — ⛔ "chỉ đọc rồi đếm lượt sai" (WS-72, 19/9/2026)
+
+**Hiện tượng đo được.** `DangNhapSauNatHttpTest`, viết TRƯỚC bản vá: 31 lượt đăng nhập ĐÚNG từ một
+IP ⇒ lượt 31 nhận 429. Xô `LOGIN` (30 lượt / 15′ theo IP) tính MỌI lượt gọi `/auth/login`, trong khi
+chính javadoc của nó khai *"cả Công ty ra Internet qua một IP NAT"* ⇒ lưới chống dò khoá cả cơ quan
+vào 8h sáng. `RateLimitStore.reset` mang javadoc *"dùng khi đăng nhập thành công"* mà 0 nơi gọi.
+
+**Quyết định.** Bộ lọc giữ nguyên: tăng bộ đếm NGUYÊN TỬ trước khi cho đi. Mật khẩu đúng thì
+`LoginAttemptService.hoanLuotDangNhapDung` trả lại ĐÚNG lượt ấy (`RateLimitStore.hoanLai`, sàn 0),
+đặt SAU mọi phép kiểm tài khoản. Hai phương án bị loại, vì mỗi cái mở một đường vòng:
+
+- **Bộ lọc chỉ đọc, bộ xác thực đếm lượt sai.** Lượt đang băm BCrypt chưa bị đếm, nên N lượt tới cùng
+  lúc đều qua cửa ⇒ trần thật là `trần + số lượt đồng thời`. Tính trước rồi trả lại thì số lượt ⛔
+  đúng mật khẩu lọt qua trong một cửa sổ ⛔ bao giờ vượt trần. Giá: một lượt đúng đang xử lý chiếm một
+  chỗ tới khi trả — 30 lượt đúng cùng băm BCrypt trong một khoảnh khắc từ một IP thì ⛔ phải người thật.
+- **Nối `reset` vào nhánh đăng nhập đúng** (ý đồ cũ của javadoc). Ai có MỘT tài khoản thật xen đăng
+  nhập đúng giữa các lượt đoán là xô về 0 ⇒ dò mật khẩu người khác ⛔ giới hạn. `reset` bị gỡ hẳn —
+  giữ nó là để lượt sửa sau nối nó vào đúng chỗ ấy.
+
+**Kèm theo.** nginx trả **429** thay 503 khi chặn theo `limit_req`/`limit_conn` (khai ở tầng http,
+đo trên `nginx:1.30-alpine`): 503 đọc thành *"máy chủ ⛔ phục vụ được"*, lượt tải thử đếm nó vào lỗi
+5xx. Và trang tìm kiếm thôi đổi *backend chưa trả lời* thành *"Không tìm thấy…"* (quy tắc 16).
+
+**⛔ Chưa quyết.** nginx `api_auth` (20 lượt/phút, burst 10, theo IP, trên tên miền quản trị) — nới
+hay ⛔ chờ phép đo NAT của QuanTran (T61.17). Sau WS-72 đó là chốt DUY NHẤT còn đếm lượt đăng nhập
+đúng theo IP.

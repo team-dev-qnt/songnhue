@@ -52,8 +52,18 @@ AES_KEY_V2=<khoá mới>
 AES_KEY_ID=v2          # ← chỉ đổi dòng này: từ nay MÃ HOÁ MỚI dùng v2
 
 # 3. Khởi động lại app
-docker compose -f compose.prod.yml up -d app
+cd /opt/songnhue
+# ⚠ compose đòi ${APP_IMAGE:?} … mà .env ⛔ có — lấy từ container đang chạy (khuôn deploy-hong.md)
+export APP_IMAGE=$(docker inspect -f '{{.Config.Image}}' songnhue-app)
+export ADMIN_IMAGE=$(docker inspect -f '{{.Config.Image}}' songnhue-admin-app)
+export PUBLIC_IMAGE=$(docker inspect -f '{{.Config.Image}}' songnhue-public-web)
+COMPOSE=compose.prod.yml          # VPS-2 (staging): COMPOSE=compose.staging.yml
+docker compose --env-file .env -f "$COMPOSE" up -d app; echo "MA_THOAT=$?"   # phải 0
 ```
+
+> ⚠ **Sửa 19/09/2026 (WS-68, `T68.6`)**: bản cũ ghi `docker compose -f compose.prod.yml up -d app` — thiếu `--env-file .env`
+> và ba biến ảnh, nên trên máy chủ nó **thoát 1** với *required variable APP_IMAGE is missing a value* (đúng hình dạng
+> §10.48 · §10.81): lượt xoay khoá dừng ở bước khởi động lại mà `.env` đã đổi dở.
 
 Từ lúc này: ghi mới dùng `v2`; đọc dữ liệu cũ vẫn tự dùng `v1` nhờ `key_id`.
 
@@ -110,8 +120,18 @@ JWT_PRIVATE_KEY_PATH=/opt/songnhue/keys/jwt-private-v2.pem
 JWT_PUBLIC_KEY_PATH=/opt/songnhue/keys/jwt-public-v2.pem
 
 # 3. Khởi động lại
-docker compose -f compose.prod.yml up -d app
+cd /opt/songnhue
+# ⚠ compose đòi ${APP_IMAGE:?} … mà .env ⛔ có — lấy từ container đang chạy (khuôn deploy-hong.md)
+export APP_IMAGE=$(docker inspect -f '{{.Config.Image}}' songnhue-app)
+export ADMIN_IMAGE=$(docker inspect -f '{{.Config.Image}}' songnhue-admin-app)
+export PUBLIC_IMAGE=$(docker inspect -f '{{.Config.Image}}' songnhue-public-web)
+COMPOSE=compose.prod.yml          # VPS-2 (staging): COMPOSE=compose.staging.yml
+docker compose --env-file .env -f "$COMPOSE" up -d app; echo "MA_THOAT=$?"   # phải 0
 ```
+
+> ⚠ **Sửa 19/09/2026 (WS-68, `T68.6`)**: bản cũ ghi `docker compose -f compose.prod.yml up -d app` — thiếu `--env-file .env`
+> và ba biến ảnh, nên trên máy chủ nó **thoát 1** với *required variable APP_IMAGE is missing a value* (đúng hình dạng
+> §10.48 · §10.81): lượt xoay khoá dừng ở bước khởi động lại mà `.env` đã đổi dở.
 
 **Đổi `JWT_KEY_ID` là bắt buộc.** `kid` nằm trong header token để hệ thống biết dùng khoá nào kiểm
 chữ ký. Đổi khoá mà giữ nguyên `kid` thì token cũ được coi là ký bằng khoá mới → kiểm chữ ký thất

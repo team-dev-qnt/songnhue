@@ -9,7 +9,7 @@ import java.time.Duration;
  * (architecture-review.md §6.2) và không có Redis, nên đếm in-process là đủ và rẻ.
  *
  * <p>⚠ <b>Lên từ 2 node trở đi bắt buộc đổi impl sang bảng DB</b>: mỗi node đếm riêng thì giới hạn
- * thực tế bị nhân lên theo số node — 5 lần đăng nhập sai/15 phút trở thành 10 lần với 2 node, tức
+ * thực tế bị nhân lên theo số node — 30 lượt đăng nhập/15 phút trở thành 60 lượt với 2 node, tức
  * là chốt chặn dò mật khẩu yếu đi đúng một nửa. Đây là điều kiện đổi đã ghi ở §6.4, không phải việc
  * "tối ưu sau".
  */
@@ -25,8 +25,19 @@ public interface RateLimitStore {
      */
     Decision hit(String key, int limit, Duration window);
 
-    /** Xoá bộ đếm — dùng khi đăng nhập thành công, để lần sai trước đó không tính vào lần sau. */
-    void reset(String key);
+    /**
+     * Trả lại ĐÚNG MỘT lượt đã tính cho {@code key} trong cửa sổ hiện tại. Bộ đếm ⛔ xuống dưới 0; khoá chưa có
+     * cửa sổ, hoặc cửa sổ đã hết hạn, thì ⛔ làm gì.
+     *
+     * <p>T61.17 (WS-72): đăng nhập ĐÚNG mật khẩu trả lại lượt mà bộ lọc đã tính cho chính nó. Nhờ vậy xô
+     * {@code LOGIN} theo IP chỉ còn giữ những lượt ⛔ đúng mật khẩu.
+     *
+     * <p>⛔⛔ Thay cho {@code reset(key)}. Phương thức ấy xoá SẠCH bộ đếm, có javadoc <i>"dùng khi đăng nhập
+     * thành công"</i> mà có 0 nơi gọi. Nếu nối nó vào đúng chỗ ấy, ai có MỘT tài khoản thật chỉ cần đăng nhập
+     * xen giữa các lượt đoán là xô về 0 và dò mật khẩu người khác ⛔ giới hạn. Trả lại một lượt thì ⛔ xoá được
+     * lượt sai của ai.
+     */
+    void hoanLai(String key);
 
     /**
      * @param allowed cho đi tiếp hay chặn

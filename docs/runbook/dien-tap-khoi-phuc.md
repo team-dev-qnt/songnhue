@@ -113,7 +113,10 @@ trước trên CSDL nháp `songnhue_thu` — bản sao đúng của production (
 2. Bộ lọc mục lục để lọt 3 mục `EXTENSION`; §10.58 đã gán lỗi ấy cho `COMMENT - EXTENSION` và **vá
    nhầm chỗ**
 3. Dữ liệu nguồn mang `songnhue_app = arwd` trên ~35 bảng append-only ⇒ khôi phục nguyên trạng là
-   **âm thầm hạ cấp** đích
+   **âm thầm hạ cấp** đích. ⚠ **Đo lại 19/09/2026 (T68.3)**: chính lượt khôi phục ĐÈ cũng SINH ra đúng
+   danh sách ấy — bảng dựng lại nhận quyền mặc định của đích, bản dump chỉ GRANT. Vá ở
+   `deploy/backup/truoc-khi-nap.sql` (WS-69); lượt diễn tập máy TRẮNG ⛔ lộ được lỗi này vì đích rỗng
+   ⛔ có quyền mặc định — phép kiểm "quyền append-only trước/sau" ở trên vẫn bắt buộc
 
 Và một khuyết tật thứ tư về công cụ: `deploy/backup/restore.sh` — đường khôi phục thủ công **duy
 nhất** — không chạy được trên bất kỳ máy chủ nào.

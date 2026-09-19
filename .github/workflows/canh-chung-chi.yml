@@ -1,0 +1,62 @@
+# T11.88 · DOD4.8 — canh HẠN CHỨNG CHỈ TLS của mọi tên miền, đo từ runner GitHub.
+#
+# ⛔⛔ Đo từ NGOÀI máy chủ, ⛔ đọc cron trên máy: cả hai cách lịch gia hạn từng hỏng đều IM
+#    LẶNG trên máy (VPS-2 ⛔ cài gói `cron`; dòng cron dạng compose thoát 1 ở mọi lượt —
+#    §10.81). Chi tiết trạng thái, ngưỡng và cách chống chuông ồn: đầu
+#    `.github/scripts/canh-chung-chi.sh`.
+#
+# ⚠ Giờ chạy: 01:30 UTC = 08:30 +07, đầu giờ làm việc. Lịch `schedule` của GitHub trễ đo được
+#   tới 12 giờ (T11.67) — vô hại ở đây vì ngưỡng tính bằng TUẦN.
+name: Canh hạn chứng chỉ TLS
+
+on:
+  schedule:
+    - cron: '30 1 * * *'
+  # Kết quả ⛔ phụ thuộc nhánh (đo tên miền thật) ⇒ lượt chạy tay được phép ghi vào issue —
+  # khác `canh-cong-quet.yml`, nơi lượt tay trên nhánh vá từng đóng nhầm issue (T11.81).
+  workflow_dispatch:
+    inputs:
+      # ⛔⛔ Đường DIỄN TẬP cho nhánh mở issue. Mọi chứng chỉ hôm nay còn ≥ 64 ngày ⇒ lượt thật đầu
+      #    tiên ra `binh-thuong`, và nhánh mở issue + tạo nhãn sẽ ⛔ ai đi qua trước ~01/11 (luật 7 —
+      #    chuông `canh-cong-quet` đã sống 8 ngày với một nhánh như thế mà nhãn của nó ⛔ tồn tại).
+      #    Chạy tay với 90 ⇒ phải mở issue gắn nhãn; chạy lại để trống ⇒ issue phải đóng.
+      nguong_ngay:
+        description: 'Ngưỡng ngày — để trống = 21. Đặt 90 để DIỄN TẬP nhánh mở issue.'
+        required: false
+        default: ''
+
+# ⛔ Mặc định hẹp nhất, nới đúng ở job cần.
+permissions:
+  contents: read
+
+concurrency:
+  group: canh-chung-chi
+  cancel-in-progress: false
+
+jobs:
+  canh:
+    name: Hạn chứng chỉ TLS
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      # `gh issue create/comment/close` + `gh label create`. Thiếu thì 403 trong im lặng (§10.57).
+      issues: write
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Đo hạn chứng chỉ từ bên ngoài
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KHO: ${{ github.repository }}
+          # ⚠ Đo 19/09/2026 bằng bắt tay TLS: production 4 tên (hạn 06–07/12), staging 3 tên
+          #   (hạn 22/11). `songnhue.com` ⛔ nằm đây: lỗi TLS `unrecognized name` từ 08/09 và chờ
+          #   QuanTran chốt giữ (301) hay khai tử (T68.11) — đưa vào lúc này là một chuông kêu mãi.
+          #   Đổi tên miền thì sửa danh sách NÀY cùng lượt (docs/runbook/ten-mien-va-chung-chi.md).
+          TEN_MIEN: >-
+            thuyloisongnhue.vn www.thuyloisongnhue.vn admin.thuyloisongnhue.vn files.thuyloisongnhue.vn
+            staging.songnhue.com admin-staging.songnhue.com files-staging.songnhue.com
+          # Lượt `schedule` ⛔ có `inputs` ⇒ luôn rơi về 21.
+          NGUONG_NGAY: ${{ inputs.nguong_ngay || '21' }}
+        run: bash .github/scripts/canh-chung-chi.sh
