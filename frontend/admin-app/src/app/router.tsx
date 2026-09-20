@@ -95,6 +95,14 @@ export const router = createBrowserRouter([
             path: '/phien-dang-nhap',
             element: lazyPage(() => import('@/features/account/SessionsPage'), 'SessionsPage'),
           },
+          {
+            // ⛔⛔ CỐ Ý ⛔ bọc `RequirePermission` — hướng dẫn sử dụng phải mở cho **mọi** tài
+            //    khoản đã đăng nhập. Gác bằng một mã quyền là khoá đúng người cần nó nhất:
+            //    cán bộ `VIEWER` mở hệ thống lần đầu, thấy menu ngắn hơn đồng nghiệp và ⛔ có
+            //    chỗ nào tra xem vì sao (§4.2 của chính tài liệu ấy trả lời câu đó).
+            path: '/huong-dan',
+            element: lazyPage(() => import('@/features/help/HuongDanPage'), 'HuongDanPage'),
+          },
           // ---- Vận hành công trình (MOD-02) ----
           adminRoute(
             '/van-hanh/dieu-hanh',

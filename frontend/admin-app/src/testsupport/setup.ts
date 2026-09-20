@@ -133,3 +133,23 @@ export function datBeRongCua(beRong: number): void {
     }),
   });
 }
+
+/**
+ * `scrollIntoView` ⛔ tồn tại trong jsdom — mọi trình duyệt thật đều có.
+ *
+ * ⚠⚠ Bù ở ĐÂY chứ ⛔ rào `?.scrollIntoView?.()` trong mã sản phẩm: một dấu `?.` như thế là **mã
+ * chết** ở mọi trình duyệt, tồn tại chỉ vì môi trường kiểm thiếu thứ gì đó. Để mã sản phẩm méo
+ * theo giới hạn của bộ kiểm là đổi chiều phụ thuộc — và dấu rào ấy sẽ còn nằm đó rất lâu sau khi
+ * ⛔ ai nhớ vì sao nó có.
+ *
+ * ⚠⚠ `coDom` ⛔ phải thừa: `setupFiles` chạy cho **cả** bài khai `@vitest-environment node`
+ * (`buildConfig.test.ts`), nơi `HTMLElement` ⛔ tồn tại. Bỏ cờ này ⇒ `ReferenceError` làm hỏng cả
+ * tệp kiểm **trước khi chạy bài nào** — đúng cái bẫy mà chú thích ở đầu khối `coDom` phía trên đã
+ * mô tả, và tôi vẫn mắc lại ngày 20/09. Một lời dặn ⛔ phải một cổng kiểm.
+ */
+if (coDom && !HTMLElement.prototype.scrollIntoView) {
+  Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+    writable: true,
+    value: () => {},
+  });
+}

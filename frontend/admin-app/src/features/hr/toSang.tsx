@@ -1,4 +1,4 @@
-import { boDau } from './boDau';
+import { boDau } from '@/shared/boDau';
 
 /**
  * Tô sáng phần khớp từ khoá trên danh bạ — CN-04.6 đòi *"highlight"*.
