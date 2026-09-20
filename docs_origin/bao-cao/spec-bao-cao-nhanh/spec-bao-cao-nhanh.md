@@ -54,9 +54,20 @@ Không có bảng trong thân báo cáo — chỉ 1 dòng dẫn chiếu "Chi ti�
 Ghi chú: Trạm bơm Yên Nghĩa vận hành {X} máy bơm với tổng lưu lượng bơm {Y} m3/s.
 ```
 Nếu trạm không chạy máy nào, thay bằng: `Ghi chú: Trạm bơm Yên Nghĩa không vận hành.`
-- `X` = số máy đang chạy (nhập tay, xem mục 5), lấy từ dòng "Yên Nghĩa" trong Phụ lục 1/Bảng 2.
+- `X` = số máy đang chạy (nhập tay, xem mục 5), lấy từ **trạm được chọn ở màn hình *Cấu hình Báo cáo nhanh*** (xem đính chính dưới), cộng mọi nhóm máy của trạm ấy trong Phụ lục 1/Bảng 2.
 - `Y` = tổng lưu lượng = `X` × Q/máy, đổi từ m3/h sang **m3/s** (chia 3600) — khác đơn vị m3/h dùng ở mọi bảng khác trong báo cáo, cần lưu ý khi code hàm tính.
 - Yên Nghĩa là trạm bơm tiêu lớn nhất hệ thống: 10 máy, Q/máy = 43.200 m3/h (xem [[tram-bom-xntl-hoai-duc]]) — đây là lý do được tách riêng thành 1 dòng ghi chú bắt buộc, không gộp chung bảng.
+
+> [!IMPORTANT]
+> **Đính chính 20/09/2026 (T78.1) — câu *"lấy từ dòng Yên Nghĩa"* ở trên ⛔ dùng được, và tên trạm trong câu ghi chú là ĐỘNG.**
+>
+> QuanTran nêu 20/09: *"sẽ có trường hợp trạm bơm cùng tên nhưng khác mã — có thể có tới 2 trạm bơm cùng tên là Yên Nghĩa. Do đó ở phần ghi chú sẽ hơi confuse vì không biết đang lấy trạm bơm theo mã nào."*
+>
+> Điều đó đo được trong lược đồ: `constructions` chỉ có chỉ mục duy nhất trên `code`, **⛔ trên `name`** — tức trùng tên là trạng thái CSDL cho phép. Và danh mục Công ty gửi đã có sẵn hai "Yên Nghĩa": trạm bơm `TB-YNGHIA` và cống tiêu tự chảy `CTTC-YNGHIA`.
+>
+> ⇒ Từ 18/09 (`V202609181088`) trạm của dòng ghi chú là **một ô chọn** trên màn hình *Cấu hình Báo cáo nhanh*, ⛔ phải một mã ghi trong mã nguồn; ô chọn hiện **tên kèm mã** và tìm được theo cả hai.
+> ⇒ Từ 20/09 (T78.1) **tên trong câu in ra lấy từ chính trạm được chọn**. Trước đó câu là một hằng chuỗi: đổi ô chọn thì SỐ đổi theo còn TÊN thì ⛔ — văn bản gửi UBND khai một trạm khác với trạm thật sự được tính.
+> ⇒ **Mã công trình ⛔ đi vào bản Word** (câu chữ của mẫu Công ty là bất khả xâm phạm — G10); nó hiện ở màn hình quản trị, cạnh câu ghi chú và ở cột tên của Bảng 2.
 
 ### 3.5 Mục 3 — Diện tích ngập úng
 Bảng tổng hợp theo 4 công ty (khác thứ tự với mục 1: Sông Đáy, Sông Nhuệ, Sông Tích, Hà Nội), 9 cột số liệu chia theo **Ngập trắng / Sâu nước / Tổng cộng × Lúa / Rau,màu,thuỷ sản / Cộng**:

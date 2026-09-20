@@ -89,6 +89,7 @@ class BaoCaoNhanhHttpTest extends IntegrationTestBase {
                 (ma, ct) -> jdbc.update("UPDATE bao_cao_nhanh_vi_tri SET construction_id = ? WHERE ma = ?", ct, ma));
         jdbc.update("DELETE FROM bao_cao_nhanh");
         jdbc.update("DELETE FROM nhom_may_bom");
+        jdbc.update("DELETE FROM constructions WHERE code = ?", MA_SINH_DOI);
         jdbc.update(
                 "DELETE FROM hydro_readings WHERE measured_at = ? AND station_id = "
                         + "(SELECT id FROM stations WHERE api_code = 'F01519')",
@@ -156,6 +157,15 @@ class BaoCaoNhanhHttpTest extends IntegrationTestBase {
                 """,
                 Timestamp.from(DEN.minusSeconds(600)));
     }
+
+    /**
+     * Mã của một trạm bơm TRÙNG TÊN "Trạm bơm Yên Nghĩa" — dựng trong bài, dọn ở {@link #don()}.
+     *
+     * <p>⚠ Đây ⛔ phải một ca bịa: {@code constructions} chỉ có chỉ mục duy nhất trên {@code code},
+     * {@code name} thì ⛔ — tức lược đồ CHO PHÉP trùng tên, và bản danh mục Công ty gửi đã có sẵn hai
+     * "Yên Nghĩa" (trạm bơm {@code TB-YNGHIA} · cống tiêu tự chảy {@code CTTC-YNGHIA}).
+     */
+    private static final String MA_SINH_DOI = "TB-YNGHIA-2";
 
     private static final String DANH_MUC = "ma_cong_trinh,so_may,q_mot_may_m3h\n"
             + "TB-HVAN,24,1.100\n"
@@ -399,6 +409,81 @@ class BaoCaoNhanhHttpTest extends IntegrationTestBase {
 
     private UUID diemMua(String ten) {
         return jdbc.queryForObject("SELECT public_id FROM diem_mua_bao_cao_nhanh WHERE ten = ?", UUID.class, ten);
+    }
+
+    @Test
+    @DisplayName("⛔⛔ Gắn trạm KHÁC ⇒ câu ghi chú đổi TÊN theo, ⛔ giữ nguyên 'Trạm bơm Yên Nghĩa'")
+    void ghiChuDoiTenTheoTramDaGan() {
+        // Đây là bài chặn khuyết tật T78.1. Trước bản vá, câu ghi chú là một HẰNG CHUỖI: đổi ô chọn
+        // sang Hồng Vân thì SỐ đổi theo còn TÊN thì ⛔ — văn bản gửi UBND khẳng định *"Trạm bơm Yên
+        // Nghĩa vận hành 3 máy bơm"* về một trạm ⛔ ai bật máy. Một câu SAI trong văn bản hành chính
+        // nguy hiểm hơn một ô trống, vì ⛔ gì trên màn hình báo rằng nó sai.
+        nhapDanhMuc(DANH_MUC);
+        String ky = taoKy();
+        assertThat(gan("YEN_NGHIA", congTrinh("TB-HVAN")).getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        String r = nhapVanHanh(kyThuat, ky, nhom("TB-HVAN", 1100), 3).getBody();
+        assertThat(r)
+                .as("câu mang tên của trạm ĐÃ GẮN")
+                .contains("Trạm bơm Hồng Vân vận hành 3 máy bơm")
+                .as("⛔ ghép thêm 'Trạm bơm ' — tên trong danh mục ĐÃ mang tiền tố ấy")
+                .doesNotContain("Trạm bơm Trạm bơm")
+                .as("và ⛔ còn một chữ nào của trạm cũ")
+                .doesNotContain("Trạm bơm Yên Nghĩa vận hành")
+                .contains("\"maTram\":\"TB-HVAN\"");
+
+        // Vế 0 máy cũng phải đổi tên — ⛔ chỉ nhánh "vận hành".
+        String khong = nhapVanHanh(kyThuat, ky, nhom("TB-HVAN", 1100), 0).getBody();
+        assertThat(khong).contains("Trạm bơm Hồng Vân không vận hành.").doesNotContain("Yên Nghĩa không vận hành");
+    }
+
+    @Test
+    @DisplayName("⭐⭐ HAI trạm bơm TRÙNG TÊN: câu giống hệt nhau, chỉ MÃ nói được đang lấy trạm nào")
+    void haiTramTrungTenVanPhanBietDuocBangMa() {
+        // Câu hỏi QuanTran đặt ra 20/09: *"có thể có tới 2 trạm bơm cùng tên là Yên Nghĩa, nên ở
+        // phần ghi chú ⛔ biết đang lấy trạm bơm theo mã nào"*. Bài này dựng đúng trạng thái ấy.
+        jdbc.update(
+                """
+                INSERT INTO constructions (code, name, construction_type, org_unit_id, management_level,
+                                           lifecycle_state, created_at)
+                SELECT ?, name, construction_type, org_unit_id, management_level, lifecycle_state, now()
+                  FROM constructions WHERE code = 'TB-YNGHIA' AND deleted_at IS NULL
+                """,
+                MA_SINH_DOI);
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM constructions WHERE name = 'Trạm bơm Yên Nghĩa' "
+                                + "AND construction_type = 'TRAM_BOM' AND deleted_at IS NULL",
+                        Integer.class))
+                .as("tiền đề: đúng HAI trạm bơm trùng tên — ⛔ có thì cả bài ⛔ khẳng định gì")
+                .isEqualTo(2);
+
+        nhapDanhMuc(DANH_MUC + MA_SINH_DOI + ",8,22.000\n");
+        String ky = taoKy();
+        nhapVanHanh(kyThuat, ky, nhom("TB-YNGHIA", 43200), 5);
+        nhapVanHanh(kyThuat, ky, nhom(MA_SINH_DOI, 22000), 8);
+
+        gan("YEN_NGHIA", congTrinh(MA_SINH_DOI));
+        String banSinhDoi = phienHttp.get(kyThuat, GOC + "/" + ky).getBody();
+        assertThat(banSinhDoi)
+                .as("số liệu là của trạm ĐÃ GẮN — 8 máy × 22.000 m³/h = 48,89 m³/s")
+                .contains("Trạm bơm Yên Nghĩa vận hành 8 máy bơm")
+                .contains("\"maTram\":\"" + MA_SINH_DOI + "\"");
+
+        gan("YEN_NGHIA", congTrinh("TB-YNGHIA"));
+        String banGoc = phienHttp.get(kyThuat, GOC + "/" + ky).getBody();
+        assertThat(banGoc).contains("Trạm bơm Yên Nghĩa vận hành 5 máy bơm").contains("\"maTram\":\"TB-YNGHIA\"");
+
+        // ⭐ Vế QUAN TRỌNG NHẤT: hai câu chỉ khác nhau ở CON SỐ. Cái tên ⛔ phân biệt được hai trạm —
+        //    nên nếu API ⛔ trả `maTram` thì người lập báo cáo ⛔ có đường nào biết mình đang gửi đi
+        //    số của trạm nào, và đó đúng là trạng thái trước T78.1.
+        assertThat(banSinhDoi.contains("\"tenTram\":\"Trạm bơm Yên Nghĩa\""))
+                .as("hai bản KHAI CÙNG một cái tên")
+                .isTrue();
+        assertThat(banGoc).contains("\"tenTram\":\"Trạm bơm Yên Nghĩa\"");
+
+        // Bảng 2 cũng phải mang mã: màn hình nhập số có HAI dòng trùng tên, người gõ phải biết
+        // mình đang gõ cho dòng nào.
+        assertThat(banGoc).contains("\"ma\":\"" + MA_SINH_DOI + "\"").contains("\"ma\":\"TB-YNGHIA\"");
     }
 
     @Test

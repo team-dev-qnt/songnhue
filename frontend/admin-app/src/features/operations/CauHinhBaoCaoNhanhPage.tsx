@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/app/auth/useAuth';
 import { type BcnCongTrinhView, type BcnVeView, type BcnViTriView } from '@/shared/api-types';
 import { ApiClientError, api } from '@/shared/apiClient';
+import { boDau } from '@/shared/boDau';
 import { EMPTY_MARK } from '@/shared/format';
 
 const GOC = '/ops/bao-cao-nhanh/cau-hinh';
@@ -80,9 +81,16 @@ export function CauHinhBaoCaoNhanhPage() {
           <Select
             aria-label={`Công trình cho ${v.nhan}`}
             style={{ width: '100%' }}
-            showSearch={{ optionFilterProp: 'label' }}
+            // ⭐ Gõ để lọc theo TÊN hoặc MÃ, và ⛔ phân biệt dấu (T78.1). Bộ lọc mặc định của antd so
+            //   chuỗi NGUYÊN DẤU, nên gõ "yen nghia" ⛔ ra "Yên Nghĩa" — đúng lúc người dùng đang cần
+            //   tìm nhanh giữa 178 trạm thì ô tìm im lặng trả về rỗng. `boDau` là bộ lọc Bảng 2 đang
+            //   dùng, ⛔ viết bản thứ hai (quy tắc 14).
+            showSearch={{
+              filterOption: (nhap: string, opt?: { label?: string }) =>
+                boDau(opt?.label ?? '').includes(boDau(nhap.trim())),
+            }}
             allowClear
-            placeholder="Chưa gắn — ô tương ứng để trống"
+            placeholder="Chưa gắn — gõ tên hoặc mã công trình để tìm"
             disabled={!coSua}
             title={coSua ? undefined : THIEU_QUYEN}
             loading={gan.isPending && gan.variables?.viTri === v.publicId}

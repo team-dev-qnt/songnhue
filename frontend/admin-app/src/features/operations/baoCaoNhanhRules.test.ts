@@ -1,9 +1,20 @@
 import { describe, expect, it } from 'vitest';
 
-import { type BcnDongBang4View, type BcnDongBang5View, type BcnKhoiView } from '@/shared/api-types';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import {
+  type BcnDongBang4View,
+  type BcnDongBang5View,
+  type BcnKhoiView,
+  type BcnYenNghiaView,
+} from '@/shared/api-types';
+import { boChuThich } from '@/testsupport/boChuThich';
 
 import {
   locBang2,
+  moTaChoGhiChu,
   payloadLuongMua,
   payloadNgapUng,
   payloadVanHanh,
@@ -25,12 +36,14 @@ const BANG2: BcnKhoiView[] = [
     tram: [
       {
         constructionPublicId: 'c1',
+        ma: 'TB-DANG',
         ten: 'Đại Áng (tiêu)',
         nguonTuoiHuongTieu: null,
         nhom: [nhom('a1', 0), nhom('a2', 2)],
       },
       {
         constructionPublicId: 'c2',
+        ma: 'TB-SQUAN',
         ten: 'Siêu Quần',
         nguonTuoiHuongTieu: null,
         nhom: [nhom('b1', null)],
@@ -54,6 +67,46 @@ describe('Báo cáo nhanh — luật màn hình', () => {
   it('tìm theo tên trạm ⛔ phân biệt dấu', () => {
     expect(locBang2(BANG2, false, 'sieu quan', {})[0]?.tram.map((t) => t.ten)).toEqual([
       'Siêu Quần',
+    ]);
+  });
+
+  it('⭐ tìm được cả theo MÃ công trình — thứ DUY NHẤT phân biệt hai trạm trùng tên', () => {
+    // T78.1: danh mục cho phép hai trạm bơm cùng tên (chỉ `code` là duy nhất). Một ô tìm chỉ soi
+    // tên sẽ trả về CẢ HAI đúng lúc người nhập cần tách chúng ra — tức nó im lặng ở ca nó sinh ra
+    // để phục vụ.
+    expect(locBang2(BANG2, false, 'TB-SQUAN', {})[0]?.tram.map((t) => t.ten)).toEqual([
+      'Siêu Quần',
+    ]);
+    expect(locBang2(BANG2, false, 'tb-dang', {})[0]?.tram.map((t) => t.ma)).toEqual(['TB-DANG']);
+  });
+
+  it('⚠ hai trạm TRÙNG TÊN: lọc theo tên ra cả hai, lọc theo mã ra đúng một', () => {
+    // Vế chống-xanh-vì-lý-do-sai: nếu bộ lọc mã hỏng (luôn khớp) thì khẳng định trên vẫn xanh.
+    const trungTen: BcnKhoiView[] = [
+      {
+        tenDonVi: 'XNTL Hà Đông',
+        tongMayThietKe: 20,
+        tram: [
+          {
+            constructionPublicId: 'y1',
+            ma: 'TB-YNGHIA',
+            ten: 'Trạm bơm Yên Nghĩa',
+            nguonTuoiHuongTieu: null,
+            nhom: [nhom('y1a', 5)],
+          },
+          {
+            constructionPublicId: 'y2',
+            ma: 'TB-YNGHIA-2',
+            ten: 'Trạm bơm Yên Nghĩa',
+            nguonTuoiHuongTieu: null,
+            nhom: [nhom('y2a', 8)],
+          },
+        ],
+      },
+    ];
+    expect(locBang2(trungTen, false, 'yen nghia', {})[0]?.tram).toHaveLength(2);
+    expect(locBang2(trungTen, false, 'TB-YNGHIA-2', {})[0]?.tram.map((t) => t.ma)).toEqual([
+      'TB-YNGHIA-2',
     ]);
   });
 
@@ -103,5 +156,50 @@ describe('Báo cáo nhanh — luật màn hình', () => {
       { diemMuaPublicId: 'lm', luongMuaMm: null },
       { diemMuaPublicId: 'hd', luongMuaMm: 0 },
     ]);
+  });
+});
+
+describe('Ghi chú — câu chữ đi theo TRẠM ĐÃ GẮN, ⛔ theo một cái tên viết sẵn (T78.1)', () => {
+  const yn = (v: Partial<BcnYenNghiaView>): BcnYenNghiaView => ({
+    trangThai: 'CHUA_NHAP',
+    cau: null,
+    soMay: null,
+    luuLuongM3s: null,
+    tenTram: 'Trạm bơm Hồng Vân',
+    maTram: 'TB-HVAN',
+    ...v,
+  });
+
+  it('có câu thật ⇒ ⛔ chen thêm câu cảnh báo nào', () => {
+    expect(
+      moTaChoGhiChu(yn({ trangThai: 'VAN_HANH', cau: 'Trạm bơm Hồng Vân vận hành 3 máy bơm.' })),
+    ).toBeNull();
+  });
+
+  it('⭐ ba trạng thái CHƯA đều gọi TÊN trạm đang gắn', () => {
+    expect(moTaChoGhiChu(yn({}))).toContain('Trạm bơm Hồng Vân');
+    expect(moTaChoGhiChu(yn({ trangThai: 'CHUA_CO_TRONG_DANH_MUC' }))).toContain(
+      'Trạm bơm Hồng Vân',
+    );
+    // Chưa gắn thì ⛔ có tên nào để gọi — và câu phải chỉ đúng việc cần làm.
+    expect(
+      moTaChoGhiChu(yn({ trangThai: 'CHUA_GAN_TRAM', tenTram: null, maTram: null })),
+    ).toContain('Chưa chọn trạm bơm');
+  });
+
+  it('⛔ BỊA tên khi backend ⛔ trả tên', () => {
+    expect(moTaChoGhiChu(yn({ tenTram: null }))).toContain('trạm đã chọn');
+  });
+
+  it('⛔⛔ màn hình ⛔ còn ghi cứng "Yên Nghĩa" ở bất kỳ đâu', () => {
+    // Bộ canh CẤU TRÚC cho đúng khuyết tật T78.1: một cái tên viết sẵn trong JSX sẽ sống sót qua
+    // mọi lượt đổi ô chọn. Quét trên mã ĐÃ BỎ CHÚ THÍCH — chú thích *giải thích* khuyết tật phải
+    // được phép gọi tên nó (T46.7 · T54.8).
+    const doc = (ten: string) =>
+      boChuThich(readFileSync(join(dirname(fileURLToPath(import.meta.url)), ten), 'utf8'));
+    expect(doc('BaoCaoNhanhChiTietPage.tsx')).not.toContain('Yên Nghĩa');
+    expect(doc('baoCaoNhanhRules.ts')).not.toContain('Yên Nghĩa');
+    // Vế tự kiểm: `boChuThich` phải GIỮ chuỗi ký tự, ⛔ thì khẳng định trên xanh vì tệp rỗng.
+    expect(doc('BaoCaoNhanhChiTietPage.tsx')).toContain('Ghi chú:');
   });
 });

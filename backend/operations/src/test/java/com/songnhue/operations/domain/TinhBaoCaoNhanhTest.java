@@ -26,8 +26,16 @@ class TinhBaoCaoNhanhTest {
 
     private static long idNhom = 1;
 
-    /** Công trình Công ty gắn vào vị trí "Yên Nghĩa" — khoá nội bộ, ⛔ mã (danh mục có hai "Yên Nghĩa"). */
-    private static final long YEN_NGHIA = 5;
+    /**
+     * Công trình Công ty gắn vào vị trí "Yên Nghĩa" — tra theo khoá nội bộ, ⛔ mã hay tên (danh mục
+     * có hai "Yên Nghĩa"). Mang nguyên bản ghi để TÊN đi vào câu ghi chú ⛔ thể lệch khỏi id (T78.1).
+     */
+    private static final CongTrinhGan YEN_NGHIA =
+            new CongTrinhGan(5L, UUID.randomUUID(), "TB-YNGHIA", "Trạm bơm Yên Nghĩa", "TRAM_BOM");
+
+    private static CongTrinhGan tram(long id, String ma, String ten) {
+        return new CongTrinhGan(id, UUID.randomUUID(), ma, ten, "TRAM_BOM");
+    }
 
     private static DongVanHanh dong(long ct, String ma, int thietKe, int q, Integer chay) {
         return new DongVanHanh(
@@ -53,7 +61,7 @@ class TinhBaoCaoNhanhTest {
                 dong(3, "TB-DANG", 4, 4000, 3),
                 dong(3, "TB-DANG", 1, 1950, 1),
                 dong(4, "TB-SQUAN", 5, 2500, null),
-                dong(YEN_NGHIA, "TB-YNGHIA", 10, 43200, yenNghia));
+                dong(YEN_NGHIA.id(), "TB-YNGHIA", 10, 43200, yenNghia));
     }
 
     @Test
@@ -110,7 +118,26 @@ class TinhBaoCaoNhanhTest {
         assertThat(chuaGan.cau()).isNull();
 
         // Gắn một công trình KHÁC ⇒ ghi chú đọc đúng công trình ấy, ⛔ theo mã "TB-YNGHIA".
-        assertThat(TinhBaoCaoNhanh.yenNghia(mau(5), 1L).soMay()).isEqualTo(1);
+        TinhBaoCaoNhanh.GhiChuYenNghia khac = TinhBaoCaoNhanh.yenNghia(mau(5), tram(1L, "TB-DMY", "Trạm bơm Đại Mỗ"));
+        assertThat(khac.soMay()).isEqualTo(1);
+        // ⛔⛔ Và CÂU phải đổi tên theo (T78.1). Trước bản vá đây là một hằng chuỗi: số đi theo ô
+        //    chọn còn tên thì ⛔, nên văn bản gửi UBND khai một trạm ⛔ ai bật máy. Một câu SAI nguy
+        //    hiểm hơn một ô trống — ⛔ gì trên màn hình báo rằng nó sai.
+        assertThat(khac.cau())
+                .isEqualTo("Trạm bơm Đại Mỗ vận hành 1 máy bơm với tổng lưu lượng bơm 0,31 m³/s.")
+                .as("⛔ ghép thêm 'Trạm bơm ' — tên danh mục ĐÃ mang tiền tố ấy")
+                .doesNotContain("Trạm bơm Trạm bơm");
+        assertThat(khac.tenTram()).isEqualTo("Trạm bơm Đại Mỗ");
+        assertThat(khac.maTram())
+                .as("mã để màn hình phân biệt hai trạm TRÙNG TÊN; ⛔ vào bản Word")
+                .isEqualTo("TB-DMY");
+
+        // ⭐ Hai trạm TRÙNG TÊN khác mã ⇒ câu in ra GIỐNG HỆT nhau ⇒ chỉ `maTram` phân biệt được.
+        TinhBaoCaoNhanh.GhiChuYenNghia sinhDoi =
+                TinhBaoCaoNhanh.yenNghia(mau(5), tram(9L, "TB-YNGHIA-2", "Trạm bơm Yên Nghĩa"));
+        assertThat(sinhDoi.trangThai()).isEqualTo(TinhBaoCaoNhanh.TrangThaiYenNghia.CHUA_CO_TRONG_DANH_MUC);
+        assertThat(sinhDoi.tenTram()).isEqualTo(YEN_NGHIA.ten());
+        assertThat(sinhDoi.maTram()).isNotEqualTo(YEN_NGHIA.ma());
     }
 
     @Test

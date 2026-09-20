@@ -92,8 +92,13 @@ public final class BaoCaoNhanhDtos {
     public record NhomView(
             UUID nhomMayPublicId, int soMayThietKe, BigDecimal qMotMayM3h, String coMay, Integer soMayVanHanh) {}
 
+    /**
+     * @param ma mã công trình — màn hình nhập liệu bày ra để phân biệt hai trạm TRÙNG TÊN. ⛔ đi vào
+     *     bản Word (cột của mẫu là *"Tên trạm bơm"*).
+     */
     @JsonInclude(JsonInclude.Include.ALWAYS)
-    public record TramView(UUID constructionPublicId, String ten, String nguonTuoiHuongTieu, List<NhomView> nhom) {}
+    public record TramView(
+            UUID constructionPublicId, String ma, String ten, String nguonTuoiHuongTieu, List<NhomView> nhom) {}
 
     @JsonInclude(JsonInclude.Include.ALWAYS)
     public record KhoiView(String tenDonVi, int tongMayThietKe, List<TramView> tram) {}
@@ -103,8 +108,14 @@ public final class BaoCaoNhanhDtos {
     @JsonInclude(JsonInclude.Include.ALWAYS)
     public record Muc1View(Integer tongTram, Integer tongMay, BigDecimal tongLuuLuongM3h) {}
 
+    /**
+     * @param tenTram · {@code maTram} trạm Công ty đã gắn vào vị trí ghi chú — {@code null} khi chưa
+     *     gắn. Màn hình bày cả hai để người lập báo cáo thấy câu kia đang nói về trạm nào; mã ⛔ đi
+     *     vào bản Word (T78.1).
+     */
     @JsonInclude(JsonInclude.Include.ALWAYS)
-    public record YenNghiaView(String trangThai, String cau, Integer soMay, BigDecimal luuLuongM3s) {}
+    public record YenNghiaView(
+            String trangThai, String cau, Integer soMay, BigDecimal luuLuongM3s, String tenTram, String maTram) {}
 
     /**
      * @param lyDo {@code null} khi có số; ngược lại nói VÌ SAO ô trống — ⛔ có điểm đo, hay ⛔ có số
@@ -156,6 +167,7 @@ public final class BaoCaoNhanhDtos {
                             k.tram().stream()
                                     .map(t -> new TramView(
                                             t.nhom().get(0).nhom().constructionPublicId(),
+                                            t.ma(),
                                             t.ten(),
                                             t.nguonTuoiHuongTieu(),
                                             t.nhom().stream()
@@ -181,7 +193,8 @@ public final class BaoCaoNhanhDtos {
                     b1 == null ? null : new Bang1View(b1.tongTram(), b1.tongMay(), b1.theoCo(), b1.tongLuuLuongM3h()),
                     new Muc1View(
                             c.muc1().tongTram(), c.muc1().tongMay(), c.muc1().tongLuuLuongM3h()),
-                    new YenNghiaView(yn.trangThai().name(), yn.cau(), yn.soMay(), yn.luuLuongM3s()),
+                    new YenNghiaView(
+                            yn.trangThai().name(), yn.cau(), yn.soMay(), yn.luuLuongM3s(), yn.tenTram(), yn.maTram()),
                     c.bang3().stream()
                             .map(d -> new DongBang3View(
                                     d.nhanCong(),
