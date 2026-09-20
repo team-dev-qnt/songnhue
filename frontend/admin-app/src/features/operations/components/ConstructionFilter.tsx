@@ -1,4 +1,5 @@
 import { Button, Checkbox, Col, Form, Input, Row, Select, Space } from 'antd';
+import { ClusterSelect } from '@/components/business/ClusterSelect';
 import {
   CONSTRUCTION_STATUS,
   CONSTRUCTION_TYPE,
@@ -11,6 +12,17 @@ export interface ConstructionFilterValues {
   status?: string;
   level?: string;
   river?: string;
+  /**
+   * `publicId` của cụm công trình.
+   *
+   * ⚠ Tên trường trùng KHÍT tham số của `GET /ops/constructions` (`clusterId`) vì `ConstructionsPage`
+   * rải thẳng bộ lọc này vào query string — đổi tên ở đây là lặng lẽ bỏ rơi bộ lọc, ⛔ một lỗi nào.
+   * Cùng lý lẽ đã viết cho `q`/`type`/`status`/`level` ở `ConstructionsPage`.
+   *
+   * ⭐ Backend nhận tham số này từ WS-17 mà **⛔ nơi nào gọi** cho tới WS-75 — nửa cặp đọc–ghi
+   * (quy tắc 27), và là lý do bảng có cột "Cụm công trình" nhưng ⛔ lọc theo nó được.
+   */
+  clusterId?: string;
   withoutLocation?: boolean;
 }
 
@@ -90,6 +102,13 @@ export function ConstructionFilter({ initialValues, onFilter, rivers }: Props) {
               placeholder="Tất cả"
               options={rivers.map((r) => ({ value: r, label: r }))}
             />
+          </Form.Item>
+        </Col>
+      </Row>
+      <Row gutter={16}>
+        <Col span={6}>
+          <Form.Item name="clusterId" label="Cụm công trình">
+            <ClusterSelect placeholder="Tất cả" />
           </Form.Item>
         </Col>
       </Row>

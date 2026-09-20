@@ -7405,3 +7405,59 @@ tới hai việc khác hẳn nhau:
   migration + màn hình, ⛔ phải nhập liệu.
 Chưa đủ dữ kiện để chọn ⇒ `T66.14`. Trong lúc chờ, ⛔ nhập Xí nghiệp nào vào `org_units` cho Báo cáo
 nhanh (T66.13 bước 1 chặn theo).
+
+### §12.3 Bốn điểm rà 20/09: ba cái ⛔ phải "thiếu tính năng" (WS-75, 20/9/2026)
+
+QuanTran nêu bốn điểm. Ba trong bốn hoá ra là thứ **đã dựng đủ** mà hỏng ở một tầng khác, và đó là
+phần đáng ghi lại — vì cả ba đều **đọc y hệt một tính năng còn thiếu** khi nhìn từ màn hình.
+
+**(a) `clusterName`/`riverName` đi hết đường rồi bị bỏ ở dòng cuối.** Backend tính, đóng gói, gửi về
+máy khách đủ ba trường (`ConstructionRow:173-175`); mảng `columns` ⛔ bày chúng ra. Quy tắc 27 ở dạng
+**đắt nhất đã gặp**: mọi lượt rà trước đọc *"màn hình ⛔ có cột tuyến sông"* rồi kết luận phải sửa
+backend, trong khi dữ liệu đã nằm sẵn trong `props` của chính bảng ấy. Cùng lượt lộ ra `clusterId` —
+tham số `@RequestParam` khai từ WS-17, **0 nơi gọi**, nên một nửa của bộ lọc sống 30 ngày mà ⛔ triệu
+chứng nào. ⇒ Khi một trường *"chưa có"*, hỏi **đo được** trước: nó chưa được TÍNH, hay chỉ chưa được
+BÀY?
+
+**(b) Một ô, hai cái tên, hai tài liệu của cùng một khách.** `constructions.basin_note` được
+`function-spec.md` (chốt F3) gọi là *lưu vực / khu tưới tiêu*, còn mẫu **Báo cáo nhanh** gọi là
+*"Nguồn tưới, hướng tiêu"* và điền vào đó tên nguồn nước (*Sông Đáy*). Nhãn trên giao diện chỉ mang
+tên thứ nhất ⇒ người đi tìm theo tên thứ hai ⛔ thấy gì và kết luận hệ **thiếu hẳn một trường**. Cám
+dỗ ở đây là thêm cột thứ hai — và nó sẽ dựng hai nguồn sự thật cho một đại lượng, đúng hình dạng đã
+trả giá ở §11.12. ⇒ **Quyết định: sửa CÁI NHÃN, ⛔ sửa lược đồ.** Bốn chốt A1·B5·F3·G2 đứng nguyên.
+Bài học tổng quát: khi khách và đặc tả gọi cùng một ô bằng hai tên, **nhãn phải mang cả hai** — chọn
+một tên là bảo đảm nửa số người dùng ⛔ tìm thấy ô ấy.
+
+**(c) ⛔⛔ Bản đồ chết vì một dòng `<meta>`, trong khi cả kho đang canh một chế độ hỏng KHÁC.** Kho có
+**7** chỗ trong `.claude/` + `docs/` mô tả *"CSP chặn tile ⇒ nền xám"*, một bộ canh Java đối chiếu
+host tile của seed với `img-src` (`NginxSecurityHeadersTest:130`), và `img-src` **có đủ** host OSM.
+Tất cả đều xanh, và bản đồ vẫn chết. Đo trên chính máy chủ tile: không `Referer` ⇒
+`x-blocked: Access denied`; có `Referer` dạng origin ⇒ ô bản đồ thật. Thủ phạm là
+`admin-app/index.html` khai `<meta name="referrer" content="same-origin">` — trình duyệt bỏ **hẳn**
+header ấy ở mọi request cross-origin, mà Tile Usage Policy của OSM nhận diện ứng dụng bằng đúng nó.
+
+Ba điều rút ra, theo thứ tự đắt dần:
+
+1. **Một bộ canh đúng, xanh, và phủ đúng phạm vi nó khai — vẫn ⛔ nói gì về chế độ hỏng thứ hai.**
+   Đây ⛔ phải luật 28 (phạm vi hụt): `NginxSecurityHeadersTest` phủ đúng thứ nó hứa. Nó chỉ trả lời
+   câu *"CSP có cho phép host tile ⛔"*, và ⛔ ai hỏi câu *"máy chủ tile có chịu phục vụ ta ⛔"*.
+2. **Thẻ `<meta>` THẮNG header HTTP cùng tên, và hai nơi ấy đã lệch nhau từ phase 1.** Nginx đặt
+   `Referrer-Policy: strict-origin-when-cross-origin`; meta đặt `same-origin`; meta được xử lý sau
+   nên nó có hiệu lực ⇒ **thứ đang chạy khác thứ người đọc `Dockerfile` tưởng đang chạy**. Bánh cóc
+   `chinhSachReferrer.test.ts` nay đòi hai tệp khai cùng một chính sách (luật 14).
+3. **Một chính sách bảo mật siết quá tay hỏng theo kiểu ⛔ ai quy cho nó.** `same-origin` được đặt vì
+   một lý do đúng (⛔ rò đường dẫn quản trị) và cái giá của nó hiện ra ở một nơi hoàn toàn khác, muộn
+   hơn nhiều tháng, dưới dạng một lỗi trông như lỗi mạng. `strict-origin-when-cross-origin` giữ trọn
+   ý định ban đầu — origin đi ra, đường dẫn ở lại — nên ở đây ⛔ có đánh đổi nào phải cân.
+
+**(d) Hai núm cho một đại lượng: nới thì phải nới CẢ HAI.** *Độ dài khung cập nhật của nguồn* gõ
+được ở hai màn hình — khoá chung `hydro.polling.source-frame-minutes` (trần ở cột
+`settings.validation`) và cột riêng `api_sources.frame_minutes` (trần ở `ck_api_sources_frame`,
+1..1440, migration đã phát hành). Yêu cầu là *"bất kỳ số phút nào"*; bỏ hẳn trần ở núm chung sẽ cho
+một trạng thái ⛔ giải thích được: đặt 2000 ở *Cấu hình hệ thống* thì được nhận, gõ 2000 cho một
+nguồn cụ thể lại bị từ chối. ⇒ **Quyết định: nới núm chung lên ĐÚNG trần của núm riêng (1440 = 24h)**,
+và bánh cóc `KhungNguonHaiNumTest` **đo thẳng hai trần từ CSDL** rồi so với nhau thay vì chép chúng
+vào một hằng số Java — chép là dựng nơi thứ ba để quên đồng bộ.
+⚠ Ghi vào `description` của chính khoá ấy một hệ quả người vận hành ⛔ đoán được: ngưỡng mất tín hiệu
+là **TÍCH** `khungNguon() × soKhungMatTinHieu()`, nên nâng khung mà giữ nguyên số khung là dời luôn
+mốc hệ báo trạm chết. Chỗ để câu ấy là màn hình người ta gõ số, ⛔ phải một tệp ⛔ ai đọc.

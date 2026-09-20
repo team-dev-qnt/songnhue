@@ -5,8 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- Trang quản trị nội bộ: cấm mọi công cụ tìm kiếm lập chỉ mục. -->
     <meta name="robots" content="noindex, nofollow" />
-    <!-- Không gửi đường dẫn quản trị sang site khác khi người dùng bấm liên kết ngoài. -->
-    <meta name="referrer" content="same-origin" />
+    <!--
+      Không gửi ĐƯỜNG DẪN quản trị sang site khác khi người dùng bấm liên kết ngoài.
+
+      ⛔⛔ KHÔNG hạ về `same-origin`. Bản cũ dùng đúng giá trị ấy và nó làm BẢN ĐỒ CHẾT: với
+      `same-origin` trình duyệt bỏ HẲN header `Referer` ở mọi request cross-origin, mà Tile Usage
+      Policy của OpenStreetMap nhận diện ứng dụng bằng chính header đó — request không có `Referer`
+      nhận về ô "Access blocked". Đo 20/09/2026 trên chính máy chủ tile:
+
+          không Referer                    ⇒ x-blocked: Access denied. See …/policies/tiles/
+          Referer https://admin…vn/        ⇒ x-tilerender: azure-01.openstreetmap.org
+          Referer http://localhost:5173/   ⇒ x-tilerender: azure-01.openstreetmap.org
+
+      `strict-origin-when-cross-origin` gửi ĐÚNG phần origin (`https://admin…vn/`) và cắt sạch
+      đường dẫn ⇒ vẫn giữ nguyên điều câu trên hứa, chỉ thôi giấu luôn danh tính ứng dụng. Nó cũng
+      trùng khít `Referrer-Policy` mà `deploy/docker/admin-app.Dockerfile` đặt ở tầng nginx — trước
+      lượt vá, thẻ meta (chặt hơn, và thắng) nói một đằng còn header nói một nẻo.
+
+      Bộ canh: `frontend/admin-app/src/shared/chinhSachReferrer.test.ts`.
+    -->
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
     <!--
       Noto Sans nạp từ `admin-global.css` (gói `@fontsource/noto-sans`, TỰ HOST) — không khai
       ở đây nữa. Bản cũ nạp cùng một bộ chữ ở HAI nơi (thẻ <link> này và `@import` trong CSS),
