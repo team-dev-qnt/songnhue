@@ -116,7 +116,20 @@ const HEX = /#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?\b/g;
  * bằng giá trị. (Đó cũng là lựa chọn đúng của bộ canh: một mã trong chú thích vẫn là một bản sao
  * người sau có thể chép ra dùng.)
  */
-const NGUONG = 21;
+// ⭐ 21 → 12 (20/09/2026, T25.23). Lượt hạ này ⛔ đụng một dòng TypeScript nào: đo ra **4 giá trị
+//    trong `richTextEditor.css` trùng KHÍT một token đang có** (`#d9d9d9` ×4 → `neutralColors.border`
+//    · `#fafafa` ×2 → `editorColors.cellXam` · `#595959` ×2 → `editorColors.fgXam` · `#fff` →
+//    `#ffffff` + `neutralColors.bgContainer`), tức chúng chỉ cần **GHIM** — đúng đường bộ canh tự
+//    mở cho CSS thuần. Lượt dọn 18/09 bỏ sót vì đi tìm *chỗ nào thay được bằng biến* thay vì hỏi
+//    *mã nào đã có token mang đúng giá trị*.
+// ⚠ `#fff` phải viết đủ thành `#ffffff`: phép so là so CHUỖI, nên ghim `#fff` vào `bgContainer` sẽ
+//    bị báo **LỆCH** chứ ⛔ được gỡ khỏi bản đếm.
+// ⬜ 12 mã còn lại ⛔ ghim được vì ⛔ token nào mang giá trị ấy: 8 mã CSS của trình soạn thảo
+//    (`#1677ff` `#f0f0f0` `#bfbfbf` `#f5f5f5` `#f0f7ff` `#d6e4ff` `#f6ffed` `#d9f7be`) · `AuthShell`
+//    `#e6f0fa` · `chartOptions.ts` `#fff` (⇒ nhận màu làm THAM SỐ, tiền lệ `xuatSoDo.ts`) ·
+//    `OperationStatusCodesPage` `#1890ff` — cái cuối là **DỮ LIỆU** (giá trị khởi tạo ô chọn màu
+//    người dùng sẽ đổi), ⛔ phải màu giao diện, nên nó ⛔ bao giờ về 0 bằng cách thay token.
+const NGUONG = 12;
 
 const THU_MUC_BO_QUA = new Set(['testsupport']);
 

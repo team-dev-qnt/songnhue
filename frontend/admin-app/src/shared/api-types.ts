@@ -114,8 +114,15 @@ export interface SessionView {
 // Tài khoản & vai trò — /api/v1/admin/users
 // =============================================================================
 
-/** `PENDING_ACTIVATION` = đã tạo nhưng chưa đăng nhập lần nào (còn mật khẩu tạm). */
-export type UserStatus = 'PENDING_ACTIVATION' | 'ACTIVE' | 'LOCKED';
+/**
+ * `PENDING_ACTIVATION` = đã tạo nhưng chưa đăng nhập lần nào (còn mật khẩu tạm).
+ *
+ * ⚠ `DISABLED` thêm 20/09/2026 (T68.33) — nó có trong `UserStatus` của Java và trong
+ * `ck_users_status` **từ 13/08**, nhưng union này chỉ khai ba giá trị suốt 38 ngày. Hệ quả đo được:
+ * `tsc` chặn mọi lượt viết `status: 'DISABLED'`, tức nửa GHI của cặp ⛔ dựng được kể cả khi ai đó
+ * muốn. ⛔ Đây ⛔ phải "đã nối xong" — đường ghi vẫn còn thiếu, xem `T81.2`.
+ */
+export type UserStatus = 'PENDING_ACTIVATION' | 'ACTIVE' | 'LOCKED' | 'DISABLED';
 
 /** Hồ sơ CBNV mà một tài khoản đang liên kết — T51.8. ⛔ KHÔNG trường 🔒 nào. */
 export interface HoSoNhanSuView {

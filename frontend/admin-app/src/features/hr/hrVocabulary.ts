@@ -644,6 +644,16 @@ export interface DonNghiView {
   /** Đơn do **người khác nộp hộ** — chốt C3; giao diện hiện nhãn. */
   noHo: boolean;
   decidedAt: string | null;
+  /**
+   * Tôi có bấm được nút Duyệt trên đơn này ⛔ — T80.7.
+   *
+   * ⚠⚠ **BA trạng thái, và `undefined` ⛔ phải `false`**: `true` = bấm được · `false` = **thấy mà
+   * ⛔ bấm được** (⛔ giữ chức vụ ở đơn vị ấy, ⛔ được uỷ quyền) · `undefined` = *endpoint này ⛔
+   * trả lời câu ấy* (danh sách đơn của chính mình). Đọc `undefined` thành `false` là hiện
+   * *"⛔ duyệt được"* trên chính đơn của mình — một câu đúng mà vô duyên, và nó làm lượt rà sau
+   * tưởng cờ đã được tính ở mọi nơi.
+   */
+  toiDuyetDuoc?: boolean;
 }
 
 export interface DonNghiTrangView {

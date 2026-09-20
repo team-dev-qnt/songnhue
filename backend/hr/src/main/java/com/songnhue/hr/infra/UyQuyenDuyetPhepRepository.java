@@ -70,6 +70,33 @@ public interface UyQuyenDuyetPhepRepository extends JpaRepository<UyQuyenDuyetPh
             @Param("ngay") LocalDate ngay);
 
     /**
+     * <b>Mọi</b> người đang được uỷ quyền trên một chuỗi đơn vị — T80.7.
+     *
+     * <p>Khác {@link #idUyQuyenDangDung} ở chỗ nó hỏi <i>"những AI"</i> thay vì <i>"người này có ⛔"</i>.
+     * Nơi gọi là lượt dựng danh sách người nhận thư *đơn mới chờ duyệt*: trước 20/09/2026 thư ấy đi
+     * theo <b>phạm vi</b> (mọi ai có {@code hr:leave:approve} mà phạm vi phủ), rộng hơn hẳn tập người
+     * thật sự bấm được nút — một quản lý ⛔ giữ chức vụ vẫn nhận thư về việc họ ⛔ làm được, và đó
+     * đúng là cách một hộp thư học được thói quen bỏ qua cảnh báo (§10.76).
+     *
+     * <p>⚠⚠ <b>Native</b> vì cùng lý do với {@link #idUyQuyenDangDung}: JPQL trên entity nhận
+     * {@code @Filter} phạm vi, mà người được uỷ quyền có thể đứng ở một đơn vị <b>⛔ phủ</b> đơn vị
+     * được uỷ quyền — đó đúng là công dụng của uỷ quyền. Đi qua bộ lọc thì câu này <b>lặng lẽ</b> trả
+     * rỗng và thư ⛔ tới người duy nhất đang có thẩm quyền.
+     */
+    @Query(
+            value =
+                    """
+            SELECT DISTINCT d.delegate_user_id
+              FROM leave_approval_delegations d
+             WHERE d.org_unit_id IN (:chuoiDonVi)
+               AND d.deleted_at IS NULL
+               AND d.revoked_at IS NULL
+               AND :ngay BETWEEN d.from_date AND d.to_date
+            """,
+            nativeQuery = true)
+    List<Long> nguoiDangDuocUyQuyen(@Param("chuoiDonVi") Collection<Long> chuoiDonVi, @Param("ngay") LocalDate ngay);
+
+    /**
      * Số lượt uỷ quyền <b>còn hiệu lực</b> của một đơn vị — chốt chặn giải thể đơn vị (CN-04.1).
      *
      * <p>⛔ Chỉ đếm bản <b>đang chạy</b>, ⛔ đếm bản đã thu hồi / đã hết hạn: cùng lý lẽ mà

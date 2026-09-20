@@ -8310,3 +8310,234 @@ nên một quản lý ⛔ giữ chức vụ vẫn **thấy** đơn của đơn v
 vị. Cái họ ⛔ có là nút. Hệ quả còn lại (thư báo vẫn tới họ; màn hình chưa nói rõ ai phải bấm) là nợ
 **T80.7**, và nó **⛔ sửa được trong phạm vi bản này**: thu hẹp người nhận đòi `RecipientResolver`
 biết quan hệ lãnh đạo, tức một ca thứ **năm** ở `core` — đúng lý lẽ đã giữ `T57.15` mở suốt 6 ngày.
+
+### §12.18
+
+**Một dòng nợ sai ⛔ chỉ tốn một lượt điều tra — nó TRỎ LƯỢT SAU ĐI NHẦM HƯỚNG (WS-81, 20/9/2026)**
+
+Lượt mở đầu WS-81 đo lại **42 dòng nợ mà phía phát triển làm được** (trong 121 dòng mở của sổ) trên mã
+thật, ⛔ chép sổ. Kết quả: **14 dòng mang ít nhất một câu nay đã sai**, và **1 dòng đã xong từ 19/09 mà
+chưa ai tick**. Đây là lần thứ **mười một tới mười bốn** của hình dạng *"một dòng nợ tự nó sai"* — nó
+⛔ còn là sự cố lẻ mà là một **chế độ hỏng thường trực** của kho này.
+
+#### Vì sao nó đắt hơn vẻ ngoài
+
+Một dòng nợ sai ⛔ nằm im. Nó **chủ động điều hướng**:
+
+- `T74.16` khai *"`codesStartingWith` chạy qua bộ lọc phạm vi ⇒ sinh mã trùng"*. Đo ra câu SQL ấy là
+  `nativeQuery = true` **có chủ ý**, và javadoc ngay trên nó (T17.3) giải thích rằng nó được dựng ra
+  **vì chính** kịch bản dòng nợ mô tả. Một lượt vá tin dòng nợ sẽ bọc `toanCongTy` quanh một câu vốn
+  đã toàn Công ty — tức **làm javadoc nói dối** và để lại một lớp mã thừa mà lượt rà sau phải giải
+  thích lại. Dòng nợ suy từ *tên phương thức nằm ngoài tầm luật W2* ra *nó là nạn nhân của W2*; hai
+  chuyện khác nhau.
+- `T42.28` (ghi chú 19/09) nêu tên tệp `NhomMayBomImportService` — **⛔ tồn tại trong kho** — và bỏ sót
+  một module. Đi theo nó là mở một tệp ⛔ có rồi kết luận nợ đã hết.
+- `T68.29` sai **cả hai chiều**: 2 khoá bị kể là *"0 nơi đọc"* thật ra **có** nơi đọc (ghép khoá động
+  `"notification.channel.%s.enabled"`), còn một khoá chết thật (`security.password.max-age-days`) thì
+  **⛔ dòng sổ nào nhắc**. Hai chẩn đoán ấy dẫn tới hai cách vá khác hẳn nhau.
+
+#### Ba kết luận của lượt đo bị chính lượt đo sau BÁC
+
+Ghi lại vì nó quan trọng hơn kết quả: **một báo cáo rà là dữ liệu chưa kiểm, y hệt một dòng sổ.**
+
+1. *"`ClusterSelect:69` là bản sao thứ hai của câu sai"* — dòng ấy đã mang khối đính chính từ 09/09.
+   Cái sai **thật** nằm ở javadoc đầu tệp và nặng hơn: **một tệp mang hai câu ngược nhau**, lượt rà
+   sau đọc trúng câu nào thì tin câu ấy. ⇒ Sửa hành vi thì quét **cả tệp**, ⛔ chỉ chỗ vừa đụng.
+2. *"6 biểu mẫu GHI thiếu `ScopeGuard.requireWritableOrgUnit`"* — đo tiếp thì chỉ **8** entity toàn kho
+   `extends ScopedEntity`; `User` · `Contact` · `ConstructionCluster` · `OrgUnit` đều là `BaseEntity`
+   nên `ScopeGuard` **⛔ áp dụng được**, và chỗ thứ năm ghi `performerOrgUnitId` — một cột **DỮ LIỆU**
+   (*đơn vị thực hiện*) tách hẳn khỏi `orgUnitId` (*phạm vi*). ⇒ Luật **W1 xanh là ĐÚNG**, ⛔ phải khe
+   mù. Nếu tin báo cáo, lượt vá sẽ nhét `requireWritableOrgUnit` vào bốn đường ghi của entity ⛔ hề bị
+   lọc — một lớp bảo vệ **giả** đọc như một lớp bảo vệ thật.
+3. *"thêm `ERROR` vào `SCAN_STATUS` cho khớp `ScanStatus` của Java"* — hằng ấy có **đúng một** lượt
+   xuất hiện toàn kho: chính định nghĩa của nó. Kiểu TS anh em đã gỡ từ T28.47; bảng nhãn sống sót mà
+   ⛔ ai để ý. ⇒ Phải **GỠ** chứ ⛔ vá. Vá nó là **đánh bóng một hằng ⛔ ai đọc rồi ghi vào sổ rằng đã
+   trả một món nợ** — luật 15 ở dạng nguy hiểm nhất, vì nó làm con số nợ giảm mà thực trạng ⛔ đổi.
+
+#### Bánh cóc rút ra
+
+- **Vế trái của một bộ canh phải do bộ canh ĐO, ⛔ do ai gõ tay** (luật 28, lần thứ n). `HaiNhipLamMoiTest`
+  liệt tay **hai** trang cổng trong khi kho có **ba**; trang thứ ba tình cờ *đúng* nên ⛔ có triệu chứng
+  nào suốt từ ngày nó ra đời. Nay vế cổng quét mọi `page.tsx` mang `RealtimeFrame`/`refreshSeconds=`.
+  ⚠ Vế nội bộ **vẫn** gõ tay và javadoc khai thẳng **vì sao ⛔ đo được** (dấu hiệu là một hằng `NHIP_*`;
+  quét theo mẫu ấy sẽ lôi về mọi hằng thời gian của admin-app) — một khoảng trống **đã khai** ⛔ phải
+  một khoảng trống mù.
+- **Một union TypeScript là một lời khẳng định, ⛔ phải một phép đo.** `UserStatus` có bốn giá trị ở
+  Java và ở `ck_users_status`, union TS chỉ khai ba — lệch **38 ngày**, `tsc` xanh trọn vẹn, và hệ quả
+  là một tài khoản `DISABLED` in ra **chữ thô** qua nhánh dự phòng của `StatusBadge`. Thứ bắt được nó
+  ⛔ phải typecheck mà là một bộ canh **so ba tập bóc từ ba nguồn**.
+- **Số đo trong tài liệu là số đo CÓ HẠN DÙNG.** `T52.7` đi 39 (sổ gốc) → *"≥47"* (đo lại 19/09) →
+  **62** (đếm ngoặc cân bằng trên 91 tệp migration, 20/09). Javadoc của chính `EnumBaNoiTest` khai
+  *"mười ba enum"* trong khi bảng có **16**. ⇒ Mọi con số viết vào chú thích phải kèm **ngày đo** và
+  **phép đếm dùng lại được**, ⛔ phải một con số trần.
+- **Trần chỉ-được-giảm phải siết lại mỗi lượt dọn, ⛔ thì nó thôi là bánh cóc.** `T25.23` hạ 21 → 12
+  mà ⛔ đụng một dòng TypeScript nào — 4 giá trị trong `richTextEditor.css` trùng **khít** một token
+  đang có nên chỉ cần **GHIM**. Lượt dọn 18/09 bỏ sót vì đi tìm *chỗ nào thay được bằng biến* thay vì
+  hỏi *mã nào đã có token mang đúng giá trị*. ⚠ `#fff` phải viết đủ `#ffffff`: phép so là so **CHUỖI**.
+### §12.19 Một chính sách người nhận phải được KHAI RA, ⛔ suy từ hình dạng dữ liệu (WS-82, 20/9/2026)
+
+`RecipientResolver.resolve(...)` nhận bốn tham số và **suy** chính sách từ chúng: ⛔ có
+`targetPermission` thì rơi thẳng về `executiveBoard()` — nhóm *"Ban điều hành"* của chốt G11. Phép
+suy ấy đúng cho **một** nơi gọi (cảnh báo ngưỡng thuỷ văn) và sai cho **ba** nơi còn lại, suốt từ
+WS-6.
+
+#### Phạm vi thật, đo 20/09/2026
+
+| Nơi gọi | Rơi vào `executiveBoard()` | Người nhận ĐÚNG |
+|---|---|---|
+| `WorkflowEngine` | **17** hàng `workflow_transitions` (`notify_owner = TRUE` ∧ `notify_permission IS NULL`) — ARTICLE 5 · LEAVE_REQUEST 4 · MAINTENANCE_LOG 4 · MAINTENANCE_INCIDENT 4 | chủ bản ghi |
+| `UserAdminService.notifyStatusChange` | `ACCOUNT_DISABLED` · `ACCOUNT_ENABLED` | chủ tài khoản |
+| `CanhBaoTaiKhoanService.bao` | `PASSWORD_CHANGED` · `PASSWORD_RESET_BY_ADMIN` · `TWO_FACTOR_RESET_BY_ADMIN` · `TWO_FACTOR_ENROLLED` | chủ tài khoản |
+| `AlertNotifier` · `ConstructionService` ×2 · `MaintenanceLogService` | — (đúng, đây LÀ G11) | Ban điều hành ∪ trưởng/phó |
+
+Sáu mã sự kiện cuối là **thông báo an ninh của một cá nhân**. Cộng cả ban lãnh đạo vào đó ⛔ chỉ là
+tiếng ồn — nó công bố *ai vừa bị khoá tài khoản*, *ai vừa được quản trị viên đặt lại mật khẩu* cho
+một nhóm ⛔ hề cần biết.
+
+#### ⛔⛔ Vì sao ⛔ ai thấy: một khuyết tật ĐANG NGỦ vì một khuyết tật khác
+
+Khoá `notification.alert-group.executive-board` seed `'[]'` từ 13/08/2026 và **chưa ai điền được** —
+đường ghi duy nhất là ô `Input.TextArea` thô, mà giá trị phải là mảng `publicId` tài khoản trong khi
+màn hình *Tài khoản* ⛔ hiện `publicId` ở đâu cả (T76.3). Nhóm rỗng ⇒ phép hợp ⛔ thêm ai ⇒ **mọi
+lượt gửi hôm nay tình cờ đúng**.
+
+⇒ Hai dòng nợ **che nhau**, và chúng che theo chiều nguy hiểm: `T76.3` đọc như một việc *tiện nghi*
+(«gõ JSON bất tiện»), trong khi trả nó **một mình** là bật `T74.7` trên cả 6 mã sự kiện và 17 hàng
+quy trình **cùng lúc**, đúng ngày Công ty điền danh sách. Cùng hình dạng §12.10 (hai khuyết tật che
+nhau, gỡ một cái là cái kia hiện ngay) ⇒ **phải vá cùng một PR**, và thứ tự trong PR là `T74.7`
+trước.
+
+#### Vì sao ⛔ vá bằng một cột trên `workflow_transitions` — như chính dòng nợ kê ra
+
+Dòng `T74.7` tự kê cách làm: *"tách bằng dữ liệu (cột trên `workflow_transitions`), ⛔ đoán theo mã
+sự kiện"*. Đo lại thì cách ấy hỏng theo **hai** chiều:
+
+1. Nó chạm **1/3** nơi gọi — hai nơi kia ⛔ đi qua `workflow_transitions` lần nào.
+2. ⛔ hàng seed nào cần đặt `TRUE` (mọi hàng có `notify_event` đều đã khai người nhận) ⇒ một **cột
+   chết ngay ngày ra đời**. Luật 15, đúng hình dạng `user_totp.key_id` (T51.0) và `education_level`
+   (T54.1) — và tệ hơn ở chỗ **bộ canh enum sẽ làm nó TRÔNG như đã nối**.
+
+⇒ Đặt ở chỗ **dữ liệu đi qua** (luật 12): `boolean nhomCanhBao` trên `NotifyRequest` (SPI) và
+`NotificationRequest` (application). Chỉ `alert(...)` và `AlertNotifier` khai `true`. Thêm một tham
+số bắt buộc vào một `record` làm **trình biên dịch** bắt cả 7 nơi dựng thô phải quyết định — rẻ hơn
+mọi bài kiểm, và ⛔ im được bằng cách sửa chú thích.
+
+#### ⛔ Và phương án «rẻ hơn» cũng sai
+
+*"⛔ dùng `executiveBoard()` khi `relatedOrgUnitIds` RỖNG"* nghe hợp lý và **⛔ cần tham số mới**.
+Nó sai vì nhóm cố định chính là nhánh **dự phòng** cho ca danh sách đơn vị rỗng: 4/19 điểm đo
+`MN_SONG` ⛔ thuộc công trình nào **theo thiết kế** (T33.8), nên với chúng nhóm ấy là người nhận
+**DUY NHẤT**. Suy chính sách từ hình dạng dữ liệu lần thứ hai chỉ đổi một lỗi im lặng lấy một lỗi im
+lặng khác.
+
+#### ⛔⛔ Vế phân biệt của chính tôi là một XANH GIẢ, và lượt phá bắt được
+
+Bài *"khoá JSON KHÁC vẫn là ô văn bản thô"* sinh ra để chặn một bản vá thay **mọi** ô JSON bằng ô
+chọn tài khoản. Dữ liệu của nó là `'{"a":1}'` — đọc được nhưng ⛔ phải một mảng, nên bộ đọc trả
+`null` và ô thô hiện ra **bất kể khoá nào**. Nới phạm vi widget ra `valueType === 'JSON'` ⇒ bài
+**vẫn 4/4 xanh**, tức nó ⛔ canh gì (luật 9). Đổi dữ liệu sang một mảng chuỗi **hợp lệ** ⇒ bản phá
+đỏ **đúng một bài, đúng bài ấy**; khôi phục ⇒ 5/5, đo `grep -c` cả hai chiều (luật 10).
+
+⇒ Bài học lặp lại của §10.62 và T53.8 ở một chỗ mới: **dữ liệu của một vế phân biệt phải nằm ĐÚNG
+trên ranh giới nó đang canh**. Ở đây ranh giới là *khoá nào*, mà dữ liệu lại rơi sang nhánh *giá trị
+có hợp lệ ⛔* — một nhánh khác hẳn, và là nhánh mà cả hai bản đều xử lý giống nhau.
+
+#### Bánh cóc rút ra
+
+- **Một dòng nợ sai ⛔ chỉ tốn một lượt điều tra — nó kê cả cách làm** (§12.18, lần thứ hai trong hai
+  ngày). `T74.7` sai ở phạm vi (dấu `…` giấu mất phép đếm: 3 nơi gọi chứ ⛔ 1), sai ở vế «chiều
+  ngược» (`MaintenanceLogService:560` **đã** báo trưởng đơn vị lúc sự cố được lập), và sai ở **cách
+  vá**. Đi theo nó là đúc một cột chết rồi ghi sổ rằng đã trả nợ.
+- **Ba trạng thái, ⛔ phải hai.** Bộ đọc mảng `publicId` trả `[]` cho *rỗng* và `null` cho *⛔ đọc
+  được*; gộp hai cái làm một thì một giá trị JSON sai cú pháp hiện ra như nhóm trống rồi bị lượt Lưu
+  kế tiếp **ghi đè mất**.
+- **Một ô nhập nằm trong ô BẢNG ⛔ có `<label>` nào trỏ tới** ⇒ phải mang `aria-label`. ⛔ Có tên thì
+  trình đọc màn hình đọc thành *"combobox"* trống rỗng **và** bài kiểm ⛔ gọi nổi nó — nợ a11y hiện
+  ra cái giá thật lần thứ ba (T63.9).
+
+### §12.20 Ba khoảng trống, ba lý do khác nhau vì sao chúng sống lâu (WS-82 đợt 2, 20/9/2026)
+
+Ba dòng nợ nặng nhất còn lại của phía phát triển — `T68.31` · `T73.7` · `T80.7` — trả trong một lượt.
+Chúng ⛔ liên quan nhau về mã, nhưng mỗi cái minh hoạ một **cơ chế sống sót** khác nhau, và cả ba đều
+⛔ phải *"chưa ai làm"*.
+
+#### 1. `T68.31` — cổng KHÔNG CHẠY đọc như cổng ĐÃ ĐẠT
+
+`backend/hr/src/test` có **0** tệp ⇒ JaCoCo in `Skipping JaCoCo execution due to missing execution
+data file` rồi build **xanh**. Cổng bao phủ của cả một module vắng mặt suốt từ 10/09, và ⛔ gì đứng
+ra báo sự vắng mặt ấy — luật 7 gặp luật 31, đúng hình dạng §10.72 (*`Promotion guard` treo ở
+"Expected"*) và luật 24 (*`skipped` được tính là ĐẠT*).
+
+Khuyết tật thứ hai nằm cạnh và che bởi cùng một lớp im lặng: sàn `0.18` của pom cha là số đo **Phase
+0**, trong khi đo 20/09 cho `core` **0.3490** · `content` **0.3873** · `hydro` **0.5490** ·
+`operations` **0.8028**. ⇒ **Bánh cóc thôi cóc**: một module tụt từ 0.55 về 0.19 vẫn "đạt".
+
+⚠ Và cách vá hiển nhiên — *"viết bài kiểm cho `hr` đến khi đủ 0.18"* — là đúng thứ `backend/pom.xml`
+tự dặn ở ngay chỗ đặt ngưỡng: *"người ta viết test cho những chỗ dễ để kéo tỷ lệ lên thay vì cho
+những chỗ đáng"*. Đo `hr/domain`: **20 lớp**, gần như toàn bộ là entity JPA + enum. ⇒ Chỉ nhắm
+**năm** chỗ mang luật thật, trong đó **hai là cặp luật 14** (`tenCacTrangThaiDaNghi()` nuôi 6 câu SQL
+· `khoaHanMuc()` phải trỏ vào khoá `settings` CÓ THẬT — bài đọc thẳng tệp seed qua classpath).
+
+⭐ Bánh cóc: `BaoPhuDomainCoChayTest` **ĐO** danh sách module có tầng domain từ đĩa rồi bắt từng cái
+phải có `*Test.java` **và** khai ngưỡng riêng. Phép đo quyết định ⛔ phải hai bài ấy xanh, mà là:
+đặt ngưỡng `hr = 0.99` ⇒ `Rule violated for bundle songnhue-hr: lines covered ratio is 0.25` —
+**cổng nay SỐNG ở đúng chỗ trước in "Skipping"**.
+
+#### 2. `T73.7` — một LÝ DO ĐÚNG lúc viết, hết đúng mà ⛔ ai kiểm lại
+
+`next.config.ts` khai vì sao `script-src` phải giữ `'unsafe-inline'`: *"nonce phải khác nhau mỗi
+request ⇒ mọi trang thành động ⇒ ISR tắt hẳn, mà NFR-02 dựa vào ISR"*. Lập luận ấy **đúng vào ngày
+viết**. Chạy `next build` ngày 20/09:
+
+```
+ƒ /   ƒ /bai-viet/[slug]   ƒ /danh-muc/[slug]   …  (18 route)      ○ /robots.txt
+```
+
+**18/19 route ĐÃ là `ƒ` và bảng ⛔ có một dòng `●` nào** — `apiGetWithMeta` gọi `await connection()`
+trước mọi lượt fetch từ T35.x. Cái giá mà chú thích e ngại **đã trả từ lâu**; dựng lại sau khi thêm
+middleware cho **đúng bảng route cũ** ⇒ giá của nonce **= 0**.
+
+⚠ Chỗ lập luận cũ sai là **trộn hai cơ chế cùng tên "ISR"**: thứ NFR-02 dựa vào là bộ đệm **dữ liệu
+fetch** (`revalidate: 300`), ⛔ phải bộ đệm **trang**. Hai thứ khác nhau, một cái tên.
+
+⛔⛔ **Và một khẳng định của chính lượt vá này cũng bị đo bác.** Javadoc bản đầu viết *"thiếu header
+CSP của request ⇒ script của Next ⛔ có nonce ⇒ cổng trắng trang"*. Đo hai chiều trên máy chủ
+standalone đã dựng, Next **16.3.5**: gỡ `Content-Security-Policy` của request (giữ `x-nonce`) ⇒
+**11/11** thẻ `<script>` vẫn mang đúng nonce; gỡ `x-nonce` (giữ header kia) ⇒ cũng **11/11**. **Mỗi
+header một mình đã đủ.** Giữ cả hai là **bánh cóc**, ⛔ phải *"thiếu là hỏng"* — và câu chữ trong mã
+đã sửa cho đúng phép đo (luật 37: *một lời khuyên chưa đo là một lời khuyên sai đang chờ tới lượt*).
+
+⇒ Bài học vận hành: **một chú thích giải thích một đánh đổi phải mang theo PHÉP ĐO tái lập được**.
+*"ISR tắt hẳn"* là một câu ⛔ ai kiểm lại được trong 30 giây; *"`next build` ⇒ bao nhiêu dòng `●`"*
+thì được.
+
+#### 3. `T80.7` — dòng nợ kê sẵn một cách vá BẤT KHẢ
+
+Dòng nợ viết: *"(b) ca thứ năm của `RecipientResolver`"*. Đo lại: `RecipientResolver` sống ở `core`,
+mà **quy tắc 6 cấm `core` import `hr`** ⇒ nó ⛔ nhìn thấy `UyQuyenDuyetPhep`. Một "ca thứ năm" ở đó
+sẽ cho ra tập vừa hẹp lại vừa **THIẾU đúng người đang được uỷ quyền** — tức thiếu ở chính ca mà uỷ
+quyền sinh ra để phục vụ. ⇒ Danh sách phải dựng ở `hr` rồi truyền sang **đích danh**
+(`NotifyRequest.chiNhungNguoiNay`).
+
+Đây là lần thứ **hai trong hai ngày** một dòng nợ ⛔ chỉ mô tả sai mà còn **kê sẵn một bản vá sai**
+(lần trước: `T74.7` đề nghị một cột trên `workflow_transitions` — §12.19). ⇒ Bổ sung cho §12.18:
+**phần *"⬜ DEV:"* của một dòng nợ cũng là dữ liệu chưa kiểm, y hệt phần mô tả.**
+
+⭐ Thứ bắt được khuyết tật là **bài kiểm CÓ SẴN**, ⛔ cần dựng đồ gá mới:
+`nguoiNhanThongBaoLaNguoiDuyetDuoc` đỏ với `expected: ["A (XN-A)", "C (gốc)"] but was: ["A (XN-A)"]`.
+C đứng ở đơn vị **gốc** nên phạm vi phủ mọi đơn và có `hr:leave:approve`, mà ⛔ phải trưởng/phó và ⛔
+được uỷ quyền ⇒ **thấy đơn, nhận thư, ⛔ có nút**. Bất biến của bài ấy đổi từ *nhận thư ⇔ THẤY đơn*
+sang *nhận thư ⇔ **DUYỆT ĐƯỢC***, kèm một **vế chống tautology**: hai tập phải KHÁC nhau ở lượt chạy
+này — bằng nhau nghĩa là đồ gá ⛔ dựng được ca T80.7.
+
+#### Ba bánh cóc rút ra
+
+- **Phạm vi do bộ canh ĐO, ⛔ do ai gõ tay** (luật 28, lần thứ n) — `BaoPhuDomainCoChayTest` liệt kê
+  module từ đĩa; module mới quên khai là CI đỏ gọi đích danh.
+- **Ba trạng thái, ⛔ phải hai** — `toiDuyetDuoc`: `true` bấm được · `false` **thấy mà ⛔ bấm được** ·
+  `null` *endpoint này ⛔ trả lời câu ấy*. Gộp hai cái đầu là giấu mất chính T80.7; gộp hai cái sau là
+  hiện *"⛔ duyệt được"* trên đơn của chính mình.
+- **Một luật chỉ được viết MỘT lần** — hai vế cấm (`TU_DUYET` · `TRUNG_NGUOI_CAP_MOT`) tách thành
+  `veCam` dùng chung giữa *nút* và *cờ*. Chép lại ba dòng ấy là luật 14, và ngày hai bản lệch nhau là
+  ngày màn hình bày một cái nút máy chủ từ chối — hoặc **giấu** một cái nút đáng ra bấm được, trạng
+  thái thứ hai thì ⛔ ai báo.

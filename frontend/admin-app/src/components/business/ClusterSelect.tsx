@@ -19,8 +19,15 @@ import { api } from '@/shared/apiClient';
  * <p>⚠ Danh sách cụm đứng sau `ops:construction:view` — cùng quyền với biểu mẫu chứa nó, nên
  * không lặp lại lỗi §10.36 (ô chọn phụ trợ đòi một quyền mà vai trò sở hữu biểu mẫu không có).
  *
- * <p>⬜ Chưa có màn hình quản lý cụm (thêm/sửa/xoá) — ba endpoint ghi vẫn chưa ai gọi. Ghi nợ ở
- * `master-tracking.md`; ô chọn này chỉ đóng vế **dùng** cụm, không đóng vế **tạo** cụm.
+ * <p>✅ Vế **tạo** cụm đã đóng từ **09/09/2026**: `features/operations/ConstructionClustersPage`
+ * (`/van-hanh/cum-cong-trinh`) gọi đủ `api.post`/`api.put`/`api.delete`, có tuyến ở `app/router.tsx`
+ * và mục *Cụm công trình* trên menu. Ô chọn này vẫn chỉ lo vế **dùng** cụm.
+ *
+ * <p>⚠⚠ **Sửa 20/09/2026 (T68.41)** — javadoc ở đây vẫn khai *"chưa có màn hình quản lý cụm, ba
+ * endpoint ghi chưa ai gọi"* suốt **11 ngày** sau khi điều đó hết đúng, trong khi chú thích ở
+ * `notFoundContent` ngay bên dưới **đã** được đính chính đúng hôm ấy. Một tệp mang hai câu ngược
+ * nhau còn tệ hơn một câu cũ: lượt rà sau đọc trúng câu nào thì tin câu ấy. ⇒ Sửa hành vi thì phải
+ * quét **cả tệp**, ⛔ chỉ chỗ vừa đụng tới.
  */
 export function ClusterSelect({
   value,

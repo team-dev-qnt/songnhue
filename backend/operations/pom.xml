@@ -13,7 +13,9 @@
     <description>MOD-02 — Quản lý và vận hành công trình thủy lợi: danh mục công trình, lịch sử sửa chữa/sự cố, tình hình vận hành, GIS, dashboard, báo cáo.</description>
 
     <properties>
-        <jacoco.domain.line.coverage>0.70</jacoco.domain.line.coverage>
+        <!-- ⭐ 0.70 → 0.80 ngày 20/09/2026 (T68.31): đo được 0.8028 (570/710 dòng), nên 0.70 đã
+             thành một sàn chùng 10 điểm. Bánh cóc siết lại mỗi lượt đo, ⛔ thì nó thôi là bánh cóc. -->
+        <jacoco.domain.line.coverage>0.80</jacoco.domain.line.coverage>
     </properties>
 
     <dependencies>

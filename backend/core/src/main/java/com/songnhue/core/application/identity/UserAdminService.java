@@ -549,6 +549,9 @@ public class UserAdminService implements UserDirectoryPort {
                 List.of(user.getId()),
                 null,
                 List.of(NotificationChannel.IN_APP, NotificationChannel.EMAIL),
+                false,
+                // ⛔⛔ T74.7 — người nhận là CHỦ TÀI KHOẢN, đúng một người. Cộng Ban điều hành vào đây là
+                //   công bố *ai vừa bị khoá tài khoản* cho một nhóm ⛔ cần biết.
                 false));
     }
 

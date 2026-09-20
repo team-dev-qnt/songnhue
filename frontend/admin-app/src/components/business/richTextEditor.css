@@ -39,14 +39,14 @@
 }
 
 .sn-editor {
-  border: 1px solid #d9d9d9;
+  border: 1px solid #d9d9d9; /* neutralColors.border */
   border-radius: 6px;
 }
 
 .sn-editor__toolbar {
   padding: 6px 8px;
   border-bottom: 1px solid #f0f0f0;
-  background: #fafafa;
+  background: #fafafa; /* editorColors.cellXam */
   border-start-start-radius: 6px;
   border-start-end-radius: 6px;
 }
@@ -102,7 +102,7 @@
 
 .sn-editor__body figcaption {
   font-size: 13px;
-  color: #595959;
+  color: #595959; /* editorColors.fgXam */
   text-align: center;
   margin-top: 4px;
 }
@@ -144,14 +144,14 @@
 .sn-editor__body td {
   position: relative;
   box-sizing: border-box;
-  border: 1px solid #d9d9d9;
+  border: 1px solid #d9d9d9; /* neutralColors.border */
   padding: 6px 10px;
   min-width: 80px;
   vertical-align: top;
 }
 
 .sn-editor__body th {
-  background: #fafafa;
+  background: #fafafa; /* editorColors.cellXam */
   font-weight: 600;
 }
 
@@ -194,10 +194,10 @@
 }
 
 .sn-editor__body blockquote {
-  border-left: 3px solid #d9d9d9;
+  border-left: 3px solid #d9d9d9; /* neutralColors.border */
   margin: 12px 0;
   padding-left: 12px;
-  color: #595959;
+  color: #595959; /* editorColors.fgXam */
 }
 
 .sn-editor__body pre {
@@ -234,9 +234,9 @@
   width: 22px;
   height: 20px;
   padding: 0;
-  border: 1px solid #d9d9d9;
+  border: 1px solid #d9d9d9; /* neutralColors.border */
   border-radius: 2px;
-  background: #fff;
+  background: #ffffff; /* neutralColors.bgContainer */
   cursor: pointer;
 }
 

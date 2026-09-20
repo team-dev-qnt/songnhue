@@ -30,7 +30,17 @@ import com.songnhue.core.spi.SettingPort;
  * <p>WS-36 (06/09) dựng nốt: <b>quy trình sáu trạng thái</b> qua Workflow engine, phân loại,
  * chuyển phòng ban, ghi chú nội bộ, và chặn xoá khi {@code DANG_XU_LY}.
  *
- * <p>⛔ Vẫn chưa dựng, ghi ra đây thay vì để im: reCAPTCHA (chặn bởi <b>G13</b>), xuất Excel.
+ * <p>⚠ <b>Sửa 20/09/2026 (T68.41)</b> — câu cũ khai <i>"vẫn chưa dựng: reCAPTCHA (chặn bởi G13),
+ * xuất Excel"</i>; đo lại thì <b>cả hai vế đều đã hết đúng</b>:
+ *
+ * <ul>
+ *   <li><b>Xuất Excel — ĐÃ CÓ</b>: {@code ContactController#export} ({@code GET /export}) trả CSV
+ *       mở được bằng Excel, trần 10.000 dòng (T36.5). Câu cũ giữ nguyên từ trước lượt ấy.
+ *   <li><b>reCAPTCHA — đã DỰNG, chưa BẬT</b>: {@code RecaptchaClient} có thật và
+ *       {@code cong.kiemNguoiThat(...)} nằm trên đường ghi; {@code InboundSubmissionGate} trả
+ *       {@code false} chừng nào G13 chưa cấp khoá. Đó là <i>chờ DỮ LIỆU</i>, ⛔ phải <i>chờ MÃ</i> —
+ *       hai trạng thái dẫn tới hai việc khác hẳn nhau (T59.0).
+ * </ul>
  *
  * <h2>⭐ Hai chiều thư của một lượt gửi biểu mẫu — HAI đường khác hẳn nhau</h2>
  *
