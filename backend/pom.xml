@@ -138,7 +138,7 @@
           Phải ghim RIÊNG, không đi theo springdoc: 2.8.17 vẫn kéo swagger-ui 5.32.2
           đóng gói DOMPurify 3.3.2 dính CVE-2026-65898. Xem `dependencyManagement`.
         -->
-        <swagger-ui.version>5.32.14</swagger-ui.version>
+        <swagger-ui.version>5.32.15</swagger-ui.version>
         <!--
           JOSE/JWT — chính thư viện mà Spring Security dùng bên trong (spring-security-oauth2-jose).
           Tự pin phiên bản vì BOM của Spring Boot KHÔNG quản artifact này.
