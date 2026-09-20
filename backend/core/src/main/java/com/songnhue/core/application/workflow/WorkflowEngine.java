@@ -295,6 +295,10 @@ public class WorkflowEngine implements WorkflowPort {
                 owner,
                 quyenNhan,
                 List.of(NotificationChannel.IN_APP, NotificationChannel.EMAIL),
-                trongPhamVi));
+                trongPhamVi,
+                // ⛔⛔ T74.7 — một bước chuyển quy trình biết CHÍNH XÁC ai cần biết (chủ bản ghi và/hoặc người
+                //   giữ quyền), nên nó ⛔ bao giờ là cảnh báo G11. Trước 20/09/2026 `RecipientResolver` SUY
+                //   ngược lại từ `notify_permission IS NULL` ⇒ 17 hàng `notify_owner` cộng cả Ban điều hành.
+                false));
     }
 }

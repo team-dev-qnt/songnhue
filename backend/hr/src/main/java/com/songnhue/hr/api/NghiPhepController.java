@@ -2,6 +2,7 @@ package com.songnhue.hr.api;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import jakarta.validation.Valid;
@@ -146,7 +147,9 @@ public class NghiPhepController {
     @RequirePermission("hr:leave:approve")
     public NghiPhepDtos.DonTrangView choDuyet(
             @RequestParam(required = false) Integer page, @RequestParam(required = false) Integer size) {
-        return trang(donNghi.hopChoDuyet(PageUtils.toPageable(page, size, null, List.of())));
+        Page<LeaveRequest> trangDon = donNghi.hopChoDuyet(PageUtils.toPageable(page, size, null, List.of()));
+        // ⭐ T80.7 — MỘT phép đo cho cả trang, ⛔ hỏi `GET /{id}/hanh-dong` từng dòng (N+1).
+        return trang(trangDon, donNghi.donToiDuyetDuoc(trangDon.getContent()));
     }
 
     @GetMapping("/{publicId}/hanh-dong")
@@ -178,6 +181,15 @@ public class NghiPhepController {
     }
 
     private NghiPhepDtos.DonTrangView trang(Page<LeaveRequest> p) {
+        return trang(p, null);
+    }
+
+    /**
+     * @param duyetDuoc id các đơn người đang đăng nhập bấm được nút; {@code null} = <b>endpoint này
+     *     ⛔ trả lời câu ấy</b> (xem javadoc {@code DonView.of}). ⛔ Truyền tập rỗng thay cho
+     *     {@code null}: hai thứ ấy nói hai điều khác nhau.
+     */
+    private NghiPhepDtos.DonTrangView trang(Page<LeaveRequest> p, Set<Long> duyetDuoc) {
         List<LeaveRequest> noiDung = p.getContent();
         // ⚠ Nạp tên/mã CBNV MỘT LẦN cho cả trang — tra từng dòng là N+1, và số dòng là số đơn của
         //   cả đơn vị trong một kỳ.
@@ -185,7 +197,10 @@ public class NghiPhepController {
                 noiDung.stream().map(LeaveRequest::getEmployeeId).toList());
         return new NghiPhepDtos.DonTrangView(
                 noiDung.stream()
-                        .map(r -> toView(r, theoId.get(r.getEmployeeId())))
+                        .map(r -> toView(
+                                r,
+                                theoId.get(r.getEmployeeId()),
+                                duyetDuoc == null ? null : duyetDuoc.contains(r.getId())))
                         .toList(),
                 p.getTotalElements(),
                 p.getNumber(),
@@ -197,10 +212,15 @@ public class NghiPhepController {
     }
 
     private static NghiPhepDtos.DonView toView(LeaveRequest r, Employee hoSo) {
+        return toView(r, hoSo, null);
+    }
+
+    private static NghiPhepDtos.DonView toView(LeaveRequest r, Employee hoSo, Boolean toiDuyetDuoc) {
         return NghiPhepDtos.DonView.of(
                 r,
                 hoSo == null ? null : hoSo.getPublicId(),
                 hoSo == null ? null : hoSo.getCode(),
-                hoSo == null ? null : hoSo.getFullName());
+                hoSo == null ? null : hoSo.getFullName(),
+                toiDuyetDuoc);
     }
 }

@@ -23,12 +23,23 @@ import type { NextConfig } from 'next';
  * nhưng chưa có hiệu lực ở nơi nó phải chặn*. Hai tệp trỏ vào nhau nên đọc tệp nào cũng thấy
  * yên tâm. `csp.test.ts` nay khẳng định từng chỉ thị bằng cách đọc chính giá trị đã giải.
  *
- * <h3>Vì sao `script-src` phải có `'unsafe-inline'`, khác admin-app</h3>
+ * <h3>⛔⛔ Khối cũ ở đây ĐÃ HẾT ĐÚNG — sửa 20/09/2026 (T73.7)</h3>
  *
- * Next App Router chèn `<script>` nội tuyến để truyền dữ liệu flight và khởi động hydration.
- * Cách chặt hơn là gắn `nonce`, nhưng nonce phải khác nhau mỗi request — tức mọi trang thành
- * động và **ISR tắt hẳn**, trong khi NFR-02 (trang chủ < 3s) dựa vào ISR. admin-app là bundle
- * Vite tĩnh, không có script nội tuyến nào, nên nó giữ được `script-src 'self'`.
+ * Nó khai: *"`script-src` phải có `'unsafe-inline'` … nonce phải khác nhau mỗi request — tức mọi
+ * trang thành động và **ISR tắt hẳn**, trong khi NFR-02 (trang chủ < 3s) dựa vào ISR"*.
+ *
+ * **Đo lại bằng `next build` thì lập luận ấy đã đổ**: 18/19 route vốn ĐÃ là `ƒ (Dynamic)` và bảng
+ * route ⛔ có một dòng `●` (ISR) nào — `apiGetWithMeta` gọi `await connection()` trước mọi lượt
+ * fetch. Cái giá mà nó e ngại **đã trả từ lâu**, nên nonce cộng thêm **0**; dựng lại sau khi thêm
+ * middleware cho **đúng bảng route cũ**, `/robots.txt` vẫn `○`.
+ *
+ * ⚠ Chỗ lập luận cũ sai là **trộn hai cơ chế cùng tên "ISR"**: thứ NFR-02 dựa vào là bộ đệm
+ * **DỮ LIỆU FETCH** (`next: { revalidate: 300 }` — backend chỉ bị hỏi 1 lần / 5 phút), ⛔ phải bộ
+ * đệm TRANG. Nonce ⛔ đụng tới cái thứ nhất.
+ *
+ * ⇒ CSP nay dựng ở `src/lib/csp.ts` và gắn ở `src/middleware.ts`. `admin-app` là bundle Vite tĩnh,
+ * ⛔ có script nội tuyến nào, nên nó vẫn giữ `script-src 'self'` trần — hai tầng, hai cách, và
+ * `NginxSecurityHeadersTest` canh riêng tầng kia.
  *
  * <h3>`frame-src` — đúng hai host, mỗi host một lý do</h3>
  *
@@ -38,23 +49,15 @@ import type { NextConfig } from 'next';
  * ⚠ Thêm host thứ ba ở đây mà quên `noFabricatedContent.test.ts` (danh sách tên miền được
  * phép trong mã component) thì hai danh sách lệch nhau — luật 14.
  */
-const CSP = [
-  "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
-  "style-src 'self' 'unsafe-inline'",
-  // `https://tile.openstreetmap.org` — nguồn ô bản đồ của khối Bản đồ công trình (CN-02.4).
-  // ⚠ Địa chỉ này phải khớp `TILE_HOST` ở `src/lib/mapTiles.ts`; `mapTiles.test.ts` đối chiếu
-  //   hai bên. Lệch nhau thì bản đồ vẫn dựng và vẫn kéo thả được, chỉ toàn màu xám vì mọi ô
-  //   ảnh bị chặn — lỗi chỉ hiện trong console trình duyệt, nơi không cổng kiểm nào nhìn.
-  "img-src 'self' data: blob: https://tile.openstreetmap.org",
-  "font-src 'self'",
-  "connect-src 'self'",
-  "frame-src 'self' https://www.google.com https://www.youtube-nocookie.com",
-  "frame-ancestors 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-  "object-src 'none'",
-].join('; ');
+// ⭐⭐ Hằng `CSP` ĐÃ CHUYỂN sang `src/lib/csp.ts` ngày 20/09/2026 (T73.7).
+//
+// Lý do: nonce chỉ sinh được LÚC CHẠY (mỗi request một giá trị), mà `headers()` ở tệp này giải
+// **một lần lúc build** — một nonce nướng vào image còn tệ hơn `'unsafe-inline'`, vì nó TRÔNG như
+// đã siết. Nay `src/middleware.ts` là nơi DUY NHẤT đặt header ấy.
+//
+// ⛔⛔ Và ⛔ để lại một bản CSP "dự phòng" ở đây: hai nơi cùng đặt một header chính là cái bẫy đã
+// làm cổng công khai chạy ⛔ CSP nào suốt từ WS-16 (§10.61) — tệp này bảo *"nginx đặt"*, nginx bảo
+// *"image FE đặt"*, đọc tệp nào cũng thấy yên tâm. `csp.test.ts` canh đúng chuyện đó.
 
 const nextConfig: NextConfig = {
   // Bắt buộc cho `deploy/docker/public-web.Dockerfile`: tầng runtime chép
@@ -98,7 +101,8 @@ const nextConfig: NextConfig = {
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          { key: 'Content-Security-Policy', value: CSP },
+          // ⛔ `Content-Security-Policy` ⛔ nằm ở đây nữa — xem khối ⭐⭐ ở trên. Ba header còn lại
+          //   ⛔ phụ thuộc request nên chúng ở lại: giải một lần lúc build là đủ và rẻ hơn.
         ],
       },
     ];
