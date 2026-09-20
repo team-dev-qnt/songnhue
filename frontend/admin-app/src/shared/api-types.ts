@@ -210,6 +210,16 @@ export interface OrgUnitNode {
   address: string | null;
   phone: string | null;
   email: string | null;
+  /**
+   * Trưởng / phó đơn vị — **H24**. `null` = chưa chọn, và *chưa chọn* phải phân biệt được với
+   * *đã chọn* (quy tắc 16).
+   *
+   * ⛔ Hai ô này ⛔ phải thông tin hiển thị: chúng là nguồn người nhận **cảnh báo vượt ngưỡng**
+   * của G11. Thiếu chúng ở đây thì hộp thoại sửa mở ra với hai ô trống và mỗi lượt sửa TÊN đơn vị
+   * là một lượt GỠ trưởng/phó, im lặng.
+   */
+  headUserPublicId: string | null;
+  deputyUserPublicId: string | null;
   children: OrgUnitNode[];
 }
 
@@ -255,6 +265,9 @@ export interface CreateOrgUnitRequest {
   address?: string;
   phone?: string;
   email?: string;
+  /** Trưởng / phó đơn vị — H24. Xem `OrgUnitNode`. */
+  headUserPublicId?: string | null;
+  deputyUserPublicId?: string | null;
 }
 
 /**
@@ -269,6 +282,9 @@ export interface UpdateOrgUnitRequest {
   address?: string;
   phone?: string;
   email?: string;
+  /** Trưởng / phó đơn vị — H24. Xem `OrgUnitNode`. */
+  headUserPublicId?: string | null;
+  deputyUserPublicId?: string | null;
 }
 
 // =============================================================================

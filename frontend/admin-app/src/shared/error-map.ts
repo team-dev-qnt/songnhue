@@ -816,6 +816,14 @@ export const ERROR_CATALOG = {
     handling: 'toast',
     severity: 'warning',
   },
+  'ADM-2026': {
+    // H24 — hai ô trưởng/phó đơn vị quyết định ai nhận cảnh báo ngưỡng (G11). Giá trị sai ở đây
+    // ⛔ hỏng màn hình nào; nó làm cảnh báo tới 0 người trong im lặng.
+    message:
+      'Người được chọn làm trưởng hoặc phó đơn vị phải là một tài khoản đang hoạt động, và trưởng không được trùng phó.',
+    handling: 'toast',
+    severity: 'warning',
+  },
 } as const satisfies Record<string, ErrorEntry>;
 
 export type ErrorCode = keyof typeof ERROR_CATALOG;

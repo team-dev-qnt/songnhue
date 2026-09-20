@@ -643,7 +643,15 @@ public enum ErrorCode {
      * thành một lượt chiếm tài khoản vĩnh viễn — đúng thứ {@code AUTH-0001} ở đường tự đổi mật khẩu đang chặn.
      * Cùng lý lẽ với {@code ADM-2021} ở đường đặt lại 2FA.
      */
-    ADM_2025("ADM-2025", HttpStatus.FORBIDDEN);
+    ADM_2025("ADM-2025", HttpStatus.FORBIDDEN),
+    /**
+     * Trưởng / phó đơn vị đặt ⛔ hợp lệ — H24.
+     *
+     * <p>Hai ô ấy quyết định <b>ai nhận cảnh báo ngưỡng</b> của G11, nên một giá trị sai ở đây ⛔ hỏng một
+     * màn hình — nó làm cảnh báo tới 0 người trong im lặng. Ba ca gộp một mã vì cả ba dẫn tới cùng một việc
+     * (chọn lại người): tài khoản ⛔ tồn tại · tài khoản ⛔ còn {@code ACTIVE} · trưởng trùng phó.
+     */
+    ADM_2026("ADM-2026", HttpStatus.BAD_REQUEST);
 
     private final String code;
     private final HttpStatus status;

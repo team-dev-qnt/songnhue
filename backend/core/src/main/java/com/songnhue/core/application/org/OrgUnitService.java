@@ -20,6 +20,8 @@ import com.songnhue.core.common.exception.ConflictException;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
 import com.songnhue.core.common.tree.MaterializedPath;
 import com.songnhue.core.common.tree.TreeBuilder;
+import com.songnhue.core.domain.identity.User;
+import com.songnhue.core.domain.identity.UserStatus;
 import com.songnhue.core.domain.org.OrgUnit;
 import com.songnhue.core.domain.org.OrgUnitType;
 import com.songnhue.core.infra.identity.UserRepository;
@@ -212,14 +214,10 @@ public class OrgUnitService implements OrgUnitPort {
      */
     @Transactional
     public OrgUnit create(
-            String code,
-            String name,
-            OrgUnitType type,
-            UUID parentPublicId,
-            String shortName,
-            String address,
-            String phone,
-            String email) {
+            String code, String name, OrgUnitType type, UUID parentPublicId, String shortName, ThongTinDonVi thongTin) {
+        String address = thongTin.address();
+        String phone = thongTin.phone();
+        String email = thongTin.email();
         if (repository.existsByCodeAndDeletedAtIsNull(code)) {
             throw new ConflictException(ErrorCode.ADM_2002);
         }
@@ -249,6 +247,7 @@ public class OrgUnitService implements OrgUnitPort {
         unit.setAddress(rongThanhNull(address));
         unit.setPhone(rongThanhNull(phone));
         unit.setEmail(rongThanhNull(email));
+        datLanhDao(unit, thongTin);
         // `path` và `depth` là NOT NULL, mà path thật lại chứa chính id — thứ chỉ có sau khi ghi.
         // Nên phải ghi bằng một path tạm rồi sửa ngay trong cùng transaction. Không ai quan sát được
         // giá trị tạm này: nó bị ghi đè trước khi transaction commit, và hỏng giữa chừng thì rollback
@@ -266,24 +265,65 @@ public class OrgUnitService implements OrgUnitPort {
     }
 
     @Transactional
-    public OrgUnit update(
-            UUID publicId,
-            String name,
-            String shortName,
-            OrgUnitType type,
-            String address,
-            String phone,
-            String email) {
+    public OrgUnit update(UUID publicId, String name, String shortName, OrgUnitType type, ThongTinDonVi thongTin) {
         OrgUnit unit = require(publicId);
         unit.setName(name);
         unit.setShortName(shortName);
         unit.setUnitType(type);
-        unit.setAddress(rongThanhNull(address));
-        unit.setPhone(rongThanhNull(phone));
-        unit.setEmail(rongThanhNull(email));
+        unit.setAddress(rongThanhNull(thongTin.address()));
+        unit.setPhone(rongThanhNull(thongTin.phone()));
+        unit.setEmail(rongThanhNull(thongTin.email()));
+        datLanhDao(unit, thongTin);
         OrgUnit ketQua = repository.save(unit);
         bienDongToChuc();
         return ketQua;
+    }
+
+    /**
+     * Trưởng / phó đơn vị — <b>H24</b>, đường GHI của hai cột có từ 13/08/2026.
+     *
+     * <h2>⛔⛔ Vì sao hai ô này ⛔ phải "thông tin hiển thị"</h2>
+     *
+     * <p>{@code OrgUnitRepository.findActiveHeadAndDeputyUserIds} đọc đúng hai cột ấy để dựng danh
+     * sách người nhận <b>cảnh báo vượt ngưỡng</b> (G11). Đo 20/09/2026: {@code setHeadUserId} có
+     * <b>0 lời gọi</b> trong mã sản phẩm ⇒ nhánh ấy trả tập rỗng <b>vĩnh viễn</b>, trong khi
+     * {@code alert_events} vẫn có hàng và màn hình vẫn hiện — javadoc của {@code AlertNotifier} đã
+     * dự đoán đúng hậu quả này từ 02/09 và ⛔ ngăn được nó, vì <b>một chú thích ⛔ phải một cổng
+     * kiểm</b>.
+     *
+     * <h2>Ba ca từ chối, MỘT mã lỗi</h2>
+     *
+     * <p>Tài khoản ⛔ tồn tại · ⛔ còn {@code ACTIVE} · trưởng trùng phó — cả ba dẫn tới cùng một
+     * việc của người dùng (chọn lại người), nên tách mã chỉ làm danh mục dài thêm. ⚠ Vế
+     * {@code ACTIVE} ⛔ phải hình thức: {@code findActiveHeadAndDeputyUserIds} tự lọc
+     * {@code status = 'ACTIVE'}, nên cho phép gán một tài khoản đã khoá là dựng lại <b>đúng</b>
+     * trạng thái rỗng mà H24 sinh ra để chữa — chỉ khác là lần này biểu mẫu báo *đã lưu*.
+     *
+     * <p>⛔ Ràng buộc <i>"người ấy phải thuộc chính đơn vị này"</i> <b>CỐ Ý ⛔ đặt</b>: giám đốc kiêm
+     * phụ trách một Xí nghiệp, hay một phó phụ trách hai cụm, là chuyện có thật ở Công ty. Ép một
+     * luật nhân sự ⛔ ai duyệt sẽ chặn đúng những cấu hình hợp lệ (cùng họ T55.2).
+     */
+    private void datLanhDao(OrgUnit unit, ThongTinDonVi thongTin) {
+        Long truong = idTaiKhoanConHoatDong(thongTin.truongPublicId());
+        Long pho = idTaiKhoanConHoatDong(thongTin.phoPublicId());
+        if (truong != null && truong.equals(pho)) {
+            throw new BusinessRuleException(ErrorCode.ADM_2026);
+        }
+        unit.setHeadUserId(truong);
+        unit.setDeputyUserId(pho);
+    }
+
+    private Long idTaiKhoanConHoatDong(UUID publicId) {
+        if (publicId == null) {
+            return null;
+        }
+        return userRepository
+                .findByPublicIdAndDeletedAtIsNull(publicId)
+                // ⚠ `status` là một CHUỖI trên entity, ⛔ phải enum — so bằng `UserStatus.ACTIVE.name()`
+                //    đúng như `User.canAuthenticate()` đang làm, ⛔ gõ lại chữ "ACTIVE" (luật 14).
+                .filter(u -> UserStatus.ACTIVE.name().equals(u.getStatus()))
+                .map(User::getId)
+                .orElseThrow(() -> new BusinessRuleException(ErrorCode.ADM_2026));
     }
 
     /**
@@ -420,12 +460,57 @@ public class OrgUnitService implements OrgUnitPort {
         }
     }
 
-    private static List<OrgUnitNode> toTree(List<OrgUnit> rows) {
+    private List<OrgUnitNode> toTree(List<OrgUnit> rows) {
+        Map<Long, UUID> lanhDao = publicIdCuaLanhDao(rows);
         return TreeBuilder.build(
                 rows,
                 OrgUnit::getId,
                 OrgUnit::getParentId,
                 Comparator.comparing(OrgUnit::getSortOrder).thenComparing(OrgUnit::getName),
-                OrgUnitNode::of);
+                (unit, con) -> OrgUnitNode.of(
+                        unit,
+                        con,
+                        publicIdCua(lanhDao, unit.getHeadUserId()),
+                        publicIdCua(lanhDao, unit.getDeputyUserId())));
     }
+
+    /**
+     * {@code users.id} → {@code users.public_id} cho MỌI trưởng/phó của cả cây — <b>một</b> truy vấn.
+     *
+     * <p>N+1 ở đây nghĩa là 31 lượt gọi cho một màn hình chỉ có một sơ đồ; cùng lý lẽ đã ghi ở
+     * {@link #cayPhang()}.
+     *
+     * <p>⛔⛔ <b>Tra bằng {@link #publicIdCua}, ⛔ gọi thẳng {@code map.get(id)}</b>. Bản đầu của lớp
+     * này làm đúng thế và javadoc của nó khẳng định <i>"get(null) trả null nên đơn vị chưa có trưởng
+     * ⛔ cần nhánh riêng"</i> — <b>sai</b>: {@code Map.of()} là map BẤT BIẾN, và
+     * {@code Map.of().get(null)} <b>ném {@code NullPointerException}</b>. Triệu chứng là {@code SYS-0001}
+     * ở lượt gỡ chức danh, tức ở đúng ca <i>"đơn vị chưa có trưởng"</i> — ca thường gặp nhất. Bài kiểm
+     * {@code datVaDocLaiQuaApi} bắt được ở lượt chạy đầu.
+     */
+    private Map<Long, UUID> publicIdCuaLanhDao(List<OrgUnit> rows) {
+        java.util.Set<Long> ids = rows.stream()
+                .flatMap(u -> java.util.stream.Stream.of(u.getHeadUserId(), u.getDeputyUserId()))
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toSet());
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        return userRepository.findAllById(ids).stream()
+                .collect(java.util.stream.Collectors.toMap(User::getId, User::getPublicId));
+    }
+
+    /** {@code null} vào ⇒ {@code null} ra — ⛔ chạm tới map, vì map bất biến ném NPE với khoá {@code null}. */
+    private static UUID publicIdCua(Map<Long, UUID> map, Long userId) {
+        return userId == null ? null : map.get(userId);
+    }
+
+    /** {@code public_id} của trưởng và phó một đơn vị — cho các endpoint trả về MỘT đơn vị. */
+    @Transactional(readOnly = true)
+    public LanhDaoPublicId lanhDaoCua(OrgUnit unit) {
+        Map<Long, UUID> map = publicIdCuaLanhDao(List.of(unit));
+        return new LanhDaoPublicId(publicIdCua(map, unit.getHeadUserId()), publicIdCua(map, unit.getDeputyUserId()));
+    }
+
+    /** Cặp định danh công khai của trưởng/phó — {@code null} = chưa chọn. */
+    public record LanhDaoPublicId(UUID truong, UUID pho) {}
 }

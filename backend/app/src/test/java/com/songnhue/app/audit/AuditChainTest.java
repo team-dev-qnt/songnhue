@@ -20,6 +20,7 @@ import com.songnhue.app.testsupport.SongnhuePostgres;
 import com.songnhue.core.application.audit.AuditService;
 import com.songnhue.core.application.audit.ChainBreak;
 import com.songnhue.core.application.org.OrgUnitService;
+import com.songnhue.core.application.org.ThongTinDonVi;
 import com.songnhue.core.domain.org.OrgUnitType;
 
 /**
@@ -161,7 +162,12 @@ class AuditChainTest extends IntegrationTestBase {
 
     private void createUnit(String code) {
         createdUnit = orgUnits.create(
-                        code, "Đơn vị kiểm thử " + code, OrgUnitType.PHONG_BAN, rootPublicId(), null, null, null, null)
+                        code,
+                        "Đơn vị kiểm thử " + code,
+                        OrgUnitType.PHONG_BAN,
+                        rootPublicId(),
+                        null,
+                        ThongTinDonVi.trong())
                 .getPublicId();
     }
 

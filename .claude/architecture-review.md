@@ -8202,3 +8202,40 @@ của đơn vị khác, ⛔ dòng nhật ký bảo mật nào. Cùng lượt đo
 **⚠ Giới hạn — nói ra.** Đơn vị `null` (điểm đo chưa gán đơn vị) ⛔ bị kiểm. Ô chọn đơn vị trong biểu mẫu ghi
 vẫn bày cả cây (`/org-units/selectable`) — chọn đơn vị ngoài phạm vi nay nhận `AUTH-3002` thay vì lưu được;
 làm mờ các nút ấy là việc giao diện (T74.11).
+
+### §12.12 Cảnh báo tới ĐÚNG người: vì sao trưởng/phó đơn vị là một ĐƯỜNG GHI, ⛔ một ô hiển thị (T76.1, 20/9/2026)
+
+**Bối cảnh.** `org_units.head_user_id` / `deputy_user_id` có từ `V202608131002` (13/08/2026) và có **một
+người đọc thật**: `OrgUnitRepository.findActiveHeadAndDeputyUserIds`, nguồn người nhận cảnh báo vượt ngưỡng
+của **G11**. Đo 20/09: `setHeadUserId` có **0 lời gọi** trong mã sản phẩm. Nhánh người nhận ấy vì thế trả
+**tập rỗng vĩnh viễn** — trong khi `alert_events` vẫn có hàng, `notifications` vẫn có dòng, và mọi bài kiểm
+`verify(notify)` vẫn xanh.
+
+⛔⛔ Điều đáng đọc nhất ở đây ⛔ phải khuyết tật, mà là **cách nó sống sót 38 ngày**: javadoc của
+`AlertNotifier` **đã mô tả đúng nó từ 02/09**, kèm dự đoán đúng hậu quả (*"tới đúng 0 người"*) và cả
+cách chứng minh (*"DoD phải đếm `notification_recipients > 0`"*). ⇒ **Một chú thích ⛔ phải một cổng kiểm**
+(luật đã trả giá ở §11.19 và T50.12) — lần này nó còn viết ra cả bài kiểm cần viết, và vẫn ⛔ ai viết.
+
+**Quyết định.**
+
+1. **Hai ô ấy là DỮ LIỆU VẬN HÀNH, ⛔ thông tin hiển thị.** Chúng vào `CreateRequest`/`UpdateRequest`,
+   vào `OrgUnitNode` (biểu mẫu sửa nạp từ chính cây — thiếu là mỗi lượt sửa TÊN gỡ mất người nhận cảnh
+   báo, đúng cái bẫy khối chú thích của `OrgUnitNode` đã mô tả cho ba ô liên hệ), và có ô chọn trên màn
+   hình *Đơn vị*.
+2. **Chỉ tài khoản `ACTIVE`** — vì `findActiveHeadAndDeputyUserIds` tự lọc `status = 'ACTIVE'`. Cho gán
+   một tài khoản đã khoá là dựng lại **đúng** trạng thái rỗng mà H24 sinh ra để chữa, chỉ khác là lần này
+   biểu mẫu báo *đã lưu*. Một mã lỗi (`ADM-2026`) cho cả ba ca vì cả ba dẫn tới **cùng một việc**.
+3. ⛔ **⛔ ép "người ấy phải thuộc chính đơn vị này".** Giám đốc kiêm phụ trách một Xí nghiệp, một phó
+   phụ trách hai cụm — đều có thật. Ép một luật nhân sự ⛔ ai duyệt sẽ chặn đúng những cấu hình hợp lệ
+   (cùng họ T55.2: đọc *"chỉ NV Đang làm"* thành `status = 'DANG_LAM'` là xoá người nghỉ thai sản khỏi
+   danh bạ).
+4. **Gom 5 ô ⛔ bắt buộc thành `ThongTinDonVi`.** Lý do trực tiếp là Checkstyle chặn ở 8 tham số (WS-74 đã
+   trả giá đúng chỗ này với `NotifyRequest`). Lý do thật sự đáng giữ: năm tham số liên tiếp cùng kiểu
+   `String`/`UUID` thì **đổi chỗ hai cái là biên dịch sạch** và địa chỉ đi vào ô điện thoại.
+
+**Hệ quả cho `T57.18(a)` — uỷ quyền duyệt.** Chốt **B3** trả lời câu hỏi *nghiệp vụ* từ 12/08, nhưng
+uỷ quyền giả định hệ biết **ai là người duyệt của một đơn vị**. Hôm nay ⛔ có khái niệm ấy: `hr:leave:approve`
+cộng bộ lọc phạm vi là đủ để duyệt. Và cấp quyền lúc chạy thì `AuthenticatedUser` cấm tường minh —
+*"record bất biến có chủ đích: ⛔ đoạn mã nghiệp vụ nào được phép thêm quyền cho chính mình giữa chừng"*.
+⇒ Thứ tự đúng là **H24 trước**, rồi uỷ quyền là phép **chuyển vai ấy** có thời hạn và có nhật ký (`T76.4`).
+

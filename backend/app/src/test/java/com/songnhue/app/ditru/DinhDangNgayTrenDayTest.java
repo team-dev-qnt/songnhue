@@ -16,6 +16,7 @@ import com.songnhue.app.testsupport.PhienHttp;
 import com.songnhue.app.testsupport.TestHttp;
 import com.songnhue.core.application.auth.PasswordPolicyService;
 import com.songnhue.core.application.org.OrgUnitService;
+import com.songnhue.core.application.org.ThongTinDonVi;
 import com.songnhue.core.domain.org.OrgUnitType;
 import com.songnhue.core.infra.identity.UserRepository;
 
@@ -99,9 +100,7 @@ class DinhDangNgayTrenDayTest extends IntegrationTestBase {
                         OrgUnitType.PHONG_BAN,
                         goc(),
                         null,
-                        null,
-                        null,
-                        null)
+                        ThongTinDonVi.trong())
                 .getPublicId();
 
         PhienHttp phien = new PhienHttp(http);

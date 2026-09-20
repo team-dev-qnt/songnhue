@@ -17,6 +17,7 @@ import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.content.application.PortalCache;
 import com.songnhue.content.application.SiteConfigService;
 import com.songnhue.core.application.org.OrgUnitService;
+import com.songnhue.core.application.org.ThongTinDonVi;
 import com.songnhue.core.application.settings.SettingService;
 import com.songnhue.core.common.security.AuthContext;
 import com.songnhue.core.domain.org.OrgUnit;
@@ -142,7 +143,7 @@ class PortalCacheInvalidationTest extends IntegrationTestBase {
         donDepHangDoi();
         int truoc = soViecDungLaiCong();
 
-        orgUnits.create("T278-XN-01", "Xí nghiệp T27.8", OrgUnitType.XI_NGHIEP, donViGoc, null, null, null, null);
+        orgUnits.create("T278-XN-01", "Xí nghiệp T27.8", OrgUnitType.XI_NGHIEP, donViGoc, null, ThongTinDonVi.trong());
 
         int sau = soViecDungLaiCong();
         assertThat(sau)
@@ -169,12 +170,13 @@ class PortalCacheInvalidationTest extends IntegrationTestBase {
     @DisplayName("⭐ Sửa đơn vị → ĐẾM ĐƯỢC việc dựng lại cổng")
     void updatingAnOrgUnitEnqueuesARevalidateJob() {
         OrgUnit donVi = orgUnits.create(
-                "T278-XN-02", "Xí nghiệp T27.8 hai", OrgUnitType.XI_NGHIEP, donViGoc, null, null, null, null);
+                "T278-XN-02", "Xí nghiệp T27.8 hai", OrgUnitType.XI_NGHIEP, donViGoc, null, ThongTinDonVi.trong());
 
         donDepHangDoi();
         int truoc = soViecDungLaiCong();
 
-        orgUnits.update(donVi.getPublicId(), "Tên đã đổi trên cổng", null, OrgUnitType.XI_NGHIEP, null, null, null);
+        orgUnits.update(
+                donVi.getPublicId(), "Tên đã đổi trên cổng", null, OrgUnitType.XI_NGHIEP, ThongTinDonVi.trong());
 
         assertThat(soViecDungLaiCong())
                 .as("đường SỬA cũng phải xoá đệm — thêm thì xoá mà sửa thì không là cái bẫy khó thấy hơn")
