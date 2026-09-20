@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { SiteFooter } from '@/components/SiteFooter';
 import { SiteHeader } from '@/components/SiteHeader';
 import { getSiteConfig } from '@/lib/api';
+import { cssMauThuongHieu } from '@/lib/mauThuongHieu';
 import { fileUrl } from '@/lib/routes';
 import { SITE, SITE_URL } from '@/lib/site';
 
@@ -72,11 +73,42 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  // Màu nhận diện do Công ty đặt trên màn hình quản trị (T75.7).
+  //
+  // ⚠ Lượt `getSiteConfig()` này KHÔNG thêm vòng khứ hồi: `generateMetadata` đã gọi đúng URL ấy
+  //   với cùng nhãn đệm, và Next gộp hai lượt `fetch` trùng URL trong một lượt dựng — cùng lý lẽ
+  //   đã ghi sẵn ở javadoc của `getMenu`.
+  const bienMau = cssMauThuongHieu(await getSiteConfig());
+
   // `lang="vi"` không phải chi tiết trang trí: trình đọc màn hình chọn giọng theo nó, và
   // trình duyệt dựa vào nó để gợi ý dịch. Hệ thống chỉ có tiếng Việt (chốt BOQ đợt 1).
   return (
     <html lang="vi">
+      {/*
+        ⚠ Thẻ này chỉ có mặt khi CÓ ít nhất một màu hợp lệ để ghi đè; ⛔ có thì `cssMauThuongHieu`
+        trả chuỗi rỗng và trang ⛔ mang thêm một byte nào.
+
+        ⛔ **Đặt xuống `<body>`**: biến phải có hiệu lực TRƯỚC lượt vẽ đầu tiên, ⛔ thì trang chớp
+        một nhịp màu mặc định rồi mới đổi — thứ người dùng thấy là một lỗi hiển thị, ⛔ phải một
+        hiệu ứng.
+
+        ⚠ ⛔ cần `nonce`: đây là CSS, và CSP của cổng khai `style-src` có `'unsafe-inline'`
+        (`next.config.ts`) vì chính Next phát style nội tuyến cho mọi trang. Vế chặn tiêm ở
+        `cssMauThuongHieu`, nơi giá trị bị lọc qua `/^#[0-9a-fA-F]{6}$/` — ⛔ ở đây.
+
+        ⭐ Dùng CON của thẻ, ⛔ phải `dangerouslySetInnerHTML` — và ⛔ phải để né luật ESLint
+        `react/no-danger`. Bốn chỗ khác trong `public-web` có quyền dùng cửa thoát ấy vì chúng
+        render HTML do người soạn nhập (đã qua `HtmlSanitizer` lúc GHI); ở đây đầu ra là một chuỗi
+        do CHÍNH ta dựng, chỉ gồm `: { } - ; #` và chữ số — ⛔ ký tự nào React escape, nên hai cách
+        cho ra byte y hệt. Chọn cách ⛔ có cửa thoát thì lượt rà sau ⛔ phải dừng lại đọc một dòng
+        miễn trừ để biết nó an toàn ⛔.
+      */}
+      {bienMau && (
+        <head>
+          <style data-sn-mau-thuong-hieu>{bienMau}</style>
+        </head>
+      )}
       <body className="flex min-h-screen flex-col">
         {/* Liên kết bỏ qua điều hướng — bắt buộc cho người dùng bàn phím và trình đọc màn hình */}
         <a

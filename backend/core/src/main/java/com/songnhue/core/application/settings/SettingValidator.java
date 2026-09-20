@@ -6,6 +6,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import org.springframework.scheduling.support.CronExpression;
 import org.springframework.stereotype.Component;
@@ -32,6 +33,9 @@ import tools.jackson.databind.ObjectMapper;
  */
 @Component
 public class SettingValidator {
+
+    /** Mã màu nhận diện — xem {@link #requireMaMau}. */
+    private static final Pattern MA_MAU = Pattern.compile("^#[0-9a-fA-F]{6}$");
 
     private final ObjectMapper objectMapper;
 
@@ -62,6 +66,7 @@ public class SettingValidator {
                 case "JSON" -> objectMapper.readTree(value);
                 case "CRON" -> requireCron(value);
                 case "URL" -> requireLienKetAnToan(value);
+                case "COLOR" -> requireMaMau(value);
                 default -> {
                     // STRING, TEXT, HTML, HTML_EMBED — không có ràng buộc kiểu ở đây.
                     // ⚠ Hai kiểu HTML KHÔNG được kiểm ở tầng này một cách cố ý: chúng không "sai
@@ -106,6 +111,31 @@ public class SettingValidator {
         // đúng thứ khó phát hiện nhất trong nhóm tham số này.
         if (!CronExpression.isValidExpression(value)) {
             throw new ValidationException(ErrorCode.ADM_2006, "cron", value);
+        }
+    }
+
+    /**
+     * Mã màu nhận diện — đúng {@code #} + 6 chữ số hex, ⛔ nhận gì khác.
+     *
+     * <h3>Vì sao chặt tới mức ⛔ nhận cả {@code #fff}</h3>
+     *
+     * Giá trị này đi thẳng vào một khối {@code <style>} của **cổng công khai**
+     * ({@code mauThuongHieu.ts}). Một chuỗi tuỳ ý ở đó là một đường tiêm CSS: dấu {@code ;} đóng
+     * khai báo, {@code &#125;} đóng luật, và phần sau viết được luật mới — đủ để phủ một lớp lên
+     * toàn trang. Nên vị từ ở đây ⛔ phải *"CSS có hiểu ⛔"* mà là *"có đúng hình dạng ta cho phép
+     * ⛔"*; {@code rgb()}, {@code hsl()} và tên màu đều bị loại dù CSS hiểu cả ba.
+     *
+     * <p>Dạng 3 ký tự bị loại vì một lý do khác: ô nhập ở admin mô tả *"6 chữ số"*, và nhận thêm
+     * một dạng nghĩa là mọi bài kiểm hai phía phải nhớ hai dạng (quy tắc 14).
+     *
+     * <p>⚠ Đây là chốt chặn THỨ NHẤT, ⛔ phải chốt duy nhất — {@code mauThuongHieu.ts} lọc lại một
+     * lượt nữa lúc dựng trang. ⛔ phải thừa: một giá trị có thể vào bảng {@code settings} bằng
+     * đường khác (khôi phục sao lưu, nhập cấu hình), và cổng công khai ⛔ được tin bảng ấy vô điều
+     * kiện. Quy tắc 12 — đặt bảo đảm ở chỗ dữ liệu ĐI QUA.
+     */
+    private static void requireMaMau(String value) {
+        if (!MA_MAU.matcher(value).matches()) {
+            throw new ValidationException(ErrorCode.ADM_2006, "mã màu", "#rrggbb — ví dụ #1758bf");
         }
     }
 

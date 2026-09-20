@@ -128,7 +128,7 @@ const BAN_HONG = {
   /** Ô tìm kiếm của bản 31/08 — nay không còn ở tệp này, nhưng vị từ 1 vẫn phải bắt được nó. */
   form: 'w-full max-w-[288px] shrink-0',
   chu: [
-    'text-[10px] font-semibold leading-tight tracking-wide text-brand-gold sm:text-[13px]',
+    'text-[10px] font-semibold leading-tight tracking-wide text-brand-accent sm:text-[13px]',
     'mt-0.5 line-clamp-2 text-[13px] font-black leading-tight tracking-tight text-white drop-shadow-2xs sm:text-base md:text-lg',
   ],
 };
@@ -139,7 +139,7 @@ describe('Dải nhận diện đầu trang — bất biến sau khi ô tìm ki�
 
   const lopHang = cacLop.find((l) => l.includes('max-w-[1232px]'));
   const lopChu = cacLop.filter(
-    (l) => /text-brand-gold|text-white/.test(l) && l.includes('leading-tight'),
+    (l) => /text-brand-accent|text-white/.test(l) && l.includes('leading-tight'),
   );
 
   it('đọc được đúng các khối cần soi — chống xanh trên tập rỗng', () => {

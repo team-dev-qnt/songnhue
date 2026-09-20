@@ -7575,3 +7575,108 @@ Ba lượt cùng hình dạng, và lượt nào cũng mất vài ngày mới nh�
 `G10` (bố cục bản in) và `G6` (mẫu 2C-BNV) **thật sự chặn**, vì thứ đang chờ là một **bố cục** — tự
 chế nó là phát minh ra một tài liệu hành chính. `G3-a` (nguồn lượng mưa) chặn thật, vì thứ thiếu là
 một **nguồn dữ liệu**, ⛔ phải một ô nhập. Phép phân biệt là câu hỏi ở khung trên, ⛔ phải cảm giác.
+
+### §12.6 Đảo quyết định 28/08: màu nhận diện đổi được từ admin (T75.7, 20/9/2026)
+
+QuanTran 20/09: *"cần thêm một config cho phép thay đổi màu sắc trên public-web từ admin. Tôi nhớ
+đã từng thấy config này nhưng hiện tại không tìm được."*
+
+Trí nhớ ấy **đúng**, và lý do ⛔ tìm được là một quyết định có chủ ý của chính dự án.
+
+#### Cái đã bị gỡ, và lập luận lúc gỡ
+
+`site.color.primary` / `site.color.secondary` seed 19/08 (`V202608191020`), bị `V202608281037` gỡ
+ngày 28/08 cùng hai khoá `site.analytics.*`. Migration ấy nêu hai lý do, **cả hai đều đúng vào lúc
+viết**:
+
+1. **Quy tắc 15** — đo được **0 nơi đọc**. Quản trị viên đặt màu, hệ báo *lưu thành công*, cổng ⛔
+   đổi một pixel. Nó là nửa cặp đọc–ghi ở dạng kinh điển.
+2. **`ui-styles.md` §2.1** — *"mọi màu phải định nghĩa trong `design-tokens`"*. Một khoá `settings`
+   đổi màu lúc chạy là **nguồn thứ hai** cho cùng một giá trị (quy tắc 14), và *"nhận diện thương
+   hiệu đổi vài năm một lần; nó xứng đáng một lượt deploy, ⛔ xứng đáng một cơ chế song song tồn
+   tại vĩnh viễn để chờ"*.
+
+#### Vì sao lập luận (2) ⛔ còn đứng, và (1) thì vẫn đứng
+
+Lý do (2) đổi vì có **sự kiện mới**: Công ty gửi bộ nhận diện chính thức 20/09 — thứ mà **G13** chờ
+từ 19/08. Nghĩa là câu *"đổi vài năm một lần"* vừa được kiểm chứng theo chiều ngược: nó **đã đổi**,
+và lượt đổi ấy rơi đúng vào khoảng thời gian kho đang khẳng định là hiếm. Một cơ chế mà người dùng
+⛔ tự chạm được thì mỗi lượt đổi là một lượt deploy do phía phát triển xếp lịch — đúng thứ chốt
+`T60.12` đã bác bỏ ở ba mục khác (§12.5).
+
+⛔ **Lý do (1) thì ⛔ đổi một chữ nào, và nó là ràng buộc thiết kế của lượt này.** Dựng lại một khoá
+`settings` mà ⛔ có đường đọc là tái lập nguyên vẹn khuyết tật cũ — lần này còn tệ hơn, vì nay có
+một migration giải thích rất thuyết phục vì sao nó ⛔ nên tồn tại.
+
+#### Thiết kế — một giá trị, hai đường tới, ⛔ hai lời khai
+
+Điều làm quy tắc 14 **⛔ bị vi phạm** nằm ở chỗ giá trị dự phòng lấy từ chính token:
+
+```
+design-tokens/src/index.ts     brandColors.primary = '#1758bf'      ← NGUỒN DUY NHẤT
+        │
+        ├─► admin-app: hạt giống palette AntD (phải là hex THẬT)
+        │
+        └─► public-web/tailwind.config.ts
+                 primary: var(--sn-brand-primary, brandColors.primary)
+                                                  └──── chính token, ⛔ gõ lại ────┘
+                          ▲
+                          │ chỉ khi Công ty đặt giá trị
+            layout.tsx ──┘   :root{--sn-brand-primary:#…}
+                 ▲
+                 └── cssMauThuongHieu(getSiteConfig())   ← settings: site.brand.*
+```
+
+Khoá để trống ⇒ ⛔ có biến ⇒ trình duyệt rơi về token. **⛔ có trạng thái nào mà hai nơi nói hai
+điều** — đó là khác biệt với thiết kế 19/08, nơi khoá `settings` và token là hai lời khai độc lập.
+
+Bốn điểm còn lại đáng ghi:
+
+- **Núm chỉ mở cho HAI vai trò.** Trắng và đen của bộ nhận diện là nền trang và màu chữ; một ô nhập
+  cho phép đặt chữ trùng màu nền là cái bẫy ⛔ có gì chặn. Sắc dẫn xuất (hover, light, gradient)
+  cũng ⛔ có núm: suy chúng từ một màu người dùng vừa gõ là làm phép tính màu lúc chạy.
+- **`default_value` là chuỗi RỖNG** — T53.4: một tham số có mặc định khác rỗng thì trạng thái
+  *"Công ty chưa chọn"* trở nên ⛔ biểu diễn được.
+- **Chặn tiêm CSS ở `SettingValidator`, ⛔ ở service** (quy tắc 12). Giá trị này đi vào một khối
+  `<style>` của cổng công khai; `;` đóng khai báo và `}` đóng luật. `settings` có nhiều đường ghi
+  (màn hình cấu hình · nhập cấu hình · khôi phục sao lưu), nên kiểm ở `SiteConfigService` là bỏ
+  trống ba đường. Thêm `value_type = 'COLOR'` — lượt mở rộng thứ ba của `ck_settings_value_type`,
+  theo đúng khuôn `V202608211022` và `V202609161084`. `mauThuongHieu.ts` lọc **lần nữa** lúc dựng
+  trang: ⛔ thừa, vì cổng công khai ⛔ được tin bảng `settings` vô điều kiện.
+- **Tên khoá cố ý khác** (`site.brand.*`): `PortalSettingsReadTest` dùng chính `site.color.primary`
+  làm **dữ liệu gá** cho bài tự-kiểm *"khoá bị DELETE phải bị trừ"*; hồi sinh đúng tên ấy là phá một
+  fixture đang chạy. Và hợp đồng đã khác (kiểu `COLOR`, tiêm vào `<style>`, vai trò *accent*).
+
+#### Ba phép đo, mỗi phép bác một giả định rẻ tiền
+
+1. ⛔⛔ **Opacity modifier có sống sót qua `var()` ⛔** — `border-brand-primary/30` dùng ở 7 chỗ. Ở
+   Tailwind 3 (`<alpha-value>`) vế này **vỡ trong im lặng**: ⛔ lỗi build, ⛔ cảnh báo, chỉ mất viền.
+   Đo bằng cách chạy CHÍNH `@tailwindcss/postcss` của kho trên tệp gá ⇒ Tailwind 4 sinh
+   `color-mix(in oklab, var(…) 30%, transparent)` **kèm một dòng dự phòng** cho trình duyệt cũ.
+   ⇒ Chạy được — và kết luận ấy **phụ thuộc phiên bản chính**, nên có một bài ghim `tailwindcss ≥ 4`.
+2. **Bộ canh chống tái diễn có thật sự bắt ⛔** — xoá đường đọc ⇒ `PortalSettingsReadTest` đỏ và in
+   `[site.brand.accent, site.brand.primary]`. Đây là phép đo quan trọng nhất của cả lượt: nó chứng
+   minh khuyết tật 28/08 ⛔ quay lại được trong im lặng.
+3. **Bộ lọc chống tiêm có được GỌI ⛔** — khẳng định trên `laMaMauHopLe` ⛔ chứng minh hàm dựng chuỗi
+   có dùng nó; phép đo phải ở **đầu ra**. Gỡ bộ lọc ⇒ 3 bài đỏ, trong đó có bài đưa nguyên chuỗi
+   `#1758bf;}body{display:none` vào và đòi đầu ra ⛔ chứa `display`.
+
+#### Hai thứ bắt được trong lúc làm, ⛔ phải lúc rà
+
+- **Bộ canh của chính tôi suýt đỏ giả trên chú thích của chính tôi** — bài *"⛔ gõ lại mã hex trong
+  cấu hình"* quét cả tệp, mà javadoc của `doiDuocLucChay` trích một mã hex để giải thích *"Tailwind
+  nướng hex vào CSS lúc build"*. Lần thứ **năm** của hình dạng T46.7 · T54.8, và cách sửa rẻ nhất
+  (bỏ hex khỏi chú thích) là xoá bài học mà vẫn để bộ canh thủng ⇒ quét trên mã **đã bỏ chú thích**,
+  kèm bài tự-kiểm.
+- **`description` của migration là nơi THỨ BA khai giá trị mặc định.** Bản nháp viết *"Để trống =
+  dùng màu của bộ nhận diện (#1758bf)"* — mà migration đã phát hành thì ⛔ sửa được, nên câu ấy sẽ
+  nói dối vĩnh viễn kể từ lượt đổi nhận diện sau. ⇒ Bỏ vế khai giá trị, giữ vế **ví dụ định dạng**.
+  Hai thứ đó nghe giống nhau và chỉ một cái vi phạm quy tắc 14.
+
+⚠ **Và một cổng kiểm bắt tôi đúng lượt chạy đầu**: ESLint `react/no-danger` chặn
+`dangerouslySetInnerHTML` trong `layout.tsx`. Kho có **4** chỗ dùng cửa thoát ấy kèm dòng miễn trừ
+có lý do (nội dung HTML người soạn nhập, đã qua `HtmlSanitizer` lúc ghi). Chỗ này thì ⛔ cần: đầu ra
+là chuỗi do chính ta dựng, chỉ gồm `: { } - ; #` và chữ số ⇒ `<style>{css}</style>` cho ra byte y
+hệt. **Chọn cách ⛔ có cửa thoát** thì lượt rà sau ⛔ phải dừng lại đọc một dòng miễn trừ để biết nó
+an toàn ⛔. ⚠ Lượt `ci-local` ấy chết ở bước ESLint sau **32 dòng log** — backend chưa chạy dòng
+nào, đúng §10.74: *số job đỏ ⛔ phải số khuyết tật*.

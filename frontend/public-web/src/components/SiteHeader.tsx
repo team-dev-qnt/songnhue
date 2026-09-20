@@ -164,7 +164,7 @@ export async function SiteHeader() {
             />
             <div className="min-w-0">
               {coQuanChuQuan ? (
-                <div className="line-clamp-2 text-[11px] font-semibold leading-tight tracking-wide text-brand-gold sm:text-[13px]">
+                <div className="line-clamp-2 text-[11px] font-semibold leading-tight tracking-wide text-brand-accent sm:text-[13px]">
                   {coQuanChuQuan}
                 </div>
               ) : null}
