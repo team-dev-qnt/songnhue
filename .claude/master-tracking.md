@@ -2228,6 +2228,13 @@ sống trên đĩa mà tiến trình MCP vẫn chạy mã cũ*), chỉ đổi ch
 > admin-app + **447**/51 public-web · **88 migration** ⛔ thêm (H24 là **mã**, ⛔ phải dữ liệu) · mã lỗi **139**
 > (`ADM-2026`). Phép cộng khép kín: `2201` (đỉnh chồng WS-74c) + **4** bài `TruongPhoDonViHttpTest` = **2205**.
 >
+> ⭐⭐ **GỘP CẢ CHỒNG VÀO MỘT PR — QuanTran chốt 20/09**: *"merge toàn bộ PR vào cùng 1 PR 185, đóng các PR còn lại
+> và xoá nhánh, để chạy MỘT lượt CI trên `dev` thay vì lẻ tẻ"*. Nhánh này vốn là ĐỈNH chồng nên nó **đã chứa** trọn
+> 12 commit của WS-68 → WS-76 — đo trước khi đóng: `git merge-base --is-ancestor` cho **10/10** nhánh dưới ⇒ đóng
+> chúng ⛔ mất một dòng nào. Rebase lên `dev` `497b916` (sau **#184** trang Hướng dẫn sử dụng) **⛔ một xung đột**.
+> Số đo sau khi gộp (ở MÁY, `ci-local` **và** `ci-order` đều thoát 0, cùng bộ số): BE **2205** · **0 đỏ** ·
+> FE **630**/97 tệp admin-app + **447**/51 public-web (FE tăng vì nuốt cả bộ kiểm của #184) · **88 migration**.
+>
 > ⭐⭐ **Lượt đo này còn lật một dòng của chính WS-68**: ghi chú WS-68 khai *"B3 đã chốt 12/08 ⇒ vế (a) của
 > `T57.18` dựng được"*. Đúng về **nghiệp vụ**, sai về **thứ tự**: uỷ quyền duyệt giả định hệ biết **ai là người
 > duyệt của một đơn vị** — mà hôm nay ⛔ có khái niệm ấy (bất kỳ ai có `hr:leave:approve` và phạm vi phủ là
