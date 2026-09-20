@@ -11,6 +11,7 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -42,11 +43,22 @@ import org.junit.jupiter.api.Test;
  * <p>⇒ Bài này khẳng định <b>sự tách rời</b>, ⛔ không khẳng định hai con số. Nó là một cơ chế canh
  * gác cho một <i>quyết định thiết kế</i>, đúng hình dạng quy tắc 14.
  *
- * <h2>⚠ Phạm vi của chính bộ canh này (quy tắc 28)</h2>
+ * <h2>⚠ Phạm vi của chính bộ canh này (quy tắc 28) — HAI vế, HAI cách</h2>
  *
- * <p>Nó soi <b>ba</b> tệp có tên gọi đích danh dưới đây. Một nhịp làm mới thứ tư ra đời ở một tệp
- * khác ⛔ không được bài này thấy — nếu thêm màn hình realtime mới thì phải thêm tên tệp vào
- * {@link #TEP_NOI_BO}.
+ * <ul>
+ *   <li><b>Vế cổng công khai: phạm vi do bài ĐO</b> ({@link #trangCongDungNhip}). Mọi
+ *       {@code page.tsx} dưới {@code public-web/src/app} có dùng nhịp realtime đều tự vào tầm quét
+ *       ⇒ trang thứ tư ra đời ⛔ cần ai nhớ thêm tên.
+ *   <li><b>Vế nội bộ: vẫn là danh sách gõ tay</b> ({@link #TEP_NOI_BO}, 3 tệp). ⛔ đo được như vế
+ *       trên vì dấu hiệu ở đây là một <i>hằng số</i> chứ ⛔ phải một component — quét theo mẫu
+ *       {@code NHIP_*} sẽ lôi về mọi hằng thời gian của admin-app. Thêm màn hình realtime nội bộ
+ *       thì <b>phải</b> thêm tên tệp vào đó; đây là khoảng trống đã khai, ⛔ phải khoảng trống mù.
+ * </ul>
+ *
+ * <p>⚠ Bản trước liệt tay <b>hai</b> trang cổng trong khi kho có <b>ba</b>: {@code
+ * van-hanh-cong-trinh/page.tsx} nằm ngoài tầm quét kể từ ngày nó ra đời (T68.34). Nó tình cờ
+ * <i>đúng</i>, nên ⛔ có triệu chứng nào — đúng hình dạng <i>"cái xanh của một bộ canh hẹp đọc như
+ * lời bảo đảm cho phạm vi nó ⛔ soi"</i>.
  */
 class HaiNhipLamMoiTest {
 
@@ -74,6 +86,12 @@ class HaiNhipLamMoiTest {
     private static final Pattern HANG_SO_NHIP =
             Pattern.compile("const\\s+(NHIP_\\w+)\\s*=\\s*(\\d+)\\s*\\*\\s*60\\s*\\*\\s*1000");
 
+    /**
+     * Dấu hiệu một trang cổng <b>dùng</b> nhịp tự làm mới. Hai hình dạng vì component và prop có thể
+     * đổi tên rời nhau; bắt cả hai thì một lượt đổi tên ⛔ làm bộ canh mù trong im lặng.
+     */
+    private static final Pattern DUNG_NHIP_REALTIME = Pattern.compile("RealtimeFrame|refreshSeconds\\s*=");
+
     // === 1. Nhịp công khai đến từ `settings`, ⛔ không từ mã ===================
 
     @Test
@@ -92,22 +110,47 @@ class HaiNhipLamMoiTest {
     @Test
     @DisplayName("⭐ Cổng ĐỌC khoá ấy — ⛔ không ghi cứng một con số nào của riêng nó")
     void thePortalReadsThatKey() {
-        List<String> trang = List.of(
-                "frontend/public-web/src/app/page.tsx",
-                "frontend/public-web/src/app/quan-ly-van-hanh/muc-nuoc-luong-mua/page.tsx");
+        List<Path> trang = trangCongDungNhip();
 
-        assertThat(trang).as("⚠ vế chống tập rỗng (luật 7)").isNotEmpty();
+        // ⚠ Vế chống tập rỗng (luật 7 + 29). Con số 3 là số đo ngày 20/09/2026, ⛔ không phải một
+        //    ngưỡng thẩm mỹ: `page.tsx` · `muc-nuoc-luong-mua` · `van-hanh-cong-trinh`. Phép quét
+        //    chết (đổi tên `RealtimeFrame`, dời thư mục `app/`) làm vòng lặp dưới chạy 0 lần và cả
+        //    bài xanh trọn vẹn — đúng tình huống bộ canh sinh ra để bắt.
+        assertThat(trang)
+                .as("⛔ phép ĐO trả %d trang — nó đã mù. Sửa phép quét, ⛔ đừng hạ con số.", trang.size())
+                .hasSizeGreaterThanOrEqualTo(3);
 
-        for (String t : trang) {
-            assertThat(doc(t))
+        for (Path t : trang) {
+            assertThat(viPham(docTep(t)))
                     .as(
                             """
-                            ⛔ `%s` phải lấy nhịp từ khoá `%s`. Ghi cứng ở đây là dựng một nguồn sự thật \
-                            thứ hai cho một con số ĐÃ CAM KẾT — và ô nhập trên màn hình Cấu hình trở thành \
-                            một công tắc không nối đi đâu (luật 15).""",
+                            ⛔ `%s` dùng nhịp tự làm mới mà ⛔ đọc khoá `%s`. Ghi cứng ở đây là dựng một \
+                            nguồn sự thật thứ hai cho một con số ĐÃ CAM KẾT ở OI-09 — và ô nhập trên màn \
+                            hình Cấu hình trở thành một công tắc không nối đi đâu (luật 15).""",
                             t, KHOA_NHIP_CONG)
-                    .contains(KHOA_NHIP_CONG);
+                    .isFalse();
         }
+    }
+
+    /**
+     * ⭐ <b>Tự-kiểm-chứng</b> (luật 1 · T37.10): vị từ của luật trên phải <b>phân biệt được</b> ba
+     * trạng thái. Thiếu bài này thì {@link #viPham} hỏng đi là luật chính xanh trên mọi trang.
+     */
+    @Test
+    @DisplayName("⭐ Tự-kiểm: vị từ phân biệt được trang VI PHẠM · trang ĐÚNG · trang ⛔ liên quan")
+    void tuKiemViTu() {
+        String viPham = "<RealtimeFrame refreshSeconds={300}><BangMucNuoc /></RealtimeFrame>";
+        String dung =
+                "const n = docSo(config?.['" + KHOA_NHIP_CONG + "'], 300);\n" + "<RealtimeFrame refreshSeconds={n} />";
+        String khongLienQuan = "export default function Trang() { return <article>Giới thiệu</article>; }";
+
+        assertThat(viPham(viPham))
+                .as("trang dùng nhịp mà ⛔ đọc khoá ⇒ phải bị bắt")
+                .isTrue();
+        assertThat(viPham(dung)).as("trang đọc khoá ⇒ ⛔ được báo vi phạm").isFalse();
+        assertThat(viPham(khongLienQuan))
+                .as("trang ⛔ dùng nhịp ⇒ ⛔ thuộc phạm vi luật, ⛔ được báo vi phạm")
+                .isFalse();
     }
 
     // === 2. ⛔⛔ Nhịp nội bộ là HẰNG SỐ, và ⛔ KHÔNG được đọc khoá của cổng ======
@@ -163,6 +206,54 @@ class HaiNhipLamMoiTest {
     }
 
     // -------------------------------------------------------------------------
+
+    /**
+     * Vị từ của luật cổng: một trang <b>dùng</b> nhịp tự làm mới mà <b>⛔ đọc</b> khoá {@code settings}
+     * là vi phạm. Tách ra thành hàm để {@link #tuKiemViTu} kiểm chứng được nó — một luật chỉ chạy
+     * trên tệp thật ⛔ bao giờ chứng minh được là nó phân biệt được hai trạng thái (luật 9).
+     */
+    private static boolean viPham(String noiDung) {
+        return DUNG_NHIP_REALTIME.matcher(noiDung).find() && !noiDung.contains(KHOA_NHIP_CONG);
+    }
+
+    /**
+     * ⭐ Phạm vi do bài <b>ĐO</b>, ⛔ do ai gõ tay (luật 28).
+     *
+     * <p>Bản cũ liệt tay hai tệp, trong khi kho có <b>ba</b> — {@code van-hanh-cong-trinh/page.tsx}
+     * (T75) nằm ngoài tầm quét suốt từ ngày nó ra đời, và cái xanh của bộ canh đọc như một lời bảo
+     * đảm cho cả cổng. Nay trang realtime thứ tư ra đời là <b>tự</b> vào phạm vi.
+     */
+    private static List<Path> trangCongDungNhip() {
+        Path goc = timGoc("frontend/public-web/src/app");
+        try (Stream<Path> duyet = Files.walk(goc)) {
+            return duyet.filter(p -> p.getFileName().toString().equals("page.tsx"))
+                    .filter(p -> DUNG_NHIP_REALTIME.matcher(docTep(p)).find())
+                    .sorted()
+                    .toList();
+        } catch (IOException e) {
+            throw new IllegalStateException("⛔ không duyệt được " + goc, e);
+        }
+    }
+
+    private static String docTep(Path p) {
+        try {
+            return Files.readString(p, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new IllegalStateException("Không đọc được " + p, e);
+        }
+    }
+
+    private static Path timGoc(String duongDanTuongDoi) {
+        Path hienTai = Paths.get(System.getProperty("user.dir")).toAbsolutePath();
+        for (int i = 0; i < 6 && hienTai != null; i++) {
+            Path ungVien = hienTai.resolve(duongDanTuongDoi);
+            if (Files.exists(ungVien)) {
+                return ungVien;
+            }
+            hienTai = hienTai.getParent();
+        }
+        return fail("Không tìm thấy %s tính từ %s".formatted(duongDanTuongDoi, System.getProperty("user.dir")));
+    }
 
     private static String doc(String duongDanTuongDoi) {
         Path hienTai = Paths.get(System.getProperty("user.dir")).toAbsolutePath();

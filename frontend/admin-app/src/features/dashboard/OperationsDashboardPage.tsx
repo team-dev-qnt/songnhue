@@ -249,7 +249,7 @@ export function OperationsDashboardPage() {
 
         {!wall && (
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            Cập nhật lúc {formatDateTime(data?.generatedAt)} · tự làm mới mỗi{' '}
+            Số liệu tính lúc {formatDateTime(data?.generatedAt)} · tự làm mới mỗi{' '}
             {Math.round((data?.autoRefreshSeconds ?? 0) / 60)} phút (sửa ở Cấu hình hệ thống) ·{' '}
             <Link to="?mode=wall" style={{ color: statusColors.normal }}>
               mở chế độ màn hình lớn

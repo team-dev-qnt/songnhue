@@ -8310,3 +8310,67 @@ nên một quản lý ⛔ giữ chức vụ vẫn **thấy** đơn của đơn v
 vị. Cái họ ⛔ có là nút. Hệ quả còn lại (thư báo vẫn tới họ; màn hình chưa nói rõ ai phải bấm) là nợ
 **T80.7**, và nó **⛔ sửa được trong phạm vi bản này**: thu hẹp người nhận đòi `RecipientResolver`
 biết quan hệ lãnh đạo, tức một ca thứ **năm** ở `core` — đúng lý lẽ đã giữ `T57.15` mở suốt 6 ngày.
+
+### §12.18
+
+**Một dòng nợ sai ⛔ chỉ tốn một lượt điều tra — nó TRỎ LƯỢT SAU ĐI NHẦM HƯỚNG (WS-81, 20/9/2026)**
+
+Lượt mở đầu WS-81 đo lại **42 dòng nợ mà phía phát triển làm được** (trong 121 dòng mở của sổ) trên mã
+thật, ⛔ chép sổ. Kết quả: **14 dòng mang ít nhất một câu nay đã sai**, và **1 dòng đã xong từ 19/09 mà
+chưa ai tick**. Đây là lần thứ **mười một tới mười bốn** của hình dạng *"một dòng nợ tự nó sai"* — nó
+⛔ còn là sự cố lẻ mà là một **chế độ hỏng thường trực** của kho này.
+
+#### Vì sao nó đắt hơn vẻ ngoài
+
+Một dòng nợ sai ⛔ nằm im. Nó **chủ động điều hướng**:
+
+- `T74.16` khai *"`codesStartingWith` chạy qua bộ lọc phạm vi ⇒ sinh mã trùng"*. Đo ra câu SQL ấy là
+  `nativeQuery = true` **có chủ ý**, và javadoc ngay trên nó (T17.3) giải thích rằng nó được dựng ra
+  **vì chính** kịch bản dòng nợ mô tả. Một lượt vá tin dòng nợ sẽ bọc `toanCongTy` quanh một câu vốn
+  đã toàn Công ty — tức **làm javadoc nói dối** và để lại một lớp mã thừa mà lượt rà sau phải giải
+  thích lại. Dòng nợ suy từ *tên phương thức nằm ngoài tầm luật W2* ra *nó là nạn nhân của W2*; hai
+  chuyện khác nhau.
+- `T42.28` (ghi chú 19/09) nêu tên tệp `NhomMayBomImportService` — **⛔ tồn tại trong kho** — và bỏ sót
+  một module. Đi theo nó là mở một tệp ⛔ có rồi kết luận nợ đã hết.
+- `T68.29` sai **cả hai chiều**: 2 khoá bị kể là *"0 nơi đọc"* thật ra **có** nơi đọc (ghép khoá động
+  `"notification.channel.%s.enabled"`), còn một khoá chết thật (`security.password.max-age-days`) thì
+  **⛔ dòng sổ nào nhắc**. Hai chẩn đoán ấy dẫn tới hai cách vá khác hẳn nhau.
+
+#### Ba kết luận của lượt đo bị chính lượt đo sau BÁC
+
+Ghi lại vì nó quan trọng hơn kết quả: **một báo cáo rà là dữ liệu chưa kiểm, y hệt một dòng sổ.**
+
+1. *"`ClusterSelect:69` là bản sao thứ hai của câu sai"* — dòng ấy đã mang khối đính chính từ 09/09.
+   Cái sai **thật** nằm ở javadoc đầu tệp và nặng hơn: **một tệp mang hai câu ngược nhau**, lượt rà
+   sau đọc trúng câu nào thì tin câu ấy. ⇒ Sửa hành vi thì quét **cả tệp**, ⛔ chỉ chỗ vừa đụng.
+2. *"6 biểu mẫu GHI thiếu `ScopeGuard.requireWritableOrgUnit`"* — đo tiếp thì chỉ **8** entity toàn kho
+   `extends ScopedEntity`; `User` · `Contact` · `ConstructionCluster` · `OrgUnit` đều là `BaseEntity`
+   nên `ScopeGuard` **⛔ áp dụng được**, và chỗ thứ năm ghi `performerOrgUnitId` — một cột **DỮ LIỆU**
+   (*đơn vị thực hiện*) tách hẳn khỏi `orgUnitId` (*phạm vi*). ⇒ Luật **W1 xanh là ĐÚNG**, ⛔ phải khe
+   mù. Nếu tin báo cáo, lượt vá sẽ nhét `requireWritableOrgUnit` vào bốn đường ghi của entity ⛔ hề bị
+   lọc — một lớp bảo vệ **giả** đọc như một lớp bảo vệ thật.
+3. *"thêm `ERROR` vào `SCAN_STATUS` cho khớp `ScanStatus` của Java"* — hằng ấy có **đúng một** lượt
+   xuất hiện toàn kho: chính định nghĩa của nó. Kiểu TS anh em đã gỡ từ T28.47; bảng nhãn sống sót mà
+   ⛔ ai để ý. ⇒ Phải **GỠ** chứ ⛔ vá. Vá nó là **đánh bóng một hằng ⛔ ai đọc rồi ghi vào sổ rằng đã
+   trả một món nợ** — luật 15 ở dạng nguy hiểm nhất, vì nó làm con số nợ giảm mà thực trạng ⛔ đổi.
+
+#### Bánh cóc rút ra
+
+- **Vế trái của một bộ canh phải do bộ canh ĐO, ⛔ do ai gõ tay** (luật 28, lần thứ n). `HaiNhipLamMoiTest`
+  liệt tay **hai** trang cổng trong khi kho có **ba**; trang thứ ba tình cờ *đúng* nên ⛔ có triệu chứng
+  nào suốt từ ngày nó ra đời. Nay vế cổng quét mọi `page.tsx` mang `RealtimeFrame`/`refreshSeconds=`.
+  ⚠ Vế nội bộ **vẫn** gõ tay và javadoc khai thẳng **vì sao ⛔ đo được** (dấu hiệu là một hằng `NHIP_*`;
+  quét theo mẫu ấy sẽ lôi về mọi hằng thời gian của admin-app) — một khoảng trống **đã khai** ⛔ phải
+  một khoảng trống mù.
+- **Một union TypeScript là một lời khẳng định, ⛔ phải một phép đo.** `UserStatus` có bốn giá trị ở
+  Java và ở `ck_users_status`, union TS chỉ khai ba — lệch **38 ngày**, `tsc` xanh trọn vẹn, và hệ quả
+  là một tài khoản `DISABLED` in ra **chữ thô** qua nhánh dự phòng của `StatusBadge`. Thứ bắt được nó
+  ⛔ phải typecheck mà là một bộ canh **so ba tập bóc từ ba nguồn**.
+- **Số đo trong tài liệu là số đo CÓ HẠN DÙNG.** `T52.7` đi 39 (sổ gốc) → *"≥47"* (đo lại 19/09) →
+  **62** (đếm ngoặc cân bằng trên 91 tệp migration, 20/09). Javadoc của chính `EnumBaNoiTest` khai
+  *"mười ba enum"* trong khi bảng có **16**. ⇒ Mọi con số viết vào chú thích phải kèm **ngày đo** và
+  **phép đếm dùng lại được**, ⛔ phải một con số trần.
+- **Trần chỉ-được-giảm phải siết lại mỗi lượt dọn, ⛔ thì nó thôi là bánh cóc.** `T25.23` hạ 21 → 12
+  mà ⛔ đụng một dòng TypeScript nào — 4 giá trị trong `richTextEditor.css` trùng **khít** một token
+  đang có nên chỉ cần **GHIM**. Lượt dọn 18/09 bỏ sót vì đi tìm *chỗ nào thay được bằng biến* thay vì
+  hỏi *mã nào đã có token mang đúng giá trị*. ⚠ `#fff` phải viết đủ `#ffffff`: phép so là so **CHUỖI**.
