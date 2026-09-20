@@ -8172,3 +8172,33 @@ THẤY nó. Vị từ là vị từ của `ScopedEntity.ORG_UNIT_FILTER_CONDITIO
 `notify_permission`: `LEAVE_APPROVED`, `LEAVE_REJECTED`, `ARTICLE_APPROVED`…) đi vào nhánh G11 của
 `RecipientResolver` ⇒ **cộng Ban điều hành**. Hôm nay nhóm ấy rỗng nên ⛔ ai thấy; ngày H24 cấu hình nó, Ban
 điều hành nhận thư mỗi đơn nghỉ được duyệt của mọi người.
+
+### §12.11 Vế GHI của phạm vi đơn vị · trùng mã toàn Công ty (WS-74b, 20/9/2026)
+
+**Hiện tượng đo được.** Viết bài HTTP trước: tài khoản `hr:employee:create` đặt ở XN-A tạo hồ sơ vào XN-B ⇒
+**201**; tài khoản `ops:construction:create` / `hyd:station:manage` ở XN-A tạo công trình / điểm đo vào XN-B ⇒
+**201**, và chuyển bản ghi của mình sang XN-B ⇒ 200. Bộ lọc tầng 3 chỉ canh vế ĐỌC; nơi ghi đơn vị lấy từ biểu
+mẫu chỉ kiểm đơn vị TỒN TẠI. Quyền đi theo vai trò, phạm vi đi theo đơn vị của tài khoản — và `TECHNICIAN` (vai
+trò thường đặt ở Xí nghiệp) giữ đúng hai quyền ghi ấy, nên một lần chọn nhầm trong ô đơn vị là ghi vào dữ liệu
+của đơn vị khác, ⛔ dòng nhật ký bảo mật nào. Cùng lượt đo: trùng mã với bản ghi ngoài phạm vi trả `SYS-0005`
+*"Dữ liệu vừa được người khác thay đổi"* — phép kiểm trùng đi qua bộ lọc nên mã của đơn vị khác vô hình.
+
+**Quyết định.**
+
+- `ScopeGuard.requireWritableOrgUnit(donVi, Entity.class)` — cùng điều kiện với bộ lọc đọc (`path LIKE <phạm vi>
+  || '%'`), cùng nguồn phạm vi (`AuthContext`), ⛔ có người đăng nhập (job nền) thì ⛔ kiểm — đúng như bộ lọc.
+  Vi phạm ⇒ `AUTH-3002` + một dòng `ACCESS_DENIED_SCOPE` (`"thaoTac":"GHI"`). Câu tra đường dẫn chạy
+  `FlushModeType.COMMIT` để ⛔ đẩy thay đổi dở dang của entity xuống CSDL.
+- `ScopeGuard.toanCongTy(BooleanSupplier)` — tắt bộ lọc cho ĐÚNG một câu hỏi có/không rồi bật lại trong
+  `finally`. Chỉ nhận `BooleanSupplier` là có chủ đích: câu trả lời duy nhất lộ ra là *"mã này đã có người
+  dùng"*, đúng điều thông báo lỗi phải nói.
+- ⛔ Đặt kiểm tra ở entity listener (`@PrePersist/@PreUpdate` của `ScopedEntity` — *"chỗ dữ liệu đi qua"*, luật
+  12): phải tra đường dẫn đơn vị giữa lượt flush và ghi `security_events` từ bên trong flush — rủi ro cao hơn
+  giá trị. Thay vào đó là luật bytecode W1 (`GhiPhamViRuleTest`) ĐO mọi chỗ đặt đơn vị ở tầng application —
+  setter lẫn hàm dựng có tự đặt đơn vị — và buộc xếp loại: có kiểm, hoặc miễn kèm lý do (đơn vị SAO từ bản ghi
+  đã tra qua `ScopeGuard`: đơn nghỉ ← hồ sơ, bản ghi sửa chữa ← công trình, tình hình vận hành ← công trình).
+  Luật W2 buộc mọi `existsBy…Code…` trên kho của entity phạm vi đi qua `toanCongTy`.
+
+**⚠ Giới hạn — nói ra.** Đơn vị `null` (điểm đo chưa gán đơn vị) ⛔ bị kiểm. Ô chọn đơn vị trong biểu mẫu ghi
+vẫn bày cả cây (`/org-units/selectable`) — chọn đơn vị ngoài phạm vi nay nhận `AUTH-3002` thay vì lưu được;
+làm mờ các nút ấy là việc giao diện (T74.11).
