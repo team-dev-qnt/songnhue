@@ -15,6 +15,7 @@ import com.songnhue.core.common.exception.BusinessRuleException;
 import com.songnhue.core.common.exception.PermissionDeniedException;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
 import com.songnhue.core.common.exception.ValidationException;
+import com.songnhue.core.common.persistence.ScopedEntity;
 import com.songnhue.core.common.persistence.WorkflowAware;
 import com.songnhue.core.common.persistence.WorkflowReasonAware;
 import com.songnhue.core.common.security.AuthContext;
@@ -268,6 +269,19 @@ public class WorkflowEngine implements WorkflowPort {
                 ? List.of(entity.ownerUserId())
                 : List.<Long>of();
 
+        // ⭐⭐ T57.15 — bước chuyển báo cho một QUYỀN trên một bản ghi CÓ PHẠM VI ⇒ chỉ người có quyền mà phạm vi PHỦ
+        //   đơn vị của bản ghi, tức đúng người bộ lọc tầng 3 cho THẤY nó. Đơn vị lấy từ CỘT PHẠM VI
+        //   (`ScopedEntity`) — chính thứ bộ lọc dùng — ⛔ từ `WorkflowAware.orgUnitId()`: hàm ấy mặc định null,
+        //   `LeaveRequest` và `MaintenanceLog` ⛔ ghi đè nó (đo 20/09), và ghi đè nó sẽ CỘNG trưởng/phó đơn vị vào
+        //   mọi thư chỉ-báo-chủ-đơn qua nhánh G11. Đo 20/09 trên seed: rơi vào nhánh này là `LEAVE_ESCALATED`
+        //   (1 hàng) và `LEAVE_CANCELLED` (2 hàng); ba hàng `ARTICLE_SUBMITTED` của CMS ⛔ có phạm vi nên giữ luật cũ.
+        Long donViPhamVi = entity instanceof ScopedEntity coPhamVi ? coPhamVi.getOrgUnitId() : null;
+        String quyenNhan = transition.getNotifyPermission();
+        boolean trongPhamVi = donViPhamVi != null && quyenNhan != null && !quyenNhan.isBlank();
+        List<Long> donViLienQuan = trongPhamVi
+                ? List.of(donViPhamVi)
+                : entity.orgUnitId() == null ? List.of() : List.of(entity.orgUnitId());
+
         notifications.notify(new NotificationRequest(
                 transition.getNotifyEvent(),
                 title != null ? title : definition.getName() + " — " + transition.getLabel(),
@@ -277,9 +291,14 @@ public class WorkflowEngine implements WorkflowPort {
                 null,
                 definition.getEntityType(),
                 entity.entityId(),
-                entity.orgUnitId() == null ? List.of() : List.of(entity.orgUnitId()),
+                donViLienQuan,
                 owner,
-                transition.getNotifyPermission(),
-                List.of(NotificationChannel.IN_APP, NotificationChannel.EMAIL)));
+                quyenNhan,
+                List.of(NotificationChannel.IN_APP, NotificationChannel.EMAIL),
+                trongPhamVi,
+                // ⛔⛔ T74.7 — một bước chuyển quy trình biết CHÍNH XÁC ai cần biết (chủ bản ghi và/hoặc người
+                //   giữ quyền), nên nó ⛔ bao giờ là cảnh báo G11. Trước 20/09/2026 `RecipientResolver` SUY
+                //   ngược lại từ `notify_permission IS NULL` ⇒ 17 hàng `notify_owner` cộng cả Ban điều hành.
+                false));
     }
 }

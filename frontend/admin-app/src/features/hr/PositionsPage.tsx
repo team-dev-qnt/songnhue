@@ -216,7 +216,7 @@ export function PositionsPage() {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="Danh mục dùng chung toàn Công ty"
+        title="Danh mục dùng chung toàn Công ty"
         description={
           <>
             &quot;Trưởng phòng&quot; ở Xí nghiệp 1 và Xí nghiệp 2 là <b>cùng một</b> chức vụ — danh

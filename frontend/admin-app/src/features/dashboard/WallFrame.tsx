@@ -59,6 +59,14 @@ export function WallFrame({
       theme={{
         algorithm: theme.darkAlgorithm,
         token: {
+          // ⛔⛔ Hạt giống chữ PHẢI đặt lại ở đây — T67.8 (WS-67), đo 19/09/2026. Chủ đề chính
+          //    (`antdTheme.ts`) đặt `colorTextBase = #1f1f1f`, và ConfigProvider lồng THỪA KẾ hạt giống
+          //    ấy ⇒ thuật toán tối suy ra `colorTextDescription = rgba(31,31,31,.45)` — chữ tối trên nền
+          //    tối. Mọi `Typography type="secondary"` (nhãn cả 10 thẻ KPI) đọc token ấy nên vô hình.
+          //    Đặt `colorText`/`colorTextSecondary` riêng lẻ ⛔ đủ: token suy ra từ HẠT GIỐNG.
+          //    Bị che suốt vì chính khung wall trước đó ⛔ hiện ra được (T67.7).
+          colorTextBase: wallColors.textBase,
+          colorBgLayout: wallColors.bg,
           colorBgContainer: wallColors.surface,
           colorBgElevated: wallColors.surface,
           colorBorderSecondary: wallColors.border,
@@ -120,7 +128,12 @@ function WallHeader({
             fontWeight: mat ? 700 : 400,
           }}
         >
-          {mat ? 'Dữ liệu chưa cập nhật · ' : 'Cập nhật '}
+          {/* ⚠ T47.13 — "Số liệu tính lúc", ⛔ phải "Cập nhật lúc". `capNhatLuc` là `generatedAt`
+              của backend (`Instant.now()` lúc DỰNG báo cáo), ⛔ phải mốc của số liệu nguồn. Người
+              trực đọc "Cập nhật" thành *số liệu mới tới giờ này* — sai đúng ở ca nguy hiểm nhất:
+              poller chết mà dashboard vẫn tự làm mới thì dòng này vẫn nhảy. Vế `mat` giữ nguyên vì
+              nó nói về TRẠNG THÁI, ⛔ về mốc. */}
+          {mat ? 'Dữ liệu chưa cập nhật · ' : 'Số liệu tính lúc '}
           {formatDateTime(capNhatLuc)}
         </span>
       </div>

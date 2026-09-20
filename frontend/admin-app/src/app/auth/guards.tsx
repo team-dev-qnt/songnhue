@@ -78,7 +78,7 @@ function FullScreenSpinner() {
         minHeight: '100vh',
       }}
     >
-      <Spin size="large" tip="Đang khôi phục phiên làm việc…" />
+      <Spin size="large" description="Đang khôi phục phiên làm việc…" />
     </div>
   );
 }

@@ -298,7 +298,7 @@ export function GisLayersPage() {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="Chỉ nhận tệp GeoJSON (≤ 20MB)"
+        title="Chỉ nhận tệp GeoJSON (≤ 20MB)"
         description={
           <>
             Tệp <b>KML/KMZ</b> hiện chưa đọc được — hệ thống <b>từ chối ngay</b> thay vì nhận rồi để

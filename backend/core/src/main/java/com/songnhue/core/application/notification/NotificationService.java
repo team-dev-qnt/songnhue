@@ -76,8 +76,12 @@ public class NotificationService implements NotificationPort {
      */
     @Transactional
     public Notification notify(NotificationRequest request) {
-        List<Long> userIds =
-                resolver.resolve(request.relatedOrgUnitIds(), request.extraUserIds(), request.targetPermission());
+        List<Long> userIds = resolver.resolve(
+                request.relatedOrgUnitIds(),
+                request.extraUserIds(),
+                request.targetPermission(),
+                request.permissionScopedToUnits(),
+                request.nhomCanhBao());
         return dispatch(request, userIds, false);
     }
 
@@ -175,7 +179,9 @@ public class NotificationService implements NotificationPort {
                 request.relatedOrgUnitIds(),
                 request.extraUserIds(),
                 request.targetPermission(),
-                request.channels().stream().map(NotificationService::translate).toList());
+                request.channels().stream().map(NotificationService::translate).toList(),
+                request.permissionScopedToUnits(),
+                request.nhomCanhBao());
     }
 
     private static NotificationChannel translate(NotifyChannel channel) {

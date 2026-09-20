@@ -155,6 +155,11 @@ export const ERROR_CATALOG = {
     handling: 'caller',
     severity: 'warning',
   },
+  'AUTH-0010': {
+    message: 'Mật khẩu tạm đã hết hạn — nhờ quản trị viên đặt lại mật khẩu',
+    handling: 'caller',
+    severity: 'error',
+  },
   'AUTH-3001': {
     message: 'Không có quyền thực hiện thao tác này',
     handling: 'forbidden',
@@ -288,6 +293,13 @@ export const ERROR_CATALOG = {
     //   chối ở đây chính là một đoạn mã tấn công, và một thông báo lỗi là nơi nó ⛔ nên đi tiếp.
     message:
       'Địa chỉ liên kết không hợp lệ — chỉ nhận http://, https://, mailto:, tel:, /đường-dẫn hoặc #neo',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'CMS-2025': {
+    // T73.9 (ASVS 11.1.2) — vé biểu mẫu công khai. Chỉ cổng công khai gặp mã này; khai ở đây để ba nơi đếm khớp.
+    message:
+      'Biểu mẫu chưa sẵn sàng hoặc đã quá hạn — vui lòng đợi vài giây rồi gửi lại; nếu vẫn lỗi, hãy tải lại trang',
     handling: 'toast',
     severity: 'warning',
   },
@@ -430,6 +442,37 @@ export const ERROR_CATALOG = {
   },
   'OPS-2026': {
     message: 'Tệp không có đối tượng hình học nào',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  // ⛔ Báo cáo nhanh — câu chữ của backend mang Q / tên trạm / cặp cỡ lệch, `messageFor` ưu tiên nó.
+  'OPS-2027': {
+    message: 'Lưu lượng Q không thuộc cỡ máy nào — kiểm lại biên cỡ máy',
+    handling: 'toast',
+    severity: 'error',
+  },
+  'OPS-2028': {
+    message: 'Số máy vận hành vượt số máy thiết kế',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'OPS-2029': {
+    message: 'Kỳ báo cáo đã chốt — cần mở lại trước khi sửa',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'OPS-2030': {
+    message: 'Thời điểm "đến" phải sau thời điểm "từ"',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'OPS-2031': {
+    message: 'Biên cỡ máy không liền nhau',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'OPS-2032': {
+    message: 'Công trình không đúng loại mà vị trí này của mẫu báo cáo cần',
     handling: 'toast',
     severity: 'warning',
   },
@@ -610,6 +653,49 @@ export const ERROR_CATALOG = {
     severity: 'warning',
   },
 
+  // --- Thẩm quyền duyệt nghỉ phép (WS-80) -------------------------------------
+  // ⛔⛔ BỐN mã cho bốn lý do, ⛔ gộp về một câu "không có quyền". Việc người dùng phải làm khác
+  //    hẳn nhau: nhờ trưởng đơn vị · nhờ cấp trên · nhờ NGƯỜI KHÁC quyết cấp 2 · hoặc đây ⛔ phải
+  //    việc của mình. Gộp là để họ đi gõ cửa nhầm chỗ — cùng lý lẽ `OPS-2023` vs `HR-2009`.
+  'HR-2010': {
+    message: 'Bạn không phải người duyệt của đơn vị này',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'HR-2011': {
+    message: 'Không tự duyệt được đơn nghỉ của chính mình — đơn này do cấp trên quyết',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'HR-2012': {
+    message: 'Bạn đã duyệt ở cấp 1 — cấp 2 phải do người khác quyết',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'HR-2013': {
+    message: 'Chỉ người nộp đơn hoặc người duyệt mới rút/huỷ được đơn này',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  // ⚠ Hai mã dưới là `form`: người dùng sửa được NGAY TẠI CHỖ (chọn người khác). `HR-2016` thì
+  //   `toast` — nó nói rằng thao tác vừa rồi ⛔ phải việc của họ, ⛔ phải một ô điền sai.
+  'HR-2014': {
+    message:
+      'Người được uỷ quyền chưa có quyền duyệt nghỉ phép — đề nghị Quản trị nhân sự gán vai trò trước',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'HR-2015': {
+    message: 'Chỉ uỷ quyền được cho người cùng đơn vị hoặc đơn vị cấp trên',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'HR-2016': {
+    message: 'Chỉ trưởng hoặc phó đơn vị mới uỷ quyền duyệt được',
+    handling: 'toast',
+    severity: 'warning',
+  },
+
   // --- MOD-05 Quản trị --------------------------------------------------------
   'ADM-2001': {
     message: 'Kết xuất lưu trữ nhật ký thất bại — không xóa bản ghi nào',
@@ -670,7 +756,10 @@ export const ERROR_CATALOG = {
     severity: 'error',
   },
   'ADM-2013': {
-    message: 'Khôi phục thất bại — CSDL có thể đang dở dang, liên hệ quản trị hệ thống',
+    // ⛔ Câu cũ "CSDL có thể đang dở dang" đoán về phía phá huỷ (luật 37): lượt nạp chạy trong MỘT giao dịch
+    //   nên hỏng ở bước nạp thì CSDL giữ nguyên, còn hỏng ở phép kiểm quyền thì dữ liệu ĐÃ về (T68.3).
+    message:
+      'Khôi phục thất bại — đừng bấm lại ngay, liên hệ quản trị hệ thống để đọc nhật ký ứng dụng',
     handling: 'toast',
     severity: 'error',
   },
@@ -767,6 +856,14 @@ export const ERROR_CATALOG = {
     // quanh AUTH-0001 của lối tự đổi mật khẩu.
     message:
       'Không tự đặt lại mật khẩu của chính mình được — dùng chức năng Đổi mật khẩu, hoặc nhờ một tài khoản quản trị khác.',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'ADM-2026': {
+    // H24 — hai ô trưởng/phó đơn vị quyết định ai nhận cảnh báo ngưỡng (G11). Giá trị sai ở đây
+    // ⛔ hỏng màn hình nào; nó làm cảnh báo tới 0 người trong im lặng.
+    message:
+      'Người được chọn làm trưởng hoặc phó đơn vị phải là một tài khoản đang hoạt động, và trưởng không được trùng phó.',
     handling: 'toast',
     severity: 'warning',
   },

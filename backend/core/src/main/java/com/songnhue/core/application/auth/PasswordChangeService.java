@@ -86,6 +86,8 @@ public class PasswordChangeService {
         user.setPasswordHash(passwords.hash(newPassword));
         user.setPasswordChangedAt(now);
         user.setMustChangePassword(false);
+        // T73.8 — mật khẩu do CHÍNH người dùng đặt ⛔ mang hạn của mật khẩu tạm.
+        user.setTempPasswordExpiresAt(null);
         users.save(user);
 
         int revoked = refreshTokens.revokeAllSessions(user.getId(), SessionRevokeReason.PASSWORD_CHANGED, now);

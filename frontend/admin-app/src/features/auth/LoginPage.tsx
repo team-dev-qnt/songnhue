@@ -78,7 +78,7 @@ export function LoginPage() {
       title="Hệ thống Quản trị điều hành"
       subtitle="Công ty TNHH MTV Đầu tư Phát triển Thủy lợi Sông Nhuệ"
     >
-      {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
+      {error && <Alert type="error" showIcon title={error} style={{ marginBottom: 16 }} />}
 
       <Form<LoginForm>
         layout="vertical"

@@ -272,6 +272,133 @@ class AuthServiceLoginTest {
         }
     }
 
+    /**
+     * T61.17 (WS-72): chỉ lượt ĐÚNG mật khẩu được trả lại chỗ trong xô {@code LOGIN} theo IP.
+     *
+     * <p>Vế phân biệt nằm ở hai ca tài khoản bị khoá và bị vô hiệu hoá: cả hai gửi mật khẩu ĐÚNG mà vẫn ⛔ được
+     * trả. Dời lời gọi trả lại lên trước các phép kiểm tài khoản (chẳng hạn ngay sau khi tìm thấy người dùng) thì
+     * hai bài ấy đỏ, còn các ca sai mật khẩu vẫn xanh.
+     */
+    @Nested
+    @DisplayName("⛔⛔ T61.17 — xô LOGIN theo IP: chỉ lượt ĐÚNG mật khẩu được trả lại chỗ")
+    class TraLaiLuotDangNhap {
+
+        @Test
+        @DisplayName("Đúng mật khẩu, tài khoản thường ⇒ trả lại một lượt")
+        void dungMatKhauThiTraLai() {
+            User user = activeUser("nva", "MatKhauDung123");
+            when(users.findActiveByUsername("nva")).thenReturn(Optional.of(user));
+            when(totp.isRequiredFor(any())).thenReturn(false);
+            when(refreshTokens.openSession(eq(1L), eq(client), eq(now)))
+                    .thenReturn(new RefreshTokenService.IssuedRefreshToken(
+                            "raw-refresh", 1L, UUID.randomUUID(), UUID.randomUUID(), now.plusSeconds(3600)));
+
+            authService.login("nva", "MatKhauDung123", client, now);
+
+            verify(loginAttempts).hoanLuotDangNhapDung(client);
+        }
+
+        @Test
+        @DisplayName("Đúng mật khẩu, còn bước 2FA ⇒ vẫn trả lại (mã 2FA sai có bộ đếm riêng — T61.33)")
+        void dungMatKhauConBuocHaiVanTraLai() {
+            User user = activeUser("admin", "MatKhauDung123");
+            when(users.findActiveByUsername("admin")).thenReturn(Optional.of(user));
+            when(totp.isRequiredFor(any())).thenReturn(true);
+            when(totp.isEnrolled(1L)).thenReturn(true);
+
+            authService.login("admin", "MatKhauDung123", client, now);
+
+            verify(loginAttempts).hoanLuotDangNhapDung(client);
+        }
+
+        @Test
+        @DisplayName("Sai mật khẩu · tên ⛔ tồn tại ⇒ ⛔ trả lại")
+        void saiThiKhongTraLai() {
+            User user = activeUser("nva", "MatKhauDung123");
+            when(users.findActiveByUsername("nva")).thenReturn(Optional.of(user));
+            when(users.findActiveByUsername("khong-co")).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> authService.login("nva", "MatKhauSai123", client, now))
+                    .isInstanceOf(AuthenticationException.class);
+            assertThatThrownBy(() -> authService.login("khong-co", "MatKhauDung123", client, now))
+                    .isInstanceOf(AuthenticationException.class);
+
+            verify(loginAttempts, never()).hoanLuotDangNhapDung(any());
+        }
+
+        @Test
+        @DisplayName("⛔ Tài khoản đang KHOÁ hoặc bị VÔ HIỆU HOÁ gửi mật khẩu ĐÚNG ⇒ vẫn ⛔ trả lại")
+        void khoaHoacVoHieuThiKhongTraLai() {
+            User biKhoa = activeUser("nva", "MatKhauDung123");
+            biKhoa.setLockedUntil(now.plusSeconds(600));
+            User voHieu = activeUser("ttb", "MatKhauDung123");
+            voHieu.setStatus(UserStatus.DISABLED);
+            when(users.findActiveByUsername("nva")).thenReturn(Optional.of(biKhoa));
+            when(users.findActiveByUsername("ttb")).thenReturn(Optional.of(voHieu));
+
+            assertThatThrownBy(() -> authService.login("nva", "MatKhauDung123", client, now))
+                    .isInstanceOf(AuthenticationException.class);
+            assertThatThrownBy(() -> authService.login("ttb", "MatKhauDung123", client, now))
+                    .isInstanceOf(AuthenticationException.class);
+
+            verify(loginAttempts, never()).hoanLuotDangNhapDung(any());
+        }
+    }
+
+    /**
+     * T73.8 (ASVS 2.3.1) — mật khẩu tạm quá hạn. Thứ tự là thứ được canh: kiểm hạn SAU khi mật khẩu đúng, nên người
+     * đoán mật khẩu vẫn chỉ thấy AUTH-0001 — ⛔ học được rằng tài khoản đang giữ một mật khẩu tạm.
+     */
+    @Nested
+    @DisplayName("⛔ T73.8 — mật khẩu tạm quá hạn")
+    class MatKhauTamQuaHan {
+
+        @Test
+        @DisplayName("Đúng mật khẩu tạm đã quá hạn ⇒ AUTH-0010, ⛔ phát token")
+        void dungMatKhauQuaHanBiChan() {
+            User user = activeUser("nva", "MatKhauTam123");
+            user.setMustChangePassword(true);
+            user.setTempPasswordExpiresAt(now.minusSeconds(60));
+            when(users.findActiveByUsername("nva")).thenReturn(Optional.of(user));
+
+            assertThatThrownBy(() -> authService.login("nva", "MatKhauTam123", client, now))
+                    .isInstanceOf(AuthenticationException.class)
+                    .extracting(e -> ((AppException) e).errorCode())
+                    .isEqualTo(ErrorCode.AUTH_0010);
+            verify(refreshTokens, never()).openSession(any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("⛔ SAI mật khẩu trên tài khoản giữ mật khẩu tạm quá hạn ⇒ vẫn AUTH-0001 (⛔ lộ hạn cho người đoán)")
+        void saiMatKhauKhongLoHan() {
+            User user = activeUser("nva", "MatKhauTam123");
+            user.setMustChangePassword(true);
+            user.setTempPasswordExpiresAt(now.minusSeconds(60));
+            when(users.findActiveByUsername("nva")).thenReturn(Optional.of(user));
+
+            assertThatThrownBy(() -> authService.login("nva", "SaiRoi123", client, now))
+                    .isInstanceOf(AuthenticationException.class)
+                    .extracting(e -> ((AppException) e).errorCode())
+                    .isEqualTo(ErrorCode.AUTH_0001);
+        }
+
+        @Test
+        @DisplayName("Hạn NULL (bootstrap · bản ghi trước T73.8) ⇒ ⛔ bị chặn — ⛔ khoá ngược ai")
+        void hanNullKhongChan() {
+            User user = activeUser("nva", "MatKhauTam123");
+            user.setMustChangePassword(true);
+            user.setTempPasswordExpiresAt(null);
+            when(users.findActiveByUsername("nva")).thenReturn(Optional.of(user));
+            when(totp.isRequiredFor(any())).thenReturn(false);
+            when(refreshTokens.openSession(any(), any(), any()))
+                    .thenReturn(new RefreshTokenService.IssuedRefreshToken(
+                            "raw", 1L, UUID.randomUUID(), UUID.randomUUID(), now.plusSeconds(3600)));
+
+            assertThat(authService.login("nva", "MatKhauTam123", client, now).stage())
+                    .isEqualTo(AuthService.LoginOutcome.Stage.AUTHENTICATED);
+        }
+    }
+
     // -------------------------------------------------------------------------
 
     private User activeUser(String username, String rawPassword) {

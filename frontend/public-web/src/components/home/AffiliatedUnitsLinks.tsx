@@ -84,9 +84,9 @@ export function AffiliatedUnitsLinks({
                     logo riêng cho từng Xí nghiệp (chúng dùng chung nhận diện Công ty), nên đây
                     là một dấu hiệu vẽ bằng SVG chứ không phải một ô ảnh rỗng chờ tệp. */}
                 <div className="flex h-[90px] shrink-0 items-center gap-3 bg-gradient-to-br from-chrome-navy800 to-chrome-navy500 px-4">
-                  <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full border-2 border-brand-gold">
+                  <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full border-2 border-brand-accent">
                     <svg
-                      className="h-6 w-6 text-brand-gold"
+                      className="h-6 w-6 text-brand-accent"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -101,7 +101,7 @@ export function AffiliatedUnitsLinks({
                     </svg>
                   </span>
                   <span className="min-w-0">
-                    <span className="block text-[10px] font-bold tracking-wide text-brand-gold">
+                    <span className="block text-[10px] font-bold tracking-wide text-brand-accent">
                       Xí nghiệp trực thuộc
                     </span>
                     <span className="mt-0.5 block text-sm font-bold leading-tight text-white">

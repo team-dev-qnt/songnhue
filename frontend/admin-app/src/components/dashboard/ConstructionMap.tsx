@@ -290,7 +290,7 @@ export function ConstructionMap({
           type="info"
           showIcon
           style={{ marginBottom: 8 }}
-          message="Chưa công trình nào được số hoá toạ độ"
+          title="Chưa công trình nào được số hoá toạ độ"
           description="Bản đồ chỉ hiện công trình đã có kinh độ/vĩ độ. Số hồ sơ còn thiếu vị trí nằm ở ô KPI 'Chưa số hoá toạ độ'."
         />
       )}

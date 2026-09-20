@@ -28,6 +28,7 @@ import {
   type OrgUnitNode,
   type OrgUnitType,
   type UpdateOrgUnitRequest,
+  type UserView,
 } from '@/shared/api-types';
 import { ApiClientError, api } from '@/shared/apiClient';
 import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
@@ -256,7 +257,7 @@ export function OrgUnitsPage() {
           {!selected ? (
             <Empty description="Chọn một đơn vị trên cây" />
           ) : (
-            <Space direction="vertical" style={{ width: '100%' }}>
+            <Space orientation="vertical" style={{ width: '100%' }}>
               <Typography.Title level={5} style={{ marginBottom: 0 }}>
                 {selected.name}
               </Typography.Title>
@@ -275,7 +276,7 @@ export function OrgUnitsPage() {
                    công khai trống. Trước 28/08/2026 ba cột ấy ĐỌC ĐƯỢC MÀ KHÔNG GHI ĐƯỢC —
                    không biểu mẫu nào có ô nhập.
               */}
-              <Space direction="vertical" size={2} style={{ marginTop: 8 }}>
+              <Space orientation="vertical" size={2} style={{ marginTop: 8 }}>
                 <Typography.Text>
                   <Typography.Text type="secondary">Địa chỉ: </Typography.Text>
                   {selected.address ?? <Typography.Text type="warning">Chưa nhập</Typography.Text>}
@@ -450,6 +451,7 @@ function CreateOrgUnitModal({
           <OrgUnitTreeSelect />
         </Form.Item>
         <OTruongLienHe />
+        <OTruongPho />
       </Form>
     </Modal>
   );
@@ -462,6 +464,52 @@ function CreateOrgUnitModal({
  * vào một trong hai (quy tắc 14). Ba ô này đổ thẳng vào bảng 6 cột "Xí nghiệp trực thuộc" của cổng
  * công khai — CR-26.
  */
+function OTruongPho() {
+  // ⛔ Chỉ tài khoản ĐANG HOẠT ĐỘNG mới bày ra: máy chủ từ chối tài khoản khoá bằng `ADM-2026`
+  //    (`findActiveHeadAndDeputyUserIds` cũng lọc `status = 'ACTIVE'`), nên bày chúng ra chỉ dựng
+  //    một lựa chọn chắc chắn hỏng. Hai lớp cùng MỘT luật, ⛔ hai luật khác nhau.
+  const { data: taiKhoan } = useQuery({
+    queryKey: ['admin-users', 'chon-truong-pho'],
+    queryFn: () => api.get<UserView[]>('/admin/users'),
+  });
+  const chon = useMemo(
+    () =>
+      (taiKhoan ?? [])
+        .filter((u) => u.status === 'ACTIVE')
+        .map((u) => ({ value: u.publicId, label: `${u.fullName} (${u.username})` })),
+    [taiKhoan],
+  );
+
+  return (
+    <>
+      <Form.Item
+        name="headUserPublicId"
+        label="Trưởng đơn vị"
+        extra="Người này NHẬN cảnh báo vượt ngưỡng của điểm đo thuộc đơn vị (G11). Bỏ trống = chưa có."
+      >
+        <Select
+          allowClear
+          showSearch={{ optionFilterProp: 'label' }}
+          options={chon}
+          placeholder="Chọn tài khoản"
+        />
+      </Form.Item>
+      <Form.Item
+        name="deputyUserPublicId"
+        label="Phó đơn vị"
+        extra="Cũng nhận cảnh báo như trưởng đơn vị."
+      >
+        <Select
+          allowClear
+          showSearch={{ optionFilterProp: 'label' }}
+          options={chon}
+          placeholder="Chọn tài khoản"
+        />
+      </Form.Item>
+    </>
+  );
+}
+
 function OTruongLienHe() {
   return (
     <>
@@ -597,6 +645,10 @@ function BieuMauSuaDonVi({
       address: donVi.address ?? undefined,
       phone: donVi.phone ?? undefined,
       email: donVi.email ?? undefined,
+      // ⛔ Thiếu hai dòng này thì mỗi lượt sửa TÊN đơn vị là một lượt GỠ trưởng/phó, im lặng —
+      //    đúng cái bẫy mà khối chú thích của `OrgUnitNode` đã mô tả cho ba ô liên hệ.
+      headUserPublicId: donVi.headUserPublicId ?? undefined,
+      deputyUserPublicId: donVi.deputyUserPublicId ?? undefined,
     });
     // `khoa` là danh tính bản ghi; `donVi` là object dựng lại mỗi lượt render nên ⛔ đưa vào deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -625,6 +677,7 @@ function BieuMauSuaDonVi({
         />
       </Form.Item>
       <OTruongLienHe />
+      <OTruongPho />
     </Form>
   );
 }
@@ -673,11 +726,11 @@ function XacNhanGiaiThe({
       onCancel={onDong}
       destroyOnHidden
     >
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
         <Alert
           type="warning"
           showIcon
-          message="Thao tác này bị từ chối nếu đơn vị còn dữ liệu"
+          title="Thao tác này bị từ chối nếu đơn vị còn dữ liệu"
           description={
             <>
               Hệ thống sẽ kiểm hồ sơ cán bộ, công trình, nhật ký bảo trì, điểm đo, phiếu liên hệ và

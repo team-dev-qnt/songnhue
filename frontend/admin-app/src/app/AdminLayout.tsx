@@ -1,4 +1,10 @@
-import { BellOutlined, LogoutOutlined, MenuOutlined, UserOutlined } from '@ant-design/icons';
+import {
+  BellOutlined,
+  LogoutOutlined,
+  MenuOutlined,
+  QuestionCircleOutlined,
+  UserOutlined,
+} from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import {
   Alert,
@@ -12,8 +18,10 @@ import {
   Typography,
   type MenuProps,
 } from 'antd';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+
+import { Tooltip } from 'antd';
 
 import { useAuth } from '@/app/auth/useAuth';
 import { MENU, findMenuKey, visibleMenu, type MenuNode } from '@/app/menu';
@@ -117,6 +125,8 @@ export function AdminLayout() {
           />
 
           <Space size="middle">
+            <NutTroGiup duongDan={location.pathname} />
+
             <Link to="/hop-thu" aria-label="Hộp thư">
               <Badge count={unread.data?.unread ?? 0} size="small">
                 <BellOutlined style={{ fontSize: 18 }} />
@@ -155,7 +165,7 @@ export function AdminLayout() {
               showIcon
               banner
               style={{ marginBottom: 16, borderRadius: 8 }}
-              message="Hệ thống đang bảo trì"
+              title="Hệ thống đang bảo trì"
               description="Đang khôi phục dữ liệu — mọi thao tác thay đổi dữ liệu tạm thời bị chặn. Xem lại sau khi có thông báo hoàn tất."
             />
           )}
@@ -167,7 +177,7 @@ export function AdminLayout() {
                 showIcon
                 banner
                 style={{ marginBottom: 16, borderRadius: 8 }}
-                message={
+                title={
                   soChanCauHinh > 0
                     ? `Cấu hình hệ thống: ${soChanCauHinh} mục CHẶN${soCanhBaoCauHinh > 0 ? `, ${soCanhBaoCauHinh} mục cần chú ý` : ''}`
                     : `Cấu hình hệ thống: ${soCanhBaoCauHinh} mục cần chú ý`
@@ -214,4 +224,53 @@ function toAntdItem(node: MenuNode): AntdMenuItem {
     icon: node.icon,
     label: node.path ? <Link to={node.path}>{node.label}</Link> : node.label,
   };
+}
+
+/**
+ * Nút `?` — dẫn thẳng tới mục hướng dẫn của **màn hình đang mở**.
+ *
+ * <h3>⭐⭐ Một chỗ, phủ cả 51 màn hình</h3>
+ *
+ * Đặt ở khung chung thay vì gắn vào từng trang: 51 lượt sửa là 51 dịp quên, và màn hình bị quên
+ * luôn là màn hình ⛔ ai mở hằng ngày — đúng hình dạng luật 27 đã trả giá nhiều lần. Ở đây bảng
+ * tra **ĐO từ tài liệu**, nên màn hình mới có hướng dẫn là nút tự hoạt động.
+ *
+ * <h3>⛔⛔ Ẩn khi ⛔ tra ra mục, ⛔ dẫn bừa</h3>
+ *
+ * `phuManHinh.test.ts` làm CI đỏ khi một màn hình trong `MENU` ⛔ có mục hướng dẫn, nên về nguyên
+ * tắc nút luôn hiện. Nhưng với một đường dẫn ngoài `MENU` (trang 404, trang chi tiết lạ) thì tra
+ * ⛔ ra — và một nút dẫn tới **giữa tài liệu một cách ngẫu nhiên** tệ hơn hẳn ⛔ có nút: người
+ * dùng tin là mình vừa được đưa tới đúng chỗ rồi đọc nhầm hướng dẫn của màn hình khác (T23.8).
+ *
+ * <h3>⚠ `import()` động, ⛔ phải import tĩnh</h3>
+ *
+ * Bảng tra kéo theo tệp markdown **60 KB**. Khung này nạp ở **mọi** lượt tải trang, nên nhập tĩnh
+ * là bắt cả Công ty tải tài liệu hướng dẫn mỗi lần đăng nhập để phục vụ một cái nút (NFR-03).
+ */
+function NutTroGiup({ duongDan }: { duongDan: string }) {
+  const [neo, setNeo] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    let conSong = true;
+    void import('@/features/help/neoHuongDan').then((m) => {
+      // ⚠ Tránh đặt state sau khi component đã tháo: lượt chuyển trang nhanh hơn lượt tải bó mã.
+      if (conSong) {
+        setNeo(m.neoChoDuongDan(duongDan));
+      }
+    });
+    return () => {
+      conSong = false;
+    };
+  }, [duongDan]);
+
+  if (!neo) {
+    return null;
+  }
+  return (
+    <Tooltip title="Hướng dẫn sử dụng màn hình này">
+      <Link to={`/huong-dan#${neo}`} aria-label="Hướng dẫn sử dụng màn hình này">
+        <QuestionCircleOutlined style={{ fontSize: 18 }} />
+      </Link>
+    </Tooltip>
+  );
 }

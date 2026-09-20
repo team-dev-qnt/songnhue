@@ -80,6 +80,9 @@ public class AdminBootstrapRunner implements ApplicationRunner {
         // động. Vẫn khai tường minh: một chuỗi rỗng ở đây sẽ làm chi tiết lỗi vô nghĩa.
         passwords.validate(bootstrapPassword, BOOTSTRAP_USERNAME, "SEED_ADMIN_PASSWORD");
 
+        // ⛔ T73.8 — cố ý ⛔ đi qua `PasswordPolicyService.ganMatKhauTam`: mật khẩu bootstrap ⛔ có hạn. Hết hạn ở
+        //   đây là khoá chết tài khoản quản trị DUY NHẤT — ⛔ còn ai đặt lại được, và `BOOTSTRAP_ADMIN_PASSWORD`
+        //   chỉ kích hoạt được một lần.
         admin.setPasswordHash(passwords.hash(bootstrapPassword));
         admin.setPasswordChangedAt(Instant.now());
         admin.setMustChangePassword(true);

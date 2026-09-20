@@ -28,7 +28,6 @@ import com.songnhue.hydro.domain.Station;
 import com.songnhue.hydro.infra.HydroLatestRecomputer;
 import com.songnhue.hydro.infra.HydroTimeSeriesWriter;
 import com.songnhue.hydro.infra.MeasurementTypeRepository;
-import com.songnhue.hydro.infra.StationRepository;
 
 /**
  * Nhập tay số đo khi API gián đoạn — CN-03.2, T32.7.
@@ -62,7 +61,9 @@ public class SoDoNhapTayService {
 
     private static final Logger log = LoggerFactory.getLogger(SoDoNhapTayService.class);
 
-    private final StationRepository stations;
+    /** T73.1 — tra điểm đo qua {@link StationService#get}: một cửa, có {@code ScopeGuard} (403 + dấu vết). */
+    private final StationService stations;
+
     private final MeasurementTypeRepository loaiChiSo;
     private final HydroTimeSeriesWriter writer;
     private final HydroLatestRecomputer latest;
@@ -71,7 +72,7 @@ public class SoDoNhapTayService {
     private final PortalCachePort portalCache;
 
     public SoDoNhapTayService(
-            StationRepository stations,
+            StationService stations,
             MeasurementTypeRepository loaiChiSo,
             HydroTimeSeriesWriter writer,
             HydroLatestRecomputer latest,
@@ -94,8 +95,7 @@ public class SoDoNhapTayService {
      */
     @Transactional
     public long ghi(UUID diemDoPublicId, String maLoaiChiSo, Instant mocDo, BigDecimal giaTri, String ghiChu) {
-        Station diemDo = stations.findByPublicIdAndDeletedAtIsNull(diemDoPublicId)
-                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
+        Station diemDo = stations.get(diemDoPublicId);
         MeasurementType loai = loaiChiSo
                 .findByCodeAndDeletedAtIsNull(maLoaiChiSo)
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));

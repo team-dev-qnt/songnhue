@@ -47,7 +47,10 @@ class InboundSubmissionGateTest {
         when(settings.getInt(org.mockito.ArgumentMatchers.anyString(), anyInt()))
                 .thenAnswer(i -> i.getArgument(1));
         cong = new InboundSubmissionGate(
-                settings, mock(RecaptchaClient.class), loai -> java.util.Optional.ofNullable(khoa.get(loai)));
+                settings,
+                mock(RecaptchaClient.class),
+                loai -> java.util.Optional.ofNullable(khoa.get(loai)),
+                mock(com.songnhue.core.spi.VeBieuMauPort.class));
     }
 
     @Test

@@ -3,6 +3,11 @@
 **Ngày lập**: 09/09/2026 · **Đơn vị lập**: nhóm phát triển
 **Gửi**: Công ty TNHH MTV Đầu tư Phát triển Thủy lợi Sông Nhuệ
 
+> 🔄 **Cập nhật 19/09/2026** (thư giữ nguyên văn bản đã gửi): mục **1a `F01519`** đã chốt **Thượng lưu** (18/09) ·
+> **OI-05** (mục 2) có thêm danh sách Xí nghiệp thứ ba từ Báo cáo nhanh — vẫn mở, xem
+> `.claude/business-open-questions.md` Tóm tắt 2-a · **G10** (mục 4): đã nhận mẫu thật đầu tiên là *Báo cáo nhanh chống úng*
+> (không nằm trong 4 mẫu xin ở đây — 4 mẫu ấy vẫn chờ). Trạng thái sống: `business-open-questions.md`, ⛔ thư này.
+
 > Tài liệu này gộp **ba** đề nghị đang mở thành **một** đợt gửi, vì cả ba đều là *tệp mẫu và danh
 > mục* — Công ty trả lời một lần là đủ.
 >
@@ -45,7 +50,7 @@
 
 ### ⚠ Hai điểm cần Công ty xác nhận lại
 
-**a) `F01519` Lương Cổ — hai bản của Công ty ghi khác nhau**
+**a) `F01519` Lương Cổ — hai bản của Công ty ghi khác nhau** — ✅ *đã chốt 18/09/2026: Thượng lưu (`V202609181085`)*
 
 Bảng ánh xạ nhận trước đây ghi **Thượng lưu**; bảng đối chiếu ngày 09/09 ghi **Hạ lưu**. 18/19 dòng
 còn lại khớp tuyệt đối giữa hai bản, nên đây là **một dòng sai ở một trong hai bản**, không phải hai
@@ -118,6 +123,7 @@ vị**: `CTY` (Công ty). Danh mục công trình chia theo Xí nghiệp thì **
 Công ty chốt **7 hay 8 Xí nghiệp** và mã của từng đơn vị.
 
 > ⚠ Đây là mục `OI-05` đang mở từ 27/8: **Bố cục tổ chức ghi 7 Xí nghiệp, danh mục công trình ghi 8.**
+> 🔄 19/09: sheet `Trạm bơm` (Báo cáo nhanh) chia 7 nhóm theo huyện — danh sách thứ ba, vẫn phải chốt một.
 
 ---
 
@@ -139,7 +145,7 @@ CBNV, sơ đồ tổ chức, hợp đồng lao động hay nghỉ phép.
 > họ tên · ngày sinh · giới tính · **phòng ban / Xí nghiệp** · chức danh · ngày vào Công ty ·
 > loại hợp đồng + ngày hết hạn · trình độ
 
-> ⭐ **Đã có tệp mẫu gửi kèm**: `mau-danh-sach-cbnv.csv` — 12 cột, dòng 2 mô tả quy cách từng ô.
+> ⭐ **Tệp mẫu tải ngay trên phần mềm** (từ 20/09/2026): *Nhân sự → Hồ sơ CBNV → Nhập từ tệp → Tải tệp mẫu* — 16 cột, dòng 2 mô tả quy cách từng ô. Tệp tĩnh `mau-danh-sach-cbnv.csv` gửi trước đây đã bị thay thế: nó thiếu 4 cột và có hai giá trị hệ ⛔ nhận (*Thời vụ*, *Sau đại học*).
 > Mở thẳng bằng Excel là đúng dấu tiếng Việt; xoá dòng mô tả rồi điền từ dòng 2.
 
 🔒 **Xin gửi các trường nhạy cảm SAU và GỬI RIÊNG** — số CCCD, số BHXH, số tài khoản ngân hàng,

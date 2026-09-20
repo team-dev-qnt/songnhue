@@ -53,7 +53,7 @@ export function CauHinhHeThongPage() {
       <Alert
         type="error"
         showIcon
-        message={
+        title={
           tongQuan.error instanceof ApiClientError
             ? tongQuan.error.message
             : 'Không đọc được tình trạng cấu hình'
@@ -67,14 +67,14 @@ export function CauHinhHeThongPage() {
   const soCanhBao = tongQuan.data?.soCanhBao ?? 0;
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       <Card title="Tình trạng cấu hình" loading={tongQuan.isLoading}>
         {soChan > 0 && (
           <Alert
             type="error"
             showIcon
             style={{ marginBottom: 12 }}
-            message={`${soChan} mục CHẶN cần xử lý`}
+            title={`${soChan} mục CHẶN cần xử lý`}
             description="Thiếu hoặc sai ở những mục này là đang mất dữ liệu, mất chuông cảnh báo hoặc mở lỗ bảo mật."
           />
         )}
@@ -83,7 +83,7 @@ export function CauHinhHeThongPage() {
             type="warning"
             showIcon
             style={{ marginBottom: 12 }}
-            message={`${soCanhBao} mục cần chú ý`}
+            title={`${soCanhBao} mục cần chú ý`}
           />
         )}
         {soChan === 0 && soCanhBao === 0 && !tongQuan.isLoading && (
@@ -91,7 +91,7 @@ export function CauHinhHeThongPage() {
             type="success"
             showIcon
             style={{ marginBottom: 12 }}
-            message="Không mục nào đang thiếu — các mục 'Ngoài tầm nhìn' vẫn phải tự kiểm theo ghi chú"
+            title="Không mục nào đang thiếu — các mục 'Ngoài tầm nhìn' vẫn phải tự kiểm theo ghi chú"
           />
         )}
         <Typography.Paragraph type="secondary">
@@ -128,7 +128,7 @@ const COT_MUC: ColumnsType<MucCauHinhView> = [
     dataIndex: 'ten',
     width: 260,
     render: (ten: string, row) => (
-      <Space direction="vertical" size={0}>
+      <Space orientation="vertical" size={0}>
         <Typography.Text strong>{ten}</Typography.Text>
         <Typography.Text type="secondary" style={{ fontSize: 12 }}>
           {row.nguoiDoc}
@@ -229,7 +229,7 @@ function BangBiMat({ coQuyenGhi }: { coQuyenGhi: boolean }) {
       dataIndex: 'ten',
       width: 280,
       render: (ten: string, row) => (
-        <Space direction="vertical" size={0}>
+        <Space orientation="vertical" size={0}>
           <Typography.Text strong>{ten}</Typography.Text>
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             {row.moTa}
@@ -247,7 +247,7 @@ function BangBiMat({ coQuyenGhi }: { coQuyenGhi: boolean }) {
         }
         if (row.nguon === 'GIAO_DIEN') {
           return (
-            <Space direction="vertical" size={0}>
+            <Space orientation="vertical" size={0}>
               <Tag color="success">Đặt trên giao diện</Tag>
               {row.capNhatLuc && (
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>

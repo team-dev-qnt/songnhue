@@ -40,7 +40,9 @@ public final class OrgUnitDtos {
             UUID parentPublicId,
             @Size(max = 500) String address,
             @Size(max = 30) String phone,
-            @Email @Size(max = 255) String email) {}
+            @Email @Size(max = 255) String email,
+            UUID headUserPublicId,
+            UUID deputyUserPublicId) {}
 
     public record UpdateRequest(
             @NotBlank @Size(max = 255) String name,
@@ -48,7 +50,17 @@ public final class OrgUnitDtos {
             @NotNull OrgUnitType unitType,
             @Size(max = 500) String address,
             @Size(max = 30) String phone,
-            @Email @Size(max = 255) String email) {}
+            @Email @Size(max = 255) String email,
+            /**
+             * Trưởng / phó đơn vị — <b>H24</b>. {@code null} = gỡ chức danh, và <i>chưa có</i> phải
+             * phân biệt được với <i>đã chọn</i> (quy tắc 16).
+             *
+             * <p>⛔ Hai ô này ⛔ phải thông tin hiển thị: chúng là nguồn người nhận <b>cảnh báo vượt
+             * ngưỡng</b> của G11. Trước 20/09/2026 hai cột ấy ⛔ có đường ghi nào, nên nhánh người
+             * nhận ấy trả tập rỗng vĩnh viễn.
+             */
+            UUID headUserPublicId,
+            UUID deputyUserPublicId) {}
 
     public record MoveRequest(@NotNull UUID newParentPublicId) {}
 
@@ -67,9 +79,11 @@ public final class OrgUnitDtos {
             boolean active,
             String address,
             String phone,
-            String email) {
+            String email,
+            UUID headUserPublicId,
+            UUID deputyUserPublicId) {
 
-        public static OrgUnitSummary of(OrgUnit unit) {
+        public static OrgUnitSummary of(OrgUnit unit, UUID headUserPublicId, UUID deputyUserPublicId) {
             return new OrgUnitSummary(
                     unit.getPublicId(),
                     unit.getCode(),
@@ -81,7 +95,9 @@ public final class OrgUnitDtos {
                     unit.isActive(),
                     unit.getAddress(),
                     unit.getPhone(),
-                    unit.getEmail());
+                    unit.getEmail(),
+                    headUserPublicId,
+                    deputyUserPublicId);
         }
     }
 }

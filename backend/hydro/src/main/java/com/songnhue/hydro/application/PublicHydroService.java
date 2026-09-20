@@ -163,9 +163,13 @@ public class PublicHydroService {
         };
     }
 
-    /** Lý do cột lượng mưa trống — một chỗ khai, để cổng và báo cáo nói cùng một câu. */
-    static final String LY_DO_LUONG_MUA =
-            "Chưa có nguồn lượng mưa: loại chỉ số đã khai nhưng chưa gắn cho điểm đo nào (mục G3-a)";
+    /**
+     * Lý do cột lượng mưa trống — một chỗ khai, để cổng và báo cáo nói cùng một câu.
+     *
+     * <p>Nguồn nay ở {@link com.songnhue.core.spi.HydroSnapshotPort#LY_DO_LUONG_MUA} (18/09/2026):
+     * Bảng 4 của Báo cáo nhanh ({@code operations}) cũng phải nói đúng câu này.
+     */
+    static final String LY_DO_LUONG_MUA = com.songnhue.core.spi.HydroSnapshotPort.LY_DO_LUONG_MUA;
 
     private static final String CHUA_PHAN_TUYEN = "Chưa phân tuyến";
 

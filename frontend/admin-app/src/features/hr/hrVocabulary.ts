@@ -644,6 +644,16 @@ export interface DonNghiView {
   /** Đơn do **người khác nộp hộ** — chốt C3; giao diện hiện nhãn. */
   noHo: boolean;
   decidedAt: string | null;
+  /**
+   * Tôi có bấm được nút Duyệt trên đơn này ⛔ — T80.7.
+   *
+   * ⚠⚠ **BA trạng thái, và `undefined` ⛔ phải `false`**: `true` = bấm được · `false` = **thấy mà
+   * ⛔ bấm được** (⛔ giữ chức vụ ở đơn vị ấy, ⛔ được uỷ quyền) · `undefined` = *endpoint này ⛔
+   * trả lời câu ấy* (danh sách đơn của chính mình). Đọc `undefined` thành `false` là hiện
+   * *"⛔ duyệt được"* trên chính đơn của mình — một câu đúng mà vô duyên, và nó làm lượt rà sau
+   * tưởng cờ đã được tính ở mọi nơi.
+   */
+  toiDuyetDuoc?: boolean;
 }
 
 export interface DonNghiTrangView {
@@ -690,3 +700,31 @@ export interface XemTruocDonView {
 
 /** Số ngày lễ Điều 112 BLLĐ 2019 — khớp `DemNgayCongService.SO_NGAY_LE_THEO_LUAT`. */
 export const SO_NGAY_LE_THEO_LUAT = 11;
+
+/**
+ * Một lượt uỷ quyền duyệt nghỉ phép — chốt B3 (WS-80).
+ *
+ * ⛔⛔ `daThuHoi` và `dangHieuLuc` là HAI trạng thái, ⛔ phải một. Một bản *đã hết hạn* và một bản
+ * *đã bị thu hồi* đều cho `dangHieuLuc = false`, nhưng chúng kể hai câu chuyện khác nhau trên lịch
+ * sử duyệt: một cái chạy hết thời hạn của nó, một cái bị rút giữa chừng. Gộp chúng lại là xoá đúng
+ * phần mà một lượt rà soát đi tìm.
+ */
+export interface UyQuyenDuyetView {
+  publicId: string;
+  orgUnitPublicId: string | null;
+  nguoiUyQuyenPublicId: string | null;
+  nguoiDuocUyQuyenPublicId: string | null;
+  tuNgay: string;
+  denNgay: string;
+  lyDo: string | null;
+  daThuHoi: boolean;
+  dangHieuLuc: boolean;
+}
+
+export interface GiaoUyQuyenRequest {
+  orgUnitPublicId: string;
+  nguoiDuocUyQuyenPublicId: string;
+  tuNgay: string;
+  denNgay: string;
+  lyDo?: string;
+}

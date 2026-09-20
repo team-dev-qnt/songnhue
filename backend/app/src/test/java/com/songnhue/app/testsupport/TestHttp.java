@@ -1,7 +1,10 @@
 package com.songnhue.app.testsupport;
 
 import java.net.http.HttpClient;
+import java.time.Duration;
+import java.time.Instant;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
@@ -11,6 +14,8 @@ import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.ResponseErrorHandler;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.DefaultUriBuilderFactory;
+
+import com.songnhue.core.application.auth.VeBieuMauService;
 
 /**
  * Client HTTP cho bài kiểm tích hợp — <b>bản thay thế {@code TestRestTemplate}</b> (T11.69).
@@ -46,9 +51,17 @@ public class TestHttp {
 
     private final Environment environment;
     private final RestTemplate template;
+    private final ObjectProvider<VeBieuMauService> veBieuMau;
 
-    public TestHttp(Environment environment) {
+    /**
+     * Tuổi của vé do {@link #veDaChin()} phát — vượt TRẦN của {@code security.form.min-fill-seconds} (60) để bài kiểm
+     * ⛔ phụ thuộc giá trị đang đặt, và còn xa hạn 24 giờ.
+     */
+    private static final Duration TUOI_VE_DA_CHIN = Duration.ofSeconds(90);
+
+    public TestHttp(Environment environment, ObjectProvider<VeBieuMauService> veBieuMau) {
         this.environment = environment;
+        this.veBieuMau = veBieuMau;
         this.template = new RestTemplate(new JdkClientHttpRequestFactory(KHACH_HTTP));
         this.template.setErrorHandler(KHONG_NEM);
     }
@@ -65,6 +78,14 @@ public class TestHttp {
         }
         template.setUriTemplateHandler(new DefaultUriBuilderFactory("http://localhost:" + cong));
         return template;
+    }
+
+    /**
+     * Một vé biểu mẫu THẬT, đã đủ tuổi, do chính máy chủ ký — T73.9. Mốc lùi 90 giây nên bài kiểm ⛔ phải ngủ; chữ ký
+     * vẫn là của khoá máy chủ, nên đây ⛔ phải một đường tắt qua cơ chế.
+     */
+    public String veDaChin() {
+        return veBieuMau.getObject().phat(Instant.now().minus(TUOI_VE_DA_CHIN));
     }
 
     public <T> ResponseEntity<T> getForEntity(String duongDan, Class<T> kieu, Object... thamSo) {

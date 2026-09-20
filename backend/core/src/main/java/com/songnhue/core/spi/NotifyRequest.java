@@ -13,6 +13,13 @@ import java.util.List;
  * @param targetPermission gửi cho mọi tài khoản đang hoạt động có quyền này. Khai giá trị ở đây thì
  *     nhóm "Ban điều hành" <b>không</b> được cộng thêm — xem {@link #targeted}
  * @param channels kênh muốn dùng; kênh đang tắt theo cấu hình sẽ bị bỏ qua
+ * @param permissionScopedToUnits {@code true} ⇒ chỉ người có {@code targetPermission} mà PHẠM VI DỮ LIỆU phủ một
+ *     trong {@code relatedOrgUnitIds} — xem {@link #targetedInUnitScope}
+ * @param nhomCanhBao {@code true} ⇒ áp luật G11 (nhóm "Ban điều hành" ∪ trưởng/phó đơn vị liên quan).
+ *     ⛔⛔ <b>Chỉ {@link #alert} khai {@code true}</b> — T74.7, 20/09/2026. Trước lượt vá ấy
+ *     {@code RecipientResolver} <b>suy</b> cờ này từ {@code targetPermission == null}, nên MỌI lượt gửi
+ *     ⛔ nhắm đích — kể cả thư <i>"tài khoản của bạn đã bị khoá"</i> và 17 hàng {@code notify_owner} của
+ *     quy trình duyệt — đều cộng thêm cả ban lãnh đạo. Chính sách người nhận phải được <b>KHAI RA</b>
  */
 public record NotifyRequest(
         String eventType,
@@ -25,7 +32,9 @@ public record NotifyRequest(
         List<Long> relatedOrgUnitIds,
         List<Long> extraUserIds,
         String targetPermission,
-        List<NotifyChannel> channels) {
+        List<NotifyChannel> channels,
+        boolean permissionScopedToUnits,
+        boolean nhomCanhBao) {
 
     /** Dạng hay dùng nhất: cảnh báo nghiệp vụ, gửi cả trên giao diện lẫn email. */
     public static NotifyRequest alert(
@@ -41,7 +50,10 @@ public record NotifyRequest(
                 orgUnitIds,
                 List.of(),
                 null,
-                List.of(NotifyChannel.IN_APP, NotifyChannel.EMAIL));
+                List.of(NotifyChannel.IN_APP, NotifyChannel.EMAIL),
+                false,
+                // ⭐ G11 — factory DUY NHẤT khai true. Xem @param nhomCanhBao ở đầu record (T74.7).
+                true);
     }
 
     /**
@@ -69,7 +81,50 @@ public record NotifyRequest(
                 List.of(),
                 extraUserIds == null ? List.of() : extraUserIds,
                 permission,
-                List.of(NotifyChannel.IN_APP, NotifyChannel.EMAIL));
+                List.of(NotifyChannel.IN_APP, NotifyChannel.EMAIL),
+                false,
+                false);
+    }
+
+    /**
+     * Gửi cho <b>ĐÚNG những người này</b>, ⛔ suy thêm ai — T80.7.
+     *
+     * <h3>Vì sao cần một factory thứ NĂM thay vì truyền {@code null} vào {@link #targeted}</h3>
+     *
+     * <p>{@code targeted(…, null, ids)} cho ra cùng kết quả, nhưng ở nơi gọi nó đọc như <i>"quên điền
+     * quyền"</i> chứ ⛔ như một <b>quyết định</b>. Đây đúng chỗ đã trả giá: `RecipientResolver` từng
+     * SUY chính sách người nhận từ chỗ {@code targetPermission} có {@code null} ⛔, và sáu mã sự kiện
+     * an ninh cá nhân lặng lẽ đi tới cả ban lãnh đạo suốt nhiều tuần (T74.7). Một hằng số phải đọc
+     * được thành một câu.
+     *
+     * <h3>Khi nào dùng</h3>
+     *
+     * <p>Khi nơi gọi <b>tự tính được</b> tập người nhận bằng một luật mà {@code core} ⛔ biểu diễn
+     * nổi. Ca đầu tiên: người duyệt được một đơn nghỉ = trưởng/phó chuỗi đơn vị ∪ người đang được
+     * <b>uỷ quyền</b> — mà {@code UyQuyenDuyetPhep} sống ở {@code hr}, nơi {@code core} ⛔ được import
+     * (quy tắc 6). Nhắm theo quyền ở đây sẽ <b>bỏ sót đúng người được uỷ quyền</b>.
+     *
+     * <p>⚠ Danh sách rỗng ⇒ ⛔ ai nhận, và {@code RecipientResolver} ghi một dòng cảnh báo. Đó là
+     * hành vi ĐÚNG: nơi gọi khai <i>"đúng những người này"</i> thì một tập rỗng là một câu trả lời,
+     * ⛔ phải một chỗ để hệ thống tự đoán bù vào.
+     */
+    public static NotifyRequest chiNhungNguoiNay(
+            String eventType, String title, String body, NotifySeverity severity, List<Long> userIds) {
+        return new NotifyRequest(
+                eventType,
+                title,
+                body,
+                severity,
+                null,
+                null,
+                null,
+                List.of(),
+                userIds == null ? List.of() : userIds,
+                null,
+                List.of(NotifyChannel.IN_APP, NotifyChannel.EMAIL),
+                false,
+                // ⛔ G11: nơi gọi đã nêu ĐÍCH DANH, nên cộng thêm nhóm cảnh báo là phá đúng điều nó khai.
+                false);
     }
 
     /**
@@ -107,6 +162,49 @@ public record NotifyRequest(
                 orgUnitIds == null ? List.of() : orgUnitIds,
                 extraUserIds == null ? List.of() : extraUserIds,
                 permission,
-                List.of(NotifyChannel.IN_APP, NotifyChannel.EMAIL));
+                List.of(NotifyChannel.IN_APP, NotifyChannel.EMAIL),
+                false,
+                false);
+    }
+
+    /**
+     * Nhắm đích theo quyền <b>trong phạm vi đơn vị</b> — T57.15: người nhận là người có {@code permission}
+     * <b>và</b> phạm vi dữ liệu (đơn vị của tài khoản) PHỦ một trong {@code orgUnitIds}, tức đúng người bộ lọc
+     * phạm vi tầng 3 cho THẤY bản ghi.
+     *
+     * <h3>Vì sao ⛔ dùng {@link #targetedWithUnits}</h3>
+     *
+     * {@code targetedWithUnits} lấy <b>mọi</b> người có quyền trên toàn Công ty rồi <b>cộng</b> trưởng/phó đơn
+     * vị — với đơn nghỉ phép, quản lý của MỌI Xí nghiệp nhận thư về đơn họ ⛔ duyệt được (seed cấp
+     * {@code hr:leave:approve} cho 4/12 vai trò). Nhận thư về việc mình ⛔ làm được là cách một hộp thư học
+     * được thói quen bỏ qua cảnh báo (§10.76).
+     *
+     * <p>⚠ Trưởng/phó ⛔ được cộng riêng: họ có quyền và phạm vi thì đã nằm trong tập; ⛔ có thì nhận thư về
+     * một việc họ ⛔ làm được.
+     *
+     * @param orgUnitIds đơn vị của bản ghi; rỗng ⇒ ⛔ ai trong nhóm suy ra (chỉ còn người nêu đích danh)
+     */
+    public static NotifyRequest targetedInUnitScope(
+            String eventType,
+            String title,
+            String body,
+            NotifySeverity severity,
+            String permission,
+            List<Long> orgUnitIds,
+            List<Long> extraUserIds) {
+        return new NotifyRequest(
+                eventType,
+                title,
+                body,
+                severity,
+                null,
+                null,
+                null,
+                orgUnitIds == null ? List.of() : orgUnitIds,
+                extraUserIds == null ? List.of() : extraUserIds,
+                permission,
+                List.of(NotifyChannel.IN_APP, NotifyChannel.EMAIL),
+                true,
+                false);
     }
 }

@@ -8,7 +8,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -87,7 +86,11 @@ public class ConstructionImportService {
             new CotMau("kinh_do", false, "Kinh độ WGS-84 — phải có ĐỦ CẢ HAI hoặc bỏ trống cả hai"),
             new CotMau("tuyen_song", false, "Ví dụ: Sông Nhuệ"),
             new CotMau("ly_trinh", false, "Dạng K<km>+<m>, ví dụ K43+750"),
-            new CotMau("luu_vuc", false, "Tên lưu vực"),
+            // ⚠ T75.2 — giữ NGUYÊN khoá `luu_vuc`: Công ty có thể đang giữ tệp đã điền theo tên cũ,
+            //    và đổi khoá là đẩy mọi tệp ấy vào nhánh "cột lạ". Thứ đổi là phần MÔ TẢ — nó in ra
+            //    tệp mẫu, và đây là chỗ DUY NHẤT tệp mẫu nói được rằng ô này chính là cột
+            //    "Nguồn tưới, hướng tiêu" của mẫu Báo cáo nhanh (cùng một `constructions.basin_note`).
+            new CotMau("luu_vuc", false, "Nguồn tưới, hướng tiêu / lưu vực — ví dụ: Sông Đáy"),
             new CotMau("nam_xay_dung", false, "Số nguyên trong khoảng 1900–2200"),
             new CotMau("nam_su_dung", false, "Số nguyên trong khoảng 1900–2200"),
             new CotMau("don_vi_thiet_ke", false, "Tên đơn vị thiết kế"),
@@ -354,9 +357,6 @@ public class ConstructionImportService {
         return bang.get(VietnameseUtils.removeDiacritics(value.trim()).toLowerCase(Locale.ROOT));
     }
 
-    /** Nhóm hàng nghìn kiểu Việt Nam: {@code 1.500.000}. Dùng để phân biệt với số thập phân. */
-    private static final Pattern NHOM_HANG_NGHIN = Pattern.compile("^\\d{1,3}(\\.\\d{3})+$");
-
     /**
      * Đọc số từ ô do người dùng gõ.
      *
@@ -376,19 +376,8 @@ public class ConstructionImportService {
      * </ul>
      */
     private static BigDecimal so(String value, int soDong, String cot, List<LoiDong> loi) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        String sach = value.replaceAll("[\\s\\u00a0]", "");
-        if (sach.contains(".") && sach.contains(",")) {
-            sach = sach.replace(".", "").replace(",", ".");
-        } else if (NHOM_HANG_NGHIN.matcher(sach).matches()) {
-            sach = sach.replace(".", "");
-        } else {
-            sach = sach.replace(",", ".");
-        }
         try {
-            return new BigDecimal(sach);
+            return com.songnhue.core.common.util.NumericUtils.docSoNhapTay(value);
         } catch (NumberFormatException e) {
             loi.add(new LoiDong(soDong, cot, "Không phải số: '%s'".formatted(value)));
             return null;

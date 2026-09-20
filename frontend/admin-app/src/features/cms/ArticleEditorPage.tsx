@@ -487,9 +487,9 @@ function ArticleForm({
             style={{ marginBottom: 16 }}
             type={data.publiclyVisible ? 'success' : 'info'}
             showIcon
-            message={visibilityHint(data.status, data.publiclyVisible)}
+            title={visibilityHint(data.status, data.publiclyVisible)}
             description={
-              <Space split="·" wrap>
+              <Space separator="·" wrap>
                 <span>{formatInteger(data.viewCount)} lượt xem</span>
                 {data.reviewNote && <span>Ghi chú duyệt: {data.reviewNote}</span>}
               </Space>
@@ -502,7 +502,7 @@ function ArticleForm({
             style={{ marginBottom: 16 }}
             type="warning"
             showIcon
-            message="Bài đang chờ duyệt nên tạm khoá chỉnh sửa"
+            title="Bài đang chờ duyệt nên tạm khoá chỉnh sửa"
             description="Người duyệt cần đọc đúng nội dung đã được gửi. Muốn sửa thì yêu cầu trả bài về trước."
           />
         )}
@@ -544,7 +544,10 @@ function ArticleForm({
                       'Tự sinh từ tiêu đề; sửa được. Đường dẫn phải là DUY NHẤT — trùng thì bị từ chối'
                 }
               >
-                <Input addonBefore="/bai-viet/" onChange={() => setSlugDaSuaTay(true)} />
+                {/* `prefix` chứ ⛔ `Space.Compact` (antd 6 khai tử `addonBefore`): ô nhập phải là con
+                    TRỰC TIẾP của `Form.Item` thì mới nhận `value`/`onChange`, `id` cho nhãn và
+                    `aria-describedby` cho dòng `extra` — bọc thêm một lớp là cắt cả ba (WS-67). */}
+                <Input prefix="/bai-viet/" onChange={() => setSlugDaSuaTay(true)} />
               </Form.Item>
 
               <Form.Item
@@ -620,8 +623,7 @@ function ArticleForm({
               >
                 <Select
                   mode="multiple"
-                  showSearch
-                  optionFilterProp="label"
+                  showSearch={{ optionFilterProp: 'label' }}
                   placeholder="Một bài thuộc được nhiều danh mục"
                   loading={categories.isLoading}
                   options={(categories.data ?? []).map((c) => ({
@@ -635,7 +637,7 @@ function ArticleForm({
                 label="Ảnh đại diện"
                 extra="Dùng cho danh sách bài và khi chia sẻ lên mạng xã hội"
               >
-                <Space direction="vertical" style={{ width: '100%' }}>
+                <Space orientation="vertical" style={{ width: '100%' }}>
                   {coverId ? (
                     <Image
                       src={`/api/v1/public/files/${coverId}`}

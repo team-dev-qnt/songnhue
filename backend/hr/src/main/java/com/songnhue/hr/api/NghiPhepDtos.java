@@ -59,13 +59,29 @@ public final class NghiPhepDtos {
             String reason,
             String state,
             boolean noHo,
-            Instant decidedAt) {
+            Instant decidedAt,
+            Boolean toiDuyetDuoc) {
 
         /**
          * @param noHo đơn này do <b>người khác nộp hộ</b> (chốt C3) — giao diện hiện nhãn, vì một
          *     đơn nộp hộ và một đơn tự nộp mang hai mức tin cậy khác nhau khi đối chiếu về sau
          */
+        /**
+         * ⚠⚠ {@code toiDuyetDuoc = null} là một trạng thái THỨ BA, ⛔ phải "false cho gọn" — T80.7.
+         *
+         * <p>Ba câu trả lời khác nhau, và gộp hai cái đầu là nói dối: {@code true} = bấm được ·
+         * {@code false} = <b>thấy mà ⛔ bấm được</b> (⛔ giữ chức vụ, ⛔ được uỷ quyền) ·
+         * {@code null} = <i>endpoint này ⛔ trả lời câu ấy</i> (danh sách đơn của chính mình, lịch sử
+         * của một CBNV — hỏi *"tôi duyệt được ⛔"* ở đó là vô nghĩa). Trả {@code false} ở ca thứ ba
+         * thì giao diện hiện *"⛔ duyệt được"* trên chính đơn của mình — một câu đúng mà vô duyên, và
+         * nó làm lượt rà sau tưởng cờ đã được tính ở mọi nơi (cùng lý lẽ ba trạng thái của T59.0).
+         */
         public static DonView of(LeaveRequest r, UUID employeePublicId, String code, String name) {
+            return of(r, employeePublicId, code, name, null);
+        }
+
+        public static DonView of(
+                LeaveRequest r, UUID employeePublicId, String code, String name, Boolean toiDuyetDuoc) {
             return new DonView(
                     r.getPublicId(),
                     employeePublicId,
@@ -78,7 +94,8 @@ public final class NghiPhepDtos {
                     r.getReason(),
                     r.currentState(),
                     r.getCreatedForBy() != null,
-                    r.getDecidedAt());
+                    r.getDecidedAt(),
+                    toiDuyetDuoc);
         }
     }
 

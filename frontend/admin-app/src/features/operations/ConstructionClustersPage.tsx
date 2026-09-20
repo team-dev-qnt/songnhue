@@ -193,7 +193,7 @@ export function ConstructionClustersPage() {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="Cụm chỉ để NHÓM và LỌC công trình — nó không phải một cấp trong bộ máy tổ chức"
+        title="Cụm chỉ để NHÓM và LỌC công trình — nó không phải một cấp trong bộ máy tổ chức"
         description="Chốt G15 (19/8): cụm là cách nhóm, đơn vị quản lý mới là cấp tổ chức. Mã cụm khai ở đây chính là giá trị hợp lệ của cột `ma_cum` trong tệp nhập danh mục công trình."
       />
 

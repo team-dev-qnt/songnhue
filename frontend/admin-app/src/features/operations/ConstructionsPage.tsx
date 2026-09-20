@@ -87,6 +87,35 @@ export function ConstructionsPage() {
       width: 140,
       render: (val: string) => <StatusBadge value={val} vocabulary={CONSTRUCTION_TYPE} />,
     },
+    // ⭐ Hai cột dưới ⛔ cần thêm gì ở backend: `ConstructionRow` đã mang sẵn `riverName`,
+    //    `chainage` và `clusterName` từ WS-17, chỉ là bảng chưa bày chúng ra. Đúng nửa còn
+    //    thiếu của một cặp đọc–ghi (quy tắc 27) — dữ liệu về tới máy khách rồi bị bỏ không.
+    {
+      title: 'Tuyến sông',
+      dataIndex: 'riverName',
+      width: 180,
+      // Lý trình đi kèm tuyến sông chứ ⛔ đứng riêng: "K0+390" một mình ⛔ định vị được gì, và
+      // chỉ mục `ix_constructions_river (river_name, chainage_m)` cũng ghép đúng hai cột ấy.
+      render: (river: string | null, row) =>
+        river ? (
+          <Space orientation="vertical" size={0}>
+            <span>{river}</span>
+            {row.chainage && (
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                {row.chainage}
+              </Typography.Text>
+            )}
+          </Space>
+        ) : (
+          '-'
+        ),
+    },
+    {
+      title: 'Cụm công trình',
+      dataIndex: 'clusterName',
+      width: 180,
+      render: (cum: string | null) => cum ?? '-',
+    },
     {
       title: 'Trạng thái',
       dataIndex: 'operationalStatus',
@@ -146,7 +175,7 @@ export function ConstructionsPage() {
   ];
 
   return (
-    <Space direction="vertical" style={{ width: '100%' }} size="large">
+    <Space orientation="vertical" style={{ width: '100%' }} size="large">
       <Typography.Title level={4} style={{ margin: 0 }}>
         Hồ sơ công trình
       </Typography.Title>
@@ -197,7 +226,10 @@ export function ConstructionsPage() {
           dataSource={constructions.data?.items ?? []}
           rowKey="publicId"
           loading={constructions.isLoading}
-          scroll={{ x: 1200 }}
+          // Cộng bề rộng khai tường minh = 1450 (thêm 2 cột × 180), chừa ~200 cho cột "Tên công
+          // trình" ⛔ khai width. Đặt hụt thì cột cuối bị bóp còn một ký tự mỗi dòng — đúng thứ
+          // `bangCuonNgang` sinh ra để bắt.
+          scroll={{ x: 1650 }}
           pagination={{
             current: page,
             pageSize: size,

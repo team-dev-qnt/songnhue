@@ -46,7 +46,13 @@ class DiaChiLienKetChanLucGhiHttpTest extends IntegrationTestBase {
     @Autowired
     private com.songnhue.core.application.auth.PasswordPolicyService passwords;
 
+    @Autowired
+    private com.songnhue.content.application.BannerService banners;
+
     private PhienHttp phienHttp;
+
+    /** Giá trị khoá footer trước bài — trả lại sau bài (xem {@link #donSauBai()}). */
+    private String facebookTruoc;
 
     @org.junit.jupiter.api.BeforeEach
     void dungPhien() {
@@ -55,6 +61,8 @@ class DiaChiLienKetChanLucGhiHttpTest extends IntegrationTestBase {
         //   (`PhienHttp.doiIp`), mà dùng chung một IP cho cả lớp là cách T60.9 làm ba bài
         //   vô can đỏ vì cạn hạn mức giữa chừng.
         phienHttp = new PhienHttp(http);
+        facebookTruoc = jdbc.queryForObject(
+                "SELECT setting_value FROM settings WHERE setting_key = 'site.footer.social.facebook'", String.class);
     }
 
     @Test
@@ -144,6 +152,96 @@ class DiaChiLienKetChanLucGhiHttpTest extends IntegrationTestBase {
         assertThat(tl.getStatusCode().is2xxSuccessful())
                 .as("thân: %s", tl.getBody())
                 .isTrue();
+    }
+
+    /**
+     * ⭐⭐ T73.2 — banner là đường ghi THỨ BA mang một địa chỉ vào {@code href} của cổng, và nó thiếu CẢ HAI lớp chặn
+     * mà menu và cài đặt có từ T63.4: ⛔ kiểm lúc ghi ({@code BannerRequest.linkUrl} chỉ có {@code @Size}) và ⛔ bọc
+     * lúc hiển thị ({@code AnhCarousel} in thẳng vào {@code href}). Người sửa banner (hoặc tài khoản của họ bị chiếm)
+     * chèn được mã chạy khi người dân bấm vào ảnh bìa trang chủ.
+     */
+    @Test
+    @DisplayName("⭐⭐ Banner ⛔ lưu được `javascript:` — CMS-2024, cùng mã với menu (T73.2)")
+    void bannerTuChoiJavascript() {
+        java.util.UUID banner = taoBanner();
+        PhienHttp.Phien phien = phienHttp.dangNhap(nguoiDungCoQuyen("cms:banner:manage"));
+
+        ResponseEntity<String> tl = phienHttp.goi(
+                phien,
+                HttpMethod.PUT,
+                "/api/v1/cms/banners/" + banner,
+                "{\"title\":\"T73 banner\",\"linkUrl\":\"%s\",\"openNewTab\":false,\"active\":true}"
+                        .formatted(DOC_HAI));
+
+        assertThat(tl.getStatusCode()).as("thân: %s", tl.getBody()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
+        assertThat(tl.getBody()).contains("CMS-2024");
+        assertThat(jdbc.queryForObject(
+                        "SELECT coalesce(link_url, '') FROM banners WHERE public_id = ?", String.class, banner))
+                .as("⛔ chuỗi xấu nào được phép nằm trong banners.link_url")
+                .doesNotContain("javascript:");
+    }
+
+    @Test
+    @DisplayName("Banner với địa chỉ https bình thường vẫn lưu được (T73.2)")
+    void bannerVanNhanDiaChiThat() {
+        java.util.UUID banner = taoBanner();
+        PhienHttp.Phien phien = phienHttp.dangNhap(nguoiDungCoQuyen("cms:banner:manage"));
+
+        ResponseEntity<String> tl = phienHttp.goi(
+                phien,
+                HttpMethod.PUT,
+                "/api/v1/cms/banners/" + banner,
+                "{\"title\":\"T73 banner\",\"linkUrl\":\"https://thuyloisongnhue.vn/tin-tuc\","
+                        + "\"openNewTab\":false,\"active\":true}");
+
+        assertThat(tl.getStatusCode().is2xxSuccessful())
+                .as("thân: %s", tl.getBody())
+                .isTrue();
+        assertThat(jdbc.queryForObject("SELECT link_url FROM banners WHERE public_id = ?", String.class, banner))
+                .isEqualTo("https://thuyloisongnhue.vn/tin-tuc");
+    }
+
+    /**
+     * ⚠ T73.2 — dọn MỌI thứ lớp này ghi, kể cả của các bài có từ T63.4. Bản trước để lại mục menu HEADER
+     * "Cổng Chính phủ" và khoá footer đã đổi; {@code SiteLayoutTest.migrationSeedDuKhungCong} khẳng định ĐÚNG tập
+     * mục cấp 1 nên đỏ mỗi khi chạy SAU lớp này. Lượt chạy đầy đủ tình cờ xếp nó chạy trước — lộ ra khi chạy riêng
+     * hai lớp theo thứ tự ngược (cùng họ §11.19: phụ thuộc thứ tự lớp).
+     */
+    @org.junit.jupiter.api.AfterEach
+    void donSauBai() {
+        jdbc.update("DELETE FROM banners WHERE title LIKE 'T73 %'");
+        jdbc.update(
+                "DELETE FROM menu_items WHERE position = 'HEADER' AND label IN ('Cổng Chính phủ', 'Liên kết ngoài')");
+        jdbc.update(
+                "UPDATE settings SET setting_value = ? WHERE setting_key = 'site.footer.social.facebook'",
+                facebookTruoc);
+    }
+
+    /** Banner dựng qua service (kèm ảnh PNG thật — bộ kiểm định dạng đọc magic bytes); lượt SỬA mới là thứ bị kiểm. */
+    private java.util.UUID taoBanner() {
+        com.songnhue.core.common.security.AuthContext.set(new com.songnhue.core.common.security.AuthenticatedUser(
+                1L,
+                java.util.UUID.randomUUID(),
+                "t73-banner-probe",
+                "Người kiểm thử",
+                1L,
+                "/1/",
+                java.util.Set.of("PROBE"),
+                java.util.Set.of("cms:banner:manage"),
+                false,
+                java.util.UUID.randomUUID(),
+                java.util.UUID.randomUUID(),
+                null));
+        try {
+            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+            javax.imageio.ImageIO.write(
+                    new java.awt.image.BufferedImage(40, 20, java.awt.image.BufferedImage.TYPE_INT_RGB), "png", out);
+            return banners.create("T73 banner", "t73.png", out.toByteArray()).getPublicId();
+        } catch (java.io.IOException e) {
+            throw new IllegalStateException(e);
+        } finally {
+            com.songnhue.core.common.security.AuthContext.clear();
+        }
     }
 
     /**

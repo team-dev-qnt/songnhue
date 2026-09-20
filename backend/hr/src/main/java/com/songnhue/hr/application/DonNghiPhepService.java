@@ -3,8 +3,10 @@ package com.songnhue.hr.application;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -19,6 +21,7 @@ import com.songnhue.core.common.exception.BusinessRuleException;
 import com.songnhue.core.common.exception.ConflictException;
 import com.songnhue.core.common.exception.PermissionDeniedException;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
+import com.songnhue.core.common.persistence.ScopeGuard;
 import com.songnhue.core.common.security.AuthContext;
 import com.songnhue.core.common.security.AuthenticatedUser;
 import com.songnhue.core.common.util.DateTimeUtils;
@@ -72,7 +75,14 @@ public class DonNghiPhepService {
     private final ChinhSachPhep chinhSach;
     private final WorkflowPort workflow;
     private final NotificationPort thongBao;
+    private final ScopeGuard scopeGuard;
+    private final ThamQuyenDuyetPhep thamQuyen;
 
+    // CHECKSTYLE.OFF: ParameterNumber - 9 cộng tác viên là số BƯỚC của một lá đơn (lưu · hồ sơ ·
+    // đếm ngày · số dư · chính sách · quy trình · thông báo · phạm vi · thẩm quyền). Gom vào một
+    // record như `ThongTinDonVi` ⛔ dùng được ở đây: đây là hàm dựng của một bean Spring, và một
+    // record trung gian chỉ dời chỗ danh sách chứ ⛔ bớt một phụ thuộc nào. Cùng lý lẽ đã ghi ở
+    // `HydroReviewService`.
     public DonNghiPhepService(
             LeaveRequestRepository donNghi,
             EmployeeService employees,
@@ -80,7 +90,9 @@ public class DonNghiPhepService {
             SoDuPhepService soDu,
             ChinhSachPhep chinhSach,
             WorkflowPort workflow,
-            NotificationPort thongBao) {
+            NotificationPort thongBao,
+            ScopeGuard scopeGuard,
+            ThamQuyenDuyetPhep thamQuyen) {
         this.donNghi = donNghi;
         this.employees = employees;
         this.demNgayCong = demNgayCong;
@@ -88,7 +100,10 @@ public class DonNghiPhepService {
         this.chinhSach = chinhSach;
         this.workflow = workflow;
         this.thongBao = thongBao;
+        this.scopeGuard = scopeGuard;
+        this.thamQuyen = thamQuyen;
     }
+    // CHECKSTYLE.ON: ParameterNumber
 
     /**
      * Xem trước một đơn <b>trước khi nộp</b> — đặc tả: *"tự tính số ngày + hiển thị số dư + cảnh
@@ -212,29 +227,54 @@ public class DonNghiPhepService {
      * <i>Chờ duyệt</i> mà ⛔ không có chuông là một màn hình <b>⛔ không ai mở</b> — đúng hình dạng
      * đã trả giá ở T50.4 (<i>một con số trên màn hình ⛔ không phải một cái chuông</i>).
      *
-     * <h2>⚠ Người nhận rộng hơn đặc tả, và điều đó được KHAI RA</h2>
+     * <h2>⭐ Người nhận = người DUYỆT được đơn — T57.15 (20/09/2026)</h2>
      *
-     * <p>{@code targetedWithUnits} giải người nhận bằng {@code findActiveIdsByPermission} —
-     * <b>toàn Công ty</b>, ⛔ không cắt theo đơn vị (cộng thêm trưởng/phó của chính đơn vị người
-     * nộp). Đặc tả nói <i>"quản lý <b>đơn vị</b> duyệt"</i>, hẹp hơn thế. Vế <i>duyệt</i> thì đã
-     * hẹp đúng nhờ bộ lọc phạm vi; vế <i>nhận thư</i> thì chưa — nợ <b>T57.15</b>. ⛔ Thu hẹp nó là
-     * đổi ngữ nghĩa của {@code RecipientResolver} cho <b>cả</b> CMS và vận hành công trình, nên nó
-     * ⛔ không phải việc của một lượt dựng tính năng.
+     * <p>Bản trước dùng {@code targetedWithUnits}: <b>mọi</b> người có {@code hr:leave:approve} trên toàn Công ty
+     * (seed cấp cho 4/12 vai trò ⇒ quản lý của MỌI Xí nghiệp) cộng trưởng/phó đơn vị — trong khi bộ lọc phạm vi
+     * chỉ cho quản lý của đơn vị người nộp duyệt. Nay {@code targetedInUnitScope}: chỉ ai phạm vi dữ liệu PHỦ
+     * đơn vị của đơn. Ba ca cũ của {@code RecipientResolver} (CMS, cảnh báo vận hành) ⛔ đổi.
+     * {@code NghiPhepHttpTest#nguoiNhanThongBaoLaNguoiDuyetDuoc} canh tương ứng *nhận thư ⇔ thấy đơn*.
      */
     private void baoNguoiDuyet(LeaveRequest don, Employee hoSo) {
-        thongBao.notify(NotifyRequest.targetedWithUnits(
+        String tieuDe = "Đơn nghỉ phép mới chờ duyệt";
+        String than = "%s (%s) xin nghỉ %s từ %s đến %s — %s ngày công"
+                .formatted(
+                        hoSo.getFullName(),
+                        hoSo.getCode(),
+                        don.getLeaveType(),
+                        don.getFromDate(),
+                        don.getToDate(),
+                        don.getWorkingDays());
+
+        // ⭐⭐ T80.7 — người nhận là người DUYỆT ĐƯỢC, ⛔ phải người có phạm vi phủ.
+        //
+        // Hai tập ấy ⛔ bằng nhau: đo trên đồ gá `NghiPhepHttpTest`, một tài khoản ở đơn vị GỐC có
+        // `hr:leave:approve` và phạm vi phủ mọi đơn vị, nhưng ⛔ phải trưởng/phó và ⛔ được uỷ quyền
+        // ⇒ *thấy đơn, nhận thư, mà ⛔ có nút*. Gửi thư cho người ⛔ bấm được là dạy hộp thư ấy bỏ
+        // qua thư (§10.76) — và nó dạy đúng người lẽ ra phải phản ứng nhanh nhất.
+        Set<Long> nguoiDuyet =
+                new LinkedHashSet<>(thamQuyen.nguoiQuyetDuoc(don.getOrgUnitId(), LocalDate.now(DateTimeUtils.ZONE_VN)));
+        // Người nộp tự loại mình: `xetQuyet` trả `TU_DUYET` cho họ, nên thư *"có đơn chờ bạn duyệt"*
+        // gửi cho chính người vừa nộp là một câu nói dối nhỏ mà ⛔ ai sửa được.
+        nguoiDuyet.remove(don.getRequesterUserId());
+
+        if (!nguoiDuyet.isEmpty()) {
+            thongBao.notify(NotifyRequest.chiNhungNguoiNay(
+                    "LEAVE_SUBMITTED", tieuDe, than, NotifySeverity.INFO, List.copyOf(nguoiDuyet)));
+            return;
+        }
+
+        // ⚠⚠ Nhánh DỰ PHÒNG, và nó phải soi gương ĐÚNG đường 3 của `ThamQuyenDuyetPhep`: chuỗi lãnh
+        //   đạo ⛔ có ai ⇒ người quyết được là ai giữ `hr:leave:delegate` mà phạm vi phủ. ⛔ Gửi cho
+        //   `hr:leave:approve` như cũ — đó chính là tập rộng vừa bỏ, và cái xanh của bộ canh khi ấy
+        //   đọc như đã siết (luật 7). Cũng ⛔ để RỖNG: một đơn ⛔ ai được báo là một đơn nằm mãi
+        //   trong hộp chờ.
+        thongBao.notify(NotifyRequest.targetedInUnitScope(
                 "LEAVE_SUBMITTED",
-                "Đơn nghỉ phép mới chờ duyệt",
-                "%s (%s) xin nghỉ %s từ %s đến %s — %s ngày công"
-                        .formatted(
-                                hoSo.getFullName(),
-                                hoSo.getCode(),
-                                don.getLeaveType(),
-                                don.getFromDate(),
-                                don.getToDate(),
-                                don.getWorkingDays()),
+                tieuDe,
+                than,
                 NotifySeverity.INFO,
-                "hr:leave:approve",
+                ThamQuyenDuyetPhep.QUYEN_UY_QUYEN,
                 don.getOrgUnitId() == null ? List.of() : List.of(don.getOrgUnitId()),
                 List.of()));
     }
@@ -243,6 +283,19 @@ public class DonNghiPhepService {
     @Transactional(readOnly = true)
     public Employee hoSoCuaToi() {
         return hoSoMucTieu(null);
+    }
+
+    /**
+     * Trong trang đơn này, id những đơn <b>tôi bấm được nút Duyệt</b> — T80.7 vế (a).
+     *
+     * <p>Hộp <i>Chờ duyệt</i> cắt theo <b>phạm vi</b> (cố ý — đó là danh sách việc của đơn vị, hữu
+     * ích để nắm quân số), còn nút thì theo <b>thẩm quyền</b>. Hai tập ⛔ bằng nhau, nên trước lượt
+     * này người dùng mở một dòng ra mới biết mình ⛔ có nút — và ⛔ gì nói cho họ biết ai mới là
+     * người phải bấm.
+     */
+    @Transactional(readOnly = true)
+    public Set<Long> donToiDuyetDuoc(java.util.List<LeaveRequest> dons) {
+        return thamQuyen.donQuyetDuoc(dons, AuthContext.current().orElse(null), LocalDate.now(DateTimeUtils.ZONE_VN));
     }
 
     /** Hộp chờ duyệt — bộ lọc phạm vi tự cắt theo đơn vị của người đang đăng nhập. */
@@ -258,16 +311,83 @@ public class DonNghiPhepService {
         return donNghi.findByEmployeeIdAndDeletedAtIsNullOrderByFromDateDesc(hoSo.getId(), pageable);
     }
 
+    /**
+     * T73.1 — đơn của đơn vị khác ⇒ 403 {@code AUTH-3002} + một dòng {@code ACCESS_DENIED_SCOPE}, ⛔ 404 im lặng
+     * (M5.16). {@code LeaveRequest} là {@code ScopedEntity}: bộ lọc đã giấu nó, {@link ScopeGuard} nói ra vì sao.
+     */
     @Transactional(readOnly = true)
     public LeaveRequest get(UUID publicId) {
-        return donNghi.findByPublicIdAndDeletedAtIsNull(publicId)
-                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
+        return scopeGuard.require(donNghi.findByPublicIdAndDeletedAtIsNull(publicId), LeaveRequest.class, publicId);
     }
 
-    /** Nút giao diện được phép hiện — đã lọc theo quyền của người đang đăng nhập. */
+    /**
+     * Nút giao diện được phép hiện — lọc theo <b>quyền</b> (engine) <b>và thẩm quyền</b> (T80.1).
+     *
+     * <h2>⛔⛔ Hai phép lọc, và cả hai phải là CÙNG luật mà {@link #thucHien} áp dụng</h2>
+     *
+     * <p>{@code WorkflowEngine.allowedActions} lọc bằng {@code required_permission} — một mã quyền.
+     * Sau T80.1 mã quyền ấy ⛔ còn là điều kiện đủ, nên nếu dừng ở đó thì nút <i>Duyệt</i> vẫn hiện
+     * cho người ⛔ quyết được, họ bấm, và máy chủ trả 403. Một nút hứa một việc rồi từ chối là tệ
+     * hơn một nút ⛔ có: người dùng ⛔ biết mình vừa làm sai ở đâu.
+     *
+     * <p>⚠ Hai nơi gọi cùng {@link ThamQuyenDuyetPhep}, ⛔ chép lại luật — đó là điều kiện để chúng
+     * ⛔ bao giờ lệch (luật 14).
+     */
     @Transactional(readOnly = true)
     public List<AllowedAction> hanhDongChoPhep(UUID publicId) {
-        return workflow.allowedActions(get(publicId));
+        LeaveRequest don = get(publicId);
+        AuthenticatedUser ai = AuthContext.current().orElse(null);
+        LocalDate homNay = LocalDate.now(DateTimeUtils.ZONE_VN);
+        return workflow.allowedActions(don).stream()
+                .filter(nut -> duocBam(don, nut.action(), ai, homNay))
+                .toList();
+    }
+
+    /** Ba hành động <b>quyết định</b> một lá đơn — đúng ba, và chúng chịu chung một luật. */
+    private static final java.util.Set<String> HANH_DONG_QUYET = java.util.Set.of("APPROVE", "REJECT", "ESCALATE");
+
+    private boolean duocBam(LeaveRequest don, String hanhDong, AuthenticatedUser ai, LocalDate homNay) {
+        if ("CANCEL".equals(hanhDong)) {
+            return thamQuyen.huyDuoc(don, ai, homNay);
+        }
+        if (!HANH_DONG_QUYET.contains(hanhDong)) {
+            return true;
+        }
+        return thamQuyen.xetQuyet(don, ai, homNay).duocPhep();
+    }
+
+    /**
+     * Cổng <b>thẩm quyền</b> — ném đúng lý do, ⛔ gộp về một mã 403 chung.
+     *
+     * @return tư cách đã dùng khi lượt quyết được phép; {@code null} cho hành động ⛔ phải quyết
+     *     định (rút đơn, và mọi bước chuyển tương lai mà engine tự lo)
+     */
+    private ThamQuyenDuyetPhep.KetQua canhCongThamQuyen(
+            LeaveRequest don, String hanhDong, AuthenticatedUser ai, LocalDate homNay) {
+        if ("CANCEL".equals(hanhDong)) {
+            if (!thamQuyen.huyDuoc(don, ai, homNay)) {
+                throw new PermissionDeniedException(ErrorCode.HR_2013);
+            }
+            return null;
+        }
+        if (!HANH_DONG_QUYET.contains(hanhDong)) {
+            return null;
+        }
+        ThamQuyenDuyetPhep.KetQua ketQua = thamQuyen.xetQuyet(don, ai, homNay);
+        if (!ketQua.duocPhep()) {
+            throw new PermissionDeniedException(maLoiCua(ketQua.lyDo()));
+        }
+        return ketQua;
+    }
+
+    private static ErrorCode maLoiCua(ThamQuyenDuyetPhep.LyDo lyDo) {
+        return switch (lyDo) {
+            case TU_DUYET -> ErrorCode.HR_2011;
+            case TRUNG_NGUOI_CAP_MOT -> ErrorCode.HR_2012;
+            // ⚠ `DUOC` ⛔ bao giờ tới đây (nơi gọi đã lọc), nhưng `switch` trên enum phải phủ đủ —
+            //   và một nhánh mặc định im lặng là chỗ một giá trị enum MỚI lọt qua mà ⛔ ai biết.
+            case DUOC, KHONG_PHAI_NGUOI_DUYET -> ErrorCode.HR_2010;
+        };
     }
 
     /**
@@ -287,12 +407,16 @@ public class DonNghiPhepService {
     @Transactional
     public LeaveRequest thucHien(UUID publicId, String action, String lyDo) {
         LeaveRequest don = get(publicId);
+        AuthenticatedUser ai = AuthContext.current().orElse(null);
+        LocalDate homNay = LocalDate.now(DateTimeUtils.ZONE_VN);
 
-        if ("CANCEL".equals(action) && don.trangThai() == LeaveState.DA_DUYET) {
-            LocalDate homNay = LocalDate.now(DateTimeUtils.ZONE_VN);
-            if (don.daBatDau(homNay)) {
-                throw new BusinessRuleException(ErrorCode.HR_2007, don.getFromDate());
-            }
+        // ⛔⛔ TRƯỚC mọi thứ khác — kể cả trước chốt "đã bắt đầu nghỉ". Người ⛔ có thẩm quyền ⛔ nên
+        //    biết lá đơn đang ở tình trạng nào; cùng lý lẽ thứ tự mà `WorkflowEngine.requireReason`
+        //    đã ghi (*"người ⛔ có quyền bấm nút này thì ⛔ nên biết là nó đòi thêm gì"*).
+        ThamQuyenDuyetPhep.KetQua tuCach = canhCongThamQuyen(don, action, ai, homNay);
+
+        if ("CANCEL".equals(action) && don.trangThai() == LeaveState.DA_DUYET && don.daBatDau(homNay)) {
+            throw new BusinessRuleException(ErrorCode.HR_2007, don.getFromDate());
         }
 
         String hanhDongThat = action;
@@ -303,6 +427,12 @@ public class DonNghiPhepService {
         }
 
         LeaveRequest sau = workflow.execute(don, hanhDongThat, null, lyDo);
+        if ("ESCALATE".equals(hanhDongThat)) {
+            sau.ghiCapMot(nguoiDangThaoTac(), Instant.now());
+        }
+        if (tuCach != null) {
+            sau.ghiTuCach(tuCach.uyQuyenId(), tuCach.duPhong());
+        }
         if (sau.trangThai() == LeaveState.DA_DUYET || sau.trangThai() == LeaveState.TU_CHOI) {
             sau.ghiQuyetDinh(nguoiDangThaoTac(), Instant.now());
         }

@@ -17,6 +17,13 @@ import com.songnhue.core.domain.notification.NotificationSeverity;
  * @param targetPermission gửi cho mọi tài khoản đang hoạt động có quyền này; khai giá trị thì nhóm
  *     "Ban điều hành" <b>không</b> được cộng thêm (xem {@code RecipientResolver})
  * @param channels kênh muốn dùng; kênh đang tắt theo cấu hình sẽ bị bỏ qua, không phải lỗi
+ * @param permissionScopedToUnits {@code true} ⇒ người có {@code targetPermission} chỉ được tính khi phạm vi dữ
+ *     liệu của họ phủ một trong {@code relatedOrgUnitIds} (T57.15, {@code NotifyRequest#targetedInUnitScope})
+ * @param nhomCanhBao {@code true} ⇒ áp luật G11: cộng nhóm <i>"Ban điều hành"</i> ∪ trưởng/phó của
+ *     {@code relatedOrgUnitIds}. ⛔⛔ <b>Chỉ {@link #alert} khai {@code true}</b> — T74.7, 20/09/2026:
+ *     trước lượt vá ấy {@code RecipientResolver} <b>suy</b> cờ này từ {@code targetPermission == null},
+ *     nên thư <i>"tài khoản của bạn đã bị khoá"</i> cũng cộng cả ban lãnh đạo. Một chính sách người nhận
+ *     phải được <b>khai ra</b>, ⛔ suy từ hình dạng dữ liệu
  */
 public record NotificationRequest(
         String eventType,
@@ -29,7 +36,9 @@ public record NotificationRequest(
         List<Long> relatedOrgUnitIds,
         List<Long> extraUserIds,
         String targetPermission,
-        List<NotificationChannel> channels) {
+        List<NotificationChannel> channels,
+        boolean permissionScopedToUnits,
+        boolean nhomCanhBao) {
 
     /** Mặc định hay dùng nhất: cảnh báo nghiệp vụ, gửi cả trên giao diện lẫn email. */
     public static NotificationRequest alert(
@@ -45,6 +54,8 @@ public record NotificationRequest(
                 orgUnitIds,
                 List.of(),
                 null,
-                List.of(NotificationChannel.IN_APP, NotificationChannel.EMAIL));
+                List.of(NotificationChannel.IN_APP, NotificationChannel.EMAIL),
+                false,
+                true);
     }
 }

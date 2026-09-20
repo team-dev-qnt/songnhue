@@ -84,7 +84,7 @@ jobs:
       #   trước khi có gì được biên dịch, với thông báo trỏ vào `spotless:check`
       #   — một bước hoàn toàn vô can (§10.47).
       - name: Đệm bản phân phối Maven
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.m2/wrapper
           key: mvnw-${{ runner.os }}-${{ hashFiles('backend/.mvn/wrapper/maven-wrapper.properties') }}
@@ -124,7 +124,7 @@ jobs:
       #   trường hợp duy nhất mà nó không cần thiết.
       - name: Nạp bộ nhớ đệm CSDL NVD
         id: nvd_cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: ${{ github.workspace }}/.dc-data
           key: dc-data-${{ runner.os }}-${{ github.run_id }}
@@ -175,7 +175,7 @@ jobs:
       # phép quét đỏ (trạng thái thường trực của job này).
       - name: Lưu bộ nhớ đệm CSDL NVD
         if: always() && steps.nvd.outputs.co_khoa == 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: ${{ github.workspace }}/.dc-data
           key: dc-data-${{ runner.os }}-${{ github.run_id }}
@@ -357,7 +357,7 @@ jobs:
       - name: Tải báo cáo CVE của chính lượt này
         if: always()
         continue-on-error: true
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: dependency-check-report
           path: bao-cao-cve

@@ -69,6 +69,15 @@ import com.songnhue.hydro.infra.StationRepository;
  * hai còn rỗng lúc hệ chạy thật thì mọi cảnh báo ở đây tới <b>đúng 0 người</b>, trong khi bảng
  * {@code notifications} vẫn có dòng và mọi bài kiểm {@code verify(notify)} vẫn xanh. ⇒ DoD của
  * WS-33 phải đếm {@code notification_recipients > 0}, ⛔ không đếm "notify được gọi" (luật 27).
+ *
+ * <p>⭐ <b>Đính chính 20/09/2026 — T76.1 trả một nửa lời cảnh báo trên.</b> {@code head_user_id} và
+ * {@code deputy_user_id} nay <b>ghi được</b> qua {@code PUT /org-units/{publicId}} và có hai ô chọn
+ * trên màn hình <i>Đơn vị</i>; {@code TruongPhoDonViHttpTest.canhBaoNguongToiTruongDonVi} đo đúng
+ * điều đoạn trên đòi — đếm {@code notification_recipients} sau một lượt vượt ngưỡng thật, và nó
+ * chứa trưởng đơn vị. ⚠ <b>Nửa còn lại vẫn đúng nguyên văn</b>: nhóm <i>Ban điều hành</i> — nhánh
+ * dự phòng khi danh sách đơn vị RỖNG, tức đúng 4 trạm {@code MN_SONG} của T33.8 — vẫn phải gõ mảng
+ * JSON {@code public_id} bằng tay ở màn hình Cấu hình ({@code T76.3}). Và cả hai vế vẫn là
+ * <b>dữ liệu</b>: ngày hệ chạy thật mà ⛔ ai điền thì cảnh báo vẫn tới 0 người.
  */
 @Component
 public class AlertNotifier {
@@ -124,7 +133,13 @@ public class AlertNotifier {
                 List.copyOf(bc.donViIds()),
                 List.of(),
                 null,
-                List.of(com.songnhue.core.spi.NotifyChannel.IN_APP, com.songnhue.core.spi.NotifyChannel.EMAIL)));
+                List.of(com.songnhue.core.spi.NotifyChannel.IN_APP, com.songnhue.core.spi.NotifyChannel.EMAIL),
+                // G11 — cảnh báo ngưỡng ⛔ nhắm đích theo quyền (targetPermission = null) nên cờ phạm vi ⛔ áp dụng.
+                false,
+                // ⭐ Và đây LÀ cảnh báo G11 ⇒ nhóm "Ban điều hành" ∪ trưởng/phó đơn vị. Danh sách đơn vị có thể
+                //   RỖNG (điểm đo `MN_SONG` ⛔ thuộc công trình nào — T33.8), khi ấy nhóm cố định là người nhận
+                //   DUY NHẤT — nên ⛔ suy cờ này từ `relatedOrgUnitIds.isEmpty()` được (T74.7).
+                true));
         ghiNhatKyThieu(bc);
     }
 

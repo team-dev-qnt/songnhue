@@ -40,6 +40,25 @@ describe('menu ẩn/hiện theo quyền — điều kiện nghiệm thu WS-8', (
     expect(visible).toContain('Hộp thư');
   });
 
+  /**
+   * ⭐⭐ **Hướng dẫn sử dụng phải sống sót qua một tài khoản KHÔNG có quyền nào.**
+   *
+   * Đây ⛔ phải một bài kiểm cho vui: một cán bộ vai trò `VIEWER` mở hệ thống lần đầu thấy menu
+   * ngắn hơn hẳn đồng nghiệp, và câu hỏi đầu tiên của họ — *"vì sao tôi ⛔ thấy mục kia"* — được
+   * trả lời ở §4.2 của chính tài liệu ấy. Gác nó bằng một mã quyền là đóng cửa đúng vào nhóm cần
+   * nó nhất, mà triệu chứng thì **im lặng hoàn toàn**: menu vẫn dựng, chỉ thiếu một dòng.
+   */
+  it('⭐ Hướng dẫn sử dụng hiện cả với tài khoản ⛔ có một quyền nào', () => {
+    const visible = visibleMenu(MENU, checker());
+
+    expect(
+      visible.map((node) => node.label),
+      '⛔ Mục này phải ở **cấp 1**: một mục cứu hộ nằm trong nhóm con thì người đang bối rối phải ' +
+        'biết mở đúng nhóm mới thấy — mà biết mở nhóm nào thì họ đã ⛔ cần tới nó.',
+    ).toContain('Hướng dẫn sử dụng');
+    expect(findMenuKey(MENU, '/huong-dan')).toBe('huong-dan');
+  });
+
   it('có đủ quyền thì thấy toàn bộ màn hình quản trị', () => {
     const all = checker(
       'adm:user:view',
@@ -51,10 +70,10 @@ describe('menu ẩn/hiện theo quyền — điều kiện nghiệm thu WS-8', (
       'adm:health:view',
       'adm:notification:broadcast',
     );
-    // 8 màn hình quản trị + Tổng quan + Hộp thư + Phiên đăng nhập.
+    // 8 màn hình quản trị + Tổng quan + Hộp thư + Phiên đăng nhập + Hướng dẫn sử dụng.
     // ⚠ `all` chỉ cấp quyền `adm:*` nên nhóm "Dữ liệu thuỷ văn" (WS-28) không nằm trong số này —
     //    đó chính là điều bài kiểm ngay dưới khẳng định.
-    expect(leafLabels(visibleMenu(MENU, all))).toHaveLength(11);
+    expect(leafLabels(visibleMenu(MENU, all))).toHaveLength(12);
   });
 });
 
@@ -397,5 +416,32 @@ describe('hai mục C3 gác bằng quyền ops — CN-02.4 / CN-02.10', () => {
   it('đường dẫn tô sáng đúng mục', () => {
     expect(findMenuKey(MENU, '/van-hanh/lop-ban-do')).toBe('lop-ban-do');
     expect(findMenuKey(MENU, '/van-hanh/bao-cao')).toBe('bao-cao-van-hanh');
+  });
+});
+
+describe('Báo cáo nhanh + Danh mục máy bơm — 18/09/2026', () => {
+  it('⭐ `ops:report:view` mở Báo cáo nhanh; `ops:quick-report:manage` một mình thì ⛔ KHÔNG', () => {
+    // Quyền nhập/chốt gác NÚT (tầng 2), ⛔ gác TRANG — người chỉ được xem vẫn đọc được văn bản.
+    expect(leafLabels(visibleMenu(MENU, checker('ops:report:view')))).toContain('Báo cáo nhanh');
+    expect(leafLabels(visibleMenu(MENU, checker('ops:quick-report:manage')))).not.toContain(
+      'Báo cáo nhanh',
+    );
+  });
+
+  it('`ops:construction:view` mở Danh mục máy bơm', () => {
+    expect(leafLabels(visibleMenu(MENU, checker('ops:construction:view')))).toContain(
+      'Danh mục máy bơm',
+    );
+    expect(leafLabels(visibleMenu(MENU, checker('ops:report:view')))).not.toContain(
+      'Danh mục máy bơm',
+    );
+  });
+
+  it('⛔ `/van-hanh/bao-cao-nhanh/…` tô sáng Báo cáo nhanh, ⛔ Báo cáo vận hành (tiền tố chung)', () => {
+    expect(findMenuKey(MENU, '/van-hanh/bao-cao-nhanh')).toBe('bao-cao-nhanh');
+    expect(findMenuKey(MENU, '/van-hanh/bao-cao-nhanh/3f2a')).toBe('bao-cao-nhanh');
+    expect(findMenuKey(MENU, '/van-hanh/bao-cao-nhanh/cau-hinh')).toBe('bao-cao-nhanh');
+    expect(findMenuKey(MENU, '/van-hanh/bao-cao')).toBe('bao-cao-van-hanh');
+    expect(findMenuKey(MENU, '/van-hanh/may-bom')).toBe('may-bom');
   });
 });

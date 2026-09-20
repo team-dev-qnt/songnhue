@@ -59,7 +59,7 @@ export function DanToaDo({ onChange, disabled }: DanToaDoProps) {
   };
 
   return (
-    <Space direction="vertical" style={{ width: '100%' }} size={4}>
+    <Space orientation="vertical" style={{ width: '100%' }} size={4}>
       <Typography.Text strong>Dán toạ độ</Typography.Text>
       <Input
         allowClear
@@ -85,7 +85,7 @@ export function DanToaDo({ onChange, disabled }: DanToaDoProps) {
         <Alert
           type="error"
           showIcon
-          message="⛔ Không đọc được toạ độ từ chuỗi này"
+          title="⛔ Không đọc được toạ độ từ chuỗi này"
           description={
             <span>
               Nhận ba dạng: <b>21.048201, 105.782500</b> ·{' '}
@@ -101,7 +101,7 @@ export function DanToaDo({ onChange, disabled }: DanToaDoProps) {
         <Alert
           type="warning"
           showIcon
-          message="⚠ Điểm này nằm ngoài vùng sông Nhuệ (Hà Nội – Hà Nam)"
+          title="⚠ Điểm này nằm ngoài vùng sông Nhuệ (Hà Nội – Hà Nam)"
           description={
             <span>
               Đã điền <b>{ketQua.viDo}</b> / <b>{ketQua.kinhDo}</b>. Kiểm lại xem có nhầm vĩ độ và

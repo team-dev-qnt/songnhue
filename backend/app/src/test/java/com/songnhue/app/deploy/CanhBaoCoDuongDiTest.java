@@ -32,7 +32,7 @@ import org.yaml.snakeyaml.Yaml;
  * {@code SaoLuuQuaHan} nằm {@code inactive} <b>vĩnh viễn</b> vì ⛔ có chuỗi nào để so, còn
  * {@code UngDungKhongPhanHoi} kêu thường trực. Và ⛔ có Alertmanager nào để gửi đi.
  *
- * <p>Năm mắt xích, mỗi mắt một bài: cấu hình ⛔ mang {@code ${} · mọi chỗ cắm được điền và thiếu là dừng
+ * <p>Năm mắt xích, mỗi mắt một bài: cấu hình ⛔ mang <code>${</code> · mọi chỗ cắm được điền và thiếu là dừng
  * · luật cho production có vế <i>vắng mặt</i> · tuyến gửi đúng như đã chốt · cửa nginx có hai lớp khoá.
  *
  * <p>⚠ Giới hạn (luật 28): bài này đọc TỆP. Tuyến gửi và cửa nginx đã được chạy thật ở máy ngày
@@ -231,6 +231,37 @@ class CanhBaoCoDuongDiTest {
         return cach < 0 ? t : t.substring(0, cach);
     }
 
+    /**
+     * Khoá này có đi vào BẢNG BĂM mà vẫn mang chỗ cắm {@code ${…}} không.
+     *
+     * <p>⚠ Khoá REGEX ({@code ~} · {@code ~*}) ⛔ vào bảng băm — nginx biên dịch nó riêng rồi xét tuần tự, nên nó
+     * ⛔ chịu trần {@code map_hash_bucket_size}. ĐO 19/09/2026 trên {@code nginx:1.30-alpine} (đúng ảnh
+     * production) với một khoá 99 byte: khoá CHÍNH XÁC ⇒ {@code [emerg] could not build map_hash}; khoá REGEX ⇒
+     * {@code nginx -t} đạt, và lúc chạy trả đúng giá trị cho đúng host (T68.13). Miễn trừ theo CẤU TRÚC của khoá
+     * (luật 2), ⛔ theo một danh sách dòng được tha.
+     */
+    static boolean khoaVaoBangBamMangChoCam(String khoa) {
+        return khoa.contains("${") && !khoa.startsWith("~");
+    }
+
+    @Test
+    @DisplayName(
+            "Tự kiểm (luật 1): bộ canh khoá `map` BẮT khoá chính xác mang `${…}`, THA khoá regex và chỗ cắm ở giá trị")
+    void tuKiemKhoaMap() {
+        assertThat(khoaVaoBangBamMangChoCam(khoaCuaDong("\"Bearer ${METRICS_BEARER_TOKEN}\" 1;")))
+                .as("đúng hình dạng T63.19 — PHẢI bị bắt")
+                .isTrue();
+        assertThat(khoaVaoBangBamMangChoCam(khoaCuaDong("${ADMIN_DOMAIN} \"noindex, nofollow\";")))
+                .as("khoá chính xác ⛔ nháy cũng vào bảng băm — PHẢI bị bắt")
+                .isTrue();
+        assertThat(khoaVaoBangBamMangChoCam(khoaCuaDong("~*^${ADMIN_DOMAIN}$ \"noindex, nofollow\";")))
+                .as("khoá regex ⛔ vào bảng băm (đo 19/09) — được tha")
+                .isFalse();
+        assertThat(khoaVaoBangBamMangChoCam(khoaCuaDong("default \"${ROBOTS_TAG}\";")))
+                .as("chỗ cắm ở GIÁ TRỊ ⛔ vào bảng băm — được tha")
+                .isFalse();
+    }
+
     @Test
     @DisplayName("⛔⛔⛔ T63.19 — KHOÁ của một `map` nginx ⛔ được chứa chỗ cắm `${...}`")
     void khoaMapKhongDuocMangChoCam() {
@@ -254,7 +285,7 @@ class CanhBaoCoDuongDiTest {
                 //    — một **dương tính giả**, vì chỗ cắm ấy nằm ở giá trị và hoàn toàn an toàn.
                 //    Một bộ canh ⛔ phân biệt được khoá với giá trị sẽ phạt đúng dòng ⛔ có tội.
                 String khoa = khoaCuaDong(t);
-                if (khoa.contains("${")) {
+                if (khoaVaoBangBamMangChoCam(khoa)) {
                     viPham.add(t);
                 }
             }

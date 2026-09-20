@@ -85,7 +85,7 @@ export function ChangePasswordPage() {
           : 'Sau khi đổi, mọi thiết bị đang đăng nhập sẽ bị đăng xuất.'
       }
     >
-      {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
+      {error && <Alert type="error" showIcon title={error} style={{ marginBottom: 16 }} />}
 
       <Form<ChangePasswordForm>
         layout="vertical"

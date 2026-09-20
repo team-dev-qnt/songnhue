@@ -95,6 +95,14 @@ export const router = createBrowserRouter([
             path: '/phien-dang-nhap',
             element: lazyPage(() => import('@/features/account/SessionsPage'), 'SessionsPage'),
           },
+          {
+            // ⛔⛔ CỐ Ý ⛔ bọc `RequirePermission` — hướng dẫn sử dụng phải mở cho **mọi** tài
+            //    khoản đã đăng nhập. Gác bằng một mã quyền là khoá đúng người cần nó nhất:
+            //    cán bộ `VIEWER` mở hệ thống lần đầu, thấy menu ngắn hơn đồng nghiệp và ⛔ có
+            //    chỗ nào tra xem vì sao (§4.2 của chính tài liệu ấy trả lời câu đó).
+            path: '/huong-dan',
+            element: lazyPage(() => import('@/features/help/HuongDanPage'), 'HuongDanPage'),
+          },
           // ---- Vận hành công trình (MOD-02) ----
           adminRoute(
             '/van-hanh/dieu-hanh',
@@ -234,6 +242,32 @@ export const router = createBrowserRouter([
             '/van-hanh/bao-cao',
             'ops:report:view',
             lazyPage(() => import('@/features/operations/BaoCaoVanHanhPage'), 'BaoCaoVanHanhPage'),
+          ),
+          adminRoute(
+            '/van-hanh/bao-cao-nhanh',
+            'ops:report:view',
+            lazyPage(() => import('@/features/operations/BaoCaoNhanhPage'), 'BaoCaoNhanhPage'),
+          ),
+          adminRoute(
+            '/van-hanh/bao-cao-nhanh/cau-hinh',
+            'ops:report:view',
+            lazyPage(
+              () => import('@/features/operations/CauHinhBaoCaoNhanhPage'),
+              'CauHinhBaoCaoNhanhPage',
+            ),
+          ),
+          adminRoute(
+            '/van-hanh/bao-cao-nhanh/:publicId',
+            'ops:report:view',
+            lazyPage(
+              () => import('@/features/operations/BaoCaoNhanhChiTietPage'),
+              'BaoCaoNhanhChiTietPage',
+            ),
+          ),
+          adminRoute(
+            '/van-hanh/may-bom',
+            'ops:construction:view',
+            lazyPage(() => import('@/features/operations/DanhMucMayBomPage'), 'DanhMucMayBomPage'),
           ),
           adminRoute(
             '/van-hanh/cong-trinh/tao-moi',
@@ -376,6 +410,14 @@ export const router = createBrowserRouter([
             '/nhan-su/duyet-nghi-phep',
             'hr:leave:approve',
             lazyPage(() => import('@/features/hr/DuyetNghiPhepPage'), 'DuyetNghiPhepPage'),
+          ),
+          // ⛔ Quyền RIÊNG `hr:leave:delegate`, ⛔ dùng lại `hr:leave:approve`: *duyệt được* và
+          //   *giao quyền duyệt cho người khác* là hai việc khác nhau, và dùng chung một mã quyền
+          //   thì ⛔ có cách nào cho phép cái thứ nhất mà ⛔ cho phép cái thứ hai.
+          adminRoute(
+            '/nhan-su/uy-quyen-duyet',
+            'hr:leave:delegate',
+            lazyPage(() => import('@/features/hr/UyQuyenDuyetPage'), 'UyQuyenDuyetPage'),
           ),
           adminRoute(
             '/quan-tri/tai-khoan',

@@ -4,6 +4,7 @@ import {
   FolderOpenOutlined,
   LockOutlined,
   PlusOutlined,
+  UploadOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -23,6 +24,7 @@ import { useState } from 'react';
 
 import { useAuth } from '@/app/auth/useAuth';
 import { DataTable } from '@/components/DataTable';
+import { ImportModal } from '@/components/business/ImportModal';
 import { OrgUnitTreeSelect } from '@/components/business/OrgUnitTreeSelect';
 import { StatusBadge } from '@/components/business/StatusBadge';
 import { usePagination } from '@/components/usePagination';
@@ -83,6 +85,7 @@ export function EmployeesPage() {
 
   const [dangSuaId, setDangSuaId] = useState<string | null>(null);
   const [bieuMauMo, setBieuMauMo] = useState(false);
+  const [dangNhapTep, setDangNhapTep] = useState(false);
   const [xemBaoMat, setXemBaoMat] = useState<EmployeeRow | null>(null);
   const [xemHoSoCon, setXemHoSoCon] = useState<EmployeeRow | null>(null);
 
@@ -239,7 +242,7 @@ export function EmployeesPage() {
     !coLoc && !danhSach.isError && (danhSach.data?.meta.totalElements ?? 0) === 0;
 
   return (
-    <Space direction="vertical" style={{ width: '100%' }} size="large">
+    <Space orientation="vertical" style={{ width: '100%' }} size="large">
       <Typography.Title level={4} style={{ margin: 0 }}>
         Hồ sơ cán bộ nhân viên
       </Typography.Title>
@@ -248,7 +251,7 @@ export function EmployeesPage() {
         <Alert
           type="info"
           showIcon
-          message="Chưa có dữ liệu cán bộ nhân viên"
+          title="Chưa có dữ liệu cán bộ nhân viên"
           description={
             <>
               Công ty chưa cung cấp danh sách CBNV (mục <b>G6-a</b>). Hệ thống ⛔ <b>không</b> tạo
@@ -304,9 +307,16 @@ export function EmployeesPage() {
       <Card
         extra={
           coThem ? (
-            <Button type="primary" icon={<PlusOutlined />} onClick={moThemMoi}>
-              Thêm hồ sơ
-            </Button>
+            <Space>
+              {/* ⭐ T68.23 — G6-a: ngày Công ty gửi danh sách CBNV thì đường đi là tải mẫu → điền → chạy
+                  khô → nhập, ⛔ một đợt lập trình nào. Nút đứng cạnh *Thêm hồ sơ* vì cùng một quyền. */}
+              <Button icon={<UploadOutlined />} onClick={() => setDangNhapTep(true)}>
+                Nhập từ tệp
+              </Button>
+              <Button type="primary" icon={<PlusOutlined />} onClick={moThemMoi}>
+                Thêm hồ sơ
+              </Button>
+            </Space>
           ) : null
         }
       >
@@ -330,6 +340,20 @@ export function EmployeesPage() {
           scrollX={1510}
         />
       </Card>
+
+      <ImportModal
+        open={dangNhapTep}
+        onClose={() => setDangNhapTep(false)}
+        title="Nhập danh sách CBNV từ tệp bảng tính"
+        moTa="Thêm mới hoặc cập nhật hồ sơ theo mã cán bộ. Ô để trống nghĩa là GIỮ NGUYÊN giá trị đang có, ⛔ phải xoá. Trường bảo mật (CCCD, số tài khoản, lương) ⛔ nằm trong tệp này."
+        duongDan={{
+          xemTruoc: '/hr/employees/import/preview',
+          nhap: '/hr/employees/import',
+          mau: '/hr/employees/import/template',
+        }}
+        tenTepMau="mau-danh-sach-cbnv.csv"
+        khoaCanLamMoi={['hr', 'employees']}
+      />
 
       <EmployeeFormModal
         open={bieuMauMo}

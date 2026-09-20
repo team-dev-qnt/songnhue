@@ -34,6 +34,10 @@ import org.junit.jupiter.api.io.TempDir;
  * commit {@code dev} tương ứng, vì đỉnh {@code staging} là một merge commit <b>chưa bao giờ chạy CI</b>.
  * Ba bản chép tay là ba nơi phải nhớ (luật 14).
  *
+ * <p>⭐ <b>18/09/2026 — còn HAI nơi.</b> Luồng đơn giản hoá bỏ PR {@code staging → production}: cả hai
+ * đích nhận PR từ {@code dev}, nên head của PR đã là SHA mang CI và {@code promotion-guard.yml} ⛔ còn
+ * cần giải. Hai workflow triển khai vẫn cần: đỉnh nhánh đích là một merge commit, ⛔ có image mang SHA ấy.
+ *
  * <h2>Vì sao bài kiểm dựng kho git THẬT</h2>
  *
  * Soi văn bản chỉ chứng minh script có mặt. Luật 1 đòi bằng chứng nó <b>bắt được vi phạm</b>; luật 9 đòi nó
@@ -50,7 +54,6 @@ class GiaiDinhDevTest {
     private static final Path SCRIPT = timTuGocKho(".github/scripts/giai-dinh-dev.sh");
     private static final Path WF_STAGING = timTuGocKho(".github/workflows/deploy-staging.yml");
     private static final Path WF_PROD = timTuGocKho(".github/workflows/deploy-prod.yml");
-    private static final Path WF_GUARD = timTuGocKho(".github/workflows/promotion-guard.yml");
 
     // =========================================================================
     //  Đường đi đúng
@@ -286,17 +289,16 @@ class GiaiDinhDevTest {
     }
 
     @Test
-    @DisplayName("⭐ Cả BA workflow phải gọi script, và `deploy-staging.yml` không còn giữ bản chép")
-    void baWorkflowPhaiGoiVaKhongConBanChep() {
-        for (Path wf : List.of(WF_STAGING, WF_PROD, WF_GUARD)) {
+    @DisplayName("⭐ Cả HAI workflow triển khai phải gọi script, và `deploy-staging.yml` không còn giữ bản chép")
+    void haiWorkflowPhaiGoiVaKhongConBanChep() {
+        for (Path wf : List.of(WF_STAGING, WF_PROD)) {
             assertThat(doc(wf))
                     .as(
                             """
                             %s không gọi `giai-dinh-dev.sh`.
 
-                            Ba nơi cần đúng phép giải theo cây tệp: hai workflow triển khai (tra image) và \
-                            cổng đề bạt (hỏi check-run của commit `dev` tương ứng). Một nơi tự chép lại là \
-                            một nơi sẽ trôi khỏi hai nơi kia (luật 14).""",
+                            Hai workflow triển khai cần đúng phép giải theo cây tệp để tra image theo SHA \
+                            `dev`. Một nơi tự chép lại là một nơi sẽ trôi khỏi nơi kia (luật 14).""",
                             wf.getFileName())
                     .contains("giai-dinh-dev.sh");
         }

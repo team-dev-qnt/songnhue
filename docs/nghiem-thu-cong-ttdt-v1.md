@@ -58,7 +58,7 @@
 | CR-04 | ✅ | Mục cấp 1 "Hoạt động Đảng, đoàn thể" |
 | CR-05 | ✅ | 4 mục con, **cả 4 đều có trang thật đứng sau** (không mục nào trả 404) |
 | CR-06 | ✅ | "Văn bản điều hành" → **Công bố thông tin**, 2 nhánh + 8 mục con |
-| CR-07 | ✅ | Không dựng module văn bản nội bộ. Nút mở tab mới sang `quanlyvanban.hanoi.gov.vn`; **địa chỉ là cấu hình**, trước đây ghi cứng ở 3 tệp |
+| CR-07 | ✅ | Không dựng module văn bản nội bộ. Nút mở tab mới sang hệ thống của Thành phố; **địa chỉ là cấu hình**, trước đây ghi cứng ở 3 tệp. ⚠ **Từ 20/09/2026 giao đi ở trạng thái TẮT** (T79.1): ô *Địa chỉ hệ thống văn bản điều hành* để trống ⇒ cả ba chỗ (thẻ trang chủ · thanh bên · chân trang) **⛔ hiện**. Dán địa chỉ vào là hiện lại đủ ba, ⛔ cần deploy — nên nếu lượt nghiệm thu ⛔ thấy mục này thì đó là **cấu hình**, ⛔ phải thiếu chức năng |
 | CR-08 | ⬜ | **Đợt 3.** Cố ý *chưa* dựng nút Đăng nhập — §2 cấm phân quyền bằng cách ẩn ở giao diện, và một nút dẫn tới hư không tệ hơn không có nút. Cơ chế đã chốt (xem §4) |
 | CR-09 | ✅ | Chân trang đọc **cùng bảng menu** với đầu trang → hai nơi không lệch được. Gỡ cột 5 liên kết viết cứng |
 
@@ -169,11 +169,11 @@ bản gốc và không tạo ra một bản thứ hai để lệch.
 |:---:|---|---|
 | **OI-03** | Danh sách chính xác **10 cống trục chính** hiện công khai ở trang chủ | Nội dung khối CR-13 |
 | **OI-04** | Email chân trang: bỏ hẳn hay thay bằng email công vụ | Trang Liên hệ (dữ liệu vẫn đang giữ) |
-| **OI-05** | **7 hay 8 Xí nghiệp** — Bố cục ghi 7, danh mục công trình có 8 (thêm XNTL Nhật Tựu) | ⛔ **Nhập liệu CR-19, CR-25, CR-26** |
+| **OI-05** | **7 hay 8 Xí nghiệp** — Bố cục ghi 7, danh mục công trình có 8 (thêm XNTL Nhật Tựu). ⚠ **19/09**: Báo cáo nhanh (OI-BC10) đưa ra danh sách **thứ ba** — 7 nhóm theo huyện của sheet `Trạm bơm`; phải chốt MỘT danh sách (`master-tracking.md` T66.14) | ⛔ **Nhập liệu CR-19, CR-25, CR-26** + Báo cáo nhanh |
 | **OI-06** | Cơ chế cấp tài khoản, bao nhiêu nhóm quyền, phạm vi mỗi nhóm | Đợt 3 (CR-08/38) |
 | **OI-08** | Thanh trên cùng: giữ / đổi tên / bỏ "Tra cứu văn bản" và "Gửi phản ánh kiến nghị" | Đợt này **giữ nguyên** — bỏ trước là tự quyết thay Công ty |
 | **OI-09** | Chu kỳ tự làm mới mong muốn (5 / 10 / 15 phút) | Hiện đặt 5 phút, **đổi bằng một cú bấm**, không cần cập nhật phần mềm |
-| **OI-10** | Hai biểu mẫu Báo cáo nhanh chống hạn / chống úng: chỉ tải mẫu hay nhập trực tuyến | Đợt 3 |
+| **OI-10** | Hai biểu mẫu Báo cáo nhanh chống hạn / chống úng: chỉ tải mẫu hay nhập trực tuyến. ✅ **Một nửa đã đóng 19/09**: Form 2 **chống úng** = nhập trực tuyến + tổng hợp + xuất Word đúng mẫu (CN-02.12, theo mẫu Công ty gửi 18/09). ⬜ Form 1 **chống hạn** chưa có mẫu (T66.16) | Form 1 — chờ mẫu |
 
 ### ⭐ Mục mới, phát sinh 28/8 — đề nghị Công ty chốt
 

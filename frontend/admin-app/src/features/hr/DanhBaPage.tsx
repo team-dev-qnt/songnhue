@@ -140,7 +140,7 @@ export function DanhBaPage() {
   );
 
   return (
-    <Space direction="vertical" size={16} style={{ display: 'flex' }}>
+    <Space orientation="vertical" size={16} style={{ display: 'flex' }}>
       <Card>
         <Row gutter={[12, 12]}>
           <Col xs={24} md={8}>
@@ -163,7 +163,7 @@ export function DanhBaPage() {
                 setTrang(0);
               }}
               loading={donViList.isLoading}
-              optionFilterProp="label"
+              showSearch={{ optionFilterProp: 'label' }}
               options={(donViList.data ?? []).map((o) => ({ value: o.publicId, label: o.name }))}
             />
           </Col>
@@ -179,7 +179,7 @@ export function DanhBaPage() {
                 setTrang(0);
               }}
               loading={chucVuList.isLoading}
-              optionFilterProp="label"
+              showSearch={{ optionFilterProp: 'label' }}
               options={(chucVuList.data ?? []).map((p) => ({ value: p.publicId, label: p.name }))}
             />
           </Col>
@@ -268,7 +268,7 @@ function TheDanhBa({ muc, tuKhoa, onMo }: { muc: DanhBaView; tuKhoa: string; onM
       <Space align="start" size={12}>
         {/* ⛔ Chữ cái đầu, ⛔ KHÔNG phải ảnh — xem javadoc `DanhBaPage`, nợ T55.4. */}
         <Avatar size={44}>{chuDau(muc.fullName)}</Avatar>
-        <Space direction="vertical" size={2} style={{ minWidth: 0 }}>
+        <Space orientation="vertical" size={2} style={{ minWidth: 0 }}>
           <Typography.Text strong ellipsis>
             <ToSang van={muc.fullName} tuKhoa={tuKhoa} />
           </Typography.Text>
@@ -277,12 +277,12 @@ function TheDanhBa({ muc, tuKhoa, onMo }: { muc: DanhBaView; tuKhoa: string; onM
           </Typography.Text>
           <Space size={4} wrap>
             {muc.phone ? (
-              <Tag icon={<PhoneOutlined />} bordered={false}>
+              <Tag icon={<PhoneOutlined />} variant="filled">
                 {muc.phone}
               </Tag>
             ) : null}
             {muc.workEmail ? (
-              <Tag icon={<MailOutlined />} bordered={false}>
+              <Tag icon={<MailOutlined />} variant="filled">
                 {muc.workEmail}
               </Tag>
             ) : null}
@@ -312,7 +312,7 @@ function ChiTietDrawer({
     <Drawer
       open={muc !== null}
       onClose={onClose}
-      width={480}
+      size={480}
       // ⛔ Tháo hẳn cây con khi đóng — cùng bài học T51.12/T53.7. Ở đây `useQuery` đã mang
       //   `publicId` trong khoá truy vấn nên dữ liệu tự đổi, nhưng trạng thái cuộn và mọi state
       //   cục bộ thêm về sau thì ⛔ không.
@@ -322,10 +322,10 @@ function ChiTietDrawer({
       {chiTiet.isLoading || !chiTiet.data ? (
         <Skeleton active />
       ) : (
-        <Space direction="vertical" size={16} style={{ display: 'flex' }}>
+        <Space orientation="vertical" size={16} style={{ display: 'flex' }}>
           <Space align="start" size={12}>
             <Avatar size={64}>{chuDau(chiTiet.data.muc.fullName)}</Avatar>
-            <Space direction="vertical" size={2}>
+            <Space orientation="vertical" size={2}>
               <Typography.Text strong>{chiTiet.data.muc.fullName}</Typography.Text>
               <Typography.Text type="secondary">
                 {chiTiet.data.muc.positionName ?? chiTiet.data.muc.jobTitle ?? '—'}
@@ -337,7 +337,7 @@ function ChiTietDrawer({
             </Space>
           </Space>
 
-          <Space direction="vertical" size={6}>
+          <Space orientation="vertical" size={6}>
             {chiTiet.data.muc.phone ? (
               <Typography.Link href={`tel:${chiTiet.data.muc.phone}`}>
                 <PhoneOutlined /> {chiTiet.data.muc.phone}
@@ -354,7 +354,7 @@ function ChiTietDrawer({
             <Typography.Text type="secondary">Vị trí trên sơ đồ tổ chức</Typography.Text>
             <div style={{ marginTop: 4 }}>
               {chiTiet.data.duongDanDonVi.map((ten, i) => (
-                <Tag key={ten + String(i)} bordered={false}>
+                <Tag key={ten + String(i)} variant="filled">
                   {ten}
                 </Tag>
               ))}
@@ -369,7 +369,7 @@ function ChiTietDrawer({
               {chiTiet.data.dongNghiep.length === 0 ? (
                 <Typography.Text type="secondary">Chưa có ai khác trong đơn vị này</Typography.Text>
               ) : (
-                <Space direction="vertical" size={4} style={{ display: 'flex' }}>
+                <Space orientation="vertical" size={4} style={{ display: 'flex' }}>
                   {chiTiet.data.dongNghiep.map((d) => (
                     <Typography.Link key={d.publicId} onClick={() => onMoNguoiKhac(d)}>
                       {d.fullName} — {d.positionName ?? d.jobTitle ?? '—'}

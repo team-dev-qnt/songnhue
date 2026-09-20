@@ -199,7 +199,7 @@ class PortalTaxonomyTest {
         assertThat(tepMatLienKet).doesNotContain("ROUTES." + tenKhoaRoutes("/gop-y"));
     }
 
-    /** `/gop-y` → `gopY`. ⚠ Bài này soi lời gọi `ROUTES.<khoá>`, ⛔ không soi chuỗi đường dẫn. */
+    /** `/gop-y` → `gopY`. ⚠ Bài này soi lời gọi {@code ROUTES.<khoá>}, ⛔ không soi chuỗi đường dẫn. */
     private static String tenKhoaRoutes(String duong) {
         String[] phan = duong.substring(1).split("-");
         StringBuilder sb = new StringBuilder(phan[0]);

@@ -1,4 +1,26 @@
-# Luồng CI/CD — chốt 2026-08-15, xác nhận lại 2026-08-23
+# Luồng CI/CD — chốt 2026-08-15, xác nhận lại 2026-08-23, ⭐ đơn giản hoá 2026-09-18
+
+> ### ⭐ Đơn giản hoá 18/9/2026 — đọc mục này trước
+>
+> Đội 2–3 người; luồng cũ chạy test **hai lần** (PR rồi push `dev`) và dựng image **hai lần** (thử ở
+> PR rồi thật ở push `dev`). Đo lượt push `dev` 35346347718: **9'** = test 6' + image 2–3' + gắn tag.
+>
+> | | Trước | Sau |
+> |---|---|---|
+> | PR → `dev` | lint + test + **dựng thử image** | lint + test. ⛔ image |
+> | push `dev` | lint + test + dựng/đẩy image + gắn tag | ⛔ test — chỉ job nhẹ + dựng/đẩy image (bộ lọc hẹp) + gắn tag |
+> | PR → `staging` | nguồn = `dev`, CI xanh, 1 người duyệt | nguồn = `dev`, CI xanh, **0** người duyệt |
+> | PR → `production` | nguồn = **`staging`**, CI xanh, 1 người duyệt | nguồn = **`dev`**, CI xanh, **0** người duyệt |
+> | CD Production | đòi commit là tổ tiên `staging` | ⛔ đòi — nhận thẳng từ `dev` |
+>
+> Bỏ test ở push dựa vào `strict=true` của `dev` (PR phải up-to-date) + squash ⇒ cây sau merge **trùng
+> khít** cây đã test ở PR. ⚠ **Cái giá đã chấp nhận**: Dockerfile hỏng / `ARG` rỗng chỉ lộ ra **sau**
+> merge (push `dev` đỏ). Lưới đỡ: `Cổng kiểm CI` của đỉnh `dev` đỏ ⇒ `Promotion guard` chặn mọi PR đề
+> bạt ⇒ image hỏng ⛔ tới máy chủ. Bộ canh: `CiImageChiTrenDevTest` · `PromotionCheckStateTest` ·
+> `DeployProdTriggerTest.khongConDoiQuaStaging`.
+>
+> ⚠ Phần còn lại của tài liệu giữ **lịch sử quyết định**; chỗ nào mâu thuẫn với bảng trên thì bảng
+> trên thắng.
 
 > Đi kèm: `docs/branch-protection.md` (cấu hình phía GitHub) ·
 > `docs/deploy-guideline.md` (dựng máy chủ từ đầu, từng bước) ·
@@ -20,19 +42,22 @@
 ## 1. Hình dạng
 
 ```
-nhánh feature ──PR──► dev ──PR──► staging ──PR──► production
-                       │           │                │
-                   CI đầy đủ   CD tự động       CD tự động
-                   + đóng gói   (không kiểm     (dump trước, không
-                     image       lại, không      kiểm lại, không
-                                 build lại)      build lại)
+                  PR: lint + test          push: dựng 3 image
+nhánh feature ──(squash)──► dev ──────────────────────────────┐
+                                  │                           │
+                                  ├──PR (merge commit)──► staging     CD tự động
+                                  └──PR (merge commit)──► production  CD tự động (dump trước)
+                                     guard: nguồn = dev · CI xanh · gốc chung
 ```
+
+Hai đích **độc lập** — ⛔ còn bắt buộc đi qua `staging` trước `production` (18/9). Chọn thứ tự là
+việc của người vận hành; cổng chỉ đòi mọi thứ phải đi qua `dev`.
 
 `master` **nằm ngoài luồng** — nhánh riêng của chủ repo, không workflow nào chạm tới.
 
 ## 2. Hai nguyên tắc, và chúng là một
 
-**Kiểm một lần.** Toàn bộ kiểm tra nặng chạy ở `dev`: định dạng, quy ước, **toàn bộ bộ kiểm BE + FE**, luật kiến
+**Kiểm một lần.** Toàn bộ kiểm tra nặng chạy ở **PR vào `dev`** (từ 18/9 ⛔ chạy lại ở push): định dạng, quy ước, **toàn bộ bộ kiểm BE + FE**, luật kiến
 trúc, ma trận phân quyền, cổng bao phủ. Hai chặng sau không kiểm lại — chạy lại cùng bộ kiểm tra
 trên cùng mã nguồn tốn vài phút mỗi lần đề bạt mà không phát hiện thêm gì.
 
@@ -102,10 +127,10 @@ phải thêm một bước tra thử riêng chỉ để phân biệt hai thứ �
 | `Vùng nào thay đổi` | So đường dẫn thay đổi, quyết định chạy job nào |
 | `Bộ đọc tracking` | 11 phép kiểm bộ đọc `master-tracking.md`. **Không có bộ lọc đường dẫn** — chạy ~10s, đặt bộ lọc chỉ thêm một chỗ bỏ sót |
 | `Thứ tự migration` | So số hiệu migration mới với đỉnh **nhánh nền** (`fetch-depth: 0`) — §10.66 |
-| `Backend — build, lint, test` | Spotless · Checkstyle · `mvn verify` (test đơn vị + Testcontainers + ArchUnit + cổng bao phủ) |
-| `Frontend — lint` | ESLint + **`tsc -b`** + Vitest — ⛔ **không** `tsc --noEmit`, xem ghi chú ngay dưới bảng |
-| `Đóng gói image` | Build backend. **Dựng ở cả PR, chỉ ĐẨY** `ghcr.io/…/app:<sha>` khi push vào `dev` |
-| `Đóng gói image frontend` | Ma trận `admin-app` + `public-web`. Cùng luật: dựng ở PR, đẩy khi push |
+| `Backend — build, lint, test` | **Chỉ ở PR** (18/9). Spotless · Checkstyle · `mvn verify` (test đơn vị + Testcontainers + ArchUnit + cổng bao phủ) |
+| `Frontend — lint` | **Chỉ ở PR** (18/9). ESLint + **`tsc -b`** + Vitest — ⛔ **không** `tsc --noEmit`, xem ghi chú ngay dưới bảng |
+| `Đóng gói image` | **Chỉ ở push `dev`** (18/9), dựng + đẩy `ghcr.io/…/app:<sha>`. Bộ lọc hẹp `image_backend`: `backend/` · `backend.Dockerfile` · `ci.yml` |
+| `Đóng gói image frontend` | Ma trận `admin-app` + `public-web`. **Chỉ ở push `dev`**. Bộ lọc `image_frontend`: `frontend/` · hai Dockerfile FE · `ci.yml` |
 | `Gắn tag SHA cho image không đổi` | Chỉ khi push `dev`. Gắn thêm tag `<sha>` lên digest cũ của image lượt này không dựng lại — để mọi commit `dev` có đủ ba tag (§2.1-b) |
 | `Soi phụ thuộc PR thêm vào` | `dependency-review-action` — chỉ soi phần PR **thêm vào**, đọc Advisory Database của GitHub, vài giây |
 | **`Cổng kiểm CI`** | ⭐ **Context bắt buộc DUY NHẤT.** Gom kết quả 9 job trên; ngưỡng `so_job -lt 9` chặn trường hợp khai báo `needs` hỏng làm cổng soi trên tập rỗng. `CiGateCoverageTest` đối chiếu hai chiều |
@@ -124,6 +149,10 @@ phải thêm một bước tra thử riêng chỉ để phân biệt hai thứ �
 
 > ⚠ **OWASP Dependency-Check đã CHUYỂN RA khỏi `ci.yml`** (18/8) sang `security-scan.yml` chạy theo lịch — xem §3.3.
 
+> ⭐ **ĐẢO LẠI 18/9/2026** — hai job đóng gói image **chỉ chạy ở push `dev`** trở lại, có chủ ý: đổi
+> ~2–3'/PR lấy rủi ro đoạn dưới đây mô tả. Lưới đỡ là `Promotion guard` (đỉnh `dev` đỏ ⇒ chặn đề bạt).
+> Đoạn dưới giữ làm lịch sử quyết định.
+>
 > ⚠⚠ **Hai job đóng gói image nay chạy ở cả PR** (24/8, `architecture-review.md` §10.38). Trước đó
 > chúng có `if: github.event_name == 'push'`, nên lượt dựng image đầu tiên của một thay đổi diễn ra
 > **sau khi đã merge** — chỗ duy nhất chúng có thể đỏ là `dev`. Đúng chuyện đã xảy ra với PR #10:
@@ -495,6 +524,13 @@ truy ra được, đúng loại lỗi không điều tra được sau đó.
 (`docker inspect` trên container, không đọc tệp compose) và ghi lại ba digest. Smoke test đỏ →
 dựng lại ba image cũ → hỏi lại câu 1.
 
+⭐ **Từ WS-71 (19/09/2026) quay lui trả CẢ cấu hình.** Trước khi đồng bộ, workflow chụp `/opt/songnhue`
+vào `.ban-truoc/` (mốc = số lượt chạy); hỏng thì trả bản chụp → `nginx -t` → `--force-recreate` →
+so ID ảnh → chờ nginx `healthy` (T11.9 — ngày 17/09 quay lui chỉ-ảnh ⛔ cứu được lỗi cấu hình nginx).
+Thử khô rsync trước khi đồng bộ và DỪNG nếu `--delete` sắp xoá tệp mà crontab/systemd đang gọi
+(T11.95). Quay lui tay dùng `deploy/` của chính SHA đã chọn. Diễn tập DOD0.21: biến
+`DIEN_TAP_QUAY_LUI=true` ở environment `staging` — `docs/runbook/deploy-hong.md` mục 0.
+
 ⛔ **Đây là quay lui về MÃ NGUỒN, không phải về DỮ LIỆU.** `migrator` đã chạy xong trước đó và
 migration là một chiều: nếu nó đã đổi lược đồ thì mã cũ có thể không chạy nổi trên lược đồ mới, và
 bước quay lui **không cứu được gì**. Đường quay lui về dữ liệu là bản chụp `predeploy-*` sinh ra ở
@@ -556,12 +592,11 @@ trình duyệt. Xem `docs/deploy-guideline.md` §9.3.
 
 ⚠ Lượt dispatch phải chọn nhánh **`production`** trong ô *"Use workflow from"* — xem lớp chặn 2.
 
-**Số lớp chặn không giảm, chỉ đổi thành phần:**
+**Các lớp chặn** (⭐ 18/9: bỏ vế *"tổ tiên của `staging`"* — `production` nhận PR thẳng từ `dev`):
 
-1. **Giải theo cây tệp + tổ tiên của `staging`** — hai câu hỏi khác nhau, cần cả hai. Cây tệp trả lời
-   *"nội dung này đã dựng image chưa"* (`.github/scripts/giai-dinh-dev.sh`); `--is-ancestor` trả lời
-   *"nó đã đi qua staging chưa"*. Đây cũng là thứ chặn cái sai nguy hiểm nhất của lượt bấm tay: gõ
-   nhầm một SHA chưa bao giờ chạy ở staging.
+1. **Giải theo cây tệp** — *"nội dung này đã dựng image chưa"* (`.github/scripts/giai-dinh-dev.sh`).
+   Không giải được về một commit `dev` thì đỏ trước khi chạm máy chủ. ~~`--is-ancestor … origin/staging`~~
+   đã gỡ: giữ nó là chặn đúng luồng `dev → production` vừa cho phép.
 2. **`deployment_branch_policy` của environment `production`** — chỉ nhánh `production` deploy được
    vào đó, nên một lượt `workflow_dispatch` từ nhánh khác **không chạm nổi** `PROD_*`. Đây là thứ
    thay cho required reviewer đã gỡ: một ràng buộc máy đo được thay cho một cú bấm của người.
@@ -576,9 +611,9 @@ trình duyệt. Xem `docs/deploy-guideline.md` §9.3.
 ## 6. Cổng đề bạt
 
 `promotion-guard.yml` là check bắt buộc **duy nhất** của `staging` và `production`. Chạy ~5 giây,
-kiểm hai điều:
+kiểm ba điều. ⭐ Từ 18/9 **không còn người duyệt** (bảo vệ nhánh đặt 0 — `branch-protection.md`):
 
-- Nhánh nguồn đúng chặng trước (`dev` → staging, `staging` → production). GitHub **không có** tuỳ
+- Nhánh nguồn **là `dev`** cho **cả hai** đích (18/9 — trước đó `production` chỉ nhận từ `staging`). GitHub **không có** tuỳ
   chọn "chỉ nhận PR từ nhánh X" — thiếu job này thì ai cũng mở được PR từ một nhánh feature thẳng
   vào production, và không check nặng nào chặn lại vì ta đã cố ý không yêu cầu chúng ở đó.
 - **Đúng commit đang đề bạt** đã xanh CI, tra qua API check-runs của chính SHA đó — không phải
@@ -602,6 +637,10 @@ kiểm hai điều:
 > Nay với `base_ref == production`, cổng giải head SHA về commit `dev` tương ứng bằng **cây tệp**
 > (`giai-dinh-dev.sh` — cùng phép giải mà CD Staging đã dùng từ §10.42) rồi mới hỏi check-run.
 > Canh bởi `PromotionCheckStateTest` (4 bài mới, có phản chứng).
+>
+> ⭐ **18/9: phép giải ấy đã GỠ khỏi cổng.** Nguồn bị ép = `dev` cho cả hai đích ⇒ head của PR **luôn**
+> là đỉnh `dev` — commit mang check-run. `PromotionCheckStateTest` canh **cặp** bất biến: nguồn = `dev`
+> **và** hỏi `head.sha` — nới vế đầu mà giữ vế sau là dựng lại PR #94.
 
 ## 7. Secret cần đặt (WS-11)
 
@@ -681,7 +720,7 @@ Dependabot.
 | PR | Kiểu merge | Vì sao |
 |---|---|---|
 | nhánh feature → `dev` | **Squash** hoặc **Rebase** | `dev` bật `required_linear_history` — merge commit bị chặn |
-| `dev` → `staging` → `production` | **Create a merge commit** | `deploy-staging.yml` tìm image qua `HEAD^2`; squash sinh SHA mới, cắt đứt liên kết với image đã kiểm (§4.1) |
+| `dev` → `staging` · `dev` → `production` | **Create a merge commit** | Squash làm gãy gốc chung ⇒ PR đề bạt kế tiếp đụng độ giả và `kiem-goc-chung.sh` đỏ (§10.72). Tra image thì vẫn chạy (giải theo cây tệp) |
 
 GitHub không giới hạn được kiểu merge theo từng nhánh, nên đây là quy ước người dùng phải nhớ.
 

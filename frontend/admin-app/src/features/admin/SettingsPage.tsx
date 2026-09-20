@@ -3,8 +3,10 @@ import {
   App,
   Button,
   Card,
+  ColorPicker,
   Input,
   InputNumber,
+  Select,
   Space,
   Switch,
   Table,
@@ -20,7 +22,7 @@ import { useMemo, useState } from 'react';
 
 import { useAuth } from '@/app/auth/useAuth';
 import { HopThoaiMaXacThuc } from '@/components/business/HopThoaiMaXacThuc';
-import { type SettingView } from '@/shared/api-types';
+import { type SettingView, type UserView } from '@/shared/api-types';
 import { ApiClientError, api } from '@/shared/apiClient';
 import { luuTep } from '@/shared/luuTep';
 
@@ -176,7 +178,7 @@ export function SettingsPage() {
       dataIndex: 'label',
       width: '32%',
       render: (label: string, row) => (
-        <Space direction="vertical" size={0}>
+        <Space orientation="vertical" size={0}>
           <Typography.Text strong>{label}</Typography.Text>
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             {row.key}
@@ -374,6 +376,14 @@ const GROUP_LABELS: Record<string, string> = {
   INTEGRATION: 'Tích hợp',
 };
 
+/**
+ * Khoá nhóm nhận cảnh báo G11 — phải khớp {@code RecipientResolver.KEY_EXECUTIVE_BOARD} ở backend.
+ *
+ * ⚠ Hai nơi phải nhớ cùng một chuỗi (luật 14). Gõ sai ở đây ⛔ làm gì đỏ — ô chọn chỉ lặng lẽ ⛔ hiện
+ * ra và người quản trị lại gặp ô JSON thô, đúng trạng thái T76.3 sinh ra để bỏ.
+ */
+const KHOA_NHOM_CANH_BAO = 'notification.alert-group.executive-board';
+
 /** Ô nhập dựng theo `valueType` — kiểu sai thì người dùng gõ được thứ backend chắc chắn từ chối. */
 function SettingEditor({
   setting,
@@ -401,7 +411,7 @@ function SettingEditor({
   if (setting.valueType === 'INTEGER' || setting.valueType === 'DECIMAL') {
     const bounds = parseBounds(setting.validation);
     return (
-      <Space direction="vertical" size={2} style={{ width: '100%' }}>
+      <Space orientation="vertical" size={2} style={{ width: '100%' }}>
         <InputNumber
           value={value === '' ? null : Number(value)}
           disabled={disabled}
@@ -419,6 +429,57 @@ function SettingEditor({
     );
   }
 
+  if (setting.valueType === 'COLOR') {
+    // ⚠⚠ Ô CHỮ là nguồn sự thật, bảng chọn màu chỉ là lối vào thứ hai.
+    //
+    // Công ty cầm bộ nhận diện dạng văn bản (`1758bf`, `fac036`) nên thao tác tự nhiên nhất là
+    // DÁN, ⛔ phải rê chuột trên vòng tròn màu — bỏ ô chữ đi là bắt họ dò lại bằng mắt đúng mã
+    // mình đang cầm trên tay. Cùng họ T46.6: con đường tự nhiên nhất mà ⛔ đi được thì người dùng
+    // sẽ đi đường sai.
+    //
+    // ⛔ Chuẩn hoá NGAY tại `onChange` chứ ⛔ lúc gửi: `ColorPicker` trả chuỗi khi chưa ai động
+    // vào và trả OBJECT khi đã đổi, nên nơi nào nhận giá trị cũng phải nhớ ép kiểu —
+    // `OperationStatusCodesPage:115` đang phải mang một `@ts-expect-error` vì đúng chuyện đó.
+    // Đối số thứ hai của `onChange` đã là chuỗi hex, dùng thẳng thì ⛔ còn hai dạng nào để nhớ.
+    const hopLe = /^#[0-9a-fA-F]{6}$/.test(value);
+    return (
+      <Space size={8} style={{ width: '100%' }}>
+        <ColorPicker
+          format="hex"
+          disabledAlpha
+          disabled={disabled}
+          // ⚠ Giá trị rỗng = "chưa đặt, dùng màu bộ nhận diện". ColorPicker ⛔ biểu diễn được trạng
+          //   thái ấy nên nó hiện mặc định của design-tokens — ô chữ bên cạnh mới là chỗ nói thật.
+          value={hopLe ? value : undefined}
+          onChange={(_, hex) => onChange(hex.toLowerCase())}
+        />
+        <Input
+          value={value}
+          disabled={disabled}
+          placeholder="#rrggbb"
+          status={value !== '' && !hopLe ? 'error' : undefined}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      </Space>
+    );
+  }
+
+  // ⛔⛔ T76.3 — khoá này là mảng `publicId` tài khoản, mà màn hình Tài khoản ⛔ hiện `publicId` ở
+  //    đâu cả ⇒ ô JSON thô bên dưới là một đường ghi **tồn tại trên giấy mà ⛔ đi được**. Đo 20/09:
+  //    giá trị giữ nguyên `'[]'` từ 13/08 ⇒ chốt G11 của khách chưa từng chạy một lần nào.
+  //    ⚠ Giá trị HỎNG thì rơi xuống ô thô bên dưới — một mảng ⛔ đọc được phải NHÌN THẤY được để
+  //    sửa, ⛔ bị ô chọn âm thầm quy về rỗng rồi ghi đè (luật 9).
+  if (setting.key === KHOA_NHOM_CANH_BAO && docMangPublicId(value) !== null) {
+    return (
+      <ONhomNhanCanhBao
+        nhan={setting.label}
+        value={value}
+        disabled={disabled}
+        onChange={onChange}
+      />
+    );
+  }
+
   if (setting.valueType === 'JSON') {
     return (
       <Input.TextArea
@@ -433,6 +494,81 @@ function SettingEditor({
   return (
     <Input value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)} />
   );
+}
+
+/**
+ * Nhóm <i>"Ban điều hành"</i> của chốt G11 — người nhận mặc định của cảnh báo vận hành.
+ *
+ * <p>⛔⛔ Ô chọn này <b>phải đi cùng</b> bản vá T74.7. Tới 20/09/2026 `RecipientResolver` CỘNG nhóm
+ * này vào mọi lượt gửi ⛔ nhắm đích theo quyền — gồm 17 hàng `notify_owner` của quy trình duyệt và
+ * sáu mã sự kiện an ninh <b>của một cá nhân</b> (<i>"tài khoản của bạn đã bị khoá"</i>). Hôm nay
+ * ⛔ ai thấy vì nhóm rỗng, nên dựng ô chọn mà ⛔ vá vế kia là <b>bật một lỗi đang ngủ</b> đúng ngày
+ * Công ty điền danh sách.
+ */
+function ONhomNhanCanhBao({
+  nhan,
+  value,
+  disabled,
+  onChange,
+}: {
+  nhan: string;
+  value: string;
+  disabled: boolean;
+  onChange: (value: string) => void;
+}) {
+  // ⛔ Chỉ tài khoản ĐANG HOẠT ĐỘNG — `RecipientResolver.locNguoiNhan` lọc `findActiveIdsIn` cho
+  //   nhóm suy ra, nên bày tài khoản khoá ra là dựng một lựa chọn chắc chắn ⛔ nhận được thư.
+  //   Cùng MỘT luật với `OTruongPho` ở `OrgUnitsPage`, ⛔ hai luật khác nhau.
+  const { data: taiKhoan } = useQuery({
+    queryKey: ['admin-users', 'chon-nhom-canh-bao'],
+    queryFn: () => api.get<UserView[]>('/admin/users'),
+  });
+  const chon = useMemo(
+    () =>
+      (taiKhoan ?? [])
+        .filter((u) => u.status === 'ACTIVE')
+        .map((u) => ({ value: u.publicId, label: `${u.fullName} (${u.username})` })),
+    [taiKhoan],
+  );
+  // ⚠ `?? []` ⛔ che được gì: nhánh giá trị hỏng đã bị chặn ở nơi gọi, nên tới đây luôn đọc được.
+  const daChon = useMemo(() => docMangPublicId(value) ?? [], [value]);
+
+  return (
+    <Select
+      mode="multiple"
+      // ⚠ Ô này nằm trong một ô bảng, ⛔ có <label> nào trỏ tới ⇒ trình đọc màn hình đọc thành
+      //   "combobox" trống rỗng và bài kiểm ⛔ gọi tên được nó (bài học T63.9).
+      aria-label={nhan}
+      allowClear
+      disabled={disabled}
+      showSearch={{ optionFilterProp: 'label' }}
+      options={chon}
+      value={daChon}
+      placeholder="Chọn tài khoản nhận cảnh báo"
+      style={{ width: '100%' }}
+      onChange={(ids: string[]) => onChange(JSON.stringify(ids))}
+    />
+  );
+}
+
+/**
+ * `'["u-1","u-2"]'` → `['u-1','u-2']`; rỗng → `[]`; <b>⛔ đọc được → `null`</b>.
+ *
+ * <p>⚠ Ba trạng thái, ⛔ phải hai: gộp *"hỏng"* vào *"rỗng"* thì một giá trị JSON sai cú pháp sẽ
+ * hiện ra như một nhóm trống rồi bị lượt Lưu kế tiếp **ghi đè mất** (luật 9).
+ */
+function docMangPublicId(raw: string): string[] | null {
+  if (raw.trim() === '') {
+    return [];
+  }
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.every((x) => typeof x === 'string')
+      ? (parsed as string[])
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 /** `min=7;max=365` → `{min: 7, max: 365}`. Không đọc được thì bỏ qua, backend vẫn chặn. */

@@ -119,7 +119,7 @@ export function FeedbacksPage() {
       key: 'fullName',
       width: 200,
       render: (ten: string | null, r: FeedbackView) => (
-        <Space direction="vertical" size={0}>
+        <Space orientation="vertical" size={0}>
           {/* ⛔ Ẩn danh là HỢP LỆ ở kênh này — nói thẳng, ⛔ không bịa một cái tên (quy tắc 16). */}
           {ten ? (
             <Typography.Text strong>{ten}</Typography.Text>
@@ -314,7 +314,7 @@ function ChiTietGopY({
   });
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       <Descriptions column={1} size="small" bordered>
         <Descriptions.Item label="Nội dung">
           {/* Xuống dòng giữ nguyên; nội dung vẫn là TEXT — React escape. */}

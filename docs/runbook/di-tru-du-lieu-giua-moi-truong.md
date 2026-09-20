@@ -48,8 +48,14 @@ bài của Công ty rồi thay bằng nội dung dàn dựng.
 
 ### 2.3 ⛔⛔ Quyền (ACL) — lớp không ai nghĩ tới
 
-`pg_dump` mang theo `GRANT`/`REVOKE` của từng bảng. Khôi phục **thay** ACL của đích bằng ACL của
-nguồn.
+`pg_dump` mang theo `GRANT` của từng bảng.
+
+⚠ **Đo lại 19/09/2026 (T68.3, `architecture-review.md` §12.11)** — câu cũ *"khôi phục THAY ACL của đích
+bằng ACL của nguồn"* sai cơ chế: ACL của bản dump chỉ **GRANT** so với mặc định của Postgres, ⛔ bao giờ
+REVOKE. Bảng mà `--clean` dựng lại nhận quyền MẶC ĐỊNH của đích (`V202608131006`: `arwd` cho
+`songnhue_app`), nên khôi phục ĐÈ lên một CSDL đã migrate **tự nó** sinh ra đúng bảng `arwd` dưới đây —
+đo trên Postgres 16: 72 quyền thừa, nguồn đúng, ⛔ có `--no-privileges`. Từ WS-69 khối
+`deploy/backup/truoc-khi-nap.sql` gỡ quyền mặc định trước khi nạp ⇒ đích nhận **đúng ACL của nguồn**.
 
 Đo 08/09, `songnhue_app` trên staging so với production:
 
@@ -66,9 +72,11 @@ Khôi phục nguyên trạng ⇒ **âm thầm hạ cấp production**: vai trò 
 kiểm toán (phá luật 18 — hash chain đang ký tên vào lịch sử), sửa được `hydro_raw_logs` (luật 8 —
 bản sao **duy nhất** của nguồn không có API lịch sử), và ghi được cả sổ migration.
 
-**Nguyên nhân staging mất phần siết**: lượt khôi phục staging 26/8 chạy bản `restore.sh` còn
-`--no-privileges` — đúng thứ §10.58 ghi là *"`ALTER DEFAULT PRIVILEGES` cứu"*. Nó cứu app khỏi chết
-và **cùng lúc xoá mọi câu `REVOKE`**. Staging đã chạy như thế 13 ngày, không có triệu chứng nào.
+**Nguyên nhân staging mất phần siết**: lượt khôi phục staging 26/8 nạp `--clean` lên một CSDL **đã
+migrate** — đúng thứ §10.58 ghi là *"`ALTER DEFAULT PRIVILEGES` cứu"*. Nó cứu app khỏi chết và **cùng
+lúc xoá mọi câu `REVOKE`**. Staging đã chạy như thế 13 ngày, không có triệu chứng nào. ⚠ Bản ghi 08/09
+quy cho `--no-privileges`; đo 19/09 bác vế ấy — gỡ cờ ấy ⛔ chặn được, thứ chặn được là gỡ quyền mặc
+định trước khi nạp (§12.11).
 
 > ⇒ **Luật rút ra: nhân bản môi trường theo chiều *kém an toàn → an toàn hơn* là nhập khẩu cả phần
 > yếu.** Và cách vá **không** phải chép ảnh chụp ACL của đích — ảnh chụp cũng có thể đã sai. Phải
@@ -514,8 +522,10 @@ mỗi tệp chứa 4 lần `password_hash` và `secret_encrypted` **dạng thu�
 
 **Vá** `umask 077` ở đầu script + `trap 'rm -f "$GHEP"' EXIT`.
 
-⬜ **Nợ còn lại (T11.96)**: các tệp `*.dump` vẫn là `644` — mỗi tệp là **toàn bộ CSDL**. Hành vi sẵn
-có của `pre-deploy-dump.sh`, mâu thuẫn với chính chuẩn của dự án (`.env` bắt buộc `600`).
+⬜ **Nợ còn lại (T11.96)**: các tệp `*.dump` CŨ vẫn có thể là `644` — mỗi tệp là **toàn bộ CSDL**. ⚠ **Sửa
+19/09 (WS-68)**: hành vi của script ĐÃ vá và đã lên production (`pre-deploy-dump.sh` umask 027 + `chmod 640`,
+`QuyenBanDumpTest`) — tệp MỚI là `640`. Còn đúng việc sửa quyền tệp CŨ trên hai máy, lọc MỌI tệp thường chứ ⛔ chỉ
+`*.dump` (`phase4-tracking-tmp.md` §B4).
 
 ### 7.11 zsh không tách từ
 

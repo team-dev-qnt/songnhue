@@ -2,6 +2,7 @@ import { SafetyOutlined } from '@ant-design/icons';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   Alert,
+  App,
   Button,
   Card,
   Descriptions,
@@ -12,7 +13,6 @@ import {
   Table,
   Tag,
   Typography,
-  message,
 } from 'antd';
 import { type ColumnsType } from 'antd/es/table';
 import { useState } from 'react';
@@ -39,6 +39,7 @@ import { formatDateTimeWithSeconds, formatInteger } from '@/shared/format';
  * bằng niềm tin. Kết quả **rỗng nghĩa là nguyên vẹn**.
  */
 export function AuditLogPage() {
+  const { message } = App.useApp();
   const { hasPermission } = useAuth();
   const pagination = usePagination(20);
   const [range, setRange] = useState<DateRange>({});
@@ -145,7 +146,7 @@ export function AuditLogPage() {
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
-          message="Đang xem 30 ngày gần nhất. Chọn khoảng thời gian để tra xa hơn."
+          title="Đang xem 30 ngày gần nhất. Chọn khoảng thời gian để tra xa hơn."
         />
       )}
 
@@ -206,7 +207,7 @@ export function AuditLogPage() {
           type="error"
           showIcon
           style={{ marginTop: 16 }}
-          message={
+          title={
             verify.error instanceof ApiClientError
               ? verify.error.message
               : 'Không kiểm tra được chuỗi'
@@ -245,7 +246,7 @@ function VerificationResult({ result }: { result: ChainVerification }) {
         type="error"
         showIcon
         style={{ marginBottom: 16 }}
-        message="Phát hiện đứt gãy chuỗi hash"
+        title="Phát hiện đứt gãy chuỗi hash"
         description="Nhật ký kiểm toán có dấu hiệu bị can thiệp. Báo ngay quản trị hệ thống và giữ nguyên hiện trạng — xem docs/runbook/su-kien-bao-mat.md."
       />
       <Table<ChainBreak>

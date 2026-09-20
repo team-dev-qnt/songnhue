@@ -81,7 +81,7 @@ describe('Màu của cổng chỉ đến từ design-tokens', () => {
     expect(
       pham,
       'Khai màu qua `design-tokens` rồi dùng class Tailwind (`bg-chrome-navy800`, ' +
-        '`text-brand-gold`). `ui-styles.md` §2.1. Nếu đây là màu mới thì thêm vào ' +
+        '`text-brand-accent`). `ui-styles.md` §2.1. Nếu đây là màu mới thì thêm vào ' +
         '`frontend/design-tokens/src/index.ts` — đó là nơi duy nhất một mã màu được viết ra.',
     ).toEqual([]);
   });

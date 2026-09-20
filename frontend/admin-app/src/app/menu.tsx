@@ -118,6 +118,22 @@ export const MENU: readonly MenuNode[] = [
         path: '/van-hanh/bao-cao',
         permissions: ['ops:report:view'],
       },
+      {
+        // Báo cáo nhanh (18/09/2026) — kỳ báo cáo có vòng đời, ⛔ một mã trong danh mục ở trên.
+        // Gác bằng `:view`; nút nhập/chốt tự khoá theo `ops:quick-report:manage` (tầng 2).
+        key: 'bao-cao-nhanh',
+        label: 'Báo cáo nhanh',
+        icon: <FileTextOutlined />,
+        path: '/van-hanh/bao-cao-nhanh',
+        permissions: ['ops:report:view'],
+      },
+      {
+        key: 'may-bom',
+        label: 'Danh mục máy bơm',
+        icon: <AppstoreOutlined />,
+        path: '/van-hanh/may-bom',
+        permissions: ['ops:construction:view'],
+      },
     ],
   },
   {
@@ -376,6 +392,13 @@ export const MENU: readonly MenuNode[] = [
         permissions: ['hr:leave:approve'],
       },
       {
+        key: 'uy-quyen-duyet',
+        label: 'Uỷ quyền duyệt phép',
+        icon: <CheckSquareOutlined />,
+        path: '/nhan-su/uy-quyen-duyet',
+        permissions: ['hr:leave:delegate'],
+      },
+      {
         // ⛔⛔ Gác bằng `hr:leave:request` — quyền của NGƯỜI NỘP ĐƠN, ⛔ không phải
         //    `hr:contract:manage` của người sửa danh mục. Lý do: lịch lễ quyết định số ngày công
         //    của đơn mình sắp nộp, mà một ô *"còn 8 ngày công"* ⛔ không xem được vì sao là một
@@ -477,6 +500,21 @@ export const MENU: readonly MenuNode[] = [
         path: '/phien-dang-nhap',
       },
     ],
+  },
+  {
+    // ⛔⛔ ⛔ `permissions`, và đó là điều kiện CHỊU LỰC của mục này — ⛔ phải một chỗ quên khai.
+    //
+    // Hướng dẫn sử dụng phải với tới **mọi** tài khoản đã đăng nhập. Một cán bộ vai trò `VIEWER`
+    // mở hệ thống lần đầu sẽ thấy menu ngắn hơn hẳn đồng nghiệp, và câu hỏi đầu tiên của họ —
+    // *"vì sao tôi ⛔ thấy mục kia"* — được trả lời ở §4.2 của chính tài liệu này. Gác nó bằng
+    // một mã quyền, dù rộng đến đâu, là đóng cửa đúng vào nhóm người cần nó nhất.
+    //
+    // ⚠ Đặt ở **cấp 1 và cuối cùng**: một mục cứu hộ mà nằm trong nhóm con thì người đang bối rối
+    // phải mở đúng nhóm mới thấy — mà biết mở nhóm nào thì họ đã ⛔ cần tới nó.
+    key: 'huong-dan',
+    label: 'Hướng dẫn sử dụng',
+    icon: <QuestionCircleOutlined />,
+    path: '/huong-dan',
   },
 ];
 

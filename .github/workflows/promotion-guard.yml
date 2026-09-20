@@ -1,9 +1,16 @@
 # =============================================================================
-# Cổng đề bạt — dev → staging → production (WS-10 / T10.7)
+# Cổng đề bạt — dev → staging | dev → production (WS-10 / T10.7)
 #
-# Luồng làm việc đã chốt: MỌI kiểm tra nặng chạy đúng một lần ở `dev`. Hai chặng
-# sau không kiểm lại — chúng chỉ xác minh rằng thứ đang được đẩy lên đúng là thứ
-# đã được kiểm.
+# ⭐ ĐƠN GIẢN HOÁ 18/09/2026: ⛔ còn thứ tự bắt buộc `staging` trước `production`.
+#   Cả hai đích đều nhận PR TỪ `dev` và chỉ hỏi ba câu:
+#     1. Nguồn có phải `dev` không (chặn nhánh feature đi tắt vào môi trường thật).
+#     2. `Cổng kiểm CI` của đỉnh `dev` (= head của PR) có xanh không — ở push `dev`
+#        nó chỉ xanh khi 3 image đã dựng + gắn tag, tức CD có image để kéo.
+#     3. Nhánh đích có commit riêng không (bắt lượt đề bạt bị SQUASH, §10.72).
+#   ⛔ Không còn người duyệt (approve) — bảo vệ nhánh đặt 0.
+#
+# Luồng làm việc đã chốt: MỌI kiểm tra nặng chạy đúng một lần (PR vào `dev`).
+# Chặng sau không kiểm lại — chỉ xác minh thứ được đẩy lên là thứ đã được kiểm.
 #
 # Job này cố ý CỰC NHẸ (vài giây) vì nó là check bắt buộc duy nhất của
 # staging/production. Nó bịt đúng cái lỗ mà branch protection của GitHub không
@@ -39,8 +46,7 @@ jobs:
           source="${{ github.head_ref }}"
 
           case "$target" in
-            staging)    expected="dev" ;;
-            production) expected="staging" ;;
+            staging | production) expected="dev" ;;
             *)
               echo "::error::Nhánh đích '$target' không nằm trong luồng đề bạt."
               exit 1
@@ -49,8 +55,8 @@ jobs:
 
           if [ "$source" != "$expected" ]; then
             echo "::error::PR vào '$target' chỉ được mở từ '$expected', đang mở từ '$source'."
-            echo "Luồng đã chốt: dev → staging → production. Mọi kiểm tra nặng chạy ở dev;"
-            echo "đi tắt vào đây là đưa lên môi trường thật một thay đổi chưa qua kiểm tra nào."
+            echo "Luồng đã chốt: merge vào dev trước (CI + dựng image), rồi mở PR dev → $target."
+            echo "Đi tắt vào đây là đưa lên môi trường thật một thay đổi chưa qua kiểm tra nào."
             exit 1
           fi
           echo "✓ $source → $target"
@@ -63,58 +69,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      # `fetch-depth: 0` chỉ lấy đủ lịch sử của ref đang checkout (ở đây là
-      # `refs/pull/N/merge`), KHÔNG lấy nhánh `dev`. Thiếu bước này thì
-      # `giai-dinh-dev.sh` trả mã 2 và `production` khoá vĩnh viễn.
-      - name: Nạp nhánh dev để giải SHA mang kết quả CI
-        if: github.base_ref == 'production'
-        run: git fetch --no-tags origin +refs/heads/dev:refs/remotes/origin/dev
-
       # ═══════════════════════════════════════════════════════════════════════
-      # ⛔⛔ SHA NÀO MANG KẾT QUẢ CI — vá 6/9/2026 (T11.86)
+      # SHA NÀO MANG KẾT QUẢ CI — `head.sha` của PR, cho CẢ HAI đích.
       #
-      # Bản cũ hỏi check-run của `pull_request.head.sha` ở CẢ HAI chặng. Với
-      # `dev → staging` thì đúng: head là đỉnh `dev`, nơi CI thật sự chạy.
-      #
-      # Với `staging → production` thì head là **merge commit nằm trên `staging`**
-      # — mà `ci.yml` chỉ chạy trên `dev`. Commit ấy không có, và không thể có,
-      # một check-run nào. Nghĩa là cổng bắt buộc DUY NHẤT của `production` là
-      # một cổng **về nguyên tắc không thể xanh**.
-      #
-      #   Đo 6/9: PR #94 (`staging → production`, mở từ 5/9) —
-      #     `Promotion guard = FAILURE`, `mergeStateStatus = BLOCKED`,
-      #     `##[error]Không tìm thấy kết quả CI nào cho commit 107e315b…`
-      #   và `CD Production` có **0 lượt chạy** kể từ khi được tạo 15/8.
-      #
-      # ⛔ Vì sao không ai thấy suốt một ngày: cổng đỏ kèm một lý do NGHE RẤT HỢP
-      #   LÝ ("commit này chưa từng chạy qua pipeline ở dev") nên nó đọc như một
-      #   kết luận đúng, không như một khuyết tật. Cùng họ §10.72 — nhưng lần ấy
-      #   cổng VẮNG MẶT, lần này cổng CÓ MÀU mà màu ấy nói sai chuyện.
-      #
-      # ⚠ Nhánh `if` chỉ bọc chặng production: đường `dev → staging` là check bắt
-      #   buộc duy nhất của `staging` và nó đang chạy tốt — không thêm cho nó một
-      #   phụ thuộc vào `origin/dev` mà nó vốn không cần.
+      # Bước trên đã ép nguồn = `dev`, nên head của PR LUÔN là đỉnh `dev` — commit
+      # có check-run của lượt push `dev` (dựng image + `Cổng kiểm CI`). Từ 18/09
+      # ⛔ còn PR `staging → production`, nên ⛔ còn cần giải cây tệp như bản
+      # T11.86 (head khi ấy là merge commit trên `staging`, chưa từng chạy CI —
+      # PR #94, cổng "về nguyên tắc không thể xanh").
+      # ⚠ Qua `env:`, không nội suy thẳng vào `run:`.
       # ═══════════════════════════════════════════════════════════════════════
-      - name: SHA nào mang kết quả CI
-        id: nguon
-        env:
-          BASE: ${{ github.base_ref }}
-          SHA_PR: ${{ github.event.pull_request.head.sha }}
-        run: |
-          set -euo pipefail
-          if [ "$BASE" = "production" ]; then
-            sha_ci="$(bash .github/scripts/giai-dinh-dev.sh "$SHA_PR" 500)"
-            echo "::notice::Đỉnh staging $SHA_PR chưa từng chạy CI — CI chỉ chạy ở dev."
-            echo "Hỏi kết quả CI của dev@$sha_ci (cây tệp trùng khít)."
-          else
-            sha_ci="$SHA_PR"
-          fi
-          echo "sha_ci=$sha_ci" >> "$GITHUB_OUTPUT"
-
       - name: Commit này đã xanh CI ở chặng trước chưa
         env:
           GH_TOKEN: ${{ github.token }}
-          SHA: ${{ steps.nguon.outputs.sha_ci }}
+          SHA: ${{ github.event.pull_request.head.sha }}
           REPO: ${{ github.repository }}
         run: |
           echo "Kiểm tra check-runs của $SHA"

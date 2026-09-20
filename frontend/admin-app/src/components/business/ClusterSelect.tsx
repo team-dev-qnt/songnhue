@@ -19,8 +19,15 @@ import { api } from '@/shared/apiClient';
  * <p>⚠ Danh sách cụm đứng sau `ops:construction:view` — cùng quyền với biểu mẫu chứa nó, nên
  * không lặp lại lỗi §10.36 (ô chọn phụ trợ đòi một quyền mà vai trò sở hữu biểu mẫu không có).
  *
- * <p>⬜ Chưa có màn hình quản lý cụm (thêm/sửa/xoá) — ba endpoint ghi vẫn chưa ai gọi. Ghi nợ ở
- * `master-tracking.md`; ô chọn này chỉ đóng vế **dùng** cụm, không đóng vế **tạo** cụm.
+ * <p>✅ Vế **tạo** cụm đã đóng từ **09/09/2026**: `features/operations/ConstructionClustersPage`
+ * (`/van-hanh/cum-cong-trinh`) gọi đủ `api.post`/`api.put`/`api.delete`, có tuyến ở `app/router.tsx`
+ * và mục *Cụm công trình* trên menu. Ô chọn này vẫn chỉ lo vế **dùng** cụm.
+ *
+ * <p>⚠⚠ **Sửa 20/09/2026 (T68.41)** — javadoc ở đây vẫn khai *"chưa có màn hình quản lý cụm, ba
+ * endpoint ghi chưa ai gọi"* suốt **11 ngày** sau khi điều đó hết đúng, trong khi chú thích ở
+ * `notFoundContent` ngay bên dưới **đã** được đính chính đúng hôm ấy. Một tệp mang hai câu ngược
+ * nhau còn tệ hơn một câu cũ: lượt rà sau đọc trúng câu nào thì tin câu ấy. ⇒ Sửa hành vi thì phải
+ * quét **cả tệp**, ⛔ chỉ chỗ vừa đụng tới.
  */
 export function ClusterSelect({
   value,
@@ -28,12 +35,23 @@ export function ClusterSelect({
   placeholder = 'Chọn cụm công trình',
   disabled,
   allowClear = true,
+  id,
 }: {
   value?: string;
   onChange?: (value: string | undefined) => void;
   placeholder?: string;
   disabled?: boolean;
   allowClear?: boolean;
+  /**
+   * ⚠⚠ T75.1 — `Form.Item` TRUYỀN `id` xuống con của nó để nối `<label for>` với ô nhập, và bản
+   * trước của component này **nuốt mất nó**: nó bóc đúng 5 prop rồi bỏ phần còn lại. Hậu quả là
+   * mọi chỗ dùng `ClusterSelect` trong một `Form.Item` đều có một cái nhãn ⛔ trỏ vào đâu —
+   * trình đọc màn hình đọc ô ấy thành một combobox ⛔ tên, cùng họ khuyết tật `nutIconCoTen`.
+   *
+   * ⭐ Lộ ra vì một bài kiểm cần chọn ô ấy bằng nhãn và ⛔ có cách nào gọi tên nó — lần thứ ba
+   * trong dự án nợ a11y hiện ra cái giá THẬT của nó: nó chặn việc viết bài kiểm.
+   */
+  id?: string;
 }) {
   const { data, isLoading } = useQuery({
     queryKey: ['ops', 'construction-clusters'],
@@ -44,14 +62,14 @@ export function ClusterSelect({
 
   return (
     <Select
+      id={id}
       value={value}
       onChange={onChange}
       placeholder={placeholder}
       disabled={disabled}
       allowClear={allowClear}
       loading={isLoading}
-      showSearch
-      optionFilterProp="label"
+      showSearch={{ optionFilterProp: 'label' }}
       // ⛔ Chưa có cụm nào thì nói thẳng là chưa có, đừng để ô rỗng trông như đang tải.
       //
       // ⚠⚠ T27.30 — câu này phải nói ra VÌ SAO nó rỗng, ⛔ không chỉ RẰNG nó rỗng. Đo 04/09:

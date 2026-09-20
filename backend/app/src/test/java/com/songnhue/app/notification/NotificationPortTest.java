@@ -159,7 +159,11 @@ class NotificationPortTest extends IntegrationTestBase {
                 List.of(),
                 extraUserIds,
                 null,
-                List.of(NotifyChannel.IN_APP, NotifyChannel.EMAIL));
+                List.of(NotifyChannel.IN_APP, NotifyChannel.EMAIL),
+                false,
+                // ⚠ T74.7 — lớp này khẳng định về người nhận ĐÍCH DANH, nên ⛔ áp luật G11. Để `true`
+                //   thì nhóm "Ban điều hành" lọt vào tập và hai bài `containsExactly` đỏ vì lý do sai.
+                false);
     }
 
     /**

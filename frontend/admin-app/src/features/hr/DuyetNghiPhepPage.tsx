@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, App, Card, Space, Table, Tag, Typography } from 'antd';
+import { Alert, App, Card, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import { type ColumnsType } from 'antd/es/table';
 import { useState } from 'react';
 
@@ -89,6 +89,30 @@ export function DuyetNghiPhepPage() {
         </Space>
       ),
     },
+    {
+      /*
+       * ⭐⭐ T80.7 — hộp chờ NÓI RA ai phải bấm.
+       *
+       * Danh sách cắt theo PHẠM VI (đơn vị), còn nút thì theo THẨM QUYỀN (trưởng/phó hoặc được uỷ
+       * quyền). Hai tập ⛔ bằng nhau: một quản lý ⛔ giữ chức vụ vẫn thấy đơn của đơn vị mình — cố ý,
+       * đó là danh sách việc của đơn vị. Trước lượt này họ phải mở từng dòng ra mới biết mình ⛔ có
+       * nút, và ⛔ gì chỉ ra AI mới là người phải bấm.
+       *
+       * ⚠ `undefined` ⛔ phải `false` (xem `DonNghiView.toiDuyetDuoc`) — ô để TRỐNG, ⛔ vẽ một nhãn
+       * phủ định cho một câu hỏi endpoint ⛔ trả lời.
+       */
+      title: 'Tôi duyệt được',
+      dataIndex: 'toiDuyetDuoc',
+      width: 140,
+      render: (duoc: boolean | undefined) =>
+        duoc === undefined ? null : duoc ? (
+          <Tag color="success">Bấm được</Tag>
+        ) : (
+          <Tooltip title="Bạn thấy đơn này vì nó thuộc phạm vi đơn vị của bạn, nhưng người bấm nút phải là trưởng/phó đơn vị hoặc người đang được uỷ quyền.">
+            <Tag color="default">Chỉ theo dõi</Tag>
+          </Tooltip>
+        ),
+    },
   ];
 
   return (
@@ -97,7 +121,7 @@ export function DuyetNghiPhepPage() {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="Danh sách đã cắt theo đơn vị của bạn"
+        title="Danh sách đã cắt theo đơn vị của bạn"
         description={
           <>
             Quyền duyệt một mình ⛔ không đủ để diễn đạt <i>“quản lý đơn vị mình duyệt”</i> — vế còn
@@ -119,7 +143,7 @@ export function DuyetNghiPhepPage() {
           expandedRowKeys: dangMo ? [dangMo] : [],
           onExpand: (mo, don) => setDangMo(mo ? don.publicId : null),
           expandedRowRender: (don) => (
-            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+            <Space orientation="vertical" size="small" style={{ width: '100%' }}>
               <Typography.Text type="secondary">
                 {don.reason ? `Lý do: ${don.reason}` : 'Người nộp không ghi lý do.'}
               </Typography.Text>

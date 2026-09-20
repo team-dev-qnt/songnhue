@@ -61,6 +61,14 @@ public class User extends BaseEntity {
     @Column(name = "must_change_password", nullable = false)
     private boolean mustChangePassword = true;
 
+    /**
+     * Hạn của mật khẩu tạm do quản trị phát — T73.8 (ASVS 2.3.1). {@code null} = ⛔ hạn: mật khẩu do chính người dùng
+     * đặt, tài khoản bootstrap, hoặc bản ghi trước T73.8 (⛔ khoá ngược ai). Ghi qua
+     * {@code PasswordPolicyService.ganMatKhauTam}; xoá khi người dùng tự đổi mật khẩu.
+     */
+    @Column(name = "temp_password_expires_at")
+    private Instant tempPasswordExpiresAt;
+
     @Column(name = "org_unit_id", nullable = false)
     private Long orgUnitId;
 
@@ -145,6 +153,19 @@ public class User extends BaseEntity {
 
     public void setMustChangePassword(boolean mustChangePassword) {
         this.mustChangePassword = mustChangePassword;
+    }
+
+    public Instant getTempPasswordExpiresAt() {
+        return tempPasswordExpiresAt;
+    }
+
+    public void setTempPasswordExpiresAt(Instant tempPasswordExpiresAt) {
+        this.tempPasswordExpiresAt = tempPasswordExpiresAt;
+    }
+
+    /** Đang giữ một mật khẩu tạm đã QUÁ HẠN — T73.8. Mật khẩu thường ({@code null}) ⛔ bao giờ quá hạn ở đây. */
+    public boolean matKhauTamDaHetHan(Instant now) {
+        return mustChangePassword && tempPasswordExpiresAt != null && !now.isBefore(tempPasswordExpiresAt);
     }
 
     public Long getOrgUnitId() {

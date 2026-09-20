@@ -110,8 +110,8 @@ export function VersionHistoryDrawer({
   }));
 
   return (
-    <Drawer title="Lịch sử phiên bản" open={open} onClose={onClose} width={860} destroyOnHidden>
-      <Space direction="vertical" size={16} style={{ width: '100%' }}>
+    <Drawer title="Lịch sử phiên bản" open={open} onClose={onClose} size={860} destroyOnHidden>
+      <Space orientation="vertical" size={16} style={{ width: '100%' }}>
         <Space wrap>
           <Select
             style={{ width: 320 }}
@@ -131,12 +131,12 @@ export function VersionHistoryDrawer({
         </Space>
 
         {activeLeft === null || activeRight === null ? (
-          <Alert type="info" showIcon message="Chọn hai phiên bản để so sánh" />
+          <Alert type="info" showIcon title="Chọn hai phiên bản để so sánh" />
         ) : tomTat.khongDoi ? (
           <Alert
             type="info"
             showIcon
-            message="Hai phiên bản có nội dung giống nhau"
+            title="Hai phiên bản có nội dung giống nhau"
             description="Lần lưu đó chỉ đổi phần siêu dữ liệu (tiêu đề SEO, danh mục, ảnh đại diện…) chứ không đổi nội dung bài."
           />
         ) : (
@@ -218,7 +218,7 @@ export function VersionHistoryDrawer({
                   </Space>
                 }
                 description={
-                  <Space split="·" wrap>
+                  <Space separator="·" wrap>
                     <span>{formatDateTime(v.createdAt)}</span>
                     <span>{v.title}</span>
                     {v.note && <span>{v.note}</span>}

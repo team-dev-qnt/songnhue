@@ -5,8 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- Trang quản trị nội bộ: cấm mọi công cụ tìm kiếm lập chỉ mục. -->
     <meta name="robots" content="noindex, nofollow" />
-    <!-- Không gửi đường dẫn quản trị sang site khác khi người dùng bấm liên kết ngoài. -->
-    <meta name="referrer" content="same-origin" />
+    <!--
+      Không gửi ĐƯỜNG DẪN quản trị sang site khác khi người dùng bấm liên kết ngoài.
+
+      ⛔⛔ KHÔNG hạ về `same-origin`. Với giá trị ấy trình duyệt bỏ HẲN header `Referer` ở mọi
+      request cross-origin, mà Tile Usage Policy của OpenStreetMap nhận diện ứng dụng gọi bằng
+      chính header đó — một máy khách ⛔ nhận diện được là máy khách bị chặn. Đo 20/09/2026 trên
+      chính máy chủ tile:
+
+          curl, không Referer              ⇒ x-blocked: Access denied. See …/policies/tiles/
+          curl, Referer https://admin…vn/  ⇒ x-tilerender: azure-01.openstreetmap.org
+          curl, Referer http://localhost/  ⇒ x-tilerender: azure-01.openstreetmap.org
+
+      ⚠⚠ Và một đính chính phải giữ lại, vì nó ngăn lượt rà sau kết luận sai: lượt kiểm chứng
+      ngược trên TRÌNH DUYỆT (dựng lại image với `same-origin`) cho `referer: ""` đúng như dự
+      đoán, nhưng OSM **vẫn phục vụ** ô bản đồ lượt ấy. ⇒ Việc chặn của họ là HEURISTIC theo
+      lưu lượng/danh tính, ⛔ phải một luật "thiếu Referer là 403" bật tắt tức thì. Nói cách
+      khác: bản vá làm ta ĐÚNG chính sách và bỏ được tín hiệu khiến ta bị chặn, ⛔ phải một
+      công tắc mà mỗi lượt gọi đều chứng minh lại được.
+
+      `strict-origin-when-cross-origin` gửi ĐÚNG phần origin (`https://admin…vn/`) và cắt sạch
+      đường dẫn ⇒ vẫn giữ nguyên điều câu trên hứa, chỉ thôi giấu luôn danh tính ứng dụng. Nó cũng
+      trùng khít `Referrer-Policy` mà `deploy/docker/admin-app.Dockerfile` đặt ở tầng nginx — trước
+      lượt vá, thẻ meta (chặt hơn, và thắng) nói một đằng còn header nói một nẻo.
+
+      Bộ canh: `frontend/admin-app/src/shared/chinhSachReferrer.test.ts`.
+    -->
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
     <!--
       Noto Sans nạp từ `admin-global.css` (gói `@fontsource/noto-sans`, TỰ HOST) — không khai
       ở đây nữa. Bản cũ nạp cùng một bộ chữ ở HAI nơi (thẻ <link> này và `@import` trong CSS),

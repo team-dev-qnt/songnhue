@@ -87,6 +87,10 @@ public class CanhBaoTaiKhoanService {
                 List.of(),
                 List.of(user.getId()),
                 null,
-                List.of(NotificationChannel.IN_APP, NotificationChannel.EMAIL)));
+                List.of(NotificationChannel.IN_APP, NotificationChannel.EMAIL),
+                false,
+                // ⛔⛔ T74.7 — bốn mã sự kiện của lớp này (đổi mật khẩu · đặt lại bởi quản trị · gỡ 2FA ·
+                //   đăng ký 2FA) đều nói về MỘT tài khoản. Ban điều hành ⛔ có việc gì với chúng.
+                false));
     }
 }

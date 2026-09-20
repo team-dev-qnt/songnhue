@@ -168,7 +168,7 @@ songnhue/
 │   └── app/                 bootstrap: main, application*.yml, Dockerfile
 ├── frontend/                npm workspaces — MỘT lockfile, MỘT eslint.config.mjs
 │   ├── design-tokens/       màu + kích thước dùng chung, xuất thẳng .ts (không build)
-│   ├── admin-app/           Vite + React 18 + AntD 5
+│   ├── admin-app/           Vite + React 19 + AntD 6
 │   └── public-web/          Next.js + Tailwind
 ├── deploy/
 │   ├── compose.infra.yml    PG+PostGIS, MinIO, Mailpit  (nền, được include lại)
@@ -460,6 +460,8 @@ Tầng 3 — Repository scope filter (org_unit)     → chặn dữ liệu (IDOR
   - ⚠ **Aspect phải nằm BÊN TRONG bộ chặn transaction**, nếu không `enableFilter` rơi vào một `Session` tạm bị vứt đi và **mọi Xí nghiệp đọc được dữ liệu của nhau, không một dòng lỗi**. Số `@Order` nhỏ hơn = vòng ngoài, nên bộ chặn transaction được kéo lên `CorePlatformConfig.TRANSACTION_ADVISOR_ORDER`; hai chỗ đó phải đọc cùng nhau (`architecture-review.md` §9.8.1). Đây là lỗi có thật, sống sót từ WS-5 tới khi WS-10 có entity thật để thử.
   - ⚠ **Lớp con `ScopedEntity` bắt buộc khai `@Filter`** kèm đúng hằng `ORG_UNIT_FILTER_CONDITION` — `@FilterDef` chỉ *định nghĩa* bộ lọc, Hibernate chỉ *áp* nó cho entity có khai. Luật ArchUnit canh điều này.
   - **Tra theo `public_id` phải đi qua `ScopeGuard.require(...)`**: bản ghi tồn tại mà ngoài phạm vi thì trả `AUTH-3002` + ghi `security_events`, không trả 404. Trả 404 thì đúng là dữ liệu không lọt ra, nhưng người dò `public_id` để tìm hồ sơ đơn vị khác trông y hệt người gõ nhầm đường dẫn — và `AUTH-3002` thành mã lỗi chết.
+  - **Vế GHI — đặt đơn vị cho một `ScopedEntity` phải gọi `ScopeGuard.requireWritableOrgUnit(donVi, Entity.class)` TRƯỚC khi ghi** (T74.8, ASVS 4.2.1). Bộ lọc chỉ canh vế đọc; quyền đi theo vai trò còn phạm vi đi theo *đơn vị của tài khoản*, nên thiếu phép kiểm này thì một tài khoản ở Xí nghiệp A (VD `TECHNICIAN`) tạo được bản ghi vào Xí nghiệp B — rồi ⛔ đọc lại được chính thứ mình vừa ghi. Đơn vị SAO từ một bản ghi đã tra qua bộ lọc (công trình → bản ghi sửa chữa) thì khai miễn kèm lý do. Luật bytecode `GhiPhamViRuleTest` (W1) canh cả lời gọi `setOrgUnitId` lẫn hàm dựng có tự đặt đơn vị.
+  - **Kiểm trùng mã duy nhất toàn Công ty trên `ScopedEntity` phải bọc `ScopeGuard.toanCongTy(() -> repo.existsBy…Code…)`** (T74.9). Hỏi qua bộ lọc thì mã của đơn vị khác vô hình, lượt lưu rơi vào ràng buộc CSDL và người dùng nhận `SYS-0005` *"Dữ liệu vừa được người khác thay đổi"*. `toanCongTy` chỉ nhận `BooleanSupplier` — một câu hỏi có/không ⛔ mang dữ liệu đơn vị khác ra ngoài. Luật W2 canh.
 - API nhận `public_id` (UUID) — không expose id tuần tự; mọi lookup luôn kèm scope, không bao giờ `findById` trần cho request user.
 
 ### 4.3. Chống giả mạo dữ liệu (integrity)
@@ -487,7 +489,7 @@ Tầng 3 — Repository scope filter (org_unit)     → chặn dữ liệu (IDOR
 ### 4.5. Hạ tầng & headers
 
 - Nginx: HSTS, CSP (default-src 'self'; script chỉ từ self + GA/GTM đã khai báo), `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`; ẩn version server; giới hạn body size theo route upload.
-- Rate limit 2 lớp: Nginx (thô, theo IP) + app filter (theo user/token, giá trị theo nhóm endpoint: **login 30/15'**, API thường 100/phút, export **`limits.rate.export-per-hour`** trong `settings`, mặc định 30/giờ, kẹp cứng ≤ 100 trong mã — T61.27).
+- Rate limit 2 lớp: Nginx (thô, theo IP; chặn trả **429**, ⛔ 503 — WS-72) + app filter (theo user/token, giá trị theo nhóm endpoint: **login 30/15' theo IP, chỉ tính lượt ⛔ đúng mật khẩu** — lượt đúng được trả lại, `architecture-review.md` §12.12, API thường 100/phút, export **`limits.rate.export-per-hour`** trong `settings`, mặc định 30/giờ, kẹp cứng ≤ 100 trong mã — T61.27).
   - ⚠ **`login 30/15'` chứ không phải 5/15'** — con số này phải rộng hơn hẳn ngưỡng khoá tài khoản (5 lần, §4.1). Lý do đầy đủ ở §4.1; tóm tắt: đặt bằng nhau thì rate limit ở filter luôn chặn trước nên `AUTH-0003` không bao giờ kích hoạt được, và cả Công ty ra Internet qua một IP NAT. `CaffeineRateLimitStoreTest` chặn ở CI nếu ai đó hạ xuống bằng ngưỡng khoá.
 - Secrets: env/Vault; khác nhau mỗi môi trường; xoay key AES + JWT signing key có quy trình (key_id versioning); cấm secrets trong log/config commit.
 - Log: mask dữ liệu nhạy cảm (MaskUtils); security event riêng (login fail, refresh reuse, 403 scope, đổi quyền) → dashboard Grafana + alert.

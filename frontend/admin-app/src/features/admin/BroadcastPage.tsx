@@ -50,7 +50,7 @@ export function BroadcastPage() {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="Gửi qua hộp thư trong ứng dụng và email"
+        title="Gửi qua hộp thư trong ứng dụng và email"
         description="Hệ thống không gửi SMS (đã loại khỏi phạm vi v1 theo chốt BOQ đợt 1)."
       />
 

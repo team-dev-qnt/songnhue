@@ -137,7 +137,7 @@ export async function SiteHeader() {
   return (
     <>
       {/* ───── Tầng 1: Dải nhận diện thương hiệu ───── */}
-      <div className="w-full border-b border-white/10 bg-gradient-to-r from-chrome-navy800 via-chrome-navy500 to-chrome-navy800 shadow-xs">
+      <div className="w-full border-b border-white/10 bg-gradient-to-r from-chrome-header via-chrome-headerMid to-chrome-header shadow-xs">
         <div className="mx-auto flex max-w-[1232px] items-center justify-center px-4 py-3 sm:px-6 sm:py-4">
           <Link
             href={ROUTES.home}
@@ -164,7 +164,7 @@ export async function SiteHeader() {
             />
             <div className="min-w-0">
               {coQuanChuQuan ? (
-                <div className="line-clamp-2 text-[11px] font-semibold leading-tight tracking-wide text-brand-gold sm:text-[13px]">
+                <div className="line-clamp-2 text-[11px] font-semibold leading-tight tracking-wide text-brand-accent sm:text-[13px]">
                   {coQuanChuQuan}
                 </div>
               ) : null}

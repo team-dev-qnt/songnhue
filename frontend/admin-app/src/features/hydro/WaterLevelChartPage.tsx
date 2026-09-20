@@ -81,14 +81,13 @@ export function WaterLevelChartPage() {
               : ''}
           </Typography.Text>
           <Select
-            showSearch
+            showSearch={{ optionFilterProp: 'label' }}
             allowClear
             style={{ minWidth: 260 }}
             placeholder="Chọn điểm đo"
             loading={dsDiemDo.isLoading}
             value={diemDo}
             onChange={setDiemDo}
-            optionFilterProp="label"
             // ⚠ `s.id` LÀ `public_id` — DTO của điểm đo cố ý ⛔ không lộ khoá bigint nội bộ
             //   (`dtoKhongLoKhoaNoiBo`). Đọc tên trường thành "khoá nội bộ" rồi đi tìm một
             //   `publicId` không tồn tại là bẫy đã mắc ngay lượt typecheck đầu của trang này.
@@ -112,7 +111,7 @@ export function WaterLevelChartPage() {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="Chỉ hiển thị số đo HỢP LỆ"
+        title="Chỉ hiển thị số đo HỢP LỆ"
         description={
           <>
             Bản ghi đang chờ duyệt ở màn hình <b>Dữ liệu nghi ngờ</b> ⛔ không được vẽ lên đây — một

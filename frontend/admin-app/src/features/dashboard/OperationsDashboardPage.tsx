@@ -84,12 +84,12 @@ export function OperationsDashboardPage() {
 
   const noiDung = (
     <div ref={ref}>
-      <Space direction="vertical" size={wall ? 'large' : 'middle'} style={{ width: '100%' }}>
+      <Space orientation="vertical" size={wall ? 'large' : 'middle'} style={{ width: '100%' }}>
         {isError && (
           <Alert
             type="warning"
             showIcon
-            message="Dữ liệu chưa cập nhật"
+            title="Dữ liệu chưa cập nhật"
             description={
               dataUpdatedAt > 0
                 ? `Không gọi được máy chủ. Số liệu đang hiện là của lúc ${formatDateTime(new Date(dataUpdatedAt).toISOString())}.`
@@ -249,7 +249,7 @@ export function OperationsDashboardPage() {
 
         {!wall && (
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            Cập nhật lúc {formatDateTime(data?.generatedAt)} · tự làm mới mỗi{' '}
+            Số liệu tính lúc {formatDateTime(data?.generatedAt)} · tự làm mới mỗi{' '}
             {Math.round((data?.autoRefreshSeconds ?? 0) / 60)} phút (sửa ở Cấu hình hệ thống) ·{' '}
             <Link to="?mode=wall" style={{ color: statusColors.normal }}>
               mở chế độ màn hình lớn

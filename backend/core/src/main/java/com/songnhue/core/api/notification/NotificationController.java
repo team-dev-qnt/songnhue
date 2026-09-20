@@ -98,7 +98,11 @@ public class NotificationController {
                 List.of(),
                 List.of(),
                 null,
-                List.of(NotificationChannel.IN_APP, NotificationChannel.EMAIL));
+                List.of(NotificationChannel.IN_APP, NotificationChannel.EMAIL),
+                false,
+                // ⚠ Đường này đi `broadcast(...)` — danh sách người nhận do Admin chọn, ⛔ qua
+                //   `RecipientResolver`. Khai `false` cho khỏi đọc nhầm là có một nhóm ngầm nào đó.
+                false);
 
         return new NotificationDtos.BroadcastResult(
                 notificationService.broadcast(payload, request.userIds()).getPublicId());

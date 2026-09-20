@@ -43,6 +43,7 @@ import com.songnhue.core.common.util.DateTimeUtils;
 import com.songnhue.core.common.util.HttpHeaderText;
 import com.songnhue.core.common.web.PhatTepTrucTiep;
 import com.songnhue.core.spi.AttachmentContent;
+import com.songnhue.core.spi.VeBieuMauPort;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -87,10 +88,37 @@ public class PublicPortalController {
 
     private final FeedbackService feedbacks;
 
-    public PublicPortalController(PublicPortalService portal, ContactService contacts, FeedbackService feedbacks) {
+    private final VeBieuMauPort ve;
+
+    public PublicPortalController(
+            PublicPortalService portal, ContactService contacts, FeedbackService feedbacks, VeBieuMauPort ve) {
         this.contacts = contacts;
         this.feedbacks = feedbacks;
         this.portal = portal;
+        this.ve = ve;
+    }
+
+    /**
+     * Vé cho biểu mẫu công khai — T73.9.
+     *
+     * @param tuoiToiThieuGiay giao diện CHỜ chừng ấy giây (tính từ lúc nhận vé) rồi mới gửi — ⛔ bí mật gì: một máy
+     *     muốn biết thì thử vài lượt là ra, thứ vé đòi là máy phải TRẢ chừng ấy giây cho mỗi vé
+     */
+    public record VeBieuMau(String ve, long tuoiToiThieuGiay) {}
+
+    /**
+     * Vé cho biểu mẫu liên hệ/góp ý — T73.9 (ASVS 11.1.2). Cổng xin vé khi người dùng bắt đầu điền; lượt gửi phải mang vé
+     * đủ tuổi tối thiểu (xem {@code VeBieuMauService}).
+     *
+     * <p>⛔ {@code no-store}: một vé nằm trong đệm dùng chung là cả nghìn người dùng cùng một mốc phát.
+     */
+    @GetMapping("/bieu-mau/ve")
+    @Operation(summary = "Vé chống gửi tự động cho biểu mẫu liên hệ/góp ý — T73.9")
+    @PublicEndpoint(reason = "Vé chống gửi tự động của biểu mẫu công khai — T73.9 (ASVS 11.1.2)")
+    public ResponseEntity<VeBieuMau> veBieuMau() {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(new VeBieuMau(ve.phat(), ve.tuoiToiThieuGiay()));
     }
 
     public record MenuLink(
@@ -309,7 +337,9 @@ public class PublicPortalController {
             @NotBlank @Size(max = 5000) String content,
             @Size(max = 4000) String recaptchaToken,
             /** T61.39 — ô đồng ý thông báo quyền riêng tư; chỉ BẮT BUỘC khi cổng đã công bố thông báo. */
-            Boolean dongY) {}
+            Boolean dongY,
+            /** T73.9 — vé lấy từ {@code GET /bieu-mau/ve} khi người dùng bắt đầu điền biểu mẫu. */
+            @Size(max = 200) String ve) {}
 
     /**
      * Tiếp nhận một liên hệ / phản ánh — CN-01.4.
@@ -343,7 +373,8 @@ public class PublicPortalController {
                 yeuCau.subject(),
                 yeuCau.content(),
                 yeuCau.recaptchaToken(),
-                yeuCau.dongY());
+                yeuCau.dongY(),
+                yeuCau.ve());
     }
 
     // ---- Góp ý / đánh giá (CN-01.6, chốt D1) ---------------------------------
@@ -356,7 +387,9 @@ public class PublicPortalController {
             @NotBlank @Size(max = 2000) String content,
             @Size(max = 4000) String recaptchaToken,
             /** T61.39 — xem {@link ContactRequest}. */
-            Boolean dongY) {}
+            Boolean dongY,
+            /** T73.9 — xem {@link ContactRequest}. */
+            @Size(max = 200) String ve) {}
 
     /**
      * Một góp ý <b>đã duyệt</b>, dạng công bố trên cổng.
@@ -408,7 +441,8 @@ public class PublicPortalController {
                 yeuCau.rating(),
                 yeuCau.content(),
                 yeuCau.recaptchaToken(),
-                yeuCau.dongY());
+                yeuCau.dongY(),
+                yeuCau.ve());
     }
 
     /**

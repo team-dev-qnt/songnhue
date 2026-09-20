@@ -37,14 +37,49 @@ export const statusColors = {
 
 export type StatusColorKey = keyof typeof statusColors;
 
-/** Màu thương hiệu. Xanh Navy & Vàng Kim đồng bộ từ nhận diện Logo Sông Nhuệ. */
+/**
+ * Màu thương hiệu — **giá trị MẶC ĐỊNH**, lấy từ bộ nhận diện Công ty gửi 20/09/2026.
+ *
+ * <h3>⚠ Hai màu dưới đây ĐỔI ĐƯỢC lúc chạy, phần còn lại thì không</h3>
+ *
+ * {@link brandColors.primary} và {@link brandColors.accent} là hai vai trò mà bộ nhận diện gọi tên:
+ * *"Xanh dương là màu chủ đạo, đại diện cho nguồn nước"* và *"Vàng cam … tạo điểm nhấn nổi bật và
+ * cân bằng với sắc xanh"*. Cổng công khai cho phép Công ty đổi đúng hai màu ấy trên màn hình
+ * *Cấu hình hệ thống* (`site.brand.primary` · `site.brand.accent` — T75.7).
+ *
+ * ⛔ **Điều đó KHÔNG biến tệp này thành nguồn thứ hai** (quy tắc 14). Cơ chế là một chiều: Tailwind
+ * của `public-web` khai màu dạng `var(--sn-brand-primary, <giá trị ở đây>)`, nên giá trị dưới đây
+ * **chính là cái fallback**. Khoá `settings` để trống ⇒ biến CSS ⛔ được tiêm ⇒ trình duyệt rơi về
+ * đúng con số này. Một giá trị, hai đường tới, ⛔ phải hai lời khai.
+ *
+ * ⚠ `admin-app` dùng bảng này làm hạt giống cho thuật toán sinh palette của AntD, nên ở đó nó phải
+ * là **mã màu thật** chứ ⛔ phải `var()`. Vế bọc `var()` vì thế nằm ở `public-web/tailwind.config.ts`
+ * chứ ⛔ ở đây — hai ứng dụng đọc cùng một hằng số với hai nhu cầu khác nhau.
+ *
+ * <p>⚠ Màu **trắng** và **đen** của bộ nhận diện ⛔ có núm chỉnh: chúng là nền trang và màu chữ, mà
+ * một ô nhập cho phép đặt chữ trùng màu nền là cái bẫy đọc-không-nổi ⛔ có gì chặn. Typography
+ * thuộc `docs/ui-styles.md` và {@link neutralColors}, ⛔ thuộc bộ nhận diện.
+ */
 export const brandColors = {
-  primary: '#165bb6',
+  /**
+   * Xanh dương chủ đạo — bộ nhận diện 20/09/2026 ghi `#1758bf`.
+   *
+   * ⚠ Trước 20/09 là `#165bb6`; lệch 1/255 kênh đỏ · 3/255 lục · 9/255 lam. Đổi theo **văn bản của
+   * Công ty**, ⛔ theo thẩm mỹ — và ghi ra đây để lượt rà sau ⛔ tưởng là một lượt chỉnh tay.
+   */
+  primary: '#1758bf',
   primaryHover: '#206cd2',
-  link: '#165bb6',
+  link: '#1758bf',
   info: '#206cd2',
-  /** Màu vàng kim nhận diện từ họa tiết bông lúa / ngôi sao trên logo nền trong suốt */
-  gold: '#dbc373',
+  /**
+   * Vàng cam nhấn — bộ nhận diện 20/09/2026 ghi `#fac036`.
+   *
+   * ⚠ Đổi tên từ `gold` và đổi giá trị từ `#dbc373` **cùng lượt** (T75.7). Tên cũ mô tả *sắc độ*
+   * (“vàng kim từ hoạ tiết bông lúa”), tên mới mô tả **vai trò** — và vai trò mới là thứ khớp với
+   * khoá `settings`, với biến CSS `--sn-brand-accent` và với chữ của bộ nhận diện. Ba nơi cùng một
+   * cái tên thì ⛔ còn phép ánh xạ nào để nhớ sai (quy tắc 14).
+   */
+  accent: '#fac036',
   /** Nền nhẹ brand — dùng cho header masthead, hover state trên card, row highlight */
   primaryLight: '#c8def7',
   /** Gradient from (xanh biển sâu trang trọng) — navbar, footer */
@@ -70,8 +105,19 @@ export const brandColors = {
  * Bảy mã gộp còn năm bậc: `#0b2e59` và `#0b2d5b` lệch nhau 2/255 ở một kênh (cùng một màu bị
  * chép tay hai lần), `#082242` gộp vào `navy700` — lệch 8/255 ở kênh lam, dưới ngưỡng phân biệt
  * được của mắt trên nền lớn.
+ *
+ * <h3>⚠ Từ 20/09/2026: nền đầu trang và chân trang ĐỔI ĐƯỢC lúc chạy (T77.1)</h3>
+ *
+ * Hai khoá `site.brand.header` · `site.brand.footer` tiêm `--sn-brand-header` / `--sn-brand-footer`
+ * vào cổng công khai. Cơ chế giống {@link brandColors}: giá trị ở đây **chính là cái fallback**, nên
+ * khoá để trống ⇒ ⛔ biến nào được tiêm ⇒ trang giữ nguyên gradient navy như hôm nay.
+ *
+ * ⚠ **Năm bậc navy vẫn ⛔ có núm riêng.** Chúng là *sắc độ* của một gradient; cho admin chỉnh từng
+ * bậc là giao một bài phối màu ⛔ ai duyệt. Thứ đổi được là **nền của một vùng** — và khi nó được
+ * đặt thì cả ba chặng gradient của vùng ấy cùng nhận một giá trị, tức gradient xẹp thành màu phẳng.
+ * Đó là hành vi cố ý, xem `public-web/tailwind.config.ts`.
  */
-export const portalChrome = {
+const navy = {
   /** Đáy chân trang — bậc sâu nhất */
   navy900: '#05172c',
   /** Dải nhận diện + thanh điều hướng đầu trang */
@@ -82,6 +128,21 @@ export const portalChrome = {
   navy600: '#0c294e',
   /** Điểm giữa gradient đầu trang, dải đường dây nóng chân trang */
   navy500: '#0b2d5b',
+} as const;
+
+export const portalChrome = {
+  ...navy,
+  /**
+   * Nền **đầu trang** — mặc định, đổi được từ admin qua `site.brand.header` (T77.1).
+   *
+   * ⚠ Đây là một cái tên theo **VAI TRÒ**, ⛔ phải một mã màu thứ sáu: giá trị lấy thẳng từ
+   * {@link navy.navy800} nên ⛔ có gì để hai bên trôi ra khỏi nhau (quy tắc 14). Nó tồn tại vì
+   * khoá `settings`, biến CSS `--sn-brand-header` và token phải dùng CHUNG một hậu tố — còn
+   * `navy800` là tên của một **bậc sắc độ**, ⛔ phải tên của một chỗ trên trang.
+   */
+  header: navy.navy800,
+  /** Nền **chân trang** — mặc định, đổi được qua `site.brand.footer`. Xem {@link portalChrome.header}. */
+  footer: navy.navy700,
 } as const;
 
 /**

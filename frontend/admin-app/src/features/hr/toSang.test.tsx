@@ -1,7 +1,7 @@
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { boDau } from './boDau';
+import { boDau } from '@/shared/boDau';
 import { ToSang } from './toSang';
 
 /**

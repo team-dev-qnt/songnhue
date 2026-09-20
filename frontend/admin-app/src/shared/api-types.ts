@@ -114,8 +114,15 @@ export interface SessionView {
 // Tài khoản & vai trò — /api/v1/admin/users
 // =============================================================================
 
-/** `PENDING_ACTIVATION` = đã tạo nhưng chưa đăng nhập lần nào (còn mật khẩu tạm). */
-export type UserStatus = 'PENDING_ACTIVATION' | 'ACTIVE' | 'LOCKED';
+/**
+ * `PENDING_ACTIVATION` = đã tạo nhưng chưa đăng nhập lần nào (còn mật khẩu tạm).
+ *
+ * ⚠ `DISABLED` thêm 20/09/2026 (T68.33) — nó có trong `UserStatus` của Java và trong
+ * `ck_users_status` **từ 13/08**, nhưng union này chỉ khai ba giá trị suốt 38 ngày. Hệ quả đo được:
+ * `tsc` chặn mọi lượt viết `status: 'DISABLED'`, tức nửa GHI của cặp ⛔ dựng được kể cả khi ai đó
+ * muốn. ⛔ Đây ⛔ phải "đã nối xong" — đường ghi vẫn còn thiếu, xem `T81.2`.
+ */
+export type UserStatus = 'PENDING_ACTIVATION' | 'ACTIVE' | 'LOCKED' | 'DISABLED';
 
 /** Hồ sơ CBNV mà một tài khoản đang liên kết — T51.8. ⛔ KHÔNG trường 🔒 nào. */
 export interface HoSoNhanSuView {
@@ -148,6 +155,8 @@ export interface UserView {
 export interface PasswordPolicyResponse {
   minLength: number;
   requireLetterAndDigit: boolean;
+  /** T73.8 — số giờ mật khẩu tạm do quản trị phát còn hiệu lực (`security.password.temp-ttl-hours`). */
+  tempPasswordTtlHours: number;
 }
 
 export interface CreateUserRequest {
@@ -208,6 +217,16 @@ export interface OrgUnitNode {
   address: string | null;
   phone: string | null;
   email: string | null;
+  /**
+   * Trưởng / phó đơn vị — **H24**. `null` = chưa chọn, và *chưa chọn* phải phân biệt được với
+   * *đã chọn* (quy tắc 16).
+   *
+   * ⛔ Hai ô này ⛔ phải thông tin hiển thị: chúng là nguồn người nhận **cảnh báo vượt ngưỡng**
+   * của G11. Thiếu chúng ở đây thì hộp thoại sửa mở ra với hai ô trống và mỗi lượt sửa TÊN đơn vị
+   * là một lượt GỠ trưởng/phó, im lặng.
+   */
+  headUserPublicId: string | null;
+  deputyUserPublicId: string | null;
   children: OrgUnitNode[];
 }
 
@@ -253,6 +272,9 @@ export interface CreateOrgUnitRequest {
   address?: string;
   phone?: string;
   email?: string;
+  /** Trưởng / phó đơn vị — H24. Xem `OrgUnitNode`. */
+  headUserPublicId?: string | null;
+  deputyUserPublicId?: string | null;
 }
 
 /**
@@ -267,6 +289,9 @@ export interface UpdateOrgUnitRequest {
   address?: string;
   phone?: string;
   email?: string;
+  /** Trưởng / phó đơn vị — H24. Xem `OrgUnitNode`. */
+  headUserPublicId?: string | null;
+  deputyUserPublicId?: string | null;
 }
 
 // =============================================================================
@@ -1730,4 +1755,176 @@ export interface MucBaoCaoView {
   moTa: string;
   khaDung: boolean;
   lyDo: string | null;
+}
+
+// =============================================================================
+// Báo cáo nhanh (18/09/2026) — khớp `DanhMucMayBomController` + `BaoCaoNhanhDtos` từng trường
+// =============================================================================
+
+/** Một cỡ máy của Bảng 1 — nửa mở `[qTu, qDen)` m³/h; `null` = vô cực. */
+export interface CoMayView {
+  publicId: string;
+  nhan: string;
+  qTu: number | null;
+  qDen: number | null;
+  thuTu: number;
+}
+
+/** Một nhóm máy của một trạm bơm — `coMay` do BE xếp (quy tắc 3). */
+export interface NhomMayView {
+  publicId: string;
+  constructionPublicId: string;
+  maCongTrinh: string;
+  tenCongTrinh: string;
+  tenDonVi: string | null;
+  nguonTuoiHuongTieu: string | null;
+  soMay: number;
+  qMotMayM3h: number;
+  coMay: string;
+}
+
+export type TrangThaiBaoCaoNhanh = 'NHAP' | 'DA_CHOT';
+
+export interface BaoCaoNhanhKyView {
+  publicId: string;
+  tuThoiDiem: string;
+  denThoiDiem: string;
+  trangThai: TrangThaiBaoCaoNhanh;
+  lyDoMoLai?: string | null;
+  createdAt: string;
+}
+
+/** `soMayVanHanh = null` = CHƯA NHẬP — khác 0 (quy tắc 16). */
+export interface BcnNhomView {
+  nhomMayPublicId: string;
+  soMayThietKe: number;
+  qMotMayM3h: number;
+  coMay: string;
+  soMayVanHanh: number | null;
+}
+
+export interface BcnTramView {
+  constructionPublicId: string;
+  /** Mã công trình — bày ra để phân biệt hai trạm TRÙNG TÊN; ⛔ đi vào bản Word. */
+  ma: string;
+  ten: string;
+  nguonTuoiHuongTieu: string | null;
+  nhom: BcnNhomView[];
+}
+
+export interface BcnKhoiView {
+  tenDonVi: string | null;
+  tongMayThietKe: number;
+  tram: BcnTramView[];
+}
+
+export interface BcnBang1View {
+  tongTram: number;
+  tongMay: number;
+  theoCo: number[];
+  tongLuuLuongM3h: number;
+}
+
+export interface BcnMuc1View {
+  tongTram: number | null;
+  tongMay: number | null;
+  tongLuuLuongM3h: number | null;
+}
+
+export interface BcnYenNghiaView {
+  trangThai:
+    'CHUA_GAN_TRAM' | 'CHUA_CO_TRONG_DANH_MUC' | 'CHUA_NHAP' | 'KHONG_VAN_HANH' | 'VAN_HANH';
+  cau: string | null;
+  soMay: number | null;
+  luuLuongM3s: number | null;
+  /** Trạm đang gắn vào vị trí ghi chú — `null` khi chưa gắn. Tên đi vào bản Word, mã thì ⛔. */
+  tenTram: string | null;
+  maTram: string | null;
+}
+
+/** `lyDo` khác null ⇔ ô trống — nói VÌ SAO (⛔ có điểm đo / ⛔ có số đo 24h). */
+export interface BcnMucNuocView {
+  nhan: string;
+  apiCode: string | null;
+  giaTriM: number | null;
+  mocDo: string | null;
+  dungMoc: boolean | null;
+  lyDo: string | null;
+}
+
+export interface BcnDongBang3View {
+  nhanCong: string;
+  lyTrinh: string;
+  tl: BcnMucNuocView;
+  hl: BcnMucNuocView;
+}
+
+/** Một điểm mưa Bảng 4 — lượng mưa NHẬP TAY (mm); `null` = chưa nhập, ⛔ 0. */
+export interface BcnDongBang4View {
+  diemMuaPublicId: string;
+  ten: string;
+  thuTu: number;
+  luongMuaMm: number | null;
+}
+
+/** Chín ô một dòng Bảng 5 — ô trống là `null`, ⛔ 0. */
+export interface BcnChinO {
+  ngapTrangLua: number | null;
+  ngapTrangRau: number | null;
+  ngapTrangCong: number | null;
+  sauNuocLua: number | null;
+  sauNuocRau: number | null;
+  sauNuocCong: number | null;
+  tongLua: number | null;
+  tongRau: number | null;
+  tongCong: number | null;
+}
+
+export interface BcnDongBang5View {
+  xaPublicId: string;
+  ten: string;
+  thuTu: number;
+  o: BcnChinO;
+}
+
+export interface BaoCaoNhanhChiTiet {
+  ky: BaoCaoNhanhKyView;
+  hanhDong: AllowedActionView[];
+  coMay: string[];
+  bang2: BcnKhoiView[];
+  bang1SongNhue: BcnBang1View | null;
+  /** Dòng “Tổng cộng” — cộng theo cột, ⛔ nhập tay; `null` khi chưa dòng nào có số. */
+  bang1TongCong: BcnBang1View | null;
+  muc1: BcnMuc1View;
+  ghiChuYenNghia: BcnYenNghiaView;
+  bang3: BcnDongBang3View[];
+  bang4: BcnDongBang4View[];
+  bang5: BcnDongBang5View[];
+  bang5CongTy: BcnChinO;
+  muc3: BcnChinO;
+}
+
+/** Công trình để gắn vào một vị trí của mẫu Báo cáo nhanh. */
+export interface BcnCongTrinhView {
+  publicId: string;
+  ma: string;
+  ten: string;
+}
+
+/** Vế thượng/hạ lưu SUY RA từ liên kết điểm đo–công trình — đúng một trong hai khác null. */
+export interface BcnVeView {
+  apiCode: string | null;
+  lyDo: string | null;
+}
+
+/** Một vị trí CỐ ĐỊNH của mẫu (7 cống Bảng 3 + trạm Yên Nghĩa) — Công ty gắn công trình trên UI. */
+export interface BcnViTriView {
+  publicId: string;
+  ma: string;
+  nhan: string;
+  loaiCongTrinh: 'CONG' | 'TRAM_BOM';
+  congTrinh: BcnCongTrinhView | null;
+  /** `null` ở vị trí ⛔ thuộc Bảng 3 (Yên Nghĩa). */
+  tl: BcnVeView | null;
+  hl: BcnVeView | null;
 }
