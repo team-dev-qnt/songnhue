@@ -15,6 +15,9 @@ public interface PositionRepository extends JpaRepository<Position, Long> {
 
     boolean existsByCodeAndDeletedAtIsNull(String code);
 
+    /** Tra theo mã — bộ nhập danh sách CBNV nhận mã chức vụ, ⛔ nhận publicId. */
+    java.util.Optional<Position> findByCodeAndDeletedAtIsNull(String code);
+
     boolean existsByCodeAndDeletedAtIsNullAndIdNot(String code, Long id);
 
     List<Position> findByDeletedAtIsNullOrderBySortOrderAscNameAsc();

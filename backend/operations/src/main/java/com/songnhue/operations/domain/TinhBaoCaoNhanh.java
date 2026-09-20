@@ -26,10 +26,26 @@ import java.util.UUID;
  * <p>Ô chưa nhập là {@code null}. Một tổng mà MỌI thành phần đều chưa nhập là {@code null} (ô trống
  * trong văn bản), ⛔ phải 0 — "0 máy chạy" là một câu khẳng định gửi UBND.
  *
- * <h2>⛔ Ba công ty kia và dòng "Tổng cộng" để TRỐNG</h2>
+ * <h2>⛔ Ba công ty kia để TRỐNG — nhưng dòng "Tổng cộng" của BẢNG 1 thì CÓ SỐ (sửa 20/09, T78.2)</h2>
  *
- * <p>Hệ chỉ có số của Sông Nhuệ (OI-BC1). Điền "Tổng cộng" bằng số Sông Nhuệ là khẳng định tổng toàn
- * Thành phố = một công ty. ⇒ Chỉ dòng Sông Nhuệ có số.
+ * <p>Hệ chỉ có số của Sông Nhuệ (OI-BC1) ⇒ ba dòng công ty kia để trống, ⛔ ghi 0.
+ *
+ * <p>⚠ Câu cũ ở đây viết: <i>"Điền 'Tổng cộng' bằng số Sông Nhuệ là khẳng định tổng toàn Thành phố =
+ * một công ty ⇒ chỉ dòng Sông Nhuệ có số"</i>. Lập luận ấy <b>đúng về rủi ro mà sai về kết luận</b>,
+ * và QuanTran đảo lại 20/09 theo đặc tả (<i>"dòng Tổng cộng = tổng theo cột của cả 4 công ty,
+ * formula, ⛔ nhập tay"</i>):
+ *
+ * <ul>
+ *   <li>"Tổng cộng" của Bảng 1 là <b>tổng theo cột của chính bảng ấy</b> — một giá trị hệ TÍNH
+ *       ĐƯỢC từ những dòng đang có, ⛔ phải một ô chờ dữ liệu ⛔ ai có. Để trống một ô tính được là
+ *       đúng thứ quy tắc 15 gọi là nửa cặp đọc–ghi.</li>
+ *   <li>Rủi ro "đọc thành tổng toàn Thành phố" <b>tự nó lộ ra trên bản in</b>: ba dòng công ty kia
+ *       TRỐNG, nên người đọc thấy ngay tổng bằng dòng duy nhất có số. Một dòng trống tự khai rằng
+ *       nó chưa có gì — đó chính là lý do quy tắc 16 bắt để trống thay vì ghi 0.</li>
+ * </ul>
+ *
+ * <p>⇒ Xem {@link #tongCongBang1}. Dòng "Tổng cộng" của <b>Mục 1</b> và <b>Mục 3</b> thì vẫn để
+ * trống: chúng là ô của <i>thân báo cáo</i> toàn Thành phố, ⛔ phải tổng của một bảng.
  */
 public final class TinhBaoCaoNhanh {
 
@@ -78,8 +94,19 @@ public final class TinhBaoCaoNhanh {
      * @param cau câu in ra văn bản; {@code null} ở ba trạng thái CHƯA — bản Word giữ nguyên dấu "…"
      *     của mẫu, ⛔ bịa một câu
      * @param luuLuongM3s ⚠ m³/<b>s</b> — đơn vị KHÁC mọi bảng còn lại (spec §3.4, OI-BC5)
+     * @param tenTram tên công trình Công ty đã gắn — {@code null} khi chưa gắn. Đây là thứ đi vào
+     *     {@link #cau}, nên câu in ra nói đúng trạm đang được chọn.
+     * @param maTram mã công trình — ⚠ CHỈ để màn hình quản trị phân biệt hai trạm TRÙNG TÊN.
+     *     ⛔ đi vào bản Word: văn bản gửi UBND dùng câu chữ của mẫu Công ty, chèn mã vào đó là sửa
+     *     bố cục mẫu (G10).
      */
-    public record GhiChuYenNghia(TrangThaiYenNghia trangThai, String cau, Integer soMay, BigDecimal luuLuongM3s) {}
+    public record GhiChuYenNghia(
+            TrangThaiYenNghia trangThai,
+            String cau,
+            Integer soMay,
+            BigDecimal luuLuongM3s,
+            String tenTram,
+            String maTram) {}
 
     /** Chín ô của một dòng Bảng 5: {ngập trắng, sâu nước, tổng cộng} × {lúa, rau màu, cộng}. */
     public record ChinO(
@@ -95,8 +122,16 @@ public final class TinhBaoCaoNhanh {
 
     public record DongBang5(DongNgapUng xa, ChinO o) {}
 
-    /** Một trạm trong Bảng 2 — các nhóm máy theo thứ tự tệp nhập. */
-    public record TramBang2(Long constructionId, String ten, String nguonTuoiHuongTieu, List<DongVanHanh> nhom) {}
+    /**
+     * Một trạm trong Bảng 2 — các nhóm máy theo thứ tự tệp nhập.
+     *
+     * @param ma mã công trình. ⚠ CHỈ dùng cho màn hình nhập liệu: danh mục có những trạm TRÙNG TÊN
+     *     (hai "Yên Nghĩa"), nên một bảng chỉ có tên là một bảng người nhập ⛔ biết mình đang gõ số
+     *     cho trạm nào. ⛔ đi vào bản Word — cột của mẫu là *"Tên trạm bơm"*, thêm mã vào đó là sửa
+     *     bố cục mẫu (G10).
+     */
+    public record TramBang2(
+            Long constructionId, String ma, String ten, String nguonTuoiHuongTieu, List<DongVanHanh> nhom) {}
 
     /** Một khối Xí nghiệp (I, II, …) của Bảng 2; {@code tongMayThietKe} in ở dòng tiêu đề khối. */
     public record KhoiBang2(Long orgUnitId, int tongMayThietKe, List<TramBang2> tram) {}
@@ -132,6 +167,50 @@ public final class TinhBaoCaoNhanh {
         return new DongBang1(tramChay.size(), tongMay, theoCo, tongLuuLuong.setScale(0, RoundingMode.HALF_UP));
     }
 
+    /**
+     * Dòng "Tổng cộng" của Bảng 1 — cộng THEO CỘT các dòng công ty (T78.2).
+     *
+     * <h3>⛔ Đây ⛔ phải "bản sao dòng Sông Nhuệ", dù hôm nay hai thứ bằng nhau</h3>
+     *
+     * Hệ chỉ có số của Sông Nhuệ (OI-BC1), nên tổng của một danh sách một phần tử đúng bằng phần tử
+     * ấy. Viết thẳng {@code tongCong = songNhue} sẽ **chạy đúng hôm nay và sai vĩnh viễn kể từ ngày
+     * có công ty thứ hai** — mà ngày ấy ⛔ có gì đỏ: cả hai dòng vẫn ra số, chỉ là tổng thôi ⛔ phải
+     * tổng. ⇒ Nhận một DANH SÁCH và cộng thật; thêm một công ty là thêm một phần tử ở nơi gọi.
+     *
+     * <p>⚠ {@code tongTram} cộng được vì một trạm thuộc ĐÚNG MỘT công ty — ⛔ có trạm nào bị đếm hai
+     * lần. (Trong một công ty thì ⛔: {@link #bang1} phải {@code COUNT DISTINCT} vì một trạm có nhiều
+     * nhóm máy.)
+     *
+     * @param dongCongTy các dòng công ty ĐÃ CÓ SỐ; phần tử {@code null} = công ty ⛔ có dữ liệu và
+     *     được BỎ QUA, ⛔ đọc thành 0 (quy tắc 16)
+     * @return {@code null} khi ⛔ dòng nào có số — ô "Tổng cộng" để TRỐNG, ⛔ in "0 trạm · 0 máy"
+     */
+    public static DongBang1 tongCongBang1(List<DongBang1> dongCongTy) {
+        List<DongBang1> coSo =
+                dongCongTy.stream().filter(java.util.Objects::nonNull).toList();
+        if (coSo.isEmpty()) {
+            return null;
+        }
+        int soCo = coSo.get(0).theoCo().length;
+        int[] theoCo = new int[soCo];
+        int tram = 0;
+        int may = 0;
+        BigDecimal luuLuong = BigDecimal.ZERO;
+        for (DongBang1 d : coSo) {
+            if (d.theoCo().length != soCo) {
+                throw new IllegalArgumentException(
+                        "Các dòng công ty phải cùng số cột cỡ máy: %d vs %d".formatted(soCo, d.theoCo().length));
+            }
+            tram += d.tongTram();
+            may += d.tongMay();
+            for (int i = 0; i < soCo; i++) {
+                theoCo[i] += d.theoCo()[i];
+            }
+            luuLuong = luuLuong.add(d.tongLuuLuongM3h());
+        }
+        return new DongBang1(tram, may, theoCo, luuLuong);
+    }
+
     /** ⛔ COPY — ⛔ công thức riêng. Hai nơi cho một câu hỏi là hai câu trả lời (spec §4.3, OI-BC12). */
     public static Muc1 muc1(DongBang1 songNhue) {
         return songNhue == null
@@ -142,21 +221,39 @@ public final class TinhBaoCaoNhanh {
     /**
      * Ghi chú Yên Nghĩa — xem {@link GhiChuYenNghia}.
      *
-     * @param tramYenNghia công trình Công ty gắn vào vị trí {@code YEN_NGHIA}; {@code null} = chưa gắn.
+     * <h3>⛔ Câu in ra ⛔ được ghi cứng một cái TÊN (T78.1)</h3>
+     *
+     * Bản trước nhận {@code Long tramYenNghia} rồi dựng câu bằng hằng chuỗi *"Trạm bơm Yên Nghĩa
+     * vận hành…"*. Vị trí {@code YEN_NGHIA} thì **chọn được** từ 18/09 (màn hình Cấu hình Báo cáo
+     * nhanh), nên hai nửa ấy nói hai điều khác nhau: Công ty đổi sang một trạm khác, số liệu đổi
+     * theo, còn **cái tên in lên văn bản gửi UBND thì ⛔**. Một ô chọn ⛔ điều khiển thứ nó hứa
+     * điều khiển là nửa cặp đọc–ghi (quy tắc 27) — và ở đây nửa sai lại là nửa **người ngoài đọc**.
+     *
+     * <p>⇒ Nhận nguyên {@link CongTrinhGan}, ⛔ phải cặp (id, tên): hai tham số thì chúng lệch nhau
+     * được, một bản ghi thì ⛔ (quy tắc 14). Tên vào câu; mã ⛔ vào câu, xem {@link GhiChuYenNghia}.
+     *
+     * <p>⚠ Tên lấy từ công trình **lúc đọc**, kể cả với kỳ ĐÃ CHỐT — ảnh chụp ghim *trạm nào*
+     * ({@code construction_id}), ⛔ ghim *tên gọi lúc ấy*. Đây là cùng lựa chọn Bảng 2 đã làm
+     * ({@code TramBang2.ten} cũng đọc sống): đổi tên một công trình là sửa một cách viết cho cùng
+     * một trạm, ⛔ phải thay nó bằng trạm khác.
+     *
+     * @param tram công trình Công ty gắn vào vị trí {@code YEN_NGHIA}; {@code null} = chưa gắn.
      *     ⛔ tra theo mã hay tên: danh mục có HAI công trình tên "Yên Nghĩa" (trạm bơm và cống tiêu).
      */
-    public static GhiChuYenNghia yenNghia(List<DongVanHanh> dong, Long tramYenNghia) {
-        if (tramYenNghia == null) {
-            return new GhiChuYenNghia(TrangThaiYenNghia.CHUA_GAN_TRAM, null, null, null);
+    public static GhiChuYenNghia yenNghia(List<DongVanHanh> dong, CongTrinhGan tram) {
+        if (tram == null) {
+            return new GhiChuYenNghia(TrangThaiYenNghia.CHUA_GAN_TRAM, null, null, null, null, null);
         }
+        String ten = tram.ten();
+        String ma = tram.ma();
         List<DongVanHanh> yn = dong.stream()
-                .filter(d -> tramYenNghia.equals(d.nhom().constructionId()))
+                .filter(d -> tram.id().equals(d.nhom().constructionId()))
                 .toList();
         if (yn.isEmpty()) {
-            return new GhiChuYenNghia(TrangThaiYenNghia.CHUA_CO_TRONG_DANH_MUC, null, null, null);
+            return new GhiChuYenNghia(TrangThaiYenNghia.CHUA_CO_TRONG_DANH_MUC, null, null, null, ten, ma);
         }
         if (yn.stream().allMatch(d -> d.soMayVanHanh() == null)) {
-            return new GhiChuYenNghia(TrangThaiYenNghia.CHUA_NHAP, null, null, null);
+            return new GhiChuYenNghia(TrangThaiYenNghia.CHUA_NHAP, null, null, null, ten, ma);
         }
         int x = 0;
         BigDecimal m3h = BigDecimal.ZERO;
@@ -167,15 +264,18 @@ public final class TinhBaoCaoNhanh {
         }
         if (x == 0) {
             return new GhiChuYenNghia(
-                    TrangThaiYenNghia.KHONG_VAN_HANH, "Trạm bơm Yên Nghĩa không vận hành.", 0, BigDecimal.ZERO);
+                    TrangThaiYenNghia.KHONG_VAN_HANH, ten + " không vận hành.", 0, BigDecimal.ZERO, ten, ma);
         }
         BigDecimal y = m3h.divide(GIAY_MOI_GIO, 2, RoundingMode.HALF_UP);
         return new GhiChuYenNghia(
                 TrangThaiYenNghia.VAN_HANH,
-                "Trạm bơm Yên Nghĩa vận hành %d máy bơm với tổng lưu lượng bơm %s m³/s."
-                        .formatted(x, SoVanBan.thapPhan(y)),
+                // ⚠ ⛔ ghép "Trạm bơm " vào trước: tên trong danh mục ĐÃ mang tiền tố ấy
+                //   ("Trạm bơm Yên Nghĩa" — V202609091074), nên ghép nữa là in ra hai lần.
+                "%s vận hành %d máy bơm với tổng lưu lượng bơm %s m³/s.".formatted(ten, x, SoVanBan.thapPhan(y)),
                 x,
-                y);
+                y,
+                ten,
+                ma);
     }
 
     // ==== Bảng 2 ============================================================
@@ -200,7 +300,8 @@ public final class TinhBaoCaoNhanh {
             int tong = 0;
             for (List<DongVanHanh> nhom : tram.values()) {
                 DongNhomMay dau = nhom.get(0).nhom();
-                ds.add(new TramBang2(dau.constructionId(), dau.tenCongTrinh(), dau.nguonTuoiHuongTieu(), nhom));
+                ds.add(new TramBang2(
+                        dau.constructionId(), dau.maCongTrinh(), dau.tenCongTrinh(), dau.nguonTuoiHuongTieu(), nhom));
                 tong += nhom.stream().mapToInt(d -> d.nhom().soMay()).sum();
             }
             khoi.add(new KhoiBang2(donVi, tong, ds));

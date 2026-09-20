@@ -59,7 +59,14 @@ public final class AuthDtos {
      * "mật khẩu tối thiểu 10 ký tự" thì cũng biết đúng bằng cách thử tạo một mật khẩu 9 ký tự.
      */
     @Schema(description = "Chính sách độ mạnh mật khẩu đang có hiệu lực")
-    public record PasswordPolicyResponse(int minLength, boolean requireLetterAndDigit) {}
+    public record PasswordPolicyResponse(
+            int minLength,
+            boolean requireLetterAndDigit,
+            /**
+             * T73.8 (ASVS 2.3.1) — số giờ một mật khẩu tạm do quản trị phát còn hiệu lực. Màn hình phát mật khẩu tạm nói
+             * ra con số này để người quản trị dặn người dùng; ghi cứng "72 giờ" là nói dối ngay lần đầu tham số đổi.
+             */
+            long tempPasswordTtlHours) {}
 
     @Schema(description = "Kết quả bước 1 của đăng nhập")
     public record LoginResponse(

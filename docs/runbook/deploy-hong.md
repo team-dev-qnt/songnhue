@@ -14,6 +14,31 @@ trên lược đồ đã migrate. Thứ chết là nginx.
 
 Khôi phục CSDL khi ứng dụng vẫn khoẻ thì **không chữa gì** và **xoá mất dữ liệu mới**.
 
+## 0. Bước quay lui TỰ ĐỘNG đã làm gì — đọc log của nó trước (từ WS-71, 19/09/2026)
+
+Trước WS-71 bước *Quay lui bản cũ* chỉ `up -d` ba **ảnh** cũ; cấu hình `deploy/` vừa rsync
+(compose, template nginx) ở lại trên máy — nên ngày 17/09 nó dựng ảnh cũ trên cấu hình nginx
+hỏng và site vẫn chết. Nay mỗi lượt CD:
+
+1. **Chụp** `/opt/songnhue` (trừ `.env*`, `env/`, `keys/`) vào `/opt/songnhue/.ban-truoc/`
+   TRƯỚC khi đồng bộ, kèm mốc `.ban-truoc.moc` = số lượt chạy.
+2. Hỏng ⇒ bước quay lui **trả cấu hình** về bản chụp của ĐÚNG lượt ấy → `nginx -t` →
+   tạo lại cả bốn container (`--force-recreate`) → so ID ảnh → chờ nginx `healthy`.
+
+| Dòng trong log bước quay lui | Nghĩa |
+|---|---|
+| `✓ đã trả CẤU HÌNH về bản chụp đầu lượt …` | cấu hình đã về bản cũ |
+| `⛔ có bản chụp cấu hình của lượt …` (warning) | chỉ trả được ẢNH — cấu hình của lượt hỏng VẪN trên máy ⇒ đi mục 2 |
+| `✓ app/admin-app/public-web đã quay về đúng ảnh cũ` · `✓ nginx đang phục vụ sau quay lui` | quay lui dựng lại được — đo từ ngoài ở mục 5 rồi xong |
+| `Cấu hình nginx sau khi trả về vẫn ⛔ hợp lệ` | bản chụp cũng hỏng, hoặc lỗi nằm ở `.env` (⛔ được chụp) ⇒ mục 2 |
+
+⚠ Quay lui bằng tay (`CD Production` → *Run workflow* với `commit_sha` cũ) nay dùng `deploy/`
+**của chính SHA ấy** — ảnh và cấu hình luôn đi cùng một bản.
+
+**Diễn tập (DOD0.21, CHỈ staging):** đặt biến `DIEN_TAP_QUAY_LUI=true` ở **environment `staging`**
+(⛔ ở cấp kho) → gộp một PR đề bạt vào `staging` → bước *Diễn tập quay lui* đỏ có chủ đích SAU
+`up -d` → bước quay lui phải thoát 0 với đủ các dòng `✓` ở bảng trên → site trả lời → **xoá biến**.
+
 ## 1. Đo tầng nào đang chết — 30 giây
 
 Ba câu hỏi, ba việc khác hẳn nhau. Hỏi đủ ba trước khi làm bất cứ điều gì.

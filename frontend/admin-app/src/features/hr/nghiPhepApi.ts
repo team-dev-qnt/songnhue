@@ -6,7 +6,9 @@ import {
   type DonNghiView,
   type NgayLeRequest,
   type NgayLeView,
+  type GiaoUyQuyenRequest,
   type SoDuPhepView,
+  type UyQuyenDuyetView,
   type XemTruocDonView,
 } from './hrVocabulary';
 import { type AllowedAction } from '@/components/business/ApprovalActions';
@@ -76,5 +78,25 @@ export const nghiPhepApi = {
 
   xoaNgayLe(publicId: string): Promise<void> {
     return api.delete<void>(`/hr/ngay-le/${publicId}`);
+  },
+
+  /**
+   * Uỷ quyền duyệt của một đơn vị — chốt B3 (WS-80).
+   *
+   * ⚠ Danh sách cố ý mang **cả** bản đã thu hồi và bản đã hết hạn: một lượt duyệt tháng trước trỏ
+   * vào chúng (`leave_requests.uy_quyen_id`), và câu *"duyệt theo uỷ quyền của X"* phải đọc lại
+   * được. Lọc chúng đi ở đây là giấu mất lịch sử ngay trên màn hình quản lý nó.
+   */
+  uyQuyen(donViPublicId: string): Promise<UyQuyenDuyetView[]> {
+    return api.get<UyQuyenDuyetView[]>(`${GOC}/uy-quyen`, { donVi: donViPublicId });
+  },
+
+  giaoUyQuyen(body: GiaoUyQuyenRequest): Promise<UyQuyenDuyetView> {
+    return api.post<UyQuyenDuyetView>(`${GOC}/uy-quyen`, body);
+  },
+
+  /** **Thu hồi**, ⛔ xoá — xem javadoc `UyQuyenDuyetPhepService.thuHoi`. */
+  thuHoiUyQuyen(publicId: string): Promise<UyQuyenDuyetView> {
+    return api.delete<UyQuyenDuyetView>(`${GOC}/uy-quyen/${publicId}`);
   },
 };

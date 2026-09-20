@@ -69,6 +69,12 @@ public class BaoCaoNhanhService {
             List<TinhBaoCaoNhanh.KhoiBang2> bang2,
             Map<Long, String> tenDonVi,
             TinhBaoCaoNhanh.DongBang1 bang1SongNhue,
+            /**
+             * Dòng "Tổng cộng" của Bảng 1 — cộng theo cột các dòng công ty, ⛔ nhập tay (T78.2).
+             * Hôm nay chỉ Sông Nhuệ có số (OI-BC1) nên nó bằng {@code bang1SongNhue}; phép cộng vẫn
+             * là phép cộng thật để ngày có công ty thứ hai nó ⛔ lặng lẽ sai.
+             */
+            TinhBaoCaoNhanh.DongBang1 bang1TongCong,
             TinhBaoCaoNhanh.Muc1 muc1,
             TinhBaoCaoNhanh.GhiChuYenNghia ghiChuYenNghia,
             List<CauHinhBaoCaoNhanhService.DongBang3> bang3,
@@ -254,6 +260,9 @@ public class BaoCaoNhanhService {
                 TinhBaoCaoNhanh.bang2(dong, thuTu),
                 ten,
                 b1,
+                // ⚠ Danh sách MỘT phần tử là toàn bộ dữ liệu hệ có (OI-BC1). Ba công ty kia vào đây
+                //   như những phần tử mới ngày họ có nguồn — ⛔ phải sửa công thức.
+                TinhBaoCaoNhanh.tongCongBang1(java.util.Collections.singletonList(b1)),
                 TinhBaoCaoNhanh.muc1(b1),
                 TinhBaoCaoNhanh.yenNghia(dong, ch.tramYenNghia()),
                 cauHinh.bang3(ch, bc.getDenThoiDiem()),

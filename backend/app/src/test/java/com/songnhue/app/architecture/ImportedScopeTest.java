@@ -44,6 +44,26 @@ class ImportedScopeTest {
         }
     }
 
+    /**
+     * T73.5 — tập đem soi ⛔ được chứa lớp KIỂM. Ở lượt chạy nhắm mục tiêu bài này xanh vì lý do tầm thường (test-jar
+     * chưa đóng gói); lượt {@code verify} đầy đủ mới là lượt nó phân biệt được hai trạng thái — và đó là lượt CI chạy.
+     */
+    @Test
+    @DisplayName("⛔ Tập đem soi ⛔ chứa lớp nào từ test-jar (core-tests.jar lọt ở lượt verify đầy đủ — T73.5)")
+    void khongCoLopTuTestJar() {
+        assertThat(ProductionClasses.ALL.stream()
+                        .filter(lop -> lop.getSource()
+                                .map(nguon -> nguon.getUri().toString().contains("-tests.jar"))
+                                .orElse(false))
+                        .map(com.tngtech.archunit.core.domain.JavaClass::getName)
+                        .toList())
+                .isEmpty();
+        assertThat(ProductionClasses.khongPhaiTestJar(com.tngtech.archunit.core.importer.Location.of(
+                        java.net.URI.create("jar:file:/m2/songnhue-core-0.1.0-SNAPSHOT-tests.jar!/a/B.class"))))
+                .as("tự kiểm: bộ lọc phải nhận ra một đường dẫn test-jar")
+                .isFalse();
+    }
+
     @Test
     @DisplayName("Số lớp nạp được không sụt bất thường")
     void importIsNotSuspiciouslySmall() {

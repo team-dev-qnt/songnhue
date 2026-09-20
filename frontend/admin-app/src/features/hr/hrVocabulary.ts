@@ -690,3 +690,31 @@ export interface XemTruocDonView {
 
 /** Số ngày lễ Điều 112 BLLĐ 2019 — khớp `DemNgayCongService.SO_NGAY_LE_THEO_LUAT`. */
 export const SO_NGAY_LE_THEO_LUAT = 11;
+
+/**
+ * Một lượt uỷ quyền duyệt nghỉ phép — chốt B3 (WS-80).
+ *
+ * ⛔⛔ `daThuHoi` và `dangHieuLuc` là HAI trạng thái, ⛔ phải một. Một bản *đã hết hạn* và một bản
+ * *đã bị thu hồi* đều cho `dangHieuLuc = false`, nhưng chúng kể hai câu chuyện khác nhau trên lịch
+ * sử duyệt: một cái chạy hết thời hạn của nó, một cái bị rút giữa chừng. Gộp chúng lại là xoá đúng
+ * phần mà một lượt rà soát đi tìm.
+ */
+export interface UyQuyenDuyetView {
+  publicId: string;
+  orgUnitPublicId: string | null;
+  nguoiUyQuyenPublicId: string | null;
+  nguoiDuocUyQuyenPublicId: string | null;
+  tuNgay: string;
+  denNgay: string;
+  lyDo: string | null;
+  daThuHoi: boolean;
+  dangHieuLuc: boolean;
+}
+
+export interface GiaoUyQuyenRequest {
+  orgUnitPublicId: string;
+  nguoiDuocUyQuyenPublicId: string;
+  tuNgay: string;
+  denNgay: string;
+  lyDo?: string;
+}

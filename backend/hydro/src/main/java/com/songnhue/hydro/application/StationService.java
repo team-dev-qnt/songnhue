@@ -152,10 +152,11 @@ public class StationService {
     public Station create(StationForm form) {
         String ma = chuanHoaMa(form.code());
         String maApi = chuanHoaMaApi(form.apiCode());
-        if (stations.existsByCodeAndDeletedAtIsNull(ma)) {
+        // T74.9 — mã điểm đo và mã API duy nhất TOÀN Công ty: hỏi với bộ lọc tắt.
+        if (scopeGuard.toanCongTy(() -> stations.existsByCodeAndDeletedAtIsNull(ma))) {
             throw new ConflictException(ErrorCode.HYD_1002, ma);
         }
-        if (stations.existsByApiCodeAndDeletedAtIsNull(maApi)) {
+        if (scopeGuard.toanCongTy(() -> stations.existsByApiCodeAndDeletedAtIsNull(maApi))) {
             throw new ConflictException(ErrorCode.HYD_1002, maApi);
         }
         Station diemDo = new Station(
@@ -187,7 +188,7 @@ public class StationService {
             throw new BusinessRuleException(ErrorCode.HYD_2006, diemDo.getApiCode(), maApi);
         }
         String ma = chuanHoaMa(form.code());
-        if (stations.existsByCodeAndDeletedAtIsNullAndIdNot(ma, diemDo.getId())) {
+        if (scopeGuard.toanCongTy(() -> stations.existsByCodeAndDeletedAtIsNullAndIdNot(ma, diemDo.getId()))) {
             throw new ConflictException(ErrorCode.HYD_1002, ma);
         }
         PositionRole vaiTro = batBuoc(form.positionRole());
@@ -219,7 +220,10 @@ public class StationService {
      * bị {@code HYD-2006} từ chối và {@code positionRole} phải đối chiếu với liên kết chính.
      */
     private void apDung(Station diemDo, StationForm form) {
-        diemDo.setOrgUnitId(donViId(form.orgUnitPublicId()));
+        // ⛔⛔ T74.8 — vế GHI của phạm vi (đơn vị NULL = điểm đo chưa gán đơn vị ⇒ ⛔ kiểm, khai ở ScopeGuard).
+        Long donVi = donViId(form.orgUnitPublicId());
+        scopeGuard.requireWritableOrgUnit(donVi, Station.class);
+        diemDo.setOrgUnitId(donVi);
         diemDo.setRiverName(rong(form.riverName()));
         diemDo.setChainage(lyTrinh(form.chainage()));
         datToaDo(diemDo, form.latitude(), form.longitude());

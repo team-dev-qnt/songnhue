@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -16,6 +17,8 @@ import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -26,6 +29,8 @@ import org.mockito.ArgumentCaptor;
 import com.songnhue.core.application.auth.SecurityEventService;
 import com.songnhue.core.application.settings.SettingService;
 import com.songnhue.core.common.config.BackupProperties;
+import com.songnhue.core.common.error.ErrorCode;
+import com.songnhue.core.common.exception.BusinessRuleException;
 import com.songnhue.core.domain.backup.BackupStatus;
 import com.songnhue.core.domain.backup.BackupTrigger;
 import com.songnhue.core.domain.backup.SystemBackup;
@@ -136,6 +141,80 @@ class BackupServiceTest {
         String second = service.runBackup(BackupTrigger.MANUAL, null).getChecksumSha256();
 
         assertThat(first).isNotEqualTo(second);
+    }
+
+    @Test
+    @DisplayName("⛔⛔ T37.8 — lệnh pg_dump GIỮ ACL: đủ bộ cờ CO_DUMP và ⛔ có --no-privileges")
+    void lenhDumpGiuAcl() throws Exception {
+        stubDumpWriting("noi-dung");
+        service.runBackup(BackupTrigger.SCHEDULED, null);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<String>> lenh = ArgumentCaptor.forClass(List.class);
+        verify(toolRunner, atLeastOnce()).run(lenh.capture(), any(), any(), any());
+        // runBackup gọi công cụ HAI lần (dump + `--version`) — chọn đúng lời gọi dump.
+        List<String> dump = lenh.getAllValues().stream()
+                .filter(c -> c.stream().anyMatch(t -> t.startsWith("--file=")))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("⛔ thấy lời gọi pg_dump nào mang --file="));
+        assertThat(dump)
+                .as("Bản dump tước ACL khôi phục ra CSDL songnhue_app ⛔ đọc nổi (§10.58) — cờ ấy ⛔ được quay lại")
+                .containsAll(BackupService.CO_DUMP)
+                .doesNotContain("--no-" + "privileges");
+    }
+
+    @Test
+    @DisplayName(
+            "⛔ T68.4 — lượt thứ hai CHỒNG lên lượt đang chạy bị từ chối bằng ADM-2009, và cờ được NHẢ khi lượt đầu xong")
+    void luotThuHaiChongLenBiTuChoi() throws Exception {
+        AtomicReference<BusinessRuleException> loiLuotHai = new AtomicReference<>();
+        AtomicBoolean dangChayKhiDo = new AtomicBoolean();
+        AtomicBoolean daChen = new AtomicBoolean();
+        org.mockito.Mockito.doAnswer(call -> {
+                    List<String> command = call.getArgument(0);
+                    // Chen ĐÚNG MỘT lần. Chốt hỏng thì lượt chen cũng đi tới pg_dump; chen tiếp ở đó là đệ quy vô
+                    // hạn ⇒ bài đỏ bằng StackOverflowError, ⛔ nói được chốt nào hỏng (đo 19/09 ở lượt phá).
+                    boolean laDump = command.stream().anyMatch(t -> t.startsWith("--file="));
+                    if (laDump && daChen.compareAndSet(false, true)) {
+                        dangChayKhiDo.set(service.dangCoLuotChay());
+                        try {
+                            service.runBackup(BackupTrigger.MANUAL, 2L); // chen vào GIỮA lượt đầu
+                        } catch (BusinessRuleException t) {
+                            // Chỉ bắt đúng loại mong đợi (Checkstyle IllegalCatch). Một ngoại lệ KHÁC sẽ rơi vào
+                            // nhánh catch của chayMotLuot ⇒ lượt đầu FAILED ⇒ bài đỏ ở khẳng định SUCCEEDED.
+                            loiLuotHai.set(t);
+                        }
+                    }
+                    writeDumpFile(command, "noi-dung");
+                    return new PostgresToolRunner.ToolResult(0, "");
+                })
+                .when(toolRunner)
+                .run(any(), any(), any(), any());
+
+        SystemBackup dau = service.runBackup(BackupTrigger.SCHEDULED, 1L);
+
+        assertThat(dau.getStatus()).isEqualTo(BackupStatus.SUCCEEDED);
+        assertThat(dangChayKhiDo).as("trong lúc pg_dump chạy, cờ phải BẬT").isTrue();
+        assertThat(loiLuotHai.get())
+                .as("lượt chen vào phải bị từ chối, ⛔ chạy song song")
+                .isNotNull();
+        assertThat(loiLuotHai.get().errorCode()).isEqualTo(ErrorCode.ADM_2009);
+        // Cờ phải được NHẢ — kẹt là mọi lượt sau bị chặn vĩnh viễn (đúng lỗi mà `existsByStatus(RUNNING)`
+        // sẽ gây ra nếu được nối: bản ghi RUNNING bị bỏ dở được cố ý giữ lại làm dấu vết).
+        assertThat(service.dangCoLuotChay()).isFalse();
+        stubDumpWriting("lan-sau");
+        assertThat(service.runBackup(BackupTrigger.MANUAL, 1L).getStatus()).isEqualTo(BackupStatus.SUCCEEDED);
+    }
+
+    @Test
+    @DisplayName("⛔ T68.4 — pg_dump NÉM ngoại lệ thì cờ vẫn được nhả (finally), lượt sau chạy được")
+    void coDuocNhaKhiDumpNem() throws Exception {
+        when(toolRunner.run(any(), anyString(), any(), any())).thenThrow(new java.io.IOException("đứt ống"));
+
+        SystemBackup hong = service.runBackup(BackupTrigger.SCHEDULED, null);
+
+        assertThat(hong.getStatus()).isEqualTo(BackupStatus.FAILED);
+        assertThat(service.dangCoLuotChay()).isFalse();
     }
 
     private void stubDumpWriting(String content) throws Exception {

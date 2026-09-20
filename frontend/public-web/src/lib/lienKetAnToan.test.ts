@@ -1,8 +1,9 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join, relative } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { boChuThich } from './boChuThich';
 import { lienKetAnToan } from './lienKetAnToan';
 
 describe('lienKetAnToan — T61.34', () => {
@@ -69,5 +70,34 @@ describe('lienKetAnToan — T61.34', () => {
       expect(doc(tep), `${tep}: href lấy thẳng docSystemUrl`).not.toMatch(/href=\{docSystemUrl\}/);
       expect(doc(tep), tep).toContain('lienKetAnToan(docSystemUrl)');
     }
+  });
+  /**
+   * T73.2 — banner là đường ghi THỨ BA mang một địa chỉ do quản trị nhập ra cổng, và nó lọt khỏi bài trên vì bài ấy
+   * LIỆT KÊ TAY bốn nơi (luật 28). Bài này ĐO phạm vi: mọi tệp nguồn dưới `src/`, mọi lượt đọc trường `.linkUrl`
+   * (trên mã đã bỏ chú thích) phải nằm ngay trong `lienKetAnToan(`.
+   */
+  it('⛔ T73.2 — mọi lượt đọc `.linkUrl` (banner) trong src đều nằm trong lienKetAnToan(…)', () => {
+    const goc = join(__dirname, '..');
+    const moiTep = (thuMuc: string): string[] =>
+      readdirSync(thuMuc, { withFileTypes: true }).flatMap((e) => {
+        const day = join(thuMuc, e.name);
+        if (e.isDirectory()) return moiTep(day);
+        return /\.tsx?$/.test(e.name) && !/\.test\.tsx?$/.test(e.name) ? [day] : [];
+      });
+
+    let tong = 0;
+    const xau: string[] = [];
+    for (const tep of moiTep(goc)) {
+      const ma = boChuThich(readFileSync(tep, 'utf8'));
+      for (const m of ma.matchAll(/\.linkUrl\b/g)) {
+        tong += 1;
+        const truoc = ma.slice(Math.max(0, m.index - 60), m.index);
+        if (!/lienKetAnToan\(\s*[\w?.]*$/.test(truoc)) {
+          xau.push(`${relative(goc, tep)}: …${truoc.slice(-40)}.linkUrl`);
+        }
+      }
+    }
+    expect(tong, 'chống tập rỗng: cổng phải còn đọc linkUrl của banner').toBeGreaterThanOrEqual(1);
+    expect(xau, 'đọc linkUrl mà ⛔ qua lienKetAnToan — javascript: sẽ vào href').toEqual([]);
   });
 });

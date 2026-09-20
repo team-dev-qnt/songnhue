@@ -41,7 +41,16 @@ import com.songnhue.hr.infra.LeaveRequestRepository;
  * <p>⇒ {@link SoDu#namTruocCoDuLieu} khai rằng hệ <b>chưa biết</b>, và khi ấy
  * {@link SoDu#chuyenTuNamTruoc} là <b>0</b> chứ ⛔ không phải mức tối đa. Giao diện nói *"chưa có
  * dữ liệu năm trước"* thay vì in một con số ⛔ không ai kiểm được. ⬜ Ngày Công ty cần nhập số dư
- * đầu kỳ thật thì thêm một đường ghi — ghi nợ T57.5, ⛔ không dựng bảng trên phỏng đoán.
+ * đầu kỳ thật thì thêm một đường ghi — nợ <b>T57.16</b> (câu hỏi G16-a), ⛔ dựng bảng trên phỏng đoán.
+ *
+ * <h2>⛔⛔ "Biết năm trước" là một THAM SỐ, ⛔ phải một phép đoán từ đơn — T57.16 (20/09/2026)</h2>
+ *
+ * <p>Bản trước đoán bằng <i>"người ấy có ≥ 1 đơn năm trước"</i>, và phép đoán sai cả hai chiều. Hệ lên
+ * production giữa năm 2026, đơn giấy tháng 01–09 ⛔ nằm trong hệ ⇒ từ 01/01/2027 ai có một đơn 2026 được
+ * chuyển = quỹ 2026 − số ngày <i>nhập trong hệ</i> ⇒ <b>cấp thừa</b> tới trần chuyển năm. Chiều ngược: năm
+ * đã ghi đủ mà một người ⛔ nghỉ ngày nào thì bị coi là <i>chưa biết</i> ⇒ <b>mất</b> số chuyển — đúng người
+ * chăm chỉ nhất. Nay: {@code hr.leave.first-fully-recorded-year} (mặc định 2027) —
+ * {@code NghiPhepHttpTest#chuyenPhepChiTinhTuNamGhiNhanDu} canh cả ba ca.
  */
 @Service
 public class SoDuPhepService {
@@ -63,7 +72,8 @@ public class SoDuPhepService {
      * @param conLai {@code duocHuong − daDung − dangChoDuyet}. <b>Âm được</b>, và cố ý ⛔ không kẹp
      *     về 0: một người đã nghỉ quá phép là một sự thật nhân sự cần nhìn thấy, ⛔ không phải một
      *     con số cần giấu
-     * @param namTruocCoDuLieu hệ có đơn của năm trước ⛔ không — xem javadoc lớp
+     * @param namTruocCoDuLieu hệ ghi nhận ĐỦ năm trước ⛔ không ({@code hr.leave.first-fully-recorded-year}) —
+     *     xem javadoc lớp
      */
     public record SoDu(
             int nam,
@@ -82,8 +92,8 @@ public class SoDuPhepService {
 
         BigDecimal theoThamNien = quyPhepNam(hoSo, nam);
 
-        // ⛔⛔ Chuyển từ năm trước: chỉ tính khi hệ THẬT SỰ có dữ liệu năm ấy.
-        boolean namTruocCoDuLieu = coDonTrongNam(hoSo, nam - 1);
+        // ⛔⛔ Chuyển từ năm trước: chỉ tính khi hệ ghi nhận ĐỦ năm ấy (T57.16) — ⛔ đoán từ "có đơn".
+        boolean namTruocCoDuLieu = nam - 1 >= chinhSach.namGhiNhanDuDauTien();
         BigDecimal chuyen = namTruocCoDuLieu ? chuyenTuNamTruoc(hoSo, nam - 1) : BigDecimal.ZERO;
 
         BigDecimal duocHuong = theoThamNien.add(chuyen);
@@ -158,17 +168,6 @@ public class SoDuPhepService {
             return BigDecimal.ZERO;
         }
         return con.min(BigDecimal.valueOf(chinhSach.soNgayChuyenToiDa()));
-    }
-
-    /**
-     * Hệ có biết gì về năm ấy ⛔ không — hỏi trên <b>mọi loại nghỉ</b>, ⛔ không chỉ phép năm.
-     *
-     * <p>⚠ Một người cả năm ngoái chỉ nghỉ thai sản thì hệ <b>có</b> dữ liệu về họ, dù ⛔ không đơn
-     * phép năm nào. Hỏi hẹp là kết luận *"chưa có dữ liệu"* cho một năm đã ghi đầy đủ.
-     */
-    private boolean coDonTrongNam(Employee hoSo, int nam) {
-        return !donNghi.donChongKhoang(hoSo.getId(), LocalDate.of(nam, 1, 1), LocalDate.of(nam, 12, 31))
-                .isEmpty();
     }
 
     private static BigDecimal cong(java.util.stream.Stream<LeaveRequest> don) {

@@ -64,7 +64,39 @@ const config: Config = {
         },
         surface: neutralColors,
         // Navy của khung cổng (đầu trang / chân trang) — `bg-chrome-navy800`.
-        chrome: portalChrome,
+        //
+        // ⭐⭐ MỘT biến, NHIỀU giá trị dự phòng — và đó là toàn bộ thiết kế của T77.1.
+        //
+        //   Đầu trang hôm nay là `from-navy800 via-navy500 to-navy800`, chân trang là
+        //   `from-navy700 via-navy600 to-navy900`. Sáu khai báo dưới đây trỏ vào **đúng hai** biến
+        //   CSS, mỗi khai báo giữ dự phòng RIÊNG của chặng nó:
+        //
+        //     khoá để trống  ⇒ ⛔ biến nào được tiêm ⇒ mỗi chặng rơi về token của chính nó
+        //                      ⇒ gradient y hệt hôm nay, từng điểm ảnh một.
+        //     khoá có màu    ⇒ mọi chặng giải ra CÙNG một giá trị
+        //                      ⇒ gradient xẹp thành MÀU PHẲNG = đúng thứ ô nhập hứa ("màu nền").
+        //
+        //   ⇒ ⛔ có phép tính màu nào lúc chạy (T75.7 đã từ chối hướng ấy), ⛔ có sắc độ dẫn xuất
+        //   nào phải đoán, và người dùng ⛔ phải phối năm bậc navy cho khớp nhau.
+        //
+        // ⛔ `AffiliatedUnitsLinks` và mũi tên của `AnhCarousel` CỐ Ý ở lại `navy800`/`navy500`
+        //   trần: chúng là **nội dung trang**, ⛔ phải khung cổng. Nếu chúng cũng đổi theo thì đặt
+        //   màu chân trang sẽ lặng lẽ nhuộm luôn hai mũi tên trên trang chủ — một hệ quả mà ô nhập
+        //   ⛔ hề nói tới.
+        //
+        // ⚠ Hỏng thì hỏng NẶNG hơn `brand-*`: `--tw-gradient-from` là custom property ĐÃ ĐĂNG KÝ
+        //   (`@property … syntax: "<color>"; initial-value: #0000`), nên một giá trị ⛔ phải màu
+        //   ⛔ rơi về token mà rơi về **trong suốt** — đầu trang biến mất. Đo trên CSS sinh ra ngày
+        //   20/09. Đó là lý do bộ lọc ở `mauThuongHieu.ts` ⛔ phải thứ trang trí.
+        chrome: {
+          ...portalChrome,
+          header: doiDuocLucChay('brand-header', portalChrome.header),
+          headerMid: doiDuocLucChay('brand-header', portalChrome.navy500),
+          footer: doiDuocLucChay('brand-footer', portalChrome.footer),
+          footerMid: doiDuocLucChay('brand-footer', portalChrome.navy600),
+          footerDeep: doiDuocLucChay('brand-footer', portalChrome.navy900),
+          footerBand: doiDuocLucChay('brand-footer', portalChrome.navy500),
+        },
         // Chỉ cho biểu tượng của chính nền tảng đó — `text-social-facebook`.
         social: externalBrandColors,
       },

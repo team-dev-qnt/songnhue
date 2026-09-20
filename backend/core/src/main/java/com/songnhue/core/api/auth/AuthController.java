@@ -225,7 +225,10 @@ public class AuthController {
     @Operation(summary = "Chính sách độ mạnh mật khẩu đang có hiệu lực")
     public AuthDtos.PasswordPolicyResponse passwordPolicy() {
         PasswordPolicyService.ChinhSachMatKhau chinhSach = passwordPolicy.chinhSach();
-        return new AuthDtos.PasswordPolicyResponse(chinhSach.minLength(), chinhSach.requireLetterAndDigit());
+        return new AuthDtos.PasswordPolicyResponse(
+                chinhSach.minLength(),
+                chinhSach.requireLetterAndDigit(),
+                passwordPolicy.hanDungMatKhauTam().toHours());
     }
 
     @PostMapping("/change-password")

@@ -362,4 +362,34 @@ bài kiểm, và lượt phá-bản-vá chứng minh bài kiểm bắt được 
 | 16.2 #6 · #7 · #9 · #10 | `T61.36`→`T61.39` | ✅ cả bốn đã vá (16/09) · `DatLaiMatKhauHttpTest` · `BieuMauCongKhaiChongLamDungTest` · `DiaChiNguonTest` · `QuyenRiengTuHttpTest` | email biểu mẫu công khai ⛔ kiểm định dạng ⇒ `"x"` thành người nhận thư; hạn mức 300/PHÚT của đường ĐỌC dùng cho đường GHI |
 | 16.3 · 16.4 · 16.5 | `T61.40` | 🟡 **31 dòng** đo được (sổ cũ ghi 23) — đã vá ở `T61.40`+`T61.47`; còn `T61.48` (7 mục chờ QuanTran quyết) · `T61.49` (5 mục chỉ đo được trên staging) | ⚠ Một dòng của bảng này từng **mồ côi**: ASVS 8.2.3 (đăng xuất ⛔ xoá đệm truy vấn) ⛔ nằm trong T61.48 lẫn T61.49 — vá ở `T63.3` |
 
+### 18.1 Cập nhật 19/09/2026 — WS-73
+
+| Khoảng trống | Task | Trạng thái | Phép đo trước khi vá |
+|---|---|---|---|
+| 16.3 #22 — 4.2.1 chống IDOR ở module có phạm vi | `T73.1` | ✅ 6 lượt tra theo `publicId` nay qua `ScopeGuard` · `TraCuuNgoaiPhamViHttpTest` + luật bytecode `TraCuuPhamViRuleTest` | đơn vị khác ⇒ **404** `SYS-0004`, 0 dòng `security_events`; luật báo đúng **6** vi phạm trên mã gốc (sổ chỉ ghi 5 — `DonNghiPhepService.get` lộ ra khi đo toàn kho) |
+| 16.2 #4 — `javascript:` qua đường ghi THỨ BA: banner | `T73.2` | ✅ chặn lúc ghi (`CMS-2024`, cùng `DiaChiLienKet` của menu) + bọc lúc hiển thị (`AnhCarousel`, `HomeBannerSlider`) | `PUT` banner với `javascript:` ⇒ **200** |
+| 16.4 — 14.4.2 `Content-Disposition` cho API | `T73.3` | ✅ `ResponseEnvelopeAdvice` — mọi thân JSON, kể cả lỗi · `TenTepApiHttpTest` | 0 phản hồi JSON mang header |
+| 16.4 — 14.4.1 `charset` cho JSON | `T73.3` | ⚪ **Không áp dụng** — 14.4.1 chỉ đòi bộ ký tự cho `text/*`, `*/+xml`, `application/xml`; RFC 8259 §11: `application/json` ⛔ định nghĩa tham số `charset` | nhãn trong mã từng gán `nosniff` cho 14.4.1 — thật ra là 14.4.4, đã sửa |
+| 14.4.3 — CSP cổng còn `script-src 'unsafe-inline'` | `T73.7` | ⬜ mở | `next.config.ts` — chính chỉ thị làm 5.2.7/5.3.3 chạy được khi lớp khác hở |
+| Mọi mã ở §16 có dòng sổ giữ | `T73.4` | ✅ bộ canh ở job `tracking` (chạy mọi PR) | **24/57** mã ⛔ dòng sổ nào nhắc đúng mã |
+
+### 18.2 Cập nhật 20/09/2026 — WS-73b
+
+| Khoảng trống | Task | Trạng thái | Phép đo trước khi vá |
+|---|---|---|---|
+| 16.3 #24 — 2.3.1 mật khẩu tạm ⛔ hết hạn | `T73.8` | ✅ vế **hết hạn**: cột `users.temp_password_expires_at` + `security.password.temp-ttl-hours` (72 giờ) · đăng nhập bằng mật khẩu tạm quá hạn ⇒ `AUTH-0010` · `DatLaiMatKhauHttpTest` · `MatKhauTamMotCuaRuleTest` | hai đường phát đặt `must_change_password` mà ⛔ cột hạn nào |
+| 16.3 #24 — 2.3.1 mật khẩu tạm do **hệ** sinh ngẫu nhiên | `T73.11` | ⬜ chờ QuanTran chọn: nút sinh ở giao diện (⛔ ép) hay máy chủ sinh và trả một lần (đổi hợp đồng API) | quản trị viên tự gõ, chỉ chịu chính sách độ mạnh |
+| 16.4 — 11.1.2 chỉ xử lý ở tốc độ con người | `T73.9` | ✅ biểu mẫu liên hệ/góp ý đòi **vé** do máy chủ ký, ≥ `security.form.min-fill-seconds` (3 giây) và ≤ 24 giờ ⇒ `CMS-2025`; cổng tự chờ đủ tuổi · `VeBieuMauHttpTest` · `veBieuMau.test.ts` | chỉ có hạn mức IP 10/giờ; một máy gửi thẳng vào API, ⛔ tải trang, vẫn qua |
+
+⚠ Phạm vi của 11.1.2 (luật 28): vé chặn máy gửi thẳng vào API và máy gửi ngay khi tải trang. Trình duyệt tự động
+chạy chính mã cổng thì cũng chờ như người — lớp ấy thuộc reCAPTCHA (chờ khoá G13). Luồng có đăng nhập dựa vào xác
+thực + hạn mức theo người dùng (T61.17).
+
+### 18.3 Cập nhật 20/09/2026 — WS-74b
+
+| Khoảng trống | Task | Trạng thái | Phép đo trước khi vá |
+|---|---|---|---|
+| 4.2.1 — vế **GHI** của phạm vi đơn vị | `T74.8` | ✅ `ScopeGuard.requireWritableOrgUnit` ở hồ sơ CBNV · công trình (tạo · sửa · nhập tệp) · điểm đo; luật bytecode W1 đo mọi chỗ đặt đơn vị ở tầng application · `GhiNgoaiPhamViHttpTest` · `HoSoNhanSuPhamViTest` | tài khoản ở XN-A tạo hồ sơ / công trình / điểm đo vào XN-B ⇒ **201**, 0 dòng `security_events` |
+| Trùng mã với bản ghi ngoài phạm vi | `T74.9` | ✅ `ScopeGuard.toanCongTy` ở 7 phép kiểm mã của entity phạm vi; luật W2 | trả `SYS-0005` *"dữ liệu vừa được người khác thay đổi"* thay vì `HR-1001` / `OPS-2008` / `HYD-1002` |
+
 ⚠ Phép đo trên hệ đang chạy (ZAP baseline vào staging) vẫn **chưa chạy** — việc của QuanTran, xem `tools/zap/README.md`.

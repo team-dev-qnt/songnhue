@@ -52,6 +52,7 @@ import {
   O_NHAP_XA,
   giaTriVanHanh,
   locBang2,
+  moTaChoGhiChu,
   nhapXaTu,
   payloadLuongMua,
   payloadNgapUng,
@@ -290,8 +291,17 @@ function SuaKhung({
 // =============================================================================
 
 type DongBang2 =
-  | { key: string; loai: 'khoi'; so: string; ten: string; tongMay: number }
-  | { key: string; loai: 'nhom'; so: string; ten: string; nguon: string | null; nhom: BcnNhomView };
+  | { key: string; loai: 'khoi'; so: string; ten: string; ma: string; tongMay: number }
+  | {
+      key: string;
+      loai: 'nhom';
+      so: string;
+      ten: string;
+      /** Mã công trình — chỉ ở dòng ĐẦU của mỗi trạm, đúng chỗ tên hiện. */
+      ma: string;
+      nguon: string | null;
+      nhom: BcnNhomView;
+    };
 
 function TabVanHanh({
   c,
@@ -328,6 +338,7 @@ function TabVanHanh({
         loai: 'khoi',
         so: LA_MA[i] ?? String(i + 1),
         ten: khoi.tenDonVi ?? '',
+        ma: '',
         tongMay: khoi.tongMayThietKe,
       });
       khoi.tram.forEach((tram, j) => {
@@ -337,6 +348,7 @@ function TabVanHanh({
             loai: 'nhom',
             so: k === 0 ? String(j + 1) : '',
             ten: k === 0 ? tram.ten : '',
+            ma: k === 0 ? tram.ma : '',
             nguon: k === 0 ? tram.nguonTuoiHuongTieu : null,
             nhom: n,
           });
@@ -352,7 +364,21 @@ function TabVanHanh({
       title: 'Tên công trình',
       key: 'ten',
       width: 260,
-      render: (_, d) => (d.loai === 'khoi' ? <b>{d.ten}</b> : d.ten),
+      // ⭐ Mã đứng dưới tên (T78.1): danh mục có những trạm TRÙNG TÊN, và người nhập số máy chạy
+      //   phải biết mình đang gõ cho trạm nào. ⛔ đi vào bản Word — cột của mẫu là "Tên trạm bơm".
+      render: (_, d) =>
+        d.loai === 'khoi' ? (
+          <b>{d.ten}</b>
+        ) : (
+          <>
+            {d.ten}
+            {d.ma ? (
+              <Typography.Text type="secondary" style={{ display: 'block', fontSize: 12 }}>
+                {d.ma}
+              </Typography.Text>
+            ) : null}
+          </>
+        ),
     },
     {
       title: 'Tổng số máy',
@@ -405,8 +431,8 @@ function TabVanHanh({
       <Space wrap style={{ marginBottom: 12 }}>
         <Input.Search
           allowClear
-          placeholder="Tìm trạm theo tên"
-          aria-label="Tìm trạm theo tên"
+          placeholder="Tìm trạm theo tên hoặc mã"
+          aria-label="Tìm trạm theo tên hoặc mã"
           onChange={(e) => setTuKhoa(e.target.value)}
           style={{ width: 260 }}
         />
@@ -758,18 +784,27 @@ function TabXemTruoc({ c }: { c: BaoCaoNhanhChiTiet }) {
     co: string[];
     luuLuong: string;
   };
+  // ⚠ Thứ tự đúng bản Word: "Tổng cộng" đứng TRÊN các dòng công ty (T78.2). Số của nó do BE cộng
+  //   theo cột — ⛔ cộng ở đây (quy tắc 3).
+  const dongBang1Tu = (key: string, congTy: string, d: typeof b1): Dong1 => ({
+    key,
+    congTy,
+    tram: so(d?.tongTram),
+    may: so(d?.tongMay),
+    co: c.coMay.map((_, i) => (d && d.theoCo[i] ? formatNumber(d.theoCo[i]) : '')),
+    luuLuong: so(d?.tongLuuLuongM3h),
+  });
   const dongBang1: Dong1[] = [
-    {
-      key: 'sn',
-      congTy: 'Sông Nhuệ',
-      tram: so(b1?.tongTram),
-      may: so(b1?.tongMay),
-      co: c.coMay.map((_, i) => (b1 && b1.theoCo[i] ? formatNumber(b1.theoCo[i]) : '')),
-      luuLuong: so(b1?.tongLuuLuongM3h),
-    },
+    dongBang1Tu('tong', 'Tổng cộng', c.bang1TongCong),
+    dongBang1Tu('sn', 'Sông Nhuệ', b1),
   ];
   const cotBang1: ColumnsType<Dong1> = [
-    { title: 'Công ty thuỷ lợi', dataIndex: 'congTy', width: 140 },
+    {
+      title: 'Công ty thuỷ lợi',
+      dataIndex: 'congTy',
+      width: 140,
+      render: (v: string, d: Dong1) => (d.key === 'tong' ? <b>{v}</b> : v),
+    },
     { title: 'Tổng số trạm', dataIndex: 'tram', width: 100, align: 'right' },
     { title: 'Tổng số máy', dataIndex: 'may', width: 100, align: 'right' },
     {
@@ -804,15 +839,23 @@ function TabXemTruoc({ c }: { c: BaoCaoNhanhChiTiet }) {
         </Descriptions>
         <Typography.Paragraph style={{ marginTop: 12, marginBottom: 0 }}>
           <b>Ghi chú:</b>{' '}
-          {yn.cau ?? (
-            <Typography.Text type="warning">
-              {yn.trangThai === 'CHUA_NHAP'
-                ? 'Chưa nhập số máy chạy của Trạm bơm Yên Nghĩa — bản Word giữ nguyên dấu “…” của mẫu.'
-                : yn.trangThai === 'CHUA_GAN_TRAM'
-                  ? 'Chưa chọn công trình cho Trạm bơm Yên Nghĩa (màn hình Cấu hình) — bản Word giữ nguyên dấu “…”.'
-                  : 'Danh mục máy bơm chưa có nhóm máy nào của trạm gắn cho Yên Nghĩa — bản Word giữ nguyên dấu “…”.'}
-            </Typography.Text>
-          )}
+          {yn.cau ?? <Typography.Text type="warning">{moTaChoGhiChu(yn)}</Typography.Text>}
+        </Typography.Paragraph>
+        {/* ⭐ T78.1 — nói RA trạm nào đang đứng sau câu trên.
+
+            Câu ghi chú chỉ mang TÊN, mà danh mục có những trạm trùng tên (hai "Yên Nghĩa": trạm bơm
+            và cống tiêu tự chảy). Đọc một mình câu ấy thì ⛔ biết số liệu lấy từ hồ sơ nào — đúng
+            câu hỏi QuanTran đặt ra. Mã hiện ở ĐÂY chứ ⛔ trong bản Word: văn bản gửi UBND dùng câu
+            chữ của mẫu Công ty (G10). */}
+        <Typography.Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0 }}>
+          {yn.tenTram ? (
+            <>
+              Trạm đang gắn: <b>{yn.tenTram}</b> <Typography.Text code>{yn.maTram}</Typography.Text>
+            </>
+          ) : (
+            <>Chưa gắn trạm bơm nào cho dòng ghi chú.</>
+          )}{' '}
+          <Link to={DUONG_CAU_HINH}>Đổi ở Cấu hình Báo cáo nhanh</Link>
         </Typography.Paragraph>
       </Card>
 
@@ -827,8 +870,10 @@ function TabXemTruoc({ c }: { c: BaoCaoNhanhChiTiet }) {
           scroll={{ x: 1030 }}
         />
         <Typography.Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0 }}>
-          Ba công ty thuỷ lợi còn lại và dòng “Tổng cộng” để trống — hệ thống chỉ có số của Sông
-          Nhuệ.
+          Dòng “Tổng cộng” là tổng <b>theo cột</b> của các công ty có số, do hệ thống tính. Ba công
+          ty thuỷ lợi còn lại (Hà Nội, Sông Đáy, Sông Tích) để trống vì hệ thống chưa có nguồn số
+          liệu của họ — nên hôm nay “Tổng cộng” trùng khít dòng Sông Nhuệ, và bản Word cũng in như
+          vậy.
         </Typography.Paragraph>
       </Card>
 

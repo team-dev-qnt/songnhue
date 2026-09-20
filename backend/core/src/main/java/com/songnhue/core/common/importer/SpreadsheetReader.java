@@ -4,12 +4,15 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -181,6 +184,9 @@ public final class SpreadsheetReader {
             List<String> chuoiDungChung = new ArrayList<>();
             byte[] sheet = null;
 
+            byte[] styles = null;
+            byte[] workbook = null;
+
             try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(content))) {
                 ZipEntry entry;
                 while ((entry = zip.getNextEntry()) != null) {
@@ -189,13 +195,17 @@ public final class SpreadsheetReader {
                         chuoiDungChung = docSharedStrings(docCoTran(zip, ten));
                     } else if ("xl/worksheets/sheet1.xml".equals(ten)) {
                         sheet = docCoTran(zip, ten);
+                    } else if ("xl/styles.xml".equals(ten)) {
+                        styles = docCoTran(zip, ten);
+                    } else if ("xl/workbook.xml".equals(ten)) {
+                        workbook = docCoTran(zip, ten);
                     }
                 }
             }
             if (sheet == null) {
                 throw new ValidationException(ErrorCode.OPS_2015);
             }
-            return dungRows(docSheet(sheet, chuoiDungChung));
+            return dungRows(docSheet(sheet, chuoiDungChung, kieuNgay(styles), heNgay1904(workbook)));
         } catch (IOException | XMLStreamException e) {
             throw new ValidationException(ErrorCode.OPS_2015, e);
         }
@@ -231,7 +241,8 @@ public final class SpreadsheetReader {
         return ket;
     }
 
-    private static List<List<String>> docSheet(byte[] xml, List<String> chuoiDungChung) throws XMLStreamException {
+    private static List<List<String>> docSheet(
+            byte[] xml, List<String> chuoiDungChung, boolean[] kieuLaNgay, boolean he1904) throws XMLStreamException {
         List<List<String>> grid = new ArrayList<>();
         XMLStreamReader reader = xmlReader(new ByteArrayInputStream(xml));
 
@@ -240,6 +251,8 @@ public final class SpreadsheetReader {
         int cotHienTai = -1;
         boolean laChuoiNoiTuyen = false;
         boolean laChiSoChuoi = false;
+        boolean laOSo = false;
+        int chiSoKieu = -1;
 
         while (reader.hasNext()) {
             int su = reader.next();
@@ -254,11 +267,16 @@ public final class SpreadsheetReader {
                         String kieu = reader.getAttributeValue(null, "t");
                         laChiSoChuoi = "s".equals(kieu);
                         laChuoiNoiTuyen = "inlineStr".equals(kieu);
+                        laOSo = kieu == null || "n".equals(kieu);
+                        chiSoKieu = soNguyen(reader.getAttributeValue(null, "s"), -1);
                         cotLonNhat = Math.max(cotLonNhat, cotHienTai);
                     }
                     case "v" -> {
                         String raw = reader.getElementText();
                         String value = laChiSoChuoi ? traChuoi(chuoiDungChung, raw) : raw;
+                        if (laOSo && chiSoKieu >= 0 && chiSoKieu < kieuLaNgay.length && kieuLaNgay[chiSoKieu]) {
+                            value = ngayTuSoSeri(value, he1904);
+                        }
                         dong.put(cotHienTai, value);
                     }
                     case "t" -> {
@@ -314,6 +332,126 @@ public final class SpreadsheetReader {
      * ro lý thuyết ở đây: màn hình nhập danh mục nhận tệp từ người dùng đã đăng nhập, mà tài khoản
      * đăng nhập được không có nghĩa là được đọc {@code /opt/songnhue/keys/}.
      */
+    /**
+     * <b>Ô nào là NGÀY — T74.12.</b> Excel ⛔ lưu ngày như chữ: nó lưu một <b>số sê-ri</b> kèm một định dạng ở
+     * {@code xl/styles.xml}. Javadoc lớp này đã dặn từ WS-17: cột ngày đầu tiên xuất hiện thì phải xử lý <b>ở đây</b>.
+     *
+     * @return mảng theo chỉ số {@code cellXfs}: phần tử {@code i} = kiểu thứ {@code i} có phải định dạng ngày ⛔.
+     *     Tệp ⛔ có {@code styles.xml} (bảng do máy sinh) ⇒ mảng rỗng ⇒ mọi ô số giữ nguyên chữ số, ⛔ đoán.
+     */
+    private static boolean[] kieuNgay(byte[] styles) throws XMLStreamException {
+        if (styles == null) {
+            return new boolean[0];
+        }
+        Map<Integer, String> maTuDat = new HashMap<>();
+        List<Integer> theoChiSo = new ArrayList<>();
+        XMLStreamReader reader = xmlReader(new ByteArrayInputStream(styles));
+        boolean trongCellXfs = false;
+        while (reader.hasNext()) {
+            int su = reader.next();
+            if (su == XMLStreamConstants.START_ELEMENT) {
+                switch (reader.getLocalName()) {
+                    case "numFmt" ->
+                        maTuDat.put(
+                                soNguyen(reader.getAttributeValue(null, "numFmtId"), -1),
+                                reader.getAttributeValue(null, "formatCode"));
+                    case "cellXfs" -> trongCellXfs = true;
+                    case "xf" -> {
+                        if (trongCellXfs) {
+                            theoChiSo.add(soNguyen(reader.getAttributeValue(null, "numFmtId"), 0));
+                        }
+                    }
+                    default -> {
+                        // phần tử định dạng khác — ⛔ liên quan
+                    }
+                }
+            } else if (su == XMLStreamConstants.END_ELEMENT && "cellXfs".equals(reader.getLocalName())) {
+                trongCellXfs = false;
+            }
+        }
+        boolean[] ra = new boolean[theoChiSo.size()];
+        for (int i = 0; i < ra.length; i++) {
+            int maDinhDang = theoChiSo.get(i);
+            ra[i] = maDinhDang > 0 && (MA_NGAY_DUNG_SAN.contains(maDinhDang) || laMaNgay(maTuDat.get(maDinhDang)));
+        }
+        return ra;
+    }
+
+    /**
+     * Mã định dạng ngày <b>dựng sẵn</b> của Excel (ECMA-376 §18.8.30). ⛔ gồm 45–47: chúng là {@code mm:ss} và
+     * {@code [h]:mm:ss} — thời lượng, ⛔ phải ngày.
+     */
+    private static final Set<Integer> MA_NGAY_DUNG_SAN = Set.of(
+            14, 15, 16, 17, 18, 19, 20, 21, 22, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 50, 51, 52, 53, 54, 55, 56, 57,
+            58);
+
+    /**
+     * Định dạng TỰ ĐẶT có phải ngày ⛔ — bỏ phần trong nháy và trong ngoặc vuông ({@code [$-42A]}, {@code [Red]})
+     * rồi hỏi còn {@code d} hoặc {@code y} ⛔.
+     *
+     * <p>⛔ Hỏi {@code m}: trong mã định dạng của Excel, {@code m} vừa là THÁNG vừa là PHÚT — một ô {@code h:mm}
+     * sẽ bị đọc thành ngày và 0,5 (mười hai giờ trưa) thành 30/12/1899.
+     */
+    private static boolean laMaNgay(String maDinhDang) {
+        if (maDinhDang == null) {
+            return false;
+        }
+        String con = maDinhDang.replaceAll("\\[[^\\]]*\\]", "").replaceAll("\"[^\"]*\"", "");
+        return con.indexOf('d') >= 0 || con.indexOf('D') >= 0 || con.indexOf('y') >= 0 || con.indexOf('Y') >= 0;
+    }
+
+    /**
+     * Số sê-ri Excel → {@code dd/MM/yyyy}.
+     *
+     * <p>⚠ Hệ 1900 có <b>lỗi năm nhuận của Lotus</b>: sê-ri 60 là "29/02/1900", một ngày ⛔ tồn tại. Nên mốc là
+     * 30/12/1899 cho sê-ri ≥ 61, và 31/12/1899 cho sê-ri nhỏ hơn — dải ấy ⛔ bao giờ gặp trong dữ liệu nhân sự
+     * nhưng để im thì một ô hỏng cho ra một ngày lệch một hôm, ⛔ một dòng lỗi.
+     *
+     * <p>Hệ 1904 (Excel bản Mac cũ, cờ {@code date1904} ở {@code workbook.xml}) lấy mốc 01/01/1904 — cùng một số
+     * sê-ri ra hai ngày cách nhau 1462 hôm.
+     *
+     * <p>Giá trị ⛔ phải số (ô hỏng) thì trả nguyên văn: người nhập thấy đúng thứ họ gõ ở dòng lỗi.
+     */
+    private static String ngayTuSoSeri(String tho, boolean he1904) {
+        double soSeri;
+        try {
+            soSeri = Double.parseDouble(tho.trim());
+        } catch (NumberFormatException e) {
+            return tho;
+        }
+        long ngay = (long) Math.floor(soSeri);
+        LocalDate moc = he1904 ? LocalDate.of(1904, 1, 1) : LocalDate.of(1899, 12, ngay < 61 ? 31 : 30);
+        return moc.plusDays(ngay).format(DINH_DANG_NGAY);
+    }
+
+    private static final DateTimeFormatter DINH_DANG_NGAY = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+    /** Cờ {@code date1904} của {@code xl/workbook.xml} — thiếu tệp ấy thì mặc định hệ 1900. */
+    private static boolean heNgay1904(byte[] workbook) throws XMLStreamException {
+        if (workbook == null) {
+            return false;
+        }
+        XMLStreamReader reader = xmlReader(new ByteArrayInputStream(workbook));
+        while (reader.hasNext()) {
+            if (reader.next() == XMLStreamConstants.START_ELEMENT && "workbookPr".equals(reader.getLocalName())) {
+                String co = reader.getAttributeValue(null, "date1904");
+                return "1".equals(co) || "true".equalsIgnoreCase(co);
+            }
+        }
+        return false;
+    }
+
+    private static int soNguyen(String tho, int duPhong) {
+        if (tho == null || tho.isBlank()) {
+            return duPhong;
+        }
+        try {
+            return Integer.parseInt(tho.trim());
+        } catch (NumberFormatException e) {
+            return duPhong;
+        }
+    }
+
     private static XMLStreamReader xmlReader(InputStream input) throws XMLStreamException {
         XMLInputFactory factory = XMLInputFactory.newFactory();
         factory.setProperty(XMLInputFactory.SUPPORT_DTD, false);

@@ -91,9 +91,8 @@ public class DatLaiMatKhauService {
         passwords.validate(matKhauTam, user.getUsername(), "matKhauTam");
 
         Instant now = Instant.now();
-        user.setPasswordHash(passwords.hash(matKhauTam));
-        user.setPasswordChangedAt(now);
-        user.setMustChangePassword(true);
+        // T73.8 — hash · mốc đổi · cờ buộc đổi · HẠN của mật khẩu tạm, một chỗ cho cả hai đường phát.
+        passwords.ganMatKhauTam(user, matKhauTam, now);
         users.save(user);
 
         int soPhien = refreshTokens.revokeAllSessions(user.getId(), SessionRevokeReason.PASSWORD_CHANGED, now);

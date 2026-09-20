@@ -225,10 +225,13 @@ public class ConstructionService {
     @Transactional
     public Construction create(ConstructionForm form) {
         String code = chuanHoaMa(form.code());
-        if (constructions.existsByCodeAndDeletedAtIsNull(code)) {
+        // T74.9 — mã công trình duy nhất TOÀN Công ty: hỏi với bộ lọc tắt.
+        if (scopeGuard.toanCongTy(() -> constructions.existsByCodeAndDeletedAtIsNull(code))) {
             throw new ConflictException(ErrorCode.OPS_2008, code);
         }
         OrgUnitRef donVi = donVi(form.orgUnitPublicId());
+        // ⛔⛔ T74.8 — vế GHI của phạm vi.
+        scopeGuard.requireWritableOrgUnit(donVi.id(), Construction.class);
 
         Construction ct = new Construction(code, chuanHoaTen(form.name()), form.constructionType(), donVi.id());
         apDung(ct, form);
@@ -244,12 +247,14 @@ public class ConstructionService {
     public Construction update(UUID publicId, ConstructionForm form) {
         Construction ct = trongPhamVi(publicId);
         String code = chuanHoaMa(form.code());
-        if (constructions.existsByCodeAndDeletedAtIsNullAndIdNot(code, ct.getId())) {
+        if (scopeGuard.toanCongTy(() -> constructions.existsByCodeAndDeletedAtIsNullAndIdNot(code, ct.getId()))) {
             throw new ConflictException(ErrorCode.OPS_2008, code);
         }
 
         Long donViCu = ct.getOrgUnitId();
         OrgUnitRef donViMoi = donVi(form.orgUnitPublicId());
+        // ⛔⛔ T74.8 — chuyển công trình sang đơn vị NGOÀI phạm vi là ghi vào dữ liệu của đơn vị ấy.
+        scopeGuard.requireWritableOrgUnit(donViMoi.id(), Construction.class);
 
         ct.setCode(code);
         ct.setName(chuanHoaTen(form.name()));
@@ -378,7 +383,7 @@ public class ConstructionService {
     public Construction capNhatTuTepNhap(UUID publicId, ConstructionForm form) {
         Construction ct = trongPhamVi(publicId);
         String code = chuanHoaMa(form.code());
-        if (constructions.existsByCodeAndDeletedAtIsNullAndIdNot(code, ct.getId())) {
+        if (scopeGuard.toanCongTy(() -> constructions.existsByCodeAndDeletedAtIsNullAndIdNot(code, ct.getId()))) {
             throw new ConflictException(ErrorCode.OPS_2008, code);
         }
         kiemToaDo(form);
@@ -389,7 +394,9 @@ public class ConstructionService {
         ct.setCode(code);
         ct.setName(chuanHoaTen(form.name()));
         ct.setConstructionType(form.constructionType());
-        ct.setOrgUnitId(donVi(form.orgUnitPublicId()).id());
+        Long donViNhap = donVi(form.orgUnitPublicId()).id();
+        scopeGuard.requireWritableOrgUnit(donViNhap, Construction.class);
+        ct.setOrgUnitId(donViNhap);
 
         // ⚠ 19 cột của tệp mẫu, và CHỈ 19 cột ấy. Mỗi dòng dưới đây đọc như "ghi đè khi tệp có
         //   giá trị, giữ nguyên khi ô trống" — xem javadoc trên về vì sao ô trống ⛔ không phải lệnh xoá.

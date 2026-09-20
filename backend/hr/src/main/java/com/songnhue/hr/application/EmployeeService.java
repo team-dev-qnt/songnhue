@@ -188,7 +188,8 @@ public class EmployeeService {
     @Transactional
     public Employee create(EmployeeForm form) {
         String ma = chuanHoaMa(form.code());
-        if (employees.existsByCodeAndDeletedAtIsNull(ma)) {
+        // T74.9 — mã CBNV duy nhất TOÀN Công ty: hỏi với bộ lọc tắt, ⛔ để mã của đơn vị khác vô hình.
+        if (scopeGuard.toanCongTy(() -> employees.existsByCodeAndDeletedAtIsNull(ma))) {
             throw new ConflictException(ErrorCode.HR_1001, ma);
         }
         Employee hoSo = new Employee();
@@ -232,6 +233,9 @@ public class EmployeeService {
     }
 
     private void apDung(Employee hoSo, EmployeeForm form) {
+        // ⛔⛔ T74.8 — vế GHI của phạm vi: đơn vị đích phải nằm trong phạm vi người đăng nhập. Kiểm TRƯỚC mọi setter.
+        Long donVi = donViBatBuoc(form.orgUnitPublicId());
+        scopeGuard.requireWritableOrgUnit(donVi, Employee.class);
         hoSo.setFullName(batBuoc(form.fullName()));
         hoSo.setDateOfBirth(form.dateOfBirth());
         hoSo.setGender(form.gender());
@@ -246,7 +250,7 @@ public class EmployeeService {
         hoSo.setEmergencyContactName(rutGon(form.emergencyContactName()));
         hoSo.setEmergencyContactPhone(rutGon(form.emergencyContactPhone()));
 
-        hoSo.setOrgUnitId(donViBatBuoc(form.orgUnitPublicId()));
+        hoSo.setOrgUnitId(donVi);
         hoSo.setPositionId(chucVuId(form.positionPublicId()));
         hoSo.setJobTitle(rutGon(form.jobTitle()));
         hoSo.setHiredAt(form.hiredAt());

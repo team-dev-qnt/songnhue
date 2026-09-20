@@ -148,6 +148,8 @@ export interface UserView {
 export interface PasswordPolicyResponse {
   minLength: number;
   requireLetterAndDigit: boolean;
+  /** T73.8 — số giờ mật khẩu tạm do quản trị phát còn hiệu lực (`security.password.temp-ttl-hours`). */
+  tempPasswordTtlHours: number;
 }
 
 export interface CreateUserRequest {
@@ -208,6 +210,16 @@ export interface OrgUnitNode {
   address: string | null;
   phone: string | null;
   email: string | null;
+  /**
+   * Trưởng / phó đơn vị — **H24**. `null` = chưa chọn, và *chưa chọn* phải phân biệt được với
+   * *đã chọn* (quy tắc 16).
+   *
+   * ⛔ Hai ô này ⛔ phải thông tin hiển thị: chúng là nguồn người nhận **cảnh báo vượt ngưỡng**
+   * của G11. Thiếu chúng ở đây thì hộp thoại sửa mở ra với hai ô trống và mỗi lượt sửa TÊN đơn vị
+   * là một lượt GỠ trưởng/phó, im lặng.
+   */
+  headUserPublicId: string | null;
+  deputyUserPublicId: string | null;
   children: OrgUnitNode[];
 }
 
@@ -253,6 +265,9 @@ export interface CreateOrgUnitRequest {
   address?: string;
   phone?: string;
   email?: string;
+  /** Trưởng / phó đơn vị — H24. Xem `OrgUnitNode`. */
+  headUserPublicId?: string | null;
+  deputyUserPublicId?: string | null;
 }
 
 /**
@@ -267,6 +282,9 @@ export interface UpdateOrgUnitRequest {
   address?: string;
   phone?: string;
   email?: string;
+  /** Trưởng / phó đơn vị — H24. Xem `OrgUnitNode`. */
+  headUserPublicId?: string | null;
+  deputyUserPublicId?: string | null;
 }
 
 // =============================================================================
@@ -1780,6 +1798,8 @@ export interface BcnNhomView {
 
 export interface BcnTramView {
   constructionPublicId: string;
+  /** Mã công trình — bày ra để phân biệt hai trạm TRÙNG TÊN; ⛔ đi vào bản Word. */
+  ma: string;
   ten: string;
   nguonTuoiHuongTieu: string | null;
   nhom: BcnNhomView[];
@@ -1810,6 +1830,9 @@ export interface BcnYenNghiaView {
   cau: string | null;
   soMay: number | null;
   luuLuongM3s: number | null;
+  /** Trạm đang gắn vào vị trí ghi chú — `null` khi chưa gắn. Tên đi vào bản Word, mã thì ⛔. */
+  tenTram: string | null;
+  maTram: string | null;
 }
 
 /** `lyDo` khác null ⇔ ô trống — nói VÌ SAO (⛔ có điểm đo / ⛔ có số đo 24h). */
@@ -1863,6 +1886,8 @@ export interface BaoCaoNhanhChiTiet {
   coMay: string[];
   bang2: BcnKhoiView[];
   bang1SongNhue: BcnBang1View | null;
+  /** Dòng “Tổng cộng” — cộng theo cột, ⛔ nhập tay; `null` khi chưa dòng nào có số. */
+  bang1TongCong: BcnBang1View | null;
   muc1: BcnMuc1View;
   ghiChuYenNghia: BcnYenNghiaView;
   bang3: BcnDongBang3View[];

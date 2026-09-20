@@ -65,8 +65,14 @@ public class CauHinhBaoCaoNhanhService {
     /** Một vị trí đã giải — {@code congTrinh == null} = chưa gắn. */
     public record ViTri(BaoCaoNhanhViTri viTri, CongTrinhGan congTrinh, VeDiemDo tl, VeDiemDo hl) {}
 
-    /** Cấu hình dùng cho MỘT kỳ — sống (đang nhập) hoặc ảnh chụp (đã chốt). */
-    public record CauHinhKy(Long tramYenNghia, Map<String, VeDiemDo[]> bang3) {}
+    /**
+     * Cấu hình dùng cho MỘT kỳ — sống (đang nhập) hoặc ảnh chụp (đã chốt).
+     *
+     * @param tramYenNghia ⚠ mang nguyên {@link CongTrinhGan} chứ ⛔ chỉ {@code Long} (T78.1): câu ghi
+     *     chú in TÊN của trạm này ra văn bản, và một cặp (id, tên) truyền rời nhau thì lệch nhau
+     *     được — một bản ghi thì ⛔ (quy tắc 14).
+     */
+    public record CauHinhKy(CongTrinhGan tramYenNghia, Map<String, VeDiemDo[]> bang3) {}
 
     /** Một ô Bảng 3 — {@code apiCode == null} ⇒ {@code lyDoThieu} nói vì sao. */
     public record OBang3(String apiCode, HydroSnapshotPort.MucNuoc mucNuoc, String lyDoThieu) {}
@@ -133,18 +139,19 @@ public class CauHinhBaoCaoNhanhService {
     public CauHinhKy cauHinhKy(BaoCaoNhanh bc) {
         List<BaoCaoNhanhViTri> ds = viTri.findByDeletedAtIsNullOrderBySortOrder();
         Map<String, VeDiemDo[]> bang3 = new HashMap<>();
-        Long yenNghia = null;
+        CongTrinhGan yenNghia = null;
         if (!bc.daChot()) {
             for (ViTri v : giai(ds)) {
                 bang3.put(v.viTri().getMa(), new VeDiemDo[] {v.tl(), v.hl()});
                 if (BaoCaoNhanhViTri.YEN_NGHIA.equals(v.viTri().getMa())) {
-                    yenNghia = v.congTrinh() == null ? null : v.congTrinh().id();
+                    yenNghia = v.congTrinh();
                 }
             }
             return new CauHinhKy(yenNghia, bang3);
         }
         Map<Long, BaoCaoNhanhViTriKy> chup = viTriKy.findByBaoCaoIdAndDeletedAtIsNull(bc.getId()).stream()
                 .collect(Collectors.toMap(BaoCaoNhanhViTriKy::getViTriId, Function.identity()));
+        Long idYenNghia = null;
         for (BaoCaoNhanhViTri v : ds) {
             BaoCaoNhanhViTriKy k = chup.get(v.getId());
             Long ct = k == null ? null : k.getConstructionId();
@@ -154,8 +161,16 @@ public class CauHinhBaoCaoNhanhService {
                             ? new VeDiemDo[] {VeDiemDo.thieu(LY_DO_CHOT_CHUA_GAN), VeDiemDo.thieu(LY_DO_CHOT_CHUA_GAN)}
                             : new VeDiemDo[] {veChup(k.getApiTl()), veChup(k.getApiHl())});
             if (BaoCaoNhanhViTri.YEN_NGHIA.equals(v.getMa())) {
-                yenNghia = ct;
+                idYenNghia = ct;
             }
+        }
+        // ⚠ Ảnh chụp ghim *trạm nào*, ⛔ ghim *tên gọi lúc chốt* ⇒ tra lại tên/mã ở danh mục hiện
+        //   hành. Cùng lựa chọn Bảng 2 đã làm (tên trạm ở đó cũng đọc sống) — xem javadoc
+        //   `TinhBaoCaoNhanh.yenNghia`.
+        if (idYenNghia != null) {
+            yenNghia = query.congTrinhTheoIds(List.of(idYenNghia)).stream()
+                    .findFirst()
+                    .orElse(null);
         }
         return new CauHinhKy(yenNghia, bang3);
     }

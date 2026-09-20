@@ -92,6 +92,15 @@ class NghiPhepHttpTest extends IntegrationTestBase {
     private static final String KHOA_SO_CAP = "hr.leave.approval-levels";
     private static final String KHOA_NGUONG_CAP_2 = "hr.leave.second-level-threshold-days";
 
+    /** T68.10 — Điều 113 (cơ sở) + Điều 114 (bậc thâm niên). Khai ở đây, ⛔ đọc hằng của mã đang kiểm (T51.15). */
+    private static final String KHOA_PHEP_CO_SO = "hr.leave.annual-days.base";
+
+    private static final String KHOA_PHEP_BUOC_NAM = "hr.leave.annual-days.seniority-step-years";
+    private static final String KHOA_PHEP_BUOC_NGAY = "hr.leave.annual-days.seniority-step-days";
+
+    /** T57.16 — năm đầu tiên hệ ghi nhận ĐỦ đơn nghỉ của cả năm. */
+    private static final String KHOA_NAM_GHI_NHAN_DU = "hr.leave.first-fully-recorded-year";
+
     @Autowired
     private TestHttp http;
 
@@ -114,11 +123,13 @@ class NghiPhepHttpTest extends IntegrationTestBase {
     private PhienHttp phienDuyet;
     private PhienHttp phienNv;
     private PhienHttp phienTroi;
+    private PhienHttp phienDuyet2;
 
     private PhienHttp.Phien quanTri;
     private PhienHttp.Phien nguoiDuyet;
     private PhienHttp.Phien nhanVien;
     private PhienHttp.Phien taiKhoanTroi;
+    private PhienHttp.Phien nguoiDuyet2;
 
     private UUID idNhanVien;
     private UUID idNguoiDuyet;
@@ -151,6 +162,7 @@ class NghiPhepHttpTest extends IntegrationTestBase {
         phienDuyet = new PhienHttp(http);
         phienNv = new PhienHttp(http);
         phienTroi = new PhienHttp(http);
+        phienDuyet2 = new PhienHttp(http);
 
         String tenQt = PhienHttp.taoNguoiDung(users, passwords, jdbc, "t579_qt", VAI_TRO_QT);
         String tenDuyet = PhienHttp.taoNguoiDung(users, passwords, jdbc, "t579_duyet", VAI_TRO_DUYET);
@@ -158,6 +170,16 @@ class NghiPhepHttpTest extends IntegrationTestBase {
         // ⛔⛔ Tài khoản này CÓ `hr:leave:request` nhưng CỐ Ý ⛔ không liên kết hồ sơ CBNV nào — nó
         //    là vế chứng minh rằng quyền một mình ⛔ không đủ để nộp đơn (T51.8 là điều kiện cần).
         String tenTroi = PhienHttp.taoNguoiDung(users, passwords, jdbc, "t579_troi", VAI_TRO_NV);
+
+        // ⛔⛔ WS-80: duyệt ⛔ còn là *"có `hr:leave:approve` + phạm vi phủ"* — nay phải là TRƯỞNG/PHÓ
+        //    của đơn vị hoặc của một đơn vị cha (`ThamQuyenDuyetPhep`). Hai lượt gán dưới đây là
+        //    ĐỒ GÁ cho điều kiện ấy, ⛔ phải thứ lớp này đang kiểm (bài riêng:
+        //    `ThamQuyenDuyetPhepHttpTest`). ⚠ Nó ⛔ nới phạm vi: bộ lọc tầng 3 vẫn chạy TRƯỚC, nên
+        //    `khongDuyetDuocDonNgoaiDonVi` vẫn đo đúng thứ nó sinh ra để đo.
+        String tenDuyet2 = PhienHttp.taoNguoiDung(users, passwords, jdbc, "t579_duyet2", VAI_TRO_DUYET);
+        datLanhDao("head_user_id", publicIdCua(tenDuyet));
+        datLanhDao("deputy_user_id", publicIdCua(tenDuyet2));
+        nguoiDuyet2 = phienDuyet2.dangNhap(tenDuyet2);
 
         quanTri = phienQt.dangNhap(tenQt);
         nguoiDuyet = phienDuyet.dangNhap(tenDuyet);
@@ -466,11 +488,15 @@ class NghiPhepHttpTest extends IntegrationTestBase {
                 HttpMethod.POST,
                 "/api/v1/hr/nghi-phep/" + donId + "/hanh-dong",
                 "{\"action\":\"APPROVE\"}");
+        // ⚠ T73.1 — bản trước ghim 404 (*"không nhìn thấy thì không có gì để bấm"*). Ý chính giữ nguyên:
+        //   ⛔ duyệt được, đơn vẫn CHO_DUYET. Mã đổi sang 403 AUTH-3002 như hồ sơ CBNV (HoSoNhanSuPhamViTest):
+        //   404 giấu luôn lượt thử — một người dò publicId của đơn vị khác ⛔ để lại dấu vết nào (M5.16).
         assertThat(duyetLen.getStatusCode())
                 .as(
-                        "⛔ ⛔ Không nhìn thấy thì ⛔ không có gì để bấm — kể cả khi đoán đúng publicId: %s",
+                        "⛔ ⛔ Đoán đúng publicId của đơn vị khác vẫn ⛔ bấm được — và lượt thử phải để lại dấu vết: %s",
                         duyetLen.getBody())
-                .isEqualTo(HttpStatus.NOT_FOUND);
+                .isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(duyetLen.getBody()).contains("AUTH-3002");
         assertThat(jdbc.queryForObject("SELECT state FROM leave_requests WHERE public_id = ?", String.class, donId))
                 .isEqualTo("CHO_DUYET");
 
@@ -516,7 +542,15 @@ class NghiPhepHttpTest extends IntegrationTestBase {
                 .isEqualTo("CHO_DUYET_2");
 
         // Cấp 2 duyệt tiếp ⇒ mới tới DA_DUYET. Đây là vế chứng minh CHO_DUYET_2 ⛔ không phải ngõ cụt.
-        assertThat(chuoi(duyet(donB), "state")).isEqualTo("DA_DUYET");
+        // ⛔⛔ WS-80/T80.3: cấp 2 phải do NGƯỜI KHÁC quyết. Trước bản ấy chính `phienDuyet` bấm
+        //    thêm một phát là xong — tức chốt C2 mua một cấp duyệt ⛔ tồn tại.
+        ResponseEntity<String> cap2 = phienDuyet2.goi(
+                nguoiDuyet2,
+                HttpMethod.POST,
+                "/api/v1/hr/nghi-phep/" + donB + "/hanh-dong",
+                "{\"action\":\"APPROVE\"}");
+        assertThat(cap2.getStatusCode()).as("%s", cap2.getBody()).isEqualTo(HttpStatus.OK);
+        assertThat(chuoi(cap2.getBody(), "state")).isEqualTo("DA_DUYET");
     }
 
     // =========================================================================
@@ -694,6 +728,260 @@ class NghiPhepHttpTest extends IntegrationTestBase {
     }
 
     // =========================================================================
+    // ⛔⛔ T68.10 — phép năm: Điều 113 (cơ sở) + Điều 114 (cứ ĐỦ 5 năm cộng 1 ngày)
+    // =========================================================================
+
+    /**
+     * Bảng biên của Điều 114. Hồ sơ vào làm 05/01/2015; thâm niên tính tới 31/12 của năm xét
+     * ({@code SoDuPhepService.quyPhepNam}) ⇒ chỉ cần đổi NĂM là đi qua mọi biên, ⛔ dựng bảy hồ sơ.
+     *
+     * <p>⛔ Bản 3 bậc cũ (dưới 5 · 5–10 · trên 10 = 12/13/14) sai ở đúng những người gắn bó lâu nhất:
+     * đủ 10 năm được 13 (luật: 14), đủ 15 năm kẹt ở 14 (luật: 15), đủ 20 năm vẫn 14 (luật: 16).
+     */
+    @Test
+    @DisplayName("⛔⛔ Phép năm theo Điều 114: cứ ĐỦ 5 năm +1 ngày — biên 4 · 5 · 9 · 10 · 14 · 15 · 20 năm")
+    void phepNamTheoDieu114() {
+        lienKet(idNhanVien, taoHoSo("D114", donViGocPublic));
+
+        // {năm xét, thâm niên tới 31/12, số ngày phép theo luật}
+        int[][] bang = {
+            {2019, 4, 12}, {2020, 5, 13}, {2024, 9, 13}, {2025, 10, 14}, {2029, 14, 14}, {2030, 15, 15}, {2035, 20, 16}
+        };
+        List<String> sai = new java.util.ArrayList<>();
+        for (int[] dong : bang) {
+            BigDecimal thucTe = so(
+                    phienNv.get(nhanVien, "/api/v1/hr/nghi-phep/so-du?nam=" + dong[0])
+                            .getBody(),
+                    "theoThamNien");
+            if (thucTe.compareTo(BigDecimal.valueOf(dong[2])) != 0) {
+                sai.add("năm %d (thâm niên %d năm): hệ cho %s, luật %d"
+                        .formatted(dong[0], dong[1], thucTe.toPlainString(), dong[2]));
+            }
+        }
+        assertThat(sai)
+                .as("⛔⛔ Điều 114 BLLĐ 2019: cứ đủ 05 năm làm việc cho một người sử dụng lao động thì phép năm tăng "
+                        + "thêm 01 ngày. Thiếu một ngày ở đây là thiếu thật với người đã gắn bó lâu nhất, và ⛔ màn hình "
+                        + "nào báo")
+                .isEmpty();
+    }
+
+    /**
+     * Ba tham số đọc từ {@code settings} — ⛔ ghi cứng (quy tắc 12). Giá trị thử khác CẢ seed (12 · 5 · 1)
+     * lẫn dự phòng trong mã (10 · 10 · 0): trùng một trong hai là bài xanh y hệt trên một hệ ghi cứng (T48.7).
+     */
+    @Test
+    @DisplayName("⭐ Cơ sở · số năm mỗi bậc · số ngày mỗi bậc đọc từ settings — đổi ba số, phép đổi theo")
+    void phepNamDocTuSettings() {
+        lienKet(idNhanVien, taoHoSo("D114-S", donViGocPublic));
+        List<String> khoa = List.of(KHOA_PHEP_CO_SO, KHOA_PHEP_BUOC_NAM, KHOA_PHEP_BUOC_NGAY);
+        List<String> truoc = khoa.stream().map(this::giaTriThamSo).toList();
+        assertThat(truoc)
+                .as("⛔ Tiền đề: ba khoá phải CÓ trong settings (migration Điều 114), nếu không bài này ⛔ đo gì")
+                .doesNotContainNull();
+        try {
+            datThamSo(KHOA_PHEP_CO_SO, "13");
+            datThamSo(KHOA_PHEP_BUOC_NAM, "3");
+            datThamSo(KHOA_PHEP_BUOC_NGAY, "2");
+            // Năm 2025: thâm niên 10 ⇒ 13 + (10 / 3) × 2 = 19. Năm 2017: thâm niên 2 ⇒ 13 (chưa đủ một bậc).
+            assertThat(so(
+                            phienNv.get(nhanVien, "/api/v1/hr/nghi-phep/so-du?nam=2025")
+                                    .getBody(),
+                            "theoThamNien"))
+                    .isEqualByComparingTo("19");
+            assertThat(so(
+                            phienNv.get(nhanVien, "/api/v1/hr/nghi-phep/so-du?nam=2017")
+                                    .getBody(),
+                            "theoThamNien"))
+                    .isEqualByComparingTo("13");
+        } finally {
+            for (int i = 0; i < khoa.size(); i++) {
+                datThamSo(khoa.get(i), truoc.get(i));
+            }
+        }
+    }
+
+    // =========================================================================
+    // ⛔⛔ T57.16 — năm hệ CHƯA ghi nhận đủ đơn thì số chuyển là *chưa biết*
+    // =========================================================================
+
+    /**
+     * Hệ lên production giữa năm 2026: đơn nghỉ trên giấy tháng 01–09 ⛔ nằm trong hệ. Bản cũ coi *"có
+     * ≥ 1 đơn năm trước"* là *"biết năm trước"* ⇒ từ 01/01/2027 ai có một đơn 2026 được chuyển = quỹ 2026
+     * − số ngày NHẬP TRONG HỆ ⇒ **cấp thừa** tới trần chuyển năm. Và chiều ngược: năm ĐÃ ghi đủ mà một
+     * người ⛔ nghỉ ngày nào thì bị coi là *chưa biết* ⇒ **mất** số chuyển.
+     *
+     * <p>Năm 2020 dựng bằng SQL: đây là ĐỒ GÁ (đơn đã duyệt của một năm cũ), ⛔ phải thứ đang kiểm — và nó
+     * làm bài ⛔ phụ thuộc ngày chạy. Quỹ 2020 của hồ sơ vào làm 2015 = 13 (đủ 5 năm); đã dùng 10 ⇒ còn 3,
+     * dưới trần chuyển 5 ⇒ con số 3 phân biệt được *tính đúng* với *trả trần*.
+     */
+    @Test
+    @DisplayName(
+            "⛔⛔ T57.16 — năm chưa ghi nhận đủ ⇒ số chuyển CHƯA BIẾT dù có đơn; năm đủ ⇒ BIẾT, kể cả khi ⛔ nghỉ ngày nào")
+    void chuyenPhepChiTinhTuNamGhiNhanDu() {
+        String truoc = giaTriThamSo(KHOA_NAM_GHI_NHAN_DU);
+        assertThat(truoc)
+                .as("⛔ Tiền đề: khoá năm ghi nhận đủ phải CÓ trong settings")
+                .isNotNull();
+        UUID coDon = taoHoSo("GND-1", donViGocPublic);
+        UUID khongDon = taoHoSo("GND-2", donViGocPublic);
+        themDonDaDuyetTho(coDon, java.time.LocalDate.of(2020, 3, 2), java.time.LocalDate.of(2020, 3, 13), "10");
+        try {
+            // (1) 2020 CHƯA ghi nhận đủ ⇒ chưa biết, dù hồ sơ CÓ đơn 2020.
+            datThamSo(KHOA_NAM_GHI_NHAN_DU, "2021");
+            lienKet(idNhanVien, coDon);
+            String chuaBiet =
+                    phienNv.get(nhanVien, "/api/v1/hr/nghi-phep/so-du?nam=2021").getBody();
+            assertThat(chuoi(chuaBiet, "namTruocCoDuLieu"))
+                    .as(
+                            "⛔⛔ Có MỘT đơn năm trước ⛔ có nghĩa là hệ biết CẢ năm trước — phép giấy tháng 01–09 "
+                                    + "⛔ nằm trong hệ, và số chuyển tính ra sẽ CẤP THỪA: %s",
+                            chuaBiet)
+                    .isEqualTo("false");
+            assertThat(so(chuaBiet, "chuyenTuNamTruoc")).isEqualByComparingTo("0");
+
+            // (2) 2020 ĐÃ ghi nhận đủ ⇒ biết: 13 − 10 = 3 (dưới trần 5).
+            datThamSo(KHOA_NAM_GHI_NHAN_DU, "2020");
+            String biet =
+                    phienNv.get(nhanVien, "/api/v1/hr/nghi-phep/so-du?nam=2021").getBody();
+            assertThat(chuoi(biet, "namTruocCoDuLieu")).isEqualTo("true");
+            assertThat(so(biet, "chuyenTuNamTruoc")).isEqualByComparingTo("3");
+
+            // (3) Năm ĐÃ ghi nhận đủ mà ⛔ nghỉ ngày nào ⇒ vẫn là BIẾT: chuyển tối đa, ⛔ mất trắng.
+            lienKet(idNhanVien, khongDon);
+            String khongNghi =
+                    phienNv.get(nhanVien, "/api/v1/hr/nghi-phep/so-du?nam=2021").getBody();
+            assertThat(chuoi(khongNghi, "namTruocCoDuLieu"))
+                    .as(
+                            "⛔⛔ Năm đã ghi nhận đủ mà ⛔ có đơn nào nghĩa là người ấy ⛔ nghỉ ngày nào — ⛔ phải "
+                                    + "*chưa biết*. Đọc thành *chưa biết* là xoá mất số phép chuyển của đúng người chăm "
+                                    + "chỉ nhất: %s",
+                            khongNghi)
+                    .isEqualTo("true");
+            assertThat(so(khongNghi, "chuyenTuNamTruoc")).isEqualByComparingTo("5");
+        } finally {
+            datThamSo(KHOA_NAM_GHI_NHAN_DU, truoc);
+        }
+    }
+
+    // =========================================================================
+    // ⛔⛔ T57.15 — người NHẬN thông báo đơn mới = người DUYỆT được đơn ấy
+    // =========================================================================
+
+    /**
+     * Bản cũ gửi thông báo cho <b>mọi</b> tài khoản có {@code hr:leave:approve} (seed cấp cho 4/12 vai trò ⇒
+     * quản lý của MỌI Xí nghiệp), trong khi bộ lọc phạm vi chỉ cho người có phạm vi phủ đơn vị người nộp
+     * duyệt. Nhận thư về việc mình ⛔ làm được là cách một hộp thư học được thói quen bỏ qua cảnh báo (§10.76).
+     *
+     * <p>⭐ Khẳng định là một <b>tương ứng</b>, ⛔ hai con số rời: với từng người duyệt, <i>nhận thông báo</i>
+     * phải trùng <i>thấy đơn trong hộp chờ duyệt</i> — hai luật (người nhận · bộ lọc phạm vi) ⛔ được lệch
+     * nhau, kể cả khi một trong hai đổi về sau. Ba người duyệt, ba phạm vi: A ở XN-A (đơn vị người nộp) ·
+     * B ở XN-B · C ở gốc Công ty. Ba sự kiện: nộp đơn ({@code LEAVE_SUBMITTED}, phát tường minh), chuyển cấp 2
+     * ({@code LEAVE_ESCALATED}) và rút đơn ({@code LEAVE_CANCELLED}) — hai cái sau do {@code WorkflowEngine} phát,
+     * và là mọi bước chuyển vừa khai {@code notify_permission} vừa nằm trên bản ghi có phạm vi (đo trên seed 20/09).
+     */
+    @Test
+    @DisplayName("⛔⛔ T57.15 — người NHẬN thông báo (nộp đơn · chuyển cấp 2) trùng khít người THẤY đơn trong hộp chờ")
+    void nguoiNhanThongBaoLaNguoiDuyetDuoc() {
+        String tenB = PhienHttp.taoNguoiDung(users, passwords, jdbc, "t579_duyet_b", VAI_TRO_DUYET);
+        String tenC = PhienHttp.taoNguoiDung(users, passwords, jdbc, "t579_duyet_c", VAI_TRO_DUYET);
+        PhienHttp phienB = new PhienHttp(http);
+        PhienHttp phienC = new PhienHttp(http);
+        PhienHttp.Phien duyetB = phienB.dangNhap(tenB);
+        PhienHttp.Phien duyetC = phienC.dangNhap(tenC);
+        datDonViChoTaiKhoan(idNguoiDuyet, xnAId);
+        datDonViChoTaiKhoan(publicIdCua(tenB), xnBId);
+
+        record NguoiDuyet(String ten, PhienHttp phien, PhienHttp.Phien dangNhap, long userId) {}
+        List<NguoiDuyet> ds = List.of(
+                new NguoiDuyet("A (XN-A)", phienDuyet, nguoiDuyet, userIdCua(idNguoiDuyet)),
+                new NguoiDuyet("B (XN-B)", phienB, duyetB, userIdCua(publicIdCua(tenB))),
+                new NguoiDuyet("C (gốc)", phienC, duyetC, userIdCua(publicIdCua(tenC))));
+
+        // ── (1) Nộp đơn ──────────────────────────────────────────────────────────────
+        datThamSo(KHOA_SO_CAP, "2");
+        datThamSo(KHOA_NGUONG_CAP_2, "1");
+        java.util.Map<String, Long> truoc = new java.util.HashMap<>();
+        ds.forEach(d -> truoc.put(d.ten(), demThongBao(d.userId(), "LEAVE_SUBMITTED")));
+        lienKet(idNhanVien, taoHoSo("NN-1", xnAPublic));
+        LocalDate tu = thuHai(15);
+        UUID donId = UUID.fromString(chuoi(nopThanhCong(donJson(null, "PHEP_NAM", tu, tu.plusDays(1))), "publicId"));
+
+        List<String> thay = ds.stream()
+                .filter(d -> d.phien()
+                        .get(d.dangNhap(), "/api/v1/hr/nghi-phep/cho-duyet")
+                        .getBody()
+                        .contains(donId.toString()))
+                .map(NguoiDuyet::ten)
+                .toList();
+        assertThat(thay)
+                .as("⛔ Tiền đề: bộ lọc phạm vi cho A (cùng đơn vị) và C (gốc) thấy đơn, B (đơn vị khác) ⛔ thấy")
+                .containsExactly("A (XN-A)", "C (gốc)");
+        List<String> nhan = ds.stream()
+                .filter(d -> demThongBao(d.userId(), "LEAVE_SUBMITTED") - truoc.get(d.ten()) > 0)
+                .map(NguoiDuyet::ten)
+                .toList();
+        assertThat(nhan)
+                .as("⛔⛔ Người NHẬN thông báo đơn mới phải trùng khít người THẤY đơn — quản lý đơn vị khác nhận thư "
+                        + "về một đơn họ ⛔ duyệt được là dạy họ bỏ qua thư")
+                .isEqualTo(thay);
+
+        // ── (2) A duyệt cấp 1 ⇒ ESCALATE (hai cấp, ngưỡng 1 ngày) ⇒ LEAVE_ESCALATED ──────
+        ds.forEach(d -> truoc.put(d.ten(), demThongBao(d.userId(), "LEAVE_ESCALATED")));
+        assertThat(chuoi(duyet(donId), "state")).isEqualTo("CHO_DUYET_2");
+        List<String> thayCap2 = ds.stream()
+                .filter(d -> d.phien()
+                        .get(d.dangNhap(), "/api/v1/hr/nghi-phep/cho-duyet")
+                        .getBody()
+                        .contains(donId.toString()))
+                .map(NguoiDuyet::ten)
+                .toList();
+        List<String> nhanCap2 = ds.stream()
+                .filter(d -> demThongBao(d.userId(), "LEAVE_ESCALATED") - truoc.get(d.ten()) > 0)
+                .map(NguoiDuyet::ten)
+                .toList();
+        assertThat(thayCap2)
+                .as("⛔ Tiền đề: đơn cấp 2 vẫn nằm trong hộp của người có phạm vi")
+                .contains("C (gốc)");
+        assertThat(nhanCap2)
+                .as("⛔⛔ Bước chuyển cấp 2 do WorkflowEngine phát — cùng tương ứng *nhận thư ⇔ thấy đơn*")
+                .isEqualTo(thayCap2);
+
+        // ── (3) Người nộp rút đơn ⇒ LEAVE_CANCELLED tới đúng những ai đang giữ nó trong hộp chờ ──
+        ds.forEach(d -> truoc.put(d.ten(), demThongBao(d.userId(), "LEAVE_CANCELLED")));
+        ResponseEntity<String> rut = phienNv.goi(
+                nhanVien, HttpMethod.POST, "/api/v1/hr/nghi-phep/" + donId + "/hanh-dong", "{\"action\":\"CANCEL\"}");
+        assertThat(rut.getStatusCode()).as("%s", rut.getBody()).isEqualTo(HttpStatus.OK);
+        List<String> nhanRut = ds.stream()
+                .filter(d -> demThongBao(d.userId(), "LEAVE_CANCELLED") - truoc.get(d.ten()) > 0)
+                .map(NguoiDuyet::ten)
+                .toList();
+        assertThat(nhanRut)
+                .as("⛔⛔ Thư *đơn đã rút* tới người đang giữ đơn trong hộp chờ — ⛔ tới quản lý đơn vị khác")
+                .isEqualTo(thayCap2);
+    }
+
+    /** Đơn ĐÃ DUYỆT dựng thẳng CSDL — đồ gá cho số chuyển năm, ⛔ đi qua quy trình (bài khác đã canh). */
+    private void themDonDaDuyetTho(UUID hoSo, LocalDate tu, LocalDate den, String soNgay) {
+        int them = jdbc.update(
+                """
+                INSERT INTO leave_requests (employee_id, org_unit_id, leave_type, from_date, to_date, working_days,
+                                            reason, requester_user_id, state, decided_by, decided_at, created_at)
+                SELECT e.id, e.org_unit_id, 'PHEP_NAM', ?, ?, ?::numeric, 'Đồ gá T57.16',
+                       u.id, 'DA_DUYET', u.id, now(), now()
+                FROM employees e, users u
+                WHERE e.public_id = ? AND u.public_id = ?
+                """,
+                tu,
+                den,
+                soNgay,
+                hoSo,
+                idNguoiDuyet);
+        assertThat(them)
+                .as("⛔ đồ gá hỏng thì mọi khẳng định dưới xanh trên tập rỗng")
+                .isEqualTo(1);
+    }
+
+    // =========================================================================
     // Trợ giúp
     // =========================================================================
 
@@ -788,6 +1076,15 @@ class NghiPhepHttpTest extends IntegrationTestBase {
                 .plusWeeks(soTuan);
     }
 
+    /** {@code null} khi khoá ⛔ có — để câu tiền đề in ra, thay vì một {@code EmptyResultDataAccessException} câm. */
+    private String giaTriThamSo(String khoa) {
+        return jdbc
+                .queryForList("SELECT setting_value FROM settings WHERE setting_key = ?", String.class, khoa)
+                .stream()
+                .findFirst()
+                .orElse(null);
+    }
+
     private void datThamSo(String khoa, String giaTri) {
         jdbc.update("UPDATE settings SET setting_value = ? WHERE setting_key = ?", giaTri, khoa);
         settings.invalidate(khoa);
@@ -809,6 +1106,18 @@ class NghiPhepHttpTest extends IntegrationTestBase {
                 .as("⚠ Chống tập rỗng: một mã quyền đổi tên thì lệnh trên gán ít dòng hơn TRONG IM LẶNG, "
                         + "và mọi bài dưới đây đỏ với 403 — triệu chứng chẳng liên quan gì tới thứ đang kiểm")
                 .isEqualTo(quyen.size());
+    }
+
+    /** Gán trưởng/phó cho đơn vị GỐC — đồ gá của WS-80, ⛔ phải thứ lớp này đang kiểm. */
+    private void datLanhDao(String cot, UUID taiKhoan) {
+        int doi = jdbc.update(
+                "UPDATE org_units SET " + cot + " = (SELECT id FROM users WHERE public_id = ?) WHERE id = ?",
+                taiKhoan,
+                donViGocId);
+        assertThat(doi)
+                .as("⛔ Chống tập rỗng: ⛔ gán được lãnh đạo thì MỌI lượt duyệt dưới đây trả 403 `HR-2010`, "
+                        + "và cả lớp đỏ vì một lý do ⛔ liên quan gì tới thứ nó khẳng định")
+                .isEqualTo(1);
     }
 
     private long themDonVi(String ma) {
@@ -834,12 +1143,21 @@ class NghiPhepHttpTest extends IntegrationTestBase {
      * một con số đúng của một câu hỏi khác.
      */
     private long demThongBaoToi(long userId) {
+        return demThongBao(userId, "LEAVE_SUBMITTED");
+    }
+
+    private long demThongBao(long userId, String suKien) {
         return jdbc.queryForObject(
                 "SELECT count(DISTINCT n.id) FROM notification_recipients nr "
                         + "JOIN notifications n ON n.id = nr.notification_id "
-                        + "WHERE nr.user_id = ? AND n.event_type = 'LEAVE_SUBMITTED'",
+                        + "WHERE nr.user_id = ? AND n.event_type = ?",
                 Long.class,
-                userId);
+                userId,
+                suKien);
+    }
+
+    private long userIdCua(UUID publicId) {
+        return jdbc.queryForObject("SELECT id FROM users WHERE public_id = ?", Long.class, publicId);
     }
 
     private UUID publicIdCua(String username) {
@@ -847,6 +1165,11 @@ class NghiPhepHttpTest extends IntegrationTestBase {
     }
 
     private void don() {
+        // ⛔⛔ `org_units.head_user_id`/`deputy_user_id` là hai khoá ngoại DUY NHẤT trỏ vào `users`
+        //    mà ⛔ có `ON DELETE CASCADE` — bỏ bước này thì lượt xoá tài khoản đỏ ở @AfterAll.
+        jdbc.update("UPDATE org_units SET head_user_id = NULL, deputy_user_id = NULL "
+                + "WHERE head_user_id IN (SELECT id FROM users WHERE username LIKE 'kiemtra_t579%') "
+                + "   OR deputy_user_id IN (SELECT id FROM users WHERE username LIKE 'kiemtra_t579%')");
         jdbc.update("UPDATE users SET employee_id = NULL WHERE username LIKE 'kiemtra_t579%'");
         jdbc.update(
                 "DELETE FROM leave_requests WHERE employee_id IN (SELECT id FROM employees WHERE code LIKE ?)",

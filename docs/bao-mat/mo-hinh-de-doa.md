@@ -39,12 +39,14 @@ Xếp theo hậu quả khi mất, ⛔ theo thứ tự trong mã.
 | Giả IP để né hạn mức | `ClientIp` bóc tới request gốc, ⛔ tin `X-Forwarded-For` | `IpThatTrongNhatKyHttpTest` | — |
 | Mượn phiên đang mở trên máy ⛔ khoá | Thao tác nhạy cảm đòi nhập lại mã 2FA (khôi phục CSDL · bí mật tích hợp · tham số bảo mật · đặt lại mật khẩu) | `CauHinhHeThongHttpTest`, `DatLaiMatKhauHttpTest` | **Gán vai trò ⛔ đòi** (T61.48 #4) |
 | Chuỗi refresh token bị trộm | Phát hiện dùng lại ⇒ thu hồi cả chuỗi | `RefreshTokenService`, luật Prometheus `REFRESH_REUSE_DETECTED` | **⛔ có trần tuyệt đối** ⇒ chuỗi sống mãi nếu dùng đều (T61.48 #1) |
+| Mật khẩu tạm lộ ra (tin nhắn, giấy nhớ, hộp thư người đã nghỉ) | Hết hạn sau `security.password.temp-ttl-hours` (72 giờ) ⇒ `AUTH-0010`; chặn SAU khi mật khẩu đúng nên người đoán ⛔ học được gì (T73.8) | `DatLaiMatKhauHttpTest`, `MatKhauTamMotCuaRuleTest` | Mật khẩu tạm vẫn do quản trị tự gõ (T73.11) |
 
 ## 2. T — Tampering (sửa trái phép)
 
 | Đường tấn công | Đã có gì | Còn hở |
 |---|---|---|
 | Sửa nhật ký kiểm toán | Vai trò runtime ⛔ có `DELETE`/`UPDATE` trên `audit_logs`·`security_events`·`hydro_raw_logs`; chuỗi băm nối tiếp | Bản dump cũ từng mang ACL yếu — đã vá 08/09 (§10.80) |
+| Ghi vào dữ liệu của đơn vị KHÁC (tạo / chuyển bản ghi sang đơn vị ngoài phạm vi) | `ScopeGuard.requireWritableOrgUnit` + dòng `ACCESS_DENIED_SCOPE`; luật W1 buộc mọi chỗ đặt đơn vị xếp loại (T74.8) | Ô chọn đơn vị vẫn bày cả cây (T74.11) · đơn vị `null` của điểm đo ⛔ kiểm |
 | Sửa trạng thái ⛔ qua workflow | Đổi trạng thái chỉ qua Workflow engine, có chữ ký chuỗi | — |
 | Tệp tải lên mang mã độc | ClamAV (T61.4) + lọc SVG theo cây DOM (T61.32) + kiểm magic bytes | **Thiếu cấu hình ClamAV ⇒ `SKIPPED` mà tệp vẫn tải về được** (T61.48 #2) |
 | Ghi đè tệp ngoài thư mục khi giải nén | Tên mục trong ZIP bỏ mọi đoạn đường dẫn (T61.40) | — |
@@ -68,7 +70,7 @@ Xếp theo hậu quả khi mất, ⛔ theo thứ tự trong mã.
 | Nhật ký mang dữ liệu | Log ràng buộc chỉ giữ TÊN ràng buộc (T61.40) | `rejectedValue` vẫn ra response ở vài chỗ |
 | Bí mật trong bản sao lưu | Credential mã hoá AES-GCM; payload job ⛔ mang email | — |
 | **SSRF** đọc mạng nội bộ | Chặn theo chữ viết **và** theo địa chỉ đã phân giải (T61.38) | DNS rebinding (khai trong javadoc) |
-| Phạm vi đơn vị bị vượt | `ScopeGuard` ở `operations` + `hr` | **`content` và `hydro` ⛔ có** (T61.48 #7) |
+| Phạm vi đơn vị bị vượt | `ScopeGuard` ở `operations` + `hr` + `hydro` (từ WS-28; 6 lượt tra còn sót vá ở T73.1, luật bytecode `TraCuuPhamViRuleTest` giữ từ nay) | `content` ⛔ có entity phạm vi nào — ⛔ áp dụng, trừ khi Công ty chia nội dung theo đơn vị (T61.48 #7) |
 
 ## 5. D — Denial of service
 
@@ -77,6 +79,7 @@ Xếp theo hậu quả khi mất, ⛔ theo thứ tự trong mã.
 | Dồn lượt gọi | 4 xô hạn mức; đường ghi công khai riêng 10 lượt/giờ/IP (T61.37) | Một NAT chung vẫn là một xô — T61.17 vế nginx chờ đo |
 | Tệp nén nở ra hàng GB | Trần giải nén 64 MB cho xlsx (T61.40) | — |
 | Kết xuất nặng | Xô `EXPORT` theo người dùng, trần trong `settings` | — |
+| Máy gửi biểu mẫu liên hệ/góp ý hàng loạt | Vé do máy chủ ký, phải đủ `security.form.min-fill-seconds` tuổi (3 giây) và ≤ 24 giờ (T73.9) + xô 10 lượt/giờ/IP (T61.37) | Trình duyệt tự động chạy chính mã cổng cũng chờ như người — chờ reCAPTCHA (G13) |
 | **Máy chủ thư thành máy phát tán** | Thư xác nhận chỉ gửi khi reCAPTCHA đang bảo vệ (T61.37) | Chờ khoá G13 để bật lại thư xác nhận |
 | Poller chết ⇒ mất số liệu | Thang leo cảnh báo + chuông healthchecks.io | Chờ QuanTran đặt biến (§B6) |
 

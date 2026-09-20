@@ -145,7 +145,7 @@ CBNV, sơ đồ tổ chức, hợp đồng lao động hay nghỉ phép.
 > họ tên · ngày sinh · giới tính · **phòng ban / Xí nghiệp** · chức danh · ngày vào Công ty ·
 > loại hợp đồng + ngày hết hạn · trình độ
 
-> ⭐ **Đã có tệp mẫu gửi kèm**: `mau-danh-sach-cbnv.csv` — 12 cột, dòng 2 mô tả quy cách từng ô.
+> ⭐ **Tệp mẫu tải ngay trên phần mềm** (từ 20/09/2026): *Nhân sự → Hồ sơ CBNV → Nhập từ tệp → Tải tệp mẫu* — 16 cột, dòng 2 mô tả quy cách từng ô. Tệp tĩnh `mau-danh-sach-cbnv.csv` gửi trước đây đã bị thay thế: nó thiếu 4 cột và có hai giá trị hệ ⛔ nhận (*Thời vụ*, *Sau đại học*).
 > Mở thẳng bằng Excel là đúng dấu tiếng Việt; xoá dòng mô tả rồi điền từ dòng 2.
 
 🔒 **Xin gửi các trường nhạy cảm SAU và GỬI RIÊNG** — số CCCD, số BHXH, số tài khoản ngân hàng,

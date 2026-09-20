@@ -10,22 +10,20 @@ duy nhất giữ tệp mẫu ⛔ **không lệch** khỏi bộ đọc vào ngày
 |---|---|
 | Danh mục công trình | Vận hành công trình → Danh mục công trình → **Nhập từ tệp** → *Tải tệp mẫu* |
 | Vị trí điểm đo (tuyến sông · lý trình · toạ độ) | Dữ liệu thuỷ văn → Danh mục điểm đo → **Nhập vị trí từ tệp** → *Tải tệp mẫu* |
-| **Danh sách CBNV** | `mau-danh-sach-cbnv.csv` — **tệp tĩnh, xem cảnh báo dưới** |
+| **Danh sách CBNV** | Nhân sự → Hồ sơ CBNV → **Nhập từ tệp** → *Tải tệp mẫu* (từ 20/09/2026 — `T68.23`) |
 
 ---
 
-## ⚠ `mau-danh-sach-cbnv.csv` — tệp tĩnh, và nó CÓ HẠN DÙNG
+## ✅ `mau-danh-sach-cbnv.csv` tĩnh đã được XOÁ — 20/09/2026 (`T68.23`)
 
-Phân hệ Nhân sự (MOD-04) **chưa dựng**: `backend/hr/` hôm nay có 6 tệp và cả 6 là `package-info.java`.
-⇒ ⛔ Chưa có bộ đọc nào để sinh tệp mẫu từ đó.
+Thư mục này từng giữ một tệp mẫu **tĩnh** cho danh sách CBNV, vì `backend/hr` chưa có bộ nhập nào để
+sinh tệp mẫu từ chính danh mục cột. Cái giá của nó đã hiện ra đúng như dự đoán: tệp tĩnh **lệch lược
+đồ** — `loai_hop_dong` có *Thời vụ* mà ràng buộc CSDL ⛔ nhận, `trinh_do` có *Sau đại học* trong khi hệ
+tách Tiến sĩ / Thạc sĩ. Nay bộ nhập CBNV đã dựng, tệp mẫu **do backend sinh** từ `COT_MAU`, và tệp tĩnh
+đã bị xoá: hai nguồn sự thật thì sẽ lệch, và bản tĩnh ⛔ có gì canh (luật 14).
 
-Tệp này tồn tại vì **Công ty cần bắt đầu điền từ bây giờ** — thu thập danh sách CBNV của cả Công ty
-mất nhiều tuần, và chờ tới khi MOD-04 dựng xong mới hỏi là mất trắng khoảng thời gian ấy (mục
-`G6-a`).
-
-⛔⛔ **Việc bắt buộc khi dựng MOD-04**: khai `COT_MAU` cho bộ nhập CBNV, thêm nút *Tải tệp mẫu*, rồi
-**XOÁ tệp này**. Một tệp mẫu tĩnh nằm cạnh một bộ đọc là hai nguồn sự thật, và chúng sẽ lệch nhau ở
-đúng ngày ai đó thêm cột — bản tĩnh thì ⛔ không có gì canh.
+⭐ Tệp mẫu mới có **16 cột** (thêm mã chức vụ, ngày ký hợp đồng, trạng thái, ngày nghỉ việc) và đọc được
+cả ô ngày của Excel — người điền ⛔ phải nhớ gõ ngày dưới dạng văn bản.
 
 ### 🔒 Trường nhạy cảm CỐ Ý không có trong tệp
 

@@ -32,12 +32,29 @@ import type { SiteConfig } from '@/lib/api';
  *       được phép có. Bộ lọc ở đây là chốt chặn thứ hai, ⛔ phải bản sao của chốt thứ nhất
  *       (quy tắc 12: đặt bảo đảm ở chỗ dữ liệu ĐI QUA).</li>
  * </ul>
+ *
+ * <h2>⚠ Từ 20/09: hai khoá nền khung cổng, và ở đó giá trị rác hỏng NẶNG hơn</h2>
+ *
+ * `site.brand.header` · `site.brand.footer` điều khiển nền đầu trang và chân trang. Khác hai khoá
+ * trên ở một điểm phải nhớ: chúng chảy vào **chặng gradient** của Tailwind, mà `--tw-gradient-from`
+ * là custom property **đã đăng ký** (`@property … syntax: "&lt;color&gt;"; initial-value: #0000`).
+ * Với một property đã đăng ký, một giá trị sai kiểu ⛔ rơi về `var()` fallback — nó rơi về
+ * **initial-value, tức TRONG SUỐT**. Nên ở hai khoá này, một chuỗi rác lọt qua ⛔ cho ra *"màu
+ * lạ"* mà cho ra *"⛔ còn đầu trang"*. Bộ lọc dưới đây vì thế là chốt chặn thật, ⛔ phải lớp sơn.
  */
 
-/** Khoá `settings` ↔ tên biến CSS. Tên biến khớp tên token của `design-tokens` (quy tắc 14). */
+/**
+ * Khoá `settings` ↔ tên biến CSS. Tên biến khớp tên token của `design-tokens` (quy tắc 14).
+ *
+ * <p>Bốn vai trò, ⛔ phải bốn *màu*: hai cái đầu là bộ nhận diện (`brandColors`), hai cái sau là
+ * **nền của một vùng khung cổng** (`portalChrome`). Thêm một dòng vào đây là thêm một núm cho
+ * Công ty xoay — nó phải kèm một chỗ đọc thật, nếu ⛔ thì đó lại là `site.color.*` lần hai.
+ */
 export const ANH_XA_MAU: ReadonlyArray<readonly [khoa: string, bien: string]> = [
   ['site.brand.primary', '--sn-brand-primary'],
   ['site.brand.accent', '--sn-brand-accent'],
+  ['site.brand.header', '--sn-brand-header'],
+  ['site.brand.footer', '--sn-brand-footer'],
 ] as const;
 
 /**

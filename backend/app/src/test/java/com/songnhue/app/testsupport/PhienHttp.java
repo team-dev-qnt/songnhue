@@ -110,6 +110,9 @@ public final class PhienHttp {
      */
     public org.springframework.http.ResponseEntity<String> dangJson(String duongDan, Object than) {
         Object thanThat = than instanceof org.springframework.http.HttpEntity<?> e ? e.getBody() : than;
+        if (DUONG_BIEU_MAU.contains(duongDan)) {
+            thanThat = ganVe(thanThat);
+        }
         org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
         headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
         headers.set("X-Real-IP", ipGiaLap);
@@ -122,6 +125,32 @@ public final class PhienHttp {
 
     public void doiIp() {
         ipGiaLap = ipKeTiep();
+    }
+
+    /** T73.9 — hai đường gửi biểu mẫu công khai, nơi cổng đòi vé. */
+    private static final java.util.Set<String> DUONG_BIEU_MAU =
+            java.util.Set.of("/api/v1/public/contacts", "/api/v1/public/feedbacks");
+
+    /**
+     * Gắn một vé THẬT, đã đủ tuổi ({@link TestHttp#veDaChin()}) khi thân CHƯA khai {@code ve} — T73.9.
+     *
+     * <p>⛔ Nới {@code security.form.min-fill-seconds} ở hồ sơ kiểm thử (tiền lệ T60.9: nới là tắt một cơ chế bảo mật
+     * thật trong CI) — ở đây cơ chế vẫn chạy ĐỦ ở mọi bài gửi biểu mẫu: chữ ký, tuổi tối thiểu, hạn 24 giờ. Bài nào muốn
+     * thử vé thiếu/sai thì tự khai {@code "ve"} (kể cả {@code null}) — khi ấy ⛔ gắn gì.
+     */
+    private Object ganVe(Object than) {
+        if (than instanceof java.util.Map<?, ?> m && !m.containsKey("ve")) {
+            java.util.Map<Object, Object> moi = new java.util.LinkedHashMap<>(m);
+            moi.put("ve", http.veDaChin());
+            return moi;
+        }
+        if (than instanceof String s && s.stripLeading().startsWith("{") && !s.contains("\"ve\"")) {
+            int mo = s.indexOf('{');
+            String sau = s.substring(mo + 1);
+            String noi = sau.stripLeading().startsWith("}") ? "" : ",";
+            return s.substring(0, mo + 1) + "\"ve\":\"" + http.veDaChin() + "\"" + noi + sau;
+        }
+        return than;
     }
 
     private static final java.util.concurrent.atomic.AtomicInteger SO_THU_TU =
