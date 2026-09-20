@@ -25,7 +25,7 @@ public interface NhomMayBomRepository extends JpaRepository<NhomMayBom, Long> {
 
     /**
      * ⚠ So Q bằng {@code BigDecimal} — {@code 1100} và {@code 1100.00} là MỘT khoá (CSDL lưu scale
-     * 2), nên nơi gọi phải chuẩn hoá scale trước; xem {@code NhomMayBomImportService}.
+     * 2), nên nơi gọi phải chuẩn hoá scale trước; xem {@code TramBomImportService}.
      *
      * <p>⚠ JPQL tường minh: tên phương thức dẫn xuất ⛔ giải được trường {@code qMotMayM3h} (tiền tố
      * một chữ cái viết thường ⇒ Spring Data đọc thành {@code QMotMayM3h}) — lượt chạy HTTP đầu đỏ ở đây.

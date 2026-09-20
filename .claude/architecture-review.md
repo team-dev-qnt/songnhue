@@ -7472,3 +7472,43 @@ vào một hằng số Java — chép là dựng nơi thứ ba để quên đồ
 ⚠ Ghi vào `description` của chính khoá ấy một hệ quả người vận hành ⛔ đoán được: ngưỡng mất tín hiệu
 là **TÍCH** `khungNguon() × soKhungMatTinHieu()`, nên nâng khung mà giữ nguyên số khung là dời luôn
 mốc hệ báo trạm chết. Chỗ để câu ấy là màn hình người ta gõ số, ⛔ phải một tệp ⛔ ai đọc.
+
+### §12.4 Bộ nhập trạm bơm: khi hình dạng NGUỒN quyết định thiết kế (T75.6, 20/9/2026)
+
+QuanTran yêu cầu *"hoàn thiện toàn bộ luồng thay vì update lẻ tẻ"*. Lượt đo tệp Công ty thật cho
+thấy thứ đang thiếu ⛔ phải một cột, mà là **toàn bộ hình dạng của luồng**.
+
+**Nguồn thật khác hẳn thứ bộ nhập giả định.** Sheet `TB Tiêu (KH)`: 179 trạm · 227 dòng nhóm máy ·
+6 Xí nghiệp nằm ở **dòng tiêu đề** · nhóm máy thứ hai là **dòng ⛔ tên** · và **0 cột mã**. Bộ nhập
+cũ đòi mã, đòi trạm có sẵn, và chỉ nhận ba cột ⇒ người vận hành phải tách một sheet thành hai tệp
+khác cấu trúc và **tự nghĩ ra 179 định danh** trước khi nhập được dòng đầu tiên. ⛔ Có dòng mã nào
+sai; cái sai là **ranh giới** — bộ nhập chia theo BẢNG của ta, còn dữ liệu chia theo TRẠM của khách.
+
+**Quyết định: tệp phẳng, một dòng một nhóm máy, một lượt dựng cả hai bảng** — ⛔ đọc thẳng workbook.
+Đọc thẳng file Excel sẽ bỏ được bước biên tập, nhưng nó buộc mã bám vào bố cục một bảng tính cụ thể
+(ô gộp, số La Mã, cột `#REF!`), trong khi chính workbook ấy đang có **ba sheet mâu thuẫn nhau**
+(`OI-BC9`). Một tệp phẳng thì Công ty biên tập một lần, còn hệ ⛔ vỡ vào ngày họ chèn thêm một cột.
+
+**Ba thứ CỐ Ý ⛔ nhận, và lý do phải ghi lại:**
+
+1. **Diện tích Tưới/Tiêu (cột I/J).** Chốt **B5** đã cắt trường ấy. Nhận nó qua đường nhập tệp là
+   **đảo một chốt nghiệp vụ bằng một lượt upload** — ⛔ ai duyệt, ⛔ ai thấy, và bảng sẽ có dữ liệu
+   mà đặc tả nói là ⛔ tồn tại.
+2. **Dòng tiêu đề Xí nghiệp.** Nó thuộc `org_units`, mà **T66.14 chưa chốt** danh sách Xí nghiệp.
+   Tự tạo đơn vị từ một tệp nhập là quyết định hộ Công ty đúng thứ họ đang cân nhắc. Tệp phẳng trỏ
+   `ma_don_vi` vào đơn vị **đã có** ⇒ dùng được hôm nay mà ⛔ giẫm lên quyết định đang mở.
+3. **Xoá thứ vắng mặt.** Tệp lập từng phần, nên *"vắng"* ⛔ phải *"xoá"* (T42.20 · T47.16).
+
+**⛔⛔ Và bài học đắt nhất của lượt này ⛔ nằm ở thiết kế mà ở BỘ KIỂM.** Ba khuyết tật lọt vào bản
+nháp, cả ba do bộ kiểm bắt:
+
+- `suggestCode` **chỉ nhìn CSDL**, nên trong một lượt nhập chưa ghi gì, mọi trạm mới của cùng đơn vị
+  nhận **cùng một mã**. Một bộ sinh định danh mà ⛔ thấy thứ chính nó vừa cấp là một lỗi có hình dạng
+  chung: *trạng thái của lượt chạy ⛔ nằm trong nguồn nó tra*.
+- Truyền `XI_NGHIEP` cho cả đường cập nhật ⇒ **hạ cấp quản lý** mọi trạm trong tệp, im lặng.
+- ⭐ **Bài kiểm viết cho khuyết tật thứ hai lại là một XANH GIẢ**, và chỉ lượt **kiểm chứng ngược**
+  phát hiện: nó lấy giá trị đang có làm mốc, mà một bài chạy TRƯỚC cũng nhập chính trạm ấy — nên
+  dưới bản hỏng, mốc đọc ra **đúng thứ khuyết tật sẽ ghi**. Đây là **T48.7 (mốc trùng giá trị hỏng)
+  và T48.8 (rò trạng thái giữa các bài) xảy ra CÙNG LÚC**, và nó dạy một điều cụ thể: *một bài kiểm
+  lấy mốc từ CSDL dùng chung phải ĐẶT mốc ấy, ⛔ đọc nó* — kèm một vế tiền đề khẳng định mốc khác
+  giá trị hỏng. Nếu lượt kiểm chứng ngược ⛔ chạy, kho đã có thêm một bộ canh chết mang tên rất đúng.
