@@ -38,7 +38,7 @@ import com.songnhue.core.common.security.RequirePermission;
 import com.songnhue.core.spi.OrgUnitPort;
 import com.songnhue.core.spi.OrgUnitRef;
 import com.songnhue.operations.application.DanhMucMayBomService;
-import com.songnhue.operations.application.importer.NhomMayBomImportService;
+import com.songnhue.operations.application.importer.TramBomImportService;
 import com.songnhue.operations.domain.BangCoMayBom;
 import com.songnhue.operations.domain.CoMayBom;
 import com.songnhue.operations.domain.DongNhomMay;
@@ -58,11 +58,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class DanhMucMayBomController {
 
     private final DanhMucMayBomService danhMuc;
-    private final NhomMayBomImportService importer;
+    private final TramBomImportService importer;
     private final OrgUnitPort orgUnits;
 
-    public DanhMucMayBomController(
-            DanhMucMayBomService danhMuc, NhomMayBomImportService importer, OrgUnitPort orgUnits) {
+    public DanhMucMayBomController(DanhMucMayBomService danhMuc, TramBomImportService importer, OrgUnitPort orgUnits) {
         this.danhMuc = danhMuc;
         this.importer = importer;
         this.orgUnits = orgUnits;
@@ -148,7 +147,7 @@ public class DanhMucMayBomController {
     }
 
     @PostMapping(path = "/nhom-may/nhap/xem-truoc", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "Chạy khô tệp nhập nhóm máy — đếm thêm/sửa và liệt kê lỗi từng dòng")
+    @Operation(summary = "Chạy khô tệp nhập trạm bơm — đếm trạm/nhóm máy thêm-sửa, liệt kê lỗi từng dòng")
     @RequirePermission("ops:construction:create")
     public KetQuaNhap xemTruoc(@RequestPart("file") MultipartFile file) {
         return importer.preview(doc(file));
@@ -162,18 +161,18 @@ public class DanhMucMayBomController {
     }
 
     @GetMapping(path = "/nhom-may/mau-nhap", produces = "text/csv; charset=utf-8")
-    @Operation(summary = "Tải tệp mẫu CSV — sinh từ chính danh mục cột bộ đọc dùng")
+    @Operation(summary = "Tải tệp mẫu CSV — một dòng một nhóm máy; sinh từ chính danh mục cột bộ đọc dùng")
     @RequirePermission("ops:construction:create")
     public ResponseEntity<byte[]> mauNhap() {
         return ResponseEntity.ok()
                 .header(
                         HttpHeaders.CONTENT_DISPOSITION,
                         ContentDisposition.attachment()
-                                .filename("mau-nhap-nhom-may-bom.csv", StandardCharsets.UTF_8)
+                                .filename("mau-nhap-tram-bom.csv", StandardCharsets.UTF_8)
                                 .build()
                                 .toString())
                 .contentType(MediaType.parseMediaType("text/csv; charset=utf-8"))
-                .body(NhomMayBomImportService.bieuMau());
+                .body(TramBomImportService.bieuMau());
     }
 
     private static byte[] doc(MultipartFile file) {

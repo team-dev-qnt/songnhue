@@ -103,6 +103,34 @@ public interface ConstructionRepository extends JpaRepository<Construction, Long
     /** Tra theo mã — dùng ở đường nhập hàng loạt để biết dòng nào là thêm mới, dòng nào là cập nhật. */
     Optional<Construction> findByCodeAndDeletedAtIsNull(String code);
 
+    /**
+     * Tra theo <b>(đơn vị, tên đã chuẩn hoá)</b> — đường nhập trạm bơm khi tệp Công ty <b>⛔ có cột
+     * mã</b> (T75.6).
+     *
+     * <p>Sheet {@code TB Tiêu (KH)} Công ty gửi có <b>179 trạm và 0 cột mã</b>: định danh duy nhất
+     * họ dùng là TÊN, trong phạm vi một Xí nghiệp. Đo trên chính sheet ấy: 179 tên, <b>179 tên duy
+     * nhất</b> ⇒ cặp (đơn vị, tên) định danh được một trạm.
+     *
+     * <p>⚠ Tên trong tệp mang khoảng trắng THỪA HAI ĐẦU — {@code "Đông Mỹ "}, {@code "Đại Thanh "}.
+     * So thô thì lượt nhập THỨ HAI tạo trùng toàn bộ danh mục, im lặng. Vì thế cả hai vế so đều
+     * {@code trim} + hạ chữ thường — <b>đúng bằng</b> phép chuẩn hoá mà {@code ConstructionService
+     * .chuanHoaTen} áp lúc GHI ({@code ten.trim()}), ⛔ hơn. ⛔ Gộp khoảng trắng GIỮA ở đây: đường
+     * ghi ⛔ gộp, nên gộp một vế là dựng ra một cặp ⛔ bao giờ khớp cho tên có hai dấu cách liền.
+     *
+     * <p>⛔ Đây ⛔ phải một khoá duy nhất ở CSDL — hai Xí nghiệp vẫn được có hai trạm trùng tên, và
+     * dữ liệu cũ có thể đã trùng tên trong cùng một đơn vị. Trả về <b>danh sách</b> để nơi gọi tự
+     * quyết: 0 ⇒ tạo mới, 1 ⇒ cập nhật, ≥2 ⇒ <b>báo lỗi dòng</b> thay vì đoán bừa hồ sơ nào.
+     */
+    @Query(
+            """
+            SELECT c FROM Construction c
+             WHERE c.orgUnitId = :donViId
+               AND c.deletedAt IS NULL
+               AND lower(trim(c.name)) = :ten
+             ORDER BY c.id
+            """)
+    List<Construction> timTheoDonViVaTen(@Param("donViId") Long donViId, @Param("ten") String ten);
+
     boolean existsByCodeAndDeletedAtIsNull(String code);
 
     /** Kiểm trùng mã khi SỬA — bỏ qua chính bản ghi đang sửa, nếu không nó tự trùng với nó. */

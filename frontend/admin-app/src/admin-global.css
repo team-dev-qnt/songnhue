@@ -41,7 +41,7 @@ html {
 /* ───── Selection ───── */
 ::selection {
   background: #c8def7; /* brandColors.primaryLight */
-  color: #165bb6; /* brandColors.primary */
+  color: #1758bf; /* brandColors.primary */
 }
 
 /* ───── Scrollbar — mỏng, nhẹ, không chiếm chỗ ───── */

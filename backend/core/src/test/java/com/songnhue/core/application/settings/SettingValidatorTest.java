@@ -114,4 +114,67 @@ class SettingValidatorTest {
         assertThatCode(() -> validator.validate(setting("a.b", "STRING", "luat-moi=abc"), "gì đó"))
                 .doesNotThrowAnyException();
     }
+
+    // ---- COLOR — T75.7 ------------------------------------------------------
+
+    @ParameterizedTest
+    @ValueSource(strings = {"#1758bf", "#FAC036", "#000000", "#ffffff", "  #1758bf  "})
+    @DisplayName("COLOR nhận đúng # + 6 chữ số hex")
+    void nhanMaMauSauChuSo(String gia) {
+        assertThatCode(() -> validator.validate(setting("site.brand.primary", "COLOR", null), gia))
+                .doesNotThrowAnyException();
+    }
+
+    /**
+     * ⛔⛔ Ba ca đầu là <b>đầu vào tấn công</b>, ⛔ phải "đầu vào lạ".
+     *
+     * <p>Giá trị của khoá này được ghép vào một khối {@code <style>} của <b>cổng công khai</b>
+     * ({@code mauThuongHieu.ts}). Dấu {@code ;} đóng khai báo và {@code &#125;} đóng luật, nên một
+     * chuỗi lọt qua đây viết được luật CSS mới — đủ để phủ một lớp lên toàn trang hoặc gọi một máy
+     * chủ lạ qua {@code url()}.
+     *
+     * <p>⚠ {@code rgb(255,0,0)} là CSS <b>hợp lệ</b> và vẫn bị từ chối, đúng ý đồ: vị từ ở đây ⛔
+     * phải <i>"CSS có hiểu ⛔"</i> mà là <i>"có đúng hình dạng ta cho phép ⛔"</i>. {@code #fff} bị
+     * loại vì lý do khác — ô nhập ở admin mô tả <i>6 chữ số</i>, nhận thêm một dạng là bắt hai phía
+     * cùng nhớ hai dạng (quy tắc 14).
+     */
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "#1758bf;}body{display:none",
+                "#1758bf}*{background:url(//ke-la/x)",
+                "rgb(255,0,0)",
+                "#fff",
+                "red",
+                "#12345",
+                "#1234567",
+                "#gggggg"
+            })
+    @DisplayName("COLOR từ chối mọi thứ ⛔ phải #rrggbb — kể cả CSS hợp lệ")
+    void tuChoiMoiDangKhac(String gia) {
+        assertThatThrownBy(() -> validator.validate(setting("site.brand.primary", "COLOR", null), gia))
+                .isInstanceOf(ValidationException.class);
+    }
+
+    @Test
+    @DisplayName("COLOR rỗng vẫn hợp lệ — rỗng nghĩa là 'dùng màu bộ nhận diện'")
+    void rongLaHopLe() {
+        // ⚠ Vế này ⛔ phải hình thức: mặc định của hai khoá `site.brand.*` là chuỗi RỖNG (T53.4 —
+        //   một tham số có mặc định khác rỗng thì trạng thái *"chưa ai đặt"* ⛔ biểu diễn được).
+        //   Nếu COLOR từ chối chuỗi rỗng thì ⛔ ai xoá được ô để quay về màu bộ nhận diện.
+        assertThatCode(() -> validator.validate(setting("site.brand.primary", "COLOR", null), ""))
+                .doesNotThrowAnyException();
+        assertThatCode(() -> validator.validate(setting("site.brand.primary", "COLOR", null), null))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("⚠ Kiểu lạ vẫn đi lọt — bài trên ⛔ xanh nhờ một nhánh bắt-tất")
+    void kieuLaVanDiLot() {
+        // Vế chống-xanh-vì-lý-do-sai: nếu `checkType` có một nhánh mặc định NÉM thì mọi khẳng định
+        // "từ chối" ở trên sẽ xanh mà ⛔ chứng minh gì về nhánh COLOR. Bài này đo rằng nhánh mặc
+        // định VẪN cho qua, nên cái đỏ của `tuChoiMoiDangKhac` chỉ có thể tới từ `requireMaMau`.
+        assertThatCode(() -> validator.validate(setting("a.b", "STRING", null), "#1758bf;}body{display:none"))
+                .doesNotThrowAnyException();
+    }
 }

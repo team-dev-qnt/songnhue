@@ -256,14 +256,14 @@ export function DanhMucMayBomPage() {
       <ImportModal
         open={moNhap}
         onClose={() => setMoNhap(false)}
-        title="Nhập nhóm máy bơm từ tệp bảng tính"
-        moTa="Mỗi dòng: mã trạm bơm, số máy, lưu lượng một máy (m³/h)."
+        title="Nhập danh mục trạm bơm từ tệp bảng tính"
+        moTa="Một dòng một nhóm máy. Trạm chưa có trong danh mục sẽ được TẠO — điền mã đơn vị và tên trạm; bỏ trống mã công trình thì hệ tự sinh. Dòng bỏ trống cả mã lẫn tên là nhóm máy thứ hai của trạm ngay trên."
         duongDan={{
           xemTruoc: '/ops/may-bom/nhom-may/nhap/xem-truoc',
           nhap: '/ops/may-bom/nhom-may/nhap',
           mau: '/ops/may-bom/nhom-may/mau-nhap',
         }}
-        tenTepMau="mau-nhap-nhom-may-bom.csv"
+        tenTepMau="mau-nhap-tram-bom.csv"
         khoaCanLamMoi={['ops', 'may-bom']}
       />
     </Space>

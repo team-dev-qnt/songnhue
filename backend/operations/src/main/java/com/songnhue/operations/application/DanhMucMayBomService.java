@@ -25,7 +25,7 @@ import com.songnhue.operations.infra.NhomMayBomRepository;
 /**
  * Danh mục máy bơm của Báo cáo nhanh — 9 cỡ máy + nhóm máy từng trạm.
  *
- * <p>Thêm/sửa nhóm máy đi qua đường NHẬP TỆP ({@code NhomMayBomImportService}); ở đây chỉ có đọc,
+ * <p>Thêm/sửa nhóm máy đi qua đường NHẬP TỆP ({@code TramBomImportService}); ở đây chỉ có đọc,
  * sửa biên cỡ máy và xoá một nhóm.
  */
 @Service

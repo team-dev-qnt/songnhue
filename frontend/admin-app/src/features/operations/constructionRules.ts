@@ -156,11 +156,13 @@ export function locTuDuongDan(params: URLSearchParams): ConstructionFilterValues
   const status = params.get('status');
   const level = params.get('level');
   const river = params.get('river');
+  const clusterId = params.get('clusterId');
   if (q) loc.q = q;
   if (type) loc.type = type as ConstructionFilterValues['type'];
   if (status) loc.status = status as ConstructionFilterValues['status'];
   if (level) loc.level = level as ConstructionFilterValues['level'];
   if (river) loc.river = river;
+  if (clusterId) loc.clusterId = clusterId;
   if (params.get('withoutLocation') === 'true') loc.withoutLocation = true;
   return loc;
 }
