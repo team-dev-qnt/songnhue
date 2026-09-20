@@ -385,4 +385,11 @@ bài kiểm, và lượt phá-bản-vá chứng minh bài kiểm bắt được 
 chạy chính mã cổng thì cũng chờ như người — lớp ấy thuộc reCAPTCHA (chờ khoá G13). Luồng có đăng nhập dựa vào xác
 thực + hạn mức theo người dùng (T61.17).
 
+### 18.3 Cập nhật 20/09/2026 — WS-74b
+
+| Khoảng trống | Task | Trạng thái | Phép đo trước khi vá |
+|---|---|---|---|
+| 4.2.1 — vế **GHI** của phạm vi đơn vị | `T74.8` | ✅ `ScopeGuard.requireWritableOrgUnit` ở hồ sơ CBNV · công trình (tạo · sửa · nhập tệp) · điểm đo; luật bytecode W1 đo mọi chỗ đặt đơn vị ở tầng application · `GhiNgoaiPhamViHttpTest` · `HoSoNhanSuPhamViTest` | tài khoản ở XN-A tạo hồ sơ / công trình / điểm đo vào XN-B ⇒ **201**, 0 dòng `security_events` |
+| Trùng mã với bản ghi ngoài phạm vi | `T74.9` | ✅ `ScopeGuard.toanCongTy` ở 7 phép kiểm mã của entity phạm vi; luật W2 | trả `SYS-0005` *"dữ liệu vừa được người khác thay đổi"* thay vì `HR-1001` / `OPS-2008` / `HYD-1002` |
+
 ⚠ Phép đo trên hệ đang chạy (ZAP baseline vào staging) vẫn **chưa chạy** — việc của QuanTran, xem `tools/zap/README.md`.

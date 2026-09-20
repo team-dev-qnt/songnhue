@@ -46,6 +46,7 @@ Xếp theo hậu quả khi mất, ⛔ theo thứ tự trong mã.
 | Đường tấn công | Đã có gì | Còn hở |
 |---|---|---|
 | Sửa nhật ký kiểm toán | Vai trò runtime ⛔ có `DELETE`/`UPDATE` trên `audit_logs`·`security_events`·`hydro_raw_logs`; chuỗi băm nối tiếp | Bản dump cũ từng mang ACL yếu — đã vá 08/09 (§10.80) |
+| Ghi vào dữ liệu của đơn vị KHÁC (tạo / chuyển bản ghi sang đơn vị ngoài phạm vi) | `ScopeGuard.requireWritableOrgUnit` + dòng `ACCESS_DENIED_SCOPE`; luật W1 buộc mọi chỗ đặt đơn vị xếp loại (T74.8) | Ô chọn đơn vị vẫn bày cả cây (T74.11) · đơn vị `null` của điểm đo ⛔ kiểm |
 | Sửa trạng thái ⛔ qua workflow | Đổi trạng thái chỉ qua Workflow engine, có chữ ký chuỗi | — |
 | Tệp tải lên mang mã độc | ClamAV (T61.4) + lọc SVG theo cây DOM (T61.32) + kiểm magic bytes | **Thiếu cấu hình ClamAV ⇒ `SKIPPED` mà tệp vẫn tải về được** (T61.48 #2) |
 | Ghi đè tệp ngoài thư mục khi giải nén | Tên mục trong ZIP bỏ mọi đoạn đường dẫn (T61.40) | — |

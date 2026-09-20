@@ -242,10 +242,25 @@ public class TramBomImportService {
             String ma;
             do {
                 ma = "%s%03d".formatted(pre, n++);
-            } while (daCap.contains(ma) || constructions.existsByCodeAndDeletedAtIsNull(ma));
+            } while (daCap.contains(ma) || daCoTrongCongTy(ma));
             soKe.put(donVi.id(), n);
             daCap.add(ma);
             return ma;
+        }
+
+        /**
+         * Mã này đã có trong <b>TOÀN Công ty</b> chưa — <b>⛔ chỉ trong phạm vi người đang nhập</b> (T74.9).
+         *
+         * <p>{@code constructions.code} là {@code UNIQUE} trên cả bảng, nên câu hỏi <i>"mã còn trống
+         * ⛔"</i> là một câu hỏi <b>toàn Công ty</b>. Hỏi nó qua bộ lọc phạm vi thì mã do một Xí nghiệp
+         * khác đang giữ là <b>vô hình</b> ⇒ vòng lặp nhận nó là trống ⇒ {@code ConstructionService.create}
+         * đâm vào ràng buộc thật và người vận hành nhận {@code OPS-2008} <i>"Mã … đã tồn tại"</i> về một
+         * trạm họ <b>⛔ nhìn thấy được</b> — đúng ngõ cụt mà T74.9 đã đo ở ba service khác.
+         *
+         * <p>⚠ Vế này chỉ trả về <b>có/⛔</b>; ⛔ bản ghi nào của đơn vị khác lọt ra ngoài (quy tắc 5).
+         */
+        private boolean daCoTrongCongTy(String ma) {
+            return scopeGuard.toanCongTy(() -> constructions.existsByCodeAndDeletedAtIsNull(ma));
         }
     }
 
