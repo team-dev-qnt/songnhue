@@ -8374,3 +8374,83 @@ Ghi lại vì nó quan trọng hơn kết quả: **một báo cáo rà là dữ 
   mà ⛔ đụng một dòng TypeScript nào — 4 giá trị trong `richTextEditor.css` trùng **khít** một token
   đang có nên chỉ cần **GHIM**. Lượt dọn 18/09 bỏ sót vì đi tìm *chỗ nào thay được bằng biến* thay vì
   hỏi *mã nào đã có token mang đúng giá trị*. ⚠ `#fff` phải viết đủ `#ffffff`: phép so là so **CHUỖI**.
+### §12.19 Một chính sách người nhận phải được KHAI RA, ⛔ suy từ hình dạng dữ liệu (WS-82, 20/9/2026)
+
+`RecipientResolver.resolve(...)` nhận bốn tham số và **suy** chính sách từ chúng: ⛔ có
+`targetPermission` thì rơi thẳng về `executiveBoard()` — nhóm *"Ban điều hành"* của chốt G11. Phép
+suy ấy đúng cho **một** nơi gọi (cảnh báo ngưỡng thuỷ văn) và sai cho **ba** nơi còn lại, suốt từ
+WS-6.
+
+#### Phạm vi thật, đo 20/09/2026
+
+| Nơi gọi | Rơi vào `executiveBoard()` | Người nhận ĐÚNG |
+|---|---|---|
+| `WorkflowEngine` | **17** hàng `workflow_transitions` (`notify_owner = TRUE` ∧ `notify_permission IS NULL`) — ARTICLE 5 · LEAVE_REQUEST 4 · MAINTENANCE_LOG 4 · MAINTENANCE_INCIDENT 4 | chủ bản ghi |
+| `UserAdminService.notifyStatusChange` | `ACCOUNT_DISABLED` · `ACCOUNT_ENABLED` | chủ tài khoản |
+| `CanhBaoTaiKhoanService.bao` | `PASSWORD_CHANGED` · `PASSWORD_RESET_BY_ADMIN` · `TWO_FACTOR_RESET_BY_ADMIN` · `TWO_FACTOR_ENROLLED` | chủ tài khoản |
+| `AlertNotifier` · `ConstructionService` ×2 · `MaintenanceLogService` | — (đúng, đây LÀ G11) | Ban điều hành ∪ trưởng/phó |
+
+Sáu mã sự kiện cuối là **thông báo an ninh của một cá nhân**. Cộng cả ban lãnh đạo vào đó ⛔ chỉ là
+tiếng ồn — nó công bố *ai vừa bị khoá tài khoản*, *ai vừa được quản trị viên đặt lại mật khẩu* cho
+một nhóm ⛔ hề cần biết.
+
+#### ⛔⛔ Vì sao ⛔ ai thấy: một khuyết tật ĐANG NGỦ vì một khuyết tật khác
+
+Khoá `notification.alert-group.executive-board` seed `'[]'` từ 13/08/2026 và **chưa ai điền được** —
+đường ghi duy nhất là ô `Input.TextArea` thô, mà giá trị phải là mảng `publicId` tài khoản trong khi
+màn hình *Tài khoản* ⛔ hiện `publicId` ở đâu cả (T76.3). Nhóm rỗng ⇒ phép hợp ⛔ thêm ai ⇒ **mọi
+lượt gửi hôm nay tình cờ đúng**.
+
+⇒ Hai dòng nợ **che nhau**, và chúng che theo chiều nguy hiểm: `T76.3` đọc như một việc *tiện nghi*
+(«gõ JSON bất tiện»), trong khi trả nó **một mình** là bật `T74.7` trên cả 6 mã sự kiện và 17 hàng
+quy trình **cùng lúc**, đúng ngày Công ty điền danh sách. Cùng hình dạng §12.10 (hai khuyết tật che
+nhau, gỡ một cái là cái kia hiện ngay) ⇒ **phải vá cùng một PR**, và thứ tự trong PR là `T74.7`
+trước.
+
+#### Vì sao ⛔ vá bằng một cột trên `workflow_transitions` — như chính dòng nợ kê ra
+
+Dòng `T74.7` tự kê cách làm: *"tách bằng dữ liệu (cột trên `workflow_transitions`), ⛔ đoán theo mã
+sự kiện"*. Đo lại thì cách ấy hỏng theo **hai** chiều:
+
+1. Nó chạm **1/3** nơi gọi — hai nơi kia ⛔ đi qua `workflow_transitions` lần nào.
+2. ⛔ hàng seed nào cần đặt `TRUE` (mọi hàng có `notify_event` đều đã khai người nhận) ⇒ một **cột
+   chết ngay ngày ra đời**. Luật 15, đúng hình dạng `user_totp.key_id` (T51.0) và `education_level`
+   (T54.1) — và tệ hơn ở chỗ **bộ canh enum sẽ làm nó TRÔNG như đã nối**.
+
+⇒ Đặt ở chỗ **dữ liệu đi qua** (luật 12): `boolean nhomCanhBao` trên `NotifyRequest` (SPI) và
+`NotificationRequest` (application). Chỉ `alert(...)` và `AlertNotifier` khai `true`. Thêm một tham
+số bắt buộc vào một `record` làm **trình biên dịch** bắt cả 7 nơi dựng thô phải quyết định — rẻ hơn
+mọi bài kiểm, và ⛔ im được bằng cách sửa chú thích.
+
+#### ⛔ Và phương án «rẻ hơn» cũng sai
+
+*"⛔ dùng `executiveBoard()` khi `relatedOrgUnitIds` RỖNG"* nghe hợp lý và **⛔ cần tham số mới**.
+Nó sai vì nhóm cố định chính là nhánh **dự phòng** cho ca danh sách đơn vị rỗng: 4/19 điểm đo
+`MN_SONG` ⛔ thuộc công trình nào **theo thiết kế** (T33.8), nên với chúng nhóm ấy là người nhận
+**DUY NHẤT**. Suy chính sách từ hình dạng dữ liệu lần thứ hai chỉ đổi một lỗi im lặng lấy một lỗi im
+lặng khác.
+
+#### ⛔⛔ Vế phân biệt của chính tôi là một XANH GIẢ, và lượt phá bắt được
+
+Bài *"khoá JSON KHÁC vẫn là ô văn bản thô"* sinh ra để chặn một bản vá thay **mọi** ô JSON bằng ô
+chọn tài khoản. Dữ liệu của nó là `'{"a":1}'` — đọc được nhưng ⛔ phải một mảng, nên bộ đọc trả
+`null` và ô thô hiện ra **bất kể khoá nào**. Nới phạm vi widget ra `valueType === 'JSON'` ⇒ bài
+**vẫn 4/4 xanh**, tức nó ⛔ canh gì (luật 9). Đổi dữ liệu sang một mảng chuỗi **hợp lệ** ⇒ bản phá
+đỏ **đúng một bài, đúng bài ấy**; khôi phục ⇒ 5/5, đo `grep -c` cả hai chiều (luật 10).
+
+⇒ Bài học lặp lại của §10.62 và T53.8 ở một chỗ mới: **dữ liệu của một vế phân biệt phải nằm ĐÚNG
+trên ranh giới nó đang canh**. Ở đây ranh giới là *khoá nào*, mà dữ liệu lại rơi sang nhánh *giá trị
+có hợp lệ ⛔* — một nhánh khác hẳn, và là nhánh mà cả hai bản đều xử lý giống nhau.
+
+#### Bánh cóc rút ra
+
+- **Một dòng nợ sai ⛔ chỉ tốn một lượt điều tra — nó kê cả cách làm** (§12.18, lần thứ hai trong hai
+  ngày). `T74.7` sai ở phạm vi (dấu `…` giấu mất phép đếm: 3 nơi gọi chứ ⛔ 1), sai ở vế «chiều
+  ngược» (`MaintenanceLogService:560` **đã** báo trưởng đơn vị lúc sự cố được lập), và sai ở **cách
+  vá**. Đi theo nó là đúc một cột chết rồi ghi sổ rằng đã trả nợ.
+- **Ba trạng thái, ⛔ phải hai.** Bộ đọc mảng `publicId` trả `[]` cho *rỗng* và `null` cho *⛔ đọc
+  được*; gộp hai cái làm một thì một giá trị JSON sai cú pháp hiện ra như nhóm trống rồi bị lượt Lưu
+  kế tiếp **ghi đè mất**.
+- **Một ô nhập nằm trong ô BẢNG ⛔ có `<label>` nào trỏ tới** ⇒ phải mang `aria-label`. ⛔ Có tên thì
+  trình đọc màn hình đọc thành *"combobox"* trống rỗng **và** bài kiểm ⛔ gọi nổi nó — nợ a11y hiện
+  ra cái giá thật lần thứ ba (T63.9).

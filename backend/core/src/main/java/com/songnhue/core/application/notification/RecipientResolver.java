@@ -67,21 +67,39 @@ public class RecipientResolver {
     }
 
     /**
-     * @param relatedOrgUnitIds đơn vị liên quan tới sự kiện (VD đơn vị quản lý công trình có sự cố)
-     * @param extraUserIds người nhận chỉ định thêm, VD người được giao việc
-     * @return danh sách id người dùng đang hoạt động, đã khử trùng lặp, giữ thứ tự ổn định
-     */
-    @Transactional(readOnly = true)
-    public List<Long> resolve(List<Long> relatedOrgUnitIds, List<Long> extraUserIds) {
-        return resolve(relatedOrgUnitIds, extraUserIds, null);
-    }
-
-    /**
-     * Bản có <b>nhắm đích theo quyền</b> — thêm ở WS-13 khi bài viết là bản ghi đầu tiên đi qua một
-     * quy trình duyệt thật.
+     * Tìm người nhận. <b>Chính sách do nơi gọi KHAI RA, ⛔ do hàm này suy từ hình dạng dữ liệu</b>
+     * — T74.7, 20/09/2026.
      *
-     * <p>⚠⚠ <b>Đây là chỗ luật G11 KHÔNG áp dụng được, và biết điều đó là quan trọng.</b> Hai chữ ký
-     * trên trông gần giống nhau nhưng phục vụ hai bài toán ngược nhau:
+     * <h3>⛔⛔⛔ Vì sao {@code nhomCanhBao} phải là một tham số</h3>
+     *
+     * <p>Tới 20/09/2026 hàm này <b>suy</b> chính sách: ⛔ có {@code targetPermission} thì rơi thẳng
+     * về {@link #executiveBoard()}. Nhánh ấy đúng cho cảnh báo vận hành (G11), nhưng <b>ba</b> nơi
+     * gọi khác cũng rơi vào đó trong khi chúng <i>biết chính xác</i> người nhận là ai:
+     *
+     * <ul>
+     *   <li>{@code WorkflowEngine} — <b>17 hàng</b> {@code workflow_transitions} mang
+     *       {@code notify_owner = TRUE} và {@code notify_permission IS NULL} (đếm 20/09: ARTICLE 5 ·
+     *       LEAVE_REQUEST 4 · MAINTENANCE_LOG 4 · MAINTENANCE_INCIDENT 4);
+     *   <li>{@code UserAdminService.notifyStatusChange} — {@code ACCOUNT_DISABLED}/{@code _ENABLED};
+     *   <li>{@code CanhBaoTaiKhoanService.bao} — bốn mã sự kiện an ninh của <b>một cá nhân</b>.
+     * </ul>
+     *
+     * <p>⇒ Thư <i>"tài khoản của bạn đã bị khoá"</i> cộng thêm cả Ban điều hành. Hôm nay ⛔ ai thấy
+     * vì khoá {@link #KEY_EXECUTIVE_BOARD} seed {@code '[]'} và chưa ai điền được (T76.3) — một
+     * <b>khuyết tật đang ngủ vì một khuyết tật khác</b>, thức dậy trên cả sáu mã sự kiện cùng lúc
+     * đúng ngày Công ty điền nhóm ấy.
+     *
+     * <p>⛔ Cách vá rẻ hơn — <i>"⛔ dùng {@code executiveBoard()} khi ⛔ có đơn vị nào được nêu"</i> —
+     * <b>SAI</b>: nhóm cố định chính là nhánh <b>dự phòng</b> cho ca danh sách đơn vị RỖNG, và 4/19
+     * điểm đo {@code MN_SONG} ⛔ thuộc công trình nào theo thiết kế (T33.8) nên ca ấy là ca THẬT.
+     * Suy chính sách từ hình dạng dữ liệu lần nữa chỉ đổi một lỗi im lặng lấy một lỗi im lặng khác.
+     *
+     * <p>Bộ canh: {@code NhomCanhBaoKhongLanSangThuCaNhanTest} — ba bài, trong đó bài thứ ba là vế
+     * phân biệt (luật 9): gỡ hẳn {@code executiveBoard()} cũng làm hai bài đầu xanh.
+     *
+     * <h3>⚠⚠ Đây là chỗ luật G11 KHÔNG áp dụng được, và biết điều đó là quan trọng</h3>
+     *
+     * Hai bài toán ngược nhau:
      *
      * <ul>
      *   <li><b>Cảnh báo vận hành</b> (G11) — hệ thống <i>đoán</i> ai nên biết: Ban điều hành ∪ người
@@ -109,26 +127,28 @@ public class RecipientResolver {
      * <p>⛔ Và công tắc {@link #KEY_AUTO_INCLUDE_OWNER} ⛔ <b>không</b> áp cho ca này: nó nói về phép
      * <i>đoán</i> của G11, ⛔ không nói về một danh sách mà nơi gọi đưa ra tường minh.
      *
-     * @param targetPermission mã quyền; {@code null} = giữ nguyên luật G11
-     */
-    @Transactional(readOnly = true)
-    public List<Long> resolve(List<Long> relatedOrgUnitIds, List<Long> extraUserIds, String targetPermission) {
-        return resolve(relatedOrgUnitIds, extraUserIds, targetPermission, false);
-    }
-
-    /**
-     * ⭐ Ca THỨ TƯ (T57.15, 20/09/2026) — nhắm đích theo quyền <b>trong phạm vi đơn vị</b>.
+     * <h3>⭐ Ca THỨ TƯ (T57.15, 20/09/2026) — nhắm đích theo quyền <b>trong phạm vi đơn vị</b></h3>
      *
      * <p>Người nhận = người có {@code targetPermission} mà phạm vi dữ liệu (đơn vị của tài khoản) PHỦ một trong
      * {@code relatedOrgUnitIds} — đúng người bộ lọc phạm vi tầng 3 cho THẤY bản ghi. ⛔ Cộng trưởng/phó riêng:
      * họ có quyền và phạm vi thì đã nằm trong tập, ⛔ có thì nhận thư về việc họ ⛔ làm được. Ba ca cũ ⛔ đổi
      * hành vi — cờ này chỉ bật qua {@code NotifyRequest.targetedInUnitScope}.
      *
+     * @param relatedOrgUnitIds đơn vị liên quan tới sự kiện (VD đơn vị quản lý công trình có sự cố)
+     * @param extraUserIds người nhận chỉ định thêm, VD người được giao việc hoặc chủ bản ghi
+     * @param targetPermission mã quyền; {@code null} = ⛔ nhắm đích theo quyền
      * @param trongPhamVi {@code true} ⇒ ca thứ tư; ⛔ có {@code targetPermission} thì cờ vô nghĩa và bị bỏ qua
+     * @param nhomCanhBao {@code true} ⇒ áp luật G11 (nhóm "Ban điều hành" ∪ trưởng/phó đơn vị liên
+     *     quan). Chỉ {@code NotifyRequest.alert(...)} và {@code AlertNotifier} khai {@code true}.
+     * @return danh sách id người dùng đang hoạt động, đã khử trùng lặp, giữ thứ tự ổn định
      */
     @Transactional(readOnly = true)
     public List<Long> resolve(
-            List<Long> relatedOrgUnitIds, List<Long> extraUserIds, String targetPermission, boolean trongPhamVi) {
+            List<Long> relatedOrgUnitIds,
+            List<Long> extraUserIds,
+            String targetPermission,
+            boolean trongPhamVi,
+            boolean nhomCanhBao) {
         boolean nhamDich = targetPermission != null && !targetPermission.isBlank();
 
         // LinkedHashSet: khử trùng lặp mà vẫn giữ thứ tự — thứ tự ổn định làm log dễ đối chiếu và
@@ -143,15 +163,24 @@ public class RecipientResolver {
                             ? users.findActiveIdsByPermissionCoveringOrgUnits(targetPermission, relatedOrgUnitIds)
                             : List.of());
         } else {
+            // ⛔⛔ T74.7 — `: List.of()` ở vế cuối là bản vá. Trước 20/09/2026 vế ấy là
+            //   `executiveBoard()`, tức MỌI lượt gọi ⛔ nhắm đích đều cộng nhóm cố định — kể cả
+            //   thư "tài khoản của bạn đã bị khoá". Xem khối javadoc ⛔⛔⛔ ở trên.
             derived = new LinkedHashSet<>(
-                    nhamDich ? users.findActiveIdsByPermission(targetPermission) : executiveBoard());
-            themNguoiDungDau(derived, relatedOrgUnitIds, coDonViDuocNeu, nhamDich);
+                    nhamDich
+                            ? users.findActiveIdsByPermission(targetPermission)
+                            : nhomCanhBao ? executiveBoard() : List.<Long>of());
+            themNguoiDungDau(derived, relatedOrgUnitIds, coDonViDuocNeu, nhamDich, nhomCanhBao);
         }
         return locNguoiNhan(named, derived, nhamDich, targetPermission);
     }
 
     private void themNguoiDungDau(
-            Set<Long> derived, List<Long> relatedOrgUnitIds, boolean coDonViDuocNeu, boolean nhamDich) {
+            Set<Long> derived,
+            List<Long> relatedOrgUnitIds,
+            boolean coDonViDuocNeu,
+            boolean nhamDich,
+            boolean nhomCanhBao) {
 
         // ⭐⭐ T40/T28.51 — ca THỨ BA, và nó ⛔ không phải một ngoại lệ của luật trên.
         //
@@ -169,7 +198,14 @@ public class RecipientResolver {
         // ⚠⚠ Đính chính 20/09/2026 (T74.6): "THU HẸP" ở trên nghĩa là *thêm ÍT người có trách nhiệm*,
         //   ⛔ phải *bớt người* — tập suy ra vẫn là MỌI người có quyền trên toàn Công ty, cộng trưởng/phó.
         //   Ca cần BỚT người (chỉ ai phạm vi phủ đơn vị) là ca thứ tư, `trongPhamVi` (T57.15).
-        boolean themNguoiDungDau = coDonViDuocNeu && (nhamDich || settings.getBoolean(KEY_AUTO_INCLUDE_OWNER, true));
+        // ⛔⛔ T74.7 — vế `!nhamDich` nay đòi thêm `nhomCanhBao`. Trưởng/phó đơn vị là **nửa thứ hai
+        //   của phép ĐOÁN G11**, ⛔ phải một phần của "báo cho chủ bản ghi": một lá thư chỉ dành cho
+        //   tác giả ⛔ có lý do gì đi kèm trưởng đơn vị của tác giả. Vế `nhamDich` (ca thứ ba,
+        //   T28.51) giữ nguyên — ở đó nơi gọi nêu đơn vị một cách tường minh.
+        //   ⚠ Đo 20/09: phép đổi này ⛔ đụng hành vi nào đang chạy — mọi lượt `!nhamDich` có đơn vị
+        //   được nêu hôm nay đều đến từ `alert(...)`, và `alert(...)` khai `nhomCanhBao = true`.
+        boolean themNguoiDungDau =
+                coDonViDuocNeu && (nhamDich || (nhomCanhBao && settings.getBoolean(KEY_AUTO_INCLUDE_OWNER, true)));
         if (themNguoiDungDau) {
             derived.addAll(orgUnits.findActiveHeadAndDeputyUserIds(relatedOrgUnitIds));
         }
