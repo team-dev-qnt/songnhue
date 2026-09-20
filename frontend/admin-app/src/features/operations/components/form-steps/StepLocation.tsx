@@ -44,7 +44,21 @@ export function StepLocation() {
         </Col>
       </Row>
 
-      <Form.Item name="basinNote" label="Ghi chú lưu vực">
+      {/* ⚠⚠ T75.2 — MỘT ô, và nó có HAI tên trong hai tài liệu của cùng Công ty.
+            · `function-spec.md` CN-02.1 (chốt F3) gọi là *lưu vực / khu tưới tiêu*, ví dụ
+              "Lưu vực sông Nhuệ — khu tưới Hà Đông";
+            · mẫu **Báo cáo nhanh** gọi cột thứ 6 của Bảng 2 là *"Nguồn tưới, hướng tiêu"* và điền
+              vào đó tên nguồn nước: "Sông Đáy", "Sông Pheo".
+          Nhãn cũ chỉ mang tên thứ nhất, nên người đi tìm cột của mẫu báo cáo ⛔ thấy ô nào và kết
+          luận hệ thiếu hẳn một trường — đúng câu hỏi đặt ra ngày 20/09.
+          ⛔ Đừng thêm cột thứ hai cho cùng một sự thật: `DongNhomMay:9` đã khai nguồn của cột ấy là
+          `constructions.basin_note`, và chốt F3 nói nó là TRƯỜNG VĂN BẢN, ⛔ danh mục. Thứ phải sửa
+          là CÁI NHÃN. */}
+      <Form.Item
+        name="basinNote"
+        label="Nguồn tưới, hướng tiêu / Lưu vực"
+        extra="In nguyên văn vào cột cuối Bảng 2 của Báo cáo nhanh — ví dụ “Sông Đáy”. Trường văn bản tự do (chốt F3): không có danh mục lưu vực."
+      >
         <Input.TextArea rows={2} />
       </Form.Item>
 

@@ -86,7 +86,11 @@ public class ConstructionImportService {
             new CotMau("kinh_do", false, "Kinh độ WGS-84 — phải có ĐỦ CẢ HAI hoặc bỏ trống cả hai"),
             new CotMau("tuyen_song", false, "Ví dụ: Sông Nhuệ"),
             new CotMau("ly_trinh", false, "Dạng K<km>+<m>, ví dụ K43+750"),
-            new CotMau("luu_vuc", false, "Tên lưu vực"),
+            // ⚠ T75.2 — giữ NGUYÊN khoá `luu_vuc`: Công ty có thể đang giữ tệp đã điền theo tên cũ,
+            //    và đổi khoá là đẩy mọi tệp ấy vào nhánh "cột lạ". Thứ đổi là phần MÔ TẢ — nó in ra
+            //    tệp mẫu, và đây là chỗ DUY NHẤT tệp mẫu nói được rằng ô này chính là cột
+            //    "Nguồn tưới, hướng tiêu" của mẫu Báo cáo nhanh (cùng một `constructions.basin_note`).
+            new CotMau("luu_vuc", false, "Nguồn tưới, hướng tiêu / lưu vực — ví dụ: Sông Đáy"),
             new CotMau("nam_xay_dung", false, "Số nguyên trong khoảng 1900–2200"),
             new CotMau("nam_su_dung", false, "Số nguyên trong khoảng 1900–2200"),
             new CotMau("don_vi_thiet_ke", false, "Tên đơn vị thiết kế"),

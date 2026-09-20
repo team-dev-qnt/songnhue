@@ -3,6 +3,7 @@ import {
   App,
   Button,
   Card,
+  ColorPicker,
   Input,
   InputNumber,
   Space,
@@ -415,6 +416,41 @@ function SettingEditor({
             Ràng buộc: {setting.validation}
           </Typography.Text>
         )}
+      </Space>
+    );
+  }
+
+  if (setting.valueType === 'COLOR') {
+    // ⚠⚠ Ô CHỮ là nguồn sự thật, bảng chọn màu chỉ là lối vào thứ hai.
+    //
+    // Công ty cầm bộ nhận diện dạng văn bản (`1758bf`, `fac036`) nên thao tác tự nhiên nhất là
+    // DÁN, ⛔ phải rê chuột trên vòng tròn màu — bỏ ô chữ đi là bắt họ dò lại bằng mắt đúng mã
+    // mình đang cầm trên tay. Cùng họ T46.6: con đường tự nhiên nhất mà ⛔ đi được thì người dùng
+    // sẽ đi đường sai.
+    //
+    // ⛔ Chuẩn hoá NGAY tại `onChange` chứ ⛔ lúc gửi: `ColorPicker` trả chuỗi khi chưa ai động
+    // vào và trả OBJECT khi đã đổi, nên nơi nào nhận giá trị cũng phải nhớ ép kiểu —
+    // `OperationStatusCodesPage:115` đang phải mang một `@ts-expect-error` vì đúng chuyện đó.
+    // Đối số thứ hai của `onChange` đã là chuỗi hex, dùng thẳng thì ⛔ còn hai dạng nào để nhớ.
+    const hopLe = /^#[0-9a-fA-F]{6}$/.test(value);
+    return (
+      <Space size={8} style={{ width: '100%' }}>
+        <ColorPicker
+          format="hex"
+          disabledAlpha
+          disabled={disabled}
+          // ⚠ Giá trị rỗng = "chưa đặt, dùng màu bộ nhận diện". ColorPicker ⛔ biểu diễn được trạng
+          //   thái ấy nên nó hiện mặc định của design-tokens — ô chữ bên cạnh mới là chỗ nói thật.
+          value={hopLe ? value : undefined}
+          onChange={(_, hex) => onChange(hex.toLowerCase())}
+        />
+        <Input
+          value={value}
+          disabled={disabled}
+          placeholder="#rrggbb"
+          status={value !== '' && !hopLe ? 'error' : undefined}
+          onChange={(event) => onChange(event.target.value)}
+        />
       </Space>
     );
   }

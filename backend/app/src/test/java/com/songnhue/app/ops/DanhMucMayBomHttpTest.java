@@ -59,6 +59,10 @@ class DanhMucMayBomHttpTest extends IntegrationTestBase {
     @AfterEach
     void donNhomMay() {
         jdbc.update("DELETE FROM nhom_may_bom");
+        // ⚠ T75.6 — đường nhập nay TẠO ĐƯỢC công trình, nên dọn phải chạm cả `constructions`.
+        //    Thiếu dòng này thì trạm do bài trước sinh ra rò sang bài sau và `soNhom()` đếm nhầm,
+        //    một kiểu rò trạng thái mà surefire xếp lớp theo hệ tệp sẽ biến thành đỏ ngẫu nhiên (T48.8).
+        jdbc.update("DELETE FROM constructions WHERE code LIKE 'TB-CTY-%'");
     }
 
     private ResponseEntity<String> nhap(String duong, String csv) {
@@ -138,6 +142,122 @@ class DanhMucMayBomHttpTest extends IntegrationTestBase {
         ResponseEntity<String> that = nhap("/nhom-may/nhap", csv);
         assertThat(that.getBody()).contains("OPS-2016");
         assertThat(soNhom()).as("⛔ có một dòng lỗi thì ⛔ dòng nào được ghi").isZero();
+    }
+
+    // =========================================================================
+    // T75.6 — MỘT tệp dựng cả TRẠM lẫn NHÓM MÁY (hình dạng sheet `TB Tiêu (KH)` của Công ty)
+    // =========================================================================
+
+    /** Đúng hình dạng sheet gốc: ⛔ cột mã · Xí nghiệp ở cột · nhóm thứ hai là dòng ⛔ tên. */
+    private static final String CSV_KIEU_CONG_TY =
+            """
+            ma_cong_trinh,ten_cong_trinh,ma_don_vi,nguon_tuoi_huong_tieu,dia_diem,ly_trinh,so_may,q_mot_may_m3h
+            ,Đại áng (tiêu),CTY,Sông Nhuệ,Ngọc Hồi,K28+970,4,4000
+            ,,,,,,1,1950
+            ,Đại áng (tưới),CTY,Sông Nhuệ,Ngọc Hồi,,2,980
+            """;
+
+    private String maCua(String ten) {
+        return jdbc.queryForObject(
+                "SELECT code FROM constructions WHERE name = ? AND deleted_at IS NULL", String.class, ten);
+    }
+
+    @Test
+    @DisplayName("⭐⭐ Tệp Công ty ⛔ có cột mã ⇒ TẠO trạm + SINH mã; dòng ⛔ tên là nhóm máy của trạm trên")
+    void motTepDungCaTramVaNhomMay() {
+        ResponseEntity<String> that = nhap("/nhom-may/nhap", CSV_KIEU_CONG_TY);
+        assertThat(that.getStatusCode()).as("%s", that.getBody()).isEqualTo(HttpStatus.OK);
+
+        assertThat(maCua("Đại áng (tiêu)"))
+                .as("mã SINH theo quy ước sẵn có của sản phẩm, ⛔ phải một chuỗi tự chế")
+                .isEqualTo("TB-CTY-001");
+        assertThat(maCua("Đại áng (tưới)")).isEqualTo("TB-CTY-002");
+
+        assertThat(jdbc.queryForObject("SELECT basin_note FROM constructions WHERE code = 'TB-CTY-001'", String.class))
+                .as("⭐ cột 'Nguồn tưới, hướng tiêu' — thứ in ra cột cuối Bảng 2 — nay CÓ chỗ nhận")
+                .isEqualTo("Sông Nhuệ");
+        assertThat(jdbc.queryForObject("SELECT chainage FROM constructions WHERE code = 'TB-CTY-001'", String.class))
+                .isEqualTo("K28+970");
+
+        assertThat(jdbc.queryForList(
+                        "SELECT q_mot_may_m3h FROM nhom_may_bom n JOIN constructions c ON c.id = n.construction_id"
+                                + " WHERE c.code = 'TB-CTY-001' AND n.deleted_at IS NULL ORDER BY n.sort_order",
+                        String.class))
+                .as("dòng ⛔ tên phải thuộc TRẠM NGAY TRÊN, ⛔ phải một trạm mới")
+                .containsExactly("4000.00", "1950.00");
+        assertThat(soNhom()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("⭐⭐ Nhập LẠI cùng tệp ⇒ khớp theo (đơn vị, tên), ⛔ tạo trùng danh mục")
+    void nhapLaiKhongTaoTrung() {
+        nhap("/nhom-may/nhap", CSV_KIEU_CONG_TY);
+        ResponseEntity<String> lan2 = nhap("/nhom-may/nhap", CSV_KIEU_CONG_TY);
+
+        assertThat(lan2.getStatusCode()).as("%s", lan2.getBody()).isEqualTo(HttpStatus.OK);
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM constructions WHERE code LIKE 'TB-CTY-%' AND deleted_at IS NULL",
+                        Integer.class))
+                .as("⛔ có khoá (đơn vị, tên) thì lượt nhập thứ hai nhân đôi cả danh mục, IM LẶNG")
+                .isEqualTo(2);
+        assertThat(soNhom()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("⛔⛔ Bổ sung nhóm máy cho trạm ĐÃ CÓ ⛔ được hạ cấp quản lý của nó")
+    void khongHaCapQuanLyTramDaCo() {
+        // ⛔⛔ Đặt mốc TẠI CHỖ, ⛔ đọc thứ bài trước để lại. Bản đầu của bài này chỉ đọc giá trị
+        //    đang có rồi so lại sau lượt nhập — và nó XANH TRÊN CẢ BẢN HỎNG: một bài chạy trước
+        //    cũng nhập `TB-YNGHIA`, nên dưới bản hỏng cấp đã bị hạ TỪ TRƯỚC, `capTruoc` đọc ra
+        //    đúng thứ khuyết tật sẽ ghi. Rò trạng thái giữa các bài (T48.8) cộng một mốc trùng
+        //    giá trị hỏng (T48.7) — lượt kiểm chứng ngược bắt được, lượt đọc lại thì ⛔.
+        jdbc.update("UPDATE constructions SET management_level = 'CONG_TY' WHERE code = 'TB-YNGHIA'");
+        String capTruoc = jdbc.queryForObject(
+                "SELECT management_level FROM constructions WHERE code = 'TB-YNGHIA'", String.class);
+        assertThat(capTruoc)
+                .as("tiền đề: mốc phải KHÁC giá trị mà khuyết tật ghi ra, ⛔ thì bài xanh vì lý do sai")
+                .isNotEqualTo("XI_NGHIEP");
+
+        ResponseEntity<String> that =
+                nhap("/nhom-may/nhap", "ma_cong_trinh,so_may,q_mot_may_m3h\nTB-YNGHIA,10,43200\n");
+
+        assertThat(that.getStatusCode()).as("%s", that.getBody()).isEqualTo(HttpStatus.OK);
+        assertThat(jdbc.queryForObject(
+                        "SELECT management_level FROM constructions WHERE code = 'TB-YNGHIA'", String.class))
+                .as("Bản nháp đầu truyền XI_NGHIEP cho CẢ đường cập nhật ⇒ mọi trạm trong tệp bị hạ "
+                        + "cấp, ⛔ một dòng lỗi, ⛔ một dòng log")
+                .isEqualTo(capTruoc);
+    }
+
+    @Test
+    @DisplayName("⛔ Dòng ĐẦU ⛔ xác định được trạm · trạm mới thiếu mã đơn vị ⇒ lỗi DÒNG")
+    void loiDinhDanhTram() {
+        ResponseEntity<String> dongDau = nhap(
+                "/nhom-may/nhap/xem-truoc", "ma_cong_trinh,ten_cong_trinh,ma_don_vi,so_may,q_mot_may_m3h\n,,,4,4000\n");
+        assertThat(dongDau.getBody()).contains("Dòng đầu tiên phải xác định được công trình");
+
+        ResponseEntity<String> thieuDonVi = nhap(
+                "/nhom-may/nhap/xem-truoc",
+                "ma_cong_trinh,ten_cong_trinh,ma_don_vi,so_may,q_mot_may_m3h\n,Trạm lạ hoắc,,4,4000\n");
+        assertThat(thieuDonVi.getBody())
+                .as("⛔ biết Xí nghiệp nào phụ trách thì ⛔ sinh được mã, và ⛔ đoán bừa")
+                .contains("ma_don_vi");
+
+        ResponseEntity<String> donViLa = nhap(
+                "/nhom-may/nhap/xem-truoc",
+                "ma_cong_trinh,ten_cong_trinh,ma_don_vi,so_may,q_mot_may_m3h\n,Trạm lạ hoắc,XN-KHONG-CO,4,4000\n");
+        assertThat(donViLa.getBody()).contains("Không có đơn vị mã 'XN-KHONG-CO'");
+    }
+
+    @Test
+    @DisplayName("⛔ Tệp thiếu CẢ hai cột định danh ⇒ MỘT câu lỗi ở tiêu đề, ⛔ phải mỗi dòng một câu")
+    void thieuCotDinhDanhBaoMotLan() {
+        ResponseEntity<String> xem = nhap("/nhom-may/nhap/xem-truoc", "so_may,q_mot_may_m3h\n4,4000\n1,1950\n2,980\n");
+        assertThat(xem.getBody())
+                .contains("ít nhất một cột định danh trạm bơm")
+                .as("ba dòng dữ liệu nhưng chỉ MỘT câu lỗi — một màn hình đầy lỗi ⛔ nói được "
+                        + "điều thật sự sai là cái TIÊU ĐỀ")
+                .doesNotContain("Dòng đầu tiên phải xác định được công trình");
     }
 
     @Test

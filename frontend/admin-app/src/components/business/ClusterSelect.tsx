@@ -28,12 +28,23 @@ export function ClusterSelect({
   placeholder = 'Chọn cụm công trình',
   disabled,
   allowClear = true,
+  id,
 }: {
   value?: string;
   onChange?: (value: string | undefined) => void;
   placeholder?: string;
   disabled?: boolean;
   allowClear?: boolean;
+  /**
+   * ⚠⚠ T75.1 — `Form.Item` TRUYỀN `id` xuống con của nó để nối `<label for>` với ô nhập, và bản
+   * trước của component này **nuốt mất nó**: nó bóc đúng 5 prop rồi bỏ phần còn lại. Hậu quả là
+   * mọi chỗ dùng `ClusterSelect` trong một `Form.Item` đều có một cái nhãn ⛔ trỏ vào đâu —
+   * trình đọc màn hình đọc ô ấy thành một combobox ⛔ tên, cùng họ khuyết tật `nutIconCoTen`.
+   *
+   * ⭐ Lộ ra vì một bài kiểm cần chọn ô ấy bằng nhãn và ⛔ có cách nào gọi tên nó — lần thứ ba
+   * trong dự án nợ a11y hiện ra cái giá THẬT của nó: nó chặn việc viết bài kiểm.
+   */
+  id?: string;
 }) {
   const { data, isLoading } = useQuery({
     queryKey: ['ops', 'construction-clusters'],
@@ -44,6 +55,7 @@ export function ClusterSelect({
 
   return (
     <Select
+      id={id}
       value={value}
       onChange={onChange}
       placeholder={placeholder}

@@ -160,6 +160,16 @@ describe('bộ lọc đọc từ đường dẫn (nợ #71)', () => {
     expect(locTuDuongDan(new URLSearchParams(''))).toEqual({});
   });
 
+  // ⭐ T75.1 — `clusterId` là tham số backend khai từ WS-17 mà KHÔNG nơi nào gọi. Tên ở đây phải
+  //    TRÙNG KHÍT tên tham số HTTP, vì `ConstructionsPage` rải thẳng bộ lọc vào query string:
+  //    lệch một chữ là bộ lọc im lặng không làm gì — đúng hình dạng nợ #71 ngay trên.
+  it('đọc `clusterId` — cùng từ vựng với GET /ops/constructions', () => {
+    expect(locTuDuongDan(new URLSearchParams('clusterId=cum-lien-mac'))).toEqual({
+      clusterId: 'cum-lien-mac',
+    });
+    expect(locTuDuongDan(new URLSearchParams('clusterId='))).toEqual({});
+  });
+
   it('withoutLocation chỉ bật khi đúng chữ "true"', () => {
     expect(locTuDuongDan(new URLSearchParams('withoutLocation=true')).withoutLocation).toBe(true);
     expect(
