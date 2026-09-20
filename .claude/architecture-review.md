@@ -7680,3 +7680,135 @@ là chuỗi do chính ta dựng, chỉ gồm `: { } - ; #` và chữ số ⇒ `<
 hệt. **Chọn cách ⛔ có cửa thoát** thì lượt rà sau ⛔ phải dừng lại đọc một dòng miễn trừ để biết nó
 an toàn ⛔. ⚠ Lượt `ci-local` ấy chết ở bước ESLint sau **32 dòng log** — backend chưa chạy dòng
 nào, đúng §10.74: *số job đỏ ⛔ phải số khuyết tật*.
+
+---
+
+### §12.7 Nền đầu trang / chân trang: một biến, nhiều giá trị dự phòng (T77.1, 20/9/2026)
+
+QuanTran, ngay sau §12.6: *"Cho tôi thêm config màu background cho header và footer. Vẫn set
+default màu như vậy."*
+
+Câu cuối là ràng buộc cứng của cả mục này, và nó khó hơn vế đầu: **lúc chưa ai đặt gì, trang phải
+giống hôm nay tới từng điểm ảnh.**
+
+#### Vì sao ⛔ phải "thêm hai dòng nữa vào cơ chế §12.6"
+
+§12.6 giải một bài dễ hơn nhiều mà lúc ấy ⛔ ai nhận ra: `brand-primary` là **một màu phẳng**. Nó
+xuất hiện ở `bg-brand-primary`, `text-brand-link`, `border-brand-primary/30` — mọi nơi đều là một
+giá trị, một chỗ.
+
+Khung cổng thì ⛔. Đo trên mã đang chạy:
+
+```
+đầu trang   from-navy800  via-navy500  to-navy800
+chân trang  from-navy700  via-navy600  to-navy900
+            + dải đường dây nóng  bg-navy500/80
+            + dải bản quyền       bg-navy700
+```
+
+**Tám chặng, năm sắc độ.** Một ô nhập *"màu nền chân trang"* phải trả lời được: năm bậc kia thành
+gì?
+
+#### Ba phương án, và vì sao hai phương án đầu sai
+
+**(a) Năm núm, mỗi bậc một ô.** Trung thực với lược đồ, và ⛔ dùng được: nó giao cho người quản trị
+một bài **phối màu** — năm ô phải hợp nhau thì khung cổng mới ⛔ loang lổ, và ⛔ ô nào nói cho họ
+biết bốn ô kia đang ở đâu. Cùng họ với lý do §12.6 từ chối núm cho trắng/đen: *một ô nhập ⛔ được
+phép dựng ra một trạng thái mà người nhập ⛔ đánh giá nổi.*
+
+**(b) Một núm, suy bốn bậc kia bằng phép tính màu lúc chạy.** Đây là phương án §12.6 **đã từ chối
+rồi** (*"suy sắc dẫn xuất từ một màu người dùng vừa gõ là làm phép tính màu lúc chạy"*), và lý do
+⛔ đổi: một màu vừa gõ ⛔ có gì bảo đảm bản làm sáng/tối của nó còn đọc được chữ trắng.
+
+**(c) Một biến cho mỗi vùng, và mỗi chặng giữ giá trị dự phòng RIÊNG của nó.** ⭐ Đây là thứ đã
+chọn, và nó ⛔ phải một thoả hiệp — nó chính xác hơn hai cái trên:
+
+```ts
+header:     var(--sn-brand-header, portalChrome.header)    // = navy800
+headerMid:  var(--sn-brand-header, portalChrome.navy500)
+footer:     var(--sn-brand-footer, portalChrome.footer)    // = navy700
+footerMid:  var(--sn-brand-footer, portalChrome.navy600)
+footerDeep: var(--sn-brand-footer, portalChrome.navy900)
+footerBand: var(--sn-brand-footer, portalChrome.navy500)
+```
+
+Sáu khai báo, **hai** biến. Hệ quả:
+
+| Khoá `settings` | Điều xảy ra | Vì sao |
+|---|---|---|
+| để trống | dải chuyển sắc **y hệt hôm nay** | ⛔ biến nào được tiêm ⇒ mỗi chặng rơi về token của CHÍNH nó |
+| có mã màu | vùng ấy thành **màu phẳng** đúng màu đó | mọi chặng giải ra cùng một giá trị ⇒ gradient xẹp |
+
+Tức ô nhập hứa đúng thứ nó làm được — *"nền của vùng này"* — và ⛔ có phép tính màu nào lúc chạy,
+⛔ có sắc độ dẫn xuất nào phải đoán.
+
+#### ⭐ Bất biến này dễ bị "dọn dẹp" làm hỏng TRONG IM LẶNG
+
+Sáu dòng trên trông thừa. Một lượt rà sau rất dễ gom ba chặng chân trang về cùng một dự phòng cho
+gọn — và khi ấy **chân trang mặc định thôi có dải chuyển sắc**, tức lượt giao hàng ⛔ còn giống thứ
+Công ty nghiệm thu 27/08, mà ⛔ ai đặt màu nào cả. ⛔ bài kiểm nào khác đỏ: mọi khoá vẫn có người
+đọc, mọi biến vẫn đúng tên.
+
+⇒ Bộ canh ⛔ hỏi *"có bọc `var()` ⛔"* mà **ĐO** quan hệ: nhóm các lời gọi theo tên biến, rồi đòi
+mỗi biến phủ nhiều chặng **và các chặng ấy giữ dự phòng KHÁC NHAU**. Gom về một ⇒ đỏ với câu *"các
+chặng phải giữ dự phòng KHÁC NHAU, nếu không dải chuyển sắc mặc định xẹp mất"*.
+
+#### ⛔⛔ Ở đây giá trị rác hỏng NẶNG hơn §12.6 — và phép đo mới nói ra điều đó
+
+§12.6 đo `background-color`. Nền khung cổng đi qua chặng gradient, nên phải đo lại. Chạy chính
+`@tailwindcss/postcss` 4.3.3 của kho trên `from-chrome-header via-chrome-headerMid to-chrome-header`:
+
+```css
+.from-chrome-header   { --tw-gradient-from: var(--color-chrome-header); … }
+.via-chrome-headerMid { --tw-gradient-via:  var(--color-chrome-headerMid); … }
+@property --tw-gradient-from { syntax: "<color>"; inherits: false; initial-value: #0000; }
+```
+
+Chạy được — nhưng dòng `@property` là thứ đáng ghi lại. `--tw-gradient-from` là custom property
+**đã đăng ký**, nên một giá trị ⛔ phải màu **⛔ rơi về `var()` fallback**: nó rơi về
+`initial-value`, tức **trong suốt**. Ở hai khoá này, một chuỗi rác lọt qua ⛔ cho ra *"màu lạ"* mà
+cho ra ***"⛔ còn đầu trang"***.
+
+⇒ Hai tầng lọc của §12.6 (`value_type = COLOR` lúc ghi · `laMaMauHopLe` lúc đọc) ⛔ phải lớp sơn ở
+đây; chúng là thứ duy nhất đứng giữa một lượt gõ nhầm và một cổng thông tin mất đầu trang.
+
+#### ⭐⭐ Vế "vẫn set default màu như vậy" ĐÃ ĐO, ⛔ phải suy
+
+Một bài jsdom ⛔ chứng minh được câu ấy — nó ⛔ có hệ thống phối cảnh. ⇒ Nạp **chính tệp CSS mà lượt
+build `[9/10]` vừa sinh ra** (`.next/static/chunks/*.css`, nơi Tailwind đã nội suy thẳng
+`var(--sn-brand-header,#061b37)`) vào Chromium thật và đọc `getComputedStyle().backgroundImage`:
+
+| | đầu trang | chân trang | dải bản quyền |
+|---|---|---|---|
+| **A.** chưa ai đặt gì | `rgb(6,27,55) → rgb(11,45,91) → rgb(6,27,55)` | `rgb(8,30,58) → rgb(12,41,78) → rgb(5,23,44)` | `rgb(8,30,58)` |
+| **B.** đặt `#8b0000`/`#004d40` | ba chặng **cùng** `rgb(139,0,0)` | ba chặng **cùng** `rgb(0,77,64)` | `rgb(0,77,64)` |
+| **C.** xoá đi, về rỗng | **trùng khít A** | **trùng khít A** | **trùng khít A** |
+
+Hàng A đọc ra đúng `navy800 → navy500 → navy800` và `navy700 → navy600 → navy900` — tức **đúng
+từng con số đang chạy hôm nay**. Hàng C là vế quan trọng thứ hai: đặt rồi xoá ⛔ để lại dấu vết.
+
+⭐ Và lượt đo ấy trả lời luôn câu *"rác thì sao"* bằng một con số thay vì một suy luận:
+
+```
+:root{--sn-brand-header:khong-phai-mau}
+  ⇒ linear-gradient(… rgba(0,0,0,0) 0%, rgba(0,0,0,0) 50%, rgba(0,0,0,0) 100%)
+```
+
+**Trong suốt hoàn toàn**, đúng như `initial-value: #0000` của `@property` báo trước — ⛔ phải "rơi
+về token". Đây là lý do bộ lọc ⛔ được nới để chiều một người dùng gõ `rgb()`.
+
+#### Phạm vi CỐ Ý hẹp
+
+`AffiliatedUnitsLinks` (thẻ *Đơn vị trực thuộc* ở trang chủ) và hai mũi tên của `AnhCarousel` vẫn
+dùng `navy800`/`navy500` **trần**. Chúng là **nội dung trang**, ⛔ phải khung cổng — nếu chúng cũng
+đổi theo thì đặt màu chân trang sẽ lặng lẽ nhuộm luôn hai mũi tên trên trang chủ, một hệ quả mà ô
+nhập ⛔ hề nói tới. Năm bậc navy vì thế vẫn sống nguyên trong `portalChrome`.
+
+#### ⚠ Và một lượt kiểm chứng ngược của chính tôi in XANH GIẢ trước khi kịp phá gì
+
+Lượt phá đầu trỏ `cp` vào `../tailwind.config.ts` — đường dẫn sai (tệp ở `public-web/`). `cp`, `sed`
+và `grep` đều kêu *"No such file"*, rồi vitest chạy trên cây **⛔ hề bị đụng** và in `33 passed`.
+Nếu bước xác nhận chỉ đọc màu của kết quả thì lượt ấy đã được ghi là *"bộ canh ⛔ bắt được"* — hoặc
+tệ hơn, *"⛔ cần bộ canh"*. Thứ cứu được là **con số đếm ĐƯỢC in ra ở mỗi bước**
+(`bản PHÁ trên đĩa: 0 dòng (chờ 3)`). Luật 10, lần thứ … — và lần này nó chặn một kết luận sai chứ
+⛔ phải một bản vá sai.
