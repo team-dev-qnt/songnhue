@@ -1780,6 +1780,8 @@ export interface BcnNhomView {
 
 export interface BcnTramView {
   constructionPublicId: string;
+  /** Mã công trình — bày ra để phân biệt hai trạm TRÙNG TÊN; ⛔ đi vào bản Word. */
+  ma: string;
   ten: string;
   nguonTuoiHuongTieu: string | null;
   nhom: BcnNhomView[];
@@ -1810,6 +1812,9 @@ export interface BcnYenNghiaView {
   cau: string | null;
   soMay: number | null;
   luuLuongM3s: number | null;
+  /** Trạm đang gắn vào vị trí ghi chú — `null` khi chưa gắn. Tên đi vào bản Word, mã thì ⛔. */
+  tenTram: string | null;
+  maTram: string | null;
 }
 
 /** `lyDo` khác null ⇔ ô trống — nói VÌ SAO (⛔ có điểm đo / ⛔ có số đo 24h). */
@@ -1863,6 +1868,8 @@ export interface BaoCaoNhanhChiTiet {
   coMay: string[];
   bang2: BcnKhoiView[];
   bang1SongNhue: BcnBang1View | null;
+  /** Dòng “Tổng cộng” — cộng theo cột, ⛔ nhập tay; `null` khi chưa dòng nào có số. */
+  bang1TongCong: BcnBang1View | null;
   muc1: BcnMuc1View;
   ghiChuYenNghia: BcnYenNghiaView;
   bang3: BcnDongBang3View[];

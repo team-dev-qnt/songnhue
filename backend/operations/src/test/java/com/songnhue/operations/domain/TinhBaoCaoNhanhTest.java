@@ -26,8 +26,16 @@ class TinhBaoCaoNhanhTest {
 
     private static long idNhom = 1;
 
-    /** Công trình Công ty gắn vào vị trí "Yên Nghĩa" — khoá nội bộ, ⛔ mã (danh mục có hai "Yên Nghĩa"). */
-    private static final long YEN_NGHIA = 5;
+    /**
+     * Công trình Công ty gắn vào vị trí "Yên Nghĩa" — tra theo khoá nội bộ, ⛔ mã hay tên (danh mục
+     * có hai "Yên Nghĩa"). Mang nguyên bản ghi để TÊN đi vào câu ghi chú ⛔ thể lệch khỏi id (T78.1).
+     */
+    private static final CongTrinhGan YEN_NGHIA =
+            new CongTrinhGan(5L, UUID.randomUUID(), "TB-YNGHIA", "Trạm bơm Yên Nghĩa", "TRAM_BOM");
+
+    private static CongTrinhGan tram(long id, String ma, String ten) {
+        return new CongTrinhGan(id, UUID.randomUUID(), ma, ten, "TRAM_BOM");
+    }
 
     private static DongVanHanh dong(long ct, String ma, int thietKe, int q, Integer chay) {
         return new DongVanHanh(
@@ -53,7 +61,7 @@ class TinhBaoCaoNhanhTest {
                 dong(3, "TB-DANG", 4, 4000, 3),
                 dong(3, "TB-DANG", 1, 1950, 1),
                 dong(4, "TB-SQUAN", 5, 2500, null),
-                dong(YEN_NGHIA, "TB-YNGHIA", 10, 43200, yenNghia));
+                dong(YEN_NGHIA.id(), "TB-YNGHIA", 10, 43200, yenNghia));
     }
 
     @Test
@@ -62,6 +70,44 @@ class TinhBaoCaoNhanhTest {
         TinhBaoCaoNhanh.DongBang1 b1 = TinhBaoCaoNhanh.bang1(mau(5), BANG);
         assertThat(Arrays.stream(b1.theoCo()).sum()).isEqualTo(b1.tongMay()).isEqualTo(12);
         assertThat(b1.theoCo()).containsExactly(5, 0, 0, 0, 3, 2, 2, 0, 0);
+    }
+
+    @Test
+    @DisplayName("⭐⭐ Bất biến 6 — dòng 'Tổng cộng' là PHÉP CỘNG thật, ⛔ bản sao dòng Sông Nhuệ")
+    void tongCongBang1CongTheoCot() {
+        TinhBaoCaoNhanh.DongBang1 songNhue = TinhBaoCaoNhanh.bang1(mau(5), BANG);
+
+        // ⭐⭐ Vế QUYẾT ĐỊNH của T78.2. Hôm nay hệ chỉ có Sông Nhuệ (OI-BC1) nên tổng của một danh
+        //    sách một phần tử BẰNG phần tử ấy — và vì thế một bài chỉ thử một công ty sẽ xanh y hệt
+        //    trên bản `tongCong = songNhue`. Tức nó ⛔ phân biệt được hai trạng thái (luật 9).
+        //    Vế phân biệt: HAI công ty.
+        TinhBaoCaoNhanh.DongBang1 congTyHai = new TinhBaoCaoNhanh.DongBang1(
+                3, 7, new int[] {1, 0, 0, 0, 2, 0, 4, 0, 0}, new java.math.BigDecimal("12345"));
+        TinhBaoCaoNhanh.DongBang1 tong = TinhBaoCaoNhanh.tongCongBang1(java.util.List.of(songNhue, congTyHai));
+
+        assertThat(tong.tongTram()).isEqualTo(songNhue.tongTram() + 3);
+        assertThat(tong.tongMay()).isEqualTo(songNhue.tongMay() + 7);
+        assertThat(tong.tongLuuLuongM3h()).isEqualByComparingTo("248395");
+        for (int i = 0; i < tong.theoCo().length; i++) {
+            assertThat(tong.theoCo()[i])
+                    .as("cột cỡ máy %d", i)
+                    .isEqualTo(songNhue.theoCo()[i] + congTyHai.theoCo()[i]);
+        }
+        assertThat(tong.theoCo())
+                .as("⛔ phải mảng của một công ty nào — bản sao sẽ đỏ ở đây")
+                .isNotEqualTo(songNhue.theoCo());
+        // Bất biến 1 vẫn đúng trên dòng tổng: SUM(9 cột) = tổng số máy.
+        assertThat(java.util.Arrays.stream(tong.theoCo()).sum()).isEqualTo(tong.tongMay());
+
+        // Một công ty ⛔ có dữ liệu là VẮNG MẶT, ⛔ phải 0 — bỏ qua, ⛔ kéo tổng xuống.
+        assertThat(TinhBaoCaoNhanh.tongCongBang1(java.util.Arrays.asList(songNhue, null))
+                        .tongMay())
+                .isEqualTo(songNhue.tongMay());
+
+        // ⛔ dòng nào có số ⇒ ô "Tổng cộng" TRỐNG, ⛔ in "0 trạm · 0 máy" (quy tắc 16).
+        assertThat(TinhBaoCaoNhanh.tongCongBang1(java.util.List.of())).isNull();
+        assertThat(TinhBaoCaoNhanh.tongCongBang1(java.util.Collections.singletonList(null)))
+                .isNull();
     }
 
     @Test
@@ -110,7 +156,26 @@ class TinhBaoCaoNhanhTest {
         assertThat(chuaGan.cau()).isNull();
 
         // Gắn một công trình KHÁC ⇒ ghi chú đọc đúng công trình ấy, ⛔ theo mã "TB-YNGHIA".
-        assertThat(TinhBaoCaoNhanh.yenNghia(mau(5), 1L).soMay()).isEqualTo(1);
+        TinhBaoCaoNhanh.GhiChuYenNghia khac = TinhBaoCaoNhanh.yenNghia(mau(5), tram(1L, "TB-DMY", "Trạm bơm Đại Mỗ"));
+        assertThat(khac.soMay()).isEqualTo(1);
+        // ⛔⛔ Và CÂU phải đổi tên theo (T78.1). Trước bản vá đây là một hằng chuỗi: số đi theo ô
+        //    chọn còn tên thì ⛔, nên văn bản gửi UBND khai một trạm ⛔ ai bật máy. Một câu SAI nguy
+        //    hiểm hơn một ô trống — ⛔ gì trên màn hình báo rằng nó sai.
+        assertThat(khac.cau())
+                .isEqualTo("Trạm bơm Đại Mỗ vận hành 1 máy bơm với tổng lưu lượng bơm 0,31 m³/s.")
+                .as("⛔ ghép thêm 'Trạm bơm ' — tên danh mục ĐÃ mang tiền tố ấy")
+                .doesNotContain("Trạm bơm Trạm bơm");
+        assertThat(khac.tenTram()).isEqualTo("Trạm bơm Đại Mỗ");
+        assertThat(khac.maTram())
+                .as("mã để màn hình phân biệt hai trạm TRÙNG TÊN; ⛔ vào bản Word")
+                .isEqualTo("TB-DMY");
+
+        // ⭐ Hai trạm TRÙNG TÊN khác mã ⇒ câu in ra GIỐNG HỆT nhau ⇒ chỉ `maTram` phân biệt được.
+        TinhBaoCaoNhanh.GhiChuYenNghia sinhDoi =
+                TinhBaoCaoNhanh.yenNghia(mau(5), tram(9L, "TB-YNGHIA-2", "Trạm bơm Yên Nghĩa"));
+        assertThat(sinhDoi.trangThai()).isEqualTo(TinhBaoCaoNhanh.TrangThaiYenNghia.CHUA_CO_TRONG_DANH_MUC);
+        assertThat(sinhDoi.tenTram()).isEqualTo(YEN_NGHIA.ten());
+        assertThat(sinhDoi.maTram()).isNotEqualTo(YEN_NGHIA.ma());
     }
 
     @Test

@@ -7812,3 +7812,141 @@ Nếu bước xác nhận chỉ đọc màu của kết quả thì lượt ấy 
 tệ hơn, *"⛔ cần bộ canh"*. Thứ cứu được là **con số đếm ĐƯỢC in ra ở mỗi bước**
 (`bản PHÁ trên đĩa: 0 dòng (chờ 3)`). Luật 10, lần thứ … — và lần này nó chặn một kết luận sai chứ
 ⛔ phải một bản vá sai.
+
+---
+
+### §12.8 Một ô chọn ⛔ điều khiển thứ nó hứa: câu ghi chú ghi cứng một cái tên (T78.1, 20/9/2026)
+
+QuanTran 20/09: *"spec dòng ghi chú — sẽ có trường hợp trạm bơm cùng tên nhưng khác mã, có thể có
+tới 2 trạm bơm cùng tên là Yên Nghĩa. Do đó ở phần ghi chú sẽ hơi confuse vì ⛔ biết đang lấy trạm
+bơm theo mã nào. Tôi muốn sửa thành dynamic, cho phép select từ dropdown các trạm bơm kèm mã, có ô
+search theo tên hoặc mã."*
+
+#### Đo trước khi sửa — và phép đo nói rằng NỬA yêu cầu đã có từ 18/09
+
+`V202609181088` đã đưa trạm của dòng ghi chú ra khỏi mã nguồn: bảng `bao_cao_nhanh_vi_tri` hàng
+`YEN_NGHIA`, màn hình *Cấu hình Báo cáo nhanh*, ô chọn nhãn `"<tên> (<mã>)"` có tìm kiếm, và
+`OPS-2032` chặn gắn nhầm cống tiêu vào một vị trí đòi trạm bơm.
+
+⇒ *Chọn được trạm* ⛔ phải việc cần làm. Việc cần làm là thứ nằm ở **đầu ra**.
+
+#### Khuyết tật thật: ô chọn điều khiển CON SỐ mà ⛔ điều khiển CÁI TÊN
+
+```java
+"Trạm bơm Yên Nghĩa vận hành %d máy bơm với tổng lưu lượng bơm %s m³/s.".formatted(x, y)
+```
+
+Một **hằng chuỗi**. Gắn vị trí ghi chú sang *Trạm bơm Hồng Vân*: `x` và `y` đi theo Hồng Vân, còn
+câu in vào văn bản gửi UBND vẫn khai **Yên Nghĩa**.
+
+⛔⛔ Đây nặng hơn hẳn hình dạng *"ô chọn ⛔ đổi gì"* mà dự án đã gặp nhiều lần (§10.62, quy tắc 27).
+Ở những lần ấy triệu chứng là **⛔ có gì xảy ra**. Ở đây có thứ xảy ra, nó **sai**, và nó sai theo
+kiểu tự tin: một văn bản hành chính khẳng định một trạm ⛔ ai bật máy đã chạy 3 máy bơm. **Một câu
+sai nguy hiểm hơn một ô trống** — quy tắc 16 nói ô trống kèm lý do là trạng thái đúng, và lý do nó
+đúng chính là vì ô trống **tự khai** rằng nó chưa có gì.
+
+#### Vì sao trùng tên ⛔ phải ca hiếm
+
+`constructions` có `UNIQUE (code)`, **⛔ có** ràng buộc nào trên `name` — lược đồ **cho phép** trùng
+tên, và đó là quyết định đúng (Công ty đặt tên theo địa danh). Danh mục hiện hành đã có hai
+"Yên Nghĩa": trạm bơm `TB-YNGHIA` và cống tiêu tự chảy `CTTC-YNGHIA`. Ca của QuanTran — **hai TRẠM
+BƠM** trùng tên — chỉ là một bước nữa trên cùng con đường.
+
+⇒ Khi hai bản ghi trùng tên là hợp lệ, **cái tên thôi ⛔ còn là một câu trả lời**. Mọi chỗ người
+dùng phải *chọn* hay *đối chiếu* một công trình đều phải mang theo mã.
+
+#### Ba chỗ sửa, và ranh giới giữa chúng
+
+| Chỗ | Mang gì | Vì sao |
+|---|---|---|
+| **Bản Word** | **TÊN**, lấy từ trạm đã chọn | Câu chữ của mẫu Công ty là bất khả xâm phạm (G10). Chèn mã vào một văn bản gửi UBND là sửa bố cục mẫu |
+| **Màn hình ghi chú** | tên **+ mã** + liên kết sang Cấu hình | Người lập báo cáo phải thấy câu kia đang nói về hồ sơ nào TRƯỚC khi bấm chốt |
+| **Bảng 2 nhập liệu** | mã dưới tên, và ô tìm soi cả mã | Hai dòng trùng tên trong bảng nhập ⇒ người gõ ⛔ biết mình gõ cho dòng nào |
+
+#### ⭐ Truyền BẢN GHI, ⛔ truyền cặp (id, tên)
+
+`yenNghia(dong, Long tramId)` đổi thành `yenNghia(dong, CongTrinhGan tram)`. Cách rẻ hơn — thêm một
+tham số `String tenTram` — dựng ngay một luật 14 mới: hai tham số thì có ngày chúng lệch nhau, và
+lệch ở đây nghĩa là **in tên trạm A kèm số của trạm B**. Một bản ghi thì trạng thái ấy ⛔ biểu diễn
+được. Cùng lý lẽ `MocSoLieu` ở T47.2: biến một lớp lỗi thành thứ ⛔ viết ra được.
+
+⚠ Ảnh chụp lúc chốt ghim **trạm nào** (`construction_id`), ⛔ ghim *tên gọi lúc ấy*. Đổi tên một
+công trình là sửa cách viết cho cùng một trạm, ⛔ phải thay nó bằng trạm khác — và đây đã là lựa
+chọn của Bảng 2 từ WS-66 (tên trạm ở đó cũng đọc sống). Khai ra để lượt rà sau ⛔ đọc thành thiếu sót.
+
+#### ⚠⚠ Lượt kiểm chứng ngược ĐẦU: bản phá ⛔ được nạp, mã thoát vẫn 1
+
+Bản phá thứ nhất thay câu theo dạng **nhiều dòng** mà Spotless đã gộp lại thành một dòng ⇒ phép thay
+⛔ khớp ⇒ `grep -c` = **0**. Nhưng lượt chạy vẫn thoát **1** — vì nửa kia của bản phá có khớp, và
+Spotless đỏ **trước khi một bài kiểm nào chạy**: `surefire-reports` có **0 tệp**.
+
+Đọc mã thoát ấy thành *"bộ canh bắt được"* là ghi vào sổ một kết luận ⛔ có gì đỡ. Đúng hình dạng
+T49.3 (*một bản hỏng chưa được nạp in ra "⛔ có báo cáo nào", ⛔ phải một dòng đỏ*). ⇒ Lượt sau phá
+đúng văn bản hiện hành, chạy với `-Dspotless.check.skip=true`, **và đếm số tệp báo cáo** để biết bài
+kiểm có thật sự chạy ⛔:
+
+```
+bản PHÁ trên đĩa: 1 + 1 (chờ 1 + 1)
+báo cáo app: 1
+[ERROR] BaoCaoNhanhHttpTest.ghiChuDoiTenTheoTramDaGan:428 [câu mang tên của trạm ĐÃ GẮN]
+[ERROR] TinhBaoCaoNhanhTest.yenNghiaBaTrangThai:127
+```
+
+⇒ Hai tầng bắt cùng một khuyết tật: một bài **đơn vị** (câu chữ) và một bài **qua HTTP** (cả đường
+cấu hình → tính → API). Khôi phục rồi đo lại: hằng chuỗi còn **0** dòng, bộ kiểm xanh.
+
+---
+
+### §12.9 Dòng "Tổng cộng" của Bảng 1: đảo một lựa chọn "để trống" (T78.2, 20/9/2026)
+
+QuanTran 20/09: *"dòng tổng cộng ở Phụ lục 1 bảng tổng hợp cần có số liệu tổng hợp, hiện đang để
+trống"* — kèm đặc tả: *"Dòng 'Tổng cộng' trên cùng = tổng theo cột của cả 4 công ty (formula, ⛔ nhập
+tay)"*.
+
+#### Lựa chọn cũ, và vì sao nó sai
+
+`TinhBaoCaoNhanh` khai thành văn từ WS-66:
+
+> *Hệ chỉ có số của Sông Nhuệ (OI-BC1). Điền "Tổng cộng" bằng số Sông Nhuệ là khẳng định tổng toàn
+> Thành phố = một công ty. ⇒ Chỉ dòng Sông Nhuệ có số.*
+
+Lập luận **đúng về rủi ro và sai về kết luận**. Hai lý do đo được:
+
+1. **"Tổng cộng" của Bảng 1 ⛔ phải một ô chờ dữ liệu — nó là tổng theo cột của CHÍNH bảng ấy**, tức
+   một giá trị hệ **tính được** từ đúng những dòng đang có. Để trống một ô tính được là đúng thứ quy
+   tắc 15 gọi là nửa cặp đọc–ghi: bảng có đủ số, mà ô tổng thì rỗng và ⛔ ai biết vì sao.
+2. **Rủi ro "đọc thành tổng toàn Thành phố" tự nó lộ ra trên bản in.** Ba dòng Hà Nội · Sông Đáy ·
+   Sông Tích để **TRỐNG**, nên người đọc thấy ngay tổng bằng dòng duy nhất có số. Một dòng trống tự
+   khai rằng nó chưa có gì — đó chính là lý do quy tắc 16 bắt để trống thay vì ghi 0, và ở đây nó
+   **giải luôn** vấn đề mà lựa chọn cũ sợ.
+
+⇒ Đảo. Nhưng chỉ đảo cho **Bảng 1**: dòng "Tổng cộng" của **Mục 1** và **Mục 3** vẫn để trống, vì
+chúng là ô của *thân báo cáo* toàn Thành phố, ⛔ phải tổng của một bảng.
+
+#### ⭐ Phép cộng phải là phép cộng THẬT, dù hôm nay nó là phép đồng nhất
+
+Hệ có đúng một dòng công ty, nên `tongCong` ⛔ khác `bang1SongNhue`. Cách rẻ nhất — gán thẳng — **chạy
+đúng hôm nay và sai vĩnh viễn kể từ ngày có công ty thứ hai**, mà ngày ấy ⛔ có gì đỏ: cả hai dòng
+vẫn ra số, chỉ là tổng thôi ⛔ phải tổng.
+
+⇒ `tongCongBang1(List<DongBang1>)` cộng theo cột một **danh sách**; nơi gọi truyền một danh sách một
+phần tử. Thêm công ty = thêm một phần tử, ⛔ phải sửa công thức.
+
+⚠ Và một bài kiểm chỉ thử **một** công ty ⛔ phân biệt được hai bản ấy (luật 9) — nó xanh y hệt trên
+lối tắt. Vế phân biệt là **hai** dòng công ty, cộng một khẳng định `theoCo ⛔ bằng mảng của bất kỳ
+công ty nào. Kiểm chứng ngược: cắm `return coSo.get(0)` ⇒ đỏ ở `expected: 7`.
+
+#### ⛔⛔ Một dấu ✅ đúng bốn phần năm đọc y hệt một dấu ✅ đúng trọn
+
+Bảng đối chiếu DoD của spec có hàng:
+
+> `| 1 | Ô "Tổng cộng"/"Cộng" tự tính, ⛔ nhập tay | ✅ | TinhBaoCaoNhanhTest bất biến 5 |`
+
+Chính câu của hàng ấy liệt kê **năm** chỗ — *Bảng 1, Bảng 2 phần đầu, thân báo cáo mục 1 & 3, Bảng
+5* — còn bằng chứng nó trỏ tới (*bất biến 5*) canh **Bảng 5**. Bốn chỗ kia ⛔ ai đối chiếu, và một
+trong số đó đang **rỗng**.
+
+Đây là hình dạng *"đã tick ⛔ phải bằng chứng"* ở dạng tinh vi nhất: hàng ⛔ nói dối, nó chỉ **nói
+thiếu**, và cái thiếu nằm đúng chỗ ⛔ ai nhìn. Thứ phát hiện ra ⛔ phải một cổng kiểm mà là **người
+dùng mở bản Word ra đọc**. ⇒ Hàng ấy nay trỏ tới bất biến **6** riêng cho Bảng 1 và một khẳng định
+đọc **byte thật** tại `tbl4/tr2` của tệp xuất ra.

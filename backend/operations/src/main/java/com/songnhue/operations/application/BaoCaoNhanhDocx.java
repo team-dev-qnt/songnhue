@@ -31,8 +31,13 @@ import com.songnhue.operations.domain.TinhBaoCaoNhanh;
  *
  * <h2>Chỉ dòng Sông Nhuệ có số (OI-BC1)</h2>
  *
- * <p>Ba công ty kia và dòng "Tổng cộng" để TRỐNG. ⚠ Mẫu in sẵn số 0 ở các dòng ấy (Mục 1, Mục 3, Bảng 5)
- * — xoá đi, vì "0 ha ngập" của một công ty hệ ⛔ có số là một câu SAI gửi UBND.
+ * <p>Ba công ty kia để TRỐNG. ⚠ Mẫu in sẵn số 0 ở các dòng ấy (Mục 1, Mục 3, Bảng 5) — xoá đi, vì
+ * "0 ha ngập" của một công ty hệ ⛔ có số là một câu SAI gửi UBND.
+ *
+ * <p>⭐ **Ngoại lệ từ 20/09 (T78.2): dòng "Tổng cộng" của BẢNG 1 nay CÓ số** — nó là tổng theo cột,
+ * tức một giá trị hệ **tính được** từ đúng những dòng đang có, ⛔ phải một ô chờ dữ liệu ⛔ ai có.
+ * Dòng "Tổng cộng" của MỤC 1 và MỤC 3 thì vẫn để trống: chúng là ô của *thân báo cáo* toàn Thành
+ * phố, ⛔ phải tổng của một bảng.
  */
 public final class BaoCaoNhanhDocx {
 
@@ -162,19 +167,26 @@ public final class BaoCaoNhanhDocx {
         f.datO(BANG_MUC1, DONG_SONG_NHUE_MUC, 3, SoVanBan.soNguyen(m.tongMay()));
         f.datO(BANG_MUC1, DONG_SONG_NHUE_MUC, 4, SoVanBan.thapPhan(m.tongLuuLuongM3h()));
 
-        TinhBaoCaoNhanh.DongBang1 b1 = c.bang1SongNhue();
-        f.datO(BANG_1, DONG_SONG_NHUE_MUC, 2, b1 == null ? null : SoVanBan.soNguyen(b1.tongTram()));
-        f.datO(BANG_1, DONG_SONG_NHUE_MUC, 3, b1 == null ? null : SoVanBan.soNguyen(b1.tongMay()));
+        dongBang1(f, c, DONG_SONG_NHUE_MUC, c.bang1SongNhue());
+        // ⭐ Dòng "Tổng cộng" (T78.2) — trước bản này nó là ô TRỐNG duy nhất của Bảng 1 mà hệ tính
+        //   được. Số do BE cộng theo cột, ⛔ ai gõ tay (quy tắc 3).
+        //
+        //   ⚠ Hôm nay nó trùng khít dòng Sông Nhuệ, và điều đó ĐỌC ĐƯỢC ngay trên bản in: ba dòng
+        //   công ty kia để TRỐNG, nên người đọc thấy tổng đúng bằng dòng duy nhất có số. Một dòng
+        //   trống tự khai rằng nó chưa có gì — ⛔ cần thêm chú thích vào mẫu (G10).
+        dongBang1(f, c, DONG_TONG, c.bang1TongCong());
+    }
+
+    /** Một dòng của Bảng 1 — {@code d == null} ⇒ XOÁ trắng mọi ô, ⛔ in "0". */
+    private static void dongBang1(DocxFiller f, BaoCaoNhanhService.ChiTiet c, int dong, TinhBaoCaoNhanh.DongBang1 d) {
+        f.datO(BANG_1, dong, 2, d == null ? null : SoVanBan.soNguyen(d.tongTram()));
+        f.datO(BANG_1, dong, 3, d == null ? null : SoVanBan.soNguyen(d.tongMay()));
         for (int i = 0; i < c.bangCo().soCo(); i++) {
             // Mẫu để TRỐNG ô cỡ 0 máy (cột "12" của dòng Sông Nhuệ) — theo đúng cách viết ấy.
-            String v = b1 == null || b1.theoCo()[i] == 0 ? null : SoVanBan.soNguyen(b1.theoCo()[i]);
-            f.datO(BANG_1, DONG_SONG_NHUE_MUC, 4 + i, v);
+            String v = d == null || d.theoCo()[i] == 0 ? null : SoVanBan.soNguyen(d.theoCo()[i]);
+            f.datO(BANG_1, dong, 4 + i, v);
         }
-        f.datO(
-                BANG_1,
-                DONG_SONG_NHUE_MUC,
-                4 + c.bangCo().soCo(),
-                b1 == null ? null : SoVanBan.thapPhan(b1.tongLuuLuongM3h()));
+        f.datO(BANG_1, dong, 4 + c.bangCo().soCo(), d == null ? null : SoVanBan.thapPhan(d.tongLuuLuongM3h()));
     }
 
     // ==== Bảng 2 ============================================================

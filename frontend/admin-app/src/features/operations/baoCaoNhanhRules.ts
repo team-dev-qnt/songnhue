@@ -5,6 +5,7 @@ import {
   type BcnDongBang5View,
   type BcnKhoiView,
   type BcnTramView,
+  type BcnYenNghiaView,
 } from '@/shared/api-types';
 
 /**
@@ -62,7 +63,11 @@ export function locBang2(
       ...khoi,
       tram: khoi.tram.filter(
         (t) =>
-          (!chiHienHoatDong || tramDangHoatDong(t, nhap)) && (k === '' || boDau(t.ten).includes(k)),
+          (!chiHienHoatDong || tramDangHoatDong(t, nhap)) &&
+          // ⭐ Tìm theo TÊN **hoặc MÃ** (T78.1). Danh mục có những trạm trùng tên — hai "Yên Nghĩa"
+          //   — nên một ô tìm chỉ soi tên thì đúng lúc người nhập cần phân biệt nhất nó lại trả về
+          //   cả hai và ⛔ nói được cái nào là cái nào.
+          (k === '' || boDau(t.ten).includes(k) || boDau(t.ma).includes(k)),
       ),
     }))
     .filter((khoi) => khoi.tram.length > 0);
@@ -162,4 +167,29 @@ export function payloadLuongMua(
 
 function boDau(s: string): string {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
+}
+
+/**
+ * Câu thay cho dòng ghi chú khi backend ⛔ dựng được câu thật — ba trạng thái "CHƯA".
+ *
+ * <p>⛔ ghi cứng *"Trạm bơm Yên Nghĩa"* (T78.1). Vị trí ghi chú **chọn được** từ màn hình Cấu hình,
+ * và danh mục cho phép hai trạm bơm TRÙNG TÊN (chỉ `code` là duy nhất) — nên một câu cảnh báo ghi
+ * sẵn một cái tên sẽ nói về một trạm khác với trạm đang gắn, đúng vào lúc người đọc cần biết nhất.
+ *
+ * <p>Tách khỏi JSX để kiểm được bằng vitest trần: đây là **câu chữ người dùng đọc**, ⛔ phải bố cục.
+ */
+export function moTaChoGhiChu(yn: BcnYenNghiaView): string | null {
+  if (yn.cau !== null) {
+    return null;
+  }
+  const ten = yn.tenTram ?? 'trạm đã chọn';
+  const duoi = ' — bản Word giữ nguyên dấu “…” của mẫu.';
+  switch (yn.trangThai) {
+    case 'CHUA_GAN_TRAM':
+      return 'Chưa chọn trạm bơm cho dòng ghi chú' + duoi;
+    case 'CHUA_NHAP':
+      return `Chưa nhập số máy chạy của ${ten}` + duoi;
+    default:
+      return `Danh mục máy bơm chưa có nhóm máy nào của ${ten}` + duoi;
+  }
 }
