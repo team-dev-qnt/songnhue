@@ -7512,3 +7512,66 @@ nháp, cả ba do bộ kiểm bắt:
   và T48.8 (rò trạng thái giữa các bài) xảy ra CÙNG LÚC**, và nó dạy một điều cụ thể: *một bài kiểm
   lấy mốc từ CSDL dùng chung phải ĐẶT mốc ấy, ⛔ đọc nó* — kèm một vế tiền đề khẳng định mốc khác
   giá trị hỏng. Nếu lượt kiểm chứng ngược ⛔ chạy, kho đã có thêm một bộ canh chết mang tên rất đúng.
+
+### §12.5 "Chờ Công ty chốt" vs "chờ Công ty nhập" — hai nhãn giống nhau, hai hệ quả ngược nhau (T66.14, 20/9/2026)
+
+QuanTran chốt 20/09: *"danh sách Xí nghiệp là mục dynamic mà Công ty phải được nhập liệu, thay đổi
+trên UI. Dev ⛔ chốt được."* Câu ấy đóng `T66.14`, và cùng lúc nó **đặt tên cho một hình dạng đã lặp
+ba lần** — đáng ghi ở đây chứ ⛔ ở một dòng sổ.
+
+#### Vì sao T66.14 tồn tại, và vì sao nó tự tan
+
+Dòng nợ ấy hỏi *"7 hay 8 hay 6 Xí nghiệp"* rồi bày **hai lối ra**:
+
+- **(a)** bảy nhóm ấy LÀ Xí nghiệp chính thức ⇒ ⛔ đổi mã, chỉ nhập dữ liệu;
+- **(b)** chúng là **địa bàn in Bảng 2**, khác với đơn vị quản lý ⇒ thêm một thuộc tính nhóm RIÊNG
+  cho trạm: migration + danh mục CRUD + màn hình, và `Bảng 2` thôi đọc `org_unit_id`.
+
+Hai lối ra ấy **⛔ cùng cỡ**: (a) là 0 dòng mã, (b) là một lượt đổi lược đồ. Chính vì (b) tồn tại mà
+dòng nợ **đúng** khi nó tự khai là *"chặn"* — nó ⛔ chặn việc gõ tên, nó chặn việc biết mình đang
+dựng cái gì.
+
+Điều làm nó tan ⛔ phải một lượt chọn danh sách, mà là nhận ra **câu hỏi thuộc về ai**. Số lượng và
+tên Xí nghiệp là **nội dung của một bảng có CRUD**, và nội dung ấy đổi được bất cứ lúc nào mà ⛔ cần
+deploy (quy tắc 16). Hỏi dev *"chốt đi"* là hỏi sai người.
+
+#### Đo, ⛔ suy từ lời — bốn vế chứng minh (a) cần 0 dòng mã
+
+⛔ đủ khi QuanTran nói *"hệ dựng theo hướng dynamic"*; luật 7 nói một cơ chế chưa ai đi qua thì chưa
+biết nó đúng hay sai, và T42.23 đã trả giá đúng chỗ này — tệp mẫu có cột `ma_cum` trong khi **ba
+endpoint ghi cụm có 0 nơi gọi**, tức ⛔ có đường nào tạo một cụm. Nên phải đo:
+
+| Vế | Phép đo | Kết quả |
+|---|---|---|
+| Công ty tạo/sửa/xếp được ⛔ | `OrgUnitsPage` (`/quan-tri/don-vi`, `menu.tsx:433`) ↔ `OrgUnitController` | **7** lời gọi ↔ **8** endpoint, đủ cả `POST` · `PUT` · `PATCH /parent` · `PATCH /order` · `DELETE` |
+| Bảng 2 gom theo dữ liệu hay theo hằng | `TinhBaoCaoNhanh:194` · `:208` | gom `computeIfAbsent(orgUnitId)`, xếp theo `thuTuDonVi` = `org_units.sort_order` ⇒ **thứ tự in = thứ tự Công ty kéo–thả** |
+| Bộ nhập tra đơn vị kiểu gì | `TramBomImportService:383` | `orgUnits.findRefByCode(maDonVi)` — mã do Công ty tự đặt; thiếu ⇒ lỗi **từng dòng có tên**, ⛔ nuốt lặng |
+| Cổng công khai | `gioi-thieu/xi-nghiep/page.tsx` | `getSubsidiaries()`; rỗng ⇒ `EmptyBlock` trỏ đúng màn hình nhập |
+
+⭐ Và một phép quét **chống xanh-vì-lý-do-sai**: tìm 10 tên Xí nghiệp của cả ba danh sách trong mã
+sản phẩm của cả ba ứng dụng ⇒ **0 nơi ghi cứng**. Mọi kết quả là javadoc, dữ liệu gá của bài kiểm,
+hoặc `placeholder` gợi ý gõ. Nếu phép quét ấy trả về một hằng số thì (a) **⛔ đóng được** — và cái
+xanh của ba vế trên sẽ là một lời bảo đảm sai.
+
+#### Luật rút ra
+
+> Một dòng mang nhãn *"chờ Công ty"* phải trả lời được: **thứ đang chờ là DỮ LIỆU, hay là một quyết
+> định đổi LƯỢC ĐỒ?** ⛔ Chỉ vế sau mới chặn được mã. Vế trước ⛔ chặn gì cả — bảng để RỖNG là trạng
+> thái ĐÚNG (quy tắc 16 + cấm seed *"cho đẹp demo"*), và người dùng sẽ nhập nó vào một ngày ⛔ ai
+> cần biết trước.
+
+Ba lượt cùng hình dạng, và lượt nào cũng mất vài ngày mới nhận ra:
+
+| Ngày | Mục | Tưởng là | Hoá ra |
+|---|---|---|---|
+| 14/09 | **G8** toạ độ (T60.12) | chờ Công ty gửi bảng toạ độ | Công ty **nhập trên màn hình quản trị**; lớp GIS rỗng là đúng |
+| 18/09 | **OI-BC14 · OI-BC15** (T66.11) | chờ Công ty xác nhận điểm đo và lượng mưa | Công ty **tự gắn cống và tự nhập**; hỏi chỉ để xác nhận |
+| 20/09 | **OI-05 × OI-BC10** (T66.14) | chờ Công ty chốt danh sách Xí nghiệp | Công ty **nhập/sửa trên UI**; số lượng, tên, thứ tự in đều là dữ liệu |
+
+⚠ Cái giá của việc nhận ra muộn ⛔ phải thời gian chờ — nó là **dây chuyền**: T66.14 tự khai chặn
+`T66.13 bước 1`, `T24.31` và `G6-a`. Ba dòng ấy đứng im suốt vì một câu hỏi lẽ ra ⛔ nên tồn tại.
+
+⚠ Và mặt sau của luật này phải nói ra, ⛔ thì nó thành cái cớ: **⛔ phải mục nào cũng tan như vậy**.
+`G10` (bố cục bản in) và `G6` (mẫu 2C-BNV) **thật sự chặn**, vì thứ đang chờ là một **bố cục** — tự
+chế nó là phát minh ra một tài liệu hành chính. `G3-a` (nguồn lượng mưa) chặn thật, vì thứ thiếu là
+một **nguồn dữ liệu**, ⛔ phải một ô nhập. Phép phân biệt là câu hỏi ở khung trên, ⛔ phải cảm giác.
