@@ -128,7 +128,12 @@ function WallHeader({
             fontWeight: mat ? 700 : 400,
           }}
         >
-          {mat ? 'Dữ liệu chưa cập nhật · ' : 'Cập nhật '}
+          {/* ⚠ T47.13 — "Số liệu tính lúc", ⛔ phải "Cập nhật lúc". `capNhatLuc` là `generatedAt`
+              của backend (`Instant.now()` lúc DỰNG báo cáo), ⛔ phải mốc của số liệu nguồn. Người
+              trực đọc "Cập nhật" thành *số liệu mới tới giờ này* — sai đúng ở ca nguy hiểm nhất:
+              poller chết mà dashboard vẫn tự làm mới thì dòng này vẫn nhảy. Vế `mat` giữ nguyên vì
+              nó nói về TRẠNG THÁI, ⛔ về mốc. */}
+          {mat ? 'Dữ liệu chưa cập nhật · ' : 'Số liệu tính lúc '}
           {formatDateTime(capNhatLuc)}
         </span>
       </div>

@@ -111,8 +111,9 @@ services:
       - "127.0.0.1:${DOCKER_APP_PORT:-18080}:8080"
 
   # ---------------------------------------------------------------------------
-  # admin-app (Vite + React + AntD) — bundle tĩnh, phục vụ bằng nginx
-  # ⬜ CHƯA DÙNG ĐƯỢC: thư mục frontend/admin-app do WS-8 tạo.
+  # admin-app (Vite + React 19 + AntD 6) — bundle tĩnh, phục vụ bằng nginx
+  # ⚠ Sửa 20/09/2026 (T68.41): dòng cũ khai "⬜ CHƯA DÙNG ĐƯỢC" — hết đúng từ lâu. Dịch vụ ngay
+  #   dưới có đủ `image`/`build`/`profiles` và chạy thật; bật bằng `--profile admin` hoặc `full`.
   # ---------------------------------------------------------------------------
   admin-app:
     profiles: ["admin", "full"]
