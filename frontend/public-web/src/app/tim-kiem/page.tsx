@@ -9,6 +9,7 @@ import type { ConstructionSearchRow } from '@/lib/api';
 import { getArticles, getCategories, getConstructionSearch, getSiteConfig } from '@/lib/api';
 import { khoiVanHanhBat } from '@/lib/khoiVanHanh';
 import { ROUTES } from '@/lib/routes';
+import { THUOC_TINH_KHONG_TRA_LOI, trangThaiTraCuu } from '@/lib/traCuu';
 
 /**
  * Tìm kiếm — CN-01.8 phần công khai.
@@ -274,7 +275,13 @@ export default async function SearchPage({
           </div>
 
           <div className="mt-6">
-            {phamVi === 'bai-viet' ? (
+            {/* ⛔⛔ T61.17 (WS-72) — `null` là backend CHƯA trả lời (429 · 5xx · mất kết nối), ⛔ phải
+                "0 kết quả". Trước bản vá nó rơi vào ô rỗng bên dưới và trang in "Không tìm thấy…"
+                cho một lượt chưa hề tìm (quy tắc 16). Xem javadoc `lib/traCuu.ts`. */}
+            {trangThaiTraCuu(phamVi === 'bai-viet' ? ketQuaBai : ketQuaCongTrinh) ===
+            'khong-tra-loi' ? (
+              <ChuaTraCuuDuoc />
+            ) : phamVi === 'bai-viet' ? (
               <ArticleList
                 page={ketQuaBai}
                 basePath={ROUTES.search}
@@ -302,6 +309,28 @@ export default async function SearchPage({
           />
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Backend chưa trả lời lượt tra cứu — T61.17 (WS-72).
+ *
+ * ⛔ Câu chữ ⛔ được gợi ý "không có kết quả": người dùng đọc nó rồi đi tìm chỗ khác, trong khi nội dung
+ * có thể đang ở đó. `THUOC_TINH_KHONG_TRA_LOI` là dấu hiệu cấu trúc bộ tải thử đếm — ⛔ gỡ khi sửa chữ.
+ */
+function ChuaTraCuuDuoc() {
+  return (
+    <div
+      role="status"
+      {...THUOC_TINH_KHONG_TRA_LOI}
+      className="flex flex-col items-center justify-center rounded-xl border border-dashed border-surface-border bg-white p-12 text-center shadow-2xs"
+    >
+      <p className="text-sm font-semibold text-surface-textBase">Chưa tra cứu được lúc này</p>
+      <p className="mt-2 text-xs text-surface-textSecondary">
+        Hệ thống tìm kiếm đang bận hoặc tạm gián đoạn, nên trang chưa biết có nội dung khớp hay
+        không. Vui lòng thử lại sau ít phút.
+      </p>
     </div>
   );
 }

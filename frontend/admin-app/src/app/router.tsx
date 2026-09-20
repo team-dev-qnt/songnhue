@@ -411,6 +411,14 @@ export const router = createBrowserRouter([
             'hr:leave:approve',
             lazyPage(() => import('@/features/hr/DuyetNghiPhepPage'), 'DuyetNghiPhepPage'),
           ),
+          // ⛔ Quyền RIÊNG `hr:leave:delegate`, ⛔ dùng lại `hr:leave:approve`: *duyệt được* và
+          //   *giao quyền duyệt cho người khác* là hai việc khác nhau, và dùng chung một mã quyền
+          //   thì ⛔ có cách nào cho phép cái thứ nhất mà ⛔ cho phép cái thứ hai.
+          adminRoute(
+            '/nhan-su/uy-quyen-duyet',
+            'hr:leave:delegate',
+            lazyPage(() => import('@/features/hr/UyQuyenDuyetPage'), 'UyQuyenDuyetPage'),
+          ),
           adminRoute(
             '/quan-tri/tai-khoan',
             'adm:user:view',

@@ -124,4 +124,35 @@ public interface UserRepository extends JpaRepository<User, Long> {
                     """,
             nativeQuery = true)
     List<Long> findActiveIdsByPermission(@Param("permissionCode") String permissionCode);
+
+    /**
+     * Tài khoản đang hoạt động có {@code permissionCode} <b>và</b> phạm vi dữ liệu PHỦ ít nhất một đơn vị trong
+     * {@code orgUnitIds} — T57.15, người nhận của {@code NotifyRequest.targetedInUnitScope}.
+     *
+     * <p>⛔⛔ Vị từ phạm vi phải là ĐÚNG vị từ của bộ lọc tầng 3 ({@code ScopedEntity.ORG_UNIT_FILTER_CONDITION}:
+     * bản ghi thấy được khi đơn vị của nó có {@code path LIKE <path đơn vị của tài khoản> || '%'}), soi từ phía
+     * tài khoản. Lệch nhau là người NHẬN thư ≠ người THẤY bản ghi —
+     * {@code NghiPhepHttpTest#nguoiNhanThongBaoLaNguoiDuyetDuoc} canh đúng tương ứng ấy.
+     */
+    @Query(
+            value =
+                    """
+                    SELECT DISTINCT u.id
+                    FROM users u
+                             JOIN org_units pv ON pv.id = u.org_unit_id
+                             JOIN user_roles ur ON ur.user_id = u.id
+                             JOIN roles r ON r.id = ur.role_id AND r.active AND r.deleted_at IS NULL
+                             JOIN role_permissions rp ON rp.role_id = r.id
+                             JOIN permissions p ON p.id = rp.permission_id
+                    WHERE u.deleted_at IS NULL
+                      AND u.status = 'ACTIVE'
+                      AND p.code = :permissionCode
+                      AND EXISTS (SELECT 1
+                                  FROM org_units dich
+                                  WHERE dich.id IN (:orgUnitIds)
+                                    AND dich.path LIKE pv.path || '%')
+                    """,
+            nativeQuery = true)
+    List<Long> findActiveIdsByPermissionCoveringOrgUnits(
+            @Param("permissionCode") String permissionCode, @Param("orgUnitIds") List<Long> orgUnitIds);
 }

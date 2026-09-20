@@ -105,6 +105,8 @@ public enum ErrorCode {
     AUTH_0008("AUTH-0008", HttpStatus.UNAUTHORIZED),
     /** Tài khoản đã có 2FA xác nhận — ⛔ đăng ký lại qua vé challenge (T61.30). */
     AUTH_0009("AUTH-0009", HttpStatus.FORBIDDEN),
+    /** Mật khẩu tạm do quản trị phát đã quá hạn — T73.8 (ASVS 2.3.1). Chỉ nói ra sau khi mật khẩu ĐÚNG. */
+    AUTH_0010("AUTH-0010", HttpStatus.FORBIDDEN),
     AUTH_3001("AUTH-3001", HttpStatus.FORBIDDEN),
     /** Dữ liệu ngoài phạm vi đơn vị — scope filter tầng 3 chặn (§4.2). */
     AUTH_3002("AUTH-3002", HttpStatus.FORBIDDEN),
@@ -210,6 +212,8 @@ public enum ErrorCode {
      */
     CMS_2023("CMS-2023", HttpStatus.UNPROCESSABLE_CONTENT),
     CMS_2024("CMS-2024", HttpStatus.UNPROCESSABLE_CONTENT),
+    /** Vé biểu mẫu công khai thiếu/giả/quá hạn, hoặc gửi quá nhanh — T73.9 (ASVS 11.1.2). Một mã cho mọi nhánh. */
+    CMS_2025("CMS-2025", HttpStatus.UNPROCESSABLE_CONTENT),
     CMS_5001("CMS-5001", HttpStatus.BAD_GATEWAY),
 
     // ---- MOD-02 Vận hành công trình --------------------------------------------
@@ -520,6 +524,45 @@ public enum ErrorCode {
      */
     HR_2009("HR-2009", HttpStatus.UNPROCESSABLE_CONTENT),
 
+    // ---- MOD-04 Thẩm quyền duyệt nghỉ phép (CN-04.9, WS-80) ---------------------
+    /**
+     * ⛔ Phải người duyệt của đơn vị này — T80.1.
+     *
+     * <p>⛔⛔ Mã riêng chứ ⛔ dùng lại {@code AUTH-3001}. Hai trạng thái khác hẳn nhau và dẫn tới
+     * hai việc khác hẳn nhau: <i>"tài khoản ⛔ có quyền duyệt phép"</i> là việc của Admin (gán vai
+     * trò), còn <i>"có quyền mà ⛔ phải người duyệt của ĐƠN VỊ này"</i> là việc của người dùng
+     * (chuyển cho trưởng đơn vị, hoặc xin uỷ quyền). Gộp chúng là để người ta đi gõ cửa nhầm chỗ.
+     */
+    HR_2010("HR-2010", HttpStatus.FORBIDDEN),
+    /** ⛔ Tự duyệt đơn nghỉ của chính mình — T80.2. Đơn của trưởng đơn vị do cấp trên quyết. */
+    HR_2011("HR-2011", HttpStatus.FORBIDDEN),
+    /**
+     * Cấp 2 phải do <b>người khác</b> quyết — T80.3.
+     *
+     * <p>Chốt C2 mua một cấp duyệt thứ hai; để cùng một người bấm cả hai thì nó ⛔ tồn tại.
+     */
+    HR_2012("HR-2012", HttpStatus.FORBIDDEN),
+    /** Chỉ người nộp hoặc người duyệt mới rút/huỷ được đơn — T80.4. */
+    HR_2013("HR-2013", HttpStatus.FORBIDDEN),
+    /**
+     * Người được uỷ quyền phải <b>đang có</b> quyền duyệt nghỉ phép — T80.5.
+     *
+     * <p>Quyết định của QuanTran 20/09/2026. ⛔ Có vế này thì biểu mẫu nghỉ phép thành một
+     * <b>đường cấp quyền ẩn</b> nằm ngoài màn hình Vai trò &amp; phân quyền, và màn hình ấy thôi là
+     * bức tranh đầy đủ.
+     */
+    HR_2014("HR-2014", HttpStatus.UNPROCESSABLE_CONTENT),
+    /** Người được uỷ quyền phải thuộc <b>cùng đơn vị hoặc đơn vị cấp trên</b> — nguyên văn chốt B3. */
+    HR_2015("HR-2015", HttpStatus.UNPROCESSABLE_CONTENT),
+    /**
+     * Chỉ trưởng/phó của đơn vị (hoặc cấp trên) mới giao được thẩm quyền mình đang giữ — T80.5.
+     *
+     * <p>⚠ <b>403</b> chứ ⛔ 422: đây là câu <i>"anh ⛔ có thứ đang định giao"</i>, ⛔ phải <i>"dữ
+     * liệu anh gửi sai"</i>. Hai mã bên trên ({@code HR-2014} · {@code HR-2015}) thì ngược lại —
+     * chúng nói về <b>người nhận</b>, và người gửi sửa được bằng cách chọn người khác.
+     */
+    HR_2016("HR-2016", HttpStatus.FORBIDDEN),
+
     // ---- MOD-05 Quản trị --------------------------------------------------------
     ADM_2001("ADM-2001", HttpStatus.UNPROCESSABLE_CONTENT),
     ADM_2002("ADM-2002", HttpStatus.CONFLICT),
@@ -639,7 +682,15 @@ public enum ErrorCode {
      * thành một lượt chiếm tài khoản vĩnh viễn — đúng thứ {@code AUTH-0001} ở đường tự đổi mật khẩu đang chặn.
      * Cùng lý lẽ với {@code ADM-2021} ở đường đặt lại 2FA.
      */
-    ADM_2025("ADM-2025", HttpStatus.FORBIDDEN);
+    ADM_2025("ADM-2025", HttpStatus.FORBIDDEN),
+    /**
+     * Trưởng / phó đơn vị đặt ⛔ hợp lệ — H24.
+     *
+     * <p>Hai ô ấy quyết định <b>ai nhận cảnh báo ngưỡng</b> của G11, nên một giá trị sai ở đây ⛔ hỏng một
+     * màn hình — nó làm cảnh báo tới 0 người trong im lặng. Ba ca gộp một mã vì cả ba dẫn tới cùng một việc
+     * (chọn lại người): tài khoản ⛔ tồn tại · tài khoản ⛔ còn {@code ACTIVE} · trưởng trùng phó.
+     */
+    ADM_2026("ADM-2026", HttpStatus.BAD_REQUEST);
 
     private final String code;
     private final HttpStatus status;

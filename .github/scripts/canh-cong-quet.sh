@@ -158,6 +158,12 @@ if [ -n "$SO_HIEU" ]; then
     #    ai đọc nữa (T11.84).
     gh issue comment "$SO_HIEU" --repo "$KHO" --body "$THAN"
 else
+    # ⛔⛔ Tạo nhãn TRƯỚC (`--force` = idempotent). Đo 19/09/2026: nhãn `canh-cong-quet` ⛔ TỒN TẠI trong kho,
+    #    và `gh issue create --label <nhãn chưa có>` HỎNG — tức nhánh này chưa từng chạy (8 lượt `schedule`
+    #    gần nhất đều `success`) và lần đầu cần kêu nó sẽ chết ngay trước khi mở issue: lượt chạy vẫn đỏ nhưng
+    #    ⛔ issue nào tới người theo dõi. Một đường chưa ai đi qua ⛔ biết đúng hay sai (luật 7).
+    gh label create "$NHAN" --repo "$KHO" --color B60205 \
+        --description "Chuông canh cổng quét CVE còn sống (canh-cong-quet.yml)" --force >/dev/null 2>&1 || true
     gh issue create --repo "$KHO" \
         --title "⛔ Cổng quét CVE không chạy — $TRANG_THAI" \
         --label "$NHAN" \

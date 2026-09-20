@@ -1,5 +1,6 @@
 package com.songnhue.hr.api;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -8,7 +9,11 @@ import jakarta.validation.Valid;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,14 +22,20 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
+import com.songnhue.core.common.error.ErrorCode;
+import com.songnhue.core.common.exception.ValidationException;
+import com.songnhue.core.common.importer.KetQuaNhap;
 import com.songnhue.core.common.security.RequirePermission;
 import com.songnhue.core.common.util.PageUtils;
 import com.songnhue.hr.application.EmployeeFilter;
 import com.songnhue.hr.application.EmployeeForm;
 import com.songnhue.hr.application.EmployeeService;
+import com.songnhue.hr.application.importer.EmployeeImportService;
 import com.songnhue.hr.domain.Employee;
 import com.songnhue.hr.domain.EmploymentStatus;
 
@@ -60,10 +71,64 @@ public class EmployeeController {
 
     private final EmployeeService employees;
     private final HoSoMapper mapper;
+    private final EmployeeImportService nhapTep;
 
-    public EmployeeController(EmployeeService employees, HoSoMapper mapper) {
+    public EmployeeController(EmployeeService employees, HoSoMapper mapper, EmployeeImportService nhapTep) {
         this.employees = employees;
         this.mapper = mapper;
+        this.nhapTep = nhapTep;
+    }
+
+    // === Nhập danh sách CBNV từ tệp — T68.23 (G6-a) ===========================
+
+    /**
+     * Chạy khô tệp danh sách CBNV — ⛔ <b>ghi một dòng nào</b>.
+     *
+     * <p>G6-a là ô trống chặn dữ liệu của cả MOD-04: {@code employees} phải RỖNG cho tới khi Công ty gửi danh sách
+     * (CLAUDE.md cấm seed hồ sơ CBNV). Ngày danh sách ấy về, đường đi là <b>tải mẫu → điền → chạy khô → nhập</b>,
+     * ⛔ thêm một đợt lập trình nào.
+     *
+     * <p>⚠ Quyền {@code hr:employee:create} — cùng quyền với thêm một hồ sơ, vì đây đúng là thao tác ấy làm hàng
+     * loạt. Dòng nào trùng mã hồ sơ ĐÃ CÓ là một lượt SỬA, nên bộ nhập đòi thêm {@code hr:employee:update} cho
+     * riêng dòng ấy — người chỉ được thêm ⛔ sửa được hồ sơ người khác bằng một tệp.
+     */
+    @PostMapping(path = "/import/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Chạy khô tệp danh sách CBNV — liệt kê lỗi từng dòng, ⛔ ghi gì")
+    @RequirePermission("hr:employee:create")
+    public KetQuaNhap previewImport(@RequestPart("file") MultipartFile file) {
+        return nhapTep.preview(doc(file));
+    }
+
+    @PostMapping(path = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Nhập thật — còn dòng lỗi thì ⛔ dòng nào được ghi (OPS-2016)")
+    @RequirePermission("hr:employee:create")
+    public KetQuaNhap applyImport(@RequestPart("file") MultipartFile file) {
+        return nhapTep.apply(doc(file));
+    }
+
+    /** Tệp mẫu sinh từ chính danh mục cột bộ đọc dùng — ⛔ một tệp tĩnh (luật 14; tệp tĩnh cũ đã lệch lược đồ). */
+    @GetMapping(path = "/import/template", produces = "text/csv; charset=utf-8")
+    @Operation(summary = "Tải tệp mẫu CSV — tiêu đề + một dòng mô tả quy cách từng cột")
+    @RequirePermission("hr:employee:create")
+    public ResponseEntity<byte[]> importTemplate() {
+        return ResponseEntity.ok()
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment()
+                                .filename("mau-danh-sach-cbnv.csv", StandardCharsets.UTF_8)
+                                .build()
+                                .toString())
+                .contentType(MediaType.parseMediaType("text/csv; charset=utf-8"))
+                .body(EmployeeImportService.bieuMau());
+    }
+
+    /** Lỗi đọc tệp quy về {@code SYS-0003}: tệp hỏng là lỗi dữ liệu vào, ⛔ sự cố hệ thống (⛔ để nó thành 500). */
+    private static byte[] doc(MultipartFile file) {
+        try {
+            return file.getBytes();
+        } catch (java.io.IOException e) {
+            throw new ValidationException(ErrorCode.SYS_0003, e);
+        }
     }
 
     @GetMapping

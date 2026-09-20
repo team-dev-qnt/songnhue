@@ -35,9 +35,18 @@ public record OrgUnitNode(
         String address,
         String phone,
         String email,
+        /*
+          Trưởng / phó đơn vị đi kèm nút cây từ 20/09/2026 — H24, và vì ĐÚNG lý do ghi ở khối trên:
+          biểu mẫu sửa nạp từ chính cây này. Thiếu hai trường ⇒ hộp thoại mở ra với hai ô trống ⇒
+          mỗi lượt sửa TÊN đơn vị là một lượt GỠ trưởng/phó, im lặng — và thứ bị gỡ là nguồn người
+          nhận cảnh báo ngưỡng của G11.
+        */
+        UUID headUserPublicId,
+        UUID deputyUserPublicId,
         List<OrgUnitNode> children) {
 
-    public static OrgUnitNode of(OrgUnit unit, List<OrgUnitNode> children) {
+    public static OrgUnitNode of(
+            OrgUnit unit, List<OrgUnitNode> children, UUID headUserPublicId, UUID deputyUserPublicId) {
         return new OrgUnitNode(
                 unit.getPublicId(),
                 unit.getCode(),
@@ -51,6 +60,8 @@ public record OrgUnitNode(
                 unit.getAddress(),
                 unit.getPhone(),
                 unit.getEmail(),
+                headUserPublicId,
+                deputyUserPublicId,
                 children);
     }
 }

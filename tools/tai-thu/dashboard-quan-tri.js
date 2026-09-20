@@ -6,17 +6,18 @@
 //            -e TAI_KHOAN='taithu01:<mật khẩu>,taithu02:<mật khẩu>' \
 //            grafana/k6:0.57.0 run - < tools/tai-thu/dashboard-quan-tri.js
 //
-// ⛔⛔ README.md §2 — hạn mức khoá theo IP, và ở đây nó cắn NẶNG hơn cổng công khai:
-//   xô API = 100 lượt/phút cho MỘT IP. Một tab dashboard tự làm mới ~2–3 lượt/phút lúc ⛔ ai bấm gì
-//   (`useDashboard` · `useStationLayer` · `unread-count`), mở trang là 4 lượt song song. 50 người sau
-//   MỘT IP vượt trần ngay ở trạng thái nghỉ. Bài đo này vì vậy trả lời HAI câu, và in cả hai:
-//     (1) `bi_chan_429` > 0 ⇒ hệ ⛔ phục vụ được 50 người sau một IP — ĐÓ LÀ KẾT QUẢ, ⛔ phải lỗi bài đo
-//         (T61.17: Công ty ra Internet qua một IP NAT?).
-//     (2) P95 của `mo_dashboard_ms` CHỈ có nghĩa khi (1) = 0.
+// ⛔⛔ README.md §2 — đọc trước khi tin một con số xanh. Từ T61.17 (14/09) xô API khoá theo NGƯỜI
+//   DÙNG@IP (100 lượt/phút mỗi tài khoản), ⛔ còn theo IP. Một tab dashboard tự làm mới ~2–3 lượt/phút
+//   lúc ⛔ ai bấm gì (`useDashboard` · `useStationLayer` · `unread-count`), mở trang là 4 lượt song song.
+//     (1) Bài đo chia ≤ 10 tài khoản cho SO_NGUOI người ảo ⇒ mỗi xô gánh nhiều người hơn thực tế.
+//         `bi_chan_429` > 0 ở đây trước hết là GIỚI HẠN CỦA BÀI ĐO, ⛔ phải kết luận về NAT.
+//     (2) nginx biên vẫn khoá theo IP (`/api/` 30/giây burst 60 · 50 kết nối đồng thời); từ WS-72 hai
+//         chốt ấy trả 429 (trước là 503 — lượt đo đếm nhầm vào lỗi máy chủ).
+//     P95 của `mo_dashboard_ms` CHỈ có nghĩa khi `bi_chan_429` = 0.
 //
-// ⚠ Đăng nhập làm ở `setup()`, MỘT lần mỗi tài khoản: xô LOGIN 30/15' và nginx `api_auth` 20/phút
-//   (burst 10) — 50 VU tự đăng nhập là đo tốc độ trả 429 của đường đăng nhập. Access token sống 30'
-//   ⇒ tổng thời lượng mặc định 20'.
+// ⚠ Đăng nhập làm ở `setup()`, MỘT lần mỗi tài khoản: nginx `api_auth` 20/phút (burst 10) — 50 VU tự
+//   đăng nhập là đo tốc độ trả 429 của đường đăng nhập. (Xô LOGIN của backend từ WS-72 chỉ giữ lượt ⛔
+//   đúng mật khẩu, nên nó ⛔ còn là trần của bài đo.) Access token sống 30' ⇒ tổng thời lượng mặc định 20'.
 // ⚠ Tài khoản đo KHÔNG được bật 2FA (Admin/Admin HR bắt buộc 2FA — NFR-05) ⇒ dùng vai trò
 //   XN_MANAGER hoặc tương đương có `ops:dashboard:view`. Tạo riêng, xoá sau lượt đo.
 // =============================================================================

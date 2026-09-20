@@ -5965,6 +5965,9 @@ migration. Nguyên nhân: lượt khôi phục staging 26/8 chạy bản còn `-
 thứ §10.58 ghi là *"`ALTER DEFAULT PRIVILEGES` cứu"*. **Nó cứu app khỏi chết và cùng lúc
 xoá mọi câu `REVOKE`**, và staging đã chạy như thế suốt 13 ngày.
 
+> ⚠ **Đo lại 19/09/2026 — vế *"`--no-privileges`"* SAI cơ chế, xem §12.11.** Khôi phục ĐÈ lên một
+> CSDL đã migrate **tự nó** sinh ra đúng danh sách trên (72 quyền), nguồn đúng, ⛔ có cờ ấy.
+
 Bài học chung: **một bản dump không chỉ là dữ liệu — nó là dữ liệu + lược đồ + ACL.** Nhân
 bản môi trường theo chiều *kém an toàn → an toàn hơn* là nhập khẩu cả phần yếu. Vá không
 phải bằng cách chép ảnh chụp ACL của production (ảnh chụp cũng có thể sai) mà bằng cách
@@ -8033,3 +8036,277 @@ chạy sẽ ⛔ được sinh ra và CSS hỏng **trong im lặng**.
 | migration quên cột `default_value` | **Flyway** chặn ngay: `Chờ đúng 1 hàng … rỗng cả hai cột, đo được 0` ⇒ bản hỏng ⛔ khởi động nổi, ⛔ đợi tới lượt chạy bài kiểm |
 | `cotBangVanBan` ghim `'lg:col-span-8'` | 3/5 bài, gồm bài bất biến ⟺ |
 | component tự ghi `lg:col-span-8` vào JSX | bài *"hai tên lớp chỉ sống ở MỘT nơi"* |
+
+### §12.11 Khôi phục ĐÈ hạ quyền append-only — cơ chế THẬT của §10.80 (C) (WS-69, 19/9/2026)
+
+**Hiện tượng đo được.** Bài `KhoiPhucVaoCsdlTrangTest` viết TRƯỚC bản vá, chạy trên Postgres 16 thật:
+dump bằng đúng cờ của job sao lưu (⛔ `--no-privileges`), khôi phục vào CSDL trắng ⇒ ACL của
+`songnhue_app` khớp nguồn từng bảng; khôi phục **lần hai, ĐÈ lên chính CSDL ấy** ⇒ **72 quyền thừa**,
+0 quyền thiếu — `audit_logs` + 15 phân mảnh, `hydro_raw_logs` + 13 phân mảnh (UPDATE, DELETE),
+`security_events`, `audit_archive_anchors`, `audit_chain_head` (nguồn: app ⛔ quyền nào ⇒ đích: đủ
+bốn), `flyway_schema_history`. Đúng từng tên với bảng `arwd` của staging ghi ở §10.80 (C).
+
+**Cơ chế.** `--clean` DROP rồi CREATE lại từng bảng bằng vai trò đang nạp (`songnhue_owner`), nên
+bảng mới nhận `ALTER DEFAULT PRIVILEGES` của **đích** — `V202608131006` cấp `SELECT, INSERT, UPDATE,
+DELETE ON TABLES TO songnhue_app`. Phần ACL của bản dump chỉ là GRANT so với `acldefault` (quyền
+chủ sở hữu); nó ⛔ bao giờ phát REVOKE cho quyền mà mặc định cấp thêm. Mục `DEFAULT ACL` của bản
+dump nằm ở lượt ACL cuối cùng, tức SAU khi mọi bảng đã dựng xong. ⇒ Đích trắng (⛔ quyền mặc định)
+thì đúng; đích đã migrate thì sai — lại đúng hình dạng §10.80: **đường hay được thử (máy trắng) thì
+chạy, đường dùng thật (khôi phục đè sau sự cố, nút M5.11) thì hỏng**, và ⛔ một dòng lỗi nào.
+
+**Vì sao bản ghi cũ sai.** §10.80 (C) và ba tài liệu chép theo quy cho `--no-privileges` vì lượt
+26/8 CÓ cờ ấy — một đồng hiện bị đọc thành nhân quả. Gỡ cờ ấy (T7.13-a) ⛔ chặn được gì: lượt di trú
+08/09 ⛔ có cờ vẫn sinh `arwd`, và production thoát chỉ nhờ khối ⑥ của `--sau` REVOKE tay.
+
+**Quyết định.** Khối `KeHoachKhoiPhuc.khoiTruocKhiNap()` (bản sao từng byte ở
+`deploy/backup/truoc-khi-nap.sql`, canh bằng `BackupRestoreFlagsTest`) gỡ quyền mặc định **cấp
+schema** của chính vai trò đang nạp, trong CÙNG giao dịch với phần nạp; bản dump đặt lại chúng ở
+lượt ACL cuối. ⛔ Chọn *"REVOKE lại danh sách bảng append-only sau khi nạp"*: đó là một danh sách gõ
+tay sẽ mục ngay bảng append-only thứ tám (luật 28), và nó sửa triệu chứng chứ ⛔ sửa cơ chế. Phạm vi
+khai ra: mục toàn cục (⛔ `IN SCHEMA`) ⛔ đụng — nó gồm cả quyền chủ sở hữu, kho ⛔ khai loại ấy; loại
+đối tượng lạ thì NÉM. Kèm hai chim hoàng yến đo ở tầng phục vụ (luật 35): `RestoreService` và cả hai
+script hỏi `has_table_privilege(current_user, 'public.audit_logs', 'UPDATE')` bằng **vai trò ứng
+dụng** sau khi nạp — đỏ thì báo THẤT BẠI kèm câu *"dữ liệu ĐÃ nạp"*, ⛔ báo XONG.
+
+⚠ **Hệ quả cho khôi phục chéo môi trường**: sau bản vá, khôi phục cho ra **đúng ACL của nguồn** ⇒
+nguồn yếu thì đích vẫn yếu theo — khối ⑥ của `sau-khoi-phuc-production.sql` vẫn bắt buộc khi nguồn
+là staging.
+
+### §12.12 Xô đăng nhập theo IP: tính TRƯỚC, trả lại lượt đúng — ⛔ "chỉ đọc rồi đếm lượt sai" (WS-72, 19/9/2026)
+
+**Hiện tượng đo được.** `DangNhapSauNatHttpTest`, viết TRƯỚC bản vá: 31 lượt đăng nhập ĐÚNG từ một
+IP ⇒ lượt 31 nhận 429. Xô `LOGIN` (30 lượt / 15′ theo IP) tính MỌI lượt gọi `/auth/login`, trong khi
+chính javadoc của nó khai *"cả Công ty ra Internet qua một IP NAT"* ⇒ lưới chống dò khoá cả cơ quan
+vào 8h sáng. `RateLimitStore.reset` mang javadoc *"dùng khi đăng nhập thành công"* mà 0 nơi gọi.
+
+**Quyết định.** Bộ lọc giữ nguyên: tăng bộ đếm NGUYÊN TỬ trước khi cho đi. Mật khẩu đúng thì
+`LoginAttemptService.hoanLuotDangNhapDung` trả lại ĐÚNG lượt ấy (`RateLimitStore.hoanLai`, sàn 0),
+đặt SAU mọi phép kiểm tài khoản. Hai phương án bị loại, vì mỗi cái mở một đường vòng:
+
+- **Bộ lọc chỉ đọc, bộ xác thực đếm lượt sai.** Lượt đang băm BCrypt chưa bị đếm, nên N lượt tới cùng
+  lúc đều qua cửa ⇒ trần thật là `trần + số lượt đồng thời`. Tính trước rồi trả lại thì số lượt ⛔
+  đúng mật khẩu lọt qua trong một cửa sổ ⛔ bao giờ vượt trần. Giá: một lượt đúng đang xử lý chiếm một
+  chỗ tới khi trả — 30 lượt đúng cùng băm BCrypt trong một khoảnh khắc từ một IP thì ⛔ phải người thật.
+- **Nối `reset` vào nhánh đăng nhập đúng** (ý đồ cũ của javadoc). Ai có MỘT tài khoản thật xen đăng
+  nhập đúng giữa các lượt đoán là xô về 0 ⇒ dò mật khẩu người khác ⛔ giới hạn. `reset` bị gỡ hẳn —
+  giữ nó là để lượt sửa sau nối nó vào đúng chỗ ấy.
+
+**Kèm theo.** nginx trả **429** thay 503 khi chặn theo `limit_req`/`limit_conn` (khai ở tầng http,
+đo trên `nginx:1.30-alpine`): 503 đọc thành *"máy chủ ⛔ phục vụ được"*, lượt tải thử đếm nó vào lỗi
+5xx. Và trang tìm kiếm thôi đổi *backend chưa trả lời* thành *"Không tìm thấy…"* (quy tắc 16).
+
+**⛔ Chưa quyết.** nginx `api_auth` (20 lượt/phút, burst 10, theo IP, trên tên miền quản trị) — nới
+hay ⛔ chờ phép đo NAT của QuanTran (T61.17). Sau WS-72 đó là chốt DUY NHẤT còn đếm lượt đăng nhập
+đúng theo IP.
+
+### §12.13 Hai chốt ASVS mang trạng thái: hạn mật khẩu tạm · vé biểu mẫu công khai (WS-73b, 20/9/2026)
+
+**Hạn mật khẩu tạm (T73.8 · ASVS 2.3.1).** Cột riêng `users.temp_password_expires_at`, ⛔ suy từ
+`password_changed_at + N giờ`. Suy ra là **khoá ngược** mọi tài khoản đang giữ mật khẩu tạm cũ ngay
+lượt deploy, và đổi N trong `settings` về sau sẽ đổi hạn của mật khẩu **đã phát**. Cột riêng: bản ghi
+cũ NULL = ⛔ hạn (như trước T73.8), hạn chốt lúc phát (`security.password.temp-ttl-hours`, mặc định 72).
+
+- Chặn ở `AuthService.login` **SAU** khi mật khẩu đúng: người đoán ⛔ học được *"tài khoản này đang
+  giữ mật khẩu tạm hết hạn"*. Và **sau** lượt trả lại xô `LOGIN` (§12.12): người thật gõ đúng mật khẩu
+  tạm đã hết hạn ⛔ bị đếm là một lượt dò. Mã `AUTH-0010` (403) hiện ngay trong thẻ đăng nhập.
+- Bootstrap `superadmin` để NULL: hết hạn ở đó thì ⛔ còn ai đặt lại được.
+- Một cửa ghi: chỉ `PasswordPolicyService.ganMatKhauTam` · `PasswordChangeService` ·
+  `AdminBootstrapRunner` gọi được hai setter (`MatKhauTamMotCuaRuleTest`) — đường phát thứ ba quên
+  đặt hạn là một lượt CI đỏ, ⛔ một mật khẩu tạm sống mãi.
+- ⬜ Vế còn lại của 2.3.1 — mật khẩu tạm do **hệ** sinh ngẫu nhiên — đổi hợp đồng API (máy chủ trả
+  mật khẩu MỘT lần) ⇒ `T73.11` chờ quyết.
+
+**Vé biểu mẫu công khai (T73.9 · ASVS 11.1.2).** `GET /public/bieu-mau/ve` phát
+`v1.<epoch>.<keyId>:<hmac>`, ký bằng khoá dẫn xuất từ khoá AES (nhãn `songnhue:ve-bieu-mau:v1`) —
+⛔ biến môi trường mới, ⛔ bảng mới. Lượt gửi liên hệ/góp ý phải mang vé ≥ `security.form.min-fill-seconds`
+tuổi (mặc định 3, trần 60) và ≤ 24 giờ. Ba phương án bị loại:
+
+- **Mốc do máy khách tự khai** — gửi mốc của mười phút trước là qua.
+- **Vé dùng một lần** — phải lưu trạng thái (bảng hoặc đệm dùng chung giữa các node) cho đúng vế mà
+  hạn mức IP 10/giờ (T61.37) đã phủ: lượt lặp.
+- **Gắn vé với IP/phiên** — cổng dựng trang từ IP của container (T61.17) ⇒ gắn IP là khoá oan người thật.
+
+Một mã `CMS-2025` cho mọi nhánh hỏng (thiếu · giả · quá nhanh · quá hạn): phân biệt chúng chỉ giúp máy
+biết phải sửa gì. Giao diện **tự chờ** đủ tuổi — máy chủ trả kèm `tuoiToiThieuGiay`, nên người điền
+nhanh thấy *"Đang gửi…"* thêm một nhịp thay vì một câu lỗi về thứ họ ⛔ làm sai; và hai phía ⛔ phải
+cùng nhớ một con số (luật 14). Vé xin ở `onFocus` của biểu mẫu, ⛔ lúc tải trang: phần lớn lượt xem
+trang Liên hệ là để tra số điện thoại.
+
+**⚠ Phạm vi — nói ra (luật 28).** Vé chặn máy gửi thẳng vào API và máy gửi ngay khi tải trang. Một
+trình duyệt tự động chạy chính mã cổng thì cũng chờ như người — lớp ấy thuộc reCAPTCHA (chờ khoá G13).
+
+### §12.14 Phép năm đúng Điều 114 · "biết năm trước" là tham số · thư duyệt đi theo phạm vi (WS-74, 20/9/2026)
+
+**Phép năm (T68.10).** Chốt C1 ghi *"mặc định theo Điều 113: <5 năm = 12; 5–10 = 13; >10 = 14"* — đọc thiếu
+**Điều 114** (*"cứ đủ 05 năm làm việc … tăng thêm tương ứng 01 ngày"*). Mô hình 3 bậc ⛔ biểu diễn được luật:
+đủ 10 năm được 13 (luật 14), đủ 15 năm kẹt ở 14 (luật 15), đủ 20 năm vẫn 14 (luật 16). Thay bằng ba tham số
+`hr.leave.annual-days.base` · `…seniority-step-years` · `…seniority-step-days` (12 · 5 · 1):
+`phép = cơ sở + (thâm niên ÷ số năm mỗi bậc) × số ngày mỗi bậc`. Mô hình mới biểu diễn được luật **và** mọi
+chính sách hào phóng hơn luật (bậc 3 năm, +2 ngày); nó ⛔ biểu diễn được chính sách **dưới** luật — đúng ý.
+
+- Migration `V202609201095` giữ CƠ SỞ người vận hành đang dùng, và **dừng** (RAISE) nếu hai bậc trên đã bị
+  sửa khỏi dạng cơ sở/+1/+2: ánh xạ một chính sách tuỳ biến là quyết định nhân sự. Lượt deploy dừng ở bước
+  migrate, bản cũ vẫn phục vụ (cùng tiền lệ `V202609181085`). `PhepNamMigrationTest` chạy lại khối ấy trên
+  cả hai trạng thái — trên CSDL kiểm thử nhánh RAISE về nguyên tắc ⛔ lượt nào đi qua (luật 7).
+- ⬜ Còn hỏi Công ty (G16-c): cơ sở 14/16 ngày cho công việc nặng nhọc, độc hại (Điều 113 khoản 1 b/c) —
+  mô hình hiện có MỘT cơ sở cho mọi người.
+
+**"Biết năm trước" (T57.16).** Số phép chuyển sang năm Y+1 suy được từ dữ liệu của hệ chỉ khi hệ ghi nhận ĐỦ
+năm Y. Bản cũ đoán bằng *"người ấy có ≥ 1 đơn năm Y"* — sai cả hai chiều: một đơn 2026 ⇒ coi như biết cả
+năm ⇒ **cấp thừa** (đơn giấy tháng 01–09 ⛔ nằm trong hệ); năm đã ghi đủ mà một người ⛔ nghỉ ngày nào ⇒ coi
+như chưa biết ⇒ **mất** số chuyển. Nay là tham số `hr.leave.first-fully-recorded-year` (2027). Đường nhập số
+dư đầu kỳ 2026→2027 vẫn chờ G16-a.
+
+**Thư duyệt đi theo phạm vi (T57.15).** Luật mới: thông báo gửi cho **một quyền** về **một bản ghi có phạm
+vi** chỉ tới người có quyền mà phạm vi dữ liệu PHỦ đơn vị của bản ghi — tức đúng người bộ lọc tầng 3 cho
+THẤY nó. Vị từ là vị từ của `ScopedEntity.ORG_UNIT_FILTER_CONDITION`, soi từ phía tài khoản.
+
+- Ca thứ tư của `RecipientResolver` (`NotifyRequest.targetedInUnitScope`), ⛔ đổi ba ca cũ. `WorkflowEngine`
+  bật nó khi bản ghi là `ScopedEntity` và bước chuyển khai `notify_permission` — đo trên seed: `LEAVE_ESCALATED`
+  và `LEAVE_CANCELLED`; ba hàng `ARTICLE_SUBMITTED` ⛔ có phạm vi nên giữ luật cũ.
+- ⛔ Lấy đơn vị từ `WorkflowAware.orgUnitId()`: mặc định null, `LeaveRequest`/`MaintenanceLog` ⛔ ghi đè, và
+  ghi đè nó sẽ cộng trưởng/phó vào mọi thư chỉ-báo-chủ-đơn qua nhánh G11.
+- Khẳng định là một **tương ứng**: với từng người duyệt, *nhận thư* ⇔ *thấy đơn trong hộp chờ duyệt*
+  (`NghiPhepHttpTest#nguoiNhanThongBaoLaNguoiDuyetDuoc`) — hai luật ⛔ được lệch nhau về sau.
+
+**⚠ Phát hiện kèm, ⛔ vá ở đây (T74.7 → WS-75).** Bước chuyển chỉ báo chủ bản ghi (`notify_owner`, ⛔
+`notify_permission`: `LEAVE_APPROVED`, `LEAVE_REJECTED`, `ARTICLE_APPROVED`…) đi vào nhánh G11 của
+`RecipientResolver` ⇒ **cộng Ban điều hành**. Hôm nay nhóm ấy rỗng nên ⛔ ai thấy; ngày H24 cấu hình nó, Ban
+điều hành nhận thư mỗi đơn nghỉ được duyệt của mọi người.
+
+### §12.15 Vế GHI của phạm vi đơn vị · trùng mã toàn Công ty (WS-74b, 20/9/2026)
+
+**Hiện tượng đo được.** Viết bài HTTP trước: tài khoản `hr:employee:create` đặt ở XN-A tạo hồ sơ vào XN-B ⇒
+**201**; tài khoản `ops:construction:create` / `hyd:station:manage` ở XN-A tạo công trình / điểm đo vào XN-B ⇒
+**201**, và chuyển bản ghi của mình sang XN-B ⇒ 200. Bộ lọc tầng 3 chỉ canh vế ĐỌC; nơi ghi đơn vị lấy từ biểu
+mẫu chỉ kiểm đơn vị TỒN TẠI. Quyền đi theo vai trò, phạm vi đi theo đơn vị của tài khoản — và `TECHNICIAN` (vai
+trò thường đặt ở Xí nghiệp) giữ đúng hai quyền ghi ấy, nên một lần chọn nhầm trong ô đơn vị là ghi vào dữ liệu
+của đơn vị khác, ⛔ dòng nhật ký bảo mật nào. Cùng lượt đo: trùng mã với bản ghi ngoài phạm vi trả `SYS-0005`
+*"Dữ liệu vừa được người khác thay đổi"* — phép kiểm trùng đi qua bộ lọc nên mã của đơn vị khác vô hình.
+
+**Quyết định.**
+
+- `ScopeGuard.requireWritableOrgUnit(donVi, Entity.class)` — cùng điều kiện với bộ lọc đọc (`path LIKE <phạm vi>
+  || '%'`), cùng nguồn phạm vi (`AuthContext`), ⛔ có người đăng nhập (job nền) thì ⛔ kiểm — đúng như bộ lọc.
+  Vi phạm ⇒ `AUTH-3002` + một dòng `ACCESS_DENIED_SCOPE` (`"thaoTac":"GHI"`). Câu tra đường dẫn chạy
+  `FlushModeType.COMMIT` để ⛔ đẩy thay đổi dở dang của entity xuống CSDL.
+- `ScopeGuard.toanCongTy(BooleanSupplier)` — tắt bộ lọc cho ĐÚNG một câu hỏi có/không rồi bật lại trong
+  `finally`. Chỉ nhận `BooleanSupplier` là có chủ đích: câu trả lời duy nhất lộ ra là *"mã này đã có người
+  dùng"*, đúng điều thông báo lỗi phải nói.
+- ⛔ Đặt kiểm tra ở entity listener (`@PrePersist/@PreUpdate` của `ScopedEntity` — *"chỗ dữ liệu đi qua"*, luật
+  12): phải tra đường dẫn đơn vị giữa lượt flush và ghi `security_events` từ bên trong flush — rủi ro cao hơn
+  giá trị. Thay vào đó là luật bytecode W1 (`GhiPhamViRuleTest`) ĐO mọi chỗ đặt đơn vị ở tầng application —
+  setter lẫn hàm dựng có tự đặt đơn vị — và buộc xếp loại: có kiểm, hoặc miễn kèm lý do (đơn vị SAO từ bản ghi
+  đã tra qua `ScopeGuard`: đơn nghỉ ← hồ sơ, bản ghi sửa chữa ← công trình, tình hình vận hành ← công trình).
+  Luật W2 buộc mọi `existsBy…Code…` trên kho của entity phạm vi đi qua `toanCongTy`.
+
+**⚠ Giới hạn — nói ra.** Đơn vị `null` (điểm đo chưa gán đơn vị) ⛔ bị kiểm. Ô chọn đơn vị trong biểu mẫu ghi
+vẫn bày cả cây (`/org-units/selectable`) — chọn đơn vị ngoài phạm vi nay nhận `AUTH-3002` thay vì lưu được;
+làm mờ các nút ấy là việc giao diện (T74.11).
+
+### §12.16 Cảnh báo tới ĐÚNG người: vì sao trưởng/phó đơn vị là một ĐƯỜNG GHI, ⛔ một ô hiển thị (T76.1, 20/9/2026)
+
+**Bối cảnh.** `org_units.head_user_id` / `deputy_user_id` có từ `V202608131002` (13/08/2026) và có **một
+người đọc thật**: `OrgUnitRepository.findActiveHeadAndDeputyUserIds`, nguồn người nhận cảnh báo vượt ngưỡng
+của **G11**. Đo 20/09: `setHeadUserId` có **0 lời gọi** trong mã sản phẩm. Nhánh người nhận ấy vì thế trả
+**tập rỗng vĩnh viễn** — trong khi `alert_events` vẫn có hàng, `notifications` vẫn có dòng, và mọi bài kiểm
+`verify(notify)` vẫn xanh.
+
+⛔⛔ Điều đáng đọc nhất ở đây ⛔ phải khuyết tật, mà là **cách nó sống sót 38 ngày**: javadoc của
+`AlertNotifier` **đã mô tả đúng nó từ 02/09**, kèm dự đoán đúng hậu quả (*"tới đúng 0 người"*) và cả
+cách chứng minh (*"DoD phải đếm `notification_recipients > 0`"*). ⇒ **Một chú thích ⛔ phải một cổng kiểm**
+(luật đã trả giá ở §11.19 và T50.12) — lần này nó còn viết ra cả bài kiểm cần viết, và vẫn ⛔ ai viết.
+
+**Quyết định.**
+
+1. **Hai ô ấy là DỮ LIỆU VẬN HÀNH, ⛔ thông tin hiển thị.** Chúng vào `CreateRequest`/`UpdateRequest`,
+   vào `OrgUnitNode` (biểu mẫu sửa nạp từ chính cây — thiếu là mỗi lượt sửa TÊN gỡ mất người nhận cảnh
+   báo, đúng cái bẫy khối chú thích của `OrgUnitNode` đã mô tả cho ba ô liên hệ), và có ô chọn trên màn
+   hình *Đơn vị*.
+2. **Chỉ tài khoản `ACTIVE`** — vì `findActiveHeadAndDeputyUserIds` tự lọc `status = 'ACTIVE'`. Cho gán
+   một tài khoản đã khoá là dựng lại **đúng** trạng thái rỗng mà H24 sinh ra để chữa, chỉ khác là lần này
+   biểu mẫu báo *đã lưu*. Một mã lỗi (`ADM-2026`) cho cả ba ca vì cả ba dẫn tới **cùng một việc**.
+3. ⛔ **⛔ ép "người ấy phải thuộc chính đơn vị này".** Giám đốc kiêm phụ trách một Xí nghiệp, một phó
+   phụ trách hai cụm — đều có thật. Ép một luật nhân sự ⛔ ai duyệt sẽ chặn đúng những cấu hình hợp lệ
+   (cùng họ T55.2: đọc *"chỉ NV Đang làm"* thành `status = 'DANG_LAM'` là xoá người nghỉ thai sản khỏi
+   danh bạ).
+4. **Gom 5 ô ⛔ bắt buộc thành `ThongTinDonVi`.** Lý do trực tiếp là Checkstyle chặn ở 8 tham số (WS-74 đã
+   trả giá đúng chỗ này với `NotifyRequest`). Lý do thật sự đáng giữ: năm tham số liên tiếp cùng kiểu
+   `String`/`UUID` thì **đổi chỗ hai cái là biên dịch sạch** và địa chỉ đi vào ô điện thoại.
+
+**Hệ quả cho `T57.18(a)` — uỷ quyền duyệt.** Chốt **B3** trả lời câu hỏi *nghiệp vụ* từ 12/08, nhưng
+uỷ quyền giả định hệ biết **ai là người duyệt của một đơn vị**. Hôm nay ⛔ có khái niệm ấy: `hr:leave:approve`
+cộng bộ lọc phạm vi là đủ để duyệt. Và cấp quyền lúc chạy thì `AuthenticatedUser` cấm tường minh —
+*"record bất biến có chủ đích: ⛔ đoạn mã nghiệp vụ nào được phép thêm quyền cho chính mình giữa chừng"*.
+⇒ Thứ tự đúng là **H24 trước**, rồi uỷ quyền là phép **chuyển vai ấy** có thời hạn và có nhật ký (`T76.4`).
+
+
+---
+
+### §12.17 Thẩm quyền duyệt nghỉ phép: một mã quyền ⛔ diễn đạt được một QUAN HỆ (WS-80, 20/9/2026)
+
+**Bối cảnh.** `V202609141079` mục 3 — migration dựng CN-04.9 — đã viết ra vấn đề và tin rằng nó đã
+giải xong: *"`required_permission` là một **mã quyền**, còn đặc tả nói **'Quản lý đơn vị duyệt'** —
+một **quan hệ**. ⇒ Vế còn lại là **bộ lọc phạm vi tầng 3**."* Đo lại 20/09 thì bộ lọc phạm vi trả
+**một nửa** của quan hệ: nó cắt đúng *đơn vị nào*, và ⛔ nói gì về *AI*.
+
+**Bốn trạng thái đo được qua HTTP, cả bốn trả 200 và đi trọn quy trình có chữ ký hash chain** —
+`ThamQuyenDuyetPhepHttpTest` đỏ **4/4** trên mã trước bản vá, mỗi bài in ra nguyên văn thân phản hồi
+`DA_DUYET`/`DA_HUY` ở đúng chỗ lẽ ra phải là 403:
+
+| | Trạng thái | Vì sao ⛔ ai thấy |
+|---|---|---|
+| T80.1 | Bất kỳ ai có `hr:leave:approve` + phạm vi phủ là duyệt được, **kể cả người ⛔ giữ chức vụ nào** | Trước H24 (20/09) hệ ⛔ có chỗ nào ghi *ai là trưởng đơn vị* |
+| T80.2 | **Tự duyệt đơn nghỉ của chính mình** | `requesterUserId` và `decidedBy` nằm cạnh nhau trên **cùng một hàng**, và ⛔ dòng nào so chúng |
+| T80.3 | Người vừa duyệt cấp 1 **duyệt luôn cấp 2** | Hai bước chuyển khai **cùng** `hr:leave:approve` trên **cùng** phạm vi ⇒ chốt C2 mua một cấp duyệt ⛔ tồn tại |
+| T80.4 | **Đồng nghiệp rút được đơn của người khác**, kể cả đơn ĐÃ DUYỆT | Bốn bước chuyển `CANCEL` đòi `hr:leave:request` — quyền chốt C3 cấp cho **mọi CBNV** |
+
+⚠ **Bán kính hôm nay bằng 0, và đó ⛔ phải lý do để hoãn.** `employees` rỗng vì **G6-a** chặn dữ
+liệu, nên ⛔ có đơn nghỉ thật nào để tự duyệt. Đây đúng là cửa sổ để trả: ngày Công ty gửi danh sách
+CBNV, cả bốn trạng thái trên có người thật đi qua.
+
+#### Quyết định: HAI cổng, ⛔ cổng nào thay được cổng kia
+
+- **Cổng năng lực** — `hr:leave:approve`, **tĩnh**, đọc từ token, ép ở
+  `workflow_transitions.required_permission`. Trả lời *"tài khoản này có làm công việc duyệt phép ⛔"*.
+- **Cổng quan hệ** — `ThamQuyenDuyetPhep`, **động**, đọc lại từ CSDL ở đúng khoảnh khắc bấm nút. Trả
+  lời *"tài khoản này có phải người duyệt của ĐƠN NÀY ⛔"*.
+
+Vị từ, đúng ba đường tới thẩm quyền: **(1)** trưởng/phó của đơn vị ấy hoặc của một đơn vị **cha** ·
+**(2)** đang được **uỷ quyền** cho đơn vị ấy (hoặc một đơn vị cha) vào hôm nay · **(3)** dự phòng —
+cả chuỗi lãnh đạo ⛔ có ai đang hoạt động **và** người này giữ `hr:leave:delegate`.
+
+#### Vì sao uỷ quyền là một BẢNG, ⛔ một lượt cấp quyền
+
+Chốt **B3** (`function-spec.md:716`) đòi *"uỷ quyền duyệt **có thời hạn** (từ–đến, người được uỷ
+quyền **cùng đơn vị hoặc cấp trên**); audit ghi **'duyệt theo uỷ quyền của X'**"*. Ba cách dựng, và
+hai cách hỏng ở chỗ ⛔ nhìn thấy được:
+
+| Cách | Hỏng ở đâu |
+|---|---|
+| Ghi `hr:leave:approve` vào `user_roles` có hạn | Quyền thành **toàn cục và vĩnh viễn**; hết hạn ⛔ ai nhớ gỡ — đúng hình dạng `T54.4` |
+| Cộng quyền vào token lúc đăng nhập | Access token sống **30 phút** ⇒ **thu hồi trễ tới 30 phút**, và uỷ quyền bắt đầu 00:00 ⛔ dùng được cho tới khi người ấy đăng nhập lại |
+| **Một hàng, đọc lại lúc bấm nút** ⭐ | Thu hồi **tức thì**; phạm vi hẹp đúng một đơn vị × một khoảng ngày; và `AuthenticatedUser` cấm tường minh hai cách trên |
+
+⭐ Vế *tức thì* là **đo được**, ⛔ phải một lời hứa: `uyQuyenVaThuHoiCoHieuLucNgay` giao uỷ quyền rồi
+duyệt **trên chính phiên đang mở** (⛔ đăng nhập lại), rồi thu hồi và duyệt tiếp — 403 ngay lượt sau.
+Một lượt *cộng quyền vào token* về nguyên tắc ⛔ qua nổi bài ấy.
+
+**Quyết định của QuanTran 20/09/2026 (ba câu hỏi, ba đáp):**
+
+1. Người được uỷ quyền **buộc phải sẵn có** `hr:leave:approve` (`HR-2014`). ⛔ Có vế này thì biểu
+   mẫu nghỉ phép trở thành một **đường cấp quyền ẩn** nằm ngoài màn hình Vai trò & phân quyền, và
+   màn hình ấy thôi là bức tranh đầy đủ.
+2. Đơn vị chưa có trưởng/phó ⇒ người giữ `hr:leave:delegate` **quyết thay**, và lượt ấy **ghi lại**
+   trên chính lá đơn (`duyet_du_phong`). ⛔ **Rơi về luật cũ**: luật cũ khôi phục đúng hành vi rộng
+   vừa bỏ, và cái xanh của bộ canh khi ấy đọc như đã siết (quy tắc 7).
+3. Đơn của **chính trưởng đơn vị** đẩy **lên đơn vị cha** (`HR-2011`). Chặn cứng mà ⛔ có đường đi
+   tiếp là để người lao động gánh hậu quả của một quy tắc hành chính.
+
+#### Phạm vi — nói ra để ⛔ ai đọc cái xanh của nó quá rộng (luật 28)
+
+Bản này quyết định **nút**, ⛔ quyết định **tầm nhìn**. Hộp *Chờ duyệt* vẫn cắt theo bộ lọc phạm vi,
+nên một quản lý ⛔ giữ chức vụ vẫn **thấy** đơn của đơn vị mình — cố ý: đó là danh sách việc của đơn
+vị. Cái họ ⛔ có là nút. Hệ quả còn lại (thư báo vẫn tới họ; màn hình chưa nói rõ ai phải bấm) là nợ
+**T80.7**, và nó **⛔ sửa được trong phạm vi bản này**: thu hẹp người nhận đòi `RecipientResolver`
+biết quan hệ lãnh đạo, tức một ca thứ **năm** ở `core` — đúng lý lẽ đã giữ `T57.15` mở suốt 6 ngày.

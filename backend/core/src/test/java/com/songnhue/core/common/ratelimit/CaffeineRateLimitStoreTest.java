@@ -70,15 +70,50 @@ class CaffeineRateLimitStoreTest {
         assertThat(store.hit(key, 1, Duration.ofMillis(50)).allowed()).isTrue();
     }
 
+    /**
+     * T61.17 (WS-72): {@code hoanLai} thay {@code reset}. {@code reset} xoá sạch bộ đếm, nên nếu được nối vào
+     * nhánh đăng nhập đúng thì ai có một tài khoản thật cũng xoá được mọi lượt sai của IP mình.
+     */
     @Test
-    @DisplayName("reset() xoá bộ đếm — dùng sau khi đăng nhập thành công")
-    void resetClearsCounter() {
+    @DisplayName("⛔ hoanLai() trả ĐÚNG MỘT lượt — ⛔ xoá được lượt sai của người khác")
+    void hoanLaiChiTraMotLuot() {
         String key = "login:203.0.113.7";
-        store.hit(key, 1, Duration.ofMinutes(15));
-        assertThat(store.hit(key, 1, Duration.ofMinutes(15)).allowed()).isFalse();
+        store.hit(key, 2, Duration.ofMinutes(15)); // một lượt sai
+        store.hit(key, 2, Duration.ofMinutes(15)); // một lượt đúng…
+        store.hoanLai(key); // …được trả lại
 
-        store.reset(key);
+        assertThat(store.hit(key, 2, Duration.ofMinutes(15)).allowed())
+                .as("còn đúng một chỗ: lượt sai trước vẫn được tính")
+                .isTrue();
+        assertThat(store.hit(key, 2, Duration.ofMinutes(15)).allowed())
+                .as("reset() sẽ cho lượt này đi — hoanLai() ⛔")
+                .isFalse();
+    }
+
+    @Test
+    @DisplayName("⛔ hoanLai() ⛔ đẩy bộ đếm xuống dưới 0 — trả thừa ⛔ thành lượt miễn phí")
+    void hoanLaiKhongXuongAm() {
+        String key = "login:203.0.113.8";
+        store.hit(key, 1, Duration.ofMinutes(15));
+        store.hoanLai(key);
+        store.hoanLai(key); // trả thừa: bộ đếm phải dừng ở 0, ⛔ về −1
+
         assertThat(store.hit(key, 1, Duration.ofMinutes(15)).allowed()).isTrue();
+        assertThat(store.hit(key, 1, Duration.ofMinutes(15)).allowed())
+                .as("bộ đếm −1 sẽ cho lượt này đi")
+                .isFalse();
+    }
+
+    @Test
+    @DisplayName("hoanLai() trên khoá chưa có cửa sổ ⇒ ⛔ dựng cửa sổ nào (⛔ mở sẵn một lượt âm)")
+    void hoanLaiKhoaVangKhongLamGi() {
+        String key = "login:203.0.113.9";
+        store.hoanLai(key);
+
+        RateLimitStore.Decision dau = store.hit(key, 1, Duration.ofMinutes(15));
+        assertThat(dau.allowed()).isTrue();
+        assertThat(dau.remaining()).isZero();
+        assertThat(store.hit(key, 1, Duration.ofMinutes(15)).allowed()).isFalse();
     }
 
     @Test

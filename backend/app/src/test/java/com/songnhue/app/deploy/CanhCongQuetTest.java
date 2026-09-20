@@ -129,6 +129,24 @@ class CanhCongQuetTest {
 
         assertThat(kq.dauRa()).contains("TRANG_THAI=khong-co-luot");
         assertThat(kq.lenhGh()).anyMatch(l -> l.startsWith("issue create"));
+        // ⛔⛔ Nhãn phải được TẠO trước khi mở issue gắn nhãn ấy. Đo 19/09/2026: nhãn `canh-cong-quet` ⛔ tồn
+        //   tại trong kho ⇒ `gh issue create --label` thật sẽ HỎNG. `gh` giả ở đây nhận mọi nhãn, nên nó ⛔ thể
+        //   thấy lỗi ấy — bài này chỉ canh được THỨ TỰ lệnh (luật 28: nói ra giới hạn của chính mình).
+        List<String> lenh = kq.lenhGh();
+        int nhan = -1;
+        int tao = -1;
+        for (int i = 0; i < lenh.size(); i++) {
+            if (nhan < 0 && lenh.get(i).startsWith("label create canh-cong-quet")) {
+                nhan = i;
+            }
+            if (tao < 0 && lenh.get(i).startsWith("issue create")) {
+                tao = i;
+            }
+        }
+        assertThat(nhan)
+                .as("phải tạo nhãn `canh-cong-quet` TRƯỚC khi mở issue")
+                .isNotNegative()
+                .isLessThan(tao);
         assertThat(kq.maThoat())
                 .as(
                         """

@@ -134,8 +134,8 @@ public class UserAdminService implements UserDirectoryPort {
         user.setFullName(fullName);
         user.setEmail(email);
         user.setOrgUnitId(orgUnitId);
-        user.setPasswordHash(passwordPolicy.hash(temporaryPassword));
-        user.setMustChangePassword(true);
+        // T73.8 — hash · mốc đổi · cờ buộc đổi · HẠN của mật khẩu tạm, một chỗ cho cả hai đường phát.
+        passwordPolicy.ganMatKhauTam(user, temporaryPassword, Instant.now());
         user.setStatus(UserStatus.ACTIVE);
 
         User saved = users.save(user);
@@ -548,7 +548,8 @@ public class UserAdminService implements UserDirectoryPort {
                 List.of(),
                 List.of(user.getId()),
                 null,
-                List.of(NotificationChannel.IN_APP, NotificationChannel.EMAIL)));
+                List.of(NotificationChannel.IN_APP, NotificationChannel.EMAIL),
+                false));
     }
 
     // ---- Hợp đồng cho module nghiệp vụ (core.spi) ----------------------------
@@ -577,5 +578,30 @@ public class UserAdminService implements UserDirectoryPort {
         return users.findAllById(internalIds).stream()
                 .filter(u -> !u.isDeleted())
                 .collect(java.util.stream.Collectors.toMap(User::getId, User::getPublicId));
+    }
+
+    /**
+     * ⚠ Đo bằng {@code findActiveIdsByPermission} — <b>cùng một câu</b> mà {@code RecipientResolver}
+     * dùng để chọn người nhận thư. Cố ý: <i>"ai đang có quyền này"</i> phải là MỘT câu trả lời cho
+     * cả hệ, ⛔ phải hai câu viết ở hai chỗ (luật 14).
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public boolean dangHoatDongVaCoQuyen(UUID publicId, String maQuyen) {
+        if (publicId == null || maQuyen == null || maQuyen.isBlank()) {
+            return false;
+        }
+        return internalIdOf(publicId)
+                .map(id -> users.findActiveIdsByPermission(maQuyen).contains(id))
+                .orElse(false);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Long> orgUnitIdCua(UUID publicId) {
+        if (publicId == null) {
+            return Optional.empty();
+        }
+        return users.findByPublicIdAndDeletedAtIsNull(publicId).map(User::getOrgUnitId);
     }
 }

@@ -129,6 +129,7 @@ Mọi trạng thái → ĐÃ XÓA (soft delete, terminal, không phục hồi)
 
 ### CN-01.4. Quản lý Liên hệ (Trung bình) — *SRS M1.5, UC1.3*
 - Form public: Họ tên, Email, SĐT, Chủ đề, Nội dung + Google reCAPTCHA v3; bật/tắt từng trường, đặt bắt buộc.
+- **Chống gửi tự động** (*thêm 20/9/2026 — ASVS 11.1.2, T73.9*): biểu mẫu Liên hệ và Góp ý (CN-01.6) chỉ nhận lượt gửi mang **vé do máy chủ ký**, đủ N giây tuổi (`security.form.min-fill-seconds`, mặc định **3**, tối đa 60; 0 = chỉ kiểm chữ ký và hạn) và chưa quá 24 giờ. Người điền nhanh ⛔ nhận lỗi — giao diện tự chờ đủ tuổi rồi mới gửi. Độc lập với reCAPTCHA (chờ G13): vé chặn máy gửi thẳng vào API, reCAPTCHA chặn trình duyệt tự động.
 - Email notify khi có liên hệ mới (nhiều người nhận); auto email xác nhận cho người gửi.
 - Danh sách liên hệ: trạng thái Mới / Đã đọc / Đang xử lý / Đã phản hồi / Đóng / Lưu trữ; phân loại + chuyển phòng ban liên quan; ghi chú nội bộ; export Excel; không cho xóa khi 'Đang xử lý'.
 - **SLA**: quá thời hạn xử lý cấu hình → nhắc nhở người phụ trách (SRS UC1.3).
@@ -711,9 +712,9 @@ Người dùng: Quản trị nhân sự (Admin HR), Ban giám đốc, Quản lý
 > 🟨 **CHỨA ĐIỂM CHƯA CHỐT — G6, G10.** **BCNS-07 (mẫu 2C-BNV/2008 Bộ Nội vụ) chưa có file mẫu gốc của Công ty** → làm 7 báo cáo còn lại trước, để BCNS-07 sau cùng. Đây là biểu mẫu quy định, **cấm tự chế layout**. Layout in ấn các báo cáo khác chờ duyệt (G10) — trường dữ liệu đã chốt nên làm khung trước được.
 
 ### CN-04.9. Quản lý Nghỉ phép (Trung bình) — *SRS M4.10*
-- **Chính sách (Admin HR)** — ⭐ *chốt C1 (12/8/2026): toàn bộ thông số dưới đây là **biến cấu hình**, Admin sửa được trong UI, **cấm hard-code***: phép năm theo thâm niên (mặc định theo Điều 113 BLLĐ 2019: <5 năm=12; 5–10=13; >10=14); phép đặc biệt (thai sản 180, cưới 3, tang 3, khám SK 1); số ngày chuyển sang năm sau (mặc định 5); cách tính pro-rata (mặc định `12 × số tháng / 12`, làm tròn 0.5); mốc tính thâm niên (mặc định = ngày vào làm tại Công ty); ngày lễ (trừ tự động).
-- **Quy trình**: NV đăng ký → tự tính số ngày (trừ cuối tuần + lễ) + hiển thị số dư → cảnh báo vượt phép → gửi đơn → Quản lý duyệt/từ chối (email) → tự trừ số dư.
-- **Số dư**: Được hưởng = thâm niên + chuyển năm trước; Còn lại = Được hưởng − Đã nghỉ − Đang chờ duyệt (tính lại từ đơn, không cộng trừ tay).
+- **Chính sách (Admin HR)** — ⭐ *chốt C1 (12/8/2026): toàn bộ thông số dưới đây là **biến cấu hình**, Admin sửa được trong UI, **cấm hard-code***: phép năm theo thâm niên — *sửa 20/9/2026 (T68.10): bản chốt ban đầu ghi "<5 năm=12; 5–10=13; >10=14" là đọc thiếu **Điều 114***: phép = **cơ sở** (Điều 113, mặc định 12) + **1 ngày cho mỗi đủ 5 năm** làm việc (Điều 114) ⇒ 0–4 năm = 12 · 5–9 = 13 · 10–14 = 14 · 15–19 = 15 · 20–24 = 16…; ba tham số cơ sở · số năm mỗi bậc · số ngày mỗi bậc đều sửa được; phép đặc biệt (thai sản 180, cưới 3, tang 3, khám SK 1); số ngày chuyển sang năm sau (mặc định 5); cách tính pro-rata (mặc định `12 × số tháng / 12`, làm tròn 0.5); mốc tính thâm niên (mặc định = ngày vào làm tại Công ty); ngày lễ (trừ tự động).
+- **Quy trình**: NV đăng ký → tự tính số ngày (trừ cuối tuần + lễ) + hiển thị số dư → cảnh báo vượt phép → gửi đơn → Quản lý duyệt/từ chối (email) → tự trừ số dư. *Người nhận thông báo đơn mới / chuyển cấp 2 / rút đơn = người có quyền duyệt **mà phạm vi dữ liệu phủ đơn vị người nộp** — đúng người thấy đơn trong hộp chờ duyệt, ⛔ quản lý của mọi Xí nghiệp (T57.15, 20/9/2026).*
+- **Số dư**: Được hưởng = thâm niên + chuyển năm trước; Còn lại = Được hưởng − Đã nghỉ − Đang chờ duyệt (tính lại từ đơn, không cộng trừ tay). *Số chuyển năm trước chỉ tính từ dữ liệu của hệ khi năm trước ≥ "năm đầu tiên hệ ghi nhận đủ đơn nghỉ" (`hr.leave.first-fully-recorded-year`, mặc định 2027 — hệ bắt đầu dùng giữa năm 2026); trước đó màn hình nói "chưa có dữ liệu năm trước" (T57.16, 20/9/2026).*
 - **Lịch đơn vị**: Calendar; cảnh báo trùng lịch khi > ngưỡng % quân số nghỉ cùng lúc.
 - ✅ **Chốt C2**: mặc định duyệt **1 cấp** (trưởng đơn vị); có cấu hình "≥ N ngày cần thêm cấp duyệt 2" (mặc định tắt).
 - ✅ **Chốt C3**: **cấp tài khoản cho toàn bộ CBNV**; nhân viên không dùng máy tính → quản lý đơn vị tạo đơn hộ (lưu trường "người tạo hộ", ghi audit).
@@ -797,7 +798,7 @@ Người dùng: Admin (Super Admin), Hệ thống tự động.
 
 > Trước 18/8 hệ thống **không có** đường tự đặt lại mật khẩu: quên là phải nhờ quản trị viên cấp mật khẩu tạm. Mục này đóng điểm đó.
 
-**Bốn quy tắc.** Mọi con số đều nằm trong `settings`, có UI sửa — không hard-code.
+**Năm quy tắc.** Mọi con số đều nằm trong `settings`, có UI sửa — không hard-code.
 
 | # | Quy tắc | Tham số | Mặc định |
 |---|---|---|---|
@@ -805,6 +806,7 @@ Người dùng: Admin (Super Admin), Hệ thống tự động.
 | 2 | Luồng **tự đặt lại** (quên mật khẩu) chỉ dùng được nếu lần tự đặt lại gần nhất đã cách ≥ N ngày | `security.password.self-reset-cooldown-days` | **90** |
 | 3 | **Nhắc trước hạn** qua email, ở các mốc trước ngày hết hạn | `security.password.reminder-days-before` | **14, 7, 1** |
 | 4 | Liên kết đặt lại sống ngắn, dùng **một lần** | `security.password.reset-link-ttl-minutes` | **30** |
+| 5 | **Mật khẩu tạm** do quản trị viên cấp (tạo tài khoản · đặt lại) hết hiệu lực sau N giờ nếu chưa dùng để đổi — quá hạn thì nhờ cấp lại. Hạn chốt lúc cấp: đổi N chỉ áp cho mật khẩu tạm cấp SAU đó. *Thêm 20/9/2026 — ASVS 2.3.1, T73.8* | `security.password.temp-ttl-hours` | **72** |
 
 **Ba đường đi tới mật khẩu mới:**
 
@@ -824,6 +826,7 @@ Người dùng: Admin (Super Admin), Hệ thống tự động.
 | `password_expires_at` | `timestamptz` | Ngày hết hạn, dẫn xuất khi đổi mật khẩu. Lưu tường minh để truy vấn "sắp hết hạn" không phải tính trên toàn bảng |
 | `last_self_reset_at` | `timestamptz` | Mốc chặn giãn cách — quy tắc 2. **Một con số đếm không diễn tả được "cách nhau 3 tháng"**, nên mốc thời gian mới là thứ chặn |
 | `self_reset_count` | `INT` | Tổng số lượt tự đặt lại. Không dùng để chặn; dùng để nhìn ra người dùng hay quên và tài khoản đang bị nhắm |
+| `temp_password_expires_at` | `timestamptz` | Hạn của mật khẩu tạm — quy tắc 5. NULL = không có hạn (mật khẩu thường, bootstrap Super Admin, bản ghi trước 20/9/2026). Người dùng tự đổi mật khẩu ⇒ về NULL |
 
 Bảng riêng `password_reset_tokens`: chỉ lưu **băm SHA-256** của mã, `expires_at`, `used_at`, `requested_ip` — mã gốc chỉ tồn tại trong email.
 

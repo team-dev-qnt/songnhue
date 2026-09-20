@@ -110,6 +110,20 @@ public class LeaveRequest extends ScopedEntity implements WorkflowAware {
     @Column(name = "decided_at")
     private Instant decidedAt;
 
+    /** Người quyết <b>cấp 1</b> — T80.3. Xem {@link #ghiCapMot}. */
+    @Column(name = "cap1_by")
+    private Long cap1By;
+
+    @Column(name = "cap1_at")
+    private Instant cap1At;
+
+    /** Lượt uỷ quyền đã dùng, {@code null} = quyết với tư cách trưởng/phó của chính mình (B3). */
+    @Column(name = "uy_quyen_id")
+    private Long uyQuyenId;
+
+    @Column(name = "duyet_du_phong", nullable = false)
+    private boolean duyetDuPhong;
+
     protected LeaveRequest() {}
 
     /**
@@ -263,5 +277,50 @@ public class LeaveRequest extends ScopedEntity implements WorkflowAware {
     public void ghiQuyetDinh(Long nguoiQuyet, Instant luc) {
         this.decidedBy = nguoiQuyet;
         this.decidedAt = luc;
+    }
+
+    public Long getCap1By() {
+        return cap1By;
+    }
+
+    public Instant getCap1At() {
+        return cap1At;
+    }
+
+    /**
+     * Ghi người đã quyết <b>cấp 1</b> — thứ DUY NHẤT làm cấp 2 khác cấp 1 (T80.3).
+     *
+     * <p>⛔⛔ ⛔ Dùng lại {@link #decidedBy}: cột ấy mang người ra quyết định <b>cuối</b>, mà lúc
+     * chuyển sang {@code CHO_DUYET_2} thì chưa có quyết định cuối nào. Nhét tạm vào đó rồi ghi đè ở
+     * cấp 2 nghĩa là sau khi duyệt xong ⛔ còn dấu vết nào của người cấp 1 — trong khi đó đúng là
+     * thứ một lượt rà soát phép năm đi tìm.
+     */
+    public void ghiCapMot(Long nguoiQuyet, Instant luc) {
+        this.cap1By = nguoiQuyet;
+        this.cap1At = luc;
+    }
+
+    public Long getUyQuyenId() {
+        return uyQuyenId;
+    }
+
+    public boolean isDuyetDuPhong() {
+        return duyetDuPhong;
+    }
+
+    /**
+     * Ghi <b>tư cách</b> của lượt quyết vừa rồi — chốt B3 (<i>"audit ghi 'duyệt theo uỷ quyền của
+     * X'"</i>).
+     *
+     * <p>Vết đi trên chính lá đơn chứ ⛔ chỉ trong {@code audit_logs}: tranh chấp phép năm nổ ra
+     * hàng tháng sau, và thứ người ta mở ra là <b>cái đơn</b> — bảng nhật ký giữ 5 năm và ⛔ phải
+     * ai cũng đọc được.
+     *
+     * <p>⚠ {@code uyQuyenId} là một <b>khoá ngoại</b>, ⛔ phải một chuỗi chép lại tên người giao:
+     * đổi tên tài khoản ⛔ được làm lịch sử nói sai.
+     */
+    public void ghiTuCach(Long uyQuyenId, boolean duPhong) {
+        this.uyQuyenId = uyQuyenId;
+        this.duyetDuPhong = duPhong;
     }
 }

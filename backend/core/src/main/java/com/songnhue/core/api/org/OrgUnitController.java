@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.songnhue.core.application.org.OrgUnitNode;
 import com.songnhue.core.application.org.OrgUnitService;
+import com.songnhue.core.application.org.ThongTinDonVi;
 import com.songnhue.core.common.security.AuthenticatedEndpoint;
 import com.songnhue.core.common.security.RequirePermission;
 
@@ -84,7 +85,7 @@ public class OrgUnitController {
     @Operation(summary = "Chi tiết một đơn vị")
     @RequirePermission("adm:org-unit:view")
     public OrgUnitDtos.OrgUnitSummary get(@PathVariable UUID publicId) {
-        return OrgUnitDtos.OrgUnitSummary.of(service.get(publicId));
+        return tomTat(service.get(publicId));
     }
 
     @PostMapping
@@ -92,15 +93,18 @@ public class OrgUnitController {
     @Operation(summary = "Thêm đơn vị mới")
     @RequirePermission("adm:org-unit:manage")
     public OrgUnitDtos.OrgUnitSummary create(@Valid @RequestBody OrgUnitDtos.CreateRequest request) {
-        return OrgUnitDtos.OrgUnitSummary.of(service.create(
+        return tomTat(service.create(
                 request.code(),
                 request.name(),
                 request.unitType(),
                 request.parentPublicId(),
                 request.shortName(),
-                request.address(),
-                request.phone(),
-                request.email()));
+                new ThongTinDonVi(
+                        request.address(),
+                        request.phone(),
+                        request.email(),
+                        request.headUserPublicId(),
+                        request.deputyUserPublicId())));
     }
 
     @PutMapping("/{publicId}")
@@ -108,14 +112,17 @@ public class OrgUnitController {
     @RequirePermission("adm:org-unit:manage")
     public OrgUnitDtos.OrgUnitSummary update(
             @PathVariable UUID publicId, @Valid @RequestBody OrgUnitDtos.UpdateRequest request) {
-        return OrgUnitDtos.OrgUnitSummary.of(service.update(
+        return tomTat(service.update(
                 publicId,
                 request.name(),
                 request.shortName(),
                 request.unitType(),
-                request.address(),
-                request.phone(),
-                request.email()));
+                new ThongTinDonVi(
+                        request.address(),
+                        request.phone(),
+                        request.email(),
+                        request.headUserPublicId(),
+                        request.deputyUserPublicId())));
     }
 
     @PatchMapping("/{publicId}/parent")
@@ -123,7 +130,7 @@ public class OrgUnitController {
     @RequirePermission("adm:org-unit:manage")
     public OrgUnitDtos.OrgUnitSummary move(
             @PathVariable UUID publicId, @Valid @RequestBody OrgUnitDtos.MoveRequest request) {
-        return OrgUnitDtos.OrgUnitSummary.of(service.move(publicId, request.newParentPublicId()));
+        return tomTat(service.move(publicId, request.newParentPublicId()));
     }
 
     @PatchMapping("/order")
@@ -140,5 +147,16 @@ public class OrgUnitController {
     @RequirePermission("adm:org-unit:manage")
     public void delete(@PathVariable UUID publicId) {
         service.delete(publicId);
+    }
+
+    /**
+     * Gắn {@code public_id} của trưởng/phó vào bản tóm tắt — H24.
+     *
+     * <p>⛔ Bốn endpoint trả về MỘT đơn vị đều đi qua đây: thiếu một chỗ thì màn hình đọc lại sau
+     * lượt Lưu sẽ thấy hai ô rỗng và người dùng tưởng lượt lưu hỏng (quy tắc 27).
+     */
+    private OrgUnitDtos.OrgUnitSummary tomTat(com.songnhue.core.domain.org.OrgUnit unit) {
+        OrgUnitService.LanhDaoPublicId lanhDao = service.lanhDaoCua(unit);
+        return OrgUnitDtos.OrgUnitSummary.of(unit, lanhDao.truong(), lanhDao.pho());
     }
 }

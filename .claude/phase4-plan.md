@@ -18,6 +18,15 @@
 > ⛔ **Ranh giới đã chốt**: phía phát triển ⛔ không SSH · ⛔ không gộp · ⛔ không đề bạt. Mọi phép đo
 > trên máy chủ nằm ở **`phase4-tracking-tmp.md` §B** dưới dạng **lệnh cụ thể cho QuanTran**.
 
+> ⭐⭐ **Đối chiếu lần 3 — 19/09 (`WS-68`, `T68.1`).** Đo lại 110 dòng mở trên mã + nhánh đã triển khai:
+> **93** mang ít nhất một câu nay đã sai; 44 nợ ẩn được mở dòng `T68.x`. ⛔⛔ **§2 dưới đây ĐÃ XẢY RA**:
+> #133 → staging 17/09 · #168 → production 18/09 · #171 → staging 19/09; production nay tụt **4** commit
+> (#167 · #170 · #169 + một bump Dependabot) ⇒ chặng kế tiếp là **`T68.2`**. Việc gấp nhất ⛔ còn là đề bạt
+> mà là **ĐO**: bản vá poller chạy trên production từ 18/09 mà `hydro_readings` chưa ai đo (`T61.2` · DOD4.2).
+> Hai tiêu chí của tệp này sai hình, đã sửa bên dưới: DOD4.6 (*"`Created` quay về mốc cũ"* — ⛔ đo được, container
+> tạo lại luôn mang `Created` mới) · `T61.10` (*"hết ô `______`"* — ô ấy là mẫu in). Thêm **DOD4.14** (NFR-05) +
+> **DOD4.15** (NFR-09) ⇒ đóng `T61.7`. Kế hoạch trả nợ: WS-69 → WS-78 (khối WS-68 của sổ).
+
 ---
 
 ## 1. Phase 4 đóng bằng gì
@@ -35,6 +44,9 @@ ba câu ấy — đó chính là lý do chúng còn treo từ Phase 0.
 ---
 
 ## 2. ⛔⛔⛔ Cửa vào: việc ĐẦU TIÊN ⛔ không phải viết mã
+
+> ✅ **ĐÃ CHẠY 17–19/09** (xem khối *Đối chiếu lần 3* đầu tệp). Phần dưới giữ làm hồ sơ vì sao nó là cửa vào; tình trạng
+> hiện tại ở `T60.13` `[~]` (còn đo container + poller qua SSH) và `T68.2` (chặng `staging → production` kế tiếp).
 
 **`T60.13` — chuỗi đề bạt `dev → staging → production`.** Đo 14/09 **ở tầng mã**, ⛔ không suy đoán:
 
@@ -127,30 +139,30 @@ gói cron** (`is-enabled` ⇒ `not-found`). Thứ đi cảnh báo chính là th�
 | ID | Việc | Đo bằng gì | Chặn bởi |
 |---|---|---|---|
 | `T60.10` | `uname -m` hai VPS | đầu ra lệnh | — |
-| `T60.13` | Đề bạt 3 chặng | container thật + Flyway + HTTP 200 | `T60.10` |
-| `T60.3` | Production kéo được ảnh MinIO mới | `docker compose pull` thoát 0 | `T60.13` |
-| `T37.1` | **NFR-03** — 1008 khung 10′ liên tục, sai lệch cron < 10% | cột *"số khung bỏ sót"* của **BC-13** | `T60.13` |
-| `T61.2` | Staging (có bản vá từ 11/09) ghi được byte thật chưa | `hydro_readings` + `api_sources` trên staging | — |
-| `T61.6` | Viết kịch bản load test — kho có **0** | kịch bản chạy được + tỉ lệ 429 khai riêng | — |
+| `T60.13` | Đề bạt 3 chặng — ✅ đã chạy 17–19/09, còn đo qua SSH; chặng kế tiếp `T68.2` | container thật + Flyway + HTTP 200 | — |
+| `T60.3` | Production kéo được ảnh MinIO mới — ✅ 18/09 (`Pulled`, run `35367590642`) | `docker compose pull` thoát 0 | — |
+| `T37.1` | **NFR-03** — 1008 khung 10′ liên tục, sai lệch cron < 10% | cột *"số khung bỏ sót"* của **BC-13** | `T61.2` (DOD4.2 xanh) |
+| `T61.2` | Staging **và production** (bản vá lên production 18/09) ghi được byte thật chưa | `hydro_readings` (`measured_at`, `source='API'`) + `api_sources` trên cả hai máy | — |
+| `T61.6` | Kịch bản load test — đã có `tools/tai-thu/`; README §2 sửa theo T61.17 ở WS-72 (19/09) | kịch bản chạy được + tỉ lệ 429 khai riêng | — |
 | `T37.2` | **NFR-02** — 200 CCU · P95 < 3s @ 50 users | bộ load test | `T60.13` · `T61.6` |
 | `T37.3` | **DOD1.17** — trang chủ < 3s | công cụ đo trang thật, **từ máy ở VN**, cả ISR nguội. ⚠ Đo trên **`https://thuyloisongnhue.vn`** — ⛔ `songnhue.com`: tên miền cũ ⛔ còn khối `server` nào phục vụ từ 08/09, nên một lượt đo ở đó ⛔ cho ra *chậm*, nó cho ra *hỏng* (T61.3) | `T60.13` |
-| `DOD0.21` | Quay lui **dựng lại được một bản đã bị thay** | `Created` của container quay về mốc cũ | `T60.3` |
+| `DOD0.21` | Quay lui **dựng lại được một bản đã bị thay** | ID ảnh = ID đã ghi + nginx healthy + trang chủ 200 (⛔ `Created` — container tạo lại luôn mang `Created` mới) | `T11.9` (quay lui trả cả cấu hình) |
 | `T61.5` | **Alertmanager + ping ngoài** — Prometheus hôm nay ⛔ gửi đi đâu | một cảnh báo tới được người | kênh QuanTran chọn |
 | `DOD2.9` | Chuông poller bắn THẬT + runbook đã đi thử | lượt bắn thật trên **VPS-2** (VM-3 đã gộp) | `T61.5` |
 | `T11.88` | Lịch gia hạn TLS cho **staging** | `systemctl is-enabled` + một lượt gia hạn khô | — ⛔ **hạn 22/11** |
 | `T61.3` | Production là **`thuyloisongnhue.vn`**: chứng chỉ `.vn` hạn **06/12**, `admin.`/`files.` còn treo | `certbot certificates` trên VPS-1 | — |
 | `T61.9` | Bật lịch sao lưu + kéo bản dump về VPS-2 | bản < 26h **trên VPS-2** | gói cron (cùng `T11.88`) |
-| `T61.10` | Khôi phục vào máy **trắng**, đo RTO < 4h | runbook `dien-tap-khoi-phuc.md` hết ô `______` | `T61.9` |
+| `T61.10` | Khôi phục vào máy **trắng**, đo RTO < 4h | một hàng nhật ký *máy TRẮNG* + RTO bằng phút trong `dien-tap-khoi-phuc.md` (ô `______` là mẫu in, ⛔ phải bằng chứng) | `T61.9` · `T37.8` |
 | `T61.4` | **ClamAV** — mọi tệp tải lên đang `SKIPPED` | một tệp EICAR ra `INFECTED` | ngân sách RAM VPS-2 |
 | `T61.8` | Bản dump ghi `644` (T11.96) | bộ canh tĩnh + `stat` trên VPS-1 | — |
 | `T61.11` | Runbook xoay khoá tắt chống trùng CCCD (T51.9) | runbook dặn đúng + bài kiểm | — |
 | `T61.12` | Vòng khứ hồi biểu mẫu công trình (T42.26·T47.17·T48.10) | bài render so payload | — |
 | `T61.14` | Canh GIÁ TRỊ `ip_address` ở 3 bảng | bài HTTP | — |
 | `T61.13` | 43 nơi ném đối số vào mã lỗi ⛔ `{n}` (nợ không dòng mở) | bộ canh đếm | — |
-| `T61.7` | NFR-05 kiểm thử bảo mật · NFR-09 tương thích — ⛔ task nào | chốt phạm vi | — |
+| `T61.7` | NFR-05 · NFR-09 — ✅ đóng 19/09: **DOD4.14** · **DOD4.15** (`T61.28` · `T61.29`) | chốt phạm vi | — |
 | `T11.89` · `T11.54` | Khoá SSH dùng chung hai môi trường · cổng 5201 mở trên VPS-2 | đo trên máy | — |
 | `T58.18` | Chưa có bộ canh hình dạng N+1 | — | — |
-| `T25.23` | 44 mã màu ghi cứng ở `admin-app` | trần `NGUONG` trong bộ canh | — |
+| `T25.23` | **21** mã màu ghi cứng ở `admin-app` (đo 18/09) | trần `NGUONG` trong bộ canh | — |
 
 **Việc của người dùng, ⛔ không phải của mã**: xoay khoá API thuỷ văn với nhà cung cấp · đặt hoặc gỡ
 `SMTP_HOST` trên staging.
@@ -186,7 +198,7 @@ gói cron** (`is-enabled` ⇒ `not-found`). Thứ đi cảnh báo chính là th�
 | DOD4.3 | `T37.1` xanh — **1008 khung 10′ liên tục**, sai lệch cron < 10%, đọc từ BC-13 |
 | DOD4.4 | `T37.2` xanh — 200 CCU, P95 dashboard < 3s @ 50 users |
 | DOD4.5 | `DOD1.17` xanh — trang chủ < 3s đo **từ máy ở Việt Nam**, gồm **cả lượt ISR nguội** |
-| DOD4.6 | `DOD0.21` xanh — một lượt hỏng **SAU** `up -d` rồi `Created` quay về mốc cũ |
+| DOD4.6 | `DOD0.21` xanh — một lượt hỏng **SAU** `up -d`, rồi quay lui trả đúng **ID ảnh** đã ghi + nginx healthy + trang chủ 200 (⛔ *"`Created` quay về mốc cũ"*: container tạo lại luôn mang `Created` MỚI — ngày 17/09 `Created` đã đổi mà site vẫn chết) |
 | DOD4.7 | `DOD2.9` xanh — chuông bắn **thật**, và có người **đi hết** runbook |
 | DOD4.8 | Lịch gia hạn TLS có ở **cả hai** máy, và đã chứng minh bằng một lượt gia hạn khô. ⚠ Production nay là **`.vn`** (hạn **06/12/2026**) — mục này phủ **cả production**, ⛔ chỉ staging (T61.3) |
 | DOD4.9 | Sao lưu có **lịch đang chạy** và một lượt **khôi phục thật** đọc được |
@@ -194,6 +206,8 @@ gói cron** (`is-enabled` ⇒ `not-found`). Thứ đi cảnh báo chính là th�
 | DOD4.11 | Quét virus chạy **thật** trên production — một tệp EICAR ra `INFECTED`, ⛔ không `SKIPPED` (`T61.4`) |
 | DOD4.12 | Một cảnh báo Prometheus **tới được người** qua kênh đã chốt (`T61.5`) — NFR-01 |
 | DOD4.13 | Bản dump trên máy chủ ⛔ đọc được bởi user khác (`T61.8`, `stat` = `640` — ⛔ `600`: tệp tạo trong container, user deploy đọc qua nhóm) |
+| DOD4.14 | **NFR-05** — ZAP baseline chạy trên staging, **0 FAIL chưa phân xử**, và đăng nhập Admin ⛔ 2FA bị từ chối (bài HTTP trên một run CI có id) (`T61.28`) |
+| DOD4.15 | **NFR-09** — bộ tương thích Playwright 3 engine × 4 bề rộng xanh trên staging **sau #169**, hoặc mỗi bài đỏ có dòng nợ (`T61.29`) |
 
 ---
 

@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -323,6 +324,137 @@ class HoSoNhanSuPhamViTest extends IntegrationTestBase {
             // ⛔ `finally`: bỏ lại vai trò tạm sẽ làm `RbacMatrixTest` đỏ ở MỘT LỚP KHÁC.
             donVaiTroHttp();
         }
+    }
+
+    // =========================================================================
+    // ⛔⛔ T74.8 — vế GHI của tầng 3 (ASVS 4.2.1)
+    // =========================================================================
+
+    /**
+     * {@code EmployeeService.apDung} chỉ kiểm đơn vị <b>tồn tại</b>; bộ lọc phạm vi chỉ canh vế <b>đọc</b>. Quyền
+     * {@code hr:employee:create/update} thuộc vai trò (ADMIN_HR…), còn phạm vi thuộc <b>đơn vị của tài khoản</b> —
+     * nên một cán bộ nhân sự đặt ở Xí nghiệp A tạo được hồ sơ vào Xí nghiệp B, và CHUYỂN hồ sơ của mình sang B:
+     * ghi vào dữ liệu của một đơn vị mà chính họ ⛔ đọc được, ⛔ một dòng nhật ký bảo mật.
+     */
+    @Test
+    @DisplayName("⛔⛔ Ghi ngoài phạm vi: tạo hồ sơ vào XN-B · chuyển hồ sơ XN-A sang XN-B ⇒ 403 AUTH-3002 + dấu vết")
+    void ghiHoSoNgoaiPhamViBiChan() {
+        UUID hoSoA = heThongTraVe(() -> taoHoSo("GHI-A", "Người của A", xiNghiepAPublicId));
+        AuthContext.clear();
+        taoVaiTroHttp(List.of("hr:employee:view", "hr:employee:create", "hr:employee:update"));
+        String ten = null;
+        try {
+            PhienHttp phienHttp = new PhienHttp(http);
+            ten = PhienHttp.taoNguoiDung(users, passwords, jdbc, "hr_pv_ghi", VAI_TRO_HTTP);
+            jdbc.update("UPDATE users SET org_unit_id = ? WHERE username = ?", xiNghiepAId, ten);
+            PhienHttp.Phien phien = phienHttp.dangNhap(ten);
+
+            ResponseEntity<String> taoTrong = phienHttp.goi(
+                    phien, HttpMethod.POST, "/api/v1/hr/employees", hoSoJson("GHI-A2", xiNghiepAPublicId));
+            assertThat(taoTrong.getStatusCode())
+                    .as(
+                            "⚠ ĐỐI CHỨNG phải-thành-công — thiếu nó thì một hệ chặn MỌI lượt ghi cũng làm vế dưới xanh: %s",
+                            taoTrong.getBody())
+                    .isEqualTo(HttpStatus.CREATED);
+
+            long suKienTruoc = demSuKienPhamVi(ten);
+            ResponseEntity<String> taoNgoai =
+                    phienHttp.goi(phien, HttpMethod.POST, "/api/v1/hr/employees", hoSoJson("GHI-B", xiNghiepBPublicId));
+            assertThat(taoNgoai.getStatusCode())
+                    .as("⛔⛔ tạo hồ sơ vào đơn vị ngoài phạm vi: %s", taoNgoai.getBody())
+                    .isEqualTo(HttpStatus.FORBIDDEN);
+            assertThat(taoNgoai.getBody()).contains("AUTH-3002");
+            assertThat(jdbc.queryForObject(
+                            "SELECT count(*) FROM employees WHERE code = ?", Integer.class, TIEN_TO + "GHI-B"))
+                    .isZero();
+
+            ResponseEntity<String> chuyen = phienHttp.goi(
+                    phien, HttpMethod.PUT, "/api/v1/hr/employees/" + hoSoA, hoSoJson("GHI-A", xiNghiepBPublicId));
+            assertThat(chuyen.getStatusCode())
+                    .as("⛔⛔ chuyển hồ sơ sang đơn vị ngoài phạm vi: %s", chuyen.getBody())
+                    .isEqualTo(HttpStatus.FORBIDDEN);
+            assertThat(jdbc.queryForObject("SELECT org_unit_id FROM employees WHERE public_id = ?", Long.class, hoSoA))
+                    .isEqualTo(xiNghiepAId);
+            assertThat(demSuKienPhamVi(ten) - suKienTruoc)
+                    .as("⛔ mỗi lượt ghi bị chặn phải để lại MỘT dòng ACCESS_DENIED_SCOPE (M5.16)")
+                    .isEqualTo(2);
+
+            ResponseEntity<String> suaTrong = phienHttp.goi(
+                    phien, HttpMethod.PUT, "/api/v1/hr/employees/" + hoSoA, hoSoJson("GHI-A", toDoiA1PublicId));
+            assertThat(suaTrong.getStatusCode())
+                    .as("⚠ ĐỐI CHỨNG: chuyển xuống Tổ đội TRỰC THUỘC A vẫn trong phạm vi ⇒ 200: %s", suaTrong.getBody())
+                    .isEqualTo(HttpStatus.OK);
+        } finally {
+            jdbc.update(
+                    "UPDATE users SET org_unit_id = ? WHERE org_unit_id IN (?, ?, ?)",
+                    rootId,
+                    xiNghiepAId,
+                    xiNghiepBId,
+                    toDoiA1Id);
+            donVaiTroHttp();
+        }
+    }
+
+    /**
+     * Mã hồ sơ là DUY NHẤT toàn Công ty, còn phép kiểm trùng mã đi qua bộ lọc phạm vi — nên mã đã có ở đơn vị
+     * KHÁC là vô hình với người tạo. Đo xem lượt tạo ấy trả gì: 409 {@code HR-1001} là đúng; 500 là một ràng
+     * buộc CSDL trần rơi ra tới người dùng.
+     */
+    @Test
+    @DisplayName("⛔ Trùng mã với hồ sơ NGOÀI phạm vi ⇒ 409 HR-1001, ⛔ phải 500")
+    void trungMaNgoaiPhamViLa409() {
+        heThongTraVe(() -> taoHoSo("TRUNG", "Người của B", xiNghiepBPublicId));
+        AuthContext.clear();
+        taoVaiTroHttp(List.of("hr:employee:view", "hr:employee:create"));
+        try {
+            PhienHttp phienHttp = new PhienHttp(http);
+            String ten = PhienHttp.taoNguoiDung(users, passwords, jdbc, "hr_pv_trung", VAI_TRO_HTTP);
+            jdbc.update("UPDATE users SET org_unit_id = ? WHERE username = ?", xiNghiepAId, ten);
+            PhienHttp.Phien phien = phienHttp.dangNhap(ten);
+
+            ResponseEntity<String> tao =
+                    phienHttp.goi(phien, HttpMethod.POST, "/api/v1/hr/employees", hoSoJson("TRUNG", xiNghiepAPublicId));
+            assertThat(tao.getStatusCode()).as("%s", tao.getBody()).isEqualTo(HttpStatus.CONFLICT);
+            assertThat(tao.getBody()).contains("HR-1001");
+        } finally {
+            jdbc.update(
+                    "UPDATE users SET org_unit_id = ? WHERE org_unit_id IN (?, ?, ?)",
+                    rootId,
+                    xiNghiepAId,
+                    xiNghiepBId,
+                    toDoiA1Id);
+            donVaiTroHttp();
+        }
+    }
+
+    private void taoVaiTroHttp(List<String> quyen) {
+        donVaiTroHttp();
+        jdbc.update(
+                "INSERT INTO roles (code, name, description, is_system, created_at) "
+                        + "VALUES (?, 'Vai trò kiểm thử phạm vi HTTP', 'Tạm, xoá ở cuối bài', FALSE, now())",
+                VAI_TRO_HTTP);
+        int gan = jdbc.update(
+                "INSERT INTO role_permissions (role_id, permission_id) SELECT r.id, p.id FROM roles r, permissions p "
+                        + "WHERE r.code = ? AND p.code IN ("
+                        + String.join(",", java.util.Collections.nCopies(quyen.size(), "?")) + ")",
+                java.util.stream.Stream.concat(java.util.stream.Stream.of(VAI_TRO_HTTP), quyen.stream())
+                        .toArray());
+        assertThat(gan)
+                .as("⚠ chống tập rỗng: mã quyền đổi tên thì gán thiếu trong im lặng")
+                .isEqualTo(quyen.size());
+    }
+
+    private static String hoSoJson(String hau, UUID donVi) {
+        return """
+                {"code":"%s","fullName":"Hồ sơ %s","orgUnitId":"%s","status":"DANG_LAM"}"""
+                .formatted(TIEN_TO + hau, hau, donVi);
+    }
+
+    private long demSuKienPhamVi(String username) {
+        return jdbc.queryForObject(
+                "SELECT count(*) FROM security_events WHERE event_type = 'ACCESS_DENIED_SCOPE' AND username = ?",
+                Long.class,
+                username);
     }
 
     private void donVaiTroHttp() {

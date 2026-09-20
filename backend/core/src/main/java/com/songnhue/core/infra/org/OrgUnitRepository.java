@@ -99,4 +99,59 @@ public interface OrgUnitRepository extends JpaRepository<OrgUnit, Long> {
             """,
             nativeQuery = true)
     List<Long> findActiveHeadAndDeputyUserIds(@Param("orgUnitIds") List<Long> orgUnitIds);
+
+    /**
+     * Trưởng/phó của một đơn vị <b>và của mọi đơn vị CHA nó</b> — chuỗi lãnh đạo (T80.1).
+     *
+     * <h2>⚠ Vì sao ⛔ bóc {@code path} ở Java rồi gọi {@link #findActiveHeadAndDeputyUserIds}</h2>
+     *
+     * <p>Làm thế thì nơi gọi phải tự cắt {@code /1/4/9/} thành các id — một phép phân tích chuỗi
+     * nằm <b>ngoài</b> CSDL, tức hai nơi cùng phải nhớ định dạng của {@code path}. Luật 14: chỗ nào
+     * con người phải nhớ hai nơi thì chỗ đó sai được trong im lặng.
+     *
+     * <p>⭐ {@code con.path LIKE cha.path || '%'} là phép <i>cha-hoặc-chính-nó</i>, và hai dấu gạch
+     * bao quanh chính là thứ giữ nó đúng: {@code /1/40/} ⛔ khớp {@code /1/4/%}. Thiếu dấu gạch
+     * cuối thì Xí nghiệp 40 rơi vào tầm của trưởng Xí nghiệp 4 — một lỗi ⛔ có triệu chứng cho tới
+     * ngày Công ty có đủ đơn vị để số hiệu chạm nhau.
+     */
+    @Query(
+            value =
+                    """
+            SELECT DISTINCT u.id
+              FROM org_units con
+              JOIN org_units cha ON con.path LIKE cha.path || '%'
+              JOIN users u ON u.id IN (cha.head_user_id, cha.deputy_user_id)
+             WHERE con.id = :orgUnitId
+               AND con.deleted_at IS NULL
+               AND cha.deleted_at IS NULL
+               AND u.deleted_at IS NULL
+               AND u.status = 'ACTIVE'
+            """,
+            nativeQuery = true)
+    List<Long> findActiveLeaderUserIdsUpTheTree(@Param("orgUnitId") Long orgUnitId);
+
+    /**
+     * Một đơn vị <b>và mọi đơn vị cha</b> của nó — chuỗi đi LÊN (T80.5).
+     *
+     * <p>Dùng cho phép tra uỷ quyền: trưởng Xí nghiệp A uỷ quyền cho ai đó thì người ấy phải duyệt
+     * được cả đơn của các <b>Tổ đội trực thuộc</b> A — tức một hàng uỷ quyền gắn ở A phải khớp một
+     * đơn gắn ở Tổ đội. Soi từ phía đơn thì câu hỏi là <i>"những đơn vị nào phủ đơn này"</i>, và
+     * đáp án là chính chuỗi này.
+     *
+     * <p>⚠ Cùng phép so {@code con.path LIKE cha.path || '%'} với
+     * {@link #findActiveLeaderUserIdsUpTheTree} — <b>cố ý</b>: hai câu trả lời hai câu hỏi khác
+     * nhau về cùng một quan hệ, và chúng phải ⛔ bao giờ lệch nhau (luật 14).
+     */
+    @Query(
+            value =
+                    """
+            SELECT cha.id
+              FROM org_units con
+              JOIN org_units cha ON con.path LIKE cha.path || '%'
+             WHERE con.id = :orgUnitId
+               AND con.deleted_at IS NULL
+               AND cha.deleted_at IS NULL
+            """,
+            nativeQuery = true)
+    List<Long> findOrgUnitIdChainUp(@Param("orgUnitId") Long orgUnitId);
 }

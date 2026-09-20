@@ -75,6 +75,8 @@ const XN_A = {
   address: 'Số 1 Quang Trung, Hà Đông, Hà Nội',
   phone: '024.3355.1111',
   email: 'xn.hadong@thuyloisongnhue.vn',
+  headUserPublicId: 'u-truong-a',
+  deputyUserPublicId: 'u-pho-a',
   children: [],
 };
 
@@ -91,8 +93,18 @@ const XN_B = {
   address: 'Km 8 Ngọc Hồi, Thanh Trì, Hà Nội',
   phone: '024.3688.2222',
   email: 'xn.thanhtri@thuyloisongnhue.vn',
+  headUserPublicId: 'u-truong-b',
+  deputyUserPublicId: 'u-pho-b',
   children: [],
 };
+
+/** Bốn tài khoản cho hai ô chọn trưởng/phó — H24. */
+const TAI_KHOAN = [
+  { publicId: 'u-truong-a', username: 'truonga', fullName: 'Trưởng A', status: 'ACTIVE' },
+  { publicId: 'u-pho-a', username: 'phoa', fullName: 'Phó A', status: 'ACTIVE' },
+  { publicId: 'u-truong-b', username: 'truongb', fullName: 'Trưởng B', status: 'ACTIVE' },
+  { publicId: 'u-pho-b', username: 'phob', fullName: 'Phó B', status: 'ACTIVE' },
+];
 
 let duongCuoi = '';
 let thanCuoi: Record<string, unknown> = {};
@@ -102,6 +114,10 @@ vi.mock('@/shared/apiClient', () => ({
   api: {
     get: vi.fn(async (duong: string) => {
       if (duong === '/org-units/tree') return [XN_A, XN_B];
+      // Ô chọn trưởng/phó nạp danh sách tài khoản — H24. Thiếu nhánh này thì `options` rỗng và
+      // `Select` ⛔ hiện được nhãn, nhưng GIÁ TRỊ vẫn nằm trong form ⇒ vế "giữ nguyên trường"
+      // của bài này vẫn đo đúng thứ nó cần đo.
+      if (duong === '/admin/users') return TAI_KHOAN;
       return [];
     }),
     put: vi.fn(async (duong: string, than: unknown) => {
@@ -166,9 +182,20 @@ afterEach(() => {
 describe('Đơn vị — vòng khứ hồi', () => {
   it('⚠ chống tập rỗng: đọc được 6 trường của OrgUnitDtos.UpdateRequest', () => {
     const truong = truongCuaRecord('UpdateRequest');
-    expect(truong.length).toBeGreaterThanOrEqual(6);
+    expect(truong.length).toBeGreaterThanOrEqual(8);
     expect(truong).toEqual(
-      expect.arrayContaining(['name', 'shortName', 'unitType', 'address', 'phone', 'email']),
+      expect.arrayContaining([
+        'name',
+        'shortName',
+        'unitType',
+        'address',
+        'phone',
+        'email',
+        // H24 — hai ô quyết định AI NHẬN cảnh báo ngưỡng của G11. Đánh rơi chúng trong một lượt
+        // sửa TÊN đơn vị là gỡ người nhận cảnh báo, im lặng.
+        'headUserPublicId',
+        'deputyUserPublicId',
+      ]),
     );
   });
 

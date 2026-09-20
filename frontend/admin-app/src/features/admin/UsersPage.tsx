@@ -19,7 +19,7 @@ import {
   type UserView,
 } from '@/shared/api-types';
 import { ApiClientError, api } from '@/shared/apiClient';
-import { HuongDanMatKhau } from '@/shared/HuongDanMatKhau';
+import { HanMatKhauTam, HuongDanMatKhau } from '@/shared/HuongDanMatKhau';
 import { datLoiTheoTruong } from '@/shared/loiTheoTruong';
 import { formatDateTime } from '@/shared/format';
 
@@ -299,6 +299,9 @@ export function UsersPage() {
           onChange={(e) => setMatKhauTam(e.target.value)}
         />
         <HuongDanMatKhau />
+        <div>
+          <HanMatKhauTam />
+        </div>
       </Modal>
 
       <HopThoaiMaXacThuc
@@ -416,6 +419,9 @@ function CreateUserModal({
             <>
               <HuongDanMatKhau />
               <div>Người dùng bắt buộc đổi ở lần đăng nhập đầu tiên.</div>
+              <div>
+                <HanMatKhauTam />
+              </div>
             </>
           }
         >

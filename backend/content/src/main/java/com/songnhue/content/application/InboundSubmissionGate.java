@@ -11,6 +11,7 @@ import com.songnhue.core.common.exception.ValidationException;
 import com.songnhue.core.spi.BiMatTichHopPort;
 import com.songnhue.core.spi.LoaiBiMat;
 import com.songnhue.core.spi.SettingPort;
+import com.songnhue.core.spi.VeBieuMauPort;
 
 /**
  * <b>Cổng DUY NHẤT cho mọi thứ người lạ trên Internet gửi vào hệ thống</b> — T36.9.
@@ -71,11 +72,14 @@ public class InboundSubmissionGate {
     private final SettingPort settings;
     private final RecaptchaClient captcha;
     private final BiMatTichHopPort khoa;
+    private final VeBieuMauPort ve;
 
-    public InboundSubmissionGate(SettingPort settings, RecaptchaClient captcha, BiMatTichHopPort khoa) {
+    public InboundSubmissionGate(
+            SettingPort settings, RecaptchaClient captcha, BiMatTichHopPort khoa, VeBieuMauPort ve) {
         this.settings = settings;
         this.captcha = captcha;
         this.khoa = khoa;
+        this.ve = ve;
     }
 
     /**
@@ -116,9 +120,15 @@ public class InboundSubmissionGate {
      * được sạt kênh"</i>. Mã sai hoặc điểm thấp thì <b>ĐÓNG</b> — hai trạng thái ấy phân biệt được
      * ở {@link RecaptchaClient} bằng giá trị trả về so với ngoại lệ.
      *
-     * @throws BusinessRuleException {@code CMS-2021} khi Google <b>từ chối</b> mã
+     * <p>⭐ T73.9 (ASVS 11.1.2) — trước captcha là VÉ biểu mẫu: do máy chủ ký khi người dùng bắt đầu điền, phải đủ tuổi tối
+     * thiểu và chưa quá 24 giờ ({@code VeBieuMauService}). Kiểm ở ĐÂY — chỗ cả liên hệ lẫn góp ý đi qua — chứ ⛔ ở
+     * controller (luật 12). Vé ⛔ "hỏng thì mở" như captcha: nó ⛔ gọi mạng, ⛔ có sự cố phía ta nào để tha.
+     *
+     * @throws BusinessRuleException {@code CMS-2025} khi vé thiếu/giả/quá hạn hoặc gửi quá nhanh · {@code CMS-2021}
+     *     khi Google <b>từ chối</b> mã
      */
-    public void kiemNguoiThat(String maCaptcha) {
+    public void kiemNguoiThat(String maCaptcha, String veBieuMau) {
+        ve.kiem(veBieuMau, java.time.Instant.now());
         if (captchaBatBuoc() && !captcha.hopLe(maCaptcha, diemToiThieuPhanTram())) {
             throw new BusinessRuleException(ErrorCode.CMS_2021);
         }

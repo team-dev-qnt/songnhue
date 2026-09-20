@@ -100,6 +100,22 @@ public class AuthService {
             throw new AuthenticationException(locked ? ErrorCode.AUTH_0003 : ErrorCode.AUTH_0001);
         }
 
+        // T61.17 (WS-72): mật khẩu ĐÚNG ⇒ lượt này ⛔ phải dò, trả lại chỗ trong xô LOGIN của IP. Đặt ở ĐÂY, trước
+        //   nhánh 2FA: mã 2FA sai đã có bộ đếm khoá tài khoản riêng (T61.33).
+        loginAttempts.hoanLuotDangNhapDung(client);
+
+        // ⛔⛔ T73.8 (ASVS 2.3.1) — mật khẩu tạm QUÁ HẠN. Kiểm SAU khi mật khẩu đúng: hạn chỉ được nói ra cho người
+        //   đã chứng minh biết mật khẩu, người đoán vẫn chỉ thấy AUTH-0001. Lối ra: quản trị viên phát mật khẩu mới.
+        if (user.matKhauTamDaHetHan(now)) {
+            securityEvents.record(
+                    SecurityEventType.LOGIN_FAILED,
+                    username,
+                    user.getId(),
+                    client,
+                    "{\"reason\":\"temp_password_expired\"}");
+            throw new AuthenticationException(ErrorCode.AUTH_0010);
+        }
+
         abnormalLogins.inspectSuccessfulLogin(user, client, now);
 
         if (totp.isRequiredFor(user)) {
