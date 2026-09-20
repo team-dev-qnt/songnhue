@@ -916,14 +916,48 @@ class NghiPhepHttpTest extends IntegrationTestBase {
         assertThat(thay)
                 .as("⛔ Tiền đề: bộ lọc phạm vi cho A (cùng đơn vị) và C (gốc) thấy đơn, B (đơn vị khác) ⛔ thấy")
                 .containsExactly("A (XN-A)", "C (gốc)");
+
+        // ⭐⭐ T80.7 — bất biến đổi từ *nhận thư ⇔ THẤY đơn* sang *nhận thư ⇔ DUYỆT ĐƯỢC*.
+        //
+        // Bản cũ khẳng định `nhan == thay`, và nó XANH vì cả hai cùng đi theo phạm vi. Nhưng phạm vi
+        // trả lời *đơn vị nào*, còn thẩm quyền trả lời *AI* — hai câu khác nhau, và C là chỗ chúng
+        // tách ra: C đứng ở đơn vị GỐC nên phạm vi phủ mọi đơn, có `hr:leave:approve`, mà ⛔ phải
+        // trưởng/phó và ⛔ được uỷ quyền ⇒ **thấy đơn, nhận thư, mà ⛔ có nút**. Đó đúng là T80.7.
+        List<String> duyetDuoc = ds.stream()
+                .filter(d -> d.phien()
+                        .get(d.dangNhap(), "/api/v1/hr/nghi-phep/" + donId + "/hanh-dong")
+                        .getBody()
+                        .contains("APPROVE"))
+                .map(NguoiDuyet::ten)
+                .toList();
+        assertThat(duyetDuoc)
+                .as("⛔ Tiền đề: A là trưởng đơn vị GỐC (đồ gá `datLanhDao`) nên duyệt được; C chỉ có "
+                        + "quyền và phạm vi, ⛔ có chức vụ ⇒ ⛔ duyệt được")
+                .containsExactly("A (XN-A)");
+        assertThat(duyetDuoc)
+                .as("⛔⛔ VẾ CHỐNG TAUTOLOGY: hai tập phải KHÁC nhau ở lượt chạy này. Bằng nhau nghĩa là "
+                        + "đồ gá ⛔ dựng được ca T80.7, và mọi khẳng định dưới xanh vì lý do sai (luật 9).")
+                .isNotEqualTo(thay);
+
+        // ⭐ T80.7 vế (a) — hộp chờ phải NÓI RA ai bấm được, ⛔ để người dùng mở từng dòng mới biết.
+        //   Ba trạng thái: true = bấm được · false = thấy mà ⛔ bấm được · vắng = endpoint ⛔ trả lời.
+        assertThat(phienDuyet.get(nguoiDuyet, "/api/v1/hr/nghi-phep/cho-duyet").getBody())
+                .as("A là trưởng đơn vị gốc ⇒ hộp chờ của A phải đánh dấu đơn này BẤM ĐƯỢC")
+                .contains("\"toiDuyetDuoc\":true");
+        assertThat(phienC.get(duyetC, "/api/v1/hr/nghi-phep/cho-duyet").getBody())
+                .as("⛔⛔ C thấy đơn (phạm vi phủ) mà ⛔ bấm được (⛔ chức vụ, ⛔ uỷ quyền). Trước T80.7 "
+                        + "màn hình ⛔ nói gì, nên C mở từng dòng ra mới biết — và ⛔ gì chỉ ra AI phải bấm.")
+                .contains("\"toiDuyetDuoc\":false");
+
         List<String> nhan = ds.stream()
                 .filter(d -> demThongBao(d.userId(), "LEAVE_SUBMITTED") - truoc.get(d.ten()) > 0)
                 .map(NguoiDuyet::ten)
                 .toList();
         assertThat(nhan)
-                .as("⛔⛔ Người NHẬN thông báo đơn mới phải trùng khít người THẤY đơn — quản lý đơn vị khác nhận thư "
-                        + "về một đơn họ ⛔ duyệt được là dạy họ bỏ qua thư")
-                .isEqualTo(thay);
+                .as("⛔⛔ Thư *đơn mới chờ duyệt* phải tới ĐÚNG người bấm được nút — ⛔ phải người có "
+                        + "phạm vi. Gửi cho người ⛔ duyệt được là dạy hộp thư ấy bỏ qua thư (§10.76), và "
+                        + "nó dạy đúng người lẽ ra phải phản ứng nhanh nhất.")
+                .isEqualTo(duyetDuoc);
 
         // ── (2) A duyệt cấp 1 ⇒ ESCALATE (hai cấp, ngưỡng 1 ngày) ⇒ LEAVE_ESCALATED ──────
         ds.forEach(d -> truoc.put(d.ten(), demThongBao(d.userId(), "LEAVE_ESCALATED")));
@@ -943,7 +977,10 @@ class NghiPhepHttpTest extends IntegrationTestBase {
                 .as("⛔ Tiền đề: đơn cấp 2 vẫn nằm trong hộp của người có phạm vi")
                 .contains("C (gốc)");
         assertThat(nhanCap2)
-                .as("⛔⛔ Bước chuyển cấp 2 do WorkflowEngine phát — cùng tương ứng *nhận thư ⇔ thấy đơn*")
+                .as("⚠⚠ Bước chuyển cấp 2 do **WorkflowEngine** phát, và nó vẫn đi theo PHẠM VI — `core` ⛔ "
+                        + "được import `hr` (quy tắc 6) nên nó ⛔ nhìn thấy `UyQuyenDuyetPhep`. Khoảng trống "
+                        + "này ĐÃ KHAI: `T82.5`. Giữ khẳng định cũ ở đây là cố ý — nó ghi lại ĐÚNG hành vi "
+                        + "hiện thời, và ngày `T82.5` được trả thì chính bài này đỏ và gọi tên chỗ phải sửa.")
                 .isEqualTo(thayCap2);
 
         // ── (3) Người nộp rút đơn ⇒ LEAVE_CANCELLED tới đúng những ai đang giữ nó trong hộp chờ ──

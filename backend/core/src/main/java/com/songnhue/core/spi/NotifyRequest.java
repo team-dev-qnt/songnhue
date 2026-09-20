@@ -87,6 +87,47 @@ public record NotifyRequest(
     }
 
     /**
+     * Gửi cho <b>ĐÚNG những người này</b>, ⛔ suy thêm ai — T80.7.
+     *
+     * <h3>Vì sao cần một factory thứ NĂM thay vì truyền {@code null} vào {@link #targeted}</h3>
+     *
+     * <p>{@code targeted(…, null, ids)} cho ra cùng kết quả, nhưng ở nơi gọi nó đọc như <i>"quên điền
+     * quyền"</i> chứ ⛔ như một <b>quyết định</b>. Đây đúng chỗ đã trả giá: `RecipientResolver` từng
+     * SUY chính sách người nhận từ chỗ {@code targetPermission} có {@code null} ⛔, và sáu mã sự kiện
+     * an ninh cá nhân lặng lẽ đi tới cả ban lãnh đạo suốt nhiều tuần (T74.7). Một hằng số phải đọc
+     * được thành một câu.
+     *
+     * <h3>Khi nào dùng</h3>
+     *
+     * <p>Khi nơi gọi <b>tự tính được</b> tập người nhận bằng một luật mà {@code core} ⛔ biểu diễn
+     * nổi. Ca đầu tiên: người duyệt được một đơn nghỉ = trưởng/phó chuỗi đơn vị ∪ người đang được
+     * <b>uỷ quyền</b> — mà {@code UyQuyenDuyetPhep} sống ở {@code hr}, nơi {@code core} ⛔ được import
+     * (quy tắc 6). Nhắm theo quyền ở đây sẽ <b>bỏ sót đúng người được uỷ quyền</b>.
+     *
+     * <p>⚠ Danh sách rỗng ⇒ ⛔ ai nhận, và {@code RecipientResolver} ghi một dòng cảnh báo. Đó là
+     * hành vi ĐÚNG: nơi gọi khai <i>"đúng những người này"</i> thì một tập rỗng là một câu trả lời,
+     * ⛔ phải một chỗ để hệ thống tự đoán bù vào.
+     */
+    public static NotifyRequest chiNhungNguoiNay(
+            String eventType, String title, String body, NotifySeverity severity, List<Long> userIds) {
+        return new NotifyRequest(
+                eventType,
+                title,
+                body,
+                severity,
+                null,
+                null,
+                null,
+                List.of(),
+                userIds == null ? List.of() : userIds,
+                null,
+                List.of(NotifyChannel.IN_APP, NotifyChannel.EMAIL),
+                false,
+                // ⛔ G11: nơi gọi đã nêu ĐÍCH DANH, nên cộng thêm nhóm cảnh báo là phá đúng điều nó khai.
+                false);
+    }
+
+    /**
      * Nhắm đích theo quyền, <b>cộng người đứng đầu những đơn vị đang chịu trách nhiệm</b> — T28.51.
      *
      * <h3>Vì sao {@link #targeted} một mình là chưa đủ</h3>

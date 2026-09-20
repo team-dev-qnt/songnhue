@@ -3,8 +3,10 @@ package com.songnhue.hr.application;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -234,19 +236,45 @@ public class DonNghiPhepService {
      * {@code NghiPhepHttpTest#nguoiNhanThongBaoLaNguoiDuyetDuoc} canh tương ứng *nhận thư ⇔ thấy đơn*.
      */
     private void baoNguoiDuyet(LeaveRequest don, Employee hoSo) {
+        String tieuDe = "Đơn nghỉ phép mới chờ duyệt";
+        String than = "%s (%s) xin nghỉ %s từ %s đến %s — %s ngày công"
+                .formatted(
+                        hoSo.getFullName(),
+                        hoSo.getCode(),
+                        don.getLeaveType(),
+                        don.getFromDate(),
+                        don.getToDate(),
+                        don.getWorkingDays());
+
+        // ⭐⭐ T80.7 — người nhận là người DUYỆT ĐƯỢC, ⛔ phải người có phạm vi phủ.
+        //
+        // Hai tập ấy ⛔ bằng nhau: đo trên đồ gá `NghiPhepHttpTest`, một tài khoản ở đơn vị GỐC có
+        // `hr:leave:approve` và phạm vi phủ mọi đơn vị, nhưng ⛔ phải trưởng/phó và ⛔ được uỷ quyền
+        // ⇒ *thấy đơn, nhận thư, mà ⛔ có nút*. Gửi thư cho người ⛔ bấm được là dạy hộp thư ấy bỏ
+        // qua thư (§10.76) — và nó dạy đúng người lẽ ra phải phản ứng nhanh nhất.
+        Set<Long> nguoiDuyet =
+                new LinkedHashSet<>(thamQuyen.nguoiQuyetDuoc(don.getOrgUnitId(), LocalDate.now(DateTimeUtils.ZONE_VN)));
+        // Người nộp tự loại mình: `xetQuyet` trả `TU_DUYET` cho họ, nên thư *"có đơn chờ bạn duyệt"*
+        // gửi cho chính người vừa nộp là một câu nói dối nhỏ mà ⛔ ai sửa được.
+        nguoiDuyet.remove(don.getRequesterUserId());
+
+        if (!nguoiDuyet.isEmpty()) {
+            thongBao.notify(NotifyRequest.chiNhungNguoiNay(
+                    "LEAVE_SUBMITTED", tieuDe, than, NotifySeverity.INFO, List.copyOf(nguoiDuyet)));
+            return;
+        }
+
+        // ⚠⚠ Nhánh DỰ PHÒNG, và nó phải soi gương ĐÚNG đường 3 của `ThamQuyenDuyetPhep`: chuỗi lãnh
+        //   đạo ⛔ có ai ⇒ người quyết được là ai giữ `hr:leave:delegate` mà phạm vi phủ. ⛔ Gửi cho
+        //   `hr:leave:approve` như cũ — đó chính là tập rộng vừa bỏ, và cái xanh của bộ canh khi ấy
+        //   đọc như đã siết (luật 7). Cũng ⛔ để RỖNG: một đơn ⛔ ai được báo là một đơn nằm mãi
+        //   trong hộp chờ.
         thongBao.notify(NotifyRequest.targetedInUnitScope(
                 "LEAVE_SUBMITTED",
-                "Đơn nghỉ phép mới chờ duyệt",
-                "%s (%s) xin nghỉ %s từ %s đến %s — %s ngày công"
-                        .formatted(
-                                hoSo.getFullName(),
-                                hoSo.getCode(),
-                                don.getLeaveType(),
-                                don.getFromDate(),
-                                don.getToDate(),
-                                don.getWorkingDays()),
+                tieuDe,
+                than,
                 NotifySeverity.INFO,
-                "hr:leave:approve",
+                ThamQuyenDuyetPhep.QUYEN_UY_QUYEN,
                 don.getOrgUnitId() == null ? List.of() : List.of(don.getOrgUnitId()),
                 List.of()));
     }
@@ -255,6 +283,19 @@ public class DonNghiPhepService {
     @Transactional(readOnly = true)
     public Employee hoSoCuaToi() {
         return hoSoMucTieu(null);
+    }
+
+    /**
+     * Trong trang đơn này, id những đơn <b>tôi bấm được nút Duyệt</b> — T80.7 vế (a).
+     *
+     * <p>Hộp <i>Chờ duyệt</i> cắt theo <b>phạm vi</b> (cố ý — đó là danh sách việc của đơn vị, hữu
+     * ích để nắm quân số), còn nút thì theo <b>thẩm quyền</b>. Hai tập ⛔ bằng nhau, nên trước lượt
+     * này người dùng mở một dòng ra mới biết mình ⛔ có nút — và ⛔ gì nói cho họ biết ai mới là
+     * người phải bấm.
+     */
+    @Transactional(readOnly = true)
+    public Set<Long> donToiDuyetDuoc(java.util.List<LeaveRequest> dons) {
+        return thamQuyen.donQuyetDuoc(dons, AuthContext.current().orElse(null), LocalDate.now(DateTimeUtils.ZONE_VN));
     }
 
     /** Hộp chờ duyệt — bộ lọc phạm vi tự cắt theo đơn vị của người đang đăng nhập. */

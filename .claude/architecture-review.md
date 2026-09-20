@@ -8454,3 +8454,90 @@ có hợp lệ ⛔* — một nhánh khác hẳn, và là nhánh mà cả hai b�
 - **Một ô nhập nằm trong ô BẢNG ⛔ có `<label>` nào trỏ tới** ⇒ phải mang `aria-label`. ⛔ Có tên thì
   trình đọc màn hình đọc thành *"combobox"* trống rỗng **và** bài kiểm ⛔ gọi nổi nó — nợ a11y hiện
   ra cái giá thật lần thứ ba (T63.9).
+
+### §12.20 Ba khoảng trống, ba lý do khác nhau vì sao chúng sống lâu (WS-82 đợt 2, 20/9/2026)
+
+Ba dòng nợ nặng nhất còn lại của phía phát triển — `T68.31` · `T73.7` · `T80.7` — trả trong một lượt.
+Chúng ⛔ liên quan nhau về mã, nhưng mỗi cái minh hoạ một **cơ chế sống sót** khác nhau, và cả ba đều
+⛔ phải *"chưa ai làm"*.
+
+#### 1. `T68.31` — cổng KHÔNG CHẠY đọc như cổng ĐÃ ĐẠT
+
+`backend/hr/src/test` có **0** tệp ⇒ JaCoCo in `Skipping JaCoCo execution due to missing execution
+data file` rồi build **xanh**. Cổng bao phủ của cả một module vắng mặt suốt từ 10/09, và ⛔ gì đứng
+ra báo sự vắng mặt ấy — luật 7 gặp luật 31, đúng hình dạng §10.72 (*`Promotion guard` treo ở
+"Expected"*) và luật 24 (*`skipped` được tính là ĐẠT*).
+
+Khuyết tật thứ hai nằm cạnh và che bởi cùng một lớp im lặng: sàn `0.18` của pom cha là số đo **Phase
+0**, trong khi đo 20/09 cho `core` **0.3490** · `content` **0.3873** · `hydro` **0.5490** ·
+`operations` **0.8028**. ⇒ **Bánh cóc thôi cóc**: một module tụt từ 0.55 về 0.19 vẫn "đạt".
+
+⚠ Và cách vá hiển nhiên — *"viết bài kiểm cho `hr` đến khi đủ 0.18"* — là đúng thứ `backend/pom.xml`
+tự dặn ở ngay chỗ đặt ngưỡng: *"người ta viết test cho những chỗ dễ để kéo tỷ lệ lên thay vì cho
+những chỗ đáng"*. Đo `hr/domain`: **20 lớp**, gần như toàn bộ là entity JPA + enum. ⇒ Chỉ nhắm
+**năm** chỗ mang luật thật, trong đó **hai là cặp luật 14** (`tenCacTrangThaiDaNghi()` nuôi 6 câu SQL
+· `khoaHanMuc()` phải trỏ vào khoá `settings` CÓ THẬT — bài đọc thẳng tệp seed qua classpath).
+
+⭐ Bánh cóc: `BaoPhuDomainCoChayTest` **ĐO** danh sách module có tầng domain từ đĩa rồi bắt từng cái
+phải có `*Test.java` **và** khai ngưỡng riêng. Phép đo quyết định ⛔ phải hai bài ấy xanh, mà là:
+đặt ngưỡng `hr = 0.99` ⇒ `Rule violated for bundle songnhue-hr: lines covered ratio is 0.25` —
+**cổng nay SỐNG ở đúng chỗ trước in "Skipping"**.
+
+#### 2. `T73.7` — một LÝ DO ĐÚNG lúc viết, hết đúng mà ⛔ ai kiểm lại
+
+`next.config.ts` khai vì sao `script-src` phải giữ `'unsafe-inline'`: *"nonce phải khác nhau mỗi
+request ⇒ mọi trang thành động ⇒ ISR tắt hẳn, mà NFR-02 dựa vào ISR"*. Lập luận ấy **đúng vào ngày
+viết**. Chạy `next build` ngày 20/09:
+
+```
+ƒ /   ƒ /bai-viet/[slug]   ƒ /danh-muc/[slug]   …  (18 route)      ○ /robots.txt
+```
+
+**18/19 route ĐÃ là `ƒ` và bảng ⛔ có một dòng `●` nào** — `apiGetWithMeta` gọi `await connection()`
+trước mọi lượt fetch từ T35.x. Cái giá mà chú thích e ngại **đã trả từ lâu**; dựng lại sau khi thêm
+middleware cho **đúng bảng route cũ** ⇒ giá của nonce **= 0**.
+
+⚠ Chỗ lập luận cũ sai là **trộn hai cơ chế cùng tên "ISR"**: thứ NFR-02 dựa vào là bộ đệm **dữ liệu
+fetch** (`revalidate: 300`), ⛔ phải bộ đệm **trang**. Hai thứ khác nhau, một cái tên.
+
+⛔⛔ **Và một khẳng định của chính lượt vá này cũng bị đo bác.** Javadoc bản đầu viết *"thiếu header
+CSP của request ⇒ script của Next ⛔ có nonce ⇒ cổng trắng trang"*. Đo hai chiều trên máy chủ
+standalone đã dựng, Next **16.3.5**: gỡ `Content-Security-Policy` của request (giữ `x-nonce`) ⇒
+**11/11** thẻ `<script>` vẫn mang đúng nonce; gỡ `x-nonce` (giữ header kia) ⇒ cũng **11/11**. **Mỗi
+header một mình đã đủ.** Giữ cả hai là **bánh cóc**, ⛔ phải *"thiếu là hỏng"* — và câu chữ trong mã
+đã sửa cho đúng phép đo (luật 37: *một lời khuyên chưa đo là một lời khuyên sai đang chờ tới lượt*).
+
+⇒ Bài học vận hành: **một chú thích giải thích một đánh đổi phải mang theo PHÉP ĐO tái lập được**.
+*"ISR tắt hẳn"* là một câu ⛔ ai kiểm lại được trong 30 giây; *"`next build` ⇒ bao nhiêu dòng `●`"*
+thì được.
+
+#### 3. `T80.7` — dòng nợ kê sẵn một cách vá BẤT KHẢ
+
+Dòng nợ viết: *"(b) ca thứ năm của `RecipientResolver`"*. Đo lại: `RecipientResolver` sống ở `core`,
+mà **quy tắc 6 cấm `core` import `hr`** ⇒ nó ⛔ nhìn thấy `UyQuyenDuyetPhep`. Một "ca thứ năm" ở đó
+sẽ cho ra tập vừa hẹp lại vừa **THIẾU đúng người đang được uỷ quyền** — tức thiếu ở chính ca mà uỷ
+quyền sinh ra để phục vụ. ⇒ Danh sách phải dựng ở `hr` rồi truyền sang **đích danh**
+(`NotifyRequest.chiNhungNguoiNay`).
+
+Đây là lần thứ **hai trong hai ngày** một dòng nợ ⛔ chỉ mô tả sai mà còn **kê sẵn một bản vá sai**
+(lần trước: `T74.7` đề nghị một cột trên `workflow_transitions` — §12.19). ⇒ Bổ sung cho §12.18:
+**phần *"⬜ DEV:"* của một dòng nợ cũng là dữ liệu chưa kiểm, y hệt phần mô tả.**
+
+⭐ Thứ bắt được khuyết tật là **bài kiểm CÓ SẴN**, ⛔ cần dựng đồ gá mới:
+`nguoiNhanThongBaoLaNguoiDuyetDuoc` đỏ với `expected: ["A (XN-A)", "C (gốc)"] but was: ["A (XN-A)"]`.
+C đứng ở đơn vị **gốc** nên phạm vi phủ mọi đơn và có `hr:leave:approve`, mà ⛔ phải trưởng/phó và ⛔
+được uỷ quyền ⇒ **thấy đơn, nhận thư, ⛔ có nút**. Bất biến của bài ấy đổi từ *nhận thư ⇔ THẤY đơn*
+sang *nhận thư ⇔ **DUYỆT ĐƯỢC***, kèm một **vế chống tautology**: hai tập phải KHÁC nhau ở lượt chạy
+này — bằng nhau nghĩa là đồ gá ⛔ dựng được ca T80.7.
+
+#### Ba bánh cóc rút ra
+
+- **Phạm vi do bộ canh ĐO, ⛔ do ai gõ tay** (luật 28, lần thứ n) — `BaoPhuDomainCoChayTest` liệt kê
+  module từ đĩa; module mới quên khai là CI đỏ gọi đích danh.
+- **Ba trạng thái, ⛔ phải hai** — `toiDuyetDuoc`: `true` bấm được · `false` **thấy mà ⛔ bấm được** ·
+  `null` *endpoint này ⛔ trả lời câu ấy*. Gộp hai cái đầu là giấu mất chính T80.7; gộp hai cái sau là
+  hiện *"⛔ duyệt được"* trên đơn của chính mình.
+- **Một luật chỉ được viết MỘT lần** — hai vế cấm (`TU_DUYET` · `TRUNG_NGUOI_CAP_MOT`) tách thành
+  `veCam` dùng chung giữa *nút* và *cờ*. Chép lại ba dòng ấy là luật 14, và ngày hai bản lệch nhau là
+  ngày màn hình bày một cái nút máy chủ từ chối — hoặc **giấu** một cái nút đáng ra bấm được, trạng
+  thái thứ hai thì ⛔ ai báo.

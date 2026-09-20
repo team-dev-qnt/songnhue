@@ -1,6 +1,7 @@
 package com.songnhue.hr.application;
 
 import java.time.LocalDate;
+import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.Set;
 
@@ -104,16 +105,68 @@ public class ThamQuyenDuyetPhep {
      */
     @Transactional(readOnly = true)
     public KetQua xetQuyet(LeaveRequest don, AuthenticatedUser ai, LocalDate ngay) {
-        if (ai == null || ai.userId() == null) {
-            return KetQua.cam(LyDo.KHONG_PHAI_NGUOI_DUYET);
-        }
-        if (laNguoiNghi(don, ai)) {
-            return KetQua.cam(LyDo.TU_DUYET);
-        }
-        if (don.trangThai() == LeaveState.CHO_DUYET_2 && Objects.equals(ai.userId(), don.getCap1By())) {
-            return KetQua.cam(LyDo.TRUNG_NGUOI_CAP_MOT);
+        LyDo cam = veCam(don, ai);
+        if (cam != null) {
+            return KetQua.cam(cam);
         }
         return thamQuyenTrenDonVi(don, ai, ngay);
+    }
+
+    /**
+     * Hai vế <b>CẤM</b> — tách ra vì {@link #donQuyetDuoc} phải áp <b>đúng</b> chúng.
+     *
+     * <p>⛔⛔ Chép lại ba dòng này ở nơi tính cờ cho giao diện là luật 14 ở dạng đắt nhất: ngày hai
+     * bản lệch nhau là ngày màn hình bày một cái nút mà máy chủ từ chối — hoặc <b>giấu</b> một cái
+     * nút đáng ra bấm được, và trạng thái thứ hai thì ⛔ ai báo.
+     *
+     * @return {@code null} khi ⛔ vế cấm nào chạm tới
+     */
+    private static LyDo veCam(LeaveRequest don, AuthenticatedUser ai) {
+        if (ai == null || ai.userId() == null) {
+            return LyDo.KHONG_PHAI_NGUOI_DUYET;
+        }
+        if (laNguoiNghi(don, ai)) {
+            return LyDo.TU_DUYET;
+        }
+        if (don.trangThai() == LeaveState.CHO_DUYET_2 && Objects.equals(ai.userId(), don.getCap1By())) {
+            return LyDo.TRUNG_NGUOI_CAP_MOT;
+        }
+        return null;
+    }
+
+    /**
+     * Trong một TRANG đơn, những đơn nào người này quyết được — T80.7 vế (a).
+     *
+     * <h2>⛔⛔ Vì sao nhận cả TRANG thay vì hỏi từng dòng</h2>
+     *
+     * <p>Kho đã có {@code GET /{publicId}/hanh-dong} trả đúng câu trả lời cho MỘT đơn. Gọi nó cho
+     * từng dòng của hộp chờ là <b>N+1</b> trên một màn hình có phân trang — đúng thứ
+     * {@code DemTruyVan} và bộ canh độ dốc (T58.18) sinh ra để bắt. Ở đây số câu lệnh bằng
+     * <b>số đơn vị PHÂN BIỆT</b> trong trang (thường 1–3), ⛔ phải số dòng.
+     *
+     * <p>⚠ Và nó áp <b>cùng</b> {@link #veCam} với {@link #xetQuyet}, nên cờ hiện trên màn hình và
+     * câu trả lời của máy chủ ⛔ thể lệch nhau.
+     */
+    @Transactional(readOnly = true)
+    public Set<Long> donQuyetDuoc(java.util.List<LeaveRequest> dons, AuthenticatedUser ai, LocalDate ngay) {
+        if (ai == null || ai.userId() == null || dons == null || dons.isEmpty()) {
+            return Set.of();
+        }
+        Set<Long> donVi = new LinkedHashSet<>();
+        for (LeaveRequest d : dons) {
+            if (d.getOrgUnitId() != null) {
+                donVi.add(d.getOrgUnitId());
+            }
+        }
+        Set<Long> donViDuoc = donViQuyetDuoc(donVi, ai, ngay);
+
+        Set<Long> ketQua = new LinkedHashSet<>();
+        for (LeaveRequest d : dons) {
+            if (veCam(d, ai) == null && donViDuoc.contains(d.getOrgUnitId())) {
+                ketQua.add(d.getId());
+            }
+        }
+        return ketQua;
     }
 
     /**
@@ -149,6 +202,74 @@ public class ThamQuyenDuyetPhep {
         }
         Set<Long> lanhDao = orgUnits.lanhDaoCuaChuoiDonVi(orgUnitId);
         return lanhDao.contains(ai.userId()) || (lanhDao.isEmpty() && ai.hasPermission(QUYEN_UY_QUYEN));
+    }
+
+    /**
+     * <b>Những ai</b> quyết được một đơn của đơn vị này hôm nay — T80.7.
+     *
+     * <h2>Vì sao phải có, và vì sao nó nằm ở ĐÂY</h2>
+     *
+     * <p>Thư <i>"đơn mới chờ duyệt"</i> trước 20/09/2026 đi theo <b>phạm vi</b>: mọi tài khoản có
+     * {@code hr:leave:approve} mà phạm vi dữ liệu phủ đơn vị của đơn. Tập ấy <b>rộng hơn</b> tập
+     * người bấm được nút — đo được trên đồ gá của {@code NghiPhepHttpTest}: một tài khoản ở đơn vị
+     * gốc có quyền và có phạm vi, nhưng ⛔ phải trưởng/phó và ⛔ được uỷ quyền ⇒ <i>thấy đơn, nhận
+     * thư, mà ⛔ có nút</i>.
+     *
+     * <p>⛔⛔ Cách vá mà dòng nợ kê ra — <i>"ca thứ năm của {@code RecipientResolver}"</i> — <b>SAI</b>:
+     * {@code core} ⛔ được import {@code hr} (quy tắc 6), nên nó ⛔ nhìn thấy {@code UyQuyenDuyetPhep}
+     * và sẽ <b>bỏ sót đúng người được uỷ quyền</b> — tức tập mới vừa hẹp lại vừa THIẾU, và nó thiếu
+     * đúng ở ca mà uỷ quyền sinh ra để phục vụ. ⇒ Danh sách phải dựng ở {@code hr} rồi truyền sang
+     * như một danh sách <b>đích danh</b>.
+     *
+     * <p>⚠ Trả <b>tập rỗng</b> khi đơn vị ⛔ có lãnh đạo lẫn người được uỷ quyền. Nơi gọi phải phân
+     * biệt được <i>rỗng</i> với <i>có người</i>: rỗng nghĩa là đường <b>dự phòng</b>
+     * ({@link #QUYEN_UY_QUYEN}) đang mở, và thư khi ấy phải đi theo quyền ấy — ⛔ phải ⛔ gửi cho ai.
+     *
+     * @return id tài khoản, đã khử trùng lặp, giữ thứ tự ổn định. <b>Chưa</b> trừ người nộp đơn —
+     *     nơi gọi biết ai nộp, lớp này thì ⛔.
+     */
+    @Transactional(readOnly = true)
+    public Set<Long> nguoiQuyetDuoc(Long orgUnitId, LocalDate ngay) {
+        if (orgUnitId == null) {
+            return Set.of();
+        }
+        Set<Long> ketQua = new LinkedHashSet<>(orgUnits.lanhDaoCuaChuoiDonVi(orgUnitId));
+        Set<Long> chuoi = orgUnits.chuoiDonViLen(orgUnitId);
+        if (!chuoi.isEmpty()) {
+            ketQua.addAll(uyQuyen.nguoiDangDuocUyQuyen(chuoi, ngay));
+        }
+        return ketQua;
+    }
+
+    /**
+     * Người này quyết được đơn vị nào trong số {@code orgUnitIds} — dùng cho cờ mỗi dòng của hộp
+     * <i>Chờ duyệt</i> (T80.7 vế a).
+     *
+     * <p>⚠⚠ Nhận CẢ TẬP chứ ⛔ từng đơn vị một, và đó là điểm mấu chốt: hỏi từng dòng là <b>N+1</b>
+     * trên một màn hình có phân trang — đúng thứ {@code DemTruyVan} sinh ra để bắt. Một trang thường
+     * chỉ có 1–3 đơn vị khác nhau, nên số câu lệnh thật bằng <b>số đơn vị PHÂN BIỆT</b>, ⛔ phải số
+     * dòng.
+     */
+    @Transactional(readOnly = true)
+    public Set<Long> donViQuyetDuoc(Set<Long> orgUnitIds, AuthenticatedUser ai, LocalDate ngay) {
+        if (ai == null || ai.userId() == null || orgUnitIds == null || orgUnitIds.isEmpty()) {
+            return Set.of();
+        }
+        Set<Long> duoc = new LinkedHashSet<>();
+        for (Long donVi : orgUnitIds) {
+            if (donVi == null) {
+                continue;
+            }
+            Set<Long> nguoi = nguoiQuyetDuoc(donVi, ngay);
+            // ⚠ Nhánh dự phòng phải giống HỆT `thamQuyenTrenDonVi`, ⛔ phải "gần giống": hai nơi
+            //   cùng phải nhớ một luật là luật 14, và ngày chúng lệch nhau là ngày màn hình bày một
+            //   cái nút mà máy chủ từ chối (hoặc giấu một cái nút đáng ra bấm được).
+            boolean lanhDaoRong = orgUnits.lanhDaoCuaChuoiDonVi(donVi).isEmpty();
+            if (nguoi.contains(ai.userId()) || (lanhDaoRong && ai.hasPermission(QUYEN_UY_QUYEN))) {
+                duoc.add(donVi);
+            }
+        }
+        return duoc;
     }
 
     /** Đơn NÀY là của chính người đang thao tác — người sắp nghỉ, ⛔ phải người bấm hộ. */
