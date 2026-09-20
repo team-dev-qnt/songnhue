@@ -68,7 +68,11 @@ export const JOB_STATUS: StatusVocabulary = {
   // ⚠ T68.33 — `JobStatus` và `ck_jobs_status` đều có năm giá trị. `CANCELLED` ⛔ phải một thất
   //    bại: người vận hành chủ động dừng, nên ⛔ được mang màu đỏ của `FAILED` (đọc nhầm nó thành
   //    sự cố là đi tìm `last_error` của một job ⛔ bao giờ chạy).
-  CANCELLED: { label: 'Đã huỷ', color: 'unknown', hint: 'Người vận hành dừng job trước khi nó chạy' },
+  CANCELLED: {
+    label: 'Đã huỷ',
+    color: 'unknown',
+    hint: 'Người vận hành dừng job trước khi nó chạy',
+  },
 };
 
 export const HEALTH_STATUS: StatusVocabulary = {
