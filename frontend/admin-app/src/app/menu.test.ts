@@ -40,6 +40,25 @@ describe('menu ẩn/hiện theo quyền — điều kiện nghiệm thu WS-8', (
     expect(visible).toContain('Hộp thư');
   });
 
+  /**
+   * ⭐⭐ **Hướng dẫn sử dụng phải sống sót qua một tài khoản KHÔNG có quyền nào.**
+   *
+   * Đây ⛔ phải một bài kiểm cho vui: một cán bộ vai trò `VIEWER` mở hệ thống lần đầu thấy menu
+   * ngắn hơn hẳn đồng nghiệp, và câu hỏi đầu tiên của họ — *"vì sao tôi ⛔ thấy mục kia"* — được
+   * trả lời ở §4.2 của chính tài liệu ấy. Gác nó bằng một mã quyền là đóng cửa đúng vào nhóm cần
+   * nó nhất, mà triệu chứng thì **im lặng hoàn toàn**: menu vẫn dựng, chỉ thiếu một dòng.
+   */
+  it('⭐ Hướng dẫn sử dụng hiện cả với tài khoản ⛔ có một quyền nào', () => {
+    const visible = visibleMenu(MENU, checker());
+
+    expect(
+      visible.map((node) => node.label),
+      '⛔ Mục này phải ở **cấp 1**: một mục cứu hộ nằm trong nhóm con thì người đang bối rối phải ' +
+        'biết mở đúng nhóm mới thấy — mà biết mở nhóm nào thì họ đã ⛔ cần tới nó.',
+    ).toContain('Hướng dẫn sử dụng');
+    expect(findMenuKey(MENU, '/huong-dan')).toBe('huong-dan');
+  });
+
   it('có đủ quyền thì thấy toàn bộ màn hình quản trị', () => {
     const all = checker(
       'adm:user:view',
@@ -51,10 +70,10 @@ describe('menu ẩn/hiện theo quyền — điều kiện nghiệm thu WS-8', (
       'adm:health:view',
       'adm:notification:broadcast',
     );
-    // 8 màn hình quản trị + Tổng quan + Hộp thư + Phiên đăng nhập.
+    // 8 màn hình quản trị + Tổng quan + Hộp thư + Phiên đăng nhập + Hướng dẫn sử dụng.
     // ⚠ `all` chỉ cấp quyền `adm:*` nên nhóm "Dữ liệu thuỷ văn" (WS-28) không nằm trong số này —
     //    đó chính là điều bài kiểm ngay dưới khẳng định.
-    expect(leafLabels(visibleMenu(MENU, all))).toHaveLength(11);
+    expect(leafLabels(visibleMenu(MENU, all))).toHaveLength(12);
   });
 });
 

@@ -494,6 +494,21 @@ export const MENU: readonly MenuNode[] = [
       },
     ],
   },
+  {
+    // ⛔⛔ ⛔ `permissions`, và đó là điều kiện CHỊU LỰC của mục này — ⛔ phải một chỗ quên khai.
+    //
+    // Hướng dẫn sử dụng phải với tới **mọi** tài khoản đã đăng nhập. Một cán bộ vai trò `VIEWER`
+    // mở hệ thống lần đầu sẽ thấy menu ngắn hơn hẳn đồng nghiệp, và câu hỏi đầu tiên của họ —
+    // *"vì sao tôi ⛔ thấy mục kia"* — được trả lời ở §4.2 của chính tài liệu này. Gác nó bằng
+    // một mã quyền, dù rộng đến đâu, là đóng cửa đúng vào nhóm người cần nó nhất.
+    //
+    // ⚠ Đặt ở **cấp 1 và cuối cùng**: một mục cứu hộ mà nằm trong nhóm con thì người đang bối rối
+    // phải mở đúng nhóm mới thấy — mà biết mở nhóm nào thì họ đã ⛔ cần tới nó.
+    key: 'huong-dan',
+    label: 'Hướng dẫn sử dụng',
+    icon: <QuestionCircleOutlined />,
+    path: '/huong-dan',
+  },
 ];
 
 /**
