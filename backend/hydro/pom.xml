@@ -12,6 +12,21 @@
     <name>Songnhue Hydro</name>
     <description>MOD-03 — Quản lý dữ liệu thủy văn: điểm đo, adapter API bên thứ 3, polling, chuẩn hóa, time-series, cảnh báo ngưỡng.</description>
 
+    <properties>
+        <!--
+          Ngưỡng bao phủ tầng domain của RIÊNG module này — T68.31, 20/09/2026.
+
+          ⚠ Con số này là SỐ ĐO, ⛔ phải mục tiêu: nó là cái chặn ⛔ cho tụt (conventions.md §1.5
+          "⛔ merge nếu giảm"). Đo 20/09/2026: 0.5490 (409/745 dòng).
+
+          ⛔⛔ Vì sao mỗi module phải KHAI RIÊNG thay vì thừa kế 0.18 của pom cha: sàn cha là con số
+          đo được hồi Phase 0, và bốn module đã bỏ xa nó ⇒ bánh cóc thôi cóc. Một module tụt từ
+          0.55 về 0.19 vẫn "đạt" sàn cha và ⛔ một dòng nào báo. `BaoPhuDomainCoChayTest` ĐO danh
+          sách module có tầng domain rồi bắt từng cái phải khai — ⛔ để ai gõ tay (luật 28).
+        -->
+        <jacoco.domain.line.coverage>0.54</jacoco.domain.line.coverage>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>com.songnhue</groupId>
