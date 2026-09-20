@@ -365,6 +365,10 @@ cỡ danh định đã làm tròn; máy có Q giữa hai nhãn xếp theo biên 
 - **Bảng 3** mực nước 7 cống × thượng/hạ lưu = số đo **HỢP LỆ** gần nhất tại hoặc trước giờ kết thúc kỳ
   (quy tắc 14), in mét 2 chữ số thập phân (OI-BC16); vế ⛔ có điểm đo ⇒ ô trống kèm lý do (OI-BC14).
 - Chỉ dòng/cột của **Sông Nhuệ** có số; ba công ty kia và dòng "Tổng cộng" toàn Thành phố để TRỐNG, ⛔ ghi 0 (OI-BC1).
+  - ⚠ **Đính chính 20/09/2026 (T78.2)**: câu trên vẫn đúng với ba dòng công ty và với dòng "Tổng cộng" của
+    **Mục 1 / Mục 3** (ô thân báo cáo toàn Thành phố), nhưng **⛔ còn đúng với dòng "Tổng cộng" của BẢNG 1** —
+    nó là **tổng theo cột của chính bảng ấy**, hệ tính được, nên nay CÓ số (formula, ⛔ nhập tay). Hôm nay nó
+    trùng khít dòng Sông Nhuệ và điều đó đọc được ngay trên bản in vì ba dòng kia để trống.
 
 **(d) Cấu hình** — 7 cống của Bảng 3 + trạm Yên Nghĩa là 8 **vị trí cố định** của mẫu; Công ty chọn công trình
 cho từng vị trí trên màn hình (sai loại ⇒ `OPS-2032`). Điểm đo từng vế suy từ liên kết điểm đo–công trình.

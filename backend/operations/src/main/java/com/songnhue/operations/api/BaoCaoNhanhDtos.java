@@ -105,6 +105,10 @@ public final class BaoCaoNhanhDtos {
 
     public record Bang1View(int tongTram, int tongMay, int[] theoCo, BigDecimal tongLuuLuongM3h) {}
 
+    private static Bang1View bang1View(TinhBaoCaoNhanh.DongBang1 d) {
+        return d == null ? null : new Bang1View(d.tongTram(), d.tongMay(), d.theoCo(), d.tongLuuLuongM3h());
+    }
+
     @JsonInclude(JsonInclude.Include.ALWAYS)
     public record Muc1View(Integer tongTram, Integer tongMay, BigDecimal tongLuuLuongM3h) {}
 
@@ -150,6 +154,8 @@ public final class BaoCaoNhanhDtos {
             List<String> coMay,
             List<KhoiView> bang2,
             Bang1View bang1SongNhue,
+            /** Dòng "Tổng cộng" — cộng theo cột, ⛔ nhập tay; {@code null} khi chưa dòng nào có số. */
+            Bang1View bang1TongCong,
             Muc1View muc1,
             YenNghiaView ghiChuYenNghia,
             List<DongBang3View> bang3,
@@ -190,7 +196,8 @@ public final class BaoCaoNhanhDtos {
                     c.hanhDong(),
                     bang.co().stream().map(BangCoMayBom.Co::nhan).toList(),
                     b2,
-                    b1 == null ? null : new Bang1View(b1.tongTram(), b1.tongMay(), b1.theoCo(), b1.tongLuuLuongM3h()),
+                    bang1View(b1),
+                    bang1View(c.bang1TongCong()),
                     new Muc1View(
                             c.muc1().tongTram(), c.muc1().tongMay(), c.muc1().tongLuuLuongM3h()),
                     new YenNghiaView(

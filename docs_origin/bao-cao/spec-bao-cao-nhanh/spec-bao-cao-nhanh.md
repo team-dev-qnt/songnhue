@@ -111,7 +111,7 @@ Field "Tình hình vận hành (số máy)" là **số nhập tay theo từng k�
 - **Tổng số máy** = SUM toàn bộ giá trị "Tình hình vận hành (số máy)" trên mọi dòng/mọi trạm của công ty đó (không phải tổng số máy thiết kế).
 - **9 cột cỡ máy** (43, 22, 12, 8, 4, 2÷3, 1,1÷1,9, 1, <1 nghìn m3/h): với mỗi dòng ở Bảng 2, cộng giá trị "Tình hình vận hành" của dòng đó vào đúng cột ứng với Q của dòng. Ví dụ: trạm Yên Nghĩa có 5 máy 43.000 m3/h đang hoạt động → cộng 5 vào cột "43" của dòng Sông Nhuệ (hoặc dòng công ty tương ứng nếu Yên Nghĩa không thuộc Sông Nhuệ — xem OI-BC4 về việc Yên Nghĩa thuộc nhóm XNTL nào).
 - **Tổng lưu lượng (m3/h)** = SUM(Tình hình vận hành × Q 1 máy) trên mọi dòng của công ty đó.
-- Dòng "Tổng cộng:" trên cùng = tổng theo cột của cả 4 công ty (formula, không nhập tay).
+- Dòng "Tổng cộng:" trên cùng = tổng theo cột của cả 4 công ty (formula, không nhập tay). ✅ **dựng 20/09/2026 (T78.2)** — `TinhBaoCaoNhanh.tongCongBang1` cộng theo cột một DANH SÁCH dòng công ty; hôm nay danh sách có đúng một phần tử (Sông Nhuệ — OI-BC1) nên tổng trùng khít dòng ấy, và ba dòng công ty kia để trống nên phép cộng đọc được ngay trên bản in. ⛔ dòng nào có số ⇒ ô tổng **TRỐNG**, ⛔ in "0 trạm · 0 máy".
 - **Cấu trúc 9 cột cỡ máy trùng khớp với sheet `Sheet3` đã thấy trong `Danh_mu_c_TB_Cty_SN_2026.xlsx`** — xác nhận đây là bảng phân loại chuẩn dùng chung toàn Thành phố, không phải Công ty tự đặt ra.
 
 ### 4.3 Quay lại Mục 1 thân báo cáo (mục 3.2)
@@ -203,6 +203,8 @@ Tương tự: bảng chung toàn Thành phố (37 điểm đo), Công ty Sông N
 > Đối chiếu từng mục với phép kiểm: phụ lục *Đối chiếu Định nghĩa Done (§9)* — ô `[ ]` dưới đây là văn bản BA, ⛔ phải trạng thái.
 
 - [ ] Toàn bộ ô "Tổng cộng"/"Cộng" trong mọi bảng (Bảng 1, Bảng 2 phần đầu, thân báo cáo mục 1 & 3, Bảng 5) là công thức tự tính, không cho nhập tay.
+  > ⚠ **20/09/2026 (T78.2)** — mục này từng được tick ✅ với bằng chứng *"bất biến 5"*, mà bất biến 5 canh **Bảng 5**; dòng "Tổng cộng" của **Bảng 1** khi ấy vẫn **để trống**. Một ✅ đúng về bốn phần năm đọc y hệt một ✅ đúng trọn. Nay có bất biến **6** cho riêng nó, cộng một khẳng định đọc byte thật của bản Word tại `tbl4/tr2`.
+  > Dòng "Tổng cộng" của **Mục 1 / Mục 3** thì CỐ Ý vẫn trống: chúng là ô của *thân báo cáo* toàn Thành phố, ⛔ phải tổng của một bảng — hệ ⛔ có số của ba công ty kia (OI-BC1).
 - [ ] Bảng 2 Phụ lục 1 giữ granularity 1 dòng/1 nhóm máy cùng Q (không gộp như catalog `danh-muc-tram-bom`).
 - [ ] "Tổng số trạm" ở Bảng 1 = COUNT trạm có ≥1 máy đang chạy trong kỳ (không phải SUM, không phải tổng số trạm trong danh mục tĩnh) — 1 trạm nhiều máy đang chạy vẫn tính 1.
 - [ ] "Tổng số máy" và 9 cột cỡ máy ở Bảng 1 = SUM đúng cột "Tình hình vận hành" của Bảng 2 theo từng cỡ Q, không lấy tổng số máy thiết kế.
@@ -255,7 +257,7 @@ Mỗi dòng trỏ tới phép kiểm đang chạy trong CI (`BaoCaoNhanhHttpTest
 
 | # | Mục §9 | Trạng thái | Bằng chứng |
 |---|---|---|---|
-| 1 | Ô "Tổng cộng"/"Cộng" tự tính, ⛔ nhập tay | ✅ | `TinhBaoCaoNhanhTest` bất biến 5 · màn hình chỉ đọc, số từ BE |
+| 1 | Ô "Tổng cộng"/"Cộng" tự tính, ⛔ nhập tay | ✅ (20/09) | `TinhBaoCaoNhanhTest` bất biến **5** (Bảng 5) + bất biến **6** (dòng Tổng cộng của Bảng 1) · `xuatWordKhuHoi` đọc byte thật ở `tbl4/tr2` · màn hình chỉ đọc, số từ BE |
 | 2 | Bảng 2 một dòng = một nhóm máy cùng Q | ✅ | `nhom_may_bom` duy nhất theo (trạm, Q) · `xuatWordKhuHoi` (trạm 2 nhóm ⇒ 2 dòng, gộp dọc) |
 | 3 | Tổng số trạm = trạm có ≥ 1 máy chạy | ✅ | `TinhBaoCaoNhanhTest` bất biến 3 |
 | 4 | Tổng số máy + 9 cột = số đang chạy theo cỡ | ✅ | `TinhBaoCaoNhanhTest` bất biến 1 + 3 |

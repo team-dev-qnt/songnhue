@@ -73,6 +73,44 @@ class TinhBaoCaoNhanhTest {
     }
 
     @Test
+    @DisplayName("⭐⭐ Bất biến 6 — dòng 'Tổng cộng' là PHÉP CỘNG thật, ⛔ bản sao dòng Sông Nhuệ")
+    void tongCongBang1CongTheoCot() {
+        TinhBaoCaoNhanh.DongBang1 songNhue = TinhBaoCaoNhanh.bang1(mau(5), BANG);
+
+        // ⭐⭐ Vế QUYẾT ĐỊNH của T78.2. Hôm nay hệ chỉ có Sông Nhuệ (OI-BC1) nên tổng của một danh
+        //    sách một phần tử BẰNG phần tử ấy — và vì thế một bài chỉ thử một công ty sẽ xanh y hệt
+        //    trên bản `tongCong = songNhue`. Tức nó ⛔ phân biệt được hai trạng thái (luật 9).
+        //    Vế phân biệt: HAI công ty.
+        TinhBaoCaoNhanh.DongBang1 congTyHai = new TinhBaoCaoNhanh.DongBang1(
+                3, 7, new int[] {1, 0, 0, 0, 2, 0, 4, 0, 0}, new java.math.BigDecimal("12345"));
+        TinhBaoCaoNhanh.DongBang1 tong = TinhBaoCaoNhanh.tongCongBang1(java.util.List.of(songNhue, congTyHai));
+
+        assertThat(tong.tongTram()).isEqualTo(songNhue.tongTram() + 3);
+        assertThat(tong.tongMay()).isEqualTo(songNhue.tongMay() + 7);
+        assertThat(tong.tongLuuLuongM3h()).isEqualByComparingTo("248395");
+        for (int i = 0; i < tong.theoCo().length; i++) {
+            assertThat(tong.theoCo()[i])
+                    .as("cột cỡ máy %d", i)
+                    .isEqualTo(songNhue.theoCo()[i] + congTyHai.theoCo()[i]);
+        }
+        assertThat(tong.theoCo())
+                .as("⛔ phải mảng của một công ty nào — bản sao sẽ đỏ ở đây")
+                .isNotEqualTo(songNhue.theoCo());
+        // Bất biến 1 vẫn đúng trên dòng tổng: SUM(9 cột) = tổng số máy.
+        assertThat(java.util.Arrays.stream(tong.theoCo()).sum()).isEqualTo(tong.tongMay());
+
+        // Một công ty ⛔ có dữ liệu là VẮNG MẶT, ⛔ phải 0 — bỏ qua, ⛔ kéo tổng xuống.
+        assertThat(TinhBaoCaoNhanh.tongCongBang1(java.util.Arrays.asList(songNhue, null))
+                        .tongMay())
+                .isEqualTo(songNhue.tongMay());
+
+        // ⛔ dòng nào có số ⇒ ô "Tổng cộng" TRỐNG, ⛔ in "0 trạm · 0 máy" (quy tắc 16).
+        assertThat(TinhBaoCaoNhanh.tongCongBang1(java.util.List.of())).isNull();
+        assertThat(TinhBaoCaoNhanh.tongCongBang1(java.util.Collections.singletonList(null)))
+                .isNull();
+    }
+
+    @Test
     @DisplayName("⭐⭐ Bất biến 2 — Mục 1 là BẢN SAO của Bảng 1, từng ô")
     void muc1LaBanSaoBang1() {
         TinhBaoCaoNhanh.DongBang1 b1 = TinhBaoCaoNhanh.bang1(mau(5), BANG);

@@ -784,18 +784,27 @@ function TabXemTruoc({ c }: { c: BaoCaoNhanhChiTiet }) {
     co: string[];
     luuLuong: string;
   };
+  // ⚠ Thứ tự đúng bản Word: "Tổng cộng" đứng TRÊN các dòng công ty (T78.2). Số của nó do BE cộng
+  //   theo cột — ⛔ cộng ở đây (quy tắc 3).
+  const dongBang1Tu = (key: string, congTy: string, d: typeof b1): Dong1 => ({
+    key,
+    congTy,
+    tram: so(d?.tongTram),
+    may: so(d?.tongMay),
+    co: c.coMay.map((_, i) => (d && d.theoCo[i] ? formatNumber(d.theoCo[i]) : '')),
+    luuLuong: so(d?.tongLuuLuongM3h),
+  });
   const dongBang1: Dong1[] = [
-    {
-      key: 'sn',
-      congTy: 'Sông Nhuệ',
-      tram: so(b1?.tongTram),
-      may: so(b1?.tongMay),
-      co: c.coMay.map((_, i) => (b1 && b1.theoCo[i] ? formatNumber(b1.theoCo[i]) : '')),
-      luuLuong: so(b1?.tongLuuLuongM3h),
-    },
+    dongBang1Tu('tong', 'Tổng cộng', c.bang1TongCong),
+    dongBang1Tu('sn', 'Sông Nhuệ', b1),
   ];
   const cotBang1: ColumnsType<Dong1> = [
-    { title: 'Công ty thuỷ lợi', dataIndex: 'congTy', width: 140 },
+    {
+      title: 'Công ty thuỷ lợi',
+      dataIndex: 'congTy',
+      width: 140,
+      render: (v: string, d: Dong1) => (d.key === 'tong' ? <b>{v}</b> : v),
+    },
     { title: 'Tổng số trạm', dataIndex: 'tram', width: 100, align: 'right' },
     { title: 'Tổng số máy', dataIndex: 'may', width: 100, align: 'right' },
     {
@@ -861,8 +870,10 @@ function TabXemTruoc({ c }: { c: BaoCaoNhanhChiTiet }) {
           scroll={{ x: 1030 }}
         />
         <Typography.Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0 }}>
-          Ba công ty thuỷ lợi còn lại và dòng “Tổng cộng” để trống — hệ thống chỉ có số của Sông
-          Nhuệ.
+          Dòng “Tổng cộng” là tổng <b>theo cột</b> của các công ty có số, do hệ thống tính. Ba công
+          ty thuỷ lợi còn lại (Hà Nội, Sông Đáy, Sông Tích) để trống vì hệ thống chưa có nguồn số
+          liệu của họ — nên hôm nay “Tổng cộng” trùng khít dòng Sông Nhuệ, và bản Word cũng in như
+          vậy.
         </Typography.Paragraph>
       </Card>
 

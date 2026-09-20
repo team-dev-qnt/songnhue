@@ -195,6 +195,8 @@ class BaoCaoNhanhHttpTest extends IntegrationTestBase {
         assertThat(trong.getBody())
                 .as("⛔ '0 trạm · 0 máy' khi CHƯA AI NHẬP là một câu sai gửi UBND")
                 .contains("\"bang1SongNhue\":null")
+                .as("và dòng Tổng cộng cũng TRỐNG — tổng của tập rỗng ⛔ phải 0 (quy tắc 16)")
+                .contains("\"bang1TongCong\":null")
                 .contains("\"trangThai\":\"CHUA_NHAP\"");
 
         nhapVanHanh(kyThuat, ky, nhom("TB-HVAN", 1100), 3);
@@ -344,11 +346,24 @@ class BaoCaoNhanhHttpTest extends IntegrationTestBase {
         java.nio.file.Files.write(java.nio.file.Path.of("target", "bao-cao-nhanh-khu-hoi.docx"), tai.getBody());
 
         DocxFiller doc = DocxFiller.mo(tai.getBody());
-        // Mục 1 + Bảng 1: dòng Sông Nhuệ có số; "Tổng cộng" TRỐNG (mẫu in sẵn 0).
+        // Mục 1: dòng Sông Nhuệ có số; "Tổng cộng" của THÂN báo cáo TRỐNG (mẫu in sẵn 0).
         assertThat(doc.docO(1, 4, 2)).isEqualTo("2");
         assertThat(doc.docO(1, 4, 3)).isEqualTo("8");
         assertThat(doc.docO(1, 4, 4)).as("5×43.200 + 3×1.100").isEqualTo("219.300");
-        assertThat(doc.docO(1, 2, 2)).as("⛔ '0' ở dòng Tổng cộng là câu sai").isEmpty();
+        assertThat(doc.docO(1, 2, 2))
+                .as("Mục 1 — dòng Tổng cộng của THÂN báo cáo vẫn TRỐNG; '0' ở đó là một câu sai")
+                .isEmpty();
+        // ⭐ T78.2 — Bảng 1 (tbl4) dòng 2 là "Tổng cộng": trước bản này nó TRỐNG, nay mang tổng theo
+        //   cột. Hôm nay chỉ Sông Nhuệ có số nên nó trùng khít dòng 4 — và điều đó ĐỌC ĐƯỢC trên bản
+        //   in vì ba dòng công ty kia để trống.
+        assertThat(doc.docO(4, 2, 2)).as("Bảng 1 · Tổng cộng · tổng số trạm").isEqualTo("2");
+        assertThat(doc.docO(4, 2, 3)).as("Bảng 1 · Tổng cộng · tổng số máy").isEqualTo("8");
+        assertThat(doc.docO(4, 2, 4)).as("Bảng 1 · Tổng cộng · cột '43'").isEqualTo("5");
+        assertThat(doc.docO(4, 2, 10)).as("Bảng 1 · Tổng cộng · cột '1,1 ÷1,9'").isEqualTo("3");
+        assertThat(doc.docO(4, 2, 6)).as("cột '12' — 0 máy ⇒ TRỐNG, ⛔ in '0'").isEmpty();
+        assertThat(doc.docO(4, 2, 13)).as("Bảng 1 · Tổng cộng · tổng lưu lượng").isEqualTo("219.300");
+        assertThat(doc.docO(4, 3, 2)).as("Hà Nội ⛔ có nguồn ⇒ vẫn TRỐNG").isEmpty();
+        assertThat(doc.docO(4, 5, 2)).as("Sông Đáy ⛔ có nguồn ⇒ vẫn TRỐNG").isEmpty();
         assertThat(doc.docO(4, 4, 3)).isEqualTo("8");
         assertThat(doc.docO(4, 4, 4)).as("cột '43'").isEqualTo("5");
         assertThat(doc.docO(4, 4, 10)).as("cột '1,1 ÷1,9'").isEqualTo("3");

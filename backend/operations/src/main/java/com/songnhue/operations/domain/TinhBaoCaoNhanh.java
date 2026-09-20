@@ -26,10 +26,26 @@ import java.util.UUID;
  * <p>Ô chưa nhập là {@code null}. Một tổng mà MỌI thành phần đều chưa nhập là {@code null} (ô trống
  * trong văn bản), ⛔ phải 0 — "0 máy chạy" là một câu khẳng định gửi UBND.
  *
- * <h2>⛔ Ba công ty kia và dòng "Tổng cộng" để TRỐNG</h2>
+ * <h2>⛔ Ba công ty kia để TRỐNG — nhưng dòng "Tổng cộng" của BẢNG 1 thì CÓ SỐ (sửa 20/09, T78.2)</h2>
  *
- * <p>Hệ chỉ có số của Sông Nhuệ (OI-BC1). Điền "Tổng cộng" bằng số Sông Nhuệ là khẳng định tổng toàn
- * Thành phố = một công ty. ⇒ Chỉ dòng Sông Nhuệ có số.
+ * <p>Hệ chỉ có số của Sông Nhuệ (OI-BC1) ⇒ ba dòng công ty kia để trống, ⛔ ghi 0.
+ *
+ * <p>⚠ Câu cũ ở đây viết: <i>"Điền 'Tổng cộng' bằng số Sông Nhuệ là khẳng định tổng toàn Thành phố =
+ * một công ty ⇒ chỉ dòng Sông Nhuệ có số"</i>. Lập luận ấy <b>đúng về rủi ro mà sai về kết luận</b>,
+ * và QuanTran đảo lại 20/09 theo đặc tả (<i>"dòng Tổng cộng = tổng theo cột của cả 4 công ty,
+ * formula, ⛔ nhập tay"</i>):
+ *
+ * <ul>
+ *   <li>"Tổng cộng" của Bảng 1 là <b>tổng theo cột của chính bảng ấy</b> — một giá trị hệ TÍNH
+ *       ĐƯỢC từ những dòng đang có, ⛔ phải một ô chờ dữ liệu ⛔ ai có. Để trống một ô tính được là
+ *       đúng thứ quy tắc 15 gọi là nửa cặp đọc–ghi.</li>
+ *   <li>Rủi ro "đọc thành tổng toàn Thành phố" <b>tự nó lộ ra trên bản in</b>: ba dòng công ty kia
+ *       TRỐNG, nên người đọc thấy ngay tổng bằng dòng duy nhất có số. Một dòng trống tự khai rằng
+ *       nó chưa có gì — đó chính là lý do quy tắc 16 bắt để trống thay vì ghi 0.</li>
+ * </ul>
+ *
+ * <p>⇒ Xem {@link #tongCongBang1}. Dòng "Tổng cộng" của <b>Mục 1</b> và <b>Mục 3</b> thì vẫn để
+ * trống: chúng là ô của <i>thân báo cáo</i> toàn Thành phố, ⛔ phải tổng của một bảng.
  */
 public final class TinhBaoCaoNhanh {
 
@@ -149,6 +165,50 @@ public final class TinhBaoCaoNhanh {
             tongLuuLuong = tongLuuLuong.add(d.nhom().qM3h().multiply(BigDecimal.valueOf(chay)));
         }
         return new DongBang1(tramChay.size(), tongMay, theoCo, tongLuuLuong.setScale(0, RoundingMode.HALF_UP));
+    }
+
+    /**
+     * Dòng "Tổng cộng" của Bảng 1 — cộng THEO CỘT các dòng công ty (T78.2).
+     *
+     * <h3>⛔ Đây ⛔ phải "bản sao dòng Sông Nhuệ", dù hôm nay hai thứ bằng nhau</h3>
+     *
+     * Hệ chỉ có số của Sông Nhuệ (OI-BC1), nên tổng của một danh sách một phần tử đúng bằng phần tử
+     * ấy. Viết thẳng {@code tongCong = songNhue} sẽ **chạy đúng hôm nay và sai vĩnh viễn kể từ ngày
+     * có công ty thứ hai** — mà ngày ấy ⛔ có gì đỏ: cả hai dòng vẫn ra số, chỉ là tổng thôi ⛔ phải
+     * tổng. ⇒ Nhận một DANH SÁCH và cộng thật; thêm một công ty là thêm một phần tử ở nơi gọi.
+     *
+     * <p>⚠ {@code tongTram} cộng được vì một trạm thuộc ĐÚNG MỘT công ty — ⛔ có trạm nào bị đếm hai
+     * lần. (Trong một công ty thì ⛔: {@link #bang1} phải {@code COUNT DISTINCT} vì một trạm có nhiều
+     * nhóm máy.)
+     *
+     * @param dongCongTy các dòng công ty ĐÃ CÓ SỐ; phần tử {@code null} = công ty ⛔ có dữ liệu và
+     *     được BỎ QUA, ⛔ đọc thành 0 (quy tắc 16)
+     * @return {@code null} khi ⛔ dòng nào có số — ô "Tổng cộng" để TRỐNG, ⛔ in "0 trạm · 0 máy"
+     */
+    public static DongBang1 tongCongBang1(List<DongBang1> dongCongTy) {
+        List<DongBang1> coSo =
+                dongCongTy.stream().filter(java.util.Objects::nonNull).toList();
+        if (coSo.isEmpty()) {
+            return null;
+        }
+        int soCo = coSo.get(0).theoCo().length;
+        int[] theoCo = new int[soCo];
+        int tram = 0;
+        int may = 0;
+        BigDecimal luuLuong = BigDecimal.ZERO;
+        for (DongBang1 d : coSo) {
+            if (d.theoCo().length != soCo) {
+                throw new IllegalArgumentException(
+                        "Các dòng công ty phải cùng số cột cỡ máy: %d vs %d".formatted(soCo, d.theoCo().length));
+            }
+            tram += d.tongTram();
+            may += d.tongMay();
+            for (int i = 0; i < soCo; i++) {
+                theoCo[i] += d.theoCo()[i];
+            }
+            luuLuong = luuLuong.add(d.tongLuuLuongM3h());
+        }
+        return new DongBang1(tram, may, theoCo, luuLuong);
     }
 
     /** ⛔ COPY — ⛔ công thức riêng. Hai nơi cho một câu hỏi là hai câu trả lời (spec §4.3, OI-BC12). */

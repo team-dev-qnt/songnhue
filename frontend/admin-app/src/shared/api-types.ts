@@ -1868,6 +1868,8 @@ export interface BaoCaoNhanhChiTiet {
   coMay: string[];
   bang2: BcnKhoiView[];
   bang1SongNhue: BcnBang1View | null;
+  /** Dòng “Tổng cộng” — cộng theo cột, ⛔ nhập tay; `null` khi chưa dòng nào có số. */
+  bang1TongCong: BcnBang1View | null;
   muc1: BcnMuc1View;
   ghiChuYenNghia: BcnYenNghiaView;
   bang3: BcnDongBang3View[];

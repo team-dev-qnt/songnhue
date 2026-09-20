@@ -7894,3 +7894,59 @@ báo cáo app: 1
 
 ⇒ Hai tầng bắt cùng một khuyết tật: một bài **đơn vị** (câu chữ) và một bài **qua HTTP** (cả đường
 cấu hình → tính → API). Khôi phục rồi đo lại: hằng chuỗi còn **0** dòng, bộ kiểm xanh.
+
+---
+
+### §12.9 Dòng "Tổng cộng" của Bảng 1: đảo một lựa chọn "để trống" (T78.2, 20/9/2026)
+
+QuanTran 20/09: *"dòng tổng cộng ở Phụ lục 1 bảng tổng hợp cần có số liệu tổng hợp, hiện đang để
+trống"* — kèm đặc tả: *"Dòng 'Tổng cộng' trên cùng = tổng theo cột của cả 4 công ty (formula, ⛔ nhập
+tay)"*.
+
+#### Lựa chọn cũ, và vì sao nó sai
+
+`TinhBaoCaoNhanh` khai thành văn từ WS-66:
+
+> *Hệ chỉ có số của Sông Nhuệ (OI-BC1). Điền "Tổng cộng" bằng số Sông Nhuệ là khẳng định tổng toàn
+> Thành phố = một công ty. ⇒ Chỉ dòng Sông Nhuệ có số.*
+
+Lập luận **đúng về rủi ro và sai về kết luận**. Hai lý do đo được:
+
+1. **"Tổng cộng" của Bảng 1 ⛔ phải một ô chờ dữ liệu — nó là tổng theo cột của CHÍNH bảng ấy**, tức
+   một giá trị hệ **tính được** từ đúng những dòng đang có. Để trống một ô tính được là đúng thứ quy
+   tắc 15 gọi là nửa cặp đọc–ghi: bảng có đủ số, mà ô tổng thì rỗng và ⛔ ai biết vì sao.
+2. **Rủi ro "đọc thành tổng toàn Thành phố" tự nó lộ ra trên bản in.** Ba dòng Hà Nội · Sông Đáy ·
+   Sông Tích để **TRỐNG**, nên người đọc thấy ngay tổng bằng dòng duy nhất có số. Một dòng trống tự
+   khai rằng nó chưa có gì — đó chính là lý do quy tắc 16 bắt để trống thay vì ghi 0, và ở đây nó
+   **giải luôn** vấn đề mà lựa chọn cũ sợ.
+
+⇒ Đảo. Nhưng chỉ đảo cho **Bảng 1**: dòng "Tổng cộng" của **Mục 1** và **Mục 3** vẫn để trống, vì
+chúng là ô của *thân báo cáo* toàn Thành phố, ⛔ phải tổng của một bảng.
+
+#### ⭐ Phép cộng phải là phép cộng THẬT, dù hôm nay nó là phép đồng nhất
+
+Hệ có đúng một dòng công ty, nên `tongCong` ⛔ khác `bang1SongNhue`. Cách rẻ nhất — gán thẳng — **chạy
+đúng hôm nay và sai vĩnh viễn kể từ ngày có công ty thứ hai**, mà ngày ấy ⛔ có gì đỏ: cả hai dòng
+vẫn ra số, chỉ là tổng thôi ⛔ phải tổng.
+
+⇒ `tongCongBang1(List<DongBang1>)` cộng theo cột một **danh sách**; nơi gọi truyền một danh sách một
+phần tử. Thêm công ty = thêm một phần tử, ⛔ phải sửa công thức.
+
+⚠ Và một bài kiểm chỉ thử **một** công ty ⛔ phân biệt được hai bản ấy (luật 9) — nó xanh y hệt trên
+lối tắt. Vế phân biệt là **hai** dòng công ty, cộng một khẳng định `theoCo ⛔ bằng mảng của bất kỳ
+công ty nào. Kiểm chứng ngược: cắm `return coSo.get(0)` ⇒ đỏ ở `expected: 7`.
+
+#### ⛔⛔ Một dấu ✅ đúng bốn phần năm đọc y hệt một dấu ✅ đúng trọn
+
+Bảng đối chiếu DoD của spec có hàng:
+
+> `| 1 | Ô "Tổng cộng"/"Cộng" tự tính, ⛔ nhập tay | ✅ | TinhBaoCaoNhanhTest bất biến 5 |`
+
+Chính câu của hàng ấy liệt kê **năm** chỗ — *Bảng 1, Bảng 2 phần đầu, thân báo cáo mục 1 & 3, Bảng
+5* — còn bằng chứng nó trỏ tới (*bất biến 5*) canh **Bảng 5**. Bốn chỗ kia ⛔ ai đối chiếu, và một
+trong số đó đang **rỗng**.
+
+Đây là hình dạng *"đã tick ⛔ phải bằng chứng"* ở dạng tinh vi nhất: hàng ⛔ nói dối, nó chỉ **nói
+thiếu**, và cái thiếu nằm đúng chỗ ⛔ ai nhìn. Thứ phát hiện ra ⛔ phải một cổng kiểm mà là **người
+dùng mở bản Word ra đọc**. ⇒ Hàng ấy nay trỏ tới bất biến **6** riêng cho Bảng 1 và một khẳng định
+đọc **byte thật** tại `tbl4/tr2` của tệp xuất ra.
