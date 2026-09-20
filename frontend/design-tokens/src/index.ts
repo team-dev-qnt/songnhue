@@ -105,8 +105,19 @@ export const brandColors = {
  * Bảy mã gộp còn năm bậc: `#0b2e59` và `#0b2d5b` lệch nhau 2/255 ở một kênh (cùng một màu bị
  * chép tay hai lần), `#082242` gộp vào `navy700` — lệch 8/255 ở kênh lam, dưới ngưỡng phân biệt
  * được của mắt trên nền lớn.
+ *
+ * <h3>⚠ Từ 20/09/2026: nền đầu trang và chân trang ĐỔI ĐƯỢC lúc chạy (T77.1)</h3>
+ *
+ * Hai khoá `site.brand.header` · `site.brand.footer` tiêm `--sn-brand-header` / `--sn-brand-footer`
+ * vào cổng công khai. Cơ chế giống {@link brandColors}: giá trị ở đây **chính là cái fallback**, nên
+ * khoá để trống ⇒ ⛔ biến nào được tiêm ⇒ trang giữ nguyên gradient navy như hôm nay.
+ *
+ * ⚠ **Năm bậc navy vẫn ⛔ có núm riêng.** Chúng là *sắc độ* của một gradient; cho admin chỉnh từng
+ * bậc là giao một bài phối màu ⛔ ai duyệt. Thứ đổi được là **nền của một vùng** — và khi nó được
+ * đặt thì cả ba chặng gradient của vùng ấy cùng nhận một giá trị, tức gradient xẹp thành màu phẳng.
+ * Đó là hành vi cố ý, xem `public-web/tailwind.config.ts`.
  */
-export const portalChrome = {
+const navy = {
   /** Đáy chân trang — bậc sâu nhất */
   navy900: '#05172c',
   /** Dải nhận diện + thanh điều hướng đầu trang */
@@ -117,6 +128,21 @@ export const portalChrome = {
   navy600: '#0c294e',
   /** Điểm giữa gradient đầu trang, dải đường dây nóng chân trang */
   navy500: '#0b2d5b',
+} as const;
+
+export const portalChrome = {
+  ...navy,
+  /**
+   * Nền **đầu trang** — mặc định, đổi được từ admin qua `site.brand.header` (T77.1).
+   *
+   * ⚠ Đây là một cái tên theo **VAI TRÒ**, ⛔ phải một mã màu thứ sáu: giá trị lấy thẳng từ
+   * {@link navy.navy800} nên ⛔ có gì để hai bên trôi ra khỏi nhau (quy tắc 14). Nó tồn tại vì
+   * khoá `settings`, biến CSS `--sn-brand-header` và token phải dùng CHUNG một hậu tố — còn
+   * `navy800` là tên của một **bậc sắc độ**, ⛔ phải tên của một chỗ trên trang.
+   */
+  header: navy.navy800,
+  /** Nền **chân trang** — mặc định, đổi được qua `site.brand.footer`. Xem {@link portalChrome.header}. */
+  footer: navy.navy700,
 } as const;
 
 /**

@@ -2,9 +2,10 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { brandColors } from '@songnhue/design-tokens';
+import { brandColors, portalChrome } from '@songnhue/design-tokens';
 import { describe, expect, it } from 'vitest';
 
+import { boChuThich } from './boChuThich';
 import { ANH_XA_MAU, cssMauThuongHieu, laMaMauHopLe } from './mauThuongHieu';
 
 /**
@@ -49,6 +50,14 @@ describe('cssMauThuongHieu — đường đọc mà cơ chế cũ ⛔ có', () =
     expect(
       cssMauThuongHieu({ 'site.brand.primary': '#1758BF', 'site.brand.accent': '#FAC036' }),
     ).toBe(':root{--sn-brand-primary:#1758bf;--sn-brand-accent:#fac036}');
+  });
+
+  it('nền đầu trang / chân trang đi ra đúng biến của chúng', () => {
+    // Hai khoá của T77.1. Nếu ánh xạ lệch thì admin đặt màu chân trang mà ĐẦU trang đổi — một
+    // khuyết tật `lưu thành công` khác, chỉ là ồn ào hơn `site.color.*` ngày xưa.
+    expect(
+      cssMauThuongHieu({ 'site.brand.header': '#123456', 'site.brand.footer': '#654321' }),
+    ).toBe(':root{--sn-brand-header:#123456;--sn-brand-footer:#654321}');
   });
 
   it('bỏ qua ĐÚNG khoá rác, giữ khoá hợp lệ còn lại', () => {
@@ -110,18 +119,33 @@ describe('Ánh xạ khoá ↔ biến ↔ token', () => {
   it('mỗi khoá là `site.brand.*` và mỗi biến là `--sn-brand-*` — tên khớp nhau', () => {
     // Quy tắc 14: khoá `settings`, biến CSS và token `design-tokens` dùng CHUNG một hậu tố, nên ⛔
     // còn phép ánh xạ nào để ai đó nhớ sai. Bài này đỏ ngay lượt ai đó đặt lệch một cái tên.
+    //
+    // ⚠ Từ T77.1 hậu tố đến từ HAI nhóm token (`brandColors` cho bộ nhận diện, `portalChrome` cho
+    //   khung cổng). Nên vế thứ ba ⛔ còn là *"`brandColors` có thuộc tính này"* mà là **đúng MỘT
+    //   nhóm sở hữu nó**: nếu hai nhóm cùng khai một cái tên thì `<x>` ⛔ còn trỏ tới một giá trị
+    //   xác định, và người đọc sau ⛔ có cách biết ô nhập đang điều khiển con số nào.
+    const nhomToken = { brandColors, portalChrome };
     for (const [khoa, bien] of ANH_XA_MAU) {
       const hauTo = khoa.replace('site.brand.', '');
       expect(khoa).toMatch(/^site\.brand\.[a-z]+$/);
       expect(bien).toBe(`--sn-brand-${hauTo}`);
-      expect(brandColors).toHaveProperty(hauTo);
+      const chuSoHuu = Object.entries(nhomToken)
+        .filter(([, bang]) => hauTo in bang)
+        .map(([ten]) => ten);
+      expect(chuSoHuu, `hậu tố \`${hauTo}\` phải là tên của ĐÚNG một token`).toHaveLength(1);
     }
   });
 
-  it('⛔ nhận thêm khoá nào ngoài hai vai trò của bộ nhận diện', () => {
+  it('⛔ nhận thêm khoá nào ngoài bốn vai trò đã quyết', () => {
     // Trần chỉ-được-giảm. Thêm một núm màu là một quyết định (nền trang và màu chữ CỐ Ý ⛔ có núm —
-    // xem javadoc `brandColors`), ⛔ phải một dòng thêm vào mảng cho tiện.
-    expect(ANH_XA_MAU.map(([k]) => k)).toEqual(['site.brand.primary', 'site.brand.accent']);
+    // xem javadoc `brandColors`; năm bậc navy CỐ Ý ⛔ có núm riêng — xem `portalChrome`), ⛔ phải
+    // một dòng thêm vào mảng cho tiện.
+    expect(ANH_XA_MAU.map(([k]) => k)).toEqual([
+      'site.brand.primary',
+      'site.brand.accent',
+      'site.brand.header',
+      'site.brand.footer',
+    ]);
   });
 });
 
@@ -132,6 +156,15 @@ describe('design-tokens mang đúng bộ nhận diện 20/09/2026', () => {
     expect(brandColors.primary).toBe('#1758bf');
     expect(brandColors.accent).toBe('#fac036');
     expect(brandColors.link).toBe(brandColors.primary);
+  });
+
+  it('nền khung cổng mặc định vẫn là navy đã nghiệm thu 27/08, ⛔ phải màu nhận diện', () => {
+    // ⚠ Đây là vế *"vẫn set default màu như vậy"*. Bộ nhận diện 20/09 ⛔ nói gì về nền đầu/chân
+    // trang, và văn bản nghiệm thu 27/08 chốt *"hệ màu GIỮ NGUYÊN"* — nên mặc định phải là sắc
+    // navy đang chạy, ⛔ phải `#1758bf`. Một lượt "cho đồng bộ với màu chủ đạo" sẽ đỏ ở đây.
+    expect(portalChrome.header).toBe(portalChrome.navy800);
+    expect(portalChrome.footer).toBe(portalChrome.navy700);
+    expect(portalChrome.header).not.toBe(brandColors.primary);
   });
 });
 
@@ -161,29 +194,38 @@ describe('design-tokens mang đúng bộ nhận diện 20/09/2026', () => {
  *
  * <p>⚠ Vì kết luận ấy **phụ thuộc phiên bản chính**, bài dưới ghim nó. Hạ Tailwind về 3 là lớp lỗi
  * kia quay lại y nguyên, và ⛔ gì khác trong kho báo được điều đó.
- */
-/**
- * Bỏ chú thích `//` và `/* *\/` nhưng GIỮ nguyên chuỗi ký tự.
  *
- * ⚠ Bỏ khối trước rồi mới tới dòng: làm ngược thì một `//` nằm TRONG khối `/* … *\/` sẽ cắt mất
- * phần đuôi của khối và để hở dấu đóng.
+ * <h3>⭐ 20/09 — đo thêm vế GRADIENT (T77.1), vì nó hỏng theo một kiểu khác</h3>
+ *
+ * Nền đầu/chân trang ⛔ đi qua `background-color` mà đi qua các chặng `from-*`/`via-*`/`to-*`.
+ * Chạy cùng trình biên dịch ấy trên `from-chrome-header via-chrome-headerMid to-chrome-header`:
+ *
+ * <pre>
+ *   .from-chrome-header  { --tw-gradient-from: var(--color-chrome-header); … }
+ *   .via-chrome-headerMid{ --tw-gradient-via:  var(--color-chrome-headerMid); … }
+ *   &#64;property --tw-gradient-from { syntax: "&lt;color&gt;"; initial-value: #0000; }
+ * </pre>
+ *
+ * ⇒ Chạy được. ⛔⛔ Nhưng dòng `&#64;property` là điều phải nhớ: đó là custom property **đã đăng
+ * ký**, nên một giá trị ⛔ phải màu ⛔ rơi về `var()` fallback mà rơi về `initial-value` —
+ * **trong suốt**. Ở hai khoá này, rác lọt qua ⇒ mất hẳn đầu trang, ⛔ phải "sai màu".
  */
-function boChuThich(ma: string): string {
-  return ma.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
-}
-
 describe('Tailwind — tầng làm cho biến CSS có tác dụng', () => {
   const cauHinh = readFileSync(
     join(dirname(fileURLToPath(import.meta.url)), '../../tailwind.config.ts'),
     'utf8',
   );
 
+  // ⚠ Mọi khẳng định cấu trúc bên dưới soi `maCauHinh` — bản ĐÃ BỎ CHÚ THÍCH. Quét cả tệp thì
+  //   một đoạn javadoc mô tả cơ chế cũng làm bài xanh, tức bộ canh tự im được bằng một dòng văn.
+  const maCauHinh = boChuThich(cauHinh);
+
   it('primary · link · accent đều bọc `var()` với token làm dự phòng', () => {
     // Phá một dòng trong số này ⇒ khoá `settings` tương ứng thành nửa cặp đọc–ghi trở lại: admin
     // đặt màu, cổng ⛔ đổi. Đúng khuyết tật `V202608281037` đã gỡ.
     for (const ten of ['primary', 'link', 'accent']) {
-      expect(cauHinh, `brand.${ten} phải đổi được lúc chạy`).toMatch(
-        new RegExp(`${ten}:\\s*doiDuocLucChay\\(`),
+      expect(maCauHinh, `brand.${ten} phải đổi được lúc chạy`).toMatch(
+        new RegExp(`\\b${ten}:\\s*doiDuocLucChay\\(`),
       );
     }
   });
@@ -197,7 +239,7 @@ describe('Tailwind — tầng làm cho biến CSS có tác dụng', () => {
     //    CSS lúc build"*, nên phép quét cả tệp sẽ ĐỎ GIẢ và phạt đúng đoạn văn đang dạy người đọc
     //    vì sao cơ chế này tồn tại. Lần thứ NĂM của hình dạng T46.7 · T54.8; cách sửa rẻ nhất (bỏ
     //    hex khỏi chú thích) là xoá bài học mà vẫn để bộ canh thủng.
-    expect(boChuThich(cauHinh)).not.toMatch(/#[0-9a-fA-F]{6}/);
+    expect(maCauHinh).not.toMatch(/#[0-9a-fA-F]{6}/);
   });
 
   it('⚠ tự kiểm: `boChuThich` bỏ chú thích mà GIỮ mã', () => {
@@ -209,6 +251,65 @@ describe('Tailwind — tầng làm cho biến CSS có tác dụng', () => {
       boChuThich("const a = 1; // #ffffff\n/* #000000 */\nconst b = '#123456';"),
     ).not.toContain('#000000');
     expect(boChuThich("const b = '#123456';")).toContain('#123456');
+  });
+
+  it('sáu chặng của đầu trang / chân trang đều bọc `var()`', () => {
+    // Bỏ sót MỘT chặng là một khuyết tật nhìn thấy được: đặt màu chân trang mà dải bản quyền ở
+    // đáy vẫn navy ⇒ một vệt lạc lõng, và người dùng đi tìm ô nhập thứ hai ⛔ hề tồn tại.
+    for (const ten of ['header', 'headerMid', 'footer', 'footerMid', 'footerDeep', 'footerBand']) {
+      expect(maCauHinh, `chrome.${ten} phải đổi được lúc chạy`).toMatch(
+        new RegExp(`\\b${ten}:\\s*doiDuocLucChay\\(`),
+      );
+    }
+  });
+
+  it('⭐⭐ MỘT biến, NHIỀU giá trị dự phòng — thứ giữ cho mặc định y hệt hôm nay', () => {
+    // Đây là bất biến TRUNG TÂM của T77.1, và nó dễ bị "dọn dẹp" làm hỏng trong im lặng.
+    //
+    // Sáu chặng trỏ vào đúng HAI biến; mỗi chặng giữ dự phòng RIÊNG của nó. Ai gom chúng về một
+    // dự phòng chung (`doiDuocLucChay('brand-footer', portalChrome.footer)` cho cả ba chặng) sẽ
+    // thấy bộ kiểm vẫn xanh ở mọi bài khác — nhưng **chân trang mặc định thôi có dải chuyển sắc**,
+    // tức lượt giao hàng ⛔ còn giống thứ Công ty nghiệm thu, mà ⛔ ai đặt màu nào cả.
+    const goi = [...maCauHinh.matchAll(/doiDuocLucChay\('([a-z-]+)',\s*([A-Za-z][\w.]*)\)/g)];
+    expect(goi.length, 'phải đọc ra được các lời gọi — regex hỏng thì mọi vế dưới vô nghĩa').toBe(
+      9,
+    );
+
+    const theoBien = new Map<string, string[]>();
+    for (const [, bien, duPhong] of goi) {
+      expect(duPhong, 'dự phòng phải LẤY TỪ token, ⛔ gõ tay').toMatch(
+        /^(brandColors|portalChrome)\./,
+      );
+      theoBien.set(bien, [...(theoBien.get(bien) ?? []), duPhong]);
+    }
+
+    for (const bien of ['brand-header', 'brand-footer']) {
+      const duPhong = theoBien.get(bien) ?? [];
+      expect(duPhong.length, `${bien} phải phủ nhiều chặng gradient`).toBeGreaterThan(1);
+      expect(
+        new Set(duPhong).size,
+        `${bien}: các chặng phải giữ dự phòng KHÁC NHAU, nếu không dải chuyển sắc mặc định xẹp mất`,
+      ).toBe(duPhong.length);
+    }
+  });
+
+  it('đầu trang và chân trang thật sự DÙNG các chặng ấy — ⛔ còn `chrome-navy` nào sót', () => {
+    // Vế chống-token-mồ-côi (quy tắc 15). Khai màu trong `tailwind.config.ts` mà component vẫn
+    // gọi `chrome-navy800` thì bốn ô nhập lại thành nửa cặp đọc–ghi — đúng `site.color.*` lần hai.
+    const doc = (ten: string) =>
+      boChuThich(
+        readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../components', ten), 'utf8'),
+      );
+    const dauTrang = doc('SiteHeader.tsx');
+    const chanTrang = doc('SiteFooter.tsx');
+
+    expect(dauTrang).toContain('from-chrome-header via-chrome-headerMid to-chrome-header');
+    expect(chanTrang).toContain('from-chrome-footer via-chrome-footerMid to-chrome-footerDeep');
+    expect(chanTrang).toContain('bg-chrome-footerBand/80');
+    expect(chanTrang).toContain('bg-chrome-footer ');
+
+    expect(dauTrang, 'đầu trang còn sắc độ ⛔ đi qua núm').not.toMatch(/chrome-navy/);
+    expect(chanTrang, 'chân trang còn sắc độ ⛔ đi qua núm').not.toMatch(/chrome-navy/);
   });
 
   it('⛔⛔ Tailwind phải là bản 4 trở lên — bản 3 làm opacity modifier VỠ TRONG IM LẶNG', () => {

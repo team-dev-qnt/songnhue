@@ -56,8 +56,22 @@
   `from-brand-primaryGradientFrom to-brand-primary`.
 
 - **Navy khung cổng** — thanh nhận diện, thanh điều hướng và chân trang của `public-web`:
-  `bg-gradient-to-r from-chrome-navy800 via-chrome-navy500 to-chrome-navy800` (đầu trang) ·
-  `bg-gradient-to-b from-chrome-navy700 via-chrome-navy600 to-chrome-navy900` (chân trang).
+  `bg-gradient-to-r from-chrome-header via-chrome-headerMid to-chrome-header` (đầu trang) ·
+  `bg-gradient-to-b from-chrome-footer via-chrome-footerMid to-chrome-footerDeep` (chân trang).
+
+  > [!IMPORTANT]
+  > ⭐ **Từ 20/09/2026 sáu chặng này ĐỔI ĐƯỢC từ màn hình quản trị** (T77.1) — tên lớp đổi từ
+  > `chrome-navy*` (sắc độ) sang `chrome-header*` / `chrome-footer*` (**vai trò**), và mỗi chặng
+  > là `var(--sn-brand-header|footer, <token của chặng đó>)`.
+  >
+  > ⛔ **⛔ gom chúng về một giá trị dự phòng chung cho gọn.** Sáu dòng ấy trông thừa nhưng chính
+  > chúng giữ cho dải chuyển sắc **mặc định** y hệt hôm nay: khoá `settings` để trống ⇒ ⛔ biến nào
+  > được tiêm ⇒ mỗi chặng rơi về token của CHÍNH nó. Gom lại ⇒ chân trang mặc định thôi có dải
+  > chuyển sắc, mà ⛔ ai đặt màu nào cả. `mauThuongHieu.test.ts` canh đúng bất biến ấy;
+  > `architecture-review.md` §12.7 ghi lý do.
+  >
+  > ⚠ Năm bậc `portalChrome.navy900…navy500` **vẫn sống** và vẫn dùng trần ở *nội dung trang*
+  > (`AffiliatedUnitsLinks`, mũi tên `AnhCarousel`) — chúng CỐ Ý ⛔ đổi theo núm của khung cổng.
 
   > [!WARNING]
   > ⚠⚠ **Mục này TRƯỚC 28/08/2026 ghi một dải màu chưa từng chạy.** Bản cũ viết

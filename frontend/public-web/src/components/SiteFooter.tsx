@@ -85,9 +85,9 @@ export async function SiteFooter() {
   ].filter((kenh) => kenh.url);
 
   return (
-    <footer className="mt-16 w-full border-t border-white/10 bg-gradient-to-b from-chrome-navy700 via-chrome-navy600 to-chrome-navy900 text-white">
+    <footer className="mt-16 w-full border-t border-white/10 bg-gradient-to-b from-chrome-footer via-chrome-footerMid to-chrome-footerDeep text-white">
       {/* ───── 1. Dải tiếp nhận thông tin trực ban / Hotline bão lũ ───── */}
-      <div className="border-b border-white/10 bg-chrome-navy500/80 py-3 text-xs text-white sm:text-sm">
+      <div className="border-b border-white/10 bg-chrome-footerBand/80 py-3 text-xs text-white sm:text-sm">
         <div className="mx-auto flex max-w-[1232px] flex-col items-center justify-between gap-2 px-4 sm:flex-row sm:px-6">
           {hotline ? (
             <div className="flex items-center gap-2">
@@ -334,7 +334,7 @@ export async function SiteFooter() {
       )}
 
       {/* ───── 3. Dải bản quyền đáy trang ───── */}
-      <div className="border-t border-white/10 bg-chrome-navy700 py-3.5 text-xs text-white/70">
+      <div className="border-t border-white/10 bg-chrome-footer py-3.5 text-xs text-white/70">
         <div className="mx-auto flex max-w-[1232px] flex-col items-center justify-between gap-2 px-4 text-center sm:flex-row sm:px-6 sm:text-left">
           <div>
             <p className="font-medium text-white">{copyright}</p>
