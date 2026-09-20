@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { DocumentTable } from '@/components/DocumentTable';
 import type { ArticleRow } from '@/lib/api';
 import { ROUTES } from '@/lib/routes';
+import { boCucVanBanCongBo } from '@/lib/boCucVanBanCongBo';
 import { lienKetAnToan } from '@/lib/lienKetAnToan';
 import { EmptyBlock } from './EmptyBlock';
 import { SectionTitle } from './SectionTitle';
@@ -58,10 +59,14 @@ export function PublishedDocumentsSection({
   docSystemUrl,
   nhomCon,
 }: PublishedDocumentsSectionProps) {
+  // ⭐⭐ T79.1 — MỘT lượt tính ra cả hai quyết định: thẻ bên phải có hiện ⛔, và bề rộng bên trái.
+  //   Tách chúng ra là để bề rộng trôi khỏi thẻ — xem javadoc `boCucVanBanCongBo`.
+  const boCuc = boCucVanBanCongBo(docSystemUrl);
+
   return (
     <section className="mt-5">
       <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-12 lg:gap-9">
-        <div className="flex flex-col lg:col-span-8">
+        <div className={`flex flex-col ${boCuc.cotBangVanBan}`}>
           <SectionTitle
             href={ROUTES.category(categorySlug)}
             phu={
@@ -117,7 +122,7 @@ export function PublishedDocumentsSection({
           </div>
         </div>
 
-        {lienKetAnToan(docSystemUrl) ? (
+        {boCuc.hienTheHeThong ? (
           <div className="flex flex-col lg:col-span-4">
             <SectionTitle>Hệ thống văn bản điều hành</SectionTitle>
             <div className="mt-5 flex flex-1 flex-col rounded-lg border border-surface-border bg-surface-bgLayout/60 p-5">

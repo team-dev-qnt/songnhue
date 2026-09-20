@@ -58,7 +58,7 @@
 | CR-04 | ✅ | Mục cấp 1 "Hoạt động Đảng, đoàn thể" |
 | CR-05 | ✅ | 4 mục con, **cả 4 đều có trang thật đứng sau** (không mục nào trả 404) |
 | CR-06 | ✅ | "Văn bản điều hành" → **Công bố thông tin**, 2 nhánh + 8 mục con |
-| CR-07 | ✅ | Không dựng module văn bản nội bộ. Nút mở tab mới sang `quanlyvanban.hanoi.gov.vn`; **địa chỉ là cấu hình**, trước đây ghi cứng ở 3 tệp |
+| CR-07 | ✅ | Không dựng module văn bản nội bộ. Nút mở tab mới sang hệ thống của Thành phố; **địa chỉ là cấu hình**, trước đây ghi cứng ở 3 tệp. ⚠ **Từ 20/09/2026 giao đi ở trạng thái TẮT** (T79.1): ô *Địa chỉ hệ thống văn bản điều hành* để trống ⇒ cả ba chỗ (thẻ trang chủ · thanh bên · chân trang) **⛔ hiện**. Dán địa chỉ vào là hiện lại đủ ba, ⛔ cần deploy — nên nếu lượt nghiệm thu ⛔ thấy mục này thì đó là **cấu hình**, ⛔ phải thiếu chức năng |
 | CR-08 | ⬜ | **Đợt 3.** Cố ý *chưa* dựng nút Đăng nhập — §2 cấm phân quyền bằng cách ẩn ở giao diện, và một nút dẫn tới hư không tệ hơn không có nút. Cơ chế đã chốt (xem §4) |
 | CR-09 | ✅ | Chân trang đọc **cùng bảng menu** với đầu trang → hai nơi không lệch được. Gỡ cột 5 liên kết viết cứng |
 

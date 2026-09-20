@@ -7950,3 +7950,86 @@ trong số đó đang **rỗng**.
 thiếu**, và cái thiếu nằm đúng chỗ ⛔ ai nhìn. Thứ phát hiện ra ⛔ phải một cổng kiểm mà là **người
 dùng mở bản Word ra đọc**. ⇒ Hàng ấy nay trỏ tới bất biến **6** riêng cho Bảng 1 và một khẳng định
 đọc **byte thật** tại `tbl4/tr2` của tệp xuất ra.
+
+---
+
+### §12.10 "Ẩn được" ⛔ phải "ẩn được": mặc định khác rỗng khoá chết một công tắc (T79.1, 20/9/2026)
+
+QuanTran 20/09: *"remove đi mục Hệ thống văn bản điều hành ở public-web"*.
+
+#### Đo trước khi xoá — và phép đo đổi hẳn việc phải làm
+
+Mục ấy hiện ở **ba** chỗ (thẻ trang chủ · dòng thanh bên · nút chân trang), cả ba render **có điều
+kiện**:
+
+```tsx
+{lienKetAnToan(docSystemUrl) ? (…) : null}
+```
+
+`lienKetAnToan('')` trả `null`. ⇒ Về nguyên tắc, xoá ô ở *Cấu hình hệ thống* là cả ba biến mất — cơ
+chế ẩn **đã có từ đầu**, và việc phải làm ⛔ phải xoá mã.
+
+#### ⛔⛔ Nhưng ô ấy ⛔ xoá được
+
+```
+Setting.effectiveValue()
+  → settingValue != null && !settingValue.isBlank() ? settingValue : defaultValue
+
+V202608271032:19   SELECT v.k, v.val, v.vtype, v.val, …
+                             ↑setting_value  ↑default_value        ⇠ CÙNG một giá trị
+```
+
+Seed đổ **cùng một URL vào cả hai cột**. Quản trị viên xoá trắng ô → `changeValue()` quy về NULL →
+`effectiveValue()` rơi về `default_value` → **URL quay lại**. Màn hình báo *lưu thành công*, cổng ⛔
+đổi một pixel.
+
+⇒ Đây là **T53.4 ở dạng ngược**. Ở đó, một mặc định khác rỗng làm trạng thái *"Công ty chưa chọn"*
+⛔ biểu diễn được; ở đây nó làm trạng thái *"Công ty ⛔ muốn dùng mục này"* ⛔ biểu diễn được. Cùng
+một cột, cùng một cơ chế, hai câu hỏi khác nhau — và **cả hai đều ⛔ trả lời nổi**.
+
+⚠ Đo cả bốn khoá `URL` anh em (`site.privacy.policy-url` · ba `site.footer.social.*`): chúng seed
+với chuỗi **rỗng**, nên ⛔ dính. `site.external.doc-system-url` là ngoại lệ duy nhất, và nó thành
+ngoại lệ vì `V202608271032` seed một địa chỉ THẬT.
+
+#### Vì sao ⛔ DELETE hẳn khoá
+
+`CR-07` (nghiệm thu 27/8) và `CN-01.7` (function-spec) đều nói tới mục này. Gỡ khoá là rút một mã CR
+khỏi cổng và biến *"bật lại"* thành một lượt deploy. ⇒ Giữ cơ chế, chỉ làm cho nó **TẮT ĐƯỢC**: hôm
+nay mục biến mất khỏi cổng; dán URL vào ô là hiện lại đủ ba chỗ.
+
+#### ⭐ Trạng thái "ẩn" chưa bao giờ được vẽ đúng — luật 7 ở một chỗ ⛔ ai ngờ
+
+Lưới trang chủ là `lg:grid-cols-12`; khối *Công bố thông tin* ghim `lg:col-span-8` **vô điều kiện**.
+Thẻ biến mất ⇒ **4/12 bề rộng bỏ trống** bên phải, trang chủ hụt một phần ba mà ⛔ dòng nào báo.
+
+Cơ chế ẩn **có mặt** nên ⛔ ai đi hỏi nó có chạy ⛔ — đúng hình dạng `UNIQUE` trên cột mã hoá GCM
+(T51.2). Và nó nằm im được vì trạng thái ẩn **⛔ bao giờ xảy ra**: mặc định khác rỗng giữ cho thẻ
+luôn hiện.
+
+⇒ Hai khuyết tật **che nhau**: mặc định khoá chết công tắc, và công tắc ⛔ bật được nên lỗi bố cục
+sau nó ⛔ lộ ra. Gỡ một cái là cái kia hiện ngay — nên phải vá **cùng một lượt**.
+
+#### ⭐⭐ Sửa bằng KIỂU, ⛔ bằng một bài canh văn bản
+
+*"Ẩn thẻ ⟺ bảng giãn 12 cột"* là hai quyết định của một sự thật. Bản trước tách chúng ra và chúng
+trôi khỏi nhau. Cách rẻ nhất để chặn tái diễn ⛔ phải một bài `grep` tên lớp trong JSX (luật 2 — đó
+là canh văn bản), mà là **gộp về một hàm thuần** trả cả hai:
+
+```ts
+boCucVanBanCongBo(url) → { hienTheHeThong, cotBangVanBan: 'lg:col-span-8' | 'lg:col-span-12' }
+```
+
+Hai giá trị ra cùng một lượt tính ⇒ ⛔ có chỗ nào để lệch (luật 12). Bài kiểm chạy hàm trên **11 đầu
+vào** gồm cả rác (`javascript:`, `//host`, đường tương đối) và khẳng định quan hệ ⟺ ở mọi đầu vào,
+kèm vế chống-tập-rỗng: tập thử phải chứa **cả hai** trạng thái.
+
+⚠ Hai tên lớp viết **nguyên vẹn**, ⛔ ghép chuỗi: Tailwind quét nguồn theo văn bản, một lớp dựng lúc
+chạy sẽ ⛔ được sinh ra và CSS hỏng **trong im lặng**.
+
+#### Kiểm chứng ngược — 3/3 đỏ đúng chỗ
+
+| Phá | Đỏ |
+|---|---|
+| migration quên cột `default_value` | **Flyway** chặn ngay: `Chờ đúng 1 hàng … rỗng cả hai cột, đo được 0` ⇒ bản hỏng ⛔ khởi động nổi, ⛔ đợi tới lượt chạy bài kiểm |
+| `cotBangVanBan` ghim `'lg:col-span-8'` | 3/5 bài, gồm bài bất biến ⟺ |
+| component tự ghi `lg:col-span-8` vào JSX | bài *"hai tên lớp chỉ sống ở MỘT nơi"* |

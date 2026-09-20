@@ -65,6 +65,10 @@ class SiteLayoutTest extends IntegrationTestBase {
     @Autowired
     private SiteConfigService siteConfig;
 
+    private static final String KHOA_VAN_BAN = "site.external.doc-system-url";
+
+    private static final String DIA_CHI_VAN_BAN = "https://quanlyvanban.hanoi.gov.vn/qlvbdh/main?lang=vi";
+
     @Autowired
     private MenuService menus;
 
@@ -211,6 +215,33 @@ class SiteLayoutTest extends IntegrationTestBase {
                         thay đổi. Chỗ giữ là một khối bị khoá trên giao diện, không phải một dòng ở đây.""")
                 .extracting(SettingItem::key)
                 .noneMatch(key -> key.contains("hydro") || key.contains("thuy-van"));
+    }
+
+    @Test
+    @DisplayName("⛔⛔ 'Hệ thống văn bản điều hành' TẮT ĐƯỢC từ màn hình — xoá ô ⛔ bị mặc định kéo về")
+    void heThongVanBanTatDuocTuManHinh() {
+        // T79.1. Ba nơi trên cổng (thẻ trang chủ · dòng thanh bên · nút chân trang) render có điều
+        // kiện trên địa chỉ này, nên "tắt" = đặt nó về rỗng. Trước `V202609201092` việc ấy ⛔ làm
+        // được: `V202608271032` đổ CÙNG một URL vào `setting_value` và `default_value`, mà
+        // `effectiveValue()` rơi về `default_value` khi giá trị rỗng ⇒ xoá ô thì URL quay lại,
+        // màn hình báo *lưu thành công* và cổng ⛔ đổi một pixel. Đúng khuyết tật `site.color.*`.
+        //
+        // ⛔ Bài này đo giá trị ĐÃ GIẢI (luật 3), ⛔ đọc cột `default_value`: thứ quyết định cổng
+        //    hiện gì là đầu ra của `effectiveValues()`, ⛔ phải một ô trong bảng.
+        assertThat(siteConfig.effectiveValues().get(KHOA_VAN_BAN))
+                .as("trạng thái lúc giao: rỗng ⇒ ba nơi trên cổng ⛔ render gì")
+                .isEmpty();
+
+        siteConfig.update(KHOA_VAN_BAN, DIA_CHI_VAN_BAN);
+        assertThat(siteConfig.effectiveValues().get(KHOA_VAN_BAN))
+                .as("dán địa chỉ vào ⇒ mục hiện lại, ⛔ cần deploy")
+                .isEqualTo(DIA_CHI_VAN_BAN);
+
+        // ⭐ Vế QUYẾT ĐỊNH — và là vế mà một bài chỉ thử "đặt giá trị" ⛔ bao giờ chạm tới.
+        siteConfig.update(KHOA_VAN_BAN, "");
+        assertThat(siteConfig.effectiveValues().get(KHOA_VAN_BAN))
+                .as("xoá ô ⇒ phải RỖNG; ⛔ được rơi về một URL mặc định nào cả")
+                .isEmpty();
     }
 
     @Test
