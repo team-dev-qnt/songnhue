@@ -148,13 +148,42 @@ public class ScopeGuard {
      * @throws PermissionDeniedException {@code AUTH-3002} kèm một dòng {@code ACCESS_DENIED_SCOPE}
      */
     public void requireWritableOrgUnit(Long orgUnitId, Class<?> entityType) {
-        if (orgUnitId == null) {
+        if (trongPhamVi(orgUnitId)) {
             return;
+        }
+        AuthenticatedUser user = AuthContext.current().orElseThrow();
+        log.warn(
+                "Chặn GHI ngoài phạm vi đơn vị: {} ghi {} vào đơn vị {}",
+                user.username(),
+                entityType.getSimpleName(),
+                orgUnitId);
+        securityEvents.record(
+                SecurityEventType.ACCESS_DENIED_SCOPE,
+                user.username(),
+                user.userId(),
+                null,
+                "{\"entity\":\"" + entityType.getSimpleName() + "\",\"orgUnitId\":" + orgUnitId
+                        + ",\"thaoTac\":\"GHI\"}");
+        throw new PermissionDeniedException(ErrorCode.AUTH_3002);
+    }
+
+    /**
+     * Đơn vị {@code orgUnitId} có nằm trong phạm vi của người đăng nhập ⛔ — <b>hỏi mà ⛔ ném, ⛔ ghi nhật ký</b>.
+     *
+     * <p>Dành cho nơi cần BÁO chứ ⛔ chặn: bộ nhập tệp phải trả về <i>một dòng lỗi chỉ đúng chỗ sai</i> thay vì để
+     * lượt ghi thật ném {@code AUTH-3002} giữa chừng và từ chối cả tệp — và một tệp 200 dòng ⛔ được sinh 200 dòng
+     * {@code ACCESS_DENIED_SCOPE} chỉ vì người lập tệp gõ nhầm một mã đơn vị.
+     *
+     * @return {@code true} khi {@code orgUnitId} null hoặc ⛔ có người đăng nhập (job nền) — đúng như bộ lọc đọc
+     */
+    public boolean trongPhamVi(Long orgUnitId) {
+        if (orgUnitId == null) {
+            return true;
         }
         Optional<AuthenticatedUser> user = AuthContext.current();
         if (user.isEmpty()) {
             // Job nền, lệnh bootstrap — ⛔ có người đăng nhập thì ⛔ có phạm vi để so, đúng như bộ lọc đọc.
-            return;
+            return true;
         }
         String phamVi = user.get().orgUnitPath();
         @SuppressWarnings("unchecked")
@@ -163,25 +192,10 @@ public class ScopeGuard {
                 .setParameter("id", orgUnitId)
                 .setFlushMode(FlushModeType.COMMIT)
                 .getResultList();
-        if (phamVi != null
+        return phamVi != null
                 && !dich.isEmpty()
                 && dich.get(0) != null
-                && dich.get(0).startsWith(phamVi)) {
-            return;
-        }
-        log.warn(
-                "Chặn GHI ngoài phạm vi đơn vị: {} ghi {} vào đơn vị {}",
-                user.get().username(),
-                entityType.getSimpleName(),
-                orgUnitId);
-        securityEvents.record(
-                SecurityEventType.ACCESS_DENIED_SCOPE,
-                user.get().username(),
-                user.get().userId(),
-                null,
-                "{\"entity\":\"" + entityType.getSimpleName() + "\",\"orgUnitId\":" + orgUnitId
-                        + ",\"thaoTac\":\"GHI\"}");
-        throw new PermissionDeniedException(ErrorCode.AUTH_3002);
+                && dich.get(0).startsWith(phamVi);
     }
 
     /**
