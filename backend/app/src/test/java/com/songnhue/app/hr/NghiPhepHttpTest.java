@@ -123,11 +123,13 @@ class NghiPhepHttpTest extends IntegrationTestBase {
     private PhienHttp phienDuyet;
     private PhienHttp phienNv;
     private PhienHttp phienTroi;
+    private PhienHttp phienDuyet2;
 
     private PhienHttp.Phien quanTri;
     private PhienHttp.Phien nguoiDuyet;
     private PhienHttp.Phien nhanVien;
     private PhienHttp.Phien taiKhoanTroi;
+    private PhienHttp.Phien nguoiDuyet2;
 
     private UUID idNhanVien;
     private UUID idNguoiDuyet;
@@ -160,6 +162,7 @@ class NghiPhepHttpTest extends IntegrationTestBase {
         phienDuyet = new PhienHttp(http);
         phienNv = new PhienHttp(http);
         phienTroi = new PhienHttp(http);
+        phienDuyet2 = new PhienHttp(http);
 
         String tenQt = PhienHttp.taoNguoiDung(users, passwords, jdbc, "t579_qt", VAI_TRO_QT);
         String tenDuyet = PhienHttp.taoNguoiDung(users, passwords, jdbc, "t579_duyet", VAI_TRO_DUYET);
@@ -167,6 +170,16 @@ class NghiPhepHttpTest extends IntegrationTestBase {
         // ⛔⛔ Tài khoản này CÓ `hr:leave:request` nhưng CỐ Ý ⛔ không liên kết hồ sơ CBNV nào — nó
         //    là vế chứng minh rằng quyền một mình ⛔ không đủ để nộp đơn (T51.8 là điều kiện cần).
         String tenTroi = PhienHttp.taoNguoiDung(users, passwords, jdbc, "t579_troi", VAI_TRO_NV);
+
+        // ⛔⛔ WS-80: duyệt ⛔ còn là *"có `hr:leave:approve` + phạm vi phủ"* — nay phải là TRƯỞNG/PHÓ
+        //    của đơn vị hoặc của một đơn vị cha (`ThamQuyenDuyetPhep`). Hai lượt gán dưới đây là
+        //    ĐỒ GÁ cho điều kiện ấy, ⛔ phải thứ lớp này đang kiểm (bài riêng:
+        //    `ThamQuyenDuyetPhepHttpTest`). ⚠ Nó ⛔ nới phạm vi: bộ lọc tầng 3 vẫn chạy TRƯỚC, nên
+        //    `khongDuyetDuocDonNgoaiDonVi` vẫn đo đúng thứ nó sinh ra để đo.
+        String tenDuyet2 = PhienHttp.taoNguoiDung(users, passwords, jdbc, "t579_duyet2", VAI_TRO_DUYET);
+        datLanhDao("head_user_id", publicIdCua(tenDuyet));
+        datLanhDao("deputy_user_id", publicIdCua(tenDuyet2));
+        nguoiDuyet2 = phienDuyet2.dangNhap(tenDuyet2);
 
         quanTri = phienQt.dangNhap(tenQt);
         nguoiDuyet = phienDuyet.dangNhap(tenDuyet);
@@ -529,7 +542,15 @@ class NghiPhepHttpTest extends IntegrationTestBase {
                 .isEqualTo("CHO_DUYET_2");
 
         // Cấp 2 duyệt tiếp ⇒ mới tới DA_DUYET. Đây là vế chứng minh CHO_DUYET_2 ⛔ không phải ngõ cụt.
-        assertThat(chuoi(duyet(donB), "state")).isEqualTo("DA_DUYET");
+        // ⛔⛔ WS-80/T80.3: cấp 2 phải do NGƯỜI KHÁC quyết. Trước bản ấy chính `phienDuyet` bấm
+        //    thêm một phát là xong — tức chốt C2 mua một cấp duyệt ⛔ tồn tại.
+        ResponseEntity<String> cap2 = phienDuyet2.goi(
+                nguoiDuyet2,
+                HttpMethod.POST,
+                "/api/v1/hr/nghi-phep/" + donB + "/hanh-dong",
+                "{\"action\":\"APPROVE\"}");
+        assertThat(cap2.getStatusCode()).as("%s", cap2.getBody()).isEqualTo(HttpStatus.OK);
+        assertThat(chuoi(cap2.getBody(), "state")).isEqualTo("DA_DUYET");
     }
 
     // =========================================================================
@@ -1087,6 +1108,18 @@ class NghiPhepHttpTest extends IntegrationTestBase {
                 .isEqualTo(quyen.size());
     }
 
+    /** Gán trưởng/phó cho đơn vị GỐC — đồ gá của WS-80, ⛔ phải thứ lớp này đang kiểm. */
+    private void datLanhDao(String cot, UUID taiKhoan) {
+        int doi = jdbc.update(
+                "UPDATE org_units SET " + cot + " = (SELECT id FROM users WHERE public_id = ?) WHERE id = ?",
+                taiKhoan,
+                donViGocId);
+        assertThat(doi)
+                .as("⛔ Chống tập rỗng: ⛔ gán được lãnh đạo thì MỌI lượt duyệt dưới đây trả 403 `HR-2010`, "
+                        + "và cả lớp đỏ vì một lý do ⛔ liên quan gì tới thứ nó khẳng định")
+                .isEqualTo(1);
+    }
+
     private long themDonVi(String ma) {
         jdbc.update(
                 // ⚠ ⛔ Không `ON CONFLICT (code)`: chỉ mục duy nhất của `org_units` là PARTIAL nên
@@ -1132,6 +1165,11 @@ class NghiPhepHttpTest extends IntegrationTestBase {
     }
 
     private void don() {
+        // ⛔⛔ `org_units.head_user_id`/`deputy_user_id` là hai khoá ngoại DUY NHẤT trỏ vào `users`
+        //    mà ⛔ có `ON DELETE CASCADE` — bỏ bước này thì lượt xoá tài khoản đỏ ở @AfterAll.
+        jdbc.update("UPDATE org_units SET head_user_id = NULL, deputy_user_id = NULL "
+                + "WHERE head_user_id IN (SELECT id FROM users WHERE username LIKE 'kiemtra_t579%') "
+                + "   OR deputy_user_id IN (SELECT id FROM users WHERE username LIKE 'kiemtra_t579%')");
         jdbc.update("UPDATE users SET employee_id = NULL WHERE username LIKE 'kiemtra_t579%'");
         jdbc.update(
                 "DELETE FROM leave_requests WHERE employee_id IN (SELECT id FROM employees WHERE code LIKE ?)",

@@ -74,7 +74,13 @@ public class DonNghiPhepService {
     private final WorkflowPort workflow;
     private final NotificationPort thongBao;
     private final ScopeGuard scopeGuard;
+    private final ThamQuyenDuyetPhep thamQuyen;
 
+    // CHECKSTYLE.OFF: ParameterNumber - 9 cộng tác viên là số BƯỚC của một lá đơn (lưu · hồ sơ ·
+    // đếm ngày · số dư · chính sách · quy trình · thông báo · phạm vi · thẩm quyền). Gom vào một
+    // record như `ThongTinDonVi` ⛔ dùng được ở đây: đây là hàm dựng của một bean Spring, và một
+    // record trung gian chỉ dời chỗ danh sách chứ ⛔ bớt một phụ thuộc nào. Cùng lý lẽ đã ghi ở
+    // `HydroReviewService`.
     public DonNghiPhepService(
             LeaveRequestRepository donNghi,
             EmployeeService employees,
@@ -83,7 +89,8 @@ public class DonNghiPhepService {
             ChinhSachPhep chinhSach,
             WorkflowPort workflow,
             NotificationPort thongBao,
-            ScopeGuard scopeGuard) {
+            ScopeGuard scopeGuard,
+            ThamQuyenDuyetPhep thamQuyen) {
         this.donNghi = donNghi;
         this.employees = employees;
         this.demNgayCong = demNgayCong;
@@ -92,7 +99,9 @@ public class DonNghiPhepService {
         this.workflow = workflow;
         this.thongBao = thongBao;
         this.scopeGuard = scopeGuard;
+        this.thamQuyen = thamQuyen;
     }
+    // CHECKSTYLE.ON: ParameterNumber
 
     /**
      * Xem trước một đơn <b>trước khi nộp</b> — đặc tả: *"tự tính số ngày + hiển thị số dư + cảnh
@@ -270,10 +279,74 @@ public class DonNghiPhepService {
         return scopeGuard.require(donNghi.findByPublicIdAndDeletedAtIsNull(publicId), LeaveRequest.class, publicId);
     }
 
-    /** Nút giao diện được phép hiện — đã lọc theo quyền của người đang đăng nhập. */
+    /**
+     * Nút giao diện được phép hiện — lọc theo <b>quyền</b> (engine) <b>và thẩm quyền</b> (T80.1).
+     *
+     * <h2>⛔⛔ Hai phép lọc, và cả hai phải là CÙNG luật mà {@link #thucHien} áp dụng</h2>
+     *
+     * <p>{@code WorkflowEngine.allowedActions} lọc bằng {@code required_permission} — một mã quyền.
+     * Sau T80.1 mã quyền ấy ⛔ còn là điều kiện đủ, nên nếu dừng ở đó thì nút <i>Duyệt</i> vẫn hiện
+     * cho người ⛔ quyết được, họ bấm, và máy chủ trả 403. Một nút hứa một việc rồi từ chối là tệ
+     * hơn một nút ⛔ có: người dùng ⛔ biết mình vừa làm sai ở đâu.
+     *
+     * <p>⚠ Hai nơi gọi cùng {@link ThamQuyenDuyetPhep}, ⛔ chép lại luật — đó là điều kiện để chúng
+     * ⛔ bao giờ lệch (luật 14).
+     */
     @Transactional(readOnly = true)
     public List<AllowedAction> hanhDongChoPhep(UUID publicId) {
-        return workflow.allowedActions(get(publicId));
+        LeaveRequest don = get(publicId);
+        AuthenticatedUser ai = AuthContext.current().orElse(null);
+        LocalDate homNay = LocalDate.now(DateTimeUtils.ZONE_VN);
+        return workflow.allowedActions(don).stream()
+                .filter(nut -> duocBam(don, nut.action(), ai, homNay))
+                .toList();
+    }
+
+    /** Ba hành động <b>quyết định</b> một lá đơn — đúng ba, và chúng chịu chung một luật. */
+    private static final java.util.Set<String> HANH_DONG_QUYET = java.util.Set.of("APPROVE", "REJECT", "ESCALATE");
+
+    private boolean duocBam(LeaveRequest don, String hanhDong, AuthenticatedUser ai, LocalDate homNay) {
+        if ("CANCEL".equals(hanhDong)) {
+            return thamQuyen.huyDuoc(don, ai, homNay);
+        }
+        if (!HANH_DONG_QUYET.contains(hanhDong)) {
+            return true;
+        }
+        return thamQuyen.xetQuyet(don, ai, homNay).duocPhep();
+    }
+
+    /**
+     * Cổng <b>thẩm quyền</b> — ném đúng lý do, ⛔ gộp về một mã 403 chung.
+     *
+     * @return tư cách đã dùng khi lượt quyết được phép; {@code null} cho hành động ⛔ phải quyết
+     *     định (rút đơn, và mọi bước chuyển tương lai mà engine tự lo)
+     */
+    private ThamQuyenDuyetPhep.KetQua canhCongThamQuyen(
+            LeaveRequest don, String hanhDong, AuthenticatedUser ai, LocalDate homNay) {
+        if ("CANCEL".equals(hanhDong)) {
+            if (!thamQuyen.huyDuoc(don, ai, homNay)) {
+                throw new PermissionDeniedException(ErrorCode.HR_2013);
+            }
+            return null;
+        }
+        if (!HANH_DONG_QUYET.contains(hanhDong)) {
+            return null;
+        }
+        ThamQuyenDuyetPhep.KetQua ketQua = thamQuyen.xetQuyet(don, ai, homNay);
+        if (!ketQua.duocPhep()) {
+            throw new PermissionDeniedException(maLoiCua(ketQua.lyDo()));
+        }
+        return ketQua;
+    }
+
+    private static ErrorCode maLoiCua(ThamQuyenDuyetPhep.LyDo lyDo) {
+        return switch (lyDo) {
+            case TU_DUYET -> ErrorCode.HR_2011;
+            case TRUNG_NGUOI_CAP_MOT -> ErrorCode.HR_2012;
+            // ⚠ `DUOC` ⛔ bao giờ tới đây (nơi gọi đã lọc), nhưng `switch` trên enum phải phủ đủ —
+            //   và một nhánh mặc định im lặng là chỗ một giá trị enum MỚI lọt qua mà ⛔ ai biết.
+            case DUOC, KHONG_PHAI_NGUOI_DUYET -> ErrorCode.HR_2010;
+        };
     }
 
     /**
@@ -293,12 +366,16 @@ public class DonNghiPhepService {
     @Transactional
     public LeaveRequest thucHien(UUID publicId, String action, String lyDo) {
         LeaveRequest don = get(publicId);
+        AuthenticatedUser ai = AuthContext.current().orElse(null);
+        LocalDate homNay = LocalDate.now(DateTimeUtils.ZONE_VN);
 
-        if ("CANCEL".equals(action) && don.trangThai() == LeaveState.DA_DUYET) {
-            LocalDate homNay = LocalDate.now(DateTimeUtils.ZONE_VN);
-            if (don.daBatDau(homNay)) {
-                throw new BusinessRuleException(ErrorCode.HR_2007, don.getFromDate());
-            }
+        // ⛔⛔ TRƯỚC mọi thứ khác — kể cả trước chốt "đã bắt đầu nghỉ". Người ⛔ có thẩm quyền ⛔ nên
+        //    biết lá đơn đang ở tình trạng nào; cùng lý lẽ thứ tự mà `WorkflowEngine.requireReason`
+        //    đã ghi (*"người ⛔ có quyền bấm nút này thì ⛔ nên biết là nó đòi thêm gì"*).
+        ThamQuyenDuyetPhep.KetQua tuCach = canhCongThamQuyen(don, action, ai, homNay);
+
+        if ("CANCEL".equals(action) && don.trangThai() == LeaveState.DA_DUYET && don.daBatDau(homNay)) {
+            throw new BusinessRuleException(ErrorCode.HR_2007, don.getFromDate());
         }
 
         String hanhDongThat = action;
@@ -309,6 +386,12 @@ public class DonNghiPhepService {
         }
 
         LeaveRequest sau = workflow.execute(don, hanhDongThat, null, lyDo);
+        if ("ESCALATE".equals(hanhDongThat)) {
+            sau.ghiCapMot(nguoiDangThaoTac(), Instant.now());
+        }
+        if (tuCach != null) {
+            sau.ghiTuCach(tuCach.uyQuyenId(), tuCach.duPhong());
+        }
         if (sau.trangThai() == LeaveState.DA_DUYET || sau.trangThai() == LeaveState.TU_CHOI) {
             sau.ghiQuyetDinh(nguoiDangThaoTac(), Instant.now());
         }

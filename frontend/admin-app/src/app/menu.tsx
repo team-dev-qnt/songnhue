@@ -392,6 +392,13 @@ export const MENU: readonly MenuNode[] = [
         permissions: ['hr:leave:approve'],
       },
       {
+        key: 'uy-quyen-duyet',
+        label: 'Uỷ quyền duyệt phép',
+        icon: <CheckSquareOutlined />,
+        path: '/nhan-su/uy-quyen-duyet',
+        permissions: ['hr:leave:delegate'],
+      },
+      {
         // ⛔⛔ Gác bằng `hr:leave:request` — quyền của NGƯỜI NỘP ĐƠN, ⛔ không phải
         //    `hr:contract:manage` của người sửa danh mục. Lý do: lịch lễ quyết định số ngày công
         //    của đơn mình sắp nộp, mà một ô *"còn 8 ngày công"* ⛔ không xem được vì sao là một

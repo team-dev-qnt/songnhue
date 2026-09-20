@@ -44,7 +44,7 @@ class HrSettingsReadTest {
 
     /**
      * Dòng seed {@code ('khoa', 'giá trị', 'KIỂU',} — ⚠ nhận cả {@code VALUES (} XUỐNG DÒNG rồi mới tới khoá:
-     * {@code V202609201092} viết kiểu ấy, và mẫu đòi {@code ('} liền nhau (như bộ canh cổng) sẽ MÙ trước nó.
+     * {@code V202609201096} viết kiểu ấy, và mẫu đòi {@code ('} liền nhau (như bộ canh cổng) sẽ MÙ trước nó.
      */
     static final Pattern KHOA_SEED = Pattern.compile("\\(\\s*'([a-z0-9.\\-]+)',\\s*'[^']*',\\s*'[A-Z]+',");
 
@@ -83,7 +83,7 @@ class HrSettingsReadTest {
                 "hr.leave.annual-days.under-5-years",
                 "hr.leave.annual-days.5-to-10-years",
                 "hr.leave.annual-days.over-10-years")) {
-            assertThat(song).as("khoá đã gỡ ở V202609201091").doesNotContain(cu);
+            assertThat(song).as("khoá đã gỡ ở V202609201095").doesNotContain(cu);
             assertThat(noiDoc)
                     .as("gỡ khoá mà quên gỡ nơi đọc ⇒ tham số lặng lẽ rơi về dự phòng")
                     .doesNotContain(cu);

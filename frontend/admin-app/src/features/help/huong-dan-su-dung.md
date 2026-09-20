@@ -643,6 +643,41 @@ _Hồ sơ của tôi_ và _Nghỉ phép của tôi_ chỉ hiện với tài kho�
 hồ sơ cán bộ**. Chưa thấy hai mục này thì nhờ quản trị viên liên kết giúp ở màn hình
 _Tài khoản_.
 
+### Uỷ quyền duyệt phép
+
+<!-- man-hinh: /nhan-su/uy-quyen-duyet -->
+
+Dùng khi **trưởng đơn vị vắng mặt** (đi công tác, nghỉ phép) mà đơn của nhân viên vẫn phải
+được quyết.
+
+```
+Chọn đơn vị → Giao uỷ quyền → chọn người + khoảng ngày → Lưu
+                                    ↓
+      Trong khoảng ngày đó, người ấy duyệt được đơn của đơn vị và các đơn vị trực thuộc
+                                    ↓
+                      Thu hồi bất cứ lúc nào — có hiệu lực ngay
+```
+
+- **Uỷ quyền không cấp thêm quyền cho ai.** Người được chọn phải **đang có** quyền duyệt
+  nghỉ phép từ trước; nếu chưa có thì nhờ quản trị viên gán vai trò ở _Vai trò & phân
+  quyền_ trước. Đây là chủ ý: nếu biểu mẫu này tự cấp quyền thì màn hình phân quyền thôi
+  không còn là bức tranh đầy đủ.
+- Chỉ uỷ quyền được cho người **cùng đơn vị hoặc đơn vị cấp trên**.
+- Chỉ **trưởng hoặc phó** đơn vị mới giao được — không giao được thẩm quyền mình không có.
+- Bản ghi đã thu hồi hoặc đã hết hạn **vẫn nằm trong bảng**: lịch sử duyệt trỏ vào chúng,
+  và khi cần tra _"ai đã duyệt, với tư cách gì"_ thì phải đọc lại được.
+
+**Ai duyệt được một lá đơn** — theo thứ tự:
+
+1. Trưởng hoặc phó của đơn vị người nộp, **hoặc của một đơn vị cấp trên**.
+2. Người đang được uỷ quyền cho đơn vị đó.
+3. Nếu đơn vị **và tất cả đơn vị cấp trên đều chưa điền trưởng/phó**: người có quyền uỷ
+   quyền duyệt thay, và lá đơn ghi lại rằng nó đi đường dự phòng.
+
+Ba điều **không** làm được, kể cả khi đủ quyền: tự duyệt đơn của chính mình (đẩy lên cấp
+trên) · duyệt cấp 2 một lá đơn mình đã duyệt ở cấp 1 · rút hoặc huỷ đơn của người khác khi
+mình không phải người duyệt của đơn vị.
+
 ---
 
 ## 9. Quản trị hệ thống

@@ -106,7 +106,11 @@ class RbacMatrixTest extends IntegrationTestBase {
             "backup",
             "close",
             "reopen",
-            "verify");
+            "verify",
+            // ⭐ WS-80: *giao thẩm quyền duyệt cho người khác* là một hành động GHI, và là hành
+            //   động nặng nhất trong nhóm — nó đặt một người ⛔ giữ chức vụ vào vai người duyệt.
+            //   Một vai trò chỉ-đọc giữ nó là leo thang đặc quyền đúng nghĩa.
+            "delegate");
 
     /** Vai trò chỉ được xem — đối chiếu {@code function-spec.md} §6. */
     private static final Set<String> READ_ONLY_ROLES = Set.of("VIEWER");

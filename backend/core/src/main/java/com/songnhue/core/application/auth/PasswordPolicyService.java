@@ -77,7 +77,7 @@ public class PasswordPolicyService {
         return Duration.ofHours(Math.max(1, Math.min(TRAN_GIO_MAT_KHAU_TAM, gio)));
     }
 
-    /** Trần của {@link #hanDungMatKhauTam} — phải bằng {@code max=} ở cột {@code validation} của khoá (V202609201091). */
+    /** Trần của {@link #hanDungMatKhauTam} — phải bằng {@code max=} ở cột {@code validation} của khoá (V202609201093). */
     public static final int TRAN_GIO_MAT_KHAU_TAM = 720;
 
     /** Tiêu tốn đúng lượng thời gian như một lần kiểm mật khẩu thật, rồi trả về sai. */

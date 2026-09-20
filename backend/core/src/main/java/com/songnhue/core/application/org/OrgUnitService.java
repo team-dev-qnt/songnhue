@@ -186,6 +186,32 @@ public class OrgUnitService implements OrgUnitPort {
                 .toList();
     }
 
+    /**
+     * Chuỗi lãnh đạo phía trên một đơn vị — {@link com.songnhue.core.spi.OrgUnitPort#lanhDaoCuaChuoiDonVi}.
+     *
+     * <p>⛔⛔ {@code @Transactional(readOnly = true)} ở đây ⛔ phải thói quen: {@code ScopeFilterAspect}
+     * bật bộ lọc phạm vi <b>quanh giao dịch</b>, và câu native bên dưới cố ý <b>⛔ đi qua</b> bộ lọc ấy
+     * (nó hỏi về {@code org_units}, bảng ⛔ mang cột phạm vi). Người duyệt đứng ở Xí nghiệp con vẫn
+     * phải thấy được rằng trưởng đơn vị CHA có thẩm quyền trên đơn của mình.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.Set<Long> lanhDaoCuaChuoiDonVi(Long orgUnitId) {
+        if (orgUnitId == null) {
+            return java.util.Set.of();
+        }
+        return java.util.Set.copyOf(repository.findActiveLeaderUserIdsUpTheTree(orgUnitId));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.Set<Long> chuoiDonViLen(Long orgUnitId) {
+        if (orgUnitId == null) {
+            return java.util.Set.of();
+        }
+        return java.util.Set.copyOf(repository.findOrgUnitIdChainUp(orgUnitId));
+    }
+
     private static OrgUnitRef toRef(OrgUnit unit) {
         return new OrgUnitRef(
                 unit.getId(),

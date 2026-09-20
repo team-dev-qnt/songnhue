@@ -157,7 +157,7 @@ extension**, vì bản dump đã lọc thì không tạo lại được chúng.
 | Thông báo | Nguyên nhân | Xử lý |
 |---|---|---|
 | `permission denied for schema public` | CSDL đích thiếu `GRANT` cấp schema | `GRANT ALL ON SCHEMA public TO songnhue_owner; GRANT USAGE … TO songnhue_app, songnhue_archiver, songnhue_readonly;` |
-| `permission denied for table users` — hoặc bước nghiệm thu báo *KHÔNG đọc nổi bảng users* | bản dump **tước ACL**: mọi bản do job sao lưu trong ứng dụng tạo TRƯỚC khi bản vá WS-69 lên máy (T37.8). Đo: `pg_restore --list <dump> \| grep -c ' ACL '` = `0` | chạy lại mục **1** rồi mục **2** của `V202608131006__core_db_role_grants.sql` bằng `songnhue_owner`, rồi khối ⑥ của `sau-khoi-phuc-production.sql`; kiểm mục 6 phép 7. ⛔ Trông vào quyền mặc định mà bỏ mục 2 — bảng append-only sẽ mang `arwd` (§12.7) |
+| `permission denied for table users` — hoặc bước nghiệm thu báo *KHÔNG đọc nổi bảng users* | bản dump **tước ACL**: mọi bản do job sao lưu trong ứng dụng tạo TRƯỚC khi bản vá WS-69 lên máy (T37.8). Đo: `pg_restore --list <dump> \| grep -c ' ACL '` = `0` | chạy lại mục **1** rồi mục **2** của `V202608131006__core_db_role_grants.sql` bằng `songnhue_owner`, rồi khối ⑥ của `sau-khoi-phuc-production.sql`; kiểm mục 6 phép 7. ⛔ Trông vào quyền mặc định mà bỏ mục 2 — bảng append-only sẽ mang `arwd` (§12.11) |
 | `must be owner of table …` | chạy bằng vai trò không phải chủ sở hữu | dùng `songnhue_owner` (`DB_MIGRATION_USER`) |
 | `unsupported version … in file header` | dump sinh bởi máy chủ **mới hơn** client | chạy qua container ⇒ không thể gặp; nếu gặp là đang dùng công cụ ngoài |
 | `database … is being accessed by other users` | còn phiên khác giữ khoá | script tự ngắt; nếu vẫn còn thì dừng `songnhue-app` trước |
@@ -172,7 +172,7 @@ Bản dump mang theo **dữ liệu + lược đồ + ACL**. Đo 08/09: dữ li�
 `arwd` trên ~35 bảng mà production cố ý chỉ cho `ar`/`r` — gồm `audit_logs`, `audit_chain_head`,
 `hydro_raw_logs`, `flyway_schema_history`.
 
-⚠ **Đo lại 19/09/2026 (T68.3, `architecture-review.md` §12.7)** — câu cũ *"khôi phục THAY quyền của đích
+⚠ **Đo lại 19/09/2026 (T68.3, `architecture-review.md` §12.11)** — câu cũ *"khôi phục THAY quyền của đích
 bằng quyền của nguồn"* sai cơ chế. Trước bản vá WS-69, khôi phục ĐÈ lên một CSDL đã migrate tự nó sinh
 ra **đúng** danh sách `arwd` ấy (72 quyền, đo trên Postgres 16), kể cả khi nguồn đúng và ⛔ có
 `--no-privileges`: bảng dựng lại nhận quyền MẶC ĐỊNH của đích, còn ACL của bản dump chỉ GRANT, ⛔

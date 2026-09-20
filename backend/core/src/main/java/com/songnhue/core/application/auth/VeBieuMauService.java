@@ -39,7 +39,7 @@ public class VeBieuMauService implements VeBieuMauPort {
 
     public static final int MAC_DINH_GIAY_TOI_THIEU = 3;
 
-    /** Trần của {@link #KHOA_GIAY_TOI_THIEU} — phải bằng {@code max=} ở cột {@code validation} (V202609201092). */
+    /** Trần của {@link #KHOA_GIAY_TOI_THIEU} — phải bằng {@code max=} ở cột {@code validation} (V202609201094). */
     public static final int TRAN_GIAY_TOI_THIEU = 60;
 
     /** Vé quá tuổi này ⛔ còn hợp lệ — đủ dài cho người để trang mở cả buổi rồi mới viết. Hằng số bảo mật. */

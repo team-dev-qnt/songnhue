@@ -56,7 +56,13 @@ class SoDonViThamChieuTest {
             // ⭐ Cột thứ 14 — và bộ canh này bắt được nó ở lượt chạy ĐẦU TIÊN sau khi nó ra đời
             //   (WS-57, 14/09). Đó đúng là điều nó được dựng để làm: một cột FK mới ở một module
             //   khác, người viết ⛔ không có lý do gì để nhớ tới `OrgUnitService` ở `core`.
-            "leave_requests.org_unit_id", "hr · HoSoThuocDonVi (chỉ đơn ĐANG CHỜ)");
+            "leave_requests.org_unit_id", "hr · HoSoThuocDonVi (chỉ đơn ĐANG CHỜ)",
+            // ⭐ Cột thứ 15 (WS-80, 20/09) — và bộ canh này lại bắt được ở lượt chạy ĐẦU sau khi nó
+            //   ra đời. Giải thể một đơn vị đang có uỷ quyền CHẠY là làm người được uỷ quyền mất
+            //   vai GIỮA CHỪNG, đúng lúc trưởng đơn vị vắng mặt ⇒ ⛔ ai quyết được đơn nào.
+            //   ⚠ Chỉ đếm bản CÒN HIỆU LỰC, cùng lý lẽ *"chỉ đơn đang chờ"* ở dòng trên: bản đã
+            //     thu hồi / hết hạn là LỊCH SỬ, chặn theo nó thì sau vài năm ⛔ đơn vị nào giải thể được.
+            "leave_approval_delegations.org_unit_id", "hr · HoSoThuocDonVi (chỉ uỷ quyền CÒN HIỆU LỰC)");
 
     /**
      * Cột <b>cố ý ⛔ không</b> chặn — mỗi dòng phải mang một lý do đọc được.

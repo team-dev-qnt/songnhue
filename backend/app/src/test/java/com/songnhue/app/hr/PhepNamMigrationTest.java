@@ -20,7 +20,7 @@ import com.songnhue.app.testsupport.IntegrationTestBase;
 /**
  * <b>Chốt chặn của migration Điều 114 — T68.10 — phải thật sự chặn.</b>
  *
- * <p>{@code V202609201091} gỡ ba khoá 3 bậc cũ và giữ CƠ SỞ người vận hành đang dùng. Nếu hai khoá bậc trên đã bị
+ * <p>{@code V202609201095} gỡ ba khoá 3 bậc cũ và giữ CƠ SỞ người vận hành đang dùng. Nếu hai khoá bậc trên đã bị
  * sửa khỏi dạng (cơ sở + 1, cơ sở + 2) thì migration DỪNG: ánh xạ một chính sách tuỳ biến là quyết định nhân sự,
  * ⛔ để migration đoán. Trên CSDL kiểm thử ba khoá luôn mang seed ⇒ nhánh RAISE <b>về nguyên tắc</b> ⛔ lượt chạy
  * nào đi qua (luật 7) — lớp này chạy lại đúng khối {@code DO} ấy, đọc từ chính tệp migration, trên hai trạng thái.
@@ -28,7 +28,7 @@ import com.songnhue.app.testsupport.IntegrationTestBase;
 class PhepNamMigrationTest extends IntegrationTestBase {
 
     private static final String TEP =
-            "backend/hr/src/main/resources/db/migration/hr/V202609201093__hr_phep_nam_dieu_114.sql";
+            "backend/hr/src/main/resources/db/migration/hr/V202609201095__hr_phep_nam_dieu_114.sql";
 
     @Autowired
     private JdbcTemplate jdbc;

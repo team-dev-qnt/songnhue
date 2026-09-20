@@ -653,6 +653,49 @@ export const ERROR_CATALOG = {
     severity: 'warning',
   },
 
+  // --- Thẩm quyền duyệt nghỉ phép (WS-80) -------------------------------------
+  // ⛔⛔ BỐN mã cho bốn lý do, ⛔ gộp về một câu "không có quyền". Việc người dùng phải làm khác
+  //    hẳn nhau: nhờ trưởng đơn vị · nhờ cấp trên · nhờ NGƯỜI KHÁC quyết cấp 2 · hoặc đây ⛔ phải
+  //    việc của mình. Gộp là để họ đi gõ cửa nhầm chỗ — cùng lý lẽ `OPS-2023` vs `HR-2009`.
+  'HR-2010': {
+    message: 'Bạn không phải người duyệt của đơn vị này',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'HR-2011': {
+    message: 'Không tự duyệt được đơn nghỉ của chính mình — đơn này do cấp trên quyết',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'HR-2012': {
+    message: 'Bạn đã duyệt ở cấp 1 — cấp 2 phải do người khác quyết',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'HR-2013': {
+    message: 'Chỉ người nộp đơn hoặc người duyệt mới rút/huỷ được đơn này',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  // ⚠ Hai mã dưới là `form`: người dùng sửa được NGAY TẠI CHỖ (chọn người khác). `HR-2016` thì
+  //   `toast` — nó nói rằng thao tác vừa rồi ⛔ phải việc của họ, ⛔ phải một ô điền sai.
+  'HR-2014': {
+    message:
+      'Người được uỷ quyền chưa có quyền duyệt nghỉ phép — đề nghị Quản trị nhân sự gán vai trò trước',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'HR-2015': {
+    message: 'Chỉ uỷ quyền được cho người cùng đơn vị hoặc đơn vị cấp trên',
+    handling: 'form',
+    severity: 'warning',
+  },
+  'HR-2016': {
+    message: 'Chỉ trưởng hoặc phó đơn vị mới uỷ quyền duyệt được',
+    handling: 'toast',
+    severity: 'warning',
+  },
+
   // --- MOD-05 Quản trị --------------------------------------------------------
   'ADM-2001': {
     message: 'Kết xuất lưu trữ nhật ký thất bại — không xóa bản ghi nào',

@@ -579,4 +579,29 @@ public class UserAdminService implements UserDirectoryPort {
                 .filter(u -> !u.isDeleted())
                 .collect(java.util.stream.Collectors.toMap(User::getId, User::getPublicId));
     }
+
+    /**
+     * ⚠ Đo bằng {@code findActiveIdsByPermission} — <b>cùng một câu</b> mà {@code RecipientResolver}
+     * dùng để chọn người nhận thư. Cố ý: <i>"ai đang có quyền này"</i> phải là MỘT câu trả lời cho
+     * cả hệ, ⛔ phải hai câu viết ở hai chỗ (luật 14).
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public boolean dangHoatDongVaCoQuyen(UUID publicId, String maQuyen) {
+        if (publicId == null || maQuyen == null || maQuyen.isBlank()) {
+            return false;
+        }
+        return internalIdOf(publicId)
+                .map(id -> users.findActiveIdsByPermission(maQuyen).contains(id))
+                .orElse(false);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Long> orgUnitIdCua(UUID publicId) {
+        if (publicId == null) {
+            return Optional.empty();
+        }
+        return users.findByPublicIdAndDeletedAtIsNull(publicId).map(User::getOrgUnitId);
+    }
 }
