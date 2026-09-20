@@ -29,6 +29,9 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
 
     boolean existsByCodeAndDeletedAtIsNull(String code);
 
+    /** Tra theo mã — bộ nhập tệp cần biết hồ sơ ĐÃ CÓ để giữ nguyên trường tệp mẫu ⛔ mang (T68.23). */
+    java.util.Optional<Employee> findByCodeAndDeletedAtIsNull(String code);
+
     boolean existsByCodeAndDeletedAtIsNullAndIdNot(String code, Long id);
 
     long countByPositionIdAndDeletedAtIsNull(Long positionId);
