@@ -28,6 +28,15 @@ export const USER_STATUS: StatusVocabulary = {
     color: 'warning',
     hint: 'Đã cấp mật khẩu tạm, người dùng chưa đăng nhập lần nào',
   },
+  // ⚠ Thiếu từ 13/08 tới 20/09/2026 (T68.33). `UserStatus` của Java có BỐN giá trị và
+  //    `ck_users_status` cũng vậy; bảng nhãn này chỉ có ba ⇒ `StatusBadge` rơi vào nhánh dự phòng
+  //    và in ra chữ `DISABLED` thô cho người dùng. Khác `LOCKED` (chế tài, màu đỏ): đây là tài
+  //    khoản đã kết thúc vòng đời, giữ lại vì CN-05.1 cấm xoá tài khoản đã có lịch sử thao tác.
+  DISABLED: {
+    label: 'Ngừng sử dụng',
+    color: 'unknown',
+    hint: 'Nghỉ việc hoặc thôi dùng hệ thống — giữ lại để không mất lịch sử thao tác (CN-05.1)',
+  },
 };
 
 export const BACKUP_STATUS: StatusVocabulary = {
@@ -56,6 +65,10 @@ export const JOB_STATUS: StatusVocabulary = {
   RUNNING: { label: 'Đang chạy', color: 'warning' },
   SUCCEEDED: { label: 'Xong', color: 'normal' },
   FAILED: { label: 'Thất bại', color: 'danger' },
+  // ⚠ T68.33 — `JobStatus` và `ck_jobs_status` đều có năm giá trị. `CANCELLED` ⛔ phải một thất
+  //    bại: người vận hành chủ động dừng, nên ⛔ được mang màu đỏ của `FAILED` (đọc nhầm nó thành
+  //    sự cố là đi tìm `last_error` của một job ⛔ bao giờ chạy).
+  CANCELLED: { label: 'Đã huỷ', color: 'unknown', hint: 'Người vận hành dừng job trước khi nó chạy' },
 };
 
 export const HEALTH_STATUS: StatusVocabulary = {
@@ -150,9 +163,15 @@ export const KPI_TONE: StatusVocabulary = {
   UNKNOWN: { label: 'Chưa xác định', color: 'unknown' },
 };
 
-export const SCAN_STATUS: StatusVocabulary = {
-  PENDING: { label: 'Đang quét', color: 'warning' },
-  CLEAN: { label: 'Đã quét sạch', color: 'normal' },
-  INFECTED: { label: 'Phát hiện mã độc', color: 'danger' },
-  SKIPPED: { label: 'Bỏ qua quét', color: 'unknown' },
-};
+// =============================================================================
+// ⛔ BIA MỘ — `SCAN_STATUS` GỠ ngày 20/09/2026 (T68.33).
+//
+// Đo trước khi gỡ: nó có **đúng một** lượt xuất hiện trong toàn kho — chính định nghĩa của nó.
+// Kiểu TS anh em `ScanStatus` đã bị gỡ từ 08/09 (T28.47, bia mộ ở `api-types.ts`) vì đường
+// `/api/v1/attachments` chỉ còn `DELETE`; bảng nhãn thì **sống sót mà ⛔ ai để ý** — nửa còn lại
+// của một cặp đã chết.
+//
+// ⚠ Lượt vá đầu của T68.33 suýt **thêm `ERROR` vào đây** cho khớp `ScanStatus` của Java. Làm thế
+//    là đánh bóng một hằng ⛔ ai đọc rồi ghi vào sổ rằng đã trả một món nợ (luật 15). Ngày kho
+//    dựng lại màn hình trạng thái quét thì dựng lại bảng nhãn **đủ năm giá trị** ngay từ đầu.
+// =============================================================================

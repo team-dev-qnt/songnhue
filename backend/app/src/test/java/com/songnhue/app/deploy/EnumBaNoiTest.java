@@ -19,6 +19,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import com.songnhue.core.domain.backup.BackupTrigger;
+import com.songnhue.core.domain.identity.UserStatus;
+import com.songnhue.core.domain.job.JobStatus;
 import com.songnhue.hr.domain.ContractType;
 import com.songnhue.hr.domain.EducationLevel;
 import com.songnhue.hr.domain.EmployeeEventType;
@@ -64,22 +66,34 @@ import com.songnhue.operations.domain.OperationalStatus;
  *
  * <h2>⚠ Phạm vi tự khai (luật 28)</h2>
  *
- * Bài này soi <b>đúng mười ba enum</b> đã liệt kê ở {@link #BO_BA}: năm của hồ sơ công trình,
- * {@code BackupTrigger}, bốn của hồ sơ CBNV (T51.10a) và <b>ba của lớp hồ sơ con</b> (WS-53). Nó <b>không</b> phủ:
+ * Bài này soi <b>đúng mười tám enum</b> đã liệt kê ở {@link #BO_BA}: năm của hồ sơ công trình,
+ * {@code BackupTrigger}, bốn của hồ sơ CBNV (T51.10a), <b>ba của lớp hồ sơ con</b> (WS-53), hai của
+ * nghỉ phép (WS-57), {@code GisGeometryType} (WS-59) và <b>hai của {@code core}</b> (T68.33).
+ * Nó <b>không</b> phủ:
  *
  * <ul>
  *   <li>{@code sluice_specs.sluice_type} và {@code gate_operation} — CSDL có {@code CHECK} liệt kê
  *       giá trị, nhưng giao diện là ô {@code <Input>} <b>chữ tự do</b>, không có union TS nào để
- *       đối chiếu. Gõ "Hộp" hay "van phẳng" vẫn cho ra <b>500</b>. Nợ để mở, không im lặng bỏ qua.
+ *       đối chiếu. Gõ "Hộp" hay "van phẳng" vẫn cho ra <b>500</b>. Nợ để mở (T68.28), không im lặng bỏ qua.
  *   <li>enum của các module khác ({@code cms}, {@code hyd}, {@code adm}).
  * </ul>
  *
+ * <p>⚠⚠ <b>Con số trong đoạn trên từng SAI hai lần</b> (T68.33 · T52.7): javadoc khai <i>"mười ba"</i>
+ * trong khi {@link #BO_BA} đã có <b>16</b> phần tử, và dòng nợ khai <b>39</b> ràng buộc trong khi
+ * phép đếm <b>ngoặc cân bằng</b> trên 91 tệp migration ngày 20/09/2026 ra <b>62</b>. ⇒ Đừng chép con
+ * số ở đây; đo lại bằng chính phép đếm mà {@link #boDocKhongChayQuaTapRong} dùng.
+ *
  * <h2>⬜ Nợ CÓ SỐ ĐO — vì sao danh sách vẫn gõ tay (T51.10a, phần còn lại)</h2>
  *
- * <p>Đo 10/09/2026 trên toàn chuỗi migration: <b>39</b> ràng buộc {@code CHECK … IN (…)} <b>có tên</b>
- * tồn tại (39 + 3 của WS-53 = <b>42</b>); bảng này canh <b>13</b>. Con số 29 còn lại <b>không</b> phải 29 lỗ hổng — phần lớn là enum
- * chỉ sống ở backend ({@code ck_jobs_status}, {@code ck_audit_logs_action}…) và ⛔ không có nơi thứ hai
- * để mà lệch.
+ * <p>Đo lại <b>20/09/2026</b> (đếm ngoặc cân bằng, bỏ chú thích {@code --}, trên <b>91</b> tệp
+ * migration): <b>62</b> ràng buộc {@code CHECK … IN (…)} <b>có tên</b>; bảng này canh <b>18</b>.
+ * Con số <b>44</b> còn lại <b>không</b> phải 44 lỗ hổng — phần lớn là enum chỉ sống ở backend
+ * ({@code ck_audit_logs_action}, {@code ck_permissions_module}…) và ⛔ không có nơi thứ hai để mà lệch.
+ *
+ * <p>⚠ {@code ck_jobs_status} từng đứng trong ví dụ ấy và <b>câu đó đã hết đúng</b>: nó <i>có</i> union
+ * TS ({@code api-types.ts}) <b>và</b> một bảng nhãn ({@code JOB_STATUS}), nên T68.33 đưa nó vào bảng —
+ * đúng lúc ấy đo ra {@code JOB_STATUS} thiếu {@code CANCELLED}. <b>Một ví dụ trong chú thích cũng là
+ * dữ liệu chưa kiểm.</b>
  *
  * <p>⇒ Bánh cóc đúng <b>không</b> phải "mọi CHECK phải có mặt ở đây", mà là <i>"mọi enum có
  * <b>CẢ</b> một union TS <b>VÀ</b> một CHECK thì phải có mặt"</i> — nó đo đúng cái rủi ro (ba nơi
@@ -154,7 +168,15 @@ class EnumBaNoiTest {
             new BoBa(LeaveState.class, "LeaveState", "ck_leave_requests_state", null, HR_TU_VUNG),
             // ⭐ WS-59 — lớp bản đồ GIS (CN-02.4 / M2.9). Union khai ở `api-types.ts` như mọi enum
             //   của `operations`.
-            new BoBa(GisGeometryType.class, "GisGeometryType", "ck_gis_layers_geometry_type", null));
+            new BoBa(GisGeometryType.class, "GisGeometryType", "ck_gis_layers_geometry_type", null),
+            // ⭐⭐ T68.33 (20/09/2026) — hai enum của `core`, và là enum `core` thứ hai lọt vào đây sau
+            //    `BackupTrigger`. Lượt thêm này **ĐỎ NGAY**: `UserStatus` của Java và `ck_users_status`
+            //    đều có BỐN giá trị, union TS chỉ khai BA — lệch suốt 38 ngày mà `tsc` xanh trọn vẹn,
+            //    đúng bài học ở javadoc lớp này (*một union là một lời khẳng định, ⛔ phải phép đo*).
+            //    Nơi thứ tư cũng thiếu ⇒ tài khoản `DISABLED` rơi vào nhánh dự phòng của `StatusBadge`
+            //    và hiện ra chữ `DISABLED` thô cho người dùng.
+            new BoBa(UserStatus.class, "UserStatus", "ck_users_status", "USER_STATUS"),
+            new BoBa(JobStatus.class, "JobStatus", "ck_jobs_status", "JOB_STATUS"));
 
     private static final Path TU_VUNG =
             gocKho().resolve("frontend/admin-app/src/components/business/statusVocabulary.ts");
@@ -221,7 +243,7 @@ class EnumBaNoiTest {
 
         assertThat(BO_BA)
                 .as("bảng đối chiếu rỗng thì bài trên không khẳng định gì")
-                .hasSize(16);
+                .hasSize(18);
         assertThat(BO_BA.stream().map(BoBa::tepTs).distinct().toList())
                 .as("⭐ T51.10(a): phải có ÍT NHẤT hai tệp TS trong bảng. Thiếu vế này thì một lượt "
                         + "'dọn dẹp' gộp tất cả về api-types.ts sẽ làm bốn enum HR về rỗng — và bài "
@@ -261,7 +283,13 @@ class EnumBaNoiTest {
      * {@link LifecycleState}, bên cạnh năm giá trị của {@link OperationalStatus}. Ép bằng nhau ở đó
      * là dựng một bài kiểm đỏ vĩnh viễn cho một thiết kế đúng.
      *
-     * <p>⬜ Nợ để mở có số đo: 13 hằng {@code StatusVocabulary} tồn tại, bài này canh <b>1</b>.
+     * <p>⬜ Nợ để mở có số đo (đo lại 20/09/2026): <b>12</b> hằng {@code StatusVocabulary} tồn tại,
+     * bài này canh <b>3</b> ({@code BACKUP_TRIGGER} · {@code USER_STATUS} · {@code JOB_STATUS}).
+     *
+     * <p>⚠ Mẫu số đi từ 13 xuống 12 vì {@code SCAN_STATUS} đã bị <b>gỡ</b> cùng lượt — đo ra nó có
+     * <b>đúng một</b> lượt xuất hiện toàn kho (chính định nghĩa của nó), nửa còn lại của một cặp đã
+     * chết từ T28.47. <b>Thêm {@code ERROR} vào nó cho "khớp enum Java" là đánh bóng một hằng ⛔ ai
+     * đọc</b> rồi ghi vào sổ rằng đã trả một món nợ (luật 15).
      */
     @Test
     @DisplayName("Nơi thứ tư: mọi giá trị enum đều có nhãn tiếng Việt trong statusVocabulary.ts")
@@ -289,9 +317,15 @@ class EnumBaNoiTest {
                     .isEqualTo(giaTriJava(bo.enumJava()));
         }
 
+        // ⚠ Vế chống tập rỗng (luật 7 + 29), và nó là một **trần chỉ-được-TĂNG**: con số ở đây đếm
+        //    bao nhiêu enum đã được canh ở nơi thứ tư. Nó bắt đúng lượt sửa T68.33 ở lần chạy đầu
+        //    (1 → 3) — nghĩa là gỡ một `tenTuVung` đi cũng sẽ đỏ, thay vì im lặng thu hẹp phạm vi.
         assertThat(daCanh)
-                .as("không dòng nào khai tenTuVung ⇒ bài này không khẳng định gì")
-                .isEqualTo(1);
+                .as(
+                        "⛔ số enum được canh ở nơi thứ tư TỤT xuống %d — gỡ một `tenTuVung` là thu hẹp "
+                                + "phạm vi trong im lặng (luật 28). Thêm thì sửa số này LÊN, ⛔ đừng hạ.",
+                        daCanh)
+                .isGreaterThanOrEqualTo(3);
     }
 
     @Test
