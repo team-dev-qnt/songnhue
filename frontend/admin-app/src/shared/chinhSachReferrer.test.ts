@@ -4,23 +4,31 @@ import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 /**
- * ⛔⛔ Chính sách `Referer` ⛔ được cắt danh tính ứng dụng — nếu cắt thì BẢN ĐỒ CHẾT (T75.3).
+ * ⛔⛔ Chính sách `Referer` ⛔ được cắt danh tính ứng dụng gửi tới máy chủ tile (T75.3).
  *
  * <h2>Khuyết tật (đo 20/09/2026 trên chính máy chủ tile, ⛔ suy đoán)</h2>
  *
  * `index.html` khai `<meta name="referrer" content="same-origin">` từ phase 1. Với giá trị ấy trình
  * duyệt bỏ **hẳn** header `Referer` ở mọi request cross-origin — kể cả request ảnh. Tile Usage
- * Policy của OpenStreetMap nhận diện ứng dụng gọi bằng đúng header đó, nên mọi ô bản đồ của
- * `admin-app` nhận về ô *"Access blocked"*:
+ * Policy của OpenStreetMap nhận diện ứng dụng gọi bằng đúng header đó, nên `admin-app` gọi tile
+ * như một máy khách vô danh. Đo 20/09/2026 trên chính máy chủ tile:
  *
  * <pre>
- *   không Referer                   ⇒ x-blocked: Access denied. See …/policies/tiles/
- *   Referer https://admin…vn/       ⇒ x-tilerender: azure-01.openstreetmap.org
- *   Referer http://localhost:5173/  ⇒ x-tilerender: azure-01.openstreetmap.org
+ *   curl, không Referer              ⇒ x-blocked: Access denied. See …/policies/tiles/
+ *   curl, Referer https://admin…vn/  ⇒ x-tilerender: azure-01.openstreetmap.org
+ *   curl, Referer http://localhost/  ⇒ x-tilerender: azure-01.openstreetmap.org
  * </pre>
  *
- * Ba màn hình cùng hỏng: ô chọn vị trí trong hồ sơ công trình (`LocationPickerMap`), bản đồ GIS của
- * dashboard điều hành (`ConstructionMap`), và mọi lớp bản đồ dựng trên chúng.
+ * <p>⚠⚠ <b>Đính chính phải giữ lại.</b> Lượt kiểm chứng ngược trên TRÌNH DUYỆT (dựng lại image
+ * `admin-app` với `same-origin`) cho `referer: ""` đúng như dự đoán, nhưng OSM <b>vẫn phục vụ</b>
+ * ô bản đồ lượt ấy. ⇒ Việc chặn của họ là <b>heuristic</b> theo lưu lượng và danh tính, ⛔ phải một
+ * luật <i>"thiếu Referer ⇒ 403"</i> bật tắt tức thì. Bản vá vì thế đáng giữ vì nó làm ta ĐÚNG chính
+ * sách và bỏ đi tín hiệu khiến ta bị chặn — ⛔ vì mỗi lượt gọi đều chứng minh lại được. Đừng viết
+ * một bài kiểm đòi *"⛔ Referer ⇒ phải bị chặn"*: nó sẽ đỏ ngẫu nhiên.
+ *
+ * Ba màn hình cùng chịu: ô chọn vị trí trong hồ sơ công trình (`LocationPickerMap`), bản đồ GIS của
+ * dashboard điều hành (`ConstructionMap`), và mọi lớp bản đồ dựng trên chúng — QuanTran báo thấy ô
+ * *"Access blocked"* ở màn hình thứ nhất ngày 20/09.
  *
  * <h2>Vì sao bài này canh HAI tệp chứ ⛔ một</h2>
  *
@@ -81,10 +89,11 @@ function chinhSachTrongNginx(): string {
 }
 
 describe('Chính sách Referer của admin-app', () => {
-  it('⛔ được dùng chính sách cắt sạch Referer — OSM chặn tile khi thiếu header ấy', () => {
+  it('⛔ được dùng chính sách cắt sạch Referer — OSM đòi header ấy để nhận diện máy khách', () => {
     expect(
       CAT_SACH_REFERER,
-      'Đặt `same-origin`/`no-referrer` là làm mọi ô bản đồ trả về "Access blocked" — đo 20/09/2026',
+      'Đặt `same-origin`/`no-referrer` là gọi tile như một máy khách VÔ DANH — thứ mà Tile Usage ' +
+        'Policy của OSM chặn. Đo 20/09/2026: curl ⛔ Referer ⇒ `x-blocked: Access denied`.',
     ).not.toContain(chinhSachTrongMeta());
   });
 

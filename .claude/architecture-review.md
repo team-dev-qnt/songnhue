@@ -7438,6 +7438,17 @@ header ấy ở mọi request cross-origin, mà Tile Usage Policy của OSM nh�
 
 Ba điều rút ra, theo thứ tự đắt dần:
 
+0. ⛔⛔ **Lượt kiểm chứng ngược sửa chính kết luận vừa viết — và đây là phần đáng giữ nhất.** Dựng
+   lại image `admin-app` với `same-origin` rồi đi lại đường người dùng: `referer: ""` đúng như dự
+   đoán, **nhưng OSM vẫn phục vụ ô bản đồ lượt ấy**. ⇒ Việc chặn của họ **heuristic** theo lưu lượng
+   và danh tính, ⛔ phải một luật *"thiếu Referer ⇒ 403"* bật tắt tức thì. Cách phát biểu ĐÚNG:
+   *bản vá bỏ đi tín hiệu khiến ta bị chặn và làm ta đúng chính sách*, ⛔ phải *"trước hỏng, sau
+   chạy, chứng minh lại được mỗi lượt"*. Hệ quả cho việc viết bộ canh: vế **ổn định** là phía ta
+   (`Referer` có được gửi ⛔), còn phía họ (có bị chặn ⛔) là một biến ⛔ ai điều khiển — canh vế thứ
+   hai là dựng một bài **đỏ ngẫu nhiên**. Đây là một hình dạng mới so với cả §10 lẫn §11: ⛔ phải
+   *bộ canh sai*, ⛔ phải *tài liệu hết hạn*, mà là **một kết luận nhân quả đúng hướng nhưng phát
+   biểu quá chắc** — và thứ bắt được nó là lượt kiểm chứng ngược, ⛔ phải một lượt rà bằng mắt.
+
 1. **Một bộ canh đúng, xanh, và phủ đúng phạm vi nó khai — vẫn ⛔ nói gì về chế độ hỏng thứ hai.**
    Đây ⛔ phải luật 28 (phạm vi hụt): `NginxSecurityHeadersTest` phủ đúng thứ nó hứa. Nó chỉ trả lời
    câu *"CSP có cho phép host tile ⛔"*, và ⛔ ai hỏi câu *"máy chủ tile có chịu phục vụ ta ⛔"*.
