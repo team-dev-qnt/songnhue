@@ -375,6 +375,10 @@ sai, sửa 10/09 — T52.8). Đo trên CSDL staging cùng ngày: `constructions`
 | 19/9 | ⛔⛔⛔ **Khôi phục ĐÈ hạ quyền append-only — và nguyên nhân ghi trong sổ SAI.** `--clean` dựng lại bảng bằng `songnhue_owner` nên bảng nhận `ALTER DEFAULT PRIVILEGES` của ĐÍCH, còn ACL của bản dump chỉ GRANT, ⛔ REVOKE: **72 quyền thừa** (`audit_logs` · `hydro_raw_logs` + 28 phân mảnh · `audit_chain_head` · `flyway_schema_history` …), đo trên Postgres 16, ⛔ cần `--no-privileges`. §10.80 quy cho `--no-privileges` — một đồng hiện đọc thành nhân quả, và gỡ cờ ấy ⛔ chặn được gì. Chỉ lộ vì bài kiểm viết TRƯỚC bản vá hỏi ACL SAU lượt ĐÈ: mọi lượt diễn tập đều chạy trên máy TRẮNG, nơi đích ⛔ có quyền mặc định | §12.11 |
 | 19/9 | ⛔⛔ **Một chuông sống 8 ngày với nhánh MỞ ISSUE chưa từng chạy — và nhãn nó gắn ⛔ tồn tại.** `canh-cong-quet.yml` (T11.67) xanh mọi lượt nên ⛔ ai đi qua `gh issue create --label canh-cong-quet`; `gh label list` ⛔ có nhãn ấy ⇒ lần đầu cần kêu sẽ HỎNG ngay trước khi mở issue. `gh` giả của bài kiểm nhận MỌI nhãn nên về nguyên tắc ⛔ thấy (luật 28). ⇒ Đường chưa ai đi qua ⛔ biết đúng sai (luật 7): chuông mới `canh-chung-chi.yml` mang sẵn đầu vào DIỄN TẬP nhánh mở issue | T70.3 |
 | 14/9 | ⚠ **13 mục DoD Phase 3 có ĐÚNG 0 lượt nhắc trong sổ** — `grep -c "DOD3"` = 0. Chúng sống ở `phase3-plan.md` §8 và chưa lượt nào đối chiếu, đúng hình dạng §10.36. Lượt đối chiếu đầu tiên tìm ra **2 khuyết tật đang sống**. ⚠ Và 9 "endpoint mồ côi" của lượt quét là **dương tính giả của chính phép đo tôi vừa viết** (FE ghép đường dẫn bằng template literal — luật 25) | T60.7 · T60.8 |
+| 22/9 | ⛔⛔⛔ **Ba PR Dependabot chỉ đụng `frontend/` đỏ ở job BACKEND, ba PR backend cùng đợt xanh — CÙNG MỘT COMMIT NỀN.** Khác biệt duy nhất đo được là **giờ chạy**: xanh 19:04 UTC, đỏ **20:26 UTC**. Đồ gá dựng ngày bằng `LocalDate.now()` **trần** (múi giờ JVM = UTC trên runner) rồi khẳng định qua `measured_at > now() - interval '1 day'` — cửa sổ do **CSDL** tính. Bản ghi ở `ngay` 03:30 **giờ VN** = `ngay-1` 20:30 UTC ⇒ rời cửa sổ đúng lúc đồng hồ qua **20:30 UTC** ⇒ **khung giờ chết 3,5 tiếng MỖI NGÀY** (VN 03:30–07:00), ⛔ phải một bài chập chờn. Số khớp tới phút: dòng `FAILURE!` ghi lúc **20:31:02**, tức **62 giây sau** biên | T83.0 · T83.1 |
+| 22/9 | ⛔⛔ **Bánh cóc T63.18 lắp MỘT NỬA, và nửa thiếu chính là nửa gây sự cố.** 17/09 ghim `env: { TZ: 'UTC' }` cho **frontend**; đo 22/09 thì `backend/pom.xml` và `ci.yml` có **0** dòng TZ ⇒ vế backend chưa bao giờ được ghim, và cái xanh của vế frontend đọc như bảo đảm cho cả hai (luật 28). ⇒ `<TZ>UTC</TZ>` ở `<pluginManagement>`. ⛔ Ghim bằng `<environmentVariables>` chứ ⛔ `<argLine>` — JaCoCo tiêm agent qua đúng `argLine`, ghi đè là **tắt cổng bao phủ mà ⛔ một dòng nào báo**. ⚠ Và ghim ⛔ phải bản vá: nó chỉ làm máy dev chạy đúng điều kiện runner | T83.3 |
+| 22/9 | ⭐⭐ **Kiểm chứng ngược BỐN Ô, cùng máy cùng phút, chỉ đổi múi giờ** — đồ gá CŨ + `Pacific/Midway` ⇒ ĐỎ đúng nguyên văn lỗi CI · CŨ + `Asia/Ho_Chi_Minh` ⇒ XANH · MỚI (`ZONE_VN`) + `Pacific/Midway` ⇒ **XANH**. ⚠ Lượt chứng minh ĐẦU thoát 1 mà **⛔ có báo cáo surefire nào** — Spotless chặn ở thứ tự import, build chết **trước** khi tới bài kiểm; đọc mã thoát ấy thành *"bắt được rồi"* là chứng minh RỖNG (luật 10 · T49.3) | T83.2 |
+| 22/9 | ⭐ **Bộ canh mới bắt CHÍNH NÓ ở lượt chạy đầu — lần thứ MƯỜI HAI.** Hai chuỗi đồ gá trong bài tự-kiểm chứa nguyên văn `LocalDate.now()`, mà `boChuThich` **cố ý giữ chuỗi ký tự** (T54.8) ⇒ tệp bộ canh thành một vi phạm thật. ⇒ Tách hằng, đúng tiền lệ `PostgresCollationParityTest`. ⚠ Và luật phải **hẹp**: đo ra 5 tệp dùng đồng hồ trần nhưng chỉ **1** ghép với cửa sổ CSDL — cấm cả cụm là đẻ bốn dòng miễn trừ và **tiếng ồn che mất dòng có nghĩa duy nhất**; `NoAmbientClock` có sẵn ⛔ thấy vụ này vì nó chạy trên `ProductionClasses.ALL`, và đó là phạm vi ĐÚNG cho nó | T83.4 · T83.5 |
 
 ⛔ Hệ quả rút ra: **"đã tick" không phải bằng chứng.** Trước khi mở một giai đoạn mới, đối chiếu với mã thật và chạy đường mà người dùng thật đi.
 
@@ -686,6 +690,19 @@ hàm cũng được tính (luật 32 · T46.7).
 `ignore`, kể cả `admin-app`/`public-web` — hai **ứng dụng** ⛔ ai phụ thuộc, tức Dependabot ⛔ bao giờ đề nghị nâng; thêm
 chúng vào là **tiếng ồn che mất dòng có nghĩa duy nhất** (luật 28). Và `DiaChiLienKetTest` bắt `String.trim()` của Java bỏ
 CẢ ký tự điều khiển ⇒ chuỗi toàn NUL trim ra RỖNG ⇒ rơi vào nhánh *"rỗng nên hợp lệ"* ⇒ **được lưu**.
+
+⭐⭐ **Đo lại 22/09/2026 sau WS-83 (ghim múi giờ bộ kiểm) — `make ci-local` thoát 0**, tiến trình
+maven DUY NHẤT (⚠ số ở **MÁY**): **2246 testcase BE** — core 395 · content 55 · hydro 229 ·
+operations 81 · **hr 19** · app **1467** · **0 đỏ** · FE **645** admin-app + **460** public-web ·
+⛔ migration mới · **1390 dòng** sổ đọc được.
+⚠ **Sáu module, ⛔ phải năm**: mọi khối số đo trước nay liệt kê **5** (core · content · hydro ·
+operations · app) và **bỏ sót `hr`**. `hr` có **1** báo cáo surefire ghi `Tests run: 0` vì lớp của
+nó dùng `@Nested` (§10.73) ⇒ phép cộng `.txt` giấu nó đi, chỉ dòng tổng **của module trong log**
+mới thấy.
+⭐⭐ **Con số đáng giá nhất của đợt ⛔ phải tổng bài kiểm mà là: TOÀN BỘ bộ kiểm backend chạy được
+dưới `TZ=UTC`** — tức ⛔ bài nào đang xanh **nhờ** máy dev đặt `Asia/Ho_Chi_Minh`. Ghim ⛔ tốn một
+bài nào và bịt hẳn lớp lỗi *"đọc đồng hồ theo múi giờ của máy"* ở vế backend (vế frontend đã ghim
+từ T63.18 — bánh cóc trước nay lắp **một nửa**, conventions.md §1.5-d).
 
 ⭐⭐ **Đo lại 14/09/2026 sau WS-60 (đối chiếu DoD Phase 3 · gỡ chốt CI) — `make ci-local` thoát 0**,
 lượt chạy là tiến trình maven DUY NHẤT (⚠ số ở **MÁY**): **1811 testcase BE** (core 283 · content 54 ·

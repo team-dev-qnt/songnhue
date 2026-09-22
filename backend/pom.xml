@@ -305,6 +305,31 @@
                     <artifactId>jacoco-maven-plugin</artifactId>
                     <version>${jacoco.version}</version>
                 </plugin>
+                <!--
+                  ⛔⛔ GHIM MÚI GIỜ CHO MỌI LƯỢT CHẠY TEST — T83.1.
+
+                  Runner GitHub chạy UTC; máy dev đặt `Asia/Ho_Chi_Minh` (đúng múi giờ sản phẩm).
+                  Nên `make ci-local` VỀ NGUYÊN TẮC ⛔ dựng lại được lớp lỗi "mã đọc đồng hồ theo
+                  múi giờ của MÁY" — và đó đúng là thứ làm đỏ PR #198/#199/#200 trong khi #195→197
+                  xanh: cùng một commit, khác nhau ĐÚNG giờ chạy.
+
+                  ⛔ Ghim `Asia/Ho_Chi_Minh` là làm lớp lỗi ấy VÔ HÌNH TRỞ LẠI — ghim đúng múi giờ
+                  của sản phẩm thì máy dev và runner lại nói hai chuyện khác nhau. Ghim UTC để máy
+                  dev chạy trong ĐÚNG điều kiện của runner (§11.27; frontend đã ghim từ T63.18 ở
+                  `vite.config.ts` + `vitest.config.mts`, vế backend bỏ quên tới hôm nay).
+
+                  ⚠ Dùng <environmentVariables> chứ ⛔ phải <argLine>: JaCoCo tiêm agent qua đúng
+                  `argLine`, ghi đè nó là tắt cổng bao phủ mà ⛔ một dòng nào báo.
+                -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <configuration>
+                        <environmentVariables>
+                            <TZ>UTC</TZ>
+                        </environmentVariables>
+                    </configuration>
+                </plugin>
             </plugins>
         </pluginManagement>
 
