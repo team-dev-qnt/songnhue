@@ -534,6 +534,62 @@ public class PublicPortalController {
                 .body(PhatTepTrucTiep.cua(tep));
     }
 
+    /**
+     * <b>Xem trước</b> một tài liệu PDF ngay trong trình duyệt — T84.8.
+     *
+     * <h2>Vì sao là một ĐOẠN ĐƯỜNG DẪN riêng, ⛔ phải {@code ?inline=1}</h2>
+     *
+     * {@code taiLieuBaiViet.test.ts:62} cấm {@code articleDocUrl} chứa dấu {@code ?}, và ràng buộc
+     * ấy có lý do thật: một tham số truy vấn làm hỏng khoá đệm và làm hỏng chữ ký presigned. Đoạn
+     * {@code /xem} giữ được nó.
+     *
+     * <h2>⛔⛔ CHỈ {@code application/pdf}</h2>
+     *
+     * {@code inline} để trình duyệt <b>dựng</b> nội dung — một tệp HTML mang tên {@code .pdf} sẽ
+     * chạy script <b>cùng gốc với cổng</b>. Ba lớp chặn, và ba lớp là cần cả ba:
+     *
+     * <ul>
+     *   <li>{@code contentType} do <b>magic bytes</b> quyết ({@code FileValidator}), ⛔ do tên tệp;
+     *   <li>danh sách cho phép ở đây đúng <b>một</b> giá trị;
+     *   <li>{@code X-Content-Type-Options: nosniff} đặt <b>tường minh trên chính phản hồi này</b>.
+     * </ul>
+     *
+     * <p>⚠⚠ Vế thứ ba phải nằm ở đây vì {@code KhongLuuDemFilter.shouldNotFilter} <b>cố ý bỏ qua</b>
+     * {@code /api/v1/public/}, và {@code edge-headers.conf} cũng ⛔ đặt header ấy (đo 22/09: chỉ có
+     * HSTS và X-Robots-Tag). Endpoint này là nơi <b>duy nhất</b> chịu trách nhiệm.
+     *
+     * <p>Rủi ro tồn dư <b>chấp nhận có ý thức</b>: chính trình xem PDF của trình duyệt. Ghi ra để
+     * nó là một quyết định, ⛔ phải một chỗ hổng ⛔ ai biết. {@code object-src 'none'} và
+     * {@code frame-ancestors 'none'} của CSP cổng đã chặn hai đường thoát còn lại.
+     *
+     * <p>⛔ <b>404 trần</b> cho mọi lý do từ chối, giữ nguyên học thuyết của endpoint cha — kể cả
+     * <i>"tệp này ⛔ phải PDF"</i>: nói câu ấy là xác nhận tệp có tồn tại.
+     */
+    @GetMapping("/article-documents/{publicId}/xem")
+    @Operation(summary = "Xem trước tài liệu PDF của một bài đã xuất bản")
+    @PublicEndpoint(reason = "Xem trước tài liệu PDF trong bài viết của cổng — CN-01.1, T84.8")
+    public ResponseEntity<StreamingResponseBody> articleDocumentInline(@PathVariable UUID publicId) {
+        // ⛔ Dùng lại NGUYÊN `portal.articleDocument(...)` — nó mang cả bốn vế lọc (bài đã xuất bản ·
+        //   đúng kho · chưa xoá · đã quét xong) và trần `CMS-2017`. Viết phép lọc thứ hai ở đây là
+        //   dựng hai bản luật phải nhớ đồng bộ (luật 14).
+        AttachmentContent tep =
+                portal.articleDocument(publicId).orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
+
+        if (!MediaType.APPLICATION_PDF_VALUE.equals(tep.contentType())) {
+            throw new ResourceNotFoundException(ErrorCode.SYS_0004);
+        }
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .contentLength(tep.sizeBytes())
+                .cacheControl(CacheControl.maxAge(java.time.Duration.ofSeconds(CACHE_TEP_GIAY))
+                        .cachePublic()
+                        .immutable())
+                .header(HttpHeaders.CONTENT_DISPOSITION, HttpHeaderText.contentDispositionInline(tep.originalName()))
+                .header("X-Content-Type-Options", "nosniff")
+                .body(PhatTepTrucTiep.cua(tep));
+    }
+
     // ⛔⛔ `GET /now` ĐÃ GỠ 09/09/2026 — T43.9.
     //
     //    Javadoc cũ của nó: *"cổng dùng để hiện 'cập nhật lúc' mà không phụ thuộc giờ máy khách"*.

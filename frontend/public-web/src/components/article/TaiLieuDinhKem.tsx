@@ -1,5 +1,5 @@
 import type { TaiLieuRef } from '@/lib/api';
-import { articleDocUrl } from '@/lib/routes';
+import { articleDocUrl, articleDocXemUrl } from '@/lib/routes';
 
 /**
  * Khối "Tài liệu đính kèm" ở cuối bài viết — WS-40, CN-01.1
@@ -26,27 +26,44 @@ export function TaiLieuDinhKem({ documents }: { documents: TaiLieuRef[] }) {
           if (href === null) {
             return null;
           }
+          // ⛔ Điều kiện đọc `contentType`, ⛔ suy từ đuôi tên tệp: backend chỉ phục vụ PDF trên
+          //    đường `/xem` và trả 404 trần cho mọi thứ khác ⇒ đoán sai là dựng một liên kết chết.
+          const hrefXem =
+            tep.contentType === 'application/pdf' ? articleDocXemUrl(tep.publicId) : null;
           return (
             <li key={tep.publicId}>
-              <a
-                href={href}
-                // ⚠ `download` một mình KHÔNG đủ: trình duyệt bỏ qua thuộc tính ấy khi liên kết
-                //   khác gốc, mà `API_BASE_URL` có thể khác gốc. Thứ thật sự quyết định là header
-                //   `Content-Disposition: attachment` backend đặt — thuộc tính này chỉ là lớp
-                //   thứ hai cho trường hợp cùng gốc.
-                download
-                className="group flex items-start gap-2.5 rounded-lg border border-surface-border bg-white px-3 py-2.5 shadow-xs transition hover:border-brand-primary/60"
-              >
+              <div className="group flex items-start gap-2.5 rounded-lg border border-surface-border bg-white px-3 py-2.5 shadow-xs transition hover:border-brand-primary/60">
                 <NhanLoai contentType={tep.contentType} />
-                <span className="min-w-0 flex-1">
+                <a
+                  href={href}
+                  // ⚠ `download` một mình KHÔNG đủ: trình duyệt bỏ qua thuộc tính ấy khi liên kết
+                  //   khác gốc, mà `API_BASE_URL` có thể khác gốc. Thứ thật sự quyết định là header
+                  //   `Content-Disposition: attachment` backend đặt — thuộc tính này chỉ là lớp
+                  //   thứ hai cho trường hợp cùng gốc.
+                  download
+                  className="min-w-0 flex-1"
+                >
                   <span className="block text-sm font-semibold text-brand-primary group-hover:underline">
                     {tep.title}
                   </span>
                   <span className="mt-0.5 block text-xs text-surface-textSecondary">
                     {dungLuong(tep.sizeBytes)}
                   </span>
-                </span>
-              </a>
+                </a>
+                {hrefXem ? (
+                  <a
+                    href={hrefXem}
+                    target="_blank"
+                    rel="noopener"
+                    // ⛔ `aria-label` mang TÊN tệp: ba biểu tượng 👁 giống hệt nhau trên ba dòng là
+                    //    ba liên kết mà trình đọc màn hình ⛔ phân biệt được (cùng bài học T63.9).
+                    aria-label={`Xem trước "${tep.title}" trong tab mới`}
+                    className="shrink-0 rounded px-1.5 py-0.5 text-sm text-surface-textSecondary transition hover:text-brand-primary"
+                  >
+                    <span aria-hidden="true">👁</span>
+                  </a>
+                ) : null}
+              </div>
             </li>
           );
         })}
