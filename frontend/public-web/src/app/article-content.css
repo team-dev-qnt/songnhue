@@ -252,6 +252,20 @@
   aspect-ratio: 16 / 9;
 }
 
+/* Video TẢI LÊN — T84.15.
+   ⛔⛔ KHÔNG `aspect-ratio: 16 / 9` như `iframe` ngay trên, và đây là khác biệt có lý do:
+   một `<video>` THẬT **biết tỉ lệ của chính nó**, còn một `<iframe>` YouTube thì không (trình
+   duyệt ⛔ đọc được nội dung khung để đoán). Ép 16:9 lên video là viền đen hai bên với MỌI clip
+   dọc quay bằng điện thoại — mà đó là dạng clip hiện trường dễ gặp nhất ở một Công ty thuỷ lợi.
+   `height: auto` để trình duyệt tự giữ đúng tỉ lệ gốc. */
+.sn-article video {
+  margin: 1.5rem 0;
+  border-radius: 6px;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+}
+
 .sn-article hr {
   @apply border-surface-border;
   margin: 2rem 0;

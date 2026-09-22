@@ -590,6 +590,55 @@ public class PublicPortalController {
                 .body(PhatTepTrucTiep.cua(tep));
     }
 
+    /**
+     * Phát một video nhúng trong bài viết — <b>302 sang MinIO</b>, T84.12.
+     *
+     * <h2>⛔⛔ Vì sao ⛔ cho byte đi qua ứng dụng</h2>
+     *
+     * Đo trên kho 22/09/2026: {@code Accept-Ranges}/{@code ResourceRegion}/{@code HttpRange} =
+     * <b>0 kết quả toàn backend</b>; {@code spring.threads.virtual} ⛔ bật; Tomcat 200 luồng nền
+     * tảng; trần video là <b>120MB</b>. Phát qua {@code PhatTepTrucTiep} ⇒ người xem <b>⛔ tua
+     * được</b>, và mỗi lượt xem giữ một luồng suốt <i>thời gian PHÁT</i> (⛔ phải thời gian truyền).
+     * MinIO có sẵn cả hai.
+     *
+     * <h2>Vì sao HTML của bài mang ĐƯỜNG NÀY chứ ⛔ presigned URL</h2>
+     *
+     * Presigned URL <b>hết hạn</b>, còn HTML của một bài viết sống hàng tháng. Nhúng thẳng là mọi
+     * video chết sau {@code TTL_VIDEO} — đúng bài học §10.1 đã trả giá cho ảnh. ⇒ HTML giữ một
+     * đường dẫn <b>ổn định vĩnh viễn</b>, và nó đúc URL mới ở mỗi lượt xem.
+     *
+     * <h2>Ba lựa chọn mã trạng thái và bộ đệm</h2>
+     *
+     * <ul>
+     *   <li><b>302</b>, ⛔ 301/308 — chuyển hướng <i>vĩnh viễn</i> bị trình duyệt nhớ gần như mãi
+     *       mãi, và nó sẽ trỏ tới một presigned đã chết;
+     *   <li><b>302</b>, ⛔ 307 — chỉ có GET, và 302 là thứ mọi trình phát media xử lý đúng;
+     *   <li>{@code Cache-Control: no-store} — đích hết hạn sau {@code TTL_VIDEO}; một lượt 302 nằm
+     *       lại trong đệm lâu hơn thế trỏ vào URL mà MinIO trả 403 ⇒ <b>video vỡ ⛔ để lại dấu vết
+     *       nào ở máy chủ</b>. Giá phải trả: một request tí hon mỗi lượt bắt đầu phát — một lượt
+     *       đọc có chỉ mục cộng một phép HMAC.
+     * </ul>
+     *
+     * <p>⚠⚠ Cổng proxy {@code /api/v1/*} qua một <b>Route Handler của Next</b>
+     * ({@code app/api/v1/[...path]/route.ts}), ⛔ qua nginx. Thứ giữ cho 302 đi lọt tới trình duyệt
+     * là dòng {@code redirect: 'manual'} ở đó — mất nó thì Next <b>tự đi theo</b> và kéo toàn bộ
+     * byte video qua tiến trình Node, đúng thứ endpoint này sinh ra để tránh, và ⛔ lỗi nào báo.
+     * {@code VideoCongKhaiHttpTest} canh chính dòng ấy.
+     *
+     * <p>⛔ 404 trần cho mọi lý do từ chối — xem {@code PublicPortalService#videoUrl}.
+     */
+    @GetMapping("/videos/{publicId}")
+    @Operation(summary = "Phát video nhúng trong bài viết — chuyển hướng sang kho đối tượng")
+    @PublicEndpoint(reason = "Video nhúng trong bài viết của cổng — CN-01.1, T84.12")
+    public ResponseEntity<Void> video(@PathVariable UUID publicId) {
+        String url = portal.videoUrl(publicId).orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
+
+        return ResponseEntity.status(org.springframework.http.HttpStatus.FOUND)
+                .location(java.net.URI.create(url))
+                .cacheControl(CacheControl.noStore())
+                .build();
+    }
+
     // ⛔⛔ `GET /now` ĐÃ GỠ 09/09/2026 — T43.9.
     //
     //    Javadoc cũ của nó: *"cổng dùng để hiện 'cập nhật lúc' mà không phụ thuộc giờ máy khách"*.

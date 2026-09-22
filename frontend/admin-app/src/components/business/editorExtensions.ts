@@ -7,6 +7,7 @@ import { CellBgClass } from './CellBgClass';
 import { FigureImage } from './FigureImage';
 import { TextColorClass } from './TextColorClass';
 import { VideoEmbed } from './VideoEmbed';
+import { VideoTep } from './VideoTep';
 
 /**
  * **Bộ extension của trình soạn thảo — một nguồn duy nhất** (T41.2).
@@ -107,6 +108,8 @@ export const EXTENSIONS_SOAN_THAO = [
   AlignClass,
   FigureImage,
   VideoEmbed,
+  // Video TẢI LÊN — thẻ `<video>`, khác hẳn `videoEmbed` (`<iframe>` của bên thứ ba). T84.14.
+  VideoTep,
   // ⭐ T41.15 — hai yêu cầu ĐÃ KÝ (đặc tả dòng 92 và 98). Cả hai đi bằng **class**, vì
   //   `HtmlSanitizer` gỡ sạch `style`; xem javadoc của từng tệp.
   TextColorClass,

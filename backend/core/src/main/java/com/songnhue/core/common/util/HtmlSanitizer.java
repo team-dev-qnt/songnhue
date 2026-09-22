@@ -90,7 +90,33 @@ public final class HtmlSanitizer {
             // `clean()`, vì safelist của jsoup chỉ biết giao thức chứ không biết máy chủ.
             .addTags("iframe")
             .addAttributes("iframe", "src", "width", "height", "title", "allow", "allowfullscreen", "loading")
-            .addProtocols("iframe", "src", "https");
+            .addProtocols("iframe", "src", "https")
+            // ⚠⚠ Video TẢI LÊN — T84.14. `relaxed()` ⛔ có `video`/`source` (đo bằng `jshell` trên
+            // jsoup 1.23.2: đầu vào `<video src="/a"></video><source src="/b">` cho ra CHUỖI RỖNG).
+            //
+            // ⛔⛔ `addProtocols` là BẮT BUỘC và KHÔNG ĐỦ — cả hai vế đều đo được:
+            //   · thiếu nó  ⇒ `src="javascript:alert(1)"` LỌT NGUYÊN VẸN;
+            //   · có nó     ⇒ `src="https://evil.example/x.mp4"` và `src="//evil.example/x.mp4"`
+            //                 VẪN LỌT, vì safelist của jsoup chỉ biết GIAO THỨC, ⛔ biết ĐÍCH.
+            // ⇒ Lượt lọc DOM thứ hai `locVideoTheoDuong` ở `clean()`, cùng khuôn `locIframeTheoMien`.
+            //
+            // ⚠ `playsinline` phải khai tường minh: thiếu nó thì Safelist gỡ, và iOS ép video chạy
+            //   TOÀN MÀN HÌNH — một bài tin mở ra là một video chiếm hết màn hình điện thoại.
+            .addTags("video", "source")
+            .addAttributes("video", "src", "controls", "preload", "playsinline", "width", "height")
+            .addAttributes("source", "src", "type")
+            .addProtocols("video", "src", "https")
+            .addProtocols("source", "src", "https");
+
+    /**
+     * Tiền tố đường dẫn <b>duy nhất</b> một {@code <video>} được phép trỏ tới — T84.14.
+     *
+     * <p>Hẹp hơn hẳn danh sách tên miền của iframe, và cố ý: video nhúng đi qua
+     * {@code GET /api/v1/public/videos/&#123;id&#125;}, một endpoint của chính hệ này. ⛔ Có lý do
+     * nào để một {@code <video>} trong bài viết trỏ ra ngoài — ai muốn nhúng video của bên thứ ba
+     * thì dùng {@code <iframe>} và đi qua {@code MIEN_NHUNG_VIDEO}.
+     */
+    private static final String TIEN_TO_VIDEO_NOI_BO = "/api/v1/public/videos/";
 
     /**
      * Khối nhúng bản đồ — <b>chỉ</b> một {@code <iframe>} trỏ tới máy chủ bản đồ đã biết.
@@ -113,7 +139,9 @@ public final class HtmlSanitizer {
         if (html == null || html.isBlank()) {
             return html;
         }
-        return locIframeTheoMien(Jsoup.clean(html, "", NOI_DUNG), MIEN_NHUNG_VIDEO);
+        // Hai lượt lọc DOM sau safelist, mỗi lượt cho một thẻ mà jsoup chỉ biết giao thức chứ ⛔
+        // biết đích: `<iframe>` lọc theo TÊN MIỀN, `<video>` lọc theo TIỀN TỐ ĐƯỜNG DẪN.
+        return locVideoTheoDuong(locIframeTheoMien(Jsoup.clean(html, "", NOI_DUNG), MIEN_NHUNG_VIDEO));
     }
 
     /**
@@ -153,6 +181,57 @@ public final class HtmlSanitizer {
             }
         });
         return document.body().html();
+    }
+
+    /**
+     * Gỡ mọi {@code <video>}/{@code <source>} ⛔ trỏ vào endpoint video của chính hệ này — T84.14.
+     *
+     * <p><b>Bước bắt buộc thứ hai sau safelist</b>, cùng lý do với {@link #locIframeTheoMien} và
+     * cùng bằng chứng đo được: {@code addProtocols("video","src","https")} cho
+     * {@code https://evil.example/x.mp4} <b>và</b> {@code //evil.example/x.mp4} đi qua, vì safelist
+     * của jsoup chỉ biết <b>giao thức</b>, ⛔ biết <b>đích</b>.
+     *
+     * <p>⛔⛔ Ở thẻ {@code <video>} hậu quả nặng hơn iframe một bậc: trình duyệt <b>tự tải</b> nội
+     * dung của {@code src} ngay khi dựng trang (kể cả {@code preload="metadata"}), nên một địa chỉ
+     * lạ trong thân bài là một <b>đèn hiệu</b> báo cho máy chủ của người khác biết ai đang đọc bài
+     * nào, trên IP nào — ⛔ cần người đọc bấm gì.
+     *
+     * <p>⚠ Gỡ <b>cả thẻ</b> chứ ⛔ chỉ thuộc tính: một {@code <video controls>} ⛔ nguồn là một ô
+     * đen giữa bài, trông y hệt một lỗi tải — người đọc sẽ bấm F5 mà ⛔ bao giờ hiện ra gì.
+     */
+    private static String locVideoTheoDuong(String daLamSach) {
+        if (!daLamSach.contains("<video") && !daLamSach.contains("<source")) {
+            return daLamSach;
+        }
+        Document document = Jsoup.parseBodyFragment(daLamSach);
+        document.select("video").forEach(video -> {
+            // `<source>` con cũng phải qua cùng phép kiểm — một `<video>` hợp lệ bọc một `<source>`
+            // trỏ ra ngoài vẫn tải về từ địa chỉ lạ.
+            video.select("source").forEach(nguon -> {
+                if (!duongVideoNoiBo(nguon.attr("src"))) {
+                    nguon.remove();
+                }
+            });
+            boolean tuThanCoNguon = duongVideoNoiBo(video.attr("src"));
+            if (!tuThanCoNguon && video.select("source").isEmpty()) {
+                video.remove();
+            } else if (!tuThanCoNguon && video.hasAttr("src")) {
+                // Còn `<source>` hợp lệ nhưng `src` của chính thẻ trỏ ra ngoài ⇒ gỡ thuộc tính ấy,
+                // ⛔ gỡ cả thẻ: trình duyệt ưu tiên `src` của thẻ, nên để lại là để nguyên lỗ hổng.
+                video.removeAttr("src");
+            }
+        });
+        // `<source>` lạc ngoài mọi `<video>` ⛔ phát gì, nhưng cũng ⛔ có lý do tồn tại.
+        document.select("source").forEach(nguon -> {
+            if (nguon.parent() == null || !"video".equals(nguon.parent().tagName())) {
+                nguon.remove();
+            }
+        });
+        return document.body().html();
+    }
+
+    private static boolean duongVideoNoiBo(String src) {
+        return src != null && src.startsWith(TIEN_TO_VIDEO_NOI_BO);
     }
 
     /** Có phải nội dung này đã sạch không — dùng cho bài kiểm và cho phép kiểm chứng ngược. */

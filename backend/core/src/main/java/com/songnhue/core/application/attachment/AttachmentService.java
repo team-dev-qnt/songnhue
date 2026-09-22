@@ -254,6 +254,53 @@ public class AttachmentService implements AttachmentPort {
      * "có nhưng không công khai". Phân biệt được là biến endpoint này thành máy dò xem UUID nào tồn
      * tại trong kho.
      */
+    /**
+     * URL có hạn để <b>trình duyệt lấy THẲNG từ kho</b> một tệp công khai — T84.11.
+     *
+     * <h2>⛔⛔ Vì sao ⛔ dùng {@link #readForPublic} cho video</h2>
+     *
+     * Đường ấy phát byte <b>qua ứng dụng</b> ({@code PhatTepTrucTiep}, 8KB/lượt, trả 200). Đo trên
+     * kho 22/09/2026: {@code Accept-Ranges}/{@code ResourceRegion}/{@code HttpRange} = <b>0 kết
+     * quả toàn backend</b>, {@code spring.threads.virtual} ⛔ bật, Tomcat 200 luồng nền tảng. Hệ quả
+     * cho một tệp video:
+     *
+     * <ul>
+     *   <li>người xem <b>⛔ tua được</b> — ⛔ có Range thì trình duyệt chỉ phát tuần tự;
+     *   <li>mỗi lượt xem giữ <b>một luồng</b> suốt thời gian phát, ⛔ phải thời gian truyền.
+     * </ul>
+     *
+     * <p>MinIO có sẵn cả hai. ⇒ 302 sang presigned URL, byte ⛔ chạm ứng dụng.
+     *
+     * <h2>Ba phép lọc y hệt {@link #readForPublic} — cố ý chép vị từ, ⛔ chép mã</h2>
+     *
+     * Còn sống · đúng loại chủ sở hữu · đã quét xong. Trả rỗng cho <b>mọi</b> lý do từ chối: phân
+     * biệt được là biến endpoint thành máy dò xem UUID nào tồn tại trong kho.
+     *
+     * <p>⚠ {@code tenGoi = null} ⇒ ⛔ ký {@code Content-Disposition} nào ⇒ trình duyệt <b>phát</b>
+     * thay vì tải về. Đó là toàn bộ điểm của hàm này — xem {@code ObjectStorage#presignedInlineUrl}.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<String> publicStreamUrl(UUID publicId, List<String> allowedOwnerTypes, Duration ttl) {
+        Optional<Attachment> found = repository.findByPublicIdAndDeletedAtIsNull(publicId);
+        if (found.isEmpty()) {
+            return Optional.empty();
+        }
+        Attachment attachment = found.get();
+        if (!allowedOwnerTypes.contains(attachment.getOwnerType())) {
+            log.warn(
+                    "Từ chối phát công khai tệp {} — loại chủ sở hữu '{}' không nằm trong danh sách cho phép",
+                    publicId,
+                    attachment.getOwnerType());
+            return Optional.empty();
+        }
+        if (!attachment.isDownloadable()) {
+            return Optional.empty();
+        }
+        return Optional.of(
+                storage.presignedInlineUrl(attachment.getStorageBucket(), attachment.getStorageKey(), ttl, null));
+    }
+
     @Override
     @Transactional(readOnly = true)
     public Optional<AttachmentContent> readForPublic(UUID publicId, List<String> allowedOwnerTypes) {

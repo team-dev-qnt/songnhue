@@ -160,6 +160,12 @@ function ArticleForm({
   //   `<Modal>` riêng; gộp làm một là dựng lại đúng cái trạng thái "đang mở để làm gì" mà kiểu
   //   hàm-hứa sinh ra để loại bỏ.
   const { chonTep: chonTaiLieu, picker: pickerTaiLieu } = useMediaPicker({ kho: 'TAI_LIEU' });
+  // ⭐ Hộp chọn THỨ BA — cùng kho `MEDIA` với ảnh nhưng LỌC theo `video/*` (T84.16). Ba lượt gọi
+  //   hook, ba `<Modal>` riêng; xem javadoc `useMediaPicker` về vì sao ⛔ gộp thành một.
+  const { chonTep: chonVideo, picker: pickerVideo } = useMediaPicker({
+    kho: 'MEDIA',
+    loai: 'video',
+  });
 
   const [form] = Form.useForm<FormValues>();
   // ⭐ T41.21 — ⛔ KHÔNG còn `useState` cho nội dung: biểu mẫu là nguồn sự thật duy nhất. Giữ cả hai
@@ -604,6 +610,12 @@ function ArticleForm({
                     return file ? { publicId: file.publicId, alt: file.originalName } : null;
                   }}
                   onPickDocument={chenTaiLieuVaoBai}
+                  // ⛔ Trả THẲNG kết quả hộp chọn, ⛔ đi qua `chenTaiLieuVaoBai`: video ⛔ nối vào
+                  //    `documents[]` — xem javadoc `onPickVideo` và chú thích ở `chenTaiLieuVaoBai`.
+                  onPickVideo={async () => {
+                    const tep = await chonVideo();
+                    return tep ? { publicId: tep.publicId } : null;
+                  }}
                   onUploadImage={
                     thuMucAnh
                       ? async (file) => {
@@ -808,6 +820,7 @@ function ArticleForm({
 
       {picker}
       {pickerTaiLieu}
+      {pickerVideo}
       {hopThoaiRoiTrang}
 
       {!laBaiMoi && (

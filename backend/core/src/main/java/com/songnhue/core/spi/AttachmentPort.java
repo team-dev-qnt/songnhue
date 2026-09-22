@@ -40,6 +40,20 @@ public interface AttachmentPort {
      */
     String inlineUrl(UUID publicId);
 
+    /**
+     * URL có hạn để trình duyệt lấy <b>THẲNG từ kho</b> một tệp công khai — T84.11 (video).
+     *
+     * <p>⛔⛔ Khác {@link #readForPublic} ở chỗ quyết định: đường kia phát byte <b>qua ứng dụng</b>,
+     * ⛔ hỗ trợ HTTP Range (đo: 0 kết quả toàn backend), nên người xem ⛔ tua được và mỗi lượt xem
+     * giữ một luồng Tomcat suốt thời gian PHÁT. MinIO có sẵn cả hai.
+     *
+     * <p>Ba phép lọc y hệt {@code readForPublic}; rỗng cho mọi lý do từ chối.
+     *
+     * @param ttl hạn của URL. ⚠ Phải dài hơn thời lượng xem: một cú <b>tua</b> gọi lại ĐÚNG URL cũ,
+     *     nên TTL 10 phút kiểu {@link #downloadUrl} sẽ chết giữa video
+     */
+    Optional<String> publicStreamUrl(UUID publicId, List<String> allowedOwnerTypes, java.time.Duration ttl);
+
     Optional<AttachmentRef> findRef(UUID publicId);
 
     /**

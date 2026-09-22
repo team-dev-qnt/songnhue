@@ -89,6 +89,27 @@ describe('Content-Security-Policy của cổng công khai', () => {
     expect(dungCsp(NONCE_MAU)).toContain('https://player.vimeo.com');
   });
 
+  it('⭐⭐ `media-src` nhận gốc kho truyền vào — video đi qua 302 sang MinIO (T84.13)', () => {
+    const csp = dungCsp(NONCE_MAU, 'https://files.songnhue.com');
+    expect(csp).toContain("media-src 'self' https://files.songnhue.com");
+  });
+
+  it("⭐ nhánh RỖNG cho đúng `media-src 'self'`, ⛔ dư khoảng trắng", () => {
+    // ⛔⛔ `"media-src 'self' "` trông giống hệt nhưng làm mọi phép so chuỗi lệch đi — và nó là
+    //    trạng thái MẶC ĐỊNH ở máy dev, nơi `MEDIA_ORIGIN` ⛔ đặt. Một lỗi chỉ hiện ở chỗ khác.
+    const csp = dungCsp(NONCE_MAU);
+    const chiThi = csp.split('; ').find((d) => d.startsWith('media-src'));
+    expect(chiThi).toBe("media-src 'self'");
+  });
+
+  it('⭐⭐ middleware ĐỌC biến lúc chạy bằng `||`, ⛔ `??` (luật 3)', () => {
+    // Docker gán CHUỖI RỖNG cho một biến ⛔ truyền, và `??` giữ nguyên chuỗi rỗng ấy — đúng chỗ
+    // §10.38 đã trả giá. Canh ở đây vì hậu quả (`media-src` dư khoảng trắng) hiện ở tệp này.
+    const mw = readFileSync(MIDDLEWARE, 'utf8');
+    expect(mw).toContain('process.env.MEDIA_ORIGIN ||');
+    expect(mw).not.toContain('process.env.MEDIA_ORIGIN ??');
+  });
+
   it('⛔ ⛔ nới lỏng bằng unsafe-eval hay wildcard', () => {
     const csp = dungCsp(NONCE_MAU);
     expect(

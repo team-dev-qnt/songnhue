@@ -47,8 +47,18 @@ const KHONG_DUNG_STRICT_DYNAMIC = true;
  *
  * @param nonce giá trị base64 ngẫu nhiên của chính request ấy; dùng lại giữa hai request là bỏ đi
  *   toàn bộ tác dụng của nonce
+ * @param mediaOrigin gốc của kho đối tượng (MinIO) cho `media-src` — T84.13. Rỗng ⇒ chỉ `'self'`.
+ *
+ *   ⚠ **Mặc định là bắt buộc**, ⛔ phải tiện tay: `mapTiles.test.ts:33,68` gọi `dungCsp(nonce)`
+ *   với MỘT đối số. Đổi chữ ký thành hai tham số bắt buộc là làm đỏ một bộ canh ⛔ liên quan gì —
+ *   và lượt rà sau sẽ đi tìm lỗi ở bản đồ.
+ *
+ *   ⚠⚠ Giá trị này đọc ở `middleware.ts` bằng `process.env.MEDIA_ORIGIN` **lúc chạy**, được vì
+ *   Next 16 đổi middleware sang **Node.js runtime** (`proxy.md:255`). ⛔ Nướng lúc build: hai môi
+ *   trường dùng chung một ảnh Docker thì chúng buộc phải mang chung giá trị — đúng bẫy `SITE_URL`
+ *   của T68.12 đang mở.
  */
-export function dungCsp(nonce: string): string {
+export function dungCsp(nonce: string, mediaOrigin = ''): string {
   if (!nonce) {
     // ⛔ Rơi về `'unsafe-inline'` cho "an toàn": đó là biến một lỗi ồn ào thành đúng lỗ hổng vừa vá,
     //   và nó sẽ sống mãi vì trang vẫn chạy bình thường (luật 3 · luật 9).
@@ -71,6 +81,19 @@ export function dungCsp(nonce: string): string {
     "img-src 'self' data: blob: https://tile.openstreetmap.org",
     "font-src 'self'",
     "connect-src 'self'",
+    // ⭐⭐ Video nhúng trong bài — T84.13. `/api/v1/public/videos/{id}` trả **302** sang kho đối
+    //    tượng, nên gốc ĐÍCH phải có mặt ở đây.
+    //
+    // ⚠⚠ ĐIỀU PHẢI ĐO TRÊN TRÌNH DUYỆT THẬT, ⛔ khẳng định: CSP có kiểm host đích **sau chuyển
+    //    hướng** ⛔. Đặc tả nới phần ĐƯỜNG DẪN sau một lượt 302; phần HOST theo hiểu biết chung
+    //    vẫn bị kiểm — nhưng *"nghe có vẻ đúng"* chính là luật 9, và luật 37 nói thêm: một lời
+    //    khẳng định chưa đo là một lời khẳng định sai đang chờ tới lượt. Nghiệm thu B2 vì thế có
+    //    một PHÉP PHÂN BIỆT: gỡ `MEDIA_ORIGIN` khỏi container ⇒ console PHẢI báo chặn. Nếu ⛔ báo
+    //    thì chỉ thị này là một dòng trang trí và nó đang xanh vì lý do sai (luật 1).
+    //
+    // ⛔ Rỗng ⇒ chỉ `'self'`, ⛔ để lại một khoảng trắng thừa: `"media-src 'self' "` trông giống
+    //    hệt nhưng làm mọi phép so chuỗi ở bộ canh lệch đi.
+    mediaOrigin ? `media-src 'self' ${mediaOrigin}` : "media-src 'self'",
     // - `www.google.com` — khung bản đồ trụ sở ở trang Liên hệ và chân trang (CR-22);
     // - `www.youtube-nocookie.com` — video phóng sự ở khối Truyền thông (CN-01.3);
     // - `player.vimeo.com` — video nhúng trong thân bài (T84.10).
@@ -94,9 +117,18 @@ export function dungCsp(nonce: string): string {
 /**
  * Sinh nonce cho một request.
  *
- * ⚠ Dùng `crypto.getRandomValues` + `btoa` chứ ⛔ `Buffer`: middleware chạy trên **edge runtime**,
- * nơi `Buffer` của Node ⛔ có mặt. Một lời gọi `Buffer` ở đây hỏng **lúc chạy trên máy chủ thật**
- * chứ ⛔ lúc build — tức đúng lớp lỗi mà `make ci-local` về nguyên tắc ⛔ thấy.
+ * ⚠⚠ **Câu cũ ở đây đã HẾT ĐÚNG — sửa 22/09/2026 (T84.20).** Nó khai *"middleware chạy trên **edge
+ * runtime**, nơi `Buffer` của Node ⛔ có mặt"*. Đo trên `node_modules/next` **16.3.5**:
+ * `proxy.md:255` — *"Proxy defaults to using the **Node.js runtime**"*; `:806` — *"v16.0.0:
+ * Middleware is deprecated and renamed to Proxy. Proxy defaults to the Node.js runtime"*. Tức
+ * `Buffer` **có mặt**, và `process.env` **đọc được lúc chạy** — chính điều kiện để `MEDIA_ORIGIN`
+ * ⛔ phải nướng vào ảnh (T84.13).
+ *
+ * Vẫn **giữ** `crypto.getRandomValues` + `btoa`: chúng là API chuẩn của cả hai runtime, nên mã này
+ * chạy đúng dù một lượt nâng Next sau có đổi mặc định lần nữa. ⛔ Đổi sang `Buffer` chỉ vì *"giờ
+ * dùng được"* — đó là đổi một thứ đang chạy lấy một ràng buộc mới ⛔ để làm gì.
+ *
+ * ⚠ Một khẳng định về RUNTIME hết hạn theo phiên bản framework, y như một số đo hết hạn theo ngày.
  */
 export function sinhNonce(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(16));
