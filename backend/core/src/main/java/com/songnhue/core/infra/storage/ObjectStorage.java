@@ -121,6 +121,30 @@ public class ObjectStorage {
      *     trình duyệt, tên theo khoá đối tượng)
      */
     public String presignedGetUrl(String bucket, String objectKey, Duration ttl, String tenGoi) {
+        return presigned(bucket, objectKey, ttl, tenGoi, false);
+    }
+
+    /**
+     * Đường dẫn có hạn để <b>HIỆN TRONG TRANG</b> — {@code inline} thay vì {@code attachment} (T84.6).
+     *
+     * <h3>⛔⛔ Vì sao ⛔ dùng lại được {@link #presignedGetUrl}</h3>
+     *
+     * Nó ký {@code attachment; filename=…}, và một phản hồi mang disposition ấy <b>⛔ hiện được
+     * trong {@code <iframe>}</b> — trình duyệt từ chối dựng khung và chuyển sang luồng tải về. Tức
+     * mọi nút *"Xem trước"* trỏ vào một URL ký kiểu ấy cho ra một <b>khung trắng ⛔ lý do</b>.
+     *
+     * <p>⚠ Vẫn truyền tên gợi ý: người dùng bấm *"Lưu"* trong trình xem PDF của trình duyệt thì tên
+     * lấy từ đây, ⛔ phải khoá đối tượng ngẫu nhiên (cùng lý lẽ T40.27).
+     *
+     * <p>⚠⚠ {@code inline} là một quyết định bảo mật, ⛔ phải một tuỳ chọn hiển thị: nó để trình
+     * duyệt <b>dựng</b> nội dung. Nơi gọi vì thế phải tự giới hạn loại tệp — {@code xemTruocDuoc} ở
+     * FE chỉ cho PDF và ảnh, và đó là chốt chặn, ⛔ phải một lựa chọn giao diện.
+     */
+    public String presignedInlineUrl(String bucket, String objectKey, Duration ttl, String tenGoi) {
+        return presigned(bucket, objectKey, ttl, tenGoi, true);
+    }
+
+    private String presigned(String bucket, String objectKey, Duration ttl, String tenGoi, boolean noiTuyen) {
         try {
             GetPresignedObjectUrlArgs.Builder tham = GetPresignedObjectUrlArgs.builder()
                     .method(Method.GET)
@@ -128,7 +152,10 @@ public class ObjectStorage {
                     .object(objectKey)
                     .expiry((int) ttl.toSeconds(), TimeUnit.SECONDS);
             if (tenGoi != null && !tenGoi.isBlank()) {
-                tham.extraQueryParams(Map.of("response-content-disposition", contentDisposition(tenGoi)));
+                String dat = noiTuyen
+                        ? com.songnhue.core.common.util.HttpHeaderText.contentDispositionInline(tenGoi)
+                        : contentDisposition(tenGoi);
+                tham.extraQueryParams(Map.of("response-content-disposition", dat));
             }
             return client.getPresignedObjectUrl(tham.build());
         } catch (Exception e) {

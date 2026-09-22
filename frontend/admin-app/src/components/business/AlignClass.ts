@@ -38,7 +38,7 @@ import { ALIGN_CLASSES } from '@songnhue/design-tokens/editor-schema';
  * nhưng nút ảnh nằm trong tài liệu cùng với các đoạn văn xung quanh. Duyệt từ `paragraph`
  * trở xuống thì đoạn văn kế bên có thể khớp trước và ăn mất lệnh.
  */
-const NHOM_AP_DUNG = ['figureImage', 'videoEmbed', 'heading', 'paragraph'] as const;
+const NHOM_AP_DUNG = ['figureImage', 'videoEmbed', 'videoTep', 'heading', 'paragraph'] as const;
 
 /** Xuất ra để `alignClass.test.ts` đối chiếu với schema — xem lý do ở phần tài liệu trên. */
 export const ALIGN_TYPES: readonly string[] = NHOM_AP_DUNG;

@@ -42,7 +42,9 @@ import { dungCsp, sinhNonce } from '@/lib/csp';
  */
 export function middleware(request: NextRequest) {
   const nonce = sinhNonce();
-  const csp = dungCsp(nonce);
+  // ⛔ `||` chứ ⛔ `??` — luật 3: Docker gán CHUỖI RỖNG cho một biến ⛔ truyền, và `??` giữ nguyên
+  //    chuỗi rỗng ấy trong khi `||` mới rơi về mặc định. Đây đúng chỗ §10.38 đã trả giá.
+  const csp = dungCsp(nonce, process.env.MEDIA_ORIGIN || '');
 
   const headerYeuCau = new Headers(request.headers);
   headerYeuCau.set('x-nonce', nonce);

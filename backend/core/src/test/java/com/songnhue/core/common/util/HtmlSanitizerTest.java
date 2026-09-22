@@ -249,4 +249,81 @@ class HtmlSanitizerTest {
                 .as("`col[width]` đi qua sẵn — nửa GHI của T41.14 đã có đường")
                 .contains("width=\"300\"");
     }
+
+    // === Video TẢI LÊN (T84.14) ==============================================
+    //
+    // ⚠ Năm ca dưới đây ĐÃ ĐO bằng `jshell` trên chính Safelist của dự án (jsoup 1.23.2) TRƯỚC khi
+    //   viết bộ lọc, và số đo ấy là lý do `locVideoTheoDuong` tồn tại:
+    //     · ⛔ `addProtocols`          ⇒ `src="javascript:alert(1)"` LỌT NGUYÊN VẸN;
+    //     · CÓ `addProtocols("https")` ⇒ `https://evil…` và `//evil…` VẪN LỌT.
+    //   Safelist của jsoup chỉ biết GIAO THỨC, ⛔ biết ĐÍCH — y hệt bài học `locIframeTheoMien`.
+
+    @Test
+    @DisplayName("⭐⭐ `<video>` trỏ vào endpoint nội bộ SỐNG SÓT — vế khẳng định")
+    void videoNoiBoSongSot() {
+        String sach = HtmlSanitizer.clean(
+                """
+                <video src="/api/v1/public/videos/8a7b6c5d-0000-4000-8000-000000000000" \
+                controls preload="metadata" playsinline></video>""");
+
+        // ⛔ Thiếu vế này thì bốn bài "bị gỡ" bên dưới xanh trọn vẹn với một bộ lọc gỡ SẠCH mọi
+        //    `<video>` — và tính năng chết hoàn toàn mà ⛔ bài nào đỏ (luật 9).
+        assertThat(sach).contains("<video").contains("/api/v1/public/videos/");
+        assertThat(sach)
+                .as("`playsinline` phải khai trong Safelist, ⛔ thì iOS ép video TOÀN MÀN HÌNH")
+                .contains("playsinline");
+        assertThat(sach).contains("controls").contains("preload");
+    }
+
+    @Test
+    @DisplayName("⛔ `javascript:` trong `src` của `<video>` ⇒ gỡ CẢ THẺ")
+    void videoJavascriptBiGo() {
+        String sach = HtmlSanitizer.clean("<video src=\"javascript:alert(1)\" controls></video>");
+
+        assertThat(sach).doesNotContain("<video");
+        assertThat(HtmlSanitizer.coMaChayDuoc(sach)).isFalse();
+    }
+
+    @Test
+    @DisplayName("⛔⛔ `https://` tới máy chủ LẠ ⇒ gỡ CẢ THẺ — `addProtocols` ⛔ chặn được")
+    void videoMayChuLaBiGo() {
+        // ⚠⚠ Đây là ca mà safelist một mình ĐỂ LỌT (đã đo). Ở thẻ `<video>` hậu quả nặng hơn
+        //   `<iframe>` một bậc: trình duyệt TỰ TẢI nội dung `src` ngay khi dựng trang (kể cả
+        //   `preload="metadata"`) ⇒ một địa chỉ lạ trong thân bài là một ĐÈN HIỆU báo cho máy chủ
+        //   của người khác biết ai đang đọc bài nào, trên IP nào — ⛔ cần người đọc bấm gì.
+        assertThat(HtmlSanitizer.clean("<video src=\"https://evil.example/x.mp4\" controls></video>"))
+                .doesNotContain("<video")
+                .doesNotContain("evil.example");
+    }
+
+    @Test
+    @DisplayName("⛔ Đường `//host/…` (giao thức tương đối) cũng bị gỡ")
+    void videoGiaoThucTuongDoiBiGo() {
+        assertThat(HtmlSanitizer.clean("<video src=\"//evil.example/x.mp4\" controls></video>"))
+                .doesNotContain("<video")
+                .doesNotContain("evil.example");
+    }
+
+    @Test
+    @DisplayName("⭐ `<source>` con: nội bộ thì giữ, ra ngoài thì gỡ RIÊNG nó — thẻ cha vẫn sống")
+    void locTungSourceCon() {
+        String hopLe = HtmlSanitizer.clean(
+                """
+                <video src="/api/v1/public/videos/abc">\
+                <source src="/api/v1/public/videos/abc" type="video/mp4"></video>""");
+        assertThat(hopLe).contains("<source").contains("video/mp4");
+
+        String lanLon = HtmlSanitizer.clean(
+                """
+                <video src="/api/v1/public/videos/abc">\
+                <source src="https://evil.example/x.mp4" type="video/mp4"></video>""");
+        assertThat(lanLon)
+                .as("một `<video>` hợp lệ BỌC một `<source>` trỏ ra ngoài vẫn tải về từ địa chỉ lạ")
+                .doesNotContain("evil.example");
+        assertThat(lanLon).as("nhưng thẻ cha có nguồn hợp lệ thì ⛔ bị gỡ oan").contains("<video");
+
+        assertThat(HtmlSanitizer.clean("<source src=\"https://evil.example/x.mp4\">"))
+                .as("`<source>` lạc ngoài mọi `<video>` ⛔ phát gì, và cũng ⛔ có lý do tồn tại")
+                .doesNotContain("<source");
+    }
 }

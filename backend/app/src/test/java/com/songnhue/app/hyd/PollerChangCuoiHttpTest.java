@@ -29,6 +29,7 @@ import com.sun.net.httpserver.HttpServer;
 
 import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.core.common.exception.UpstreamException;
+import com.songnhue.core.common.util.DateTimeUtils;
 import com.songnhue.core.spi.JobContext;
 import com.songnhue.hydro.application.ApiSourceService;
 import com.songnhue.hydro.application.HydroJobTypes;
@@ -282,7 +283,7 @@ class PollerChangCuoiHttpTest extends IntegrationTestBase {
     @Test
     @DisplayName("⭐⭐ Poll → số đo rơi ĐÚNG điểm đo, quy đổi cm→m, và hydro_latest được cập nhật")
     void motLuotPollGhiSoDoLenDiemDoThat() {
-        String ngay = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        String ngay = LocalDate.now(DateTimeUtils.ZONE_VN).format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         than.set(thanNguon(
                 ngay,
                 "10:20",
@@ -343,7 +344,7 @@ class PollerChangCuoiHttpTest extends IntegrationTestBase {
     @Test
     @DisplayName("⛔ Poll lại CÙNG mốc ⇒ 0 dòng mới — chống trùng ở tầng CSDL, ⛔ không ở tầng nhớ")
     void pollLaiCungMocKhongGhiThem() {
-        String ngay = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        String ngay = LocalDate.now(DateTimeUtils.ZONE_VN).format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         than.set(thanNguon(ngay, "11:40", Map.of(F_LIEN_MAC_TL, 161)));
 
         chayMotLuotPoll();
@@ -438,7 +439,7 @@ class PollerChangCuoiHttpTest extends IntegrationTestBase {
     @Test
     @DisplayName("⭐⭐ T43.10 — `-999` vào bảng dưới cờ NGHI_NGO, còn `-50` là mực nước THẬT và ở lại HOP_LE")
     void maBaoLoiCuaThietBiKhongThanhMotMucNuoc() {
-        String ngay = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        String ngay = LocalDate.now(DateTimeUtils.ZONE_VN).format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         than.set(thanNguon(ngay, "09:10", Map.of(F_LIEN_MAC_TL, -999, F_HA_DONG_TL, -50, F_BA_THA_MN, 154)));
 
         chayMotLuotPoll();
@@ -493,6 +494,27 @@ class PollerChangCuoiHttpTest extends IntegrationTestBase {
      * {@code DateTimeUtils.ZONE_VN} rồi đổi sang {@code Instant}. Chép lại phép đổi ấy ở đây là
      * dựng một bản sao thứ hai của cùng một luật — và ngày nó lệch, bài kiểm sẽ <b>đồng ý</b> với
      * bản sao của chính nó chứ ⛔ không với mã thật (luật 14).
+     *
+     * <h2>⛔⛔ Vì sao mốc của đồ gá phải dựng bằng {@code LocalDate.now(ZONE_VN)} — T83.1</h2>
+     *
+     * Vị từ dưới đây ghép <b>hai đồng hồ</b>: mốc do <b>JVM</b> dựng, còn cửa sổ
+     * {@code now() - interval '1 day'} do <b>CSDL</b> tính. Bản trước dùng {@code LocalDate.now()}
+     * TRẦN — tức ngày theo múi giờ của <b>máy chạy test</b>.
+     *
+     * <p>Runner chạy <b>UTC</b>, nên {@code ngay} = ngày UTC; đồ gá ghi một bản ghi lúc
+     * {@code ngay} 03:30 <b>giờ VN</b> = {@code ngay-1} <b>20:30 UTC</b>. Hàng ấy chỉ còn nằm trong
+     * cửa sổ 24 giờ khi {@code now() < ngay 20:30 UTC} ⇒ <b>mọi lượt CI chạy từ 20:30 UTC tới nửa
+     * đêm (VN 03:30–07:00) đều ĐỎ</b>. Đây ⛔ phải một bài chập chờn — nó là một <b>khung giờ chết
+     * lặp mỗi ngày</b>, và nó đã làm đỏ PR #198/#199/#200 (chạy 20:26 UTC) trong khi #195→#197 —
+     * <b>cùng một commit nền</b> — xanh vì chạy lúc 19:04 UTC.
+     *
+     * <p>⭐ Dựng mốc theo {@code ZONE_VN} thì {@code ngay} 03:30 VN luôn cách "bây giờ" nhiều nhất
+     * ~20,5 giờ (và sớm nhất là vài phút ở tương lai) ⇒ <b>luôn</b> nằm trong cửa sổ, bất kể JVM
+     * đặt múi giờ nào. ⛔ Cách sửa rẻ hơn — nới thành {@code interval '2 day'} — là tự tay tháo bộ
+     * canh: cửa sổ ấy có mặt để ⛔ khớp nhầm dòng sót của lượt chạy trước (§11.17 · T58.6).
+     *
+     * <p>Bánh cóc đi kèm: {@code backend/pom.xml} nay ghim {@code <TZ>UTC</TZ>} cho surefire, để
+     * {@code make ci-local} chạy trong ĐÚNG điều kiện runner (conventions.md §1.5-d).
      */
     private Map<String, Object> doc(String maApi, String gioVn) {
         return jdbc.queryForMap(
@@ -536,7 +558,7 @@ class PollerChangCuoiHttpTest extends IntegrationTestBase {
     @Test
     @DisplayName("⭐⭐ T43.12 — `max_retry`=2 cứu được một cú chớp mạng; `max_retry`=0 thì ⛔ không")
     void soLanThuLaiThatSuDieuKhienVongGoi() {
-        String ngay = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        String ngay = LocalDate.now(DateTimeUtils.ZONE_VN).format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         // ⛔⛔ T47.12 — TRƯỚC bản này, hai dòng khôi phục nằm ở mã THƯỜNG sau SÁU khẳng định.
         //    Một khẳng định đỏ ⇒ `max_retry` kẹt ở 2 hoặc 0 và `conHong503` kẹt khác 0, rò sang
         //    MỌI lớp chạy sau — và surefire xếp lớp theo hệ tệp (macOS ngược Linux), nên hậu quả
@@ -650,7 +672,7 @@ class PollerChangCuoiHttpTest extends IntegrationTestBase {
                 .as("⛔ ⛔ Không vế nào được TRÙNG giá trị dự phòng — trùng là bài mất vế phân biệt")
                 .doesNotContain(duPhong);
 
-        String ngay = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        String ngay = LocalDate.now(DateTimeUtils.ZONE_VN).format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         try {
             // ── Lượt A: khoá chung = 1, nguồn hỏng 4 lượt ⇒ hết lượt thử trước khi nguồn tỉnh ───
             settings.update(KHOA_THU_LAI, "1");
@@ -746,7 +768,7 @@ class PollerChangCuoiHttpTest extends IntegrationTestBase {
                         + "và hai trạng thái lại ⛔ phân biệt được")
                 .isGreaterThan(TREO_GIAY);
 
-        String ngay = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        String ngay = LocalDate.now(DateTimeUtils.ZONE_VN).format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         try {
             settings.update(KHOA_THU_LAI, "0");
             than.set(thanNguon(ngay, "03:10", Map.of(F_BA_THA_MN, 200)));
@@ -869,7 +891,9 @@ class PollerChangCuoiHttpTest extends IntegrationTestBase {
     void mayChuGiaThatSuDuocGoi() {
         int truoc = soLuotGoi.get();
         than.set(thanNguon(
-                LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")), "12:00", Map.of(F_HA_DONG_TL, 100)));
+                LocalDate.now(DateTimeUtils.ZONE_VN).format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                "12:00",
+                Map.of(F_HA_DONG_TL, 100)));
 
         chayMotLuotPoll();
 

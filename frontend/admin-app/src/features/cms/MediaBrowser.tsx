@@ -315,7 +315,17 @@ export function MediaBrowser({
                           color: token.colorTextTertiary,
                         }}
                       >
-                        {file.contentType.split('/').pop()}
+                        {/* ⚠ Ô này ⛔ trống — nó vốn đã hiện đuôi MIME ("mp4", "pdf"). Thêm dấu
+                            phát chỉ để phân biệt VIDEO với TÀI LIỆU trong một lưới hỗn hợp: hai
+                            chữ "mp4" và "pdf" trên hai ô xám giống hệt nhau thì người dùng phải
+                            đọc mới biết cái nào phát được.
+                            ⛔ KHÔNG dựng `<video>` trong lưới: đó là N lượt tải cho một màn hình
+                               duyệt, mà trần video là 120MB. */}
+                        {file.contentType.startsWith('video/') ? (
+                          <span>▶ {file.contentType.split('/').pop()}</span>
+                        ) : (
+                          file.contentType.split('/').pop()
+                        )}
                       </div>
                     )}
                     <Typography.Text

@@ -13,6 +13,7 @@ import {
   OrderedListOutlined,
   PaperClipOutlined,
   PlayCircleOutlined,
+  VideoCameraOutlined,
   RedoOutlined,
   StrikethroughOutlined,
   TableOutlined,
@@ -116,6 +117,20 @@ export interface RichTextEditorProps {
    * `null` = người dùng đóng hộp thoại.
    */
   onPickDocument?: () => Promise<{ publicId: string; text: string } | null>;
+  /**
+   * Mở hộp chọn **video** của thư viện media — T84.16.
+   *
+   * ⚠ Khác `onPickDocument` ở một chỗ đáng ghi ra: video **⛔ phải** nối vào `documents[]` của bài.
+   * Video nằm ở kho `MEDIA` (`owner_type = 'MEDIA_FOLDER'`), loại **CÓ** trong `LOAI_TEP_CONG_KHAI`
+   * của `PublicPortalService`, nên `/api/v1/public/videos/{id}` phục vụ được ⛔ cần bản chụp phiên
+   * bản. Tài liệu thì ngược lại — nó ở kho `TAI_LIEU`, cố ý nằm ngoài danh sách ấy.
+   *
+   * ⛔ Đừng "dọn dẹp cho nhất quán": nối video vào `documents[]` là bày nó ra khối *Tài liệu đính
+   * kèm* ở cuối bài, nơi người đọc chờ thấy văn bản.
+   *
+   * `null` = người dùng đóng hộp thoại.
+   */
+  onPickVideo?: () => Promise<{ publicId: string } | null>;
   /** Số ảnh đang tải dở — nơi gọi dùng để khoá nút Lưu. Xem `FigureImage.TransientAttrs`. */
   onPendingUploadsChange?: (count: number) => void;
   /**
@@ -163,6 +178,7 @@ export function RichTextEditor({
   onPickImage,
   onUploadImage,
   onPickDocument,
+  onPickVideo,
   onPendingUploadsChange,
   onNormalized,
   disabled = false,
@@ -494,6 +510,25 @@ export function RichTextEditor({
    * `HtmlSanitizer` bật `preserveRelativeLinks(true)`, nên `href` bắt đầu bằng `/` đi qua nguyên
    * vẹn. Ghi cả tên miền vào đây là khoá cứng địa chỉ của một môi trường vào nội dung bài.
    */
+  /**
+   * Chèn một video đã có trong thư viện.
+   *
+   * ⛔ Lệnh trả `false` khi `publicId` rỗng, và ta BÁO ra thay vì im lặng: một `<video>` ⛔ nguồn là
+   * một ô đen giữa bài trông y hệt lỗi mạng — người đọc sẽ bấm F5 mà ⛔ bao giờ hiện ra gì.
+   */
+  const chenVideoTep = async () => {
+    if (!onPickVideo) {
+      return;
+    }
+    const picked = await onPickVideo();
+    if (!picked) {
+      return;
+    }
+    if (!editor.chain().focus().insertVideoTep(picked.publicId).run()) {
+      message.warning('Không chèn được video — tệp này chưa có mã định danh hợp lệ');
+    }
+  };
+
   const chenTaiLieu = async () => {
     if (!onPickDocument) {
       return;
@@ -729,6 +764,13 @@ export function RichTextEditor({
               icon={<PlayCircleOutlined />}
               onClick={() => setVideoOpen(true)}
             />
+            {onPickVideo && (
+              <ToolbarButton
+                title="Chèn video từ thư viện"
+                icon={<VideoCameraOutlined />}
+                onClick={() => void chenVideoTep()}
+              />
+            )}
             <ToolbarButton
               title={lyDoKhongChenBang ?? 'Chèn bảng — chọn số hàng, số cột trên lưới hoặc nhập số'}
               icon={<TableOutlined />}

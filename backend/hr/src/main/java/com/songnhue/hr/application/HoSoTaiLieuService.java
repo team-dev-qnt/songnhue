@@ -139,6 +139,18 @@ public class HoSoTaiLieuService {
         return attachments.downloadUrl(tepPublicId);
     }
 
+    /**
+     * Đường dẫn <b>xem trước</b> — {@code inline}, T84.6.
+     *
+     * <p>⚠ Cùng chốt chặn {@code thuocHoSo(...)}: một tệp của hồ sơ KHÁC ⛔ đi qua được, kể cả khi
+     * đoán đúng UUID. Đó là bất biến của {@code readForOwner} (T58.9) áp cho đường thứ hai này.
+     */
+    @Transactional(readOnly = true)
+    public String duongDanXemTruoc(UUID hoSoPublicId, UUID tepPublicId) {
+        thuocHoSo(hoSoPublicId, tepPublicId);
+        return attachments.inlineUrl(tepPublicId);
+    }
+
     @Transactional
     public void xoa(UUID hoSoPublicId, UUID tepPublicId) {
         thuocHoSo(hoSoPublicId, tepPublicId);

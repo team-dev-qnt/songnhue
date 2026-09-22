@@ -140,6 +140,38 @@ bậc** ⇒ nó tố cáo một hàng hoàn toàn đúng (luật 2 — *canh c�
 vá xong, nó bắt một hàng **sai thật** mà chính tôi vừa viết — ô ghi chú nói *"con số này chỉ có ở
 máy dev nên ⛔ được ghi là đã đo"* trong khi ô Số đo vẫn mang con số ấy.
 
+### 1.5-d. Bộ kiểm chạy ở **UTC** — ghim, đừng để mặc định
+
+Runner GitHub chạy **UTC**; máy dev đặt **`Asia/Ho_Chi_Minh`**. Một bài kiểm đọc đồng hồ theo múi
+giờ **của máy** vì thế cho hai kết quả khác nhau ở hai nơi, và `make ci-local` **về nguyên tắc
+⛔ không dựng lại được** điều kiện của runner.
+
+⛔⛔ **Đây là biến thể khó nhất của *"xanh ở máy ⛔ phải bằng chứng"*: thứ giấu lỗi chính là việc
+máy dev được cấu hình ĐÚNG** — đúng múi giờ sản phẩm. Hai lần đã trả giá:
+
+| | Lỗi | Vá |
+|---|---|---|
+| 17/09 `T63.18` | `dayjs()` trần ⇒ CI lệch **đúng 7 giờ** | ghim `env: { TZ: 'UTC' }` ở `vite.config.ts` + `vitest.config.mts` |
+| 22/09 `T83.1` | `LocalDate.now()` trần trong đồ gá ⇒ **3 PR dependabot đỏ, 3 PR xanh, cùng một commit** | ghim `<TZ>UTC</TZ>` ở `<pluginManagement>` của `backend/pom.xml` |
+
+⚠ Lần thứ hai xảy ra vì bánh cóc lần đầu **chỉ lắp một nửa** — frontend có ghim, backend ⛔ có, và
+cái xanh của frontend đọc như bảo đảm cho cả hai vế (luật 28).
+
+**Ba luật rút ra:**
+
+1. ⛔ **Ghim `Asia/Ho_Chi_Minh` là làm lớp lỗi ấy VÔ HÌNH TRỞ LẠI.** Ghim đúng múi giờ sản phẩm thì
+   máy dev và runner lại nói hai chuyện khác nhau. Ghim **UTC** — mục tiêu là *máy dev chạy trong
+   điều kiện của runner*, ⛔ phải *trong điều kiện của người dùng cuối*.
+2. **Một mốc thời gian trong đồ gá phải dựng ở CÙNG múi giờ mà khẳng định so sánh.** Lỗi 22/09 là
+   `LocalDate.now()` (múi giờ JVM) ghép với `… AT TIME ZONE 'Asia/Ho_Chi_Minh'` + `now() - interval
+   '1 day'` (đồng hồ **CSDL**): hai đồng hồ, hai múi giờ, và cửa sổ 24 giờ **đóng lại đúng vào giờ
+   trong ngày mà đồ gá dùng** ⇒ một **khung giờ chết** lặp mỗi ngày, ⛔ phải một bài chập chờn.
+3. ⛔ **Nới cửa sổ cho hết đỏ (`interval '2 day'`) là tự tay tháo bộ canh** — cửa sổ ấy tồn tại để
+   ⛔ khớp nhầm dòng sót của lượt chạy trước. Sửa ở **vế dựng mốc**, ⛔ ở vế so sánh (§11.17 · T58.6).
+
+⚠ Ghim bằng `<environmentVariables>` chứ **⛔ phải `<argLine>`**: JaCoCo tiêm agent qua đúng
+`argLine`, ghi đè nó là **tắt cổng bao phủ mà ⛔ một dòng nào báo**.
+
 ### 1.6. Cấu hình & kết nối — bắt buộc qua env
 
 - ⚠⚠⚠ **`${BIEN:?}` chỉ bảo đảm ⛔ RỖNG — nó ⛔ nói gì về ĐỊNH DẠNG lẫn ĐỘ DÀI.** Mọi chỗ giá trị ấy được nhúng vào một tệp cấu hình có **trần** đều là một quả mìn hẹn giờ. Ngày 17/09: `METRICS_BEARER_TOKEN` sinh đúng theo hướng dẫn (`openssl rand -hex 32` ⇒ **64 ký tự**) làm khoá `map` của nginx dài `"Bearer " + 64` = **71 byte**, vượt `map_hash_bucket_size` mặc định **64** ⇒ `[emerg]` ⇒ nginx ⛔ khởi động nổi ⇒ **cả site chết** (§11.27).

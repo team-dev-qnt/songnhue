@@ -99,8 +99,32 @@ add_header X-Content-Type-Options "nosniff" always;
 add_header X-Frame-Options "DENY" always;
 add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
-add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://tile.openstreetmap.org https://*.tile.openstreetmap.org; font-src 'self'; connect-src 'self'; frame-src 'self' https://www.google.com https://www.youtube-nocookie.com https://player.vimeo.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'" always;
+add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://tile.openstreetmap.org https://*.tile.openstreetmap.org; font-src 'self'; connect-src 'self'; media-src 'self' ${MEDIA_ORIGIN}; frame-src 'self' https://www.google.com https://www.youtube-nocookie.com https://player.vimeo.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'" always;
 EOF
+
+# ---------------------------------------------------------------------------
+# Thế ${MEDIA_ORIGIN} vào snippet CSP — T84.13
+# ---------------------------------------------------------------------------
+# ⛔⛔ LUẬT 17. `security-headers.conf` là một `COPY` TĨNH, mà entrypoint của image nginx chỉ
+#    envsubst `/etc/nginx/templates/*.template`. Thiếu bước này thì chuỗi `${MEDIA_ORIGIN}` đi
+#    NGUYÊN VĂN vào header: nginx khởi động bình thường, trang chạy bình thường, và mọi `<video>`
+#    trong khung soạn thảo bị chặn — chuỗi trong Dockerfile nói một đằng, header thật nói một nẻo,
+#    VĨNH VIỄN, ⛔ lệnh nào báo sai. Đúng hình dạng §10.56 (collation) và §10.81 (cron TLS).
+#
+# ⚠ `envsubst` với DANH SÁCH BIẾN tường minh: gọi trần thì nó nuốt luôn `$uri`, `$host`,
+#   `$proxy_add_x_forwarded_for`… của chính nginx và cấu hình vỡ.
+#
+# ⚠ In chỉ thị ĐÃ GIẢI ra stdout: `MEDIA_ORIGIN` rỗng cho ra `media-src 'self' ;` — vô hại nhưng
+#   IM LẶNG, và dòng log này là thứ duy nhất phân biệt *"đã đặt"* với *"quên đặt"* (luật 10).
+COPY <<'EOF' /docker-entrypoint.d/15-csp-media-origin.sh
+#!/bin/sh
+set -eu
+CONF=/etc/nginx/snippets/security-headers.conf
+export MEDIA_ORIGIN="${MEDIA_ORIGIN:-}"
+envsubst '${MEDIA_ORIGIN}' < "$CONF" > "$CONF.tmp" && mv "$CONF.tmp" "$CONF"
+echo "[15-csp-media-origin] media-src đã giải: $(grep -o "media-src[^;]*" "$CONF")"
+EOF
+RUN chmod +x /docker-entrypoint.d/15-csp-media-origin.sh
 
 # SPA: mọi đường dẫn không khớp file tĩnh đều trả index.html, để React Router
 # xử lý; thiếu dòng này thì F5 giữa chừng là 404.

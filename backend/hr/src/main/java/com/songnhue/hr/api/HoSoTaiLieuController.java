@@ -114,6 +114,14 @@ public class HoSoTaiLieuController {
         return new DownloadUrl(taiLieu.duongDanTai(hoSoId, tepId));
     }
 
+    /** Xem trước trong trang — xem javadoc {@code AttachmentPort#inlineUrl} về vì sao tách đường. */
+    @GetMapping("/employees/{hoSoId}/tai-lieu/{tepId}/inline-url")
+    @Operation(summary = "Đường dẫn xem trước có hạn — chỉ dùng cho PDF và ảnh")
+    @RequirePermission("hr:employee:view")
+    public DownloadUrl duongDanXemTruoc(@PathVariable UUID hoSoId, @PathVariable UUID tepId) {
+        return new DownloadUrl(taiLieu.duongDanXemTruoc(hoSoId, tepId));
+    }
+
     public record DownloadUrl(String url) {}
 
     /**

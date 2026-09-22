@@ -82,6 +82,41 @@ class PresignedTenTepTest {
     }
 
     @Test
+    @DisplayName("⭐⭐ `presignedInlineUrl` ký `inline`, `presignedGetUrl` ký `attachment` — T84.6")
+    void haiDuongKyHaiDispositionKhacNhau() {
+        String xem = storage.presignedInlineUrl(BUCKET, KHOA, Duration.ofMinutes(10), "Quyết định 123.pdf");
+        String tai = storage.presignedGetUrl(BUCKET, KHOA, Duration.ofMinutes(10), "Quyết định 123.pdf");
+
+        String xemGiai = URLDecoder.decode(xem, StandardCharsets.UTF_8);
+        String taiGiai = URLDecoder.decode(tai, StandardCharsets.UTF_8);
+
+        // ⛔⛔ Đây là vế PHÂN BIỆT của cả cơ chế xem trước. Một phản hồi mang
+        //   `Content-Disposition: attachment` ⛔ dựng được trong `<iframe>` — trình duyệt từ chối
+        //   khung và chuyển sang luồng tải về ⇒ nút *Xem trước* cho ra khung TRẮNG ⛔ lý do.
+        assertThat(xemGiai).contains("inline;").doesNotContain("attachment;");
+        assertThat(taiGiai).contains("attachment;").doesNotContain("inline;");
+    }
+
+    @Test
+    @DisplayName("⭐ Đường xem trước vẫn giữ TÊN GỐC — người dùng bấm Lưu trong trình xem PDF")
+    void duongXemTruocVanGiuTen() {
+        String url = storage.presignedInlineUrl(BUCKET, KHOA, Duration.ofMinutes(10), "Quyết định 123.pdf");
+        String daGiai = URLDecoder.decode(url, StandardCharsets.UTF_8);
+
+        assertThat(daGiai).contains("filename*=UTF-8''");
+        assertThat(URLDecoder.decode(daGiai, StandardCharsets.UTF_8)).contains("Quyết định 123.pdf");
+    }
+
+    @Test
+    @DisplayName("⭐ Đường xem trước ⛔ truyền tên ⇒ ⛔ có disposition — cùng luật với đường tải")
+    void duongXemTruocKhongTenThiKhongCoDisposition() {
+        assertThat(storage.presignedInlineUrl(BUCKET, KHOA, Duration.ofMinutes(10), null))
+                .doesNotContain("response-content-disposition");
+        assertThat(storage.presignedInlineUrl(BUCKET, KHOA, Duration.ofMinutes(10), "  "))
+                .doesNotContain("response-content-disposition");
+    }
+
+    @Test
     @DisplayName("Chữ ký vẫn hợp lệ về hình dạng — thêm tham số ⛔ không được làm hỏng URL")
     void chuKyVanConHinhDangDung() {
         String url = storage.presignedGetUrl(BUCKET, KHOA, Duration.ofMinutes(10), "Quyết định.pdf");

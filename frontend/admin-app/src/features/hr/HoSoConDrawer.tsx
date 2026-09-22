@@ -13,11 +13,9 @@ import {
   Button,
   Drawer,
   Empty,
-  Modal,
   Popconfirm,
   Progress,
   Select,
-  Skeleton,
   Space,
   Table,
   Tabs,
@@ -29,6 +27,8 @@ import {
 } from 'antd';
 import { useState } from 'react';
 
+import { XemTruocTep } from '@/components/business/XemTruocTep';
+import { xemTruocDuoc } from '@/components/business/xemTruocDuoc';
 import { ApiClientError, api } from '@/shared/apiClient';
 import { EMPTY_MARK, formatDate, formatDateTime } from '@/shared/format';
 import { luuTep } from '@/shared/luuTep';
@@ -611,7 +611,7 @@ function TabTaiLieu({ publicId, coSua }: { publicId: string; coSua: boolean }) {
                     .docx trong `<iframe>` cho ra một khung trắng hoặc một hộp tải về — người dùng
                     đọc đó là *"hệ thống hỏng"*. Danh sách kiểu do `xemTruocDuoc` quyết, ⛔ không
                     đoán theo đuôi tên tệp: `contentType` là thứ máy chủ thật sự sẽ gửi. */}
-                {xemTruocDuoc(row) && (
+                {xemTruocDuoc(row.kieuNoiDung, row.taiDuoc) && (
                   <Button
                     type="text"
                     size="small"
@@ -643,72 +643,20 @@ function TabTaiLieu({ publicId, coSua }: { publicId: string; coSua: boolean }) {
       />
 
       {xemTruoc ? (
-        <XemTruocTaiLieu duong={duong} tep={xemTruoc} onDong={() => setXemTruoc(null)} />
+        <XemTruocTep
+          tenHienThi={xemTruoc.tenGoc}
+          contentType={xemTruoc.kieuNoiDung ?? null}
+          khoaDem={['hr', 'tai-lieu', 'xem-truoc', xemTruoc.publicId]}
+          // ⛔⛔ `inline-url`, ⛔ `download-url` — T84.6. Đường `download-url` ký
+          //   `Content-Disposition: attachment`, và trình duyệt TỪ CHỐI dựng `<iframe>` cho một
+          //   phản hồi mang disposition ấy. Nút *Xem trước* ở đây trỏ vào nó từ T53.12 (14/09) và
+          //   ⛔ bộ canh nào soi, nên khả năng cao nó chưa từng hiện ra được gì.
+          layUrl={async () =>
+            (await api.get<{ url: string }>(`${duong}/${xemTruoc.publicId}/inline-url`)).url
+          }
+          onDong={() => setXemTruoc(null)}
+        />
       ) : null}
     </Space>
-  );
-}
-
-/** Định dạng trình duyệt dựng được trong một khung — ⛔ đừng đoán theo đuôi tên tệp. */
-function xemTruocDuoc(tep: TaiLieuView): boolean {
-  if (!tep.taiDuoc) {
-    return false;
-  }
-  const loai = (tep.kieuNoiDung ?? '').toLowerCase();
-  return loai === 'application/pdf' || loai.startsWith('image/');
-}
-
-/**
- * Xem trước một tài liệu — CN-04.5 (T53.12).
- *
- * <h2>⛔⛔ Hộp thoại chỉ TỒN TẠI khi đang mở</h2>
- *
- * Nơi gọi dựng nó bằng `xemTruoc ? <…/> : null`, nên đường dẫn có hạn của tệp trước ⛔ không sống
- * sót sang lượt mở sau — cùng cơ chế tường minh đã dùng cho `NopDonModal` (T51.12 · T53.7).
- *
- * <h2>⚠ Đường dẫn có hạn 10 phút, và nó nằm trong DOM</h2>
- *
- * `download-url` trả một presigned URL sống 10 phút. Nó ⛔ không đi kèm phiên đăng nhập, nên ai có
- * chuỗi ấy trong 10 phút đều mở được — đó là đánh đổi đã chốt của cơ chế này (`AttachmentPort`).
- * ⇒ Đóng hộp thoại là tháo luôn `<iframe>`, ⛔ không giữ URL lại trong state của trang.
- */
-function XemTruocTaiLieu({
-  duong,
-  tep,
-  onDong,
-}: {
-  duong: string;
-  tep: TaiLieuView;
-  onDong: () => void;
-}) {
-  const url = useQuery({
-    queryKey: ['hr', 'tai-lieu', 'xem-truoc', tep.publicId],
-    queryFn: () => api.get<{ url: string }>(`${duong}/${tep.publicId}/download-url`),
-    // ⛔ ⛔ Không giữ lại: đường dẫn hết hạn sau 10 phút, và một bản nằm trong đệm của
-    //   react-query sẽ được dùng lại ở lượt mở sau rồi cho ra một khung trắng.
-    gcTime: 0,
-    staleTime: 0,
-  });
-
-  const anh = (tep.kieuNoiDung ?? '').toLowerCase().startsWith('image/');
-
-  return (
-    <Modal open title={tep.tenGoc} onCancel={onDong} footer={null} width={900} destroyOnHidden>
-      {url.isLoading ? (
-        <Skeleton active />
-      ) : url.data ? (
-        anh ? (
-          <img src={url.data.url} alt={tep.tenGoc} style={{ width: '100%' }} />
-        ) : (
-          <iframe
-            src={url.data.url}
-            title={tep.tenGoc}
-            style={{ width: '100%', height: '70vh', border: 0 }}
-          />
-        )
-      ) : (
-        <Empty description="Không mở được tệp để xem trước" />
-      )}
-    </Modal>
   );
 }
