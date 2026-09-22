@@ -58,8 +58,6 @@ const GOC_MA = 'frontend/admin-app/src';
 const CHUA_CO_MAN_HINH: Record<string, string> = {
   bannerImageUrl:
     'GET /banners/{id}/image-url — cặp đọc của replaceBannerImage; hiện BannersTab dựng URL ảnh theo đường khác nên nó chưa có người dùng.',
-  fileUrl:
-    'GET /media/files/{id}/url — cùng lý do với bannerImageUrl: MediaBrowser hiện lấy ảnh qua đường /public/files/ chứ không qua URL ký sẵn.',
   deleteContactNote:
     'DELETE /contacts/notes/{id} — người xử lý ghi được ghi chú nội bộ vào một liên hệ nhưng KHÔNG xoá được ghi chú gõ nhầm.',
   pendingFeedbackCount:

@@ -364,6 +364,16 @@ export const cmsApi = {
     return api.get<{ url: string }>(`${BASE}/media/files/${publicId}/url`);
   },
 
+  /**
+   * Đường dẫn **xem trước trong trang** — T84.7.
+   *
+   * ⛔⛔ KHÔNG dùng `fileUrl` cho `<iframe>`: nó ký `Content-Disposition: attachment`, và trình
+   * duyệt **từ chối dựng khung** cho một phản hồi mang disposition ấy ⇒ khung trắng ⛔ lý do.
+   */
+  fileInlineUrl(publicId: string): Promise<{ url: string }> {
+    return api.get<{ url: string }>(`${BASE}/media/files/${publicId}/inline-url`);
+  },
+
   fileUsages(publicId: string): Promise<string[]> {
     return api.get<string[]>(`${BASE}/media/files/${publicId}/usages`);
   },

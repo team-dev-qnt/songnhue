@@ -188,6 +188,34 @@ public class AttachmentService implements AttachmentPort {
     }
 
     /**
+     * Đường dẫn có hạn để <b>XEM TRƯỚC trong trang</b> — {@code inline}, T84.6.
+     *
+     * <p>Cùng ba chốt chặn với {@link #downloadUrl} (tồn tại · {@code READY} · chưa xoá); khác
+     * đúng một thứ: chữ ký mang {@code inline} thay vì {@code attachment}. ⛔ Gộp làm một tham số
+     * {@code boolean} ở {@code downloadUrl}: hai nơi gọi hai ý định khác nhau, và một cờ
+     * {@code true/false} ở chỗ gọi ⛔ đọc ra được ý nào.
+     *
+     * <p>⚠⚠ <b>Nơi gọi PHẢI tự giới hạn loại tệp.</b> {@code inline} để trình duyệt <b>dựng</b> nội
+     * dung, nên một tệp HTML mang tên {@code .pdf} sẽ chạy script **cùng gốc** với trang quản trị.
+     * Chốt chặn thật là {@code contentType} (do magic bytes quyết ở {@code FileValidator}) + danh
+     * sách cho phép ở FE ({@code xemTruocDuoc}: chỉ PDF và ảnh).
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public String inlineUrl(UUID publicId) {
+        Attachment attachment = require(publicId);
+        if (!attachment.isDownloadable()) {
+            throw new BusinessRuleException(
+                    ErrorCode.SYS_0009, attachment.getStatus().name());
+        }
+        return storage.presignedInlineUrl(
+                attachment.getStorageBucket(),
+                attachment.getStorageKey(),
+                DOWNLOAD_URL_TTL,
+                attachment.getOriginalName());
+    }
+
+    /**
      * Đường dẫn tải có hạn.
      *
      * <p>Từ chối tệp chưa {@code READY}: đó là tệp còn đang chờ quét hoặc đã bị cách ly.

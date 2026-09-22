@@ -29,6 +29,17 @@ public interface AttachmentPort {
      */
     String downloadUrl(UUID publicId);
 
+    /**
+     * Đường dẫn có hạn để <b>hiện trong trang</b> ({@code inline}) — T84.6.
+     *
+     * <p>⛔⛔ {@link #downloadUrl} ký {@code attachment; filename=…}, và một phản hồi mang disposition
+     * ấy <b>⛔ dựng được trong {@code <iframe>}</b>: trình duyệt từ chối khung và chuyển sang luồng
+     * tải về. Mọi nút <i>"Xem trước"</i> trỏ vào nó cho ra một khung trắng ⛔ lý do.
+     *
+     * <p>⚠ Nơi gọi phải tự giới hạn loại tệp — xem javadoc {@code AttachmentService#inlineUrl}.
+     */
+    String inlineUrl(UUID publicId);
+
     Optional<AttachmentRef> findRef(UUID publicId);
 
     /**

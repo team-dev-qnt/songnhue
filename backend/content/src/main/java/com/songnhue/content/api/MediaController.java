@@ -168,6 +168,20 @@ public class MediaController {
         return new DownloadUrl(media.downloadUrl(publicId));
     }
 
+    /**
+     * Đường dẫn để <b>xem trước trong trang</b> — T84.7.
+     *
+     * <p>⛔ Tách khỏi {@code /url} chứ ⛔ thêm một tham số truy vấn: hai đường là hai ý định, và một
+     * cờ {@code ?inline=true} ở chỗ gọi ⛔ đọc ra được ý nào. Xem javadoc {@code AttachmentPort#inlineUrl}
+     * về vì sao đường {@code /url} ⛔ dùng cho {@code <iframe>} được.
+     */
+    @GetMapping("/files/{publicId}/inline-url")
+    @Operation(summary = "Đường dẫn xem trước (hạn ngắn) — chỉ dùng cho PDF và ảnh")
+    @RequirePermission("cms:media:manage")
+    public DownloadUrl inlineUrl(@PathVariable UUID publicId) {
+        return new DownloadUrl(media.inlineUrl(publicId));
+    }
+
     public record DownloadUrl(String url) {}
 
     /**
