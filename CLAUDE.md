@@ -703,6 +703,17 @@ mới thấy.
 dưới `TZ=UTC`** — tức ⛔ bài nào đang xanh **nhờ** máy dev đặt `Asia/Ho_Chi_Minh`. Ghim ⛔ tốn một
 bài nào và bịt hẳn lớp lỗi *"đọc đồng hồ theo múi giờ của máy"* ở vế backend (vế frontend đã ghim
 từ T63.18 — bánh cóc trước nay lắp **một nửa**, conventions.md §1.5-d).
+⭐ **Cùng nhánh, 22/09: gộp trọn sáu PR Dependabot `#195`→`#200` vào #201** (3 backend —
+swagger-ui `5.32.15` · **jacoco `0.8.15`** · jsoup `1.23.2`; 3 frontend — `@vitejs/plugin-react`
+`6.1.1` · `eslint-plugin-react-refresh` `0.5.7` · prettier `3.9.8`). Đo trước khi chạm theo đúng
+`T63.15`: ⛔ gói workspace nội bộ (ba `"link": true` còn nguyên) · ⛔ major bump · ⛔ tên nào trong
+`deploy/vong-doi-phien-ban.tsv`. ⛔⛔ **Lượt nâng JaCoCo bắt phải dọn `target` trước khi đo** — 6 tệp
+`jacoco*.exec` do **0.8.13** sinh đang nằm trên đĩa sẽ được **0.8.15** đọc; và phép đo đúng là
+*cổng bao phủ có CHẠY ⛔* chứ ⛔ phải *build có xanh ⛔* (`T68.31`): `check (jacoco-domain-gate)`
+chạy đủ **7/7** module, **0** `Rule violated`, hai dòng `Skipping` duy nhất ở **pom cha** (⛔ có mã
+nguồn — đúng). ⇒ Số **TRÙNG KHÍT** mốc trước khi gộp ở cả hai thứ tự lớp: BE **2246** · FE **645** +
+**460** · 0 đỏ · `npm ci` dựng lại được · `prettier --check` thoát 0 · `npm audit --omit=dev` 0 lỗ hổng
+⇒ sáu lượt bump **⛔ đổi một hành vi nào**.
 
 ⭐⭐ **Đo lại 14/09/2026 sau WS-60 (đối chiếu DoD Phase 3 · gỡ chốt CI) — `make ci-local` thoát 0**,
 lượt chạy là tiến trình maven DUY NHẤT (⚠ số ở **MÁY**): **1811 testcase BE** (core 283 · content 54 ·
