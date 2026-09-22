@@ -175,6 +175,10 @@ public class MediaService {
 
     /** Đường dẫn tải về — presigned URL, hạn ngắn. */
     @Transactional(readOnly = true)
+    public String inlineUrl(UUID attachmentPublicId) {
+        return attachments.inlineUrl(attachmentPublicId);
+    }
+
     public String downloadUrl(UUID attachmentPublicId) {
         return attachments.downloadUrl(attachmentPublicId);
     }

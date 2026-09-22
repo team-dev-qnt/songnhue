@@ -29,6 +29,31 @@ public interface AttachmentPort {
      */
     String downloadUrl(UUID publicId);
 
+    /**
+     * Đường dẫn có hạn để <b>hiện trong trang</b> ({@code inline}) — T84.6.
+     *
+     * <p>⛔⛔ {@link #downloadUrl} ký {@code attachment; filename=…}, và một phản hồi mang disposition
+     * ấy <b>⛔ dựng được trong {@code <iframe>}</b>: trình duyệt từ chối khung và chuyển sang luồng
+     * tải về. Mọi nút <i>"Xem trước"</i> trỏ vào nó cho ra một khung trắng ⛔ lý do.
+     *
+     * <p>⚠ Nơi gọi phải tự giới hạn loại tệp — xem javadoc {@code AttachmentService#inlineUrl}.
+     */
+    String inlineUrl(UUID publicId);
+
+    /**
+     * URL có hạn để trình duyệt lấy <b>THẲNG từ kho</b> một tệp công khai — T84.11 (video).
+     *
+     * <p>⛔⛔ Khác {@link #readForPublic} ở chỗ quyết định: đường kia phát byte <b>qua ứng dụng</b>,
+     * ⛔ hỗ trợ HTTP Range (đo: 0 kết quả toàn backend), nên người xem ⛔ tua được và mỗi lượt xem
+     * giữ một luồng Tomcat suốt thời gian PHÁT. MinIO có sẵn cả hai.
+     *
+     * <p>Ba phép lọc y hệt {@code readForPublic}; rỗng cho mọi lý do từ chối.
+     *
+     * @param ttl hạn của URL. ⚠ Phải dài hơn thời lượng xem: một cú <b>tua</b> gọi lại ĐÚNG URL cũ,
+     *     nên TTL 10 phút kiểu {@link #downloadUrl} sẽ chết giữa video
+     */
+    Optional<String> publicStreamUrl(UUID publicId, List<String> allowedOwnerTypes, java.time.Duration ttl);
+
     Optional<AttachmentRef> findRef(UUID publicId);
 
     /**

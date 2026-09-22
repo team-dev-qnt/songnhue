@@ -79,6 +79,18 @@ public class PublicPortalService {
      */
     public static final List<String> LOAI_TEP_CONG_KHAI = List.of("MEDIA_FOLDER", "BANNER", "SITE_CONFIG", "MENU_ITEM");
 
+    /**
+     * Hạn của URL phát video — T84.12.
+     *
+     * <p>⚠⚠ <b>Một giờ, ⛔ phải 10 phút như {@code downloadUrl}</b>, và lý do ⛔ phải "cho chắc":
+     * một cú <b>TUA</b> sau khi phát gọi lại <b>ĐÚNG URL presigned cũ</b>. TTL ngắn hơn thời lượng
+     * xem thì video chết giữa chừng — người dùng thấy nó dừng và ⛔ có gì nói vì sao.
+     *
+     * <p>Một giờ phủ mọi phóng sự thực tế của Công ty, mà vẫn xa mức <i>"một đường dẫn chuyền tay
+     * được"</i> — đánh đổi của presigned đã chốt ở {@code ObjectStorage} (§4.3).
+     */
+    private static final java.time.Duration TTL_VIDEO = java.time.Duration.ofHours(1);
+
     /** Trần số bài mỗi trang. Người gọi xin 10.000 thì đó là một lượt quét, không phải một lượt xem. */
     private static final int TRAN_MOI_TRANG = 50;
 
@@ -90,7 +102,12 @@ public class PublicPortalService {
     private final AttachmentPort attachments;
     private final ViewCountService viewCounts;
     private final MediaFolderRepository mediaFolders;
+    private final com.songnhue.core.spi.UserDirectoryPort userDirectory;
 
+    // CHECKSTYLE.OFF: ParameterNumber - đây là danh sách PHỤ THUỘC của một service, ⛔ phải danh sách
+    //   tham số của một phép tính; gói chúng vào một record là dựng một lớp chỉ tồn tại để lách một
+    //   con số. Trần 8 sinh ra cho chữ ký hàm nghiệp vụ. ⚠ Tách lớp này thì được, nhưng nó là service
+    //   đọc-nhiều-nhất của cổng công khai và một lượt tách giữa lát tính năng là đổi rủi ro lấy thẩm mỹ.
     public PublicPortalService(
             ArticleRepository articles,
             CategoryRepository categories,
@@ -99,7 +116,8 @@ public class PublicPortalService {
             SiteConfigService siteConfig,
             AttachmentPort attachments,
             ViewCountService viewCounts,
-            MediaFolderRepository mediaFolders) {
+            MediaFolderRepository mediaFolders,
+            com.songnhue.core.spi.UserDirectoryPort userDirectory) {
         this.articles = articles;
         this.categories = categories;
         this.menus = menus;
@@ -108,7 +126,9 @@ public class PublicPortalService {
         this.attachments = attachments;
         this.viewCounts = viewCounts;
         this.mediaFolders = mediaFolders;
+        this.userDirectory = userDirectory;
     }
+    // CHECKSTYLE.ON: ParameterNumber
 
     // ---- Khung cổng ----------------------------------------------------------
 
@@ -377,6 +397,15 @@ public class PublicPortalService {
                 article.getPublishedAt(),
                 article.getViewCount(),
                 article.getSource(),
+                // ⚠ Tác giả đi cùng đường `source` ngay trên (từ `article`), ⛔ đường `docNumber` bên
+                //   dưới (từ `version`). Nó là thuộc tính của BÀI chứ ⛔ phải một mẩu NỘI DUNG được
+                //   duyệt — và `article_versions` ⛔ chụp cột ấy, nên đọc từ `version` là bất khả.
+                article.getAuthorUserId() == null
+                        ? null
+                        : userDirectory
+                                .timTheoId(article.getAuthorUserId())
+                                .map(com.songnhue.core.spi.UserRef::fullName)
+                                .orElse(null),
                 com.songnhue.content.domain.ArticleState.LUU_TRU.equals(article.getStatus()),
                 // ⚠ Lấy từ BẢN ĐÃ DUYỆT (`version`), không từ `article`: hai cột này là nội dung,
                 //   nên chúng đi cùng đường với title/summary/content. Đọc từ `article` là để bản
@@ -425,6 +454,31 @@ public class PublicPortalService {
                         .orElse(null))
                 .filter(java.util.Objects::nonNull)
                 .toList();
+    }
+
+    /**
+     * URL phát một video của thư viện media — T84.12, <b>302 sang MinIO</b>.
+     *
+     * <h2>⛔⛔ CHỈ {@code video/*}, và đó là một chốt chặn ⛔ phải một phép lọc cho gọn</h2>
+     *
+     * {@link #LOAI_TEP_CONG_KHAI} có {@code MEDIA_FOLDER}, tức mọi ẢNH của thư viện cũng lọt qua ba
+     * phép lọc ấy. Nới hàm này ra cho mọi loại là biến nó thành một <b>vòi đúc presigned URL</b> cho
+     * toàn bộ tệp công khai — và lập luận §10.1 (<i>ảnh ⛔ dùng presigned vì trang sống lâu hơn
+     * URL</i>) bị lật ngược <b>trong im lặng</b>, không ai sửa một dòng nào ở chỗ ảnh.
+     *
+     * <p>⚠ Tra {@code findRef} trước để biết {@code contentType}, rồi mới xin URL: hai lượt đọc,
+     * nhưng lượt đầu là một phép tra theo chỉ mục và lượt sau là một phép HMAC tại chỗ — ⛔ lượt
+     * nào chạm tới byte của tệp.
+     *
+     * @return rỗng cho <b>mọi</b> lý do từ chối (⛔ tồn tại · sai loại chủ sở hữu · chưa quét xong ·
+     *     ⛔ phải video) — phân biệt được là nói cho người hỏi biết UUID nào có thật trong kho
+     */
+    @Transactional(readOnly = true)
+    public Optional<String> videoUrl(UUID publicId) {
+        return attachments
+                .findRef(publicId)
+                .filter(ref -> ref.contentType() != null && ref.contentType().startsWith("video/"))
+                .flatMap(ref -> attachments.publicStreamUrl(publicId, LOAI_TEP_CONG_KHAI, TTL_VIDEO));
     }
 
     /**

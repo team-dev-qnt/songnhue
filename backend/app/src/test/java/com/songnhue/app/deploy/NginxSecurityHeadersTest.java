@@ -127,6 +127,37 @@ class NginxSecurityHeadersTest {
      * hộ (bài học {@code NotificationEnumParityTest}, WS-12).
      */
     @Test
+    @DisplayName("⭐⭐ CSP admin khai `media-src` — khung soạn thảo dựng `<video>` THẬT (T84.13)")
+    void cspAdminKhaiMediaSrc() throws IOException {
+        String csp = dongCsp(docSnippet());
+
+        // ⚠ `VideoTep` cố ý ⛔ có `addNodeView`, nên TipTap dựng thẳng `renderHTML` vào DOM soạn
+        //   thảo — người soạn thấy một `<video>` THẬT, phát được. Tức khung quản trị tải video y
+        //   như cổng, và thiếu chỉ thị này thì nó bị chặn: video chèn xong hiện một ô đen, lỗi chỉ
+        //   nằm trong console trình duyệt (T46.7 · §10.61).
+        String mediaSrc = chiThi(csp, "media-src");
+        assertThat(mediaSrc).contains("'self'");
+        assertThat(mediaSrc)
+                .as("phải mang biến gốc kho — video phát qua 302 sang MinIO, ⛔ qua cùng gốc")
+                .contains("${MEDIA_ORIGIN}");
+    }
+
+    @Test
+    @DisplayName("⛔⛔ Snippet CSP là COPY TĨNH ⇒ PHẢI có bước envsubst ở entrypoint (luật 17)")
+    void snippetTinhPhaiDuocTheBien() throws IOException {
+        String df = Files.readString(timTuGocKho("deploy/docker/admin-app.Dockerfile"));
+
+        // ⛔⛔ Entrypoint của image nginx chỉ envsubst `/etc/nginx/templates/*.template`. Snippet
+        //    này là một `COPY <<EOF` TĨNH, nên thiếu script thì chuỗi `${MEDIA_ORIGIN}` đi NGUYÊN
+        //    VĂN vào header: nginx lên bình thường, trang chạy bình thường, và mọi `<video>` bị
+        //    chặn — VĨNH VIỄN, ⛔ lệnh nào báo sai. Cùng hình dạng §10.56 và §10.81.
+        assertThat(df).contains("/docker-entrypoint.d/15-csp-media-origin.sh");
+        assertThat(df)
+                .as("`envsubst` phải có DANH SÁCH BIẾN — gọi trần thì nó nuốt luôn $uri/$host của nginx")
+                .contains("envsubst '${MEDIA_ORIGIN}'");
+    }
+
+    @Test
     @DisplayName("⚠⚠ Host tile bản đồ trong settings phải nằm trong img-src của CSP")
     void hostTileBanDoNamTrongCsp() throws IOException {
         String imgSrc = chiThi(dongCsp(docSnippet()), "img-src");

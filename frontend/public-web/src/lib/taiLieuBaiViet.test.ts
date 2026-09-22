@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { boChuThich } from './boChuThich';
-import { articleDocUrl, constructionDocUrl, fileUrl } from './routes';
+import { articleDocUrl, articleDocXemUrl, constructionDocUrl, fileUrl } from './routes';
 
 /**
  * Tài liệu đính kèm bài viết trên cổng — WS-40.
@@ -63,6 +63,25 @@ describe('articleDocUrl — đường HẸP, cố ý khác đường tệp của
     // Tham số truy vấn trong đường dẫn ảnh/tệp là thứ làm hỏng bộ đệm ISR và presigned; ràng
     // buộc này đã có cho `fileUrl` từ trước, giữ nguyên cho hàm mới.
     expect(articleDocUrl('7c9e6679-7425-40de-944b-e07fc1f90ae7')).not.toContain('?');
+  });
+
+  it('⭐⭐ `articleDocXemUrl` là đường THỨ HAI, khác hẳn đường tải — T84.9', () => {
+    const id = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
+    // ⛔⛔ Hai đường trùng nhau nghĩa là nút Xem trước trỏ vào một phản hồi mang
+    //    `Content-Disposition: attachment` ⇒ trình duyệt TẢI VỀ thay vì hiện — đúng khuyết tật
+    //    T84.6 đã đo ở phía quản trị, chỉ đổi chỗ.
+    expect(articleDocXemUrl(id)).not.toBe(articleDocUrl(id));
+    expect(articleDocXemUrl(id)).toBe(`/api/v1/public/article-documents/${id}/xem`);
+  });
+
+  it('⛔ đường xem trước cũng ⛔ có dấu `?` — cùng ràng buộc', () => {
+    expect(articleDocXemUrl('7c9e6679-7425-40de-944b-e07fc1f90ae7')).not.toContain('?');
+  });
+
+  it('⛔ `null`/rỗng ⇒ `null`, ⛔ một chuỗi dở dang trỏ vào hư không', () => {
+    expect(articleDocXemUrl(null)).toBeNull();
+    expect(articleDocXemUrl(undefined)).toBeNull();
+    expect(articleDocXemUrl('')).toBeNull();
   });
 });
 

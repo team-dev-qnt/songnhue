@@ -70,6 +70,16 @@ export const EDITOR_TAGS = [
   'br',
   'span',
   'iframe',
+  // ⚠⚠ Video TẢI LÊN — T84.15. Khác `iframe` (video NHÚNG của bên thứ ba) ở chỗ quyết định:
+  // `<video>` trỏ vào endpoint của chính hệ này, nên `HtmlSanitizer` lọc nó theo TIỀN TỐ ĐƯỜNG DẪN
+  // (`/api/v1/public/videos/`) chứ ⛔ theo tên miền.
+  //
+  // ⛔ `source` CỐ Ý ⛔ có mặt ở đây, dù Safelist cho nó qua: trình soạn thảo phát `<video src>`
+  //   trực tiếp (một tệp, một MIME) nên `<source>` ⛔ có ĐƯỜNG GHI nào. Khai nó ở đây là buộc
+  //   `EditorVocabularyTest` đòi nó có trong mẫu VÀ `editorRoundTrip` đòi TipTap đọc ngược được —
+  //   hai yêu cầu cho một thẻ ⛔ ai sinh ra. Bất đối xứng y hệt `thead`; vế của nó kiểm ở
+  //   `HtmlSanitizerTest`.
+  'video',
 ] as const;
 
 /**
@@ -108,6 +118,7 @@ export const PORTAL_STYLED_TAGS = [
   'figcaption',
   'img',
   'iframe',
+  'video',
   'hr',
 ] as const;
 
@@ -294,4 +305,8 @@ export const EDITOR_SAMPLE_HTML = [
   '<table><thead><tr><th>Dán từ Word</th></tr></thead><tbody><tr><td>Ô</td></tr></tbody></table>',
   '<hr>',
   '<p><iframe src="https://www.youtube-nocookie.com/embed/abc123" allowfullscreen></iframe></p>',
+  // ⚠ Đường dẫn phải bắt đầu bằng `/api/v1/public/videos/` — `HtmlSanitizer.locVideoTheoDuong` gỡ
+  //   cả thẻ với mọi tiền tố khác, nên một mẫu "gần đúng" làm `EditorVocabularyTest` đỏ với chẩn
+  //   đoán *"thẻ bị clean() gỡ"* thay vì nói ra rằng cái sai nằm ở chính mẫu.
+  '<video class="sn-align-center" src="/api/v1/public/videos/8a7b6c5d-0000-4000-8000-000000000000" controls preload="metadata" playsinline></video>',
 ].join('');

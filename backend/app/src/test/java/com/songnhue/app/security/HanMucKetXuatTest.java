@@ -95,6 +95,12 @@ class HanMucKetXuatTest {
         BAN_KHAI.put(
                 "/api/v1/public/article-documents/9a8b",
                 new String[] {"PUBLIC", "Văn bản đính kèm trên cổng công khai"});
+        BAN_KHAI.put("/api/v1/public/article-documents/9a8b/xem", new String[] {
+            "PUBLIC",
+            "Xem trước PDF ngay trong trình duyệt (T84.8) — cùng xô với đường TẢI ngay trên, "
+                    + "cố ý: đây là một lượt ĐỌC của độc giả, ⛔ phải một lượt kết xuất. Trần 10/giờ "
+                    + "biến nó thành nút bấm-một-lần-rồi-thôi trên một trang tin"
+        });
         BAN_KHAI.put(
                 "/api/v1/public/constructions/documents/9a8b",
                 new String[] {"PUBLIC", "Tài liệu công trình trên cổng công khai"});
