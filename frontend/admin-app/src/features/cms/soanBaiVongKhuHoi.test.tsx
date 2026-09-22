@@ -20,9 +20,15 @@ import { AuthContext, type AuthContextValue } from '@/app/auth/AuthContext';
  * ⛔ Danh sách trường ĐỌC từ `ArticleDtos.SaveRequest`, ⛔ chép tay: backend thêm trường mà biểu mẫu
  * ⛔ gửi thì bài này đỏ ngay.
  *
- * ⚠ Ngoại lệ có tên: `authorPublicId` — `ArticleService.update` chỉ ghi khi KHÁC null (giữ nguyên tác
- * giả khi thân thiếu trường), và `ArticleDetail` ⛔ trả trường ấy ⇒ biểu mẫu ⛔ có gì để gửi lại. Nếu
- * backend đổi sang ghi đè cả khi null thì ngoại lệ này sai — `ngoaiLeTacGiaVanDung` canh chiều ấy.
+ * ⭐⭐ **T84.3 — ⛔ còn ngoại lệ nào.** Bản trước miễn `authorPublicId` với lý do *"`ArticleDetail` ⛔
+ * trả trường ấy ⇒ biểu mẫu ⛔ có gì để gửi lại"*. Câu ấy **đúng vào ngày viết** rồi hết đúng: T84.2 đưa
+ * `authorPublicId` vào `ArticleDetail` và màn hình nay có ô chọn Tác giả. Một ngoại lệ CÓ TÊN sống lâu
+ * hơn lý do của nó là một trường thật đang bị che — nên nó bị gỡ hẳn, và bài
+ * `khongConTruongNaoDuocMien` giữ cho nó ⛔ quay lại.
+ *
+ * ⚠ `ArticleService.update` vẫn chỉ ghi tác giả khi thân yêu cầu mang giá trị KHÁC null — `null` nghĩa
+ * *giữ nguyên tác giả đang có*, đúng cho một client API bỏ trường. Bài `ngoaiLeTacGiaVanDung` canh câu
+ * ấy; nó ⛔ còn là một lời bào chữa cho ngoại lệ, nó là đặc tả của một hành vi.
  */
 
 const GOC_KHO = join(dirname(new URL(import.meta.url).pathname), '../../../../..');
@@ -51,11 +57,17 @@ function truongCuaRecord(ten: string): string[] {
     .filter((t) => /^[a-z]\w*$/.test(t));
 }
 
-const GIU_NGUYEN_KHI_NULL = new Set(['authorPublicId']);
+/**
+ * ⛔ **RỖNG, và phải giữ rỗng.** Mỗi mục thêm vào đây là một trường biểu mẫu thôi được canh — xem
+ * javadoc đầu tệp về ngoại lệ `authorPublicId` đã sống lâu hơn lý do của nó.
+ */
+const GIU_NGUYEN_KHI_NULL = new Set<string>();
 
 /** Bài mang GIÁ TRỊ Ở MỌI Ô — một ô `null` là một trường bài này ⛔ thấy nếu bị đánh rơi. */
 const BAI = {
   publicId: 'bai-1',
+  authorPublicId: '77777777-7777-4777-8777-777777777777',
+  authorName: 'Nguyễn Văn Biên Tập',
   title: 'Thông báo lịch vận hành trạm bơm',
   slug: 'thong-bao-lich-van-hanh',
   summary: 'Tóm tắt đầy đủ để bài kiểm thấy nếu nó biến mất',
@@ -96,9 +108,14 @@ vi.mock('./api', () => ({
     files: (f: string | null) => ['cms', 'files', f] as const,
     versions: (id: string) => ['cms', 'article', id, 'versions'] as const,
     versionContent: (id: string, v: string) => ['cms', 'article', id, 'version', v] as const,
+    articleAuthors: () => ['cms', 'article-authors'] as const,
   },
   cmsApi: {
     getArticle: vi.fn(async () => BAI),
+    // ⚠ Phải chứa ĐÚNG tác giả của `BAI`: một `Select` ⛔ có option khớp value vẫn giữ nguyên giá
+    //   trị biểu mẫu, nhưng hiện ô trống — và khi ấy bài này xanh trong khi màn hình trông như đã
+    //   mất tác giả. Cho option vào thì hai trạng thái ấy ⛔ còn lẫn nhau.
+    articleAuthors: vi.fn(async () => [{ publicId: BAI.authorPublicId, fullName: BAI.authorName }]),
     categories: vi.fn(async () => [{ publicId: 'dm-1', name: 'Tin tức', depth: 0 }]),
     folders: vi.fn(async () => []),
     versions: vi.fn(async () => []),
@@ -174,6 +191,20 @@ describe('Soạn bài — vòng khứ hồi', () => {
     expect(truong).toEqual(
       expect.arrayContaining(['documents', 'categoryPublicIds', 'docIssuedDate']),
     );
+  });
+
+  it('⭐ ⛔ còn trường nào được miễn khỏi phép so — T84.3', () => {
+    expect(
+      [...GIU_NGUYEN_KHI_NULL],
+      'một ngoại lệ CÓ TÊN che đúng một trường thật; thêm vào đây thì phải ghi lý do ở javadoc đầu tệp',
+    ).toEqual([]);
+  });
+
+  it('⭐ tác giả nằm TRONG tập được so — chống việc gỡ ngoại lệ mà quên dữ liệu', () => {
+    // Nếu `BAI` thiếu `authorPublicId` thì vòng so bên dưới sánh `undefined` với `undefined` và
+    // XANH — đúng tình huống bài này sinh ra để bắt (luật 7).
+    expect(truongCuaRecord('SaveRequest')).toContain('authorPublicId');
+    expect(BAI.authorPublicId).toBeTruthy();
   });
 
   it('⛔ ngoại lệ tác giả vẫn đúng: update chỉ ghi tác giả khi khác null', () => {

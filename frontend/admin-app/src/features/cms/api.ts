@@ -5,6 +5,7 @@ import {
   type ArticleDetail,
   type ArticleSaveRequest,
   type ArticleSummary,
+  type AuthorOption,
   type BannerRequest,
   type BannerView,
   type CategoryNode,
@@ -41,6 +42,7 @@ const BASE = '/cms';
 /** Khoá cache — dùng cả khi đọc lẫn khi `invalidateQueries`. */
 export const cmsKeys = {
   articles: (filter?: unknown) => ['cms', 'articles', filter ?? null] as const,
+  articleAuthors: () => ['cms', 'article-authors'] as const,
   article: (publicId: string) => ['cms', 'article', publicId] as const,
   versions: (publicId: string) => ['cms', 'article', publicId, 'versions'] as const,
   versionContent: (publicId: string, versionId: string) =>
@@ -73,6 +75,8 @@ export const cmsKeys = {
 export interface ArticleFilter {
   q?: string;
   status?: string;
+  /** `publicId` của tác giả — backend đã nhận tham số này từ WS-12, giao diện nối ở T84.3. */
+  authorId?: string;
   categoryId?: string;
   from?: string;
   to?: string;
@@ -86,6 +90,16 @@ export const cmsApi = {
 
   searchArticles(filter: ArticleFilter): Promise<PageResult<ArticleSummary>> {
     return api.getPage<ArticleSummary>(`${BASE}/articles`, filter as Record<string, unknown>);
+  },
+
+  /**
+   * Ai được phép đứng tên bài viết.
+   *
+   * ⛔ Không phân trang — đây là một danh sách **tài khoản có quyền soạn bài**, cỡ hàng chục ở
+   * Công ty này, và một ô `Select` phân trang là ô người dùng ⛔ tìm nổi người mình cần.
+   */
+  articleAuthors(): Promise<AuthorOption[]> {
+    return api.get<AuthorOption[]>(`${BASE}/articles/authors`);
   },
 
   // ---- Hộp thư liên hệ ----------------------------------------------------

@@ -192,6 +192,13 @@ export interface ArticleDetail extends ArticleRow {
    * chân bài in cứng "Nguồn: Cổng TTĐT Thủy lợi Sông Nhuệ" cho mọi bài suốt tới 31/08/2026 (T26.63).
    */
   source: string | null;
+  /**
+   * Họ tên người viết bài (T84.4) — **khác** `source`: tác giả là người trong Công ty đứng tên,
+   * nguồn tin là nơi bài được lấy về. Một bài dẫn lại từ báo ngoài có cả hai.
+   *
+   * ⛔ `null` khi tài khoản đã bị xoá mềm ⇒ nơi hiển thị **bỏ hẳn mục**, ⛔ in "Đang cập nhật".
+   */
+  authorName: string | null;
   categories: CategoryRef[];
   /**
    * Tài liệu đính kèm — lấy từ **bản chụp phiên bản đang xuất bản** (WS-40).

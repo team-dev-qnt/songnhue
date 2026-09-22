@@ -29,6 +29,7 @@ import com.songnhue.core.common.exception.ResourceNotFoundException;
 import com.songnhue.core.common.security.RequirePermission;
 import com.songnhue.core.common.util.PageUtils;
 import com.songnhue.core.spi.UserDirectoryPort;
+import com.songnhue.core.spi.UserRef;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -76,9 +77,37 @@ public class ArticleController {
 
         Long author = filter.authorId() == null ? null : requireUser(filter.authorId());
         Pageable pageable = PageUtils.toPageable(page, size, sort, SORTABLE);
-        return articles.search(
-                        filter.q(), filter.status(), author, filter.categoryId(), filter.from(), filter.to(), pageable)
-                .map(ArticleDtos.ArticleSummary::of);
+        Page<Article> trang = articles.search(
+                filter.q(), filter.status(), author, filter.categoryId(), filter.from(), filter.to(), pageable);
+
+        // ⭐ MỘT lượt tra cho cả trang — ⛔ `timTheoId` trong `.map(...)`, cái đó là N+1 đúng nghĩa:
+        //   20 bài trên một trang là 20 câu SELECT, và bộ canh N+1 (T58.18) canh ĐỘ DỐC nên nó sẽ đỏ.
+        java.util.Map<Long, UserRef> tacGia = userDirectory.timTheoIds(trang.getContent().stream()
+                .map(Article::getAuthorUserId)
+                .filter(java.util.Objects::nonNull)
+                .toList());
+
+        return trang.map(a -> ArticleDtos.ArticleSummary.of(a, tacGia.get(a.getAuthorUserId())));
+    }
+
+    /**
+     * Ai được phép đứng tên bài viết — nguồn cho ô chọn <i>Tác giả</i> và bộ lọc ở danh sách.
+     *
+     * <p>⚠ Đường dẫn là một <b>đoạn chữ</b> cạnh {@code /{publicId}} (một {@code UUID}). Spring xếp
+     * đoạn chữ trên đoạn biến nên literal thắng — nhưng đó là <i>"nghe có vẻ đúng"</i> (luật 9), nên
+     * {@code ArticleAuthorHttpTest} <b>gọi thật</b> đường này và đòi 200 + danh sách khác rỗng.
+     *
+     * <p>Gác bằng {@code cms:article:view} chứ ⛔ {@code :create}: người chỉ có quyền xem vẫn phải lọc
+     * được danh sách theo tác giả. ⚠ Chính vì thế {@link UserRef} ⛔ mang {@code username} — VIEWER và
+     * EXECUTIVE đều có mã quyền này.
+     */
+    @GetMapping("/authors")
+    @Operation(summary = "Danh sách tài khoản được phép đứng tên bài viết")
+    @RequirePermission("cms:article:view")
+    public List<ArticleDtos.AuthorOption> authors() {
+        return userDirectory.danhSachTheoQuyen("cms:article:create").stream()
+                .map(u -> new ArticleDtos.AuthorOption(u.publicId(), u.fullName()))
+                .toList();
     }
 
     @GetMapping("/{publicId}")
@@ -183,8 +212,11 @@ public class ArticleController {
      * để quên.
      */
     private ArticleDtos.ArticleDetail chiTiet(Article bai) {
+        UserRef tacGia = bai.getAuthorUserId() == null
+                ? null
+                : userDirectory.timTheoId(bai.getAuthorUserId()).orElse(null);
         return ArticleDtos.ArticleDetail.of(
-                bai, articles.taiLieuCua(bai), articles.allowedActions(bai.getPublicId()), Instant.now());
+                bai, tacGia, articles.taiLieuCua(bai), articles.allowedActions(bai.getPublicId()), Instant.now());
     }
 
     private ArticleDraft toDraft(ArticleDtos.SaveRequest r) {

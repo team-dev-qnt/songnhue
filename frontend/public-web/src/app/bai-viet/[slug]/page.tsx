@@ -111,6 +111,14 @@ export default async function ArticlePage({ params }: PageProps) {
                   <span>📅</span>
                   <span>{formatDate(article.publishedAt)}</span>
                 </time>
+                {/* ⛔ Chỉ vẽ khi CÓ tên. `null` = tài khoản tác giả đã bị xoá mềm; in một dấu gạch
+                    hay "Đang cập nhật" ở đây là bịa một giá trị cho một ô chưa có nguồn (quy tắc 16). */}
+                {article.authorName ? (
+                  <span className="flex items-center gap-1">
+                    <span>✍</span>
+                    <span>{article.authorName}</span>
+                  </span>
+                ) : null}
                 {article.viewCount !== undefined && article.viewCount > 0 ? (
                   <span className="flex items-center gap-1">
                     <span>👁</span>

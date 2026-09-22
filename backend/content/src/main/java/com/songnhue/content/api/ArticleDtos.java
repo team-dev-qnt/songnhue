@@ -15,6 +15,7 @@ import com.songnhue.content.domain.Article;
 import com.songnhue.content.domain.ArticleVersion;
 import com.songnhue.content.domain.Category;
 import com.songnhue.core.spi.AllowedAction;
+import com.songnhue.core.spi.UserRef;
 
 /**
  * DTO của nhóm bài viết.
@@ -55,9 +56,23 @@ public final class ArticleDtos {
             //   ⛔ Không @NotEmpty — bài không có tệp nào là chuyện bình thường.
             @jakarta.validation.Valid List<DocumentLink> documents) {}
 
+    /**
+     * Một lựa chọn trong ô <i>Tác giả</i> — T84.2.
+     *
+     * <p>⛔ Chỉ hai trường, và đó là <b>toàn bộ</b> {@link UserRef} trừ khoá nội bộ. Thêm bất kỳ thứ
+     * gì khác vào đây là thêm nó vào một phản hồi mà VIEWER và EXECUTIVE đọc được — xem javadoc
+     * {@code UserRef} về vì sao {@code username} ⛔ có mặt.
+     */
+    public record AuthorOption(UUID publicId, String fullName) {}
+
     /** Yêu cầu chuyển trạng thái. {@code reason} bắt buộc khi trả bài về — kiểm ở controller. */
     public record TransitionRequest(@NotBlank String action, @Size(max = 2000) String reason) {}
 
+    /**
+     * @param authorName họ tên tác giả — {@code null} khi tài khoản ấy đã bị xoá mềm. ⛔ Đó ⛔ phải
+     *     một lỗi: bài viết của người đã nghỉ vẫn là bài viết hợp lệ, nó chỉ ⛔ còn tên để in. Giao
+     *     diện phải để trống ô ấy chứ ⛔ bịa một chuỗi thay thế (quy tắc 16)
+     */
     public record ArticleSummary(
             UUID publicId,
             String title,
@@ -65,9 +80,10 @@ public final class ArticleDtos {
             String status,
             Instant publishedAt,
             Long viewCount,
+            String authorName,
             List<String> categoryNames) {
 
-        public static ArticleSummary of(Article a) {
+        public static ArticleSummary of(Article a, UserRef tacGia) {
             return new ArticleSummary(
                     a.getPublicId(),
                     a.getTitle(),
@@ -75,6 +91,7 @@ public final class ArticleDtos {
                     a.getStatus(),
                     a.getPublishedAt(),
                     a.getViewCount(),
+                    tacGia == null ? null : tacGia.fullName(),
                     a.getCategories().stream().map(Category::getName).toList());
         }
     }
@@ -86,6 +103,10 @@ public final class ArticleDtos {
      *     (đã duyệt · trạng thái cho phép · đã tới giờ) mà để FE tự ghép thì sớm muộn màn hình quản
      *     trị và cổng công khai sẽ trả lời khác nhau về cùng một bài
      * @param allowedActions nút được phép bấm, đã lọc theo quyền — FE render chứ không tự suy
+     * @param authorPublicId tác giả, để biểu mẫu <b>gửi lại được</b> ở lượt sửa. ⚠ Thiếu trường này
+     *     thì mỗi lượt Lưu là một lượt bỏ trống {@code authorPublicId} ⇒ {@code ArticleService.update}
+     *     giữ nguyên tác giả cũ, và ô chọn trên màn hình ⛔ bao giờ đổi được gì (luật 27 — T84.2)
+     * @param authorName họ tên tác giả; {@code null} khi tài khoản đã xoá mềm — xem {@link ArticleSummary}
      */
     public record ArticleDetail(
             UUID publicId,
@@ -94,6 +115,8 @@ public final class ArticleDtos {
             String summary,
             String content,
             UUID coverAttachmentPublicId,
+            UUID authorPublicId,
+            String authorName,
             String source,
             String status,
             Instant publishedAt,
@@ -112,7 +135,7 @@ public final class ArticleDtos {
             List<AllowedAction> allowedActions) {
 
         public static ArticleDetail of(
-                Article a, List<TaiLieuDinhKem> documents, List<AllowedAction> actions, Instant now) {
+                Article a, UserRef tacGia, List<TaiLieuDinhKem> documents, List<AllowedAction> actions, Instant now) {
             return new ArticleDetail(
                     a.getPublicId(),
                     a.getTitle(),
@@ -120,6 +143,8 @@ public final class ArticleDtos {
                     a.getSummary(),
                     a.getContent(),
                     a.getCoverAttachmentPublicId(),
+                    tacGia == null ? null : tacGia.publicId(),
+                    tacGia == null ? null : tacGia.fullName(),
                     a.getSource(),
                     a.getStatus(),
                     a.getPublishedAt(),

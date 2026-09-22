@@ -90,7 +90,12 @@ public class PublicPortalService {
     private final AttachmentPort attachments;
     private final ViewCountService viewCounts;
     private final MediaFolderRepository mediaFolders;
+    private final com.songnhue.core.spi.UserDirectoryPort userDirectory;
 
+    // CHECKSTYLE.OFF: ParameterNumber - đây là danh sách PHỤ THUỘC của một service, ⛔ phải danh sách
+    //   tham số của một phép tính; gói chúng vào một record là dựng một lớp chỉ tồn tại để lách một
+    //   con số. Trần 8 sinh ra cho chữ ký hàm nghiệp vụ. ⚠ Tách lớp này thì được, nhưng nó là service
+    //   đọc-nhiều-nhất của cổng công khai và một lượt tách giữa lát tính năng là đổi rủi ro lấy thẩm mỹ.
     public PublicPortalService(
             ArticleRepository articles,
             CategoryRepository categories,
@@ -99,7 +104,8 @@ public class PublicPortalService {
             SiteConfigService siteConfig,
             AttachmentPort attachments,
             ViewCountService viewCounts,
-            MediaFolderRepository mediaFolders) {
+            MediaFolderRepository mediaFolders,
+            com.songnhue.core.spi.UserDirectoryPort userDirectory) {
         this.articles = articles;
         this.categories = categories;
         this.menus = menus;
@@ -108,7 +114,9 @@ public class PublicPortalService {
         this.attachments = attachments;
         this.viewCounts = viewCounts;
         this.mediaFolders = mediaFolders;
+        this.userDirectory = userDirectory;
     }
+    // CHECKSTYLE.ON: ParameterNumber
 
     // ---- Khung cổng ----------------------------------------------------------
 
@@ -377,6 +385,15 @@ public class PublicPortalService {
                 article.getPublishedAt(),
                 article.getViewCount(),
                 article.getSource(),
+                // ⚠ Tác giả đi cùng đường `source` ngay trên (từ `article`), ⛔ đường `docNumber` bên
+                //   dưới (từ `version`). Nó là thuộc tính của BÀI chứ ⛔ phải một mẩu NỘI DUNG được
+                //   duyệt — và `article_versions` ⛔ chụp cột ấy, nên đọc từ `version` là bất khả.
+                article.getAuthorUserId() == null
+                        ? null
+                        : userDirectory
+                                .timTheoId(article.getAuthorUserId())
+                                .map(com.songnhue.core.spi.UserRef::fullName)
+                                .orElse(null),
                 com.songnhue.content.domain.ArticleState.LUU_TRU.equals(article.getStatus()),
                 // ⚠ Lấy từ BẢN ĐÃ DUYỆT (`version`), không từ `article`: hai cột này là nội dung,
                 //   nên chúng đi cùng đường với title/summary/content. Đọc từ `article` là để bản
