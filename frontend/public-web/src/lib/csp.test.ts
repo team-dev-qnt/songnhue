@@ -52,16 +52,41 @@ describe('Content-Security-Policy của cổng công khai', () => {
     expect(dungCsp(NONCE_MAU)).toContain(chiThi);
   });
 
-  it('⭐ frame-src mở đúng hai host, mỗi host một lý do có thật', () => {
+  it('⭐ frame-src mở đúng BA host, mỗi host một lý do có thật', () => {
     const frameSrc = dungCsp(NONCE_MAU)
       .split('; ')
       .find((d) => d.startsWith('frame-src'));
     expect(frameSrc).toBeDefined();
 
-    // Bản đồ trụ sở (CR-22) và video phóng sự (CN-01.3). Host thứ ba phải kèm một lý do — và phải
-    // thêm cả vào `noFabricatedContent.test.ts`, ⛔ thì hai danh sách lệch nhau (luật 14).
+    // Bản đồ trụ sở (CR-22) · video phóng sự (CN-01.3) · video nhúng trong thân bài (T84.10).
+    // Host thứ tư phải kèm một lý do có thật ở `csp.ts`.
+    //
+    // ⚠ Câu cũ ở đây dặn *"phải thêm cả vào `noFabricatedContent.test.ts`"* — ĐO 22/09 thì sai:
+    //   bộ canh ấy quét bằng `timTsx()`, chỉ `.tsx`, nên `csp.ts` nằm ngoài tầm. Thêm một mục vào
+    //   danh sách ⛔ ai đọc là luật 15.
     const host = frameSrc!.match(/https:\/\/[\w.-]+/g) ?? [];
-    expect(host.sort()).toEqual(['https://www.google.com', 'https://www.youtube-nocookie.com']);
+    expect(host.sort()).toEqual([
+      'https://player.vimeo.com',
+      'https://www.google.com',
+      'https://www.youtube-nocookie.com',
+    ]);
+  });
+
+  it('⭐⭐ Vimeo có mặt ở CẢ HAI đầu — bộ lọc HTML và CSP cổng', () => {
+    // ⛔⛔ Đây là cặp đã LỆCH NHAU: `HtmlSanitizer.MIEN_NHUNG_VIDEO` cho `player.vimeo.com` đi qua
+    //   từ WS-40, `VideoEmbed.toEmbedUrl` dựng đúng URL nhúng — mà CSP cổng thì ⛔ có. Biên tập
+    //   viên thấy video chạy ở màn soạn bài; độc giả nhận KHUNG TRẮNG, lỗi chỉ hiện trong console.
+    //   Một nửa cặp đọc–ghi ở dạng chỉ trình duyệt của người dùng cuối mới thấy (luật 14 · luật 27).
+    // `process.cwd()` là `frontend/public-web` — cùng khuôn `CAU_HINH`/`MIDDLEWARE` ở trên.
+    const sanitizer = readFileSync(
+      join(
+        process.cwd(),
+        '../../backend/core/src/main/java/com/songnhue/core/common/util/HtmlSanitizer.java',
+      ),
+      'utf8',
+    );
+    expect(sanitizer).toContain('player.vimeo.com');
+    expect(dungCsp(NONCE_MAU)).toContain('https://player.vimeo.com');
   });
 
   it('⛔ ⛔ nới lỏng bằng unsafe-eval hay wildcard', () => {

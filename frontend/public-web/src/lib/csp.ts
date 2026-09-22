@@ -72,10 +72,18 @@ export function dungCsp(nonce: string): string {
     "font-src 'self'",
     "connect-src 'self'",
     // - `www.google.com` — khung bản đồ trụ sở ở trang Liên hệ và chân trang (CR-22);
-    // - `www.youtube-nocookie.com` — video phóng sự ở khối Truyền thông (CN-01.3).
-    // ⚠ Thêm host thứ ba ở đây mà quên `noFabricatedContent.test.ts` (danh sách tên miền được phép
-    //   trong mã component) thì hai danh sách lệch nhau — luật 14.
-    "frame-src 'self' https://www.google.com https://www.youtube-nocookie.com",
+    // - `www.youtube-nocookie.com` — video phóng sự ở khối Truyền thông (CN-01.3);
+    // - `player.vimeo.com` — video nhúng trong thân bài (T84.10).
+    //
+    // ⚠⚠ Vimeo là chỗ hai đầu của một cặp đã LỆCH NHAU suốt: `HtmlSanitizer.MIEN_NHUNG_VIDEO` cho
+    //   `player.vimeo.com` đi qua bộ lọc, `VideoEmbed.toEmbedUrl` dựng đúng URL nhúng, và CSP của
+    //   ADMIN đã có nó — nhưng CSP của CỔNG thì ⛔. Hệ quả: biên tập viên dán URL Vimeo, xem trước
+    //   ở màn soạn bài thấy video chạy, duyệt xong thì độc giả nhận một KHUNG TRẮNG. Lỗi chỉ hiện
+    //   trong console trình duyệt — nơi ⛔ cổng kiểm nào của kho nhìn (T46.7 · §10.61).
+    //
+    // ⛔ ⛔ KHÔNG đụng `noFabricatedContent.test.ts`: bộ canh ấy quét bằng `timTsx()` — CHỈ `.tsx` —
+    //   còn tệp này là `.ts`, nên nó ⛔ liên quan. Thêm một mục vào danh sách ⛔ ai đọc là luật 15.
+    "frame-src 'self' https://www.google.com https://www.youtube-nocookie.com https://player.vimeo.com",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
