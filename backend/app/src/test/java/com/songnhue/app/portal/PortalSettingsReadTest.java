@@ -80,8 +80,14 @@ class PortalSettingsReadTest {
      * phải dùng lookbehind, và một lookbehind gõ sai vẫn biên dịch được rồi khớp 0 lần — tức bộ canh
      * xanh mà không trừ khoá nào. {@code kiemChungNguocDelete} kiểm cả hai bước.
      */
-    private static final Pattern CAU_XOA = Pattern.compile(
-            "DELETE\\s+FROM\\s+settings\\s+WHERE\\s+setting_key\\s+IN\\s*\\(([^)]*)\\)", Pattern.CASE_INSENSITIVE);
+    /**
+     * ⚠ Nhận CẢ {@code IN (…)} lẫn {@code = '…'} — kho dùng cả hai dạng (4 và 2 câu, đo 23/09/2026). Bản cũ chỉ
+     * nhận dạng đầu: một lỗ <b>⛔ có nạn nhân hôm nay</b> (khoá duy nhất gỡ bằng dạng {@code =} là
+     * {@code hydro.threshold.default-set}, ngoài phạm vi lớp này) — nhưng một lỗ chưa gây hại vẫn là một lỗ
+     * (T49.6), và giá bịt là một dòng.
+     */
+    private static final Pattern CAU_XOA =
+            Pattern.compile("DELETE\\s+FROM\\s+settings\\s+WHERE\\s+setting_key[^;]+;", Pattern.CASE_INSENSITIVE);
 
     private static final Pattern MOT_KHOA = Pattern.compile("'([a-z0-9.\\-]+)'");
 
@@ -177,7 +183,17 @@ class PortalSettingsReadTest {
         // bài chính sẽ đòi `site.home.blocks` (đã gỡ 27/8) phải có người đọc — đỏ vì lý do sai.
         Matcher cau = CAU_XOA.matcher("DELETE FROM settings WHERE setting_key IN ('a.b', 'c.d');");
         assertThat(cau.find()).as("không bắt được câu DELETE").isTrue();
-        assertThat(MOT_KHOA.matcher(cau.group(1)).results().map(r -> r.group(1)).toList())
+        Matcher cauBang = CAU_XOA.matcher("DELETE FROM settings WHERE setting_key = 'e.f';");
+        assertThat(cauBang.find())
+                .as("⛔ Dạng `= '…'` — kho dùng cả hai dạng; bản cũ chỉ nhận `IN (…)`")
+                .isTrue();
+        assertThat(MOT_KHOA.matcher(cauBang.group())
+                        .results()
+                        .map(r -> r.group(1))
+                        .toList())
+                .containsExactly("e.f");
+
+        assertThat(MOT_KHOA.matcher(cau.group()).results().map(r -> r.group(1)).toList())
                 .containsExactly("a.b", "c.d");
 
         // ⛔ Và một câu DELETE đã bị `--` vô hiệu hoá thì KHÔNG được tính là đã chạy. Đây là lỗ đã
@@ -229,7 +245,7 @@ class PortalSettingsReadTest {
                     .forEach(song::add);
             CAU_XOA.matcher(sql)
                     .results()
-                    .flatMap(cau -> MOT_KHOA.matcher(cau.group(1)).results())
+                    .flatMap(cau -> MOT_KHOA.matcher(cau.group()).results())
                     .map(r -> r.group(1))
                     .forEach(song::remove);
         }

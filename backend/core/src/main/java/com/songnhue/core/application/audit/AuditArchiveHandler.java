@@ -144,12 +144,22 @@ public class AuditArchiveHandler implements JobHandler {
             throw new BusinessRuleException(ErrorCode.ADM_2001, "checksum bản kết xuất không khớp");
         }
 
+        // ⛔ T68.32 — `archived_by` là cột MỒ CÔI cho tới hôm nay: khai ở DDL từ WS-6, 0 nơi ghi.
+        //   Nguồn đúng của nó nằm sẵn trong tay: `JobContext.requestedBy()`.
+        //
+        //   ⚠ Hôm nay giá trị ấy LUÔN null, và đó là một lời khai ĐÚNG chứ ⛔ phải một ô bỏ trống:
+        //   `AUDIT_ARCHIVE` có đúng MỘT nơi đặt việc — cron `MaintenanceScheduler:96` — nên ⛔ có
+        //   người dùng nào yêu cầu, và `null` ở đây đọc là *"lịch chạy, ⛔ phải ai bấm"*.
+        //
+        //   ⇒ Vì sao vẫn ghi thay vì để mồ côi tiếp: ngày có một nút *Kết xuất ngay* trên màn hình
+        //   quản trị, cột này tự mang đúng người bấm. Để nguyên thì nó vẫn null sau khi nút ra đời —
+        //   một lượt xoá nhật ký kiểm toán ⛔ truy được ai lệnh, im lặng hoàn toàn.
         jdbc.update(
                 """
                 INSERT INTO audit_archive_anchors (
                     from_seq, to_seq, from_occurred_at, to_occurred_at, row_count, last_hash,
-                    storage_bucket, storage_key, file_size_bytes, checksum_sha256, verified_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())
+                    storage_bucket, storage_key, file_size_bytes, checksum_sha256, archived_by, verified_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())
                 """,
                 fromSeq,
                 toSeq,
@@ -160,7 +170,8 @@ public class AuditArchiveHandler implements JobHandler {
                 bucket,
                 objectKey,
                 archive.length,
-                checksum);
+                checksum,
+                context.requestedBy());
 
         // ⛔⛔ T85.5 — vế `occurred_at < ?` ở đây là BẢN VÁ, và nó phải trùng KHÍT vị từ của lượt
         //   CHỌN ở trên. Trước đó lượt xoá đi bằng một DẢI seq trong khi lượt chọn lọc theo
