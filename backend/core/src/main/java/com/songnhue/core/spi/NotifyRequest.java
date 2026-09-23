@@ -13,13 +13,12 @@ import java.util.List;
  * @param targetPermission gửi cho mọi tài khoản đang hoạt động có quyền này. Khai giá trị ở đây thì
  *     nhóm "Ban điều hành" <b>không</b> được cộng thêm — xem {@link #targeted}
  * @param channels kênh muốn dùng; kênh đang tắt theo cấu hình sẽ bị bỏ qua
- * @param permissionScopedToUnits {@code true} ⇒ chỉ người có {@code targetPermission} mà PHẠM VI DỮ LIỆU phủ một
- *     trong {@code relatedOrgUnitIds} — xem {@link #targetedInUnitScope}
- * @param nhomCanhBao {@code true} ⇒ áp luật G11 (nhóm "Ban điều hành" ∪ trưởng/phó đơn vị liên quan).
- *     ⛔⛔ <b>Chỉ {@link #alert} khai {@code true}</b> — T74.7, 20/09/2026. Trước lượt vá ấy
- *     {@code RecipientResolver} <b>suy</b> cờ này từ {@code targetPermission == null}, nên MỌI lượt gửi
- *     ⛔ nhắm đích — kể cả thư <i>"tài khoản của bạn đã bị khoá"</i> và 17 hàng {@code notify_owner} của
- *     quy trình duyệt — đều cộng thêm cả ban lãnh đạo. Chính sách người nhận phải được <b>KHAI RA</b>
+ * @param chinhSach cách chọn người nhận — <b>KHAI RA</b>, ⛔ để {@code RecipientResolver} suy từ hình dạng
+ *     dữ liệu. T74.7 (20/09/2026) đã trả giá cho phép suy ấy: ⛔ có {@code targetPermission} thì mọi lượt
+ *     gửi rơi về nhóm "Ban điều hành", kể cả thư <i>"tài khoản của bạn đã bị khoá"</i> và 17 hàng
+ *     {@code notify_owner} của quy trình duyệt. ⚠ T85.4 (23/09/2026) đổi <b>hai {@code boolean} cạnh
+ *     nhau</b> ({@code permissionScopedToUnits} · {@code nhomCanhBao}) lấy một giá trị có tên — hai cờ
+ *     cùng kiểu thì hoán vị nhau vẫn biên dịch sạch, xem {@link ChinhSachNguoiNhan}
  */
 public record NotifyRequest(
         String eventType,
@@ -33,8 +32,14 @@ public record NotifyRequest(
         List<Long> extraUserIds,
         String targetPermission,
         List<NotifyChannel> channels,
-        boolean permissionScopedToUnits,
-        boolean nhomCanhBao) {
+        ChinhSachNguoiNhan chinhSach) {
+
+    public NotifyRequest {
+        if (chinhSach == null) {
+            throw new IllegalArgumentException("chinhSach ⛔ được null — người nhận phải là một lời khai (T85.4)");
+        }
+        chinhSach.kiemKhopVoiQuyen(targetPermission);
+    }
 
     /** Dạng hay dùng nhất: cảnh báo nghiệp vụ, gửi cả trên giao diện lẫn email. */
     public static NotifyRequest alert(
@@ -51,9 +56,8 @@ public record NotifyRequest(
                 List.of(),
                 null,
                 List.of(NotifyChannel.IN_APP, NotifyChannel.EMAIL),
-                false,
-                // ⭐ G11 — factory DUY NHẤT khai true. Xem @param nhomCanhBao ở đầu record (T74.7).
-                true);
+                // ⭐ G11 — factory DUY NHẤT khai nhóm cảnh báo. Xem @param chinhSach ở đầu record (T74.7).
+                ChinhSachNguoiNhan.NHOM_CANH_BAO);
     }
 
     /**
@@ -82,8 +86,7 @@ public record NotifyRequest(
                 extraUserIds == null ? List.of() : extraUserIds,
                 permission,
                 List.of(NotifyChannel.IN_APP, NotifyChannel.EMAIL),
-                false,
-                false);
+                ChinhSachNguoiNhan.THEO_QUYEN);
     }
 
     /**
@@ -122,9 +125,8 @@ public record NotifyRequest(
                 userIds == null ? List.of() : userIds,
                 null,
                 List.of(NotifyChannel.IN_APP, NotifyChannel.EMAIL),
-                false,
                 // ⛔ G11: nơi gọi đã nêu ĐÍCH DANH, nên cộng thêm nhóm cảnh báo là phá đúng điều nó khai.
-                false);
+                ChinhSachNguoiNhan.DICH_DANH);
     }
 
     /**
@@ -163,8 +165,7 @@ public record NotifyRequest(
                 extraUserIds == null ? List.of() : extraUserIds,
                 permission,
                 List.of(NotifyChannel.IN_APP, NotifyChannel.EMAIL),
-                false,
-                false);
+                ChinhSachNguoiNhan.THEO_QUYEN);
     }
 
     /**
@@ -204,7 +205,6 @@ public record NotifyRequest(
                 extraUserIds == null ? List.of() : extraUserIds,
                 permission,
                 List.of(NotifyChannel.IN_APP, NotifyChannel.EMAIL),
-                true,
-                false);
+                ChinhSachNguoiNhan.THEO_QUYEN_TRONG_PHAM_VI);
     }
 }

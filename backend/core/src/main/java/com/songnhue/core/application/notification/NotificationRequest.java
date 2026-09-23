@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.songnhue.core.domain.notification.NotificationChannel;
 import com.songnhue.core.domain.notification.NotificationSeverity;
+import com.songnhue.core.spi.ChinhSachNguoiNhan;
 
 /**
  * Một yêu cầu gửi thông báo — đầu vào duy nhất của {@link NotificationService}.
@@ -17,13 +18,11 @@ import com.songnhue.core.domain.notification.NotificationSeverity;
  * @param targetPermission gửi cho mọi tài khoản đang hoạt động có quyền này; khai giá trị thì nhóm
  *     "Ban điều hành" <b>không</b> được cộng thêm (xem {@code RecipientResolver})
  * @param channels kênh muốn dùng; kênh đang tắt theo cấu hình sẽ bị bỏ qua, không phải lỗi
- * @param permissionScopedToUnits {@code true} ⇒ người có {@code targetPermission} chỉ được tính khi phạm vi dữ
- *     liệu của họ phủ một trong {@code relatedOrgUnitIds} (T57.15, {@code NotifyRequest#targetedInUnitScope})
- * @param nhomCanhBao {@code true} ⇒ áp luật G11: cộng nhóm <i>"Ban điều hành"</i> ∪ trưởng/phó của
- *     {@code relatedOrgUnitIds}. ⛔⛔ <b>Chỉ {@link #alert} khai {@code true}</b> — T74.7, 20/09/2026:
- *     trước lượt vá ấy {@code RecipientResolver} <b>suy</b> cờ này từ {@code targetPermission == null},
- *     nên thư <i>"tài khoản của bạn đã bị khoá"</i> cũng cộng cả ban lãnh đạo. Một chính sách người nhận
- *     phải được <b>khai ra</b>, ⛔ suy từ hình dạng dữ liệu
+ * @param chinhSach cách chọn người nhận — phải được <b>khai ra</b>, ⛔ suy từ hình dạng dữ liệu (T74.7:
+ *     phép suy ấy làm thư <i>"tài khoản của bạn đã bị khoá"</i> cộng cả ban lãnh đạo). ⚠ T85.4 đổi hai
+ *     {@code boolean} cạnh nhau lấy một giá trị có tên; xem {@link ChinhSachNguoiNhan} — và ⚠ nó là
+ *     kiểu <b>dùng chung</b> với bản SPI, ⛔ có bản soi gương như {@code NotificationSeverity}/
+ *     {@code NotificationChannel}, vì chính sách ⛔ được ghi xuống bảng nào
  */
 public record NotificationRequest(
         String eventType,
@@ -37,8 +36,14 @@ public record NotificationRequest(
         List<Long> extraUserIds,
         String targetPermission,
         List<NotificationChannel> channels,
-        boolean permissionScopedToUnits,
-        boolean nhomCanhBao) {
+        ChinhSachNguoiNhan chinhSach) {
+
+    public NotificationRequest {
+        if (chinhSach == null) {
+            throw new IllegalArgumentException("chinhSach ⛔ được null — người nhận phải là một lời khai (T85.4)");
+        }
+        chinhSach.kiemKhopVoiQuyen(targetPermission);
+    }
 
     /** Mặc định hay dùng nhất: cảnh báo nghiệp vụ, gửi cả trên giao diện lẫn email. */
     public static NotificationRequest alert(
@@ -55,7 +60,6 @@ public record NotificationRequest(
                 List.of(),
                 null,
                 List.of(NotificationChannel.IN_APP, NotificationChannel.EMAIL),
-                false,
-                true);
+                ChinhSachNguoiNhan.NHOM_CANH_BAO);
     }
 }

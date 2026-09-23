@@ -26,6 +26,7 @@ import com.songnhue.core.common.security.RequirePermission;
 import com.songnhue.core.common.util.PageUtils;
 import com.songnhue.core.domain.notification.NotificationChannel;
 import com.songnhue.core.domain.notification.NotificationSeverity;
+import com.songnhue.core.spi.ChinhSachNguoiNhan;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -99,10 +100,9 @@ public class NotificationController {
                 List.of(),
                 null,
                 List.of(NotificationChannel.IN_APP, NotificationChannel.EMAIL),
-                false,
                 // ⚠ Đường này đi `broadcast(...)` — danh sách người nhận do Admin chọn, ⛔ qua
-                //   `RecipientResolver`. Khai `false` cho khỏi đọc nhầm là có một nhóm ngầm nào đó.
-                false);
+                //   `RecipientResolver`. Khai ĐÍCH DANH cho khỏi đọc nhầm là có một nhóm ngầm nào đó.
+                ChinhSachNguoiNhan.DICH_DANH);
 
         return new NotificationDtos.BroadcastResult(
                 notificationService.broadcast(payload, request.userIds()).getPublicId());

@@ -27,6 +27,7 @@ import com.songnhue.core.domain.workflow.WorkflowTransition;
 import com.songnhue.core.infra.workflow.WorkflowDefinitionRepository;
 import com.songnhue.core.infra.workflow.WorkflowTransitionRepository;
 import com.songnhue.core.spi.AllowedAction;
+import com.songnhue.core.spi.ChinhSachNguoiNhan;
 import com.songnhue.core.spi.WorkflowPort;
 
 /**
@@ -277,8 +278,18 @@ public class WorkflowEngine implements WorkflowPort {
         //   (1 hàng) và `LEAVE_CANCELLED` (2 hàng); ba hàng `ARTICLE_SUBMITTED` của CMS ⛔ có phạm vi nên giữ luật cũ.
         Long donViPhamVi = entity instanceof ScopedEntity coPhamVi ? coPhamVi.getOrgUnitId() : null;
         String quyenNhan = transition.getNotifyPermission();
-        boolean trongPhamVi = donViPhamVi != null && quyenNhan != null && !quyenNhan.isBlank();
-        List<Long> donViLienQuan = trongPhamVi
+        boolean coQuyen = quyenNhan != null && !quyenNhan.isBlank();
+
+        // ⚠ T85.4 — ba ca dưới đây là ba trạng thái CŨ viết lại nguyên hành vi, ⛔ một phép đổi luật:
+        //   trước nay cặp `(trongPhamVi, nhomCanhBao)` mang chúng, và `nhomCanhBao` luôn `false` ở
+        //   đây (một bước chuyển quy trình biết CHÍNH XÁC ai cần biết nên nó ⛔ bao giờ là cảnh báo
+        //   G11 — T74.7). ⛔ có cột `notify_permission` thì người nhận đúng là chủ bản ghi, tức ĐÍCH
+        //   DANH; có cột ấy thì THEO QUYỀN, và thu hẹp về PHẠM VI khi bản ghi có cột phạm vi.
+        ChinhSachNguoiNhan chinhSach = !coQuyen
+                ? ChinhSachNguoiNhan.DICH_DANH
+                : donViPhamVi != null ? ChinhSachNguoiNhan.THEO_QUYEN_TRONG_PHAM_VI : ChinhSachNguoiNhan.THEO_QUYEN;
+
+        List<Long> donViLienQuan = chinhSach == ChinhSachNguoiNhan.THEO_QUYEN_TRONG_PHAM_VI
                 ? List.of(donViPhamVi)
                 : entity.orgUnitId() == null ? List.of() : List.of(entity.orgUnitId());
 
@@ -295,10 +306,6 @@ public class WorkflowEngine implements WorkflowPort {
                 owner,
                 quyenNhan,
                 List.of(NotificationChannel.IN_APP, NotificationChannel.EMAIL),
-                trongPhamVi,
-                // ⛔⛔ T74.7 — một bước chuyển quy trình biết CHÍNH XÁC ai cần biết (chủ bản ghi và/hoặc người
-                //   giữ quyền), nên nó ⛔ bao giờ là cảnh báo G11. Trước 20/09/2026 `RecipientResolver` SUY
-                //   ngược lại từ `notify_permission IS NULL` ⇒ 17 hàng `notify_owner` cộng cả Ban điều hành.
-                false));
+                chinhSach));
     }
 }
