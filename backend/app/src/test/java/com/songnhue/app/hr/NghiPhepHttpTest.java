@@ -133,6 +133,9 @@ class NghiPhepHttpTest extends IntegrationTestBase {
 
     private UUID idNhanVien;
     private UUID idNguoiDuyet;
+    /** PHÓ của đơn vị gốc — T85.3 cần đo hộp thư của người này, ⛔ chỉ cần phiên đăng nhập. */
+    private UUID idNguoiDuyet2;
+
     private UUID donViGocPublic;
     private long donViGocId;
     private String pathGoc;
@@ -179,6 +182,7 @@ class NghiPhepHttpTest extends IntegrationTestBase {
         String tenDuyet2 = PhienHttp.taoNguoiDung(users, passwords, jdbc, "t579_duyet2", VAI_TRO_DUYET);
         datLanhDao("head_user_id", publicIdCua(tenDuyet));
         datLanhDao("deputy_user_id", publicIdCua(tenDuyet2));
+        idNguoiDuyet2 = publicIdCua(tenDuyet2);
         nguoiDuyet2 = phienDuyet2.dangNhap(tenDuyet2);
 
         quanTri = phienQt.dangNhap(tenQt);
@@ -891,11 +895,18 @@ class NghiPhepHttpTest extends IntegrationTestBase {
         datDonViChoTaiKhoan(idNguoiDuyet, xnAId);
         datDonViChoTaiKhoan(publicIdCua(tenB), xnBId);
 
-        record NguoiDuyet(String ten, PhienHttp phien, PhienHttp.Phien dangNhap, long userId) {}
+        // ⭐⭐ T85.3 — **D phải có mặt**, và sự vắng mặt của D trước lượt này là một khe mù thật.
+        //
+        // Đồ gá đặt CẢ trưởng (A) lẫn PHÓ (D) cho đơn vị gốc từ WS-80, nhưng danh sách quan sát chỉ
+        // có A · B · C. Hệ quả đo được: khi bản vá T85.3 loại A khỏi thư cấp 2 (A vừa duyệt cấp 1),
+        // bài đỏ với `but was: []` — đọc như *"⛔ ai nhận thư"*, trong khi sự thật là **D nhận, và
+        // đó là câu trả lời ĐÚNG**. Một tập quan sát hẹp hơn tập người thật biến một bản vá đúng
+        // thành một khuyết tật trông rất nặng (luật 28, ở phía ngược lại thường gặp).
         List<NguoiDuyet> ds = List.of(
                 new NguoiDuyet("A (XN-A)", phienDuyet, nguoiDuyet, userIdCua(idNguoiDuyet)),
                 new NguoiDuyet("B (XN-B)", phienB, duyetB, userIdCua(publicIdCua(tenB))),
-                new NguoiDuyet("C (gốc)", phienC, duyetC, userIdCua(publicIdCua(tenC))));
+                new NguoiDuyet("C (gốc)", phienC, duyetC, userIdCua(publicIdCua(tenC))),
+                new NguoiDuyet("D (phó gốc)", phienDuyet2, nguoiDuyet2, userIdCua(idNguoiDuyet2)));
 
         // ── (1) Nộp đơn ──────────────────────────────────────────────────────────────
         datThamSo(KHOA_SO_CAP, "2");
@@ -914,8 +925,9 @@ class NghiPhepHttpTest extends IntegrationTestBase {
                 .map(NguoiDuyet::ten)
                 .toList();
         assertThat(thay)
-                .as("⛔ Tiền đề: bộ lọc phạm vi cho A (cùng đơn vị) và C (gốc) thấy đơn, B (đơn vị khác) ⛔ thấy")
-                .containsExactly("A (XN-A)", "C (gốc)");
+                .as("⛔ Tiền đề: bộ lọc phạm vi cho A (cùng đơn vị), C và D (đều ở gốc) thấy đơn; "
+                        + "B (đơn vị khác) ⛔ thấy")
+                .containsExactly("A (XN-A)", "C (gốc)", "D (phó gốc)");
 
         // ⭐⭐ T80.7 — bất biến đổi từ *nhận thư ⇔ THẤY đơn* sang *nhận thư ⇔ DUYỆT ĐƯỢC*.
         //
@@ -931,9 +943,9 @@ class NghiPhepHttpTest extends IntegrationTestBase {
                 .map(NguoiDuyet::ten)
                 .toList();
         assertThat(duyetDuoc)
-                .as("⛔ Tiền đề: A là trưởng đơn vị GỐC (đồ gá `datLanhDao`) nên duyệt được; C chỉ có "
-                        + "quyền và phạm vi, ⛔ có chức vụ ⇒ ⛔ duyệt được")
-                .containsExactly("A (XN-A)");
+                .as("⛔ Tiền đề: A (trưởng) và D (phó) của đơn vị GỐC duyệt được; C chỉ có quyền và "
+                        + "phạm vi, ⛔ có chức vụ ⇒ ⛔ duyệt được")
+                .containsExactly("A (XN-A)", "D (phó gốc)");
         assertThat(duyetDuoc)
                 .as("⛔⛔ VẾ CHỐNG TAUTOLOGY: hai tập phải KHÁC nhau ở lượt chạy này. Bằng nhau nghĩa là "
                         + "đồ gá ⛔ dựng được ca T80.7, và mọi khẳng định dưới xanh vì lý do sai (luật 9).")
@@ -959,7 +971,21 @@ class NghiPhepHttpTest extends IntegrationTestBase {
                         + "nó dạy đúng người lẽ ra phải phản ứng nhanh nhất.")
                 .isEqualTo(duyetDuoc);
 
-        // ── (2) A duyệt cấp 1 ⇒ ESCALATE (hai cấp, ngưỡng 1 ngày) ⇒ LEAVE_ESCALATED ──────
+        List<String> duyetDuocCap2 = mucChuyenCapHai(ds, donId, truoc);
+        mucRutDon(ds, donId, truoc, duyetDuocCap2);
+    }
+
+    /**
+     * Mục (2) — A duyệt cấp 1 ⇒ {@code ESCALATE} ⇒ {@code LEAVE_ESCALATED}.
+     *
+     * <p>⚠ Tách khỏi thân bài vì Checkstyle {@code MethodLength} (trần 120 dòng), ⛔ vì nó là một
+     * bài riêng: ba mục dùng CHUNG một lá đơn đi qua ba trạng thái, và tách thành ba {@code @Test}
+     * là dựng ba lá đơn khác nhau — khi ấy bất biến *nhận thư ⇔ bấm được* ⛔ còn bắc qua được một
+     * vòng đời.
+     *
+     * @return tập người bấm được cấp 2 — mục (3) phải soi lại đúng tập này
+     */
+    private List<String> mucChuyenCapHai(List<NguoiDuyet> ds, UUID donId, java.util.Map<String, Long> truoc) {
         ds.forEach(d -> truoc.put(d.ten(), demThongBao(d.userId(), "LEAVE_ESCALATED")));
         assertThat(chuoi(duyet(donId), "state")).isEqualTo("CHO_DUYET_2");
         List<String> thayCap2 = ds.stream()
@@ -969,6 +995,13 @@ class NghiPhepHttpTest extends IntegrationTestBase {
                         .contains(donId.toString()))
                 .map(NguoiDuyet::ten)
                 .toList();
+        List<String> duyetDuocCap2 = ds.stream()
+                .filter(d -> d.phien()
+                        .get(d.dangNhap(), "/api/v1/hr/nghi-phep/" + donId + "/hanh-dong")
+                        .getBody()
+                        .contains("APPROVE"))
+                .map(NguoiDuyet::ten)
+                .toList();
         List<String> nhanCap2 = ds.stream()
                 .filter(d -> demThongBao(d.userId(), "LEAVE_ESCALATED") - truoc.get(d.ten()) > 0)
                 .map(NguoiDuyet::ten)
@@ -976,14 +1009,33 @@ class NghiPhepHttpTest extends IntegrationTestBase {
         assertThat(thayCap2)
                 .as("⛔ Tiền đề: đơn cấp 2 vẫn nằm trong hộp của người có phạm vi")
                 .contains("C (gốc)");
-        assertThat(nhanCap2)
-                .as("⚠⚠ Bước chuyển cấp 2 do **WorkflowEngine** phát, và nó vẫn đi theo PHẠM VI — `core` ⛔ "
-                        + "được import `hr` (quy tắc 6) nên nó ⛔ nhìn thấy `UyQuyenDuyetPhep`. Khoảng trống "
-                        + "này ĐÃ KHAI: `T82.5`. Giữ khẳng định cũ ở đây là cố ý — nó ghi lại ĐÚNG hành vi "
-                        + "hiện thời, và ngày `T82.5` được trả thì chính bài này đỏ và gọi tên chỗ phải sửa.")
-                .isEqualTo(thayCap2);
 
-        // ── (3) Người nộp rút đơn ⇒ LEAVE_CANCELLED tới đúng những ai đang giữ nó trong hộp chờ ──
+        // ⭐⭐ T85.3 — **phân tách trách nhiệm phải đi tới tận HỘP THƯ**, ⛔ dừng ở cái nút.
+        //
+        // A vừa duyệt cấp 1 nên `veCam` trả `TRUNG_NGUOI_CAP_MOT` ⇒ A ⛔ bấm được cấp 2. Tới 22/09
+        // A **vẫn nhận thư** *"đơn chờ duyệt cấp 2"*, vì `WorkflowEngine` gửi theo `notify_permission`
+        // — tức theo PHẠM VI. Mời một người làm đúng việc mà máy chủ sẽ từ chối là cách nhanh nhất
+        // dạy hộp thư ấy bỏ qua thư (§10.76).
+        assertThat(duyetDuocCap2)
+                .as("⛔ Tiền đề của cả mục này: A ⛔ còn duyệt được (vừa duyệt cấp 1), D thì còn")
+                .containsExactly("D (phó gốc)");
+        assertThat(duyetDuocCap2)
+                .as("⛔⛔ VẾ CHỐNG TAUTOLOGY: *thấy* và *bấm được* phải KHÁC nhau ở lượt chạy này — "
+                        + "bằng nhau nghĩa là đồ gá ⛔ dựng được ca cần đo (luật 9)")
+                .isNotEqualTo(thayCap2);
+        assertThat(nhanCap2)
+                .as("⛔⛔ Thư *chờ duyệt cấp 2* tới ĐÚNG người bấm được cấp 2. Đặc biệt: A ⛔ được có "
+                        + "trong tập này — A vừa duyệt cấp 1, và phân tách trách nhiệm là lý do cấp 2 "
+                        + "tồn tại. `WorkflowEngine` ⛔ diễn đạt được luật ấy (`core` ⛔ import được "
+                        + "`hr` — quy tắc 6), nên bốn hàng `notify_permission` đã gỡ ở "
+                        + "`V202609221098` và `hr` phát tường minh.")
+                .isEqualTo(duyetDuocCap2);
+        return duyetDuocCap2;
+    }
+
+    /** Mục (3) — người nộp rút đơn ⇒ {@code LEAVE_CANCELLED} tới đúng ai đang giữ quyết định. */
+    private void mucRutDon(
+            List<NguoiDuyet> ds, UUID donId, java.util.Map<String, Long> truoc, List<String> duyetDuocCap2) {
         ds.forEach(d -> truoc.put(d.ten(), demThongBao(d.userId(), "LEAVE_CANCELLED")));
         ResponseEntity<String> rut = phienNv.goi(
                 nhanVien, HttpMethod.POST, "/api/v1/hr/nghi-phep/" + donId + "/hanh-dong", "{\"action\":\"CANCEL\"}");
@@ -993,9 +1045,21 @@ class NghiPhepHttpTest extends IntegrationTestBase {
                 .map(NguoiDuyet::ten)
                 .toList();
         assertThat(nhanRut)
-                .as("⛔⛔ Thư *đơn đã rút* tới người đang giữ đơn trong hộp chờ — ⛔ tới quản lý đơn vị khác")
-                .isEqualTo(thayCap2);
+                .as("⛔⛔ Thư *đơn đã rút* tới ĐÚNG người đang giữ quyết định — ⛔ tới mọi người có "
+                        + "phạm vi phủ. Người cần biết là người sẽ phải bấm; C thấy đơn mà ⛔ bấm được "
+                        + "nên một lá thư *'đơn bạn đang chờ đã rút'* gửi cho C là nói về một việc C ⛔ "
+                        + "hề đang chờ. ⚠ Tính TRƯỚC bước chuyển: sau đó đơn đã sang `DA_HUY` và câu "
+                        + "hỏi *ai đang giữ* ⛔ còn câu trả lời nào.")
+                .isEqualTo(duyetDuocCap2);
     }
+
+    /**
+     * Một người duyệt trong đồ gá của {@link #nguoiNhanThongBaoLaNguoiDuyetDuoc} — T85.3.
+     *
+     * <p>⚠ Nâng lên tầng lớp (trước nay là {@code record} cục bộ) để ba mục của bài ấy tách ra được
+     * thành phương thức con. ⛔ Nó ⛔ phải một đồ gá dùng chung: chỉ bài ấy dựng danh sách này.
+     */
+    private record NguoiDuyet(String ten, PhienHttp phien, PhienHttp.Phien dangNhap, long userId) {}
 
     /** Đơn ĐÃ DUYỆT dựng thẳng CSDL — đồ gá cho số chuyển năm, ⛔ đi qua quy trình (bài khác đã canh). */
     private void themDonDaDuyetTho(UUID hoSo, LocalDate tu, LocalDate den, String soNgay) {

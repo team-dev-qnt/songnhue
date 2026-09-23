@@ -3,7 +3,6 @@ package com.songnhue.hr.application;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -252,25 +251,41 @@ public class DonNghiPhepService {
         // `hr:leave:approve` và phạm vi phủ mọi đơn vị, nhưng ⛔ phải trưởng/phó và ⛔ được uỷ quyền
         // ⇒ *thấy đơn, nhận thư, mà ⛔ có nút*. Gửi thư cho người ⛔ bấm được là dạy hộp thư ấy bỏ
         // qua thư (§10.76) — và nó dạy đúng người lẽ ra phải phản ứng nhanh nhất.
-        Set<Long> nguoiDuyet =
-                new LinkedHashSet<>(thamQuyen.nguoiQuyetDuoc(don.getOrgUnitId(), LocalDate.now(DateTimeUtils.ZONE_VN)));
-        // Người nộp tự loại mình: `xetQuyet` trả `TU_DUYET` cho họ, nên thư *"có đơn chờ bạn duyệt"*
-        // gửi cho chính người vừa nộp là một câu nói dối nhỏ mà ⛔ ai sửa được.
-        nguoiDuyet.remove(don.getRequesterUserId());
+        //
+        // ⭐ T85.3 — phép trừ *"bỏ người nộp"* ⛔ còn ở đây: nó là một vế của `veCam`, và
+        //    `nguoiQuyetDuocDon` áp ĐÚNG bản luật ấy. Một dòng `remove(...)` viết tay ở đây là bản
+        //    sao thứ hai của cùng một luật (luật 14) — bản sao ấy ⛔ biết tới vế `TRUNG_NGUOI_CAP_MOT`.
+        phatChoNguoiQuyet(
+                don,
+                "LEAVE_SUBMITTED",
+                tieuDe,
+                than,
+                thamQuyen.nguoiQuyetDuocDon(don, LocalDate.now(DateTimeUtils.ZONE_VN)));
+    }
 
-        if (!nguoiDuyet.isEmpty()) {
+    /**
+     * Gửi cho một danh sách <b>đích danh</b>, và khi danh sách rỗng thì đi đường <b>dự phòng</b>.
+     *
+     * <p>⚠⛔ Nhánh dự phòng phải soi gương ĐÚNG đường 3 của {@link ThamQuyenDuyetPhep}: chuỗi lãnh
+     * đạo ⛔ có ai ⇒ người quyết được là ai giữ {@link ThamQuyenDuyetPhep#QUYEN_UY_QUYEN} mà phạm vi
+     * phủ. ⛔ Gửi cho {@code hr:leave:approve} — đó chính là tập rộng mà T80.7 vừa bỏ, và cái xanh
+     * của bộ canh khi ấy đọc như đã siết (luật 7). Cũng ⛔ để RỖNG: một lá đơn ⛔ ai được báo là một
+     * lá đơn nằm mãi trong hộp chờ.
+     *
+     * <p>⚠ Cố ý <b>⛔ trừ người đang thao tác</b>. Ba ca đáng trừ thì {@link ThamQuyenDuyetPhep} đã
+     * trừ bằng {@code veCam} (người nộp · người duyệt cấp 1); ca còn lại — người duyệt tự huỷ một
+     * đơn mình đã duyệt — <b>nên</b> nhận thư, vì thư ấy là bản ghi việc vừa xảy ra chứ ⛔ phải một
+     * lời nhắc phải làm gì.
+     */
+    private void phatChoNguoiQuyet(LeaveRequest don, String maSuKien, String tieuDe, String than, Set<Long> nguoiNhan) {
+        if (nguoiNhan != null && !nguoiNhan.isEmpty()) {
             thongBao.notify(NotifyRequest.chiNhungNguoiNay(
-                    "LEAVE_SUBMITTED", tieuDe, than, NotifySeverity.INFO, List.copyOf(nguoiDuyet)));
+                    maSuKien, tieuDe, than, NotifySeverity.INFO, List.copyOf(nguoiNhan)));
             return;
         }
 
-        // ⚠⚠ Nhánh DỰ PHÒNG, và nó phải soi gương ĐÚNG đường 3 của `ThamQuyenDuyetPhep`: chuỗi lãnh
-        //   đạo ⛔ có ai ⇒ người quyết được là ai giữ `hr:leave:delegate` mà phạm vi phủ. ⛔ Gửi cho
-        //   `hr:leave:approve` như cũ — đó chính là tập rộng vừa bỏ, và cái xanh của bộ canh khi ấy
-        //   đọc như đã siết (luật 7). Cũng ⛔ để RỖNG: một đơn ⛔ ai được báo là một đơn nằm mãi
-        //   trong hộp chờ.
         thongBao.notify(NotifyRequest.targetedInUnitScope(
-                "LEAVE_SUBMITTED",
+                maSuKien,
                 tieuDe,
                 than,
                 NotifySeverity.INFO,
@@ -426,6 +441,11 @@ public class DonNghiPhepService {
             hanhDongThat = "ESCALATE";
         }
 
+        // ⛔⛔ TRƯỚC bước chuyển — T85.3. Sau `execute` đơn đã sang `DA_HUY`, và câu hỏi *"ai đang
+        //    giữ lá đơn này trong hộp chờ"* ⛔ còn câu trả lời nào. Đây là nhóm phải được báo rằng
+        //    một việc họ đang chờ đã biến mất; ⛔ báo thì hộp chờ của họ tự rỗng đi mà ⛔ ai nói vì sao.
+        Set<Long> giuTruocKhiHuy = "CANCEL".equals(hanhDongThat) ? thamQuyen.nguoiQuyetDuocDon(don, homNay) : Set.of();
+
         LeaveRequest sau = workflow.execute(don, hanhDongThat, null, lyDo);
         if ("ESCALATE".equals(hanhDongThat)) {
             sau.ghiCapMot(nguoiDangThaoTac(), Instant.now());
@@ -436,7 +456,56 @@ public class DonNghiPhepService {
         if (sau.trangThai() == LeaveState.DA_DUYET || sau.trangThai() == LeaveState.TU_CHOI) {
             sau.ghiQuyetDinh(nguoiDangThaoTac(), Instant.now());
         }
-        return donNghi.save(sau);
+        LeaveRequest daLuu = donNghi.save(sau);
+
+        baoBuocChuyen(daLuu, hanhDongThat, giuTruocKhiHuy, homNay);
+        return daLuu;
+    }
+
+    /**
+     * Thư của hai bước chuyển mà <b>bảng bước chuyển ⛔ gửi đúng người được</b> — T85.3.
+     *
+     * <h2>⛔⛔ Vì sao ⛔ để {@code WorkflowEngine} lo, như bốn bước chuyển kia</h2>
+     *
+     * <p>Engine sống ở {@code core}, và quy tắc 6 cấm {@code core} import {@code hr} ⇒ nó ⛔ nhìn
+     * thấy {@code UyQuyenDuyetPhep} lẫn vế phân tách trách nhiệm ({@code TRUNG_NGUOI_CAP_MOT}). Thứ
+     * duy nhất nó biết là {@code notify_permission} — tức <b>PHẠM VI</b>, tập mà T80.7 đã đo ra là
+     * rộng hơn tập bấm được nút. ⇒ Bốn hàng ấy nay để trống cột thông báo
+     * ({@code V202609221098}) và {@code hr} phát tường minh, đúng khuôn {@link #baoNguoiDuyet} đã
+     * dựng cho {@code LEAVE_SUBMITTED} vì cùng một lý do.
+     *
+     * <p>⚠ {@code LEAVE_APPROVED} và {@code LEAVE_REJECTED} <b>⛔ đi qua đây</b>: người cần biết là
+     * người NỘP, và {@code notify_owner = TRUE} diễn đạt đúng điều đó mà ⛔ cần biết gì về thẩm
+     * quyền. Cùng lẽ ấy, hàng <i>huỷ đơn đã duyệt</i> <b>giữ nguyên</b> {@code notify_owner = TRUE} —
+     * gỡ nó là cắt mất thư báo cho chính người lao động vừa bị huỷ phép.
+     */
+    private void baoBuocChuyen(LeaveRequest don, String hanhDong, Set<Long> giuTruocKhiHuy, LocalDate homNay) {
+        if (!"ESCALATE".equals(hanhDong) && !"CANCEL".equals(hanhDong)) {
+            return;
+        }
+        String ai = employees
+                .cuaChinhMinh(don.getEmployeeId())
+                .map(e -> "%s (%s)".formatted(e.getFullName(), e.getCode()))
+                .orElse("Một cán bộ");
+        String khoang = "%s từ %s đến %s".formatted(don.getLeaveType(), don.getFromDate(), don.getToDate());
+
+        if ("ESCALATE".equals(hanhDong)) {
+            // Tính SAU bước chuyển: lúc này mới có `cap1By`, nên `veCam` mới loại được người vừa
+            // duyệt cấp 1 — chính là người mà thư "chờ bạn duyệt cấp 2" ⛔ được gửi tới.
+            phatChoNguoiQuyet(
+                    don,
+                    "LEAVE_ESCALATED",
+                    "Đơn nghỉ phép chờ duyệt cấp 2",
+                    "%s — %s. Đơn đã qua cấp 1 và đang chờ quyết định cấp 2.".formatted(ai, khoang),
+                    thamQuyen.nguoiQuyetDuocDon(don, homNay));
+            return;
+        }
+        phatChoNguoiQuyet(
+                don,
+                "LEAVE_CANCELLED",
+                "Đơn nghỉ phép đã huỷ",
+                "%s — %s. Đơn ⛔ còn chờ quyết định.".formatted(ai, khoang),
+                giuTruocKhiHuy);
     }
 
     // ---- Nội bộ ---------------------------------------------------------------
