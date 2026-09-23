@@ -37,6 +37,7 @@ import com.songnhue.core.infra.org.OrgUnitRepository;
 import com.songnhue.core.spi.EmployeeDirectoryPort;
 import com.songnhue.core.spi.EmployeeRef;
 import com.songnhue.core.spi.UserDirectoryPort;
+import com.songnhue.core.spi.UserRef;
 
 /**
  * Quản trị tài khoản (CN-05.1) — <b>lát cắt dọc nghiệm thu Phase 0</b> (T6.15).
@@ -60,6 +61,13 @@ import com.songnhue.core.spi.UserDirectoryPort;
 public class UserAdminService implements UserDirectoryPort {
 
     private static final Logger log = LoggerFactory.getLogger(UserAdminService.class);
+
+    /**
+     * Sắp họ tên theo tiếng Việt — {@code String.compareTo} xếp theo mã Unicode nên "Đặng" rơi sau
+     * "Trần". Cùng khuôn {@code PublicConstructionCatalogService.TIENG_VIET}.
+     */
+    private static final java.text.Collator TIENG_VIET =
+            java.text.Collator.getInstance(java.util.Locale.of("vi", "VN"));
 
     /**
      * Quyền mở được chính màn hình ma trận phân quyền.
@@ -572,15 +580,61 @@ public class UserAdminService implements UserDirectoryPort {
         return users.findById(internalId).filter(u -> !u.isDeleted()).map(User::getPublicId);
     }
 
+    /**
+     * ⚠ Cài bằng {@link #timTheoIds} chứ ⛔ một câu truy vấn thứ hai — hai đường làm cùng một việc là
+     * hai chỗ phải nhớ cùng một luật lọc ({@code !isDeleted()}), và chỗ thứ hai luôn là chỗ quên.
+     */
     @Override
     @Transactional(readOnly = true)
     public java.util.Map<Long, UUID> publicIdsOf(java.util.Collection<Long> internalIds) {
+        return timTheoIds(internalIds).entrySet().stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        java.util.Map.Entry::getKey, e -> e.getValue().publicId()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<UserRef> timTheoId(Long internalId) {
+        if (internalId == null) {
+            return Optional.empty();
+        }
+        return users.findById(internalId).filter(u -> !u.isDeleted()).map(UserAdminService::refCua);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.Map<Long, UserRef> timTheoIds(java.util.Collection<Long> internalIds) {
         if (internalIds == null || internalIds.isEmpty()) {
             return java.util.Collections.emptyMap();
         }
         return users.findAllById(internalIds).stream()
                 .filter(u -> !u.isDeleted())
-                .collect(java.util.stream.Collectors.toMap(User::getId, User::getPublicId));
+                .collect(java.util.stream.Collectors.toMap(User::getId, UserAdminService::refCua));
+    }
+
+    /**
+     * ⚠ Dùng {@code findActiveIdsByPermission} — cùng câu với {@link #dangHoatDongVaCoQuyen}; xem
+     * javadoc của {@code UserDirectoryPort#danhSachTheoQuyen} về lý do (luật 14).
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<UserRef> danhSachTheoQuyen(String maQuyen) {
+        if (maQuyen == null || maQuyen.isBlank()) {
+            return List.of();
+        }
+        List<Long> ids = users.findActiveIdsByPermission(maQuyen);
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        return users.findAllById(ids).stream()
+                .filter(u -> !u.isDeleted())
+                .map(UserAdminService::refCua)
+                .sorted(java.util.Comparator.comparing(UserRef::fullName, TIENG_VIET))
+                .toList();
+    }
+
+    private static UserRef refCua(User u) {
+        return new UserRef(u.getId(), u.getPublicId(), u.getFullName());
     }
 
     /**

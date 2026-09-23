@@ -21,6 +21,11 @@ import java.util.UUID;
  * @param docIssuedDate ngày ký ban hành — <b>khác</b> {@code publishedAt} (thời gian đăng lên cổng),
  *     và không cột nào được suy ra từ cột kia. ⛔ Rỗng thì nơi hiển thị để TRỐNG, không dựng dấu
  *     gạch giả làm một giá trị (quy tắc 16)
+ * @param authorName họ tên người viết bài (T84.4). ⚠ Lấy từ {@code article} chứ ⛔ từ bản chụp
+ *     phiên bản — cùng đường với {@code source}/{@code publishedAt}, ⛔ phải đường của
+ *     {@code docNumber}. Lý do: tác giả là thuộc tính của <b>bài</b>, ⛔ phải một mẩu <b>nội dung</b>
+ *     được duyệt; {@code article_versions} ⛔ chụp cột này. {@code null} khi tài khoản đã xoá mềm, và
+ *     khi ấy nơi hiển thị <b>bỏ hẳn mục</b> — ⛔ in "Đang cập nhật" (quy tắc 16)
  */
 public record PublicArticleDetail(
         String slug,
@@ -34,6 +39,7 @@ public record PublicArticleDetail(
         Instant publishedAt,
         long viewCount,
         String source,
+        String authorName,
         boolean archived,
         String docNumber,
         LocalDate docIssuedDate,

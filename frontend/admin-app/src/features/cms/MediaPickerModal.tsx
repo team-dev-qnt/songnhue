@@ -4,6 +4,21 @@ import { useState } from 'react';
 import { MediaBrowser } from './MediaBrowser';
 import { type KhoTep, type MediaFile } from './types';
 
+/** Ba loại tệp hộp chọn phục vụ — khớp prop `loai` của `MediaBrowser`. */
+export type LoaiTep = 'image' | 'video' | 'document';
+
+/**
+ * Chữ trên hộp thoại, tra theo loại.
+ *
+ * ⛔ Một bảng tra chứ ⛔ ternary lồng nhau: thêm loại thứ tư là thêm MỘT dòng ở đây, và TypeScript
+ * bắt ngay nếu quên — `Record<LoaiTep, …>` đòi đủ khoá.
+ */
+const CHU_THEO_LOAI: Record<LoaiTep, { tieuDe: string; nutOk: string }> = {
+  image: { tieuDe: 'Chọn ảnh từ thư viện', nutOk: 'Chèn ảnh' },
+  video: { tieuDe: 'Chọn video từ thư viện', nutOk: 'Chèn video' },
+  document: { tieuDe: 'Chọn tài liệu từ kho', nutOk: 'Dùng tài liệu này' },
+};
+
 /**
  * Hộp chọn tệp — ảnh đại diện, ảnh chèn giữa bài (T20.7) và **tài liệu đính kèm** (WS-40).
  *
@@ -22,9 +37,13 @@ import { type KhoTep, type MediaFile } from './types';
  * `<Modal>` riêng; ⛔ đừng gộp thành một hook đa mục đích với một biến "đang mở để làm gì", đó
  * đúng là trạng thái mà kiểu hàm-hứa sinh ra để loại bỏ.
  */
-export function useMediaPicker(tuyChon?: { kho?: KhoTep }) {
+export function useMediaPicker(tuyChon?: { kho?: KhoTep; loai?: LoaiTep }) {
   const kho: KhoTep = tuyChon?.kho ?? 'MEDIA';
-  const laTaiLieu = kho === 'TAI_LIEU';
+  // ⚠⚠ Tra theo `loai` chứ ⛔ theo `kho === 'TAI_LIEU'`. Bản trước dùng một ternary HAI nhánh cho
+  //   một câu hỏi BA trạng thái (ảnh · tài liệu · video), nên mở hộp chọn video ra thì tiêu đề nói
+  //   *"Chọn ảnh từ thư viện"* và nút nói *"Chèn ảnh"* — đúng hình dạng đã gây ra T63.8.
+  const loai: LoaiTep = tuyChon?.loai ?? (kho === 'TAI_LIEU' ? 'document' : 'image');
+  const chu = CHU_THEO_LOAI[loai];
 
   const [state, setState] = useState<{
     open: boolean;
@@ -45,9 +64,9 @@ export function useMediaPicker(tuyChon?: { kho?: KhoTep }) {
   const picker = (
     <Modal
       open={state.open}
-      title={laTaiLieu ? 'Chọn tài liệu từ kho' : 'Chọn ảnh từ thư viện'}
+      title={chu.tieuDe}
       width={900}
-      okText={laTaiLieu ? 'Dùng tài liệu này' : 'Chèn ảnh'}
+      okText={chu.nutOk}
       cancelText="Huỷ"
       okButtonProps={{ disabled: selected === null }}
       onCancel={() => dong(null)}
@@ -56,7 +75,7 @@ export function useMediaPicker(tuyChon?: { kho?: KhoTep }) {
     >
       <MediaBrowser
         kho={kho}
-        loai={laTaiLieu ? 'document' : 'image'}
+        loai={loai}
         height={440}
         selectedId={selected?.publicId ?? null}
         onSelect={setSelected}

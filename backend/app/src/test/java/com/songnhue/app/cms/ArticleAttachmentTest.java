@@ -313,10 +313,89 @@ class ArticleAttachmentTest extends IntegrationTestBase {
         assertThat(KhoTep.TRAN_PHUC_VU_CONG_KHAI_MB).isLessThan(50);
     }
 
+    // === Xem trước PDF trên cổng (T84.8) =====================================
+
+    @Test
+    @DisplayName("⭐⭐ `/xem` trả BYTE THẬT kèm `inline` + `nosniff` — ⛔ phải 200 rỗng")
+    void xemTruocPdfRaByteThat() {
+        UUID tep = taiLenTaiLieu("quy-trinh-van-hanh.pdf");
+        xuatBan("Bài có quy trình", List.of(taiLieu(tep, "Quy trình")));
+
+        ResponseEntity<byte[]> xem = http.getForEntity(duongXemTaiLieu(tep), byte[].class);
+
+        assertThat(xem.getStatusCode()).isEqualTo(HttpStatus.OK);
+        // §10.52 — một bài kiểm chỉ đi nhánh 404 để ảnh cổng chưa từng ra một byte suốt nhiều tuần.
+        assertThat(xem.getBody()).isNotNull().startsWith("%PDF".getBytes(StandardCharsets.US_ASCII));
+
+        assertThat(xem.getHeaders().getFirst(HttpHeaders.CONTENT_DISPOSITION))
+                .as("`attachment` ở đây ⇒ trình duyệt TỪ CHỐI dựng khung và tải về ⇒ nút Xem trước "
+                        + "cho ra một tab trắng ⛔ lý do (T84.6)")
+                .startsWith("inline;")
+                .contains("quy-trinh-van-hanh.pdf");
+
+        // ⚠⚠ `KhongLuuDemFilter` CỐ Ý bỏ qua `/api/v1/public/`, và `edge-headers.conf` ⛔ đặt header
+        //   này (đo 22/09) ⇒ endpoint là nơi DUY NHẤT chịu trách nhiệm. Thiếu nó thì một tệp HTML
+        //   giả danh PDF chạy script CÙNG GỐC với cổng.
+        assertThat(xem.getHeaders().getFirst("X-Content-Type-Options"))
+                .as("nosniff phải đặt tường minh TRÊN CHÍNH phản hồi này")
+                .isEqualTo("nosniff");
+    }
+
+    @Test
+    @DisplayName("⛔ `/xem` với tệp KHÔNG phải PDF ⇒ 404 trần — danh sách cho phép đúng MỘT giá trị")
+    void xemTruocChiChoPdf() {
+        UUID zip = taiLenTaiLieuZip("bao-cao-thang.docx");
+        xuatBan("Bài có báo cáo", List.of(taiLieu(zip, "Báo cáo")));
+
+        // ⚠ Vế phân biệt: đường TẢI của đúng tệp ấy vẫn 200. ⛔ Có vế này thì một bản dựng từ chối
+        //   MỌI tệp trên cả hai đường cũng xanh (luật 9).
+        assertThat(maCua(duongTaiLieu(zip))).isEqualTo(HttpStatus.OK);
+        assertThat(maCua(duongXemTaiLieu(zip)))
+                .as("nói *'tệp này ⛔ phải PDF'* là xác nhận tệp có tồn tại — 404 trần")
+                .isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("⛔ `/xem` của bài CHƯA xuất bản ⇒ 404 — thừa hưởng đủ bốn vế lọc của đường cha")
+    void xemTruocBaiChuaXuatBanThi404() {
+        UUID tep = taiLenTaiLieu("du-thao.pdf");
+        articles.create(banThao("Bản dự thảo", List.of(taiLieu(tep, "Dự thảo"))));
+
+        assertThat(maCua(duongXemTaiLieu(tep))).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("⛔ `/xem` với UUID ⛔ tồn tại ⇒ 404")
+    void xemTruocUuidLaThi404() {
+        assertThat(maCua(duongXemTaiLieu(UUID.randomUUID()))).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("⭐⭐ Chống HỘI TỤ: đường ⛔ có `/xem` vẫn trả `attachment`")
+    void haiDuongVanKhacNhau() {
+        UUID tep = taiLenTaiLieu("cong-van.pdf");
+        xuatBan("Bài có công văn", List.of(taiLieu(tep, "Công văn")));
+
+        // Hai đường trùng disposition nghĩa là ai đó đã "dọn dẹp" cho chúng dùng chung một nhánh —
+        // và khi ấy một trong hai chức năng hỏng mà ⛔ bộ canh nào khác thấy.
+        assertThat(http.getForEntity(duongTaiLieu(tep), byte[].class)
+                        .getHeaders()
+                        .getFirst(HttpHeaders.CONTENT_DISPOSITION))
+                .startsWith("attachment;");
+        assertThat(http.getForEntity(duongXemTaiLieu(tep), byte[].class)
+                        .getHeaders()
+                        .getFirst(HttpHeaders.CONTENT_DISPOSITION))
+                .startsWith("inline;");
+    }
+
     // -------------------------------------------------------------------------
 
     private String duongTaiLieu(UUID tep) {
         return "/api/v1/public/article-documents/" + tep;
+    }
+
+    private String duongXemTaiLieu(UUID tep) {
+        return duongTaiLieu(tep) + "/xem";
     }
 
     private String mo(String duongDan) {
@@ -328,6 +407,18 @@ class ArticleAttachmentTest extends IntegrationTestBase {
     private HttpStatus maCua(String duongDan) {
         return HttpStatus.valueOf(
                 http.getForEntity(duongDan, byte[].class).getStatusCode().value());
+    }
+
+    /**
+     * Một tệp Office — ⚠ `FileValidator` đi bằng MAGIC BYTES, và docx/xlsx/pptx đều là ZIP, nên
+     * `contentType` lưu xuống là `application/zip` bất kể đuôi tên tệp. Đó chính là điều kiện cần
+     * cho bài `xemTruocChiChoPdf`: một tệp HỢP LỆ, tải về được, mà ⛔ phải PDF.
+     */
+    private UUID taiLenTaiLieuZip(String ten) {
+        byte[] zipRong = new byte[] {0x50, 0x4b, 0x05, 0x06, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        AttachmentRef ref = media.upload(thuMuc, KhoTep.TAI_LIEU, ten, zipRong);
+        chayBuocQuet(ref.publicId());
+        return ref.publicId();
     }
 
     private UUID taiLenTaiLieu(String ten) {

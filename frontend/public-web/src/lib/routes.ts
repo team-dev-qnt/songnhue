@@ -132,6 +132,24 @@ export function articleDocUrl(publicId: string | null | undefined): string | nul
 }
 
 /**
+ * Đường **xem trước** cùng tài liệu ấy — mở trong trình duyệt thay vì tải về (T84.9).
+ *
+ * <h3>⛔ Một ĐOẠN đường dẫn, ⛔ phải `?inline=1`</h3>
+ *
+ * `taiLieuBaiViet.test.ts` cấm hàm trên chứa dấu `?`, và ràng buộc ấy có lý do thật: tham số truy
+ * vấn làm hỏng khoá đệm. Đoạn `/xem` giữ được nó.
+ *
+ * <h3>⚠ Nơi gọi PHẢI tự lọc loại tệp</h3>
+ *
+ * Backend chỉ phục vụ `application/pdf` trên đường này và trả **404 trần** cho mọi thứ khác — nên
+ * dựng liên kết cho một tệp `.docx` là dựng một liên kết chết. Điều kiện ở giao diện phải đọc
+ * `contentType`, ⛔ suy từ đuôi tên tệp (tên do người dùng đặt và nói dối được).
+ */
+export function articleDocXemUrl(publicId: string | null | undefined): string | null {
+  return publicId ? `${API_BASE_URL}/public/article-documents/${publicId}/xem` : null;
+}
+
+/**
  * Đường dẫn của một mục menu.
  *
  * @returns `null` cho mục chỉ mở menu con (`NONE`) — nơi gọi render nó thành thẻ không bấm

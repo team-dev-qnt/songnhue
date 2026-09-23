@@ -147,12 +147,25 @@ function ArticleForm({
   const navigate = useNavigate();
   const { message } = App.useApp();
   const queryClient = useQueryClient();
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
+  // ⚠ `staleTime` dài: danh sách tài khoản soạn bài gần như đứng yên, mà ô chọn này dựng lại mỗi
+  //   lượt mở một bài. Hỏi lại máy chủ mỗi lượt là một request ⛔ ai cần.
+  const authors = useQuery({
+    queryKey: cmsKeys.articleAuthors(),
+    queryFn: () => cmsApi.articleAuthors(),
+    staleTime: 5 * 60_000,
+  });
   const { chonTep: chonAnh, picker } = useMediaPicker();
   // ⭐ Hộp chọn THỨ HAI, kho khác — WS-40. Hai lượt gọi hook giữ trạng thái riêng và render hai
   //   `<Modal>` riêng; gộp làm một là dựng lại đúng cái trạng thái "đang mở để làm gì" mà kiểu
   //   hàm-hứa sinh ra để loại bỏ.
   const { chonTep: chonTaiLieu, picker: pickerTaiLieu } = useMediaPicker({ kho: 'TAI_LIEU' });
+  // ⭐ Hộp chọn THỨ BA — cùng kho `MEDIA` với ảnh nhưng LỌC theo `video/*` (T84.16). Ba lượt gọi
+  //   hook, ba `<Modal>` riêng; xem javadoc `useMediaPicker` về vì sao ⛔ gộp thành một.
+  const { chonTep: chonVideo, picker: pickerVideo } = useMediaPicker({
+    kho: 'MEDIA',
+    loai: 'video',
+  });
 
   const [form] = Form.useForm<FormValues>();
   // ⭐ T41.21 — ⛔ KHÔNG còn `useState` cho nội dung: biểu mẫu là nguồn sự thật duy nhất. Giữ cả hai
@@ -175,9 +188,14 @@ function ArticleForm({
    * phép so chuỗi vì thế **báo bẩn 100%** với mọi bài nhiều hơn một khối — ngay khi vừa mở, chưa
    * gõ gì. Và một cảnh báo luôn hiện là một cảnh báo người dùng học cách bấm qua mà không đọc.
    *
-   * `RichTextEditor` chỉ gọi `onChange` khi người dùng thật sự sửa: lượt đồng bộ từ ngoài vào dùng
-   * `setContent(value, { emitUpdate: false })`, nên nó **không** bắn `onUpdate`. Vậy một lượt
-   * `onChange` là một tín hiệu sạch, không cần so gì.
+   * ⛔⛔ **Câu ở đây trước nay SAI, và nó là nguyên nhân gốc của T86.1** — sửa 23/09/2026. Bản cũ
+   * khẳng định *"`RichTextEditor` chỉ gọi `onChange` khi người dùng thật sự sửa … nên một lượt
+   * `onChange` là một tín hiệu sạch, không cần so gì"*. Đo lại: TipTap bắn **một lượt `onUpdate`
+   * ngay lúc nạp**, ở cả ba hình dạng thử (một khối · hai khối liền · hai khối có xuống dòng) —
+   * và javadoc của chính `RichTextEditor` (`onNormalized`, `:149`) đã ghi đúng điều ngược lại từ
+   * WS-41. **Hai chú thích trong cùng một kho nói ngược nhau, và cái SAI là cái được dựa vào.**
+   *
+   * Chỉ `setContent` mới mang `emitUpdate: false`; lượt `onUpdate` lúc nạp thì ⛔.
    */
   const [coSuaChuaLuu, setCoSuaChuaLuu] = useState(false);
 
@@ -188,6 +206,29 @@ function ArticleForm({
    * mang thụt lề mà `editor.getHTML()` không có ⇒ so trực tiếp là bẩn ngay khi vừa mở bài.
    */
   const mocNoiDung = useRef<string | null>(null);
+
+  /**
+   * **Lượt đổi `content` này có phải NGƯỜI DÙNG sửa không** — vị từ DÙNG CHUNG cho cả hai đường
+   * vào. T86.1.
+   *
+   * ⛔⛔ Vì sao phải là **một** hàm chứ ⛔ hai chỗ tự so: trước lượt vá, `content` có **hai** đường
+   * bật cờ bẩn và chỉ một đường có chốt —
+   *
+   * <ul>
+   *   <li>`RichTextBridge.onDoiNoiDung` → so với `mocNoiDung` ⇒ **có** chốt;
+   *   <li>`<Form onValuesChange>` → `setCoSuaChuaLuu(true)` **thẳng**, ⛔ chốt nào.
+   * </ul>
+   *
+   * Mà `RichTextBridge` gọi **cả hai** (`onChange?.(html)` cho `Form`, rồi `onDoiNoiDung(html)`),
+   * nên lượt `onUpdate` TipTap bắn lúc nạp đi vòng qua chốt bằng đường thứ hai. Luật 14 ở đúng
+   * dạng đã trả giá nhiều lần: *chỗ nào con người phải nhớ hai nơi thì chỗ đó cần một phép kiểm
+   * nhớ hộ* — ở đây rẻ hơn nữa, chỉ cần **⛔ có nơi thứ hai để nhớ**.
+   *
+   * `mocNoiDung.current === null` nghĩa là trình soạn thảo **chưa báo mốc** ⇒ mọi lượt trước đó là
+   * lượt chuẩn hoá lúc nạp, ⛔ phải người dùng.
+   */
+  const laSuaNoiDungThuc = (html: unknown) =>
+    mocNoiDung.current !== null && html !== mocNoiDung.current;
 
   const { choPhepRoi, hopThoaiRoiTrang } = useChanRoiTrang(
     coSuaChuaLuu,
@@ -267,6 +308,16 @@ function ArticleForm({
     // ⚠ `docIssuedDate` là NGÀY thuần (`YYYY-MM-DD`), không phải mốc thời gian — `dayjs` đọc nó
     //   ở múi giờ địa phương và trả đúng ngày ấy. Đừng đưa qua `toApiInstant`.
     docIssuedDate: data?.docIssuedDate ? dayjs(data.docIssuedDate) : null,
+    // Bài mới ⇒ người đang đăng nhập (`MeResponse.id` LÀ `publicId` — `AuthController:202`), đúng
+    // đặc tả *"tự động điền tài khoản đang đăng nhập, cho phép thay đổi"*.
+    //
+    // ⛔⛔ HAI nhánh chứ ⛔ một chuỗi `??`. Viết `data?.authorPublicId ?? user?.id` thì một bài cũ
+    //   có tác giả ĐÃ XOÁ MỀM (backend trả `null`) sẽ rơi về người đang mở bài, và cú Lưu kế tiếp
+    //   **gán lại tác giả** sang người ấy — im lặng, không ai bấm gì. Bài cũ thì ô để TRỐNG và người
+    //   biên tập tự chọn lại (quy tắc 16).
+    //
+    // ⚠ `?? undefined` chứ ⛔ `?? null`: xem javadoc `FormValues.authorPublicId`.
+    authorPublicId: data ? (data.authorPublicId ?? undefined) : (user?.id ?? undefined),
     categoryPublicIds: data?.categoryPublicIds ?? [],
   };
 
@@ -362,6 +413,9 @@ function ArticleForm({
       //    hành đúng một hôm với mọi văn bản ký trước 07:00 giờ Hà Nội. Ngày ban hành là một
       //    NGÀY trên tờ giấy, không có giờ để quy đổi.
       docIssuedDate: values.docIssuedDate ? values.docIssuedDate.format('YYYY-MM-DD') : null,
+      // ⚠ `?? null` tường minh: backend đọc `null` là *giữ nguyên tác giả đang có*, còn bỏ hẳn
+      //   trường thì cũng ra `null` — cùng kết quả, nhưng chỉ một trong hai nói ra ý định.
+      authorPublicId: values.authorPublicId ?? null,
       categoryPublicIds: values.categoryPublicIds,
       // ⚠ Gửi cả khi rỗng, KHÔNG bỏ trường đi: mảng rỗng nghĩa là *gỡ hết tài liệu*, còn thiếu
       //   trường thì backend đọc `null` và cũng ghi rỗng — hai đường ra cùng kết quả hôm nay,
@@ -512,7 +566,19 @@ function ArticleForm({
           layout="vertical"
           disabled={khoaSua}
           initialValues={initialValues}
-          onValuesChange={() => setCoSuaChuaLuu(true)}
+          // ⛔⛔ ⛔ `() => setCoSuaChuaLuu(true)` trần — T86.1. Lượt `onUpdate` TipTap bắn LÚC NẠP
+          //    cũng đi qua đây (`RichTextBridge` chuyển tiếp vào `Form`), nên bản trần bật cờ bẩn
+          //    khi ⛔ ai gõ gì. Với bài ≥ 2 khối — tức gần như mọi bài thật, vì prettyPrint của
+          //    `Jsoup.clean` xuống dòng giữa các khối — người duyệt mở bài ở `CHO_DUYET` sẽ thấy
+          //    nút Duyệt bị khoá kèm câu *"bấm Lưu trước"*, trong khi `khoaSua` đã khoá luôn nút
+          //    Lưu ⇒ **ngõ cụt, bài kẹt vĩnh viễn ở Chờ duyệt**.
+          onValuesChange={(daDoi: Partial<FormValues>) => {
+            // `content` đi qua vị từ dùng chung; mọi trường khác là do người dùng gõ thật.
+            const truongKhac = Object.keys(daDoi).filter((k) => k !== 'content');
+            if (truongKhac.length > 0 || laSuaNoiDungThuc(daDoi.content)) {
+              setCoSuaChuaLuu(true);
+            }
+          }}
         >
           <Row gutter={24}>
             <Col xs={24} lg={16}>
@@ -570,7 +636,8 @@ function ArticleForm({
                   onDoiNoiDung={(html) => {
                     // ⚠ TipTap bắn một lượt `onUpdate` khi nạp nội dung (đã đo). So với mốc chuẩn
                     //   hoá thay vì đếm lượt: lượt ấy mang đúng chuỗi của mốc nên không tính là sửa.
-                    if (mocNoiDung.current !== null && html !== mocNoiDung.current) {
+                    // ⛔ ⛔ so tại chỗ nữa — CÙNG vị từ với `onValuesChange` ở trên (T86.1).
+                    if (laSuaNoiDungThuc(html)) {
                       setCoSuaChuaLuu(true);
                     }
                   }}
@@ -584,6 +651,12 @@ function ArticleForm({
                     return file ? { publicId: file.publicId, alt: file.originalName } : null;
                   }}
                   onPickDocument={chenTaiLieuVaoBai}
+                  // ⛔ Trả THẲNG kết quả hộp chọn, ⛔ đi qua `chenTaiLieuVaoBai`: video ⛔ nối vào
+                  //    `documents[]` — xem javadoc `onPickVideo` và chú thích ở `chenTaiLieuVaoBai`.
+                  onPickVideo={async () => {
+                    const tep = await chonVideo();
+                    return tep ? { publicId: tep.publicId } : null;
+                  }}
                   onUploadImage={
                     thuMucAnh
                       ? async (file) => {
@@ -682,6 +755,27 @@ function ArticleForm({
                 <DatePicker showTime format="DD/MM/YYYY HH:mm" style={{ width: '100%' }} />
               </Form.Item>
 
+              {/* ⚠ "Tác giả" và "Nguồn tin" là HAI thứ khác nhau, và giao diện phải nói ra điều đó:
+                  tác giả là **người trong Công ty đứng tên bài**, còn nguồn tin là nơi bài được lấy
+                  về. Một bài dẫn lại từ báo ngoài có cả hai. */}
+              <Form.Item
+                name="authorPublicId"
+                label="Tác giả"
+                extra="Mặc định là bạn. Chỉ liệt kê tài khoản đang hoạt động có quyền soạn bài."
+              >
+                <Select
+                  allowClear
+                  showSearch={{ optionFilterProp: 'label' }}
+                  placeholder="Chọn người đứng tên bài"
+                  loading={authors.isLoading}
+                  options={(authors.data ?? []).map((u) => ({
+                    value: u.publicId,
+                    label: u.fullName,
+                  }))}
+                  notFoundContent={authors.isError ? 'Không tải được danh sách tác giả' : undefined}
+                />
+              </Form.Item>
+
               <Form.Item name="source" label="Nguồn tin">
                 <Input placeholder="VD: Cổng TTĐT Bộ NN&PTNT" />
               </Form.Item>
@@ -767,6 +861,7 @@ function ArticleForm({
 
       {picker}
       {pickerTaiLieu}
+      {pickerVideo}
       {hopThoaiRoiTrang}
 
       {!laBaiMoi && (
@@ -806,6 +901,11 @@ interface FormValues {
   metaKeywords: string;
   docNumber: string;
   docIssuedDate: Dayjs | null;
+  /**
+   * ⚠ `undefined` (⛔ `null`) khi chưa chọn — AntD `Select` coi `null` là **một giá trị đã chọn**
+   * và hiện ô trống thay vì `placeholder`. Và `submit` gửi `?? null` để backend hiểu *giữ nguyên*.
+   */
+  authorPublicId: string | undefined;
   categoryPublicIds: string[];
 }
 

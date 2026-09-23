@@ -83,9 +83,13 @@ vi.mock('./api', () => ({
     files: (f: string | null) => ['cms', 'files', f] as const,
     versions: (id: string) => ['cms', 'article', id, 'versions'] as const,
     versionContent: (id: string, v: string) => ['cms', 'article', id, 'version', v] as const,
+    articleAuthors: () => ['cms', 'article-authors'] as const,
   },
   cmsApi: {
     getArticle: vi.fn(async () => chiTiet(nhanTuMayChu.hienTai)),
+    // Ô chọn Tác giả (T84.3) — mock phải khai, ⛔ thì `cmsKeys.articleAuthors()` là `undefined`
+    // và cả màn hình ném ngay lúc dựng.
+    articleAuthors: vi.fn(async () => []),
     categories: vi.fn(async () => [{ publicId: 'dm-1', name: 'Tin tức', depth: 0 }]),
     folders: vi.fn(async () => []),
     versions: vi.fn(async () => [

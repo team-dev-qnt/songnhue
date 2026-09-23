@@ -391,6 +391,9 @@ services:
     restart: unless-stopped
     environment:
       API_UPSTREAM: http://app:8080
+      # Khung soạn thảo dựng `<video>` THẬT (`VideoTep` ⛔ có `addNodeView`), nên CSP của admin cũng
+      # phải cho phép gốc kho — xem ghi chú ở `public-web`. T84.13.
+      MEDIA_ORIGIN: https://${FILES_DOMAIN}
     mem_limit: 256m
 
   # ---------------------------------------------------------------------------
@@ -406,6 +409,17 @@ services:
     environment:
       PORT: 3000
       HOSTNAME: "0.0.0.0"
+      # ⭐⭐ Gốc của kho đối tượng, cho chỉ thị `media-src` của CSP — T84.13.
+      #
+      # ⛔⛔ PHẢI khớp `MINIO_ENDPOINT` của service `app` (dòng ~357, cùng `${FILES_DOMAIN}`):
+      #     endpoint `/public/videos/{id}` trả 302 sang chính gốc ấy, nên lệch nhau là mọi video
+      #     bị CSP chặn Ở TRÌNH DUYỆT — nơi ⛔ cổng kiểm nào của kho nhìn thấy (§10.61).
+      #     `MediaOriginKhopMinioTest` đối chiếu hai dòng này.
+      #
+      # ⚠ Đọc LÚC CHẠY, ⛔ nướng lúc build: `middleware.ts` của Next 16 chạy Node.js runtime
+      #   (`proxy.md:255`). Nướng vào ảnh là dựng lại bẫy `SITE_URL`/T68.12 — hai môi trường dùng
+      #   chung một ảnh thì chúng buộc phải mang chung giá trị.
+      MEDIA_ORIGIN: https://${FILES_DOMAIN}
       # Phải KHỚP biến cùng tên của service `app`; lệch nhau thì `/api/revalidate`
       # trả 401 và cổng công khai đứng yên ở nội dung cũ mà không báo lỗi gì.
       REVALIDATE_SECRET: ${REVALIDATE_SECRET}

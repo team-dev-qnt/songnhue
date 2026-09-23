@@ -2,12 +2,19 @@ import {
   ArrowDownOutlined,
   ArrowUpOutlined,
   DeleteOutlined,
+  DownloadOutlined,
+  EyeOutlined,
   PaperClipOutlined,
 } from '@ant-design/icons';
-import { Button, Card, Empty, Input, Space, Table, Tag, Typography } from 'antd';
+import { App, Button, Card, Empty, Input, Space, Table, Tag, Typography } from 'antd';
+import { useState } from 'react';
 
+import { XemTruocTep } from '@/components/business/XemTruocTep';
+import { xemTruocDuoc } from '@/components/business/xemTruocDuoc';
+import { ApiClientError } from '@/shared/apiClient';
 import { formatBytes } from '@/shared/format';
 
+import { cmsApi } from './api';
 import { type ArticleDocumentView } from './types';
 
 /**
@@ -55,6 +62,38 @@ export function ArticleDocumentsPanel({
   onPick,
   disabled = false,
 }: ArticleDocumentsPanelProps) {
+  const { message } = App.useApp();
+  /**
+   * ⛔ Hộp thoại xem trước chỉ TỒN TẠI khi đang mở (`xemTruoc ? <…/> : null`), ⛔ dựng sẵn rồi
+   * bật/tắt bằng `open`: khi ấy `<iframe>` của tệp A còn trong DOM lúc mở tệp B — và URL ấy sống
+   * 10 phút, ⛔ đi kèm phiên đăng nhập. Cùng cơ chế tường minh đã vá T51.12 · T53.7.
+   */
+  const [xemTruoc, setXemTruoc] = useState<ArticleDocumentView | null>(null);
+  const [dangTai, setDangTai] = useState<string | null>(null);
+
+  /**
+   * Tải một tệp về máy.
+   *
+   * ⚠ Mở presigned URL ở tab mới chứ ⛔ `luuTep`: URL ấy đã mang sẵn
+   * `Content-Disposition: attachment; filename=…` do máy chủ **ký cùng chữ ký** (T40.27), nên
+   * trình duyệt tự lưu đúng tên gốc. Kéo byte về rồi dựng Blob là đi qua tiến trình Node/máy khách
+   * một lần nữa ⛔ để làm gì. Cùng khuôn nút Tải của `HoSoConDrawer`.
+   */
+  const taiVe = async (doc: ArticleDocumentView) => {
+    setDangTai(doc.publicId);
+    try {
+      const { url } = await cmsApi.fileUrl(doc.publicId);
+      window.open(url, '_blank', 'noopener');
+    } catch (caught) {
+      // ⛔ Thiếu nhánh này thì bấm Tải ⇒ ⛔ có gì xảy ra và ⛔ có gì báo (`moiLuotGhiPhaiBaoLoi`).
+      message.error(
+        caught instanceof ApiClientError ? caught.message : 'Không lấy được đường dẫn tải',
+      );
+    } finally {
+      setDangTai(null);
+    }
+  };
+
   const doiCho = (i: number, buoc: number) => {
     const j = i + buoc;
     if (j < 0 || j >= documents.length) {
@@ -98,7 +137,9 @@ export function ArticleDocumentsPanel({
           //   `scroll.x` thì `rc-table` chạy `tableLayout: 'auto'` và `overflow-wrap: break-word`
           //   bóp tên tệp về một ký tự mỗi dòng thay vì cuộn ngang (bộ canh `bangCuonNgang`).
           //   720 = 370 cố định + 350 tối thiểu cho ô nhập nhãn.
-          scroll={{ x: 720 }}
+          //   ⚠ 790 = 720 + 70: cột thao tác đi từ 110 lên 180 khi thêm hai nút (T84.7). Quên
+          //   cộng là `bangCuonNgang` đỏ, và nếu bộ canh ấy ⛔ có thì tên tệp bị bóp một ký tự/dòng.
+          scroll={{ x: 790 }}
           columns={[
             {
               title: 'Tên hiển thị trên cổng',
@@ -149,9 +190,32 @@ export function ArticleDocumentsPanel({
             },
             {
               title: '',
-              width: 110,
+              width: 180,
               render: (_: unknown, row: ArticleDocumentView, index) => (
                 <Space size={0}>
+                  {/* ⛔⛔ ẨN HẲN khi tệp chưa quét xong, ⛔ `disabled`. Tiền lệ ba panel
+                      (`MaintenanceAttachmentsPanel:110`, `ConstructionDocumentsPanel:156`): một nút
+                      xám mà bấm vào vẫn ra 409 `SYS-0009` được người dùng đọc là *hệ thống hỏng*.
+                      Danh sách loại xem trước được do `xemTruocDuoc` quyết — ⛔ suy từ đuôi tên tệp. */}
+                  {xemTruocDuoc(row.contentType, row.downloadable) && (
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<EyeOutlined />}
+                      aria-label={`Xem trước "${tenTaiLieu(row)}"`}
+                      onClick={() => setXemTruoc(row)}
+                    />
+                  )}
+                  {row.downloadable && (
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<DownloadOutlined />}
+                      aria-label={`Tải "${tenTaiLieu(row)}" về máy`}
+                      loading={dangTai === row.publicId}
+                      onClick={() => void taiVe(row)}
+                    />
+                  )}
                   <Button
                     type="text"
                     size="small"
@@ -181,6 +245,16 @@ export function ArticleDocumentsPanel({
               ),
             },
           ]}
+        />
+      )}
+
+      {xemTruoc && (
+        <XemTruocTep
+          tenHienThi={tenTaiLieu(xemTruoc)}
+          contentType={xemTruoc.contentType}
+          khoaDem={['cms', 'tai-lieu', 'xem-truoc', xemTruoc.publicId]}
+          layUrl={async () => (await cmsApi.fileInlineUrl(xemTruoc.publicId)).url}
+          onDong={() => setXemTruoc(null)}
         />
       )}
     </Card>

@@ -24,7 +24,15 @@ export interface ArticleSummary {
   status: ArticleStatus;
   publishedAt: string | null;
   viewCount: number;
+  /** Họ tên tác giả; `null` khi tài khoản đã bị xoá mềm — cột để TRỐNG, ⛔ bịa chuỗi thay thế. */
+  authorName: string | null;
   categoryNames: string[];
+}
+
+/** Một lựa chọn trong ô *Tác giả* — `GET /cms/articles/authors`. */
+export interface AuthorOption {
+  publicId: string;
+  fullName: string;
 }
 
 export interface ArticleDetail {
@@ -34,6 +42,15 @@ export interface ArticleDetail {
   summary: string | null;
   content: string;
   coverAttachmentPublicId: string | null;
+  /**
+   * Tác giả — nửa ĐỌC của cặp đọc–ghi với `ArticleSaveRequest.authorPublicId`.
+   *
+   * ⚠ Thiếu trường này (trạng thái trước T84.2) thì biểu mẫu ⛔ có gì để gửi lại: mỗi lượt Lưu
+   * bỏ trống `authorPublicId`, backend giữ nguyên tác giả cũ, và ô chọn ⛔ bao giờ đổi được gì.
+   */
+  authorPublicId: string | null;
+  /** Họ tên tác giả; `null` khi tài khoản đã xoá mềm. */
+  authorName: string | null;
   source: string | null;
   status: ArticleStatus;
   publishedAt: string | null;

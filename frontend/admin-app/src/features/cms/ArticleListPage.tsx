@@ -42,6 +42,12 @@ export function ArticleListPage() {
     queryFn: () => cmsApi.categories(),
   });
 
+  const authors = useQuery({
+    queryKey: cmsKeys.articleAuthors(),
+    queryFn: () => cmsApi.articleAuthors(),
+    staleTime: 5 * 60_000,
+  });
+
   const articles = useQuery({
     queryKey: cmsKeys.articles(filter),
     queryFn: () => cmsApi.searchArticles(filter),
@@ -118,6 +124,14 @@ export function ArticleListPage() {
           ))}
         </Space>
       ),
+    },
+    {
+      title: 'Tác giả',
+      dataIndex: 'authorName',
+      width: 160,
+      // ⛔ Không `?? '—'`: tác giả rỗng nghĩa là tài khoản đã bị xoá mềm, và một dấu gạch trông
+      //   y hệt một giá trị người dùng nhập. Ô TRỐNG là câu trả lời đúng (quy tắc 16).
+      render: (value: string | null) => value ?? null,
     },
     {
       title: 'Trạng thái',
@@ -209,6 +223,17 @@ export function ArticleListPage() {
             // Thụt lề theo cấp để cây danh mục đọc được trong một ô chọn phẳng.
             label: `${'  '.repeat(c.depth)}${c.name}`,
           }))}
+        />
+        {/* Bộ lọc theo tác giả — backend đã nhận `authorId` từ WS-12, đây là nửa còn thiếu. */}
+        <Select
+          allowClear
+          showSearch={{ optionFilterProp: 'label' }}
+          placeholder="Mọi tác giả"
+          style={{ width: 200 }}
+          value={filter.authorId}
+          loading={authors.isLoading}
+          onChange={(authorId) => setFilter((prev) => ({ ...prev, authorId, page: 0 }))}
+          options={(authors.data ?? []).map((u) => ({ value: u.publicId, label: u.fullName }))}
         />
         {selected.length > 0 && hasPermission('cms:article:delete') && (
           <Popconfirm
