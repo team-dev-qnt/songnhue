@@ -222,7 +222,8 @@ public class Construction extends ScopedEntity {
     // === Thông số cống =======================================================
 
     @Column(table = "sluice_specs", name = "sluice_type", length = 20)
-    private String sluiceType;
+    @Enumerated(EnumType.STRING)
+    private SluiceType sluiceType;
 
     @Column(table = "sluice_specs", name = "bay_count")
     private Short bayCount;
@@ -240,7 +241,8 @@ public class Construction extends ScopedEntity {
     private BigDecimal sluiceDesignFlowM3s;
 
     @Column(table = "sluice_specs", name = "gate_operation", length = 20)
-    private String gateOperation;
+    @Enumerated(EnumType.STRING)
+    private GateOperation gateOperation;
 
     @Column(table = "sluice_specs", name = "upstream_warning_level_m", precision = 8, scale = 3)
     private BigDecimal upstreamWarningLevelM;
@@ -550,11 +552,11 @@ public class Construction extends ScopedEntity {
         this.operatingLevelMaxM = operatingLevelMaxM;
     }
 
-    public String getSluiceType() {
+    public SluiceType getSluiceType() {
         return sluiceType;
     }
 
-    public void setSluiceType(String sluiceType) {
+    public void setSluiceType(SluiceType sluiceType) {
         this.sluiceType = sluiceType;
     }
 
@@ -598,11 +600,11 @@ public class Construction extends ScopedEntity {
         this.sluiceDesignFlowM3s = sluiceDesignFlowM3s;
     }
 
-    public String getGateOperation() {
+    public GateOperation getGateOperation() {
         return gateOperation;
     }
 
-    public void setGateOperation(String gateOperation) {
+    public void setGateOperation(GateOperation gateOperation) {
         this.gateOperation = gateOperation;
     }
 

@@ -597,6 +597,12 @@ export type OperationalStatus =
   'BINH_THUONG' | 'CANH_BAO' | 'SU_CO' | 'BAO_TRI' | 'NGUNG_MUA_VU' | 'DA_THANH_LY';
 export type LifecycleState = 'DANG_HOAT_DONG' | 'NGUNG_MUA_VU' | 'DA_THANH_LY';
 export type ManagementLevel = 'CONG_TY' | 'XI_NGHIEP' | 'CUM';
+
+/** Loại cống — `ck_sluice_specs_type`. T68.28: trước 23/09/2026 đây là `string` tự do. */
+export type SluiceType = 'HOP' | 'TRON' | 'VAN_PHANG' | 'CLAPE';
+
+/** Kiểu vận hành cửa cống — `ck_sluice_specs_gate`. */
+export type GateOperation = 'THU_CONG' | 'DIEN' | 'THUY_LUC';
 /**
  * ⚠ Phải khớp ĐÚNG enum Java `ConstructionPurpose` và `ck_constructions_purpose`.
  *
@@ -639,13 +645,13 @@ export interface PumpSpecView {
 }
 
 export interface SluiceSpecView {
-  sluiceType: string | null;
+  sluiceType: SluiceType | null;
   bayCount: number | null;
   bayWidthM: number | null;
   sillElevationM: number | null;
   crestElevationM: number | null;
   designFlowM3s: number | null;
-  gateOperation: string | null;
+  gateOperation: GateOperation | null;
   upstreamWarningLevelM: number | null;
   upstreamDangerLevelM: number | null;
 }

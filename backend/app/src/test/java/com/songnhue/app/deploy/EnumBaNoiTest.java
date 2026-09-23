@@ -32,10 +32,12 @@ import com.songnhue.hr.domain.MaritalStatus;
 import com.songnhue.hr.domain.QualificationKind;
 import com.songnhue.operations.domain.ConstructionPurpose;
 import com.songnhue.operations.domain.ConstructionType;
+import com.songnhue.operations.domain.GateOperation;
 import com.songnhue.operations.domain.GisGeometryType;
 import com.songnhue.operations.domain.LifecycleState;
 import com.songnhue.operations.domain.ManagementLevel;
 import com.songnhue.operations.domain.OperationalStatus;
+import com.songnhue.operations.domain.SluiceType;
 
 /**
  * Một danh sách giá trị hợp lệ sống ở <b>ba nơi</b> — enum Java, union TypeScript, ràng buộc
@@ -66,15 +68,12 @@ import com.songnhue.operations.domain.OperationalStatus;
  *
  * <h2>⚠ Phạm vi tự khai (luật 28)</h2>
  *
- * Bài này soi <b>đúng mười tám enum</b> đã liệt kê ở {@link #BO_BA}: năm của hồ sơ công trình,
+ * Bài này soi <b>hai mươi enum</b> đã liệt kê ở {@link #BO_BA}: năm của hồ sơ công trình,
  * {@code BackupTrigger}, bốn của hồ sơ CBNV (T51.10a), <b>ba của lớp hồ sơ con</b> (WS-53), hai của
  * nghỉ phép (WS-57), {@code GisGeometryType} (WS-59) và <b>hai của {@code core}</b> (T68.33).
  * Nó <b>không</b> phủ:
  *
  * <ul>
- *   <li>{@code sluice_specs.sluice_type} và {@code gate_operation} — CSDL có {@code CHECK} liệt kê
- *       giá trị, nhưng giao diện là ô {@code <Input>} <b>chữ tự do</b>, không có union TS nào để
- *       đối chiếu. Gõ "Hộp" hay "van phẳng" vẫn cho ra <b>500</b>. Nợ để mở (T68.28), không im lặng bỏ qua.
  *   <li>enum của các module khác ({@code cms}, {@code hyd}, {@code adm}).
  * </ul>
  *
@@ -145,6 +144,11 @@ class EnumBaNoiTest {
             new BoBa(ManagementLevel.class, "ManagementLevel", "ck_constructions_management_level", null),
             new BoBa(LifecycleState.class, "LifecycleState", "ck_constructions_lifecycle", null),
             new BoBa(OperationalStatus.class, "OperationalStatus", "ck_constructions_operational_status", null),
+            // ⭐ T68.28 (23/09/2026) — hai enum của `sluice_specs`. Javadoc lớp này TỪNG khai chúng là nợ
+            //    kèm lý do *"⛔ có union TS nào để đối chiếu"*; lý do ấy hết đúng khi ô `<Input>` chữ tự do
+            //    thành `<Select>` đọc nhãn từ `statusVocabulary`.
+            new BoBa(SluiceType.class, "SluiceType", "ck_sluice_specs_type", "SLUICE_TYPE"),
+            new BoBa(GateOperation.class, "GateOperation", "ck_sluice_specs_gate", "GATE_OPERATION"),
             // T11.34 — enum đầu tiên ngoài hồ sơ công trình, và enum đầu tiên canh đủ BỐN nơi.
             new BoBa(BackupTrigger.class, "BackupTrigger", "ck_system_backups_trigger", "BACKUP_TRIGGER"),
             // ⭐ T51.10(a) — bốn enum HRM (WS-51). Trước dòng này chúng ⛔ không được nơi nào đối chiếu.
@@ -243,7 +247,7 @@ class EnumBaNoiTest {
 
         assertThat(BO_BA)
                 .as("bảng đối chiếu rỗng thì bài trên không khẳng định gì")
-                .hasSize(18);
+                .hasSize(20);
         assertThat(BO_BA.stream().map(BoBa::tepTs).distinct().toList())
                 .as("⭐ T51.10(a): phải có ÍT NHẤT hai tệp TS trong bảng. Thiếu vế này thì một lượt "
                         + "'dọn dẹp' gộp tất cả về api-types.ts sẽ làm bốn enum HR về rỗng — và bài "
