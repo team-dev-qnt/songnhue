@@ -64,6 +64,9 @@ class HydroReportPerformanceTest extends IntegrationTestBase {
     private TestHttp http;
 
     @Autowired
+    private com.songnhue.hydro.application.HydroReportExportHandler xuatBaoCao;
+
+    @Autowired
     private UserRepository users;
 
     @Autowired
@@ -270,6 +273,106 @@ class HydroReportPerformanceTest extends IntegrationTestBase {
         // ⚠ Trần chặt hơn NFR-04 rất nhiều, và có lý do: biểu này tự gọi lại 2 phút một lần trên
         //   màn hình tường. Một endpoint 10 giây ở đó nghĩa là màn hình đứng hình 10 giây mỗi 2 phút.
         assertThat(ms).isLessThan(5_000);
+    }
+
+    /**
+     * ⭐⭐ <b>NFR-04 vế VIỆC NỀN</b> — {@code DOD2.22}, T85.7.
+     *
+     * <h3>Vì sao ba bài trên chưa đóng được `DOD2.22`</h3>
+     *
+     * <p>Cả ba bấm giờ đường <b>HTTP đồng bộ</b>. Nhưng thứ người dùng thật bấm ở màn hình *Xuất báo
+     * cáo* lại xếp một <b>việc nền</b> {@code HYDRO_REPORT_EXPORT}, và toàn bộ khối lượng nặng —
+     * dựng bảng, sinh CSV, đẩy lên kho — nằm ở {@code HydroReportExportHandler}, một đường mà ⛔ phép
+     * đo nào của kho chạm tới. Dòng nợ ghi đúng: <i>"bài NFR-04 hiện có ⛔ bấm giờ job ấy"</i>.
+     *
+     * <h3>⚠ Vì sao gọi THẲNG handler, ⛔ đi qua {@code JobWorker}</h3>
+     *
+     * <p>{@code IntegrationTestBase} tắt worker cho toàn bộ bộ kiểm — quyết định đúng, vì một worker
+     * chạy ngầm sẽ nhặt việc do lớp khác vừa đặt. Bật nó cho lớp này là dựng thêm một <b>context
+     * Spring thứ hai</b> (container + toàn bộ migration) chỉ để đo một con số. Khối lượng NFR-04 nói
+     * tới nằm trong {@code handle(...)}; vòng {@code poll()} chỉ thêm độ trễ lấy việc.
+     *
+     * <h3>⛔⛔ Và vì sao phải khẳng định SỐ DÒNG</h3>
+     *
+     * <p>Cùng bài học mà {@link #bamGio} đã ghi ở ngay dưới: <b>một lượt hỏng trả lời rất nhanh</b>.
+     * Một handler sinh ra tệp CSV rỗng — hoặc ném rồi bị nuốt — sẽ cho một con số đẹp và bài kiểm
+     * xanh, trong khi thứ nó đo là tốc độ của đường ⛔ làm gì (luật 9 · quy tắc 16).
+     */
+    @Test
+    @Order(6)
+    @DisplayName("⭐⭐ NFR-04 — VIỆC NỀN kết xuất BC-05 cả tháng, dưới 60 giây (DOD2.22)")
+    void theExportJobMeetsNfr04() throws Exception {
+        String payload = "{\"loai\":\"BC05\",\"tuNgay\":\"%s\",\"denNgay\":\"%s\"}".formatted(dauThang, cuoiThang);
+        java.util.concurrent.atomic.AtomicReference<String> ketQua =
+                new java.util.concurrent.atomic.AtomicReference<>();
+
+        long batDau = System.nanoTime();
+        xuatBaoCao.handle(new com.songnhue.core.spi.JobContext(
+                java.util.UUID.randomUUID(),
+                com.songnhue.hydro.application.HydroJobTypes.REPORT_EXPORT,
+                payload,
+                null,
+                i -> {},
+                ketQua::set));
+        long ms = (System.nanoTime() - batDau) / 1_000_000;
+
+        log.info("⏱ NFR-04 — VIỆC NỀN BC-05 tháng {}: {} ms (trần {} ms)", dauThang.getMonth(), ms, TRAN_NFR04_MS);
+
+        assertThat(ketQua.get())
+                .as("⛔ Handler phải ghi con trỏ kết quả — ⛔ có nó thì `JobWorker.succeed()` đọc lại NULL "
+                        + "và người dùng bấm *Tải về* trên một việc báo THÀNH CÔNG mà ⛔ có tệp nào (T34.7).")
+                .isNotNull();
+        // ⛔⛔ VẾ PHÂN BIỆT, và HAI bản đầu của nó đều là khẳng định RỖNG — cả hai lộ ra nhờ kiểm
+        //   chứng ngược, ⛔ nhờ đọc lại.
+        //   · Bản 1 đòi `soDong > 0`: đổi kỳ báo cáo sang một khoảng 5 năm trước (⛔ một bản ghi nào)
+        //     mà bài VẪN XANH — BC-05 luôn sinh ít nhất dòng tiêu đề.
+        //   · Bản 2 đòi `soDong` của kỳ thật > kỳ rỗng: đo ra **20 = 20**. BC-05 phát MỘT dòng cho
+        //     MỖI điểm đo bất kể kỳ ấy có số liệu ⛔ — số dòng của nó ⛔ phụ thuộc dữ liệu.
+        // ⇒ Thứ thật sự đổi theo dữ liệu là KÍCH THƯỚC: ô có số liệu dài hơn hẳn ô rỗng. Đây là vế
+        //   duy nhất giữ cho con số thời gian bên trên có nghĩa (luật 9 · quy tắc 16).
+        int byteKyThat = soByteCua(ketQua.get());
+        int byteKyRong = soByteCua(xuatBc05(dauThang.minusYears(5), cuoiThang.minusYears(5)));
+
+        assertThat(byteKyThat)
+                .as(
+                        "⛔⛔ Kỳ có %d bản ghi và kỳ ⛔ có gì cho ra tệp CÙNG cỡ (%d byte) ⇒ bộ kết xuất ⛔ đọc "
+                                + "dữ liệu, và con số thời gian bên trên đang đo tốc độ của một đường ⛔ làm gì.",
+                        soDiemDo * cuoiThang.getDayOfMonth() * KHUNG_MOI_NGAY, byteKyRong)
+                .isGreaterThan(byteKyRong);
+
+        assertThat(ms)
+                .as("⛔ Việc nền kết xuất BC-05 cả tháng vượt trần NFR-04. Đây là đường người dùng thật đi "
+                        + "khi bấm *Xuất báo cáo*, ⛔ phải đường HTTP đồng bộ ở ba bài trên.")
+                .isLessThan(TRAN_NFR04_MS);
+    }
+
+    /** Chạy đúng handler ấy cho một kỳ khác — dùng làm vế đối chứng của bài NFR-04 việc nền. */
+    private String xuatBc05(LocalDate tu, LocalDate den) throws Exception {
+        java.util.concurrent.atomic.AtomicReference<String> ra = new java.util.concurrent.atomic.AtomicReference<>();
+        xuatBaoCao.handle(new com.songnhue.core.spi.JobContext(
+                java.util.UUID.randomUUID(),
+                com.songnhue.hydro.application.HydroJobTypes.REPORT_EXPORT,
+                "{\"loai\":\"BC05\",\"tuNgay\":\"%s\",\"denNgay\":\"%s\"}".formatted(tu, den),
+                null,
+                i -> {},
+                ra::set));
+        return ra.get();
+    }
+
+    /**
+     * ⚠ BÓC SỐ ra thay vì so chuỗi: một phép so chuỗi im lặng trở thành khẳng định RỖNG ngày ai đó
+     * đổi tên trường, và lượt đỏ của nó cũng ⛔ in ra con số thật.
+     */
+    private static int soByteCua(String ketQuaJson) {
+        java.util.regex.Matcher m =
+                java.util.regex.Pattern.compile("\"soByte\"\\s*:\\s*(\\d+)").matcher(ketQuaJson);
+        assertThat(m.find())
+                .as(
+                        "⚠ TIỀN ĐỀ: con trỏ kết quả phải mang trường `soByte` — ⛔ có thì vế phân biệt bên "
+                                + "trên ⛔ khẳng định gì. Nhận được: %s",
+                        ketQuaJson)
+                .isTrue();
+        return Integer.parseInt(m.group(1));
     }
 
     private long bamGio(String duong) {
