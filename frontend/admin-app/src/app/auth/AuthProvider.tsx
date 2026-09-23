@@ -48,6 +48,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   // --- Khôi phục phiên sau khi tải lại trang -------------------------------
+  //
+  // ⚠ Hai nhánh `setStatus('anonymous')` bên dưới KHÔNG gọi `endSession()`, và đó là có
+  // chủ ý — ⛔ phải một bản sao thứ hai của T85.13. Đây là *phiên chưa bao giờ bắt đầu*,
+  // ⛔ phải *phiên kết thúc*: effect này chạy một lượt lúc tải trang, trên một heap JS vừa
+  // dựng lại, nên `QueryClient` còn RỖNG và ⛔ có dữ liệu của ai để rò. Đo 23/09: lời gọi
+  // truy vấn đầu tiên của mọi màn hình nằm sau `status === 'authenticated'`.
   useEffect(() => {
     let huy = false;
 
@@ -74,33 +80,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       huy = true;
     };
   }, [loadProfile]);
-
-  // --- Nghe sự kiện phiên do apiClient phát ---------------------------------
-  // `notification` nằm trong danh sách phụ thuộc thay vì được giữ qua một ref: đọc/ghi
-  // ref trong lúc render là thứ React cấm (và eslint-plugin-react-hooks bắt được).
-  // `App.useApp()` trả về đối tượng ổn định, nên thực tế effect này chỉ chạy một lần.
-  useEffect(
-    () =>
-      onSessionEvent((event) => {
-        switch (event.type) {
-          case 'sessionLost':
-            setUser(null);
-            setStatus('anonymous');
-            notification.warning({
-              message: 'Phiên đăng nhập kết thúc',
-              description: event.reason,
-            });
-            break;
-          case 'maintenance':
-            setMaintenance(true);
-            break;
-          case 'mustChangePassword':
-            setUser((current) => (current ? { ...current, mustChangePassword: true } : current));
-            break;
-        }
-      }),
-    [notification],
-  );
 
   const login = useCallback(
     async (username: string, password: string) =>
@@ -152,6 +131,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * ⚠ Đặt ở `endSession` — ⛔ phải ở `logout` — là cố ý: phiên còn kết thúc qua **đường
    * khác** (backend thu hồi phiên ⇒ `onSessionEvent`, đổi mật khẩu, bị đăng xuất từ xa).
    * Đặt ở nơi *dữ liệu đi qua* thay vì ở *một nơi gọi* là luật 12.
+   *
+   * <h3>⛔⛔ Và câu ngay trên đã SAI suốt 7 ngày — T85.13</h3>
+   *
+   * Nó nêu đích danh `onSessionEvent` là đường phải đi qua đây, nhưng nhánh `'sessionLost'`
+   * bên dưới **chép ba dòng đầu** vào chỗ khác thay vì **gọi** hàm này ⇒ đúng dòng thứ tư —
+   * `queryClient.clear()`, cam kết bảo mật ASVS 8.2.3 — ⛔ bao giờ chạy trên đường ấy.
+   * Và đó là đường **phổ biến nhất**: token hết hạn, phiên bị thu hồi từ xa, lượt làm mới
+   * hỏng — thường hơn hẳn việc người dùng bấm nút Đăng xuất.
+   *
+   * ⇒ Nhánh ấy nay **gọi** `endSession()`. Một bảo đảm được *chép* ra hai nơi thì hai nơi
+   * đó sẽ lệch nhau, và lệch về phía nguy hiểm mà ⛔ dòng đỏ nào báo (luật 14).
    */
   const queryClient = useQueryClient();
   const endSession = useCallback(() => {
@@ -160,6 +150,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus('anonymous');
     queryClient.clear();
   }, [queryClient]);
+
+  // --- Nghe sự kiện phiên do apiClient phát ---------------------------------
+  // `notification` nằm trong danh sách phụ thuộc thay vì được giữ qua một ref: đọc/ghi
+  // ref trong lúc render là thứ React cấm (và eslint-plugin-react-hooks bắt được).
+  // `App.useApp()` trả về đối tượng ổn định, nên thực tế effect này chỉ chạy một lần.
+  //
+  // ⚠ Effect này nằm SAU `endSession` vì nó gọi hàm ấy — `const` có vùng chết tạm thời.
+  useEffect(
+    () =>
+      onSessionEvent((event) => {
+        switch (event.type) {
+          case 'sessionLost':
+            // ⛔ Chỉ `setUser(null) + setStatus(...)`: đó là *trạng thái đăng nhập*, còn
+            // **dữ liệu** của người vừa mất phiên vẫn nằm trong đệm TanStack Query.
+            endSession();
+            notification.warning({
+              message: 'Phiên đăng nhập kết thúc',
+              description: event.reason,
+            });
+            break;
+          case 'maintenance':
+            // ⛔ `endSession()` ở đây: báo bảo trì ⛔ kết thúc phiên của ai cả, xoá đệm là
+            // ném đi công việc dở của người đang dùng.
+            setMaintenance(true);
+            break;
+          case 'mustChangePassword':
+            setUser((current) => (current ? { ...current, mustChangePassword: true } : current));
+            break;
+        }
+      }),
+    [notification, endSession],
+  );
 
   const logout = useCallback(async () => {
     try {

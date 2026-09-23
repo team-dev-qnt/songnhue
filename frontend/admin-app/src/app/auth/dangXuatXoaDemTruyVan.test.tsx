@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { App as AntdApp } from 'antd';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -34,6 +34,19 @@ import type { MeResponse } from '@/shared/api-types';
  * ⛔ Nó ⛔ hỏi *"mã có gọi `queryClient.clear()` ⛔"* — đó là canh văn bản (luật 2), và nó sẽ
  * xanh cả khi lời gọi ấy nằm ở một nhánh ⛔ bao giờ chạy tới. Nó nạp dữ liệu vào đệm **thật**,
  * bấm đăng xuất qua giao diện **thật**, rồi hỏi chính đệm ấy còn gì ⛔.
+ *
+ * <h2>⛔⛔ Và ba bài đầu tiên của chính tệp này MÙ trước đường phổ biến nhất — T85.13</h2>
+ *
+ * Bản đầu (16/09) giả `onSessionEvent: () => () => {}`, tức nó **bịt** đúng đường mà javadoc của
+ * {@code endSession} nêu **đích danh** là lý do bảo đảm phải nằm ở đó: *"phiên còn kết thúc qua
+ * đường khác (backend thu hồi phiên ⇒ `onSessionEvent`…)"*. Đo 23/09: nhánh {@code 'sessionLost'}
+ * **chép ba dòng** của {@code endSession} vào chỗ khác thay vì **gọi** nó ⇒ ⛔ có
+ * {@code queryClient.clear()}. Token bị dọn (ở {@code apiClient}), {@code user}/{@code status} bị
+ * dọn — chỉ **dữ liệu** ở lại, đúng thứ T63.3 sinh ra để xoá.
+ *
+ * <p>Đường ấy ⛔ phải ca hiếm: nó là *token hết hạn*, *phiên bị thu hồi từ xa*, *lượt làm mới
+ * hỏng* — phổ biến hơn hẳn việc bấm nút Đăng xuất. Ba bài cũ xanh, và cái xanh ấy đọc như một lời
+ * bảo đảm cho **cả** ASVS 8.2.3 (luật 28). ⇒ Mẫu giả nay **phát được** sự kiện thật.
  */
 
 const HO_SO: MeResponse = {
@@ -52,6 +65,23 @@ const postGia = vi.fn();
 const getGia = vi.fn();
 const bootstrapGia = vi.fn();
 
+/**
+ * Người nghe mà `AuthProvider` đăng ký — giữ lại để bài kiểm **phát** được sự kiện thật.
+ *
+ * ⚠ Mẫu giả cũ trả một hàm rỗng, nên `AuthProvider` đăng ký vào hư vô và nhánh
+ * `'sessionLost'` ⛔ bao giờ chạy trong bộ kiểm. Đó là lý do khe hở T85.13 vô hình.
+ */
+type SuKienPhien = { type: 'sessionLost'; reason: string } | { type: 'maintenance' };
+const nguoiNghe: Array<(e: SuKienPhien) => void> = [];
+
+/** Phát một sự kiện phiên đúng như `apiClient` làm, trong `act` để React kịp dựng lại. */
+async function phatSuKien(e: SuKienPhien) {
+  await act(async () => {
+    nguoiNghe.forEach((f) => f(e));
+    await Promise.resolve();
+  });
+}
+
 vi.mock('@/shared/apiClient', () => ({
   api: {
     get: (url: string) => getGia(url) as unknown,
@@ -60,7 +90,15 @@ vi.mock('@/shared/apiClient', () => ({
   bootstrapSession: () => bootstrapGia() as unknown,
   clearTokens: vi.fn(),
   setAccessToken: vi.fn(),
-  onSessionEvent: () => () => {},
+  onSessionEvent: (listener: (e: SuKienPhien) => void) => {
+    nguoiNghe.push(listener);
+    return () => {
+      const i = nguoiNghe.indexOf(listener);
+      if (i >= 0) {
+        nguoiNghe.splice(i, 1);
+      }
+    };
+  },
   ApiClientError: class extends Error {},
 }));
 
@@ -103,6 +141,7 @@ describe('Đăng xuất và đệm truy vấn', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    nguoiNghe.length = 0;
     queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     bootstrapGia.mockResolvedValue(true);
     getGia.mockResolvedValue(HO_SO);
@@ -157,5 +196,41 @@ describe('Đăng xuất và đệm truy vấn', () => {
     await waitFor(() => expect(screen.getByText('trạng thái: anonymous')).toBeTruthy());
 
     expect(queryClient.getQueryData(KHOA_NHAY_CAM)).toBeUndefined();
+  });
+
+  it('⛔⛔ T85.13: phiên mất vì TOKEN HẾT HẠN cũng phải xoá đệm — đường này phổ biến hơn nút Đăng xuất', async () => {
+    // Đường `sessionLost`: token hết hạn · phiên bị thu hồi từ xa · lượt làm mới hỏng.
+    // `apiClient` đã `clearTokens()` rồi mới phát sự kiện, nên token ⛔ phải thứ còn lại —
+    // thứ còn lại là DỮ LIỆU, đúng cái T63.3 sinh ra để xoá.
+    queryClient.setQueryData(KHOA_NHAY_CAM, DU_LIEU_NHAY_CAM);
+    queryClient.setQueryData(['danh-ba'], [{ hoTen: 'Trần Thị B', dienThoai: '0912345678' }]);
+    expect(queryClient.getQueryData(KHOA_NHAY_CAM)).toEqual(DU_LIEU_NHAY_CAM);
+
+    dungManHinh(queryClient);
+    await screen.findByText('trạng thái: authenticated');
+
+    await phatSuKien({ type: 'sessionLost', reason: 'Phiên đăng nhập đã hết hạn' });
+
+    // Tiền đề, ⛔ phải kết luận: khẳng định này chứng minh sự kiện ĐÃ tới được `AuthProvider`.
+    // Thiếu nó thì một mẫu giả ⛔ đăng ký được người nghe sẽ làm bài đỏ với chẩn đoán SAI —
+    // *"bản vá ⛔ chạy"* trong khi sự thật là *"sự kiện ⛔ bao giờ được phát"* (§11.19).
+    await waitFor(() => expect(screen.getByText('trạng thái: anonymous')).toBeTruthy());
+
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(0);
+  });
+
+  it('⭐ vế phân biệt: báo BẢO TRÌ ⛔ phải kết thúc phiên ⇒ đệm phải CÒN NGUYÊN', async () => {
+    // ⛔ Có vế này thì một bản vá gọi `endSession()` cho MỌI sự kiện phiên cũng xanh — và nó
+    // sai: banner bảo trì ⛔ đăng xuất ai cả, xoá đệm ở đó là ném đi công việc dở của người
+    // đang dùng. Luật 9: một khẳng định ⛔ phân biệt được hai trạng thái thì ⛔ khẳng định gì.
+    queryClient.setQueryData(KHOA_NHAY_CAM, DU_LIEU_NHAY_CAM);
+
+    dungManHinh(queryClient);
+    await screen.findByText('trạng thái: authenticated');
+
+    await phatSuKien({ type: 'maintenance' });
+
+    expect(screen.getByText('trạng thái: authenticated')).toBeTruthy();
+    expect(queryClient.getQueryData(KHOA_NHAY_CAM)).toEqual(DU_LIEU_NHAY_CAM);
   });
 });
