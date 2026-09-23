@@ -21,6 +21,7 @@ import com.songnhue.core.common.importer.CotMau;
 import com.songnhue.core.common.importer.KetQuaNhap;
 import com.songnhue.core.common.importer.KetQuaNhap.LoiDong;
 import com.songnhue.core.common.importer.SpreadsheetReader;
+import com.songnhue.core.common.persistence.ScopeGuard;
 import com.songnhue.core.common.util.VietnameseUtils;
 import com.songnhue.core.spi.OrgUnitPort;
 import com.songnhue.core.spi.OrgUnitRef;
@@ -50,11 +51,17 @@ import com.songnhue.operations.infra.ConstructionRepository;
  *
  * <h2>⚠ Phạm vi đơn vị vẫn có hiệu lực</h2>
  *
- * Truy vấn tìm bản ghi trùng mã chạy qua bộ lọc tầng 3. Người của Xí nghiệp A nhập một mã đang thuộc
- * Xí nghiệp B sẽ <b>không thấy</b> bản ghi đó, nên kế hoạch ghi "thêm mới", rồi
- * {@code ConstructionService.create} đâm vào chỉ mục duy nhất và trả {@code OPS-2008}. Kết quả cuối
- * cùng đúng — không ai ghi đè được hồ sơ của đơn vị khác — nhưng thông báo sẽ nói "mã đã tồn tại"
- * chứ không nói "thuộc đơn vị khác", và đó là chủ ý: nói rõ hơn là tiết lộ dữ liệu ngoài phạm vi.
+ * Truy vấn tìm bản ghi trùng mã chạy qua bộ lọc tầng 3, nên người của Xí nghiệp A <b>không thấy</b>
+ * bản ghi của Xí nghiệp B. <b>⚠ Đoạn dưới đây đã ĐỔI ngày 23/09/2026 (T81.4)</b> — bản trước khai
+ * rằng để kế hoạch nói <i>"thêm mới"</i> rồi cho chỉ mục duy nhất chặn bằng {@code OPS-2008} là
+ * <i>chủ ý</i>, vì <i>"nói rõ hơn là tiết lộ dữ liệu ngoài phạm vi"</i>.
+ *
+ * <p>Lý do ấy đo ra là <b>đúng một nửa</b>: {@code OPS-2008} (<i>"Mã công trình đã tồn tại"</i>)
+ * <b>đã</b> tiết lộ chính sự tồn tại ấy. Thứ khác nhau thật là <b>thời điểm</b> và <b>chất lượng</b>
+ * của thông báo — lỗi cũ nổ <b>giữa lượt ghi</b>, giao dịch cuộn lại, người nhập mất cả tệp và ⛔
+ * biết dòng nào hỏng. Nay {@link #traMa} hỏi toàn Công ty ngay ở bước lập kế hoạch và trả một
+ * <b>dòng lỗi chỉ đúng chỗ sai</b>, theo tiền lệ {@code EmployeeImportService} (WS-74c) — tiết lộ
+ * sự tồn tại, ⛔ tiết lộ đơn vị nào.
  */
 @Service
 public class ConstructionImportService {
@@ -148,16 +155,19 @@ public class ConstructionImportService {
     private final ConstructionRepository repository;
     private final ConstructionClusterRepository clusters;
     private final OrgUnitPort orgUnits;
+    private final ScopeGuard scopeGuard;
 
     public ConstructionImportService(
             ConstructionService constructions,
             ConstructionRepository repository,
             ConstructionClusterRepository clusters,
-            OrgUnitPort orgUnits) {
+            OrgUnitPort orgUnits,
+            ScopeGuard scopeGuard) {
         this.constructions = constructions;
         this.repository = repository;
         this.clusters = clusters;
         this.orgUnits = orgUnits;
+        this.scopeGuard = scopeGuard;
     }
 
     /** Xem trước — <b>không ghi một dòng nào</b>, kể cả khi tệp hoàn toàn hợp lệ. */
@@ -245,7 +255,15 @@ public class ConstructionImportService {
             List<LoiDong> loiDong = new ArrayList<>();
             ConstructionForm form = doc(row, loiDong, maDaGap);
             if (loiDong.isEmpty() && form != null) {
-                keHoach.dong.add(new DongKeHoach(row.rowNumber(), form, publicIdHienCo(form.code())));
+                TraMa tra = traMa(form.code());
+                if (tra.ngoaiPhamVi()) {
+                    keHoach.loi.add(new LoiDong(
+                            row.rowNumber(),
+                            COT_MA,
+                            "Mã '%s' đã thuộc một công trình ngoài phạm vi đơn vị của bạn".formatted(form.code())));
+                } else {
+                    keHoach.dong.add(new DongKeHoach(row.rowNumber(), form, tra.publicIdHienCo()));
+                }
             } else {
                 keHoach.loi.addAll(loiDong);
             }
@@ -253,17 +271,44 @@ public class ConstructionImportService {
         return keHoach;
     }
 
+    /** Tra một mã: bản ghi trong phạm vi (nếu có), và mã ấy có đang thuộc đơn vị khác ⛔. */
+    private record TraMa(UUID publicIdHienCo, boolean ngoaiPhamVi) {}
+
     /**
-     * Bản ghi đang có mang đúng mã này, <b>trong phạm vi đơn vị của người nhập</b>.
+     * Bản ghi đang có mang đúng mã này, <b>trong phạm vi đơn vị của người nhập</b> — và nếu ⛔ có,
+     * hỏi tiếp <b>toàn Công ty</b> xem mã đã bị chiếm chưa.
      *
-     * <p>{@code null} = sẽ thêm mới. Xem ghi chú ở đầu lớp về trường hợp mã đang thuộc đơn vị khác:
-     * kế hoạch nói "thêm mới", rồi chỉ mục duy nhất chặn lại bằng {@code OPS-2008}.
+     * <h2>⛔⛔ Vì sao vế thứ hai phải có (T81.4 — 23/09/2026)</h2>
+     *
+     * <p>Bản trước chỉ tra trong phạm vi, và ghi chú ở đầu lớp khai đó là <b>chủ ý</b>: mã thuộc
+     * đơn vị khác ⇒ kế hoạch nói <i>"thêm mới"</i> ⇒ {@code ConstructionService.create} đâm vào chỉ
+     * mục duy nhất và trả {@code OPS-2008}, vì <i>"nói rõ hơn là tiết lộ dữ liệu ngoài phạm vi"</i>.
+     *
+     * <p>Lập luận ấy <b>tự bác một nửa</b>: {@code OPS-2008} — <i>"Mã công trình đã tồn tại"</i> —
+     * <b>đã</b> tiết lộ đúng cái sự tồn tại ấy rồi. Hai đường chỉ khác nhau ở <b>lúc nào</b> và
+     * <b>rõ tới đâu</b>, ⛔ khác nhau về bản chất. Cái giá của việc biết muộn thì đo được: lỗi nổ
+     * <b>giữa lượt ghi</b>, {@code @Transactional} cuộn lại, người nhập mất <b>cả tệp</b> và ⛔
+     * biết dòng nào hỏng.
+     *
+     * <p>⚠ Và kho đã có một quyết định <b>NGƯỢC LẠI, viết sau</b>: {@code EmployeeImportService}
+     * (WS-74c, 20/09) hỏi toàn Công ty rồi báo <i>"Mã đã thuộc một hồ sơ ngoài phạm vi đơn vị của
+     * bạn"</i> — trên dữ liệu <b>nhạy cảm hơn</b> (hồ sơ CBNV, NĐ 13/2023). Hai bộ nhập trả lời
+     * ngược nhau cho cùng một câu hỏi riêng tư, cả hai đều tự khai là chủ ý — đúng hình dạng T47.19
+     * (<i>hai tiền lệ của kho mâu thuẫn nhau thì phải đo mới phân xử được</i>).
+     *
+     * <p>⇒ Theo tiền lệ MỚI hơn và chặt hơn: tiết lộ <b>sự tồn tại</b>, ⛔ tiết lộ <b>đơn vị nào</b>.
+     * ⬜ QuanTran muốn giữ cách cũ thì đảo lại ở đây — xem {@code T81.4} trong sổ.
      */
-    private UUID publicIdHienCo(String code) {
-        return repository
-                .findByCodeAndDeletedAtIsNull(code.trim().toUpperCase(Locale.ROOT))
+    private TraMa traMa(String code) {
+        String ma = code.trim().toUpperCase(Locale.ROOT);
+        UUID trongPhamVi = repository
+                .findByCodeAndDeletedAtIsNull(ma)
                 .map(c -> c.getPublicId())
                 .orElse(null);
+        if (trongPhamVi != null) {
+            return new TraMa(trongPhamVi, false);
+        }
+        return new TraMa(null, scopeGuard.toanCongTy(() -> repository.existsByCodeAndDeletedAtIsNull(ma)));
     }
 
     private ConstructionForm doc(SpreadsheetReader.Row row, List<LoiDong> loi, Set<String> maDaGap) {

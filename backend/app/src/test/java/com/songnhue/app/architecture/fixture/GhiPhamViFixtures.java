@@ -31,6 +31,20 @@ public final class GhiPhamViFixtures {
         Optional<DonViGia> findByPublicIdAndDeletedAtIsNull(UUID publicId);
 
         boolean existsByCodeAndDeletedAtIsNull(String code);
+
+        /** T81.4 — cùng một lượt tra theo mã, chỉ khác tiền tố Spring Data sinh ra. */
+        Optional<DonViGia> findByCodeAndDeletedAtIsNull(String code);
+
+        /** T81.4 — tiền tố thứ ba. */
+        long countByCodeAndDeletedAtIsNull(String code);
+
+        /**
+         * T81.4 — ⚠ chữ {@code Code} ở đây nằm trong mệnh đề <b>sắp xếp</b>, ⛔ phải tiêu chí lọc.
+         *
+         * <p>Đây là vế phân biệt: một luật ⛔ tách được hai vai trò ấy sẽ phạt những lượt liệt kê
+         * hoàn toàn vô can — đo 23/09/2026 trên mã thật: <b>3</b> dương tính giả.
+         */
+        java.util.List<DonViGia> findByDeletedAtIsNullOrderByCodeAsc();
     }
 
     /** Kho của danh mục ⛔ phạm vi — kiểm trùng mã ở đây ⛔ cần {@code toanCongTy}. */
@@ -96,6 +110,38 @@ public final class GhiPhamViFixtures {
 
         public boolean trung(String ma) {
             return repo.existsByCodeAndDeletedAtIsNull(ma);
+        }
+    }
+
+    /** ⛔ W2 (T81.4): {@code findBy…Code…} — vị từ cũ chỉ nhận {@code existsBy} nên nó VÔ HÌNH. */
+    public static final class TraMaBangFindBy {
+        private DonViGiaRepo repo;
+
+        public Optional<DonViGia> tra(String ma) {
+            return repo.findByCodeAndDeletedAtIsNull(ma);
+        }
+    }
+
+    /** ⛔ W2 (T81.4): {@code countBy…Code…} — tiền tố thứ ba, cùng một hậu quả. */
+    public static final class DemMaBangCountBy {
+        private DonViGiaRepo repo;
+
+        public long dem(String ma) {
+            return repo.countByCodeAndDeletedAtIsNull(ma);
+        }
+    }
+
+    /**
+     * ✅ W2 (T81.4): {@code OrderBy…Code…} là <b>sắp xếp</b>, ⛔ phải tra theo mã.
+     *
+     * <p>Lọc phạm vi ở đây là ĐÚNG — người dùng chỉ nên thấy bản ghi của đơn vị mình. Một luật bắt
+     * cả chỗ này sẽ đẻ ra những dòng miễn trừ cho thứ ⛔ hỏng, và tiếng ồn ấy che mất dòng có nghĩa.
+     */
+    public static final class LietKeSapTheoMa {
+        private DonViGiaRepo repo;
+
+        public java.util.List<DonViGia> tatCa() {
+            return repo.findByDeletedAtIsNullOrderByCodeAsc();
         }
     }
 }

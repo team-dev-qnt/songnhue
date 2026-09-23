@@ -392,9 +392,18 @@ public class TramBomImportService {
 
         Construction hienCo = null;
         if (ma != null) {
-            hienCo = constructions
-                    .findByCodeAndDeletedAtIsNull(ma.toUpperCase(Locale.ROOT))
-                    .orElse(null);
+            String maChuan = ma.toUpperCase(Locale.ROOT);
+            hienCo = constructions.findByCodeAndDeletedAtIsNull(maChuan).orElse(null);
+            // ⛔⛔ T81.4 — lượt tra trên kia đi QUA bộ lọc phạm vi, mà mã công trình là duy nhất
+            //    TOÀN Công ty. Thiếu vế này thì một mã đang thuộc Xí nghiệp khác đọc ra là "⛔ có",
+            //    rồi `tramMoi` hoặc báo *"Không có công trình mã X"* (SAI — nó có thật), hoặc đi
+            //    tạo mới và đâm vào chỉ mục duy nhất GIỮA lượt ghi ⇒ cuộn cả tệp, ⛔ chỉ ra dòng nào.
+            //    `CapMaTrongLuot.daCoTrongCongTy` đã hỏi đúng câu này nhưng chỉ cho đường SINH mã.
+            if (hienCo == null && scopeGuard.toanCongTy(() -> constructions.existsByCodeAndDeletedAtIsNull(maChuan))) {
+                keHoach.loi.add(new LoiDong(
+                        soDong, COT_MA, "Mã '%s' đã thuộc một công trình ngoài phạm vi đơn vị của bạn".formatted(ma)));
+                return null;
+            }
         }
 
         OrgUnitRef donVi = null;
