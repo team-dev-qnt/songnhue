@@ -108,8 +108,7 @@ public class BackupController {
                 // Khoá chống trùng theo loại việc, KHÔNG theo ngày: người dùng bấm nút hai lần
                 // trong một phút thì nhận lại cùng một job, nhưng vẫn sao lưu lại được sau khi
                 // lượt trước đã xong (khác job hằng đêm — xem MaintenanceScheduler).
-                JobTypes.DB_BACKUP + ":manual",
-                (short) 1);
+                JobTypes.DB_BACKUP + ":manual");
         return new BackupDtos.JobAccepted(job.getPublicId(), job.getStatus().name());
     }
 
@@ -151,7 +150,7 @@ public class BackupController {
         String payload = "{\"backupId\":\"%s\",\"reason\":%s,\"actorUsername\":%s}"
                 .formatted(backup.getPublicId(), jsonString(request.reason()), jsonString(current.username()));
 
-        var job = jobService.enqueue(JobTypes.DB_RESTORE, payload, JobTypes.DB_RESTORE + ":active", (short) 1);
+        var job = jobService.enqueue(JobTypes.DB_RESTORE, payload, JobTypes.DB_RESTORE + ":active");
         return new BackupDtos.JobAccepted(job.getPublicId(), job.getStatus().name());
     }
 

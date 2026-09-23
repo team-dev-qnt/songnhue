@@ -203,7 +203,16 @@ public class PortalCache implements PortalCachePort {
         // ⚠ Gồm cả `/sitemap.xml`: nó cũng là trang dựng sẵn lúc build, nên cũng ra đời rỗng —
         // và một sitemap chỉ có mỗi trang chủ là công cụ tìm kiếm không thấy bài nào của cổng.
         for (String duongDan : List.of("/", "/sitemap.xml")) {
-            // 10 lần thử: cổng khởi động sau backend, và worker lấy việc mỗi 5 giây.
+            // ⚠ 10 lần thử — một lượt GHI ĐÈ có chủ đích lên `PortalRevalidateHandler.maxAttempts()`
+            //   (khai 5), ⛔ phải một bản chép lệch. Lý do: hai lượt đặt việc này khác nhau ở điều
+            //   kiện chạy chứ ⛔ ở công việc. Lượt dựng lại thường (`datViec`) chạy khi cổng ĐANG
+            //   phục vụ; lượt hâm nóng thì chạy lúc backend vừa lên mà cổng còn CHƯA — compose để
+            //   `public-web` chờ `app` khoẻ — nên nó cần đủ lượt thử phủ hết quãng cổng khởi động
+            //   (worker lấy việc mỗi 5 giây ⇒ 10 lượt ≈ 50 giây).
+            //
+            //   ⛔⛔ T68.30 — cặp 5 ↔ 10 này ĐÃ lệch từ trước mà ⛔ gì báo, vì `maxAttempts()` khi ấy
+            //   có 0 người đọc: hai con số ⛔ bao giờ gặp nhau để mà mâu thuẫn. Nay handler là mặc
+            //   định, nên con số ở đây là lời khai DUY NHẤT rằng chỗ này cố ý khác.
             jobs.enqueue(new JobRequest(
                     CmsJobTypes.PORTAL_REVALIDATE,
                     "{\"path\":\"%s\"}".formatted(duongDan),
@@ -218,7 +227,7 @@ public class PortalCache implements PortalCachePort {
      *     cùng một trang năm lần liên tiếp không cho kết quả khác lần thứ nhất
      */
     private void datViec(String payload, String dedupKey) {
-        jobs.enqueue(new JobRequest(CmsJobTypes.PORTAL_REVALIDATE, payload, dedupKey, (short) 5));
+        jobs.enqueue(JobRequest.theoHandler(CmsJobTypes.PORTAL_REVALIDATE, payload, dedupKey));
         log.debug("Đặt việc dựng lại cổng: {}", payload);
     }
 }

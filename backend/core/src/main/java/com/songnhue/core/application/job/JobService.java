@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -22,6 +23,7 @@ import com.songnhue.core.common.web.RequestContext;
 import com.songnhue.core.domain.job.Job;
 import com.songnhue.core.domain.job.JobStatus;
 import com.songnhue.core.infra.job.JobRepository;
+import com.songnhue.core.spi.JobHandler;
 import com.songnhue.core.spi.JobPort;
 import com.songnhue.core.spi.JobRef;
 import com.songnhue.core.spi.JobRequest;
@@ -44,8 +46,24 @@ public class JobService implements JobPort {
     private final JobRepository repository;
     private final TransactionTemplate transactions;
 
-    public JobService(JobRepository repository, PlatformTransactionManager transactionManager) {
+    /**
+     * T68.30 — nguồn của {@link JobHandler#maxAttempts()}.
+     *
+     * <p>⛔⛔ <b>Phải là {@code ObjectProvider}, ⛔ được tiêm thẳng {@code List<JobHandler>}.</b>
+     * {@code QuetLaiTepService} và {@code MaHoaLaiService} vừa <b>là</b> {@code JobHandler} vừa tiêm
+     * thẳng {@code JobService} để tự đặt việc; tiêm sớm ở đây là dựng một <b>vòng phụ thuộc</b> và
+     * ứng dụng ⛔ khởi động nổi. {@code ObjectProvider} giải lười, mà lượt giải chỉ xảy ra lúc đặt
+     * việc — khi ấy mọi bean đã có. Cùng khuôn với {@code AuditArchiveHandler} và
+     * {@code ObjectProvider<ArchiverJdbc>}.
+     */
+    private final ObjectProvider<JobHandler> handlers;
+
+    public JobService(
+            JobRepository repository,
+            PlatformTransactionManager transactionManager,
+            ObjectProvider<JobHandler> handlers) {
         this.repository = repository;
+        this.handlers = handlers;
         this.transactions = new TransactionTemplate(transactionManager);
         this.transactions.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
@@ -64,8 +82,10 @@ public class JobService implements JobPort {
      * ghi nằm trong transaction riêng, và lượt tra sau khi va chỉ mục chạy trên transaction sạch.
      *
      * @param dedupKey khoá chống trùng, hoặc {@code null} nếu cho phép chạy song song nhiều bản
+     * @param maxAttempts số lần thử, hoặc {@code null} để lấy theo {@link JobHandler#maxAttempts()}
+     *     của loại việc này — dạng ba đối số {@link #enqueue(String, String, String)} đọc rõ hơn
      */
-    public Job enqueue(String jobType, String payload, String dedupKey, short maxAttempts) {
+    public Job enqueue(String jobType, String payload, String dedupKey, Short maxAttempts) {
         Optional<Job> running = findActiveByDedupKey(dedupKey);
         if (running.isPresent()) {
             log.debug(
@@ -77,7 +97,7 @@ public class JobService implements JobPort {
 
         Job job = new Job(jobType, payload);
         job.setDedupKey(dedupKey);
-        job.setMaxAttempts(maxAttempts);
+        job.setMaxAttempts(soLanThu(jobType, maxAttempts));
         job.setTraceId(RequestContext.traceId());
         AuthContext.current().ifPresent(user -> {
             job.setRequestedBy(user.userId());
@@ -93,6 +113,38 @@ public class JobService implements JobPort {
             // người thua cuộc theo dõi job của người thắng.
             return findActiveByDedupKey(dedupKey).orElseThrow(() -> e);
         }
+    }
+
+    /**
+     * Đặt việc, số lần thử lấy theo {@link JobHandler#maxAttempts()} của loại việc — T68.30.
+     *
+     * <p>Dùng dạng này khi nơi đặt việc <b>⛔ có lý do riêng</b> để khác handler. Chép lại con số
+     * handler đã khai là dựng một cặp phải nhớ bằng tay (luật 14).
+     */
+    public Job enqueue(String jobType, String payload, String dedupKey) {
+        return enqueue(jobType, payload, dedupKey, null);
+    }
+
+    /**
+     * ⭐ T68.30 — <b>người đọc duy nhất</b> của {@link JobHandler#maxAttempts()}.
+     *
+     * <p>Nơi đặt việc khai số thì số ấy thắng; ⛔ khai thì hỏi handler; ⛔ có handler nào nhận loại
+     * việc này thì về mặc định SPI.
+     *
+     * <p>⚠ Ca cuối ⛔ phải giả định: một job có thể được đặt cho loại việc mà module cấp handler
+     * <b>chưa</b> nằm trên classpath (bộ kiểm nhắm mục tiêu, một module tắt bằng cấu hình). Ném ở đây
+     * là làm đường đặt việc gãy vì một thứ chỉ ảnh hưởng tới <i>số lần thử</i> — nên rơi về mặc định,
+     * và {@code JobWorker} vẫn là nơi báo *⛔ có handler* lúc việc được nhặt lên.
+     */
+    private short soLanThu(String jobType, Short noiDatViecKhai) {
+        if (noiDatViecKhai != null) {
+            return noiDatViecKhai;
+        }
+        return handlers.stream()
+                .filter(handler -> handler.jobType().equals(jobType))
+                .findFirst()
+                .map(JobHandler::maxAttempts)
+                .orElse(JobHandler.MAC_DINH_SO_LAN_THU);
     }
 
     private Job insertInOwnTransaction(Job job) {

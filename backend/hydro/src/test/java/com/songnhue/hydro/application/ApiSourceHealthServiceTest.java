@@ -35,7 +35,8 @@ import com.songnhue.hydro.infra.ApiSourceRepository;
  *
  * <p>Bài học 02/09/2026 ({@code HydroMaintenanceSchedulerTest}): một bài kiểm hỏi thẳng phương thức
  * Java thay vì hỏi thứ đi vào hàng đợi đã canh <b>một nửa đã chết</b> suốt — {@code maxAttempts()}
- * không có người đọc trong toàn kho. Ở đây thứ có hiệu lực là <b>số lời gọi
+ * khi ấy ⛔ có người đọc trong toàn kho (⚠ hết đúng 23/09/2026 — T68.30 nối nó vào
+ * {@code JobService.enqueue} làm mặc định). Ở đây thứ có hiệu lực là <b>số lời gọi
  * {@code NotificationPort}</b> và <b>giá trị các cột sau khi lưu</b>, nên khẳng định bắt vào đúng hai
  * thứ ấy, ⛔ không bắt vào biến trung gian.
  */
