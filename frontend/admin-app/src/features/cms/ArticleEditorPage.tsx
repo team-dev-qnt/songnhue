@@ -188,9 +188,14 @@ function ArticleForm({
    * phép so chuỗi vì thế **báo bẩn 100%** với mọi bài nhiều hơn một khối — ngay khi vừa mở, chưa
    * gõ gì. Và một cảnh báo luôn hiện là một cảnh báo người dùng học cách bấm qua mà không đọc.
    *
-   * `RichTextEditor` chỉ gọi `onChange` khi người dùng thật sự sửa: lượt đồng bộ từ ngoài vào dùng
-   * `setContent(value, { emitUpdate: false })`, nên nó **không** bắn `onUpdate`. Vậy một lượt
-   * `onChange` là một tín hiệu sạch, không cần so gì.
+   * ⛔⛔ **Câu ở đây trước nay SAI, và nó là nguyên nhân gốc của T86.1** — sửa 23/09/2026. Bản cũ
+   * khẳng định *"`RichTextEditor` chỉ gọi `onChange` khi người dùng thật sự sửa … nên một lượt
+   * `onChange` là một tín hiệu sạch, không cần so gì"*. Đo lại: TipTap bắn **một lượt `onUpdate`
+   * ngay lúc nạp**, ở cả ba hình dạng thử (một khối · hai khối liền · hai khối có xuống dòng) —
+   * và javadoc của chính `RichTextEditor` (`onNormalized`, `:149`) đã ghi đúng điều ngược lại từ
+   * WS-41. **Hai chú thích trong cùng một kho nói ngược nhau, và cái SAI là cái được dựa vào.**
+   *
+   * Chỉ `setContent` mới mang `emitUpdate: false`; lượt `onUpdate` lúc nạp thì ⛔.
    */
   const [coSuaChuaLuu, setCoSuaChuaLuu] = useState(false);
 
@@ -201,6 +206,29 @@ function ArticleForm({
    * mang thụt lề mà `editor.getHTML()` không có ⇒ so trực tiếp là bẩn ngay khi vừa mở bài.
    */
   const mocNoiDung = useRef<string | null>(null);
+
+  /**
+   * **Lượt đổi `content` này có phải NGƯỜI DÙNG sửa không** — vị từ DÙNG CHUNG cho cả hai đường
+   * vào. T86.1.
+   *
+   * ⛔⛔ Vì sao phải là **một** hàm chứ ⛔ hai chỗ tự so: trước lượt vá, `content` có **hai** đường
+   * bật cờ bẩn và chỉ một đường có chốt —
+   *
+   * <ul>
+   *   <li>`RichTextBridge.onDoiNoiDung` → so với `mocNoiDung` ⇒ **có** chốt;
+   *   <li>`<Form onValuesChange>` → `setCoSuaChuaLuu(true)` **thẳng**, ⛔ chốt nào.
+   * </ul>
+   *
+   * Mà `RichTextBridge` gọi **cả hai** (`onChange?.(html)` cho `Form`, rồi `onDoiNoiDung(html)`),
+   * nên lượt `onUpdate` TipTap bắn lúc nạp đi vòng qua chốt bằng đường thứ hai. Luật 14 ở đúng
+   * dạng đã trả giá nhiều lần: *chỗ nào con người phải nhớ hai nơi thì chỗ đó cần một phép kiểm
+   * nhớ hộ* — ở đây rẻ hơn nữa, chỉ cần **⛔ có nơi thứ hai để nhớ**.
+   *
+   * `mocNoiDung.current === null` nghĩa là trình soạn thảo **chưa báo mốc** ⇒ mọi lượt trước đó là
+   * lượt chuẩn hoá lúc nạp, ⛔ phải người dùng.
+   */
+  const laSuaNoiDungThuc = (html: unknown) =>
+    mocNoiDung.current !== null && html !== mocNoiDung.current;
 
   const { choPhepRoi, hopThoaiRoiTrang } = useChanRoiTrang(
     coSuaChuaLuu,
@@ -538,7 +566,19 @@ function ArticleForm({
           layout="vertical"
           disabled={khoaSua}
           initialValues={initialValues}
-          onValuesChange={() => setCoSuaChuaLuu(true)}
+          // ⛔⛔ ⛔ `() => setCoSuaChuaLuu(true)` trần — T86.1. Lượt `onUpdate` TipTap bắn LÚC NẠP
+          //    cũng đi qua đây (`RichTextBridge` chuyển tiếp vào `Form`), nên bản trần bật cờ bẩn
+          //    khi ⛔ ai gõ gì. Với bài ≥ 2 khối — tức gần như mọi bài thật, vì prettyPrint của
+          //    `Jsoup.clean` xuống dòng giữa các khối — người duyệt mở bài ở `CHO_DUYET` sẽ thấy
+          //    nút Duyệt bị khoá kèm câu *"bấm Lưu trước"*, trong khi `khoaSua` đã khoá luôn nút
+          //    Lưu ⇒ **ngõ cụt, bài kẹt vĩnh viễn ở Chờ duyệt**.
+          onValuesChange={(daDoi: Partial<FormValues>) => {
+            // `content` đi qua vị từ dùng chung; mọi trường khác là do người dùng gõ thật.
+            const truongKhac = Object.keys(daDoi).filter((k) => k !== 'content');
+            if (truongKhac.length > 0 || laSuaNoiDungThuc(daDoi.content)) {
+              setCoSuaChuaLuu(true);
+            }
+          }}
         >
           <Row gutter={24}>
             <Col xs={24} lg={16}>
@@ -596,7 +636,8 @@ function ArticleForm({
                   onDoiNoiDung={(html) => {
                     // ⚠ TipTap bắn một lượt `onUpdate` khi nạp nội dung (đã đo). So với mốc chuẩn
                     //   hoá thay vì đếm lượt: lượt ấy mang đúng chuỗi của mốc nên không tính là sửa.
-                    if (mocNoiDung.current !== null && html !== mocNoiDung.current) {
+                    // ⛔ ⛔ so tại chỗ nữa — CÙNG vị từ với `onValuesChange` ở trên (T86.1).
+                    if (laSuaNoiDungThuc(html)) {
                       setCoSuaChuaLuu(true);
                     }
                   }}
