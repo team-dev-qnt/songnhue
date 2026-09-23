@@ -180,22 +180,45 @@ public class ScopeGuard {
         if (orgUnitId == null) {
             return true;
         }
-        Optional<AuthenticatedUser> user = AuthContext.current();
-        if (user.isEmpty()) {
+        if (AuthContext.current().isEmpty()) {
             // Job nền, lệnh bootstrap — ⛔ có người đăng nhập thì ⛔ có phạm vi để so, đúng như bộ lọc đọc.
             return true;
         }
-        String phamVi = user.get().orgUnitPath();
         @SuppressWarnings("unchecked")
         List<String> dich = entityManager
                 .createNativeQuery("SELECT path FROM org_units WHERE id = :id", String.class)
                 .setParameter("id", orgUnitId)
                 .setFlushMode(FlushModeType.COMMIT)
                 .getResultList();
-        return phamVi != null
-                && !dich.isEmpty()
-                && dich.get(0) != null
-                && dich.get(0).startsWith(phamVi);
+        return !dich.isEmpty() && duongDanTrongPhamVi(dich.get(0));
+    }
+
+    /**
+     * Cùng câu hỏi như {@link #trongPhamVi(Long)}, nhưng hỏi bằng <b>materialized path</b> đã có sẵn trong tay.
+     *
+     * <h2>Vì sao phải có bản này — T74.11</h2>
+     *
+     * <p>Ô chọn đơn vị cần cờ <i>trong phạm vi</i> cho <b>từng nút</b> của cả cây. Gọi {@link #trongPhamVi(Long)}
+     * cho mỗi nút là một câu {@code SELECT path} mỗi nút — N+1 trên một màn hình chỉ có một cây (cùng lý lẽ đã ghi ở
+     * {@code OrgUnitService.publicIdCuaLanhDao}). Mà {@code OrgUnit} <b>đã mang sẵn</b> {@code path}, nên câu truy vấn
+     * ấy chỉ đi lấy lại thứ đang nằm trong tay.
+     *
+     * <p>⛔⛔ <b>Và tách ra thế này là để ⛔ có bản sao thứ hai của vị từ.</b> Chép
+     * {@code path.startsWith(phamVi)} sang {@code OrgUnitService} là đúng thứ luật 14 cấm: hai nơi phải nhớ nhau, rồi
+     * một ngày điều kiện lọc đọc ({@link ScopedEntity#ORG_UNIT_FILTER_CONDITION}) đổi mà bản sao kia ⛔ đổi theo — và
+     * triệu chứng là một ô chọn bày đúng những đơn vị mà lượt Lưu sẽ từ chối. Cả hai lối vào nay dùng <b>một</b> thân
+     * hàm; {@link #trongPhamVi(Long)} chỉ thêm phần tra {@code path} từ khoá số.
+     *
+     * @param duongDanDich {@code org_units.path} của đơn vị đích
+     * @return {@code true} khi ⛔ có người đăng nhập (job nền) — đúng như bộ lọc đọc
+     */
+    public boolean duongDanTrongPhamVi(String duongDanDich) {
+        Optional<AuthenticatedUser> user = AuthContext.current();
+        if (user.isEmpty()) {
+            return true;
+        }
+        String phamVi = user.get().orgUnitPath();
+        return phamVi != null && duongDanDich != null && duongDanDich.startsWith(phamVi);
     }
 
     /**

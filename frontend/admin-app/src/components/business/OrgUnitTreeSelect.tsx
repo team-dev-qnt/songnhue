@@ -23,6 +23,20 @@ export function OrgUnitTreeSelect({
   allowClear = true,
   /** Chỉ cho chọn đúng những loại này — VD chỉ Xí nghiệp khi gán công trình. */
   onlyTypes,
+  /**
+   * **T74.11** — làm mờ đơn vị NGOÀI phạm vi ghi của người đăng nhập.
+   *
+   * ⛔⛔ Chỉ bật ở biểu mẫu mà backend **thật sự** chặn, tức đường ghi đi qua
+   * `ScopeGuard.requireWritableOrgUnit`. Đo 23/09: đúng **4** đường — công trình
+   * (`ConstructionService`) · hồ sơ CBNV (`EmployeeService`) · điểm đo (`StationService`) · uỷ
+   * quyền duyệt phép (`UyQuyenDuyetPhepService`).
+   *
+   * Bật ở chỗ khác là **bày ra một điều cấm ⛔ hề tồn tại**: sáu ô chọn còn lại ghi vào bảng ⛔
+   * thuộc `ScopedEntity` (`User` · `Contact` · `ConstructionCluster` · `OrgUnit`) hoặc ghi một cột
+   * *dữ liệu* (`MaintenanceFormModal` → `performerOrgUnitId`, *đơn vị thực hiện*, tách hẳn khỏi cột
+   * phạm vi). Làm mờ ở đó thì người dùng đi xin quyền cho một thứ họ vốn đã làm được.
+   */
+  chiTrongPhamVi = false,
 }: {
   value?: string;
   onChange?: (value: string | undefined) => void;
@@ -30,6 +44,7 @@ export function OrgUnitTreeSelect({
   disabled?: boolean;
   allowClear?: boolean;
   onlyTypes?: readonly OrgUnitNode['unitType'][];
+  chiTrongPhamVi?: boolean;
 }) {
   const { data, isLoading } = useQuery({
     // ⚠ `/selectable` chứ không phải `/tree`: đường `/tree` đứng sau `adm:org-unit:view`, quyền mà
@@ -41,8 +56,8 @@ export function OrgUnitTreeSelect({
   });
 
   const treeData = useMemo(
-    () => (data ?? []).map((node) => toTreeNode(node, onlyTypes)),
-    [data, onlyTypes],
+    () => (data ?? []).map((node) => toTreeNode(node, onlyTypes, chiTrongPhamVi)),
+    [data, onlyTypes, chiTrongPhamVi],
   );
 
   return (
@@ -69,16 +84,28 @@ interface TreeNode {
   children?: TreeNode[];
 }
 
-function toTreeNode(node: OrgUnitNode, onlyTypes?: readonly OrgUnitNode['unitType'][]): TreeNode {
-  const selectable = !onlyTypes || onlyTypes.includes(node.unitType);
+function toTreeNode(
+  node: OrgUnitNode,
+  onlyTypes?: readonly OrgUnitNode['unitType'][],
+  chiTrongPhamVi = false,
+): TreeNode {
+  const hopLoai = !onlyTypes || onlyTypes.includes(node.unitType);
+  // T74.11 — `trongPhamVi` là cờ MỚI, nên một phản hồi cũ còn trong đệm ⛔ có nó. `=== false`
+  // chứ ⛔ `!node.trongPhamVi`: `undefined` phải đọc là *chưa biết* và **⛔ làm mờ**, vì làm mờ
+  // theo mặc định là khoá người dùng ra khỏi chính đơn vị của họ (quy tắc 16 — số 0 là một
+  // khẳng định, và ở đây *chưa có dữ liệu* ⛔ được nói thành *anh ⛔ có quyền*).
+  const ngoaiPhamVi = chiTrongPhamVi && node.trongPhamVi === false;
   return {
     value: node.publicId,
     title: node.shortName ? `${node.name} (${node.shortName})` : node.name,
     // Nút cha không chọn được vẫn phải hiện ra: bỏ nó đi là con của nó mất luôn đường
-    // hiển thị, dù chính con mới là thứ cần chọn.
-    selectable,
-    disabled: !node.active,
+    // hiển thị, dù chính con mới là thứ cần chọn. ⇒ Ngoài phạm vi thì MỜ, ⛔ phải BIẾN MẤT:
+    // một Xí nghiệp ngoài phạm vi vẫn có thể là cha của Tổ đội mà người dùng được ghi vào.
+    selectable: hopLoai && !ngoaiPhamVi,
+    disabled: !node.active || ngoaiPhamVi,
     children:
-      node.children.length > 0 ? node.children.map((c) => toTreeNode(c, onlyTypes)) : undefined,
+      node.children.length > 0
+        ? node.children.map((c) => toTreeNode(c, onlyTypes, chiTrongPhamVi))
+        : undefined,
   };
 }

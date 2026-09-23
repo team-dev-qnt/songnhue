@@ -43,10 +43,29 @@ public record OrgUnitNode(
         */
         UUID headUserPublicId,
         UUID deputyUserPublicId,
+        /*
+          T74.11 — đơn vị này có nằm trong phạm vi GHI của người đang đăng nhập không.
+
+          Tính bằng ĐÚNG vị từ của bộ lọc đọc (`ScopeGuard.duongDanTrongPhamVi`, tức
+          `ScopedEntity.ORG_UNIT_FILTER_CONDITION`), ⛔ phải một bản chép — xem javadoc ở đó.
+
+          ⚠ Nó là câu trả lời cho MỘT người đăng nhập, nên phản hồi mang nó ⛔ được đệm dùng chung
+          giữa hai phiên. `AuthProvider.endSession()` xoá cả đệm truy vấn (T63.3 · T85.13), và đó là
+          thứ giữ cam kết ấy — ⛔ phải một danh sách khoá đệm gõ tay.
+
+          ⛔ Nó KHÔNG phải một lớp phân quyền: backend vẫn chặn bằng
+          `ScopeGuard.requireWritableOrgUnit`. Cờ này chỉ để giao diện nói trước, thay vì để người
+          dùng điền xong cả biểu mẫu rồi mới nhận AUTH-3002 lúc bấm Lưu.
+        */
+        boolean trongPhamVi,
         List<OrgUnitNode> children) {
 
     public static OrgUnitNode of(
-            OrgUnit unit, List<OrgUnitNode> children, UUID headUserPublicId, UUID deputyUserPublicId) {
+            OrgUnit unit,
+            List<OrgUnitNode> children,
+            UUID headUserPublicId,
+            UUID deputyUserPublicId,
+            boolean trongPhamVi) {
         return new OrgUnitNode(
                 unit.getPublicId(),
                 unit.getCode(),
@@ -62,6 +81,7 @@ public record OrgUnitNode(
                 unit.getEmail(),
                 headUserPublicId,
                 deputyUserPublicId,
+                trongPhamVi,
                 children);
     }
 }

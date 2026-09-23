@@ -227,6 +227,18 @@ export interface OrgUnitNode {
    */
   headUserPublicId: string | null;
   deputyUserPublicId: string | null;
+  /**
+   * **T74.11** — đơn vị này có nằm trong phạm vi GHI của người đang đăng nhập không.
+   *
+   * Backend đo bằng đúng vị từ của bộ lọc đọc (`ScopeGuard.duongDanTrongPhamVi`). Nó ⛔ phải một
+   * lớp phân quyền — `ScopeGuard.requireWritableOrgUnit` vẫn chặn — nó chỉ để ô chọn **nói trước**
+   * thay vì để người dùng điền xong biểu mẫu rồi mới nhận `AUTH-3002` lúc bấm Lưu.
+   *
+   * ⚠ Cờ phụ thuộc **người đăng nhập**, nên phản hồi mang nó ⛔ được sống qua một lượt đổi phiên.
+   * Thứ giữ cam kết ấy là `AuthProvider.endSession()` xoá cả đệm truy vấn (T63.3 · T85.13), ⛔ phải
+   * một danh sách khoá đệm gõ tay.
+   */
+  trongPhamVi: boolean;
   children: OrgUnitNode[];
 }
 

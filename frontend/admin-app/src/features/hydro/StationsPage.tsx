@@ -338,7 +338,7 @@ export function StationsPage() {
         label="Đơn vị phụ trách"
         extra="Để trống được, nhưng cảnh báo của điểm đo sẽ chưa có người nhận."
       >
-        <OrgUnitTreeSelect />
+        <OrgUnitTreeSelect chiTrongPhamVi />
       </Form.Item>
     </>
   );
