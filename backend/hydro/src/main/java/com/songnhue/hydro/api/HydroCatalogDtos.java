@@ -179,7 +179,14 @@ public final class HydroCatalogDtos {
             List<StationConstructionView> constructions,
             /** ⚠ Điểm đo {@code MN_SONG} không liên kết công trình nào là HỢP LỆ, không phải thiếu. */
             boolean thieuLienKetCongTrinh,
-            boolean chuaGanDonVi) {}
+            boolean chuaGanDonVi,
+            /**
+             * Chưa số hoá vị trí (G8) — T35.2.
+             *
+             * <p>⭐ Cùng vị từ với danh sách {@code chuaSoHoaViTri} của {@code /map-points}
+             * ({@code Station.chuaSoHoaViTri}), nên hai màn hình ⛔ đếm ra hai con số khác nhau.
+             */
+            boolean chuaSoHoaViTri) {}
 
     /**
      * Một liên kết điểm đo ↔ công trình — T28.19.

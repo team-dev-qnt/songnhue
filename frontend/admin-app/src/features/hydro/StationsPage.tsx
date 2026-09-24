@@ -41,7 +41,18 @@ import {
   VAI_TRO_VI_TRI_OPTIONS,
 } from './hydroVocabulary';
 
-type BoLoc = 'TAT_CA' | 'CHUA_GAN_DON_VI' | 'THIEU_LIEN_KET';
+type BoLoc = 'TAT_CA' | 'CHUA_GAN_DON_VI' | 'THIEU_LIEN_KET' | 'CHUA_CO_TOA_DO';
+
+/**
+ * Giá trị `?loc=` hợp lệ — đường vào sâu từ ô ghi chú bản đồ của dashboard (T35.2).
+ *
+ * ⛔ Trả `null` cho mọi thứ khác: một tham số URL là **dữ liệu người lạ gõ được**, và ép nó thành
+ * `BoLoc` bằng `as` là dựng một bộ lọc ⛔ khớp nhánh nào ⇒ bảng RỖNG mà ⛔ có gì giải thích.
+ */
+function docBoLoc(raw: string | null): BoLoc | null {
+  const hopLe: BoLoc[] = ['TAT_CA', 'CHUA_GAN_DON_VI', 'THIEU_LIEN_KET', 'CHUA_CO_TOA_DO'];
+  return hopLe.find((v) => v === raw) ?? null;
+}
 
 /**
  * Danh mục điểm đo — CN-03.1 (T28.3, T28.8, T28.9).
@@ -62,7 +73,7 @@ export function StationsPage() {
   const [dangSua, setDangSua] = useState<Station | null>(null);
   const [taoMoiThuCong, setTaoMoiThuCong] = useState(false);
   const [dangLienKet, setDangLienKet] = useState<Station | null>(null);
-  const [boLoc, setBoLoc] = useState<BoLoc>('TAT_CA');
+  const [boLocThuCong, setBoLocThuCong] = useState<BoLoc | null>(null);
   const [dangNhapViTri, setDangNhapViTri] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -76,6 +87,31 @@ export function StationsPage() {
    * mà luật 27 gọi tên, và cũng đúng chỗ một mã gõ sai gán số liệu sang trạm khác.
    */
   const maApiDatSan = searchParams.get('apiCode');
+
+  /**
+   * ⭐ Bộ lọc cũng **SUY RA** từ URL, đúng khuôn `taoMoi` ngay dưới đây — ⛔ chép URL vào state.
+   *
+   * Dashboard nói *"N điểm đo chưa có toạ độ"* rồi trỏ thẳng vào đây kèm `?loc=CHUA_CO_TOA_DO`, để
+   * con số ấy **bấm được** thay vì bắt người đọc tự tìm đúng ô. Một lượt bấm tay thắng URL kể từ
+   * lúc nó xảy ra, vì `boLocThuCong` đứng trước trong chuỗi `??`.
+   *
+   * ⚠⚠ Lượt bấm ấy còn **gỡ tham số** — và lý do ⛔ phải "để URL khỏi thắng lại": nó ⛔ thắng lại
+   * được, `boLocThuCong` giữ nguyên qua mọi lượt render. Bản nháp của tôi khẳng định như vậy và
+   * **lượt kiểm chứng ngược bác**: gỡ đoạn này ⛔ làm đỏ bài nào. Lý do THẬT là **F5 và chia sẻ
+   * liên kết** — một URL còn `?loc=` trong khi màn hình đang xem *Tất cả* là một URL nói dối, và
+   * người nhận nó sẽ mở ra một màn hình khác thứ người gửi đang nhìn. Cùng lý do với
+   * `xoaMaDatSan` ngay trên.
+   */
+  const boLoc: BoLoc = boLocThuCong ?? docBoLoc(searchParams.get('loc')) ?? 'TAT_CA';
+
+  const doiBoLoc = (v: BoLoc) => {
+    setBoLocThuCong(v);
+    if (searchParams.get('loc')) {
+      const conLai = new URLSearchParams(searchParams);
+      conLai.delete('loc');
+      setSearchParams(conLai, { replace: true });
+    }
+  };
 
   /** Bỏ tham số khỏi URL: F5 sau khi lưu ⛔ không được mở lại biểu mẫu với mã đã dùng. */
   const xoaMaDatSan = () => {
@@ -153,10 +189,14 @@ export function StationsPage() {
   const tatCa = useMemo(() => query.data ?? [], [query.data]);
   const soChuaGan = tatCa.filter((s) => s.chuaGanDonVi).length;
   const soThieuLienKet = tatCa.filter((s) => s.thieuLienKetCongTrinh).length;
+  // ⛔ ⛔ tự so `!s.latitude || !s.longitude` ở đây: đó là bản sao THỨ BA của vị từ, và bản sao ấy
+  //    ⛔ có gì buộc phải bằng con số dashboard đang hiện (luật 14 · T68.36). Cờ do backend tính.
+  const soChuaCoToaDo = tatCa.filter((s) => s.chuaSoHoaViTri).length;
 
   const hienThi = useMemo(() => {
     if (boLoc === 'CHUA_GAN_DON_VI') return tatCa.filter((s) => s.chuaGanDonVi);
     if (boLoc === 'THIEU_LIEN_KET') return tatCa.filter((s) => s.thieuLienKetCongTrinh);
+    if (boLoc === 'CHUA_CO_TOA_DO') return tatCa.filter((s) => s.chuaSoHoaViTri);
     return tatCa;
   }, [tatCa, boLoc]);
 
@@ -475,7 +515,7 @@ export function StationsPage() {
           title={`${soChuaGan} điểm đo chưa gán đơn vị phụ trách`}
           description="Cảnh báo vượt ngưỡng của những điểm đo này chưa có người nhận — hệ thống sẽ không gửi cho ai, và cũng không báo lỗi. Gán đơn vị để đóng lại phần còn thiếu."
           action={
-            <Button size="small" onClick={() => setBoLoc('CHUA_GAN_DON_VI')}>
+            <Button size="small" onClick={() => doiBoLoc('CHUA_GAN_DON_VI')}>
               Xem danh sách
             </Button>
           }
@@ -485,11 +525,12 @@ export function StationsPage() {
       <Segmented
         style={{ marginBottom: 16 }}
         value={boLoc}
-        onChange={(v) => setBoLoc(v as BoLoc)}
+        onChange={(v) => doiBoLoc(v as BoLoc)}
         options={[
           { value: 'TAT_CA', label: `Tất cả (${tatCa.length})` },
           { value: 'CHUA_GAN_DON_VI', label: `Chưa gán đơn vị (${soChuaGan})` },
           { value: 'THIEU_LIEN_KET', label: `Chưa liên kết công trình (${soThieuLienKet})` },
+          { value: 'CHUA_CO_TOA_DO', label: `Chưa có toạ độ (${soChuaCoToaDo})` },
         ]}
       />
 

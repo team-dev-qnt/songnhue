@@ -11,6 +11,9 @@ import { type CSSProperties, type ReactNode } from 'react';
  * <p>`note` dùng để nói những điều mà một biểu đồ không tự nói được — ví dụ con số này đã
  * bị lọc theo phạm vi đơn vị của người đang xem, nên hai người xem cùng màn hình có thể
  * thấy hai tổng khác nhau và **cả hai đều đúng**.
+ *
+ * <p>⚠ `note` nhận `ReactNode` kể từ T35.2, để một con số trong ghi chú <b>bấm được</b> — dashboard
+ * nói *"N điểm đo chưa có toạ độ"* và chỗ đi sửa nằm ở màn hình khác. Chữ thuần vẫn hợp lệ.
  */
 export function ChartCard({
   title,
@@ -21,7 +24,7 @@ export function ChartCard({
   children,
 }: {
   title: string;
-  note?: string;
+  note?: ReactNode;
   extra?: ReactNode;
   wall?: boolean;
   style?: CSSProperties;

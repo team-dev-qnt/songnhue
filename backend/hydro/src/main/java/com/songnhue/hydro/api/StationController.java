@@ -238,7 +238,8 @@ public class StationController {
                         .toList(),
                 toLinkViews(lienKet),
                 lienKet.isEmpty() && !diemDo.duocPhepKhongGanCongTrinh(),
-                diemDo.chuaGanDonVi());
+                diemDo.chuaGanDonVi(),
+                diemDo.chuaSoHoaViTri());
     }
 
     /**

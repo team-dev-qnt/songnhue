@@ -1145,6 +1145,13 @@ export interface Station {
   /** ⚠ Điểm đo `MN_SONG` không liên kết công trình nào là HỢP LỆ — cờ này đã trừ trường hợp đó. */
   thieuLienKetCongTrinh: boolean;
   chuaGanDonVi: boolean;
+  /**
+   * Chưa số hoá vị trí (G8) — T35.2.
+   *
+   * ⭐ Cùng vị từ với danh sách `chuaSoHoaViTri` của `/hyd/stations/map-points`, canh bởi
+   * `StationMapHttpTest`: dashboard đếm một con số, màn hình này phải bày ra **đúng** chừng ấy dòng.
+   */
+  chuaSoHoaViTri: boolean;
 }
 
 export interface StationRequest {
