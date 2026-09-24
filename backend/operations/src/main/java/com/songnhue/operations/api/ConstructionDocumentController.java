@@ -119,7 +119,7 @@ public class ConstructionDocumentController {
     }
 
     @PostMapping(path = "/constructions/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "Nhập thật — còn dòng lỗi thì không dòng nào được ghi (OPS-2016)")
+    @Operation(summary = "Nhập thật — còn dòng lỗi thì không dòng nào được ghi (SYS-0015)")
     @RequirePermission("ops:construction:create")
     public KetQuaNhap applyImport(@RequestPart("file") MultipartFile file) {
         return importer.apply(doc(file));

@@ -17,6 +17,34 @@ import org.springframework.http.HttpStatus;
  *
  * <p>Message nằm ở file properties chứ không nằm trong enum: sửa câu chữ tiếng Việt là việc của
  * người viết tài liệu, không nên bắt biên dịch lại mã nguồn.
+ *
+ * <h2>⛔ BIA MỘ — mọi số hiệu KHUYẾT phải được xếp loại ở đây (T42.28)</h2>
+ *
+ * <p>Dãy số của mỗi dải là <b>liên tục</b>; một số hiệu khuyết luôn có đúng một trong hai lý do, và
+ * hai lý do ấy có hậu quả <b>ngược nhau</b>:
+ *
+ * <ul>
+ *   <li><b>{@code NGHI_HUU}</b> — mã từng <i>sống</i> rồi bị đổi tên. <b>⛔ BAO GIỜ được cấp lại.</b>
+ *       Cấp lại làm mọi dòng nhật ký, ảnh chụp màn hình và phiếu hỗ trợ cũ mang mã ấy <b>đọc sai
+ *       nghĩa</b>, ⛔ một dòng đỏ nào báo. Một mã lỗi là một <b>định danh</b>, ⛔ phải một ô trống để lấp.
+ *   <li><b>{@code CHUA_DUNG}</b> — số bị <i>nhảy qua</i>, chưa từng ra khỏi kho. Cấp lại được bình
+ *       thường; nó nằm đây chỉ để lượt rà sau ⛔ phải đi hỏi <i>"số này mất đi đâu"</i>.
+ * </ul>
+ *
+ * <ul>
+ *   <li>{@code NGHI_HUU:OPS-2022} → {@link #SYS_0012} (09/09/2026, T59.1) — trần dòng của bộ đọc tệp;
+ *       đổi khi bộ đọc dời lên {@code core}, vì một mã {@code OPS} hiện trên màn hình của module khác.
+ *   <li>{@code NGHI_HUU:OPS-2015} → {@link #SYS_0016} và {@code NGHI_HUU:OPS-2016} → {@link #SYS_0015}
+ *       (23/09/2026, T42.28) — cùng lý lẽ: {@code OPS-2015} ném 6 lần TOÀN BỘ trong {@code core}, còn
+ *       {@code OPS-2016} ném 4 lần ở 3 module khác nhau ⇒ một tiền tố module hiện trên màn hình module khác.
+ *   <li>{@code CHUA_DUNG:HR-2006} (14/09/2026, T57.7) — bản đầu của CN-04.9 định đúc mã này cho
+ *       <i>"vượt số dư phép"</i>, rồi đo ra {@link #HR_2001} đã giữ đúng trạng thái ấy từ 13/08 và
+ *       đang mồ côi. Hai mã cho một trạng thái là hai câu trả lời cho cùng một câu hỏi ⇒ bỏ mã mới.
+ * </ul>
+ *
+ * <p>⚠ Nhãn cố ý <b>⛔ có khoảng trắng</b> ({@code NGHI_HUU:<mã>}): bộ canh đọc chúng bằng mẫu, và
+ * một bộ canh mà <b>bộ định dạng mã</b> làm cho sai sẽ đỏ giả vào ngày ⛔ ai đoán trước (§11.13).
+ * Cổng giữ khối này là {@code MaLoiNghiHuuTest} — thiếu một dòng xếp loại là CI đỏ, gọi đích danh số.
  */
 public enum ErrorCode {
 
@@ -87,6 +115,25 @@ public enum ErrorCode {
      * <p>Tham số: {0} trần tính bằng MB, {1} tên mục trong tệp nén.
      */
     SYS_0014("SYS-0014", HttpStatus.UNPROCESSABLE_CONTENT),
+
+    /**
+     * Còn dòng lỗi trong tệp nhập — chạy khô báo đủ, và ⛔ dòng nào được ghi. Tham số {0}: số dòng lỗi.
+     *
+     * <p>⚠ Mã <b>SYS</b> chứ ⛔ phải {@code OPS} — đổi từ {@code OPS-2016} ngày 23/09/2026 (T42.28). Nó
+     * được ném ở <b>4</b> chỗ thuộc <b>3</b> module khác nhau ({@code operations} ×2, {@code hydro},
+     * {@code hr}), nên một mã mang tiền tố của MỘT module đang hiện trên màn hình <i>thuỷ văn</i> và
+     * <i>nhân sự</i>. Cùng lý lẽ đã dời {@code OPS-2022} → {@link #SYS_0012}.
+     */
+    SYS_0015("SYS-0015", HttpStatus.UNPROCESSABLE_CONTENT),
+
+    /**
+     * Tệp nhập ⛔ đọc được, hoặc thiếu cột bắt buộc.
+     *
+     * <p>⚠ Đổi từ {@code OPS-2015} ngày 23/09/2026 (T42.28), và ca này lệch còn <b>rõ hơn</b> {@code SYS_0015}:
+     * cả <b>6</b> nơi ném đều nằm trong {@link com.songnhue.core.common.importer.SpreadsheetReader} —
+     * tức một lớp của {@code core} phát ra mã mang tiền tố {@code OPS}, cho MỌI module nhập tệp.
+     */
+    SYS_0016("SYS-0016", HttpStatus.UNPROCESSABLE_CONTENT),
 
     // ---- Xác thực & phân quyền -------------------------------------------------
     /** Message cố ý mơ hồ: không tiết lộ tài khoản có tồn tại hay không (§4.1). */
@@ -238,10 +285,6 @@ public enum ErrorCode {
     OPS_2013("OPS-2013", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Mã cụm công trình đã tồn tại. */
     OPS_2014("OPS-2014", HttpStatus.CONFLICT),
-    /** Tệp nhập không đọc được, hoặc thiếu cột bắt buộc. */
-    OPS_2015("OPS-2015", HttpStatus.UNPROCESSABLE_CONTENT),
-    /** Tệp nhập còn dòng lỗi — chạy khô báo lỗi thì không dòng nào được ghi. */
-    OPS_2016("OPS-2016", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Đơn vị thực hiện: đúng MỘT trong hai cột nội bộ / nhà thầu ngoài (điểm nghiệp vụ 17). */
     OPS_2017("OPS-2017", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Mã tình hình vận hành đã ẩn — {@code OPS-2007} chỉ cho ẩn, nên ẩn rồi phải hết ghi được. */

@@ -381,16 +381,9 @@ export const ERROR_CATALOG = {
     handling: 'form',
     severity: 'warning',
   },
-  'OPS-2015': {
-    message: 'Không đọc được tệp nhập, hoặc tệp thiếu cột bắt buộc',
-    handling: 'toast',
-    severity: 'error',
-  },
-  'OPS-2016': {
-    message: 'Tệp nhập còn dòng lỗi — sửa hết lỗi rồi nhập lại, không dòng nào được ghi',
-    handling: 'toast',
-    severity: 'warning',
-  },
+  // ⚠ Số hiệu nhảy từ 2014 sang 2017: `OPS-2015` và `OPS-2016` đã NGHỈ HƯU (đổi thành `SYS-0016`
+  // và `SYS-0015` ngày 23/09/2026, T42.28) — cả hai là mã của bộ NHẬP TỆP, mà bộ đọc nằm ở `core`
+  // và bốn module đều nhập qua nó. ⛔ Dùng lại hai số ấy: xem `MaLoiNghiHuuTest`.
   'OPS-2017': {
     message:
       'Đơn vị thực hiện: chọn đơn vị nội bộ HOẶC nhập tên nhà thầu ngoài, đúng một trong hai',
@@ -848,6 +841,19 @@ export const ERROR_CATALOG = {
     // T61.40 — tệp nhập NỞ quá trần khi giải nén (zip bomb). Mã riêng với SYS-0012 (trần DÒNG):
     // hai trạng thái dẫn tới hai việc khác nhau — tách tệp, so với "tệp này không phải bảng tính".
     message: 'Tệp nhập nở quá lớn khi giải nén — tệp này không phải bảng tính bình thường.',
+    handling: 'toast',
+    severity: 'error',
+  },
+  'SYS-0015': {
+    // T42.28 — đổi từ `OPS-2016`: ném ở 4 chỗ thuộc 3 module, nên một tiền tố `OPS` đang hiện
+    // trên màn hình thuỷ văn và nhân sự.
+    message: 'Tệp nhập còn dòng lỗi — sửa hết lỗi rồi nhập lại, không dòng nào được ghi',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  'SYS-0016': {
+    // T42.28 — đổi từ `OPS-2015`: cả 6 nơi ném đều nằm trong `SpreadsheetReader` của `core`.
+    message: 'Không đọc được tệp nhập, hoặc tệp thiếu cột bắt buộc',
     handling: 'toast',
     severity: 'error',
   },

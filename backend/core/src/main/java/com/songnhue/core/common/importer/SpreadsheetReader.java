@@ -90,7 +90,7 @@ public final class SpreadsheetReader {
     /** Nhận diện bằng <b>magic bytes</b>, không tin đuôi tệp — cùng luật với {@code FileValidator}. */
     public static List<Row> read(byte[] content) {
         if (content == null || content.length == 0) {
-            throw new ValidationException(ErrorCode.OPS_2015);
+            throw new ValidationException(ErrorCode.SYS_0016);
         }
         return laXlsx(content) ? docXlsx(content) : docCsv(content);
     }
@@ -123,7 +123,7 @@ public final class SpreadsheetReader {
         // chắc: văn bản UTF-8 hợp lệ không bao giờ chứa nó.
         for (byte b : content) {
             if (b == 0) {
-                throw new ValidationException(ErrorCode.OPS_2015);
+                throw new ValidationException(ErrorCode.SYS_0016);
             }
         }
         String text = new String(content, StandardCharsets.UTF_8);
@@ -132,7 +132,7 @@ public final class SpreadsheetReader {
         }
         List<List<String>> grid = tachCsv(text);
         if (grid.isEmpty()) {
-            throw new ValidationException(ErrorCode.OPS_2015);
+            throw new ValidationException(ErrorCode.SYS_0016);
         }
         return dungRows(grid);
     }
@@ -203,11 +203,11 @@ public final class SpreadsheetReader {
                 }
             }
             if (sheet == null) {
-                throw new ValidationException(ErrorCode.OPS_2015);
+                throw new ValidationException(ErrorCode.SYS_0016);
             }
             return dungRows(docSheet(sheet, chuoiDungChung, kieuNgay(styles), heNgay1904(workbook)));
         } catch (IOException | XMLStreamException e) {
-            throw new ValidationException(ErrorCode.OPS_2015, e);
+            throw new ValidationException(ErrorCode.SYS_0016, e);
         }
     }
 
@@ -468,7 +468,7 @@ public final class SpreadsheetReader {
      */
     private static List<Row> dungRows(List<List<String>> grid) {
         if (grid.isEmpty()) {
-            throw new ValidationException(ErrorCode.OPS_2015);
+            throw new ValidationException(ErrorCode.SYS_0016);
         }
         List<String> tieuDe =
                 grid.get(0).stream().map(SpreadsheetReader::chuanHoaCot).toList();

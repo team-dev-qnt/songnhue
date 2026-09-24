@@ -47,7 +47,7 @@ import com.songnhue.operations.infra.ConstructionRepository;
  *
  * Nhập một nửa rồi dừng là trạng thái tệ nhất: người dùng không biết đã vào tới đâu, sửa tệp rồi
  * nhập lại thì phần đầu bị nhập hai lần. Toàn bộ lượt nhập nằm trong một giao dịch, và lỗi bất kỳ
- * dòng nào cũng chặn cả lượt ({@code OPS-2016}).
+ * dòng nào cũng chặn cả lượt ({@code SYS-0015}).
  *
  * <h2>⚠ Phạm vi đơn vị vẫn có hiệu lực</h2>
  *
@@ -188,7 +188,7 @@ public class ConstructionImportService {
     public KetQuaNhap apply(byte[] content) {
         KeHoach keHoach = lapKeHoach(content);
         if (!keHoach.loi.isEmpty()) {
-            throw new BusinessRuleException(ErrorCode.OPS_2016, keHoach.loi.size());
+            throw new BusinessRuleException(ErrorCode.SYS_0015, keHoach.loi.size());
         }
         for (DongKeHoach dong : keHoach.dong) {
             if (dong.publicIdHienCo == null) {

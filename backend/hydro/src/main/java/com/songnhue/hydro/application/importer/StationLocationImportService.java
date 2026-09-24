@@ -112,7 +112,7 @@ public class StationLocationImportService {
     public KetQuaNhap apply(byte[] content) {
         KeHoach keHoach = lapKeHoach(content);
         if (!keHoach.loi.isEmpty()) {
-            throw new BusinessRuleException(ErrorCode.OPS_2016, keHoach.loi.size());
+            throw new BusinessRuleException(ErrorCode.SYS_0015, keHoach.loi.size());
         }
         for (DongKeHoach dong : keHoach.dong) {
             Station s = dong.station;

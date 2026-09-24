@@ -35,7 +35,7 @@ const { ImportModal, TRAN_DONG_NHAP } = await import('./ImportModal');
  * 1. `accept=".xlsx,.xls"` — chặn đúng định dạng **CSV** mà bộ đọc xử lý đầy đủ, và mời đúng định
  *    dạng **`.xls`** (OLE2) mà bộ đọc ⛔ không đọc nổi.
  * 2. Chữ *"đúng biểu mẫu"* trong khi kho ⛔ không có một tệp mẫu nào.
- * 3. Bảng lỗi từng dòng ⛔ không bao giờ được vẽ ở đường **nhập thật** — backend NÉM `OPS-2016`
+ * 3. Bảng lỗi từng dòng ⛔ không bao giờ được vẽ ở đường **nhập thật** — backend NÉM `SYS-0015`
  *    nên lượt ấy rơi vào `onError`, và `onError` chỉ có một dòng toast.
  *
  * ## ⚠ Bài canh trần dòng đọc THẲNG tệp Java
@@ -196,7 +196,7 @@ describe('ImportModal', () => {
     const nutNhap = await screen.findByRole('button', { name: /nhập dữ liệu/i });
     await waitFor(() => expect(nutNhap.hasAttribute('disabled')).toBe(false));
 
-    // 2. Nhập thật: backend NÉM OPS-2016 …
+    // 2. Nhập thật: backend NÉM SYS-0015 …
     upload.mockRejectedValueOnce(new GiaApiClientError('Tệp nhập còn dòng lỗi'));
     // 3. … và lượt xem trước chạy lại phải trả về dòng lỗi cụ thể.
     upload.mockResolvedValueOnce({

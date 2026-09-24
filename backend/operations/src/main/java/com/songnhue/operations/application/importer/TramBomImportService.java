@@ -164,7 +164,7 @@ public class TramBomImportService {
 
     /**
      * Nhập thật — chạy lại {@link #lapKeHoach}; còn một dòng lỗi thì ⛔ dòng nào được ghi
-     * ({@code OPS-2016}).
+     * ({@code SYS-0015}).
      *
      * <p>⚠ Trạm ghi TRƯỚC, nhóm máy ghi SAU, và nhóm tra id trạm qua bảng {@code idTheoKhoa} dựng
      * trong chính lượt này — trạm vừa tạo chưa có id lúc lập kế hoạch, nên kế hoạch mang <b>khoá
@@ -174,7 +174,7 @@ public class TramBomImportService {
     public KetQuaNhap apply(byte[] content) {
         KeHoach keHoach = lapKeHoach(content);
         if (!keHoach.loi.isEmpty()) {
-            throw new BusinessRuleException(ErrorCode.OPS_2016, keHoach.loi.size());
+            throw new BusinessRuleException(ErrorCode.SYS_0015, keHoach.loi.size());
         }
 
         Map<String, Long> idTheoKhoa = new HashMap<>();
