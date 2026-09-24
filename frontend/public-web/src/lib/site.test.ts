@@ -30,7 +30,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 /** Bất biến của từng hằng số — khớp đúng thứ nơi gọi thật sự cần. */
 const HANG_SO = [
   {
-    bien: 'NEXT_PUBLIC_SITE_URL',
+    // ⛔⛔ KHÔNG có tiền tố `NEXT_PUBLIC_` kể từ T68.12 — biến `NEXT_PUBLIC_*` bị Next thay
+    //    bằng chuỗi hằng LÚC BUILD, mà staging và production dùng CHUNG ảnh Docker.
+    bien: 'SITE_URL',
     xuat: 'SITE_URL',
     // `layout.tsx` gọi `new URL(SITE_URL)`; `sitemap.ts`/`robots.ts` nối đường dẫn vào đây.
     phaiTuyetDoi: true,
@@ -99,7 +101,17 @@ describe('hằng số cấu hình cổng sống sót khi biến môi trường r
   it('mọi biến môi trường site.ts đọc đều nằm trong danh sách trên', () => {
     // conventions.md §1.5 + CLAUDE.md luật 14: thêm biến thứ tư mà quên kiểm thì bài này đỏ,
     // thay vì lặng lẽ để lọt đúng cái bẫy vừa trả giá.
-    const doc = [...NGUON.matchAll(/process\.env\.([A-Z0-9_]+)/g)].map(([, ten]) => ten);
+    //
+    // ⛔⛔ Quét trên mã ĐÃ BỎ CHÚ THÍCH — lần thứ NĂM của hình dạng "bộ canh đỏ giả trên một
+    //    chú thích, và nó phạt đúng người viết tài liệu tử tế" (T46.7 · T54.8 · T49.6 · T83.4).
+    //    Ở đây javadoc của `SITE_URL` giải thích vì sao ⛔ được dùng `process.env.NEXT_PUBLIC_*`,
+    //    và regex đọc chính câu giải thích ấy thành một biến tên `NEXT_PUBLIC_`. Sửa chú thích
+    //    cho hết đỏ là **xoá bài học mà vẫn để bộ canh thủng**.
+    // ⚠ Một chú thích ⛔ phải một lượt đọc biến; còn CHUỖI KÝ TỰ thì giữ, vì
+    //   `process.env['X']` là một lượt đọc thật.
+    // ⬜ T28.41 sẽ hợp nhất các bản `boChuThich` rải rác; ⛔ thêm bản thứ BA ở đây.
+    const maKhongChuThich = NGUON.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+    const doc = [...maKhongChuThich.matchAll(/process\.env\.([A-Z0-9_]+)/g)].map(([, ten]) => ten);
     expect(doc.length).toBeGreaterThan(0);
     expect([...new Set(doc)].sort()).toEqual([...HANG_SO.map(({ bien }) => bien)].sort());
   });

@@ -566,10 +566,13 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}/${{ matrix.name }}:${{ github.sha }}
             ghcr.io/${{ github.repository }}/${{ matrix.name }}:dev
+          # ⛔⛔ ⛔ còn `NEXT_PUBLIC_SITE_URL` — T68.12. Next nướng biến `NEXT_PUBLIC_*` vào
+          #     bundle LÚC BUILD, mà staging và production dùng CHUNG ảnh này ⇒ chúng buộc
+          #     phải mang chung giá trị, và robots/sitemap/canonical của staging tự nhận là
+          #     production. `SITE_URL` nay do `compose.prod.yml` truyền lúc CHẠY.
           build-args: |
             VITE_API_BASE_URL=
             NEXT_PUBLIC_API_BASE_URL=
-            NEXT_PUBLIC_SITE_URL=${{ vars.PUBLIC_SITE_URL }}
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}
 
@@ -579,13 +582,15 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           echo "ghcr.io/${{ github.repository }}/${{ matrix.name }}:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          # ⚠ Cảnh báo này từng mô tả sai thực tế: nó nói "sẽ trỏ về localhost", ngụ ý có
-          #   một giá trị mặc định đang đỡ. Không có — biến rỗng đi thẳng vào `new URL('')`
-          #   và giết build, cho tới khi `site.ts` đổi `??` thành `||` (§10.38).
-          if [ -z "${{ vars.PUBLIC_SITE_URL }}" ] && [ "${{ matrix.name }}" = "public-web" ]; then
-            echo "⚠ Chưa đặt biến kho \`PUBLIC_SITE_URL\` — image này rơi về \`http://localhost:3000\`," >> "$GITHUB_STEP_SUMMARY"
-            echo "  nên \`sitemap.xml\`, thẻ canonical và Open Graph đều trỏ sai. Chốt cùng WS-11." >> "$GITHUB_STEP_SUMMARY"
-          fi
+          # ⭐ T68.12 đã GỠ cảnh báo *"chưa đặt PUBLIC_SITE_URL"* ở đây, vì câu hỏi mà nó đặt ra
+          #   đã thôi là câu hỏi của lượt BUILD: `SITE_URL` nay đọc lúc chạy, do
+          #   `compose.prod.yml` truyền từ `${PUBLIC_DOMAIN}` của từng máy. Giữ lại một cảnh báo
+          #   nói về biến kho `PUBLIC_SITE_URL` là để nó đúng-hôm-nay rồi sai-lặng-lẽ về sau —
+          #   đúng hình dạng đã trả giá ở §11.20 và §10.38.
+          #
+          # ⚠ Vế *"thiếu biến thì cổng trỏ sai"* ⛔ biến mất, nó chỉ DỜI sang chỗ đo được thật:
+          #   `${PUBLIC_DOMAIN}` khai `:?` trong `compose.prod.yml` ⇒ thiếu là cluster ⛔ lên,
+          #   ồn ào ngay lúc deploy thay vì im lặng suốt nhiều tuần.
 
   # ---------------------------------------------------------------------------
   # Gắn tag SHA cho image KHÔNG ĐỔI — để mọi commit `dev` có đủ ba tag
