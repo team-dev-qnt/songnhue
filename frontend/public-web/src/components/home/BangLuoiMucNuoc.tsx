@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { alertLevelColors } from '@songnhue/design-tokens';
 
 import type { CongTrinhLuoi, DongChiSo, LuoiMucNuoc, OLuoi } from '@/lib/api';
-import { ROUTES } from '@/lib/routes';
+import { ROUTES, formatDateTime } from '@/lib/routes';
 
 interface BangLuoiMucNuocProps {
   luoi: LuoiMucNuoc;
@@ -152,6 +152,19 @@ export function BangLuoiMucNuoc({ luoi }: BangLuoiMucNuocProps) {
                     }`}
                   >
                     {dong.chiTieu}
+                    {/* T44.9 — nhãn tín hiệu của chính dòng này, ⛔ phải của cả công trình: một
+                        cống có thượng lưu còn sống và hạ lưu đã chết là chuyện bình thường. */}
+                    {(() => {
+                      const nhan = nhanTinHieu(dong);
+                      return nhan === null ? null : (
+                        <span
+                          title={nhan.tieuDe}
+                          className="ml-1.5 whitespace-nowrap rounded bg-surface-bgLayout px-1 py-0.5 text-[11px] font-normal text-surface-textSecondary"
+                        >
+                          ⚠ {nhan.chu}
+                        </span>
+                      );
+                    })()}
                   </td>
 
                   {dong.o.map((o, i) => (
@@ -279,7 +292,40 @@ function gioPhut(moc: string): string {
   }).format(new Date(moc));
 }
 
+/**
+ * Nhãn tín hiệu của MỘT dòng — **T44.9**. `null` = ⛔ hiện gì.
+ *
+ * <h2>⛔ Vì sao cần một nhãn NHÌN THẤY ĐƯỢC, dù mỗi ô đã có tooltip</h2>
+ *
+ * Một trạm im lặng cho ra 12 ô trống mang **cùng một** tooltip. Tooltip chỉ hiện khi người ta đã
+ * nghi ngờ đủ để rê chuột vào — nên trước khi rê, 12 ô trống của *"trạm chết"* trông **y hệt** 12
+ * ô trống của *"nguồn chưa trả số khung này"*. Đó đúng là khoảng cách mà T44.9 mở ra để trả:
+ * người trực cần biết nên đi kiểm cảm biến hay chỉ cần chờ.
+ *
+ * <p>⚠ `HOAT_DONG` trả `null` — <b>⛔ hiện một nhãn "bình thường"</b>. Gắn nhãn cho trạng thái
+ * thường là phủ kín bảng bằng chữ, và đúng lúc ấy nhãn bất thường thôi nổi bật.
+ *
+ * <p>⚠ `mocGanNhat` đổi sang UTC+7 ở ĐÂY bằng `formatDateTime` — BE gửi mốc thô (quy tắc 1).
+ */
+function nhanTinHieu(dong: DongChiSo): { chu: string; tieuDe: string } | null {
+  switch (dong.trangThai) {
+    case 'MAT_TIN_HIEU':
+      return {
+        chu: 'mất tín hiệu',
+        tieuDe: dong.mocGanNhat
+          ? `Số liệu gần nhất lúc ${formatDateTime(dong.mocGanNhat)}`
+          : 'Điểm đo đang mất tín hiệu',
+      };
+    case 'CHUA_CO_DU_LIEU':
+      return { chu: 'chưa có số', tieuDe: 'Điểm đo chưa gửi về số liệu nào' };
+    case 'NGUNG':
+      return { chu: 'đã ngừng', tieuDe: 'Điểm đo đã ngừng theo dõi' };
+    default:
+      return null;
+  }
+}
+
 /** ⚠ Dùng ở `BangLuoiMucNuoc` — giữ ở đây để bài kiểm gọi được mà ⛔ không phải dựng cả bảng. */
-export const _test = { demDong, gioPhut };
+export const _test = { demDong, gioPhut, nhanTinHieu };
 
 export type { DongChiSo };

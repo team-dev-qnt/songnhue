@@ -96,10 +96,19 @@ public class HydroGridRepository {
                    s.is_main_axis,
                    s.active,
                    mt.id   AS measurement_type_id,
-                   mt.unit AS unit
+                   mt.unit AS unit,
+                   hl.last_seen_at AS last_seen_at
               FROM stations s
               JOIN station_measurement_types smt ON smt.station_id = s.id
               JOIN measurement_types mt ON mt.id = smt.measurement_type_id
+              -- T44.9 — `last_seen_at` là thứ DUY NHẤT phân biệt "chưa gửi gì bao giờ" với "im
+              -- lặng đã lâu"; cả hai cho ra ô TRỐNG y hệt nhau nếu chỉ nhìn `hydro_readings`
+              -- trong cửa sổ của lưới. LEFT JOIN vì "chưa có hàng nào" CHÍNH LÀ ca thứ nhất.
+              -- ⚠ `last_seen_at` chứ ⛔ `valid_measured_at`: câu hỏi ở đây là *trạm còn phát ⛔*,
+              --   và một trạm chỉ gửi số NGHI_NGO thì vẫn đang phát (xem `TinHieuDiemDo`).
+              LEFT JOIN hydro_latest hl
+                     ON hl.station_id = s.id
+                    AND hl.measurement_type_id = mt.id
              WHERE s.deleted_at IS NULL
                AND mt.deleted_at IS NULL
                AND mt.code = ?
@@ -167,7 +176,8 @@ public class HydroGridRepository {
             boolean mainAxis,
             boolean active,
             long measurementTypeId,
-            String unit) {}
+            String unit,
+            Instant lastSeenAt) {}
 
     /**
      * Một số đo thô kèm <b>nhãn chất lượng của chính nó</b>.
@@ -193,7 +203,8 @@ public class HydroGridRepository {
                         rs.getBoolean("is_main_axis"),
                         rs.getBoolean("active"),
                         rs.getLong("measurement_type_id"),
-                        rs.getString("unit")),
+                        rs.getString("unit"),
+                        moc(rs.getObject("last_seen_at", OffsetDateTime.class))),
                 maLoaiChiSo);
     }
 
