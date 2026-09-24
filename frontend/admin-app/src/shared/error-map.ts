@@ -427,12 +427,6 @@ export const ERROR_CATALOG = {
     handling: 'form',
     severity: 'warning',
   },
-  // ⛔ Câu chữ của backend mang tên tệp và lời khuyên chuyển sang GeoJSON — `messageFor` ưu tiên nó.
-  'OPS-2025': {
-    message: 'Hệ thống chưa đọc được tệp KML/KMZ — hãy chuyển sang GeoJSON',
-    handling: 'toast',
-    severity: 'warning',
-  },
   'OPS-2026': {
     message: 'Tệp không có đối tượng hình học nào',
     handling: 'toast',
@@ -466,6 +460,13 @@ export const ERROR_CATALOG = {
   },
   'OPS-2032': {
     message: 'Công trình không đúng loại mà vị trí này của mẫu báo cáo cần',
+    handling: 'toast',
+    severity: 'warning',
+  },
+  // ⛔ Câu chữ của backend mang TÊN TỆP và LÝ DO đo được — `messageFor` ưu tiên nó. Câu ở đây chỉ là
+  //    lưới đỡ khi backend ⛔ trả `message` (T59.14).
+  'OPS-2033': {
+    message: 'Không đọc được tệp KML/KMZ — hãy xuất lại từ QGIS hoặc Google Earth',
     handling: 'toast',
     severity: 'warning',
   },

@@ -6953,6 +6953,32 @@ hạn mức dung lượng** của lớp và nằm lại trong kho.
 án **tệ nhất** trong ba: người dùng thấy *"nạp thành công"*, lớp hiện trong danh sách, bản đồ ⛔
 không vẽ gì — và họ sẽ đi báo hỏng **bản đồ** chứ ⛔ không báo hỏng **lượt nạp**.
 
+⭐ **ĐÍNH CHÍNH 24/09/2026 (T59.14) — chốt số 1 ở trên ĐÃ HẾT ĐÚNG, và mã `OPS-2025` đã NGHỈ HƯU.**
+Kho nay đọc được KML/KMZ (`DocKmlSangGeoJson`: StAX + `ZipInputStream`, **0 phụ thuộc mới**, đúng
+tiền lệ `SpreadsheetReader`/`DocxFiller`), nên tệp được **đổi sang GeoJSON ở cổng nhận** rồi đi
+tiếp đúng đường cũ. Ba điểm của quyết định ấy:
+
+1. **Đổi lúc NẠP, ⛔ lúc phục vụ.** Đổi một lần thì kho tệp, đường `/noi-dung`, bộ đếm hình học và
+   Leaflet đều ⛔ đổi một dòng nào. Đổi lúc phục vụ thì **hai** định dạng phải sống song song trong
+   mọi nhánh mã từ đó về sau, và mỗi lượt xem bản đồ trả giá một lượt phân tích XML.
+2. **`OPS-2025` nghỉ hưu chứ ⛔ đổi nghĩa.** Trạng thái nó mô tả (*"hệ chưa đọc được định dạng"*) ⛔
+   còn tồn tại, nên nó ⛔ có cách nào bắn ra nữa. Đúc lại số ấy cho ca *"KML hỏng"* là làm mọi ảnh
+   chụp và phiếu hỗ trợ cũ **đọc sai nghĩa** — người đọc chúng sẽ đi chuyển tệp sang GeoJSON, một
+   việc nay ⛔ còn cần làm (T59.1). Ca ấy dùng mã MỚI `OPS-2033`, kèm **lý do đo được**.
+3. **Đo kích thước HAI LẦN.** KMZ đã nén, nên một tệp qua được trần 20 MB vẫn có thể nở ra GeoJSON
+   vượt xa trần ⇒ trần chạy lại trên **bản đã đổi**. Bỏ lượt đo thứ hai là để một tệp lách qua đúng
+   hạn mức vừa kiểm.
+
+⚠ Cái giá phải khai ra: **bản gốc KML ⛔ được giữ**, và phép đổi là **có mất mát** (kiểu dáng, ảnh
+phủ, `NetworkLink`, cao độ). Giữ lại những thứ ⛔ ai đọc là dựng một lời hứa ⛔ có ai giữ (luật 15).
+Tên tệp lưu mang cả đuôi cũ — `quy-hoach.kmz` ⇒ `quy-hoach.kmz.geojson` — để còn truy được nguồn gốc.
+
+⭐ Hai biện pháp bảo vệ (**XXE tắt**, **trần giải nén 64 MB ⇒ `SYS-0014`**) vốn nằm `private static`
+trong `SpreadsheetReader`; lượt này **bóc ra `NenVaXml` dùng chung** thay vì chép. Hai bản sao của
+một biện pháp bảo mật ⛔ hỏng cùng lúc — chúng **trôi khỏi nhau**, và bằng chứng nằm ngay tại chỗ:
+javadoc bản cũ khai *"ném `SYS-0012`"* trong khi mã ném **`SYS-0014`** (hai mã tách nhau ở WS-62,
+chú thích nằm lại).
+
 ⛔ `{"type":"FeatureCollection","features":[]}` là JSON **hoàn toàn hợp lệ**. Một phép kiểm *"parse
 được ⛔ không"* nhận nó. Chốt chặn thứ ba là thứ duy nhất phân biệt được — và nhờ nó, trạng thái *"0
 đối tượng"* **⛔ không biểu diễn được**, nên `soDoiTuong = null` chỉ có một nghĩa: *chưa nạp tệp*.

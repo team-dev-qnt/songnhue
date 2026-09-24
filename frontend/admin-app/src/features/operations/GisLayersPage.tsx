@@ -51,7 +51,8 @@ const NHAN_HINH_HOC: Record<GisLayerView['geometryType'], string> = {
  * Đặc tả viết *"GeoJSON/KMZ"*. Kho ⛔ **không có** bộ đọc KML/KMZ (KMZ là ZIP chứa KML ⇒ cần một bộ
  * phân tích XML theo lược đồ OGC). ⛔ Nhận rồi lưu là phương án **tệ nhất**: người dùng thấy “nạp
  * thành công”, lớp hiện trong danh sách, và bản đồ ⛔ không vẽ gì — họ sẽ đi báo hỏng *bản đồ* chứ
- * ⛔ không báo hỏng *lượt nạp*. Backend trả `OPS-2025`.
+ * ⛔ không báo hỏng *lượt nạp*. ⭐ Từ 24/09 (T59.14) KML/KMZ ĐỔI được sang GeoJSON ở
+ * backend nên nó ⛔ còn bị từ chối; tệp thật sự hỏng trả `OPS-2033` kèm lý do đo được.
  *
  * <h2>⛔ Độ mờ là phần trăm NGUYÊN 0–100</h2>
  *
@@ -231,7 +232,7 @@ export function GisLayersPage() {
         coSua ? (
           <Space size={0}>
             <Upload
-              accept=".geojson,.json"
+              accept=".geojson,.json,.kml,.kmz"
               showUploadList={false}
               customRequest={({ file, onSuccess, onError }) => {
                 const fd = new FormData();

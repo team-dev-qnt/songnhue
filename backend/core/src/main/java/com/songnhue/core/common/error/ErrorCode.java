@@ -37,6 +37,11 @@ import org.springframework.http.HttpStatus;
  *   <li>{@code NGHI_HUU:OPS-2015} → {@link #SYS_0016} và {@code NGHI_HUU:OPS-2016} → {@link #SYS_0015}
  *       (23/09/2026, T42.28) — cùng lý lẽ: {@code OPS-2015} ném 6 lần TOÀN BỘ trong {@code core}, còn
  *       {@code OPS-2016} ném 4 lần ở 3 module khác nhau ⇒ một tiền tố module hiện trên màn hình module khác.
+ *   <li>{@code NGHI_HUU:OPS-2025} (24/09/2026, T59.14) — <i>"tệp là KML/KMZ, kho chưa có bộ đọc"</i>.
+ *       ⛔ đổi tên: <b>trạng thái ấy ⛔ còn tồn tại</b> — kho nay đọc được KML/KMZ, nên mã này ⛔ có
+ *       cách nào bắn ra nữa. ⛔ Dùng lại số cho ca <i>"KML hỏng"</i> (đó là {@link #OPS_2033}): mọi
+ *       ảnh chụp và phiếu hỗ trợ cũ mang {@code OPS-2025} nghĩa là <i>hệ ⛔ đọc được định dạng</i>,
+ *       và người đọc chúng sẽ đi chuyển tệp sang GeoJSON — một việc nay ⛔ còn cần làm.
  *   <li>{@code CHUA_DUNG:HR-2006} (14/09/2026, T57.7) — bản đầu của CN-04.9 định đúc mã này cho
  *       <i>"vượt số dư phép"</i>, rồi đo ra {@link #HR_2001} đã giữ đúng trạng thái ấy từ 13/08 và
  *       đang mồ côi. Hai mã cho một trạng thái là hai câu trả lời cho cùng một câu hỏi ⇒ bỏ mã mới.
@@ -336,17 +341,6 @@ public enum ErrorCode {
     /** Tên lớp bản đồ {0} đã có — hai lớp cùng tên làm bảng chọn lớp ⛔ không phân biệt được. */
     OPS_2024("OPS-2024", HttpStatus.CONFLICT),
     /**
-     * Tệp {0} là <b>KML/KMZ</b> — kho <b>⛔ chưa có bộ đọc</b>.
-     *
-     * <p>⛔⛔ Từ chối ở cổng nhận, ⛔ <b>không</b> nhận rồi lưu. Nhận một tệp ⛔ không đọc được là
-     * phương án <b>tệ nhất</b> trong ba: người dùng thấy *"nạp thành công"*, lớp hiện trong danh
-     * sách, và bản đồ ⛔ không vẽ gì — họ sẽ đi báo hỏng bản đồ chứ ⛔ không báo hỏng lượt nạp.
-     *
-     * <p>⚠ KMZ là một tệp ZIP chứa KML ⇒ cần một bộ phân tích XML theo lược đồ OGC, ⛔ không phải
-     * một phép giải nén. Đo 14/09/2026: 0 phụ thuộc như vậy trong cả 7 {@code pom.xml}.
-     */
-    OPS_2025("OPS-2025", HttpStatus.UNPROCESSABLE_CONTENT),
-    /**
      * Tệp {0} ⛔ không có đối tượng hình học nào ({1} đối tượng đọc được).
      *
      * <p>⛔ Một tệp JSON <b>hợp lệ</b> mà rỗng hình học vẫn nạp được về mặt kỹ thuật — và nó cho ra
@@ -378,6 +372,18 @@ public enum ErrorCode {
      * "Yên Nghĩa" (trạm bơm và cống tiêu), gắn nhầm thì ghi chú luôn trống mà ⛔ ai hiểu vì sao.
      */
     OPS_2032("OPS-2032", HttpStatus.UNPROCESSABLE_CONTENT),
+    /**
+     * Tệp {0} ⛔ đọc được như KML/KMZ — lý do: {1}. <b>T59.14</b>.
+     *
+     * <p>⛔ Cố ý KHÁC {@link #OPS_2026} (<i>"⛔ có đối tượng hình học nào"</i>): một tệp đọc được mà
+     * rỗng hình học và một tệp <b>⛔ đọc được</b> dẫn tới hai việc khác nhau — cái trước là *"bạn
+     * chọn nhầm tệp"*, cái sau là *"tệp hỏng, hãy xuất lại từ QGIS"*. Gộp chúng là để người dùng đi
+     * kiểm nhầm thứ (T59.0 — ba trạng thái phải nói ba câu).
+     *
+     * <p>⚠ {1} mang lý do ĐO ĐƯỢC (⛔ phải XML hợp lệ · KMZ ⛔ chứa tệp .kml nào · vượt trần …), ⛔
+     * phải một câu chung chung: người vận hành cầm tệp trong tay và cần biết sửa cái gì.
+     */
+    OPS_2033("OPS-2033", HttpStatus.UNPROCESSABLE_CONTENT),
     /** Trạng thái công trình là giá trị dẫn xuất — client sửa trực tiếp là từ chối. */
     OPS_3001("OPS-3001", HttpStatus.FORBIDDEN),
 
