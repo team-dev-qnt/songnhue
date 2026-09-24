@@ -312,6 +312,8 @@ export function BannersTab() {
                   width={160}
                   height={70}
                   style={{ objectFit: 'cover' }}
+                  /* T12.7 — mỗi banner một ảnh 160×70 của ảnh GỐC; danh sách ⛔ phân trang. */
+                  loading="lazy"
                 />
               }
               title={
