@@ -288,7 +288,11 @@ migration-order:  ## Migration mới có số hiệu lớn hơn đỉnh nhánh n
 #    khác là đủ để lộ ra phụ thuộc thứ tự, thứ mà một lượt chạy đơn độc giấu đi.
 ci-order: ## Chạy lại bộ kiểm backend theo THỨ TỰ LỚP KHÁC — lộ phụ thuộc thứ tự mà `ci-local` giấu
 	@echo ""
-	@echo "  Chạy bộ kiểm `app` với runOrder=alphabetical (mô phỏng thứ tự runner Linux)"
+	@# ⛔ ⛔ KHÔNG dùng dấu huyền trong chuỗi nháy kép của recipe — shell THAY LỆNH nó.
+	@#    Bản trước viết `app` ở đây và mọi lượt `make ci-order` in ra
+	@#    `/bin/bash: app: command not found` rồi đi tiếp, nên mã thoát 0 của cổng
+	@#    vẫn đúng và ⛔ ai để ý (T85.16 · §11.27 — một dấu huyền ⛔ nháy là mã chạy được).
+	@echo "  Chạy bộ kiểm 'app' với runOrder=alphabetical (mô phỏng thứ tự runner Linux)"
 	@cd $(BACKEND) && ./mvnw -B -ntp -am -pl app test -Dsurefire.runOrder=alphabetical
 	@echo ""
 	@echo "  ✓ Bộ kiểm xanh ở MỘT thứ tự lớp khác — phụ thuộc thứ tự (nếu có) đã lộ ra."
