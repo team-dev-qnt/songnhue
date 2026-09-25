@@ -92,20 +92,33 @@ function coKhai(mau: RegExp, thuocTinh?: string): boolean {
  * biệt được hai trạng thái).
  */
 function resizableDangBat(): boolean {
-  const kit = EXTENSIONS_SOAN_THAO.find((e) => e.name === 'tableKit');
-  if (!kit) {
+  // ⚠⚠ **Sửa 25/09 (T41.14) đúng như dòng dặn ngay trên đã báo trước.** Bản cũ hỏi
+  //    `tableKit.options.table.resizable`. Từ T41.14, `TableKit.configure({ table: false })` tắt
+  //    node của kit và bảng do một extension RIÊNG khai (`bangCoBeRongCot.ts`) — nên bản cũ đọc
+  //    ra `table === false` và **im lặng trả `false`** trong khi bảng thật đang bật `resizable`.
+  //    Nó sẽ XANH: ⛔ có tay nắm theo phép đo hỏng, ⛔ có CSS tay nắm ⇒ *"cùng tắt"*. Một bộ canh
+  //    xanh vì đo nhầm chỗ tệ hơn một bộ canh ⛔ có (luật 9).
+  //
+  // ⚠ Hỏi theo TÊN NÚT (`table`) chứ ⛔ theo tên extension khai nó: tên nút là thứ ProseMirror
+  //   thật sự dùng, và nó ⛔ đổi khi ta đổi chỗ khai.
+  const bang = EXTENSIONS_SOAN_THAO.find((e) => e.name === 'table');
+  if (!bang) {
     throw new Error(
-      'Không tìm thấy `tableKit` trong EXTENSIONS_SOAN_THAO. Nếu bảng chuyển sang khai bằng ' +
-        'extension khác thì phải sửa hàm này — ⛔ đừng để nó im lặng báo "không bật".',
+      'Không tìm thấy extension tên `table` trong EXTENSIONS_SOAN_THAO. Nếu bảng chuyển sang ' +
+        'khai bằng tên khác thì phải sửa hàm này — ⛔ đừng để nó im lặng báo "không bật".',
     );
   }
 
-  // `TableKit` không khai `addOptions()`, nên `options.table` đúng bằng thứ được truyền vào
-  // `configure()`. Thiếu khoá `table` hoặc thiếu `resizable` ⇒ rơi về mặc định của
-  // `Table.addOptions()`, và mặc định ấy là `resizable: false` (đã đọc mã 3.31.0).
-  // `table: false` ⇒ Table không được nạp, đương nhiên cũng không có tay nắm kéo.
-  const table = (kit.options as { table?: false | { resizable?: boolean } }).table;
-  return table !== undefined && table !== false && table.resizable === true;
+  const kit = EXTENSIONS_SOAN_THAO.find((e) => e.name === 'tableKit');
+  const cuaKit = (kit?.options as { table?: false | { resizable?: boolean } } | undefined)?.table;
+  if (cuaKit !== false) {
+    throw new Error(
+      'TableKit vẫn đang nạp node `table` của nó. Hai extension cùng tên `table` ném ' +
+        '`RangeError: Adding different instances of a keyed plugin` — phải khai `table: false`.',
+    );
+  }
+
+  return (bang.options as { resizable?: boolean }).resizable === true;
 }
 
 describe('CSS trình soạn thảo', () => {

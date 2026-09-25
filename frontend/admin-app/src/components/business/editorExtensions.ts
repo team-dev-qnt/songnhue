@@ -3,6 +3,7 @@ import { Placeholder } from '@tiptap/extensions';
 import { StarterKit } from '@tiptap/starter-kit';
 
 import { AlignClass } from './AlignClass';
+import { BANG_GIU_BE_RONG_COT } from './bangCoBeRongCot';
 import { CellBgClass } from './CellBgClass';
 import { FigureImage } from './FigureImage';
 import { TextColorClass } from './TextColorClass';
@@ -87,7 +88,23 @@ export const EXTENSIONS_SOAN_THAO = [
       protocols: ['http', 'https', 'mailto', 'tel'],
     },
   }),
-  TableKit.configure({ table: { resizable: false } }),
+  // ⭐⭐ T41.14 — `table`/`tableCell`/`tableHeader` của kit bị TẮT và thay bằng ba node riêng. ⛔ Đây ⛔
+  //    phải một lựa chọn phong cách: `Table.renderHTML` của kit gọi `createColGroup`, hàm ấy phát
+  //    `<col style="width:…">`, và `HtmlSanitizer` gỡ `style` ở MỌI thẻ ⇒ bề rộng cột ⛔ bao giờ
+  //    quay lại. ⛔ có tuỳ chọn nào đổi được điều đó.
+  //
+  // ⛔⛔ Và phải TẮT chứ ⛔ `Table.extend()` chồng lên: hai extension cùng tên `table` ném
+  //    `RangeError: Adding different instances of a keyed plugin` và editor ⛔ dựng được.
+  //
+  // ⚠ `tableRow` vẫn của kit — nó ⛔ đụng gì tới bề rộng.
+  //
+  // ⚠⚠ Khoá là `tableCell`/`tableHeader`, ⛔ phải `cell`/`header`. Bản đầu của tôi gõ tên ngắn:
+  //    `TableKit` **bỏ lặng** khoá lạ nên hai node của kit vẫn nạp, và triệu chứng là một dòng
+  //    `[tiptap warn]: Duplicate extension names found` trong stderr — thứ ⛔ làm bài nào đỏ.
+  //    Cái bắt được nó là bài *"vòng thứ hai ⛔ đổi gì nữa"* (T41.12): `colwidth` của kit vẫn
+  //    được phát ra DOM, rồi vòng sau đọc lại nó và bảng **⛔ hội tụ**.
+  TableKit.configure({ table: false, tableCell: false, tableHeader: false }),
+  ...BANG_GIU_BE_RONG_COT,
   /**
    * ⚠⚠ `Placeholder` **không** nằm trong StarterKit v3 — đo được: 42 extension nạp thật, không có
    * `placeholder`, và DOM khi rỗng **không có** class `is-editor-empty`.

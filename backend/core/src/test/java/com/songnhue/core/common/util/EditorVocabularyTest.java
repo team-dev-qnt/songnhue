@@ -114,6 +114,50 @@ class EditorVocabularyTest {
     }
 
     /**
+     * ⭐⭐ <b>Khung cuộn của bảng sống sót, kèm bề rộng cột</b> — T41.14.
+     *
+     * <h2>Vì sao đây là một bài RIÊNG chứ ⛔ gộp vào bài class trên</h2>
+     *
+     * <p>Nó khẳng định <b>ba</b> thứ phải cùng đúng thì bề rộng cột mới tới được bạn đọc, và ba
+     * thứ ấy đi ba đường khác nhau trong {@code Safelist}:
+     *
+     * <ul>
+     *   <li>{@code div} phải còn — khung cuộn nằm trong HTML đã lưu, vì cổng công khai ⛔ có
+     *       {@code .tableWrapper} mà TipTap tạo lúc soạn.
+     *   <li>{@code class} trên {@code div} phải còn — CSS của cổng bám vào nó. Mất class thì khung
+     *       vẫn ở đó mà ⛔ cuộn, và bảng bị cắt cụt ⛔ có thanh cuộn.
+     *   <li>{@code col[width]} phải còn — đường DUY NHẤT còn sống cho bề rộng cột, vì {@code style}
+     *       bị gỡ ở mọi thẻ và {@code colwidth} ⛔ nằm trong safelist của {@code td}/{@code th}.
+     * </ul>
+     *
+     * <p>⚠ Tên class đọc <b>từ chính tệp TS</b>, ⛔ viết lại ở đây: hai nơi phải nhớ nhau thì chỗ
+     * đó cần một phép kiểm nhớ hộ (luật 14), và phía TS đã có vế đối xứng ở
+     * {@code beRongCotBang.test.ts}.
+     */
+    @Test
+    @DisplayName("⭐⭐ Khung cuộn + bề rộng cột của bảng sống sót qua bộ lọc — T41.14")
+    void khungCuonVaBeRongCotSongSot() {
+        String lop = docChuoi("LOP_KHUNG_BANG");
+        String html = "<div class=\"" + lop + "\"><table><colgroup><col width=\"120\"><col></colgroup>"
+                + "<tbody><tr><th>A</th><th>B</th></tr></tbody></table></div>";
+
+        String sach = HtmlSanitizer.clean(html);
+
+        assertThat(sach)
+                .as("`div` khung cuộn bị gỡ ⇒ cổng buộc phải đặt `display:block` lên `<table>`, và "
+                        + "quy tắc ấy làm `<colgroup>` vô tác dụng — tức bề rộng cột mất ở đường HIỂN THỊ "
+                        + "ngay cả khi đã cứu được ở đường ghi")
+                .contains("<div");
+        assertThat(sach)
+                .as("class `%s` bị gỡ ⇒ CSS của cổng ⛔ khớp vào đâu; khung vẫn ở đó mà ⛔ cuộn", lop)
+                .contains(lop);
+        assertThat(sach)
+                .as("`col[width]` là đường DUY NHẤT còn sống cho bề rộng cột — `style` bị gỡ ở mọi "
+                        + "thẻ, `colwidth` ⛔ nằm trong safelist của td/th")
+                .contains("width=\"120\"");
+    }
+
+    /**
      * ⭐⭐ Ba nhóm class MÀU sống sót — T41.15, yêu cầu ĐÃ KÝ (đặc tả dòng 92 và 98).
      *
      * <p>⚠ Mỗi nhóm đặt trên <b>đúng thẻ nó thật sự xuất hiện</b>, ⛔ không gộp tất cả lên
@@ -296,6 +340,16 @@ class EditorVocabularyTest {
      * nhiều dòng để người đọc thấy từng thẻ, chứ nó là <b>một tài liệu duy nhất</b>. Kiểm từng mảnh
      * rời sẽ bỏ sót trường hợp một thẻ bị gỡ vì thẻ cha của nó bị gỡ.
      */
+    /** Một hằng chuỗi đơn ({@code export const X = 'y';}) — ⛔ phải một mảng như {@link #docDanhSachChuoi}. */
+    private static String docChuoi(String tenHang) {
+        Matcher khop = Pattern.compile("export const " + tenHang + "\\s*=\\s*'([^']*)'")
+                .matcher(nguonTs());
+        if (!khop.find()) {
+            return fail("Không tìm thấy hằng `%s` trong %s".formatted(tenHang, RELATIVE_PATH));
+        }
+        return khop.group(1);
+    }
+
     private static String docHangChuoi(String tenHang) {
         Matcher khoi = Pattern.compile("export const " + tenHang + "\\s*=\\s*\\[(.*?)]\\s*\\.join", Pattern.DOTALL)
                 .matcher(nguonTs());
