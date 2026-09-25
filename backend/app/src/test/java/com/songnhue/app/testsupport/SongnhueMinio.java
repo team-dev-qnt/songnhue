@@ -48,16 +48,44 @@ import io.minio.MinioClient;
  * Testcontainers không hỏi registry lần nào. Một biến thể mới của <i>"xanh ở máy không phải bằng
  * chứng"</i>: lần trước là {@code .env.local}, lần này là <b>đệm ảnh</b>.
  *
- * <p>⚠⚠ Bản {@code quay.io} chỉ có manifest <b>linux/amd64</b>. <b>Đo được</b>: máy dev Apple
- * Silicon chạy qua giả lập ({@code docker run --platform linux/amd64 … --version} thoát 0), chậm
- * hơn chứ không hỏng. ⛔ <b>CHƯA đo: kiến trúc hai VPS</b> — kho ⛔ không ghi nó ở đâu cả ⇒ chạy
- * {@code uname -m} trên máy chủ TRƯỚC lượt đề bạt (T60.10).
+ * <h2>⛔⛔⛔ Và {@code quay.io} cũng biến mất — 24/9/2026, T85.19</h2>
+ *
+ * Mười ngày sau, <b>cùng một chuyện xảy ra ở kho ảnh thứ hai</b>. PR #208 xanh lúc 07:59 UTC rồi đỏ
+ * lúc 12:51 cùng ngày, mã của kho không đổi một dòng; lượt {@code 36016507786} có <b>449 lỗi</b> mà
+ * gốc chỉ có một — {@code ContainerFetchException: Can't get Docker image: quay.io/minio/minio:…}.
+ * Đo ngày 25/9 với <b>đối chứng dương</b> ({@code quay.io/prometheus/busybox} thoát 0 ⇒ registry
+ * sống): mọi tag của {@code minio/minio} trên quay.io trả {@code no such manifest}, Docker Hub vẫn
+ * {@code denied}, và {@code aistor-minio}, {@code bitnami/minio} cũng không còn.
+ *
+ * <p>⇒ Ảnh nay là một <b>bản gương của chính dự án</b>: {@code ghcr.io/team-dev-qnt/songnhue/minio},
+ * đẩy lên từ đệm Docker của máy dev — nơi <b>duy nhất</b> còn bản này. Nó là ảnh <b>nguyên bản,
+ * không sửa một byte</b>, nên digest manifest <b>trùng khít</b> bản quay.io:
+ * {@code sha256:cf3dadcfa1fb0324f43958bad1abba986d53c4ecc04d4d50b46c7dcda28bd3cd}. Đó là thứ đáng
+ * giá nhất của lượt này — <b>một con số kiểm được</b>: ai cũng đối chiếu bản gương với bản thượng
+ * nguồn mà không cần tin lời ai.
+ *
+ * <p>⚠ Một bản nháp trước đó có thêm nhãn {@code org.opencontainers.image.source} để GitHub tự
+ * liên kết gói với kho. Đã bỏ: cơ chế ấy <b>chỉ chạy khi Actions đẩy</b> (đo được — đẩy từ máy thì
+ * trường {@code repository} của gói vẫn {@code null} qua ba lượt hỏi), nên cái giá <i>digest lệch
+ * thượng nguồn</i> đổi lấy <b>số không</b>.
+ *
+ * <p>Kiểm chứng trước khi đẩy: <b>9/9 lớp tệp trùng digest</b>, cùng {@code linux/amd64}, cùng
+ * entrypoint/cmd, và {@code minio --version} in đúng
+ * {@code RELEASE.2025-09-07T16-13-09Z.hotfix.7aa24e772}.
+ *
+ * <p>⚠ <b>Một bản gương là một điểm hỏng đơn lẻ.</b> Nếu gói GHCR mất thì ảnh này không còn ở đâu
+ * trên đời — xem T85.19 trong sổ để biết chỗ giữ bản sao ngoại tuyến.
+ *
+ * <p>⚠⚠ Ảnh chỉ có manifest <b>linux/amd64</b>. <b>Đo được</b>: máy dev Apple Silicon chạy qua giả
+ * lập ({@code docker run --platform linux/amd64 … --version} thoát 0), chậm hơn chứ không hỏng.
+ * ⛔ <b>CHƯA đo: kiến trúc hai VPS</b> — kho ⛔ không ghi nó ở đâu cả ⇒ chạy {@code uname -m} trên
+ * máy chủ TRƯỚC lượt đề bạt (T60.10).
  */
 public final class SongnhueMinio {
 
     /** Khớp {@code deploy/compose.infra.yml}. */
     private static final DockerImageName IMAGE =
-            DockerImageName.parse("quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z.hotfix.7aa24e772");
+            DockerImageName.parse("ghcr.io/team-dev-qnt/songnhue/minio:RELEASE.2025-09-07T16-13-09Z.hotfix.7aa24e772");
 
     private static final String ACCESS_KEY = "songnhue-test";
     private static final String SECRET_KEY = "test_only_not_a_secret";

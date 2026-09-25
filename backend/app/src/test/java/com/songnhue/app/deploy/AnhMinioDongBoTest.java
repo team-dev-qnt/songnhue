@@ -70,7 +70,7 @@ class AnhMinioDongBoTest {
      * liền biến chính tệp này thành một "nguồn khai báo". Bộ canh tự khớp vào mình là bộ canh không
      * canh gì (đã mắc ba lượt trong dự án; xem {@link PostgresCollationParityTest}).
      */
-    private static final String MOC = "minio" + "/minio:";
+    private static final String MOC = "mi" + "nio:";
 
     /**
      * Bắt cả {@code image: <ref>} của YAML lẫn {@code DockerImageName.parse("<ref>")} của Java.
@@ -81,12 +81,31 @@ class AnhMinioDongBoTest {
      * phân biệt thành cùng một thứ — CLAUDE.md luật 9. {@link #tuKiemChung()} đỏ ngay lượt chạy đầu
      * và đúng chỗ.
      *
-     * <p>⇒ Nêu thẳng hình dạng thật: <b>một</b> đoạn tên máy chủ tuỳ chọn (kèm cổng) rồi mới tới
-     * {@code minio/minio:}. Không có {@code *} lồng nhau thì không có chỗ cho backtracking lấy mất
-     * một đoạn.
+     * <p>⛔⛔ <b>Bản vá ấy cũng chỉ đúng tới 25/9/2026</b>: nó cho phép <b>đúng một</b> đoạn trước
+     * {@code minio/minio:}, tiền đề chỉ đứng được chừng nào kho ảnh không có <b>không gian tên</b>.
+     * GHCR có ({@code ghcr.io/<tổ-chức>/<gói>}), và neo cũ {@code minio/minio:} còn <b>biến mất
+     * hẳn</b> khi bản gương đổi tên gói ⇒ bộ canh mù chứ không phải bóc thiếu. Đo được:
+     * {@link #tuKiemChungKhoAnhNhieuDoan()} đỏ với {@code actual: []}.
+     *
+     * <p>⇒ Neo nay là <b>tên ảnh</b> ({@code minio:}), và phần trước nó là <b>một hoặc nhiều</b>
+     * đoạn đường dẫn. Hai thứ giữ cho nó không nới quá tay:
+     *
+     * <ul>
+     *   <li>Bắt buộc <b>ít nhất một</b> đoạn kèm dấu {@code /} ngay trước — nếu không thì
+     *       {@code http://minio:9000} (tên dịch vụ Docker, có <b>8</b> chỗ trong hai tệp compose)
+     *       thành dương tính giả, và bộ canh sẽ báo "hai ảnh khác nhau trong cùng một tệp".
+     *       ⭐ Chuỗi ấy viết thẳng ở đây được vì hai dấu gạch liền nhau <b>không</b> tạo nổi một
+     *       đoạn hợp lệ — tức chính tệp này là một ca thử của điều nó vừa khẳng định.
+     *   <li>Mỗi đoạn dừng ở {@code /}, nên các đoạn không tranh chỗ của nhau: không có backtracking
+     *       cấp số nhân, và cũng không có chỗ để mất một đoạn như bản đầu.
+     * </ul>
+     *
+     * <p>⚠ Neo {@link #MOC} ghép từ hai mảnh vì lý do ở javadoc của chính nó — và với neo mới thì
+     * điều đó <b>quan trọng hơn</b>: mọi javadoc trong tệp này nhắc {@code <kho>/minio:<tag>} đều sẽ
+     * bị chính bộ canh tính là một nguồn khai báo.
      */
     private static final Pattern THAM_CHIEU_ANH =
-            Pattern.compile("((?:[A-Za-z0-9.-]+(?::[0-9]+)?/)?" + Pattern.quote(MOC) + "[A-Za-z0-9._-]+)");
+            Pattern.compile("((?:[A-Za-z0-9._-]+(?::[0-9]+)?/)+" + Pattern.quote(MOC) + "[A-Za-z0-9._-]+)");
 
     private static final Set<String> DUOI = Set.of(".yml", ".yaml", ".java", ".sh");
 
@@ -164,7 +183,12 @@ class AnhMinioDongBoTest {
     @Test
     @DisplayName("⭐ Tự kiểm chứng: bộ bóc tách phân biệt được dạng trần với dạng có kho ảnh")
     void tuKiemChung() {
-        String tran = MOC + "RELEASE.2025-09-07T16-13-09Z";
+        // ⚠ *"Dạng trần"* ở đây là `<không-gian-tên>/minio:<tag>` — đúng hình dạng đã gây ra sự cố
+        //   14/9, nơi Docker ngầm hiểu là `docker.io/…`. ⛔ Phải `minio:<tag>` không có đoạn nào:
+        //   chuỗi ấy ⛔ bao giờ xuất hiện trong kho, và lấy nó làm ca thử thì bài này khẳng định về
+        //   một thứ ⛔ ai viết. Neo {@link #MOC} đổi ngày 25/9 nên dòng này phải đổi theo — và nó
+        //   đỏ ngay lượt chạy đầu sau khi đổi, đúng việc của một bài tự-kiểm-chứng.
+        String tran = "mi" + "nio/" + MOC + "RELEASE.2025-09-07T16-13-09Z";
         String coKho = "quay.io/" + tran;
 
         assertThat(bocTach("    image: " + coKho)).containsExactly(coKho);
@@ -181,6 +205,45 @@ class AnhMinioDongBoTest {
         assertThat(coKhoAnhTuongMinh("localhost:5000/" + tran))
                 .as("Kho ảnh nội bộ nêu cổng cũng là nêu tường minh")
                 .isTrue();
+    }
+
+    /**
+     * ⛔⛔ <b>T60.2 lặp lại ở một hình dạng MỚI — 25/9/2026.</b>
+     *
+     * <p>Lượt trước bộ bóc tách nuốt mất {@code quay.io/} vì phần đầu regex khớp trái-nhất thất bại
+     * ở vị trí 0 rồi thành công ở vị trí 8. Bản vá khi ấy cho phép <b>đúng một</b> đoạn tên máy chủ
+     * — và đó là tiền đề chỉ đúng chừng nào kho ảnh không có <b>không gian tên</b>.
+     *
+     * <p>GHCR thì có: {@code ghcr.io/<tổ-chức>/<gói>}. Với bản một-đoạn, phép khớp lại thất bại ở
+     * vị trí 0 rồi thành công ở {@code team-dev-qnt/…} ⇒ trả ra một chuỗi <b>không</b> nêu kho ảnh
+     * cho một tham chiếu <b>có</b> nêu. Đúng hai trạng thái bài kiểm này sinh ra để phân biệt, đọc
+     * thành một (CLAUDE.md luật 9) — chỉ khác là lần này nó đỏ ở phía <i>từ chối nhầm</i>, tức nó
+     * <b>chặn</b> bản vá thay vì cho lọt. Vế dưới đây là thứ đo được sự khác nhau ấy.
+     */
+    @Test
+    @DisplayName("⛔⛔ Tự kiểm chứng: kho ảnh có KHÔNG GIAN TÊN vẫn phải bóc ra NGUYÊN VẸN")
+    void tuKiemChungKhoAnhNhieuDoan() {
+        String duoi = "mi" + "nio:RELEASE.2025-09-07T16-13-09Z";
+        String ghcr = "ghcr.io/team-dev-qnt/songnhue/" + duoi;
+
+        assertThat(bocTach("    image: " + ghcr))
+                .as(
+                        """
+                        Bóc ra thiếu đoạn đầu thì `coKhoAnhTuongMinh` đọc `team-dev-qnt` là tên kho \
+                        ảnh — không có dấu chấm, không có cổng ⇒ nó từ chối một tham chiếu ĐÚNG, và \
+                        thông điệp đỏ sẽ nói sai hẳn nguyên nhân.""")
+                .containsExactly(ghcr);
+        assertThat(bocTach("DockerImageName.parse(\"" + ghcr + "\")")).containsExactly(ghcr);
+        assertThat(coKhoAnhTuongMinh(ghcr))
+                .as("`ghcr.io` có dấu chấm ⇒ là tên máy chủ ⇒ tường minh")
+                .isTrue();
+
+        // ⚠ Vế NGƯỢC, để phần trên không được xanh bằng cách nới ra bắt mọi thứ: dạng trần nhiều
+        //   đoạn — `mot-to-chuc/songnhue/minio:…` — vẫn phải bị TỪ CHỐI, vì Docker đọc nó là
+        //   docker.io/mot-to-chuc/…, đúng nơi ảnh đã biến mất.
+        assertThat(coKhoAnhTuongMinh("mot-to-chuc/songnhue/" + duoi))
+                .as("Nhiều đoạn mà đoạn đầu không phải tên máy chủ thì vẫn là dạng trần")
+                .isFalse();
     }
 
     // -------------------------------------------------------------------------
