@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+import { boChuThich } from './boChuThich';
 
 /**
  * Mỗi hàm của client cổng công khai phải có **một trang gọi nó** — luật 27, câu hỏi số 4 của
@@ -108,66 +109,18 @@ function boDongKhaiBao(nguon: string): string {
 }
 
 /**
- * Bỏ **chú thích** trước khi đếm — giữ nguyên chuỗi ký tự.
+ * ⭐ **T28.41 — bản lexer từng nằm ở đây nay là bản CHÍNH của cả kho.**
  *
- * ⛔⛔ Bộ canh này bắt CHÍNH TÔI ở lượt chạy đầu (10/09/2026). Tôi vừa sửa javadoc của
- * {@code WaterLevelBlock} và viết {@code getWaterLevels()} — **kèm ngoặc** — nên bộ đếm tính một
- * **chú thích** là một lời gọi, và tập mồ côi tụt từ 1 xuống **0**: bộ canh xanh trong đúng tình
- * huống nó sinh ra để bắt. Đây là T46.7 lần thứ ba trong kho, lần này do chính người viết bộ canh
- * gây ra khi đang đi vá T46.7.
+ * Lượt đo 25/09/2026 tìm ra **năm** bản `boChuThich` với **ba** thuật toán khác nhau, và bản đúng
+ * chính là bản của tệp này (T49.6): nó bỏ qua chuỗi ký tự, nên `'https://x'` ⛔ bị đọc thành một
+ * chú thích và một lời gọi thật ⛔ bị giấu đi ⇒ ⛔ đỏ giả. Nó đã được nâng lên module dùng chung;
+ * hai workspace ⛔ nhập khẩu chéo được nên mỗi bên giữ một bản **giống nhau tới từng byte**, có
+ * phép kiểm đọc chéo canh.
  *
- * ⚠ Phải bỏ qua chuỗi ký tự, ⛔ không được cắt thô: {@code 'https://x'} chứa {@code //}, cắt thô
- * là nuốt mất phần còn lại của dòng ⇒ giấu đi một lời gọi thật ⇒ **đỏ giả**.
- *
- * ⚠ Bộ canh anh em ở {@code admin-app} thủng **y hệt**. Đo 10/09: ở đó chú thích chưa che gì (4 mồ
- * côi giống nhau ở cả hai phép đo), nhưng lỗ vẫn còn nên nó cũng được vá cùng lượt. Hàm nhân đôi ở
- * hai workspace vì chúng ⛔ không nhập khẩu chéo được — mỗi bản mang đối chứng riêng.
+ * ⛔⛔ Lý do bộ canh này cần nó vẫn nguyên: bản anh em ở `public-web` **đỏ đúng ngày nó ra đời** vì
+ * một javadoc viết `getWaterLevels()` — kèm ngoặc — được tính là một lời gọi, và tập mồ côi tụt về
+ * 0 (T46.7). Các bài tự-kiểm cuối tệp vẫn đo chính điều ấy.
  */
-export function boChuThich(nguon: string): string {
-  const ket: string[] = [];
-  let trangThai: 'ma' | 'khoi' | 'dong' | '"' | "'" | '`' = 'ma';
-  for (let i = 0; i < nguon.length; i += 1) {
-    const c = nguon[i];
-    const ke = nguon[i + 1] ?? '';
-    if (trangThai === 'ma') {
-      if (c === '/' && ke === '*') {
-        trangThai = 'khoi';
-        i += 1;
-      } else if (c === '/' && ke === '/') {
-        trangThai = 'dong';
-        i += 1;
-      } else if (c === '"' || c === "'" || c === '`') {
-        trangThai = c;
-        ket.push(c);
-      } else {
-        ket.push(c);
-      }
-    } else if (trangThai === 'khoi') {
-      if (c === '*' && ke === '/') {
-        trangThai = 'ma';
-        i += 1;
-      } else {
-        ket.push(c === '\n' ? '\n' : ' ');
-      }
-    } else if (trangThai === 'dong') {
-      if (c === '\n') {
-        trangThai = 'ma';
-        ket.push('\n');
-      }
-    } else {
-      if (c === '\\') {
-        ket.push('  ');
-        i += 1;
-      } else {
-        if (c === trangThai) {
-          trangThai = 'ma';
-        }
-        ket.push(c);
-      }
-    }
-  }
-  return ket.join('');
-}
 
 /**
  * Số lời gọi `ten(` — chấp nhận **tham số kiểu**: `apiGet<Foo>(`.

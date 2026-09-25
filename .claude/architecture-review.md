@@ -8636,3 +8636,51 @@ là chỗ chúng bắt đầu trôi khỏi nhau.
 trong tên tệp — **đúng lớp lỗi T63.18** (ngày UTC ⇒ một lượt xuất lúc 03:00 giờ VN đặt tên theo
 ngày hôm trước) — đi lọt **cả ba** cổng, vì luật ESLint chỉ bắt `dayjs()` trần. Thứ bắt được nó là
 đọc lại luật đã thành văn, ⛔ phải một bộ canh. ⇒ `ngayHomNay()`.
+
+### §12.22 Một mẫu số đo bằng `grep` thì mỗi lượt hụt một kiểu khác nhau (T28.41, 25/9/2026)
+
+`boChuThich` là hàm mà **31 tệp kiểm** đọc-mã-nguồn dựa vào để phân biệt *lời giải thích* với *lời
+thi hành*. Dòng nợ được đo **bốn** lần trước lượt này, và **cả bốn đều sai**:
+
+| Lượt | Kết luận | Sai ở đâu |
+|---|---|---|
+| gốc | *"cắt nhầm chuỗi chứa `/*`"* — như thể có **một** bản | ⛔ đếm |
+| 19/09 | *"3 bản cắt ký tự + 2 lexer"* | hụt 3 |
+| 20/09 | *"hai bản dùng chung ⛔ cùng thuật toán"* — đúng phần định tính | vẫn hụt 3 |
+| 25/09 | **8 định nghĩa / 6 thuật toán** | — |
+
+Ba bản ⛔ lượt nào kể tên: `hieuUngVaoTrang.test.ts` (⛔ xử lý `//` một chút nào),
+`noBuildTimePrerender.test.ts` (nối lại bằng chuỗi rỗng ⇒ **số dòng xê dịch**),
+`bieuDoMucNuoc.test.ts`. Cùng hình dạng **T63.10** — ở đó một mẫu số bị đo sai **ba kiểu khác nhau**
+trong ba lượt. ⇒ Bộ canh mới **ĐO** danh sách từ đĩa thay vì giữ một con số gõ tay (luật 28), nên
+lượt đo thứ sáu ⛔ cần tới con người.
+
+Sáu thuật toán khác nhau ở **ba trục**, và mỗi trục là một câu trả lời khác nhau cho cùng một tệp
+nguồn: `//` tính ở **đầu dòng** hay **bất kỳ đâu ngoài chuỗi** · bỏ **trọn dòng** hay chỉ **phần
+đuôi** · có dọn `{ }` hay ⛔. Hệ quả: chuyển một bộ canh từ app này sang app kia — hay chỉ chép một
+khẳng định giữa hai tệp trong **cùng** app — **đổi nghĩa của nó trong im lặng**.
+
+⭐⭐ **Bản đúng đã nằm sẵn trong kho từ T49.6**: lexer trong `apiKhongMoCoi.test.ts`, bản duy nhất
+bỏ qua được chuỗi ký tự. Lượt này chỉ nâng nó lên bản chính và xoá sáu bản kia ⇒ **8 → 2**, hai bản
+giống nhau tới từng byte (hai workspace npm ⛔ nhập khẩu chéo được nên ⛔ rút về một bản được).
+
+#### ⛔⛔ Một bài kiểm cũ ghi chính khuyết tật này thành một "giới hạn"
+
+`boChuThich.test.ts` có một bài tên *"⚠ giới hạn THẬT: chuỗi ký tự chứa `/*` bị cắt nhầm"*. Khai
+phạm vi ra là **đúng** (luật 28) và tốt hơn hẳn im lặng — nhưng một giới hạn đã khai vẫn là một
+khuyết tật, và nó rất dễ đọc thành *"chuyện này đã được quyết định"*. **Việc đảo được khẳng định ấy
+chính là bằng chứng** bản lexer đã lên thay: bài nay khẳng định chuỗi **⛔** bị cắt.
+
+#### ⚠ Chú thích viết VỀ việc bóc chú thích lại chứa `*/` nguyên văn
+
+Ghi chú T28.41 tôi thêm vào hai tệp có `{/* … */}` trong thân javadoc ⇒ `*/` **đóng sớm khối** ⇒
+`PARSE_ERROR`, một tệp kiểm ⛔ nạp được. Vitest báo **`1 failed | 109 passed` với 0 bài đỏ** — một
+lỗi **tầng nạp** đọc ⛔ giống một khẳng định sai, và rất dễ bị bỏ qua khi chỉ liếc dòng tổng. Kho đã
+có lối thoát sẵn (`*&#47;`) ở đúng tệp gốc.
+
+#### ⚠ Hợp nhất ⛔ làm gãy tệp nào — và đó ⛔ phải "hoá ra ⛔ sao"
+
+730/730 (admin) + 487/487 (public-web) xanh sau khi hợp nhất, tức hôm nay ⛔ consumer nào phụ thuộc
+vào chỗ sáu thuật toán lệch nhau. Đó là *một lỗ chưa gây hại vẫn là một lỗ* (T49.6): ngày mai ai đó
+chép một khẳng định giữa hai app và nó đổi nghĩa, vẫn ⛔ một dòng đỏ nào — trừ khi chỉ còn một
+thuật toán.

@@ -3,6 +3,8 @@ import { dirname, join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { boChuThich } from './testsupport/boChuThich';
+
 /**
  * ⛔⛔ Hoạt ảnh GIỮ KHUNG CUỐI ⛔ được để lại một `transform` — T67.7 (WS-67).
  *
@@ -56,9 +58,11 @@ function khoi(src: string, mo: number): string {
   throw new Error('khối CSS ⛔ đóng');
 }
 
-function boChuThich(src: string): string {
-  return src.replace(/\/\*[\s\S]*?\*\//g, '');
-}
+/**
+ * ⭐ T28.41 — bản chép riêng ở đây đã GỠ (25/09/2026). Nó là một trong **tám** bản `boChuThich`
+ * với **sáu** thuật toán khác nhau mà bốn lượt đo trước đều đếm thiếu; bản này thuộc nhóm yếu
+ * nhất — ⛔ xử lý `//` một chút nào, nên một chú thích dòng nhắc tới thứ bị cấm vẫn được tính là mã. Nay dùng chung bản lexer, bản duy nhất bỏ qua được chuỗi ký tự.
+ */
 
 /** Tên keyframes → thân khung cuối (`to` hoặc `100%`). */
 function khungCuoi(src: string): Map<string, string> {

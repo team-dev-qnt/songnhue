@@ -3,6 +3,8 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { boChuThich } from './boChuThich';
+
 /**
  * **Không route nào đọc API mà được dựng sẵn trong lượt `next build`.**
  *
@@ -41,13 +43,11 @@ import { describe, expect, it } from 'vitest';
 
 const GOC_APP = join(process.cwd(), 'src/app');
 
-function boChuThich(nguon: string): string {
-  return nguon
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .split('\n')
-    .map((dong) => (dong.trimStart().startsWith('//') ? '' : dong))
-    .join('\n');
-}
+/**
+ * ⭐ T28.41 — bản chép riêng ở đây đã GỠ (25/09/2026). Nó là một trong **tám** bản `boChuThich`
+ * với **sáu** thuật toán khác nhau mà bốn lượt đo trước đều đếm thiếu; bản này thuộc nhóm yếu
+ * nhất — nó nối lại bằng chuỗi rỗng nên **số dòng xê dịch**, và `//` chỉ tính khi đứng đầu dòng. Nay dùng chung bản lexer, bản duy nhất bỏ qua được chuỗi ký tự.
+ */
 
 function doc(duongTuongDoi: string): string {
   return boChuThich(readFileSync(join(process.cwd(), duongTuongDoi), 'utf8'));

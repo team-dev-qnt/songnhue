@@ -3,6 +3,8 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { boChuThich } from './boChuThich';
+
 /**
  * `AnhCarousel` phải nhận một TỈ LỆ viết nguyên văn, và khung ảnh không được mang `flex-1`.
  *
@@ -34,34 +36,17 @@ function moiTepTsx(thuMuc: string, gom: string[] = []): string[] {
 const GOC = join(process.cwd(), 'src');
 
 /**
- * Bỏ chú thích trước khi soi — §10.62 ở chiều ngược lại.
+ * ⭐ T28.41 — bản chép riêng ở đây đã GỠ. Trước lượt 25/09/2026 tệp này giữ một bản `boChuThich`
+ * thứ ba (chép từ bản regex của `admin-app`), nên bài kiểm này và các bài anh em cùng thư mục
+ * bóc chú thích theo **hai** thuật toán khác nhau. Nay dùng chung `./boChuThich`.
  *
- * ⚠ Lượt viết đầu của bài này KHÔNG cắt, và `indexOf('data-khung-anh')` bắt trúng **chú thích
- * của chính bản vá** (nó nhắc tới `data-khung-anh` và tới `flex-1` để giải thích vì sao gỡ).
- * Khối cắt ra vì thế ôm cả lời giải thích, và bài kiểm đỏ oan ngay lượt chạy đầu.
- * *Canh văn bản thì phải biết văn bản nào đang chạy.*
+ * ⚠ Bài học của bản chép cũ được giữ lại vì nó vẫn đúng và vẫn đắt: lượt viết đầu chạy mẫu
+ * `\{\s*\/\*[\s\S]*?\*\/\s*\}` TRƯỚC và **nuốt mất 8.174 ký tự** của `AnhCarousel.tsx`, gồm cả
+ * `export function AnhCarousel` — nó khớp từ `export interface MucCarousel {`, rồi vì sau `*&#47;`
+ * ⛔ phải `}` nên QUAY LUI tới `*&#47;}` của một chú thích JSX cách đó hàng trăm dòng. Một bộ cắt quá
+ * tay ⛔ làm bài nào đỏ; nó chỉ lặng lẽ biến mọi khẳng định dựa vào nó thành xanh vĩnh viễn. Bản
+ * lexer nay dùng ⛔ có chỗ nào để quay lui.
  */
-function boChuThich(ma: string): string {
-  return (
-    ma
-      // ⛔ THỨ TỰ NÀY LÀ BẮT BUỘC: cắt khối `/* … */` TRƯỚC, rồi mới dọn cặp ngoặc rỗng còn
-      //    lại của `{/* … */}`.
-      //
-      //    ⚠⚠ Lượt viết đầu làm ngược — `\{\s*\/\*[\s\S]*?\*\/\s*\}` chạy trước — và **nuốt
-      //    mất 8.174 ký tự** của `AnhCarousel.tsx`, gồm cả `export function AnhCarousel`.
-      //    Cơ chế: mẫu ấy khớp từ `export interface MucCarousel {` (theo sau là xuống dòng
-      //    rồi `/**`), rồi vì sau `*/` không phải `}` nên nó QUAY LUI và kéo dài mãi tới
-      //    `*/}` đầu tiên của một chú thích JSX cách đó hàng trăm dòng. Một bộ cắt quá tay
-      //    không làm bài nào đỏ — nó chỉ lặng lẽ biến mọi khẳng định dựa vào nó thành xanh
-      //    vĩnh viễn. Ở đây nó đỏ chỉ vì có bài canh chính phép cắt (bài cuối describe dưới).
-      //
-      //    Cắt khối trước thì mỗi chú thích được xử lý riêng lẻ (`*?` dừng ở `*/` gần nhất),
-      //    không có chỗ nào để quay lui.
-      .replace(/\/\*[\s\S]*?\*\//g, ' ') // /* … */ và /** … */
-      .replace(/^\s*\/\/.*$/gm, ' ') // // … trọn dòng
-      .replace(/\{\s*\}/g, ' ') // cặp ngoặc rỗng còn lại của {/* … */}
-  );
-}
 
 const NGUON_CAROUSEL = boChuThich(
   readFileSync(join(GOC, 'components/home/AnhCarousel.tsx'), 'utf8'),
