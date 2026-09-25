@@ -66,6 +66,199 @@ function diemNghiNgo(o: OLuoi[] | null): (number | null)[] {
  * ⛔ không đọc được — đó là lý do spec đề nghị tách trục, và người viết spec đã hỏi lại Công ty
  * đúng điểm này.
  */
+/**
+ * Dựng **toàn bộ** option ECharts của biểu đồ — tách khỏi `useEffect` ở **T45.11**.
+ *
+ * <h2>⛔⛔ Vì sao phải tách: đường ngưỡng là nhánh ECharts hỏng trong IM LẶNG</h2>
+ *
+ * Ba đường ngang BĐ1/BĐ2/BĐ3 của §7.1 đi bằng `markLine`. Quên đăng ký `MarkLineComponent` thì
+ * ECharts **⛔ ném, ⛔ cảnh báo** — nó chỉ đơn giản ⛔ vẽ, và cái mất là đúng thứ nói cho người đọc
+ * biết mực nước đã vượt báo động hay chưa (xem `setup.ts`).
+ *
+ * <p>Trước lượt này thứ duy nhất canh nhánh ấy là hai phép so **VĂN BẢN** —
+ * `expect(setup).toContain('MarkLineComponent')` và `expect(nguon).toContain('markLine')`. Chúng
+ * chứng minh *hai chuỗi có mặt trong mã nguồn*, ⛔ phải *một đường ngang có ra hình*. Dòng nợ nói
+ * đúng chỗ đau: *"thứ chưa ai NHÌN là ECharts có vẽ đường ngang ra hay ⛔"*.
+ *
+ * <p>Option nằm trong thân `useEffect` thì ⛔ có cách nào hỏi tới nó mà ⛔ dựng DOM, còn dựng DOM
+ * thì cần canvas — jsdom ⛔ có. Tách ra hàm thuần thì bộ kiểm **render SSR ra SVG** và đo được
+ * hình thật, ⛔ cần trình duyệt lẫn CSDL (tiền đề *"⛔ dựng được trạng thái có ngưỡng"* của dòng nợ
+ * gốc đã hết đúng từ lượt đo 19/09).
+ *
+ * <p>⚠ Cùng lý lẽ với `features/hr/xuatSoDo.ts`: ở đó lượt xuất dựng **thực thể tạm** thay vì đọc
+ * biểu đồ đang hiện, vì biểu đồ trên màn hình đang thu gọn. Ở đây là vế còn lại của cùng một
+ * nguyên tắc — *option là dữ liệu, ⛔ phải một hiệu ứng phụ*.
+ */
+export function optionBieuDo(bieuDo: BieuDoCongTrinh): Record<string, unknown> {
+  const tl = chuoi(bieuDo, 'Thượng lưu');
+  const hl = chuoi(bieuDo, 'Hạ lưu');
+  const chenh = chuoi(bieuDo, 'Chênh lệch');
+
+  const nhan = bieuDo.moc.map((m) =>
+    new Intl.DateTimeFormat('vi-VN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone: 'Asia/Ho_Chi_Minh',
+    }).format(new Date(m)),
+  );
+
+  const vTl = duongChinh(tl);
+  const vHl = duongChinh(hl);
+  const coDai = tl !== null && hl !== null;
+
+  // ⛔ Dải chỉ dựng khi CÓ ĐỦ hai vế — một công trình một chỉ tiêu ⛔ không có gì để tô giữa.
+  const nen = coDai
+    ? vTl.map((a, i) => (a === null || vHl[i] === null ? 0 : Math.min(a, vHl[i]!)))
+    : [];
+  const daiDuong = coDai
+    ? vTl.map((a, i) => (a === null || vHl[i] === null ? 0 : Math.max(0, a - vHl[i]!)))
+    : [];
+  const daiAm = coDai
+    ? vTl.map((a, i) => (a === null || vHl[i] === null ? 0 : Math.max(0, vHl[i]! - a)))
+    : [];
+
+  /** Đường ngưỡng của một chỉ tiêu — §7.1, nét đứt ngang. */
+  const nguongCua = (chiTieu: string) => ({
+    silent: true,
+    symbol: 'none' as const,
+    lineStyle: { type: 'dashed' as const, width: 1 },
+    label: { formatter: '{b}', position: 'insideEndTop' as const, fontSize: 10 },
+    data: bieuDo.nguong
+      .filter((n) => n.chiTieu === chiTieu)
+      .map((n) => ({ name: n.tenMuc, yAxis: Number(n.giaTri) })),
+  });
+
+  const series: Record<string, unknown>[] = [];
+
+  if (coDai) {
+    series.push(
+      {
+        name: 'nền dải',
+        type: 'line',
+        stack: 'dai',
+        symbol: 'none',
+        lineStyle: { opacity: 0 },
+        silent: true,
+        tooltip: { show: false },
+        data: nen,
+      },
+      {
+        name: 'Chênh dương (TL > HL)',
+        type: 'line',
+        stack: 'dai',
+        symbol: 'none',
+        lineStyle: { opacity: 0 },
+        areaStyle: { color: statusColors.danger, opacity: 0.15 },
+        tooltip: { show: false },
+        data: daiDuong,
+      },
+      {
+        name: 'Chênh âm (HL > TL)',
+        type: 'line',
+        stack: 'dai',
+        symbol: 'none',
+        lineStyle: { opacity: 0 },
+        areaStyle: { color: brandColors.info, opacity: 0.15 },
+        tooltip: { show: false },
+        data: daiAm,
+      },
+    );
+  }
+
+  if (tl) {
+    series.push(
+      {
+        name: 'Thượng lưu',
+        type: 'line',
+        // ⛔ `connectNulls: false` — mốc mất dữ liệu phải NGẮT đường (§7.1). Đặt `true` là nội
+        //    suy một đoạn số liệu chưa ai đo, trên đúng biểu đồ người ta đọc để ra quyết định.
+        connectNulls: false,
+        symbol: 'circle',
+        symbolSize: 4,
+        lineStyle: { color: statusColors.danger, width: 2 },
+        itemStyle: { color: statusColors.danger },
+        markLine: nguongCua('Thượng lưu'),
+        data: vTl,
+      },
+      {
+        name: 'Thượng lưu (nghi ngờ)',
+        type: 'line',
+        connectNulls: false,
+        symbol: 'emptyCircle',
+        symbolSize: 8,
+        lineStyle: { opacity: 0 },
+        itemStyle: { color: statusColors.danger, borderType: 'dashed' },
+        data: diemNghiNgo(tl),
+      },
+    );
+  }
+
+  if (hl) {
+    series.push(
+      {
+        name: 'Hạ lưu',
+        type: 'line',
+        connectNulls: false,
+        symbol: 'circle',
+        symbolSize: 4,
+        // ⚠ NÉT ĐỨT là phân biệt thứ hai bên cạnh màu — §7.1 tự nêu lo ngại về cặp đỏ/xanh.
+        lineStyle: { color: brandColors.info, width: 2, type: 'dashed' },
+        itemStyle: { color: brandColors.info },
+        markLine: nguongCua('Hạ lưu'),
+        data: vHl,
+      },
+      {
+        name: 'Hạ lưu (nghi ngờ)',
+        type: 'line',
+        connectNulls: false,
+        symbol: 'emptyCircle',
+        symbolSize: 8,
+        lineStyle: { opacity: 0 },
+        itemStyle: { color: brandColors.info, borderType: 'dashed' },
+        data: diemNghiNgo(hl),
+      },
+    );
+  }
+
+  if (chenh) {
+    series.push({
+      name: 'Chênh lệch',
+      type: 'line',
+      yAxisIndex: 1,
+      connectNulls: false,
+      symbol: 'none',
+      // ⛔ MÀU XÁM là đặc tả, ⛔ không phải thẩm mỹ: §7.1 ghi "trục Y phụ … vẽ dạng đường mảnh
+      //    MÀU XÁM hoặc cột nhạt ở nền". Để ECharts tự gán màu theo bảng chủ đề thì đường chênh
+      //    lệch nhận một sắc xanh-tím ⛔ không phân biệt được với đường hạ lưu — và một phép đo
+      //    pixel sẽ đếm nhầm nó thành đường hạ lưu (đúng lỗi lượt đo đầu của WS-45 tìm ra).
+      lineStyle: { width: 1, type: 'dotted', color: statusColors.unknown },
+      itemStyle: { color: statusColors.unknown },
+      data: duongChinh(chenh),
+    });
+  }
+
+  return {
+    grid: { left: 48, right: 56, top: 40, bottom: 48 },
+    // ⛔ Chú giải BẮT BUỘC (§7.1) — và nó cũng là công tắc bật/tắt từng thành phần.
+    legend: {
+      type: 'scroll',
+      top: 4,
+      data: series.map((s) => s.name).filter((n) => n !== 'nền dải'),
+    },
+    tooltip: {
+      trigger: 'axis',
+      valueFormatter: (v: unknown) => (v === null || v === undefined ? '' : Number(v).toFixed(2)),
+    },
+    xAxis: { type: 'category', data: nhan, boundaryGap: false },
+    yAxis: [
+      { type: 'value', name: `Mực nước (${bieuDo.meta.donVi})`, scale: true },
+      { type: 'value', name: 'Chênh lệch', scale: true, splitLine: { show: false } },
+    ],
+    series,
+  };
+}
+
 export function BieuDoDienBien({ bieuDo }: BieuDoDienBienProps) {
   const khung = useRef<HTMLDivElement>(null);
   const doThi = useRef<ReturnType<typeof echarts.init> | null>(null);
@@ -77,173 +270,7 @@ export function BieuDoDienBien({ bieuDo }: BieuDoDienBienProps) {
     const bd = echarts.init(khung.current, THEME, { renderer: 'canvas' });
     doThi.current = bd;
 
-    const tl = chuoi(bieuDo, 'Thượng lưu');
-    const hl = chuoi(bieuDo, 'Hạ lưu');
-    const chenh = chuoi(bieuDo, 'Chênh lệch');
-
-    const nhan = bieuDo.moc.map((m) =>
-      new Intl.DateTimeFormat('vi-VN', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-        timeZone: 'Asia/Ho_Chi_Minh',
-      }).format(new Date(m)),
-    );
-
-    const vTl = duongChinh(tl);
-    const vHl = duongChinh(hl);
-    const coDai = tl !== null && hl !== null;
-
-    // ⛔ Dải chỉ dựng khi CÓ ĐỦ hai vế — một công trình một chỉ tiêu ⛔ không có gì để tô giữa.
-    const nen = coDai
-      ? vTl.map((a, i) => (a === null || vHl[i] === null ? 0 : Math.min(a, vHl[i]!)))
-      : [];
-    const daiDuong = coDai
-      ? vTl.map((a, i) => (a === null || vHl[i] === null ? 0 : Math.max(0, a - vHl[i]!)))
-      : [];
-    const daiAm = coDai
-      ? vTl.map((a, i) => (a === null || vHl[i] === null ? 0 : Math.max(0, vHl[i]! - a)))
-      : [];
-
-    /** Đường ngưỡng của một chỉ tiêu — §7.1, nét đứt ngang. */
-    const nguongCua = (chiTieu: string) => ({
-      silent: true,
-      symbol: 'none' as const,
-      lineStyle: { type: 'dashed' as const, width: 1 },
-      label: { formatter: '{b}', position: 'insideEndTop' as const, fontSize: 10 },
-      data: bieuDo.nguong
-        .filter((n) => n.chiTieu === chiTieu)
-        .map((n) => ({ name: n.tenMuc, yAxis: Number(n.giaTri) })),
-    });
-
-    const series: Record<string, unknown>[] = [];
-
-    if (coDai) {
-      series.push(
-        {
-          name: 'nền dải',
-          type: 'line',
-          stack: 'dai',
-          symbol: 'none',
-          lineStyle: { opacity: 0 },
-          silent: true,
-          tooltip: { show: false },
-          data: nen,
-        },
-        {
-          name: 'Chênh dương (TL > HL)',
-          type: 'line',
-          stack: 'dai',
-          symbol: 'none',
-          lineStyle: { opacity: 0 },
-          areaStyle: { color: statusColors.danger, opacity: 0.15 },
-          tooltip: { show: false },
-          data: daiDuong,
-        },
-        {
-          name: 'Chênh âm (HL > TL)',
-          type: 'line',
-          stack: 'dai',
-          symbol: 'none',
-          lineStyle: { opacity: 0 },
-          areaStyle: { color: brandColors.info, opacity: 0.15 },
-          tooltip: { show: false },
-          data: daiAm,
-        },
-      );
-    }
-
-    if (tl) {
-      series.push(
-        {
-          name: 'Thượng lưu',
-          type: 'line',
-          // ⛔ `connectNulls: false` — mốc mất dữ liệu phải NGẮT đường (§7.1). Đặt `true` là nội
-          //    suy một đoạn số liệu chưa ai đo, trên đúng biểu đồ người ta đọc để ra quyết định.
-          connectNulls: false,
-          symbol: 'circle',
-          symbolSize: 4,
-          lineStyle: { color: statusColors.danger, width: 2 },
-          itemStyle: { color: statusColors.danger },
-          markLine: nguongCua('Thượng lưu'),
-          data: vTl,
-        },
-        {
-          name: 'Thượng lưu (nghi ngờ)',
-          type: 'line',
-          connectNulls: false,
-          symbol: 'emptyCircle',
-          symbolSize: 8,
-          lineStyle: { opacity: 0 },
-          itemStyle: { color: statusColors.danger, borderType: 'dashed' },
-          data: diemNghiNgo(tl),
-        },
-      );
-    }
-
-    if (hl) {
-      series.push(
-        {
-          name: 'Hạ lưu',
-          type: 'line',
-          connectNulls: false,
-          symbol: 'circle',
-          symbolSize: 4,
-          // ⚠ NÉT ĐỨT là phân biệt thứ hai bên cạnh màu — §7.1 tự nêu lo ngại về cặp đỏ/xanh.
-          lineStyle: { color: brandColors.info, width: 2, type: 'dashed' },
-          itemStyle: { color: brandColors.info },
-          markLine: nguongCua('Hạ lưu'),
-          data: vHl,
-        },
-        {
-          name: 'Hạ lưu (nghi ngờ)',
-          type: 'line',
-          connectNulls: false,
-          symbol: 'emptyCircle',
-          symbolSize: 8,
-          lineStyle: { opacity: 0 },
-          itemStyle: { color: brandColors.info, borderType: 'dashed' },
-          data: diemNghiNgo(hl),
-        },
-      );
-    }
-
-    if (chenh) {
-      series.push({
-        name: 'Chênh lệch',
-        type: 'line',
-        yAxisIndex: 1,
-        connectNulls: false,
-        symbol: 'none',
-        // ⛔ MÀU XÁM là đặc tả, ⛔ không phải thẩm mỹ: §7.1 ghi "trục Y phụ … vẽ dạng đường mảnh
-        //    MÀU XÁM hoặc cột nhạt ở nền". Để ECharts tự gán màu theo bảng chủ đề thì đường chênh
-        //    lệch nhận một sắc xanh-tím ⛔ không phân biệt được với đường hạ lưu — và một phép đo
-        //    pixel sẽ đếm nhầm nó thành đường hạ lưu (đúng lỗi lượt đo đầu của WS-45 tìm ra).
-        lineStyle: { width: 1, type: 'dotted', color: statusColors.unknown },
-        itemStyle: { color: statusColors.unknown },
-        data: duongChinh(chenh),
-      });
-    }
-
-    bd.setOption({
-      grid: { left: 48, right: 56, top: 40, bottom: 48 },
-      // ⛔ Chú giải BẮT BUỘC (§7.1) — và nó cũng là công tắc bật/tắt từng thành phần.
-      legend: {
-        type: 'scroll',
-        top: 4,
-        data: series.map((s) => s.name).filter((n) => n !== 'nền dải'),
-      },
-      tooltip: {
-        trigger: 'axis',
-        valueFormatter: (v: unknown) => (v === null || v === undefined ? '' : Number(v).toFixed(2)),
-      },
-      xAxis: { type: 'category', data: nhan, boundaryGap: false },
-      yAxis: [
-        { type: 'value', name: `Mực nước (${bieuDo.meta.donVi})`, scale: true },
-        { type: 'value', name: 'Chênh lệch', scale: true, splitLine: { show: false } },
-      ],
-      series,
-    });
+    bd.setOption(optionBieuDo(bieuDo));
 
     const doLai = () => bd.resize();
     window.addEventListener('resize', doLai);

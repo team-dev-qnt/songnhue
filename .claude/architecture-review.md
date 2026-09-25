@@ -8684,3 +8684,46 @@ có lối thoát sẵn (`*&#47;`) ở đúng tệp gốc.
 vào chỗ sáu thuật toán lệch nhau. Đó là *một lỗ chưa gây hại vẫn là một lỗ* (T49.6): ngày mai ai đó
 chép một khẳng định giữa hai app và nó đổi nghĩa, vẫn ⛔ một dòng đỏ nào — trừ khi chỉ còn một
 thuật toán.
+
+### §12.23 "Chuỗi có mặt trong mã nguồn" ⛔ phải "hình có ra" (T45.11, 25/9/2026)
+
+Ba đường ngang BĐ1/BĐ2/BĐ3 của §7.1 đi bằng `markLine`. `setup.ts` **tự cảnh báo** rằng quên đăng
+ký `MarkLineComponent` thì ECharts ⛔ ném, ⛔ cảnh báo — nó chỉ ⛔ vẽ, và cái mất là đúng thứ nói cho
+người đọc biết mực nước đã vượt báo động hay chưa.
+
+Thứ duy nhất canh nhánh ấy là hai phép so **văn bản**: `expect(setup).toContain('MarkLineComponent')`
+và `expect(nguon).toContain('markLine')`.
+
+⭐⭐ **Phép đo cho thấy khoảng cách giữa hai điều đó là thật.** Bản phá giữ nguyên **chuỗi**
+`MarkLineComponent` trong tệp nhưng bỏ nó khỏi lời gọi `echarts.use([…])`:
+
+| | bài MỚI (đo trên SVG) | bộ canh CŨ (đo trên văn bản) |
+|---|---|---|
+| bản phá | **ĐỎ** — `expected +0 to be 1`, vẽ ra 0 đường ngưỡng | **XANH** |
+
+Tức bộ canh cũ xanh trong **đúng** tình huống nó sinh ra để bắt — luật 7 ở dạng quen thuộc nhất của
+dự án, lần này đo được thay vì suy ra.
+
+#### Tiền đề của dòng nợ đã hết đúng, và thứ chặn thật nằm chỗ khác
+
+`T45.11` (14/09) khai *"`alert_levels` đang 0 hàng nên ⛔ dựng được trạng thái có ngưỡng mà ⛔ seed
+CSDL từ trong Playwright"*. Lượt đo 19/09 bác nó. Nhưng thứ **thật sự** chặn ⛔ phải CSDL: option
+nằm trong thân `useEffect`, nên ⛔ có cách nào hỏi tới nó mà ⛔ dựng DOM, còn dựng DOM thì cần canvas
+— jsdom ⛔ có. ⇒ Tách `optionBieuDo` thành hàm thuần, cùng lý lẽ `xuatSoDo`: *option là dữ liệu, ⛔
+phải một hiệu ứng phụ*.
+
+#### ⚠ Hai lượt đỏ của chính bộ canh mới, và cả hai là bài học cũ
+
+1. **Con số tuyệt đối ⛔ dùng được**: chủ đề vẽ **6** đường lưới ngang cũng nét đứt, nên *"có đúng
+   1 nét"* sai ngay từ đầu. ⇒ Đo **HIỆU SỐ** so với chính biểu đồ ấy khi ⛔ có ngưỡng — phép đo ấy
+   nói đúng điều cần nói và ⛔ vỡ khi chủ đề đổi số đường lưới.
+2. **T48.7 lặp lại**: cặp giá trị tự nhiên nhất (`3.50`/`4.00`) rơi **TRÚNG** hai đường lưới ⇒ hai
+   nét ngưỡng chồng khít lên chúng ⇒ phép đếm *độ cao phân biệt* ⛔ khẳng định gì. Đổi sang
+   `3.33`/`3.77` và **nói ra vì sao** ngay tại bài kiểm, vì con số ấy trông tuỳ tiện.
+
+#### ⚠ Phạm vi: SVG ⛔ phải Canvas
+
+`SVGRenderer` chỉ đăng ký **trong bài kiểm** — `setup.ts` cố ý chỉ nạp `CanvasRenderer` vì cổng công
+khai đo bằng NFR-02. Các **component** vẫn do `setup.ts` đăng ký, nên một component bị quên vẫn đỏ ở
+đây; nhưng màn hình chạy Canvas còn bài kiểm chạy SVG — **hai bộ vẽ khác nhau của cùng một thư
+viện**. Vế đo trên trình duyệt thật vẫn thuộc `T38.10`/`T61.29` (luật 28).
