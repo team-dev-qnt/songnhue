@@ -148,12 +148,42 @@ public class ScopeGuard {
      * @throws PermissionDeniedException {@code AUTH-3002} kèm một dòng {@code ACCESS_DENIED_SCOPE}
      */
     public void requireWritableOrgUnit(Long orgUnitId, Class<?> entityType) {
+        doiPhamViDonVi(orgUnitId, entityType, "GHI");
+    }
+
+    /**
+     * <b>Vế ĐỌC khi đơn vị do NGƯỜI GỌI nêu tên</b> — T57.18(b).
+     *
+     * <p>Bộ lọc {@code @Filter} đủ cho mọi truy vấn <i>⛔ nêu đơn vị</i>: nó tự cắt, và một đơn vị
+     * ngoài phạm vi đơn giản là ⛔ có hàng nào. Nhưng khi giao diện gửi lên <b>một mã đơn vị cụ
+     * thể</b> (lịch nghỉ của đơn vị X) thì cái cắt im lặng ấy trả về một <b>lịch RỖNG</b> — và một
+     * lịch rỗng đọc y hệt <i>"tháng này ⛔ ai nghỉ"</i>. Hai trạng thái, một câu trả lời: luật 9.
+     *
+     * <p>Nặng hơn: mẫu số (quân số đơn vị) cũng đi qua bộ lọc ⇒ nó về <b>0</b> ⇒ tỉ lệ ⛔ tính được
+     * ⇒ màn hình mất luôn cảnh báo trùng lịch mà ⛔ nói vì sao. ⇒ Nêu tên một đơn vị ⛔ nhìn thấy
+     * phải là <b>403 {@code AUTH-3002} kèm dấu vết</b>, đúng như M5.16 đã chốt cho vế tra bản ghi
+     * ({@link #require}), ⛔ phải một 404 im lặng.
+     *
+     * <p>⚠ Dùng chung thân hàm với {@link #requireWritableOrgUnit} — hai chiều, <b>một</b> vị từ và
+     * <b>một</b> chỗ ghi nhật ký (luật 14). Chỉ chữ {@code thaoTac} trong dấu vết là khác, và nó
+     * khác vì người đọc nhật ký cần phân biệt <i>đòi xem</i> với <i>đòi ghi</i>.
+     *
+     * @param orgUnitId đơn vị người gọi nêu tên; {@code null} ⇒ ⛔ kiểm (⛔ nêu thì ⛔ có gì để nêu sai)
+     * @param entityType lớp entity, ghi vào nhật ký bảo mật
+     * @throws PermissionDeniedException {@code AUTH-3002} kèm một dòng {@code ACCESS_DENIED_SCOPE}
+     */
+    public void requireReadableOrgUnit(Long orgUnitId, Class<?> entityType) {
+        doiPhamViDonVi(orgUnitId, entityType, "DOC");
+    }
+
+    private void doiPhamViDonVi(Long orgUnitId, Class<?> entityType, String thaoTac) {
         if (trongPhamVi(orgUnitId)) {
             return;
         }
         AuthenticatedUser user = AuthContext.current().orElseThrow();
         log.warn(
-                "Chặn GHI ngoài phạm vi đơn vị: {} ghi {} vào đơn vị {}",
+                "Chặn {} ngoài phạm vi đơn vị: {} với {} ở đơn vị {}",
+                thaoTac,
                 user.username(),
                 entityType.getSimpleName(),
                 orgUnitId);
@@ -162,8 +192,8 @@ public class ScopeGuard {
                 user.username(),
                 user.userId(),
                 null,
-                "{\"entity\":\"" + entityType.getSimpleName() + "\",\"orgUnitId\":" + orgUnitId
-                        + ",\"thaoTac\":\"GHI\"}");
+                "{\"entity\":\"" + entityType.getSimpleName() + "\",\"orgUnitId\":" + orgUnitId + ",\"thaoTac\":\""
+                        + thaoTac + "\"}");
         throw new PermissionDeniedException(ErrorCode.AUTH_3002);
     }
 

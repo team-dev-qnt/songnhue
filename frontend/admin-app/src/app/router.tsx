@@ -411,6 +411,14 @@ export const router = createBrowserRouter([
             'hr:leave:approve',
             lazyPage(() => import('@/features/hr/DuyetNghiPhepPage'), 'DuyetNghiPhepPage'),
           ),
+          // ⛔ `hr:leave:view-all`, ⛔ `hr:leave:approve`: lịch đơn vị là để **bố trí ca trực**,
+          //   nên người phụ trách nhân sự cần xem dù ⛔ phải cấp duyệt. Đó cũng đúng mã quyền
+          //   backend gác ở `GET /hr/nghi-phep/lich`.
+          adminRoute(
+            '/nhan-su/lich-nghi-don-vi',
+            'hr:leave:view-all',
+            lazyPage(() => import('@/features/hr/LichNghiDonViPage'), 'LichNghiDonViPage'),
+          ),
           // ⛔ Quyền RIÊNG `hr:leave:delegate`, ⛔ dùng lại `hr:leave:approve`: *duyệt được* và
           //   *giao quyền duyệt cho người khác* là hai việc khác nhau, và dùng chung một mã quyền
           //   thì ⛔ có cách nào cho phép cái thứ nhất mà ⛔ cho phép cái thứ hai.

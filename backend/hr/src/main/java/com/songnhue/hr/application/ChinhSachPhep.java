@@ -206,6 +206,31 @@ public class ChinhSachPhep {
         return settings.getInt(KHOA_NGUONG_TRUNG_LICH, DP_NGUONG_TRUNG_LICH);
     }
 
+    /**
+     * Tỉ lệ % quân số nghỉ — <b>MỘT</b> công thức cho cả hai nơi hỏi nó (T57.18 vế b).
+     *
+     * <p>Hai màn hình đang trả lời cùng một câu: ô cảnh báo lúc <i>nộp đơn</i>
+     * ({@code DonNghiPhepService.canhBaoTrungLich}) và <i>lịch nghỉ đơn vị</i>. Chép phép chia sang
+     * chỗ thứ hai là luật 14 ở dạng rẻ tiền nhất — một bên làm tròn khác bên kia là người nộp đọc
+     * *"38% ≥ ngưỡng 35%"* rồi mở lịch ra thấy **37%**, và ⛔ có cách nào biết bên nào đúng.
+     *
+     * <p>⚠ Phần <i>cộng chính người đang nộp vào tử số</i> <b>⛔ nằm ở đây</b>: nó là của riêng
+     * đường xem-trước (người ấy <b>chưa</b> có đơn nào trong CSDL). Lịch thì đếm những người đã có
+     * đơn thật ⇒ ⛔ cộng gì. Gộp luôn cái {@code +1} vào đây là ép một trong hai nơi nói sai.
+     *
+     * @return {@code null} khi đơn vị ⛔ có quân số — một trạng thái <b>THỨ BA</b>, ⛔ phải "0% cho
+     *     gọn": 0% nghĩa là <i>⛔ ai nghỉ</i>, còn {@code null} nghĩa là <i>⛔ có mẫu số để chia</i>,
+     *     và giao diện phải nói hai câu khác nhau (cùng lý lẽ ba trạng thái của T59.0)
+     */
+    public static Integer tiLeNghi(long soNguoiNghi, long quanSo) {
+        return quanSo <= 0 ? null : (int) Math.round(soNguoiNghi * 100.0 / quanSo);
+    }
+
+    /** Tỉ lệ đã chạm ngưỡng chưa — {@code null} (⛔ có mẫu số) ⇒ <b>false</b>, ⛔ cảnh báo bừa. */
+    public boolean chamNguongTrungLich(Integer tiLe) {
+        return tiLe != null && tiLe >= nguongCanhBaoTrungLich();
+    }
+
     /** Mốc tính thâm niên — khớp ràng buộc {@code in=HIRE_DATE,CONTRACT_DATE} của khoá settings. */
     public enum MocThamNien {
         HIRE_DATE,

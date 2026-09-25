@@ -148,4 +148,36 @@ public final class NghiPhepDtos {
 
     /** Trang đơn kèm tổng — giao diện cần tổng để nói *"N đơn"*, ⛔ suy được từ một trang. */
     public record DonTrangView(List<DonView> muc, long tong, int trang, int co) {}
+
+    // === Lịch nghỉ đơn vị (T57.18 vế b) ======================================
+
+    /**
+     * Một ô ngày trên lịch.
+     *
+     * @param tyLePhanTram {@code null} = đơn vị ⛔ có quân số ⇒ ⛔ có mẫu số để chia. Giao diện phải
+     *     nói *"chưa có quân số"* chứ ⛔ vẽ một vòng 0% — 0% nghĩa là <i>⛔ ai nghỉ</i>
+     * @param vuotNguong cảnh báo bố trí ca trực, ⛔ phải một lệnh cấm
+     */
+    public record LichNgayView(LocalDate ngay, long soNguoiNghi, Integer tyLePhanTram, boolean vuotNguong) {}
+
+    /**
+     * Lịch nghỉ của một đơn vị trong một tháng.
+     *
+     * <p>⚠ {@code thang} là chuỗi {@code yyyy-MM}: nó là một <b>tháng dương lịch</b>, ⛔ phải một
+     * khoảnh khắc. Trả {@code Instant} ở đây là mời giao diện đổi múi giờ rồi rơi sang tháng khác —
+     * đúng lớp lỗi T63.18, chỉ là ở cỡ tháng thay vì cỡ ngày.
+     *
+     * @param don đơn THÔ, dựng bằng cùng {@code toView} mà hộp chờ duyệt dùng — ⛔ có bản mô tả thứ
+     *     hai của một lá đơn (luật 14)
+     * @param nguongPhanTram ngưỡng {@code hr.leave.overlap-warning-percent} đang áp dụng — gửi kèm
+     *     để màn hình giải thích được vì sao một ô đỏ, thay vì bắt người đọc đi tra {@code settings}
+     */
+    public record LichView(
+            UUID donViPublicId,
+            String tenDonVi,
+            String thang,
+            long quanSo,
+            int nguongPhanTram,
+            List<DonView> don,
+            List<LichNgayView> ngay) {}
 }

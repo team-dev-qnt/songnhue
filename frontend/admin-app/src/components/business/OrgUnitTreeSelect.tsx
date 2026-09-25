@@ -26,10 +26,15 @@ export function OrgUnitTreeSelect({
   /**
    * **T74.11** — làm mờ đơn vị NGOÀI phạm vi ghi của người đăng nhập.
    *
-   * ⛔⛔ Chỉ bật ở biểu mẫu mà backend **thật sự** chặn, tức đường ghi đi qua
-   * `ScopeGuard.requireWritableOrgUnit`. Đo 23/09: đúng **4** đường — công trình
-   * (`ConstructionService`) · hồ sơ CBNV (`EmployeeService`) · điểm đo (`StationService`) · uỷ
-   * quyền duyệt phép (`UyQuyenDuyetPhepService`).
+   * ⛔⛔ Chỉ bật ở màn hình mà backend **thật sự** chặn. Đo 23/09: đúng **4** đường GHI, qua
+   * `ScopeGuard.requireWritableOrgUnit` — công trình (`ConstructionService`) · hồ sơ CBNV
+   * (`EmployeeService`) · điểm đo (`StationService`) · uỷ quyền duyệt phép
+   * (`UyQuyenDuyetPhepService`).
+   *
+   * ⭐ Thêm 25/09 (T57.18b) một đường **ĐỌC**: lịch nghỉ đơn vị. Nó hợp lệ vì người gọi **nêu tên**
+   * một đơn vị, và `ScopeGuard.requireReadableOrgUnit` dùng **đúng** vị từ `trongPhamVi` của bốn
+   * đường trên — ⛔ phải một luật thứ hai. ⚠ Mọi đường đọc *⛔ nêu tên đơn vị* thì vẫn ⛔ bật: ở đó
+   * bộ lọc tự cắt và ⛔ có gì để chọn sai.
    *
    * Bật ở chỗ khác là **bày ra một điều cấm ⛔ hề tồn tại**: sáu ô chọn còn lại ghi vào bảng ⛔
    * thuộc `ScopedEntity` (`User` · `Contact` · `ConstructionCluster` · `OrgUnit`) hoặc ghi một cột

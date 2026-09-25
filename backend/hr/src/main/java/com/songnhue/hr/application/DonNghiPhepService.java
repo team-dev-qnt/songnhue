@@ -28,6 +28,8 @@ import com.songnhue.core.spi.AllowedAction;
 import com.songnhue.core.spi.NotificationPort;
 import com.songnhue.core.spi.NotifyRequest;
 import com.songnhue.core.spi.NotifySeverity;
+import com.songnhue.core.spi.OrgUnitPort;
+import com.songnhue.core.spi.OrgUnitRef;
 import com.songnhue.core.spi.WorkflowPort;
 import com.songnhue.hr.domain.Employee;
 import com.songnhue.hr.domain.LeaveRequest;
@@ -76,12 +78,13 @@ public class DonNghiPhepService {
     private final NotificationPort thongBao;
     private final ScopeGuard scopeGuard;
     private final ThamQuyenDuyetPhep thamQuyen;
+    private final OrgUnitPort donVi;
 
-    // CHECKSTYLE.OFF: ParameterNumber - 9 cộng tác viên là số BƯỚC của một lá đơn (lưu · hồ sơ ·
-    // đếm ngày · số dư · chính sách · quy trình · thông báo · phạm vi · thẩm quyền). Gom vào một
-    // record như `ThongTinDonVi` ⛔ dùng được ở đây: đây là hàm dựng của một bean Spring, và một
-    // record trung gian chỉ dời chỗ danh sách chứ ⛔ bớt một phụ thuộc nào. Cùng lý lẽ đã ghi ở
-    // `HydroReviewService`.
+    // CHECKSTYLE.OFF: ParameterNumber - 10 cộng tác viên là số BƯỚC của một lá đơn (lưu · hồ sơ ·
+    // đếm ngày · số dư · chính sách · quy trình · thông báo · phạm vi · thẩm quyền · danh mục đơn
+    // vị). Gom vào một record như `ThongTinDonVi` ⛔ dùng được ở đây: đây là hàm dựng của một bean
+    // Spring, và một record trung gian chỉ dời chỗ danh sách chứ ⛔ bớt một phụ thuộc nào. Cùng lý
+    // lẽ đã ghi ở `HydroReviewService`.
     public DonNghiPhepService(
             LeaveRequestRepository donNghi,
             EmployeeService employees,
@@ -91,7 +94,8 @@ public class DonNghiPhepService {
             WorkflowPort workflow,
             NotificationPort thongBao,
             ScopeGuard scopeGuard,
-            ThamQuyenDuyetPhep thamQuyen) {
+            ThamQuyenDuyetPhep thamQuyen,
+            OrgUnitPort donVi) {
         this.donNghi = donNghi;
         this.employees = employees;
         this.demNgayCong = demNgayCong;
@@ -101,6 +105,7 @@ public class DonNghiPhepService {
         this.thongBao = thongBao;
         this.scopeGuard = scopeGuard;
         this.thamQuyen = thamQuyen;
+        this.donVi = donVi;
     }
     // CHECKSTYLE.ON: ParameterNumber
 
@@ -318,6 +323,71 @@ public class DonNghiPhepService {
     public Page<LeaveRequest> hopChoDuyet(Pageable pageable) {
         return donNghi.hopChoDuyet(pageable);
     }
+
+    /**
+     * <b>Lịch nghỉ của một đơn vị trong một tháng</b> — CN-04.9, T57.18 vế (b).
+     *
+     * <h2>Vì sao tỉ lệ tính ở ĐÂY chứ ⛔ để giao diện chia</h2>
+     *
+     * <p>Quy tắc 3: mọi giá trị tính toán tính ở BE. Ở đây nó ⛔ phải một quy ước cho đẹp — mẫu số
+     * (<i>quân số còn làm việc</i>) suy từ {@code EmploymentStatus.daNghi()}, một luật nhân sự mà
+     * giao diện ⛔ có cách nào biết; và ngưỡng nằm trong {@code settings}, sửa được lúc chạy. Để
+     * giao diện chia là dựng bản sao thứ hai của cả hai thứ.
+     *
+     * <p>⚠ Đếm theo <b>NGƯỜI</b> chứ ⛔ theo <b>ĐƠN</b> ({@code distinct} trên {@code employeeId}) —
+     * một người nộp hai đơn rời nhau trong cùng tháng ⛔ phải hai người vắng mặt. Cùng lý lẽ đã ghi
+     * ở {@code LeaveRequestRepository.soNguoiNghiCungLuc}, và phải cùng, vì hai màn hình đang trả
+     * lời một câu hỏi (quy tắc 13).
+     *
+     * <p>⚠ <b>Một</b> truy vấn cho cả tháng, rồi chia nhóm ở Java. Hỏi CSDL mỗi ngày một câu là 31
+     * lượt cho một màn hình, và nó sẽ đỏ ở {@code DemTruyVan} — đúng như thiết kế.
+     */
+    @Transactional(readOnly = true)
+    public Lich lichDonVi(UUID donViPublicId, java.time.YearMonth thang) {
+        OrgUnitRef donViRef =
+                donVi.findRef(donViPublicId).orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
+        // ⛔⛔ Bộ lọc phạm vi một mình trả LỊCH RỖNG cho đơn vị ngoài tầm — đọc y hệt "tháng này ⛔
+        //    ai nghỉ". Nêu tên một đơn vị ⛔ nhìn thấy phải ra 403 kèm dấu vết (M5.16).
+        scopeGuard.requireReadableOrgUnit(donViRef.id(), LeaveRequest.class);
+
+        LocalDate tu = thang.atDay(1);
+        LocalDate den = thang.atEndOfMonth();
+        List<LeaveRequest> don = donNghi.lichNghiCuaDonVi(donViRef.id(), tu, den);
+        long quanSo = employees.soNguoiConLamViec(donViRef.id());
+
+        List<NgayNghi> ngay = new java.util.ArrayList<>();
+        for (LocalDate d = tu; !d.isAfter(den); d = d.plusDays(1)) {
+            LocalDate hom = d;
+            long soNguoi = don.stream()
+                    .filter(r -> !r.getFromDate().isAfter(hom) && !r.getToDate().isBefore(hom))
+                    .map(LeaveRequest::getEmployeeId)
+                    .distinct()
+                    .count();
+            Integer tiLe = ChinhSachPhep.tiLeNghi(soNguoi, quanSo);
+            ngay.add(new NgayNghi(hom, soNguoi, tiLe, chinhSach.chamNguongTrungLich(tiLe)));
+        }
+        return new Lich(donViRef, thang, quanSo, chinhSach.nguongCanhBaoTrungLich(), don, ngay);
+    }
+
+    /**
+     * @param tyLePhanTram {@code null} = đơn vị ⛔ có quân số ⇒ ⛔ có mẫu số để chia. ⛔ Quy về 0:
+     *     0% nghĩa là <i>⛔ ai nghỉ</i>, một câu khác hẳn (xem {@code ChinhSachPhep.tiLeNghi})
+     * @param vuotNguong đã chạm ngưỡng {@code hr.leave.overlap-warning-percent} ⛔ — một <b>cảnh
+     *     báo</b> để người phụ trách bố trí ca trực, ⛔ phải một lệnh cấm
+     */
+    public record NgayNghi(LocalDate ngay, long soNguoiNghi, Integer tyLePhanTram, boolean vuotNguong) {}
+
+    /**
+     * @param don đơn THÔ — tầng {@code api} đã có {@code toView} dựng {@code DonView}; dựng lần hai
+     *     ở đây là hai bản mô tả cùng một lá đơn, rồi một ngày chúng lệch nhau (luật 14)
+     */
+    public record Lich(
+            OrgUnitRef donVi,
+            java.time.YearMonth thang,
+            long quanSo,
+            int nguongPhanTram,
+            List<LeaveRequest> don,
+            List<NgayNghi> ngay) {}
 
     /** Đơn của một hồ sơ. */
     @Transactional(readOnly = true)
@@ -563,16 +633,15 @@ public class DonNghiPhepService {
 
     private Optional<String> canhBaoTrungLich(Employee hoSo, long soNguoiNghiCung) {
         long quanSo = employees.soNguoiConLamViec(hoSo.getOrgUnitId());
-        if (quanSo <= 0) {
-            return Optional.empty();
-        }
-        int tiLe = (int) Math.round((soNguoiNghiCung + 1) * 100.0 / quanSo);
-        int nguong = chinhSach.nguongCanhBaoTrungLich();
-        if (tiLe < nguong) {
+        // ⚠ `+1` = chính người đang xem trước. Họ CHƯA có đơn trong CSDL nên câu đếm ⛔ thấy họ —
+        //   đó là lý do phép cộng này nằm ở ĐÂY chứ ⛔ trong `ChinhSachPhep.tiLeNghi`: lịch nghỉ
+        //   đơn vị đếm đơn CÓ THẬT nên nó ⛔ được cộng gì (T57.18b).
+        Integer tiLe = ChinhSachPhep.tiLeNghi(soNguoiNghiCung + 1, quanSo);
+        if (!chinhSach.chamNguongTrungLich(tiLe)) {
             return Optional.empty();
         }
         return Optional.of("Khoảng này đã có %d/%d người của đơn vị nghỉ (%d%% ≥ ngưỡng %d%%)"
-                .formatted(soNguoiNghiCung + 1, quanSo, tiLe, nguong));
+                .formatted(soNguoiNghiCung + 1, quanSo, tiLe, chinhSach.nguongCanhBaoTrungLich()));
     }
 
     /**

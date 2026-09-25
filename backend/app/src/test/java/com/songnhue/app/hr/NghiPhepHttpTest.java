@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.ZoneId;
 import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 import java.util.UUID;
@@ -101,6 +103,20 @@ class NghiPhepHttpTest extends IntegrationTestBase {
     /** T57.16 — năm đầu tiên hệ ghi nhận ĐỦ đơn nghỉ của cả năm. */
     private static final String KHOA_NAM_GHI_NHAN_DU = "hr.leave.first-fully-recorded-year";
 
+    /** T57.18(b) — ngưỡng % quân số nghỉ cùng lúc. */
+    private static final String KHOA_NGUONG_TRUNG_LICH = "hr.leave.overlap-warning-percent";
+
+    /**
+     * Tháng riêng của nhóm bài lịch.
+     *
+     * <p>⚠ {@code don()} chỉ chạy ở {@code @BeforeAll}/{@code @AfterAll}, nên đơn của các bài khác
+     * <b>sống qua</b> từng bài. Một tháng xa mọi khoảng ngày chúng dùng ({@link #thuHai}) là thứ
+     * giữ cho mẫu số và phép đếm của nhóm này ⛔ bị trộn.
+     */
+    private static final YearMonth THANG_LICH = YearMonth.of(2029, 6);
+
+    private static final String THAM_SO_THANG = "&nam=" + THANG_LICH.getYear() + "&thang=" + THANG_LICH.getMonthValue();
+
     @Autowired
     private TestHttp http;
 
@@ -133,6 +149,10 @@ class NghiPhepHttpTest extends IntegrationTestBase {
 
     private UUID idNhanVien;
     private UUID idNguoiDuyet;
+    private UUID idTaiKhoanQt;
+
+    /** Giá trị SEED của ngưỡng trùng lịch — trả lại ở {@code @AfterEach}, ⛔ ghim một con số (T48.8). */
+    private String nguongTrungLichSeed;
     /** PHÓ của đơn vị gốc — T85.3 cần đo hộp thư của người này, ⛔ chỉ cần phiên đăng nhập. */
     private UUID idNguoiDuyet2;
 
@@ -192,6 +212,8 @@ class NghiPhepHttpTest extends IntegrationTestBase {
 
         idNhanVien = publicIdCua(tenNv);
         idNguoiDuyet = publicIdCua(tenDuyet);
+        idTaiKhoanQt = publicIdCua(tenQt);
+        nguongTrungLichSeed = giaTriThamSo(KHOA_NGUONG_TRUNG_LICH);
     }
 
     @AfterEach
@@ -199,6 +221,10 @@ class NghiPhepHttpTest extends IntegrationTestBase {
         jdbc.update("DELETE FROM holidays WHERE name LIKE ?", TIEN_TO + "%");
         datThamSo(KHOA_SO_CAP, "1");
         datThamSo(KHOA_NGUONG_CAP_2, "0");
+        // ⛔ Trả ngưỡng về giá trị SEED, ⛔ về một con số viết cứng: dọn ở CUỐI phương thức là rò
+        //   rỉ trạng thái khi một khẳng định đỏ sớm (T48.8), và một con số viết cứng lại là bản
+        //   sao thứ hai của mặc định trong mã (T51.15).
+        datThamSo(KHOA_NGUONG_TRUNG_LICH, nguongTrungLichSeed);
         jdbc.update(
                 "UPDATE users SET org_unit_id = ?, employee_id = NULL WHERE username LIKE 'kiemtra_t579%'", donViGocId);
         authorities.invalidateAll();
@@ -1083,8 +1109,192 @@ class NghiPhepHttpTest extends IntegrationTestBase {
     }
 
     // =========================================================================
+    // Lịch nghỉ đơn vị — T57.18 vế (b)
+    // =========================================================================
+
+    /**
+     * ⛔⛔ Ba câu <i>gần giống</i> đã có trong kho <b>đều sai đúng một vị từ</b> cho việc này, và
+     * mỗi cái sai một kiểu (xem javadoc {@code LeaveRequestRepository.lichNghiCuaDonVi}). Bài này
+     * đo cái nặng nhất trong ba: {@code soNguoiNghiCungLuc} đếm theo <b>NGƯỜI</b> nhưng <b>TRỪ
+     * người nộp</b> — vẽ lịch bằng nó là một tháng thiếu đúng một người, và ⛔ gì báo.
+     */
+    @Test
+    @DisplayName("⭐⭐ Lịch đếm theo NGƯỜI (⛔ theo ĐƠN) và tỉ lệ do BACKEND tính — quy tắc 3")
+    void lichDemTheoNguoiVaTinhTiLeOBackend() {
+        long donViId = themDonVi(TIEN_TO + "XN-LICH1");
+        UUID donVi = jdbc.queryForObject("SELECT public_id FROM org_units WHERE id = ?", UUID.class, donViId);
+        UUID a = taoHoSo("LICH1-A", donVi);
+        UUID b = taoHoSo("LICH1-B", donVi);
+        datThamSo(KHOA_NGUONG_TRUNG_LICH, "60");
+
+        // A nghỉ 10–12, B nghỉ 12–14 ⇒ ngày 12 có 2/2 người = 100% ≥ 60%.
+        themDonTho(a, THANG_LICH.atDay(10), THANG_LICH.atDay(12), "DA_DUYET");
+        themDonTho(b, THANG_LICH.atDay(12), THANG_LICH.atDay(14), "DA_DUYET");
+        // ⭐ Vế phân biệt ĐẾM-THEO-NGƯỜI: A có thêm một đơn thứ hai CHỒNG lên ngày 12. Đếm theo
+        //    ĐƠN thì ngày ấy ra 3; đếm theo NGƯỜI ra 2. Hai con số, và chỉ một cái đúng.
+        themDonTho(a, THANG_LICH.atDay(11), THANG_LICH.atDay(13), "DA_DUYET");
+
+        String json = lichCua(quanTri, phienQt, donVi, HttpStatus.OK);
+
+        assertThat(so(json, "quanSo"))
+                .as("mẫu số = quân số CÒN LÀM VIỆC của đơn vị")
+                .isEqualByComparingTo("2");
+        assertThat(so(json, "nguongPhanTram")).isEqualByComparingTo("60");
+
+        String o12 = oNgay(json, THANG_LICH.atDay(12));
+        assertThat(so(o12, "soNguoiNghi"))
+                .as("⛔⛔ Ba đơn chồng lên ngày này nhưng chỉ HAI người — đếm theo đơn là thổi "
+                        + "phồng tỉ lệ rồi bắn cảnh báo giả (cùng lý lẽ `soNguoiNghiCungLuc`)")
+                .isEqualByComparingTo("2");
+        assertThat(so(o12, "tyLePhanTram")).isEqualByComparingTo("100");
+        assertThat(chuoi(o12, "vuotNguong")).isEqualTo("true");
+
+        String o14 = oNgay(json, THANG_LICH.atDay(14));
+        assertThat(so(o14, "soNguoiNghi")).isEqualByComparingTo("1");
+        assertThat(so(o14, "tyLePhanTram")).isEqualByComparingTo("50");
+        assertThat(chuoi(o14, "vuotNguong"))
+                .as("⚠ Vế phân biệt của chính cờ ấy: 50% < 60% thì nó phải TẮT, ⛔ thì khẳng "
+                        + "định `true` ở trên ⛔ chứng minh gì (luật 9)")
+                .isEqualTo("false");
+
+        String o20 = oNgay(json, THANG_LICH.atDay(20));
+        assertThat(so(o20, "soNguoiNghi"))
+                .as("ngày ⛔ ai nghỉ vẫn phải CÓ ô, mang số 0")
+                .isEqualByComparingTo("0");
+    }
+
+    @Test
+    @DisplayName("⛔⛔ Đơn ĐÃ DUYỆT phải có trên lịch — `hopChoDuyet` bỏ chúng nên ⛔ dùng lại được")
+    void lichGiuCaDonChoDuyetLanDaDuyet() {
+        long donViId = themDonVi(TIEN_TO + "XN-LICH2");
+        UUID donVi = jdbc.queryForObject("SELECT public_id FROM org_units WHERE id = ?", UUID.class, donViId);
+        UUID a = taoHoSo("LICH2-A", donVi);
+        UUID b = taoHoSo("LICH2-B", donVi);
+        themDonTho(a, THANG_LICH.atDay(3), THANG_LICH.atDay(4), "DA_DUYET");
+        themDonTho(b, THANG_LICH.atDay(3), THANG_LICH.atDay(4), "CHO_DUYET");
+
+        String json = lichCua(quanTri, phienQt, donVi, HttpStatus.OK);
+
+        assertThat(json)
+                .as("Thiếu `DA_DUYET` thì lịch thiếu đúng những người CHẮC CHẮN nghỉ — thứ người "
+                        + "phụ trách ca trực cần nhất")
+                .contains(TIEN_TO + "LICH2-A")
+                .contains(TIEN_TO + "LICH2-B");
+        assertThat(so(oNgay(json, THANG_LICH.atDay(3)), "soNguoiNghi")).isEqualByComparingTo("2");
+    }
+
+    @Test
+    @DisplayName("⛔⛔ Đơn vị NGOÀI phạm vi ⇒ 403 AUTH-3002 kèm dấu vết, ⛔ một lịch RỖNG")
+    void donViNgoaiPhamViTra403ChuKhongPhaiLichRong() {
+        UUID hoSoB = taoHoSo("LICH3-B", xnBPublic);
+        themDonTho(hoSoB, THANG_LICH.atDay(5), THANG_LICH.atDay(6), "DA_DUYET");
+
+        // Kéo tài khoản quản trị về XN-A rồi hỏi lịch của XN-B.
+        datDonViChoTaiKhoan(idTaiKhoanQt, xnAId);
+        ResponseEntity<String> ra = phienQt.goi(
+                quanTri, HttpMethod.GET, "/api/v1/hr/nghi-phep/lich?donVi=" + xnBPublic + THAM_SO_THANG, null);
+
+        assertThat(ra.getStatusCode())
+                .as(
+                        "⛔⛔ Bộ lọc phạm vi MỘT MÌNH trả lịch rỗng — đọc y hệt *'tháng này ⛔ ai "
+                                + "nghỉ'*. Hai trạng thái, một câu trả lời (luật 9). Và mẫu số cũng về 0 "
+                                + "nên màn hình mất luôn cảnh báo trùng lịch mà ⛔ nói vì sao. Thân: %s",
+                        ra.getBody())
+                .isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(ra.getBody()).contains("AUTH-3002");
+    }
+
+    @Test
+    @DisplayName("⚠ Vế phân biệt: đơn của đơn vị KHÁC ⛔ lọt vào lịch")
+    void lichKhongLotDonCuaDonViKhac() {
+        long donViId = themDonVi(TIEN_TO + "XN-LICH4");
+        UUID donVi = jdbc.queryForObject("SELECT public_id FROM org_units WHERE id = ?", UUID.class, donViId);
+        UUID trong = taoHoSo("LICH4-TRONG", donVi);
+        UUID ngoai = taoHoSo("LICH4-NGOAI", xnAPublic);
+        themDonTho(trong, THANG_LICH.atDay(7), THANG_LICH.atDay(8), "DA_DUYET");
+        themDonTho(ngoai, THANG_LICH.atDay(7), THANG_LICH.atDay(8), "DA_DUYET");
+
+        String json = lichCua(quanTri, phienQt, donVi, HttpStatus.OK);
+
+        assertThat(json).contains(TIEN_TO + "LICH4-TRONG");
+        assertThat(json)
+                .as("⛔ Thiếu vế này thì bài chính xanh cả khi truy vấn quên hẳn điều kiện đơn vị")
+                .doesNotContain(TIEN_TO + "LICH4-NGOAI");
+    }
+
+    @Test
+    @DisplayName("⛔ Thiếu `hr:leave:view-all` thì ⛔ xem được lịch của đơn vị")
+    void thieuQuyenThiKhongXemDuocLich() {
+        ResponseEntity<String> ra = phienNv.goi(
+                nhanVien, HttpMethod.GET, "/api/v1/hr/nghi-phep/lich?donVi=" + xnAPublic + THAM_SO_THANG, null);
+        assertThat(ra.getStatusCode()).as("%s", ra.getBody()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    @DisplayName("⚠ Tháng sai ⇒ 400; bỏ trống ⇒ tháng hiện tại THEO GIỜ VN do backend quyết")
+    void thamSoThangDuocKiemVaMacDinhLaThangVN() {
+        ResponseEntity<String> sai = phienQt.goi(
+                quanTri, HttpMethod.GET, "/api/v1/hr/nghi-phep/lich?donVi=" + xnAPublic + "&nam=2029&thang=13", null);
+        assertThat(sai.getStatusCode()).as("%s", sai.getBody()).isEqualTo(HttpStatus.BAD_REQUEST);
+
+        ResponseEntity<String> trong =
+                phienQt.goi(quanTri, HttpMethod.GET, "/api/v1/hr/nghi-phep/lich?donVi=" + xnAPublic, null);
+        assertThat(trong.getStatusCode()).as("%s", trong.getBody()).isEqualTo(HttpStatus.OK);
+        // ⚠ Viết thẳng chuỗi múi giờ chứ ⛔ đọc `DateTimeUtils.ZONE_VN`: một bài chép hằng số của
+        //   phía bên kia thì nó canh CHÍNH NÓ (T51.15).
+        assertThat(chuoi(trong.getBody(), "thang"))
+                .as("⛔⛔ Để giao diện gửi tháng của MÁY NÓ là mời đúng T63.18 ở cỡ tháng: một máy "
+                        + "trạm lệch múi giờ mở ra tháng khác và ⛔ gì báo (quy tắc 1)")
+                .isEqualTo(YearMonth.now(ZoneId.of("Asia/Ho_Chi_Minh")).toString());
+    }
+
+    // =========================================================================
     // Trợ giúp
     // =========================================================================
+
+    private String lichCua(PhienHttp.Phien phien, PhienHttp goi, UUID donVi, HttpStatus mong) {
+        ResponseEntity<String> ra =
+                goi.goi(phien, HttpMethod.GET, "/api/v1/hr/nghi-phep/lich?donVi=" + donVi + THAM_SO_THANG, null);
+        assertThat(ra.getStatusCode()).as("%s", ra.getBody()).isEqualTo(mong);
+        return ra.getBody();
+    }
+
+    /** Ô ngày cụ thể trong mảng `ngay` — {@link #chuoi} lấy khớp ĐẦU TIÊN nên ⛔ dùng thẳng được. */
+    private static String oNgay(String json, LocalDate ngay) {
+        Matcher m = Pattern.compile("\\{\"ngay\":\"" + ngay + "\"[^}]*}").matcher(json == null ? "" : json);
+        assertThat(m.find()).as("⛔ thấy ô ngày %s trong: %s", ngay, json).isTrue();
+        return m.group();
+    }
+
+    /**
+     * Một lá đơn ghi THẲNG vào bảng — đồ gá, ⛔ đi qua quy trình.
+     *
+     * <p>⚠ Cần thế: lịch phải mang cả {@code CHO_DUYET} lẫn {@code DA_DUYET}, mà đường HTTP ⛔ dựng
+     * nổi hai đơn chồng ngày của <b>cùng một người</b> (chốt chặn {@code HR-2005}) — và đúng cặp ấy
+     * là vế phân biệt *đếm theo NGƯỜI* với *đếm theo ĐƠN*.
+     */
+    private void themDonTho(UUID hoSo, LocalDate tu, LocalDate den, String trangThai) {
+        int them = jdbc.update(
+                """
+                INSERT INTO leave_requests (employee_id, org_unit_id, leave_type, from_date, to_date, working_days,
+                                            reason, requester_user_id, state, decided_by, decided_at, created_at)
+                SELECT e.id, e.org_unit_id, 'PHEP_NAM', ?, ?, 1::numeric, 'Đồ gá T57.18b',
+                       u.id, ?, CASE WHEN ? = 'DA_DUYET' THEN u.id END,
+                       CASE WHEN ? = 'DA_DUYET' THEN now() END, now()
+                FROM employees e, users u
+                WHERE e.public_id = ? AND u.public_id = ?
+                """,
+                tu,
+                den,
+                trangThai,
+                trangThai,
+                trangThai,
+                hoSo,
+                idNguoiDuyet);
+        assertThat(them)
+                .as("⛔ đồ gá hỏng thì mọi khẳng định dưới xanh trên tập rỗng")
+                .isEqualTo(1);
+    }
 
     private String donJson(UUID hoSo, String loai, LocalDate tu, LocalDate den) {
         return """

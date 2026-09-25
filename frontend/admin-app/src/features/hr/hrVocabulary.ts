@@ -728,3 +728,39 @@ export interface GiaoUyQuyenRequest {
   denNgay: string;
   lyDo?: string;
 }
+
+/**
+ * Một ô ngày trên lịch nghỉ đơn vị — T57.18(b).
+ *
+ * ⚠⚠ `tyLePhanTram === null` là một trạng thái **THỨ BA**, ⛔ phải `0` cho gọn: `0` nghĩa là *⛔ ai
+ * nghỉ*, `null` nghĩa là *đơn vị ⛔ có quân số nên ⛔ có mẫu số để chia*. Màn hình phải nói hai câu
+ * khác nhau — cùng lý lẽ ba trạng thái của `toiDuyetDuoc` ở `DonNghiView`.
+ */
+export interface LichNgayView {
+  /** `yyyy-MM-dd`. */
+  ngay: string;
+  soNguoiNghi: number;
+  tyLePhanTram: number | null;
+  vuotNguong: boolean;
+}
+
+/**
+ * Lịch nghỉ của một đơn vị trong một tháng — T57.18(b).
+ *
+ * ⛔⛔ **Tỉ lệ và cờ vượt ngưỡng do BACKEND tính** (quy tắc 3), ⛔ phải một phép chia ở đây. Mẫu số
+ * là *quân số còn làm việc*, suy từ `EmploymentStatus.daNghi()` — một luật nhân sự mà trình duyệt ⛔
+ * có cách nào biết; còn ngưỡng nằm trong `settings`, sửa được lúc chạy. Chia lại ở giao diện là
+ * dựng bản sao thứ hai của cả hai.
+ *
+ * ⚠ `thang` là chuỗi `yyyy-MM` — một **tháng dương lịch**, ⛔ phải một khoảnh khắc. ⛔ Đổi nó qua
+ * `dayjs()` trần rồi định dạng lại: đúng lớp lỗi T63.18, chỉ là ở cỡ tháng thay vì cỡ ngày.
+ */
+export interface LichDonViView {
+  donViPublicId: string;
+  tenDonVi: string;
+  thang: string;
+  quanSo: number;
+  nguongPhanTram: number;
+  don: DonNghiView[];
+  ngay: LichNgayView[];
+}

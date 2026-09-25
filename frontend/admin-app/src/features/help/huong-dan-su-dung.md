@@ -643,6 +643,29 @@ _Hồ sơ của tôi_ và _Nghỉ phép của tôi_ chỉ hiện với tài kho�
 hồ sơ cán bộ**. Chưa thấy hai mục này thì nhờ quản trị viên liên kết giúp ở màn hình
 _Tài khoản_.
 
+### Lịch nghỉ đơn vị
+
+<!-- man-hinh: /nhan-su/lich-nghi-don-vi -->
+
+Xem **cả tháng một lượt** ai của đơn vị đang nghỉ — dùng để bố trí ca trực trước khi duyệt
+thêm đơn mới.
+
+```
+Chọn đơn vị → chọn tháng → mỗi ô ngày hiện “N người · X%”
+```
+
+- Ô **đỏ** là ngày có từ **X% quân số trở lên** nghỉ cùng lúc. Ngưỡng X đặt tại _Cấu hình
+  hệ thống_ (cùng ngưỡng sinh ra câu cảnh báo lúc nhân viên nộp đơn), và màn hình ghi rõ
+  ngưỡng đang áp dụng ngay trên đầu trang.
+- Số người đếm theo **người**, không theo đơn: một người nộp hai đơn rời nhau trong cùng
+  tháng vẫn là **một** người vắng mặt.
+- Lịch gồm cả đơn **đang chờ duyệt** lẫn đơn **đã duyệt** — nếu chỉ tính đơn đã duyệt thì
+  lịch bỏ sót đúng những người sắp nghỉ.
+- Mẫu số là **quân số còn làm việc** của đơn vị: người nghỉ thai sản vẫn được tính, người
+  đã nghỉ việc thì không. Đơn vị chưa có cán bộ nào thì màn hình nói thẳng là chưa tính
+  được tỉ lệ, chứ không hiện 0%.
+- Chỉ chọn được đơn vị **trong phạm vi của bạn**; các đơn vị khác hiện mờ và không bấm được.
+
 ### Uỷ quyền duyệt phép
 
 <!-- man-hinh: /nhan-su/uy-quyen-duyet -->
