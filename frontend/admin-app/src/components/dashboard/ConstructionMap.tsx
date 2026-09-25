@@ -1,4 +1,4 @@
-import { Alert, Button, Empty, Space, Typography } from 'antd';
+import { Alert, App, Button, Empty, Space, theme, Typography } from 'antd';
 import L from 'leaflet';
 import { neutralColors, statusColors } from '@songnhue/design-tokens';
 import { useEffect, useRef, useState } from 'react';
@@ -10,9 +10,19 @@ import {
   type MapPointView,
   type StationMarkerView,
 } from '@/shared/api-types';
+import { ngayHomNay } from '@/shared/format';
 
 import { chieuDai, dienTich, nhanChieuDai, nhanDienTich, type Diem } from './banDoDo';
-import { bieuTuongDiemDo, popupDiemDo, thoat } from './constructionMapMarkers';
+import {
+  bieuTuongCongTrinh,
+  bieuTuongDiemDo,
+  chamCongTrinh,
+  chamDiemDo,
+  coToaDo,
+  popupDiemDo,
+  thoat,
+} from './constructionMapMarkers';
+import { LoiXuatAnh, xuatAnhBanDo, type ChamVe } from './xuatAnhBanDo';
 
 /**
  * Một lớp GIS đã tải xong nội dung, sẵn sàng vẽ.
@@ -62,6 +72,7 @@ export function ConstructionMap({
   wall = false,
   lopGis = [],
   coCongCuDo = false,
+  coXuatAnh = false,
 }: {
   points: MapPointView[];
   /**
@@ -90,6 +101,13 @@ export function ConstructionMap({
    * vào là một nút ⛔ không dùng được, và tệ hơn — nó bắt được cú click ⛔ không chủ đích.
    */
   coCongCuDo?: boolean;
+  /**
+   * Bật nút **Xuất ảnh** — M2.13 vế 1 / T59.13.
+   *
+   * ⛔ Mặc định **TẮT**, cùng lý lẽ với `coCongCuDo`: wall mode ⛔ được có nút nào (CN-02.5), và
+   * một nút mặc-định-bật sẽ tự mọc ra ở mọi nơi đặt bản đồ về sau mà ⛔ ai quyết định.
+   */
+  coXuatAnh?: boolean;
 }) {
   const khungRef = useRef<HTMLDivElement>(null);
   const banDoRef = useRef<L.Map | null>(null);
@@ -104,6 +122,9 @@ export function ConstructionMap({
   const lopDoRef = useRef<L.LayerGroup | null>(null);
   const [diemDo_Do, setDiemDoDo] = useState<Diem[]>([]);
   const [dangDo, setDangDo] = useState(false);
+  const [dangXuat, setDangXuat] = useState(false);
+  const { message } = App.useApp();
+  const { token } = theme.useToken();
 
   // Dựng bản đồ một lần. `config` chỉ đọc ở lượt dựng đầu: đổi nguồn tile giữa chừng là
   // việc của người quản trị và có hiệu lực ở lượt tải trang sau — dựng lại cả bản đồ mỗi
@@ -159,7 +180,7 @@ export function ConstructionMap({
       // ⛔ Popup chưa có nút "Xem chi tiết" (M2.10 có yêu cầu): màn hình hồ sơ công trình
       // thuộc WS-21. Một nút dẫn tới route không tồn tại trông như chức năng hỏng, tệ hơn
       // hẳn so với việc chưa có nút.
-      L.marker([diem.latitude, diem.longitude], { icon: bieuTuong(diem) })
+      L.marker([diem.latitude, diem.longitude], { icon: bieuTuongCongTrinh(diem) })
         .addTo(lop)
         .bindPopup(noiDungPopup(diem));
     });
@@ -176,14 +197,7 @@ export function ConstructionMap({
         .filter((d) => Number.isFinite(d.latitude) && Number.isFinite(d.longitude))
         .map((d): [number, number] => [d.latitude, d.longitude]),
       ...diemDo
-        .filter(
-          (d) =>
-            d.latitude != null &&
-            d.longitude != null &&
-            Number.isFinite(Number(d.latitude)) &&
-            Number.isFinite(Number(d.longitude)) &&
-            (Number(d.latitude) !== 0 || Number(d.longitude) !== 0),
-        )
+        .filter(coToaDo)
         .map((d): [number, number] => [Number(d.latitude), Number(d.longitude)]),
     ];
     if (toaDo.length > 0) {
@@ -199,20 +213,11 @@ export function ConstructionMap({
       return;
     }
     lop.clearLayers();
-    diemDo
-      .filter(
-        (d) =>
-          d.latitude != null &&
-          d.longitude != null &&
-          Number.isFinite(Number(d.latitude)) &&
-          Number.isFinite(Number(d.longitude)) &&
-          (Number(d.latitude) !== 0 || Number(d.longitude) !== 0),
-      )
-      .forEach((d) => {
-        L.marker([Number(d.latitude), Number(d.longitude)], { icon: bieuTuongDiemDo(d) })
-          .addTo(lop)
-          .bindPopup(popupDiemDo(d));
-      });
+    diemDo.filter(coToaDo).forEach((d) => {
+      L.marker([Number(d.latitude), Number(d.longitude)], { icon: bieuTuongDiemDo(d) })
+        .addTo(lop)
+        .bindPopup(popupDiemDo(d));
+    });
   }, [diemDo]);
 
   // ⭐ Lớp GIS do người vận hành nạp — M2.9. useEffect RIÊNG, cùng lý lẽ với lớp điểm đo.
@@ -269,6 +274,59 @@ export function ConstructionMap({
     };
   }, [dangDo]);
 
+  /**
+   * ⭐ M2.13 vế 1 — T59.13. Lượt xuất đọc **cùng dữ liệu nguồn** mà bản đồ đang vẽ (`points`,
+   * `diemDo`, `lopGis`, `diemDo_Do`) và chiếu qua **cùng một** `latLngToContainerPoint`. ⛔ Đọc
+   * ngược từ DOM của Leaflet: chỗ đặt các pane có phép biến hình CSS riêng, và một tấm ảnh lệch
+   * vài chục pixel trông *gần đúng* — đúng lớp lỗi ⛔ ai phát hiện.
+   */
+  const xuatAnh = async () => {
+    const banDo = banDoRef.current;
+    if (!banDo || !config) {
+      return;
+    }
+    setDangXuat(true);
+    try {
+      const chams: ChamVe[] = [
+        ...points
+          .filter((d) => Number.isFinite(d.latitude) && Number.isFinite(d.longitude))
+          .map((d) => ({ lat: d.latitude, lng: d.longitude, cham: chamCongTrinh(d) })),
+        ...diemDo.filter(coToaDo).map((d) => ({
+          lat: Number(d.latitude),
+          lng: Number(d.longitude),
+          cham: chamDiemDo(d),
+        })),
+      ];
+      await xuatAnhBanDo({
+        banDo,
+        cauHinh: config,
+        chams,
+        // ⛔ Cùng phép chia `/100` với lượt vẽ ở trên — `opacity` là phần trăm NGUYÊN ở API/CSDL.
+        lopGis: lopGis.map((l) => ({
+          geojson: l.geojson,
+          mau: l.view.color,
+          mo: l.view.opacity / 100,
+        })),
+        diemDo: diemDo_Do,
+        // ⛔ ⛔ `new Date().toISOString()`: nó cho ngày **UTC**, nên một lượt xuất lúc 03:00 giờ VN
+        //   đặt tên tệp theo NGÀY HÔM TRƯỚC. Đúng lớp lỗi T63.18, và luật ESLint chỉ bắt `dayjs()`
+        //   trần nên đường này đi lọt — `ngayHomNay()` là lối đã chuẩn hoá.
+        tenTep: `ban-do-cong-trinh-${ngayHomNay()}.png`,
+        mauNen: token.colorBgContainer,
+        mauVien: neutralColors.bgContainer,
+        mauChu: token.colorText,
+      });
+    } catch (loi) {
+      // ⛔ ⛔ Nuốt lỗi rồi im: một nút bấm xong ⛔ có gì xảy ra là thứ người dùng ⛔ báo lại được.
+      message.error(
+        loi instanceof LoiXuatAnh ? loi.message : 'Không xuất được ảnh bản đồ. Thử lại sau.',
+        8,
+      );
+    } finally {
+      setDangXuat(false);
+    }
+  };
+
   if (!config) {
     return <Empty description="Chưa tải được cấu hình bản đồ" />;
   }
@@ -300,21 +358,33 @@ export function ConstructionMap({
         ⚠ Số đo hiện NGAY trên thanh, ⛔ không trong popup: người đo cần thấy con số **trong lúc**
           bấm thêm điểm, ⛔ không phải sau khi bấm xong.
       */}
-      {coCongCuDo && (
+      {(coCongCuDo || coXuatAnh) && (
         <Space wrap style={{ marginBottom: 8 }}>
-          <Button
-            size="small"
-            type={dangDo ? 'primary' : 'default'}
-            onClick={() => {
-              setDangDo((truoc) => !truoc);
-              if (dangDo) {
-                setDiemDoDo([]);
-              }
-            }}
-          >
-            {dangDo ? 'Tắt công cụ đo' : 'Đo khoảng cách / diện tích'}
-          </Button>
-          {dangDo && (
+          {coCongCuDo && (
+            <Button
+              size="small"
+              type={dangDo ? 'primary' : 'default'}
+              onClick={() => {
+                setDangDo((truoc) => !truoc);
+                if (dangDo) {
+                  setDiemDoDo([]);
+                }
+              }}
+            >
+              {dangDo ? 'Tắt công cụ đo' : 'Đo khoảng cách / diện tích'}
+            </Button>
+          )}
+          {/*
+            ⭐ M2.13 vế 1 — T59.13. Ảnh chụp ĐÚNG khung nhìn hiện tại: *"theo khu vực"* của đặc tả
+              chính là vùng người dùng vừa kéo/phóng tới, ⛔ phải một ô chọn Xí nghiệp thứ hai —
+              thêm một bộ lọc riêng cho lượt xuất là dựng hai khái niệm "khu vực" cạnh nhau.
+          */}
+          {coXuatAnh && (
+            <Button size="small" loading={dangXuat} onClick={() => void xuatAnh()}>
+              Xuất ảnh bản đồ (PNG)
+            </Button>
+          )}
+          {coCongCuDo && dangDo && (
             <>
               <Button
                 size="small"
@@ -342,21 +412,6 @@ export function ConstructionMap({
       />
     </>
   );
-}
-
-/** Chấm tròn màu theo trạng thái, viền trắng để nổi trên mọi nền bản đồ. */
-function bieuTuong(diem: MapPointView): L.DivIcon {
-  const khoaMau = CONSTRUCTION_STATUS[diem.operationalStatus]?.color ?? 'unknown';
-  const mau = statusColors[khoaMau];
-  return L.divIcon({
-    className: '',
-    iconSize: [16, 16],
-    iconAnchor: [8, 8],
-    popupAnchor: [0, -8],
-    html:
-      `<span style="display:block;width:16px;height:16px;border-radius:50%;` +
-      `background:${mau};border:2px solid ${neutralColors.bgContainer};box-shadow:0 0 0 1px rgba(0,0,0,.35)"></span>`,
-  });
 }
 
 /**

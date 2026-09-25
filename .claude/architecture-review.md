@@ -8567,3 +8567,72 @@ này — bằng nhau nghĩa là đồ gá ⛔ dựng được ca T80.7.
   `veCam` dùng chung giữa *nút* và *cờ*. Chép lại ba dòng ấy là luật 14, và ngày hai bản lệch nhau là
   ngày màn hình bày một cái nút máy chủ từ chối — hoặc **giấu** một cái nút đáng ra bấm được, trạng
   thái thứ hai thì ⛔ ai báo.
+
+### §12.21 Xuất ảnh bản đồ: CSP quyết định kiến trúc, ⛔ phải sở thích (T59.13, 25/9/2026)
+
+Dòng nợ mở từ 14/09 nêu lựa chọn *"cần một bộ chụp DOM (`leaflet-image` / `html2canvas`) — kho ⛔
+có, và thêm một phụ thuộc chỉ để chụp màn hình là mở thêm bề mặt CVE"*. Lượt đo 19/09 bổ sung
+*"thư viện chụp DOM sẽ vướng `connect-src`"*. Lượt này **đo lại và câu ấy đúng** — nhưng lý do thật
+mạnh hơn cách nó được viết: ⛔ phải *"sẽ vướng"* mà là **⛔ có đường nào chạy được**.
+
+**Phép đo.** `deploy/docker/admin-app.Dockerfile` khai `connect-src 'self'` và
+`img-src 'self' data: blob: https://tile.openstreetmap.org https://*.tile.openstreetmap.org`.
+⇒ `fetch()`/XHR tới host tile **bị chặn**; `new Image()` thì qua. Mọi bộ chụp DOM phổ thông đọc ảnh
+chéo nguồn bằng fetch/XHR hoặc qua proxy — cả hai đâm vào `connect-src`. Một phụ thuộc mua về ở đây
+⛔ mua được gì: nó hỏng vì đúng lý do mà mã tự viết né được, và còn kéo theo bề mặt CVE.
+
+**⛔⛔ Cách vá hiển nhiên nhất là cách nguy hiểm nhất.** Đường ngắn nhất để canvas ⛔ bị nhiễm là
+khai `crossOrigin: 'anonymous'` ngay ở `L.tileLayer(...)`. ⛔ Với một host ⛔ trả
+`Access-Control-Allow-Origin`, trình duyệt **bỏ hẳn** ảnh ⇒ **bản đồ xám trơn** — mà
+`ops.map.tile-url` là khoá `settings` người vận hành sửa được. Đó là đổi một tính năng phụ lấy rủi
+ro hạ tính năng chính, đúng thứ T59.10 đã trả giá. ⇒ Lượt xuất tự tải **bộ ảnh riêng**; bản đồ trên
+màn hình ⛔ đổi một dòng nào, và host ⛔ mở CORS thì chỉ **nút xuất** hỏng, kèm một câu nói rõ vì sao.
+
+Đo trên host đang chạy, **kèm đối chứng** để phép đo phân biệt được hai trạng thái (luật 9):
+`tile.openstreetmap.org` trả `access-control-allow-origin: *`; `www.google.com/favicon.ico` trả
+**0** dòng header ấy.
+
+⚠ Và bộ canh ghép `img-src` ↔ tile URL (`NginxSecurityHeadersTest`) đọc **giá trị seed trong
+migration**, ⛔ phải giá trị đang chạy trong `settings` — nên nó ⛔ chặn được một lượt đổi host lúc
+vận hành. Hệ quả vẫn bó hẹp, nhưng phải nói ra: đổi host ra ngoài `img-src` là **bản đồ hỏng ngay
+hôm nay**, ⛔ đợi tới lượt xuất.
+
+#### ⛔⛔ Dòng ghi nguồn phải NẰM TRONG tấm ảnh
+
+Bản đồ trên màn hình có `attributionControl: true`, nhưng tệp PNG thì **rời khỏi màn hình** và đi
+vào báo cáo. Giấy phép ODbL của OpenStreetMap đòi ghi nguồn đi cùng bản trích. Một bản xuất bỏ dòng
+ấy ⛔ phải thiếu thẩm mỹ — nó là một bản trích **⛔ đúng giấy phép**, và ⛔ ai phát hiện cho tới lúc
+tấm ảnh đã nằm trong một văn bản gửi đi. ⇒ `chuGhiNguon` bóc thẻ HTML (ô ấy là khoá `settings` sửa
+được, Leaflet nhận HTML ở đó còn canvas thì chỉ vẽ được chữ) rồi burn vào góc phải dưới.
+
+#### ⛔ ⛔ Đọc ngược hình học từ DOM của Leaflet — và vì sao ⛔
+
+Phương án trông gọn nhất là serialize `<svg>` trong `.leaflet-overlay-pane` rồi vẽ đè. Bỏ, vì chỗ
+đặt pane ấy do một phép biến hình CSS của Leaflet quyết định và **⛔ kiểm được nếu ⛔ có trình
+duyệt** — một tấm ảnh lệch vài chục pixel trông *gần đúng*, đúng lớp lỗi ⛔ ai phát hiện. Thay vào
+đó lượt xuất chiếu lại hình học **từ chính dữ liệu nguồn** mà bản đồ đang vẽ, qua **cùng một**
+`latLngToContainerPoint`: một phép chiếu, ⛔ hai hệ toạ độ.
+
+Kèm theo đó là chỗ **duy nhất** đảo thứ tự toạ độ: GeoJSON cho `[lng, lat]` (RFC 7946 §3.1.1),
+Leaflet đòi `[lat, lng]`. `traiHinhHoc` **giữ nguyên** thứ tự của RFC — đảo hai lần là ⛔ đảo, và
+đây đúng là cái bẫy T59.14 vừa trả giá ở đường nạp.
+
+#### ⭐ Một quyết định, hai bộ vẽ
+
+Từ lượt này màu/hình của một chấm có **hai** bộ đọc: `divIcon` (HTML, màn hình) và `veCham` (canvas,
+tệp PNG). Chép quyết định sang bộ thứ hai là luật 14 ở dạng đắt nhất — một chấm **sai màu** trên
+tấm ảnh khẳng định một công trình đang *Bình thường* trong khi nó đang *Sự cố*, và tấm ảnh ấy đi
+vào báo cáo. ⇒ `ChamBanDo`: quyết định ở một hàm, hai bộ vẽ chỉ nhận kết quả. Hình dạng pixel hai
+bên lệch chút ít thì ⛔ nói được điều gì sai; **màu thì nói**.
+
+Cùng lượt, vị từ *"điểm đo này đã số hoá vị trí chưa"* — đã có **hai** bản chép giống hệt nhau
+trong `ConstructionMap.tsx`, và lượt xuất là nơi gọi **thứ ba** — bóc thành `coToaDo`. Bản thứ ba
+là chỗ chúng bắt đầu trôi khỏi nhau.
+
+#### ⚠ Ba cổng, ba câu hỏi khác nhau — lần thứ NĂM
+
+`tsc` thoát 0, bộ kiểm 37/37 xanh, rồi **ESLint** đỏ: `toThrowError` đã khai tử
+(`@typescript-eslint/no-deprecated`). Và ở chiều ngược lại, `new Date().toISOString().slice(0,10)`
+trong tên tệp — **đúng lớp lỗi T63.18** (ngày UTC ⇒ một lượt xuất lúc 03:00 giờ VN đặt tên theo
+ngày hôm trước) — đi lọt **cả ba** cổng, vì luật ESLint chỉ bắt `dayjs()` trần. Thứ bắt được nó là
+đọc lại luật đã thành văn, ⛔ phải một bộ canh. ⇒ `ngayHomNay()`.

@@ -171,6 +171,8 @@ export function OperationsDashboardPage() {
               //   thao tác chuột/bàn phím"*, và một công cụ bắt cú click trên màn hình ⛔ không ai
               //   chạm vào chỉ có thể bắt nhầm.
               coCongCuDo={!wall}
+              // ⛔ Cùng lý do với `coCongCuDo`: wall mode ⛔ có nút nào (CN-02.5).
+              coXuatAnh={!wall}
             />
           </ChartCard>
 

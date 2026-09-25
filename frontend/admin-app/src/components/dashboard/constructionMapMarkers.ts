@@ -6,8 +6,9 @@ import {
   statusColors,
 } from '@songnhue/design-tokens';
 
+import { CONSTRUCTION_STATUS } from '@/components/business/statusVocabulary';
 import { TRANG_THAI_TIN_HIEU, VAI_TRO_VI_TRI } from '@/features/hydro/hydroVocabulary';
-import { type StationMarkerView } from '@/shared/api-types';
+import { type MapPointView, type StationMarkerView } from '@/shared/api-types';
 import { formatDateTime } from '@/shared/format';
 
 /**
@@ -83,22 +84,91 @@ export function thoat(gia: string): string {
     .replace(/"/g, '&quot;');
 }
 
+/**
+ * **Bản mô tả một chấm trên bản đồ** — màu, hình, kiểu viền, cạnh.
+ *
+ * <h3>⛔⛔ Vì sao tách khỏi `divIcon` — T59.13</h3>
+ *
+ * Từ T59.13 có **hai** bộ vẽ đọc cùng một quyết định: `divIcon` (HTML, cho bản đồ trên màn hình)
+ * và `veCham` (canvas, cho tệp PNG xuất ra). Chép quyết định sang bộ thứ hai là luật 14 ở dạng
+ * đắt nhất — một chấm **sai màu** trên tấm ảnh ⛔ phải chuyện thẩm mỹ: nó khẳng định một công
+ * trình đang *Bình thường* trong khi nó đang *Sự cố*, và tấm ảnh ấy đi vào báo cáo.
+ *
+ * ⇒ Quyết định nằm ở **một** hàm ({@link chamCongTrinh} · {@link chamDiemDo}); hai bộ vẽ chỉ nhận
+ * kết quả. Hình dạng pixel hai bên có thể lệch chút ít (viền CSS vs nét canvas) — cái đó ⛔ nói
+ * được điều gì sai; **màu thì nói**.
+ */
+export interface ChamBanDo {
+  mau: string;
+  vien: 'solid' | 'dashed';
+  /** Cạnh (đường kính với hình tròn), pixel. */
+  canh: number;
+  hinh: 'tron' | 'tram';
+}
+
+/**
+ * Điểm đo này đã số hoá vị trí chưa.
+ *
+ * <h3>⚠ `(0, 0)` bị coi là CHƯA có toạ độ — và đó là một quyết định, ⛔ một mẹo</h3>
+ *
+ * Toạ độ `0,0` nằm giữa vịnh Guinea. Một bản ghi mang số ấy ⛔ bao giờ là một công trình thuỷ lợi
+ * ở Hà Nội — nó là giá trị mặc định của một biểu mẫu ⛔ ai điền. Vẽ nó lên thì bản đồ tự thu khung
+ * nhìn ra giữa Đại Tây Dương để ôm trọn một điểm ⛔ có thật (`fitBounds` tính cả nó).
+ *
+ * ⛔ Tách thành hàm riêng ở T59.13 vì lượt xuất ảnh là nơi gọi **thứ ba**. Hai bản chép trước đó
+ * đã giống hệt nhau; bản thứ ba là chỗ chúng bắt đầu trôi khỏi nhau (luật 14).
+ */
+export function coToaDo(d: StationMarkerView): boolean {
+  return (
+    d.latitude != null &&
+    d.longitude != null &&
+    Number.isFinite(Number(d.latitude)) &&
+    Number.isFinite(Number(d.longitude)) &&
+    (Number(d.latitude) !== 0 || Number(d.longitude) !== 0)
+  );
+}
+
+/** Chấm công trình — tròn 16px, màu theo trạng thái vận hành (M2.10). */
+export function chamCongTrinh(d: MapPointView): ChamBanDo {
+  const khoaMau = CONSTRUCTION_STATUS[d.operationalStatus]?.color ?? 'unknown';
+  return { mau: statusColors[khoaMau], vien: 'solid', canh: 16, hinh: 'tron' };
+}
+
 /** Chấm điểm đo — quả trám 15px. Màu cảnh báo **thắng** màu trạng thái, có chủ đích. */
-export function bieuTuongDiemDo(d: StationMarkerView): L.DivIcon {
-  const mau = d.khoaMauCanhBao
-    ? mauMucCanhBao(d.khoaMauCanhBao)
-    : statusColors[MAU_TIN_HIEU[d.trangThai]];
-  const vien = d.nghiNgo ? 'dashed' : 'solid';
+export function chamDiemDo(d: StationMarkerView): ChamBanDo {
+  return {
+    mau: d.khoaMauCanhBao
+      ? mauMucCanhBao(d.khoaMauCanhBao)
+      : statusColors[MAU_TIN_HIEU[d.trangThai]],
+    vien: d.nghiNgo ? 'dashed' : 'solid',
+    canh: 15,
+    hinh: 'tram',
+  };
+}
+
+/** Dựng `divIcon` từ bản mô tả — bộ vẽ HTML, cặp với `veCham` ở bộ vẽ canvas. */
+function bieuTuongTu(cham: ChamBanDo): L.DivIcon {
+  const nua = cham.canh / 2;
+  const hinh = cham.hinh === 'tron' ? 'border-radius:50%;' : 'transform:rotate(45deg);';
   return L.divIcon({
     className: '',
-    iconSize: [15, 15],
-    iconAnchor: [7.5, 7.5],
+    iconSize: [cham.canh, cham.canh],
+    iconAnchor: [nua, nua],
     popupAnchor: [0, -8],
     html:
-      `<span style="display:block;width:15px;height:15px;transform:rotate(45deg);` +
-      `background:${mau};border:2px ${vien} ${neutralColors.bgContainer};` +
+      `<span style="display:block;width:${cham.canh}px;height:${cham.canh}px;${hinh}` +
+      `background:${cham.mau};border:2px ${cham.vien} ${neutralColors.bgContainer};` +
       `box-shadow:0 0 0 1px rgba(0,0,0,.35)"></span>`,
   });
+}
+
+/** Chấm tròn màu theo trạng thái, viền trắng để nổi trên mọi nền bản đồ. */
+export function bieuTuongCongTrinh(d: MapPointView): L.DivIcon {
+  return bieuTuongTu(chamCongTrinh(d));
+}
+
+export function bieuTuongDiemDo(d: StationMarkerView): L.DivIcon {
+  return bieuTuongTu(chamDiemDo(d));
 }
 
 /**
