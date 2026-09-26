@@ -412,7 +412,8 @@ export function ApiSourcesPage() {
           >
             <Select
               options={[
-                { value: 'BHH40', label: 'BHH40 — bhh40.net (getmn.aspx)' },
+                { value: 'BHH40', label: 'BHH40 — bhh40.net, mực nước (getmucnuoc.aspx)' },
+                { value: 'BHH40_MUA', label: 'BHH40_MUA — bhh40.net, lượng mưa (getluongmua.aspx)' },
                 { value: 'MOCK', label: 'MOCK — nguồn giả, chỉ dùng khi phát triển' },
               ]}
             />

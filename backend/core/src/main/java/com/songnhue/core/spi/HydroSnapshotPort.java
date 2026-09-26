@@ -24,8 +24,17 @@ public interface HydroSnapshotPort {
      *
      * <p>Dời lên đây từ {@code PublicHydroService} (18/09/2026) vì Bảng 4 của Báo cáo nhanh ở module
      * {@code operations} phải nói đúng câu ấy mà ⛔ import được {@code hydro}.
+     *
+     * <h2>⚠ Câu này ĐỔI BẢN CHẤT ngày 26/09/2026 (WS-87)</h2>
+     *
+     * <p>Bản cũ nói <i>"chưa có nguồn lượng mưa"</i>. Sau khi Công ty cấp {@code getluongmua.aspx}
+     * thì vế ấy <b>sai</b>, và sai theo chiều đắt: nó gửi người vận hành đi <b>chờ một endpoint đã
+     * có</b>, trong khi thứ thật sự còn thiếu là <b>bảng ánh xạ 15 mã ↔ trạm</b> — việc của Công ty,
+     * thuộc G8. Hai câu nghe gần giống nhau mà dẫn tới hai việc khác hẳn (T52.8 · T59.0).
      */
-    String LY_DO_LUONG_MUA = "Chưa có nguồn lượng mưa: loại chỉ số đã khai nhưng chưa gắn cho điểm đo nào (mục G3-a)";
+    String LY_DO_LUONG_MUA = "Nguồn lượng mưa đã nối (26/09/2026) nhưng 15 mã trạm mưa chưa được khai "
+            + "thành điểm đo — số đo đang giữ nguyên văn ở hydro_unmapped_readings, chờ Công ty cấp "
+            + "bảng ánh xạ mã ↔ trạm (mục G8)";
 
     /**
      * Một số đo mực nước.

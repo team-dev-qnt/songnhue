@@ -37,7 +37,9 @@ export const metadata: Metadata = {
  * ⛔ không biến mất chỉ vì đường dữ liệu đã thông:
  *
  * <ul>
- *   <li><b>không có API lượng mưa</b> — nguồn chỉ có {@code getmn.aspx} (mực nước);
+ *   <li><b>lượng mưa CÓ API</b> từ 26/09/2026 ({@code getluongmua.aspx}, 15 mã, đơn vị mm) —
+ *       nhưng 15 mã ấy <b>chưa được khai thành điểm đo</b> (bảng ánh xạ thuộc Công ty, mục G8),
+ *       nên cột lượng mưa vẫn trống và số đo nằm nguyên văn ở {@code hydro_unmapped_readings};
  *   <li><b>không có API lịch sử</b> — tham số ngày bị bỏ qua, nên dữ liệu quá khứ chỉ có nếu
  *       chính hệ này đã ghi lại từ trước;
  *   <li>API phủ <b>19 điểm đo</b>, ít hơn biểu tổng hợp giấy Công ty đang dùng.

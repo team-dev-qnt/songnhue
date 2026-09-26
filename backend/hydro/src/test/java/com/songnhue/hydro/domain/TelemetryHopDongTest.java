@@ -104,12 +104,77 @@ class TelemetryHopDongTest {
                     .isEqualTo(new BigDecimal("0.049"));
         }
 
+        /**
+         * ⚠⚠ <b>Mẫu bị từ chối phải là một đơn vị VẪN CHƯA BIẾT</b> — WS-87.
+         *
+         * <p>Tới 26/09/2026 bài này lấy {@code "mm"} làm mẫu, và nó <b>đỏ ngay lượt nối nguồn lượng
+         * mưa</b> — đúng như nó phải thế: một bài kiểm chứng ngược lấy mẫu từ *"đơn vị chưa ai dùng"*
+         * hết đúng vào đúng ngày có người dùng nó. Mẫu mới là {@code "m"} — hợp lý về vật lý nên rất
+         * dễ có người thả vào, và <b>vẫn ⛔ có nhánh quy đổi</b>, tức vẫn phải bị chặn.
+         */
         @Test
         @DisplayName("⛔ Đơn vị lạ bị TỪ CHỐI ở hàm dựng — điểm cắm nguồn thứ hai là đây, ⛔ không phải chỗ nới")
         void donViLaBiTuChoi() {
-            assertThatThrownBy(() -> new TelemetryReading("F1", Instant.EPOCH, BigDecimal.ONE, "mm"))
+            assertThatThrownBy(() -> new TelemetryReading("F1", Instant.EPOCH, BigDecimal.ONE, "m"))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("Chưa biết quy đổi đơn vị");
+        }
+
+        /**
+         * Danh sách trắng khớp <b>đúng chuỗi</b>, ⛔ thường-hoá.
+         *
+         * <p>Nới thành so-không-phân-biệt-hoa-thường nghe vô hại, nhưng đó là bước đầu của *"nhận mọi
+         * chuỗi"* mà javadoc của {@code TelemetryReading} cấm đích danh — và một adapter khai
+         * {@code "MM"} là một adapter chưa ai đọc lại, ⛔ phải một adapter đúng.
+         */
+        @Test
+        @DisplayName("⛔ Danh sách trắng đơn vị khớp ĐÚNG CHUỖI — 'MM' hoa vẫn bị từ chối")
+        void donViKhopDungChuoiChuKhongThuongHoa() {
+            assertThatThrownBy(() -> new TelemetryReading("F1", Instant.EPOCH, BigDecimal.ONE, "MM"))
+                    .isInstanceOf(IllegalArgumentException.class);
+            assertThat(TelemetryReading.donViDuocBiet("mm")).isTrue();
+            assertThat(TelemetryReading.donViDuocBiet("MM")).isFalse();
+        }
+
+        /**
+         * ⭐⭐ <b>Lượng mưa: mm → mm, hệ số 1.</b>
+         *
+         * <p>Vế phân biệt nằm ở chính con số: cho lượng mưa đi qua nhánh {@code cm} thì {@code 12,5}
+         * thành {@code 0,125} — <b>hợp lệ về hình thức ở CẢ HAI loại chỉ số</b>, nên ⛔ màn hình nào
+         * báo. Bài này khẳng định đúng con số ấy ⛔ xảy ra.
+         */
+        @Test
+        @DisplayName("⭐⭐ Lượng mưa mm giữ NGUYÊN giá trị (hệ số 1), scale 1 — ⛔ chia 100 như mực nước")
+        void luongMuaGiuNguyenGiaTri() {
+            TelemetryReading mua =
+                    new TelemetryReading("F01930", Instant.EPOCH, new BigDecimal("12.5"), TelemetryReading.DON_VI_MM);
+
+            assertThat(mua.giaTri())
+                    .as("⛔ 0.125 — đó là con số của một lượt chia 100 nhầm, và nó trông hợp lệ ở CẢ "
+                            + "HAI loại chỉ số nên ⛔ màn hình nào báo")
+                    .isEqualByComparingTo(new BigDecimal("12.5"));
+            assertThat(mua.giaTri().scale())
+                    .as("scale 1 — khớp measurement_types.LUONG_MUA.value_scale, ⛔ phải scale 3 của mực nước")
+                    .isEqualTo(TelemetryReading.SO_LE_MM);
+        }
+
+        /**
+         * Sentinel {@code -999}/{@code -9999} là danh sách của <b>mực nước</b>, tính bằng cm.
+         *
+         * <p>Áp nó cho lượng mưa là đoán, và đoán sai theo chiều im lặng ở cả hai phía: nếu trạm mưa
+         * có sentinel khác thì ta vừa bỏ qua một cảm biến hỏng; nếu nó ⛔ có sentinel nào thì ta vừa
+         * gắn cờ {@code NGHI_NGO} lên một số đo thật. Ngày có mẫu mưa thật thì thêm nhánh kèm số đo.
+         */
+        @Test
+        @DisplayName("⚠ Sentinel của MỰC NƯỚC ⛔ áp cho lượng mưa — -999 mm ⛔ phải mã báo lỗi")
+        void sentinelMucNuocKhongApChoLuongMua() {
+            assertThat(new TelemetryReading("F01930", Instant.EPOCH, new BigDecimal("-999"), TelemetryReading.DON_VI_MM)
+                            .laGiaTriBao())
+                    .isFalse();
+            assertThat(new TelemetryReading("F01652", Instant.EPOCH, new BigDecimal("-999"), TelemetryReading.DON_VI_CM)
+                            .laGiaTriBao())
+                    .as("vế đối chứng: cùng con số, đơn vị mực nước ⇒ VẪN là mã báo lỗi (T43.10)")
+                    .isTrue();
         }
 
         @Test

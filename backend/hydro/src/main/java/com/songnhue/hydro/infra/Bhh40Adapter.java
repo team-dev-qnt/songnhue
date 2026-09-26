@@ -15,18 +15,32 @@ import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 
-import com.songnhue.hydro.domain.AdapterType;
 import com.songnhue.hydro.domain.DiaChiNguon;
 import com.songnhue.hydro.domain.SyncFailureKind;
 import com.songnhue.hydro.domain.TelemetryAdapter;
 import com.songnhue.hydro.domain.TelemetryBatch;
 import com.songnhue.hydro.domain.TelemetryCall;
 import com.songnhue.hydro.domain.TelemetryFetch;
+import com.songnhue.hydro.domain.TelemetryReading;
 
 /**
- * Adapter cho {@code songnhue.bhh40.net} — {@code GET /api/getmn.aspx?key=<mã số>;} (T30.2).
+ * Phần <b>dùng chung</b> của mọi adapter đọc {@code songnhue.bhh40.net} (T30.2 · WS-87).
+ *
+ * <h2>⛔⛔ Vì sao lớp NỀN chứ ⛔ phải hai lớp chép nhau — T87.5</h2>
+ *
+ * <p>Nguồn tách làm hai endpoint ngày 26/09/2026 ({@code getmucnuoc.aspx} · {@code getluongmua.aspx}).
+ * Chúng khác nhau <b>đúng ba thứ</b>: đường dẫn, đơn vị nguồn, loại chỉ số. Mọi thứ đắt tiền trong
+ * lớp này thì <b>⛔ phụ thuộc đường dẫn</b> — che mã số ở bốn dạng mã hoá, trần 4 MB, ghim HTTP/1.1,
+ * {@code followRedirects(NEVER)}, tách {@code TIMEOUT} khỏi {@code IOException}, chặn SSRF.
+ *
+ * <p>Chép lớp này ra làm hai là dựng sẵn một bản sao sẽ lệch <b>ở nhánh ít chạy nhất</b> (T42.19):
+ * bản chép sửa một chỗ che mã số, bản kia thì ⛔ — và triệu chứng là một credential nằm trong
+ * {@code hydro_raw_logs}, bảng có mặt trong <b>mọi bản sao lưu</b>. ⇒ Ba thứ khác nhau khai
+ * <b>abstract</b>, phần còn lại chỉ có một bản.
+ *
+ * <p>⚠ Lớp này {@code abstract} và ⛔ mang {@code @Component}: một adapter ⛔ khai nổi ba câu trên
+ * thì ⛔ được tồn tại. Hai lớp con là {@code Bhh40MucNuocAdapter} và {@code Bhh40LuongMuaAdapter}.
  *
  * <h2>Vì sao {@code HttpClient} của JDK, và vì sao nó là một TRƯỜNG chứ không phải một bean</h2>
  *
@@ -60,13 +74,31 @@ import com.songnhue.hydro.domain.TelemetryFetch;
  *       kèm nguyên URI đã gọi — tức kèm nguyên mã số.
  * </ol>
  */
-@Component
-public class Bhh40Adapter implements TelemetryAdapter {
+public abstract class Bhh40Adapter implements TelemetryAdapter {
 
     private static final Logger log = LoggerFactory.getLogger(Bhh40Adapter.class);
 
-    /** ⚠ Đường dẫn tương đối — {@code URI.resolve} lo phần thiếu/thừa dấu {@code /} của base URL. */
-    static final String DUONG_DAN = "api/getmn.aspx";
+    /**
+     * Đường dẫn tương đối của endpoint <b>lớp con này</b> phục vụ.
+     *
+     * <p>⚠ Tương đối để {@code DiaChiNguon} lo phần thiếu/thừa dấu {@code /} của base URL — và lo cả
+     * phần <b>trùng đoạn</b> khi {@code base_url} đã nhúng sẵn đường dẫn (T52.2).
+     *
+     * <p>⛔⛔ Đổi giá trị trả về ở một lớp con là một thay đổi <b>có hệ quả trên DỮ LIỆU</b>: phép
+     * cắt trùng của {@code DiaChiNguon} so theo ĐOẠN, nên một {@code base_url} đang nhúng đường dẫn
+     * CŨ sẽ thôi khớp và URL nối ra thành {@code /<cũ>/<mới>} ⇒ 404 im lặng suốt nhiều ngày
+     * (T52.0). Đổi đường dẫn thì <b>phải</b> có migration cắt {@code base_url} đi kèm — xem
+     * {@code V202609261099}.
+     */
+    protected abstract String duongDan();
+
+    /**
+     * Đơn vị nguồn trả về — đóng dấu lên từng {@code TelemetryReading}.
+     *
+     * <p>⛔ Đoán từ hình dạng con số: {@code 292} (cm) và {@code 0.0} (mm) chỉ khác nhau vì hôm đo
+     * trời ⛔ mưa.
+     */
+    protected abstract String donViNguon();
 
     /**
      * Trần kích thước thân phản hồi.
@@ -87,7 +119,7 @@ public class Bhh40Adapter implements TelemetryAdapter {
     private final HttpClient client;
     private final boolean chapNhanMayNoiBo;
 
-    public Bhh40Adapter(HydroApiProperties properties) {
+    protected Bhh40Adapter(HydroApiProperties properties) {
         this.chapNhanMayNoiBo = properties.isAllowInternalHost();
         this.client = HttpClient.newBuilder()
                 .connectTimeout(CHO_KET_NOI)
@@ -96,17 +128,23 @@ public class Bhh40Adapter implements TelemetryAdapter {
                 //   chọn, và cả bộ kiểm SSRF phía trên trở thành vô nghĩa vì nó chỉ soi chặng đầu.
                 .followRedirects(HttpClient.Redirect.NEVER)
                 .build();
-    }
-
-    @Override
-    public AdapterType kieu() {
-        return AdapterType.BHH40;
+        // ⛔⛔ Kiểm đơn vị LÚC DỰNG BEAN, ⛔ để nó hỏng ở tầng parse — T87.3.
+        //    `Bhh40Parser.bocMotDong` BẮT `IllegalArgumentException` của `TelemetryReading` rồi đếm
+        //    dòng vào `soDongRac`. Nên một đơn vị gõ sai ⛔ ném lên đâu cả: cả mẻ thành rác, mẻ rỗng,
+        //    và `TelemetryIngestService` in ra "nhiều khả năng nguồn đổi định dạng" — hệ ĐỔ LỖI CHO
+        //    NGUỒN trong khi lỗi là một hằng số của ta, còn số liệu thì mất vĩnh viễn (quy tắc 18).
+        //    Ở đây thì nó chặn ứng dụng khởi động, tức hỏng lớn tiếng và hỏng sớm.
+        if (!TelemetryReading.donViDuocBiet(donViNguon())) {
+            throw new IllegalStateException(getClass().getSimpleName() + " khai đơn vị nguồn '"
+                    + donViNguon() + "' mà TelemetryReading chưa biết quy đổi. Thêm nhánh ở "
+                    + "TelemetryReading trước, ⛔ đừng nới điều kiện ở đó.");
+        }
     }
 
     @Override
     public TelemetryFetch goi(TelemetryCall yeuCau) {
         URI dich = DiaChiNguon.kiemVaDung(
-                yeuCau.baseUrl(), DUONG_DAN + "?key=" + maHoaMaSo(yeuCau.maSo()), chapNhanMayNoiBo);
+                yeuCau.baseUrl(), duongDan() + "?key=" + maHoaMaSo(yeuCau.maSo()), chapNhanMayNoiBo);
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(dich)
                 .timeout(yeuCau.timeout())
@@ -133,7 +171,7 @@ public class Bhh40Adapter implements TelemetryAdapter {
 
     @Override
     public TelemetryBatch boc(String body) {
-        return Bhh40Parser.boc(body);
+        return Bhh40Parser.boc(body, donViNguon());
     }
 
     private TelemetryFetch doc(HttpResponse<InputStream> phanHoi, String maSo, int ms) throws IOException {

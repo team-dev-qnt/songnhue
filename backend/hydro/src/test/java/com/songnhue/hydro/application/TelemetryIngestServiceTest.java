@@ -125,7 +125,9 @@ class TelemetryIngestServiceTest {
                         "45 1/2 * * * *", true, Duration.ofMinutes(10), true, Duration.ofSeconds(30), true, 3, true));
         when(sources.maSoDeGoi(any())).thenReturn("ma-so-kiem-thu;");
         when(adapters.cho(any())).thenReturn(adapter);
-        when(poller.idLoaiChiSo(TelemetryIngestService.MA_LOAI_CHI_SO)).thenReturn(Optional.of(ID_MUC_NUOC));
+        // ⚠ WS-87: mã loại chỉ số nay đến từ ADAPTER (`AdapterGia.maLoaiChiSo`), ⛔ từ một hằng số
+        //   của service. Stub theo đúng chuỗi ấy để bài vẫn đo đúng đường đi thật.
+        when(poller.idLoaiChiSo("MUC_NUOC")).thenReturn(Optional.of(ID_MUC_NUOC));
         when(poller.demDiemDoDangHoatDong(anyLong())).thenReturn(2);
         when(poller.demDiemDoDaCoTrongKhung(anyLong(), any())).thenReturn(0);
         when(poller.dichTheoMaApi(anyLong())).thenReturn(Map.of("F01771", dich(7L, "DO-LMAC-TL", true, true)));
@@ -510,9 +512,21 @@ class TelemetryIngestServiceTest {
         private TelemetryFetch fetch = new TelemetryFetch(200, 12, "than-gia", null, null);
         private TelemetryBatch me = new TelemetryBatch(new ArrayList<>(), 0, 0, false);
 
+        /**
+         * ⚠ Loại chỉ số <b>đổi được</b>, ⛔ ghim cứng — WS-87. Bài
+         * {@code loaiChiSoDiTheoAdapterChuKhongPhaiHangSo} đổi giá trị này để chứng minh đường ghi
+         * đi theo <b>adapter</b>; ghim cứng thì bài ấy ⛔ phân biệt được hai trạng thái (luật 9).
+         */
+        private String maLoaiChiSo = "MUC_NUOC";
+
         @Override
         public AdapterType kieu() {
             return AdapterType.BHH40;
+        }
+
+        @Override
+        public String maLoaiChiSo() {
+            return maLoaiChiSo;
         }
 
         @Override

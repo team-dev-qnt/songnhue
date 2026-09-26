@@ -32,7 +32,7 @@ class TelemetryAdaptersTest {
     @Test
     @DisplayName("⭐⭐ Mọi mã của MockAdapter KHÔNG khớp CHECK của stations.api_code — nó không thể tra ra điểm đo nào")
     void maGiaVeNguyenTacKhongTraRaDiemDoNao() {
-        TelemetryBatch me = Bhh40Parser.boc(MockAdapter.THAN_GIA);
+        TelemetryBatch me = Bhh40Parser.boc(MockAdapter.THAN_GIA, TelemetryReading.DON_VI_CM);
 
         assertThat(me.soDo())
                 .as("⚠ Vế chống tập rỗng (luật 7): nếu thân giả không bóc ra dòng nào thì khẳng định "
@@ -52,10 +52,12 @@ class TelemetryAdaptersTest {
     @Test
     @DisplayName("⚠ Mốc thời gian của dữ liệu giả nằm ở quá khứ xa — dữ liệu giả 'tươi' làm tắt chuông poller chết")
     void mocDuLieuGiaONamXaXua() {
-        assertThat(Bhh40Parser.boc(MockAdapter.THAN_GIA).soDo()).allSatisfy(r -> assertThat(r.measuredAt())
-                .as("§10.42: một dòng hydro_latest tươi giả là thứ làm im đúng cái cảnh báo "
-                        + "NguonDuLieuImLang mà runbook poller-chet.md dựa vào")
-                .isBefore(java.time.Instant.parse("2001-01-01T00:00:00Z")));
+        assertThat(Bhh40Parser.boc(MockAdapter.THAN_GIA, TelemetryReading.DON_VI_CM)
+                        .soDo())
+                .allSatisfy(r -> assertThat(r.measuredAt())
+                        .as("§10.42: một dòng hydro_latest tươi giả là thứ làm im đúng cái cảnh báo "
+                                + "NguonDuLieuImLang mà runbook poller-chet.md dựa vào")
+                        .isBefore(java.time.Instant.parse("2001-01-01T00:00:00Z")));
     }
 
     @Test
