@@ -968,7 +968,14 @@ export interface ImportReport {
 // =============================================================================
 
 export type PositionRole = 'THUONG_LUU' | 'HA_LUU' | 'BE_HUT' | 'MN_SONG' | 'MUA';
-export type AdapterType = 'BHH40' | 'MOCK';
+/**
+ * ⚠ Bộ ba `AdapterType` (Java) ↔ `ck_api_sources_adapter` (SQL) ↔ union này bị `EnumBaNoiTest`
+ * khoá với nhau — thêm một giá trị thì sửa **cả ba** trong cùng một PR, ⛔ thì CI đỏ.
+ *
+ * `BHH40` = mực nước (`getmucnuoc.aspx`, cm) · `BHH40_MUA` = lượng mưa (`getluongmua.aspx`, mm).
+ * ⚠ Tên trần `BHH40` nghĩa là *mực nước* vì lý do lịch sử: tới 26/09/2026 nguồn chỉ có một endpoint.
+ */
+export type AdapterType = 'BHH40' | 'BHH40_MUA' | 'MOCK';
 export type ApiSourceStatus = 'HOAT_DONG' | 'TAM_DUNG';
 
 export interface MeasurementType {

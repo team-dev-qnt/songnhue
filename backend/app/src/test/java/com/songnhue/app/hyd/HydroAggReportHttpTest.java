@@ -30,6 +30,7 @@ import com.songnhue.app.testsupport.TestHttp;
 import com.songnhue.core.application.auth.PasswordPolicyService;
 import com.songnhue.core.common.util.DateTimeUtils;
 import com.songnhue.core.infra.identity.UserRepository;
+import com.songnhue.core.spi.HydroSnapshotPort;
 import com.songnhue.hydro.application.HydroAggService;
 
 /**
@@ -569,7 +570,7 @@ class HydroAggReportHttpTest extends IntegrationTestBase {
 
     @Test
     @Order(16)
-    @DisplayName("⛔⛔ Lượng mưa LUÔN rỗng kèm lý do — ⛔ không bao giờ là 0 (G3-a chưa có nguồn)")
+    @DisplayName("⛔⛔ Lượng mưa LUÔN rỗng kèm lý do — ⛔ không bao giờ là 0 (nay: G8 chưa khai trạm)")
     void rainfallIsAlwaysEmptyWithAReason() {
         String than = phienHttp.get(kyThuat, "/api/v1/hyd/bao-cao/tuyen-song").getBody();
 
@@ -577,11 +578,15 @@ class HydroAggReportHttpTest extends IntegrationTestBase {
                 .as(
                         """
                         ⛔⛔ Ô lượng mưa trả 0. `0 mm` là câu khẳng định "trời không mưa" — một câu về \
-                        THỜI TIẾT mà hệ thống ⛔ không có nguồn nào để nói: loại chỉ số lượng mưa đã \
-                        seed nhưng ⛔ CHƯA gắn cho điểm đo nào (mục G3-a). Quy tắc 16 và điều cấm "⛔ \
-                        không seed dữ liệu thuỷ văn cho đẹp demo" áp thẳng vào đây.""")
+                        THỜI TIẾT mà hệ thống ⛔ có nguồn nào để nói: 15 mã trạm mưa CHƯA được khai \
+                        thành điểm đo (mục G8). Quy tắc 16 và điều cấm "⛔ seed dữ liệu thuỷ văn cho \
+                        đẹp demo" áp thẳng vào đây.
+                        ⚠⚠ WS-87 — bài này XANH suốt lượt đổi câu chữ ngày 26/09, và đó là TIN XẤU: \
+                        `HydroReportService` giữ một chuỗi VIẾT THẲNG, tức bản sao THỨ TƯ của cùng câu \
+                        ấy, nên nó ⛔ đi theo hằng số dùng chung. Khẳng định nay bám thẳng \
+                        `LY_DO_LUONG_MUA` để một bản sao thứ năm ra đời là ĐỎ, ⛔ phải im lặng (luật 14).""")
                 .contains("\"luongMua\":null")
-                .contains("G3-a")
+                .contains(HydroSnapshotPort.LY_DO_LUONG_MUA)
                 .doesNotContain("\"luongMua\":0");
     }
 

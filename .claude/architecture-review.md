@@ -245,7 +245,31 @@ Endpoint được cấp: `http://songnhue.bhh40.net/api/getmn.aspx?key=<mã số
    - **Giám sát poller là hạng mục ưu tiên cao**, ngang backup DB: alert khi không có bản ghi mới quá N phút (Prometheus + email Admin), không đợi người dùng phát hiện.
    - Downtime của app = **mất dữ liệu vĩnh viễn**, không chỉ là gián đoạn dịch vụ → xem lại NFR-01: cửa sổ bảo trì phải ngắn, và nên tách poller thành tiến trình có thể chạy độc lập khi app bảo trì (giữ Spring profile `worker` như §6.2 đã dự phòng — nay có lý do nghiệp vụ rõ ràng để dùng).
    - ✅ **Công ty đã chấp nhận rủi ro này (confirm G3, 12/8/2026)**: *"không có API quét lịch sử, hệ thống tự fetch và ghi lịch sử"* → 3 ràng buộc trên trở thành **yêu cầu bắt buộc của thiết kế**, không còn là đề xuất.
-2. **Không có API lượng mưa** (chỉ tồn tại `getmn.aspx`) trong khi biểu nghiệp vụ có cột lượng mưa. Công ty trả lời *"tạm thời chưa có"* → v1 **không có nguồn lượng mưa**; giữ loại chỉ số + chỗ cắm adapter, cột hiển thị `-`. Cách xử lý cuối cùng chờ **G3-a** (chờ endpoint / nhập tay / bỏ hẳn).
+2. ~~**Không có API lượng mưa**~~ — ✅ **HẾT ĐÚNG 26/09/2026 (WS-87)**. Công ty cấp
+   `api/getluongmua.aspx` (**cùng một mã số**, 15 mã, đơn vị mm, nhịp 1 giờ) và đổi đường mực nước
+   sang `api/getmucnuoc.aspx` — đường cũ `getmn.aspx` nay trả **200 kèm `not.working`**. Bốn hệ quả
+   kiến trúc, mỗi cái là một quyết định đã cân nhắc phương án khác:
+   - **Ba sự thật của một nguồn — đường dẫn · đơn vị nguồn · loại chỉ số — nằm CÙNG MỘT LỚP**
+     (`AdapterType` mới + lớp con của `Bhh40Adapter`), ⛔ tách thành cột trên `api_sources`. Tách ra
+     là dựng sẵn chỗ để chúng lệch nhau, và lệch ở đây **⛔ hỏng lớn tiếng**: một hàng khai
+     `LUONG_MUA` trỏ vào adapter giao `cm` sẽ ghi **0,0 mm ÷ 100 = 0,000 m** — một mực nước hoàn toàn
+     hợp lý — vào bảng chính. Thêm nữa, một cột `endpoint_path` sửa được từ giao diện **mở lại đúng
+     lỗ SSRF** mà `DiaChiNguon` sinh ra để bịt: nó kiểm host của `base_url`, còn một `duongDan` dạng
+     `//evil.tld/x` **thay authority SAU** lượt kiểm ấy.
+   - **Đơn vị đi theo dây, và được kiểm ở chỗ ⛔ đi vòng được.** `Bhh40Parser.bocMotDong` **BẮT**
+     `IllegalArgumentException` rồi đếm dòng vào `soDongRac`, nên một đơn vị gõ sai biến **cả mẻ**
+     thành rác ⇒ `EMPTY_BODY` kèm câu *"nhiều khả năng nguồn đổi định dạng"* — hệ **đổ lỗi cho
+     NGUỒN** trong khi lỗi là một hằng số của ta, và quy tắc 18 nói số liệu mất là mất vĩnh viễn.
+     ⇒ Kiểm **trước vòng lặp** (ném) **và** lúc dựng bean (fail lúc khởi động).
+   - **Đổi `duongDan()` ⛔ đứng một mình được.** `DiaChiNguon.chuanHoaGoc` cắt trùng theo **ĐOẠN**,
+     nên hàng `base_url` nhúng sẵn `/api/getmn.aspx` vốn **đang được cứu** (k=2) sẽ thôi khớp ⇒ URL
+     nối thành `/api/getmn.aspx/api/getmucnuoc.aspx` ⇒ **404**, đúng hình dạng §11.19/T52.0. Phép cắt
+     `base_url` ở `V202609261099` là **bắt buộc đi kèm**, điều kiện **hẹp** theo luật `V202608131009`.
+   - **Nguồn 0 trạm ⇒ hạn mức theo khung ⛔ BAO GIỜ chặn** (`daDuDuLieu` trả `false` ngay khi
+     `dangHoatDong() == 0`) ⇒ nhịp phải khai **tường minh** ở `api_sources.cron` của chính hàng ấy,
+     ⛔ thừa hưởng cron chung — ⛔ thì 720 lượt/ngày lấy thứ đổi 24 lần/ngày.
+   ⚠ Giới hạn **thật sự** còn lại ⛔ phải endpoint mà là **bảng ánh xạ 15 mã ↔ trạm** (nay thuộc
+   **G8**, ⛔ còn G3-a) và **quy ước khung giờ tích luỹ** — chưa chốt, xem `function-spec.md` CN-03.2.
 
 **⭐ Nhịp polling — chốt G3 (ảnh hưởng thiết kế scheduler)**: nguồn làm việc theo **khung 10 phút**, dữ liệu mới chỉ lên API trong cửa sổ **`x1:30 → x8:30`**, phần còn lại máy chủ nhận dữ liệu từ máy đo. Công ty chốt **gọi 2 phút/lần vào các phút lẻ** + yêu cầu **rate-limit để không gọi khi response không đổi**. Hệ quả kiến trúc:
 - Cron mặc định `45 1/2 * * * *` — **giây 45**, không phải giây 0: gọi đúng đầu phút lẻ đầu tiên là gọi *trước* mốc `01:30`. Là tham số cấu hình.

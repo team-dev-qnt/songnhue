@@ -386,13 +386,16 @@ public class HydroReportExportHandler implements JobHandler {
     }
 
     /**
-     * ⛔ Ô lượng mưa của BC-05 — G3-a.
+     * ⛔ Ô lượng mưa của BC-05 — nay là <b>G8</b>, ⛔ còn là G3-a (WS-87, 26/09/2026).
      *
-     * <p>Nguồn {@code bhh40} ⛔ không có endpoint lượng mưa, nên cột này ⛔ chưa bao giờ có số. Một
-     * hằng số nói ra lý do thắng một ô trắng: người đọc báo cáo tháng 8 mà thấy cột lượng mưa trắng
-     * sẽ nghĩ tháng ấy ⛔ không mưa.
+     * <p>Một hằng số nói ra lý do thắng một ô trắng: người đọc báo cáo mà thấy cột lượng mưa trắng
+     * sẽ nghĩ kỳ ấy ⛔ mưa (quy tắc 16 — số 0 là một câu khẳng định).
+     *
+     * <p>⚠ Câu chữ đổi vì <b>lý do</b> đã đổi: Công ty cấp {@code getluongmua.aspx} ngày 26/09/2026,
+     * nên *"chưa có nguồn"* thành một lời khai sai. Thứ còn thiếu là bảng ánh xạ <b>15 mã ↔ trạm</b>
+     * — số đo vẫn đang chảy về và nằm nguyên văn ở {@code hydro_unmapped_readings}.
      */
-    private static final String LUONG_MUA_CHUA_CO_NGUON = "Chưa có nguồn (G3-a)";
+    private static final String LUONG_MUA_CHUA_CO_NGUON = "Chưa khai trạm mưa (G8)";
 
     /**
      * ⭐⭐ BC-11 — biểu tổng hợp mực nước theo tuyến sông, <b>một ngày</b>.

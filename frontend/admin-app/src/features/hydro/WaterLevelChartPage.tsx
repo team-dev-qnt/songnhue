@@ -4,7 +4,7 @@ import { Alert, Button, Card, Select, Space, Typography } from 'antd';
 import { useState } from 'react';
 
 import { BaseChart } from '@/components/charts/BaseChart';
-import { optionDuong } from '@/components/charts/chartOptions';
+import { optionDuongXuHuong } from '@/components/charts/chartOptions';
 import { type Station, type WaterLevelChart } from '@/shared/api-types';
 import { api } from '@/shared/apiClient';
 import { formatDateTime } from '@/shared/format';
@@ -27,6 +27,17 @@ const NHIP_LAM_MOI_MS = 2 * 60 * 1000;
  * nó, và javadoc của nó tự đặt hạn: *"⛔ Nếu Phase 2 đến mà vẫn không ai gọi thì phải XOÁ, không
  * phải giữ"* (§10.33). Phase 2 đã đến **và mang theo dữ liệu thật** — nên nó được nối, ⛔ không
  * được gia hạn thêm một lần nữa.
+ *
+ * <h3>⛔⛔ WS-87 (26/09/2026) — đổi sang `optionDuongXuHuong`, và NƯỚC LÊN LÀ ĐỎ</h3>
+ *
+ * QuanTran yêu cầu biểu đồ *"giống chứng khoán"* — xanh/đỏ theo chiều lên xuống. Chốt đi **ngược
+ * quy ước chứng khoán** và đó là chủ ý: ở bảng giá xanh = tăng, còn ở đây *lên* là phía **nguy
+ * hiểm**, và cả hệ đã dùng `statusColors.danger` cho cảnh báo ngưỡng ở GIS, dashboard, bảng ngưỡng.
+ * Dạy người trực ban hai nghĩa ngược nhau cho cùng một màu, trên cùng một màn hình, là cách chắc
+ * chắn để một cảnh báo thật bị đọc nhầm.
+ *
+ * ⛔ `optionDuong` **⛔ bị nới** để làm việc này: nó có người dùng thứ hai (`BaoCaoNhanSuPage`), và
+ * "chiều lên/xuống" ⛔ có nghĩa ở một biểu đồ nhân sự. Xem javadoc `optionDuongXuHuong`.
  *
  * <h3>⛔⛔ T43.13 — chú thích cũ ở ngay chỗ này đã KHẲNG ĐỊNH SAI suốt từ WS-35</h3>
  *
@@ -138,23 +149,18 @@ export function WaterLevelChartPage() {
           //    hiện câu giải thích — hỏng đúng theo chiều im lặng (luật 9).
           empty={(bieu.data?.soMocCoSo ?? 0) === 0}
           emptyText={bieu.data?.lyDoTrong ?? 'Chưa có số đo hợp lệ trong 24 giờ qua'}
-          option={optionDuong(
+          option={optionDuongXuHuong(
             diem.map((d) => formatDateTime(d.moc)),
-            [
-              {
-                ten: donVi
-                  ? `${bieu.data?.tenChiSo ?? 'Mực nước'} (${donVi})`
-                  : (bieu.data?.tenChiSo ?? 'Mực nước'),
-                // ⚠ `Number()` chỉ ở ĐÂY, ở sát tầng vẽ: ECharts nhận số. Giá trị đi qua dây dưới
-                //   dạng chuỗi (quy tắc 2) và ⛔ không được đổi sớm hơn — đổi ở tầng API là mở đường
-                //   cho một phép cộng nào đó về sau chạy trên `double`.
-                // ⛔⛔ `Number(null)` là `0`, ⛔ không phải `NaN` — nên bỏ nhánh null ở đây ⛔ không
-                //    làm gãy gì cả, nó chỉ lặng lẽ vẽ mọi khoảng mất tín hiệu **xuống đáy trục** như
-                //    một mực nước 0 m có thật. Đây đúng là quy tắc 16: số 0 là một câu khẳng định.
-                giaTri: diem.map((d) => (d.giaTri === null ? null : Number(d.giaTri))),
-                mauKhoa: 'normal',
-              },
-            ],
+            donVi
+              ? `${bieu.data?.tenChiSo ?? 'Mực nước'} (${donVi})`
+              : (bieu.data?.tenChiSo ?? 'Mực nước'),
+            // ⚠ `Number()` chỉ ở ĐÂY, ở sát tầng vẽ: ECharts nhận số. Giá trị đi qua dây dưới
+            //   dạng chuỗi (quy tắc 2) và ⛔ không được đổi sớm hơn — đổi ở tầng API là mở đường
+            //   cho một phép cộng nào đó về sau chạy trên `double`.
+            // ⛔⛔ `Number(null)` là `0`, ⛔ không phải `NaN` — nên bỏ nhánh null ở đây ⛔ không
+            //    làm gãy gì cả, nó chỉ lặng lẽ vẽ mọi khoảng mất tín hiệu **xuống đáy trục** như
+            //    một mực nước 0 m có thật. Đây đúng là quy tắc 16: số 0 là một câu khẳng định.
+            diem.map((d) => (d.giaTri === null ? null : Number(d.giaTri))),
           )}
         />
       )}

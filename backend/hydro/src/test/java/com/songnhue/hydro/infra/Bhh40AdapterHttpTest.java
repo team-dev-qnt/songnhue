@@ -76,7 +76,7 @@ class Bhh40AdapterHttpTest {
     void dungMayChu() throws IOException {
         thanTraVe.set(banMau());
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        server.createContext("/api/getmn.aspx", this::ghiNhanRoiTraLoi);
+        server.createContext("/api/getmucnuoc.aspx", this::ghiNhanRoiTraLoi);
         server.start();
     }
 
@@ -107,7 +107,7 @@ class Bhh40AdapterHttpTest {
     private Bhh40Adapter adapter(boolean chapNhanNoiBo) {
         HydroApiProperties props = new HydroApiProperties();
         props.setAllowInternalHost(chapNhanNoiBo);
-        return new Bhh40Adapter(props);
+        return new Bhh40MucNuocAdapter(props);
     }
 
     private String diaChi() {
@@ -130,30 +130,61 @@ class Bhh40AdapterHttpTest {
      * {@code last_success_at = NULL} — <b>chưa một lượt nào thành công, bao giờ</b> —
      * {@code hydro_readings = 0}. Quy tắc 18: nguồn ⛔ không có API lịch sử ⇒ mất là <b>vĩnh viễn</b>.
      *
-     * <p>⭐ Máy chủ ở bài này chỉ đăng ký context {@code /api/getmn.aspx}. Nên nếu adapter gọi lệch
-     * <b>một đoạn</b>, JDK trả <b>404</b> và bài đỏ — <i>đúng mã lỗi staging đang ghi trong</i>
+     * <p>⭐ Máy chủ ở bài này chỉ đăng ký context {@code /api/getmucnuoc.aspx}. Nên nếu adapter gọi
+     * lệch <b>một đoạn</b>, JDK trả <b>404</b> và bài đỏ — <i>đúng mã lỗi staging đang ghi trong</i>
      * {@code last_failure_reason}. Đây là điều bài ở tầng đơn vị ⛔ không chứng minh được: nó so URI
      * với một chuỗi ta tự viết ra, còn bài này để <b>máy chủ</b> phán xử.
      */
     @Test
     @DisplayName("⛔⛔ base_url mang sẵn đường dẫn endpoint (trạng thái STAGING) ⇒ vẫn GET đúng, ⛔ không 404")
     void baseUrlMangSanDuongDanVanGoiDung() {
-        String nhuStaging = "http://127.0.0.1:" + server.getAddress().getPort() + "/api/getmn.aspx";
+        String nhuStaging = "http://127.0.0.1:" + server.getAddress().getPort() + "/api/getmucnuoc.aspx";
 
         TelemetryFetch fetch = adapter(true).goi(new TelemetryCall(nhuStaging, MA_SO, Duration.ofSeconds(5)));
 
         assertThat(daNhan)
                 .as("⛔ Tập RỖNG nghĩa là máy chủ ⛔ không nhận được lượt gọi nào — trước bản vá, "
-                        + "/api/api/getmn.aspx ⛔ không khớp context nào nên ⛔ không dòng nào được ghi")
+                        + "/api/api/getmucnuoc.aspx ⛔ khớp context nào nên ⛔ dòng nào được ghi")
                 .hasSize(1);
         assertThat(daNhan.get(0).path())
-                .as("⛔ Trước bản vá đường này là /api/api/getmn.aspx ⇒ 404 — đúng câu staging ghi "
-                        + "trong last_failure_reason")
-                .isEqualTo("/api/getmn.aspx");
+                .as("⛔ Trước bản vá đường này là /api/api/getmucnuoc.aspx ⇒ 404 — đúng câu staging "
+                        + "ghi trong last_failure_reason")
+                .isEqualTo("/api/getmucnuoc.aspx");
         assertThat(fetch.httpStatus()).isEqualTo(200);
         assertThat(adapter(true).boc(fetch.body()).soDo())
                 .as("⭐ Vế cuối cùng: 28 số đo BÓC RA ĐƯỢC — chặng cuối của poller đi trọn")
                 .hasSize(28);
+    }
+
+    /**
+     * ⛔⛔⛔ <b>T87.2 — vì sao đổi {@code duongDan()} BẮT BUỘC phải đi kèm migration cắt
+     * {@code base_url}.</b>
+     *
+     * <p>Phép cắt trùng của {@code DiaChiNguon} so theo <b>ĐOẠN</b>. Khi hằng số còn là
+     * {@code api/getmn.aspx}, một hàng {@code base_url = http://host/api/getmn.aspx} <i>đang được
+     * cứu</i> (k=2 ⇒ cắt sạch ⇒ URL đúng). Đổi hằng số sang {@code api/getmucnuoc.aspx} thì ⛔ đoạn
+     * nào trùng nữa ⇒ k=0 ⇒ URL nối thành {@code /api/getmn.aspx/api/getmucnuoc.aspx}.
+     *
+     * <p>⇒ Bài này khẳng định <b>chính cái hỏng ấy</b>, ⛔ phải khẳng định nó đã được chữa — vì ở
+     * tầng mã <b>⛔ có gì chữa được</b>: {@code base_url} là <b>DỮ LIỆU</b>. Thứ chữa nó là
+     * {@code V202609261099}. Bài đứng đây để lượt rà sau đọc được cái giá của việc đổi đường dẫn mà
+     * quên migration, và nó sẽ <b>đỏ</b> ngày ai đó định "chữa cho hết lỗi" bằng cách nới phép cắt
+     * thay vì cắt dữ liệu — nới phép cắt là mở đường cho {@code /xxxapi} bị cắt nhầm (T52.2).
+     */
+    @Test
+    @DisplayName("⛔⛔ base_url còn trỏ ĐƯỜNG ĐÃ CHẾT ⇒ nối chuỗi thành /api/getmn.aspx/api/getmucnuoc.aspx ⇒ 404")
+    void baseUrlTroDuongDaChetThiNoiChuoiVa404() {
+        String conDuongChet = "http://127.0.0.1:" + server.getAddress().getPort() + "/api/getmn.aspx";
+
+        TelemetryFetch fetch = adapter(true).goi(new TelemetryCall(conDuongChet, MA_SO, Duration.ofSeconds(5)));
+
+        assertThat(daNhan)
+                .as("⛔ Máy chủ chỉ đăng ký /api/getmucnuoc.aspx — lượt gọi lệch đoạn ⛔ chạm handler")
+                .isEmpty();
+        assertThat(fetch.httpStatus())
+                .as("⛔⛔ 404 — đúng hình dạng T52.0 (3576 lượt hỏng, 0 byte). Chỉ migration cắt "
+                        + "base_url mới chữa được, ⛔ phải một dòng mã nào")
+                .isEqualTo(404);
     }
 
     @Test
@@ -163,7 +194,7 @@ class Bhh40AdapterHttpTest {
 
         assertThat(daNhan).hasSize(1);
         assertThat(daNhan.get(0).method()).isEqualTo("GET");
-        assertThat(daNhan.get(0).path()).isEqualTo("/api/getmn.aspx");
+        assertThat(daNhan.get(0).path()).isEqualTo("/api/getmucnuoc.aspx");
         assertThat(fetch.thanhCong()).isTrue();
         assertThat(fetch.httpStatus()).isEqualTo(200);
         assertThat(adapter(true).boc(fetch.body()).soDo()).hasSize(28);

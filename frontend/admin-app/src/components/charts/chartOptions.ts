@@ -213,3 +213,106 @@ export function optionDuong(
     })),
   };
 }
+
+/**
+ * Biểu đồ đường **tô theo CHIỀU** — mỗi đoạn xanh hay đỏ tuỳ số liệu đang lên hay xuống.
+ *
+ * <h2>⛔⛔ Nước LÊN = ĐỎ, ⛔ phải quy ước chứng khoán (chốt QuanTran 26/09/2026)</h2>
+ *
+ * Ở bảng giá chứng khoán xanh = tăng. Ở đây **ngược lại**, và đó là chủ ý: với mực nước thì
+ * *lên* là phía nguy hiểm, còn cả hệ này đã dùng `statusColors.danger` cho cảnh báo ở GIS,
+ * dashboard và bảng ngưỡng. Dạy người trực ban hai nghĩa ngược nhau cho cùng một màu, trên
+ * cùng một màn hình, là cách chắc chắn để một cảnh báo thật bị đọc nhầm.
+ *
+ * <h2>⛔ Vì sao là hàm RIÊNG, ⛔ phải nới `optionDuong`</h2>
+ *
+ * `optionDuong` có **người dùng thứ hai**: `features/hr/BaoCaoNhanSuPage.tsx` (Tuyển mới /
+ * Nghỉ việc / Điều động). Nới nó là lặng lẽ sơn lại biểu đồ nhân sự theo một "chiều" ⛔ có
+ * nghĩa ở đó — *nghỉ việc giảm* tô đỏ hay xanh?
+ *
+ * <h2>⛔⛔ Ba chuỗi CHỒNG NHAU, ⛔ phải `visualMap` — và đây là phép ĐO, ⛔ phải khẩu vị</h2>
+ *
+ * Cách hiển nhiên là `visualMap` theo một chiều phái sinh (delta). **Đo 26/09/2026 trên chính
+ * ECharts của kho này: nó ⛔ chạy**, theo hai kiểu khác nhau và cả hai đều tệ:
+ *
+ * <ul>
+ *   <li>`visualMap` theo chiều **trục** (giá trị) ⇒ `LineView.getVisualGradient` **NÉM**
+ *       `Cannot read properties of undefined (reading 'coord')`;
+ *   <li>`visualMap` theo chiều **⛔ phải trục** (delta) ⇒ **⛔ hiệu lực gì** — nét vẫn mang màu
+ *       mặc định của bảng màu. Lý do: ECharts chỉ tô được *nét* qua đường gradient theo trục; ở
+ *       chiều khác nó rơi về tô **điểm**, mà `showSymbol: false` thì ⛔ có điểm nào để tô.
+ * </ul>
+ *
+ * ⇒ Dùng đúng khuôn mà kho đã trả giá và đang chạy ở cổng công khai (`BieuDoDienBien.tsx`): một
+ * chuỗi **nền vô hình** mang tooltip + chú giải, cộng các chuỗi **phủ** mỗi chuỗi một màu phẳng.
+ *
+ * <h2>Vì sao mỗi đoạn phải có ĐỦ HAI đầu</h2>
+ *
+ * Một đoạn nối mốc *i−1* → *i*. Muốn tô nó thì chuỗi phủ phải có giá trị ở **cả hai** mốc — nên
+ * mốc quay đầu xuất hiện ở **hai** chuỗi cùng lúc, và đó chính là chỗ hai màu gặp nhau.
+ *
+ * ⚠ Đoạn **PHẲNG** (delta đúng 0) ⛔ phải "lên" mà cũng ⛔ phải "xuống" ⇒ chuỗi thứ ba, màu xám.
+ * Bỏ nó đi là để một quãng mực nước đứng yên **biến mất khỏi hình** — trông y hệt mất tín hiệu.
+ *
+ * ⚠ `connectNulls: false` ở mọi chuỗi. Một đoạn nối qua quãng mất tín hiệu còn sinh ra một "chiều"
+ * ⛔ ai đo được — tệ hơn cả việc ⛔ vẽ gì.
+ */
+export function optionDuongXuHuong(moc: string[], ten: string, giaTri: (number | null)[]) {
+  /** Giữ mốc *i* trong chuỗi phủ khi đoạn kề nó (trái hoặc phải) đi đúng chiều `hop`. */
+  const phu = (hop: (delta: number) => boolean) =>
+    giaTri.map((v, i) => {
+      if (v === null) return null;
+      const truoc = i > 0 ? giaTri[i - 1] : null;
+      const sau = i + 1 < giaTri.length ? giaTri[i + 1] : null;
+      const doanTrai = truoc === null || truoc === undefined ? null : v - truoc;
+      const doanPhai = sau === null || sau === undefined ? null : sau - v;
+      const thuoc = (d: number | null) => d !== null && hop(d);
+      return thuoc(doanTrai) || thuoc(doanPhai) ? v : null;
+    });
+
+  const chung = { type: 'line', smooth: false, showSymbol: false, connectNulls: false } as const;
+
+  return {
+    tooltip: { trigger: 'axis' },
+    legend: { bottom: 0, data: [ten] },
+    grid: { left: 8, right: 16, top: 16, bottom: 32, containLabel: true },
+    xAxis: { type: 'category', boundaryGap: false, data: moc },
+    yAxis: { type: 'value', scale: true },
+    series: [
+      {
+        // ⭐ Nền VÔ HÌNH: nó là thứ duy nhất mang tooltip và chú giải, nên người dùng thấy MỘT
+        //   đường mực nước chứ ⛔ phải ba chuỗi rời. Ba chuỗi phủ tắt tooltip để một mốc ⛔ hiện
+        //   ba dòng giống nhau.
+        ...chung,
+        name: ten,
+        data: giaTri,
+        lineStyle: { opacity: 0 },
+        itemStyle: { color: statusColors.unknown },
+      },
+      {
+        ...chung,
+        name: 'Đang lên',
+        data: phu((d) => d > 0),
+        lineStyle: { color: statusColors.danger },
+        itemStyle: { color: statusColors.danger },
+        tooltip: { show: false },
+      },
+      {
+        ...chung,
+        name: 'Đang xuống',
+        data: phu((d) => d < 0),
+        lineStyle: { color: statusColors.normal },
+        itemStyle: { color: statusColors.normal },
+        tooltip: { show: false },
+      },
+      {
+        ...chung,
+        name: 'Không đổi',
+        data: phu((d) => d === 0),
+        lineStyle: { color: statusColors.unknown },
+        itemStyle: { color: statusColors.unknown },
+        tooltip: { show: false },
+      },
+    ],
+  };
+}

@@ -26,6 +26,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 #   `tracking_parser` chỉ dùng thư viện chuẩn nên KHÔNG có nhánh bỏ qua nào ở đây nữa: import hỏng
 #   thì bộ kiểm ĐỎ, đúng như nó phải thế.
 from tracking_parser import (  # noqa: F401
+    ke_hoach_luoi,
     van_tay_nguon,
     STATUS_BY_MARK,
     TASK_LINE,
@@ -370,6 +371,74 @@ def test_tu_kiem_ma_mo_coi():
     ma, mo_coi = _ma_mo_coi(asvs, so)
     assert ma == ["15.2.2", "2.1.1", "5.2.2"], ma
     assert mo_coi == ["5.2.2"], mo_coi
+
+
+# ⭐ T87.14 (WS-87) — lưới Sheet phải NỚI ĐƯỢC, vì sổ chỉ có một chiều: dài ra.
+#
+# ⚠ Commit gốc `a496506e` viết `T87.1`; mã đổi sang `T87.14` lúc gộp #209 vào #210, vì `T87.1` đã có
+#    chủ trên nhánh nền (đường mực nước chết) và `find_duplicate_task_ids` là một cổng THẬT. Dòng sổ
+#    `T87.14` nói ra chỗ lệch giữa sử và sổ, để lượt rà sau đọc `git log` ⛔ tưởng là hai dòng trùng.
+#
+# ⛔⛔ Đo thật 26/09/2026, ngay lượt đồng bộ sau khi gộp #208: sổ parse ra **1438** dòng, cộng tiêu
+#    đề là **1439** hàng — và lưới của tab cũng đúng **1439**. Dữ liệu vừa khít, lượt `update` chạy
+#    xong, rồi bước DỌN (`clear A{n+1}:F`) ném HTTP 400 *"Range exceeds grid limits. Max rows:
+#    1439"*. Tức công cụ báo HỎNG trong khi bảng đã ĐÚNG — và lượt kế tiếp, khi sổ dài thêm một
+#    dòng, sẽ hỏng ở chính bước GHI.
+#
+# ⛔ Thông điệp lỗi trỏ sai chỗ: nó nói *"vượt giới hạn lưới"*, đọc như một lỗi phạm vi, trong khi
+#    nguyên nhân là **sổ đã lớn hơn cái bảng đựng nó**. Người đọc đi sửa phạm vi thay vì nới bảng.
+
+
+def test_luoi_day_khit_phai_duoc_noi():
+    """Ca hỏng THẬT của 26/09: 1439 hàng dữ liệu trên một lưới 1439 hàng."""
+    them = ke_hoach_luoi(1439, 1439)
+    assert them > 0, (
+        "Dữ liệu phủ KÍN lưới mà kế hoạch nói 'khỏi nới' — đây đúng là trạng thái đã ném HTTP 400 "
+        "ngày 26/09, và là trạng thái làm lượt đồng bộ KẾ TIẾP hỏng ở bước GHI."
+    )
+    assert 1439 + them >= 1439 + 1, "Nới xong vẫn phải còn ít nhất MỘT hàng trống cho lượt dọn."
+
+
+def test_so_dai_hon_luoi_thi_noi_du_cho_ca_dem():
+    """Sổ vượt lưới — nới phải đủ cho dữ liệu VÀ một khoảng đệm, ⛔ nới tới sát mép."""
+    them = ke_hoach_luoi(1600, 1439)
+    assert 1439 + them >= 1601, f"nới thiếu: lưới sau khi nới = {1439 + them}"
+    assert them >= 1600 + 1 - 1439 + 200 - 1, "nới xong mà ⛔ có đệm ⇒ lượt sau lại phải nới"
+
+
+def test_ve_phan_biet_luoi_con_rong_thi_KHONG_noi():
+    """⛔ Thiếu vế này thì một hàm `return 999` cũng qua hai bài trên — và lưới phình mỗi lượt.
+
+    Luật 9: một khẳng định ⛔ phân biệt được hai trạng thái thì ⛔ khẳng định gì.
+    """
+    assert ke_hoach_luoi(100, 1439) == 0, "lưới còn thừa 1339 hàng mà vẫn đòi nới"
+    assert ke_hoach_luoi(1438, 1439) == 0, "vừa đủ chỗ ghi VÀ một hàng cho lượt dọn ⇒ ⛔ nới"
+
+
+def test_bien_dung_o_dung_cho():
+    """Ranh giới nằm giữa *còn một hàng trống* và *khít* — sai một đơn vị ở đây là lỗi 26/09."""
+    assert ke_hoach_luoi(1438, 1439) == 0, "1438 dữ liệu + 1 hàng trống = vừa đủ"
+    assert ke_hoach_luoi(1439, 1439) > 0, "1439 dữ liệu trên lưới 1439 = KHÍT, phải nới"
+
+
+def test_server_that_su_goi_ke_hoach_luoi():
+    """Một hàm ⛔ ai gọi thì canh cho ai — `server.py` phải nới TRƯỚC bước ghi.
+
+    ⛔ Bài này đọc văn bản nguồn vì `python3` hệ thống ⛔ nạp được `server.py` (nó cần `fastmcp`);
+    phần LOGIC đã tách sang `tracking_parser` để bốn bài trên hỏi được cấu trúc thay vì chuỗi.
+    """
+    duong = os.path.join(os.path.dirname(os.path.abspath(__file__)), "server.py")
+    with open(duong, encoding="utf-8") as tep:
+        nguon = tep.read()
+
+    assert "ke_hoach_luoi(" in nguon, "`server.py` ⛔ gọi `ke_hoach_luoi` ⇒ lưới ⛔ bao giờ được nới"
+    vi_tri_noi = nguon.find("ke_hoach_luoi(")
+    vi_tri_ghi = nguon.find(".update(")
+    assert 0 < vi_tri_noi < vi_tri_ghi, (
+        "Phải nới lưới TRƯỚC bước ghi. Nới sau thì chính lượt `update` đã ném rồi — và bảng khi ấy "
+        "giữ dữ liệu cũ trong khi câu trả lời là một ngoại lệ ⛔ nói được nguyên nhân."
+    )
+
 
 if __name__ == "__main__":
     that_bai = 0

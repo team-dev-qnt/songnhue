@@ -47,6 +47,18 @@ import com.songnhue.hydro.domain.TelemetryReading;
  */
 class Bhh40ParserTest {
 
+    /**
+     * Bóc với đơn vị của nguồn <b>mực nước</b> — đơn vị mà toàn bộ bài kiểm dưới đây nói về.
+     *
+     * <p>⚠ WS-87 tách {@code boc} thành hai tham số vì nguồn thứ hai (lượng mưa) trả {@code mm} qua
+     * <b>cùng một định dạng dòng</b>. Helper này giữ các bài cũ đọc được như trước, nhưng ⛔ được
+     * hiểu thành *"đơn vị vẫn là hằng số"*: ca {@code mm} có lớp kiểm riêng
+     * ({@code Bhh40ParserLuongMuaTest}) và cố ý ⛔ trộn vào đây.
+     */
+    private static TelemetryBatch bocCm(String body) {
+        return Bhh40Parser.boc(body, TelemetryReading.DON_VI_CM);
+    }
+
     private static String mau;
 
     @BeforeAll
@@ -64,7 +76,7 @@ class Bhh40ParserTest {
     @Test
     @DisplayName("⭐⭐ Quy tắc parse 3 + quy tắc parse 4: bản mẫu ĐO THẬT cho ra ĐÚNG 28 bản ghi, 0 dòng rác")
     void banMauThatChoDung28BanGhi() {
-        TelemetryBatch me = Bhh40Parser.boc(mau);
+        TelemetryBatch me = bocCm(mau);
 
         assertThat(me.soDo())
                 .as("28 mã trong response đo lúc 10:24 ngày 01/09/2026 — con số này là phép đo, "
@@ -84,7 +96,7 @@ class Bhh40ParserTest {
     void catTrangHtmlODuoi() {
         assertThat(mau).contains("<!DOCTYPE").contains("__VIEWSTATE").contains("</html>");
 
-        TelemetryBatch me = Bhh40Parser.boc(mau);
+        TelemetryBatch me = bocCm(mau);
 
         // ⚠ Vế PHÂN BIỆT (luật 9): nếu không cắt, trang HTML có >10 dòng và tất cả đều là rác. Khẳng
         //   định soDongRac == 0 ở trên một mình có thể xanh vì lý do khác; con số dưới đây nói rằng
@@ -100,7 +112,7 @@ class Bhh40ParserTest {
     void catCaDoctypeChuThuong() {
         String than = "F01527;01/09/2026;10:20;value=231;<br>\n<!doctype html><html><body>x</body></html>";
 
-        TelemetryBatch me = Bhh40Parser.boc(than);
+        TelemetryBatch me = bocCm(than);
 
         assertThat(me.soDo()).hasSize(1);
         assertThat(me.soDongRac()).isZero();
@@ -115,7 +127,7 @@ class Bhh40ParserTest {
                 + "F01532;01/09/2026;10:20;value=439;<br />"
                 + "F01652;01/09/2026;10:20;value=493;<br>";
 
-        TelemetryBatch me = Bhh40Parser.boc(than);
+        TelemetryBatch me = bocCm(than);
 
         assertThat(me.soDo())
                 .as("⛔ Thắt chặt thành đúng '<br>' là mất TRỌN một response vào ngày nguồn đổi cách "
@@ -135,7 +147,7 @@ class Bhh40ParserTest {
                 + "F01532;01/09/2026;10:20;value=439<br>" // thiếu dấu ';' cuối
                 + "F01652;01/09/2026;10:20;value=493;<br>";
 
-        TelemetryBatch me = Bhh40Parser.boc(than);
+        TelemetryBatch me = bocCm(than);
 
         assertThat(me.soDo())
                 .as("bỏ cả mẻ vì một ký tự lạ là vứt 3 số đo tốt để phản ứng với 2 số đo xấu")
@@ -151,7 +163,7 @@ class Bhh40ParserTest {
                 + "F01532;29/02/2026;10:20;value=439;<br>" // 2026 không nhuận
                 + "F01652;01/09/2026;10:20;value=493;<br>";
 
-        TelemetryBatch me = Bhh40Parser.boc(than);
+        TelemetryBatch me = bocCm(than);
 
         assertThat(me.soDongRac())
                 .as("⚠ 29/02 của một năm không nhuận là bẫy đắt nhất: ResolverStyle mặc định (SMART) "
@@ -169,7 +181,7 @@ class Bhh40ParserTest {
                 + "F0152700;01/09/2026;10:20;value=101;<br>" // nhiều chữ số hơn
                 + "AB12;01/09/2026;10:20;value=102;<br>"; // HAI chữ cái — spec chỉ cho MỘT
 
-        TelemetryBatch me = Bhh40Parser.boc(than);
+        TelemetryBatch me = bocCm(than);
 
         assertThat(me.soDo())
                 .extracting(TelemetryReading::apiCode)
@@ -190,7 +202,7 @@ class Bhh40ParserTest {
         String than = "F01527;01/09/2026;10:20;value=-15;<br>" + "F01519;01/09/2026;10:20;value=4,93;<br>"
                 + "F01532;01/09/2026;10:20;value=4.93;<br>";
 
-        List<TelemetryReading> soDo = Bhh40Parser.boc(than).soDo();
+        List<TelemetryReading> soDo = bocCm(than).soDo();
 
         assertThat(soDo).hasSize(3);
         assertThat(soDo.get(0).giaTriTho()).isEqualByComparingTo("-15");
@@ -206,7 +218,7 @@ class Bhh40ParserTest {
     @Test
     @DisplayName("⭐⭐ Quy tắc parse 2: not.working ⇒ 0 bản ghi, cờ nguồn hỏng bật — ⛔ không ghi reading nào")
     void notWorkingKhongChoRaBanGhiNao() {
-        TelemetryBatch me = Bhh40Parser.boc("not.working");
+        TelemetryBatch me = bocCm("not.working");
 
         assertThat(me.nguonBaoHong()).isTrue();
         assertThat(me.soDo()).isEmpty();
@@ -217,7 +229,7 @@ class Bhh40ParserTest {
     void notWorkingThangCaKhiCoDongSoDo() {
         String than = "F01527;01/09/2026;10:20;value=231;<br>not.working";
 
-        TelemetryBatch me = Bhh40Parser.boc(than);
+        TelemetryBatch me = bocCm(than);
 
         // Vế này phân biệt hai cài đặt: "kiểm not.working TRƯỚC khi tách dòng" và "tách dòng rồi mới
         // kiểm". Bản thứ hai trả về 1 số đo — một mẻ vừa 'nguồn hỏng' vừa có dữ liệu, và không ai
@@ -240,7 +252,7 @@ class Bhh40ParserTest {
     @Test
     @DisplayName("⭐⭐ Quy tắc parse 6: '01/09/2026 10:20' giờ VN = 03:20 UTC — lệch 7 tiếng, ⛔ không lưu giờ địa phương")
     void mocThoiGianDoiVeUtc() {
-        TelemetryBatch me = Bhh40Parser.boc(mau);
+        TelemetryBatch me = bocCm(mau);
 
         Instant mongDoi = java.time.LocalDateTime.of(2026, 9, 1, 3, 20).toInstant(ZoneOffset.UTC);
         assertThat(me.soDo())
@@ -253,7 +265,7 @@ class Bhh40ParserTest {
     @Test
     @DisplayName("⚠ Quy tắc parse 6: cả 28 dòng cùng MỘT mốc — đó là mốc KHUNG của nguồn, ⛔ không phải giờ ta gọi")
     void caMeCungMotMocKhung() {
-        List<Instant> moc = Bhh40Parser.boc(mau).soDo().stream()
+        List<Instant> moc = bocCm(mau).soDo().stream()
                 .map(TelemetryReading::measuredAt)
                 .distinct()
                 .toList();
@@ -269,7 +281,7 @@ class Bhh40ParserTest {
     @Test
     @DisplayName("⭐⭐ Quy tắc parse 7: 493 cm ⇒ 4.930 m — giá trị THẬT của F01652, BigDecimal scale 3")
     void quyDoiCmSangMetTheoGiaTriThat() {
-        List<TelemetryReading> soDo = Bhh40Parser.boc(mau).soDo();
+        List<TelemetryReading> soDo = bocCm(mau).soDo();
 
         assertThat(giaTriCua(soDo, "F01652")).isEqualTo(new BigDecimal("4.930"));
         assertThat(giaTriCua(soDo, "F01532")).isEqualTo(new BigDecimal("4.390"));
@@ -288,7 +300,7 @@ class Bhh40ParserTest {
                 + "F01527;01/09/2026;10:20;value=999;<br>" // trùng khoá, khác giá trị
                 + "F01527;01/09/2026;10:30;value=232;<br>"; // khác mốc ⇒ KHÔNG trùng
 
-        TelemetryBatch me = Bhh40Parser.boc(than);
+        TelemetryBatch me = bocCm(than);
 
         assertThat(me.soDo()).hasSize(2);
         assertThat(me.soDongTrung()).isEqualTo(1);
@@ -303,9 +315,8 @@ class Bhh40ParserTest {
     @Test
     @DisplayName("⛔ Quy tắc parse 5 KHÔNG thuộc parser: mã lạ vẫn được trả về đủ, việc lọc là của poller")
     void parserKhongTuLocMaLa() {
-        List<String> ma = Bhh40Parser.boc(mau).soDo().stream()
-                .map(TelemetryReading::apiCode)
-                .toList();
+        List<String> ma =
+                bocCm(mau).soDo().stream().map(TelemetryReading::apiCode).toList();
 
         assertThat(ma)
                 .as("⚠ 9 mã trong bản mẫu CHƯA được khai ở stations (G8). Parser mà tự lọc chúng là "
@@ -320,7 +331,7 @@ class Bhh40ParserTest {
     @DisplayName("Thân null / rỗng / chỉ có HTML ⇒ mẻ rỗng, ⛔ không ném, ⛔ không tính rác")
     void thanRongChoMeRong() {
         for (String than : new String[] {null, "", "   ", "<!DOCTYPE html><html></html>"}) {
-            TelemetryBatch me = Bhh40Parser.boc(than);
+            TelemetryBatch me = bocCm(than);
             assertThat(me.soDo()).isEmpty();
             assertThat(me.soDongRac()).isZero();
             assertThat(me.nguonBaoHong()).isFalse();

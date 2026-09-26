@@ -148,7 +148,7 @@ class PollerChangCuoiHttpTest extends IntegrationTestBase {
     @BeforeAll
     void dungNguonGia() throws IOException {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        server.createContext("/api/getmn.aspx", this::traLoi);
+        server.createContext("/api/getmucnuoc.aspx", this::traLoi);
         server.start();
 
         nguon = jdbc.queryForObject(
@@ -253,7 +253,7 @@ class PollerChangCuoiHttpTest extends IntegrationTestBase {
                 .append(v)
                 .append(";<br>"));
         sb.append("\r\n\r\n<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\">\n")
-                .append("<html><body><form method=\"post\" action=\"./getmn.aspx?key=")
+                .append("<html><body><form method=\"post\" action=\"./getmucnuoc.aspx?key=")
                 .append("maso-kiem-thu-chang-cuoi%3b")
                 .append("\" id=\"form1\"></form></body></html>");
         return sb.toString();

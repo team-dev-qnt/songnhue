@@ -11,6 +11,7 @@ import com.songnhue.hydro.domain.TelemetryAdapter;
 import com.songnhue.hydro.domain.TelemetryBatch;
 import com.songnhue.hydro.domain.TelemetryCall;
 import com.songnhue.hydro.domain.TelemetryFetch;
+import com.songnhue.hydro.domain.TelemetryReading;
 
 /**
  * Nguồn giả cho máy lập trình viên và cho CI — T30.8. ⛔ Không bao giờ ở production.
@@ -65,6 +66,19 @@ public class MockAdapter implements TelemetryAdapter {
         return AdapterType.MOCK;
     }
 
+    /**
+     * Nguồn giả giao <b>mực nước</b> — thân giả ở trên là số nguyên cm, đúng hình dạng
+     * {@code getmucnuoc.aspx}.
+     *
+     * <p>⛔ Đừng đổi sang {@code LUONG_MUA} để "thử cho tiện": các mã {@code Z9000x} của thân giả là
+     * mã giả, và một lượt chạy mock khai lượng mưa sẽ ghi số giả vào đúng loại chỉ số mà Công ty
+     * sắp nhận dữ liệu thật.
+     */
+    @Override
+    public String maLoaiChiSo() {
+        return Bhh40MucNuocAdapter.MA_LOAI_CHI_SO;
+    }
+
     @Override
     public TelemetryFetch goi(TelemetryCall yeuCau) {
         // Mức WARN, mỗi lượt gọi: nếu lớp này chạy ở một nơi không ai định cho nó chạy thì dòng log
@@ -87,6 +101,6 @@ public class MockAdapter implements TelemetryAdapter {
     public TelemetryBatch boc(String body) {
         // ⭐ Dùng CHUNG bộ bóc với nguồn thật: một bộ parser thứ hai "cho mock" là một đường mã mà
         //   production không đi, và mọi bài kiểm chạy trên nó không nói gì về đường thật (luật 5).
-        return Bhh40Parser.boc(body);
+        return Bhh40Parser.boc(body, TelemetryReading.DON_VI_CM);
     }
 }

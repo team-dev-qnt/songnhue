@@ -269,19 +269,30 @@ class PublicHydroHttpTest extends IntegrationTestBase {
             "MUA", KHONG_CO_COT));
 
     /**
-     * ⛔⛔ Cột lượng mưa <b>luôn rỗng</b> và luôn kèm lý do — mục <b>G3-a</b>.
+     * ⛔⛔ Cột lượng mưa <b>luôn rỗng</b> và luôn kèm lý do — nay là mục <b>G8</b>.
      *
-     * <p>⛔ Đây ⛔ không phải một thiếu sót để "sửa cho đủ": loại chỉ số lượng mưa đã khai nhưng
-     * chưa gắn cho điểm đo nào, và {@code 0 mm} là một <b>câu khẳng định về thời tiết</b>.
+     * <p>⛔ Đây ⛔ không phải một thiếu sót để "sửa cho đủ": {@code 0 mm} là một <b>câu khẳng định
+     * về thời tiết</b>, và nó sai.
+     *
+     * <h3>⚠ LÝ DO đổi BẢN CHẤT ngày 26/09/2026 (WS-87), ⛔ phải đổi cách hiển thị</h3>
+     *
+     * <p>Tới hôm ấy lý do là <i>"chưa có nguồn lượng mưa"</i> (G3-a). Công ty cấp
+     * {@code getluongmua.aspx} ⇒ vế ấy <b>sai</b>, và sai theo chiều đắt: nó gửi người vận hành đi
+     * <b>chờ một endpoint đã có</b>. Thứ thật sự còn thiếu là <b>bảng ánh xạ 15 mã ↔ trạm</b> —
+     * việc của Công ty, thuộc <b>G8</b>; số đo vẫn chảy về và nằm nguyên văn ở
+     * {@code hydro_unmapped_readings}.
+     *
+     * <p>⇒ Khẳng định bám <b>mục nào đang chặn</b> — đó mới là thứ người đọc dùng để biết phải đi
+     * hỏi ai, và là thứ ⛔ được lặng lẽ hết đúng.
      */
     @Test
-    @DisplayName("⛔ Lượng mưa LUÔN rỗng kèm lý do — ⛔ không bao giờ là 0 (G3-a)")
+    @DisplayName("⛔ Lượng mưa LUÔN rỗng kèm lý do — ⛔ không bao giờ là 0 (nay: G8)")
     void rainfallIsAlwaysEmptyWithAReason() {
         taoDiemDo("THUONG_LUU");
 
         String than = doc().getBody();
 
-        assertThat(than).contains("\"luongMua\":null").contains("mục G3-a");
+        assertThat(than).contains("\"luongMua\":null").contains("mục G8");
         assertThat(than)
                 .as("⛔ `0 mm` là một khẳng định về thời tiết, và nó SAI")
                 .doesNotContain("\"luongMua\":0")
