@@ -57,13 +57,13 @@ class ConstructionTest {
         c.setOperatingLevelMinM(new BigDecimal("1"));
         c.setOperatingLevelMaxM(new BigDecimal("10"));
 
-        c.setSluiceType("Type");
+        c.setSluiceType(SluiceType.HOP);
         c.setBayCount((short) 3);
         c.setBayWidthM(new BigDecimal("2"));
         c.setSillElevationM(new BigDecimal("3"));
         c.setSluiceCrestElevationM(new BigDecimal("4"));
         c.setSluiceDesignFlowM3s(new BigDecimal("5"));
-        c.setGateOperation("Gate");
+        c.setGateOperation(GateOperation.THU_CONG);
         c.setUpstreamWarningLevelM(new BigDecimal("6"));
         c.setUpstreamDangerLevelM(new BigDecimal("7"));
 
@@ -107,13 +107,13 @@ class ConstructionTest {
         assertThat(c.getOperatingLevelMaxM()).isEqualTo(new BigDecimal("10"));
         assertThat(c.getTotalFlowM3s()).isNull(); // Generated column
 
-        assertThat(c.getSluiceType()).isEqualTo("Type");
+        assertThat(c.getSluiceType()).isEqualTo(SluiceType.HOP);
         assertThat(c.getBayCount()).isEqualTo((short) 3);
         assertThat(c.getBayWidthM()).isEqualTo(new BigDecimal("2"));
         assertThat(c.getSillElevationM()).isEqualTo(new BigDecimal("3"));
         assertThat(c.getSluiceCrestElevationM()).isEqualTo(new BigDecimal("4"));
         assertThat(c.getSluiceDesignFlowM3s()).isEqualTo(new BigDecimal("5"));
-        assertThat(c.getGateOperation()).isEqualTo("Gate");
+        assertThat(c.getGateOperation()).isEqualTo(GateOperation.THU_CONG);
         assertThat(c.getUpstreamWarningLevelM()).isEqualTo(new BigDecimal("6"));
         assertThat(c.getUpstreamDangerLevelM()).isEqualTo(new BigDecimal("7"));
 

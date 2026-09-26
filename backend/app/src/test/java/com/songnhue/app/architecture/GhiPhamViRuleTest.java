@@ -142,9 +142,48 @@ class GhiPhamViRuleTest {
         return ra;
     }
 
+    /**
+     * Một lượt <b>tra cứu theo mã</b> trên kho của entity phạm vi.
+     *
+     * <h2>⛔⛔ Vì sao vị từ cũ hẹp hơn nơi nó phải chặn (T81.4)</h2>
+     *
+     * <p>Bản trước hỏi {@code ten.startsWith("existsBy") && ten.contains("Code")}. Nó bắt đúng hình
+     * dạng <b>đang có</b> lúc T74.9 viết ra, nhưng Spring Data sinh ba tiền tố tương đương —
+     * {@code existsBy} · {@code findBy} · {@code countBy} — và cả ba đi qua {@code @Filter} y hệt
+     * nhau. Một phương thức tên {@code findByCodeAndDeletedAtIsNull} hay
+     * {@code countByCodeStartingWith} vì thế <b>vô hình</b> với luật, trong khi hậu quả của nó
+     * <b>giống hệt</b>: mã của đơn vị khác ⛔ nhìn thấy ⇒ kế hoạch nói *"thêm mới"* ⇒ lượt ghi đâm
+     * vào chỉ mục duy nhất giữa chừng.
+     *
+     * <p>⚠ Và phép so {@code contains("Code")} phân biệt hoa thường, nên {@code …codesStartingWith}
+     * cũng lọt — đúng hình dạng luật 28 mà T57.9 đã trả giá ở {@code EnumBaNoiTest} (<i>phạm vi hụt
+     * ⛔ ở tệp nào được quét mà ở ký tự nào được nhận</i>).
+     *
+     * <h2>⛔⛔ Và bản nới ĐẦU TIÊN của tôi có 3/6 dương tính giả — chỉ lộ ra vì CHẠY nó</h2>
+     *
+     * <p>Chữ {@code Code} trong tên một phương thức Spring Data xuất hiện ở <b>hai vai trò khác
+     * hẳn nhau</b>: một <i>tiêu chí lọc</i> ({@code findByCodeAndDeletedAtIsNull}) và một
+     * <i>mệnh đề sắp xếp</i> ({@code findByDeletedAtIsNullOrderByCodeAsc}). Vế sau ⛔ tra theo mã —
+     * nó chỉ <b>sắp kết quả</b> theo mã, và lọc phạm vi ở đó là <b>ĐÚNG</b>: người dùng chỉ nên
+     * thấy điểm đo của đơn vị mình.
+     *
+     * <p>Đo 23/09/2026: bản nới ⛔ phân biệt hai vai trò ấy lôi ra <b>6</b> nơi gọi, <b>3</b> trong
+     * số đó là {@code OrderBy…Code…} hoàn toàn vô can ({@code StationService.list} ·
+     * {@code StationService.soDiemDoCuaNguon} · {@code AlertRuleService.diemDoChuaCauHinh}).
+     * ⇒ Cắt tên ở {@code OrderBy} và chỉ đọc phần <b>tiêu chí</b>.
+     *
+     * <p>⭐ Dòng nợ dặn <i>"chạy luật TRƯỚC khi chốt danh sách miễn"</i>, và đó là lời dặn đắt giá:
+     * viết danh sách miễn trước thì tôi đã đúc <b>3 dòng miễn cho 3 thứ ⛔ hỏng</b> — tiếng ồn che
+     * mất những dòng có nghĩa, đúng hình dạng đã đo ở T63.3.
+     */
     static boolean laKiemMaPhamVi(JavaMethodCall goi) {
         String ten = goi.getName();
-        return ten.startsWith("existsBy") && ten.contains("Code") && laKhoPhamVi(goi.getTargetOwner());
+        boolean traCuu = ten.startsWith("existsBy") || ten.startsWith("findBy") || ten.startsWith("countBy");
+        // Phần TRƯỚC `OrderBy` là tiêu chí lọc; phần sau chỉ nói thứ tự sắp xếp.
+        String tieuChi = ten.split("OrderBy", 2)[0];
+        return traCuu
+                && tieuChi.toLowerCase(java.util.Locale.ROOT).contains("code")
+                && laKhoPhamVi(goi.getTargetOwner());
     }
 
     private static boolean laKhoPhamVi(JavaClass kho) {
@@ -239,6 +278,33 @@ class GhiPhamViRuleTest {
         String baoCao = String.join("\n", kq.getFailureReport().getDetails());
         assertThat(baoCao).contains("KiemMaTrongPhamVi.trung");
         assertThat(baoCao).doesNotContain("KiemMaToanCongTy").doesNotContain("KiemMaDanhMuc");
-        assertThat(kq.getFailureReport().getDetails()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("⛔⛔ Tự kiểm W2 (T81.4): bắt CẢ findBy/countBy theo mã — nhưng THA OrderBy…Code (sắp xếp)")
+    void tuKiemW2BaTienToVaOrderBy() {
+        JavaClasses doGa = new ClassFileImporter().importClasses(GhiPhamViFixtures.class.getDeclaredClasses());
+        EvaluationResult kq = classes().should(w2()).evaluate(doGa);
+        String baoCao = String.join("\n", kq.getFailureReport().getDetails());
+
+        // Luật 29 — một khẳng định VỀ SỐ LƯỢNG ⛔ chia sẻ giả định nào với phép so chuỗi ở dưới.
+        assertThat(kq.getFailureReport().getDetails())
+                .as("đúng ba chỗ vi phạm trong đồ gá: existsBy · findBy · countBy")
+                .hasSize(3);
+
+        // Ba tiền tố Spring Data sinh ra cho CÙNG một lượt tra theo mã — cả ba đi qua `@Filter` y hệt.
+        assertThat(baoCao)
+                .as("`findBy…Code…` phải bị bắt — vị từ cũ chỉ nhận `existsBy` nên nó vô hình")
+                .contains("TraMaBangFindBy.tra");
+        assertThat(baoCao)
+                .as("`countBy…Code…` phải bị bắt — tiền tố thứ ba, cùng một hậu quả")
+                .contains("DemMaBangCountBy.dem");
+
+        // ⭐ Vế PHÂN BIỆT, và nó là vế đắt nhất: bản nới đầu tiên của tôi ⛔ có nó và sinh 3/6 dương
+        //    tính giả trên mã thật. Một luật phạt cả lượt liệt kê sắp-theo-mã sẽ đẻ ra ba dòng miễn
+        //    trừ cho ba thứ ⛔ hỏng — tiếng ồn che mất dòng có nghĩa (luật 28 · T63.3).
+        assertThat(baoCao)
+                .as("`OrderBy…Code…` là SẮP XẾP, ⛔ phải tra theo mã — lọc phạm vi ở đó là ĐÚNG")
+                .doesNotContain("LietKeSapTheoMa");
     }
 }

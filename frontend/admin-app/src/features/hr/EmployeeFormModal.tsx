@@ -409,7 +409,7 @@ function BieuMauHoSo({
             //    được nó. Đây là dữ liệu cá nhân theo NĐ 13/2023.
             rules={[{ required: true, message: 'Chọn đơn vị công tác' }]}
           >
-            <OrgUnitTreeSelect />
+            <OrgUnitTreeSelect chiTrongPhamVi />
           </Form.Item>
         </Col>
         <Col span={12}>

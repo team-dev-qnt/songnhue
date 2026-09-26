@@ -195,12 +195,15 @@ class HydroPollJobHandlerTest {
     }
 
     @Test
-    @DisplayName("⛔ maxAttempts() KHÔNG được ghi đè ở đây — nó không có người đọc trong toàn kho (luật 15)")
+    @DisplayName("⛔ maxAttempts() KHÔNG được ghi đè ở đây — con số 1 là tính chất của NHỊP, ⛔ của việc")
     void khongGhiDeMaxAttempts() {
         assertThat(handler.maxAttempts())
-                .as("con số thật nằm ở HydroPollScheduler, nơi JobService.enqueue ghi nó vào cột "
-                        + "jobs.max_attempts. Ghi đè ở đây là khai một con số không điều khiển gì — và "
-                        + "TRÔNG NHƯ đã điều khiển, đó mới là phần đắt")
-                .isEqualTo((short) 3);
+                .as("⚠ Lý do đã ĐỔI 23/09/2026 (T68.30). Bản cũ: 'ghi đè ở đây là khai một con số ⛔ "
+                        + "điều khiển gì' — nay SAI, vì JobService.enqueue đọc nó làm mặc định. Lý do "
+                        + "thật: thử MỘT lần vì lượt polling kế tiếp cách 2 phút và chính nó là lượt "
+                        + "thử lại — một tính chất của LỊCH, ⛔ của công việc. Cùng handler dưới một "
+                        + "lịch 30 phút sẽ muốn con số khác, nên nó thuộc về HydroPollScheduler. "
+                        + "Giá trị ở đây phải là MẶC ĐỊNH SPI, tức handler ⛔ khai gì")
+                .isEqualTo(com.songnhue.core.spi.JobHandler.MAC_DINH_SO_LAN_THU);
     }
 }

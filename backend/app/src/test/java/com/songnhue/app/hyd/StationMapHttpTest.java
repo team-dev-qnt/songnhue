@@ -184,7 +184,58 @@ class StationMapHttpTest extends IntegrationTestBase {
                 .contains("\"tenMucCanhBao\":\"Mức kiểm thử bản đồ\"");
     }
 
+    // === T35.2 — hai endpoint phải đồng ý về CÙNG một tập ====================
+
+    /**
+     * ⭐⭐ <b>Hai câu hỏi <i>"điểm đo nào chưa có toạ độ"</i>, một câu trả lời.</b>
+     *
+     * <p>Từ 24/09/2026 danh sách ấy có <b>hai</b> nơi công bố: {@code chuaSoHoaViTri[]} của
+     * {@code /map-points} (ô ghi chú trên dashboard) và cờ {@code chuaSoHoaViTri} trên từng dòng
+     * {@code GET /hyd/stations} (bộ lọc của màn hình Điểm đo — chỗ Công ty <b>nhập</b> toạ độ).
+     *
+     * <p>⛔⛔ Hai con số lệch nhau là hình dạng lỗi <b>im lặng</b>: dashboard nói <i>"19 điểm đo
+     * chưa có toạ độ"</i>, người vận hành bấm sang màn hình kia và thấy 18 dòng — ⛔ có lỗi nào,
+     * ⛔ có ô rỗng nào, chỉ là một dòng biến mất. Đúng thứ {@code T68.36} vừa trả giá, và lý do
+     * vị từ nay nằm ở {@code Station.chuaSoHoaViTri} chứ ⛔ chép làm hai bản.
+     *
+     * <p>⚠ Bài ⛔ khẳng định một CON SỐ tuyệt đối: nó so <b>hai lượt đọc cùng thời điểm</b>, nên nó
+     * ⛔ mục đi khi Công ty bắt đầu nhập toạ độ thật (bài anh em ở trên ghim mốc 19 và sẽ phải sửa;
+     * bài này thì ⛔).
+     */
+    @Test
+    @DisplayName("⭐⭐ T35.2 — cờ `chuaSoHoaViTri` của danh mục chọn ra ĐÚNG tập của `/map-points`")
+    void theListFlagAndTheMapListSelectTheSameStations() {
+        long id = taoDiemDo(false);
+
+        assertThat(soLan(danhMuc(), "\"chuaSoHoaViTri\":true"))
+                .as("⚠ vế chống tập rỗng (luật 7): ⛔ có dòng nào mang cờ thì mọi phép so dưới đây "
+                        + "đều xanh trên hai tập RỖNG")
+                .isEqualTo(soLan(phanChuaSoHoa(doc()), "\"publicId\""));
+
+        // ⭐ Vế phân biệt: điểm đo vừa tạo phải ĐỔI PHÍA ở CẢ HAI endpoint cùng lúc. ⛔ có vế này
+        //    thì hai phép đếm bằng nhau cũng có thể vì cả hai cùng trả về một hằng số.
+        assertThat(danhMuc()).contains(MA);
+        assertThat(phanChuaSoHoa(doc()))
+                .as("chưa có toạ độ ⇒ nằm ở danh sách chờ")
+                .contains(MA);
+
+        jdbc.update("UPDATE stations SET latitude = 20.98, longitude = 105.78 WHERE id = ?", id);
+
+        assertThat(phanChuaSoHoa(doc())).as("có toạ độ ⇒ rời danh sách chờ").doesNotContain(MA);
+        assertThat(phanDiemDo(doc())).as("… và thành một chấm trên bản đồ").contains(MA);
+        assertThat(soLan(danhMuc(), "\"chuaSoHoaViTri\":true"))
+                .as("⛔⛔ hai endpoint phải đổi CÙNG LÚC — đây là chỗ một bản sao vị từ thứ hai sẽ lộ")
+                .isEqualTo(soLan(phanChuaSoHoa(doc()), "\"publicId\""));
+    }
+
     // === Helper ==============================================================
+
+    /** Thân của {@code GET /hyd/stations} — danh mục, ⛔ phải lớp bản đồ. */
+    private String danhMuc() {
+        ResponseEntity<String> ra = phienHttp.get(kyThuat, "/api/v1/hyd/stations");
+        assertThat(ra.getStatusCode()).as("%s", ra.getBody()).isEqualTo(HttpStatus.OK);
+        return ra.getBody();
+    }
 
     private String doc() {
         ResponseEntity<String> ra = phienHttp.get(kyThuat, DUONG_DAN);

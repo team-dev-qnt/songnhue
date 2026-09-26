@@ -50,7 +50,7 @@ public class ContactScheduler {
     @Scheduled(cron = "0 30 8 * * *", zone = DateTimeUtils.ZONE_VN_ID)
     public void quetSla() {
         String khoa = CmsJobTypes.CONTACT_SLA_REMIND + ":" + LocalDate.now(DateTimeUtils.ZONE_VN);
-        jobs.enqueue(new JobRequest(CmsJobTypes.CONTACT_SLA_REMIND, "{}", khoa, (short) 2));
+        jobs.enqueue(JobRequest.theoHandler(CmsJobTypes.CONTACT_SLA_REMIND, "{}", khoa));
         log.info("Đã đặt việc nhắc SLA liên hệ {}", khoa);
     }
 }

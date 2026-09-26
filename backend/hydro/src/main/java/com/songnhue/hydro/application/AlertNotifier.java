@@ -134,12 +134,10 @@ public class AlertNotifier {
                 List.of(),
                 null,
                 List.of(com.songnhue.core.spi.NotifyChannel.IN_APP, com.songnhue.core.spi.NotifyChannel.EMAIL),
-                // G11 — cảnh báo ngưỡng ⛔ nhắm đích theo quyền (targetPermission = null) nên cờ phạm vi ⛔ áp dụng.
-                false,
-                // ⭐ Và đây LÀ cảnh báo G11 ⇒ nhóm "Ban điều hành" ∪ trưởng/phó đơn vị. Danh sách đơn vị có thể
+                // ⭐ Đây LÀ cảnh báo G11 ⇒ nhóm "Ban điều hành" ∪ trưởng/phó đơn vị. Danh sách đơn vị có thể
                 //   RỖNG (điểm đo `MN_SONG` ⛔ thuộc công trình nào — T33.8), khi ấy nhóm cố định là người nhận
-                //   DUY NHẤT — nên ⛔ suy cờ này từ `relatedOrgUnitIds.isEmpty()` được (T74.7).
-                true));
+                //   DUY NHẤT — nên ⛔ suy chính sách này từ `relatedOrgUnitIds.isEmpty()` được (T74.7).
+                com.songnhue.core.spi.ChinhSachNguoiNhan.NHOM_CANH_BAO));
         ghiNhatKyThieu(bc);
     }
 

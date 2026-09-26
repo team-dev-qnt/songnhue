@@ -26,10 +26,18 @@ RUN npm ci --workspace public-web --include-workspace-root
 
 COPY . .
 
+# ⛔⛔ ⛔ khai `NEXT_PUBLIC_SITE_URL` ở đây nữa — T68.12.
+#
+#   Next thay `process.env.NEXT_PUBLIC_*` bằng chuỗi hằng LÚC BUILD, nên giá trị đi thẳng vào
+#   ảnh. Mà staging và production dùng CHUNG một ảnh ⇒ chúng buộc phải mang chung giá trị, và
+#   robots/sitemap/canonical của staging tự nhận là production (đo 19/09). `SITE_URL` nay đọc
+#   lúc chạy, do `compose.prod.yml` truyền — cùng khuôn với `MEDIA_ORIGIN` (T84.13).
+#
+# ⚠ `NEXT_PUBLIC_API_BASE_URL` thì Ở LẠI, và đó ⛔ phải sơ suất: nó là địa chỉ **TRÌNH DUYỆT**
+#   gọi, nên nó buộc phải nằm trong bundle. Giá trị mặc định của nó là một đường dẫn TƯƠNG ĐỐI
+#   (`/api/v1`), tức cùng origin với trang — nên nó ⛔ mang bẫy "hai môi trường một giá trị".
 ARG NEXT_PUBLIC_API_BASE_URL
-ARG NEXT_PUBLIC_SITE_URL
 ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL \
-    NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL \
     NEXT_TELEMETRY_DISABLED=1
 RUN npm run build --workspace public-web
 

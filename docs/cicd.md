@@ -570,10 +570,25 @@ khai canonical trỏ về production — đúng hình dạng nội dung trùng l
 thiệt. Nginx biên của staging vì thế trả `X-Robots-Tag: noindex, nofollow` (biến `ROBOTS_TAG`
 trong `.env`), chặn ngay trước khi trang nào kịp được đọc.
 
-Đây là cách chữa **triệu chứng**, và ghi ra như vậy để không ai tưởng đã xong. Cách chữa gốc là cho
-`SITE_URL` đọc lúc chạy thay vì lúc build — `frontend/public-web/src/lib/site.ts` chỉ được các tệp
-phía máy chủ dùng (`layout.tsx`, `sitemap.ts`, `robots.ts`), nên đổi được mà không chạm bundle của
-trình duyệt. Xem `docs/deploy-guideline.md` §9.3.
+✅ **Cách chữa GỐC đã làm 24/09/2026 — `T68.12`.** `SITE_URL` nay đọc **lúc chạy**: nó thôi mang
+tiền tố `NEXT_PUBLIC_`, `public-web.Dockerfile` và `ci.yml` thôi truyền build-arg, còn
+`compose.prod.yml` truyền `SITE_URL: https://${PUBLIC_DOMAIN:?…}`. Ba tệp dùng nó đều ở phía máy
+chủ (`layout.tsx`, `sitemap.ts`, `robots.ts`) nên bundle trình duyệt ⛔ bị chạm.
+
+⛔⛔ **Và chỉ đổi chỗ đọc thì CHƯA đủ — đây là nửa dễ quên nhất.** Đo bằng `next build` ngày 24/09:
+trong 20 route của cổng, `/robots.txt` là route **DUY NHẤT** Next prerender tĩnh (`○`); 18 route kia
+và cả `/sitemap.xml` đều `ƒ` vì chúng `await` dữ liệu. Hàm `robots()` chỉ đọc một biến nên Next kết
+luận kết quả bất biến và **nướng tệp vào ảnh**. ⇒ `robots.ts` phải gọi `await connection()`.
+
+⛔ **Công tắc là `connection()`, ⛔ phải `force-dynamic`.** `noBuildTimePrerender.test.ts` cấm
+`force-dynamic` trên mọi route của cổng với lý do đúng: nó hạ mặc định fetch xuống `no-store` ⇒
+backend phải trả lời MỌI lượt truy cập thay vì 1 lần / 5 phút. Mọi lượt đọc API đã đi qua
+`connection()` ở chokepoint `apiGetWithMeta`; `robots.ts` là ca **ngoài** chokepoint vì nó ⛔ đọc
+API — và đó cũng đúng là lý do nó là route duy nhất còn `○`. Ba trạng thái, cùng một lệnh
+`next build`: ⛔ công tắc ⇒ `○` · `force-dynamic` ⇒ `ƒ` · `connection()` ⇒ `ƒ`.
+
+⚠ `X-Robots-Tag: noindex` ở nginx staging **giữ nguyên** — nay nó là lớp thứ hai chứ ⛔ còn là thứ
+duy nhất đang che. Bộ canh: `SiteUrlDocLucChayTest` (vế deploy) + `robots.test.ts` (vế frontend).
 
 ## 5. Chặng `production` — tự động khi merge vào `production`
 

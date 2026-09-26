@@ -126,4 +126,43 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
             @Param("tru") Long truEmployeeId,
             @Param("tu") LocalDate tu,
             @Param("den") LocalDate den);
+
+    /**
+     * Mọi đơn của một đơn vị <b>chạm vào</b> một khoảng — lịch nghỉ đơn vị (CN-04.9, T57.18 vế b).
+     *
+     * <h2>⛔⛔ Vì sao là câu THỨ TƯ chứ ⛔ dùng lại một trong ba câu đã có</h2>
+     *
+     * <p>Sổ nợ khai <i>"dữ liệu đã đủ, chỉ thiếu màn hình"</i>. Đo lại (WS-81) thì cả ba câu
+     * <i>gần giống</i> đều sai <b>đúng một vị từ</b>, và mỗi cái sai một kiểu khác nhau:
+     *
+     * <ul>
+     *   <li>{@link #soNguoiNghiCungLuc} trả một {@code long} và <b>cố ý TRỪ người nộp</b>
+     *       ({@code r.employeeId <> :tru}) — nó tồn tại để trả lời <i>"ngoài tôi ra còn mấy người"</i>.
+     *       Vẽ lịch bằng nó cho ra một tháng chỉ có con số, và <b>thiếu đúng một người</b>.
+     *   <li>{@link #donChongKhoang} lọc {@code r.employeeId = :employeeId} — một người.
+     *   <li>{@link #hopChoDuyet} ⛔ lọc ngày và <b>bỏ {@code DA_DUYET}</b> ⇒ lịch sẽ thiếu đúng
+     *       những người <b>chắc chắn</b> nghỉ.
+     * </ul>
+     *
+     * <p>⚠ Vị từ chồng khoảng ({@code fromDate <= :den AND toDate >= :tu}) và bộ ba trạng thái ở
+     * đây <b>trùng khít</b> {@link #soNguoiNghiCungLuc} — và phải thế: lịch và cảnh báo trùng lịch
+     * đang trả lời <b>cùng một câu hỏi</b> ở hai màn hình. Lệch một vị từ là người nộp thấy cảnh
+     * báo <i>"đã có 4/10 người nghỉ"</i> rồi mở lịch ra đếm được 3 (quy tắc 13).
+     *
+     * <p>⚠ {@code orgUnitId} nêu tường minh <b>bên cạnh</b> bộ lọc phạm vi, y như câu trên: người
+     * xem chọn <b>một</b> đơn vị, còn bộ lọc chỉ nói đơn vị nào họ <i>được phép</i> chọn. Hai câu
+     * hỏi khác nhau ⇒ hai điều kiện, và {@code ScopeGuard.requireReadableOrgUnit} nối chúng lại để
+     * một mã đơn vị ngoài phạm vi ra <b>403</b> chứ ⛔ phải một lịch rỗng.
+     */
+    @Query(
+            """
+            SELECT r FROM LeaveRequest r
+            WHERE r.deletedAt IS NULL
+              AND r.orgUnitId = :orgUnitId
+              AND r.state IN ('CHO_DUYET', 'CHO_DUYET_2', 'DA_DUYET')
+              AND r.fromDate <= :den AND r.toDate >= :tu
+            ORDER BY r.fromDate ASC, r.id ASC
+            """)
+    List<LeaveRequest> lichNghiCuaDonVi(
+            @Param("orgUnitId") Long orgUnitId, @Param("tu") LocalDate tu, @Param("den") LocalDate den);
 }

@@ -164,7 +164,7 @@ public class TramBomImportService {
 
     /**
      * Nhập thật — chạy lại {@link #lapKeHoach}; còn một dòng lỗi thì ⛔ dòng nào được ghi
-     * ({@code OPS-2016}).
+     * ({@code SYS-0015}).
      *
      * <p>⚠ Trạm ghi TRƯỚC, nhóm máy ghi SAU, và nhóm tra id trạm qua bảng {@code idTheoKhoa} dựng
      * trong chính lượt này — trạm vừa tạo chưa có id lúc lập kế hoạch, nên kế hoạch mang <b>khoá
@@ -174,7 +174,7 @@ public class TramBomImportService {
     public KetQuaNhap apply(byte[] content) {
         KeHoach keHoach = lapKeHoach(content);
         if (!keHoach.loi.isEmpty()) {
-            throw new BusinessRuleException(ErrorCode.OPS_2016, keHoach.loi.size());
+            throw new BusinessRuleException(ErrorCode.SYS_0015, keHoach.loi.size());
         }
 
         Map<String, Long> idTheoKhoa = new HashMap<>();
@@ -392,9 +392,18 @@ public class TramBomImportService {
 
         Construction hienCo = null;
         if (ma != null) {
-            hienCo = constructions
-                    .findByCodeAndDeletedAtIsNull(ma.toUpperCase(Locale.ROOT))
-                    .orElse(null);
+            String maChuan = ma.toUpperCase(Locale.ROOT);
+            hienCo = constructions.findByCodeAndDeletedAtIsNull(maChuan).orElse(null);
+            // ⛔⛔ T81.4 — lượt tra trên kia đi QUA bộ lọc phạm vi, mà mã công trình là duy nhất
+            //    TOÀN Công ty. Thiếu vế này thì một mã đang thuộc Xí nghiệp khác đọc ra là "⛔ có",
+            //    rồi `tramMoi` hoặc báo *"Không có công trình mã X"* (SAI — nó có thật), hoặc đi
+            //    tạo mới và đâm vào chỉ mục duy nhất GIỮA lượt ghi ⇒ cuộn cả tệp, ⛔ chỉ ra dòng nào.
+            //    `CapMaTrongLuot.daCoTrongCongTy` đã hỏi đúng câu này nhưng chỉ cho đường SINH mã.
+            if (hienCo == null && scopeGuard.toanCongTy(() -> constructions.existsByCodeAndDeletedAtIsNull(maChuan))) {
+                keHoach.loi.add(new LoiDong(
+                        soDong, COT_MA, "Mã '%s' đã thuộc một công trình ngoài phạm vi đơn vị của bạn".formatted(ma)));
+                return null;
+            }
         }
 
         OrgUnitRef donVi = null;

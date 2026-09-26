@@ -22,7 +22,7 @@ import { useMemo, useState } from 'react';
 
 import { useAuth } from '@/app/auth/useAuth';
 import { HopThoaiMaXacThuc } from '@/components/business/HopThoaiMaXacThuc';
-import { type SettingView, type UserView } from '@/shared/api-types';
+import { type SettingView, type Station, type UserView } from '@/shared/api-types';
 import { ApiClientError, api } from '@/shared/apiClient';
 import { luuTep } from '@/shared/luuTep';
 
@@ -384,6 +384,16 @@ const GROUP_LABELS: Record<string, string> = {
  */
 const KHOA_NHOM_CANH_BAO = 'notification.alert-group.executive-board';
 
+/**
+ * Khoá danh sách điểm đo lên cổng — phải khớp {@code HydroSettings.KHOA_DIEM_DO_LEN_CONG}.
+ *
+ * ⭐ Khác dòng ngay trên: chuỗi này **được một bộ canh giữ**. `oChonMaDiemDoLenCong.test.tsx` đọc
+ * hằng Java từ đĩa rồi dựng mọi bài bằng chính giá trị ấy, nên gõ sai ở đây là năm bài đỏ — ⛔ phải
+ * một ô chọn lặng lẽ ⛔ hiện ra. (Lỗ ấy vẫn còn ở `KHOA_NHOM_CANH_BAO`; nó ⛔ gây hại hôm nay nhưng
+ * vẫn là một lỗ ⇒ nợ **T85.15**.)
+ */
+const KHOA_DIEM_DO_LEN_CONG = 'hydro.portal.station-codes';
+
 /** Ô nhập dựng theo `valueType` — kiểu sai thì người dùng gõ được thứ backend chắc chắn từ chối. */
 function SettingEditor({
   setting,
@@ -491,6 +501,21 @@ function SettingEditor({
     );
   }
 
+  // ⛔⛔ T28.48 — ⛔ có nhánh ba trạng thái như `KHOA_NHOM_CANH_BAO`, và đó là một khác biệt THẬT:
+  //    một chuỗi ngăn phẩy LUÔN đọc được, ⛔ có hình dạng "hỏng cú pháp" nào để rơi xuống ô thô.
+  //    Trạng thái nguy hiểm ở đây khác hẳn — **mã ⛔ khớp điểm đo nào** — và nó được xử lý bên
+  //    trong ô chọn chứ ⛔ bằng cách từ chối dựng ô (xem javadoc của component).
+  if (setting.key === KHOA_DIEM_DO_LEN_CONG) {
+    return (
+      <ODanhSachMaDiemDo
+        nhan={setting.label}
+        value={value}
+        disabled={disabled}
+        onChange={onChange}
+      />
+    );
+  }
+
   return (
     <Input value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)} />
   );
@@ -549,6 +574,124 @@ function ONhomNhanCanhBao({
       onChange={(ids: string[]) => onChange(JSON.stringify(ids))}
     />
   );
+}
+
+/**
+ * Danh sách điểm đo công bố lên cổng — khoá {@code hydro.portal.station-codes}, T28.48.
+ *
+ * <h2>⛔⛔ Ba thứ của ô này ⛔ suy ra được từ *"một danh sách mã"*</h2>
+ *
+ * <ol>
+ *   <li><b>Rỗng nghĩa là CÔNG BỐ TẤT CẢ</b>, ⛔ phải ⛔ công bố gì ({@code V202609041064} +
+ *       {@code HydroSettings.maDiemDoLenCong()}). Hai trạng thái ấy trông y hệt nhau trên một ô
+ *       trống, nên dòng chữ dưới ô là chỗ DUY NHẤT nói được — bỏ nó đi là để người quản trị xoá
+ *       hết tag hòng "tạm ẩn bảng" rồi công bố trọn 19 điểm đo.
+ *   <li><b>Thứ tự chọn LÀ thứ tự hiển thị trên cổng.</b> Máy chủ cố ý dùng {@code LinkedHashSet};
+ *       {@code PublicHydroService} còn viết sẵn rằng một danh sách <i>"chọn được nhưng ⛔ xếp
+ *       được"</i> sẽ phải mở lại mã ngay lần đầu Công ty dùng. {@code mode="multiple"} của antd
+ *       giữ đúng thứ tự bấm, và bỏ tag rồi chọn lại là cách đẩy một mã xuống cuối.
+ *   <li><b>Trạm đã NGỪNG ⛔ bày ra để chọn mới.</b> {@code PublicHydroService.mucNuoc()} loại
+ *       {@code NGUNG} <b>trước</b> bộ lọc này, nên một mã đã ngừng ⛔ bao giờ lên cổng dù nằm
+ *       trong danh sách — bày nó ra là dựng một lựa chọn chắc chắn ⛔ có tác dụng. Cùng MỘT luật
+ *       với {@link ONhomNhanCanhBao} (tài khoản đã khoá).
+ * </ol>
+ *
+ * <h2>⛔⛔ Mã ⛔ khớp điểm đo nào vẫn PHẢI nhìn thấy được</h2>
+ *
+ * <p>Đây là trạng thái hỏng thật của khoá này, và hôm nay nó im lặng hoàn toàn: bảng mực nước trên
+ * cổng <b>ngắn đi một dòng</b>, lý do nằm trong một dòng {@code log.warn} ⛔ ai đọc. Một ô chọn
+ * lặng lẽ bỏ những mã ấy còn tệ hơn ô chữ cũ — lượt <i>Lưu</i> kế tiếp sẽ <b>ghi đè mất</b> cấu
+ * hình của Công ty mà ⛔ ai bấm nút xoá (luật 9).
+ *
+ * <p>⇒ Chúng ở lại dưới dạng tag có nhãn nói rõ <b>vì sao</b>, và <b>⛔ đặt {@code disabled}</b>:
+ * một option bị vô hiệu thì antd bỏ luôn dấu ✕ trên tag, tức người quản trị nhìn thấy lỗi mà ⛔
+ * sửa được. Ba trạng thái, ba câu chữ khác nhau (T59.0) — <i>gõ nhầm</i> và <i>trạm đã thôi dùng</i>
+ * dẫn tới hai việc khác hẳn nhau.
+ */
+function ODanhSachMaDiemDo({
+  nhan,
+  value,
+  disabled,
+  onChange,
+}: {
+  nhan: string;
+  value: string;
+  disabled: boolean;
+  onChange: (value: string) => void;
+}) {
+  const { data: diemDo } = useQuery({
+    queryKey: ['hyd-stations', 'chon-len-cong'],
+    queryFn: () => api.get<Station[]>('/hyd/stations'),
+  });
+  const daChon = useMemo(() => docMaDiemDo(value), [value]);
+  const chon = useMemo(() => {
+    const tatCa = diemDo ?? [];
+    const theoMa = new Map(tatCa.map((s) => [s.code.toUpperCase(), s]));
+    const dangChay = tatCa
+      .filter((s) => s.active)
+      .map((s) => ({ value: s.code.toUpperCase(), label: `${s.code} — ${s.name}` }));
+    const daCo = new Set(dangChay.map((o) => o.value));
+    // Mã đã lưu mà ⛔ nằm trong danh sách chọn được — giữ lại kèm LÝ DO, xem javadoc.
+    const conLai = daChon
+      .filter((ma) => !daCo.has(ma))
+      .map((ma) => {
+        const s = theoMa.get(ma);
+        return {
+          value: ma,
+          label: s ? `${ma} — ${s.name} (trạm đã ngừng)` : `${ma} — ⛔ khớp điểm đo nào`,
+        };
+      });
+    return [...dangChay, ...conLai];
+  }, [diemDo, daChon]);
+
+  return (
+    <Space orientation="vertical" size={2} style={{ width: '100%' }}>
+      <Select
+        mode="multiple"
+        // ⚠ Ô nằm trong một ô bảng, ⛔ có <label> nào trỏ tới (bài học T63.9).
+        aria-label={nhan}
+        allowClear
+        disabled={disabled}
+        showSearch={{ optionFilterProp: 'label' }}
+        options={chon}
+        value={daChon}
+        placeholder="Để trống = công bố tất cả"
+        style={{ width: '100%' }}
+        onChange={(ma: string[]) => onChange(ma.join(','))}
+      />
+      {/*
+        Hai chỗ nói cùng một quy ước, và chúng ⛔ trùng lặp — chúng hiện ở HAI LÚC khác nhau:
+        placeholder chỉ hiện khi ô đã RỖNG (đúng khoảnh khắc nguy hiểm, ngay sau khi xoá hết tag),
+        còn dòng này luôn hiện, cho người ĐANG CÓ tag và sắp xoá.
+      */}
+      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+        Ô rỗng nghĩa là công bố tất cả điểm đo đang hoạt động — không phải ẩn hết. Thứ tự chọn là
+        thứ tự hiển thị trên cổng.
+      </Typography.Text>
+    </Space>
+  );
+}
+
+/**
+ * `'f01519, F01520 ,'` → `['F01519','F01520']` — bản sao ĐÚNG của
+ * {@code HydroSettings.maDiemDoLenCong()}: tách theo dấu phẩy, cắt khoảng trắng, HOA hoá, bỏ rỗng,
+ * khử trùng mà <b>giữ nguyên thứ tự</b>.
+ *
+ * <p>⚠ Luật 14 — hai nơi phải nhớ cùng một phép tách. Chênh nhau ở đây ⛔ làm gì đỏ, nó chỉ làm ô
+ * chọn hiển thị một tập khác với tập máy chủ thật sự dùng; bộ canh giữ sự khớp ấy là bài
+ * <i>"PUT chuỗi ngăn phẩy theo ĐÚNG thứ tự đã chọn"</i>.
+ */
+function docMaDiemDo(raw: string): string[] {
+  const daGap = new Set<string>();
+  const ket: string[] = [];
+  for (const phan of raw.split(',')) {
+    const ma = phan.trim().toUpperCase();
+    if (ma !== '' && !daGap.has(ma)) {
+      daGap.add(ma);
+      ket.push(ma);
+    }
+  }
+  return ket;
 }
 
 /**

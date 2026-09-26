@@ -34,7 +34,8 @@ import com.songnhue.core.infra.identity.UserRepository;
  *
  * <p>Một hệ nhận <b>mọi</b> tệp rồi lưu sẽ qua được mọi bài kiểm *"nạp thành công"* — và cho ra
  * đúng thứ người dùng đọc thành *"bản đồ hỏng"*: lớp hiện trong danh sách, bản đồ ⛔ không vẽ gì.
- * Ba chốt chặn: KML/KMZ ({@code OPS-2025}), tệp rỗng hình học ({@code OPS-2026}), trùng tên
+ * Chốt chặn: KML/KMZ ĐỔI sang GeoJSON (T59.14; tệp hỏng ⇒ {@code OPS-2033}), tệp rỗng hình học
+ * ({@code OPS-2026}), trùng tên
  * ({@code OPS-2024}).
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -170,31 +171,82 @@ class GisLayerHttpTest extends IntegrationTestBase {
     }
 
     @Test
-    @DisplayName("⛔⛔ Tệp KML/KMZ bị TỪ CHỐI ở cổng nhận — OPS-2025, ⛔ không nhận rồi để bản đồ trống")
-    void kmzBiTuChoiOCongNhan() {
-        UUID id = taoLop("Quy-hoach");
+    @DisplayName("⭐⭐ T59.14 — KMZ nạp được và ra BYTE GeoJSON thật, ⛔ còn bị từ chối")
+    void kmzDuocDoiSangGeoJsonVaPhucVuDuoc() throws Exception {
+        UUID id = taoLop("Quy-hoach-KMZ");
+
+        java.io.ByteArrayOutputStream goi = new java.io.ByteArrayOutputStream();
+        try (java.util.zip.ZipOutputStream zip = new java.util.zip.ZipOutputStream(goi)) {
+            zip.putNextEntry(new java.util.zip.ZipEntry("doc.kml"));
+            zip.write(
+                    ("""
+                     <?xml version="1.0" encoding="UTF-8"?>
+                     <kml xmlns="http://www.opengis.net/kml/2.2"><Document>
+                       <Placemark><name>Kênh KMZ</name><LineString><coordinates>
+                         105.78,21.04 105.79,21.05
+                       </coordinates></LineString></Placemark>
+                     </Document></kml>
+                     """)
+                            .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            zip.closeEntry();
+        }
+
         ResponseEntity<String> ra =
-                phienQl.dangTep(quanLy, "/api/v1/ops/gis-layers/" + id + "/tep", GEOJSON_KENH, "quy-hoach.kmz");
+                phienQl.dangTep(quanLy, "/api/v1/ops/gis-layers/" + id + "/tep", goi.toByteArray(), "quy-hoach.kmz");
+        assertThat(ra.getStatusCode()).as("%s", ra.getBody()).isEqualTo(HttpStatus.OK);
+
+        // ⚠ Đường phục vụ đi qua chốt QUÉT VIRUS: tệp vừa nạp mang `UPLOADING` nên `/noi-dung` trả
+        //   `SYS-0009` (409) cho tới khi quét xong. Lượt chạy đầu của bài này đỏ đúng ở đó — và đó
+        //   là một cái đỏ ĐÚNG: nó chứng minh chốt ấy thật sự nằm trên đường đi. Quét virus ⛔ phải
+        //   thứ đang đo ở đây, nên đẩy trạng thái thẳng ở CSDL đúng như lối bài anh em vẫn làm.
+        datTrangThaiTep(id, "READY");
+
+        // ⭐ BYTE THẬT ở đường PHỤC VỤ — một lượt nạp trả 200 rồi phục vụ thân rỗng trông y hệt một
+        //   lượt nạp đúng (T42.29). Đây là chỗ duy nhất chứng minh phép đổi đã chạy tới nơi.
+        ResponseEntity<String> noiDung = phienQl.get(quanLy, "/api/v1/ops/gis-layers/" + id + "/noi-dung");
+        assertThat(noiDung.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(noiDung.getBody())
+                .as("⛔ Thứ LƯU phải là GeoJSON đã đổi — mọi tầng dưới chỉ biết định dạng ấy")
+                .contains("FeatureCollection")
+                .contains("LineString")
+                .contains("Kênh KMZ");
+        assertThat(noiDung.getBody())
+                .as("⛔⛔ Kinh độ đứng TRƯỚC. Đảo nhầm thì hình dạng vẫn vẽ ra nhưng ở SAI bán cầu, "
+                        + "và ⛔ một dòng lỗi nào")
+                .contains("[105.78,21.04]");
+
+        // Tên tệp giữ đuôi CŨ để còn truy được nguồn gốc.
+        assertThat(jdbc.queryForObject(
+                        "SELECT original_name FROM attachments WHERE owner_type = 'GIS_LAYER' "
+                                + "AND owner_id = (SELECT id FROM gis_layers WHERE public_id = ?)",
+                        String.class,
+                        id))
+                .isEqualTo("quy-hoach.kmz.geojson");
+    }
+
+    @Test
+    @DisplayName("⛔ T59.14 — tệp KML HỎNG trả OPS-2033 và ⛔ để lại byte nào trong kho")
+    void kmlHongTraOps2033VaKhongLuuGi() {
+        UUID id = taoLop("Quy-hoach-hong");
+        ResponseEntity<String> ra = phienQl.dangTep(
+                quanLy,
+                "/api/v1/ops/gis-layers/" + id + "/tep",
+                "<kml><Placemark><Point>".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                "hong.kml");
+
         assertThat(ra.getStatusCode()).as("%s", ra.getBody()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
         assertThat(ra.getBody())
-                .as("⛔⛔ Nhận rồi lưu là phương án TỆ NHẤT: người dùng thấy *nạp thành công*, lớp "
-                        + "hiện trong danh sách, bản đồ ⛔ không vẽ gì — họ sẽ đi báo hỏng BẢN ĐỒ chứ "
-                        + "⛔ không báo hỏng lượt nạp")
-                .contains("OPS-2025");
+                .as("⛔ Cố ý KHÁC OPS-2026 (đọc được mà rỗng hình học): *chọn nhầm tệp* và *tệp hỏng* "
+                        + "dẫn tới hai việc khác nhau (T59.0)")
+                .contains("OPS-2033");
 
-        // ⛔ Và ⛔ KHÔNG được để lại tệp trong kho: một lượt bị từ chối vẫn tiêu hạn mức là một
-        //   khuyết tật im lặng.
+        // ⛔ Một lượt bị từ chối ⛔ được tiêu hạn mức dung lượng của lớp.
         assertThat(jdbc.queryForObject(
                         "SELECT count(*) FROM attachments WHERE owner_type = 'GIS_LAYER' "
                                 + "AND owner_id = (SELECT id FROM gis_layers WHERE public_id = ?)",
                         Integer.class,
                         id))
                 .isZero();
-
-        // Vế phân biệt: CÙNG nội dung, chỉ khác ĐUÔI TỆP ⇒ nhận được.
-        assertThat(phienQl.dangTep(quanLy, "/api/v1/ops/gis-layers/" + id + "/tep", GEOJSON_KENH, "quy-hoach.geojson")
-                        .getStatusCode())
-                .isEqualTo(HttpStatus.OK);
     }
 
     @Test

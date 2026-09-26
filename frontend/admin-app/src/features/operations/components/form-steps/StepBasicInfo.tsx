@@ -80,7 +80,7 @@ export function StepBasicInfo({ form: _form }: { form: FormInstance }) {
             label="Đơn vị quản lý"
             rules={[{ required: true, message: 'Bắt buộc' }]}
           >
-            <OrgUnitTreeSelect />
+            <OrgUnitTreeSelect chiTrongPhamVi />
           </Form.Item>
         </Col>
         <Col span={12}>

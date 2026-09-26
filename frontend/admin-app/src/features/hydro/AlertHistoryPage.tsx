@@ -1,4 +1,4 @@
-import { CheckCircleOutlined, StopOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined, StopOutlined, ToolOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   App,
@@ -21,7 +21,10 @@ import { type AlertEventRow } from '@/shared/api-types';
 import { ApiClientError, api } from '@/shared/apiClient';
 import { formatDateTime } from '@/shared/format';
 
+import { TaoBanGhiKhacPhucModal } from './TaoBanGhiKhacPhucModal';
 import { LOAI_DIEU_KIEN_NGUONG, TRANG_THAI_CANH_BAO } from './hydroVocabulary';
+
+const NHAN_TAO_KHAC_PHUC = 'Tạo bản ghi khắc phục';
 
 /**
  * Lịch sử cảnh báo ngưỡng — T33.10 / T33.11.
@@ -35,20 +38,27 @@ import { LOAI_DIEU_KIEN_NGUONG, TRANG_THAI_CANH_BAO } from './hydroVocabulary';
  * - Một dòng `Đã kết thúc` với ô Người đóng **trống** nghĩa là máy tự đóng vì giá trị về dưới
  *   ngưỡng — ⛔ **không** phải "đã có người xử lý".
  *
- * ⬜ **T33.10 CHƯA đóng, và cố ý chưa gắn nút.** Yêu cầu là một nút *"Tạo bản ghi khắc phục"*
- * điền sẵn `alertEventPublicId` sang biểu mẫu MOD-02. Đo được: (1) ⛔ **không có tuyến
- * `/van-hanh/bao-tri`** — lịch sử bảo trì nằm trong trang chi tiết công trình; (2) dòng cảnh
- * báo hiện ⛔ **không mang** định danh công trình, vì nó gắn với *điểm đo*, và một điểm đo có
- * thể thuộc nhiều công trình; (3) biểu mẫu nhận ⛔ **chưa đọc** tham số `alertEventId` nào.
+ * ✅ **T33.10 đóng 24/09/2026** — nút *"Tạo bản ghi khắc phục"* ở cột thao tác. Ba trở ngại mà
+ * bản ghi cũ ở đây kê ra đều **vẫn đúng**; cái đổi là cách đi vòng qua chúng:
  *
- * ⇒ Gắn một nút dẫn tới tuyến không tồn tại là dựng đúng thứ T23.8 đã gọi tên: *"một liên kết
- * trỏ tới route không có thật trông như chức năng có mà hỏng, tệ hơn hẳn chức năng chưa có"*.
- * Nợ được ghi có số đo thay vì được che bằng một nút.
+ * <ol>
+ *   <li>*"⛔ có tuyến `/van-hanh/bao-tri`"* ⇒ **⛔ điều hướng đi đâu cả** — mở thẳng
+ *       {@code MaintenanceFormModal} tại chỗ. Lý do T23.8 (*"một liên kết trỏ tới route ⛔ có
+ *       thật trông như chức năng có mà hỏng"*) vì thế ⛔ còn áp dụng: ⛔ có liên kết nào.
+ *   <li>*"dòng cảnh báo ⛔ mang định danh công trình"* ⇒ {@code TaoBanGhiKhacPhucModal} tra
+ *       {@code GET /hyd/stations/&#123;publicId&#125;} (đã trả kèm {@code constructions[]}) rồi
+ *       **bắt người dùng CHỌN** khi có nhiều hơn một — ⛔ đoán hộ, vì gắn sự cố vào sai hồ sơ là
+ *       sai ở đúng nơi Công ty dùng để quyết toán sửa chữa.
+ *   <li>*"biểu mẫu ⛔ đọc tham số `alertEventId`"* ⇒ hai prop mới
+ *       ({@code loaiMacDinh} · {@code alertEventId}), và {@code dungPayloadSuaChua} nay **gửi**
+ *       trường ấy ở đường TẠO. Trước lượt này cả cơ chế — cột, entity, DTO, {@code OPS-2021},
+ *       {@code HydroAlertPort} — đứng đủ mà ⛔ một đường nào của người dùng ghi nổi vào đó.
+ * </ol>
  *
- * ⛔ Và dù gắn nút thì cảnh báo vẫn ⛔ **không** tự sinh `maintenance_logs`: đó là quyết định
- * của con người. Tự sinh là đổ rác vào sổ gốc của cả MOD-02, và mỗi dòng rác còn kéo theo một
- * lượt tính lại trạng thái công trình. Vế đã dựng xong là **đường kiểm**: `OPS-2021` từ chối
- * một `alertEventId` không trỏ vào cảnh báo nào (T33.4).
+ * ⛔ Và cảnh báo vẫn ⛔ **tự sinh** `maintenance_logs`: đó là quyết định của con người. Tự sinh là
+ * đổ rác vào sổ gốc của cả MOD-02, và mỗi dòng rác còn kéo theo một lượt tính lại trạng thái công
+ * trình. Nút chỉ **điền sẵn**; người trực vẫn bấm Lưu, và vẫn phải tự khai Mức độ — mức cảnh báo
+ * nói về **mực nước**, ⛔ nói về mức độ hư hỏng công trình.
  */
 export function AlertHistoryPage() {
   const { message } = App.useApp();
@@ -59,8 +69,12 @@ export function AlertHistoryPage() {
     null,
   );
   const [ghiChu, setGhiChu] = useState('');
+  const [dangTaoKhacPhuc, setDangTaoKhacPhuc] = useState<AlertEventRow | null>(null);
 
   const coXuLy = hasPermission('hyd:alert:handle');
+  // ⛔ `hyd:alert:handle`: nút này TẠO một bản ghi của MOD-02, nên quyền phải là quyền của việc
+  //   nó làm. Bày ra cho người ⛔ có quyền ấy là dựng một lựa chọn chắc chắn trả 403.
+  const coGhiSuCo = hasPermission('ops:maintenance:report-incident');
 
   const dangMo = loc === 'tat-ca' ? undefined : loc === 'dang-mo';
 
@@ -170,6 +184,21 @@ export function AlertHistoryPage() {
       align: 'right',
       render: (_, r) => (
         <Space size={4}>
+          {/*
+            ⭐⭐ T33.10 — ⛔ gắn với `status`: bản ghi khắc phục thường được ghi SAU khi cảnh báo
+            đã kết thúc (người ta đi xử lý xong mới ngồi ghi), nên khoá nút ở dòng "Đã đóng" là
+            khoá đúng lúc nó hay được dùng nhất.
+          */}
+          {coGhiSuCo && (
+            <Tooltip title={NHAN_TAO_KHAC_PHUC}>
+              <Button
+                type="text"
+                aria-label={NHAN_TAO_KHAC_PHUC}
+                icon={<ToolOutlined />}
+                onClick={() => setDangTaoKhacPhuc(r)}
+              />
+            </Tooltip>
+          )}
           {coXuLy && r.status === 'DANG_XAY_RA' && (
             <>
               <Tooltip title="Đã xử lý">
@@ -256,6 +285,20 @@ export function AlertHistoryPage() {
           placeholder="Ghi chú (không bắt buộc)"
         />
       </Modal>
+
+      {/*
+        ⚠ Dựng theo ĐIỀU KIỆN, ⛔ truyền `open={!!…}` — bên trong nó tra `GET /hyd/stations/{id}`
+        theo `canhBao.stationId`, và một hộp thoại luôn-tồn-tại sẽ giữ `useQuery` của cảnh báo
+        MỞ TRƯỚC ĐÓ (T51.12 ở dạng truy vấn: dữ liệu cũ hiện dưới tên mới).
+      */}
+      {dangTaoKhacPhuc && (
+        <TaoBanGhiKhacPhucModal
+          key={dangTaoKhacPhuc.id}
+          canhBao={dangTaoKhacPhuc}
+          onClose={() => setDangTaoKhacPhuc(null)}
+          onSaved={() => setDangTaoKhacPhuc(null)}
+        />
+      )}
     </Card>
   );
 }

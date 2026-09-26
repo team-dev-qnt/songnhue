@@ -11,7 +11,6 @@ import java.time.OffsetDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
@@ -137,12 +136,12 @@ class PublicOperationStatusServiceTest {
                         congTrinh(1L, "C-01", "Cống A", 10L, LifecycleState.DANG_HOAT_DONG),
                         congTrinh(2L, "C-02", "Cống B", 10L, LifecycleState.DANG_HOAT_DONG)));
         // Cống B được ghi SAU — mốc của bảng phải là mốc của nó.
-        when(statuses.banGhiMoiNhat(1L))
-                .thenReturn(Optional.of(banGhiCoMoc(
-                        1L, mt, Instant.parse("2026-08-30T01:00:00Z"), Instant.parse("2026-08-31T02:00:00Z"))));
-        when(statuses.banGhiMoiNhat(2L))
-                .thenReturn(Optional.of(banGhiCoMoc(
-                        2L, mt, Instant.parse("2026-08-30T01:00:00Z"), Instant.parse("2026-09-01T09:30:00Z"))));
+        when(statuses.banGhiMoiNhatTheoLo(anyCollection()))
+                .thenReturn(List.of(
+                        banGhiCoMoc(
+                                1L, mt, Instant.parse("2026-08-30T01:00:00Z"), Instant.parse("2026-08-31T02:00:00Z")),
+                        banGhiCoMoc(
+                                2L, mt, Instant.parse("2026-08-30T01:00:00Z"), Instant.parse("2026-09-01T09:30:00Z"))));
         when(orgUnits.findRefsByIds(anyCollection())).thenReturn(Map.of(10L, xiNghiep(10L, "XN-A", "Xí nghiệp A")));
 
         Instant moc = service.hienHanh().meta().capNhatLuc();
@@ -163,8 +162,8 @@ class PublicOperationStatusServiceTest {
         OperationStatusCode mt = ma("MT", "Mở treo", true, "m", "#1a7f37");
         when(constructions.findByDeletedAtIsNull())
                 .thenReturn(List.of(congTrinh(1L, "C-01", "Cống A", 10L, LifecycleState.DANG_HOAT_DONG)));
-        when(statuses.banGhiMoiNhat(1L))
-                .thenReturn(Optional.of(banGhiCoMoc(1L, mt, Instant.parse("2026-09-02T04:15:00Z"), null)));
+        when(statuses.banGhiMoiNhatTheoLo(anyCollection()))
+                .thenReturn(List.of(banGhiCoMoc(1L, mt, Instant.parse("2026-09-02T04:15:00Z"), null)));
         when(orgUnits.findRefsByIds(anyCollection())).thenReturn(Map.of(10L, xiNghiep(10L, "XN-A", "Xí nghiệp A")));
 
         assertThat(service.hienHanh().meta().capNhatLuc())
@@ -188,8 +187,8 @@ class PublicOperationStatusServiceTest {
                 .thenReturn(List.of(
                         congTrinh(1L, "C-01", "Cống A", 10L, LifecycleState.DANG_HOAT_DONG),
                         congTrinh(2L, "C-02", "Cống B", 20L, LifecycleState.DANG_HOAT_DONG)));
-        when(statuses.banGhiMoiNhat(1L)).thenReturn(Optional.of(banGhi(1L, mt, new BigDecimal("2.35"))));
-        when(statuses.banGhiMoiNhat(2L)).thenReturn(Optional.of(banGhi(2L, dk, null)));
+        when(statuses.banGhiMoiNhatTheoLo(anyCollection()))
+                .thenReturn(List.of(banGhi(1L, mt, new BigDecimal("2.35")), banGhi(2L, dk, null)));
         when(orgUnits.findRefsByIds(anyCollection()))
                 .thenReturn(
                         Map.of(10L, xiNghiep(10L, "XN-A", "Xí nghiệp A"), 20L, xiNghiep(20L, "XN-B", "Xí nghiệp B")));
@@ -214,7 +213,7 @@ class PublicOperationStatusServiceTest {
         when(constructions.findByDeletedAtIsNull())
                 .thenReturn(List.of(congTrinh(1L, "C-01", "Cống A", 10L, LifecycleState.DANG_HOAT_DONG)));
         // Giá trị tham số vẫn nằm trong bảng — bản ghi cũ, hoặc người nhập điền rồi đổi mã.
-        when(statuses.banGhiMoiNhat(1L)).thenReturn(Optional.of(banGhi(1L, dk, new BigDecimal("9.99"))));
+        when(statuses.banGhiMoiNhatTheoLo(anyCollection())).thenReturn(List.of(banGhi(1L, dk, new BigDecimal("9.99"))));
         when(orgUnits.findRefsByIds(anyCollection())).thenReturn(Map.of(10L, xiNghiep(10L, "XN-A", "Xí nghiệp A")));
 
         PublicOperationStatusService.OperationStatusRow dong =
@@ -238,8 +237,9 @@ class PublicOperationStatusServiceTest {
                         congTrinh(1L, "C-01", "Có ghi nhận", 10L, LifecycleState.DANG_HOAT_DONG),
                         congTrinh(2L, "C-02", "Chưa ghi nhận", 10L, LifecycleState.DANG_HOAT_DONG),
                         congTrinh(3L, "C-03", "Đã thanh lý", 10L, LifecycleState.DA_THANH_LY)));
-        when(statuses.banGhiMoiNhat(1L)).thenReturn(Optional.of(banGhi(1L, mt, new BigDecimal("1.20"))));
-        when(statuses.banGhiMoiNhat(2L)).thenReturn(Optional.empty());
+        // ⚠ Công trình 2 "chưa ghi nhận" nay biểu diễn bằng sự VẮNG MẶT trong lô, ⛔ phải
+        //   `Optional.empty()` — cùng một trạng thái, cùng một kết quả mong đợi.
+        when(statuses.banGhiMoiNhatTheoLo(anyCollection())).thenReturn(List.of(banGhi(1L, mt, new BigDecimal("1.20"))));
         when(orgUnits.findRefsByIds(anyCollection())).thenReturn(Map.of(10L, xiNghiep(10L, "XN-A", "Xí nghiệp A")));
 
         assertThat(service.hienHanh().dong())

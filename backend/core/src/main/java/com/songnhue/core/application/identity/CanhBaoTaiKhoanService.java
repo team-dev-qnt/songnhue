@@ -9,6 +9,7 @@ import com.songnhue.core.application.notification.NotificationService;
 import com.songnhue.core.domain.identity.User;
 import com.songnhue.core.domain.notification.NotificationChannel;
 import com.songnhue.core.domain.notification.NotificationSeverity;
+import com.songnhue.core.spi.ChinhSachNguoiNhan;
 
 /**
  * Báo cho <b>chính chủ tài khoản</b> khi mật khẩu hoặc 2FA của họ vừa bị đổi — <b>T61.36</b>
@@ -88,9 +89,8 @@ public class CanhBaoTaiKhoanService {
                 List.of(user.getId()),
                 null,
                 List.of(NotificationChannel.IN_APP, NotificationChannel.EMAIL),
-                false,
                 // ⛔⛔ T74.7 — bốn mã sự kiện của lớp này (đổi mật khẩu · đặt lại bởi quản trị · gỡ 2FA ·
                 //   đăng ký 2FA) đều nói về MỘT tài khoản. Ban điều hành ⛔ có việc gì với chúng.
-                false));
+                ChinhSachNguoiNhan.DICH_DANH));
     }
 }

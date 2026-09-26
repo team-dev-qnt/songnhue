@@ -77,16 +77,24 @@ class CotPhase2CoDocGhiTest {
      * sơ mà ⛔ ai nhớ câu ấy. <b>Phạm vi phải do bộ canh ĐO, ⛔ do người viết gõ tay</b> (luật 28,
      * cùng cách T49.1 đã vá {@code MigrationNamingTest}).
      */
-    private static final Set<String> MODULE_DUOC_PHU = Set.of("hydro", "hr");
+    private static final Set<String> MODULE_DUOC_PHU = Set.of("hydro", "hr", "core");
 
-    /** Module chưa phủ — mỗi dòng một lý do <b>đo được</b>, tối thiểu 40 ký tự (như {@link #KHONG_CAN_MA_DOC}). */
+    /**
+     * Module chưa phủ — mỗi dòng một lý do <b>đo được</b>, tối thiểu 40 ký tự (như
+     * {@link #KHONG_CAN_MA_DOC}).
+     *
+     * <p>⭐⭐ <b>`core` rời danh sách này ngày 23/09/2026 (T68.32), và lý do rời đi đáng ghi.</b> Dòng
+     * miễn trừ của nó khai một <b>DỰ ĐOÁN</b>: <i>"phép tìm theo TÊN CỘT sẽ cho một tập mồ côi khổng
+     * lồ mà gần như toàn dương tính giả"</i>. Dự đoán ấy <b>chưa ai đo</b>, và lượt đo đầu tiên bác
+     * nó: bật `core` lên ra đúng <b>5</b> cột — {@code archived_at} · {@code archived_by} ·
+     * {@code is_recurring} · {@code last_seq} · {@code lock_until} — đọc hết trong một phút, và 3
+     * trong 5 có lời giải cấu trúc (SQL sở hữu · thư viện sở hữu · {@code DEFAULT now()}).
+     *
+     * <p>⇒ <b>Một lý do miễn trừ cũng là dữ liệu chưa kiểm.</b> Nó giữ `core` ngoài tầm quét 4 ngày
+     * bằng một con số ⛔ ai đếm — cùng hình dạng với lý do khai nợ của {@code hydro.polling.cron}
+     * (T63.10), và với chín lượt <i>"một dòng nợ tự nó sai"</i>.
+     */
     private static final Map<String, String> MODULE_CHUA_PHU = new LinkedHashMap<>(Map.of(
-            "core",
-            "Bảng nền tảng của Phase 0 — `settings`, `users`, `audit_logs`, `jobs`. Phần lớn cột ở "
-                    + "đây do framework hoặc lớp cơ sở đọc (Flyway, Spring Security, @Audited) chứ ⛔ "
-                    + "phải mã nghiệp vụ, nên phép tìm theo TÊN CỘT sẽ cho một tập mồ côi khổng lồ mà "
-                    + "gần như toàn dương tính giả — mở phạm vi trước khi có cách phân biệt là dựng "
-                    + "một bộ canh ⛔ ai đọc nổi. Khoá `settings` đã có bộ canh RIÊNG.",
             "content",
             "Phase 1 (CMS). Nhiều cột ở đây được đọc từ `public-web` qua tên trường JSON đã ánh xạ "
                     + "chứ ⛔ phải tên cột, nên phép tìm hai dạng snake/camel hiện tại còn hụt. Đã có "
@@ -146,15 +154,61 @@ class CotPhase2CoDocGhiTest {
                     + "nó ⛔ KHÔNG có đường ghi từ mã. Đường đọc của nó là chỉ mục GiST `ix_stations_geom`, "
                     + "dựng sẵn cho truy vấn không gian của GIS Phase 3; hôm nay ⛔ chưa truy vấn nào dùng "
                     + "tới. ⛔ Đừng xoá để 'đóng nợ': cột sinh và chỉ mục là thứ đắt để thêm lại trên một "
-                    + "bảng đã có dữ liệu, và `latitude`/`longitude` — nguồn của nó — đang được đọc thật."));
+                    + "bảng đã có dữ liệu, và `latitude`/`longitude` — nguồn của nó — đang được đọc thật.",
+            "prev_hash",
+            "Cột của `audit_logs`, do trigger `core_audit_log_chain()` cấp — và một đường ghi từ Java ở đây là SAI "
+                    + "THEO THIẾT KẾ: chú thích migration (dòng 11) khai thẳng *app user ⛔ thể tự đặt "
+                    + "seq/prev_hash/hash, có ghi lên cũng bị ghi đè*. Cột này vô hình với bộ canh cho tới 23/09 vì "
+                    + "kiểu `CHAR(64)` ⛔ nằm trong danh sách kiểu GÕ TAY của `KIEU_COT` — xem javadoc mẫu ấy.",
+            "last_seq",
+            "Cột của `audit_chain_head`, và nó ĐƯỢC đọc lẫn ghi — bằng SQL, ⛔ bằng Java: hàm PL/pgSQL "
+                    + "`core_audit_log_chain()` trong CHÍNH migration khai nó làm cả hai việc "
+                    + "(`SET last_seq = last_seq + 1` và `RETURNING last_seq`). Bộ canh chỉ quét Java + "
+                    + "TypeScript nên ⛔ thấy đường ấy. Đây là dương tính giả THẬT, ⛔ phải nợ — và nó "
+                    + "phải nằm trong mã Java thì mới sai: chuỗi hash cố ý ⛔ đi qua tầng ứng dụng.",
+            "lock_until",
+            "Cột của bảng `shedlock`, do thư viện `shedlock-provider-jdbc-template` sở hữu và ghi. "
+                    + "Migration khai thẳng: 'Schema theo chuẩn …, ⛔ tự đặt tên cột'. Kho có 0 dòng Java "
+                    + "chạm tới nó và ⛔ NÊN có — viết tay vào bảng khoá phân tán là phá đúng thứ nó bảo "
+                    + "vệ. Bảng đang TẮT ở v1 (1 node), bật bằng env khi lên ≥ 2 node.",
+            "archived_at",
+            "Cột của `audit_archive_anchors`, khai `DEFAULT now()` ⇒ CSDL ghi, mã ⛔ cần chạm. Vế ĐỌC "
+                    + "thì thiếu thật, nhưng nó là nợ cấp BẢNG chứ ⛔ cấp cột: T85.6 đo CẢ bảng neo có "
+                    + "0 người đọc (kể cả `last_hash`, thứ javadoc của `AuditArchiveHandler` khai là lý "
+                    + "do bảng tồn tại). Vá một cột ở đây là che mất hình dạng thật của nợ.",
+            "is_recurring",
+            "Cột của `holidays`. Seed đặt TRUE cho ĐÚNG 4 ngày lễ dương lịch cố định × 2 năm — nó đang "
+                    + "mã hoá một tri thức PHÁP LÝ (Điều 112 BLLĐ: ngày nào cố định theo dương lịch, "
+                    + "ngày nào do Chính phủ công bố hằng năm), nên xoá cột là xoá tri thức ấy. Nhưng "
+                    + "`Holiday.java` ⛔ ánh xạ nó ⇒ mọi ngày lễ admin tự thêm lặng lẽ nhận FALSE. "
+                    + "⛔ Bày nó ra biểu mẫu mà ⛔ có hành vi lặp lại là hứa một thứ ⛔ ai thực hiện "
+                    + "(luật 15 · 16). Việc *có nên tự sinh ngày lễ năm sau ⛔* là quyết định của "
+                    + "QuanTran, ⛔ phải của mã ⇒ T85.9."));
 
     /** Cột ai cũng biết là có người đọc — đối chứng chứng minh phép tìm còn sống (luật 10). */
     private static final List<String> PHAI_TIM_THAY = List.of("position_role", "api_code", "valid_value");
 
-    private static final Pattern KIEU_COT = Pattern.compile(
-            "^ {4}([a-z_]+)\\s+(BIGINT|BIGSERIAL|VARCHAR|TEXT|BOOLEAN|NUMERIC|timestamptz|DATE|INTEGER"
-                    + "|INT|SMALLINT|JSONB|JSON|UUID|geometry|DOUBLE)",
-            Pattern.MULTILINE | Pattern.CASE_INSENSITIVE);
+    /**
+     * Một dòng khai cột bên trong {@code CREATE TABLE} — <b>đảo phép khớp</b> ngày 23/09/2026 (T68.32).
+     *
+     * <p>⛔⛔ Bản cũ liệt kê <b>gõ tay</b> 16 kiểu SQL được nhận. Đo lại thì migration của ba module đang phủ dùng
+     * <b>18</b> kiểu, và hai kiểu ⛔ có trong danh sách là {@code CHAR} (7 cột) và {@code INET} (4 cột) ⇒ bộ canh
+     * mù trước <b>11 cột</b> kể từ ngày nó ra đời. Lộ ra vì cái neo phạm vi {@code core} đòi {@code last_hash}, một
+     * cột {@code CHAR(64)}.
+     *
+     * <p>⇒ Đây đúng là luật 28 lặp lại <b>một tầng sâu hơn</b>: T63.7 đã sửa danh sách <i>module</i> thành ĐO trên
+     * đĩa, nhưng danh sách <i>kiểu</i> vẫn là một danh sách người viết gõ — và một danh sách gõ tay ở vế trái thì
+     * bao giờ cũng có phần tử thứ 17. Nay phép khớp hỏi câu ngược lại: <b>dòng nào ⛔ phải ràng buộc bảng thì là
+     * cột</b>, nên một kiểu SQL mới ⛔ bao giờ lọt ra ngoài tầm quét nữa.
+     *
+     * <p>⚠ Ràng buộc bảng trong kho viết HOA ({@code CONSTRAINT} · {@code PRIMARY KEY} · {@code UNIQUE} …) nên vế
+     * {@code [a-z_]} đã loại phần lớn; {@link #TU_KHOA_RANG_BUOC} chặn nốt trường hợp viết thường.
+     */
+    private static final Pattern KIEU_COT = Pattern.compile("^ {4}([a-z_][a-z0-9_]*)\\s+[A-Za-z]", Pattern.MULTILINE);
+
+    /** Từ khoá mở đầu một RÀNG BUỘC bảng, ⛔ phải tên cột. */
+    private static final Set<String> TU_KHOA_RANG_BUOC =
+            Set.of("constraint", "primary", "unique", "check", "foreign", "exclude", "like", "partition");
 
     private static final Pattern BANG_TAO =
             Pattern.compile("CREATE TABLE (?:IF NOT EXISTS )?(\\w+)\\s*\\((.*?)\\n\\);", Pattern.DOTALL);
@@ -291,6 +345,13 @@ class CotPhase2CoDocGhiTest {
         assertThat(cot.keySet())
                 .as("phạm vi phải THẬT SỰ gồm module `hr` — ⛔ thì cái xanh ở trên là xanh vì lý do sai")
                 .contains("bank_account", "contract_expires_at", "national_id_fingerprint");
+
+        // ⛔⛔ Neo THỨ HAI, cho phạm vi mở ngày 23/09 (T68.32). `core` vào danh sách phủ mà lượt chạy
+        //    ra 0 cột mồ côi — lại đúng hình dạng đã phải neo cho `hr`: một kết quả đúng đọc y hệt
+        //    *"bộ canh ⛔ hề quét core"*. Ba cột dưới đây nằm ở ba tệp migration khác nhau của `core`.
+        assertThat(cot.keySet())
+                .as("phạm vi phải THẬT SỰ gồm module `core` — ⛔ thì cái xanh ở trên là xanh vì lý do sai")
+                .contains("max_attempts", "holiday_date", "last_hash");
     }
 
     /**
@@ -397,7 +458,9 @@ class CotPhase2CoDocGhiTest {
             while (bang.find()) {
                 Matcher c = KIEU_COT.matcher(bang.group(2));
                 while (c.find()) {
-                    ghi(ket, c.group(1), bang.group(1));
+                    if (!TU_KHOA_RANG_BUOC.contains(c.group(1).toLowerCase(java.util.Locale.ROOT))) {
+                        ghi(ket, c.group(1), bang.group(1));
+                    }
                 }
             }
             Matcher them = COT_THEM.matcher(sql);

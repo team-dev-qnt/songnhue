@@ -56,7 +56,7 @@ services:
       start_period: 15s
 
   minio:
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z.hotfix.7aa24e772
+    image: ghcr.io/team-dev-qnt/songnhue/minio:RELEASE.2025-09-07T16-13-09Z.hotfix.7aa24e772
     container_name: songnhue-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
@@ -85,7 +85,7 @@ services:
   #    viện ảnh, còn nhánh có dữ liệu thì chỉ staging mới đi qua — tức máy dev
   #    không đo được thứ người dùng thật nhìn thấy.
   minio-init:
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z.hotfix.7aa24e772
+    image: ghcr.io/team-dev-qnt/songnhue/minio:RELEASE.2025-09-07T16-13-09Z.hotfix.7aa24e772
     container_name: songnhue-minio-init
     restart: "no"
     depends_on:

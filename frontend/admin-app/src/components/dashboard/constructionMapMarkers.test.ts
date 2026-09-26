@@ -1,9 +1,18 @@
 import { statusColors } from '@songnhue/design-tokens';
 import { describe, expect, it } from 'vitest';
 
-import { type StationMarkerView } from '@/shared/api-types';
+import { type MapPointView, type StationMarkerView } from '@/shared/api-types';
 
-import { bieuTuongDiemDo, MAU_TIN_HIEU, popupDiemDo, thoat } from './constructionMapMarkers';
+import {
+  bieuTuongCongTrinh,
+  bieuTuongDiemDo,
+  chamCongTrinh,
+  chamDiemDo,
+  coToaDo,
+  MAU_TIN_HIEU,
+  popupDiemDo,
+  thoat,
+} from './constructionMapMarkers';
 
 /**
  * **Lần ĐẦU TIÊN mã vẽ marker được chạy** — T28.45.
@@ -154,5 +163,98 @@ describe('popupDiemDo — ô rỗng phải nói được VÌ SAO (quy tắc 16)'
       diem({ khoaMauCanhBao: 'alert-level-3', tenMucCanhBao: 'Báo động II' }),
     );
     expect(html).toContain('Báo động II');
+  });
+});
+
+/**
+ * **Một quyết định, hai bộ vẽ** — T59.13.
+ *
+ * Từ T59.13 màu/hình của một chấm được đọc bởi **hai** bộ vẽ: `divIcon` (HTML, cho bản đồ trên
+ * màn hình) và `veCham` (canvas, cho tệp PNG xuất ra). Chép quyết định sang bộ thứ hai là luật 14
+ * ở dạng đắt nhất — một chấm **sai màu** trên tấm ảnh khẳng định một công trình đang *Bình thường*
+ * trong khi nó đang *Sự cố*, và tấm ảnh ấy đi vào báo cáo gửi đi.
+ *
+ * ⇒ Bài này canh cái **bất biến** ấy: HTML của `divIcon` phải mang ĐÚNG màu mà hàm quyết định trả
+ * về. Nó đỏ ngay ngày ai đó tính lại màu ở một trong hai chỗ.
+ */
+describe('ChamBanDo — bản mô tả dùng chung giữa divIcon và canvas', () => {
+  const congTrinh = (p: Partial<MapPointView>): MapPointView =>
+    ({
+      publicId: 'c1',
+      code: 'CT-01',
+      name: 'Cống Vân Đình',
+      constructionType: 'CONG',
+      operationalStatus: 'BINH_THUONG',
+      orgUnitName: 'XN-A',
+      latitude: 21.04,
+      longitude: 105.78,
+      ...p,
+    }) as MapPointView;
+
+  it('⭐⭐ Màu trong HTML của chấm điểm đo = màu hàm quyết định trả về', () => {
+    (
+      [
+        {},
+        { trangThai: 'MAT_TIN_HIEU' as const },
+        { trangThai: 'NGUNG' as const },
+        { khoaMauCanhBao: 'alert-level-3' },
+      ] as Partial<StationMarkerView>[]
+    ).forEach((p) => {
+      const d = diem(p);
+      expect(bieuTuongDiemDo(d).options.html as string).toContain(
+        `background:${chamDiemDo(d).mau};`,
+      );
+    });
+  });
+
+  it('⭐⭐ Màu trong HTML của chấm công trình = màu hàm quyết định trả về', () => {
+    (['BINH_THUONG', 'SU_CO', 'BAO_TRI'] as MapPointView['operationalStatus'][]).forEach((tt) => {
+      const c = congTrinh({ operationalStatus: tt });
+      expect(bieuTuongCongTrinh(c).options.html as string).toContain(
+        `background:${chamCongTrinh(c).mau};`,
+      );
+    });
+  });
+
+  it('⚠ Vế chống tautology — ba trạng thái công trình phải cho ÍT NHẤT hai màu khác nhau', () => {
+    // Thiếu vế này thì bài trên vẫn xanh khi `chamCongTrinh` trả **cùng một màu** cho mọi trạng
+    // thái: hai bên vẫn "khớp", chỉ là cùng sai (luật 9 · luật 29).
+    const mau = new Set(
+      (['BINH_THUONG', 'SU_CO', 'BAO_TRI'] as MapPointView['operationalStatus'][]).map(
+        (tt) => chamCongTrinh(congTrinh({ operationalStatus: tt })).mau,
+      ),
+    );
+    expect(mau.size).toBeGreaterThanOrEqual(2);
+  });
+
+  it('⭐ Hai lớp phân biệt bằng HÌNH, ⛔ chỉ bằng màu — người rối loạn sắc giác vẫn tách được', () => {
+    expect(chamCongTrinh(congTrinh({})).hinh).toBe('tron');
+    expect(chamDiemDo(diem({})).hinh).toBe('tram');
+  });
+});
+
+describe('coToaDo — điểm đo đã số hoá vị trí chưa', () => {
+  // ⚠ Fixture `CO_BAN` ở đầu tệp khai `lat`/`lng` trong khi kiểu thật là `latitude`/`longitude`;
+  //   nó đi lọt nhờ `as unknown as`. Nên ở đây dựng fixture RIÊNG, ⛔ tái dùng `CO_BAN` — dùng lại
+  //   nó thì mọi khẳng định dưới đây xanh vì lý do sai (`undefined` ⇒ luôn false).
+  const viTri = (lat: unknown, lng: unknown): StationMarkerView =>
+    ({ ...CO_BAN, latitude: lat, longitude: lng }) as unknown as StationMarkerView;
+
+  it('⭐ Toạ độ thật thì nhận', () => {
+    expect(coToaDo(viTri('21.04', '105.78'))).toBe(true);
+  });
+
+  it('⛔⛔ `(0, 0)` bị coi là CHƯA có toạ độ — nó là ô biểu mẫu ⛔ ai điền, ⛔ phải vịnh Guinea', () => {
+    // Vẽ nó lên thì `fitBounds` thu khung nhìn ra giữa Đại Tây Dương để ôm trọn một điểm ⛔ có
+    // thật, và cả bản đồ trông như hỏng.
+    expect(coToaDo(viTri('0', '0'))).toBe(false);
+    // ⚠ Nhưng chỉ MỘT vế bằng 0 thì vẫn là toạ độ thật (xích đạo / kinh tuyến gốc).
+    expect(coToaDo(viTri('0', '105.78'))).toBe(true);
+  });
+
+  it('⛔ Thiếu hoặc ⛔ phải số thì loại', () => {
+    expect(coToaDo(viTri(null, null))).toBe(false);
+    expect(coToaDo(viTri('x', '105.78'))).toBe(false);
+    expect(coToaDo(viTri(undefined, undefined))).toBe(false);
   });
 });

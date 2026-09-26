@@ -48,8 +48,14 @@ class HrSettingsReadTest {
      */
     static final Pattern KHOA_SEED = Pattern.compile("\\(\\s*'([a-z0-9.\\-]+)',\\s*'[^']*',\\s*'[A-Z]+',");
 
-    static final Pattern CAU_XOA = Pattern.compile(
-            "DELETE\\s+FROM\\s+settings\\s+WHERE\\s+setting_key\\s+IN\\s*\\(([^)]*)\\)", Pattern.CASE_INSENSITIVE);
+    /**
+     * ⚠ Nhận CẢ {@code IN (…)} lẫn {@code = '…'} — kho dùng cả hai dạng (4 và 2 câu, đo 23/09/2026). Bản cũ chỉ
+     * nhận dạng đầu: một lỗ <b>⛔ có nạn nhân hôm nay</b> (khoá duy nhất gỡ bằng dạng {@code =} là
+     * {@code hydro.threshold.default-set}, ngoài phạm vi lớp này) — nhưng một lỗ chưa gây hại vẫn là một lỗ
+     * (T49.6), và giá bịt là một dòng.
+     */
+    static final Pattern CAU_XOA =
+            Pattern.compile("DELETE\\s+FROM\\s+settings\\s+WHERE\\s+setting_key[^;]+;", Pattern.CASE_INSENSITIVE);
 
     private static final Pattern MOT_KHOA = Pattern.compile("'([a-z0-9.\\-]+)'");
 
@@ -120,8 +126,19 @@ class HrSettingsReadTest {
                 .containsExactly("hr.a.b", "hr.c.d");
         Matcher xoa = CAU_XOA.matcher(mau);
         assertThat(xoa.find()).isTrue();
-        assertThat(MOT_KHOA.matcher(xoa.group(1)).results().map(r -> r.group(1)).toList())
+        assertThat(MOT_KHOA.matcher(xoa.group()).results().map(r -> r.group(1)).toList())
                 .containsExactly("hr.a.b");
+
+        Matcher xoaBang = CAU_XOA.matcher("DELETE FROM settings WHERE setting_key = 'hr.c.d';");
+        assertThat(xoaBang.find())
+                .as("⛔ Dạng `= '…'` — kho dùng cả hai dạng; bản cũ chỉ nhận `IN (…)` nên một khoá gỡ bằng dạng "
+                        + "này vẫn nằm trong tập *còn sống* và bị kể là nợ ⛔ tồn tại")
+                .isTrue();
+        assertThat(MOT_KHOA.matcher(xoaBang.group())
+                        .results()
+                        .map(r -> r.group(1))
+                        .toList())
+                .containsExactly("hr.c.d");
 
         assertThat(duocDoc("hr.document.max-mb.HOP_DONG", Set.of("hr.document.max-mb.")))
                 .isTrue();
@@ -162,7 +179,7 @@ class HrSettingsReadTest {
                     .forEach(song::add);
             CAU_XOA.matcher(sql)
                     .results()
-                    .flatMap(cau -> MOT_KHOA.matcher(cau.group(1)).results())
+                    .flatMap(cau -> MOT_KHOA.matcher(cau.group()).results())
                     .map(r -> r.group(1))
                     .forEach(song::remove);
         }

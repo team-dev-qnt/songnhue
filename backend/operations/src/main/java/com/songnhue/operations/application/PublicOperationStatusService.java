@@ -8,7 +8,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,19 +52,24 @@ import com.songnhue.operations.infra.ConstructionRepository;
  * công bố chứ không phải một cột thêm vào DTO. Không cho chúng một chỗ ngồi trong record là cách
  * chắc chắn nhất — một cột không tồn tại thì không ai vô tình đấu dây cho nó.
  *
- * <h2>⚠ Vì sao lớp này gọi hai truy vấn có sẵn thay vì một câu gộp</h2>
+ * <h2>⚠ "Hiện hành" ở đây phải trùng khít định nghĩa của mắt xích 4 — và đó là ràng buộc khó nhất</h2>
  *
- * <p>"Hiện hành" ở đây phải trùng khít định nghĩa mà mắt xích 4 của
- * {@code ConstructionStatusService} đang dùng, nếu không cổng nói cống mở treo trong khi dashboard
- * nội bộ nói đóng kín — và không gì báo sai. Cách chắc chắn nhất để hai nơi không lệch là
- * <b>gọi đúng một hàm</b>: {@link ConstructionOperationStatusRepository#banGhiMoiNhat}, câu native
- * đã chạy thật từ WS-19, thay vì viết một câu gộp thứ hai nói cùng một điều bằng SQL khác.
+ * <p>Nếu lệch, cổng nói cống mở treo trong khi dashboard nội bộ nói đóng kín — và <b>⛔ gì báo
+ * sai</b>. Bản đầu giữ điều đó bằng cách <b>gọi đúng một hàm</b>
+ * ({@link ConstructionOperationStatusRepository#banGhiMoiNhat}) trong một vòng lặp, chấp nhận N+1
+ * truy vấn, và hẹn đổi sang {@code DISTINCT ON} khi danh mục vượt ~200 công trình.
  *
- * <p>Cái giá là N+1 truy vấn. Chấp nhận được, và có số: danh mục công trình dự kiến vài chục dòng,
- * đường này nằm sau ISR 5 phút của cổng, và ưu tiên xuyên suốt của dự án là <i>độ chính xác trước
- * tối ưu</i>. ⬜ Khi danh mục vượt ~200 công trình thì đổi sang một câu {@code DISTINCT ON
- * (construction_id)} — và lúc ấy phải đổi <b>cả</b> {@code banGhiMoiNhat} để hai nơi vẫn nói một
- * điều.
+ * <p><b>T68.36 đã đổi</b> — ⛔ phải vì danh mục vượt ngưỡng, mà vì cái hẹn ấy ⛔ có đồng hồ nào
+ * đếm: đường này dựng khối Vận hành công trình trên <b>trang chủ</b> (NFR-02 · DOD1.17) và nuôi
+ * <b>BC-11</b>, còn triệu chứng duy nhất của N+1 là <i>"trang hơi chậm"</i> — thứ ⛔ ai đi đo. Số
+ * đo trước khi vá: 3 công trình ⇒ 17 câu lệnh, 30 ⇒ 44, tức <b>đúng một truy vấn mỗi công trình</b>.
+ *
+ * <p>⛔⛔ Và cái giá của lượt gộp là thứ javadoc cũ đã cảnh báo: kho nay có <b>hai</b> câu SQL nói
+ * cùng một điều. Chỗ chúng có thể lệch ⛔ phải dữ liệu bình thường mà là dữ liệu <b>trùng
+ * {@code effective_at}</b> — {@code ORDER BY effective_at DESC} ⛔ định nghĩa thứ tự giữa các hàng
+ * bằng nhau. Nên cả hai câu nay mang chung một vế phân xử xác định ({@code , id DESC}), và
+ * {@code TinhHinhVanHanhKhongNPlus1Test} neo vào đúng chuỗi ấy — ⛔ trông cậy vào thứ tự Postgres
+ * tình cờ trả về.
  */
 @Service
 public class PublicOperationStatusService {
@@ -198,12 +202,22 @@ public class PublicOperationStatusService {
                 .distinct()
                 .toList());
 
-        // ⚠ MỘT lượt tra cho mỗi công trình, dùng cho CẢ dòng lẫn mốc cập nhật. Gọi
-        //   `banGhiMoiNhat` lần thứ hai chỉ để lấy mốc là nhân đôi số truy vấn của khối này —
-        //   và nó nằm trên đường dựng TRANG CHỦ (NFR-02, DOD1.17).
+        // ⚠ MỘT lượt tra cho CẢ LÔ, dùng cho CẢ dòng lẫn mốc cập nhật (T68.36). Gọi lần thứ hai chỉ
+        //   để lấy mốc là nhân đôi số truy vấn của khối này — và nó nằm trên đường dựng TRANG CHỦ
+        //   (NFR-02, DOD1.17).
+        // ⚠ Sắp lại theo `congTrinh` chứ ⛔ dùng thứ tự câu SQL trả về: câu gộp sắp theo
+        //   `construction_id` (bắt buộc với `DISTINCT ON`), còn bảng trên cổng sắp theo TÊN tiếng
+        //   Việt. Đọc thẳng kết quả truy vấn là lặng lẽ đổi thứ tự hiển thị của cả khối.
+        Map<Long, ConstructionOperationStatus> moiNhat =
+                statuses
+                        .banGhiMoiNhatTheoLo(
+                                congTrinh.stream().map(Construction::getId).toList())
+                        .stream()
+                        .collect(java.util.stream.Collectors.toMap(
+                                ConstructionOperationStatus::getConstructionId, s -> s));
         List<ConstructionOperationStatus> banGhi = congTrinh.stream()
-                .map(c -> statuses.banGhiMoiNhat(c.getId()))
-                .flatMap(Optional::stream)
+                .map(c -> moiNhat.get(c.getId()))
+                .filter(Objects::nonNull)
                 .toList();
 
         Map<Long, Construction> theoId =

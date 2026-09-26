@@ -122,7 +122,7 @@ khoản quản trị) nặng hơn mười dòng *Đạt* về header. Thứ tự
 
 | Mã | Yêu cầu | Kết luận | Bằng chứng | Ghi chú |
 |---|---|---|---|---|
-| 5.1.1 | Chống HTTP parameter pollution | **Chưa đo** | grep `getParameterValues\|getParameterMap` = 0; tham số trùng lặp để Spring xử lý mặc định | ⛔ có bài kiểm; ⛔ khẳng định được theo chiều nào |
+| 5.1.1 | Chống HTTP parameter pollution | **Đạt** | `DauVaoMaHoaHieuXacDinhHttpTest#thamSoTrungLapLayGiaTriDau` (24/09/2026, T61.49) — đo qua HTTP: `?size=1&size=3` ⇒ `meta.size=1`, `?size=3&size=1` ⇒ `meta.size=3` ⇒ luôn lấy giá trị **ĐẦU** | ⚠ Đúng nhờ **mặc định** Spring, ⛔ nhờ dòng khai nào (`getParameterValues`/`getParameterMap` vẫn = 0) ⇒ bài kiểm hỏi **hai** thứ tự đảo nhau để một lượt nâng khung ⛔ lặng lẽ đảo nó (luật 3) |
 | 5.1.2 | Chống mass assignment | **Đạt** | Đối chiếu các kiểu `@RequestBody` (91 chỗ) với mọi lớp `@Entity`: 0 trùng · ví dụ `backend/hydro/src/main/java/com/songnhue/hydro/api/HydroCatalogDtos.java:55` record riêng · vai trò/trạng thái có endpoint riêng `UserAdminController.java:95,111` | |
 | 5.1.3 | Kiểm đầu vào theo danh sách cho phép | **Một phần** | `@Valid` + Bean Validation, xử lý ở `GlobalExceptionHandler.java:91-97` | ⛔ **13/91** `@RequestBody` thiếu `@Valid`, vd `backend/content/src/main/java/com/songnhue/content/api/PublicPortalController.java:315` (record dòng 289-290 ⛔ ràng buộc). Email biểu mẫu liên hệ ⛔ kiểm định dạng: `ContactService.java:118-163` |
 | 5.1.4 | Dữ liệu có cấu trúc được định kiểu mạnh | **Một phần** | `@PathVariable UUID` (vd `PublicPortalController.java:413`), enum, record | như 5.1.3 |
@@ -136,7 +136,7 @@ khoản quản trị) nặng hơn mười dòng *Đạt* về header. Thứ tự
 | 5.2.7 | Làm sạch SVG | **Không đạt** | `SvgSanitizer.java:52` regex `<\s*script\b.*?(</\s*script\s*>\|$)` chạy **một lượt** (dòng 90-92) · nằm trên đường tải lên thật `AttachmentService.java:158-159`, nhận SVG ở `SiteConfigService.java:131` | ⛔⛔ **Đo 15/09** (chép nguyên 8 mẫu vào một chương trình Java tạm, chạy `java`): `<svg><scr<script></script>ipt>alert(1)</script></svg>` ⇒ `<svg><script>alert(1)</script></svg>`. `SvgSanitizerTest#catTheScript` ⛔ có ca lồng. `<style>` đi qua nguyên vẹn |
 | 5.2.8 | Làm sạch Markdown/CSS/BBCode | **N/A** | grep `markdown\|commonmark\|flexmark\|remark` = 0 · CSS người dùng chỉ ở `style` của iframe bản đồ `HtmlSanitizer.java:103` | |
 | 5.3.1 | Mã hoá đầu ra đúng ngữ cảnh | **Đạt** | React tự escape; `dangerouslySetInnerHTML` chỉ có ở 4 chỗ, 3 chỗ trên cổng nhận HTML đã làm sạch lúc ghi (`public-web/src/app/bai-viet/[slug]/page.tsx:147`, `SiteFooter.tsx:141,303`) · header: `HttpHeaderText.java:35` | Chỗ thứ tư: `admin-app/src/components/business/RichTextEditor.tsx:797` xem trước giá trị đang soạn (tự-XSS; CSP admin `script-src 'self'`) |
-| 5.3.2 | Giữ bộ ký tự người dùng chọn | **Chưa đo** | | ⛔ có bài kiểm ký tự ngoài BMP qua HTTP |
+| 5.3.2 | Giữ bộ ký tự người dùng chọn | **Đạt** | `DauVaoMaHoaHieuXacDinhHttpTest#kyTuNgoaiBmpDiTronVong` (24/09/2026, T61.49) — `Cống 🚧 𠮷` (U+1F6A7 · U+20BB7, 10 `char`/8 code point) POST ⇒ 201, cột `org_units.name` khớp nguyên văn, GET ⇒ 200 và JSON mang **ký tự thật** (⛔ escape) | Hai vế ⛔ thay thế nhau: CSDL đúng mà JSON méo thì người dùng vẫn thấy sai. Tiền đề đòi chuỗi thử THỰC SỰ có cặp thay thế ⇒ đổi sang chuỗi BMP thuần là bài đỏ ngay |
 | 5.3.3 | Chống XSS phản chiếu/lưu trữ/DOM | **Một phần** | CSP `frontend/public-web/next.config.ts:41-57` · `csp.test.ts` · `NginxSecurityHeadersTest#cspChatOChoDangKe` · liên kết nguồn bài viết chặn scheme `nguonBaiViet.ts:55` | ⛔ Liên kết menu `routes.ts:146-147` `return item.url` và kênh MXH `SiteFooter.tsx:267` `href={kenh.url}` — backend chỉ kiểm rỗng (`MenuService.java:233`) ⇒ `javascript:` lưu được. Cổng dùng `react 18.3.1` (⛔ chặn `javascript:`) và CSP `script-src 'unsafe-inline'` (`next.config.ts:43`). **Chưa đo trên trình duyệt.** Cộng 5.2.7 |
 | 5.3.4 | Truy vấn CSDL tham số hoá | **Đạt** | grep `createNativeQuery` = 0; `@Query(nativeQuery=true)` dùng `:tham_so` (vd `UserAuthorityRepository.java:80-96`) · JdbcTemplate dùng `?` (`SyncLogQueryRepository.java:157-158`) · sắp xếp theo whitelist `UtilsTest#rejectsSortFieldOutsideWhitelist` | Chỗ nối chuỗi chỉ ghép **hằng số** tên bảng: `MaHoaLaiJdbc.java:88,101,161`, `CmsAttachmentRefCleaner.java:80` |
 | 5.3.5 | Nơi không tham số hoá thì mã hoá đúng ngữ cảnh | **Đạt** | như 5.3.4 | |
@@ -221,7 +221,7 @@ khoản quản trị) nặng hơn mười dòng *Đạt* về header. Thứ tự
 
 | Mã | Yêu cầu | Kết luận | Bằng chứng | Ghi chú |
 |---|---|---|---|---|
-| 13.1.1 | Mọi thành phần dùng cùng mã hoá/bộ phân tích | **Chưa đo** | | Next proxy (`route.ts`) ↔ Spring: ⛔ có phép kiểm so cách hai bên hiểu đường dẫn mã hoá (`%2F`, `..`) |
+| 13.1.1 | Mọi thành phần dùng cùng mã hoá/bộ phân tích | **Một phần** | Vế **Spring/Tomcat** đạt và có bài kiểm: `DauVaoMaHoaHieuXacDinhHttpTest#duongDanMaHoaHieuGiongNhauOMoiTang` (24/09/2026, T61.49) — `a%2Fb` ⇒ **400**, `a/b` ⇒ **404** (hai mã KHÁC NHAU ⇒ `%2F` ⛔ bị giải thành `/`), `..%2Fauth%2Fme` ⇒ 400, đối chứng `org%2Dunits` ⇒ 405 (⛔ chặn bừa mọi `%XX`) | ⛔⛔ **Vế proxy Next CHƯA đo** — `public-web/src/app/api/v1/[...path]/route.ts:55` giải `[...path]` rồi `encodeURIComponent` **lại** từng đoạn, nên thứ tới Spring có còn là `%2F` hay ⛔ là câu chưa ai hỏi ⇒ **T85.14** |
 | 13.1.3 | URL API không mang thông tin nhạy cảm | **Đạt** | xem 3.1.1 và 8.3.1 | |
 | 13.2.1 | Chỉ bật phương thức HTTP hợp lệ cho từng hành động | **Đạt** | mỗi handler khai quyền riêng `PermissionInterceptor.java:95-113` · `DenyByDefaultTest#everyEndpointDeclaresItsGuard` · `RbacMatrixTest#readOnlyRolesHoldNoWritePermission` | |
 | 13.2.2 | Kiểm lược đồ JSON trước khi nhận | **Một phần** | Bean Validation trên record (5.1.3) | ⛔ JSON Schema; 13 thân yêu cầu thiếu `@Valid` |
@@ -331,8 +331,11 @@ mỗi dòng cần một task trong `.claude/master-tracking.md` trước khi là
 
 ### 16.5 Chưa đo — cần một phép đo trước khi kết luận
 
-- **5.1.1** tham số trùng lặp · **5.3.2** ký tự ngoài BMP qua HTTP · **10.3.3** DNS tên miền con treo ·
-  **13.1.1** Next proxy ↔ Spring hiểu đường dẫn mã hoá có giống nhau không.
+- ✅ **Đo xong 24/09/2026 (T61.49)** — **5.1.1** · **5.3.2** · **13.1.1 vế Spring**: cả ba nay có bài
+  kiểm HTTP trong CI (`DauVaoMaHoaHieuXacDinhHttpTest`, 3 bài), mỗi bài một vế phân biệt và cả ba đã
+  qua lượt phá riêng. ⚠ **Cả ba ĐẠT nhờ MẶC ĐỊNH của khung**, ⛔ nhờ dòng khai nào — đó chính là lý do
+  phải canh (luật 3; `T11.69` từng mất một lượt vì Jackson 3 đảo một mặc định trong bản nâng sạch).
+- ⬜ Còn **10.3.3** DNS tên miền con treo · **13.1.1 vế proxy Next** (⇒ `T85.14`).
 - Toàn bộ các dòng ghi *"chưa đo trên máy thật"* (3.4.1, 9.1.x, 14.3.3, 14.4.x): chạy
   `tools/zap/zap-baseline.sh` vào staging rồi đối chiếu báo cáo với bảng này.
 

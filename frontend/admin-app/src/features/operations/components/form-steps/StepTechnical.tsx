@@ -1,4 +1,5 @@
-import { Col, Form, Input, InputNumber, Row, theme } from 'antd';
+import { Col, Form, Input, InputNumber, Row, Select, theme } from 'antd';
+import { GATE_OPERATION, SLUICE_TYPE } from '@/components/business/statusVocabulary';
 import { type ConstructionType } from '@/shared/api-types';
 
 export function StepTechnical({ type }: { type?: ConstructionType }) {
@@ -77,7 +78,14 @@ export function StepTechnical({ type }: { type?: ConstructionType }) {
         <Row gutter={16}>
           <Col span={8}>
             <Form.Item name={['sluice', 'sluiceType']} label="Loại cống">
-              <Input />
+              <Select
+                allowClear
+                placeholder="Chọn"
+                options={Object.entries(SLUICE_TYPE).map(([ma, v]) => ({
+                  value: ma,
+                  label: v.label,
+                }))}
+              />
             </Form.Item>
           </Col>
           <Col span={8}>
@@ -121,7 +129,14 @@ export function StepTechnical({ type }: { type?: ConstructionType }) {
           </Col>
           <Col span={8}>
             <Form.Item name={['sluice', 'gateOperation']} label="Kiểu vận hành cửa">
-              <Input />
+              <Select
+                allowClear
+                placeholder="Chọn"
+                options={Object.entries(GATE_OPERATION).map(([ma, v]) => ({
+                  value: ma,
+                  label: v.label,
+                }))}
+              />
             </Form.Item>
           </Col>
         </Row>

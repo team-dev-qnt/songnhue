@@ -53,12 +53,18 @@ import com.songnhue.hydro.infra.HydroMaintenanceRepository;
  *
  * <h2>⛔ Số lần thử KHÔNG khai ở đây</h2>
  *
- * <p>{@link JobHandler#maxAttempts()} <b>không có người đọc trong toàn kho</b>: {@code JobWorker}
- * lấy {@code max_attempts} từ cột của bảng {@code jobs}, mà cột ấy do
- * {@code JobService.enqueue(…, request.maxAttempts())} ghi — tức từ {@code JobRequest} của <i>nơi
- * đặt việc</i>. Ghi đè phương thức ấy ở đây là khai một con số không điều khiển gì (luật 15), và
- * tệ hơn: nó <b>trông như</b> đã chặn việc thử lại một thao tác XOÁ. Con số thật đặt ở
- * {@link HydroMaintenanceScheduler}, nơi nó có hiệu lực.
+ * <p>⚠ <b>Câu ở đây đã ĐỔI ngày 23/09/2026 (T68.30).</b> Bản cũ nói {@link JobHandler#maxAttempts()}
+ * <i>"⛔ có người đọc trong toàn kho"</i>; nay nó có đúng một người đọc ({@code JobService.enqueue})
+ * và đóng vai <b>mặc định</b>. Nghĩa là ghi đè ở đây <b>sẽ có hiệu lực</b>.
+ *
+ * <p>Con số vẫn để ở {@link HydroMaintenanceScheduler} và đó là một lựa chọn, ⛔ phải quán tính:
+ * {@code THU_LAI_DON_DU_LIEU = 1} nằm cạnh {@code THU_LAI_TAO_PARTITION = 2} trong cùng một lớp, nên
+ * người sửa lịch bảo trì đọc được <b>cả hai con số cùng lúc</b> và thấy vì sao chúng khác nhau. Tách
+ * một trong hai sang handler là đổi lấy một chỗ đọc khó hơn mà ⛔ mua thêm bảo đảm nào — cả hai loại
+ * việc này chỉ có <b>một</b> nơi đặt việc.
+ *
+ * <p>⛔ Điều đó <i>⛔ đúng</i> cho {@code DB_RESTORE}: ở đó có nhiều đường đặt việc và lượt thử thứ
+ * hai là một lượt ghi đè toàn bộ CSDL lần nữa — nên con số ấy thuộc về handler.
  */
 @Component
 public class HydroRetentionHandler implements JobHandler {

@@ -209,7 +209,10 @@ if [ -s "${HOME_GOC:-/home/$NGUOI_SSH}/.docker/config.json" ] &&
     grep -q 'ghcr.io' "${HOME_GOC:-/home/$NGUOI_SSH}/.docker/config.json" 2>/dev/null; then
     do_dac "docker login ghcr.io" "đã đăng nhập"
 else
-    canh "CHƯA docker login ghcr.io (T11.36) — lượt 'compose pull' đầu tiên sẽ trả 'unauthorized'."
+    # ⛔⛔ T85.19 nâng mức việc này từ "app ⛔ lên" thành "KHO TỆP ⛔ lên": từ 25/09/2026 ảnh MinIO
+    #   cũng ở GHCR, vì cả docker.io lẫn quay.io đã gỡ `minio/minio`. Chưa đăng nhập ⇒ ⛔ chỉ app
+    #   mà cả nơi giữ MỌI tệp người dùng tải lên cũng ⛔ kéo được — và ⛔ còn nguồn nào khác để lấy.
+    hong "CHƯA docker login ghcr.io (T11.36) — 'compose pull' trả 'unauthorized' cho CẢ app LẪN MinIO."
     canh "  echo <PAT có read:packages> | docker login ghcr.io -u <github-user> --password-stdin"
 fi
 

@@ -256,6 +256,38 @@ describe('lớp điểm đo thuỷ văn trên bản đồ (T35.1 · T35.2)', () 
   });
 
   /**
+   * ⭐⭐ **Con số phải BẤM ĐƯỢC** — đây là nửa còn thiếu của T35.2, mở từ 04/09/2026.
+   *
+   * Lượt kiểm chứng độc lập hôm ấy bác đúng vế này: sáu trường (`publicId` · `code` · `name` ·
+   * `positionRole` · `riverName` · `chainage`) đi ra dây rồi **bị vứt** — chỉ `.length` được đọc.
+   * ⇒ Người đọc sổ tưởng Công ty mở màn hình là thấy 19 dòng để đi cấp toạ độ, thực tế họ chỉ
+   * thấy **con số 19** và ⛔ có đường nào đi tiếp (luật 27).
+   *
+   * ⛔ Đích là **màn hình Điểm đo**, ⛔ phải một drawer chỉ-đọc ở đây: chỗ NHẬP toạ độ nằm ở đó
+   * (biểu mẫu sửa + nút *Nhập vị trí từ tệp* của T42.20). Một bảng thứ hai trên dashboard là thêm
+   * một nơi HIỂN THỊ mà vẫn ⛔ ai làm được gì.
+   */
+  it('⭐⭐ T35.2 — con số dẫn thẳng tới màn hình Điểm đo, đã bật sẵn ô lọc', async () => {
+    dung();
+
+    const lienKet = await screen.findByRole('link', { name: 'Xem danh sách' });
+    expect(lienKet.getAttribute('href')).toBe('/thuy-van/diem-do?loc=CHUA_CO_TOA_DO');
+  });
+
+  /**
+   * ⛔ CN-02.5: màn hình treo tường *"⛔ phụ thuộc thao tác chuột/bàn phím"*. Cùng lý do
+   * `coCongCuDo={!wall}` — một liên kết trên màn hình ⛔ ai chạm vào chỉ có thể bấm nhầm.
+   */
+  it('⛔ wall mode ⛔ có liên kết — nhưng VẪN nói ra con số', async () => {
+    dung('/van-hanh/dieu-hanh?mode=wall');
+
+    expect(
+      await screen.findByText(/1 điểm đo chưa có toạ độ nên chưa lên bản đồ \(mục G8\)/),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Xem danh sách' })).toBeNull();
+  });
+
+  /**
    * ⭐⭐ Hồi quy cho một lỗi THẬT, tìm ra lúc chạy bài kiểm đầu tiên của T35.1.
    *
    * Bản đầu đọc `lopDiemDo.data.chuaSoHoaViTri.length` với `?.` chỉ ở mức `data`. Một phản hồi

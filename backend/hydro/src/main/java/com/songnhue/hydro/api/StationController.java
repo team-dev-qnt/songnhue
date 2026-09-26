@@ -238,7 +238,8 @@ public class StationController {
                         .toList(),
                 toLinkViews(lienKet),
                 lienKet.isEmpty() && !diemDo.duocPhepKhongGanCongTrinh(),
-                diemDo.chuaGanDonVi());
+                diemDo.chuaGanDonVi(),
+                diemDo.chuaSoHoaViTri());
     }
 
     /**
@@ -283,7 +284,7 @@ public class StationController {
     }
 
     @PostMapping(path = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "Nhập thật — còn dòng lỗi thì ⛔ không dòng nào được ghi (OPS-2016)")
+    @Operation(summary = "Nhập thật — còn dòng lỗi thì ⛔ không dòng nào được ghi (SYS-0015)")
     @RequirePermission("hyd:station:manage")
     public KetQuaNhap applyImport(@RequestPart("file") MultipartFile file) {
         return viTri.apply(doc(file));

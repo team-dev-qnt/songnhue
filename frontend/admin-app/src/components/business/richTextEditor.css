@@ -174,6 +174,39 @@
 }
 
 /*
+  ---- Tay nắm kéo giãn cột — bật lại ở T41.14 ----
+
+  ⚠⚠ Chú thích ngay trên nói *"gói `prosemirror-tables/style/tables.css` cố ý KHÔNG được import…
+  cho một plugin không còn nạp"*. Câu ấy đúng từ T41.3 tới 25/09/2026 và **nay hết đúng**:
+  `columnResizing` đã nạp lại, nên hai quy tắc dưới đây là phần *"đang dùng"* mà câu ấy nói tới.
+  `richTextEditorCss.test.ts` GHÉP ĐÔI chúng với cờ `resizable` — bật một vế mà quên vế kia là
+  một tính năng bật mà ⛔ ai thấy, hoặc một quy tắc CSS cho thứ ⛔ tồn tại.
+
+  ⛔ Tay nắm phải nằm TRONG ô (`right: -2px`, nửa trong nửa ngoài) chứ ⛔ phủ cả ô: nó bắt chuột
+  (`pointer-events`), và một vùng bắt chuột rộng làm người dùng ⛔ đặt được con trỏ vào cuối ô.
+*/
+.sn-editor__body .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: -2px;
+  width: 4px;
+  background: var(--sn-editor-nhan);
+  pointer-events: none;
+  z-index: 3;
+}
+
+/*
+  Trong lúc kéo, `columnResizing` đặt class này lên phần tử soạn thảo. Đổi con trỏ cho CẢ vùng —
+  ⛔ chỉ cho tay nắm — vì chuột đi ra ngoài tay nắm trong lúc kéo là chuyện bình thường, và một
+  con trỏ nhảy về mũi tên giữa chừng đọc như thao tác đã kết thúc.
+*/
+.sn-editor__body.resize-cursor,
+.sn-editor__body .resize-cursor {
+  cursor: col-resize;
+}
+
+/*
   ---- Xem trước: BẢNG phải cư xử y như trên cổng ----
 
   ⚠⚠ Chế độ Xem trước dựng `value` THÔ bằng `dangerouslySetInnerHTML`, nên ở đây **không có**

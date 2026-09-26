@@ -125,7 +125,7 @@ class DanhMucMayBomHttpTest extends IntegrationTestBase {
     }
 
     @Test
-    @DisplayName("⛔ Cống (⛔ trạm bơm) · mã lạ · trùng Q trong tệp ⇒ lỗi DÒNG; nhập thật trả OPS-2016, 0 dòng ghi")
+    @DisplayName("⛔ Cống (⛔ trạm bơm) · mã lạ · trùng Q trong tệp ⇒ lỗi DÒNG; nhập thật trả SYS-0015, 0 dòng ghi")
     void loiDongChanCaLuot() {
         String csv = "ma_cong_trinh,so_may,q_mot_may_m3h\n"
                 + "LCO,2,980\n"
@@ -140,7 +140,7 @@ class DanhMucMayBomHttpTest extends IntegrationTestBase {
                 .contains("hai dòng cùng Q");
 
         ResponseEntity<String> that = nhap("/nhom-may/nhap", csv);
-        assertThat(that.getBody()).contains("OPS-2016");
+        assertThat(that.getBody()).contains("SYS-0015");
         assertThat(soNhom()).as("⛔ có một dòng lỗi thì ⛔ dòng nào được ghi").isZero();
     }
 

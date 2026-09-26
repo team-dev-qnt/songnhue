@@ -48,9 +48,11 @@ import tools.jackson.databind.ObjectMapper;
  *
  * <h2>⛔ Số lần thử = 1</h2>
  *
- * <p>Khai ở {@link HydroReportController} qua {@code JobRequest}, ⛔ không ở đây
- * ({@link JobHandler#maxAttempts()} ⛔ không có người đọc trong toàn kho — xem
- * {@code HydroRetentionHandler}). Lý do: một lượt kết xuất hỏng gần như luôn là hỏng <i>tất định</i>
+ * <p>Khai ở {@link HydroReportController} qua {@code JobRequest}, ⛔ không ở đây. ⚠ Lý do đã ĐỔI
+ * ngày 23/09/2026 (T68.30): {@link JobHandler#maxAttempts()} nay <b>có</b> một người đọc
+ * ({@code JobService.enqueue}) và là giá trị mặc định, nên câu cũ <i>"⛔ có người đọc trong toàn
+ * kho"</i> đã sai. Con số ở lại nơi đặt việc vì nó đi kèm lý do của <b>lượt bấm Xuất</b> (người dùng
+ * đang chờ, bấm lại được ngay), ⛔ phải của công việc. Lý do: một lượt kết xuất hỏng gần như luôn là hỏng <i>tất định</i>
  * (khoảng ngày quá rộng, điểm đo vừa bị xoá), nên thử lại ba lần chỉ dựng lại cùng một lỗi ba lần —
  * và mỗi lượt là một lần quét bảng. Hỏng thì hiện FAILED cho người dùng bấm Xuất lại.
  */

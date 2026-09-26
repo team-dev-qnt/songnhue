@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -107,8 +108,19 @@ public class AuditArchiveHandler implements JobHandler {
         int years = settings.getInt(KEY_RETENTION_YEARS, DEFAULT_RETENTION_YEARS);
         Instant cutoff = Instant.now().minus(years * 365L, ChronoUnit.DAYS);
 
+        // ⛔⛔⛔ T85.5 — `Timestamp.from(...)` là BẢN VÁ, ⛔ phải một lượt dọn dẹp. Truyền thẳng một
+        //   `java.time.Instant` vào `JdbcTemplate` thì PgJDBC NÉM ngay tại câu lệnh này:
+        //   "Can't infer the SQL type to use for an instance of java.time.Instant" — driver nhận
+        //   `LocalDateTime`/`OffsetDateTime`/`Timestamp` chứ ⛔ nhận `Instant`. Nghĩa là lớp này
+        //   **chưa từng chạy nổi một lượt nào** kể từ WS-6: nó hỏng ở câu lệnh ĐẦU, kể cả khi ⛔ có
+        //   dòng nào quá hạn. Chốt G7 (*giữ nhật ký 5 năm rồi kết xuất*) vì thế chưa bao giờ có hiệu
+        //   lực, và ⛔ gì báo — `MaintenanceScheduler:96` xếp việc với `maxAttempts = 1`, nên mỗi
+        //   lượt để lại đúng một dòng `jobs` FAILED mà ⛔ ai đọc. Đo được **chỉ vì** đây là lượt kiểm
+        //   đầu tiên đi qua lớp này (luật 7 — một cơ chế chưa ai đi qua thì chưa biết nó đúng hay sai).
         List<Map<String, Object>> rows = jdbc.queryForList(
-                "SELECT * FROM audit_logs WHERE occurred_at < ? ORDER BY seq LIMIT ?", cutoff, BATCH_LIMIT);
+                "SELECT * FROM audit_logs WHERE occurred_at < ? ORDER BY seq LIMIT ?",
+                Timestamp.from(cutoff),
+                BATCH_LIMIT);
         if (rows.isEmpty()) {
             log.info("Không có bản ghi nhật ký nào quá {} năm — không phải kết xuất", years);
             return;
@@ -132,12 +144,22 @@ public class AuditArchiveHandler implements JobHandler {
             throw new BusinessRuleException(ErrorCode.ADM_2001, "checksum bản kết xuất không khớp");
         }
 
+        // ⛔ T68.32 — `archived_by` là cột MỒ CÔI cho tới hôm nay: khai ở DDL từ WS-6, 0 nơi ghi.
+        //   Nguồn đúng của nó nằm sẵn trong tay: `JobContext.requestedBy()`.
+        //
+        //   ⚠ Hôm nay giá trị ấy LUÔN null, và đó là một lời khai ĐÚNG chứ ⛔ phải một ô bỏ trống:
+        //   `AUDIT_ARCHIVE` có đúng MỘT nơi đặt việc — cron `MaintenanceScheduler:96` — nên ⛔ có
+        //   người dùng nào yêu cầu, và `null` ở đây đọc là *"lịch chạy, ⛔ phải ai bấm"*.
+        //
+        //   ⇒ Vì sao vẫn ghi thay vì để mồ côi tiếp: ngày có một nút *Kết xuất ngay* trên màn hình
+        //   quản trị, cột này tự mang đúng người bấm. Để nguyên thì nó vẫn null sau khi nút ra đời —
+        //   một lượt xoá nhật ký kiểm toán ⛔ truy được ai lệnh, im lặng hoàn toàn.
         jdbc.update(
                 """
                 INSERT INTO audit_archive_anchors (
                     from_seq, to_seq, from_occurred_at, to_occurred_at, row_count, last_hash,
-                    storage_bucket, storage_key, file_size_bytes, checksum_sha256, verified_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())
+                    storage_bucket, storage_key, file_size_bytes, checksum_sha256, archived_by, verified_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())
                 """,
                 fromSeq,
                 toSeq,
@@ -148,9 +170,22 @@ public class AuditArchiveHandler implements JobHandler {
                 bucket,
                 objectKey,
                 archive.length,
-                checksum);
+                checksum,
+                context.requestedBy());
 
-        int deleted = jdbc.update("DELETE FROM audit_logs WHERE seq BETWEEN ? AND ?", fromSeq, toSeq);
+        // ⛔⛔ T85.5 — vế `occurred_at < ?` ở đây là BẢN VÁ, và nó phải trùng KHÍT vị từ của lượt
+        //   CHỌN ở trên. Trước đó lượt xoá đi bằng một DẢI seq trong khi lượt chọn lọc theo
+        //   `occurred_at`; hai vị từ ấy chỉ trùng nhau chừng nào thứ tự `occurred_at` còn trùng thứ
+        //   tự `seq` — một bất biến ⛔ ai viết ra và ⛔ gì ép, chỉ tình cờ đúng vì `AuditLogWriter`
+        //   ⛔ hề ghi cột `occurred_at` nên nó luôn nhận `DEFAULT now()`. Ngày nào có một đường ghi
+        //   khai mốc tường minh (nhập bù, đồng hồ lệch, một lượt di trú), một dòng CHƯA quá hạn lọt
+        //   vào giữa dải sẽ bị xoá cùng lô: im lặng, ⛔ phục hồi được, và ⛔ điểm neo nào nhắc tới nó.
+        //   Bộ canh: `KetXuatNhatKyKiemToanTest#dongChuaQuaHanNamGiuaDaiSeqPhaiSongSot`.
+        int deleted = jdbc.update(
+                "DELETE FROM audit_logs WHERE occurred_at < ? AND seq BETWEEN ? AND ?",
+                Timestamp.from(cutoff),
+                fromSeq,
+                toSeq);
         jdbc.update(
                 "UPDATE audit_archive_anchors SET purged_at = now() WHERE from_seq = ? AND to_seq = ?", fromSeq, toSeq);
 

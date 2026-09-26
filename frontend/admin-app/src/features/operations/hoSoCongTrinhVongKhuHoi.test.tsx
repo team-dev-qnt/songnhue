@@ -78,7 +78,9 @@ const PUMP = {
   operatingLevelMaxM: '3.80',
 };
 const SLUICE = {
-  sluiceType: 'CONG_HOP',
+  // ⛔ T68.28 — giá trị cũ ở đây là `CONG_HOP`, một giá trị `ck_sluice_specs_type` ⛔ NHẬN.
+  //   Bài vẫn xanh vì nó mock đường mạng, nên fixture ⛔ bao giờ chạm CSDL (luật 9).
+  sluiceType: 'HOP',
   bayCount: 3,
   bayWidthM: '4.00',
   sillElevationM: '-1.50',

@@ -32,9 +32,14 @@ import com.songnhue.hydro.domain.ApiSourceStatus;
  * <h2>⭐⭐ Khẳng định đặt ở nơi con số CÓ HIỆU LỰC</h2>
  *
  * <p>Bài học của chính module này ({@code HydroMaintenanceSchedulerTest}): hỏi thẳng
- * {@code JobHandler.maxAttempts()} là hỏi một phương thức <b>không có người đọc trong toàn kho</b> —
+ * {@code JobHandler.maxAttempts()} là hỏi một phương thức <b>⛔ có người đọc trong toàn kho</b> —
  * một bài kiểm xanh canh một nửa đã chết. Thứ có hiệu lực ở đây là <b>chính đối tượng
  * {@link JobRequest} đi vào hàng đợi</b>, nên mọi khẳng định bắt vào nó.
+ *
+ * <p>⚠ <b>Vế "⛔ có người đọc" hết đúng ngày 23/09/2026 (T68.30)</b> — nay {@code JobService.enqueue}
+ * đọc nó làm <b>mặc định</b>. Khuôn khẳng định ở đây thì <b>⛔ đổi</b>, và nó nay còn mạnh hơn: bắt
+ * vào {@link JobRequest} là bắt đúng lượt <b>ghi đè</b>, thứ duy nhất phân biệt được <i>scheduler cố
+ * ý khai 1</i> với <i>scheduler quên khai và rơi về mặc định 3</i>.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)

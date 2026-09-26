@@ -303,6 +303,11 @@ export function MediaBrowser({
                         style={{ objectFit: 'cover' }}
                         preview={false}
                         fallback="data:image/gif;base64,R0lGODlhAQABAAAAACw="
+                        /* ⭐ T12.7 — T14.4 nêu đích danh ô này: ảnh hiển thị là ảnh GỐC (ảnh phái
+                           sinh WebP/thumbnail vẫn hoãn), nên mở một thư mục 200 ảnh là tải về vài
+                           trăm MB. `loading` ⛔ phải prop của antd — `rc-image` rải prop lạ xuống
+                           thẻ `<img>`, và `luoiAnhTaiLuoi.test.tsx` ĐO điều đó chứ ⛔ tin vào nó. */
+                        loading="lazy"
                       />
                     ) : (
                       <div

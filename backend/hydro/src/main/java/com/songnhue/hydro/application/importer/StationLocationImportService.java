@@ -20,6 +20,7 @@ import com.songnhue.core.common.importer.CotMau;
 import com.songnhue.core.common.importer.KetQuaNhap;
 import com.songnhue.core.common.importer.KetQuaNhap.LoiDong;
 import com.songnhue.core.common.importer.SpreadsheetReader;
+import com.songnhue.core.common.persistence.ScopeGuard;
 import com.songnhue.hydro.domain.Station;
 import com.songnhue.hydro.infra.StationRepository;
 
@@ -82,9 +83,11 @@ public class StationLocationImportService {
     private static final Pattern DANG_MA_API = Pattern.compile("^[Ff][0-9]{5}$");
 
     private final StationRepository stations;
+    private final ScopeGuard scopeGuard;
 
-    public StationLocationImportService(StationRepository stations) {
+    public StationLocationImportService(StationRepository stations, ScopeGuard scopeGuard) {
         this.stations = stations;
+        this.scopeGuard = scopeGuard;
     }
 
     /** Tệp mẫu — xem {@link BieuMauCsv} về vì sao dòng 2 là mô tả chứ ⛔ không phải ví dụ hợp lệ. */
@@ -109,7 +112,7 @@ public class StationLocationImportService {
     public KetQuaNhap apply(byte[] content) {
         KeHoach keHoach = lapKeHoach(content);
         if (!keHoach.loi.isEmpty()) {
-            throw new BusinessRuleException(ErrorCode.OPS_2016, keHoach.loi.size());
+            throw new BusinessRuleException(ErrorCode.SYS_0015, keHoach.loi.size());
         }
         for (DongKeHoach dong : keHoach.dong) {
             Station s = dong.station;
@@ -185,15 +188,25 @@ public class StationLocationImportService {
         } else if (!maDaGap.add(ma.toUpperCase(Locale.ROOT))) {
             loi.add(new LoiDong(soDong, COT_MA_API, "Mã '%s' xuất hiện nhiều lần trong tệp".formatted(ma)));
         } else {
-            station = stations.findByApiCodeAndDeletedAtIsNull(ma.toUpperCase(Locale.ROOT))
-                    .orElse(null);
+            String maChuan = ma.toUpperCase(Locale.ROOT);
+            station = stations.findByApiCodeAndDeletedAtIsNull(maChuan).orElse(null);
             if (station == null) {
-                // ⛔ ⛔ KHÔNG tạo mới — xem khối chú thích ở đầu lớp.
+                // ⛔⛔ T81.4 — lượt tra trên kia đi QUA bộ lọc phạm vi, mà `ux_stations_api_code` là
+                //    chỉ mục duy nhất TOÀN hệ. Thiếu vế phân biệt dưới đây thì một điểm đo thuộc
+                //    Xí nghiệp khác cho ra đúng câu *"Không có điểm đo mang mã F01519"* — một lời
+                //    khai SAI về dữ liệu CÓ THẬT, và nó còn dặn người dùng rằng đường này ⛔ tạo mới
+                //    được, nên họ đi tìm đường tạo và đâm vào chỉ mục duy nhất. Đây là đường nhập
+                //    TOẠ ĐỘ (G8) — quy tắc 18: một lượt nhập hỏng là số liệu ⛔ về.
+                //    ⚠ Chỉ trả lời CÓ/⛔; ⛔ bản ghi nào của đơn vị khác lọt ra (quy tắc 5).
+                boolean ngoaiPhamVi = scopeGuard.toanCongTy(
+                        () -> stations.findByApiCodeAndDeletedAtIsNull(maChuan).isPresent());
                 loi.add(new LoiDong(
                         soDong,
                         COT_MA_API,
-                        "Không có điểm đo mang mã '%s'. Đường này chỉ CẬP NHẬT vị trí, ⛔ không tạo điểm đo mới"
-                                .formatted(ma)));
+                        ngoaiPhamVi
+                                ? "Mã '%s' thuộc một điểm đo ngoài phạm vi đơn vị của bạn".formatted(ma)
+                                : "Không có điểm đo mang mã '%s'. Đường này chỉ CẬP NHẬT vị trí, ⛔ không tạo điểm đo mới"
+                                        .formatted(ma)));
             }
         }
 

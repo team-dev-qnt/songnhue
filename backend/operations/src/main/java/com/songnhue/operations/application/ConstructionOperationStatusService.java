@@ -41,7 +41,7 @@ import com.songnhue.operations.infra.OperationStatusCodeRepository;
  * <h2>Cả lô hoặc không dòng nào</h2>
  *
  * <p>{@link #batchCreate} là một giao dịch. Một dòng sai mã thì cả lô bị huỷ — cùng nguyên tắc với
- * {@code OPS-2016} ở đường nhập tệp. Với màn hình trực ban nhập một lượt vài chục cống, ghi được nửa
+ * {@code SYS-0015} ở đường nhập tệp. Với màn hình trực ban nhập một lượt vài chục cống, ghi được nửa
  * lô rồi báo lỗi là tệ hơn: không ai biết nửa nào đã vào.
  */
 @Service

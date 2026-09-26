@@ -171,6 +171,19 @@ public class PublicHydroService {
      */
     static final String LY_DO_LUONG_MUA = com.songnhue.core.spi.HydroSnapshotPort.LY_DO_LUONG_MUA;
 
+    /**
+     * Lý do ô trống khi điểm đo <b>chưa từng</b> gửi bản ghi nào — dùng chung với bảng lưới
+     * ({@code HydroGridService}), <b>T44.9</b>.
+     *
+     * <p>⛔ Hai bảng cùng công bố ra cổng mà nói hai câu khác nhau về <b>cùng một</b> trạng thái là
+     * đúng thứ luật 14 sinh ra để chặn: người đọc sẽ tin đó là hai chuyện khác nhau. Tiền lệ ngay
+     * bên trên — {@link #LY_DO_LUONG_MUA} đã gom về một chỗ vì đúng lý do ấy.
+     *
+     * <p>⚠ Câu này nói về <b>điểm đo</b>, ⛔ phải về một mốc: nó đúng ở <b>mọi</b> ô của dòng, nên
+     * dùng được cả ở bảng đọc-theo-mốc lẫn bảng đọc-giá-trị-cuối.
+     */
+    static final String LY_DO_CHUA_GUI_SO = "Điểm đo chưa gửi về số liệu nào";
+
     private static final String CHUA_PHAN_TUYEN = "Chưa phân tuyến";
 
     private static final Logger log = LoggerFactory.getLogger(PublicHydroService.class);
@@ -242,9 +255,7 @@ public class PublicHydroService {
                         : "Điểm đo đang mất tín hiệu — số liệu chưa cập nhật, ⛔ không dùng số cũ làm mực nước hiện tại";
                 gt = null;
             } else if (gt == null) {
-                lyDo = tt == StationDisplayStatus.CHUA_CO_DU_LIEU
-                        ? "Điểm đo chưa gửi về số liệu nào"
-                        : "Chưa có số đo hợp lệ";
+                lyDo = tt == StationDisplayStatus.CHUA_CO_DU_LIEU ? LY_DO_CHUA_GUI_SO : "Chưa có số đo hợp lệ";
             }
 
             BaCot cot = cotTheoVaiTro(r.positionRole(), gt);

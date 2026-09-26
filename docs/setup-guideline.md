@@ -41,6 +41,9 @@ make doctor
 ```bash
 git clone <repo> && cd songnhue
 
+# 0. đăng nhập kho ảnh của dự án — xem ô cảnh báo ngay dưới, BẮT BUỘC
+echo <PAT có read:packages> | docker login ghcr.io -u <github-user> --password-stdin
+
 make hooks      # 1. bật hook kiểm tra commit message
 make env        # 2. tạo deploy/env/local.env từ mẫu
 # 3. sinh khóa (mục 3 bên dưới)
@@ -48,6 +51,19 @@ make env        # 2. tạo deploy/env/local.env từ mẫu
 make doctor     # 5. kiểm tra công cụ + cổng trống
 make dev-infra  # 6. bật hạ tầng
 ```
+
+> ⛔⛔ **Bước 0 không bỏ qua được, và lý do nó tồn tại đáng đọc một lần.**
+> Ảnh MinIO — nơi giữ mọi tệp tải lên — từng nằm ở Docker Hub, rồi quay.io.
+> **Cả hai đã gỡ repository `minio/minio`**: Hub ngày 14/09/2026, quay.io ngày
+> 24/09/2026. Đo lại 25/09 thì không còn một nguồn công khai nào mang đúng bản
+> phát hành ấy. Kho nay dùng **bản gương của chính dự án**
+> (`ghcr.io/team-dev-qnt/songnhue/minio`), và gói GHCR thì **riêng tư kể cả khi
+> repo công khai** — chưa đăng nhập thì `make dev-infra` dừng ở
+> `unauthorized`, còn bộ kiểm backend đỏ hàng loạt ở `ContainerFetchException`.
+>
+> ⚠ Máy nào **đã kéo ảnh ấy về từ trước** sẽ chạy được mà không cần đăng nhập —
+> Docker dùng đệm cục bộ và không hỏi registry lần nào. Đó đúng là thứ đã giấu
+> sự cố 14/09 suốt một lượt CI: *xanh ở máy không phải bằng chứng*.
 
 Chọn chế độ chạy phù hợp với vai trò của bạn ở
 [`run-guideline.md`](run-guideline.md).

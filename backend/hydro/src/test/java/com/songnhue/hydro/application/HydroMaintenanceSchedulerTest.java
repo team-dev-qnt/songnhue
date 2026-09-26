@@ -37,9 +37,15 @@ import com.songnhue.core.spi.JobRequest;
  * thứ đi vào hàng đợi. Luật 15 ở dạng khó thấy nhất: công tắc không ai đọc <i>trông như</i> đang
  * điều khiển.
  *
- * <p>⬜ Nợ để mở: {@code JobHandler.maxAttempts()} là công tắc chết ở <b>tầng Core</b>, và
- * {@code AuditArchiveHandler} cũng đang ghi đè nó. Hoặc {@code JobWorker} đọc nó, hoặc gỡ khỏi SPI
- * — ⛔ không để nguyên một phương thức mà mọi lớp cài đặt đều tưởng là có tác dụng.
+ * <p>✅ <b>Dòng nợ ở đây ĐÃ TRẢ ngày 23/09/2026 — T68.30.</b> Nó viết: <i>"hoặc {@code JobWorker}
+ * đọc nó, hoặc gỡ khỏi SPI"</i>. Chọn vế thứ nhất, nhưng người đọc ⛔ phải {@code JobWorker} mà là
+ * <b>{@code JobService.enqueue}</b> — vì thứ quyết định số lần thử là <b>cột {@code max_attempts}
+ * ghi lúc ĐẶT việc</b> (quyết định thử lại nằm trong SQL ở {@code JobRepository}), nên đặt người đọc
+ * ở worker là vá sai tầng: cột vẫn mang số cũ và màn hình việc nền vẫn hiện số cũ.
+ *
+ * <p>⇒ {@code maxAttempts()} nay là <b>mặc định</b>; nơi đặt việc khai số thì số ấy thắng. Các
+ * khẳng định dưới đây <b>⛔ đổi</b>: chúng vẫn bắt vào {@link JobRequest} đi vào hàng đợi, vốn vẫn là
+ * nơi hai con số của lớp này có hiệu lực.
  */
 @ExtendWith(MockitoExtension.class)
 class HydroMaintenanceSchedulerTest {

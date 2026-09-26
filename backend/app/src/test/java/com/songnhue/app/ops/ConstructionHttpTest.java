@@ -459,6 +459,82 @@ class ConstructionHttpTest extends IntegrationTestBase {
 
     // -------------------------------------------------------------------------
 
+    @Test
+    @DisplayName("⛔⛔ T68.28 — `sluiceType` lạ phải ra 400 ĐÚNG Ô, ⛔ phải 409 'người khác vừa sửa'")
+    void loaiCongLaPhaiRa400() {
+        ResponseEntity<String> hop =
+                phienHttp.goi(duQuyen, HttpMethod.POST, "/api/v1/ops/constructions", thanCong("C1", "HOP"));
+        assertThat(hop.getStatusCode())
+                .as(
+                        "⚠ VẾ PHÂN BIỆT (luật 9): một giá trị HỢP LỆ phải đi lọt. Thiếu vế này thì bài dưới "
+                                + "xanh cả khi đường tạo cống hỏng hoàn toàn — và 4xx nào cũng đọc như nhau. Thân: %s",
+                        hop.getBody())
+                .isEqualTo(HttpStatus.CREATED);
+
+        ResponseEntity<String> la =
+                phienHttp.goi(duQuyen, HttpMethod.POST, "/api/v1/ops/constructions", thanCong("C2", "CONG_HOP"));
+
+        assertThat(la.getStatusCode())
+                .as(
+                        """
+                        ⛔⛔ Trước 23/09/2026 ô này là chữ tự do: giá trị lạ đi HẾT đường tới CSDL rồi bật                         `DataIntegrityViolationException`, và người nhập đọc được một câu ⛔ liên quan gì tới                         lỗi của mình. `CONG_HOP` ⛔ phải giá trị bịa — nó là thứ fixture của chính kho đang                         dùng (`hoSoCongTrinhVongKhuHoi.test.tsx:81`), và bài kiểm ấy xanh vì nó mock đường                         mạng nên ⛔ bao giờ chạm CSDL. Thân: %s""",
+                        la.getBody())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+
+        assertThat(la.getBody())
+                .as("⛔ Một mã 400 mà ⛔ nói được SAI Ô NÀO vẫn để người nhập đi dò từng ô")
+                .contains("sluiceType");
+
+        assertThat(la.getBody())
+                .as("⚠ VẾ PHÂN BIỆT thứ hai: `OPS-2008` là *'mã công trình đã tồn tại'*. Lượt kiểm chứng "
+                        + "ngược ĐẦU của bài này đỏ vì đúng mã ấy — hai lượt POST dùng chung một `code` nên "
+                        + "lượt sau chết ở phép chống trùng TRƯỚC khi chạm ràng buộc. Một bản phá dựng lại "
+                        + "nhầm nguyên nhân thì nó ⛔ chứng minh gì (luật 9).")
+                .doesNotContain("OPS-2008");
+
+        assertThat(la.getBody())
+                .as("⛔⛔ `SYS-0005` là *'Dữ liệu vừa được người khác thay đổi, vui lòng tải lại'* — nó dẫn "
+                        + "người nhập đi tải lại trang rồi gõ lại đúng giá trị cũ. Vế này canh chính câu ấy "
+                        + "⛔ quay lại.")
+                .doesNotContain("SYS-0005");
+    }
+
+    @Test
+    @DisplayName("⛔ `gateOperation` lạ cũng ra 400 — hai ràng buộc, hai ô, ⛔ vá một nửa")
+    void kieuVanHanhLaPhaiRa400() {
+        ResponseEntity<String> la = phienHttp.goi(
+                duQuyen,
+                HttpMethod.POST,
+                "/api/v1/ops/constructions",
+                thanCong("C3", "HOP").replace("\"THU_CONG\"", "\"BANG_TAY\""));
+
+        assertThat(la.getStatusCode())
+                .as(
+                        "vế này ⛔ thừa: `ck_sluice_specs_gate` là một ràng buộc RIÊNG, và một bản vá chạm "
+                                + "`sluiceType` mà quên `gateOperation` sẽ xanh trọn vẹn ở bài trên. Thân: %s",
+                        la.getBody())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(la.getBody()).contains("gateOperation");
+    }
+
+    /**
+     * Hồ sơ CỐNG — {@code sluice_specs} là bảng duy nhất mang hai ràng buộc của T68.28.
+     *
+     * <p>⛔⛔ <b>Mỗi lượt gọi phải mang một MÃ RIÊNG, và vế này ⛔ phải chuyện gọn gàng.</b> Bản đầu của
+     * bài kiểm dùng chung một mã cho cả hai lượt POST; lượt kiểm chứng ngược lộ ra rằng khi ấy lượt
+     * thứ hai chết ở phép chống trùng mã (<b>409 {@code OPS-2008}</b>) <i>trước khi</i> kịp chạm ràng
+     * buộc — nên nó dựng lại một 409 KHÁC, ⛔ phải 409 của {@code ck_sluice_specs_type}. Hai trạng thái
+     * ⛔ phân biệt được thì phép chứng minh ⛔ nói gì (luật 9).
+     */
+    private String thanCong(String ma, String loaiCong) {
+        return """
+            {"code":"T17H-%s","name":"Cống kiểm thử T68.28","constructionType":"CONG",
+             "orgUnitId":"%s","managementLevel":"XI_NGHIEP",
+             "sluice":{"sluiceType":"%s","bayCount":2,"gateOperation":"THU_CONG"},
+             "description":null}"""
+                .formatted(ma, donViGoc, loaiCong);
+    }
+
     private String thanTramBom() {
         return """
             {"code":"T17H-001","name":"Trạm bơm kiểm thử HTTP","constructionType":"TRAM_BOM",

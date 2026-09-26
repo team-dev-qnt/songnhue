@@ -7,6 +7,7 @@ import {
   type NgayLeRequest,
   type NgayLeView,
   type GiaoUyQuyenRequest,
+  type LichDonViView,
   type SoDuPhepView,
   type UyQuyenDuyetView,
   type XemTruocDonView,
@@ -47,6 +48,17 @@ export const nghiPhepApi = {
 
   cuaNhanVien(employeePublicId: string, page: number, size: number): Promise<DonNghiTrangView> {
     return api.get<DonNghiTrangView>(`${GOC}/cua-nhan-vien/${employeePublicId}`, { page, size });
+  },
+
+  /**
+   * Lịch nghỉ của một đơn vị — T57.18(b).
+   *
+   * ⚠ Bỏ trống `nam`/`thang` = **tháng hiện tại theo giờ Việt Nam, do BACKEND quyết** (quy tắc 1).
+   * Gửi tháng của máy người dùng lên là mời đúng T63.18 ở cỡ tháng: một máy trạm lệch múi giờ mở
+   * lịch ra tháng khác, và ⛔ gì báo.
+   */
+  lich(donVi: string, nam?: number, thang?: number): Promise<LichDonViView> {
+    return api.get<LichDonViView>(`${GOC}/lich`, { donVi, nam, thang });
   },
 
   /**

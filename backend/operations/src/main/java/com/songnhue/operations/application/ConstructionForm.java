@@ -5,7 +5,9 @@ import java.util.UUID;
 
 import com.songnhue.operations.domain.ConstructionPurpose;
 import com.songnhue.operations.domain.ConstructionType;
+import com.songnhue.operations.domain.GateOperation;
 import com.songnhue.operations.domain.ManagementLevel;
+import com.songnhue.operations.domain.SluiceType;
 
 /**
  * Dữ liệu nhập của một hồ sơ công trình — CN-02.1.
@@ -83,13 +85,13 @@ public record ConstructionForm(
 
     /** Thông số cống điều tiết. */
     public record SluiceSpec(
-            String sluiceType,
+            SluiceType sluiceType,
             Short bayCount,
             BigDecimal bayWidthM,
             BigDecimal sillElevationM,
             BigDecimal crestElevationM,
             BigDecimal designFlowM3s,
-            String gateOperation,
+            GateOperation gateOperation,
             BigDecimal upstreamWarningLevelM,
             BigDecimal upstreamDangerLevelM) {}
 

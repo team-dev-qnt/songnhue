@@ -6953,6 +6953,32 @@ hạn mức dung lượng** của lớp và nằm lại trong kho.
 án **tệ nhất** trong ba: người dùng thấy *"nạp thành công"*, lớp hiện trong danh sách, bản đồ ⛔
 không vẽ gì — và họ sẽ đi báo hỏng **bản đồ** chứ ⛔ không báo hỏng **lượt nạp**.
 
+⭐ **ĐÍNH CHÍNH 24/09/2026 (T59.14) — chốt số 1 ở trên ĐÃ HẾT ĐÚNG, và mã `OPS-2025` đã NGHỈ HƯU.**
+Kho nay đọc được KML/KMZ (`DocKmlSangGeoJson`: StAX + `ZipInputStream`, **0 phụ thuộc mới**, đúng
+tiền lệ `SpreadsheetReader`/`DocxFiller`), nên tệp được **đổi sang GeoJSON ở cổng nhận** rồi đi
+tiếp đúng đường cũ. Ba điểm của quyết định ấy:
+
+1. **Đổi lúc NẠP, ⛔ lúc phục vụ.** Đổi một lần thì kho tệp, đường `/noi-dung`, bộ đếm hình học và
+   Leaflet đều ⛔ đổi một dòng nào. Đổi lúc phục vụ thì **hai** định dạng phải sống song song trong
+   mọi nhánh mã từ đó về sau, và mỗi lượt xem bản đồ trả giá một lượt phân tích XML.
+2. **`OPS-2025` nghỉ hưu chứ ⛔ đổi nghĩa.** Trạng thái nó mô tả (*"hệ chưa đọc được định dạng"*) ⛔
+   còn tồn tại, nên nó ⛔ có cách nào bắn ra nữa. Đúc lại số ấy cho ca *"KML hỏng"* là làm mọi ảnh
+   chụp và phiếu hỗ trợ cũ **đọc sai nghĩa** — người đọc chúng sẽ đi chuyển tệp sang GeoJSON, một
+   việc nay ⛔ còn cần làm (T59.1). Ca ấy dùng mã MỚI `OPS-2033`, kèm **lý do đo được**.
+3. **Đo kích thước HAI LẦN.** KMZ đã nén, nên một tệp qua được trần 20 MB vẫn có thể nở ra GeoJSON
+   vượt xa trần ⇒ trần chạy lại trên **bản đã đổi**. Bỏ lượt đo thứ hai là để một tệp lách qua đúng
+   hạn mức vừa kiểm.
+
+⚠ Cái giá phải khai ra: **bản gốc KML ⛔ được giữ**, và phép đổi là **có mất mát** (kiểu dáng, ảnh
+phủ, `NetworkLink`, cao độ). Giữ lại những thứ ⛔ ai đọc là dựng một lời hứa ⛔ có ai giữ (luật 15).
+Tên tệp lưu mang cả đuôi cũ — `quy-hoach.kmz` ⇒ `quy-hoach.kmz.geojson` — để còn truy được nguồn gốc.
+
+⭐ Hai biện pháp bảo vệ (**XXE tắt**, **trần giải nén 64 MB ⇒ `SYS-0014`**) vốn nằm `private static`
+trong `SpreadsheetReader`; lượt này **bóc ra `NenVaXml` dùng chung** thay vì chép. Hai bản sao của
+một biện pháp bảo mật ⛔ hỏng cùng lúc — chúng **trôi khỏi nhau**, và bằng chứng nằm ngay tại chỗ:
+javadoc bản cũ khai *"ném `SYS-0012`"* trong khi mã ném **`SYS-0014`** (hai mã tách nhau ở WS-62,
+chú thích nằm lại).
+
 ⛔ `{"type":"FeatureCollection","features":[]}` là JSON **hoàn toàn hợp lệ**. Một phép kiểm *"parse
 được ⛔ không"* nhận nó. Chốt chặn thứ ba là thứ duy nhất phân biệt được — và nhờ nó, trạng thái *"0
 đối tượng"* **⛔ không biểu diễn được**, nên `soDoiTuong = null` chỉ có một nghĩa: *chưa nạp tệp*.
@@ -8541,3 +8567,163 @@ này — bằng nhau nghĩa là đồ gá ⛔ dựng được ca T80.7.
   `veCam` dùng chung giữa *nút* và *cờ*. Chép lại ba dòng ấy là luật 14, và ngày hai bản lệch nhau là
   ngày màn hình bày một cái nút máy chủ từ chối — hoặc **giấu** một cái nút đáng ra bấm được, trạng
   thái thứ hai thì ⛔ ai báo.
+
+### §12.21 Xuất ảnh bản đồ: CSP quyết định kiến trúc, ⛔ phải sở thích (T59.13, 25/9/2026)
+
+Dòng nợ mở từ 14/09 nêu lựa chọn *"cần một bộ chụp DOM (`leaflet-image` / `html2canvas`) — kho ⛔
+có, và thêm một phụ thuộc chỉ để chụp màn hình là mở thêm bề mặt CVE"*. Lượt đo 19/09 bổ sung
+*"thư viện chụp DOM sẽ vướng `connect-src`"*. Lượt này **đo lại và câu ấy đúng** — nhưng lý do thật
+mạnh hơn cách nó được viết: ⛔ phải *"sẽ vướng"* mà là **⛔ có đường nào chạy được**.
+
+**Phép đo.** `deploy/docker/admin-app.Dockerfile` khai `connect-src 'self'` và
+`img-src 'self' data: blob: https://tile.openstreetmap.org https://*.tile.openstreetmap.org`.
+⇒ `fetch()`/XHR tới host tile **bị chặn**; `new Image()` thì qua. Mọi bộ chụp DOM phổ thông đọc ảnh
+chéo nguồn bằng fetch/XHR hoặc qua proxy — cả hai đâm vào `connect-src`. Một phụ thuộc mua về ở đây
+⛔ mua được gì: nó hỏng vì đúng lý do mà mã tự viết né được, và còn kéo theo bề mặt CVE.
+
+**⛔⛔ Cách vá hiển nhiên nhất là cách nguy hiểm nhất.** Đường ngắn nhất để canvas ⛔ bị nhiễm là
+khai `crossOrigin: 'anonymous'` ngay ở `L.tileLayer(...)`. ⛔ Với một host ⛔ trả
+`Access-Control-Allow-Origin`, trình duyệt **bỏ hẳn** ảnh ⇒ **bản đồ xám trơn** — mà
+`ops.map.tile-url` là khoá `settings` người vận hành sửa được. Đó là đổi một tính năng phụ lấy rủi
+ro hạ tính năng chính, đúng thứ T59.10 đã trả giá. ⇒ Lượt xuất tự tải **bộ ảnh riêng**; bản đồ trên
+màn hình ⛔ đổi một dòng nào, và host ⛔ mở CORS thì chỉ **nút xuất** hỏng, kèm một câu nói rõ vì sao.
+
+Đo trên host đang chạy, **kèm đối chứng** để phép đo phân biệt được hai trạng thái (luật 9):
+`tile.openstreetmap.org` trả `access-control-allow-origin: *`; `www.google.com/favicon.ico` trả
+**0** dòng header ấy.
+
+⚠ Và bộ canh ghép `img-src` ↔ tile URL (`NginxSecurityHeadersTest`) đọc **giá trị seed trong
+migration**, ⛔ phải giá trị đang chạy trong `settings` — nên nó ⛔ chặn được một lượt đổi host lúc
+vận hành. Hệ quả vẫn bó hẹp, nhưng phải nói ra: đổi host ra ngoài `img-src` là **bản đồ hỏng ngay
+hôm nay**, ⛔ đợi tới lượt xuất.
+
+#### ⛔⛔ Dòng ghi nguồn phải NẰM TRONG tấm ảnh
+
+Bản đồ trên màn hình có `attributionControl: true`, nhưng tệp PNG thì **rời khỏi màn hình** và đi
+vào báo cáo. Giấy phép ODbL của OpenStreetMap đòi ghi nguồn đi cùng bản trích. Một bản xuất bỏ dòng
+ấy ⛔ phải thiếu thẩm mỹ — nó là một bản trích **⛔ đúng giấy phép**, và ⛔ ai phát hiện cho tới lúc
+tấm ảnh đã nằm trong một văn bản gửi đi. ⇒ `chuGhiNguon` bóc thẻ HTML (ô ấy là khoá `settings` sửa
+được, Leaflet nhận HTML ở đó còn canvas thì chỉ vẽ được chữ) rồi burn vào góc phải dưới.
+
+#### ⛔ ⛔ Đọc ngược hình học từ DOM của Leaflet — và vì sao ⛔
+
+Phương án trông gọn nhất là serialize `<svg>` trong `.leaflet-overlay-pane` rồi vẽ đè. Bỏ, vì chỗ
+đặt pane ấy do một phép biến hình CSS của Leaflet quyết định và **⛔ kiểm được nếu ⛔ có trình
+duyệt** — một tấm ảnh lệch vài chục pixel trông *gần đúng*, đúng lớp lỗi ⛔ ai phát hiện. Thay vào
+đó lượt xuất chiếu lại hình học **từ chính dữ liệu nguồn** mà bản đồ đang vẽ, qua **cùng một**
+`latLngToContainerPoint`: một phép chiếu, ⛔ hai hệ toạ độ.
+
+Kèm theo đó là chỗ **duy nhất** đảo thứ tự toạ độ: GeoJSON cho `[lng, lat]` (RFC 7946 §3.1.1),
+Leaflet đòi `[lat, lng]`. `traiHinhHoc` **giữ nguyên** thứ tự của RFC — đảo hai lần là ⛔ đảo, và
+đây đúng là cái bẫy T59.14 vừa trả giá ở đường nạp.
+
+#### ⭐ Một quyết định, hai bộ vẽ
+
+Từ lượt này màu/hình của một chấm có **hai** bộ đọc: `divIcon` (HTML, màn hình) và `veCham` (canvas,
+tệp PNG). Chép quyết định sang bộ thứ hai là luật 14 ở dạng đắt nhất — một chấm **sai màu** trên
+tấm ảnh khẳng định một công trình đang *Bình thường* trong khi nó đang *Sự cố*, và tấm ảnh ấy đi
+vào báo cáo. ⇒ `ChamBanDo`: quyết định ở một hàm, hai bộ vẽ chỉ nhận kết quả. Hình dạng pixel hai
+bên lệch chút ít thì ⛔ nói được điều gì sai; **màu thì nói**.
+
+Cùng lượt, vị từ *"điểm đo này đã số hoá vị trí chưa"* — đã có **hai** bản chép giống hệt nhau
+trong `ConstructionMap.tsx`, và lượt xuất là nơi gọi **thứ ba** — bóc thành `coToaDo`. Bản thứ ba
+là chỗ chúng bắt đầu trôi khỏi nhau.
+
+#### ⚠ Ba cổng, ba câu hỏi khác nhau — lần thứ NĂM
+
+`tsc` thoát 0, bộ kiểm 37/37 xanh, rồi **ESLint** đỏ: `toThrowError` đã khai tử
+(`@typescript-eslint/no-deprecated`). Và ở chiều ngược lại, `new Date().toISOString().slice(0,10)`
+trong tên tệp — **đúng lớp lỗi T63.18** (ngày UTC ⇒ một lượt xuất lúc 03:00 giờ VN đặt tên theo
+ngày hôm trước) — đi lọt **cả ba** cổng, vì luật ESLint chỉ bắt `dayjs()` trần. Thứ bắt được nó là
+đọc lại luật đã thành văn, ⛔ phải một bộ canh. ⇒ `ngayHomNay()`.
+
+### §12.22 Một mẫu số đo bằng `grep` thì mỗi lượt hụt một kiểu khác nhau (T28.41, 25/9/2026)
+
+`boChuThich` là hàm mà **31 tệp kiểm** đọc-mã-nguồn dựa vào để phân biệt *lời giải thích* với *lời
+thi hành*. Dòng nợ được đo **bốn** lần trước lượt này, và **cả bốn đều sai**:
+
+| Lượt | Kết luận | Sai ở đâu |
+|---|---|---|
+| gốc | *"cắt nhầm chuỗi chứa `/*`"* — như thể có **một** bản | ⛔ đếm |
+| 19/09 | *"3 bản cắt ký tự + 2 lexer"* | hụt 3 |
+| 20/09 | *"hai bản dùng chung ⛔ cùng thuật toán"* — đúng phần định tính | vẫn hụt 3 |
+| 25/09 | **8 định nghĩa / 6 thuật toán** | — |
+
+Ba bản ⛔ lượt nào kể tên: `hieuUngVaoTrang.test.ts` (⛔ xử lý `//` một chút nào),
+`noBuildTimePrerender.test.ts` (nối lại bằng chuỗi rỗng ⇒ **số dòng xê dịch**),
+`bieuDoMucNuoc.test.ts`. Cùng hình dạng **T63.10** — ở đó một mẫu số bị đo sai **ba kiểu khác nhau**
+trong ba lượt. ⇒ Bộ canh mới **ĐO** danh sách từ đĩa thay vì giữ một con số gõ tay (luật 28), nên
+lượt đo thứ sáu ⛔ cần tới con người.
+
+Sáu thuật toán khác nhau ở **ba trục**, và mỗi trục là một câu trả lời khác nhau cho cùng một tệp
+nguồn: `//` tính ở **đầu dòng** hay **bất kỳ đâu ngoài chuỗi** · bỏ **trọn dòng** hay chỉ **phần
+đuôi** · có dọn `{ }` hay ⛔. Hệ quả: chuyển một bộ canh từ app này sang app kia — hay chỉ chép một
+khẳng định giữa hai tệp trong **cùng** app — **đổi nghĩa của nó trong im lặng**.
+
+⭐⭐ **Bản đúng đã nằm sẵn trong kho từ T49.6**: lexer trong `apiKhongMoCoi.test.ts`, bản duy nhất
+bỏ qua được chuỗi ký tự. Lượt này chỉ nâng nó lên bản chính và xoá sáu bản kia ⇒ **8 → 2**, hai bản
+giống nhau tới từng byte (hai workspace npm ⛔ nhập khẩu chéo được nên ⛔ rút về một bản được).
+
+#### ⛔⛔ Một bài kiểm cũ ghi chính khuyết tật này thành một "giới hạn"
+
+`boChuThich.test.ts` có một bài tên *"⚠ giới hạn THẬT: chuỗi ký tự chứa `/*` bị cắt nhầm"*. Khai
+phạm vi ra là **đúng** (luật 28) và tốt hơn hẳn im lặng — nhưng một giới hạn đã khai vẫn là một
+khuyết tật, và nó rất dễ đọc thành *"chuyện này đã được quyết định"*. **Việc đảo được khẳng định ấy
+chính là bằng chứng** bản lexer đã lên thay: bài nay khẳng định chuỗi **⛔** bị cắt.
+
+#### ⚠ Chú thích viết VỀ việc bóc chú thích lại chứa `*/` nguyên văn
+
+Ghi chú T28.41 tôi thêm vào hai tệp có `{/* … */}` trong thân javadoc ⇒ `*/` **đóng sớm khối** ⇒
+`PARSE_ERROR`, một tệp kiểm ⛔ nạp được. Vitest báo **`1 failed | 109 passed` với 0 bài đỏ** — một
+lỗi **tầng nạp** đọc ⛔ giống một khẳng định sai, và rất dễ bị bỏ qua khi chỉ liếc dòng tổng. Kho đã
+có lối thoát sẵn (`*&#47;`) ở đúng tệp gốc.
+
+#### ⚠ Hợp nhất ⛔ làm gãy tệp nào — và đó ⛔ phải "hoá ra ⛔ sao"
+
+730/730 (admin) + 487/487 (public-web) xanh sau khi hợp nhất, tức hôm nay ⛔ consumer nào phụ thuộc
+vào chỗ sáu thuật toán lệch nhau. Đó là *một lỗ chưa gây hại vẫn là một lỗ* (T49.6): ngày mai ai đó
+chép một khẳng định giữa hai app và nó đổi nghĩa, vẫn ⛔ một dòng đỏ nào — trừ khi chỉ còn một
+thuật toán.
+
+### §12.23 "Chuỗi có mặt trong mã nguồn" ⛔ phải "hình có ra" (T45.11, 25/9/2026)
+
+Ba đường ngang BĐ1/BĐ2/BĐ3 của §7.1 đi bằng `markLine`. `setup.ts` **tự cảnh báo** rằng quên đăng
+ký `MarkLineComponent` thì ECharts ⛔ ném, ⛔ cảnh báo — nó chỉ ⛔ vẽ, và cái mất là đúng thứ nói cho
+người đọc biết mực nước đã vượt báo động hay chưa.
+
+Thứ duy nhất canh nhánh ấy là hai phép so **văn bản**: `expect(setup).toContain('MarkLineComponent')`
+và `expect(nguon).toContain('markLine')`.
+
+⭐⭐ **Phép đo cho thấy khoảng cách giữa hai điều đó là thật.** Bản phá giữ nguyên **chuỗi**
+`MarkLineComponent` trong tệp nhưng bỏ nó khỏi lời gọi `echarts.use([…])`:
+
+| | bài MỚI (đo trên SVG) | bộ canh CŨ (đo trên văn bản) |
+|---|---|---|
+| bản phá | **ĐỎ** — `expected +0 to be 1`, vẽ ra 0 đường ngưỡng | **XANH** |
+
+Tức bộ canh cũ xanh trong **đúng** tình huống nó sinh ra để bắt — luật 7 ở dạng quen thuộc nhất của
+dự án, lần này đo được thay vì suy ra.
+
+#### Tiền đề của dòng nợ đã hết đúng, và thứ chặn thật nằm chỗ khác
+
+`T45.11` (14/09) khai *"`alert_levels` đang 0 hàng nên ⛔ dựng được trạng thái có ngưỡng mà ⛔ seed
+CSDL từ trong Playwright"*. Lượt đo 19/09 bác nó. Nhưng thứ **thật sự** chặn ⛔ phải CSDL: option
+nằm trong thân `useEffect`, nên ⛔ có cách nào hỏi tới nó mà ⛔ dựng DOM, còn dựng DOM thì cần canvas
+— jsdom ⛔ có. ⇒ Tách `optionBieuDo` thành hàm thuần, cùng lý lẽ `xuatSoDo`: *option là dữ liệu, ⛔
+phải một hiệu ứng phụ*.
+
+#### ⚠ Hai lượt đỏ của chính bộ canh mới, và cả hai là bài học cũ
+
+1. **Con số tuyệt đối ⛔ dùng được**: chủ đề vẽ **6** đường lưới ngang cũng nét đứt, nên *"có đúng
+   1 nét"* sai ngay từ đầu. ⇒ Đo **HIỆU SỐ** so với chính biểu đồ ấy khi ⛔ có ngưỡng — phép đo ấy
+   nói đúng điều cần nói và ⛔ vỡ khi chủ đề đổi số đường lưới.
+2. **T48.7 lặp lại**: cặp giá trị tự nhiên nhất (`3.50`/`4.00`) rơi **TRÚNG** hai đường lưới ⇒ hai
+   nét ngưỡng chồng khít lên chúng ⇒ phép đếm *độ cao phân biệt* ⛔ khẳng định gì. Đổi sang
+   `3.33`/`3.77` và **nói ra vì sao** ngay tại bài kiểm, vì con số ấy trông tuỳ tiện.
+
+#### ⚠ Phạm vi: SVG ⛔ phải Canvas
+
+`SVGRenderer` chỉ đăng ký **trong bài kiểm** — `setup.ts` cố ý chỉ nạp `CanvasRenderer` vì cổng công
+khai đo bằng NFR-02. Các **component** vẫn do `setup.ts` đăng ký, nên một component bị quên vẫn đỏ ở
+đây; nhưng màn hình chạy Canvas còn bài kiểm chạy SVG — **hai bộ vẽ khác nhau của cùng một thư
+viện**. Vế đo trên trình duyệt thật vẫn thuộc `T38.10`/`T61.29` (luật 28).

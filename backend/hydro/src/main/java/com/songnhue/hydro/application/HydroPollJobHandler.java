@@ -38,9 +38,14 @@ import com.songnhue.hydro.domain.SyncFailureKind;
  *
  * <h2>⛔ Số lần thử KHÔNG khai ở đây, và con số thật là MỘT</h2>
  *
- * <p>{@link JobHandler#maxAttempts()} <b>không có người đọc trong toàn kho</b> ({@code JobWorker}
- * lấy {@code max_attempts} từ cột của bảng {@code jobs}, do {@code JobRequest} ghi). Ghi đè nó ở đây
- * là khai một con số không điều khiển gì — và <i>trông như</i> đã điều khiển (luật 15).
+ * <p>⚠ <b>Câu ở đây đã ĐỔI ngày 23/09/2026 (T68.30).</b> Bản cũ nói {@link JobHandler#maxAttempts()}
+ * <i>"⛔ có người đọc trong toàn kho"</i> — đúng lúc viết, và nay <b>sai</b>: nó có đúng một người
+ * đọc là {@code JobService.enqueue}, và nó là <b>giá trị mặc định</b> khi nơi đặt việc ⛔ khai số.
+ *
+ * <p>Lý do ⛔ ghi đè ở đây vì thế ⛔ còn là <i>"khai một con số ⛔ điều khiển gì"</i> mà là một lý do
+ * mạnh hơn: con số 1 ở đây <b>⛔ phải tính chất của công việc</b> — nó là tính chất của <b>nhịp
+ * polling</b>. Một handler polling chạy dưới một lịch 30 phút sẽ muốn thử lại; con số đúng chỉ biết
+ * được ở nơi biết nhịp, tức {@link HydroPollScheduler}.
  *
  * <p>Con số thật đặt ở {@link HydroPollScheduler} và nó bằng <b>1</b>. Lý do đo được: backoff của
  * worker là 1' → 5' → 15', mà lượt polling kế tiếp chỉ cách <b>2 phút</b>. Thử lại ở tầng job vì thế
