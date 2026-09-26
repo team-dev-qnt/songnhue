@@ -21,6 +21,7 @@ import com.songnhue.core.common.exception.ResourceNotFoundException;
 import com.songnhue.core.common.exception.ValidationException;
 import com.songnhue.core.common.util.DateTimeUtils;
 import com.songnhue.core.spi.ConstructionLookupPort;
+import com.songnhue.core.spi.HydroSnapshotPort;
 import com.songnhue.core.spi.TinhHinhVanHanhRef;
 import com.songnhue.hydro.api.HydroReportDtos.BaoCaoDongBoView;
 import com.songnhue.hydro.api.HydroReportDtos.BaoCaoTongHopView;
@@ -179,11 +180,17 @@ public class HydroReportService {
                 r.soBanGhiNgay(),
                 tinHieu.name(),
                 lyDo,
-                // ⛔⛔ Lượng mưa LUÔN rỗng hôm nay và đó là câu trả lời ĐÚNG: loại chỉ số lượng mưa
-                //    đã seed nhưng ⛔ CHƯA gắn cho điểm đo nào (G3-a). Trả 0 ở đây là khẳng định
-                //    "trời không mưa" — một câu về thời tiết mà ta ⛔ không có nguồn nào để nói.
+                // ⛔⛔ Lượng mưa LUÔN rỗng hôm nay và đó là câu trả lời ĐÚNG: 15 mã trạm mưa CHƯA
+                //    được khai thành điểm đo (G8). Trả 0 ở đây là khẳng định "trời không mưa" —
+                //    một câu về thời tiết mà ta ⛔ có nguồn nào để nói (quy tắc 16).
+                // ⛔⛔ WS-87: chỗ này từng là một chuỗi VIẾT THẲNG — bản sao THỨ TƯ của cùng một câu,
+                //    trong khi javadoc của `HydroSnapshotPort.LY_DO_LUONG_MUA` khai *"MỘT chỗ khai
+                //    cho cổng công khai, báo cáo thuỷ văn và Báo cáo nhanh"*. Lời khai ấy SAI, và
+                //    nó sai theo chiều im lặng nhất: lượt đổi câu chữ ngày 26/09 sửa ba bản kia,
+                //    bản này ở lại ⇒ hai màn hình nói hai lý do khác nhau về cùng một ô trống, mà
+                //    bài kiểm của báo cáo vẫn XANH vì nó đọc đúng bản chưa sửa (luật 14).
                 null,
-                "Chưa có nguồn lượng mưa (mục G3-a)",
+                HydroSnapshotPort.LY_DO_LUONG_MUA,
                 th == null
                         ? null
                         : new TinhHinhVanHanhView(
