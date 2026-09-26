@@ -38,6 +38,7 @@ mcp = FastMCP("GoogleSheetsSync")
 
 from tracking_parser import (  # noqa: F401 — tái xuất để nơi gọi cũ không phải đổi
     HEADER,
+    ke_hoach_luoi,
     STATUS_BY_MARK,
     STATUS_BY_TEXT,
     TABLE_ROW,
@@ -86,13 +87,18 @@ def _config():
     return spreadsheet_id, sheet_name, credentials_path
 
 
-def _sheet_id_by_name(service, spreadsheet_id, sheet_name):
-    """Tra ``sheetId`` thật thay vì giả định bằng 0 — tab đầu tiên không nhất thiết mang id 0."""
+def _thuoc_tinh_tab(service, spreadsheet_id, sheet_name):
+    """Tra ``sheetId`` thật **và số hàng của lưới**.
+
+    ``sheetId``: tab đầu tiên không nhất thiết mang id 0.
+    ``rowCount``: đây là thứ quyết định lượt ghi có lọt hay không, và trước 26/09 ⛔ ai hỏi nó —
+    nên công cụ chỉ biết lưới đã đầy vào lúc Google trả HTTP 400.
+    """
     meta = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
     for sheet in meta.get("sheets", []):
         properties = sheet.get("properties", {})
         if properties.get("title") == sheet_name:
-            return properties.get("sheetId")
+            return properties.get("sheetId"), properties.get("gridProperties", {}).get("rowCount", 0)
     raise SyncError(f"Bảng tính không có tab tên '{sheet_name}'.")
 
 
@@ -165,7 +171,38 @@ def sync_markdown_to_sheets() -> str:
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
     creds = service_account.Credentials.from_service_account_file(credentials_path, scopes=scopes)
     service = build("sheets", "v4", credentials=creds)
-    sheet_id = _sheet_id_by_name(service, spreadsheet_id, sheet_name)
+    sheet_id, so_hang_luoi = _thuoc_tinh_tab(service, spreadsheet_id, sheet_name)
+
+    # 0) NỚI LƯỚI TRƯỚC KHI GHI — sổ chỉ có một chiều là dài ra.
+    #
+    # ⛔⛔ Đo 26/09/2026: sổ ra 1439 hàng (1438 dòng + tiêu đề) trên một lưới đúng **1439** hàng.
+    #    Lượt `update` chạy xong, rồi bước dọn `clear A1440:F` ném HTTP 400 *"Range exceeds grid
+    #    limits. Max rows: 1439"* ⇒ công cụ báo HỎNG trong khi bảng đã ĐÚNG, và lượt kế tiếp —
+    #    khi sổ dài thêm một dòng — sẽ hỏng ở chính bước GHI.
+    #
+    # ⛔ Thông điệp của Google trỏ sai chỗ: *"vượt giới hạn lưới"* đọc như một lỗi phạm vi, trong
+    #    khi nguyên nhân là **sổ đã lớn hơn cái bảng đựng nó** (luật 37 — một chẩn đoán đoán mò
+    #    dẫn người đọc đi sửa nhầm thứ).
+    them = ke_hoach_luoi(len(all_data), so_hang_luoi)
+    if them:
+        logger.info(
+            "Lưới %d hàng ⛔ đủ cho %d hàng dữ liệu — nới thêm %d hàng",
+            so_hang_luoi, len(all_data), them,
+        )
+        service.spreadsheets().batchUpdate(
+            spreadsheetId=spreadsheet_id,
+            body={
+                "requests": [
+                    {
+                        "appendDimension": {
+                            "sheetId": sheet_id,
+                            "dimension": "ROWS",
+                            "length": them,
+                        }
+                    }
+                ]
+            },
+        ).execute()
 
     # 1) GHI TRƯỚC. Bảng cũ còn nguyên cho tới lúc lượt ghi này thành công.
     result = (
@@ -220,7 +257,8 @@ def sync_markdown_to_sheets() -> str:
     #    ai đọc thì bằng ⛔ không có (§10.68).
     return (
         f"Đã đồng bộ {updated_rows - 1} công việc lên tab '{sheet_name}'.\n"
-        f"Nguồn đã đọc: {duong_tracking}"
+        + (f"Lưới đã nới thêm {them} hàng (từ {so_hang_luoi}).\n" if them else "")
+        + f"Nguồn đã đọc: {duong_tracking}"
     )
 
 
