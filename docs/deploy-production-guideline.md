@@ -1573,11 +1573,29 @@ nginx `healthy`, rồi mới hỏi lại câu 2 của smoke test, 18 vòng × 10
 ảnh, và ngày 17/09 điều ấy KHÔNG cứu được một lỗi nằm ở cấu hình nginx (T11.9). Đọc log:
 `docs/runbook/deploy-hong.md` mục 0.
 
-`migrator` đã chạy **xong trước đó**, và migration là **một chiều**: nếu nó đã đổi lược đồ thì mã cũ
-có thể không chạy được trên lược đồ mới, và bước này **không cứu được gì**. Kể cả khi thành công,
-workflow vẫn in `⛔ NHƯNG lược đồ CSDL vẫn đang ở trạng thái sau migration của lượt hỏng.`
+Migration là **một chiều**: nếu `migrator` đã đổi lược đồ thì mã cũ có thể không chạy được trên lược
+đồ mới, và bước này **không cứu được gì** ở vế dữ liệu.
 
-Đường quay lui **về dữ liệu** là bản `predeploy-*`, và nó là việc **làm tay**.
+⛔⛔ **Sửa 26/09/2026 (T11.99) — đoạn này trước đây khẳng định *"`migrator` đã chạy xong trước đó"*,
+và câu ấy SAI.** Lượt `36238573202` (26/09) đỏ ở `docker compose pull`, tức **trước** `migrator`, nên
+CSDL ⛔ bị chạm một byte nào. Workflow khi ấy vẫn in một câu khẳng định vô điều kiện đẩy người trực
+sang **khôi phục CSDL** — thao tác phá huỷ nhất của cả hệ, ở trạng thái ấy ⛔ chữa được gì mà **xoá
+mất** dữ liệu sinh sau bản chụp (CLAUDE.md luật 37).
+
+⇒ Nay workflow **ĐO** `flyway_schema_history` hai lần — bước *Đo lược đồ trước triển khai* (đứng
+trước *Triển khai*) và một lần nữa ngay sau khi quay lui xong — rồi in **một trong ba** câu. Đọc đúng
+câu bạn thấy, ⛔ suy:
+
+| Câu in ra | Nghĩa | Việc kế tiếp |
+|---|---|---|
+| `✓ CSDL: lược đồ Y NGUYÊN (<mốc>)` | `migrator` **⛔ chạy** | **⛔ khôi phục CSDL.** Khôi phục ở đây ⛔ chữa gì mà xoá mất dữ liệu mới |
+| `⛔ CSDL: lược đồ ĐÃ ĐỔI <trước> → <sau>` | migration **đã áp** | Bản cũ đang *trả lời* trên lược đồ mới ⇒ **đo dữ liệu trước**, rồi mới cân nhắc `predeploy-*` |
+| `⚠ CSDL: ⛔ ĐO ĐƯỢC (trước=… sau=…)` | phép đo hỏng | **⛔ kết luận.** Đo tay theo `docs/runbook/deploy-hong.md` rồi mới quyết |
+
+Mốc có dạng `<số hàng>:<đỉnh version>:<số hàng hỏng>`, ví dụ `93:202609221098:0`; phép đo nằm ở
+`deploy/backup/moc-luoc-do.sh`, cổng canh là `QuayLuiDoLuocDoTest`.
+
+Đường quay lui **về dữ liệu** vẫn là bản `predeploy-*`, và nó là việc **làm tay**.
 
 ⚠ Lượt deploy **đầu tiên** không có gì để quay lui (`co_du=false`) — workflow chỉ in một `::warning::`.
 
