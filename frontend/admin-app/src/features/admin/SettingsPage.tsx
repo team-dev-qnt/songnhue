@@ -379,18 +379,23 @@ const GROUP_LABELS: Record<string, string> = {
 /**
  * Khoá nhóm nhận cảnh báo G11 — phải khớp {@code RecipientResolver.KEY_EXECUTIVE_BOARD} ở backend.
  *
- * ⚠ Hai nơi phải nhớ cùng một chuỗi (luật 14). Gõ sai ở đây ⛔ làm gì đỏ — ô chọn chỉ lặng lẽ ⛔ hiện
- * ra và người quản trị lại gặp ô JSON thô, đúng trạng thái T76.3 sinh ra để bỏ.
+ * ⭐ **T85.15 (26/09/2026) — chuỗi này nay ĐƯỢC MỘT BỘ CANH GIỮ.** Câu cũ ở đây khai thẳng cái lỗ
+ * (*"Gõ sai ở đây ⛔ làm gì đỏ — ô chọn chỉ lặng lẽ ⛔ hiện ra"*) và câu ấy đã hết đúng:
+ * `nhomBanDieuHanhChonDuoc.test.tsx` đọc hằng Java **từ đĩa** rồi dựng cả ba bài bằng chính giá trị
+ * ấy, nên gõ sai ở đây là ba bài đỏ ngay.
+ *
+ * ⚠ Bản đầu của bộ canh ấy giữ một **bản chép** chuỗi khoá ⇒ nó canh chính nó với tệp này, ⛔ canh
+ * cặp FE ↔ BE (T51.15). Vá là đổi vế trái sang ĐO, ⛔ phải thêm một bài canh-văn-bản.
  */
 const KHOA_NHOM_CANH_BAO = 'notification.alert-group.executive-board';
 
 /**
  * Khoá danh sách điểm đo lên cổng — phải khớp {@code HydroSettings.KHOA_DIEM_DO_LEN_CONG}.
  *
- * ⭐ Khác dòng ngay trên: chuỗi này **được một bộ canh giữ**. `oChonMaDiemDoLenCong.test.tsx` đọc
- * hằng Java từ đĩa rồi dựng mọi bài bằng chính giá trị ấy, nên gõ sai ở đây là năm bài đỏ — ⛔ phải
- * một ô chọn lặng lẽ ⛔ hiện ra. (Lỗ ấy vẫn còn ở `KHOA_NHOM_CANH_BAO`; nó ⛔ gây hại hôm nay nhưng
- * vẫn là một lỗ ⇒ nợ **T85.15**.)
+ * ⭐ Chuỗi này **được một bộ canh giữ**. `oChonMaDiemDoLenCong.test.tsx` đọc hằng Java từ đĩa rồi
+ * dựng mọi bài bằng chính giá trị ấy, nên gõ sai ở đây là năm bài đỏ — ⛔ phải một ô chọn lặng lẽ ⛔
+ * hiện ra. ✅ Dòng `KHOA_NHOM_CANH_BAO` ngay trên nay **cũng thế** (T85.15 đóng 26/09/2026); cả hai
+ * khoá của tệp này đã đủ cặp.
  */
 const KHOA_DIEM_DO_LEN_CONG = 'hydro.portal.station-codes';
 
