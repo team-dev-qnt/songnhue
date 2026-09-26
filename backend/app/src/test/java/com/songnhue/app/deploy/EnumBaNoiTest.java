@@ -18,14 +18,24 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import com.songnhue.app.architecture.ProductionClasses;
 import com.songnhue.content.domain.ContactStatus;
 import com.songnhue.content.domain.FeedbackStatus;
 import com.songnhue.content.domain.MenuLinkType;
 import com.songnhue.content.domain.MenuPosition;
+import com.songnhue.core.domain.attachment.AttachmentStatus;
+import com.songnhue.core.domain.attachment.ScanStatus;
+import com.songnhue.core.domain.audit.AuditAction;
 import com.songnhue.core.domain.backup.BackupStatus;
 import com.songnhue.core.domain.backup.BackupTrigger;
+import com.songnhue.core.domain.identity.SessionRevokeReason;
 import com.songnhue.core.domain.identity.UserStatus;
 import com.songnhue.core.domain.job.JobStatus;
+import com.songnhue.core.domain.notification.NotificationChannel;
+import com.songnhue.core.domain.notification.NotificationSeverity;
+import com.songnhue.core.domain.notification.RecipientStatus;
+import com.songnhue.core.domain.org.OrgUnitType;
+import com.songnhue.core.domain.security.SecurityEventType;
 import com.songnhue.hr.domain.ContractType;
 import com.songnhue.hr.domain.EducationLevel;
 import com.songnhue.hr.domain.EmployeeEventType;
@@ -44,6 +54,7 @@ import com.songnhue.hydro.domain.ReadingQuality;
 import com.songnhue.hydro.domain.ReadingSource;
 import com.songnhue.hydro.domain.SyncFailureKind;
 import com.songnhue.hydro.domain.SyncStatus;
+import com.songnhue.operations.domain.AcceptanceResult;
 import com.songnhue.operations.domain.ConstructionPurpose;
 import com.songnhue.operations.domain.ConstructionType;
 import com.songnhue.operations.domain.GateOperation;
@@ -114,15 +125,18 @@ import com.songnhue.operations.domain.TrangThaiBaoCaoNhanh;
  * canh <b>11</b>, miễn <b>3</b>. ⭐ Lượt thêm 21 dòng ấy <b>xanh ngay</b> ⇒ ⛔ enum ba-nơi nào đang
  * lệch hôm nay; thứ thiếu suốt thời gian qua là <b>cơ chế</b>, ⛔ phải một bản vá.
  *
- * <h2>⬜ Câu hỏi bài này KHÔNG hỏi — {@code T85.11}</h2>
+ * <h2>✅ Câu hỏi thứ hai — {@code T85.11}, đóng 26/09/2026</h2>
  *
  * <p>Bài chính hỏi <i>"ba nơi có cùng một bộ giá trị ⛔"</i>. Với ràng buộc <b>⛔ có</b> union TS,
  * vẫn còn <b>hai</b> nơi — enum Java và {@code CHECK} — và hai nơi <b>vẫn lệch được</b>; lệch ở đó
- * nổ thành <b>500 lúc ghi</b>. Đo 23/09: <b>8</b> dòng trong {@link #DUOC_MIEN} có enum Java thật
- * ({@code AttachmentStatus} · {@code ScanStatus} · {@code AuditAction} · {@code OrgUnitType} ·
- * {@code NotificationSeverity} · {@code NotificationChannel} · {@code RecipientStatus} ·
- * {@code AcceptanceResult}). Câu ấy hiện <b>⛔ ai hỏi</b> — nó nằm ở {@code T85.11} kèm số đo,
- * ⛔ giấu sau một dòng miễn trừ.
+ * nổ thành <b>500 lúc ghi</b>. Dòng nợ đếm <b>8</b>; đo lại 26/09 bằng chính bánh cóc dưới đây ra
+ * <b>10</b> — thêm {@code ck_security_events_severity} và {@code ck_sessions_revoked_reason}
+ * ⇒ {@link #JAVA_SQL} + {@link #javaVaCheckCungMotBoGiaTri}.
+ *
+ * <p>⭐ Và cặp <b>thứ chín</b> ⛔ được phép vô hình: {@link #moiRangBuocCoEnumJavaDeuDuocXepLoai}
+ * <b>ĐO</b> mọi enum production qua {@code ProductionClasses.ALL} rồi bắt mọi dòng
+ * {@link #DUOC_MIEN} có enum trùng khít phải vào {@link #JAVA_SQL} — vế trái do phép đo dựng, ⛔ do
+ * người viết dòng miễn trừ tự nhận.
  */
 class EnumBaNoiTest {
 
@@ -694,6 +708,62 @@ class EnumBaNoiTest {
                             + "Java — `MaintenanceLog.status` là `String` theo quy tắc 4 (trạng thái đổi "
                             + "qua Workflow engine). ⛔ có enum thì ⛔ có vế trái để đối chiếu"));
 
+    /**
+     * Một cặp <b>Java ↔ CHECK</b> — hai nơi, ⛔ phải ba (T85.11).
+     *
+     * @param quanHe {@code BANG} khi ràng buộc phải mang <b>đúng</b> bộ hằng của enum;
+     *     {@code TAP_CON} khi nó cố ý hẹp hơn, và khi ấy {@code lyDo} phải nói ra <b>vì sao</b>
+     * @param lyDo bắt buộc khi {@code quanHe == TAP_CON}; ⛔ thì để rỗng
+     */
+    private record JavaSql(Class<? extends Enum<?>> enumJava, String tenRangBuoc, QuanHe quanHe, String lyDo) {
+
+        JavaSql(Class<? extends Enum<?>> enumJava, String tenRangBuoc) {
+            this(enumJava, tenRangBuoc, QuanHe.BANG, "");
+        }
+    }
+
+    private enum QuanHe {
+        BANG,
+        TAP_CON
+    }
+
+    /**
+     * Mười cặp có enum Java <b>và</b> ràng buộc {@code CHECK} mà <b>⛔ có union TS</b> — T85.11.
+     *
+     * <p>⛔⛔ {@link #baNoiCungMotBoGiaTri} hỏi *"BA nơi có cùng một bộ giá trị ⛔"*, nên một ràng
+     * buộc thiếu vế TS rơi hẳn ra ngoài và được {@link #DUOC_MIEN} nhận. Nhưng **hai nơi thì vẫn lệch
+     * được**, và lệch ở đây ⛔ bị {@code tsc} lẫn trình biên dịch thấy — nó nổ thành <b>500 lúc
+     * GHI</b>, đúng câu mà thông điệp lỗi của chính bài kia đã viết sẵn. Câu *"Java ↔ SQL có khớp ⛔"*
+     * là một câu <b>KHÁC</b>, và trước 26/09/2026 ⛔ ai hỏi.
+     *
+     * <p>⚠ Phép so phải là <b>tập con hay bằng nhau TUỲ DÒNG</b>: vài ràng buộc là tập con <b>cố ý</b>
+     * của enum (tiền lệ ở nhóm khác: {@code ck_hydro_latest_quality} bỏ {@code XOA},
+     * {@code ck_bcn_vi_tri_loai} chỉ nhận 2/5 loại công trình). Ép bằng nhau tất là dựng một bài kiểm
+     * <b>đỏ vĩnh viễn cho thiết kế đúng</b> — đúng cái bẫy mà lý do miễn trừ của
+     * {@code CONSTRUCTION_STATUS} đã mắc theo chiều ngược lại.
+     *
+     * <p>⭐ Quan hệ của cả mười dòng dưới đây <b>⛔ do tôi đoán</b>: chúng khai {@code BANG} rồi để lượt
+     * chạy phán xử, đúng bài học T52.7 (bốn lượt phép đo bằng bộ đọc nguồn đều hỏng — chỉ
+     * {@code getEnumConstants()} nói đúng). Lượt chạy 26/09 trả lời: <b>cả mười đều BẰNG</b> ⇒ hôm
+     * nay ⛔ cặp nào đang lệch, và thứ thiếu suốt thời gian qua là <b>cơ chế</b> chứ ⛔ một bản vá.
+     */
+    private static final List<JavaSql> JAVA_SQL = List.of(
+            new JavaSql(AttachmentStatus.class, "ck_attachments_status"),
+            new JavaSql(ScanStatus.class, "ck_attachments_scan_status"),
+            new JavaSql(AuditAction.class, "ck_audit_logs_action"),
+            new JavaSql(NotificationSeverity.class, "ck_notifications_severity"),
+            new JavaSql(NotificationChannel.class, "ck_notification_recipients_channel"),
+            new JavaSql(RecipientStatus.class, "ck_notification_recipients_status"),
+            new JavaSql(OrgUnitType.class, "ck_org_units_unit_type"),
+            new JavaSql(AcceptanceResult.class, "ck_maintenance_logs_acceptance"),
+            // ⭐⭐ HAI dòng dưới đây ⛔ có trong dòng nợ — `moiRangBuocCoEnumJavaDeuDuocXepLoai` lôi
+            //    chúng ra ở **lượt chạy ĐẦU**. Con số "8 cặp" của `T85.11` là đếm THIẾU: đo ra **10**.
+            //    ⚠ `SecurityEvent.severity` là `String` đặt từ `type.severity().name()`, nên enum đúng
+            //    là `SecurityEventType.Severity` — ⛔ phải `NotificationSeverity`, dù hai cái mang bộ
+            //    hằng TRÙNG KHÍT. Chính chỗ này bắt bản đầu của bộ canh gọi nhầm tên.
+            new JavaSql(SecurityEventType.Severity.class, "ck_security_events_severity"),
+            new JavaSql(SessionRevokeReason.class, "ck_sessions_revoked_reason"));
+
     @Test
     @DisplayName("⭐⭐ T52.7: mọi ràng buộc CHECK…IN có tên ĐỀU phải được xếp loại — vế trái ĐO từ đĩa")
     void moiRangBuocDeuDuocXepLoai() throws IOException {
@@ -828,6 +898,137 @@ class EnumBaNoiTest {
                             bo.tenKieuTs(), noiKhai.size(), daLiet.size(), noiKhai, daLiet)
                     .containsAll(noiKhai);
         }
+    }
+
+    /**
+     * T85.11 — câu <b>Java ↔ CHECK</b>, câu mà {@link #baNoiCungMotBoGiaTri} ⛔ hỏi.
+     *
+     * <p>Lệch ở đây ⛔ bị {@code tsc} lẫn trình biên dịch thấy: một hằng enum ⛔ có trong {@code CHECK}
+     * đi qua mọi tầng rồi nổ thành <b>500 lúc GHI</b>; một giá trị {@code CHECK} ⛔ có trong enum thì
+     * đọc lên từ CSDL sẽ ném {@code IllegalArgumentException} ở tầng ánh xạ.
+     */
+    @Test
+    @DisplayName("⛔⛔ T85.11: enum Java ↔ ràng buộc CHECK — HAI nơi vẫn lệch được")
+    void javaVaCheckCungMotBoGiaTri() throws IOException {
+        List<Path> migration = moiMigration();
+
+        assertThat(JAVA_SQL)
+                .as("bảng rỗng thì bài này ⛔ khẳng định gì (luật 7)")
+                .hasSize(10);
+
+        for (JavaSql cap : JAVA_SQL) {
+            Set<String> java = giaTriJava(cap.enumJava());
+            Set<String> csdl = giaTriCsdlMoiNoi(migration, cap.tenRangBuoc());
+
+            // Tiền đề: ⛔ bóc được giá trị nào thì phép so dưới chạy qua tập rỗng và xanh vô nghĩa.
+            assertThat(csdl)
+                    .as("⛔ bóc được giá trị nào của `%s` — ràng buộc đổi tên hay đổi cách khai?", cap.tenRangBuoc())
+                    .isNotEmpty();
+
+            if (cap.quanHe() == QuanHe.BANG) {
+                assertThat(csdl)
+                        .as(
+                                """
+                                `%s` ↔ enum `%s`: CSDL và Java lệch nhau.
+                                  Java (nguồn sự thật): %s
+                                  CHECK               : %s
+                                Thiếu ở CHECK = một hằng enum hợp lệ bị CSDL từ chối ⇒ **500 lúc GHI**.
+                                Thừa ở CHECK = một giá trị đọc lên ⛔ ánh xạ được ⇒ ném ở tầng đọc.
+                                Nếu ràng buộc CỐ Ý hẹp hơn thì khai `QuanHe.TAP_CON` kèm lý do ĐO ĐƯỢC.""",
+                                cap.tenRangBuoc(), cap.enumJava().getSimpleName(), java, csdl)
+                        .isEqualTo(java);
+            } else {
+                assertThat(cap.lyDo())
+                        .as(
+                                "`%s` khai TAP_CON thì phải nói VÌ SAO — một dòng miễn trừ ⛔ lý do đọc y "
+                                        + "hệt một quyết định thiết kế (T51.0)",
+                                cap.tenRangBuoc())
+                        .hasSizeGreaterThanOrEqualTo(40);
+                assertThat(java)
+                        .as(
+                                "`%s` khai TAP_CON mà CHECK lại có giá trị enum ⛔ có: Java %s · CHECK %s",
+                                cap.tenRangBuoc(), java, csdl)
+                        .containsAll(csdl);
+                assertThat(csdl)
+                        .as(
+                                "`%s` khai TAP_CON nhưng hai bộ BẰNG nhau — dòng khai sai, đổi về BANG để "
+                                        + "phép so chặt lại",
+                                cap.tenRangBuoc())
+                        .isNotEqualTo(java);
+            }
+        }
+    }
+
+    /**
+     * Bánh cóc của T85.11 — bắt <b>cặp thứ chín</b> trước khi nó kịp vô hình.
+     *
+     * <p>⛔⛔ Một ràng buộc mới ra đời cùng một enum Java mới, ⛔ union TS, sẽ được
+     * {@link #coUnionTsThiKhongDuocMien} cho qua (đúng — nó chỉ hỏi vế TS) rồi nằm trong
+     * {@link #DUOC_MIEN} như một quyết định thiết kế. Vế trái phải do phép <b>ĐO</b> dựng, ⛔ do
+     * người viết dòng miễn trừ tự nhận — cùng khuôn T63.7 · T49.1 · T52.7.
+     *
+     * <p>⚠ <b>Phạm vi của chính bộ canh này, khai ra theo luật 28</b>: vị từ là <b>BẰNG ĐÚNG</b> tập
+     * hằng của một enum production. Một ràng buộc cố ý <b>hẹp hơn</b> enum của nó ⛔ bị bắt ở đây —
+     * chọn thế vì vị từ *"có enum nào là tập cha ⛔"* cho dương tính giả (hai bộ giá trị nhỏ trùng
+     * nhau do tình cờ), mà một bộ canh đỏ oan thì lượt sửa rẻ nhất là <b>tháo nó</b> (§11.17).
+     */
+    @Test
+    @DisplayName("⛔⛔ T85.11: ràng buộc được miễn mà CÓ enum Java trùng khít thì phải vào JAVA_SQL")
+    void moiRangBuocCoEnumJavaDeuDuocXepLoai() throws IOException {
+        List<Path> migration = moiMigration();
+
+        // ⛔⛔ Giá trị là một DANH SÁCH tên, ⛔ phải một tên. Bản đầu dùng `putIfAbsent` và bộ canh
+        //    **gọi nhầm enum** ngay lượt chạy đầu: `NotificationSeverity` và
+        //    `SecurityEventType.Severity` là HAI enum khác nhau mang bộ hằng trùng khít
+        //    (INFO/WARNING/DANGER/CRITICAL), nên nó báo `ck_security_events_severity` thuộc về cái
+        //    sắp trước — trong khi `SecurityEvent.severity` đặt từ `type.severity().name()`. Một bộ
+        //    canh chỉ đúng nửa câu chẩn đoán dẫn người sửa đi nhầm tệp (luật 37).
+        java.util.Map<Set<String>, java.util.List<String>> theoBoGiaTri = new java.util.LinkedHashMap<>();
+        for (var lop : ProductionClasses.ALL) {
+            if (!lop.isEnum()) {
+                continue;
+            }
+            @SuppressWarnings("unchecked")
+            Class<? extends Enum<?>> loai = (Class<? extends Enum<?>>) lop.reflect();
+            Set<String> hang = giaTriJava(loai);
+            if (hang.size() >= 2) {
+                theoBoGiaTri
+                        .computeIfAbsent(hang, k -> new java.util.ArrayList<>())
+                        .add(loai.getSimpleName());
+            }
+        }
+
+        assertThat(theoBoGiaTri)
+                .as("⛔ quét được enum production nào — `ProductionClasses.ALL` rỗng thì bài này xanh "
+                        + "với MỌI dòng miễn trừ (luật 7 · ImportedScopeTest)")
+                .hasSizeGreaterThanOrEqualTo(30);
+
+        Set<String> daXep =
+                JAVA_SQL.stream().map(JavaSql::tenRangBuoc).collect(Collectors.toCollection(java.util.TreeSet::new));
+
+        var thieu = new java.util.TreeMap<String, java.util.List<String>>();
+        for (String tenRangBuoc : DUOC_MIEN.keySet()) {
+            if (daXep.contains(tenRangBuoc)) {
+                continue;
+            }
+            Set<String> csdl = giaTriCsdlMoiNoi(migration, tenRangBuoc);
+            var ungVien = csdl.isEmpty() ? null : theoBoGiaTri.get(csdl);
+            if (ungVien != null) {
+                thieu.put(tenRangBuoc, ungVien);
+            }
+        }
+
+        assertThat(thieu)
+                .as(
+                        """
+                        ⛔ %d ràng buộc đang xin miễn mà CÓ enum Java khai ĐÚNG bộ giá trị của nó.
+                        Miễn được là vì ⛔ union TS — nhưng HAI nơi thì vẫn lệch được, và lệch ở đó nổ thành
+                        500 lúc GHI (T85.11). Chúng phải vào `JAVA_SQL`, ⛔ nằm sau một dòng miễn trừ.
+                        ⚠ Nhiều ứng viên = nhiều enum trùng bộ hằng; ĐỌC mã để chọn đúng cái cột ấy thật sự
+                        đặt từ đó, ⛔ lấy cái đầu danh sách.
+                        (ràng buộc → ứng viên): %s""",
+                        thieu.size(), thieu)
+                .isEmpty();
     }
 
     @Test
