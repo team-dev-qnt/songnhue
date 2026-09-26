@@ -330,6 +330,76 @@ class KetXuatNhatKyKiemToanTest extends IntegrationTestBase {
 
     // ---- Trợ giúp -----------------------------------------------------------
 
+    @Test
+    @DisplayName("⛔⛔ T85.6 — xoá lén VƯỢT QUÁ điểm neo: hôm nay vô hình, điểm neo phải bắt được")
+    void xoaLenVuotQuaDiemNeoPhaiBiBat() {
+        themDongCu(3, NGAY_THAT_CU);
+        long n1 = themDongMoi();
+        long n2 = themDongMoi();
+
+        chay();
+
+        Map<String, Object> neo = diemNeoDuyNhat();
+        long toSeq = ((Number) neo.get("to_seq")).longValue();
+
+        // ── VẾ PHÂN BIỆT, và nó phải đứng TRƯỚC lượt phá. Thiếu nó thì một hàm báo gãy ở MỌI mối
+        //    nối cũng qua được bài này, và lượt verify nào cũng đỏ (luật 9).
+        assertThat(nhatKy.verifyChain(n1, null).intact())
+                .as("⭐ Mối nối còn NGUYÊN — `prev_hash` của dòng còn sống đầu tiên đúng bằng `last_hash` "
+                        + "của điểm neo — thì ⛔ được báo gãy. Đây là trạng thái bình thường sau MỌI lượt "
+                        + "kết xuất hợp lệ.")
+                .isTrue();
+
+        // ── Xoá lén MỘT dòng nằm NGOÀI lô đã kết xuất. Đây là hình dạng tấn công mà điểm neo sinh
+        //    ra để bắt, và là hình dạng DUY NHẤT hôm nay ⛔ ai thấy:
+        //
+        //    `core_verify_audit_chain` so `prev_hash` bằng `lag(hash) OVER (ORDER BY seq)` **trong
+        //    phạm vi được hỏi**, mà vế so chỉ chạy khi `expected_prev_hash IS NOT NULL` ⇒ dòng ĐẦU
+        //    của phạm vi ⛔ bao giờ bị so với thứ gì. Đóng khung từ điểm neo trở đi — đúng cách dùng
+        //    mà chú thích của chính hàm ấy kê ra — thì dòng đầu ấy là chỗ mù.
+        //
+        //    ⚠ ⛔ sửa `prev_hash` để dựng ca hỏng: nó phá LUÔN hash tự thân (hash = f(payload,
+        //    prev_hash)) nên hôm nay đã bắt được, và bài sẽ xanh vì LÝ DO SAI (luật 9 · §11.19).
+        ownerJdbc().update("DELETE FROM audit_logs WHERE seq = ?", n1);
+
+        List<com.songnhue.core.application.audit.ChainBreak> vet =
+                nhatKy.verifyChain(n2, null).breaks();
+
+        assertThat(vet)
+                .as(
+                        "⛔⛔ Một dòng đã biến mất khỏi khoảng GIỮA điểm neo (to_seq %d) và dòng còn sống kế "
+                                + "tiếp (seq %d), mà lượt verify vẫn báo nguyên vẹn. Đó đúng là chỗ một lượt xoá lén "
+                                + "trông y hệt một lượt kết xuất hợp lệ — và `last_hash` của điểm neo là dữ liệu DUY "
+                                + "NHẤT phân biệt được hai thứ ấy (T85.6).",
+                        toSeq, n2)
+                .isNotEmpty();
+
+        assertThat(vet.getFirst().seq())
+                .as("Mắt gãy phải chỉ ĐÚNG dòng ở mối nối, ⛔ phải một chỗ nào khác — một bộ canh nói "
+                        + "*'có gãy đâu đó'* thì người vận hành ⛔ biết bắt đầu từ đâu (luật 37).")
+                .isEqualTo(n2);
+    }
+
+    @Test
+    @DisplayName("⚠ T85.6 — hệ CHƯA từng kết xuất thì hành vi phải y như cũ")
+    void chuaCoDiemNeoNaoThiGiuNguyenHanhVi() {
+        // Ca này giữ hợp đồng cũ: thêm một phép so mới ⛔ được làm đỏ một hệ ⛔ có gì để so.
+        // ⚠ `don()` ở `@BeforeEach` đã xoá sạch điểm neo, nên tiền đề dưới đây là một PHÉP ĐO chứ
+        //   ⛔ phải một giả định.
+        assertThat(soDiemNeo()).as("tiền đề: ⛔ điểm neo nào").isZero();
+
+        long moi = themDongMoi();
+
+        assertThat(nhatKy.verifyChain(moi, null).intact())
+                .as("⛔ điểm neo nào ⇒ ⛔ có gì để đối chiếu ⇒ phải nguyên vẹn, y như trước bản vá.")
+                .isTrue();
+        assertThat(nhatKy.verifyChain(null, null).breaks())
+                .as("⛔ mắt gãy nào được mang LÝ DO của phép so mới: ⛔ có điểm neo thì phép so ấy ⛔ có "
+                        + "dữ liệu để chạy. (Lượt quét toàn bộ vẫn có thể mang mắt gãy CŨ do lớp kiểm khác "
+                        + "để lại — bài này ⛔ khẳng định gì về chúng.)")
+                .noneMatch(v -> v.reason() != null && v.reason().contains("điểm neo"));
+    }
+
     private void chay() {
         try {
             ketXuat.handle(new JobContext(UUID.randomUUID(), JobTypes.AUDIT_ARCHIVE, "{}", null, i -> {}, s -> {}));

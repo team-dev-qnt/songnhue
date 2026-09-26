@@ -459,6 +459,52 @@ jobs:
           REMOTE
 
       # ---------------------------------------------------------------------
+      # ĐO lược đồ TRƯỚC khi `migrator` chạy — T11.99 (luật 37)
+      #
+      # ⛔⛔ Bước quay lui trước nay KHẲNG ĐỊNH vô điều kiện rằng lược đồ "vẫn đang
+      #   ở trạng thái sau migration của lượt hỏng". Lượt 36238573202 (26/09/2026)
+      #   chứng minh câu ấy sai: `compose pull` đỏ TRƯỚC `run --rm migrator`, nên
+      #   `set -e` cắt script và CSDL ⛔ bị chạm. Câu ấy đẩy người trực về phía
+      #   khôi phục CSDL — thao tác PHÁ HUỶ nhất của hệ, ở đó ⛔ chữa được gì mà
+      #   xoá mất dữ liệu mới. Đúng hình dạng §11.27, và khối chú thích T63.19 ở
+      #   ngay dưới bước quay lui đã dặn "ĐỪNG ĐOÁN NGUYÊN NHÂN Ở ĐÂY".
+      #
+      # ⚠ Bước này là phép ĐO CHẨN ĐOÁN, ⛔ phải một cổng — nó ⛔ được làm đỏ lượt
+      #   deploy. Đo hỏng ⇒ chuỗi rỗng ⇒ bước quay lui in câu THỨ BA ("⛔ đo
+      #   được") chứ ⛔ im lặng và cũng ⛔ đoán (luật 9 — ba trạng thái, ba câu).
+      #
+      # ⚠ Phải đứng TRƯỚC bước "Triển khai" (nơi `migrator` chạy), nếu không thì
+      #   "trước" và "sau" đo cùng một trạng thái và phép so LUÔN nói "y nguyên" —
+      #   một câu xanh giả về đúng thứ nguy hiểm nhất. `QuayLuiDoLuocDoTest` canh
+      #   thứ tự ấy bằng danh sách bước đọc từ chính tệp này.
+      # ---------------------------------------------------------------------
+      - name: Đo lược đồ trước triển khai
+        id: luoc_do
+        if: steps.target.outputs.ready == 'true'
+        continue-on-error: true
+        env:
+          HOST: ${{ secrets.HOST }}
+          USER: ${{ secrets.USER }}
+        run: |
+          set -uo pipefail
+          .github/scripts/chay-tu-xa.sh "moc-luoc-do-truoc" > /tmp/moc-truoc.txt 2>&1 <<'REMOTE'
+            cd /opt/songnhue
+            ./backup/moc-luoc-do.sh
+          REMOTE
+          rc=$?
+          cat /tmp/moc-truoc.txt
+          moc=""
+          if [ "$rc" -eq 0 ]; then
+            moc="$(sed -n 's/^MOC_LUOC_DO=//p' /tmp/moc-truoc.txt | tail -1)"
+          fi
+          if [ -z "$moc" ]; then
+            echo "::warning::⛔ đo được lược đồ trước triển khai (mã thoát $rc) — lượt này hỏng thì bước quay lui sẽ NÓI THẲNG là ⛔ đo được, ⛔ đoán hộ."
+          else
+            echo "✓ lược đồ trước triển khai: $moc"
+          fi
+          echo "truoc=$moc" >> "$GITHUB_OUTPUT"
+
+      # ---------------------------------------------------------------------
       # Ghi lại bản ĐANG chạy — điểm quay lui về MÃ NGUỒN
       #
       # ⚠ Khác hẳn `pg_dump` ở bước trên: bản dump là điểm quay lui về DỮ LIỆU.
@@ -834,6 +880,9 @@ jobs:
           PUBLIC_IMAGE: ${{ steps.hien_tai.outputs.public_web_image }}
           BASE_URL: ${{ secrets.BASE_URL }}
           LUOT: ${{ github.run_id }}-${{ github.run_attempt }}
+          # Mốc lược đồ ĐO ĐƯỢC trước khi `migrator` chạy — rỗng nghĩa là ⛔ đo được,
+          # và rỗng phải đọc thành câu THỨ BA chứ ⛔ thành "y nguyên" (T11.99, luật 9).
+          TRUOC: ${{ steps.luoc_do.outputs.truoc }}
         run: |
           set -euo pipefail
           echo "::warning::Lượt triển khai hỏng — đang dựng lại bản trước đó: CẤU HÌNH rồi ẢNH."
@@ -897,6 +946,24 @@ jobs:
             echo "✓ nginx đang phục vụ sau quay lui"
           REMOTE
 
+          # ĐO LẠI lược đồ — vế thứ hai của T11.99. Đo NGAY ĐÂY chứ ⛔ trong vòng
+          # lặp dưới: CSDL ⛔ đổi trong lúc chờ HTTP, và một lượt `ssh` mỗi mười
+          # giây là đúng thứ đã làm fail2ban cấm chính runner (§10.68-C).
+          # ⚠ `set +e` quanh lời gọi: bước quay lui chạy dưới `set -e`, mà một phép
+          #   đo hỏng ⛔ được phép giết nốt lượt quay lui đang chạy dở.
+          SAU=""
+          set +e
+          .github/scripts/chay-tu-xa.sh "moc-luoc-do-sau" > /tmp/moc-sau.txt 2>&1 <<'REMOTE'
+            cd /opt/songnhue
+            ./backup/moc-luoc-do.sh
+          REMOTE
+          rc_do=$?
+          set -e
+          cat /tmp/moc-sau.txt || true
+          if [ "$rc_do" -eq 0 ]; then
+            SAU="$(sed -n 's/^MOC_LUOC_DO=//p' /tmp/moc-sau.txt | tail -1)"
+          fi
+
           # Hỏi lại đúng câu đầu tiên của smoke test. Không hỏi ba câu: câu 2 và 3
           # nói về NỘI DUNG, mà nội dung có thể đã bị migration của lượt hỏng đổi —
           # đỏ ở đó không nói gì về việc bản cũ có sống lại hay không.
@@ -905,8 +972,17 @@ jobs:
             case "$body" in
               *'"success":true'*)
                 echo "::warning::Đã quay lui xong và dịch vụ trả lời bình thường sau ${i}0 giây."
-                echo "⛔ NHƯNG lược đồ CSDL vẫn đang ở trạng thái sau migration của lượt hỏng."
-                echo "   Nếu migration ấy có đổi lược đồ thì phải khôi phục từ bản chụp predeploy-*."
+                if [ -z "$TRUOC" ] || [ -z "$SAU" ]; then
+                  echo "⚠ CSDL: ⛔ ĐO ĐƯỢC (trước='$TRUOC' sau='$SAU') — ⛔ kết luận gì ở đây."
+                  echo "   Đo tay rồi mới quyết: docs/runbook/deploy-hong.md. ⛔ khôi phục CSDL khi chưa đo."
+                elif [ "$SAU" = "$TRUOC" ]; then
+                  echo "✓ CSDL: lược đồ Y NGUYÊN ($TRUOC) — migration của lượt hỏng ⛔ chạy."
+                  echo "   ⇒ ⛔ khôi phục CSDL. Ở trạng thái này khôi phục ⛔ chữa gì mà XOÁ MẤT dữ liệu mới."
+                else
+                  echo "⛔ CSDL: lược đồ ĐÃ ĐỔI $TRUOC → $SAU — migration của lượt hỏng ĐÃ chạy."
+                  echo "   Bản cũ vừa dựng lại đang TRẢ LỜI trên lược đồ mới, nên đây ⛔ phải lệnh khôi phục:"
+                  echo "   đo dữ liệu trước, rồi mới cân nhắc bản chụp predeploy-* — docs/runbook/khoi-phuc-du-lieu.md."
+                fi
                 exit 0 ;;
             esac
             sleep 10

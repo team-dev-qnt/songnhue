@@ -22,8 +22,14 @@ import com.tngtech.archunit.core.importer.ImportOption;
  * sinh ra để chống. Nên cách gọi ở đây là cách thẳng nhất: một {@code @Test} bình thường gọi
  * {@code rule.check(ALL)}. Không có bộ máy trung gian nào để hỏng âm thầm, số lượng bài kiểm hiện
  * đúng trong log CI, và tên luật hiện ra khi nó gãy.
+ *
+ * <p>⭐ <b>{@code public} từ 26/09/2026 (T85.11)</b> — {@code EnumBaNoiTest} ở gói
+ * {@code ..app.deploy} cần nó để <b>ĐO</b> mọi enum production. Chép một {@code ClassFileImporter}
+ * thứ hai sang đó là dựng đúng thứ luật 14 cấm: hai nơi con người phải nhớ cùng một vị từ, mà vị từ
+ * ấy là {@link #khongPhaiTestJar} — cái đã để lọt 82 lớp KIỂM của {@code core} vào tầm quét một lần
+ * rồi (T73.5).
  */
-final class ProductionClasses {
+public final class ProductionClasses {
 
     /**
      * Toàn bộ lớp production dưới {@code com.songnhue} (đã loại {@code src/test}).
@@ -35,7 +41,7 @@ final class ProductionClasses {
      * dưới dạng jar phụ thuộc, loại jar ra là bộ luật chỉ còn soi vài lớp của {@code app} — vẫn xanh,
      * vẫn vô dụng. {@link ImportedScopeTest} canh đúng điều đó.
      */
-    static final JavaClasses ALL = new ClassFileImporter()
+    public static final JavaClasses ALL = new ClassFileImporter()
             .withImportOption(new ImportOption.DoNotIncludeTests())
             .withImportOption(ProductionClasses::khongPhaiTestJar)
             .importPackages("com.songnhue");

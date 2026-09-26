@@ -148,10 +148,16 @@ class HydroSettingsReadTest {
                         // ⚠ Chỉ bắt chuỗi Java THẬT (`"hydro.…"`), ⛔ không bắt `{@code hydro.…}` trong
                         //   javadoc — mọi lớp dùng tham số đều nhắc tên khoá trong tài liệu của nó, và
                         //   một bộ canh bắt cả văn xuôi sẽ đỏ ở khắp nơi rồi bị nới ra.
-                        .filter(p -> KHOA_DUOC_KHAI.matcher(doc(p)).find()
-                                || Pattern.compile("getString\\(\\s*\"hydro\\.")
-                                        .matcher(doc(p))
-                                        .find())
+                        // ⛔⛔ T85.10: hai mẫu dưới ĐÒI dấu nháy, nên `{@code hydro.x}` trần đã đi lọt —
+                        //   nhưng một javadoc trích NGUYÊN VĂN dòng mã (`= "hydro.x"` · `getString("hydro.`)
+                        //   thì khớp, và đó là cách viết tài liệu tự nhiên nhất. `boChuThich` đóng nốt.
+                        .filter(p -> {
+                            String ma = boChuThich(doc(p));
+                            return KHOA_DUOC_KHAI.matcher(ma).find()
+                                    || Pattern.compile("getString\\(\\s*\"hydro\\.")
+                                            .matcher(ma)
+                                            .find();
+                        })
                         .map(p -> goc.relativize(p).toString())
                         .sorted()
                         .toList();
@@ -185,6 +191,35 @@ class HydroSettingsReadTest {
                 .isTrue();
     }
 
+    @Test
+    @DisplayName("⛔⛔ T85.10 — hằng nhắc trong CHÚ THÍCH Java ⛔ phải một lời khai (luật 1)")
+    void chuThichJavaKhongPhaiLoiKhai() {
+        // Ca ĐO ĐƯỢC, ⛔ phải giả thuyết: kiểm chứng ngược 26/09/2026 trên bộ canh anh em
+        // `HrSettingsReadTest` cho thấy một javadoc trích nguyên văn dòng mã đủ để giữ bài chính
+        // XANH trong khi khoá thật đã mất nơi đọc (T49.6 · T46.7).
+        String ma =
+                """
+                /** Bản cũ: {@code TEN = "hydro.da-go"}; gỡ ở V202609041062. */
+                static final String TEN = "hydro.polling.cron";
+                // getString("hydro.trong-chu-thich")
+                String tai = "https://bhh40.test/api"; // nguồn thật
+                """;
+        String sach = boChuThich(ma);
+
+        assertThat(trichKhoa(KHOA_DUOC_KHAI, sach))
+                .as("⛔ Hằng nhắc trong javadoc bị tính là lời khai ⇒ một hằng ĐÃ GỠ vẫn trông như còn, và "
+                        + "bài `daSeed ⊆ coHamDoc` xanh đúng lúc khoá mất nơi đọc")
+                .containsExactly("hydro.polling.cron");
+        assertThat(sach)
+                .as("⛔ Chiều ngược: `getString(\"hydro.…\")` nằm trong chú thích ⇒ đỏ giả, phạt đúng người "
+                        + "viết tài liệu tử tế")
+                .doesNotContain("hydro.trong-chu-thich");
+        assertThat(sach)
+                .as("⚠ Vế phân biệt (luật 9): bộ cắt ⛔ được nuốt luôn chuỗi THẬT — ⛔ có vế này thì một bộ "
+                        + "cắt trả chuỗi rỗng cũng qua hai khẳng định trên. Và `[^:]` giữ `https://` (T49.6)")
+                .contains("https://bhh40.test/api");
+    }
+
     // -------------------------------------------------------------------------
 
     /** Khoá đã seed <b>trừ</b> khoá đã gỡ — chỉ những khoá còn sống mới bị đòi có hàm đọc. */
@@ -199,7 +234,26 @@ class HydroSettingsReadTest {
     }
 
     private static Set<String> khoaDuocKhai() {
-        return trichKhoa(KHOA_DUOC_KHAI, doc(timTuGocKho(LOP_DOC)));
+        return trichKhoa(KHOA_DUOC_KHAI, boChuThich(doc(timTuGocKho(LOP_DOC))));
+    }
+
+    /**
+     * Bỏ chú thích mà <b>giữ chuỗi ký tự</b> — cùng khuôn {@code boChuThich} của T54.8 (bản gốc ở
+     * {@code CoreSettingsReadTest}, gói {@code ..app.architecture} nên ⛔ với tới được từ đây; kho
+     * có <b>23</b> bản {@code boChuThich*} tính đến 26/09/2026, hợp nhất là {@code T28.41}).
+     *
+     * <p>⛔⛔ Hai nơi gọi nó ở lớp này hỏng theo <b>hai chiều ngược nhau</b>, nên cả hai đều cần:
+     *
+     * <ul>
+     *   <li>{@link #khoaDuocKhai()} — một javadoc chứa {@code = "hydro.x"} làm một hằng ĐÃ GỠ trông
+     *       như còn khai ⇒ bài chính <b>xanh</b> đúng lúc khoá mất nơi đọc (T85.10).
+     *   <li>{@link KhongDocTatKhoaONoiKhac} — ngược lại: một lớp chỉ <i>nhắc tên khoá trong tài
+     *       liệu</i> bị tính là vi phạm ⇒ <b>đỏ giả</b>, và nó phạt đúng người viết tài liệu tử tế
+     *       (T46.7 · T54.8).
+     * </ul>
+     */
+    static String boChuThich(String ma) {
+        return ma.replaceAll("(?s)/\\*.*?\\*/", " ").replaceAll("(?m)(^|[^:])//.*$", "$1");
     }
 
     private static Set<String> trichKhoa(Pattern mau, String noiDung) {
