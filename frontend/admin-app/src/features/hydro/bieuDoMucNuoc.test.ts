@@ -3,20 +3,13 @@ import { dirname, join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { boChuThich } from '@/testsupport/boChuThich';
+
 /**
- * Bỏ chú thích khối và chú thích **cả dòng** trước khi soi mã.
- *
- * ⚠ Bỏ ÍT chứ ⛔ không bỏ NHIỀU: `//` nằm **giữa** dòng ⛔ không bị cắt, vì một chuỗi
- * `'https://…'` trong mã thật sẽ mất phần đuôi — và mất mã thật thì sinh **đỏ giả**, hỏng theo
- * chiều tệ hơn hẳn. Còn sót đúng một khe: nhắc tên trong chú thích `//` **cuối dòng mã**. Ghi ra
- * đây thay vì để người sau tưởng phép này kín (luật 28).
- *
- * ⛔ Bản sao của `CotPhase2CoDocGhiTest.boChuThich` ở backend — hai kho, ⛔ không dùng chung mã
- * được. Sửa một bên thì đọc lại bên kia.
+ * ⭐ T28.41 — bản chép riêng ở đây đã GỠ (25/09/2026). Nó là một trong **tám** bản `boChuThich`
+ * với **sáu** thuật toán khác nhau mà bốn lượt đo trước đều đếm thiếu; bản này thuộc nhóm yếu
+ * nhất — `//` chỉ tính khi đứng đầu dòng, và ⛔ dọn cặp ngoặc rỗng của `{/* … *&#47;}`. Nay dùng chung bản lexer, bản duy nhất bỏ qua được chuỗi ký tự.
  */
-function boChuThich(ma: string): string {
-  return ma.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
-}
 
 /**
  * **`optionDuong` đã có nơi gọi THẬT** — đóng §10.33 bằng một con số. T35.4.
@@ -61,25 +54,41 @@ function moiTepNguon(thuMuc: string): string[] {
   });
 }
 
-/** Ràng buộc import thật từ đúng module — ⛔ một dòng chú thích ⛔ không tạo ra được cái này. */
-const IMPORT_THAT = /import\s*\{[^}]*\boptionDuong\b[^}]*\}\s*from\s*['"][^'"]*chartOptions['"]/;
+/**
+ * Ràng buộc import thật từ đúng module — ⛔ một dòng chú thích ⛔ không tạo ra được cái này.
+ *
+ * ⚠⚠ WS-87: mẫu phải **tham số hoá theo tên hàm**. Bản cũ ghim cứng `optionDuong`, và khi trang
+ * biểu đồ đổi sang `optionDuongXuHuong` thì `\b` ở cuối làm mẫu **⛔ khớp nữa** ⇒ bộ canh đỏ đúng
+ * lúc nó phải đỏ. Nay nó canh **hai** hàm, mỗi hàm một nơi gọi thật — bất biến ⛔ đổi (§10.33: một
+ * hàm thuần có bài kiểm riêng mà 0 nơi gọi là dạng nợ khó thấy nhất), chỉ rộng ra.
+ */
+const importThat = (ten: string) =>
+  new RegExp(`import\\s*\\{[^}]*\\b${ten}\\b[^}]*\\}\\s*from\\s*['"][^'"]*chartOptions['"]`);
 
 /** Lời gọi thật. ⚠ Tín hiệu thứ hai, độc lập với tín hiệu trên (luật 29). */
-const GOI_THAT = /\boptionDuong\s*\(/;
+const goiThat = (ten: string) => new RegExp(`\\b${ten}\\s*\\(`);
+
+const IMPORT_THAT = importThat('optionDuong');
+const GOI_THAT = goiThat('optionDuong');
 
 describe('optionDuong — chuỗi thời gian đầu tiên của hệ (T35.4)', () => {
-  it('⭐⭐ có ÍT NHẤT một nơi gọi thật ngoài bài kiểm — §10.33 đóng bằng con số', () => {
-    const noiGoi = moiTepNguon(GOC)
-      .map((t) => [t, readFileSync(t, 'utf8')] as const)
-      .filter(([, ma]) => IMPORT_THAT.test(ma) && GOI_THAT.test(ma));
+  it.each(['optionDuong', 'optionDuongXuHuong'])(
+    '⭐⭐ `%s` có ÍT NHẤT một nơi gọi thật ngoài bài kiểm — §10.33 đóng bằng con số',
+    (ten) => {
+      const nhapThat = importThat(ten);
+      const goi = goiThat(ten);
+      const noiGoi = moiTepNguon(GOC)
+        .map((t) => [t, readFileSync(t, 'utf8')] as const)
+        .filter(([, ma]) => nhapThat.test(ma) && goi.test(ma));
 
-    expect(
-      noiGoi.length,
-      '⛔ `optionDuong` không còn nơi gọi nào ngoài bài kiểm của chính nó. Javadoc của hàm ghi rõ: ' +
-        'Phase 2 đến mà vẫn không ai gọi thì XOÁ, không phải giữ. Một hàm thuần CÓ bài kiểm riêng là ' +
-        'dạng nợ khó thấy nhất — bộ test xanh, độ phủ đẹp, và không dòng nào từng chạy ở production.',
-    ).toBeGreaterThanOrEqual(1);
-  });
+      expect(
+        noiGoi.length,
+        `⛔ \`${ten}\` không còn nơi gọi nào ngoài bài kiểm của chính nó. Javadoc của hàm ghi rõ: ` +
+          'Phase 2 đến mà vẫn không ai gọi thì XOÁ, không phải giữ. Một hàm thuần CÓ bài kiểm riêng là ' +
+          'dạng nợ khó thấy nhất — bộ test xanh, độ phủ đẹp, và không dòng nào từng chạy ở production.',
+      ).toBeGreaterThanOrEqual(1);
+    },
+  );
 
   /**
    * ⚠ Vế phân biệt của luật 9 — bộ canh phải **phân biệt được** một lần nhắc tên với một nơi gọi.

@@ -114,8 +114,10 @@ public class TelemetryIngestService {
 
     private static final Logger log = LoggerFactory.getLogger(TelemetryIngestService.class);
 
-    /** Loại chỉ số mà adapter {@code BHH40} giao — {@code getmn.aspx} chỉ có mực nước (G3-a). */
-    static final String MA_LOAI_CHI_SO = "MUC_NUOC";
+    // ⛔⛔ Ở ĐÂY từng có `static final String MA_LOAI_CHI_SO = "MUC_NUOC"` — gỡ ngày 26/09/2026
+    //    (WS-87 · T87.4). Nó khai "loại chỉ số mà adapter BHH40 giao", nhưng được dùng cho MỌI nguồn,
+    //    nên ngày nguồn thứ hai xuất hiện nó thành một lời khai sai áp cho cả hệ. Nay mỗi adapter tự
+    //    khai qua `TelemetryAdapter.maLoaiChiSo()` — ⛔ dựng lại hằng số này, kể cả làm "mặc định".
 
     /** Số mã lạ tối đa liệt kê ra màn hình — phần còn lại đếm được ở {@code hydro_unmapped_readings}. */
     private static final int TRAN_MA_LA_LIET_KE = 50;
@@ -358,22 +360,40 @@ public class TelemetryIngestService {
         return poller.demDiemDoDaCoTrongKhung(bc.nguon().getId(), bc.khung()) >= bc.dangHoatDong();
     }
 
+    /**
+     * Loại chỉ số của một nguồn — hỏi <b>adapter</b>, ⛔ một hằng số. WS-87 · T87.4.
+     *
+     * <p>Tới 26/09/2026 chỗ này là {@code MA_LOAI_CHI_SO = "MUC_NUOC"}: một hằng số khai *"loại chỉ
+     * số mà adapter BHH40 giao"* nhưng được dùng cho <b>mọi</b> nguồn. Ngày nguồn thứ hai xuất hiện,
+     * nó thành một lời khai sai áp cho cả hệ — và sai theo chiều im lặng nhất: {@code 0,0 mm} chia
+     * 100 ra {@code 0,000 m}, một mực nước hoàn toàn hợp lý, đi thẳng vào bảng chính.
+     *
+     * <p>⚠ Tra lại adapter thay vì chuyền nó qua bốn tầng tham số — cùng lý do đã ghi ở
+     * {@code chay()}: {@code TelemetryAdapters.cho} là một phép tra {@code EnumMap}, và nới chữ ký
+     * của bốn phương thức để tiết kiệm một lượt tra là đổi một thứ đắt lấy một thứ rẻ.
+     */
+    private String maLoaiChiSoCua(ApiSource nguon) {
+        return adapters.cho(nguon.getAdapterType()).maLoaiChiSo();
+    }
+
     private KetQuaDongBo ghiSoDo(
             BoiCanh bc, ThamSoNguon thamSo, Long rawLogId, TelemetryFetch fetch, TelemetryBatch me) {
         ApiSource nguon = bc.nguon();
 
-        long loaiChiSo = poller.idLoaiChiSo(MA_LOAI_CHI_SO)
+        String maLoaiChiSo = maLoaiChiSoCua(nguon);
+
+        long loaiChiSo = poller.idLoaiChiSo(maLoaiChiSo)
                 // ⚠ Lỗi của TA, không phải của nguồn — nên nó ném, ⛔ không thành một SyncFailureKind.
                 //   Ghi mực nước vào một id đoán bừa là sai số liệu câm; dừng lớn tiếng là đúng. Bản
                 //   nguyên văn đã nằm an toàn trong hydro_raw_logs nên không mất gì.
-                .orElseThrow(() -> new IllegalStateException("Không tìm thấy loại chỉ số '" + MA_LOAI_CHI_SO
+                .orElseThrow(() -> new IllegalStateException("Không tìm thấy loại chỉ số '" + maLoaiChiSo
                         + "' — ai đó đã xoá mềm nó. ⛔ Lượt ingest dừng: đoán một loại chỉ số khác là "
                         + "ghi mực nước vào cột lượng mưa."));
         Map<String, DiemDoDich> anhXa = poller.dichTheoMaApi(loaiChiSo);
 
         // ⚠ Quy tắc và mốc so sánh chốt MỘT LẦN ở đầu lượt — bất biến ấy nằm trong kiểu `Phien`,
         //   không nằm trong lời dặn: xem javadoc `ChatLuongSoDoService.moPhien`.
-        ChatLuongSoDoService.Phien phien = chatLuong.moPhien(loaiChiSo, MA_LOAI_CHI_SO);
+        ChatLuongSoDoService.Phien phien = chatLuong.moPhien(loaiChiSo, maLoaiChiSo);
 
         List<ReadingRow> soDo = new ArrayList<>(me.soDo().size());
         List<UnmappedRow> maLa = new ArrayList<>();
@@ -413,7 +433,7 @@ public class TelemetryIngestService {
                     rawLogId));
         }
 
-        canhBaoDanhMuc(nguon, thieuLoaiChiSo, khacNguon);
+        canhBaoDanhMuc(nguon, maLoaiChiSo, thieuLoaiChiSo, khacNguon);
 
         KetQuaGhi ketGhi = giaoDichGhi.execute(tx -> {
             List<KhoaSoDo> daGhi = timeSeries.writeReadings(soDo);
@@ -574,13 +594,14 @@ public class TelemetryIngestService {
         return phien.danhGia(stationId, r.giaTri(), r.measuredAt());
     }
 
-    private static void canhBaoDanhMuc(ApiSource nguon, List<String> thieuLoaiChiSo, List<String> khacNguon) {
+    private static void canhBaoDanhMuc(
+            ApiSource nguon, String maLoaiChiSo, List<String> thieuLoaiChiSo, List<String> khacNguon) {
         if (!thieuLoaiChiSo.isEmpty()) {
             log.warn(
                     "⚠ {} điểm đo nhận số đo '{}' nhưng CHƯA tích loại chỉ số ấy trong hồ sơ: {}. "
                             + "Số đo vẫn được ghi; vào Thuỷ văn › Điểm đo tích ô 'Loại chỉ số' để báo cáo khớp.",
                     thieuLoaiChiSo.size(),
-                    MA_LOAI_CHI_SO,
+                    maLoaiChiSo,
                     thieuLoaiChiSo);
         }
         if (!khacNguon.isEmpty()) {

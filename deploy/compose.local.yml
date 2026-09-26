@@ -167,12 +167,16 @@ services:
         # → preflight `403 Invalid CORS request` → bộ đếm lượt xem chưa từng chạy được từ
         # trình duyệt thật. Giá trị thật đến từ `env/local.env`, xem ghi chú ở service trên.
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-}
-        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:13000}
     container_name: songnhue-public-web
     restart: unless-stopped
     environment:
       PORT: 3000
       HOSTNAME: "0.0.0.0"
+      # ⚠ Đọc LÚC CHẠY, ⛔ nướng lúc build — T68.12. Trước bản này nó là build-arg
+      #   `NEXT_PUBLIC_SITE_URL`, mà biến `NEXT_PUBLIC_*` bị Next thay bằng chuỗi hằng lúc
+      #   build ⇒ giá trị nằm trong ẢNH, và staging/production dùng chung ảnh thì buộc phải
+      #   mang chung giá trị. Ở máy dev cái giá là: đổi cổng thì phải DỰNG LẠI ảnh.
+      SITE_URL: ${SITE_URL:-http://localhost:13000}
       # ⚠ Phải KHỚP biến cùng tên của service `app`. Đây là toàn bộ cơ chế xác thực của
       # `POST /api/revalidate`; để trống thì endpoint tự đóng (503) — mặc định an toàn.
       REVALIDATE_SECRET: ${REVALIDATE_SECRET:-doi-bi-mat-nay-o-moi-truong-that}

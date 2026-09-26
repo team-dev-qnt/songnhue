@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -17,6 +18,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import com.songnhue.hydro.domain.CheDoXemLuoi;
+import com.songnhue.hydro.domain.StationDisplayStatus;
 import com.songnhue.hydro.infra.HydroGridRepository;
 
 /**
@@ -156,11 +158,55 @@ public class HydroGridService {
             String khoaMauCanhBao,
             String tenMucCanhBao) {
 
+        /**
+         * Ô trống <b>theo mốc</b> — câu đúng khi điểm đo vẫn đang gửi số mà riêng mốc này ⛔ có.
+         *
+         * <p>⚠ Đây là câu <b>hẹp nhất</b> trong ba câu, và trước T44.9 nó là câu <b>duy nhất</b>.
+         */
         static final OLuoi TRONG = new OLuoi(null, null, "Không có dữ liệu tại mốc này", null, null);
 
         /** Ô có số, chưa xét ngưỡng. */
         static OLuoi coSo(BigDecimal giaTri, String chatLuong) {
             return new OLuoi(giaTri, chatLuong, null, null, null);
+        }
+
+        /**
+         * Ô trống mang <b>lý do của chính điểm đo ấy tại chính mốc ấy</b> — <b>T44.9</b>.
+         *
+         * <h2>⛔ Vì sao ⛔ dán thẳng trạng thái HIỆN TẠI lên mọi ô</h2>
+         *
+         * <p>{@code trangThai} được suy so với <b>bây giờ</b>, còn lưới có thể đang xem <b>quá
+         * khứ</b> (chế độ GIỜ/NGÀY kéo cửa sổ lùi rất xa). Một trạm chết lúc 14:40 mà bị đóng dấu
+         * <i>"mất tín hiệu"</i> lên cả những ô của 10:00 là khẳng định nó đã chết vào lúc nó còn
+         * đang gửi số — sai, và sai theo chiều làm người đọc ⛔ tìm được thời điểm hỏng thật.
+         *
+         * <p>⇒ Vế {@code mocO.isAfter(mocGanNhat)} là thứ tách hai phía của ranh giới ấy. Ô nằm
+         * <b>trước</b> mốc cuối rơi về {@link #TRONG} — vì ở đó trạm thật sự còn sống.
+         *
+         * <p>⚠ Và ⛔ so thô {@code mocO > mocGanNhat} một mình: khung 10 phút <b>đang chạy</b> luôn
+         * đứng sau mốc cuối, nên một trạm hoàn toàn khoẻ mạnh sẽ có ô mới nhất bị gắn "mất tín
+         * hiệu" ở <b>mọi</b> lượt tải trang. Dung sai nằm trong {@link StationDisplayStatus#suyRa}
+         * ({@code khungNguon × soKhungMatTinHieu}) và đây là lý do phải đi qua nó.
+         *
+         * @param trangThai trạng thái của <b>điểm đo</b> tại thời điểm dựng bảng
+         * @param mocGanNhat mốc gần nhất ta BIẾT là có số; {@code null} khi chưa từng có
+         * @param mocO mốc của chính ô này
+         */
+        static OLuoi trong(StationDisplayStatus trangThai, Instant mocGanNhat, Instant mocO) {
+            return switch (trangThai) {
+                case CHUA_CO_DU_LIEU -> new OLuoi(null, null, PublicHydroService.LY_DO_CHUA_GUI_SO, null, null);
+                case NGUNG -> new OLuoi(null, null, "Điểm đo đã ngừng theo dõi", null, null);
+                case MAT_TIN_HIEU ->
+                    mocGanNhat != null && mocO.isAfter(mocGanNhat)
+                            ? new OLuoi(
+                                    null,
+                                    null,
+                                    "Điểm đo mất tín hiệu — ⛔ không có số nào từ mốc này trở đi",
+                                    null,
+                                    null)
+                            : TRONG;
+                case HOAT_DONG -> TRONG;
+            };
         }
 
         /** Bản sao mang thêm bậc ngưỡng — §5.3. */
@@ -200,12 +246,56 @@ public class HydroGridService {
     /**
      * Một dòng của bảng — Thượng lưu · Hạ lưu · <i>Chênh lệch</i> · MN Bể hút · MN sông.
      *
+     * <p><b>T44.9</b> — trạng thái tín hiệu gắn ở <b>ĐÂY</b>, ⛔ ở {@link CongTrinh}. Một cống có
+     * thượng lưu còn sống và hạ lưu đã chết là chuyện bình thường; gắn ở tầng công trình thì phải
+     * chọn <i>một</i> trong hai, và bất kỳ cách chọn nào cũng nói sai về vế còn lại.
+     *
      * @param o đúng bằng số mốc của lưới; xem ràng buộc ở {@link LuoiMucNuoc}
+     * @param trangThai trạng thái tín hiệu của điểm đo sinh ra dòng này; {@code null} ở dòng
+     *     {@link LoaiDong#TINH} — số TÍNH ⛔ thuộc điểm đo nào nên nó ⛔ có tín hiệu để mất
+     * @param mocGanNhat mốc gần nhất ta BIẾT điểm đo ấy có số, để FE in <i>"mất tín hiệu từ …"</i>;
+     *     {@code null} khi chưa từng có, và ở dòng {@code TINH}.
+     *     <p>⚠ Ra dây dưới dạng {@code Instant}, ⛔ phải một chuỗi đã định dạng: quy tắc 1 — BE lưu
+     *     UTC, FE hiển thị UTC+7. Một mốc đã định dạng ở BE là chỗ T63.18 tái phát.
      */
     @JsonInclude(JsonInclude.Include.ALWAYS)
-    public record DongChiSo(String chiTieu, LoaiDong loai, List<OLuoi> o) {
+    public record DongChiSo(
+            String chiTieu, LoaiDong loai, List<OLuoi> o, StationDisplayStatus trangThai, Instant mocGanNhat) {
+
         public DongChiSo {
             o = List.copyOf(Objects.requireNonNull(o, "`o` ⛔ không được null"));
+
+            // ⛔ Hai nửa của một lời khai. Một dòng ĐO ⛔ có trạng thái thì FE ⛔ biết nên in gì, còn
+            //    một dòng TÍNH mang trạng thái là gán tín hiệu của MỘT vế cho một con số dựng từ
+            //    HAI vế — đúng thứ §10.62 gọi là nửa cặp đọc–ghi, ở dạng lặng lẽ nhất.
+            if ((loai == LoaiDong.TINH) != (trangThai == null)) {
+                throw new IllegalArgumentException(
+                        "Dòng '%s': loại %s ⇔ trangThai %s — dòng ĐO phải có trạng thái, dòng TÍNH thì ⛔"
+                                .formatted(chiTieu, loai, trangThai));
+            }
+            // ⛔ Bắt đúng lỗi NỐI DÂY: `CHUA_CO_DU_LIEU` nghĩa là ⛔ có mốc nào, và ngược lại một
+            //    trạm đang/đã phát thì buộc phải có mốc. Lấy nhầm cột (`valid_measured_at` thay vì
+            //    `last_seen_at`) hay quên LEFT JOIN đều rơi vào đây, thay vì đi tiếp ra cổng.
+            if (trangThai == StationDisplayStatus.CHUA_CO_DU_LIEU && mocGanNhat != null) {
+                throw new IllegalArgumentException(
+                        "Dòng '%s' khai CHUA_CO_DU_LIEU mà vẫn mang mốc %s".formatted(chiTieu, mocGanNhat));
+            }
+            if ((trangThai == StationDisplayStatus.HOAT_DONG || trangThai == StationDisplayStatus.MAT_TIN_HIEU)
+                    && mocGanNhat == null) {
+                throw new IllegalArgumentException(
+                        "Dòng '%s' khai %s mà ⛔ có mốc nào — hai trạng thái ấy suy TỪ một mốc"
+                                .formatted(chiTieu, trangThai));
+            }
+        }
+
+        /** Dòng số ĐO của một điểm đo. */
+        static DongChiSo doDuoc(String chiTieu, List<OLuoi> o, StationDisplayStatus tt, Instant mocGanNhat) {
+            return new DongChiSo(chiTieu, LoaiDong.DO, o, tt, mocGanNhat);
+        }
+
+        /** Dòng số TÍNH (Chênh lệch) — ⛔ thuộc điểm đo nào. */
+        static DongChiSo tinhRa(String chiTieu, List<OLuoi> o) {
+            return new DongChiSo(chiTieu, LoaiDong.TINH, o, null, null);
         }
     }
 
@@ -337,8 +427,9 @@ public class HydroGridService {
      */
     @Transactional(readOnly = true)
     public LuoiMucNuoc luoi(CheDoXemLuoi cheDo, int soCot, boolean chiTrucChinh) {
-        List<Instant> moc = cheDo.dungLuoi(Instant.now(), soCot <= 0 ? SO_COT_MAC_DINH : soCot);
-        MetaLuoi meta = meta();
+        NhipDanhGia nhip = nhip();
+        List<Instant> moc = cheDo.dungLuoi(nhip.bayGio(), soCot <= 0 ? SO_COT_MAC_DINH : soCot);
+        MetaLuoi meta = meta(nhip);
 
         List<HydroGridRepository.DiemDoLuoi> dangChay = kho.danhMucCongTrinh(MA_MUC_NUOC).stream()
                 .filter(HydroGridRepository.DiemDoLuoi::active)
@@ -378,7 +469,34 @@ public class HydroGridService {
                 cheDo,
                 nguong);
 
-        return new LuoiMucNuoc(meta, moc, gopNhom(diemDo, moc, theoDiemDo), null);
+        return new LuoiMucNuoc(meta, moc, gopNhom(diemDo, moc, theoDiemDo, nhip), null);
+    }
+
+    /**
+     * Bộ ngưỡng suy trạng thái tín hiệu — khai <b>MỘT</b> lần cho cả lượt dựng bảng.
+     *
+     * <p>⛔ Vì sao gói lại thay vì đọc {@code settings} ở từng chỗ cần: {@link #meta} và từng dòng
+     * của bảng đang trả lời <b>cùng một câu hỏi</b> (<i>"bao lâu ⛔ có số thì coi là cũ"</i>). Hai
+     * lượt đọc riêng cho hai kết quả khác nhau ngay khi có người sửa núm giữa chừng, và triệu chứng
+     * là bảng khai nguồn OK trong khi mọi dòng đều xám — đúng cảnh báo đã viết sẵn ở {@link #meta}.
+     *
+     * <p>⚠ {@code bayGio} cũng chỉ đọc đồng hồ <b>một lần</b>: trục thời gian, {@code meta} và
+     * trạng thái từng dòng phải cùng đứng trên một khoảnh khắc, nếu ⛔ thì một lượt tải rơi đúng
+     * ranh giới khung sẽ cho ra bảng tự mâu thuẫn.
+     */
+    private record NhipDanhGia(Instant bayGio, Duration khungNguon, int soKhung) {
+
+        Duration hanTuoi() {
+            return khungNguon.multipliedBy(soKhung);
+        }
+
+        StationDisplayStatus trangThai(boolean active, Instant mocGanNhat) {
+            return StationDisplayStatus.suyRa(active, mocGanNhat, bayGio, khungNguon, soKhung);
+        }
+    }
+
+    private NhipDanhGia nhip() {
+        return new NhipDanhGia(Instant.now(), settings.khungNguon(), settings.soKhungMatTinHieu());
     }
 
     /**
@@ -400,8 +518,9 @@ public class HydroGridService {
      */
     @Transactional(readOnly = true)
     public BieuDoCongTrinh bieuDo(String maCongTrinh, CheDoXemLuoi cheDo, int soCot) {
-        List<Instant> moc = cheDo.dungLuoi(Instant.now(), soCot <= 0 ? SO_COT_BIEU_DO : soCot);
-        MetaLuoi meta = meta();
+        NhipDanhGia nhip = nhip();
+        List<Instant> moc = cheDo.dungLuoi(nhip.bayGio(), soCot <= 0 ? SO_COT_BIEU_DO : soCot);
+        MetaLuoi meta = meta(nhip);
 
         List<HydroGridRepository.DiemDoLuoi> cua = kho.danhMucCongTrinh(MA_MUC_NUOC).stream()
                 .filter(HydroGridRepository.DiemDoLuoi::active)
@@ -431,7 +550,7 @@ public class HydroGridService {
                 cheDo,
                 nguong);
 
-        CongTrinh ct = dungCongTrinh(maCongTrinh, cua, moc, soDo);
+        CongTrinh ct = dungCongTrinh(maCongTrinh, cua, moc, soDo, nhip);
 
         // Đường ngưỡng đi theo TỪNG chỉ tiêu — thượng lưu và hạ lưu của cùng một cống có thể khai
         // hai bộ ngưỡng khác nhau (§5.3). Gộp chúng làm một là vẽ ngưỡng của điểm này lên đường
@@ -489,7 +608,10 @@ public class HydroGridService {
     }
 
     private List<NhomTuyenSong> gopNhom(
-            List<HydroGridRepository.DiemDoLuoi> diemDo, List<Instant> moc, Map<Long, Map<Instant, OLuoi>> soDo) {
+            List<HydroGridRepository.DiemDoLuoi> diemDo,
+            List<Instant> moc,
+            Map<Long, Map<Instant, OLuoi>> soDo,
+            NhipDanhGia nhip) {
 
         // LinkedHashMap ở cả hai tầng: thứ tự do SQL quyết định (ORDER BY tuyến → lý trình →
         // vai trò) và ⛔ không được xáo lại ở Java — xem javadoc SQL_DANH_MUC.
@@ -506,7 +628,7 @@ public class HydroGridService {
         List<NhomTuyenSong> ket = new ArrayList<>();
         cay.forEach((tuyen, congTrinhs) -> {
             List<CongTrinh> dsCt = new ArrayList<>();
-            congTrinhs.forEach((maCt, ds) -> dsCt.add(dungCongTrinh(maCt, ds, moc, soDo)));
+            congTrinhs.forEach((maCt, ds) -> dsCt.add(dungCongTrinh(maCt, ds, moc, soDo, nhip)));
             ket.add(new NhomTuyenSong(tuyen, dsCt));
         });
         return ket;
@@ -516,7 +638,8 @@ public class HydroGridService {
             String maCt,
             List<HydroGridRepository.DiemDoLuoi> ds,
             List<Instant> moc,
-            Map<Long, Map<Instant, OLuoi>> soDo) {
+            Map<Long, Map<Instant, OLuoi>> soDo,
+            NhipDanhGia nhip) {
 
         HydroGridRepository.DiemDoLuoi dau = ds.get(0);
         List<DongChiSo> dong = new ArrayList<>();
@@ -524,10 +647,25 @@ public class HydroGridService {
 
         for (HydroGridRepository.DiemDoLuoi d : ds) {
             Map<Instant, OLuoi> cua = soDo.getOrDefault(d.id(), Map.of());
-            List<OLuoi> o =
-                    moc.stream().map(m -> cua.getOrDefault(m, OLuoi.TRONG)).toList();
+
+            // ⭐⭐ T44.9 — "mốc gần nhất ta BIẾT là có số" = hợp của HAI nguồn, lấy cái muộn hơn.
+            //
+            // ⛔ Vì sao ⛔ chỉ đọc `hydro_latest`: bảng ấy do `HydroTimeSeriesWriter` upsert, và nó
+            //    LỆCH được (chính vì thế kho mới có `HydroLatestRecomputer`). Lúc nó lệch, một dòng
+            //    ĐANG hiện số ngay trên màn hình sẽ bị đóng dấu "chưa gửi số nào" ở những ô trống
+            //    bên cạnh — bảng nói hai điều trái ngược về cùng một trạm, trong cùng một hàng.
+            // ⇒ Lưới CÓ bằng chứng trực tiếp: một ô có số LÀ một bản ghi tại mốc ấy. Dùng nó làm
+            //   cận dưới thì lời khai của bảng ⛔ bao giờ tự mâu thuẫn được nữa.
+            Instant mocTrongLuoi =
+                    cua.keySet().stream().max(Comparator.naturalOrder()).orElse(null);
+            Instant mocGanNhat = muonHon(d.lastSeenAt(), mocTrongLuoi);
+            StationDisplayStatus tt = nhip.trangThai(d.active(), mocGanNhat);
+
+            List<OLuoi> o = moc.stream()
+                    .map(m -> cua.getOrDefault(m, OLuoi.trong(tt, mocGanNhat, m)))
+                    .toList();
             theoVaiTro.put(d.positionRole(), o);
-            dong.add(new DongChiSo(nhanVaiTro(d.positionRole()), LoaiDong.DO, o));
+            dong.add(DongChiSo.doDuoc(nhanVaiTro(d.positionRole()), o, tt, mocGanNhat));
         }
 
         // ⭐ Dòng "Chênh lệch" — spec §3.2 + §6.1.2. CHỈ khi có ĐỦ cả thượng lưu lẫn hạ lưu.
@@ -555,7 +693,7 @@ public class HydroGridService {
                                         null)
                                 : OLuoi.coSo(a.subtract(b), gopChatLuong(tl.get(i), hl.get(i))));
             }
-            dong.add(new DongChiSo("Chênh lệch", LoaiDong.TINH, chenh));
+            dong.add(DongChiSo.tinhRa("Chênh lệch", chenh));
         }
 
         return new CongTrinh(
@@ -577,6 +715,23 @@ public class HydroGridService {
         return "NGHI_NGO".equals(a.chatLuong()) || "NGHI_NGO".equals(b.chatLuong()) ? "NGHI_NGO" : "HOP_LE";
     }
 
+    /**
+     * Mốc muộn hơn trong hai mốc; {@code null} được hiểu là <b>⛔ biết gì</b>, ⛔ phải "rất xưa".
+     *
+     * <p>⚠ Thứ tự ấy quan trọng: nếu coi {@code null} là xa xưa thì một trạm ⛔ có hàng
+     * {@code hydro_latest} sẽ luôn thua, và ta mất đúng bằng chứng mạnh nhất — số đang hiện ngay
+     * trên bảng.
+     */
+    private static Instant muonHon(Instant a, Instant b) {
+        if (a == null) {
+            return b;
+        }
+        if (b == null) {
+            return a;
+        }
+        return a.isAfter(b) ? a : b;
+    }
+
     private static String nhanVaiTro(String vaiTro) {
         return switch (vaiTro) {
             case "THUONG_LUU" -> "Thượng lưu";
@@ -596,14 +751,13 @@ public class HydroGridService {
      * đây: hai ngưỡng cho cùng một câu hỏi <i>"bao lâu thì coi là cũ"</i> sẽ lệch nhau vào ngày ai
      * đó chỉnh một cái, và triệu chứng là bảng nói OK trong khi từng trạm đều xám.
      */
-    private MetaLuoi meta() {
+    private MetaLuoi meta(NhipDanhGia nhip) {
         HydroGridRepository.MocDongBo m = kho.mocDongBo();
-        Duration hanCu = settings.khungNguon().multipliedBy(settings.soKhungMatTinHieu());
 
         return new MetaLuoi(
                 m.lanLayCuoi(),
                 m.mocDoGanNhat(),
-                MetaLuoi.trangThai(m.mocDoGanNhat(), Instant.now(), hanCu),
+                MetaLuoi.trangThai(m.mocDoGanNhat(), nhip.bayGio(), nhip.hanTuoi()),
                 "m",
                 // ⛔ Lý do cột lượng mưa trống đến từ BACKEND, ⛔ không phải một chuỗi ghi ở FE:
                 //    G3-a là một sự thật về NGUỒN DỮ LIỆU, và cổng ⛔ không phải nơi biết nó. Dùng

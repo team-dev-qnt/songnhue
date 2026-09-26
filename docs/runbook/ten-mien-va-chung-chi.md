@@ -39,20 +39,29 @@ Tất cả đi qua env:
 | `.env` máy chủ | `ADMIN_DOMAIN` | như trên | |
 | `.env` máy chủ | `FILES_DOMAIN` | như trên | ⛔ đổi cuối cùng |
 | `.env` máy chủ | ~~`APP_BASE_URL`~~ | — | ⛔ **đã gỡ khỏi tệp mẫu 15/09/2026** (0 dòng mã đọc) — máy nào còn thì xoá dòng |
-| `.env` máy chủ | `NEXT_PUBLIC_SITE_URL` | — | ⚠ **cũng không ai đọc lúc chạy** (xem dưới) |
+| `.env` máy chủ | ~~`NEXT_PUBLIC_SITE_URL`~~ | — | ⛔ **đã gỡ 24/09/2026 (T68.12)** — thay bằng `SITE_URL` dựng TỪ `PUBLIC_DOMAIN`; máy nào còn dòng cũ thì xoá |
 | `.env` máy chủ | `SMTP_FROM` | khi tạo lại `app` | đổi sau khi xác nhận SMTP cho phép gửi thay mặt miền mới |
-| Biến kho GitHub | `PUBLIC_SITE_URL` | **lúc BUILD image** | sitemap · canonical · Open Graph |
+| ~~Biến kho GitHub~~ | ~~`PUBLIC_SITE_URL`~~ | — | ⛔ **thôi được đọc 24/09/2026 (T68.12)** — sitemap/canonical/OG nay theo `PUBLIC_DOMAIN` của từng máy |
 | Secret môi trường | `PROD_BASE_URL` | lúc CD chạy smoke test | |
 | Let's Encrypt | chứng chỉ | ngay | |
 
-### ⚠ `NEXT_PUBLIC_SITE_URL` trong `.env` không có tác dụng
+### ✅ `PUBLIC_DOMAIN` nay điều khiển LUÔN sitemap/canonical/Open Graph — T68.12, 24/09/2026
 
-Khối `environment:` của service `public-web` trong `compose.prod.yml` chỉ có **bốn** biến: `PORT`,
-`HOSTNAME`, `REVALIDATE_SECRET`, `API_INTERNAL_BASE_URL`. Giá trị thật đến từ `ENV` **nướng vào
-image** lúc build, qua `ci.yml` → `build-args: NEXT_PUBLIC_SITE_URL=${{ vars.PUBLIC_SITE_URL }}`.
+⚠⚠ **Mục này trước đây nói điều NGƯỢC LẠI, và câu cũ đã hết đúng.** Tới 23/09 giá trị thật nướng
+vào image lúc build (`ci.yml` → `build-args: NEXT_PUBLIC_SITE_URL=${{ vars.PUBLIC_SITE_URL }}`), nên
+sửa `.env` ⛔ đủ. Hậu quả đo được 19/09: `staging/robots.txt` khai `Allow: /` + `Host: <production>`
+vì hai môi trường **dùng chung một ảnh** nên buộc phải mang chung giá trị.
 
-⇒ Sitemap, thẻ canonical và Open Graph **chỉ đổi sau một lượt dựng lại image và đề bạt**. Sửa `.env`
-không đủ. Đây là lý do bước 4 của §3 tồn tại.
+Nay `compose.prod.yml` truyền `SITE_URL: https://${PUBLIC_DOMAIN:?…}` **lúc chạy**. ⇒ Đổi tên miền
+chỉ cần sửa `PUBLIC_DOMAIN` trong `.env` rồi **tạo lại** `public-web` — ⛔ còn phải dựng lại image,
+⛔ còn phải đợi một lượt đề bạt.
+
+⛔ **Tạo lại, ⛔ `restart`**: biến môi trường của một container bị đóng băng lúc TẠO. Cùng cái bẫy
+đã trả giá với nginx/envsubst ở §3.
+
+⚠ Vì `:?`, một `PUBLIC_DOMAIN` rỗng làm `docker compose up` **dừng ngay** thay vì để container lên
+rồi mọi lượt dựng trang ném `ERR_INVALID_URL` — chuỗi `https://` là truthy nên giá trị dự phòng
+trong `site.ts` ⛔ cứu được.
 
 ### ✅ Không có CORS
 
@@ -124,9 +133,9 @@ docker run --rm -v /etc/letsencrypt:/etc/letsencrypt:ro alpine/openssl \
 cd /opt/songnhue
 cp -p .env /var/lib/songnhue/backup/env-truoc-doi-ten-mien-<ngày>.bak   # ⚠ ĐỂ NGOÀI /opt, xem §5
 chmod 600 /var/lib/songnhue/backup/env-truoc-doi-ten-mien-<ngày>.bak
-sed -i -e 's|^PUBLIC_DOMAIN=.*$|PUBLIC_DOMAIN=<miền mới>|' \
-       -e 's|^NEXT_PUBLIC_SITE_URL=.*$|NEXT_PUBLIC_SITE_URL=https://<miền mới>|' .env
-diff <(cat /var/lib/songnhue/backup/env-truoc-doi-ten-mien-<ngày>.bak) .env | grep -c '^>'   # phải = 2
+# ⭐ T68.12: chỉ còn MỘT dòng phải sửa — `SITE_URL` nay dựng từ `PUBLIC_DOMAIN` lúc chạy.
+sed -i -e 's|^PUBLIC_DOMAIN=.*$|PUBLIC_DOMAIN=<miền mới>|' .env
+diff <(cat /var/lib/songnhue/backup/env-truoc-doi-ten-mien-<ngày>.bak) .env | grep -c '^>'   # phải = 1
 ```
 
 ### Bước 3 — tạo lại nginx
@@ -148,16 +157,19 @@ docker exec songnhue-nginx sh -c 'grep -h server_name /etc/nginx/conf.d/*.conf'
 `--no-deps` để không kéo theo cả chuỗi `depends_on` — bài học §10.78(D), nơi một lệnh *"chỉ kiểm cấu
 hình"* dựng luôn cả cluster postgres ngoài quy trình.
 
-### Bước 4 — GitHub, rồi dựng lại image
+### Bước 4 — GitHub
 
 ```bash
-gh variable set PUBLIC_SITE_URL --repo <kho> --body 'https://<miền mới>'
 gh secret set PROD_BASE_URL --env production --repo <kho> --body 'https://<miền mới>'
 ```
 
-Rồi **một commit chạm `deploy/` hoặc `frontend/`** (bộ lọc frontend của CI là
-`^(frontend/|deploy/|\.github/workflows/)`) → CI dựng lại `public-web` → đề bạt `dev → staging →
-production`.
+⭐ **T68.12 (24/09/2026) đã gỡ bước nặng nhất của mục này.** Trước đó còn phải
+`gh variable set PUBLIC_SITE_URL`, rồi **dựng lại image**, rồi **đề bạt `dev → staging →
+production`** — tức một lượt đổi tên miền kéo theo trọn chuỗi CD. Nay `SITE_URL` đọc lúc chạy từ
+`PUBLIC_DOMAIN`, nên tạo lại `public-web` ở bước 3 là xong.
+
+⚠ `PROD_BASE_URL` thì **ở lại**: nó là địa chỉ CD gõ vào smoke test sau khi deploy, ⛔ phải giá trị
+ứng dụng đọc. Hai thứ khác nhau, đừng gộp.
 
 ### Bước 5 — nghiệm thu
 

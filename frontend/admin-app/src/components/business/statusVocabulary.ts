@@ -119,6 +119,27 @@ export const CONSTRUCTION_TYPE: StatusVocabulary = {
   KHAC: { label: 'Khác', color: 'normal' },
 };
 
+/**
+ * Loại cống — `ck_sluice_specs_type` (T68.28).
+ *
+ * ⛔⛔ Trước 23/09/2026 ô này là `<Input/>` chữ tự do: gõ sai ⇒ giá trị đi tới CSDL rồi bật ra
+ * **409 SYS-0005** *"Dữ liệu vừa được người khác thay đổi"* — một câu ⛔ liên quan gì tới lỗi thật,
+ * và nó dẫn người nhập đi tải lại trang rồi gõ lại đúng giá trị cũ.
+ */
+export const SLUICE_TYPE: StatusVocabulary = {
+  HOP: { label: 'Cống hộp', color: 'normal' },
+  TRON: { label: 'Cống tròn', color: 'normal' },
+  VAN_PHANG: { label: 'Cống van phẳng', color: 'normal' },
+  CLAPE: { label: 'Cống cla-pê', color: 'normal' },
+};
+
+/** Kiểu vận hành cửa cống — `ck_sluice_specs_gate` (T68.28). Cùng chuyện {@link SLUICE_TYPE}. */
+export const GATE_OPERATION: StatusVocabulary = {
+  THU_CONG: { label: 'Thủ công', color: 'normal' },
+  DIEN: { label: 'Điện', color: 'normal' },
+  THUY_LUC: { label: 'Thuỷ lực', color: 'normal' },
+};
+
 /** Cấp quản lý — thông tin hành chính, ⛔ không quyết định phạm vi dữ liệu. */
 export const MANAGEMENT_LEVEL: StatusVocabulary = {
   CONG_TY: { label: 'Công ty', color: 'normal' },

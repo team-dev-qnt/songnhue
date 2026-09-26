@@ -1,21 +1,36 @@
 /**
  * Thông tin cố định của cổng thông tin và cấu hình đọc từ biến môi trường.
  *
- * ⚠ `NEXT_PUBLIC_SITE_URL` nhúng vào bundle lúc build. Nó là gốc của mọi URL tuyệt đối:
- * `sitemap.xml`, `robots.txt`, thẻ canonical, ảnh Open Graph. Đặt sai thì trang vẫn chạy
- * bình thường — chỉ có công cụ tìm kiếm và trình chia sẻ liên kết đọc ra địa chỉ sai, và
- * không ai phát hiện cho tới khi thấy kết quả tìm kiếm trỏ về `localhost`.
+ * Gốc của mọi URL tuyệt đối: `sitemap.xml`, `robots.txt`, thẻ canonical, ảnh Open Graph.
+ * Đặt sai thì trang vẫn chạy bình thường — chỉ công cụ tìm kiếm và trình chia sẻ liên kết
+ * đọc ra địa chỉ sai, và không ai phát hiện cho tới khi thấy kết quả tìm kiếm trỏ về đâu đó.
+ *
+ * ⛔⛔ **KHÔNG có tiền tố `NEXT_PUBLIC_`, và đó là toàn bộ nội dung của T68.12.** Next thay
+ * `process.env.NEXT_PUBLIC_*` bằng một **chuỗi hằng lúc build**, nên giá trị đi thẳng vào ảnh
+ * Docker. Staging và production **dùng chung một ảnh** ⇒ chúng buộc phải mang chung giá trị.
+ * Hậu quả đo được ngày 19/09: `staging.songnhue.com/robots.txt` khai `Allow: /` kèm
+ * `Host: https://thuyloisongnhue.vn`, và canonical/og:url của staging cũng trỏ về production —
+ * tức nhánh chặn staging trong `robots.ts` **chưa bao giờ chạy** (luật 7). Thứ duy nhất còn che
+ * là header `x-robots-tag` đặt ở nginx.
+ *
+ * ⚠⚠ Đọc lúc chạy **chưa đủ cho `robots.txt`** — xem `robots.ts`: nó là route DUY NHẤT được
+ * Next prerender tĩnh (`○`), nên nếu chỉ đổi chỗ này thì đúng tệp mà dòng nợ tố cáo vẫn sai y
+ * nguyên và ⛔ gì báo. Hai vế phải đi cùng nhau.
  *
  * ⚠⚠ Dùng `||` chứ **không** `??` — xem giải thích ở `API_BASE_URL` bên dưới. Bản đầu dùng
  * `??` và đã làm hỏng build: `Dockerfile` khai `ARG NEXT_PUBLIC_SITE_URL` không giá trị mặc
- * định, nên khi CI không truyền build-arg (biến kho `PUBLIC_SITE_URL` chưa đặt) thì `ENV`
- * gán vào một **chuỗi rỗng** — không phải "chưa đặt". `??` giữ nguyên chuỗi rỗng, và
- * `new URL('')` trong `layout.tsx` ném `ERR_INVALID_URL` giữa lúc prerender, giết cả lượt
- * `next build`. Chính lượt CI ấy còn in ra cảnh báo "chưa đặt PUBLIC_SITE_URL → sitemap sẽ
- * trỏ về localhost", tức là nó tin có một giá trị mặc định đang đỡ — mặc định chưa bao giờ
- * chạm tới.
+ * định, nên khi CI không truyền build-arg thì `ENV` gán vào một **chuỗi rỗng** — không phải
+ * "chưa đặt". `??` giữ nguyên chuỗi rỗng, và `new URL('')` trong `layout.tsx` ném
+ * `ERR_INVALID_URL` giữa lúc prerender, giết cả lượt `next build`. Build-arg nay đã gỡ, nhưng
+ * `compose` truyền một biến để trống cũng cho ra **đúng chuỗi rỗng ấy** — nên ràng buộc giữ
+ * nguyên, và `site.test.ts` vẫn nạp module với cả hai trạng thái *rỗng* và *chưa đặt*.
+ *
+ * ⚠ `SITE_URL` chỉ được đọc ở phía **máy chủ** (`layout.tsx` · `robots.ts` · `sitemap.ts`).
+ * Một thành phần `'use client'` nhập nó sẽ nhận `http://localhost:3000` **trong im lặng**, vì
+ * Next chỉ thay biến có tiền tố `NEXT_PUBLIC_` cho bundle trình duyệt. `site.test.ts` canh
+ * đúng điều đó — kho ⛔ có gói `server-only` để biến nó thành lỗi biên dịch.
  */
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+export const SITE_URL = process.env.SITE_URL || 'http://localhost:3000';
 
 /**
  * Địa chỉ API mà **TRÌNH DUYỆT** gọi — nhúng vào bundle lúc build.

@@ -61,7 +61,7 @@ public class MaintenanceScheduler {
             return;
         }
         String dedupKey = JobTypes.DB_BACKUP + ":" + LocalDate.now(DateTimeUtils.ZONE_VN);
-        jobService.enqueue(JobTypes.DB_BACKUP, "{\"trigger\":\"SCHEDULED\"}", dedupKey, (short) 1);
+        jobService.enqueue(JobTypes.DB_BACKUP, "{\"trigger\":\"SCHEDULED\"}", dedupKey);
         log.info("Đã đặt việc sao lưu {}", dedupKey);
     }
 
@@ -93,7 +93,7 @@ public class MaintenanceScheduler {
     public void scheduleAuditArchive() {
         String dedupKey = JobTypes.AUDIT_ARCHIVE + ":"
                 + LocalDate.now(DateTimeUtils.ZONE_VN).withDayOfMonth(1);
-        jobService.enqueue(JobTypes.AUDIT_ARCHIVE, "{}", dedupKey, (short) 1);
+        jobService.enqueue(JobTypes.AUDIT_ARCHIVE, "{}", dedupKey);
         log.info("Đã đặt việc kết xuất nhật ký tháng {}", dedupKey);
     }
 

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { _test } from '@/components/home/BangLuoiMucNuoc';
-import type { CongTrinhLuoi } from '@/lib/api';
+import type { CongTrinhLuoi, DongChiSo } from '@/lib/api';
 
 /**
  * Bảng lưới mực nước — **WS-44**, spec §5.2 và §6.1.2.
@@ -24,6 +24,8 @@ describe('BangLuoiMucNuoc — phép gộp ô', () => {
       chiTieu: `c${i}`,
       loai: 'DO' as const,
       o: [],
+      trangThai: 'HOAT_DONG' as const,
+      mocGanNhat: '2026-09-24T15:00:00Z',
     }));
 
   const ct = (ma: string, soDong: number): CongTrinhLuoi => ({
@@ -98,5 +100,60 @@ describe('BangLuoiMucNuoc — bất biến cấu trúc', () => {
 
   it('⛔ ⛔ Không ghi cứng mã màu — màu đi qua token (docs/ui-styles.md, nợ T25.23)', () => {
     expect(nguon).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+  });
+});
+
+/**
+ * T44.9 — nhãn tín hiệu của từng DÒNG.
+ *
+ * Trước lượt này bảng có đúng một câu cho mọi ô trống, nên *"trạm đã chết"* và *"khung này nguồn
+ * chưa trả số"* trông y hệt nhau. Hai tình huống ấy dẫn tới hai việc khác hẳn cho người trực.
+ */
+describe('BangLuoiMucNuoc — nhãn tín hiệu từng dòng (T44.9)', () => {
+  const dong = (
+    trangThai: DongChiSo['trangThai'],
+    mocGanNhat: string | null = null,
+  ): DongChiSo => ({ chiTieu: 'Thượng lưu', loai: 'DO', o: [], trangThai, mocGanNhat });
+
+  it('⛔ Trạm bình thường ⛔ mang nhãn nào — gắn nhãn cho trạng thái thường là làm nhãn bất thường hết nổi bật', () => {
+    expect(_test.nhanTinHieu(dong('HOAT_DONG', '2026-09-24T15:00:00Z'))).toBeNull();
+  });
+
+  it('⛔ Dòng Chênh lệch ⛔ có tín hiệu để mất ⇒ ⛔ nhãn', () => {
+    expect(
+      _test.nhanTinHieu({
+        chiTieu: 'Chênh lệch',
+        loai: 'TINH',
+        o: [],
+        trangThai: null,
+        mocGanNhat: null,
+      }),
+    ).toBeNull();
+  });
+
+  it('Ba trạng thái bất thường cho BA câu khác nhau — luật 9', () => {
+    const mat = _test.nhanTinHieu(dong('MAT_TIN_HIEU', '2026-09-24T15:00:00Z'));
+    const chua = _test.nhanTinHieu(dong('CHUA_CO_DU_LIEU'));
+    const ngung = _test.nhanTinHieu(dong('NGUNG'));
+
+    expect(new Set([mat?.chu, chua?.chu, ngung?.chu]).size).toBe(3);
+    expect(mat?.chu).toBe('mất tín hiệu');
+    expect(chua?.chu).toBe('chưa có số');
+    expect(ngung?.chu).toBe('đã ngừng');
+  });
+
+  it('⭐⭐ Mốc số liệu cuối hiện theo giờ VIỆT NAM, ⛔ theo giờ máy — T63.18', () => {
+    // `vitest.config.mts` ghim `TZ=UTC` (bánh cóc T63.18), nên nếu hàm này đọc múi giờ của máy
+    // thì nó in `15:00` — đúng cái lỗi mà runner bắt được còn máy dev thì ⛔, vì máy dev đặt
+    // đúng `Asia/Ho_Chi_Minh`. 15:00Z = 22:00 giờ VN.
+    expect(_test.nhanTinHieu(dong('MAT_TIN_HIEU', '2026-09-24T15:00:00Z'))?.tieuDe).toBe(
+      'Số liệu gần nhất lúc 22:00 24/09/2026',
+    );
+  });
+
+  it('⚠ Mất tín hiệu mà ⛔ có mốc ⇒ vẫn phải ra một câu, ⛔ được ra chữ "null"', () => {
+    const r = _test.nhanTinHieu(dong('MAT_TIN_HIEU', null));
+    expect(r?.tieuDe).toBe('Điểm đo đang mất tín hiệu');
+    expect(r?.tieuDe).not.toMatch(/null|undefined|NaN|Invalid/i);
   });
 });

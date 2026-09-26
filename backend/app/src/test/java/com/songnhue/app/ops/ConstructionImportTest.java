@@ -265,10 +265,10 @@ class ConstructionImportTest extends IntegrationTestBase {
     }
 
     @Test
-    @DisplayName("Tệp rác → OPS-2015, không phải 500")
+    @DisplayName("Tệp rác → SYS-0016, không phải 500")
     void garbageFileIsARequestError() {
         assertThatThrownBy(() -> importer.preview(new byte[] {0x00, 0x01, 0x02}))
-                .hasMessageContaining("OPS-2015");
+                .hasMessageContaining("SYS-0016");
     }
 
     // -------------------------------------------------------------------------

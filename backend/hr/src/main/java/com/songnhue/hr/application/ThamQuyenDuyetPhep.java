@@ -119,19 +119,65 @@ public class ThamQuyenDuyetPhep {
      * bản lệch nhau là ngày màn hình bày một cái nút mà máy chủ từ chối — hoặc <b>giấu</b> một cái
      * nút đáng ra bấm được, và trạng thái thứ hai thì ⛔ ai báo.
      *
+     * <h2>⭐ Nhận {@code Long userId}, ⛔ phải {@link AuthenticatedUser} — T85.3 (22/09/2026)</h2>
+     *
+     * <p>Cả ba vế trên <b>chỉ đọc {@code userId}</b>, ⛔ chạm tới quyền hay phạm vi. Trước lượt này
+     * chữ ký đòi một {@code AuthenticatedUser}, nên đường tính <b>người NHẬN THƯ</b> — vốn chỉ có
+     * trong tay một danh sách id — ⛔ gọi được nó và sẽ phải chép lại ba dòng ấy. Chính javadoc ngay
+     * trên đây đã gọi tên cái giá của việc chép. ⇒ Hạ tham số xuống đúng thứ nó dùng, và
+     * {@link #nguoiQuyetDuocDon} dùng chung <b>một</b> bản.
+     *
+     * @param userId {@code null} ⇒ ⛔ có ai đang thao tác
      * @return {@code null} khi ⛔ vế cấm nào chạm tới
      */
-    private static LyDo veCam(LeaveRequest don, AuthenticatedUser ai) {
-        if (ai == null || ai.userId() == null) {
+    private static LyDo veCam(LeaveRequest don, Long userId) {
+        if (userId == null) {
             return LyDo.KHONG_PHAI_NGUOI_DUYET;
         }
-        if (laNguoiNghi(don, ai)) {
+        if (Objects.equals(userId, don.getRequesterUserId())) {
             return LyDo.TU_DUYET;
         }
-        if (don.trangThai() == LeaveState.CHO_DUYET_2 && Objects.equals(ai.userId(), don.getCap1By())) {
+        if (don.trangThai() == LeaveState.CHO_DUYET_2 && Objects.equals(userId, don.getCap1By())) {
             return LyDo.TRUNG_NGUOI_CAP_MOT;
         }
         return null;
+    }
+
+    /** Bản tiện cho nơi gọi đang cầm một {@link AuthenticatedUser}. */
+    private static LyDo veCam(LeaveRequest don, AuthenticatedUser ai) {
+        return veCam(don, ai == null ? null : ai.userId());
+    }
+
+    /**
+     * Ai quyết được <b>ĐÚNG lá đơn này, ngay lúc này</b> — T85.3.
+     *
+     * <h2>⛔⛔ Vì sao ⛔ dùng thẳng {@link #nguoiQuyetDuoc}</h2>
+     *
+     * <p>{@link #nguoiQuyetDuoc} trả lời câu <i>"ai có thẩm quyền trên ĐƠN VỊ này"</i> — một câu hỏi
+     * về <b>cơ cấu</b>, ⛔ về lá đơn. Nó ⛔ biết người nộp là ai, và ⛔ biết ai đã duyệt cấp 1. Gửi
+     * thư <i>"có đơn chờ bạn duyệt cấp 2"</i> cho chính người vừa duyệt cấp 1 là mời họ làm một việc
+     * mà máy chủ sẽ từ chối bằng {@link LyDo#TRUNG_NGUOI_CAP_MOT} — và phân tách trách nhiệm là lý do
+     * cấp 2 tồn tại.
+     *
+     * <p>⇒ Hàm này = {@link #nguoiQuyetDuoc} <b>trừ</b> đúng những ai {@link #veCam} đang cấm. Cùng
+     * một bản luật với {@link #xetQuyet} và {@link #donQuyetDuoc}, nên tập <i>nhận thư</i> ⛔ thể lệch
+     * khỏi tập <i>bấm được nút</i>.
+     *
+     * <p>⚠ Tính theo trạng thái <b>hiện thời</b> của {@code don}. Nơi gọi phải chọn đúng thời điểm:
+     * với {@code ESCALATE} là <b>SAU</b> bước chuyển (lúc ấy mới có {@code cap1By}), với
+     * {@code CANCEL} là <b>TRƯỚC</b> (sau đó đơn đã sang {@code DA_HUY}, ⛔ còn ai "đang giữ" nó).
+     *
+     * @return rỗng ⇒ đơn vị ⛔ có lãnh đạo lẫn người được uỷ quyền; nơi gọi phải đi đường dự phòng,
+     *     ⛔ phải im lặng
+     */
+    @Transactional(readOnly = true)
+    public Set<Long> nguoiQuyetDuocDon(LeaveRequest don, LocalDate ngay) {
+        if (don == null) {
+            return Set.of();
+        }
+        Set<Long> ketQua = new LinkedHashSet<>(nguoiQuyetDuoc(don.getOrgUnitId(), ngay));
+        ketQua.removeIf(userId -> veCam(don, userId) != null);
+        return ketQua;
     }
 
     /**
@@ -272,10 +318,10 @@ public class ThamQuyenDuyetPhep {
         return duoc;
     }
 
-    /** Đơn NÀY là của chính người đang thao tác — người sắp nghỉ, ⛔ phải người bấm hộ. */
-    private static boolean laNguoiNghi(LeaveRequest don, AuthenticatedUser ai) {
-        return don.getRequesterUserId() != null && Objects.equals(ai.userId(), don.getRequesterUserId());
-    }
+    // ⚠ `laNguoiNghi` đã GỠ 22/09/2026 (T85.3): sau khi `veCam` hạ tham số xuống `Long userId`, nó
+    //   còn đúng MỘT nơi gọi rồi thành 0. Giữ lại một hàm ⛔ ai đọc là đúng thứ luật 15 cấm — và ở
+    //   đây nó còn tệ hơn mức thường: nó mang một vị từ về THẨM QUYỀN, nên lượt rà sau sẽ đọc nó
+    //   thành *"luật này đang được áp ở đâu đó"*. Vị từ ấy nay nằm nguyên trong `veCam`.
 
     /**
      * Người đã đứng tên nộp — người nghỉ, <b>hoặc</b> người đã nộp hộ (chốt C3).

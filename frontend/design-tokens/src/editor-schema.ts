@@ -63,6 +63,13 @@ export const EDITOR_TAGS = [
   // tầm** cả ba bộ canh suốt thời gian đó — đúng hình dạng "một thẻ không ai khai, không ai canh".
   'colgroup',
   'col',
+  // ⚠⚠ `div` vào danh sách từ T41.14: bảng nay được bọc trong `<div class="sn-bang-cuon">`, và
+  // khung ấy nằm trong **HTML đã lưu** chứ ⛔ phải sản phẩm của NodeView. Lý do nó phải có mặt:
+  // cổng công khai trước đây đặt `display: block` lên chính `<table>` để cuộn ngang trên điện
+  // thoại — mà quy tắc ấy **phá vỡ ngữ cảnh định dạng bảng**, nên `<colgroup>` vô tác dụng kể cả
+  // khi sống sót qua bộ lọc. Khai ra ở đây để nó ⛔ rơi vào đúng hình dạng `colgroup`/`col` đã
+  // mắc: một thẻ đi vào CSDL mà ⛔ ai khai, ⛔ ai canh.
+  'div',
   'tr',
   'th',
   'td',
@@ -238,6 +245,26 @@ export const CELL_BG_CLASSES = [
 export const TABLE_CELL_MIN_WIDTH_PX = 80;
 
 /**
+ * **Class của khung cuộn bọc mỗi bảng** — T41.14.
+ *
+ * <h3>Vì sao khung này phải nằm trong HTML ĐÃ LƯU</h3>
+ *
+ * Cổng công khai dựng HTML thô, nên nó ⛔ có `.tableWrapper` mà TipTap tạo lúc soạn (khung ấy là
+ * sản phẩm của NodeView, chỉ tồn tại trong DOM trình soạn thảo). Thiếu một khung THẬT trong chuỗi
+ * đã lưu thì cổng buộc phải đặt `display: block` lên chính `<table>` để cuộn ngang trên điện
+ * thoại — và quy tắc ấy **phá vỡ ngữ cảnh định dạng bảng**, nên `<colgroup>` vô tác dụng **kể cả
+ * khi sống sót qua bộ lọc**. Đó đúng là vế thứ hai mà T41.14 đòi.
+ *
+ * ⚠ Tên class do **ta** đặt, ⛔ mượn `tableWrapper` của TipTap: class ấy do thư viện sinh ra và
+ * đổi theo phiên bản, mà cổng công khai ⛔ nạp TipTap nên nó ⛔ có cách nào biết khi nào tên đổi.
+ *
+ * ⚠⚠ Bảng **đã xuất bản trước T41.14** ⛔ có khung này. CSS của cổng phải giữ nhánh cũ
+ * (`display: block` trên `.sn-article table`) cho chúng, và nhánh mới đè lên bằng bộ chọn cụ thể
+ * hơn — bỏ nhánh cũ là làm mọi bảng cũ tràn khung trên điện thoại.
+ */
+export const LOP_KHUNG_BANG = 'sn-bang-cuon';
+
+/**
  * **Thuộc tính của bảng phải sống sót qua bộ khử trùng** — WS-41 (T41.7).
  *
  * <h3>Vì sao cần một danh sách riêng cho THUỘC TÍNH</h3>
@@ -292,11 +319,26 @@ export const EDITOR_SAMPLE_HTML = [
   //   `<col>` về ô bằng **chỉ số Ô trong hàng**, nên `colspan` ở hàng đầu làm lệch chỉ số cột.
   //   Hôm nay ta không mang bề rộng cột nên chuyện đó vô hại, nhưng mẫu không nên chứa sẵn một
   //   hình dạng đã biết là bẫy — xem T41.14.
-  '<table><colgroup><col><col><col></colgroup><tbody>',
+  //
+  // ⭐ T41.14: khung cuộn + `<col width>` nay là hình dạng THẬT mà trình soạn thảo sinh ra. Hai
+  //   cột đầu mang bề rộng, cột ba để trống — *đã kéo* và *chưa kéo* phải phân biệt được.
+  //
+  // ⚠⚠ Viết THẲNG tên class, ⛔ nội suy hằng: `EditorVocabularyTest` bóc hằng này bằng một regex
+  //   **chỉ nhận chuỗi nháy ĐƠN**, nên một template literal bị bỏ qua NGUYÊN DÒNG ⇒ mẫu mất thẻ
+  //   mở, jsoup chuẩn hoá lại phần còn lại, và bài kiểm đỏ ở `colgroup`/`col`/`div` lẫn
+  //   `colspan`/`rowspan` — một chẩn đoán ⛔ liên quan gì tới nguyên nhân. Đã mắc một lần.
+  //   Chỗ trùng lặp này do `beRongCotBang.test.ts` canh (luật 14).
+  //
+  // ⛔⛔ Và ⛔ viết dấu nháy đơn vào chú thích TRONG khối này — kể cả khi đang trích chính regex
+  //   ấy: bộ đọc ghép cặp nháy trên toàn khối và ⛔ bỏ chú thích, nên một dấu nháy lẻ làm mọi
+  //   chuỗi SAU nó bị đọc lệch. Bản đầu của chính dòng trên đã mắc, và triệu chứng là *"12 thẻ
+  //   biến mất khỏi mẫu"* — xa hẳn nguyên nhân.
+  '<div class="sn-bang-cuon"><table>',
+  '<colgroup><col width="120"><col width="90"><col></colgroup><tbody>',
   '<tr><th>Điểm đo</th><th>Mực nước (m)</th><th>Ghi chú</th></tr>',
   '<tr><td colspan="2">Cụm cống Liên Mạc</td><td rowspan="2">Đang vận hành</td></tr>',
   '<tr><td>Cống Hà Đông</td><td>+2,45</td></tr>',
-  '</tbody></table>',
+  '</tbody></table></div>',
   // ⚠ `thead` KHÔNG do trình soạn thảo sinh ra — mô hình bảng của ProseMirror không có khái niệm
   //   nhóm đầu bảng, ô tiêu đề là `th` nằm thẳng trong `tbody`. Nhưng nội dung **dán từ Word/Excel**
   //   mang nó, nên bộ lọc phải giữ. Dòng này là chỗ vế ấy được kiểm; `editorRoundTrip.test.ts` xếp

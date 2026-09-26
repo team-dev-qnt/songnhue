@@ -34,6 +34,7 @@ import com.songnhue.core.domain.security.SecurityEventType;
 import com.songnhue.core.infra.identity.UserAdminRepository;
 import com.songnhue.core.infra.identity.UserRepository;
 import com.songnhue.core.infra.org.OrgUnitRepository;
+import com.songnhue.core.spi.ChinhSachNguoiNhan;
 import com.songnhue.core.spi.EmployeeDirectoryPort;
 import com.songnhue.core.spi.EmployeeRef;
 import com.songnhue.core.spi.UserDirectoryPort;
@@ -557,10 +558,9 @@ public class UserAdminService implements UserDirectoryPort {
                 List.of(user.getId()),
                 null,
                 List.of(NotificationChannel.IN_APP, NotificationChannel.EMAIL),
-                false,
                 // ⛔⛔ T74.7 — người nhận là CHỦ TÀI KHOẢN, đúng một người. Cộng Ban điều hành vào đây là
                 //   công bố *ai vừa bị khoá tài khoản* cho một nhóm ⛔ cần biết.
-                false));
+                ChinhSachNguoiNhan.DICH_DANH));
     }
 
     // ---- Hợp đồng cho module nghiệp vụ (core.spi) ----------------------------

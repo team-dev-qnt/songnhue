@@ -241,7 +241,7 @@ class HydroCatalogueSeedTest extends IntegrationTestBase {
     }
 
     @Test
-    @DisplayName("Cả 19 điểm đo đều gắn loại chỉ số Mực nước, và KHÔNG gắn Lượng mưa (G3-a)")
+    @DisplayName("Cả 19 điểm đo đều gắn loại chỉ số Mực nước, và KHÔNG gắn Lượng mưa (G8)")
     void moiDiemDoDeuDoMucNuoc() {
         Integer mucNuoc = jdbc.queryForObject(
                 "SELECT count(*) FROM station_measurement_types smt "
@@ -254,13 +254,19 @@ class HydroCatalogueSeedTest extends IntegrationTestBase {
 
         assertThat(mucNuoc).isEqualTo(19);
         assertThat(luongMua)
-                .as("nguồn không trả lượng mưa (G3-a) — gắn sẵn thì biểu sinh 19 ô trống vĩnh viễn "
-                        + "và không ai phân biệt được 'chưa có nguồn' với 'trạm hỏng'")
+                .as("⚠⚠ WS-87 — LÝ DO của con số 0 này ĐỔI ngày 26/09/2026, và câu cũ (*'nguồn "
+                        + "không trả lượng mưa, G3-a'*) nay SAI: Công ty đã cấp getluongmua.aspx. "
+                        + "Thứ còn thiếu là bảng ánh xạ 15 mã ↔ trạm (G8), và 15 mã ấy RỜI HẲN 19 "
+                        + "điểm đo đang khai — số đo mưa nằm nguyên văn ở hydro_unmapped_readings. "
+                        + "⛔⛔ Con số 0 này cũng là CỔNG chặn: ngày nó khác 0 thì quy ước khung giờ "
+                        + "của lượng mưa phải được chốt trước (xem Bhh40LuongMuaAdapter) — chọn nhầm "
+                        + "là lệch MỘT GIỜ trên mọi bản ghi mưa, và sai lặng lẽ. "
+                        + "⚠ Một lời khai ĐÚNG mà hết hạn đọc y hệt một bảo đảm còn sống.")
                 .isZero();
     }
 
     @Test
-    @DisplayName("⛔ Loại chỉ số Lượng mưa VẪN còn trong danh mục dù chưa có nguồn (G3-a)")
+    @DisplayName("⛔ Loại chỉ số Lượng mưa VẪN còn trong danh mục — nay ĐÃ có nguồn (WS-87)")
     void giuLoaiLuongMuaDuChuaCoNguon() {
         Integer soLoai =
                 jdbc.queryForObject("SELECT count(*) FROM measurement_types WHERE deleted_at IS NULL", Integer.class);

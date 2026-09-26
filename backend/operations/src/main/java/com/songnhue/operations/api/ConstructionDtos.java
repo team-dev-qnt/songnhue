@@ -12,9 +12,11 @@ import com.songnhue.operations.application.ConstructionForm;
 import com.songnhue.operations.domain.Construction;
 import com.songnhue.operations.domain.ConstructionPurpose;
 import com.songnhue.operations.domain.ConstructionType;
+import com.songnhue.operations.domain.GateOperation;
 import com.songnhue.operations.domain.LifecycleState;
 import com.songnhue.operations.domain.ManagementLevel;
 import com.songnhue.operations.domain.OperationalStatus;
+import com.songnhue.operations.domain.SluiceType;
 
 /** Kiểu dữ liệu vào/ra của API công trình — CN-02.1. */
 public final class ConstructionDtos {
@@ -115,13 +117,13 @@ public final class ConstructionDtos {
     }
 
     public record SluiceSpecRequest(
-            @Size(max = 20) String sluiceType,
+            SluiceType sluiceType,
             Short bayCount,
             BigDecimal bayWidthM,
             BigDecimal sillElevationM,
             BigDecimal crestElevationM,
             BigDecimal designFlowM3s,
-            @Size(max = 20) String gateOperation,
+            GateOperation gateOperation,
             BigDecimal upstreamWarningLevelM,
             BigDecimal upstreamDangerLevelM) {
 
@@ -235,13 +237,13 @@ public final class ConstructionDtos {
             BigDecimal operatingLevelMaxM) {}
 
     public record SluiceSpecView(
-            String sluiceType,
+            SluiceType sluiceType,
             Short bayCount,
             BigDecimal bayWidthM,
             BigDecimal sillElevationM,
             BigDecimal crestElevationM,
             BigDecimal designFlowM3s,
-            String gateOperation,
+            GateOperation gateOperation,
             BigDecimal upstreamWarningLevelM,
             BigDecimal upstreamDangerLevelM) {}
 

@@ -3,7 +3,6 @@ package com.songnhue.hr.application;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -29,6 +28,8 @@ import com.songnhue.core.spi.AllowedAction;
 import com.songnhue.core.spi.NotificationPort;
 import com.songnhue.core.spi.NotifyRequest;
 import com.songnhue.core.spi.NotifySeverity;
+import com.songnhue.core.spi.OrgUnitPort;
+import com.songnhue.core.spi.OrgUnitRef;
 import com.songnhue.core.spi.WorkflowPort;
 import com.songnhue.hr.domain.Employee;
 import com.songnhue.hr.domain.LeaveRequest;
@@ -77,12 +78,13 @@ public class DonNghiPhepService {
     private final NotificationPort thongBao;
     private final ScopeGuard scopeGuard;
     private final ThamQuyenDuyetPhep thamQuyen;
+    private final OrgUnitPort donVi;
 
-    // CHECKSTYLE.OFF: ParameterNumber - 9 cộng tác viên là số BƯỚC của một lá đơn (lưu · hồ sơ ·
-    // đếm ngày · số dư · chính sách · quy trình · thông báo · phạm vi · thẩm quyền). Gom vào một
-    // record như `ThongTinDonVi` ⛔ dùng được ở đây: đây là hàm dựng của một bean Spring, và một
-    // record trung gian chỉ dời chỗ danh sách chứ ⛔ bớt một phụ thuộc nào. Cùng lý lẽ đã ghi ở
-    // `HydroReviewService`.
+    // CHECKSTYLE.OFF: ParameterNumber - 10 cộng tác viên là số BƯỚC của một lá đơn (lưu · hồ sơ ·
+    // đếm ngày · số dư · chính sách · quy trình · thông báo · phạm vi · thẩm quyền · danh mục đơn
+    // vị). Gom vào một record như `ThongTinDonVi` ⛔ dùng được ở đây: đây là hàm dựng của một bean
+    // Spring, và một record trung gian chỉ dời chỗ danh sách chứ ⛔ bớt một phụ thuộc nào. Cùng lý
+    // lẽ đã ghi ở `HydroReviewService`.
     public DonNghiPhepService(
             LeaveRequestRepository donNghi,
             EmployeeService employees,
@@ -92,7 +94,8 @@ public class DonNghiPhepService {
             WorkflowPort workflow,
             NotificationPort thongBao,
             ScopeGuard scopeGuard,
-            ThamQuyenDuyetPhep thamQuyen) {
+            ThamQuyenDuyetPhep thamQuyen,
+            OrgUnitPort donVi) {
         this.donNghi = donNghi;
         this.employees = employees;
         this.demNgayCong = demNgayCong;
@@ -102,6 +105,7 @@ public class DonNghiPhepService {
         this.thongBao = thongBao;
         this.scopeGuard = scopeGuard;
         this.thamQuyen = thamQuyen;
+        this.donVi = donVi;
     }
     // CHECKSTYLE.ON: ParameterNumber
 
@@ -252,25 +256,41 @@ public class DonNghiPhepService {
         // `hr:leave:approve` và phạm vi phủ mọi đơn vị, nhưng ⛔ phải trưởng/phó và ⛔ được uỷ quyền
         // ⇒ *thấy đơn, nhận thư, mà ⛔ có nút*. Gửi thư cho người ⛔ bấm được là dạy hộp thư ấy bỏ
         // qua thư (§10.76) — và nó dạy đúng người lẽ ra phải phản ứng nhanh nhất.
-        Set<Long> nguoiDuyet =
-                new LinkedHashSet<>(thamQuyen.nguoiQuyetDuoc(don.getOrgUnitId(), LocalDate.now(DateTimeUtils.ZONE_VN)));
-        // Người nộp tự loại mình: `xetQuyet` trả `TU_DUYET` cho họ, nên thư *"có đơn chờ bạn duyệt"*
-        // gửi cho chính người vừa nộp là một câu nói dối nhỏ mà ⛔ ai sửa được.
-        nguoiDuyet.remove(don.getRequesterUserId());
+        //
+        // ⭐ T85.3 — phép trừ *"bỏ người nộp"* ⛔ còn ở đây: nó là một vế của `veCam`, và
+        //    `nguoiQuyetDuocDon` áp ĐÚNG bản luật ấy. Một dòng `remove(...)` viết tay ở đây là bản
+        //    sao thứ hai của cùng một luật (luật 14) — bản sao ấy ⛔ biết tới vế `TRUNG_NGUOI_CAP_MOT`.
+        phatChoNguoiQuyet(
+                don,
+                "LEAVE_SUBMITTED",
+                tieuDe,
+                than,
+                thamQuyen.nguoiQuyetDuocDon(don, LocalDate.now(DateTimeUtils.ZONE_VN)));
+    }
 
-        if (!nguoiDuyet.isEmpty()) {
+    /**
+     * Gửi cho một danh sách <b>đích danh</b>, và khi danh sách rỗng thì đi đường <b>dự phòng</b>.
+     *
+     * <p>⚠⛔ Nhánh dự phòng phải soi gương ĐÚNG đường 3 của {@link ThamQuyenDuyetPhep}: chuỗi lãnh
+     * đạo ⛔ có ai ⇒ người quyết được là ai giữ {@link ThamQuyenDuyetPhep#QUYEN_UY_QUYEN} mà phạm vi
+     * phủ. ⛔ Gửi cho {@code hr:leave:approve} — đó chính là tập rộng mà T80.7 vừa bỏ, và cái xanh
+     * của bộ canh khi ấy đọc như đã siết (luật 7). Cũng ⛔ để RỖNG: một lá đơn ⛔ ai được báo là một
+     * lá đơn nằm mãi trong hộp chờ.
+     *
+     * <p>⚠ Cố ý <b>⛔ trừ người đang thao tác</b>. Ba ca đáng trừ thì {@link ThamQuyenDuyetPhep} đã
+     * trừ bằng {@code veCam} (người nộp · người duyệt cấp 1); ca còn lại — người duyệt tự huỷ một
+     * đơn mình đã duyệt — <b>nên</b> nhận thư, vì thư ấy là bản ghi việc vừa xảy ra chứ ⛔ phải một
+     * lời nhắc phải làm gì.
+     */
+    private void phatChoNguoiQuyet(LeaveRequest don, String maSuKien, String tieuDe, String than, Set<Long> nguoiNhan) {
+        if (nguoiNhan != null && !nguoiNhan.isEmpty()) {
             thongBao.notify(NotifyRequest.chiNhungNguoiNay(
-                    "LEAVE_SUBMITTED", tieuDe, than, NotifySeverity.INFO, List.copyOf(nguoiDuyet)));
+                    maSuKien, tieuDe, than, NotifySeverity.INFO, List.copyOf(nguoiNhan)));
             return;
         }
 
-        // ⚠⚠ Nhánh DỰ PHÒNG, và nó phải soi gương ĐÚNG đường 3 của `ThamQuyenDuyetPhep`: chuỗi lãnh
-        //   đạo ⛔ có ai ⇒ người quyết được là ai giữ `hr:leave:delegate` mà phạm vi phủ. ⛔ Gửi cho
-        //   `hr:leave:approve` như cũ — đó chính là tập rộng vừa bỏ, và cái xanh của bộ canh khi ấy
-        //   đọc như đã siết (luật 7). Cũng ⛔ để RỖNG: một đơn ⛔ ai được báo là một đơn nằm mãi
-        //   trong hộp chờ.
         thongBao.notify(NotifyRequest.targetedInUnitScope(
-                "LEAVE_SUBMITTED",
+                maSuKien,
                 tieuDe,
                 than,
                 NotifySeverity.INFO,
@@ -303,6 +323,71 @@ public class DonNghiPhepService {
     public Page<LeaveRequest> hopChoDuyet(Pageable pageable) {
         return donNghi.hopChoDuyet(pageable);
     }
+
+    /**
+     * <b>Lịch nghỉ của một đơn vị trong một tháng</b> — CN-04.9, T57.18 vế (b).
+     *
+     * <h2>Vì sao tỉ lệ tính ở ĐÂY chứ ⛔ để giao diện chia</h2>
+     *
+     * <p>Quy tắc 3: mọi giá trị tính toán tính ở BE. Ở đây nó ⛔ phải một quy ước cho đẹp — mẫu số
+     * (<i>quân số còn làm việc</i>) suy từ {@code EmploymentStatus.daNghi()}, một luật nhân sự mà
+     * giao diện ⛔ có cách nào biết; và ngưỡng nằm trong {@code settings}, sửa được lúc chạy. Để
+     * giao diện chia là dựng bản sao thứ hai của cả hai thứ.
+     *
+     * <p>⚠ Đếm theo <b>NGƯỜI</b> chứ ⛔ theo <b>ĐƠN</b> ({@code distinct} trên {@code employeeId}) —
+     * một người nộp hai đơn rời nhau trong cùng tháng ⛔ phải hai người vắng mặt. Cùng lý lẽ đã ghi
+     * ở {@code LeaveRequestRepository.soNguoiNghiCungLuc}, và phải cùng, vì hai màn hình đang trả
+     * lời một câu hỏi (quy tắc 13).
+     *
+     * <p>⚠ <b>Một</b> truy vấn cho cả tháng, rồi chia nhóm ở Java. Hỏi CSDL mỗi ngày một câu là 31
+     * lượt cho một màn hình, và nó sẽ đỏ ở {@code DemTruyVan} — đúng như thiết kế.
+     */
+    @Transactional(readOnly = true)
+    public Lich lichDonVi(UUID donViPublicId, java.time.YearMonth thang) {
+        OrgUnitRef donViRef =
+                donVi.findRef(donViPublicId).orElseThrow(() -> new ResourceNotFoundException(ErrorCode.SYS_0004));
+        // ⛔⛔ Bộ lọc phạm vi một mình trả LỊCH RỖNG cho đơn vị ngoài tầm — đọc y hệt "tháng này ⛔
+        //    ai nghỉ". Nêu tên một đơn vị ⛔ nhìn thấy phải ra 403 kèm dấu vết (M5.16).
+        scopeGuard.requireReadableOrgUnit(donViRef.id(), LeaveRequest.class);
+
+        LocalDate tu = thang.atDay(1);
+        LocalDate den = thang.atEndOfMonth();
+        List<LeaveRequest> don = donNghi.lichNghiCuaDonVi(donViRef.id(), tu, den);
+        long quanSo = employees.soNguoiConLamViec(donViRef.id());
+
+        List<NgayNghi> ngay = new java.util.ArrayList<>();
+        for (LocalDate d = tu; !d.isAfter(den); d = d.plusDays(1)) {
+            LocalDate hom = d;
+            long soNguoi = don.stream()
+                    .filter(r -> !r.getFromDate().isAfter(hom) && !r.getToDate().isBefore(hom))
+                    .map(LeaveRequest::getEmployeeId)
+                    .distinct()
+                    .count();
+            Integer tiLe = ChinhSachPhep.tiLeNghi(soNguoi, quanSo);
+            ngay.add(new NgayNghi(hom, soNguoi, tiLe, chinhSach.chamNguongTrungLich(tiLe)));
+        }
+        return new Lich(donViRef, thang, quanSo, chinhSach.nguongCanhBaoTrungLich(), don, ngay);
+    }
+
+    /**
+     * @param tyLePhanTram {@code null} = đơn vị ⛔ có quân số ⇒ ⛔ có mẫu số để chia. ⛔ Quy về 0:
+     *     0% nghĩa là <i>⛔ ai nghỉ</i>, một câu khác hẳn (xem {@code ChinhSachPhep.tiLeNghi})
+     * @param vuotNguong đã chạm ngưỡng {@code hr.leave.overlap-warning-percent} ⛔ — một <b>cảnh
+     *     báo</b> để người phụ trách bố trí ca trực, ⛔ phải một lệnh cấm
+     */
+    public record NgayNghi(LocalDate ngay, long soNguoiNghi, Integer tyLePhanTram, boolean vuotNguong) {}
+
+    /**
+     * @param don đơn THÔ — tầng {@code api} đã có {@code toView} dựng {@code DonView}; dựng lần hai
+     *     ở đây là hai bản mô tả cùng một lá đơn, rồi một ngày chúng lệch nhau (luật 14)
+     */
+    public record Lich(
+            OrgUnitRef donVi,
+            java.time.YearMonth thang,
+            long quanSo,
+            int nguongPhanTram,
+            List<LeaveRequest> don,
+            List<NgayNghi> ngay) {}
 
     /** Đơn của một hồ sơ. */
     @Transactional(readOnly = true)
@@ -426,6 +511,11 @@ public class DonNghiPhepService {
             hanhDongThat = "ESCALATE";
         }
 
+        // ⛔⛔ TRƯỚC bước chuyển — T85.3. Sau `execute` đơn đã sang `DA_HUY`, và câu hỏi *"ai đang
+        //    giữ lá đơn này trong hộp chờ"* ⛔ còn câu trả lời nào. Đây là nhóm phải được báo rằng
+        //    một việc họ đang chờ đã biến mất; ⛔ báo thì hộp chờ của họ tự rỗng đi mà ⛔ ai nói vì sao.
+        Set<Long> giuTruocKhiHuy = "CANCEL".equals(hanhDongThat) ? thamQuyen.nguoiQuyetDuocDon(don, homNay) : Set.of();
+
         LeaveRequest sau = workflow.execute(don, hanhDongThat, null, lyDo);
         if ("ESCALATE".equals(hanhDongThat)) {
             sau.ghiCapMot(nguoiDangThaoTac(), Instant.now());
@@ -436,7 +526,56 @@ public class DonNghiPhepService {
         if (sau.trangThai() == LeaveState.DA_DUYET || sau.trangThai() == LeaveState.TU_CHOI) {
             sau.ghiQuyetDinh(nguoiDangThaoTac(), Instant.now());
         }
-        return donNghi.save(sau);
+        LeaveRequest daLuu = donNghi.save(sau);
+
+        baoBuocChuyen(daLuu, hanhDongThat, giuTruocKhiHuy, homNay);
+        return daLuu;
+    }
+
+    /**
+     * Thư của hai bước chuyển mà <b>bảng bước chuyển ⛔ gửi đúng người được</b> — T85.3.
+     *
+     * <h2>⛔⛔ Vì sao ⛔ để {@code WorkflowEngine} lo, như bốn bước chuyển kia</h2>
+     *
+     * <p>Engine sống ở {@code core}, và quy tắc 6 cấm {@code core} import {@code hr} ⇒ nó ⛔ nhìn
+     * thấy {@code UyQuyenDuyetPhep} lẫn vế phân tách trách nhiệm ({@code TRUNG_NGUOI_CAP_MOT}). Thứ
+     * duy nhất nó biết là {@code notify_permission} — tức <b>PHẠM VI</b>, tập mà T80.7 đã đo ra là
+     * rộng hơn tập bấm được nút. ⇒ Bốn hàng ấy nay để trống cột thông báo
+     * ({@code V202609221098}) và {@code hr} phát tường minh, đúng khuôn {@link #baoNguoiDuyet} đã
+     * dựng cho {@code LEAVE_SUBMITTED} vì cùng một lý do.
+     *
+     * <p>⚠ {@code LEAVE_APPROVED} và {@code LEAVE_REJECTED} <b>⛔ đi qua đây</b>: người cần biết là
+     * người NỘP, và {@code notify_owner = TRUE} diễn đạt đúng điều đó mà ⛔ cần biết gì về thẩm
+     * quyền. Cùng lẽ ấy, hàng <i>huỷ đơn đã duyệt</i> <b>giữ nguyên</b> {@code notify_owner = TRUE} —
+     * gỡ nó là cắt mất thư báo cho chính người lao động vừa bị huỷ phép.
+     */
+    private void baoBuocChuyen(LeaveRequest don, String hanhDong, Set<Long> giuTruocKhiHuy, LocalDate homNay) {
+        if (!"ESCALATE".equals(hanhDong) && !"CANCEL".equals(hanhDong)) {
+            return;
+        }
+        String ai = employees
+                .cuaChinhMinh(don.getEmployeeId())
+                .map(e -> "%s (%s)".formatted(e.getFullName(), e.getCode()))
+                .orElse("Một cán bộ");
+        String khoang = "%s từ %s đến %s".formatted(don.getLeaveType(), don.getFromDate(), don.getToDate());
+
+        if ("ESCALATE".equals(hanhDong)) {
+            // Tính SAU bước chuyển: lúc này mới có `cap1By`, nên `veCam` mới loại được người vừa
+            // duyệt cấp 1 — chính là người mà thư "chờ bạn duyệt cấp 2" ⛔ được gửi tới.
+            phatChoNguoiQuyet(
+                    don,
+                    "LEAVE_ESCALATED",
+                    "Đơn nghỉ phép chờ duyệt cấp 2",
+                    "%s — %s. Đơn đã qua cấp 1 và đang chờ quyết định cấp 2.".formatted(ai, khoang),
+                    thamQuyen.nguoiQuyetDuocDon(don, homNay));
+            return;
+        }
+        phatChoNguoiQuyet(
+                don,
+                "LEAVE_CANCELLED",
+                "Đơn nghỉ phép đã huỷ",
+                "%s — %s. Đơn ⛔ còn chờ quyết định.".formatted(ai, khoang),
+                giuTruocKhiHuy);
     }
 
     // ---- Nội bộ ---------------------------------------------------------------
@@ -494,16 +633,15 @@ public class DonNghiPhepService {
 
     private Optional<String> canhBaoTrungLich(Employee hoSo, long soNguoiNghiCung) {
         long quanSo = employees.soNguoiConLamViec(hoSo.getOrgUnitId());
-        if (quanSo <= 0) {
-            return Optional.empty();
-        }
-        int tiLe = (int) Math.round((soNguoiNghiCung + 1) * 100.0 / quanSo);
-        int nguong = chinhSach.nguongCanhBaoTrungLich();
-        if (tiLe < nguong) {
+        // ⚠ `+1` = chính người đang xem trước. Họ CHƯA có đơn trong CSDL nên câu đếm ⛔ thấy họ —
+        //   đó là lý do phép cộng này nằm ở ĐÂY chứ ⛔ trong `ChinhSachPhep.tiLeNghi`: lịch nghỉ
+        //   đơn vị đếm đơn CÓ THẬT nên nó ⛔ được cộng gì (T57.18b).
+        Integer tiLe = ChinhSachPhep.tiLeNghi(soNguoiNghiCung + 1, quanSo);
+        if (!chinhSach.chamNguongTrungLich(tiLe)) {
             return Optional.empty();
         }
         return Optional.of("Khoảng này đã có %d/%d người của đơn vị nghỉ (%d%% ≥ ngưỡng %d%%)"
-                .formatted(soNguoiNghiCung + 1, quanSo, tiLe, nguong));
+                .formatted(soNguoiNghiCung + 1, quanSo, tiLe, chinhSach.nguongCanhBaoTrungLich()));
     }
 
     /**

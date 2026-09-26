@@ -626,10 +626,32 @@ export interface OLuoi {
 }
 
 /** Một dòng chỉ tiêu. `TINH` = dòng tự tính (Chênh lệch) — in nghiêng, ⛔ không tô màu ngưỡng. */
+/**
+ * Trạng thái tín hiệu của một điểm đo — bản TS của `StationDisplayStatus` (BE).
+ *
+ * ⛔ Đây là giá trị **dẫn xuất**, ⛔ có cột nào trong CSDL, và nó được suy so với **lúc dựng bảng**.
+ * ⇒ ⛔ đọc nó thành *"ô này của mốc ấy thế nào"*: lý do từng ô nằm ở `OLuoi.lyDo`, và BE đã tách
+ * hai câu hỏi ấy ra rồi (T44.9).
+ */
+export type TrangThaiDiemDo = 'HOAT_DONG' | 'MAT_TIN_HIEU' | 'CHUA_CO_DU_LIEU' | 'NGUNG';
+
 export interface DongChiSo {
   chiTieu: string;
   loai: 'DO' | 'TINH';
   o: OLuoi[];
+  /**
+   * Trạng thái tín hiệu của điểm đo sinh ra dòng này — T44.9.
+   *
+   * `null` ở dòng `TINH` (Chênh lệch): số TÍNH ⛔ thuộc điểm đo nào nên nó ⛔ có tín hiệu để mất.
+   */
+  trangThai: TrangThaiDiemDo | null;
+  /**
+   * Mốc gần nhất BE biết điểm đo ấy có số (ISO, **UTC**); `null` khi chưa từng có.
+   *
+   * ⚠ Quy tắc 1 — BE trả mốc THÔ, FE đổi sang UTC+7 bằng `formatDateTime`. Một mốc đã định dạng
+   * sẵn ở BE là chỗ T63.18 tái phát.
+   */
+  mocGanNhat: string | null;
 }
 
 /** Một công trình — gộp ô 3 cột đầu ở §6.1.2, mang 1–3 dòng chỉ tiêu. */

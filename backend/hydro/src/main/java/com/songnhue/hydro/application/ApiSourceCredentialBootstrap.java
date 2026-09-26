@@ -1,5 +1,7 @@
 package com.songnhue.hydro.application;
 
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -43,8 +45,21 @@ import com.songnhue.hydro.infra.HydroApiProperties;
 @Component
 public class ApiSourceCredentialBootstrap {
 
-    /** Mã nguồn được mồi. Trùng {@code V202608311049} — nguồn duy nhất có biến môi trường đi kèm. */
-    static final String MA_NGUON = "BHH40";
+    /**
+     * Các mã nguồn được mồi từ <b>cùng một</b> biến {@code HYDRO_API_KEY}.
+     *
+     * <p>⭐ Đo trên nguồn thật 26/09/2026: <b>một mã số chạy cho CẢ HAI endpoint</b>
+     * ({@code getmucnuoc.aspx} và {@code getluongmua.aspx}). Nguồn ⛔ cấp mã riêng cho từng loại số
+     * liệu, nên mồi một lần cho cả hai là đúng hình dạng thật, ⛔ phải một phép rút gọn.
+     *
+     * <p>⛔⛔ Thiếu {@code BHH40_MUA} trong danh sách này thì nguồn lượng mưa đứng im ở
+     * {@code THIEU_MA_SO} <b>mỗi 10 phút</b> với {@code consecutive_failures} leo dần — trạng thái
+     * <i>nhìn thấy được</i> trên màn hình Nguồn dữ liệu, nhưng ⛔ ai ngồi canh một nguồn vừa dựng.
+     * Đó đúng là cơ chế đã cho 9 ngày / 3323 lượt hỏng / 0 byte trôi qua lần trước (T50.1).
+     *
+     * <p>⚠ Trùng {@code V202609261099}. Thêm một nguồn dùng chung mã số thì thêm một mã ở đây.
+     */
+    static final List<String> MA_NGUON_MOI = List.of("BHH40", "BHH40_MUA");
 
     private static final Logger log = LoggerFactory.getLogger(ApiSourceCredentialBootstrap.class);
 
@@ -73,10 +88,19 @@ public class ApiSourceCredentialBootstrap {
     @EventListener(ApplicationReadyEvent.class)
     @Transactional
     public void moiMaSo() {
-        ApiSource nguon = sources.findByCodeAndDeletedAtIsNull(MA_NGUON).orElse(null);
+        // ⚠ Lặp qua TỪNG nguồn, và mỗi nguồn giữ NGUYÊN cả ba chốt cũ (đã có nguồn ⛔, đã có
+        //   credential ⛔, có mã số để mồi ⛔). Gộp ba chốt ra ngoài vòng lặp là để trạng thái của
+        //   nguồn này quyết định thay cho nguồn kia.
+        for (String maNguon : MA_NGUON_MOI) {
+            moiMotNguon(maNguon);
+        }
+    }
+
+    private void moiMotNguon(String maNguon) {
+        ApiSource nguon = sources.findByCodeAndDeletedAtIsNull(maNguon).orElse(null);
         if (nguon == null) {
             // Không phải lỗi: một môi trường có thể đã xoá mềm nguồn mặc định.
-            log.info("Không có nguồn {} — bỏ qua bước mồi mã số thuỷ văn", MA_NGUON);
+            log.info("Không có nguồn {} — bỏ qua bước mồi mã số thuỷ văn", maNguon);
             return;
         }
         if (nguon.isCredentialDaCauHinh()) {
@@ -87,13 +111,15 @@ public class ApiSourceCredentialBootstrap {
                     "Nguồn {} CHƯA CÓ MÃ SỐ — lượt polling thuỷ văn sẽ không chạy. "
                             + "Đặt mã số ở màn hình Quản trị › Nguồn dữ liệu, hoặc mồi bằng biến HYDRO_API_KEY. "
                             + "⚠ Nhớ giữ nguyên dấu ';' ở cuối mã số.",
-                    MA_NGUON);
+                    maNguon);
             return;
         }
 
         nguon.datCredential(crypto.encrypt(properties.getKey()));
         sources.save(nguon);
-        securityEvents.externalCredentialChanged(MA_NGUON, "DAT_LAN_DAU");
-        log.info("Đã mồi mã số cho nguồn {} từ biến môi trường (lần đầu)", MA_NGUON);
+        // ⛔ Phát sự kiện theo TỪNG mã nguồn: một dòng gộp "đã mồi 2 nguồn" làm nhật ký an ninh mất
+        //   khả năng trả lời "nguồn nào vừa được đặt mã số", đúng câu người rà soát sẽ hỏi.
+        securityEvents.externalCredentialChanged(maNguon, "DAT_LAN_DAU");
+        log.info("Đã mồi mã số cho nguồn {} từ biến môi trường (lần đầu)", maNguon);
     }
 }

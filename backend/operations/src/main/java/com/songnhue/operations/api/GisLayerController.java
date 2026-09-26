@@ -162,11 +162,12 @@ public class GisLayerController {
     /**
      * Nạp tệp GeoJSON.
      *
-     * <p>⛔ KML/KMZ trả {@code OPS-2025} — kho chưa có bộ đọc, và nhận rồi lưu là để người dùng
+     * <p>⭐ KML/KMZ được ĐỔI sang GeoJSON ở cổng nhận (T59.14); tệp ⛔ đọc được trả {@code OPS-2033}.
+     * Bản cũ từ chối thẳng bằng {@code OPS-2025} — nhận rồi lưu mà ⛔ đọc được là để người dùng
      * thấy *"nạp thành công"* rồi nhìn một bản đồ trống.
      */
     @PostMapping(path = "/{publicId}/tep", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "Nạp GeoJSON ≤ 20MB — KML/KMZ trả OPS-2025")
+    @Operation(summary = "Nạp GeoJSON hoặc KML/KMZ ≤ 20MB — KML/KMZ tự đổi sang GeoJSON")
     @RequirePermission("ops:gis-layer:manage")
     public LayerView napTep(@PathVariable UUID publicId, @RequestPart("file") MultipartFile file) throws IOException {
         return LayerView.of(layers.napTep(publicId, file.getOriginalFilename(), file.getBytes()));

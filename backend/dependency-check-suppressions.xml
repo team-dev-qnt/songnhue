@@ -54,6 +54,23 @@
       • Hết hạn 30/11/2026. Xem lại khi: Kotlin 2.4.20 lên Central · hoặc dự án
         bắt đầu biên dịch Kotlin — lúc đó lý do bên trên **hết đúng** và mục này
         phải bị xoá.
+
+      ⚠ ĐÍNH CHÍNH 22/09/2026 (T85.1) — ⛔ gia hạn, chỉ sửa số đã hết hạn dùng.
+        Đo bằng `mvnw -B -ntp -q -pl app dependency:list`:
+            minio 8.5.17 → okhttp 4.12.0 → kotlin-stdlib **2.3.21**
+            (kèm -jdk7/-jdk8 2.3.21 và -stdlib-common **1.9.10**)
+        ⇒ Con số `1.9.25` ở trên là của 18/8, **trước** lượt di trú Boot 4
+        (T11.69, 09/09) — BOM của Boot 4.1.1 kéo Kotlin lên 2.3.21. Kéo theo:
+        CPE nêu ở gạch đầu dòng thứ hai nay là `…:kotlin:2.3.21`, ⛔ `1.9.25`.
+
+        Lập luận *"⛔ áp dụng"* ⛔ phụ thuộc phiên bản nên nó **vẫn đứng**: lỗ
+        hổng ở build cache metadata của bộ công cụ, còn dự án là Java thuần và
+        ⛔ biên dịch Kotlin. Và 2.3.21 vẫn **dưới** bản vá 2.4.20 ⇒ mục còn cần.
+
+        ⛔ `until` giữ nguyên 30/11/2026 — dời ngày vì vừa đo lại một con số là
+        đúng thứ `SuppressionPolicyTest#moiMucPhaiConHanDuLau` cấm. Bộ canh ấy
+        sẽ đỏ từ **31/10/2026**, tức 30 ngày báo trước; đó là lượt thẩm định
+        thật, và nó phải trả lời: Kotlin 2.4.20 lên Central chưa.
     -->
     <suppress until="2026-11-30Z">
         <notes><![CDATA[
@@ -68,126 +85,16 @@
 
 
     <!--
-      CVE-2026-59313 — spring-core / spring-web 6.2.19 — 9.8.
+      ⚰ CVE-2026-59313 — spring-core/spring-web 6.2.19 — 9.8 — MỤC ĐÃ GỠ 22/09/2026 (T85.1).
 
-      Thẩm định 1/9/2026:
+      Mục ấy ghim `@6\.2\.19` **cố ý**: lượt di trú Boot 4 sẽ làm mẫu hết khớp, và phép quét tự
+      nói lại sự thật mà không ai phải nhớ xoá. Cơ chế ấy đã CHẠY ĐÚNG — di trú xong 09/09/2026
+      (T11.69, Boot 4.1.1). Đo lại 22/09 bằng `mvnw -pl app dependency:list`: **13 artifact
+      `org.springframework`, tất cả `7.0.9`, 0 artifact ở `6.2.19`** ⇒ mục khớp 0 gói.
 
-      • Nội dung thật của lỗ hổng: *"Spring MVC applications using the
-        **functional web framework** are vulnerable to stream corruption when
-        using **Server-Sent Events (SSE)**."* Hai điều kiện, phải có CẢ HAI.
-
-      • Dự án này **không có điều kiện nào**. Đếm trên toàn `backend/` (grep chạy
-        dưới `bash`, có đối chứng phải-tìm-thấy để chắc phép đo không hỏng):
-
-            ĐỐI CHỨNG   @RestController          37 tệp
-                        @GetMapping              33 tệp
-            ĐIỀU KIỆN   RouterFunction(s)         0 tệp
-                        HandlerFunction           0 tệp
-                        SseEmitter                0 tệp
-                        ServerSentEvent           0 tệp
-                        TEXT_EVENT_STREAM         0 tệp
-                        text/event-stream         0 tệp
-                        reactor.core / webflux    0 tệp
-
-        `StreamingResponseBody` khớp đúng **1** tệp và nó nằm trong một dòng CHÚ
-        THÍCH của `ResponseEnvelopeAdvice`, không phải mã chạy. Toàn bộ tầng web
-        là Spring MVC theo annotation, `spring-boot-starter-web`, không WebFlux.
-
-      • **Không phải "chưa có bản vá cho tiện"** — đã tra `maven-metadata.xml`
-        (luật 21), và đây là chỗ đáng chú ý: advisory dùng `versionEndIncluding`,
-        tức 6.2.19 DÍNH và bản vá là bản kế tiếp. Đo ngày 1/9:
-
-            dòng    dính tới <=   Central cao nhất   →
-            5.3.x   5.3.49        5.3.39             chưa có bản vá công khai
-            6.0.x   6.0.30        6.0.23             chưa có bản vá công khai
-            6.1.x   6.1.28        6.1.21             chưa có bản vá công khai
-            6.2.x   6.2.19        6.2.19             chưa có bản vá công khai
-            7.0.x   7.0.8         7.0.9              ĐÃ CÓ
-
-        `spring-core 6.2.20` trả **HTTP 404** trên Central. Đường duy nhất tới
-        bản đã sửa là **Spring Framework 7**, kéo theo **Spring Boot 4** — một
-        cuộc di trú lớn mà `pom.xml` đã cố ý tách thành hạng mục riêng, không gộp
-        vào một lượt vá bảo mật.
-
-      • **Phạm vi bắt theo BẤT BIẾN, không liệt kê tên artifact — và phải mất HAI
-        lượt nghiệm thu mới học được điều đó.**
-
-            mẫu `spring-(core|web)`      → lượt quét vẫn đỏ ở spring-tx, spring-webmvc
-            mẫu `spring-[a-z]+`          → lượt quét vẫn đỏ ở spring-context-support
-            mẫu `[^/]+` (nhóm+phiên bản) → xanh
-
-        Hai lý do, độc lập nhau:
-
-        (1) `[a-z]+` **không khớp dấu gạch nối**, nên `spring-context-support` lọt.
-
-        (2) ⭐ Quan trọng hơn: **tập artifact mang mã này KHÔNG ổn định giữa các
-            lượt quét trên cùng cây mã.** Đo được — lượt 1 báo `core · tx · web ·
-            webmvc`; lượt 2 báo `context-support · core · web`. Dependency-Check
-            gán CPE `spring_framework` cho một tập con **khác nhau mỗi lần**.
-            Nghĩa là *mọi* mẫu liệt kê tên artifact đều không thể đủ, kể cả khi
-            hôm nay nó phủ đúng tất cả những gì báo cáo đang hiện.
-
-        Bất biến thật là **nhóm + phiên bản**: CVE nằm ở Spring Framework 6.2.19,
-        và Dependency-Check gắn nó vào bất kỳ jar nào của release train ấy mà nó
-        tình cờ khớp CPE. `org.springframework.boot` và `.security` là nhóm khác
-        nên mẫu không lan sang (purl có đúng một dấu `/` sau tên nhóm).
-
-      • **Ghim `@6.2.19` trong mẫu là CỐ Ý.** Nó làm mục này **không thể sống lâu
-        hơn phiên bản đã được thẩm định**: nâng lên 6.2.20 thì mẫu hết khớp và
-        phép quét tự nói lại sự thật. Đây là bài học trực tiếp từ mục tomcat bị
-        bỏ quên trong chính lượt sửa này — một suppression sống lâu hơn lý do của
-        nó là cái bẫy đặt sẵn (§10.69).
-
-      • ⛔⛔ **SỬA 3/9/2026 — điều kiện xem lại ghi ở đây SẼ KHÔNG BAO GIỜ XẢY RA.**
-
-        Bản viết ngày 1/9 chốt *"hết hạn 15/10 — cố ý NGẮN, vì 6.2.20 nhiều khả
-        năng ra trong vài tuần; xem lại khi 6.2.20 lên Central"*. Quan sát đúng
-        (`spring-core 6.2.20` trả 404), **quy sai nguyên nhân**: nó đọc cái 404
-        ấy là *bản vá chưa kịp ra*. Đo lại 3/9:
-
-            Spring Boot 3.5 / Framework 6.2 hết hỗ trợ OSS      30/6/2026
-            spring-boot 3.5.16 lên Central                      25/6/2026
-            lượt phát hành đồng loạt 4.0/4.1/7.0/7.1            20/8/2026
-              → dòng 3.5.x và 6.2.x nhận:                       KHÔNG GÌ
-
-            6.2.20 · 6.2.21 · 6.5.12 · 3.5.17 · 10.1.60         đều HTTP 404
-
-        `6.2.19` là **bản vá miễn phí CUỐI CÙNG** của dòng ấy. `6.5.12`/`6.4.19`
-        gắn nhãn *Enterprise Support Only* — nằm sau hợp đồng thương mại, không
-        bao giờ lên Central. **404 trên Central ở đây không phải "chưa ra" — nó
-        là ngày hết hỗ trợ nói bằng HTTP.**
-
-        ⇒ Chờ 6.2.20 là chờ một thứ không tồn tại. Đường ra duy nhất là **đổi
-        dòng**: Spring Boot 4.1.1 (OSS tới 31/7/2027) kéo theo Framework 7.0.9 +
-        Security 7.1.1 + Tomcat 11.0.24.
-
-      • **`until` neo vào MỐC DI TRÚ, không neo vào việc chờ một bản vá.**
-        Hết hạn 15/10/2026 giữ nguyên — nhưng lý do đổi hẳn: nó là cái đồng hồ
-        của hạng mục di trú Boot 4, không phải cái đồng hồ đợi 6.2.20. Hết hạn
-        mà chưa di trú xong thì phép quét đỏ lại, và đó là **đúng** điều phải
-        xảy ra.
-
-        ⛔ Và khi ấy **không được gia hạn**: lý do *"dòng này hết hỗ trợ"* không
-        phải một lý do hợp lệ cho suppression — nó biến một ngày hết hạn ĐÃ TỚI
-        thành một ngày hết hạn tự đặt.
-
-      • **Ghim `@6.2.19` trong mẫu vẫn CỐ Ý** (xem trên): lượt di trú làm mẫu hết
-        khớp, và phép quét tự nói lại sự thật mà không ai phải nhớ xoá mục này.
-
-      • Và nếu dự án bắt đầu dùng functional web framework hoặc SSE thì lý do
-        "không áp dụng" bên trên **hết đúng ngay lập tức**.
+      ⇒ Gỡ, vì một mục chết **đọc y hệt** một mục đang che một lỗ hổng thật. Lịch sử đầy đủ (vì sao
+      dòng 6.2.x hết hỗ trợ, vì sao 404 trên Central ⛔ phải "chưa ra") nằm trong git và ở dòng sổ
+      `T85.1`. ⛔ Đừng thêm lại: nếu một ngày dự án quay về dòng 6.2.x thì lỗ hổng ấy là THẬT.
     -->
-    <suppress until="2026-10-15Z">
-        <notes><![CDATA[
-            Lỗ hổng đòi CẢ HAI điều kiện: functional web framework (RouterFunction)
-            VÀ Server-Sent Events. Dự án đo được 0 tệp cho cả hai, toàn bộ tầng web
-            là Spring MVC theo annotation (37 @RestController). Bản vá cho dòng
-            6.2.x chưa có trên Maven Central (6.2.20 trả 404); đường duy nhất là
-            Spring Framework 7 + Boot 4, tách thành hạng mục riêng. Thẩm định
-            1/9/2026.
-        ]]></notes>
-        <packageUrl regex="true">^pkg:maven/org\.springframework/[^/]+@6\.2\.19$</packageUrl>
-        <cve>CVE-2026-59313</cve>
-    </suppress>
 
 </suppressions>

@@ -669,7 +669,7 @@ Cột **fail-fast** = có dừng ứng dụng không. `⛔ im lặng` là loại
 |---|---|---|
 | `VITE_API_BASE_URL` | ⛔ **để TRỐNG** | trống ⇒ đường dẫn tương đối `/api/v1`, cùng origin, không cần CORS |
 | `NEXT_PUBLIC_API_BASE_URL` | ⛔ **để TRỐNG** | như trên |
-| `NEXT_PUBLIC_SITE_URL` | `https://<ten-mien>` — **tuyệt đối** | gốc của sitemap, canonical, ảnh Open Graph. ⚠ Giá trị **thật sự có hiệu lực** đến từ **biến kho GitHub** `PUBLIC_SITE_URL` lúc CI dựng image, không từ `.env` — xem §10.3 |
+| ~~`NEXT_PUBLIC_SITE_URL`~~ | — | ⛔ **GỠ khỏi `.env` — T68.12, 24/09/2026.** Gốc của sitemap/canonical/Open Graph nay dựng lúc CHẠY từ `PUBLIC_DOMAIN` (`compose.prod.yml`). Dòng cũ ⛔ có tác dụng; để lại là mời người sau sửa nhầm chỗ — xem §10.3 |
 
 #### Backup · log · tích hợp
 
@@ -1167,23 +1167,23 @@ chủ** (§10.57). Nay `SecretGateTest` chạy thật script với từng tổ h
 > ⚠ **`docs/cicd.md` §7.1 vẫn ghi "đủ bốn / thiếu cả bốn"** — con số ấy lạc hậu từ 29/8 khi
 > `SSH_KNOWN_HOSTS` vào bộ. Ai đặt 4 secret theo bảng đó sẽ gặp cổng **đỏ**, không phải "đi tiếp".
 
-### 10.3. Biến kho `PUBLIC_SITE_URL` — **variable, không phải secret**
+### 10.3. ~~Biến kho `PUBLIC_SITE_URL`~~ — ⛔ **THÔI ĐƯỢC ĐỌC từ 24/09/2026 (T68.12)**
 
-```bash
-gh variable set PUBLIC_SITE_URL --repo team-dev-qnt/songnhue --body 'https://<ten-mien>'
-gh api repos/team-dev-qnt/songnhue/actions/variables --jq '.variables[] | "\(.name)=\(.value)"'
-```
+⭐ **Mục này ⛔ còn việc gì để làm.** `SITE_URL` nay đọc **lúc chạy** từ `PUBLIC_DOMAIN` của chính
+máy đó (`compose.prod.yml`), nên ⛔ còn biến kho nào phải đặt, ⛔ còn phải build image trước, ⛔ còn
+phải đề bạt để một lượt đổi tên miền có hiệu lực.
 
-⚠ Đây là **biến**, không phải bí mật: nó đi vào bundle mà cả thế giới tải về được. Để nhầm vào
-Secrets thì vẫn chạy, nhưng bị che trong log — và che một giá trị công khai chỉ làm việc gỡ lỗi khó
-hơn mà không thêm an toàn nào. (Environment `staging` **đang** có một `PUBLIC_SITE_URL` đặt sai loại
-như vậy; nó là rác, không workflow nào đọc.)
+⚠ **Giữ lại phần dưới vì nó là lý do mục này từng tồn tại** — và vì bài học của nó áp cho *mọi*
+biến `NEXT_PUBLIC_*` còn lại:
 
-⛔⛔ **Đặt biến này TRƯỚC lượt build image sẽ lên production.** `NEXT_PUBLIC_SITE_URL` **nướng vào
-bundle lúc build**, và luồng đề bạt cố ý dùng **chung một image** cho cả hai môi trường. Đo 26/8:
-`sitemap.xml` của staging trả `<loc>http://localhost:3000</loc>`, canonical trang chủ cũng vậy — và
-**đúng image đó là image sẽ lên production**. Đặt biến xong thì phải có **một lượt build mới** trên
-`dev` rồi đề bạt lại; sửa biến không làm đổi image đã dựng.
+> `NEXT_PUBLIC_*` **nướng vào bundle lúc build**, mà luồng đề bạt cố ý dùng **chung một image** cho
+> cả hai môi trường ⇒ hai môi trường buộc phải mang chung giá trị. Đo 26/8: `sitemap.xml` của
+> staging trả `<loc>http://localhost:3000</loc>`, canonical trang chủ cũng vậy — và **đúng image đó
+> là image sẽ lên production**. Đo lại 19/09 sau khi biến đã đặt: staging khai
+> `Host: https://thuyloisongnhue.vn`, tức nhánh chặn staging trong `robots.ts` **chưa bao giờ chạy**.
+
+⛔ Máy nào còn dòng `NEXT_PUBLIC_SITE_URL=` trong `.env` thì **xoá** — nó ⛔ có tác dụng, và để lại
+là mời người sau đi sửa nhầm chỗ. Biến kho `PUBLIC_SITE_URL` cũng có thể gỡ.
 
 ### 10.4. Environment `production`
 
@@ -1709,7 +1709,7 @@ nó mock đúng chỗ mã chạm ra ngoài.
 | 20 | **Diễn tập khôi phục thật**, đọc được bằng vai `songnhue_app`, **ghi con số RTO thật vào runbook** | §12.4 | ☐ |
 | 21 | Đã quay lui thử một lần ở staging: **ID ảnh** quay về ID đã ghi + nginx healthy + trang chủ 200 (⛔ `Created` — sửa 19/09) | §13.3 | ☐ |
 | 22 | 5 secret `PROD_*` đã đặt và **đo lại bằng API** ra đúng 5 | §10.1 | ☐ |
-| 23 | Biến kho `PUBLIC_SITE_URL` đã đặt **và đã có lượt build mới** sau đó | §10.3 | ☐ |
+| 23 | `curl -s https://<ten-mien>/robots.txt` khai `Host: https://<ten-mien>` (⛔ phải miền của môi trường kia) — T68.12 | §10.3 | ☐ |
 | 24 | Bảo vệ nhánh `production` đo lại vẫn còn **1 approval** + `Promotion guard`; environment **không còn reviewer** nhưng **có** `deployment_branch_policy` đúng một nhánh `production` | §10.5 | ☐ |
 | 25 | `kiem-goc-chung.sh origin/staging origin/production` → **0 commit không-phải-merge** | §11.2 | ☐ |
 | 26 | Lượt CD Production đầu tiên: đối chiếu **độc lập** container / Flyway / bản chụp | §11.7 | ☐ |

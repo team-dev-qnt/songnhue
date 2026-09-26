@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.songnhue.core.application.settings.SettingService;
 import com.songnhue.core.infra.identity.UserRepository;
 import com.songnhue.core.infra.org.OrgUnitRepository;
+import com.songnhue.core.spi.ChinhSachNguoiNhan;
 
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
@@ -70,7 +71,7 @@ public class RecipientResolver {
      * Tìm người nhận. <b>Chính sách do nơi gọi KHAI RA, ⛔ do hàm này suy từ hình dạng dữ liệu</b>
      * — T74.7, 20/09/2026.
      *
-     * <h3>⛔⛔⛔ Vì sao {@code nhomCanhBao} phải là một tham số</h3>
+     * <h3>⛔⛔⛔ Vì sao chính sách phải là một THAM SỐ</h3>
      *
      * <p>Tới 20/09/2026 hàm này <b>suy</b> chính sách: ⛔ có {@code targetPermission} thì rơi thẳng
      * về {@link #executiveBoard()}. Nhánh ấy đúng cho cảnh báo vận hành (G11), nhưng <b>ba</b> nơi
@@ -132,14 +133,20 @@ public class RecipientResolver {
      * <p>Người nhận = người có {@code targetPermission} mà phạm vi dữ liệu (đơn vị của tài khoản) PHỦ một trong
      * {@code relatedOrgUnitIds} — đúng người bộ lọc phạm vi tầng 3 cho THẤY bản ghi. ⛔ Cộng trưởng/phó riêng:
      * họ có quyền và phạm vi thì đã nằm trong tập, ⛔ có thì nhận thư về việc họ ⛔ làm được. Ba ca cũ ⛔ đổi
-     * hành vi — cờ này chỉ bật qua {@code NotifyRequest.targetedInUnitScope}.
+     * hành vi — ca này chỉ vào qua {@code NotifyRequest.targetedInUnitScope}.
+     *
+     * <h3>⚠ T85.4 (23/09/2026) — bốn ca trên nay là bốn HẰNG, ⛔ phải hai {@code boolean}</h3>
+     *
+     * <p>Hai tham số {@code trongPhamVi} và {@code nhomCanhBao} cùng kiểu và đứng cạnh nhau, nên một
+     * lượt hoán vị biên dịch sạch và ⛔ cổng kiểm nào đỏ ở 6/12 nơi dựng (T82.2). Nay là một
+     * {@link ChinhSachNguoiNhan}, và {@code switch} dưới đây <b>vét cạn</b> — thêm một ca thứ năm là
+     * một lỗi biên dịch ở đúng chỗ phải quyết định, ⛔ phải một nhánh mặc định im lặng.
      *
      * @param relatedOrgUnitIds đơn vị liên quan tới sự kiện (VD đơn vị quản lý công trình có sự cố)
      * @param extraUserIds người nhận chỉ định thêm, VD người được giao việc hoặc chủ bản ghi
-     * @param targetPermission mã quyền; {@code null} = ⛔ nhắm đích theo quyền
-     * @param trongPhamVi {@code true} ⇒ ca thứ tư; ⛔ có {@code targetPermission} thì cờ vô nghĩa và bị bỏ qua
-     * @param nhomCanhBao {@code true} ⇒ áp luật G11 (nhóm "Ban điều hành" ∪ trưởng/phó đơn vị liên
-     *     quan). Chỉ {@code NotifyRequest.alert(...)} và {@code AlertNotifier} khai {@code true}.
+     * @param targetPermission mã quyền; {@code null} = ⛔ nhắm đích theo quyền. ⚠ Tính khớp giữa nó và
+     *     {@code chinhSach} đã được ép ở hàm dựng hai record, xem {@link ChinhSachNguoiNhan#kiemKhopVoiQuyen}
+     * @param chinhSach cách chọn người nhận, do nơi gọi KHAI RA
      * @return danh sách id người dùng đang hoạt động, đã khử trùng lặp, giữ thứ tự ổn định
      */
     @Transactional(readOnly = true)
@@ -147,40 +154,34 @@ public class RecipientResolver {
             List<Long> relatedOrgUnitIds,
             List<Long> extraUserIds,
             String targetPermission,
-            boolean trongPhamVi,
-            boolean nhomCanhBao) {
-        boolean nhamDich = targetPermission != null && !targetPermission.isBlank();
+            ChinhSachNguoiNhan chinhSach) {
 
         // LinkedHashSet: khử trùng lặp mà vẫn giữ thứ tự — thứ tự ổn định làm log dễ đối chiếu và
         // test không phụ thuộc thứ tự ngẫu nhiên của HashSet.
         // Hai nguồn, hai luật lọc khác nhau — xem ghi chú ở dưới.
         Set<Long> named = new LinkedHashSet<>(extraUserIds == null ? List.of() : extraUserIds);
         boolean coDonViDuocNeu = relatedOrgUnitIds != null && !relatedOrgUnitIds.isEmpty();
-        Set<Long> derived;
-        if (nhamDich && trongPhamVi) {
-            derived = new LinkedHashSet<>(
-                    coDonViDuocNeu
-                            ? users.findActiveIdsByPermissionCoveringOrgUnits(targetPermission, relatedOrgUnitIds)
-                            : List.of());
-        } else {
-            // ⛔⛔ T74.7 — `: List.of()` ở vế cuối là bản vá. Trước 20/09/2026 vế ấy là
-            //   `executiveBoard()`, tức MỌI lượt gọi ⛔ nhắm đích đều cộng nhóm cố định — kể cả
-            //   thư "tài khoản của bạn đã bị khoá". Xem khối javadoc ⛔⛔⛔ ở trên.
-            derived = new LinkedHashSet<>(
-                    nhamDich
-                            ? users.findActiveIdsByPermission(targetPermission)
-                            : nhomCanhBao ? executiveBoard() : List.<Long>of());
-            themNguoiDungDau(derived, relatedOrgUnitIds, coDonViDuocNeu, nhamDich, nhomCanhBao);
-        }
-        return locNguoiNhan(named, derived, nhamDich, targetPermission);
+
+        // ⛔⛔ T74.7 — ca DICH_DANH trả RỖNG là bản vá. Trước 20/09/2026 mọi lượt gọi ⛔ nhắm đích
+        //   đều rơi về `executiveBoard()`, kể cả thư "tài khoản của bạn đã bị khoá". Xem khối
+        //   javadoc ⛔⛔⛔ ở trên.
+        Set<Long> derived = new LinkedHashSet<>(
+                switch (chinhSach) {
+                    case THEO_QUYEN_TRONG_PHAM_VI ->
+                        coDonViDuocNeu
+                                ? users.findActiveIdsByPermissionCoveringOrgUnits(targetPermission, relatedOrgUnitIds)
+                                : List.<Long>of();
+                    case THEO_QUYEN -> users.findActiveIdsByPermission(targetPermission);
+                    case NHOM_CANH_BAO -> executiveBoard();
+                    case DICH_DANH -> List.<Long>of();
+                });
+        themNguoiDungDau(derived, relatedOrgUnitIds, coDonViDuocNeu, chinhSach);
+
+        return locNguoiNhan(named, derived, chinhSach.nhamTheoQuyen(), targetPermission);
     }
 
     private void themNguoiDungDau(
-            Set<Long> derived,
-            List<Long> relatedOrgUnitIds,
-            boolean coDonViDuocNeu,
-            boolean nhamDich,
-            boolean nhomCanhBao) {
+            Set<Long> derived, List<Long> relatedOrgUnitIds, boolean coDonViDuocNeu, ChinhSachNguoiNhan chinhSach) {
 
         // ⭐⭐ T40/T28.51 — ca THỨ BA, và nó ⛔ không phải một ngoại lệ của luật trên.
         //
@@ -198,14 +199,24 @@ public class RecipientResolver {
         // ⚠⚠ Đính chính 20/09/2026 (T74.6): "THU HẸP" ở trên nghĩa là *thêm ÍT người có trách nhiệm*,
         //   ⛔ phải *bớt người* — tập suy ra vẫn là MỌI người có quyền trên toàn Công ty, cộng trưởng/phó.
         //   Ca cần BỚT người (chỉ ai phạm vi phủ đơn vị) là ca thứ tư, `trongPhamVi` (T57.15).
-        // ⛔⛔ T74.7 — vế `!nhamDich` nay đòi thêm `nhomCanhBao`. Trưởng/phó đơn vị là **nửa thứ hai
+        // ⛔⛔ T74.7 (20/09, viết theo hai cờ CŨ) — vế `!nhamDich` đòi thêm `nhomCanhBao`; nay là hai
+        //   hằng `NHOM_CANH_BAO` / `DICH_DANH` ở bộ `switch` dưới. Trưởng/phó đơn vị là **nửa thứ hai
         //   của phép ĐOÁN G11**, ⛔ phải một phần của "báo cho chủ bản ghi": một lá thư chỉ dành cho
         //   tác giả ⛔ có lý do gì đi kèm trưởng đơn vị của tác giả. Vế `nhamDich` (ca thứ ba,
         //   T28.51) giữ nguyên — ở đó nơi gọi nêu đơn vị một cách tường minh.
         //   ⚠ Đo 20/09: phép đổi này ⛔ đụng hành vi nào đang chạy — mọi lượt `!nhamDich` có đơn vị
-        //   được nêu hôm nay đều đến từ `alert(...)`, và `alert(...)` khai `nhomCanhBao = true`.
-        boolean themNguoiDungDau =
-                coDonViDuocNeu && (nhamDich || (nhomCanhBao && settings.getBoolean(KEY_AUTO_INCLUDE_OWNER, true)));
+        //   được nêu hôm nay đều đến từ `alert(...)`, và `alert(...)` khai nhóm cảnh báo.
+        //
+        // ⚠ T85.4 — bốn nhánh dưới đây là bốn ca CŨ viết lại nguyên hành vi, ⛔ một phép đổi luật:
+        //   THEO_QUYEN ↔ `nhamDich` · NHOM_CANH_BAO ↔ `!nhamDich && nhomCanhBao` ·
+        //   DICH_DANH ↔ `!nhamDich && !nhomCanhBao` (vế cũ cho `false`, vì `false || (false && …)`) ·
+        //   THEO_QUYEN_TRONG_PHAM_VI thì trước nay ⛔ bao giờ gọi tới hàm này.
+        boolean themNguoiDungDau = coDonViDuocNeu
+                && switch (chinhSach) {
+                    case THEO_QUYEN -> true;
+                    case NHOM_CANH_BAO -> settings.getBoolean(KEY_AUTO_INCLUDE_OWNER, true);
+                    case THEO_QUYEN_TRONG_PHAM_VI, DICH_DANH -> false;
+                };
         if (themNguoiDungDau) {
             derived.addAll(orgUnits.findActiveHeadAndDeputyUserIds(relatedOrgUnitIds));
         }

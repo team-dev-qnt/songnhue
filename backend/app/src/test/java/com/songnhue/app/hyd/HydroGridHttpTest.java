@@ -25,6 +25,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import com.songnhue.app.testsupport.IntegrationTestBase;
 import com.songnhue.app.testsupport.TestHttp;
 import com.songnhue.hydro.application.HydroGridService;
+import com.songnhue.hydro.domain.StationDisplayStatus;
 
 /**
  * Bảng lưới mực nước — WS-43, đi qua <b>HTTP</b> bằng trình duyệt <b>vô danh</b>.
@@ -57,6 +58,22 @@ class HydroGridHttpTest extends IntegrationTestBase {
     private static final String MA_LE = "T43-LE-TL";
     private static final String MA_CT = "T43CT";
 
+    /** T44.9 — điểm đo CHƯA TỪNG gửi số nào: ⛔ bản ghi, ⛔ hàng {@code hydro_latest}. */
+    private static final String MA_IM = "T449-IM";
+
+    /** T44.9 — điểm đo im lặng từ 40 phút trước: có bản ghi CŨ, ⛔ có bản ghi mới. */
+    private static final String MA_CHET = "T449-CHET";
+
+    private static final String TEN_CT_IM = "Cống chưa gửi số T44.9";
+    private static final String TEN_CT_CHET = "Cống im lặng T44.9";
+
+    /** ⚠ Ba câu phải KHÁC NHAU — chúng là ba việc khác nhau cho người trực (luật 9). */
+    private static final String LY_DO_GAP = "Không có dữ liệu tại mốc này";
+
+    private static final String LY_DO_CHUA_GUI = "Điểm đo chưa gửi về số liệu nào";
+
+    private static final String LY_DO_MAT_TIN_HIEU = "Điểm đo mất tín hiệu — ⛔ không có số nào từ mốc này trở đi";
+
     @Autowired
     private TestHttp http;
 
@@ -66,7 +83,15 @@ class HydroGridHttpTest extends IntegrationTestBase {
     private long idTl;
     private long idHl;
     private long idLe;
+    private long idIm;
+    private long idChet;
     private long idLoaiChiSo;
+
+    /** Mốc bản ghi cuối của {@link #MA_CHET} — ranh giới mà bài T44.9 kiểm hai phía. */
+    private Instant mocImLang;
+
+    /** Mốc lưới NẰM TRƯỚC {@link #mocImLang} — ở đó trạm còn sống, nên ô trống là một KHOẢNG HỞ. */
+    private Instant mocTruocKhiIm;
 
     @BeforeAll
     void dungDuLieu() {
@@ -93,11 +118,29 @@ class HydroGridHttpTest extends IntegrationTestBase {
         ghi(idTl, mocTruoc, "2.310", "HOP_LE");
         // Điểm lẻ mang một số NGHI_NGO → phải ra dây KÈM SỐ và KÈM NHÃN (ngoại lệ có tên).
         ghi(idLe, mocMoi, "9.990", "NGHI_NGO");
+
+        // ── T44.9 — hai trạng thái mà bản cũ ⛔ nói ra được ───────────────────────────────────
+        // ⚠ Hai điểm đo này CỐ Ý đứng ở hai công trình riêng: `trangThai` thuộc từng DÒNG (điểm
+        //   đo), nên một đồ gá gộp chúng chung một công trình sẽ ⛔ phân biệt được bản vá đúng
+        //   với một bản vá gắn trạng thái ở tầng công trình — đúng thứ lượt đo 19/09 bác bỏ.
+        taoDiemDo(MA_IM, "F94001", idNguon, "THUONG_LUU", "T449CTIM", TEN_CT_IM);
+        taoDiemDo(MA_CHET, "F94002", idNguon, "THUONG_LUU", "T449CTCHET", TEN_CT_CHET);
+        idIm = id(MA_IM);
+        idChet = id(MA_CHET);
+
+        // `MA_IM`: ⛔ ghi gì cả — ⛔ bản ghi, ⛔ hàng `hydro_latest`.
+
+        // `MA_CHET`: bản ghi cuối ở mốc -40', tức QUÁ ngưỡng mất tín hiệu (10' × 3 = 30').
+        // Lưới 6 cột phủ -0' … -50', nên nó có ô ở CẢ HAI phía của mốc im lặng.
+        mocImLang = mocMoi.minus(Duration.ofMinutes(40));
+        mocTruocKhiIm = mocMoi.minus(Duration.ofMinutes(50));
+        ghi(idChet, mocImLang, "5.550", "HOP_LE");
+        ghiHydroLatest(idChet, mocImLang, "5.550");
     }
 
     @AfterAll
     void donDep() {
-        for (long id : new long[] {idTl, idHl, idLe}) {
+        for (long id : new long[] {idTl, idHl, idLe, idIm, idChet}) {
             jdbc.update("DELETE FROM hydro_readings WHERE station_id = ?", id);
             jdbc.update("DELETE FROM hydro_latest WHERE station_id = ?", id);
             jdbc.update("DELETE FROM station_measurement_types WHERE station_id = ?", id);
@@ -208,6 +251,85 @@ class HydroGridHttpTest extends IntegrationTestBase {
         assertThat(than)
                 .as("Đơn vị phải ra dây — spec §10 đòi `unit` trong meta")
                 .contains("\"donVi\":\"m\"");
+    }
+
+    // =========================================================================
+    // T44.9 — lý do ô trống, theo TỪNG ĐIỂM ĐO và TỪNG Ô
+    //
+    // ⛔ Bản cũ có ĐÚNG MỘT câu cho mọi ô trống: "Không có dữ liệu tại mốc này". Câu ấy ⛔ sai, nó
+    //    chỉ HẸP — `PublicHydroService` phân biệt được *chưa gửi gì bao giờ* với *mất tín hiệu*,
+    //    còn bảng lưới thì ⛔. Người trực nhìn 6 ô trống giống hệt nhau ⛔ biết nên đi kiểm cảm
+    //    biến hay chờ lượt poll kế tiếp.
+    // =========================================================================
+
+    @Test
+    @DisplayName("⭐⭐ T44.9 — trạm CHƯA TỪNG gửi số nói đúng điều đó, ⛔ phải câu chung theo mốc")
+    void aStationThatNeverReportedSaysSoInsteadOfTheGenericSentence() {
+        String khoi = khoiCongTrinh(goi("/luoi-muc-nuoc?cheDo=PHUT&soCot=6"), TEN_CT_IM);
+
+        assertThat(khoi)
+                .as("⛔ 'Không có dữ liệu tại mốc này' ĐÚNG với một mốc, mà giấu mất việc trạm này "
+                        + "chưa bao giờ gửi gì — hai việc khác hẳn nhau cho người trực")
+                .contains(LY_DO_CHUA_GUI)
+                .doesNotContain(LY_DO_GAP);
+
+        assertThat(khoi)
+                .as("Trạng thái đi theo TỪNG DÒNG (điểm đo), để FE khỏi phải suy nó từ 6 tooltip giống nhau")
+                .contains("\"trangThai\":\"CHUA_CO_DU_LIEU\"");
+    }
+
+    @Test
+    @DisplayName("⭐⭐ T44.9 — trạm vừa im lặng ⛔ được VIẾT LẠI quá khứ của chính nó")
+    void aRecentlySilentStationDoesNotRewriteItsOwnPast() {
+        String khoi = khoiCongTrinh(goi("/luoi-muc-nuoc?cheDo=PHUT&soCot=6"), TEN_CT_CHET);
+
+        assertThat(khoi)
+                .as("⚠ Vế chống tập rỗng — số đo cuối cùng (%s) phải còn trên bảng", mocImLang)
+                .contains("5.550");
+
+        assertThat(khoi)
+                .as("Bốn mốc SAU bản ghi cuối: trạm thật sự ⛔ gửi gì, và đó là một việc phải đi làm")
+                .contains(LY_DO_MAT_TIN_HIEU);
+
+        assertThat(khoi)
+                .as(
+                        "⭐⭐ VẾ PHÂN BIỆT — mốc %s nằm TRƯỚC lúc trạm im, ở đó nó còn đang gửi số ⇒ ô "
+                                + "trống ấy là một KHOẢNG HỞ. Dán 'mất tín hiệu' lên nó là khẳng định trạm đã "
+                                + "chết vào lúc nó còn sống; một bản vá chỉ so trạng thái HIỆN TẠI (hoặc chỉ "
+                                + "so `mốc > last_seen_at`) sẽ sai đúng ở đây",
+                        mocTruocKhiIm)
+                .contains(LY_DO_GAP);
+
+        assertThat(khoi.lastIndexOf(LY_DO_GAP))
+                .as("Ô của mốc cũ nhất đứng CUỐI danh sách `o[]` ⇒ câu 'khoảng hở' phải nằm sau câu "
+                        + "'mất tín hiệu'. Phép so vị trí này bắt được bản vá đảo ngược hai nhánh")
+                .isGreaterThan(khoi.lastIndexOf(LY_DO_MAT_TIN_HIEU));
+
+        assertThat(khoi).contains("\"trangThai\":\"MAT_TIN_HIEU\"");
+    }
+
+    @Test
+    @DisplayName("⭐ T44.9 — trạm CÒN SỐNG có khoảng hở vẫn giữ câu theo mốc, và bảng ⛔ tự mâu thuẫn")
+    void aLiveStationWithAGapKeepsThePerTimestampSentence() {
+        String khoi = khoiCongTrinh(goi("/luoi-muc-nuoc?cheDo=PHUT&soCot=6"), "Cống kiểm thử T43");
+
+        assertThat(khoi).as("⚠ Vế chống tập rỗng").contains("2.320");
+
+        assertThat(khoi)
+                .as("Mốc cũ ⛔ có số trong khi trạm vẫn đang gửi ⇒ đúng là một KHOẢNG HỞ, giữ câu cũ")
+                .contains(LY_DO_GAP);
+
+        assertThat(khoi)
+                .as("⛔⛔ Điểm đo này ⛔ có hàng `hydro_latest` (xem javadoc `ghiHydroLatest`). Một bản "
+                        + "vá chỉ đọc `hydro_latest` sẽ dán 'chưa gửi số nào' lên đúng dòng ĐANG hiện "
+                        + "số ngay bên cạnh — bảng nói hai điều trái nhau về cùng một trạm")
+                .doesNotContain(LY_DO_CHUA_GUI);
+
+        assertThat(khoi).contains("\"trangThai\":\"HOAT_DONG\"");
+
+        assertThat(khoi)
+                .as("Dòng Chênh lệch là số TÍNH, ⛔ thuộc điểm đo nào ⇒ ⛔ có trạng thái tín hiệu")
+                .contains("\"trangThai\":null");
     }
 
     // =========================================================================
@@ -428,7 +550,12 @@ class HydroGridHttpTest extends IntegrationTestBase {
         @DisplayName("⛔ Một dòng thiếu ô ⇒ ném — bảng lệch cột là số đúng nằm dưới nhãn giờ SAI")
         void raggedRowIsRejected() {
             var oCoSo = new HydroGridService.OLuoi(new java.math.BigDecimal("1.00"), "HOP_LE", null, null, null);
-            var dongThieu = new HydroGridService.DongChiSo("Thượng lưu", HydroGridService.LoaiDong.DO, List.of(oCoSo));
+            var dongThieu = new HydroGridService.DongChiSo(
+                    "Thượng lưu",
+                    HydroGridService.LoaiDong.DO,
+                    List.of(oCoSo),
+                    StationDisplayStatus.HOAT_DONG,
+                    Instant.parse("2026-09-09T10:00:00Z"));
             var ct = new HydroGridService.CongTrinh("X", "Công trình X", null, false, List.of(dongThieu));
 
             assertThatThrownBy(() -> new HydroGridService.LuoiMucNuoc(
@@ -438,6 +565,49 @@ class HydroGridHttpTest extends IntegrationTestBase {
                             null))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("lệch cột");
+        }
+
+        @Test
+        @DisplayName("⛔ T44.9 — dòng TÍNH mang trạng thái tín hiệu ⇒ ném (nó ⛔ thuộc điểm đo nào)")
+        void computedRowCannotCarryASignalStatus() {
+            var o = new HydroGridService.OLuoi(new java.math.BigDecimal("0.75"), "HOP_LE", null, null, null);
+            assertThatThrownBy(() -> new HydroGridService.DongChiSo(
+                            "Chênh lệch",
+                            HydroGridService.LoaiDong.TINH,
+                            List.of(o),
+                            StationDisplayStatus.HOAT_DONG,
+                            Instant.parse("2026-09-09T10:00:00Z")))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Chênh lệch");
+
+            // Vế còn lại của cùng một bất biến — một dòng ĐO ⛔ có trạng thái thì FE ⛔ biết in gì.
+            assertThatThrownBy(() -> new HydroGridService.DongChiSo(
+                            "Thượng lưu", HydroGridService.LoaiDong.DO, List.of(o), null, null))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
+
+        @Test
+        @DisplayName("⛔ T44.9 — CHUA_CO_DU_LIEU mà vẫn mang mốc ⇒ ném (bắt lỗi nối nhầm cột)")
+        void neverReportedCannotCarryATimestamp() {
+            var o = new HydroGridService.OLuoi(null, null, "chưa có số", null, null);
+
+            assertThatThrownBy(() -> new HydroGridService.DongChiSo(
+                            "Thượng lưu",
+                            HydroGridService.LoaiDong.DO,
+                            List.of(o),
+                            StationDisplayStatus.CHUA_CO_DU_LIEU,
+                            Instant.parse("2026-09-09T10:00:00Z")))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("CHUA_CO_DU_LIEU");
+
+            assertThatThrownBy(() -> new HydroGridService.DongChiSo(
+                            "Thượng lưu",
+                            HydroGridService.LoaiDong.DO,
+                            List.of(o),
+                            StationDisplayStatus.MAT_TIN_HIEU,
+                            null))
+                    .as("⛔ Hai trạng thái ấy SUY TỪ một mốc — khai chúng mà ⛔ có mốc là mâu thuẫn")
+                    .isInstanceOf(IllegalArgumentException.class);
         }
 
         @Test
@@ -529,6 +699,48 @@ class HydroGridHttpTest extends IntegrationTestBase {
                 giaTri,
                 chatLuong,
                 "NGHI_NGO".equals(chatLuong) ? "Dữ liệu dựng cho bài kiểm WS-43" : null);
+    }
+
+    /**
+     * Ghi {@code hydro_latest} — <b>T44.9</b>.
+     *
+     * <p>⚠ {@link #ghi} <b>⛔ đụng tới bảng này</b>: nó `INSERT` thẳng vào {@code hydro_readings},
+     * trong khi đường thật đi qua {@code HydroTimeSeriesWriter} (upsert cả hai). Nên mọi điểm đo
+     * của đồ gá cũ đều ⛔ có hàng {@code hydro_latest} — và đó chính là ca mà
+     * {@link #aLiveStationWithAGapKeepsThePerTimestampSentence} khẳng định: lưới <b>⛔ được</b> nói
+     * <i>"chưa gửi số nào"</i> về một dòng mà chính nó đang hiện số.
+     *
+     * <p>⚠ {@code last_seen_at} (⛔ {@code valid_measured_at}) — câu hỏi là <i>"trạm còn phát ⛔"</i>,
+     * xem javadoc {@code TinHieuDiemDo}.
+     */
+    private void ghiHydroLatest(long idDiemDo, Instant moc, String giaTri) {
+        jdbc.update(
+                """
+                INSERT INTO hydro_latest (
+                    station_id, measurement_type_id, last_seen_at, last_quality, last_source,
+                    valid_measured_at, valid_value)
+                VALUES (?, ?, ?, 'HOP_LE', 'API', ?, CAST(? AS NUMERIC))
+                """,
+                idDiemDo,
+                idLoaiChiSo,
+                Timestamp.from(moc),
+                Timestamp.from(moc),
+                giaTri);
+    }
+
+    /**
+     * Cắt đúng khối JSON của MỘT công trình — từ tên của nó tới {@code maCongTrinh} kế tiếp.
+     *
+     * <p>⚠ Khẳng định trên cả thân JSON ⛔ dùng được ở bài này: ba câu lý do cùng tồn tại trong một
+     * lượt trả, nên {@code than.contains(câu)} xanh bất kể câu ấy nằm ở công trình nào.
+     */
+    private String khoiCongTrinh(String than, String tenCongTrinh) {
+        int batDau = than.indexOf(tenCongTrinh);
+        assertThat(batDau)
+                .as("⚠ Vế chống tập rỗng — ⛔ thấy '%s' thì mọi khẳng định dưới đây là RỖNG", tenCongTrinh)
+                .isGreaterThan(0);
+        int ketThuc = than.indexOf("\"maCongTrinh\"", batDau + 1);
+        return ketThuc > 0 ? than.substring(batDau, ketThuc) : than.substring(batDau);
     }
 
     private long id(String ma) {

@@ -171,6 +171,27 @@ public class Station extends ScopedEntity {
         return getOrgUnitId() == null;
     }
 
+    /**
+     * Chưa số hoá vị trí (mục <b>G8</b>) — điểm đo ⛔ lên được bản đồ.
+     *
+     * <p>⭐⭐ <b>ĐỊNH NGHĨA DUY NHẤT</b>, T35.2. Dạng {@code static} tồn tại vì
+     * {@code StationMapService} chạy trên một <b>projection</b> ({@code DiemDoBanDoRow}), ⛔ phải
+     * entity, nên nó ⛔ gọi được phương thức thực thể. Trước 24/09/2026 mỗi bên tự viết phép so,
+     * và hai câu <i>"điểm đo nào chưa có toạ độ"</i> ⛔ có gì buộc phải bằng nhau — đúng hình dạng
+     * đã trả giá ở {@code T68.36} (hai câu SQL cùng nói <i>"bản ghi mới nhất"</i>).
+     *
+     * <p>⚠ Kiểm <b>cả hai</b> cột dù {@code ck_stations_coords_paired} đã ép chúng NULL cùng nhau:
+     * một bảo đảm nằm ở tệp khác thì lớp này ⛔ nên phụ thuộc vào việc nhớ ra nó.
+     */
+    public static boolean chuaSoHoaViTri(BigDecimal latitude, BigDecimal longitude) {
+        return latitude == null || longitude == null;
+    }
+
+    /** @see #chuaSoHoaViTri(BigDecimal, BigDecimal) */
+    public boolean chuaSoHoaViTri() {
+        return chuaSoHoaViTri(latitude, longitude);
+    }
+
     public String getCode() {
         return code;
     }

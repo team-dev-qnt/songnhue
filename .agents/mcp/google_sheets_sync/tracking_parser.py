@@ -210,3 +210,24 @@ def find_duplicate_task_ids(tasks):
     """Mã số xuất hiện nhiều lần — mỗi cái là một chỗ hai dòng có thể nói ngược nhau."""
     counts = Counter(row[1] for row in tasks if row[1])
     return sorted(task_id for task_id, count in counts.items() if count > 1)
+
+
+# ⛔⛔ Đệm hàng của lưới Google Sheet. ⛔ phải con số cho đẹp: lưới đầy KHÍT là trạng thái làm lượt
+#    đồng bộ KẾ TIẾP hỏng, nên nới tới sát mép rồi dừng là dựng lại quả mìn cho lượt sau.
+DEM_HANG_LUOI = 200
+
+
+def ke_hoach_luoi(so_hang_du_lieu, so_hang_luoi, dem=DEM_HANG_LUOI):
+    """Số hàng phải NỚI THÊM cho lưới trước khi ghi. 0 = lưới đang đủ.
+
+    Lưới phải chứa được ``so_hang_du_lieu`` hàng **và còn ít nhất một hàng phía dưới**: bước dọn
+    trỏ tới ``A{so_hang_du_lieu + 1}``, mà một phạm vi nằm ngoài lưới là HTTP 400 — đúng lỗi đo
+    được 26/09/2026 khi sổ (1438 dòng + tiêu đề) phủ **khít** lưới 1439 hàng.
+
+    ⛔ Nới tới sát mép rồi dừng: sổ chỉ có một chiều là dài ra, nên ``dem`` giữ cho lượt sau ⛔
+    phải gọi thêm một lượt API, và quan trọng hơn là giữ bảng ⛔ bao giờ ở trạng thái đầy khít.
+    """
+    can = so_hang_du_lieu + 1
+    if can <= so_hang_luoi:
+        return 0
+    return can + dem - so_hang_luoi

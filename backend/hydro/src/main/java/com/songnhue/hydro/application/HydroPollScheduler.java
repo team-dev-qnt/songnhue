@@ -84,9 +84,11 @@ public class HydroPollScheduler {
     static final long NHIP_MS = 10_000L;
 
     /**
-     * ⛔ Thử <b>MỘT</b> lần, và con số này đặt ở đây vì đây là nơi nó có hiệu lực
-     * ({@code JobService.enqueue} ghi nó vào cột {@code jobs.max_attempts};
-     * {@code JobHandler.maxAttempts()} <b>không có người đọc</b> — luật 15).
+     * ⛔ Thử <b>MỘT</b> lần, và con số này đặt ở đây vì đây là nơi <b>biết nhịp polling</b>.
+     *
+     * <p>⚠ Lý do đã ĐỔI ngày 23/09/2026 (T68.30): câu cũ <i>"{@code JobHandler.maxAttempts()} ⛔ có
+     * người đọc"</i> nay sai — nó là <b>mặc định</b>, và khai số ở đây là một lượt ghi đè có chủ
+     * đích. Lập luận dưới đây mới là thứ giữ con số ở lại chỗ này.
      *
      * <p>Backoff của worker là 1' → 5' → 15', mà lượt polling kế tiếp chỉ cách <b>2 phút</b>. Thử lại
      * ở tầng job không mua thêm gì, mà lại <b>giữ khoá chống trùng suốt thời gian backoff</b> — tức

@@ -112,9 +112,12 @@ public class ConstructionLookupAdapter implements ConstructionLookupPort {
      *
      * <p>⚠ Cái giá: {@code hienHanh()} duyệt <b>toàn bộ</b> danh mục công trình chứ ⛔ không lọc
      * theo {@code constructionIds}. Chấp nhận có chủ đích ở quy mô hôm nay (danh mục còn chờ G8, và
-     * BC-11 là một bảng làm mới theo phút, ⛔ không phải một endpoint nóng). ⬜ Khi danh mục vượt
-     * ~200 công trình thì việc phải làm là đổi <b>chính {@code hienHanh()}</b> sang
-     * {@code DISTINCT ON} — ⛔ không phải thêm một câu truy vấn thứ hai ở đây.
+     * BC-11 là một bảng làm mới theo phút, ⛔ không phải một endpoint nóng).
+     *
+     * <p>✅ Vế <b>N+1</b> của cái giá ấy đã trả ở <b>T68.36</b>: {@code hienHanh()} nay tra một lô
+     * bằng {@code DISTINCT ON}, nên số truy vấn ⛔ còn tăng theo số công trình. Vế <i>"duyệt toàn
+     * bộ danh mục"</i> thì <b>vẫn còn</b> — nó là một lượt quét bảng, ⛔ phải N lượt, và lọc theo
+     * {@code constructionIds} ở đây sẽ tách định nghĩa "hiện hành" ra làm hai lần nữa.
      *
      * <p>⚠ Khoá trả về là <b>id nội bộ</b> vì nơi gọi ({@code hydro}) chỉ có
      * {@code station_constructions.construction_id}. Ánh xạ mã → id đi qua repository ở đây, ⛔

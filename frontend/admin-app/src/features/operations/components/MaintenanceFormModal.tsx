@@ -32,12 +32,25 @@ export function MaintenanceFormModal({
   onClose,
   onSaved,
   banGhi,
+  loaiMacDinh,
+  alertEventId,
 }: {
   constructionPublicId: string;
   open: boolean;
   onClose: () => void;
   onSaved: () => void;
   banGhi?: MaintenanceRow | null;
+  /**
+   * Ép loại công việc lúc MỞ — T33.10, đường vào từ *Lịch sử cảnh báo*.
+   *
+   * ⚠ Nó chỉ đổi **giá trị ban đầu**, ⛔ khoá ô: người ghi vẫn sửa được nếu hoá ra đây là việc
+   * bảo trì chứ ⛔ phải khắc phục sự cố. Khoá lại là quyết định hộ người đang đứng ở hiện trường.
+   */
+  loaiMacDinh?: MaintenanceType;
+  /**
+   * Cảnh báo ngưỡng đã dẫn tới bản ghi này — `OPS-2021` từ chối một giá trị ⛔ trỏ vào cảnh báo nào.
+   */
+  alertEventId?: string;
 }) {
   const { hasPermission } = useAuth();
   const { message } = App.useApp();
@@ -55,7 +68,7 @@ export function MaintenanceFormModal({
           dungPayloadSuaBanGhi(values, banGhi),
         );
       }
-      const payload = dungPayloadSuaChua(values, constructionPublicId);
+      const payload = dungPayloadSuaChua(values, constructionPublicId, alertEventId);
       // ⚠ Hai đường tạo, hai quyền khác nhau (ma trận §6): cán bộ vận hành CHỈ ghi nhận được sự cố,
       // không ghi được công việc bảo trì. Chọn sai đường là 403 với người đáng lẽ có quyền.
       return api.post<MaintenanceRow>(
@@ -107,7 +120,12 @@ export function MaintenanceFormModal({
           banGhi
             ? giaTriTuBanGhi(banGhi)
             : {
-                workType: loaiChoPhep[0]?.[0] as MaintenanceType,
+                // ⚠ `loaiMacDinh` chỉ thắng khi nó nằm trong danh sách CHO PHÉP: ép một loại mà
+                //   người đang mở ⛔ có quyền tạo là dựng một ô chọn hiện giá trị ⛔ gửi nổi (403),
+                //   và triệu chứng ấy đọc như "hệ thống hỏng" chứ ⛔ như "thiếu quyền".
+                workType: (loaiChoPhep.some(([ma]) => ma === loaiMacDinh)
+                  ? loaiMacDinh
+                  : loaiChoPhep[0]?.[0]) as MaintenanceType,
                 // ⛔ `dayjs()` trần: ngày này được GHI XUỐNG CSDL. Trên máy trạm lệch múi giờ,
                 // quanh nửa đêm nó lệch CẢ MỘT NGÀY và ⛔ có gì báo — T63.18.
                 startedOn: bayGio(),

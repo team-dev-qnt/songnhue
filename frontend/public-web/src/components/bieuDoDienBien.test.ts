@@ -67,7 +67,17 @@ describe('BieuDoDienBien — điểm nào vào đường chính', () => {
         tenCongTrinh: 'X',
         lyTrinh: null,
         trucChinh: false,
-        dong: [{ chiTieu: 'Thượng lưu', loai: 'DO' as const, o: [o('1.00')] }],
+        dong: [
+          {
+            chiTieu: 'Thượng lưu',
+            loai: 'DO' as const,
+            o: [o('1.00')],
+            // T44.9 — hai trường này BẮT BUỘC ở `DongChiSo`, và `tsc` là cổng DUY NHẤT bắt được
+            // đồ gá thiếu chúng: `vitest` chạy vẫn xanh vì JS ⛔ phàn nàn về thuộc tính vắng mặt.
+            trangThai: 'HOAT_DONG' as const,
+            mocGanNhat: '2026-09-24T15:00:00Z',
+          },
+        ],
       },
       nguong: [],
       lyDoTrong: null,

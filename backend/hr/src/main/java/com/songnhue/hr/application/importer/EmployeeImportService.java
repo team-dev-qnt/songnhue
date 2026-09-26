@@ -171,12 +171,12 @@ public class EmployeeImportService {
         return lapKeHoach(content).baoCao(false);
     }
 
-    /** Nhập thật — còn một dòng lỗi thì ⛔ dòng nào được ghi ({@code OPS-2016}). */
+    /** Nhập thật — còn một dòng lỗi thì ⛔ dòng nào được ghi ({@code SYS-0015}). */
     @Transactional
     public KetQuaNhap apply(byte[] content) {
         KeHoach keHoach = lapKeHoach(content);
         if (!keHoach.loi.isEmpty()) {
-            throw new BusinessRuleException(ErrorCode.OPS_2016, keHoach.loi.size());
+            throw new BusinessRuleException(ErrorCode.SYS_0015, keHoach.loi.size());
         }
         for (DongKeHoach d : keHoach.dong) {
             if (d.hienCo == null) {

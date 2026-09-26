@@ -197,12 +197,21 @@ export interface MaintenanceFormValues {
  *    Quy đổi bằng chuỗi chứ không bằng `* 1e6` trên số thực: `1.001 * 1_000_000` trong JS ra
  *    `1000999.9999999999`.
  */
-export function dungPayloadSuaChua(values: MaintenanceFormValues, constructionPublicId: string) {
+export function dungPayloadSuaChua(
+  values: MaintenanceFormValues,
+  constructionPublicId: string,
+  alertEventId?: string | null,
+) {
   const laSuCo = values.workType === 'KHAC_PHUC_SU_CO';
   const noiBo = values.performerKind === 'INTERNAL';
 
   return {
     constructionId: constructionPublicId,
+    // ⛔⛔ T33.10 — trước 24/09/2026 trường này ⛔ có mặt ở đường TẠO, nên `alert_event_public_id`
+    //    là một cột ⛔ ai ghi nổi: `dungPayloadSuaBanGhi` chỉ CHÉP LẠI `row.alertEventId`, thứ
+    //    vĩnh viễn null. Cả cơ chế — cột, entity, DTO, `OPS-2021`, `HydroAlertPort` — đứng đủ mà
+    //    ⛔ một đường nào của người dùng chạm tới (luật 27 · đúng hình dạng T54.1).
+    alertEventId: alertEventId ?? null,
     workType: values.workType,
     severity: laSuCo ? (values.severity ?? null) : null,
     startedOn: values.startedOn.format('YYYY-MM-DD'),

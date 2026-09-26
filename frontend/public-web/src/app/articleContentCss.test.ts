@@ -6,6 +6,7 @@ import {
   ALIGN_CLASSES,
   CELL_BG_CLASSES,
   IMAGE_WIDTH_CLASSES,
+  LOP_KHUNG_BANG,
   PORTAL_STYLED_TAGS,
   TABLE_CELL_MIN_WIDTH_PX,
   TEXT_BG_CLASSES,
@@ -197,6 +198,37 @@ describe('CSS nội dung bài của cổng công khai', () => {
 
   it('bảng phải cuộn ngang được — bài thuỷ lợi hay có bảng sáu, bảy cột', () => {
     expect(coKhai(/\.sn-article\s+table$/, 'overflow-x')).toBe(true);
+  });
+
+  it('⛔⛔ bảng TRONG khung cuộn phải giữ `display: table` — T41.14 vế hiển thị', () => {
+    // Đây là nửa sau của T41.14, và nó là nửa dễ quên nhất: một bản vá chỉ sửa đường GHI sẽ lưu
+    // được `<col width>` rồi vẫn thấy bảng như cũ, vì `display: block` trên `<table>` đẩy các
+    // nhóm hàng vào một hộp bảng VÔ DANH còn `<colgroup>` nằm ngoài hộp ấy ⇒ vô tác dụng.
+    const khung = new RegExp(`\\.sn-article\\s+\\.${LOP_KHUNG_BANG}$`);
+    const bangTrongKhung = new RegExp(`\\.sn-article\\s+\\.${LOP_KHUNG_BANG}\\s*>\\s*table$`);
+
+    expect(coKhai(khung, 'overflow-x'), 'khung cuộn phải là nơi cuộn ngang xảy ra').toBe(true);
+
+    const quyTac = tachQuyTac(CSS).filter((qt) => qt.boChon.some((bc) => bangTrongKhung.test(bc)));
+    expect(quyTac.length, 'không tìm thấy quy tắc cho bảng trong khung cuộn').toBe(1);
+    expect(
+      quyTac[0].than,
+      '`display: block` ở đây làm `<colgroup>` vô tác dụng — tức bề rộng cột vừa cứu được ở ' +
+        'đường ghi lại mất ở đường hiển thị, và ⛔ một dấu hiệu nào cho thấy vì sao.',
+    ).toMatch(/display\s*:\s*table\b/);
+    expect(quyTac[0].than, '`width: 100%` biến bề rộng đã ghi thành tỉ lệ gợi ý').not.toMatch(
+      /(^|[;{\s])width\s*:\s*100%/,
+    );
+  });
+
+  it('⚠ nhánh CŨ phải còn — bảng xuất bản trước T41.14 ⛔ có khung cuộn', () => {
+    // Bỏ nhánh cũ là làm mọi bảng đã xuất bản tràn khung trên điện thoại, im lặng. Và vế phân
+    // biệt: hai nhánh phải là HAI quy tắc khác nhau, ⛔ phải một quy tắc đọc ra hai cách.
+    const cu = tachQuyTac(CSS).filter((qt) =>
+      qt.boChon.some((bc) => /\.sn-article\s+table$/.test(bc)),
+    );
+    expect(cu.length).toBe(1);
+    expect(cu[0].than).toMatch(/display\s*:\s*block/);
   });
 
   it('⭐ ô bảng phải có sàn `min-width`, đúng bằng hằng dùng chung — WS-41', () => {

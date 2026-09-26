@@ -16,7 +16,6 @@ import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
@@ -90,7 +89,7 @@ public final class SpreadsheetReader {
     /** Nhận diện bằng <b>magic bytes</b>, không tin đuôi tệp — cùng luật với {@code FileValidator}. */
     public static List<Row> read(byte[] content) {
         if (content == null || content.length == 0) {
-            throw new ValidationException(ErrorCode.OPS_2015);
+            throw new ValidationException(ErrorCode.SYS_0016);
         }
         return laXlsx(content) ? docXlsx(content) : docCsv(content);
     }
@@ -123,7 +122,7 @@ public final class SpreadsheetReader {
         // chắc: văn bản UTF-8 hợp lệ không bao giờ chứa nó.
         for (byte b : content) {
             if (b == 0) {
-                throw new ValidationException(ErrorCode.OPS_2015);
+                throw new ValidationException(ErrorCode.SYS_0016);
             }
         }
         String text = new String(content, StandardCharsets.UTF_8);
@@ -132,7 +131,7 @@ public final class SpreadsheetReader {
         }
         List<List<String>> grid = tachCsv(text);
         if (grid.isEmpty()) {
-            throw new ValidationException(ErrorCode.OPS_2015);
+            throw new ValidationException(ErrorCode.SYS_0016);
         }
         return dungRows(grid);
     }
@@ -203,11 +202,11 @@ public final class SpreadsheetReader {
                 }
             }
             if (sheet == null) {
-                throw new ValidationException(ErrorCode.OPS_2015);
+                throw new ValidationException(ErrorCode.SYS_0016);
             }
             return dungRows(docSheet(sheet, chuoiDungChung, kieuNgay(styles), heNgay1904(workbook)));
         } catch (IOException | XMLStreamException e) {
-            throw new ValidationException(ErrorCode.OPS_2015, e);
+            throw new ValidationException(ErrorCode.SYS_0016, e);
         }
     }
 
@@ -452,11 +451,9 @@ public final class SpreadsheetReader {
         }
     }
 
+    /** ⚠ Một bản DUY NHẤT của biện pháp chống XXE — xem javadoc {@link NenVaXml} (T59.14). */
     private static XMLStreamReader xmlReader(InputStream input) throws XMLStreamException {
-        XMLInputFactory factory = XMLInputFactory.newFactory();
-        factory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
-        factory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
-        return factory.createXMLStreamReader(input);
+        return NenVaXml.xmlAnToan(input);
     }
 
     // === Chung ===============================================================
@@ -468,7 +465,7 @@ public final class SpreadsheetReader {
      */
     private static List<Row> dungRows(List<List<String>> grid) {
         if (grid.isEmpty()) {
-            throw new ValidationException(ErrorCode.OPS_2015);
+            throw new ValidationException(ErrorCode.SYS_0016);
         }
         List<String> tieuDe =
                 grid.get(0).stream().map(SpreadsheetReader::chuanHoaCot).toList();
@@ -503,30 +500,13 @@ public final class SpreadsheetReader {
                 .replaceAll("^_|_$", "");
     }
     /**
-     * Trần GIẢI NÉN của một mục trong tệp xlsx — <b>T61.40</b> (ASVS 5.5.2, "zip bomb").
+     * ⚠ Một bản DUY NHẤT của trần giải nén — xem javadoc {@link NenVaXml#docCoTran} (T59.14).
      *
-     * <p>{@code readAllBytes()} trần đọc tới hết mục, mà tỉ lệ nén của XML lặp lại có thể trên
-     * <b>1000:1</b>: một tệp 2 MB đi qua trần tải lên rồi nở ra hàng GB trong heap ⇒ worker nhập liệu
-     * chết, kéo theo mọi việc nền khác. Trần tải lên chỉ chặn được phần NÉN.
-     *
-     * <p>⚠ Ném {@code SYS-0012} — cùng mã với "tệp vượt trần dòng": người dùng nhận một câu nói được
-     * rằng tệp quá lớn, ⛔ phải một lỗi hệ thống.
+     * <p>⛔ Bản trước giữ một bản sao ngay tại đây, và javadoc của nó khai <i>"ném SYS-0012"</i>
+     * trong khi mã ném {@code SYS-0014} — hai mã tách nhau ở WS-62 và chú thích nằm lại. Đó đúng
+     * là cách hai bản sao của một biện pháp bảo mật trôi khỏi nhau.
      */
     private static byte[] docCoTran(ZipInputStream zip, String ten) throws java.io.IOException {
-        java.io.ByteArrayOutputStream ra = new java.io.ByteArrayOutputStream();
-        byte[] dem = new byte[8192];
-        long tong = 0;
-        int n;
-        while ((n = zip.read(dem)) > 0) {
-            tong += n;
-            if (tong > TRAN_GIAI_NEN) {
-                throw new ValidationException(ErrorCode.SYS_0014, TRAN_GIAI_NEN / (1024 * 1024), ten);
-            }
-            ra.write(dem, 0, n);
-        }
-        return ra.toByteArray();
+        return NenVaXml.docCoTran(zip, ten);
     }
-
-    /** 64 MB: một bảng 5.000 dòng × 30 cột dạng XML thô chưa tới 20 MB, nên trần này ⛔ chạm người dùng thật. */
-    private static final long TRAN_GIAI_NEN = 64L * 1024 * 1024;
 }

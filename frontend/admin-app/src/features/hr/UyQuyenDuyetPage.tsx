@@ -171,7 +171,12 @@ export function UyQuyenDuyetPage() {
         <Space wrap>
           <span>Đơn vị:</span>
           <div style={{ minWidth: 320 }}>
-            <OrgUnitTreeSelect value={donVi} onChange={setDonVi} placeholder="Chọn đơn vị" />
+            <OrgUnitTreeSelect
+              value={donVi}
+              onChange={setDonVi}
+              placeholder="Chọn đơn vị"
+              chiTrongPhamVi
+            />
           </div>
           <Button type="primary" disabled={donVi === undefined} onClick={() => setMoGiao(true)}>
             Giao uỷ quyền

@@ -32,9 +32,43 @@ public interface JobHandler {
     /** @throws Exception bất kỳ lỗi nào — worker lo phần thử lại và ghi nhận */
     void handle(JobContext context) throws Exception;
 
-    /** Số lần thử tối đa. Việc gọi ra ngoài mạng nên để cao hơn việc thuần tính toán. */
+    /**
+     * Mặc định của SPI — <b>nơi DUY NHẤT</b> khai con số này kể từ T68.30.
+     *
+     * <p>⚠ Cột {@code jobs.max_attempts} và {@code Job.maxAttempts} có một giá trị khởi tạo riêng ở
+     * tầng CSDL/entity. Chúng là lưới an toàn cho hàng được ghi thẳng, ⛔ phải một lời khai thứ hai —
+     * {@code SoLanThuMotNguonTest#macDinhCuaSpiVaCuaEntityPhaiBangNhau} giữ hai bên khớp nhau
+     * (luật 14: chỗ nào con người phải nhớ hai nơi thì chỗ đó cần một phép kiểm nhớ hộ).
+     */
+    short MAC_DINH_SO_LAN_THU = 3;
+
+    /**
+     * Số lần thử tối đa cho loại việc này. Việc gọi ra ngoài mạng nên để cao hơn việc thuần tính toán.
+     *
+     * <p><b>Người đọc: {@code JobService.enqueue}</b> — nó ghi con số này vào cột
+     * {@code jobs.max_attempts} khi nơi đặt việc <b>⛔ khai</b> số nào ({@code JobRequest.theoHandler}
+     * hoặc {@code enqueue} ba đối số). Nơi đặt việc khai một số thì số ấy <b>THẮNG</b>: đó là một lượt
+     * ghi đè có chủ đích, và nó phải mang lý do — xem {@code PortalCache.warmUp}, nơi cần 10 lượt thử
+     * trong khi handler khai 5.
+     *
+     * <p>⛔⛔ <b>T68.30 — trước 23/09/2026 phương thức này có ĐÚNG 0 người đọc.</b> Bảy lớp ghi đè nó,
+     * và con số thật hoàn toàn đến từ nơi đặt việc gõ tay. Bốn cặp trùng nhau <i>nhờ may</i>
+     * ({@code ContactSlaHandler} 2=2 · {@code AuditArchiveHandler} 1=1 · {@code RestoreJobHandler} 1=1
+     * · {@code BackupJobHandler} 1=1) nên ⛔ có triệu chứng nào; cặp thứ năm thì <b>đã lệch</b>
+     * ({@code PortalRevalidateHandler} khai 5, lượt hâm nóng cổng đặt 10) và ⛔ gì báo. Đây là luật 15
+     * ở dạng đắt: một công tắc ⛔ ai đọc <i>trông y hệt</i> một công tắc đang điều khiển.
+     *
+     * <p>⚠ Vì sao mặc định thuộc về <b>handler</b> chứ ⛔ phải nơi đặt việc: <i>việc này có chạy lại
+     * được ⛔</i> là tính chất của <b>công việc</b>, ⛔ phải của người gọi. {@code RestoreJobHandler}
+     * khai 1 kèm câu <i>"tuyệt đối ⛔ thử lại"</i> — nếu con số ấy chỉ sống ở nơi đặt việc thì một
+     * đường đặt việc MỚI (diễn tập quay lui {@code T71.6} chẳng hạn) có thể đặt 3 mà ⛔ ai thấy, và
+     * lượt thử thứ hai là một lượt <b>ghi đè toàn bộ CSDL</b> lần nữa.
+     *
+     * <p>Bộ canh: {@code SoLanThuCoNguoiDocRuleTest} (bytecode — hỏi <i>có ai GỌI ⛔</i>, thứ mà một
+     * bài hành vi ⛔ phân biệt nổi khi các con số đang trùng nhau nhờ may).
+     */
     default short maxAttempts() {
-        return 3;
+        return MAC_DINH_SO_LAN_THU;
     }
 
     /**

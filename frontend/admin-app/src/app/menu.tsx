@@ -392,6 +392,16 @@ export const MENU: readonly MenuNode[] = [
         permissions: ['hr:leave:approve'],
       },
       {
+        // ⛔ Gác bằng `hr:leave:view-all` — mã quyền backend đang gác `GET /hr/nghi-phep/lich`.
+        //   ⛔ `hr:leave:approve`: lịch đơn vị là để BỐ TRÍ CA TRỰC, nên người phụ trách nhân sự
+        //   cần xem dù ⛔ phải cấp duyệt.
+        key: 'lich-nghi-don-vi',
+        label: 'Lịch nghỉ đơn vị',
+        icon: <CalendarOutlined />,
+        path: '/nhan-su/lich-nghi-don-vi',
+        permissions: ['hr:leave:view-all'],
+      },
+      {
         key: 'uy-quyen-duyet',
         label: 'Uỷ quyền duyệt phép',
         icon: <CheckSquareOutlined />,

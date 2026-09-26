@@ -144,6 +144,8 @@ export function MenusTab() {
                 src={`/api/v1/public/files/${item.value.logoAttachmentId}`}
                 alt=""
                 style={{ height: 24, width: 40, objectFit: 'contain' }}
+                /* T12.7 — một logo mỗi mục menu, cây liên kết có thể dài. */
+                loading="lazy"
               />
             ) : (
               <Tag color="warning">Chưa có logo</Tag>

@@ -17,6 +17,7 @@ import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.BusinessRuleException;
 import com.songnhue.core.common.exception.ConflictException;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
+import com.songnhue.core.common.importer.DocKmlSangGeoJson;
 import com.songnhue.core.common.util.FileValidator;
 import com.songnhue.core.spi.AttachmentContent;
 import com.songnhue.core.spi.AttachmentPort;
@@ -29,15 +30,17 @@ import com.songnhue.operations.infra.GisLayerRepository;
 /**
  * Lớp bản đồ GIS — CN-02.4 / M2.9 (WS-59).
  *
- * <h2>⛔⛔ GeoJSON — KMZ thì CHƯA, và nói thẳng</h2>
+ * <h2>GeoJSON — và KML/KMZ ĐỔI sang GeoJSON ở cổng nhận (T59.14)</h2>
  *
- * <p>Đặc tả viết *"upload GeoJSON/KMZ ≤20MB"*. Đo 14/09/2026: kho <b>⛔ không có</b> bộ đọc KML/KMZ
- * nào (0 phụ thuộc trong cả 7 {@code pom.xml}), và KMZ là một tệp ZIP chứa KML — tức cần một bộ
- * phân tích XML theo lược đồ OGC, ⛔ không phải một phép giải nén.
+ * <p>Đặc tả viết *"upload GeoJSON/KMZ ≤20MB"*, chốt <b>F7</b> (12/08) nhận KMZ ở v1. Bản 14/09 từ
+ * chối KML/KMZ bằng {@code OPS-2025} vì kho ⛔ có bộ đọc; từ 24/09 có {@code DocKmlSangGeoJson}
+ * (StAX + ZIP, <b>0 phụ thuộc mới</b>, theo đúng tiền lệ {@code SpreadsheetReader}) nên tệp được
+ * <b>đổi</b> rồi đi tiếp đúng đường cũ. {@code OPS-2025} đã <b>nghỉ hưu</b> — trạng thái nó mô tả
+ * ⛔ còn tồn tại.
  *
- * <p>⛔ Nhận tệp {@code .kmz} rồi lưu mà ⛔ không đọc được là tệ nhất trong ba phương án: người dùng
- * thấy *"nạp thành công"*, lớp hiện trong danh sách, và bản đồ ⛔ không vẽ gì. ⇒ Từ chối ngay ở
- * cổng nhận kèm câu lỗi nói rõ, và ghi nợ.
+ * <p>⚠ Thứ được LƯU là bản GeoJSON đã đổi, ⛔ phải bản gốc: mọi tầng dưới (kho tệp, đường phục vụ,
+ * Leaflet) chỉ biết GeoJSON, và giữ hai định dạng song song là nhân đôi mọi nhánh mã từ đó về sau.
+ * Cái giá — kiểu dáng, ảnh phủ, cao độ đều rơi — ghi ở javadoc {@code DocKmlSangGeoJson}.
  *
  * <h2>⛔ Phân tích tệp bằng REGEX, ⛔ không bằng bộ phân tích JSON đầy đủ</h2>
  *
@@ -122,9 +125,11 @@ public class GisLayerService {
      * <h2>⛔ Ba chốt chặn, và thứ tự của chúng là cố ý — rẻ trước, đắt sau</h2>
      *
      * <ol>
-     *   <li>Đuôi tệp {@code .kmz}/{@code .kml} ⇒ từ chối ngay kèm lý do (chưa có bộ đọc).
-     *   <li>Kích thước ⇒ từ chối trước khi đọc nội dung.
-     *   <li>Nội dung có hình học ⇒ từ chối một tệp JSON hợp lệ mà rỗng hình học.
+     *   <li>Rỗng ⇒ từ chối ngay ({@code OPS-2026}).
+     *   <li>Kích thước bản <b>gửi lên</b> ⇒ từ chối trước khi đọc nội dung.
+     *   <li>KML/KMZ ⇒ <b>đổi</b> sang GeoJSON, rồi đo kích thước <b>lần hai</b> trên bản đã đổi —
+     *       KMZ đã nén nên một tệp qua được bước 2 vẫn có thể nở ra quá trần (T59.14).
+     *   <li>Nội dung có hình học ⇒ từ chối một tệp hợp lệ mà rỗng hình học ({@code OPS-2026}).
      * </ol>
      *
      * <p>⚠ Chỉ sau cả ba mới gọi {@code attachments.upload} — nếu ⛔ không thì một tệp bị từ chối vẫn
@@ -133,11 +138,7 @@ public class GisLayerService {
     @Transactional
     public GisLayer napTep(UUID publicId, String tenTep, byte[] noiDung) {
         GisLayer layer = get(publicId);
-        String ten = tenTep == null ? "" : tenTep.toLowerCase(java.util.Locale.ROOT);
 
-        if (ten.endsWith(".kmz") || ten.endsWith(".kml")) {
-            throw new BusinessRuleException(ErrorCode.OPS_2025, tenTep);
-        }
         if (noiDung == null || noiDung.length == 0) {
             throw new BusinessRuleException(ErrorCode.OPS_2026, tenTep, 0);
         }
@@ -146,13 +147,32 @@ public class GisLayerService {
         //   MB" rồi đi xoá tệp cũ — sai cả số lẫn việc phải làm (T61.13).
         FileValidator.validateSize(noiDung.length, TRAN_MB * 1024L * 1024L, tenTep);
 
-        DocGeoJson doc = docGeoJson(noiDung);
+        // ⭐⭐ T59.14 — KML/KMZ đổi sang GeoJSON NGAY TẠI ĐÂY, rồi đi tiếp đúng đường cũ.
+        //
+        // ⛔ Bản trước từ chối thẳng bằng `OPS-2025` vì kho ⛔ có bộ đọc; nay có (`DocKmlSangGeoJson`,
+        //    0 phụ thuộc mới) và chốt F7 từ 12/08 đã nói v1 nhận KMZ. Mã `OPS-2025` **nghỉ hưu**
+        //    chứ ⛔ đổi nghĩa — xem bia mộ ở `ErrorCode`.
+        //
+        // ⚠⚠ Đổi TRƯỚC `docGeoJson` và TRƯỚC `upload`, nhưng SAU trần kích thước — rồi đo lại kích
+        //    thước một lần nữa ở dưới. Lý do: KMZ **đã nén**, nên 20 MB KMZ nở ra GeoJSON có thể
+        //    vượt xa trần; bỏ lượt đo thứ hai là để một tệp lách qua đúng hạn mức vừa kiểm.
+        byte[] than = noiDung;
+        String tenLuu = tenTep;
+        if (DocKmlSangGeoJson.laKmlHoacKmz(tenTep)) {
+            than = DocKmlSangGeoJson.doi(tenTep, noiDung);
+            tenLuu = DocKmlSangGeoJson.tenSauKhiDoi(tenTep);
+            FileValidator.validateSize(than.length, TRAN_MB * 1024L * 1024L, tenLuu);
+        }
+
+        DocGeoJson doc = docGeoJson(than);
         if (doc.soDoiTuong() == 0) {
             throw new BusinessRuleException(ErrorCode.OPS_2026, tenTep, 0);
         }
 
+        // ⚠ Lưu BẢN ĐÃ ĐỔI (`than`) dưới tên mang cả đuôi cũ (`quy-hoach.kmz.geojson`): `MIME_CHO_PHEP`
+        //   chỉ nhận `application/json`, và đó là đúng — đường phục vụ lẫn Leaflet chỉ biết GeoJSON.
         AttachmentRef ref = attachments.upload(new AttachmentUploadCommand(
-                GisLayer.OWNER_TYPE, layer.getId(), "GIS_LAYER", tenTep, noiDung, MIME_CHO_PHEP));
+                GisLayer.OWNER_TYPE, layer.getId(), "GIS_LAYER", tenLuu, than, MIME_CHO_PHEP));
 
         layer.ganTep(ref.publicId(), doc.soDoiTuong(), GisGeometryType.tuTapKieu(doc.kieu()));
         log.info(

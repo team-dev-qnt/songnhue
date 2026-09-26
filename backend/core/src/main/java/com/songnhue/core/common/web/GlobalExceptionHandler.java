@@ -28,6 +28,9 @@ import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.error.ErrorMessageResolver;
 import com.songnhue.core.common.exception.AppException;
 
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.exc.InvalidFormatException;
+
 /**
  * Nơi DUY NHẤT biến exception thành response (conventions.md §2.2).
  *
@@ -130,7 +133,33 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleMalformedRequest(Exception ex) {
         // Message gốc hay chứa tên class và cấu trúc JSON nội bộ → CHỈ ghi log
         log.debug("[{}] Request sai định dạng: {}", RequestContext.traceId(), ex.getMessage());
-        return validationResponse(List.of());
+        return validationResponse(oSai(ex));
+    }
+
+    /**
+     * Tên TRƯỜNG bị sai kiểu — {@code T68.28}.
+     *
+     * <p>⛔⛔ Nhánh trên cố ý trả danh sách RỖNG, và lý do ấy đúng: {@code ex.getMessage()} của Jackson
+     * mang tên lớp Java và cấu trúc JSON nội bộ. Nhưng <i>"⛔ lộ message gốc"</i> và <i>"⛔ nói ô nào
+     * sai"</i> là hai chuyện khác nhau, và bản cũ đánh đồng chúng ⇒ người nhập một biểu mẫu <b>26 ô
+     * thông số</b> nhận đúng câu <i>"Dữ liệu gửi lên ⛔ hợp lệ"</i> rồi đi dò từng ô.
+     *
+     * <p>⇒ Chỉ bóc <b>đường dẫn trường</b> từ {@code InvalidFormatException}. Đó là tên trường của
+     * chính API — thứ đã công khai trong tài liệu OpenAPI — ⛔ phải nội dung người dùng gửi lên.
+     *
+     * <p>⚠ {@code rejectedValue} để {@code null} <b>có chủ đích</b>: nhánh {@code @Valid} ở trên có
+     * dội giá trị về, nhưng nhánh NÀY bắt cả những ngoại lệ mà "giá trị" có thể là một mảnh thân yêu
+     * cầu bất kỳ. Tên ô là phần hành động được; giá trị thì ⛔ đáng đổi lấy một đường dội dữ liệu.
+     */
+    private static List<ApiError.ErrorDetail> oSai(Exception ex) {
+        if (!(ex.getCause() instanceof InvalidFormatException loi)) {
+            return List.of();
+        }
+        String duongDan = loi.getPath().stream()
+                .map(JacksonException.Reference::getPropertyName)
+                .filter(ten -> ten != null && !ten.isBlank())
+                .collect(java.util.stream.Collectors.joining("."));
+        return duongDan.isBlank() ? List.of() : List.of(new ApiError.ErrorDetail(duongDan, "TypeMismatch", null));
     }
 
     /**

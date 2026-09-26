@@ -45,11 +45,12 @@ public class HydroMaintenanceScheduler {
     /**
      * Việc TẠO partition hỏng thì thử lại vô hại — lượt sau vẫn có ngày mai, và hàm idempotent.
      *
-     * <p>⚠⚠ Con số này là <b>nơi DUY NHẤT</b> quyết định số lần thử. {@code JobHandler.maxAttempts()}
-     * <b>không có người đọc trong toàn kho</b>: {@code JobWorker} lấy {@code max_attempts} từ cột
-     * của bảng {@code jobs}, mà cột ấy do {@code JobService.enqueue(…, request.maxAttempts())} ghi.
-     * Ghi đè phương thức kia là khai một con số không điều khiển gì — và <b>trông như</b> đã điều
-     * khiển, đó mới là phần đắt.
+     * <p>⚠⚠ Con số này <b>THẮNG</b> lời khai của handler — nó là một lượt ghi đè có chủ đích.
+     *
+     * <p>⚠ Câu ở đây đã ĐỔI ngày 23/09/2026 (T68.30): bản cũ nói {@code JobHandler.maxAttempts()}
+     * <i>"⛔ có người đọc trong toàn kho"</i>. Nay nó có đúng một người đọc
+     * ({@code JobService.enqueue}) và đóng vai mặc định. Hai con số của lớp này ở lại đây vì đặt cạnh
+     * nhau thì <b>đọc được vì sao chúng khác nhau</b> — xem {@code HydroRetentionHandler}.
      */
     private static final short THU_LAI_TAO_PARTITION = 2;
 

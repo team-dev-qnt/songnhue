@@ -1,5 +1,6 @@
 package com.songnhue.hr.api;
 
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -16,7 +17,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.songnhue.core.common.error.ErrorCode;
+import com.songnhue.core.common.exception.ValidationException;
 import com.songnhue.core.common.security.RequirePermission;
+import com.songnhue.core.common.util.DateTimeUtils;
 import com.songnhue.core.common.util.PageUtils;
 import com.songnhue.core.spi.AllowedAction;
 import com.songnhue.hr.application.DonNghiPhepForm;
@@ -157,6 +161,60 @@ public class NghiPhepController {
     @RequirePermission("hr:leave:request")
     public List<AllowedAction> hanhDong(@PathVariable UUID publicId) {
         return donNghi.hanhDongChoPhep(publicId);
+    }
+
+    /**
+     * <b>Lịch nghỉ của một đơn vị</b> — CN-04.9, T57.18 vế (b).
+     *
+     * <h2>⚠ Vì sao {@code nam}/{@code thang} là hai số, ⛔ phải một chuỗi {@code yyyy-MM}</h2>
+     *
+     * <p>Một chuỗi cần một bộ phân tích, và bộ phân tích cần một nhánh hỏng — tức một mã lỗi mới
+     * cho đúng một màn hình. Hai {@code Integer} thì Spring tự từ chối thứ ⛔ phải số, và phần còn
+     * lại ({@code 1..12}) là một câu {@code if} đọc được.
+     *
+     * <p>⚠ Bỏ trống = <b>tháng hiện tại theo giờ Việt Nam, do BACKEND quyết</b> (quy tắc 1). Để
+     * giao diện gửi tháng của máy nó là mời đúng T63.18: một máy trạm lệch múi giờ mở lịch ra tháng
+     * khác, và ⛔ gì báo.
+     */
+    @GetMapping("/lich")
+    @Operation(summary = "Lịch nghỉ của một đơn vị trong một tháng — tỉ lệ và ngưỡng do backend tính")
+    @RequirePermission("hr:leave:view-all")
+    public NghiPhepDtos.LichView lich(
+            @RequestParam UUID donVi,
+            @RequestParam(required = false) Integer nam,
+            @RequestParam(required = false) Integer thang) {
+        YearMonth thangHienTai = YearMonth.now(DateTimeUtils.ZONE_VN);
+        int n = nam == null ? thangHienTai.getYear() : nam;
+        int t = thang == null ? thangHienTai.getMonthValue() : thang;
+        if (t < 1 || t > 12 || n < 1900 || n > 9999) {
+            // ⛔⛔ ⛔ truyền câu giải thích làm ĐỐI SỐ của `SYS-0003`: câu ấy dùng chung cho cả kho
+            //    và ⛔ có chỗ cắm `{0}` nào ⇒ `MessageFormat` **bỏ lặng** đối số, người dùng ⛔
+            //    biết cái gì sai (T57.8 — 44 nơi đã mắc). Thêm chỗ cắm vào câu chung thì mọi nơi
+            //    khác in ra nguyên chữ `{0}`. ⇒ Chi tiết đi đường `withDetail`, đúng chỗ FE tô đỏ
+            //    được ô nhập. `DoiSoMaLoiKhopChoCamTest` bắt đúng chỗ này ở lượt chạy đầu.
+            throw (ValidationException) new ValidationException(ErrorCode.SYS_0003)
+                    .withDetail("thang", "range", t)
+                    .withDetail("nam", "range", n);
+        }
+
+        DonNghiPhepService.Lich lich = donNghi.lichDonVi(donVi, YearMonth.of(n, t));
+        Map<Long, Employee> theoId = employees.theoIds(
+                lich.don().stream().map(LeaveRequest::getEmployeeId).toList());
+        return new NghiPhepDtos.LichView(
+                lich.donVi().publicId(),
+                lich.donVi().name(),
+                lich.thang().toString(),
+                lich.quanSo(),
+                lich.nguongPhanTram(),
+                // ⚠ `toiDuyetDuoc` để `null` là CỐ Ý: lịch ⛔ trả lời câu ấy (xem `DonView.of` —
+                //   `false` ở đó nghĩa là *thấy mà ⛔ bấm được*, một câu khác hẳn).
+                lich.don().stream()
+                        .map(r -> toView(r, theoId.get(r.getEmployeeId())))
+                        .toList(),
+                lich.ngay().stream()
+                        .map(d -> new NghiPhepDtos.LichNgayView(
+                                d.ngay(), d.soNguoiNghi(), d.tyLePhanTram(), d.vuotNguong()))
+                        .toList());
     }
 
     /**

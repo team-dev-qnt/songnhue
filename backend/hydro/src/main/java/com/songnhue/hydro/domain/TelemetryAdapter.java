@@ -36,6 +36,27 @@ public interface TelemetryAdapter {
     AdapterType kieu();
 
     /**
+     * <b>Loại chỉ số</b> mà nguồn này giao — khoá tra {@code measurement_types.code}.
+     *
+     * <h2>⛔⛔ Vì sao nó phải sống ở ĐÂY — WS-87 · T87.4</h2>
+     *
+     * <p>Tới 26/09/2026 giá trị này là một hằng số của {@code TelemetryIngestService}
+     * ({@code MA_LOAI_CHI_SO = "MUC_NUOC"}), tức <b>mọi</b> nguồn đều được cho là giao mực nước dù
+     * hàng {@code api_sources} nói gì. Nguồn lượng mưa làm câu ấy sai.
+     *
+     * <p>Ba sự thật của một nguồn — <b>đường dẫn · đơn vị nguồn · loại chỉ số</b> — phải nằm
+     * <b>cùng một lớp</b>. Tách chúng ra (ví dụ: đường dẫn ở hằng số, loại chỉ số ở một cột
+     * {@code api_sources}) là dựng sẵn chỗ để chúng lệch nhau, và lệch ở đây ⛔ hỏng lớn tiếng:
+     * một hàng khai {@code LUONG_MUA} trỏ vào adapter giao {@code cm} sẽ ghi
+     * <b>0,0 mm ÷ 100 = 0,000 m</b> — một mực nước <b>hoàn toàn hợp lý</b> — vào bảng chính. Đúng
+     * hình dạng luật 14, và ⛔ có cổng nào bắt được một hàng DỮ LIỆU lệch một nhánh MÃ.
+     *
+     * <p>⭐ Khai ở interface thì {@code javac} bắt <b>mọi</b> lớp cài đặt phải trả lời — một lỗi
+     * biên dịch, ⛔ phải một bất ngờ lúc chạy.
+     */
+    String maLoaiChiSo();
+
+    /**
      * Mở một lượt gọi tới nguồn.
      *
      * <p>⛔ <b>Không ném</b> khi <i>nguồn</i> hỏng: mọi tình trạng của nguồn đi ra bằng
@@ -52,6 +73,10 @@ public interface TelemetryAdapter {
      * <p>⛔ Không ném vì một dòng rác: một dòng hỏng ⇒ <b>bỏ dòng ấy</b>, cả mẻ vẫn đi tiếp (quy tắc
      * 4). Bỏ cả mẻ vì một ký tự lạ là mất 27 số đo tốt để phản ứng với 1 số đo xấu, và số đo mất là
      * mất vĩnh viễn.
+     *
+     * <p>⚠ WS-87: mỗi lớp cài đặt tự biết <b>đơn vị nguồn</b> của mình và đóng dấu đơn vị ấy lên
+     * từng {@link TelemetryReading}. ⛔ Đoán đơn vị từ hình dạng con số — {@code 292} và {@code 0.0}
+     * chỉ khác nhau ở chỗ hôm ấy ⛔ mưa.
      *
      * @param body thân đã ghi xuống {@code hydro_raw_logs}; {@code null} hoặc rỗng ⇒ mẻ rỗng
      */

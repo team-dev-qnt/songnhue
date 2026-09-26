@@ -77,11 +77,7 @@ public class NotificationService implements NotificationPort {
     @Transactional
     public Notification notify(NotificationRequest request) {
         List<Long> userIds = resolver.resolve(
-                request.relatedOrgUnitIds(),
-                request.extraUserIds(),
-                request.targetPermission(),
-                request.permissionScopedToUnits(),
-                request.nhomCanhBao());
+                request.relatedOrgUnitIds(), request.extraUserIds(), request.targetPermission(), request.chinhSach());
         return dispatch(request, userIds, false);
     }
 
@@ -180,8 +176,10 @@ public class NotificationService implements NotificationPort {
                 request.extraUserIds(),
                 request.targetPermission(),
                 request.channels().stream().map(NotificationService::translate).toList(),
-                request.permissionScopedToUnits(),
-                request.nhomCanhBao());
+                // ⚠ T85.4 — chính sách người nhận đi thẳng, ⛔ dịch: nó là kiểu DÙNG CHUNG giữa hai
+                //   record. Mức nặng và kênh thì có hai bản soi gương vì chúng được GHI XUỐNG bảng;
+                //   chính sách thì ⛔ cột nào giữ. Xem javadoc `ChinhSachNguoiNhan`.
+                request.chinhSach());
     }
 
     private static NotificationChannel translate(NotifyChannel channel) {

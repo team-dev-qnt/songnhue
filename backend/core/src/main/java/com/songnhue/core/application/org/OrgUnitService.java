@@ -18,6 +18,7 @@ import com.songnhue.core.common.error.ErrorCode;
 import com.songnhue.core.common.exception.BusinessRuleException;
 import com.songnhue.core.common.exception.ConflictException;
 import com.songnhue.core.common.exception.ResourceNotFoundException;
+import com.songnhue.core.common.persistence.ScopeGuard;
 import com.songnhue.core.common.tree.MaterializedPath;
 import com.songnhue.core.common.tree.TreeBuilder;
 import com.songnhue.core.domain.identity.User;
@@ -65,19 +66,24 @@ public class OrgUnitService implements OrgUnitPort {
 
     private final OrgUnitLeaderRepository lanhDaoRepository;
 
+    /** T74.11 — chỉ để ĐO cờ {@code trongPhamVi} của từng nút; ⛔ chặn gì ở đây. */
+    private final ScopeGuard scopeGuard;
+
     public OrgUnitService(
             OrgUnitRepository repository,
             UserRepository userRepository,
             SettingService settings,
             PortalCachePort portalCache,
             List<OrgUnitUsagePort> nguoiDung,
-            OrgUnitLeaderRepository lanhDaoRepository) {
+            OrgUnitLeaderRepository lanhDaoRepository,
+            ScopeGuard scopeGuard) {
         this.repository = repository;
         this.userRepository = userRepository;
         this.settings = settings;
         this.portalCache = portalCache;
         this.nguoiDung = List.copyOf(nguoiDung);
         this.lanhDaoRepository = lanhDaoRepository;
+        this.scopeGuard = scopeGuard;
     }
 
     /**
@@ -497,7 +503,10 @@ public class OrgUnitService implements OrgUnitPort {
                         unit,
                         con,
                         publicIdCua(lanhDao, unit.getHeadUserId()),
-                        publicIdCua(lanhDao, unit.getDeputyUserId())));
+                        publicIdCua(lanhDao, unit.getDeputyUserId()),
+                        // T74.11 — hỏi bằng `path` ĐÃ có trong tay, ⛔ bằng khoá số: `trongPhamVi(Long)` là
+                        // một câu SELECT mỗi nút ⇒ N+1 trên một màn hình chỉ có một cây.
+                        scopeGuard.duongDanTrongPhamVi(unit.getPath())));
     }
 
     /**

@@ -46,13 +46,18 @@ SELECT code, name,
 # ⚠ Mã số lấy từ người giữ mã (hoặc bản ghi bàn giao), KHÔNG đọc ngược được từ CSDL —
 #   cột `credential` là bản mã và không endpoint nào trả nó ra.
 [ -z "${HYDRO_API_KEY}" ] && { echo "⛔ HYDRO_API_KEY rỗng — lệnh dưới sẽ trả not.working, KHÔNG phải lỗi mã số. Dán mã số vào biến rồi chạy lại."; exit 1; }
-curl -sS --max-time 30 "http://songnhue.bhh40.net/api/getmn.aspx?key=${HYDRO_API_KEY}"
+# ⛔⛔ HAI endpoint, và mã số là MỘT (đo 26/09/2026). Gọi cả hai rồi mới kết luận:
+#     đường ĐÃ CHẾT `getmn.aspx` cũng trả `not.working`, tức một lượt gọi nhầm đường cho ra
+#     ĐÚNG triệu chứng của "sai mã số" — và người trực sẽ đi đổi mã số một cách vô ích.
+curl -sS --max-time 30 "http://songnhue.bhh40.net/api/getmucnuoc.aspx?key=${HYDRO_API_KEY}"   # mực nước, cm
+curl -sS --max-time 30 "http://songnhue.bhh40.net/api/getluongmua.aspx?key=${HYDRO_API_KEY}"  # lượng mưa, mm
 ```
 
 | Kết quả | Nghĩa là | Xử lý |
 |---|---|---|
-| Nhiều dòng `F#####;dd/MM/yyyy;HH:mm;value=<cm>;` | Nguồn ổn → lỗi ở phía mình, mục 2 | |
-| `not.working` | Sai mã số, **mất dấu `;` cuối**, hoặc biến rỗng | Đối chiếu mã số trong CSDL (`da_co_ma_so`), coi chừng CI/shell trim mất dấu `;` |
+| Nhiều dòng `F#####;dd/MM/yyyy;HH:mm;value=<số>;` | Nguồn ổn → lỗi ở phía mình, mục 2 | |
+| **CẢ HAI** trả `not.working` | Sai mã số, **mất dấu `;` cuối**, hoặc biến rỗng | Đối chiếu mã số trong CSDL (`da_co_ma_so`), coi chừng CI/shell trim mất dấu `;` |
+| **MỘT** trả dữ liệu, một trả `not.working` | ⛔ **Đường dẫn sai, ⛔ phải mã số** — hoặc Công ty vừa đổi endpoint lần nữa | `base_url` của hàng ấy phải là **GỐC** (`http://songnhue.bhh40.net`), ⛔ mang đường dẫn; đường dẫn do adapter giữ (`Bhh40MucNuocAdapter` / `Bhh40LuongMuaAdapter`) |
 | Rỗng / hết hạn / 5xx | Nguồn đang chết | Mục 3 |
 | Thiếu vài mã điểm đo | Trạm đó trục trặc | Mục 4 |
 | Có mã lạ chưa khai điểm đo | Bình thường — nguồn trả 28 mã, ta khai 19 | Số đo nằm ở `hydro_unmapped_readings`, chờ Công ty khai báo (G8). ⛔ Hệ thống **không** tự tạo điểm đo |

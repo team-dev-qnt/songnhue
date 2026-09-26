@@ -89,7 +89,7 @@ services:
   # MinIO — kho tệp
   # ---------------------------------------------------------------------------
   minio:
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z.hotfix.7aa24e772
+    image: ghcr.io/team-dev-qnt/songnhue/minio:RELEASE.2025-09-07T16-13-09Z.hotfix.7aa24e772
     container_name: songnhue-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
@@ -123,7 +123,7 @@ services:
   #    vào service đã nằm sẵn trên đường triển khai (và `app` đã `depends_on` nó)
   #    thì mỗi lượt deploy đều đi qua cả hai; một script bấm tay thì không.
   minio-init:
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z.hotfix.7aa24e772
+    image: ghcr.io/team-dev-qnt/songnhue/minio:RELEASE.2025-09-07T16-13-09Z.hotfix.7aa24e772
     container_name: songnhue-minio-init
     restart: "no"
     depends_on:
@@ -420,6 +420,24 @@ services:
       #   (`proxy.md:255`). Nướng vào ảnh là dựng lại bẫy `SITE_URL`/T68.12 — hai môi trường dùng
       #   chung một ảnh thì chúng buộc phải mang chung giá trị.
       MEDIA_ORIGIN: https://${FILES_DOMAIN}
+      # ⭐⭐ Gốc tuyệt đối của cổng — `robots.txt`, `sitemap.xml`, canonical, og:url. T68.12.
+      #
+      # ⛔⛔ Đọc LÚC CHẠY, ⛔ nướng lúc build. Trước bản này nó là `NEXT_PUBLIC_SITE_URL` truyền
+      #     qua build-arg, mà Next thay biến `NEXT_PUBLIC_*` bằng chuỗi hằng lúc build ⇒ giá trị
+      #     nằm trong ẢNH. Staging và production dùng chung một ảnh nên chúng buộc phải mang
+      #     chung giá trị: đo 19/09, `staging/robots.txt` khai `Allow: /` + `Host: <production>`
+      #     và canonical của staging cũng trỏ về production — tức nhánh chặn staging trong
+      #     `robots.ts` CHƯA BAO GIỜ chạy (luật 7).
+      #
+      # ⚠ Dùng `${PUBLIC_DOMAIN}` — biến đã có sẵn trong `.env` của CẢ HAI máy (service `nginx`
+      #   bên dưới đang đọc nó), nên lượt đề bạt này ⛔ đòi ai đặt thêm giá trị mới.
+      #
+      # ⛔⛔ `:?` ⛔ phải trang trí — thiếu nó là DỰNG LẠI §10.38 ở một dạng mới. `PUBLIC_DOMAIN`
+      #     rỗng cho ra chuỗi `"https://"`, mà chuỗi ấy **TRUTHY** nên `||` trong `site.ts` ⛔
+      #     cứu được, và `new URL("https://")` ném `ERR_INVALID_URL` — đo bằng Node 24/09. Khác
+      #     biệt với §10.38: lần ấy build chết ầm ĩ, còn lần này container LÊN bình thường rồi
+      #     mọi lượt dựng trang mới ném. Nên hỏng phải xảy ra SỚM, ở `docker compose up`.
+      SITE_URL: https://${PUBLIC_DOMAIN:?Thiếu PUBLIC_DOMAIN — robots/sitemap/canonical sẽ hỏng}
       # Phải KHỚP biến cùng tên của service `app`; lệch nhau thì `/api/revalidate`
       # trả 401 và cổng công khai đứng yên ở nội dung cũ mà không báo lỗi gì.
       REVALIDATE_SECRET: ${REVALIDATE_SECRET}

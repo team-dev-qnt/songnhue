@@ -63,6 +63,19 @@ public class OrgUnitController {
      * <p><b>Lộ ra gì.</b> Tên và mã đơn vị, thứ đã in trên mọi văn bản nội bộ và hiện ở chân trang
      * cổng công khai. Không có số liệu, không có nhân sự, không sửa được gì. Đổi lại,
      * {@code adm:org-unit:view} giữ nguyên nghĩa "được xem màn hình quản trị sơ đồ tổ chức".
+     *
+     * <h2>⛔ Nó trả TOÀN CÂY — cờ {@code trongPhamVi} mới là thứ nói phạm vi (T74.11)</h2>
+     *
+     * <p>Bia mộ ngay dưới từng ghi {@code /selectable} là <i>"cây có phạm vi"</i>; câu ấy <b>sai</b>
+     * và đã sai từ lúc viết — cả hai đường đọc gọi đúng một {@code service.tree()}. Nó phải trả toàn
+     * cây: nút cha ngoài phạm vi vẫn cần hiện ra, ⛔ thì nút con nằm trong phạm vi mất đường hiển thị.
+     *
+     * <p>Thứ đổi là mỗi nút nay mang {@code trongPhamVi}, đo bằng ĐÚNG vị từ của bộ lọc đọc. Giao
+     * diện dùng nó để <b>làm mờ</b> ở những biểu mẫu mà backend thật sự chặn — đo 23/09: <b>4</b>
+     * đường ghi gọi {@code ScopeGuard.requireWritableOrgUnit} ({@code Construction} · {@code Employee}
+     * · {@code Station} · {@code UyQuyenDuyetPhep}). Sáu ô chọn còn lại ⛔ được làm mờ: chúng ghi vào
+     * bảng ⛔ thuộc {@code ScopedEntity} hoặc ghi một cột <i>dữ liệu</i>, nên làm mờ ở đó là bày ra một
+     * điều cấm ⛔ hề tồn tại.
      */
     @GetMapping("/selectable")
     @Operation(summary = "Cây đơn vị cho ô chọn trong biểu mẫu — chỉ cần đăng nhập")

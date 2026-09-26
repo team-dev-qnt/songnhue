@@ -128,9 +128,35 @@ export function OperationsDashboardPage() {
                cần thấy để biết phải cấp những gì. ⛔ Không hiện "0 điểm đo" khi chưa tải xong —
                `?? 0` ở đây sẽ là một khẳng định sai trong khoảng thời gian chờ. */
             note={
-              chuaSoHoaViTri === null
-                ? 'Chấm tròn: công trình. Quả trám: điểm đo thuỷ văn — màu theo mức cảnh báo, viền nét đứt khi số đo bị đánh dấu nghi ngờ.'
-                : `Chấm tròn: công trình. Quả trám: điểm đo thuỷ văn. ⚠ ${chuaSoHoaViTri} điểm đo chưa có toạ độ nên chưa lên bản đồ (mục G8).`
+              chuaSoHoaViTri === null ? (
+                'Chấm tròn: công trình. Quả trám: điểm đo thuỷ văn — màu theo mức cảnh báo, viền nét đứt khi số đo bị đánh dấu nghi ngờ.'
+              ) : (
+                <>
+                  {`Chấm tròn: công trình. Quả trám: điểm đo thuỷ văn. ⚠ ${chuaSoHoaViTri} điểm đo chưa có toạ độ nên chưa lên bản đồ (mục G8).`}
+                  {/*
+                    ⭐⭐ T35.2 — con số phải BẤM ĐƯỢC. Sáu trường của từng điểm đo vẫn ra dây từ
+                    `/map-points` rồi bị vứt, nên trước bản vá này người đọc chỉ thấy **con số**
+                    và ⛔ có đường nào đi tới danh sách để cấp toạ độ (luật 27).
+
+                    ⛔ ⛔ dựng một drawer chỉ-đọc ở đây: chỗ NHẬP toạ độ nằm ở màn hình Điểm đo
+                    (biểu mẫu sửa + nút *Nhập vị trí từ tệp* của T42.20), nên đích đúng là chính
+                    màn hình ấy, đã bật sẵn ô lọc. Một bảng thứ hai ở đây là thêm một nơi hiển thị
+                    mà vẫn ⛔ ai làm được gì.
+
+                    ⛔ Ở WALL MODE thì KHÔNG: CN-02.5 nói màn hình treo tường ⛔ phụ thuộc thao tác
+                    chuột/bàn phím — cùng lý do `coCongCuDo={!wall}` ngay dưới.
+                  */}
+                  {!wall && chuaSoHoaViTri > 0 && (
+                    // ⛔ `<Link>` chứ ⛔ `<Button onClick={navigate}>`: đây là một lượt ĐIỀU HƯỚNG,
+                    //   nên nó phải là một thẻ `<a>` có `href` — mở tab mới được, trình đọc màn
+                    //   hình gọi đúng tên, và ⛔ tốn một handler (bài học T63.9 ở chiều a11y).
+                    <>
+                      {' '}
+                      <Link to="/thuy-van/diem-do?loc=CHUA_CO_TOA_DO">Xem danh sách</Link>
+                    </>
+                  )}
+                </>
+              )
             }
             wall={wall}
           >
@@ -145,6 +171,8 @@ export function OperationsDashboardPage() {
               //   thao tác chuột/bàn phím"*, và một công cụ bắt cú click trên màn hình ⛔ không ai
               //   chạm vào chỉ có thể bắt nhầm.
               coCongCuDo={!wall}
+              // ⛔ Cùng lý do với `coCongCuDo`: wall mode ⛔ có nút nào (CN-02.5).
+              coXuatAnh={!wall}
             />
           </ChartCard>
 

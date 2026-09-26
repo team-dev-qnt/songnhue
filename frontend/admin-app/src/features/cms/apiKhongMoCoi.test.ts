@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+import { boChuThich } from '@/testsupport/boChuThich';
 
 /**
  * Mỗi phương thức của client CMS phải có **một màn hình gọi nó** — luật 27, câu hỏi số 4 của
@@ -111,63 +112,18 @@ function phuongThucClient(nguon: string): string[] {
 }
 
 /**
- * Bỏ **chú thích** trước khi đếm — giữ nguyên chuỗi ký tự.
+ * ⭐ **T28.41 — bản lexer từng nằm ở đây nay là bản CHÍNH của cả kho.**
  *
- * ⛔⛔ Bộ canh anh em ở `public-web` **đỏ đúng ngày nó ra đời** vì lỗ này: một javadoc viết
- * `getWaterLevels()` — kèm ngoặc — được tính là một lời gọi, và tập mồ côi tụt về 0. T46.7.
+ * Lượt đo 25/09/2026 tìm ra **năm** bản `boChuThich` với **ba** thuật toán khác nhau, và bản đúng
+ * chính là bản của tệp này (T49.6): nó bỏ qua chuỗi ký tự, nên `'https://x'` ⛔ bị đọc thành một
+ * chú thích và một lời gọi thật ⛔ bị giấu đi ⇒ ⛔ đỏ giả. Nó đã được nâng lên module dùng chung;
+ * hai workspace ⛔ nhập khẩu chéo được nên mỗi bên giữ một bản **giống nhau tới từng byte**, có
+ * phép kiểm đọc chéo canh.
  *
- * ⚠ Đo 10/09/2026, ở `admin-app` chú thích **chưa che gì** (4 mồ côi giống hệt nhau ở cả hai phép
- * đo). Vá vẫn phải làm: một lỗ chưa gây hại là một lỗ, ⛔ không phải một ngoại lệ.
- *
- * ⚠ Phải bỏ qua chuỗi ký tự: `'https://x'` chứa `//`, cắt thô là nuốt phần còn lại của dòng ⇒ giấu
- * một lời gọi thật ⇒ **đỏ giả**. Hàm này nhân đôi với `public-web` vì hai workspace ⛔ không nhập
- * khẩu chéo được; mỗi bản mang đối chứng riêng.
+ * ⛔⛔ Lý do bộ canh này cần nó vẫn nguyên: bản anh em ở `public-web` **đỏ đúng ngày nó ra đời** vì
+ * một javadoc viết `getWaterLevels()` — kèm ngoặc — được tính là một lời gọi, và tập mồ côi tụt về
+ * 0 (T46.7). Các bài tự-kiểm cuối tệp vẫn đo chính điều ấy.
  */
-export function boChuThich(nguon: string): string {
-  const ket: string[] = [];
-  let trangThai: 'ma' | 'khoi' | 'dong' | '"' | "'" | '`' = 'ma';
-  for (let i = 0; i < nguon.length; i += 1) {
-    const c = nguon[i];
-    const ke = nguon[i + 1] ?? '';
-    if (trangThai === 'ma') {
-      if (c === '/' && ke === '*') {
-        trangThai = 'khoi';
-        i += 1;
-      } else if (c === '/' && ke === '/') {
-        trangThai = 'dong';
-        i += 1;
-      } else if (c === '"' || c === "'" || c === '`') {
-        trangThai = c;
-        ket.push(c);
-      } else {
-        ket.push(c);
-      }
-    } else if (trangThai === 'khoi') {
-      if (c === '*' && ke === '/') {
-        trangThai = 'ma';
-        i += 1;
-      } else {
-        ket.push(c === '\n' ? '\n' : ' ');
-      }
-    } else if (trangThai === 'dong') {
-      if (c === '\n') {
-        trangThai = 'ma';
-        ket.push('\n');
-      }
-    } else {
-      if (c === '\\') {
-        ket.push('  ');
-        i += 1;
-      } else {
-        if (c === trangThai) {
-          trangThai = 'ma';
-        }
-        ket.push(c);
-      }
-    }
-  }
-  return ket.join('');
-}
 
 /** Số lời gọi `ten(` ở mọi tệp nguồn KHÁC, đã bỏ bài kiểm. Nhận cả `ten<Kieu>(`. */
 export function soNoiGoi(

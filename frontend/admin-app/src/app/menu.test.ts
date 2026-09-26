@@ -332,10 +332,23 @@ describe('ba mục nghỉ phép gác bằng ba loại điều kiện khác nhau 
     );
   });
 
+  it('⭐ "Lịch nghỉ đơn vị" gác bằng `hr:leave:view-all`, ⛔ bằng `hr:leave:approve` — T57.18(b)', () => {
+    // Lịch đơn vị là để BỐ TRÍ CA TRỰC, nên người phụ trách nhân sự cần xem dù ⛔ phải cấp duyệt.
+    // Và `hr:leave:view-all` đúng là mã quyền backend đang gác `GET /hr/nghi-phep/lich` — hai tầng
+    // trả lời cùng một câu thì phải cùng một điều kiện.
+    expect(leafLabels(visibleMenu(MENU, checker('hr:leave:view-all')))).toContain(
+      'Lịch nghỉ đơn vị',
+    );
+    expect(leafLabels(visibleMenu(MENU, checker('hr:leave:approve')))).not.toContain(
+      'Lịch nghỉ đơn vị',
+    );
+  });
+
   it('đường dẫn tô sáng đúng mục', () => {
     expect(findMenuKey(MENU, '/nhan-su/nghi-phep')).toBe('nghi-phep-cua-toi');
     expect(findMenuKey(MENU, '/nhan-su/duyet-nghi-phep')).toBe('duyet-nghi-phep');
     expect(findMenuKey(MENU, '/nhan-su/ngay-le')).toBe('ngay-le');
+    expect(findMenuKey(MENU, '/nhan-su/lich-nghi-don-vi')).toBe('lich-nghi-don-vi');
   });
 });
 

@@ -107,10 +107,27 @@ export default defineConfig({
     //    Biên còn 18% mà chênh lệch runner là 29% ⇒ kết cục do runner bốc được quyết định,
     //    không do mã. Đó không phải "bài kiểm chập chờn" mà là **một ngưỡng chưa ai sở hữu**.
     //
-    //    15000ms cho biên ~3,7× so với bài chậm nhất. ⛔ KHÔNG phải để giấu bài chậm: ba bài
-    //    ~4s là màn soạn bài mang trình soạn thảo tiptap, và `import` của riêng tệp ấy đã
-    //    27–36s. Việc rút ngắn chúng là T11.85, dòng nợ riêng có số đo — ngưỡng này chỉ thôi
-    //    để runner quyết định thay.
+    //    15000ms ⛔ phải để giấu bài chậm — nó chỉ thôi để runner quyết định thay.
+    //
+    //    ⚠⚠ ĐO LẠI 25/09/2026 (T11.85): **ba con số trên đã HẾT HẠN**, và bản cũ của chú thích
+    //    này còn khai *"`import` của riêng tệp ấy đã 27–36s"* — sai khoảng **25 lần**. Số hôm nay,
+    //    mỗi tệp chạy một lượt riêng:
+    //
+    //      soanBaiKhongMatDuLieu.test.tsx   3,85s / 7 bài   (import 1,21s)
+    //      soanBaiVongKhuHoi.test.tsx       1,66s / 5 bài   (import 0,84s)
+    //      cả bộ admin-app                 36,4s / 730 bài
+    //
+    //    ⇒ Bài chậm nhất nay ~0,5s, biên còn **~30×**. Thứ chữa nó ⛔ phải một bản vá nhắm vào
+    //    tiptap mà là **WS-67** (React 18→19 · antd 5→6): bộ kiểm FE đi từ 170s xuống 76s, và
+    //    730 bài hôm nay chạy trong đúng khoảng thời gian 222 bài từng chạy ngày 05/09.
+    //
+    //    ⛔ Vì thế **⛔ thêm `deps.inline`** như kế hoạch từng kê: ⛔ còn một số đo nào cho thấy có
+    //    thứ để rút ngắn, và thêm một núm cấu hình ⛔ ai cần là đúng thứ luật 15 cấm.
+    //
+    //    ⛔ Và **⛔ hạ ngưỡng xuống theo số mới**: 5000ms chính là mặc định đã gây ra sự cố, còn
+    //    một con số vừa khít số đo hôm nay sẽ đỏ vào ngày runner chậm đi — lặp lại đúng lỗi
+    //    *"ngưỡng do runner bốc được quyết định"*. Giá trị này là một QUYẾT ĐỊNH, ⛔ phải một
+    //    phép đo, và nó vẫn đúng.
     testTimeout: 15_000,
   },
 });

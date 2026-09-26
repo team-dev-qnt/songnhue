@@ -227,6 +227,18 @@ export interface OrgUnitNode {
    */
   headUserPublicId: string | null;
   deputyUserPublicId: string | null;
+  /**
+   * **T74.11** — đơn vị này có nằm trong phạm vi GHI của người đang đăng nhập không.
+   *
+   * Backend đo bằng đúng vị từ của bộ lọc đọc (`ScopeGuard.duongDanTrongPhamVi`). Nó ⛔ phải một
+   * lớp phân quyền — `ScopeGuard.requireWritableOrgUnit` vẫn chặn — nó chỉ để ô chọn **nói trước**
+   * thay vì để người dùng điền xong biểu mẫu rồi mới nhận `AUTH-3002` lúc bấm Lưu.
+   *
+   * ⚠ Cờ phụ thuộc **người đăng nhập**, nên phản hồi mang nó ⛔ được sống qua một lượt đổi phiên.
+   * Thứ giữ cam kết ấy là `AuthProvider.endSession()` xoá cả đệm truy vấn (T63.3 · T85.13), ⛔ phải
+   * một danh sách khoá đệm gõ tay.
+   */
+  trongPhamVi: boolean;
   children: OrgUnitNode[];
 }
 
@@ -597,6 +609,12 @@ export type OperationalStatus =
   'BINH_THUONG' | 'CANH_BAO' | 'SU_CO' | 'BAO_TRI' | 'NGUNG_MUA_VU' | 'DA_THANH_LY';
 export type LifecycleState = 'DANG_HOAT_DONG' | 'NGUNG_MUA_VU' | 'DA_THANH_LY';
 export type ManagementLevel = 'CONG_TY' | 'XI_NGHIEP' | 'CUM';
+
+/** Loại cống — `ck_sluice_specs_type`. T68.28: trước 23/09/2026 đây là `string` tự do. */
+export type SluiceType = 'HOP' | 'TRON' | 'VAN_PHANG' | 'CLAPE';
+
+/** Kiểu vận hành cửa cống — `ck_sluice_specs_gate`. */
+export type GateOperation = 'THU_CONG' | 'DIEN' | 'THUY_LUC';
 /**
  * ⚠ Phải khớp ĐÚNG enum Java `ConstructionPurpose` và `ck_constructions_purpose`.
  *
@@ -639,13 +657,13 @@ export interface PumpSpecView {
 }
 
 export interface SluiceSpecView {
-  sluiceType: string | null;
+  sluiceType: SluiceType | null;
   bayCount: number | null;
   bayWidthM: number | null;
   sillElevationM: number | null;
   crestElevationM: number | null;
   designFlowM3s: number | null;
-  gateOperation: string | null;
+  gateOperation: GateOperation | null;
   upstreamWarningLevelM: number | null;
   upstreamDangerLevelM: number | null;
 }
@@ -950,7 +968,14 @@ export interface ImportReport {
 // =============================================================================
 
 export type PositionRole = 'THUONG_LUU' | 'HA_LUU' | 'BE_HUT' | 'MN_SONG' | 'MUA';
-export type AdapterType = 'BHH40' | 'MOCK';
+/**
+ * ⚠ Bộ ba `AdapterType` (Java) ↔ `ck_api_sources_adapter` (SQL) ↔ union này bị `EnumBaNoiTest`
+ * khoá với nhau — thêm một giá trị thì sửa **cả ba** trong cùng một PR, ⛔ thì CI đỏ.
+ *
+ * `BHH40` = mực nước (`getmucnuoc.aspx`, cm) · `BHH40_MUA` = lượng mưa (`getluongmua.aspx`, mm).
+ * ⚠ Tên trần `BHH40` nghĩa là *mực nước* vì lý do lịch sử: tới 26/09/2026 nguồn chỉ có một endpoint.
+ */
+export type AdapterType = 'BHH40' | 'BHH40_MUA' | 'MOCK';
 export type ApiSourceStatus = 'HOAT_DONG' | 'TAM_DUNG';
 
 export interface MeasurementType {
@@ -1127,6 +1152,13 @@ export interface Station {
   /** ⚠ Điểm đo `MN_SONG` không liên kết công trình nào là HỢP LỆ — cờ này đã trừ trường hợp đó. */
   thieuLienKetCongTrinh: boolean;
   chuaGanDonVi: boolean;
+  /**
+   * Chưa số hoá vị trí (G8) — T35.2.
+   *
+   * ⭐ Cùng vị từ với danh sách `chuaSoHoaViTri` của `/hyd/stations/map-points`, canh bởi
+   * `StationMapHttpTest`: dashboard đếm một con số, màn hình này phải bày ra **đúng** chừng ấy dòng.
+   */
+  chuaSoHoaViTri: boolean;
 }
 
 export interface StationRequest {

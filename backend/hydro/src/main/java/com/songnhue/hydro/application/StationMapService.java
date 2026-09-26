@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.songnhue.hydro.api.HydroMapDtos;
+import com.songnhue.hydro.domain.Station;
 import com.songnhue.hydro.domain.StationDisplayStatus;
 import com.songnhue.hydro.infra.StationMapRepository;
 
@@ -64,9 +65,9 @@ public class StationMapService {
             StationDisplayStatus trangThai =
                     StationDisplayStatus.suyRa(r.active(), r.mocGanNhat(), bayGio, khung, soKhung);
 
-            // ⚠ `ck_stations_coords_paired` ép hai cột NULL cùng nhau, nên kiểm một cột là đủ —
-            //   nhưng kiểm cả hai để lớp này ⛔ không phụ thuộc vào một ràng buộc ở tệp khác.
-            if (r.latitude() == null || r.longitude() == null) {
+            // ⭐ Vị từ ở `Station`, ⛔ viết lại ở đây: `StationView.chuaSoHoaViTri` (bộ lọc của màn
+            //   hình Điểm đo) phải chọn ra ĐÚNG tập này — xem javadoc `Station.chuaSoHoaViTri`.
+            if (Station.chuaSoHoaViTri(r.latitude(), r.longitude())) {
                 chuaSoHoa.add(new HydroMapDtos.DiemDoChuaSoHoaView(
                         r.publicId(), r.code(), r.name(), r.positionRole(), r.riverName(), r.chainage()));
                 continue;

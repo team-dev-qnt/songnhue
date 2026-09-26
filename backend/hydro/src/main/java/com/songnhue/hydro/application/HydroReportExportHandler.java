@@ -48,9 +48,11 @@ import tools.jackson.databind.ObjectMapper;
  *
  * <h2>⛔ Số lần thử = 1</h2>
  *
- * <p>Khai ở {@link HydroReportController} qua {@code JobRequest}, ⛔ không ở đây
- * ({@link JobHandler#maxAttempts()} ⛔ không có người đọc trong toàn kho — xem
- * {@code HydroRetentionHandler}). Lý do: một lượt kết xuất hỏng gần như luôn là hỏng <i>tất định</i>
+ * <p>Khai ở {@link HydroReportController} qua {@code JobRequest}, ⛔ không ở đây. ⚠ Lý do đã ĐỔI
+ * ngày 23/09/2026 (T68.30): {@link JobHandler#maxAttempts()} nay <b>có</b> một người đọc
+ * ({@code JobService.enqueue}) và là giá trị mặc định, nên câu cũ <i>"⛔ có người đọc trong toàn
+ * kho"</i> đã sai. Con số ở lại nơi đặt việc vì nó đi kèm lý do của <b>lượt bấm Xuất</b> (người dùng
+ * đang chờ, bấm lại được ngay), ⛔ phải của công việc. Lý do: một lượt kết xuất hỏng gần như luôn là hỏng <i>tất định</i>
  * (khoảng ngày quá rộng, điểm đo vừa bị xoá), nên thử lại ba lần chỉ dựng lại cùng một lỗi ba lần —
  * và mỗi lượt là một lần quét bảng. Hỏng thì hiện FAILED cho người dùng bấm Xuất lại.
  */
@@ -384,13 +386,16 @@ public class HydroReportExportHandler implements JobHandler {
     }
 
     /**
-     * ⛔ Ô lượng mưa của BC-05 — G3-a.
+     * ⛔ Ô lượng mưa của BC-05 — nay là <b>G8</b>, ⛔ còn là G3-a (WS-87, 26/09/2026).
      *
-     * <p>Nguồn {@code bhh40} ⛔ không có endpoint lượng mưa, nên cột này ⛔ chưa bao giờ có số. Một
-     * hằng số nói ra lý do thắng một ô trắng: người đọc báo cáo tháng 8 mà thấy cột lượng mưa trắng
-     * sẽ nghĩ tháng ấy ⛔ không mưa.
+     * <p>Một hằng số nói ra lý do thắng một ô trắng: người đọc báo cáo mà thấy cột lượng mưa trắng
+     * sẽ nghĩ kỳ ấy ⛔ mưa (quy tắc 16 — số 0 là một câu khẳng định).
+     *
+     * <p>⚠ Câu chữ đổi vì <b>lý do</b> đã đổi: Công ty cấp {@code getluongmua.aspx} ngày 26/09/2026,
+     * nên *"chưa có nguồn"* thành một lời khai sai. Thứ còn thiếu là bảng ánh xạ <b>15 mã ↔ trạm</b>
+     * — số đo vẫn đang chảy về và nằm nguyên văn ở {@code hydro_unmapped_readings}.
      */
-    private static final String LUONG_MUA_CHUA_CO_NGUON = "Chưa có nguồn (G3-a)";
+    private static final String LUONG_MUA_CHUA_CO_NGUON = "Chưa khai trạm mưa (G8)";
 
     /**
      * ⭐⭐ BC-11 — biểu tổng hợp mực nước theo tuyến sông, <b>một ngày</b>.

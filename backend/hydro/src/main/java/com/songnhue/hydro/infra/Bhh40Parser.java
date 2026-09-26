@@ -102,8 +102,33 @@ public final class Bhh40Parser {
         return body != null && body.toLowerCase(Locale.ROOT).contains(CHUOI_NGUON_HONG);
     }
 
-    /** Bóc — xem hợp đồng ở {@code TelemetryAdapter.boc}. */
-    static TelemetryBatch boc(String body) {
+    /**
+     * Bóc — xem hợp đồng ở {@code TelemetryAdapter.boc}.
+     *
+     * <h2>⛔⛔ Vì sao {@code donViNguon} là THAM SỐ, ⛔ phải một hằng số ở đây — WS-87</h2>
+     *
+     * <p>Hai endpoint của {@code bhh40} có định dạng dòng <b>y hệt nhau</b> và đơn vị <b>khác nhau</b>
+     * ({@code cm} · {@code mm}). Nên thân phản hồi <b>⛔ mang thông tin nào</b> cho phép suy ra đơn
+     * vị: {@code value=292} và {@code value=0.0} chỉ khác nhau vì hôm đo trời ⛔ mưa. Đơn vị là sự
+     * thật của <b>nguồn đã gọi</b>, và nơi duy nhất còn biết mình vừa gọi nguồn nào là adapter.
+     *
+     * <p>⛔ Nếu để hằng {@code cm} ở đây thì mọi số đo mưa bị đóng dấu {@code cm} và ghi xuống
+     * {@code hydro_unmapped_readings} với <b>một đơn vị sai nhưng hợp lệ</b> — ⛔ có lượt đỏ nào, và
+     * ngày Công ty khai mã thì job nâng cấp chia 100: <b>12,5 mm thành 0,125 m</b>.
+     *
+     * @param donViNguon đơn vị của nguồn vừa gọi; phải qua {@code TelemetryReading.donViDuocBiet}
+     */
+    static TelemetryBatch boc(String body, String donViNguon) {
+        // ⛔⛔ Kiểm đơn vị Ở ĐÂY, NGOÀI vòng lặp và ngoài `try` của từng dòng — T87.3.
+        //    `bocMotDong` BẮT `IllegalArgumentException` (đúng, cho dòng rác thật) nên một đơn vị lạ
+        //    lọt vào trong sẽ biến CẢ MẺ thành rác: mẻ rỗng ⇒ `TelemetryIngestService` báo
+        //    `EMPTY_BODY` kèm câu "nhiều khả năng nguồn đổi định dạng" ⇒ hệ đổ lỗi cho NGUỒN trong
+        //    khi lỗi là một hằng số của TA, và số liệu mất vĩnh viễn (quy tắc 18) trong lúc người
+        //    trực đi tìm nhầm chỗ. Ném ở đây thì nó hỏng lớn tiếng, một lần, đúng chỗ.
+        if (!TelemetryReading.donViDuocBiet(donViNguon)) {
+            throw new IllegalArgumentException("Adapter giao đơn vị '" + donViNguon
+                    + "' mà TelemetryReading chưa biết quy đổi — ⛔ bóc một mẻ nào bằng đơn vị lạ.");
+        }
         if (body == null || body.isBlank()) {
             return new TelemetryBatch(List.of(), 0, 0, false);
         }
@@ -123,7 +148,7 @@ public final class Bhh40Parser {
                 //   bộ đếm rác nhảy lên 1 ở MỌI lượt gọi thành công là một bộ đếm không ai đọc nữa.
                 continue;
             }
-            TelemetryReading soDoDong = bocMotDong(dong);
+            TelemetryReading soDoDong = bocMotDong(dong, donViNguon);
             if (soDoDong == null) {
                 rac++;
                 continue;
@@ -148,8 +173,12 @@ public final class Bhh40Parser {
         return cat < 0 ? body : body.substring(0, cat);
     }
 
-    /** @return {@code null} khi dòng không dùng được — người gọi đếm nó vào {@code soDongRac} */
-    private static TelemetryReading bocMotDong(String dong) {
+    /**
+     * @param donViNguon đã được {@link #boc} kiểm — ⛔ kiểm lại ở đây, vì cái {@code catch} bên dưới
+     *     sẽ nuốt mất lượt từ chối và biến nó thành một dòng rác (T87.3)
+     * @return {@code null} khi dòng không dùng được — người gọi đếm nó vào {@code soDongRac}
+     */
+    private static TelemetryReading bocMotDong(String dong, String donViNguon) {
         Matcher m = DONG.matcher(dong);
         if (!m.matches()) {
             log.warn("Bỏ qua dòng không khớp định dạng nguồn: {}", rutGon(dong));
@@ -159,7 +188,7 @@ public final class Bhh40Parser {
             LocalDateTime gioVn = LocalDateTime.parse(m.group(2) + " " + m.group(3), MOC);
             Instant mocDo = gioVn.atZone(DateTimeUtils.ZONE_VN).toInstant();
             BigDecimal giaTriTho = new BigDecimal(m.group(4).replace(',', '.'));
-            return new TelemetryReading(m.group(1), mocDo, giaTriTho, TelemetryReading.DON_VI_CM);
+            return new TelemetryReading(m.group(1), mocDo, giaTriTho, donViNguon);
         } catch (DateTimeParseException e) {
             // Dòng KHỚP regex nhưng mang mốc không tồn tại (32/13, 25:70). Regex chỉ đếm chữ số, nó
             // không biết lịch — nếu để ngoại lệ này bay lên thì một dòng rác làm hỏng cả mẻ.
