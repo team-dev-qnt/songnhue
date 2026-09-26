@@ -114,13 +114,16 @@ class DeployRemoteStdinTest {
         }
         // Chặn xanh-trên-tập-rỗng: đổi tên dấu kết thúc heredoc thì bài này phải ĐỎ, không phải im lặng đạt.
         // ⚠ Số ĐÚNG, ⛔ "≥": thêm/bớt một khối từ xa là việc phải ai đó nhìn thấy. 4 → 5 ở WS-71 (19/09) khi
-        //   bước "Chụp cấu hình đang chạy" ra đời (T11.9).
+        //   bước "Chụp cấu hình đang chạy" ra đời (T11.9); 5 → 7 ở WS-88 (26/09) khi phép ĐO lược đồ
+        //   trước/sau thay câu đoán của nhánh quay lui (T11.99) — hai khối vì hai THỜI ĐIỂM khác nhau,
+        //   gộp lại thì phép so ⛔ còn phân biệt được gì.
         assertThat(dem)
                 .as(
-                        "Đếm được %d khối heredoc REMOTE, kỳ vọng 5 (chup-cau-hinh · pg-dump · trien-khai · collation ·"
-                                + " quay-lui). 0 ⇒ regex đã lỗi thời, SỬA bài kiểm; số khác ⇒ cập nhật danh sách này",
+                        "Đếm được %d khối heredoc REMOTE, kỳ vọng 7 (chup-cau-hinh · pg-dump · moc-luoc-do-truoc ·"
+                                + " trien-khai · collation · quay-lui · moc-luoc-do-sau). 0 ⇒ regex đã lỗi thời, SỬA"
+                                + " bài kiểm; số khác ⇒ cập nhật danh sách này",
                         dem)
-                .isEqualTo(5);
+                .isEqualTo(7);
     }
 
     @Test

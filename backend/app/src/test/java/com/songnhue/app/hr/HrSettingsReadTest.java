@@ -148,6 +148,42 @@ class HrSettingsReadTest {
         assertThat(duocDoc("hr.x.y", Set.of("hr.x.yz"))).isFalse();
     }
 
+    @Test
+    @DisplayName("⛔⛔ T85.10 — một khoá nhắc trong CHÚ THÍCH ⛔ phải một nơi đọc (luật 1)")
+    void chuThichKhongPhaiNoiDoc() {
+        // ⛔⛔ Đây là ca ĐO ĐƯỢC, ⛔ phải giả thuyết. Kiểm chứng ngược 26/09/2026: đổi
+        //   `ChinhSachPhep.KHOA_CO_SO` sang một tên khác và để lại javadoc
+        //   `{@code "hr.leave.annual-days.base"}` ⇒ khoá ấy còn SỐNG trong `settings` với ĐÚNG 0 nơi
+        //   đọc thật, mà bộ canh vẫn **4/4 XANH** — xanh trong đúng tình huống nó sinh ra để bắt
+        //   (T49.6 · T46.7). Và cả 18 khoá `hr.*` đều có ĐÚNG MỘT nơi đọc, ⛔ khoá nào có dự phòng
+        //   ⇒ lỗ ấy cách hiện trạng đúng MỘT lượt sửa.
+        String ma =
+                """
+                /** Trước nay khoá là {@code "hr.leave.cu"}; đổi tên ở V202609261100. */
+                static final String KHOA = "hr.leave.moi";
+                // đọc "hr.leave.trong-chu-thich-dong" ở đây
+                String url = "https://vd.test/x"; // ⛔ cắt thô nuốt mất phần sau `https://`
+                """;
+        Set<String> thay = CHUOI_HR.matcher(boChuThich(ma))
+                .results()
+                .map(m -> m.group(1))
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+
+        assertThat(thay)
+                .as("⛔ Chuỗi nằm trong javadoc/chú thích ⛔ được tính là nơi đọc — nếu tính thì bộ canh "
+                        + "phạt đúng người viết tài liệu tử tế, rồi im khi khoá thật mất nơi đọc")
+                .doesNotContain("hr.leave.cu", "hr.leave.trong-chu-thich-dong");
+        assertThat(thay)
+                .as("⛔ Vế phân biệt (luật 9): bộ cắt ⛔ được nuốt luôn chuỗi THẬT — ⛔ có vế này thì một "
+                        + "bộ cắt trả về chuỗi rỗng cũng qua khẳng định trên")
+                .containsExactly("hr.leave.moi");
+        assertThat(boChuThich(ma))
+                .as("⚠ `[^:]` trước `//` — cắt thô theo `//` nuốt phần sau một URL `https://` ⇒ đỏ giả (T49.6). "
+                        + "⛔ Nó chỉ chắn ĐÚNG `://`: một `//` thứ hai trong đường dẫn vẫn bị cắt. Phạm vi thật "
+                        + "của bộ cắt, khai ra theo luật 28")
+                .contains("https://vd.test/x");
+    }
+
     // ---- Trích dữ liệu -------------------------------------------------------
 
     static boolean duocDoc(String khoa, Set<String> noiDoc) {
@@ -194,7 +230,7 @@ class HrSettingsReadTest {
     private static Set<String> chuoiHr() {
         Set<String> ra = new LinkedHashSet<>();
         try (Stream<Path> luot = Files.walk(timTuGocKho(MA_HR))) {
-            luot.filter(p -> p.toString().endsWith(".java")).forEach(p -> CHUOI_HR.matcher(docTep(p))
+            luot.filter(p -> p.toString().endsWith(".java")).forEach(p -> CHUOI_HR.matcher(boChuThich(docTep(p)))
                     .results()
                     .map(r -> r.group(1))
                     .forEach(ra::add));
@@ -202,6 +238,22 @@ class HrSettingsReadTest {
             throw new UncheckedIOException(e);
         }
         return ra;
+    }
+
+    /**
+     * Bỏ chú thích mà <b>giữ chuỗi ký tự</b> — cùng khuôn {@code boChuThich} của T54.8, bản gốc ở
+     * {@code CoreSettingsReadTest} (gói {@code ..app.architecture}, ⛔ với tới được từ đây).
+     *
+     * <p>⚠ Kho có <b>23</b> bản {@code boChuThich*} trong {@code src/test} tính đến 26/09/2026, và
+     * chúng <b>⛔ cùng một thuật toán</b> — mỗi bản cắt một loại tệp (Java · SQL · YAML · Makefile).
+     * Việc hợp nhất là {@code T28.41}; ⛔ hợp nhất ở đây, vì chọn nhầm bản cho nhầm loại tệp là đổi
+     * một lỗ này lấy một lỗ khác.
+     *
+     * <p>⚠ Vế {@code [^:]} trước {@code //} là bắt buộc: cắt thô theo {@code //} nuốt mất phần sau
+     * một URL {@code https://} ⇒ đỏ giả (T49.6).
+     */
+    static String boChuThich(String ma) {
+        return ma.replaceAll("(?s)/\\*.*?\\*/", " ").replaceAll("(?m)(^|[^:])//.*$", "$1");
     }
 
     private static String docTep(Path p) {

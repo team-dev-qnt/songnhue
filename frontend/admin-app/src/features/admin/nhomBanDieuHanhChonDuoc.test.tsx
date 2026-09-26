@@ -2,6 +2,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { App as AntdApp } from 'antd';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { AuthContext, type AuthContextValue } from '@/app/auth/AuthContext';
@@ -38,11 +40,44 @@ import type * as ApiClientModule from '@/shared/apiClient';
  *       thay *mọi* ô JSON bằng ô chọn tài khoản cũng làm hai bài đầu xanh, và nó sẽ phá mọi khoá
  *       JSON còn lại (luật 9 · luật 28).
  * </ol>
+ *
+ * <h2>⭐ T85.15 — hằng khoá ĐO từ backend, ⛔ gõ tay</h2>
+ *
+ * Bản đầu của chính tệp này giữ một **bản chép** chuỗi khoá, và `SettingsPage.tsx` giữ một bản nữa
+ * (`KHOA_NHOM_CANH_BAO`) — ⛔ bên nào đọc `RecipientResolver.java`. Hai bản chép khớp nhau thì bài
+ * xanh, nên nó **canh chính nó với trang** chứ ⛔ canh cặp FE ↔ BE: backend đổi khoá là ô chọn lặng
+ * lẽ ⛔ hiện ra và người quản trị tụt về đúng ô JSON thô mà T76.3 sinh ra để bỏ, ⛔ một dòng đỏ nào
+ * (T51.15 — *một bài kiểm chép hằng số của phía bên kia thì nó canh CHÍNH NÓ*).
+ *
+ * ⇒ Mọi bài dưới dùng chuỗi **đọc từ `RecipientResolver.java`**, đúng khuôn
+ * `oChonMaDiemDoLenCong.test.tsx`: hằng phía FE trôi một ký tự là cả ba bài đỏ ngay — ⛔ phải một
+ * bài canh-văn-bản riêng, và ⛔ có cách nào im nó bằng cách sửa chú thích.
+ *
+ * ⚠ `CiPathFilterTest` **ĐO** mọi hằng chuỗi `'backend/…'` trong mã kiểm FE rồi đối chiếu với bộ lọc
+ * `frontend` của `ci.yml` — nên đường dẫn dưới đây tự nó kéo job FE chạy khi tệp Java ấy đổi.
  */
 
 const goi = vi.fn();
 
-const KHOA_BAN_DIEU_HANH = 'notification.alert-group.executive-board';
+const GOC_KHO = join(dirname(new URL(import.meta.url).pathname), '../../../../..');
+
+const NGUON_RECIPIENT_RESOLVER = readFileSync(
+  join(
+    GOC_KHO,
+    'backend/core/src/main/java/com/songnhue/core/application/notification/RecipientResolver.java',
+  ),
+  'utf8',
+);
+
+/** `public static final String KEY_EXECUTIVE_BOARD = "notification.alert-group.executive-board";` */
+const KHOA_BAN_DIEU_HANH = (() => {
+  const khop = /KEY_EXECUTIVE_BOARD\s*=\s*"([^"]+)"/.exec(NGUON_RECIPIENT_RESOLVER);
+  // Tiền đề (luật 7): ⛔ bóc được thì mọi bài dưới chạy trên một khoá BỊA và đều xanh vô nghĩa.
+  if (!khop) {
+    throw new Error('⛔ đọc được KEY_EXECUTIVE_BOARD trong RecipientResolver.java');
+  }
+  return khop[1];
+})();
 
 const NGUOI: UserView[] = [
   nguoi('u-an-0000-0000-0000-000000000001', 'an.nv', 'Nguyễn Văn An', 'ACTIVE'),

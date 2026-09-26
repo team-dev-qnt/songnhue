@@ -18,14 +18,24 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import com.songnhue.app.architecture.ProductionClasses;
 import com.songnhue.content.domain.ContactStatus;
 import com.songnhue.content.domain.FeedbackStatus;
 import com.songnhue.content.domain.MenuLinkType;
 import com.songnhue.content.domain.MenuPosition;
+import com.songnhue.core.domain.attachment.AttachmentStatus;
+import com.songnhue.core.domain.attachment.ScanStatus;
+import com.songnhue.core.domain.audit.AuditAction;
 import com.songnhue.core.domain.backup.BackupStatus;
 import com.songnhue.core.domain.backup.BackupTrigger;
+import com.songnhue.core.domain.identity.SessionRevokeReason;
 import com.songnhue.core.domain.identity.UserStatus;
 import com.songnhue.core.domain.job.JobStatus;
+import com.songnhue.core.domain.notification.NotificationChannel;
+import com.songnhue.core.domain.notification.NotificationSeverity;
+import com.songnhue.core.domain.notification.RecipientStatus;
+import com.songnhue.core.domain.org.OrgUnitType;
+import com.songnhue.core.domain.security.SecurityEventType;
 import com.songnhue.hr.domain.ContractType;
 import com.songnhue.hr.domain.EducationLevel;
 import com.songnhue.hr.domain.EmployeeEventType;
@@ -44,6 +54,7 @@ import com.songnhue.hydro.domain.ReadingQuality;
 import com.songnhue.hydro.domain.ReadingSource;
 import com.songnhue.hydro.domain.SyncFailureKind;
 import com.songnhue.hydro.domain.SyncStatus;
+import com.songnhue.operations.domain.AcceptanceResult;
 import com.songnhue.operations.domain.ConstructionPurpose;
 import com.songnhue.operations.domain.ConstructionType;
 import com.songnhue.operations.domain.GateOperation;
@@ -114,15 +125,18 @@ import com.songnhue.operations.domain.TrangThaiBaoCaoNhanh;
  * canh <b>11</b>, miễn <b>3</b>. ⭐ Lượt thêm 21 dòng ấy <b>xanh ngay</b> ⇒ ⛔ enum ba-nơi nào đang
  * lệch hôm nay; thứ thiếu suốt thời gian qua là <b>cơ chế</b>, ⛔ phải một bản vá.
  *
- * <h2>⬜ Câu hỏi bài này KHÔNG hỏi — {@code T85.11}</h2>
+ * <h2>✅ Câu hỏi thứ hai — {@code T85.11}, đóng 26/09/2026</h2>
  *
  * <p>Bài chính hỏi <i>"ba nơi có cùng một bộ giá trị ⛔"</i>. Với ràng buộc <b>⛔ có</b> union TS,
  * vẫn còn <b>hai</b> nơi — enum Java và {@code CHECK} — và hai nơi <b>vẫn lệch được</b>; lệch ở đó
- * nổ thành <b>500 lúc ghi</b>. Đo 23/09: <b>8</b> dòng trong {@link #DUOC_MIEN} có enum Java thật
- * ({@code AttachmentStatus} · {@code ScanStatus} · {@code AuditAction} · {@code OrgUnitType} ·
- * {@code NotificationSeverity} · {@code NotificationChannel} · {@code RecipientStatus} ·
- * {@code AcceptanceResult}). Câu ấy hiện <b>⛔ ai hỏi</b> — nó nằm ở {@code T85.11} kèm số đo,
- * ⛔ giấu sau một dòng miễn trừ.
+ * nổ thành <b>500 lúc ghi</b>. Dòng nợ đếm <b>8</b>; đo lại 26/09 bằng chính bánh cóc dưới đây ra
+ * <b>10</b> — thêm {@code ck_security_events_severity} và {@code ck_sessions_revoked_reason}
+ * ⇒ {@link #JAVA_SQL} + {@link #javaVaCheckCungMotBoGiaTri}.
+ *
+ * <p>⭐ Và cặp <b>thứ chín</b> ⛔ được phép vô hình: {@link #moiRangBuocCoEnumJavaDeuDuocXepLoai}
+ * <b>ĐO</b> mọi enum production qua {@code ProductionClasses.ALL} rồi bắt mọi dòng
+ * {@link #DUOC_MIEN} có enum trùng khít phải vào {@link #JAVA_SQL} — vế trái do phép đo dựng, ⛔ do
+ * người viết dòng miễn trừ tự nhận.
  */
 class EnumBaNoiTest {
 
@@ -157,18 +171,47 @@ class EnumBaNoiTest {
     private static final Path CMS_TYPES = gocKho().resolve("frontend/admin-app/src/features/cms/types.ts");
 
     /**
+     * Nơi khai union thứ <b>tư</b> — và nó nằm ở một <b>ứng dụng KHÁC</b> (T85.12).
+     *
+     * <p>⛔⛔ Đo 23/09/2026 khi quét union TS trên cả cây {@code frontend/}: {@code MenuLinkType} khai
+     * {@code export type} ở <b>hai</b> tệp. Bảng cũ ghim đúng một tệp của {@code admin-app}, nên bản
+     * ở {@code public-web} <b>⛔ ai đối chiếu</b>: nó lệch đi thì cổng công khai dựng sai nhánh mục
+     * menu mà bộ canh vẫn xanh.
+     *
+     * <p>⚠ Đây là khe mù <b>ĐO ĐƯỢC</b>, ⛔ phải suy đoán — và nó ⛔ có nạn nhân hôm nay (cả hai tệp
+     * đang khai đúng 5 giá trị). Vá một lỗ chưa gây hại vẫn là việc đúng: T49.6 đã trả giá cho vế
+     * ngược lại.
+     */
+    private static final Path PUBLIC_API = gocKho().resolve("frontend/public-web/src/lib/api.ts");
+
+    /**
      * Một dòng = một danh sách giá trị phải khớp ở cả ba nơi.
      *
      * @param tenTuVung tên hằng {@code StatusVocabulary} ở {@code statusVocabulary.ts}, hoặc
      *     {@code null} khi enum ấy chưa được canh ở nơi thứ tư — xem phạm vi ở javadoc lớp.
-     * @param tepTs tệp khai union TypeScript của enum này
+     * @param tepTs <b>mọi</b> tệp khai union TypeScript của enum này — ⛔ phải một tệp
      */
     private record BoBa(
-            Class<? extends Enum<?>> enumJava, String tenKieuTs, String tenRangBuoc, String tenTuVung, Path tepTs) {
+            Class<? extends Enum<?>> enumJava,
+            String tenKieuTs,
+            String tenRangBuoc,
+            String tenTuVung,
+            List<Path> tepTs) {
 
         /** Dạng gọn cho enum khai union ở {@code api-types.ts} — chỗ mặc định. */
         BoBa(Class<? extends Enum<?>> enumJava, String tenKieuTs, String tenRangBuoc, String tenTuVung) {
-            this(enumJava, tenKieuTs, tenRangBuoc, tenTuVung, API_TYPES);
+            this(enumJava, tenKieuTs, tenRangBuoc, tenTuVung, List.of(API_TYPES));
+        }
+
+        /**
+         * Dạng một tệp — giữ nguyên mọi dòng đã có.
+         *
+         * <p>⛔⛔ Vì sao vế trái là một DANH SÁCH (T85.12): một kiểu khai ở hai ứng dụng thì ghim một
+         * tệp là để tệp kia ngoài mọi tầm quét, và cái xanh của bộ canh đọc như bảo đảm cho cả hai
+         * (luật 28). Danh sách làm chỗ khai thứ hai thành một <b>tham số</b> chứ ⛔ phải một khe mù.
+         */
+        BoBa(Class<? extends Enum<?>> enumJava, String tenKieuTs, String tenRangBuoc, String tenTuVung, Path tepTs) {
+            this(enumJava, tenKieuTs, tenRangBuoc, tenTuVung, List.of(tepTs));
         }
     }
 
@@ -235,11 +278,19 @@ class EnumBaNoiTest {
             //    ⚠ Bốn enum của `content` khai union ở `features/cms/types.ts`, ⛔ ở `api-types.ts` —
             //    đúng tiền lệ T51.10(a) (bốn enum HR khai cạnh nhãn của chúng). Một bộ dò một-tệp sẽ
             //    kết luận *"⛔ có nơi thứ hai"* cho chính những enum có tới ba.
-            //    ⚠⚠ `MenuLinkType` khai ở **hai** tệp TS (`features/cms/types.ts` và
-            //    `public-web/src/lib/api.ts`) ⇒ nó có **BỐN** nơi; dòng này mới canh ba — xem `T85.12`.
+            //    ⚠⚠ `MenuLinkType` khai ở **hai** tệp TS ⇒ nó có **BỐN** nơi. Đóng 26/09 (T85.12):
+            //    vế `tepTs` nay là một DANH SÁCH và bài chính so **TỪNG** tệp với Java.
+            //    ⭐ Phạm vi ấy là một phép ĐO, ⛔ một phỏng đoán: quét cả 56 union của `frontend/` bằng
+            //    chính `moiUnionTs()` ⇒ `MenuLinkType` là kiểu **DUY NHẤT** khai ở nhiều hơn một tệp.
+            //    Bộ canh `moiKieuKhaiNhieuNoiDeuDuTrongBang` giữ cho câu ấy tự đo lại mỗi lượt.
             new BoBa(ContactStatus.class, "ContactStatus", "ck_contacts_status", null, CMS_TYPES),
             new BoBa(FeedbackStatus.class, "FeedbackStatus", "ck_feedbacks_status", null, CMS_TYPES),
-            new BoBa(MenuLinkType.class, "MenuLinkType", "ck_menu_items_link_type", null, CMS_TYPES),
+            new BoBa(
+                    MenuLinkType.class,
+                    "MenuLinkType",
+                    "ck_menu_items_link_type",
+                    null,
+                    List.of(CMS_TYPES, PUBLIC_API)),
             new BoBa(MenuPosition.class, "MenuPosition", "ck_menu_items_position", null, CMS_TYPES),
             new BoBa(BackupStatus.class, "BackupStatus", "ck_system_backups_status", "BACKUP_STATUS"),
             new BoBa(MaintenanceType.class, "MaintenanceType", "ck_maintenance_logs_work_type", "MAINTENANCE_TYPE"),
@@ -314,20 +365,24 @@ class EnumBaNoiTest {
 
         for (BoBa bo : BO_BA) {
             Set<String> java = giaTriJava(bo.enumJava());
-            Set<String> typescript =
-                    giaTriTypeScript(Files.readString(bo.tepTs(), StandardCharsets.UTF_8), bo.tenKieuTs());
             Set<String> csdl = giaTriCsdlMoiNoi(migration, bo.tenRangBuoc());
 
-            assertThat(typescript)
-                    .as(
-                            """
-                            `%s`: union TypeScript lệch enum Java.
-                              Java (nguồn sự thật): %s
-                              TypeScript          : %s
-                            Thừa ở TS = giao diện chào một giá trị backend KHÔNG GIẢI ĐƯỢC ⇒ 400 hỏng cả lượt lưu.
-                            Thiếu ở TS = một giá trị hợp lệ KHÔNG Ô NÀO tạo ra được.""",
-                            bo.tenKieuTs(), java, typescript)
-                    .isEqualTo(java);
+            // ⛔ So TỪNG tệp với Java, ⛔ hợp chúng lại: hợp của hai tệp có thể bằng Java trong khi
+            //   MỖI tệp đều thiếu một giá trị khác nhau — đúng ca bộ canh sinh ra để bắt (luật 9).
+            for (Path tep : bo.tepTs()) {
+                Set<String> typescript =
+                        giaTriTypeScript(Files.readString(tep, StandardCharsets.UTF_8), bo.tenKieuTs());
+                assertThat(typescript)
+                        .as(
+                                """
+                                `%s` trong %s: union TypeScript lệch enum Java.
+                                  Java (nguồn sự thật): %s
+                                  TypeScript          : %s
+                                Thừa ở TS = giao diện chào một giá trị backend KHÔNG GIẢI ĐƯỢC ⇒ 400 hỏng cả lượt lưu.
+                                Thiếu ở TS = một giá trị hợp lệ KHÔNG Ô NÀO tạo ra được.""",
+                                bo.tenKieuTs(), tep.getFileName(), java, typescript)
+                        .isEqualTo(java);
+            }
 
             assertThat(csdl)
                     .as(
@@ -352,7 +407,7 @@ class EnumBaNoiTest {
         assertThat(BO_BA)
                 .as("bảng đối chiếu rỗng thì bài trên không khẳng định gì")
                 .hasSize(41);
-        assertThat(BO_BA.stream().map(BoBa::tepTs).distinct().toList())
+        assertThat(BO_BA.stream().flatMap(bo -> bo.tepTs().stream()).distinct().toList())
                 .as("⭐ T51.10(a): phải có ÍT NHẤT hai tệp TS trong bảng. Thiếu vế này thì một lượt "
                         + "'dọn dẹp' gộp tất cả về api-types.ts sẽ làm bốn enum HR về rỗng — và bài "
                         + "trên đỏ vì lý do SAI (lệch enum) thay vì nói ra rằng nơi khai đã đổi")
@@ -366,9 +421,11 @@ class EnumBaNoiTest {
             assertThat(giaTriJava(bo.enumJava()))
                     .as("enum %s không có hằng nào", bo.tenKieuTs())
                     .isNotEmpty();
-            assertThat(giaTriTypeScript(Files.readString(bo.tepTs(), StandardCharsets.UTF_8), bo.tenKieuTs()))
-                    .as("không bóc được giá trị nào của `%s` từ %s — union đổi cách khai?", bo.tenKieuTs(), bo.tepTs())
-                    .isNotEmpty();
+            for (Path tep : bo.tepTs()) {
+                assertThat(giaTriTypeScript(Files.readString(tep, StandardCharsets.UTF_8), bo.tenKieuTs()))
+                        .as("không bóc được giá trị nào của `%s` từ %s — union đổi cách khai?", bo.tenKieuTs(), tep)
+                        .isNotEmpty();
+            }
             assertThat(giaTriCsdlMoiNoi(migration, bo.tenRangBuoc()))
                     .as(
                             "không bóc được giá trị nào của `%s` trong %d tệp migration — ràng buộc đổi tên, "
@@ -651,6 +708,62 @@ class EnumBaNoiTest {
                             + "Java — `MaintenanceLog.status` là `String` theo quy tắc 4 (trạng thái đổi "
                             + "qua Workflow engine). ⛔ có enum thì ⛔ có vế trái để đối chiếu"));
 
+    /**
+     * Một cặp <b>Java ↔ CHECK</b> — hai nơi, ⛔ phải ba (T85.11).
+     *
+     * @param quanHe {@code BANG} khi ràng buộc phải mang <b>đúng</b> bộ hằng của enum;
+     *     {@code TAP_CON} khi nó cố ý hẹp hơn, và khi ấy {@code lyDo} phải nói ra <b>vì sao</b>
+     * @param lyDo bắt buộc khi {@code quanHe == TAP_CON}; ⛔ thì để rỗng
+     */
+    private record JavaSql(Class<? extends Enum<?>> enumJava, String tenRangBuoc, QuanHe quanHe, String lyDo) {
+
+        JavaSql(Class<? extends Enum<?>> enumJava, String tenRangBuoc) {
+            this(enumJava, tenRangBuoc, QuanHe.BANG, "");
+        }
+    }
+
+    private enum QuanHe {
+        BANG,
+        TAP_CON
+    }
+
+    /**
+     * Mười cặp có enum Java <b>và</b> ràng buộc {@code CHECK} mà <b>⛔ có union TS</b> — T85.11.
+     *
+     * <p>⛔⛔ {@link #baNoiCungMotBoGiaTri} hỏi *"BA nơi có cùng một bộ giá trị ⛔"*, nên một ràng
+     * buộc thiếu vế TS rơi hẳn ra ngoài và được {@link #DUOC_MIEN} nhận. Nhưng **hai nơi thì vẫn lệch
+     * được**, và lệch ở đây ⛔ bị {@code tsc} lẫn trình biên dịch thấy — nó nổ thành <b>500 lúc
+     * GHI</b>, đúng câu mà thông điệp lỗi của chính bài kia đã viết sẵn. Câu *"Java ↔ SQL có khớp ⛔"*
+     * là một câu <b>KHÁC</b>, và trước 26/09/2026 ⛔ ai hỏi.
+     *
+     * <p>⚠ Phép so phải là <b>tập con hay bằng nhau TUỲ DÒNG</b>: vài ràng buộc là tập con <b>cố ý</b>
+     * của enum (tiền lệ ở nhóm khác: {@code ck_hydro_latest_quality} bỏ {@code XOA},
+     * {@code ck_bcn_vi_tri_loai} chỉ nhận 2/5 loại công trình). Ép bằng nhau tất là dựng một bài kiểm
+     * <b>đỏ vĩnh viễn cho thiết kế đúng</b> — đúng cái bẫy mà lý do miễn trừ của
+     * {@code CONSTRUCTION_STATUS} đã mắc theo chiều ngược lại.
+     *
+     * <p>⭐ Quan hệ của cả mười dòng dưới đây <b>⛔ do tôi đoán</b>: chúng khai {@code BANG} rồi để lượt
+     * chạy phán xử, đúng bài học T52.7 (bốn lượt phép đo bằng bộ đọc nguồn đều hỏng — chỉ
+     * {@code getEnumConstants()} nói đúng). Lượt chạy 26/09 trả lời: <b>cả mười đều BẰNG</b> ⇒ hôm
+     * nay ⛔ cặp nào đang lệch, và thứ thiếu suốt thời gian qua là <b>cơ chế</b> chứ ⛔ một bản vá.
+     */
+    private static final List<JavaSql> JAVA_SQL = List.of(
+            new JavaSql(AttachmentStatus.class, "ck_attachments_status"),
+            new JavaSql(ScanStatus.class, "ck_attachments_scan_status"),
+            new JavaSql(AuditAction.class, "ck_audit_logs_action"),
+            new JavaSql(NotificationSeverity.class, "ck_notifications_severity"),
+            new JavaSql(NotificationChannel.class, "ck_notification_recipients_channel"),
+            new JavaSql(RecipientStatus.class, "ck_notification_recipients_status"),
+            new JavaSql(OrgUnitType.class, "ck_org_units_unit_type"),
+            new JavaSql(AcceptanceResult.class, "ck_maintenance_logs_acceptance"),
+            // ⭐⭐ HAI dòng dưới đây ⛔ có trong dòng nợ — `moiRangBuocCoEnumJavaDeuDuocXepLoai` lôi
+            //    chúng ra ở **lượt chạy ĐẦU**. Con số "8 cặp" của `T85.11` là đếm THIẾU: đo ra **10**.
+            //    ⚠ `SecurityEvent.severity` là `String` đặt từ `type.severity().name()`, nên enum đúng
+            //    là `SecurityEventType.Severity` — ⛔ phải `NotificationSeverity`, dù hai cái mang bộ
+            //    hằng TRÙNG KHÍT. Chính chỗ này bắt bản đầu của bộ canh gọi nhầm tên.
+            new JavaSql(SecurityEventType.Severity.class, "ck_security_events_severity"),
+            new JavaSql(SessionRevokeReason.class, "ck_sessions_revoked_reason"));
+
     @Test
     @DisplayName("⭐⭐ T52.7: mọi ràng buộc CHECK…IN có tên ĐỀU phải được xếp loại — vế trái ĐO từ đĩa")
     void moiRangBuocDeuDuocXepLoai() throws IOException {
@@ -698,7 +811,7 @@ class EnumBaNoiTest {
         // thì phải có mặt"* — chỉ khi có nơi thứ hai thì mới có chỗ để lệch. Vị từ ấy nay do phép ĐO
         // phán xử, ⛔ do người viết dòng miễn trừ tự nhận.
         List<Path> migration = moiMigration();
-        java.util.Map<String, Set<String>> union = moiUnionTs();
+        java.util.Map<String, java.util.Map<Path, Set<String>>> union = moiUnionTs();
 
         assertThat(union)
                 .as("⛔ ⛔ quét được union TypeScript nào dưới frontend/ — đổi cách khai `export type`? "
@@ -707,8 +820,11 @@ class EnumBaNoiTest {
 
         for (var muc : DUOC_MIEN.entrySet()) {
             Set<String> csdl = giaTriCsdlMoiNoi(migration, muc.getKey());
+            // ⛔ Hỏi MỌI nơi khai, ⛔ chỉ nơi đầu: một kiểu khai hai tệp mà chỉ tệp THỨ HAI khớp tập
+            //   giá trị của ràng buộc thì bản cũ (`putIfAbsent`) cấp phép xin miễn trong im lặng.
             List<String> khop = union.entrySet().stream()
-                    .filter(u -> u.getValue().equals(csdl) && !csdl.isEmpty())
+                    .filter(u ->
+                            !csdl.isEmpty() && u.getValue().values().stream().anyMatch(gt -> gt.equals(csdl)))
                     .map(java.util.Map.Entry::getKey)
                     .sorted()
                     .toList();
@@ -722,6 +838,197 @@ class EnumBaNoiTest {
                             muc.getKey(), muc.getValue(), khop)
                     .isEmpty();
         }
+    }
+
+    /**
+     * Bánh cóc của T85.12 — thay cho một con số chép vào chú thích.
+     *
+     * <p>⛔⛔ Khe mù đã ĐO ĐƯỢC ngày 26/09: bảng ghim <b>một</b> tệp TS cho mỗi dòng, nên khi một kiểu
+     * được khai ở hai ứng dụng thì bản thứ hai <b>⛔ ai đối chiếu</b>. Chứng minh: bỏ
+     * {@code 'EXTERNAL_DOC'} khỏi union {@code MenuLinkType} của {@code public-web/src/lib/api.ts}
+     * rồi chạy bộ canh bản cũ ⇒ <b>12 bài, 0 đỏ, thoát 0</b>. Cái xanh ấy là bằng chứng.
+     *
+     * <p>⭐ Vá xong thì việc còn lại ⛔ phải ghi *"MenuLinkType là kiểu duy nhất khai nhiều nơi"* vào
+     * một chú thích — một câu như thế hết hạn trong im lặng, đúng thứ đã lây sang ba agent cùng lúc
+     * ngày 10/09 (T51.0). Bài này <b>ĐO</b> vế trái từ đĩa mỗi lượt: kiểu nào khai ở nhiều tệp mà
+     * bảng liệt thiếu tệp thì đỏ, và đỏ kèm tên tệp bị bỏ quên. Cùng khuôn T63.7 · T49.1 · T52.7.
+     */
+    @Test
+    @DisplayName("⛔⛔ T85.12: kiểu khai ở NHIỀU tệp TS thì bảng phải liệt ĐỦ — vế trái ĐO từ đĩa")
+    void moiKieuKhaiNhieuNoiDeuDuTrongBang() throws IOException {
+        java.util.Map<String, java.util.Map<Path, Set<String>>> union = moiUnionTs();
+
+        List<String> nhieuNoi = union.entrySet().stream()
+                .filter(u -> u.getValue().size() > 1)
+                .map(java.util.Map.Entry::getKey)
+                .sorted()
+                .toList();
+
+        // Mỏ neo chống tập rỗng (luật 7 · T52.5): ⛔ có vế này thì một lượt "dọn dẹp" gộp mọi union
+        // về một chỗ sẽ làm bài chạy qua TẬP RỖNG và xanh mà ⛔ khẳng định gì.
+        assertThat(nhieuNoi)
+                .as(
+                        """
+                        ⛔ ⛔ quét thấy kiểu nào khai ở nhiều hơn một tệp TS — mỏ neo `MenuLinkType` đâu?
+                        Nếu union ở `public-web/src/lib/api.ts` và `admin-app/src/features/cms/types.ts` đã
+                        được gộp về MỘT nơi thật thì đây là tin tốt: gỡ mỏ neo này và ghi lại vì sao.
+                        Còn nếu ⛔ thì bộ đọc union vừa mù đi, và cả bài dưới ⛔ khẳng định gì nữa.
+                        Đang thấy: %s""",
+                        nhieuNoi)
+                .contains("MenuLinkType");
+
+        for (BoBa bo : BO_BA) {
+            Set<Path> noiKhai = union.getOrDefault(bo.tenKieuTs(), java.util.Map.of()).keySet().stream()
+                    .map(p -> p.toAbsolutePath().normalize())
+                    .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
+            if (noiKhai.size() <= 1) {
+                continue;
+            }
+            List<Path> daLiet =
+                    bo.tepTs().stream().map(p -> p.toAbsolutePath().normalize()).toList();
+
+            assertThat(daLiet)
+                    .as(
+                            """
+                            ⛔ `%s` khai union ở %d tệp TS mà dòng `BO_BA` chỉ liệt %d.
+                            Tệp bị bỏ ngoài tầm quét lệch đi thì ứng dụng ấy dựng sai giá trị mà bộ canh vẫn XANH
+                            — cùng hình dạng luật 14, chỉ khác là nơi thứ hai nằm ở một ỨNG DỤNG khác (T85.12).
+                            Khai trên đĩa: %s
+                            Bảng đang liệt: %s""",
+                            bo.tenKieuTs(), noiKhai.size(), daLiet.size(), noiKhai, daLiet)
+                    .containsAll(noiKhai);
+        }
+    }
+
+    /**
+     * T85.11 — câu <b>Java ↔ CHECK</b>, câu mà {@link #baNoiCungMotBoGiaTri} ⛔ hỏi.
+     *
+     * <p>Lệch ở đây ⛔ bị {@code tsc} lẫn trình biên dịch thấy: một hằng enum ⛔ có trong {@code CHECK}
+     * đi qua mọi tầng rồi nổ thành <b>500 lúc GHI</b>; một giá trị {@code CHECK} ⛔ có trong enum thì
+     * đọc lên từ CSDL sẽ ném {@code IllegalArgumentException} ở tầng ánh xạ.
+     */
+    @Test
+    @DisplayName("⛔⛔ T85.11: enum Java ↔ ràng buộc CHECK — HAI nơi vẫn lệch được")
+    void javaVaCheckCungMotBoGiaTri() throws IOException {
+        List<Path> migration = moiMigration();
+
+        assertThat(JAVA_SQL)
+                .as("bảng rỗng thì bài này ⛔ khẳng định gì (luật 7)")
+                .hasSize(10);
+
+        for (JavaSql cap : JAVA_SQL) {
+            Set<String> java = giaTriJava(cap.enumJava());
+            Set<String> csdl = giaTriCsdlMoiNoi(migration, cap.tenRangBuoc());
+
+            // Tiền đề: ⛔ bóc được giá trị nào thì phép so dưới chạy qua tập rỗng và xanh vô nghĩa.
+            assertThat(csdl)
+                    .as("⛔ bóc được giá trị nào của `%s` — ràng buộc đổi tên hay đổi cách khai?", cap.tenRangBuoc())
+                    .isNotEmpty();
+
+            if (cap.quanHe() == QuanHe.BANG) {
+                assertThat(csdl)
+                        .as(
+                                """
+                                `%s` ↔ enum `%s`: CSDL và Java lệch nhau.
+                                  Java (nguồn sự thật): %s
+                                  CHECK               : %s
+                                Thiếu ở CHECK = một hằng enum hợp lệ bị CSDL từ chối ⇒ **500 lúc GHI**.
+                                Thừa ở CHECK = một giá trị đọc lên ⛔ ánh xạ được ⇒ ném ở tầng đọc.
+                                Nếu ràng buộc CỐ Ý hẹp hơn thì khai `QuanHe.TAP_CON` kèm lý do ĐO ĐƯỢC.""",
+                                cap.tenRangBuoc(), cap.enumJava().getSimpleName(), java, csdl)
+                        .isEqualTo(java);
+            } else {
+                assertThat(cap.lyDo())
+                        .as(
+                                "`%s` khai TAP_CON thì phải nói VÌ SAO — một dòng miễn trừ ⛔ lý do đọc y "
+                                        + "hệt một quyết định thiết kế (T51.0)",
+                                cap.tenRangBuoc())
+                        .hasSizeGreaterThanOrEqualTo(40);
+                assertThat(java)
+                        .as(
+                                "`%s` khai TAP_CON mà CHECK lại có giá trị enum ⛔ có: Java %s · CHECK %s",
+                                cap.tenRangBuoc(), java, csdl)
+                        .containsAll(csdl);
+                assertThat(csdl)
+                        .as(
+                                "`%s` khai TAP_CON nhưng hai bộ BẰNG nhau — dòng khai sai, đổi về BANG để "
+                                        + "phép so chặt lại",
+                                cap.tenRangBuoc())
+                        .isNotEqualTo(java);
+            }
+        }
+    }
+
+    /**
+     * Bánh cóc của T85.11 — bắt <b>cặp thứ chín</b> trước khi nó kịp vô hình.
+     *
+     * <p>⛔⛔ Một ràng buộc mới ra đời cùng một enum Java mới, ⛔ union TS, sẽ được
+     * {@link #coUnionTsThiKhongDuocMien} cho qua (đúng — nó chỉ hỏi vế TS) rồi nằm trong
+     * {@link #DUOC_MIEN} như một quyết định thiết kế. Vế trái phải do phép <b>ĐO</b> dựng, ⛔ do
+     * người viết dòng miễn trừ tự nhận — cùng khuôn T63.7 · T49.1 · T52.7.
+     *
+     * <p>⚠ <b>Phạm vi của chính bộ canh này, khai ra theo luật 28</b>: vị từ là <b>BẰNG ĐÚNG</b> tập
+     * hằng của một enum production. Một ràng buộc cố ý <b>hẹp hơn</b> enum của nó ⛔ bị bắt ở đây —
+     * chọn thế vì vị từ *"có enum nào là tập cha ⛔"* cho dương tính giả (hai bộ giá trị nhỏ trùng
+     * nhau do tình cờ), mà một bộ canh đỏ oan thì lượt sửa rẻ nhất là <b>tháo nó</b> (§11.17).
+     */
+    @Test
+    @DisplayName("⛔⛔ T85.11: ràng buộc được miễn mà CÓ enum Java trùng khít thì phải vào JAVA_SQL")
+    void moiRangBuocCoEnumJavaDeuDuocXepLoai() throws IOException {
+        List<Path> migration = moiMigration();
+
+        // ⛔⛔ Giá trị là một DANH SÁCH tên, ⛔ phải một tên. Bản đầu dùng `putIfAbsent` và bộ canh
+        //    **gọi nhầm enum** ngay lượt chạy đầu: `NotificationSeverity` và
+        //    `SecurityEventType.Severity` là HAI enum khác nhau mang bộ hằng trùng khít
+        //    (INFO/WARNING/DANGER/CRITICAL), nên nó báo `ck_security_events_severity` thuộc về cái
+        //    sắp trước — trong khi `SecurityEvent.severity` đặt từ `type.severity().name()`. Một bộ
+        //    canh chỉ đúng nửa câu chẩn đoán dẫn người sửa đi nhầm tệp (luật 37).
+        java.util.Map<Set<String>, java.util.List<String>> theoBoGiaTri = new java.util.LinkedHashMap<>();
+        for (var lop : ProductionClasses.ALL) {
+            if (!lop.isEnum()) {
+                continue;
+            }
+            @SuppressWarnings("unchecked")
+            Class<? extends Enum<?>> loai = (Class<? extends Enum<?>>) lop.reflect();
+            Set<String> hang = giaTriJava(loai);
+            if (hang.size() >= 2) {
+                theoBoGiaTri
+                        .computeIfAbsent(hang, k -> new java.util.ArrayList<>())
+                        .add(loai.getSimpleName());
+            }
+        }
+
+        assertThat(theoBoGiaTri)
+                .as("⛔ quét được enum production nào — `ProductionClasses.ALL` rỗng thì bài này xanh "
+                        + "với MỌI dòng miễn trừ (luật 7 · ImportedScopeTest)")
+                .hasSizeGreaterThanOrEqualTo(30);
+
+        Set<String> daXep =
+                JAVA_SQL.stream().map(JavaSql::tenRangBuoc).collect(Collectors.toCollection(java.util.TreeSet::new));
+
+        var thieu = new java.util.TreeMap<String, java.util.List<String>>();
+        for (String tenRangBuoc : DUOC_MIEN.keySet()) {
+            if (daXep.contains(tenRangBuoc)) {
+                continue;
+            }
+            Set<String> csdl = giaTriCsdlMoiNoi(migration, tenRangBuoc);
+            var ungVien = csdl.isEmpty() ? null : theoBoGiaTri.get(csdl);
+            if (ungVien != null) {
+                thieu.put(tenRangBuoc, ungVien);
+            }
+        }
+
+        assertThat(thieu)
+                .as(
+                        """
+                        ⛔ %d ràng buộc đang xin miễn mà CÓ enum Java khai ĐÚNG bộ giá trị của nó.
+                        Miễn được là vì ⛔ union TS — nhưng HAI nơi thì vẫn lệch được, và lệch ở đó nổ thành
+                        500 lúc GHI (T85.11). Chúng phải vào `JAVA_SQL`, ⛔ nằm sau một dòng miễn trừ.
+                        ⚠ Nhiều ứng viên = nhiều enum trùng bộ hằng; ĐỌC mã để chọn đúng cái cột ấy thật sự
+                        đặt từ đó, ⛔ lấy cái đầu danh sách.
+                        (ràng buộc → ứng viên): %s""",
+                        thieu.size(), thieu)
+                .isEmpty();
     }
 
     @Test
@@ -902,16 +1209,27 @@ class EnumBaNoiTest {
     }
 
     /**
-     * Mọi union giá trị {@code export type X = 'A' | 'B';} trong <b>cả cây</b> {@code frontend/}.
+     * Mọi union giá trị {@code export type X = 'A' | 'B';} trong <b>cả cây</b> {@code frontend/},
+     * giữ <b>TỪNG</b> nơi khai: tên kiểu → (tệp → tập giá trị của tệp ấy).
      *
      * <p>⛔⛔ Quét cả cây chứ ⛔ hai tệp: T51.10(a) đã đo được rằng union ⛔ bắt buộc sống ở
      * {@code api-types.ts} — bốn enum HR khai cạnh nhãn của chúng, và đo 23/09 thì
      * {@code MenuLinkType} còn khai ở <b>hai</b> nơi ({@code admin-app/features/cms/types.ts} và
      * {@code public-web/src/lib/api.ts}). Một bộ dò một-tệp sẽ kết luận *"⛔ có nơi thứ hai"* cho
      * đúng những enum có tới ba.
+     *
+     * <p>⛔⛔ Vì sao giá trị là một <b>map theo tệp</b> chứ ⛔ một tập (T85.12, 26/09): bản cũ gộp
+     * bằng {@code putIfAbsent} nên với một kiểu khai hai nơi thì <b>tệp ĐẦU theo thứ tự tên thắng</b>
+     * và bản kia biến mất. Đó là <b>đúng khe mù mà T85.12 mở ra để đóng</b>, chỉ nằm cao hơn một
+     * tầng: {@code coUnionTsThiKhongDuocMien} hỏi *"có union nào khai ĐÚNG tập giá trị của ràng buộc
+     * ⛔"*, nên một ràng buộc khớp với nơi khai <b>thứ hai</b> sẽ được cấp phép xin miễn trong im
+     * lặng. Vá một vế mà để vế kia là để cái xanh của tệp này đọc như bảo đảm cho cả hai (luật 28).
+     *
+     * <p>⚠ Hôm nay ⛔ có nạn nhân — {@code MenuLinkType} là kiểu duy nhất khai nhiều nơi và hai bản
+     * trùng khít. Vá một lỗ chưa gây hại vẫn là việc đúng (tiền lệ T49.6).
      */
-    private static java.util.Map<String, Set<String>> moiUnionTs() throws IOException {
-        java.util.Map<String, Set<String>> ket = new java.util.LinkedHashMap<>();
+    private static java.util.Map<String, java.util.Map<Path, Set<String>>> moiUnionTs() throws IOException {
+        java.util.Map<String, java.util.Map<Path, Set<String>>> ket = new java.util.LinkedHashMap<>();
         try (var duyet = Files.walk(gocKho().resolve("frontend"))) {
             List<Path> tep = duyet.filter(p -> !p.toString().contains("/node_modules/"))
                     .filter(p -> !p.toString().contains("/dist/"))
@@ -922,7 +1240,9 @@ class EnumBaNoiTest {
                     .sorted()
                     .toList();
             for (Path p : tep) {
-                unionTrong(Files.readString(p, StandardCharsets.UTF_8)).forEach(ket::putIfAbsent);
+                unionTrong(Files.readString(p, StandardCharsets.UTF_8))
+                        .forEach((ten, giaTri) -> ket.computeIfAbsent(ten, k -> new java.util.LinkedHashMap<>())
+                                .put(p, giaTri));
             }
         }
         return ket;
